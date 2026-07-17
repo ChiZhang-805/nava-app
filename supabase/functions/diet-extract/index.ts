@@ -20,11 +20,11 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return errorResponse("仅支持 POST。", 405);
 
   try {
-    const { adminClient } = await requireUser(req);
+    const { userClient, adminClient } = await requireUser(req);
     const body = await readJson(req);
     const lang = stringValue(body.lang) ?? "zh";
     const imagePath = stringValue(body.imagePath);
-    const imageUrl = stringValue(body.imageUrl) ?? await signedImageUrl(adminClient, imagePath);
+    const imageUrl = stringValue(body.imageUrl) ?? await signedImageUrl(adminClient ?? userClient, imagePath);
     const providerResult = await callProvider({ imageUrl, imagePath, lang, meal: stringValue(body.meal) });
     return jsonResponse(providerResult);
   } catch (error) {

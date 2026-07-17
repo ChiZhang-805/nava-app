@@ -33,9 +33,9 @@
 | 25 | Facial Action Coding / 表情特征 | 疲劳、压力、情绪表情线索 | 只能做状态提示，不能做医疗判断 |
 | 26 | 多模态融合评分 | 睡眠、活动、饮食、情绪、面部状态融合 | NAVA 自研算法主线 |
 
-## 建议构建的 NAVA 自研算法
+## NAVA 自研算法设计
 
-### v1：可解释节律分
+### v1：可解释节律分（已完成）
 
 目标：先稳定上线，输出用户能理解的分数、原因、建议。
 
@@ -54,28 +54,43 @@
 3. 输出 `score`、`confidence`、`signals`、`reasons`、`actions`。
 4. 写入 `daily_rhythm_scores`。
 
-当前 `rhythm-score` Edge Function 已实现 v1 baseline。
+`rhythm-score` Edge Function 已实现 v1 baseline，并已升级到 v2。
 
-### v2：个人基线 + 经典节律特征
+### v2：个人基线 + 经典节律特征（已接入后端）
 
-目标：让算法从“通用建议”变成“理解这个用户平常什么样”。
+目标：让算法从“通用建议”变成“理解这个用户平常什么样”。当前后端实现文件：
 
-新增：
+```text
+supabase/functions/_shared/rhythm.ts
+supabase/functions/rhythm-score/index.ts
+```
+
+已实现：
 
 - 14/28 天个人基线。
-- EWMA 最近趋势。
-- Cosinor 相位/振幅。
-- IS / IV / RA / M10 / L5。
-- HRV RMSSD / SDNN。
-- Isolation Forest 异常检测。
-- DTW 今日作息相似度。
-- Bayesian missing-data confidence。
+- 动态权重多模态融合：睡眠、活动、情绪、饮食、专注、恢复。
+- 睡眠相位偏移：用睡眠 midpoint 对比个人基线。
+- 规律性分数：吸收 non-parametric circadian analysis 的 IS 思路，使用睡眠相位稳定性和活动变异代理指标。
+- 碎片化风险：吸收 IV/fragmentation 思路，结合深睡/REM 比例、活动缺口和相位偏移。
+- 恢复分：结合睡眠、HRV SDNN、静息心率/最新心率。
+- 异常检测：用个人基线 z-score/阈值代理实现轻量 Isolation Forest 思路，输出 anomaly flags。
+- 缺失数据置信度：用信号覆盖率、历史天数、信号深度计算 confidence。
+- 个性化建议：从异常旗标、相位偏移、恢复分和缺失信号生成 actions。
 
 输出变化：
 
 - `score` 仍保留。
-- 增加 `phaseShift`、`regularity`、`fragmentation`、`anomalyFlags`。
+- 增加 `phaseShiftMinutes`、`regularityScore`、`fragmentationScore`、`recoveryScore`、`anomalyFlags`、`profileLabels`、`features`、`baseline`。
 - 建议从“补记录/轻步行”升级为“你比自己平常晚睡 74 分钟，建议今晚提前 30 分钟进入睡眠准备”。
+
+数据库保存位置：
+
+```text
+daily_rhythm_scores
+health_metric_snapshots
+```
+
+v2 有意没有直接声称实现完整 Cosinor/NPCRA/DTW，因为当前 Apple Health 摘要数据还不是分钟级 actigraphy。我们先实现“代理特征 + 可解释输出”，等拿到连续分钟级活动、睡眠阶段、HRV 序列后再升级为严格版本。
 
 ### v3：个性化推荐模型
 

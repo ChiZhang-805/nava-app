@@ -1,4 +1,4 @@
-import { assertNoError, errorResponse, jsonResponse, optionsResponse, readJson, requireUser } from "../_shared/http.ts";
+import { errorResponse, jsonResponse, optionsResponse, readJson, requireUser } from "../_shared/http.ts";
 
 const tableContracts = [
   { name: "profiles", column: "id" },
@@ -13,6 +13,7 @@ const tableContracts = [
   { name: "face_records", column: "user_id" },
   { name: "device_connections", column: "user_id" },
   { name: "health_sync_jobs", column: "user_id" },
+  { name: "health_metric_snapshots", column: "user_id" },
   { name: "watch_snapshots", column: "user_id" },
   { name: "daily_rhythm_scores", column: "user_id" },
 ];
@@ -32,8 +33,14 @@ Deno.serve(async (req) => {
 
     for (const table of tableContracts) {
       const { data, error } = await userClient.from(table.name).select("*").eq(table.column, user.id);
-      assertNoError(error);
-      result[table.name] = data ?? [];
+      if (error) {
+        const errors = (result.errors ?? {}) as Record<string, string>;
+        errors[table.name] = error.message;
+        result.errors = errors;
+        result[table.name] = [];
+      } else {
+        result[table.name] = data ?? [];
+      }
     }
 
     return jsonResponse(result);

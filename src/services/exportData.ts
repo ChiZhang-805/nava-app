@@ -29,6 +29,7 @@ export async function exportUserData(userId: string) {
     "face_records",
     "device_connections",
     "health_sync_jobs",
+    "health_metric_snapshots",
     "watch_snapshots",
     "daily_rhythm_scores",
   ];

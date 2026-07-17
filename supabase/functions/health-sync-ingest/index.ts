@@ -17,6 +17,8 @@ type HealthSummary = {
   activeEnergyKcal?: number;
   exerciseMinutes?: number;
   latestHeartRate?: number | string;
+  restingHeartRate?: number | string;
+  heartRateVariabilitySDNN?: number | string;
   latestBloodOxygen?: number | string;
   sleepMinutes?: number;
   source?: string;
@@ -49,6 +51,11 @@ Deno.serve(async (req) => {
     jobId = job.data.id;
 
     let uploaded = 0;
+    if (hasHealthMetrics(summary)) {
+      await upsertHealthMetricSnapshot(userClient, user.id, date, summary);
+      uploaded += 1;
+    }
+
     if (summary.steps || summary.activeEnergyKcal || summary.exerciseMinutes || summary.latestHeartRate || summary.latestBloodOxygen) {
       await upsertExercise(userClient, user.id, date, summary);
       uploaded += 1;
@@ -96,10 +103,46 @@ function normalizeSummary(input: Record<string, unknown>): HealthSummary {
     activeEnergyKcal: numberValue(input.activeEnergyKcal) ?? numberValue(input.active_energy_kcal),
     exerciseMinutes: numberValue(input.exerciseMinutes) ?? numberValue(input.exercise_minutes),
     latestHeartRate: numberValue(input.latestHeartRate) ?? stringValue(input.latestHeartRate),
+    restingHeartRate: numberValue(input.restingHeartRate) ?? numberValue(input.resting_heart_rate) ?? stringValue(input.restingHeartRate),
+    heartRateVariabilitySDNN:
+      numberValue(input.heartRateVariabilitySDNN) ??
+      numberValue(input.heart_rate_variability_sdnn) ??
+      numberValue(input.hrvSdnn) ??
+      stringValue(input.heartRateVariabilitySDNN),
     latestBloodOxygen: numberValue(input.latestBloodOxygen) ?? stringValue(input.latestBloodOxygen),
     sleepMinutes: numberValue(input.sleepMinutes) ?? numberValue(input.sleep_minutes),
     source: stringValue(input.source),
   };
+}
+
+function hasHealthMetrics(summary: HealthSummary) {
+  return Boolean(
+    summary.latestHeartRate ||
+      summary.restingHeartRate ||
+      summary.heartRateVariabilitySDNN ||
+      summary.latestBloodOxygen ||
+      summary.steps ||
+      summary.activeEnergyKcal ||
+      summary.exerciseMinutes ||
+      summary.sleepMinutes,
+  );
+}
+
+async function upsertHealthMetricSnapshot(client: SupabaseClient, userId: string, date: string, summary: HealthSummary) {
+  const { error } = await client.from("health_metric_snapshots").upsert(
+    {
+      user_id: userId,
+      record_date: date,
+      latest_heart_rate: numericOrNull(summary.latestHeartRate),
+      resting_heart_rate: numericOrNull(summary.restingHeartRate),
+      heart_rate_variability_sdnn: numericOrNull(summary.heartRateVariabilitySDNN),
+      blood_oxygen: numericOrNull(normalizeSpo2(summary.latestBloodOxygen)),
+      raw_payload: summary,
+      source: summary.source ?? "apple_health",
+    },
+    { onConflict: "user_id,record_date,source" },
+  );
+  assertNoError(error);
 }
 
 async function upsertExercise(client: SupabaseClient, userId: string, date: string, summary: HealthSummary) {
@@ -148,4 +191,10 @@ function normalizeHeartRate(value: number | string | undefined) {
   if (Number.isFinite(numeric)) return String(Math.round(numeric));
   const text = String(value).trim();
   return text || null;
+}
+
+function numericOrNull(value: number | string | null | undefined) {
+  if (value == null) return null;
+  const numeric = Number(String(value).replace("%", "").trim());
+  return Number.isFinite(numeric) ? numeric : null;
 }

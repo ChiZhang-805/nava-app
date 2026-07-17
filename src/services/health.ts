@@ -8,6 +8,8 @@ export interface HealthTodayNativeSummary {
   activeEnergyKcal?: number;
   exerciseMinutes?: number;
   latestHeartRate?: number;
+  restingHeartRate?: number;
+  heartRateVariabilitySDNN?: number;
   latestBloodOxygen?: number;
   sleepMinutes?: number;
 }
@@ -34,7 +36,18 @@ export async function requestHealthAuthorization() {
 }
 
 export async function getNativeTodaySummary() {
-  if (isDemoMode()) return { steps: 8420, activeEnergyKcal: 486, exerciseMinutes: 42, latestHeartRate: 88, latestBloodOxygen: 0.98, sleepMinutes: 465 };
+  if (isDemoMode()) {
+    return {
+      steps: 8420,
+      activeEnergyKcal: 486,
+      exerciseMinutes: 42,
+      latestHeartRate: 88,
+      restingHeartRate: 62,
+      heartRateVariabilitySDNN: 48,
+      latestBloodOxygen: 0.98,
+      sleepMinutes: 465,
+    };
+  }
 
   if (!isNativeHealthAvailable()) return null;
   return NavaHealth.getTodaySummary();

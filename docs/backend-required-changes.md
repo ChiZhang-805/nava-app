@@ -46,9 +46,10 @@ App Edge Functions 的新增迁移为：
 
 ```text
 supabase/migrations/202607170002_app_edge_backend.sql
+supabase/migrations/202607180001_nava_rhythm_v2.sql
 ```
 
-它包含 `daily_rhythm_scores`、`watch_snapshots`、`diet-photos`、`face-photos` 和 Storage RLS。
+它包含 `daily_rhythm_scores`、`watch_snapshots`、`health_metric_snapshots`、`diet-photos`、`face-photos` 和 Storage RLS。
 
 ### 1. exercise_records 唯一约束
 

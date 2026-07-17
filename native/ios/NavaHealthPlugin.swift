@@ -20,6 +20,8 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             HKObjectType.quantityType(forIdentifier: .activeEnergyBurned),
             HKObjectType.quantityType(forIdentifier: .appleExerciseTime),
             HKObjectType.quantityType(forIdentifier: .heartRate),
+            HKObjectType.quantityType(forIdentifier: .restingHeartRate),
+            HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN),
             HKObjectType.quantityType(forIdentifier: .oxygenSaturation),
             HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
         ].compactMap { $0 }.forEach { types.insert($0) }
@@ -77,6 +79,22 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             group.enter()
             queryLatest(type: heartType, unit: HKUnit.count().unitDivided(by: .minute())) { value in
                 result["latestHeartRate"] = value
+                group.leave()
+            }
+        }
+
+        if let restingHeartType = HKObjectType.quantityType(forIdentifier: .restingHeartRate) {
+            group.enter()
+            queryLatest(type: restingHeartType, unit: HKUnit.count().unitDivided(by: .minute())) { value in
+                result["restingHeartRate"] = value
+                group.leave()
+            }
+        }
+
+        if let hrvType = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN) {
+            group.enter()
+            queryLatest(type: hrvType, unit: HKUnit.secondUnit(with: .milli)) { value in
+                result["heartRateVariabilitySDNN"] = value
                 group.leave()
             }
         }

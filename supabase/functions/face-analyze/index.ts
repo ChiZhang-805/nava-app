@@ -12,10 +12,10 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return errorResponse("仅支持 POST。", 405);
 
   try {
-    const { adminClient } = await requireUser(req);
+    const { userClient, adminClient } = await requireUser(req);
     const body = await readJson(req);
     const imagePath = stringValue(body.imagePath);
-    const imageUrl = stringValue(body.imageUrl) ?? await signedImageUrl(adminClient, imagePath);
+    const imageUrl = stringValue(body.imageUrl) ?? await signedImageUrl(adminClient ?? userClient, imagePath);
     const image = stringValue(body.image);
     const result = await callProvider({
       image,
@@ -61,8 +61,8 @@ async function callProvider(input: {
         ? "Baseline analysis is enabled. Connect the formal face model before using this as a medical or skincare conclusion."
         : "当前为基础分析结果。正式面部模型接入前，请只把它作为状态记录和提醒，不作为医疗或护肤诊断。",
       annotations: [
-        { id: "eye", label: input.lang === "en" ? "Eye area" : "眼周", desc: input.lang === "en" ? "Needs model confirmation" : "等待模型确认", dot_x: 50, dot_y: 35 },
-        { id: "skin", label: input.lang === "en" ? "Skin tone" : "肤色", desc: input.lang === "en" ? "Needs model confirmation" : "等待模型确认", dot_x: 45, dot_y: 58 },
+        { id: "eye", label: input.lang === "en" ? "Eye area" : "眼周", desc: input.lang === "en" ? "Low-confidence baseline" : "低置信度基础判断", dot_x: 50, dot_y: 35 },
+        { id: "skin", label: input.lang === "en" ? "Skin tone" : "肤色", desc: input.lang === "en" ? "Low-confidence baseline" : "低置信度基础判断", dot_x: 45, dot_y: 58 },
       ],
       confidence: 0.25,
     },
