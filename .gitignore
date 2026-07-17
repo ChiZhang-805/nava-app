@@ -1,0 +1,15 @@
+node_modules
+dist
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+capacitor.config.js
+capacitor.config.d.ts
+.env
+.env.local
+.env.*.local
+.DS_Store
+ios/App/App/public
+ios/App/App.xcworkspace/xcuserdata
+ios/App/Pods
+*.xcuserstate
