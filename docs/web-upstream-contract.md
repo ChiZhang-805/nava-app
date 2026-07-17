@@ -2,6 +2,15 @@
 
 App 团队跟随 `Tj-jiaoao/style-muse-next`，但不直接复制桌面页面。
 
+## 远端设置
+
+```bash
+git remote add web-upstream https://github.com/Tj-jiaoao/style-muse-next.git
+git remote set-url --push web-upstream DISABLED
+```
+
+`web-upstream` 只用于 fetch 和 diff，不允许 App 仓库误推送到 Web 仓库。
+
 ## App 必须跟进的变化
 
 - `supabase/migrations` 新增或修改。
@@ -33,4 +42,3 @@ App 团队跟随 `Tj-jiaoao/style-muse-next`，但不直接复制桌面页面。
 - 数据库密码。
 - DeepSeek / Gemini / Lovable Gateway secret。
 - 阿里云短信 secret。
-

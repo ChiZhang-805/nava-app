@@ -8,8 +8,11 @@
 - 今日页读取同源 Web 数据。
 - 情绪、睡眠、运动、饮食、专注写入。
 - AI 聊天调用同源 Edge Functions。
+- AI 抽取 sleep / exercise / profile 后自动落表。
+- 手机号 / 邮箱验证码登录注册。
+- 资料编辑并写入 `profiles`。
 - HealthKit JS 桥接和 Swift 插件文件。
-- WatchConnectivity 管理器文件。
+- iPhone 侧 WatchConnectivity 插件和 Watch 侧管理器文件。
 - Web 上游同步脚本。
 - 构建和 lint 通过。
 
@@ -115,4 +118,3 @@
 5. 数据导出。
 6. Storage 私有化。
 7. App Store 权限说明。
-

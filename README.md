@@ -9,7 +9,8 @@ NAVA App 是 `Tj-jiaoao/style-muse-next` 的移动端工程，目标是服务 Ap
 - 今日页读取 Web 同源数据。
 - 情绪、睡眠、运动、饮食、专注记录写入。
 - AI 聊天调用同源 Edge Functions。
-- HealthKit 与 Apple Watch 架构接口占位。
+- HealthKit JS 桥接与 iOS Swift 插件模板。
+- Apple Watch 快照发布与 WatchConnectivity 插件模板。
 - Web 上游同步脚本。
 
 ## 本地运行
@@ -38,3 +39,16 @@ npx cap open ios
 
 Apple Watch target 需要在 Xcode 中创建 watchOS App，并按 `docs/watch-architecture.md` 接入 WatchConnectivity。
 
+## 验证
+
+```bash
+npm run verify
+```
+
+该命令会执行构建、lint 和 npm audit。
+
+## 已知边界
+
+- Windows 本机不能完成 iOS/Watch 真机编译，HealthKit 和 WatchConnectivity 需要在 Mac + Xcode 中接入 target 后验证。
+- App 端只保存 Supabase anon key，不允许保存 service role key 或模型服务密钥。
+- 饮食照片和面部照片上线前必须改为私有 Storage 策略。

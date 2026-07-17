@@ -2,6 +2,17 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "../services/supabaseClient";
 import { AuthContext } from "./authContext";
+import {
+  ensureProfile,
+  resetPassword,
+  signInWithPassword,
+  signUpWithPassword,
+  verifyEmailOtp,
+  verifySmsOtp,
+  sendEmailOtp,
+  sendSmsOtp,
+  updateCurrentPassword,
+} from "../services/auth";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -15,11 +26,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!alive) return;
       setUser(data.session?.user ?? null);
       setLoading(false);
+      if (data.session?.user) {
+        ensureProfile(data.session.user.id, data.session.user.email).catch(() => undefined);
+      }
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session?.user) {
+        ensureProfile(session.user.id, session.user.email).catch(() => undefined);
+      }
     });
 
     return () => {
@@ -30,18 +47,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     setError(null);
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-    if (authError) {
-      setError(authError.message);
+    try {
+      await signInWithPassword(email, password);
+    } catch (authError) {
+      const message = authError instanceof Error ? authError.message : String(authError);
+      setError(message);
       throw authError;
     }
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
     setError(null);
-    const { error: authError } = await supabase.auth.signUp({ email, password });
-    if (authError) {
-      setError(authError.message);
+    try {
+      await signUpWithPassword(email, password);
+    } catch (authError) {
+      const message = authError instanceof Error ? authError.message : String(authError);
+      setError(message);
       throw authError;
     }
   }, []);
@@ -64,6 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signOut,
       clearError: () => setError(null),
+      sendEmailOtp,
+      verifyEmailOtp,
+      sendSmsOtp,
+      verifySmsOtp,
+      resetPassword,
+      updateCurrentPassword,
     }),
     [error, loading, signIn, signOut, signUp, user],
   );

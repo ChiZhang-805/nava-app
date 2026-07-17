@@ -12,6 +12,7 @@ export default function AIScreen({ user }: { user: User }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [applyNotice, setApplyNotice] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
   const refresh = useCallback(async () => {
@@ -33,6 +34,7 @@ export default function AIScreen({ user }: { user: User }) {
     setInput("");
     setSending(true);
     setError(null);
+    setApplyNotice(null);
     try {
       const result = await sendAiMessage({
         userId: user.id,
@@ -41,6 +43,11 @@ export default function AIScreen({ user }: { user: User }) {
         lang: "zh",
       });
       setMessages((current) => [...current, result.userMessage, result.assistantMessage]);
+      if (result.applied?.saved) {
+        setApplyNotice(`已自动保存 ${result.applied.type} 数据。`);
+      } else if (result.applied && !result.applied.saved) {
+        setApplyNotice(`AI 识别到 ${result.applied.type} 数据，但还需要手动确认。`);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setInput(message);
@@ -84,6 +91,7 @@ export default function AIScreen({ user }: { user: User }) {
       </div>
 
       {error && <p className="error-text">{error}</p>}
+      {applyNotice && <p className="success-text">{applyNotice}</p>}
 
       <form className="chat-composer" onSubmit={submit}>
         <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="告诉 NAVA 你的状态" />

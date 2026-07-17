@@ -400,6 +400,10 @@ button {
   margin-bottom: 16px;
 }
 
+.segmented.compact {
+  margin-top: -6px;
+}
+
 .segmented button {
   min-height: 38px;
   border: 0;
@@ -413,6 +417,15 @@ button {
   color: #173528;
   background: #ffffff;
   box-shadow: 0 6px 18px rgba(32, 54, 43, 0.08);
+}
+
+.text-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #326c55;
+  font-weight: 720;
+  padding: 12px 0 4px;
 }
 
 .field {
@@ -671,4 +684,3 @@ textarea {
     min-height: 100vh;
   }
 }
-

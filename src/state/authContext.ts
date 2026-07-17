@@ -9,6 +9,12 @@ export interface AuthContextValue {
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   clearError: () => void;
+  sendEmailOtp: (email: string) => Promise<void>;
+  verifyEmailOtp: (email: string, token: string) => Promise<void>;
+  sendSmsOtp: (phone: string) => Promise<void>;
+  verifySmsOtp: (phone: string, code: string, mode: "login" | "register", password?: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updateCurrentPassword: (password: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -18,4 +24,3 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
   return ctx;
 }
-

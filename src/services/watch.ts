@@ -1,3 +1,4 @@
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import type { WatchUserSnapshot } from "../types";
 
 export type WatchAction =
@@ -10,8 +11,22 @@ export type WatchAck =
   | { ok: true; actionId: string; syncedAt: string }
   | { ok: false; actionId: string; errorCode: string; message: string };
 
+interface NavaWatchBridgePlugin {
+  publishSnapshot: (options: { snapshot: WatchUserSnapshot }) => Promise<{ ok: boolean }>;
+  isReachable: () => Promise<{ reachable: boolean; paired: boolean }>;
+}
+
+const NavaWatchBridge = registerPlugin<NavaWatchBridgePlugin>("NavaWatchBridge");
+
 export async function publishWatchSnapshot(snapshot: WatchUserSnapshot) {
   localStorage.setItem("nava.watch.snapshot", JSON.stringify(snapshot));
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await NavaWatchBridge.publishSnapshot({ snapshot });
+    } catch {
+      // Local snapshot remains available for the app even if no Watch is paired.
+    }
+  }
   return snapshot;
 }
 
@@ -25,3 +40,11 @@ export async function readLastWatchSnapshot(): Promise<WatchUserSnapshot | null>
   }
 }
 
+export async function getWatchReachability() {
+  if (!Capacitor.isNativePlatform()) return { paired: false, reachable: false };
+  try {
+    return await NavaWatchBridge.isReachable();
+  } catch {
+    return { paired: false, reachable: false };
+  }
+}

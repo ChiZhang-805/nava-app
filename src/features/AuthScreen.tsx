@@ -1,28 +1,88 @@
-import { Activity, LockKeyhole, Mail } from "lucide-react";
+import { Activity, LockKeyhole, Mail, MessageCircle, Phone } from "lucide-react";
 import { FormEvent, useState } from "react";
 import ActionButton from "../components/ActionButton";
+import { formatAuthError, isEmail, isPhone } from "../services/auth";
 import { useAuth } from "../state/authContext";
 
 export default function AuthScreen() {
-  const { signIn, signUp, error, clearError } = useAuth();
+  const {
+    signIn,
+    signUp,
+    sendEmailOtp,
+    verifyEmailOtp,
+    sendSmsOtp,
+    verifySmsOtp,
+    resetPassword,
+    updateCurrentPassword,
+    error,
+    clearError,
+  } = useAuth();
   const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
-  const [email, setEmail] = useState("");
+  const [method, setMethod] = useState<"password" | "otp">("password");
+  const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
+  const [otpPassword, setOtpPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setNotice(null);
+    setLocalError(null);
     clearError();
     try {
-      if (mode === "signIn") {
-        await signIn(email.trim(), password);
+      if (method === "password") {
+        if (mode === "signUp" && isPhone(account)) {
+          throw new Error("手机号注册请使用验证码方式，和 Web 端保持一致。");
+        }
+        if (mode === "signIn") {
+          await signIn(account.trim(), password);
+        } else {
+          await signUp(account.trim(), password);
+          setNotice("注册已提交。如果项目开启了邮箱确认，请先完成邮箱验证。");
+        }
+      } else if (!otpSent) {
+        if (isEmail(account)) {
+          await sendEmailOtp(account.trim());
+        } else if (isPhone(account)) {
+          await sendSmsOtp(account.trim());
+        } else {
+          throw new Error("请输入有效邮箱或中国大陆手机号。");
+        }
+        setOtpSent(true);
+        setNotice("验证码已发送，请查看邮箱或短信。");
       } else {
-        await signUp(email.trim(), password);
-        setNotice("注册已提交。如果项目开启了邮箱确认，请先完成邮箱验证。");
+        if (isEmail(account)) {
+          await verifyEmailOtp(account.trim(), otp);
+          if (mode === "signUp" && otpPassword) await updateCurrentPassword(otpPassword);
+        } else if (isPhone(account)) {
+          await verifySmsOtp(account.trim(), otp, mode === "signIn" ? "login" : "register", otpPassword || undefined);
+        } else {
+          throw new Error("账号格式不正确。");
+        }
       }
+    } catch (e) {
+      setLocalError(formatAuthError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleResetPassword() {
+    setBusy(true);
+    setNotice(null);
+    setLocalError(null);
+    clearError();
+    try {
+      if (!isEmail(account)) throw new Error("找回密码需要输入邮箱；手机号请用短信验证码登录。");
+      await resetPassword(account.trim());
+      setNotice("重置密码邮件已发送。");
+    } catch (e) {
+      setLocalError(formatAuthError(e));
     } finally {
       setBusy(false);
     }
@@ -49,28 +109,81 @@ export default function AuthScreen() {
           </button>
         </div>
 
+        <div className="segmented compact">
+          <button
+            type="button"
+            className={method === "password" ? "active" : ""}
+            onClick={() => {
+              setMethod("password");
+              setOtpSent(false);
+            }}
+          >
+            密码
+          </button>
+          <button
+            type="button"
+            className={method === "otp" ? "active" : ""}
+            onClick={() => {
+              setMethod("otp");
+              setOtpSent(false);
+            }}
+          >
+            验证码
+          </button>
+        </div>
+
         <label className="field">
-          <span>邮箱</span>
+          <span>邮箱 / 手机号</span>
           <div className="input-wrap">
-            <Mail size={18} />
-            <input autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+            {isPhone(account) ? <Phone size={18} /> : <Mail size={18} />}
+            <input autoComplete="email" inputMode="email" value={account} onChange={(e) => setAccount(e.target.value)} placeholder="you@example.com / 138..." />
           </div>
         </label>
 
-        <label className="field">
-          <span>密码</span>
-          <div className="input-wrap">
-            <LockKeyhole size={18} />
-            <input autoComplete={mode === "signIn" ? "current-password" : "new-password"} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="至少 6 位" />
-          </div>
-        </label>
+        {method === "password" && (
+          <label className="field">
+            <span>密码</span>
+            <div className="input-wrap">
+              <LockKeyhole size={18} />
+              <input autoComplete={mode === "signIn" ? "current-password" : "new-password"} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="至少 6 位" />
+            </div>
+          </label>
+        )}
+
+        {method === "otp" && otpSent && (
+          <>
+            <label className="field">
+              <span>验证码</span>
+              <div className="input-wrap">
+                <MessageCircle size={18} />
+                <input inputMode="numeric" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="6 位验证码" />
+              </div>
+            </label>
+            {mode === "signUp" && (
+              <label className="field">
+                <span>设置密码</span>
+                <div className="input-wrap">
+                  <LockKeyhole size={18} />
+                  <input type="password" value={otpPassword} onChange={(e) => setOtpPassword(e.target.value)} placeholder="可选，至少 6 位" />
+                </div>
+              </label>
+            )}
+          </>
+        )}
 
         {error && <p className="error-text">{error}</p>}
+        {localError && <p className="error-text">{localError}</p>}
         {notice && <p className="success-text">{notice}</p>}
 
-        <ActionButton type="submit" className="full-width" disabled={busy || !email || !password}>
-          {busy ? "处理中" : mode === "signIn" ? "进入 NAVA" : "创建账号"}
+        <ActionButton type="submit" className="full-width" disabled={busy || !account || (method === "password" && !password) || (method === "otp" && otpSent && !otp)}>
+          {busy ? "处理中" : method === "otp" && !otpSent ? "获取验证码" : mode === "signIn" ? "进入 NAVA" : "创建账号"}
         </ActionButton>
+
+        {mode === "signIn" && method === "password" && (
+          <button className="text-button" type="button" onClick={handleResetPassword} disabled={busy || !account}>
+            找回密码
+          </button>
+        )}
       </form>
     </main>
   );
