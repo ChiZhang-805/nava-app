@@ -28,7 +28,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
@@ -93,6 +94,34 @@ button {
   width: 54px;
   height: 54px;
   font-size: 22px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.network-badge {
+  min-height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.network-badge.online {
+  color: #176043;
+  background: #ddf1e7;
+}
+
+.network-badge.offline {
+  color: #8d2d28;
+  background: #f7e4e1;
 }
 
 .app-content {
@@ -452,7 +481,8 @@ button {
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
   border: 1px solid rgba(28, 52, 41, 0.12);
   border-radius: 14px;

@@ -25,6 +25,24 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function nonNegativeInt(value: number, fieldName: string) {
+  if (!Number.isFinite(value) || value < 0) throw new Error(`${fieldName}不能为负数。`);
+  return Math.round(value);
+}
+
+function validateHHMM(value: string, fieldName: string) {
+  if (!/^\d{2}:\d{2}$/.test(value)) throw new Error(`${fieldName}格式应为 HH:MM。`);
+  const [hour, minute] = value.split(":").map(Number);
+  if (hour > 23 || minute > 59) throw new Error(`${fieldName}不是有效时间。`);
+}
+
+function normalizeRecordDate(input?: string) {
+  const date = input ?? todayISO();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("记录日期格式应为 YYYY-MM-DD。");
+  if (date > todayISO()) throw new Error("记录日期不能晚于今天。");
+  return date;
+}
+
 export function calculateSleepRhythmScore(input: {
   start?: string;
   durationMinutes?: number;
@@ -135,12 +153,15 @@ export async function saveMoodRecord(input: {
   factors: string[];
   diary?: string;
 }) {
+  if (!Number.isFinite(input.moodScore) || input.moodScore < 0 || input.moodScore > 100) {
+    throw new Error("情绪分数必须在 0 到 100 之间。");
+  }
   const { data, error } = await supabase
     .from("mood_records")
     .upsert(
       {
         user_id: input.userId,
-        record_date: input.date ?? todayISO(),
+        record_date: normalizeRecordDate(input.date),
         mood_score: input.moodScore,
         factors: input.factors,
         diary_content: input.diary?.trim() || null,
@@ -167,11 +188,20 @@ export async function saveSleepRecord(input: {
   note?: string;
   source?: "manual" | "apple_watch";
 }) {
+  validateHHMM(input.start, "入睡时间");
+  validateHHMM(input.end, "醒来时间");
+  const durationMinutes = nonNegativeInt(input.durationMinutes, "睡眠时长");
+  const deepMinutes = input.deepMinutes == null ? undefined : nonNegativeInt(input.deepMinutes, "深睡时长");
+  const lightMinutes = input.lightMinutes == null ? undefined : nonNegativeInt(input.lightMinutes, "浅睡时长");
+  const remMinutes = input.remMinutes == null ? undefined : nonNegativeInt(input.remMinutes, "REM 时长");
+  const stagedTotal = (deepMinutes ?? 0) + (lightMinutes ?? 0) + (remMinutes ?? 0);
+  if (stagedTotal > durationMinutes) throw new Error("睡眠阶段总时长不能超过总睡眠时长。");
+
   const rhythmScore = calculateSleepRhythmScore({
     start: input.start,
-    durationMinutes: input.durationMinutes,
-    deepMinutes: input.deepMinutes,
-    remMinutes: input.remMinutes,
+    durationMinutes,
+    deepMinutes,
+    remMinutes,
     rating: input.rating,
   });
 
@@ -180,18 +210,44 @@ export async function saveSleepRecord(input: {
     .upsert(
       {
         user_id: input.userId,
-        record_date: input.date ?? todayISO(),
+        record_date: normalizeRecordDate(input.date),
         sleep_start: input.start,
         sleep_end: input.end,
-        sleep_duration_minutes: input.durationMinutes,
-        deep_sleep_minutes: input.deepMinutes ?? null,
-        light_sleep_minutes: input.lightMinutes ?? null,
-        rem_minutes: input.remMinutes ?? null,
+        sleep_duration_minutes: durationMinutes,
+        deep_sleep_minutes: deepMinutes ?? null,
+        light_sleep_minutes: lightMinutes ?? null,
+        rem_minutes: remMinutes ?? null,
         self_rating: input.rating ?? null,
         self_note: input.note?.trim() || null,
         device_type: input.source ?? "manual",
         is_night_owl: Number(input.start.split(":")[0]) >= 0 && Number(input.start.split(":")[0]) <= 2,
         rhythm_score: rhythmScore,
+      },
+      { onConflict: "user_id,record_date" },
+    )
+    .select("*")
+    .single();
+
+  assertNoError(error);
+  return data as SleepRecord;
+}
+
+export async function saveSleepSummaryRecord(input: {
+  userId: string;
+  date?: string;
+  durationMinutes: number;
+  source?: "manual" | "apple_watch";
+}) {
+  const durationMinutes = nonNegativeInt(input.durationMinutes, "睡眠时长");
+  const { data, error } = await supabase
+    .from("sleep_records")
+    .upsert(
+      {
+        user_id: input.userId,
+        record_date: normalizeRecordDate(input.date),
+        sleep_duration_minutes: durationMinutes,
+        device_type: input.source ?? "apple_watch",
+        rhythm_score: calculateSleepRhythmScore({ durationMinutes }),
       },
       { onConflict: "user_id,record_date" },
     )
@@ -215,6 +271,21 @@ async function findExerciseRecordId(userId: string, date: string) {
   return data?.id as string | undefined;
 }
 
+async function dedupeExerciseRecords(userId: string, date: string, keepId: string) {
+  const { data, error } = await supabase
+    .from("exercise_records")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("record_date", date)
+    .neq("id", keepId);
+  assertNoError(error);
+  const duplicateIds = asArray<{ id: string }>(data).map((item) => item.id);
+  if (duplicateIds.length > 0) {
+    const deletion = await supabase.from("exercise_records").delete().in("id", duplicateIds);
+    assertNoError(deletion.error);
+  }
+}
+
 export async function saveExerciseRecord(input: {
   userId: string;
   date?: string;
@@ -227,13 +298,16 @@ export async function saveExerciseRecord(input: {
   note?: string;
   source?: "manual" | "apple_health";
 }) {
-  const recordDate = input.date ?? todayISO();
+  const recordDate = normalizeRecordDate(input.date);
+  const steps = nonNegativeInt(input.steps, "步数");
+  const calories = nonNegativeInt(input.calories, "消耗热量");
+  const minutes = nonNegativeInt(input.minutes, "运动分钟");
   const payload = {
     user_id: input.userId,
     record_date: recordDate,
-    steps: input.steps,
-    calories: input.calories,
-    exercise_minutes: input.minutes,
+    steps,
+    calories,
+    exercise_minutes: minutes,
     heart_rate: input.heartRate?.trim() || null,
     spo2: input.spo2?.trim() || null,
     self_rating: input.rating ?? null,
@@ -247,6 +321,7 @@ export async function saveExerciseRecord(input: {
     : await supabase.from("exercise_records").insert(payload).select("*").single();
 
   assertNoError(response.error);
+  if (response.data?.id) await dedupeExerciseRecords(input.userId, recordDate, response.data.id);
   return response.data as ExerciseRecord;
 }
 
@@ -257,7 +332,8 @@ export async function saveNutritionRecord(input: {
   item: FoodItem;
   totalCalories: number;
 }) {
-  const recordDate = input.date ?? todayISO();
+  const recordDate = normalizeRecordDate(input.date);
+  const itemCalories = nonNegativeInt(input.item.calories ?? input.totalCalories, "食物热量");
   const existing = await supabase
     .from("nutrition_records")
     .select("*")
@@ -270,6 +346,11 @@ export async function saveNutritionRecord(input: {
   const current = (existing.data ?? {}) as Partial<NutritionRecord>;
   const key = `${input.meal}_items` as keyof NutritionRecord;
   const items = asArray<FoodItem>(current[key]);
+  const existingTotal = current.total_calories ?? 0;
+  const previousItemCalories = items.reduce((sum, item) => sum + (Number(item.calories) || 0), 0);
+  const newMealItems = [...items, { ...input.item, calories: itemCalories }];
+  const newMealCalories = newMealItems.reduce((sum, item) => sum + (Number(item.calories) || 0), 0);
+  const totalCalories = Math.max(0, existingTotal - previousItemCalories + newMealCalories);
   const payload = {
     user_id: input.userId,
     record_date: recordDate,
@@ -277,8 +358,8 @@ export async function saveNutritionRecord(input: {
     lunch_items: current.lunch_items ?? [],
     dinner_items: current.dinner_items ?? [],
     pantry_items: current.pantry_items ?? [],
-    total_calories: input.totalCalories,
-    [key]: [...items, input.item],
+    total_calories: totalCalories,
+    [key]: newMealItems,
   };
 
   const { data, error } = await supabase
@@ -323,7 +404,9 @@ export async function saveFocusSession(input: {
   taskTitle: string;
   minutes: number;
 }) {
-  const recordDate = input.date ?? todayISO();
+  const recordDate = normalizeRecordDate(input.date);
+  const minutes = nonNegativeInt(input.minutes, "专注分钟");
+  if (minutes === 0) throw new Error("专注分钟必须大于 0。");
   const task = await ensureTask(input.userId, input.taskTitle.trim() || "NAVA 专注", recordDate);
   const existing = await supabase
     .from("focus_records")
@@ -339,7 +422,7 @@ export async function saveFocusSession(input: {
     task_id: task.id,
     record_date: recordDate,
     completed_sessions: (existing.data?.completed_sessions ?? 0) + 1,
-    total_minutes: (existing.data?.total_minutes ?? 0) + input.minutes,
+    total_minutes: (existing.data?.total_minutes ?? 0) + minutes,
   };
 
   const response = existing.data
@@ -347,7 +430,7 @@ export async function saveFocusSession(input: {
     : await supabase.from("focus_records").insert(payload).select("*").single();
   assertNoError(response.error);
 
-  await upsertFocusDistribution(input.userId, recordDate, input.minutes);
+  await upsertFocusDistribution(input.userId, recordDate, minutes);
   return response.data as FocusRecord;
 }
 
@@ -408,4 +491,3 @@ export async function getTrends(userId: string): Promise<TrendBundle> {
     focus: asArray<FocusRecord>(focus.data),
   };
 }
-

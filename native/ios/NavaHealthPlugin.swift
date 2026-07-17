@@ -89,6 +89,14 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             }
         }
 
+        if let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+            group.enter()
+            querySleepMinutes(type: sleepType, start: start, end: end) { value in
+                result["sleepMinutes"] = value
+                group.leave()
+            }
+        }
+
         group.notify(queue: .main) {
             call.resolve(result)
         }
@@ -124,5 +132,23 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         healthStore.execute(query)
     }
-}
 
+    private func querySleepMinutes(
+        type: HKCategoryType,
+        start: Date,
+        end: Date,
+        completion: @escaping (Double) -> Void
+    ) {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
+            let minutes = (samples ?? []).compactMap { $0 as? HKCategorySample }.reduce(0.0) { total, sample in
+                let isAwake = sample.value == HKCategoryValueSleepAnalysis.awake.rawValue
+                let isInBed = sample.value == HKCategoryValueSleepAnalysis.inBed.rawValue
+                if isAwake || isInBed { return total }
+                return total + sample.endDate.timeIntervalSince(sample.startDate) / 60.0
+            }
+            completion(minutes)
+        }
+        healthStore.execute(query)
+    }
+}

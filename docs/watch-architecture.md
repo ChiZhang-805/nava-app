@@ -20,7 +20,7 @@ Watch 发给 iPhone：
 type WatchAction =
   | { type: "mood.quickLog"; mood: number; recordedAt: string }
   | { type: "focus.start"; taskTitle?: string; startedAt: string }
-  | { type: "focus.stop"; sessionId: string; endedAt: string }
+  | { type: "focus.stop"; sessionId: string; endedAt: string; durationMinutes?: number; taskTitle?: string }
   | { type: "sync.requestSnapshot" };
 ```
 
@@ -52,4 +52,3 @@ type WatchAck =
 - HealthKit 权限说明必须清楚。
 - AI 健康建议必须声明不是医学诊断。
 - 用户必须可以删除账号和导出数据。
-

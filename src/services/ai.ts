@@ -87,32 +87,38 @@ async function applyExtractedData(userId: string, extraction: Record<string, unk
   const dataType = extraction.dataType;
 
   if (dataType === "sleep") {
-    const start = stringValue(data.sleepStart);
-    const end = stringValue(data.sleepEnd);
+    const start = stringValue(data.sleepStart) ?? stringValue(data.sleep_start);
+    const end = stringValue(data.sleepEnd) ?? stringValue(data.sleep_end);
     if (!start || !end) return { type: "sleep", saved: false, reason: "缺少睡眠起止时间" };
     await saveSleepRecord({
       userId,
       date: todayISO(),
       start,
       end,
-      durationMinutes: numberValue(data.sleepDurationMinutes) ?? estimateSleepMinutes(start, end),
-      deepMinutes: numberValue(data.deepSleepMinutes),
-      lightMinutes: numberValue(data.lightSleepMinutes),
-      remMinutes: numberValue(data.remMinutes),
-      rating: numberValue(data.selfRating),
+      durationMinutes: numberValue(data.sleepDurationMinutes) ?? numberValue(data.sleep_duration_minutes) ?? estimateSleepMinutes(start, end),
+      deepMinutes: numberValue(data.deepSleepMinutes) ?? numberValue(data.deep_sleep_minutes),
+      lightMinutes: numberValue(data.lightSleepMinutes) ?? numberValue(data.light_sleep_minutes),
+      remMinutes: numberValue(data.remMinutes) ?? numberValue(data.rem_minutes),
+      rating: numberValue(data.selfRating) ?? numberValue(data.self_rating),
       source: "manual",
     });
     return { type: "sleep", saved: true };
   }
 
   if (dataType === "exercise") {
+    const steps = numberValue(data.steps);
+    const calories = numberValue(data.calories);
+    const minutes = numberValue(data.exerciseMinutes) ?? numberValue(data.exercise_minutes);
+    if (steps == null && calories == null && minutes == null && !data.heartRate && !data.heart_rate && !data.spo2) {
+      return { type: "exercise", saved: false, reason: "缺少可保存的运动指标" };
+    }
     await saveExerciseRecord({
       userId,
       date: todayISO(),
-      steps: numberValue(data.steps) ?? 0,
-      calories: numberValue(data.calories) ?? 0,
-      minutes: numberValue(data.exerciseMinutes) ?? 0,
-      heartRate: stringValue(data.heartRate),
+      steps: steps ?? 0,
+      calories: calories ?? 0,
+      minutes: minutes ?? 0,
+      heartRate: stringValue(data.heartRate) ?? stringValue(data.heart_rate),
       spo2: stringValue(data.spo2),
       source: "manual",
     });
@@ -158,13 +164,18 @@ function buildProfileUpdate(userId: string, data: Record<string, unknown>) {
     username: "username",
     height: "height",
     weight: "weight",
+    birth_date: "birth_date",
     occupation: "occupation",
     goal: "goal",
     mbti: "mbti",
     exerciseFrequency: "exercise_frequency",
+    exercise_frequency: "exercise_frequency",
     sleepSchedule: "sleep_schedule",
+    sleep_schedule: "sleep_schedule",
     dietPreference: "diet_preference",
+    diet_preference: "diet_preference",
     stressFactors: "stress_factors",
+    stress_factors: "stress_factors",
   };
 
   for (const [from, to] of Object.entries(map)) {

@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { BedDouble, Brain, Check, Drumstick, Dumbbell, SmilePlus } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import SectionCard from "../components/SectionCard";
 import {
@@ -10,6 +10,7 @@ import {
   saveNutritionRecord,
   saveSleepRecord,
 } from "../services/records";
+import { todayISO } from "../services/date";
 
 const moodFactors = ["压力", "睡眠", "运动", "饮食", "工作", "社交", "身体不适", "天气"];
 
@@ -17,6 +18,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [recordDate, setRecordDate] = useState(todayISO());
 
   const [moodScore, setMoodScore] = useState(70);
   const [selectedFactors, setSelectedFactors] = useState<string[]>([]);
@@ -26,17 +28,39 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
   const [sleepEnd, setSleepEnd] = useState("07:10");
   const [sleepDuration, setSleepDuration] = useState(460);
   const [deepSleep, setDeepSleep] = useState(85);
+  const [lightSleep, setLightSleep] = useState(280);
   const [remSleep, setRemSleep] = useState(95);
+  const [sleepRating, setSleepRating] = useState(4);
+  const [sleepNote, setSleepNote] = useState("");
 
   const [steps, setSteps] = useState(6500);
   const [calories, setCalories] = useState(420);
   const [exerciseMinutes, setExerciseMinutes] = useState(38);
+  const [heartRate, setHeartRate] = useState("");
+  const [spo2, setSpo2] = useState("");
+  const [exerciseNote, setExerciseNote] = useState("");
 
+  const [meal, setMeal] = useState<"breakfast" | "lunch" | "dinner" | "pantry">("lunch");
   const [mealName, setMealName] = useState("鸡胸肉沙拉");
   const [mealCalories, setMealCalories] = useState(520);
 
   const [focusTitle, setFocusTitle] = useState("产品原型");
   const [focusMinutes, setFocusMinutes] = useState(25);
+
+  useEffect(() => {
+    const estimated = estimateMinutes(sleepStart, sleepEnd);
+    if (estimated > 0) setSleepDuration(estimated);
+  }, [sleepStart, sleepEnd]);
+
+  function estimateMinutes(start: string, end: string) {
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    if ([sh, sm, eh, em].some((v) => Number.isNaN(v))) return 0;
+    const startMin = sh * 60 + sm;
+    let endMin = eh * 60 + em;
+    if (endMin <= startMin) endMin += 24 * 60;
+    return endMin - startMin;
+  }
 
   async function run(label: string, fn: () => Promise<unknown>) {
     setBusy(label);
@@ -62,6 +86,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
     await run("情绪记录", () =>
       saveMoodRecord({
         userId: user.id,
+        date: recordDate,
         moodScore,
         factors: selectedFactors,
         diary,
@@ -74,12 +99,15 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
     await run("睡眠记录", () =>
       saveSleepRecord({
         userId: user.id,
+        date: recordDate,
         start: sleepStart,
         end: sleepEnd,
         durationMinutes: sleepDuration,
         deepMinutes: deepSleep,
+        lightMinutes: lightSleep,
         remMinutes: remSleep,
-        rating: 4,
+        rating: sleepRating,
+        note: sleepNote,
       }),
     );
   }
@@ -89,9 +117,13 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
     await run("运动记录", () =>
       saveExerciseRecord({
         userId: user.id,
+        date: recordDate,
         steps,
         calories,
         minutes: exerciseMinutes,
+        heartRate,
+        spo2,
+        note: exerciseNote,
         source: "manual",
       }),
     );
@@ -102,7 +134,8 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
     await run("饮食记录", () =>
       saveNutritionRecord({
         userId: user.id,
-        meal: "lunch",
+        date: recordDate,
+        meal,
         item: {
           name: mealName,
           calories: mealCalories,
@@ -118,6 +151,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
     await run("专注记录", () =>
       saveFocusSession({
         userId: user.id,
+        date: recordDate,
         taskTitle: focusTitle,
         minutes: focusMinutes,
       }),
@@ -132,6 +166,13 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
         </p>
         {notice && <p className="success-text">{notice}</p>}
         {error && <p className="error-text">{error}</p>}
+      </SectionCard>
+
+      <SectionCard title="记录日期" subtitle="App 和 Web 使用同一条 record_date">
+        <label className="field">
+          <span>日期</span>
+          <input type="date" value={recordDate} max={todayISO()} onChange={(e) => setRecordDate(e.target.value)} />
+        </label>
       </SectionCard>
 
       <form onSubmit={saveMood}>
@@ -186,8 +227,20 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
             </label>
           </div>
           <label className="field">
+            <span>浅睡分钟</span>
+            <input inputMode="numeric" type="number" value={lightSleep} onChange={(e) => setLightSleep(Number(e.target.value))} />
+          </label>
+          <label className="field">
             <span>REM 分钟</span>
             <input inputMode="numeric" type="number" value={remSleep} onChange={(e) => setRemSleep(Number(e.target.value))} />
+          </label>
+          <label className="field">
+            <span>自评</span>
+            <input className="range" type="range" min="1" max="5" value={sleepRating} onChange={(e) => setSleepRating(Number(e.target.value))} />
+          </label>
+          <label className="field">
+            <span>备注</span>
+            <textarea rows={2} value={sleepNote} onChange={(e) => setSleepNote(e.target.value)} placeholder="例如：半夜醒了一次" />
           </label>
           <ActionButton type="submit" icon={<BedDouble size={18} />} variant="secondary" disabled={busy === "睡眠记录"}>
             保存睡眠
@@ -211,6 +264,20 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
             <span>运动分钟</span>
             <input inputMode="numeric" type="number" value={exerciseMinutes} onChange={(e) => setExerciseMinutes(Number(e.target.value))} />
           </label>
+          <div className="two-col">
+            <label className="field">
+              <span>心率</span>
+              <input inputMode="numeric" value={heartRate} onChange={(e) => setHeartRate(e.target.value)} placeholder="bpm" />
+            </label>
+            <label className="field">
+              <span>血氧</span>
+              <input value={spo2} onChange={(e) => setSpo2(e.target.value)} placeholder="98%" />
+            </label>
+          </div>
+          <label className="field">
+            <span>备注</span>
+            <textarea rows={2} value={exerciseNote} onChange={(e) => setExerciseNote(e.target.value)} placeholder="例如：户外步行" />
+          </label>
           <ActionButton type="submit" icon={<Dumbbell size={18} />} variant="secondary" disabled={busy === "运动记录"}>
             保存运动
           </ActionButton>
@@ -219,6 +286,15 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
 
       <form onSubmit={saveDiet}>
         <SectionCard title="饮食" subtitle="写入 nutrition_records">
+          <label className="field">
+            <span>餐次</span>
+            <select value={meal} onChange={(e) => setMeal(e.target.value as typeof meal)}>
+              <option value="breakfast">早餐</option>
+              <option value="lunch">午餐</option>
+              <option value="dinner">晚餐</option>
+              <option value="pantry">加餐</option>
+            </select>
+          </label>
           <label className="field">
             <span>食物</span>
             <input value={mealName} onChange={(e) => setMealName(e.target.value)} />
@@ -251,4 +327,3 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
     </div>
   );
 }
-

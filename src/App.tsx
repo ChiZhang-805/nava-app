@@ -9,6 +9,11 @@ import TrendsScreen from "./features/TrendsScreen";
 import ProfileScreen from "./features/ProfileScreen";
 import { AuthProvider } from "./state/AuthProvider";
 import { useAuth } from "./state/authContext";
+import { useEffect } from "react";
+import { saveFocusSession, saveMoodRecord } from "./services/records";
+import { subscribeWatchActions } from "./services/watch";
+import ErrorBoundary from "./components/ErrorBoundary";
+import NetworkBadge from "./components/NetworkBadge";
 import type { AppTab } from "./types";
 
 const tabs: Array<{ id: AppTab; label: string; icon: typeof Home }> = [
@@ -49,9 +54,43 @@ function MobileShell() {
   const [activeTab, setActiveTab] = useState<AppTab>("today");
   const [refreshKey, setRefreshKey] = useState(0);
 
-  if (!user) return null;
-
   const markChanged = () => setRefreshKey((value) => value + 1);
+
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    subscribeWatchActions(async (action) => {
+      if (!alive) return;
+      try {
+        if (action.type === "mood.quickLog") {
+          await saveMoodRecord({
+            userId: user.id,
+            moodScore: action.mood,
+            factors: ["Apple Watch"],
+            diary: "来自 Apple Watch 快捷记录",
+          });
+          setRefreshKey((value) => value + 1);
+        }
+        if (action.type === "focus.stop") {
+          await saveFocusSession({
+            userId: user.id,
+            taskTitle: action.taskTitle ?? "Apple Watch 专注",
+            minutes: action.durationMinutes && action.durationMinutes > 0 ? Math.round(action.durationMinutes) : 25,
+          });
+          setRefreshKey((value) => value + 1);
+        }
+      } catch (e) {
+        console.error("watch action failed", e);
+      }
+    }).then((handle) => {
+      if (!alive) void handle?.remove();
+    });
+    return () => {
+      alive = false;
+    };
+  }, [user]);
+
+  if (!user) return null;
 
   return (
     <div className="phone-frame">
@@ -61,7 +100,10 @@ function MobileShell() {
           <p className="eyebrow">NAVA Health</p>
           <h1>{tabs.find((tab) => tab.id === activeTab)?.label}</h1>
         </div>
-        <div className="avatar">{user.email?.slice(0, 1).toUpperCase() ?? "N"}</div>
+        <div className="header-actions">
+          <NetworkBadge />
+          <div className="avatar">{user.email?.slice(0, 1).toUpperCase() ?? "N"}</div>
+        </div>
       </header>
 
       <main className="app-content">
@@ -106,8 +148,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

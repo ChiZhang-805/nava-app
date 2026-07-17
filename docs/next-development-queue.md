@@ -15,6 +15,7 @@
 - iPhone 侧 WatchConnectivity 插件和 Watch 侧管理器文件。
 - Web 上游同步脚本。
 - 构建和 lint 通过。
+- 2026-07-17 二次审查已修复 35 项缺口，详见 `docs/code-review-fixes-2026-07-17.md`。
 
 ## P0：闭环验证
 

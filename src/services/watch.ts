@@ -1,10 +1,10 @@
-import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import type { WatchUserSnapshot } from "../types";
 
 export type WatchAction =
   | { type: "mood.quickLog"; mood: number; recordedAt: string }
   | { type: "focus.start"; taskTitle?: string; startedAt: string }
-  | { type: "focus.stop"; sessionId: string; endedAt: string }
+  | { type: "focus.stop"; sessionId: string; endedAt: string; durationMinutes?: number; taskTitle?: string }
   | { type: "sync.requestSnapshot" };
 
 export type WatchAck =
@@ -14,6 +14,7 @@ export type WatchAck =
 interface NavaWatchBridgePlugin {
   publishSnapshot: (options: { snapshot: WatchUserSnapshot }) => Promise<{ ok: boolean }>;
   isReachable: () => Promise<{ reachable: boolean; paired: boolean }>;
+  addListener?: (eventName: "watchAction", listenerFunc: (action: WatchAction) => void) => Promise<PluginListenerHandle>;
 }
 
 const NavaWatchBridge = registerPlugin<NavaWatchBridgePlugin>("NavaWatchBridge");
@@ -47,4 +48,9 @@ export async function getWatchReachability() {
   } catch {
     return { paired: false, reachable: false };
   }
+}
+
+export async function subscribeWatchActions(listener: (action: WatchAction) => void) {
+  if (!Capacitor.isNativePlatform() || !NavaWatchBridge.addListener) return null;
+  return NavaWatchBridge.addListener("watchAction", listener);
 }

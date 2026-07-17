@@ -1,5 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
-import { saveExerciseRecord } from "./records";
+import { saveExerciseRecord, saveSleepSummaryRecord } from "./records";
 
 export interface HealthTodayNativeSummary {
   steps?: number;
@@ -47,6 +47,14 @@ export async function syncNativeHealthNow(userId: string) {
     spo2: summary.latestBloodOxygen ? `${Math.round(summary.latestBloodOxygen * 100)}%` : undefined,
     source: "apple_health",
   });
-  return { uploaded: 1, lastSyncDate: new Date().toISOString(), summary };
+  let uploaded = 1;
+  if (summary.sleepMinutes && summary.sleepMinutes > 0) {
+    await saveSleepSummaryRecord({
+      userId,
+      durationMinutes: Math.round(summary.sleepMinutes),
+      source: "apple_watch",
+    });
+    uploaded += 1;
+  }
+  return { uploaded, lastSyncDate: new Date().toISOString(), summary };
 }
-
