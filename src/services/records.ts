@@ -2,6 +2,8 @@ import { supabase } from "./supabaseClient";
 import { daysAgoISO, todayISO } from "./date";
 import type {
   ExerciseRecord,
+  FaceAnalysisResult,
+  FaceRecord,
   FocusRecord,
   FoodItem,
   MoodRecord,
@@ -10,6 +12,7 @@ import type {
   TodaySnapshot,
   TrendBundle,
 } from "../types";
+import { demoExercise, demoMood, demoNutrition, demoSleep, demoTodaySnapshot, demoTrends, isDemoMode } from "./demo";
 
 function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
@@ -106,6 +109,8 @@ function nextAction(snapshot: Omit<TodaySnapshot, "rhythmScore" | "nextAction">)
 }
 
 export async function getTodaySnapshot(userId: string, date = todayISO()): Promise<TodaySnapshot> {
+  if (isDemoMode()) return demoTodaySnapshot();
+
   const [moodRes, sleepRes, exerciseRes, nutritionRes, focusRes] = await Promise.all([
     supabase.from("mood_records").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
     supabase.from("sleep_records").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
@@ -153,6 +158,8 @@ export async function saveMoodRecord(input: {
   factors: string[];
   diary?: string;
 }) {
+  if (isDemoMode()) return { ...demoMood, mood_score: input.moodScore, factors: input.factors, diary_content: input.diary ?? null };
+
   if (!Number.isFinite(input.moodScore) || input.moodScore < 0 || input.moodScore > 100) {
     throw new Error("情绪分数必须在 0 到 100 之间。");
   }
@@ -188,6 +195,8 @@ export async function saveSleepRecord(input: {
   note?: string;
   source?: "manual" | "apple_watch";
 }) {
+  if (isDemoMode()) return { ...demoSleep, sleep_start: input.start, sleep_end: input.end, sleep_duration_minutes: input.durationMinutes };
+
   validateHHMM(input.start, "入睡时间");
   validateHHMM(input.end, "醒来时间");
   const durationMinutes = nonNegativeInt(input.durationMinutes, "睡眠时长");
@@ -238,6 +247,8 @@ export async function saveSleepSummaryRecord(input: {
   durationMinutes: number;
   source?: "manual" | "apple_watch";
 }) {
+  if (isDemoMode()) return { ...demoSleep, sleep_duration_minutes: input.durationMinutes, device_type: input.source ?? "apple_watch" };
+
   const durationMinutes = nonNegativeInt(input.durationMinutes, "睡眠时长");
   const { data, error } = await supabase
     .from("sleep_records")
@@ -298,6 +309,8 @@ export async function saveExerciseRecord(input: {
   note?: string;
   source?: "manual" | "apple_health";
 }) {
+  if (isDemoMode()) return { ...demoExercise, steps: input.steps, calories: input.calories, exercise_minutes: input.minutes };
+
   const recordDate = normalizeRecordDate(input.date);
   const steps = nonNegativeInt(input.steps, "步数");
   const calories = nonNegativeInt(input.calories, "消耗热量");
@@ -332,6 +345,8 @@ export async function saveNutritionRecord(input: {
   item: FoodItem;
   totalCalories: number;
 }) {
+  if (isDemoMode()) return { ...demoNutrition, total_calories: input.totalCalories, [`${input.meal}_items`]: [input.item] } as NutritionRecord;
+
   const recordDate = normalizeRecordDate(input.date);
   const itemCalories = nonNegativeInt(input.item.calories ?? input.totalCalories, "食物热量");
   const existing = await supabase
@@ -372,6 +387,99 @@ export async function saveNutritionRecord(input: {
   return data as NutritionRecord;
 }
 
+export async function saveNutritionItems(input: {
+  userId: string;
+  date?: string;
+  meal: "breakfast" | "lunch" | "dinner" | "pantry";
+  items: FoodItem[];
+  photoUrl?: string;
+}) {
+  if (input.items.length === 0) throw new Error("没有可保存的食物条目。");
+  if (isDemoMode()) return { ...demoNutrition, [`${input.meal}_items`]: input.items } as NutritionRecord;
+
+  const recordDate = normalizeRecordDate(input.date);
+  const existing = await supabase
+    .from("nutrition_records")
+    .select("*")
+    .eq("user_id", input.userId)
+    .eq("record_date", recordDate)
+    .maybeSingle();
+  assertNoError(existing.error);
+
+  const current = (existing.data ?? {}) as Partial<NutritionRecord>;
+  const key = `${input.meal}_items` as keyof NutritionRecord;
+  const photoKey = `${input.meal}_photo_url`;
+  const payload = {
+    user_id: input.userId,
+    record_date: recordDate,
+    breakfast_items: current.breakfast_items ?? [],
+    lunch_items: current.lunch_items ?? [],
+    dinner_items: current.dinner_items ?? [],
+    pantry_items: current.pantry_items ?? [],
+    breakfast_photo_url: "breakfast_photo_url" in current ? current.breakfast_photo_url : undefined,
+    lunch_photo_url: "lunch_photo_url" in current ? current.lunch_photo_url : undefined,
+    dinner_photo_url: "dinner_photo_url" in current ? current.dinner_photo_url : undefined,
+    [key]: input.items,
+    ...(photoKey !== "pantry_photo_url" && input.photoUrl ? { [photoKey]: input.photoUrl } : {}),
+  };
+  const totalCalories = [
+    ...(payload.breakfast_items as FoodItem[]),
+    ...(payload.lunch_items as FoodItem[]),
+    ...(payload.dinner_items as FoodItem[]),
+    ...(payload.pantry_items as FoodItem[]),
+  ].reduce((sum, item) => sum + (Number(item.calories) || 0), 0);
+
+  const { data, error } = await supabase
+    .from("nutrition_records")
+    .upsert({ ...payload, total_calories: totalCalories }, { onConflict: "user_id,record_date" })
+    .select("*")
+    .single();
+
+  assertNoError(error);
+  return data as NutritionRecord;
+}
+
+export async function saveFaceAnalysisRecord(input: {
+  userId: string;
+  date?: string;
+  result: FaceAnalysisResult;
+  imagePath?: string;
+  modelVersion?: string;
+}) {
+  if (isDemoMode()) {
+    return {
+      id: "demo-face",
+      record_date: input.date ?? todayISO(),
+      image_path: input.imagePath ?? null,
+      overall_score: input.result.overall_score,
+      skin_age: null,
+      annotations: input.result.annotations,
+      feedback: input.result.feedback,
+      model_version: input.modelVersion ?? "demo",
+    } as FaceRecord;
+  }
+
+  const { data, error } = await supabase
+    .from("face_records")
+    .upsert(
+      {
+        user_id: input.userId,
+        record_date: normalizeRecordDate(input.date),
+        image_path: input.imagePath ?? null,
+        overall_score: input.result.overall_score,
+        annotations: input.result.annotations,
+        feedback: input.result.feedback,
+        model_version: input.modelVersion ?? null,
+      },
+      { onConflict: "user_id,record_date" },
+    )
+    .select("*")
+    .single();
+
+  assertNoError(error);
+  return data as FaceRecord;
+}
+
 async function ensureTask(userId: string, title: string, date: string) {
   const existing = await supabase
     .from("tasks")
@@ -404,6 +512,16 @@ export async function saveFocusSession(input: {
   taskTitle: string;
   minutes: number;
 }) {
+  if (isDemoMode()) {
+    return {
+      id: "demo-focus",
+      task_id: "demo-task",
+      record_date: input.date ?? todayISO(),
+      completed_sessions: 1,
+      total_minutes: input.minutes,
+    };
+  }
+
   const recordDate = normalizeRecordDate(input.date);
   const minutes = nonNegativeInt(input.minutes, "专注分钟");
   if (minutes === 0) throw new Error("专注分钟必须大于 0。");
@@ -468,6 +586,8 @@ async function upsertFocusDistribution(userId: string, recordDate: string, minut
 }
 
 export async function getTrends(userId: string): Promise<TrendBundle> {
+  if (isDemoMode()) return demoTrends();
+
   const start = daysAgoISO(14);
   const [moods, sleeps, exercises, nutritions, focus] = await Promise.all([
     supabase.from("mood_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),

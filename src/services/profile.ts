@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient";
+import { demoProfile, isDemoMode } from "./demo";
 
 export interface UserProfile {
   id: string;
@@ -15,14 +16,17 @@ export interface UserProfile {
 }
 
 export async function loadProfile(userId: string): Promise<UserProfile | null> {
+  if (isDemoMode()) return demoProfile;
+
   const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
   if (error) throw error;
   return data as UserProfile | null;
 }
 
 export async function saveProfile(profile: Partial<UserProfile> & { id: string }) {
+  if (isDemoMode()) return { ...demoProfile, ...profile } as UserProfile;
+
   const { data, error } = await supabase.from("profiles").upsert(profile, { onConflict: "id" }).select("*").single();
   if (error) throw error;
   return data as UserProfile;
 }
-

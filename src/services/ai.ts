@@ -2,6 +2,7 @@ import { supabase } from "./supabaseClient";
 import type { ChatMessage } from "../types";
 import { saveExerciseRecord, saveSleepRecord } from "./records";
 import { todayISO } from "./date";
+import { demoMessages, isDemoMode } from "./demo";
 
 function assertNoError(error: unknown) {
   if (!error) return;
@@ -10,6 +11,8 @@ function assertNoError(error: unknown) {
 }
 
 export async function loadConversation(userId: string): Promise<ChatMessage[]> {
+  if (isDemoMode()) return demoMessages;
+
   const { data, error } = await supabase
     .from("ai_conversations")
     .select("*")
@@ -26,6 +29,21 @@ export async function sendAiMessage(input: {
   history: ChatMessage[];
   lang?: "zh" | "en";
 }) {
+  if (isDemoMode()) {
+    const now = new Date().toISOString();
+    return {
+      userMessage: { id: `demo-user-${Date.now()}`, role: "user", content: input.message, created_at: now } as ChatMessage,
+      assistantMessage: {
+        id: `demo-assistant-${Date.now()}`,
+        role: "assistant",
+        content: "我已根据你的描述更新节律建议。正式环境会调用同源 Edge Functions 完成抽取和回复。",
+        created_at: now,
+      } as ChatMessage,
+      extractedData: null,
+      applied: { type: "demo", saved: true },
+    };
+  }
+
   const userInsert = await supabase
     .from("ai_conversations")
     .insert({

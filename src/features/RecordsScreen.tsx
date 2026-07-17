@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { BedDouble, Brain, Check, Drumstick, Dumbbell, SmilePlus } from "lucide-react";
+import { BedDouble, Brain, Camera, Check, Drumstick, Dumbbell, Loader2, ScanFace, SmilePlus } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import SectionCard from "../components/SectionCard";
@@ -7,10 +7,14 @@ import {
   saveExerciseRecord,
   saveFocusSession,
   saveMoodRecord,
+  saveFaceAnalysisRecord,
+  saveNutritionItems,
   saveNutritionRecord,
   saveSleepRecord,
 } from "../services/records";
 import { todayISO } from "../services/date";
+import { analyzeDietPhoto, analyzeFacePhoto } from "../services/media";
+import type { FaceAnalysisResult, FoodItem } from "../types";
 
 const moodFactors = ["压力", "睡眠", "运动", "饮食", "工作", "社交", "身体不适", "天气"];
 
@@ -43,9 +47,15 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
   const [meal, setMeal] = useState<"breakfast" | "lunch" | "dinner" | "pantry">("lunch");
   const [mealName, setMealName] = useState("鸡胸肉沙拉");
   const [mealCalories, setMealCalories] = useState(520);
+  const [dietPhotoUrl, setDietPhotoUrl] = useState<string | null>(null);
+  const [dietItems, setDietItems] = useState<FoodItem[]>([]);
+  const [dietAnalyzing, setDietAnalyzing] = useState(false);
 
   const [focusTitle, setFocusTitle] = useState("产品原型");
   const [focusMinutes, setFocusMinutes] = useState(25);
+  const [faceImage, setFaceImage] = useState<string | null>(null);
+  const [faceResult, setFaceResult] = useState<FaceAnalysisResult | null>(null);
+  const [faceAnalyzing, setFaceAnalyzing] = useState(false);
 
   useEffect(() => {
     const estimated = estimateMinutes(sleepStart, sleepEnd);
@@ -131,6 +141,19 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
 
   async function saveDiet(event: FormEvent) {
     event.preventDefault();
+    if (dietItems.length > 0) {
+      await run("饮食识别记录", () =>
+        saveNutritionItems({
+          userId: user.id,
+          date: recordDate,
+          meal,
+          items: dietItems,
+          photoUrl: dietPhotoUrl ?? undefined,
+        }),
+      );
+      return;
+    }
+
     await run("饮食记录", () =>
       saveNutritionRecord({
         userId: user.id,
@@ -144,6 +167,45 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
         totalCalories: mealCalories,
       }),
     );
+  }
+
+  async function handleDietPhoto(file: File | null) {
+    if (!file) return;
+    setDietAnalyzing(true);
+    setNotice(null);
+    setError(null);
+    try {
+      const result = await analyzeDietPhoto({ userId: user.id, date: recordDate, meal, file });
+      setDietPhotoUrl(result.imageUrl);
+      setDietItems(result.items);
+      if (result.items[0]) {
+        setMealName(result.items[0].name);
+        setMealCalories(Number(result.items[0].calories) || mealCalories);
+      }
+      setNotice(`已识别 ${result.items.length} 项食物，确认后可保存到 Web 同源数据。`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDietAnalyzing(false);
+    }
+  }
+
+  async function handleFacePhoto(file: File | null) {
+    if (!file) return;
+    setFaceAnalyzing(true);
+    setNotice(null);
+    setError(null);
+    try {
+      const { image, result } = await analyzeFacePhoto(file);
+      setFaceImage(image);
+      setFaceResult(result);
+      await saveFaceAnalysisRecord({ userId: user.id, date: recordDate, result });
+      setNotice("面部分析已完成，并已保存到 face_records。");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setFaceAnalyzing(false);
+    }
   }
 
   async function saveFocus(event: FormEvent) {
@@ -286,6 +348,28 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
 
       <form onSubmit={saveDiet}>
         <SectionCard title="饮食" subtitle="写入 nutrition_records">
+          <label className="photo-picker">
+            {dietPhotoUrl ? <img src={dietPhotoUrl} alt="饮食照片" /> : <Camera size={28} />}
+            <span>{dietAnalyzing ? "AI 识别中" : "拍照识别饮食"}</span>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              disabled={dietAnalyzing}
+              onChange={(e) => void handleDietPhoto(e.target.files?.[0] ?? null)}
+            />
+            {dietAnalyzing && <Loader2 className="spin" size={18} />}
+          </label>
+          {dietItems.length > 0 && (
+            <div className="detected-list">
+              {dietItems.map((item, index) => (
+                <div key={`${item.name}-${index}`}>
+                  <strong>{item.name}</strong>
+                  <span>{item.amount ?? "估算"} · {item.calories ?? 0} kcal</span>
+                </div>
+              ))}
+            </div>
+          )}
           <label className="field">
             <span>餐次</span>
             <select value={meal} onChange={(e) => setMeal(e.target.value as typeof meal)}>
@@ -304,7 +388,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
             <input inputMode="numeric" type="number" value={mealCalories} onChange={(e) => setMealCalories(Number(e.target.value))} />
           </label>
           <ActionButton type="submit" icon={<Drumstick size={18} />} variant="secondary" disabled={busy === "饮食记录"}>
-            保存饮食
+            {dietItems.length > 0 ? "保存识别结果" : "保存饮食"}
           </ActionButton>
         </SectionCard>
       </form>
@@ -324,6 +408,35 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
           </ActionButton>
         </SectionCard>
       </form>
+
+      <SectionCard title="面部分析" subtitle="调用 face-analyze 并写入 face_records">
+        <label className="photo-picker face">
+          {faceImage ? <img src={faceImage} alt="面部照片" /> : <ScanFace size={30} />}
+          <span>{faceAnalyzing ? "AI 分析中" : "拍照分析面部状态"}</span>
+          <input
+            type="file"
+            accept="image/*"
+            capture="user"
+            disabled={faceAnalyzing}
+            onChange={(e) => void handleFacePhoto(e.target.files?.[0] ?? null)}
+          />
+          {faceAnalyzing && <Loader2 className="spin" size={18} />}
+        </label>
+        {faceResult && (
+          <div className="face-result">
+            <strong>{Math.round(faceResult.overall_score)} 分</strong>
+            <p>{faceResult.feedback}</p>
+            <div className="detected-list">
+              {faceResult.annotations.map((item) => (
+                <div key={item.id}>
+                  <strong>{item.label}</strong>
+                  <span>{item.desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </SectionCard>
     </div>
   );
 }

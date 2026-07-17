@@ -13,6 +13,7 @@ import {
   sendSmsOtp,
   updateCurrentPassword,
 } from "../services/auth";
+import { demoUser, isDemoMode } from "../services/demo";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -21,6 +22,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let alive = true;
+
+    if (isDemoMode()) {
+      setUser(demoUser);
+      setLoading(false);
+      return () => {
+        alive = false;
+      };
+    }
 
     supabase.auth.getSession().then(({ data }) => {
       if (!alive) return;

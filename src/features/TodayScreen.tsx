@@ -152,7 +152,7 @@ export default function TodayScreen({
           </div>
           <div>
             <Watch size={18} />
-            <span>Watch 快照已准备，后续接入 WatchConnectivity</span>
+            <span>Watch 快照已准备，可同步到手表端</span>
           </div>
         </div>
         <ActionButton icon={<SmilePlus size={18} />} variant="secondary" onClick={onOpenRecord}>

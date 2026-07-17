@@ -49,7 +49,7 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
         <MetricCard label="专注总量" value={minutesToText(totals.focus)} detail="近 14 天" icon={<Brain size={18} />} />
       </div>
 
-      <SectionCard title="趋势" subtitle="先用轻量竖屏图，后续接正式节律算法">
+      <SectionCard title="趋势" subtitle="近 14 天健康与节律变化">
         {error && <p className="error-text">{error}</p>}
         {!bundle && !error && <p className="muted">正在加载趋势</p>}
         {bundle && (
@@ -75,4 +75,3 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
     </div>
   );
 }
-

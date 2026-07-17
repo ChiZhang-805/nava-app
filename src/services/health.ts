@@ -1,5 +1,6 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { saveExerciseRecord, saveSleepSummaryRecord } from "./records";
+import { isDemoMode } from "./demo";
 
 export interface HealthTodayNativeSummary {
   steps?: number;
@@ -18,10 +19,13 @@ interface NavaHealthPlugin {
 const NavaHealth = registerPlugin<NavaHealthPlugin>("NavaHealth");
 
 export function isNativeHealthAvailable() {
+  if (isDemoMode()) return true;
   return Capacitor.isNativePlatform();
 }
 
 export async function requestHealthAuthorization() {
+  if (isDemoMode()) return { granted: true };
+
   if (!isNativeHealthAvailable()) {
     return { granted: false, reason: "当前是在浏览器预览，HealthKit 只能在 iPhone 真机或模拟器中使用。" };
   }
@@ -29,11 +33,15 @@ export async function requestHealthAuthorization() {
 }
 
 export async function getNativeTodaySummary() {
+  if (isDemoMode()) return { steps: 8420, activeEnergyKcal: 486, exerciseMinutes: 42, latestHeartRate: 88, latestBloodOxygen: 0.98, sleepMinutes: 465 };
+
   if (!isNativeHealthAvailable()) return null;
   return NavaHealth.getTodaySummary();
 }
 
 export async function syncNativeHealthNow(userId: string) {
+  if (isDemoMode()) return { uploaded: 2, lastSyncDate: new Date().toISOString(), skipped: false };
+
   if (!isNativeHealthAvailable()) {
     return { uploaded: 0, lastSyncDate: new Date().toISOString(), skipped: true };
   }

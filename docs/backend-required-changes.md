@@ -20,6 +20,14 @@
 
 ## 建议优先补的数据库项
 
+可执行 SQL 已放入：
+
+```text
+supabase/migrations/202607170001_app_mobile_contracts.sql
+```
+
+这份迁移包含运动唯一约束、`face_records`、`device_connections`、`health_sync_jobs`。
+
 ### 1. exercise_records 唯一约束
 
 当前 App 端为避免冲突，先查询再更新。后端更推荐补：
@@ -85,4 +93,3 @@ USING (auth.uid() = user_id);
   "confidence": 0.82
 }
 ```
-

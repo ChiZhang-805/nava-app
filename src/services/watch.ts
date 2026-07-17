@@ -1,5 +1,6 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import type { WatchUserSnapshot } from "../types";
+import { isDemoMode } from "./demo";
 
 export type WatchAction =
   | { type: "mood.quickLog"; mood: number; recordedAt: string }
@@ -42,6 +43,8 @@ export async function readLastWatchSnapshot(): Promise<WatchUserSnapshot | null>
 }
 
 export async function getWatchReachability() {
+  if (isDemoMode()) return { paired: true, reachable: true };
+
   if (!Capacitor.isNativePlatform()) return { paired: false, reachable: false };
   try {
     return await NavaWatchBridge.isReachable();
@@ -51,6 +54,8 @@ export async function getWatchReachability() {
 }
 
 export async function subscribeWatchActions(listener: (action: WatchAction) => void) {
+  if (isDemoMode()) return null;
+
   if (!Capacitor.isNativePlatform() || !NavaWatchBridge.addListener) return null;
   return NavaWatchBridge.addListener("watchAction", listener);
 }

@@ -15,6 +15,7 @@ import { subscribeWatchActions } from "./services/watch";
 import ErrorBoundary from "./components/ErrorBoundary";
 import NetworkBadge from "./components/NetworkBadge";
 import type { AppTab } from "./types";
+import { isDemoMode } from "./services/demo";
 
 const tabs: Array<{ id: AppTab; label: string; icon: typeof Home }> = [
   { id: "today", label: "今日", icon: Home },
@@ -122,6 +123,7 @@ function MobileShell() {
             <button
               className={selected ? "nav-button selected" : "nav-button"}
               key={tab.id}
+              data-tab={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
               aria-current={selected ? "page" : undefined}
@@ -140,7 +142,7 @@ function AppContent() {
   const configError = assertConfig();
   const { user, loading } = useAuth();
 
-  if (configError) return <ConfigErrorScreen message={configError} />;
+  if (configError && !isDemoMode()) return <ConfigErrorScreen message={configError} />;
   if (loading) return <LoadingScreen />;
   if (!user) return <AuthScreen />;
   return <MobileShell />;

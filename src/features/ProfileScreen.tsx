@@ -1,10 +1,11 @@
 import type { User } from "@supabase/supabase-js";
-import { Apple, LogOut, RefreshCw, Save, ShieldCheck, Watch } from "lucide-react";
+import { Apple, Download, LogOut, RefreshCw, Save, ShieldCheck, Watch } from "lucide-react";
 import { useEffect, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import SectionCard from "../components/SectionCard";
 import StatusPill from "../components/StatusPill";
 import { appConfig } from "../config";
+import { exportUserData, downloadJson } from "../services/exportData";
 import { isNativeHealthAvailable, requestHealthAuthorization, syncNativeHealthNow } from "../services/health";
 import { loadProfile, saveProfile, type UserProfile } from "../services/profile";
 import { getWatchReachability, readLastWatchSnapshot } from "../services/watch";
@@ -71,6 +72,13 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
         occupation: profileDraft.occupation.trim() || null,
       });
       setProfile(saved);
+    });
+  }
+
+  async function exportData() {
+    await run("数据导出", async () => {
+      const data = await exportUserData(user.id);
+      downloadJson(`nava-export-${user.id}.json`, data);
     });
   }
 
@@ -167,6 +175,9 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
             <span>上线前补充删除账号、导出数据、隐私政策</span>
           </div>
         </div>
+        <ActionButton icon={<Download size={18} />} variant="secondary" onClick={exportData} disabled={busy === "数据导出"}>
+          导出我的数据
+        </ActionButton>
       </SectionCard>
 
       <SectionCard title="环境" subtitle={appConfig.appEnv}>

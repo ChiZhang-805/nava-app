@@ -16,6 +16,7 @@
 html,
 body,
 #root {
+  height: 100%;
   min-height: 100%;
   margin: 0;
 }
@@ -24,6 +25,8 @@ body {
   background:
     radial-gradient(circle at 10% 0%, rgba(114, 157, 95, 0.16), transparent 28rem),
     linear-gradient(180deg, #fbfcf8 0%, #eef4f4 45%, #f7f5f0 100%);
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 button,
@@ -31,21 +34,25 @@ input,
 textarea,
 select {
   font: inherit;
+  font-size: 16px;
 }
 
 button {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .phone-frame {
   width: 100%;
   max-width: 480px;
+  height: 100dvh;
   min-height: 100dvh;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   background: rgba(252, 253, 248, 0.84);
   box-shadow: 0 0 0 1px rgba(32, 54, 43, 0.08);
+  overflow: hidden;
 }
 
 .safe-top {
@@ -526,6 +533,94 @@ textarea {
   background: #1f7a5a;
 }
 
+.photo-picker {
+  position: relative;
+  min-height: 142px;
+  border: 1px dashed rgba(28, 52, 41, 0.2);
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  overflow: hidden;
+  color: #4d5a52;
+  background: #f5f8f2;
+  margin-bottom: 14px;
+}
+
+.photo-picker.face {
+  min-height: 184px;
+}
+
+.photo-picker input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.photo-picker img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-picker img + span {
+  position: relative;
+  border-radius: 999px;
+  padding: 7px 12px;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+.detected-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.detected-list div {
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f0f5ef;
+  font-size: 13px;
+}
+
+.detected-list strong {
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.detected-list span {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: #66736a;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.face-result > strong {
+  display: block;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.face-result p {
+  margin: 8px 0 14px;
+  color: #35443b;
+  line-height: 1.55;
+}
+
 .two-col {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -699,6 +794,12 @@ textarea {
 @keyframes shimmer {
   100% {
     transform: translateX(100%);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 

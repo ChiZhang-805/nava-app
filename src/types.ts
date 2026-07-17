@@ -48,6 +48,9 @@ export interface NutritionRecord {
   id: string;
   record_date: string;
   total_calories: number;
+  breakfast_photo_url?: string | null;
+  lunch_photo_url?: string | null;
+  dinner_photo_url?: string | null;
   breakfast_items?: FoodItem[];
   lunch_items?: FoodItem[];
   dinner_items?: FoodItem[];
@@ -117,3 +120,32 @@ export interface WatchUserSnapshot {
   lastSyncedAt: string;
 }
 
+export interface DietExtractResult {
+  imageUrl: string;
+  items: FoodItem[];
+}
+
+export interface FaceAnnotation {
+  id: string;
+  label: string;
+  desc: string;
+  dot_x: number;
+  dot_y: number;
+}
+
+export interface FaceAnalysisResult {
+  overall_score: number;
+  feedback: string;
+  annotations: FaceAnnotation[];
+}
+
+export interface FaceRecord {
+  id: string;
+  record_date: string;
+  image_path: string | null;
+  overall_score: number | null;
+  skin_age: number | null;
+  annotations: FaceAnnotation[];
+  feedback: string | null;
+  model_version: string | null;
+}
