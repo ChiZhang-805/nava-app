@@ -9,6 +9,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "lint": "eslint .",
     "verify": "powershell -ExecutionPolicy Bypass -File scripts/verify.ps1",
+    "backend:verify": "powershell -ExecutionPolicy Bypass -File scripts/verify-backend.ps1",
+    "backend:deploy": "powershell -ExecutionPolicy Bypass -File scripts/deploy-backend.ps1",
     "screenshots": "node scripts/capture-screenshots.mjs",
     "cap:sync": "npm run build && npx cap sync",
     "cap:add:ios": "npx cap add ios",

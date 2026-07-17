@@ -1,5 +1,19 @@
 # 后端与 Web 配合清单
 
+## 分工结论
+
+App 后端由 App 团队负责，但必须部署在 Web 同一个 Supabase 项目里，不能拆出第二套账号系统。
+
+- Web 同学负责：Web 页面、Web 已有表/接口、Web 部署和现有 Auth 配置。
+- App 团队负责：Apple Health、Apple Watch、App 图片上传、App 专属 Edge Functions、App migrations、Storage/RLS、节律评分落库。
+- 算法同学负责：正式识别/评分模型和稳定接口。
+
+App 后端完整说明见：
+
+```text
+docs/app-backend.md
+```
+
 ## 必须确认的配置
 
 - `VITE_SUPABASE_URL`
@@ -27,6 +41,14 @@ supabase/migrations/202607170001_app_mobile_contracts.sql
 ```
 
 这份迁移包含运动唯一约束、`face_records`、`device_connections`、`health_sync_jobs`。
+
+App Edge Functions 的新增迁移为：
+
+```text
+supabase/migrations/202607170002_app_edge_backend.sql
+```
+
+它包含 `daily_rhythm_scores`、`watch_snapshots`、`diet-photos`、`face-photos` 和 Storage RLS。
 
 ### 1. exercise_records 唯一约束
 

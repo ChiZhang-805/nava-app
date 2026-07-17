@@ -48,6 +48,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
   const [mealName, setMealName] = useState("鸡胸肉沙拉");
   const [mealCalories, setMealCalories] = useState(520);
   const [dietPhotoUrl, setDietPhotoUrl] = useState<string | null>(null);
+  const [dietPhotoPath, setDietPhotoPath] = useState<string | null>(null);
   const [dietItems, setDietItems] = useState<FoodItem[]>([]);
   const [dietAnalyzing, setDietAnalyzing] = useState(false);
 
@@ -148,7 +149,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
           date: recordDate,
           meal,
           items: dietItems,
-          photoUrl: dietPhotoUrl ?? undefined,
+          photoUrl: dietPhotoPath ?? dietPhotoUrl ?? undefined,
         }),
       );
       return;
@@ -177,6 +178,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
     try {
       const result = await analyzeDietPhoto({ userId: user.id, date: recordDate, meal, file });
       setDietPhotoUrl(result.imageUrl);
+      setDietPhotoPath(result.imagePath ?? null);
       setDietItems(result.items);
       if (result.items[0]) {
         setMealName(result.items[0].name);
@@ -196,10 +198,16 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
     setNotice(null);
     setError(null);
     try {
-      const { image, result } = await analyzeFacePhoto(file);
+      const { image, imagePath, result } = await analyzeFacePhoto({ userId: user.id, date: recordDate, file });
       setFaceImage(image);
       setFaceResult(result);
-      await saveFaceAnalysisRecord({ userId: user.id, date: recordDate, result });
+      await saveFaceAnalysisRecord({
+        userId: user.id,
+        date: recordDate,
+        result,
+        imagePath,
+        modelVersion: result.modelVersion ?? result.model_version,
+      });
       setNotice("面部分析已完成，并已保存到 face_records。");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

@@ -122,7 +122,10 @@ export interface WatchUserSnapshot {
 
 export interface DietExtractResult {
   imageUrl: string;
+  imagePath?: string;
   items: FoodItem[];
+  modelVersion?: string;
+  confidence?: number;
 }
 
 export interface FaceAnnotation {
@@ -137,6 +140,10 @@ export interface FaceAnalysisResult {
   overall_score: number;
   feedback: string;
   annotations: FaceAnnotation[];
+  modelVersion?: string;
+  model_version?: string;
+  confidence?: number;
+  skin_age?: number | null;
 }
 
 export interface FaceRecord {

@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { saveExerciseRecord, saveSleepSummaryRecord } from "./records";
 import { isDemoMode } from "./demo";
+import { supabase } from "./supabaseClient";
 
 export interface HealthTodayNativeSummary {
   steps?: number;
@@ -46,6 +47,14 @@ export async function syncNativeHealthNow(userId: string) {
     return { uploaded: 0, lastSyncDate: new Date().toISOString(), skipped: true };
   }
   const summary = await NavaHealth.getTodaySummary();
+  const response = await supabase.functions.invoke<{
+    uploaded: number;
+    lastSyncDate: string;
+    rhythm?: unknown;
+  }>("health-sync-ingest", { body: { summary, source: "apple_health" } });
+
+  if (!response.error && response.data) return { ...response.data, summary };
+
   await saveExerciseRecord({
     userId,
     steps: Math.round(summary.steps ?? 0),

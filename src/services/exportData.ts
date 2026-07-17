@@ -13,6 +13,9 @@ export async function exportUserData(userId: string) {
     };
   }
 
+  const exported = await supabase.functions.invoke<Record<string, unknown>>("export-user-data", { body: {} });
+  if (!exported.error && exported.data) return exported.data;
+
   const tables = [
     "profiles",
     "mood_records",
@@ -23,6 +26,11 @@ export async function exportUserData(userId: string) {
     "focus_time_distribution",
     "tasks",
     "ai_conversations",
+    "face_records",
+    "device_connections",
+    "health_sync_jobs",
+    "watch_snapshots",
+    "daily_rhythm_scores",
   ];
 
   const result: Record<string, unknown> = {
@@ -51,4 +59,3 @@ export function downloadJson(filename: string, data: unknown) {
   link.remove();
   URL.revokeObjectURL(url);
 }
-

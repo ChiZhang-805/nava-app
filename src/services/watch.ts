@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import type { WatchUserSnapshot } from "../types";
 import { isDemoMode } from "./demo";
+import { supabase } from "./supabaseClient";
 
 export type WatchAction =
   | { type: "mood.quickLog"; mood: number; recordedAt: string }
@@ -22,6 +23,19 @@ const NavaWatchBridge = registerPlugin<NavaWatchBridgePlugin>("NavaWatchBridge")
 
 export async function publishWatchSnapshot(snapshot: WatchUserSnapshot) {
   localStorage.setItem("nava.watch.snapshot", JSON.stringify(snapshot));
+  if (!isDemoMode()) {
+    try {
+      await supabase.functions.invoke("watch-sync", {
+        body: {
+          type: "snapshot",
+          date: new Date(snapshot.lastSyncedAt).toISOString().slice(0, 10),
+          snapshot,
+        },
+      });
+    } catch {
+      // Native transfer and local cache still proceed if backend sync is unavailable.
+    }
+  }
   if (Capacitor.isNativePlatform()) {
     try {
       await NavaWatchBridge.publishSnapshot({ snapshot });

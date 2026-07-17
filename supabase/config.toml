@@ -1,0 +1,19 @@
+project_id = "nava-app"
+
+[functions.diet-extract]
+verify_jwt = true
+
+[functions.face-analyze]
+verify_jwt = true
+
+[functions.health-sync-ingest]
+verify_jwt = true
+
+[functions.watch-sync]
+verify_jwt = true
+
+[functions.rhythm-score]
+verify_jwt = true
+
+[functions.export-user-data]
+verify_jwt = true
