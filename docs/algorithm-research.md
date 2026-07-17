@@ -1,6 +1,6 @@
 # NAVA 算法调研与自研路线
 
-本调研面向 Apple Watch / Apple 健康用户。结论是：第一版不应直接做不可解释黑盒模型，而应采用“可解释规则 + 经典节律特征 + 个人基线 + 置信度”的混合算法；等真实用户数据积累后，再逐步加入学习型模型。
+本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA Fusion v3：个人基线、小时活动节律、恢复指标、异常检测、证据可靠度、非线性融合和风险门控。
 
 ## 已调研的算法/方法
 
@@ -32,10 +32,16 @@
 | 24 | MediaPipe Face Landmarker | 移动端实时人脸关键点 | 面部状态算法基础 |
 | 25 | Facial Action Coding / 表情特征 | 疲劳、压力、情绪表情线索 | 只能做状态提示，不能做医疗判断 |
 | 26 | 多模态融合评分 | 睡眠、活动、饮食、情绪、面部状态融合 | NAVA 自研算法主线 |
+| 27 | Dempster-Shafer evidence fusion | 多来源证据可信度不同且可能互相冲突 | v3 已用于 belief / disbelief / uncertainty 证据质量合成 |
+| 28 | Geometric mean / bottleneck fusion | 防止一个高分信号掩盖关键短板 | v3 已用作短板约束 |
+| 29 | EWMA / CUSUM change detection | 识别相对个人基线的连续偏移 | v4 可用于更早发现恢复债和节律漂移 |
+| 30 | Robust z-score / MAD | 对异常值更稳健的个人基线检测 | v4 建议替代部分均值/标准差阈值 |
+| 31 | Entropy / sample entropy | 衡量日内活动和心率序列复杂度 | v4 可用于碎片化与恢复质量增强 |
+| 32 | SHAP / feature attribution | 解释机器学习模型为什么给出某个建议 | v4 若接入 GBDT/深度模型后必须配套 |
 
 ## NAVA 自研算法设计
 
-### v1：可解释节律分（已完成）
+### v1：可解释节律分（已淘汰为历史 baseline）
 
 目标：先稳定上线，输出用户能理解的分数、原因、建议。
 
@@ -54,9 +60,9 @@
 3. 输出 `score`、`confidence`、`signals`、`reasons`、`actions`。
 4. 写入 `daily_rhythm_scores`。
 
-`rhythm-score` Edge Function 已实现 v1 baseline，并已升级到 v2。
+`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 v3。
 
-### v2：个人基线 + 经典节律特征（已接入后端）
+### v2：个人基线 + 经典节律特征（已升级）
 
 目标：让算法从“通用建议”变成“理解这个用户平常什么样”。当前后端实现文件：
 
@@ -90,9 +96,80 @@ daily_rhythm_scores
 health_metric_snapshots
 ```
 
-v2 有意没有直接声称实现完整 Cosinor/NPCRA/DTW，因为当前 Apple Health 摘要数据还不是分钟级 actigraphy。我们先实现“代理特征 + 可解释输出”，等拿到连续分钟级活动、睡眠阶段、HRV 序列后再升级为严格版本。
+v2 已经被 v3 替代。v3 接入了小时活动 bins，开始计算真实的 M10、L5、RA、IV 和跨日 IS。
 
-### v3：个性化推荐模型
+### v3：NAVA Fusion（已接入后端）
+
+目标：不再做简单加权平均，而是把每类信号当作“证据源”，根据可靠度、冲突程度和异常风险做非线性融合。
+
+当前实现文件：
+
+```text
+supabase/functions/_shared/rhythm.ts
+supabase/functions/rhythm-score/index.ts
+supabase/functions/health-sync-ingest/index.ts
+native/ios/NavaHealthPlugin.swift
+```
+
+已实现：
+
+- 小时活动曲线：iOS HealthKit 返回 24 个 `activityBins`。
+- 睡眠阶段：返回 `sleepStageMinutes`。
+- 非参数节律特征：
+  - `M10`：最活跃 10 小时均值。
+  - `L5`：最安静 5 小时均值。
+  - `RA`：相对振幅 `(M10-L5)/(M10+L5)`。
+  - `IV`：日内碎片化。
+  - `IS`：跨日稳定性。
+- 恢复指标：
+  - 睡眠时长/阶段。
+  - HRV SDNN。
+  - 静息心率/最新心率。
+- 异常检测：
+  - 短睡。
+  - 睡眠相位偏移。
+  - 低活动。
+  - 高心率。
+  - 低 HRV。
+  - 低血氧。
+  - 日夜活动幅度弱。
+  - 日内碎片化高。
+- 非线性融合：
+  - 每个信号转为健康状态概率。
+  - 用可靠度修正 log-odds evidence。
+  - 用 Dempster-Shafer mass 合成 belief / disbelief / uncertainty。
+  - 用几何瓶颈防止单一强项掩盖短板。
+  - 用 anomaly risk gate 做风险门控。
+  - 用 conflict penalty 处理信号冲突。
+
+v3 的关键点：
+
+1. 子分仍然保持可解释，但总分不再等于 `sleep*权重 + activity*权重 + ...`。
+2. 每个信号先转成 `0.03-0.97` 的状态概率，避免极端值直接把分数打满或打穿。
+3. `reliability` 由数据深度决定，例如睡眠是否有时长/相位/深睡/REM，活动是否有步数/运动分钟/能量，恢复是否有 HRV/静息心率。
+4. `posterior` 使用可靠度修正的 log-odds evidence，吸收 Bayesian fusion 思路。
+5. `belief / disbelief / uncertainty` 使用二元 Dempster-Shafer 质量合成，保留“证据支持稳定”“证据支持压力/失衡”“证据不足”三种状态。
+6. `geometric` 和 `bottleneck` 会惩罚短板，例如睡眠极差时，运动高分不能把总分拉得过高。
+7. `riskGate` 由异常旗标、规律性分、碎片化风险共同控制，低血氧、高心率、严重短睡这类风险会直接压低总分上限。
+8. `conflict` 同时吸收信号离散度和 Dempster-Shafer 冲突，避免“有些信号极好、有些信号极差”时给出过度确定的结论。
+9. 输出 `fusion` 给算法端审计，App 前端默认只展示用户能理解的总分、原因和建议。
+
+输出字段：
+
+- `score`
+- `confidence`
+- `fusion`
+- `signals`
+- `features`
+- `baseline`
+- `anomalyFlags`
+- `profileLabels`
+- `regularityScore`
+- `fragmentationScore`
+- `recoveryScore`
+- `phaseShiftMinutes`
+
+### v4：个性化推荐模型
 
 目标：不只是评分，而是学会“哪类建议对这个用户有效”。
 
@@ -132,8 +209,15 @@ v2 有意没有直接声称实现完整 Cosinor/NPCRA/DTW，因为当前 Apple H
 - Wearable circadian rhythm analysis: https://www.jmir.org/2021/10/e18403/
 - HRV wearable review: https://pmc.ncbi.nlm.nih.gov/articles/PMC10742885/
 - Multisensor fusion review: https://arxiv.org/html/2412.05895v1
+- Wearable health multi-sensor fusion review: https://www.sciencedirect.com/science/article/pii/S1566253526001983
+- Bayesian and Dempster-Shafer data fusion: https://robotics.caltech.edu/~jerma/research_papers/BayesChapmanKolmogorov.pdf
+- Dempster-Shafer sensor fusion: https://www.cs.cmu.edu/~whd/publications/7179.pdf
 - Isolation Forest paper: https://www.lamda.nju.edu.cn/publication/icdm08b.pdf
 - Dynamic Time Warping explanation: https://rtavenar.github.io/blog/dtw.html
+- nparACT non-parametric actigraphy package: https://pmc.ncbi.nlm.nih.gov/articles/PMC4890079/
+- Actigraphy statistics RA/IS/IV formulas: https://rstudio-pubs-static.s3.amazonaws.com/528591_e471eb587b4b46a290e9720f0a6ca33c.html
+- Interdaily stability variable details: https://www.radc.rush.edu/docs/var/detail.htm?category=Sleep+and+Circadian+Rhythms&subcategory=Sensor+device+measures&variable=is
+- Relative amplitude rest-activity rhythm paper: https://pmc.ncbi.nlm.nih.gov/articles/PMC8403141/
 - Image-based food recognition survey: https://pmc.ncbi.nlm.nih.gov/articles/PMC8700885/
 - Mask R-CNN food segmentation/calorie estimation: https://www.mdpi.com/2076-3417/12/21/10938
 - U-Net visual nutrition analysis: https://pmc.ncbi.nlm.nih.gov/articles/PMC11685081/

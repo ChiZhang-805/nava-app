@@ -12,6 +12,15 @@ export interface HealthTodayNativeSummary {
   heartRateVariabilitySDNN?: number;
   latestBloodOxygen?: number;
   sleepMinutes?: number;
+  sleepStageMinutes?: Record<string, number>;
+  activityBins?: Array<{
+    hour: number;
+    start: string;
+    end: string;
+    steps?: number;
+    activeEnergyKcal?: number;
+    exerciseMinutes?: number;
+  }>;
 }
 
 interface NavaHealthPlugin {
@@ -46,6 +55,15 @@ export async function getNativeTodaySummary() {
       heartRateVariabilitySDNN: 48,
       latestBloodOxygen: 0.98,
       sleepMinutes: 465,
+      sleepStageMinutes: { deep: 85, rem: 95, core: 280, awake: 12 },
+      activityBins: Array.from({ length: 24 }, (_, hour) => ({
+        hour,
+        start: new Date(new Date().setHours(hour, 0, 0, 0)).toISOString(),
+        end: new Date(new Date().setHours(hour + 1, 0, 0, 0)).toISOString(),
+        steps: hour >= 8 && hour <= 21 ? Math.round(180 + Math.sin(hour / 24 * Math.PI) * 520) : 12,
+        activeEnergyKcal: hour >= 8 && hour <= 21 ? 18 : 1,
+        exerciseMinutes: hour === 18 ? 22 : 0,
+      })),
     };
   }
 

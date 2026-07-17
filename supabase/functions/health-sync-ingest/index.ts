@@ -21,6 +21,8 @@ type HealthSummary = {
   heartRateVariabilitySDNN?: number | string;
   latestBloodOxygen?: number | string;
   sleepMinutes?: number;
+  sleepStageMinutes?: Record<string, number>;
+  activityBins?: Array<Record<string, unknown>>;
   source?: string;
 };
 
@@ -111,6 +113,8 @@ function normalizeSummary(input: Record<string, unknown>): HealthSummary {
       stringValue(input.heartRateVariabilitySDNN),
     latestBloodOxygen: numberValue(input.latestBloodOxygen) ?? stringValue(input.latestBloodOxygen),
     sleepMinutes: numberValue(input.sleepMinutes) ?? numberValue(input.sleep_minutes),
+    sleepStageMinutes: normalizeNumberRecord(input.sleepStageMinutes ?? input.sleep_stage_minutes),
+    activityBins: Array.isArray(input.activityBins) ? input.activityBins as Array<Record<string, unknown>> : Array.isArray(input.activity_bins) ? input.activity_bins as Array<Record<string, unknown>> : undefined,
     source: stringValue(input.source),
   };
 }
@@ -124,7 +128,9 @@ function hasHealthMetrics(summary: HealthSummary) {
       summary.steps ||
       summary.activeEnergyKcal ||
       summary.exerciseMinutes ||
-      summary.sleepMinutes,
+      summary.sleepMinutes ||
+      (summary.activityBins?.length ?? 0) > 0 ||
+      Object.keys(summary.sleepStageMinutes ?? {}).length > 0,
   );
 }
 
@@ -137,6 +143,8 @@ async function upsertHealthMetricSnapshot(client: SupabaseClient, userId: string
       resting_heart_rate: numericOrNull(summary.restingHeartRate),
       heart_rate_variability_sdnn: numericOrNull(summary.heartRateVariabilitySDNN),
       blood_oxygen: numericOrNull(normalizeSpo2(summary.latestBloodOxygen)),
+      activity_bins: summary.activityBins ?? [],
+      sleep_stage_minutes: summary.sleepStageMinutes ?? {},
       raw_payload: summary,
       source: summary.source ?? "apple_health",
     },
@@ -197,4 +205,13 @@ function numericOrNull(value: number | string | null | undefined) {
   if (value == null) return null;
   const numeric = Number(String(value).replace("%", "").trim());
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+function normalizeNumberRecord(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .map(([key, item]) => [key, numberValue(item) ?? 0])
+      .filter(([, item]) => Number(item) >= 0),
+  );
 }

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.52.1";
 import { asArray, assertNoError, clamp } from "./http.ts";
 
-type SignalKey = "sleep" | "activity" | "mood" | "nutrition" | "focus" | "recovery";
+type SignalKey = "sleep" | "activity" | "circadian" | "mood" | "nutrition" | "focus" | "recovery";
 
 type DailyRecord = {
   date: string;
@@ -25,8 +25,28 @@ type Signal = {
   label: string;
   score: number;
   weight: number;
+  reliability: number;
   reason: string;
   evidence?: Record<string, unknown>;
+};
+
+type ActivityBin = {
+  hour: number;
+  steps?: number;
+  activeEnergyKcal?: number;
+  exerciseMinutes?: number;
+};
+
+type ActivityRhythmFeatures = {
+  available: boolean;
+  todayRa: number | null;
+  todayIv: number | null;
+  historyIs: number | null;
+  historyRa: number | null;
+  m10: number | null;
+  l5: number | null;
+  m10StartHour: number | null;
+  l5StartHour: number | null;
 };
 
 type MetricStats = {
@@ -55,8 +75,8 @@ type Baseline = {
   hrvSdnn: MetricStats;
 };
 
-export const rhythmSchemaVersion = "2.0.0";
-export const rhythmModelVersion = "nava-rhythm-v2-baseline-2026-07";
+export const rhythmSchemaVersion = "3.0.0";
+export const rhythmModelVersion = "nava-fusion-v3-2026-07";
 
 export async function loadDailyInputs(client: SupabaseClient, userId: string, date: string): Promise<RhythmInputs> {
   const start = shiftDate(date, -28);
@@ -114,26 +134,24 @@ export async function loadDailyInputs(client: SupabaseClient, userId: string, da
 export function calculateRhythm(inputs: RhythmInputs) {
   const baseline = buildBaseline(inputs.history);
   const today = inputs.today;
+  const activityRhythm = calculateActivityRhythm(today, inputs.history);
+  const phaseShiftMinutes = calculatePhaseShift(today, baseline);
+  const regularityScore = calculateRegularityScore(today, baseline, activityRhythm);
+  const fragmentationRisk = calculateFragmentationRisk(today, baseline, activityRhythm);
   const signals = [
     scoreSleep(today, baseline),
     scoreActivity(today, baseline),
+    scoreCircadian(today, baseline, activityRhythm, regularityScore, fragmentationRisk),
     scoreMood(today, baseline),
     scoreNutrition(today, baseline),
     scoreFocus(today, baseline),
     scoreRecovery(today, baseline),
   ].filter(Boolean) as Signal[];
 
-  const totalWeight = signals.reduce((sum, item) => sum + item.weight, 0);
-  const score = totalWeight > 0
-    ? signals.reduce((sum, item) => sum + item.score * item.weight, 0) / totalWeight
-    : 50;
-
-  const phaseShiftMinutes = calculatePhaseShift(today, baseline);
-  const regularityScore = calculateRegularityScore(today, baseline);
-  const fragmentationRisk = calculateFragmentationRisk(today, baseline);
   const recoveryScore = signals.find((item) => item.key === "recovery")?.score ?? null;
-  const anomalyFlags = detectAnomalies(today, baseline, phaseShiftMinutes);
-  const profileLabels = buildProfileLabels({ today, baseline, phaseShiftMinutes, regularityScore, fragmentationRisk, recoveryScore });
+  const anomalyFlags = detectAnomalies(today, baseline, phaseShiftMinutes, activityRhythm);
+  const fusion = fuseRhythmState(signals, anomalyFlags, regularityScore, fragmentationRisk);
+  const profileLabels = buildProfileLabels({ today, baseline, phaseShiftMinutes, regularityScore, fragmentationRisk, recoveryScore, activityRhythm });
   const confidence = calculateConfidence(signals, baseline);
   const actions = buildActions({ signals, today, baseline, anomalyFlags, phaseShiftMinutes, recoveryScore });
   const reasons = [...signals.map((item) => item.reason), ...anomalyFlags.map((flag) => flag.message)];
@@ -142,11 +160,12 @@ export function calculateRhythm(inputs: RhythmInputs) {
     schemaVersion: rhythmSchemaVersion,
     modelVersion: rhythmModelVersion,
     date: inputs.date,
-    score: Math.round(score),
+    score: fusion.score,
     confidence,
     signals,
     reasons,
     actions,
+    fusion,
     phaseShiftMinutes,
     regularityScore,
     fragmentationScore: fragmentationRisk,
@@ -155,12 +174,13 @@ export function calculateRhythm(inputs: RhythmInputs) {
     profileLabels,
     baseline,
     features: {
-      fusion: "dynamic weighted multimodal score",
-      components: ["sleep", "activity", "mood", "nutrition", "focus", "recovery"],
+      fusion: "bayesian log-odds evidence + dempster-shafer belief mass + geometric bottleneck + anomaly risk gates",
+      components: ["sleep", "activity", "circadian", "mood", "nutrition", "focus", "recovery"],
       circadian: {
         phaseShiftMinutes,
         regularityScore,
         fragmentationRisk,
+        activityRhythm,
         isProxy: regularityScore == null ? null : Number((regularityScore / 100).toFixed(2)),
         ivProxy: fragmentationRisk == null ? null : Number((fragmentationRisk / 100).toFixed(2)),
       },
@@ -171,6 +191,7 @@ export function calculateRhythm(inputs: RhythmInputs) {
       },
       baselineWindowDays: 28,
       observedHistoryDays: baseline.observedDays,
+      fusionDiagnostics: fusion,
     },
   };
 }
@@ -189,10 +210,13 @@ export async function saveRhythmScore(client: SupabaseClient, userId: string, re
       features: result.features,
       baseline: result.baseline,
       anomaly_flags: result.anomalyFlags,
+      fusion: result.fusion,
       phase_shift_minutes: result.phaseShiftMinutes,
       regularity_score: result.regularityScore,
       fragmentation_score: result.fragmentationScore,
       recovery_score: result.recoveryScore,
+      circadian_score: result.signals.find((signal) => signal.key === "circadian")?.score ?? null,
+      data_quality_score: Math.round(result.confidence * 100),
       profile_labels: result.profileLabels,
     },
     { onConflict: "user_id,record_date" },
@@ -222,6 +246,7 @@ function scoreSleep(day: DailyRecord, baseline: Baseline): Signal | null {
     label: "睡眠",
     score,
     weight: 0.28,
+    reliability: clamp((duration > 0 ? 0.45 : 0.15) + (start != null ? 0.2 : 0) + (deep > 0 ? 0.15 : 0) + (rem > 0 ? 0.12 : 0) + (baseline.sleepDuration.count >= 7 ? 0.08 : 0), 0.2, 0.95),
     reason: duration > 0
       ? `睡眠 ${Math.round(duration / 60)} 小时 ${Math.round(duration % 60)} 分钟，${phaseShift == null ? "入睡相位待补齐" : phaseShiftText(phaseShift)}。`
       : "已有睡眠记录但缺少睡眠时长。",
@@ -248,8 +273,39 @@ function scoreActivity(day: DailyRecord, baseline: Baseline): Signal | null {
     label: "活动",
     score,
     weight: 0.18,
+    reliability: clamp((steps > 0 ? 0.42 : 0.12) + (minutes > 0 ? 0.22 : 0) + (calories > 0 ? 0.18 : 0) + (baseline.steps.count >= 7 ? 0.12 : 0), 0.18, 0.94),
     reason: `步数 ${Math.round(steps)}，运动 ${Math.round(minutes)} 分钟，目标按个人基线动态调整。`,
     evidence: { steps, minutes, calories, stepTarget, minuteTarget, calorieTarget },
+  };
+}
+
+function scoreCircadian(
+  day: DailyRecord,
+  baseline: Baseline,
+  activityRhythm: ActivityRhythmFeatures,
+  regularityScore: number | null,
+  fragmentationRisk: number | null,
+): Signal | null {
+  const midpoint = sleepMidpoint(day);
+  const hasSleepPhase = midpoint != null && baseline.sleepMidpoint.median != null;
+  if (!activityRhythm.available && !hasSleepPhase && regularityScore == null) return null;
+
+  const raScore = activityRhythm.todayRa == null ? 62 : clamp(activityRhythm.todayRa * 100, 15, 100);
+  const ivScore = activityRhythm.todayIv == null ? 64 : clamp(100 - activityRhythm.todayIv * 34, 10, 100);
+  const isScore = activityRhythm.historyIs == null ? (regularityScore ?? 62) : clamp(activityRhythm.historyIs * 100, 10, 100);
+  const fragmentScore = fragmentationRisk == null ? 65 : clamp(100 - fragmentationRisk, 0, 100);
+  const score = rounded(geometricBlend([raScore, ivScore, isScore, fragmentScore]));
+
+  return {
+    key: "circadian",
+    label: "节律",
+    score,
+    weight: 0.16,
+    reliability: activityRhythm.available ? clamp(0.55 + (baseline.observedDays / 28) * 0.35, 0.55, 0.92) : 0.42,
+    reason: activityRhythm.available
+      ? `已用小时活动曲线计算 RA ${formatOptional(activityRhythm.todayRa)}、IV ${formatOptional(activityRhythm.todayIv)}、IS ${formatOptional(activityRhythm.historyIs)}。`
+      : "当前缺少小时活动曲线，节律信号使用睡眠相位和活动稳定性代理计算。",
+    evidence: activityRhythm as unknown as Record<string, unknown>,
   };
 }
 
@@ -264,6 +320,7 @@ function scoreMood(day: DailyRecord, baseline: Baseline): Signal | null {
     label: "情绪",
     score,
     weight: 0.14,
+    reliability: clamp(0.52 + (baseline.mood.count >= 7 ? 0.2 : 0) + (day.mood.diary_content ? 0.08 : 0), 0.52, 0.84),
     reason: baselineMood == null ? "已记录主观情绪。" : `情绪比个人均值${delta >= 0 ? "高" : "低"} ${Math.abs(Math.round(delta))} 分。`,
     evidence: { mood, baselineMood, delta },
   };
@@ -279,6 +336,7 @@ function scoreNutrition(day: DailyRecord, baseline: Baseline): Signal | null {
     label: "饮食",
     score,
     weight: 0.12,
+    reliability: clamp((calories > 0 ? 0.58 : 0.32) + (baseline.nutritionCalories.count >= 5 ? 0.16 : 0), 0.32, 0.82),
     reason: calories > 0 ? `当前摄入约 ${Math.round(calories)} kcal，个人参考值约 ${Math.round(target)} kcal。` : "已有饮食记录但缺少热量。",
     evidence: { calories, target },
   };
@@ -293,6 +351,7 @@ function scoreFocus(day: DailyRecord, baseline: Baseline): Signal | null {
     label: "专注",
     score,
     weight: 0.12,
+    reliability: clamp(0.58 + (baseline.focusMinutes.count >= 5 ? 0.16 : 0), 0.58, 0.82),
     reason: `已完成 ${Math.round(day.focusMinutes)} 分钟专注，个人参考值约 ${Math.round(target)} 分钟。`,
     evidence: { focusMinutes: day.focusMinutes, target, sessions: day.focusSessions },
   };
@@ -320,6 +379,7 @@ function scoreRecovery(day: DailyRecord, baseline: Baseline): Signal | null {
     label: "恢复",
     score,
     weight: 0.16,
+    reliability: clamp(0.22 + (sleepDuration > 0 ? 0.25 : 0) + (hrv > 0 ? 0.26 : 0) + (hr > 0 ? 0.18 : 0) + (baseline.hrvSdnn.count >= 5 ? 0.08 : 0), 0.22, 0.96),
     reason: hrv > 0 ? `HRV SDNN ${Math.round(hrv)} ms，结合睡眠和心率估计恢复状态。` : "根据睡眠和心率估计恢复状态。",
     evidence: { sleepDuration, hrv, restingHr, latestHr, hrBaseline },
   };
@@ -352,7 +412,13 @@ function calculatePhaseShift(day: DailyRecord, baseline: Baseline) {
   return Math.round(signedCircularDiff(midpoint, target));
 }
 
-function calculateRegularityScore(day: DailyRecord, baseline: Baseline) {
+function calculateRegularityScore(day: DailyRecord, baseline: Baseline, activityRhythm: ActivityRhythmFeatures) {
+  if (activityRhythm.available) {
+    const isScore = activityRhythm.historyIs == null ? 62 : clamp(activityRhythm.historyIs * 100, 0, 100);
+    const raScore = activityRhythm.todayRa == null ? 62 : clamp(activityRhythm.todayRa * 100, 0, 100);
+    const ivScore = activityRhythm.todayIv == null ? 62 : clamp(100 - activityRhythm.todayIv * 34, 0, 100);
+    return rounded(geometricBlend([isScore, raScore, ivScore]));
+  }
   if (baseline.observedDays < 3) return null;
   const phaseShift = calculatePhaseShift(day, baseline);
   const sleepStartSd = baseline.sleepStart.sd ?? 90;
@@ -362,7 +428,7 @@ function calculateRegularityScore(day: DailyRecord, baseline: Baseline) {
   return rounded(100 - phasePenalty - variancePenalty);
 }
 
-function calculateFragmentationRisk(day: DailyRecord, baseline: Baseline) {
+function calculateFragmentationRisk(day: DailyRecord, baseline: Baseline, activityRhythm: ActivityRhythmFeatures) {
   const duration = numeric(day.sleep?.sleep_duration_minutes);
   const deep = numeric(day.sleep?.deep_sleep_minutes);
   const rem = numeric(day.sleep?.rem_minutes);
@@ -372,10 +438,151 @@ function calculateFragmentationRisk(day: DailyRecord, baseline: Baseline) {
   const activityRisk = baseline.steps.median && steps > 0 ? clamp((baseline.steps.median - steps) / baseline.steps.median * 35, 0, 35) : 10;
   const phaseShift = calculatePhaseShift(day, baseline);
   const phaseRisk = phaseShift == null ? 8 : clamp(Math.abs(phaseShift) / 6, 0, 25);
-  return rounded(deepRisk + remRisk + activityRisk + phaseRisk);
+  const activityFragmentation = activityRhythm.todayIv == null ? 0 : clamp(activityRhythm.todayIv * 28, 0, 32);
+  const weakAmplitudeRisk = activityRhythm.todayRa == null ? 0 : clamp((0.72 - activityRhythm.todayRa) * 42, 0, 30);
+  return rounded(deepRisk + remRisk + activityRisk + phaseRisk + activityFragmentation + weakAmplitudeRisk);
 }
 
-function detectAnomalies(day: DailyRecord, baseline: Baseline, phaseShiftMinutes: number | null) {
+function calculateActivityRhythm(today: DailyRecord, history: DailyRecord[]): ActivityRhythmFeatures {
+  const todayVector = activityVector(today);
+  const historyVectors = history.map(activityVector).filter((vector) => vector.length === 24 && vector.some((value) => value > 0));
+  const available = todayVector.length === 24 && todayVector.some((value) => value > 0);
+  if (!available) {
+    return {
+      available: false,
+      todayRa: null,
+      todayIv: null,
+      historyIs: null,
+      historyRa: null,
+      m10: null,
+      l5: null,
+      m10StartHour: null,
+      l5StartHour: null,
+    };
+  }
+
+  const m10 = movingWindowExtreme(todayVector, 10, "max");
+  const l5 = movingWindowExtreme(todayVector, 5, "min");
+  const todayRa = m10.value + l5.value > 0 ? (m10.value - l5.value) / (m10.value + l5.value) : null;
+  const todayIv = intradailyVariability(todayVector);
+  const historyIs = historyVectors.length >= 3 ? interdailyStability([...historyVectors, todayVector]) : null;
+  const historyRa = historyVectors.length >= 3
+    ? median(historyVectors.map((vector) => {
+      const hM10 = movingWindowExtreme(vector, 10, "max").value;
+      const hL5 = movingWindowExtreme(vector, 5, "min").value;
+      return hM10 + hL5 > 0 ? (hM10 - hL5) / (hM10 + hL5) : 0;
+    }))
+    : null;
+
+  return {
+    available: true,
+    todayRa: todayRa == null ? null : Number(todayRa.toFixed(3)),
+    todayIv: todayIv == null ? null : Number(todayIv.toFixed(3)),
+    historyIs: historyIs == null ? null : Number(historyIs.toFixed(3)),
+    historyRa: historyRa == null ? null : Number(historyRa.toFixed(3)),
+    m10: Number(m10.value.toFixed(2)),
+    l5: Number(l5.value.toFixed(2)),
+    m10StartHour: m10.start,
+    l5StartHour: l5.start,
+  };
+}
+
+function fuseRhythmState(
+  signals: Signal[],
+  anomalyFlags: Array<{ severity: "info" | "warning" | "critical" }>,
+  regularityScore: number | null,
+  fragmentationRisk: number | null,
+) {
+  if (signals.length === 0) {
+    return {
+      method: "nava-fusion-v3",
+      score: 50,
+      posterior: 0.5,
+      belief: 0.5,
+      disbelief: 0,
+      uncertainty: 1,
+      geometric: 0.5,
+      bottleneck: 0.5,
+      riskGate: 1,
+      evidenceMass: 0,
+      conflict: 0,
+      dsConflict: 0,
+      evidence: [],
+    };
+  }
+
+  const evidence = signals.map((signal) => {
+    const p = clamp(signal.score / 100, 0.03, 0.97);
+    const prior = signal.weight;
+    const reliability = clamp(signal.reliability, 0.1, 0.98);
+    const support = clamp(reliability * (0.65 + Math.sqrt(prior) * 0.35), 0.08, 0.98);
+    return {
+      key: signal.key,
+      p,
+      reliability,
+      influence: Math.sqrt(prior) * reliability,
+      mass: {
+        stable: Number((p * support).toFixed(3)),
+        strain: Number(((1 - p) * support).toFixed(3)),
+        uncertainty: Number((1 - support).toFixed(3)),
+      },
+      logOdds: logit(p) * Math.sqrt(prior) * reliability,
+    };
+  });
+
+  const evidenceMass = evidence.reduce((sum, item) => sum + item.influence, 0);
+  const posterior = sigmoid(evidence.reduce((sum, item) => sum + item.logOdds, logit(0.56)) / Math.max(0.72, Math.sqrt(evidenceMass)));
+  const beliefMass = evidence.reduce(
+    (current, item) => combineEvidenceMasses(current, item.mass),
+    { stable: 0, strain: 0, uncertainty: 1, conflict: 0 },
+  );
+  const belief = clamp(beliefMass.stable + beliefMass.uncertainty * 0.5, 0.03, 0.97);
+  const bottleneck = Math.min(...evidence.map((item) => item.p));
+  const geometric = Math.exp(evidence.reduce((sum, item) => sum + Math.log(item.p) * item.influence, 0) / Math.max(0.1, evidenceMass));
+  const dispersion = standardDeviation(evidence.map((item) => item.p));
+  const conflict = clamp(dispersion * 1.2 + beliefMass.conflict * 0.42, 0, 0.5);
+  const warningCount = anomalyFlags.filter((flag) => flag.severity === "warning").length;
+  const criticalCount = anomalyFlags.filter((flag) => flag.severity === "critical").length;
+  const anomalyGate = Math.pow(0.91, warningCount) * Math.pow(0.74, criticalCount);
+  const regularityGate = regularityScore == null ? 1 : clamp(0.72 + regularityScore / 360, 0.72, 1);
+  const fragmentationGate = fragmentationRisk == null ? 1 : clamp(1 - fragmentationRisk / 260, 0.62, 1);
+  const riskGate = Number((anomalyGate * regularityGate * fragmentationGate).toFixed(3));
+  const probabilistic = Math.sqrt(posterior * belief);
+  const fused = Math.min(probabilistic, geometric * 1.08) * 0.72 + bottleneck * 0.28;
+  const score = rounded(fused * riskGate * (1 - conflict * 0.35) * 100);
+
+  return {
+    method: "nava-fusion-v3",
+    score,
+    posterior: Number(posterior.toFixed(3)),
+    belief: Number(belief.toFixed(3)),
+    disbelief: Number(beliefMass.strain.toFixed(3)),
+    uncertainty: Number(beliefMass.uncertainty.toFixed(3)),
+    geometric: Number(geometric.toFixed(3)),
+    bottleneck: Number(bottleneck.toFixed(3)),
+    riskGate,
+    evidenceMass: Number(evidenceMass.toFixed(3)),
+    conflict: Number(conflict.toFixed(3)),
+    dsConflict: Number(beliefMass.conflict.toFixed(3)),
+    evidence,
+  };
+}
+
+function combineEvidenceMasses(
+  left: { stable: number; strain: number; uncertainty: number; conflict: number },
+  right: { stable: number; strain: number; uncertainty: number },
+) {
+  const rawConflict = left.stable * right.strain + left.strain * right.stable;
+  const normalization = Math.max(0.001, 1 - rawConflict);
+  return {
+    stable: (left.stable * right.stable + left.stable * right.uncertainty + left.uncertainty * right.stable) / normalization,
+    strain: (left.strain * right.strain + left.strain * right.uncertainty + left.uncertainty * right.strain) / normalization,
+    uncertainty: (left.uncertainty * right.uncertainty) / normalization,
+    conflict: clamp(left.conflict + rawConflict * (1 - left.conflict), 0, 1),
+  };
+}
+
+function detectAnomalies(day: DailyRecord, baseline: Baseline, phaseShiftMinutes: number | null, activityRhythm: ActivityRhythmFeatures) {
   const flags: Array<{ code: string; severity: "info" | "warning" | "critical"; message: string; value?: number; baseline?: number | null }> = [];
   const duration = numeric(day.sleep?.sleep_duration_minutes);
   const steps = numeric(day.exercise?.steps);
@@ -408,6 +615,12 @@ function detectAnomalies(day: DailyRecord, baseline: Baseline, phaseShiftMinutes
   if (spo2 != null && spo2 < 94) {
     flags.push({ code: "low_spo2", severity: "critical", message: "血氧读数偏低，请优先确认设备读数和身体状态。", value: spo2, baseline: null });
   }
+  if (activityRhythm.todayRa != null && activityRhythm.todayRa < 0.45) {
+    flags.push({ code: "weak_rest_activity_amplitude", severity: "warning", message: "日夜活动幅度偏弱，可能存在节律边界不清。", value: activityRhythm.todayRa, baseline: activityRhythm.historyRa });
+  }
+  if (activityRhythm.todayIv != null && activityRhythm.todayIv > 1.25) {
+    flags.push({ code: "high_intradaily_variability", severity: "warning", message: "日内活动碎片化偏高，建议减少零散熬夜和不规律活动。", value: activityRhythm.todayIv, baseline: null });
+  }
   return flags;
 }
 
@@ -418,12 +631,15 @@ function buildProfileLabels(input: {
   regularityScore: number | null;
   fragmentationRisk: number | null;
   recoveryScore: number | null;
+  activityRhythm: ActivityRhythmFeatures;
 }) {
   const labels: string[] = [];
   if ((input.phaseShiftMinutes ?? 0) > 60) labels.push("late_shift");
   if ((input.phaseShiftMinutes ?? 0) < -60) labels.push("early_shift");
   if ((input.regularityScore ?? 100) < 58) labels.push("irregular_rhythm");
   if ((input.fragmentationRisk ?? 0) > 55) labels.push("fragmented_day");
+  if ((input.activityRhythm.todayRa ?? 1) < 0.45) labels.push("weak_day_night_boundary");
+  if ((input.activityRhythm.todayIv ?? 0) > 1.25) labels.push("fragmented_activity");
   if ((input.recoveryScore ?? 100) < 60) labels.push("recovery_debt");
   if (numeric(input.today.exercise?.steps) < 3500) labels.push("activity_gap");
   if (!input.today.nutrition) labels.push("nutrition_unlogged");
@@ -644,6 +860,108 @@ function isHigh(value: number, metric: MetricStats, absoluteDelta: number, absol
   if (metric.mean == null) return false;
   const threshold = metric.sd ? metric.mean + Math.max(absoluteDelta, metric.sd * 1.35) : metric.mean + absoluteDelta;
   return value > threshold;
+}
+
+function activityVector(day: DailyRecord) {
+  const bins = extractActivityBins(day);
+  if (!bins.length) return [];
+  const vector = Array.from({ length: 24 }, () => 0);
+  for (const bin of bins) {
+    const hour = Math.max(0, Math.min(23, Math.round(bin.hour)));
+    vector[hour] += (bin.steps ?? 0) + (bin.activeEnergyKcal ?? 0) * 14 + (bin.exerciseMinutes ?? 0) * 85;
+  }
+  return vector;
+}
+
+function extractActivityBins(day: DailyRecord): ActivityBin[] {
+  const payload = day.health?.raw_payload as Record<string, unknown> | undefined;
+  const bins = day.health?.activity_bins ?? payload?.activityBins ?? payload?.activity_bins;
+  if (!Array.isArray(bins)) return [];
+  return bins.map((item) => {
+    const value = item as Record<string, unknown>;
+    return {
+      hour: inferHour(value),
+      steps: numeric(value.steps),
+      activeEnergyKcal: numeric(value.activeEnergyKcal ?? value.active_energy_kcal),
+      exerciseMinutes: numeric(value.exerciseMinutes ?? value.exercise_minutes),
+    };
+  }).filter((item) => Number.isFinite(item.hour));
+}
+
+function inferHour(value: Record<string, unknown>) {
+  if (typeof value.hour === "number") return value.hour;
+  if (typeof value.start === "string") {
+    const parsed = new Date(value.start);
+    if (!Number.isNaN(parsed.getTime())) return parsed.getHours();
+  }
+  if (typeof value.startHour === "number") return value.startHour;
+  return 0;
+}
+
+function movingWindowExtreme(values: number[], size: number, mode: "min" | "max") {
+  let best = mode === "max" ? -Infinity : Infinity;
+  let start = 0;
+  for (let i = 0; i < values.length; i += 1) {
+    let sum = 0;
+    for (let offset = 0; offset < size; offset += 1) {
+      sum += values[(i + offset) % values.length];
+    }
+    const mean = sum / size;
+    if ((mode === "max" && mean > best) || (mode === "min" && mean < best)) {
+      best = mean;
+      start = i;
+    }
+  }
+  return { value: best, start };
+}
+
+function intradailyVariability(values: number[]) {
+  if (values.length < 2) return null;
+  const meanValue = values.reduce((sum, item) => sum + item, 0) / values.length;
+  const denominator = values.reduce((sum, item) => sum + (item - meanValue) ** 2, 0);
+  if (denominator === 0) return null;
+  const numerator = values.slice(1).reduce((sum, item, index) => sum + (item - values[index]) ** 2, 0);
+  return (values.length * numerator) / ((values.length - 1) * denominator);
+}
+
+function interdailyStability(vectors: number[][]) {
+  const flat = vectors.flat();
+  if (flat.length === 0) return null;
+  const meanValue = flat.reduce((sum, item) => sum + item, 0) / flat.length;
+  const denominator = flat.reduce((sum, item) => sum + (item - meanValue) ** 2, 0);
+  if (denominator === 0) return null;
+  const hourlyMeans = Array.from({ length: 24 }, (_, hour) => {
+    const values = vectors.map((vector) => vector[hour] ?? 0);
+    return values.reduce((sum, item) => sum + item, 0) / values.length;
+  });
+  const numerator = vectors.length * hourlyMeans.reduce((sum, item) => sum + (item - meanValue) ** 2, 0);
+  return clamp(numerator / denominator, 0, 1);
+}
+
+function geometricBlend(values: number[]) {
+  const clean = values.filter(isNumber).map((value) => clamp(value, 1, 100) / 100);
+  if (clean.length === 0) return 50;
+  return Math.exp(clean.reduce((sum, value) => sum + Math.log(value), 0) / clean.length) * 100;
+}
+
+function sigmoid(value: number) {
+  return 1 / (1 + Math.exp(-value));
+}
+
+function logit(value: number) {
+  const p = clamp(value, 0.001, 0.999);
+  return Math.log(p / (1 - p));
+}
+
+function standardDeviation(values: number[]) {
+  if (values.length <= 1) return 0;
+  const meanValue = values.reduce((sum, item) => sum + item, 0) / values.length;
+  const variance = values.reduce((sum, item) => sum + (item - meanValue) ** 2, 0) / (values.length - 1);
+  return Math.sqrt(variance);
+}
+
+function formatOptional(value: number | null) {
+  return value == null ? "NA" : value.toFixed(2);
 }
 
 function phaseShiftText(minutes: number) {

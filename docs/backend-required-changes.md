@@ -47,9 +47,24 @@ App Edge Functions 的新增迁移为：
 ```text
 supabase/migrations/202607170002_app_edge_backend.sql
 supabase/migrations/202607180001_nava_rhythm_v2.sql
+supabase/migrations/202607180002_nava_fusion_v3.sql
 ```
 
-它包含 `daily_rhythm_scores`、`watch_snapshots`、`health_metric_snapshots`、`diet-photos`、`face-photos` 和 Storage RLS。
+它包含 `daily_rhythm_scores`、`watch_snapshots`、`health_metric_snapshots`、`diet-photos`、`face-photos`、Storage RLS，以及 NAVA Fusion v3 所需的 `activity_bins`、`sleep_stage_minutes`、`fusion`、`circadian_score`、`data_quality_score`。
+
+### NAVA Fusion v3 字段同步
+
+Web 端如要展示 App 算法结果，建议优先读取：
+
+- `daily_rhythm_scores.score`：用户看到的总分。
+- `daily_rhythm_scores.confidence` / `data_quality_score`：这次评分是否可信。
+- `daily_rhythm_scores.signals`：睡眠、活动、昼夜节律、情绪、饮食、专注、恢复子分。
+- `daily_rhythm_scores.fusion`：后端算法解释，不建议直接给普通用户全量展示，可给算法/运营后台使用。
+- `daily_rhythm_scores.features->circadian->activityRhythm`：M10、L5、RA、IV、IS 等节律特征。
+- `daily_rhythm_scores.anomaly_flags`：异常提示来源。
+- `daily_rhythm_scores.profile_labels`：用户状态标签。
+
+Web 端不需要实现 App 的算法，但需要兼容这些字段，否则 App 先落库的 v3 结果在网页端会无法完整展示。
 
 ### 1. exercise_records 唯一约束
 
