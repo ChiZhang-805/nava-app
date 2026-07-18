@@ -109,6 +109,8 @@ export interface DailyRhythmScore {
   data_quality_score?: number | null;
   trend_slope?: number | null;
   change_point_probability?: number | null;
+  schema_version?: string | null;
+  fusion?: Record<string, unknown> | null;
   anomaly_flags?: Array<Record<string, unknown>>;
   actions?: string[];
   signals?: Array<Record<string, unknown>>;

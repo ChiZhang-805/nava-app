@@ -15,7 +15,7 @@
 - iPhone 侧 WatchConnectivity 插件和 Watch 侧管理器文件。
 - Web 上游同步脚本。
 - App 专属 Edge Functions 和后端部署脚本。
-- NAVA ChronoState V4.4 服务端节律算法。
+- NAVA ChronoState V4.6 服务端节律算法。
 - 42 天鲁棒个人基线、四因子状态空间模型、Student-t 鲁棒融合、急性多域一致证据和变点检测。
 - 合成数据压力测试与算法回归测试。
 - 构建和 lint 通过。
@@ -111,8 +111,8 @@
 
 验收：
 
-- Web、App、Watch 调用同一套 V4.4 节律结果。
-- V4.4 在真实数据上的校准曲线、缺失率、异常率和用户反馈闭环可追踪。
+- Web、App、Watch 调用同一套 V4.6 节律结果。
+- V4.6 在真实数据上的校准曲线、缺失率、异常率和用户反馈闭环可追踪。
 
 ## P5：发布准备
 

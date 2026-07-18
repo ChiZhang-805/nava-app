@@ -20,7 +20,9 @@ export type SyntheticScenario =
   | "high_adherence"
   | "seasonal_shift"
   | "chronic_debt_rebound"
-  | "compensated_strain";
+  | "compensated_strain"
+  | "sparse_abrupt_drop"
+  | "masked_gradual_decline";
 
 export type SyntheticCohort =
   | "consistent_sleeper"
@@ -108,6 +110,8 @@ const scenarioWeights: Array<{ value: SyntheticScenario; weight: number }> = [
   { value: "seasonal_shift", weight: 5 },
   { value: "chronic_debt_rebound", weight: 4 },
   { value: "compensated_strain", weight: 4 },
+  { value: "sparse_abrupt_drop", weight: 3 },
+  { value: "masked_gradual_decline", weight: 3 },
 ];
 
 const cohortDefinitions: Array<{ value: SyntheticCohort; weight: number; profile: Omit<SyntheticProfile, "cohort"> }> = [
@@ -296,6 +300,19 @@ function applyScenarioState(
     const decline = (day - (totalDays - 18) + 1) * 0.055;
     return result.map((value, index) => value - decline * [0.75, 1, 0.62, 0.85][index]) as typeof result;
   }
+  if (scenario === "masked_gradual_decline" && day >= totalDays - 24) {
+    const decline = (day - (totalDays - 24) + 1) * 0.034;
+    result[0] -= decline * 0.78;
+    result[1] -= decline * 0.96;
+    result[2] -= decline * 0.5;
+    result[3] -= decline * 0.7;
+    if (day >= totalDays - 4) {
+      result[0] += 0.42;
+      result[1] += 0.18;
+      result[2] += 0.36;
+      result[3] += 0.28;
+    }
+  }
   if (scenario === "chronic_debt_rebound" && day >= totalDays - 20) {
     const decline = (day - (totalDays - 20) + 1) * 0.048;
     result[0] -= decline * 0.7;
@@ -311,6 +328,7 @@ function applyScenarioState(
     }
   }
   if (scenario === "abrupt_shift" && day >= totalDays - 6) return result.map((value) => value - 1.05) as typeof result;
+  if (scenario === "sparse_abrupt_drop" && day >= totalDays - 5) return result.map((value, index) => value - [1.05, 1.18, 0.92, 0.86][index]) as typeof result;
   if (scenario === "shift_worker" && (Math.floor(day / 4) % 2 === 1 || profile.shiftIntensity > 0.72)) result[0] -= 0.72 + profile.shiftIntensity * 0.34;
   if (scenario === "jet_lag" && day >= totalDays - 8 && day <= totalDays - 3) {
     result[0] -= 0.9;
@@ -371,10 +389,10 @@ function buildDay(
 
   const sleepStart = wrapMinutes(profile.chronotypeMinutes + phaseShift);
   const sleepDebt = Math.max(0, -signal.recovery) * 35 + profile.stressLoad * 18;
-  const duration = clamp(profile.sleepNeedMinutes + signal.sleep * 58 - sleepDebt + random.normal(0, 28 + profile.stressLoad * 18), 120, 720);
-  const sleepEnd = wrapMinutes(sleepStart + duration);
-  const deepRatio = clamp(0.17 + signal.recovery * 0.018 - profile.stressLoad * 0.015 + random.normal(0, 0.018), 0.06, 0.31);
-  const remRatio = clamp(0.21 + signal.sleep * 0.014 + random.normal(0, 0.018), 0.08, 0.34);
+  let duration = clamp(profile.sleepNeedMinutes + signal.sleep * 58 - sleepDebt + random.normal(0, 28 + profile.stressLoad * 18), 120, 720);
+  let sleepEnd = wrapMinutes(sleepStart + duration);
+  let deepRatio = clamp(0.17 + signal.recovery * 0.018 - profile.stressLoad * 0.015 + random.normal(0, 0.018), 0.06, 0.31);
+  let remRatio = clamp(0.21 + signal.sleep * 0.014 + random.normal(0, 0.018), 0.08, 0.34);
   let steps = clamp(profile.stepsMedian * Math.exp(signal.activity * 0.42 + random.normal(0, 0.13 * profile.activityVariance)) * context.deviceBias, 50, 52000);
   let exerciseMinutes = clamp(32 + signal.activity * 17 + random.normal(0, 8 * profile.activityVariance), 0, 220);
   let activeCalories = clamp(profile.caloriesMean * 0.2 + signal.activity * 105 + random.normal(0, 50 * profile.activityVariance), 20, 1800);
@@ -424,6 +442,26 @@ function buildDay(
     focus = clamp(focus + 92, 90, 420);
     hrv = clamp(hrv * 0.58, 5, 82);
     rhr = clamp(rhr + 12, 56, 130);
+  }
+  if (scenario === "sparse_abrupt_drop" && dayIndex >= context.totalDays - 3) {
+    steps = clamp(profile.stepsMedian * 0.36, 250, 5200);
+    exerciseMinutes = clamp(exerciseMinutes - 35, 0, 28);
+    activeCalories = clamp(activeCalories * 0.38, 20, 320);
+    hrv = clamp(profile.hrvMedian * 0.46, 5, 36);
+    rhr = clamp(profile.restingHeartRate + 18, 78, 130);
+  }
+  if (scenario === "masked_gradual_decline" && dayIndex >= context.totalDays - 4) {
+    duration = clamp(profile.sleepNeedMinutes * 0.76 + random.normal(0, 18), 300, 405);
+    sleepEnd = wrapMinutes(sleepStart + duration);
+    deepRatio = clamp(deepRatio + 0.015, 0.08, 0.24);
+    remRatio = clamp(remRatio + 0.01, 0.09, 0.28);
+    steps = clamp(profile.stepsMedian * 0.62 + random.normal(0, 520), 2200, 7600);
+    exerciseMinutes = clamp(exerciseMinutes, 6, 48);
+    activeCalories = clamp(activeCalories + 30, 90, 560);
+    mood = clamp(mood + 2, 12, 76);
+    focus = clamp(focus + 12, 15, 220);
+    hrv = clamp(profile.hrvMedian * 0.62, 6, 62);
+    rhr = clamp(profile.restingHeartRate + 10, 58, 128);
   }
 
   const missing = missingDomains(scenario, dayIndex, context.totalDays, profile, random);
@@ -506,10 +544,17 @@ function missingDomains(scenario: SyntheticScenario, day: number, totalDays: num
   if (scenario === "travel_gap" && day >= totalDays - 10 && day <= totalDays - 6) {
     ["activity", "health", "bins", "nutrition"].forEach((key) => missing.add(key));
   }
+  if (scenario === "low_adherence" && day % 9 === 0) {
+    ["mood", "nutrition", "focus", "health", "bins"].forEach((key) => missing.add(key));
+  }
   if ((scenario === "conflicting_signals" || scenario === "overtraining" || scenario === "compensated_strain") && day >= totalDays - 4) {
     ["activity", "health", "bins"].forEach((key) => missing.delete(key));
   }
-  if ((scenario === "gradual_decline" || scenario === "chronic_debt_rebound") && day >= totalDays - 5) {
+  if (scenario === "sparse_abrupt_drop" && day >= totalDays - 3) {
+    ["sleep", "mood", "nutrition", "focus"].forEach((key) => missing.add(key));
+    ["activity", "health", "bins"].forEach((key) => missing.delete(key));
+  }
+  if ((scenario === "gradual_decline" || scenario === "chronic_debt_rebound" || scenario === "masked_gradual_decline") && day >= totalDays - 5) {
     ["sleep", "activity", "health"].forEach((key) => missing.delete(key));
   }
   if (scenario === "cold_start" && random.next() < 0.38) ["mood", "nutrition", "focus"].forEach((key) => missing.add(key));

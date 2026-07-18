@@ -1,6 +1,6 @@
 # NAVA 算法调研与自研路线
 
-本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA ChronoState V4.4：42 天鲁棒个人基线、小时活动节律、恢复指标、异常检测、四因子动态状态空间模型、Student-t 鲁棒滤波、信号连续性质量建模、自适应残差区间、风险敏感下尾效用、急性多域一致证据、慢性负债记忆、功能补偿门控、Bayesian online change-point detection 和分数不确定性区间。
+本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA ChronoState V4.6：42 天鲁棒个人基线、小时活动节律、恢复指标、异常检测、四因子动态状态空间模型、Student-t 鲁棒滤波、信号连续性质量建模、自适应残差区间、风险敏感下尾效用、急性多域一致证据、慢性负债记忆、功能补偿门控、稀疏断崖响应、慢性停滞锚点、绝对生理压力门控、假恢复 drawdown 压力、Bayesian online change-point detection 和分数不确定性区间。
 
 ## 已调研的算法/方法
 
@@ -50,6 +50,10 @@
 | 42 | Regime-transition uncertainty inflation | 突发转折时先扩大不确定性，而不是过度追低点预测 | V4.4 已用于 `transitionPressure` |
 | 43 | Personalized wearable state modeling | 同样的 HRV/活动水平对不同用户含义不同，需要长期个人状态记忆 | V4.4 已用于 `chronicDebtPressure` |
 | 44 | Robust multimodal conflict fusion | 多模态信号冲突时不能简单追随最低分或最高分 | V4.4 已用于 `functionalCompensation` 和活动型补偿门 |
+| 45 | Sparse evidence shock gating | 稀疏穿戴数据下，少量一致低信号也可能代表真实断崖下滑 | V4.5 已用于 `sparseTransitionShock` |
+| 46 | Drawdown memory anchoring | 长期低谷后的当天中等信号不足以证明恢复，需要近期状态锚点 | V4.5 已用于 `drawdownStallPressure` |
+| 47 | Absolute physiology strain guard | 长期个人基线被恶化数据拖低后，HRV/RHR/睡眠的绝对风险仍应参与约束 | V4.6 已用于 `physiologyStrainPressure` |
+| 48 | Unresolved drawdown recovery test | 近期低谷后，只有活动或短期表面反弹不足以证明恢复，需要 HRV/RHR/睡眠确认 | V4.6 已用于 `unresolvedDrawdownPressure` |
 
 ## NAVA 自研算法设计
 
@@ -72,7 +76,7 @@
 3. 输出 `score`、`confidence`、`signals`、`reasons`、`actions`。
 4. 写入 `daily_rhythm_scores`。
 
-`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 NAVA ChronoState V4.4。
+`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 NAVA ChronoState V4.6。
 
 ### v2：个人基线 + 经典节律特征（已升级）
 
@@ -181,9 +185,9 @@ v3 的关键点：
 - `recoveryScore`
 - `phaseShiftMinutes`
 
-### v4.4：NAVA ChronoState（已接入后端）
+### v4.6：NAVA ChronoState（已接入后端）
 
-目标：把 v3 的“证据融合分数”升级成真正的个体动态状态估计，能处理缺失、噪声、传感器偏置、连续下滑、突发转折和冲突信号。本轮 V4.4 进一步加入信号连续性质量建模、绝对生理下限保护、负荷-恢复矛盾门控、EWMA drawdown 记忆、慢性负债压力、功能补偿识别、突发转折区间膨胀和更真实的合成人群压力数据。
+目标：把 v3 的“证据融合分数”升级成真正的个体动态状态估计，能处理缺失、噪声、传感器偏置、连续下滑、突发转折、冲突信号和长期低谷后的假恢复。本轮 V4.6 进一步加入信号连续性质量建模、绝对生理下限保护、负荷-恢复矛盾门控、EWMA drawdown 记忆、慢性负债压力、功能补偿识别、稀疏断崖响应、慢性停滞锚点、绝对生理压力门控、假恢复 drawdown 压力、突发转折区间膨胀和更真实的合成人群压力数据。
 
 当前实现文件：
 
@@ -218,6 +222,10 @@ tests/rhythm-core.test.ts
 17. 对突然断崖式下滑启用 `transitionPressure`，主要扩大区间并降低单日点预测过度追低的风险。
 18. 增加 `chronicDebtPressure`，把“长期低谷后短期反弹”从“真的恢复”中拆出来，避免慢性欠恢复被当天高活动掩盖。
 19. 增加 `functionalCompensation`，识别高活动/高专注但恢复偏低的功能补偿状态，避免把所有负荷-恢复矛盾都直接判为崩塌。
+20. 增加 `sparseTransitionShock`，在少量低分穿戴信号同时伴随转折压力时提高急性响应，避免稀疏数据下断崖下滑反应过慢。
+21. 增加 `drawdownStallPressure`，在长期 drawdown 且没有强活动反弹时，把最终 latent 锚回近期历史中位状态。
+22. 增加 `physiologyStrainPressure`，把绝对短睡、低 HRV 和高静息心率作为独立压力源，避免个人基线被长期恶化数据拖低后把风险正常化。
+23. 增加 `unresolvedDrawdownPressure`，只在“近期低谷 + 当天表面不低 + HRV/RHR/睡眠没有确认恢复”的形态下触发，避免把普通突发下滑重复扣分。
 
 复杂度：
 
@@ -225,7 +233,7 @@ tests/rhythm-core.test.ts
 - 空间：`O(D*F^2 + R + S*W)`。
 - 其中 `D=42` 天、`S=7` 信号、`F=4` 状态因子、`R=42` 最大 run length、`W=42` 基线窗口。
 
-合成验证覆盖 20 类压力场景：
+合成验证覆盖 22 类压力场景：
 
 - clean
 - random_missing
@@ -247,36 +255,51 @@ tests/rhythm-core.test.ts
 - seasonal_shift
 - chronic_debt_rebound
 - compensated_strain
+- sparse_abrupt_drop
+- masked_gradual_decline
 
 合成用户现在不是场景均匀轮转，而是手工构造 16 类用户画像后条件采样：
 
 - consistent_sleeper、sedentary_office、active_athlete、shift_clinician、student_night_owl、new_parent、frequent_traveler、high_stress_founder、older_low_hrv、recovery_focused、manual_logger、low_adherence_user、weekend_social、metabolic_watch、outdoor_worker、remote_worker。
 
-当前固定种子 1000 用户加权人群基准：
+当前固定种子 1000 用户旧 20 场景对照基准：
 
-- V4.4 MAE：`5.690`
-- 旧单日 proxy MAE：`8.505`
-- MAE 改善：`33.10%`
-- RMSE：`7.305`
-- RMSE 改善：`32.90%`
-- Bias：`0.882`
-- Spearman：`0.7868`
-- Low-state AUROC：`0.9887`
-- 平均置信度：`0.730`
-- 80% 区间覆盖：`0.941`
-- 平均区间宽度：`28.552`
-- 单用户耗时：约 `30.9 ms`
-- 数据密度：mixed `910`、dense `71`、sparse `19`
+- V4.6 MAE：`5.541`
+- 旧单日 proxy MAE：`8.665`
+- MAE 改善：`36.06%`
+- RMSE：`7.111`
+- RMSE 改善：`36.13%`
+- Bias：`0.224`
+- 平均置信度：`0.726`
+- 80% 区间覆盖：`0.954`
+- 平均区间宽度：`29.491`
+- 单用户耗时：约 `28.0 ms`
+
+扩展到 22 类压力场景后的当前基准：
+
+- V4.6 MAE：`5.787`
+- 旧单日 proxy MAE：`9.334`
+- MAE 改善：`38.00%`
+- RMSE：`7.744`
+- RMSE 改善：`35.04%`
+- Bias：`0.653`
+- Spearman：`0.8153`
+- Low-state AUROC：`0.9653`
+- 平均置信度：`0.721`
+- 80% 区间覆盖：`0.932`
+- 平均区间宽度：`30.045`
+- 单用户耗时：约 `27.9 ms`
+- 数据密度：mixed `924`、dense `52`、sparse `24`
 
 注意：这是工程压力测试，不是临床验证。真实上线后必须用真实 Apple Watch 数据继续校准。
 
 当前薄弱点：
 
-- `gradual_decline`：V4.4 已把 MAE 从 V4.3 的约 `7.010` 降到 `6.079`，但仍高于旧 proxy；下一轮需要更细的慢性恶化标签。
-- `abrupt_shift`：V4.4 已把 MAE 从 V4.3 的约 `5.997` 降到 `4.674`，但旧 proxy 在该合成场景仍更贴近点值；真实数据里要重点校准突发低谷标签。
-- `conflicting_signals`：V4.4 已把 MAE 从 V4.3 的约 `8.225` 降到 `3.659`，高活动/低恢复矛盾已从弱点转为优势场景。
-- `chronic_debt_rebound`：新增压力场景，V4.4 MAE `7.389`，优于旧 proxy `8.422`，但排序相关性仍低，说明恢复反弹需要真实反馈。
-- `compensated_strain`：新增压力场景，V4.4 MAE `5.815`，优于旧 proxy `7.574`，但仍需真实用户确认“能撑住”和“过度消耗”的边界。
+- `gradual_decline`：旧 20 场景下 V4.6 MAE `6.542`，扩展 22 场景下 MAE `6.136`，仍高于旧 proxy；下一轮需要真实慢性恶化标签和更细的趋势/点值校准。
+- `abrupt_shift`：旧 20 场景下 V4.6 MAE `4.653`，扩展 22 场景下 MAE `4.249`，仍略高于旧 proxy，但 RMSE 已接近或优于 proxy。
+- `sparse_abrupt_drop`：新增压力场景，V4.6 MAE `2.836`，明显优于旧 proxy `6.403`，说明稀疏断崖门控有效。
+- `masked_gradual_decline`：新增压力场景，V4.6 MAE `16.829`，从 V4.5 的 `21.791` 明显下降，也优于旧 proxy `20.455`；但它仍是下一轮最明确的算法短板。
+- `conflicting_signals`：旧 20 场景下 V4.6 MAE `3.539`，保持优于旧 proxy。
 
 ### v5：个性化推荐模型
 

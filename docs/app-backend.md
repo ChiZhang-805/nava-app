@@ -12,7 +12,7 @@ App 后端不另起账号系统，继续使用 Web 同一个 Supabase 项目。�
 | `watch-sync` | 保存 Watch 快照，处理手表快速情绪和专注动作 | `watch_snapshots`、`device_connections`、`mood_records`、`focus_records` |
 | `diet-extract` | 饮食照片识别入口，支持正式算法服务转发和 fallback | 不直接写表，App 确认后写 `nutrition_records` |
 | `face-analyze` | 面部状态分析入口，支持正式算法服务转发和 fallback | App 确认后写 `face_records` |
-| `rhythm-score` | 读取 42 天窗口，生成 NAVA ChronoState V4.4 节律分、个人基线、节律特征、动态状态、慢性负债压力、功能补偿门控、不确定性区间、异常旗标和建议 | `daily_rhythm_scores` |
+| `rhythm-score` | 读取 42 天窗口，生成 NAVA ChronoState V4.6 节律分、个人基线、节律特征、动态状态、慢性负债压力、功能补偿门控、稀疏断崖冲击、慢性停滞压力、绝对生理压力、假恢复 drawdown 压力、不确定性区间、异常旗标和建议 | `daily_rhythm_scores` |
 | `export-user-data` | 导出当前用户 App/Web 共享数据 | 只读 |
 
 ## 已实现数据库/Storage
@@ -40,14 +40,14 @@ supabase/migrations/202607180003_nava_chronostate_v4.sql
 - 私有 bucket：`face-photos`
 - Storage RLS：用户只能访问自己 `user_id/` 路径下的照片
 
-## NAVA ChronoState V4.4 输出
+## NAVA ChronoState V4.6 输出
 
 `rhythm-score` 和 `health-sync-ingest` 会写入：
 
 - `score`：总节律分。
 - `confidence`：当前数据覆盖和历史基线支撑度。
 - `signals`：睡眠、活动、昼夜节律、情绪、饮食、专注、恢复子分，每个信号都带 `reliability`。
-- `fusion`：非简单加权的融合诊断，包含四因子后验状态、Student-t 鲁棒观测权重、急性证据 blend、低分/高分一致性、慢性负债压力、功能补偿门控、趋势压力、变点概率和不确定性区间。
+- `fusion`：非简单加权的融合诊断，包含四因子后验状态、Student-t 鲁棒观测权重、急性证据 blend、低分/高分一致性、慢性负债压力、功能补偿门控、稀疏断崖冲击、慢性停滞压力、绝对生理压力、假恢复 drawdown 压力、趋势压力、变点概率和不确定性区间。
 - `fusion.utilityFusion.softDeclinePressure`：慢性下滑压力，用于审计算法是否应更快响应。
 - `fusion.utilityFusion.mixedConflict`：高低信号混合冲突程度，例如高活动但低恢复。
 - `fusion.utilityFusion.loadRecoveryConflict`：活动/专注负荷较高但恢复、睡眠或节律偏低时的冲突门控，用于避免把所有矛盾信号简单判成崩塌。
@@ -55,6 +55,10 @@ supabase/migrations/202607180003_nava_chronostate_v4.sql
 - `fusion.utilityFusion.transitionPressure`：突发转折压力，用于解释为什么某天区间会变宽。
 - `fusion.utilityFusion.chronicDebtPressure`：长期低谷后短期反弹仍未完全恢复时的压力，用于避免当天高活动掩盖慢性欠恢复。
 - `fusion.utilityFusion.functionalCompensation`：高活动/高专注但恢复偏低时的功能补偿识别，用于避免把所有负荷-恢复矛盾都直接判成崩塌。
+- `fusion.utilityFusion.sparseTransitionShock`：少量但一致的低穿戴信号叠加转折压力时的断崖响应，用于避免稀疏数据下反应过慢。
+- `fusion.utilityFusion.drawdownStallPressure`：长期 drawdown 下当天中等信号不足以证明恢复时的停滞压力，用于把分数锚回近期历史状态。
+- `fusion.utilityFusion.physiologyStrainPressure`：短睡、低 HRV、高静息心率共同出现时的绝对生理压力，防止长期恶化被个人基线正常化。
+- `fusion.utilityFusion.unresolvedDrawdownPressure`：近期低谷后，当天表面信号不低但 HRV/RHR/睡眠没有确认恢复时的假恢复压力。
 - `baseline`：42 天指数衰减鲁棒个人基线。
 - `features`：融合算法、相位、规律性、碎片化、恢复指标、活动节律特征。
 - `activity_bins`：HealthKit 24 小时活动曲线，保存于 `health_metric_snapshots`。
@@ -72,7 +76,7 @@ supabase/migrations/202607180003_nava_chronostate_v4.sql
 - `trend_slope`：最近一周鲁棒趋势斜率。
 - `schema_version`：算法输出 schema 版本。
 
-这套算法现在是 App 后端自研核心 baseline，可直接分享给算法端和 Web 端同学继续增强或展示。它不是简单加权平均：分数由四因子动态状态空间模型、Student-t 鲁棒滤波、风险敏感下尾效用、急性多域一致证据、信号连续性质量建模、慢性负债压力、功能补偿门控、自适应残差区间、Bayesian online change-point detection、个体化 MAD 基线和不确定性区间共同生成。
+这套算法现在是 App 后端自研核心 baseline，可直接分享给算法端和 Web 端同学继续增强或展示。它不是简单加权平均：分数由四因子动态状态空间模型、Student-t 鲁棒滤波、风险敏感下尾效用、急性多域一致证据、信号连续性质量建模、慢性负债压力、功能补偿门控、稀疏断崖冲击、慢性停滞压力、绝对生理压力、假恢复 drawdown 压力、自适应残差区间、Bayesian online change-point detection、个体化 MAD 基线和不确定性区间共同生成。
 
 ## 部署
 

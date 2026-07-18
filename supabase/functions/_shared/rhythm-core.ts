@@ -130,6 +130,10 @@ type FilterDay = {
   transitionPressure: number;
   chronicDebtPressure: number;
   functionalCompensation: number;
+  sparseTransitionShock: number;
+  drawdownStallPressure: number;
+  physiologyStrainPressure: number;
+  unresolvedDrawdownPressure: number;
   observation: number | null;
   evidenceCount: number;
   robustWeights: Array<{ key: SignalKey; weight: number; innovation: number; standardizedInnovation: number }>;
@@ -151,6 +155,10 @@ type UtilityFusion = {
   transitionPressure: number;
   chronicDebtPressure: number;
   functionalCompensation: number;
+  sparseTransitionShock: number;
+  drawdownStallPressure: number;
+  physiologyStrainPressure: number;
+  unresolvedDrawdownPressure: number;
   dispersion: number;
 };
 
@@ -159,6 +167,9 @@ type TrendMemory = {
   transitionPressure: number;
   recentMedianScore: number | null;
   priorMedianScore: number | null;
+  recentLowPointScore: number | null;
+  drawdownPeakPressure: number;
+  recentLowShare: number;
 };
 
 type AnomalyFlag = {
@@ -191,8 +202,8 @@ const signalModels: Record<SignalKey, { loading: Vector4; variance: number; weig
   recovery: { loading: [0.06, 0.82, 0.08, 0.04], variance: 0.4, weight: 0.16, label: "恢复" },
 };
 
-export const rhythmSchemaVersion = "4.4.0";
-export const rhythmModelVersion = "nava-chronostate-v4.4-2026-07";
+export const rhythmSchemaVersion = "4.6.0";
+export const rhythmModelVersion = "nava-chronostate-v4.6-2026-07";
 
 export const defaultRhythmConfig: RhythmConfig = {
   baselineWindowDays: 42,
@@ -256,7 +267,7 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
     profileLabels,
     baseline: current.baseline,
     fusion: {
-      method: "nava-chronostate-v4.4-compensation-and-debt-aware-state-space",
+      method: "nava-chronostate-v4.6-physiology-and-unresolved-drawdown-aware-state-space",
       stateFactors: factorState,
       factorScores,
       posteriorCovariance: state.covariance.map((row) => row.map((value) => round(value, 4))),
@@ -280,6 +291,10 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
         transitionPressure: round(state.transitionPressure, 4),
         chronicDebtPressure: round(state.chronicDebtPressure, 4),
         functionalCompensation: round(state.functionalCompensation, 4),
+        sparseTransitionShock: round(state.sparseTransitionShock, 4),
+        drawdownStallPressure: round(state.drawdownStallPressure, 4),
+        physiologyStrainPressure: round(state.physiologyStrainPressure, 4),
+        unresolvedDrawdownPressure: round(state.unresolvedDrawdownPressure, 4),
       },
       evidenceCount: state.evidenceCount,
       robustObservationWeights: state.robustWeights,
@@ -287,7 +302,7 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
       dataQuality,
     },
     features: {
-      fusion: "four-factor robust Student-t state-space filter + EWMA drawdown memory + physiology guard + chronic-debt cap + functional-compensation gate + adaptive residual calibration + Bayesian online change-point detection",
+      fusion: "four-factor robust Student-t state-space filter + EWMA drawdown memory + physiology guard + chronic-debt cap + functional-compensation gate + sparse-transition shock + drawdown-stall pressure + physiology-strain cap + unresolved-drawdown pressure + adaptive residual calibration + Bayesian online change-point detection",
       components: Object.keys(signalModels),
       circadian: current.activityRhythm,
       signalHealth: current.signalHealth,
@@ -635,7 +650,11 @@ function robustStateFilter(days: DayAnalysis[], config: RhythmConfig): FilterDay
       fusion.transitionPressure * 0.18 +
       fusion.drawdownPressure * 0.08 +
       fusion.chronicDebtPressure * 0.08 +
-      fusion.functionalCompensation * 0.04;
+      fusion.functionalCompensation * 0.04 +
+      fusion.sparseTransitionShock * 0.08 +
+      fusion.drawdownStallPressure * 0.06 +
+      fusion.physiologyStrainPressure * 0.08 +
+      fusion.unresolvedDrawdownPressure * 0.08;
     const variance = Math.max(1e-6, quadratic(globalLoading, covariance) + residualVariance + correlationGuard + utilityDisagreement);
     const intervalDelta = 1.16 * Math.sqrt(variance);
     output.push({
@@ -660,6 +679,10 @@ function robustStateFilter(days: DayAnalysis[], config: RhythmConfig): FilterDay
       transitionPressure: fusion.transitionPressure,
       chronicDebtPressure: fusion.chronicDebtPressure,
       functionalCompensation: fusion.functionalCompensation,
+      sparseTransitionShock: fusion.sparseTransitionShock,
+      drawdownStallPressure: fusion.drawdownStallPressure,
+      physiologyStrainPressure: fusion.physiologyStrainPressure,
+      unresolvedDrawdownPressure: fusion.unresolvedDrawdownPressure,
       observation: aggregateObservation(day.signals, config.scoreTemperature),
       evidenceCount: day.signals.length,
       robustWeights,
@@ -1296,6 +1319,10 @@ function calculateUtilityFusion(
       transitionPressure: trendMemory.transitionPressure,
       chronicDebtPressure: 0,
       functionalCompensation: 0,
+      sparseTransitionShock: 0,
+      drawdownStallPressure: 0,
+      physiologyStrainPressure: 0,
+      unresolvedDrawdownPressure: 0,
       dispersion: 0,
     };
   }
@@ -1328,6 +1355,10 @@ function calculateUtilityFusion(
       transitionPressure: trendMemory.transitionPressure,
       chronicDebtPressure: 0,
       functionalCompensation: 0,
+      sparseTransitionShock: 0,
+      drawdownStallPressure: 0,
+      physiologyStrainPressure: 0,
+      unresolvedDrawdownPressure: 0,
       dispersion: 0,
     };
   }
@@ -1337,6 +1368,7 @@ function calculateUtilityFusion(
   const lowDomainShare = observations.filter((item) => item.score < 50).length / observations.length;
   const lowConsensus = clamp(rawLowConsensus + (lowDomainShare >= 0.55 ? 0.1 : 0), 0, 1);
   const highConsensus = observations.reduce((sum, item) => sum + (item.score > 70 ? item.weight : 0), 0) / totalWeight;
+  const medianScore = weightedMedian(observations.map((item) => ({ value: item.score, weight: item.weight })));
   const medianLatent = weightedMedian(observations);
   const lowerTail = weightedQuantile(observations, lowConsensus >= 0.52 ? 0.16 : 0.3);
   const upperTail = weightedQuantile(observations, 0.7);
@@ -1344,6 +1376,7 @@ function calculateUtilityFusion(
   const bottomTail = unweightedTailMean(observations, 0.25);
   const deepLowShare = observations.filter((item) => item.score <= 25).length / observations.length;
   const scoreByKey = new Map(signals.map((item) => [item.key, item.score]));
+  const signalByKey = new Map(signals.map((item) => [item.key, item]));
   const sleepScore = scoreByKey.get("sleep") ?? null;
   const activityScore = scoreByKey.get("activity") ?? null;
   const circadianScore = scoreByKey.get("circadian") ?? null;
@@ -1392,6 +1425,19 @@ function calculateUtilityFusion(
   const circadianBuffer = circadianScore == null ? 0.22 : clamp((circadianScore - 34) / 42, 0, 1);
   const recoveryStress = recoveryScore == null ? clamp((46 - recoveryFloor) / 42, 0, 0.65) : clamp((56 - recoveryScore) / 48, 0, 1);
   const catastrophicRecovery = (recoveryScore ?? 100) <= 18 && (sleepScore ?? 100) <= 30 && (circadianScore ?? 100) <= 30;
+  const sleepDuration = bounded(signalByKey.get("sleep")?.evidence.duration ?? signalByKey.get("recovery")?.evidence.sleepDuration, 0, 1440);
+  const hrv = bounded(signalByKey.get("recovery")?.evidence.hrv, 0, 300);
+  const restingHeartRate = bounded(signalByKey.get("recovery")?.evidence.restingHeartRate, 0, 220);
+  const physiologyAvailable = [sleepDuration != null, hrv != null, restingHeartRate != null].filter(Boolean).length;
+  const sleepStrain = sleepDuration == null ? 0 : clamp((420 - sleepDuration) / 170, 0, 1);
+  const hrvStrain = hrv == null ? 0 : clamp((36 - hrv) / 28, 0, 1);
+  const restingHeartRateStrain = restingHeartRate == null ? 0 : clamp((restingHeartRate - 74) / 28, 0, 1);
+  const physiologySynergy =
+    (sleepStrain > 0.25 && (hrvStrain > 0.25 || restingHeartRateStrain > 0.25) ? 0.14 : 0) +
+    (hrvStrain > 0.35 && restingHeartRateStrain > 0.22 ? 0.12 : 0);
+  const physiologyStrainPressure = physiologyAvailable < 2
+    ? clamp(Math.max(sleepStrain, hrvStrain, restingHeartRateStrain) * 0.48, 0, 0.36)
+    : clamp(sleepStrain * 0.28 + hrvStrain * 0.34 + restingHeartRateStrain * 0.28 + physiologySynergy, 0, 1);
   const functionalCompensation = clamp(
     activitySupport * 0.3 +
       focusSupport * 0.22 +
@@ -1412,13 +1458,14 @@ function calculateUtilityFusion(
     0,
     0.52,
   );
+  const strongFunctionalRebound = activitySupport >= 0.72 && functionalCompensation >= 0.34 && highConsensus >= 0.08;
   const chronicDebtPressure = clamp(
     trendMemory.drawdownPressure *
       (1 - trendMemory.transitionPressure * 0.66) *
       (
         0.24 +
         Math.max(0, 52 - recoveryFloor) / 52 * 0.3 +
-        Math.max(0, weightedMedian(observations.map((item) => ({ value: item.score, weight: item.weight }))) - 34) / 56 * 0.2 +
+        Math.max(0, medianScore - 34) / 56 * 0.2 +
         Math.max(0, 0.62 - lowConsensus) * 0.18
       ) -
       highConsensus * 0.2 -
@@ -1426,6 +1473,52 @@ function calculateUtilityFusion(
     0,
     1,
   );
+  const sparseTransitionShock = observations.length <= 3 && trendMemory.transitionPressure >= 0.18 && lowConsensus >= 0.62 && medianScore <= 52 && highConsensus < 0.18
+    ? clamp(
+      lowConsensus * 0.46 +
+        Math.max(0, 52 - medianScore) / 34 * 0.26 +
+        trendMemory.transitionPressure * 0.28 +
+        trendMemory.drawdownPressure * 0.1 -
+        mixedConflict * 0.12 -
+        functionalCompensation * 0.18,
+      0,
+      1,
+    )
+    : 0;
+  const drawdownStallPressure = lowConsensus < 0.68 && medianScore >= 32 && !strongFunctionalRebound && trendMemory.drawdownPressure >= 0.55 && trendMemory.transitionPressure < 0.24
+    ? clamp(
+      trendMemory.drawdownPressure *
+        (
+          0.24 +
+          Math.max(0, 62 - medianScore) / 38 * 0.28 +
+          Math.max(0, 0.62 - lowConsensus) * 0.22 +
+          Math.max(0, 48 - recoveryFloor) / 54 * 0.16 +
+          Math.max(0, 76 - (activityScore ?? 0)) / 76 * 0.12
+        ) -
+        functionalCompensation * 0.22 -
+        highConsensus * 0.18,
+      0,
+      1,
+    )
+    : 0;
+  const reboundGap = trendMemory.recentMedianScore == null ? 0 : clamp((medianScore - trendMemory.recentMedianScore - 4) / 26, 0, 1);
+  const maskedDrawdownShape = lowConsensus < 0.58 && medianScore >= 44 && highConsensus >= 0.08;
+  const unresolvedDrawdownPressure = trendMemory.drawdownPeakPressure > 0.12 && recoveryFloor < 58 && !strongFunctionalRebound && maskedDrawdownShape && physiologyStrainPressure >= 0.22
+    ? clamp(
+      trendMemory.drawdownPeakPressure *
+        (
+          0.22 +
+          physiologyStrainPressure * 0.52 +
+          Math.max(0, 56 - recoveryFloor) / 50 * 0.26 +
+          reboundGap * 0.34 +
+          trendMemory.recentLowShare * 0.16
+        ) -
+        highConsensus * 0.08 -
+        functionalCompensation * 0.06,
+      0,
+      0.64,
+    )
+    : 0;
   const loadRecoveryRelief = loadRecoveryConflict * clamp((lowConsensus - highConsensus + 0.5) / 0.8, 0, 1);
   const abruptTransitionGuard = lowConsensus >= 0.72 && mixedConflict < 0.24 && (recentScoreSlope <= -5.5 || trendMemory.transitionPressure >= 0.58);
   const severeLowConsensus = lowConsensus >= 0.78 && mixedConflict < 0.28 && loadRecoveryConflict < 0.25 && compensationRelief < 0.18 && !abruptTransitionGuard;
@@ -1463,10 +1556,11 @@ function calculateUtilityFusion(
   const baseBlend = lowConsensus >= 0.52
     ? (severeLowConsensus ? 0.3 : 0.22) + Math.max(0, lowConsensus - 0.52) * (severeLowConsensus ? 1.55 : 1.28)
     : 0.1 + Math.max(0, consensus - 0.42) * 0.9;
+  const sparseBlend = clamp(0.06 + sparseTransitionShock * 0.46, 0.06, 0.5);
   const acuteBlend = observations.length < 3
-    ? 0.06
+    ? sparseBlend
     : clamp(
-      baseBlend + directionalPressure + trendPressure + softDeclinePressure - loadRecoveryRelief * 0.18 - compensationRelief * 0.05,
+      baseBlend + directionalPressure + trendPressure + softDeclinePressure + sparseTransitionShock * 0.16 - loadRecoveryRelief * 0.18 - compensationRelief * 0.05,
       0.08,
       abruptTransitionGuard ? 0.52 : severeLowConsensus ? 0.78 : compensationRelief >= 0.28 ? 0.58 : lowConsensus >= 0.52 ? 0.7 : 0.54,
     );
@@ -1491,15 +1585,60 @@ function calculateUtilityFusion(
     clamp((medianLatent + 0.34) / 2.8, 0, 0.24) +
     Math.max(0, recoveryStress - 0.28) * 0.08
   );
-  const latent = clamp(
+  const drawdownStallPenalty = drawdownStallPressure * (
+    0.26 +
+    clamp((medianScore - 34) / 38, 0, 0.42) +
+    trendMemory.drawdownPressure * 0.14
+  );
+  const compensationProtection = strongFunctionalRebound
+    ? 0.72
+    : clamp(functionalCompensation * 0.54 + activitySupport * 0.34 + highConsensus * 0.22, 0, 0.62);
+  const directLowEvidenceDamping = lowConsensus >= 0.62 ? 0.58 : lowConsensus >= 0.5 ? 0.78 : 1;
+  const effectivePhysiologyStrainPressure = physiologyStrainPressure * (1 - compensationProtection) * directLowEvidenceDamping;
+  const unresolvedProtection = clamp(functionalCompensation * 0.28 + activitySupport * 0.2 + highConsensus * 0.14, 0, 0.34);
+  const effectiveUnresolvedDrawdownPressure = unresolvedDrawdownPressure * (1 - unresolvedProtection);
+  const physiologyStrainPenalty = effectivePhysiologyStrainPressure * (
+    0.1 +
+    Math.max(0, 54 - recoveryFloor) / 50 * 0.16 +
+    trendMemory.drawdownPeakPressure * 0.08
+  );
+  const unresolvedDrawdownPenalty = effectiveUnresolvedDrawdownPressure * (
+    0.22 +
+    effectivePhysiologyStrainPressure * 0.18 +
+    trendMemory.drawdownPeakPressure * 0.1
+  );
+  const transitionLift = abruptTransitionGuard && sparseTransitionShock < 0.62 ? 0.34 : 0;
+  const rawLatent =
     (1 - acuteBlend) * posteriorRiskLatent + acuteBlend * acuteLatent -
       trendPressure * 0.28 -
       softDeclinePressure * (severeLowConsensus ? 0.3 : 0.18) +
       loadRecoveryLift +
       compensationLift -
       chronicDebtPenalty +
-      (abruptTransitionGuard ? 0.34 : 0) +
-      trendMemory.drawdownPressure * clamp((medianLatent - slowLatent) / 2.8, -0.18, 0.08),
+      transitionLift -
+      drawdownStallPenalty -
+      physiologyStrainPenalty -
+      unresolvedDrawdownPenalty -
+      trendMemory.drawdownPressure * clamp((medianLatent - slowLatent) / 2.8, -0.18, 0.08);
+  const strainCapScore = clamp(
+    78 -
+      effectivePhysiologyStrainPressure * 36 -
+      effectiveUnresolvedDrawdownPressure * 30 -
+      trendMemory.drawdownPeakPressure * 5,
+    18,
+    100,
+  );
+  const cappedLatent = (effectivePhysiologyStrainPressure >= 0.45 || effectiveUnresolvedDrawdownPressure >= 0.32)
+    ? Math.min(rawLatent, scoreToLatent(strainCapScore, config.scoreTemperature))
+    : rawLatent;
+  const drawdownMemoryLatent = trendMemory.recentMedianScore == null
+    ? cappedLatent
+    : scoreToLatent(trendMemory.recentMedianScore, config.scoreTemperature);
+  const drawdownMemoryBlend = clamp(drawdownStallPressure * 0.48, 0, 0.42);
+  const latent = clamp(
+    drawdownMemoryBlend > 0
+      ? (1 - drawdownMemoryBlend) * cappedLatent + drawdownMemoryBlend * Math.min(cappedLatent, drawdownMemoryLatent - drawdownStallPressure * 0.22)
+      : cappedLatent,
     -4.5,
     4.5,
   );
@@ -1520,6 +1659,10 @@ function calculateUtilityFusion(
     transitionPressure: trendMemory.transitionPressure,
     chronicDebtPressure,
     functionalCompensation,
+    sparseTransitionShock,
+    drawdownStallPressure,
+    physiologyStrainPressure,
+    unresolvedDrawdownPressure,
     dispersion,
   };
 }
@@ -1538,6 +1681,7 @@ function calculateTrendMemory(history: FilterDay[], recentScoreSlope: number): T
   const prior = history.slice(-24, -10).map((item) => item.score);
   const recentMedianScore = recent.length >= 3 ? median(recent) : null;
   const priorMedianScore = prior.length >= 5 ? median(prior) : null;
+  const recentLowPointScore = recent.length >= 3 ? Math.min(...recent) : null;
   const recentLowShare = recent.length === 0 ? 0 : recent.filter((score) => score < 42).length / recent.length;
   const ewmaDrawdown = exponentialWeightedMean(
     history.slice(-14).map((item) => Math.max(0, 52 - item.score)),
@@ -1547,12 +1691,16 @@ function calculateTrendMemory(history: FilterDay[], recentScoreSlope: number): T
     ? Math.max(0, priorMedianScore - recentMedianScore - 6)
     : 0;
   const drawdownPressure = clamp(ewmaDrawdown / 34 * 0.55 + medianDrop / 24 * 0.32 + recentLowShare * 0.18, 0, 1);
+  const drawdownPeakPressure = recentLowPointScore == null ? 0 : clamp((50 - recentLowPointScore) / 26, 0, 1);
   const transitionPressure = clamp((-recentScoreSlope - 4.4) / 7 * 0.72 + Math.max(0, medianDrop - 8) / 26 * 0.28, 0, 1);
   return {
     drawdownPressure,
     transitionPressure,
     recentMedianScore,
     priorMedianScore,
+    recentLowPointScore,
+    drawdownPeakPressure,
+    recentLowShare,
   };
 }
 
@@ -1776,6 +1924,10 @@ function initialFilterDay(date: string, config: RhythmConfig): FilterDay {
     transitionPressure: 0,
     chronicDebtPressure: 0,
     functionalCompensation: 0,
+    sparseTransitionShock: 0,
+    drawdownStallPressure: 0,
+    physiologyStrainPressure: 0,
+    unresolvedDrawdownPressure: 0,
     observation: null,
     evidenceCount: 0,
     robustWeights: [],
