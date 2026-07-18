@@ -8,7 +8,7 @@ NAVA App 是 `Tj-jiaoao/style-muse-next` 的移动端工程，目标是服务 Ap
 - Supabase 登录 / 注册 / 退出。
 - 今日页读取 Web 同源数据。
 - 情绪、睡眠、运动、饮食、专注记录写入。
-- AI 聊天调用同源 Edge Functions。
+- AI 聊天调用同源 Edge Functions，已覆盖自然语言抽取和回复。
 - HealthKit JS 桥接与 iOS Swift 插件模板。
 - Apple Watch 快照发布与 WatchConnectivity 插件模板。
 - Web 上游同步脚本。
@@ -52,6 +52,8 @@ npm run algorithm:benchmark -- --users=200
 ```
 
 `verify` 会执行构建、lint 和 npm audit；`backend:verify` 检查 Edge Functions、shared 后端文件、migrations 和前端 secret；`algorithm:test` / `algorithm:benchmark` 用于验证 V4 算法核心。
+
+当前 App 后端函数：`ai-extract-data`、`ai-chat-reply`、`diet-extract`、`face-analyze`、`health-sync-ingest`、`watch-sync`、`rhythm-score`、`export-user-data`。
 
 ## 已知边界
 

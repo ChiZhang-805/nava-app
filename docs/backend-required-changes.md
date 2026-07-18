@@ -22,6 +22,7 @@ docs/app-backend.md
 - Auth redirect URL
 - Web 当前支持的登录方式
 - Edge Functions 入参和出参
+- App 已实现的函数清单：`ai-extract-data`、`ai-chat-reply`、`diet-extract`、`face-analyze`、`health-sync-ingest`、`watch-sync`、`rhythm-score`、`export-user-data`
 
 ## 不应提供给 App 仓库
 
@@ -67,6 +68,15 @@ Web 端如要展示 App 算法结果，建议优先读取：
 - `daily_rhythm_scores.profile_labels`：用户状态标签。
 - `daily_rhythm_scores.score_lower` / `score_upper`：80% 分数区间。
 - `daily_rhythm_scores.change_point_probability` / `trend_slope`：结构性变化和最近趋势。
+
+### AI 自然语言函数
+
+App AI 页现在调用：
+
+- `ai-extract-data`：把一句话抽取成可落库记录，当前内置规则支持睡眠、运动、情绪、专注、饮食、资料更新和多记录组合。
+- `ai-chat-reply`：根据抽取结果生成回复，当前内置规则可用；后续可通过 `NAVA_AI_EXTRACT_URL/KEY` 和 `NAVA_AI_CHAT_URL/KEY` 接入算法同学的大模型服务。
+
+Web 端如也要复用同一套 AI 入口，只需要按同一 Supabase Auth 调用这两个 Edge Functions，不需要在网页端重复实现抽取逻辑。
 
 Web 端不需要实现 App 的算法，但需要兼容这些字段，否则 App 先落库的 V4 结果在网页端会无法完整展示。
 

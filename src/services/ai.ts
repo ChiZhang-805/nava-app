@@ -1,6 +1,13 @@
 import { supabase } from "./supabaseClient";
 import type { ChatMessage } from "../types";
-import { refreshRhythmScore, saveExerciseRecord, saveSleepRecord } from "./records";
+import {
+  refreshRhythmScore,
+  saveExerciseRecord,
+  saveFocusSession,
+  saveMoodRecord,
+  saveNutritionRecord,
+  saveSleepRecord,
+} from "./records";
 import { todayISO } from "./date";
 import { demoMessages, isDemoMode } from "./demo";
 
@@ -71,6 +78,7 @@ export async function sendAiMessage(input: {
   const reply = await supabase.functions.invoke("ai-chat-reply", {
     body: {
       message: input.message,
+      dataType: extraction?.dataType ?? null,
       extractedData,
       conversationHistory: input.history.slice(-10),
       todos: [],
@@ -104,6 +112,25 @@ async function applyExtractedData(userId: string, extraction: Record<string, unk
   const data = extraction.extractedData as Record<string, unknown>;
   const dataType = extraction.dataType;
 
+  if (dataType === "multi") {
+    const records = Array.isArray(data.records) ? data.records : [];
+    const applied = [];
+    for (const record of records) {
+      if (!record || typeof record !== "object") continue;
+      const item = record as Record<string, unknown>;
+      const itemType = stringValue(item.dataType) ?? stringValue(item.data_type) ?? stringValue(item.type);
+      const payload = objectValue(item.extractedData) ?? objectValue(item.extracted_data) ?? objectValue(item.data);
+      if (!itemType || !payload) continue;
+      applied.push(await applyTypedData(userId, itemType, payload, false));
+    }
+    if (applied.some((item) => item?.saved)) await refreshRhythmAfterApply(todayISO());
+    return { type: "multi", saved: applied.some((item) => item?.saved), items: applied };
+  }
+
+  return applyTypedData(userId, String(dataType ?? "unknown"), data, true);
+}
+
+async function applyTypedData(userId: string, dataType: string, data: Record<string, unknown>, refreshAfterSave: boolean) {
   if (dataType === "sleep") {
     const start = stringValue(data.sleepStart) ?? stringValue(data.sleep_start);
     const end = stringValue(data.sleepEnd) ?? stringValue(data.sleep_end);
@@ -120,7 +147,7 @@ async function applyExtractedData(userId: string, extraction: Record<string, unk
       rating: numberValue(data.selfRating) ?? numberValue(data.self_rating),
       source: "manual",
     });
-    await refreshRhythmAfterApply(todayISO());
+    if (refreshAfterSave) await refreshRhythmAfterApply(todayISO());
     return { type: "sleep", saved: true };
   }
 
@@ -141,8 +168,54 @@ async function applyExtractedData(userId: string, extraction: Record<string, unk
       spo2: stringValue(data.spo2),
       source: "manual",
     });
-    await refreshRhythmAfterApply(todayISO());
+    if (refreshAfterSave) await refreshRhythmAfterApply(todayISO());
     return { type: "exercise", saved: true };
+  }
+
+  if (dataType === "mood") {
+    const moodScore = numberValue(data.moodScore) ?? numberValue(data.mood_score) ?? numberValue(data.score);
+    if (moodScore == null) return { type: "mood", saved: false, reason: "缺少情绪分数" };
+    await saveMoodRecord({
+      userId,
+      date: todayISO(),
+      moodScore: Math.max(0, Math.min(100, Math.round(moodScore))),
+      factors: stringArrayValue(data.factors),
+      diary: stringValue(data.diary) ?? stringValue(data.note),
+    });
+    if (refreshAfterSave) await refreshRhythmAfterApply(todayISO());
+    return { type: "mood", saved: true };
+  }
+
+  if (dataType === "focus") {
+    const minutes = numberValue(data.minutes) ?? numberValue(data.totalMinutes) ?? numberValue(data.total_minutes);
+    if (minutes == null || minutes <= 0) return { type: "focus", saved: false, reason: "缺少专注分钟数" };
+    await saveFocusSession({
+      userId,
+      date: todayISO(),
+      taskTitle: stringValue(data.taskTitle) ?? stringValue(data.task_title) ?? "专注",
+      minutes: Math.round(minutes),
+    });
+    if (refreshAfterSave) await refreshRhythmAfterApply(todayISO());
+    return { type: "focus", saved: true };
+  }
+
+  if (dataType === "nutrition") {
+    const meal = normalizeMeal(stringValue(data.meal));
+    const name = stringValue(data.name) ?? stringValue(data.food) ?? stringValue(data.title) ?? "手动记录餐食";
+    const calories = numberValue(data.calories) ?? numberValue(data.kcal) ?? 0;
+    await saveNutritionRecord({
+      userId,
+      date: todayISO(),
+      meal,
+      item: {
+        name,
+        amount: stringValue(data.amount),
+        calories: Math.max(0, Math.round(calories)),
+      },
+      totalCalories: Math.max(0, Math.round(calories)),
+    });
+    if (refreshAfterSave) await refreshRhythmAfterApply(todayISO());
+    return { type: "nutrition", saved: true };
   }
 
   if (dataType === "profile") {
@@ -174,6 +247,24 @@ function numberValue(value: unknown) {
     return Number.isFinite(parsed) ? parsed : undefined;
   }
   return undefined;
+}
+
+function objectValue(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
+}
+
+function stringArrayValue(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    .map((item) => item.trim());
+}
+
+function normalizeMeal(value: string | undefined): "breakfast" | "lunch" | "dinner" | "pantry" {
+  if (value === "breakfast" || value === "早餐") return "breakfast";
+  if (value === "lunch" || value === "午餐" || value === "中餐") return "lunch";
+  if (value === "dinner" || value === "晚餐") return "dinner";
+  return "pantry";
 }
 
 function estimateSleepMinutes(start: string, end: string) {

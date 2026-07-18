@@ -4,6 +4,8 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $functionsRoot = Join-Path $root "supabase\functions"
 $requiredFunctions = @(
+  "ai-extract-data",
+  "ai-chat-reply",
   "diet-extract",
   "face-analyze",
   "health-sync-ingest",

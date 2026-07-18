@@ -6,6 +6,8 @@ App 后端不另起账号系统，继续使用 Web 同一个 Supabase 项目。�
 
 | Function | 作用 | 主要写入 |
 | --- | --- | --- |
+| `ai-extract-data` | 自然语言记录抽取入口；未配置外部模型时使用本地规则，可识别睡眠、运动、情绪、专注、饮食和资料更新 | App 确认后写对应业务表 |
+| `ai-chat-reply` | AI 页回复入口；未配置外部模型时根据抽取结果生成轻量建议 | App 写 `ai_conversations` |
 | `health-sync-ingest` | 接收 iPhone / Apple Watch HealthKit 摘要，写运动、睡眠、小时活动、睡眠阶段、同步任务，并刷新节律分数 | `exercise_records`、`sleep_records`、`health_metric_snapshots`、`health_sync_jobs`、`daily_rhythm_scores` |
 | `watch-sync` | 保存 Watch 快照，处理手表快速情绪和专注动作 | `watch_snapshots`、`device_connections`、`mood_records`、`focus_records` |
 | `diet-extract` | 饮食照片识别入口，支持正式算法服务转发和 fallback | 不直接写表，App 确认后写 `nutrition_records` |
@@ -103,10 +105,14 @@ powershell -ExecutionPolicy Bypass -File scripts/deploy-backend.ps1 -SkipDbPush
 ```powershell
 supabase secrets set NAVA_DIET_EXTRACT_URL="https://..." NAVA_DIET_EXTRACT_KEY="..." --project-ref $env:SUPABASE_PROJECT_REF
 supabase secrets set NAVA_FACE_ANALYZE_URL="https://..." NAVA_FACE_ANALYZE_KEY="..." --project-ref $env:SUPABASE_PROJECT_REF
+supabase secrets set NAVA_AI_EXTRACT_URL="https://..." NAVA_AI_EXTRACT_KEY="..." --project-ref $env:SUPABASE_PROJECT_REF
+supabase secrets set NAVA_AI_CHAT_URL="https://..." NAVA_AI_CHAT_KEY="..." --project-ref $env:SUPABASE_PROJECT_REF
 ```
 
 未配置正式算法时：
 
+- `ai-extract-data` 使用规则引擎抽取睡眠、运动、情绪、专注、饮食和资料更新。
+- `ai-chat-reply` 使用规则回复，不调用外部大模型。
 - `diet-extract` 返回低置信度 fallback 食物条目。
 - `face-analyze` 返回低置信度基础状态结果。
 - App 不会崩溃，但结果不能当成正式算法结论。
