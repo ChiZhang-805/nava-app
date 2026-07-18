@@ -15,6 +15,7 @@ import { subscribeWatchActions } from "./services/watch";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LanguageToggle from "./components/LanguageToggle";
 import LaunchSequence from "./components/LaunchSequence";
+import LivingBackground from "./components/LivingBackground";
 import NetworkBadge from "./components/NetworkBadge";
 import { LocaleProvider, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
@@ -169,10 +170,11 @@ function AppContent() {
   else screen = <MobileShell />;
 
   return (
-    <>
+    <div className="nava-app-stage">
+      <LivingBackground />
       <LaunchSequence />
       {screen}
-    </>
+    </div>
   );
 }
 
