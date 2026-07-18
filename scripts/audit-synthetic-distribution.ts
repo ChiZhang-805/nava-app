@@ -194,6 +194,10 @@ function collectValues(key: string) {
   if (key === "circadian_drift_pressure") return predictions.map((item) => numeric(item.result.fusion.utilityFusion.circadianDriftPressure)).filter(isNumber);
   if (key === "physiology_lead_pressure") return predictions.map((item) => numeric(item.result.fusion.utilityFusion.physiologyLeadPressure)).filter(isNumber);
   if (key === "presenteeism_strain_pressure") return predictions.map((item) => numeric(item.result.fusion.utilityFusion.presenteeismStrainPressure)).filter(isNumber);
+  if (key === "masked_strain_pressure") return predictions.map((item) => numeric(item.result.fusion.utilityFusion.maskedStrainPressure)).filter(isNumber);
+  if (key === "functional_overreach_relief") return predictions.map((item) => numeric(item.result.fusion.utilityFusion.functionalOverreachRelief)).filter(isNumber);
+  if (key === "phase_adaptation_relief") return predictions.map((item) => numeric(item.result.fusion.utilityFusion.phaseAdaptationRelief)).filter(isNumber);
+  if (key === "recovery_rebound_relief") return predictions.map((item) => numeric(item.result.fusion.utilityFusion.recoveryReboundRelief)).filter(isNumber);
 
   for (const day of dayRecords) {
     const value = valueFromDay(key, day);

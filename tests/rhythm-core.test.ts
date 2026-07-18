@@ -28,6 +28,10 @@ test("returns a conservative cold score when no usable data exists", () => {
   assert.equal(result.fusion.utilityFusion.circadianDriftPressure, 0);
   assert.equal(result.fusion.utilityFusion.physiologyLeadPressure, 0);
   assert.equal(result.fusion.utilityFusion.presenteeismStrainPressure, 0);
+  assert.equal(result.fusion.utilityFusion.maskedStrainPressure, 0);
+  assert.equal(result.fusion.utilityFusion.functionalOverreachRelief, 0);
+  assert.equal(result.fusion.utilityFusion.phaseAdaptationRelief, 0);
+  assert.equal(result.fusion.utilityFusion.recoveryReboundRelief, 0);
   assert.equal(result.fusion.utilityFusion.endpointCalibrationPressure, 0);
   assert.equal(result.fusion.utilityFusion.tailOverreactionRelief, 0);
   assert.equal(result.features.complexity.bounds.factors, 4);
@@ -76,6 +80,10 @@ test("beats the legacy single-day proxy on heterogeneous synthetic users", () =>
     assert.ok(result.fusion.utilityFusion.circadianDriftPressure >= 0);
     assert.ok(result.fusion.utilityFusion.physiologyLeadPressure >= 0);
     assert.ok(result.fusion.utilityFusion.presenteeismStrainPressure >= 0);
+    assert.ok(result.fusion.utilityFusion.maskedStrainPressure >= 0);
+    assert.ok(result.fusion.utilityFusion.functionalOverreachRelief >= 0);
+    assert.ok(result.fusion.utilityFusion.phaseAdaptationRelief >= 0);
+    assert.ok(result.fusion.utilityFusion.recoveryReboundRelief >= 0);
     assert.ok(result.fusion.utilityFusion.endpointCalibrationPressure >= 0);
     assert.ok(result.fusion.utilityFusion.tailOverreactionRelief >= 0);
   }

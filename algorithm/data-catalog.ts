@@ -49,4 +49,8 @@ export const syntheticFieldExpectations: FieldExpectation[] = [
   { key: "circadian_drift_pressure", label: "Circadian drift pressure", category: "algorithm_derived", observedRateMin: 1, plausibleMin: 0, plausibleMax: 1, medianMin: 0, medianMax: 0.35 },
   { key: "physiology_lead_pressure", label: "Physiology lead pressure", category: "algorithm_derived", observedRateMin: 1, plausibleMin: 0, plausibleMax: 1, medianMin: 0, medianMax: 0.55 },
   { key: "presenteeism_strain_pressure", label: "Presenteeism strain pressure", category: "algorithm_derived", observedRateMin: 1, plausibleMin: 0, plausibleMax: 1, medianMin: 0, medianMax: 0.35 },
+  { key: "masked_strain_pressure", label: "Masked strain pressure", category: "algorithm_derived", observedRateMin: 1, plausibleMin: 0, plausibleMax: 1, medianMin: 0, medianMax: 0.45 },
+  { key: "functional_overreach_relief", label: "Functional overreach relief", category: "algorithm_derived", observedRateMin: 1, plausibleMin: 0, plausibleMax: 1, medianMin: 0, medianMax: 0.25 },
+  { key: "phase_adaptation_relief", label: "Phase adaptation relief", category: "algorithm_derived", observedRateMin: 1, plausibleMin: 0, plausibleMax: 1, medianMin: 0, medianMax: 0.35 },
+  { key: "recovery_rebound_relief", label: "Recovery rebound relief", category: "algorithm_derived", observedRateMin: 1, plausibleMin: 0, plausibleMax: 1, medianMin: 0, medianMax: 0.35 },
 ];

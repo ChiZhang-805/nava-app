@@ -7,7 +7,7 @@ const minimumUsers = 5000;
 const requestedUsers = Number(argumentValue("--users") ?? minimumUsers);
 const users = Number.isFinite(requestedUsers) ? Math.max(minimumUsers, Math.min(25000, Math.round(requestedUsers))) : minimumUsers;
 const seed = Number(argumentValue("--seed") ?? 240724);
-const outputDirectory = argumentValue("--out") ?? join("artifacts", "synthetic-population");
+const outputDirectory = argumentValue("--out") ?? process.env.NAVA_SYNTHETIC_DATASET_DIR ?? join("artifacts", "synthetic-population");
 
 mkdirSync(outputDirectory, { recursive: true });
 

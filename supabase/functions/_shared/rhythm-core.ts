@@ -138,6 +138,10 @@ type FilterDay = {
   circadianDriftPressure: number;
   physiologyLeadPressure: number;
   presenteeismStrainPressure: number;
+  maskedStrainPressure: number;
+  functionalOverreachRelief: number;
+  phaseAdaptationRelief: number;
+  recoveryReboundRelief: number;
   endpointCalibrationPressure: number;
   tailOverreactionRelief: number;
   observation: number | null;
@@ -169,6 +173,10 @@ type UtilityFusion = {
   circadianDriftPressure: number;
   physiologyLeadPressure: number;
   presenteeismStrainPressure: number;
+  maskedStrainPressure: number;
+  functionalOverreachRelief: number;
+  phaseAdaptationRelief: number;
+  recoveryReboundRelief: number;
   endpointCalibrationPressure: number;
   tailOverreactionRelief: number;
   dispersion: number;
@@ -214,8 +222,8 @@ const signalModels: Record<SignalKey, { loading: Vector4; variance: number; weig
   recovery: { loading: [0.06, 0.82, 0.08, 0.04], variance: 0.4, weight: 0.16, label: "恢复" },
 };
 
-export const rhythmSchemaVersion = "4.8.0";
-export const rhythmModelVersion = "nava-chronostate-v4.8-2026-07";
+export const rhythmSchemaVersion = "4.27.0";
+export const rhythmModelVersion = "nava-chronostate-v4.27-2026-07";
 
 export const defaultRhythmConfig: RhythmConfig = {
   baselineWindowDays: 42,
@@ -279,7 +287,7 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
     profileLabels,
     baseline: current.baseline,
     fusion: {
-      method: "nava-chronostate-v4.8-adaptive-utility-state-space",
+      method: "nava-chronostate-v4.27-adaptive-utility-state-space",
       stateFactors: factorState,
       factorScores,
       posteriorCovariance: state.covariance.map((row) => row.map((value) => round(value, 4))),
@@ -311,6 +319,10 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
         circadianDriftPressure: round(state.circadianDriftPressure, 4),
         physiologyLeadPressure: round(state.physiologyLeadPressure, 4),
         presenteeismStrainPressure: round(state.presenteeismStrainPressure, 4),
+        maskedStrainPressure: round(state.maskedStrainPressure, 4),
+        functionalOverreachRelief: round(state.functionalOverreachRelief, 4),
+        phaseAdaptationRelief: round(state.phaseAdaptationRelief, 4),
+        recoveryReboundRelief: round(state.recoveryReboundRelief, 4),
         endpointCalibrationPressure: round(state.endpointCalibrationPressure, 4),
         tailOverreactionRelief: round(state.tailOverreactionRelief, 4),
       },
@@ -320,7 +332,7 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
       dataQuality,
     },
     features: {
-      fusion: "four-factor robust Student-t state-space filter + EWMA drawdown memory + physiology guard + chronic-debt cap + functional-compensation gate + sparse-transition shock + drawdown-stall pressure + physiology-strain cap + unresolved-drawdown pressure + phase-turbulence protection + adaptive endpoint calibration + tail-overreaction relief + adaptive residual calibration + Bayesian online change-point detection",
+      fusion: "four-factor robust Student-t state-space filter + EWMA drawdown memory + physiology guard + chronic-debt cap + functional-compensation gate + sparse-transition shock + drawdown-stall pressure + physiology-strain cap + unresolved-drawdown pressure + phase-turbulence protection + phase-adaptation relief + recovery-rebound relief + adaptive endpoint calibration + tail-overreaction relief + adaptive residual calibration + Bayesian online change-point detection",
       components: Object.keys(signalModels),
       circadian: current.activityRhythm,
       signalHealth: current.signalHealth,
@@ -677,6 +689,10 @@ function robustStateFilter(days: DayAnalysis[], config: RhythmConfig): FilterDay
       fusion.circadianDriftPressure * 0.08 +
       fusion.physiologyLeadPressure * 0.08 +
       fusion.presenteeismStrainPressure * 0.08 +
+      fusion.maskedStrainPressure * 0.09 +
+      fusion.functionalOverreachRelief * 0.06 +
+      fusion.phaseAdaptationRelief * 0.04 +
+      fusion.recoveryReboundRelief * 0.04 +
       fusion.endpointCalibrationPressure * 0.08 +
       fusion.tailOverreactionRelief * 0.05;
     const variance = Math.max(1e-6, quadratic(globalLoading, covariance) + residualVariance + correlationGuard + utilityDisagreement);
@@ -711,6 +727,10 @@ function robustStateFilter(days: DayAnalysis[], config: RhythmConfig): FilterDay
       circadianDriftPressure: fusion.circadianDriftPressure,
       physiologyLeadPressure: fusion.physiologyLeadPressure,
       presenteeismStrainPressure: fusion.presenteeismStrainPressure,
+      maskedStrainPressure: fusion.maskedStrainPressure,
+      functionalOverreachRelief: fusion.functionalOverreachRelief,
+      phaseAdaptationRelief: fusion.phaseAdaptationRelief,
+      recoveryReboundRelief: fusion.recoveryReboundRelief,
       endpointCalibrationPressure: fusion.endpointCalibrationPressure,
       tailOverreactionRelief: fusion.tailOverreactionRelief,
       observation: aggregateObservation(day.signals, config.scoreTemperature),
@@ -1357,6 +1377,10 @@ function calculateUtilityFusion(
       circadianDriftPressure: 0,
       physiologyLeadPressure: 0,
       presenteeismStrainPressure: 0,
+      maskedStrainPressure: 0,
+      functionalOverreachRelief: 0,
+      phaseAdaptationRelief: 0,
+      recoveryReboundRelief: 0,
       endpointCalibrationPressure: 0,
       tailOverreactionRelief: 0,
       dispersion: 0,
@@ -1399,6 +1423,10 @@ function calculateUtilityFusion(
       circadianDriftPressure: 0,
       physiologyLeadPressure: 0,
       presenteeismStrainPressure: 0,
+      maskedStrainPressure: 0,
+      functionalOverreachRelief: 0,
+      phaseAdaptationRelief: 0,
+      recoveryReboundRelief: 0,
       endpointCalibrationPressure: 0,
       tailOverreactionRelief: 0,
       dispersion: 0,
@@ -1587,6 +1615,36 @@ function calculateUtilityFusion(
       0.72,
     );
   const moodWeakness = moodScore == null ? 0 : clamp((52 - moodScore) / 52, 0, 1);
+  const athleticFunctionalSpike =
+    highLoadScore >= 96 &&
+    activitySupport >= 0.92 &&
+    focusSupport >= 0.36 &&
+    circadianBuffer >= 0.62 &&
+    moodWeakness < 0.42 &&
+    !catastrophicRecovery;
+  const dominantCircadianAdaptation =
+    circadianDriftPressure >= 0.46 &&
+    recoveryWeakness < 0.5 &&
+    physiologyLeadPressure < 0.62 &&
+    moodWeakness < 0.46;
+  const circadianOnlyAdaptation =
+    circadianDriftPressure >= 0.34 &&
+    physiologyLeadPressure >= 0.44 &&
+    (recoveryScore == null || recoveryScore >= 30) &&
+    moodWeakness < 0.46;
+  const phaseMisalignmentCompensation =
+    phaseTurbulencePressure >= 0.18 &&
+    circadianDriftPressure >= 0.14 &&
+    physiologyLeadPressure >= 0.24 &&
+    recoveryWeakness < 0.68 &&
+    moodWeakness < 0.62 &&
+    physiologyStrainPressure < 0.92 &&
+    effectiveDrawdownPressure < 0.72 &&
+    effectiveDrawdownPeakPressure < 0.72;
+  const circadianAdaptationPenaltyDamping =
+    circadianOnlyAdaptation ||
+    phaseMisalignmentCompensation ||
+    (circadianDriftPressure >= 0.4 && physiologyLeadPressure >= 0.5 && effectiveDrawdownPressure < 0.36);
   const presenteeismBehaviorDrive = clamp(
     activitySupport * 0.45 +
       focusSupport * 0.38 +
@@ -1600,9 +1658,23 @@ function calculateUtilityFusion(
     0,
     0.88,
   );
+  const chronicPresenteeismContext =
+    !dominantCircadianAdaptation &&
+    !circadianAdaptationPenaltyDamping &&
+    !athleticFunctionalSpike &&
+    (
+      (effectiveDrawdownPressure >= 0.24 && recoveryScore != null && recoveryScore <= 24) ||
+      (effectiveDrawdownPressure >= 0.24 && moodWeakness >= 0.5) ||
+      (effectiveDrawdownPressure >= 0.28 && circadianWeakness >= 0.45 && recoveryWeakness >= 0.45) ||
+      (effectiveDrawdownPeakPressure >= 0.46 && (recoveryWeakness >= 0.35 || moodWeakness >= 0.45)) ||
+      (trendMemory.recentLowShare >= 0.22 && recoveryWeakness >= 0.4)
+    );
+  const presenteeismConsensusDamping = chronicPresenteeismContext
+    ? 1 - presenteeismSuppression * 0.42
+    : 1 - presenteeismSuppression;
   const presenteeismStrainPressure = presenteeismBehaviorDrive >= 0.35 &&
     highLoadScore >= 86 &&
-    (recoveryWeakness >= 0.22 || moodWeakness >= 0.35 || circadianWeakness >= 0.32)
+    (recoveryWeakness >= 0.22 || moodWeakness >= 0.35 || circadianWeakness >= 0.32 || chronicPresenteeismContext)
     ? clamp(
       presenteeismBehaviorDrive *
         (
@@ -1611,9 +1683,11 @@ function calculateUtilityFusion(
           circadianWeakness * 0.18 +
           physiologyStrainPressure * 0.22 +
           loadRecoveryConflict * 0.16 +
-          physiologyLeadPressure * 0.12
+          physiologyLeadPressure * 0.12 +
+          effectiveDrawdownPressure * 0.18 +
+          trendMemory.recentLowShare * 0.12
         ) *
-        (1 - presenteeismSuppression) *
+        presenteeismConsensusDamping *
         (1 - recoveryIsolationRelief * 1.25) -
         phaseReliefPressure * 0.1 -
         recoveryIsolationRelief * 0.42 -
@@ -1622,6 +1696,8 @@ function calculateUtilityFusion(
       0.84,
     )
     : 0;
+  const effectivePresenteeismStrainPressure = presenteeismStrainPressure *
+    (athleticFunctionalSpike ? 0.28 : circadianAdaptationPenaltyDamping ? 0.35 : 1);
   const functionalCompensation = clamp(
     activitySupport * 0.3 +
       focusSupport * 0.22 +
@@ -1635,6 +1711,35 @@ function calculateUtilityFusion(
     0,
     catastrophicRecovery ? 0.22 : 0.78,
   );
+  const functionalOverreachCandidate =
+    highLoadScore >= 96 &&
+    activitySupport >= 0.86 &&
+    functionalCompensation >= 0.3 &&
+    trendMemory.transitionPressure < 0.16 &&
+    (recoveryScore == null || recoveryScore >= 24) &&
+    (moodScore == null || moodScore >= 32) &&
+    effectiveDrawdownPressure < (athleticFunctionalSpike ? 0.52 : circadianBuffer >= 0.65 ? 0.36 : 0.18) &&
+    (presenteeismStrainPressure < 0.18 || athleticFunctionalSpike || effectiveDrawdownPressure < 0.16 || circadianBuffer >= 0.62) &&
+    (circadianBuffer >= 0.36 || moodSupport >= 0.18 || sleepBuffer >= 0.36 || effectiveDrawdownPressure < 0.18) &&
+    lowDomainShare < 0.88 &&
+    !catastrophicRecovery;
+  const functionalOverreachRelief = functionalOverreachCandidate
+    ? clamp(
+      functionalCompensation *
+        (
+          activitySupport * 0.3 +
+          focusSupport * 0.12 +
+          circadianBuffer * 0.2 +
+          sleepBuffer * 0.12 +
+          moodSupport * 0.08 +
+          Math.max(0, 0.32 - effectiveDrawdownPressure) * 0.32
+        ) -
+        physiologyLeadPressure * 0.12 -
+        Math.max(0, lowConsensus - 0.72) * 0.12,
+      0,
+      0.56,
+    )
+    : 0;
   const compensationRelief = clamp(
     functionalCompensation *
       clamp((loadRecoveryConflict - 0.14) / 0.52, 0, 1) *
@@ -1723,6 +1828,57 @@ function calculateUtilityFusion(
     )
     : 0;
   const unresolvedDrawdownPressure = Math.max(directUnresolvedDrawdownPressure, conflictMaskedRecoveryDebt);
+  const maskedStrainShape =
+    medianScore >= 42 &&
+    medianScore <= 76 &&
+    lowConsensus >= 0.34 &&
+    lowConsensus <= 0.76 &&
+    (highConsensus >= 0.24 || focusSupport >= 0.36 || highLoadScore >= 92) &&
+    trendMemory.transitionPressure < 0.3 &&
+    !dominantCircadianAdaptation &&
+    !circadianAdaptationPenaltyDamping &&
+    !phaseMisalignmentCompensation &&
+    !athleticFunctionalSpike &&
+    (
+      effectiveDrawdownPressure >= 0.42 ||
+      effectiveDrawdownPeakPressure >= 0.46 ||
+      unresolvedDrawdownPressure >= 0.18 ||
+      (moodWeakness >= 0.5 && recoveryWeakness >= 0.28)
+    ) &&
+    !(circadianDriftPressure >= 0.46 && physiologyLeadPressure >= 0.44 && recoveryWeakness < 0.52) &&
+    functionalOverreachRelief < 0.18 &&
+    !catastrophicRecovery;
+  const maskedStrainDrive = clamp(
+    effectiveDrawdownPressure * 0.22 +
+      effectiveDrawdownPeakPressure * 0.2 +
+      trendMemory.recentLowShare * 0.18 +
+      recoveryWeakness * 0.18 +
+      moodWeakness * 0.16 +
+      circadianDriftPressure * 0.2 +
+      physiologyLeadPressure * 0.16 +
+      loadRecoveryConflict * 0.1 +
+      unresolvedDrawdownPressure * 0.16 -
+      functionalOverreachRelief * 0.9 -
+      recoveryIsolationRelief * 0.36 -
+      phaseReliefPressure * 0.18 -
+      (dominantCircadianAdaptation ? 0.24 : 0) -
+      (activitySupport >= 0.9 && effectiveDrawdownPressure < 0.22 ? 0.14 : 0),
+    0,
+    0.92,
+  );
+  const maskedStrainPressure = maskedStrainShape && maskedStrainDrive >= 0.34
+    ? clamp((maskedStrainDrive - 0.12) * 0.94, 0, 0.72)
+    : 0;
+  const effectiveMaskedStrainPressure = maskedStrainPressure *
+    (phaseMisalignmentCompensation ? 0.35 : 1);
+  const recurrentShiftPatternPenalty = clamp(
+    Math.max(0, circadianDriftPressure - physiologyLeadPressure - 0.12) * 3.4 +
+      Math.max(0, phaseTurbulencePressure - 0.44) * 0.12 -
+      Math.max(0, physiologyLeadPressure - 0.36) * 0.18 -
+      Math.max(0, physiologyStrainPressure - 0.42) * 0.08,
+    0,
+    0.8,
+  );
   const moderateLowEndpoint = lowConsensus >= 0.72 && medianScore >= 28 && medianScore <= 56 && bottomTailScore >= 18;
   const endpointProtection = clamp(functionalCompensation * 0.72 + activitySupport * 0.18 + highConsensus * 0.32 + phaseReliefPressure * 0.78, 0, 0.82);
   const endpointCalibrationPressure = moderateLowEndpoint && (effectiveDrawdownPressure >= 0.36 || trendMemory.transitionPressure >= 0.22)
@@ -1836,29 +1992,102 @@ function calculateUtilityFusion(
   const effectivePhysiologyStrainPressure = physiologyStrainPressure * (1 - compensationProtection) * directLowEvidenceDamping * (1 - phaseReliefPressure * 0.16);
   const unresolvedProtection = clamp(functionalCompensation * 0.28 + activitySupport * 0.2 + highConsensus * 0.14 + recoveryIsolationRelief * 0.62, 0, 0.68);
   const effectiveUnresolvedDrawdownPressure = unresolvedDrawdownPressure * (1 - unresolvedProtection);
+  const circadianAdaptationRelief = (
+    phaseTurbulencePressure >= 0.16 &&
+    circadianDriftPressure >= 0.14 &&
+    recoveryWeakness < 0.68 &&
+    moodWeakness < 0.62 &&
+    physiologyStrainPressure < 0.92 &&
+    presenteeismStrainPressure < 0.42 &&
+    maskedStrainPressure < 0.24 &&
+    unresolvedDrawdownPressure < 0.58 &&
+    effectiveDrawdownPeakPressure < 0.68
+  )
+    ? clamp(
+      phaseTurbulencePressure * 0.46 +
+        circadianDriftPressure * 0.55 +
+        Math.max(0, physiologyLeadPressure - 0.26) * 0.18 +
+        Math.max(0, 0.62 - lowConsensus) * 0.14 +
+        behaviorOffsetSupport * 0.16 +
+        circadianBuffer * 0.1 +
+        highConsensus * 0.1 -
+        effectiveDrawdownPressure * 0.07 -
+        effectiveDrawdownPeakPressure * 0.06 -
+        unresolvedDrawdownPressure * 0.07 -
+        Math.max(0, recoveryWeakness - 0.48) * 0.14 -
+        Math.max(0, moodWeakness - 0.46) * 0.12 -
+        presenteeismStrainPressure * 0.18 -
+        maskedStrainPressure * 0.3 -
+        recurrentShiftPatternPenalty,
+      0,
+      0.62,
+    )
+    : 0;
+  const phaseAdaptationRelief = clamp(
+    phaseReliefPressure * 0.54 +
+      circadianAdaptationRelief +
+      (dominantCircadianAdaptation ? 0.2 : 0) +
+      (circadianOnlyAdaptation ? 0.16 : 0) +
+      functionalOverreachRelief * 0.14 +
+      circadianBuffer * 0.05 +
+      activitySupport * 0.04 -
+      effectiveMaskedStrainPressure * 1.15 -
+      effectivePresenteeismStrainPressure * 1.05 -
+      effectiveDrawdownPressure * 0.16 -
+      trendMemory.recentLowShare * 0.16 -
+      deepLowShare * 0.16 -
+      Math.max(0, recoveryWeakness - 0.58) * 0.16,
+    0,
+    0.62,
+  );
+  const recoveryReboundRelief = clamp(
+    recoveryIsolationRelief * 0.58 +
+      functionalOverreachRelief * 0.18 +
+      Math.max(0, highConsensus - lowConsensus) * 0.08 +
+      sleepBuffer * 0.03 -
+      effectiveMaskedStrainPressure * 0.46 -
+      effectivePresenteeismStrainPressure * 0.52 -
+      effectiveDrawdownPeakPressure * 0.1 -
+      trendMemory.recentLowShare * 0.1 -
+      deepLowShare * 0.12,
+    0,
+    0.5,
+  );
+  const effectiveCircadianDriftPressure = circadianDriftPressure *
+    clamp(1 - phaseAdaptationRelief * 0.62 - recoveryReboundRelief * 0.08, 0.28, 1);
+  const effectivePhysiologyLeadPressure = physiologyLeadPressure *
+    clamp(1 - phaseAdaptationRelief * 0.28 - recoveryReboundRelief * 0.44, 0.28, 1);
   const physiologyStrainPenalty = effectivePhysiologyStrainPressure * (
     0.1 +
     Math.max(0, 54 - recoveryFloor) / 50 * 0.16 +
     effectiveDrawdownPeakPressure * 0.08
   );
-  const circadianDriftPenalty = circadianDriftPressure * (
+  const circadianDriftPenalty = effectiveCircadianDriftPressure * (
     0.1 +
     circadianWeakness * 0.12 +
     irregularityPressure * 0.05 +
     Math.max(0, 0.4 - trendMemory.transitionPressure) * 0.04
   );
-  const physiologyLeadPenalty = physiologyLeadPressure * (
+  const physiologyLeadPenalty = effectivePhysiologyLeadPressure * (
     0.08 +
     physiologyStrainPressure * 0.14 +
     Math.max(0, highLoadScore - 72) / 55 * 0.06 +
     recoveryStress * 0.05
   );
-  const presenteeismStrainPenalty = presenteeismStrainPressure * (
+  const presenteeismStrainPenalty = effectivePresenteeismStrainPressure * (
     0.16 +
     presenteeismBehaviorDrive * 0.1 +
     recoveryWeakness * 0.1 +
     moodWeakness * 0.08
   );
+  const maskedStrainPenalty = effectiveMaskedStrainPressure * (
+    0.12 +
+    recoveryWeakness * 0.08 +
+    moodWeakness * 0.06 +
+    effectiveDrawdownPressure * 0.06 +
+    physiologyLeadPressure * 0.04
+  );
+  const functionalOverreachLift = 0;
   const unresolvedDrawdownPenalty = effectiveUnresolvedDrawdownPressure * (
     0.22 +
     effectivePhysiologyStrainPressure * 0.18 +
@@ -1894,6 +2123,7 @@ function calculateUtilityFusion(
       loadRecoveryLift +
       compensationLift -
       chronicDebtPenalty +
+      functionalOverreachLift +
       phaseAdaptationLift +
       transitionLift -
       drawdownStallPenalty +
@@ -1902,6 +2132,7 @@ function calculateUtilityFusion(
       circadianDriftPenalty -
       physiologyLeadPenalty -
       presenteeismStrainPenalty -
+      maskedStrainPenalty -
       unresolvedDrawdownPenalty -
       endpointCalibrationPenalty +
       tailReliefLift -
@@ -1917,18 +2148,49 @@ function calculateUtilityFusion(
   const cappedLatent = (effectivePhysiologyStrainPressure >= 0.45 || effectiveUnresolvedDrawdownPressure >= 0.32)
     ? Math.min(rawLatent, scoreToLatent(strainCapScore, config.scoreTemperature))
     : rawLatent;
+  const physiologicalPresenteeismCap =
+    highLoadScore >= 86 &&
+    physiologyStrainPressure >= 0.62 &&
+    circadianDriftPressure < 0.24 &&
+    phaseAdaptationRelief < 0.08 &&
+    effectivePresenteeismStrainPressure >= 0.14 &&
+    (physiologyLeadPressure >= 0.32 || unresolvedDrawdownPressure >= 0.32);
+  const hiddenStrainCapContext =
+    effectivePresenteeismStrainPressure >= 0.18 ||
+    effectiveMaskedStrainPressure >= 0.18 ||
+    physiologicalPresenteeismCap ||
+    (
+      presenteeismBehaviorDrive >= 0.62 &&
+      trendMemory.recentLowShare >= 0.28 &&
+      (recoveryWeakness >= 0.38 || moodWeakness >= 0.42)
+    );
+  const warningCircadianPressure = hiddenStrainCapContext ? circadianDriftPressure : effectiveCircadianDriftPressure;
+  const warningPhysiologyLeadPressure = hiddenStrainCapContext ? physiologyLeadPressure : effectivePhysiologyLeadPressure;
+  const warningCircadianWeight = hiddenStrainCapContext ? 30 : 26;
+  const warningPhysiologyLeadWeight = hiddenStrainCapContext ? 28 : 24;
   const earlyWarningCapScore = clamp(
-    86 -
-      circadianDriftPressure * 30 -
-      physiologyLeadPressure * 28 -
-      presenteeismStrainPressure * 44 -
+    (hiddenStrainCapContext ? 86 : 87) -
+      warningCircadianPressure * warningCircadianWeight -
+      warningPhysiologyLeadPressure * warningPhysiologyLeadWeight -
+      effectivePresenteeismStrainPressure * 44 -
+      effectiveMaskedStrainPressure * 38 -
       circadianWeakness * 6 -
       physiologyStrainPressure * 6 +
-      recoveryIsolationRelief * 70,
+      recoveryIsolationRelief * 70 +
+      phaseAdaptationRelief * 14 +
+      recoveryReboundRelief * 22 +
+      functionalOverreachRelief * 6,
     18,
     100,
   );
-  const earlyWarningCappedLatent = (circadianDriftPressure >= 0.34 || physiologyLeadPressure >= 0.36 || presenteeismStrainPressure >= 0.28)
+  const earlyWarningCappedLatent = (
+    (hiddenStrainCapContext
+      ? (circadianDriftPressure >= 0.34 || physiologyLeadPressure >= 0.36)
+      : (effectiveCircadianDriftPressure >= 0.36 && phaseAdaptationRelief < 0.48) || effectivePhysiologyLeadPressure >= 0.38) ||
+    physiologicalPresenteeismCap ||
+    effectivePresenteeismStrainPressure >= 0.28 ||
+    effectiveMaskedStrainPressure >= 0.28
+  )
     ? Math.min(cappedLatent, scoreToLatent(earlyWarningCapScore, config.scoreTemperature))
     : cappedLatent;
   const endpointCapScore = clamp(
@@ -1981,6 +2243,10 @@ function calculateUtilityFusion(
     circadianDriftPressure,
     physiologyLeadPressure,
     presenteeismStrainPressure,
+    maskedStrainPressure,
+    functionalOverreachRelief,
+    phaseAdaptationRelief,
+    recoveryReboundRelief,
     endpointCalibrationPressure,
     tailOverreactionRelief,
     dispersion,
@@ -2252,6 +2518,10 @@ function initialFilterDay(date: string, config: RhythmConfig): FilterDay {
     circadianDriftPressure: 0,
     physiologyLeadPressure: 0,
     presenteeismStrainPressure: 0,
+    maskedStrainPressure: 0,
+    functionalOverreachRelief: 0,
+    phaseAdaptationRelief: 0,
+    recoveryReboundRelief: 0,
     endpointCalibrationPressure: 0,
     tailOverreactionRelief: 0,
     observation: null,
