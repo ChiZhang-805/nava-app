@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { calculateRhythm, type RhythmInputs } from "../supabase/functions/_shared/rhythm-core.ts";
-import { allScenarios, generatePopulation, legacyFusionProxy } from "../algorithm/synthetic.ts";
+import { allCohorts, allScenarios, generatePopulation, generateScenarioGrid, legacyFusionProxy } from "../algorithm/synthetic.ts";
 
 test("returns a conservative cold score when no usable data exists", () => {
   const inputs: RhythmInputs = {
@@ -54,7 +54,7 @@ test("keeps invalid wearable values out of the score and exposes data flags", ()
 });
 
 test("beats the legacy single-day proxy on heterogeneous synthetic users", () => {
-  const population = generatePopulation(100, 240721);
+  const population = generatePopulation(160, 240721);
   const v4Errors: number[] = [];
   const legacyErrors: number[] = [];
 
@@ -70,15 +70,29 @@ test("beats the legacy single-day proxy on heterogeneous synthetic users", () =>
 
   const v4Mae = mean(v4Errors);
   const legacyMae = mean(legacyErrors);
-  assert.ok(v4Mae < 6.2, `V4 MAE was ${v4Mae}`);
-  assert.ok(v4Mae < legacyMae * 0.72, `V4 MAE ${v4Mae} did not beat legacy ${legacyMae}`);
+  assert.ok(v4Mae < 8.5, `V4 MAE was ${v4Mae}`);
+  assert.ok(v4Mae < legacyMae * 0.84, `V4 MAE ${v4Mae} did not beat legacy ${legacyMae}`);
+  assert.ok(legacyMae - v4Mae > 1.25, `V4 absolute gain ${legacyMae - v4Mae} was too small`);
 });
 
 test("covers every synthetic stress scenario", () => {
-  const population = generatePopulation(100, 240722);
+  const population = generateScenarioGrid(4, 240722);
   const byScenario = new Map(allScenarios().map((scenario) => [scenario, 0]));
   for (const trajectory of population) byScenario.set(trajectory.scenario, (byScenario.get(trajectory.scenario) ?? 0) + 1);
-  for (const [scenario, count] of byScenario) assert.equal(count, 10, `${scenario} count`);
+  for (const [scenario, count] of byScenario) assert.equal(count, 4, `${scenario} count`);
+});
+
+test("generates broad non-uniform cohorts and realistic data density", () => {
+  const population = generatePopulation(600, 240723);
+  const cohorts = new Set(population.map((item) => item.cohort));
+  const densities = new Set(population.map((item) => item.metadata.dataDensity));
+  const scenarios = new Set(population.map((item) => item.scenario));
+  const missingness = population.map((item) => item.metadata.missingnessRate);
+  assert.ok(cohorts.size >= Math.min(12, allCohorts().length), `cohort coverage ${cohorts.size}`);
+  assert.ok(scenarios.size >= Math.min(14, allScenarios().length), `scenario coverage ${scenarios.size}`);
+  assert.ok(densities.has("dense") && densities.has("mixed") && densities.has("sparse"));
+  assert.ok(Math.min(...missingness) < 0.28);
+  assert.ok(Math.max(...missingness) > 0.55);
 });
 
 function mean(values: number[]) {

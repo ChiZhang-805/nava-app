@@ -1,8 +1,8 @@
-# NAVA ChronoState V4 实现报告（2026-07-18）
+# NAVA ChronoState V4.1 实现报告（2026-07-18）
 
 ## 结论
 
-本轮已经把 App 后端节律算法从 NAVA Fusion v3 升级为 NAVA ChronoState V4。V4 不再是单日证据融合，而是面向 Apple Watch / Apple 健康数据的动态状态估计引擎。
+本轮已经把 App 后端节律算法从 NAVA Fusion v3 升级为 NAVA ChronoState V4，并在后续迭代中升级到 V4.1。V4.1 不再是单日证据融合，而是面向 Apple Watch / Apple 健康数据的动态状态估计引擎，并额外建模信号连续性和自适应区间。
 
 核心能力：
 
@@ -19,13 +19,13 @@
 
 - `supabase/functions/_shared/rhythm-core.ts`
   - 纯 TypeScript 算法核心，不依赖 Supabase/Deno，便于单测和基准测试。
-  - `rhythmModelVersion`：`nava-chronostate-v4-2026-07`。
-  - `rhythmSchemaVersion`：`4.0.0`。
+  - `rhythmModelVersion`：`nava-chronostate-v4.1-2026-07`。
+  - `rhythmSchemaVersion`：`4.1.0`。
 
 - `supabase/functions/_shared/rhythm.ts`
   - Supabase 数据适配层。
   - 读取 42 天历史窗口。
-  - 保存 V4 输出到 `daily_rhythm_scores`。
+- 保存 V4.1 输出到 `daily_rhythm_scores`。
 
 - `supabase/functions/rhythm-score/index.ts`
   - 用户主动刷新某日节律分。
@@ -40,7 +40,7 @@
   - 小时活动 bins 避免发送未来 0 值。
 
 - `algorithm/synthetic.ts`
-  - 构建异质合成用户和 10 类压力场景。
+  - 构建 16 类手工用户画像、18 类压力场景和非均匀缺失分布。
 
 - `scripts/benchmark-rhythm-v4.ts`
   - 可重复基准测试和调参入口。
@@ -74,19 +74,20 @@ supabase/migrations/202607180003_nava_chronostate_v4.sql
 
 ## 基准结果
 
-固定种子 1000 用户、10 类场景，每类 100 人：
+固定种子 1000 用户、16 类用户画像、18 类压力场景、非均匀加权人群：
 
-| 指标 | V4 | 旧单日 proxy |
+| 指标 | V4.1 | 旧单日 proxy |
 | --- | ---: | ---: |
-| MAE | 5.091 | 7.694 |
-| RMSE | 6.566 | 9.617 |
-| Bias | -0.800 | 5.693 |
-| Spearman | 0.7586 | 0.7351 |
-| 80% 区间覆盖 | 0.961 | - |
-| 平均置信度 | 0.766 | - |
-| 单用户耗时 | 24.1 ms | - |
+| MAE | 6.498 | 9.015 |
+| RMSE | 8.849 | 11.547 |
+| Bias | -0.219 | 3.021 |
+| Spearman | 0.7357 | 0.7211 |
+| 80% 区间覆盖 | 0.884 | - |
+| 平均置信度 | 0.732 | - |
+| 平均区间宽度 | 27.622 | - |
+| 单用户耗时 | 29.9 ms | - |
 
-按场景看，V4 在 clean、random missing、burst missing、outliers、sensor bias、gradual decline、abrupt shift、shift worker、cold start 上优于旧 proxy；conflicting signals 仍偏保守，是后续真实数据校准重点。
+按场景看，V4.1 在 clean、random missing、burst missing、outliers、sensor bias、shift worker、cold start、jet lag、illness recovery、weekend rebound、travel gap、low adherence、high adherence、seasonal shift 上优于旧 proxy。gradual decline、conflicting signals、overtraining 仍是下一轮重点。
 
 ## 技术壁垒
 
@@ -104,7 +105,7 @@ supabase/migrations/202607180003_nava_chronostate_v4.sql
 ## 仍需真实数据校准
 
 - HealthKit/WatchKit 需要 Mac + Xcode + 真机验证。
-- V4 当前基准是工程合成压力测试，不是医学验证。
+- V4.1 当前基准是工程合成压力测试，不是医学验证。
 - 急性证据、HRV、静息心率、RA/IV/IS 阈值需要真实用户 14 天以上数据校准。
 - `rhythm_outcome_feedback` 需要产品入口，让用户反馈“今天建议是否有效”。
 - 饮食照片和面部状态仍需算法端正式服务 URL、key 和返回 schema。

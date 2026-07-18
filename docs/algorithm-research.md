@@ -1,6 +1,6 @@
 # NAVA 算法调研与自研路线
 
-本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA ChronoState V4：42 天鲁棒个人基线、小时活动节律、恢复指标、异常检测、四因子动态状态空间模型、Student-t 鲁棒滤波、风险敏感下尾效用、急性多域一致证据、Bayesian online change-point detection 和分数不确定性区间。
+本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA ChronoState V4.1：42 天鲁棒个人基线、小时活动节律、恢复指标、异常检测、四因子动态状态空间模型、Student-t 鲁棒滤波、信号连续性质量建模、自适应残差区间、风险敏感下尾效用、急性多域一致证据、Bayesian online change-point detection 和分数不确定性区间。
 
 ## 已调研的算法/方法
 
@@ -42,6 +42,9 @@
 | 34 | Bayesian online change-point detection | 判断用户状态是否发生结构性变化 | V4 已用于 `change_point_probability` |
 | 35 | Risk-sensitive / entropic utility | 多域状态中存在关键短板时避免被平均数掩盖 | V4 已用于总分融合 |
 | 36 | Sleep Regularity Index | 衡量相邻多日同一时间点睡/醒一致性 | V4 已吸收为睡眠规律性特征 |
+| 37 | Adaptive / conformal-style residual calibration | 让预测区间根据近期残差校准，而不是固定放宽 | V4.1 已吸收为自适应区间 |
+| 38 | Population archetype simulation | 用手工画像构造真实用户差异和非均匀数据密度 | V4.1 已用于合成数据生成器 |
+| 39 | Missingness-aware reliability | 将“数据是否连续稳定”纳入信号可信度 | V4.1 已用于 `signalHealth` |
 
 ## NAVA 自研算法设计
 
@@ -64,7 +67,7 @@
 3. 输出 `score`、`confidence`、`signals`、`reasons`、`actions`。
 4. 写入 `daily_rhythm_scores`。
 
-`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 NAVA ChronoState V4。
+`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 NAVA ChronoState V4.1。
 
 ### v2：个人基线 + 经典节律特征（已升级）
 
@@ -173,9 +176,9 @@ v3 的关键点：
 - `recoveryScore`
 - `phaseShiftMinutes`
 
-### v4：NAVA ChronoState（已接入后端）
+### v4.1：NAVA ChronoState（已接入后端）
 
-目标：把 v3 的“证据融合分数”升级成真正的个体动态状态估计，能处理缺失、噪声、传感器偏置、连续下滑、突发转折和冲突信号。
+目标：把 v3 的“证据融合分数”升级成真正的个体动态状态估计，能处理缺失、噪声、传感器偏置、连续下滑、突发转折和冲突信号。本轮 V4.1 进一步加入信号连续性质量建模和更真实的合成人群压力数据。
 
 当前实现文件：
 
@@ -201,6 +204,10 @@ tests/rhythm-core.test.ts
 8. 总分融合使用慢状态、风险敏感下尾效用、急性多域一致证据和趋势压力，不是简单加权。
 9. 变点检测使用 Bayesian online change-point detection，输出结构性变化概率。
 10. 输出 80% 分数区间、数据质量、异常旗标、profile labels 和可解释建议。
+11. 对每类信号计算最近 28 天 `signalHealth`：availability、recency、longest gap、current observed、quality。
+12. 将 `signalHealth` 写回 signal evidence，并参与 `reliability` 和 `dataQuality`。
+13. 用近期残差做自适应区间校准，使 80% 区间覆盖从过度保守向目标覆盖靠近。
+14. 增加 `mixedConflict` 和 `softDeclinePressure`，用于审计冲突信号与慢性下滑处理。
 
 复杂度：
 
@@ -208,7 +215,7 @@ tests/rhythm-core.test.ts
 - 空间：`O(D*F^2 + R + S*W)`。
 - 其中 `D=42` 天、`S=7` 信号、`F=4` 状态因子、`R=42` 最大 run length、`W=42` 基线窗口。
 
-合成验证覆盖：
+合成验证覆盖 18 类压力场景：
 
 - clean
 - random_missing
@@ -220,18 +227,41 @@ tests/rhythm-core.test.ts
 - shift_worker
 - cold_start
 - conflicting_signals
+- jet_lag
+- illness_recovery
+- overtraining
+- weekend_rebound
+- travel_gap
+- low_adherence
+- high_adherence
+- seasonal_shift
 
-当前固定种子 1000 用户基准：
+合成用户现在不是场景均匀轮转，而是手工构造 16 类用户画像后条件采样：
 
-- V4 MAE：`5.091`
-- 旧单日 proxy MAE：`7.694`
-- MAE 改善：`33.83%`
-- RMSE 改善：`31.73%`
-- 平均置信度：`0.766`
-- 80% 区间覆盖：`0.961`
-- 单用户耗时：约 `24.1 ms`
+- consistent_sleeper、sedentary_office、active_athlete、shift_clinician、student_night_owl、new_parent、frequent_traveler、high_stress_founder、older_low_hrv、recovery_focused、manual_logger、low_adherence_user、weekend_social、metabolic_watch、outdoor_worker、remote_worker。
+
+当前固定种子 1000 用户加权人群基准：
+
+- V4.1 MAE：`6.498`
+- 旧单日 proxy MAE：`9.015`
+- MAE 改善：`27.92%`
+- RMSE 改善：`23.36%`
+- Bias：`-0.219`
+- Spearman：`0.7357`
+- 平均置信度：`0.732`
+- 80% 区间覆盖：`0.884`
+- 平均区间宽度：`27.622`
+- 单用户耗时：约 `29.9 ms`
+- 数据密度：mixed `905`、dense `75`、sparse `20`
 
 注意：这是工程压力测试，不是临床验证。真实上线后必须用真实 Apple Watch 数据继续校准。
+
+当前薄弱点：
+
+- `gradual_decline`：动态状态仍偏滞后，下一轮要加入显式 drawdown / CUSUM 状态。
+- `conflicting_signals`：高活动与低恢复同时出现时，当前策略偏保守。
+- `overtraining`：算法能识别恢复风险，但分数校准仍需真实反馈标签。
+- `shift_clinician`、`remote_worker` 等画像下旧 proxy 在部分种子上接近 V4.1，说明仍需更多人群分型特征。
 
 ### v5：个性化推荐模型
 

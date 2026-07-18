@@ -1,6 +1,6 @@
 import { performance } from "node:perf_hooks";
-import { calculateRhythm, defaultRhythmConfig, type RhythmConfig } from "../supabase/functions/_shared/rhythm-core.ts";
-import { allScenarios, generatePopulation, legacyFusionProxy, type SyntheticTrajectory } from "../algorithm/synthetic.ts";
+import { calculateRhythm, defaultRhythmConfig, rhythmModelVersion, type RhythmConfig } from "../supabase/functions/_shared/rhythm-core.ts";
+import { allCohorts, allScenarios, generatePopulation, legacyFusionProxy, type SyntheticTrajectory } from "../algorithm/synthetic.ts";
 
 const tune = process.argv.includes("--tune");
 const requested = Number(process.argv.find((item) => item.startsWith("--users="))?.split("=")[1] ?? (tune ? 240 : 1000));
@@ -20,7 +20,7 @@ if (tune) {
 } else {
   const population = generatePopulation(users, 240720);
   const report = evaluate(population, defaultRhythmConfig);
-  console.log(JSON.stringify({ mode: "benchmark", users, model: "nava-chronostate-v4-2026-07", config: defaultRhythmConfig, ...report }, null, 2));
+  console.log(JSON.stringify({ mode: "benchmark", users, model: rhythmModelVersion, config: defaultRhythmConfig, ...report }, null, 2));
 }
 
 type Prediction = {
@@ -49,15 +49,41 @@ function evaluate(population: SyntheticTrajectory[], config: RhythmConfig) {
   });
   const elapsed = performance.now() - started;
   const scenarios = Object.fromEntries(allScenarios().map((scenario) => [scenario, metrics(predictions.filter((item) => item.trajectory.scenario === scenario))]));
+  const cohorts = Object.fromEntries(allCohorts().map((cohort) => [cohort, metrics(predictions.filter((item) => item.trajectory.cohort === cohort))]));
   return {
     overall: metrics(predictions),
     scenarios,
+    cohorts,
+    dataProfile: summarizeDataProfile(population),
     performance: {
       totalMilliseconds: round(elapsed, 2),
       millisecondsPerUser: round(elapsed / population.length, 4),
       usersPerSecond: round(population.length / Math.max(0.001, elapsed / 1000), 1),
     },
   };
+}
+
+function summarizeDataProfile(population: SyntheticTrajectory[]) {
+  const densityCounts = countBy(population.map((item) => item.metadata.dataDensity));
+  const scenarioCounts = countBy(population.map((item) => item.scenario));
+  const cohortCounts = countBy(population.map((item) => item.cohort));
+  return {
+    densityCounts,
+    scenarioCounts,
+    cohortCounts,
+    meanMissingnessRate: round(mean(population.map((item) => item.metadata.missingnessRate)), 3),
+    observedDays: {
+      min: Math.min(...population.map((item) => item.metadata.observedDays)),
+      median: round(median(population.map((item) => item.metadata.observedDays)), 1),
+      max: Math.max(...population.map((item) => item.metadata.observedDays)),
+    },
+  };
+}
+
+function countBy(values: string[]) {
+  const counts: Record<string, number> = {};
+  for (const value of values) counts[value] = (counts[value] ?? 0) + 1;
+  return counts;
 }
 
 function metrics(predictions: Prediction[]) {
@@ -157,6 +183,13 @@ function auroc(labels: boolean[], scores: number[]) {
 
 function mean(values: number[]) {
   return values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function median(values: number[]) {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
 }
 
 function round(value: number, digits: number) {

@@ -101,6 +101,7 @@ type DayAnalysis = {
   signals: RhythmSignal[];
   baseline: PersonalBaseline;
   activityRhythm: ActivityRhythmFeatures;
+  signalHealth: Record<SignalKey, SignalHealth>;
   phaseShiftMinutes: number | null;
   regularityScore: number | null;
   fragmentationRisk: number | null;
@@ -122,6 +123,8 @@ type FilterDay = {
   lowConsensus: number;
   highConsensus: number;
   trendPressure: number;
+  softDeclinePressure: number;
+  mixedConflict: number;
   observation: number | null;
   evidenceCount: number;
   robustWeights: Array<{ key: SignalKey; weight: number; innovation: number; standardizedInnovation: number }>;
@@ -136,6 +139,8 @@ type UtilityFusion = {
   lowConsensus: number;
   highConsensus: number;
   trendPressure: number;
+  softDeclinePressure: number;
+  mixedConflict: number;
   dispersion: number;
 };
 
@@ -146,6 +151,14 @@ type AnomalyFlag = {
   value?: number;
   baseline?: number | null;
   confidence?: number;
+};
+
+type SignalHealth = {
+  availability: number;
+  recency: number;
+  longestGapDays: number;
+  currentObserved: boolean;
+  quality: number;
 };
 
 const factorKeys: FactorKey[] = ["circadian", "recovery", "behavior", "affect"];
@@ -161,8 +174,8 @@ const signalModels: Record<SignalKey, { loading: Vector4; variance: number; weig
   recovery: { loading: [0.06, 0.82, 0.08, 0.04], variance: 0.4, weight: 0.16, label: "恢复" },
 };
 
-export const rhythmSchemaVersion = "4.0.0";
-export const rhythmModelVersion = "nava-chronostate-v4-2026-07";
+export const rhythmSchemaVersion = "4.1.0";
+export const rhythmModelVersion = "nava-chronostate-v4.1-2026-07";
 
 export const defaultRhythmConfig: RhythmConfig = {
   baselineWindowDays: 42,
@@ -172,7 +185,7 @@ export const defaultRhythmConfig: RhythmConfig = {
   persistence: [0.92, 0.76, 0.72, 0.68],
   changePointHazard: 1 / 28,
   changePointMaxRunLength: 42,
-  scoreTemperature: 1.2,
+  scoreTemperature: 1.05,
 };
 
 export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = defaultRhythmConfig) {
@@ -226,7 +239,7 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
     profileLabels,
     baseline: current.baseline,
     fusion: {
-      method: "nava-chronostate-v4-robust-dynamic-state-space",
+      method: "nava-chronostate-v4.1-quality-aware-robust-dynamic-state-space",
       stateFactors: factorState,
       factorScores,
       posteriorCovariance: state.covariance.map((row) => row.map((value) => round(value, 4))),
@@ -243,6 +256,8 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
         lowConsensus: round(state.lowConsensus, 4),
         highConsensus: round(state.highConsensus, 4),
         trendPressure: round(state.trendPressure, 4),
+        softDeclinePressure: round(state.softDeclinePressure, 4),
+        mixedConflict: round(state.mixedConflict, 4),
       },
       evidenceCount: state.evidenceCount,
       robustObservationWeights: state.robustWeights,
@@ -250,9 +265,10 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
       dataQuality,
     },
     features: {
-      fusion: "four-factor robust Student-t state-space filter + Bayesian online change-point detection",
+      fusion: "four-factor robust Student-t state-space filter + adaptive residual calibration + Bayesian online change-point detection",
       components: Object.keys(signalModels),
       circadian: current.activityRhythm,
+      signalHealth: current.signalHealth,
       recovery: {
         recoveryScore,
         hrvSdnn: validHrv(currentDayHealth(current)?.hrv),
@@ -273,6 +289,7 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
 function analyzeDay(day: DailyRecord, prior: DailyRecord[], config: RhythmConfig): DayAnalysis {
   const baseline = buildBaseline(prior, config.baselineWindowDays);
   const activityRhythm = calculateActivityRhythm(day, prior);
+  const signalHealth = calculateSignalHealth(day, prior);
   const phaseShiftMinutes = calculatePhaseShift(day, baseline);
   const regularityScore = calculateRegularityScore(day, prior, baseline, activityRhythm);
   const fragmentationRisk = calculateFragmentationRisk(day, baseline, activityRhythm);
@@ -284,13 +301,16 @@ function analyzeDay(day: DailyRecord, prior: DailyRecord[], config: RhythmConfig
     scoreNutrition(day, baseline),
     scoreFocus(day, baseline),
     scoreRecovery(day, baseline),
-  ].filter((item): item is RhythmSignal => item != null);
+  ]
+    .filter((item): item is RhythmSignal => item != null)
+    .map((item) => calibrateSignalReliability(item, signalHealth[item.key]));
 
   return {
     date: day.date,
     signals,
     baseline,
     activityRhythm,
+    signalHealth,
     phaseShiftMinutes,
     regularityScore,
     fragmentationRisk,
@@ -572,13 +592,14 @@ function robustStateFilter(days: DayAnalysis[], config: RhythmConfig): FilterDay
 
     const recentScoreSlope = robustTrendSlope(output.slice(-6).map((item) => item.score));
     const fusion = calculateUtilityFusion(mean, day.signals, robustWeights, recentScoreSlope, config);
-    const residualVariance = robustWeights.length === 0
-      ? 0.18
-      : median(robustWeights.map((item) => Math.min(4, item.innovation ** 2))) * 0.08;
-    const correlationGuard = day.signals.length > 1 ? 0.08 + (day.signals.length - 1) * 0.012 : 0.14;
+    const adaptiveResidual = adaptiveResidualScale(output);
+    const residualVariance = adaptiveResidual == null
+      ? (robustWeights.length === 0 ? 0.14 : median(robustWeights.map((item) => Math.min(4, item.innovation ** 2))) * 0.06)
+      : adaptiveResidual ** 2 * 0.24;
+    const correlationGuard = day.signals.length > 1 ? 0.045 + (day.signals.length - 1) * 0.008 : 0.1;
     const utilityDisagreement = Math.abs(fusion.latent - fusion.slowLatent) * 0.1 + fusion.acuteBlend * fusion.dispersion * 0.05;
     const variance = Math.max(1e-6, quadratic(globalLoading, covariance) + residualVariance + correlationGuard + utilityDisagreement);
-    const intervalDelta = 1.2816 * Math.sqrt(variance);
+    const intervalDelta = 1.16 * Math.sqrt(variance);
     output.push({
       date: day.date,
       mean: [...mean] as Vector4,
@@ -594,6 +615,8 @@ function robustStateFilter(days: DayAnalysis[], config: RhythmConfig): FilterDay
       lowConsensus: fusion.lowConsensus,
       highConsensus: fusion.highConsensus,
       trendPressure: fusion.trendPressure,
+      softDeclinePressure: fusion.softDeclinePressure,
+      mixedConflict: fusion.mixedConflict,
       observation: aggregateObservation(day.signals, config.scoreTemperature),
       evidenceCount: day.signals.length,
       robustWeights,
@@ -680,6 +703,97 @@ function calculateActivityRhythm(day: DailyRecord, history: DailyRecord[]): Acti
     acrophaseDeviationMinutes: roundNullable(phaseDeviation, 1),
     sleepRegularityIndex: sleepRegularity,
   };
+}
+
+function calculateSignalHealth(day: DailyRecord, history: DailyRecord[]): Record<SignalKey, SignalHealth> {
+  const days = [...history.slice(-27), day];
+  const keys = Object.keys(signalModels) as SignalKey[];
+  return Object.fromEntries(keys.map((key) => [key, signalContinuity(key, days)])) as Record<SignalKey, SignalHealth>;
+}
+
+function signalContinuity(key: SignalKey, days: DailyRecord[]): SignalHealth {
+  if (days.length === 0) {
+    return { availability: 0, recency: 0, longestGapDays: 0, currentObserved: false, quality: 0.08 };
+  }
+  const observed = days.map((day) => signalObserved(key, day));
+  const weighted = observed.map((present, index) => ({
+    present,
+    weight: Math.exp(-Math.log(2) * (observed.length - index - 1) / 7),
+  }));
+  const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
+  const availability = weighted.reduce((sum, item) => sum + (item.present ? item.weight : 0), 0) / Math.max(1e-6, totalWeight);
+  const lastObservedIndex = observed.lastIndexOf(true);
+  const daysSinceObserved = lastObservedIndex < 0 ? observed.length : observed.length - lastObservedIndex - 1;
+  const recency = lastObservedIndex < 0 ? 0 : Math.exp(-daysSinceObserved / 5);
+  const longestGapDays = longestFalseRun(observed);
+  const gapPenalty = clamp(longestGapDays / Math.max(7, observed.length), 0, 1);
+  const currentObserved = observed.at(-1) ?? false;
+  const coldStartFloor = currentObserved && observed.filter(Boolean).length <= 2 ? 0.36 : 0.08;
+  const quality = clamp(0.22 + availability * 0.46 + recency * 0.22 + (1 - gapPenalty) * 0.1, coldStartFloor, 1);
+  return {
+    availability: round(availability, 3),
+    recency: round(recency, 3),
+    longestGapDays,
+    currentObserved,
+    quality: round(quality, 3),
+  };
+}
+
+function calibrateSignalReliability(signal: RhythmSignal, health: SignalHealth) {
+  const multiplier = 0.64 + health.quality * 0.36;
+  const coldStartBoost = health.currentObserved && health.availability < 0.12 ? 0.04 : 0;
+  return {
+    ...signal,
+    reliability: round(clamp(signal.reliability * multiplier + coldStartBoost, 0.05, 0.99), 3),
+    evidence: {
+      ...signal.evidence,
+      signalHealth: health,
+    },
+  };
+}
+
+function signalObserved(key: SignalKey, day: DailyRecord) {
+  switch (key) {
+    case "sleep":
+      return validSleepDuration(day.sleep?.sleep_duration_minutes) != null || parseClock(day.sleep?.sleep_start) != null || sleepStages(day).total > 0;
+    case "activity":
+      return bounded(day.exercise?.steps, 0, 100000) != null ||
+        bounded(day.exercise?.exercise_minutes, 0, 1440) != null ||
+        bounded(day.exercise?.calories, 0, 10000) != null ||
+        activityVector(day).observedHours >= 4;
+    case "circadian":
+      return activityVector(day).complete || sleepWakeProfile(day) != null;
+    case "mood":
+      return bounded(day.mood?.mood_score, 0, 100) != null;
+    case "nutrition":
+      return bounded(day.nutrition?.total_calories, 0, 12000) != null || nutritionItemCount(day) > 0;
+    case "focus":
+      return day.focusMinutes > 0 || day.focusSessions > 0;
+    case "recovery":
+      return validHrv(day.health?.heart_rate_variability_sdnn) != null ||
+        validRestingHeartRate(day.health?.resting_heart_rate) != null ||
+        validHeartRate(day.health?.latest_heart_rate ?? day.exercise?.heart_rate) != null ||
+        validSleepDuration(day.sleep?.sleep_duration_minutes) != null;
+  }
+}
+
+function nutritionItemCount(day: DailyRecord) {
+  return ["breakfast_items", "lunch_items", "dinner_items", "pantry_items"]
+    .reduce((sum, key) => sum + (Array.isArray(day.nutrition?.[key]) ? (day.nutrition?.[key] as unknown[]).length : 0), 0);
+}
+
+function longestFalseRun(values: boolean[]) {
+  let longest = 0;
+  let current = 0;
+  for (const value of values) {
+    if (value) {
+      current = 0;
+    } else {
+      current += 1;
+      longest = Math.max(longest, current);
+    }
+  }
+  return longest;
 }
 
 function calculatePhaseShift(day: DailyRecord, baseline: PersonalBaseline) {
@@ -784,14 +898,18 @@ function calculateDataQuality(current: DayAnalysis, state: FilterDay, config: Rh
   const weightedReliability = current.signals.length === 0
     ? 0
     : current.signals.reduce((sum, item) => sum + item.reliability * signalModels[item.key].weight, 0) / Math.max(0.01, sourceCoverage);
+  const continuity = current.signals.length === 0
+    ? 0
+    : current.signals.reduce((sum, item) => sum + current.signalHealth[item.key].quality * signalModels[item.key].weight, 0) / Math.max(0.01, sourceCoverage);
   const historyDepth = clamp(current.baseline.observedDays / Math.max(config.minimumHistoryDays * 2, 1), 0, 1);
   const consistency = state.robustWeights.length === 0
     ? 0
     : state.robustWeights.reduce((sum, item) => sum + item.weight, 0) / state.robustWeights.length;
   return {
-    score: Math.round(clamp(sourceCoverage * 0.35 + weightedReliability * 0.3 + historyDepth * 0.2 + consistency * 0.15, 0, 1) * 100),
+    score: Math.round(clamp(sourceCoverage * 0.3 + weightedReliability * 0.25 + continuity * 0.16 + historyDepth * 0.17 + consistency * 0.12, 0, 1) * 100),
     sourceCoverage: round(sourceCoverage, 3),
     weightedReliability: round(weightedReliability, 3),
+    signalContinuity: round(continuity, 3),
     historyDepth: round(historyDepth, 3),
     crossSignalConsistency: round(consistency, 3),
     observedHistoryDays: current.baseline.observedDays,
@@ -1127,6 +1245,8 @@ function calculateUtilityFusion(
       lowConsensus: 0,
       highConsensus: 0,
       trendPressure: 0,
+      softDeclinePressure: 0,
+      mixedConflict: 0,
       dispersion: 0,
     };
   }
@@ -1152,6 +1272,8 @@ function calculateUtilityFusion(
       lowConsensus: 0,
       highConsensus: 0,
       trendPressure: 0,
+      softDeclinePressure: 0,
+      mixedConflict: 0,
       dispersion: 0,
     };
   }
@@ -1171,17 +1293,31 @@ function calculateUtilityFusion(
     value: Math.abs(item.value - medianLatent),
     weight: item.weight,
   })));
+  const mixedConflict = clamp(
+    Math.min(lowConsensus, highConsensus) * 1.4 +
+      (highConsensus > 0.34 && deepLowShare > 0 ? 0.2 : 0) +
+      Math.max(0, dispersion - 0.55) * 0.24,
+    0,
+    1,
+  );
 
   let acuteLatent = 0.58 * lowerRisk + 0.42 * medianLatent;
   if (lowConsensus >= 0.52) {
-    const bottomTailWeight = clamp((lowDomainShare - 0.45) * 0.75 + deepLowShare * 0.42, 0, 0.32);
-    acuteLatent = (1 - bottomTailWeight) * (0.25 * lowerRisk + 0.75 * lowerTail) + bottomTailWeight * bottomTail;
+    const conflictRelief = mixedConflict >= 0.35 ? 0.45 : 1;
+    const bottomTailWeight = clamp(((lowDomainShare - 0.35) * 0.95 + deepLowShare * 0.5) * conflictRelief, 0, 0.42);
+    const lowerRiskShare = mixedConflict >= 0.35 ? 0.2 : 0.42;
+    acuteLatent = (1 - bottomTailWeight) * (lowerRiskShare * lowerRisk + (1 - lowerRiskShare) * lowerTail) + bottomTailWeight * bottomTail;
   }
-  if (highConsensus >= 0.62) acuteLatent = 0.62 * medianLatent + 0.38 * upperTail;
+  if (highConsensus >= 0.62 || (mixedConflict >= 0.32 && highConsensus >= 0.42)) {
+    acuteLatent = 0.58 * medianLatent + 0.42 * upperTail;
+  }
 
   const consensus = Math.max(lowConsensus, highConsensus);
   const trendPressure = lowConsensus >= 0.48
     ? clamp((-recentScoreSlope - 2.2) / 8, 0, 0.2)
+    : 0;
+  const softDeclinePressure = medianLatent < slowLatent
+    ? clamp((slowLatent - medianLatent - 0.22) / 2.4, 0, mixedConflict >= 0.45 ? 0.06 : 0.24)
     : 0;
   const directionalPressure = lowConsensus >= highConsensus
     ? clamp((slowLatent - acuteLatent) / 2.6, 0, 0.16)
@@ -1191,10 +1327,16 @@ function calculateUtilityFusion(
     : 0.1 + Math.max(0, consensus - 0.42) * 0.9;
   const acuteBlend = observations.length < 3
     ? 0.06
-    : clamp(baseBlend + directionalPressure + trendPressure, 0.08, lowConsensus >= 0.52 ? 0.72 : 0.5);
-  const riskWeight = lowConsensus < 0.32 && highConsensus > 0.34 ? 0.18 : 0.4;
+    : clamp(baseBlend + directionalPressure + trendPressure + softDeclinePressure, 0.08, lowConsensus >= 0.52 ? 0.72 : 0.54);
+  const riskWeight = mixedConflict >= 0.32
+    ? 0.16
+    : lowConsensus < 0.32 && highConsensus > 0.34
+      ? 0.18
+      : lowConsensus >= 0.58
+        ? 0.42
+        : 0.34;
   const posteriorRiskLatent = (1 - riskWeight) * slowLatent + riskWeight * factorRiskLatent;
-  const latent = clamp((1 - acuteBlend) * posteriorRiskLatent + acuteBlend * acuteLatent - trendPressure * 0.28, -4.5, 4.5);
+  const latent = clamp((1 - acuteBlend) * posteriorRiskLatent + acuteBlend * acuteLatent - trendPressure * 0.28 - softDeclinePressure * 0.18, -4.5, 4.5);
 
   return {
     latent,
@@ -1205,6 +1347,8 @@ function calculateUtilityFusion(
     lowConsensus,
     highConsensus,
     trendPressure,
+    softDeclinePressure,
+    mixedConflict,
     dispersion,
   };
 }
@@ -1216,6 +1360,17 @@ function robustTrendSlope(values: number[]) {
     for (let right = left + 1; right < values.length; right += 1) slopes.push((values[right] - values[left]) / (right - left));
   }
   return median(slopes);
+}
+
+function adaptiveResidualScale(history: FilterDay[]) {
+  const recent = history.slice(-14)
+    .map((item, index, items) => ({
+      value: item.observation == null ? null : Math.abs(item.latent - item.observation),
+      weight: Math.exp(-Math.log(2) * (items.length - index - 1) / 5),
+    }))
+    .filter((item): item is { value: number; weight: number } => item.value != null && Number.isFinite(item.value));
+  if (recent.length < 4) return null;
+  return clamp(weightedQuantile(recent, 0.8), 0.16, 1.35);
 }
 
 function studentTLogPdf(value: number, parameters: { mu: number; kappa: number; alpha: number; beta: number }) {
@@ -1408,6 +1563,8 @@ function initialFilterDay(date: string, config: RhythmConfig): FilterDay {
     lowConsensus: 0,
     highConsensus: 0,
     trendPressure: 0,
+    softDeclinePressure: 0,
+    mixedConflict: 0,
     observation: null,
     evidenceCount: 0,
     robustWeights: [],
