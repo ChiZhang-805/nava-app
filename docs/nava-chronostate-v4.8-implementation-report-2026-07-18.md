@@ -19,6 +19,7 @@ V4.8 的重点不是继续做简单加权，而是把算法验证数据从 1000 
 - `physiologyLeadPressure`：识别 HRV、静息心率、睡眠和血氧先于行为/主观下滑出现的预警。
 - `presenteeismStrainPressure`：识别用户仍在高活动或高专注，但恢复、情绪或昼夜节律已经变弱的硬撑型消耗。
 - `data:audit`：默认最低 5000 用户，检查字段采集率、合理范围、中位数、P1/P99、场景覆盖、cohort 覆盖、临床类别比例、性别比例、chronotype 比例和数据密度比例。
+- `data:export`：默认导出同一批 5000 用户 JSONL 与 manifest 到 `artifacts/synthetic-population`，用于算法同学、App 后端和回归测试共享同一套固定样本；该目录是本地大文件产物，不提交 Git。
 - `algorithm:benchmark`：正式 benchmark 默认 5000 用户。
 
 ## 5000 用户数据审计
@@ -27,6 +28,7 @@ V4.8 的重点不是继续做简单加权，而是把算法验证数据从 1000 
 
 ```bash
 npm run data:audit
+npm run data:export
 ```
 
 结果摘要：

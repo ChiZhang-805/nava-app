@@ -15,6 +15,7 @@
     "algorithm:test": "node --experimental-strip-types --test tests/rhythm-core.test.ts",
     "algorithm:benchmark": "node --experimental-strip-types scripts/benchmark-rhythm-v4.ts",
     "data:audit": "node --experimental-strip-types scripts/audit-synthetic-distribution.ts",
+    "data:export": "node --experimental-strip-types scripts/export-synthetic-population.ts",
     "algorithm:tune": "node --experimental-strip-types scripts/benchmark-rhythm-v4.ts --tune",
     "cap:sync": "npm run build && npx cap sync",
     "cap:add:ios": "npx cap add ios",

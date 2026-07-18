@@ -49,10 +49,11 @@ npm run verify
 npm run backend:verify
 npm run algorithm:test
 npm run data:audit
+npm run data:export
 npm run algorithm:benchmark
 ```
 
-`verify` 会执行构建、lint 和 npm audit；`backend:verify` 检查 Edge Functions、shared 后端文件、migrations 和前端 secret；`data:audit` 默认生成并审计 5000 个合成用户；`algorithm:test` / `algorithm:benchmark` 用于验证 V4.8 算法核心，正式 benchmark 默认 5000 用户。
+`verify` 会执行构建、lint 和 npm audit；`backend:verify` 检查 Edge Functions、shared 后端文件、migrations 和前端 secret；`data:audit` 默认生成并审计 5000 个合成用户；`data:export` 默认导出同一批 5000 用户 JSONL 和 manifest 到 `artifacts/synthetic-population`，该目录只作为本地大文件产物，不提交 Git；`algorithm:test` / `algorithm:benchmark` 用于验证 V4.8 算法核心，正式 benchmark 默认 5000 用户。
 
 当前 App 后端函数：`ai-extract-data`、`ai-chat-reply`、`diet-extract`、`face-analyze`、`health-sync-ingest`、`watch-sync`、`rhythm-score`、`export-user-data`。
 
