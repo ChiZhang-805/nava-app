@@ -174,6 +174,30 @@ export const demoMessages: ChatMessage[] = [
   },
 ];
 
+export function demoMessagesFor(locale: "zh" | "en" = "zh"): ChatMessage[] {
+  if (locale === "zh") return demoMessages;
+  return [
+    {
+      id: "demo-chat-1-en",
+      role: "assistant",
+      content: "Good morning. I can see your Apple Watch sleep and activity data. Your rhythm looks steady today.",
+      created_at: new Date(Date.now() - 1000 * 60 * 9).toISOString(),
+    },
+    {
+      id: "demo-chat-2-en",
+      role: "user",
+      content: "I slept at 23:20, woke at 7:05, and want to stay focused today.",
+      created_at: new Date(Date.now() - 1000 * 60 * 6).toISOString(),
+    },
+    {
+      id: "demo-chat-3-en",
+      role: "assistant",
+      content: "Sleep logged. Try one 45-minute focus block this morning and a 10-minute walk in the afternoon.",
+      created_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+    },
+  ];
+}
+
 export const demoProfile: UserProfile = {
   id: demoUser.id,
   username: "NAVA Demo",

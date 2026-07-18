@@ -1,6 +1,8 @@
-import { ArrowRight, CheckCircle2, Fingerprint, LockKeyhole, Mail, MessageCircle, Phone, ShieldCheck, Watch } from "lucide-react";
+import { ArrowRight, CheckCircle2, Laptop, LockKeyhole, Mail, MessageCircle, Phone, Smartphone, Watch } from "lucide-react";
 import { FormEvent, useState } from "react";
 import ActionButton from "../components/ActionButton";
+import LanguageToggle from "../components/LanguageToggle";
+import { useT } from "../i18n";
 import { formatAuthError, isEmail, isPhone } from "../services/auth";
 import { useAuth } from "../state/authContext";
 
@@ -17,6 +19,7 @@ export default function AuthScreen() {
     error,
     clearError,
   } = useAuth();
+  const t = useT();
   const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
   const [method, setMethod] = useState<"password" | "otp">("password");
   const [account, setAccount] = useState("");
@@ -28,7 +31,28 @@ export default function AuthScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const AccountIcon = isPhone(account) ? Phone : Mail;
-  const actionLabel = busy ? "处理中" : method === "otp" && !otpSent ? "获取验证码" : mode === "signIn" ? "进入 NAVA" : "创建账号";
+  const MethodIcon = method === "password" ? LockKeyhole : MessageCircle;
+  const actionLabel = busy ? t("auth.processing") : method === "otp" && !otpSent ? t("auth.getOtp") : mode === "signIn" ? t("auth.enter") : t("auth.create");
+  const canSubmit = !busy && Boolean(account) && !(method === "password" && !password) && !(method === "otp" && otpSent && !otp);
+  const methodLabel = method === "password" ? t("auth.password") : t("auth.otp");
+  const modeSwitchLabel = mode === "signIn" ? t("auth.switchToSignUp") : t("auth.switchToSignIn");
+  const methodSwitchLabel = method === "password" ? t("auth.useOtp") : t("auth.usePassword");
+
+  function switchMode() {
+    setMode((value) => (value === "signIn" ? "signUp" : "signIn"));
+    setOtpSent(false);
+    setNotice(null);
+    setLocalError(null);
+    clearError();
+  }
+
+  function switchMethod() {
+    setMethod((value) => (value === "password" ? "otp" : "password"));
+    setOtpSent(false);
+    setNotice(null);
+    setLocalError(null);
+    clearError();
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -39,13 +63,13 @@ export default function AuthScreen() {
     try {
       if (method === "password") {
         if (mode === "signUp" && isPhone(account)) {
-          throw new Error("手机号注册请使用验证码方式，和 Web 端保持一致。");
+          throw new Error(t("auth.error.phoneSignupOtp"));
         }
         if (mode === "signIn") {
           await signIn(account.trim(), password);
         } else {
           await signUp(account.trim(), password);
-          setNotice("注册已提交。如果项目开启了邮箱确认，请先完成邮箱验证。");
+          setNotice(t("auth.notice.signupSubmitted"));
         }
       } else if (!otpSent) {
         if (isEmail(account)) {
@@ -53,10 +77,10 @@ export default function AuthScreen() {
         } else if (isPhone(account)) {
           await sendSmsOtp(account.trim());
         } else {
-          throw new Error("请输入有效邮箱或中国大陆手机号。");
+          throw new Error(t("auth.error.invalidAccount"));
         }
         setOtpSent(true);
-        setNotice("验证码已发送，请查看邮箱或短信。");
+        setNotice(t("auth.notice.otpSent"));
       } else {
         if (isEmail(account)) {
           await verifyEmailOtp(account.trim(), otp);
@@ -64,7 +88,7 @@ export default function AuthScreen() {
         } else if (isPhone(account)) {
           await verifySmsOtp(account.trim(), otp, mode === "signIn" ? "login" : "register", otpPassword || undefined);
         } else {
-          throw new Error("账号格式不正确。");
+          throw new Error(t("auth.error.accountFormat"));
         }
       }
     } catch (e) {
@@ -80,9 +104,9 @@ export default function AuthScreen() {
     setLocalError(null);
     clearError();
     try {
-      if (!isEmail(account)) throw new Error("找回密码需要输入邮箱；手机号请用短信验证码登录。");
+      if (!isEmail(account)) throw new Error(t("auth.error.resetRequiresEmail"));
       await resetPassword(account.trim());
-      setNotice("重置密码邮件已发送。");
+      setNotice(t("auth.notice.resetSent"));
     } catch (e) {
       setLocalError(formatAuthError(e));
     } finally {
@@ -92,75 +116,55 @@ export default function AuthScreen() {
 
   return (
     <main className="auth-screen">
+      <div className="auth-locale">
+        <LanguageToggle />
+      </div>
       <section className="auth-brand" aria-label="NAVA">
         <span className="auth-watermark">NAVA</span>
-        <div className="auth-kicker">DAILY RHYTHM</div>
+        <div className="auth-kicker">{t("auth.kicker")}</div>
         <h1>NAVA</h1>
         <div className="auth-greeting">
-          <span>准备好了吗？</span>
-          <span>今天从节律开始。</span>
+          <span>{t("auth.greeting.one")}</span>
+          <span>{t("auth.greeting.two")}</span>
         </div>
       </section>
 
-      <form className="auth-card" onSubmit={submit}>
-        <div className="auth-card-top">
-          <span>账号</span>
-          <div className="auth-device-icons" aria-label="Web iPhone Apple Watch">
-            <ShieldCheck size={16} />
-            <Fingerprint size={16} />
-            <Watch size={16} />
+      <form className="auth-form" onSubmit={submit}>
+        <div className="auth-form-head">
+          <div>
+            <span>{t("auth.account")}</span>
+            <h2>{mode === "signIn" ? t("auth.signIn") : t("auth.signUp")}</h2>
           </div>
-        </div>
-
-        <div className="segmented auth-mode">
-          <button type="button" className={mode === "signIn" ? "active" : ""} onClick={() => setMode("signIn")}>
-            登录
-          </button>
-          <button type="button" className={mode === "signUp" ? "active" : ""} onClick={() => setMode("signUp")}>
-            注册
+          <button className="auth-text-switch" type="button" onClick={switchMode}>
+            {modeSwitchLabel}
           </button>
         </div>
 
-        <div className="segmented compact auth-method">
-          <button
-            type="button"
-            className={method === "password" ? "active" : ""}
-            onClick={() => {
-              setMethod("password");
-              setOtpSent(false);
-            }}
-          >
-            <LockKeyhole size={16} />
-            <span>密码</span>
-          </button>
-          <button
-            type="button"
-            className={method === "otp" ? "active" : ""}
-            onClick={() => {
-              setMethod("otp");
-              setOtpSent(false);
-            }}
-          >
-            <MessageCircle size={16} />
-            <span>验证码</span>
+        <div className="auth-method-line">
+          <span>
+            <MethodIcon size={16} />
+            {methodLabel}
+          </span>
+          <button type="button" onClick={switchMethod}>
+            {methodSwitchLabel}
           </button>
         </div>
 
         <div className="auth-field-stage">
           <label className="field">
-            <span>邮箱 / 手机号</span>
+            <span>{t("auth.emailPhone")}</span>
             <div className="input-wrap">
               <AccountIcon size={18} />
-              <input autoComplete="email" inputMode="email" value={account} onChange={(e) => setAccount(e.target.value)} placeholder="邮箱 / 手机" />
+              <input autoComplete="email" inputMode="email" value={account} onChange={(e) => setAccount(e.target.value)} placeholder={t("auth.emailPhonePlaceholder")} />
             </div>
           </label>
 
           {method === "password" && (
             <label className="field">
-              <span>密码</span>
+              <span>{t("auth.password")}</span>
               <div className="input-wrap">
                 <LockKeyhole size={18} />
-                <input autoComplete={mode === "signIn" ? "current-password" : "new-password"} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="至少 6 位" />
+                <input autoComplete={mode === "signIn" ? "current-password" : "new-password"} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("auth.passwordPlaceholder")} />
               </div>
             </label>
           )}
@@ -171,9 +175,9 @@ export default function AuthScreen() {
                 <MessageCircle size={22} />
               </div>
               <div className="auth-assist-chips">
-                <span>邮箱</span>
-                <span>短信</span>
-                <span>同账号</span>
+                <span>{t("auth.email")}</span>
+                <span>{t("auth.sms")}</span>
+                <span>{t("auth.sameAccount")}</span>
               </div>
             </div>
           )}
@@ -181,22 +185,36 @@ export default function AuthScreen() {
           {method === "otp" && otpSent && (
             <>
               <label className="field">
-                <span>验证码</span>
+                <span>{t("auth.otp")}</span>
                 <div className="input-wrap">
                   <MessageCircle size={18} />
-                  <input inputMode="numeric" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="6 位验证码" />
+                  <input inputMode="numeric" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder={t("auth.otpPlaceholder")} />
                 </div>
               </label>
               {mode === "signUp" && (
                 <label className="field">
-                  <span>设置密码</span>
+                  <span>{t("auth.setPassword")}</span>
                   <div className="input-wrap">
                     <LockKeyhole size={18} />
-                    <input type="password" value={otpPassword} onChange={(e) => setOtpPassword(e.target.value)} placeholder="可选，至少 6 位" />
+                    <input type="password" value={otpPassword} onChange={(e) => setOtpPassword(e.target.value)} placeholder={t("auth.optionalPassword")} />
                   </div>
                 </label>
               )}
             </>
+          )}
+
+          {!(method === "otp" && !otpSent) && !(method === "otp" && otpSent && mode === "signUp") && (
+            <div className="auth-sync-row" aria-label="Web iPhone Apple Watch">
+              <span>
+                <Laptop size={17} />
+              </span>
+              <span>
+                <Smartphone size={17} />
+              </span>
+              <span>
+                <Watch size={17} />
+              </span>
+            </div>
           )}
         </div>
 
@@ -211,16 +229,18 @@ export default function AuthScreen() {
           )}
         </div>
 
-        <ActionButton type="submit" className="full-width" disabled={busy || !account || (method === "password" && !password) || (method === "otp" && otpSent && !otp)}>
-          {actionLabel}
-          <ArrowRight size={18} />
-        </ActionButton>
+        <div className="auth-actions">
+          <ActionButton type="submit" className="full-width" disabled={!canSubmit}>
+            {actionLabel}
+            <ArrowRight size={18} />
+          </ActionButton>
 
-        {mode === "signIn" && method === "password" && (
-          <button className="text-button" type="button" onClick={handleResetPassword} disabled={busy || !account}>
-            找回密码
-          </button>
-        )}
+          {mode === "signIn" && method === "password" && (
+            <button className="text-button" type="button" onClick={handleResetPassword} disabled={busy || !account}>
+              {t("auth.forgotPassword")}
+            </button>
+          )}
+        </div>
       </form>
     </main>
   );

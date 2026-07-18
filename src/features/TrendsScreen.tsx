@@ -3,11 +3,13 @@ import { Activity, BedDouble, Brain, Flame, SmilePlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import MetricCard from "../components/MetricCard";
 import SectionCard from "../components/SectionCard";
+import { useLocale } from "../i18n";
 import { minutesToText, shortDate } from "../services/date";
 import { getTrends } from "../services/records";
 import type { TrendBundle } from "../types";
 
 export default function TrendsScreen({ user, refreshKey }: { user: User; refreshKey: number }) {
+  const { locale, t } = useLocale();
   const [bundle, setBundle] = useState<TrendBundle | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,20 +45,20 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
   return (
     <div className="stack">
       <div className="metric-grid">
-        <MetricCard label="平均情绪" value={totals.avgMood || "--"} detail="近 14 天" icon={<SmilePlus size={18} />} />
-        <MetricCard label="平均睡眠" value={minutesToText(totals.sleepMinutes)} detail="近 14 天" icon={<BedDouble size={18} />} />
-        <MetricCard label="平均步数" value={totals.steps ? totals.steps.toLocaleString("zh-CN") : "--"} detail="近 14 天" icon={<Flame size={18} />} />
-        <MetricCard label="专注总量" value={minutesToText(totals.focus)} detail="近 14 天" icon={<Brain size={18} />} />
+        <MetricCard label={t("trends.avgMood")} value={totals.avgMood || "--"} detail={t("trends.last14")} icon={<SmilePlus size={18} />} />
+        <MetricCard label={t("trends.avgSleep")} value={minutesToText(totals.sleepMinutes, locale)} detail={t("trends.last14")} icon={<BedDouble size={18} />} />
+        <MetricCard label={t("trends.avgSteps")} value={totals.steps ? totals.steps.toLocaleString(locale === "en" ? "en-US" : "zh-CN") : "--"} detail={t("trends.last14")} icon={<Flame size={18} />} />
+        <MetricCard label={t("trends.focusTotal")} value={minutesToText(totals.focus, locale)} detail={t("trends.last14")} icon={<Brain size={18} />} />
       </div>
 
-      <SectionCard title="趋势" subtitle="近 14 天">
+      <SectionCard title={t("trends.title")} subtitle={t("trends.last14")}>
         {error && <p className="error-text">{error}</p>}
         {!bundle && !error && <p className="muted">正在加载趋势</p>}
         {bundle && (
           <div className="trend-list">
             {bundle.moods.slice(-7).map((item) => (
               <div className="trend-row" key={item.id}>
-                <span>{shortDate(item.record_date)}</span>
+                <span>{shortDate(item.record_date, locale)}</span>
                 <div className="bar-track">
                   <div className="bar-fill mood" style={{ width: `${item.mood_score}%` }} />
                 </div>
@@ -66,18 +68,18 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
             {bundle.moods.length === 0 && (
               <div className="empty-chat compact">
                 <Activity size={24} />
-                <span>暂无趋势数据</span>
+                <span>{t("trends.empty")}</span>
               </div>
             )}
           </div>
         )}
       </SectionCard>
 
-      <SectionCard title="节律状态" subtitle="ChronoState V4.27 · 80% 区间">
+      <SectionCard title={t("trends.rhythmState")} subtitle={t("trends.rhythmSubtitle")}>
         <div className="trend-list">
           {bundle?.rhythms.slice(-7).map((item) => (
             <div className="trend-row" key={item.id}>
-              <span>{shortDate(item.record_date)}</span>
+              <span>{shortDate(item.record_date, locale)}</span>
               <div className="bar-track interval-track">
                 {item.score_lower != null && item.score_upper != null && (
                   <div className="interval-band" style={{ left: `${item.score_lower}%`, width: `${Math.max(2, item.score_upper - item.score_lower)}%` }} />
@@ -87,7 +89,7 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
               <strong>{Math.round(item.score)}</strong>
             </div>
           ))}
-          {bundle && bundle.rhythms.length === 0 && <p className="muted">暂无节律趋势</p>}
+          {bundle && bundle.rhythms.length === 0 && <p className="muted">{t("trends.rhythmEmpty")}</p>}
         </div>
       </SectionCard>
     </div>

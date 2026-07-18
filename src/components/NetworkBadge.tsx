@@ -1,8 +1,10 @@
 import { Wifi, WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useT } from "../i18n";
 
 export default function NetworkBadge() {
   const [online, setOnline] = useState(() => navigator.onLine);
+  const t = useT();
 
   useEffect(() => {
     const handleOnline = () => setOnline(true);
@@ -18,8 +20,7 @@ export default function NetworkBadge() {
   return (
     <span className={online ? "network-badge online" : "network-badge offline"}>
       {online ? <Wifi size={14} /> : <WifiOff size={14} />}
-      <span>{online ? "在线" : "离线"}</span>
+      <span>{online ? t("network.online") : t("network.offline")}</span>
     </span>
   );
 }
-

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import SectionCard from "../components/SectionCard";
 import StatusPill from "../components/StatusPill";
+import { useLocale } from "../i18n";
 import { appConfig } from "../config";
 import { exportUserData, downloadJson } from "../services/exportData";
 import { isNativeHealthAvailable, requestHealthAuthorization, syncNativeHealthNow } from "../services/health";
@@ -14,6 +15,7 @@ import type { WatchUserSnapshot } from "../types";
 
 export default function ProfileScreen({ user, onChanged }: { user: User; onChanged: () => void }) {
   const { signOut } = useAuth();
+  const { locale, t } = useLocale();
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -84,48 +86,48 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
 
   return (
     <div className="stack">
-      <SectionCard title="账号" action={<StatusPill tone="good">同账号</StatusPill>}>
+      <SectionCard title={t("profile.account")} action={<StatusPill tone="good">{t("profile.sameAccount")}</StatusPill>}>
         <div className="profile-row">
           <div className="avatar large">{user.email?.slice(0, 1).toUpperCase() ?? "N"}</div>
           <div>
             <strong>{user.email}</strong>
-            <p className="muted">Web · iPhone · Watch</p>
+            <p className="muted">{t("profile.webIphoneWatch")}</p>
           </div>
         </div>
       </SectionCard>
 
-      <SectionCard title="个人资料">
+      <SectionCard title={t("profile.personal")}>
         <label className="field">
-          <span>昵称</span>
-          <input value={profileDraft.username} onChange={(e) => setProfileDraft((draft) => ({ ...draft, username: e.target.value }))} placeholder={profile?.username ?? "NAVA 用户"} />
+          <span>{t("profile.nickname")}</span>
+          <input value={profileDraft.username} onChange={(e) => setProfileDraft((draft) => ({ ...draft, username: e.target.value }))} placeholder={profile?.username ?? t("profile.defaultName")} />
         </label>
         <div className="two-col">
           <label className="field">
-            <span>身高 cm</span>
+            <span>{t("profile.height")}</span>
             <input inputMode="decimal" value={profileDraft.height} onChange={(e) => setProfileDraft((draft) => ({ ...draft, height: e.target.value }))} />
           </label>
           <label className="field">
-            <span>体重 kg</span>
+            <span>{t("profile.weight")}</span>
             <input inputMode="decimal" value={profileDraft.weight} onChange={(e) => setProfileDraft((draft) => ({ ...draft, weight: e.target.value }))} />
           </label>
         </div>
         <label className="field">
-          <span>目标</span>
-          <input value={profileDraft.goal} onChange={(e) => setProfileDraft((draft) => ({ ...draft, goal: e.target.value }))} placeholder="例如：改善睡眠和稳定节律" />
+          <span>{t("profile.goal")}</span>
+          <input value={profileDraft.goal} onChange={(e) => setProfileDraft((draft) => ({ ...draft, goal: e.target.value }))} placeholder={t("profile.goalPlaceholder")} />
         </label>
         <label className="field">
-          <span>职业</span>
+          <span>{t("profile.occupation")}</span>
           <input value={profileDraft.occupation} onChange={(e) => setProfileDraft((draft) => ({ ...draft, occupation: e.target.value }))} />
         </label>
         <ActionButton icon={<Save size={18} />} onClick={submitProfile} disabled={busy === "资料保存"}>
-          保存资料
+          {t("profile.save")}
         </ActionButton>
       </SectionCard>
 
       <SectionCard
-        title="Apple 健康"
+        title={t("profile.appleHealth")}
         subtitle="HealthKit"
-        action={<StatusPill tone={isNativeHealthAvailable() ? "good" : "warn"}>{isNativeHealthAvailable() ? "可用" : "浏览器预览"}</StatusPill>}
+        action={<StatusPill tone={isNativeHealthAvailable() ? "good" : "warn"}>{isNativeHealthAvailable() ? t("profile.available") : t("profile.browserPreview")}</StatusPill>}
       >
         <div className="button-row">
           <ActionButton
@@ -134,53 +136,53 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
             disabled={busy === "HealthKit 授权"}
             onClick={() => run("HealthKit 授权", requestHealthAuthorization)}
           >
-            请求授权
+            {t("profile.requestAuth")}
           </ActionButton>
           <ActionButton
             icon={<RefreshCw size={18} />}
             disabled={busy === "健康同步"}
             onClick={() => run("健康同步", () => syncNativeHealthNow(user.id))}
           >
-            立即同步
+            {t("profile.syncNow")}
           </ActionButton>
         </div>
       </SectionCard>
 
-      <SectionCard title="Apple Watch" subtitle="iPhone 同步">
+      <SectionCard title={t("profile.appleWatch")} subtitle={t("profile.iphoneSync")}>
         <div className="watch-card">
           <Watch size={22} />
           <div>
-            <strong>{watchReachable?.paired ? "已检测到配对手表" : watchSnapshot ? "Watch 快照已生成" : "等待今日页生成快照"}</strong>
+            <strong>{watchReachable?.paired ? t("profile.watchPaired") : watchSnapshot ? t("profile.watchSnapshot") : t("profile.watchWaiting")}</strong>
             <p className="muted">
               {watchSnapshot
-                  ? `${new Date(watchSnapshot.lastSyncedAt).toLocaleString("zh-CN")} · ${watchReachable?.reachable ? "在线" : "离线"}`
-                  : "等待快照"}
+                  ? `${new Date(watchSnapshot.lastSyncedAt).toLocaleString(locale === "en" ? "en-US" : "zh-CN")} · ${watchReachable?.reachable ? t("profile.online") : t("profile.offline")}`
+                  : t("profile.waitingSnapshot")}
             </p>
           </div>
         </div>
       </SectionCard>
 
-      <SectionCard title="隐私与安全">
+      <SectionCard title={t("profile.privacy")}>
         <div className="timeline-list">
           <div>
             <ShieldCheck size={18} />
-            <span>模型服务密钥不会保存在手机本地</span>
+            <span>{t("profile.privacyKey")}</span>
           </div>
           <div>
             <ShieldCheck size={18} />
-            <span>饮食和面部照片会按账号隔离保存</span>
+            <span>{t("profile.privacyMedia")}</span>
           </div>
           <div>
             <ShieldCheck size={18} />
-            <span>导出、删除和隐私政策入口会持续保留</span>
+            <span>{t("profile.privacyExport")}</span>
           </div>
         </div>
         <ActionButton icon={<Download size={18} />} variant="secondary" onClick={exportData} disabled={busy === "数据导出"}>
-          导出我的数据
+          {t("profile.export")}
         </ActionButton>
       </SectionCard>
 
-      <SectionCard title="环境" subtitle={appConfig.appEnv}>
+      <SectionCard title={t("profile.environment")} subtitle={appConfig.appEnv}>
         <code className="code-card">{appConfig.supabaseUrl}</code>
         <code className="code-card">{appConfig.upstreamRepo}</code>
       </SectionCard>
@@ -189,7 +191,7 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
       {error && <p className="error-text">{error}</p>}
 
       <ActionButton icon={<LogOut size={18} />} variant="ghost" onClick={signOut}>
-        退出登录
+        {t("profile.signOut")}
       </ActionButton>
     </div>
   );

@@ -3,10 +3,12 @@ import { Bot, SendHorizontal, Sparkles } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import SectionCard from "../components/SectionCard";
+import { useLocale } from "../i18n";
 import { loadConversation, sendAiMessage } from "../services/ai";
 import type { ChatMessage } from "../types";
 
 export default function AIScreen({ user }: { user: User }) {
+  const { locale, t } = useLocale();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
@@ -19,13 +21,13 @@ export default function AIScreen({ user }: { user: User }) {
     setLoading(true);
     setError(null);
     try {
-      setMessages(await loadConversation(user.id));
+      setMessages(await loadConversation(user.id, locale));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, [user.id]);
+  }, [locale, user.id]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -40,13 +42,13 @@ export default function AIScreen({ user }: { user: User }) {
         userId: user.id,
         message,
         history: messages,
-        lang: "zh",
+        lang: locale,
       });
       setMessages((current) => [...current, result.userMessage, result.assistantMessage]);
       if (result.applied?.saved) {
-        setApplyNotice(`已保存 ${result.applied.type}`);
+        setApplyNotice(t("ai.saved", { type: result.applied.type }));
       } else if (result.applied && !result.applied.saved) {
-        setApplyNotice(`待确认 ${result.applied.type}`);
+        setApplyNotice(t("ai.pending", { type: result.applied.type }));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -66,20 +68,20 @@ export default function AIScreen({ user }: { user: User }) {
 
   return (
     <div className="chat-layout">
-      <SectionCard title="NAVA AI">
+      <SectionCard title={t("ai.title")}>
         <div className="ai-prompt">
           <Sparkles size={18} />
-          <span>昨晚 1 点睡，7 点醒。</span>
+          <span>{t("ai.prompt")}</span>
         </div>
       </SectionCard>
 
       <div className="chat-list" ref={listRef}>
-        {loading && <p className="muted">正在加载对话</p>}
+        {loading && <p className="muted">{t("ai.loading")}</p>}
         {!loading && messages.length === 0 && (
           <div className="empty-chat">
             <Bot size={30} />
-            <strong>还没有对话</strong>
-            <span>告诉 NAVA 今天的状态。</span>
+            <strong>{t("ai.emptyTitle")}</strong>
+            <span>{t("ai.emptyText")}</span>
           </div>
         )}
         {messages.map((message) => (
@@ -94,9 +96,9 @@ export default function AIScreen({ user }: { user: User }) {
       {applyNotice && <p className="success-text">{applyNotice}</p>}
 
       <form className="chat-composer" onSubmit={submit}>
-        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="告诉 NAVA 你的状态" />
+        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={t("ai.placeholder")} />
         <ActionButton type="submit" icon={<SendHorizontal size={18} />} disabled={sending || !input.trim()}>
-          发送
+          {t("ai.send")}
         </ActionButton>
       </form>
     </div>

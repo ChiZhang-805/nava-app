@@ -9,7 +9,7 @@ import {
   saveSleepRecord,
 } from "./records";
 import { todayISO } from "./date";
-import { demoMessages, isDemoMode } from "./demo";
+import { demoMessagesFor, isDemoMode } from "./demo";
 
 function assertNoError(error: unknown) {
   if (!error) return;
@@ -17,8 +17,8 @@ function assertNoError(error: unknown) {
   throw new Error(message);
 }
 
-export async function loadConversation(userId: string): Promise<ChatMessage[]> {
-  if (isDemoMode()) return demoMessages;
+export async function loadConversation(userId: string, locale: "zh" | "en" = "zh"): Promise<ChatMessage[]> {
+  if (isDemoMode()) return demoMessagesFor(locale);
 
   const { data, error } = await supabase
     .from("ai_conversations")
@@ -43,7 +43,10 @@ export async function sendAiMessage(input: {
       assistantMessage: {
         id: `demo-assistant-${Date.now()}`,
         role: "assistant",
-        content: "我已根据你的描述更新节律建议。正式环境会调用同源 Edge Functions 完成抽取和回复。",
+        content:
+          input.lang === "en"
+            ? "I updated your rhythm note from that description. In production, the shared Edge Functions will extract and reply from the same account data."
+            : "我已根据你的描述更新节律建议。正式环境会调用同源 Edge Functions 完成抽取和回复。",
         created_at: now,
       } as ChatMessage,
       extractedData: null,

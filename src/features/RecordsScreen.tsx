@@ -3,6 +3,7 @@ import { BedDouble, Brain, Camera, Check, Drumstick, Dumbbell, Loader2, ScanFace
 import { FormEvent, useEffect, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import SectionCard from "../components/SectionCard";
+import { useT, type TranslationKey } from "../i18n";
 import {
   saveExerciseRecord,
   saveFocusSession,
@@ -17,9 +18,20 @@ import { todayISO } from "../services/date";
 import { analyzeDietPhoto, analyzeFacePhoto } from "../services/media";
 import type { FaceAnalysisResult, FoodItem } from "../types";
 
-const moodFactors = ["压力", "睡眠", "运动", "饮食", "工作", "社交", "身体不适", "天气"];
+const moodFactors: Array<{ value: string; labelKey: TranslationKey }> = [
+  { value: "压力", labelKey: "records.factor.pressure" },
+  { value: "睡眠", labelKey: "records.factor.sleep" },
+  { value: "运动", labelKey: "records.factor.exercise" },
+  { value: "饮食", labelKey: "records.factor.diet" },
+  { value: "工作", labelKey: "records.factor.work" },
+  { value: "社交", labelKey: "records.factor.social" },
+  { value: "身体不适", labelKey: "records.factor.body" },
+  { value: "天气", labelKey: "records.factor.weather" },
+  { value: "其他", labelKey: "records.factor.other" },
+];
 
 export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: () => void }) {
+  const t = useT();
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -74,18 +86,18 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
     return endMin - startMin;
   }
 
-  async function run(label: string, fn: () => Promise<unknown>) {
-    setBusy(label);
+  async function run(labelKey: TranslationKey, fn: () => Promise<unknown>) {
+    setBusy(labelKey);
     setNotice(null);
     setError(null);
     try {
       await fn();
       try {
         await refreshRhythmScore(recordDate);
-        setNotice(`${label}已保存`);
+        setNotice(t("records.saved", { label: t(labelKey) }));
       } catch (refreshError) {
         console.warn("Failed to refresh rhythm score after saving record", refreshError);
-        setNotice(`${label}已保存，待刷新`);
+        setNotice(t("records.savedPending", { label: t(labelKey) }));
       }
       onSaved();
     } catch (e) {
@@ -101,7 +113,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
 
   async function saveMood(event: FormEvent) {
     event.preventDefault();
-    await run("情绪记录", () =>
+    await run("records.mood", () =>
       saveMoodRecord({
         userId: user.id,
         date: recordDate,
@@ -114,7 +126,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
 
   async function saveSleep(event: FormEvent) {
     event.preventDefault();
-    await run("睡眠记录", () =>
+    await run("records.sleep", () =>
       saveSleepRecord({
         userId: user.id,
         date: recordDate,
@@ -132,7 +144,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
 
   async function saveExercise(event: FormEvent) {
     event.preventDefault();
-    await run("运动记录", () =>
+    await run("records.exercise", () =>
       saveExerciseRecord({
         userId: user.id,
         date: recordDate,
@@ -150,7 +162,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
   async function saveDiet(event: FormEvent) {
     event.preventDefault();
     if (dietItems.length > 0) {
-      await run("饮食识别记录", () =>
+      await run("records.diet", () =>
         saveNutritionItems({
           userId: user.id,
           date: recordDate,
@@ -162,7 +174,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
       return;
     }
 
-    await run("饮食记录", () =>
+    await run("records.diet", () =>
       saveNutritionRecord({
         userId: user.id,
         date: recordDate,
@@ -191,7 +203,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
         setMealName(result.items[0].name);
         setMealCalories(Number(result.items[0].calories) || mealCalories);
       }
-      setNotice(`已识别 ${result.items.length} 项`);
+      setNotice(t("records.detected", { count: result.items.length }));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -215,7 +227,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
         imagePath,
         modelVersion: result.modelVersion ?? result.model_version,
       });
-      setNotice("面部分析已保存");
+      setNotice(t("records.faceSaved"));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -225,7 +237,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
 
   async function saveFocus(event: FormEvent) {
     event.preventDefault();
-    await run("专注记录", () =>
+    await run("records.focus", () =>
       saveFocusSession({
         userId: user.id,
         date: recordDate,
@@ -238,21 +250,21 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
   return (
     <div className="stack">
       {(notice || error) && (
-        <SectionCard title={notice ? "已同步" : "需要处理"}>
+        <SectionCard title={notice ? t("records.synced") : t("records.needsFix")}>
           {notice && <p className="success-text">{notice}</p>}
           {error && <p className="error-text">{error}</p>}
         </SectionCard>
       )}
 
-      <SectionCard title="记录日期">
+      <SectionCard title={t("records.dateTitle")}>
         <label className="field">
-          <span>日期</span>
+          <span>{t("records.date")}</span>
           <input type="date" value={recordDate} max={todayISO()} onChange={(e) => setRecordDate(e.target.value)} />
         </label>
       </SectionCard>
 
       <form onSubmit={saveMood}>
-        <SectionCard title="情绪">
+        <SectionCard title={t("records.mood")}>
           <div className="module-title">
             <SmilePlus size={20} />
             <strong>{moodScore}</strong>
@@ -261,110 +273,110 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
           <div className="chip-grid">
             {moodFactors.map((factor) => (
               <button
-                className={selectedFactors.includes(factor) ? "chip selected" : "chip"}
-                key={factor}
+                className={selectedFactors.includes(factor.value) ? "chip selected" : "chip"}
+                key={factor.value}
                 type="button"
-                onClick={() => toggleFactor(factor)}
+                onClick={() => toggleFactor(factor.value)}
               >
-                {factor}
+                {t(factor.labelKey)}
               </button>
             ))}
           </div>
           <label className="field">
-            <span>日记</span>
-            <textarea value={diary} onChange={(e) => setDiary(e.target.value)} placeholder="今天影响情绪的主要事情" rows={3} />
+            <span>{t("records.diary")}</span>
+            <textarea value={diary} onChange={(e) => setDiary(e.target.value)} placeholder={t("records.diaryPlaceholder")} rows={3} />
           </label>
-          <ActionButton type="submit" icon={<Check size={18} />} disabled={busy === "情绪记录"}>
-            保存情绪
+          <ActionButton type="submit" icon={<Check size={18} />} disabled={busy === "records.mood"}>
+            {t("records.saveMood")}
           </ActionButton>
         </SectionCard>
       </form>
 
       <form onSubmit={saveSleep}>
-        <SectionCard title="睡眠">
+        <SectionCard title={t("records.sleep")}>
           <div className="two-col">
             <label className="field">
-              <span>入睡</span>
+              <span>{t("records.sleepStart")}</span>
               <input type="time" value={sleepStart} onChange={(e) => setSleepStart(e.target.value)} />
             </label>
             <label className="field">
-              <span>醒来</span>
+              <span>{t("records.sleepEnd")}</span>
               <input type="time" value={sleepEnd} onChange={(e) => setSleepEnd(e.target.value)} />
             </label>
           </div>
           <div className="two-col">
             <label className="field">
-              <span>总分钟</span>
+              <span>{t("records.totalMinutes")}</span>
               <input inputMode="numeric" type="number" value={sleepDuration} onChange={(e) => setSleepDuration(Number(e.target.value))} />
             </label>
             <label className="field">
-              <span>深睡</span>
+              <span>{t("records.deepSleep")}</span>
               <input inputMode="numeric" type="number" value={deepSleep} onChange={(e) => setDeepSleep(Number(e.target.value))} />
             </label>
           </div>
           <label className="field">
-            <span>浅睡分钟</span>
+            <span>{t("records.lightSleep")}</span>
             <input inputMode="numeric" type="number" value={lightSleep} onChange={(e) => setLightSleep(Number(e.target.value))} />
           </label>
           <label className="field">
-            <span>REM 分钟</span>
+            <span>{t("records.rem")}</span>
             <input inputMode="numeric" type="number" value={remSleep} onChange={(e) => setRemSleep(Number(e.target.value))} />
           </label>
           <label className="field">
-            <span>自评</span>
+            <span>{t("records.rating")}</span>
             <input className="range" type="range" min="1" max="5" value={sleepRating} onChange={(e) => setSleepRating(Number(e.target.value))} />
           </label>
           <label className="field">
-            <span>备注</span>
-            <textarea rows={2} value={sleepNote} onChange={(e) => setSleepNote(e.target.value)} placeholder="例如：半夜醒了一次" />
+            <span>{t("records.note")}</span>
+            <textarea rows={2} value={sleepNote} onChange={(e) => setSleepNote(e.target.value)} placeholder={t("records.sleepNotePlaceholder")} />
           </label>
-          <ActionButton type="submit" icon={<BedDouble size={18} />} variant="secondary" disabled={busy === "睡眠记录"}>
-            保存睡眠
+          <ActionButton type="submit" icon={<BedDouble size={18} />} variant="secondary" disabled={busy === "records.sleep"}>
+            {t("records.saveSleep")}
           </ActionButton>
         </SectionCard>
       </form>
 
       <form onSubmit={saveExercise}>
-        <SectionCard title="运动">
+        <SectionCard title={t("records.exercise")}>
           <div className="two-col">
             <label className="field">
-              <span>步数</span>
+              <span>{t("records.steps")}</span>
               <input inputMode="numeric" type="number" value={steps} onChange={(e) => setSteps(Number(e.target.value))} />
             </label>
             <label className="field">
-              <span>消耗 kcal</span>
+              <span>{t("records.calories")}</span>
               <input inputMode="numeric" type="number" value={calories} onChange={(e) => setCalories(Number(e.target.value))} />
             </label>
           </div>
           <label className="field">
-            <span>运动分钟</span>
+            <span>{t("records.exerciseMinutes")}</span>
             <input inputMode="numeric" type="number" value={exerciseMinutes} onChange={(e) => setExerciseMinutes(Number(e.target.value))} />
           </label>
           <div className="two-col">
             <label className="field">
-              <span>心率</span>
+              <span>{t("records.heartRate")}</span>
               <input inputMode="numeric" value={heartRate} onChange={(e) => setHeartRate(e.target.value)} placeholder="bpm" />
             </label>
             <label className="field">
-              <span>血氧</span>
+              <span>{t("records.spo2")}</span>
               <input value={spo2} onChange={(e) => setSpo2(e.target.value)} placeholder="98%" />
             </label>
           </div>
           <label className="field">
-            <span>备注</span>
-            <textarea rows={2} value={exerciseNote} onChange={(e) => setExerciseNote(e.target.value)} placeholder="例如：户外步行" />
+            <span>{t("records.note")}</span>
+            <textarea rows={2} value={exerciseNote} onChange={(e) => setExerciseNote(e.target.value)} placeholder={t("records.exerciseNotePlaceholder")} />
           </label>
-          <ActionButton type="submit" icon={<Dumbbell size={18} />} variant="secondary" disabled={busy === "运动记录"}>
-            保存运动
+          <ActionButton type="submit" icon={<Dumbbell size={18} />} variant="secondary" disabled={busy === "records.exercise"}>
+            {t("records.saveExercise")}
           </ActionButton>
         </SectionCard>
       </form>
 
       <form onSubmit={saveDiet}>
-        <SectionCard title="饮食">
+        <SectionCard title={t("records.diet")}>
           <label className="photo-picker">
             {dietPhotoUrl ? <img src={dietPhotoUrl} alt="饮食照片" /> : <Camera size={28} />}
-            <span>{dietAnalyzing ? "AI 识别中" : "拍照识别饮食"}</span>
+            <span>{dietAnalyzing ? t("records.aiScanning") : t("records.scanDiet")}</span>
             <input
               type="file"
               accept="image/*"
@@ -379,54 +391,54 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
               {dietItems.map((item, index) => (
                 <div key={`${item.name}-${index}`}>
                   <strong>{item.name}</strong>
-                  <span>{item.amount ?? "估算"} · {item.calories ?? 0} kcal</span>
+                  <span>{item.amount ?? t("records.estimated")} · {item.calories ?? 0} kcal</span>
                 </div>
               ))}
             </div>
           )}
           <label className="field">
-            <span>餐次</span>
+            <span>{t("records.meal")}</span>
             <select value={meal} onChange={(e) => setMeal(e.target.value as typeof meal)}>
-              <option value="breakfast">早餐</option>
-              <option value="lunch">午餐</option>
-              <option value="dinner">晚餐</option>
-              <option value="pantry">加餐</option>
+              <option value="breakfast">{t("records.breakfast")}</option>
+              <option value="lunch">{t("records.lunch")}</option>
+              <option value="dinner">{t("records.dinner")}</option>
+              <option value="pantry">{t("records.pantry")}</option>
             </select>
           </label>
           <label className="field">
-            <span>食物</span>
+            <span>{t("records.food")}</span>
             <input value={mealName} onChange={(e) => setMealName(e.target.value)} />
           </label>
           <label className="field">
-            <span>热量</span>
+            <span>{t("records.calorie")}</span>
             <input inputMode="numeric" type="number" value={mealCalories} onChange={(e) => setMealCalories(Number(e.target.value))} />
           </label>
-          <ActionButton type="submit" icon={<Drumstick size={18} />} variant="secondary" disabled={busy === "饮食记录"}>
-            {dietItems.length > 0 ? "保存识别结果" : "保存饮食"}
+          <ActionButton type="submit" icon={<Drumstick size={18} />} variant="secondary" disabled={busy === "records.diet"}>
+            {dietItems.length > 0 ? t("records.saveDetected") : t("records.saveDiet")}
           </ActionButton>
         </SectionCard>
       </form>
 
       <form onSubmit={saveFocus}>
-        <SectionCard title="专注">
+        <SectionCard title={t("records.focus")}>
           <label className="field">
-            <span>任务</span>
+            <span>{t("records.task")}</span>
             <input value={focusTitle} onChange={(e) => setFocusTitle(e.target.value)} />
           </label>
           <label className="field">
-            <span>分钟</span>
+            <span>{t("records.minutes")}</span>
             <input inputMode="numeric" type="number" value={focusMinutes} onChange={(e) => setFocusMinutes(Number(e.target.value))} />
           </label>
-          <ActionButton type="submit" icon={<Brain size={18} />} variant="secondary" disabled={busy === "专注记录"}>
-            保存专注
+          <ActionButton type="submit" icon={<Brain size={18} />} variant="secondary" disabled={busy === "records.focus"}>
+            {t("records.saveFocus")}
           </ActionButton>
         </SectionCard>
       </form>
 
-      <SectionCard title="面部分析">
+      <SectionCard title={t("records.face")}>
         <label className="photo-picker face">
           {faceImage ? <img src={faceImage} alt="面部照片" /> : <ScanFace size={30} />}
-          <span>{faceAnalyzing ? "AI 分析中" : "拍照分析面部状态"}</span>
+          <span>{faceAnalyzing ? t("records.faceScanning") : t("records.scanFace")}</span>
           <input
             type="file"
             accept="image/*"
@@ -438,7 +450,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
         </label>
         {faceResult && (
           <div className="face-result">
-            <strong>{Math.round(faceResult.overall_score)} 分</strong>
+            <strong>{t("records.score", { score: Math.round(faceResult.overall_score) })}</strong>
             <p>{faceResult.feedback}</p>
             <div className="detected-list">
               {faceResult.annotations.map((item) => (

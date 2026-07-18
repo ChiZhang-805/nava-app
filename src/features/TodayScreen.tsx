@@ -6,6 +6,7 @@ import ActionButton from "../components/ActionButton";
 import MetricCard from "../components/MetricCard";
 import SectionCard from "../components/SectionCard";
 import StatusPill from "../components/StatusPill";
+import { useLocale, type TranslationKey } from "../i18n";
 import { minutesToText } from "../services/date";
 import { getTodaySnapshot } from "../services/records";
 import { getNativeTodaySummary, isNativeHealthAvailable, syncNativeHealthNow } from "../services/health";
@@ -17,6 +18,19 @@ function rhythmModelLabel(modelVersion?: string | null) {
   return match ? `ChronoState V${match[1]}` : "离线估算";
 }
 
+const factorLabelKeys: Record<string, TranslationKey> = {
+  压力: "records.factor.pressure",
+  睡眠: "records.factor.sleep",
+  运动: "records.factor.exercise",
+  饮食: "records.factor.diet",
+  工作: "records.factor.work",
+  社交: "records.factor.social",
+  身体不适: "records.factor.body",
+  天气: "records.factor.weather",
+};
+
+const demoNextActionZh = "今天基础节律稳定，晚间减少屏幕刺激，保持 23:30 前入睡。";
+
 export default function TodayScreen({
   user,
   refreshKey,
@@ -26,11 +40,16 @@ export default function TodayScreen({
   refreshKey: number;
   onOpenRecord: () => void;
 }) {
+  const { locale, t } = useLocale();
   const [snapshot, setSnapshot] = useState<TodaySnapshot | null>(null);
   const [nativeSteps, setNativeSteps] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const nextAction = snapshot?.nextAction === demoNextActionZh ? t("today.demoNextAction") : snapshot?.nextAction;
+  const moodDetail = snapshot?.mood?.factors?.length
+    ? snapshot.mood.factors.map((factor) => (factorLabelKeys[factor] ? t(factorLabelKeys[factor]) : factor)).join(" / ")
+    : t("today.notRecorded");
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -92,16 +111,16 @@ export default function TodayScreen({
     <div className="stack">
       <section className="today-hero">
         <div className="hero-copy">
-          <p className="eyebrow">今日节律</p>
+          <p className="eyebrow">{t("today.rhythm")}</p>
           <div>
             <strong>{snapshot?.rhythmScore ?? "--"}</strong>
             <span>/ 100</span>
           </div>
           <p className="algorithm-meta">
             {snapshot?.rhythmScoreLower != null && snapshot.rhythmScoreUpper != null
-              ? `区间 ${snapshot.rhythmScoreLower}-${snapshot.rhythmScoreUpper}`
-              : "等待后端区间"}
-            {snapshot?.rhythmConfidence != null ? ` · 可信 ${Math.round(snapshot.rhythmConfidence * 100)}%` : ""}
+              ? t("today.range", { lower: snapshot.rhythmScoreLower, upper: snapshot.rhythmScoreUpper })
+              : t("today.waitRange")}
+            {snapshot?.rhythmConfidence != null ? ` · ${t("today.confidence", { value: Math.round(snapshot.rhythmConfidence * 100) })}` : ""}
           </p>
         </div>
         <div className="ring" style={{ "--score": `${snapshot?.rhythmScore ?? 0}%` } as CSSProperties}>
@@ -110,23 +129,23 @@ export default function TodayScreen({
       </section>
 
       <div className="algorithm-strip" aria-label="算法状态">
-        <div><span>模型</span><strong>{rhythmModelLabel(snapshot?.rhythmModelVersion)}</strong></div>
-        <div><span>数据质量</span><strong>{snapshot?.rhythmDataQuality ?? "--"}</strong></div>
-        <div><span>7 日趋势</span><strong>{snapshot?.rhythmTrendSlope == null ? "--" : `${snapshot.rhythmTrendSlope >= 0 ? "+" : ""}${snapshot.rhythmTrendSlope.toFixed(1)}`}</strong></div>
+        <div><span>{t("today.model")}</span><strong>{rhythmModelLabel(snapshot?.rhythmModelVersion)}</strong></div>
+        <div><span>{t("today.dataQuality")}</span><strong>{snapshot?.rhythmDataQuality ?? "--"}</strong></div>
+        <div><span>{t("today.sevenDayTrend")}</span><strong>{snapshot?.rhythmTrendSlope == null ? "--" : `${snapshot.rhythmTrendSlope >= 0 ? "+" : ""}${snapshot.rhythmTrendSlope.toFixed(1)}`}</strong></div>
       </div>
 
       <SectionCard
-        title="下一步"
+        title={t("today.next")}
         subtitle={snapshot?.date}
-        action={<StatusPill tone={isNativeHealthAvailable() ? "good" : "warn"}>{isNativeHealthAvailable() ? "真机" : "预览"}</StatusPill>}
+        action={<StatusPill tone={isNativeHealthAvailable() ? "good" : "warn"}>{isNativeHealthAvailable() ? t("today.realDevice") : t("today.preview")}</StatusPill>}
       >
-        <p className="recommendation">{snapshot?.nextAction}</p>
+        <p className="recommendation">{nextAction}</p>
         <div className="button-row">
           <ActionButton icon={<RefreshCw size={18} />} variant="secondary" onClick={refresh} disabled={loading}>
-            刷新
+            {t("today.refresh")}
           </ActionButton>
           <ActionButton icon={<Apple size={18} />} onClick={syncHealth} disabled={syncing}>
-            {syncing ? "同步中" : "同步健康"}
+            {syncing ? t("today.syncing") : t("today.syncHealth")}
           </ActionButton>
         </div>
         {error && <p className="error-text">{error}</p>}
@@ -134,48 +153,48 @@ export default function TodayScreen({
 
       <div className="metric-grid">
         <MetricCard
-          label="睡眠"
-          value={minutesToText(snapshot?.sleep?.sleep_duration_minutes)}
-          detail={snapshot?.sleep?.rhythm_score != null ? `节律 ${snapshot.sleep.rhythm_score}` : "未记录"}
+          label={t("today.sleep")}
+          value={minutesToText(snapshot?.sleep?.sleep_duration_minutes, locale)}
+          detail={snapshot?.sleep?.rhythm_score != null ? `${t("today.rhythm")} ${snapshot.sleep.rhythm_score}` : t("today.notRecorded")}
           icon={<BedDouble size={18} />}
         />
         <MetricCard
-          label="运动"
-          value={(snapshot?.exercise?.steps ?? nativeSteps ?? 0).toLocaleString("zh-CN")}
-          detail={`${snapshot?.exercise?.calories ?? 0} kcal · ${snapshot?.exercise?.exercise_minutes ?? 0} 分钟`}
+          label={t("today.exercise")}
+          value={(snapshot?.exercise?.steps ?? nativeSteps ?? 0).toLocaleString(locale === "en" ? "en-US" : "zh-CN")}
+          detail={`${snapshot?.exercise?.calories ?? 0} kcal · ${minutesToText(snapshot?.exercise?.exercise_minutes, locale)}`}
           icon={<Flame size={18} />}
         />
         <MetricCard
-          label="情绪"
+          label={t("today.mood")}
           value={snapshot?.mood?.mood_score ?? "--"}
-          detail={snapshot?.mood?.factors?.length ? snapshot.mood.factors.join(" / ") : "今天还没记录"}
+          detail={moodDetail}
           icon={<SmilePlus size={18} />}
         />
         <MetricCard
-          label="专注"
-          value={minutesToText(snapshot?.focusMinutes)}
-          detail={`${snapshot?.focusSessions ?? 0} 次会话`}
+          label={t("today.focus")}
+          value={minutesToText(snapshot?.focusMinutes, locale)}
+          detail={t("today.session", { count: snapshot?.focusSessions ?? 0 })}
           icon={<Brain size={18} />}
         />
       </div>
 
-      <SectionCard title="今日数据">
+      <SectionCard title={t("today.data")}>
         <div className="timeline-list">
           <div>
             <Moon size={18} />
-            <span>{snapshot?.sleep ? "睡眠记录已存在" : "睡眠还未记录"}</span>
+            <span>{snapshot?.sleep ? t("today.sleepDone") : t("today.sleepMissing")}</span>
           </div>
           <div>
             <SmilePlus size={18} />
-            <span>{snapshot?.mood ? "情绪记录已存在" : "情绪还未记录"}</span>
+            <span>{snapshot?.mood ? t("today.moodDone") : t("today.moodMissing")}</span>
           </div>
           <div>
             <Watch size={18} />
-            <span>Watch 快照已准备</span>
+            <span>{t("today.watchReady")}</span>
           </div>
         </div>
         <ActionButton icon={<SmilePlus size={18} />} variant="secondary" onClick={onOpenRecord}>
-          去写一条记录
+          {t("today.writeRecord")}
         </ActionButton>
       </SectionCard>
     </div>

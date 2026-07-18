@@ -1,4 +1,4 @@
-import { Activity, Bot, ChartNoAxesColumn, ClipboardPlus, Home, UserRound } from "lucide-react";
+import { Activity, Bot, ChartNoAxesColumn, ClipboardPlus, Home, Sparkles, UserRound } from "lucide-react";
 import { useState } from "react";
 import { assertConfig } from "./config";
 import AuthScreen from "./features/AuthScreen";
@@ -13,37 +13,44 @@ import { useEffect } from "react";
 import { saveFocusSession, saveMoodRecord } from "./services/records";
 import { subscribeWatchActions } from "./services/watch";
 import ErrorBoundary from "./components/ErrorBoundary";
+import LanguageToggle from "./components/LanguageToggle";
+import LaunchSequence from "./components/LaunchSequence";
 import NetworkBadge from "./components/NetworkBadge";
+import { LocaleProvider, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
 
-const tabs: Array<{ id: AppTab; label: string; icon: typeof Home }> = [
-  { id: "today", label: "今日", icon: Home },
-  { id: "record", label: "记录", icon: ClipboardPlus },
-  { id: "ai", label: "AI", icon: Bot },
-  { id: "trends", label: "趋势", icon: ChartNoAxesColumn },
-  { id: "profile", label: "我的", icon: UserRound },
+const tabs: Array<{ id: AppTab; labelKey: TranslationKey; icon: typeof Home }> = [
+  { id: "today", labelKey: "tabs.today", icon: Home },
+  { id: "record", labelKey: "tabs.record", icon: ClipboardPlus },
+  { id: "ai", labelKey: "tabs.ai", icon: Bot },
+  { id: "trends", labelKey: "tabs.trends", icon: ChartNoAxesColumn },
+  { id: "profile", labelKey: "tabs.profile", icon: UserRound },
 ];
 
 function LoadingScreen() {
+  const t = useT();
+
   return (
     <main className="app-screen centered-screen">
       <div className="brand-mark">
         <Activity size={28} />
       </div>
       <h1>NAVA</h1>
-      <p className="muted">正在进入</p>
+      <p className="muted">{t("app.loading")}</p>
     </main>
   );
 }
 
 function ConfigErrorScreen({ message }: { message: string }) {
+  const t = useT();
+
   return (
     <main className="app-screen centered-screen">
       <div className="brand-mark warn">
         <Activity size={28} />
       </div>
-      <h1>需要配置 Supabase</h1>
+      <h1>{t("app.configTitle")}</h1>
       <p className="muted">{message}</p>
       <code className="code-card">copy .env.example .env</code>
     </main>
@@ -52,8 +59,10 @@ function ConfigErrorScreen({ message }: { message: string }) {
 
 function MobileShell() {
   const { user } = useAuth();
+  const t = useT();
   const [activeTab, setActiveTab] = useState<AppTab>("today");
   const [refreshKey, setRefreshKey] = useState(0);
+  const currentTab = tabs.find((tab) => tab.id === activeTab);
 
   const markChanged = () => setRefreshKey((value) => value + 1);
 
@@ -99,9 +108,10 @@ function MobileShell() {
       <header className="app-header">
         <div>
           <p className="eyebrow">NAVA</p>
-          <h1>{tabs.find((tab) => tab.id === activeTab)?.label}</h1>
+          <h1>{currentTab ? t(currentTab.labelKey) : ""}</h1>
         </div>
         <div className="header-actions">
+          <LanguageToggle />
           <NetworkBadge />
           <div className="avatar">{user.email?.slice(0, 1).toUpperCase() ?? "N"}</div>
         </div>
@@ -121,17 +131,25 @@ function MobileShell() {
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const selected = activeTab === tab.id;
+          const isAiTab = tab.id === "ai";
           return (
             <button
-              className={selected ? "nav-button selected" : "nav-button"}
+              className={["nav-button", selected ? "selected" : "", isAiTab ? "ai-nav-button" : ""].filter(Boolean).join(" ")}
               key={tab.id}
               data-tab={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
               aria-current={selected ? "page" : undefined}
             >
-              <Icon size={20} />
-              <span>{tab.label}</span>
+              {isAiTab ? (
+                <span className="ai-nav-orb" aria-hidden="true">
+                  <span className="ai-nav-glow" />
+                  <Sparkles size={22} />
+                </span>
+              ) : (
+                <Icon size={20} />
+              )}
+              <span>{t(tab.labelKey)}</span>
             </button>
           );
         })}
@@ -144,18 +162,28 @@ function AppContent() {
   const configError = assertConfig();
   const { user, loading } = useAuth();
 
-  if (configError && !isDemoMode()) return <ConfigErrorScreen message={configError} />;
-  if (loading) return <LoadingScreen />;
-  if (!user) return <AuthScreen />;
-  return <MobileShell />;
+  let screen;
+  if (configError && !isDemoMode()) screen = <ConfigErrorScreen message={configError} />;
+  else if (loading) screen = <LoadingScreen />;
+  else if (!user) screen = <AuthScreen />;
+  else screen = <MobileShell />;
+
+  return (
+    <>
+      <LaunchSequence />
+      {screen}
+    </>
+  );
 }
 
 export default function App() {
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ErrorBoundary>
+    <LocaleProvider>
+      <ErrorBoundary>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ErrorBoundary>
+    </LocaleProvider>
   );
 }
