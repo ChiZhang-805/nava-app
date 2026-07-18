@@ -14,6 +14,10 @@
 - HealthKit JS 桥接和 Swift 插件文件。
 - iPhone 侧 WatchConnectivity 插件和 Watch 侧管理器文件。
 - Web 上游同步脚本。
+- App 专属 Edge Functions 和后端部署脚本。
+- NAVA ChronoState V4 服务端节律算法。
+- 42 天鲁棒个人基线、四因子状态空间模型、Student-t 鲁棒融合、急性多域一致证据和变点检测。
+- 合成数据压力测试与算法回归测试。
 - 构建和 lint 通过。
 - 2026-07-17 二次审查已修复 35 项缺口，详见 `docs/code-review-fixes-2026-07-17.md`。
 
@@ -92,21 +96,23 @@
 - Web 端核心模块在手机端都有对应体验。
 - 手机端不是桌面页缩小版，而是竖屏任务流。
 
-## P4：算法和节律引擎
+## P4：算法校准和推荐学习
 
-目标：把静态分数替换为服务端节律算法。
+目标：用真实 Apple Watch 数据校准 V4，并在有反馈数据后进入个性化推荐。
 
 任务：
 
-1. 和算法同学确定 `rhythm-daily` 输入输出。
-2. App 今日页调用节律接口。
-3. 趋势页展示 7/30/90 天节律变化。
-4. AI 解释必须带 reasons、confidence、modelVersion。
+1. 在 staging 部署 `202607180003_nava_chronostate_v4.sql` 和全部 Edge Functions。
+2. 用 10-20 名真实 Apple Watch 用户跑 14 天数据。
+3. 校准睡眠相位、RA/IV/IS、HRV、静息心率和急性证据阈值。
+4. 让 Web/算法端读取 `daily_rhythm_scores.fusion` 做审计页。
+5. 设计 `rhythm_outcome_feedback` 的用户反馈入口。
+6. 反馈数据足够后再做 Contextual Bandit 或 GBDT 辅助推荐。
 
 验收：
 
-- App 不内置复杂算法。
-- Web、App、Watch 调用同一套节律结果。
+- Web、App、Watch 调用同一套 V4 节律结果。
+- V4 在真实数据上的校准曲线、缺失率、异常率和用户反馈闭环可追踪。
 
 ## P5：发布准备
 

@@ -84,7 +84,7 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
 
   return (
     <div className="stack">
-      <SectionCard title="账号" subtitle="Web、iPhone、Watch 共用同一个 Supabase 用户">
+      <SectionCard title="账号" subtitle="Web、iPhone 和 Watch 共用同一个登录账号">
         <div className="profile-row">
           <div className="avatar large">{user.email?.slice(0, 1).toUpperCase() ?? "N"}</div>
           <div>
@@ -94,7 +94,7 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
         </div>
       </SectionCard>
 
-      <SectionCard title="个人资料" subtitle="写入 profiles，Web 和 App 共用">
+      <SectionCard title="个人资料" subtitle="这些资料会用于个性化节律建议">
         <label className="field">
           <span>昵称</span>
           <input value={profileDraft.username} onChange={(e) => setProfileDraft((draft) => ({ ...draft, username: e.target.value }))} placeholder={profile?.username ?? "NAVA 用户"} />
@@ -146,7 +146,7 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
         </div>
       </SectionCard>
 
-      <SectionCard title="Apple Watch" subtitle="第一版通过 iPhone companion 同步">
+      <SectionCard title="Apple Watch" subtitle="通过 iPhone 同步今日快照">
         <div className="watch-card">
           <Watch size={22} />
           <div>
@@ -160,19 +160,19 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
         </div>
       </SectionCard>
 
-      <SectionCard title="隐私与安全" subtitle="第一版必须保留这些入口">
+      <SectionCard title="隐私与安全" subtitle="你可以管理自己的健康数据">
         <div className="timeline-list">
           <div>
             <ShieldCheck size={18} />
-            <span>模型密钥只允许存在服务端 Edge Functions</span>
+            <span>模型服务密钥不会保存在手机本地</span>
           </div>
           <div>
             <ShieldCheck size={18} />
-            <span>饮食和面部照片需要改成私有 Storage</span>
+            <span>饮食和面部照片会按账号隔离保存</span>
           </div>
           <div>
             <ShieldCheck size={18} />
-            <span>上线前补充删除账号、导出数据、隐私政策</span>
+            <span>导出、删除和隐私政策入口会持续保留</span>
           </div>
         </div>
         <ActionButton icon={<Download size={18} />} variant="secondary" onClick={exportData} disabled={busy === "数据导出"}>

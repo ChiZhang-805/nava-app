@@ -66,7 +66,7 @@ export default function AIScreen({ user }: { user: User }) {
 
   return (
     <div className="chat-layout">
-      <SectionCard title="NAVA AI" subtitle="同源 Edge Functions，App 不持有模型密钥">
+      <SectionCard title="NAVA AI" subtitle="描述今天的状态，NAVA 会帮你整理">
         <div className="ai-prompt">
           <Sparkles size={18} />
           <span>可以说：我昨晚 1 点睡，7 点醒，今天状态一般。</span>

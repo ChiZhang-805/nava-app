@@ -211,6 +211,65 @@ button {
   font-weight: 680;
 }
 
+.algorithm-meta {
+  margin: 10px 0 0;
+  color: #45584e;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.algorithm-strip {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr 1fr;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid rgba(28, 52, 41, 0.1);
+  border-radius: 8px;
+  background: rgba(28, 52, 41, 0.1);
+}
+
+.algorithm-strip > div {
+  min-width: 0;
+  padding: 10px 9px;
+  background: #f7faf7;
+}
+
+.algorithm-strip span,
+.algorithm-strip strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.algorithm-strip span {
+  color: #68746d;
+  font-size: 11px;
+}
+
+.algorithm-strip strong {
+  margin-top: 4px;
+  color: #20352a;
+  font-size: 12px;
+}
+
+.interval-track {
+  position: relative;
+}
+
+.interval-band {
+  position: absolute;
+  z-index: 2;
+  top: -3px;
+  height: 12px;
+  border: 1px solid rgba(31, 122, 90, 0.45);
+  background: rgba(31, 122, 90, 0.14);
+}
+
+.bar-fill.rhythm {
+  background: #217455;
+}
+
 .ring {
   --score: 0%;
   width: 104px;

@@ -2,6 +2,7 @@ import { supabase } from "./supabaseClient";
 import { daysAgoISO, todayISO } from "./date";
 import type {
   ExerciseRecord,
+  DailyRhythmScore,
   FaceAnalysisResult,
   FaceRecord,
   FocusRecord,
@@ -111,7 +112,7 @@ function nextAction(snapshot: Omit<TodaySnapshot, "rhythmScore" | "nextAction">)
 export async function getTodaySnapshot(userId: string, date = todayISO()): Promise<TodaySnapshot> {
   if (isDemoMode()) return demoTodaySnapshot();
 
-  const [moodRes, sleepRes, exerciseRes, nutritionRes, focusRes] = await Promise.all([
+  const [moodRes, sleepRes, exerciseRes, nutritionRes, focusRes, rhythmRes] = await Promise.all([
     supabase.from("mood_records").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
     supabase.from("sleep_records").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
     supabase
@@ -124,6 +125,7 @@ export async function getTodaySnapshot(userId: string, date = todayISO()): Promi
       .maybeSingle(),
     supabase.from("nutrition_records").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
     supabase.from("focus_records").select("*").eq("user_id", userId).eq("record_date", date),
+    supabase.from("daily_rhythm_scores").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
   ]);
 
   assertNoError(moodRes.error);
@@ -131,6 +133,7 @@ export async function getTodaySnapshot(userId: string, date = todayISO()): Promi
   assertNoError(exerciseRes.error);
   assertNoError(nutritionRes.error);
   assertNoError(focusRes.error);
+  assertNoError(rhythmRes.error);
 
   const focus = asArray<FocusRecord>(focusRes.data);
   const base = {
@@ -143,12 +146,27 @@ export async function getTodaySnapshot(userId: string, date = todayISO()): Promi
     focusSessions: focus.reduce((sum, item) => sum + (item.completed_sessions ?? 0), 0),
   };
 
-  const rhythmScore = calculateTodayRhythm(base);
+  const rhythm = rhythmRes.data as DailyRhythmScore | null;
+  const rhythmScore = rhythm?.score == null ? calculateTodayRhythm(base) : Math.round(Number(rhythm.score));
   return {
     ...base,
     rhythmScore,
-    nextAction: nextAction(base),
+    rhythmConfidence: rhythm?.confidence == null ? undefined : Number(rhythm.confidence),
+    rhythmScoreLower: rhythm?.score_lower == null ? undefined : Math.round(Number(rhythm.score_lower)),
+    rhythmScoreUpper: rhythm?.score_upper == null ? undefined : Math.round(Number(rhythm.score_upper)),
+    rhythmModelVersion: rhythm?.model_version ?? undefined,
+    rhythmDataQuality: rhythm?.data_quality_score == null ? undefined : Math.round(Number(rhythm.data_quality_score)),
+    rhythmTrendSlope: rhythm?.trend_slope == null ? undefined : Number(rhythm.trend_slope),
+    rhythmAnomalyCount: Array.isArray(rhythm?.anomaly_flags) ? rhythm.anomaly_flags.length : 0,
+    nextAction: rhythm?.actions?.[0] ?? nextAction(base),
   };
+}
+
+export async function refreshRhythmScore(date = todayISO()) {
+  if (isDemoMode()) return null;
+  const response = await supabase.functions.invoke<DailyRhythmScore>("rhythm-score", { body: { date } });
+  assertNoError(response.error);
+  return response.data;
 }
 
 export async function saveMoodRecord(input: {
@@ -590,12 +608,13 @@ export async function getTrends(userId: string): Promise<TrendBundle> {
   if (isDemoMode()) return demoTrends();
 
   const start = daysAgoISO(14);
-  const [moods, sleeps, exercises, nutritions, focus] = await Promise.all([
+  const [moods, sleeps, exercises, nutritions, focus, rhythms] = await Promise.all([
     supabase.from("mood_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("sleep_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("exercise_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("nutrition_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("focus_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
+    supabase.from("daily_rhythm_scores").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
   ]);
 
   assertNoError(moods.error);
@@ -603,6 +622,7 @@ export async function getTrends(userId: string): Promise<TrendBundle> {
   assertNoError(exercises.error);
   assertNoError(nutritions.error);
   assertNoError(focus.error);
+  assertNoError(rhythms.error);
 
   return {
     moods: asArray<MoodRecord>(moods.data),
@@ -610,5 +630,6 @@ export async function getTrends(userId: string): Promise<TrendBundle> {
     exercises: asArray<ExerciseRecord>(exercises.data),
     nutritions: asArray<NutritionRecord>(nutritions.data),
     focus: asArray<FocusRecord>(focus.data),
+    rhythms: asArray<DailyRhythmScore>(rhythms.data),
   };
 }

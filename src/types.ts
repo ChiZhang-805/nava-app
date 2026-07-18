@@ -88,7 +88,30 @@ export interface TodaySnapshot {
   focusMinutes: number;
   focusSessions: number;
   rhythmScore: number;
+  rhythmConfidence?: number;
+  rhythmScoreLower?: number;
+  rhythmScoreUpper?: number;
+  rhythmModelVersion?: string;
+  rhythmDataQuality?: number;
+  rhythmTrendSlope?: number;
+  rhythmAnomalyCount?: number;
   nextAction: string;
+}
+
+export interface DailyRhythmScore {
+  id: string;
+  record_date: string;
+  score: number;
+  confidence: number | null;
+  score_lower?: number | null;
+  score_upper?: number | null;
+  model_version: string | null;
+  data_quality_score?: number | null;
+  trend_slope?: number | null;
+  change_point_probability?: number | null;
+  anomaly_flags?: Array<Record<string, unknown>>;
+  actions?: string[];
+  signals?: Array<Record<string, unknown>>;
 }
 
 export interface TrendBundle {
@@ -97,6 +120,7 @@ export interface TrendBundle {
   exercises: ExerciseRecord[];
   nutritions: NutritionRecord[];
   focus: FocusRecord[];
+  rhythms: DailyRhythmScore[];
 }
 
 export interface ChatMessage {

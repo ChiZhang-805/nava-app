@@ -8,10 +8,12 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "NavaHealth"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getTodaySummary", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "getTodaySummary", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getRecentSummaries", returnType: CAPPluginReturnPromise)
     ]
 
     private let healthStore = HKHealthStore()
+    private let isoFormatter = ISO8601DateFormatter()
 
     private var readTypes: Set<HKObjectType> {
         var types = Set<HKObjectType>()
@@ -45,117 +47,140 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func getTodaySummary(_ call: CAPPluginCall) {
         let calendar = Calendar.current
-        let start = calendar.startOfDay(for: Date())
-        let end = Date()
+        let dayStart = calendar.startOfDay(for: Date())
+        queryDailySummary(dayStart: dayStart, activityEnd: Date()) { summary in
+            DispatchQueue.main.async { call.resolve(summary) }
+        }
+    }
 
-        var result: [String: Any] = [:]
+    @objc func getRecentSummaries(_ call: CAPPluginCall) {
+        let requestedDays = call.getInt("days") ?? 14
+        let days = min(31, max(1, requestedDays))
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
         let group = DispatchGroup()
-        let resultQueue = DispatchQueue(label: "app.nava.health.result")
+        let resultQueue = DispatchQueue(label: "app.nava.health.recent-results")
+        var summaries: [[String: Any]] = []
 
-        if let stepsType = HKObjectType.quantityType(forIdentifier: .stepCount) {
+        for offset in stride(from: days - 1, through: 0, by: -1) {
+            guard let dayStart = calendar.date(byAdding: .day, value: -offset, to: today),
+                  let nextDay = calendar.date(byAdding: .day, value: 1, to: dayStart) else { continue }
+            let activityEnd = offset == 0 ? Date() : nextDay
             group.enter()
-            queryCumulative(type: stepsType, unit: .count(), start: start, end: end) { value in
-                resultQueue.sync { result["steps"] = value }
+            queryDailySummary(dayStart: dayStart, activityEnd: activityEnd) { summary in
+                resultQueue.sync { summaries.append(summary) }
                 group.leave()
             }
         }
 
-        if let energyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) {
-            group.enter()
-            queryCumulative(type: energyType, unit: .kilocalorie(), start: start, end: end) { value in
-                resultQueue.sync { result["activeEnergyKcal"] = value }
-                group.leave()
-            }
+        group.notify(queue: .main) {
+            let ordered = summaries.sorted { String(describing: $0["date"] ?? "") < String(describing: $1["date"] ?? "") }
+            call.resolve(["summaries": ordered])
         }
+    }
 
-        if let exerciseType = HKObjectType.quantityType(forIdentifier: .appleExerciseTime) {
-            group.enter()
-            queryCumulative(type: exerciseType, unit: .minute(), start: start, end: end) { value in
-                resultQueue.sync { result["exerciseMinutes"] = value }
-                group.leave()
-            }
-        }
+    private func queryDailySummary(dayStart: Date, activityEnd: Date, completion: @escaping ([String: Any]) -> Void) {
+        let calendar = Calendar.current
+        let sleepWindowStart = calendar.date(byAdding: .hour, value: -12, to: dayStart) ?? dayStart
+        let nominalSleepEnd = calendar.date(byAdding: .hour, value: 12, to: dayStart) ?? activityEnd
+        let sleepWindowEnd = min(Date(), nominalSleepEnd)
+        let resultQueue = DispatchQueue(label: "app.nava.health.daily-result")
+        let group = DispatchGroup()
+        var result: [String: Any] = [
+            "date": localDateString(dayStart),
+            "source": "apple_health",
+            "timezoneOffsetMinutes": TimeZone.current.secondsFromGMT(for: dayStart) / 60
+        ]
 
-        if let heartType = HKObjectType.quantityType(forIdentifier: .heartRate) {
-            group.enter()
-            queryLatest(type: heartType, unit: HKUnit.count().unitDivided(by: .minute()), start: start, end: end) { value in
-                resultQueue.sync { result["latestHeartRate"] = value }
-                group.leave()
-            }
-        }
-
-        if let restingHeartType = HKObjectType.quantityType(forIdentifier: .restingHeartRate) {
-            group.enter()
-            queryLatest(type: restingHeartType, unit: HKUnit.count().unitDivided(by: .minute()), start: start, end: end) { value in
-                resultQueue.sync { result["restingHeartRate"] = value }
-                group.leave()
-            }
-        }
-
-        if let hrvType = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN) {
-            group.enter()
-            queryLatest(type: hrvType, unit: HKUnit.secondUnit(with: .milli), start: start, end: end) { value in
-                resultQueue.sync { result["heartRateVariabilitySDNN"] = value }
-                group.leave()
-            }
-        }
-
-        if let oxygenType = HKObjectType.quantityType(forIdentifier: .oxygenSaturation) {
-            group.enter()
-            queryLatest(type: oxygenType, unit: .percent(), start: start, end: end) { value in
-                resultQueue.sync { result["latestBloodOxygen"] = value }
-                group.leave()
-            }
-        }
+        queryCumulativeField(.stepCount, unit: .count(), start: dayStart, end: activityEnd, group: group) { value in resultQueue.sync { result["steps"] = value } }
+        queryCumulativeField(.activeEnergyBurned, unit: .kilocalorie(), start: dayStart, end: activityEnd, group: group) { value in resultQueue.sync { result["activeEnergyKcal"] = value } }
+        queryCumulativeField(.appleExerciseTime, unit: .minute(), start: dayStart, end: activityEnd, group: group) { value in resultQueue.sync { result["exerciseMinutes"] = value } }
+        queryLatestField(.heartRate, unit: HKUnit.count().unitDivided(by: .minute()), start: dayStart, end: activityEnd, group: group) { value in if let value = value { resultQueue.sync { result["latestHeartRate"] = value } } }
+        queryLatestField(.restingHeartRate, unit: HKUnit.count().unitDivided(by: .minute()), start: dayStart, end: activityEnd, group: group) { value in if let value = value { resultQueue.sync { result["restingHeartRate"] = value } } }
+        queryLatestField(.heartRateVariabilitySDNN, unit: HKUnit.secondUnit(with: .milli), start: dayStart, end: activityEnd, group: group) { value in if let value = value { resultQueue.sync { result["heartRateVariabilitySDNN"] = value } } }
+        queryLatestField(.oxygenSaturation, unit: .percent(), start: dayStart, end: activityEnd, group: group) { value in if let value = value { resultQueue.sync { result["latestBloodOxygen"] = value } } }
 
         if let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
             group.enter()
-            querySleep(type: sleepType, start: start, end: end) { total, stages in
+            querySleep(type: sleepType, start: sleepWindowStart, end: sleepWindowEnd) { sleep in
                 resultQueue.sync {
-                    result["sleepMinutes"] = total
-                    result["sleepStageMinutes"] = stages
+                    result["sleepMinutes"] = sleep.totalMinutes
+                    result["sleepStageMinutes"] = sleep.stages
+                    result["sleepEfficiency"] = sleep.efficiency
+                    if let start = sleep.start {
+                        result["sleepStart"] = self.isoFormatter.string(from: start)
+                        result["sleepStartLocal"] = self.localClockString(start)
+                    }
+                    if let end = sleep.end {
+                        result["sleepEnd"] = self.isoFormatter.string(from: end)
+                        result["sleepEndLocal"] = self.localClockString(end)
+                    }
+                    result["sourceMetadata"] = [
+                        "sleepSourceBundle": sleep.sourceBundle ?? "unknown",
+                        "sleepSampleCount": sleep.sampleCount
+                    ]
                 }
                 group.leave()
             }
         }
 
         group.enter()
-        queryHourlyActivity(start: start, end: end) { bins in
-            resultQueue.sync { result["activityBins"] = bins }
+        queryHourlyActivity(start: dayStart, end: activityEnd) { bins in
+            resultQueue.sync {
+                result["activityBins"] = bins
+                result["activityCoverageHours"] = bins.count
+            }
             group.leave()
         }
 
-        group.notify(queue: .main) {
-            resultQueue.sync {
-                call.resolve(result)
-            }
+        group.notify(queue: .global(qos: .userInitiated)) {
+            resultQueue.sync { completion(result) }
         }
     }
 
-    private func queryCumulative(
-        type: HKQuantityType,
+    private func queryCumulativeField(
+        _ identifier: HKQuantityTypeIdentifier,
         unit: HKUnit,
         start: Date,
         end: Date,
+        group: DispatchGroup,
         completion: @escaping (Double) -> Void
     ) {
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
-        let query = HKStatisticsQuery(quantityType: type, quantitySamplePredicate: predicate, options: .cumulativeSum) { _, statistics, _ in
-            let value = statistics?.sumQuantity()?.doubleValue(for: unit) ?? 0
+        guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { return }
+        group.enter()
+        queryCumulative(type: type, unit: unit, start: start, end: end) { value in
             completion(value)
+            group.leave()
+        }
+    }
+
+    private func queryLatestField(
+        _ identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit,
+        start: Date,
+        end: Date,
+        group: DispatchGroup,
+        completion: @escaping (Double?) -> Void
+    ) {
+        guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { return }
+        group.enter()
+        queryLatest(type: type, unit: unit, start: start, end: end) { value in
+            completion(value)
+            group.leave()
+        }
+    }
+
+    private func queryCumulative(type: HKQuantityType, unit: HKUnit, start: Date, end: Date, completion: @escaping (Double) -> Void) {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: [.strictStartDate, .strictEndDate])
+        let query = HKStatisticsQuery(quantityType: type, quantitySamplePredicate: predicate, options: .cumulativeSum) { _, statistics, _ in
+            completion(statistics?.sumQuantity()?.doubleValue(for: unit) ?? 0)
         }
         healthStore.execute(query)
     }
 
-    private func queryLatest(
-        type: HKQuantityType,
-        unit: HKUnit,
-        start: Date,
-        end: Date,
-        completion: @escaping (Double?) -> Void
-    ) {
+    private func queryLatest(type: HKQuantityType, unit: HKUnit, start: Date, end: Date, completion: @escaping (Double?) -> Void) {
         let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictEndDate)
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: [.strictStartDate, .strictEndDate])
         let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: 1, sortDescriptors: [sort]) { _, samples, _ in
             guard let sample = samples?.first as? HKQuantitySample else {
                 completion(nil)
@@ -166,91 +191,102 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         healthStore.execute(query)
     }
 
-    private func querySleep(
-        type: HKCategoryType,
-        start: Date,
-        end: Date,
-        completion: @escaping (Double, [String: Double]) -> Void
-    ) {
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+    private struct SleepSummary {
+        let totalMinutes: Double
+        let stages: [String: Double]
+        let start: Date?
+        let end: Date?
+        let efficiency: Double?
+        let sourceBundle: String?
+        let sampleCount: Int
+    }
+
+    private func querySleep(type: HKCategoryType, start: Date, end: Date, completion: @escaping (SleepSummary) -> Void) {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: [])
         let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
-            var stages: [String: Double] = [:]
-            let minutes = (samples ?? []).compactMap { $0 as? HKCategorySample }.reduce(0.0) { total, sample in
-                let duration = sample.endDate.timeIntervalSince(sample.startDate) / 60.0
-                let isAwake = sample.value == HKCategoryValueSleepAnalysis.awake.rawValue
-                let isInBed = sample.value == HKCategoryValueSleepAnalysis.inBed.rawValue
-                if isAwake {
-                    stages["awake", default: 0] += duration
-                    return total
+            let categorySamples = (samples ?? []).compactMap { $0 as? HKCategorySample }
+            let grouped = Dictionary(grouping: categorySamples) { $0.sourceRevision.source.bundleIdentifier }
+            let candidates = grouped.map { bundle, sourceSamples -> SleepSummary in
+                let asleep = sourceSamples.filter { self.sleepStageName($0) != nil && self.sleepStageName($0) != "awake" }
+                let awake = sourceSamples.filter { self.sleepStageName($0) == "awake" }
+                let total = self.mergedMinutes(asleep)
+                var stages: [String: Double] = [:]
+                for stage in ["deep", "rem", "core", "asleep", "awake"] {
+                    stages[stage] = self.mergedMinutes(sourceSamples.filter { self.sleepStageName($0) == stage })
                 }
-                if isInBed {
-                    stages["inBed", default: 0] += duration
-                    return total
-                }
-                if #available(iOS 16.0, *) {
-                    if sample.value == HKCategoryValueSleepAnalysis.asleepREM.rawValue {
-                        stages["rem", default: 0] += duration
-                    } else if sample.value == HKCategoryValueSleepAnalysis.asleepCore.rawValue {
-                        stages["core", default: 0] += duration
-                    } else if sample.value == HKCategoryValueSleepAnalysis.asleepDeep.rawValue {
-                        stages["deep", default: 0] += duration
-                    } else {
-                        stages["asleep", default: 0] += duration
-                    }
-                } else {
-                    stages["asleep", default: 0] += duration
-                }
-                return total + duration
+                let sleepStart = asleep.map(\.startDate).min()
+                let sleepEnd = asleep.map(\.endDate).max()
+                let elapsed = sleepStart.flatMap { first in sleepEnd.map { $0.timeIntervalSince(first) / 60 } }
+                let efficiency = elapsed.flatMap { $0 > 0 ? min(1, total / $0) : nil }
+                return SleepSummary(
+                    totalMinutes: total,
+                    stages: stages,
+                    start: sleepStart,
+                    end: sleepEnd,
+                    efficiency: efficiency,
+                    sourceBundle: bundle,
+                    sampleCount: sourceSamples.count
+                )
             }
-            completion(minutes, stages)
+            let best = candidates.max {
+                let leftDetailed = ($0.stages["deep"] ?? 0) + ($0.stages["rem"] ?? 0) + ($0.stages["core"] ?? 0)
+                let rightDetailed = ($1.stages["deep"] ?? 0) + ($1.stages["rem"] ?? 0) + ($1.stages["core"] ?? 0)
+                return ($0.totalMinutes + leftDetailed * 0.1) < ($1.totalMinutes + rightDetailed * 0.1)
+            }
+            completion(best ?? SleepSummary(totalMinutes: 0, stages: [:], start: nil, end: nil, efficiency: nil, sourceBundle: nil, sampleCount: 0))
         }
         healthStore.execute(query)
     }
 
-    private func queryHourlyActivity(
-        start: Date,
-        end: Date,
-        completion: @escaping ([[String: Any]]) -> Void
-    ) {
+    private func sleepStageName(_ sample: HKCategorySample) -> String? {
+        if sample.value == HKCategoryValueSleepAnalysis.awake.rawValue { return "awake" }
+        if sample.value == HKCategoryValueSleepAnalysis.inBed.rawValue { return nil }
+        if #available(iOS 16.0, *) {
+            if sample.value == HKCategoryValueSleepAnalysis.asleepREM.rawValue { return "rem" }
+            if sample.value == HKCategoryValueSleepAnalysis.asleepCore.rawValue { return "core" }
+            if sample.value == HKCategoryValueSleepAnalysis.asleepDeep.rawValue { return "deep" }
+            if sample.value == HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue { return "asleep" }
+        }
+        return "asleep"
+    }
+
+    private func mergedMinutes(_ samples: [HKCategorySample]) -> Double {
+        let intervals = samples.map { ($0.startDate, $0.endDate) }.sorted { $0.0 < $1.0 }
+        guard var current = intervals.first else { return 0 }
+        var total: TimeInterval = 0
+        for interval in intervals.dropFirst() {
+            if interval.0 <= current.1 {
+                current.1 = max(current.1, interval.1)
+            } else {
+                total += current.1.timeIntervalSince(current.0)
+                current = interval
+            }
+        }
+        total += current.1.timeIntervalSince(current.0)
+        return total / 60
+    }
+
+    private func queryHourlyActivity(start: Date, end: Date, completion: @escaping ([[String: Any]]) -> Void) {
         let group = DispatchGroup()
+        let writeQueue = DispatchQueue(label: "app.nava.health.hourly")
         var steps: [Date: Double] = [:]
         var energy: [Date: Double] = [:]
         var exercise: [Date: Double] = [:]
-        let writeQueue = DispatchQueue(label: "app.nava.health.hourly")
 
-        if let type = HKObjectType.quantityType(forIdentifier: .stepCount) {
-            group.enter()
-            queryHourlyCumulative(type: type, unit: .count(), start: start, end: end) { values in
-                writeQueue.sync { steps = values }
-                group.leave()
-            }
-        }
-
-        if let type = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) {
-            group.enter()
-            queryHourlyCumulative(type: type, unit: .kilocalorie(), start: start, end: end) { values in
-                writeQueue.sync { energy = values }
-                group.leave()
-            }
-        }
-
-        if let type = HKObjectType.quantityType(forIdentifier: .appleExerciseTime) {
-            group.enter()
-            queryHourlyCumulative(type: type, unit: .minute(), start: start, end: end) { values in
-                writeQueue.sync { exercise = values }
-                group.leave()
-            }
-        }
+        queryHourlyField(.stepCount, unit: .count(), start: start, end: end, group: group) { values in writeQueue.sync { steps = values } }
+        queryHourlyField(.activeEnergyBurned, unit: .kilocalorie(), start: start, end: end, group: group) { values in writeQueue.sync { energy = values } }
+        queryHourlyField(.appleExerciseTime, unit: .minute(), start: start, end: end, group: group) { values in writeQueue.sync { exercise = values } }
 
         group.notify(queue: .global(qos: .userInitiated)) {
             let calendar = Calendar.current
-            let bins = (0..<24).map { hour -> [String: Any] in
+            let elapsedHours = min(24, max(1, Int(ceil(end.timeIntervalSince(start) / 3600))))
+            let bins = (0..<elapsedHours).map { hour -> [String: Any] in
                 let binStart = calendar.date(byAdding: .hour, value: hour, to: start) ?? start
-                let binEnd = calendar.date(byAdding: .hour, value: 1, to: binStart) ?? binStart
+                let binEnd = min(end, calendar.date(byAdding: .hour, value: 1, to: binStart) ?? end)
                 return [
                     "hour": hour,
-                    "start": ISO8601DateFormatter().string(from: binStart),
-                    "end": ISO8601DateFormatter().string(from: binEnd),
+                    "start": self.isoFormatter.string(from: binStart),
+                    "end": self.isoFormatter.string(from: binEnd),
                     "steps": steps[binStart] ?? 0,
                     "activeEnergyKcal": energy[binStart] ?? 0,
                     "exerciseMinutes": exercise[binStart] ?? 0
@@ -260,14 +296,24 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    private func queryHourlyCumulative(
-        type: HKQuantityType,
+    private func queryHourlyField(
+        _ identifier: HKQuantityTypeIdentifier,
         unit: HKUnit,
         start: Date,
         end: Date,
+        group: DispatchGroup,
         completion: @escaping ([Date: Double]) -> Void
     ) {
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { return }
+        group.enter()
+        queryHourlyCumulative(type: type, unit: unit, start: start, end: end) { values in
+            completion(values)
+            group.leave()
+        }
+    }
+
+    private func queryHourlyCumulative(type: HKQuantityType, unit: HKUnit, start: Date, end: Date, completion: @escaping ([Date: Double]) -> Void) {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: [.strictStartDate, .strictEndDate])
         let query = HKStatisticsCollectionQuery(
             quantityType: type,
             quantitySamplePredicate: predicate,
@@ -283,5 +329,23 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             completion(values)
         }
         healthStore.execute(query)
+    }
+
+    private func localDateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar.current
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone.current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+
+    private func localClockString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar.current
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone.current
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
     }
 }

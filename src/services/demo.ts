@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { daysAgoISO, todayISO } from "./date";
-import type { ChatMessage, ExerciseRecord, FocusRecord, MoodRecord, NutritionRecord, SleepRecord, TodaySnapshot, TrendBundle } from "../types";
+import type { ChatMessage, DailyRhythmScore, ExerciseRecord, FocusRecord, MoodRecord, NutritionRecord, SleepRecord, TodaySnapshot, TrendBundle } from "../types";
 import type { UserProfile } from "./profile";
 
 export function isDemoMode() {
@@ -75,6 +75,13 @@ export function demoTodaySnapshot(): TodaySnapshot {
     focusMinutes: 95,
     focusSessions: 4,
     rhythmScore: 83,
+    rhythmConfidence: 0.88,
+    rhythmScoreLower: 77,
+    rhythmScoreUpper: 88,
+    rhythmModelVersion: "nava-chronostate-v4-2026-07",
+    rhythmDataQuality: 86,
+    rhythmTrendSlope: 1.2,
+    rhythmAnomalyCount: 0,
     nextAction: "今天基础节律稳定，晚间减少屏幕刺激，保持 23:30 前入睡。",
   };
 }
@@ -111,7 +118,20 @@ export function demoTrends(): TrendBundle {
     completed_sessions: 1 + (index % 3),
     total_minutes: 25 + (index % 4) * 20,
   }));
-  return { moods, sleeps, exercises, nutritions, focus };
+  const rhythms: DailyRhythmScore[] = moods.map((mood, index) => ({
+    id: `demo-rhythm-${index}`,
+    record_date: mood.record_date,
+    score: [62, 65, 67, 64, 70, 72, 71, 75, 74, 77, 79, 81, 80, 83][index],
+    confidence: 0.76 + index * 0.008,
+    score_lower: [54, 57, 59, 56, 62, 64, 63, 67, 66, 69, 71, 73, 72, 77][index],
+    score_upper: [70, 73, 75, 72, 78, 80, 79, 83, 82, 85, 87, 89, 88, 88][index],
+    model_version: "nava-chronostate-v4-2026-07",
+    data_quality_score: 82,
+    trend_slope: index > 7 ? 1.1 : 0.4,
+    anomaly_flags: [],
+    actions: [],
+  }));
+  return { moods, sleeps, exercises, nutritions, focus, rhythms };
 }
 
 export const demoMessages: ChatMessage[] = [
@@ -148,4 +168,3 @@ export const demoProfile: UserProfile = {
   diet_preference: "高蛋白、少油",
   stress_factors: "项目截止日期",
 };
-

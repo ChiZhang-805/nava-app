@@ -1,9 +1,11 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
-import { saveExerciseRecord, saveSleepSummaryRecord } from "./records";
+import { refreshRhythmScore, saveExerciseRecord, saveSleepSummaryRecord } from "./records";
 import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
+import { todayISO } from "./date";
 
 export interface HealthTodayNativeSummary {
+  date?: string;
   steps?: number;
   activeEnergyKcal?: number;
   exerciseMinutes?: number;
@@ -12,7 +14,15 @@ export interface HealthTodayNativeSummary {
   heartRateVariabilitySDNN?: number;
   latestBloodOxygen?: number;
   sleepMinutes?: number;
+  sleepStart?: string;
+  sleepEnd?: string;
+  sleepStartLocal?: string;
+  sleepEndLocal?: string;
+  sleepEfficiency?: number;
   sleepStageMinutes?: Record<string, number>;
+  activityCoverageHours?: number;
+  timezoneOffsetMinutes?: number;
+  sourceMetadata?: Record<string, unknown>;
   activityBins?: Array<{
     hour: number;
     start: string;
@@ -26,6 +36,7 @@ export interface HealthTodayNativeSummary {
 interface NavaHealthPlugin {
   requestAuthorization: () => Promise<{ granted: boolean }>;
   getTodaySummary: () => Promise<HealthTodayNativeSummary>;
+  getRecentSummaries: (options: { days: number }) => Promise<{ summaries: HealthTodayNativeSummary[] }>;
 }
 
 const NavaHealth = registerPlugin<NavaHealthPlugin>("NavaHealth");
@@ -55,6 +66,11 @@ export async function getNativeTodaySummary() {
       heartRateVariabilitySDNN: 48,
       latestBloodOxygen: 0.98,
       sleepMinutes: 465,
+      sleepStart: new Date(new Date().setHours(-1, 20, 0, 0)).toISOString(),
+      sleepEnd: new Date(new Date().setHours(7, 5, 0, 0)).toISOString(),
+      sleepStartLocal: "23:20",
+      sleepEndLocal: "07:05",
+      sleepEfficiency: 0.94,
       sleepStageMinutes: { deep: 85, rem: 95, core: 280, awake: 12 },
       activityBins: Array.from({ length: 24 }, (_, hour) => ({
         hour,
@@ -64,6 +80,8 @@ export async function getNativeTodaySummary() {
         activeEnergyKcal: hour >= 8 && hour <= 21 ? 18 : 1,
         exerciseMinutes: hour === 18 ? 22 : 0,
       })),
+      activityCoverageHours: 24,
+      timezoneOffsetMinutes: -new Date().getTimezoneOffset(),
     };
   }
 
@@ -77,32 +95,93 @@ export async function syncNativeHealthNow(userId: string) {
   if (!isNativeHealthAvailable()) {
     return { uploaded: 0, lastSyncDate: new Date().toISOString(), skipped: true };
   }
-  const summary = await NavaHealth.getTodaySummary();
+  let summaries: HealthTodayNativeSummary[];
+  try {
+    const recent = await NavaHealth.getRecentSummaries({ days: 14 });
+    summaries = recent.summaries.length > 0 ? recent.summaries : [await NavaHealth.getTodaySummary()];
+  } catch {
+    summaries = [await NavaHealth.getTodaySummary()];
+  }
+  const summary = summaries[summaries.length - 1] ?? {};
   const response = await supabase.functions.invoke<{
     uploaded: number;
     lastSyncDate: string;
+    syncedDates?: string[];
     rhythm?: unknown;
-  }>("health-sync-ingest", { body: { summary, source: "apple_health" } });
+  }>("health-sync-ingest", { body: { summaries, source: "apple_health" } });
 
   if (!response.error && response.data) return { ...response.data, summary };
 
-  await saveExerciseRecord({
-    userId,
-    steps: Math.round(summary.steps ?? 0),
-    calories: Math.round(summary.activeEnergyKcal ?? 0),
-    minutes: Math.round(summary.exerciseMinutes ?? 0),
-    heartRate: summary.latestHeartRate ? String(Math.round(summary.latestHeartRate)) : undefined,
-    spo2: summary.latestBloodOxygen ? `${Math.round(summary.latestBloodOxygen * 100)}%` : undefined,
-    source: "apple_health",
-  });
-  let uploaded = 1;
-  if (summary.sleepMinutes && summary.sleepMinutes > 0) {
-    await saveSleepSummaryRecord({
+  let uploaded = 0;
+  for (const item of summaries) {
+    await saveHealthSnapshotFallback(userId, item);
+    await saveExerciseRecord({
       userId,
-      durationMinutes: Math.round(summary.sleepMinutes),
-      source: "apple_watch",
+      date: item.date,
+      steps: Math.round(item.steps ?? 0),
+      calories: Math.round(item.activeEnergyKcal ?? 0),
+      minutes: Math.round(item.exerciseMinutes ?? 0),
+      heartRate: item.latestHeartRate ? String(Math.round(item.latestHeartRate)) : undefined,
+      spo2: item.latestBloodOxygen ? `${Math.round(item.latestBloodOxygen * 100)}%` : undefined,
+      source: "apple_health",
     });
     uploaded += 1;
+    if (item.sleepMinutes && item.sleepMinutes > 0) {
+      await saveSleepSummaryRecord({
+        userId,
+        date: item.date,
+        durationMinutes: Math.round(item.sleepMinutes),
+        source: "apple_watch",
+      });
+      uploaded += 1;
+    }
   }
-  return { uploaded, lastSyncDate: new Date().toISOString(), summary };
+  const refreshDate = summary.date ?? summaries.find((item) => item.date)?.date ?? todayISO();
+  try {
+    await refreshRhythmScore(refreshDate);
+  } catch (error) {
+    console.warn("Failed to refresh rhythm score after fallback health sync", error);
+  }
+  return { uploaded, syncedDates: summaries.map((item) => item.date).filter(Boolean), lastSyncDate: new Date().toISOString(), summary };
+}
+
+async function saveHealthSnapshotFallback(userId: string, item: HealthTodayNativeSummary) {
+  const date = item.date ?? todayISO();
+  const hasSnapshot =
+    item.latestHeartRate != null ||
+    item.restingHeartRate != null ||
+    item.heartRateVariabilitySDNN != null ||
+    item.latestBloodOxygen != null ||
+    item.sleepStageMinutes != null ||
+    (item.activityBins?.length ?? 0) > 0;
+  if (!hasSnapshot) return;
+
+  const { error } = await supabase.from("health_metric_snapshots").upsert(
+    {
+      user_id: userId,
+      record_date: date,
+      latest_heart_rate: item.latestHeartRate ?? null,
+      resting_heart_rate: item.restingHeartRate ?? null,
+      heart_rate_variability_sdnn: item.heartRateVariabilitySDNN ?? null,
+      blood_oxygen: normalizeBloodOxygen(item.latestBloodOxygen),
+      activity_bins: item.activityBins ?? [],
+      sleep_stage_minutes: item.sleepStageMinutes ?? {},
+      sleep_start_at: item.sleepStart ?? null,
+      sleep_end_at: item.sleepEnd ?? null,
+      sleep_efficiency: item.sleepEfficiency ?? null,
+      timezone_offset_minutes: item.timezoneOffsetMinutes == null ? null : Math.round(item.timezoneOffsetMinutes),
+      activity_coverage_hours: item.activityCoverageHours ?? item.activityBins?.length ?? null,
+      source_metadata: item.sourceMetadata ?? {},
+      raw_payload: item,
+      source: "apple_health",
+    },
+    { onConflict: "user_id,record_date,source" },
+  );
+
+  if (error) console.warn("Failed to save fallback health snapshot", error);
+}
+
+function normalizeBloodOxygen(value?: number) {
+  if (value == null || !Number.isFinite(value)) return null;
+  return value <= 1 ? Math.round(value * 1000) / 10 : value;
 }

@@ -88,13 +88,27 @@ export default function TodayScreen({
       <section className="today-hero">
         <div className="hero-copy">
           <p className="eyebrow">今日节律</p>
-          <strong>{snapshot?.rhythmScore ?? "--"}</strong>
-          <span>/ 100</span>
+          <div>
+            <strong>{snapshot?.rhythmScore ?? "--"}</strong>
+            <span>/ 100</span>
+          </div>
+          <p className="algorithm-meta">
+            {snapshot?.rhythmScoreLower != null && snapshot.rhythmScoreUpper != null
+              ? `区间 ${snapshot.rhythmScoreLower}-${snapshot.rhythmScoreUpper}`
+              : "等待后端区间"}
+            {snapshot?.rhythmConfidence != null ? ` · 可信 ${Math.round(snapshot.rhythmConfidence * 100)}%` : ""}
+          </p>
         </div>
         <div className="ring" style={{ "--score": `${snapshot?.rhythmScore ?? 0}%` } as CSSProperties}>
           <Activity size={28} />
         </div>
       </section>
+
+      <div className="algorithm-strip" aria-label="算法状态">
+        <div><span>模型</span><strong>{snapshot?.rhythmModelVersion?.includes("v4") ? "ChronoState V4" : "离线估算"}</strong></div>
+        <div><span>数据质量</span><strong>{snapshot?.rhythmDataQuality ?? "--"}</strong></div>
+        <div><span>7 日趋势</span><strong>{snapshot?.rhythmTrendSlope == null ? "--" : `${snapshot.rhythmTrendSlope >= 0 ? "+" : ""}${snapshot.rhythmTrendSlope.toFixed(1)}`}</strong></div>
+      </div>
 
       <SectionCard
         title="下一步"
@@ -140,7 +154,7 @@ export default function TodayScreen({
         />
       </div>
 
-      <SectionCard title="手机端闭环验证" subtitle="App 写入后 Web 端可读">
+      <SectionCard title="今日数据" subtitle="补齐记录后，节律判断会更稳定">
         <div className="timeline-list">
           <div>
             <Moon size={18} />

@@ -1,6 +1,6 @@
 import { supabase } from "./supabaseClient";
 import type { ChatMessage } from "../types";
-import { saveExerciseRecord, saveSleepRecord } from "./records";
+import { refreshRhythmScore, saveExerciseRecord, saveSleepRecord } from "./records";
 import { todayISO } from "./date";
 import { demoMessages, isDemoMode } from "./demo";
 
@@ -120,6 +120,7 @@ async function applyExtractedData(userId: string, extraction: Record<string, unk
       rating: numberValue(data.selfRating) ?? numberValue(data.self_rating),
       source: "manual",
     });
+    await refreshRhythmAfterApply(todayISO());
     return { type: "sleep", saved: true };
   }
 
@@ -140,6 +141,7 @@ async function applyExtractedData(userId: string, extraction: Record<string, unk
       spo2: stringValue(data.spo2),
       source: "manual",
     });
+    await refreshRhythmAfterApply(todayISO());
     return { type: "exercise", saved: true };
   }
 
@@ -151,6 +153,14 @@ async function applyExtractedData(userId: string, extraction: Record<string, unk
   }
 
   return { type: String(dataType ?? "unknown"), saved: false, reason: "当前 App 还没有对应落表逻辑" };
+}
+
+async function refreshRhythmAfterApply(date: string) {
+  try {
+    await refreshRhythmScore(date);
+  } catch (error) {
+    console.warn("Failed to refresh rhythm score after AI extraction", error);
+  }
 }
 
 function stringValue(value: unknown) {

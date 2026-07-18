@@ -96,7 +96,7 @@ export default function AuthScreen() {
         </div>
         <p className="eyebrow">NAVA Health</p>
         <h1>同一个账号连接 Web、iPhone 和 Apple Watch</h1>
-        <p>先登录同一个 Supabase 账号，App 写入的数据会进入现有 Web 仓库正在使用的表。</p>
+        <p>登录后，手机、手表和网页端会看到同一份健康记录。</p>
       </div>
 
       <form className="auth-card" onSubmit={submit}>

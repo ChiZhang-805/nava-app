@@ -1,6 +1,6 @@
 # NAVA 算法调研与自研路线
 
-本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA Fusion v3：个人基线、小时活动节律、恢复指标、异常检测、证据可靠度、非线性融合和风险门控。
+本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA ChronoState V4：42 天鲁棒个人基线、小时活动节律、恢复指标、异常检测、四因子动态状态空间模型、Student-t 鲁棒滤波、风险敏感下尾效用、急性多域一致证据、Bayesian online change-point detection 和分数不确定性区间。
 
 ## 已调研的算法/方法
 
@@ -17,14 +17,14 @@
 | 9 | 静息心率偏离个人基线 | 疲劳、压力、恢复异常提示 | v2 使用 |
 | 10 | MET 能量消耗模型 | 把运动类型转换成能量强度 | v1/v2 使用 |
 | 11 | Mifflin-St Jeor REE | 估算基础能量需求 | v2 饮食/能量模块使用 |
-| 12 | Kalman Filter / sensor fusion | 融合心率、步数、运动、睡眠噪声 | v3 使用，适合多传感器稳定化 |
+| 12 | Kalman Filter / sensor fusion | 融合心率、步数、运动、睡眠噪声 | V4 已升级为 Student-t 鲁棒状态滤波 |
 | 13 | Bayesian Network | 处理缺失数据和解释风险/状态关系 | v2 使用在置信度和缺失补全 |
 | 14 | Isolation Forest | 发现异常睡眠、异常心率、异常活动 | v2 使用，做异常提醒 |
 | 15 | Dynamic Time Warping | 比较今日作息曲线与个人典型日是否相似 | v2 使用，做规律性分数 |
-| 16 | K-means / GMM 用户分型 | 识别夜猫型、运动型、高压型等群体 | v3 使用，数据量足够后上 |
-| 17 | Random Forest / GBDT | 表格特征的稳健预测 | v3 使用，训练个性化评分辅助模型 |
-| 18 | Temporal CNN / LSTM | 多日时间序列预测明日状态 | v3 使用，数据量足够后上 |
-| 19 | Contextual Bandit | 个性化推荐“什么时候提醒、提醒什么” | v3 使用，必须有反馈闭环 |
+| 16 | K-means / GMM 用户分型 | 识别夜猫型、运动型、高压型等群体 | V5 数据量足够后上 |
+| 17 | Random Forest / GBDT | 表格特征的稳健预测 | V5 可作为辅助模型 |
+| 18 | Temporal CNN / LSTM | 多日时间序列预测明日状态 | V5 数据量足够后上 |
+| 19 | Contextual Bandit | 个性化推荐“什么时候提醒、提醒什么” | V5 必须有反馈闭环后再上 |
 | 20 | CNN / EfficientNet 食物分类 | 从照片识别食物类别 | 饮食算法核心之一 |
 | 21 | Mask R-CNN / YOLO 实例分割 | 多食物分离、识别盘中多个物体 | 饮食算法核心之一 |
 | 22 | U-Net 食物区域分割 | 分出食物区域，辅助份量估计 | 饮食算法核心之一 |
@@ -34,10 +34,14 @@
 | 26 | 多模态融合评分 | 睡眠、活动、饮食、情绪、面部状态融合 | NAVA 自研算法主线 |
 | 27 | Dempster-Shafer evidence fusion | 多来源证据可信度不同且可能互相冲突 | v3 已用于 belief / disbelief / uncertainty 证据质量合成 |
 | 28 | Geometric mean / bottleneck fusion | 防止一个高分信号掩盖关键短板 | v3 已用作短板约束 |
-| 29 | EWMA / CUSUM change detection | 识别相对个人基线的连续偏移 | v4 可用于更早发现恢复债和节律漂移 |
-| 30 | Robust z-score / MAD | 对异常值更稳健的个人基线检测 | v4 建议替代部分均值/标准差阈值 |
-| 31 | Entropy / sample entropy | 衡量日内活动和心率序列复杂度 | v4 可用于碎片化与恢复质量增强 |
-| 32 | SHAP / feature attribution | 解释机器学习模型为什么给出某个建议 | v4 若接入 GBDT/深度模型后必须配套 |
+| 29 | EWMA / CUSUM change detection | 识别相对个人基线的连续偏移 | 已吸收为 V4 趋势压力和变点检测 |
+| 30 | Robust z-score / MAD | 对异常值更稳健的个人基线检测 | V4 已用于个人基线 |
+| 31 | Entropy / sample entropy | 衡量日内活动和心率序列复杂度 | 后续可用于碎片化与恢复质量增强 |
+| 32 | SHAP / feature attribution | 解释机器学习模型为什么给出某个建议 | 后续若接入 GBDT/深度模型后必须配套 |
+| 33 | Student-t robust Kalman filter | 多传感器观测有异常值时保持状态估计稳定 | V4 已用于核心状态滤波 |
+| 34 | Bayesian online change-point detection | 判断用户状态是否发生结构性变化 | V4 已用于 `change_point_probability` |
+| 35 | Risk-sensitive / entropic utility | 多域状态中存在关键短板时避免被平均数掩盖 | V4 已用于总分融合 |
+| 36 | Sleep Regularity Index | 衡量相邻多日同一时间点睡/醒一致性 | V4 已吸收为睡眠规律性特征 |
 
 ## NAVA 自研算法设计
 
@@ -60,7 +64,7 @@
 3. 输出 `score`、`confidence`、`signals`、`reasons`、`actions`。
 4. 写入 `daily_rhythm_scores`。
 
-`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 v3。
+`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 NAVA ChronoState V4。
 
 ### v2：个人基线 + 经典节律特征（已升级）
 
@@ -169,7 +173,67 @@ v3 的关键点：
 - `recoveryScore`
 - `phaseShiftMinutes`
 
-### v4：个性化推荐模型
+### v4：NAVA ChronoState（已接入后端）
+
+目标：把 v3 的“证据融合分数”升级成真正的个体动态状态估计，能处理缺失、噪声、传感器偏置、连续下滑、突发转折和冲突信号。
+
+当前实现文件：
+
+```text
+supabase/functions/_shared/rhythm-core.ts
+supabase/functions/_shared/rhythm.ts
+supabase/functions/rhythm-score/index.ts
+supabase/functions/health-sync-ingest/index.ts
+algorithm/synthetic.ts
+scripts/benchmark-rhythm-v4.ts
+tests/rhythm-core.test.ts
+```
+
+核心机制：
+
+1. 四个潜在状态：`circadian`、`recovery`、`behavior`、`affect`。
+2. 七类观测信号：睡眠、活动、昼夜节律、情绪、饮食、专注、恢复。
+3. 42 天指数衰减个人基线，用 weighted median / MAD 替代简单均值。
+4. 睡眠特征吸收睡眠时长、睡眠阶段、相位、SRI 和自评。
+5. 活动节律特征吸收 RA、IV、IS、M10、L5、24h+12h harmonic cosinor。
+6. 恢复特征吸收 HRV SDNN、静息心率、睡眠恢复债。
+7. 状态估计使用 Student-t 鲁棒 sequential filter，异常观测会被自动降权。
+8. 总分融合使用慢状态、风险敏感下尾效用、急性多域一致证据和趋势压力，不是简单加权。
+9. 变点检测使用 Bayesian online change-point detection，输出结构性变化概率。
+10. 输出 80% 分数区间、数据质量、异常旗标、profile labels 和可解释建议。
+
+复杂度：
+
+- 时间：`O(D*S*F^2 + D*R + D*S*WlogW)`。
+- 空间：`O(D*F^2 + R + S*W)`。
+- 其中 `D=42` 天、`S=7` 信号、`F=4` 状态因子、`R=42` 最大 run length、`W=42` 基线窗口。
+
+合成验证覆盖：
+
+- clean
+- random_missing
+- burst_missing
+- outliers
+- sensor_bias
+- gradual_decline
+- abrupt_shift
+- shift_worker
+- cold_start
+- conflicting_signals
+
+当前固定种子 1000 用户基准：
+
+- V4 MAE：`5.091`
+- 旧单日 proxy MAE：`7.694`
+- MAE 改善：`33.83%`
+- RMSE 改善：`31.73%`
+- 平均置信度：`0.766`
+- 80% 区间覆盖：`0.961`
+- 单用户耗时：约 `24.1 ms`
+
+注意：这是工程压力测试，不是临床验证。真实上线后必须用真实 Apple Watch 数据继续校准。
+
+### v5：个性化推荐模型
 
 目标：不只是评分，而是学会“哪类建议对这个用户有效”。
 

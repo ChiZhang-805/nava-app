@@ -72,6 +72,24 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
           </div>
         )}
       </SectionCard>
+
+      <SectionCard title="节律状态" subtitle="ChronoState V4 后验分数与 80% 区间">
+        <div className="trend-list">
+          {bundle?.rhythms.slice(-7).map((item) => (
+            <div className="trend-row" key={item.id}>
+              <span>{shortDate(item.record_date)}</span>
+              <div className="bar-track interval-track">
+                {item.score_lower != null && item.score_upper != null && (
+                  <div className="interval-band" style={{ left: `${item.score_lower}%`, width: `${Math.max(2, item.score_upper - item.score_lower)}%` }} />
+                )}
+                <div className="bar-fill rhythm" style={{ width: `${item.score}%` }} />
+              </div>
+              <strong>{Math.round(item.score)}</strong>
+            </div>
+          ))}
+          {bundle && bundle.rhythms.length === 0 && <p className="muted">同步健康数据后生成节律趋势。</p>}
+        </div>
+      </SectionCard>
     </div>
   );
 }
