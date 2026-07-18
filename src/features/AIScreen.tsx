@@ -44,9 +44,9 @@ export default function AIScreen({ user }: { user: User }) {
       });
       setMessages((current) => [...current, result.userMessage, result.assistantMessage]);
       if (result.applied?.saved) {
-        setApplyNotice(`已自动保存 ${result.applied.type} 数据。`);
+        setApplyNotice(`已保存 ${result.applied.type}`);
       } else if (result.applied && !result.applied.saved) {
-        setApplyNotice(`AI 识别到 ${result.applied.type} 数据，但还需要手动确认。`);
+        setApplyNotice(`待确认 ${result.applied.type}`);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -66,10 +66,10 @@ export default function AIScreen({ user }: { user: User }) {
 
   return (
     <div className="chat-layout">
-      <SectionCard title="NAVA AI" subtitle="描述今天的状态，NAVA 会帮你整理">
+      <SectionCard title="NAVA AI">
         <div className="ai-prompt">
           <Sparkles size={18} />
-          <span>可以说：我昨晚 1 点睡，7 点醒，今天状态一般。</span>
+          <span>昨晚 1 点睡，7 点醒。</span>
         </div>
       </SectionCard>
 
@@ -79,7 +79,7 @@ export default function AIScreen({ user }: { user: User }) {
           <div className="empty-chat">
             <Bot size={30} />
             <strong>还没有对话</strong>
-            <span>发一条消息，AI 会尝试抽取健康数据并给出建议。</span>
+            <span>告诉 NAVA 今天的状态。</span>
           </div>
         )}
         {messages.map((message) => (

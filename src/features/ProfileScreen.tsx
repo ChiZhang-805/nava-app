@@ -84,17 +84,17 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
 
   return (
     <div className="stack">
-      <SectionCard title="账号" subtitle="Web、iPhone 和 Watch 共用同一个登录账号">
+      <SectionCard title="账号" action={<StatusPill tone="good">同账号</StatusPill>}>
         <div className="profile-row">
           <div className="avatar large">{user.email?.slice(0, 1).toUpperCase() ?? "N"}</div>
           <div>
             <strong>{user.email}</strong>
-            <p className="muted">User ID: {user.id}</p>
+            <p className="muted">Web · iPhone · Watch</p>
           </div>
         </div>
       </SectionCard>
 
-      <SectionCard title="个人资料" subtitle="这些资料会用于个性化节律建议">
+      <SectionCard title="个人资料">
         <label className="field">
           <span>昵称</span>
           <input value={profileDraft.username} onChange={(e) => setProfileDraft((draft) => ({ ...draft, username: e.target.value }))} placeholder={profile?.username ?? "NAVA 用户"} />
@@ -124,7 +124,7 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
 
       <SectionCard
         title="Apple 健康"
-        subtitle="真机上请求 HealthKit 权限并同步"
+        subtitle="HealthKit"
         action={<StatusPill tone={isNativeHealthAvailable() ? "good" : "warn"}>{isNativeHealthAvailable() ? "可用" : "浏览器预览"}</StatusPill>}
       >
         <div className="button-row">
@@ -146,21 +146,21 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
         </div>
       </SectionCard>
 
-      <SectionCard title="Apple Watch" subtitle="通过 iPhone 同步今日快照">
+      <SectionCard title="Apple Watch" subtitle="iPhone 同步">
         <div className="watch-card">
           <Watch size={22} />
           <div>
             <strong>{watchReachable?.paired ? "已检测到配对手表" : watchSnapshot ? "Watch 快照已生成" : "等待今日页生成快照"}</strong>
             <p className="muted">
               {watchSnapshot
-                ? `最近同步：${new Date(watchSnapshot.lastSyncedAt).toLocaleString("zh-CN")} · ${watchReachable?.reachable ? "手表在线" : "手表未在线"}`
-                : "打开今日页后，App 会准备一份可发送给 Watch 的用户快照。"}
+                  ? `${new Date(watchSnapshot.lastSyncedAt).toLocaleString("zh-CN")} · ${watchReachable?.reachable ? "在线" : "离线"}`
+                  : "等待快照"}
             </p>
           </div>
         </div>
       </SectionCard>
 
-      <SectionCard title="隐私与安全" subtitle="你可以管理自己的健康数据">
+      <SectionCard title="隐私与安全">
         <div className="timeline-list">
           <div>
             <ShieldCheck size={18} />

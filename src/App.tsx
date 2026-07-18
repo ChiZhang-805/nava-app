@@ -32,7 +32,7 @@ function LoadingScreen() {
         <Activity size={28} />
       </div>
       <h1>NAVA</h1>
-      <p className="muted">正在恢复账号状态</p>
+      <p className="muted">正在进入</p>
     </main>
   );
 }
@@ -98,7 +98,7 @@ function MobileShell() {
       <div className="safe-top" />
       <header className="app-header">
         <div>
-          <p className="eyebrow">NAVA Health</p>
+          <p className="eyebrow">NAVA</p>
           <h1>{tabs.find((tab) => tab.id === activeTab)?.label}</h1>
         </div>
         <div className="header-actions">
@@ -108,11 +108,13 @@ function MobileShell() {
       </header>
 
       <main className="app-content">
-        {activeTab === "today" && <TodayScreen user={user} refreshKey={refreshKey} onOpenRecord={() => setActiveTab("record")} />}
-        {activeTab === "record" && <RecordsScreen user={user} onSaved={markChanged} />}
-        {activeTab === "ai" && <AIScreen user={user} />}
-        {activeTab === "trends" && <TrendsScreen user={user} refreshKey={refreshKey} />}
-        {activeTab === "profile" && <ProfileScreen user={user} onChanged={markChanged} />}
+        <div className="screen-panel" key={activeTab}>
+          {activeTab === "today" && <TodayScreen user={user} refreshKey={refreshKey} onOpenRecord={() => setActiveTab("record")} />}
+          {activeTab === "record" && <RecordsScreen user={user} onSaved={markChanged} />}
+          {activeTab === "ai" && <AIScreen user={user} />}
+          {activeTab === "trends" && <TrendsScreen user={user} refreshKey={refreshKey} />}
+          {activeTab === "profile" && <ProfileScreen user={user} onChanged={markChanged} />}
+        </div>
       </main>
 
       <nav className="bottom-nav" aria-label="主导航">

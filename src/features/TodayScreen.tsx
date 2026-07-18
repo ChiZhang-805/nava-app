@@ -136,7 +136,7 @@ export default function TodayScreen({
         <MetricCard
           label="睡眠"
           value={minutesToText(snapshot?.sleep?.sleep_duration_minutes)}
-          detail={snapshot?.sleep?.rhythm_score != null ? `节律 ${snapshot.sleep.rhythm_score}` : "等待 Apple Watch 或手动记录"}
+          detail={snapshot?.sleep?.rhythm_score != null ? `节律 ${snapshot.sleep.rhythm_score}` : "未记录"}
           icon={<BedDouble size={18} />}
         />
         <MetricCard
@@ -159,7 +159,7 @@ export default function TodayScreen({
         />
       </div>
 
-      <SectionCard title="今日数据" subtitle="补齐记录后，节律判断会更稳定">
+      <SectionCard title="今日数据">
         <div className="timeline-list">
           <div>
             <Moon size={18} />
@@ -171,7 +171,7 @@ export default function TodayScreen({
           </div>
           <div>
             <Watch size={18} />
-            <span>Watch 快照已准备，可同步到手表端</span>
+            <span>Watch 快照已准备</span>
           </div>
         </div>
         <ActionButton icon={<SmilePlus size={18} />} variant="secondary" onClick={onOpenRecord}>

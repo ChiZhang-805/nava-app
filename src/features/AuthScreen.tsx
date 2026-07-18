@@ -1,4 +1,4 @@
-import { Activity, LockKeyhole, Mail, MessageCircle, Phone } from "lucide-react";
+import { ArrowRight, CheckCircle2, Fingerprint, LockKeyhole, Mail, MessageCircle, Phone, ShieldCheck, Watch } from "lucide-react";
 import { FormEvent, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import { formatAuthError, isEmail, isPhone } from "../services/auth";
@@ -27,6 +27,8 @@ export default function AuthScreen() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const AccountIcon = isPhone(account) ? Phone : Mail;
+  const actionLabel = busy ? "处理中" : method === "otp" && !otpSent ? "获取验证码" : mode === "signIn" ? "进入 NAVA" : "创建账号";
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -90,17 +92,27 @@ export default function AuthScreen() {
 
   return (
     <main className="auth-screen">
-      <div className="auth-hero">
-        <div className="brand-mark">
-          <Activity size={30} />
+      <section className="auth-brand" aria-label="NAVA">
+        <span className="auth-watermark">NAVA</span>
+        <div className="auth-kicker">DAILY RHYTHM</div>
+        <h1>NAVA</h1>
+        <div className="auth-greeting">
+          <span>准备好了吗？</span>
+          <span>今天从节律开始。</span>
         </div>
-        <p className="eyebrow">NAVA Health</p>
-        <h1>同一个账号连接 Web、iPhone 和 Apple Watch</h1>
-        <p>登录后，手机、手表和网页端会看到同一份健康记录。</p>
-      </div>
+      </section>
 
       <form className="auth-card" onSubmit={submit}>
-        <div className="segmented">
+        <div className="auth-card-top">
+          <span>账号</span>
+          <div className="auth-device-icons" aria-label="Web iPhone Apple Watch">
+            <ShieldCheck size={16} />
+            <Fingerprint size={16} />
+            <Watch size={16} />
+          </div>
+        </div>
+
+        <div className="segmented auth-mode">
           <button type="button" className={mode === "signIn" ? "active" : ""} onClick={() => setMode("signIn")}>
             登录
           </button>
@@ -109,7 +121,7 @@ export default function AuthScreen() {
           </button>
         </div>
 
-        <div className="segmented compact">
+        <div className="segmented compact auth-method">
           <button
             type="button"
             className={method === "password" ? "active" : ""}
@@ -118,7 +130,8 @@ export default function AuthScreen() {
               setOtpSent(false);
             }}
           >
-            密码
+            <LockKeyhole size={16} />
+            <span>密码</span>
           </button>
           <button
             type="button"
@@ -128,55 +141,79 @@ export default function AuthScreen() {
               setOtpSent(false);
             }}
           >
-            验证码
+            <MessageCircle size={16} />
+            <span>验证码</span>
           </button>
         </div>
 
-        <label className="field">
-          <span>邮箱 / 手机号</span>
-          <div className="input-wrap">
-            {isPhone(account) ? <Phone size={18} /> : <Mail size={18} />}
-            <input autoComplete="email" inputMode="email" value={account} onChange={(e) => setAccount(e.target.value)} placeholder="you@example.com / 138..." />
-          </div>
-        </label>
-
-        {method === "password" && (
+        <div className="auth-field-stage">
           <label className="field">
-            <span>密码</span>
+            <span>邮箱 / 手机号</span>
             <div className="input-wrap">
-              <LockKeyhole size={18} />
-              <input autoComplete={mode === "signIn" ? "current-password" : "new-password"} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="至少 6 位" />
+              <AccountIcon size={18} />
+              <input autoComplete="email" inputMode="email" value={account} onChange={(e) => setAccount(e.target.value)} placeholder="邮箱 / 手机" />
             </div>
           </label>
-        )}
 
-        {method === "otp" && otpSent && (
-          <>
+          {method === "password" && (
             <label className="field">
-              <span>验证码</span>
+              <span>密码</span>
               <div className="input-wrap">
-                <MessageCircle size={18} />
-                <input inputMode="numeric" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="6 位验证码" />
+                <LockKeyhole size={18} />
+                <input autoComplete={mode === "signIn" ? "current-password" : "new-password"} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="至少 6 位" />
               </div>
             </label>
-            {mode === "signUp" && (
+          )}
+
+          {method === "otp" && !otpSent && (
+            <div className="auth-assist-panel" aria-live="polite">
+              <div className="auth-assist-icon">
+                <MessageCircle size={22} />
+              </div>
+              <div className="auth-assist-chips">
+                <span>邮箱</span>
+                <span>短信</span>
+                <span>同账号</span>
+              </div>
+            </div>
+          )}
+
+          {method === "otp" && otpSent && (
+            <>
               <label className="field">
-                <span>设置密码</span>
+                <span>验证码</span>
                 <div className="input-wrap">
-                  <LockKeyhole size={18} />
-                  <input type="password" value={otpPassword} onChange={(e) => setOtpPassword(e.target.value)} placeholder="可选，至少 6 位" />
+                  <MessageCircle size={18} />
+                  <input inputMode="numeric" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="6 位验证码" />
                 </div>
               </label>
-            )}
-          </>
-        )}
+              {mode === "signUp" && (
+                <label className="field">
+                  <span>设置密码</span>
+                  <div className="input-wrap">
+                    <LockKeyhole size={18} />
+                    <input type="password" value={otpPassword} onChange={(e) => setOtpPassword(e.target.value)} placeholder="可选，至少 6 位" />
+                  </div>
+                </label>
+              )}
+            </>
+          )}
+        </div>
 
-        {error && <p className="error-text">{error}</p>}
-        {localError && <p className="error-text">{localError}</p>}
-        {notice && <p className="success-text">{notice}</p>}
+        <div className="auth-feedback-slot" aria-live="polite">
+          {error && <p className="error-text">{error}</p>}
+          {localError && <p className="error-text">{localError}</p>}
+          {notice && (
+            <p className="success-text">
+              <CheckCircle2 size={15} />
+              <span>{notice}</span>
+            </p>
+          )}
+        </div>
 
         <ActionButton type="submit" className="full-width" disabled={busy || !account || (method === "password" && !password) || (method === "otp" && otpSent && !otp)}>
-          {busy ? "处理中" : method === "otp" && !otpSent ? "获取验证码" : mode === "signIn" ? "进入 NAVA" : "创建账号"}
+          {actionLabel}
+          <ArrowRight size={18} />
         </ActionButton>
 
         {mode === "signIn" && method === "password" && (

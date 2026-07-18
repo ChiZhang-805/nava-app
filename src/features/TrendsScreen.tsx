@@ -49,7 +49,7 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
         <MetricCard label="专注总量" value={minutesToText(totals.focus)} detail="近 14 天" icon={<Brain size={18} />} />
       </div>
 
-      <SectionCard title="趋势" subtitle="近 14 天健康与节律变化">
+      <SectionCard title="趋势" subtitle="近 14 天">
         {error && <p className="error-text">{error}</p>}
         {!bundle && !error && <p className="muted">正在加载趋势</p>}
         {bundle && (
@@ -66,14 +66,14 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
             {bundle.moods.length === 0 && (
               <div className="empty-chat compact">
                 <Activity size={24} />
-                <span>暂无趋势数据。先在记录页保存几条数据。</span>
+                <span>暂无趋势数据</span>
               </div>
             )}
           </div>
         )}
       </SectionCard>
 
-      <SectionCard title="节律状态" subtitle="ChronoState V4.27 后验分数与 80% 区间">
+      <SectionCard title="节律状态" subtitle="ChronoState V4.27 · 80% 区间">
         <div className="trend-list">
           {bundle?.rhythms.slice(-7).map((item) => (
             <div className="trend-row" key={item.id}>
@@ -87,7 +87,7 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
               <strong>{Math.round(item.score)}</strong>
             </div>
           ))}
-          {bundle && bundle.rhythms.length === 0 && <p className="muted">同步健康数据后生成节律趋势。</p>}
+          {bundle && bundle.rhythms.length === 0 && <p className="muted">暂无节律趋势</p>}
         </div>
       </SectionCard>
     </div>

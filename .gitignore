@@ -1,6 +1,7 @@
 node_modules
 dist
 artifacts
+navarhythm-site-*.png
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts

@@ -82,10 +82,10 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
       await fn();
       try {
         await refreshRhythmScore(recordDate);
-        setNotice(`${label}已保存，今日节律分已刷新。现在可以回到 Web 端验证同一账号的数据。`);
+        setNotice(`${label}已保存`);
       } catch (refreshError) {
         console.warn("Failed to refresh rhythm score after saving record", refreshError);
-        setNotice(`${label}已保存。节律分会在下次健康同步或手动刷新时更新。`);
+        setNotice(`${label}已保存，待刷新`);
       }
       onSaved();
     } catch (e) {
@@ -191,7 +191,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
         setMealName(result.items[0].name);
         setMealCalories(Number(result.items[0].calories) || mealCalories);
       }
-      setNotice(`已识别 ${result.items.length} 项食物，确认后会同步到你的账号。`);
+      setNotice(`已识别 ${result.items.length} 项`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -215,7 +215,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
         imagePath,
         modelVersion: result.modelVersion ?? result.model_version,
       });
-      setNotice("面部分析已完成，并已保存到你的账号。");
+      setNotice("面部分析已保存");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -237,15 +237,14 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
 
   return (
     <div className="stack">
-      <SectionCard title="今日记录" subtitle="保存后会同步到同一个账号">
-        <p className="plain-text">
-          先补齐今天最重要的几项状态，NAVA 会用这些记录刷新今日节律。
-        </p>
-        {notice && <p className="success-text">{notice}</p>}
-        {error && <p className="error-text">{error}</p>}
-      </SectionCard>
+      {(notice || error) && (
+        <SectionCard title={notice ? "已同步" : "需要处理"}>
+          {notice && <p className="success-text">{notice}</p>}
+          {error && <p className="error-text">{error}</p>}
+        </SectionCard>
+      )}
 
-      <SectionCard title="记录日期" subtitle="选择这条记录归属哪一天">
+      <SectionCard title="记录日期">
         <label className="field">
           <span>日期</span>
           <input type="date" value={recordDate} max={todayISO()} onChange={(e) => setRecordDate(e.target.value)} />
@@ -253,7 +252,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
       </SectionCard>
 
       <form onSubmit={saveMood}>
-        <SectionCard title="情绪" subtitle="记录今天的主观状态">
+        <SectionCard title="情绪">
           <div className="module-title">
             <SmilePlus size={20} />
             <strong>{moodScore}</strong>
@@ -282,7 +281,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
       </form>
 
       <form onSubmit={saveSleep}>
-        <SectionCard title="睡眠" subtitle="补齐昨晚睡眠和阶段">
+        <SectionCard title="睡眠">
           <div className="two-col">
             <label className="field">
               <span>入睡</span>
@@ -326,7 +325,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
       </form>
 
       <form onSubmit={saveExercise}>
-        <SectionCard title="运动" subtitle="记录步数、消耗和心肺指标">
+        <SectionCard title="运动">
           <div className="two-col">
             <label className="field">
               <span>步数</span>
@@ -362,7 +361,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
       </form>
 
       <form onSubmit={saveDiet}>
-        <SectionCard title="饮食" subtitle="记录餐次、食物和热量">
+        <SectionCard title="饮食">
           <label className="photo-picker">
             {dietPhotoUrl ? <img src={dietPhotoUrl} alt="饮食照片" /> : <Camera size={28} />}
             <span>{dietAnalyzing ? "AI 识别中" : "拍照识别饮食"}</span>
@@ -409,7 +408,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
       </form>
 
       <form onSubmit={saveFocus}>
-        <SectionCard title="专注" subtitle="保存一次专注完成记录">
+        <SectionCard title="专注">
           <label className="field">
             <span>任务</span>
             <input value={focusTitle} onChange={(e) => setFocusTitle(e.target.value)} />
@@ -424,7 +423,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
         </SectionCard>
       </form>
 
-      <SectionCard title="面部分析" subtitle="保存一次面部状态记录">
+      <SectionCard title="面部分析">
         <label className="photo-picker face">
           {faceImage ? <img src={faceImage} alt="面部照片" /> : <ScanFace size={30} />}
           <span>{faceAnalyzing ? "AI 分析中" : "拍照分析面部状态"}</span>
