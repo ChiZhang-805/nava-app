@@ -105,7 +105,7 @@ export default function TodayScreen({
       </section>
 
       <div className="algorithm-strip" aria-label="算法状态">
-        <div><span>模型</span><strong>{snapshot?.rhythmModelVersion?.includes("v4.7") ? "ChronoState V4.7" : snapshot?.rhythmModelVersion?.includes("v4.6") ? "ChronoState V4.6" : snapshot?.rhythmModelVersion?.includes("v4.5") ? "ChronoState V4.5" : snapshot?.rhythmModelVersion?.includes("v4.4") ? "ChronoState V4.4" : snapshot?.rhythmModelVersion?.includes("v4.3") ? "ChronoState V4.3" : snapshot?.rhythmModelVersion?.includes("v4.2") ? "ChronoState V4.2" : snapshot?.rhythmModelVersion?.includes("v4.1") ? "ChronoState V4.1" : snapshot?.rhythmModelVersion?.includes("v4") ? "ChronoState V4" : "离线估算"}</strong></div>
+        <div><span>模型</span><strong>{snapshot?.rhythmModelVersion?.includes("v4.8") ? "ChronoState V4.8" : snapshot?.rhythmModelVersion?.includes("v4.7") ? "ChronoState V4.7" : snapshot?.rhythmModelVersion?.includes("v4.6") ? "ChronoState V4.6" : snapshot?.rhythmModelVersion?.includes("v4.5") ? "ChronoState V4.5" : snapshot?.rhythmModelVersion?.includes("v4.4") ? "ChronoState V4.4" : snapshot?.rhythmModelVersion?.includes("v4.3") ? "ChronoState V4.3" : snapshot?.rhythmModelVersion?.includes("v4.2") ? "ChronoState V4.2" : snapshot?.rhythmModelVersion?.includes("v4.1") ? "ChronoState V4.1" : snapshot?.rhythmModelVersion?.includes("v4") ? "ChronoState V4" : "离线估算"}</strong></div>
         <div><span>数据质量</span><strong>{snapshot?.rhythmDataQuality ?? "--"}</strong></div>
         <div><span>7 日趋势</span><strong>{snapshot?.rhythmTrendSlope == null ? "--" : `${snapshot.rhythmTrendSlope >= 0 ? "+" : ""}${snapshot.rhythmTrendSlope.toFixed(1)}`}</strong></div>
       </div>

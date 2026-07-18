@@ -12,7 +12,7 @@ App 后端不另起账号系统，继续使用 Web 同一个 Supabase 项目。�
 | `watch-sync` | 保存 Watch 快照，处理手表快速情绪和专注动作 | `watch_snapshots`、`device_connections`、`mood_records`、`focus_records` |
 | `diet-extract` | 饮食照片识别入口，支持正式算法服务转发和 fallback | 不直接写表，App 确认后写 `nutrition_records` |
 | `face-analyze` | 面部状态分析入口，支持正式算法服务转发和 fallback | App 确认后写 `face_records` |
-| `rhythm-score` | 读取 42 天窗口，生成 NAVA ChronoState V4.7 节律分、个人基线、节律特征、动态状态、慢性负债压力、功能补偿门控、稀疏断崖冲击、慢性停滞压力、绝对生理压力、假恢复 drawdown 压力、相位扰动保护、自适应端点校准、尾部过反应缓释、不确定性区间、异常旗标和建议 | `daily_rhythm_scores` |
+| `rhythm-score` | 读取 42 天窗口，生成 NAVA ChronoState V4.8 节律分、个人基线、节律特征、动态状态、慢性负债压力、功能补偿门控、稀疏断崖冲击、慢性停滞压力、绝对生理压力、假恢复 drawdown 压力、相位扰动保护、昼夜漂移压力、生理先导预警、硬撑型消耗压力、自适应端点校准、尾部过反应缓释、不确定性区间、异常旗标和建议 | `daily_rhythm_scores` |
 | `export-user-data` | 导出当前用户 App/Web 共享数据 | 只读 |
 
 ## 已实现数据库/Storage
@@ -40,7 +40,7 @@ supabase/migrations/202607180003_nava_chronostate_v4.sql
 - 私有 bucket：`face-photos`
 - Storage RLS：用户只能访问自己 `user_id/` 路径下的照片
 
-## NAVA ChronoState V4.7 输出
+## NAVA ChronoState V4.8 输出
 
 `rhythm-score` 和 `health-sync-ingest` 会写入：
 
@@ -60,6 +60,9 @@ supabase/migrations/202607180003_nava_chronostate_v4.sql
 - `fusion.utilityFusion.physiologyStrainPressure`：短睡、低 HRV、高静息心率共同出现时的绝对生理压力，防止长期恶化被个人基线正常化。
 - `fusion.utilityFusion.unresolvedDrawdownPressure`：近期低谷后，当天表面信号不低但 HRV/RHR/睡眠没有确认恢复时的假恢复压力。
 - `fusion.utilityFusion.phaseTurbulencePressure`：睡眠相位、活动峰值和日内碎片化共同异常时的相位扰动诊断，用来区分 jet lag / shift turbulence 与慢性恶化。
+- `fusion.utilityFusion.circadianDriftPressure`：连续相位偏移、睡眠规律性下降和活动碎片化造成的慢性昼夜漂移压力。
+- `fusion.utilityFusion.physiologyLeadPressure`：HRV、静息心率、睡眠和血氧先于主观/行为下滑出现异常时的生理预警压力。
+- `fusion.utilityFusion.presenteeismStrainPressure`：用户仍在高活动或高专注，但恢复、情绪或昼夜节律已经变弱时的硬撑型消耗压力。
 - `fusion.utilityFusion.endpointCalibrationPressure`：中低分且近期 drawdown / transition 证据一致时的端点校准压力，避免慢性下滑被中位数抬高。
 - `fusion.utilityFusion.tailOverreactionRelief`：极端单日尾部低值但中位数和历史证据不支持崩塌时的缓释项，减少孤立噪声把分数打穿。
 - `baseline`：42 天指数衰减鲁棒个人基线。
@@ -79,7 +82,7 @@ supabase/migrations/202607180003_nava_chronostate_v4.sql
 - `trend_slope`：最近一周鲁棒趋势斜率。
 - `schema_version`：算法输出 schema 版本。
 
-这套算法现在是 App 后端自研核心 baseline，可直接分享给算法端和 Web 端同学继续增强或展示。它不是简单加权平均：分数由四因子动态状态空间模型、Student-t 鲁棒滤波、风险敏感下尾效用、急性多域一致证据、信号连续性质量建模、慢性负债压力、功能补偿门控、稀疏断崖冲击、慢性停滞压力、绝对生理压力、假恢复 drawdown 压力、自适应残差区间、Bayesian online change-point detection、个体化 MAD 基线和不确定性区间共同生成。
+这套算法现在是 App 后端自研核心 baseline，可直接分享给算法端和 Web 端同学继续增强或展示。它不是简单加权平均：分数由四因子动态状态空间模型、Student-t 鲁棒滤波、风险敏感下尾效用、急性多域一致证据、信号连续性质量建模、慢性负债压力、功能补偿门控、稀疏断崖冲击、慢性停滞压力、绝对生理压力、假恢复 drawdown 压力、相位扰动保护、昼夜漂移压力、生理先导预警、硬撑型消耗压力、自适应残差区间、Bayesian online change-point detection、个体化 MAD 基线和不确定性区间共同生成。
 
 ## 部署
 

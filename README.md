@@ -13,7 +13,7 @@ NAVA App 是 `Tj-jiaoao/style-muse-next` 的移动端工程，目标是服务 Ap
 - Apple Watch 快照发布与 WatchConnectivity 插件模板。
 - Web 上游同步脚本。
 - App 专属 Edge Functions、Supabase migrations 和部署脚本。
-- NAVA ChronoState V4.7 服务端节律算法。
+- NAVA ChronoState V4.8 服务端节律算法。
 - 合成数据压力测试与算法回归测试。
 
 ## 本地运行
@@ -48,10 +48,11 @@ Apple Watch target 需要在 Xcode 中创建 watchOS App，并按 `docs/watch-ar
 npm run verify
 npm run backend:verify
 npm run algorithm:test
-npm run algorithm:benchmark -- --users=200
+npm run data:audit
+npm run algorithm:benchmark
 ```
 
-`verify` 会执行构建、lint 和 npm audit；`backend:verify` 检查 Edge Functions、shared 后端文件、migrations 和前端 secret；`algorithm:test` / `algorithm:benchmark` 用于验证 V4.7 算法核心。
+`verify` 会执行构建、lint 和 npm audit；`backend:verify` 检查 Edge Functions、shared 后端文件、migrations 和前端 secret；`data:audit` 默认生成并审计 5000 个合成用户；`algorithm:test` / `algorithm:benchmark` 用于验证 V4.8 算法核心，正式 benchmark 默认 5000 用户。
 
 当前 App 后端函数：`ai-extract-data`、`ai-chat-reply`、`diet-extract`、`face-analyze`、`health-sync-ingest`、`watch-sync`、`rhythm-score`、`export-user-data`。
 

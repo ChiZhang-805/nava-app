@@ -25,6 +25,9 @@ test("returns a conservative cold score when no usable data exists", () => {
   assert.equal(result.fusion.evidenceCount, 0);
   assert.equal(result.fusion.utilityFusion.acuteLatent, null);
   assert.equal(result.fusion.utilityFusion.phaseTurbulencePressure, 0);
+  assert.equal(result.fusion.utilityFusion.circadianDriftPressure, 0);
+  assert.equal(result.fusion.utilityFusion.physiologyLeadPressure, 0);
+  assert.equal(result.fusion.utilityFusion.presenteeismStrainPressure, 0);
   assert.equal(result.fusion.utilityFusion.endpointCalibrationPressure, 0);
   assert.equal(result.fusion.utilityFusion.tailOverreactionRelief, 0);
   assert.equal(result.features.complexity.bounds.factors, 4);
@@ -70,6 +73,9 @@ test("beats the legacy single-day proxy on heterogeneous synthetic users", () =>
     assert.ok(result.fusion.utilityFusion.lowConsensus >= 0);
     assert.ok(result.fusion.utilityFusion.highConsensus >= 0);
     assert.ok(result.fusion.utilityFusion.phaseTurbulencePressure >= 0);
+    assert.ok(result.fusion.utilityFusion.circadianDriftPressure >= 0);
+    assert.ok(result.fusion.utilityFusion.physiologyLeadPressure >= 0);
+    assert.ok(result.fusion.utilityFusion.presenteeismStrainPressure >= 0);
     assert.ok(result.fusion.utilityFusion.endpointCalibrationPressure >= 0);
     assert.ok(result.fusion.utilityFusion.tailOverreactionRelief >= 0);
   }

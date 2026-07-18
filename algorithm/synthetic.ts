@@ -19,6 +19,9 @@ export type SyntheticScenario =
   | "low_adherence"
   | "high_adherence"
   | "seasonal_shift"
+  | "circadian_drift"
+  | "physiology_warning"
+  | "burnout_presenteeism"
   | "chronic_debt_rebound"
   | "compensated_strain"
   | "sparse_abrupt_drop"
@@ -40,7 +43,10 @@ export type SyntheticCohort =
   | "weekend_social"
   | "metabolic_watch"
   | "outdoor_worker"
-  | "remote_worker";
+  | "remote_worker"
+  | "perimenopause_sleep_variability"
+  | "cardio_rehab_low_capacity"
+  | "long_haul_traveler";
 
 export type SyntheticTrajectory = {
   id: string;
@@ -52,10 +58,29 @@ export type SyntheticTrajectory = {
   truthFactors: [number, number, number, number];
   metadata: {
     profile: SyntheticProfile;
+    oneTimeProfile: SyntheticOneTimeProfile;
     observedDays: number;
     missingnessRate: number;
     dataDensity: "dense" | "mixed" | "sparse";
   };
+};
+
+export type SyntheticOneTimeProfile = {
+  ageYears: number;
+  sex: "female" | "male" | "other";
+  heightCm: number;
+  weightKg: number;
+  bmi: number;
+  occupation: string;
+  goal: string;
+  knownConditions: string[];
+  medicationFlags: string[];
+  chronotype: "early" | "intermediate" | "late" | "irregular";
+  sleepNeedMinutes: number;
+  baselineStepsMedian: number;
+  baselineHrvSdnn: number;
+  baselineRestingHeartRate: number;
+  clinicalClass: "healthy" | "athletic" | "metabolic_risk" | "high_stress" | "sleep_disrupted" | "shift_work" | "older_low_hrv" | "cardio_rehab" | "travel_disrupted" | "low_adherence";
 };
 
 type SyntheticProfile = {
@@ -108,6 +133,9 @@ const scenarioWeights: Array<{ value: SyntheticScenario; weight: number }> = [
   { value: "low_adherence", weight: 5 },
   { value: "high_adherence", weight: 4 },
   { value: "seasonal_shift", weight: 5 },
+  { value: "circadian_drift", weight: 4 },
+  { value: "physiology_warning", weight: 4 },
+  { value: "burnout_presenteeism", weight: 4 },
   { value: "chronic_debt_rebound", weight: 4 },
   { value: "compensated_strain", weight: 4 },
   { value: "sparse_abrupt_drop", weight: 3 },
@@ -131,6 +159,9 @@ const cohortDefinitions: Array<{ value: SyntheticCohort; weight: number; profile
   { value: "metabolic_watch", weight: 4, profile: { chronotypeMinutes: 23 * 60, sleepNeedMinutes: 450, stepsMedian: 5600, hrvMedian: 38, restingHeartRate: 72, caloriesMean: 2450, adherence: 0.82, manualLogging: 0.55, sensorQuality: 0.88, activityVariance: 0.92, stressLoad: 0.46, weekendShiftMinutes: 60, shiftIntensity: 0 } },
   { value: "outdoor_worker", weight: 4, profile: { chronotypeMinutes: 21 * 60 + 45, sleepNeedMinutes: 445, stepsMedian: 12500, hrvMedian: 45, restingHeartRate: 63, caloriesMean: 2600, adherence: 0.8, manualLogging: 0.18, sensorQuality: 0.74, activityVariance: 1.5, stressLoad: 0.36, weekendShiftMinutes: 30, shiftIntensity: 0.1 } },
   { value: "remote_worker", weight: 9, profile: { chronotypeMinutes: 23 * 60 + 50, sleepNeedMinutes: 455, stepsMedian: 5200, hrvMedian: 47, restingHeartRate: 66, caloriesMean: 1980, adherence: 0.76, manualLogging: 0.36, sensorQuality: 0.9, activityVariance: 0.8, stressLoad: 0.5, weekendShiftMinutes: 70, shiftIntensity: 0 } },
+  { value: "perimenopause_sleep_variability", weight: 5, profile: { chronotypeMinutes: 23 * 60 + 20, sleepNeedMinutes: 455, stepsMedian: 6200, hrvMedian: 31, restingHeartRate: 70, caloriesMean: 1900, adherence: 0.84, manualLogging: 0.36, sensorQuality: 0.84, activityVariance: 0.98, stressLoad: 0.62, weekendShiftMinutes: 72, shiftIntensity: 0.12 } },
+  { value: "cardio_rehab_low_capacity", weight: 4, profile: { chronotypeMinutes: 22 * 60 + 35, sleepNeedMinutes: 465, stepsMedian: 3300, hrvMedian: 23, restingHeartRate: 76, caloriesMean: 1720, adherence: 0.9, manualLogging: 0.44, sensorQuality: 0.87, activityVariance: 0.62, stressLoad: 0.42, weekendShiftMinutes: 22, shiftIntensity: 0 } },
+  { value: "long_haul_traveler", weight: 4, profile: { chronotypeMinutes: 23 * 60 + 15, sleepNeedMinutes: 440, stepsMedian: 8800, hrvMedian: 39, restingHeartRate: 68, caloriesMean: 2250, adherence: 0.7, manualLogging: 0.25, sensorQuality: 0.74, activityVariance: 1.38, stressLoad: 0.66, weekendShiftMinutes: 108, shiftIntensity: 0.52 } },
 ];
 
 export function generatePopulation(count: number, seed: number, scenarios: SyntheticScenario[] = allScenarios()) {
@@ -206,6 +237,7 @@ export function generateTrajectory(id: string, scenario: SyntheticScenario, seed
   const today = records.at(-1) ?? emptyDay("2026-07-18");
   const observedDays = records.filter(hasAnySignal).length;
   const missingnessRate = records.reduce((sum, day) => sum + domainMissingRate(day), 0) / Math.max(1, records.length);
+  const oneTimeProfile = buildOneTimeProfile(profile, scenario, random);
   return {
     id,
     scenario,
@@ -216,6 +248,7 @@ export function generateTrajectory(id: string, scenario: SyntheticScenario, seed
     truthFactors,
     metadata: {
       profile,
+      oneTimeProfile,
       observedDays,
       missingnessRate: round(missingnessRate, 3),
       dataDensity: missingnessRate < 0.24 ? "dense" : missingnessRate > 0.5 ? "sparse" : "mixed",
@@ -278,13 +311,106 @@ function sampleScenario(random: Random, allowed: SyntheticScenario[], profile: S
       let weight = item.weight;
       if (profile.cohort === "shift_clinician" && item.value === "shift_worker") weight *= 5;
       if (profile.cohort === "frequent_traveler" && (item.value === "jet_lag" || item.value === "travel_gap")) weight *= 4;
+      if (profile.cohort === "long_haul_traveler" && (item.value === "jet_lag" || item.value === "travel_gap" || item.value === "circadian_drift")) weight *= 4.2;
       if (profile.cohort === "active_athlete" && item.value === "overtraining") weight *= 3.5;
       if (profile.cohort === "low_adherence_user" && item.value === "low_adherence") weight *= 4;
       if (profile.cohort === "weekend_social" && item.value === "weekend_rebound") weight *= 3.5;
+      if (profile.cohort === "perimenopause_sleep_variability" && (item.value === "circadian_drift" || item.value === "physiology_warning" || item.value === "weekend_rebound")) weight *= 2.7;
+      if (profile.cohort === "cardio_rehab_low_capacity" && (item.value === "physiology_warning" || item.value === "illness_recovery" || item.value === "gradual_decline")) weight *= 2.6;
+      if ((profile.cohort === "high_stress_founder" || profile.cohort === "remote_worker") && item.value === "burnout_presenteeism") weight *= 2.8;
       if (profile.adherence > 0.88 && item.value === "high_adherence") weight *= 2.4;
       return { ...item, weight };
     });
   return random.weighted(adjusted).value;
+}
+
+function buildOneTimeProfile(profile: SyntheticProfile, scenario: SyntheticScenario, random: Random): SyntheticOneTimeProfile {
+  const defaults = oneTimeDefaults(profile.cohort);
+  const sex = random.weighted([
+    { value: "female" as const, weight: defaults.femaleWeight },
+    { value: "male" as const, weight: defaults.maleWeight },
+    { value: "other" as const, weight: 1 },
+  ]).value;
+  const ageYears = Math.round(clamp(random.normal(defaults.ageMean, defaults.ageSd), defaults.ageRange[0], defaults.ageRange[1]));
+  const heightMean = sex === "male" ? defaults.heightMean + 7 : sex === "female" ? defaults.heightMean - 5 : defaults.heightMean;
+  const heightCm = Math.round(clamp(random.normal(heightMean, 6.5), 145, 205));
+  const bmi = round(clamp(random.normal(defaults.bmiMean, defaults.bmiSd), defaults.bmiRange[0], defaults.bmiRange[1]), 1);
+  const weightKg = round(bmi * (heightCm / 100) ** 2, 1);
+  const knownConditions = [...defaults.conditions];
+  if (scenario === "physiology_warning") knownConditions.push("acute_stress_or_illness_watch");
+  if (scenario === "burnout_presenteeism") knownConditions.push("burnout_risk");
+  if (scenario === "circadian_drift" || scenario === "seasonal_shift") knownConditions.push("circadian_misalignment_risk");
+  if (scenario === "overtraining") knownConditions.push("training_load_spike");
+  return {
+    ageYears,
+    sex,
+    heightCm,
+    weightKg,
+    bmi,
+    occupation: random.pick(defaults.occupations),
+    goal: random.pick(defaults.goals),
+    knownConditions: unique(knownConditions),
+    medicationFlags: defaults.medicationFlags,
+    chronotype: classifyChronotype(profile),
+    sleepNeedMinutes: Math.round(profile.sleepNeedMinutes),
+    baselineStepsMedian: Math.round(profile.stepsMedian),
+    baselineHrvSdnn: round(profile.hrvMedian, 1),
+    baselineRestingHeartRate: round(profile.restingHeartRate, 1),
+    clinicalClass: defaults.clinicalClass,
+  };
+}
+
+function oneTimeDefaults(cohort: SyntheticCohort) {
+  const shared = {
+    occupations: ["knowledge_worker", "hybrid_worker", "caregiver"],
+    goals: ["stable_energy", "better_sleep", "stress_balance"],
+    conditions: [] as string[],
+    medicationFlags: [] as string[],
+    ageMean: 38,
+    ageSd: 11,
+    ageRange: [18, 72] as [number, number],
+    heightMean: 170,
+    bmiMean: 24,
+    bmiSd: 3.2,
+    bmiRange: [18.5, 34] as [number, number],
+    femaleWeight: 49,
+    maleWeight: 49,
+    clinicalClass: "healthy" as SyntheticOneTimeProfile["clinicalClass"],
+  };
+  const map: Record<SyntheticCohort, typeof shared> = {
+    consistent_sleeper: { ...shared, ageMean: 36, bmiMean: 23.2, conditions: [] },
+    sedentary_office: { ...shared, ageMean: 41, bmiMean: 27.2, conditions: ["sedentary_risk"], clinicalClass: "metabolic_risk", occupations: ["office_worker", "manager", "analyst"] },
+    active_athlete: { ...shared, ageMean: 31, ageRange: [18, 58], bmiMean: 22.4, bmiSd: 2.1, clinicalClass: "athletic", occupations: ["student", "coach", "knowledge_worker"], goals: ["training_balance", "recovery_quality", "performance"] },
+    shift_clinician: { ...shared, ageMean: 34, clinicalClass: "shift_work", conditions: ["shift_work"], occupations: ["clinician", "nurse", "resident"], goals: ["shift_recovery", "sleep_regularization"] },
+    student_night_owl: { ...shared, ageMean: 23, ageSd: 4, ageRange: [18, 34], bmiMean: 23.5, clinicalClass: "sleep_disrupted", occupations: ["student", "graduate_student"], goals: ["focus", "sleep_regularization"] },
+    new_parent: { ...shared, ageMean: 34, ageRange: [24, 48], clinicalClass: "sleep_disrupted", conditions: ["fragmented_sleep"], occupations: ["caregiver", "knowledge_worker"], goals: ["recovery_quality", "stable_energy"] },
+    frequent_traveler: { ...shared, ageMean: 39, clinicalClass: "travel_disrupted", conditions: ["frequent_travel"], occupations: ["consultant", "sales", "executive"], goals: ["jet_lag_recovery", "stable_energy"] },
+    high_stress_founder: { ...shared, ageMean: 37, bmiMean: 25.4, clinicalClass: "high_stress", conditions: ["high_work_stress"], occupations: ["founder", "executive"], goals: ["burnout_prevention", "stress_balance"] },
+    older_low_hrv: { ...shared, ageMean: 63, ageSd: 7, ageRange: [50, 82], bmiMean: 26.6, clinicalClass: "older_low_hrv", conditions: ["age_related_low_hrv"], medicationFlags: ["possible_beta_blocker_or_antihypertensive"] },
+    recovery_focused: { ...shared, ageMean: 35, bmiMean: 22.8, clinicalClass: "healthy", goals: ["recovery_quality", "sleep_consistency"] },
+    manual_logger: { ...shared, ageMean: 42, bmiMean: 24.5, clinicalClass: "healthy", occupations: ["teacher", "manager", "knowledge_worker"] },
+    low_adherence_user: { ...shared, ageMean: 36, bmiMean: 25.8, clinicalClass: "low_adherence", conditions: ["low_data_adherence"], occupations: ["freelancer", "service_worker", "student"] },
+    weekend_social: { ...shared, ageMean: 29, ageRange: [20, 45], bmiMean: 24.2, clinicalClass: "sleep_disrupted", conditions: ["social_jetlag"], occupations: ["student", "creative_worker", "knowledge_worker"] },
+    metabolic_watch: { ...shared, ageMean: 49, bmiMean: 31.4, bmiSd: 4.2, bmiRange: [24, 43], clinicalClass: "metabolic_risk", conditions: ["metabolic_risk"], medicationFlags: ["possible_glucose_or_lipid_medication"] },
+    outdoor_worker: { ...shared, ageMean: 43, bmiMean: 25.6, occupations: ["outdoor_worker", "field_worker"], goals: ["heat_fatigue_management", "sleep_consistency"] },
+    remote_worker: { ...shared, ageMean: 37, bmiMean: 25.1, conditions: ["low_daylight_or_low_movement_risk"], occupations: ["remote_worker", "designer", "engineer"] },
+    perimenopause_sleep_variability: { ...shared, ageMean: 49, ageSd: 4, ageRange: [42, 58], bmiMean: 26.2, femaleWeight: 94, maleWeight: 5, clinicalClass: "sleep_disrupted", conditions: ["perimenopause_sleep_variability"], goals: ["sleep_stability", "recovery_quality"] },
+    cardio_rehab_low_capacity: { ...shared, ageMean: 66, ageSd: 8, ageRange: [48, 84], bmiMean: 28.8, bmiSd: 4.1, clinicalClass: "cardio_rehab", conditions: ["cardio_rehab_low_capacity"], medicationFlags: ["possible_beta_blocker_or_antihypertensive"], goals: ["safe_activity_progression", "recovery_quality"] },
+    long_haul_traveler: { ...shared, ageMean: 43, clinicalClass: "travel_disrupted", conditions: ["long_haul_travel"], occupations: ["consultant", "flight_crew", "executive"], goals: ["jet_lag_recovery", "circadian_stability"] },
+  };
+  return map[cohort];
+}
+
+function classifyChronotype(profile: SyntheticProfile): SyntheticOneTimeProfile["chronotype"] {
+  if (profile.shiftIntensity > 0.55 || profile.weekendShiftMinutes > 130) return "irregular";
+  const hour = profile.chronotypeMinutes / 60;
+  if (hour >= 21 && hour < 23) return "early";
+  if (hour >= 23 || hour < 0.75) return "intermediate";
+  return "late";
+}
+
+function unique<T>(values: T[]) {
+  return [...new Set(values)];
 }
 
 function applyScenarioState(
@@ -357,6 +483,32 @@ function applyScenarioState(
     result[2] += 0.25;
   }
   if (scenario === "seasonal_shift" && day > totalDays / 2) result[0] -= (day - totalDays / 2) / totalDays * 0.85;
+  if (scenario === "circadian_drift" && day >= totalDays - 28) {
+    const progress = (day - (totalDays - 28) + 1) / 28;
+    const drift = progress * (0.78 + profile.weekendShiftMinutes / 260 * 0.18 + profile.shiftIntensity * 0.18);
+    result[0] -= drift * 1.08;
+    result[1] -= drift * 0.34;
+    result[3] -= drift * 0.24;
+    if (day >= totalDays - 6) {
+      result[2] += 0.14 + progress * 0.08;
+      result[3] += 0.04;
+    }
+  }
+  if (scenario === "physiology_warning" && day >= totalDays - 14) {
+    const progress = Math.sqrt((day - (totalDays - 14) + 1) / 14);
+    result[1] -= progress * (1.72 + profile.stressLoad * 0.44);
+    result[0] -= progress * 0.42;
+    result[3] -= progress * 0.46;
+    if (day >= totalDays - 5) result[2] += 0.04 + progress * 0.01;
+  }
+  if (scenario === "burnout_presenteeism" && day >= totalDays - 30) {
+    const progress = (day - (totalDays - 30) + 1) / 30;
+    const pressure = progress * (0.72 + profile.stressLoad * 0.42);
+    result[0] -= pressure * 0.38;
+    result[1] -= pressure * 0.98;
+    result[2] += pressure * 0.36;
+    result[3] -= pressure * 0.92;
+  }
   if (scenario === "conflicting_signals" && day >= totalDays - 3) {
     result[2] += 1.05;
     result[1] -= 1.05;
@@ -386,10 +538,15 @@ function buildDay(
   if (scenario === "shift_worker" && Math.floor(dayIndex / 4) % 2 === 1) phaseShift += 300 + profile.shiftIntensity * 90;
   if (scenario === "jet_lag" && dayIndex >= context.totalDays - 8 && dayIndex <= context.totalDays - 3) phaseShift += random.pick([-1, 1]) * random.normal(260, 55);
   if (scenario === "weekend_rebound" && weekend) phaseShift += 120;
+  if (scenario === "circadian_drift" && dayIndex >= context.totalDays - 28) {
+    const progress = (dayIndex - (context.totalDays - 28) + 1) / 28;
+    phaseShift += 90 + progress * (160 + profile.weekendShiftMinutes * 0.35);
+  }
+  if (scenario === "burnout_presenteeism" && dayIndex >= context.totalDays - 18) phaseShift += 38 + profile.stressLoad * 24;
 
   const sleepStart = wrapMinutes(profile.chronotypeMinutes + phaseShift);
   const sleepDebt = Math.max(0, -signal.recovery) * 35 + profile.stressLoad * 18;
-  let duration = clamp(profile.sleepNeedMinutes + signal.sleep * 58 - sleepDebt + random.normal(0, 28 + profile.stressLoad * 18), 120, 720);
+  let duration = clamp(profile.sleepNeedMinutes + signal.sleep * 58 - sleepDebt + random.normal(0, 28 + profile.stressLoad * 18), 180, 720);
   let sleepEnd = wrapMinutes(sleepStart + duration);
   let deepRatio = clamp(0.17 + signal.recovery * 0.018 - profile.stressLoad * 0.015 + random.normal(0, 0.018), 0.06, 0.31);
   let remRatio = clamp(0.21 + signal.sleep * 0.014 + random.normal(0, 0.018), 0.08, 0.34);
@@ -403,6 +560,45 @@ function buildDay(
   let hrv = clamp(profile.hrvMedian * Math.exp(signal.recovery * 0.16 + random.normal(0, 0.08)), 4, 240);
   let rhr = clamp(profile.restingHeartRate - signal.recovery * 3.5 + profile.stressLoad * 2 + random.normal(0, 2.2), 34, 135);
   let activityBins = createActivityBins(date, steps, activeCalories, exerciseMinutes, sleepStart, signal.circadian, profile, random);
+
+  if (scenario === "circadian_drift" && dayIndex >= context.totalDays - 28) {
+    const progress = (dayIndex - (context.totalDays - 28) + 1) / 28;
+    duration = clamp(duration - progress * random.normal(24, 8), 240, 620);
+    sleepEnd = wrapMinutes(sleepStart + duration);
+    deepRatio = clamp(deepRatio - progress * 0.02, 0.06, 0.26);
+    remRatio = clamp(remRatio - progress * 0.014, 0.08, 0.28);
+    mood = clamp(mood + 2 - progress * 4, 4, 92);
+    focus = clamp(focus + 10 - progress * 8, 0, 420);
+    hrv = clamp(hrv * (1 - progress * 0.16), 4, 180);
+    rhr = clamp(rhr + progress * 4, 38, 135);
+  }
+  if (scenario === "physiology_warning" && dayIndex >= context.totalDays - 14) {
+    const progress = Math.sqrt((dayIndex - (context.totalDays - 14) + 1) / 14);
+    hrv = clamp(hrv * (1 - progress * 0.42), 4, 120);
+    rhr = clamp(rhr + 8 + progress * 9, 45, 135);
+    steps = clamp(steps * (0.96 + progress * 0.06), 800, 26000);
+    exerciseMinutes = clamp(exerciseMinutes + progress * 12, 0, 180);
+    activeCalories = clamp(activeCalories + progress * 110, 60, 1500);
+    mood = clamp(mood + 4 - progress * 3, 6, 96);
+    focus = clamp(focus + 18 - progress * 6, 0, 420);
+  }
+  if (scenario === "burnout_presenteeism" && dayIndex >= context.totalDays - 14) {
+    const progress = (dayIndex - (context.totalDays - 14) + 1) / 14;
+    steps = clamp(profile.stepsMedian * (1.25 + progress * 0.28), 5200, 26000);
+    exerciseMinutes = clamp(exerciseMinutes + 22 + progress * 18, 20, 190);
+    activeCalories = clamp(activeCalories + 190 + progress * 150, 220, 1600);
+    duration = clamp(duration - progress * 58, 250, 540);
+    sleepEnd = wrapMinutes(sleepStart + duration);
+    deepRatio = clamp(deepRatio - progress * 0.032, 0.06, 0.22);
+    remRatio = clamp(remRatio - progress * 0.024, 0.08, 0.25);
+    mood = clamp(mood - 8 - progress * 13, 3, 82);
+    focus = clamp(focus + 46 + progress * 26, 60, 420);
+    hrv = clamp(hrv * (0.72 - progress * 0.22), 4, 95);
+    rhr = clamp(rhr + 7 + progress * 9, 45, 136);
+  }
+  if ((scenario === "physiology_warning" || scenario === "burnout_presenteeism") && dayIndex >= context.totalDays - 14) {
+    activityBins = createActivityBins(date, steps, activeCalories, exerciseMinutes, sleepStart, signal.circadian, profile, random);
+  }
 
   if (scenario === "outliers" && random.next() < 0.12) {
     const target = random.pick(["steps", "hrv", "rhr", "sleep", "bins"] as const);
@@ -451,18 +647,25 @@ function buildDay(
     rhr = clamp(profile.restingHeartRate + 18, 78, 130);
   }
   if (scenario === "masked_gradual_decline" && dayIndex >= context.totalDays - 4) {
-    duration = clamp(profile.sleepNeedMinutes * 0.76 + random.normal(0, 18), 300, 405);
+    duration = clamp(profile.sleepNeedMinutes * 0.72 + random.normal(0, 20), 285, 395);
     sleepEnd = wrapMinutes(sleepStart + duration);
-    deepRatio = clamp(deepRatio + 0.015, 0.08, 0.24);
-    remRatio = clamp(remRatio + 0.01, 0.09, 0.28);
+    deepRatio = clamp(deepRatio - 0.034, 0.06, 0.2);
+    remRatio = clamp(remRatio - 0.026, 0.08, 0.24);
     steps = clamp(profile.stepsMedian * 0.62 + random.normal(0, 520), 2200, 7600);
     exerciseMinutes = clamp(exerciseMinutes, 6, 48);
     activeCalories = clamp(activeCalories + 30, 90, 560);
-    mood = clamp(mood + 2, 12, 76);
+    mood = clamp(mood - 7, 7, 68);
     focus = clamp(focus + 12, 15, 220);
-    hrv = clamp(profile.hrvMedian * 0.62, 6, 62);
-    rhr = clamp(profile.restingHeartRate + 10, 58, 128);
+    hrv = clamp(profile.hrvMedian * 0.5, 5, 54);
+    rhr = clamp(profile.restingHeartRate + 15, 62, 132);
   }
+
+  const acuteOxygenDrag =
+    (scenario === "illness_recovery" && dayIndex >= context.totalDays - 11 && dayIndex <= context.totalDays - 5 ? 0.012 : 0) +
+    (scenario === "physiology_warning" && dayIndex >= context.totalDays - 7 ? 0.01 : 0) +
+    (profile.cohort === "cardio_rehab_low_capacity" ? 0.006 : 0);
+  const latestHeartRate = clamp(rhr + 12 + signal.activity * 7 + exerciseMinutes / 16 + random.normal(0, 7), 38, 190);
+  const bloodOxygen = clamp(0.978 + random.normal(0, 0.007) - Math.max(0, rhr - 78) * 0.0008 - acuteOxygenDrag, 0.88, 1);
 
   const missing = missingDomains(scenario, dayIndex, context.totalDays, profile, random);
   return {
@@ -487,8 +690,10 @@ function buildDay(
     nutrition: missing.has("nutrition") ? null : { record_date: date, total_calories: Math.round(calories), lunch_items: [{ name: "synthetic meal", calories: Math.round(calories * 0.35) }] },
     health: missing.has("health") ? null : {
       record_date: date,
+      latest_heart_rate: round(latestHeartRate, 1),
       resting_heart_rate: round(rhr, 1),
       heart_rate_variability_sdnn: round(hrv, 1),
+      blood_oxygen: round(bloodOxygen, 3),
       activity_bins: missing.has("bins") ? [] : activityBins,
       sleep_stage_minutes: { deep: Math.round(duration * deepRatio), rem: Math.round(duration * remRatio), core: Math.round(duration * (1 - deepRatio - remRatio)), awake: Math.round(clamp(22 - signal.sleep * 4 + profile.stressLoad * 6, 2, 82)) },
     },
@@ -523,8 +728,8 @@ function createActivityBins(date: string, totalSteps: number, totalCalories: num
 
 function missingDomains(scenario: SyntheticScenario, day: number, totalDays: number, profile: SyntheticProfile, random: Random) {
   const missing = new Set<string>();
-  const sensorDrop = (1 - profile.sensorQuality) * 0.34 + (scenario === "random_missing" ? 0.18 : 0) + (scenario === "low_adherence" ? 0.16 : 0);
-  const manualDrop = (1 - profile.manualLogging) * 0.5 + (scenario === "random_missing" ? 0.2 : 0) + (scenario === "low_adherence" ? 0.25 : 0);
+  const sensorDrop = (1 - profile.sensorQuality) * 0.34 + (scenario === "random_missing" ? 0.18 : 0) + (scenario === "low_adherence" ? 0.24 : 0);
+  const manualDrop = (1 - profile.manualLogging) * 0.5 + (scenario === "random_missing" ? 0.2 : 0) + (scenario === "low_adherence" ? 0.34 : 0);
   const probabilities: Record<string, number> = {
     sleep: 0.05 + (1 - profile.adherence) * 0.1 + sensorDrop * 0.2,
     activity: 0.03 + sensorDrop * 0.45,
@@ -556,6 +761,12 @@ function missingDomains(scenario: SyntheticScenario, day: number, totalDays: num
   }
   if ((scenario === "gradual_decline" || scenario === "chronic_debt_rebound" || scenario === "masked_gradual_decline") && day >= totalDays - 5) {
     ["sleep", "activity", "health"].forEach((key) => missing.delete(key));
+  }
+  if ((scenario === "circadian_drift" || scenario === "physiology_warning") && day >= totalDays - 7) {
+    ["sleep", "health", "bins"].forEach((key) => missing.delete(key));
+  }
+  if (scenario === "burnout_presenteeism" && day >= totalDays - 7) {
+    ["activity", "health", "bins", "focus"].forEach((key) => missing.delete(key));
   }
   if (scenario === "cold_start" && random.next() < 0.38) ["mood", "nutrition", "focus"].forEach((key) => missing.add(key));
   return missing;

@@ -1,6 +1,6 @@
 # NAVA 算法调研与自研路线
 
-本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA ChronoState V4.7：42 天鲁棒个人基线、小时活动节律、恢复指标、异常检测、四因子动态状态空间模型、Student-t 鲁棒滤波、信号连续性质量建模、自适应残差区间、风险敏感下尾效用、急性多域一致证据、慢性负债记忆、功能补偿门控、稀疏断崖响应、慢性停滞锚点、绝对生理压力门控、假恢复 drawdown 压力、相位扰动保护、自适应端点校准、尾部过反应缓释、冲突型假恢复债务、Bayesian online change-point detection 和分数不确定性区间。
+本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA ChronoState V4.8：42 天鲁棒个人基线、小时活动节律、恢复指标、异常检测、四因子动态状态空间模型、Student-t 鲁棒滤波、信号连续性质量建模、自适应残差区间、风险敏感下尾效用、急性多域一致证据、慢性负债记忆、功能补偿门控、稀疏断崖响应、慢性停滞锚点、绝对生理压力门控、假恢复 drawdown 压力、相位扰动保护、昼夜漂移压力、生理先导预警、硬撑型消耗压力、自适应端点校准、尾部过反应缓释、冲突型假恢复债务、Bayesian online change-point detection、5000 用户合成分布审计和分数不确定性区间。
 
 ## 已调研的算法/方法
 
@@ -58,6 +58,10 @@
 | 50 | Adaptive endpoint calibration | 慢性下滑尾端如果被中位数或短期反弹抬高，需要按 drawdown / transition 证据自适应压低端点 | V4.7 已用于 `endpointCalibrationPressure` |
 | 51 | Tail overreaction relief | 单日极端低值可能是噪声、漏记或短期扰动，不能总是把分数打穿 | V4.7 已用于 `tailOverreactionRelief` |
 | 52 | Conflict-masked recovery debt | 行为/主观信号变好但恢复因子仍弱时，需要识别“表面恢复、底层未恢复”的混合冲突 | V4.7 已并入 `unresolvedDrawdownPressure` |
+| 53 | Circadian drift pressure | 连续相位偏移、睡眠规律性下降和日内活动碎片化应区别于短期 jet lag | V4.8 已用于 `circadianDriftPressure` |
+| 54 | Physiology lead pressure | HRV/RHR/睡眠/血氧可能早于用户主观感受或行为下滑，适合作为 Apple Watch 先导预警 | V4.8 已用于 `physiologyLeadPressure` |
+| 55 | Presenteeism strain pressure | 用户仍在高活动/高专注但恢复、情绪或节律已经下降时，需要识别“硬撑型消耗” | V4.8 已用于 `presenteeismStrainPressure` |
+| 56 | Distribution-gated synthetic audit | 合成数据必须检查用户量、人群比例、字段采集率和现实分布，而不只是随机生成样本 | V4.8 已用于 5000 用户 `data:audit` |
 
 ## NAVA 自研算法设计
 
@@ -80,7 +84,7 @@
 3. 输出 `score`、`confidence`、`signals`、`reasons`、`actions`。
 4. 写入 `daily_rhythm_scores`。
 
-`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 NAVA ChronoState V4.7。
+`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 NAVA ChronoState V4.8。
 
 ### v2：个人基线 + 经典节律特征（已升级）
 
@@ -189,11 +193,11 @@ v3 的关键点：
 - `recoveryScore`
 - `phaseShiftMinutes`
 
-### v4.7：NAVA ChronoState（已接入后端）
+### v4.7：NAVA ChronoState（历史版本）
 
 目标：把 v3 的“证据融合分数”升级成真正的个体动态状态估计，能处理缺失、噪声、传感器偏置、连续下滑、突发转折、冲突信号、相位扰动和长期低谷后的假恢复。本轮 V4.7 在 V4.6 基础上加入 phase turbulence protection、adaptive endpoint calibration、tail overreaction relief 和 conflict-masked recovery debt：既能更快压住慢性下滑尾端，也能避免把 jet lag / 倒班 / 周末相位扰动误判成慢性恶化。
 
-当前实现文件：
+相关实现文件：
 
 ```text
 supabase/functions/_shared/rhythm-core.ts
@@ -311,6 +315,48 @@ tests/rhythm-core.test.ts
 - `sparse_abrupt_drop`：新增压力场景，V4.7 MAE `2.836`，明显优于旧 proxy `6.403`，说明稀疏断崖门控有效。
 - `masked_gradual_decline`：新增压力场景，V4.7 MAE `16.329`，优于 V4.6 `16.829` 和旧 proxy `20.455`；但它仍是下一轮最明确的算法短板。
 - `conflicting_signals`：扩展 22 场景下 V4.7 MAE `5.270`，仍优于旧 proxy `6.097`。
+
+### v4.8：NAVA ChronoState（当前后端版本）
+
+目标：把 V4.7 从 1000 用户压力测试升级到 5000 用户分布审计，并针对 Apple Watch 自动数据补强三类派生压力：昼夜漂移、生理先导预警、硬撑型消耗。
+
+新增：
+
+1. `circadianDriftPressure`：识别连续相位偏移、睡眠规律性下降和日内活动碎片化。
+2. `physiologyLeadPressure`：识别 HRV、静息心率、睡眠和血氧先于行为/主观下滑出现的预警。
+3. `presenteeismStrainPressure`：识别用户仍在高活动或高专注，但恢复、情绪或昼夜节律已经变弱。
+4. `algorithm/data-catalog.ts`：把字段分为 Apple Watch 自动同步、用户一次性资料、用户每日自报、算法派生数据四类。
+5. `npm run data:audit`：默认最低 5000 用户，检查字段采集率、合理范围、P1/P99、场景覆盖、cohort 覆盖、临床类别比例、性别比例、chronotype 比例和数据密度比例。
+
+5000 用户正式 benchmark：
+
+- V4.8 MAE：`5.760`
+- 旧单日 proxy MAE：`9.257`
+- MAE 改善：`37.78%`
+- RMSE：`7.466`
+- RMSE 改善：`37.17%`
+- Bias：`-0.449`
+- Spearman：`0.8594`
+- Low-state AUROC：`0.9604`
+- 平均置信度：`0.714`
+- 80% 区间覆盖：`0.9686`
+- 平均区间宽度：`32.188`
+
+5000 用户数据审计：
+
+- 用户数：`5000`
+- 日级记录：`271169`
+- 场景覆盖：`25 / 25`
+- cohort 覆盖：`19 / 19`
+- hardIssues：`0`
+- warnings：`0`
+
+当前薄弱点：
+
+- `masked_gradual_decline`：V4.8 MAE `11.504`，明显优于旧 proxy `16.027`，但仍有高估。
+- `burnout_presenteeism`：V4.8 MAE `9.347`，明显优于旧 proxy `20.524`，但仍需要真实反馈校准“硬撑”标签。
+- `abrupt_shift`：V4.8 MAE `3.815`，略高于旧 proxy `3.555`，但 RMSE `4.598` 优于旧 proxy `5.058`。
+- `overtraining`：V4.8 MAE `6.683`，略优于旧 proxy `6.954`，但 RMSE 略差。
 
 ### v5：个性化推荐模型
 

@@ -3,8 +3,8 @@ import { calculateRhythm, defaultRhythmConfig, rhythmModelVersion, type RhythmCo
 import { allCohorts, allScenarios, generatePopulation, legacyFusionProxy, type SyntheticTrajectory } from "../algorithm/synthetic.ts";
 
 const tune = process.argv.includes("--tune");
-const requested = Number(process.argv.find((item) => item.startsWith("--users="))?.split("=")[1] ?? (tune ? 240 : 1000));
-const users = Number.isFinite(requested) ? Math.max(50, Math.min(5000, Math.round(requested))) : 1000;
+const requested = Number(process.argv.find((item) => item.startsWith("--users="))?.split("=")[1] ?? (tune ? 240 : 5000));
+const users = Number.isFinite(requested) ? Math.max(tune ? 50 : 5000, Math.min(10000, Math.round(requested))) : tune ? 240 : 5000;
 
 if (tune) {
   const train = generatePopulation(users, 240718);
