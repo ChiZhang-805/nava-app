@@ -12,7 +12,7 @@ App 后端不另起账号系统，继续使用 Web 同一个 Supabase 项目。�
 | `watch-sync` | 保存 Watch 快照，处理手表快速情绪和专注动作 | `watch_snapshots`、`device_connections`、`mood_records`、`focus_records` |
 | `diet-extract` | 饮食照片识别入口，支持正式算法服务转发和 fallback | 不直接写表，App 确认后写 `nutrition_records` |
 | `face-analyze` | 面部状态分析入口，支持正式算法服务转发和 fallback | App 确认后写 `face_records` |
-| `rhythm-score` | 读取 42 天窗口，生成 NAVA ChronoState V4.1 节律分、个人基线、节律特征、动态状态、不确定性区间、异常旗标和建议 | `daily_rhythm_scores` |
+| `rhythm-score` | 读取 42 天窗口，生成 NAVA ChronoState V4.2 节律分、个人基线、节律特征、动态状态、不确定性区间、异常旗标和建议 | `daily_rhythm_scores` |
 | `export-user-data` | 导出当前用户 App/Web 共享数据 | 只读 |
 
 ## 已实现数据库/Storage
@@ -40,7 +40,7 @@ supabase/migrations/202607180003_nava_chronostate_v4.sql
 - 私有 bucket：`face-photos`
 - Storage RLS：用户只能访问自己 `user_id/` 路径下的照片
 
-## NAVA ChronoState V4.1 输出
+## NAVA ChronoState V4.2 输出
 
 `rhythm-score` 和 `health-sync-ingest` 会写入：
 
@@ -50,6 +50,7 @@ supabase/migrations/202607180003_nava_chronostate_v4.sql
 - `fusion`：非简单加权的融合诊断，包含四因子后验状态、Student-t 鲁棒观测权重、急性证据 blend、低分/高分一致性、趋势压力、变点概率和不确定性区间。
 - `fusion.utilityFusion.softDeclinePressure`：慢性下滑压力，用于审计算法是否应更快响应。
 - `fusion.utilityFusion.mixedConflict`：高低信号混合冲突程度，例如高活动但低恢复。
+- `fusion.utilityFusion.loadRecoveryConflict`：活动/专注负荷较高但恢复、睡眠或节律偏低时的冲突门控，用于避免把所有矛盾信号简单判成崩塌。
 - `baseline`：42 天指数衰减鲁棒个人基线。
 - `features`：融合算法、相位、规律性、碎片化、恢复指标、活动节律特征。
 - `activity_bins`：HealthKit 24 小时活动曲线，保存于 `health_metric_snapshots`。
