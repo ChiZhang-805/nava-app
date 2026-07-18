@@ -1,6 +1,6 @@
 # NAVA 算法调研与自研路线
 
-本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA ChronoState V4.6：42 天鲁棒个人基线、小时活动节律、恢复指标、异常检测、四因子动态状态空间模型、Student-t 鲁棒滤波、信号连续性质量建模、自适应残差区间、风险敏感下尾效用、急性多域一致证据、慢性负债记忆、功能补偿门控、稀疏断崖响应、慢性停滞锚点、绝对生理压力门控、假恢复 drawdown 压力、Bayesian online change-point detection 和分数不确定性区间。
+本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA ChronoState V4.7：42 天鲁棒个人基线、小时活动节律、恢复指标、异常检测、四因子动态状态空间模型、Student-t 鲁棒滤波、信号连续性质量建模、自适应残差区间、风险敏感下尾效用、急性多域一致证据、慢性负债记忆、功能补偿门控、稀疏断崖响应、慢性停滞锚点、绝对生理压力门控、假恢复 drawdown 压力、相位扰动保护、自适应端点校准、尾部过反应缓释、冲突型假恢复债务、Bayesian online change-point detection 和分数不确定性区间。
 
 ## 已调研的算法/方法
 
@@ -54,6 +54,10 @@
 | 46 | Drawdown memory anchoring | 长期低谷后的当天中等信号不足以证明恢复，需要近期状态锚点 | V4.5 已用于 `drawdownStallPressure` |
 | 47 | Absolute physiology strain guard | 长期个人基线被恶化数据拖低后，HRV/RHR/睡眠的绝对风险仍应参与约束 | V4.6 已用于 `physiologyStrainPressure` |
 | 48 | Unresolved drawdown recovery test | 近期低谷后，只有活动或短期表面反弹不足以证明恢复，需要 HRV/RHR/睡眠确认 | V4.6 已用于 `unresolvedDrawdownPressure` |
+| 49 | Phase turbulence protection | jet lag、倒班和周末相位扰动会让睡眠相位/活动峰值短期漂移，但不等于慢性生理恶化 | V4.7 已用于 `phaseTurbulencePressure` |
+| 50 | Adaptive endpoint calibration | 慢性下滑尾端如果被中位数或短期反弹抬高，需要按 drawdown / transition 证据自适应压低端点 | V4.7 已用于 `endpointCalibrationPressure` |
+| 51 | Tail overreaction relief | 单日极端低值可能是噪声、漏记或短期扰动，不能总是把分数打穿 | V4.7 已用于 `tailOverreactionRelief` |
+| 52 | Conflict-masked recovery debt | 行为/主观信号变好但恢复因子仍弱时，需要识别“表面恢复、底层未恢复”的混合冲突 | V4.7 已并入 `unresolvedDrawdownPressure` |
 
 ## NAVA 自研算法设计
 
@@ -76,7 +80,7 @@
 3. 输出 `score`、`confidence`、`signals`、`reasons`、`actions`。
 4. 写入 `daily_rhythm_scores`。
 
-`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 NAVA ChronoState V4.6。
+`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 NAVA ChronoState V4.7。
 
 ### v2：个人基线 + 经典节律特征（已升级）
 
@@ -185,9 +189,9 @@ v3 的关键点：
 - `recoveryScore`
 - `phaseShiftMinutes`
 
-### v4.6：NAVA ChronoState（已接入后端）
+### v4.7：NAVA ChronoState（已接入后端）
 
-目标：把 v3 的“证据融合分数”升级成真正的个体动态状态估计，能处理缺失、噪声、传感器偏置、连续下滑、突发转折、冲突信号和长期低谷后的假恢复。本轮 V4.6 进一步加入信号连续性质量建模、绝对生理下限保护、负荷-恢复矛盾门控、EWMA drawdown 记忆、慢性负债压力、功能补偿识别、稀疏断崖响应、慢性停滞锚点、绝对生理压力门控、假恢复 drawdown 压力、突发转折区间膨胀和更真实的合成人群压力数据。
+目标：把 v3 的“证据融合分数”升级成真正的个体动态状态估计，能处理缺失、噪声、传感器偏置、连续下滑、突发转折、冲突信号、相位扰动和长期低谷后的假恢复。本轮 V4.7 在 V4.6 基础上加入 phase turbulence protection、adaptive endpoint calibration、tail overreaction relief 和 conflict-masked recovery debt：既能更快压住慢性下滑尾端，也能避免把 jet lag / 倒班 / 周末相位扰动误判成慢性恶化。
 
 当前实现文件：
 
@@ -226,6 +230,10 @@ tests/rhythm-core.test.ts
 21. 增加 `drawdownStallPressure`，在长期 drawdown 且没有强活动反弹时，把最终 latent 锚回近期历史中位状态。
 22. 增加 `physiologyStrainPressure`，把绝对短睡、低 HRV 和高静息心率作为独立压力源，避免个人基线被长期恶化数据拖低后把风险正常化。
 23. 增加 `unresolvedDrawdownPressure`，只在“近期低谷 + 当天表面不低 + HRV/RHR/睡眠没有确认恢复”的形态下触发，避免把普通突发下滑重复扣分。
+24. 增加 `phaseTurbulencePressure`，用睡眠相位偏移、活动 acrophase 偏移、IV 碎片化和睡眠规律性识别短期相位扰动；真正释放分数时会被长期 drawdown 自动削弱，避免误伤慢性恶化。
+25. 增加 `endpointCalibrationPressure`，当低一致性、drawdown / transition 与中低端点同时出现时，自动压低融合端点，避免慢性下滑被中位数抬高。
+26. 增加 `tailOverreactionRelief`，当极端尾部低值与中位数、趋势和冲突证据不一致时，降低单日噪声把分数打穿的风险。
+27. 扩展 `unresolvedDrawdownPressure`，加入 conflict-masked recovery debt；在行为/主观信号回升但恢复因子仍弱、且近期存在低谷记忆时，识别“表面恢复、底层未恢复”。
 
 复杂度：
 
@@ -264,42 +272,45 @@ tests/rhythm-core.test.ts
 
 当前固定种子 1000 用户旧 20 场景对照基准：
 
-- V4.6 MAE：`5.541`
+- V4.7 MAE：`5.382`
 - 旧单日 proxy MAE：`8.665`
-- MAE 改善：`36.06%`
-- RMSE：`7.111`
-- RMSE 改善：`36.13%`
-- Bias：`0.224`
-- 平均置信度：`0.726`
-- 80% 区间覆盖：`0.954`
-- 平均区间宽度：`29.491`
-- 单用户耗时：约 `28.0 ms`
+- MAE 改善：`37.89%`
+- RMSE：`6.867`
+- RMSE 改善：`38.33%`
+- Bias：`0.419`
+- Spearman：`0.7988`
+- Low-state AUROC：`0.9891`
+- 平均置信度：`0.723`
+- 80% 区间覆盖：`0.965`
+- 平均区间宽度：`30.219`
+- 单用户耗时：约 `31.5 ms`
 
 扩展到 22 类压力场景后的当前基准：
 
-- V4.6 MAE：`5.787`
+- V4.7 MAE：`5.670`
 - 旧单日 proxy MAE：`9.334`
-- MAE 改善：`38.00%`
-- RMSE：`7.744`
-- RMSE 改善：`35.04%`
-- Bias：`0.653`
-- Spearman：`0.8153`
-- Low-state AUROC：`0.9653`
+- MAE 改善：`39.25%`
+- RMSE：`7.561`
+- RMSE 改善：`36.57%`
+- Bias：`0.652`
+- Spearman：`0.8203`
+- Low-state AUROC：`0.9699`
 - 平均置信度：`0.721`
-- 80% 区间覆盖：`0.932`
-- 平均区间宽度：`30.045`
-- 单用户耗时：约 `27.9 ms`
+- 80% 区间覆盖：`0.943`
+- 平均区间宽度：`30.713`
+- 单用户耗时：约 `27.8 ms`
 - 数据密度：mixed `924`、dense `52`、sparse `24`
 
 注意：这是工程压力测试，不是临床验证。真实上线后必须用真实 Apple Watch 数据继续校准。
 
 当前薄弱点：
 
-- `gradual_decline`：旧 20 场景下 V4.6 MAE `6.542`，扩展 22 场景下 MAE `6.136`，仍高于旧 proxy；下一轮需要真实慢性恶化标签和更细的趋势/点值校准。
-- `abrupt_shift`：旧 20 场景下 V4.6 MAE `4.653`，扩展 22 场景下 MAE `4.249`，仍略高于旧 proxy，但 RMSE 已接近或优于 proxy。
-- `sparse_abrupt_drop`：新增压力场景，V4.6 MAE `2.836`，明显优于旧 proxy `6.403`，说明稀疏断崖门控有效。
-- `masked_gradual_decline`：新增压力场景，V4.6 MAE `16.829`，从 V4.5 的 `21.791` 明显下降，也优于旧 proxy `20.455`；但它仍是下一轮最明确的算法短板。
-- `conflicting_signals`：旧 20 场景下 V4.6 MAE `3.539`，保持优于旧 proxy。
+- `gradual_decline`：扩展 22 场景下 V4.7 MAE `5.461`，相对 V4.6 的 `6.136` 已改善，但仍高于旧 proxy `4.184`；下一轮需要真实慢性恶化标签和更细的趋势/点值校准。
+- `abrupt_shift`：扩展 22 场景下 V4.7 MAE `4.287`，RMSE `5.665` 仍优于旧 proxy RMSE `5.995`，但 MAE 略高于旧 proxy。
+- `jet_lag`：V4.7 MAE `7.474`，比第一版 V4.7 回归有所修复，优于旧 proxy `8.959`；仍需要真实旅行/倒班数据校准 phase relief。
+- `sparse_abrupt_drop`：新增压力场景，V4.7 MAE `2.836`，明显优于旧 proxy `6.403`，说明稀疏断崖门控有效。
+- `masked_gradual_decline`：新增压力场景，V4.7 MAE `16.329`，优于 V4.6 `16.829` 和旧 proxy `20.455`；但它仍是下一轮最明确的算法短板。
+- `conflicting_signals`：扩展 22 场景下 V4.7 MAE `5.270`，仍优于旧 proxy `6.097`。
 
 ### v5：个性化推荐模型
 
@@ -338,8 +349,10 @@ tests/rhythm-core.test.ts
 - Cole-Kripke sleep/wake algorithm: https://pubmed.ncbi.nlm.nih.gov/1455130/
 - Circadian rest-activity analysis: https://pmc.ncbi.nlm.nih.gov/articles/PMC12829919/
 - Non-parametric circadian analysis: https://link.springer.com/article/10.1007/s40675-023-00267-4
+- Rest-activity rhythm IV/IS measurement review: https://pmc.ncbi.nlm.nih.gov/articles/PMC6884363/
 - Wearable circadian rhythm analysis: https://www.jmir.org/2021/10/e18403/
 - HRV wearable review: https://pmc.ncbi.nlm.nih.gov/articles/PMC10742885/
+- Wearable sleep / HR / HRV validation: https://pubmed.ncbi.nlm.nih.gov/36016077/
 - Multisensor fusion review: https://arxiv.org/html/2412.05895v1
 - Wearable health multi-sensor fusion review: https://www.sciencedirect.com/science/article/pii/S1566253526001983
 - Personalized wearable data review: https://pmc.ncbi.nlm.nih.gov/articles/PMC10890129/
@@ -363,3 +376,6 @@ tests/rhythm-core.test.ts
 - Compendium of Physical Activities: https://pacompendium.com/
 - Bayesian Networks for risk prediction: https://pubmed.ncbi.nlm.nih.gov/30975395/
 - Contextual bandits for mental health recommendation: https://arxiv.org/html/2401.15188v1
+- Bayesian online changepoint detection: https://arxiv.org/abs/0710.3742
+- Adaptive windowing for changing data streams: https://www.cs.upc.edu/~gavalda/papers/ds06slides.pdf
+- Bayesian autoregressive online change-point detection with time-varying moments: https://arxiv.org/html/2407.16376v1

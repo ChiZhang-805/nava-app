@@ -12,7 +12,7 @@ App 后端不另起账号系统，继续使用 Web 同一个 Supabase 项目。�
 | `watch-sync` | 保存 Watch 快照，处理手表快速情绪和专注动作 | `watch_snapshots`、`device_connections`、`mood_records`、`focus_records` |
 | `diet-extract` | 饮食照片识别入口，支持正式算法服务转发和 fallback | 不直接写表，App 确认后写 `nutrition_records` |
 | `face-analyze` | 面部状态分析入口，支持正式算法服务转发和 fallback | App 确认后写 `face_records` |
-| `rhythm-score` | 读取 42 天窗口，生成 NAVA ChronoState V4.6 节律分、个人基线、节律特征、动态状态、慢性负债压力、功能补偿门控、稀疏断崖冲击、慢性停滞压力、绝对生理压力、假恢复 drawdown 压力、不确定性区间、异常旗标和建议 | `daily_rhythm_scores` |
+| `rhythm-score` | 读取 42 天窗口，生成 NAVA ChronoState V4.7 节律分、个人基线、节律特征、动态状态、慢性负债压力、功能补偿门控、稀疏断崖冲击、慢性停滞压力、绝对生理压力、假恢复 drawdown 压力、相位扰动保护、自适应端点校准、尾部过反应缓释、不确定性区间、异常旗标和建议 | `daily_rhythm_scores` |
 | `export-user-data` | 导出当前用户 App/Web 共享数据 | 只读 |
 
 ## 已实现数据库/Storage
@@ -40,7 +40,7 @@ supabase/migrations/202607180003_nava_chronostate_v4.sql
 - 私有 bucket：`face-photos`
 - Storage RLS：用户只能访问自己 `user_id/` 路径下的照片
 
-## NAVA ChronoState V4.6 输出
+## NAVA ChronoState V4.7 输出
 
 `rhythm-score` 和 `health-sync-ingest` 会写入：
 
@@ -59,6 +59,9 @@ supabase/migrations/202607180003_nava_chronostate_v4.sql
 - `fusion.utilityFusion.drawdownStallPressure`：长期 drawdown 下当天中等信号不足以证明恢复时的停滞压力，用于把分数锚回近期历史状态。
 - `fusion.utilityFusion.physiologyStrainPressure`：短睡、低 HRV、高静息心率共同出现时的绝对生理压力，防止长期恶化被个人基线正常化。
 - `fusion.utilityFusion.unresolvedDrawdownPressure`：近期低谷后，当天表面信号不低但 HRV/RHR/睡眠没有确认恢复时的假恢复压力。
+- `fusion.utilityFusion.phaseTurbulencePressure`：睡眠相位、活动峰值和日内碎片化共同异常时的相位扰动诊断，用来区分 jet lag / shift turbulence 与慢性恶化。
+- `fusion.utilityFusion.endpointCalibrationPressure`：中低分且近期 drawdown / transition 证据一致时的端点校准压力，避免慢性下滑被中位数抬高。
+- `fusion.utilityFusion.tailOverreactionRelief`：极端单日尾部低值但中位数和历史证据不支持崩塌时的缓释项，减少孤立噪声把分数打穿。
 - `baseline`：42 天指数衰减鲁棒个人基线。
 - `features`：融合算法、相位、规律性、碎片化、恢复指标、活动节律特征。
 - `activity_bins`：HealthKit 24 小时活动曲线，保存于 `health_metric_snapshots`。

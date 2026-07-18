@@ -134,6 +134,9 @@ type FilterDay = {
   drawdownStallPressure: number;
   physiologyStrainPressure: number;
   unresolvedDrawdownPressure: number;
+  phaseTurbulencePressure: number;
+  endpointCalibrationPressure: number;
+  tailOverreactionRelief: number;
   observation: number | null;
   evidenceCount: number;
   robustWeights: Array<{ key: SignalKey; weight: number; innovation: number; standardizedInnovation: number }>;
@@ -159,6 +162,9 @@ type UtilityFusion = {
   drawdownStallPressure: number;
   physiologyStrainPressure: number;
   unresolvedDrawdownPressure: number;
+  phaseTurbulencePressure: number;
+  endpointCalibrationPressure: number;
+  tailOverreactionRelief: number;
   dispersion: number;
 };
 
@@ -202,8 +208,8 @@ const signalModels: Record<SignalKey, { loading: Vector4; variance: number; weig
   recovery: { loading: [0.06, 0.82, 0.08, 0.04], variance: 0.4, weight: 0.16, label: "恢复" },
 };
 
-export const rhythmSchemaVersion = "4.6.0";
-export const rhythmModelVersion = "nava-chronostate-v4.6-2026-07";
+export const rhythmSchemaVersion = "4.7.0";
+export const rhythmModelVersion = "nava-chronostate-v4.7-2026-07";
 
 export const defaultRhythmConfig: RhythmConfig = {
   baselineWindowDays: 42,
@@ -267,7 +273,7 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
     profileLabels,
     baseline: current.baseline,
     fusion: {
-      method: "nava-chronostate-v4.6-physiology-and-unresolved-drawdown-aware-state-space",
+      method: "nava-chronostate-v4.7-adaptive-endpoint-state-space",
       stateFactors: factorState,
       factorScores,
       posteriorCovariance: state.covariance.map((row) => row.map((value) => round(value, 4))),
@@ -295,6 +301,9 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
         drawdownStallPressure: round(state.drawdownStallPressure, 4),
         physiologyStrainPressure: round(state.physiologyStrainPressure, 4),
         unresolvedDrawdownPressure: round(state.unresolvedDrawdownPressure, 4),
+        phaseTurbulencePressure: round(state.phaseTurbulencePressure, 4),
+        endpointCalibrationPressure: round(state.endpointCalibrationPressure, 4),
+        tailOverreactionRelief: round(state.tailOverreactionRelief, 4),
       },
       evidenceCount: state.evidenceCount,
       robustObservationWeights: state.robustWeights,
@@ -302,7 +311,7 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
       dataQuality,
     },
     features: {
-      fusion: "four-factor robust Student-t state-space filter + EWMA drawdown memory + physiology guard + chronic-debt cap + functional-compensation gate + sparse-transition shock + drawdown-stall pressure + physiology-strain cap + unresolved-drawdown pressure + adaptive residual calibration + Bayesian online change-point detection",
+      fusion: "four-factor robust Student-t state-space filter + EWMA drawdown memory + physiology guard + chronic-debt cap + functional-compensation gate + sparse-transition shock + drawdown-stall pressure + physiology-strain cap + unresolved-drawdown pressure + phase-turbulence protection + adaptive endpoint calibration + tail-overreaction relief + adaptive residual calibration + Bayesian online change-point detection",
       components: Object.keys(signalModels),
       circadian: current.activityRhythm,
       signalHealth: current.signalHealth,
@@ -654,7 +663,10 @@ function robustStateFilter(days: DayAnalysis[], config: RhythmConfig): FilterDay
       fusion.sparseTransitionShock * 0.08 +
       fusion.drawdownStallPressure * 0.06 +
       fusion.physiologyStrainPressure * 0.08 +
-      fusion.unresolvedDrawdownPressure * 0.08;
+      fusion.unresolvedDrawdownPressure * 0.08 +
+      fusion.phaseTurbulencePressure * 0.06 +
+      fusion.endpointCalibrationPressure * 0.08 +
+      fusion.tailOverreactionRelief * 0.05;
     const variance = Math.max(1e-6, quadratic(globalLoading, covariance) + residualVariance + correlationGuard + utilityDisagreement);
     const intervalDelta = 1.16 * Math.sqrt(variance);
     output.push({
@@ -683,6 +695,9 @@ function robustStateFilter(days: DayAnalysis[], config: RhythmConfig): FilterDay
       drawdownStallPressure: fusion.drawdownStallPressure,
       physiologyStrainPressure: fusion.physiologyStrainPressure,
       unresolvedDrawdownPressure: fusion.unresolvedDrawdownPressure,
+      phaseTurbulencePressure: fusion.phaseTurbulencePressure,
+      endpointCalibrationPressure: fusion.endpointCalibrationPressure,
+      tailOverreactionRelief: fusion.tailOverreactionRelief,
       observation: aggregateObservation(day.signals, config.scoreTemperature),
       evidenceCount: day.signals.length,
       robustWeights,
@@ -1323,6 +1338,9 @@ function calculateUtilityFusion(
       drawdownStallPressure: 0,
       physiologyStrainPressure: 0,
       unresolvedDrawdownPressure: 0,
+      phaseTurbulencePressure: 0,
+      endpointCalibrationPressure: 0,
+      tailOverreactionRelief: 0,
       dispersion: 0,
     };
   }
@@ -1359,6 +1377,9 @@ function calculateUtilityFusion(
       drawdownStallPressure: 0,
       physiologyStrainPressure: 0,
       unresolvedDrawdownPressure: 0,
+      phaseTurbulencePressure: 0,
+      endpointCalibrationPressure: 0,
+      tailOverreactionRelief: 0,
       dispersion: 0,
     };
   }
@@ -1374,6 +1395,7 @@ function calculateUtilityFusion(
   const upperTail = weightedQuantile(observations, 0.7);
   const lowerRisk = entropicLowerUtility(observations, 0.58);
   const bottomTail = unweightedTailMean(observations, 0.25);
+  const bottomTailScore = latentToScore(bottomTail, config.scoreTemperature);
   const deepLowShare = observations.filter((item) => item.score <= 25).length / observations.length;
   const scoreByKey = new Map(signals.map((item) => [item.key, item.score]));
   const signalByKey = new Map(signals.map((item) => [item.key, item]));
@@ -1438,6 +1460,46 @@ function calculateUtilityFusion(
   const physiologyStrainPressure = physiologyAvailable < 2
     ? clamp(Math.max(sleepStrain, hrvStrain, restingHeartRateStrain) * 0.48, 0, 0.36)
     : clamp(sleepStrain * 0.28 + hrvStrain * 0.34 + restingHeartRateStrain * 0.28 + physiologySynergy, 0, 1);
+  const sleepPhaseDifference = bounded(signalByKey.get("sleep")?.evidence.phaseDifference, -720, 720);
+  const circadianEvidence = signalByKey.get("circadian")?.evidence;
+  const acrophaseDeviationMinutes = bounded(circadianEvidence?.acrophaseDeviationMinutes, 0, 720);
+  const todayIv = bounded(circadianEvidence?.todayIv, 0, 8);
+  const sleepRegularityIndex = bounded(
+    circadianEvidence?.sleepRegularityIndex ?? signalByKey.get("sleep")?.evidence.sleepRegularityIndex,
+    0,
+    100,
+  );
+  const phaseDeviationPressure = Math.max(
+    sleepPhaseDifference == null ? 0 : clamp((Math.abs(sleepPhaseDifference) - 65) / 210, 0, 1),
+    acrophaseDeviationMinutes == null ? 0 : clamp((acrophaseDeviationMinutes - 140) / 300, 0, 1),
+  );
+  const fragmentationPressure = todayIv == null ? 0 : clamp((todayIv - 1.35) / 1.1, 0, 1);
+  const irregularityPressure = sleepRegularityIndex == null ? 0 : clamp((58 - sleepRegularityIndex) / 34, 0, 1);
+  const physiologySafety = clamp(
+    1 - hrvStrain * 0.34 - restingHeartRateStrain * 0.32 - sleepStrain * 0.18,
+    0.18,
+    1,
+  );
+  const behaviorOffsetSupport = clamp(activitySupport * 0.26 + focusSupport * 0.18 + moodSupport * 0.12 + highConsensus * 0.1, 0, 0.42);
+  const phaseTurbulencePressure = phaseDeviationPressure > 0.18 || fragmentationPressure > 0.35
+    ? clamp(
+      (
+        phaseDeviationPressure * 0.52 +
+        fragmentationPressure * 0.2 +
+        irregularityPressure * 0.14 +
+        behaviorOffsetSupport
+      ) *
+        physiologySafety *
+        (1 - clamp(deepLowShare - 0.25, 0, 0.55) * 0.5),
+      0,
+      0.74,
+    )
+    : 0;
+  const phaseReliefPressure = phaseTurbulencePressure *
+    (1 - clamp((trendMemory.drawdownPressure - 0.62) / 0.28, 0, 0.72)) *
+    (lowConsensus >= 0.62 ? 1 : 0);
+  const effectiveDrawdownPressure = trendMemory.drawdownPressure * (1 - phaseReliefPressure * 0.16);
+  const effectiveDrawdownPeakPressure = trendMemory.drawdownPeakPressure;
   const functionalCompensation = clamp(
     activitySupport * 0.3 +
       focusSupport * 0.22 +
@@ -1460,7 +1522,7 @@ function calculateUtilityFusion(
   );
   const strongFunctionalRebound = activitySupport >= 0.72 && functionalCompensation >= 0.34 && highConsensus >= 0.08;
   const chronicDebtPressure = clamp(
-    trendMemory.drawdownPressure *
+    effectiveDrawdownPressure *
       (1 - trendMemory.transitionPressure * 0.66) *
       (
         0.24 +
@@ -1469,7 +1531,8 @@ function calculateUtilityFusion(
         Math.max(0, 0.62 - lowConsensus) * 0.18
       ) -
       highConsensus * 0.2 -
-      functionalCompensation * 0.18,
+      functionalCompensation * 0.18 -
+      phaseReliefPressure * 0.08,
     0,
     1,
   );
@@ -1478,16 +1541,16 @@ function calculateUtilityFusion(
       lowConsensus * 0.46 +
         Math.max(0, 52 - medianScore) / 34 * 0.26 +
         trendMemory.transitionPressure * 0.28 +
-        trendMemory.drawdownPressure * 0.1 -
+        effectiveDrawdownPressure * 0.1 -
         mixedConflict * 0.12 -
         functionalCompensation * 0.18,
       0,
       1,
     )
     : 0;
-  const drawdownStallPressure = lowConsensus < 0.68 && medianScore >= 32 && !strongFunctionalRebound && trendMemory.drawdownPressure >= 0.55 && trendMemory.transitionPressure < 0.24
+  const drawdownStallPressure = lowConsensus < 0.68 && medianScore >= 32 && !strongFunctionalRebound && effectiveDrawdownPressure >= 0.55 && trendMemory.transitionPressure < 0.24
     ? clamp(
-      trendMemory.drawdownPressure *
+      effectiveDrawdownPressure *
         (
           0.24 +
           Math.max(0, 62 - medianScore) / 38 * 0.28 +
@@ -1503,9 +1566,9 @@ function calculateUtilityFusion(
     : 0;
   const reboundGap = trendMemory.recentMedianScore == null ? 0 : clamp((medianScore - trendMemory.recentMedianScore - 4) / 26, 0, 1);
   const maskedDrawdownShape = lowConsensus < 0.58 && medianScore >= 44 && highConsensus >= 0.08;
-  const unresolvedDrawdownPressure = trendMemory.drawdownPeakPressure > 0.12 && recoveryFloor < 58 && !strongFunctionalRebound && maskedDrawdownShape && physiologyStrainPressure >= 0.22
+  const directUnresolvedDrawdownPressure = effectiveDrawdownPeakPressure > 0.12 && recoveryFloor < 58 && !strongFunctionalRebound && maskedDrawdownShape && physiologyStrainPressure >= 0.22
     ? clamp(
-      trendMemory.drawdownPeakPressure *
+      effectiveDrawdownPeakPressure *
         (
           0.22 +
           physiologyStrainPressure * 0.52 +
@@ -1519,9 +1582,53 @@ function calculateUtilityFusion(
       0.64,
     )
     : 0;
+  const conflictMaskedRecoveryDebt = effectiveDrawdownPeakPressure > 0.16 && recoveryFloor < 62 && medianScore >= 44 && lowConsensus < 0.72 && highConsensus >= 0.24 && mixedConflict >= 0.38
+    ? clamp(
+      effectiveDrawdownPeakPressure *
+        (
+          0.14 +
+          mixedConflict * 0.3 +
+          Math.max(0, 60 - recoveryFloor) / 52 * 0.24 +
+          reboundGap * 0.18 +
+          trendMemory.recentLowShare * 0.16 +
+          Math.max(0, highConsensus - 0.24) * 0.16
+        ) -
+        functionalCompensation * 0.08 -
+        activitySupport * 0.04 -
+        phaseReliefPressure * 0.08,
+      0,
+      0.58,
+    )
+    : 0;
+  const unresolvedDrawdownPressure = Math.max(directUnresolvedDrawdownPressure, conflictMaskedRecoveryDebt);
+  const moderateLowEndpoint = lowConsensus >= 0.72 && medianScore >= 28 && medianScore <= 56 && bottomTailScore >= 18;
+  const endpointProtection = clamp(functionalCompensation * 0.72 + activitySupport * 0.18 + highConsensus * 0.32 + phaseReliefPressure * 0.78, 0, 0.82);
+  const endpointCalibrationPressure = moderateLowEndpoint && (effectiveDrawdownPressure >= 0.36 || trendMemory.transitionPressure >= 0.22)
+    ? clamp(
+      (
+        (lowConsensus - 0.68) * 1.15 +
+          effectiveDrawdownPressure * 0.22 +
+          trendMemory.transitionPressure * 0.2 +
+          Math.max(0, 46 - medianScore) / 38 * 0.2 -
+          highConsensus * 0.12
+      ) * (1 - endpointProtection),
+      0,
+      0.82,
+    )
+    : 0;
+  const tailOverreactionRelief = bottomTailScore <= 14 && medianScore >= 22 && lowConsensus >= 0.72 && mixedConflict < 0.24
+    ? clamp(
+      Math.max(0, 14 - bottomTailScore) / 18 * 0.28 +
+        Math.max(0, medianScore - bottomTailScore - 16) / 42 * 0.24 +
+        Math.max(0, 0.35 - trendMemory.transitionPressure) * 0.18 -
+        Math.max(0, trendMemory.drawdownPressure - 0.82) * 0.08,
+      0,
+      0.46,
+    )
+    : 0;
   const loadRecoveryRelief = loadRecoveryConflict * clamp((lowConsensus - highConsensus + 0.5) / 0.8, 0, 1);
   const abruptTransitionGuard = lowConsensus >= 0.72 && mixedConflict < 0.24 && (recentScoreSlope <= -5.5 || trendMemory.transitionPressure >= 0.58);
-  const severeLowConsensus = lowConsensus >= 0.78 && mixedConflict < 0.28 && loadRecoveryConflict < 0.25 && compensationRelief < 0.18 && !abruptTransitionGuard;
+  const severeLowConsensus = lowConsensus >= 0.78 && mixedConflict < 0.28 && loadRecoveryConflict < 0.25 && compensationRelief < 0.18 && phaseReliefPressure < 0.42 && !abruptTransitionGuard;
 
   let acuteLatent = 0.58 * lowerRisk + 0.42 * medianLatent;
   if (lowConsensus >= 0.52) {
@@ -1561,9 +1668,14 @@ function calculateUtilityFusion(
     ? sparseBlend
     : clamp(
       baseBlend + directionalPressure + trendPressure + softDeclinePressure + sparseTransitionShock * 0.16 - loadRecoveryRelief * 0.18 - compensationRelief * 0.05,
-      0.08,
-      abruptTransitionGuard ? 0.52 : severeLowConsensus ? 0.78 : compensationRelief >= 0.28 ? 0.58 : lowConsensus >= 0.52 ? 0.7 : 0.54,
+      phaseReliefPressure > 0.36 ? 0.06 : 0.08,
+      phaseReliefPressure > 0.36
+        ? 0.62
+        : abruptTransitionGuard ? 0.52 : severeLowConsensus ? 0.78 : compensationRelief >= 0.28 ? 0.58 : lowConsensus >= 0.52 ? 0.7 : 0.54,
     );
+  const phaseAdjustedAcuteBlend = phaseReliefPressure > 0.18
+    ? clamp(acuteBlend - phaseReliefPressure * 0.14, 0.06, acuteBlend)
+    : acuteBlend;
   const riskWeight = mixedConflict >= 0.32
     ? (compensationRelief >= 0.26 ? 0.11 : loadRecoveryRelief >= 0.38 ? 0.08 : 0.16)
     : lowConsensus < 0.32 && highConsensus > 0.34
@@ -1594,51 +1706,85 @@ function calculateUtilityFusion(
     ? 0.72
     : clamp(functionalCompensation * 0.54 + activitySupport * 0.34 + highConsensus * 0.22, 0, 0.62);
   const directLowEvidenceDamping = lowConsensus >= 0.62 ? 0.58 : lowConsensus >= 0.5 ? 0.78 : 1;
-  const effectivePhysiologyStrainPressure = physiologyStrainPressure * (1 - compensationProtection) * directLowEvidenceDamping;
+  const effectivePhysiologyStrainPressure = physiologyStrainPressure * (1 - compensationProtection) * directLowEvidenceDamping * (1 - phaseReliefPressure * 0.16);
   const unresolvedProtection = clamp(functionalCompensation * 0.28 + activitySupport * 0.2 + highConsensus * 0.14, 0, 0.34);
   const effectiveUnresolvedDrawdownPressure = unresolvedDrawdownPressure * (1 - unresolvedProtection);
   const physiologyStrainPenalty = effectivePhysiologyStrainPressure * (
     0.1 +
     Math.max(0, 54 - recoveryFloor) / 50 * 0.16 +
-    trendMemory.drawdownPeakPressure * 0.08
+    effectiveDrawdownPeakPressure * 0.08
   );
   const unresolvedDrawdownPenalty = effectiveUnresolvedDrawdownPressure * (
     0.22 +
     effectivePhysiologyStrainPressure * 0.18 +
-    trendMemory.drawdownPeakPressure * 0.1
+    effectiveDrawdownPeakPressure * 0.1
   );
+  const endpointCalibrationPenalty = endpointCalibrationPressure * (
+    0.12 +
+    effectiveDrawdownPressure * 0.06 +
+    trendMemory.transitionPressure * 0.08
+  );
+  const tailReliefLift = tailOverreactionRelief * (
+    0.16 +
+    Math.max(0, medianScore - bottomTailScore - 12) / 48 * 0.18
+  );
+  const phaseAdaptationLift = lowConsensus >= 0.62
+    ? phaseReliefPressure * (
+      0.1 +
+      activitySupport * 0.08 +
+      highConsensus * 0.05 +
+      Math.max(0, 52 - medianScore) / 60 * 0.04
+    )
+    : 0;
   const transitionLift = abruptTransitionGuard && sparseTransitionShock < 0.62 ? 0.34 : 0;
   const rawLatent =
-    (1 - acuteBlend) * posteriorRiskLatent + acuteBlend * acuteLatent -
+    (1 - phaseAdjustedAcuteBlend) * posteriorRiskLatent + phaseAdjustedAcuteBlend * acuteLatent -
       trendPressure * 0.28 -
       softDeclinePressure * (severeLowConsensus ? 0.3 : 0.18) +
       loadRecoveryLift +
       compensationLift -
       chronicDebtPenalty +
+      phaseAdaptationLift +
       transitionLift -
       drawdownStallPenalty -
       physiologyStrainPenalty -
       unresolvedDrawdownPenalty -
-      trendMemory.drawdownPressure * clamp((medianLatent - slowLatent) / 2.8, -0.18, 0.08);
+      endpointCalibrationPenalty +
+      tailReliefLift -
+      effectiveDrawdownPressure * clamp((medianLatent - slowLatent) / 2.8, -0.18, 0.08);
   const strainCapScore = clamp(
     78 -
       effectivePhysiologyStrainPressure * 36 -
       effectiveUnresolvedDrawdownPressure * 30 -
-      trendMemory.drawdownPeakPressure * 5,
+      effectiveDrawdownPeakPressure * 5,
     18,
     100,
   );
   const cappedLatent = (effectivePhysiologyStrainPressure >= 0.45 || effectiveUnresolvedDrawdownPressure >= 0.32)
     ? Math.min(rawLatent, scoreToLatent(strainCapScore, config.scoreTemperature))
     : rawLatent;
+  const endpointCapScore = clamp(
+    medianScore -
+      endpointCalibrationPressure * (14 + trendMemory.transitionPressure * 5 + effectiveDrawdownPressure * 3) +
+      tailOverreactionRelief * 5,
+    12,
+    100,
+  );
+  const endpointLatent = endpointCalibrationPressure > 0
+    ? Math.min(cappedLatent, scoreToLatent(endpointCapScore, config.scoreTemperature))
+    : cappedLatent;
+  const tailFloorScore = clamp(medianScore * 0.52 + bottomTailScore * 0.18 + 13, 10, 36);
+  const tailAdjustedLatent = tailOverreactionRelief > 0
+    ? (1 - tailOverreactionRelief * 0.36) * endpointLatent + tailOverreactionRelief * 0.36 * Math.max(endpointLatent, scoreToLatent(tailFloorScore, config.scoreTemperature))
+    : endpointLatent;
   const drawdownMemoryLatent = trendMemory.recentMedianScore == null
-    ? cappedLatent
+    ? tailAdjustedLatent
     : scoreToLatent(trendMemory.recentMedianScore, config.scoreTemperature);
   const drawdownMemoryBlend = clamp(drawdownStallPressure * 0.48, 0, 0.42);
   const latent = clamp(
     drawdownMemoryBlend > 0
-      ? (1 - drawdownMemoryBlend) * cappedLatent + drawdownMemoryBlend * Math.min(cappedLatent, drawdownMemoryLatent - drawdownStallPressure * 0.22)
-      : cappedLatent,
+      ? (1 - drawdownMemoryBlend) * tailAdjustedLatent + drawdownMemoryBlend * Math.min(tailAdjustedLatent, drawdownMemoryLatent - drawdownStallPressure * 0.22)
+      : tailAdjustedLatent,
     -4.5,
     4.5,
   );
@@ -1663,6 +1809,9 @@ function calculateUtilityFusion(
     drawdownStallPressure,
     physiologyStrainPressure,
     unresolvedDrawdownPressure,
+    phaseTurbulencePressure,
+    endpointCalibrationPressure,
+    tailOverreactionRelief,
     dispersion,
   };
 }
@@ -1928,6 +2077,9 @@ function initialFilterDay(date: string, config: RhythmConfig): FilterDay {
     drawdownStallPressure: 0,
     physiologyStrainPressure: 0,
     unresolvedDrawdownPressure: 0,
+    phaseTurbulencePressure: 0,
+    endpointCalibrationPressure: 0,
+    tailOverreactionRelief: 0,
     observation: null,
     evidenceCount: 0,
     robustWeights: [],
