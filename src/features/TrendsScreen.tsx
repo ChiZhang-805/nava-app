@@ -73,7 +73,7 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
         )}
       </SectionCard>
 
-        <SectionCard title="节律状态" subtitle="ChronoState V4.2 后验分数与 80% 区间">
+        <SectionCard title="节律状态" subtitle="ChronoState V4.3 后验分数与 80% 区间">
         <div className="trend-list">
           {bundle?.rhythms.slice(-7).map((item) => (
             <div className="trend-row" key={item.id}>

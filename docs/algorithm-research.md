@@ -1,6 +1,6 @@
 # NAVA 算法调研与自研路线
 
-本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA ChronoState V4.2：42 天鲁棒个人基线、小时活动节律、恢复指标、异常检测、四因子动态状态空间模型、Student-t 鲁棒滤波、信号连续性质量建模、自适应残差区间、风险敏感下尾效用、急性多域一致证据、Bayesian online change-point detection 和分数不确定性区间。
+本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA ChronoState V4.3：42 天鲁棒个人基线、小时活动节律、恢复指标、异常检测、四因子动态状态空间模型、Student-t 鲁棒滤波、信号连续性质量建模、自适应残差区间、风险敏感下尾效用、急性多域一致证据、Bayesian online change-point detection 和分数不确定性区间。
 
 ## 已调研的算法/方法
 
@@ -42,9 +42,12 @@
 | 34 | Bayesian online change-point detection | 判断用户状态是否发生结构性变化 | V4 已用于 `change_point_probability` |
 | 35 | Risk-sensitive / entropic utility | 多域状态中存在关键短板时避免被平均数掩盖 | V4 已用于总分融合 |
 | 36 | Sleep Regularity Index | 衡量相邻多日同一时间点睡/醒一致性 | V4 已吸收为睡眠规律性特征 |
-| 37 | Adaptive / conformal-style residual calibration | 让预测区间根据近期残差校准，而不是固定放宽 | V4.2 已吸收为自适应区间 |
-| 38 | Population archetype simulation | 用手工画像构造真实用户差异和非均匀数据密度 | V4.2 已用于合成数据生成器 |
-| 39 | Missingness-aware reliability | 将“数据是否连续稳定”纳入信号可信度 | V4.2 已用于 `signalHealth` |
+| 37 | Adaptive / conformal-style residual calibration | 让预测区间根据近期残差校准，而不是固定放宽 | V4.3 已吸收为自适应区间 |
+| 38 | Population archetype simulation | 用手工画像构造真实用户差异和非均匀数据密度 | V4.3 已用于合成数据生成器 |
+| 39 | Missingness-aware reliability | 将“数据是否连续稳定”纳入信号可信度 | V4.3 已用于 `signalHealth` |
+| 40 | CUSUM / Page-Hinkley style online drift memory | 用累计偏移识别慢性下滑，避免只看当天信号 | V4.3 已吸收为 `drawdownPressure` |
+| 41 | EWMA drawdown control | 用指数衰减记住最近低谷，同时避免被单日噪声带偏 | V4.3 已用于慢性低谷区间校准 |
+| 42 | Regime-transition uncertainty inflation | 突发转折时先扩大不确定性，而不是过度追低点预测 | V4.3 已用于 `transitionPressure` |
 
 ## NAVA 自研算法设计
 
@@ -67,7 +70,7 @@
 3. 输出 `score`、`confidence`、`signals`、`reasons`、`actions`。
 4. 写入 `daily_rhythm_scores`。
 
-`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 NAVA ChronoState V4.2。
+`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 NAVA ChronoState V4.3。
 
 ### v2：个人基线 + 经典节律特征（已升级）
 
@@ -176,9 +179,9 @@ v3 的关键点：
 - `recoveryScore`
 - `phaseShiftMinutes`
 
-### v4.2：NAVA ChronoState（已接入后端）
+### v4.3：NAVA ChronoState（已接入后端）
 
-目标：把 v3 的“证据融合分数”升级成真正的个体动态状态估计，能处理缺失、噪声、传感器偏置、连续下滑、突发转折和冲突信号。本轮 V4.2 进一步加入信号连续性质量建模、绝对生理下限保护、负荷-恢复矛盾门控、突发转折保护和更真实的合成人群压力数据。
+目标：把 v3 的“证据融合分数”升级成真正的个体动态状态估计，能处理缺失、噪声、传感器偏置、连续下滑、突发转折和冲突信号。本轮 V4.3 进一步加入信号连续性质量建模、绝对生理下限保护、负荷-恢复矛盾门控、EWMA drawdown 记忆、突发转折区间膨胀和更真实的合成人群压力数据。
 
 当前实现文件：
 
@@ -209,7 +212,8 @@ tests/rhythm-core.test.ts
 13. 用近期残差做自适应区间校准，使 80% 区间覆盖从过度保守向目标覆盖靠近。
 14. 增加 `mixedConflict`、`softDeclinePressure` 和 `loadRecoveryConflict`，用于审计冲突信号、慢性下滑以及高活动/低恢复的负荷矛盾处理。
 15. 对极短睡眠、极低 HRV、过高静息心率加入绝对生理下限保护，避免个体基线被长期恶化数据拖低后把异常状态正常化。
-16. 对突然断崖式下滑启用转折保护，降低单日点预测过度追低的风险。
+16. 对最近 10-24 天分数计算 EWMA drawdown / median drop，输出 `drawdownPressure`。
+17. 对突然断崖式下滑启用 `transitionPressure`，主要扩大区间并降低单日点预测过度追低的风险。
 
 复杂度：
 
@@ -244,15 +248,15 @@ tests/rhythm-core.test.ts
 
 当前固定种子 1000 用户加权人群基准：
 
-- V4.2 MAE：`5.802`
+- V4.3 MAE：`5.770`
 - 旧单日 proxy MAE：`9.015`
-- MAE 改善：`35.64%`
-- RMSE 改善：`33.23%`
-- Bias：`-0.427`
-- Spearman：`0.7617`
-- 平均置信度：`0.733`
-- 80% 区间覆盖：`0.918`
-- 平均区间宽度：`27.360`
+- MAE 改善：`36.00%`
+- RMSE 改善：`33.66%`
+- Bias：`-0.037`
+- Spearman：`0.7572`
+- 平均置信度：`0.731`
+- 80% 区间覆盖：`0.930`
+- 平均区间宽度：`27.964`
 - 单用户耗时：约 `27.8 ms`
 - 数据密度：mixed `905`、dense `75`、sparse `20`
 
@@ -260,9 +264,9 @@ tests/rhythm-core.test.ts
 
 当前薄弱点：
 
-- `gradual_decline`：V4.2 已用生理下限保护修复一部分长期恶化被正常化的问题，但 MAE 仍高于旧 proxy，下一轮要加入显式 drawdown / CUSUM 状态。
-- `abrupt_shift`：V4.2 已加入突发转折保护，但区间覆盖和点预测仍需继续校准。
-- `conflicting_signals`：`loadRecoveryConflict` 已明显改善高活动/低恢复矛盾，但少数高活动样本仍会被恢复信号拖低。
+- `gradual_decline`：V4.3 已加入 EWMA drawdown 记忆，区间覆盖改善，但 MAE 仍高于旧 proxy；下一轮要进一步拆分“真实慢性恶化”和“低谷后恢复反弹”。
+- `abrupt_shift`：V4.3 已用 `transitionPressure` 扩大突发转折区间，覆盖率明显改善，但点预测仍需真实标签校准。
+- `conflicting_signals`：`loadRecoveryConflict` 已改善高活动/低恢复矛盾，但少数高活动样本仍会被恢复信号拖低。
 - `remote_worker`、`metabolic_watch` 等画像已转为正收益，但仍需要真实用户反馈校准分型权重。
 
 ### v5：个性化推荐模型
