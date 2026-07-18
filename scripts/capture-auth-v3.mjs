@@ -3,7 +3,7 @@ import path from "node:path";
 import { chromium } from "@playwright/test";
 
 const root = process.cwd();
-const outputDir = path.join(root, "artifacts", "ui-review-2026-07-19-auth-v3");
+const outputDir = path.join(root, "artifacts", process.env.AUTH_REVIEW_DIR || "ui-review-2026-07-19-auth-final");
 const baseUrl = "http://127.0.0.1:5173";
 
 async function makeContext(browser, viewport) {
@@ -17,6 +17,33 @@ async function makeContext(browser, viewport) {
   });
 }
 
+async function readCanvasMetrics(page) {
+  return page.locator(".living-background__canvas").evaluate((canvas) => {
+    const gl = canvas.getContext("webgl");
+    return {
+      ready: canvas.dataset.ready === "true",
+      renderCount: Number(canvas.dataset.renderCount || 0),
+      cssSize: [canvas.clientWidth, canvas.clientHeight],
+      bufferSize: [canvas.width, canvas.height],
+      contextLost: gl?.isContextLost() ?? null,
+      webgl: Boolean(gl),
+    };
+  });
+}
+
+async function measureCanvasRate(page, durationMs = 3000) {
+  const before = await readCanvasMetrics(page);
+  const startedAt = Date.now();
+  await page.waitForTimeout(durationMs);
+  const after = await readCanvasMetrics(page);
+  const elapsedSeconds = (Date.now() - startedAt) / 1000;
+  return {
+    framesPerSecond: Number(((after.renderCount - before.renderCount) / elapsedSeconds).toFixed(1)),
+    renderedFrames: after.renderCount - before.renderCount,
+    elapsedSeconds: Number(elapsedSeconds.toFixed(2)),
+  };
+}
+
 async function main() {
   await mkdir(outputDir, { recursive: true });
   const browser = await chromium.launch();
@@ -26,19 +53,21 @@ async function main() {
     const launchContext = await makeContext(browser, { width: 430, height: 932 });
     const launchPage = await launchContext.newPage();
     await launchPage.goto(baseUrl, { waitUntil: "networkidle" });
-    await launchPage.waitForTimeout(1200);
+    await launchPage.waitForTimeout(1400);
     await launchPage.screenshot({ path: path.join(outputDir, "01-launch-1s.png") });
-    await launchPage.waitForTimeout(5200);
-    await launchPage.screenshot({ path: path.join(outputDir, "02-launch-6s.png") });
-    await launchPage.waitForTimeout(5200);
-    await launchPage.screenshot({ path: path.join(outputDir, "03-launch-11s.png") });
-    await launchPage.waitForTimeout(6200);
+    metrics.launchBackground = await readCanvasMetrics(launchPage);
+    await launchPage.waitForTimeout(6000);
+    await launchPage.screenshot({ path: path.join(outputDir, "02-launch-7s.png") });
+    await launchPage.waitForTimeout(6000);
+    await launchPage.screenshot({ path: path.join(outputDir, "03-launch-13s.png") });
+    await launchPage.waitForTimeout(6000);
     await launchPage.screenshot({ path: path.join(outputDir, "03b-launch-ready.png") });
     await launchPage.locator(".launch-start").tap();
     await launchPage.waitForTimeout(700);
     await launchPage.screenshot({ path: path.join(outputDir, "03c-auth-after-launch.png") });
     metrics.launchAnimations = await launchPage.locator(".living-background").evaluate((element) =>
       element.getAnimations({ subtree: true }).map((animation) => ({
+        name: animation instanceof CSSAnimation ? animation.animationName : "transition",
         currentTime: Math.round(Number(animation.currentTime ?? 0)),
         playState: animation.playState,
       })),
@@ -49,12 +78,23 @@ async function main() {
     await authContext.addInitScript(() => window.sessionStorage.setItem("nava.launch.sequence.v1", "seen"));
     const authPage = await authContext.newPage();
     await authPage.goto(baseUrl, { waitUntil: "networkidle" });
-    await authPage.waitForTimeout(900);
+    await authPage.waitForTimeout(800);
     await authPage.screenshot({ path: path.join(outputDir, "04-login-1s.png") });
-    await authPage.waitForTimeout(6000);
-    await authPage.screenshot({ path: path.join(outputDir, "05-login-7s.png") });
-    await authPage.waitForTimeout(6000);
-    await authPage.screenshot({ path: path.join(outputDir, "06-login-13s.png") });
+    await authPage.waitForTimeout(1600);
+    await authPage.screenshot({ path: path.join(outputDir, "05-login-2s.png") });
+    await authPage.waitForTimeout(1600);
+    await authPage.screenshot({ path: path.join(outputDir, "06-login-4s.png") });
+    metrics.authBackground = await readCanvasMetrics(authPage);
+    metrics.backgroundRenderRate = await measureCanvasRate(authPage);
+
+    metrics.wordmarkAnimations = await authPage.locator(".nava-wordmark").evaluate((element) =>
+      element.getAnimations({ subtree: true }).map((animation) => ({
+        name: animation instanceof CSSAnimation ? animation.animationName : "transition",
+        duration: Number(animation.effect?.getTiming().duration ?? 0),
+        currentTime: Math.round(Number(animation.currentTime ?? 0)),
+        playState: animation.playState,
+      })),
+    );
 
     metrics.login = await authPage.evaluate(() => {
       const screen = document.querySelector(".auth-screen")?.getBoundingClientRect();
