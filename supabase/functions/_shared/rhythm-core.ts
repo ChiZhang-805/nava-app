@@ -128,6 +128,8 @@ type FilterDay = {
   loadRecoveryConflict: number;
   drawdownPressure: number;
   transitionPressure: number;
+  chronicDebtPressure: number;
+  functionalCompensation: number;
   observation: number | null;
   evidenceCount: number;
   robustWeights: Array<{ key: SignalKey; weight: number; innovation: number; standardizedInnovation: number }>;
@@ -147,6 +149,8 @@ type UtilityFusion = {
   loadRecoveryConflict: number;
   drawdownPressure: number;
   transitionPressure: number;
+  chronicDebtPressure: number;
+  functionalCompensation: number;
   dispersion: number;
 };
 
@@ -187,8 +191,8 @@ const signalModels: Record<SignalKey, { loading: Vector4; variance: number; weig
   recovery: { loading: [0.06, 0.82, 0.08, 0.04], variance: 0.4, weight: 0.16, label: "恢复" },
 };
 
-export const rhythmSchemaVersion = "4.3.0";
-export const rhythmModelVersion = "nava-chronostate-v4.3-2026-07";
+export const rhythmSchemaVersion = "4.4.0";
+export const rhythmModelVersion = "nava-chronostate-v4.4-2026-07";
 
 export const defaultRhythmConfig: RhythmConfig = {
   baselineWindowDays: 42,
@@ -252,7 +256,7 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
     profileLabels,
     baseline: current.baseline,
     fusion: {
-      method: "nava-chronostate-v4.3-drawdown-aware-physiology-guarded-state-space",
+      method: "nava-chronostate-v4.4-compensation-and-debt-aware-state-space",
       stateFactors: factorState,
       factorScores,
       posteriorCovariance: state.covariance.map((row) => row.map((value) => round(value, 4))),
@@ -274,6 +278,8 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
         loadRecoveryConflict: round(state.loadRecoveryConflict, 4),
         drawdownPressure: round(state.drawdownPressure, 4),
         transitionPressure: round(state.transitionPressure, 4),
+        chronicDebtPressure: round(state.chronicDebtPressure, 4),
+        functionalCompensation: round(state.functionalCompensation, 4),
       },
       evidenceCount: state.evidenceCount,
       robustObservationWeights: state.robustWeights,
@@ -281,7 +287,7 @@ export function calculateRhythm(inputs: RhythmInputs, config: RhythmConfig = def
       dataQuality,
     },
     features: {
-      fusion: "four-factor robust Student-t state-space filter + EWMA drawdown memory + physiology guard + conflict-aware load-recovery gating + adaptive residual calibration + Bayesian online change-point detection",
+      fusion: "four-factor robust Student-t state-space filter + EWMA drawdown memory + physiology guard + chronic-debt cap + functional-compensation gate + adaptive residual calibration + Bayesian online change-point detection",
       components: Object.keys(signalModels),
       circadian: current.activityRhythm,
       signalHealth: current.signalHealth,
@@ -627,7 +633,9 @@ function robustStateFilter(days: DayAnalysis[], config: RhythmConfig): FilterDay
       Math.abs(fusion.latent - fusion.slowLatent) * 0.1 +
       fusion.acuteBlend * fusion.dispersion * 0.05 +
       fusion.transitionPressure * 0.18 +
-      fusion.drawdownPressure * 0.08;
+      fusion.drawdownPressure * 0.08 +
+      fusion.chronicDebtPressure * 0.08 +
+      fusion.functionalCompensation * 0.04;
     const variance = Math.max(1e-6, quadratic(globalLoading, covariance) + residualVariance + correlationGuard + utilityDisagreement);
     const intervalDelta = 1.16 * Math.sqrt(variance);
     output.push({
@@ -650,6 +658,8 @@ function robustStateFilter(days: DayAnalysis[], config: RhythmConfig): FilterDay
       loadRecoveryConflict: fusion.loadRecoveryConflict,
       drawdownPressure: fusion.drawdownPressure,
       transitionPressure: fusion.transitionPressure,
+      chronicDebtPressure: fusion.chronicDebtPressure,
+      functionalCompensation: fusion.functionalCompensation,
       observation: aggregateObservation(day.signals, config.scoreTemperature),
       evidenceCount: day.signals.length,
       robustWeights,
@@ -1284,6 +1294,8 @@ function calculateUtilityFusion(
       loadRecoveryConflict: 0,
       drawdownPressure: trendMemory.drawdownPressure,
       transitionPressure: trendMemory.transitionPressure,
+      chronicDebtPressure: 0,
+      functionalCompensation: 0,
       dispersion: 0,
     };
   }
@@ -1314,6 +1326,8 @@ function calculateUtilityFusion(
       loadRecoveryConflict: 0,
       drawdownPressure: trendMemory.drawdownPressure,
       transitionPressure: trendMemory.transitionPressure,
+      chronicDebtPressure: 0,
+      functionalCompensation: 0,
       dispersion: 0,
     };
   }
@@ -1330,11 +1344,17 @@ function calculateUtilityFusion(
   const bottomTail = unweightedTailMean(observations, 0.25);
   const deepLowShare = observations.filter((item) => item.score <= 25).length / observations.length;
   const scoreByKey = new Map(signals.map((item) => [item.key, item.score]));
-  const highLoadScore = Math.max(scoreByKey.get("activity") ?? 0, scoreByKey.get("focus") ?? 0);
+  const sleepScore = scoreByKey.get("sleep") ?? null;
+  const activityScore = scoreByKey.get("activity") ?? null;
+  const circadianScore = scoreByKey.get("circadian") ?? null;
+  const moodScore = scoreByKey.get("mood") ?? null;
+  const focusScore = scoreByKey.get("focus") ?? null;
+  const recoveryScore = scoreByKey.get("recovery") ?? null;
+  const highLoadScore = Math.max(activityScore ?? 0, focusScore ?? 0);
   const recoveryFloor = Math.min(
-    scoreByKey.get("recovery") ?? 100,
-    scoreByKey.get("sleep") ?? 100,
-    scoreByKey.get("circadian") ?? 100,
+    recoveryScore ?? 100,
+    sleepScore ?? 100,
+    circadianScore ?? 100,
   );
   const behaviorSupport = [
     scoreByKey.get("activity"),
@@ -1353,6 +1373,9 @@ function calculateUtilityFusion(
     0,
     1,
   );
+  const activityCompensationCap = highLoadScore >= 92 && recoveryFloor <= 38 && trendMemory.drawdownPressure < 0.28
+    ? 0.72
+    : 0.35;
   const loadRecoveryConflict = clamp(
     mixedConflict * 0.42 +
       Math.max(0, highLoadScore - 72) / 34 * 0.32 +
@@ -1360,11 +1383,52 @@ function calculateUtilityFusion(
       Math.max(0, behaviorSupport - 1) * 0.08 -
       Math.max(0, lowDomainShare - 0.55) * 0.22,
     0,
-    mixedConflict >= 0.24 ? 1 : 0.35,
+    mixedConflict >= 0.24 ? 1 : activityCompensationCap,
+  );
+  const activitySupport = clamp(((activityScore ?? 0) - 78) / 22, 0, 1);
+  const focusSupport = clamp(((focusScore ?? 0) - 72) / 52, 0, 1);
+  const moodSupport = moodScore == null ? 0 : clamp((moodScore - 60) / 32, 0, 1);
+  const sleepBuffer = sleepScore == null ? 0.26 : clamp((sleepScore - 30) / 42, 0, 1);
+  const circadianBuffer = circadianScore == null ? 0.22 : clamp((circadianScore - 34) / 42, 0, 1);
+  const recoveryStress = recoveryScore == null ? clamp((46 - recoveryFloor) / 42, 0, 0.65) : clamp((56 - recoveryScore) / 48, 0, 1);
+  const catastrophicRecovery = (recoveryScore ?? 100) <= 18 && (sleepScore ?? 100) <= 30 && (circadianScore ?? 100) <= 30;
+  const functionalCompensation = clamp(
+    activitySupport * 0.3 +
+      focusSupport * 0.22 +
+      moodSupport * 0.12 +
+      recoveryStress * 0.18 +
+      sleepBuffer * 0.12 +
+      circadianBuffer * 0.1 +
+      highConsensus * 0.12 -
+      lowConsensus * 0.12 -
+      deepLowShare * 0.1,
+    0,
+    catastrophicRecovery ? 0.22 : 0.78,
+  );
+  const compensationRelief = clamp(
+    functionalCompensation *
+      clamp((loadRecoveryConflict - 0.14) / 0.52, 0, 1) *
+      (1 - clamp(lowDomainShare - 0.68, 0, 0.24)),
+    0,
+    0.52,
+  );
+  const chronicDebtPressure = clamp(
+    trendMemory.drawdownPressure *
+      (1 - trendMemory.transitionPressure * 0.66) *
+      (
+        0.24 +
+        Math.max(0, 52 - recoveryFloor) / 52 * 0.3 +
+        Math.max(0, weightedMedian(observations.map((item) => ({ value: item.score, weight: item.weight }))) - 34) / 56 * 0.2 +
+        Math.max(0, 0.62 - lowConsensus) * 0.18
+      ) -
+      highConsensus * 0.2 -
+      functionalCompensation * 0.18,
+    0,
+    1,
   );
   const loadRecoveryRelief = loadRecoveryConflict * clamp((lowConsensus - highConsensus + 0.5) / 0.8, 0, 1);
   const abruptTransitionGuard = lowConsensus >= 0.72 && mixedConflict < 0.24 && (recentScoreSlope <= -5.5 || trendMemory.transitionPressure >= 0.58);
-  const severeLowConsensus = lowConsensus >= 0.78 && mixedConflict < 0.28 && loadRecoveryConflict < 0.25 && !abruptTransitionGuard;
+  const severeLowConsensus = lowConsensus >= 0.78 && mixedConflict < 0.28 && loadRecoveryConflict < 0.25 && compensationRelief < 0.18 && !abruptTransitionGuard;
 
   let acuteLatent = 0.58 * lowerRisk + 0.42 * medianLatent;
   if (lowConsensus >= 0.52) {
@@ -1380,8 +1444,8 @@ function calculateUtilityFusion(
   }
   if (highConsensus >= 0.62 || (mixedConflict >= 0.32 && highConsensus >= 0.42)) {
     acuteLatent = 0.58 * medianLatent + 0.42 * upperTail;
-  } else if (loadRecoveryRelief >= 0.38) {
-    const relief = clamp((loadRecoveryRelief - 0.28) / 0.58, 0, 0.65);
+  } else if (loadRecoveryRelief >= 0.32 || compensationRelief >= 0.18) {
+    const relief = clamp((Math.max(loadRecoveryRelief, compensationRelief + 0.22) - 0.24) / 0.58, 0, compensationRelief >= 0.28 ? 0.74 : 0.65);
     const conflictLatent = 0.6 * medianLatent + 0.4 * upperTail;
     acuteLatent = (1 - relief) * acuteLatent + relief * conflictLatent;
   }
@@ -1402,12 +1466,12 @@ function calculateUtilityFusion(
   const acuteBlend = observations.length < 3
     ? 0.06
     : clamp(
-      baseBlend + directionalPressure + trendPressure + softDeclinePressure - loadRecoveryRelief * 0.22,
+      baseBlend + directionalPressure + trendPressure + softDeclinePressure - loadRecoveryRelief * 0.18 - compensationRelief * 0.05,
       0.08,
-      abruptTransitionGuard ? 0.52 : severeLowConsensus ? 0.78 : lowConsensus >= 0.52 ? 0.7 : 0.54,
+      abruptTransitionGuard ? 0.52 : severeLowConsensus ? 0.78 : compensationRelief >= 0.28 ? 0.58 : lowConsensus >= 0.52 ? 0.7 : 0.54,
     );
   const riskWeight = mixedConflict >= 0.32
-    ? (loadRecoveryRelief >= 0.38 ? 0.08 : 0.16)
+    ? (compensationRelief >= 0.26 ? 0.11 : loadRecoveryRelief >= 0.38 ? 0.08 : 0.16)
     : lowConsensus < 0.32 && highConsensus > 0.34
       ? 0.18
       : severeLowConsensus
@@ -1419,11 +1483,21 @@ function calculateUtilityFusion(
   const loadRecoveryLift = loadRecoveryRelief >= 0.38
     ? clamp((loadRecoveryRelief - 0.32) * 0.85, 0, 0.48)
     : clamp(loadRecoveryRelief * 0.08, 0, 0.04);
+  const compensationLift = compensationRelief >= 0.18
+    ? clamp((compensationRelief - 0.16) * 0.36 + moodSupport * compensationRelief * 0.14, 0, severeLowConsensus ? 0.08 : 0.22)
+    : 0;
+  const chronicDebtPenalty = chronicDebtPressure * (
+    0.08 +
+    clamp((medianLatent + 0.34) / 2.8, 0, 0.24) +
+    Math.max(0, recoveryStress - 0.28) * 0.08
+  );
   const latent = clamp(
     (1 - acuteBlend) * posteriorRiskLatent + acuteBlend * acuteLatent -
       trendPressure * 0.28 -
       softDeclinePressure * (severeLowConsensus ? 0.3 : 0.18) +
       loadRecoveryLift +
+      compensationLift -
+      chronicDebtPenalty +
       (abruptTransitionGuard ? 0.34 : 0) +
       trendMemory.drawdownPressure * clamp((medianLatent - slowLatent) / 2.8, -0.18, 0.08),
     -4.5,
@@ -1444,6 +1518,8 @@ function calculateUtilityFusion(
     loadRecoveryConflict,
     drawdownPressure: trendMemory.drawdownPressure,
     transitionPressure: trendMemory.transitionPressure,
+    chronicDebtPressure,
+    functionalCompensation,
     dispersion,
   };
 }
@@ -1698,6 +1774,8 @@ function initialFilterDay(date: string, config: RhythmConfig): FilterDay {
     loadRecoveryConflict: 0,
     drawdownPressure: 0,
     transitionPressure: 0,
+    chronicDebtPressure: 0,
+    functionalCompensation: 0,
     observation: null,
     evidenceCount: 0,
     robustWeights: [],

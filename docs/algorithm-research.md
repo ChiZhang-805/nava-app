@@ -1,6 +1,6 @@
 # NAVA 算法调研与自研路线
 
-本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA ChronoState V4.3：42 天鲁棒个人基线、小时活动节律、恢复指标、异常检测、四因子动态状态空间模型、Student-t 鲁棒滤波、信号连续性质量建模、自适应残差区间、风险敏感下尾效用、急性多域一致证据、Bayesian online change-point detection 和分数不确定性区间。
+本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA ChronoState V4.4：42 天鲁棒个人基线、小时活动节律、恢复指标、异常检测、四因子动态状态空间模型、Student-t 鲁棒滤波、信号连续性质量建模、自适应残差区间、风险敏感下尾效用、急性多域一致证据、慢性负债记忆、功能补偿门控、Bayesian online change-point detection 和分数不确定性区间。
 
 ## 已调研的算法/方法
 
@@ -42,12 +42,14 @@
 | 34 | Bayesian online change-point detection | 判断用户状态是否发生结构性变化 | V4 已用于 `change_point_probability` |
 | 35 | Risk-sensitive / entropic utility | 多域状态中存在关键短板时避免被平均数掩盖 | V4 已用于总分融合 |
 | 36 | Sleep Regularity Index | 衡量相邻多日同一时间点睡/醒一致性 | V4 已吸收为睡眠规律性特征 |
-| 37 | Adaptive / conformal-style residual calibration | 让预测区间根据近期残差校准，而不是固定放宽 | V4.3 已吸收为自适应区间 |
-| 38 | Population archetype simulation | 用手工画像构造真实用户差异和非均匀数据密度 | V4.3 已用于合成数据生成器 |
-| 39 | Missingness-aware reliability | 将“数据是否连续稳定”纳入信号可信度 | V4.3 已用于 `signalHealth` |
-| 40 | CUSUM / Page-Hinkley style online drift memory | 用累计偏移识别慢性下滑，避免只看当天信号 | V4.3 已吸收为 `drawdownPressure` |
-| 41 | EWMA drawdown control | 用指数衰减记住最近低谷，同时避免被单日噪声带偏 | V4.3 已用于慢性低谷区间校准 |
-| 42 | Regime-transition uncertainty inflation | 突发转折时先扩大不确定性，而不是过度追低点预测 | V4.3 已用于 `transitionPressure` |
+| 37 | Adaptive / conformal-style residual calibration | 让预测区间根据近期残差校准，而不是固定放宽 | V4.4 已吸收为自适应区间 |
+| 38 | Population archetype simulation | 用手工画像构造真实用户差异和非均匀数据密度 | V4.4 已用于合成数据生成器 |
+| 39 | Missingness-aware reliability | 将“数据是否连续稳定”纳入信号可信度 | V4.4 已用于 `signalHealth` |
+| 40 | CUSUM / Page-Hinkley style online drift memory | 用累计偏移识别慢性下滑，避免只看当天信号 | V4.4 已吸收为 `drawdownPressure` |
+| 41 | EWMA drawdown control | 用指数衰减记住最近低谷，同时避免被单日噪声带偏 | V4.4 已用于慢性低谷区间校准 |
+| 42 | Regime-transition uncertainty inflation | 突发转折时先扩大不确定性，而不是过度追低点预测 | V4.4 已用于 `transitionPressure` |
+| 43 | Personalized wearable state modeling | 同样的 HRV/活动水平对不同用户含义不同，需要长期个人状态记忆 | V4.4 已用于 `chronicDebtPressure` |
+| 44 | Robust multimodal conflict fusion | 多模态信号冲突时不能简单追随最低分或最高分 | V4.4 已用于 `functionalCompensation` 和活动型补偿门 |
 
 ## NAVA 自研算法设计
 
@@ -70,7 +72,7 @@
 3. 输出 `score`、`confidence`、`signals`、`reasons`、`actions`。
 4. 写入 `daily_rhythm_scores`。
 
-`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 NAVA ChronoState V4.3。
+`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 NAVA ChronoState V4.4。
 
 ### v2：个人基线 + 经典节律特征（已升级）
 
@@ -179,9 +181,9 @@ v3 的关键点：
 - `recoveryScore`
 - `phaseShiftMinutes`
 
-### v4.3：NAVA ChronoState（已接入后端）
+### v4.4：NAVA ChronoState（已接入后端）
 
-目标：把 v3 的“证据融合分数”升级成真正的个体动态状态估计，能处理缺失、噪声、传感器偏置、连续下滑、突发转折和冲突信号。本轮 V4.3 进一步加入信号连续性质量建模、绝对生理下限保护、负荷-恢复矛盾门控、EWMA drawdown 记忆、突发转折区间膨胀和更真实的合成人群压力数据。
+目标：把 v3 的“证据融合分数”升级成真正的个体动态状态估计，能处理缺失、噪声、传感器偏置、连续下滑、突发转折和冲突信号。本轮 V4.4 进一步加入信号连续性质量建模、绝对生理下限保护、负荷-恢复矛盾门控、EWMA drawdown 记忆、慢性负债压力、功能补偿识别、突发转折区间膨胀和更真实的合成人群压力数据。
 
 当前实现文件：
 
@@ -214,6 +216,8 @@ tests/rhythm-core.test.ts
 15. 对极短睡眠、极低 HRV、过高静息心率加入绝对生理下限保护，避免个体基线被长期恶化数据拖低后把异常状态正常化。
 16. 对最近 10-24 天分数计算 EWMA drawdown / median drop，输出 `drawdownPressure`。
 17. 对突然断崖式下滑启用 `transitionPressure`，主要扩大区间并降低单日点预测过度追低的风险。
+18. 增加 `chronicDebtPressure`，把“长期低谷后短期反弹”从“真的恢复”中拆出来，避免慢性欠恢复被当天高活动掩盖。
+19. 增加 `functionalCompensation`，识别高活动/高专注但恢复偏低的功能补偿状态，避免把所有负荷-恢复矛盾都直接判为崩塌。
 
 复杂度：
 
@@ -221,7 +225,7 @@ tests/rhythm-core.test.ts
 - 空间：`O(D*F^2 + R + S*W)`。
 - 其中 `D=42` 天、`S=7` 信号、`F=4` 状态因子、`R=42` 最大 run length、`W=42` 基线窗口。
 
-合成验证覆盖 18 类压力场景：
+合成验证覆盖 20 类压力场景：
 
 - clean
 - random_missing
@@ -241,6 +245,8 @@ tests/rhythm-core.test.ts
 - low_adherence
 - high_adherence
 - seasonal_shift
+- chronic_debt_rebound
+- compensated_strain
 
 合成用户现在不是场景均匀轮转，而是手工构造 16 类用户画像后条件采样：
 
@@ -248,26 +254,29 @@ tests/rhythm-core.test.ts
 
 当前固定种子 1000 用户加权人群基准：
 
-- V4.3 MAE：`5.770`
-- 旧单日 proxy MAE：`9.015`
-- MAE 改善：`36.00%`
-- RMSE 改善：`33.66%`
-- Bias：`-0.037`
-- Spearman：`0.7572`
-- 平均置信度：`0.731`
-- 80% 区间覆盖：`0.930`
-- 平均区间宽度：`27.964`
-- 单用户耗时：约 `27.8 ms`
-- 数据密度：mixed `905`、dense `75`、sparse `20`
+- V4.4 MAE：`5.690`
+- 旧单日 proxy MAE：`8.505`
+- MAE 改善：`33.10%`
+- RMSE：`7.305`
+- RMSE 改善：`32.90%`
+- Bias：`0.882`
+- Spearman：`0.7868`
+- Low-state AUROC：`0.9887`
+- 平均置信度：`0.730`
+- 80% 区间覆盖：`0.941`
+- 平均区间宽度：`28.552`
+- 单用户耗时：约 `30.9 ms`
+- 数据密度：mixed `910`、dense `71`、sparse `19`
 
 注意：这是工程压力测试，不是临床验证。真实上线后必须用真实 Apple Watch 数据继续校准。
 
 当前薄弱点：
 
-- `gradual_decline`：V4.3 已加入 EWMA drawdown 记忆，区间覆盖改善，但 MAE 仍高于旧 proxy；下一轮要进一步拆分“真实慢性恶化”和“低谷后恢复反弹”。
-- `abrupt_shift`：V4.3 已用 `transitionPressure` 扩大突发转折区间，覆盖率明显改善，但点预测仍需真实标签校准。
-- `conflicting_signals`：`loadRecoveryConflict` 已改善高活动/低恢复矛盾，但少数高活动样本仍会被恢复信号拖低。
-- `remote_worker`、`metabolic_watch` 等画像已转为正收益，但仍需要真实用户反馈校准分型权重。
+- `gradual_decline`：V4.4 已把 MAE 从 V4.3 的约 `7.010` 降到 `6.079`，但仍高于旧 proxy；下一轮需要更细的慢性恶化标签。
+- `abrupt_shift`：V4.4 已把 MAE 从 V4.3 的约 `5.997` 降到 `4.674`，但旧 proxy 在该合成场景仍更贴近点值；真实数据里要重点校准突发低谷标签。
+- `conflicting_signals`：V4.4 已把 MAE 从 V4.3 的约 `8.225` 降到 `3.659`，高活动/低恢复矛盾已从弱点转为优势场景。
+- `chronic_debt_rebound`：新增压力场景，V4.4 MAE `7.389`，优于旧 proxy `8.422`，但排序相关性仍低，说明恢复反弹需要真实反馈。
+- `compensated_strain`：新增压力场景，V4.4 MAE `5.815`，优于旧 proxy `7.574`，但仍需真实用户确认“能撑住”和“过度消耗”的边界。
 
 ### v5：个性化推荐模型
 
@@ -310,6 +319,11 @@ tests/rhythm-core.test.ts
 - HRV wearable review: https://pmc.ncbi.nlm.nih.gov/articles/PMC10742885/
 - Multisensor fusion review: https://arxiv.org/html/2412.05895v1
 - Wearable health multi-sensor fusion review: https://www.sciencedirect.com/science/article/pii/S1566253526001983
+- Personalized wearable data review: https://pmc.ncbi.nlm.nih.gov/articles/PMC10890129/
+- Wearable sensors for personalized health review: https://pmc.ncbi.nlm.nih.gov/articles/PMC12831105/
+- Subject-specific HMM for wearable data: https://pmc.ncbi.nlm.nih.gov/articles/PMC12883082/
+- Wearable insight time series modeling: https://arxiv.org/html/2406.06464v4
+- Robust multimodal fusion under uncertainty: https://arxiv.org/abs/2303.04636
 - Bayesian and Dempster-Shafer data fusion: https://robotics.caltech.edu/~jerma/research_papers/BayesChapmanKolmogorov.pdf
 - Dempster-Shafer sensor fusion: https://www.cs.cmu.edu/~whd/publications/7179.pdf
 - Isolation Forest paper: https://www.lamda.nju.edu.cn/publication/icdm08b.pdf
