@@ -1,8 +1,8 @@
 @font-face {
-  font-family: "NAVA Bodoni";
-  src: url("../assets/fonts/BodoniModa-Variable.ttf") format("truetype");
+  font-family: "NAVA Abril";
+  src: url("../assets/fonts/AbrilFatface-Regular.ttf") format("truetype");
   font-style: normal;
-  font-weight: 400 900;
+  font-weight: 400;
   font-display: swap;
 }
 
@@ -2127,7 +2127,7 @@ textarea::placeholder {
 }
 
 .nava-wordmark {
-  --wordmark-size: clamp(68px, 20vw, 104px);
+  --wordmark-size: clamp(96px, 31vw, 134px);
   position: relative;
   isolation: isolate;
   display: inline-grid;
@@ -2153,12 +2153,10 @@ textarea::placeholder {
 .nava-wordmark__sweep {
   grid-area: 1 / 1;
   position: relative;
-  font-family: "NAVA Bodoni", Didot, "Bodoni 72", Georgia, serif;
+  font-family: "NAVA Abril", "Abril Fatface", Georgia, serif;
   font-size: var(--wordmark-size);
-  font-weight: 720;
-  font-optical-sizing: auto;
-  font-variation-settings: "opsz" 36, "wght" 720;
-  line-height: 0.92;
+  font-weight: 400;
+  line-height: 0.94;
   letter-spacing: 0;
   white-space: nowrap;
 }
@@ -2170,10 +2168,10 @@ textarea::placeholder {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: 1.2px rgba(0, 0, 0, 0.58);
+  -webkit-text-stroke: 0.35px rgba(0, 0, 0, 0.62);
   filter:
-    drop-shadow(4px 7px 4px rgba(0, 18, 29, 0.52))
-    drop-shadow(2px 16px 18px rgba(0, 31, 49, 0.22));
+    drop-shadow(2.5px 6.5px 3.5px rgba(0, 22, 35, 0.36))
+    drop-shadow(1px 14px 15px rgba(0, 31, 49, 0.16));
 }
 
 .nava-wordmark__sweep {
@@ -2212,7 +2210,7 @@ textarea::placeholder {
 }
 
 .launch-wordmark.nava-wordmark {
-  --wordmark-size: clamp(72px, 21vw, 110px);
+  --wordmark-size: clamp(100px, 32vw, 138px);
   position: absolute;
   top: 13%;
   left: 7%;
@@ -2305,7 +2303,7 @@ textarea::placeholder {
 }
 
 .auth-brand .nava-wordmark {
-  --wordmark-size: clamp(72px, 21vw, 108px);
+  --wordmark-size: clamp(100px, 31vw, 134px);
   width: min(86vw, 390px);
 }
 
@@ -2643,7 +2641,7 @@ textarea::placeholder {
   }
 
   .auth-brand .nava-wordmark {
-    --wordmark-size: 68px;
+    --wordmark-size: 108px;
   }
 
   .auth-form-head {
@@ -2690,7 +2688,7 @@ textarea::placeholder {
   }
 
   .auth-brand .nava-wordmark {
-    --wordmark-size: 62px;
+    --wordmark-size: 98px;
   }
 
   .auth-form-head {
