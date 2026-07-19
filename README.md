@@ -25,6 +25,8 @@ copy .env.example .env
 npm run dev
 ```
 
+需要跳过登录查看完整 App 界面时，打开 `http://127.0.0.1:5173/?demo=1`。Demo 入口只在 Vite 本地开发环境生效，生产构建和正式 iOS App 不允许通过该参数绕过登录。
+
 `.env` 必须使用和 Web 端同一个 Supabase 项目：
 
 ```text
