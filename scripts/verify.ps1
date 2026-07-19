@@ -15,5 +15,8 @@ Write-Host "3. Audit"
 npm audit
 
 Write-Host ""
-Write-Host "Verification completed."
+Write-Host "4. Motion response tests"
+npm run motion:test
 
+Write-Host ""
+Write-Host "Verification completed."

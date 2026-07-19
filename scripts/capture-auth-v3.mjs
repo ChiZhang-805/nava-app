@@ -126,6 +126,27 @@ async function main() {
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
       verticalOverflow: document.documentElement.scrollHeight > window.innerHeight,
     }));
+
+    const registerPasswordInputs = authPage.locator('input[autocomplete="new-password"]');
+    const registerPasswordToggles = authPage.locator(".auth-input-icon-button");
+    if ((await registerPasswordInputs.count()) !== 2 || (await registerPasswordToggles.count()) !== 2) {
+      throw new Error("Registration must expose two password fields with independent visibility controls.");
+    }
+    await registerPasswordInputs.nth(0).fill("sample-password");
+    await registerPasswordInputs.nth(1).fill("sample-password");
+    await registerPasswordToggles.nth(1).tap();
+    metrics.confirmPasswordVisibility = await registerPasswordInputs.evaluateAll((inputs) =>
+      inputs.map((input) => ({ type: input.type, valueLength: input.value.length })),
+    );
+    if (
+      metrics.confirmPasswordVisibility[0]?.type !== "password" ||
+      metrics.confirmPasswordVisibility[1]?.type !== "text"
+    ) {
+      throw new Error("Confirm-password visibility control changed the wrong field.");
+    }
+    await authPage.screenshot({ path: path.join(outputDir, "07a-register-confirm-visible.png") });
+    await registerPasswordToggles.nth(1).tap();
+
     await authPage.locator(".language-toggle").tap();
     await authPage.waitForTimeout(400);
     await authPage.screenshot({ path: path.join(outputDir, "07b-register-en.png") });

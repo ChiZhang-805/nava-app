@@ -1,3 +1,5 @@
+import { getBackgroundMotionSnapshot, getBackgroundMotionStatus } from "../services/backgroundMotion";
+
 const VERTEX_SHADER = `
 attribute vec2 a_position;
 varying vec2 v_uv;
@@ -18,6 +20,8 @@ uniform vec4 u_field_tuning;
 uniform vec4 u_light_tuning;
 uniform vec4 u_finish_tuning;
 uniform vec4 u_detail_tuning;
+uniform vec4 u_motion;
+uniform vec2 u_motion_offset;
 varying vec2 v_uv;
 
 float hash21(vec2 p) {
@@ -125,6 +129,9 @@ vec2 cellular(vec2 p, float time) {
 void main() {
   float aspect = u_resolution.x / max(u_resolution.y, 1.0);
   vec2 p = (v_uv - 0.5) * vec2(aspect, 1.0) * 2.45;
+  float motionStrength = clamp(u_motion.z, 0.0, 1.0);
+  vec2 motionDirection = u_motion.xy;
+  p += u_motion_offset * 0.42;
   vec2 seed = vec2(u_seed * 0.071, u_seed * 0.113);
   float time = u_time * 0.095 * u_light_tuning.x;
 
@@ -141,12 +148,17 @@ void main() {
     sin((p.x + p.y) * 0.71 - time * 0.63),
     cos((p.x - p.y) * 0.66 + time * 0.72)
   ) * 0.52;
+  float directionalPhase = dot(p, motionDirection + vec2(0.0001)) * 1.9 + time * 1.34;
+  breath += motionDirection * sin(directionalPhase) * motionStrength * 0.34;
 
   vec2 wavePulse = vec2(
     sin(p.y * 2.05 + baseY * 4.1 + time * 1.34),
     cos(p.x * 1.72 - baseX * 3.8 - time * 1.08)
   );
+  vec2 crossDirection = vec2(-motionDirection.y, motionDirection.x);
+  wavePulse += motionDirection * cos(dot(p, crossDirection) * 1.65 - time * 1.12) * motionStrength * 0.28;
   vec2 warped = p + baseWarp * u_field_tuning.x + breath * 0.15 + wavePulse * 0.064;
+  warped += motionDirection * motionStrength * 0.035;
   float broad = morphFbm(vec3(warped * 0.64 + seed * 0.31, time * 0.54 + u_seed * 0.013));
   float flow = morphFbm(vec3((warped + baseWarp * 0.36) * 1.52 + seed * 0.67, -time * 0.72 + 8.7));
   vec2 cells = cellular(warped * 1.24 + seed * 0.23, time * 0.64);
@@ -156,6 +168,9 @@ void main() {
   vec2 lightCenter = vec2(-0.32 + 0.26 * sin(time * 0.74), -0.22 + 0.22 * cos(time * 0.57));
   vec2 secondCenter = vec2(0.34 + 0.22 * cos(time * 0.48), 0.28 + 0.2 * sin(time * 0.62));
   vec2 shadowCenter = vec2(-0.02 + 0.34 * cos(time * 0.39), 0.02 + 0.28 * sin(time * 0.53));
+  lightCenter += motionDirection * motionStrength * 0.12;
+  secondCenter -= motionDirection * motionStrength * 0.08;
+  shadowCenter += motionDirection * motionStrength * 0.06;
   vec2 lightDelta = p - lightCenter;
   vec2 secondDelta = p - secondCenter;
   vec2 shadowDelta = p - shadowCenter;
@@ -273,6 +288,8 @@ interface ShaderResources {
   fieldTuning: WebGLUniformLocation;
   finishTuning: WebGLUniformLocation;
   lightTuning: WebGLUniformLocation;
+  motion: WebGLUniformLocation;
+  motionOffset: WebGLUniformLocation;
   resolution: WebGLUniformLocation;
   seed: WebGLUniformLocation;
   time: WebGLUniformLocation;
@@ -320,8 +337,10 @@ function createResources(gl: WebGLRenderingContext): ShaderResources {
   const lightTuning = gl.getUniformLocation(program, "u_light_tuning");
   const finishTuning = gl.getUniformLocation(program, "u_finish_tuning");
   const detailTuning = gl.getUniformLocation(program, "u_detail_tuning");
+  const motion = gl.getUniformLocation(program, "u_motion");
+  const motionOffset = gl.getUniformLocation(program, "u_motion_offset");
   const position = gl.getAttribLocation(program, "a_position");
-  if (!buffer || !resolution || !seed || !time || !fieldTuning || !lightTuning || !finishTuning || !detailTuning || position < 0) {
+  if (!buffer || !resolution || !seed || !time || !fieldTuning || !lightTuning || !finishTuning || !detailTuning || !motion || !motionOffset || position < 0) {
     gl.deleteBuffer(buffer);
     gl.deleteProgram(program);
     throw new Error("Unable to resolve WebGL shader bindings");
@@ -334,7 +353,7 @@ function createResources(gl: WebGLRenderingContext): ShaderResources {
     gl.STATIC_DRAW,
   );
 
-  return { buffer, detailTuning, fieldTuning, finishTuning, lightTuning, position, program, resolution, seed, time };
+  return { buffer, detailTuning, fieldTuning, finishTuning, lightTuning, motion, motionOffset, position, program, resolution, seed, time };
 }
 
 type TuningVector = readonly [number, number, number, number];
@@ -359,10 +378,23 @@ function readDesignState() {
   const params = import.meta.env.DEV ? new URLSearchParams(window.location.search) : null;
   const requestedSeed = Number.parseFloat(params?.get("bgSeed") ?? "");
   const requestedTime = Number.parseFloat(params?.get("bgTime") ?? "");
+  const requestedMotionX = Number.parseFloat(params?.get("bgMotionX") ?? "");
+  const requestedMotionY = Number.parseFloat(params?.get("bgMotionY") ?? "");
+  const requestedMotionStrength = Number.parseFloat(params?.get("bgMotionStrength") ?? "");
+  const hasExplicitMotion = Number.isFinite(requestedMotionX) && Number.isFinite(requestedMotionY) && Number.isFinite(requestedMotionStrength);
+  const requestedMotionMagnitude = Math.hypot(requestedMotionX, requestedMotionY);
 
   return {
     hasExplicitTime: Number.isFinite(requestedTime),
     initialTime: Number.isFinite(requestedTime) ? Math.max(0, requestedTime) : 0,
+    motion: hasExplicitMotion
+      ? {
+          intensity: Math.min(1, Math.max(0, requestedMotionStrength)),
+          updatedAt: 0,
+          x: requestedMotionMagnitude > 0 ? requestedMotionX / requestedMotionMagnitude : 0,
+          y: requestedMotionMagnitude > 0 ? requestedMotionY / requestedMotionMagnitude : 0,
+        }
+      : null,
     seed: Number.isFinite(requestedSeed) ? requestedSeed : PRODUCTION_SEED,
     tuning: PRODUCTION_TUNING,
   };
@@ -396,7 +428,14 @@ export function mountLivingBackground(canvas: HTMLCanvasElement) {
   let destroyed = false;
   let elapsedBeforePause = design.initialTime + (reducedMotion && !design.hasExplicitTime ? 11.5 : 0);
   let lastFrame = 0;
+  let lastSimulationFrame = 0;
   let lastTelemetry = 0;
+  let motionDirectionX = 0;
+  let motionDirectionY = 0;
+  let motionFieldOffsetX = 0;
+  let motionFieldOffsetY = 0;
+  let motionIntensity = 0;
+  let motionTimeBonus = 0;
   let renderedFrames = 0;
   let runStarted = performance.now();
 
@@ -423,7 +462,28 @@ export function mountLivingBackground(canvas: HTMLCanvasElement) {
     if (!reducedMotion && now - lastFrame < frameInterval) return;
     lastFrame = now;
 
-    const elapsed = reducedMotion ? elapsedBeforePause : elapsedBeforePause + (now - runStarted) / 1000;
+    const frameSeconds = lastSimulationFrame > 0 ? Math.min(0.1, (now - lastSimulationFrame) / 1000) : 0;
+    lastSimulationFrame = now;
+    const motionTarget = reducedMotion
+      ? { intensity: 0, updatedAt: 0, x: 0, y: 0 }
+      : (design.motion ?? getBackgroundMotionSnapshot(now));
+    const responseRate = motionTarget.intensity > motionIntensity ? 7.2 : 3.6;
+    const motionBlend = frameSeconds > 0 ? 1 - Math.exp(-frameSeconds * responseRate) : 0;
+    motionDirectionX += (motionTarget.x - motionDirectionX) * motionBlend;
+    motionDirectionY += (motionTarget.y - motionDirectionY) * motionBlend;
+    motionIntensity += (motionTarget.intensity - motionIntensity) * motionBlend;
+    const smoothedMagnitude = Math.hypot(motionDirectionX, motionDirectionY);
+    if (smoothedMagnitude > 1) {
+      motionDirectionX /= smoothedMagnitude;
+      motionDirectionY /= smoothedMagnitude;
+    }
+    motionTimeBonus += frameSeconds * motionIntensity * 0.5;
+    const fieldRetention = Math.exp(-frameSeconds * 0.08);
+    motionFieldOffsetX = motionFieldOffsetX * fieldRetention + motionDirectionX * motionIntensity * frameSeconds * 0.34;
+    motionFieldOffsetY = motionFieldOffsetY * fieldRetention + motionDirectionY * motionIntensity * frameSeconds * 0.34;
+
+    const baseElapsed = reducedMotion ? elapsedBeforePause : elapsedBeforePause + (now - runStarted) / 1000;
+    const elapsed = baseElapsed + motionTimeBonus;
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.useProgram(resources.program);
     gl.bindBuffer(gl.ARRAY_BUFFER, resources.buffer);
@@ -436,11 +496,17 @@ export function mountLivingBackground(canvas: HTMLCanvasElement) {
     gl.uniform4f(resources.fieldTuning, ...design.tuning.field);
     gl.uniform4f(resources.lightTuning, ...design.tuning.light);
     gl.uniform4f(resources.finishTuning, ...design.tuning.finish);
+    gl.uniform4f(resources.motion, motionDirectionX, motionDirectionY, motionIntensity, motionIntensity * 0.5);
+    gl.uniform2f(resources.motionOffset, motionFieldOffsetX, motionFieldOffsetY);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     canvas.dataset.ready = "true";
     renderedFrames += 1;
     if (import.meta.env.DEV && now - lastTelemetry >= 500) {
       canvas.dataset.renderCount = String(renderedFrames);
+      canvas.dataset.motionIntensity = motionIntensity.toFixed(3);
+      canvas.dataset.motionStatus = getBackgroundMotionStatus();
+      canvas.dataset.motionX = motionDirectionX.toFixed(3);
+      canvas.dataset.motionY = motionDirectionY.toFixed(3);
       lastTelemetry = now;
     }
 
@@ -453,6 +519,7 @@ export function mountLivingBackground(canvas: HTMLCanvasElement) {
   const pause = () => {
     if (!animationFrame || reducedMotion) return;
     elapsedBeforePause += (performance.now() - runStarted) / 1000;
+    lastSimulationFrame = 0;
     window.cancelAnimationFrame(animationFrame);
     animationFrame = 0;
   };
@@ -460,6 +527,7 @@ export function mountLivingBackground(canvas: HTMLCanvasElement) {
   const resume = () => {
     if (animationFrame || destroyed || reducedMotion) return;
     runStarted = performance.now();
+    lastSimulationFrame = 0;
     animationFrame = window.requestAnimationFrame(draw);
   };
 
@@ -498,6 +566,10 @@ export function mountLivingBackground(canvas: HTMLCanvasElement) {
     if (!resizeObserver) window.removeEventListener("resize", resize);
     canvas.removeAttribute("data-ready");
     canvas.removeAttribute("data-render-count");
+    canvas.removeAttribute("data-motion-intensity");
+    canvas.removeAttribute("data-motion-status");
+    canvas.removeAttribute("data-motion-x");
+    canvas.removeAttribute("data-motion-y");
     gl.deleteBuffer(resources.buffer);
     gl.deleteProgram(resources.program);
   };

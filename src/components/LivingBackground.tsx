@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { startBackgroundMotionIfAvailable } from "../services/backgroundMotion";
 import { mountLivingBackground } from "./livingBackgroundRenderer";
 
 export default function LivingBackground() {
@@ -7,6 +8,7 @@ export default function LivingBackground() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    canvas.dataset.motionStartupStatus = startBackgroundMotionIfAvailable();
     return mountLivingBackground(canvas);
   }, []);
 

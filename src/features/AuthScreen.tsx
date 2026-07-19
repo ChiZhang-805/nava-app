@@ -42,6 +42,7 @@ export default function AuthScreen() {
   const [sentTo, setSentTo] = useState("");
   const [codeCooldown, setCodeCooldown] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [codeBusy, setCodeBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -79,6 +80,7 @@ export default function AuthScreen() {
     setSentTo("");
     setCodeCooldown(0);
     setShowPassword(false);
+    setShowConfirmPassword(false);
     clearFeedback();
   }
 
@@ -267,11 +269,20 @@ export default function AuthScreen() {
                   <LockKeyhole size={19} />
                   <input
                     autoComplete="new-password"
-                    type={showPassword ? "text" : "password"}
+                    type={showConfirmPassword ? "text" : "password"}
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
                     placeholder={t("auth.confirmPasswordPlaceholder")}
                   />
+                  <button
+                    className="auth-input-icon-button"
+                    type="button"
+                    onClick={() => setShowConfirmPassword((value) => !value)}
+                    aria-label={showConfirmPassword ? t("auth.hideConfirmPassword") : t("auth.showConfirmPassword")}
+                    title={showConfirmPassword ? t("auth.hideConfirmPassword") : t("auth.showConfirmPassword")}
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
               </label>
             )}

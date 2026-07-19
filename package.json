@@ -13,6 +13,8 @@
     "backend:deploy": "powershell -ExecutionPolicy Bypass -File scripts/deploy-backend.ps1",
     "screenshots": "node scripts/capture-screenshots.mjs",
     "screenshots:background": "node scripts/capture-background-states.mjs",
+    "screenshots:motion": "node scripts/capture-motion-background.mjs",
+    "motion:test": "node --experimental-strip-types --test tests/background-motion.test.ts",
     "algorithm:test": "node --experimental-strip-types --test tests/rhythm-core.test.ts",
     "algorithm:benchmark": "node --experimental-strip-types scripts/benchmark-rhythm-v4.ts",
     "algorithm:benchmark:fixed": "node --experimental-strip-types scripts/benchmark-fixed-dataset.ts",
@@ -21,9 +23,10 @@
     "data:export": "node --experimental-strip-types scripts/export-synthetic-population.ts",
     "data:export:fixed": "node --experimental-strip-types scripts/export-synthetic-population.ts --out=Z:\\nava-app-data\\synthetic-population",
     "algorithm:tune": "node --experimental-strip-types scripts/benchmark-rhythm-v4.ts --tune",
-    "cap:sync": "npm run build && npx cap sync",
-    "cap:add:ios": "npx cap add ios",
+    "cap:sync": "npm run build && npx cap sync && npm run ios:configure-motion",
+    "cap:add:ios": "npx cap add ios && npm run ios:configure-motion",
     "cap:open:ios": "npx cap open ios",
+    "ios:configure-motion": "node scripts/configure-ios-motion.mjs",
     "upstream:diff": "powershell -ExecutionPolicy Bypass -File scripts/sync-web-upstream.ps1"
   },
   "dependencies": {

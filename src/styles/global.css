@@ -2155,9 +2155,9 @@ textarea::placeholder {
   position: relative;
   font-family: "NAVA Bodoni", Didot, "Bodoni 72", Georgia, serif;
   font-size: var(--wordmark-size);
-  font-weight: 650;
+  font-weight: 720;
   font-optical-sizing: auto;
-  font-variation-settings: "opsz" 82, "wght" 650;
+  font-variation-settings: "opsz" 36, "wght" 720;
   line-height: 0.92;
   letter-spacing: 0;
   white-space: nowrap;
@@ -2170,8 +2170,10 @@ textarea::placeholder {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: 0.15px rgba(0, 0, 0, 0.58);
-  filter: drop-shadow(0 5px 7px rgba(0, 27, 42, 0.18));
+  -webkit-text-stroke: 1.2px rgba(0, 0, 0, 0.58);
+  filter:
+    drop-shadow(4px 7px 4px rgba(0, 18, 29, 0.52))
+    drop-shadow(2px 16px 18px rgba(0, 31, 49, 0.22));
 }
 
 .nava-wordmark__sweep {

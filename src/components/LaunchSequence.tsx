@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useT, type TranslationKey } from "../i18n";
+import { requestBackgroundMotionPermission } from "../services/backgroundMotion";
 import NavaWordmark from "./NavaWordmark";
 
 const STORAGE_KEY = "nava.launch.sequence.v1";
@@ -65,6 +66,7 @@ export default function LaunchSequence() {
         type="button"
         onClick={(event) => {
           event.stopPropagation();
+          void requestBackgroundMotionPermission();
           close();
         }}
         disabled={!ready}
