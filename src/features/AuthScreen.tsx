@@ -7,7 +7,6 @@ import {
   EyeOff,
   KeyRound,
   LockKeyhole,
-  MailCheck,
   Phone,
   Send,
   UserRoundPlus,
@@ -19,15 +18,15 @@ import { useT } from "../i18n";
 import { formatAuthError, isEmail, isPhone } from "../services/auth";
 import { useAuth } from "../state/authContext";
 
-type AuthMode = "signIn" | "signUp";
+type AuthMode = "signIn" | "signUp" | "reset";
 
 export default function AuthScreen() {
   const {
     signIn,
-    signUp,
-    sendSmsOtp,
-    verifySmsOtp,
-    resetPassword,
+    sendPasswordResetOtp,
+    sendRegistrationOtp,
+    verifyPasswordResetOtp,
+    verifyRegistrationOtp,
     error,
     clearError,
   } = useAuth();
@@ -51,8 +50,8 @@ export default function AuthScreen() {
   const accountIsEmail = isEmail(normalizedAccount);
   const accountIsPhone = isPhone(normalizedAccount);
   const accountIsValid = accountIsEmail || accountIsPhone;
-  const requiresSmsCode = mode === "signUp" && accountIsPhone;
-  const AccountIcon = isPhone(account) ? Phone : AtSign;
+  const requiresCode = mode !== "signIn";
+  const AccountIcon = accountIsPhone ? Phone : AtSign;
   const feedbackError = localError ?? error;
   const canSubmit =
     !busy &&
@@ -61,7 +60,9 @@ export default function AuthScreen() {
       ? Boolean(password)
       : password.length >= 6 &&
         Boolean(confirmPassword) &&
-        (!requiresSmsCode || (otpSent && sentTo === normalizedAccount && /^\d{6}$/.test(otp))));
+        otpSent &&
+        sentTo === normalizedAccount &&
+        /^\d{6}$/.test(otp));
 
   useEffect(() => {
     if (codeCooldown <= 0) return;
@@ -105,17 +106,16 @@ export default function AuthScreen() {
     clearFeedback();
     setCodeBusy(true);
     try {
-      if (isPhone(normalizedAccount)) {
-        await sendSmsOtp(normalizedAccount);
-      } else {
-        throw new Error(t("auth.error.invalidAccount"));
-      }
+      if (!accountIsValid) throw new Error(t("auth.error.invalidAccount"));
+      const channel = mode === "reset"
+        ? await sendPasswordResetOtp(normalizedAccount)
+        : await sendRegistrationOtp(normalizedAccount);
       setOtpSent(true);
       setSentTo(normalizedAccount);
       setCodeCooldown(60);
-      setNotice(t("auth.notice.otpSent"));
+      setNotice(t(channel === "email" ? "auth.notice.emailOtpSent" : "auth.notice.smsOtpSent"));
     } catch (authError) {
-      setLocalError(formatAuthError(authError));
+      setLocalError(formatAuthError(authError, t));
     } finally {
       setCodeBusy(false);
     }
@@ -138,41 +138,17 @@ export default function AuthScreen() {
       if (password.length < 6) throw new Error(t("auth.error.passwordLength"));
       if (password !== confirmPassword) throw new Error(t("auth.error.passwordMismatch"));
 
-      if (accountIsEmail) {
-        const result = await signUp(normalizedAccount, password);
-        setPassword("");
-        setConfirmPassword("");
-        setShowPassword(false);
-        setShowConfirmPassword(false);
-        if (result.needsEmailConfirmation) {
-          setMode("signIn");
-          setNotice(t("auth.notice.signupSubmitted"));
-        } else {
-          setNotice(t("auth.notice.registered"));
-        }
-        return;
-      }
-
       if (!otpSent || sentTo !== normalizedAccount) throw new Error(t("auth.error.codeFirst"));
       if (!/^\d{6}$/.test(otp)) throw new Error(t("auth.error.codeFormat"));
-      await verifySmsOtp(normalizedAccount, otp, "register", password);
-      setNotice(t("auth.notice.registered"));
+      if (mode === "reset") {
+        await verifyPasswordResetOtp(normalizedAccount, otp, password);
+        setNotice(t("auth.notice.passwordUpdated"));
+      } else {
+        await verifyRegistrationOtp(normalizedAccount, otp, password);
+        setNotice(t("auth.notice.registered"));
+      }
     } catch (authError) {
-      setLocalError(formatAuthError(authError));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleResetPassword() {
-    clearFeedback();
-    setBusy(true);
-    try {
-      if (!isEmail(normalizedAccount)) throw new Error(t("auth.error.resetRequiresEmail"));
-      await resetPassword(normalizedAccount);
-      setNotice(t("auth.notice.resetSent"));
-    } catch (authError) {
-      setLocalError(formatAuthError(authError));
+      setLocalError(formatAuthError(authError, t));
     } finally {
       setBusy(false);
     }
@@ -199,7 +175,7 @@ export default function AuthScreen() {
       <div className="auth-form-region">
         <form className={["auth-form", `auth-form--${mode}`].join(" ")} key={mode} onSubmit={submit}>
           <header className="auth-form-head">
-            <h1>{mode === "signIn" ? t("auth.signIn") : t("auth.signUp")}</h1>
+            <h1>{mode === "signIn" ? t("auth.signIn") : mode === "signUp" ? t("auth.signUp") : t("auth.setNewPassword")}</h1>
             <button
               className="auth-mode-icon"
               type="button"
@@ -218,7 +194,7 @@ export default function AuthScreen() {
                 <AccountIcon size={19} />
                 <input
                   autoComplete="username"
-                  inputMode={isPhone(account) ? "tel" : "email"}
+                  inputMode={accountIsPhone ? "tel" : "email"}
                   value={account}
                   onChange={(event) => updateAccount(event.target.value)}
                   placeholder={t("auth.emailPhonePlaceholder")}
@@ -226,7 +202,7 @@ export default function AuthScreen() {
               </div>
             </label>
 
-            {mode === "signUp" && requiresSmsCode && (
+            {requiresCode && (
               <label className="field">
                 <span className="field-label">{t("auth.otp")}</span>
                 <div className="input-wrap auth-code-wrap">
@@ -243,7 +219,7 @@ export default function AuthScreen() {
                     className="auth-code-button"
                     type="button"
                     onClick={sendRegistrationCode}
-                    disabled={codeBusy || codeCooldown > 0 || !normalizedAccount}
+                    disabled={codeBusy || codeCooldown > 0 || !accountIsValid}
                   >
                     <Send size={15} />
                     <span>{codeButtonLabel}</span>
@@ -252,18 +228,8 @@ export default function AuthScreen() {
               </label>
             )}
 
-            {mode === "signUp" && !requiresSmsCode && (
-              <div className="field">
-                <span className="field-label">{t("auth.emailConfirmation")}</span>
-                <div className="input-wrap auth-email-confirmation" role="status">
-                  <MailCheck size={19} />
-                  <span>{t("auth.emailConfirmationAction")}</span>
-                </div>
-              </div>
-            )}
-
             <label className="field">
-              <span className="field-label">{t("auth.password")}</span>
+              <span className="field-label">{mode === "reset" ? t("auth.setNewPassword") : t("auth.password")}</span>
               <div className="input-wrap">
                 <LockKeyhole size={19} />
                 <input
@@ -285,7 +251,7 @@ export default function AuthScreen() {
               </div>
             </label>
 
-            {mode === "signUp" && (
+            {mode !== "signIn" && (
               <label className="field">
                 <span className="field-label">{t("auth.confirmPassword")}</span>
                 <div className="input-wrap">
@@ -322,12 +288,12 @@ export default function AuthScreen() {
           </div>
 
           <button className="auth-submit" type="submit" disabled={!canSubmit}>
-            <span>{busy ? t("auth.processing") : mode === "signIn" ? t("auth.enter") : t("auth.create")}</span>
+            <span>{busy ? t("auth.processing") : mode === "signIn" ? t("auth.enter") : mode === "signUp" ? t("auth.create") : t("auth.savePassword")}</span>
             <ArrowRight size={19} />
           </button>
 
           {mode === "signIn" && (
-            <button className="auth-forgot" type="button" onClick={handleResetPassword} disabled={busy || !normalizedAccount}>
+            <button className="auth-forgot" type="button" onClick={() => switchMode("reset")} disabled={busy}>
               {t("auth.forgotPassword")}
             </button>
           )}

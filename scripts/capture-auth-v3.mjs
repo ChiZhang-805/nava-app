@@ -1,54 +1,187 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 
 const root = process.cwd();
-const outputDir = path.join(root, "artifacts", process.env.AUTH_REVIEW_DIR || "ui-review-2026-07-19-auth-final");
+const outputDir = path.join(root, "artifacts", "ui-review-2026-07-19-auth-otp");
 const baseUrl = "http://127.0.0.1:5173";
 
-async function readSupabaseProjectRef() {
-  const envFile = await readFile(path.join(root, ".env"), "utf8");
-  const urlLine = envFile.split(/\r?\n/).find((line) => line.startsWith("VITE_SUPABASE_URL="));
-  const rawUrl = urlLine?.slice("VITE_SUPABASE_URL=".length).trim().replace(/^['\"]|['\"]$/g, "");
-  if (!rawUrl) throw new Error("VITE_SUPABASE_URL is required for auth-flow review.");
-  return new URL(rawUrl).hostname.split(".")[0];
-}
-
-async function makeContext(browser, viewport) {
-  return browser.newContext({
+async function makeContext(browser, viewport = { width: 430, height: 932 }) {
+  const context = await browser.newContext({
     viewport,
     deviceScaleFactor: 2,
     isMobile: true,
     hasTouch: true,
-    userAgent:
-      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
   });
+  await context.addInitScript(() => window.sessionStorage.setItem("nava.launch.sequence.v1", "seen"));
+  return context;
 }
 
-async function readCanvasMetrics(page) {
-  return page.locator(".living-background__canvas").evaluate((canvas) => {
-    const gl = canvas.getContext("webgl");
+function base64Url(value) {
+  return Buffer.from(JSON.stringify(value)).toString("base64url");
+}
+
+function makeSession(email, suffix) {
+  const now = Math.floor(Date.now() / 1000);
+  const id = `00000000-0000-4000-8000-${suffix}`;
+  const user = {
+    id,
+    aud: "authenticated",
+    role: "authenticated",
+    email,
+    email_confirmed_at: new Date().toISOString(),
+    app_metadata: { provider: "email", providers: ["email"] },
+    user_metadata: { full_name: email },
+    identities: [],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  const accessToken = `${base64Url({ alg: "HS256", typ: "JWT" })}.${base64Url({ aud: "authenticated", exp: now + 3600, role: "authenticated", sub: id })}.local-signature`;
+  return {
+    access_token: accessToken,
+    refresh_token: `local-refresh-${suffix}`,
+    expires_at: now + 3600,
+    expires_in: 3600,
+    token_type: "bearer",
+    user,
+  };
+}
+
+async function installAuthMocks(page, { email, passwordMatches = false, smsSendErrorCode, suffix = "000000000101" }) {
+  const session = makeSession(email, suffix);
+  const calls = { otp: [], verify: [], smsSend: [], smsVerify: [], userUpdates: [], passwordChecks: 0, profileCalls: 0 };
+
+  await page.route("**/auth/v1/otp**", async (route) => {
+    calls.otp.push(route.request().postDataJSON());
+    await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+  });
+  await page.route("**/auth/v1/verify**", async (route) => {
+    calls.verify.push(route.request().postDataJSON());
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(session) });
+  });
+  await page.route("**/auth/v1/user**", async (route) => {
+    if (route.request().method() === "PUT") calls.userUpdates.push(route.request().postDataJSON());
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(session.user) });
+  });
+  await page.route("**/functions/v1/aliyun-sms-send**", async (route) => {
+    calls.smsSend.push(route.request().postDataJSON());
+    if (smsSendErrorCode) {
+      await route.fulfill({
+        status: 429,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "请求过于频繁，请稍后再试。", code: smsSendErrorCode }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ sent: true, expiresInSeconds: 600, cooldownSeconds: 60 }),
+    });
+  });
+  await page.route("**/functions/v1/aliyun-sms-verify**", async (route) => {
+    const request = route.request().postDataJSON();
+    calls.smsVerify.push(request);
+    const verificationType = request.purpose === "reset" ? "recovery" : "signup";
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        token_hash: `local-${verificationType}-token`,
+        verification_type: verificationType,
+        email: `${request.phone}@phone.nava.app`,
+      }),
+    });
+  });
+  await page.route("**/rest/v1/**", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+  });
+  await page.route("**/rest/v1/rpc/nava_password_matches_current**", async (route) => {
+    calls.passwordChecks += 1;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(passwordMatches) });
+  });
+  await page.route("**/rest/v1/profiles**", async (route) => {
+    calls.profileCalls += 1;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ id: session.user.id }) });
+  });
+  return calls;
+}
+
+async function fillNewPasswords(page, password) {
+  const fields = page.locator('input[autocomplete="new-password"]');
+  await fields.nth(0).fill(password);
+  await fields.nth(1).fill(password);
+}
+
+async function readWordmarkPixels(page, selector) {
+  const png = await page.locator(selector).screenshot({ animations: "disabled" });
+  return page.evaluate(async ({ base64 }) => {
+    const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+    const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.drawImage(bitmap, 0, 0);
+    bitmap.close();
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let left = canvas.width;
+    let right = -1;
+    let top = canvas.height;
+    let bottom = -1;
+
+    for (let y = 0; y < canvas.height; y += 1) {
+      for (let x = 0; x < canvas.width; x += 1) {
+        const index = (y * canvas.width + x) * 4;
+        const [red, green, blue, alpha] = pixels.slice(index, index + 4);
+        if (alpha > 160 && red < 45 && green < 65 && blue < 80) {
+          left = Math.min(left, x);
+          right = Math.max(right, x);
+          top = Math.min(top, y);
+          bottom = Math.max(bottom, y);
+        }
+      }
+    }
+
+    if (right < left || bottom < top) return null;
+    const leftSafety = left;
+    const rightSafety = canvas.width - 1 - right;
     return {
-      ready: canvas.dataset.ready === "true",
-      renderCount: Number(canvas.dataset.renderCount || 0),
-      cssSize: [canvas.clientWidth, canvas.clientHeight],
-      bufferSize: [canvas.width, canvas.height],
-      contextLost: gl?.isContextLost() ?? null,
-      webgl: Boolean(gl),
+      bottom,
+      centerDelta: Number((((left + right) / 2) - ((canvas.width - 1) / 2)).toFixed(2)),
+      height: canvas.height,
+      left,
+      leftSafety,
+      right,
+      rightSafety,
+      safetyDelta: leftSafety - rightSafety,
+      top,
+      width: canvas.width,
+    };
+  }, { base64: png.toString("base64") });
+}
+
+async function readLayout(page) {
+  const layout = await page.evaluate(() => {
+    const form = document.querySelector(".auth-form")?.getBoundingClientRect();
+    const mark = document.querySelector(".auth-brand .nava-wordmark__text")?.getBoundingClientRect();
+    const brand = document.querySelector(".auth-brand")?.getBoundingClientRect();
+    const labels = [...document.querySelectorAll(".field-label")].map((element) => element.textContent?.trim());
+    return {
+      brandCenterDelta: mark && brand ? Number(((mark.left + mark.width / 2) - (brand.left + brand.width / 2)).toFixed(2)) : null,
+      fields: labels,
+      form: form && { height: Math.round(form.height), width: Math.round(form.width), x: Math.round(form.x), y: Math.round(form.y) },
+      horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
+      title: document.querySelector(".auth-form-head h1")?.textContent?.trim(),
+      verticalOverflow: document.documentElement.scrollHeight > window.innerHeight,
+      viewport: { height: window.innerHeight, width: window.innerWidth },
+      wordmark: mark && { left: Math.round(mark.left), right: Math.round(mark.right), width: Math.round(mark.width) },
     };
   });
-}
-
-async function measureCanvasRate(page, durationMs = 3000) {
-  const before = await readCanvasMetrics(page);
-  const startedAt = Date.now();
-  await page.waitForTimeout(durationMs);
-  const after = await readCanvasMetrics(page);
-  const elapsedSeconds = (Date.now() - startedAt) / 1000;
   return {
-    framesPerSecond: Number(((after.renderCount - before.renderCount) / elapsedSeconds).toFixed(1)),
-    renderedFrames: after.renderCount - before.renderCount,
-    elapsedSeconds: Number(elapsedSeconds.toFixed(2)),
+    ...layout,
+    wordmarkPixels: await readWordmarkPixels(page, ".auth-brand .nava-wordmark__text"),
   };
 }
 
@@ -56,289 +189,226 @@ async function main() {
   await mkdir(outputDir, { recursive: true });
   const browser = await chromium.launch();
   const metrics = {};
+  const errors = [];
 
   try {
-    const launchContext = await makeContext(browser, { width: 430, height: 932 });
-    const launchPage = await launchContext.newPage();
-    await launchPage.goto(baseUrl, { waitUntil: "networkidle" });
-    await launchPage.waitForTimeout(1400);
-    await launchPage.screenshot({ path: path.join(outputDir, "01-launch-1s.png") });
-    metrics.launchBackground = await readCanvasMetrics(launchPage);
-    await launchPage.waitForTimeout(6000);
-    await launchPage.screenshot({ path: path.join(outputDir, "02-launch-7s.png") });
-    await launchPage.waitForTimeout(6000);
-    await launchPage.screenshot({ path: path.join(outputDir, "03-launch-13s.png") });
-    await launchPage.locator(".launch-sequence").tap({ position: { x: 24, y: 420 } });
-    await launchPage.waitForTimeout(1320);
-    await launchPage.locator(".launch-sequence").tap({ position: { x: 24, y: 420 } });
-    await launchPage.waitForTimeout(1320);
-    await launchPage.locator(".launch-sequence.ready .launch-start").waitFor();
-    await launchPage.waitForTimeout(1500);
-    await launchPage.screenshot({ path: path.join(outputDir, "03b-launch-ready.png") });
-    await launchPage.locator(".launch-start").tap();
-    await launchPage.waitForTimeout(700);
-    await launchPage.screenshot({ path: path.join(outputDir, "03c-auth-after-launch.png") });
-    metrics.launchAnimations = await launchPage.locator(".living-background").evaluate((element) =>
-      element.getAnimations({ subtree: true }).map((animation) => ({
-        name: animation instanceof CSSAnimation ? animation.animationName : "transition",
-        currentTime: Math.round(Number(animation.currentTime ?? 0)),
-        playState: animation.playState,
-      })),
-    );
-    await launchContext.close();
-
-    const authContext = await makeContext(browser, { width: 430, height: 932 });
-    await authContext.addInitScript(() => window.sessionStorage.setItem("nava.launch.sequence.v1", "seen"));
-    const authPage = await authContext.newPage();
-    await authPage.goto(baseUrl, { waitUntil: "networkidle" });
-    await authPage.waitForTimeout(800);
-    await authPage.screenshot({ path: path.join(outputDir, "04-login-1s.png") });
-    await authPage.waitForTimeout(1600);
-    await authPage.screenshot({ path: path.join(outputDir, "05-login-2s.png") });
-    await authPage.waitForTimeout(1600);
-    await authPage.screenshot({ path: path.join(outputDir, "06-login-4s.png") });
-    metrics.authBackground = await readCanvasMetrics(authPage);
-    metrics.backgroundRenderRate = await measureCanvasRate(authPage);
-
-    metrics.wordmarkAnimations = await authPage.locator(".nava-wordmark").evaluate((element) =>
-      element.getAnimations({ subtree: true }).map((animation) => ({
-        name: animation instanceof CSSAnimation ? animation.animationName : "transition",
-        duration: Number(animation.effect?.getTiming().duration ?? 0),
-        currentTime: Math.round(Number(animation.currentTime ?? 0)),
-        playState: animation.playState,
-      })),
-    );
-
-    metrics.login = await authPage.evaluate(() => {
-      const screen = document.querySelector(".auth-screen")?.getBoundingClientRect();
-      const form = document.querySelector(".auth-form")?.getBoundingClientRect();
-      const inputs = [...document.querySelectorAll(".input-wrap")].map((element) => {
-        const rect = element.getBoundingClientRect();
-        return { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) };
-      });
-      return {
-        viewport: { width: window.innerWidth, height: window.innerHeight },
-        screen: screen && { width: Math.round(screen.width), height: Math.round(screen.height) },
-        form: form && { x: Math.round(form.x), y: Math.round(form.y), width: Math.round(form.width), height: Math.round(form.height) },
-        inputs,
-        horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
-        verticalOverflow: document.documentElement.scrollHeight > window.innerHeight,
-      };
+    const uiContext = await makeContext(browser);
+    const uiPage = await uiContext.newPage();
+    uiPage.on("pageerror", (error) => errors.push(error.message));
+    uiPage.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
     });
+    await uiPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await uiPage.waitForTimeout(900);
+    metrics.login = await readLayout(uiPage);
+    await uiPage.screenshot({ path: path.join(outputDir, "01-login.png") });
 
-    await authPage.locator('input[autocomplete="username"]').fill("hello@example.com");
-    await authPage.locator('input[autocomplete="current-password"]').fill("sample-password");
-    await authPage.screenshot({ path: path.join(outputDir, "06b-login-active.png") });
+    await uiPage.locator(".auth-mode-icon").tap();
+    await uiPage.locator('input[autocomplete="username"]').fill("hello@example.com");
+    await uiPage.waitForTimeout(350);
+    metrics.emailRegistration = await readLayout(uiPage);
+    metrics.emailRegistration.otpVisible = await uiPage.locator('input[autocomplete="one-time-code"]').isVisible();
+    metrics.emailRegistration.codeButtonEnabled = await uiPage.locator(".auth-code-button").isEnabled();
+    await uiPage.screenshot({ path: path.join(outputDir, "02-register-email-otp.png") });
 
-    await authPage.locator(".auth-mode-icon").tap();
-    await authPage.waitForTimeout(900);
-    await authPage.screenshot({ path: path.join(outputDir, "07-register.png") });
-    metrics.register = await authPage.evaluate(() => ({
-      title: document.querySelector(".auth-form-head h1")?.textContent,
-      fields: [...document.querySelectorAll(".field-label")].map((element) => element.textContent),
-      horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
-      verticalOverflow: document.documentElement.scrollHeight > window.innerHeight,
-    }));
-    metrics.emailRegistration = {
-      confirmationVisible: await authPage.locator(".auth-email-confirmation").isVisible(),
-      otpInputCount: await authPage.locator('input[autocomplete="one-time-code"]').count(),
-    };
-    if (!metrics.emailRegistration.confirmationVisible || metrics.emailRegistration.otpInputCount !== 0) {
-      throw new Error("Email registration must use a confirmation link instead of a six-digit code field.");
-    }
+    await fillNewPasswords(uiPage, "sample-password");
+    const toggles = uiPage.locator(".auth-input-icon-button");
+    await toggles.nth(1).tap();
+    metrics.confirmPasswordTypes = await uiPage.locator('input[autocomplete="new-password"]').evaluateAll((inputs) => inputs.map((input) => input.type));
+    await uiPage.screenshot({ path: path.join(outputDir, "03-register-password-eye.png") });
+    await toggles.nth(1).tap();
 
-    const registerPasswordInputs = authPage.locator('input[autocomplete="new-password"]');
-    const registerPasswordToggles = authPage.locator(".auth-input-icon-button");
-    if ((await registerPasswordInputs.count()) !== 2 || (await registerPasswordToggles.count()) !== 2) {
-      throw new Error("Registration must expose two password fields with independent visibility controls.");
-    }
-    await registerPasswordInputs.nth(0).fill("sample-password");
-    await registerPasswordInputs.nth(1).fill("sample-password");
-    await registerPasswordToggles.nth(1).tap();
-    metrics.confirmPasswordVisibility = await registerPasswordInputs.evaluateAll((inputs) =>
-      inputs.map((input) => ({ type: input.type, valueLength: input.value.length })),
-    );
-    if (
-      metrics.confirmPasswordVisibility[0]?.type !== "password" ||
-      metrics.confirmPasswordVisibility[1]?.type !== "text"
-    ) {
-      throw new Error("Confirm-password visibility control changed the wrong field.");
-    }
-    await authPage.screenshot({ path: path.join(outputDir, "07a-register-confirm-visible.png") });
-    await registerPasswordToggles.nth(1).tap();
+    await uiPage.locator('input[autocomplete="username"]').fill("13800138000");
+    await uiPage.waitForTimeout(250);
+    metrics.phoneRegistration = await readLayout(uiPage);
+    metrics.phoneRegistration.otpVisible = await uiPage.locator('input[autocomplete="one-time-code"]').isVisible();
+    await uiPage.screenshot({ path: path.join(outputDir, "04-register-phone-otp.png") });
 
-    await authPage.locator('input[autocomplete="username"]').fill("13800138000");
-    await authPage.waitForTimeout(250);
-    metrics.phoneRegistration = {
-      confirmationCount: await authPage.locator(".auth-email-confirmation").count(),
-      otpInputVisible: await authPage.locator('input[autocomplete="one-time-code"]').isVisible(),
-    };
-    if (!metrics.phoneRegistration.otpInputVisible || metrics.phoneRegistration.confirmationCount !== 0) {
-      throw new Error("Phone registration must retain its six-digit SMS code field.");
-    }
-    await authPage.screenshot({ path: path.join(outputDir, "07b-register-phone.png") });
-    await authPage.locator('input[autocomplete="username"]').fill("hello@example.com");
-    await authPage.locator(".language-toggle").tap();
-    await authPage.waitForTimeout(400);
-    await authPage.screenshot({ path: path.join(outputDir, "07c-register-en.png") });
-    metrics.registerEnglish = await authPage.evaluate(() => ({
-      title: document.querySelector(".auth-form-head h1")?.textContent,
-      fields: [...document.querySelectorAll(".field-label")].map((element) => element.textContent),
-      horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
-      verticalOverflow: document.documentElement.scrollHeight > window.innerHeight,
-    }));
-    await authContext.close();
+    await uiPage.locator(".auth-mode-icon").tap();
+    await uiPage.locator(".auth-forgot").tap();
+    await uiPage.locator('input[autocomplete="username"]').fill("reset@example.com");
+    await uiPage.waitForTimeout(350);
+    metrics.reset = await readLayout(uiPage);
+    metrics.reset.passwordCount = await uiPage.locator('input[autocomplete="new-password"]').count();
+    metrics.reset.otpVisible = await uiPage.locator('input[autocomplete="one-time-code"]').isVisible();
+    await uiPage.screenshot({ path: path.join(outputDir, "05-reset-email-otp.png") });
+
+    await uiPage.locator(".language-toggle").tap();
+    await uiPage.waitForTimeout(250);
+    metrics.resetEnglish = await readLayout(uiPage);
+    await uiPage.screenshot({ path: path.join(outputDir, "06-reset-email-otp-en.png") });
+    await uiContext.close();
 
     const compactContext = await makeContext(browser, { width: 375, height: 667 });
-    await compactContext.addInitScript(() => window.sessionStorage.setItem("nava.launch.sequence.v1", "seen"));
     const compactPage = await compactContext.newPage();
+    compactPage.on("pageerror", (error) => errors.push(error.message));
     await compactPage.goto(baseUrl, { waitUntil: "networkidle" });
-    await compactPage.locator(".auth-mode-icon").tap();
-    await compactPage.waitForTimeout(700);
-    await compactPage.screenshot({ path: path.join(outputDir, "08-register-compact.png") });
-    metrics.compact = await compactPage.evaluate(() => ({
-      viewport: { width: window.innerWidth, height: window.innerHeight },
-      bodyScrollHeight: document.body.scrollHeight,
-      horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
-    }));
+    await compactPage.locator(".auth-forgot").tap();
+    await compactPage.locator('input[autocomplete="username"]').fill("reset@example.com");
+    await compactPage.waitForTimeout(500);
+    metrics.compactReset = await readLayout(compactPage);
+    await compactPage.screenshot({ path: path.join(outputDir, "07-reset-compact.png") });
     await compactContext.close();
 
-    const signupContext = await makeContext(browser, { width: 430, height: 932 });
-    await signupContext.addInitScript(() => window.sessionStorage.setItem("nava.launch.sequence.v1", "seen"));
+    const signupContext = await makeContext(browser);
     const signupPage = await signupContext.newPage();
-    let signupRequest = null;
-    await signupPage.route("**/auth/v1/signup**", async (route) => {
-      const request = route.request();
-      const body = request.postDataJSON();
-      signupRequest = {
-        email: body.email,
-        hasPassword: typeof body.password === "string" && body.password.length >= 6,
-        redirectTo: new URL(request.url()).searchParams.get("redirect_to"),
-      };
-      const now = new Date().toISOString();
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          id: "00000000-0000-4000-8000-000000000099",
-          aud: "authenticated",
-          role: "authenticated",
-          email: body.email,
-          confirmation_sent_at: now,
-          app_metadata: { provider: "email", providers: ["email"] },
-          user_metadata: body.data ?? {},
-          identities: [],
-          created_at: now,
-          updated_at: now,
-        }),
-      });
-    });
+    const signupCalls = await installAuthMocks(signupPage, { email: "signup@example.com", suffix: "000000000102" });
     await signupPage.goto(baseUrl, { waitUntil: "networkidle" });
     await signupPage.locator(".auth-mode-icon").tap();
-    await signupPage.locator('input[autocomplete="username"]').fill("qa@example.com");
-    const signupPasswords = signupPage.locator('input[autocomplete="new-password"]');
-    await signupPasswords.nth(0).fill("sample-password");
-    await signupPasswords.nth(1).fill("sample-password");
+    await signupPage.locator('input[autocomplete="username"]').fill("signup@example.com");
+    await signupPage.locator(".auth-code-button").tap();
+    await signupPage.locator('input[autocomplete="one-time-code"]').fill("123456");
+    await fillNewPasswords(signupPage, "new-sample-password");
     await signupPage.locator(".auth-submit").tap();
-    await signupPage.locator(".auth-form--signIn .success-text").waitFor();
-    metrics.emailSignupSubmission = {
-      request: signupRequest,
-      returnedToSignIn: await signupPage.locator(".auth-form--signIn").isVisible(),
-      successVisible: await signupPage.locator(".success-text").isVisible(),
-    };
-    if (!signupRequest?.hasPassword || !metrics.emailSignupSubmission.returnedToSignIn) {
-      throw new Error(`Email signup did not submit a password before confirmation: ${JSON.stringify(metrics.emailSignupSubmission)}`);
-    }
-    await signupPage.waitForTimeout(800);
-    await signupPage.screenshot({ path: path.join(outputDir, "09-email-confirmation-sent.png") });
+    await signupPage.locator(".phone-frame").waitFor({ timeout: 10000 });
+    await signupPage.waitForTimeout(500);
+    metrics.emailSignupFlow = signupCalls;
+    metrics.emailSignupFlow.enteredApp = true;
+    await signupPage.screenshot({ path: path.join(outputDir, "08-email-signup-complete.png") });
     await signupContext.close();
 
-    const resetContext = await makeContext(browser, { width: 430, height: 932 });
-    await resetContext.addInitScript(() => window.sessionStorage.setItem("nava.launch.sequence.v1", "seen"));
+    const phoneSignupContext = await makeContext(browser);
+    const phoneSignupPage = await phoneSignupContext.newPage();
+    const phoneSignupCalls = await installAuthMocks(phoneSignupPage, { email: "13800138000@phone.nava.app", suffix: "000000000105" });
+    await phoneSignupPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await phoneSignupPage.locator(".auth-mode-icon").tap();
+    await phoneSignupPage.locator('input[autocomplete="username"]').fill("13800138000");
+    await phoneSignupPage.locator(".auth-code-button").tap();
+    await phoneSignupPage.locator('input[autocomplete="one-time-code"]').fill("456789");
+    await fillNewPasswords(phoneSignupPage, "phone-sample-password");
+    await phoneSignupPage.locator(".auth-submit").tap();
+    await phoneSignupPage.locator(".phone-frame").waitFor({ timeout: 10000 });
+    await phoneSignupPage.waitForTimeout(700);
+    metrics.phoneSignupFlow = phoneSignupCalls;
+    metrics.phoneSignupFlow.enteredApp = true;
+    await phoneSignupPage.screenshot({ path: path.join(outputDir, "09-phone-signup-complete.png") });
+    await phoneSignupContext.close();
+
+    const resetContext = await makeContext(browser);
     const resetPage = await resetContext.newPage();
-    let resetRequest = null;
-    await resetPage.route("**/auth/v1/recover**", async (route) => {
-      const request = route.request();
-      resetRequest = {
-        email: request.postDataJSON().email,
-        redirectTo: new URL(request.url()).searchParams.get("redirect_to"),
-      };
-      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
-    });
+    const resetCalls = await installAuthMocks(resetPage, { email: "reset@example.com", passwordMatches: false, suffix: "000000000103" });
     await resetPage.goto(baseUrl, { waitUntil: "networkidle" });
-    await resetPage.locator('input[autocomplete="username"]').fill("recovery@example.com");
     await resetPage.locator(".auth-forgot").tap();
-    await resetPage.locator(".success-text").waitFor();
-    metrics.passwordResetRequest = resetRequest;
-    if (!resetRequest?.redirectTo?.includes("auth=recovery")) {
-      throw new Error(`Password reset is missing its recovery callback: ${JSON.stringify(resetRequest)}`);
-    }
-    await resetPage.screenshot({ path: path.join(outputDir, "09b-password-reset-sent.png") });
+    await resetPage.locator('input[autocomplete="username"]').fill("reset@example.com");
+    await resetPage.locator(".auth-code-button").tap();
+    await resetPage.locator('input[autocomplete="one-time-code"]').fill("234567");
+    await fillNewPasswords(resetPage, "different-password");
+    await resetPage.locator(".auth-submit").tap();
+    await resetPage.locator(".phone-frame").waitFor({ timeout: 10000 });
+    await resetPage.waitForTimeout(500);
+    metrics.passwordResetFlow = resetCalls;
+    metrics.passwordResetFlow.enteredApp = true;
+    await resetPage.screenshot({ path: path.join(outputDir, "10-password-reset-complete.png") });
     await resetContext.close();
 
-    const recoveryContext = await makeContext(browser, { width: 430, height: 932 });
-    const projectRef = await readSupabaseProjectRef();
-    const nowSeconds = Math.floor(Date.now() / 1000);
-    const recoveryUser = {
-      id: "00000000-0000-4000-8000-000000000098",
-      aud: "authenticated",
-      role: "authenticated",
-      email: "recovery@example.com",
-      email_confirmed_at: new Date().toISOString(),
-      app_metadata: { provider: "email", providers: ["email"] },
-      user_metadata: {},
-      identities: [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    const recoverySession = {
-      access_token: "local-review-access-token",
-      refresh_token: "local-review-refresh-token",
-      expires_at: nowSeconds + 3600,
-      expires_in: 3600,
-      token_type: "bearer",
-      user: recoveryUser,
-    };
-    await recoveryContext.addInitScript(
-      ({ authStorageKey, session }) => {
-        window.sessionStorage.setItem("nava.launch.sequence.v1", "seen");
-        window.localStorage.setItem(authStorageKey, JSON.stringify(session));
-      },
-      { authStorageKey: `sb-${projectRef}-auth-token`, session: recoverySession },
-    );
-    const recoveryPage = await recoveryContext.newPage();
-    let recoveryUpdateRequest = null;
-    await recoveryPage.route("**/auth/v1/user", async (route) => {
-      if (route.request().method() === "PUT") {
-        const body = route.request().postDataJSON();
-        recoveryUpdateRequest = { hasPassword: typeof body.password === "string" && body.password.length >= 6 };
-      }
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(recoveryUser) });
-    });
-    await recoveryPage.goto(`${baseUrl}/?auth=recovery`, { waitUntil: "networkidle" });
-    await recoveryPage.locator(".auth-form--signIn").waitFor();
-    metrics.passwordRecovery = {
-      passwordFields: await recoveryPage.locator('input[autocomplete="new-password"]').count(),
-      visibilityControls: await recoveryPage.locator(".auth-input-icon-button").count(),
-      horizontalOverflow: await recoveryPage.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
-    };
-    if (metrics.passwordRecovery.passwordFields !== 2 || metrics.passwordRecovery.visibilityControls !== 2) {
-      throw new Error("Password recovery must provide two independently visible password fields.");
-    }
-    await recoveryPage.screenshot({ path: path.join(outputDir, "10-password-recovery.png") });
-    const recoveryPasswords = recoveryPage.locator('input[autocomplete="new-password"]');
-    await recoveryPasswords.nth(0).fill("new-sample-password");
-    await recoveryPasswords.nth(1).fill("new-sample-password");
-    await recoveryPage.locator(".auth-submit").tap();
-    await recoveryPage.locator(".phone-frame").waitFor();
-    metrics.passwordRecovery.completed = true;
-    metrics.passwordRecovery.updateRequest = recoveryUpdateRequest;
-    if (!recoveryUpdateRequest?.hasPassword) {
-      throw new Error("Password recovery did not submit the new password to Supabase.");
-    }
-    await recoveryPage.screenshot({ path: path.join(outputDir, "11-password-recovery-complete.png") });
-    await recoveryContext.close();
+    const phoneResetContext = await makeContext(browser);
+    const phoneResetPage = await phoneResetContext.newPage();
+    const phoneResetCalls = await installAuthMocks(phoneResetPage, { email: "13900139000@phone.nava.app", passwordMatches: false, suffix: "000000000106" });
+    await phoneResetPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await phoneResetPage.locator(".auth-forgot").tap();
+    await phoneResetPage.locator('input[autocomplete="username"]').fill("13900139000");
+    await phoneResetPage.locator(".auth-code-button").tap();
+    await phoneResetPage.locator('input[autocomplete="one-time-code"]').fill("567890");
+    await fillNewPasswords(phoneResetPage, "different-phone-password");
+    await phoneResetPage.locator(".auth-submit").tap();
+    await phoneResetPage.locator(".phone-frame").waitFor({ timeout: 10000 });
+    await phoneResetPage.waitForTimeout(700);
+    metrics.phoneResetFlow = phoneResetCalls;
+    metrics.phoneResetFlow.enteredApp = true;
+    await phoneResetPage.screenshot({ path: path.join(outputDir, "11-phone-reset-complete.png") });
+    await phoneResetContext.close();
 
+    const sameContext = await makeContext(browser);
+    const samePage = await sameContext.newPage();
+    const sameCalls = await installAuthMocks(samePage, { email: "same@example.com", passwordMatches: true, suffix: "000000000104" });
+    await samePage.goto(baseUrl, { waitUntil: "networkidle" });
+    await samePage.locator(".auth-forgot").tap();
+    await samePage.locator('input[autocomplete="username"]').fill("same@example.com");
+    await samePage.locator(".auth-code-button").tap();
+    await samePage.locator('input[autocomplete="one-time-code"]').fill("345678");
+    await fillNewPasswords(samePage, "same-password");
+    await samePage.locator(".auth-submit").tap();
+    await samePage.locator(".error-text").waitFor({ timeout: 10000 });
+    metrics.samePasswordRejection = {
+      calls: sameCalls,
+      error: await samePage.locator(".error-text").innerText(),
+      stayedSignedOut: (await samePage.locator(".auth-screen--reset").count()) === 1,
+    };
+    await samePage.screenshot({ path: path.join(outputDir, "12-same-password-rejected.png") });
+    await sameContext.close();
+
+    const englishErrorContext = await makeContext(browser);
+    const englishErrorPage = await englishErrorContext.newPage();
+    await installAuthMocks(englishErrorPage, {
+      email: "13800138000@phone.nava.app",
+      smsSendErrorCode: "OTP_PHONE_RATE_LIMIT",
+      suffix: "000000000107",
+    });
+    await englishErrorPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await englishErrorPage.locator(".language-toggle").tap();
+    await englishErrorPage.locator(".auth-mode-icon").tap();
+    await englishErrorPage.locator('input[autocomplete="username"]').fill("13800138000");
+    await englishErrorPage.locator(".auth-code-button").tap();
+    await englishErrorPage.locator(".error-text").waitFor({ timeout: 10000 });
+    metrics.englishServiceError = await englishErrorPage.locator(".error-text").innerText();
+    await englishErrorPage.screenshot({ path: path.join(outputDir, "13-english-service-error.png") });
+    await englishErrorContext.close();
+
+    metrics.errors = errors;
+    if (errors.length > 0) throw new Error(`Auth UI emitted errors: ${JSON.stringify(errors)}`);
+    if (!metrics.emailRegistration.otpVisible || !metrics.emailRegistration.codeButtonEnabled || !metrics.phoneRegistration.otpVisible) {
+      throw new Error(`Registration does not expose a code for both channels: ${JSON.stringify(metrics)}`);
+    }
+    if (metrics.reset.title !== "重置密码" || !metrics.reset.otpVisible || metrics.reset.passwordCount !== 2) {
+      throw new Error(`Reset mode is incomplete: ${JSON.stringify(metrics.reset)}`);
+    }
+    if (metrics.resetEnglish.title !== "Reset password") throw new Error(`English reset label is inconsistent: ${JSON.stringify(metrics.resetEnglish)}`);
+    if (metrics.confirmPasswordTypes[0] !== "password" || metrics.confirmPasswordTypes[1] !== "text") {
+      throw new Error(`Password visibility controls are not independent: ${JSON.stringify(metrics.confirmPasswordTypes)}`);
+    }
+    if (Math.abs(metrics.login.brandCenterDelta) > 2 || Math.abs(metrics.emailRegistration.brandCenterDelta) > 2) {
+      throw new Error(`NAVA wordmark is not centered: ${JSON.stringify({ login: metrics.login, signup: metrics.emailRegistration })}`);
+    }
+    for (const layout of [metrics.login, metrics.emailRegistration, metrics.reset, metrics.compactReset]) {
+      if (layout.horizontalOverflow) throw new Error(`Auth layout overflowed horizontally: ${JSON.stringify(layout)}`);
+      if (
+        !layout.wordmarkPixels ||
+        Math.abs(layout.wordmarkPixels.centerDelta) > 4 ||
+        Math.min(layout.wordmarkPixels.leftSafety, layout.wordmarkPixels.rightSafety) < 8 ||
+        Math.abs(layout.wordmarkPixels.safetyDelta) > 8
+      ) {
+        throw new Error(`NAVA glyph pixels are off-center or clipped: ${JSON.stringify(layout.wordmarkPixels)}`);
+      }
+    }
+    if (metrics.emailSignupFlow.otp[0]?.email !== "signup@example.com" || metrics.emailSignupFlow.verify[0]?.token !== "123456" || !metrics.emailSignupFlow.userUpdates[0]?.password) {
+      throw new Error(`Email OTP registration sequence is incomplete: ${JSON.stringify(metrics.emailSignupFlow)}`);
+    }
+    if (
+      metrics.phoneSignupFlow.smsSend[0]?.purpose !== "register" ||
+      metrics.phoneSignupFlow.smsVerify[0]?.purpose !== "register" ||
+      !metrics.phoneSignupFlow.smsVerify[0]?.password ||
+      metrics.phoneSignupFlow.verify[0]?.type !== "signup"
+    ) {
+      throw new Error(`Phone OTP registration sequence is incomplete: ${JSON.stringify(metrics.phoneSignupFlow)}`);
+    }
+    if (metrics.passwordResetFlow.passwordChecks !== 1 || !metrics.passwordResetFlow.userUpdates[0]?.password) {
+      throw new Error(`Password reset did not check reuse before updating: ${JSON.stringify(metrics.passwordResetFlow)}`);
+    }
+    if (
+      metrics.phoneResetFlow.smsSend[0]?.purpose !== "reset" ||
+      metrics.phoneResetFlow.smsVerify[0]?.purpose !== "reset" ||
+      metrics.phoneResetFlow.verify[0]?.type !== "recovery" ||
+      metrics.phoneResetFlow.passwordChecks !== 1 ||
+      !metrics.phoneResetFlow.userUpdates[0]?.password
+    ) {
+      throw new Error(`Phone OTP reset sequence is incomplete: ${JSON.stringify(metrics.phoneResetFlow)}`);
+    }
+    if (!metrics.samePasswordRejection.stayedSignedOut || metrics.samePasswordRejection.calls.userUpdates.length !== 0) {
+      throw new Error(`Same-password reset was not rejected safely: ${JSON.stringify(metrics.samePasswordRejection)}`);
+    }
+    if (metrics.englishServiceError !== "Too many requests. Try again later.") {
+      throw new Error(`English auth errors are not localized: ${JSON.stringify(metrics.englishServiceError)}`);
+    }
     await writeFile(path.join(outputDir, "metrics.json"), JSON.stringify(metrics, null, 2));
   } finally {
     await browser.close();

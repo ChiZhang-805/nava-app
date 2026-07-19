@@ -1,5 +1,4 @@
 import { getBackgroundMotionSnapshot, getBackgroundMotionStatus } from "../services/backgroundMotion";
-import { getLaunchFieldSnapshot } from "../services/launchField";
 
 const VERTEX_SHADER = `
 attribute vec2 a_position;
@@ -23,7 +22,6 @@ uniform vec4 u_finish_tuning;
 uniform vec4 u_detail_tuning;
 uniform vec4 u_motion;
 uniform vec2 u_motion_offset;
-uniform vec4 u_launch_field;
 varying vec2 v_uv;
 
 float hash21(vec2 p) {
@@ -126,15 +124,6 @@ vec2 cellular(vec2 p, float time) {
   }
 
   return sqrt(vec2(nearest, nextNearest));
-}
-
-float launchMembraneHeight(vec2 point, float time, vec2 touchPoint, float impulse) {
-  float broadFold = sin(point.x * 4.4 + point.y * 1.7 - time * 0.82);
-  float crossFold = sin(point.x * -2.2 + point.y * 5.1 + time * 0.54);
-  float fineFold = sin((point.x + point.y) * 8.4 - time * 1.18);
-  float touchDistance = length(point - touchPoint);
-  float touchWave = sin(touchDistance * 20.0 - time * 4.6) * exp(-touchDistance * 3.25) * impulse;
-  return broadFold * 0.1 + crossFold * 0.055 + fineFold * 0.018 + touchWave * 0.15;
 }
 
 void main() {
@@ -264,52 +253,6 @@ void main() {
   color *= mix(0.9, 1.085, relief);
   color += cellBoundary * vec3(0.014, 0.019, 0.022) * u_detail_tuning.x;
 
-  // The launch-ready state lifts a broad section of the same surface into a
-  // refractive membrane. It is part of the field, not a separate object.
-  float launchPresence = smoothstep(0.0, 1.0, u_launch_field.x);
-  if (launchPresence > 0.001) {
-  vec2 touchPoint = vec2(u_launch_field.y * aspect * 1.225, -u_launch_field.z * 1.225);
-  vec2 membranePoint = p - vec2(0.0, -0.18);
-  membranePoint -= motionDirection * motionStrength * 0.055;
-  float membraneCenter = sin(membranePoint.x * 1.48 + time * 0.44) * 0.105;
-  membraneCenter += sin(membranePoint.x * 3.9 - time * 0.31 + baseX * 1.8) * 0.052;
-  float membraneWidth = 0.27 + sin(membranePoint.x * 2.25 + time * 0.37) * 0.035;
-  float membraneDistance = abs(membranePoint.y - membraneCenter);
-  float membraneSpan = 1.0 - smoothstep(0.62, 1.24, abs(membranePoint.x));
-  float membraneMask = (1.0 - smoothstep(membraneWidth - 0.035, membraneWidth + 0.15, membraneDistance)) * membraneSpan;
-  membraneMask *= launchPresence;
-
-  float membraneStep = 0.014;
-  float membraneHeight = launchMembraneHeight(membranePoint, time, touchPoint, u_launch_field.w);
-  float membraneDx = launchMembraneHeight(membranePoint + vec2(membraneStep, 0.0), time, touchPoint, u_launch_field.w)
-    - launchMembraneHeight(membranePoint - vec2(membraneStep, 0.0), time, touchPoint, u_launch_field.w);
-  float membraneDy = launchMembraneHeight(membranePoint + vec2(0.0, membraneStep), time, touchPoint, u_launch_field.w)
-    - launchMembraneHeight(membranePoint - vec2(0.0, membraneStep), time, touchPoint, u_launch_field.w);
-  vec3 membraneNormal = normalize(vec3(-membraneDx * 18.0, -membraneDy * 18.0, 1.0));
-  vec3 membraneLight = normalize(vec3(-0.48 + motionDirection.x * 0.28, 0.36 - motionDirection.y * 0.24, 0.82));
-  vec3 membraneHalf = normalize(membraneLight + vec3(0.0, 0.0, 1.0));
-  float membraneSpecular = pow(max(dot(membraneNormal, membraneHalf), 0.0), 28.0);
-  float membraneFresnel = pow(clamp(1.0 - membraneNormal.z, 0.0, 1.0), 1.7);
-  float membraneCaustic = pow(max(0.0, sin(membraneHeight * 24.0 + broad * 5.0)), 7.0);
-  float membraneEdge = exp(-pow((membraneDistance - membraneWidth) / 0.052, 2.0));
-  float membraneUpperEdge = exp(-pow((membranePoint.y - membraneCenter - membraneWidth) / 0.07, 2.0));
-  float membraneLowerEdge = exp(-pow((membranePoint.y - membraneCenter + membraneWidth) / 0.09, 2.0));
-  float membraneRidgePhase = (membranePoint.y - membraneCenter) * 18.0 + membraneHeight * 11.0;
-  float membraneRidges = pow(1.0 - abs(sin(membraneRidgePhase)), 12.0) * membraneMask;
-  float membraneShade = max(0.0, -membraneNormal.y) * 0.055 + max(0.0, -membraneHeight) * 0.075;
-  float membraneRefraction = clamp(membraneHeight * 0.36 + membraneNormal.x * 0.025, -0.075, 0.075);
-  color *= 1.0 + membraneMask * membraneRefraction;
-  color = mix(color, vec3(0.32, 0.72, 0.94), membraneMask * 0.035);
-  color -= membraneMask * membraneShade * vec3(0.12, 0.22, 0.27);
-  color += membraneMask * membraneSpecular * vec3(0.14, 0.19, 0.22);
-  color += membraneMask * membraneFresnel * vec3(0.085, 0.13, 0.15);
-  color += membraneMask * membraneCaustic * vec3(0.05, 0.07, 0.08);
-  color += membraneRidges * vec3(0.045, 0.068, 0.078);
-  color += membraneUpperEdge * membraneSpan * launchPresence * vec3(0.04, 0.064, 0.076);
-  color -= membraneLowerEdge * membraneSpan * launchPresence * vec3(0.05, 0.082, 0.095);
-  color += membraneEdge * launchPresence * vec3(0.05, 0.08, 0.095);
-  }
-
   vec2 pixel = gl_FragCoord.xy;
   float coarseFrost = valueNoise(pixel * 0.065 + seed * 17.0);
   float middleFrost = valueNoise(pixel * 0.19 + seed * 31.0);
@@ -345,7 +288,6 @@ interface ShaderResources {
   fieldTuning: WebGLUniformLocation;
   finishTuning: WebGLUniformLocation;
   lightTuning: WebGLUniformLocation;
-  launchField: WebGLUniformLocation;
   motion: WebGLUniformLocation;
   motionOffset: WebGLUniformLocation;
   resolution: WebGLUniformLocation;
@@ -395,11 +337,10 @@ function createResources(gl: WebGLRenderingContext): ShaderResources {
   const lightTuning = gl.getUniformLocation(program, "u_light_tuning");
   const finishTuning = gl.getUniformLocation(program, "u_finish_tuning");
   const detailTuning = gl.getUniformLocation(program, "u_detail_tuning");
-  const launchField = gl.getUniformLocation(program, "u_launch_field");
   const motion = gl.getUniformLocation(program, "u_motion");
   const motionOffset = gl.getUniformLocation(program, "u_motion_offset");
   const position = gl.getAttribLocation(program, "a_position");
-  if (!buffer || !resolution || !seed || !time || !fieldTuning || !lightTuning || !finishTuning || !detailTuning || !launchField || !motion || !motionOffset || position < 0) {
+  if (!buffer || !resolution || !seed || !time || !fieldTuning || !lightTuning || !finishTuning || !detailTuning || !motion || !motionOffset || position < 0) {
     gl.deleteBuffer(buffer);
     gl.deleteProgram(program);
     throw new Error("Unable to resolve WebGL shader bindings");
@@ -412,7 +353,7 @@ function createResources(gl: WebGLRenderingContext): ShaderResources {
     gl.STATIC_DRAW,
   );
 
-  return { buffer, detailTuning, fieldTuning, finishTuning, launchField, lightTuning, motion, motionOffset, position, program, resolution, seed, time };
+  return { buffer, detailTuning, fieldTuning, finishTuning, lightTuning, motion, motionOffset, position, program, resolution, seed, time };
 }
 
 type TuningVector = readonly [number, number, number, number];
@@ -489,10 +430,6 @@ export function mountLivingBackground(canvas: HTMLCanvasElement) {
   let lastFrame = 0;
   let lastSimulationFrame = 0;
   let lastTelemetry = 0;
-  let launchFieldIntensity = 0;
-  let launchFieldImpulse = 0;
-  let launchFieldPointerX = 0;
-  let launchFieldPointerY = 0;
   let motionDirectionX = 0;
   let motionDirectionY = 0;
   let motionFieldOffsetX = 0;
@@ -527,16 +464,6 @@ export function mountLivingBackground(canvas: HTMLCanvasElement) {
 
     const frameSeconds = lastSimulationFrame > 0 ? Math.min(0.1, (now - lastSimulationFrame) / 1000) : 0;
     lastSimulationFrame = now;
-    const launchTarget = getLaunchFieldSnapshot(now);
-    const launchResponseRate = launchTarget.active > launchFieldIntensity ? 2.6 : 4.2;
-    const launchBlend = frameSeconds > 0 ? 1 - Math.exp(-frameSeconds * launchResponseRate) : 0;
-    const pointerBlend = frameSeconds > 0 ? 1 - Math.exp(-frameSeconds * 5.2) : 0;
-    const impulseResponseRate = launchTarget.impulse > launchFieldImpulse ? 11.0 : 3.4;
-    const impulseBlend = frameSeconds > 0 ? 1 - Math.exp(-frameSeconds * impulseResponseRate) : 0;
-    launchFieldIntensity += (launchTarget.active - launchFieldIntensity) * launchBlend;
-    launchFieldPointerX += (launchTarget.x - launchFieldPointerX) * pointerBlend;
-    launchFieldPointerY += (launchTarget.y - launchFieldPointerY) * pointerBlend;
-    launchFieldImpulse += (launchTarget.impulse - launchFieldImpulse) * impulseBlend;
     const motionTarget = reducedMotion
       ? { intensity: 0, updatedAt: 0, x: 0, y: 0 }
       : (design.motion ?? getBackgroundMotionSnapshot(now));
@@ -569,7 +496,6 @@ export function mountLivingBackground(canvas: HTMLCanvasElement) {
     gl.uniform4f(resources.fieldTuning, ...design.tuning.field);
     gl.uniform4f(resources.lightTuning, ...design.tuning.light);
     gl.uniform4f(resources.finishTuning, ...design.tuning.finish);
-    gl.uniform4f(resources.launchField, launchFieldIntensity, launchFieldPointerX, launchFieldPointerY, launchFieldImpulse);
     gl.uniform4f(resources.motion, motionDirectionX, motionDirectionY, motionIntensity, motionIntensity * 0.5);
     gl.uniform2f(resources.motionOffset, motionFieldOffsetX, motionFieldOffsetY);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -581,8 +507,6 @@ export function mountLivingBackground(canvas: HTMLCanvasElement) {
       canvas.dataset.motionStatus = getBackgroundMotionStatus();
       canvas.dataset.motionX = motionDirectionX.toFixed(3);
       canvas.dataset.motionY = motionDirectionY.toFixed(3);
-      canvas.dataset.launchField = launchFieldIntensity.toFixed(3);
-      canvas.dataset.launchImpulse = launchFieldImpulse.toFixed(3);
       lastTelemetry = now;
     }
 
@@ -646,8 +570,6 @@ export function mountLivingBackground(canvas: HTMLCanvasElement) {
     canvas.removeAttribute("data-motion-status");
     canvas.removeAttribute("data-motion-x");
     canvas.removeAttribute("data-motion-y");
-    canvas.removeAttribute("data-launch-field");
-    canvas.removeAttribute("data-launch-impulse");
     gl.deleteBuffer(resources.buffer);
     gl.deleteProgram(resources.program);
   };

@@ -1,4 +1,4 @@
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
@@ -13,9 +13,14 @@ try {
   process.exit(0);
 }
 
-if (process.platform !== "darwin") {
-  console.log(`Info.plist exists, but plist editing requires macOS; skipped ${plistPath}.`);
+const plist = await readFile(plistPath, "utf8");
+if (plist.includes("<key>NSMotionUsageDescription</key>")) {
+  console.log(`NSMotionUsageDescription is present in ${plistPath}.`);
   process.exit(0);
+}
+
+if (process.platform !== "darwin") {
+  throw new Error(`NSMotionUsageDescription is missing and cannot be inserted without macOS plutil: ${plistPath}`);
 }
 
 const plutil = "/usr/bin/plutil";

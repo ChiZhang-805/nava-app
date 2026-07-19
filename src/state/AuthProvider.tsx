@@ -4,12 +4,12 @@ import { supabase } from "../services/supabaseClient";
 import { AuthContext } from "./authContext";
 import {
   ensureProfile,
-  resetPassword,
+  sendPasswordResetOtp,
+  sendRegistrationOtp,
   signInWithPassword,
-  signUpWithPassword,
-  verifySmsOtp,
-  sendSmsOtp,
   updateCurrentPassword,
+  verifyPasswordResetOtp,
+  verifyRegistrationOtp,
 } from "../services/auth";
 import { demoUser, isDemoMode } from "../services/demo";
 
@@ -80,17 +80,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string) => {
-    setError(null);
-    try {
-      return await signUpWithPassword(email, password);
-    } catch (authError) {
-      const message = authError instanceof Error ? authError.message : String(authError);
-      setError(message);
-      throw authError;
-    }
-  }, []);
-
   const signOut = useCallback(async () => {
     setError(null);
     const { error: authError } = await supabase.auth.signOut();
@@ -103,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const finishPasswordRecovery = useCallback(async (password: string) => {
     setError(null);
     try {
-      await updateCurrentPassword(password);
+      await updateCurrentPassword(password, true);
       setPasswordRecovery(false);
       clearAuthFlowFromUrl();
     } catch (authError) {
@@ -120,16 +109,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error,
       passwordRecovery,
       signIn,
-      signUp,
       signOut,
       finishPasswordRecovery,
       clearError: () => setError(null),
-      sendSmsOtp,
-      verifySmsOtp,
-      resetPassword,
+      sendRegistrationOtp,
+      verifyRegistrationOtp,
+      sendPasswordResetOtp,
+      verifyPasswordResetOtp,
       updateCurrentPassword,
     }),
-    [error, finishPasswordRecovery, loading, passwordRecovery, signIn, signOut, signUp, user],
+    [error, finishPasswordRecovery, loading, passwordRecovery, signIn, signOut, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

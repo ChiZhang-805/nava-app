@@ -46,6 +46,10 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func getTodaySummary(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.reject("HealthKit is not available on this device")
+            return
+        }
         let calendar = Calendar.current
         let dayStart = calendar.startOfDay(for: Date())
         queryDailySummary(dayStart: dayStart, activityEnd: Date()) { summary in
@@ -54,29 +58,51 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func getRecentSummaries(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.reject("HealthKit is not available on this device")
+            return
+        }
         let requestedDays = call.getInt("days") ?? 14
         let days = min(31, max(1, requestedDays))
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        let group = DispatchGroup()
-        let resultQueue = DispatchQueue(label: "app.nava.health.recent-results")
-        var summaries: [[String: Any]] = []
-
-        for offset in stride(from: days - 1, through: 0, by: -1) {
+        let requests = stride(from: days - 1, through: 0, by: -1).compactMap { offset -> (Date, Date)? in
             guard let dayStart = calendar.date(byAdding: .day, value: -offset, to: today),
-                  let nextDay = calendar.date(byAdding: .day, value: 1, to: dayStart) else { continue }
-            let activityEnd = offset == 0 ? Date() : nextDay
-            group.enter()
-            queryDailySummary(dayStart: dayStart, activityEnd: activityEnd) { summary in
-                resultQueue.sync { summaries.append(summary) }
-                group.leave()
+                  let nextDay = calendar.date(byAdding: .day, value: 1, to: dayStart) else { return nil }
+            return (dayStart, offset == 0 ? Date() : nextDay)
+        }
+        guard !requests.isEmpty else {
+            call.resolve(["summaries": []])
+            return
+        }
+
+        let stateQueue = DispatchQueue(label: "app.nava.health.recent-state")
+        var nextIndex = 0
+        var completed = 0
+        var summaries = Array<[String: Any]?>(repeating: nil, count: requests.count)
+
+        func launchNext() {
+            stateQueue.async {
+                guard nextIndex < requests.count else { return }
+                let index = nextIndex
+                nextIndex += 1
+                let request = requests[index]
+                self.queryDailySummary(dayStart: request.0, activityEnd: request.1) { summary in
+                    stateQueue.async {
+                        summaries[index] = summary
+                        completed += 1
+                        if completed == requests.count {
+                            let ordered = summaries.compactMap { $0 }
+                            DispatchQueue.main.async { call.resolve(["summaries": ordered]) }
+                        } else {
+                            launchNext()
+                        }
+                    }
+                }
             }
         }
 
-        group.notify(queue: .main) {
-            let ordered = summaries.sorted { String(describing: $0["date"] ?? "") < String(describing: $1["date"] ?? "") }
-            call.resolve(["summaries": ordered])
-        }
+        for _ in 0..<min(3, requests.count) { launchNext() }
     }
 
     private func queryDailySummary(dayStart: Date, activityEnd: Date, completion: @escaping ([String: Any]) -> Void) {

@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import WatchConnectivity
 
 final class WatchSessionManager: NSObject, WCSessionDelegate, ObservableObject {
@@ -18,15 +19,27 @@ final class WatchSessionManager: NSObject, WCSessionDelegate, ObservableObject {
     }
 
     func sendAction(_ action: [String: Any], reply: (([String: Any]) -> Void)? = nil) {
+        guard WCSession.isSupported() else {
+            reply?(["ok": false, "errorCode": "watch_connectivity_unsupported", "message": "WatchConnectivity is unavailable"])
+            return
+        }
+        activate()
+        var payload = action
+        if payload["actionId"] == nil { payload["actionId"] = UUID().uuidString.lowercased() }
+
         guard WCSession.default.isReachable else {
-            reply?(["ok": false, "errorCode": "iphone_unreachable", "message": "iPhone is not reachable"])
+            WCSession.default.transferUserInfo(payload)
+            reply?(["ok": true, "queued": true, "actionId": payload["actionId"] ?? ""])
             return
         }
 
-        WCSession.default.sendMessage(action, replyHandler: { response in
-            reply?(response)
-        }, errorHandler: { error in
-            reply?(["ok": false, "errorCode": "send_failed", "message": error.localizedDescription])
+        WCSession.default.sendMessage(payload, replyHandler: { response in
+            DispatchQueue.main.async { reply?(response) }
+        }, errorHandler: { _ in
+            WCSession.default.transferUserInfo(payload)
+            DispatchQueue.main.async {
+                reply?(["ok": true, "queued": true, "actionId": payload["actionId"] ?? ""])
+            }
         })
     }
 
@@ -48,4 +61,3 @@ final class WatchSessionManager: NSObject, WCSessionDelegate, ObservableObject {
         }
     }
 }
-

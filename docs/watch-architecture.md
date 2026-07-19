@@ -2,6 +2,13 @@
 
 第一版 Apple Watch 不做完整独立 App，而是 iPhone companion。
 
+可直接加入 watchOS target 的源码位于 `native/watch/`：
+
+- `NavaWatchApp.swift`：watchOS App 入口。
+- `WatchHomeView.swift`：今日节律、情绪快捷记录、专注计时与同步页面。
+- `WatchSessionManager.swift`：即时消息、离线 `transferUserInfo` 队列与快照接收。
+- `en.lproj` / `zh-Hans.lproj`：中英文界面文案。
+
 ## 第一版职责
 
 - 显示今日状态。
@@ -13,6 +20,8 @@
 ## 通信方式
 
 使用 WatchConnectivity。
+
+每个动作必须携带唯一 `actionId`。iPhone 本地先持久化待处理队列，`watch-sync` 再通过 `watch_action_receipts` 执行服务端幂等，避免即时消息与离线重放造成重复记录。
 
 Watch 发给 iPhone：
 

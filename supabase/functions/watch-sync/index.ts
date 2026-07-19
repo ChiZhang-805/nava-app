@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return errorResponse("仅支持 POST。", 405);
 
   try {
-    const { user, userClient } = await requireUser(req);
+    const { user, userClient, adminClient } = await requireUser(req);
     const body = await readJson(req);
     const mode = stringValue(body.type) ?? "snapshot";
     await upsertDevice(userClient, user.id, body);
@@ -41,12 +41,66 @@ Deno.serve(async (req) => {
     }
 
     if (mode === "action") {
+      if (!adminClient) throw new Error("watch-sync 缺少服务端幂等存储权限。");
       const action = (body.action ?? body) as Record<string, unknown>;
-      const result = await applyWatchAction(userClient, user.id, action);
+      const actionId = stringValue(action.actionId);
+      const actionType = stringValue(action.type) ?? "unknown";
+      if (!actionId || !/^[A-Za-z0-9_-]{8,128}$/.test(actionId)) throw new Error("手表动作缺少有效 actionId。");
+
+      const claim = await adminClient
+        .from("watch_action_receipts")
+        .insert({ user_id: user.id, action_id: actionId, action_type: actionType, status: "processing" })
+        .select("status,result,completed_at")
+        .single();
+      if (claim.error?.code === "23505") {
+        const existing = await adminClient
+          .from("watch_action_receipts")
+          .select("status,result,completed_at")
+          .eq("user_id", user.id)
+          .eq("action_id", actionId)
+          .single();
+        assertNoError(existing.error);
+        return jsonResponse({
+          ok: existing.data?.status === "completed",
+          type: "action",
+          duplicate: true,
+          status: existing.data?.status ?? "processing",
+          result: existing.data?.result ?? null,
+          syncedAt: existing.data?.completed_at ?? null,
+        });
+      }
+      assertNoError(claim.error);
+
+      let result: unknown;
+      try {
+        result = await applyWatchAction(userClient, user.id, action);
+      } catch (actionError) {
+        await adminClient
+          .from("watch_action_receipts")
+          .update({ status: "failed", error_message: actionError instanceof Error ? actionError.message.slice(0, 500) : "watch action failed" })
+          .eq("user_id", user.id)
+          .eq("action_id", actionId);
+        throw actionError;
+      }
+
       const date = dateOnly(action.recordedAt ?? action.endedAt ?? body.date ?? todayISO());
-      const rhythm = calculateRhythm(await loadDailyInputs(userClient, user.id, date));
-      await saveRhythmScore(userClient, user.id, rhythm);
-      return jsonResponse({ ok: true, type: "action", result, rhythm, syncedAt: new Date().toISOString() });
+      let rhythm = null;
+      try {
+        rhythm = calculateRhythm(await loadDailyInputs(userClient, user.id, date));
+        await saveRhythmScore(userClient, user.id, rhythm);
+      } catch (rhythmError) {
+        console.error("Watch action saved but rhythm refresh failed", rhythmError);
+      }
+
+      const syncedAt = new Date().toISOString();
+      const receiptResult = { action: result, rhythm };
+      const completed = await adminClient
+        .from("watch_action_receipts")
+        .update({ status: "completed", result: receiptResult, error_message: null, completed_at: syncedAt })
+        .eq("user_id", user.id)
+        .eq("action_id", actionId);
+      assertNoError(completed.error);
+      return jsonResponse({ ok: true, type: "action", result: receiptResult, rhythm, syncedAt });
     }
 
     return errorResponse(`未知 watch-sync 类型：${mode}`);

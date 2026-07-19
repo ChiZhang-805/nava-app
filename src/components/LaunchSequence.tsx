@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useT, type TranslationKey } from "../i18n";
 import { requestBackgroundMotionPermission } from "../services/backgroundMotion";
-import { setLaunchFieldActive, updateLaunchFieldPointer } from "../services/launchField";
 import NavaWordmark from "./NavaWordmark";
 
 const STORAGE_KEY = "nava.launch.sequence.v1";
 const LINE_ACTIVE_MS = 8000;
 const FADE_DURATION_MS = 1200;
 const lineKeys: TranslationKey[] = ["intro.one", "intro.two", "intro.three"];
+const LaunchBubble = lazy(() => import("./LaunchBubble"));
 
 function shouldPlay() {
   if (typeof window === "undefined") return false;
@@ -39,11 +39,6 @@ export default function LaunchSequence() {
     return () => window.clearTimeout(timer);
   }, [advanceLine, exiting, lineIndex, lineState, ready, visible]);
 
-  useEffect(() => {
-    setLaunchFieldActive(visible && ready && !exiting);
-    return () => setLaunchFieldActive(false);
-  }, [exiting, ready, visible]);
-
   if (!visible) return null;
 
   const close = () => {
@@ -57,25 +52,14 @@ export default function LaunchSequence() {
     <div
       className={["launch-sequence", ready ? "ready" : "", exiting ? "exiting" : ""].filter(Boolean).join(" ")}
       onClick={advanceLine}
-      onPointerDown={(event) => {
-        if (!ready || exiting) return;
-        updateLaunchFieldPointer(
-          (event.clientX / Math.max(window.innerWidth, 1)) * 2 - 1,
-          (event.clientY / Math.max(window.innerHeight, 1)) * 2 - 1,
-          1,
-        );
-      }}
-      onPointerMove={(event) => {
-        if (!ready || exiting) return;
-        updateLaunchFieldPointer(
-          (event.clientX / Math.max(window.innerWidth, 1)) * 2 - 1,
-          (event.clientY / Math.max(window.innerHeight, 1)) * 2 - 1,
-          event.pressure > 0 ? 0.52 : 0.16,
-        );
-      }}
       aria-live="polite"
     >
       <NavaWordmark className="launch-wordmark" />
+      {ready && !exiting && (
+        <Suspense fallback={null}>
+          <LaunchBubble />
+        </Suspense>
+      )}
       <div className="launch-lines">
         {!ready && (
           <span className={["launch-line", lineState].filter(Boolean).join(" ")} key={lineIndex}>

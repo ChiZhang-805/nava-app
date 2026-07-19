@@ -1,5 +1,19 @@
 project_id = "nava-app"
 
+[auth.email.template.confirmation]
+subject = "{{ .Token }} 是你的 NAVA 验证码"
+content_path = "./supabase/templates/email_otp.html"
+
+[auth.email.template.magic_link]
+subject = "{{ .Token }} 是你的 NAVA 验证码"
+content_path = "./supabase/templates/email_otp.html"
+
+[functions.ai-extract-data]
+verify_jwt = true
+
+[functions.ai-chat-reply]
+verify_jwt = true
+
 [functions.diet-extract]
 verify_jwt = true
 
@@ -17,3 +31,9 @@ verify_jwt = true
 
 [functions.export-user-data]
 verify_jwt = true
+
+[functions.aliyun-sms-send]
+verify_jwt = false
+
+[functions.aliyun-sms-verify]
+verify_jwt = false

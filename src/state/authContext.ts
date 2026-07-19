@@ -7,14 +7,14 @@ export interface AuthContextValue {
   error: string | null;
   passwordRecovery: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<{ needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
   finishPasswordRecovery: (password: string) => Promise<void>;
   clearError: () => void;
-  sendSmsOtp: (phone: string) => Promise<void>;
-  verifySmsOtp: (phone: string, code: string, mode: "login" | "register", password?: string) => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
-  updateCurrentPassword: (password: string) => Promise<void>;
+  sendRegistrationOtp: (account: string) => Promise<"email" | "sms">;
+  verifyRegistrationOtp: (account: string, code: string, password: string) => Promise<void>;
+  sendPasswordResetOtp: (account: string) => Promise<"email" | "sms">;
+  verifyPasswordResetOtp: (account: string, code: string, password: string) => Promise<void>;
+  updateCurrentPassword: (password: string, requireDifferent?: boolean) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

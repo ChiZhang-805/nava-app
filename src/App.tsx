@@ -11,8 +11,7 @@ import PasswordRecoveryScreen from "./features/PasswordRecoveryScreen";
 import { AuthProvider } from "./state/AuthProvider";
 import { useAuth } from "./state/authContext";
 import { useEffect } from "react";
-import { saveFocusSession, saveMoodRecord } from "./services/records";
-import { subscribeWatchActions } from "./services/watch";
+import { enqueueAndFlushWatchAction, flushPendingWatchActions, subscribeWatchActions } from "./services/watch";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LanguageToggle from "./components/LanguageToggle";
 import LaunchSequence from "./components/LaunchSequence";
@@ -71,34 +70,25 @@ function MobileShell() {
   useEffect(() => {
     if (!user) return;
     let alive = true;
+    let listenerHandle: Awaited<ReturnType<typeof subscribeWatchActions>> = null;
+    void flushPendingWatchActions().then(() => {
+      if (alive) setRefreshKey((value) => value + 1);
+    }).catch((syncError) => console.warn("pending watch actions remain queued", syncError));
     subscribeWatchActions(async (action) => {
       if (!alive) return;
       try {
-        if (action.type === "mood.quickLog") {
-          await saveMoodRecord({
-            userId: user.id,
-            moodScore: action.mood,
-            factors: ["Apple Watch"],
-            diary: "来自 Apple Watch 快捷记录",
-          });
-          setRefreshKey((value) => value + 1);
-        }
-        if (action.type === "focus.stop") {
-          await saveFocusSession({
-            userId: user.id,
-            taskTitle: action.taskTitle ?? "Apple Watch 专注",
-            minutes: action.durationMinutes && action.durationMinutes > 0 ? Math.round(action.durationMinutes) : 25,
-          });
-          setRefreshKey((value) => value + 1);
-        }
+        await enqueueAndFlushWatchAction(action);
+        setRefreshKey((value) => value + 1);
       } catch (e) {
-        console.error("watch action failed", e);
+        console.warn("watch action remains queued", e);
       }
     }).then((handle) => {
       if (!alive) void handle?.remove();
+      else listenerHandle = handle;
     });
     return () => {
       alive = false;
+      void listenerHandle?.remove();
     };
   }, [user]);
 

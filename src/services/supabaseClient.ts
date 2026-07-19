@@ -11,3 +11,13 @@ export const supabase = createClient(safeSupabaseUrl, safeSupabaseKey, {
     detectSessionInUrl: true,
   },
 });
+
+export function createEphemeralSupabaseClient() {
+  return createClient(safeSupabaseUrl, safeSupabaseKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}

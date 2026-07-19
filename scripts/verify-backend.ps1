@@ -11,7 +11,9 @@ $requiredFunctions = @(
   "health-sync-ingest",
   "watch-sync",
   "rhythm-score",
-  "export-user-data"
+  "export-user-data",
+  "aliyun-sms-send",
+  "aliyun-sms-verify"
 )
 
 Write-Host "== NAVA App backend verification =="
@@ -24,7 +26,7 @@ foreach ($functionName in $requiredFunctions) {
   Write-Host "Found function: $functionName"
 }
 
-$sharedFiles = @("_shared\http.ts", "_shared\rhythm.ts", "_shared\rhythm-core.ts")
+$sharedFiles = @("_shared\http.ts", "_shared\phone-otp.ts", "_shared\rhythm.ts", "_shared\rhythm-core.ts")
 foreach ($shared in $sharedFiles) {
   $path = Join-Path $functionsRoot $shared
   if (!(Test-Path -LiteralPath $path)) {
@@ -38,21 +40,11 @@ if ($migrations.Count -lt 2) {
 }
 Write-Host "Migration files: $($migrations.Count)"
 
-$frontendServiceRoleHits = Select-String -Path (Join-Path $root "src\**\*.*") -Pattern "SERVICE_ROLE|service_role" -CaseSensitive:$false -ErrorAction SilentlyContinue
+$frontendFiles = Get-ChildItem -LiteralPath (Join-Path $root "src") -Recurse -File
+$frontendServiceRoleHits = Select-String -LiteralPath $frontendFiles.FullName -Pattern "SERVICE_ROLE|service_role" -CaseSensitive:$false -ErrorAction SilentlyContinue
 if ($frontendServiceRoleHits) {
   throw "Frontend must not reference service role secrets."
 }
 Write-Host "Frontend secret scan: ok"
 
-$deno = Get-Command deno -ErrorAction SilentlyContinue
-if ($deno) {
-  foreach ($functionName in $requiredFunctions) {
-    $index = Join-Path $functionsRoot "$functionName\index.ts"
-    Write-Host "Deno check: $functionName"
-    deno check $index
-  }
-} else {
-  Write-Host "Deno not found; skipped Deno type check."
-}
-
-Write-Host "Backend verification completed."
+Write-Host "Backend contract verification completed. Run npm run backend:typecheck for all Edge Function entrypoints."

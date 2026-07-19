@@ -46,7 +46,7 @@ public class NavaWatchBridgePlugin: CAPPlugin, CAPBridgedPlugin, WCSessionDelega
 
     private func activateSession() {
         guard WCSession.isSupported() else { return }
-        if WCSession.default.delegate == nil {
+        if WCSession.default.delegate !== self {
             WCSession.default.delegate = self
         }
         if WCSession.default.activationState == .notActivated {
@@ -62,8 +62,27 @@ public class NavaWatchBridgePlugin: CAPPlugin, CAPBridgedPlugin, WCSessionDelega
         session.activate()
     }
 
+    private func deliverAction(_ action: [String: Any]) {
+        DispatchQueue.main.async {
+            self.notifyListeners("watchAction", data: action)
+        }
+    }
+
     public func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-        notifyListeners("watchAction", data: message)
+        deliverAction(message)
+    }
+
+    public func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
+        deliverAction(message)
+        replyHandler([
+            "ok": true,
+            "accepted": true,
+            "actionId": message["actionId"] as? String ?? "",
+            "acceptedAt": ISO8601DateFormatter().string(from: Date())
+        ])
+    }
+
+    public func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any]) {
+        deliverAction(userInfo)
     }
 }
-

@@ -47,6 +47,7 @@ Deno.serve(async (req) => {
     const body = await readJson(req);
     const requestedDate = normalizeDate(body.date);
     const rawSummaries = Array.isArray(body.summaries) ? body.summaries : [body.summary ?? body];
+    if (rawSummaries.length === 0) throw new Error("请至少提供 1 天健康摘要。");
     if (rawSummaries.length > 31) throw new Error("单次最多同步 31 天健康摘要。");
     const summaries = rawSummaries
       .map((item) => normalizeSummary(item as Record<string, unknown>))
@@ -63,6 +64,7 @@ Deno.serve(async (req) => {
       .select("id")
       .single();
     assertNoError(job.error);
+    if (!job.data?.id) throw new Error("无法创建健康同步任务。");
     jobId = job.data.id;
 
     let uploaded = 0;

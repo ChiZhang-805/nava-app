@@ -29,7 +29,7 @@ export default function PasswordRecoveryScreen() {
       await finishPasswordRecovery(password);
       setNotice(t("auth.notice.passwordUpdated"));
     } catch (recoveryError) {
-      setLocalError(formatAuthError(recoveryError));
+      setLocalError(formatAuthError(recoveryError, t));
     } finally {
       setBusy(false);
     }

@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeAcceleration, normalizeOrientationDelta } from "../src/services/backgroundMotion.ts";
-import { getLaunchFieldSnapshot, setLaunchFieldActive, updateLaunchFieldPointer } from "../src/services/launchField.ts";
+import {
+  BUBBLE_ENERGY_THRESHOLD,
+  BUBBLE_PHASE_DURATION_MS,
+  bubbleSplitAmount,
+  gestureEnergy,
+  nextBubblePhase,
+} from "../src/services/launchBubbleModel.ts";
 
 function closeTo(actual: number, expected: number, tolerance = 0.001) {
   assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} was not within ${tolerance} of ${expected}`);
@@ -45,27 +51,26 @@ test("ignores tiny acceleration and normalizes a deliberate impulse", () => {
   closeTo(impulse.intensity, 1);
 });
 
-test("clamps launch-field input and decays a touch impulse", () => {
-  setLaunchFieldActive(true);
-  updateLaunchFieldPointer(2, -3, 0.8, 1000);
+test("turns deliberate swipes into bounded bubble interaction energy", () => {
+  const tap = gestureEnergy(2, 20);
+  const swipe = gestureEnergy(150, 1600);
+  const extreme = gestureEnergy(900, 12000);
+  assert.ok(tap >= 0.08 && tap < 0.1);
+  assert.ok(swipe > 0.8 && swipe < 1);
+  assert.equal(extreme, 1.05);
+  assert.ok(swipe * 3 >= BUBBLE_ENERGY_THRESHOLD);
+});
 
-  const initial = getLaunchFieldSnapshot(1000);
-  assert.equal(initial.active, 1);
-  assert.equal(initial.x, 1);
-  assert.equal(initial.y, -1);
-  closeTo(initial.impulse, 0.8);
-
-  const decayed = getLaunchFieldSnapshot(2150);
-  closeTo(decayed.impulse, 0.8 / Math.E);
-
-  updateLaunchFieldPointer(0.25, 0.5, 0.1, 2150);
-  const moved = getLaunchFieldSnapshot(2150);
-  closeTo(moved.impulse, 0.8 / Math.E);
-  assert.equal(moved.x, 0.25);
-  assert.equal(moved.y, 0.5);
-
-  setLaunchFieldActive(false);
-  const inactive = getLaunchFieldSnapshot(2150);
-  assert.equal(inactive.active, 0);
-  assert.equal(inactive.impulse, 0);
+test("animates a complete split, separation, merge, and settle cycle", () => {
+  assert.equal(bubbleSplitAmount("idle", 1000), 0);
+  assert.equal(bubbleSplitAmount("splitting", 0), 0);
+  assert.equal(bubbleSplitAmount("splitting", BUBBLE_PHASE_DURATION_MS.splitting), 1);
+  assert.equal(nextBubblePhase("splitting"), "separated");
+  assert.equal(bubbleSplitAmount("separated", 500), 1);
+  assert.equal(nextBubblePhase("separated"), "merging");
+  assert.equal(bubbleSplitAmount("merging", 0), 1);
+  assert.equal(bubbleSplitAmount("merging", BUBBLE_PHASE_DURATION_MS.merging), 0);
+  assert.equal(nextBubblePhase("merging"), "settling");
+  assert.equal(bubbleSplitAmount("settling", 300), 0);
+  assert.equal(nextBubblePhase("settling"), "idle");
 });
