@@ -10,6 +10,8 @@ export interface AuthContextValue {
   signOut: () => Promise<void>;
   finishPasswordRecovery: (password: string) => Promise<void>;
   clearError: () => void;
+  sendLoginOtp: (account: string) => Promise<"email" | "sms">;
+  verifyLoginOtp: (account: string, code: string) => Promise<void>;
   sendRegistrationOtp: (account: string) => Promise<"email" | "sms">;
   verifyRegistrationOtp: (account: string, code: string, password: string) => Promise<void>;
   sendPasswordResetOtp: (account: string) => Promise<"email" | "sms">;

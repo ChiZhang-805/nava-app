@@ -72,6 +72,16 @@ export function demoTodaySnapshot(): TodaySnapshot {
     sleep: demoSleep,
     exercise: demoExercise,
     nutrition: demoNutrition,
+    face: {
+      id: "demo-face",
+      record_date: todayISO(),
+      image_path: null,
+      overall_score: 82,
+      skin_age: 27,
+      annotations: [],
+      feedback: "面部状态平稳。",
+      model_version: "demo",
+    },
     focusMinutes: 95,
     focusSessions: 4,
     rhythmScore: 83,
@@ -82,7 +92,7 @@ export function demoTodaySnapshot(): TodaySnapshot {
     rhythmDataQuality: 86,
     rhythmTrendSlope: 1.2,
     rhythmAnomalyCount: 0,
-    nextAction: "今天基础节律稳定，晚间减少屏幕刺激，保持 23:30 前入睡。",
+    nextAction: "今日节律保持稳定，晚间减少连续屏幕刺激，睡前留出安静的放松时间，并尽量在 23:30 前入睡。",
   };
 }
 

@@ -5,14 +5,16 @@ export default function SectionCard({
   subtitle,
   children,
   action,
+  className,
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
   action?: ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="section-card">
+    <section className={["section-card", className].filter(Boolean).join(" ")}>
       <div className="section-heading">
         <div>
           <h2>{title}</h2>
@@ -24,4 +26,3 @@ export default function SectionCard({
     </section>
   );
 }
-

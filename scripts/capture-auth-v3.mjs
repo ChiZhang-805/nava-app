@@ -1,10 +1,12 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "@playwright/test";
+import { createServer } from "vite";
 
 const root = process.cwd();
 const outputDir = path.join(root, "artifacts", "ui-review-2026-07-19-auth-otp");
-const baseUrl = "http://127.0.0.1:5173";
+const port = Number(process.env.AUTH_SCREENSHOT_PORT || 5175);
+const baseUrl = `http://127.0.0.1:${port}`;
 
 async function makeContext(browser, viewport = { width: 430, height: 932 }) {
   const context = await browser.newContext({
@@ -83,7 +85,7 @@ async function installAuthMocks(page, { email, passwordMatches = false, smsSendE
   await page.route("**/functions/v1/aliyun-sms-verify**", async (route) => {
     const request = route.request().postDataJSON();
     calls.smsVerify.push(request);
-    const verificationType = request.purpose === "reset" ? "recovery" : "signup";
+    const verificationType = request.purpose === "register" ? "signup" : "recovery";
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -187,6 +189,12 @@ async function readLayout(page) {
 
 async function main() {
   await mkdir(outputDir, { recursive: true });
+  const server = await createServer({
+    root,
+    server: { host: "127.0.0.1", port },
+    logLevel: "silent",
+  });
+  await server.listen();
   const browser = await chromium.launch();
   const metrics = {};
   const errors = [];
@@ -250,6 +258,34 @@ async function main() {
     await compactPage.screenshot({ path: path.join(outputDir, "07-reset-compact.png") });
     await compactContext.close();
 
+    const emailLoginContext = await makeContext(browser);
+    const emailLoginPage = await emailLoginContext.newPage();
+    const emailLoginCalls = await installAuthMocks(emailLoginPage, { email: "login@example.com", suffix: "000000000108" });
+    await emailLoginPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await emailLoginPage.locator(".auth-method-switch").tap();
+    await emailLoginPage.locator('input[autocomplete="username"]').fill("login@example.com");
+    await emailLoginPage.locator(".auth-code-button").tap();
+    await emailLoginPage.locator('input[autocomplete="one-time-code"]').fill("654321");
+    await emailLoginPage.screenshot({ path: path.join(outputDir, "08-email-otp-login.png") });
+    await emailLoginPage.locator(".auth-submit").tap();
+    await emailLoginPage.locator(".phone-frame").waitFor({ timeout: 10000 });
+    metrics.emailOtpLoginFlow = { ...emailLoginCalls, enteredApp: true };
+    await emailLoginContext.close();
+
+    const phoneLoginContext = await makeContext(browser);
+    const phoneLoginPage = await phoneLoginContext.newPage();
+    const phoneLoginCalls = await installAuthMocks(phoneLoginPage, { email: "13700137000@phone.nava.app", suffix: "000000000109" });
+    await phoneLoginPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await phoneLoginPage.locator(".auth-method-switch").tap();
+    await phoneLoginPage.locator('input[autocomplete="username"]').fill("13700137000");
+    await phoneLoginPage.locator(".auth-code-button").tap();
+    await phoneLoginPage.locator('input[autocomplete="one-time-code"]').fill("765432");
+    await phoneLoginPage.screenshot({ path: path.join(outputDir, "09-phone-otp-login.png") });
+    await phoneLoginPage.locator(".auth-submit").tap();
+    await phoneLoginPage.locator(".phone-frame").waitFor({ timeout: 10000 });
+    metrics.phoneOtpLoginFlow = { ...phoneLoginCalls, enteredApp: true };
+    await phoneLoginContext.close();
+
     const signupContext = await makeContext(browser);
     const signupPage = await signupContext.newPage();
     const signupCalls = await installAuthMocks(signupPage, { email: "signup@example.com", suffix: "000000000102" });
@@ -259,12 +295,19 @@ async function main() {
     await signupPage.locator(".auth-code-button").tap();
     await signupPage.locator('input[autocomplete="one-time-code"]').fill("123456");
     await fillNewPasswords(signupPage, "new-sample-password");
+    metrics.emailSignupAgreement = {
+      visible: await signupPage.locator(".auth-consent").isVisible(),
+      submitDisabledBeforeCheck: !(await signupPage.locator(".auth-submit").isEnabled()),
+    };
+    await signupPage.screenshot({ path: path.join(outputDir, "10-email-signup-consent.png") });
+    await signupPage.locator(".auth-consent input").check();
+    metrics.emailSignupAgreement.submitEnabledAfterCheck = await signupPage.locator(".auth-submit").isEnabled();
     await signupPage.locator(".auth-submit").tap();
     await signupPage.locator(".phone-frame").waitFor({ timeout: 10000 });
     await signupPage.waitForTimeout(500);
     metrics.emailSignupFlow = signupCalls;
     metrics.emailSignupFlow.enteredApp = true;
-    await signupPage.screenshot({ path: path.join(outputDir, "08-email-signup-complete.png") });
+    await signupPage.screenshot({ path: path.join(outputDir, "11-email-signup-complete.png") });
     await signupContext.close();
 
     const phoneSignupContext = await makeContext(browser);
@@ -276,12 +319,17 @@ async function main() {
     await phoneSignupPage.locator(".auth-code-button").tap();
     await phoneSignupPage.locator('input[autocomplete="one-time-code"]').fill("456789");
     await fillNewPasswords(phoneSignupPage, "phone-sample-password");
+    metrics.phoneSignupAgreement = {
+      submitDisabledBeforeCheck: !(await phoneSignupPage.locator(".auth-submit").isEnabled()),
+    };
+    await phoneSignupPage.locator(".auth-consent input").check();
+    metrics.phoneSignupAgreement.submitEnabledAfterCheck = await phoneSignupPage.locator(".auth-submit").isEnabled();
     await phoneSignupPage.locator(".auth-submit").tap();
     await phoneSignupPage.locator(".phone-frame").waitFor({ timeout: 10000 });
     await phoneSignupPage.waitForTimeout(700);
     metrics.phoneSignupFlow = phoneSignupCalls;
     metrics.phoneSignupFlow.enteredApp = true;
-    await phoneSignupPage.screenshot({ path: path.join(outputDir, "09-phone-signup-complete.png") });
+    await phoneSignupPage.screenshot({ path: path.join(outputDir, "12-phone-signup-complete.png") });
     await phoneSignupContext.close();
 
     const resetContext = await makeContext(browser);
@@ -298,7 +346,7 @@ async function main() {
     await resetPage.waitForTimeout(500);
     metrics.passwordResetFlow = resetCalls;
     metrics.passwordResetFlow.enteredApp = true;
-    await resetPage.screenshot({ path: path.join(outputDir, "10-password-reset-complete.png") });
+    await resetPage.screenshot({ path: path.join(outputDir, "13-password-reset-complete.png") });
     await resetContext.close();
 
     const phoneResetContext = await makeContext(browser);
@@ -315,7 +363,7 @@ async function main() {
     await phoneResetPage.waitForTimeout(700);
     metrics.phoneResetFlow = phoneResetCalls;
     metrics.phoneResetFlow.enteredApp = true;
-    await phoneResetPage.screenshot({ path: path.join(outputDir, "11-phone-reset-complete.png") });
+    await phoneResetPage.screenshot({ path: path.join(outputDir, "14-phone-reset-complete.png") });
     await phoneResetContext.close();
 
     const sameContext = await makeContext(browser);
@@ -334,7 +382,7 @@ async function main() {
       error: await samePage.locator(".error-text").innerText(),
       stayedSignedOut: (await samePage.locator(".auth-screen--reset").count()) === 1,
     };
-    await samePage.screenshot({ path: path.join(outputDir, "12-same-password-rejected.png") });
+    await samePage.screenshot({ path: path.join(outputDir, "15-same-password-rejected.png") });
     await sameContext.close();
 
     const englishErrorContext = await makeContext(browser);
@@ -351,7 +399,7 @@ async function main() {
     await englishErrorPage.locator(".auth-code-button").tap();
     await englishErrorPage.locator(".error-text").waitFor({ timeout: 10000 });
     metrics.englishServiceError = await englishErrorPage.locator(".error-text").innerText();
-    await englishErrorPage.screenshot({ path: path.join(outputDir, "13-english-service-error.png") });
+    await englishErrorPage.screenshot({ path: path.join(outputDir, "16-english-service-error.png") });
     await englishErrorContext.close();
 
     metrics.errors = errors;
@@ -384,6 +432,30 @@ async function main() {
       throw new Error(`Email OTP registration sequence is incomplete: ${JSON.stringify(metrics.emailSignupFlow)}`);
     }
     if (
+      metrics.emailOtpLoginFlow.otp[0]?.email !== "login@example.com"
+      || metrics.emailOtpLoginFlow.otp[0]?.create_user !== false
+      || metrics.emailOtpLoginFlow.verify[0]?.token !== "654321"
+      || metrics.emailOtpLoginFlow.verify[0]?.type !== "email"
+    ) {
+      throw new Error(`Email OTP login sequence is incomplete: ${JSON.stringify(metrics.emailOtpLoginFlow)}`);
+    }
+    if (
+      metrics.phoneOtpLoginFlow.smsSend[0]?.purpose !== "login"
+      || metrics.phoneOtpLoginFlow.smsVerify[0]?.purpose !== "login"
+      || metrics.phoneOtpLoginFlow.verify[0]?.type !== "recovery"
+    ) {
+      throw new Error(`Phone OTP login sequence is incomplete: ${JSON.stringify(metrics.phoneOtpLoginFlow)}`);
+    }
+    if (
+      !metrics.emailSignupAgreement.visible
+      || !metrics.emailSignupAgreement.submitDisabledBeforeCheck
+      || !metrics.emailSignupAgreement.submitEnabledAfterCheck
+      || !metrics.phoneSignupAgreement.submitDisabledBeforeCheck
+      || !metrics.phoneSignupAgreement.submitEnabledAfterCheck
+    ) {
+      throw new Error(`Registration agreement is not enforced: ${JSON.stringify({ email: metrics.emailSignupAgreement, phone: metrics.phoneSignupAgreement })}`);
+    }
+    if (
       metrics.phoneSignupFlow.smsSend[0]?.purpose !== "register" ||
       metrics.phoneSignupFlow.smsVerify[0]?.purpose !== "register" ||
       !metrics.phoneSignupFlow.smsVerify[0]?.password ||
@@ -412,6 +484,7 @@ async function main() {
     await writeFile(path.join(outputDir, "metrics.json"), JSON.stringify(metrics, null, 2));
   } finally {
     await browser.close();
+    await server.close();
   }
 
   console.log(`Auth screenshots saved to ${outputDir}`);

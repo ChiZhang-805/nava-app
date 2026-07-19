@@ -4,10 +4,12 @@ import { supabase } from "../services/supabaseClient";
 import { AuthContext } from "./authContext";
 import {
   ensureProfile,
+  sendLoginOtp,
   sendPasswordResetOtp,
   sendRegistrationOtp,
   signInWithPassword,
   updateCurrentPassword,
+  verifyLoginOtp,
   verifyPasswordResetOtp,
   verifyRegistrationOtp,
 } from "../services/auth";
@@ -112,6 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       finishPasswordRecovery,
       clearError: () => setError(null),
+      sendLoginOtp,
+      verifyLoginOtp,
       sendRegistrationOtp,
       verifyRegistrationOtp,
       sendPasswordResetOtp,

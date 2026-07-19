@@ -33,13 +33,25 @@ export interface HealthTodayNativeSummary {
   }>;
 }
 
+export interface HealthAuthorizationStatus {
+  available: boolean;
+  requested: boolean;
+  status: "requested" | "needs_request" | "unknown" | "unavailable";
+}
+
 interface NavaHealthPlugin {
   requestAuthorization: () => Promise<{ granted: boolean }>;
+  getAuthorizationStatus: () => Promise<HealthAuthorizationStatus>;
   getTodaySummary: () => Promise<HealthTodayNativeSummary>;
   getRecentSummaries: (options: { days: number }) => Promise<{ summaries: HealthTodayNativeSummary[] }>;
 }
 
 const NavaHealth = registerPlugin<NavaHealthPlugin>("NavaHealth");
+const HEALTH_LAST_SYNC_KEY = "nava.health.last-sync.v1";
+
+function healthLastSyncKey(userId?: string) {
+  return userId ? `${HEALTH_LAST_SYNC_KEY}.${userId}` : HEALTH_LAST_SYNC_KEY;
+}
 
 export function isNativeHealthAvailable() {
   if (isDemoMode()) return true;
@@ -53,6 +65,57 @@ export async function requestHealthAuthorization() {
     return { granted: false, reason: "当前是在浏览器预览，HealthKit 只能在 iPhone 真机或模拟器中使用。" };
   }
   return NavaHealth.requestAuthorization();
+}
+
+export async function getHealthAuthorizationStatus(): Promise<HealthAuthorizationStatus> {
+  if (isDemoMode()) return { available: true, requested: true, status: "requested" };
+  if (!isNativeHealthAvailable()) return { available: false, requested: false, status: "unavailable" };
+  try {
+    return await NavaHealth.getAuthorizationStatus();
+  } catch {
+    return { available: true, requested: false, status: "unknown" };
+  }
+}
+
+export function readLastHealthSyncAt(userId?: string) {
+  try {
+    const stored = localStorage.getItem(healthLastSyncKey(userId));
+    return stored ?? (isDemoMode() ? new Date().toISOString() : null);
+  } catch {
+    return null;
+  }
+}
+
+export async function getLastHealthSyncAt(userId: string) {
+  const localTimestamp = readLastHealthSyncAt(userId);
+  if (isDemoMode()) return localTimestamp;
+
+  try {
+    const { data, error } = await supabase
+      .from("health_sync_jobs")
+      .select("finished_at,created_at")
+      .eq("user_id", userId)
+      .eq("status", "success")
+      .order("finished_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    const serverTimestamp = data?.finished_at ?? data?.created_at ?? null;
+    if (!localTimestamp) return serverTimestamp;
+    if (!serverTimestamp) return localTimestamp;
+    return Date.parse(serverTimestamp) > Date.parse(localTimestamp) ? serverTimestamp : localTimestamp;
+  } catch {
+    return localTimestamp;
+  }
+}
+
+function rememberHealthSync<T extends { lastSyncDate: string }>(userId: string, result: T) {
+  try {
+    localStorage.setItem(healthLastSyncKey(userId), result.lastSyncDate);
+  } catch {
+    // Sync remains successful even when local preview storage is unavailable.
+  }
+  return result;
 }
 
 export async function getNativeTodaySummary() {
@@ -90,7 +153,7 @@ export async function getNativeTodaySummary() {
 }
 
 export async function syncNativeHealthNow(userId: string) {
-  if (isDemoMode()) return { uploaded: 2, lastSyncDate: new Date().toISOString(), skipped: false };
+  if (isDemoMode()) return rememberHealthSync(userId, { uploaded: 2, lastSyncDate: new Date().toISOString(), skipped: false });
 
   if (!isNativeHealthAvailable()) {
     return { uploaded: 0, lastSyncDate: new Date().toISOString(), skipped: true };
@@ -110,7 +173,7 @@ export async function syncNativeHealthNow(userId: string) {
     rhythm?: unknown;
   }>("health-sync-ingest", { body: { summaries, source: "apple_health" } });
 
-  if (!response.error && response.data) return { ...response.data, summary };
+  if (!response.error && response.data) return rememberHealthSync(userId, { ...response.data, summary });
 
   let uploaded = 0;
   for (const item of summaries) {
@@ -142,7 +205,7 @@ export async function syncNativeHealthNow(userId: string) {
   } catch (error) {
     console.warn("Failed to refresh rhythm score after fallback health sync", error);
   }
-  return { uploaded, syncedDates: summaries.map((item) => item.date).filter(Boolean), lastSyncDate: new Date().toISOString(), summary };
+  return rememberHealthSync(userId, { uploaded, syncedDates: summaries.map((item) => item.date).filter(Boolean), lastSyncDate: new Date().toISOString(), summary });
 }
 
 async function saveHealthSnapshotFallback(userId: string, item: HealthTodayNativeSummary) {

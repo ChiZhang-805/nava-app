@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
       if (purpose === "register" && (message.includes("already") || message.includes("registered"))) {
         return jsonResponse({ error: "该手机号已注册，请直接登录或重置密码。", code: "ACCOUNT_EXISTS" }, { status: 409 });
       }
-      if (purpose === "reset" && (message.includes("not found") || message.includes("unable to find"))) {
+      if (purpose !== "register" && (message.includes("not found") || message.includes("unable to find"))) {
         return jsonResponse({ error: "未找到该手机号对应的账号。", code: "ACCOUNT_NOT_FOUND" }, { status: 404 });
       }
       throw link.error;

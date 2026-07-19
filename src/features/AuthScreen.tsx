@@ -19,12 +19,15 @@ import { formatAuthError, isEmail, isPhone } from "../services/auth";
 import { useAuth } from "../state/authContext";
 
 type AuthMode = "signIn" | "signUp" | "reset";
+type SignInMethod = "password" | "otp";
 
 export default function AuthScreen() {
   const {
     signIn,
+    sendLoginOtp,
     sendPasswordResetOtp,
     sendRegistrationOtp,
+    verifyLoginOtp,
     verifyPasswordResetOtp,
     verifyRegistrationOtp,
     error,
@@ -32,6 +35,7 @@ export default function AuthScreen() {
   } = useAuth();
   const t = useT();
   const [mode, setMode] = useState<AuthMode>("signIn");
+  const [signInMethod, setSignInMethod] = useState<SignInMethod>("password");
   const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -41,6 +45,7 @@ export default function AuthScreen() {
   const [codeCooldown, setCodeCooldown] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [busy, setBusy] = useState(false);
   const [codeBusy, setCodeBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -50,19 +55,24 @@ export default function AuthScreen() {
   const accountIsEmail = isEmail(normalizedAccount);
   const accountIsPhone = isPhone(normalizedAccount);
   const accountIsValid = accountIsEmail || accountIsPhone;
-  const requiresCode = mode !== "signIn";
+  const isOtpSignIn = mode === "signIn" && signInMethod === "otp";
+  const requiresCode = mode !== "signIn" || isOtpSignIn;
+  const requiresPassword = mode !== "signIn" || signInMethod === "password";
   const AccountIcon = accountIsPhone ? Phone : AtSign;
   const feedbackError = localError ?? error;
   const canSubmit =
     !busy &&
     accountIsValid &&
     (mode === "signIn"
-      ? Boolean(password)
+      ? signInMethod === "password"
+        ? Boolean(password)
+        : otpSent && sentTo === normalizedAccount && /^\d{6}$/.test(otp)
       : password.length >= 6 &&
         Boolean(confirmPassword) &&
         otpSent &&
         sentTo === normalizedAccount &&
-        /^\d{6}$/.test(otp));
+        /^\d{6}$/.test(otp) &&
+        (mode !== "signUp" || acceptedTerms));
 
   useEffect(() => {
     if (codeCooldown <= 0) return;
@@ -79,6 +89,7 @@ export default function AuthScreen() {
   function switchMode(nextMode: AuthMode) {
     if (nextMode === mode) return;
     setMode(nextMode);
+    setSignInMethod("password");
     setPassword("");
     setConfirmPassword("");
     setOtp("");
@@ -87,6 +98,18 @@ export default function AuthScreen() {
     setCodeCooldown(0);
     setShowPassword(false);
     setShowConfirmPassword(false);
+    setAcceptedTerms(false);
+    clearFeedback();
+  }
+
+  function switchSignInMethod() {
+    setSignInMethod((current) => current === "password" ? "otp" : "password");
+    setPassword("");
+    setOtp("");
+    setOtpSent(false);
+    setSentTo("");
+    setCodeCooldown(0);
+    setShowPassword(false);
     clearFeedback();
   }
 
@@ -101,7 +124,7 @@ export default function AuthScreen() {
     }
   }
 
-  async function sendRegistrationCode() {
+  async function sendCode() {
     if (codeBusy || codeCooldown > 0) return;
     clearFeedback();
     setCodeBusy(true);
@@ -109,7 +132,9 @@ export default function AuthScreen() {
       if (!accountIsValid) throw new Error(t("auth.error.invalidAccount"));
       const channel = mode === "reset"
         ? await sendPasswordResetOtp(normalizedAccount)
-        : await sendRegistrationOtp(normalizedAccount);
+        : isOtpSignIn
+          ? await sendLoginOtp(normalizedAccount)
+          : await sendRegistrationOtp(normalizedAccount);
       setOtpSent(true);
       setSentTo(normalizedAccount);
       setCodeCooldown(60);
@@ -131,7 +156,8 @@ export default function AuthScreen() {
       }
 
       if (mode === "signIn") {
-        await signIn(normalizedAccount, password);
+        if (signInMethod === "otp") await verifyLoginOtp(normalizedAccount, otp);
+        else await signIn(normalizedAccount, password);
         return;
       }
 
@@ -140,6 +166,7 @@ export default function AuthScreen() {
 
       if (!otpSent || sentTo !== normalizedAccount) throw new Error(t("auth.error.codeFirst"));
       if (!/^\d{6}$/.test(otp)) throw new Error(t("auth.error.codeFormat"));
+      if (mode === "signUp" && !acceptedTerms) throw new Error(t("auth.error.acceptAgreement"));
       if (mode === "reset") {
         await verifyPasswordResetOtp(normalizedAccount, otp, password);
         setNotice(t("auth.notice.passwordUpdated"));
@@ -173,7 +200,7 @@ export default function AuthScreen() {
       </section>
 
       <div className="auth-form-region">
-        <form className={["auth-form", `auth-form--${mode}`].join(" ")} key={mode} onSubmit={submit}>
+        <form className={["auth-form", `auth-form--${mode}`, isOtpSignIn ? "auth-form--signInOtp" : ""].filter(Boolean).join(" ")} key={`${mode}-${signInMethod}`} onSubmit={submit}>
           <header className="auth-form-head">
             <h1>{mode === "signIn" ? t("auth.signIn") : mode === "signUp" ? t("auth.signUp") : t("auth.setNewPassword")}</h1>
             <button
@@ -218,7 +245,7 @@ export default function AuthScreen() {
                   <button
                     className="auth-code-button"
                     type="button"
-                    onClick={sendRegistrationCode}
+                    onClick={sendCode}
                     disabled={codeBusy || codeCooldown > 0 || !accountIsValid}
                   >
                     <Send size={15} />
@@ -228,28 +255,30 @@ export default function AuthScreen() {
               </label>
             )}
 
-            <label className="field">
-              <span className="field-label">{mode === "reset" ? t("auth.setNewPassword") : t("auth.password")}</span>
-              <div className="input-wrap">
-                <LockKeyhole size={19} />
-                <input
-                  autoComplete={mode === "signIn" ? "current-password" : "new-password"}
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder={t("auth.passwordPlaceholder")}
-                />
-                <button
-                  className="auth-input-icon-button"
-                  type="button"
-                  onClick={() => setShowPassword((value) => !value)}
-                  aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
-                  title={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </label>
+            {requiresPassword && (
+              <label className="field">
+                <span className="field-label">{mode === "reset" ? t("auth.setNewPassword") : t("auth.password")}</span>
+                <div className="input-wrap">
+                  <LockKeyhole size={19} />
+                  <input
+                    autoComplete={mode === "signIn" ? "current-password" : "new-password"}
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder={t("auth.passwordPlaceholder")}
+                  />
+                  <button
+                    className="auth-input-icon-button"
+                    type="button"
+                    onClick={() => setShowPassword((value) => !value)}
+                    aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
+                    title={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </label>
+            )}
 
             {mode !== "signIn" && (
               <label className="field">
@@ -275,7 +304,26 @@ export default function AuthScreen() {
                 </div>
               </label>
             )}
+
+            {mode === "signIn" && (
+              <div className="auth-login-method-row">
+                <button className="auth-method-switch" type="button" onClick={switchSignInMethod} disabled={busy}>
+                  {t(signInMethod === "password" ? "auth.useOtp" : "auth.usePassword")}
+                </button>
+              </div>
+            )}
           </div>
+
+          {mode === "signUp" && (
+            <label className="auth-consent">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(event) => setAcceptedTerms(event.target.checked)}
+              />
+              <span>{t("auth.agreement")}</span>
+            </label>
+          )}
 
           <div className="auth-feedback-slot" aria-live="polite">
             {feedbackError && <p className="error-text">{feedbackError}</p>}

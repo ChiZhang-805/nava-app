@@ -19,7 +19,11 @@ function assertEqual(actual: string, expected: string, label: string) {
 Deno.test("phone OTP helpers validate the public contract", () => {
   if (normalizePhone(" 13800138000 ") !== "13800138000") throw new Error("Phone normalization failed.");
   if (normalizeOtpCode(" 123456 ") !== "123456") throw new Error("OTP normalization failed.");
-  if (normalizeOtpPurpose("register") !== "register" || normalizeOtpPurpose("reset") !== "reset") {
+  if (
+    normalizeOtpPurpose("login") !== "login" ||
+    normalizeOtpPurpose("register") !== "register" ||
+    normalizeOtpPurpose("reset") !== "reset"
+  ) {
     throw new Error("OTP purpose normalization failed.");
   }
   if (phoneToAuthEmail("13800138000") !== "13800138000@phone.nava.app") throw new Error("Auth email mapping failed.");
@@ -33,15 +37,16 @@ Deno.test("generated OTP values are six digits and not constant", () => {
 
 Deno.test("HMAC domains isolate phone, IP, purpose, and code digests", async () => {
   const phone = "13800138000";
-  const [recipient, ip, registration, reset, otherCode] = await Promise.all([
+  const [recipient, ip, login, registration, reset, otherCode] = await Promise.all([
     phoneHash(secret, phone),
     ipHash(secret, phone),
+    otpDigest(secret, phone, "login", "123456"),
     otpDigest(secret, phone, "register", "123456"),
     otpDigest(secret, phone, "reset", "123456"),
     otpDigest(secret, phone, "register", "654321"),
   ]);
-  const values = new Set([recipient, ip, registration, reset, otherCode]);
-  if (values.size !== 5) throw new Error("HMAC domain separation failed.");
+  const values = new Set([recipient, ip, login, registration, reset, otherCode]);
+  if (values.size !== 6) throw new Error("HMAC domain separation failed.");
   if ([...values].some((value) => value.includes(phone) || value.length !== 64)) {
     throw new Error("A persisted digest exposed raw input or used an unexpected length.");
   }

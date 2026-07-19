@@ -1,6 +1,8 @@
 import { supabase } from "./supabaseClient";
 import { demoProfile, isDemoMode } from "./demo";
 
+const DEMO_PROFILE_STORAGE_KEY = "nava.demo.profile.v1";
+
 export interface UserProfile {
   id: string;
   username: string | null;
@@ -15,8 +17,28 @@ export interface UserProfile {
   stress_factors: string | null;
 }
 
+function readDemoProfile() {
+  try {
+    const stored = window.sessionStorage.getItem(DEMO_PROFILE_STORAGE_KEY);
+    if (stored) return { ...demoProfile, ...JSON.parse(stored) } as UserProfile;
+  } catch {
+    // Fall back to the deterministic fixture when preview storage is unavailable.
+  }
+  return { ...demoProfile };
+}
+
+function writeDemoProfile(changes: Partial<UserProfile> & { id: string }) {
+  const saved = { ...readDemoProfile(), ...changes } as UserProfile;
+  try {
+    window.sessionStorage.setItem(DEMO_PROFILE_STORAGE_KEY, JSON.stringify(saved));
+  } catch {
+    // The current view can still reflect the in-memory result.
+  }
+  return saved;
+}
+
 export async function loadProfile(userId: string): Promise<UserProfile | null> {
-  if (isDemoMode()) return demoProfile;
+  if (isDemoMode()) return { ...readDemoProfile(), id: userId };
 
   const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
   if (error) throw error;
@@ -24,9 +46,16 @@ export async function loadProfile(userId: string): Promise<UserProfile | null> {
 }
 
 export async function saveProfile(profile: Partial<UserProfile> & { id: string }) {
-  if (isDemoMode()) return { ...demoProfile, ...profile } as UserProfile;
+  if (isDemoMode()) return writeDemoProfile(profile);
 
-  const { data, error } = await supabase.from("profiles").upsert(profile, { onConflict: "id" }).select("*").single();
-  if (error) throw error;
-  return data as UserProfile;
+  const { id, ...changes } = profile;
+  if (Object.keys(changes).length === 0) return loadProfile(id);
+
+  const updated = await supabase.from("profiles").update(changes).eq("id", id).select("*").maybeSingle();
+  if (updated.error) throw updated.error;
+  if (updated.data) return updated.data as UserProfile;
+
+  const inserted = await supabase.from("profiles").insert({ id, ...changes }).select("*").single();
+  if (inserted.error) throw inserted.error;
+  return inserted.data as UserProfile;
 }

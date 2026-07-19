@@ -14,6 +14,7 @@
     "backend:test": "npx -y deno test supabase/functions/tests/phone-otp.test.ts",
     "backend:deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-backend.ps1",
     "screenshots": "node scripts/capture-screenshots.mjs",
+    "screenshots:auth": "node scripts/capture-auth-v3.mjs",
     "screenshots:background": "node scripts/capture-background-states.mjs",
     "screenshots:launch": "node scripts/capture-launch-experience.mjs",
     "screenshots:motion": "node scripts/capture-motion-background.mjs",

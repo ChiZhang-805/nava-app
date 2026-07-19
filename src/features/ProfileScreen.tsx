@@ -1,14 +1,20 @@
 import type { User } from "@supabase/supabase-js";
-import { Apple, Download, LogOut, RefreshCw, Save, ShieldCheck, Watch } from "lucide-react";
+import { Apple, Check, Download, Link2, LogOut, RefreshCw, Save, ShieldCheck, Watch } from "lucide-react";
 import { useEffect, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import SectionCard from "../components/SectionCard";
-import StatusPill from "../components/StatusPill";
 import { useLocale } from "../i18n";
 import { exportUserData, downloadJson } from "../services/exportData";
-import { isNativeHealthAvailable, requestHealthAuthorization, syncNativeHealthNow } from "../services/health";
+import {
+  getHealthAuthorizationStatus,
+  getLastHealthSyncAt,
+  readLastHealthSyncAt,
+  requestHealthAuthorization,
+  syncNativeHealthNow,
+  type HealthAuthorizationStatus,
+} from "../services/health";
 import { loadProfile, saveProfile, type UserProfile } from "../services/profile";
-import { getWatchReachability, readLastWatchSnapshot } from "../services/watch";
+import { flushPendingWatchActions, getWatchReachability, publishWatchSnapshot, readLastWatchSnapshot } from "../services/watch";
 import { useAuth } from "../state/authContext";
 import type { WatchUserSnapshot } from "../types";
 
@@ -26,6 +32,8 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
   const [error, setError] = useState<string | null>(null);
   const [watchSnapshot, setWatchSnapshot] = useState<WatchUserSnapshot | null>(null);
   const [watchReachable, setWatchReachable] = useState<{ paired: boolean; reachable: boolean } | null>(null);
+  const [healthAuthorization, setHealthAuthorization] = useState<HealthAuthorizationStatus | null>(null);
+  const [healthLastSync, setHealthLastSync] = useState<string | null>(() => readLastHealthSyncAt(user.id));
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileDraft, setProfileDraft] = useState({
@@ -36,7 +44,7 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
     occupation: "",
   });
 
-  async function run(action: string, successMessage: string, fn: () => Promise<unknown>) {
+  async function run(action: string, successMessage: string | null, fn: () => Promise<unknown>) {
     setBusy(action);
     setMessage(null);
     setError(null);
@@ -44,7 +52,7 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
       await fn();
       setMessage(successMessage);
       onChanged();
-      setWatchSnapshot(await readLastWatchSnapshot());
+      setWatchSnapshot(await readLastWatchSnapshot(user.id));
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -55,8 +63,10 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
   }
 
   useEffect(() => {
-    readLastWatchSnapshot().then(setWatchSnapshot);
+    readLastWatchSnapshot(user.id).then(setWatchSnapshot);
     getWatchReachability().then(setWatchReachable);
+    getHealthAuthorizationStatus().then(setHealthAuthorization);
+    getLastHealthSyncAt(user.id).then(setHealthLastSync);
     loadProfile(user.id)
       .then((data) => {
         setProfile(data);
@@ -73,16 +83,24 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
 
   async function submitProfile() {
     setProfileSaved(false);
-    const savedSuccessfully = await run("profile", t("profile.saveSuccess"), async () => {
-      const saved = await saveProfile({
-        id: user.id,
-        username: profileDraft.username.trim() || t("profile.defaultName"),
-        height: profileDraft.height ? Number(profileDraft.height) : null,
-        weight: profileDraft.weight ? Number(profileDraft.weight) : null,
-        goal: profileDraft.goal.trim() || null,
-        occupation: profileDraft.occupation.trim() || null,
-      });
+    const savedSuccessfully = await run("profile", null, async () => {
+      const updates: Partial<UserProfile> & { id: string } = { id: user.id };
+      if (profileDraft.username.trim()) updates.username = profileDraft.username.trim();
+      if (profileDraft.height.trim()) updates.height = Number(profileDraft.height);
+      if (profileDraft.weight.trim()) updates.weight = Number(profileDraft.weight);
+      if (profileDraft.goal.trim()) updates.goal = profileDraft.goal.trim();
+      if (profileDraft.occupation.trim()) updates.occupation = profileDraft.occupation.trim();
+
+      const saved = Object.keys(updates).length > 1 ? await saveProfile(updates) : profile;
+      if (!saved) return;
       setProfile(saved);
+      setProfileDraft({
+        username: saved.username ?? "",
+        height: saved.height != null ? String(saved.height) : "",
+        weight: saved.weight != null ? String(saved.weight) : "",
+        goal: saved.goal ?? "",
+        occupation: saved.occupation ?? "",
+      });
     });
     setProfileSaved(savedSuccessfully);
   }
@@ -94,13 +112,66 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
     });
   }
 
+  async function authorizeHealth() {
+    await run("health-auth", null, async () => {
+      await requestHealthAuthorization();
+      setHealthAuthorization(await getHealthAuthorizationStatus());
+    });
+  }
+
+  async function syncHealth() {
+    await run("health-sync", null, async () => {
+      const result = await syncNativeHealthNow(user.id);
+      if (!("skipped" in result) || !result.skipped) setHealthLastSync(result.lastSyncDate);
+      setHealthAuthorization(await getHealthAuthorizationStatus());
+    });
+  }
+
+  async function connectWatch() {
+    await run("watch-connect", null, async () => {
+      setWatchReachable(await getWatchReachability());
+    });
+  }
+
+  async function syncWatch() {
+    await run("watch-sync", null, async () => {
+      await flushPendingWatchActions(user.id);
+      const now = new Date().toISOString();
+      const nextSnapshot: WatchUserSnapshot = watchSnapshot
+        ? { ...watchSnapshot, lastSyncedAt: now }
+        : { userId: user.id, displayName, today: {}, lastSyncedAt: now };
+      setWatchSnapshot(await publishWatchSnapshot(nextSnapshot));
+      setWatchReachable(await getWatchReachability());
+    });
+  }
+
   function updateDraft(key: keyof typeof profileDraft, value: string) {
     setProfileSaved(false);
     setProfileDraft((draft) => ({ ...draft, [key]: value }));
   }
 
-  const displayName = profileDraft.username.trim() || profile?.username?.trim() || t("profile.defaultName");
+  const displayName = profile?.username?.trim() || t("profile.defaultName");
   const memberDays = String(daysSinceSignup(user.created_at)).padStart(3, "0");
+  const connectionMeta = (lastSyncAt: string | null | undefined, online: boolean) => {
+    const timestamp = lastSyncAt
+      ? new Date(lastSyncAt).toLocaleString(locale === "en" ? "en-US" : "zh-CN", {
+          month: "numeric",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : t("profile.waitingSync");
+    return `${timestamp} · ${t(online ? "profile.online" : "profile.offline")}`;
+  };
+  const healthConnected = Boolean(healthLastSync);
+  const healthOnline = Boolean(healthAuthorization?.available && healthAuthorization.requested);
+  const healthStatus = !healthAuthorization?.available
+    ? t("profile.healthUnavailable")
+    : healthConnected
+      ? t("profile.healthConnected")
+      : healthAuthorization.requested
+        ? t("profile.healthAuthorizationRequested")
+        : t("profile.healthNeedsAuthorization");
 
   return (
     <div className="stack">
@@ -125,11 +196,11 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
             onClick={submitProfile}
             disabled={busy === "profile"}
           >
-            <Save size={21} />
+            {profileSaved ? <Check size={22} /> : <Save size={21} />}
           </button>
         )}
       >
-        <div className={["profile-form", profileSaved ? "saved" : ""].filter(Boolean).join(" ")}>
+        <div className="profile-form">
           <label className="field">
             <span>{t("profile.nickname")}</span>
             <input value={profileDraft.username} onChange={(e) => updateDraft("username", e.target.value)} placeholder={profile?.username ?? t("profile.defaultName")} />
@@ -137,11 +208,17 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
           <div className="two-col">
             <label className="field">
               <span>{t("profile.height")}</span>
-              <input inputMode="decimal" value={profileDraft.height} onChange={(e) => updateDraft("height", e.target.value)} />
+              <div className="profile-measure-input">
+                <input inputMode="decimal" value={profileDraft.height} onChange={(e) => updateDraft("height", e.target.value)} />
+                <span className="profile-input-unit">cm</span>
+              </div>
             </label>
             <label className="field">
               <span>{t("profile.weight")}</span>
-              <input inputMode="decimal" value={profileDraft.weight} onChange={(e) => updateDraft("weight", e.target.value)} />
+              <div className="profile-measure-input">
+                <input inputMode="decimal" value={profileDraft.weight} onChange={(e) => updateDraft("weight", e.target.value)} />
+                <span className="profile-input-unit">kg</span>
+              </div>
             </label>
           </div>
           <label className="field">
@@ -155,42 +232,53 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
         </div>
       </SectionCard>
 
-      <SectionCard
-        title={t("profile.appleHealth")}
-        action={<StatusPill tone={isNativeHealthAvailable() ? "good" : "warn"}>{isNativeHealthAvailable() ? t("profile.available") : t("profile.browserPreview")}</StatusPill>}
-      >
-        <div className="button-row">
-          <ActionButton
-            icon={<Apple size={18} />}
-            variant="secondary"
-            disabled={busy === "health-auth"}
-            onClick={() => run("health-auth", t("profile.authorizationSuccess"), requestHealthAuthorization)}
-          >
-            {t("profile.requestAuth")}
-          </ActionButton>
-          <ActionButton
-            icon={<RefreshCw size={18} />}
-            disabled={busy === "health-sync"}
-            onClick={() => run("health-sync", t("profile.syncSuccess"), () => syncNativeHealthNow(user.id))}
-          >
-            {t("profile.syncNow")}
-          </ActionButton>
-        </div>
-      </SectionCard>
-
-      <SectionCard title={t("profile.appleWatch")}>
-        <div className="watch-card">
-          <span className="watch-device-icon" aria-hidden="true"><Watch size={30} /></span>
-          <div>
-            <strong>{watchReachable?.paired ? t("profile.watchPaired") : watchSnapshot ? t("profile.watchSnapshot") : t("profile.watchWaiting")}</strong>
-            <p className="muted">
-              {watchSnapshot
-                  ? `${new Date(watchSnapshot.lastSyncedAt).toLocaleString(locale === "en" ? "en-US" : "zh-CN")} · ${watchReachable?.reachable ? t("profile.online") : t("profile.offline")}`
-                  : t("profile.waitingSnapshot")}
-            </p>
+      <div className="profile-device-stack">
+        <SectionCard
+          className="profile-device-card"
+          title={t("profile.appleHealth")}
+          action={(
+            <div className="section-icon-actions">
+              <button className="section-icon-action" type="button" aria-label={t("profile.requestAuth")} title={t("profile.requestAuth")} onClick={authorizeHealth} disabled={busy === "health-auth"}>
+                <ShieldCheck size={21} />
+              </button>
+              <button className="section-icon-action" type="button" aria-label={t("profile.syncNow")} title={t("profile.syncNow")} onClick={syncHealth} disabled={busy === "health-sync"}>
+                <RefreshCw className={busy === "health-sync" ? "spin" : undefined} size={21} />
+              </button>
+            </div>
+          )}
+        >
+          <div className="device-connection-row">
+            <span className="device-connection-icon" aria-hidden="true"><Apple size={30} /></span>
+            <div>
+              <strong>{healthStatus}</strong>
+              <p className="muted">{connectionMeta(healthLastSync, healthOnline)}</p>
+            </div>
           </div>
-        </div>
-      </SectionCard>
+        </SectionCard>
+
+        <SectionCard
+          className="profile-device-card"
+          title={t("profile.appleWatch")}
+          action={(
+            <div className="section-icon-actions">
+              <button className="section-icon-action" type="button" aria-label={t("profile.watchConnect")} title={t("profile.watchConnect")} onClick={connectWatch} disabled={busy === "watch-connect"}>
+                <Link2 size={21} />
+              </button>
+              <button className="section-icon-action" type="button" aria-label={t("profile.watchSync")} title={t("profile.watchSync")} onClick={syncWatch} disabled={busy === "watch-sync"}>
+                <RefreshCw className={busy === "watch-sync" ? "spin" : undefined} size={21} />
+              </button>
+            </div>
+          )}
+        >
+          <div className="device-connection-row">
+            <span className="device-connection-icon" aria-hidden="true"><Watch size={30} /></span>
+            <div>
+              <strong>{watchReachable?.paired ? t("profile.watchPaired") : watchSnapshot ? t("profile.watchSnapshot") : t("profile.watchWaiting")}</strong>
+              <p className="muted">{connectionMeta(watchSnapshot?.lastSyncedAt, Boolean(watchReachable?.reachable))}</p>
+            </div>
+          </div>
+        </SectionCard>
+      </div>
 
       <SectionCard
         title={t("profile.privacy")}

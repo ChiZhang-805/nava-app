@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.52.1";
 
-export type PhoneOtpPurpose = "register" | "reset";
+export type PhoneOtpPurpose = "login" | "register" | "reset";
 
 type AliyunSmsResponse = {
   BizId?: string;
@@ -57,7 +57,7 @@ export function normalizePhone(value: unknown) {
 }
 
 export function normalizeOtpPurpose(value: unknown): PhoneOtpPurpose {
-  if (value === "register" || value === "reset") return value;
+  if (value === "login" || value === "register" || value === "reset") return value;
   throw new Error("验证码用途无效。");
 }
 

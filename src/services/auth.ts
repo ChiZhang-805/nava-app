@@ -78,7 +78,7 @@ async function invokeSmsFunction<T>(name: string, body: Record<string, unknown>)
   throw new AuthServiceError(message, code);
 }
 
-type PhoneOtpPurpose = "register" | "reset";
+type PhoneOtpPurpose = "login" | "register" | "reset";
 type PhoneVerificationType = "signup" | "recovery" | "magiclink";
 
 export async function sendSmsOtp(phone: string, purpose: PhoneOtpPurpose) {
@@ -152,6 +152,43 @@ export async function sendRegistrationOtp(account: string) {
   });
   if (error) throw error;
   return "email" as const;
+}
+
+export async function sendLoginOtp(account: string) {
+  const normalized = account.trim();
+  if (isPhone(normalized)) {
+    await sendSmsOtp(normalized, "login");
+    return "sms" as const;
+  }
+  if (!isEmail(normalized)) throw new Error("请输入有效邮箱或中国大陆手机号。");
+
+  const { error } = await supabase.auth.signInWithOtp({
+    email: normalized,
+    options: { shouldCreateUser: false },
+  });
+  if (error) throw error;
+  return "email" as const;
+}
+
+export async function verifyLoginOtp(account: string, code: string) {
+  const normalized = account.trim();
+  if (!/^\d{6}$/.test(code.trim())) throw new Error("请输入 6 位验证码。");
+
+  if (isPhone(normalized)) {
+    await verifySmsOtp(normalized, code, "login");
+    return;
+  }
+  if (!isEmail(normalized)) throw new Error("请输入有效邮箱或中国大陆手机号。");
+
+  const authClient = createEphemeralSupabaseClient();
+  const { data, error } = await authClient.auth.verifyOtp({
+    email: normalized,
+    token: code.trim(),
+    type: "email",
+  });
+  if (error) throw error;
+  if (!data.session) throw new Error("邮箱验证码已通过，但没有建立登录会话。");
+  await publishSession(data.session, data.user?.email ?? normalized);
 }
 
 export async function verifyRegistrationOtp(account: string, code: string, password: string) {

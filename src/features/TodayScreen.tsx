@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { Activity, BedDouble, Brain, Check, CircleDashed, Flame, HeartPulse, Moon, RefreshCw, SmilePlus, Watch } from "lucide-react";
+import { Activity, BedDouble, Brain, Check, CircleDashed, Flame, HeartPulse, Moon, RefreshCw, ScanFace, SmilePlus, Utensils } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useState } from "react";
 import ActionButton from "../components/ActionButton";
@@ -9,7 +9,7 @@ import StatusPill from "../components/StatusPill";
 import { useLocale, type TranslationKey } from "../i18n";
 import { minutesToText } from "../services/date";
 import { getTodaySnapshot } from "../services/records";
-import { getNativeTodaySummary, isNativeHealthAvailable, syncNativeHealthNow } from "../services/health";
+import { getNativeTodaySummary, syncNativeHealthNow } from "../services/health";
 import { publishWatchSnapshot } from "../services/watch";
 import type { TodaySnapshot } from "../types";
 
@@ -31,7 +31,7 @@ const factorLabelKeys: Record<string, TranslationKey> = {
   天气: "records.factor.weather",
 };
 
-const demoNextActionZh = "今天基础节律稳定，晚间减少屏幕刺激，保持 23:30 前入睡。";
+const demoNextActionZh = "今日节律保持稳定，晚间减少连续屏幕刺激，睡前留出安静的放松时间，并尽量在 23:30 前入睡。";
 
 export default function TodayScreen({
   user,
@@ -49,6 +49,7 @@ export default function TodayScreen({
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const nextAction = snapshot?.nextAction === demoNextActionZh ? t("today.demoNextAction") : snapshot?.nextAction;
+  const recommendation = t("today.adviceExpanded", { action: nextAction ?? t("today.adviceWaiting") });
   const moodDetail = snapshot?.mood?.factors?.length
     ? snapshot.mood.factors.map((factor) => (factorLabelKeys[factor] ? t(factorLabelKeys[factor]) : factor)).join(" / ")
     : t("today.notRecorded");
@@ -109,7 +110,6 @@ export default function TodayScreen({
     );
   }
 
-  const healthAvailable = isNativeHealthAvailable();
   const todayDataStates = [
     {
       id: "sleep",
@@ -130,16 +130,28 @@ export default function TodayScreen({
       icon: <SmilePlus size={17} />,
     },
     {
-      id: "watch",
-      label: t("today.watch"),
-      ready: healthAvailable,
-      icon: <Watch size={17} />,
+      id: "diet",
+      label: t("records.diet"),
+      ready: Boolean(snapshot?.nutrition),
+      icon: <Utensils size={17} />,
+    },
+    {
+      id: "focus",
+      label: t("records.focus"),
+      ready: Boolean(snapshot?.focusSessions || snapshot?.focusMinutes),
+      icon: <Brain size={17} />,
+    },
+    {
+      id: "face",
+      label: t("records.face"),
+      ready: Boolean(snapshot?.face),
+      icon: <ScanFace size={17} />,
     },
   ];
   const readyDataCount = todayDataStates.filter((item) => item.ready).length;
 
   return (
-    <div className="stack">
+    <div className="stack today-stack">
       <section className="today-hero">
         <div className="hero-copy">
           <p className="eyebrow">{t("today.rhythm")}</p>
@@ -165,39 +177,40 @@ export default function TodayScreen({
         <div><span>{t("today.sevenDayTrend")}</span><strong>{snapshot?.rhythmTrendSlope == null ? "--" : `${snapshot.rhythmTrendSlope >= 0 ? "+" : ""}${snapshot.rhythmTrendSlope.toFixed(1)}`}</strong></div>
       </div>
 
-      <SectionCard
-        title={t("today.next")}
-        subtitle={snapshot?.date}
-        action={(
-          <div className="section-icon-actions">
-            <button
-              className="section-icon-action"
-              type="button"
-              aria-label={t("today.refresh")}
-              title={t("today.refresh")}
-              onClick={refresh}
-              disabled={loading}
-            >
-              <RefreshCw className={loading ? "spin" : undefined} size={20} />
-            </button>
-            <button
-              className="section-icon-action"
-              type="button"
-              aria-label={t("today.syncHealth")}
-              title={t("today.syncHealth")}
-              onClick={syncHealth}
-              disabled={syncing}
-            >
-              <HeartPulse className={syncing ? "spin" : undefined} size={21} />
-            </button>
-          </div>
-        )}
-      >
-        <p className="recommendation">{nextAction}</p>
-        {error && <p className="error-text">{error}</p>}
-      </SectionCard>
+      <div className="today-advice">
+        <SectionCard
+          title={t("today.next")}
+          action={(
+            <div className="section-icon-actions">
+              <button
+                className="section-icon-action"
+                type="button"
+                aria-label={t("today.refresh")}
+                title={t("today.refresh")}
+                onClick={refresh}
+                disabled={loading}
+              >
+                <RefreshCw className={loading ? "spin" : undefined} size={20} />
+              </button>
+              <button
+                className="section-icon-action"
+                type="button"
+                aria-label={t("today.syncHealth")}
+                title={t("today.syncHealth")}
+                onClick={syncHealth}
+                disabled={syncing}
+              >
+                <HeartPulse className={syncing ? "spin" : undefined} size={21} />
+              </button>
+            </div>
+          )}
+        >
+          <p className="recommendation">{recommendation}</p>
+          {error && <p className="error-text">{error}</p>}
+        </SectionCard>
+      </div>
 
-      <div className="metric-grid">
+      <div className="metric-grid today-metric-grid">
         <MetricCard
           label={t("today.sleep")}
           value={minutesToText(snapshot?.sleep?.sleep_duration_minutes, locale)}
@@ -235,7 +248,7 @@ export default function TodayScreen({
                 <span className="today-data-icon" aria-hidden="true">{item.icon}</span>
                 <span className="today-data-copy">
                   <strong>{item.label}</strong>
-                  <small>{item.ready ? t(item.id === "watch" ? "today.connected" : "today.recorded") : t("today.missing")}</small>
+                  <small>{item.ready ? t("today.recorded") : t("today.missing")}</small>
                 </span>
                 <span className="today-data-check" aria-hidden="true">
                   {item.ready ? <Check size={15} /> : <CircleDashed size={15} />}

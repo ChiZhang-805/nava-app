@@ -8,6 +8,7 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "NavaHealth"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getAuthorizationStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getTodaySummary", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getRecentSummaries", returnType: CAPPluginReturnPromise)
     ]
@@ -42,6 +43,31 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                 return
             }
             call.resolve(["granted": success])
+        }
+    }
+
+    @objc func getAuthorizationStatus(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.resolve(["available": false, "requested": false, "status": "unavailable"])
+            return
+        }
+
+        healthStore.getRequestStatusForAuthorization(toShare: [], read: readTypes) { status, error in
+            if let error = error {
+                call.reject(error.localizedDescription)
+                return
+            }
+
+            switch status {
+            case .unnecessary:
+                call.resolve(["available": true, "requested": true, "status": "requested"])
+            case .shouldRequest:
+                call.resolve(["available": true, "requested": false, "status": "needs_request"])
+            case .unknown:
+                call.resolve(["available": true, "requested": false, "status": "unknown"])
+            @unknown default:
+                call.resolve(["available": true, "requested": false, "status": "unknown"])
+            }
         }
     }
 

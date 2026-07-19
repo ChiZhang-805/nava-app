@@ -85,6 +85,7 @@ export interface TodaySnapshot {
   sleep: SleepRecord | null;
   exercise: ExerciseRecord | null;
   nutrition: NutritionRecord | null;
+  face: FaceRecord | null;
   focusMinutes: number;
   focusSessions: number;
   rhythmScore: number;

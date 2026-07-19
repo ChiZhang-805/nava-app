@@ -35,6 +35,35 @@ async function main() {
       userAgent:
         "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
     });
+    await context.addInitScript(() => {
+      class MockSpeechRecognition {
+        continuous = false;
+        interimResults = false;
+        lang = "";
+        onend = null;
+        onerror = null;
+        onresult = null;
+
+        start() {
+          window.setTimeout(() => {
+            const result = [{ transcript: "今天感觉很平稳" }];
+            result.isFinal = false;
+            this.onresult?.({ resultIndex: 0, results: [result] });
+          }, 80);
+        }
+
+        stop() {
+          window.queueMicrotask(() => this.onend?.());
+        }
+
+        abort() {
+          window.queueMicrotask(() => this.onerror?.({ error: "aborted" }));
+        }
+      }
+
+      Object.defineProperty(window, "SpeechRecognition", { configurable: true, value: MockSpeechRecognition });
+      Object.defineProperty(window, "webkitSpeechRecognition", { configurable: true, value: MockSpeechRecognition });
+    });
 
     const page = await context.newPage();
     const metrics = {};
@@ -73,6 +102,16 @@ async function main() {
         height: Number(value.getBoundingClientRect().height.toFixed(2)),
         lineHeight: Number.parseFloat(getComputedStyle(value).lineHeight),
       }));
+      const hero = document.querySelector(".today-hero")?.getBoundingClientRect();
+      const todayMetricCards = [...document.querySelectorAll(".today-metric-grid .metric-card")].map((card) => Number(card.getBoundingClientRect().height.toFixed(2)));
+      const stripLabel = document.querySelector(".algorithm-strip span");
+      const stripValue = document.querySelector(".algorithm-strip strong");
+      const dataItems = [...document.querySelectorAll(".today-data-item")];
+      const dataGrid = document.querySelector(".today-data-grid")?.getBoundingClientRect();
+      const dataAction = document.querySelector(".today-data-action .action-button")?.getBoundingClientRect();
+      const dataSection = document.querySelector(".today-data-section")?.getBoundingClientRect();
+      const dataHeading = document.querySelector(".today-data-section .section-heading")?.getBoundingClientRect();
+      const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();
       return {
         stripWidths,
         stripText: document.querySelector(".algorithm-strip")?.textContent ?? "",
@@ -80,7 +119,17 @@ async function main() {
         allRecommendationLineWidths,
         recommendationWidth: Number((recommendationRect?.width ?? 0).toFixed(2)),
         metricValues,
-        todayDataItems: document.querySelectorAll(".today-data-item").length,
+        heroHeight: Number((hero?.height ?? 0).toFixed(2)),
+        todayMetricCards,
+        stripLabelSize: Number.parseFloat(stripLabel ? getComputedStyle(stripLabel).fontSize : "0"),
+        stripValueSize: Number.parseFloat(stripValue ? getComputedStyle(stripValue).fontSize : "0"),
+        adviceSubtitleCount: document.querySelectorAll(".today-advice .section-heading p").length,
+        todayDataItems: dataItems.length,
+        todayDataHeights: dataItems.map((item) => Number(item.getBoundingClientRect().height.toFixed(2))),
+        todayDataButtonRatio: Number(((dataAction?.width ?? 0) / Math.max(dataGrid?.width ?? 1, 1)).toFixed(3)),
+        initialDataSectionTop: Number((dataSection?.top ?? 0).toFixed(2)),
+        initialDataHeadingBottom: Number((dataHeading?.bottom ?? 0).toFixed(2)),
+        navTop: Number((nav?.top ?? 0).toFixed(2)),
       };
     });
 
@@ -91,10 +140,31 @@ async function main() {
     if (metrics.today.metricValues.some((metric) => metric.text.includes("分钟") || metric.height > metric.lineHeight * 1.25)) {
       throw new Error(`A Today metric wrapped unexpectedly: ${JSON.stringify(metrics.today.metricValues)}`);
     }
-    if (metrics.today.todayDataItems !== 4) throw new Error(`Expected 4 Today data states, found ${metrics.today.todayDataItems}`);
-    const zhRecommendationRatio = metrics.today.recommendationLineWidths[1] / metrics.today.recommendationWidth;
-    if (metrics.today.recommendationLineWidths.length !== 2 || metrics.today.allRecommendationLineWidths.length !== 2 || zhRecommendationRatio < 0.78 || zhRecommendationRatio > 0.93) {
-      throw new Error(`Chinese recommendation does not form a balanced two-line block: ${JSON.stringify(metrics.today.recommendationLineWidths)}`);
+    if (
+      metrics.today.todayDataItems !== 6
+      || Math.max(...metrics.today.todayDataHeights) - Math.min(...metrics.today.todayDataHeights) > 1
+      || metrics.today.todayDataButtonRatio < 0.99
+    ) {
+      throw new Error(`Expected six equal Today data states and a full-width action: ${JSON.stringify(metrics.today)}`);
+    }
+    if (
+      metrics.today.initialDataSectionTop < metrics.today.navTop - 0.5
+      && metrics.today.initialDataHeadingBottom > metrics.today.navTop + 0.5
+    ) {
+      throw new Error(`Default Today viewport exposes a clipped data heading: ${JSON.stringify(metrics.today)}`);
+    }
+    const zhRecommendationRatio = metrics.today.recommendationLineWidths.at(-1) / metrics.today.recommendationWidth;
+    if (metrics.today.recommendationLineWidths.length < 4 || metrics.today.recommendationLineWidths.length > 5 || metrics.today.allRecommendationLineWidths.length !== metrics.today.recommendationLineWidths.length || zhRecommendationRatio < 0.75 || zhRecommendationRatio > 0.9) {
+      throw new Error(`Chinese recommendation does not form a balanced four-to-five-line block: ${JSON.stringify(metrics.today.recommendationLineWidths)}`);
+    }
+    if (
+      metrics.today.heroHeight > 150
+      || metrics.today.todayMetricCards.some((height) => height > 98)
+      || metrics.today.stripLabelSize < 12
+      || metrics.today.stripValueSize < 15
+      || metrics.today.adviceSubtitleCount !== 0
+    ) {
+      throw new Error(`Today spacing remains oversized or incomplete: ${JSON.stringify(metrics.today)}`);
     }
 
     await page.locator(".today-data-section").scrollIntoViewIfNeeded();
@@ -186,16 +256,83 @@ async function main() {
         metrics.ai = await page.evaluate(() => {
           const composer = document.querySelector(".chat-composer")?.getBoundingClientRect();
           const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();
+          const header = document.querySelector(".app-header")?.getBoundingClientRect();
+          const firstBubble = document.querySelector(".chat-message-row .chat-bubble")?.getBoundingClientRect();
+          const avatarOffsets = [...document.querySelectorAll(".chat-message-row")].map((row) => {
+            const avatar = row.querySelector(".chat-avatar")?.getBoundingClientRect();
+            const bubble = row.querySelector(".chat-bubble")?.getBoundingClientRect();
+            return Number(Math.abs((avatar?.top ?? 0) - (bubble?.top ?? 0)).toFixed(2));
+          });
+          const bubbleRatios = [...document.querySelectorAll(".chat-message-row")].map((row) => {
+            const bubble = row.querySelector(".chat-bubble")?.getBoundingClientRect();
+            const rowRect = row.getBoundingClientRect();
+            return {
+              role: row.classList.contains("user") ? "user" : "assistant",
+              width: Number((bubble?.width ?? 0).toFixed(2)),
+              ratio: Number(((bubble?.width ?? 0) / rowRect.width).toFixed(3)),
+            };
+          });
           return {
             messages: document.querySelectorAll(".chat-message-row").length,
             avatars: document.querySelectorAll(".chat-message-row .chat-avatar").length,
+            avatarOffsets,
+            bubbleRatios,
             composerBottom: Number((composer?.bottom ?? 0).toFixed(2)),
             navTop: Number((nav?.top ?? 0).toFixed(2)),
             gap: Number(((nav?.top ?? 0) - (composer?.bottom ?? 0)).toFixed(2)),
+            firstMessageGap: Number(((firstBubble?.top ?? 0) - (header?.bottom ?? 0)).toFixed(2)),
+            summaryCards: document.querySelectorAll(".chat-layout > .section-card, .ai-prompt").length,
+            sendText: document.querySelector(".chat-send-button")?.textContent?.trim() ?? "",
+            muteButtons: document.querySelectorAll(".chat-voice-stop").length,
           };
         });
         if (metrics.ai.messages !== metrics.ai.avatars) throw new Error(`Expected one avatar per message: ${JSON.stringify(metrics.ai)}`);
+        if (metrics.ai.avatarOffsets.some((offset) => offset > 1)) throw new Error(`Chat avatars are not top-aligned: ${JSON.stringify(metrics.ai)}`);
+        if (metrics.ai.bubbleRatios.some((bubble) => bubble.ratio > (bubble.role === "user" ? 0.725 : 0.785))) {
+          throw new Error(`Chat bubbles remain wider than the conversational layout limit: ${JSON.stringify(metrics.ai.bubbleRatios)}`);
+        }
         if (metrics.ai.gap < 0 || metrics.ai.gap > 48) throw new Error(`AI composer is not pinned above navigation: ${JSON.stringify(metrics.ai)}`);
+        if (metrics.ai.summaryCards !== 0 || metrics.ai.firstMessageGap < 12 || metrics.ai.firstMessageGap > 44) {
+          throw new Error(`AI first message is not positioned cleanly below the header wordmark: ${JSON.stringify(metrics.ai)}`);
+        }
+        if (metrics.ai.sendText || metrics.ai.muteButtons) throw new Error(`AI composer still contains text or a mute button: ${JSON.stringify(metrics.ai)}`);
+
+        const aiButton = page.locator('[data-tab="ai"]');
+        const composerInput = page.locator(".chat-input-shell input");
+        const aiBox = await aiButton.boundingBox();
+        if (!aiBox) throw new Error("AI navigation control has no measurable bounds");
+        const voiceX = aiBox.x + aiBox.width / 2;
+        const voiceY = aiBox.y + aiBox.height / 2;
+
+        await composerInput.fill("录音前内容");
+        await page.mouse.move(voiceX, voiceY);
+        await page.mouse.down();
+        await page.waitForTimeout(700);
+        await page.locator(".voice-gesture-overlay:not(.cancel-armed)").waitFor({ state: "visible" });
+        await page.waitForTimeout(120);
+        await shot("04-ai-voice-listening.png");
+        const liveTranscript = await composerInput.inputValue();
+        await page.mouse.up();
+        await page.locator(".voice-gesture-overlay").waitFor({ state: "detached" });
+        const releasedTranscript = await composerInput.inputValue();
+        if (liveTranscript !== "今天感觉很平稳" || releasedTranscript !== liveTranscript) {
+          throw new Error(`Voice release did not keep the transcript: ${JSON.stringify({ liveTranscript, releasedTranscript })}`);
+        }
+
+        await composerInput.fill("取消后保留");
+        await page.mouse.move(voiceX, voiceY);
+        await page.mouse.down();
+        await page.waitForTimeout(700);
+        await page.mouse.move(voiceX, voiceY - 82, { steps: 5 });
+        await page.locator(".voice-gesture-overlay.cancel-armed").waitFor({ state: "visible" });
+        await shot("04-ai-voice-cancel.png");
+        await page.mouse.up();
+        await page.locator(".voice-gesture-overlay").waitFor({ state: "detached" });
+        const cancelledTranscript = await composerInput.inputValue();
+        if (cancelledTranscript !== "取消后保留") {
+          throw new Error(`Voice slide-to-cancel did not restore the previous draft: ${cancelledTranscript}`);
+        }
+        metrics.ai.voice = { liveTranscript, releasedTranscript, cancelledTranscript };
       }
       if (tab === "trends") {
         metrics.trends = await page.evaluate(() => {
@@ -228,22 +365,108 @@ async function main() {
         await shot("05-trends-rhythm.png");
       }
       if (tab === "profile") {
-        metrics.profile = await page.evaluate(() => ({
-          environmentVisible: /环境|Environment/.test(document.querySelector(".screen-panel")?.textContent ?? ""),
-          healthKitSubtitleVisible: /HealthKit|iPhone 同步|iPhone sync/.test(document.querySelector(".screen-panel")?.textContent ?? ""),
-          saveActions: document.querySelectorAll('[aria-label="保存资料"], [aria-label="Save profile"]').length,
-          exportActions: document.querySelectorAll('[aria-label="导出我的数据"], [aria-label="Export data"]').length,
-        }));
-        if (metrics.profile.environmentVisible || metrics.profile.healthKitSubtitleVisible) {
+        const initialAccountName = await page.locator(".profile-row strong").innerText();
+        const nicknameInput = page.locator(".profile-form .field input").first();
+        const goalInput = page.locator(".profile-form .field input").nth(3);
+        const occupationInput = page.locator(".profile-form .field input").nth(4);
+        const originalGoal = await goalInput.inputValue();
+        const originalOccupation = await occupationInput.inputValue();
+        await nicknameInput.fill("待保存昵称");
+        await goalInput.fill("");
+        await occupationInput.fill("");
+        const accountNameBeforeSave = await page.locator(".profile-row strong").innerText();
+        if (accountNameBeforeSave !== initialAccountName) {
+          throw new Error(`Profile account name changed before save: ${initialAccountName} -> ${accountNameBeforeSave}`);
+        }
+        metrics.profile = await page.evaluate(() => {
+          const measurements = [...document.querySelectorAll(".profile-measure-input")].map((container) => {
+            const input = container.querySelector("input")?.getBoundingClientRect();
+            const unit = container.querySelector(".profile-input-unit")?.getBoundingClientRect();
+            return {
+              unit: container.querySelector(".profile-input-unit")?.textContent?.trim() ?? "",
+              inside: Boolean(input && unit && unit.left > input.left && unit.right < input.right),
+              gap: Number(((input?.right ?? 0) - (unit?.right ?? 0)).toFixed(2)),
+            };
+          });
+          const deviceCards = [...document.querySelectorAll(".profile-device-card")].map((card) => ({
+            height: Number(card.getBoundingClientRect().height.toFixed(2)),
+            actions: card.querySelectorAll(".section-icon-action").length,
+            actionText: [...card.querySelectorAll(".section-icon-action")].map((button) => button.textContent?.trim() ?? ""),
+            statusRows: card.querySelectorAll(".device-connection-row").length,
+            statusIcons: card.querySelectorAll(".device-connection-icon").length,
+          }));
+          return {
+            environmentVisible: /环境|Environment/.test(document.querySelector(".screen-panel")?.textContent ?? ""),
+            healthKitSubtitleVisible: /HealthKit|iPhone 同步|iPhone sync/.test(document.querySelector(".screen-panel")?.textContent ?? ""),
+            availablePillVisible: [...document.querySelectorAll(".status-pill")].some((pill) => /可用|Ready/.test(pill.textContent ?? "")),
+            saveActions: document.querySelectorAll('[aria-label="保存资料"], [aria-label="Save profile"]').length,
+            exportActions: document.querySelectorAll('[aria-label="导出我的数据"], [aria-label="Export data"]').length,
+            measurements,
+            deviceCards,
+          };
+        });
+        if (metrics.profile.environmentVisible || metrics.profile.healthKitSubtitleVisible || metrics.profile.availablePillVisible) {
           throw new Error(`Profile still contains removed copy: ${JSON.stringify(metrics.profile)}`);
         }
         if (metrics.profile.saveActions !== 1 || metrics.profile.exportActions !== 1) {
           throw new Error(`Profile icon actions are incomplete: ${JSON.stringify(metrics.profile)}`);
         }
+        if (
+          metrics.profile.measurements.length !== 2
+          || metrics.profile.measurements.some((measurement) => !measurement.inside || measurement.gap < 10)
+          || metrics.profile.measurements.map((measurement) => measurement.unit).join(",") !== "cm,kg"
+        ) {
+          throw new Error(`Profile measurement units are not inside the fields: ${JSON.stringify(metrics.profile.measurements)}`);
+        }
+        const deviceHeights = metrics.profile.deviceCards.map((card) => card.height);
+        if (
+          metrics.profile.deviceCards.length !== 2
+          || metrics.profile.deviceCards.some((card) => (
+            card.actions !== 2
+            || card.actionText.some(Boolean)
+            || card.statusRows !== 1
+            || card.statusIcons !== 1
+          ))
+          || Math.max(...deviceHeights) - Math.min(...deviceHeights) > 0.5
+        ) {
+          throw new Error(`Profile device cards are not structurally aligned: ${JSON.stringify(metrics.profile.deviceCards)}`);
+        }
+        for (const label of ["请求授权", "立即同步", "连接 Apple Watch", "同步 Apple Watch"]) {
+          await page.locator(`[aria-label="${label}"]`).tap();
+          await page.waitForTimeout(120);
+        }
+        metrics.profile.deviceActions = await page.evaluate(() => ({
+          errorVisible: Boolean(document.querySelector(".error-text")),
+          healthSyncKeys: Object.keys(localStorage).filter((key) => key.startsWith("nava.health.last-sync.v1")),
+          watchSnapshotKeys: Object.keys(localStorage).filter((key) => key.startsWith("nava.watch.snapshot")),
+        }));
+        if (
+          metrics.profile.deviceActions.errorVisible
+          || metrics.profile.deviceActions.healthSyncKeys.length !== 1
+          || metrics.profile.deviceActions.healthSyncKeys[0] === "nava.health.last-sync.v1"
+          || metrics.profile.deviceActions.watchSnapshotKeys.length !== 1
+          || metrics.profile.deviceActions.watchSnapshotKeys[0] === "nava.watch.snapshot"
+        ) {
+          throw new Error(`Profile device actions or account-scoped sync state failed: ${JSON.stringify(metrics.profile.deviceActions)}`);
+        }
         await page.locator('[aria-label="保存资料"], [aria-label="Save profile"]').tap();
         await page.waitForTimeout(300);
-        metrics.profile.savedState = await page.locator(".profile-form").evaluate((form) => form.classList.contains("saved"));
-        if (!metrics.profile.savedState) throw new Error("Profile fields did not enter the saved state");
+        metrics.profile.accountNameBeforeSave = accountNameBeforeSave;
+        metrics.profile.accountNameAfterSave = await page.locator(".profile-row strong").innerText();
+        metrics.profile.blankFieldsPreserved =
+          await goalInput.inputValue() === originalGoal
+          && await occupationInput.inputValue() === originalOccupation;
+        if (metrics.profile.accountNameAfterSave !== "待保存昵称" || !metrics.profile.blankFieldsPreserved) {
+          throw new Error(`Profile save boundary is incorrect: ${JSON.stringify(metrics.profile)}`);
+        }
+        metrics.profile.savedState = {
+          formTinted: await page.locator(".profile-form").evaluate((form) => form.classList.contains("saved")),
+          greenCheckVisible: await page.locator(".section-icon-action.success .lucide-check").isVisible(),
+          successTextVisible: await page.getByText("资料已保存", { exact: true }).count() > 0,
+        };
+        if (metrics.profile.savedState.formTinted || !metrics.profile.savedState.greenCheckVisible || metrics.profile.savedState.successTextVisible) {
+          throw new Error(`Profile save feedback is not limited to the green check icon: ${JSON.stringify(metrics.profile.savedState)}`);
+        }
         await shot("06-profile-saved.png");
         await scrollContent(650);
         await shot("06-profile-mid.png");
@@ -259,8 +482,18 @@ async function main() {
     await page.waitForTimeout(250);
     await page.locator('[data-tab="profile"]').tap();
     await page.waitForTimeout(350);
-    metrics.profile.savedStateAfterReturn = await page.locator(".profile-form").evaluate((form) => form.classList.contains("saved"));
-    if (metrics.profile.savedStateAfterReturn) throw new Error("Profile saved styling persisted after leaving and returning");
+    metrics.profile.afterReturn = {
+      accountName: await page.locator(".profile-row strong").innerText(),
+      nickname: await page.locator(".profile-form .field input").first().inputValue(),
+      greenCheckVisible: await page.locator(".section-icon-action.success .lucide-check").count() > 0,
+    };
+    if (
+      metrics.profile.afterReturn.accountName !== "待保存昵称"
+      || metrics.profile.afterReturn.nickname !== "待保存昵称"
+      || metrics.profile.afterReturn.greenCheckVisible
+    ) {
+      throw new Error(`Profile did not preserve its saved data cleanly after navigation: ${JSON.stringify(metrics.profile.afterReturn)}`);
+    }
 
     await page.locator(".language-toggle").tap();
     await page.waitForTimeout(200);
@@ -278,9 +511,9 @@ async function main() {
         width: Number(recommendationRect.width.toFixed(2)),
       };
     });
-    const enRecommendationRatio = metrics.todayEnglish.lineWidths[1] / metrics.todayEnglish.width;
-    if (metrics.todayEnglish.lineWidths.length !== 2 || metrics.todayEnglish.allLineWidths.length !== 2 || enRecommendationRatio < 0.78 || enRecommendationRatio > 0.93) {
-      throw new Error(`English recommendation does not form a balanced two-line block: ${JSON.stringify(metrics.todayEnglish)}`);
+    const enRecommendationRatio = metrics.todayEnglish.lineWidths.at(-1) / metrics.todayEnglish.width;
+    if (metrics.todayEnglish.lineWidths.length < 4 || metrics.todayEnglish.lineWidths.length > 5 || metrics.todayEnglish.allLineWidths.length !== metrics.todayEnglish.lineWidths.length || enRecommendationRatio < 0.75 || enRecommendationRatio > 0.9) {
+      throw new Error(`English recommendation does not form a balanced four-to-five-line block: ${JSON.stringify(metrics.todayEnglish)}`);
     }
     await shot("07-today-en.png");
 
@@ -310,14 +543,28 @@ async function main() {
 
       const todayLayout = await viewportPage.evaluate(() => {
         const section = document.querySelector(".today-data-section")?.getBoundingClientRect();
+        const metricGrid = document.querySelector(".today-metric-grid")?.getBoundingClientRect();
+        const heading = document.querySelector(".today-data-section .section-heading")?.getBoundingClientRect();
+        const grid = document.querySelector(".today-data-grid")?.getBoundingClientRect();
+        const firstDataItem = document.querySelector(".today-data-item")?.getBoundingClientRect();
         const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();
         return {
           sectionTop: Number((section?.top ?? 0).toFixed(2)),
+          sectionGap: Number(((section?.top ?? 0) - (metricGrid?.bottom ?? 0)).toFixed(2)),
+          headingBottom: Number((heading?.bottom ?? 0).toFixed(2)),
+          gridTop: Number((grid?.top ?? 0).toFixed(2)),
+          firstDataItemBottom: Number((firstDataItem?.bottom ?? 0).toFixed(2)),
           navTop: Number((nav?.top ?? 0).toFixed(2)),
         };
       });
-      if (todayLayout.sectionTop < todayLayout.navTop - 0.5) {
-        throw new Error(`${viewport.name} Today exposes an incomplete next section: ${JSON.stringify(todayLayout)}`);
+      const todayDataIsVisible = todayLayout.sectionTop < todayLayout.navTop - 0.5;
+      const partialFirstDataRow = todayLayout.gridTop < todayLayout.navTop - 0.5
+        && todayLayout.firstDataItemBottom > todayLayout.navTop + 0.5;
+      if (todayDataIsVisible && (todayLayout.headingBottom > todayLayout.navTop + 0.5 || partialFirstDataRow)) {
+        throw new Error(`${viewport.name} Today exposes a clipped next-section element: ${JSON.stringify(todayLayout)}`);
+      }
+      if (viewport.name === "tall" && (todayLayout.sectionGap < 9.5 || todayLayout.sectionGap > 10.5)) {
+        throw new Error(`Tall Today data spacing does not match the other section gaps: ${JSON.stringify(todayLayout)}`);
       }
       await viewportShot("today");
 
@@ -382,7 +629,37 @@ async function main() {
       }
       await viewportShot("trends");
 
-      metrics.viewports[viewport.name] = { today: todayLayout, record: recordLayout, trends: trendLayout };
+      await viewportPage.locator('[data-tab="profile"]').tap();
+      await viewportPage.waitForTimeout(800);
+      const profileLayout = await viewportPage.evaluate(() => {
+        const cards = [...document.querySelectorAll(".profile-device-card")].map((card) => {
+          const rect = card.getBoundingClientRect();
+          return {
+            top: Number(rect.top.toFixed(2)),
+            bottom: Number(rect.bottom.toFixed(2)),
+            height: Number(rect.height.toFixed(2)),
+          };
+        });
+        const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();
+        return {
+          cards,
+          navTop: Number((nav?.top ?? 0).toFixed(2)),
+          gapMidpoint: cards.length === 2 ? Number(((cards[0].bottom + cards[1].top) / 2).toFixed(2)) : 0,
+        };
+      });
+      if (viewport.name === "tall") {
+        if (
+          profileLayout.cards.length !== 2
+          || profileLayout.navTop <= profileLayout.cards[0].bottom
+          || profileLayout.navTop >= profileLayout.cards[1].top
+          || Math.abs(profileLayout.navTop - profileLayout.gapMidpoint) > 0.75
+        ) {
+          throw new Error(`Tall Profile navigation is not centered in the device-card gap: ${JSON.stringify(profileLayout)}`);
+        }
+      }
+      await viewportShot("profile-devices");
+
+      metrics.viewports[viewport.name] = { today: todayLayout, record: recordLayout, trends: trendLayout, profile: profileLayout };
       await viewportContext.close();
     }
 

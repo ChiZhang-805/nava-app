@@ -26,6 +26,10 @@
 	<string>NAVA 读取 Apple 健康数据，用于生成个人节律洞察。</string>
 	<key>NSMotionUsageDescription</key>
 	<string>NAVA 仅在本机使用设备动作数据，让动态背景响应您的 iPhone 移动。</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>NAVA 使用麦克风将您的语音实时转换为对话文字。</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>NAVA 使用设备语音识别，将您的口述状态转换为文字。</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

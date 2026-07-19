@@ -112,7 +112,7 @@ function nextAction(snapshot: Omit<TodaySnapshot, "rhythmScore" | "nextAction">)
 export async function getTodaySnapshot(userId: string, date = todayISO()): Promise<TodaySnapshot> {
   if (isDemoMode()) return demoTodaySnapshot();
 
-  const [moodRes, sleepRes, exerciseRes, nutritionRes, focusRes, rhythmRes] = await Promise.all([
+  const [moodRes, sleepRes, exerciseRes, nutritionRes, focusRes, faceRes, rhythmRes] = await Promise.all([
     supabase.from("mood_records").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
     supabase.from("sleep_records").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
     supabase
@@ -125,6 +125,7 @@ export async function getTodaySnapshot(userId: string, date = todayISO()): Promi
       .maybeSingle(),
     supabase.from("nutrition_records").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
     supabase.from("focus_records").select("*").eq("user_id", userId).eq("record_date", date),
+    supabase.from("face_records").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
     supabase.from("daily_rhythm_scores").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
   ]);
 
@@ -133,6 +134,7 @@ export async function getTodaySnapshot(userId: string, date = todayISO()): Promi
   assertNoError(exerciseRes.error);
   assertNoError(nutritionRes.error);
   assertNoError(focusRes.error);
+  assertNoError(faceRes.error);
   assertNoError(rhythmRes.error);
 
   const focus = asArray<FocusRecord>(focusRes.data);
@@ -142,6 +144,7 @@ export async function getTodaySnapshot(userId: string, date = todayISO()): Promi
     sleep: sleepRes.data as SleepRecord | null,
     exercise: exerciseRes.data as ExerciseRecord | null,
     nutrition: nutritionRes.data as NutritionRecord | null,
+    face: faceRes.data as FaceRecord | null,
     focusMinutes: focus.reduce((sum, item) => sum + (item.total_minutes ?? 0), 0),
     focusSessions: focus.reduce((sum, item) => sum + (item.completed_sessions ?? 0), 0),
   };

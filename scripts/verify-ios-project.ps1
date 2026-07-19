@@ -14,6 +14,7 @@ $requiredFiles = @(
   "ios\App\App\NavaBridgeViewController.swift",
   "ios\App\App\zh-Hans.lproj\InfoPlist.strings",
   "native\ios\NavaHealthPlugin.swift",
+  "native\ios\NavaSpeechPlugin.swift",
   "native\ios\NavaWatchBridgePlugin.swift",
   "native\watch\en.lproj\Localizable.strings",
   "native\watch\NavaWatchApp.swift",
@@ -64,7 +65,7 @@ function Get-PlistValueNode {
 }
 
 [xml]$info = Get-Content -LiteralPath (Join-Path $appRoot "Info.plist") -Raw -Encoding UTF8
-foreach ($privacyKey in @("NSHealthShareUsageDescription", "NSMotionUsageDescription")) {
+foreach ($privacyKey in @("NSHealthShareUsageDescription", "NSMotionUsageDescription", "NSMicrophoneUsageDescription", "NSSpeechRecognitionUsageDescription")) {
   $value = Get-PlistValueNode -Document $info -Key $privacyKey
   if (!$value -or !$value.InnerText.Trim()) { throw "Missing iOS privacy description: $privacyKey" }
 }
@@ -84,13 +85,19 @@ if (!$storyboard.SelectSingleNode("//viewController[@customClass='NavaBridgeView
 }
 
 $bridge = Get-Content -LiteralPath (Join-Path $appRoot "NavaBridgeViewController.swift") -Raw -Encoding UTF8
-foreach ($plugin in @("NavaHealthPlugin", "NavaWatchBridgePlugin")) {
+foreach ($plugin in @("NavaHealthPlugin", "NavaSpeechPlugin", "NavaWatchBridgePlugin")) {
   if (!$bridge.Contains("registerPluginInstance($plugin())")) { throw "Bridge does not register $plugin." }
+}
+
+$healthPlugin = Get-Content -LiteralPath (Join-Path $root "native\ios\NavaHealthPlugin.swift") -Raw -Encoding UTF8
+foreach ($expected in @("getAuthorizationStatus", "getRequestStatusForAuthorization")) {
+  if (!$healthPlugin.Contains($expected)) { throw "Health plugin is missing: $expected" }
 }
 
 $project = Get-Content -LiteralPath (Join-Path $root "ios\App\App.xcodeproj\project.pbxproj") -Raw -Encoding UTF8
 foreach ($expected in @(
   "NavaHealthPlugin.swift in Sources",
+  "NavaSpeechPlugin.swift in Sources",
   "NavaWatchBridgePlugin.swift in Sources",
   "NavaBridgeViewController.swift in Sources",
   "CODE_SIGN_ENTITLEMENTS = App/App.entitlements;",
@@ -99,7 +106,7 @@ foreach ($expected in @(
   if (!$project.Contains($expected)) { throw "Xcode project is missing: $expected" }
 }
 
-foreach ($relativeSource in @("..\..\..\native\ios\NavaHealthPlugin.swift", "..\..\..\native\ios\NavaWatchBridgePlugin.swift")) {
+foreach ($relativeSource in @("..\..\..\native\ios\NavaHealthPlugin.swift", "..\..\..\native\ios\NavaSpeechPlugin.swift", "..\..\..\native\ios\NavaWatchBridgePlugin.swift")) {
   if (!(Test-Path -LiteralPath (Join-Path $appRoot $relativeSource))) { throw "Broken Xcode source reference: $relativeSource" }
 }
 
@@ -112,4 +119,4 @@ foreach ($expected in @("didReceiveMessage message", "replyHandler", "didReceive
   if (!$watchBridge.Contains($expected)) { throw "iPhone Watch bridge is missing: $expected" }
 }
 
-Write-Host "iOS project contract verified: iPhone portrait, HealthKit, motion, native plugins, and Watch companion sources."
+Write-Host "iOS project contract verified: iPhone portrait, HealthKit, motion, speech input, native plugins, and Watch companion sources."

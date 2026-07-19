@@ -20,11 +20,16 @@ interface NavaWatchBridgePlugin {
 }
 
 const NavaWatchBridge = registerPlugin<NavaWatchBridgePlugin>("NavaWatchBridge");
+const WATCH_SNAPSHOT_KEY = "nava.watch.snapshot.v1";
 const PENDING_ACTIONS_KEY = "nava.watch.pending-actions.v1";
 const PROCESSED_ACTIONS_KEY = "nava.watch.processed-actions.v1";
-let flushPromise: Promise<number> | null = null;
+const flushPromises = new Map<string, Promise<number>>();
 
 type ResolvedWatchAction = WatchAction & { actionId: string };
+
+function accountKey(base: string, userId: string) {
+  return `${base}.${userId}`;
+}
 
 function readActionList(key: string): ResolvedWatchAction[] {
   try {
@@ -44,7 +49,7 @@ function resolveAction(action: WatchAction): ResolvedWatchAction {
 }
 
 export async function publishWatchSnapshot(snapshot: WatchUserSnapshot) {
-  localStorage.setItem("nava.watch.snapshot", JSON.stringify(snapshot));
+  localStorage.setItem(accountKey(WATCH_SNAPSHOT_KEY, snapshot.userId), JSON.stringify(snapshot));
   if (!isDemoMode()) {
     try {
       await supabase.functions.invoke("watch-sync", {
@@ -68,13 +73,35 @@ export async function publishWatchSnapshot(snapshot: WatchUserSnapshot) {
   return snapshot;
 }
 
-export async function readLastWatchSnapshot(): Promise<WatchUserSnapshot | null> {
-  const raw = localStorage.getItem("nava.watch.snapshot");
-  if (!raw) return null;
+export async function readLastWatchSnapshot(userId: string): Promise<WatchUserSnapshot | null> {
+  const raw = localStorage.getItem(accountKey(WATCH_SNAPSHOT_KEY, userId));
+  let localSnapshot: WatchUserSnapshot | null = null;
   try {
-    return JSON.parse(raw) as WatchUserSnapshot;
+    const parsed = raw ? JSON.parse(raw) as WatchUserSnapshot : null;
+    if (parsed?.userId === userId) localSnapshot = parsed;
   } catch {
-    return null;
+    localSnapshot = null;
+  }
+
+  if (isDemoMode()) return localSnapshot;
+  try {
+    const { data, error } = await supabase
+      .from("watch_snapshots")
+      .select("payload,pushed_at")
+      .eq("user_id", userId)
+      .order("pushed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    const serverSnapshot = data?.payload as WatchUserSnapshot | null;
+    if (!serverSnapshot || serverSnapshot.userId !== userId) return localSnapshot;
+    if (!localSnapshot || Date.parse(serverSnapshot.lastSyncedAt) > Date.parse(localSnapshot.lastSyncedAt)) {
+      localStorage.setItem(accountKey(WATCH_SNAPSHOT_KEY, userId), JSON.stringify(serverSnapshot));
+      return serverSnapshot;
+    }
+    return localSnapshot;
+  } catch {
+    return localSnapshot;
   }
 }
 
@@ -89,24 +116,29 @@ export async function getWatchReachability() {
   }
 }
 
-export function enqueueWatchAction(action: WatchAction) {
+export function enqueueWatchAction(userId: string, action: WatchAction) {
   const resolved = resolveAction(action);
-  const processed = new Set(readActionList(PROCESSED_ACTIONS_KEY).map((item) => item.actionId));
+  const processedKey = accountKey(PROCESSED_ACTIONS_KEY, userId);
+  const pendingKey = accountKey(PENDING_ACTIONS_KEY, userId);
+  const processed = new Set(readActionList(processedKey).map((item) => item.actionId));
   if (processed.has(resolved.actionId)) return resolved;
-  const pending = readActionList(PENDING_ACTIONS_KEY);
+  const pending = readActionList(pendingKey);
   if (!pending.some((item) => item.actionId === resolved.actionId)) {
-    writeActionList(PENDING_ACTIONS_KEY, [...pending, resolved], 100);
+    writeActionList(pendingKey, [...pending, resolved], 100);
   }
   return resolved;
 }
 
-export async function flushPendingWatchActions() {
+export async function flushPendingWatchActions(userId: string) {
   if (isDemoMode()) return 0;
-  if (flushPromise) return flushPromise;
+  const existing = flushPromises.get(userId);
+  if (existing) return existing;
 
-  flushPromise = (async () => {
-    const pending = readActionList(PENDING_ACTIONS_KEY);
-    const processed = readActionList(PROCESSED_ACTIONS_KEY);
+  const pendingKey = accountKey(PENDING_ACTIONS_KEY, userId);
+  const processedKey = accountKey(PROCESSED_ACTIONS_KEY, userId);
+  const flushPromise = (async () => {
+    const pending = readActionList(pendingKey);
+    const processed = readActionList(processedKey);
     const processedIds = new Set(processed.map((item) => item.actionId));
     let completed = 0;
 
@@ -127,24 +159,25 @@ export async function flushPendingWatchActions() {
       processed.push(action);
       processedIds.add(action.actionId);
       completed += 1;
-      writeActionList(PROCESSED_ACTIONS_KEY, processed, 200);
-      writeActionList(PENDING_ACTIONS_KEY, pending.slice(completed), 100);
+      writeActionList(processedKey, processed, 200);
+      writeActionList(pendingKey, pending.slice(completed), 100);
     }
 
-    if (completed >= pending.length) writeActionList(PENDING_ACTIONS_KEY, [], 100);
+    if (completed >= pending.length) writeActionList(pendingKey, [], 100);
     return completed;
   })();
+  flushPromises.set(userId, flushPromise);
 
   try {
     return await flushPromise;
   } finally {
-    flushPromise = null;
+    flushPromises.delete(userId);
   }
 }
 
-export async function enqueueAndFlushWatchAction(action: WatchAction) {
-  enqueueWatchAction(action);
-  return flushPendingWatchActions();
+export async function enqueueAndFlushWatchAction(userId: string, action: WatchAction) {
+  enqueueWatchAction(userId, action);
+  return flushPendingWatchActions(userId);
 }
 
 export async function subscribeWatchActions(listener: (action: WatchAction) => void) {
