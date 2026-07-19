@@ -140,9 +140,13 @@ void main() {
   breath += vec2(
     sin((p.x + p.y) * 0.71 - time * 0.63),
     cos((p.x - p.y) * 0.66 + time * 0.72)
-  ) * 0.45;
+  ) * 0.52;
 
-  vec2 warped = p + baseWarp * u_field_tuning.x + breath * 0.12;
+  vec2 wavePulse = vec2(
+    sin(p.y * 2.05 + baseY * 4.1 + time * 1.34),
+    cos(p.x * 1.72 - baseX * 3.8 - time * 1.08)
+  );
+  vec2 warped = p + baseWarp * u_field_tuning.x + breath * 0.15 + wavePulse * 0.064;
   float broad = morphFbm(vec3(warped * 0.64 + seed * 0.31, time * 0.54 + u_seed * 0.013));
   float flow = morphFbm(vec3((warped + baseWarp * 0.36) * 1.52 + seed * 0.67, -time * 0.72 + 8.7));
   vec2 cells = cellular(warped * 1.24 + seed * 0.23, time * 0.64);
@@ -163,11 +167,13 @@ void main() {
   surface += (foldedFlow - 0.5) * 0.16 + (cellBoundary - 0.24) * 0.045 * u_detail_tuning.x;
   float organicPatch = baseX * 0.54 + baseY * 0.46;
   float rawLight = surface + (organicPatch - 0.5) * 0.13;
+  float travelingSheen = sin(warped.y * 2.75 + warped.x * 0.62 + time * 1.16 + baseX * 2.4);
+  rawLight += travelingSheen * 0.026;
   rawLight += movingGlow * u_light_tuning.y - movingShadow * 0.032;
   float lightField = clamp((rawLight - 0.5) * u_light_tuning.z + 0.5 + u_light_tuning.w, 0.0, 1.0);
 
-  vec3 deepBlue = vec3(0.09, 0.43, 0.72);
-  vec3 mineralBlue = vec3(0.12, 0.58, 0.84);
+  vec3 deepBlue = vec3(0.14, 0.49, 0.78);
+  vec3 mineralBlue = vec3(0.17, 0.62, 0.87);
   vec3 clearBlue = vec3(0.24, 0.71, 0.95);
   vec3 skyBlue = vec3(0.48, 0.84, 1.0);
   vec3 iceBlue = vec3(0.74, 0.93, 1.0);
@@ -178,7 +184,7 @@ void main() {
   color = mix(color, iceBlue, smoothstep(0.58, 0.86, lightField));
   color = mix(color, mistWhite, smoothstep(0.78, 1.0, lightField));
   float deepPool = pow(clamp(1.0 - lightField, 0.0, 1.0), 5.0);
-  color = mix(color, deepBlue, deepPool * 0.46);
+  color = mix(color, deepBlue, deepPool * 0.32);
   color = mix(color, iceBlue * vec3(0.97, 1.0, 1.015), primaryGlow * 0.12);
   color = mix(color, mistWhite, secondaryGlow * 0.095 * u_detail_tuning.y);
   color = mix(color, mineralBlue, movingShadow * 0.045 * u_detail_tuning.y);
@@ -249,6 +255,10 @@ void main() {
 
   float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
   color = mix(vec3(luminance), color, u_finish_tuning.w);
+
+  float finishedLuminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
+  float shadowLift = max(0.0, 0.47 - finishedLuminance);
+  color += shadowLift * vec3(0.72, 0.99, 1.08);
 
   color = pow(clamp(color, 0.0, 1.0), vec3(0.93));
   gl_FragColor = vec4(color, 1.0);
@@ -342,7 +352,7 @@ const PRODUCTION_TUNING: DesignTuning = {
   detail: [0.82, 0.52, 0.82, 0.58],
   field: [1.5, 11.2, 0.25, 1.42],
   finish: [1.08, 0.025, 0.018, 0.98],
-  light: [1.22, 0.18, 1.42, -0.205],
+  light: [1.34, 0.18, 1.42, -0.205],
 };
 
 function readDesignState() {
