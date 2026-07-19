@@ -175,7 +175,7 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
 
   return (
     <div className="stack">
-      <SectionCard title={t("profile.account")}>
+      <SectionCard className="profile-account-card" title={t("profile.account")}>
         <div className="profile-row">
           <div className="avatar large">{displayName.slice(0, 1).toUpperCase()}</div>
           <div>
@@ -186,6 +186,7 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
       </SectionCard>
 
       <SectionCard
+        className="profile-personal-card"
         title={t("profile.personal")}
         action={(
           <button

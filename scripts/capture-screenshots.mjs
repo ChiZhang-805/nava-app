@@ -6,7 +6,6 @@ import { createServer } from "vite";
 const root = process.cwd();
 const outputDir = process.env.SCREENSHOT_DIR || path.join(root, "artifacts", "screenshots");
 const port = Number(process.env.PORT || 5174);
-const baseUrl = `http://127.0.0.1:${port}`;
 const samplePhoto = {
   name: "sample.png",
   mimeType: "image/png",
@@ -26,6 +25,7 @@ async function main() {
 
   try {
     await server.listen();
+    const baseUrl = server.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? `http://127.0.0.1:${port}`;
     const browser = await chromium.launch();
     const context = await browser.newContext({
       viewport: { width: 390, height: 844 },
@@ -405,12 +405,15 @@ async function main() {
             };
           });
           const deviceCards = [...document.querySelectorAll(".profile-device-card")].map((card) => ({
+            top: Number(card.getBoundingClientRect().top.toFixed(2)),
+            bottom: Number(card.getBoundingClientRect().bottom.toFixed(2)),
             height: Number(card.getBoundingClientRect().height.toFixed(2)),
             actions: card.querySelectorAll(".section-icon-action").length,
             actionText: [...card.querySelectorAll(".section-icon-action")].map((button) => button.textContent?.trim() ?? ""),
             statusRows: card.querySelectorAll(".device-connection-row").length,
             statusIcons: card.querySelectorAll(".device-connection-icon").length,
           }));
+          const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();
           return {
             environmentVisible: /环境|Environment/.test(document.querySelector(".screen-panel")?.textContent ?? ""),
             healthKitSubtitleVisible: /HealthKit|iPhone 同步|iPhone sync/.test(document.querySelector(".screen-panel")?.textContent ?? ""),
@@ -419,6 +422,12 @@ async function main() {
             exportActions: document.querySelectorAll('[aria-label="导出我的数据"], [aria-label="Export data"]').length,
             measurements,
             deviceCards,
+            initialDeviceGap: deviceCards.length === 2
+              ? {
+                  navTop: Number((nav?.top ?? 0).toFixed(2)),
+                  gapMidpoint: Number(((deviceCards[0].bottom + deviceCards[1].top) / 2).toFixed(2)),
+                }
+              : null,
           };
         });
         if (metrics.profile.environmentVisible || metrics.profile.healthKitSubtitleVisible || metrics.profile.availablePillVisible) {
@@ -446,6 +455,14 @@ async function main() {
           || Math.max(...deviceHeights) - Math.min(...deviceHeights) > 0.5
         ) {
           throw new Error(`Profile device cards are not structurally aligned: ${JSON.stringify(metrics.profile.deviceCards)}`);
+        }
+        if (
+          !metrics.profile.initialDeviceGap
+          || metrics.profile.initialDeviceGap.navTop <= metrics.profile.deviceCards[0].bottom
+          || metrics.profile.initialDeviceGap.navTop >= metrics.profile.deviceCards[1].top
+          || Math.abs(metrics.profile.initialDeviceGap.navTop - metrics.profile.initialDeviceGap.gapMidpoint) > 0.75
+        ) {
+          throw new Error(`Default Profile navigation is not centered in the device-card gap: ${JSON.stringify(metrics.profile.initialDeviceGap)}`);
         }
         for (const label of ["请求授权", "立即同步", "连接 Apple Watch", "同步 Apple Watch"]) {
           await page.locator(`[aria-label="${label}"]`).tap();
@@ -555,6 +572,7 @@ async function main() {
         fullPage: false,
       });
       await viewportPage.goto(`${baseUrl}?demo=1`, { waitUntil: "networkidle" });
+      await viewportPage.locator('[data-tab="record"]').waitFor({ state: "visible", timeout: 30000 });
       await viewportPage.waitForTimeout(900);
 
       const todayLayout = await viewportPage.evaluate(() => {
@@ -663,15 +681,13 @@ async function main() {
           gapMidpoint: cards.length === 2 ? Number(((cards[0].bottom + cards[1].top) / 2).toFixed(2)) : 0,
         };
       });
-      if (viewport.name === "tall") {
-        if (
-          profileLayout.cards.length !== 2
-          || profileLayout.navTop <= profileLayout.cards[0].bottom
-          || profileLayout.navTop >= profileLayout.cards[1].top
-          || Math.abs(profileLayout.navTop - profileLayout.gapMidpoint) > 0.75
-        ) {
-          throw new Error(`Tall Profile navigation is not centered in the device-card gap: ${JSON.stringify(profileLayout)}`);
-        }
+      if (
+        profileLayout.cards.length !== 2
+        || profileLayout.navTop <= profileLayout.cards[0].bottom
+        || profileLayout.navTop >= profileLayout.cards[1].top
+        || Math.abs(profileLayout.navTop - profileLayout.gapMidpoint) > 0.75
+      ) {
+        throw new Error(`${viewport.name} Profile navigation is not centered in the device-card gap: ${JSON.stringify(profileLayout)}`);
       }
       await viewportShot("profile-devices");
 
