@@ -43,20 +43,33 @@ async function main() {
               const pixels = new Uint8Array(element.width * element.height * 4);
               gl?.readPixels(0, 0, element.width, element.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
               const luminance = [];
+              const saturation = [];
+              let blueMinusRed = 0;
               let darkPixels = 0;
               let lightPixels = 0;
+              let saturationSum = 0;
               let veryLightPixels = 0;
               let sum = 0;
               for (let index = 0; index < pixels.length; index += 4) {
-                const value = pixels[index] * 0.2126 + pixels[index + 1] * 0.7152 + pixels[index + 2] * 0.0722;
+                const red = pixels[index];
+                const green = pixels[index + 1];
+                const blue = pixels[index + 2];
+                const value = red * 0.2126 + green * 0.7152 + blue * 0.0722;
+                const maximum = Math.max(red, green, blue);
+                const minimum = Math.min(red, green, blue);
+                const pixelSaturation = maximum === 0 ? 0 : (maximum - minimum) / maximum;
                 luminance.push(value);
+                saturation.push(pixelSaturation);
+                blueMinusRed += blue - red;
+                saturationSum += pixelSaturation;
                 sum += value;
                 if (value < 90) darkPixels += 1;
                 if (value > 180) lightPixels += 1;
                 if (value > 210) veryLightPixels += 1;
               }
               luminance.sort((left, right) => left - right);
-              const percentile = (ratio) => luminance[Math.min(luminance.length - 1, Math.floor(luminance.length * ratio))];
+              saturation.sort((left, right) => left - right);
+              const percentile = (values, ratio) => values[Math.min(values.length - 1, Math.floor(values.length * ratio))];
               const pixelCount = luminance.length;
               return {
                 ...state,
@@ -68,10 +81,16 @@ async function main() {
                   darkFraction: darkPixels / pixelCount,
                   lightFraction: lightPixels / pixelCount,
                   mean: sum / pixelCount,
-                  p10: percentile(0.1),
-                  p50: percentile(0.5),
-                  p90: percentile(0.9),
+                  p10: percentile(luminance, 0.1),
+                  p50: percentile(luminance, 0.5),
+                  p90: percentile(luminance, 0.9),
                   veryLightFraction: veryLightPixels / pixelCount,
+                },
+                color: {
+                  blueMinusRed: blueMinusRed / pixelCount,
+                  meanSaturation: saturationSum / pixelCount,
+                  saturationP50: percentile(saturation, 0.5),
+                  saturationP90: percentile(saturation, 0.9),
                 },
                 webgl: Boolean(gl),
               };

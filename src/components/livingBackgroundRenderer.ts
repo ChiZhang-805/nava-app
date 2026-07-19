@@ -166,12 +166,12 @@ void main() {
   rawLight += movingGlow * u_light_tuning.y - movingShadow * 0.032;
   float lightField = clamp((rawLight - 0.5) * u_light_tuning.z + 0.5 + u_light_tuning.w, 0.0, 1.0);
 
-  vec3 deepBlue = vec3(0.095, 0.29, 0.43);
-  vec3 mineralBlue = vec3(0.24, 0.51, 0.64);
-  vec3 clearBlue = vec3(0.42, 0.67, 0.78);
-  vec3 skyBlue = vec3(0.64, 0.81, 0.88);
-  vec3 iceBlue = vec3(0.82, 0.92, 0.955);
-  vec3 mistWhite = vec3(0.94, 0.975, 0.985);
+  vec3 deepBlue = vec3(0.09, 0.43, 0.72);
+  vec3 mineralBlue = vec3(0.12, 0.58, 0.84);
+  vec3 clearBlue = vec3(0.24, 0.71, 0.95);
+  vec3 skyBlue = vec3(0.48, 0.84, 1.0);
+  vec3 iceBlue = vec3(0.74, 0.93, 1.0);
+  vec3 mistWhite = vec3(0.92, 0.985, 1.0);
 
   vec3 color = mix(mineralBlue, clearBlue, smoothstep(0.04, 0.42, lightField));
   color = mix(color, skyBlue, smoothstep(0.32, 0.67, lightField));
@@ -236,10 +236,10 @@ void main() {
   float coarseFrost = valueNoise(pixel * 0.065 + seed * 17.0);
   float middleFrost = valueNoise(pixel * 0.19 + seed * 31.0);
   float fineFrost = hash21(floor(pixel) + seed * 91.0);
-  color += (coarseFrost - 0.5) * vec3(0.047, 0.054, 0.06) * u_field_tuning.w;
-  color += (middleFrost - 0.5) * vec3(0.044, 0.05, 0.054) * u_field_tuning.w;
-  color += (fineFrost - 0.5) * vec3(0.035, 0.039, 0.043) * u_field_tuning.w;
-  color += smoothstep(0.91, 0.997, fineFrost) * vec3(0.056, 0.062, 0.067) * u_detail_tuning.w;
+  color += (coarseFrost - 0.5) * vec3(0.034, 0.04, 0.046) * u_field_tuning.w;
+  color += (middleFrost - 0.5) * vec3(0.035, 0.042, 0.048) * u_field_tuning.w;
+  color += (fineFrost - 0.5) * vec3(0.027, 0.034, 0.04) * u_field_tuning.w;
+  color += smoothstep(0.91, 0.997, fineFrost) * vec3(0.055, 0.067, 0.075) * u_detail_tuning.w;
 
   float organicDepth = smoothstep(0.34, 0.82, 1.0 - organicPatch) * u_finish_tuning.y;
   color = mix(color, mineralBlue, organicDepth);
@@ -341,8 +341,8 @@ const PRODUCTION_SEED = 8.1;
 const PRODUCTION_TUNING: DesignTuning = {
   detail: [0.82, 0.52, 0.82, 0.58],
   field: [1.5, 11.2, 0.25, 1.42],
-  finish: [1.08, 0.025, 0.018, 0.9],
-  light: [1.22, 0.18, 1.42, -0.225],
+  finish: [1.08, 0.025, 0.018, 0.98],
+  light: [1.22, 0.18, 1.42, -0.205],
 };
 
 function readDesignState() {
@@ -393,7 +393,7 @@ export function mountLivingBackground(canvas: HTMLCanvasElement) {
   const resize = () => {
     const rect = canvas.getBoundingClientRect();
     const density = Math.min(window.devicePixelRatio || 1, 1.25);
-    const quality = rect.width <= 600 ? 0.78 : 0.7;
+    const quality = rect.width <= 600 ? 0.75 : 0.7;
     const width = Math.max(2, Math.round(rect.width * density * quality));
     const height = Math.max(2, Math.round(rect.height * density * quality));
     if (canvas.width !== width || canvas.height !== height) {
