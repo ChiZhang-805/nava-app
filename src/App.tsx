@@ -7,6 +7,7 @@ import RecordsScreen from "./features/RecordsScreen";
 import AIScreen from "./features/AIScreen";
 import TrendsScreen from "./features/TrendsScreen";
 import ProfileScreen from "./features/ProfileScreen";
+import PasswordRecoveryScreen from "./features/PasswordRecoveryScreen";
 import { AuthProvider } from "./state/AuthProvider";
 import { useAuth } from "./state/authContext";
 import { useEffect } from "react";
@@ -161,11 +162,12 @@ function MobileShell() {
 
 function AppContent() {
   const configError = assertConfig();
-  const { user, loading } = useAuth();
+  const { user, loading, passwordRecovery } = useAuth();
 
   let screen;
   if (configError && !isDemoMode()) screen = <ConfigErrorScreen message={configError} />;
   else if (loading) screen = <LoadingScreen />;
+  else if (user && passwordRecovery) screen = <PasswordRecoveryScreen />;
   else if (!user) screen = <AuthScreen />;
   else screen = <MobileShell />;
 

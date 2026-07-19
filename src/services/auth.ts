@@ -3,6 +3,14 @@ import { supabase } from "./supabaseClient";
 export const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 export const isPhone = (value: string) => /^1[3-9]\d{9}$/.test(value.trim());
 
+function recoveryRedirectUrl() {
+  const url = new URL(window.location.href);
+  url.hash = "";
+  url.search = "";
+  url.searchParams.set("auth", "recovery");
+  return url.toString();
+}
+
 export function toAuthEmail(value: string) {
   const normalized = value.trim();
   if (!normalized) throw new Error("请输入邮箱或手机号。");
@@ -49,21 +57,8 @@ export async function signUpWithPassword(account: string, password: string) {
     },
   });
   if (error) throw error;
-  if (data.user) await ensureProfile(data.user.id, data.user.email);
-}
-
-export async function sendEmailOtp(email: string) {
-  if (!isEmail(email)) throw new Error("请输入有效邮箱。");
-  const { error } = await supabase.auth.signInWithOtp({ email: email.trim() });
-  if (error) throw error;
-}
-
-export async function verifyEmailOtp(email: string, token: string) {
-  if (!isEmail(email)) throw new Error("请输入有效邮箱。");
-  if (!/^\d{6}$/.test(token.trim())) throw new Error("请输入 6 位邮箱验证码。");
-  const { data, error } = await supabase.auth.verifyOtp({ email: email.trim(), token: token.trim(), type: "email" });
-  if (error) throw error;
-  if (data.user) await ensureProfile(data.user.id, data.user.email);
+  if (data.session && data.user) await ensureProfile(data.user.id, data.user.email);
+  return { needsEmailConfirmation: !data.session };
 }
 
 async function invokeSmsFunction<T>(name: string, body: Record<string, unknown>) {
@@ -111,7 +106,7 @@ export async function verifySmsOtp(phone: string, code: string, mode: "login" | 
 export async function resetPassword(email: string) {
   if (!isEmail(email)) throw new Error("找回密码需要输入邮箱。");
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: `${window.location.origin}?reset=true`,
+    redirectTo: recoveryRedirectUrl(),
   });
   if (error) throw error;
 }

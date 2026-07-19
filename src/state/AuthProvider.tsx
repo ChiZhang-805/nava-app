@@ -7,18 +7,31 @@ import {
   resetPassword,
   signInWithPassword,
   signUpWithPassword,
-  verifyEmailOtp,
   verifySmsOtp,
-  sendEmailOtp,
   sendSmsOtp,
   updateCurrentPassword,
 } from "../services/auth";
 import { demoUser, isDemoMode } from "../services/demo";
 
+function recoveryFlowInUrl() {
+  if (typeof window === "undefined") return false;
+  const queryFlow = new URLSearchParams(window.location.search).get("auth");
+  const hashFlow = new URLSearchParams(window.location.hash.slice(1)).get("type");
+  return queryFlow === "recovery" || hashFlow === "recovery";
+}
+
+function clearAuthFlowFromUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("auth");
+  url.hash = "";
+  window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [passwordRecovery, setPasswordRecovery] = useState(recoveryFlowInUrl);
 
   useEffect(() => {
     let alive = true;
@@ -40,9 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
+      if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
+      if (event === "SIGNED_OUT") setPasswordRecovery(false);
       if (session?.user) {
         ensureProfile(session.user.id, session.user.email).catch(() => undefined);
       }
@@ -68,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = useCallback(async (email: string, password: string) => {
     setError(null);
     try {
-      await signUpWithPassword(email, password);
+      return await signUpWithPassword(email, password);
     } catch (authError) {
       const message = authError instanceof Error ? authError.message : String(authError);
       setError(message);
@@ -85,23 +100,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const finishPasswordRecovery = useCallback(async (password: string) => {
+    setError(null);
+    try {
+      await updateCurrentPassword(password);
+      setPasswordRecovery(false);
+      clearAuthFlowFromUrl();
+    } catch (authError) {
+      const message = authError instanceof Error ? authError.message : String(authError);
+      setError(message);
+      throw authError;
+    }
+  }, []);
+
   const value = useMemo(
     () => ({
       user,
       loading,
       error,
+      passwordRecovery,
       signIn,
       signUp,
       signOut,
+      finishPasswordRecovery,
       clearError: () => setError(null),
-      sendEmailOtp,
-      verifyEmailOtp,
       sendSmsOtp,
       verifySmsOtp,
       resetPassword,
       updateCurrentPassword,
     }),
-    [error, loading, signIn, signOut, signUp, user],
+    [error, finishPasswordRecovery, loading, passwordRecovery, signIn, signOut, signUp, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

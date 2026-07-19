@@ -7,6 +7,7 @@ import {
   EyeOff,
   KeyRound,
   LockKeyhole,
+  MailCheck,
   Phone,
   Send,
   UserRoundPlus,
@@ -23,12 +24,10 @@ type AuthMode = "signIn" | "signUp";
 export default function AuthScreen() {
   const {
     signIn,
-    sendEmailOtp,
-    verifyEmailOtp,
+    signUp,
     sendSmsOtp,
     verifySmsOtp,
     resetPassword,
-    updateCurrentPassword,
     error,
     clearError,
   } = useAuth();
@@ -49,14 +48,20 @@ export default function AuthScreen() {
   const [localError, setLocalError] = useState<string | null>(null);
 
   const normalizedAccount = account.trim();
+  const accountIsEmail = isEmail(normalizedAccount);
+  const accountIsPhone = isPhone(normalizedAccount);
+  const accountIsValid = accountIsEmail || accountIsPhone;
+  const requiresSmsCode = mode === "signUp" && accountIsPhone;
   const AccountIcon = isPhone(account) ? Phone : AtSign;
   const feedbackError = localError ?? error;
   const canSubmit =
     !busy &&
-    Boolean(normalizedAccount) &&
+    accountIsValid &&
     (mode === "signIn"
       ? Boolean(password)
-      : otpSent && sentTo === normalizedAccount && /^\d{6}$/.test(otp) && password.length >= 6 && Boolean(confirmPassword));
+      : password.length >= 6 &&
+        Boolean(confirmPassword) &&
+        (!requiresSmsCode || (otpSent && sentTo === normalizedAccount && /^\d{6}$/.test(otp))));
 
   useEffect(() => {
     if (codeCooldown <= 0) return;
@@ -100,9 +105,7 @@ export default function AuthScreen() {
     clearFeedback();
     setCodeBusy(true);
     try {
-      if (isEmail(normalizedAccount)) {
-        await sendEmailOtp(normalizedAccount);
-      } else if (isPhone(normalizedAccount)) {
+      if (isPhone(normalizedAccount)) {
         await sendSmsOtp(normalizedAccount);
       } else {
         throw new Error(t("auth.error.invalidAccount"));
@@ -123,7 +126,7 @@ export default function AuthScreen() {
     clearFeedback();
     setBusy(true);
     try {
-      if (!isEmail(normalizedAccount) && !isPhone(normalizedAccount)) {
+      if (!accountIsValid) {
         throw new Error(t("auth.error.invalidAccount"));
       }
 
@@ -132,17 +135,27 @@ export default function AuthScreen() {
         return;
       }
 
-      if (!otpSent || sentTo !== normalizedAccount) throw new Error(t("auth.error.codeFirst"));
-      if (!/^\d{6}$/.test(otp)) throw new Error(t("auth.error.codeFormat"));
       if (password.length < 6) throw new Error(t("auth.error.passwordLength"));
       if (password !== confirmPassword) throw new Error(t("auth.error.passwordMismatch"));
 
-      if (isEmail(normalizedAccount)) {
-        await verifyEmailOtp(normalizedAccount, otp);
-        await updateCurrentPassword(password);
-      } else {
-        await verifySmsOtp(normalizedAccount, otp, "register", password);
+      if (accountIsEmail) {
+        const result = await signUp(normalizedAccount, password);
+        setPassword("");
+        setConfirmPassword("");
+        setShowPassword(false);
+        setShowConfirmPassword(false);
+        if (result.needsEmailConfirmation) {
+          setMode("signIn");
+          setNotice(t("auth.notice.signupSubmitted"));
+        } else {
+          setNotice(t("auth.notice.registered"));
+        }
+        return;
       }
+
+      if (!otpSent || sentTo !== normalizedAccount) throw new Error(t("auth.error.codeFirst"));
+      if (!/^\d{6}$/.test(otp)) throw new Error(t("auth.error.codeFormat"));
+      await verifySmsOtp(normalizedAccount, otp, "register", password);
       setNotice(t("auth.notice.registered"));
     } catch (authError) {
       setLocalError(formatAuthError(authError));
@@ -213,7 +226,7 @@ export default function AuthScreen() {
               </div>
             </label>
 
-            {mode === "signUp" && (
+            {mode === "signUp" && requiresSmsCode && (
               <label className="field">
                 <span className="field-label">{t("auth.otp")}</span>
                 <div className="input-wrap auth-code-wrap">
@@ -237,6 +250,16 @@ export default function AuthScreen() {
                   </button>
                 </div>
               </label>
+            )}
+
+            {mode === "signUp" && !requiresSmsCode && (
+              <div className="field">
+                <span className="field-label">{t("auth.emailConfirmation")}</span>
+                <div className="input-wrap auth-email-confirmation" role="status">
+                  <MailCheck size={19} />
+                  <span>{t("auth.emailConfirmationAction")}</span>
+                </div>
+              </div>
             )}
 
             <label className="field">

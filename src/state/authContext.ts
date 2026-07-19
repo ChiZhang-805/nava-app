@@ -5,12 +5,12 @@ export interface AuthContextValue {
   user: User | null;
   loading: boolean;
   error: string | null;
+  passwordRecovery: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<{ needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
+  finishPasswordRecovery: (password: string) => Promise<void>;
   clearError: () => void;
-  sendEmailOtp: (email: string) => Promise<void>;
-  verifyEmailOtp: (email: string, token: string) => Promise<void>;
   sendSmsOtp: (phone: string) => Promise<void>;
   verifySmsOtp: (phone: string, code: string, mode: "login" | "register", password?: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;

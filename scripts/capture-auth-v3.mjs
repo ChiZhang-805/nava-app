@@ -1,10 +1,18 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 
 const root = process.cwd();
 const outputDir = path.join(root, "artifacts", process.env.AUTH_REVIEW_DIR || "ui-review-2026-07-19-auth-final");
 const baseUrl = "http://127.0.0.1:5173";
+
+async function readSupabaseProjectRef() {
+  const envFile = await readFile(path.join(root, ".env"), "utf8");
+  const urlLine = envFile.split(/\r?\n/).find((line) => line.startsWith("VITE_SUPABASE_URL="));
+  const rawUrl = urlLine?.slice("VITE_SUPABASE_URL=".length).trim().replace(/^['\"]|['\"]$/g, "");
+  if (!rawUrl) throw new Error("VITE_SUPABASE_URL is required for auth-flow review.");
+  return new URL(rawUrl).hostname.split(".")[0];
+}
 
 async function makeContext(browser, viewport) {
   return browser.newContext({
@@ -126,6 +134,13 @@ async function main() {
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
       verticalOverflow: document.documentElement.scrollHeight > window.innerHeight,
     }));
+    metrics.emailRegistration = {
+      confirmationVisible: await authPage.locator(".auth-email-confirmation").isVisible(),
+      otpInputCount: await authPage.locator('input[autocomplete="one-time-code"]').count(),
+    };
+    if (!metrics.emailRegistration.confirmationVisible || metrics.emailRegistration.otpInputCount !== 0) {
+      throw new Error("Email registration must use a confirmation link instead of a six-digit code field.");
+    }
 
     const registerPasswordInputs = authPage.locator('input[autocomplete="new-password"]');
     const registerPasswordToggles = authPage.locator(".auth-input-icon-button");
@@ -147,9 +162,20 @@ async function main() {
     await authPage.screenshot({ path: path.join(outputDir, "07a-register-confirm-visible.png") });
     await registerPasswordToggles.nth(1).tap();
 
+    await authPage.locator('input[autocomplete="username"]').fill("13800138000");
+    await authPage.waitForTimeout(250);
+    metrics.phoneRegistration = {
+      confirmationCount: await authPage.locator(".auth-email-confirmation").count(),
+      otpInputVisible: await authPage.locator('input[autocomplete="one-time-code"]').isVisible(),
+    };
+    if (!metrics.phoneRegistration.otpInputVisible || metrics.phoneRegistration.confirmationCount !== 0) {
+      throw new Error("Phone registration must retain its six-digit SMS code field.");
+    }
+    await authPage.screenshot({ path: path.join(outputDir, "07b-register-phone.png") });
+    await authPage.locator('input[autocomplete="username"]').fill("hello@example.com");
     await authPage.locator(".language-toggle").tap();
     await authPage.waitForTimeout(400);
-    await authPage.screenshot({ path: path.join(outputDir, "07b-register-en.png") });
+    await authPage.screenshot({ path: path.join(outputDir, "07c-register-en.png") });
     metrics.registerEnglish = await authPage.evaluate(() => ({
       title: document.querySelector(".auth-form-head h1")?.textContent,
       fields: [...document.querySelectorAll(".field-label")].map((element) => element.textContent),
@@ -171,6 +197,142 @@ async function main() {
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
     }));
     await compactContext.close();
+
+    const signupContext = await makeContext(browser, { width: 430, height: 932 });
+    await signupContext.addInitScript(() => window.sessionStorage.setItem("nava.launch.sequence.v1", "seen"));
+    const signupPage = await signupContext.newPage();
+    let signupRequest = null;
+    await signupPage.route("**/auth/v1/signup**", async (route) => {
+      const request = route.request();
+      const body = request.postDataJSON();
+      signupRequest = {
+        email: body.email,
+        hasPassword: typeof body.password === "string" && body.password.length >= 6,
+        redirectTo: new URL(request.url()).searchParams.get("redirect_to"),
+      };
+      const now = new Date().toISOString();
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "00000000-0000-4000-8000-000000000099",
+          aud: "authenticated",
+          role: "authenticated",
+          email: body.email,
+          confirmation_sent_at: now,
+          app_metadata: { provider: "email", providers: ["email"] },
+          user_metadata: body.data ?? {},
+          identities: [],
+          created_at: now,
+          updated_at: now,
+        }),
+      });
+    });
+    await signupPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await signupPage.locator(".auth-mode-icon").tap();
+    await signupPage.locator('input[autocomplete="username"]').fill("qa@example.com");
+    const signupPasswords = signupPage.locator('input[autocomplete="new-password"]');
+    await signupPasswords.nth(0).fill("sample-password");
+    await signupPasswords.nth(1).fill("sample-password");
+    await signupPage.locator(".auth-submit").tap();
+    await signupPage.locator(".auth-form--signIn .success-text").waitFor();
+    metrics.emailSignupSubmission = {
+      request: signupRequest,
+      returnedToSignIn: await signupPage.locator(".auth-form--signIn").isVisible(),
+      successVisible: await signupPage.locator(".success-text").isVisible(),
+    };
+    if (!signupRequest?.hasPassword || !metrics.emailSignupSubmission.returnedToSignIn) {
+      throw new Error(`Email signup did not submit a password before confirmation: ${JSON.stringify(metrics.emailSignupSubmission)}`);
+    }
+    await signupPage.waitForTimeout(800);
+    await signupPage.screenshot({ path: path.join(outputDir, "09-email-confirmation-sent.png") });
+    await signupContext.close();
+
+    const resetContext = await makeContext(browser, { width: 430, height: 932 });
+    await resetContext.addInitScript(() => window.sessionStorage.setItem("nava.launch.sequence.v1", "seen"));
+    const resetPage = await resetContext.newPage();
+    let resetRequest = null;
+    await resetPage.route("**/auth/v1/recover**", async (route) => {
+      const request = route.request();
+      resetRequest = {
+        email: request.postDataJSON().email,
+        redirectTo: new URL(request.url()).searchParams.get("redirect_to"),
+      };
+      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+    });
+    await resetPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await resetPage.locator('input[autocomplete="username"]').fill("recovery@example.com");
+    await resetPage.locator(".auth-forgot").tap();
+    await resetPage.locator(".success-text").waitFor();
+    metrics.passwordResetRequest = resetRequest;
+    if (!resetRequest?.redirectTo?.includes("auth=recovery")) {
+      throw new Error(`Password reset is missing its recovery callback: ${JSON.stringify(resetRequest)}`);
+    }
+    await resetPage.screenshot({ path: path.join(outputDir, "09b-password-reset-sent.png") });
+    await resetContext.close();
+
+    const recoveryContext = await makeContext(browser, { width: 430, height: 932 });
+    const projectRef = await readSupabaseProjectRef();
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const recoveryUser = {
+      id: "00000000-0000-4000-8000-000000000098",
+      aud: "authenticated",
+      role: "authenticated",
+      email: "recovery@example.com",
+      email_confirmed_at: new Date().toISOString(),
+      app_metadata: { provider: "email", providers: ["email"] },
+      user_metadata: {},
+      identities: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    const recoverySession = {
+      access_token: "local-review-access-token",
+      refresh_token: "local-review-refresh-token",
+      expires_at: nowSeconds + 3600,
+      expires_in: 3600,
+      token_type: "bearer",
+      user: recoveryUser,
+    };
+    await recoveryContext.addInitScript(
+      ({ authStorageKey, session }) => {
+        window.sessionStorage.setItem("nava.launch.sequence.v1", "seen");
+        window.localStorage.setItem(authStorageKey, JSON.stringify(session));
+      },
+      { authStorageKey: `sb-${projectRef}-auth-token`, session: recoverySession },
+    );
+    const recoveryPage = await recoveryContext.newPage();
+    let recoveryUpdateRequest = null;
+    await recoveryPage.route("**/auth/v1/user", async (route) => {
+      if (route.request().method() === "PUT") {
+        const body = route.request().postDataJSON();
+        recoveryUpdateRequest = { hasPassword: typeof body.password === "string" && body.password.length >= 6 };
+      }
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(recoveryUser) });
+    });
+    await recoveryPage.goto(`${baseUrl}/?auth=recovery`, { waitUntil: "networkidle" });
+    await recoveryPage.locator(".auth-form--signIn").waitFor();
+    metrics.passwordRecovery = {
+      passwordFields: await recoveryPage.locator('input[autocomplete="new-password"]').count(),
+      visibilityControls: await recoveryPage.locator(".auth-input-icon-button").count(),
+      horizontalOverflow: await recoveryPage.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
+    };
+    if (metrics.passwordRecovery.passwordFields !== 2 || metrics.passwordRecovery.visibilityControls !== 2) {
+      throw new Error("Password recovery must provide two independently visible password fields.");
+    }
+    await recoveryPage.screenshot({ path: path.join(outputDir, "10-password-recovery.png") });
+    const recoveryPasswords = recoveryPage.locator('input[autocomplete="new-password"]');
+    await recoveryPasswords.nth(0).fill("new-sample-password");
+    await recoveryPasswords.nth(1).fill("new-sample-password");
+    await recoveryPage.locator(".auth-submit").tap();
+    await recoveryPage.locator(".phone-frame").waitFor();
+    metrics.passwordRecovery.completed = true;
+    metrics.passwordRecovery.updateRequest = recoveryUpdateRequest;
+    if (!recoveryUpdateRequest?.hasPassword) {
+      throw new Error("Password recovery did not submit the new password to Supabase.");
+    }
+    await recoveryPage.screenshot({ path: path.join(outputDir, "11-password-recovery-complete.png") });
+    await recoveryContext.close();
 
     await writeFile(path.join(outputDir, "metrics.json"), JSON.stringify(metrics, null, 2));
   } finally {

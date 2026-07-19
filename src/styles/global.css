@@ -2456,6 +2456,17 @@ textarea::placeholder {
   padding-right: 7px;
 }
 
+.auth-form .auth-email-confirmation {
+  color: rgba(11, 69, 107, 0.7);
+}
+
+.auth-form .auth-email-confirmation > span {
+  margin: 0;
+  color: rgba(7, 52, 83, 0.72);
+  font-size: 15px;
+  font-weight: 700;
+}
+
 .auth-code-button {
   flex: 0 0 auto;
   min-width: 86px;
