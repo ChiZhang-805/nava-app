@@ -163,22 +163,25 @@ void main() {
   surface += (foldedFlow - 0.5) * 0.16 + (cellBoundary - 0.24) * 0.045 * u_detail_tuning.x;
   float organicPatch = baseX * 0.54 + baseY * 0.46;
   float rawLight = surface + (organicPatch - 0.5) * 0.13;
-  rawLight += movingGlow * u_light_tuning.y - movingShadow * 0.085;
+  rawLight += movingGlow * u_light_tuning.y - movingShadow * 0.032;
   float lightField = clamp((rawLight - 0.5) * u_light_tuning.z + 0.5 + u_light_tuning.w, 0.0, 1.0);
 
-  vec3 deepBlue = vec3(0.018, 0.088, 0.18);
-  vec3 oceanBlue = vec3(0.02, 0.255, 0.43);
-  vec3 clearBlue = vec3(0.075, 0.45, 0.63);
-  vec3 skyBlue = vec3(0.38, 0.67, 0.79);
-  vec3 iceBlue = vec3(0.78, 0.9, 0.94);
+  vec3 deepBlue = vec3(0.095, 0.29, 0.43);
+  vec3 mineralBlue = vec3(0.24, 0.51, 0.64);
+  vec3 clearBlue = vec3(0.42, 0.67, 0.78);
+  vec3 skyBlue = vec3(0.64, 0.81, 0.88);
+  vec3 iceBlue = vec3(0.82, 0.92, 0.955);
+  vec3 mistWhite = vec3(0.94, 0.975, 0.985);
 
-  vec3 color = mix(deepBlue, oceanBlue, smoothstep(0.1, 0.43, lightField));
-  color = mix(color, clearBlue, smoothstep(0.37, 0.64, lightField));
-  color = mix(color, skyBlue, smoothstep(0.59, 0.82, lightField));
-  color = mix(color, iceBlue, smoothstep(0.84, 1.03, lightField));
-  color = mix(color, skyBlue * vec3(0.91, 1.0, 1.045), primaryGlow * 0.09);
-  color = mix(color, iceBlue * vec3(0.94, 1.0, 1.025), secondaryGlow * 0.075 * u_detail_tuning.y);
-  color = mix(color, deepBlue, movingShadow * 0.12 * u_detail_tuning.y);
+  vec3 color = mix(mineralBlue, clearBlue, smoothstep(0.04, 0.42, lightField));
+  color = mix(color, skyBlue, smoothstep(0.32, 0.67, lightField));
+  color = mix(color, iceBlue, smoothstep(0.58, 0.86, lightField));
+  color = mix(color, mistWhite, smoothstep(0.78, 1.0, lightField));
+  float deepPool = pow(clamp(1.0 - lightField, 0.0, 1.0), 5.0);
+  color = mix(color, deepBlue, deepPool * 0.46);
+  color = mix(color, iceBlue * vec3(0.97, 1.0, 1.015), primaryGlow * 0.12);
+  color = mix(color, mistWhite, secondaryGlow * 0.095 * u_detail_tuning.y);
+  color = mix(color, mineralBlue, movingShadow * 0.045 * u_detail_tuning.y);
 
   float ribbonPhaseA = warped.x * 2.25 + broad * 5.1 + sin(warped.y * 1.16 + time * 0.68) * 0.86;
   float ribbonPhaseB = warped.y * 1.72 - baseX * 4.3 + cos(warped.x * 0.94 - time * 0.57) * 0.74;
@@ -189,13 +192,23 @@ void main() {
   color += ribbonSheen * vec3(0.026, 0.036, 0.043) * u_finish_tuning.x;
   color -= ribbonShade * vec3(0.015, 0.021, 0.027) * u_finish_tuning.x;
 
-  float ringDistance = length(warped - vec2(0.38, 0.12));
-  float contourPhase = (surface * 0.76 + broad * 0.18 + ringDistance * 0.055) * u_field_tuning.y;
-  float contourWave = sin(contourPhase + baseX * 2.2);
-  float ridgeLight = pow(max(contourWave, 0.0), 9.0);
-  float ridgeShadow = pow(max(-contourWave, 0.0), 9.0);
-  color += vec3(0.11, 0.15, 0.17) * ridgeLight * 0.2 * u_field_tuning.z;
-  color -= vec3(0.032, 0.044, 0.052) * ridgeShadow * 0.28 * u_field_tuning.z;
+  vec2 ringPoint = (warped - vec2(0.34, 0.08)) * vec2(0.82, 1.18);
+  float ringDistance = length(ringPoint);
+  float ringAngle = atan(ringPoint.y, ringPoint.x);
+  float contourBase = ringDistance * 1.08 + surface * 0.5 + broad * 0.28;
+  contourBase += sin(ringAngle * 2.0 + flow * 2.7 - time * 0.34) * 0.075;
+  float contourPhase = contourBase * u_field_tuning.y + baseX * 1.45;
+  float contourWave = sin(contourPhase);
+  float ridgeLight = pow(1.0 - abs(contourWave), 13.0);
+  float ridgeShadow = pow(1.0 - abs(sin(contourPhase + 0.34)), 15.0);
+  color += vec3(0.13, 0.17, 0.185) * ridgeLight * 0.46 * u_field_tuning.z;
+  color -= vec3(0.046, 0.058, 0.065) * ridgeShadow * 0.42 * u_field_tuning.z;
+
+  float leafPhase = warped.y * 5.4 + warped.x * 2.1 + broad * 6.2 - flow * 3.4;
+  leafPhase += sin(warped.x * 1.5 + time * 0.31) * 0.9;
+  float leafVein = pow(1.0 - abs(sin(leafPhase)), 17.0);
+  float leafMask = smoothstep(0.22, 0.72, baseY) * smoothstep(0.88, 0.34, baseX);
+  color += leafVein * leafMask * vec3(0.032, 0.043, 0.048) * u_detail_tuning.z;
 
   // Curved textile strands follow the low-frequency field rather than the
   // screen axes, giving the surface a soft woven, frost-etched character.
@@ -207,8 +220,8 @@ void main() {
   float fiberPresence = mix(0.42, 1.0, smoothstep(0.28, 0.74, baseY));
   float fiber = (sin(fiberPhase) * 0.68 + sin(crossPhase) * 0.32) * fiberPresence;
   float thread = pow(1.0 - abs(sin(fiberPhase * 0.51)), 8.0);
-  color += fiber * vec3(0.012, 0.017, 0.02) * u_finish_tuning.x;
-  color += thread * vec3(0.018, 0.024, 0.027) * u_detail_tuning.z;
+  color += fiber * vec3(0.018, 0.024, 0.028) * u_finish_tuning.x;
+  color += thread * vec3(0.026, 0.032, 0.035) * u_detail_tuning.z;
 
   float mineral = valueNoise((warped + baseWarp * 0.42) * 5.2 + seed * 1.7);
   float mineralVein = pow(1.0 - abs(mineral * 2.0 - 1.0), 6.0);
@@ -223,13 +236,13 @@ void main() {
   float coarseFrost = valueNoise(pixel * 0.065 + seed * 17.0);
   float middleFrost = valueNoise(pixel * 0.19 + seed * 31.0);
   float fineFrost = hash21(floor(pixel) + seed * 91.0);
-  color += (coarseFrost - 0.5) * vec3(0.078, 0.087, 0.095) * u_field_tuning.w;
-  color += (middleFrost - 0.5) * vec3(0.04, 0.047, 0.052) * u_field_tuning.w;
-  color += (fineFrost - 0.5) * vec3(0.026, 0.03, 0.034) * u_field_tuning.w;
-  color += smoothstep(0.91, 0.997, fineFrost) * vec3(0.044, 0.052, 0.058) * u_detail_tuning.w;
+  color += (coarseFrost - 0.5) * vec3(0.047, 0.054, 0.06) * u_field_tuning.w;
+  color += (middleFrost - 0.5) * vec3(0.044, 0.05, 0.054) * u_field_tuning.w;
+  color += (fineFrost - 0.5) * vec3(0.035, 0.039, 0.043) * u_field_tuning.w;
+  color += smoothstep(0.91, 0.997, fineFrost) * vec3(0.056, 0.062, 0.067) * u_detail_tuning.w;
 
-  float organicDepth = smoothstep(0.3, 0.78, 1.0 - organicPatch) * u_finish_tuning.y;
-  color = mix(color, deepBlue, organicDepth);
+  float organicDepth = smoothstep(0.34, 0.82, 1.0 - organicPatch) * u_finish_tuning.y;
+  color = mix(color, mineralBlue, organicDepth);
   vec2 edge = (v_uv - 0.5) * vec2(1.35, 1.0);
   float vignette = 1.0 - smoothstep(0.48, 0.92, length(edge));
   color *= mix(1.0 - u_finish_tuning.z, 1.0, vignette);
@@ -237,7 +250,7 @@ void main() {
   float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
   color = mix(vec3(luminance), color, u_finish_tuning.w);
 
-  color = pow(clamp(color, 0.0, 1.0), vec3(0.96));
+  color = pow(clamp(color, 0.0, 1.0), vec3(0.93));
   gl_FragColor = vec4(color, 1.0);
 }
 `;
@@ -326,10 +339,10 @@ interface DesignTuning {
 const PRODUCTION_SEED = 8.1;
 
 const PRODUCTION_TUNING: DesignTuning = {
-  detail: [0.85, 0.58, 0.9, 0.65],
-  field: [1.58, 11.5, 0.18, 1.95],
-  finish: [1.4, 0.07, 0.09, 1],
-  light: [1.15, 0.22, 1.35, 0.002],
+  detail: [0.82, 0.52, 0.82, 0.58],
+  field: [1.5, 11.2, 0.25, 1.42],
+  finish: [1.08, 0.025, 0.018, 0.9],
+  light: [1.22, 0.18, 1.42, -0.225],
 };
 
 function readDesignState() {
@@ -367,7 +380,7 @@ export function mountLivingBackground(canvas: HTMLCanvasElement) {
     return () => undefined;
   }
 
-  const frameInterval = 1000 / 45;
+  const frameInterval = 1000 / 40;
   const design = readDesignState();
   let animationFrame = 0;
   let destroyed = false;
@@ -380,7 +393,7 @@ export function mountLivingBackground(canvas: HTMLCanvasElement) {
   const resize = () => {
     const rect = canvas.getBoundingClientRect();
     const density = Math.min(window.devicePixelRatio || 1, 1.25);
-    const quality = rect.width <= 600 ? 0.68 : 0.62;
+    const quality = rect.width <= 600 ? 0.78 : 0.7;
     const width = Math.max(2, Math.round(rect.width * density * quality));
     const height = Math.max(2, Math.round(rect.height * density * quality));
     if (canvas.width !== width || canvas.height !== height) {

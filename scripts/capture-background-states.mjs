@@ -40,12 +40,39 @@ async function main() {
           await canvas.evaluate(
             (element, state) => {
               const gl = element.getContext("webgl");
+              const pixels = new Uint8Array(element.width * element.height * 4);
+              gl?.readPixels(0, 0, element.width, element.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+              const luminance = [];
+              let darkPixels = 0;
+              let lightPixels = 0;
+              let veryLightPixels = 0;
+              let sum = 0;
+              for (let index = 0; index < pixels.length; index += 4) {
+                const value = pixels[index] * 0.2126 + pixels[index + 1] * 0.7152 + pixels[index + 2] * 0.0722;
+                luminance.push(value);
+                sum += value;
+                if (value < 90) darkPixels += 1;
+                if (value > 180) lightPixels += 1;
+                if (value > 210) veryLightPixels += 1;
+              }
+              luminance.sort((left, right) => left - right);
+              const percentile = (ratio) => luminance[Math.min(luminance.length - 1, Math.floor(luminance.length * ratio))];
+              const pixelCount = luminance.length;
               return {
                 ...state,
                 ready: element.dataset.ready === "true",
                 cssSize: [element.clientWidth, element.clientHeight],
                 bufferSize: [element.width, element.height],
                 contextLost: gl?.isContextLost() ?? null,
+                luminance: {
+                  darkFraction: darkPixels / pixelCount,
+                  lightFraction: lightPixels / pixelCount,
+                  mean: sum / pixelCount,
+                  p10: percentile(0.1),
+                  p50: percentile(0.5),
+                  p90: percentile(0.9),
+                  veryLightFraction: veryLightPixels / pixelCount,
+                },
                 webgl: Boolean(gl),
               };
             },

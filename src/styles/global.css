@@ -2077,7 +2077,7 @@ textarea::placeholder {
   width: 100%;
   min-height: 100dvh;
   overflow: hidden;
-  background: #073c68;
+  background: #b9dce9;
 }
 
 .nava-app-stage > :not(.living-background) {
@@ -2093,13 +2093,13 @@ textarea::placeholder {
   isolation: isolate;
   contain: strict;
   background:
-    repeating-radial-gradient(ellipse at 18% 31%, rgba(244, 252, 255, 0.12) 0 1px, transparent 2px 10px),
-    repeating-linear-gradient(117deg, rgba(255, 255, 255, 0.035) 0 1px, rgba(2, 49, 88, 0.025) 1px 4px),
-    radial-gradient(ellipse at 12% 12%, rgba(239, 251, 255, 0.98) 0 5%, rgba(137, 205, 229, 0.78) 27%, transparent 58%),
-    radial-gradient(ellipse at 82% 33%, rgba(75, 169, 207, 0.82) 0 11%, transparent 54%),
-    radial-gradient(ellipse at 28% 82%, rgba(4, 62, 111, 0.84) 0 12%, transparent 57%),
-    radial-gradient(ellipse at 88% 88%, rgba(96, 183, 215, 0.58) 0 9%, transparent 48%),
-    linear-gradient(143deg, #bfe7f3 0%, #4ca6ca 35%, #126f9f 63%, #062f61 100%);
+    repeating-radial-gradient(ellipse at 18% 31%, rgba(255, 255, 255, 0.16) 0 1px, transparent 2px 10px),
+    repeating-linear-gradient(117deg, rgba(255, 255, 255, 0.055) 0 1px, rgba(40, 119, 153, 0.018) 1px 4px),
+    radial-gradient(ellipse at 13% 14%, rgba(249, 253, 255, 0.96) 0 8%, rgba(207, 235, 244, 0.78) 31%, transparent 61%),
+    radial-gradient(ellipse at 84% 31%, rgba(134, 198, 220, 0.58) 0 10%, transparent 56%),
+    radial-gradient(ellipse at 27% 83%, rgba(70, 142, 174, 0.4) 0 10%, transparent 58%),
+    radial-gradient(ellipse at 88% 87%, rgba(221, 241, 248, 0.66) 0 12%, transparent 52%),
+    linear-gradient(143deg, #edf8fb 0%, #c4e3ed 34%, #8fc5d8 65%, #5b9bb7 100%);
   background-blend-mode: soft-light, overlay, screen, normal, multiply, screen, normal;
 }
 
@@ -2311,10 +2311,10 @@ textarea::placeholder {
 .auth-screen .language-toggle {
   min-width: 62px;
   min-height: 34px;
-  border-color: rgba(238, 250, 255, 0.42);
-  color: rgba(244, 252, 255, 0.94);
-  background: rgba(224, 246, 255, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 10px 30px rgba(0, 39, 80, 0.1);
+  border-color: rgba(29, 98, 137, 0.2);
+  color: rgba(7, 49, 79, 0.9);
+  background: rgba(239, 249, 253, 0.46);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62), 0 10px 30px rgba(0, 39, 80, 0.08);
   -webkit-backdrop-filter: blur(18px) saturate(1.2);
   backdrop-filter: blur(18px) saturate(1.2);
 }
@@ -2366,16 +2366,16 @@ textarea::placeholder {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  color: #f7fcff;
+  color: #082f4d;
 }
 
 .auth-form-head h1 {
   margin: 0;
-  color: #f7fcff;
+  color: #082f4d;
   font-size: 34px;
   font-weight: 760;
   line-height: 1;
-  text-shadow: 0 12px 30px rgba(0, 33, 72, 0.26);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.42), 0 12px 30px rgba(0, 33, 72, 0.12);
 }
 
 .auth-mode-icon {
@@ -2385,14 +2385,14 @@ textarea::placeholder {
   display: grid;
   place-items: center;
   padding: 0;
-  color: rgba(247, 252, 255, 0.96);
+  color: rgba(7, 55, 88, 0.9);
   background: transparent;
   filter: drop-shadow(0 9px 18px rgba(0, 34, 73, 0.22));
   transition: color 180ms ease, transform 180ms ease, filter 180ms ease;
 }
 
 .auth-mode-icon:active {
-  color: #ffffff;
+  color: #032b49;
   transform: scale(0.9) rotate(-4deg);
   filter: drop-shadow(0 4px 10px rgba(0, 34, 73, 0.18));
 }
@@ -2410,7 +2410,7 @@ textarea::placeholder {
 .auth-form .field-label {
   display: block;
   margin: 0 0 7px 2px;
-  color: rgba(244, 251, 255, 0.88);
+  color: rgba(7, 52, 83, 0.82);
   font-size: 13px;
   font-weight: 720;
   text-shadow: 0 8px 20px rgba(0, 34, 73, 0.18);
@@ -2574,7 +2574,11 @@ textarea::placeholder {
 }
 
 .auth-submit:disabled {
-  opacity: 0.46;
+  border-color: rgba(221, 243, 251, 0.24);
+  color: rgba(236, 248, 253, 0.72);
+  background: rgba(17, 76, 111, 0.48);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 12px 28px rgba(0, 38, 72, 0.1);
+  opacity: 1;
 }
 
 .auth-forgot {
@@ -2583,7 +2587,7 @@ textarea::placeholder {
   display: block;
   margin: 6px auto 0;
   padding: 0 12px;
-  color: rgba(240, 250, 255, 0.86);
+  color: rgba(7, 52, 83, 0.78);
   background: transparent;
   font-size: 13px;
   font-weight: 680;
@@ -2591,7 +2595,7 @@ textarea::placeholder {
 }
 
 .auth-forgot:disabled {
-  opacity: 0.42;
+  opacity: 0.62;
 }
 
 @keyframes nava-wordmark-breathe {
