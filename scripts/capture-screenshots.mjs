@@ -256,6 +256,13 @@ async function main() {
         await openRecordModule("focus", "03-record-focus.png");
         await closeRecordModule();
         await openRecordModule("face", "03-record-face.png");
+        metrics.recordFace = await page.evaluate(() => ({
+          cameraActions: document.querySelectorAll('[data-record-detail="face"] .face-camera-action').length,
+          centerText: document.querySelector('[data-record-detail="face"] .photo-picker.face')?.textContent?.trim() ?? "",
+        }));
+        if (metrics.recordFace.cameraActions !== 1 || !metrics.recordFace.centerText.includes("拍照分析面部状态")) {
+          throw new Error(`Face record camera action or center prompt is incomplete: ${JSON.stringify(metrics.recordFace)}`);
+        }
         await page.locator('[data-record-detail="face"] input[capture="user"]').setInputFiles(samplePhoto);
         await page.waitForTimeout(500);
         await shot("03-record-face-result.png");

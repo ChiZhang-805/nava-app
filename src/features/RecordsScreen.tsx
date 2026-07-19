@@ -118,6 +118,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [faceResult, setFaceResult] = useState<FaceAnalysisResult | null>(null);
   const [faceAnalyzing, setFaceAnalyzing] = useState(false);
+  const facePhotoInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const estimated = estimateMinutes(sleepStart, sleepEnd);
@@ -547,11 +548,27 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
       </form>
 
       <div hidden={activeModule !== "face"}>
-        <SectionCard title={t("records.face")}>
+        <SectionCard
+          title={t("records.face")}
+          action={
+            <button
+              className="section-icon-action face-camera-action"
+              type="button"
+              aria-label={t("records.frontCamera")}
+              title={t("records.frontCamera")}
+              disabled={faceAnalyzing}
+              onClick={() => facePhotoInputRef.current?.click()}
+            >
+              {faceAnalyzing ? <Loader2 className="spin" size={22} /> : <Camera size={23} strokeWidth={1.9} />}
+            </button>
+          }
+        >
           <label className="photo-picker face">
             {faceImage ? <img src={faceImage} alt="面部照片" /> : <ScanFace size={30} />}
             <span>{faceAnalyzing ? t("records.faceScanning") : t("records.scanFace")}</span>
             <input
+              aria-label={t("records.frontCamera")}
+              ref={facePhotoInputRef}
               type="file"
               accept="image/*"
               capture="user"
