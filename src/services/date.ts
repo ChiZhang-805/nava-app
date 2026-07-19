@@ -29,7 +29,7 @@ export function minutesToText(minutes: number | null | undefined, locale: DateLo
     if (m <= 0) return `${h}h`;
     return `${h}h ${m}m`;
   }
-  if (h <= 0) return `${m} 分钟`;
-  if (m <= 0) return `${h} 小时`;
-  return `${h} 小时 ${m} 分钟`;
+  if (h <= 0) return `${m}分`;
+  if (m <= 0) return `${h}小时`;
+  return `${h}小时 ${m}分`;
 }

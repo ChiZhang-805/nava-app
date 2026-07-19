@@ -220,7 +220,7 @@ button {
 
 .algorithm-strip {
   display: grid;
-  grid-template-columns: 1.35fr 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1px;
   overflow: hidden;
   border: 1px solid rgba(28, 52, 41, 0.1);
@@ -341,14 +341,25 @@ button {
 .metric-card strong {
   display: block;
   margin-top: 16px;
-  font-size: 25px;
+  overflow: hidden;
+  font-size: 23px;
   line-height: 1.1;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .recommendation {
-  margin: 0 0 14px;
+  display: -webkit-box;
+  min-height: 3.2em;
+  margin: 0;
+  overflow: hidden;
   color: #22332a;
+  font-size: 15px;
   line-height: 1.6;
+  text-wrap: pretty;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .button-row {
@@ -714,24 +725,65 @@ textarea {
 }
 
 .chat-layout {
-  min-height: calc(100dvh - 190px);
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .chat-list {
-  min-height: 260px;
-  max-height: calc(100dvh - 330px);
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
   overflow: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 4px 2px;
+  padding: 4px 2px 12px;
+  overscroll-behavior: contain;
+}
+
+.chat-message-row {
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.chat-message-row.assistant {
+  justify-content: flex-start;
+}
+
+.chat-message-row.user {
+  justify-content: flex-end;
+}
+
+.chat-avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(219, 242, 255, 0.65);
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 760;
+  box-shadow: 0 7px 18px rgba(7, 43, 70, 0.14);
+}
+
+.chat-avatar.assistant {
+  color: #0e669c;
+  background: rgba(240, 250, 255, 0.9);
+}
+
+.chat-avatar.user {
+  color: #ffffff;
+  background: #0c5f91;
 }
 
 .chat-bubble {
-  max-width: 88%;
+  max-width: calc(100% - 46px);
   border-radius: 18px;
   padding: 12px 13px;
   box-shadow: 0 8px 20px rgba(30, 47, 38, 0.08);
@@ -750,7 +802,8 @@ textarea {
 }
 
 .chat-bubble.user {
-  align-self: flex-end;
+  align-self: auto;
+  border-bottom-right-radius: 6px;
   color: #ffffff;
   background: #1f7a5a;
 }
@@ -760,16 +813,24 @@ textarea {
 }
 
 .chat-bubble.assistant {
-  align-self: flex-start;
+  align-self: auto;
+  border-bottom-left-radius: 6px;
   color: #1f2c24;
   background: #ffffff;
 }
 
 .chat-composer {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 10px;
   align-items: center;
+  border: 1px solid rgba(219, 242, 255, 0.55);
+  border-radius: 24px;
+  padding: 8px;
+  background: rgba(239, 249, 254, 0.74);
+  box-shadow: 0 14px 34px rgba(7, 43, 70, 0.13);
+  backdrop-filter: blur(20px);
 }
 
 .empty-chat {
@@ -995,6 +1056,16 @@ body::before {
   padding: 8px 18px 18px;
 }
 
+.app-content--chat {
+  overflow: hidden;
+  padding-bottom: 8px;
+}
+
+.app-content--chat .screen-panel {
+  height: 100%;
+  min-height: 0;
+}
+
 .screen-panel {
   animation: screen-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -1170,6 +1241,8 @@ body::before {
 }
 
 .algorithm-strip > div {
+  min-height: 62px;
+  padding: 10px 9px;
   background: rgba(248, 253, 255, 0.62);
 }
 
@@ -1191,6 +1264,228 @@ body::before {
 
 .metric-card strong {
   color: #061b2b;
+}
+
+.section-icon-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.section-icon-action {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: rgba(7, 45, 73, 0.76);
+  background: transparent;
+  cursor: pointer;
+  transition: color 180ms ease, transform 180ms ease, opacity 180ms ease;
+}
+
+.section-icon-action:hover {
+  color: #075f94;
+}
+
+.section-icon-action:active {
+  transform: scale(0.92);
+}
+
+.section-icon-action:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.section-icon-action.success {
+  color: #168453;
+}
+
+.today-data-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid rgba(90, 148, 179, 0.16);
+  border-bottom: 1px solid rgba(90, 148, 179, 0.16);
+}
+
+.today-data-item {
+  position: relative;
+  min-width: 0;
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 11px 27px 11px 8px;
+}
+
+.today-data-item:nth-child(odd) {
+  border-right: 1px solid rgba(90, 148, 179, 0.16);
+}
+
+.today-data-item:nth-child(-n + 2) {
+  border-bottom: 1px solid rgba(90, 148, 179, 0.16);
+}
+
+.today-data-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #126da8;
+  background: rgba(217, 241, 252, 0.72);
+}
+
+.today-data-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.today-data-copy strong,
+.today-data-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-data-copy strong {
+  color: #09243a;
+  font-size: 13px;
+}
+
+.today-data-copy small {
+  color: rgba(8, 45, 73, 0.54);
+  font-size: 11px;
+}
+
+.today-data-check {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  color: #168453;
+  transform: translateY(-50%);
+}
+
+.today-data-item.pending .today-data-check {
+  color: rgba(8, 45, 73, 0.34);
+}
+
+.today-data-action {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 13px;
+}
+
+.today-data-action .action-button {
+  min-height: 46px;
+}
+
+.line-trend-chart {
+  width: 100%;
+  overflow: hidden;
+}
+
+.line-trend-chart svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.trend-grid-line {
+  stroke: rgba(21, 96, 139, 0.11);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+}
+
+.trend-confidence-band {
+  fill: rgba(72, 180, 218, 0.17);
+  stroke: rgba(32, 137, 181, 0.25);
+  stroke-width: 1;
+}
+
+.trend-line {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.trend-point circle {
+  fill: #f4fbff;
+  stroke: #0b6eaa;
+  stroke-width: 3;
+}
+
+.line-trend-chart.rhythm .trend-point circle {
+  fill: #dff5ff;
+  stroke: #07527f;
+}
+
+.trend-value,
+.trend-date {
+  fill: rgba(7, 35, 54, 0.72);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 720;
+  letter-spacing: 0;
+}
+
+.trend-date {
+  fill: rgba(8, 45, 73, 0.5);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.profile-form .field:last-child,
+.privacy-list {
+  margin-bottom: 0;
+}
+
+.profile-form .field span,
+.profile-form input {
+  transition: color 220ms ease, border-color 220ms ease, background 220ms ease, box-shadow 220ms ease;
+}
+
+.profile-form.saved .field span {
+  color: #16774c;
+}
+
+.profile-form.saved input {
+  border-color: rgba(31, 159, 99, 0.58);
+  color: #125f3e;
+  background: rgba(226, 250, 238, 0.78);
+  box-shadow: 0 0 0 3px rgba(31, 159, 99, 0.08);
+}
+
+.watch-device-icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  color: #0b5f91;
+}
+
+.watch-card > div {
+  min-width: 0;
 }
 
 .action-button {

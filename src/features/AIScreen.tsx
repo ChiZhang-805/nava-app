@@ -84,12 +84,27 @@ export default function AIScreen({ user }: { user: User }) {
             <span>{t("ai.emptyText")}</span>
           </div>
         )}
-        {messages.map((message) => (
-          <article className={message.role === "user" ? "chat-bubble user" : "chat-bubble assistant"} key={message.id}>
-            <p>{message.content}</p>
-            <time>{new Date(message.created_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}</time>
-          </article>
-        ))}
+        {messages.map((message) => {
+          const isUser = message.role === "user";
+          return (
+            <div className={["chat-message-row", isUser ? "user" : "assistant"].join(" ")} key={message.id}>
+              {!isUser && (
+                <span className="chat-avatar assistant" aria-hidden="true">
+                  <Sparkles size={16} />
+                </span>
+              )}
+              <article className={isUser ? "chat-bubble user" : "chat-bubble assistant"}>
+                <p>{message.content}</p>
+                <time>{new Date(message.created_at).toLocaleTimeString(locale === "en" ? "en-US" : "zh-CN", { hour: "2-digit", minute: "2-digit" })}</time>
+              </article>
+              {isUser && (
+                <span className="chat-avatar user" aria-hidden="true">
+                  {user.email?.slice(0, 1).toUpperCase() ?? "N"}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {error && <p className="error-text">{error}</p>}

@@ -607,7 +607,7 @@ async function upsertFocusDistribution(userId: string, recordDate: string, minut
 export async function getTrends(userId: string): Promise<TrendBundle> {
   if (isDemoMode()) return demoTrends();
 
-  const start = daysAgoISO(14);
+  const start = daysAgoISO(6);
   const [moods, sleeps, exercises, nutritions, focus, rhythms] = await Promise.all([
     supabase.from("mood_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("sleep_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),

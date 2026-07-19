@@ -1,0 +1,101 @@
+import { useId } from "react";
+
+export interface LineTrendPoint {
+  id: string;
+  label: string;
+  value: number;
+  lower?: number | null;
+  upper?: number | null;
+}
+
+function clampScore(value: number) {
+  return Math.min(100, Math.max(0, value));
+}
+
+export default function LineTrendChart({
+  points,
+  ariaLabel,
+  tone = "mood",
+}: {
+  points: LineTrendPoint[];
+  ariaLabel: string;
+  tone?: "mood" | "rhythm";
+}) {
+  const rawId = useId();
+  if (points.length === 0) return null;
+  const gradientId = `trend-gradient-${rawId.replace(/:/g, "")}`;
+  const width = 320;
+  const height = 184;
+  const left = 16;
+  const right = 304;
+  const top = 22;
+  const bottom = 142;
+  const spanX = right - left;
+  const spanY = bottom - top;
+  const scaleValues = points.flatMap((point) => [point.value, point.lower, point.upper]).filter((value): value is number => value != null);
+  const rawMin = Math.min(...scaleValues);
+  const rawMax = Math.max(...scaleValues);
+  let domainMin = Math.max(0, Math.floor((rawMin - 5) / 10) * 10);
+  let domainMax = Math.min(100, Math.ceil((rawMax + 5) / 10) * 10);
+  while (domainMax - domainMin < 30) {
+    if (domainMin > 0) domainMin = Math.max(0, domainMin - 10);
+    if (domainMax - domainMin >= 30) break;
+    if (domainMax < 100) domainMax = Math.min(100, domainMax + 10);
+    else break;
+  }
+  if (domainMax <= domainMin) domainMax = Math.min(100, domainMin + 30);
+  const domainSpan = Math.max(1, domainMax - domainMin);
+  const xAt = (index: number) => left + (points.length <= 1 ? spanX / 2 : (index / (points.length - 1)) * spanX);
+  const yAt = (value: number) => top + ((domainMax - Math.min(domainMax, Math.max(domainMin, clampScore(value)))) / domainSpan) * spanY;
+  const linePoints = points.map((point, index) => `${xAt(index)},${yAt(point.value)}`).join(" ");
+  const hasBand = points.length > 1 && points.every((point) => point.lower != null && point.upper != null);
+  const bandPoints = hasBand
+    ? [
+        ...points.map((point, index) => `${xAt(index)},${yAt(point.upper as number)}`),
+        ...points.map((point, index) => `${xAt(points.length - index - 1)},${yAt(points[points.length - index - 1].lower as number)}`),
+      ].join(" ")
+    : "";
+
+  return (
+    <div className={["line-trend-chart", tone].join(" ")}>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel}>
+        <title>{ariaLabel}</title>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#4ec4f2" />
+            <stop offset="55%" stopColor="#147fb9" />
+            <stop offset="100%" stopColor="#07527f" />
+          </linearGradient>
+        </defs>
+
+        {[0.25, 0.5, 0.75].map((ratio) => {
+          const score = domainMin + domainSpan * ratio;
+          return (
+          <line className="trend-grid-line" x1={left} x2={right} y1={yAt(score)} y2={yAt(score)} key={score} />
+          );
+        })}
+
+        {hasBand && <polygon className="trend-confidence-band" points={bandPoints} />}
+        <polyline className="trend-line" points={linePoints} style={{ stroke: `url(#${gradientId})` }} />
+
+        {points.map((point, index) => {
+          const x = xAt(index);
+          const y = yAt(point.value);
+          const showDate = points.length <= 4 || index % 2 === 0 || index === points.length - 1;
+          return (
+            <g className="trend-point" key={point.id}>
+              <circle cx={x} cy={y} r="4.5">
+                <title>{`${point.label}: ${Math.round(point.value)}`}</title>
+              </circle>
+              <text className="trend-value" x={x} y={Math.max(12, y - 9)} textAnchor="middle">{Math.round(point.value)}</text>
+              {showDate && <text className="trend-date" x={x} y={169} textAnchor="middle">{point.label}</text>}
+            </g>
+          );
+        })}
+      </svg>
+      <ol className="sr-only">
+        {points.map((point) => <li key={point.id}>{point.label}: {Math.round(point.value)}</li>)}
+      </ol>
+    </div>
+  );
+}

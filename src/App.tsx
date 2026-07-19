@@ -1,5 +1,5 @@
 import { Activity, Bot, ChartNoAxesColumn, ClipboardPlus, Home, Sparkles, UserRound } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { assertConfig } from "./config";
 import AuthScreen from "./features/AuthScreen";
 import TodayScreen from "./features/TodayScreen";
@@ -10,7 +10,6 @@ import ProfileScreen from "./features/ProfileScreen";
 import PasswordRecoveryScreen from "./features/PasswordRecoveryScreen";
 import { AuthProvider } from "./state/AuthProvider";
 import { useAuth } from "./state/authContext";
-import { useEffect } from "react";
 import { enqueueAndFlushWatchAction, flushPendingWatchActions, subscribeWatchActions } from "./services/watch";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LanguageToggle from "./components/LanguageToggle";
@@ -63,6 +62,7 @@ function MobileShell() {
   const t = useT();
   const [activeTab, setActiveTab] = useState<AppTab>("today");
   const [refreshKey, setRefreshKey] = useState(0);
+  const contentRef = useRef<HTMLElement | null>(null);
   const currentTab = tabs.find((tab) => tab.id === activeTab);
 
   const markChanged = () => setRefreshKey((value) => value + 1);
@@ -92,6 +92,10 @@ function MobileShell() {
     };
   }, [user]);
 
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [activeTab]);
+
   if (!user) return null;
 
   return (
@@ -109,7 +113,10 @@ function MobileShell() {
         </div>
       </header>
 
-      <main className="app-content">
+      <main
+        className={["app-content", activeTab === "ai" ? "app-content--chat" : ""].filter(Boolean).join(" ")}
+        ref={contentRef}
+      >
         <div className="screen-panel" key={activeTab}>
           {activeTab === "today" && <TodayScreen user={user} refreshKey={refreshKey} onOpenRecord={() => setActiveTab("record")} />}
           {activeTab === "record" && <RecordsScreen user={user} onSaved={markChanged} />}

@@ -5,13 +5,18 @@ import ActionButton from "../components/ActionButton";
 import SectionCard from "../components/SectionCard";
 import StatusPill from "../components/StatusPill";
 import { useLocale } from "../i18n";
-import { appConfig } from "../config";
 import { exportUserData, downloadJson } from "../services/exportData";
 import { isNativeHealthAvailable, requestHealthAuthorization, syncNativeHealthNow } from "../services/health";
 import { loadProfile, saveProfile, type UserProfile } from "../services/profile";
 import { getWatchReachability, readLastWatchSnapshot } from "../services/watch";
 import { useAuth } from "../state/authContext";
 import type { WatchUserSnapshot } from "../types";
+
+function daysSinceSignup(createdAt?: string) {
+  const created = Date.parse(createdAt ?? "");
+  if (!Number.isFinite(created)) return 1;
+  return Math.max(1, Math.floor((Date.now() - created) / 86_400_000) + 1);
+}
 
 export default function ProfileScreen({ user, onChanged }: { user: User; onChanged: () => void }) {
   const { signOut } = useAuth();
@@ -22,6 +27,7 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
   const [watchSnapshot, setWatchSnapshot] = useState<WatchUserSnapshot | null>(null);
   const [watchReachable, setWatchReachable] = useState<{ paired: boolean; reachable: boolean } | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileSaved, setProfileSaved] = useState(false);
   const [profileDraft, setProfileDraft] = useState({
     username: "",
     height: "",
@@ -30,17 +36,19 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
     occupation: "",
   });
 
-  async function run(label: string, fn: () => Promise<unknown>) {
-    setBusy(label);
+  async function run(action: string, successMessage: string, fn: () => Promise<unknown>) {
+    setBusy(action);
     setMessage(null);
     setError(null);
     try {
       await fn();
-      setMessage(`${label}完成`);
+      setMessage(successMessage);
       onChanged();
       setWatchSnapshot(await readLastWatchSnapshot());
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      return false;
     } finally {
       setBusy(null);
     }
@@ -64,10 +72,11 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
   }, [user.id]);
 
   async function submitProfile() {
-    await run("资料保存", async () => {
+    setProfileSaved(false);
+    const savedSuccessfully = await run("profile", t("profile.saveSuccess"), async () => {
       const saved = await saveProfile({
         id: user.id,
-        username: profileDraft.username.trim() || user.email || "NAVA 用户",
+        username: profileDraft.username.trim() || t("profile.defaultName"),
         height: profileDraft.height ? Number(profileDraft.height) : null,
         weight: profileDraft.weight ? Number(profileDraft.weight) : null,
         goal: profileDraft.goal.trim() || null,
@@ -75,82 +84,103 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
       });
       setProfile(saved);
     });
+    setProfileSaved(savedSuccessfully);
   }
 
   async function exportData() {
-    await run("数据导出", async () => {
+    await run("export", t("profile.exportSuccess"), async () => {
       const data = await exportUserData(user.id);
       downloadJson(`nava-export-${user.id}.json`, data);
     });
   }
 
+  function updateDraft(key: keyof typeof profileDraft, value: string) {
+    setProfileSaved(false);
+    setProfileDraft((draft) => ({ ...draft, [key]: value }));
+  }
+
+  const displayName = profileDraft.username.trim() || profile?.username?.trim() || t("profile.defaultName");
+  const memberDays = String(daysSinceSignup(user.created_at)).padStart(3, "0");
+
   return (
     <div className="stack">
-      <SectionCard title={t("profile.account")} action={<StatusPill tone="good">{t("profile.sameAccount")}</StatusPill>}>
+      <SectionCard title={t("profile.account")}>
         <div className="profile-row">
-          <div className="avatar large">{user.email?.slice(0, 1).toUpperCase() ?? "N"}</div>
+          <div className="avatar large">{displayName.slice(0, 1).toUpperCase()}</div>
           <div>
-            <strong>{user.email}</strong>
-            <p className="muted">{t("profile.webIphoneWatch")}</p>
+            <strong>{displayName}</strong>
+            <p className="muted">{t("profile.daysHere", { days: memberDays })}</p>
           </div>
         </div>
       </SectionCard>
 
-      <SectionCard title={t("profile.personal")}>
-        <label className="field">
-          <span>{t("profile.nickname")}</span>
-          <input value={profileDraft.username} onChange={(e) => setProfileDraft((draft) => ({ ...draft, username: e.target.value }))} placeholder={profile?.username ?? t("profile.defaultName")} />
-        </label>
-        <div className="two-col">
+      <SectionCard
+        title={t("profile.personal")}
+        action={(
+          <button
+            className={["section-icon-action", profileSaved ? "success" : ""].filter(Boolean).join(" ")}
+            type="button"
+            aria-label={t("profile.save")}
+            title={t("profile.save")}
+            onClick={submitProfile}
+            disabled={busy === "profile"}
+          >
+            <Save size={21} />
+          </button>
+        )}
+      >
+        <div className={["profile-form", profileSaved ? "saved" : ""].filter(Boolean).join(" ")}>
           <label className="field">
-            <span>{t("profile.height")}</span>
-            <input inputMode="decimal" value={profileDraft.height} onChange={(e) => setProfileDraft((draft) => ({ ...draft, height: e.target.value }))} />
+            <span>{t("profile.nickname")}</span>
+            <input value={profileDraft.username} onChange={(e) => updateDraft("username", e.target.value)} placeholder={profile?.username ?? t("profile.defaultName")} />
+          </label>
+          <div className="two-col">
+            <label className="field">
+              <span>{t("profile.height")}</span>
+              <input inputMode="decimal" value={profileDraft.height} onChange={(e) => updateDraft("height", e.target.value)} />
+            </label>
+            <label className="field">
+              <span>{t("profile.weight")}</span>
+              <input inputMode="decimal" value={profileDraft.weight} onChange={(e) => updateDraft("weight", e.target.value)} />
+            </label>
+          </div>
+          <label className="field">
+            <span>{t("profile.goal")}</span>
+            <input value={profileDraft.goal} onChange={(e) => updateDraft("goal", e.target.value)} placeholder={t("profile.goalPlaceholder")} />
           </label>
           <label className="field">
-            <span>{t("profile.weight")}</span>
-            <input inputMode="decimal" value={profileDraft.weight} onChange={(e) => setProfileDraft((draft) => ({ ...draft, weight: e.target.value }))} />
+            <span>{t("profile.occupation")}</span>
+            <input value={profileDraft.occupation} onChange={(e) => updateDraft("occupation", e.target.value)} />
           </label>
         </div>
-        <label className="field">
-          <span>{t("profile.goal")}</span>
-          <input value={profileDraft.goal} onChange={(e) => setProfileDraft((draft) => ({ ...draft, goal: e.target.value }))} placeholder={t("profile.goalPlaceholder")} />
-        </label>
-        <label className="field">
-          <span>{t("profile.occupation")}</span>
-          <input value={profileDraft.occupation} onChange={(e) => setProfileDraft((draft) => ({ ...draft, occupation: e.target.value }))} />
-        </label>
-        <ActionButton icon={<Save size={18} />} onClick={submitProfile} disabled={busy === "资料保存"}>
-          {t("profile.save")}
-        </ActionButton>
       </SectionCard>
 
       <SectionCard
         title={t("profile.appleHealth")}
-        subtitle="HealthKit"
         action={<StatusPill tone={isNativeHealthAvailable() ? "good" : "warn"}>{isNativeHealthAvailable() ? t("profile.available") : t("profile.browserPreview")}</StatusPill>}
       >
         <div className="button-row">
           <ActionButton
             icon={<Apple size={18} />}
             variant="secondary"
-            disabled={busy === "HealthKit 授权"}
-            onClick={() => run("HealthKit 授权", requestHealthAuthorization)}
+            disabled={busy === "health-auth"}
+            onClick={() => run("health-auth", t("profile.authorizationSuccess"), requestHealthAuthorization)}
           >
             {t("profile.requestAuth")}
           </ActionButton>
           <ActionButton
             icon={<RefreshCw size={18} />}
-            disabled={busy === "健康同步"}
-            onClick={() => run("健康同步", () => syncNativeHealthNow(user.id))}
+            disabled={busy === "health-sync"}
+            onClick={() => run("health-sync", t("profile.syncSuccess"), () => syncNativeHealthNow(user.id))}
           >
             {t("profile.syncNow")}
           </ActionButton>
         </div>
       </SectionCard>
 
-      <SectionCard title={t("profile.appleWatch")} subtitle={t("profile.iphoneSync")}>
+      <SectionCard title={t("profile.appleWatch")}>
         <div className="watch-card">
-          <Watch size={22} />
+          <span className="watch-device-icon" aria-hidden="true"><Watch size={30} /></span>
           <div>
             <strong>{watchReachable?.paired ? t("profile.watchPaired") : watchSnapshot ? t("profile.watchSnapshot") : t("profile.watchWaiting")}</strong>
             <p className="muted">
@@ -162,8 +192,22 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
         </div>
       </SectionCard>
 
-      <SectionCard title={t("profile.privacy")}>
-        <div className="timeline-list">
+      <SectionCard
+        title={t("profile.privacy")}
+        action={(
+          <button
+            className="section-icon-action"
+            type="button"
+            aria-label={t("profile.export")}
+            title={t("profile.export")}
+            onClick={exportData}
+            disabled={busy === "export"}
+          >
+            <Download size={21} />
+          </button>
+        )}
+      >
+        <div className="timeline-list privacy-list">
           <div>
             <ShieldCheck size={18} />
             <span>{t("profile.privacyKey")}</span>
@@ -177,14 +221,6 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
             <span>{t("profile.privacyExport")}</span>
           </div>
         </div>
-        <ActionButton icon={<Download size={18} />} variant="secondary" onClick={exportData} disabled={busy === "数据导出"}>
-          {t("profile.export")}
-        </ActionButton>
-      </SectionCard>
-
-      <SectionCard title={t("profile.environment")} subtitle={appConfig.appEnv}>
-        <code className="code-card">{appConfig.supabaseUrl}</code>
-        <code className="code-card">{appConfig.upstreamRepo}</code>
       </SectionCard>
 
       {message && <p className="success-text">{message}</p>}

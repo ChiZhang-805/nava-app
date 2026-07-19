@@ -87,11 +87,11 @@ export function demoTodaySnapshot(): TodaySnapshot {
 }
 
 export function demoTrends(): TrendBundle {
-  const moods: MoodRecord[] = Array.from({ length: 14 }, (_, index) => ({
+  const moods: MoodRecord[] = Array.from({ length: 7 }, (_, index) => ({
     ...demoMood,
     id: `demo-mood-${index}`,
-    record_date: daysAgoISO(13 - index),
-    mood_score: [62, 68, 72, 70, 76, 74, 78, 81, 77, 80, 84, 82, 79, 86][index],
+    record_date: daysAgoISO(6 - index),
+    mood_score: [81, 77, 80, 84, 82, 79, 86][index],
   }));
   const sleeps: SleepRecord[] = moods.map((mood, index) => ({
     ...demoSleep,
@@ -121,10 +121,10 @@ export function demoTrends(): TrendBundle {
   const rhythms: DailyRhythmScore[] = moods.map((mood, index) => ({
     id: `demo-rhythm-${index}`,
     record_date: mood.record_date,
-    score: [62, 65, 67, 64, 70, 72, 71, 75, 74, 77, 79, 81, 80, 83][index],
+    score: [75, 74, 77, 79, 81, 80, 83][index],
     confidence: 0.76 + index * 0.008,
-    score_lower: [54, 57, 59, 56, 62, 64, 63, 67, 66, 69, 71, 73, 72, 77][index],
-    score_upper: [70, 73, 75, 72, 78, 80, 79, 83, 82, 85, 87, 89, 88, 88][index],
+    score_lower: [67, 66, 69, 71, 73, 72, 77][index],
+    score_upper: [83, 82, 85, 87, 89, 88, 88][index],
     model_version: "nava-chronostate-v4.27-2026-07",
     schema_version: "4.27.0",
     fusion: {
@@ -146,7 +146,7 @@ export function demoTrends(): TrendBundle {
       },
     },
     data_quality_score: 82,
-    trend_slope: index > 7 ? 1.1 : 0.4,
+    trend_slope: index > 3 ? 1.1 : 0.4,
     anomaly_flags: [],
     actions: [],
   }));

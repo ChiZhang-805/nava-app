@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { Activity, Apple, BedDouble, Brain, Flame, Moon, RefreshCw, SmilePlus, Watch } from "lucide-react";
+import { Activity, BedDouble, Brain, Check, CircleDashed, Flame, HeartPulse, Moon, RefreshCw, SmilePlus, Watch } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useState } from "react";
 import ActionButton from "../components/ActionButton";
@@ -13,9 +13,11 @@ import { getNativeTodaySummary, isNativeHealthAvailable, syncNativeHealthNow } f
 import { publishWatchSnapshot } from "../services/watch";
 import type { TodaySnapshot } from "../types";
 
-function rhythmModelLabel(modelVersion?: string | null) {
-  const match = modelVersion?.match(/v(\d+(?:\.\d+)?)/i);
-  return match ? `ChronoState V${match[1]}` : "离线估算";
+function rhythmStateKey(score?: number | null): TranslationKey {
+  if (score == null) return "today.stateWaiting";
+  if (score >= 80) return "today.stateSteady";
+  if (score >= 65) return "today.stateBalancing";
+  return "today.stateRecovery";
 }
 
 const factorLabelKeys: Record<string, TranslationKey> = {
@@ -107,6 +109,35 @@ export default function TodayScreen({
     );
   }
 
+  const healthAvailable = isNativeHealthAvailable();
+  const todayDataStates = [
+    {
+      id: "sleep",
+      label: t("today.sleep"),
+      ready: Boolean(snapshot?.sleep),
+      icon: <Moon size={17} />,
+    },
+    {
+      id: "exercise",
+      label: t("today.exercise"),
+      ready: Boolean(snapshot?.exercise) || nativeSteps != null,
+      icon: <Flame size={17} />,
+    },
+    {
+      id: "mood",
+      label: t("today.mood"),
+      ready: Boolean(snapshot?.mood),
+      icon: <SmilePlus size={17} />,
+    },
+    {
+      id: "watch",
+      label: t("today.watch"),
+      ready: healthAvailable,
+      icon: <Watch size={17} />,
+    },
+  ];
+  const readyDataCount = todayDataStates.filter((item) => item.ready).length;
+
   return (
     <div className="stack">
       <section className="today-hero">
@@ -128,26 +159,41 @@ export default function TodayScreen({
         </div>
       </section>
 
-      <div className="algorithm-strip" aria-label="算法状态">
-        <div><span>{t("today.model")}</span><strong>{rhythmModelLabel(snapshot?.rhythmModelVersion)}</strong></div>
-        <div><span>{t("today.dataQuality")}</span><strong>{snapshot?.rhythmDataQuality ?? "--"}</strong></div>
+      <div className="algorithm-strip" aria-label={t("today.overview")}>
+        <div><span>{t("today.state")}</span><strong>{t(rhythmStateKey(snapshot?.rhythmScore))}</strong></div>
+        <div><span>{t("today.dataQuality")}</span><strong>{snapshot?.rhythmDataQuality == null ? "--" : `${snapshot.rhythmDataQuality}%`}</strong></div>
         <div><span>{t("today.sevenDayTrend")}</span><strong>{snapshot?.rhythmTrendSlope == null ? "--" : `${snapshot.rhythmTrendSlope >= 0 ? "+" : ""}${snapshot.rhythmTrendSlope.toFixed(1)}`}</strong></div>
       </div>
 
       <SectionCard
         title={t("today.next")}
         subtitle={snapshot?.date}
-        action={<StatusPill tone={isNativeHealthAvailable() ? "good" : "warn"}>{isNativeHealthAvailable() ? t("today.realDevice") : t("today.preview")}</StatusPill>}
+        action={(
+          <div className="section-icon-actions">
+            <button
+              className="section-icon-action"
+              type="button"
+              aria-label={t("today.refresh")}
+              title={t("today.refresh")}
+              onClick={refresh}
+              disabled={loading}
+            >
+              <RefreshCw className={loading ? "spin" : undefined} size={20} />
+            </button>
+            <button
+              className="section-icon-action"
+              type="button"
+              aria-label={t("today.syncHealth")}
+              title={t("today.syncHealth")}
+              onClick={syncHealth}
+              disabled={syncing}
+            >
+              <HeartPulse className={syncing ? "spin" : undefined} size={21} />
+            </button>
+          </div>
+        )}
       >
         <p className="recommendation">{nextAction}</p>
-        <div className="button-row">
-          <ActionButton icon={<RefreshCw size={18} />} variant="secondary" onClick={refresh} disabled={loading}>
-            {t("today.refresh")}
-          </ActionButton>
-          <ActionButton icon={<Apple size={18} />} onClick={syncHealth} disabled={syncing}>
-            {syncing ? t("today.syncing") : t("today.syncHealth")}
-          </ActionButton>
-        </div>
         {error && <p className="error-text">{error}</p>}
       </SectionCard>
 
@@ -178,25 +224,32 @@ export default function TodayScreen({
         />
       </div>
 
-      <SectionCard title={t("today.data")}>
-        <div className="timeline-list">
-          <div>
-            <Moon size={18} />
-            <span>{snapshot?.sleep ? t("today.sleepDone") : t("today.sleepMissing")}</span>
+      <div className="today-data-section">
+        <SectionCard
+          title={t("today.data")}
+          action={<StatusPill tone={readyDataCount === todayDataStates.length ? "good" : "warn"}>{t("today.dataProgress", { ready: readyDataCount, total: todayDataStates.length })}</StatusPill>}
+        >
+          <div className="today-data-grid">
+            {todayDataStates.map((item) => (
+              <div className={["today-data-item", item.ready ? "ready" : "pending"].join(" ")} key={item.id}>
+                <span className="today-data-icon" aria-hidden="true">{item.icon}</span>
+                <span className="today-data-copy">
+                  <strong>{item.label}</strong>
+                  <small>{item.ready ? t(item.id === "watch" ? "today.connected" : "today.recorded") : t("today.missing")}</small>
+                </span>
+                <span className="today-data-check" aria-hidden="true">
+                  {item.ready ? <Check size={15} /> : <CircleDashed size={15} />}
+                </span>
+              </div>
+            ))}
           </div>
-          <div>
-            <SmilePlus size={18} />
-            <span>{snapshot?.mood ? t("today.moodDone") : t("today.moodMissing")}</span>
+          <div className="today-data-action">
+            <ActionButton icon={<SmilePlus size={18} />} variant="secondary" onClick={onOpenRecord}>
+              {t("today.writeRecord")}
+            </ActionButton>
           </div>
-          <div>
-            <Watch size={18} />
-            <span>{t("today.watchReady")}</span>
-          </div>
-        </div>
-        <ActionButton icon={<SmilePlus size={18} />} variant="secondary" onClick={onOpenRecord}>
-          {t("today.writeRecord")}
-        </ActionButton>
-      </SectionCard>
+        </SectionCard>
+      </div>
     </div>
   );
 }
