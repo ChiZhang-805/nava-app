@@ -199,6 +199,7 @@ async function main() {
               top: Number(rect.top.toFixed(2)),
               bottom: Number(rect.bottom.toFixed(2)),
               height: Number(rect.height.toFixed(2)),
+              summaries: [...entry.querySelectorAll(".record-module-points span")].map((item) => item.textContent?.trim() ?? ""),
             };
           });
           return {
@@ -210,6 +211,14 @@ async function main() {
           };
         });
         if (metrics.recordHub.count !== 6) throw new Error(`Expected 6 record entrances: ${JSON.stringify(metrics.recordHub)}`);
+        if (
+          metrics.recordHub.entries.some((entry) => (
+            entry.summaries.length !== 4
+            || entry.summaries.some((summary) => [...summary].length !== 7)
+          ))
+        ) {
+          throw new Error(`Record summaries must be four seven-character Chinese lines: ${JSON.stringify(metrics.recordHub.entries)}`);
+        }
         if (metrics.recordHub.scrollHeight > metrics.recordHub.clientHeight + 2) {
           throw new Error(`Record hub is not a one-screen layout: ${JSON.stringify(metrics.recordHub)}`);
         }

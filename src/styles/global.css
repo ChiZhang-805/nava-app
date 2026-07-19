@@ -1616,7 +1616,7 @@ body::before {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .record-hub-date,
@@ -1630,13 +1630,13 @@ body::before {
 }
 
 .record-hub-date {
-  min-height: 54px;
-  flex: 0 0 54px;
+  min-height: 58px;
+  flex: 0 0 58px;
   border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 7px 14px;
+  padding: 7px 16px;
 }
 
 .record-hub-date input,
@@ -1646,13 +1646,16 @@ body::before {
   outline: 0;
   color: #0a3858;
   background: transparent;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
+  letter-spacing: 0;
 }
 
 .record-hub-date input {
   width: 100%;
   text-align: center;
+  font-size: 18px;
+  font-weight: 800;
 }
 
 .record-module-grid {
@@ -1670,13 +1673,13 @@ body::before {
   min-height: 0;
   overflow: hidden;
   border: 1px solid rgba(219, 242, 255, 0.56);
-  border-radius: 24px;
+  border-radius: 22px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 16px;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 14px 14px 12px;
   color: #071827;
   background:
     radial-gradient(circle at 92% 8%, rgba(255, 255, 255, 0.72), transparent 38%),
@@ -1692,9 +1695,18 @@ body::before {
   box-shadow: 0 8px 20px rgba(13, 54, 83, 0.16);
 }
 
+.record-module-header {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .record-module-icon {
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -1706,18 +1718,49 @@ body::before {
 }
 
 .record-module-entry strong {
-  padding: 0 24px;
-  font-size: 19px;
+  min-width: 0;
+  padding: 4px 0 0;
+  font-size: 20px;
+  line-height: 1.05;
+  text-align: left;
+}
+
+.record-module-points {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  padding: 1px 18px 0 0;
+}
+
+.record-module-points span {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: rgba(8, 45, 73, 0.66);
+  font-size: 12px;
+  font-weight: 760;
   line-height: 1.1;
-  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.record-module-points span::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  flex: 0 0 5px;
+  border-radius: 50%;
+  background: rgba(19, 134, 190, 0.72);
+  box-shadow: 0 0 0 3px rgba(192, 234, 251, 0.58);
 }
 
 .record-module-arrow {
   position: absolute;
-  right: 14px;
-  top: calc(50% + 20px);
+  right: 13px;
+  bottom: 13px;
   color: rgba(8, 45, 73, 0.48);
-  transform: translateY(-50%);
 }
 
 .record-detail-toolbar {

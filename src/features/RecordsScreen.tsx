@@ -32,13 +32,48 @@ const moodFactors: Array<{ value: string; labelKey: TranslationKey }> = [
 
 type RecordModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
 
-const recordModules: Array<{ id: RecordModule; labelKey: TranslationKey; icon: LucideIcon }> = [
-  { id: "mood", labelKey: "records.mood", icon: SmilePlus },
-  { id: "sleep", labelKey: "records.sleep", icon: BedDouble },
-  { id: "exercise", labelKey: "records.exercise", icon: Dumbbell },
-  { id: "diet", labelKey: "records.diet", icon: Drumstick },
-  { id: "focus", labelKey: "records.focus", icon: Brain },
-  { id: "face", labelKey: "records.face", icon: ScanFace },
+const recordModules: Array<{
+  id: RecordModule;
+  labelKey: TranslationKey;
+  icon: LucideIcon;
+  summaryKeys: [TranslationKey, TranslationKey, TranslationKey, TranslationKey];
+}> = [
+  {
+    id: "mood",
+    labelKey: "records.mood",
+    icon: SmilePlus,
+    summaryKeys: ["records.hub.mood.one", "records.hub.mood.two", "records.hub.mood.three", "records.hub.mood.four"],
+  },
+  {
+    id: "sleep",
+    labelKey: "records.sleep",
+    icon: BedDouble,
+    summaryKeys: ["records.hub.sleep.one", "records.hub.sleep.two", "records.hub.sleep.three", "records.hub.sleep.four"],
+  },
+  {
+    id: "exercise",
+    labelKey: "records.exercise",
+    icon: Dumbbell,
+    summaryKeys: ["records.hub.exercise.one", "records.hub.exercise.two", "records.hub.exercise.three", "records.hub.exercise.four"],
+  },
+  {
+    id: "diet",
+    labelKey: "records.diet",
+    icon: Drumstick,
+    summaryKeys: ["records.hub.diet.one", "records.hub.diet.two", "records.hub.diet.three", "records.hub.diet.four"],
+  },
+  {
+    id: "focus",
+    labelKey: "records.focus",
+    icon: Brain,
+    summaryKeys: ["records.hub.focus.one", "records.hub.focus.two", "records.hub.focus.three", "records.hub.focus.four"],
+  },
+  {
+    id: "face",
+    labelKey: "records.faceShort",
+    icon: ScanFace,
+    summaryKeys: ["records.hub.face.one", "records.hub.face.two", "records.hub.face.three", "records.hub.face.four"],
+  },
 ];
 
 export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: () => void }) {
@@ -278,7 +313,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
         </label>
 
         <div className="record-module-grid">
-          {recordModules.map(({ id, labelKey, icon: Icon }) => (
+          {recordModules.map(({ id, labelKey, icon: Icon, summaryKeys }) => (
             <button
               className="record-module-entry"
               data-record-module={id}
@@ -290,10 +325,17 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
                 setActiveModule(id);
               }}
             >
-              <span className="record-module-icon" aria-hidden="true">
-                <Icon size={30} strokeWidth={1.8} />
+              <span className="record-module-header">
+                <strong>{t(labelKey)}</strong>
+                <span className="record-module-icon" aria-hidden="true">
+                  <Icon size={25} strokeWidth={1.9} />
+                </span>
               </span>
-              <strong>{t(labelKey)}</strong>
+              <span className="record-module-points" aria-hidden="true">
+                {summaryKeys.map((key) => (
+                  <span key={key}>{t(key)}</span>
+                ))}
+              </span>
               <ChevronRight className="record-module-arrow" size={20} aria-hidden="true" />
             </button>
           ))}
