@@ -68,7 +68,12 @@ async function main() {
     await launchPage.screenshot({ path: path.join(outputDir, "02-launch-7s.png") });
     await launchPage.waitForTimeout(6000);
     await launchPage.screenshot({ path: path.join(outputDir, "03-launch-13s.png") });
-    await launchPage.waitForTimeout(6000);
+    await launchPage.locator(".launch-sequence").tap({ position: { x: 24, y: 420 } });
+    await launchPage.waitForTimeout(1320);
+    await launchPage.locator(".launch-sequence").tap({ position: { x: 24, y: 420 } });
+    await launchPage.waitForTimeout(1320);
+    await launchPage.locator(".launch-sequence.ready .launch-start").waitFor();
+    await launchPage.waitForTimeout(1500);
     await launchPage.screenshot({ path: path.join(outputDir, "03b-launch-ready.png") });
     await launchPage.locator(".launch-start").tap();
     await launchPage.waitForTimeout(700);

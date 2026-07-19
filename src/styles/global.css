@@ -1,11 +1,3 @@
-@font-face {
-  font-family: "NAVA Abril";
-  src: url("../assets/fonts/AbrilFatface-Regular.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-
 :root {
   color: #17211b;
   background: #f6f8f4;
@@ -1732,11 +1724,11 @@ textarea::placeholder {
 }
 
 .launch-line.entering {
-  animation: launch-line-enter 980ms cubic-bezier(0.18, 0.88, 0.22, 1) both, launch-line-hold 5000ms ease-in-out both;
+  animation: launch-line-enter 1050ms cubic-bezier(0.18, 0.88, 0.22, 1) both, launch-line-hold 8000ms ease-in-out both;
 }
 
 .launch-line.leaving {
-  animation: launch-line-leave 760ms cubic-bezier(0.32, 0, 0.2, 1) both;
+  animation: launch-line-leave 1200ms cubic-bezier(0.45, 0, 0.55, 1) both;
 }
 
 .launch-line.brand {
@@ -1904,10 +1896,20 @@ textarea::placeholder {
 }
 
 @keyframes launch-line-leave {
-  to {
+  0% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+  55% {
+    opacity: 0.58;
+    filter: blur(2px);
+    transform: translateY(-3px) scale(1.003);
+  }
+  100% {
     opacity: 0;
-    filter: blur(12px);
-    transform: translateY(-18px) scale(1.025);
+    filter: blur(9px);
+    transform: translateY(-10px) scale(1.01);
   }
 }
 
@@ -2149,45 +2151,23 @@ textarea::placeholder {
   animation: nava-wordmark-halo 8.8s ease-in-out infinite;
 }
 
-.nava-wordmark__face,
-.nava-wordmark__sweep {
+.nava-wordmark__vector {
   grid-area: 1 / 1;
   position: relative;
-  font-family: "NAVA Abril", "Abril Fatface", Georgia, serif;
-  font-size: var(--wordmark-size);
-  font-weight: 400;
-  line-height: 0.94;
-  letter-spacing: 0;
-  white-space: nowrap;
-}
-
-.nava-wordmark__face {
   z-index: 0;
-  color: transparent;
-  background-image: linear-gradient(180deg, #010203 0%, rgba(3, 5, 6, 0.99) 34%, rgba(17, 21, 23, 0.93) 68%, rgba(50, 57, 60, 0.74) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: 0.35px rgba(0, 0, 0, 0.62);
+  display: block;
+  width: min(calc(var(--wordmark-size) * 2.5), 82vw, 350px);
+  height: auto;
+  overflow: visible;
   filter:
     drop-shadow(2.5px 6.5px 3.5px rgba(0, 22, 35, 0.36))
     drop-shadow(1px 14px 15px rgba(0, 31, 49, 0.16));
 }
 
-.nava-wordmark__sweep {
-  z-index: 1;
-  color: transparent;
-  background: linear-gradient(106deg, transparent 39%, rgba(128, 150, 160, 0.04) 44%, rgba(230, 239, 243, 0.76) 48%, rgba(133, 158, 170, 0.56) 52%, rgba(210, 222, 228, 0.14) 55%, transparent 60%);
-  background-position: 135% 50%;
-  background-size: 300% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: nava-metal-sweep 7.2s cubic-bezier(0.52, 0, 0.22, 1) -1.1s infinite;
-}
-
-.nava-wordmark--ink .nava-wordmark__face {
-  background-image: linear-gradient(180deg, #010203 0%, rgba(3, 5, 6, 0.99) 34%, rgba(17, 21, 23, 0.93) 68%, rgba(50, 57, 60, 0.74) 100%);
+.nava-wordmark__sweep-band {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: nava-vector-sweep 7.2s cubic-bezier(0.52, 0, 0.22, 1) -1.1s infinite;
 }
 
 .launch-sequence {
@@ -2230,11 +2210,13 @@ textarea::placeholder {
 
 .launch-line {
   color: rgba(248, 253, 255, 0.98);
-  max-width: 12em;
+  max-width: 10.5em;
   font-family: "FZKai-Z03", "Kaiti SC", "STKaiti", "KaiTi", "楷体", "Songti SC", serif;
-  font-size: clamp(34px, 9vw, 46px);
-  font-weight: 500;
-  line-height: 1.34;
+  font-size: clamp(40px, 10.5vw, 54px);
+  font-weight: 600;
+  line-height: 1.3;
+  -webkit-text-stroke: 0.35px rgba(255, 255, 255, 0.72);
+  paint-order: stroke fill;
   text-shadow:
     0 2px 8px rgba(0, 38, 78, 0.58),
     0 16px 40px rgba(0, 34, 75, 0.42),
@@ -2596,22 +2578,22 @@ textarea::placeholder {
   50% { opacity: 0.82; transform: scale(1.08); }
 }
 
-@keyframes nava-metal-sweep {
+@keyframes nava-vector-sweep {
   0%,
   16% {
-    background-position: 135% 50%;
+    transform: translateX(0) skewX(-11deg);
     opacity: 0;
   }
   22% {
     opacity: 0.42;
   }
   48% {
-    background-position: -135% 50%;
+    transform: translateX(3600px) skewX(-11deg);
     opacity: 1;
   }
   56%,
   100% {
-    background-position: -135% 50%;
+    transform: translateX(3600px) skewX(-11deg);
     opacity: 0;
   }
 }

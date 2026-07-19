@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeAcceleration, normalizeOrientationDelta } from "../src/services/backgroundMotion.ts";
+import { getLaunchFieldSnapshot, setLaunchFieldActive, updateLaunchFieldPointer } from "../src/services/launchField.ts";
 
 function closeTo(actual: number, expected: number, tolerance = 0.001) {
   assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} was not within ${tolerance} of ${expected}`);
@@ -42,4 +43,29 @@ test("ignores tiny acceleration and normalizes a deliberate impulse", () => {
   assert.equal(impulse.x, 1);
   assert.equal(impulse.y, 0);
   closeTo(impulse.intensity, 1);
+});
+
+test("clamps launch-field input and decays a touch impulse", () => {
+  setLaunchFieldActive(true);
+  updateLaunchFieldPointer(2, -3, 0.8, 1000);
+
+  const initial = getLaunchFieldSnapshot(1000);
+  assert.equal(initial.active, 1);
+  assert.equal(initial.x, 1);
+  assert.equal(initial.y, -1);
+  closeTo(initial.impulse, 0.8);
+
+  const decayed = getLaunchFieldSnapshot(2150);
+  closeTo(decayed.impulse, 0.8 / Math.E);
+
+  updateLaunchFieldPointer(0.25, 0.5, 0.1, 2150);
+  const moved = getLaunchFieldSnapshot(2150);
+  closeTo(moved.impulse, 0.8 / Math.E);
+  assert.equal(moved.x, 0.25);
+  assert.equal(moved.y, 0.5);
+
+  setLaunchFieldActive(false);
+  const inactive = getLaunchFieldSnapshot(2150);
+  assert.equal(inactive.active, 0);
+  assert.equal(inactive.impulse, 0);
 });
