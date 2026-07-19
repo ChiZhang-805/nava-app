@@ -49,51 +49,59 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
   });
 
   return (
-    <div className="stack">
-      <div className="metric-grid">
-        <MetricCard label={t("trends.avgMood")} value={totals.avgMood || "--"} detail={t("trends.last7")} icon={<SmilePlus size={18} />} />
-        <MetricCard label={t("trends.avgSleep")} value={minutesToText(totals.sleepMinutes, locale)} detail={t("trends.last7")} icon={<BedDouble size={18} />} />
-        <MetricCard label={t("trends.avgSteps")} value={totals.steps ? totals.steps.toLocaleString(locale === "en" ? "en-US" : "zh-CN") : "--"} detail={t("trends.last7")} icon={<Flame size={18} />} />
-        <MetricCard label={t("trends.focusTotal")} value={minutesToText(totals.focus, locale)} detail={t("trends.last7")} icon={<Brain size={18} />} />
+    <div className="trend-dashboard">
+      <div className="metric-grid trend-metric-grid">
+        <MetricCard label={t("trends.avgMood")} value={totals.avgMood || "--"} icon={<SmilePlus size={18} />} />
+        <MetricCard label={t("trends.avgSleep")} value={minutesToText(totals.sleepMinutes, locale)} icon={<BedDouble size={18} />} />
+        <MetricCard label={t("trends.avgSteps")} value={totals.steps ? totals.steps.toLocaleString(locale === "en" ? "en-US" : "zh-CN") : "--"} icon={<Flame size={18} />} />
+        <MetricCard label={t("trends.focusTotal")} value={minutesToText(totals.focus, locale)} icon={<Brain size={18} />} />
       </div>
 
-      <SectionCard title={t("trends.title")} subtitle={t("trends.last7")}>
-        {error && <p className="error-text">{error}</p>}
-        {!bundle && !error && <p className="muted">正在加载趋势</p>}
-        {bundle && bundle.moods.length > 0 && (
-          <LineTrendChart
-            ariaLabel={t("trends.moodChartLabel")}
-            points={bundle.moods.slice(-7).map((item) => ({
-              id: item.id,
-              label: chartDate(item.record_date),
-              value: item.mood_score,
-            }))}
-          />
-        )}
-        {bundle && bundle.moods.length === 0 && (
-          <div className="empty-chat compact">
-            <Activity size={24} />
-            <span>{t("trends.empty")}</span>
+      <div className="trend-chart-section">
+        <SectionCard title={t("trends.title")}>
+          <div className="trend-chart-block">
+            {error && <p className="error-text">{error}</p>}
+            {!bundle && !error && <p className="muted">正在加载趋势</p>}
+            {bundle && bundle.moods.length > 0 && (
+              <LineTrendChart
+                ariaLabel={t("trends.moodChartLabel")}
+                compact
+                points={bundle.moods.slice(-7).map((item) => ({
+                  id: item.id,
+                  label: chartDate(item.record_date),
+                  value: item.mood_score,
+                }))}
+              />
+            )}
+            {bundle && bundle.moods.length === 0 && (
+              <div className="empty-chat compact">
+                <Activity size={24} />
+                <span>{t("trends.empty")}</span>
+              </div>
+            )}
           </div>
-        )}
-      </SectionCard>
 
-      <SectionCard title={t("trends.rhythmState")} subtitle={t("trends.rhythmSubtitle")}>
-        {bundle && bundle.rhythms.length > 0 && (
-          <LineTrendChart
-            ariaLabel={t("trends.rhythmChartLabel")}
-            tone="rhythm"
-            points={bundle.rhythms.slice(-7).map((item) => ({
-              id: item.id,
-              label: chartDate(item.record_date),
-              value: item.score,
-              lower: item.score_lower,
-              upper: item.score_upper,
-            }))}
-          />
-        )}
-        {bundle && bundle.rhythms.length === 0 && <p className="muted">{t("trends.rhythmEmpty")}</p>}
-      </SectionCard>
+          <div className="trend-chart-divider" />
+          <h3 className="trend-subheading">{t("trends.rhythmState")}</h3>
+          <div className="trend-chart-block">
+            {bundle && bundle.rhythms.length > 0 && (
+              <LineTrendChart
+                ariaLabel={t("trends.rhythmChartLabel")}
+                compact
+                tone="rhythm"
+                points={bundle.rhythms.slice(-7).map((item) => ({
+                  id: item.id,
+                  label: chartDate(item.record_date),
+                  value: item.score,
+                  lower: item.score_lower,
+                  upper: item.score_upper,
+                }))}
+              />
+            )}
+            {bundle && bundle.rhythms.length === 0 && <p className="muted">{t("trends.rhythmEmpty")}</p>}
+          </div>
+        </SectionCard>
+      </div>
     </div>
   );
 }

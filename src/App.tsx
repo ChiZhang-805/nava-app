@@ -114,7 +114,12 @@ function MobileShell() {
       </header>
 
       <main
-        className={["app-content", activeTab === "ai" ? "app-content--chat" : ""].filter(Boolean).join(" ")}
+        className={[
+          "app-content",
+          activeTab === "ai" ? "app-content--chat" : "",
+          activeTab === "record" ? "app-content--record" : "",
+          activeTab === "trends" ? "app-content--trends" : "",
+        ].filter(Boolean).join(" ")}
         ref={contentRef}
       >
         <div className="screen-panel" key={activeTab}>

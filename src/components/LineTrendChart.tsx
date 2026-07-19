@@ -16,20 +16,23 @@ export default function LineTrendChart({
   points,
   ariaLabel,
   tone = "mood",
+  compact = false,
 }: {
   points: LineTrendPoint[];
   ariaLabel: string;
   tone?: "mood" | "rhythm";
+  compact?: boolean;
 }) {
   const rawId = useId();
   if (points.length === 0) return null;
   const gradientId = `trend-gradient-${rawId.replace(/:/g, "")}`;
   const width = 320;
-  const height = 184;
+  const height = compact ? 148 : 184;
   const left = 16;
   const right = 304;
-  const top = 22;
-  const bottom = 142;
+  const top = compact ? 18 : 22;
+  const bottom = compact ? 108 : 142;
+  const dateY = compact ? 136 : 169;
   const spanX = right - left;
   const spanY = bottom - top;
   const scaleValues = points.flatMap((point) => [point.value, point.lower, point.upper]).filter((value): value is number => value != null);
@@ -88,7 +91,7 @@ export default function LineTrendChart({
                 <title>{`${point.label}: ${Math.round(point.value)}`}</title>
               </circle>
               <text className="trend-value" x={x} y={Math.max(12, y - 9)} textAnchor="middle">{Math.round(point.value)}</text>
-              {showDate && <text className="trend-date" x={x} y={169} textAnchor="middle">{point.label}</text>}
+              {showDate && <text className="trend-date" x={x} y={dateY} textAnchor="middle">{point.label}</text>}
             </g>
           );
         })}

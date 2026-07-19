@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
-import { BedDouble, Brain, Camera, Check, Drumstick, Dumbbell, Loader2, ScanFace, SmilePlus } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { ArrowLeft, BedDouble, Brain, Camera, Check, ChevronRight, Drumstick, Dumbbell, Loader2, ScanFace, SmilePlus, type LucideIcon } from "lucide-react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import SectionCard from "../components/SectionCard";
 import { useT, type TranslationKey } from "../i18n";
@@ -30,12 +30,25 @@ const moodFactors: Array<{ value: string; labelKey: TranslationKey }> = [
   { value: "其他", labelKey: "records.factor.other" },
 ];
 
+type RecordModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
+
+const recordModules: Array<{ id: RecordModule; labelKey: TranslationKey; icon: LucideIcon }> = [
+  { id: "mood", labelKey: "records.mood", icon: SmilePlus },
+  { id: "sleep", labelKey: "records.sleep", icon: BedDouble },
+  { id: "exercise", labelKey: "records.exercise", icon: Dumbbell },
+  { id: "diet", labelKey: "records.diet", icon: Drumstick },
+  { id: "focus", labelKey: "records.focus", icon: Brain },
+  { id: "face", labelKey: "records.face", icon: ScanFace },
+];
+
 export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: () => void }) {
   const t = useT();
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recordDate, setRecordDate] = useState(todayISO());
+  const [activeModule, setActiveModule] = useState<RecordModule | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   const [moodScore, setMoodScore] = useState(70);
   const [selectedFactors, setSelectedFactors] = useState<string[]>([]);
@@ -75,6 +88,10 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
     const estimated = estimateMinutes(sleepStart, sleepEnd);
     if (estimated > 0) setSleepDuration(estimated);
   }, [sleepStart, sleepEnd]);
+
+  useEffect(() => {
+    rootRef.current?.closest(".app-content")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [activeModule]);
 
   function estimateMinutes(start: string, end: string) {
     const [sh, sm] = start.split(":").map(Number);
@@ -247,8 +264,67 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
     );
   }
 
+  if (!activeModule) {
+    return (
+      <div className="record-hub" ref={rootRef}>
+        <label className="record-hub-date">
+          <input
+            aria-label={t("records.date")}
+            type="date"
+            value={recordDate}
+            max={todayISO()}
+            onChange={(event) => setRecordDate(event.target.value)}
+          />
+        </label>
+
+        <div className="record-module-grid">
+          {recordModules.map(({ id, labelKey, icon: Icon }) => (
+            <button
+              className="record-module-entry"
+              data-record-module={id}
+              key={id}
+              type="button"
+              onClick={() => {
+                setNotice(null);
+                setError(null);
+                setActiveModule(id);
+              }}
+            >
+              <span className="record-module-icon" aria-hidden="true">
+                <Icon size={30} strokeWidth={1.8} />
+              </span>
+              <strong>{t(labelKey)}</strong>
+              <ChevronRight className="record-module-arrow" size={20} aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="stack">
+    <div className="stack record-detail" data-record-detail={activeModule} ref={rootRef}>
+      <div className="record-detail-toolbar">
+        <button
+          className="section-icon-action record-back-button"
+          type="button"
+          aria-label={t("records.back")}
+          title={t("records.back")}
+          onClick={() => setActiveModule(null)}
+        >
+          <ArrowLeft size={24} />
+        </button>
+        <label className="record-detail-date">
+          <input
+            aria-label={t("records.date")}
+            type="date"
+            value={recordDate}
+            max={todayISO()}
+            onChange={(event) => setRecordDate(event.target.value)}
+          />
+        </label>
+      </div>
+
       {(notice || error) && (
         <SectionCard title={notice ? t("records.synced") : t("records.needsFix")}>
           {notice && <p className="success-text">{notice}</p>}
@@ -256,14 +332,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
         </SectionCard>
       )}
 
-      <SectionCard title={t("records.dateTitle")}>
-        <label className="field">
-          <span>{t("records.date")}</span>
-          <input type="date" value={recordDate} max={todayISO()} onChange={(e) => setRecordDate(e.target.value)} />
-        </label>
-      </SectionCard>
-
-      <form onSubmit={saveMood}>
+      <form hidden={activeModule !== "mood"} onSubmit={saveMood}>
         <SectionCard title={t("records.mood")}>
           <div className="module-title">
             <SmilePlus size={20} />
@@ -292,7 +361,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
         </SectionCard>
       </form>
 
-      <form onSubmit={saveSleep}>
+      <form hidden={activeModule !== "sleep"} onSubmit={saveSleep}>
         <SectionCard title={t("records.sleep")}>
           <div className="two-col">
             <label className="field">
@@ -336,7 +405,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
         </SectionCard>
       </form>
 
-      <form onSubmit={saveExercise}>
+      <form hidden={activeModule !== "exercise"} onSubmit={saveExercise}>
         <SectionCard title={t("records.exercise")}>
           <div className="two-col">
             <label className="field">
@@ -372,7 +441,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
         </SectionCard>
       </form>
 
-      <form onSubmit={saveDiet}>
+      <form hidden={activeModule !== "diet"} onSubmit={saveDiet}>
         <SectionCard title={t("records.diet")}>
           <label className="photo-picker">
             {dietPhotoUrl ? <img src={dietPhotoUrl} alt="饮食照片" /> : <Camera size={28} />}
@@ -419,7 +488,7 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
         </SectionCard>
       </form>
 
-      <form onSubmit={saveFocus}>
+      <form hidden={activeModule !== "focus"} onSubmit={saveFocus}>
         <SectionCard title={t("records.focus")}>
           <label className="field">
             <span>{t("records.task")}</span>
@@ -435,34 +504,36 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
         </SectionCard>
       </form>
 
-      <SectionCard title={t("records.face")}>
-        <label className="photo-picker face">
-          {faceImage ? <img src={faceImage} alt="面部照片" /> : <ScanFace size={30} />}
-          <span>{faceAnalyzing ? t("records.faceScanning") : t("records.scanFace")}</span>
-          <input
-            type="file"
-            accept="image/*"
-            capture="user"
-            disabled={faceAnalyzing}
-            onChange={(e) => void handleFacePhoto(e.target.files?.[0] ?? null)}
-          />
-          {faceAnalyzing && <Loader2 className="spin" size={18} />}
-        </label>
-        {faceResult && (
-          <div className="face-result">
-            <strong>{t("records.score", { score: Math.round(faceResult.overall_score) })}</strong>
-            <p>{faceResult.feedback}</p>
-            <div className="detected-list">
-              {faceResult.annotations.map((item) => (
-                <div key={item.id}>
-                  <strong>{item.label}</strong>
-                  <span>{item.desc}</span>
-                </div>
-              ))}
+      <div hidden={activeModule !== "face"}>
+        <SectionCard title={t("records.face")}>
+          <label className="photo-picker face">
+            {faceImage ? <img src={faceImage} alt="面部照片" /> : <ScanFace size={30} />}
+            <span>{faceAnalyzing ? t("records.faceScanning") : t("records.scanFace")}</span>
+            <input
+              type="file"
+              accept="image/*"
+              capture="user"
+              disabled={faceAnalyzing}
+              onChange={(e) => void handleFacePhoto(e.target.files?.[0] ?? null)}
+            />
+            {faceAnalyzing && <Loader2 className="spin" size={18} />}
+          </label>
+          {faceResult && (
+            <div className="face-result">
+              <strong>{t("records.score", { score: Math.round(faceResult.overall_score) })}</strong>
+              <p>{faceResult.feedback}</p>
+              <div className="detected-list">
+                {faceResult.annotations.map((item) => (
+                  <div key={item.id}>
+                    <strong>{item.label}</strong>
+                    <span>{item.desc}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </SectionCard>
+          )}
+        </SectionCard>
+      </div>
     </div>
   );
 }
