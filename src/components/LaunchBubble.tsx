@@ -258,15 +258,43 @@ function seededUnit(value: number) {
   return x - Math.floor(x);
 }
 
+const FRAGMENT_CLIPS = [
+  "polygon(11% 19%, 73% 4%, 97% 42%, 83% 91%, 24% 87%, 2% 51%)",
+  "polygon(22% 0%, 92% 18%, 87% 72%, 46% 100%, 5% 75%, 8% 25%)",
+  "polygon(4% 34%, 42% 5%, 100% 12%, 88% 68%, 57% 96%, 13% 83%)",
+  "polygon(18% 8%, 78% 12%, 96% 54%, 61% 98%, 7% 73%, 0% 26%)",
+  "polygon(9% 12%, 64% 0%, 100% 35%, 89% 86%, 31% 100%, 0% 61%)",
+  "polygon(29% 2%, 83% 7%, 100% 58%, 67% 92%, 17% 100%, 0% 37%)",
+];
+
 function particleStyle(index: number, quoteIndex: number, source = false): CSSProperties {
   const seed = (quoteIndex + 1) * 97 + index * 13 + (source ? 43 : 0);
   const angle = seededUnit(seed) * Math.PI * 2;
   const radius = (source ? 34 : 42) + seededUnit(seed + 3.3) * (source ? 58 : 92);
   const verticalBias = source ? 0.58 : 1;
+  const width = (source ? 0.38 : 0.42) + seededUnit(seed + 11.4) * (source ? 0.48 : 0.72);
+  const height = (source ? 0.28 : 0.34) + seededUnit(seed + 14.2) * (source ? 0.42 : 0.68);
+  const rounded = seededUnit(seed + 21.8);
+  const radiusA = Math.round(20 + seededUnit(seed + 22.1) * 52);
+  const radiusB = Math.round(26 + seededUnit(seed + 23.1) * 58);
+  const radiusC = Math.round(28 + seededUnit(seed + 24.1) * 62);
+  const radiusD = Math.round(18 + seededUnit(seed + 25.1) * 54);
+  const skew = Math.round((seededUnit(seed + 18.3) - 0.5) * 28);
+  const clip = FRAGMENT_CLIPS[Math.floor(seededUnit(seed + 29.7) * FRAGMENT_CLIPS.length)];
   return {
     "--quote-delay": `${Math.round(seededUnit(seed + 9.1) * 95)}ms`,
+    "--quote-flow-x": `${(0.42 + seededUnit(seed + 2.6) * 1.38).toFixed(2)}`,
+    "--quote-flow-y": `${(0.45 + seededUnit(seed + 4.1) * 1.2).toFixed(2)}`,
+    "--quote-frag-h": `${height.toFixed(2)}em`,
+    "--quote-frag-clip": clip,
+    "--quote-frag-radius": rounded > 0.62
+      ? `${radiusA}% ${100 - radiusA}% ${radiusB}% ${100 - radiusB}% / ${radiusC}% ${radiusD}% ${100 - radiusD}% ${100 - radiusC}%`
+      : `${radiusA}% ${radiusB}% ${radiusC}% ${radiusD}%`,
+    "--quote-frag-skew": `${skew}deg`,
+    "--quote-frag-w": `${width.toFixed(2)}em`,
     "--quote-rotate": `${Math.round((seededUnit(seed + 5.7) - 0.5) * 118)}deg`,
     "--quote-scale": `${(0.72 + seededUnit(seed + 6.2) * 0.42).toFixed(2)}`,
+    "--quote-spin-factor": `${(0.42 + seededUnit(seed + 8.9) * 1.6).toFixed(2)}`,
     "--quote-x": `${Math.round(Math.cos(angle) * radius)}px`,
     "--quote-y": `${Math.round(Math.sin(angle) * radius * verticalBias)}px`,
   } as CSSProperties;
@@ -274,11 +302,13 @@ function particleStyle(index: number, quoteIndex: number, source = false): CSSPr
 
 export default function LaunchBubble() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const quoteRef = useRef<HTMLElement>(null);
   const quoteScatteredRef = useRef(false);
   const quoteDraggedRef = useRef(false);
   const quoteTimerRef = useRef<number | null>(null);
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [quoteScattered, setQuoteScattered] = useState(false);
+  const [quoteStirring, setQuoteStirring] = useState(false);
   const quote = BUBBLE_QUOTES[quoteIndex];
   const quoteChars = useMemo(() => Array.from(quote.text), [quote.text]);
   const sourceChars = useMemo(() => Array.from(`— ${quote.source}`), [quote.source]);
@@ -294,6 +324,25 @@ export default function LaunchBubble() {
       }
     };
 
+    const setQuoteMotion = (deltaX: number, deltaY: number, speed: number) => {
+      const quoteElement = quoteRef.current;
+      if (!quoteElement) return;
+      const strength = clamp(speed / 1500, 0.35, 1.75);
+      quoteElement.style.setProperty("--quote-stir-x", `${Math.round(clamp(deltaX * 3.2 * strength, -150, 150))}px`);
+      quoteElement.style.setProperty("--quote-stir-y", `${Math.round(clamp(deltaY * 3.0 * strength, -130, 130))}px`);
+      quoteElement.style.setProperty("--quote-spin", `${Math.round(clamp((deltaX - deltaY) * 1.55 * strength, -145, 145))}deg`);
+      quoteElement.style.setProperty("--quote-turbulence", strength.toFixed(2));
+    };
+
+    const resetQuoteMotion = () => {
+      const quoteElement = quoteRef.current;
+      if (!quoteElement) return;
+      quoteElement.style.setProperty("--quote-stir-x", "0px");
+      quoteElement.style.setProperty("--quote-stir-y", "0px");
+      quoteElement.style.setProperty("--quote-spin", "0deg");
+      quoteElement.style.setProperty("--quote-turbulence", "0");
+    };
+
     const scatterQuote = () => {
       clearQuoteTimer();
       quoteScatteredRef.current = true;
@@ -303,12 +352,16 @@ export default function LaunchBubble() {
     const settleNextQuote = () => {
       clearQuoteTimer();
       quoteScatteredRef.current = true;
+      setQuoteStirring(false);
+      resetQuoteMotion();
       setQuoteScattered(true);
       quoteTimerRef.current = window.setTimeout(() => {
         setQuoteIndex((current) => (current + 1) % BUBBLE_QUOTES.length);
         quoteTimerRef.current = window.setTimeout(() => {
           quoteScatteredRef.current = false;
           setQuoteScattered(false);
+          setQuoteStirring(false);
+          resetQuoteMotion();
           quoteTimerRef.current = null;
         }, 70);
       }, 220);
@@ -434,6 +487,8 @@ export default function LaunchBubble() {
       drag.peakVelocity = 0;
       drag.pointerId = event.pointerId;
       quoteDraggedRef.current = false;
+      setQuoteStirring(false);
+      resetQuoteMotion();
       setTouchFromEvent(event);
       touchStrength = 1;
     };
@@ -450,6 +505,8 @@ export default function LaunchBubble() {
       if (drag.distance > 12) {
         quoteDraggedRef.current = true;
         scatterQuote();
+        setQuoteStirring(true);
+        setQuoteMotion(deltaX, deltaY, speed);
       }
       drag.peakVelocity = Math.max(drag.peakVelocity, speed);
       drag.lastX = event.clientX;
@@ -565,7 +622,10 @@ export default function LaunchBubble() {
   return (
     <div className="launch-bubble" aria-label="可互动节律水泡">
       <canvas className="launch-bubble__canvas" ref={canvasRef} aria-hidden="true" />
-      <figure className={["launch-bubble__quote", quoteScattered ? "is-scattered" : ""].filter(Boolean).join(" ")}>
+      <figure
+        className={["launch-bubble__quote", quoteScattered ? "is-scattered" : "", quoteStirring ? "is-stirring" : ""].filter(Boolean).join(" ")}
+        ref={quoteRef}
+      >
         <blockquote className="launch-bubble__quote-text">
           {quoteChars.map((char, index) => (
             <span className="launch-quote-token" key={`${quoteIndex}-quote-${index}-${char}`} style={particleStyle(index, quoteIndex)}>
