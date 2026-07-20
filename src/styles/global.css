@@ -3729,11 +3729,11 @@ textarea::placeholder {
 }
 
 .auth-consent {
-  min-height: 34px;
+  min-height: 28px;
   margin: -2px 2px 4px;
   display: flex;
   align-items: flex-start;
-  gap: 9px;
+  gap: 7px;
   color: rgba(7, 52, 83, 0.72);
   font-size: 12px;
   font-weight: 610;
@@ -3742,11 +3742,12 @@ textarea::placeholder {
 
 .auth-consent input {
   appearance: none;
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
-  margin: 0;
-  border: 1.5px solid rgba(7, 69, 108, 0.56);
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  margin: 1px 0 0;
+  padding: 0;
+  border: 1.35px solid rgba(7, 69, 108, 0.58);
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -3756,13 +3757,18 @@ textarea::placeholder {
 
 .auth-consent input::before {
   content: "";
-  width: 8px;
-  height: 4px;
-  border-left: 2px solid #ffffff;
-  border-bottom: 2px solid #ffffff;
+  width: 6px;
+  height: 3px;
+  border-left: 1.8px solid #ffffff;
+  border-bottom: 1.8px solid #ffffff;
   opacity: 0;
   transform: translateY(-1px) rotate(-45deg) scale(0.5);
   transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.auth-consent span {
+  flex: 1;
+  min-width: 0;
 }
 
 .auth-consent input:checked {
