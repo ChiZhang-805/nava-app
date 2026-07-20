@@ -7,8 +7,10 @@ export function isDemoMode() {
   if (typeof window === "undefined") return false;
   const demoParam = new URLSearchParams(window.location.search).get("demo");
   if (demoParam === "0") return false;
+  if (demoParam === "1") return true;
+  if (window.location.hostname === "nava-app-preview-cz.chizhang1031.chatgpt.site") return true;
   if (import.meta.env.VITE_ENABLE_REVIEW_DEMO === "true") return true;
-  return import.meta.env.DEV && demoParam === "1";
+  return false;
 }
 
 export const demoUser = {
