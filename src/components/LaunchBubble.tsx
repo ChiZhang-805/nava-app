@@ -360,18 +360,18 @@ export default function LaunchBubble() {
       quoteFlow.lastAngle = angle;
 
       const distance = Math.hypot(deltaX, deltaY);
-      const strength = clamp(speed / 1250, 0.28, 1.55);
+      const strength = clamp(speed / 1050, 0.7, 1.8);
       const dragAngle = Math.atan2(deltaY || 0.001, deltaX || 0.001);
-      const dragFlow = clamp(distance * 4.8 * strength, 18, 210);
-      const orbitImpulse = angleDelta * 260 + ((relativeX * deltaY - relativeY * deltaX) / Math.max(canvasRect.width, 1)) * 2.8;
-      quoteFlow.driftX = clamp(quoteFlow.driftX * 0.78 + Math.cos(dragAngle) * dragFlow, -250, 250);
-      quoteFlow.driftY = clamp(quoteFlow.driftY * 0.78 + Math.sin(dragAngle) * dragFlow, -230, 230);
-      quoteFlow.orbit = clamp(quoteFlow.orbit * 0.74 + orbitImpulse, -330, 330);
-      quoteFlow.spin = clamp(quoteFlow.spin * 0.7 + (angleDelta * 180) / Math.PI + (deltaX - deltaY) * 0.58, -170, 170);
-      quoteFlow.centerAngle += clamp(angleDelta, -0.9, 0.9) + distance * 0.010 * Math.sign(quoteFlow.orbit || deltaX || 1);
+      const dragFlow = clamp(distance * 5.7 * strength, 48, 190);
+      const orbitImpulse = angleDelta * 310 + ((relativeX * deltaY - relativeY * deltaX) / Math.max(canvasRect.width, 1)) * 4.8;
+      quoteFlow.driftX = clamp(quoteFlow.driftX * 0.62 + Math.cos(dragAngle) * dragFlow, -210, 210);
+      quoteFlow.driftY = clamp(quoteFlow.driftY * 0.62 + Math.sin(dragAngle) * dragFlow, -200, 200);
+      quoteFlow.orbit = clamp(quoteFlow.orbit * 0.66 + orbitImpulse, -285, 285);
+      quoteFlow.spin = clamp(quoteFlow.spin * 0.58 + (angleDelta * 210) / Math.PI + (deltaX - deltaY) * 0.68, -190, 190);
+      quoteFlow.centerAngle += clamp(angleDelta * 1.35, -1.2, 1.2) + distance * 0.018 * Math.sign(quoteFlow.orbit || deltaX || 1);
 
-      quoteElement.style.setProperty("--quote-stir-x", `${Math.round(quoteFlow.driftX * 0.18)}px`);
-      quoteElement.style.setProperty("--quote-stir-y", `${Math.round(quoteFlow.driftY * 0.18)}px`);
+      quoteElement.style.setProperty("--quote-stir-x", `${Math.round(quoteFlow.driftX * 0.2)}px`);
+      quoteElement.style.setProperty("--quote-stir-y", `${Math.round(quoteFlow.driftY * 0.2)}px`);
       quoteElement.style.setProperty("--quote-spin", `${Math.round(quoteFlow.spin)}deg`);
       quoteElement.style.setProperty("--quote-turbulence", strength.toFixed(2));
 
@@ -380,16 +380,24 @@ export default function LaunchBubble() {
         const seed = (quoteIndexRef.current + 1) * 97 + tokenIndex * 13 + (source ? 43 : 0);
         const baseAngle = seededUnit(seed + 41.5) * Math.PI * 2;
         const orbitDirection = seededUnit(seed + 44.8) > 0.43 ? 1 : -1;
-        const orbitRadius = (source ? 36 : 48) + seededUnit(seed + 47.2) * (source ? 72 : 118);
-        const streamShare = 0.36 + seededUnit(seed + 51.3) * 0.92;
-        const verticalShare = 0.32 + seededUnit(seed + 53.6) * 0.82;
-        const orbitAngle = baseAngle + quoteFlow.centerAngle * (0.62 + seededUnit(seed + 49.1) * 0.72) * orbitDirection;
-        const swirlX = Math.cos(orbitAngle) * orbitRadius * (quoteFlow.orbit / 330);
-        const swirlY = Math.sin(orbitAngle) * orbitRadius * (quoteFlow.orbit / 330);
-        const crossX = -Math.sin(orbitAngle) * Math.abs(quoteFlow.orbit) * 0.26 * orbitDirection;
-        const crossY = Math.cos(orbitAngle) * Math.abs(quoteFlow.orbit) * 0.22 * orbitDirection;
-        const liveX = clamp(quoteFlow.driftX * streamShare + swirlX + crossX, -270, 270);
-        const liveY = clamp(quoteFlow.driftY * verticalShare + swirlY + crossY, -250, 250);
+        const orbitRadius = (source ? 42 : 54) + seededUnit(seed + 47.2) * (source ? 70 : 110);
+        const streamShare = 0.65 + seededUnit(seed + 51.3) * 0.45;
+        const verticalShare = 0.62 + seededUnit(seed + 53.6) * 0.45;
+        const orbitAngle = baseAngle + quoteFlow.centerAngle * (0.82 + seededUnit(seed + 49.1) * 0.76) * orbitDirection;
+        const orbitRatio = quoteFlow.orbit / 285;
+        const swirlX = Math.cos(orbitAngle) * orbitRadius * orbitRatio;
+        const swirlY = Math.sin(orbitAngle) * orbitRadius * orbitRatio;
+        const crossX = -Math.sin(orbitAngle) * Math.abs(quoteFlow.orbit) * 0.3 * orbitDirection;
+        const crossY = Math.cos(orbitAngle) * Math.abs(quoteFlow.orbit) * 0.26 * orbitDirection;
+        let liveX = clamp(quoteFlow.driftX * streamShare + swirlX + crossX, -230, 230);
+        let liveY = clamp(quoteFlow.driftY * verticalShare + swirlY + crossY, -220, 220);
+        const liveDistance = Math.hypot(liveX, liveY);
+        const minimumDistance = 90 + strength * 22 + seededUnit(seed + 61.9) * 30;
+        if (liveDistance < minimumDistance) {
+          const fallbackAngle = dragAngle + (seededUnit(seed + 64.4) - 0.5) * 1.1;
+          liveX = clamp(liveX + Math.cos(fallbackAngle) * (minimumDistance - liveDistance), -230, 230);
+          liveY = clamp(liveY + Math.sin(fallbackAngle) * (minimumDistance - liveDistance), -220, 220);
+        }
         token.style.setProperty("--quote-live-x", `${Math.round(liveX)}px`);
         token.style.setProperty("--quote-live-y", `${Math.round(liveY)}px`);
         token.style.setProperty("--quote-live-rotate", `${Math.round(quoteFlow.spin * (0.55 + seededUnit(seed + 57.7) * 0.85))}deg`);

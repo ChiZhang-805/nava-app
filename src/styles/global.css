@@ -3507,14 +3507,14 @@ textarea::placeholder {
     )
     rotate(calc(var(--quote-rotate, 0deg) + var(--quote-spin, 0deg) + var(--quote-live-rotate, 0deg)))
     scale(var(--quote-scale, 0.86));
-  transition-duration: 640ms;
-  transition-timing-function: cubic-bezier(0.16, 0.72, 0.2, 1);
+  transition-duration: 420ms;
+  transition-timing-function: cubic-bezier(0.12, 0.82, 0.16, 1);
 }
 
 .launch-bubble__quote.is-scattered.is-stirring .launch-quote-token {
   opacity: 0.98;
-  transition-duration: 280ms;
-  transition-timing-function: cubic-bezier(0.13, 0.68, 0.18, 1);
+  transition-duration: 90ms;
+  transition-timing-function: cubic-bezier(0.08, 0.84, 0.12, 1);
 }
 
 .launch-bubble__quote.is-scattered .launch-quote-token::after {
@@ -3524,7 +3524,7 @@ textarea::placeholder {
     rotate(calc(var(--quote-rotate, 0deg) + var(--quote-spin, 0deg) + var(--quote-live-rotate, 0deg)))
     skew(var(--quote-frag-skew, 0deg))
     scale(1);
-  transition-duration: 520ms;
+  transition-duration: 320ms;
 }
 
 .launch-bubble__quote.is-scattered.is-stirring .launch-quote-token::after {
@@ -3535,7 +3535,7 @@ textarea::placeholder {
     rotate(calc(var(--quote-rotate, 0deg) + var(--quote-spin, 0deg) + var(--quote-live-rotate, 0deg)))
     skew(var(--quote-frag-skew, 0deg))
     scale(1.15);
-  transition-duration: 300ms;
+  transition-duration: 100ms;
 }
 
 .launch-bubble__quote.is-scattered .launch-quote-token.is-source {
