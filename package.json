@@ -18,6 +18,7 @@
     "screenshots:background": "node scripts/capture-background-states.mjs",
     "screenshots:launch": "node scripts/capture-launch-experience.mjs",
     "screenshots:motion": "node scripts/capture-motion-background.mjs",
+    "deploy:cloudflare": "npm run build && npx wrangler pages deploy",
     "motion:test": "node --experimental-strip-types --test tests/background-motion.test.ts",
     "algorithm:test": "node --experimental-strip-types --test tests/rhythm-core.test.ts",
     "algorithm:benchmark": "node --experimental-strip-types scripts/benchmark-rhythm-v4.ts",

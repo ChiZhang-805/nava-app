@@ -6,9 +6,11 @@ import type { UserProfile } from "./profile";
 export function isDemoMode() {
   if (typeof window === "undefined") return false;
   const demoParam = new URLSearchParams(window.location.search).get("demo");
+  const host = window.location.hostname;
   if (demoParam === "0") return false;
   if (demoParam === "1") return true;
-  if (window.location.hostname === "nava-app-preview-cz.chizhang1031.chatgpt.site") return true;
+  if (host === "nava-app-preview-cz.chizhang1031.chatgpt.site") return true;
+  if (host.endsWith(".pages.dev") && host.includes("nava-app-preview")) return true;
   if (import.meta.env.VITE_ENABLE_REVIEW_DEMO === "true") return true;
   return false;
 }

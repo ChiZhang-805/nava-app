@@ -25,7 +25,25 @@ copy .env.example .env
 npm run dev
 ```
 
-需要跳过登录查看完整 App 界面时，打开 `http://127.0.0.1:5173/?demo=1`。Demo 入口只在 Vite 本地开发环境生效，生产构建和正式 iOS App 不允许通过该参数绕过登录。
+需要跳过登录查看完整 App 界面时，打开 `http://127.0.0.1:5173/?demo=1`。团队评审链接可以通过 `VITE_ENABLE_REVIEW_DEMO=true` 或 `nava-app-preview*.pages.dev` 域名进入完整 demo；正式生产域名不要开启这个变量。
+
+## 团队评审链接
+
+Cloudflare Pages 推荐配置：
+
+```text
+Build command: npm run build
+Build output directory: dist
+Production branch: main
+```
+
+本机已经提交 `wrangler.toml`，如果 Cloudflare CLI 已登录，也可以直接运行：
+
+```bash
+npm run deploy:cloudflare
+```
+
+当前公开预览链接也可用于评审：`https://nava-app-preview-cz.chizhang1031.chatgpt.site`。
 
 `.env` 必须使用和 Web 端同一个 Supabase 项目：
 
