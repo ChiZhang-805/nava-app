@@ -307,11 +307,16 @@ export default function LaunchBubble() {
   const quoteDraggedRef = useRef(false);
   const quoteTimerRef = useRef<number | null>(null);
   const [quoteIndex, setQuoteIndex] = useState(0);
+  const quoteIndexRef = useRef(0);
   const [quoteScattered, setQuoteScattered] = useState(false);
   const [quoteStirring, setQuoteStirring] = useState(false);
   const quote = BUBBLE_QUOTES[quoteIndex];
   const quoteChars = useMemo(() => Array.from(quote.text), [quote.text]);
   const sourceChars = useMemo(() => Array.from(`— ${quote.source}`), [quote.source]);
+
+  useEffect(() => {
+    quoteIndexRef.current = quoteIndex;
+  }, [quoteIndex]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -324,23 +329,90 @@ export default function LaunchBubble() {
       }
     };
 
-    const setQuoteMotion = (deltaX: number, deltaY: number, speed: number) => {
+    const quoteFlow = {
+      centerAngle: 0,
+      driftX: 0,
+      driftY: 0,
+      hasAngle: false,
+      lastAngle: 0,
+      orbit: 0,
+      spin: 0,
+    };
+
+    const normalizeAngle = (angle: number) => {
+      let normalized = angle;
+      while (normalized > Math.PI) normalized -= Math.PI * 2;
+      while (normalized < -Math.PI) normalized += Math.PI * 2;
+      return normalized;
+    };
+
+    const setQuoteMotion = (event: PointerEvent, deltaX: number, deltaY: number, speed: number) => {
       const quoteElement = quoteRef.current;
       if (!quoteElement) return;
-      const strength = clamp(speed / 1500, 0.35, 1.75);
-      quoteElement.style.setProperty("--quote-stir-x", `${Math.round(clamp(deltaX * 3.2 * strength, -150, 150))}px`);
-      quoteElement.style.setProperty("--quote-stir-y", `${Math.round(clamp(deltaY * 3.0 * strength, -130, 130))}px`);
-      quoteElement.style.setProperty("--quote-spin", `${Math.round(clamp((deltaX - deltaY) * 1.55 * strength, -145, 145))}deg`);
+      const canvasRect = canvas.getBoundingClientRect();
+      const centerX = canvasRect.left + canvasRect.width / 2;
+      const centerY = canvasRect.top + canvasRect.height / 2;
+      const relativeX = event.clientX - centerX;
+      const relativeY = event.clientY - centerY;
+      const angle = Math.atan2(relativeY, relativeX);
+      const angleDelta = quoteFlow.hasAngle ? normalizeAngle(angle - quoteFlow.lastAngle) : 0;
+      quoteFlow.hasAngle = true;
+      quoteFlow.lastAngle = angle;
+
+      const distance = Math.hypot(deltaX, deltaY);
+      const strength = clamp(speed / 1250, 0.28, 1.55);
+      const dragAngle = Math.atan2(deltaY || 0.001, deltaX || 0.001);
+      const dragFlow = clamp(distance * 4.8 * strength, 18, 210);
+      const orbitImpulse = angleDelta * 260 + ((relativeX * deltaY - relativeY * deltaX) / Math.max(canvasRect.width, 1)) * 2.8;
+      quoteFlow.driftX = clamp(quoteFlow.driftX * 0.78 + Math.cos(dragAngle) * dragFlow, -250, 250);
+      quoteFlow.driftY = clamp(quoteFlow.driftY * 0.78 + Math.sin(dragAngle) * dragFlow, -230, 230);
+      quoteFlow.orbit = clamp(quoteFlow.orbit * 0.74 + orbitImpulse, -330, 330);
+      quoteFlow.spin = clamp(quoteFlow.spin * 0.7 + (angleDelta * 180) / Math.PI + (deltaX - deltaY) * 0.58, -170, 170);
+      quoteFlow.centerAngle += clamp(angleDelta, -0.9, 0.9) + distance * 0.010 * Math.sign(quoteFlow.orbit || deltaX || 1);
+
+      quoteElement.style.setProperty("--quote-stir-x", `${Math.round(quoteFlow.driftX * 0.18)}px`);
+      quoteElement.style.setProperty("--quote-stir-y", `${Math.round(quoteFlow.driftY * 0.18)}px`);
+      quoteElement.style.setProperty("--quote-spin", `${Math.round(quoteFlow.spin)}deg`);
       quoteElement.style.setProperty("--quote-turbulence", strength.toFixed(2));
+
+      quoteElement.querySelectorAll<HTMLElement>(".launch-quote-token").forEach((token, tokenIndex) => {
+        const source = token.classList.contains("is-source");
+        const seed = (quoteIndexRef.current + 1) * 97 + tokenIndex * 13 + (source ? 43 : 0);
+        const baseAngle = seededUnit(seed + 41.5) * Math.PI * 2;
+        const orbitDirection = seededUnit(seed + 44.8) > 0.43 ? 1 : -1;
+        const orbitRadius = (source ? 36 : 48) + seededUnit(seed + 47.2) * (source ? 72 : 118);
+        const streamShare = 0.36 + seededUnit(seed + 51.3) * 0.92;
+        const verticalShare = 0.32 + seededUnit(seed + 53.6) * 0.82;
+        const orbitAngle = baseAngle + quoteFlow.centerAngle * (0.62 + seededUnit(seed + 49.1) * 0.72) * orbitDirection;
+        const swirlX = Math.cos(orbitAngle) * orbitRadius * (quoteFlow.orbit / 330);
+        const swirlY = Math.sin(orbitAngle) * orbitRadius * (quoteFlow.orbit / 330);
+        const crossX = -Math.sin(orbitAngle) * Math.abs(quoteFlow.orbit) * 0.26 * orbitDirection;
+        const crossY = Math.cos(orbitAngle) * Math.abs(quoteFlow.orbit) * 0.22 * orbitDirection;
+        const liveX = clamp(quoteFlow.driftX * streamShare + swirlX + crossX, -270, 270);
+        const liveY = clamp(quoteFlow.driftY * verticalShare + swirlY + crossY, -250, 250);
+        token.style.setProperty("--quote-live-x", `${Math.round(liveX)}px`);
+        token.style.setProperty("--quote-live-y", `${Math.round(liveY)}px`);
+        token.style.setProperty("--quote-live-rotate", `${Math.round(quoteFlow.spin * (0.55 + seededUnit(seed + 57.7) * 0.85))}deg`);
+      });
     };
 
     const resetQuoteMotion = () => {
       const quoteElement = quoteRef.current;
       if (!quoteElement) return;
+      quoteFlow.driftX = 0;
+      quoteFlow.driftY = 0;
+      quoteFlow.hasAngle = false;
+      quoteFlow.orbit = 0;
+      quoteFlow.spin = 0;
       quoteElement.style.setProperty("--quote-stir-x", "0px");
       quoteElement.style.setProperty("--quote-stir-y", "0px");
       quoteElement.style.setProperty("--quote-spin", "0deg");
       quoteElement.style.setProperty("--quote-turbulence", "0");
+      quoteElement.querySelectorAll<HTMLElement>(".launch-quote-token").forEach((token) => {
+        token.style.setProperty("--quote-live-x", "0px");
+        token.style.setProperty("--quote-live-y", "0px");
+        token.style.setProperty("--quote-live-rotate", "0deg");
+      });
     };
 
     const scatterQuote = () => {
@@ -506,7 +578,7 @@ export default function LaunchBubble() {
         quoteDraggedRef.current = true;
         scatterQuote();
         setQuoteStirring(true);
-        setQuoteMotion(deltaX, deltaY, speed);
+        setQuoteMotion(event, deltaX, deltaY, speed);
       }
       drag.peakVelocity = Math.max(drag.peakVelocity, speed);
       drag.lastX = event.clientX;

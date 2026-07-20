@@ -3501,28 +3501,30 @@ textarea::placeholder {
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.28);
   transform:
     translate3d(
-      calc(var(--quote-x, 0px) + var(--quote-stir-x, 0px)),
-      calc(var(--quote-y, 0px) + var(--quote-stir-y, 0px)),
+      calc(var(--quote-x, 0px) + var(--quote-stir-x, 0px) + var(--quote-live-x, 0px)),
+      calc(var(--quote-y, 0px) + var(--quote-stir-y, 0px) + var(--quote-live-y, 0px)),
       0
     )
-    rotate(calc(var(--quote-rotate, 0deg) + var(--quote-spin, 0deg)))
+    rotate(calc(var(--quote-rotate, 0deg) + var(--quote-spin, 0deg) + var(--quote-live-rotate, 0deg)))
     scale(var(--quote-scale, 0.86));
-  transition-duration: 430ms;
+  transition-duration: 640ms;
+  transition-timing-function: cubic-bezier(0.16, 0.72, 0.2, 1);
 }
 
 .launch-bubble__quote.is-scattered.is-stirring .launch-quote-token {
   opacity: 0.98;
-  transition-duration: 120ms;
-  transition-timing-function: cubic-bezier(0.12, 0.72, 0.18, 1);
+  transition-duration: 280ms;
+  transition-timing-function: cubic-bezier(0.13, 0.68, 0.18, 1);
 }
 
 .launch-bubble__quote.is-scattered .launch-quote-token::after {
   opacity: 0.88;
   transform:
     translate(-50%, -50%)
-    rotate(calc(var(--quote-rotate, 0deg) + var(--quote-spin, 0deg)))
+    rotate(calc(var(--quote-rotate, 0deg) + var(--quote-spin, 0deg) + var(--quote-live-rotate, 0deg)))
     skew(var(--quote-frag-skew, 0deg))
     scale(1);
+  transition-duration: 520ms;
 }
 
 .launch-bubble__quote.is-scattered.is-stirring .launch-quote-token::after {
@@ -3530,9 +3532,10 @@ textarea::placeholder {
   filter: brightness(1.08) blur(0.12px);
   transform:
     translate(-50%, -50%)
-    rotate(calc(var(--quote-rotate, 0deg) + var(--quote-spin, 0deg)))
+    rotate(calc(var(--quote-rotate, 0deg) + var(--quote-spin, 0deg) + var(--quote-live-rotate, 0deg)))
     skew(var(--quote-frag-skew, 0deg))
     scale(1.15);
+  transition-duration: 300ms;
 }
 
 .launch-bubble__quote.is-scattered .launch-quote-token.is-source {
