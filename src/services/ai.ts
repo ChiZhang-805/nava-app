@@ -43,14 +43,11 @@ export async function sendAiMessage(input: {
       assistantMessage: {
         id: `demo-assistant-${Date.now()}`,
         role: "assistant",
-        content:
-          input.lang === "en"
-            ? "I updated your rhythm note from that description. In production, the shared Edge Functions will extract and reply from the same account data."
-            : "我已根据你的描述更新节律建议。正式环境会调用同源 Edge Functions 完成抽取和回复。",
+        content: demoAiReply(input.message, input.lang ?? "zh"),
         created_at: now,
       } as ChatMessage,
       extractedData: null,
-      applied: { type: "demo", saved: true },
+      applied: null,
     };
   }
 
@@ -108,6 +105,36 @@ export async function sendAiMessage(input: {
     extractedData,
     applied,
   };
+}
+
+function demoAiReply(message: string, lang: "zh" | "en") {
+  const text = message.toLowerCase();
+  if (lang === "en") {
+    if (text.includes("who are you") || text.includes("what are you")) {
+      return "I am NAVA, your rhythm companion. Tell me sleep, movement, mood, food, focus, or face changes, and I will help organize the day.";
+    }
+    if (text.includes("sleep")) return "I heard the sleep note. Keep tonight's wind-down window steady and watch how your energy feels after waking.";
+    if (text.includes("exercise") || text.includes("steps")) return "That movement matters. I would compare it with recovery before pushing intensity higher.";
+    if (text.includes("mood") || text.includes("stress")) return "I hear the stress signal. A short reset and a clear next task may help your rhythm settle.";
+    return "I am listening. You can speak naturally; NAVA will turn daily details into rhythm clues.";
+  }
+
+  if (/你是谁|你是誰|nava是什么|nava是什麼/.test(message)) {
+    return "我是 NAVA，会陪你把睡眠、运动、情绪、饮食、专注和面部状态整理成今天的节律线索。";
+  }
+  if (/睡|醒|困|失眠|入睡|起床/.test(message)) {
+    return "我听到了睡眠变化。今晚先稳住入睡窗口，明早再看清醒感和活动量是否一起恢复。";
+  }
+  if (/步|跑|运动|訓練|训练|卡路里|心率/.test(message)) {
+    return "这条运动记录有价值。真正判断强度时，还要和恢复、睡眠和今天的主观状态放在一起看。";
+  }
+  if (/情绪|壓力|压力|焦虑|烦|累/.test(message)) {
+    return "我听到的是压力信号。先把下一步缩小一点，给身体一个能接住的节奏。";
+  }
+  if (/吃|饮食|飲食|早餐|午餐|晚餐|咖啡/.test(message)) {
+    return "这条饮食线索会影响能量节律。后面可以结合运动消耗和晚间睡意一起判断。";
+  }
+  return "我在听。你可以像聊天一样告诉我今天发生了什么，NAVA 会把这些细节变成节律线索。";
 }
 
 async function applyExtractedData(userId: string, extraction: Record<string, unknown>) {

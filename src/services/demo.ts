@@ -5,7 +5,10 @@ import type { UserProfile } from "./profile";
 
 export function isDemoMode() {
   if (typeof window === "undefined") return false;
-  return import.meta.env.DEV && new URLSearchParams(window.location.search).get("demo") === "1";
+  const demoParam = new URLSearchParams(window.location.search).get("demo");
+  if (demoParam === "0") return false;
+  if (import.meta.env.VITE_ENABLE_REVIEW_DEMO === "true") return true;
+  return import.meta.env.DEV && demoParam === "1";
 }
 
 export const demoUser = {

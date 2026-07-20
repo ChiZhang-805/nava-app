@@ -25,7 +25,6 @@ export default function AIScreen({
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [applyNotice, setApplyNotice] = useState<string | null>(null);
   const [voiceState, setVoiceState] = useState<"idle" | "starting" | "listening">("idle");
   const listRef = useRef<HTMLDivElement | null>(null);
   const voiceSessionRef = useRef<VoiceInputSession | null>(null);
@@ -53,7 +52,6 @@ export default function AIScreen({
     setInput("");
     setSending(true);
     setError(null);
-    setApplyNotice(null);
     try {
       const result = await sendAiMessage({
         userId: user.id,
@@ -62,11 +60,6 @@ export default function AIScreen({
         lang: locale,
       });
       setMessages((current) => [...current, result.userMessage, result.assistantMessage]);
-      if (result.applied?.saved) {
-        setApplyNotice(t("ai.saved", { type: result.applied.type }));
-      } else if (result.applied && !result.applied.saved) {
-        setApplyNotice(t("ai.pending", { type: result.applied.type }));
-      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setInput(message);
@@ -186,7 +179,6 @@ export default function AIScreen({
       </div>
 
       {error && <p className="error-text">{error}</p>}
-      {applyNotice && <p className="success-text">{applyNotice}</p>}
 
       <form className={["chat-composer", voiceState !== "idle" ? "voice-active" : ""].filter(Boolean).join(" ")} onSubmit={submit}>
         <div className="chat-input-shell">

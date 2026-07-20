@@ -1627,7 +1627,7 @@ body::before {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 0;
 }
 
 .today-data-copy strong,
@@ -1643,8 +1643,7 @@ body::before {
 }
 
 .today-data-copy small {
-  color: rgba(8, 45, 73, 0.54);
-  font-size: 12px;
+  display: none;
 }
 
 .today-data-check {
