@@ -1,10 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useT, type TranslationKey } from "../i18n";
 import { requestBackgroundMotionPermission } from "../services/backgroundMotion";
-import { isDemoMode } from "../services/demo";
 import NavaWordmark from "./NavaWordmark";
 
-const STORAGE_KEY = "nava.launch.sequence.v1";
+const STORAGE_KEY = "nava.launch.sequence.v2";
 const LINE_ACTIVE_MS = 8000;
 const FADE_DURATION_MS = 1200;
 const lineKeys: TranslationKey[] = ["intro.one", "intro.two", "intro.three"];
@@ -12,7 +11,6 @@ const LaunchBubble = lazy(() => import("./LaunchBubble"));
 
 function shouldPlay() {
   if (typeof window === "undefined") return false;
-  if (isDemoMode()) return false;
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
   return window.sessionStorage.getItem(STORAGE_KEY) !== "seen";
 }

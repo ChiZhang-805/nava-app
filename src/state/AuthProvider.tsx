@@ -13,7 +13,7 @@ import {
   verifyPasswordResetOtp,
   verifyRegistrationOtp,
 } from "../services/auth";
-import { demoUser, isDemoMode } from "../services/demo";
+import { clearDemoAuthSession, demoUser, hasDemoAuthSession, isDemoLoginCredential, isDemoMode, startDemoAuthSession } from "../services/demo";
 
 function recoveryFlowInUrl() {
   if (typeof window === "undefined") return false;
@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let alive = true;
 
-    if (isDemoMode()) {
+    if (isDemoMode() && hasDemoAuthSession()) {
       setUser(demoUser);
       setLoading(false);
       return () => {
@@ -74,6 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     setError(null);
     try {
+      if (isDemoMode()) {
+        if (!isDemoLoginCredential(email, password)) throw new Error("演示账号或密码不正确。");
+        startDemoAuthSession();
+        setUser(demoUser);
+        return;
+      }
       await signInWithPassword(email, password);
     } catch (authError) {
       const message = authError instanceof Error ? authError.message : String(authError);
@@ -84,6 +90,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     setError(null);
+    if (isDemoMode()) {
+      clearDemoAuthSession();
+      setUser(null);
+      setPasswordRecovery(false);
+      return;
+    }
     const { error: authError } = await supabase.auth.signOut();
     if (authError) {
       setError(authError.message);

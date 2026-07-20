@@ -3,6 +3,10 @@ import { daysAgoISO, todayISO } from "./date";
 import type { ChatMessage, DailyRhythmScore, ExerciseRecord, FocusRecord, MoodRecord, NutritionRecord, SleepRecord, TodaySnapshot, TrendBundle } from "../types";
 import type { UserProfile } from "./profile";
 
+const DEMO_SESSION_KEY = "nava.review.demo.auth.v1";
+export const demoLoginAccount = "13800138000";
+export const demoLoginPassword = "12345678";
+
 export function isDemoMode() {
   if (typeof window === "undefined") return false;
   const demoParam = new URLSearchParams(window.location.search).get("demo");
@@ -15,9 +19,29 @@ export function isDemoMode() {
   return false;
 }
 
+export function hasDemoAuthSession() {
+  if (typeof window === "undefined") return false;
+  return window.sessionStorage.getItem(DEMO_SESSION_KEY) === "signed-in";
+}
+
+export function startDemoAuthSession() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(DEMO_SESSION_KEY, "signed-in");
+}
+
+export function clearDemoAuthSession() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(DEMO_SESSION_KEY);
+}
+
+export function isDemoLoginCredential(account: string, password: string) {
+  const normalized = account.trim();
+  return normalized === demoLoginAccount && password === demoLoginPassword;
+}
+
 export const demoUser = {
   id: "00000000-0000-4000-8000-000000000001",
-  email: "demo@nava.app",
+  email: `${demoLoginAccount}@phone.nava.app`,
   aud: "authenticated",
   role: "authenticated",
   app_metadata: {},

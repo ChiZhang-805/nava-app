@@ -45,6 +45,13 @@ npm run deploy:cloudflare
 
 当前公开预览链接也可用于评审：`https://nava-app-preview-cz.chizhang1031.chatgpt.site`。
 
+团队评审演示账号：
+
+```text
+手机号：13800138000
+密码：12345678
+```
+
 `.env` 必须使用和 Web 端同一个 Supabase 项目：
 
 ```text
