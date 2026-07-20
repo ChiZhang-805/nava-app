@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   Euler,
   Matrix3,
@@ -221,16 +221,98 @@ interface DragState {
   pointerId: number;
 }
 
+interface BubbleQuote {
+  text: string;
+  source: string;
+}
+
+const BUBBLE_QUOTES: BubbleQuote[] = [
+  { text: "万物皆流，万物皆变。", source: "赫拉克利特《残篇》" },
+  { text: "生生之谓易。", source: "《周易·系辞上》" },
+  { text: "天行健，君子以自强不息。", source: "《周易·乾卦》" },
+  { text: "反者，道之动。", source: "老子《道德经》" },
+  { text: "人法地，地法天，道法自然。", source: "老子《道德经》" },
+  { text: "逝者如斯夫，不舍昼夜。", source: "《论语·子罕》" },
+  { text: "日出而作，日入而息。", source: "佚名《击壤歌》" },
+  { text: "春生夏长，秋收冬藏。", source: "《黄帝内经·四气调神大论》" },
+  { text: "食饮有节，起居有常。", source: "《黄帝内经·上古天真论》" },
+  { text: "阴平阳秘，精神乃治。", source: "《黄帝内经·生气通天论》" },
+  { text: "流水不腐，户枢不蠹。", source: "《吕氏春秋·尽数》" },
+  { text: "天地有大美而不言。", source: "庄子《知北游》" },
+  { text: "寒来暑往，秋收冬藏。", source: "周兴嗣《千字文》" },
+  { text: "一张一弛，文武之道。", source: "《礼记·杂记下》" },
+  { text: "观乎天文，以察时变。", source: "《周易·贲卦》" },
+  { text: "日新之谓盛德。", source: "《周易·系辞上》" },
+  { text: "天地与我并生，万物与我为一。", source: "庄子《齐物论》" },
+  { text: "合抱之木，生于毫末。", source: "老子《道德经》" },
+  { text: "盈缩之期，不但在天。", source: "曹操《龟虽寿》" },
+  { text: "养怡之福，可得永年。", source: "曹操《龟虽寿》" },
+];
+
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+function seededUnit(value: number) {
+  const x = Math.sin(value * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+function particleStyle(index: number, quoteIndex: number, source = false): CSSProperties {
+  const seed = (quoteIndex + 1) * 97 + index * 13 + (source ? 43 : 0);
+  const angle = seededUnit(seed) * Math.PI * 2;
+  const radius = (source ? 34 : 42) + seededUnit(seed + 3.3) * (source ? 58 : 92);
+  const verticalBias = source ? 0.58 : 1;
+  return {
+    "--quote-delay": `${Math.round(seededUnit(seed + 9.1) * 95)}ms`,
+    "--quote-rotate": `${Math.round((seededUnit(seed + 5.7) - 0.5) * 118)}deg`,
+    "--quote-scale": `${(0.72 + seededUnit(seed + 6.2) * 0.42).toFixed(2)}`,
+    "--quote-x": `${Math.round(Math.cos(angle) * radius)}px`,
+    "--quote-y": `${Math.round(Math.sin(angle) * radius * verticalBias)}px`,
+  } as CSSProperties;
+}
+
 export default function LaunchBubble() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const quoteScatteredRef = useRef(false);
+  const quoteDraggedRef = useRef(false);
+  const quoteTimerRef = useRef<number | null>(null);
+  const [quoteIndex, setQuoteIndex] = useState(0);
+  const [quoteScattered, setQuoteScattered] = useState(false);
+  const quote = BUBBLE_QUOTES[quoteIndex];
+  const quoteChars = useMemo(() => Array.from(quote.text), [quote.text]);
+  const sourceChars = useMemo(() => Array.from(`— ${quote.source}`), [quote.source]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    const clearQuoteTimer = () => {
+      if (quoteTimerRef.current !== null) {
+        window.clearTimeout(quoteTimerRef.current);
+        quoteTimerRef.current = null;
+      }
+    };
+
+    const scatterQuote = () => {
+      clearQuoteTimer();
+      quoteScatteredRef.current = true;
+      setQuoteScattered(true);
+    };
+
+    const settleNextQuote = () => {
+      clearQuoteTimer();
+      quoteScatteredRef.current = true;
+      setQuoteScattered(true);
+      quoteTimerRef.current = window.setTimeout(() => {
+        setQuoteIndex((current) => (current + 1) % BUBBLE_QUOTES.length);
+        quoteTimerRef.current = window.setTimeout(() => {
+          quoteScatteredRef.current = false;
+          setQuoteScattered(false);
+          quoteTimerRef.current = null;
+        }, 70);
+      }, 220);
+    };
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let renderer: WebGLRenderer;
@@ -335,6 +417,7 @@ export default function LaunchBubble() {
       canvas.releasePointerCapture?.(event.pointerId);
       energy = Math.min(BUBBLE_ENERGY_THRESHOLD + 0.5, energy + gestureEnergy(drag.distance, drag.peakVelocity));
       touchStrength = Math.max(touchStrength, 0.72);
+      if (quoteDraggedRef.current) settleNextQuote();
       triggerSplit(performance.now());
     };
 
@@ -350,6 +433,7 @@ export default function LaunchBubble() {
       drag.lastY = event.clientY;
       drag.peakVelocity = 0;
       drag.pointerId = event.pointerId;
+      quoteDraggedRef.current = false;
       setTouchFromEvent(event);
       touchStrength = 1;
     };
@@ -363,6 +447,10 @@ export default function LaunchBubble() {
       const distance = Math.hypot(deltaX, deltaY);
       const speed = (distance / deltaMs) * 1000;
       drag.distance += distance;
+      if (drag.distance > 12) {
+        quoteDraggedRef.current = true;
+        scatterQuote();
+      }
       drag.peakVelocity = Math.max(drag.peakVelocity, speed);
       drag.lastX = event.clientX;
       drag.lastY = event.clientY;
@@ -463,6 +551,7 @@ export default function LaunchBubble() {
       destroyed = true;
       window.cancelAnimationFrame(animationFrame);
       resizeObserver.disconnect();
+      clearQuoteTimer();
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", finishDrag);
@@ -474,8 +563,24 @@ export default function LaunchBubble() {
   }, []);
 
   return (
-    <div className="launch-bubble" aria-hidden="true">
-      <canvas className="launch-bubble__canvas" ref={canvasRef} />
+    <div className="launch-bubble" aria-label="可互动节律水泡">
+      <canvas className="launch-bubble__canvas" ref={canvasRef} aria-hidden="true" />
+      <figure className={["launch-bubble__quote", quoteScattered ? "is-scattered" : ""].filter(Boolean).join(" ")}>
+        <blockquote className="launch-bubble__quote-text">
+          {quoteChars.map((char, index) => (
+            <span className="launch-quote-token" key={`${quoteIndex}-quote-${index}-${char}`} style={particleStyle(index, quoteIndex)}>
+              {char}
+            </span>
+          ))}
+        </blockquote>
+        <figcaption className="launch-bubble__quote-source">
+          {sourceChars.map((char, index) => (
+            <span className="launch-quote-token is-source" key={`${quoteIndex}-source-${index}-${char}`} style={particleStyle(index, quoteIndex, true)}>
+              {char}
+            </span>
+          ))}
+        </figcaption>
+      </figure>
     </div>
   );
 }

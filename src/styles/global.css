@@ -3412,6 +3412,99 @@ textarea::placeholder {
   opacity: 1;
 }
 
+.launch-bubble__quote {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  width: min(78vw, 322px);
+  margin: 0;
+  padding: 0;
+  color: rgba(248, 254, 255, 0.96);
+  font-family: "FZKai-Z03", "Kaiti SC", "STKaiti", "KaiTi", "楷体", "Songti SC", serif;
+  letter-spacing: 0;
+  line-height: 1.42;
+  pointer-events: none;
+  text-align: center;
+  text-shadow:
+    0 1px 1px rgba(255, 255, 255, 0.36),
+    0 8px 24px rgba(0, 45, 78, 0.34),
+    0 18px 46px rgba(0, 87, 135, 0.22);
+  transform: translate(-50%, -50%);
+  user-select: none;
+}
+
+.launch-bubble__quote-text {
+  margin: 0;
+  font-size: clamp(20px, 5.3vw, 28px);
+  font-weight: 650;
+}
+
+.launch-bubble__quote-source {
+  display: block;
+  margin-top: 12px;
+  padding-right: 4px;
+  font-size: clamp(13px, 3.3vw, 16px);
+  font-weight: 560;
+  line-height: 1.35;
+  opacity: 0.86;
+  text-align: right;
+}
+
+.launch-quote-token {
+  position: relative;
+  display: inline-block;
+  min-width: 0.16em;
+  transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  transition:
+    color 320ms ease,
+    opacity 320ms ease,
+    text-shadow 320ms ease,
+    transform 760ms cubic-bezier(0.18, 0.86, 0.2, 1);
+  transition-delay: var(--quote-delay, 0ms);
+  will-change: transform, opacity;
+}
+
+.launch-quote-token::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.44em;
+  height: 0.44em;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.98), rgba(230, 251, 255, 0.72) 36%, rgba(68, 178, 221, 0.42) 72%, rgba(0, 108, 158, 0.16));
+  box-shadow:
+    0 0 9px rgba(255, 255, 255, 0.64),
+    0 8px 18px rgba(0, 78, 132, 0.28);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.42);
+  transition:
+    opacity 240ms ease,
+    transform 520ms cubic-bezier(0.18, 0.86, 0.2, 1);
+}
+
+.launch-bubble__quote.is-scattered .launch-quote-token {
+  color: rgba(246, 254, 255, 0.16);
+  opacity: 0.92;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.28);
+  transform:
+    translate3d(var(--quote-x, 0), var(--quote-y, 0), 0)
+    rotate(var(--quote-rotate, 0deg))
+    scale(var(--quote-scale, 0.86));
+  transition-duration: 430ms;
+}
+
+.launch-bubble__quote.is-scattered .launch-quote-token::after {
+  opacity: 0.88;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.launch-bubble__quote.is-scattered .launch-quote-token.is-source {
+  opacity: 0.72;
+}
+
 .launch-lines {
   z-index: 3;
   width: min(89vw, 400px);
