@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { Activity, BedDouble, Brain, Check, CircleDashed, Flame, HeartPulse, Moon, RefreshCw, ScanFace, SmilePlus, Utensils } from "lucide-react";
+import { Activity, BedDouble, Brain, Check, CircleDashed, Flame, HeartPulse, Moon, RefreshCw, ScanFace, SmilePlus, Utensils, X } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useState } from "react";
 import ActionButton from "../components/ActionButton";
@@ -20,17 +20,6 @@ function rhythmStateKey(score?: number | null): TranslationKey {
   return "today.stateRecovery";
 }
 
-const factorLabelKeys: Record<string, TranslationKey> = {
-  压力: "records.factor.pressure",
-  睡眠: "records.factor.sleep",
-  运动: "records.factor.exercise",
-  饮食: "records.factor.diet",
-  工作: "records.factor.work",
-  社交: "records.factor.social",
-  身体不适: "records.factor.body",
-  天气: "records.factor.weather",
-};
-
 const demoNextActionZh = "今日节律保持稳定，晚间减少连续屏幕刺激，睡前留出安静的放松时间，并尽量在 23:30 前入睡。";
 
 export default function TodayScreen({
@@ -48,11 +37,9 @@ export default function TodayScreen({
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rhythmDetailsOpen, setRhythmDetailsOpen] = useState(false);
   const nextAction = snapshot?.nextAction === demoNextActionZh ? t("today.demoNextAction") : snapshot?.nextAction;
-  const recommendation = t("today.adviceExpanded", { action: nextAction ?? t("today.adviceWaiting") });
-  const moodDetail = snapshot?.mood?.factors?.length
-    ? snapshot.mood.factors.map((factor) => (factorLabelKeys[factor] ? t(factorLabelKeys[factor]) : factor)).join(" / ")
-    : t("today.notRecorded");
+  const recommendation = t("today.adviceCompact", { action: nextAction ?? t("today.adviceWaiting") });
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -159,23 +146,18 @@ export default function TodayScreen({
             <strong>{snapshot?.rhythmScore ?? "--"}</strong>
             <span>/ 100</span>
           </div>
-          <p className="algorithm-meta">
-            {snapshot?.rhythmScoreLower != null && snapshot.rhythmScoreUpper != null
-              ? t("today.range", { lower: snapshot.rhythmScoreLower, upper: snapshot.rhythmScoreUpper })
-              : t("today.waitRange")}
-            {snapshot?.rhythmConfidence != null ? ` · ${t("today.confidence", { value: Math.round(snapshot.rhythmConfidence * 100) })}` : ""}
-          </p>
         </div>
-        <div className="ring" style={{ "--score": `${snapshot?.rhythmScore ?? 0}%` } as CSSProperties}>
+        <button
+          className="ring rhythm-detail-trigger"
+          type="button"
+          aria-label={t("today.rhythmDetails")}
+          title={t("today.rhythmDetails")}
+          onClick={() => setRhythmDetailsOpen(true)}
+          style={{ "--score": `${snapshot?.rhythmScore ?? 0}%` } as CSSProperties}
+        >
           <Activity size={28} />
-        </div>
+        </button>
       </section>
-
-      <div className="algorithm-strip" aria-label={t("today.overview")}>
-        <div><span>{t("today.state")}</span><strong>{t(rhythmStateKey(snapshot?.rhythmScore))}</strong></div>
-        <div><span>{t("today.dataQuality")}</span><strong>{snapshot?.rhythmDataQuality == null ? "--" : `${snapshot.rhythmDataQuality}%`}</strong></div>
-        <div><span>{t("today.sevenDayTrend")}</span><strong>{snapshot?.rhythmTrendSlope == null ? "--" : `${snapshot.rhythmTrendSlope >= 0 ? "+" : ""}${snapshot.rhythmTrendSlope.toFixed(1)}`}</strong></div>
-      </div>
 
       <div className="today-advice">
         <SectionCard
@@ -212,27 +194,27 @@ export default function TodayScreen({
 
       <div className="metric-grid today-metric-grid">
         <MetricCard
+          className="today-compact-metric"
           label={t("today.sleep")}
           value={minutesToText(snapshot?.sleep?.sleep_duration_minutes, locale)}
-          detail={snapshot?.sleep?.rhythm_score != null ? `${t("today.rhythm")} ${snapshot.sleep.rhythm_score}` : t("today.notRecorded")}
           icon={<BedDouble size={18} />}
         />
         <MetricCard
+          className="today-compact-metric"
           label={t("today.exercise")}
           value={(snapshot?.exercise?.steps ?? nativeSteps ?? 0).toLocaleString(locale === "en" ? "en-US" : "zh-CN")}
-          detail={`${snapshot?.exercise?.calories ?? 0} kcal · ${minutesToText(snapshot?.exercise?.exercise_minutes, locale)}`}
           icon={<Flame size={18} />}
         />
         <MetricCard
+          className="today-compact-metric"
           label={t("today.mood")}
           value={snapshot?.mood?.mood_score ?? "--"}
-          detail={moodDetail}
           icon={<SmilePlus size={18} />}
         />
         <MetricCard
+          className="today-compact-metric"
           label={t("today.focus")}
           value={minutesToText(snapshot?.focusMinutes, locale)}
-          detail={t("today.session", { count: snapshot?.focusSessions ?? 0 })}
           icon={<Brain size={18} />}
         />
       </div>
@@ -263,6 +245,38 @@ export default function TodayScreen({
           </div>
         </SectionCard>
       </div>
+
+      {rhythmDetailsOpen && (
+        <div className="rhythm-detail-overlay" role="presentation" onClick={() => setRhythmDetailsOpen(false)}>
+          <section
+            className="rhythm-detail-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("today.rhythmDetails")}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="section-heading">
+              <div>
+                <h2>{t("today.rhythmDetails")}</h2>
+              </div>
+              <button
+                className="section-icon-action"
+                type="button"
+                aria-label={t("common.close")}
+                title={t("common.close")}
+                onClick={() => setRhythmDetailsOpen(false)}
+              >
+                <X size={21} />
+              </button>
+            </div>
+            <div className="algorithm-strip rhythm-detail-grid" aria-label={t("today.overview")}>
+              <div><span>{t("today.state")}</span><strong>{t(rhythmStateKey(snapshot?.rhythmScore))}</strong></div>
+              <div><span>{t("today.dataQuality")}</span><strong>{snapshot?.rhythmDataQuality == null ? "--" : `${snapshot.rhythmDataQuality}%`}</strong></div>
+              <div><span>{t("today.sevenDayTrend")}</span><strong>{snapshot?.rhythmTrendSlope == null ? "--" : `${snapshot.rhythmTrendSlope >= 0 ? "+" : ""}${snapshot.rhythmTrendSlope.toFixed(1)}`}</strong></div>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

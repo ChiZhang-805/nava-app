@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient";
 import { demoProfile, isDemoMode } from "./demo";
+import { fileToDataUrl } from "./media";
 
 const DEMO_PROFILE_STORAGE_KEY = "nava.demo.profile.v1";
 
@@ -15,6 +16,7 @@ export interface UserProfile {
   sleep_schedule: string | null;
   diet_preference: string | null;
   stress_factors: string | null;
+  avatar_url?: string | null;
 }
 
 function readDemoProfile() {
@@ -58,4 +60,24 @@ export async function saveProfile(profile: Partial<UserProfile> & { id: string }
   const inserted = await supabase.from("profiles").insert({ id, ...changes }).select("*").single();
   if (inserted.error) throw inserted.error;
   return inserted.data as UserProfile;
+}
+
+export async function saveProfileAvatar(userId: string, file: File) {
+  const preview = await fileToDataUrl(file);
+  if (isDemoMode()) {
+    return writeDemoProfile({ id: userId, avatar_url: preview }).avatar_url ?? preview;
+  }
+
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${userId}/avatar-${Date.now()}.${ext}`;
+  const upload = await supabase.storage.from("profile-avatars").upload(path, file, {
+    cacheControl: "3600",
+    upsert: true,
+  });
+  if (upload.error) throw upload.error;
+
+  const { data } = supabase.storage.from("profile-avatars").getPublicUrl(path);
+  const avatarUrl = data.publicUrl || preview;
+  const saved = await saveProfile({ id: userId, avatar_url: avatarUrl });
+  return saved?.avatar_url ?? avatarUrl;
 }

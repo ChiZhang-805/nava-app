@@ -83,8 +83,6 @@ async function main() {
     await shot("02-today.png");
 
     metrics.today = await page.evaluate(() => {
-      const stripCells = [...document.querySelectorAll(".algorithm-strip > div")];
-      const stripWidths = stripCells.map((cell) => Number(cell.getBoundingClientRect().width.toFixed(2)));
       const recommendation = document.querySelector(".recommendation");
       const recommendationRect = recommendation?.getBoundingClientRect();
       const range = document.createRange();
@@ -104,39 +102,34 @@ async function main() {
       }));
       const hero = document.querySelector(".today-hero")?.getBoundingClientRect();
       const todayMetricCards = [...document.querySelectorAll(".today-metric-grid .metric-card")].map((card) => Number(card.getBoundingClientRect().height.toFixed(2)));
-      const stripLabel = document.querySelector(".algorithm-strip span");
-      const stripValue = document.querySelector(".algorithm-strip strong");
       const dataItems = [...document.querySelectorAll(".today-data-item")];
       const dataGrid = document.querySelector(".today-data-grid")?.getBoundingClientRect();
       const dataAction = document.querySelector(".today-data-action .action-button")?.getBoundingClientRect();
       const dataSection = document.querySelector(".today-data-section")?.getBoundingClientRect();
-      const dataHeading = document.querySelector(".today-data-section .section-heading")?.getBoundingClientRect();
       const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();
+      const content = document.querySelector(".app-content");
       return {
-        stripWidths,
-        stripText: document.querySelector(".algorithm-strip")?.textContent ?? "",
         recommendationLineWidths: visibleLineWidths,
         allRecommendationLineWidths,
         recommendationWidth: Number((recommendationRect?.width ?? 0).toFixed(2)),
         metricValues,
         heroHeight: Number((hero?.height ?? 0).toFixed(2)),
         todayMetricCards,
-        stripLabelSize: Number.parseFloat(stripLabel ? getComputedStyle(stripLabel).fontSize : "0"),
-        stripValueSize: Number.parseFloat(stripValue ? getComputedStyle(stripValue).fontSize : "0"),
+        metricDetailCount: document.querySelectorAll(".today-metric-grid .metric-card p").length,
         adviceSubtitleCount: document.querySelectorAll(".today-advice .section-heading p").length,
+        detailTriggerCount: document.querySelectorAll(".rhythm-detail-trigger").length,
+        initialDetailStripCount: document.querySelectorAll(".rhythm-detail-overlay .algorithm-strip > div").length,
         todayDataItems: dataItems.length,
         todayDataHeights: dataItems.map((item) => Number(item.getBoundingClientRect().height.toFixed(2))),
         todayDataButtonRatio: Number(((dataAction?.width ?? 0) / Math.max(dataGrid?.width ?? 1, 1)).toFixed(3)),
         initialDataSectionTop: Number((dataSection?.top ?? 0).toFixed(2)),
-        initialDataHeadingBottom: Number((dataHeading?.bottom ?? 0).toFixed(2)),
+        initialDataActionBottom: Number((dataAction?.bottom ?? 0).toFixed(2)),
         navTop: Number((nav?.top ?? 0).toFixed(2)),
+        scrollHeight: content?.scrollHeight ?? 0,
+        clientHeight: content?.clientHeight ?? 0,
       };
     });
 
-    if (Math.max(...metrics.today.stripWidths) - Math.min(...metrics.today.stripWidths) > 1) {
-      throw new Error(`Today overview is not split equally: ${metrics.today.stripWidths.join(", ")}`);
-    }
-    if (/ChronoState|模型/.test(metrics.today.stripText)) throw new Error("Today overview still exposes the model name");
     if (metrics.today.metricValues.some((metric) => metric.text.includes("分钟") || metric.height > metric.lineHeight * 1.25)) {
       throw new Error(`A Today metric wrapped unexpectedly: ${JSON.stringify(metrics.today.metricValues)}`);
     }
@@ -148,28 +141,46 @@ async function main() {
       throw new Error(`Expected six equal Today data states and a full-width action: ${JSON.stringify(metrics.today)}`);
     }
     if (
-      metrics.today.initialDataSectionTop < metrics.today.navTop - 0.5
-      && metrics.today.initialDataHeadingBottom > metrics.today.navTop + 0.5
+      metrics.today.scrollHeight > metrics.today.clientHeight + 2
+      || metrics.today.initialDataActionBottom > metrics.today.navTop + 0.5
     ) {
-      throw new Error(`Default Today viewport exposes a clipped data heading: ${JSON.stringify(metrics.today)}`);
+      throw new Error(`Default Today viewport is not one screen: ${JSON.stringify(metrics.today)}`);
     }
     const zhRecommendationRatio = metrics.today.recommendationLineWidths.at(-1) / metrics.today.recommendationWidth;
-    if (metrics.today.recommendationLineWidths.length < 4 || metrics.today.recommendationLineWidths.length > 5 || metrics.today.allRecommendationLineWidths.length !== metrics.today.recommendationLineWidths.length || zhRecommendationRatio < 0.75 || zhRecommendationRatio > 0.9) {
-      throw new Error(`Chinese recommendation does not form a balanced four-to-five-line block: ${JSON.stringify(metrics.today.recommendationLineWidths)}`);
+    if (metrics.today.recommendationLineWidths.length !== 3 || metrics.today.allRecommendationLineWidths.length !== metrics.today.recommendationLineWidths.length || zhRecommendationRatio < 0.75 || zhRecommendationRatio > 0.9) {
+      throw new Error(`Chinese recommendation does not form a balanced three-line block: ${JSON.stringify(metrics.today.recommendationLineWidths)}`);
     }
     if (
-      metrics.today.heroHeight > 150
-      || metrics.today.todayMetricCards.some((height) => height > 98)
-      || metrics.today.stripLabelSize < 12
-      || metrics.today.stripValueSize < 15
+      metrics.today.heroHeight > 120
+      || metrics.today.todayMetricCards.some((height) => height > 82)
+      || metrics.today.metricDetailCount !== 0
       || metrics.today.adviceSubtitleCount !== 0
+      || metrics.today.detailTriggerCount !== 1
+      || metrics.today.initialDetailStripCount !== 0
     ) {
       throw new Error(`Today spacing remains oversized or incomplete: ${JSON.stringify(metrics.today)}`);
     }
 
-    await page.locator(".today-data-section").scrollIntoViewIfNeeded();
-    await page.waitForTimeout(300);
-    await shot("02-today-data.png");
+    await page.locator(".rhythm-detail-trigger").click({ force: true });
+    await page.waitForTimeout(250);
+    metrics.todayDetail = await page.evaluate(() => {
+      const stripCells = [...document.querySelectorAll(".rhythm-detail-overlay .algorithm-strip > div")];
+      const stripWidths = stripCells.map((cell) => Number(cell.getBoundingClientRect().width.toFixed(2)));
+      return {
+        stripWidths,
+        stripText: document.querySelector(".rhythm-detail-overlay .algorithm-strip")?.textContent ?? "",
+      };
+    });
+    if (
+      metrics.todayDetail.stripWidths.length !== 3
+      || Math.max(...metrics.todayDetail.stripWidths) - Math.min(...metrics.todayDetail.stripWidths) > 1
+      || /ChronoState|模型/.test(metrics.todayDetail.stripText)
+    ) {
+      throw new Error(`Today rhythm detail dialog is incomplete: ${JSON.stringify(metrics.todayDetail)}`);
+    }
+    await shot("02-today-detail.png");
+    await page.locator('.rhythm-detail-overlay [aria-label="关闭"], .rhythm-detail-overlay [aria-label="Close"]').tap();
+    await page.waitForTimeout(200);
     await scrollContent(9999);
     const firstNavigationStart = await page.evaluate(() => document.querySelector(".app-content")?.scrollTop ?? 0);
 
@@ -481,6 +492,28 @@ async function main() {
         ) {
           throw new Error(`Default Profile device cards were not reduced by 10px cleanly: ${JSON.stringify(metrics.profile)}`);
         }
+        await page.locator(".avatar-button").tap();
+        await page.locator(".avatar-sheet").waitFor({ state: "visible" });
+        metrics.profile.avatarSheet = await page.evaluate(() => ({
+          actionLabels: [...document.querySelectorAll(".avatar-sheet-actions button")].map((button) => button.textContent?.trim() ?? ""),
+          closeActions: document.querySelectorAll('.avatar-sheet [aria-label="关闭"], .avatar-sheet [aria-label="Close"]').length,
+        }));
+        if (
+          metrics.profile.avatarSheet.closeActions !== 1
+          || metrics.profile.avatarSheet.actionLabels.length !== 2
+          || !metrics.profile.avatarSheet.actionLabels.some((label) => /相册|Choose photo/.test(label))
+          || !metrics.profile.avatarSheet.actionLabels.some((label) => /拍照|Take photo/.test(label))
+        ) {
+          throw new Error(`Profile avatar sheet is incomplete: ${JSON.stringify(metrics.profile.avatarSheet)}`);
+        }
+        await shot("06-profile-avatar-sheet.png");
+        await page.locator('.profile-account-card input[type="file"]').first().setInputFiles(samplePhoto);
+        await page.locator(".avatar-sheet-overlay").waitFor({ state: "detached" });
+        await page.locator('.avatar-button img[src^="data:image/png"]').waitFor({ state: "visible" });
+        metrics.profile.avatarUpdated = await page.locator('.avatar-button img[src^="data:image/png"]').count();
+        if (metrics.profile.avatarUpdated !== 1) {
+          throw new Error(`Profile avatar upload did not update the account image: ${JSON.stringify(metrics.profile.avatarUpdated)}`);
+        }
         for (const label of ["请求授权", "立即同步", "连接 Apple Watch", "同步 Apple Watch"]) {
           await page.locator(`[aria-label="${label}"]`).tap();
           await page.waitForTimeout(120);
@@ -526,7 +559,7 @@ async function main() {
     }
 
     metrics.navigationStart = firstNavigationStart;
-    if (firstNavigationStart < 100) throw new Error(`Scroll reset check did not start from a scrolled Today page: ${firstNavigationStart}`);
+    if (firstNavigationStart > 1) throw new Error(`Today page should not scroll in one-screen mode: ${firstNavigationStart}`);
 
     await page.locator('[data-tab="today"]').tap();
     await page.waitForTimeout(250);
@@ -562,8 +595,8 @@ async function main() {
       };
     });
     const enRecommendationRatio = metrics.todayEnglish.lineWidths.at(-1) / metrics.todayEnglish.width;
-    if (metrics.todayEnglish.lineWidths.length < 4 || metrics.todayEnglish.lineWidths.length > 5 || metrics.todayEnglish.allLineWidths.length !== metrics.todayEnglish.lineWidths.length || enRecommendationRatio < 0.75 || enRecommendationRatio > 0.9) {
-      throw new Error(`English recommendation does not form a balanced four-to-five-line block: ${JSON.stringify(metrics.todayEnglish)}`);
+    if (metrics.todayEnglish.lineWidths.length !== 3 || metrics.todayEnglish.allLineWidths.length !== metrics.todayEnglish.lineWidths.length || enRecommendationRatio < 0.75 || enRecommendationRatio > 0.9) {
+      throw new Error(`English recommendation does not form a balanced three-line block: ${JSON.stringify(metrics.todayEnglish)}`);
     }
     await shot("07-today-en.png");
 
@@ -593,29 +626,40 @@ async function main() {
       await viewportPage.waitForTimeout(900);
 
       const todayLayout = await viewportPage.evaluate(() => {
-        const section = document.querySelector(".today-data-section")?.getBoundingClientRect();
-        const metricGrid = document.querySelector(".today-metric-grid")?.getBoundingClientRect();
-        const heading = document.querySelector(".today-data-section .section-heading")?.getBoundingClientRect();
-        const grid = document.querySelector(".today-data-grid")?.getBoundingClientRect();
-        const firstDataItem = document.querySelector(".today-data-item")?.getBoundingClientRect();
+        const content = document.querySelector(".app-content");
+        const action = document.querySelector(".today-data-action .action-button")?.getBoundingClientRect();
+        const metrics = [...document.querySelectorAll(".today-metric-grid .metric-card")].map((card) => Number(card.getBoundingClientRect().height.toFixed(2)));
+        const recommendation = document.querySelector(".recommendation");
+        const recommendationRect = recommendation?.getBoundingClientRect();
+        const range = document.createRange();
+        if (recommendation) range.selectNodeContents(recommendation);
+        const lineWidths = recommendation
+          ? [...range.getClientRects()]
+              .filter((rect) => rect.height > 0 && recommendationRect && rect.top < recommendationRect.bottom - 0.5)
+              .map((rect) => Number(rect.width.toFixed(2)))
+          : [];
         const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();
         return {
-          sectionTop: Number((section?.top ?? 0).toFixed(2)),
-          sectionGap: Number(((section?.top ?? 0) - (metricGrid?.bottom ?? 0)).toFixed(2)),
-          headingBottom: Number((heading?.bottom ?? 0).toFixed(2)),
-          gridTop: Number((grid?.top ?? 0).toFixed(2)),
-          firstDataItemBottom: Number((firstDataItem?.bottom ?? 0).toFixed(2)),
+          scrollHeight: content?.scrollHeight ?? 0,
+          clientHeight: content?.clientHeight ?? 0,
+          actionBottom: Number((action?.bottom ?? 0).toFixed(2)),
           navTop: Number((nav?.top ?? 0).toFixed(2)),
+          metricHeights: metrics,
+          recommendationLineCount: lineWidths.length,
+          recommendationLastRatio: Number(((lineWidths.at(-1) ?? 0) / Math.max(recommendationRect?.width ?? 1, 1)).toFixed(3)),
+          detailTriggerCount: document.querySelectorAll(".rhythm-detail-trigger").length,
         };
       });
-      const todayDataIsVisible = todayLayout.sectionTop < todayLayout.navTop - 0.5;
-      const partialFirstDataRow = todayLayout.gridTop < todayLayout.navTop - 0.5
-        && todayLayout.firstDataItemBottom > todayLayout.navTop + 0.5;
-      if (todayDataIsVisible && (todayLayout.headingBottom > todayLayout.navTop + 0.5 || partialFirstDataRow)) {
-        throw new Error(`${viewport.name} Today exposes a clipped next-section element: ${JSON.stringify(todayLayout)}`);
-      }
-      if (viewport.name === "tall" && (todayLayout.sectionGap < 9.5 || todayLayout.sectionGap > 10.5)) {
-        throw new Error(`Tall Today data spacing does not match the other section gaps: ${JSON.stringify(todayLayout)}`);
+      if (
+        todayLayout.scrollHeight > todayLayout.clientHeight + 2
+        || todayLayout.actionBottom > todayLayout.navTop + 0.5
+        || todayLayout.metricHeights.some((height) => height > 82)
+        || todayLayout.recommendationLineCount !== 3
+        || todayLayout.recommendationLastRatio < 0.75
+        || todayLayout.recommendationLastRatio > 0.9
+        || todayLayout.detailTriggerCount !== 1
+      ) {
+        throw new Error(`${viewport.name} Today is not a one-screen layout: ${JSON.stringify(todayLayout)}`);
       }
       await viewportShot("today");
 

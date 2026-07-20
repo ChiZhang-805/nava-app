@@ -184,6 +184,7 @@ function MobileShell() {
       <main
         className={[
           "app-content",
+          activeTab === "today" ? "app-content--today" : "",
           activeTab === "ai" ? "app-content--chat" : "",
           activeTab === "record" ? "app-content--record" : "",
           activeTab === "trends" ? "app-content--trends" : "",

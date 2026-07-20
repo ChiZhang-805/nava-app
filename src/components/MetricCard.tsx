@@ -5,14 +5,16 @@ export default function MetricCard({
   value,
   detail,
   icon,
+  className,
 }: {
   label: string;
   value: string | number;
   detail?: string;
   icon?: ReactNode;
+  className?: string;
 }) {
   return (
-    <article className="metric-card">
+    <article className={["metric-card", className].filter(Boolean).join(" ")}>
       <div className="metric-top">
         <span>{label}</span>
         {icon}
@@ -22,4 +24,3 @@ export default function MetricCard({
     </article>
   );
 }
-

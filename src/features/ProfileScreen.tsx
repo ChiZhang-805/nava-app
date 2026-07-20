@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
-import { Apple, Check, Download, Link2, LogOut, RefreshCw, Save, ShieldCheck, Watch } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Apple, Camera, Check, Download, Images, Link2, LogOut, RefreshCw, Save, ShieldCheck, Watch, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import SectionCard from "../components/SectionCard";
 import { useLocale } from "../i18n";
@@ -13,7 +13,7 @@ import {
   syncNativeHealthNow,
   type HealthAuthorizationStatus,
 } from "../services/health";
-import { loadProfile, saveProfile, type UserProfile } from "../services/profile";
+import { loadProfile, saveProfile, saveProfileAvatar, type UserProfile } from "../services/profile";
 import { flushPendingWatchActions, getWatchReachability, publishWatchSnapshot, readLastWatchSnapshot } from "../services/watch";
 import { useAuth } from "../state/authContext";
 import type { WatchUserSnapshot } from "../types";
@@ -36,6 +36,9 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
   const [healthLastSync, setHealthLastSync] = useState<string | null>(() => readLastHealthSyncAt(user.id));
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileSaved, setProfileSaved] = useState(false);
+  const [avatarSheetOpen, setAvatarSheetOpen] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const [profileDraft, setProfileDraft] = useState({
     username: "",
     height: "",
@@ -112,6 +115,28 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
     });
   }
 
+  async function handleAvatarFile(file: File | null) {
+    setAvatarSheetOpen(false);
+    if (!file) return;
+    await run("avatar", null, async () => {
+      const avatarUrl = await saveProfileAvatar(user.id, file);
+      setProfile((current) => current ? { ...current, avatar_url: avatarUrl } : {
+        id: user.id,
+        username: profileDraft.username || null,
+        height: profileDraft.height ? Number(profileDraft.height) : null,
+        weight: profileDraft.weight ? Number(profileDraft.weight) : null,
+        occupation: profileDraft.occupation || null,
+        goal: profileDraft.goal || null,
+        mbti: null,
+        exercise_frequency: null,
+        sleep_schedule: null,
+        diet_preference: null,
+        stress_factors: null,
+        avatar_url: avatarUrl,
+      });
+    });
+  }
+
   async function authorizeHealth() {
     await run("health-auth", null, async () => {
       await requestHealthAuthorization();
@@ -177,12 +202,44 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
     <div className="stack profile-stack">
       <SectionCard className="profile-account-card" title={t("profile.account")}>
         <div className="profile-row">
-          <div className="avatar large">{displayName.slice(0, 1).toUpperCase()}</div>
+          <button
+            className="avatar large avatar-button"
+            type="button"
+            aria-label={t("profile.changeAvatar")}
+            title={t("profile.changeAvatar")}
+            onClick={() => setAvatarSheetOpen(true)}
+            disabled={busy === "avatar"}
+          >
+            {profile?.avatar_url
+              ? <img alt="" src={profile.avatar_url} />
+              : <span>{displayName.slice(0, 1).toUpperCase()}</span>}
+          </button>
           <div>
             <strong>{displayName}</strong>
             <p className="muted">{t("profile.daysHere", { days: memberDays })}</p>
           </div>
         </div>
+        <input
+          ref={galleryInputRef}
+          className="visually-hidden"
+          type="file"
+          accept="image/*"
+          onChange={(event) => {
+            void handleAvatarFile(event.target.files?.[0] ?? null);
+            event.currentTarget.value = "";
+          }}
+        />
+        <input
+          ref={cameraInputRef}
+          className="visually-hidden"
+          type="file"
+          accept="image/*"
+          capture="user"
+          onChange={(event) => {
+            void handleAvatarFile(event.target.files?.[0] ?? null);
+            event.currentTarget.value = "";
+          }}
+        />
       </SectionCard>
 
       <SectionCard
@@ -314,6 +371,31 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
 
       {message && <p className="success-text">{message}</p>}
       {error && <p className="error-text">{error}</p>}
+
+      {avatarSheetOpen && (
+        <div className="avatar-sheet-overlay" role="presentation" onClick={() => setAvatarSheetOpen(false)}>
+          <section className="avatar-sheet" role="dialog" aria-modal="true" aria-label={t("profile.changeAvatar")} onClick={(event) => event.stopPropagation()}>
+            <div className="section-heading">
+              <div>
+                <h2>{t("profile.changeAvatar")}</h2>
+              </div>
+              <button className="section-icon-action" type="button" aria-label={t("common.close")} title={t("common.close")} onClick={() => setAvatarSheetOpen(false)}>
+                <X size={21} />
+              </button>
+            </div>
+            <div className="avatar-sheet-actions">
+              <button type="button" onClick={() => galleryInputRef.current?.click()}>
+                <Images size={22} />
+                <span>{t("profile.choosePhoto")}</span>
+              </button>
+              <button type="button" onClick={() => cameraInputRef.current?.click()}>
+                <Camera size={22} />
+                <span>{t("profile.takePhoto")}</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       <ActionButton icon={<LogOut size={18} />} variant="ghost" onClick={signOut}>
         {t("profile.signOut")}

@@ -220,4 +220,5 @@ export const demoProfile: UserProfile = {
   sleep_schedule: "23:30 - 07:00",
   diet_preference: "高蛋白、少油",
   stress_factors: "项目截止日期",
+  avatar_url: null,
 };
