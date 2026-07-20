@@ -123,6 +123,7 @@ async function main() {
         todayDataHeights: dataItems.map((item) => Number(item.getBoundingClientRect().height.toFixed(2))),
         todayDataButtonRatio: Number(((dataAction?.width ?? 0) / Math.max(dataGrid?.width ?? 1, 1)).toFixed(3)),
         initialDataSectionTop: Number((dataSection?.top ?? 0).toFixed(2)),
+        initialDataSectionBottom: Number((dataSection?.bottom ?? 0).toFixed(2)),
         initialDataActionBottom: Number((dataAction?.bottom ?? 0).toFixed(2)),
         navTop: Number((nav?.top ?? 0).toFixed(2)),
         scrollHeight: content?.scrollHeight ?? 0,
@@ -140,9 +141,12 @@ async function main() {
     ) {
       throw new Error(`Expected six equal Today data states and a full-width action: ${JSON.stringify(metrics.today)}`);
     }
+    const defaultDataSectionGap = metrics.today.navTop - metrics.today.initialDataSectionBottom;
     if (
       metrics.today.scrollHeight > metrics.today.clientHeight + 2
       || metrics.today.initialDataActionBottom > metrics.today.navTop + 0.5
+      || defaultDataSectionGap < 14
+      || defaultDataSectionGap > 24
     ) {
       throw new Error(`Default Today viewport is not one screen: ${JSON.stringify(metrics.today)}`);
     }
@@ -628,6 +632,7 @@ async function main() {
       const todayLayout = await viewportPage.evaluate(() => {
         const content = document.querySelector(".app-content");
         const action = document.querySelector(".today-data-action .action-button")?.getBoundingClientRect();
+        const dataSection = document.querySelector(".today-data-section")?.getBoundingClientRect();
         const metrics = [...document.querySelectorAll(".today-metric-grid .metric-card")].map((card) => Number(card.getBoundingClientRect().height.toFixed(2)));
         const recommendation = document.querySelector(".recommendation");
         const recommendationRect = recommendation?.getBoundingClientRect();
@@ -643,6 +648,7 @@ async function main() {
           scrollHeight: content?.scrollHeight ?? 0,
           clientHeight: content?.clientHeight ?? 0,
           actionBottom: Number((action?.bottom ?? 0).toFixed(2)),
+          dataSectionBottom: Number((dataSection?.bottom ?? 0).toFixed(2)),
           navTop: Number((nav?.top ?? 0).toFixed(2)),
           metricHeights: metrics,
           recommendationLineCount: lineWidths.length,
@@ -653,6 +659,8 @@ async function main() {
       if (
         todayLayout.scrollHeight > todayLayout.clientHeight + 2
         || todayLayout.actionBottom > todayLayout.navTop + 0.5
+        || todayLayout.navTop - todayLayout.dataSectionBottom < 14
+        || todayLayout.navTop - todayLayout.dataSectionBottom > 24
         || todayLayout.metricHeights.some((height) => height > 82)
         || todayLayout.recommendationLineCount !== 3
         || todayLayout.recommendationLastRatio < 0.75
