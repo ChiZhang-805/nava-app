@@ -435,6 +435,7 @@ async function main() {
               ? {
                   navTop: Number((nav?.top ?? 0).toFixed(2)),
                   gapMidpoint: Number(((deviceCards[0].bottom + deviceCards[1].top) / 2).toFixed(2)),
+                  healthClearance: Number(((nav?.top ?? 0) - deviceCards[0].bottom).toFixed(2)),
                 }
               : null,
           };
@@ -474,11 +475,11 @@ async function main() {
         }
         if (
           !metrics.profile.initialDeviceGap
-          || metrics.profile.initialDeviceGap.navTop <= metrics.profile.deviceCards[0].bottom
-          || metrics.profile.initialDeviceGap.navTop >= metrics.profile.deviceCards[1].top
-          || Math.abs(metrics.profile.initialDeviceGap.navTop - metrics.profile.initialDeviceGap.gapMidpoint) > 0.75
+          || metrics.profile.initialDeviceGap.healthClearance < 17.5
+          || metrics.profile.initialDeviceGap.healthClearance > 18.5
+          || metrics.profile.deviceCards.some((card) => Math.abs(card.height - 114) > 0.5)
         ) {
-          throw new Error(`Default Profile navigation is not centered in the device-card gap: ${JSON.stringify(metrics.profile.initialDeviceGap)}`);
+          throw new Error(`Default Profile device cards were not reduced by 10px cleanly: ${JSON.stringify(metrics.profile)}`);
         }
         for (const label of ["请求授权", "立即同步", "连接 Apple Watch", "同步 Apple Watch"]) {
           await page.locator(`[aria-label="${label}"]`).tap();
@@ -697,6 +698,7 @@ async function main() {
           cards,
           navTop: Number((nav?.top ?? 0).toFixed(2)),
           gapMidpoint: cards.length === 2 ? Number(((cards[0].bottom + cards[1].top) / 2).toFixed(2)) : 0,
+          healthClearance: cards.length === 2 ? Number(((nav?.top ?? 0) - cards[0].bottom).toFixed(2)) : 0,
           sectionGaps: account && personal && cards.length === 2
             ? [
                 Number((personal.top - account.bottom).toFixed(2)),
@@ -715,11 +717,11 @@ async function main() {
       }
       if (
         profileLayout.cards.length !== 2
-        || profileLayout.navTop <= profileLayout.cards[0].bottom
-        || profileLayout.navTop >= profileLayout.cards[1].top
-        || Math.abs(profileLayout.navTop - profileLayout.gapMidpoint) > 0.75
+        || profileLayout.healthClearance < 17.5
+        || profileLayout.healthClearance > 18.5
+        || profileLayout.cards.some((card) => Math.abs(card.height - (viewport.name === "tall" ? 174 : 118)) > 0.5)
       ) {
-        throw new Error(`${viewport.name} Profile navigation is not centered in the device-card gap: ${JSON.stringify(profileLayout)}`);
+        throw new Error(`${viewport.name} Profile device cards were not reduced by 10px cleanly: ${JSON.stringify(profileLayout)}`);
       }
       await viewportShot("profile-devices");
 
