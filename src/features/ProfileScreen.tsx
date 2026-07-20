@@ -174,7 +174,7 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
         : t("profile.healthNeedsAuthorization");
 
   return (
-    <div className="stack">
+    <div className="stack profile-stack">
       <SectionCard className="profile-account-card" title={t("profile.account")}>
         <div className="profile-row">
           <div className="avatar large">{displayName.slice(0, 1).toUpperCase()}</div>

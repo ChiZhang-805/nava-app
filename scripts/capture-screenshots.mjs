@@ -404,6 +404,8 @@ async function main() {
               gap: Number(((input?.right ?? 0) - (unit?.right ?? 0)).toFixed(2)),
             };
           });
+          const account = document.querySelector(".profile-account-card")?.getBoundingClientRect();
+          const personal = document.querySelector(".profile-personal-card")?.getBoundingClientRect();
           const deviceCards = [...document.querySelectorAll(".profile-device-card")].map((card) => ({
             top: Number(card.getBoundingClientRect().top.toFixed(2)),
             bottom: Number(card.getBoundingClientRect().bottom.toFixed(2)),
@@ -422,6 +424,13 @@ async function main() {
             exportActions: document.querySelectorAll('[aria-label="导出我的数据"], [aria-label="Export data"]').length,
             measurements,
             deviceCards,
+            sectionGaps: account && personal && deviceCards.length === 2
+              ? [
+                  Number((personal.top - account.bottom).toFixed(2)),
+                  Number((deviceCards[0].top - personal.bottom).toFixed(2)),
+                  Number((deviceCards[1].top - deviceCards[0].bottom).toFixed(2)),
+                ]
+              : [],
             initialDeviceGap: deviceCards.length === 2
               ? {
                   navTop: Number((nav?.top ?? 0).toFixed(2)),
@@ -455,6 +464,13 @@ async function main() {
           || Math.max(...deviceHeights) - Math.min(...deviceHeights) > 0.5
         ) {
           throw new Error(`Profile device cards are not structurally aligned: ${JSON.stringify(metrics.profile.deviceCards)}`);
+        }
+        if (
+          metrics.profile.sectionGaps.length !== 3
+          || Math.max(...metrics.profile.sectionGaps) - Math.min(...metrics.profile.sectionGaps) > 0.75
+          || metrics.profile.sectionGaps.some((gap) => gap < 15.5 || gap > 16.5)
+        ) {
+          throw new Error(`Profile module gaps are not consistent: ${JSON.stringify(metrics.profile.sectionGaps)}`);
         }
         if (
           !metrics.profile.initialDeviceGap
@@ -666,6 +682,8 @@ async function main() {
       await viewportPage.locator('[data-tab="profile"]').tap();
       await viewportPage.waitForTimeout(800);
       const profileLayout = await viewportPage.evaluate(() => {
+        const account = document.querySelector(".profile-account-card")?.getBoundingClientRect();
+        const personal = document.querySelector(".profile-personal-card")?.getBoundingClientRect();
         const cards = [...document.querySelectorAll(".profile-device-card")].map((card) => {
           const rect = card.getBoundingClientRect();
           return {
@@ -679,8 +697,22 @@ async function main() {
           cards,
           navTop: Number((nav?.top ?? 0).toFixed(2)),
           gapMidpoint: cards.length === 2 ? Number(((cards[0].bottom + cards[1].top) / 2).toFixed(2)) : 0,
+          sectionGaps: account && personal && cards.length === 2
+            ? [
+                Number((personal.top - account.bottom).toFixed(2)),
+                Number((cards[0].top - personal.bottom).toFixed(2)),
+                Number((cards[1].top - cards[0].bottom).toFixed(2)),
+              ]
+            : [],
         };
       });
+      if (
+        profileLayout.sectionGaps.length !== 3
+        || Math.max(...profileLayout.sectionGaps) - Math.min(...profileLayout.sectionGaps) > 0.75
+        || profileLayout.sectionGaps.some((gap) => gap < 15.5 || gap > 16.5)
+      ) {
+        throw new Error(`${viewport.name} Profile module gaps are not consistent: ${JSON.stringify(profileLayout)}`);
+      }
       if (
         profileLayout.cards.length !== 2
         || profileLayout.navTop <= profileLayout.cards[0].bottom
