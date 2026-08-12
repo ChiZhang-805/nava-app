@@ -807,37 +807,14 @@
   outline-offset: -5px;
 }
 
-.launch-splash__texture {
+.launch-splash__background {
   position: absolute;
   inset: 0;
   z-index: 0;
-  overflow: hidden;
-  transform: scaleY(-1);
-  pointer-events: none;
-}
-
-.launch-splash__texture img {
-  position: absolute;
-  top: -46.11%;
-  left: -45.75%;
-  width: 178.09%;
-  height: 151.26%;
-  max-width: none;
-  object-fit: fill;
-}
-
-.launch-splash__wash {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background-image: linear-gradient(
-    229.260852deg,
-    rgb(255, 255, 255) 17.991%,
-    rgba(90, 139, 179, 0.736) 57.304%,
-    rgb(18, 74, 100) 87.286%
-  );
-  mix-blend-mode: lighten;
-  opacity: 0.65;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
   pointer-events: none;
 }
 

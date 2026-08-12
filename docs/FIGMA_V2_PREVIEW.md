@@ -23,7 +23,7 @@ The preview opens on the static Figma splash screen. Tap anywhere to continue to
 - Figma frame: `1567:1763` (`首页开屏`)
 - Background layer: `1567:1764` (`image 19`)
 - Gradient layer: `1567:1765` (`渐变背景`)
-- The App uses the exact source image exported by Figma, including the frame's vertical flip, crop offsets, scale, and `lighten` gradient overlay.
+- `launch-background-v2.jpg` is a background-only rasterization of the exact Figma source image after applying the frame's vertical flip, crop offsets, scale, and `lighten` gradient overlay. It contains no branding or UI text.
 
 ## Boundaries
 
