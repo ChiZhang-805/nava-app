@@ -2,7 +2,7 @@
 
 本次审查确认当前仓库是新的 App 私有仓库：
 
-- 本地：`Z:\nava-app`
+- 本地：`Z:\NAVA\app`
 - 远端：`https://github.com/ChiZhang-805/nava-app`
 - 可见性：`PRIVATE`
 - Web 上游：`https://github.com/Tj-jiaoao/style-muse-next.git`
@@ -52,4 +52,3 @@
 - Apple Watch 配对状态。
 - WatchConnectivity 快照和动作往返。
 - Web 注册账号登录 App 后写入记录，再在 Web 端读取。
-

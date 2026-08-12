@@ -35,7 +35,7 @@ type Prediction = {
   changePoint: number;
 };
 
-const fixedDatasetPath = "Z:\\nava-app-data\\synthetic-population\\nava-synthetic-users-5000-seed-240724.jsonl";
+const fixedDatasetPath = "Z:\\NAVA\\data\\synthetic-population\\nava-synthetic-users-5000-seed-240724.jsonl";
 const localArtifactDatasetPath = join("artifacts", "synthetic-population", "nava-synthetic-users-5000-seed-240724.jsonl");
 const datasetPath = resolve(argumentValue("--dataset") ?? process.env.NAVA_FIXED_DATASET ?? defaultDatasetPath());
 const reportDirectory = resolve(argumentValue("--report-dir") ?? process.env.NAVA_BENCHMARK_REPORT_DIR ?? join(dirname(datasetPath), "benchmarks"));

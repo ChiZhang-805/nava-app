@@ -14,9 +14,9 @@ V4.27 是当前 APP 后端主线算法版本。它不是简单加权，而是“
 
 | 项目 | 值 |
 | --- | --- |
-| JSONL | `Z:\nava-app-data\synthetic-population\nava-synthetic-users-5000-seed-240724.jsonl` |
-| manifest | `Z:\nava-app-data\synthetic-population\nava-synthetic-users-5000-seed-240724.manifest.json` |
-| benchmark 目录 | `Z:\nava-app-data\synthetic-population\benchmarks` |
+| JSONL | `Z:\NAVA\data\synthetic-population\nava-synthetic-users-5000-seed-240724.jsonl` |
+| manifest | `Z:\NAVA\data\synthetic-population\nava-synthetic-users-5000-seed-240724.manifest.json` |
+| benchmark 目录 | `Z:\NAVA\data\synthetic-population\benchmarks` |
 | 用户数 | 5000 |
 | 日级记录 | 271169 |
 | 文件大小 | 845936872 bytes |
@@ -73,11 +73,11 @@ npm run algorithm:benchmark:fixed
 比较两个固定 benchmark：
 
 ```bash
-node --experimental-strip-types scripts\compare-fixed-benchmarks.ts --left=Z:\nava-app-data\synthetic-population\benchmarks\nava-chronostate-v4.9-2026-07.json --right=Z:\nava-app-data\synthetic-population\benchmarks\nava-chronostate-v4.27-2026-07.json
+node --experimental-strip-types scripts\compare-fixed-benchmarks.ts --left=Z:\NAVA\data\synthetic-population\benchmarks\nava-chronostate-v4.9-2026-07.json --right=Z:\NAVA\data\synthetic-population\benchmarks\nava-chronostate-v4.27-2026-07.json
 ```
 
 ```bash
-node --experimental-strip-types scripts\compare-fixed-benchmarks.ts --left=Z:\nava-app-data\synthetic-population\benchmarks\nava-chronostate-v4.13-2026-07.json --right=Z:\nava-app-data\synthetic-population\benchmarks\nava-chronostate-v4.27-2026-07.json
+node --experimental-strip-types scripts\compare-fixed-benchmarks.ts --left=Z:\NAVA\data\synthetic-population\benchmarks\nava-chronostate-v4.13-2026-07.json --right=Z:\NAVA\data\synthetic-population\benchmarks\nava-chronostate-v4.27-2026-07.json
 ```
 
 ## V4.27 整体指标

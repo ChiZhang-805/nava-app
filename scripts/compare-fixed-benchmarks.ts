@@ -36,7 +36,7 @@ type FixedBenchmarkReport = {
   cohorts: Record<string, MetricGroup>;
 };
 
-const defaultReportDirectory = "Z:\\nava-app-data\\synthetic-population\\benchmarks";
+const defaultReportDirectory = "Z:\\NAVA\\data\\synthetic-population\\benchmarks";
 const leftPath = resolve(argumentValue("--left") ?? join(defaultReportDirectory, "nava-chronostate-v4.8-2026-07.json"));
 const rightPath = resolve(argumentValue("--right") ?? join(defaultReportDirectory, "nava-chronostate-v4.9-2026-07.json"));
 const allowMismatch = process.argv.includes("--allow-dataset-mismatch");
