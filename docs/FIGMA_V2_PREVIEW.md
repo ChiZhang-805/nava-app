@@ -15,6 +15,8 @@ The generated `dist` directory is ready for GitHub Pages. It includes `404.html`
 - Account: `13800138000`
 - Password: `12345678`
 
+The preview opens on the static Figma splash screen. Tap anywhere to continue to sign-in. The former animated quotes, interactive bubble, quote fragments, and energy interaction are not part of this review build.
+
 ## Boundaries
 
 - The private `nava-app` repository remains the source of truth.

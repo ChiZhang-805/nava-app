@@ -1,13 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeAcceleration, normalizeOrientationDelta } from "../src/services/backgroundMotion.ts";
-import {
-  BUBBLE_ENERGY_THRESHOLD,
-  BUBBLE_PHASE_DURATION_MS,
-  bubbleSplitAmount,
-  gestureEnergy,
-  nextBubblePhase,
-} from "../src/services/launchBubbleModel.ts";
 
 function closeTo(actual: number, expected: number, tolerance = 0.001) {
   assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} was not within ${tolerance} of ${expected}`);
@@ -49,28 +42,4 @@ test("ignores tiny acceleration and normalizes a deliberate impulse", () => {
   assert.equal(impulse.x, 1);
   assert.equal(impulse.y, 0);
   closeTo(impulse.intensity, 1);
-});
-
-test("turns deliberate swipes into bounded bubble interaction energy", () => {
-  const tap = gestureEnergy(2, 20);
-  const swipe = gestureEnergy(150, 1600);
-  const extreme = gestureEnergy(900, 12000);
-  assert.ok(tap >= 0.08 && tap < 0.1);
-  assert.ok(swipe > 0.8 && swipe < 1);
-  assert.equal(extreme, 1.05);
-  assert.ok(swipe * 3 >= BUBBLE_ENERGY_THRESHOLD);
-});
-
-test("animates a complete split, separation, merge, and settle cycle", () => {
-  assert.equal(bubbleSplitAmount("idle", 1000), 0);
-  assert.equal(bubbleSplitAmount("splitting", 0), 0);
-  assert.equal(bubbleSplitAmount("splitting", BUBBLE_PHASE_DURATION_MS.splitting), 1);
-  assert.equal(nextBubblePhase("splitting"), "separated");
-  assert.equal(bubbleSplitAmount("separated", 500), 1);
-  assert.equal(nextBubblePhase("separated"), "merging");
-  assert.equal(bubbleSplitAmount("merging", 0), 1);
-  assert.equal(bubbleSplitAmount("merging", BUBBLE_PHASE_DURATION_MS.merging), 0);
-  assert.equal(nextBubblePhase("merging"), "settling");
-  assert.equal(bubbleSplitAmount("settling", 300), 0);
-  assert.equal(nextBubblePhase("settling"), "idle");
 });

@@ -17,7 +17,6 @@
     "screenshots": "node scripts/capture-screenshots.mjs",
     "screenshots:auth": "node scripts/capture-auth-v3.mjs",
     "screenshots:background": "node scripts/capture-background-states.mjs",
-    "screenshots:launch": "node scripts/capture-launch-experience.mjs",
     "screenshots:motion": "node scripts/capture-motion-background.mjs",
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy",
     "motion:test": "node --experimental-strip-types --test tests/background-motion.test.ts",

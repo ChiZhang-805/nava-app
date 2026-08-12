@@ -778,3 +778,114 @@
     padding-inline: 20px;
   }
 }
+
+/* Static Figma splash. The former quote, bubble and energy flow is intentionally not mounted. */
+.launch-splash {
+  z-index: 80;
+  width: 100%;
+  max-width: none;
+  min-height: 100dvh;
+  display: block;
+  overflow: hidden;
+  cursor: pointer;
+  color: #fff;
+  background:
+    linear-gradient(180deg, rgba(230, 247, 255, 0.03), rgba(21, 113, 167, 0.08)),
+    url("../assets/figma/auth-texture-v2.jpg") center / cover no-repeat;
+  box-shadow: none;
+  touch-action: manipulation;
+}
+
+.launch-splash:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.92);
+  outline-offset: -5px;
+}
+
+.launch-splash__brand {
+  position: absolute;
+  top: 24%;
+  left: 50%;
+  width: min(76vw, 328px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.launch-splash__orbit {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 50%;
+}
+
+.launch-splash__wordmark.nava-wordmark {
+  --wordmark-size: clamp(68px, 20vw, 88px);
+  position: relative;
+  inset: auto;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  margin-top: -12%;
+  overflow: visible;
+  animation: none;
+  opacity: 1;
+}
+
+.launch-splash__wordmark .nava-wordmark__halo {
+  display: none;
+}
+
+.launch-splash__wordmark .nava-wordmark__text {
+  color: #fff;
+  background: linear-gradient(180deg, #fff 0%, #f5fbff 56%, #e5f5ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 8px 22px rgba(15, 94, 139, 0.2);
+}
+
+.launch-splash__subtitle {
+  position: absolute;
+  top: 56.5%;
+  left: 50%;
+  width: 100%;
+  color: #fff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(19px, 5.4vw, 24px);
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  transform: translateX(-50%);
+  text-shadow: 0 8px 20px rgba(15, 94, 139, 0.2);
+}
+
+.launch-splash__system-name {
+  position: absolute;
+  left: 50%;
+  bottom: max(37px, calc(24px + env(safe-area-inset-bottom)));
+  width: 100%;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-align: center;
+  transform: translateX(-50%);
+  text-shadow: 0 5px 18px rgba(15, 94, 139, 0.24);
+  pointer-events: none;
+}
+
+@media (max-height: 740px) {
+  .launch-splash__brand {
+    top: 19%;
+    width: min(69vw, 286px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launch-splash.exiting {
+    animation-duration: 1ms;
+  }
+}

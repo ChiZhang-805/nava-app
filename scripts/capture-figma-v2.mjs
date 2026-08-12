@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 
@@ -31,6 +31,7 @@ async function layout(page, selector) {
 }
 
 async function main() {
+  await rm(outputDir, { recursive: true, force: true });
   await mkdir(outputDir, { recursive: true });
   const browser = await chromium.launch({ executablePath: edgePath, headless: true });
   const metrics = {};
@@ -41,24 +42,34 @@ async function main() {
     const launchPage = await launchContext.newPage();
     launchPage.on("pageerror", (error) => errors.push(error.message));
     await launchPage.goto(baseUrl, { waitUntil: "networkidle" });
-    await launchPage.waitForTimeout(1300);
-    await launchPage.screenshot({ path: path.join(outputDir, "01-launch-line.png") });
-    metrics.launchLine = await layout(launchPage, ".launch-sequence");
-    for (let index = 0; index < 3; index += 1) {
-      await launchPage.locator(".launch-sequence").click({ position: { x: 18, y: 410 } });
-      await launchPage.waitForTimeout(1320);
-    }
-    await launchPage.locator('.launch-bubble__canvas[data-ready="true"]').waitFor({ timeout: 15000 });
-    await launchPage.waitForTimeout(800);
-    await launchPage.screenshot({ path: path.join(outputDir, "02-launch-bubble.png") });
-    metrics.launchBubble = await layout(launchPage, ".launch-bubble");
+    await launchPage.waitForTimeout(650);
+    await launchPage.screenshot({ path: path.join(outputDir, "01-launch-splash.png") });
+    metrics.launchSplash = await layout(launchPage, ".launch-splash");
+    metrics.launchCopy = await launchPage.locator(".launch-splash").evaluate((element) => ({
+      text: element.textContent?.replace(/\s+/g, " ").trim(),
+      bubbleCount: element.querySelectorAll(".launch-bubble").length,
+      quoteCount: element.querySelectorAll(".launch-line, .launch-bubble__quote").length,
+    }));
+    await launchPage.locator(".launch-splash").click();
+    await launchPage.locator(".auth-form").waitFor({ timeout: 5000 });
+    await launchPage.screenshot({ path: path.join(outputDir, "02-launch-to-login.png") });
     await launchContext.close();
 
+    const compactLaunchContext = await context(browser, { width: 390, height: 844 });
+    const compactLaunchPage = await compactLaunchContext.newPage();
+    compactLaunchPage.on("pageerror", (error) => errors.push(error.message));
+    await compactLaunchPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await compactLaunchPage.waitForTimeout(450);
+    await compactLaunchPage.screenshot({ path: path.join(outputDir, "01b-launch-splash-compact.png") });
+    metrics.launchSplashCompact = await layout(compactLaunchPage, ".launch-splash");
+    await compactLaunchContext.close();
+
     const authContext = await context(browser);
-    await authContext.addInitScript(() => sessionStorage.setItem("nava.launch.sequence.v2", "seen"));
     const authPage = await authContext.newPage();
     authPage.on("pageerror", (error) => errors.push(error.message));
     await authPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await authPage.locator(".launch-splash").click();
+    await authPage.locator(".auth-form").waitFor({ timeout: 5000 });
     await authPage.waitForTimeout(600);
     await authPage.screenshot({ path: path.join(outputDir, "03-login.png") });
     metrics.login = await layout(authPage, ".auth-form");
@@ -70,12 +81,13 @@ async function main() {
 
     const homeContext = await context(browser);
     await homeContext.addInitScript(() => {
-      sessionStorage.setItem("nava.launch.sequence.v2", "seen");
       sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
     });
     const homePage = await homeContext.newPage();
     homePage.on("pageerror", (error) => errors.push(error.message));
     await homePage.goto(baseUrl, { waitUntil: "networkidle" });
+    await homePage.locator(".launch-splash").click();
+    await homePage.locator(".option-two-home").waitFor({ timeout: 5000 });
     await homePage.waitForTimeout(850);
     await homePage.screenshot({ path: path.join(outputDir, "05-home-collapsed.png") });
     metrics.homeCollapsed = await layout(homePage, ".option-two-home");
@@ -116,6 +128,12 @@ async function main() {
       }
     }
     if (metrics.healthEntries !== 6) throw new Error(`Expected six health entries, found ${metrics.healthEntries}`);
+    if (metrics.launchCopy.bubbleCount !== 0 || metrics.launchCopy.quoteCount !== 0) {
+      throw new Error(`Legacy launch content is still mounted: ${JSON.stringify(metrics.launchCopy)}`);
+    }
+    if (!metrics.launchCopy.text.includes("NAVA") || !metrics.launchCopy.text.includes("DAILY RHYTHM")) {
+      throw new Error(`Splash branding is incomplete: ${JSON.stringify(metrics.launchCopy)}`);
+    }
     if (errors.length) throw new Error(`Page errors: ${JSON.stringify(errors)}`);
     await writeFile(path.join(outputDir, "metrics.json"), JSON.stringify(metrics, null, 2));
   } finally {
