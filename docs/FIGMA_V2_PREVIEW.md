@@ -17,6 +17,14 @@ The generated `dist` directory is ready for GitHub Pages. It includes `404.html`
 
 The preview opens on the static Figma splash screen. Tap anywhere to continue to sign-in. The former animated quotes, interactive bubble, quote fragments, and energy interaction are not part of this review build.
 
+## Splash provenance
+
+- Figma file: `kLAU3srtj2uKT5qJBX2VEy`
+- Figma frame: `1567:1763` (`首页开屏`)
+- Background layer: `1567:1764` (`image 19`)
+- Gradient layer: `1567:1765` (`渐变背景`)
+- The App uses the exact source image exported by Figma, including the frame's vertical flip, crop offsets, scale, and `lighten` gradient overlay.
+
 ## Boundaries
 
 - The private `nava-app` repository remains the source of truth.

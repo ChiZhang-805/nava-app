@@ -1,5 +1,5 @@
 import { useCallback, useState, type KeyboardEvent } from "react";
-import NavaWordmark from "./NavaWordmark";
+import launchTexture from "../assets/figma/auth-texture-1.png";
 
 const EXIT_DURATION_MS = 420;
 
@@ -30,9 +30,13 @@ export default function LaunchSequence() {
       onClick={close}
       onKeyDown={handleKeyDown}
     >
+      <span className="launch-splash__texture" aria-hidden="true">
+        <img src={launchTexture} alt="" />
+      </span>
+      <span className="launch-splash__wash" aria-hidden="true" />
       <div className="launch-splash__brand" aria-label="NAVA Daily Rhythm">
         <span className="launch-splash__orbit" aria-hidden="true" />
-        <NavaWordmark className="launch-splash__wordmark" tone="light" />
+        <span className="launch-splash__wordmark" aria-hidden="true">NAVA</span>
         <span className="launch-splash__subtitle">DAILY RHYTHM</span>
       </div>
       <p className="launch-splash__system-name">NAVA 智能节律系统</p>
