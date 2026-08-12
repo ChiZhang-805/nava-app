@@ -14,6 +14,7 @@ export function isDemoMode() {
   if (demoParam === "0") return false;
   if (demoParam === "1") return true;
   if (host === "nava-app-preview-cz.chizhang1031.chatgpt.site") return true;
+  if (host.endsWith(".github.io") && window.location.pathname.startsWith("/nava-app-figma-preview")) return true;
   if (host.endsWith(".pages.dev") && host.includes("nava-app-preview")) return true;
   if (import.meta.env.VITE_ENABLE_REVIEW_DEMO === "true") return true;
   return false;

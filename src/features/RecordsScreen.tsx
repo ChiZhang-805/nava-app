@@ -30,7 +30,7 @@ const moodFactors: Array<{ value: string; labelKey: TranslationKey }> = [
   { value: "其他", labelKey: "records.factor.other" },
 ];
 
-type RecordModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
+export type RecordModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
 
 const recordModules: Array<{
   id: RecordModule;
@@ -76,7 +76,17 @@ const recordModules: Array<{
   },
 ];
 
-export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: () => void }) {
+export default function RecordsScreen({
+  user,
+  onSaved,
+  initialModule = null,
+  onModuleChange,
+}: {
+  user: User;
+  onSaved: () => void;
+  initialModule?: RecordModule | null;
+  onModuleChange?: (module: RecordModule | null) => void;
+}) {
   const t = useT();
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -128,6 +138,14 @@ export default function RecordsScreen({ user, onSaved }: { user: User; onSaved: 
   useEffect(() => {
     rootRef.current?.closest(".app-content")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [activeModule]);
+
+  useEffect(() => {
+    setActiveModule(initialModule);
+  }, [initialModule]);
+
+  useEffect(() => {
+    onModuleChange?.(activeModule);
+  }, [activeModule, onModuleChange]);
 
   function estimateMinutes(start: string, end: string) {
     const [sh, sm] = start.split(":").map(Number);

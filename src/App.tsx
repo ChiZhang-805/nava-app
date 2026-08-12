@@ -1,9 +1,11 @@
-import { Activity, Bot, ChartNoAxesColumn, ClipboardPlus, Home, Sparkles, UserRound } from "lucide-react";
+import { Activity, ChartNoAxesColumn, ClipboardPlus, Home, MoreHorizontal, UserRound } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import lifeFigure from "./assets/figma/home-option2/raw-01.png";
 import { assertConfig } from "./config";
 import AuthScreen from "./features/AuthScreen";
-import TodayScreen from "./features/TodayScreen";
 import RecordsScreen from "./features/RecordsScreen";
+import type { RecordModule } from "./features/RecordsScreen";
+import OptionTwoHome from "./features/OptionTwoHome";
 import AIScreen from "./features/AIScreen";
 import TrendsScreen from "./features/TrendsScreen";
 import ProfileScreen from "./features/ProfileScreen";
@@ -23,10 +25,19 @@ import { isDemoMode } from "./services/demo";
 const tabs: Array<{ id: AppTab; labelKey: TranslationKey; icon: typeof Home }> = [
   { id: "today", labelKey: "tabs.today", icon: Home },
   { id: "record", labelKey: "tabs.record", icon: ClipboardPlus },
-  { id: "ai", labelKey: "tabs.ai", icon: Bot },
+  { id: "ai", labelKey: "tabs.ai", icon: Activity },
   { id: "trends", labelKey: "tabs.trends", icon: ChartNoAxesColumn },
   { id: "profile", labelKey: "tabs.profile", icon: UserRound },
 ];
+
+const recordTitleKeys: Record<RecordModule, TranslationKey> = {
+  mood: "records.mood",
+  sleep: "records.sleep",
+  exercise: "records.exercise",
+  diet: "records.diet",
+  focus: "records.focus",
+  face: "records.faceShort",
+};
 
 function LoadingScreen() {
   const t = useT();
@@ -61,6 +72,8 @@ function MobileShell() {
   const { user } = useAuth();
   const t = useT();
   const [activeTab, setActiveTab] = useState<AppTab>("today");
+  const [recordModule, setRecordModule] = useState<RecordModule | null>(null);
+  const [utilityOpen, setUtilityOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [voiceRequestId, setVoiceRequestId] = useState(0);
   const [voiceRelease, setVoiceRelease] = useState({ id: 0, cancelled: false });
@@ -75,6 +88,11 @@ function MobileShell() {
   const aiLatestYRef = useRef(0);
   const voiceCancelArmedRef = useRef(false);
   const currentTab = tabs.find((tab) => tab.id === activeTab);
+  const currentTitle = activeTab === "record" && recordModule
+    ? t(recordTitleKeys[recordModule])
+    : currentTab
+      ? t(currentTab.labelKey)
+      : "";
 
   const markChanged = () => setRefreshKey((value) => value + 1);
 
@@ -162,24 +180,43 @@ function MobileShell() {
 
   useEffect(() => {
     contentRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    setUtilityOpen(false);
   }, [activeTab]);
 
   if (!user) return null;
 
   return (
-    <div className="phone-frame">
+    <div className={["phone-frame", activeTab === "today" ? "phone-frame--option2" : ""].filter(Boolean).join(" ")}>
       <div className="safe-top" />
-      <header className="app-header">
-        <div>
-          <p className="eyebrow">NAVA</p>
-          <h1>{currentTab ? t(currentTab.labelKey) : ""}</h1>
-        </div>
-        <div className="header-actions">
-          <LanguageToggle />
-          <NetworkBadge />
-          <div className="avatar">{user.email?.slice(0, 1).toUpperCase() ?? "N"}</div>
-        </div>
-      </header>
+      {activeTab !== "today" && (
+        <header className="app-header figma-app-header">
+          <button
+            className="figma-header-action"
+            type="button"
+            onClick={() => setActiveTab("today")}
+            aria-label={t("tabs.today")}
+            title={t("tabs.today")}
+          >
+            <Home size={21} />
+          </button>
+          <h1>{currentTitle}</h1>
+          <button
+            className="figma-header-action"
+            type="button"
+            onClick={() => setUtilityOpen((open) => !open)}
+            aria-label="More"
+            aria-expanded={utilityOpen}
+          >
+            <MoreHorizontal size={23} />
+          </button>
+          {utilityOpen && (
+            <div className="app-utility-popover">
+              <LanguageToggle />
+              <NetworkBadge />
+            </div>
+          )}
+        </header>
+      )}
 
       <main
         className={[
@@ -192,8 +229,26 @@ function MobileShell() {
         ref={contentRef}
       >
         <div className="screen-panel" key={activeTab}>
-          {activeTab === "today" && <TodayScreen user={user} refreshKey={refreshKey} onOpenRecord={() => setActiveTab("record")} />}
-          {activeTab === "record" && <RecordsScreen user={user} onSaved={markChanged} />}
+          {activeTab === "today" && (
+            <OptionTwoHome
+              user={user}
+              refreshKey={refreshKey}
+              onOpenRecord={(module) => {
+                setRecordModule(module ?? null);
+                setActiveTab("record");
+              }}
+              onOpenAi={() => setActiveTab("ai")}
+              onOpenProfile={() => setActiveTab("profile")}
+            />
+          )}
+          {activeTab === "record" && (
+            <RecordsScreen
+              user={user}
+              onSaved={markChanged}
+              initialModule={recordModule}
+              onModuleChange={setRecordModule}
+            />
+          )}
           {activeTab === "ai" && (
             <AIScreen
               user={user}
@@ -224,6 +279,7 @@ function MobileShell() {
                   aiLongPressTriggeredRef.current = false;
                   return;
                 }
+                if (tab.id === "record") setRecordModule(null);
                 setActiveTab(tab.id);
               }}
               onPointerDown={isAiTab ? beginAiLongPress : undefined}
@@ -238,7 +294,7 @@ function MobileShell() {
               {isAiTab ? (
                 <span className="ai-nav-orb" aria-hidden="true">
                   <span className="ai-nav-glow" />
-                  <Sparkles size={22} />
+                  <img src={lifeFigure} alt="" />
                 </span>
               ) : (
                 <Icon size={20} />

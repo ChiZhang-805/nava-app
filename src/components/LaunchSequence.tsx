@@ -54,7 +54,11 @@ export default function LaunchSequence() {
       onClick={advanceLine}
       aria-live="polite"
     >
-      <NavaWordmark className="launch-wordmark" />
+      <div className="launch-brand-lockup" aria-label="NAVA Daily Rhythm">
+        <span className="launch-brand-orbit" aria-hidden="true" />
+        <NavaWordmark className="launch-wordmark" tone="light" />
+        <span className="launch-brand-subtitle">DAILY RHYTHM</span>
+      </div>
       {ready && !exiting && (
         <Suspense fallback={null}>
           <LaunchBubble />
@@ -79,6 +83,7 @@ export default function LaunchSequence() {
       >
         {t("intro.start")}
       </button>
+      <p className="launch-system-name">NAVA {t("intro.systemName")}</p>
     </div>
   );
 }

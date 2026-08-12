@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build && node scripts/prepare-sites-build.mjs",
+    "build:review": "tsc -b && vite build --mode review && node scripts/prepare-github-pages.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "lint": "eslint .",
     "verify": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify.ps1",

@@ -9,7 +9,6 @@ import {
   LockKeyhole,
   Phone,
   Send,
-  UserRoundPlus,
 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import LanguageToggle from "../components/LanguageToggle";
@@ -36,6 +35,7 @@ export default function AuthScreen() {
   const t = useT();
   const [mode, setMode] = useState<AuthMode>("signIn");
   const [signInMethod, setSignInMethod] = useState<SignInMethod>("password");
+  const [signUpStep, setSignUpStep] = useState<1 | 2>(1);
   const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -56,8 +56,9 @@ export default function AuthScreen() {
   const accountIsPhone = isPhone(normalizedAccount);
   const accountIsValid = accountIsEmail || accountIsPhone;
   const isOtpSignIn = mode === "signIn" && signInMethod === "otp";
-  const requiresCode = mode !== "signIn" || isOtpSignIn;
-  const requiresPassword = mode !== "signIn" || signInMethod === "password";
+  const requiresCode = mode === "reset" || isOtpSignIn || (mode === "signUp" && signUpStep === 1);
+  const requiresPassword = mode === "reset" || (mode === "signUp" && signUpStep === 2) || (mode === "signIn" && signInMethod === "password");
+  const showsAccount = mode !== "signUp" || signUpStep === 1;
   const AccountIcon = accountIsPhone ? Phone : AtSign;
   const feedbackError = localError ?? error;
   const canSubmit =
@@ -67,12 +68,14 @@ export default function AuthScreen() {
       ? signInMethod === "password"
         ? Boolean(password)
         : otpSent && sentTo === normalizedAccount && /^\d{6}$/.test(otp)
-      : password.length >= 6 &&
-        Boolean(confirmPassword) &&
-        otpSent &&
-        sentTo === normalizedAccount &&
-        /^\d{6}$/.test(otp) &&
-        (mode !== "signUp" || acceptedTerms));
+      : mode === "signUp" && signUpStep === 1
+        ? otpSent && sentTo === normalizedAccount && /^\d{6}$/.test(otp) && acceptedTerms
+        : password.length >= 6 &&
+          Boolean(confirmPassword) &&
+          otpSent &&
+          sentTo === normalizedAccount &&
+          /^\d{6}$/.test(otp) &&
+          (mode !== "signUp" || acceptedTerms));
 
   useEffect(() => {
     if (codeCooldown <= 0) return;
@@ -90,6 +93,7 @@ export default function AuthScreen() {
     if (nextMode === mode) return;
     setMode(nextMode);
     setSignInMethod("password");
+    setSignUpStep(1);
     setPassword("");
     setConfirmPassword("");
     setOtp("");
@@ -161,6 +165,14 @@ export default function AuthScreen() {
         return;
       }
 
+      if (mode === "signUp" && signUpStep === 1) {
+        if (!otpSent || sentTo !== normalizedAccount) throw new Error(t("auth.error.codeFirst"));
+        if (!/^\d{6}$/.test(otp)) throw new Error(t("auth.error.codeFormat"));
+        if (!acceptedTerms) throw new Error(t("auth.error.acceptAgreement"));
+        setSignUpStep(2);
+        return;
+      }
+
       if (password.length < 6) throw new Error(t("auth.error.passwordLength"));
       if (password !== confirmPassword) throw new Error(t("auth.error.passwordMismatch"));
 
@@ -200,22 +212,13 @@ export default function AuthScreen() {
       </section>
 
       <div className="auth-form-region">
-        <form className={["auth-form", `auth-form--${mode}`, isOtpSignIn ? "auth-form--signInOtp" : ""].filter(Boolean).join(" ")} key={`${mode}-${signInMethod}`} onSubmit={submit}>
+        <form className={["auth-form", `auth-form--${mode}`, isOtpSignIn ? "auth-form--signInOtp" : "", mode === "signUp" ? `auth-form--signUpStep${signUpStep}` : ""].filter(Boolean).join(" ")} key={`${mode}-${signInMethod}-${signUpStep}`} onSubmit={submit}>
           <header className="auth-form-head">
             <h1>{mode === "signIn" ? t("auth.signIn") : mode === "signUp" ? t("auth.signUp") : t("auth.setNewPassword")}</h1>
-            <button
-              className="auth-mode-icon"
-              type="button"
-              onClick={() => switchMode(mode === "signIn" ? "signUp" : "signIn")}
-              aria-label={mode === "signIn" ? t("auth.switchToSignUp") : t("auth.switchToSignIn")}
-              title={mode === "signIn" ? t("auth.switchToSignUp") : t("auth.switchToSignIn")}
-            >
-              {mode === "signIn" ? <UserRoundPlus size={26} /> : <ArrowLeft size={26} />}
-            </button>
           </header>
 
           <div className="auth-fields">
-            <label className="field">
+            {showsAccount && <label className="field">
               <span className="field-label">{t("auth.emailPhone")}</span>
               <div className="input-wrap">
                 <AccountIcon size={19} />
@@ -227,7 +230,7 @@ export default function AuthScreen() {
                   placeholder={t("auth.emailPhonePlaceholder")}
                 />
               </div>
-            </label>
+            </label>}
 
             {requiresCode && (
               <label className="field">
@@ -280,7 +283,7 @@ export default function AuthScreen() {
               </label>
             )}
 
-            {mode !== "signIn" && (
+            {mode !== "signIn" && (mode !== "signUp" || signUpStep === 2) && (
               <label className="field">
                 <span className="field-label">{t("auth.confirmPassword")}</span>
                 <div className="input-wrap">
@@ -305,25 +308,7 @@ export default function AuthScreen() {
               </label>
             )}
 
-            {mode === "signIn" && (
-              <div className="auth-login-method-row">
-                <button className="auth-method-switch" type="button" onClick={switchSignInMethod} disabled={busy}>
-                  {t(signInMethod === "password" ? "auth.useOtp" : "auth.usePassword")}
-                </button>
-              </div>
-            )}
           </div>
-
-          {mode === "signUp" && (
-            <label className="auth-consent">
-              <input
-                type="checkbox"
-                checked={acceptedTerms}
-                onChange={(event) => setAcceptedTerms(event.target.checked)}
-              />
-              <span>{t("auth.agreement")}</span>
-            </label>
-          )}
 
           <div className="auth-feedback-slot" aria-live="polite">
             {feedbackError && <p className="error-text">{feedbackError}</p>}
@@ -336,9 +321,29 @@ export default function AuthScreen() {
           </div>
 
           <button className="auth-submit" type="submit" disabled={!canSubmit}>
-            <span>{busy ? t("auth.processing") : mode === "signIn" ? t("auth.enter") : mode === "signUp" ? t("auth.create") : t("auth.savePassword")}</span>
+            <span>{busy ? t("auth.processing") : mode === "signIn" ? t("auth.enter") : mode === "signUp" && signUpStep === 1 ? t("auth.next") : mode === "signUp" ? t("auth.create") : t("auth.savePassword")}</span>
             <ArrowRight size={19} />
           </button>
+
+          <div className="auth-secondary-links">
+            {mode === "signIn" && (
+              <button className="auth-method-switch" type="button" onClick={switchSignInMethod} disabled={busy}>
+                {t(signInMethod === "password" ? "auth.useOtp" : "auth.usePassword")}
+              </button>
+            )}
+            <button
+              className="auth-mode-icon"
+              type="button"
+              onClick={() => {
+                if (mode === "signUp" && signUpStep === 2) setSignUpStep(1);
+                else switchMode(mode === "signIn" ? "signUp" : "signIn");
+              }}
+              aria-label={mode === "signIn" ? t("auth.switchToSignUp") : t("auth.switchToSignIn")}
+              title={mode === "signIn" ? t("auth.switchToSignUp") : t("auth.switchToSignIn")}
+            >
+              {mode === "signIn" ? t("auth.switchToSignUp") : <><ArrowLeft size={14} />{t("auth.switchToSignIn")}</>}
+            </button>
+          </div>
 
           {mode === "signIn" && (
             <button className="auth-forgot" type="button" onClick={() => switchMode("reset")} disabled={busy}>
@@ -346,6 +351,16 @@ export default function AuthScreen() {
             </button>
           )}
         </form>
+        {mode === "signUp" && signUpStep === 1 && (
+          <label className="auth-consent auth-consent--screen">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(event) => setAcceptedTerms(event.target.checked)}
+            />
+            <span>{t("auth.agreement")}</span>
+          </label>
+        )}
       </div>
     </main>
   );

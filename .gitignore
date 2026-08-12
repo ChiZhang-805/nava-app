@@ -15,3 +15,5 @@ ios/App/App/public
 ios/App/App.xcworkspace/xcuserdata
 ios/App/Pods
 *.xcuserstate
+.codex-dev.log
+.codex-dev.err.log
