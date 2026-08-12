@@ -18,6 +18,8 @@
     "screenshots:auth": "node scripts/capture-auth-v3.mjs",
     "screenshots:background": "node scripts/capture-background-states.mjs",
     "screenshots:motion": "node scripts/capture-motion-background.mjs",
+    "interaction:test": "node scripts/verify-interactions.mjs",
+    "supabase:verify-shared": "node scripts/verify-shared-supabase.mjs",
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy",
     "motion:test": "node --experimental-strip-types --test tests/background-motion.test.ts",
     "algorithm:test": "node --experimental-strip-types --test tests/rhythm-core.test.ts",

@@ -70,13 +70,20 @@ export async function saveProfileAvatar(userId: string, file: File) {
 
   const ext = file.name.split(".").pop() || "jpg";
   const path = `${userId}/avatar-${Date.now()}.${ext}`;
-  const upload = await supabase.storage.from("profile-avatars").upload(path, file, {
+  const bucket = "profile-avatars";
+  const upload = await supabase.storage.from(bucket).upload(path, file, {
     cacheControl: "3600",
     upsert: true,
   });
-  if (upload.error) throw upload.error;
+  if (upload.error) {
+    const detail = `${upload.error.message ?? ""} ${(upload.error as { error?: string }).error ?? ""}`;
+    if (/bucket not found|not found/i.test(detail)) {
+      throw new Error("共享后端尚未部署头像存储，请联系网页端管理员启用 profile-avatars。");
+    }
+    throw upload.error;
+  }
 
-  const { data } = supabase.storage.from("profile-avatars").getPublicUrl(path);
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   const avatarUrl = data.publicUrl || preview;
   const saved = await saveProfile({ id: userId, avatar_url: avatarUrl });
   return saved?.avatar_url ?? avatarUrl;

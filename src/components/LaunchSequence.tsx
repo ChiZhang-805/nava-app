@@ -1,5 +1,5 @@
 import { useCallback, useState, type KeyboardEvent } from "react";
-import launchBackground from "../assets/figma/launch-background-v2.jpg";
+import launchTexture from "../assets/figma/launch-background-source.jpg";
 
 const EXIT_DURATION_MS = 420;
 
@@ -30,7 +30,10 @@ export default function LaunchSequence() {
       onClick={close}
       onKeyDown={handleKeyDown}
     >
-      <img className="launch-splash__background" src={launchBackground} alt="" aria-hidden="true" />
+      <span className="launch-splash__texture" aria-hidden="true">
+        <img src={launchTexture} alt="" />
+      </span>
+      <span className="launch-splash__wash" aria-hidden="true" />
       <div className="launch-splash__brand" aria-label="NAVA Daily Rhythm">
         <span className="launch-splash__orbit" aria-hidden="true" />
         <span className="launch-splash__wordmark" aria-hidden="true">NAVA</span>

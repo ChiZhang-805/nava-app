@@ -1,6 +1,13 @@
 import { supabase } from "./supabaseClient";
 import { demoMessages, demoProfile, demoTodaySnapshot, demoTrends, isDemoMode } from "./demo";
 
+function isMissingBackendResource(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: string; message?: string; details?: string };
+  const detail = `${candidate.message ?? ""} ${candidate.details ?? ""}`;
+  return candidate.code === "PGRST205" || candidate.code === "42P01" || /could not find the table|relation .* does not exist/i.test(detail);
+}
+
 export async function exportUserData(userId: string) {
   if (isDemoMode()) {
     return {
@@ -42,7 +49,7 @@ export async function exportUserData(userId: string) {
   for (const table of tables) {
     const column = table === "profiles" ? "id" : "user_id";
     const { data, error } = await supabase.from(table).select("*").eq(column, userId);
-    if (error) throw error;
+    if (error && !isMissingBackendResource(error)) throw error;
     result[table] = data ?? [];
   }
 

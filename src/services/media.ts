@@ -11,6 +11,13 @@ export function fileToDataUrl(file: File) {
   });
 }
 
+function isMissingStorageBucket(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { statusCode?: string | number; message?: string; error?: string };
+  const detail = `${candidate.message ?? ""} ${candidate.error ?? ""}`;
+  return Number(candidate.statusCode) === 404 || /bucket not found|not found/i.test(detail);
+}
+
 export async function analyzeDietPhoto(input: {
   userId: string;
   date: string;
@@ -34,14 +41,21 @@ export async function analyzeDietPhoto(input: {
   const ext = input.file.name.split(".").pop() || "jpg";
   const path = `${input.userId}/${input.date}/${input.meal}-${Date.now()}.${ext}`;
   const upload = await supabase.storage.from("diet-photos").upload(path, input.file, { upsert: true });
-  if (upload.error) throw upload.error;
+  if (upload.error && !isMissingStorageBucket(upload.error)) throw upload.error;
+  const imagePath = upload.error ? undefined : path;
+  const imageUrl = imagePath
+    ? supabase.storage.from("diet-photos").getPublicUrl(imagePath).data.publicUrl
+    : await fileToDataUrl(input.file);
+  if (!imageUrl) throw new Error("饮食照片上传后没有获得可分析的地址。");
 
   const extracted = await supabase.functions.invoke<{
     items: Array<{ name: string; amount?: string; weight_g?: number; calories?: number }>;
     modelVersion?: string;
     model_version?: string;
     confidence?: number;
-  }>("diet-extract", { body: { imagePath: path, meal: input.meal, date: input.date, lang: "zh" } });
+  }>("diet-extract", {
+    body: { imageUrl, imagePath, meal: input.meal, date: input.date, lang: "zh" },
+  });
   if (extracted.error) throw extracted.error;
 
   const items: FoodItem[] = (extracted.data?.items ?? []).map((item) => ({
@@ -52,7 +66,7 @@ export async function analyzeDietPhoto(input: {
 
   return {
     imageUrl: previewUrl,
-    imagePath: path,
+    imagePath,
     items,
     modelVersion: extracted.data?.modelVersion ?? extracted.data?.model_version,
     confidence: extracted.data?.confidence,
@@ -86,12 +100,13 @@ export async function analyzeFacePhoto(input: {
   const ext = input.file.name.split(".").pop() || "jpg";
   const path = `${input.userId}/${input.date}/face-${Date.now()}.${ext}`;
   const upload = await supabase.storage.from("face-photos").upload(path, input.file, { upsert: true });
-  if (upload.error) throw upload.error;
+  if (upload.error && !isMissingStorageBucket(upload.error)) throw upload.error;
+  const imagePath = upload.error ? undefined : path;
 
   const response = await supabase.functions.invoke<FaceAnalysisResult>("face-analyze", {
-    body: { image, imagePath: path, lang: "zh", selfRatings: null },
+    body: { image, imagePath, lang: "zh", selfRatings: null },
   });
   if (response.error) throw response.error;
   if (!response.data) throw new Error("面部分析没有返回结果。");
-  return { image, imagePath: path, result: response.data };
+  return { image, imagePath, result: response.data };
 }

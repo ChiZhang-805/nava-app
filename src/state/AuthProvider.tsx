@@ -4,16 +4,27 @@ import { supabase } from "../services/supabaseClient";
 import { AuthContext } from "./authContext";
 import {
   ensureProfile,
-  sendLoginOtp,
-  sendPasswordResetOtp,
-  sendRegistrationOtp,
+  isEmail,
+  sendLoginOtp as sendLoginOtpRemote,
+  sendPasswordResetOtp as sendPasswordResetOtpRemote,
+  sendRegistrationOtp as sendRegistrationOtpRemote,
   signInWithPassword,
-  updateCurrentPassword,
-  verifyLoginOtp,
-  verifyPasswordResetOtp,
-  verifyRegistrationOtp,
+  updateCurrentPassword as updateCurrentPasswordRemote,
+  verifyLoginOtp as verifyLoginOtpRemote,
+  verifyPasswordResetOtp as verifyPasswordResetOtpRemote,
+  verifyRegistrationOtp as verifyRegistrationOtpRemote,
 } from "../services/auth";
-import { clearDemoAuthSession, demoUser, hasDemoAuthSession, isDemoLoginCredential, isDemoMode, startDemoAuthSession } from "../services/demo";
+import {
+  clearDemoAuthSession,
+  demoLoginPassword,
+  demoOtpCode,
+  demoUser,
+  hasDemoAuthSession,
+  isDemoLoginCredential,
+  isDemoMode,
+  isDemoOtpCode,
+  startDemoAuthSession,
+} from "../services/demo";
 
 function recoveryFlowInUrl() {
   if (typeof window === "undefined") return false;
@@ -103,6 +114,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const activateDemoSession = useCallback(() => {
+    startDemoAuthSession();
+    setUser(demoUser);
+  }, []);
+
+  const requireDemoOtp = useCallback((code: string) => {
+    if (!isDemoOtpCode(code)) throw new Error(`演示验证码不正确，请输入 ${demoOtpCode}。`);
+  }, []);
+
+  const sendLoginOtp = useCallback(async (account: string) => {
+    if (isDemoMode()) return isEmail(account) ? "email" as const : "sms" as const;
+    return sendLoginOtpRemote(account);
+  }, []);
+
+  const verifyLoginOtp = useCallback(async (account: string, code: string) => {
+    if (isDemoMode()) {
+      requireDemoOtp(code);
+      activateDemoSession();
+      return;
+    }
+    await verifyLoginOtpRemote(account, code);
+  }, [activateDemoSession, requireDemoOtp]);
+
+  const sendRegistrationOtp = useCallback(async (account: string) => {
+    if (isDemoMode()) return isEmail(account) ? "email" as const : "sms" as const;
+    return sendRegistrationOtpRemote(account);
+  }, []);
+
+  const verifyRegistrationOtp = useCallback(async (account: string, code: string, password: string) => {
+    if (isDemoMode()) {
+      requireDemoOtp(code);
+      if (password.length < 6) throw new Error("密码至少需要 6 位。");
+      activateDemoSession();
+      return;
+    }
+    await verifyRegistrationOtpRemote(account, code, password);
+  }, [activateDemoSession, requireDemoOtp]);
+
+  const sendPasswordResetOtp = useCallback(async (account: string) => {
+    if (isDemoMode()) return isEmail(account) ? "email" as const : "sms" as const;
+    return sendPasswordResetOtpRemote(account);
+  }, []);
+
+  const verifyPasswordResetOtp = useCallback(async (account: string, code: string, password: string) => {
+    if (isDemoMode()) {
+      requireDemoOtp(code);
+      if (password.length < 6) throw new Error("密码至少需要 6 位。");
+      if (password === demoLoginPassword) throw new Error("新密码不能与当前密码相同。");
+      return;
+    }
+    await verifyPasswordResetOtpRemote(account, code, password);
+  }, [requireDemoOtp]);
+
+  const updateCurrentPassword = useCallback(async (password: string, requireDifferent = false) => {
+    if (isDemoMode()) {
+      if (password.length < 6) throw new Error("密码至少需要 6 位。");
+      if (requireDifferent && password === demoLoginPassword) throw new Error("新密码不能与当前密码相同。");
+      return;
+    }
+    await updateCurrentPasswordRemote(password, requireDifferent);
+  }, []);
+
   const finishPasswordRecovery = useCallback(async (password: string) => {
     setError(null);
     try {
@@ -114,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(message);
       throw authError;
     }
-  }, []);
+  }, [updateCurrentPassword]);
 
   const value = useMemo(
     () => ({
@@ -134,7 +207,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       verifyPasswordResetOtp,
       updateCurrentPassword,
     }),
-    [error, finishPasswordRecovery, loading, passwordRecovery, signIn, signOut, user],
+    [
+      error,
+      finishPasswordRecovery,
+      loading,
+      passwordRecovery,
+      sendLoginOtp,
+      sendPasswordResetOtp,
+      sendRegistrationOtp,
+      signIn,
+      signOut,
+      updateCurrentPassword,
+      user,
+      verifyLoginOtp,
+      verifyPasswordResetOtp,
+      verifyRegistrationOtp,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

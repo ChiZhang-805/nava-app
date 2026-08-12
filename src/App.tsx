@@ -183,6 +183,10 @@ function MobileShell() {
     setUtilityOpen(false);
   }, [activeTab]);
 
+  useEffect(() => () => {
+    if (aiLongPressTimerRef.current !== null) window.clearTimeout(aiLongPressTimerRef.current);
+  }, []);
+
   if (!user) return null;
 
   return (
@@ -286,10 +290,12 @@ function MobileShell() {
               onPointerMove={isAiTab ? moveAiLongPress : undefined}
               onPointerUp={isAiTab ? () => endAiLongPress(false) : undefined}
               onPointerCancel={isAiTab ? () => endAiLongPress(true) : undefined}
+              onLostPointerCapture={isAiTab ? () => endAiLongPress(true) : undefined}
               onContextMenu={isAiTab ? (event) => event.preventDefault() : undefined}
-              aria-label={isAiTab ? t("ai.longPressHint") : undefined}
+              aria-label={isAiTab ? t("ai.longPressHint") : t(tab.labelKey)}
               title={isAiTab ? t("ai.longPressHint") : undefined}
               aria-current={selected ? "page" : undefined}
+              aria-pressed={selected}
             >
               {isAiTab ? (
                 <span className="ai-nav-orb" aria-hidden="true">
@@ -306,7 +312,12 @@ function MobileShell() {
       </nav>
 
       {voiceGestureActive && (
-        <div className={["voice-gesture-overlay", voiceCancelArmed ? "cancel-armed" : ""].filter(Boolean).join(" ")} aria-live="polite">
+        <div
+          className={["voice-gesture-overlay", voiceCancelArmed ? "cancel-armed" : ""].filter(Boolean).join(" ")}
+          data-voice-state={voiceCancelArmed ? "cancel" : "recording"}
+          role="status"
+          aria-live="polite"
+        >
           <div className="voice-gesture-feedback">
             <strong>{t(voiceCancelArmed ? "ai.voiceCancelHint" : "ai.voiceReleaseHint")}</strong>
             <div className="voice-waveform" aria-hidden="true">

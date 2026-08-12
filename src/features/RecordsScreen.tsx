@@ -143,10 +143,6 @@ export default function RecordsScreen({
     setActiveModule(initialModule);
   }, [initialModule]);
 
-  useEffect(() => {
-    onModuleChange?.(activeModule);
-  }, [activeModule, onModuleChange]);
-
   function estimateMinutes(start: string, end: string) {
     const [sh, sm] = start.split(":").map(Number);
     const [eh, em] = end.split(":").map(Number);
@@ -291,14 +287,14 @@ export default function RecordsScreen({
       const { image, imagePath, result } = await analyzeFacePhoto({ userId: user.id, date: recordDate, file });
       setFaceImage(image);
       setFaceResult(result);
-      await saveFaceAnalysisRecord({
+      const saved = await saveFaceAnalysisRecord({
         userId: user.id,
         date: recordDate,
         result,
         imagePath,
         modelVersion: result.modelVersion ?? result.model_version,
       });
-      setNotice(t("records.faceSaved"));
+      setNotice("persisted" in saved && !saved.persisted ? t("records.faceAnalyzed") : t("records.faceSaved"));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -342,6 +338,7 @@ export default function RecordsScreen({
                 setNotice(null);
                 setError(null);
                 setActiveModule(id);
+                onModuleChange?.(id);
               }}
             >
               <span className="record-module-header">
@@ -371,7 +368,10 @@ export default function RecordsScreen({
           type="button"
           aria-label={t("records.back")}
           title={t("records.back")}
-          onClick={() => setActiveModule(null)}
+          onClick={() => {
+            setActiveModule(null);
+            onModuleChange?.(null);
+          }}
         >
           <ArrowLeft size={24} />
         </button>

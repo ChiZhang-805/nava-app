@@ -25,6 +25,18 @@ function assertNoError(error: unknown) {
   throw new Error(message);
 }
 
+function isMissingBackendResource(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: string; message?: string; details?: string };
+  const detail = `${candidate.message ?? ""} ${candidate.details ?? ""}`;
+  return candidate.code === "PGRST205" || candidate.code === "42P01" || /could not find the table|relation .* does not exist/i.test(detail);
+}
+
+function assertOptionalResourceError(error: unknown) {
+  if (!error || isMissingBackendResource(error)) return;
+  assertNoError(error);
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -134,8 +146,8 @@ export async function getTodaySnapshot(userId: string, date = todayISO()): Promi
   assertNoError(exerciseRes.error);
   assertNoError(nutritionRes.error);
   assertNoError(focusRes.error);
-  assertNoError(faceRes.error);
-  assertNoError(rhythmRes.error);
+  assertOptionalResourceError(faceRes.error);
+  assertOptionalResourceError(rhythmRes.error);
 
   const focus = asArray<FocusRecord>(focusRes.data);
   const base = {
@@ -144,12 +156,12 @@ export async function getTodaySnapshot(userId: string, date = todayISO()): Promi
     sleep: sleepRes.data as SleepRecord | null,
     exercise: exerciseRes.data as ExerciseRecord | null,
     nutrition: nutritionRes.data as NutritionRecord | null,
-    face: faceRes.data as FaceRecord | null,
+    face: faceRes.error ? null : faceRes.data as FaceRecord | null,
     focusMinutes: focus.reduce((sum, item) => sum + (item.total_minutes ?? 0), 0),
     focusSessions: focus.reduce((sum, item) => sum + (item.completed_sessions ?? 0), 0),
   };
 
-  const rhythm = rhythmRes.data as DailyRhythmScore | null;
+  const rhythm = rhythmRes.error ? null : rhythmRes.data as DailyRhythmScore | null;
   const rhythmScore = rhythm?.score == null ? calculateTodayRhythm(base) : Math.round(Number(rhythm.score));
   return {
     ...base,
@@ -477,6 +489,7 @@ export async function saveFaceAnalysisRecord(input: {
       annotations: input.result.annotations,
       feedback: input.result.feedback,
       model_version: input.modelVersion ?? "demo",
+      persisted: true,
     } as FaceRecord;
   }
 
@@ -498,8 +511,21 @@ export async function saveFaceAnalysisRecord(input: {
     .select("*")
     .single();
 
+  if (isMissingBackendResource(error)) {
+    return {
+      id: `transient-face-${input.date ?? todayISO()}`,
+      record_date: input.date ?? todayISO(),
+      image_path: input.imagePath ?? null,
+      overall_score: input.result.overall_score,
+      skin_age: input.result.skin_age ?? null,
+      annotations: input.result.annotations,
+      feedback: input.result.feedback,
+      model_version: input.modelVersion ?? null,
+      persisted: false,
+    } as FaceRecord & { persisted: false };
+  }
   assertNoError(error);
-  return data as FaceRecord;
+  return { ...(data as FaceRecord), persisted: true } as FaceRecord & { persisted: true };
 }
 
 async function ensureTask(userId: string, title: string, date: string) {
@@ -625,7 +651,7 @@ export async function getTrends(userId: string): Promise<TrendBundle> {
   assertNoError(exercises.error);
   assertNoError(nutritions.error);
   assertNoError(focus.error);
-  assertNoError(rhythms.error);
+  assertOptionalResourceError(rhythms.error);
 
   return {
     moods: asArray<MoodRecord>(moods.data),
@@ -633,6 +659,6 @@ export async function getTrends(userId: string): Promise<TrendBundle> {
     exercises: asArray<ExerciseRecord>(exercises.data),
     nutritions: asArray<NutritionRecord>(nutritions.data),
     focus: asArray<FocusRecord>(focus.data),
-    rhythms: asArray<DailyRhythmScore>(rhythms.data),
+    rhythms: rhythms.error ? [] : asArray<DailyRhythmScore>(rhythms.data),
   };
 }

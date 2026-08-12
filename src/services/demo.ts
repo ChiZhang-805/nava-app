@@ -6,6 +6,7 @@ import type { UserProfile } from "./profile";
 const DEMO_SESSION_KEY = "nava.review.demo.auth.v1";
 export const demoLoginAccount = "13800138000";
 export const demoLoginPassword = "12345678";
+export const demoOtpCode = "123456";
 
 export function isDemoMode() {
   if (typeof window === "undefined") return false;
@@ -38,6 +39,10 @@ export function clearDemoAuthSession() {
 export function isDemoLoginCredential(account: string, password: string) {
   const normalized = account.trim();
   return normalized === demoLoginAccount && password === demoLoginPassword;
+}
+
+export function isDemoOtpCode(code: string) {
+  return code.trim() === demoOtpCode;
 }
 
 export const demoUser = {
