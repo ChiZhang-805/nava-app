@@ -10,15 +10,12 @@ export const demoOtpCode = "123456";
 
 export function isDemoMode() {
   if (typeof window === "undefined") return false;
+  const reviewDemoEnabled = import.meta.env.VITE_ENABLE_REVIEW_DEMO === "true";
+  if (!import.meta.env.DEV && !reviewDemoEnabled) return false;
   const demoParam = new URLSearchParams(window.location.search).get("demo");
-  const host = window.location.hostname;
   if (demoParam === "0") return false;
   if (demoParam === "1") return true;
-  if (host === "nava-app-preview-cz.chizhang1031.chatgpt.site") return true;
-  if (host.endsWith(".github.io") && window.location.pathname.startsWith("/nava-app-figma-preview")) return true;
-  if (host.endsWith(".pages.dev") && host.includes("nava-app-preview")) return true;
-  if (import.meta.env.VITE_ENABLE_REVIEW_DEMO === "true") return true;
-  return false;
+  return reviewDemoEnabled;
 }
 
 export function hasDemoAuthSession() {
@@ -51,7 +48,7 @@ export const demoUser = {
   aud: "authenticated",
   role: "authenticated",
   app_metadata: {},
-  user_metadata: { full_name: "NAVA Demo" },
+  user_metadata: { full_name: "NAVA 用户" },
   created_at: new Date().toISOString(),
 } as User;
 
@@ -247,7 +244,7 @@ export function demoMessagesFor(locale: "zh" | "en" = "zh"): ChatMessage[] {
 
 export const demoProfile: UserProfile = {
   id: demoUser.id,
-  username: "NAVA Demo",
+  username: "NAVA 用户",
   height: 172,
   weight: 64,
   occupation: "产品设计",

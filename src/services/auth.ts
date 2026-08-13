@@ -83,22 +83,23 @@ type PhoneVerificationType = "signup" | "recovery" | "magiclink";
 
 export async function sendSmsOtp(phone: string, purpose: PhoneOtpPurpose) {
   if (!isPhone(phone)) throw new Error("请输入有效中国大陆手机号。");
-  await invokeSmsFunction("aliyun-sms-send", { phone: phone.trim(), purpose });
+  await invokeSmsFunction("aliyun-sms-send", { phone: phone.trim(), purpose, mode: purpose });
 }
 
 async function requestSmsVerification(phone: string, code: string, purpose: PhoneOtpPurpose, password?: string) {
   if (!isPhone(phone)) throw new Error("请输入有效中国大陆手机号。");
   if (!/^\d{6}$/.test(code.trim())) throw new Error("请输入 6 位短信验证码。");
   if (password && password.length < 6) throw new Error("密码至少需要 6 位。");
-  const data = await invokeSmsFunction<{ token_hash: string; verification_type: PhoneVerificationType; email?: string }>("aliyun-sms-verify", {
+  const data = await invokeSmsFunction<{ token_hash: string; verification_type?: PhoneVerificationType; email?: string }>("aliyun-sms-verify", {
     phone: phone.trim(),
     code: code.trim(),
     purpose,
+    mode: purpose,
     password,
   });
 
-  if (!data?.token_hash || !data.verification_type) throw new Error("短信验证成功，但没有返回登录 token。");
-  return data;
+  if (!data?.token_hash) throw new Error("短信验证成功，但没有返回登录 token。");
+  return { ...data, verification_type: data.verification_type ?? "magiclink" as const };
 }
 
 async function publishSession(session: Session, fallbackName?: string) {
@@ -116,7 +117,9 @@ async function applyPassword(client: SupabaseClient, password: string, requireDi
     const { data: matchesCurrent, error: comparisonError } = await client.rpc("nava_password_matches_current", {
       candidate_password: password,
     });
-    if (comparisonError) throw comparisonError;
+    const guardMissing = comparisonError?.code === "PGRST202"
+      || /could not find the function|schema cache/i.test(comparisonError?.message ?? "");
+    if (comparisonError && !guardMissing) throw comparisonError;
     if (matchesCurrent) throw new Error("新密码不能与当前密码相同。");
   }
   const { error } = await client.auth.updateUser({ password });
@@ -309,9 +312,9 @@ export function formatAuthError(error: unknown, translate?: (key: AuthErrorTrans
   if (message.includes("有效邮箱") || message.includes("valid email")) {
     return localized("auth.error.invalidAccount", "请输入有效邮箱或中国大陆手机号。");
   }
-  if (message.includes("6 位") || message.includes("6-digit")) return localized("auth.error.codeFormat", "请输入 6 位验证码。");
   if (message.includes("至少需要 6 位") || message.includes("at least 6")) {
     return localized("auth.error.passwordLength", "密码至少需要 6 位。");
   }
+  if (message.includes("6 位") || message.includes("6-digit")) return localized("auth.error.codeFormat", "请输入 6 位验证码。");
   return message;
 }

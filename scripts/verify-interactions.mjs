@@ -96,7 +96,7 @@ async function verifyOtpLogin(browser, baseUrl, results, consoleErrors) {
   await page.screenshot({ path: path.join(outputDir, "auth-otp-login.png") });
   await page.locator(".auth-submit").click();
   await expect(page.locator(".phone-frame")).toBeVisible();
-  results.push("演示验证码登录");
+  results.push("隔离评审验证码登录");
   await context.close();
 }
 
@@ -143,7 +143,7 @@ async function verifyRegistration(browser, baseUrl, results, consoleErrors) {
   await page.screenshot({ path: path.join(outputDir, "auth-register.png") });
   await page.locator(".auth-submit").click();
   await expect(page.locator(".phone-frame")).toBeVisible();
-  results.push("演示邮箱验证码注册");
+  results.push("隔离评审邮箱验证码注册");
   await context.close();
 }
 
@@ -240,10 +240,10 @@ async function verifyAi(page, results) {
 async function verifyProfile(page, results) {
   await page.locator('[data-tab="profile"]').click();
   const accountName = page.locator(".profile-account-card .profile-row strong");
-  await expect(accountName).toHaveText("NAVA Demo");
+  await expect(accountName).toHaveText("NAVA 用户");
   const nickname = page.locator(".profile-personal-card input").first();
   await nickname.fill("功能验收");
-  await expect(accountName).toHaveText("NAVA Demo");
+  await expect(accountName).toHaveText("NAVA 用户");
   const save = page.locator(".profile-personal-card .section-icon-action");
   await save.click();
   await expect(save).toHaveClass(/success/);

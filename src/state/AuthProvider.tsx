@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       if (isDemoMode()) {
-        if (!isDemoLoginCredential(email, password)) throw new Error("演示账号或密码不正确。");
+        if (!isDemoLoginCredential(email, password)) throw new Error("账号或密码不正确。");
         startDemoAuthSession();
         setUser(demoUser);
         return;
@@ -120,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const requireDemoOtp = useCallback((code: string) => {
-    if (!isDemoOtpCode(code)) throw new Error(`演示验证码不正确，请输入 ${demoOtpCode}。`);
+    if (!isDemoOtpCode(code)) throw new Error(`验证码不正确，请输入 ${demoOtpCode}。`);
   }, []);
 
   const sendLoginOtp = useCallback(async (account: string) => {

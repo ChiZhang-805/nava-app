@@ -1,21 +1,16 @@
-# NAVA Figma v2 preview
+# NAVA Figma v2 public build
 
-The public review site is a static demonstration build. It does not connect to the shared production Supabase project and cannot modify team data.
+The public site is a static frontend build connected to the Web team's shared Supabase project through its public URL and publishable key. Authentication and data access are governed by Supabase Auth and RLS.
 
 ## Build
 
 ```powershell
-npm run build:review
+npm run build:pages
 ```
 
 The generated `dist` directory is ready for GitHub Pages. It includes `404.html` for direct page recovery and `.nojekyll` for static asset delivery.
 
-## Demo sign-in
-
-- Account: `13800138000`
-- Password: `12345678`
-
-The preview opens on the static Figma splash screen. Tap anywhere to continue to sign-in. The former animated quotes, interactive bubble, quote fragments, and energy interaction are not part of this review build.
+The site opens on the static Figma splash screen. Tap anywhere to continue to sign-in. Accounts must exist in the shared Supabase Auth project. Existing users without a known password should use the six-digit-code reset-password flow to set one.
 
 ## Splash provenance
 
@@ -28,6 +23,7 @@ The preview opens on the static Figma splash screen. Tap anywhere to continue to
 ## Boundaries
 
 - The private `nava-app` repository remains the source of truth.
-- The public preview repository contains compiled static files only.
+- The public repository contains compiled static files only.
 - No `.env`, service-role key, JWT secret, personal token, or production dataset may be published.
+- The Supabase project URL and publishable client key are public client configuration; authorization still depends on Auth and RLS.
 - Figma is a read-only design reference; implementation changes belong in the App repository.
