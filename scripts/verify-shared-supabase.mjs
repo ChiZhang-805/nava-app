@@ -4,6 +4,8 @@ import path from "node:path";
 const appRoot = process.cwd();
 const webRoot = process.env.NAVA_WEB_REPO || "Z:/style-muse-next";
 const outputPath = path.join(appRoot, "artifacts", "backend-review", "shared-supabase.json");
+const targetPath = path.join(appRoot, "config", "backend-target.json");
+const cliProjectRefPath = path.join(appRoot, "supabase", ".temp", "project-ref");
 
 const coreTables = {
   profiles: "id,username,height,weight,occupation,goal,mbti,exercise_frequency,sleep_schedule,diet_preference,stress_factors,avatar_url",
@@ -26,7 +28,7 @@ const extensionTables = {
 };
 
 const sharedFunctions = ["ai-extract-data", "ai-chat-reply", "diet-extract", "face-analyze", "aliyun-sms-send", "aliyun-sms-verify"];
-const appFunctions = ["health-sync-ingest", "watch-sync", "rhythm-score", "export-user-data"];
+const appFunctions = ["health-sync-ingest", "watch-sync", "rhythm-score", "export-user-data", "auth-account-status"];
 const sharedBuckets = ["diet-photos"];
 const appBuckets = ["face-photos", "profile-avatars"];
 
@@ -80,18 +82,21 @@ async function probeFunctions(url, key, names) {
   return result;
 }
 
-async function probeBuckets(url, key, names) {
+async function probeStorageRoutes(url, key, names) {
   const result = {};
   for (const name of names) {
     try {
-      const response = await fetch(`${url}/storage/v1/bucket/${name}`, {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
+      const response = await fetch(`${url}/storage/v1/object/list/${name}`, {
+        method: "POST",
+        headers: { apikey: key, "Content-Type": "application/json" },
+        body: JSON.stringify({ prefix: "", limit: 1, offset: 0 }),
       });
       const body = await response.json().catch(() => ({}));
       result[name] = {
         ok: response.ok,
         status: response.status,
         code: typeof body?.code === "string" ? body.code : undefined,
+        scope: "route-only",
       };
     } catch (error) {
       result[name] = { ok: false, status: 0, error: error instanceof Error ? error.message : String(error) };
@@ -101,34 +106,48 @@ async function probeBuckets(url, key, names) {
 }
 
 async function main() {
-  const [appText, webText] = await Promise.all([
+  const [appText, targetText, webText, cliProjectRefText] = await Promise.all([
     readFile(path.join(appRoot, ".env"), "utf8"),
-    readFile(path.join(webRoot, ".env"), "utf8"),
+    readFile(targetPath, "utf8"),
+    readFile(path.join(webRoot, ".env"), "utf8").catch(() => ""),
+    readFile(cliProjectRefPath, "utf8").catch(() => ""),
   ]);
   const appEnv = parseEnv(appText);
   const webEnv = parseEnv(webText);
+  const target = JSON.parse(targetText);
   const appUrl = appEnv.VITE_SUPABASE_URL;
   const appKey = appEnv.VITE_SUPABASE_PUBLISHABLE_KEY;
   const webUrl = webEnv.VITE_SUPABASE_URL;
-  const webKey = webEnv.VITE_SUPABASE_PUBLISHABLE_KEY;
-  if (!appUrl || !appKey || !webUrl || !webKey) throw new Error("APP 或网页端 .env 缺少公开 Supabase URL/key。 ");
+  if (!appUrl || !appKey) throw new Error("APP .env 缺少公开 Supabase URL/key。");
 
-  const auth = await requestStatus(`${webUrl}/auth/v1/settings`, webKey);
+  const expectedProjectRef = target.projectRef;
+  const appProjectRef = projectRef(appUrl);
+  const webProjectRef = webUrl ? projectRef(webUrl) : null;
+  const cliProjectRef = cliProjectRefText.trim() || null;
+  const appTargetMatches = appProjectRef === expectedProjectRef && appUrl === target.projectUrl;
+  const cliTargetMatches = !cliProjectRef || cliProjectRef === expectedProjectRef;
+  const webAligned = webProjectRef === expectedProjectRef;
+
+  const auth = await requestStatus(`${appUrl}/auth/v1/settings`, appKey);
   const [core, extensions, sharedEdgeFunctions, appEdgeFunctions, sharedStorage, appStorage, storage] = await Promise.all([
-    probeTables(webUrl, webKey, coreTables),
-    probeTables(webUrl, webKey, extensionTables),
-    probeFunctions(webUrl, webKey, sharedFunctions),
-    probeFunctions(webUrl, webKey, appFunctions),
-    probeBuckets(webUrl, webKey, sharedBuckets),
-    probeBuckets(webUrl, webKey, appBuckets),
-    requestStatus(`${webUrl}/storage/v1/bucket`, webKey),
+    probeTables(appUrl, appKey, coreTables),
+    probeTables(appUrl, appKey, extensionTables),
+    probeFunctions(appUrl, appKey, sharedFunctions),
+    probeFunctions(appUrl, appKey, appFunctions),
+    probeStorageRoutes(appUrl, appKey, sharedBuckets),
+    probeStorageRoutes(appUrl, appKey, appBuckets),
+    requestStatus(`${appUrl}/storage/v1/bucket`, appKey),
   ]);
 
   const report = {
     checkedAt: new Date().toISOString(),
-    appProjectRef: projectRef(appUrl),
-    webProjectRef: projectRef(webUrl),
-    sharedConfigMatches: appUrl === webUrl && appKey === webKey,
+    expectedProjectRef,
+    appProjectRef,
+    cliProjectRef,
+    webProjectRef,
+    appTargetMatches,
+    cliTargetMatches,
+    webAligned,
     auth,
     coreTables: core,
     extensionTables: extensions,
@@ -144,12 +163,15 @@ async function main() {
       appFunctionsReady: Object.values(appEdgeFunctions).every((item) => item.ok),
       sharedStorageReady: Object.values(sharedStorage).every((item) => item.ok),
       appStorageReady: Object.values(appStorage).every((item) => item.ok),
+      storageBucketExistence: "Verify through linked database migrations; anonymous Storage routes do not disclose bucket existence.",
     },
   };
   await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 
-  console.log(`Shared config: ${report.sharedConfigMatches ? "MATCH" : "MISMATCH"}`);
+  console.log(`APP target: ${appTargetMatches ? "MATCH" : "MISMATCH"}`);
+  console.log(`CLI target: ${cliTargetMatches ? "MATCH" : "MISMATCH"}`);
+  console.log(`Web alignment: ${webAligned ? "ALIGNED" : "PENDING"}`);
   console.log(`Auth: ${auth.ok ? "READY" : `HTTP ${auth.status}`}`);
   console.log(`Core tables: ${report.notes.coreReady ? "READY" : "INCOMPLETE"}`);
   console.log(`APP extension tables: ${report.notes.extensionsReady ? "READY" : "INCOMPLETE"}`);
@@ -159,7 +181,7 @@ async function main() {
   console.log(`APP storage: ${report.notes.appStorageReady ? "READY" : "INCOMPLETE"}`);
   console.log(`Report: ${outputPath}`);
 
-  if (!report.sharedConfigMatches || !auth.ok || !report.notes.coreReady) process.exitCode = 1;
+  if (!appTargetMatches || !cliTargetMatches || !auth.ok || !report.notes.coreReady) process.exitCode = 1;
 }
 
 main().catch((error) => {

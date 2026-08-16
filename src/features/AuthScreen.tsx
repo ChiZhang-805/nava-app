@@ -13,7 +13,7 @@ import {
 import { FormEvent, useEffect, useState } from "react";
 import LanguageToggle from "../components/LanguageToggle";
 import NavaWordmark from "../components/NavaWordmark";
-import { useT } from "../i18n";
+import { useLocale } from "../i18n";
 import { formatAuthError, isEmail, isPhone } from "../services/auth";
 import { useAuth } from "../state/authContext";
 
@@ -32,10 +32,9 @@ export default function AuthScreen() {
     error,
     clearError,
   } = useAuth();
-  const t = useT();
+  const { locale, t } = useLocale();
   const [mode, setMode] = useState<AuthMode>("signIn");
   const [signInMethod, setSignInMethod] = useState<SignInMethod>("password");
-  const [signUpStep, setSignUpStep] = useState<1 | 2>(1);
   const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -50,15 +49,16 @@ export default function AuthScreen() {
   const [codeBusy, setCodeBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [signUpStep, setSignUpStep] = useState<"verify" | "password">("verify");
+  const [consentOpen, setConsentOpen] = useState(false);
 
   const normalizedAccount = account.trim();
   const accountIsEmail = isEmail(normalizedAccount);
   const accountIsPhone = isPhone(normalizedAccount);
   const accountIsValid = accountIsEmail || accountIsPhone;
   const isOtpSignIn = mode === "signIn" && signInMethod === "otp";
-  const requiresCode = mode === "reset" || isOtpSignIn || (mode === "signUp" && signUpStep === 1);
-  const requiresPassword = mode === "reset" || (mode === "signUp" && signUpStep === 2) || (mode === "signIn" && signInMethod === "password");
-  const showsAccount = mode !== "signUp" || signUpStep === 1;
+  const requiresCode = mode === "reset" || (mode === "signUp" && signUpStep === "verify") || isOtpSignIn;
+  const requiresPassword = mode === "reset" || (mode === "signUp" && signUpStep === "password") || (mode === "signIn" && signInMethod === "password");
   const AccountIcon = accountIsPhone ? Phone : AtSign;
   const feedbackError = localError ?? error;
   const canSubmit =
@@ -68,14 +68,9 @@ export default function AuthScreen() {
       ? signInMethod === "password"
         ? Boolean(password)
         : otpSent && sentTo === normalizedAccount && /^\d{6}$/.test(otp)
-      : mode === "signUp" && signUpStep === 1
-        ? otpSent && sentTo === normalizedAccount && /^\d{6}$/.test(otp) && acceptedTerms
-        : password.length >= 6 &&
-          Boolean(confirmPassword) &&
-          otpSent &&
-          sentTo === normalizedAccount &&
-          /^\d{6}$/.test(otp) &&
-          (mode !== "signUp" || acceptedTerms));
+      : mode === "signUp" && signUpStep === "verify"
+        ? otpSent && sentTo === normalizedAccount && /^\d{6}$/.test(otp)
+        : password.length >= 6 && Boolean(confirmPassword) && otpSent && sentTo === normalizedAccount && /^\d{6}$/.test(otp));
 
   useEffect(() => {
     if (codeCooldown <= 0) return;
@@ -93,7 +88,6 @@ export default function AuthScreen() {
     if (nextMode === mode) return;
     setMode(nextMode);
     setSignInMethod("password");
-    setSignUpStep(1);
     setPassword("");
     setConfirmPassword("");
     setOtp("");
@@ -103,6 +97,8 @@ export default function AuthScreen() {
     setShowPassword(false);
     setShowConfirmPassword(false);
     setAcceptedTerms(false);
+    setSignUpStep("verify");
+    setConsentOpen(false);
     clearFeedback();
   }
 
@@ -165,11 +161,14 @@ export default function AuthScreen() {
         return;
       }
 
-      if (mode === "signUp" && signUpStep === 1) {
+      if (mode === "signUp" && signUpStep === "verify") {
         if (!otpSent || sentTo !== normalizedAccount) throw new Error(t("auth.error.codeFirst"));
         if (!/^\d{6}$/.test(otp)) throw new Error(t("auth.error.codeFormat"));
-        if (!acceptedTerms) throw new Error(t("auth.error.acceptAgreement"));
-        setSignUpStep(2);
+        if (!acceptedTerms) {
+          setConsentOpen(true);
+          return;
+        }
+        setSignUpStep("password");
         return;
       }
 
@@ -212,13 +211,14 @@ export default function AuthScreen() {
       </section>
 
       <div className="auth-form-region">
-        <form className={["auth-form", `auth-form--${mode}`, isOtpSignIn ? "auth-form--signInOtp" : "", mode === "signUp" ? `auth-form--signUpStep${signUpStep}` : ""].filter(Boolean).join(" ")} key={`${mode}-${signInMethod}-${signUpStep}`} onSubmit={submit}>
+        <form className={["auth-form", `auth-form--${mode}`, isOtpSignIn ? "auth-form--signInOtp" : ""].filter(Boolean).join(" ")} key={`${mode}-${signInMethod}`} onSubmit={submit}>
           <header className="auth-form-head">
-            <h1>{mode === "signIn" ? t("auth.signIn") : mode === "signUp" ? t("auth.signUp") : t("auth.setNewPassword")}</h1>
+            <h1>{mode === "signIn" ? t("auth.signIn") : mode === "signUp" && signUpStep === "password" ? t("auth.setNewPassword") : mode === "signUp" ? t("auth.signUp") : t("auth.setNewPassword")}</h1>
           </header>
 
           <div className="auth-fields">
-            {showsAccount && <label className="field">
+            {mode === "signUp" && signUpStep === "password" && <div className="auth-verified-account"><CheckCircle2 size={18} /><span>{normalizedAccount}</span><button type="button" onClick={() => setSignUpStep("verify")}>{locale === "zh" ? "更改" : "Change"}</button></div>}
+            {!(mode === "signUp" && signUpStep === "password") && <label className="field">
               <span className="field-label">{t("auth.emailPhone")}</span>
               <div className="input-wrap">
                 <AccountIcon size={19} />
@@ -283,7 +283,7 @@ export default function AuthScreen() {
               </label>
             )}
 
-            {mode !== "signIn" && (mode !== "signUp" || signUpStep === 2) && (
+            {(mode === "reset" || (mode === "signUp" && signUpStep === "password")) && (
               <label className="field">
                 <span className="field-label">{t("auth.confirmPassword")}</span>
                 <div className="input-wrap">
@@ -321,7 +321,7 @@ export default function AuthScreen() {
           </div>
 
           <button className="auth-submit" type="submit" disabled={!canSubmit}>
-            <span>{busy ? t("auth.processing") : mode === "signIn" ? t("auth.enter") : mode === "signUp" && signUpStep === 1 ? t("auth.next") : mode === "signUp" ? t("auth.create") : t("auth.savePassword")}</span>
+            <span>{busy ? t("auth.processing") : mode === "signIn" ? t("auth.enter") : mode === "signUp" && signUpStep === "verify" ? (locale === "zh" ? "下一步" : "Next") : mode === "signUp" ? t("auth.create") : t("auth.savePassword")}</span>
             <ArrowRight size={19} />
           </button>
 
@@ -334,10 +334,7 @@ export default function AuthScreen() {
             <button
               className="auth-mode-icon"
               type="button"
-              onClick={() => {
-                if (mode === "signUp" && signUpStep === 2) setSignUpStep(1);
-                else switchMode(mode === "signIn" ? "signUp" : "signIn");
-              }}
+              onClick={() => switchMode(mode === "signIn" ? "signUp" : "signIn")}
               aria-label={mode === "signIn" ? t("auth.switchToSignUp") : t("auth.switchToSignIn")}
               title={mode === "signIn" ? t("auth.switchToSignUp") : t("auth.switchToSignIn")}
             >
@@ -351,7 +348,7 @@ export default function AuthScreen() {
             </button>
           )}
         </form>
-        {mode === "signUp" && signUpStep === 1 && (
+        {mode === "signUp" && (
           <label className="auth-consent auth-consent--screen">
             <input
               type="checkbox"
@@ -362,6 +359,7 @@ export default function AuthScreen() {
           </label>
         )}
       </div>
+      {consentOpen && <div className="auth-consent-dialog" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "协议确认" : "Agreement confirmation"}><div><header><strong>{locale === "zh" ? "请先确认协议" : "Review agreements"}</strong><button type="button" onClick={() => setConsentOpen(false)}>×</button></header><p>{locale === "zh" ? "继续注册即表示你已阅读并同意《用户协议》和《隐私政策》。" : "Continue only after reviewing the User Agreement and Privacy Policy."}</p><nav><a href="#agreement">{locale === "zh" ? "用户协议" : "User Agreement"}</a><a href="#privacy">{locale === "zh" ? "隐私政策" : "Privacy Policy"}</a></nav><button type="button" onClick={() => { setAcceptedTerms(true); setConsentOpen(false); setSignUpStep("password"); }}>{locale === "zh" ? "同意并继续" : "Agree and continue"}</button></div></div>}
     </main>
   );
 }

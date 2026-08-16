@@ -20,6 +20,16 @@ async function makeContext(browser, viewport = { width: 430, height: 932 }) {
   return context;
 }
 
+async function openAppPage(page) {
+  await page.goto(baseUrl, { waitUntil: "networkidle" });
+  const launch = page.locator(".launch-sequence");
+  if (await launch.isVisible()) {
+    await launch.tap();
+    await launch.waitFor({ state: "detached", timeout: 3000 });
+  }
+  await page.locator(".auth-screen").waitFor({ state: "visible", timeout: 10000 });
+}
+
 function base64Url(value) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
@@ -65,6 +75,14 @@ async function installAuthMocks(page, { email, passwordMatches = false, smsSendE
   await page.route("**/auth/v1/user**", async (route) => {
     if (route.request().method() === "PUT") calls.userUpdates.push(route.request().postDataJSON());
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(session.user) });
+  });
+  await page.route("**/functions/v1/auth-account-status**", async (route) => {
+    const request = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ exists: request.purpose !== "register" }),
+    });
   });
   await page.route("**/functions/v1/aliyun-sms-send**", async (route) => {
     calls.smsSend.push(route.request().postDataJSON());
@@ -206,7 +224,7 @@ async function main() {
     uiPage.on("console", (message) => {
       if (message.type() === "error") errors.push(message.text());
     });
-    await uiPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await openAppPage(uiPage);
     await uiPage.waitForTimeout(900);
     metrics.login = await readLayout(uiPage);
     await uiPage.screenshot({ path: path.join(outputDir, "01-login.png") });
@@ -250,7 +268,7 @@ async function main() {
     const compactContext = await makeContext(browser, { width: 375, height: 667 });
     const compactPage = await compactContext.newPage();
     compactPage.on("pageerror", (error) => errors.push(error.message));
-    await compactPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await openAppPage(compactPage);
     await compactPage.locator(".auth-forgot").tap();
     await compactPage.locator('input[autocomplete="username"]').fill("reset@example.com");
     await compactPage.waitForTimeout(500);
@@ -261,7 +279,7 @@ async function main() {
     const emailLoginContext = await makeContext(browser);
     const emailLoginPage = await emailLoginContext.newPage();
     const emailLoginCalls = await installAuthMocks(emailLoginPage, { email: "login@example.com", suffix: "000000000108" });
-    await emailLoginPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await openAppPage(emailLoginPage);
     await emailLoginPage.locator(".auth-method-switch").tap();
     await emailLoginPage.locator('input[autocomplete="username"]').fill("login@example.com");
     await emailLoginPage.locator(".auth-code-button").tap();
@@ -275,7 +293,7 @@ async function main() {
     const phoneLoginContext = await makeContext(browser);
     const phoneLoginPage = await phoneLoginContext.newPage();
     const phoneLoginCalls = await installAuthMocks(phoneLoginPage, { email: "13700137000@phone.nava.app", suffix: "000000000109" });
-    await phoneLoginPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await openAppPage(phoneLoginPage);
     await phoneLoginPage.locator(".auth-method-switch").tap();
     await phoneLoginPage.locator('input[autocomplete="username"]').fill("13700137000");
     await phoneLoginPage.locator(".auth-code-button").tap();
@@ -289,7 +307,7 @@ async function main() {
     const signupContext = await makeContext(browser);
     const signupPage = await signupContext.newPage();
     const signupCalls = await installAuthMocks(signupPage, { email: "signup@example.com", suffix: "000000000102" });
-    await signupPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await openAppPage(signupPage);
     await signupPage.locator(".auth-mode-icon").tap();
     await signupPage.locator('input[autocomplete="username"]').fill("signup@example.com");
     await signupPage.locator(".auth-code-button").tap();
@@ -313,7 +331,7 @@ async function main() {
     const phoneSignupContext = await makeContext(browser);
     const phoneSignupPage = await phoneSignupContext.newPage();
     const phoneSignupCalls = await installAuthMocks(phoneSignupPage, { email: "13800138000@phone.nava.app", suffix: "000000000105" });
-    await phoneSignupPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await openAppPage(phoneSignupPage);
     await phoneSignupPage.locator(".auth-mode-icon").tap();
     await phoneSignupPage.locator('input[autocomplete="username"]').fill("13800138000");
     await phoneSignupPage.locator(".auth-code-button").tap();
@@ -335,7 +353,7 @@ async function main() {
     const resetContext = await makeContext(browser);
     const resetPage = await resetContext.newPage();
     const resetCalls = await installAuthMocks(resetPage, { email: "reset@example.com", passwordMatches: false, suffix: "000000000103" });
-    await resetPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await openAppPage(resetPage);
     await resetPage.locator(".auth-forgot").tap();
     await resetPage.locator('input[autocomplete="username"]').fill("reset@example.com");
     await resetPage.locator(".auth-code-button").tap();
@@ -352,7 +370,7 @@ async function main() {
     const phoneResetContext = await makeContext(browser);
     const phoneResetPage = await phoneResetContext.newPage();
     const phoneResetCalls = await installAuthMocks(phoneResetPage, { email: "13900139000@phone.nava.app", passwordMatches: false, suffix: "000000000106" });
-    await phoneResetPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await openAppPage(phoneResetPage);
     await phoneResetPage.locator(".auth-forgot").tap();
     await phoneResetPage.locator('input[autocomplete="username"]').fill("13900139000");
     await phoneResetPage.locator(".auth-code-button").tap();
@@ -369,7 +387,7 @@ async function main() {
     const sameContext = await makeContext(browser);
     const samePage = await sameContext.newPage();
     const sameCalls = await installAuthMocks(samePage, { email: "same@example.com", passwordMatches: true, suffix: "000000000104" });
-    await samePage.goto(baseUrl, { waitUntil: "networkidle" });
+    await openAppPage(samePage);
     await samePage.locator(".auth-forgot").tap();
     await samePage.locator('input[autocomplete="username"]').fill("same@example.com");
     await samePage.locator(".auth-code-button").tap();
@@ -392,7 +410,7 @@ async function main() {
       smsSendErrorCode: "OTP_PHONE_RATE_LIMIT",
       suffix: "000000000107",
     });
-    await englishErrorPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await openAppPage(englishErrorPage);
     await englishErrorPage.locator(".language-toggle").tap();
     await englishErrorPage.locator(".auth-mode-icon").tap();
     await englishErrorPage.locator('input[autocomplete="username"]').fill("13800138000");

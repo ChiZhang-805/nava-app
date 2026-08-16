@@ -37,3 +37,6 @@ verify_jwt = false
 
 [functions.aliyun-sms-verify]
 verify_jwt = false
+
+[functions.auth-account-status]
+verify_jwt = false

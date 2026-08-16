@@ -759,8 +759,8 @@ textarea {
 .chat-layout {
   height: 100%;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
   gap: 10px;
 }
 
@@ -1144,6 +1144,7 @@ body::before {
 }
 
 .app-content--chat {
+  display: flex;
   overflow: hidden;
   padding-bottom: 8px;
 }
@@ -1154,6 +1155,8 @@ body::before {
 }
 
 .app-content--chat .screen-panel {
+  flex: 1 1 auto;
+  width: 100%;
   height: 100%;
   min-height: 0;
 }
@@ -1172,6 +1175,28 @@ body::before {
 
 .screen-panel {
   animation: screen-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.ai-screen-host.is-active {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.ai-screen-host.is-active .chat-layout {
+  height: 100%;
+  min-height: 0;
+}
+
+.ai-screen-host.is-background {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .bottom-nav {
@@ -1196,6 +1221,14 @@ body::before {
 .nav-button svg {
   width: 23px;
   height: 23px;
+}
+
+.nav-button > .figma-nav-icon {
+  width: 23px;
+  height: 23px;
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .nav-button span {
@@ -3018,7 +3051,8 @@ textarea::placeholder {
   animation: nav-settle 360ms cubic-bezier(0.2, 1.35, 0.28, 1) both;
 }
 
-.nav-button.selected svg {
+.nav-button.selected svg,
+.nav-button.selected > .figma-nav-icon {
   animation: nav-icon-construct 620ms cubic-bezier(0.16, 0.9, 0.24, 1) both;
 }
 
@@ -3077,11 +3111,19 @@ textarea::placeholder {
   animation: semantic-icon-press 520ms cubic-bezier(0.16, 0.9, 0.24, 1) both;
 }
 
+:is(
+  .option-two-health-entry,
+  .nav-button
+):active:not(:disabled) img {
+  animation: semantic-icon-press 520ms cubic-bezier(0.16, 0.9, 0.24, 1) both;
+}
+
 .record-module-entry:active:not(:disabled) .record-module-icon {
   animation: module-icon-lift 520ms cubic-bezier(0.16, 0.9, 0.24, 1) both;
 }
 
-.nav-button:not(.ai-nav-button):active svg {
+.nav-button:not(.ai-nav-button):active svg,
+.nav-button:not(.ai-nav-button):active > .figma-nav-icon {
   animation: semantic-icon-press 520ms cubic-bezier(0.16, 0.9, 0.24, 1) both;
 }
 
@@ -3780,8 +3822,7 @@ textarea::placeholder {
 }
 
 .option-two-side-actions button,
-.option-two-health-entry,
-.option-two-collapse-trigger {
+.option-two-health-entry {
   width: 44px;
   height: 44px;
   border: 1px solid rgba(255, 255, 255, 0.72);
@@ -3890,24 +3931,6 @@ textarea::placeholder {
   border-right-color: transparent;
   border-radius: 50%;
   transform: rotate(-35deg);
-}
-
-.option-two-collapse-trigger {
-  position: absolute;
-  right: 8%;
-  bottom: 41%;
-  z-index: 9;
-  border: 0;
-  color: #0a1720;
-  background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-  transform: rotate(0deg);
-}
-
-.option-two-home.is-expanded .option-two-collapse-trigger {
-  bottom: 45%;
-  transform: rotate(180deg);
 }
 
 .phone-frame--option2 .bottom-nav {

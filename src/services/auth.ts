@@ -54,12 +54,13 @@ export async function ensureProfile(userId: string, fallbackName?: string | null
 export async function signInWithPassword(account: string, password: string) {
   if (!password) throw new Error("请输入密码。");
   const email = toAuthEmail(account);
+  await assertAccountEligibility(account, "login");
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
   if (data.user) await ensureProfile(data.user.id, account.trim());
 }
 
-async function invokeSmsFunction<T>(name: string, body: Record<string, unknown>) {
+async function invokeAuthFunction<T>(name: string, body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke<T>(name, { body });
   if (!error) return data;
 
@@ -83,14 +84,18 @@ type PhoneVerificationType = "signup" | "recovery" | "magiclink";
 
 export async function sendSmsOtp(phone: string, purpose: PhoneOtpPurpose) {
   if (!isPhone(phone)) throw new Error("请输入有效中国大陆手机号。");
-  await invokeSmsFunction("aliyun-sms-send", { phone: phone.trim(), purpose, mode: purpose });
+  await invokeAuthFunction("aliyun-sms-send", { phone: phone.trim(), purpose, mode: purpose });
+}
+
+async function assertAccountEligibility(account: string, purpose: PhoneOtpPurpose) {
+  await invokeAuthFunction("auth-account-status", { account: account.trim(), purpose });
 }
 
 async function requestSmsVerification(phone: string, code: string, purpose: PhoneOtpPurpose, password?: string) {
   if (!isPhone(phone)) throw new Error("请输入有效中国大陆手机号。");
   if (!/^\d{6}$/.test(code.trim())) throw new Error("请输入 6 位短信验证码。");
   if (password && password.length < 6) throw new Error("密码至少需要 6 位。");
-  const data = await invokeSmsFunction<{ token_hash: string; verification_type?: PhoneVerificationType; email?: string }>("aliyun-sms-verify", {
+  const data = await invokeAuthFunction<{ token_hash: string; verification_type?: PhoneVerificationType; email?: string }>("aliyun-sms-verify", {
     phone: phone.trim(),
     code: code.trim(),
     purpose,
@@ -145,6 +150,7 @@ export async function sendRegistrationOtp(account: string) {
     return "sms" as const;
   }
   if (!isEmail(normalized)) throw new Error("请输入有效邮箱或中国大陆手机号。");
+  await assertAccountEligibility(normalized, "register");
 
   const { error } = await supabase.auth.signInWithOtp({
     email: normalized,
@@ -164,6 +170,7 @@ export async function sendLoginOtp(account: string) {
     return "sms" as const;
   }
   if (!isEmail(normalized)) throw new Error("请输入有效邮箱或中国大陆手机号。");
+  await assertAccountEligibility(normalized, "login");
 
   const { error } = await supabase.auth.signInWithOtp({
     email: normalized,
@@ -229,6 +236,7 @@ export async function sendPasswordResetOtp(account: string) {
     return "sms" as const;
   }
   if (!isEmail(normalized)) throw new Error("请输入有效邮箱或中国大陆手机号。");
+  await assertAccountEligibility(normalized, "reset");
 
   const { error } = await supabase.auth.signInWithOtp({
     email: normalized,
@@ -287,7 +295,7 @@ export function formatAuthError(error: unknown, translate?: (key: AuthErrorTrans
   const localized = (key: AuthErrorTranslationKey, fallback: string) => translate?.(key) ?? fallback;
 
   if (code === "OTP_COOLDOWN") return localized("auth.error.otpCooldown", "请等待 60 秒后再获取验证码。");
-  if (code === "OTP_PHONE_RATE_LIMIT" || code === "OTP_IP_RATE_LIMIT") {
+  if (code === "OTP_PHONE_RATE_LIMIT" || code === "OTP_ACCOUNT_RATE_LIMIT" || code === "OTP_IP_RATE_LIMIT") {
     return localized("auth.error.otpRateLimit", "请求过于频繁，请稍后再试。");
   }
   if (code === "SMS_PROVIDER_ERROR" || code === "OTP_SERVICE_ERROR") {
@@ -297,7 +305,7 @@ export function formatAuthError(error: unknown, translate?: (key: AuthErrorTrans
   if (code === "OTP_LOCKED") return localized("auth.error.otpLocked", "验证码错误次数过多，请重新获取。");
   if (code === "OTP_INVALID" || code === "OTP_NOT_FOUND") return localized("auth.error.otpInvalid", "验证码不正确。");
   if (code === "ACCOUNT_EXISTS") return localized("auth.error.accountExists", "该账号已注册，请直接登录或重置密码。");
-  if (code === "ACCOUNT_NOT_FOUND") return localized("auth.error.accountNotFound", "未找到该账号。");
+  if (code === "ACCOUNT_NOT_FOUND") return localized("auth.error.accountNotFound", "该邮箱或手机号未注册。");
   if (message.includes("Invalid login credentials")) return localized("auth.error.loginInvalid", "账号或密码不正确。");
   if (message.includes("Email not confirmed")) return localized("auth.error.emailNotConfirmed", "邮箱还没有完成确认。");
   if (message.includes("Token has expired") || message.includes("otp_expired")) {

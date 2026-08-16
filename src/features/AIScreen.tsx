@@ -1,10 +1,22 @@
 import type { User } from "@supabase/supabase-js";
-import { Bot, Mic, SendHorizontal, Sparkles } from "lucide-react";
+import { Bot, Mic, SendHorizontal, Sparkles, X } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useLocale } from "../i18n";
 import { loadConversation, sendAiMessage } from "../services/ai";
+import { loadProfile } from "../services/profile";
 import { startVoiceInput, type VoiceInputError, type VoiceInputSession } from "../services/voice";
 import type { ChatMessage } from "../types";
+
+export type AiCommand = {
+  id: number;
+  type: "new" | "history" | "clear" | "export";
+};
+
+type ConversationSnapshot = {
+  id: string;
+  createdAt: string;
+  messages: ChatMessage[];
+};
 
 export default function AIScreen({
   user,
@@ -12,12 +24,14 @@ export default function AIScreen({
   voiceReleaseId = 0,
   voiceReleaseCancelled = false,
   voiceCancelArmed = false,
+  command = null,
 }: {
   user: User;
   voiceRequestId?: number;
   voiceReleaseId?: number;
   voiceReleaseCancelled?: boolean;
   voiceCancelArmed?: boolean;
+  command?: AiCommand | null;
 }) {
   const { locale, t } = useLocale();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -26,12 +40,39 @@ export default function AIScreen({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [voiceState, setVoiceState] = useState<"idle" | "starting" | "listening">("idle");
+  const [profile, setProfile] = useState<{ username: string | null; avatar_url?: string | null } | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState<ConversationSnapshot[]>([]);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
   const voiceSessionRef = useRef<VoiceInputSession | null>(null);
   const handledVoiceRequestRef = useRef(0);
   const handledVoiceReleaseRef = useRef(0);
   const voiceStopIntentRef = useRef<"stop" | "cancel" | null>(null);
   const voiceInitialInputRef = useRef("");
+  const handledCommandRef = useRef(0);
+  const historyKey = `nava-ai-history:${user.id}`;
+
+  const readHistory = useCallback(() => {
+    try {
+      const value = JSON.parse(window.localStorage.getItem(historyKey) ?? "[]") as ConversationSnapshot[];
+      return Array.isArray(value) ? value : [];
+    } catch {
+      return [];
+    }
+  }, [historyKey]);
+
+  const archiveConversation = useCallback((current: ChatMessage[]) => {
+    if (current.length === 0) return readHistory();
+    const snapshot: ConversationSnapshot = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      messages: current,
+    };
+    const next = [snapshot, ...readHistory()].slice(0, 20);
+    window.localStorage.setItem(historyKey, JSON.stringify(next));
+    return next;
+  }, [historyKey, readHistory]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -73,7 +114,44 @@ export default function AIScreen({
   }, [refresh]);
 
   useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
+    loadProfile(user.id).then(setProfile).catch(() => setProfile(null));
+    setHistory(readHistory());
+  }, [readHistory, user.id]);
+
+  useEffect(() => setAvatarLoadFailed(false), [profile?.avatar_url]);
+
+  useEffect(() => {
+    if (!command || command.id === handledCommandRef.current) return;
+    handledCommandRef.current = command.id;
+    if (command.type === "new") {
+      setHistory(archiveConversation(messages));
+      setMessages([]);
+      setInput("");
+      setHistoryOpen(false);
+      return;
+    }
+    if (command.type === "history") {
+      setHistory(readHistory());
+      setHistoryOpen(true);
+      return;
+    }
+    if (command.type === "clear") {
+      setMessages([]);
+      setInput("");
+      setHistoryOpen(false);
+      return;
+    }
+    const payload = JSON.stringify({ exportedAt: new Date().toISOString(), messages }, null, 2);
+    const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `nava-conversation-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [archiveConversation, command, messages, readHistory]);
+
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "auto" });
   }, [messages.length]);
 
   const voiceErrorText = useCallback((voiceError: VoiceInputError) => {
@@ -170,7 +248,9 @@ export default function AIScreen({
               </article>
               {isUser && (
                 <span className="chat-avatar user" aria-hidden="true">
-                  {user.email?.slice(0, 1).toUpperCase() ?? "N"}
+                  {profile?.avatar_url && !avatarLoadFailed
+                    ? <img src={profile.avatar_url} alt="" onError={() => setAvatarLoadFailed(true)} />
+                    : (profile?.username?.trim().slice(0, 1).toUpperCase() || user.email?.slice(0, 1).toUpperCase() || "N")}
                 </span>
               )}
             </div>
@@ -199,6 +279,24 @@ export default function AIScreen({
           <SendHorizontal size={21} />
         </button>
       </form>
+
+      {historyOpen && (
+        <div className="ai-history-sheet" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "历史会话" : "Conversation history"}>
+          <header>
+            <strong>{locale === "zh" ? "历史会话" : "Conversation history"}</strong>
+            <button type="button" onClick={() => setHistoryOpen(false)} aria-label={locale === "zh" ? "关闭" : "Close"}><X size={20} /></button>
+          </header>
+          <div>
+            {history.length === 0 && <p className="muted">{locale === "zh" ? "还没有历史会话" : "No archived conversations"}</p>}
+            {history.map((snapshot) => (
+              <button key={snapshot.id} type="button" onClick={() => { setMessages(snapshot.messages); setHistoryOpen(false); }}>
+                <strong>{snapshot.messages.find((item) => item.role === "user")?.content || (locale === "zh" ? "未命名会话" : "Untitled conversation")}</strong>
+                <span>{new Date(snapshot.createdAt).toLocaleString(locale === "zh" ? "zh-CN" : "en-US")}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

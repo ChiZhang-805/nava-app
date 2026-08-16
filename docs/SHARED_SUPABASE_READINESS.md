@@ -1,14 +1,14 @@
-# Shared Supabase readiness
+# Canonical Supabase readiness
 
-The local review build (`.env.review`, `?demo=1`) is intentionally isolated and never writes to the production Supabase project. The public build uses `npm run build:pages` and connects to the shared project.
+The canonical NAVA APP backend is Supabase project `wxteapvwagvhhtrjrbim`. The local review build (`.env.review`, `?demo=1`) is intentionally isolated and never writes to this project. The public build uses `npm run build:pages` and connects through the local, gitignored `.env`.
 
-The formal APP build can use the Web team's Supabase project when its local `.env` contains the same public project URL and publishable key. Run:
+Run the read-only target and contract check before every backend or public frontend deployment:
 
 ```powershell
 npm run supabase:verify-shared
 ```
 
-The check is read-only. It verifies Auth availability, required table contracts, Storage API reachability, and Edge Function endpoints without printing credentials.
+The check is read-only. It verifies that APP `.env` and the Supabase CLI link both target the canonical project, then checks Auth availability, required table contracts, Storage API reachability, and Edge Function endpoints without printing credentials. It reports Web alignment separately because `navarhythm.site` still targets the legacy backend until the Web team migrates and redeploys it.
 
 ## Compatibility tiers
 

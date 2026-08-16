@@ -1,6 +1,6 @@
 # NAVA App 后端说明
 
-App 后端不另起账号系统，继续使用 Web 同一个 Supabase 项目。我们负责 App 专属的表、RLS、Storage、Edge Functions 和部署脚本。
+App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负责 App 专属的表、RLS、Storage、Edge Functions 和部署脚本；Web 端完成迁移后也应连接该项目，三端才会共享同一账号与数据源。
 
 ## 已实现 Edge Functions
 
@@ -92,10 +92,10 @@ supabase/migrations/202607180003_nava_chronostate_v4.sql
 supabase login
 ```
 
-设置项目 ref：
+项目 ref 已固定为：
 
 ```powershell
-$env:SUPABASE_PROJECT_REF="your-project-ref"
+$env:SUPABASE_PROJECT_REF="wxteapvwagvhhtrjrbim"
 ```
 
 校验：
@@ -104,17 +104,19 @@ $env:SUPABASE_PROJECT_REF="your-project-ref"
 npm run backend:verify
 ```
 
-部署数据库和函数：
+默认只部署 APP 专属函数，不自动执行数据库迁移：
 
 ```powershell
 npm run backend:deploy
 ```
 
-只部署函数：
+审核全部迁移计划后，才可以显式推送数据库迁移：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/deploy-backend.ps1 -SkipDbPush
+powershell -ExecutionPolicy Bypass -File scripts/deploy-backend.ps1 -ApplyAllMigrations
 ```
+
+共享的 AI、饮食和面部函数默认不会被覆盖；只有与 Web 后端负责人确认后才使用 `-DeploySharedFunctions`。
 
 ## 算法服务配置
 
@@ -137,7 +139,6 @@ supabase secrets set NAVA_AI_CHAT_URL="https://..." NAVA_AI_CHAT_KEY="..." --pro
 
 ## 仍需人工提供
 
-- Supabase 项目 ref 和部署权限。
 - Supabase production/staging 环境区分。
 - 正式算法服务 URL、鉴权 key、返回 schema。
 - iOS/Watch 真机编译所需 Mac、Xcode、Apple Developer Team。

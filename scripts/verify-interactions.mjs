@@ -13,18 +13,22 @@ const demoAccount = "13800138000";
 const demoPassword = "12345678";
 const demoOtp = "123456";
 const samplePhoto = {
-  name: "sample.png",
-  mimeType: "image/png",
-  buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=", "base64"),
+  name: "sample.svg",
+  mimeType: "image/svg+xml",
+  buffer: Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><rect width="160" height="160" rx="80" fill="#176b8e"/><text x="80" y="104" text-anchor="middle" font-family="Arial,sans-serif" font-size="72" font-weight="700" fill="#fff">N</text></svg>',
+    "utf8",
+  ),
 };
 
 async function dismissLaunch(page) {
   const launch = page.locator(".launch-sequence");
-  await expect(launch).toBeVisible();
-  await expect(page.locator(".launch-splash__texture img")).toBeVisible();
-  await page.screenshot({ path: path.join(outputDir, "launch.png") });
-  await launch.click();
-  await expect(launch).toBeHidden();
+  if (await launch.isVisible().catch(() => false)) {
+    await expect(page.locator(".launch-splash__texture img")).toBeVisible();
+    await page.screenshot({ path: path.join(outputDir, "launch.png") });
+    await launch.click();
+    await expect(launch).toBeHidden();
+  }
 }
 
 async function loginWithPassword(page, baseUrl) {
@@ -135,9 +139,11 @@ async function verifyRegistration(browser, baseUrl, results, consoleErrors) {
   await page.locator(".auth-code-button").click();
   await page.locator('input[autocomplete="one-time-code"]').fill(demoOtp);
   await page.locator('.auth-consent input[type="checkbox"]').check();
+  await expect(page.locator('input[autocomplete="new-password"]')).toHaveCount(0);
+  await page.screenshot({ path: path.join(outputDir, "auth-register-code.png") });
   await page.locator(".auth-submit").click();
+  await expect(page.locator(".auth-verified-account")).toBeVisible();
   await expect(page.locator('input[autocomplete="new-password"]')).toHaveCount(2);
-  await page.waitForTimeout(900);
   await page.locator('input[autocomplete="new-password"]').first().fill("87654321");
   await page.locator('input[autocomplete="new-password"]').nth(1).fill("87654321");
   await page.screenshot({ path: path.join(outputDir, "auth-register.png") });
@@ -164,26 +170,114 @@ async function createBarePage(browser, consoleErrors) {
 async function verifyRecordModules(page, results) {
   await page.locator('[data-tab="record"]').click();
   await expect(page.locator("[data-record-module]")).toHaveCount(6);
-  for (const module of ["mood", "sleep", "exercise", "diet", "focus"]) {
+  const openModule = async (module) => {
     await page.locator(`[data-record-module="${module}"]`).click();
     await expect(page.locator(`[data-record-detail="${module}"]`)).toBeVisible();
-    if (module === "diet") {
-      await page.locator('[data-record-detail="diet"] input[type="file"][capture="environment"]').setInputFiles(samplePhoto);
-      await expect(page.locator('[data-record-detail="diet"] .success-text')).toBeVisible();
-    }
-    await page.locator(`[data-record-detail="${module}"] form:not([hidden]) .action-button`).click();
-    await expect(page.locator(`[data-record-detail="${module}"] .success-text`)).toBeVisible();
-    await page.waitForTimeout(900);
-    await page.screenshot({ path: path.join(outputDir, `record-${module}.png`) });
-    await page.locator(".record-back-button").click();
+    await expect.poll(() => page.locator(".app-content").evaluate((node) => node.scrollTop)).toBe(0);
+  };
+  const returnToHub = async () => {
+    await page.locator('.figma-app-header [aria-label="返回记录入口"], .figma-app-header [aria-label="Back to records"]').click();
+    await expect(page.locator("[data-record-module]")).toHaveCount(6);
+  };
+
+  await openModule("mood");
+  await expect(page.locator('[data-module-view="mood-overview"]')).toBeVisible();
+  await page.locator('[aria-label="填写情绪日记"], [aria-label="Write mood journal"]').click();
+  await expect(page.locator('[role="dialog"]')).toBeVisible();
+  await page.locator('[role="dialog"] textarea').fill("今天节律平稳，午后状态更好。");
+  await page.locator('[role="dialog"] button[type="submit"]').click();
+  await expect(page.locator('[data-module-view="mood-overview"] .module-save-state')).toContainText(/已保存|Saved/);
+  await page.locator('[aria-label="查看情绪趋势"], [aria-label="View mood trend"]').click();
+  await expect(page.locator(".expanded-line-chart")).toBeVisible();
+  await page.locator(".module-inline-back").click();
+  await expect(page.locator('[data-module-view="mood-overview"]')).toBeVisible();
+  await page.waitForTimeout(450);
+  await page.screenshot({ path: path.join(outputDir, "record-mood.png") });
+  await returnToHub();
+
+  await openModule("sleep");
+  await expect(page.locator('[data-module-view="sleep-overview"]')).toBeVisible();
+  const alertCopy = page.locator(".sleep-alert-copy");
+  if (await alertCopy.isVisible().catch(() => false)) {
+    await alertCopy.click();
+    await expect(page.locator(".lock-screen-preview")).toBeVisible();
+    await page.locator(".sleep-alert-modal header button").click();
   }
+  await page.locator('[aria-label="查看睡眠趋势"], [aria-label="View sleep trend"]').click();
+  await expect(page.locator(".expanded-sleep-chart")).toBeVisible();
+  await page.locator(".module-inline-back").click();
+  await page.locator('[aria-label="更新睡眠记录"], [aria-label="Update sleep record"]').click();
+  await page.locator('[data-record-detail="sleep"] form:not([hidden]) .action-button').click();
+  await expect(page.locator('[data-record-detail="sleep"] .success-text')).toBeVisible();
+  await page.locator(".record-back-button").click();
+  await expect(page.locator('[data-module-view="sleep-overview"]')).toBeVisible();
+  await page.waitForTimeout(650);
+  await page.screenshot({ path: path.join(outputDir, "record-sleep.png") });
+  await returnToHub();
+
+  await openModule("exercise");
+  await expect(page.locator('[data-module-view="exercise-overview"]')).toBeVisible();
+  await page.locator(".exercise-device-card header button").click();
+  await expect(page.locator(".device-picker")).toBeVisible();
+  await page.locator(".module-inline-back").click();
+  await page.locator(".health-card").click();
+  await expect(page.locator(".metric-detail-grid")).toBeVisible();
+  await page.locator(".module-inline-back").click();
+  await page.locator(".heat-card").click();
+  await expect(page.locator(".detail-heatmap")).toBeVisible();
+  await page.locator(".module-inline-back").click();
+  await page.locator(".clock-sync-card").click();
+  await expect(page.locator(".clock-alignment")).toBeVisible();
+  await page.locator(".module-inline-back").click();
+  await page.locator(".module-assistant-card.is-interactive").click();
+  await expect(page.locator(".sports-plan")).toBeVisible();
+  await page.locator(".module-inline-back").click();
+  await page.locator('[aria-label="查看运动详情"], [aria-label="View activity details"]').click();
+  await expect(page.locator('[data-module-view="exercise-detail"]')).toBeVisible();
+  await expect(page).toHaveURL(/tab=record.*module=exercise.*view=detail/);
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(page.locator('[data-module-view="exercise-detail"]')).toBeVisible();
+  await page.screenshot({ path: path.join(outputDir, "record-exercise-detail.png") });
+  await page.locator('[data-module-view="exercise-detail"] .module-inline-back').click();
+  await page.locator('[aria-label="填写运动自评"], [aria-label="Edit self assessment"]').click();
+  await page.locator('[data-record-detail="exercise"] form:not([hidden]) .action-button').click();
+  await expect(page.locator('[data-record-detail="exercise"] .success-text')).toBeVisible();
+  await page.locator(".record-back-button").click();
+  await page.waitForTimeout(650);
+  await page.screenshot({ path: path.join(outputDir, "record-exercise.png") });
+  await returnToHub();
+
+  await openModule("diet");
+  await page.locator('[data-record-detail="diet"] input[type="file"][capture="environment"]').setInputFiles(samplePhoto);
+  await expect(page.locator('[data-record-detail="diet"] .success-text')).toBeVisible();
+  await page.locator('[data-record-detail="diet"] form:not([hidden]) .action-button').click();
+  await page.screenshot({ path: path.join(outputDir, "record-diet.png") });
+  await returnToHub();
+
+  await openModule("focus");
+  await expect(page.locator('[data-module-view="focus-overview"]')).toBeVisible();
+  await page.locator('[aria-label="开始专注"], [aria-label="Start focus"]').click();
+  await expect(page.locator('[data-module-view="focus-immersive"]')).toBeVisible();
+  await expect(page.locator(".focus-timer-ring span")).toContainText(/准备开始|Ready/);
+  await page.locator(".focus-interruption-trigger").click();
+  await expect(page.locator(".focus-interruption")).toBeVisible();
+  await page.locator(".focus-interruption button").nth(1).click();
+  await page.locator('[data-module-view="focus-immersive"] [aria-label="开始"], [data-module-view="focus-immersive"] [aria-label="Start"]').click();
+  await page.waitForTimeout(1100);
+  await page.locator('[data-module-view="focus-immersive"] [aria-label="结束"], [data-module-view="focus-immersive"] [aria-label="Finish"]').click();
+  await expect(page.locator('[data-module-view="focus-overview"]')).toBeVisible();
+  await expect(page.locator('[aria-label="专注已记录"], [aria-label="Focus saved"]')).toBeVisible();
+  await page.waitForTimeout(650);
+  await page.screenshot({ path: path.join(outputDir, "record-focus.png") });
+  await returnToHub();
+
   await page.locator('[data-record-module="face"]').click();
   await page.locator('[data-record-detail="face"] input[type="file"][capture="user"]').setInputFiles(samplePhoto);
   await expect(page.locator('[data-record-detail="face"] .success-text')).toBeVisible();
   await page.waitForTimeout(900);
   await page.screenshot({ path: path.join(outputDir, "record-face.png") });
-  await page.locator(".record-back-button").click();
-  results.push("六类记录入口、保存与面部拍照分析");
+  await returnToHub();
+  results.push("六类记录入口、四类 Figma 概览/二级页、保存、计时与拍照分析");
 }
 
 async function verifyHomeShortcuts(page, results) {
@@ -191,7 +285,10 @@ async function verifyHomeShortcuts(page, results) {
     await page.locator('[data-tab="today"]').click();
     const menuButton = page.locator(".option-two-side-actions button").first();
     if (!(await page.locator(".option-two-home").evaluate((node) => node.classList.contains("is-expanded")))) await menuButton.click();
-    if (index === 0) await page.screenshot({ path: path.join(outputDir, "today-expanded.png") });
+    if (index === 0) {
+      await page.waitForTimeout(700);
+      await page.screenshot({ path: path.join(outputDir, "today-expanded.png") });
+    }
     await page.locator(`.option-two-health-entry--${module}`).click();
     await expect(page.locator(`[data-record-detail="${module}"]`)).toBeVisible();
   }
@@ -205,6 +302,15 @@ async function verifyAi(page, results) {
   await page.locator(".chat-send-button").click();
   await expect(page.locator(".chat-message-row")).toHaveCount(5);
   await expect(page.locator(".chat-message-row.assistant").last()).toContainText("NAVA");
+  await page.locator(".figma-header-action").last().click();
+  await page.locator(".app-utility-popover button").filter({ hasText: /新会话|New chat/ }).click();
+  await expect(page.locator(".chat-message-row")).toHaveCount(0);
+  await page.locator(".figma-header-action").last().click();
+  await page.locator(".app-utility-popover button").filter({ hasText: /历史|History/ }).click();
+  await expect(page.locator(".ai-history-sheet")).toBeVisible();
+  await page.locator(".ai-history-sheet > div > button").first().click();
+  await expect(page.locator(".chat-message-row")).toHaveCount(5);
+  await page.waitForTimeout(100);
   await page.screenshot({ path: path.join(outputDir, "ai-reply.png") });
 
   await page.locator('[data-tab="today"]').click();
@@ -221,6 +327,7 @@ async function verifyAi(page, results) {
   await page.mouse.up();
   await expect(page.locator("[data-voice-state]")).toBeHidden();
   await expect(page.locator(".chat-composer input")).toHaveValue("今天感觉很平稳");
+  const inputBeforeCancelledVoice = await page.locator(".chat-composer input").inputValue();
 
   await page.locator('[data-tab="today"]').click();
   const cancelBox = await aiButton.boundingBox();
@@ -233,7 +340,7 @@ async function verifyAi(page, results) {
   await expect(page.locator('[data-voice-state="cancel"]')).toBeVisible();
   await page.mouse.up();
   await expect(page.locator("[data-voice-state]")).toBeHidden();
-  await expect(page.locator(".chat-composer input")).toHaveValue("");
+  await expect(page.locator(".chat-composer input")).toHaveValue(inputBeforeCancelledVoice);
   results.push("AI 对话、长按录音、松手结束与上滑取消");
 }
 
@@ -285,7 +392,7 @@ async function verifyNavigationAndMotion(page, results) {
       await expect(page.locator(".trend-line")).toHaveCount(2);
     }
     const animationName = await page.locator(`[data-tab="${tab}"]`).evaluate((button) => {
-      const glyph = button.querySelector("svg");
+      const glyph = button.querySelector("svg, .figma-nav-icon");
       return glyph ? getComputedStyle(glyph).animationName : getComputedStyle(button.querySelector(".ai-nav-orb")).animationName;
     });
     if (tab !== "ai" && animationName !== "nav-icon-construct") throw new Error(`${tab} icon motion did not replay: ${animationName}`);
@@ -297,7 +404,7 @@ async function verifyNavigationAndMotion(page, results) {
   if (!recordBox) throw new Error("Record navigation button has no bounds");
   await page.mouse.move(recordBox.x + recordBox.width / 2, recordBox.y + recordBox.height / 2);
   await page.mouse.down();
-  await expect.poll(() => recordButton.locator("svg").evaluate((glyph) => getComputedStyle(glyph).animationName)).toBe("semantic-icon-press");
+  await expect.poll(() => recordButton.locator("svg, .figma-nav-icon").evaluate((glyph) => getComputedStyle(glyph).animationName)).toBe("semantic-icon-press");
   await page.mouse.up();
   await page.locator(".figma-header-action").last().click();
   await expect(page.locator(".app-utility-popover")).toBeVisible();

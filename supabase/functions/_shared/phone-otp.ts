@@ -81,13 +81,20 @@ export function requestIp(req: Request) {
 }
 
 export function otpHmacSecret() {
-  const secret = requiredEnv("NAVA_OTP_HMAC_SECRET");
+  // Edge Functions always receive the server-only service role key. It is a
+  // safe high-entropy fallback when project roles cannot create custom secrets.
+  const secret = Deno.env.get("NAVA_OTP_HMAC_SECRET")?.trim()
+    || requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
   if (secret.length < 32) throw new Error("NAVA_OTP_HMAC_SECRET must contain at least 32 characters.");
   return secret;
 }
 
 export async function phoneHash(secret: string, phone: string) {
   return hmacSha256Hex(secret, `phone:v1:${phone}`);
+}
+
+export async function accountHash(secret: string, account: string) {
+  return hmacSha256Hex(secret, `account:v1:${account.toLowerCase()}`);
 }
 
 export async function ipHash(secret: string, ip: string) {

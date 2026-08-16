@@ -1,12 +1,17 @@
-import { Activity, ChartNoAxesColumn, ClipboardPlus, Home, MoreHorizontal, UserRound } from "lucide-react";
+import { Activity, ArrowLeft, Download, History, Home, MessageSquarePlus, MoreHorizontal, Share2, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import navChatIcon from "./assets/figma/option-two-icons/chat.svg";
+import navDataIcon from "./assets/figma/option-two-icons/data.png";
+import navHomeIcon from "./assets/figma/option-two-icons/home-glyph.svg";
+import navProfileIcon from "./assets/figma/option-two-icons/profile.svg";
+import navRecordIcon from "./assets/figma/option-two-icons/record.svg";
 import lifeFigure from "./assets/figma/home-option2/raw-01.png";
 import { assertConfig } from "./config";
 import AuthScreen from "./features/AuthScreen";
 import RecordsScreen from "./features/RecordsScreen";
 import type { RecordModule } from "./features/RecordsScreen";
 import OptionTwoHome from "./features/OptionTwoHome";
-import AIScreen from "./features/AIScreen";
+import AIScreen, { type AiCommand } from "./features/AIScreen";
 import TrendsScreen from "./features/TrendsScreen";
 import ProfileScreen from "./features/ProfileScreen";
 import PasswordRecoveryScreen from "./features/PasswordRecoveryScreen";
@@ -15,29 +20,39 @@ import { useAuth } from "./state/authContext";
 import { enqueueAndFlushWatchAction, flushPendingWatchActions, subscribeWatchActions } from "./services/watch";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LanguageToggle from "./components/LanguageToggle";
-import LaunchSequence from "./components/LaunchSequence";
 import LivingBackground from "./components/LivingBackground";
 import NetworkBadge from "./components/NetworkBadge";
-import { LocaleProvider, useT, type TranslationKey } from "./i18n";
+import { LocaleProvider, useLocale, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
 
-const tabs: Array<{ id: AppTab; labelKey: TranslationKey; icon: typeof Home }> = [
-  { id: "today", labelKey: "tabs.today", icon: Home },
-  { id: "record", labelKey: "tabs.record", icon: ClipboardPlus },
-  { id: "ai", labelKey: "tabs.ai", icon: Activity },
-  { id: "trends", labelKey: "tabs.trends", icon: ChartNoAxesColumn },
-  { id: "profile", labelKey: "tabs.profile", icon: UserRound },
+const tabs: Array<{ id: AppTab; labelKey: TranslationKey; icon: string }> = [
+  { id: "today", labelKey: "tabs.today", icon: navHomeIcon },
+  { id: "record", labelKey: "tabs.record", icon: navRecordIcon },
+  { id: "ai", labelKey: "tabs.ai", icon: navChatIcon },
+  { id: "trends", labelKey: "tabs.trends", icon: navDataIcon },
+  { id: "profile", labelKey: "tabs.profile", icon: navProfileIcon },
 ];
 
-const recordTitleKeys: Record<RecordModule, TranslationKey> = {
-  mood: "records.mood",
-  sleep: "records.sleep",
-  exercise: "records.exercise",
-  diet: "records.diet",
-  focus: "records.focus",
-  face: "records.faceShort",
-};
+type ShellRoute = { tab: AppTab; module: RecordModule | null; view: string | null };
+const appTabs = new Set<AppTab>(["today", "record", "ai", "trends", "profile"]);
+const recordModules = new Set<RecordModule>(["mood", "sleep", "exercise", "diet", "focus", "face"]);
+
+function readShellRoute(): ShellRoute {
+  const query = new URLSearchParams(window.location.hash.replace(/^#\??/, ""));
+  const candidateTab = query.get("tab") as AppTab | null;
+  const tab = candidateTab && appTabs.has(candidateTab) ? candidateTab : "today";
+  const candidateModule = query.get("module") as RecordModule | null;
+  const module = tab === "record" && candidateModule && recordModules.has(candidateModule) ? candidateModule : null;
+  return { tab, module, view: module ? query.get("view") : null };
+}
+
+function shellRouteHash(route: ShellRoute) {
+  const query = new URLSearchParams({ tab: route.tab });
+  if (route.tab === "record" && route.module) query.set("module", route.module);
+  if (route.tab === "record" && route.module && route.view) query.set("view", route.view);
+  return `#${query.toString()}`;
+}
 
 function LoadingScreen() {
   const t = useT();
@@ -71,8 +86,11 @@ function ConfigErrorScreen({ message }: { message: string }) {
 function MobileShell() {
   const { user } = useAuth();
   const t = useT();
-  const [activeTab, setActiveTab] = useState<AppTab>("today");
-  const [recordModule, setRecordModule] = useState<RecordModule | null>(null);
+  const { locale } = useLocale();
+  const initialRouteRef = useRef<ShellRoute>(readShellRoute());
+  const [activeTab, setActiveTab] = useState<AppTab>(initialRouteRef.current.tab);
+  const [recordModule, setRecordModule] = useState<RecordModule | null>(initialRouteRef.current.module);
+  const [recordView, setRecordView] = useState<string | null>(initialRouteRef.current.view);
   const [utilityOpen, setUtilityOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [voiceRequestId, setVoiceRequestId] = useState(0);
@@ -80,6 +98,7 @@ function MobileShell() {
   const [voiceGestureActive, setVoiceGestureActive] = useState(false);
   const [voiceCancelArmed, setVoiceCancelArmed] = useState(false);
   const [aiPressing, setAiPressing] = useState(false);
+  const [aiCommand, setAiCommand] = useState<AiCommand | null>(null);
   const contentRef = useRef<HTMLElement | null>(null);
   const aiLongPressTimerRef = useRef<number | null>(null);
   const aiLongPressTriggeredRef = useRef(false);
@@ -87,14 +106,48 @@ function MobileShell() {
   const aiPressStartYRef = useRef(0);
   const aiLatestYRef = useRef(0);
   const voiceCancelArmedRef = useRef(false);
+  const aiGestureCleanupRef = useRef<(() => void) | null>(null);
   const currentTab = tabs.find((tab) => tab.id === activeTab);
+  const recordTitles: Record<RecordModule, { zh: string; en: string }> = {
+    mood: { zh: "今日情绪", en: "Today's Mood" },
+    sleep: { zh: "今日睡眠记录", en: "Today's Sleep" },
+    exercise: { zh: "今日运动", en: "Today's Activity" },
+    diet: { zh: "今日饮食", en: "Today's Diet" },
+    focus: { zh: "今日专注记录", en: "Today's Focus" },
+    face: { zh: "今日面部分析", en: "Face Analysis" },
+  };
   const currentTitle = activeTab === "record" && recordModule
-    ? t(recordTitleKeys[recordModule])
+    ? recordTitles[recordModule][locale]
     : currentTab
       ? t(currentTab.labelKey)
       : "";
 
   const markChanged = () => setRefreshKey((value) => value + 1);
+
+  const navigate = (tab: AppTab, module: RecordModule | null = null, view: string | null = null, replace = false) => {
+    const next: ShellRoute = { tab, module: tab === "record" ? module : null, view: tab === "record" && module ? view : null };
+    setActiveTab(next.tab);
+    setRecordModule(next.module);
+    setRecordView(next.view);
+    const url = `${window.location.pathname}${window.location.search}${shellRouteHash(next)}`;
+    window.history[replace ? "replaceState" : "pushState"](null, "", url);
+  };
+
+  const runAiCommand = (type: AiCommand["type"]) => {
+    setAiCommand((current) => ({ id: (current?.id ?? 0) + 1, type }));
+    setUtilityOpen(false);
+  };
+
+  const shareCurrentPage = async () => {
+    const shareData = { title: `NAVA · ${currentTitle}`, url: window.location.href };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else await navigator.clipboard.writeText(shareData.url);
+    } catch (shareError) {
+      if ((shareError as DOMException)?.name !== "AbortError") console.warn("share failed", shareError);
+    }
+    setUtilityOpen(false);
+  };
 
   const clearAiLongPressTimer = () => {
     if (aiLongPressTimerRef.current !== null) {
@@ -104,35 +157,11 @@ function MobileShell() {
     setAiPressing(false);
   };
 
-  const beginAiLongPress = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    aiLongPressTriggeredRef.current = false;
-    aiGesturePointerActiveRef.current = true;
-    aiPressStartYRef.current = event.clientY;
-    aiLatestYRef.current = event.clientY;
-    voiceCancelArmedRef.current = false;
-    setVoiceCancelArmed(false);
-    setAiPressing(true);
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-    aiLongPressTimerRef.current = window.setTimeout(() => {
-      aiLongPressTimerRef.current = null;
-      aiLongPressTriggeredRef.current = true;
-      const cancelArmed = aiPressStartYRef.current - aiLatestYRef.current >= 64;
-      voiceCancelArmedRef.current = cancelArmed;
-      setVoiceCancelArmed(cancelArmed);
-      setVoiceGestureActive(true);
-      setAiPressing(false);
-      setActiveTab("ai");
-      setVoiceRequestId((value) => value + 1);
-      navigator.vibrate?.(20);
-    }, 560);
-  };
-
-  const moveAiLongPress = (event: ReactPointerEvent<HTMLButtonElement>) => {
+  const updateAiLongPress = (clientY: number) => {
     if (!aiGesturePointerActiveRef.current) return;
-    aiLatestYRef.current = event.clientY;
+    aiLatestYRef.current = clientY;
     if (!aiLongPressTriggeredRef.current) return;
-    const nextCancelArmed = aiPressStartYRef.current - event.clientY >= 64;
+    const nextCancelArmed = aiPressStartYRef.current - clientY >= 64;
     if (nextCancelArmed === voiceCancelArmedRef.current) return;
     voiceCancelArmedRef.current = nextCancelArmed;
     setVoiceCancelArmed(nextCancelArmed);
@@ -142,16 +171,88 @@ function MobileShell() {
   const endAiLongPress = (forceCancel = false) => {
     if (!aiGesturePointerActiveRef.current) return;
     aiGesturePointerActiveRef.current = false;
+    aiGestureCleanupRef.current?.();
+    aiGestureCleanupRef.current = null;
     const completedVoiceGesture = aiLongPressTriggeredRef.current;
     clearAiLongPressTimer();
     if (completedVoiceGesture) {
       const cancelled = forceCancel || voiceCancelArmedRef.current;
       setVoiceRelease((current) => ({ id: current.id + 1, cancelled }));
+      if (!cancelled) navigate("ai");
       setVoiceGestureActive(false);
       setVoiceCancelArmed(false);
       voiceCancelArmedRef.current = false;
     }
   };
+
+  const beginAiLongPress = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    aiGestureCleanupRef.current?.();
+    aiLongPressTriggeredRef.current = false;
+    aiGesturePointerActiveRef.current = true;
+    aiPressStartYRef.current = event.clientY;
+    aiLatestYRef.current = event.clientY;
+    voiceCancelArmedRef.current = false;
+    setVoiceCancelArmed(false);
+    setAiPressing(true);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+
+    const pointerId = event.pointerId;
+    const onWindowPointerMove = (pointerEvent: PointerEvent) => {
+      if (pointerEvent.pointerId === pointerId) updateAiLongPress(pointerEvent.clientY);
+    };
+    const onWindowPointerUp = (pointerEvent: PointerEvent) => {
+      if (pointerEvent.pointerId === pointerId) endAiLongPress(false);
+    };
+    const onWindowPointerCancel = (pointerEvent: PointerEvent) => {
+      if (pointerEvent.pointerId === pointerId) endAiLongPress(true);
+    };
+    window.addEventListener("pointermove", onWindowPointerMove);
+    window.addEventListener("pointerup", onWindowPointerUp);
+    window.addEventListener("pointercancel", onWindowPointerCancel);
+    aiGestureCleanupRef.current = () => {
+      window.removeEventListener("pointermove", onWindowPointerMove);
+      window.removeEventListener("pointerup", onWindowPointerUp);
+      window.removeEventListener("pointercancel", onWindowPointerCancel);
+    };
+
+    aiLongPressTimerRef.current = window.setTimeout(() => {
+      aiLongPressTimerRef.current = null;
+      aiLongPressTriggeredRef.current = true;
+      const cancelArmed = aiPressStartYRef.current - aiLatestYRef.current >= 64;
+      voiceCancelArmedRef.current = cancelArmed;
+      setVoiceCancelArmed(cancelArmed);
+      setVoiceGestureActive(true);
+      setAiPressing(false);
+      setVoiceRequestId((value) => value + 1);
+      navigator.vibrate?.(20);
+    }, 560);
+  };
+
+  const moveAiLongPress = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    updateAiLongPress(event.clientY);
+  };
+
+  useEffect(() => () => {
+    aiGestureCleanupRef.current?.();
+    if (aiLongPressTimerRef.current !== null) window.clearTimeout(aiLongPressTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (!window.location.hash) navigate(initialRouteRef.current.tab, initialRouteRef.current.module, initialRouteRef.current.view, true);
+    const restoreRoute = () => {
+      const route = readShellRoute();
+      setActiveTab(route.tab);
+      setRecordModule(route.module);
+      setRecordView(route.view);
+    };
+    window.addEventListener("popstate", restoreRoute);
+    window.addEventListener("hashchange", restoreRoute);
+    return () => {
+      window.removeEventListener("popstate", restoreRoute);
+      window.removeEventListener("hashchange", restoreRoute);
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -197,11 +298,17 @@ function MobileShell() {
           <button
             className="figma-header-action"
             type="button"
-            onClick={() => setActiveTab("today")}
-            aria-label={t("tabs.today")}
-            title={t("tabs.today")}
+            onClick={() => {
+              if (activeTab === "record" && recordModule) {
+                navigate("record");
+                return;
+              }
+              navigate("today");
+            }}
+            aria-label={activeTab === "record" && recordModule ? t("records.back") : t("tabs.today")}
+            title={activeTab === "record" && recordModule ? t("records.back") : t("tabs.today")}
           >
-            <Home size={21} />
+            {activeTab === "record" && recordModule ? <ArrowLeft size={21} /> : <Home size={21} />}
           </button>
           <h1>{currentTitle}</h1>
           <button
@@ -215,6 +322,16 @@ function MobileShell() {
           </button>
           {utilityOpen && (
             <div className="app-utility-popover">
+              {activeTab === "ai" && <>
+                <button type="button" onClick={() => runAiCommand("new")}><MessageSquarePlus size={17} />{locale === "zh" ? "新会话" : "New chat"}</button>
+                <button type="button" onClick={() => runAiCommand("history")}><History size={17} />{locale === "zh" ? "历史" : "History"}</button>
+                <button type="button" onClick={() => runAiCommand("clear")}><Trash2 size={17} />{locale === "zh" ? "清空" : "Clear"}</button>
+                <button type="button" onClick={() => runAiCommand("export")}><Download size={17} />{locale === "zh" ? "导出" : "Export"}</button>
+              </>}
+              {activeTab === "record" && recordModule && <>
+                <button type="button" onClick={() => { setRecordView("history"); navigate("record", recordModule, "history"); setUtilityOpen(false); }}><History size={17} />{locale === "zh" ? "历史记录" : "History"}</button>
+                <button type="button" onClick={() => void shareCurrentPage()}><Share2 size={17} />{locale === "zh" ? "分享页面" : "Share"}</button>
+              </>}
               <LanguageToggle />
               <NetworkBadge />
             </div>
@@ -232,17 +349,16 @@ function MobileShell() {
         ].filter(Boolean).join(" ")}
         ref={contentRef}
       >
-        <div className="screen-panel" key={activeTab}>
+        <div className="screen-panel">
           {activeTab === "today" && (
             <OptionTwoHome
               user={user}
               refreshKey={refreshKey}
               onOpenRecord={(module) => {
-                setRecordModule(module ?? null);
-                setActiveTab("record");
+                navigate("record", module ?? null);
               }}
-              onOpenAi={() => setActiveTab("ai")}
-              onOpenProfile={() => setActiveTab("profile")}
+              onOpenAi={() => navigate("ai")}
+              onOpenProfile={() => navigate("profile")}
             />
           )}
           {activeTab === "record" && (
@@ -250,18 +366,21 @@ function MobileShell() {
               user={user}
               onSaved={markChanged}
               initialModule={recordModule}
-              onModuleChange={setRecordModule}
+              initialView={recordView}
+              onModuleChange={(module) => navigate("record", module)}
+              onViewChange={(view) => navigate("record", recordModule, view)}
             />
           )}
-          {activeTab === "ai" && (
+          <div className={["ai-screen-host", activeTab === "ai" ? "is-active" : "is-background"].join(" ")} aria-hidden={activeTab !== "ai"}>
             <AIScreen
               user={user}
               voiceRequestId={voiceRequestId}
               voiceReleaseId={voiceRelease.id}
               voiceReleaseCancelled={voiceRelease.cancelled}
               voiceCancelArmed={voiceCancelArmed}
+              command={aiCommand}
             />
-          )}
+          </div>
           {activeTab === "trends" && <TrendsScreen user={user} refreshKey={refreshKey} />}
           {activeTab === "profile" && <ProfileScreen user={user} onChanged={markChanged} />}
         </div>
@@ -269,7 +388,6 @@ function MobileShell() {
 
       <nav className="bottom-nav" aria-label="主导航">
         {tabs.map((tab) => {
-          const Icon = tab.icon;
           const selected = activeTab === tab.id;
           const isAiTab = tab.id === "ai";
           return (
@@ -283,14 +401,12 @@ function MobileShell() {
                   aiLongPressTriggeredRef.current = false;
                   return;
                 }
-                if (tab.id === "record") setRecordModule(null);
-                setActiveTab(tab.id);
+                navigate(tab.id);
               }}
               onPointerDown={isAiTab ? beginAiLongPress : undefined}
               onPointerMove={isAiTab ? moveAiLongPress : undefined}
               onPointerUp={isAiTab ? () => endAiLongPress(false) : undefined}
               onPointerCancel={isAiTab ? () => endAiLongPress(true) : undefined}
-              onLostPointerCapture={isAiTab ? () => endAiLongPress(true) : undefined}
               onContextMenu={isAiTab ? (event) => event.preventDefault() : undefined}
               aria-label={isAiTab ? t("ai.longPressHint") : t(tab.labelKey)}
               title={isAiTab ? t("ai.longPressHint") : undefined}
@@ -299,11 +415,20 @@ function MobileShell() {
             >
               {isAiTab ? (
                 <span className="ai-nav-orb" aria-hidden="true">
-                  <span className="ai-nav-glow" />
-                  <img src={lifeFigure} alt="" />
+                   <span className="ai-nav-glow" />
+                   <img
+                     className="figma-nav-mascot"
+                     src={lifeFigure}
+                     alt=""
+                   />
                 </span>
               ) : (
-                <Icon size={20} />
+                <img
+                  className={`figma-nav-icon figma-nav-icon--${tab.id}`}
+                  src={tab.icon}
+                  alt=""
+                  aria-hidden="true"
+                />
               )}
               <span>{t(tab.labelKey)}</span>
             </button>
@@ -344,7 +469,6 @@ function AppContent() {
   return (
     <div className="nava-app-stage">
       <LivingBackground />
-      <LaunchSequence />
       {screen}
     </div>
   );

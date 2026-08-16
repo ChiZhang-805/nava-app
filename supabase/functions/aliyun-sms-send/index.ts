@@ -11,6 +11,11 @@ import {
   requestIp,
   sendAliyunOtp,
 } from "../_shared/phone-otp.ts";
+import {
+  accountEligibilityError,
+  inspectAccountRegistration,
+  normalizeAuthAccount,
+} from "../_shared/auth-account.ts";
 
 function issueError(error: { message?: string }) {
   const message = error.message ?? "";
@@ -23,6 +28,12 @@ function issueError(error: { message?: string }) {
 
 function requestError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("AUTH_ACCOUNT_RATE_LIMIT")) {
+    return jsonResponse({ error: "该手机号查询过于频繁，请稍后再试。", code: "OTP_ACCOUNT_RATE_LIMIT" }, { status: 429 });
+  }
+  if (message.includes("AUTH_IP_RATE_LIMIT")) {
+    return jsonResponse({ error: "当前网络请求过于频繁，请稍后再试。", code: "OTP_IP_RATE_LIMIT" }, { status: 429 });
+  }
   const publicMessages = new Set([
     "请求体必须是合法 JSON。",
     "请输入有效中国大陆手机号。",
@@ -45,6 +56,15 @@ Deno.serve(async (req) => {
     const body = await readJson(req);
     const phone = normalizePhone(body.phone);
     const purpose = normalizeOtpPurpose(body.purpose);
+    const account = normalizeAuthAccount(phone);
+    const registered = await inspectAccountRegistration(admin, req, account);
+    const eligibilityError = accountEligibilityError(purpose, registered);
+    if (eligibilityError) {
+      return jsonResponse(
+        { error: eligibilityError.message, code: eligibilityError.code },
+        { status: eligibilityError.status },
+      );
+    }
     const code = generateOtpCode();
     const secret = otpHmacSecret();
     const [recipientHash, requestIpHash, codeDigest] = await Promise.all([

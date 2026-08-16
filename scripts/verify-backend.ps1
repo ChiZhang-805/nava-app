@@ -13,7 +13,8 @@ $requiredFunctions = @(
   "rhythm-score",
   "export-user-data",
   "aliyun-sms-send",
-  "aliyun-sms-verify"
+  "aliyun-sms-verify",
+  "auth-account-status"
 )
 
 Write-Host "== NAVA App backend verification =="

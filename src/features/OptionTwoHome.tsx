@@ -1,42 +1,37 @@
 import type { User } from "@supabase/supabase-js";
 import {
-  AlarmClock,
   CalendarDays,
   ChevronUp,
-  Dumbbell,
-  HeartPulse,
   Menu,
-  ScanFace,
-  ShoppingCart,
-  Soup,
+  UserRound,
   UsersRound,
 } from "lucide-react";
-import { useCallback, useEffect, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useState } from "react";
 import lifeFigure from "../assets/figma/home-option2/raw-01.png";
+import dietIcon from "../assets/figma/option-two-icons/diet.svg";
+import exerciseIcon from "../assets/figma/option-two-icons/exercise.svg";
+import faceIcon from "../assets/figma/option-two-icons/face.svg";
+import focusIcon from "../assets/figma/option-two-icons/focus.svg";
+import moodIcon from "../assets/figma/option-two-icons/mood.svg";
+import sleepIcon from "../assets/figma/option-two-icons/sleep.svg";
 import { useT } from "../i18n";
 import { getTodaySnapshot } from "../services/records";
 import type { TodaySnapshot } from "../types";
 import type { RecordModule } from "./RecordsScreen";
 
-type HealthEntryIcon = ComponentType<{ size?: string | number }>;
-
 const healthEntries: Array<{
   id: RecordModule;
-  icon: HealthEntryIcon;
+  icon: string;
   labelKey: "records.exercise" | "records.diet" | "records.sleep" | "records.faceShort" | "records.focus" | "records.mood";
   className: string;
 }> = [
-  { id: "exercise", icon: Dumbbell, labelKey: "records.exercise", className: "exercise" },
-  { id: "diet", icon: Soup, labelKey: "records.diet", className: "diet" },
-  { id: "sleep", icon: MoonIcon, labelKey: "records.sleep", className: "sleep" },
-  { id: "face", icon: ScanFace, labelKey: "records.faceShort", className: "face" },
-  { id: "focus", icon: AlarmClock, labelKey: "records.focus", className: "focus" },
-  { id: "mood", icon: HeartPulse, labelKey: "records.mood", className: "mood" },
+  { id: "exercise", icon: exerciseIcon, labelKey: "records.exercise", className: "exercise" },
+  { id: "diet", icon: dietIcon, labelKey: "records.diet", className: "diet" },
+  { id: "sleep", icon: sleepIcon, labelKey: "records.sleep", className: "sleep" },
+  { id: "face", icon: faceIcon, labelKey: "records.faceShort", className: "face" },
+  { id: "focus", icon: focusIcon, labelKey: "records.focus", className: "focus" },
+  { id: "mood", icon: moodIcon, labelKey: "records.mood", className: "mood" },
 ];
-
-function MoonIcon({ size = 26 }: { size?: string | number }) {
-  return <span className="option-two-moon" style={{ width: size, height: size }} aria-hidden="true" />;
-}
 
 export default function OptionTwoHome({
   user,
@@ -83,7 +78,7 @@ export default function OptionTwoHome({
         </button>
         <button type="button" onClick={() => onOpenRecord()} aria-label={t("tabs.record")} title={t("tabs.record")}><CalendarDays size={23} /></button>
         <button type="button" onClick={onOpenAi} aria-label={t("tabs.ai")} title={t("tabs.ai")}><UsersRound size={24} /></button>
-        <button type="button" onClick={onOpenProfile} aria-label={t("tabs.profile")} title={t("tabs.profile")}><ShoppingCart size={23} /></button>
+        <button type="button" onClick={onOpenProfile} aria-label={t("tabs.profile")} title={t("tabs.profile")}><UserRound size={23} /></button>
       </div>
 
       <div className="option-two-life-stage" aria-hidden="true">
@@ -92,7 +87,7 @@ export default function OptionTwoHome({
       </div>
 
       <div className="option-two-health-menu" aria-hidden={!expanded}>
-        {healthEntries.map(({ id, icon: Icon, labelKey, className }) => (
+        {healthEntries.map(({ id, icon, labelKey, className }) => (
           <button
             className={`option-two-health-entry option-two-health-entry--${className}`}
             key={id}
@@ -102,19 +97,11 @@ export default function OptionTwoHome({
             aria-label={t(labelKey)}
             title={t(labelKey)}
           >
-            <Icon size={27} />
+            <img className="option-two-health-icon" src={icon} alt="" aria-hidden="true" />
           </button>
         ))}
       </div>
 
-      <button
-        className="option-two-collapse-trigger"
-        type="button"
-        onClick={() => setExpanded((value) => !value)}
-        aria-label={expanded ? t("common.close") : t("today.overview")}
-      >
-        <ChevronUp size={20} />
-      </button>
     </section>
   );
 }

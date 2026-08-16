@@ -1,7 +1,8 @@
 param(
   [string]$ProjectRef = $env:SUPABASE_PROJECT_REF,
-  [switch]$SkipDbPush,
+  [switch]$ApplyAllMigrations,
   [switch]$SkipFunctions,
+  [switch]$DeploySharedFunctions,
   [switch]$ConfigureAuthEmailOtp,
   [switch]$ConfigureSmsSecrets
 )
@@ -10,21 +11,29 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
-$functions = @(
-  "ai-extract-data",
-  "ai-chat-reply",
-  "diet-extract",
-  "face-analyze",
+$canonicalProjectRef = "wxteapvwagvhhtrjrbim"
+$appFunctions = @(
   "health-sync-ingest",
   "watch-sync",
   "rhythm-score",
   "export-user-data",
   "aliyun-sms-send",
-  "aliyun-sms-verify"
+  "aliyun-sms-verify",
+  "auth-account-status"
+)
+$sharedFunctions = @(
+  "ai-extract-data",
+  "ai-chat-reply",
+  "diet-extract",
+  "face-analyze"
 )
 
 if (!$ProjectRef) {
-  throw "Missing Supabase project ref. Pass -ProjectRef or set SUPABASE_PROJECT_REF."
+  $ProjectRef = $canonicalProjectRef
+}
+
+if ($ProjectRef -ne $canonicalProjectRef) {
+  throw "Refusing deployment to non-canonical project '$ProjectRef'. NAVA APP backend is '$canonicalProjectRef'."
 }
 
 $localSupabase = Join-Path $root "node_modules\.bin\supabase.cmd"
@@ -51,9 +60,11 @@ try {
   Write-Host "== Link Supabase project =="
   Invoke-SupabaseCommand -CliArgs @("link", "--project-ref", $ProjectRef)
 
-  if (!$SkipDbPush) {
+  if ($ApplyAllMigrations) {
     Write-Host "== Push database migrations =="
     Invoke-SupabaseCommand -CliArgs @("db", "push")
+  } else {
+    Write-Host "== Database migrations skipped (use -ApplyAllMigrations after reviewing the migration plan) =="
   }
 
   if (!$SkipFunctions) {
@@ -62,6 +73,10 @@ try {
     }
 
     Write-Host "== Deploy Edge Functions =="
+    $functions = @($appFunctions)
+    if ($DeploySharedFunctions) {
+      $functions += $sharedFunctions
+    }
     foreach ($functionName in $functions) {
       Write-Host "Deploying $functionName"
       Invoke-SupabaseCommand -CliArgs @("functions", "deploy", $functionName, "--project-ref", $ProjectRef)
@@ -79,6 +94,7 @@ try {
   Write-Host "  supabase secrets set NAVA_FACE_ANALYZE_URL=... NAVA_FACE_ANALYZE_KEY=... --project-ref $ProjectRef"
   Write-Host "Phone OTP deployment:"
   Write-Host "  .\scripts\deploy-backend.ps1 -ProjectRef $ProjectRef -ConfigureSmsSecrets -ConfigureAuthEmailOtp"
+  Write-Host "Database migrations are never pushed implicitly; add -ApplyAllMigrations only after reviewing the linked project."
 } finally {
   Pop-Location
 }

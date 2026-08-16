@@ -1,4 +1,5 @@
 import {
+  accountHash,
   createAliyunV3Signature,
   generateOtpCode,
   ipHash,
@@ -9,6 +10,10 @@ import {
   phoneHash,
   phoneToAuthEmail,
 } from "../_shared/phone-otp.ts";
+import {
+  accountEligibilityError,
+  normalizeAuthAccount,
+} from "../_shared/auth-account.ts";
 
 const secret = "test-only-secret-with-at-least-thirty-two-characters";
 
@@ -50,6 +55,35 @@ Deno.test("HMAC domains isolate phone, IP, purpose, and code digests", async () 
   if ([...values].some((value) => value.includes(phone) || value.length !== 64)) {
     throw new Error("A persisted digest exposed raw input or used an unexpected length.");
   }
+});
+
+Deno.test("account lookup normalizes email and phone without changing the auth mapping", () => {
+  const email = normalizeAuthAccount(" User@Example.com ");
+  if (email.channel !== "email" || email.email !== "user@example.com" || email.phone !== null) {
+    throw new Error("Email account normalization failed.");
+  }
+  const phone = normalizeAuthAccount("13800138000");
+  if (phone.channel !== "phone" || phone.email !== "13800138000@phone.nava.app" || phone.phone !== "13800138000") {
+    throw new Error("Phone account normalization failed.");
+  }
+});
+
+Deno.test("account eligibility rejects missing login accounts and duplicate registration accounts", () => {
+  const missing = accountEligibilityError("login", false);
+  if (missing?.code !== "ACCOUNT_NOT_FOUND" || missing.status !== 404) throw new Error("Missing login account was allowed.");
+  const resetMissing = accountEligibilityError("reset", false);
+  if (resetMissing?.code !== "ACCOUNT_NOT_FOUND") throw new Error("Missing reset account was allowed.");
+  const duplicate = accountEligibilityError("register", true);
+  if (duplicate?.code !== "ACCOUNT_EXISTS" || duplicate.status !== 409) throw new Error("Duplicate registration was allowed.");
+  if (accountEligibilityError("login", true) || accountEligibilityError("register", false)) {
+    throw new Error("Valid account eligibility was rejected.");
+  }
+});
+
+Deno.test("account lookup hashes do not expose raw account identifiers", async () => {
+  const email = "user@example.com";
+  const digest = await accountHash(secret, email);
+  if (digest.includes(email) || digest.length !== 64) throw new Error("Account lookup hash exposed raw input.");
 });
 
 Deno.test("Alibaba Cloud V3 signer matches the official fixed vector", async () => {

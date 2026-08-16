@@ -67,6 +67,20 @@ async function main() {
 
     const page = await context.newPage();
     const metrics = {};
+    const dismissLaunch = async () => {
+      const launch = page.locator(".launch-sequence");
+      if (await launch.isVisible().catch(() => false)) {
+        await launch.click();
+        await launch.waitFor({ state: "hidden" });
+      }
+    };
+    const loginReviewAccount = async () => {
+      await dismissLaunch();
+      await page.locator('input[autocomplete="username"]').fill("13800138000");
+      await page.locator('input[autocomplete="current-password"]').fill("12345678");
+      await page.locator(".auth-submit").click();
+      await page.locator(".phone-frame").waitFor({ state: "visible" });
+    };
 
     const shot = (filename) => page.screenshot({ path: path.join(outputDir, filename), fullPage: false });
     const scrollContent = async (top) => {
@@ -77,9 +91,11 @@ async function main() {
     };
 
     await page.goto(baseUrl, { waitUntil: "networkidle" });
+    await dismissLaunch();
     await shot("01-auth.png");
 
     await page.goto(`${baseUrl}?demo=1`, { waitUntil: "networkidle" });
+    await loginReviewAccount();
     await shot("02-today.png");
 
     metrics.today = await page.evaluate(() => {

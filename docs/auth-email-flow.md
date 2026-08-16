@@ -13,6 +13,7 @@
 
 ### Web / iPhone / Watch 互通约束
 
+- APP 的规范后端项目为 `wxteapvwagvhhtrjrbim`。
 - 三端必须连接同一个 Supabase 项目，不能各建一套 Auth 用户库。
 - Web 端手机号注册与重置必须复用 `aliyun-sms-send`、`aliyun-sms-verify`，手机号密码登录必须沿用 `手机号@phone.nava.app` 的内部映射。
 - 内部映射不得展示给用户；资料页仍显示原手机号。

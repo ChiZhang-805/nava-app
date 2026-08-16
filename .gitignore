@@ -17,3 +17,4 @@ ios/App/Pods
 *.xcuserstate
 .codex-dev.log
 .codex-dev.err.log
+supabase/.temp/

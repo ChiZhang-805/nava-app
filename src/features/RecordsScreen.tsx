@@ -17,6 +17,7 @@ import {
 import { todayISO } from "../services/date";
 import { analyzeDietPhoto, analyzeFacePhoto } from "../services/media";
 import type { FaceAnalysisResult, FoodItem } from "../types";
+import RecordModuleDashboard from "./RecordModuleDashboard";
 
 const moodFactors: Array<{ value: string; labelKey: TranslationKey }> = [
   { value: "压力", labelKey: "records.factor.pressure" },
@@ -31,6 +32,8 @@ const moodFactors: Array<{ value: string; labelKey: TranslationKey }> = [
 ];
 
 export type RecordModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
+
+const dashboardModules = new Set<RecordModule>(["mood", "sleep", "exercise", "focus"]);
 
 const recordModules: Array<{
   id: RecordModule;
@@ -80,12 +83,16 @@ export default function RecordsScreen({
   user,
   onSaved,
   initialModule = null,
+  initialView = null,
   onModuleChange,
+  onViewChange,
 }: {
   user: User;
   onSaved: () => void;
   initialModule?: RecordModule | null;
+  initialView?: string | null;
   onModuleChange?: (module: RecordModule | null) => void;
+  onViewChange?: (view: string | null) => void;
 }) {
   const t = useT();
   const [busy, setBusy] = useState<string | null>(null);
@@ -93,6 +100,7 @@ export default function RecordsScreen({
   const [error, setError] = useState<string | null>(null);
   const [recordDate, setRecordDate] = useState(todayISO());
   const [activeModule, setActiveModule] = useState<RecordModule | null>(null);
+  const [showEditor, setShowEditor] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const [moodScore, setMoodScore] = useState(70);
@@ -141,6 +149,7 @@ export default function RecordsScreen({
 
   useEffect(() => {
     setActiveModule(initialModule);
+    setShowEditor(false);
   }, [initialModule]);
 
   function estimateMinutes(start: string, end: string) {
@@ -314,6 +323,17 @@ export default function RecordsScreen({
     );
   }
 
+  async function saveFocusMinutes(minutes: number) {
+    await run("records.focus", () =>
+      saveFocusSession({
+        userId: user.id,
+        date: recordDate,
+        taskTitle: focusTitle,
+        minutes,
+      }),
+    );
+  }
+
   if (!activeModule) {
     return (
       <div className="record-hub" ref={rootRef}>
@@ -337,6 +357,7 @@ export default function RecordsScreen({
               onClick={() => {
                 setNotice(null);
                 setError(null);
+                setShowEditor(false);
                 setActiveModule(id);
                 onModuleChange?.(id);
               }}
@@ -362,13 +383,20 @@ export default function RecordsScreen({
 
   return (
     <div className="stack record-detail" data-record-detail={activeModule} ref={rootRef}>
-      <div className="record-detail-toolbar">
+      {(!dashboardModules.has(activeModule) || showEditor) && <div className={[
+        "record-detail-toolbar",
+        !dashboardModules.has(activeModule) ? "record-detail-toolbar--global-back" : "",
+      ].filter(Boolean).join(" ")}>
         <button
           className="section-icon-action record-back-button"
           type="button"
           aria-label={t("records.back")}
           title={t("records.back")}
           onClick={() => {
+            if (showEditor && dashboardModules.has(activeModule)) {
+              setShowEditor(false);
+              return;
+            }
             setActiveModule(null);
             onModuleChange?.(null);
           }}
@@ -384,14 +412,48 @@ export default function RecordsScreen({
             onChange={(event) => setRecordDate(event.target.value)}
           />
         </label>
-      </div>
+      </div>}
 
-      {(notice || error) && (
+      {(error || (notice && (showEditor || !dashboardModules.has(activeModule)))) && (
         <SectionCard title={notice ? t("records.synced") : t("records.needsFix")}>
           {notice && <p className="success-text">{notice}</p>}
           {error && <p className="error-text">{error}</p>}
         </SectionCard>
       )}
+
+      {!showEditor && dashboardModules.has(activeModule) && (
+        <RecordModuleDashboard
+          module={activeModule}
+          moodScore={moodScore}
+          setMoodScore={setMoodScore}
+          moodFactors={moodFactors.map((factor) => ({ value: factor.value, label: t(factor.labelKey) }))}
+          selectedFactors={selectedFactors}
+          toggleFactor={toggleFactor}
+          diary={diary}
+          setDiary={setDiary}
+          onSaveMood={saveMood}
+          sleepStart={sleepStart}
+          sleepEnd={sleepEnd}
+          deepSleep={deepSleep}
+          lightSleep={lightSleep}
+          remSleep={remSleep}
+          sleepRating={sleepRating}
+          steps={steps}
+          calories={calories}
+          exerciseMinutes={exerciseMinutes}
+          focusTitle={focusTitle}
+          focusMinutes={focusMinutes}
+          setFocusTitle={setFocusTitle}
+          setFocusMinutes={setFocusMinutes}
+          onOpenEditor={() => setShowEditor(true)}
+          onSaveFocusMinutes={saveFocusMinutes}
+          busy={busy}
+          initialView={initialView}
+          onViewChange={onViewChange}
+        />
+      )}
+
+      {(showEditor || !dashboardModules.has(activeModule)) && <div className="record-editor-stack">
 
       <form hidden={activeModule !== "mood"} onSubmit={saveMood}>
         <SectionCard title={t("records.mood")}>
@@ -611,6 +673,7 @@ export default function RecordsScreen({
           )}
         </SectionCard>
       </div>
+      </div>}
     </div>
   );
 }

@@ -37,6 +37,7 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileSaved, setProfileSaved] = useState(false);
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const [profileDraft, setProfileDraft] = useState({
@@ -83,6 +84,8 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [user.id]);
+
+  useEffect(() => setAvatarLoadFailed(false), [profile?.avatar_url]);
 
   async function submitProfile() {
     setProfileSaved(false);
@@ -210,8 +213,8 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
             onClick={() => setAvatarSheetOpen(true)}
             disabled={busy === "avatar"}
           >
-            {profile?.avatar_url
-              ? <img alt="" src={profile.avatar_url} />
+            {profile?.avatar_url && !avatarLoadFailed
+              ? <img alt="" src={profile.avatar_url} onError={() => setAvatarLoadFailed(true)} />
               : <span>{displayName.slice(0, 1).toUpperCase()}</span>}
           </button>
           <div>
