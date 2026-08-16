@@ -182,13 +182,19 @@ async function verifyRecordModules(page, results) {
 
   await openModule("mood");
   await expect(page.locator('[data-module-view="mood-overview"]')).toBeVisible();
+  const moodCurve = page.locator(".mood-chart .trend-line");
+  const curveBefore = await moodCurve.getAttribute("d");
+  const pieBefore = await page.locator(".mood-pie").evaluate((node) => node.style.background);
+  await page.locator(".mood-face-row button").first().click();
+  await expect.poll(() => moodCurve.getAttribute("d")).not.toBe(curveBefore);
+  await expect.poll(() => page.locator(".mood-pie").evaluate((node) => node.style.background)).not.toBe(pieBefore);
   await page.locator('[aria-label="填写情绪日记"], [aria-label="Write mood journal"]').click();
   await expect(page.locator('[role="dialog"]')).toBeVisible();
   await page.locator('[role="dialog"] textarea').fill("今天节律平稳，午后状态更好。");
   await page.locator('[role="dialog"] button[type="submit"]').click();
-  await expect(page.locator('[data-module-view="mood-overview"] .module-save-state')).toContainText(/已保存|Saved/);
+  await expect(page.locator('[data-module-view="mood-overview"] button[aria-label="情绪已保存"], [data-module-view="mood-overview"] button[aria-label="Mood saved"]')).toBeVisible();
   await page.locator('[aria-label="查看情绪趋势"], [aria-label="View mood trend"]').click();
-  await expect(page.locator(".expanded-line-chart")).toBeVisible();
+  await expect(page.locator('[data-record-detail="mood"] .line-trend-chart')).toBeVisible();
   await page.locator(".module-inline-back").click();
   await expect(page.locator('[data-module-view="mood-overview"]')).toBeVisible();
   await page.waitForTimeout(450);
@@ -204,7 +210,7 @@ async function verifyRecordModules(page, results) {
     await page.locator(".sleep-alert-modal header button").click();
   }
   await page.locator('[aria-label="查看睡眠趋势"], [aria-label="View sleep trend"]').click();
-  await expect(page.locator(".expanded-sleep-chart")).toBeVisible();
+  await expect(page.locator('[data-record-detail="sleep"] .line-trend-chart')).toBeVisible();
   await page.locator(".module-inline-back").click();
   await page.locator('[aria-label="更新睡眠记录"], [aria-label="Update sleep record"]').click();
   await page.locator('[data-record-detail="sleep"] form:not([hidden]) .action-button').click();

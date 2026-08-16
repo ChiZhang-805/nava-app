@@ -19,12 +19,13 @@ import {
   RefreshCw,
   Square,
   TimerReset,
-  TrendingUp,
   Watch,
   X,
 } from "lucide-react";
-import { FormEvent, useEffect, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { FormEvent, useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import LineTrendChart, { type LineTrendPoint } from "../components/LineTrendChart";
 import { useLocale } from "../i18n";
+import type { FocusRecord, MoodRecord, TodaySnapshot, TrendBundle } from "../types";
 import type { RecordModule } from "./RecordsScreen";
 
 type MoodFactor = { value: string; label: string };
@@ -35,10 +36,10 @@ type Props = {
   setMoodScore: (value: number) => void;
   moodFactors: MoodFactor[];
   selectedFactors: string[];
-  toggleFactor: (value: string) => void;
+  setPrimaryFactor: (value: string) => void;
   diary: string;
   setDiary: (value: string) => void;
-  onSaveMood: (event: FormEvent<HTMLFormElement>) => void;
+  onSaveMood: (event: FormEvent<HTMLFormElement>) => Promise<boolean>;
   sleepStart: string;
   sleepEnd: string;
   deepSleep: number;
@@ -55,6 +56,9 @@ type Props = {
   onOpenEditor: () => void;
   onSaveFocusMinutes: (minutes: number) => Promise<void>;
   busy: string | null;
+  recordDate: string;
+  todaySnapshot: TodaySnapshot | null;
+  trendBundle: TrendBundle | null;
   initialView?: string | null;
   onViewChange?: (view: string | null) => void;
 };
@@ -67,8 +71,80 @@ const moodFaces = [
   { score: 30, zh: "低落", en: "Low" },
 ];
 
-const focusBars = [18, 34, 52, 77];
-const stepBars = [9, 12, 8, 10, 14, 12, 11, 15, 13, 17, 20, 28, 38, 45, 28, 29, 27, 31, 54, 33, 64, 38, 18, 12];
+function shortDate(date: string, locale: "zh" | "en") {
+  const [, month = "", day = ""] = date.split("-");
+  return locale === "zh" ? `${Number(month)}/${Number(day)}` : `${Number(month)}/${Number(day)}`;
+}
+
+function mergeLiveMood(
+  trendBundle: TrendBundle | null,
+  recordDate: string,
+  moodScore: number,
+  factors: string[],
+  diary: string,
+) {
+  const records = new Map((trendBundle?.moods ?? []).map((record) => [record.record_date, record]));
+  const previous = records.get(recordDate);
+  records.set(recordDate, {
+    id: previous?.id ?? `live-mood-${recordDate}`,
+    record_date: recordDate,
+    mood_score: moodScore,
+    factors,
+    diary_content: diary || null,
+    ai_feedback: previous?.ai_feedback ?? null,
+    diary_sentiment: previous?.diary_sentiment ?? null,
+  });
+  return [...records.values()].sort((a, b) => a.record_date.localeCompare(b.record_date)).slice(-7);
+}
+
+function moodTrendPoints(records: MoodRecord[], locale: "zh" | "en"): LineTrendPoint[] {
+  return records.map((record) => ({
+    id: record.id,
+    label: shortDate(record.record_date, locale),
+    value: record.mood_score,
+  }));
+}
+
+function moodDistribution(records: MoodRecord[], locale: "zh" | "en") {
+  const groups = [
+    { key: "bright", label: locale === "zh" ? "愉悦" : "Bright", color: "#075f88", count: 0 },
+    { key: "calm", label: locale === "zh" ? "平静" : "Calm", color: "#32a8d2", count: 0 },
+    { key: "neutral", label: locale === "zh" ? "一般" : "Neutral", color: "#8bd7ee", count: 0 },
+    { key: "low", label: locale === "zh" ? "低能量" : "Low", color: "#d8eef6", count: 0 },
+  ];
+  records.forEach((record) => {
+    const index = record.mood_score >= 82 ? 0 : record.mood_score >= 68 ? 1 : record.mood_score >= 52 ? 2 : 3;
+    groups[index].count += 1;
+  });
+  const total = Math.max(1, records.length);
+  let cursor = 0;
+  const stops = groups.map((group) => {
+    const start = cursor;
+    cursor += (group.count / total) * 100;
+    return `${group.color} ${start}% ${cursor}%`;
+  });
+  const dominant = [...groups].sort((a, b) => b.count - a.count)[0];
+  return {
+    background: `conic-gradient(${stops.join(", ")})`,
+    dominant,
+    summary: groups.map((group) => `${group.label} ${group.count}`).join("，"),
+  };
+}
+
+function aggregateFocusByDate(records: FocusRecord[]) {
+  const daily = new Map<string, FocusRecord>();
+  records.forEach((record) => {
+    const current = daily.get(record.record_date);
+    daily.set(record.record_date, {
+      id: current?.id ?? `daily-focus-${record.record_date}`,
+      task_id: current?.task_id ?? record.task_id,
+      record_date: record.record_date,
+      completed_sessions: (current?.completed_sessions ?? 0) + record.completed_sessions,
+      total_minutes: (current?.total_minutes ?? 0) + record.total_minutes,
+    });
+  });
+  return [...daily.values()].sort((a, b) => a.record_date.localeCompare(b.record_date));
+}
 
 function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -120,7 +196,7 @@ function ModuleDetailView({
   );
 }
 
-function HistoryView({ module, locale, onBack }: { module: RecordModule; locale: "zh" | "en"; onBack: () => void }) {
+function HistoryView({ module, locale, trendBundle, onBack }: { module: RecordModule; locale: "zh" | "en"; trendBundle: TrendBundle | null; onBack: () => void }) {
   const moduleNames: Record<RecordModule, { zh: string; en: string }> = {
     mood: { zh: "情绪", en: "Mood" },
     sleep: { zh: "睡眠", en: "Sleep" },
@@ -129,14 +205,23 @@ function HistoryView({ module, locale, onBack }: { module: RecordModule; locale:
     focus: { zh: "专注", en: "Focus" },
     face: { zh: "面部", en: "Face" },
   };
-  const values = module === "mood" ? [76, 81, 74, 88, 83, 79, 86] : module === "sleep" ? [78, 81, 73, 84, 80, 86, 83] : [62, 75, 69, 82, 77, 88, 84];
+  const values = useMemo(() => {
+    if (!trendBundle) return [];
+    if (module === "mood") return trendBundle.moods.map((record) => record.mood_score);
+    if (module === "sleep") return trendBundle.sleeps.map((record) => record.rhythm_score ?? Math.min(100, ((record.sleep_duration_minutes ?? 0) / 480) * 100));
+    if (module === "exercise") return trendBundle.exercises.map((record) => Math.min(100, ((record.steps ?? 0) / 10000) * 100));
+    if (module === "diet") return trendBundle.nutritions.map((record) => Math.min(100, (record.total_calories / 2000) * 100));
+    if (module === "focus") return aggregateFocusByDate(trendBundle.focus).map((record) => Math.min(100, (record.total_minutes / 120) * 100));
+    return [];
+  }, [module, trendBundle]);
+  const displayValues = values.length > 0 ? values.slice(-7) : [0];
   return (
     <ModuleDetailView title={`${moduleNames[module][locale]}${locale === "zh" ? "历史记录" : " history"}`} locale={locale} onBack={onBack}>
       <div className="module-history-chart" aria-label={locale === "zh" ? "近七天记录" : "Last seven days"}>
-        {values.map((value, index) => <span key={index}><i style={{ height: `${value}%` }} /><small>{locale === "zh" ? `${index + 1}日` : `D${index + 1}`}</small></span>)}
+        {displayValues.map((value, index) => <span key={index}><i style={{ height: `${Math.max(4, value)}%` }} /><small>{locale === "zh" ? `第${index + 1}天` : `D${index + 1}`}</small></span>)}
       </div>
       <div className="module-history-list">
-        {[0, 1, 2].map((index) => <p key={index}><CalendarDays size={16} /><span>{locale === "zh" ? `最近第 ${index + 1} 次记录` : `Recent entry ${index + 1}`}</span><strong>{values[6 - index]}</strong></p>)}
+        {displayValues.slice(-3).reverse().map((value, index) => <p key={index}><CalendarDays size={16} /><span>{locale === "zh" ? `最近第 ${index + 1} 次记录` : `Recent entry ${index + 1}`}</span><strong>{Math.round(value)}</strong></p>)}
       </div>
     </ModuleDetailView>
   );
@@ -148,11 +233,19 @@ function ExerciseDashboard({
   calories,
   exerciseMinutes,
   onOpenEditor,
+  recordDate,
+  trendBundle,
   view,
   openView,
-}: Pick<Props, "steps" | "calories" | "exerciseMinutes" | "onOpenEditor"> & { locale: "zh" | "en"; view: string; openView: (view: string) => void }) {
+}: Pick<Props, "steps" | "calories" | "exerciseMinutes" | "onOpenEditor" | "recordDate" | "trendBundle"> & { locale: "zh" | "en"; view: string; openView: (view: string) => void }) {
   const [syncing, setSyncing] = useState(false);
   const [syncedAt, setSyncedAt] = useState(locale === "zh" ? "3 分钟前" : "3 min ago");
+  const stepValues = useMemo(() => {
+    const records = new Map((trendBundle?.exercises ?? []).map((record) => [record.record_date, record.steps ?? 0]));
+    records.set(recordDate, steps);
+    return [...records.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(-7);
+  }, [recordDate, steps, trendBundle]);
+  const maxSteps = Math.max(1, ...stepValues.map(([, value]) => value));
 
   const sync = () => {
     setSyncing(true);
@@ -174,8 +267,8 @@ function ExerciseDashboard({
         </section>
         <section className="figma-module-card steps-card">
           <header><span>{locale === "zh" ? "今日步数" : "Steps today"}</span><strong>{steps.toLocaleString()}<small>{locale === "zh" ? "步" : "steps"}</small></strong></header>
-          <div className="steps-bars" aria-label={locale === "zh" ? "每小时步数" : "Hourly steps"}>
-            {stepBars.map((height, index) => <span key={index} style={{ height: `${height}%` }} />)}
+          <div className="steps-bars" aria-label={locale === "zh" ? "近七日步数" : "Seven-day steps"}>
+            {stepValues.map(([date, value]) => <span key={date} title={`${shortDate(date, locale)} · ${value.toLocaleString()}`} style={{ height: `${Math.max(8, (value / maxSteps) * 100)}%` }} />)}
           </div>
         </section>
         <section className="figma-module-card activity-card">
@@ -239,16 +332,59 @@ function ExerciseDashboard({
 }
 
 function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openView: (view: string) => void }) {
-  const { locale, moodScore, setMoodScore, moodFactors, selectedFactors, toggleFactor, diary, setDiary, onSaveMood, busy, view, openView } = props;
+  const {
+    locale,
+    moodScore,
+    setMoodScore,
+    moodFactors,
+    selectedFactors,
+    setPrimaryFactor,
+    diary,
+    setDiary,
+    onSaveMood,
+    busy,
+    recordDate,
+    trendBundle,
+    view,
+    openView,
+  } = props;
   const [saved, setSaved] = useState(false);
-  const selectedFace = moodFaces.reduce((best, face) => Math.abs(face.score - moodScore) < Math.abs(best.score - moodScore) ? face : best, moodFaces[0]);
+  const moodRecords = useMemo(
+    () => mergeLiveMood(trendBundle, recordDate, moodScore, selectedFactors, diary),
+    [diary, moodScore, recordDate, selectedFactors, trendBundle],
+  );
+  const trendPoints = useMemo(() => moodTrendPoints(moodRecords, locale), [locale, moodRecords]);
+  const distribution = useMemo(() => moodDistribution(moodRecords, locale), [locale, moodRecords]);
+  const average = moodRecords.reduce((sum, record) => sum + record.mood_score, 0) / Math.max(1, moodRecords.length);
+  const firstScore = moodRecords[0]?.mood_score ?? moodScore;
+  const latestDelta = moodScore - firstScore;
+  const assistantText = locale === "zh"
+    ? `近七日平均情绪 ${Math.round(average)}，今日较首日${latestDelta >= 0 ? "上升" : "下降"} ${Math.abs(Math.round(latestDelta))} 分。${selectedFactors.length > 0 ? `“${selectedFactors[0]}”是当前主要影响因素。` : "补充主要原因后，我会继续识别重复出现的节律。"}`
+    : `Your seven-day average is ${Math.round(average)}. Today is ${Math.abs(Math.round(latestDelta))} points ${latestDelta >= 0 ? "above" : "below"} day one. ${selectedFactors.length > 0 ? `${selectedFactors[0]} is today's main factor.` : "Add a cause to reveal recurring patterns."}`;
 
-  if (view === "trend") return <ModuleDetailView title={locale === "zh" ? "情绪趋势" : "Mood trend"} locale={locale} onBack={() => openView("overview")}><div className="expanded-line-chart"><TrendingUp />{[58, 70, 64, 82, 76, 88, moodScore].map((value, index) => <span key={index} style={{ height: `${value}%` }}><i />{value}</span>)}</div><p>{locale === "zh" ? "过去七天情绪波动收窄，晚间记录最完整。" : "Mood variability narrowed over seven days, with the best coverage in the evening."}</p></ModuleDetailView>;
+  const submitMood = async (event: FormEvent<HTMLFormElement>) => {
+    const didSave = await onSaveMood(event);
+    if (!didSave) return;
+    setSaved(true);
+    openView("overview");
+  };
+
+  if (view === "trend") return <ModuleDetailView title={locale === "zh" ? "情绪趋势" : "Mood trend"} locale={locale} onBack={() => openView("overview")}><LineTrendChart points={trendPoints} ariaLabel={locale === "zh" ? "近七日情绪趋势" : "Seven-day mood trend"} /><p>{assistantText}</p></ModuleDetailView>;
 
   return (
-    <form className="module-dashboard mood-dashboard" onSubmit={(event) => { onSaveMood(event); setSaved(true); openView("overview"); }} data-module-view="mood-overview">
+    <form className="module-dashboard mood-dashboard" onSubmit={(event) => void submitMood(event)} data-module-view="mood-overview">
       <section className="figma-module-card mood-entry-card">
-        <header><strong>{locale === "zh" ? "情绪记录" : "Mood check-in"}</strong><button type="button" onClick={() => openView("journal")} aria-label={locale === "zh" ? "打开情绪日记" : "Open mood journal"}><ChevronRight size={18} /></button></header>
+        <header>
+          <strong>{locale === "zh" ? "情绪记录" : "Mood check-in"}</strong>
+          <button
+            className={saved ? "success" : ""}
+            type="button"
+            onClick={() => { setSaved(false); openView("journal"); }}
+            aria-label={saved ? (locale === "zh" ? "情绪已保存" : "Mood saved") : (locale === "zh" ? "打开情绪日记" : "Open mood journal")}
+          >
+            {saved ? <Check size={18} /> : <ChevronRight size={18} />}
+          </button>
+        </header>
         <div className="mood-face-row">
           {moodFaces.map((face) => (
             <button className={Math.abs(face.score - moodScore) < 8 ? "selected" : ""} key={face.score} type="button" onClick={() => setMoodScore(face.score)}>
@@ -259,20 +395,22 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
         <label className="mood-intensity"><span>{locale === "zh" ? "情绪强度" : "Intensity"}<strong>{moodScore}</strong></span><input type="range" min="0" max="100" value={moodScore} onChange={(event) => setMoodScore(Number(event.target.value))} /></label>
         <div className="mood-factor-row">
           <span>{locale === "zh" ? "主要原因" : "Main cause"}</span>
-          <select value={selectedFactors[0] ?? ""} onChange={(event) => { if (event.target.value) toggleFactor(event.target.value); }}>
+          <select value={selectedFactors[0] ?? ""} onChange={(event) => setPrimaryFactor(event.target.value)}>
             <option value="">{locale === "zh" ? "请选择" : "Choose"}</option>
             {moodFactors.map((factor) => <option key={factor.value} value={factor.value}>{factor.label}</option>)}
           </select>
         </div>
         <button className="mood-diary-trigger" type="button" onClick={() => openView("journal")} aria-label={locale === "zh" ? "填写情绪日记" : "Write mood journal"}>{diary || (locale === "zh" ? "写下今天的情绪" : "Write a mood note")}</button>
-        <p className="module-save-state">{saved ? <><Check size={14} />{locale === "zh" ? "已保存" : "Saved"}</> : `${locale === "zh" ? "当前" : "Current"} · ${locale === "zh" ? selectedFace.zh : selectedFace.en}`}</p>
       </section>
       <section className="figma-module-card mood-trend-card">
         <header><strong>{locale === "zh" ? "近 7 天情绪趋势" : "7-day mood"}</strong><button type="button" onClick={() => openView("trend")} aria-label={locale === "zh" ? "查看情绪趋势" : "View mood trend"}><ChevronRight size={18} /></button></header>
-        <div className="mood-chart"><div className="mood-line" />{[58, 70, 64, 82, 76, 88, moodScore].map((value, index) => <i key={index} style={{ left: `${7 + index * 14.2}%`, bottom: `${18 + value * 0.48}%` }} />)}</div>
-        <div className="mood-pie" />
+        <div className="mood-chart"><LineTrendChart points={trendPoints} compact ariaLabel={locale === "zh" ? "近七日情绪曲线" : "Seven-day mood curve"} /></div>
+        <div className="mood-pie-wrap">
+          <div className="mood-pie" style={{ background: distribution.background }} aria-label={distribution.summary}><span>{distribution.dominant.count}</span></div>
+          <small>{distribution.dominant.label}</small>
+        </div>
       </section>
-      <AssistantCard text={locale === "zh" ? "情绪强度整体平稳。记录触发原因后，我会帮你找到重复出现的节律线索。" : "Mood intensity is stable. Add a cause to reveal recurring rhythm patterns."} />
+      <AssistantCard text={assistantText} />
       {view === "journal" && (
         <div className="module-modal" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "情绪日记" : "Mood journal"}>
           <div className="module-modal-card">
@@ -286,20 +424,25 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
   );
 }
 
-function SleepDashboard(props: Pick<Props, "sleepStart" | "sleepEnd" | "deepSleep" | "lightSleep" | "remSleep" | "sleepRating" | "onOpenEditor"> & { locale: "zh" | "en"; view: string; openView: (view: string) => void }) {
-  const { locale, sleepStart, sleepEnd, deepSleep, lightSleep, remSleep, sleepRating, onOpenEditor, view, openView } = props;
+function SleepDashboard(props: Pick<Props, "sleepStart" | "sleepEnd" | "deepSleep" | "lightSleep" | "remSleep" | "sleepRating" | "onOpenEditor" | "recordDate" | "trendBundle"> & { locale: "zh" | "en"; view: string; openView: (view: string) => void }) {
+  const { locale, sleepStart, sleepEnd, deepSleep, lightSleep, remSleep, sleepRating, onOpenEditor, recordDate, trendBundle, view, openView } = props;
   const todayKey = `nava-sleep-alert-dismissed:${new Date().toISOString().slice(0, 10)}`;
   const [alertVisible, setAlertVisible] = useState(() => window.sessionStorage.getItem(todayKey) !== "1");
   const [notificationEnabled, setNotificationEnabled] = useState(false);
   const total = Math.max(1, deepSleep + lightSleep + remSleep);
   const score = Math.round(58 + sleepRating * 5.5);
+  const sleepTrend = useMemo(() => {
+    const records = new Map((trendBundle?.sleeps ?? []).map((record) => [record.record_date, record.rhythm_score ?? Math.min(100, ((record.sleep_duration_minutes ?? 0) / 480) * 100)]));
+    records.set(recordDate, score);
+    return [...records.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(-7);
+  }, [recordDate, score, trendBundle]);
 
   const enableNotification = async () => {
     if ("Notification" in window && Notification.permission === "default") await Notification.requestPermission();
     setNotificationEnabled(true);
   };
 
-  if (view === "trend") return <ModuleDetailView title={locale === "zh" ? "睡眠趋势" : "Sleep trend"} locale={locale} onBack={() => openView("overview")}><div className="expanded-sleep-chart">{[66, 74, 58, 83, 78, 90, 81].map((value, index) => <span key={index}><i style={{ height: `${value}%` }} /><small>{value}</small></span>)}</div><p>{locale === "zh" ? "入睡时间正在提前，深睡连续性较上周提升。" : "Bedtime is moving earlier and deep-sleep continuity improved."}</p></ModuleDetailView>;
+  if (view === "trend") return <ModuleDetailView title={locale === "zh" ? "睡眠趋势" : "Sleep trend"} locale={locale} onBack={() => openView("overview")}><LineTrendChart points={sleepTrend.map(([date, value]) => ({ id: date, label: shortDate(date, locale), value }))} ariaLabel={locale === "zh" ? "近七日睡眠趋势" : "Seven-day sleep trend"} tone="rhythm" /><p>{locale === "zh" ? "曲线由近七日睡眠时长与节律评分生成，更新今日睡眠后会同步变化。" : "This curve is generated from seven days of sleep duration and rhythm scores."}</p></ModuleDetailView>;
 
   return (
     <div className="module-dashboard sleep-dashboard" data-module-view="sleep-overview">
@@ -315,7 +458,7 @@ function SleepDashboard(props: Pick<Props, "sleepStart" | "sleepEnd" | "deepSlee
       </section>
       <section className="figma-module-card sleep-trend-card">
         <header><strong>{locale === "zh" ? "7 日趋势" : "7-day trend"}</strong><button type="button" onClick={() => openView("trend")} aria-label={locale === "zh" ? "查看睡眠趋势" : "View sleep trend"}><ChevronRight size={18} /></button></header>
-        <div className="sleep-bars">{[66, 74, 58, 83, 78, 90, 81].map((height, index) => <span key={index}><i style={{ height: `${height}%` }} /><small>{locale === "zh" ? "一二三四五六日"[index] : "SMTWTFS"[index]}</small></span>)}</div>
+        <div className="sleep-bars">{sleepTrend.map(([date, height]) => <span key={date}><i style={{ height: `${Math.max(6, height)}%` }} /><small>{shortDate(date, locale)}</small></span>)}</div>
       </section>
       <AssistantCard text={locale === "zh" ? "深睡阶段连续性不错。今晚保持固定的睡前时间，比补觉更有帮助。" : "Deep sleep continuity looks good. A consistent bedtime will help more than catching up."} />
       {view === "alert" && <div className="module-modal" role="dialog" aria-modal="true"><div className="module-modal-card sleep-alert-modal"><header><strong>{locale === "zh" ? "睡眠提醒" : "Sleep reminder"}</strong><button type="button" onClick={() => openView("overview")}><X size={20} /></button></header><div className="lock-screen-preview"><Bell size={24} /><strong>NAVA</strong><p>{locale === "zh" ? "该准备入睡了，给今天一个安静的收尾。" : "Time to wind down and close the day quietly."}</p></div><button type="button" onClick={() => void enableNotification()}>{notificationEnabled ? <BellOff size={18} /> : <Bell size={18} />}{notificationEnabled ? (locale === "zh" ? "提醒已开启" : "Reminder enabled") : (locale === "zh" ? "开启锁屏提醒" : "Enable lock-screen reminder")}</button><button type="button" onClick={() => { window.sessionStorage.setItem(todayKey, "1"); setAlertVisible(false); openView("overview"); }}>{locale === "zh" ? "今天不再提醒" : "Not again today"}</button></div></div>}
@@ -323,14 +466,26 @@ function SleepDashboard(props: Pick<Props, "sleepStart" | "sleepEnd" | "deepSlee
   );
 }
 
-function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setFocusTitle" | "setFocusMinutes" | "onSaveFocusMinutes"> & { locale: "zh" | "en"; view: string; openView: (view: string) => void }) {
-  const { locale, focusTitle, focusMinutes, setFocusTitle, setFocusMinutes, onSaveFocusMinutes, view, openView } = props;
+function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setFocusTitle" | "setFocusMinutes" | "onSaveFocusMinutes" | "todaySnapshot" | "trendBundle"> & { locale: "zh" | "en"; view: string; openView: (view: string) => void }) {
+  const { locale, focusTitle, focusMinutes, setFocusTitle, setFocusMinutes, onSaveFocusMinutes, todaySnapshot, trendBundle, view, openView } = props;
   const immersive = view === "immersive" || view === "interruption";
   const [running, setRunning] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [remaining, setRemaining] = useState(focusMinutes * 60);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const focusRecords = useMemo(() => aggregateFocusByDate(trendBundle?.focus ?? []).slice(-7), [trendBundle]);
+  const latestFocus = focusRecords[focusRecords.length - 1];
+  const todayMinutes = todaySnapshot?.focusMinutes ?? latestFocus?.total_minutes ?? 0;
+  const todaySessions = todaySnapshot?.focusSessions ?? latestFocus?.completed_sessions ?? 0;
+  const recentFocus = focusRecords.slice(-4);
+  const focusMax = Math.max(1, ...recentFocus.map((record) => record.total_minutes));
+  const focusTrendPoints = focusRecords.map((record) => ({
+    id: record.id,
+    label: shortDate(record.record_date, locale),
+    value: Math.min(100, (record.total_minutes / 120) * 100),
+  }));
+  const goalProgress = Math.min(100, Math.round((todayMinutes / 120) * 100));
 
   useEffect(() => {
     if (!immersive || !running) return;
@@ -378,16 +533,16 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
     <div className="module-dashboard focus-dashboard" data-module-view="focus-overview">
       <section className="figma-module-card focus-summary-card">
         <header><strong>{locale === "zh" ? "今日专注数据摘要" : "Today's focus"}</strong><button className={saved ? "success" : ""} type="button" onClick={() => { setSaved(false); setHasStarted(false); openView("immersive"); }} aria-label={saved ? (locale === "zh" ? "专注已记录" : "Focus saved") : (locale === "zh" ? "开始专注" : "Start focus")}>{saved ? <Check size={19} /> : <><CirclePlay size={18} />{locale === "zh" ? "开始" : "Start"}</>}</button></header>
-        <p>{locale === "zh" ? "今日共计专注" : "Sessions"}<strong>9</strong>{locale === "zh" ? "次" : ""}<span>{locale === "zh" ? "总时长" : "Total"}<b>5</b>{locale === "zh" ? "小时" : "h"}<b>36</b>{locale === "zh" ? "分" : "m"}</span></p>
+        <p>{locale === "zh" ? "今日共计专注" : "Sessions"}<strong>{todaySessions}</strong>{locale === "zh" ? "次" : ""}<span>{locale === "zh" ? "总时长" : "Total"}<b>{Math.floor(todayMinutes / 60)}</b>{locale === "zh" ? "小时" : "h"}<b>{todayMinutes % 60}</b>{locale === "zh" ? "分" : "m"}</span></p>
       </section>
       <div className="focus-grid">
-        <section className="figma-module-card focus-period-card"><header>{locale === "zh" ? "专注时间分布" : "Time distribution"}</header><div>{focusBars.map((height, index) => <span key={index}><i style={{ height: `${height}%` }} /><small>{locale === "zh" ? ["凌晨", "上午", "下午", "晚间"][index] : ["Night", "AM", "PM", "Eve"][index]}</small></span>)}</div></section>
-        <section className="figma-module-card focus-category-card"><header>{locale === "zh" ? "专注分类" : "Categories"}</header><div className="focus-pie"><span>{locale === "zh" ? "工作" : "Work"}</span></div></section>
-        <section className="figma-module-card focus-week-card"><header>{locale === "zh" ? "近 7 天趋势" : "7-day trend"}</header><div className="focus-week-line" /></section>
-        <section className="figma-module-card focus-history-card"><header>{locale === "zh" ? "完成记录" : "Completed"}</header>{["产品原型", "资料整理", "需求复盘"].map((label, index) => <p key={label}><Check size={13} />{locale === "zh" ? label : ["Prototype", "Research", "Review"][index]}</p>)}</section>
+        <section className="figma-module-card focus-period-card"><header>{locale === "zh" ? "近 4 日时长" : "Last 4 days"}</header><div>{recentFocus.map((record) => <span key={record.id}><i style={{ height: `${Math.max(8, (record.total_minutes / focusMax) * 100)}%` }} /><small>{shortDate(record.record_date, locale)}</small></span>)}</div></section>
+        <section className="figma-module-card focus-category-card"><header>{locale === "zh" ? "今日目标" : "Daily goal"}</header><div className="focus-pie" style={{ background: `conic-gradient(#0e5b7c 0 ${goalProgress}%, #d4edf6 ${goalProgress}% 100%)` }}><span>{goalProgress}%</span></div></section>
+        <section className="figma-module-card focus-week-card"><header>{locale === "zh" ? "近 7 日目标完成度" : "7-day goal"}</header><LineTrendChart points={focusTrendPoints} compact ariaLabel={locale === "zh" ? "近七日专注目标完成度" : "Seven-day focus goal completion"} /></section>
+        <section className="figma-module-card focus-history-card"><header>{locale === "zh" ? "完成记录" : "Completed"}</header>{focusRecords.slice(-3).reverse().map((record) => <p key={record.id}><Check size={13} />{shortDate(record.record_date, locale)} · {record.completed_sessions}{locale === "zh" ? "次" : " sessions"} · {record.total_minutes} min</p>)}</section>
       </div>
       <section className="figma-module-card focus-quick-card"><div><Clock3 size={20} /><input value={focusTitle} onChange={(event) => setFocusTitle(event.target.value)} /></div><div><button type="button" onClick={() => setFocusMinutes(Math.max(5, focusMinutes - 5))}>-</button><strong>{focusMinutes} min</strong><button type="button" onClick={() => setFocusMinutes(Math.min(90, focusMinutes + 5))}>+</button></div><button type="button" onClick={() => { setHasStarted(false); openView("immersive"); }}>{locale === "zh" ? "进入专注" : "Start focus"}</button></section>
-      <AssistantCard text={locale === "zh" ? "你的高效时段集中在晚间，下一次专注建议从 25 分钟开始。" : "Your strongest focus window is in the evening. Start with 25 minutes."} />
+      <AssistantCard text={locale === "zh" ? `近七日已记录 ${focusRecords.reduce((sum, record) => sum + record.total_minutes, 0)} 分钟专注。下一次建议从 ${focusMinutes} 分钟开始。` : `${focusRecords.reduce((sum, record) => sum + record.total_minutes, 0)} focused minutes were logged in seven days. Start the next session with ${focusMinutes} minutes.`} />
     </div>
   );
 }
@@ -400,11 +555,11 @@ export default function RecordModuleDashboard(props: Props) {
     setView(next);
     props.onViewChange?.(next === "overview" ? null : next);
   };
-  if (view === "history") return <HistoryView module={props.module} locale={locale} onBack={() => openView("overview")} />;
+  if (view === "history") return <HistoryView module={props.module} locale={locale} trendBundle={props.trendBundle} onBack={() => openView("overview")} />;
   const common = { ...props, locale };
-  if (props.module === "exercise") return <ExerciseDashboard locale={locale} steps={props.steps} calories={props.calories} exerciseMinutes={props.exerciseMinutes} onOpenEditor={props.onOpenEditor} view={view} openView={openView} />;
+  if (props.module === "exercise") return <ExerciseDashboard locale={locale} steps={props.steps} calories={props.calories} exerciseMinutes={props.exerciseMinutes} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} trendBundle={props.trendBundle} view={view} openView={openView} />;
   if (props.module === "mood") return <MoodDashboard {...common} view={view} openView={openView} />;
-  if (props.module === "sleep") return <SleepDashboard locale={locale} sleepStart={props.sleepStart} sleepEnd={props.sleepEnd} deepSleep={props.deepSleep} lightSleep={props.lightSleep} remSleep={props.remSleep} sleepRating={props.sleepRating} onOpenEditor={props.onOpenEditor} view={view} openView={openView} />;
-  if (props.module === "focus") return <FocusDashboard locale={locale} focusTitle={props.focusTitle} focusMinutes={props.focusMinutes} setFocusTitle={props.setFocusTitle} setFocusMinutes={props.setFocusMinutes} onSaveFocusMinutes={props.onSaveFocusMinutes} view={view} openView={openView} />;
+  if (props.module === "sleep") return <SleepDashboard locale={locale} sleepStart={props.sleepStart} sleepEnd={props.sleepEnd} deepSleep={props.deepSleep} lightSleep={props.lightSleep} remSleep={props.remSleep} sleepRating={props.sleepRating} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} trendBundle={props.trendBundle} view={view} openView={openView} />;
+  if (props.module === "focus") return <FocusDashboard locale={locale} focusTitle={props.focusTitle} focusMinutes={props.focusMinutes} setFocusTitle={props.setFocusTitle} setFocusMinutes={props.setFocusMinutes} onSaveFocusMinutes={props.onSaveFocusMinutes} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} view={view} openView={openView} />;
   return null;
 }

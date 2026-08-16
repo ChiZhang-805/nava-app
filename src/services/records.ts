@@ -13,7 +13,17 @@ import type {
   TodaySnapshot,
   TrendBundle,
 } from "../types";
-import { demoExercise, demoMood, demoNutrition, demoSleep, demoTodaySnapshot, demoTrends, isDemoMode } from "./demo";
+import {
+  demoTodaySnapshot,
+  demoTrends,
+  isDemoMode,
+  saveDemoExercise,
+  saveDemoFace,
+  saveDemoFocus,
+  saveDemoMood,
+  saveDemoNutrition,
+  saveDemoSleep,
+} from "./demo";
 
 function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
@@ -122,7 +132,7 @@ function nextAction(snapshot: Omit<TodaySnapshot, "rhythmScore" | "nextAction">)
 }
 
 export async function getTodaySnapshot(userId: string, date = todayISO()): Promise<TodaySnapshot> {
-  if (isDemoMode()) return demoTodaySnapshot();
+  if (isDemoMode()) return demoTodaySnapshot(date);
 
   const [moodRes, sleepRes, exerciseRes, nutritionRes, focusRes, faceRes, rhythmRes] = await Promise.all([
     supabase.from("mood_records").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
@@ -191,7 +201,7 @@ export async function saveMoodRecord(input: {
   factors: string[];
   diary?: string;
 }) {
-  if (isDemoMode()) return { ...demoMood, mood_score: input.moodScore, factors: input.factors, diary_content: input.diary ?? null };
+  if (isDemoMode()) return saveDemoMood(input);
 
   if (!Number.isFinite(input.moodScore) || input.moodScore < 0 || input.moodScore > 100) {
     throw new Error("情绪分数必须在 0 到 100 之间。");
@@ -228,7 +238,7 @@ export async function saveSleepRecord(input: {
   note?: string;
   source?: "manual" | "apple_watch";
 }) {
-  if (isDemoMode()) return { ...demoSleep, sleep_start: input.start, sleep_end: input.end, sleep_duration_minutes: input.durationMinutes };
+  if (isDemoMode()) return saveDemoSleep(input);
 
   validateHHMM(input.start, "入睡时间");
   validateHHMM(input.end, "醒来时间");
@@ -280,7 +290,7 @@ export async function saveSleepSummaryRecord(input: {
   durationMinutes: number;
   source?: "manual" | "apple_watch";
 }) {
-  if (isDemoMode()) return { ...demoSleep, sleep_duration_minutes: input.durationMinutes, device_type: input.source ?? "apple_watch" };
+  if (isDemoMode()) return saveDemoSleep(input);
 
   const durationMinutes = nonNegativeInt(input.durationMinutes, "睡眠时长");
   const { data, error } = await supabase
@@ -342,7 +352,7 @@ export async function saveExerciseRecord(input: {
   note?: string;
   source?: "manual" | "apple_health";
 }) {
-  if (isDemoMode()) return { ...demoExercise, steps: input.steps, calories: input.calories, exercise_minutes: input.minutes };
+  if (isDemoMode()) return saveDemoExercise(input);
 
   const recordDate = normalizeRecordDate(input.date);
   const steps = nonNegativeInt(input.steps, "步数");
@@ -378,7 +388,7 @@ export async function saveNutritionRecord(input: {
   item: FoodItem;
   totalCalories: number;
 }) {
-  if (isDemoMode()) return { ...demoNutrition, total_calories: input.totalCalories, [`${input.meal}_items`]: [input.item] } as NutritionRecord;
+  if (isDemoMode()) return saveDemoNutrition({ date: input.date, meal: input.meal, items: [input.item], totalCalories: input.totalCalories, append: true });
 
   const recordDate = normalizeRecordDate(input.date);
   const itemCalories = nonNegativeInt(input.item.calories ?? input.totalCalories, "食物热量");
@@ -428,7 +438,7 @@ export async function saveNutritionItems(input: {
   photoUrl?: string;
 }) {
   if (input.items.length === 0) throw new Error("没有可保存的食物条目。");
-  if (isDemoMode()) return { ...demoNutrition, [`${input.meal}_items`]: input.items } as NutritionRecord;
+  if (isDemoMode()) return saveDemoNutrition({ date: input.date, meal: input.meal, items: input.items });
 
   const recordDate = normalizeRecordDate(input.date);
   const existing = await supabase
@@ -480,7 +490,7 @@ export async function saveFaceAnalysisRecord(input: {
   modelVersion?: string;
 }) {
   if (isDemoMode()) {
-    return {
+    return saveDemoFace(input.date ?? todayISO(), {
       id: "demo-face",
       record_date: input.date ?? todayISO(),
       image_path: input.imagePath ?? null,
@@ -490,7 +500,7 @@ export async function saveFaceAnalysisRecord(input: {
       feedback: input.result.feedback,
       model_version: input.modelVersion ?? "demo",
       persisted: true,
-    } as FaceRecord;
+    } as FaceRecord);
   }
 
   const { data, error } = await supabase
@@ -560,15 +570,7 @@ export async function saveFocusSession(input: {
   taskTitle: string;
   minutes: number;
 }) {
-  if (isDemoMode()) {
-    return {
-      id: "demo-focus",
-      task_id: "demo-task",
-      record_date: input.date ?? todayISO(),
-      completed_sessions: 1,
-      total_minutes: input.minutes,
-    };
-  }
+  if (isDemoMode()) return saveDemoFocus(input);
 
   const recordDate = normalizeRecordDate(input.date);
   const minutes = nonNegativeInt(input.minutes, "专注分钟");

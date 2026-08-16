@@ -12,6 +12,16 @@ function clampScore(value: number) {
   return Math.min(100, Math.max(0, value));
 }
 
+function smoothPath(points: Array<{ x: number; y: number }>) {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  return points.slice(1).reduce((path, point, index) => {
+    const previous = points[index];
+    const controlX = (previous.x + point.x) / 2;
+    return `${path} C ${controlX} ${previous.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
+  }, `M ${points[0].x} ${points[0].y}`);
+}
+
 export default function LineTrendChart({
   points,
   ariaLabel,
@@ -50,7 +60,7 @@ export default function LineTrendChart({
   const domainSpan = Math.max(1, domainMax - domainMin);
   const xAt = (index: number) => left + (points.length <= 1 ? spanX / 2 : (index / (points.length - 1)) * spanX);
   const yAt = (value: number) => top + ((domainMax - Math.min(domainMax, Math.max(domainMin, clampScore(value)))) / domainSpan) * spanY;
-  const linePoints = points.map((point, index) => `${xAt(index)},${yAt(point.value)}`).join(" ");
+  const linePath = smoothPath(points.map((point, index) => ({ x: xAt(index), y: yAt(point.value) })));
   const hasBand = points.length > 1 && points.every((point) => point.lower != null && point.upper != null);
   const bandPoints = hasBand
     ? [
@@ -79,14 +89,14 @@ export default function LineTrendChart({
         })}
 
         {hasBand && <polygon className="trend-confidence-band" points={bandPoints} />}
-        <polyline className="trend-line" points={linePoints} style={{ stroke: `url(#${gradientId})` }} />
+        <path className="trend-line" d={linePath} style={{ stroke: `url(#${gradientId})` }} />
 
         {points.map((point, index) => {
           const x = xAt(index);
           const y = yAt(point.value);
           const showDate = points.length <= 4 || index % 2 === 0 || index === points.length - 1;
           return (
-            <g className="trend-point" key={point.id}>
+            <g className="trend-point" key={point.id} data-label={point.label} data-value={point.value}>
               <circle cx={x} cy={y} r="4.5">
                 <title>{`${point.label}: ${Math.round(point.value)}`}</title>
               </circle>

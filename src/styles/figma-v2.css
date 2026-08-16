@@ -1013,7 +1013,7 @@
   object-position: center;
 }
 
-.phone-frame--option2 .figma-nav-mascot {
+.figma-nav-mascot {
   --mascot-optical-shift-x: 14%;
   width: 100%;
   height: 100%;
@@ -1972,8 +1972,17 @@
 .day-distribution .active i { background: linear-gradient(180deg, #2b90b8, #176383); }
 
 .mood-entry-card {
-  min-height: 291px;
+  height: 100%;
+  min-height: 0;
   padding: 15px 17px;
+}
+
+.mood-dashboard {
+  flex: 1 1 auto;
+  height: 100%;
+  display: grid;
+  grid-template-rows: minmax(285px, 1.42fr) minmax(172px, 0.9fr) minmax(86px, 0.52fr);
+  align-content: stretch;
 }
 
 .mood-face-row {
@@ -1986,6 +1995,7 @@
 }
 
 .mood-face-row button {
+  width: 100%;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -1998,8 +2008,9 @@
 }
 
 .mood-face-row button > span {
-  width: 45px;
-  height: 45px;
+  width: min(100%, 48px);
+  height: auto;
+  aspect-ratio: 1;
   display: grid;
   place-items: center;
   border: 1px solid #e2edf1;
@@ -2014,7 +2025,15 @@
   transform: translateY(-3px);
 }
 
-.mood-face-row small { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.mood-entry-card header button.success {
+  color: white;
+  border-color: transparent;
+  border-radius: 9px;
+  background: #1ba66f;
+  box-shadow: 0 5px 12px rgba(27, 166, 111, 0.2);
+}
+
+.mood-face-row small { width: 100%; min-height: 14px; overflow: visible; font-size: 10px; line-height: 1.25; text-align: center; white-space: nowrap; }
 
 .mood-intensity {
   display: flex;
@@ -2061,23 +2080,11 @@
   white-space: nowrap;
 }
 
-.module-save-state {
-  min-height: 17px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  margin: 7px 0 0;
-  color: #69818d;
-  font-size: 10px;
-}
-
-.module-save-state svg { color: #1a9c6d; }
-
 .mood-trend-card {
-  min-height: 146px;
+  height: 100%;
+  min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 92px;
+  grid-template-columns: minmax(0, 1fr) 92px;
   grid-template-rows: auto 1fr;
   gap: 6px 12px;
   padding: 14px 17px;
@@ -2090,6 +2097,16 @@
   overflow: hidden;
   border-radius: 10px;
   background: repeating-linear-gradient(0deg, transparent 0 23px, rgba(70, 130, 154, 0.1) 24px);
+}
+
+.mood-chart .line-trend-chart,
+.mood-chart .line-trend-chart svg {
+  width: 100%;
+  height: 100%;
+}
+
+.mood-chart .trend-value {
+  display: none;
 }
 
 .mood-line {
@@ -2108,6 +2125,15 @@
   background: #17799f;
 }
 
+.mood-pie-wrap {
+  align-self: center;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  color: #5d7987;
+  font-size: 9px;
+}
+
 .mood-pie,
 .focus-pie {
   align-self: center;
@@ -2117,6 +2143,46 @@
   border-radius: 50%;
   background: conic-gradient(#0e5b7c 0 18%, #47a9ce 18% 43%, #9bdaf0 43% 69%, #d4edf6 69% 100%);
   box-shadow: 0 8px 20px rgba(20, 109, 147, 0.15);
+}
+
+.mood-pie {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.mood-pie::after {
+  content: "";
+  position: absolute;
+  inset: 22%;
+  border-radius: 50%;
+  background: rgba(248, 253, 255, 0.94);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.mood-pie > span {
+  position: relative;
+  z-index: 1;
+  color: #174b63;
+  font-size: 17px;
+  font-weight: 760;
+}
+
+.mood-dashboard > .module-assistant-card {
+  height: 100%;
+  min-height: 0;
+  align-items: center;
+}
+
+.focus-week-card .line-trend-chart,
+.focus-week-card .line-trend-chart svg {
+  width: 100%;
+  height: 100%;
+}
+
+.focus-week-card .trend-value,
+.focus-week-card .trend-date {
+  display: none;
 }
 
 .module-modal {
@@ -2487,7 +2553,6 @@
   .mood-face-row button > span svg { width: 18px; height: 18px; }
   .mood-factor-row { margin-top: 2px; }
   .mood-diary-trigger { min-height: 32px; margin-top: 3px; padding-block: 4px; }
-  .module-save-state { min-height: 14px; margin-top: 2px; }
   .mood-trend-card { min-height: 96px; padding: 9px 13px; }
   .mood-chart { min-height: 52px; }
   .mood-pie { width: 64px; height: 64px; }
@@ -2520,4 +2585,40 @@
 @media (prefers-reduced-motion: reduce) {
   .module-dashboard,
   .module-modal-card { animation: none; }
+}
+
+/* Keep the mood dashboard balanced across portrait iPhone heights. */
+@media (max-height: 860px) {
+  .mood-dashboard {
+    grid-template-rows: minmax(260px, 1.42fr) minmax(150px, 0.9fr) minmax(72px, 0.52fr);
+  }
+
+  .mood-entry-card,
+  .mood-trend-card,
+  .mood-dashboard > .module-assistant-card {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .mood-face-row button > span {
+    width: min(100%, 44px);
+    height: auto;
+  }
+}
+
+@media (max-height: 700px) and (max-width: 430px) {
+  .mood-dashboard {
+    grid-template-rows: minmax(238px, 1.44fr) minmax(116px, 0.78fr) minmax(52px, 0.42fr);
+  }
+
+  .mood-entry-card,
+  .mood-trend-card,
+  .mood-dashboard > .module-assistant-card {
+    min-height: 0;
+  }
+
+  .mood-face-row button > span {
+    width: min(100%, 38px);
+    height: auto;
+  }
 }

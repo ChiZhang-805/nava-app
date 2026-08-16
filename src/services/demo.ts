@@ -1,9 +1,11 @@
 import type { User } from "@supabase/supabase-js";
-import { daysAgoISO, todayISO } from "./date";
-import type { ChatMessage, DailyRhythmScore, ExerciseRecord, FocusRecord, MoodRecord, NutritionRecord, SleepRecord, TodaySnapshot, TrendBundle } from "../types";
+import { todayISO } from "./date";
+import type { ChatMessage, DailyRhythmScore, ExerciseRecord, FocusRecord, FoodItem, MoodRecord, NutritionRecord, SleepRecord, TodaySnapshot, TrendBundle } from "../types";
 import type { UserProfile } from "./profile";
 
 const DEMO_SESSION_KEY = "nava.review.demo.auth.v1";
+const DEMO_MOOD_HISTORY_KEY = "nava.review.demo.mood-history.v1";
+const DEMO_RECORDS_KEY = "nava.review.demo.records.v1";
 export const demoLoginAccount = "13800138000";
 export const demoLoginPassword = "12345678";
 export const demoOtpCode = "123456";
@@ -62,6 +64,65 @@ export const demoMood: MoodRecord = {
   diary_sentiment: 0.72,
 };
 
+const demoMoodSeed = [
+  { score: 68, factors: ["睡眠", "压力"], diary: "睡眠偏短，上午进入状态较慢。" },
+  { score: 74, factors: ["运动", "天气"], diary: "午后散步后，精神状态明显恢复。" },
+  { score: 61, factors: ["工作", "压力"], diary: "项目节点集中，傍晚略感疲惫。" },
+  { score: 82, factors: ["睡眠", "社交"], diary: "休息充分，交流过程轻松。" },
+  { score: 77, factors: ["饮食", "运动"], diary: "饮食规律，晚间运动后情绪平稳。" },
+  { score: 71, factors: ["工作", "身体不适"], diary: "久坐后有些不适，休息后缓解。" },
+  { score: 76, factors: ["睡眠", "工作", "运动"], diary: "上午压力偏高，午后步行后状态恢复。" },
+] as const;
+
+function dateOffsetISO(endDate: string, offset: number) {
+  const date = new Date(`${endDate}T12:00:00`);
+  date.setDate(date.getDate() + offset);
+  return date.toISOString().slice(0, 10);
+}
+
+function readDemoMoodOverrides() {
+  if (typeof window === "undefined") return [] as MoodRecord[];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(DEMO_MOOD_HISTORY_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed as MoodRecord[] : [];
+  } catch {
+    return [] as MoodRecord[];
+  }
+}
+
+export function demoMoodHistory(endDate = todayISO()): MoodRecord[] {
+  const overrides = new Map(readDemoMoodOverrides().map((record) => [record.record_date, record]));
+  return demoMoodSeed.map((seed, index) => {
+    const recordDate = dateOffsetISO(endDate, index - (demoMoodSeed.length - 1));
+    return overrides.get(recordDate) ?? {
+      ...demoMood,
+      id: `demo-mood-${recordDate}`,
+      record_date: recordDate,
+      mood_score: seed.score,
+      factors: [...seed.factors],
+      diary_content: seed.diary,
+    };
+  });
+}
+
+export function saveDemoMood(input: { date?: string; moodScore: number; factors: string[]; diary?: string }) {
+  const recordDate = input.date ?? todayISO();
+  const record: MoodRecord = {
+    ...demoMood,
+    id: `demo-mood-${recordDate}`,
+    record_date: recordDate,
+    mood_score: input.moodScore,
+    factors: [...input.factors],
+    diary_content: input.diary?.trim() || null,
+  };
+  if (typeof window !== "undefined") {
+    const next = readDemoMoodOverrides().filter((item) => item.record_date !== recordDate);
+    next.push(record);
+    window.localStorage.setItem(DEMO_MOOD_HISTORY_KEY, JSON.stringify(next));
+  }
+  return record;
+}
+
 export const demoSleep: SleepRecord = {
   id: "demo-sleep",
   record_date: todayISO(),
@@ -99,16 +160,160 @@ export const demoNutrition: NutritionRecord = {
   ai_feedback: "蛋白质摄入较好，晚餐碳水适中。",
 };
 
-export function demoTodaySnapshot(): TodaySnapshot {
+type DemoRecordOverrides = {
+  sleeps: Record<string, SleepRecord>;
+  exercises: Record<string, ExerciseRecord>;
+  nutritions: Record<string, NutritionRecord>;
+  focus: Record<string, FocusRecord[]>;
+  faces: Record<string, TodaySnapshot["face"]>;
+};
+
+function emptyDemoRecordOverrides(): DemoRecordOverrides {
+  return { sleeps: {}, exercises: {}, nutritions: {}, focus: {}, faces: {} };
+}
+
+function readDemoRecordOverrides(): DemoRecordOverrides {
+  if (typeof window === "undefined") return emptyDemoRecordOverrides();
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(DEMO_RECORDS_KEY) ?? "{}") as Partial<DemoRecordOverrides>;
+    return {
+      sleeps: parsed.sleeps ?? {},
+      exercises: parsed.exercises ?? {},
+      nutritions: parsed.nutritions ?? {},
+      focus: parsed.focus ?? {},
+      faces: parsed.faces ?? {},
+    };
+  } catch {
+    return emptyDemoRecordOverrides();
+  }
+}
+
+function writeDemoRecordOverrides(records: DemoRecordOverrides) {
+  if (typeof window !== "undefined") window.localStorage.setItem(DEMO_RECORDS_KEY, JSON.stringify(records));
+}
+
+export function saveDemoSleep(input: {
+  date?: string;
+  start?: string;
+  end?: string;
+  durationMinutes: number;
+  deepMinutes?: number;
+  lightMinutes?: number;
+  remMinutes?: number;
+  rating?: number;
+  source?: "manual" | "apple_watch";
+}) {
+  const date = input.date ?? todayISO();
+  const record: SleepRecord = {
+    ...demoSleep,
+    id: `demo-sleep-${date}`,
+    record_date: date,
+    sleep_start: input.start ?? demoSleep.sleep_start,
+    sleep_end: input.end ?? demoSleep.sleep_end,
+    sleep_duration_minutes: input.durationMinutes,
+    deep_sleep_minutes: input.deepMinutes ?? demoSleep.deep_sleep_minutes,
+    light_sleep_minutes: input.lightMinutes ?? demoSleep.light_sleep_minutes,
+    rem_minutes: input.remMinutes ?? demoSleep.rem_minutes,
+    self_rating: input.rating ?? demoSleep.self_rating,
+  };
+  const records = readDemoRecordOverrides();
+  records.sleeps[date] = record;
+  writeDemoRecordOverrides(records);
+  return record;
+}
+
+export function saveDemoExercise(input: {
+  date?: string;
+  steps: number;
+  calories: number;
+  minutes: number;
+  heartRate?: string;
+  spo2?: string;
+  rating?: number;
+  source?: "manual" | "apple_health";
+}) {
+  const date = input.date ?? todayISO();
+  const record: ExerciseRecord = {
+    ...demoExercise,
+    id: `demo-exercise-${date}`,
+    record_date: date,
+    steps: input.steps,
+    calories: input.calories,
+    exercise_minutes: input.minutes,
+    heart_rate: input.heartRate ?? demoExercise.heart_rate,
+    spo2: input.spo2 ?? demoExercise.spo2,
+    self_rating: input.rating ?? demoExercise.self_rating,
+  };
+  const records = readDemoRecordOverrides();
+  records.exercises[date] = record;
+  writeDemoRecordOverrides(records);
+  return record;
+}
+
+export function saveDemoNutrition(input: {
+  date?: string;
+  meal: "breakfast" | "lunch" | "dinner" | "pantry";
+  items: FoodItem[];
+  totalCalories?: number;
+  append?: boolean;
+}) {
+  const date = input.date ?? todayISO();
+  const records = readDemoRecordOverrides();
+  const current = records.nutritions[date] ?? { ...demoNutrition, id: `demo-nutrition-${date}`, record_date: date };
+  const key = `${input.meal}_items` as "breakfast_items" | "lunch_items" | "dinner_items" | "pantry_items";
+  const mealItems = input.append ? [...(current[key] ?? []), ...input.items] : input.items;
+  const record = { ...current, [key]: mealItems } as NutritionRecord;
+  const allItems = [record.breakfast_items, record.lunch_items, record.dinner_items, record.pantry_items]
+    .flatMap((items) => items ?? []);
+  record.total_calories = input.totalCalories ?? allItems.reduce((sum, item) => sum + (Number(item.calories) || 0), 0);
+  records.nutritions[date] = record;
+  writeDemoRecordOverrides(records);
+  return record;
+}
+
+export function saveDemoFocus(input: { date?: string; minutes: number }) {
+  const date = input.date ?? todayISO();
+  const records = readDemoRecordOverrides();
+  const current = records.focus[date] ?? [];
+  const priorMinutes = current.length > 0
+    ? current.reduce((sum, item) => sum + item.total_minutes, 0)
+    : date === todayISO() ? 95 : 0;
+  const priorSessions = current.length > 0
+    ? current.reduce((sum, item) => sum + item.completed_sessions, 0)
+    : date === todayISO() ? 4 : 0;
+  const record: FocusRecord = {
+    id: `demo-focus-${date}`,
+    task_id: `demo-task-${date}`,
+    record_date: date,
+    completed_sessions: priorSessions + 1,
+    total_minutes: priorMinutes + input.minutes,
+  };
+  records.focus[date] = [record];
+  writeDemoRecordOverrides(records);
+  return record;
+}
+
+export function saveDemoFace(date: string, face: NonNullable<TodaySnapshot["face"]>) {
+  const records = readDemoRecordOverrides();
+  records.faces[date] = face;
+  writeDemoRecordOverrides(records);
+  return face;
+}
+
+export function demoTodaySnapshot(date = todayISO()): TodaySnapshot {
+  const overrides = readDemoRecordOverrides();
+  const moodHistory = demoMoodHistory(date);
+  const mood = moodHistory[moodHistory.length - 1] ?? demoMood;
+  const focus = overrides.focus[date];
   return {
-    date: todayISO(),
-    mood: demoMood,
-    sleep: demoSleep,
-    exercise: demoExercise,
-    nutrition: demoNutrition,
-    face: {
+    date,
+    mood,
+    sleep: overrides.sleeps[date] ?? { ...demoSleep, record_date: date },
+    exercise: overrides.exercises[date] ?? { ...demoExercise, record_date: date },
+    nutrition: overrides.nutritions[date] ?? { ...demoNutrition, record_date: date },
+    face: overrides.faces[date] ?? {
       id: "demo-face",
-      record_date: todayISO(),
+      record_date: date,
       image_path: null,
       overall_score: 82,
       skin_age: 27,
@@ -116,8 +321,8 @@ export function demoTodaySnapshot(): TodaySnapshot {
       feedback: "面部状态平稳。",
       model_version: "demo",
     },
-    focusMinutes: 95,
-    focusSessions: 4,
+    focusMinutes: focus ? focus.reduce((sum, item) => sum + item.total_minutes, 0) : 95,
+    focusSessions: focus ? focus.reduce((sum, item) => sum + item.completed_sessions, 0) : 4,
     rhythmScore: 83,
     rhythmConfidence: 0.88,
     rhythmScoreLower: 77,
@@ -131,37 +336,33 @@ export function demoTodaySnapshot(): TodaySnapshot {
 }
 
 export function demoTrends(): TrendBundle {
-  const moods: MoodRecord[] = Array.from({ length: 7 }, (_, index) => ({
-    ...demoMood,
-    id: `demo-mood-${index}`,
-    record_date: daysAgoISO(6 - index),
-    mood_score: [81, 77, 80, 84, 82, 79, 86][index],
-  }));
-  const sleeps: SleepRecord[] = moods.map((mood, index) => ({
+  const overrides = readDemoRecordOverrides();
+  const moods = demoMoodHistory();
+  const sleeps: SleepRecord[] = moods.map((mood, index) => overrides.sleeps[mood.record_date] ?? ({
     ...demoSleep,
     id: `demo-sleep-${index}`,
     record_date: mood.record_date,
     sleep_duration_minutes: 410 + (index % 5) * 18,
   }));
-  const exercises: ExerciseRecord[] = moods.map((mood, index) => ({
+  const exercises: ExerciseRecord[] = moods.map((mood, index) => overrides.exercises[mood.record_date] ?? ({
     ...demoExercise,
     id: `demo-exercise-${index}`,
     record_date: mood.record_date,
     steps: 5200 + index * 310,
   }));
-  const nutritions: NutritionRecord[] = moods.map((mood, index) => ({
+  const nutritions: NutritionRecord[] = moods.map((mood, index) => overrides.nutritions[mood.record_date] ?? ({
     ...demoNutrition,
     id: `demo-nutrition-${index}`,
     record_date: mood.record_date,
     total_calories: 1500 + (index % 4) * 120,
   }));
-  const focus: FocusRecord[] = moods.map((mood, index) => ({
+  const focus: FocusRecord[] = moods.flatMap((mood, index) => overrides.focus[mood.record_date] ?? [{
     id: `demo-focus-${index}`,
     task_id: `demo-task-${index}`,
     record_date: mood.record_date,
     completed_sessions: 1 + (index % 3),
     total_minutes: 25 + (index % 4) * 20,
-  }));
+  }]);
   const rhythms: DailyRhythmScore[] = moods.map((mood, index) => ({
     id: `demo-rhythm-${index}`,
     record_date: mood.record_date,

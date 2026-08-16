@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { ArrowLeft, BedDouble, Brain, Camera, Check, ChevronRight, Drumstick, Dumbbell, Loader2, ScanFace, SmilePlus, type LucideIcon } from "lucide-react";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import SectionCard from "../components/SectionCard";
 import { useT, type TranslationKey } from "../i18n";
@@ -13,10 +13,12 @@ import {
   saveNutritionRecord,
   saveSleepRecord,
   refreshRhythmScore,
+  getTodaySnapshot,
+  getTrends,
 } from "../services/records";
 import { todayISO } from "../services/date";
 import { analyzeDietPhoto, analyzeFacePhoto } from "../services/media";
-import type { FaceAnalysisResult, FoodItem } from "../types";
+import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 import RecordModuleDashboard from "./RecordModuleDashboard";
 
 const moodFactors: Array<{ value: string; labelKey: TranslationKey }> = [
@@ -101,6 +103,8 @@ export default function RecordsScreen({
   const [recordDate, setRecordDate] = useState(todayISO());
   const [activeModule, setActiveModule] = useState<RecordModule | null>(null);
   const [showEditor, setShowEditor] = useState(false);
+  const [todaySnapshot, setTodaySnapshot] = useState<TodaySnapshot | null>(null);
+  const [trendBundle, setTrendBundle] = useState<TrendBundle | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const [moodScore, setMoodScore] = useState(70);
@@ -137,6 +141,45 @@ export default function RecordsScreen({
   const [faceResult, setFaceResult] = useState<FaceAnalysisResult | null>(null);
   const [faceAnalyzing, setFaceAnalyzing] = useState(false);
   const facePhotoInputRef = useRef<HTMLInputElement | null>(null);
+
+  const loadRecordData = useCallback(async () => {
+    try {
+      const [snapshot, trends] = await Promise.all([
+        getTodaySnapshot(user.id, recordDate),
+        getTrends(user.id),
+      ]);
+      setTodaySnapshot(snapshot);
+      setTrendBundle(trends);
+      if (snapshot.mood) {
+        setMoodScore(snapshot.mood.mood_score);
+        setSelectedFactors(snapshot.mood.factors ?? []);
+        setDiary(snapshot.mood.diary_content ?? "");
+      }
+      if (snapshot.sleep) {
+        setSleepStart(snapshot.sleep.sleep_start ?? "23:30");
+        setSleepEnd(snapshot.sleep.sleep_end ?? "07:10");
+        setSleepDuration(snapshot.sleep.sleep_duration_minutes ?? 460);
+        setDeepSleep(snapshot.sleep.deep_sleep_minutes ?? 85);
+        setLightSleep(snapshot.sleep.light_sleep_minutes ?? 280);
+        setRemSleep(snapshot.sleep.rem_minutes ?? 95);
+        setSleepRating(snapshot.sleep.self_rating ?? 4);
+      }
+      if (snapshot.exercise) {
+        setSteps(snapshot.exercise.steps ?? 0);
+        setCalories(snapshot.exercise.calories ?? 0);
+        setExerciseMinutes(snapshot.exercise.exercise_minutes ?? 0);
+        setHeartRate(snapshot.exercise.heart_rate ?? "");
+        setSpo2(snapshot.exercise.spo2 ?? "");
+      }
+      if (snapshot.nutrition) setMealCalories(snapshot.nutrition.total_calories ?? 0);
+    } catch (loadError) {
+      console.warn("Failed to load record dashboard data", loadError);
+    }
+  }, [recordDate, user.id]);
+
+  useEffect(() => {
+    void loadRecordData();
+  }, [loadRecordData]);
 
   useEffect(() => {
     const estimated = estimateMinutes(sleepStart, sleepEnd);
@@ -175,9 +218,12 @@ export default function RecordsScreen({
         console.warn("Failed to refresh rhythm score after saving record", refreshError);
         setNotice(t("records.savedPending", { label: t(labelKey) }));
       }
+      await loadRecordData();
       onSaved();
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      return false;
     } finally {
       setBusy(null);
     }
@@ -187,9 +233,13 @@ export default function RecordsScreen({
     setSelectedFactors((items) => (items.includes(factor) ? items.filter((item) => item !== factor) : [...items, factor]));
   }
 
+  function setPrimaryFactor(factor: string) {
+    setSelectedFactors(factor ? [factor] : []);
+  }
+
   async function saveMood(event: FormEvent) {
     event.preventDefault();
-    await run("records.mood", () =>
+    return run("records.mood", () =>
       saveMoodRecord({
         userId: user.id,
         date: recordDate,
@@ -428,7 +478,7 @@ export default function RecordsScreen({
           setMoodScore={setMoodScore}
           moodFactors={moodFactors.map((factor) => ({ value: factor.value, label: t(factor.labelKey) }))}
           selectedFactors={selectedFactors}
-          toggleFactor={toggleFactor}
+          setPrimaryFactor={setPrimaryFactor}
           diary={diary}
           setDiary={setDiary}
           onSaveMood={saveMood}
@@ -448,6 +498,9 @@ export default function RecordsScreen({
           onOpenEditor={() => setShowEditor(true)}
           onSaveFocusMinutes={saveFocusMinutes}
           busy={busy}
+          recordDate={recordDate}
+          todaySnapshot={todaySnapshot}
+          trendBundle={trendBundle}
           initialView={initialView}
           onViewChange={onViewChange}
         />
