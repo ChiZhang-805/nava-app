@@ -1,6 +1,5 @@
 import { Activity, ArrowLeft, Download, History, Home, MessageSquarePlus, MoreHorizontal, Share2, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
-import navChatIcon from "./assets/figma/option-two-icons/chat.svg";
 import navDataIcon from "./assets/figma/option-two-icons/data.png";
 import navHomeIcon from "./assets/figma/option-two-icons/home-glyph.svg";
 import navProfileIcon from "./assets/figma/option-two-icons/profile.svg";
@@ -21,6 +20,7 @@ import { enqueueAndFlushWatchAction, flushPendingWatchActions, subscribeWatchAct
 import ErrorBoundary from "./components/ErrorBoundary";
 import LanguageToggle from "./components/LanguageToggle";
 import LivingBackground from "./components/LivingBackground";
+import MascotMotionSlot from "./components/MascotMotionSlot";
 import NetworkBadge from "./components/NetworkBadge";
 import { LocaleProvider, useLocale, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
@@ -29,7 +29,7 @@ import { isDemoMode } from "./services/demo";
 const tabs: Array<{ id: AppTab; labelKey: TranslationKey; icon: string }> = [
   { id: "today", labelKey: "tabs.today", icon: navHomeIcon },
   { id: "record", labelKey: "tabs.record", icon: navRecordIcon },
-  { id: "ai", labelKey: "tabs.ai", icon: navChatIcon },
+  { id: "ai", labelKey: "tabs.ai", icon: lifeFigure },
   { id: "trends", labelKey: "tabs.trends", icon: navDataIcon },
   { id: "profile", labelKey: "tabs.profile", icon: navProfileIcon },
 ];
@@ -98,6 +98,7 @@ function MobileShell() {
   const [voiceGestureActive, setVoiceGestureActive] = useState(false);
   const [voiceCancelArmed, setVoiceCancelArmed] = useState(false);
   const [aiPressing, setAiPressing] = useState(false);
+  const [mascotPlayToken, setMascotPlayToken] = useState(0);
   const [aiCommand, setAiCommand] = useState<AiCommand | null>(null);
   const contentRef = useRef<HTMLElement | null>(null);
   const aiLongPressTimerRef = useRef<number | null>(null);
@@ -401,6 +402,7 @@ function MobileShell() {
                   aiLongPressTriggeredRef.current = false;
                   return;
                 }
+                if (isAiTab) setMascotPlayToken((value) => value + 1);
                 navigate(tab.id);
               }}
               onPointerDown={isAiTab ? beginAiLongPress : undefined}
@@ -416,10 +418,9 @@ function MobileShell() {
               {isAiTab ? (
                 <span className="ai-nav-orb" aria-hidden="true">
                    <span className="ai-nav-glow" />
-                   <img
-                     className="figma-nav-mascot"
-                     src={lifeFigure}
-                     alt=""
+                   <MascotMotionSlot
+                     staticSrc={lifeFigure}
+                     playToken={mascotPlayToken}
                    />
                 </span>
               ) : (

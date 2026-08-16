@@ -97,7 +97,13 @@ export default function OptionTwoHome({
             aria-label={t(labelKey)}
             title={t(labelKey)}
           >
-            <img className="option-two-health-icon" src={icon} alt="" aria-hidden="true" />
+            <img
+              className={`option-two-health-icon option-two-health-icon--${className}`}
+              src={icon}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+            />
           </button>
         ))}
       </div>

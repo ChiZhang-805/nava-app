@@ -867,9 +867,19 @@
   display: block;
   object-fit: contain;
   object-position: center;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
   pointer-events: none;
   transform-origin: center;
   filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.45));
+}
+
+.option-two-health-icon--exercise,
+.option-two-health-icon--focus {
+  width: calc(var(--entry-glyph-size) * 1.18);
+  height: calc(var(--entry-glyph-size) * 1.18);
 }
 
 .option-two-health-entry--exercise {
@@ -980,6 +990,27 @@
   background: rgba(242, 242, 242, 0.98);
   box-shadow: 0 9px 22px rgba(22, 59, 77, 0.23), inset 0 0 0 1px rgba(255, 255, 255, 0.92);
   animation: ai-orb-breathe 3600ms ease-in-out infinite;
+}
+
+.mascot-motion-slot {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.mascot-motion-slot > img,
+.mascot-motion-slot > picture,
+.mascot-motion-slot > video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
 }
 
 .phone-frame--option2 .figma-nav-mascot {
