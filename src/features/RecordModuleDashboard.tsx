@@ -372,7 +372,7 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
   if (view === "trend") return <ModuleDetailView title={locale === "zh" ? "情绪趋势" : "Mood trend"} locale={locale} onBack={() => openView("overview")}><LineTrendChart points={trendPoints} ariaLabel={locale === "zh" ? "近七日情绪趋势" : "Seven-day mood trend"} /><p>{assistantText}</p></ModuleDetailView>;
 
   return (
-    <form className="module-dashboard mood-dashboard" onSubmit={(event) => void submitMood(event)} data-module-view="mood-overview">
+    <form className="module-dashboard mood-dashboard" onSubmit={(event) => void submitMood(event)} data-module-view="mood-overview" data-ui-revision="mood-curve-v2">
       <section className="figma-module-card mood-entry-card">
         <header>
           <strong>{locale === "zh" ? "情绪记录" : "Mood check-in"}</strong>

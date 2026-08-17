@@ -2170,6 +2170,11 @@ body::before {
   stroke-width: 1;
 }
 
+.trend-area {
+  stroke: none;
+  pointer-events: none;
+}
+
 .trend-line {
   fill: none;
   stroke-width: 4;

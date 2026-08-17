@@ -36,6 +36,7 @@ export default function LineTrendChart({
   const rawId = useId();
   if (points.length === 0) return null;
   const gradientId = `trend-gradient-${rawId.replace(/:/g, "")}`;
+  const areaGradientId = `trend-area-gradient-${rawId.replace(/:/g, "")}`;
   const width = 320;
   const height = compact ? 148 : 184;
   const left = 16;
@@ -60,7 +61,12 @@ export default function LineTrendChart({
   const domainSpan = Math.max(1, domainMax - domainMin);
   const xAt = (index: number) => left + (points.length <= 1 ? spanX / 2 : (index / (points.length - 1)) * spanX);
   const yAt = (value: number) => top + ((domainMax - Math.min(domainMax, Math.max(domainMin, clampScore(value)))) / domainSpan) * spanY;
-  const linePath = smoothPath(points.map((point, index) => ({ x: xAt(index), y: yAt(point.value) })));
+  const plottedPoints = points.map((point, index) => ({ x: xAt(index), y: yAt(point.value) }));
+  const linePath = smoothPath(plottedPoints);
+  const lastPlottedPoint = plottedPoints[plottedPoints.length - 1];
+  const areaPath = plottedPoints.length > 1
+    ? `${linePath} L ${lastPlottedPoint.x} ${bottom} L ${plottedPoints[0].x} ${bottom} Z`
+    : "";
   const hasBand = points.length > 1 && points.every((point) => point.lower != null && point.upper != null);
   const bandPoints = hasBand
     ? [
@@ -79,6 +85,10 @@ export default function LineTrendChart({
             <stop offset="55%" stopColor="#147fb9" />
             <stop offset="100%" stopColor="#07527f" />
           </linearGradient>
+          <linearGradient id={areaGradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#34afe0" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="#34afe0" stopOpacity="0.02" />
+          </linearGradient>
         </defs>
 
         {[0.25, 0.5, 0.75].map((ratio) => {
@@ -89,6 +99,7 @@ export default function LineTrendChart({
         })}
 
         {hasBand && <polygon className="trend-confidence-band" points={bandPoints} />}
+        {areaPath && <path className="trend-area" d={areaPath} style={{ fill: `url(#${areaGradientId})` }} />}
         <path className="trend-line" d={linePath} style={{ stroke: `url(#${gradientId})` }} />
 
         {points.map((point, index) => {

@@ -182,8 +182,11 @@ async function verifyRecordModules(page, results) {
 
   await openModule("mood");
   await expect(page.locator('[data-module-view="mood-overview"]')).toBeVisible();
+  await expect(page.locator('[data-ui-revision="mood-curve-v2"]')).toBeVisible();
   const moodCurve = page.locator(".mood-chart .trend-line");
+  await expect(page.locator(".mood-chart .trend-area")).toHaveCount(1);
   const curveBefore = await moodCurve.getAttribute("d");
+  if (!curveBefore?.includes(" C ")) throw new Error(`Mood trend is not a smooth cubic curve: ${curveBefore}`);
   const pieBefore = await page.locator(".mood-pie").evaluate((node) => node.style.background);
   await page.locator(".mood-face-row button").first().click();
   await expect.poll(() => moodCurve.getAttribute("d")).not.toBe(curveBefore);

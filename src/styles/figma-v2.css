@@ -1974,15 +1974,20 @@
 .mood-entry-card {
   height: 100%;
   min-height: 0;
-  padding: 15px 17px;
+  padding: 14px 17px;
 }
 
 .mood-dashboard {
   flex: 1 1 auto;
   height: 100%;
   display: grid;
-  grid-template-rows: minmax(285px, 1.42fr) minmax(172px, 0.9fr) minmax(86px, 0.52fr);
+  grid-template-rows: minmax(276px, 1.22fr) minmax(188px, 1fr) minmax(88px, 0.52fr);
   align-content: stretch;
+}
+
+.mood-entry-card > header strong,
+.mood-trend-card > header strong {
+  font-size: 17px;
 }
 
 .mood-face-row {
@@ -2084,7 +2089,7 @@
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px;
+  grid-template-columns: minmax(0, 1fr) 88px;
   grid-template-rows: auto 1fr;
   gap: 6px 12px;
   padding: 14px 17px;
@@ -2107,6 +2112,17 @@
 
 .mood-chart .trend-value {
   display: none;
+}
+
+.mood-chart .trend-line {
+  stroke-width: 5;
+  filter: drop-shadow(0 2px 2px rgba(8, 91, 132, 0.16));
+}
+
+.mood-chart .trend-point circle {
+  r: 5px;
+  fill: #f8fdff;
+  stroke-width: 3.2;
 }
 
 .mood-line {
@@ -2172,6 +2188,12 @@
   height: 100%;
   min-height: 0;
   align-items: center;
+  padding-block: 11px;
+}
+
+.mood-dashboard > .module-assistant-card p {
+  font-size: 12.5px;
+  line-height: 1.5;
 }
 
 .focus-week-card .line-trend-chart,
@@ -2608,7 +2630,7 @@
 
 @media (max-height: 700px) and (max-width: 430px) {
   .mood-dashboard {
-    grid-template-rows: minmax(238px, 1.44fr) minmax(116px, 0.78fr) minmax(52px, 0.42fr);
+    grid-template-rows: minmax(246px, 1.32fr) minmax(122px, 0.82fr) minmax(56px, 0.46fr);
   }
 
   .mood-entry-card,
@@ -2620,5 +2642,19 @@
   .mood-face-row button > span {
     width: min(100%, 38px);
     height: auto;
+  }
+
+  .mood-intensity input {
+    height: 18px;
+    margin: 0;
+  }
+
+  .mood-factor-row select {
+    min-height: 28px;
+  }
+
+  .mood-dashboard > .module-assistant-card p {
+    font-size: 9.5px;
+    line-height: 1.3;
   }
 }
