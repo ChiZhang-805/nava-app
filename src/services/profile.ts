@@ -17,6 +17,13 @@ export interface UserProfile {
   diet_preference: string | null;
   stress_factors: string | null;
   avatar_url?: string | null;
+  age_group?: string | null;
+  privacy_consent_at?: string | null;
+  health_data_consent?: boolean | null;
+  ai_personalization_consent?: boolean | null;
+  onboarding_completed_at?: string | null;
+  onboarding_version?: number | null;
+  onboarding_answers?: Record<string, unknown> | null;
 }
 
 function readDemoProfile() {

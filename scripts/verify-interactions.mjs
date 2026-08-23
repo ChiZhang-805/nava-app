@@ -34,6 +34,22 @@ async function dismissLaunch(page) {
   }
 }
 
+async function completeOnboardingIfNeeded(page) {
+  const onboarding = page.locator(".onboarding-screen");
+  if (!(await onboarding.isVisible().catch(() => false))) {
+    await expect(page.locator(".phone-frame")).toBeVisible();
+    return;
+  }
+
+  await page.locator(".onboarding-consent-row input").first().check({ force: true });
+  await page.locator(".onboarding-next").click();
+  for (let index = 0; index < 6; index += 1) {
+    await page.locator(".onboarding-option-grid button").first().click();
+    await page.locator(".onboarding-next").click();
+  }
+  await expect(page.locator(".phone-frame")).toBeVisible();
+}
+
 async function loginWithPassword(page, baseUrl) {
   await page.goto(`${baseUrl}?demo=1`, { waitUntil: "networkidle" });
   await dismissLaunch(page);
@@ -41,7 +57,7 @@ async function loginWithPassword(page, baseUrl) {
   await page.locator('input[autocomplete="current-password"]').fill(demoPassword);
   await page.screenshot({ path: path.join(outputDir, "auth-password.png") });
   await page.locator(".auth-submit").click();
-  await expect(page.locator(".phone-frame")).toBeVisible();
+  await completeOnboardingIfNeeded(page);
 }
 
 async function createReviewPage(browser, baseUrl, consoleErrors) {
@@ -113,7 +129,7 @@ async function verifyOtpLogin(browser, baseUrl, results, consoleErrors) {
   await page.locator('input[autocomplete="one-time-code"]').fill(demoOtp);
   await page.screenshot({ path: path.join(outputDir, "auth-otp-login.png") });
   await page.locator(".auth-submit").click();
-  await expect(page.locator(".phone-frame")).toBeVisible();
+  await completeOnboardingIfNeeded(page);
   results.push("隔离评审验证码登录");
   await context.close();
 }
@@ -162,7 +178,7 @@ async function verifyRegistration(browser, baseUrl, results, consoleErrors) {
   await page.locator('input[autocomplete="new-password"]').nth(1).fill("87654321");
   await page.screenshot({ path: path.join(outputDir, "auth-register.png") });
   await page.locator(".auth-submit").click();
-  await expect(page.locator(".phone-frame")).toBeVisible();
+  await completeOnboardingIfNeeded(page);
   results.push("隔离评审邮箱验证码注册");
   await context.close();
 }
@@ -271,6 +287,8 @@ async function verifyRecordModules(page, results) {
   await returnToHub();
 
   await openModule("diet");
+  await expect(page.locator('[data-module-view="diet-overview"]')).toBeVisible();
+  await page.locator('[aria-label="记录饮食"], [aria-label="Log a meal"]').click();
   await page.locator('[data-record-detail="diet"] input[type="file"][capture="environment"]').setInputFiles(samplePhoto);
   await expect(page.locator('[data-record-detail="diet"] .success-text')).toBeVisible();
   await page.locator('[data-record-detail="diet"] form:not([hidden]) .action-button').click();
@@ -298,6 +316,8 @@ async function verifyRecordModules(page, results) {
   await returnToHub();
 
   await page.locator('[data-record-module="face"]').click();
+  await expect(page.locator('[data-module-view="face-overview"]')).toBeVisible();
+  await page.locator('[aria-label="使用前置摄像头拍照"], [aria-label="Take a front-camera photo"]').click();
   await page.locator('[data-record-detail="face"] input[type="file"][capture="user"]').setInputFiles(samplePhoto);
   await expect(page.locator('[data-record-detail="face"] .success-text')).toBeVisible();
   await page.waitForTimeout(900);
@@ -435,11 +455,10 @@ async function verifyNavigationAndMotion(page, results) {
     await expect(page.locator(`[data-tab="${tab}"]`)).toHaveAttribute("aria-current", "page");
     if (tab === "trends") {
       await expect(page.locator("[data-growth-screen]")).toBeVisible();
-      await expect(page.locator("[data-growth-task]")).toHaveCount(3);
-      const firstTask = page.locator("[data-growth-task]").first();
-      const wasCompleted = await firstTask.evaluate((button) => button.classList.contains("completed"));
-      await firstTask.click();
-      await expect.poll(() => firstTask.evaluate((button) => button.classList.contains("completed"))).toBe(!wasCompleted);
+      await expect(page.locator("[data-growth-task]")).toHaveCount(8);
+      await expect(page.locator(".growth-task-group")).toHaveCount(2);
+      await expect(page.locator(".growth-task-group").first().locator("[data-growth-task]")).toHaveCount(2);
+      await expect(page.locator(".growth-task-group").last().locator("[data-growth-task]")).toHaveCount(6);
     }
     const animationName = await page.locator(`[data-tab="${tab}"]`).evaluate((button) => {
       const glyph = button.querySelector("svg, .figma-nav-icon");

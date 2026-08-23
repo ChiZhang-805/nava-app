@@ -639,11 +639,12 @@ export async function getTrends(userId: string): Promise<TrendBundle> {
   if (isDemoMode()) return demoTrends();
 
   const start = daysAgoISO(6);
-  const [moods, sleeps, exercises, nutritions, focus, rhythms] = await Promise.all([
+  const [moods, sleeps, exercises, nutritions, faces, focus, rhythms] = await Promise.all([
     supabase.from("mood_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("sleep_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("exercise_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("nutrition_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
+    supabase.from("face_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("focus_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("daily_rhythm_scores").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
   ]);
@@ -652,6 +653,7 @@ export async function getTrends(userId: string): Promise<TrendBundle> {
   assertNoError(sleeps.error);
   assertNoError(exercises.error);
   assertNoError(nutritions.error);
+  assertOptionalResourceError(faces.error);
   assertNoError(focus.error);
   assertOptionalResourceError(rhythms.error);
 
@@ -660,6 +662,7 @@ export async function getTrends(userId: string): Promise<TrendBundle> {
     sleeps: asArray<SleepRecord>(sleeps.data),
     exercises: asArray<ExerciseRecord>(exercises.data),
     nutritions: asArray<NutritionRecord>(nutritions.data),
+    faces: faces.error ? [] : asArray<FaceRecord>(faces.data),
     focus: asArray<FocusRecord>(focus.data),
     rhythms: rhythms.error ? [] : asArray<DailyRhythmScore>(rhythms.data),
   };

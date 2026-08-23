@@ -19,6 +19,8 @@ import {
 } from "../services/records";
 import { todayISO } from "../services/date";
 import { analyzeDietPhoto, analyzeFacePhoto } from "../services/media";
+import { loadDnbWeeklyReport, type DnbWeeklyReport } from "../services/dnb";
+import { loadProfile, type UserProfile } from "../services/profile";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 import RecordModuleDashboard from "./RecordModuleDashboard";
 
@@ -36,7 +38,7 @@ const moodFactors: Array<{ value: string; labelKey: TranslationKey }> = [
 
 export type RecordModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
 
-const dashboardModules = new Set<RecordModule>(["mood", "sleep", "exercise", "focus"]);
+const dashboardModules = new Set<RecordModule>(["mood", "sleep", "exercise", "diet", "focus", "face"]);
 
 const recordModules: Array<{
   id: RecordModule;
@@ -106,7 +108,10 @@ export default function RecordsScreen({
   const [showEditor, setShowEditor] = useState(false);
   const [todaySnapshot, setTodaySnapshot] = useState<TodaySnapshot | null>(null);
   const [trendBundle, setTrendBundle] = useState<TrendBundle | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [reportMode, setReportMode] = useState<"modules" | "weekly">("modules");
+  const [dnbReport, setDnbReport] = useState<DnbWeeklyReport | null>(null);
+  const [dnbLoading, setDnbLoading] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const [moodScore, setMoodScore] = useState(70);
@@ -146,12 +151,14 @@ export default function RecordsScreen({
 
   const loadRecordData = useCallback(async () => {
     try {
-      const [snapshot, trends] = await Promise.all([
+      const [snapshot, trends, loadedProfile] = await Promise.all([
         getTodaySnapshot(user.id, recordDate),
         getTrends(user.id),
+        loadProfile(user.id).catch(() => null),
       ]);
       setTodaySnapshot(snapshot);
       setTrendBundle(trends);
+      setProfile(loadedProfile);
       if (snapshot.mood) {
         setMoodScore(snapshot.mood.mood_score);
         setSelectedFactors(snapshot.mood.factors ?? []);
@@ -196,6 +203,22 @@ export default function RecordsScreen({
     setActiveModule(initialModule);
     setShowEditor(false);
   }, [initialModule]);
+
+  useEffect(() => {
+    if (reportMode !== "weekly") return;
+    let active = true;
+    setDnbLoading(true);
+    void loadDnbWeeklyReport()
+      .then((report) => {
+        if (active) setDnbReport(report);
+      })
+      .finally(() => {
+        if (active) setDnbLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [reportMode, user.id]);
 
   function estimateMinutes(start: string, end: string) {
     const [sh, sm] = start.split(":").map(Number);
@@ -459,7 +482,7 @@ export default function RecordsScreen({
         </> : (
           <div className="weekly-health-report" data-weekly-health-report>
             <section className="weekly-score-card">
-              <div><span>{locale === "zh" ? "本周节律" : "Weekly rhythm"}</span><strong>{todaySnapshot?.rhythmScore ?? "--"}</strong></div>
+              <div><span>{locale === "zh" ? "基础节律" : "Baseline rhythm"}</span><strong>{todaySnapshot?.rhythmScore ?? "--"}</strong></div>
               <div><span>{locale === "zh" ? "数据完整度" : "Data complete"}</span><strong>{completedModules}/6</strong></div>
               <div><span>{locale === "zh" ? "周内变化" : "Weekly change"}</span><strong>{weekChange >= 0 ? "+" : ""}{weekChange}</strong></div>
             </section>
@@ -469,10 +492,29 @@ export default function RecordsScreen({
                 ? <LineTrendChart points={reportPoints} tone="rhythm" compact ariaLabel={locale === "zh" ? "近七天节律折线图" : "Seven-day rhythm chart"} />
                 : <p>{locale === "zh" ? "完成两天记录后生成折线。" : "Log two days to create a chart."}</p>}
             </section>
-            <section className="weekly-insight-card">
-              <span>NAVA</span>
-              <strong>{locale === "zh" ? "本周观察" : "Weekly insight"}</strong>
-              <p>{todaySnapshot?.nextAction || (locale === "zh" ? "继续记录睡眠、运动与情绪，NAVA 会据此生成跨模块节律线索。" : "Keep logging sleep, activity, and mood to build cross-module rhythm insights.")}</p>
+            <section className={`weekly-insight-card weekly-insight-card--${dnbReport?.status ?? "unavailable"}`} data-dnb-status={dnbReport?.status ?? "loading"}>
+              <span>DNB</span>
+              <strong>
+                {dnbLoading
+                  ? (locale === "zh" ? "正在检查算法接口" : "Checking algorithm")
+                  : dnbReport?.status === "ready"
+                    ? (locale === "zh" ? "DNB 周度结论" : "DNB weekly result")
+                    : dnbReport?.status === "insufficient_data"
+                      ? (locale === "zh" ? "DNB 数据不足" : "DNB needs more data")
+                      : (locale === "zh" ? "DNB 接口待接入" : "DNB connection pending")}
+                {dnbReport?.status === "ready" && dnbReport.score != null
+                  ? <small>{locale === "zh" ? `评分 ${Math.round(dnbReport.score)}` : `Score ${Math.round(dnbReport.score)}`}</small>
+                  : null}
+              </strong>
+              <p>{dnbLoading
+                ? (locale === "zh" ? "正在确认算法服务和本周数据覆盖情况。" : "Checking service and weekly data coverage.")
+                : dnbReport?.status === "ready"
+                  ? [dnbReport.summary, dnbReport.recommendations[0]].filter(Boolean).join(" ")
+                  : dnbReport?.status === "insufficient_data"
+                    ? (locale === "zh"
+                      ? `当前已有 ${dnbReport.availableDays ?? 0} 天有效记录${dnbReport.requiredDays ? `，算法至少需要 ${dnbReport.requiredDays} 天` : ""}。`
+                      : `${dnbReport.availableDays ?? 0} valid days recorded${dnbReport.requiredDays ? `; ${dnbReport.requiredDays} required` : ""}.`)
+                    : (dnbReport?.reason || (locale === "zh" ? "当前仅展示基础统计，未生成 DNB 算法结论。" : "Only baseline statistics are shown; no DNB result was generated."))}</p>
             </section>
             <section className="weekly-module-status">
               {recordModules.map(({ id, labelKey, icon: Icon }) => <button type="button" key={id} onClick={() => { setActiveModule(id); onModuleChange?.(id); }}><Icon size={20} /><span>{t(labelKey)}</span><ChevronRight size={17} /></button>)}
@@ -553,6 +595,7 @@ export default function RecordsScreen({
           recordDate={recordDate}
           todaySnapshot={todaySnapshot}
           trendBundle={trendBundle}
+          profile={profile}
           initialView={initialView}
           onViewChange={onViewChange}
         />

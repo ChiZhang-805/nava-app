@@ -11,6 +11,7 @@ $requiredFunctions = @(
   "health-sync-ingest",
   "watch-sync",
   "rhythm-score",
+  "dnb-weekly-report",
   "export-user-data",
   "aliyun-sms-send",
   "aliyun-sms-verify",

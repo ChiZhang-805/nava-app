@@ -23,12 +23,45 @@ async function dismissLaunch(page) {
   }
 }
 
-async function login(page, baseUrl) {
+async function captureOnboarding(page, viewport, name, report) {
+  const target = page.locator(".onboarding-screen");
+  await expect(target).toBeVisible();
+  const layout = await target.evaluate((node) => ({
+    frameWidth: node.clientWidth,
+    frameScrollWidth: node.scrollWidth,
+    contentHeight: node.clientHeight,
+    contentScrollHeight: node.scrollHeight,
+  }));
+  if (layout.frameScrollWidth > layout.frameWidth + 1) {
+    throw new Error(`${viewport.name}/${name} has horizontal overflow: ${JSON.stringify(layout)}`);
+  }
+  report.push({ viewport: viewport.name, screen: name, ...layout });
+  await page.screenshot({ path: path.join(outputDir, viewport.name, `${name}.png`) });
+}
+
+async function completeOnboarding(page, viewport, report) {
+  const onboarding = page.locator(".onboarding-screen");
+  if (!(await onboarding.isVisible().catch(() => false))) return;
+
+  await captureOnboarding(page, viewport, "00-onboarding-privacy", report);
+  await page.locator(".onboarding-consent-row input").first().check({ force: true });
+  await page.locator(".onboarding-next").click();
+
+  const steps = ["age", "occupation", "goal", "sleep", "activity", "diet"];
+  for (let index = 0; index < steps.length; index += 1) {
+    await captureOnboarding(page, viewport, `00-onboarding-${index + 1}-${steps[index]}`, report);
+    await page.locator(".onboarding-option-grid button").first().click();
+    await page.locator(".onboarding-next").click();
+  }
+}
+
+async function login(page, baseUrl, viewport, report) {
   await page.goto(`${baseUrl}?demo=1`, { waitUntil: "networkidle" });
   await dismissLaunch(page);
   await page.locator('input[autocomplete="username"]').fill(demoAccount);
   await page.locator('input[autocomplete="current-password"]').fill(demoPassword);
   await page.locator(".auth-submit").click();
+  await completeOnboarding(page, viewport, report);
   await expect(page.locator(".phone-frame")).toBeVisible();
 }
 
@@ -72,7 +105,7 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
   page.on("pageerror", (error) => errors.push(`${viewport.name}: ${error.message}`));
 
   await mkdir(path.join(outputDir, viewport.name), { recursive: true });
-  await login(page, baseUrl);
+  await login(page, baseUrl, viewport, report);
   await page.locator('[data-tab="record"]').click();
   await capture(page, viewport, "01-record-hub", ".record-module-grid", report);
 
@@ -102,11 +135,24 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
   await returnToHub(page);
 
   await page.locator('[data-record-module="diet"]').click();
-  await capture(page, viewport, "09-diet", '[data-record-detail="diet"]', report);
+  await capture(page, viewport, "09-diet", '[data-module-view="diet-overview"]', report);
+  await page.locator('[aria-label="记录饮食"], [aria-label="Log a meal"]').click();
+  await capture(page, viewport, "09b-diet-editor", '[data-record-detail="diet"] .record-editor-stack', report);
+  await page.locator('[data-record-detail="diet"] .record-back-button').click();
   await returnToHub(page);
 
   await page.locator('[data-record-module="face"]').click();
-  await capture(page, viewport, "10-face", '[data-record-detail="face"]', report);
+  await capture(page, viewport, "10-face", '[data-module-view="face-overview"]', report);
+  await page.locator('[aria-label="使用前置摄像头拍照"], [aria-label="Take a front-camera photo"]').click();
+  await capture(page, viewport, "10b-face-editor", '[data-record-detail="face"] .record-editor-stack', report);
+  await page.locator('[data-record-detail="face"] .record-back-button').click();
+  await returnToHub(page);
+
+  await page.locator('.health-report-tabs [role="tab"]').last().click();
+  await capture(page, viewport, "11-weekly-dnb", "[data-weekly-health-report]", report);
+
+  await page.locator('[data-tab="trends"]').click();
+  await capture(page, viewport, "12-growth-tasks", "[data-growth-screen]", report);
   await context.close();
 }
 

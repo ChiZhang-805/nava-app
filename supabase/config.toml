@@ -29,6 +29,9 @@ verify_jwt = true
 [functions.rhythm-score]
 verify_jwt = true
 
+[functions.dnb-weekly-report]
+verify_jwt = true
+
 [functions.export-user-data]
 verify_jwt = true
 

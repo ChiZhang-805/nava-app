@@ -14,6 +14,7 @@ import AIScreen, { type AiCommand } from "./features/AIScreen";
 import GrowthTasksScreen from "./features/GrowthTasksScreen";
 import ProfileScreen from "./features/ProfileScreen";
 import PasswordRecoveryScreen from "./features/PasswordRecoveryScreen";
+import OnboardingScreen from "./features/OnboardingScreen";
 import { AuthProvider } from "./state/AuthProvider";
 import { useAuth } from "./state/authContext";
 import { enqueueAndFlushWatchAction, flushPendingWatchActions, subscribeWatchActions } from "./services/watch";
@@ -26,6 +27,7 @@ import UtilityDrawer from "./components/UtilityDrawer";
 import { LocaleProvider, useLocale, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
+import { loadOnboardingStatus } from "./services/onboarding";
 
 const aiLongPressDelayMs = 450;
 
@@ -454,7 +456,7 @@ function AppContent() {
   else if (loading) screen = <LoadingScreen />;
   else if (user && passwordRecovery) screen = <PasswordRecoveryScreen />;
   else if (!user) screen = <AuthScreen />;
-  else screen = <MobileShell />;
+  else screen = <AuthenticatedApp />;
 
   return (
     <div className="nava-app-stage">
@@ -462,6 +464,45 @@ function AppContent() {
       {screen}
     </div>
   );
+}
+
+function AuthenticatedApp() {
+  const { user } = useAuth();
+  const [checking, setChecking] = useState(true);
+  const [onboardingRequired, setOnboardingRequired] = useState(false);
+  const forceOnboarding = new URLSearchParams(window.location.search).get("onboarding") === "1";
+
+  useEffect(() => {
+    let alive = true;
+    if (!user) return undefined;
+    setChecking(true);
+    loadOnboardingStatus(user.id)
+      .then((status) => {
+        if (!alive) return;
+        setOnboardingRequired(forceOnboarding || !status.completed);
+      })
+      .catch((error) => {
+        console.warn("Unable to determine onboarding state", error);
+        if (alive) setOnboardingRequired(forceOnboarding);
+      })
+      .finally(() => {
+        if (alive) setChecking(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [forceOnboarding, user]);
+
+  if (!user || checking) return <LoadingScreen />;
+  if (onboardingRequired) {
+    return <OnboardingScreen user={user} onComplete={() => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("onboarding");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      setOnboardingRequired(false);
+    }} />;
+  }
+  return <MobileShell />;
 }
 
 export default function App() {

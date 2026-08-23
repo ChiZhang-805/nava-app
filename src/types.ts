@@ -122,6 +122,7 @@ export interface TrendBundle {
   sleeps: SleepRecord[];
   exercises: ExerciseRecord[];
   nutritions: NutritionRecord[];
+  faces: FaceRecord[];
   focus: FocusRecord[];
   rhythms: DailyRhythmScore[];
 }

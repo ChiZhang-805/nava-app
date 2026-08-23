@@ -2,13 +2,21 @@ import type { User } from "@supabase/supabase-js";
 import { Award, Check, Flame, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useLocale } from "../i18n";
-import { growthXp, loadGrowthTasks, subscribeProductivity, toggleGrowthTask, type GrowthTask } from "../services/productivity";
+import { growthXp, loadGrowthTasks, resolveGrowthTasks, subscribeProductivity, type GrowthTask } from "../services/productivity";
 
 export default function GrowthTasksScreen({ user }: { user: User }) {
   const { locale } = useLocale();
   const [tasks, setTasks] = useState<GrowthTask[]>(() => loadGrowthTasks(user.id));
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => subscribeProductivity(() => setTasks(loadGrowthTasks(user.id))), [user.id]);
+  useEffect(() => {
+    let active = true;
+    void resolveGrowthTasks(user.id)
+      .then((next) => { if (active) setTasks(next); })
+      .finally(() => { if (active) setLoading(false); });
+    const unsubscribe = subscribeProductivity(() => setTasks(loadGrowthTasks(user.id)));
+    return () => { active = false; unsubscribe(); };
+  }, [user.id]);
 
   const xp = useMemo(() => growthXp(tasks), [tasks]);
   const level = Math.floor(xp / 100) + 1;
@@ -31,14 +39,14 @@ export default function GrowthTasksScreen({ user }: { user: User }) {
         <Sparkles size={22} aria-hidden="true" />
       </header>
 
-      <div className="growth-task-list">
-        {tasks.map((task) => (
-          <button
+      <div className="growth-task-list" aria-busy={loading}>
+        {(["profile", "daily"] as const).map((category) => <section className="growth-task-group" key={category}>
+          <header>{category === "profile" ? (locale === "zh" ? "画像完善" : "Profile") : (locale === "zh" ? "今日节律" : "Today")}</header>
+          {tasks.filter((task) => task.category === category).map((task) => (
+          <article
             className={["growth-task-card", task.completed ? "completed" : ""].filter(Boolean).join(" ")}
             data-growth-task={task.id}
             key={task.id}
-            type="button"
-            onClick={() => setTasks(toggleGrowthTask(user.id, task.id))}
           >
             <span className="growth-task-check">{task.completed ? <Check size={19} /> : <span />}</span>
             <span className="growth-task-copy">
@@ -46,8 +54,9 @@ export default function GrowthTasksScreen({ user }: { user: User }) {
               <small>{locale === "zh" ? task.detailZh : task.detailEn}</small>
             </span>
             <b>+{task.xp}</b>
-          </button>
-        ))}
+          </article>
+          ))}
+        </section>)}
       </div>
 
       <section className="growth-badge-card">

@@ -11,6 +11,7 @@ import {
 } from "./records";
 import { todayISO } from "./date";
 import { demoMessagesFor, isDemoMode } from "./demo";
+import { loadProfileWithOnboarding } from "./onboarding";
 
 function assertNoError(error: unknown) {
   if (!error) return;
@@ -136,9 +137,24 @@ async function requestAiReply(input: {
 
 async function buildHealthContext(userId: string) {
   try {
-    const snapshot = await getTodaySnapshot(userId, todayISO());
+    const [snapshot, identity] = await Promise.all([
+      getTodaySnapshot(userId, todayISO()),
+      loadProfileWithOnboarding(userId).catch(() => ({ profile: null, onboarding: null })),
+    ]);
     return {
       date: snapshot.date,
+      profile: identity.profile ? {
+        ageGroup: identity.profile.age_group ?? identity.onboarding?.answers.ageGroup ?? null,
+        occupation: identity.profile.occupation,
+        primaryGoal: identity.profile.goal,
+        exerciseFrequency: identity.profile.exercise_frequency,
+        sleepRhythm: identity.profile.sleep_schedule,
+        dietPreference: identity.profile.diet_preference,
+        stressFactors: identity.profile.stress_factors,
+        personalizationAllowed: identity.profile.ai_personalization_consent
+          ?? identity.onboarding?.answers.aiPersonalizationConsent
+          ?? false,
+      } : null,
       rhythm: {
         score: snapshot.rhythmScore,
         confidence: snapshot.rhythmConfidence ?? null,

@@ -2,7 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import { Check, ChevronRight, CircleDollarSign, LockKeyhole, ShoppingBag, UsersRound, X } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { useLocale } from "../i18n";
-import { addTodo, growthXp, loadGrowthTasks, loadTodos, subscribeProductivity, toggleTodo, type TodoItem } from "../services/productivity";
+import { addTodo, growthXp, loadGrowthTasks, loadTodos, resolveGrowthTasks, subscribeProductivity, toggleTodo, type TodoItem } from "../services/productivity";
 
 export default function UtilityDrawer({ user, open, onClose }: { user: User; open: boolean; onClose: () => void }) {
   const { locale } = useLocale();
@@ -14,6 +14,11 @@ export default function UtilityDrawer({ user, open, onClose }: { user: User; ope
     setTodos(loadTodos(user.id));
     setXp(growthXp(loadGrowthTasks(user.id)));
   }), [user.id]);
+
+  useEffect(() => {
+    if (!open) return;
+    void resolveGrowthTasks(user.id).then((tasks) => setXp(growthXp(tasks))).catch(() => undefined);
+  }, [open, user.id]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -34,7 +39,7 @@ export default function UtilityDrawer({ user, open, onClose }: { user: User; ope
           <form onSubmit={submit}><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={locale === "zh" ? "添加今天要做的事" : "Add a task"} /><button type="submit" aria-label={locale === "zh" ? "添加" : "Add"}><ChevronRight size={20} /></button></form>
           <div className="drawer-todo-list">
             {todos.length === 0 && <p>{locale === "zh" ? "也可以直接告诉 NAVA：今天待办完成一次散步。" : "You can also tell NAVA: add a walk to today's to-do list."}</p>}
-            {todos.slice(0, 5).map((todo) => <button type="button" key={todo.id} onClick={() => setTodos(toggleTodo(user.id, todo.id))}><span>{todo.completed && <Check size={15} />}</span><b>{todo.title}</b></button>)}
+            {todos.slice(0, 5).map((todo) => <button type="button" key={todo.id} onClick={() => setTodos(toggleTodo(user.id, todo.id))}><span>{todo.completed && <Check size={15} />}</span><b>{todo.title}<small>{todo.scheduledDate}{todo.scheduledTime ? ` · ${todo.scheduledTime}` : ""}</small></b></button>)}
           </div>
         </section>
 

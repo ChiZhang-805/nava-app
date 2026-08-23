@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { todayISO } from "./date";
-import type { ChatMessage, DailyRhythmScore, ExerciseRecord, FocusRecord, FoodItem, MoodRecord, NutritionRecord, SleepRecord, TodaySnapshot, TrendBundle } from "../types";
+import type { ChatMessage, DailyRhythmScore, ExerciseRecord, FaceRecord, FocusRecord, FoodItem, MoodRecord, NutritionRecord, SleepRecord, TodaySnapshot, TrendBundle } from "../types";
 import type { UserProfile } from "./profile";
 
 const DEMO_SESSION_KEY = "nava.review.demo.auth.v1";
@@ -356,6 +356,16 @@ export function demoTrends(): TrendBundle {
     record_date: mood.record_date,
     total_calories: 1500 + (index % 4) * 120,
   }));
+  const faces: FaceRecord[] = moods.map((mood, index) => overrides.faces[mood.record_date] ?? ({
+    id: `demo-face-${index}`,
+    record_date: mood.record_date,
+    image_path: null,
+    overall_score: [78, 81, 79, 83, 80, 82, 84][index],
+    skin_age: 27,
+    annotations: [],
+    feedback: "面部状态整体平稳。",
+    model_version: "demo",
+  }));
   const focus: FocusRecord[] = moods.flatMap((mood, index) => overrides.focus[mood.record_date] ?? [{
     id: `demo-focus-${index}`,
     task_id: `demo-task-${index}`,
@@ -395,7 +405,7 @@ export function demoTrends(): TrendBundle {
     anomaly_flags: [],
     actions: [],
   }));
-  return { moods, sleeps, exercises, nutritions, focus, rhythms };
+  return { moods, sleeps, exercises, nutritions, faces, focus, rhythms };
 }
 
 export const demoMessages: ChatMessage[] = [

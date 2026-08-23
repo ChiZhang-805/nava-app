@@ -26,6 +26,7 @@
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy",
     "motion:test": "node --experimental-strip-types --test tests/background-motion.test.ts",
     "ai:prompt:test": "node --experimental-strip-types --test tests/ai-chat-prompt.test.ts tests/ai-review-access.test.ts",
+    "structured:test": "node --experimental-strip-types --test tests/structured-entry.test.ts",
     "algorithm:test": "node --experimental-strip-types --test tests/rhythm-core.test.ts",
     "algorithm:benchmark": "node --experimental-strip-types scripts/benchmark-rhythm-v4.ts",
     "algorithm:benchmark:fixed": "node --experimental-strip-types scripts/benchmark-fixed-dataset.ts",
