@@ -1,5 +1,5 @@
-import { Activity, ArrowLeft, Download, History, Home, MessageSquarePlus, MoreHorizontal, Share2, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { Activity, ArrowLeft, Download, History, Home, ListTodo, MessageSquarePlus, MoreHorizontal, Share2, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import navDataIcon from "./assets/figma/option-two-icons/data.png";
 import navHomeIcon from "./assets/figma/option-two-icons/home-glyph.svg";
 import navProfileIcon from "./assets/figma/option-two-icons/profile.svg";
@@ -11,7 +11,7 @@ import RecordsScreen from "./features/RecordsScreen";
 import type { RecordModule } from "./features/RecordsScreen";
 import OptionTwoHome from "./features/OptionTwoHome";
 import AIScreen, { type AiCommand } from "./features/AIScreen";
-import TrendsScreen from "./features/TrendsScreen";
+import GrowthTasksScreen from "./features/GrowthTasksScreen";
 import ProfileScreen from "./features/ProfileScreen";
 import PasswordRecoveryScreen from "./features/PasswordRecoveryScreen";
 import { AuthProvider } from "./state/AuthProvider";
@@ -22,9 +22,12 @@ import LanguageToggle from "./components/LanguageToggle";
 import LivingBackground from "./components/LivingBackground";
 import MascotMotionSlot from "./components/MascotMotionSlot";
 import NetworkBadge from "./components/NetworkBadge";
+import UtilityDrawer from "./components/UtilityDrawer";
 import { LocaleProvider, useLocale, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
+
+const aiLongPressDelayMs = 450;
 
 const tabs: Array<{ id: AppTab; labelKey: TranslationKey; icon: string }> = [
   { id: "today", labelKey: "tabs.today", icon: navHomeIcon },
@@ -92,10 +95,10 @@ function MobileShell() {
   const [recordModule, setRecordModule] = useState<RecordModule | null>(initialRouteRef.current.module);
   const [recordView, setRecordView] = useState<string | null>(initialRouteRef.current.view);
   const [utilityOpen, setUtilityOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [voiceRequestId, setVoiceRequestId] = useState(0);
   const [voiceRelease, setVoiceRelease] = useState({ id: 0, cancelled: false });
-  const [voiceGestureActive, setVoiceGestureActive] = useState(false);
   const [voiceCancelArmed, setVoiceCancelArmed] = useState(false);
   const [aiPressing, setAiPressing] = useState(false);
   const [mascotPlayToken, setMascotPlayToken] = useState(0);
@@ -179,8 +182,6 @@ function MobileShell() {
     if (completedVoiceGesture) {
       const cancelled = forceCancel || voiceCancelArmedRef.current;
       setVoiceRelease((current) => ({ id: current.id + 1, cancelled }));
-      if (!cancelled) navigate("ai");
-      setVoiceGestureActive(false);
       setVoiceCancelArmed(false);
       voiceCancelArmedRef.current = false;
     }
@@ -223,11 +224,12 @@ function MobileShell() {
       const cancelArmed = aiPressStartYRef.current - aiLatestYRef.current >= 64;
       voiceCancelArmedRef.current = cancelArmed;
       setVoiceCancelArmed(cancelArmed);
-      setVoiceGestureActive(true);
       setAiPressing(false);
+      setMascotPlayToken((value) => value + 1);
+      navigate("ai");
       setVoiceRequestId((value) => value + 1);
       navigator.vibrate?.(20);
-    }, 560);
+    }, aiLongPressDelayMs);
   };
 
   const moveAiLongPress = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -333,6 +335,7 @@ function MobileShell() {
                 <button type="button" onClick={() => { setRecordView("history"); navigate("record", recordModule, "history"); setUtilityOpen(false); }}><History size={17} />{locale === "zh" ? "历史记录" : "History"}</button>
                 <button type="button" onClick={() => void shareCurrentPage()}><Share2 size={17} />{locale === "zh" ? "分享页面" : "Share"}</button>
               </>}
+              <button type="button" onClick={() => { setUtilityOpen(false); setDrawerOpen(true); }}><ListTodo size={17} />{locale === "zh" ? "功能导航" : "Utilities"}</button>
               <LanguageToggle />
               <NetworkBadge />
             </div>
@@ -359,7 +362,7 @@ function MobileShell() {
                 navigate("record", module ?? null);
               }}
               onOpenAi={() => navigate("ai")}
-              onOpenProfile={() => navigate("profile")}
+              onOpenUtility={() => setDrawerOpen(true)}
             />
           )}
           {activeTab === "record" && (
@@ -378,11 +381,12 @@ function MobileShell() {
               voiceRequestId={voiceRequestId}
               voiceReleaseId={voiceRelease.id}
               voiceReleaseCancelled={voiceRelease.cancelled}
-              voiceCancelArmed={voiceCancelArmed}
+              externalVoiceCancelArmed={voiceCancelArmed}
               command={aiCommand}
+              onDataSaved={markChanged}
             />
           </div>
-          {activeTab === "trends" && <TrendsScreen user={user} refreshKey={refreshKey} />}
+          {activeTab === "trends" && <GrowthTasksScreen user={user} />}
           {activeTab === "profile" && <ProfileScreen user={user} onChanged={markChanged} />}
         </div>
       </main>
@@ -436,22 +440,7 @@ function MobileShell() {
           );
         })}
       </nav>
-
-      {voiceGestureActive && (
-        <div
-          className={["voice-gesture-overlay", voiceCancelArmed ? "cancel-armed" : ""].filter(Boolean).join(" ")}
-          data-voice-state={voiceCancelArmed ? "cancel" : "recording"}
-          role="status"
-          aria-live="polite"
-        >
-          <div className="voice-gesture-feedback">
-            <strong>{t(voiceCancelArmed ? "ai.voiceCancelHint" : "ai.voiceReleaseHint")}</strong>
-            <div className="voice-waveform" aria-hidden="true">
-              {Array.from({ length: 34 }, (_, index) => <span key={index} style={{ "--wave-index": index } as CSSProperties} />)}
-            </div>
-          </div>
-        </div>
-      )}
+      <UtilityDrawer user={user} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </div>
   );
 }

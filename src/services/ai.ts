@@ -1,6 +1,7 @@
 import { supabase } from "./supabaseClient";
 import type { ChatMessage } from "../types";
 import {
+  getTodaySnapshot,
   refreshRhythmScore,
   saveExerciseRecord,
   saveFocusSession,
@@ -38,12 +39,18 @@ export async function sendAiMessage(input: {
 }) {
   if (isDemoMode()) {
     const now = new Date().toISOString();
+    const content = await requestAiReply({
+      message: input.message,
+      history: input.history,
+      lang: input.lang ?? "zh",
+      healthContext: await buildHealthContext(input.userId),
+    });
     return {
       userMessage: { id: `demo-user-${Date.now()}`, role: "user", content: input.message, created_at: now } as ChatMessage,
       assistantMessage: {
         id: `demo-assistant-${Date.now()}`,
         role: "assistant",
-        content: demoAiReply(input.message, input.lang ?? "zh"),
+        content,
         created_at: now,
       } as ChatMessage,
       extractedData: null,
@@ -75,19 +82,14 @@ export async function sendAiMessage(input: {
   const extractedData = extraction?.extractedData ?? null;
   const applied = extraction ? await applyExtractedData(input.userId, extraction) : null;
 
-  const reply = await supabase.functions.invoke("ai-chat-reply", {
-    body: {
-      message: input.message,
-      dataType: extraction?.dataType ?? null,
-      extractedData,
-      conversationHistory: input.history.slice(-10),
-      todos: [],
-      lang: input.lang ?? "zh",
-    },
+  const content = await requestAiReply({
+    message: input.message,
+    history: input.history,
+    lang: input.lang ?? "zh",
+    dataType: extraction?.dataType ?? null,
+    extractedData,
+    healthContext: await buildHealthContext(input.userId),
   });
-  assertNoError(reply.error);
-
-  const content = reply.data?.reply ?? reply.data?.message ?? reply.data?.content ?? "我已经收到，会结合你的记录继续分析。";
   const assistantInsert = await supabase
     .from("ai_conversations")
     .insert({
@@ -107,37 +109,77 @@ export async function sendAiMessage(input: {
   };
 }
 
-function demoAiReply(message: string, lang: "zh" | "en") {
-  const text = message.toLowerCase();
-  if (lang === "en") {
-    if (text.includes("who are you") || text.includes("what are you")) {
-      return "I am NAVA, your rhythm companion. Tell me sleep, movement, mood, food, focus, or face changes, and I will help organize the day.";
-    }
-    if (text.includes("sleep")) return "I heard the sleep note. Keep tonight's wind-down window steady and watch how your energy feels after waking.";
-    if (text.includes("exercise") || text.includes("steps")) return "That movement matters. I would compare it with recovery before pushing intensity higher.";
-    if (text.includes("mood") || text.includes("stress")) return "I hear the stress signal. A short reset and a clear next task may help your rhythm settle.";
-    return "I am listening. You can speak naturally; NAVA will turn daily details into rhythm clues.";
-  }
-
-  if (/你是谁|你是誰|nava是什么|nava是什麼/.test(message)) {
-    return "我是 NAVA，会陪你把睡眠、运动、情绪、饮食、专注和面部状态整理成今天的节律线索。";
-  }
-  if (/睡|醒|困|失眠|入睡|起床/.test(message)) {
-    return "我听到了睡眠变化。今晚先稳住入睡窗口，明早再看清醒感和活动量是否一起恢复。";
-  }
-  if (/步|跑|运动|訓練|训练|卡路里|心率/.test(message)) {
-    return "这条运动记录有价值。真正判断强度时，还要和恢复、睡眠和今天的主观状态放在一起看。";
-  }
-  if (/情绪|壓力|压力|焦虑|烦|累/.test(message)) {
-    return "我听到的是压力信号。先把下一步缩小一点，给身体一个能接住的节奏。";
-  }
-  if (/吃|饮食|飲食|早餐|午餐|晚餐|咖啡/.test(message)) {
-    return "这条饮食线索会影响能量节律。后面可以结合运动消耗和晚间睡意一起判断。";
-  }
-  return "我在听。你可以像聊天一样告诉我今天发生了什么，NAVA 会把这些细节变成节律线索。";
+async function requestAiReply(input: {
+  message: string;
+  history: ChatMessage[];
+  lang: "zh" | "en";
+  dataType?: unknown;
+  extractedData?: unknown;
+  healthContext?: unknown;
+}) {
+  const reply = await supabase.functions.invoke("ai-chat-reply", {
+    body: {
+      message: input.message,
+      dataType: input.dataType ?? null,
+      extractedData: input.extractedData ?? null,
+      healthContext: input.healthContext ?? null,
+      conversationHistory: input.history.slice(-10),
+      lang: input.lang,
+      reviewMode: isDemoMode(),
+    },
+  });
+  assertNoError(reply.error);
+  const content = reply.data?.reply ?? reply.data?.message ?? reply.data?.content;
+  if (typeof content !== "string" || !content.trim()) throw new Error("真实 AI 服务没有返回有效内容，请稍后重试。");
+  return content.trim();
 }
 
-async function applyExtractedData(userId: string, extraction: Record<string, unknown>) {
+async function buildHealthContext(userId: string) {
+  try {
+    const snapshot = await getTodaySnapshot(userId, todayISO());
+    return {
+      date: snapshot.date,
+      rhythm: {
+        score: snapshot.rhythmScore,
+        confidence: snapshot.rhythmConfidence ?? null,
+      },
+      sleep: snapshot.sleep ? {
+        start: snapshot.sleep.sleep_start,
+        end: snapshot.sleep.sleep_end,
+        minutes: snapshot.sleep.sleep_duration_minutes,
+        selfRating: snapshot.sleep.self_rating,
+      } : null,
+      exercise: snapshot.exercise ? {
+        steps: snapshot.exercise.steps,
+        calories: snapshot.exercise.calories,
+        minutes: snapshot.exercise.exercise_minutes,
+        heartRate: snapshot.exercise.heart_rate,
+      } : null,
+      mood: snapshot.mood ? {
+        score: snapshot.mood.mood_score,
+        factors: snapshot.mood.factors,
+      } : null,
+      nutrition: snapshot.nutrition ? {
+        totalCalories: snapshot.nutrition.total_calories,
+        breakfast: snapshot.nutrition.breakfast_items?.map((item) => item.name) ?? [],
+        lunch: snapshot.nutrition.lunch_items?.map((item) => item.name) ?? [],
+        dinner: snapshot.nutrition.dinner_items?.map((item) => item.name) ?? [],
+      } : null,
+      focus: {
+        minutes: snapshot.focusMinutes,
+        sessions: snapshot.focusSessions,
+      },
+      face: snapshot.face ? {
+        skinAge: snapshot.face.skin_age,
+        feedback: snapshot.face.feedback,
+      } : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function applyExtractedData(userId: string, extraction: Record<string, unknown>) {
   if (!extraction.hasData || !extraction.extractedData || typeof extraction.extractedData !== "object") return null;
   const data = extraction.extractedData as Record<string, unknown>;
   const dataType = extraction.dataType;

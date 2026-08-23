@@ -2,8 +2,8 @@ import type { User } from "@supabase/supabase-js";
 import {
   CalendarDays,
   ChevronUp,
+  ListTodo,
   Menu,
-  UserRound,
   UsersRound,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -14,7 +14,7 @@ import faceIcon from "../assets/figma/option-two-icons/face.svg";
 import focusIcon from "../assets/figma/option-two-icons/focus.svg";
 import moodIcon from "../assets/figma/option-two-icons/mood.svg";
 import sleepIcon from "../assets/figma/option-two-icons/sleep.svg";
-import { useT } from "../i18n";
+import { useLocale } from "../i18n";
 import { getTodaySnapshot } from "../services/records";
 import type { TodaySnapshot } from "../types";
 import type { RecordModule } from "./RecordsScreen";
@@ -38,15 +38,15 @@ export default function OptionTwoHome({
   refreshKey,
   onOpenRecord,
   onOpenAi,
-  onOpenProfile,
+  onOpenUtility,
 }: {
   user: User;
   refreshKey: number;
   onOpenRecord: (module?: RecordModule) => void;
   onOpenAi: () => void;
-  onOpenProfile: () => void;
+  onOpenUtility: () => void;
 }) {
-  const t = useT();
+  const { locale, t } = useLocale();
   const [expanded, setExpanded] = useState(false);
   const [snapshot, setSnapshot] = useState<TodaySnapshot | null>(null);
 
@@ -78,7 +78,7 @@ export default function OptionTwoHome({
         </button>
         <button type="button" onClick={() => onOpenRecord()} aria-label={t("tabs.record")} title={t("tabs.record")}><CalendarDays size={23} /></button>
         <button type="button" onClick={onOpenAi} aria-label={t("tabs.ai")} title={t("tabs.ai")}><UsersRound size={24} /></button>
-        <button type="button" onClick={onOpenProfile} aria-label={t("tabs.profile")} title={t("tabs.profile")}><UserRound size={23} /></button>
+        <button type="button" onClick={onOpenUtility} aria-label={locale === "zh" ? "功能导航" : "Utilities"} title={locale === "zh" ? "功能导航" : "Utilities"}><ListTodo size={23} /></button>
       </div>
 
       <div className="option-two-life-stage" aria-hidden="true">

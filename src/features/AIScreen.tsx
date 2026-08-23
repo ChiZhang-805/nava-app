@@ -1,10 +1,11 @@
 import type { User } from "@supabase/supabase-js";
-import { Bot, Mic, SendHorizontal, Sparkles, X } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { Bot, Check, Mic, Pencil, SendHorizontal, Sparkles, X } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocale } from "../i18n";
 import { loadConversation, sendAiMessage } from "../services/ai";
 import { loadProfile } from "../services/profile";
 import { startVoiceInput, type VoiceInputError, type VoiceInputSession } from "../services/voice";
+import { confirmStructuredEntry, parseStructuredEntry, type StructuredEntry } from "../services/structuredEntry";
 import type { ChatMessage } from "../types";
 
 export type AiCommand = {
@@ -23,15 +24,17 @@ export default function AIScreen({
   voiceRequestId = 0,
   voiceReleaseId = 0,
   voiceReleaseCancelled = false,
-  voiceCancelArmed = false,
+  externalVoiceCancelArmed = false,
   command = null,
+  onDataSaved,
 }: {
   user: User;
   voiceRequestId?: number;
   voiceReleaseId?: number;
   voiceReleaseCancelled?: boolean;
-  voiceCancelArmed?: boolean;
+  externalVoiceCancelArmed?: boolean;
   command?: AiCommand | null;
+  onDataSaved?: () => void;
 }) {
   const { locale, t } = useLocale();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -40,6 +43,9 @@ export default function AIScreen({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [voiceState, setVoiceState] = useState<"idle" | "starting" | "listening">("idle");
+  const [voiceCancelArmed, setVoiceCancelArmed] = useState(false);
+  const [pendingEntry, setPendingEntry] = useState<StructuredEntry | null>(null);
+  const [savingEntry, setSavingEntry] = useState(false);
   const [profile, setProfile] = useState<{ username: string | null; avatar_url?: string | null } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<ConversationSnapshot[]>([]);
@@ -50,6 +56,8 @@ export default function AIScreen({
   const handledVoiceReleaseRef = useRef(0);
   const voiceStopIntentRef = useRef<"stop" | "cancel" | null>(null);
   const voiceInitialInputRef = useRef("");
+  const voicePointerActiveRef = useRef(false);
+  const voicePointerStartYRef = useRef(0);
   const handledCommandRef = useRef(0);
   const historyKey = `nava-ai-history:${user.id}`;
 
@@ -101,11 +109,34 @@ export default function AIScreen({
         lang: locale,
       });
       setMessages((current) => [...current, result.userMessage, result.assistantMessage]);
+      setPendingEntry(parseStructuredEntry(message, locale));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setInput(message);
     } finally {
       setSending(false);
+    }
+  }
+
+  async function confirmPendingEntry() {
+    if (!pendingEntry || savingEntry) return;
+    setSavingEntry(true);
+    setError(null);
+    try {
+      await confirmStructuredEntry(user.id, pendingEntry);
+      const savedMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: locale === "zh" ? `${pendingEntry.title}已确认保存。` : `${pendingEntry.title} was confirmed and saved.`,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((current) => [...current, savedMessage]);
+      setPendingEntry(null);
+      onDataSaved?.();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : String(saveError));
+    } finally {
+      setSavingEntry(false);
     }
   }
 
@@ -217,6 +248,29 @@ export default function AIScreen({
     if (voiceSessionRef.current) void stopVoiceInput(voiceReleaseCancelled);
   }, [stopVoiceInput, voiceReleaseCancelled, voiceReleaseId]);
 
+  const beginComposerVoice = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    voicePointerActiveRef.current = true;
+    voicePointerStartYRef.current = event.clientY;
+    setVoiceCancelArmed(false);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    void beginVoiceInput();
+  };
+
+  const moveComposerVoice = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!voicePointerActiveRef.current) return;
+    setVoiceCancelArmed(voicePointerStartYRef.current - event.clientY >= 64);
+  };
+
+  const finishComposerVoice = (event: ReactPointerEvent<HTMLButtonElement>, forceCancel = false) => {
+    if (!voicePointerActiveRef.current) return;
+    voicePointerActiveRef.current = false;
+    const cancelled = forceCancel || voicePointerStartYRef.current - event.clientY >= 64;
+    voiceStopIntentRef.current = cancelled ? "cancel" : "stop";
+    if (voiceSessionRef.current) void stopVoiceInput(cancelled);
+    setVoiceCancelArmed(false);
+  };
+
   useEffect(() => () => {
     void voiceSessionRef.current?.cancel();
     voiceSessionRef.current = null;
@@ -260,15 +314,44 @@ export default function AIScreen({
 
       {error && <p className="error-text">{error}</p>}
 
+      {pendingEntry && (
+        <section className="structured-confirmation" data-structured-confirmation={pendingEntry.type}>
+          <header>
+            <div><span>{locale === "zh" ? "识别结果" : "Recognized"}</span><strong>{pendingEntry.title}</strong></div>
+            <b>{Math.round(pendingEntry.confidence * 100)}%</b>
+          </header>
+          <div className="structured-field-grid">
+            {pendingEntry.fields.map((field) => <div key={`${field.label}-${field.value}`}><span>{field.label}</span><strong>{field.value}</strong></div>)}
+          </div>
+          <footer>
+            <button type="button" onClick={() => { setInput(pendingEntry.summary); setPendingEntry(null); }} aria-label={locale === "zh" ? "编辑" : "Edit"}><Pencil size={18} /></button>
+            <button type="button" onClick={() => setPendingEntry(null)} aria-label={locale === "zh" ? "取消" : "Cancel"}><X size={18} /></button>
+            <button type="button" data-confirm-structured onClick={() => void confirmPendingEntry()} disabled={savingEntry}><Check size={18} /><span>{locale === "zh" ? "确认保存" : "Confirm"}</span></button>
+          </footer>
+        </section>
+      )}
+
       <form className={["chat-composer", voiceState !== "idle" ? "voice-active" : ""].filter(Boolean).join(" ")} onSubmit={submit}>
         <div className="chat-input-shell">
-          {voiceState !== "idle" && <Mic className="chat-voice-indicator" size={18} aria-hidden="true" />}
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={voiceCancelArmed ? t("ai.voiceCancelHint") : voiceState === "starting" ? t("ai.voiceStarting") : voiceState === "listening" ? t("ai.voiceListening") : t("ai.placeholder")}
+            placeholder={(voiceCancelArmed || externalVoiceCancelArmed) ? t("ai.voiceCancelHint") : voiceState === "starting" ? t("ai.voiceStarting") : voiceState === "listening" ? t("ai.voiceListening") : t("ai.placeholder")}
           />
         </div>
+        <button
+          className={["chat-voice-button", voiceState !== "idle" ? "active" : "", (voiceCancelArmed || externalVoiceCancelArmed) ? "cancel-armed" : ""].filter(Boolean).join(" ")}
+          type="button"
+          onPointerDown={beginComposerVoice}
+          onPointerMove={moveComposerVoice}
+          onPointerUp={(event) => finishComposerVoice(event)}
+          onPointerCancel={(event) => finishComposerVoice(event, true)}
+          onContextMenu={(event) => event.preventDefault()}
+          aria-label={voiceCancelArmed ? t("ai.voiceCancelHint") : t("ai.voiceReleaseHint")}
+          title={t("ai.voiceReleaseHint")}
+        >
+          <Mic size={20} />
+        </button>
         <button
           className="chat-send-button"
           type="submit"

@@ -2,8 +2,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
+import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
+applyProjectPublicEnv(root);
 const viewportWidth = Number(process.env.VIEWPORT_WIDTH || 430);
 const viewportHeight = Number(process.env.VIEWPORT_HEIGHT || 932);
 const screenshotLabel = process.env.SCREENSHOT_LABEL?.trim();
@@ -85,6 +87,17 @@ async function createReviewPage(browser, baseUrl, consoleErrors) {
     if (message.type() === "error") consoleErrors.push(`console: ${message.text()}`);
   });
   page.on("pageerror", (error) => consoleErrors.push(`page: ${error.message}`));
+  page.on("requestfailed", (request) => {
+    if (request.url().includes("/functions/v1/")) {
+      consoleErrors.push(`edge request failed: ${request.failure()?.errorText ?? "unknown error"}`);
+    }
+  });
+  page.on("response", (response) => {
+    if (!response.url().includes("/functions/v1/") || response.ok()) return;
+    void response.text()
+      .then((body) => consoleErrors.push(`edge response ${response.status()}: ${body.slice(0, 500)}`))
+      .catch(() => consoleErrors.push(`edge response ${response.status()}: unreadable body`));
+  });
   await loginWithPassword(page, baseUrl);
   return { context, page };
 }
@@ -265,8 +278,11 @@ async function verifyRecordModules(page, results) {
 
   await openModule("focus");
   await expect(page.locator('[data-module-view="focus-overview"]')).toBeVisible();
+  const focusDuration = page.locator('.focus-quick-card input[aria-label="专注分钟数"], .focus-quick-card input[aria-label="Focus duration in minutes"]');
+  await focusDuration.fill("37");
   await page.locator('[aria-label="开始专注"], [aria-label="Start focus"]').click();
   await expect(page.locator('[data-module-view="focus-immersive"]')).toBeVisible();
+  await expect(page.locator(".focus-timer-ring strong")).toHaveText("37:00");
   await expect(page.locator(".focus-timer-ring span")).toContainText(/准备开始|Ready/);
   await page.locator(".focus-interruption-trigger").click();
   await expect(page.locator(".focus-interruption")).toBeVisible();
@@ -304,13 +320,30 @@ async function verifyHomeShortcuts(page, results) {
   results.push("首页展开菜单与六个健康快捷入口");
 }
 
-async function verifyAi(page, results) {
+async function verifyAi(page, results, diagnostics) {
   await page.locator('[data-tab="ai"]').click();
   await expect(page.locator(".chat-message-row")).toHaveCount(3);
-  await page.locator(".chat-composer input").fill("你是谁");
+  await page.locator(".chat-composer input").fill("我今天吃什么好？请直接推荐一份午餐。");
   await page.locator(".chat-send-button").click();
-  await expect(page.locator(".chat-message-row")).toHaveCount(5);
-  await expect(page.locator(".chat-message-row.assistant").last()).toContainText("NAVA");
+  await page.waitForFunction(() => {
+    const replyReady = document.querySelectorAll(".chat-message-row").length === 5;
+    const errorText = document.querySelector(".error-text")?.textContent?.trim();
+    return replyReady || Boolean(errorText);
+  }, null, { timeout: 30_000 });
+  const aiError = (await page.locator(".error-text").textContent().catch(() => null))?.trim();
+  if (aiError) {
+    const edgeDiagnostics = diagnostics.filter((entry) => entry.startsWith("edge ")).join("\n");
+    throw new Error(`AI UI error: ${aiError}${edgeDiagnostics ? `\n${edgeDiagnostics}` : ""}`);
+  }
+  await expect(page.locator(".chat-message-row")).toHaveCount(5, { timeout: 30_000 });
+  const realReply = (await page.locator(".chat-message-row.assistant .chat-bubble p").last().innerText()).trim();
+  if (Array.from(realReply).length > 180) throw new Error(`AI reply exceeded 180 Chinese characters: ${realReply}`);
+  if (!/午餐|主食|蛋白|蔬菜|鸡|鱼|蛋|豆|饭|面|餐/.test(realReply)) {
+    throw new Error(`AI reply did not directly answer the meal question: ${realReply}`);
+  }
+  if (/Edge Function|数据库|JSON|系统提示词|模型名称/.test(realReply)) {
+    throw new Error(`AI reply exposed implementation details: ${realReply}`);
+  }
   await page.locator(".figma-header-action").last().click();
   await page.locator(".app-utility-popover button").filter({ hasText: /新会话|New chat/ }).click();
   await expect(page.locator(".chat-message-row")).toHaveCount(0);
@@ -329,12 +362,13 @@ async function verifyAi(page, results) {
   const pointer = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   await page.mouse.move(pointer.x, pointer.y);
   await page.mouse.down();
-  await page.waitForTimeout(900);
-  await expect(page.locator('[data-voice-state="recording"]')).toBeVisible();
+  await page.waitForTimeout(520);
+  await expect(page).toHaveURL(/tab=ai/);
+  await expect(page.locator(".chat-composer.voice-active")).toBeVisible();
   await page.screenshot({ path: path.join(outputDir, "voice-recording.png") });
   await page.waitForTimeout(120);
   await page.mouse.up();
-  await expect(page.locator("[data-voice-state]")).toBeHidden();
+  await expect(page.locator(".chat-composer.voice-active")).toBeHidden();
   await expect(page.locator(".chat-composer input")).toHaveValue("今天感觉很平稳");
   const inputBeforeCancelledVoice = await page.locator(".chat-composer input").inputValue();
 
@@ -344,13 +378,15 @@ async function verifyAi(page, results) {
   const cancelPointer = { x: cancelBox.x + cancelBox.width / 2, y: cancelBox.y + cancelBox.height / 2 };
   await page.mouse.move(cancelPointer.x, cancelPointer.y);
   await page.mouse.down();
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(520);
+  await expect(page).toHaveURL(/tab=ai/);
+  await expect(page.locator(".chat-composer.voice-active")).toBeVisible();
   await page.mouse.move(cancelPointer.x, cancelPointer.y - 90, { steps: 4 });
-  await expect(page.locator('[data-voice-state="cancel"]')).toBeVisible();
+  await expect(page.locator(".chat-voice-button.cancel-armed")).toBeVisible();
   await page.mouse.up();
-  await expect(page.locator("[data-voice-state]")).toBeHidden();
+  await expect(page.locator(".chat-composer.voice-active")).toBeHidden();
   await expect(page.locator(".chat-composer input")).toHaveValue(inputBeforeCancelledVoice);
-  results.push("AI 对话、长按录音、松手结束与上滑取消");
+  results.push("真实 AI 对话、回复方向与 180 字上限、按住即进入录音、松手结束与上滑取消");
 }
 
 async function verifyProfile(page, results) {
@@ -397,8 +433,12 @@ async function verifyNavigationAndMotion(page, results) {
     await page.locator(`[data-tab="${tab}"]`).click();
     await expect(page.locator(`[data-tab="${tab}"]`)).toHaveAttribute("aria-current", "page");
     if (tab === "trends") {
-      await expect(page.locator(".line-trend-chart")).toHaveCount(2);
-      await expect(page.locator(".trend-line")).toHaveCount(2);
+      await expect(page.locator("[data-growth-screen]")).toBeVisible();
+      await expect(page.locator("[data-growth-task]")).toHaveCount(3);
+      const firstTask = page.locator("[data-growth-task]").first();
+      const wasCompleted = await firstTask.evaluate((button) => button.classList.contains("completed"));
+      await firstTask.click();
+      await expect.poll(() => firstTask.evaluate((button) => button.classList.contains("completed"))).toBe(!wasCompleted);
     }
     const animationName = await page.locator(`[data-tab="${tab}"]`).evaluate((button) => {
       const glyph = button.querySelector("svg, .figma-nav-icon");
@@ -438,7 +478,7 @@ async function main() {
     await verifyNavigationAndMotion(page, results);
     await verifyHomeShortcuts(page, results);
     await verifyRecordModules(page, results);
-    await verifyAi(page, results);
+    await verifyAi(page, results, consoleErrors);
     await verifyProfile(page, results);
     await page.waitForTimeout(900);
     await page.screenshot({ path: path.join(outputDir, "final-profile.png") });

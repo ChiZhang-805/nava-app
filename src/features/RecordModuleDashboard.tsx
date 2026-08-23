@@ -487,6 +487,15 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
   }));
   const goalProgress = Math.min(100, Math.round((todayMinutes / 120) * 100));
 
+  const updateDuration = (nextValue: number) => {
+    const nextMinutes = Math.min(180, Math.max(1, Math.round(nextValue || 1)));
+    setFocusMinutes(nextMinutes);
+    setRemaining(nextMinutes * 60);
+    setRunning(false);
+    setHasStarted(false);
+    setSaved(false);
+  };
+
   useEffect(() => {
     if (!immersive || !running) return;
     const timer = window.setInterval(() => setRemaining((value) => Math.max(0, value - 1)), 1000);
@@ -513,7 +522,21 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
     return (
       <div className="module-dashboard focus-immersive" data-module-view="focus-immersive">
         <button className="module-inline-back" type="button" onClick={() => { setRunning(false); openView("overview"); }}><ArrowLeft size={18} />{locale === "zh" ? "专注记录" : "Focus"}</button>
-        <label className="focus-title-field"><input value={focusTitle} onChange={(event) => setFocusTitle(event.target.value)} /><span>{focusMinutes}{locale === "zh" ? " 分钟" : " min"}</span></label>
+        <div className="focus-title-field">
+          <input aria-label={locale === "zh" ? "专注事项" : "Focus activity"} value={focusTitle} onChange={(event) => setFocusTitle(event.target.value)} />
+          <label className="focus-duration-field">
+            <input
+              aria-label={locale === "zh" ? "专注分钟数" : "Focus duration in minutes"}
+              inputMode="numeric"
+              min={1}
+              max={180}
+              type="number"
+              value={focusMinutes}
+              onChange={(event) => updateDuration(Number(event.target.value))}
+            />
+            <span>{locale === "zh" ? "分钟" : "min"}</span>
+          </label>
+        </div>
         <div className="focus-timer-ring" style={{ "--timer-progress": `${progress}%` } as CSSProperties}>
           <div><strong>{formatDuration(remaining)}</strong><span>{running ? (locale === "zh" ? "专注中" : "Focusing") : hasStarted ? (locale === "zh" ? "已暂停" : "Paused") : (locale === "zh" ? "准备开始" : "Ready")}</span></div>
         </div>
@@ -541,7 +564,7 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
         <section className="figma-module-card focus-week-card"><header>{locale === "zh" ? "近 7 日目标完成度" : "7-day goal"}</header><LineTrendChart points={focusTrendPoints} compact ariaLabel={locale === "zh" ? "近七日专注目标完成度" : "Seven-day focus goal completion"} /></section>
         <section className="figma-module-card focus-history-card"><header>{locale === "zh" ? "完成记录" : "Completed"}</header>{focusRecords.slice(-3).reverse().map((record) => <p key={record.id}><Check size={13} />{shortDate(record.record_date, locale)} · {record.completed_sessions}{locale === "zh" ? "次" : " sessions"} · {record.total_minutes} min</p>)}</section>
       </div>
-      <section className="figma-module-card focus-quick-card"><div><Clock3 size={20} /><input value={focusTitle} onChange={(event) => setFocusTitle(event.target.value)} /></div><div><button type="button" onClick={() => setFocusMinutes(Math.max(5, focusMinutes - 5))}>-</button><strong>{focusMinutes} min</strong><button type="button" onClick={() => setFocusMinutes(Math.min(90, focusMinutes + 5))}>+</button></div><button type="button" onClick={() => { setHasStarted(false); openView("immersive"); }}>{locale === "zh" ? "进入专注" : "Start focus"}</button></section>
+      <section className="figma-module-card focus-quick-card"><div><Clock3 size={20} /><input value={focusTitle} onChange={(event) => setFocusTitle(event.target.value)} /></div><div><button type="button" onClick={() => updateDuration(focusMinutes - 5)} aria-label={locale === "zh" ? "减少五分钟" : "Decrease five minutes"}>-</button><label className="focus-duration-field compact"><input aria-label={locale === "zh" ? "专注分钟数" : "Focus duration in minutes"} inputMode="numeric" min={1} max={180} type="number" value={focusMinutes} onChange={(event) => updateDuration(Number(event.target.value))} /><span>{locale === "zh" ? "分钟" : "min"}</span></label><button type="button" onClick={() => updateDuration(focusMinutes + 5)} aria-label={locale === "zh" ? "增加五分钟" : "Increase five minutes"}>+</button></div><button type="button" onClick={() => { setHasStarted(false); setRemaining(focusMinutes * 60); openView("immersive"); }}>{locale === "zh" ? "进入专注" : "Start focus"}</button></section>
       <AssistantCard text={locale === "zh" ? `近七日已记录 ${focusRecords.reduce((sum, record) => sum + record.total_minutes, 0)} 分钟专注。下一次建议从 ${focusMinutes} 分钟开始。` : `${focusRecords.reduce((sum, record) => sum + record.total_minutes, 0)} focused minutes were logged in seven days. Start the next session with ${focusMinutes} minutes.`} />
     </div>
   );

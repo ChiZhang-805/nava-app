@@ -2,8 +2,9 @@ import type { User } from "@supabase/supabase-js";
 import { ArrowLeft, BedDouble, Brain, Camera, Check, ChevronRight, Drumstick, Dumbbell, Loader2, ScanFace, SmilePlus, type LucideIcon } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
+import LineTrendChart from "../components/LineTrendChart";
 import SectionCard from "../components/SectionCard";
-import { useT, type TranslationKey } from "../i18n";
+import { useLocale, type TranslationKey } from "../i18n";
 import {
   saveExerciseRecord,
   saveFocusSession,
@@ -96,7 +97,7 @@ export default function RecordsScreen({
   onModuleChange?: (module: RecordModule | null) => void;
   onViewChange?: (view: string | null) => void;
 }) {
-  const t = useT();
+  const { locale, t } = useLocale();
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +106,7 @@ export default function RecordsScreen({
   const [showEditor, setShowEditor] = useState(false);
   const [todaySnapshot, setTodaySnapshot] = useState<TodaySnapshot | null>(null);
   const [trendBundle, setTrendBundle] = useState<TrendBundle | null>(null);
+  const [reportMode, setReportMode] = useState<"modules" | "weekly">("modules");
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const [moodScore, setMoodScore] = useState(70);
@@ -385,48 +387,98 @@ export default function RecordsScreen({
   }
 
   if (!activeModule) {
+    const rhythmPoints = (trendBundle?.rhythms ?? []).slice(-7).map((item) => ({
+      id: item.id,
+      label: new Date(`${item.record_date}T00:00:00`).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", { month: "numeric", day: "numeric" }),
+      value: item.score,
+      lower: item.score_lower,
+      upper: item.score_upper,
+    }));
+    const moodPoints = (trendBundle?.moods ?? []).slice(-7).map((item) => ({
+      id: item.id,
+      label: new Date(`${item.record_date}T00:00:00`).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", { month: "numeric", day: "numeric" }),
+      value: item.mood_score,
+    }));
+    const reportPoints = rhythmPoints.length >= 2 ? rhythmPoints : moodPoints;
+    const latestReportPoint = reportPoints[reportPoints.length - 1];
+    const weekChange = reportPoints.length >= 2 ? Math.round(latestReportPoint.value - reportPoints[0].value) : 0;
+    const completedModules = todaySnapshot ? [
+      todaySnapshot.mood,
+      todaySnapshot.sleep,
+      todaySnapshot.exercise,
+      todaySnapshot.nutrition,
+      todaySnapshot.face,
+      todaySnapshot.focusMinutes > 0 ? true : null,
+    ].filter(Boolean).length : 0;
     return (
       <div className="record-hub" ref={rootRef}>
-        <label className="record-hub-date">
-          <input
-            aria-label={t("records.date")}
-            type="date"
-            value={recordDate}
-            max={todayISO()}
-            onChange={(event) => setRecordDate(event.target.value)}
-          />
-        </label>
-
-        <div className="record-module-grid">
-          {recordModules.map(({ id, labelKey, icon: Icon, summaryKeys }) => (
-            <button
-              className="record-module-entry"
-              data-record-module={id}
-              key={id}
-              type="button"
-              onClick={() => {
-                setNotice(null);
-                setError(null);
-                setShowEditor(false);
-                setActiveModule(id);
-                onModuleChange?.(id);
-              }}
-            >
-              <span className="record-module-header">
-                <strong>{t(labelKey)}</strong>
-                <span className="record-module-icon" aria-hidden="true">
-                  <Icon size={25} strokeWidth={1.9} />
-                </span>
-              </span>
-              <span className="record-module-points" aria-hidden="true">
-                {summaryKeys.map((key) => (
-                  <span key={key}>{t(key)}</span>
-                ))}
-              </span>
-              <ChevronRight className="record-module-arrow" size={20} aria-hidden="true" />
-            </button>
-          ))}
+        <div className="health-report-tabs" role="tablist" aria-label={locale === "zh" ? "健康报告视图" : "Health report view"}>
+          <button type="button" role="tab" aria-selected={reportMode === "modules"} onClick={() => setReportMode("modules")}>{locale === "zh" ? "分项报告" : "Modules"}</button>
+          <button type="button" role="tab" aria-selected={reportMode === "weekly"} onClick={() => setReportMode("weekly")}>{locale === "zh" ? "本周报告" : "Weekly"}</button>
         </div>
+
+        {reportMode === "modules" ? <>
+          <label className="record-hub-date">
+            <input
+              aria-label={t("records.date")}
+              type="date"
+              value={recordDate}
+              max={todayISO()}
+              onChange={(event) => setRecordDate(event.target.value)}
+            />
+          </label>
+
+          <div className="record-module-grid">
+            {recordModules.map(({ id, labelKey, icon: Icon, summaryKeys }) => (
+              <button
+                className="record-module-entry"
+                data-record-module={id}
+                key={id}
+                type="button"
+                onClick={() => {
+                  setNotice(null);
+                  setError(null);
+                  setShowEditor(false);
+                  setActiveModule(id);
+                  onModuleChange?.(id);
+                }}
+              >
+                <span className="record-module-header">
+                  <strong>{t(labelKey)}</strong>
+                  <span className="record-module-icon" aria-hidden="true">
+                    <Icon size={25} strokeWidth={1.9} />
+                  </span>
+                </span>
+                <span className="record-module-points" aria-hidden="true">
+                  {summaryKeys.map((key) => <span key={key}>{t(key)}</span>)}
+                </span>
+                <ChevronRight className="record-module-arrow" size={20} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        </> : (
+          <div className="weekly-health-report" data-weekly-health-report>
+            <section className="weekly-score-card">
+              <div><span>{locale === "zh" ? "本周节律" : "Weekly rhythm"}</span><strong>{todaySnapshot?.rhythmScore ?? "--"}</strong></div>
+              <div><span>{locale === "zh" ? "数据完整度" : "Data complete"}</span><strong>{completedModules}/6</strong></div>
+              <div><span>{locale === "zh" ? "周内变化" : "Weekly change"}</span><strong>{weekChange >= 0 ? "+" : ""}{weekChange}</strong></div>
+            </section>
+            <section className="weekly-trend-card">
+              <header><strong>{locale === "zh" ? "节律轨迹" : "Rhythm trajectory"}</strong><span>{locale === "zh" ? "近 7 天" : "7 days"}</span></header>
+              {reportPoints.length > 0
+                ? <LineTrendChart points={reportPoints} tone="rhythm" compact ariaLabel={locale === "zh" ? "近七天节律折线图" : "Seven-day rhythm chart"} />
+                : <p>{locale === "zh" ? "完成两天记录后生成折线。" : "Log two days to create a chart."}</p>}
+            </section>
+            <section className="weekly-insight-card">
+              <span>NAVA</span>
+              <strong>{locale === "zh" ? "本周观察" : "Weekly insight"}</strong>
+              <p>{todaySnapshot?.nextAction || (locale === "zh" ? "继续记录睡眠、运动与情绪，NAVA 会据此生成跨模块节律线索。" : "Keep logging sleep, activity, and mood to build cross-module rhythm insights.")}</p>
+            </section>
+            <section className="weekly-module-status">
+              {recordModules.map(({ id, labelKey, icon: Icon }) => <button type="button" key={id} onClick={() => { setActiveModule(id); onModuleChange?.(id); }}><Icon size={20} /><span>{t(labelKey)}</span><ChevronRight size={17} /></button>)}
+            </section>
+          </div>
+        )}
       </div>
     );
   }
