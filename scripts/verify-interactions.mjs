@@ -11,6 +11,7 @@ const viewportHeight = Number(process.env.VIEWPORT_HEIGHT || 932);
 const screenshotLabel = process.env.SCREENSHOT_LABEL?.trim();
 const outputDir = path.join(root, "artifacts", screenshotLabel ? `interaction-review-${screenshotLabel}` : "interaction-review");
 const port = Number(process.env.PORT || 5192);
+const reviewBaseUrl = process.env.REVIEW_BASE_URL?.trim().replace(/\/$/, "");
 const demoAccount = "13800138000";
 const demoPassword = "12345678";
 const demoOtp = "123456";
@@ -466,9 +467,11 @@ async function main() {
   await mkdir(outputDir, { recursive: true });
   const results = [];
   const consoleErrors = [];
-  const server = await createServer({ root, server: { host: "127.0.0.1", port }, logLevel: "silent" });
-  await server.listen();
-  const baseUrl = server.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? `http://127.0.0.1:${port}`;
+  const server = reviewBaseUrl
+    ? null
+    : await createServer({ root, server: { host: "127.0.0.1", port }, logLevel: "silent" });
+  await server?.listen();
+  const baseUrl = reviewBaseUrl ?? server?.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? `http://127.0.0.1:${port}`;
   const browser = await chromium.launch();
   try {
     await verifyAuthControls(browser, baseUrl, results, consoleErrors);
@@ -492,7 +495,7 @@ async function main() {
     for (const result of results) console.log(`- ${result}`);
   } finally {
     await browser.close();
-    await server.close();
+    await server?.close();
   }
 }
 
