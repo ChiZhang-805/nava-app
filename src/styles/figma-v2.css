@@ -1,10 +1,52 @@
 /* Final overrides for the read-only Figma mobile v2 implementation. */
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 0;
+  background: #fff;
+}
+
+body::before {
+  content: none;
+}
+
 .nava-app-stage {
-  background: #eef3f5;
+  --nava-phone-max-width: 480px;
+  width: 100%;
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  background: #fff;
 }
 
 .nava-app-stage::before {
   content: none;
+}
+
+.nava-app-stage > .phone-frame,
+.nava-app-stage > .auth-screen,
+.nava-app-stage > .app-screen {
+  width: min(100%, var(--nava-phone-max-width));
+  max-width: var(--nava-phone-max-width);
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin-inline: auto;
+}
+
+@media (max-width: 480px) {
+  .nava-app-stage > .phone-frame,
+  .nava-app-stage > .auth-screen,
+  .nava-app-stage > .app-screen {
+    max-width: none;
+    border-inline: 0;
+    box-shadow: none;
+  }
 }
 
 .launch-brand-lockup {
