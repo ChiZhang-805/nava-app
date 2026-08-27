@@ -390,7 +390,9 @@ async function assertNoBottomNavClipping(page, label, selectors) {
         const rect = node.getBoundingClientRect();
         return {
           auditLabel,
+          tagName: node.tagName.toLowerCase(),
           className: node.className,
+          text: (node.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 80),
           top: Math.round(rect.top * 10) / 10,
           bottom: Math.round(rect.bottom * 10) / 10,
           navTop: Math.round(navTop * 10) / 10,
@@ -554,8 +556,8 @@ async function verifyRecordModules(page, results) {
   await page.locator('[aria-label="填写运动自评"], [aria-label="Edit self assessment"]').click();
   await expect(page.locator('[data-record-detail="exercise"] form:not([hidden])')).toBeVisible();
   await page.waitForTimeout(450);
-  await assertNoBottomNavClipping(page, "exercise-editor", '[data-record-detail="exercise"] form:not([hidden]) .field, [data-record-detail="exercise"] form:not([hidden]) .action-button');
   await page.screenshot({ path: path.join(outputDir, "record-exercise-editor.png") });
+  await assertNoBottomNavClipping(page, "exercise-editor", '[data-record-detail="exercise"] form:not([hidden]) .field, [data-record-detail="exercise"] form:not([hidden]) .action-button');
   await page.locator('[data-record-detail="exercise"] form:not([hidden]) .action-button').click();
   await expect(page.locator('[data-record-detail="exercise"] .success-text')).toBeVisible();
   await expect(page.locator('[data-module-view="exercise-overview"]')).toBeVisible();
@@ -568,8 +570,8 @@ async function verifyRecordModules(page, results) {
   await page.locator('[aria-label="记录饮食"], [aria-label="Log a meal"]').click();
   await expect(page.locator('[data-record-detail="diet"] form:not([hidden])')).toBeVisible();
   await page.waitForTimeout(450);
-  await assertNoBottomNavClipping(page, "diet-editor", '[data-record-detail="diet"] form:not([hidden]) .field, [data-record-detail="diet"] form:not([hidden]) .action-button');
   await page.screenshot({ path: path.join(outputDir, "record-diet-editor.png") });
+  await assertNoBottomNavClipping(page, "diet-editor", '[data-record-detail="diet"] form:not([hidden]) .field, [data-record-detail="diet"] form:not([hidden]) .action-button');
   await page.locator('[data-record-detail="diet"] input[type="file"][capture="environment"]').setInputFiles(samplePhoto);
   await expect(page.locator('[data-record-detail="diet"] .success-text')).toBeVisible();
   await page.locator('[data-record-detail="diet"] form:not([hidden]) .action-button').click();
@@ -620,8 +622,8 @@ async function verifyRecordModules(page, results) {
   await page.locator('.face-trend-card .module-card-nav-button').click();
   await expect(page.locator('[data-record-detail="face"] .module-history-chart')).toBeVisible();
   await page.waitForTimeout(1_050);
-  await assertNoBottomNavClipping(page, "face-history", '[data-record-detail="face"] .module-history-list p, [data-record-detail="face"] .module-history-share');
   await page.screenshot({ path: path.join(outputDir, "record-face-trend.png") });
+  await assertNoBottomNavClipping(page, "face-history", '[data-record-detail="face"] .module-history-list p, [data-record-detail="face"] .module-history-share');
   await returnFromSubview();
   await page.locator('[aria-label="使用前置摄像头拍照"], [aria-label="Take a front-camera photo"]').click();
   await expect(page.locator('[data-record-detail="face"] .face-consent')).toBeVisible();
