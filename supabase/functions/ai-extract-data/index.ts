@@ -21,6 +21,30 @@ type TimeMention = {
   context: string;
 };
 
+type FoodDraft = {
+  name: string;
+  quantity: number;
+  unit: string;
+  amount: string;
+  calories: number;
+  caloriesPerUnit: number;
+};
+
+const localizedNumberToken = "[\\d一二两三四五六七八九十百零〇]+(?:\\.\\d+)?";
+const chineseDigits: Record<string, number> = {
+  零: 0, 〇: 0, 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9,
+};
+const foodCalorieRules = [
+  { pattern: /鸡蛋|蛋\b|egg/i, calories: 70, unit: "个", name: "鸡蛋" },
+  { pattern: /面包|吐司|bread|toast/i, calories: 75, unit: "片", name: "面包" },
+  { pattern: /香蕉|banana/i, calories: 105, unit: "根", name: "香蕉" },
+  { pattern: /苹果|apple/i, calories: 95, unit: "个", name: "苹果" },
+  { pattern: /米饭|rice/i, calories: 230, unit: "碗", name: "米饭" },
+  { pattern: /牛奶|milk/i, calories: 120, unit: "杯", name: "牛奶" },
+  { pattern: /咖啡|coffee/i, calories: 5, unit: "杯", name: "咖啡" },
+  { pattern: /酸奶|yogurt/i, calories: 120, unit: "杯", name: "酸奶" },
+];
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return optionsResponse();
   if (req.method !== "POST") return errorResponse("仅支持 POST。", 405);
@@ -73,7 +97,7 @@ function localExtract(message: string, lang: "zh" | "en") {
   if (records.length === 0) {
     return {
       schemaVersion: "1.0.0",
-      modelVersion: "ai-extract-rules-v1-2026-07",
+      modelVersion: "ai-extract-rules-v2-2026-08",
       provider: "rules",
       hasData: false,
       dataType: "unknown",
@@ -87,7 +111,7 @@ function localExtract(message: string, lang: "zh" | "en") {
     const [record] = records;
     return {
       schemaVersion: "1.0.0",
-      modelVersion: "ai-extract-rules-v1-2026-07",
+      modelVersion: "ai-extract-rules-v2-2026-08",
       provider: "rules",
       hasData: true,
       dataType: record.dataType,
@@ -99,7 +123,7 @@ function localExtract(message: string, lang: "zh" | "en") {
 
   return {
     schemaVersion: "1.0.0",
-    modelVersion: "ai-extract-rules-v1-2026-07",
+    modelVersion: "ai-extract-rules-v2-2026-08",
     provider: "rules",
     hasData: true,
     dataType: "multi",
@@ -122,11 +146,24 @@ function extractSleep(message: string): ExtractedRecord | null {
     times.find((time) => /(睡|入睡|上床|bed|slept|sleep)/i.test(time.context)) ?? times[0];
   const endMention =
     times.find((time) => /(醒|起床|起来|wake|woke|up)/i.test(time.context)) ?? times.find((time) => time !== startMention);
-  if (!startMention && !endMention) return null;
-
-  const start = startMention?.value;
-  const end = endMention?.value;
-  const durationMinutes = start && end ? estimateSleepMinutes(start, end) : undefined;
+  let start = startMention?.value;
+  let end = endMention?.value;
+  let durationMinutes = start && end ? estimateSleepMinutes(start, end) : undefined;
+  if (durationMinutes == null) {
+    const hours = matchLocalizedNumber(message, new RegExp(`(?:睡了?|睡眠|休息|slept|sleep)[^\\d一二两三四五六七八九十百零〇]{0,8}(${localizedNumberToken})\\s*(?:个)?(?:小时|钟头|hours?|hrs?|h)`, "i"))
+      ?? matchLocalizedNumber(message, new RegExp(`(${localizedNumberToken})\\s*(?:个)?(?:小时|钟头|hours?|hrs?|h)[^，。,.]{0,6}(?:睡眠|睡觉|休息|sleep)`, "i"));
+    const minutes = hours != null
+      ? matchLocalizedNumber(message, new RegExp(`${localizedNumberToken}\\s*(?:个)?(?:小时|钟头|hours?|hrs?|h)\\s*(${localizedNumberToken})\\s*(?:分钟|mins?|minutes?)`, "i"))
+      : matchLocalizedNumber(message, new RegExp(`(?:睡了?|睡眠|休息|slept|sleep)[^\\d一二两三四五六七八九十百零〇]{0,8}(${localizedNumberToken})\\s*(?:分钟|mins?|minutes?)`, "i"));
+    durationMinutes = hours != null ? Math.round(hours * 60 + (minutes ?? 0)) : minutes;
+    if (durationMinutes && durationMinutes > 0) {
+      const now = new Date();
+      const endMinutes = now.getUTCHours() * 60 + now.getUTCMinutes() + 8 * 60;
+      end = clockFromMinutes(endMinutes);
+      start = clockFromMinutes(endMinutes - durationMinutes);
+    }
+  }
+  if (!start || !end || !durationMinutes) return null;
   const rating = extractScore(message, ["睡眠", "睡得", "sleep", "quality"]);
   const deepMinutes = extractMinutesByKeyword(message, /(深睡|deep)/i);
   const remMinutes = extractMinutesByKeyword(message, /(rem|快速眼动)/i);
@@ -143,7 +180,7 @@ function extractSleep(message: string): ExtractedRecord | null {
       remMinutes,
       selfRating: rating,
     },
-    confidence: start && end ? 0.86 : 0.56,
+    confidence: startMention && endMention ? 0.86 : 0.78,
   };
 }
 
@@ -224,8 +261,9 @@ function extractNutrition(message: string): ExtractedRecord | null {
   if (!/(早餐|午餐|晚餐|加餐|饮食|吃了|喝了|kcal|千卡|大卡|calorie|breakfast|lunch|dinner|snack|ate|food)/i.test(message)) {
     return null;
   }
-  const calories = matchNumber(message, /([\d,，]+)\s*(?:千卡|大卡|卡路里|kcal|calories?)/i);
-  if (calories == null && !/(吃了|喝了|ate|food)/i.test(message)) return null;
+  const calories = matchLocalizedNumber(message, new RegExp(`(${localizedNumberToken})\\s*(?:千卡|大卡|卡路里|kcal|calories?)`, "i"));
+  const items = extractFoodItems(message);
+  if (calories == null && items.length === 0) return null;
 
   const meal = /早餐|breakfast/i.test(message)
     ? "breakfast"
@@ -234,17 +272,20 @@ function extractNutrition(message: string): ExtractedRecord | null {
       : /晚餐|晚上吃|dinner/i.test(message)
         ? "dinner"
         : "pantry";
-  const name = extractFoodName(message) ?? "手动记录餐食";
+  const totalCalories = Math.max(0, Math.round(calories ?? items.reduce((sum, item) => sum + item.calories, 0)));
+  if (calories != null && items.length > 0) distributeCalories(items, totalCalories);
+  const name = items.map((item) => `${item.amount}${item.name}`).join("、") || extractFoodName(message) || "手动记录餐食";
 
   return {
     dataType: "nutrition",
     extractedData: {
       meal,
       name,
-      amount: undefined,
-      calories: calories ?? 0,
+      items,
+      totalCalories,
+      calories: totalCalories,
     },
-    confidence: calories == null ? 0.48 : 0.72,
+    confidence: calories == null ? 0.74 : 0.86,
   };
 }
 
@@ -338,6 +379,71 @@ function matchNumber(message: string, pattern: RegExp) {
 function parseNumber(value: string) {
   const parsed = Number(value.replace(/[，,]/g, ""));
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function parseLocalizedNumber(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const normalized = value.replace(/[，,]/g, "");
+  const parsed = Number(normalized);
+  if (Number.isFinite(parsed)) return parsed;
+  if (normalized === "十") return 10;
+  if (normalized.includes("百")) {
+    const [hundreds, rest = ""] = normalized.split("百");
+    return (chineseDigits[hundreds] ?? 1) * 100 + (parseLocalizedNumber(rest) ?? 0);
+  }
+  if (normalized.includes("十")) {
+    const [tens, ones = ""] = normalized.split("十");
+    return (chineseDigits[tens] ?? 1) * 10 + (chineseDigits[ones] ?? 0);
+  }
+  if (normalized.length === 1) return chineseDigits[normalized];
+  const digits = [...normalized].map((digit) => chineseDigits[digit]);
+  return digits.every((digit) => digit != null) ? Number(digits.join("")) : undefined;
+}
+
+function matchLocalizedNumber(message: string, pattern: RegExp) {
+  return parseLocalizedNumber(message.match(pattern)?.[1]);
+}
+
+function clockFromMinutes(minutes: number) {
+  const normalized = ((minutes % 1440) + 1440) % 1440;
+  return `${String(Math.floor(normalized / 60)).padStart(2, "0")}:${String(normalized % 60).padStart(2, "0")}`;
+}
+
+function foodCalories(name: string, unit: string) {
+  const rule = foodCalorieRules.find((item) => item.pattern.test(name));
+  if (!rule) return 100;
+  if (/克|g/i.test(unit)) return rule.calories / 100;
+  if (/毫升|ml/i.test(unit)) return rule.calories / 250;
+  return rule.calories;
+}
+
+function extractFoodItems(message: string): FoodDraft[] {
+  const items: FoodDraft[] = [];
+  const pattern = new RegExp(`(${localizedNumberToken})\\s*(个|只|枚|颗|片|碗|杯|克|g|毫升|ml|份|根|块|勺)\\s*([\\u4e00-\\u9fa5A-Za-z]{1,12}?)(?=和|与|及|、|，|。|,|\\.|然后|$)`, "giu");
+  for (const match of message.matchAll(pattern)) {
+    const quantity = parseLocalizedNumber(match[1]);
+    if (quantity == null || quantity <= 0) continue;
+    const unit = match[2];
+    const rawName = match[3].replace(/^(?:了|些|一份)/, "").trim();
+    const rule = foodCalorieRules.find((item) => item.pattern.test(rawName));
+    const name = rule?.name ?? rawName;
+    if (!name || /小时|分钟|运动|睡眠|跑步/.test(name)) continue;
+    const caloriesPerUnit = foodCalories(name, unit);
+    items.push({ name, quantity, unit, amount: `${quantity}${unit}`, calories: Math.max(0, Math.round(quantity * caloriesPerUnit)), caloriesPerUnit });
+  }
+  if (items.length > 0) return items;
+  const rule = foodCalorieRules.find((item) => item.pattern.test(message));
+  return rule ? [{ name: rule.name, quantity: 1, unit: rule.unit, amount: `1${rule.unit}`, calories: rule.calories, caloriesPerUnit: rule.calories }] : [];
+}
+
+function distributeCalories(items: FoodDraft[], total: number) {
+  const estimated = items.reduce((sum, item) => sum + item.calories, 0) || 1;
+  let assigned = 0;
+  items.forEach((item, index) => {
+    item.calories = index === items.length - 1 ? Math.max(0, total - assigned) : Math.max(0, Math.round(total * item.calories / estimated));
+    assigned += item.calories;
+    item.caloriesPerUnit = item.quantity > 0 ? item.calories / item.quantity : 0;
+  });
 }
 
 function extractFoodName(message: string) {

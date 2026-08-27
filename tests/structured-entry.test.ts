@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseStructuredEntry } from "../src/services/structuredEntryParser.ts";
+import { parseStructuredEntry, updateStructuredEntryField } from "../src/services/structuredEntryParser.ts";
 
 test("todo parser keeps tomorrow and afternoon time", () => {
   const entry = parseStructuredEntry("明天下午3点提醒我给团队开会", "zh");
@@ -16,4 +16,39 @@ test("sleep parser understands Chinese evening and morning periods", () => {
   assert.equal(entry?.payload.start, "23:00");
   assert.equal(entry?.payload.end, "07:00");
   assert.equal(entry?.payload.durationMinutes, 480);
+});
+
+test("one sentence produces sleep and nutrition records with all food items", () => {
+  const entry = parseStructuredEntry("我今天睡了三个小时，然后吃了两个鸡蛋和五片面包。", "zh");
+  assert.equal(entry?.type, "multi");
+  assert.deepEqual(entry?.entries?.map((item) => item.type), ["sleep", "nutrition"]);
+  assert.equal(entry?.entries?.[0].payload.durationMinutes, 180);
+
+  const nutrition = entry?.entries?.[1];
+  assert.deepEqual(
+    (nutrition?.payload.items as Array<Record<string, unknown>>).map((item) => [item.name, item.amount, item.calories]),
+    [["鸡蛋", "2个", 140], ["面包", "5片", 375]],
+  );
+  assert.equal(nutrition?.payload.totalCalories, 515);
+  assert.equal(nutrition?.fields.some((field) => field.label === "预估热量" && field.value === "515"), true);
+});
+
+test("editing a recognized food quantity recalculates item and total calories", () => {
+  const entry = parseStructuredEntry("吃了两个鸡蛋和五片面包", "zh");
+  assert.equal(entry?.type, "nutrition");
+  const eggField = entry?.fields.find((field) => field.label === "鸡蛋");
+  assert.ok(entry && eggField);
+  const updated = updateStructuredEntryField(entry, eggField.id, "3");
+  const items = updated.payload.items as Array<Record<string, unknown>>;
+  assert.equal(items[0].amount, "3个");
+  assert.equal(items[0].calories, 210);
+  assert.equal(updated.payload.totalCalories, 585);
+  assert.equal(updated.fields.find((field) => field.label === "预估热量")?.value, "585");
+});
+
+test("sleep and exercise durations remain separated in one sentence", () => {
+  const entry = parseStructuredEntry("我睡了3小时，然后跑步30分钟", "zh");
+  assert.equal(entry?.type, "multi");
+  assert.equal(entry?.entries?.find((item) => item.type === "sleep")?.payload.durationMinutes, 180);
+  assert.equal(entry?.entries?.find((item) => item.type === "exercise")?.payload.minutes, 30);
 });

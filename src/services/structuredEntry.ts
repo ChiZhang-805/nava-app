@@ -3,6 +3,7 @@ import {
   saveExerciseRecord,
   saveFocusSession,
   saveMoodRecord,
+  saveNutritionItems,
   saveNutritionRecord,
   saveSleepRecord,
 } from "./records";
@@ -15,7 +16,12 @@ import { type StructuredEntry } from "./structuredEntryParser";
 export { parseStructuredEntry } from "./structuredEntryParser";
 export type { StructuredEntry, StructuredEntryType } from "./structuredEntryParser";
 
-export async function confirmStructuredEntry(userId: string, candidate: StructuredEntry) {
+export async function confirmStructuredEntry(userId: string, candidate: StructuredEntry): Promise<unknown> {
+  if (candidate.type === "multi" && candidate.entries?.length) {
+    const saved = [];
+    for (const item of candidate.entries) saved.push(await confirmStructuredEntry(userId, item));
+    return { ...candidate, saved };
+  }
   const data = candidate.payload;
   if (candidate.type === "todo") {
     return addTodo(
@@ -34,7 +40,31 @@ export async function confirmStructuredEntry(userId: string, candidate: Structur
   });
   if (candidate.type === "sleep") await saveSleepRecord({ userId, start: String(data.start), end: String(data.end), durationMinutes: Number(data.durationMinutes), source: "manual" });
   if (candidate.type === "exercise") await saveExerciseRecord({ userId, steps: Number(data.steps ?? 0), calories: Number(data.calories ?? 0), minutes: Number(data.minutes ?? 0), source: "manual" });
-  if (candidate.type === "nutrition") await saveNutritionRecord({ userId, meal: data.meal as "breakfast" | "lunch" | "dinner" | "pantry", item: { name: String(data.name), calories: Number(data.calories ?? 0) }, totalCalories: Number(data.calories ?? 0) });
+  if (candidate.type === "nutrition") {
+    const items = Array.isArray(data.items)
+      ? data.items
+        .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+        .map((item) => ({
+          name: String(item.name ?? "饮食记录"),
+          amount: item.amount ? String(item.amount) : undefined,
+          calories: Math.max(0, Math.round(Number(item.calories ?? 0))),
+        }))
+      : [];
+    if (items.length > 0) {
+      await saveNutritionItems({
+        userId,
+        meal: data.meal as "breakfast" | "lunch" | "dinner" | "pantry",
+        items,
+      });
+    } else {
+      await saveNutritionRecord({
+        userId,
+        meal: data.meal as "breakfast" | "lunch" | "dinner" | "pantry",
+        item: { name: String(data.name), calories: Number(data.calories ?? 0) },
+        totalCalories: Number(data.calories ?? 0),
+      });
+    }
+  }
   if (candidate.type === "focus") await saveFocusSession({ userId, taskTitle: String(data.taskTitle), minutes: Number(data.minutes) });
   try {
     await Promise.allSettled([

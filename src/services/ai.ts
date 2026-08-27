@@ -6,6 +6,7 @@ import {
   saveExerciseRecord,
   saveFocusSession,
   saveMoodRecord,
+  saveNutritionItems,
   saveNutritionRecord,
   saveSleepRecord,
 } from "./records";
@@ -296,8 +297,22 @@ async function applyTypedData(userId: string, dataType: string, data: Record<str
 
   if (dataType === "nutrition") {
     const meal = normalizeMeal(stringValue(data.meal));
+    const items = Array.isArray(data.items)
+      ? data.items
+        .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+        .map((item) => ({
+          name: stringValue(item.name) ?? "饮食记录",
+          amount: stringValue(item.amount),
+          calories: Math.max(0, Math.round(numberValue(item.calories) ?? 0)),
+        }))
+      : [];
+    if (items.length > 0) {
+      await saveNutritionItems({ userId, date: todayISO(), meal, items });
+      if (refreshAfterSave) await refreshRhythmAfterApply(todayISO());
+      return { type: "nutrition", saved: true };
+    }
     const name = stringValue(data.name) ?? stringValue(data.food) ?? stringValue(data.title) ?? "手动记录餐食";
-    const calories = numberValue(data.calories) ?? numberValue(data.kcal) ?? 0;
+    const calories = numberValue(data.totalCalories) ?? numberValue(data.total_calories) ?? numberValue(data.calories) ?? numberValue(data.kcal) ?? 0;
     await saveNutritionRecord({
       userId,
       date: todayISO(),

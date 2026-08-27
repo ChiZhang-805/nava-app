@@ -6,6 +6,7 @@ import { loadConversation, sendAiMessage } from "../services/ai";
 import { loadProfile } from "../services/profile";
 import { startVoiceInput, type VoiceInputError, type VoiceInputSession } from "../services/voice";
 import { confirmStructuredEntry, parseStructuredEntry, type StructuredEntry } from "../services/structuredEntry";
+import { updateStructuredEntryField } from "../services/structuredEntryParser";
 import type { ChatMessage } from "../types";
 
 export type AiCommand = {
@@ -45,6 +46,7 @@ export default function AIScreen({
   const [voiceState, setVoiceState] = useState<"idle" | "starting" | "listening">("idle");
   const [voiceCancelArmed, setVoiceCancelArmed] = useState(false);
   const [pendingEntry, setPendingEntry] = useState<StructuredEntry | null>(null);
+  const [editingEntry, setEditingEntry] = useState(false);
   const [savingEntry, setSavingEntry] = useState(false);
   const [profile, setProfile] = useState<{ username: string | null; avatar_url?: string | null } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -110,6 +112,7 @@ export default function AIScreen({
       });
       setMessages((current) => [...current, result.userMessage, result.assistantMessage]);
       setPendingEntry(parseStructuredEntry(message, locale));
+      setEditingEntry(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setInput(message);
@@ -132,6 +135,7 @@ export default function AIScreen({
       };
       setMessages((current) => [...current, savedMessage]);
       setPendingEntry(null);
+      setEditingEntry(false);
       onDataSaved?.();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : String(saveError));
@@ -316,16 +320,39 @@ export default function AIScreen({
 
       {pendingEntry && (
         <section className="structured-confirmation" data-structured-confirmation={pendingEntry.type}>
-          <header>
-            <div><span>{locale === "zh" ? "识别结果" : "Recognized"}</span><strong>{pendingEntry.title}</strong></div>
-            <b>{Math.round(pendingEntry.confidence * 100)}%</b>
+          <header className="structured-confirmation-title">
+            <h2>{locale === "zh" ? "识别结果" : "Recognized data"}</h2>
           </header>
-          <div className="structured-field-grid">
-            {pendingEntry.fields.map((field) => <div key={`${field.label}-${field.value}`}><span>{field.label}</span><strong>{field.value}</strong></div>)}
+          <div className="structured-record-list">
+            {(pendingEntry.entries ?? [pendingEntry]).map((record) => (
+              <section className="structured-record" key={record.id} data-structured-record={record.type}>
+                <h3>{record.title}</h3>
+                <div className="structured-field-list">
+                  {record.fields.map((field) => (
+                    <label className="structured-field-row" key={field.id}>
+                      <span>{field.label}</span>
+                      {editingEntry ? (
+                        <span className="structured-field-editor">
+                          <input
+                            aria-label={`${field.label}${locale === "zh" ? "数值" : " value"}`}
+                            inputMode={field.valueType === "number" ? "decimal" : "text"}
+                            value={field.value}
+                            onChange={(event) => setPendingEntry((current) => current ? updateStructuredEntryField(current, field.id, event.target.value) : current)}
+                          />
+                          {field.unit && <em>{field.unit}</em>}
+                        </span>
+                      ) : (
+                        <strong>{field.value}{field.unit ? ` ${field.unit}` : ""}</strong>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
           <footer>
-            <button type="button" onClick={() => { setInput(pendingEntry.summary); setPendingEntry(null); }} aria-label={locale === "zh" ? "编辑" : "Edit"}><Pencil size={18} /></button>
-            <button type="button" onClick={() => setPendingEntry(null)} aria-label={locale === "zh" ? "取消" : "Cancel"}><X size={18} /></button>
+            <button type="button" className={editingEntry ? "active" : ""} onClick={() => setEditingEntry((current) => !current)} aria-label={locale === "zh" ? "逐项编辑" : "Edit fields"}>{editingEntry ? <Check size={18} /> : <Pencil size={18} />}</button>
+            <button type="button" onClick={() => { setPendingEntry(null); setEditingEntry(false); }} aria-label={locale === "zh" ? "取消" : "Cancel"}><X size={18} /></button>
             <button type="button" data-confirm-structured onClick={() => void confirmPendingEntry()} disabled={savingEntry}><Check size={18} /><span>{locale === "zh" ? "确认保存" : "Confirm"}</span></button>
           </footer>
         </section>
