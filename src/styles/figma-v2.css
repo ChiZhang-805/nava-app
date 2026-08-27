@@ -1789,6 +1789,19 @@ body::before {
   white-space: nowrap;
 }
 
+/* Keep four-field authentication flows visually compact as one unit. */
+.auth-screen--signUp,
+.auth-screen--reset {
+  grid-template-rows: minmax(260px, 35dvh) minmax(0, 1fr);
+}
+
+@media (max-width: 390px), (max-height: 740px) {
+  .auth-screen--signUp,
+  .auth-screen--reset {
+    grid-template-rows: minmax(170px, 27dvh) minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 340px), (max-height: 680px) {
   .auth-screen--signUp {
     grid-template-rows: minmax(120px, 22dvh) auto;
