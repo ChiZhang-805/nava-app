@@ -64,6 +64,7 @@ async function buildReply(input: {
 }) {
   const endpoint = Deno.env.get("NAVA_AI_CHAT_URL");
   const apiKey = Deno.env.get("NAVA_AI_CHAT_KEY");
+  const systemPrompt = buildSystemPrompt(input.lang, input.healthContext);
 
   if (endpoint) {
     const response = await fetch(endpoint, {
@@ -72,7 +73,7 @@ async function buildReply(input: {
         "Content-Type": "application/json",
         ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
       },
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, systemPrompt }),
     });
     if (!response.ok) throw new Error(`AI 回复服务返回 ${response.status}`);
     const data = await response.json();
@@ -80,7 +81,7 @@ async function buildReply(input: {
   }
 
   const deepseekKey = Deno.env.get("DEEPSEEK_API_KEY");
-  if (deepseekKey) return deepSeekReply(input, deepseekKey);
+  if (deepseekKey) return deepSeekReply(input, deepseekKey, systemPrompt);
 
   throw new Error("真实 AI 模型尚未配置，请联系管理员检查模型服务密钥。");
 }
@@ -92,9 +93,8 @@ async function deepSeekReply(input: {
   healthContext: unknown;
   conversationHistory: ConversationMessage[];
   lang: "zh" | "en";
-}, apiKey: string) {
+}, apiKey: string, systemPrompt: string) {
   const zh = input.lang !== "en";
-  const systemPrompt = buildSystemPrompt(input.lang);
 
   const history = input.conversationHistory
     .filter((item) => item && typeof item.content === "string" && (item.role === "user" || item.role === "assistant"))

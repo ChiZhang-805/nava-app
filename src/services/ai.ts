@@ -143,22 +143,25 @@ async function buildHealthContext(userId: string) {
       getTodaySnapshot(userId, todayISO()),
       loadProfileWithOnboarding(userId).catch(() => ({ profile: null, onboarding: null })),
     ]);
+    const profile = identity.profile;
+    const onboardingAnswers = identity.onboarding?.answers;
+    const personalizationAllowed = profile?.ai_personalization_consent
+      ?? onboardingAnswers?.aiPersonalizationConsent
+      ?? false;
     return {
       date: snapshot.date,
-      profile: identity.profile ? {
-        ageGroup: identity.profile.age_group ?? identity.onboarding?.answers.ageGroup ?? null,
-        gender: identity.onboarding?.answers.gender ?? null,
-        occupation: identity.profile.occupation,
-        hobbies: identity.onboarding?.answers.hobbies ?? [],
-        primaryGoal: identity.profile.goal,
-        exerciseFrequency: identity.profile.exercise_frequency,
-        sleepRhythm: identity.profile.sleep_schedule,
-        dietPreference: identity.profile.diet_preference,
-        stressFactors: identity.profile.stress_factors,
-        personalizationAllowed: identity.profile.ai_personalization_consent
-          ?? identity.onboarding?.answers.aiPersonalizationConsent
-          ?? false,
-      } : null,
+      profile: personalizationAllowed ? {
+        ageGroup: profile?.age_group ?? onboardingAnswers?.ageGroup ?? null,
+        gender: onboardingAnswers?.gender ?? null,
+        occupation: profile?.occupation ?? onboardingAnswers?.occupation ?? null,
+        hobbies: onboardingAnswers?.hobbies ?? [],
+        primaryGoal: profile?.goal ?? null,
+        exerciseDuration: onboardingAnswers?.exerciseDuration ?? profile?.exercise_frequency ?? null,
+        sleepDuration: onboardingAnswers?.sleepDuration ?? profile?.sleep_schedule ?? null,
+        dietPreferences: onboardingAnswers?.dietPreferences ?? profile?.diet_preference ?? [],
+        stressFactors: profile?.stress_factors ?? null,
+        personalizationAllowed: true,
+      } : { personalizationAllowed: false },
       rhythm: {
         score: snapshot.rhythmScore,
         confidence: snapshot.rhythmConfidence ?? null,
