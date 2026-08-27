@@ -482,6 +482,16 @@ body::before {
   text-align: left;
 }
 
+.app-utility-popover > .language-toggle {
+  justify-content: flex-start;
+}
+
+.app-utility-popover > .language-toggle svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+}
+
 .app-utility-popover > button:active {
   color: #087db0;
   background: rgba(190, 229, 244, 0.58);

@@ -21,7 +21,6 @@ import { enqueueAndFlushWatchAction, flushPendingWatchActions, subscribeWatchAct
 import ErrorBoundary from "./components/ErrorBoundary";
 import LanguageToggle from "./components/LanguageToggle";
 import MascotMotionSlot from "./components/MascotMotionSlot";
-import NetworkBadge from "./components/NetworkBadge";
 import UtilityDrawer from "./components/UtilityDrawer";
 import { LocaleProvider, useLocale, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
@@ -338,7 +337,6 @@ function MobileShell() {
               </>}
               <button type="button" onClick={() => { setUtilityOpen(false); setDrawerOpen(true); }}><ListTodo size={17} />{locale === "zh" ? "功能导航" : "Utilities"}</button>
               <LanguageToggle />
-              <NetworkBadge />
             </div>
           )}
         </header>

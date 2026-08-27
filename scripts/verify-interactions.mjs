@@ -562,9 +562,26 @@ async function verifyNavigationAndMotion(page, results) {
   await expect.poll(() => recordButton.locator("svg, .figma-nav-icon").evaluate((glyph) => getComputedStyle(glyph).animationName)).toBe("semantic-icon-press");
   await page.mouse.up();
   await page.locator(".figma-header-action").last().click();
-  await expect(page.locator(".app-utility-popover")).toBeVisible();
+  const utilityPopover = page.locator(".app-utility-popover");
+  await expect(utilityPopover).toBeVisible();
+  await expect(utilityPopover.locator(".network-badge")).toHaveCount(0);
+  const utilityAlignment = await utilityPopover.evaluate((popover) => {
+    const regularIcon = popover.querySelector("button:not(.language-toggle) svg");
+    const languageIcon = popover.querySelector(".language-toggle svg");
+    if (!regularIcon || !languageIcon) throw new Error("Utility menu icons are missing.");
+    const regularRect = regularIcon.getBoundingClientRect();
+    const languageRect = languageIcon.getBoundingClientRect();
+    return {
+      leftOffset: Math.abs(regularRect.left - languageRect.left),
+      widthOffset: Math.abs(regularRect.width - languageRect.width),
+      heightOffset: Math.abs(regularRect.height - languageRect.height),
+    };
+  });
+  if (utilityAlignment.leftOffset > 0.6 || utilityAlignment.widthOffset > 0.6 || utilityAlignment.heightOffset > 0.6) {
+    throw new Error(`Utility menu icons are not aligned: ${JSON.stringify(utilityAlignment)}`);
+  }
   await page.locator(".figma-header-action").last().click();
-  await expect(page.locator(".app-utility-popover")).toBeHidden();
+  await expect(utilityPopover).toBeHidden();
   results.push("五项底部导航、趋势折线、图标构建立体动效与页头工具菜单");
 }
 
