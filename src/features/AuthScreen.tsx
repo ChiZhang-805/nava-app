@@ -20,7 +20,7 @@ import { useAuth } from "../state/authContext";
 type AuthMode = "signIn" | "signUp" | "reset" | "recoveryChoice";
 type SignInMethod = "password" | "otp";
 
-export default function AuthScreen() {
+export default function AuthScreen({ transitionPending = false }: { transitionPending?: boolean }) {
   const {
     signIn,
     sendLoginOtp,
@@ -64,6 +64,7 @@ export default function AuthScreen() {
   const feedbackError = localError ?? error;
   const canSubmit =
     !busy &&
+    !transitionPending &&
     mode !== "recoveryChoice" &&
     accountIsValid &&
     (mode === "signIn"
@@ -323,13 +324,13 @@ export default function AuthScreen() {
           </div>
 
           <button className="auth-submit" type="submit" disabled={!canSubmit}>
-            <span>{busy ? t("auth.processing") : mode === "signIn" ? t("auth.enter") : mode === "signUp" ? t("auth.create") : t("auth.savePassword")}</span>
+            <span>{busy || transitionPending ? t("auth.processing") : mode === "signIn" ? t("auth.enter") : mode === "signUp" ? t("auth.create") : t("auth.savePassword")}</span>
             <ArrowRight size={19} />
           </button>
 
           <div className="auth-secondary-links">
             {mode === "signIn" && signInMethod === "password" && (
-              <button className="auth-forgot" type="button" onClick={() => switchMode("recoveryChoice")} disabled={busy}>
+              <button className="auth-forgot" type="button" onClick={() => switchMode("recoveryChoice")} disabled={busy || transitionPending}>
                 {t("auth.forgotPassword")}
               </button>
             )}
@@ -337,6 +338,7 @@ export default function AuthScreen() {
               className="auth-mode-icon"
               type="button"
               onClick={() => switchMode(mode === "signIn" && signInMethod === "password" ? "signUp" : "signIn")}
+              disabled={busy || transitionPending}
               aria-label={mode === "signIn" && signInMethod === "password" ? t("auth.switchToSignUp") : t("auth.switchToSignIn")}
               title={mode === "signIn" && signInMethod === "password" ? t("auth.switchToSignUp") : t("auth.switchToSignIn")}
             >

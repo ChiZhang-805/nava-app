@@ -449,58 +449,58 @@ function MobileShell() {
 function AppContent() {
   const configError = assertConfig();
   const { user, loading, passwordRecovery } = useAuth();
+  const signedOutScreenSeen = useRef(false);
+  const userId = user?.id ?? null;
+  const forceOnboarding = new URLSearchParams(window.location.search).get("onboarding") === "1";
+  const [onboardingRoute, setOnboardingRoute] = useState<{ userId: string; required: boolean } | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    if (!userId) {
+      setOnboardingRoute(null);
+      return () => {
+        alive = false;
+      };
+    }
+
+    loadOnboardingStatus(userId)
+      .then((status) => {
+        if (alive) setOnboardingRoute({ userId, required: forceOnboarding || !status.completed });
+      })
+      .catch((error) => {
+        console.warn("Unable to determine onboarding state", error);
+        if (alive) setOnboardingRoute({ userId, required: forceOnboarding });
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [forceOnboarding, userId]);
+
+  if (!loading && !user) signedOutScreenSeen.current = true;
+  const checkingOnboarding = Boolean(userId && onboardingRoute?.userId !== userId);
 
   let screen;
   if (configError && !isDemoMode()) screen = <ConfigErrorScreen message={configError} />;
   else if (loading) screen = <LoadingScreen />;
   else if (user && passwordRecovery) screen = <PasswordRecoveryScreen />;
   else if (!user) screen = <AuthScreen />;
-  else screen = <AuthenticatedApp />;
+  else if (checkingOnboarding) {
+    screen = signedOutScreenSeen.current ? <AuthScreen transitionPending /> : <LoadingScreen />;
+  } else if (onboardingRoute?.required) {
+    screen = <OnboardingScreen user={user} onComplete={() => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("onboarding");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      setOnboardingRoute({ userId: user.id, required: false });
+    }} />;
+  } else screen = <MobileShell />;
 
   return (
     <div className="nava-app-stage">
       {screen}
     </div>
   );
-}
-
-function AuthenticatedApp() {
-  const { user } = useAuth();
-  const [checking, setChecking] = useState(true);
-  const [onboardingRequired, setOnboardingRequired] = useState(false);
-  const forceOnboarding = new URLSearchParams(window.location.search).get("onboarding") === "1";
-
-  useEffect(() => {
-    let alive = true;
-    if (!user) return undefined;
-    setChecking(true);
-    loadOnboardingStatus(user.id)
-      .then((status) => {
-        if (!alive) return;
-        setOnboardingRequired(forceOnboarding || !status.completed);
-      })
-      .catch((error) => {
-        console.warn("Unable to determine onboarding state", error);
-        if (alive) setOnboardingRequired(forceOnboarding);
-      })
-      .finally(() => {
-        if (alive) setChecking(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [forceOnboarding, user]);
-
-  if (!user || checking) return <LoadingScreen />;
-  if (onboardingRequired) {
-    return <OnboardingScreen user={user} onComplete={() => {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("onboarding");
-      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-      setOnboardingRequired(false);
-    }} />;
-  }
-  return <MobileShell />;
 }
 
 export default function App() {

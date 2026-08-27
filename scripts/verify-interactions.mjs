@@ -81,14 +81,38 @@ async function completeOnboardingIfNeeded(page) {
   await expect(page.locator(".phone-frame")).toBeVisible();
 }
 
+async function beginLoginInterstitialWatch(page) {
+  await page.evaluate(() => {
+    const state = { loadingSeen: false };
+    const scan = () => {
+      if (document.querySelector(".centered-screen")) state.loadingSeen = true;
+    };
+    const observer = new MutationObserver(scan);
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.__navaLoginInterstitialWatch = { observer, state };
+    scan();
+  });
+}
+
+async function expectNoLoginInterstitial(page) {
+  const loadingSeen = await page.evaluate(() => {
+    const watch = window.__navaLoginInterstitialWatch;
+    watch?.observer.disconnect();
+    return watch?.state.loadingSeen ?? false;
+  });
+  if (loadingSeen) throw new Error("A full-screen loading interstitial appeared after authentication.");
+}
+
 async function loginWithPassword(page, baseUrl) {
   await page.goto(`${baseUrl}?demo=1`, { waitUntil: "networkidle" });
   await dismissLaunch(page);
   await page.locator('input[autocomplete="username"]').fill(demoAccount);
   await page.locator('input[autocomplete="current-password"]').fill(demoPassword);
   await page.screenshot({ path: path.join(outputDir, "auth-password.png") });
+  await beginLoginInterstitialWatch(page);
   await page.locator(".auth-submit").click();
   await completeOnboardingIfNeeded(page);
+  await expectNoLoginInterstitial(page);
 }
 
 async function createReviewPage(browser, baseUrl, consoleErrors) {
@@ -163,8 +187,10 @@ async function verifyOtpLogin(browser, baseUrl, results, consoleErrors) {
   await expect(otp).toHaveAttribute("maxlength", "6");
   await otp.fill(demoSmsOtp);
   await page.screenshot({ path: path.join(outputDir, "auth-otp-login.png") });
+  await beginLoginInterstitialWatch(page);
   await page.locator(".auth-submit").click();
   await completeOnboardingIfNeeded(page);
+  await expectNoLoginInterstitial(page);
   results.push("隔离评审验证码登录");
   await context.close();
 }
@@ -235,8 +261,10 @@ async function verifyRegistration(browser, baseUrl, results, consoleErrors) {
     throw new Error(`Consent alignment or sizing is incorrect: ${JSON.stringify(consentMetrics)}`);
   }
   await page.screenshot({ path: path.join(outputDir, "auth-register.png") });
+  await beginLoginInterstitialWatch(page);
   await page.locator(".auth-submit").click();
   await completeOnboardingIfNeeded(page);
+  await expectNoLoginInterstitial(page);
   results.push("隔离评审邮箱验证码注册");
   await context.close();
 }
