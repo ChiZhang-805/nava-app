@@ -147,7 +147,9 @@ async function buildHealthContext(userId: string) {
       date: snapshot.date,
       profile: identity.profile ? {
         ageGroup: identity.profile.age_group ?? identity.onboarding?.answers.ageGroup ?? null,
+        gender: identity.onboarding?.answers.gender ?? null,
         occupation: identity.profile.occupation,
+        hobbies: identity.onboarding?.answers.hobbies ?? [],
         primaryGoal: identity.profile.goal,
         exerciseFrequency: identity.profile.exercise_frequency,
         sleepRhythm: identity.profile.sleep_schedule,

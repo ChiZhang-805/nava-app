@@ -2,15 +2,16 @@ import { isDemoMode } from "./demo";
 import { loadProfile, saveProfile, type UserProfile } from "./profile";
 import { supabase } from "./supabaseClient";
 
-export const ONBOARDING_VERSION = 1;
+export const ONBOARDING_VERSION = 2;
 
 export type OnboardingAnswers = {
+  gender: string;
   ageGroup: string;
   occupation: string;
-  primaryGoal: string;
-  sleepRhythm: string;
-  activityLevel: string;
-  dietPreference: string;
+  hobbies: string[];
+  sleepDuration: string;
+  exerciseDuration: string;
+  dietPreferences: string[];
   essentialConsent: boolean;
   healthDataConsent: boolean;
   aiPersonalizationConsent: boolean;
@@ -111,10 +112,9 @@ export async function completeOnboarding(userId: string, answers: OnboardingAnsw
   const profileChanges: Partial<UserProfile> & { id: string } = {
     id: userId,
     occupation: answers.occupation,
-    goal: answers.primaryGoal,
-    exercise_frequency: answers.activityLevel,
-    sleep_schedule: answers.sleepRhythm,
-    diet_preference: answers.dietPreference,
+    exercise_frequency: answers.exerciseDuration,
+    sleep_schedule: answers.sleepDuration,
+    diet_preference: answers.dietPreferences.join("、"),
   };
 
   await saveProfile(profileChanges);

@@ -41,12 +41,33 @@ async function completeOnboardingIfNeeded(page) {
     return;
   }
 
+  const welcome = page.locator(".onboarding-welcome");
+  if (await welcome.isVisible().catch(() => false)) {
+    await expect(page.locator(".onboarding-welcome__message")).toContainText("Hi! 很高兴认识你");
+    await expect(welcome).toBeHidden({ timeout: 5000 });
+  }
+
+  const profileSteps = [
+    { key: "gender", multi: false },
+    { key: "occupation", multi: false },
+    { key: "ageGroup", multi: false },
+    { key: "hobbies", multi: true },
+    { key: "sleepDuration", multi: false },
+    { key: "exerciseDuration", multi: false },
+    { key: "dietPreferences", multi: true },
+  ];
+
+  for (const profileStep of profileSteps) {
+    await expect(onboarding).toHaveAttribute("data-onboarding-step", profileStep.key);
+    await page.locator(".onboarding-option-grid button").first().click();
+    if (profileStep.multi) {
+      await page.locator(".onboarding-next").click();
+    }
+  }
+
+  await expect(onboarding).toHaveAttribute("data-onboarding-step", "privacy");
   await page.locator(".onboarding-consent-row input").first().check({ force: true });
   await page.locator(".onboarding-next").click();
-  for (let index = 0; index < 6; index += 1) {
-    await page.locator(".onboarding-option-grid button").first().click();
-    await page.locator(".onboarding-next").click();
-  }
   await expect(page.locator(".phone-frame")).toBeVisible();
 }
 
