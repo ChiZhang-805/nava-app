@@ -1,9 +1,10 @@
 /* Final overrides for the read-only Figma mobile v2 implementation. */
+.nava-app-stage {
+  background: #eef3f5;
+}
+
 .nava-app-stage::before {
-  background:
-    linear-gradient(180deg, rgba(244, 251, 255, 0.22), rgba(35, 145, 205, 0.12)),
-    url("../assets/figma/auth-texture-v2.jpg") center / cover no-repeat;
-  opacity: 0.58;
+  content: none;
 }
 
 .launch-brand-lockup {

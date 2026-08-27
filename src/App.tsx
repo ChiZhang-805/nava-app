@@ -20,7 +20,6 @@ import { useAuth } from "./state/authContext";
 import { enqueueAndFlushWatchAction, flushPendingWatchActions, subscribeWatchActions } from "./services/watch";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LanguageToggle from "./components/LanguageToggle";
-import LivingBackground from "./components/LivingBackground";
 import MascotMotionSlot from "./components/MascotMotionSlot";
 import NetworkBadge from "./components/NetworkBadge";
 import UtilityDrawer from "./components/UtilityDrawer";
@@ -460,7 +459,6 @@ function AppContent() {
 
   return (
     <div className="nava-app-stage">
-      <LivingBackground />
       {screen}
     </div>
   );
