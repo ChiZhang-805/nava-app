@@ -17,7 +17,7 @@ import { useLocale } from "../i18n";
 import { formatAuthError, isEmail, isPhone } from "../services/auth";
 import { useAuth } from "../state/authContext";
 
-type AuthMode = "signIn" | "signUp" | "reset";
+type AuthMode = "signIn" | "signUp" | "reset" | "recoveryChoice";
 type SignInMethod = "password" | "otp";
 
 export default function AuthScreen() {
@@ -63,6 +63,7 @@ export default function AuthScreen() {
   const feedbackError = localError ?? error;
   const canSubmit =
     !busy &&
+    mode !== "recoveryChoice" &&
     accountIsValid &&
     (mode === "signIn"
       ? signInMethod === "password"
@@ -84,10 +85,10 @@ export default function AuthScreen() {
     clearError();
   }
 
-  function switchMode(nextMode: AuthMode) {
-    if (nextMode === mode) return;
+  function switchMode(nextMode: AuthMode, nextSignInMethod: SignInMethod = "password") {
+    if (nextMode === mode && nextSignInMethod === signInMethod) return;
     setMode(nextMode);
-    setSignInMethod("password");
+    setSignInMethod(nextSignInMethod);
     setPassword("");
     setConfirmPassword("");
     setOtp("");
@@ -99,17 +100,6 @@ export default function AuthScreen() {
     setAcceptedTerms(false);
     setSignUpStep("verify");
     setConsentOpen(false);
-    clearFeedback();
-  }
-
-  function switchSignInMethod() {
-    setSignInMethod((current) => current === "password" ? "otp" : "password");
-    setPassword("");
-    setOtp("");
-    setOtpSent(false);
-    setSentTo("");
-    setCodeCooldown(0);
-    setShowPassword(false);
     clearFeedback();
   }
 
@@ -211,9 +201,30 @@ export default function AuthScreen() {
       </section>
 
       <div className="auth-form-region">
-        <form className={["auth-form", `auth-form--${mode}`, isOtpSignIn ? "auth-form--signInOtp" : ""].filter(Boolean).join(" ")} key={`${mode}-${signInMethod}`} onSubmit={submit}>
+        {mode === "recoveryChoice" ? (
+          <section className="auth-recovery-choice" aria-labelledby="auth-recovery-title">
+            <header className="auth-recovery-choice__head">
+              <h1 id="auth-recovery-title">{t("auth.recoveryChoiceTitle")}</h1>
+              <p>{t("auth.recoveryChoiceHint")}</p>
+            </header>
+            <div className="auth-recovery-options">
+              <button type="button" data-recovery-option="otp" onClick={() => switchMode("signIn", "otp")}>
+                <span className="auth-recovery-option-icon"><KeyRound size={26} /></span>
+                <span>{t("auth.useOtp")}</span>
+              </button>
+              <button type="button" data-recovery-option="reset" onClick={() => switchMode("reset")}>
+                <span className="auth-recovery-option-icon"><LockKeyhole size={26} /></span>
+                <span>{t("auth.setNewPassword")}</span>
+              </button>
+            </div>
+            <button className="auth-recovery-back" type="button" onClick={() => switchMode("signIn")}>
+              <ArrowLeft size={14} />
+              <span>{t("auth.switchToSignIn")}</span>
+            </button>
+          </section>
+        ) : <form className={["auth-form", `auth-form--${mode}`, isOtpSignIn ? "auth-form--signInOtp" : ""].filter(Boolean).join(" ")} key={`${mode}-${signInMethod}`} onSubmit={submit}>
           <header className="auth-form-head">
-            <h1>{mode === "signIn" ? t("auth.signIn") : mode === "signUp" && signUpStep === "password" ? t("auth.setNewPassword") : mode === "signUp" ? t("auth.signUp") : t("auth.setNewPassword")}</h1>
+            <h1>{mode === "signIn" ? t("auth.signIn") : mode === "signUp" && signUpStep === "password" ? t("auth.setPassword") : mode === "signUp" ? t("auth.signUp") : t("auth.setNewPassword")}</h1>
           </header>
 
           <div className="auth-fields">
@@ -260,7 +271,7 @@ export default function AuthScreen() {
 
             {requiresPassword && (
               <label className="field">
-                <span className="field-label">{mode === "reset" ? t("auth.setNewPassword") : t("auth.password")}</span>
+                <span className="field-label">{mode === "reset" || mode === "signUp" ? t("auth.newPassword") : t("auth.password")}</span>
                 <div className="input-wrap">
                   <LockKeyhole size={19} />
                   <input
@@ -326,28 +337,22 @@ export default function AuthScreen() {
           </button>
 
           <div className="auth-secondary-links">
-            {mode === "signIn" && (
-              <button className="auth-method-switch" type="button" onClick={switchSignInMethod} disabled={busy}>
-                {t(signInMethod === "password" ? "auth.useOtp" : "auth.usePassword")}
+            {mode === "signIn" && signInMethod === "password" && (
+              <button className="auth-forgot" type="button" onClick={() => switchMode("recoveryChoice")} disabled={busy}>
+                {t("auth.forgotPassword")}
               </button>
             )}
             <button
               className="auth-mode-icon"
               type="button"
-              onClick={() => switchMode(mode === "signIn" ? "signUp" : "signIn")}
-              aria-label={mode === "signIn" ? t("auth.switchToSignUp") : t("auth.switchToSignIn")}
-              title={mode === "signIn" ? t("auth.switchToSignUp") : t("auth.switchToSignIn")}
+              onClick={() => switchMode(mode === "signIn" && signInMethod === "password" ? "signUp" : "signIn")}
+              aria-label={mode === "signIn" && signInMethod === "password" ? t("auth.switchToSignUp") : t("auth.switchToSignIn")}
+              title={mode === "signIn" && signInMethod === "password" ? t("auth.switchToSignUp") : t("auth.switchToSignIn")}
             >
-              {mode === "signIn" ? t("auth.switchToSignUp") : <><ArrowLeft size={14} />{t("auth.switchToSignIn")}</>}
+              {mode === "signIn" && signInMethod === "password" ? t("auth.switchToSignUp") : <><ArrowLeft size={14} />{t("auth.switchToSignIn")}</>}
             </button>
           </div>
-
-          {mode === "signIn" && (
-            <button className="auth-forgot" type="button" onClick={() => switchMode("reset")} disabled={busy}>
-              {t("auth.forgotPassword")}
-            </button>
-          )}
-        </form>
+        </form>}
         {mode === "signUp" && (
           <label className="auth-consent auth-consent--screen">
             <input

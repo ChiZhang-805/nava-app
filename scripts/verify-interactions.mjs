@@ -123,7 +123,9 @@ async function verifyOtpLogin(browser, baseUrl, results, consoleErrors) {
   const { context, page } = await createBarePage(browser, consoleErrors);
   await page.goto(`${baseUrl}?demo=1`, { waitUntil: "networkidle" });
   await dismissLaunch(page);
-  await page.locator(".auth-method-switch").click();
+  await page.locator(".auth-forgot").click();
+  await expect(page.locator(".auth-recovery-options > button")).toHaveCount(2);
+  await page.locator('[data-recovery-option="otp"]').click();
   await page.locator('input[autocomplete="username"]').fill(demoAccount);
   await page.locator(".auth-code-button").click();
   await page.locator('input[autocomplete="one-time-code"]').fill(demoOtp);
@@ -148,6 +150,8 @@ async function verifyAuthControls(browser, baseUrl, results, consoleErrors) {
   await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
 
   await page.locator(".auth-forgot").click();
+  await expect(page.locator(".auth-recovery-options > button")).toHaveCount(2);
+  await page.locator('[data-recovery-option="reset"]').click();
   await page.locator('input[autocomplete="username"]').fill(demoAccount);
   await page.locator(".auth-code-button").click();
   await page.locator('input[autocomplete="one-time-code"]').fill(demoOtp);
@@ -169,11 +173,31 @@ async function verifyRegistration(browser, baseUrl, results, consoleErrors) {
   await page.locator(".auth-code-button").click();
   await page.locator('input[autocomplete="one-time-code"]').fill(demoOtp);
   await page.locator('.auth-consent input[type="checkbox"]').check();
+  const consentMetrics = await page.locator(".auth-consent--screen").evaluate((label) => {
+    const checkbox = label.querySelector("input");
+    const text = label.querySelector("span");
+    if (!checkbox || !text) throw new Error("Missing consent controls.");
+    const labelRect = label.getBoundingClientRect();
+    const checkboxRect = checkbox.getBoundingClientRect();
+    const fontSize = Number.parseFloat(window.getComputedStyle(text).fontSize);
+    return {
+      centerOffset: Math.abs((labelRect.left + labelRect.right) / 2 - window.innerWidth / 2),
+      checkboxWidth: checkboxRect.width,
+      checkboxHeight: checkboxRect.height,
+      fontSize,
+    };
+  });
+  if (consentMetrics.centerOffset > 1
+    || Math.abs(consentMetrics.checkboxWidth - consentMetrics.fontSize) > 0.6
+    || Math.abs(consentMetrics.checkboxHeight - consentMetrics.fontSize) > 0.6) {
+    throw new Error(`Consent alignment or sizing is incorrect: ${JSON.stringify(consentMetrics)}`);
+  }
   await expect(page.locator('input[autocomplete="new-password"]')).toHaveCount(0);
   await page.screenshot({ path: path.join(outputDir, "auth-register-code.png") });
   await page.locator(".auth-submit").click();
   await expect(page.locator(".auth-verified-account")).toBeVisible();
   await expect(page.locator('input[autocomplete="new-password"]')).toHaveCount(2);
+  await expect(page.locator(".field-label").filter({ hasText: "新密码" })).toBeVisible();
   await page.locator('input[autocomplete="new-password"]').first().fill("87654321");
   await page.locator('input[autocomplete="new-password"]').nth(1).fill("87654321");
   await page.screenshot({ path: path.join(outputDir, "auth-register.png") });
