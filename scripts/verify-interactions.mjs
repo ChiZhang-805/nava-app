@@ -60,6 +60,13 @@ async function completeOnboardingIfNeeded(page) {
 
   for (const profileStep of profileSteps) {
     await expect(onboarding).toHaveAttribute("data-onboarding-step", profileStep.key);
+    await expect(page.locator(".onboarding-header small")).toHaveCount(0);
+    await expect(page.locator(".onboarding-question-copy > span")).toHaveCount(0);
+    await expect(page.locator(".onboarding-question-copy > p")).toHaveCount(0);
+    await expect(page.locator(".onboarding-gender-mascot")).toHaveCount(profileStep.key === "gender" ? 1 : 0);
+    if (profileStep.key === "gender") {
+      await expect(page.locator(".onboarding-gender-mascot img")).toHaveAttribute("src", /raw-01/);
+    }
     await page.locator(".onboarding-option-grid button").first().click();
     if (profileStep.multi) {
       await page.locator(".onboarding-next").click();
@@ -67,6 +74,8 @@ async function completeOnboardingIfNeeded(page) {
   }
 
   await expect(onboarding).toHaveAttribute("data-onboarding-step", "privacy");
+  await expect(page.locator(".onboarding-question-copy > span")).toHaveCount(0);
+  await expect(page.locator(".onboarding-question-copy > p")).toHaveCount(0);
   await page.locator(".onboarding-consent-row input").first().check({ force: true });
   await page.locator(".onboarding-next").click();
   await expect(page.locator(".phone-frame")).toBeVisible();

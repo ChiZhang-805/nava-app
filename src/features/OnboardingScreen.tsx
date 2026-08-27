@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";
 import type { User } from "@supabase/supabase-js";
+import lifeFigure from "../assets/figma/home-option2/raw-01.png";
 import { useLocale } from "../i18n";
 import { completeOnboarding, type OnboardingAnswers } from "../services/onboarding";
 
@@ -47,7 +48,6 @@ type QuestionKey =
 type Question = {
   key: QuestionKey;
   title: Copy;
-  hint: Copy;
   options: CardOption[];
   multi?: boolean;
   maxSelections?: number;
@@ -60,7 +60,6 @@ const questions: Question[] = [
   {
     key: "gender",
     title: c("你的性别是？", "How do you identify?"),
-    hint: c("请选择一个选项，也可以暂不透露。", "Choose one, or keep this private."),
     options: [
       { value: "male", label: c("男", "Male"), icon: UserRound },
       { value: "female", label: c("女", "Female"), icon: CircleUserRound },
@@ -69,7 +68,6 @@ const questions: Question[] = [
   {
     key: "occupation",
     title: c("你目前的主要身份是？", "What is your main role?"),
-    hint: c("身份会帮助 NAVA 理解你的日常节奏。", "This helps NAVA understand your daily rhythm."),
     options: [
       { value: "student", label: c("学生", "Student"), icon: GraduationCap },
       { value: "employee", label: c("职场人士", "Employee"), icon: BriefcaseBusiness },
@@ -82,7 +80,6 @@ const questions: Question[] = [
   {
     key: "ageGroup",
     title: c("你的年龄段是？", "What is your age range?"),
-    hint: c("仅用于调整健康节律的基础参考。", "This only adjusts your baseline reference."),
     options: [
       { value: "18_24", label: c("18–24 岁", "18–24"), icon: Sparkles },
       { value: "25_34", label: c("25–34 岁", "25–34"), icon: GraduationCap },
@@ -95,7 +92,6 @@ const questions: Question[] = [
   {
     key: "hobbies",
     title: c("你平时喜欢什么？", "What do you enjoy?"),
-    hint: c("可以选择 1–3 项。", "Choose 1–3 interests."),
     multi: true,
     maxSelections: 3,
     options: [
@@ -110,7 +106,6 @@ const questions: Question[] = [
   {
     key: "sleepDuration",
     title: c("你通常每天睡多久？", "How long do you usually sleep?"),
-    hint: c("不需要精确，之后会根据记录自动调整。", "An estimate is enough; records will refine it."),
     options: [
       { value: "under_5h", label: c("少于 5 小时", "Under 5h"), icon: MoonStar },
       { value: "5_6h", label: c("5–6 小时", "5–6h"), icon: Clock3 },
@@ -123,7 +118,6 @@ const questions: Question[] = [
   {
     key: "exerciseDuration",
     title: c("你每周通常运动多久？", "How long do you exercise each week?"),
-    hint: c("日常步行和体力活动也可以计算在内。", "Walking and physical activity count too."),
     options: [
       { value: "almost_none", label: c("几乎不运动", "Almost none"), icon: Activity },
       { value: "under_1h", label: c("少于 1 小时", "Under 1h"), icon: Timer },
@@ -136,7 +130,6 @@ const questions: Question[] = [
   {
     key: "dietPreferences",
     title: c("你的饮食偏好是？", "What are your food preferences?"),
-    hint: c("可以选择 1–3 项；“无特殊偏好”不能与其他项同时选择。", "Choose 1–3; “No preference” is exclusive."),
     multi: true,
     maxSelections: 3,
     options: [
@@ -293,16 +286,14 @@ export default function OnboardingScreen({ user, onComplete }: { user: User; onC
         >
           <ArrowLeft size={23} />
         </button>
-        <span>NAVA</span>
-        <small>{showQuestion ? `${step + 1}/${questions.length}` : "✓"}</small>
+        <strong>NAVA</strong>
+        <i className="onboarding-header-spacer" aria-hidden="true" />
       </header>
 
       {showQuestion ? (
         <section className="onboarding-question" key={question.key}>
           <div className="onboarding-question-copy">
-            <span>{locale === "zh" ? `画像 ${step + 1}/${questions.length}` : `Profile ${step + 1}/${questions.length}`}</span>
             <h1>{question.title[locale]}</h1>
-            <p>{question.hint[locale]}</p>
           </div>
           <div className={["onboarding-option-grid", question.options.length === 2 ? "onboarding-option-grid--two" : ""].filter(Boolean).join(" ")}>
             {question.options.map((option) => {
@@ -329,13 +320,16 @@ export default function OnboardingScreen({ user, onComplete }: { user: User; onC
               {locale === "zh" ? "暂不透露" : "Prefer not to say"}
             </button>
           )}
+          {question.key === "gender" && (
+            <div className="onboarding-gender-mascot" aria-hidden="true">
+              <img src={lifeFigure} alt="" draggable={false} />
+            </div>
+          )}
         </section>
       ) : (
         <section className="onboarding-privacy">
           <div className="onboarding-question-copy">
-            <span>{locale === "zh" ? "最后一步" : "One last step"}</span>
             <h1>{locale === "zh" ? "选择你的数据使用方式" : "Choose how your data is used"}</h1>
-            <p>{locale === "zh" ? "这些选项以后可以在设置中修改。" : "You can change these choices later in Settings."}</p>
           </div>
           <div className="onboarding-consent-list">
             <ConsentRow icon={ShieldCheck} title={locale === "zh" ? "账号与核心记录" : "Account and core records"} detail={locale === "zh" ? "用于保存你主动提交的数据，必需" : "Required to save data you submit"} checked={answers.essentialConsent} onChange={(checked) => setAnswers((current) => ({ ...current, essentialConsent: checked }))} />
