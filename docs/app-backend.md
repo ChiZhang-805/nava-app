@@ -127,12 +127,16 @@ supabase secrets set NAVA_DIET_EXTRACT_URL="https://..." NAVA_DIET_EXTRACT_KEY="
 supabase secrets set NAVA_FACE_ANALYZE_URL="https://..." NAVA_FACE_ANALYZE_KEY="..." --project-ref $env:SUPABASE_PROJECT_REF
 supabase secrets set NAVA_AI_EXTRACT_URL="https://..." NAVA_AI_EXTRACT_KEY="..." --project-ref $env:SUPABASE_PROJECT_REF
 supabase secrets set NAVA_AI_CHAT_URL="https://..." NAVA_AI_CHAT_KEY="..." --project-ref $env:SUPABASE_PROJECT_REF
+# NAVA 当前正式对话模型：DeepSeek V4 Flash（原 DeepSeek Chat 快速路线）
+supabase secrets set DEEPSEEK_API_KEY="..." --project-ref $env:SUPABASE_PROJECT_REF
 ```
+
+`ai-chat-reply` 默认以 SSE 流式返回最终回答。服务端只根据当前 JWT 读取该用户的最近对话、画像和健康摘要，并向 DeepSeek 传递匿名化 `user_id`；客户端提交的历史记录和健康上下文不会作为权威数据使用。界面在首个文本片段前只展示一次与授权画像相适配的处理状态，不展示模型隐藏推理原文。
 
 未配置正式算法时：
 
 - `ai-extract-data` 使用规则引擎抽取睡眠、运动、情绪、专注、饮食和资料更新。
-- `ai-chat-reply` 使用规则回复，不调用外部大模型。
+- `ai-chat-reply` 返回“真实 AI 尚未配置”，不会用演示文案伪装成外部模型结果。
 - `diet-extract` 返回低置信度 fallback 食物条目。
 - `face-analyze` 返回低置信度基础状态结果。
 - App 不会崩溃，但结果不能当成正式算法结论。

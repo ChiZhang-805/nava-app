@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { Apple, Camera, Check, Download, Images, Link2, LogOut, RefreshCw, Save, ShieldCheck, Trash2, Watch, X } from "lucide-react";
+import { Apple, Camera, Check, ChevronDown, Download, Images, Link2, LogOut, RefreshCw, Save, ShieldCheck, Trash2, Watch, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import SectionCard from "../components/SectionCard";
@@ -19,6 +19,15 @@ import { useAuth } from "../state/authContext";
 import type { WatchUserSnapshot } from "../types";
 import { deleteCurrentAccount } from "../services/account";
 
+const occupationOptions = [
+  { value: "student", zh: "学生", en: "Student" },
+  { value: "employee", zh: "职场人士", en: "Employee" },
+  { value: "freelance", zh: "自由职业", en: "Freelance" },
+  { value: "caregiver", zh: "居家照护", en: "Home carer" },
+  { value: "retired", zh: "退休人士", en: "Retired" },
+  { value: "other", zh: "其他", en: "Other" },
+] as const;
+
 function daysSinceSignup(createdAt?: string) {
   const created = Date.parse(createdAt ?? "");
   if (!Number.isFinite(created)) return 1;
@@ -37,12 +46,14 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
   const [healthLastSync, setHealthLastSync] = useState<string | null>(() => readLastHealthSyncAt(user.id));
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileSaved, setProfileSaved] = useState(false);
+  const [profileDetailsExpanded, setProfileDetailsExpanded] = useState(false);
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const deviceStackRef = useRef<HTMLDivElement | null>(null);
   const [profileDraft, setProfileDraft] = useState({
     username: "",
     height: "",
@@ -262,7 +273,7 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
       </SectionCard>
 
       <SectionCard
-        className="profile-personal-card"
+        className={["profile-personal-card", profileDetailsExpanded ? "is-expanded" : ""].filter(Boolean).join(" ")}
         title={t("profile.personal")}
         action={(
           <button
@@ -298,18 +309,41 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
               </div>
             </label>
           </div>
-          <label className="field">
+          <label className="field profile-extended-field">
             <span>{t("profile.goal")}</span>
             <input value={profileDraft.goal} onChange={(e) => updateDraft("goal", e.target.value)} placeholder={t("profile.goalPlaceholder")} />
           </label>
-          <label className="field">
+          <label className="field profile-extended-field">
             <span>{t("profile.occupation")}</span>
-            <input value={profileDraft.occupation} onChange={(e) => updateDraft("occupation", e.target.value)} />
+            <select value={profileDraft.occupation} onChange={(e) => updateDraft("occupation", e.target.value)}>
+              <option value="">{locale === "zh" ? "请选择" : "Choose"}</option>
+              {!occupationOptions.some((option) => option.value === profileDraft.occupation) && profileDraft.occupation && (
+                <option value={profileDraft.occupation}>{profileDraft.occupation}</option>
+              )}
+              {occupationOptions.map((option) => <option key={option.value} value={option.value}>{locale === "zh" ? option.zh : option.en}</option>)}
+            </select>
           </label>
         </div>
+        <button
+          className="profile-details-toggle"
+          type="button"
+          aria-expanded={profileDetailsExpanded}
+          onClick={() => setProfileDetailsExpanded((expanded) => !expanded)}
+        >
+          <span>{profileDetailsExpanded ? (locale === "zh" ? "收起资料" : "Show less") : (locale === "zh" ? "更多资料" : "More profile fields")}</span>
+          <ChevronDown size={17} aria-hidden="true" />
+        </button>
+        <button
+          className="profile-next-section-button"
+          type="button"
+          onClick={() => deviceStackRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        >
+          <span>{locale === "zh" ? "设备与隐私" : "Devices & privacy"}</span>
+          <ChevronDown size={18} aria-hidden="true" />
+        </button>
       </SectionCard>
 
-      <div className="profile-device-stack">
+      <div className="profile-device-stack" ref={deviceStackRef}>
         <SectionCard
           className="profile-device-card"
           title={t("profile.appleHealth")}

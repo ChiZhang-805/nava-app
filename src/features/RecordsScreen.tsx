@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { ArrowLeft, BedDouble, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Loader2, ScanFace, Share2, SmilePlus, type LucideIcon } from "lucide-react";
+import { BedDouble, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Loader2, LockKeyhole, ScanFace, Share2, ShieldCheck, SmilePlus, type LucideIcon } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import LineTrendChart from "../components/LineTrendChart";
@@ -139,7 +139,7 @@ export default function RecordsScreen({
   const [exerciseNote, setExerciseNote] = useState("");
 
   const [meal, setMeal] = useState<"breakfast" | "lunch" | "dinner" | "pantry">("lunch");
-  const [mealName, setMealName] = useState("鸡胸肉沙拉");
+  const [mealName, setMealName] = useState(() => locale === "zh" ? "鸡胸肉沙拉" : "Chicken salad");
   const [mealCalories, setMealCalories] = useState(520);
   const [proteinGrams, setProteinGrams] = useState(0);
   const [carbohydrateGrams, setCarbohydrateGrams] = useState(0);
@@ -151,7 +151,7 @@ export default function RecordsScreen({
   const [dietItems, setDietItems] = useState<FoodItem[]>([]);
   const [dietAnalyzing, setDietAnalyzing] = useState(false);
 
-  const [focusTitle, setFocusTitle] = useState("产品原型");
+  const [focusTitle, setFocusTitle] = useState(() => locale === "zh" ? "产品原型" : "Prototype");
   const [focusMinutes, setFocusMinutes] = useState(25);
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [faceResult, setFaceResult] = useState<FaceAnalysisResult | null>(null);
@@ -159,6 +159,15 @@ export default function RecordsScreen({
   const [faceMode, setFaceMode] = useState<"bare_face" | "makeup">("bare_face");
   const [faceConsent, setFaceConsent] = useState(false);
   const facePhotoInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setMealName((current) => current === "鸡胸肉沙拉" || current === "Chicken salad"
+      ? (locale === "zh" ? "鸡胸肉沙拉" : "Chicken salad")
+      : current);
+    setFocusTitle((current) => current === "产品原型" || current === "Product prototype" || current === "Prototype"
+      ? (locale === "zh" ? "产品原型" : "Prototype")
+      : current);
+  }, [locale]);
 
   const loadRecordData = useCallback(async () => {
     setDraftReady(false);
@@ -274,8 +283,11 @@ export default function RecordsScreen({
 
   useEffect(() => {
     setActiveModule(initialModule);
-    setShowEditor(false);
   }, [initialModule]);
+
+  useEffect(() => {
+    setShowEditor(initialView === "editor");
+  }, [initialView]);
 
   useEffect(() => {
     if (reportMode !== "weekly") return;
@@ -283,7 +295,7 @@ export default function RecordsScreen({
     setDnbLoading(true);
     const reference = new Date();
     reference.setDate(reference.getDate() - weekOffset * 7);
-    void loadDnbWeeklyReport(reference)
+    void loadDnbWeeklyReport(reference, locale)
       .then((report) => {
         if (active) setDnbReport(report);
       })
@@ -293,7 +305,7 @@ export default function RecordsScreen({
     return () => {
       active = false;
     };
-  }, [reportMode, user.id, weekOffset]);
+  }, [locale, reportMode, user.id, weekOffset]);
 
   function estimateMinutes(start: string, end: string) {
     const [sh, sm] = start.split(":").map(Number);
@@ -327,6 +339,7 @@ export default function RecordsScreen({
         const module: RecordDraftModule = activeModule === "diet" ? "nutrition" : activeModule;
         await clearRecordDraft(user.id, module, recordDate).catch((draftError) => console.warn("Record draft cleanup deferred", draftError));
         setShowEditor(false);
+        onViewChange?.(null);
       }
       onSaved();
       return true;
@@ -463,7 +476,7 @@ export default function RecordsScreen({
     setError(null);
     try {
       if (!faceConsent) throw new Error(locale === "zh" ? "请先确认面部照片隐私说明。" : "Please confirm the face-photo privacy notice first.");
-      const { image, imagePath, result } = await analyzeFacePhoto({ userId: user.id, date: recordDate, file, captureMode: faceMode });
+      const { image, imagePath, result } = await analyzeFacePhoto({ userId: user.id, date: recordDate, file, captureMode: faceMode, locale });
       setFaceImage(image);
       setFaceResult(result);
       const saved = await saveFaceAnalysisRecord({
@@ -650,26 +663,7 @@ export default function RecordsScreen({
 
   return (
     <div className="stack record-detail" data-record-detail={activeModule} ref={rootRef}>
-      {(!dashboardModules.has(activeModule) || showEditor) && <div className={[
-        "record-detail-toolbar",
-        !dashboardModules.has(activeModule) ? "record-detail-toolbar--global-back" : "",
-      ].filter(Boolean).join(" ")}>
-        <button
-          className="section-icon-action record-back-button"
-          type="button"
-          aria-label={t("records.back")}
-          title={t("records.back")}
-          onClick={() => {
-            if (showEditor && dashboardModules.has(activeModule)) {
-              setShowEditor(false);
-              return;
-            }
-            setActiveModule(null);
-            onModuleChange?.(null);
-          }}
-        >
-          <ArrowLeft size={24} />
-        </button>
+      {showEditor && <div className="record-detail-toolbar record-detail-toolbar--editor">
         <label className="record-detail-date">
           <input
             aria-label={t("records.date")}
@@ -682,7 +676,7 @@ export default function RecordsScreen({
       </div>}
 
       {(error || notice) && (
-        <SectionCard title={notice ? t("records.synced") : t("records.needsFix")}>
+        <SectionCard className="record-feedback-card" title={notice ? t("records.synced") : t("records.needsFix")}>
           {notice && <p className="success-text">{notice}</p>}
           {error && <p className="error-text">{error}</p>}
         </SectionCard>
@@ -713,14 +707,17 @@ export default function RecordsScreen({
           focusMinutes={focusMinutes}
           setFocusTitle={setFocusTitle}
           setFocusMinutes={setFocusMinutes}
-          onOpenEditor={() => setShowEditor(true)}
+          onOpenEditor={() => {
+            setShowEditor(true);
+            onViewChange?.("editor");
+          }}
           onSaveFocusMinutes={saveFocusMinutes}
           busy={busy}
           recordDate={recordDate}
           todaySnapshot={todaySnapshot}
           trendBundle={trendBundle}
           profile={profile}
-          initialView={initialView}
+          initialView={initialView === "editor" ? null : initialView}
           onViewChange={onViewChange}
         />
       )}
@@ -778,19 +775,21 @@ export default function RecordsScreen({
               <input inputMode="numeric" type="number" value={deepSleep} onChange={(e) => setDeepSleep(Number(e.target.value))} />
             </label>
           </div>
-          <label className="field">
-            <span>{t("records.lightSleep")}</span>
-            <input inputMode="numeric" type="number" value={lightSleep} onChange={(e) => setLightSleep(Number(e.target.value))} />
-          </label>
-          <label className="field">
-            <span>{t("records.rem")}</span>
-            <input inputMode="numeric" type="number" value={remSleep} onChange={(e) => setRemSleep(Number(e.target.value))} />
-          </label>
+          <div className="two-col">
+            <label className="field">
+              <span>{t("records.lightSleep")}</span>
+              <input inputMode="numeric" type="number" value={lightSleep} onChange={(e) => setLightSleep(Number(e.target.value))} />
+            </label>
+            <label className="field">
+              <span>{t("records.rem")}</span>
+              <input inputMode="numeric" type="number" value={remSleep} onChange={(e) => setRemSleep(Number(e.target.value))} />
+            </label>
+          </div>
           <label className="field">
             <span>{t("records.rating")}</span>
             <input className="range" type="range" min="1" max="5" value={sleepRating} onChange={(e) => setSleepRating(Number(e.target.value))} />
           </label>
-          <label className="field">
+          <label className="field sleep-note-field">
             <span>{t("records.note")}</span>
             <textarea rows={2} value={sleepNote} onChange={(e) => setSleepNote(e.target.value)} placeholder={t("records.sleepNotePlaceholder")} />
           </label>
@@ -826,7 +825,7 @@ export default function RecordsScreen({
               <input value={spo2} onChange={(e) => setSpo2(e.target.value)} placeholder="98%" />
             </label>
           </div>
-          <label className="field">
+          <label className="field exercise-note-field">
             <span>{t("records.note")}</span>
             <textarea rows={2} value={exerciseNote} onChange={(e) => setExerciseNote(e.target.value)} placeholder={t("records.exerciseNotePlaceholder")} />
           </label>
@@ -860,22 +859,24 @@ export default function RecordsScreen({
               ))}
             </div>
           )}
-          <label className="field">
-            <span>{t("records.meal")}</span>
-            <select value={meal} onChange={(e) => setMeal(e.target.value as typeof meal)}>
-              <option value="breakfast">{t("records.breakfast")}</option>
-              <option value="lunch">{t("records.lunch")}</option>
-              <option value="dinner">{t("records.dinner")}</option>
-              <option value="pantry">{t("records.pantry")}</option>
-            </select>
-          </label>
+          <div className="two-col">
+            <label className="field">
+              <span>{t("records.meal")}</span>
+              <select value={meal} onChange={(e) => setMeal(e.target.value as typeof meal)}>
+                <option value="breakfast">{t("records.breakfast")}</option>
+                <option value="lunch">{t("records.lunch")}</option>
+                <option value="dinner">{t("records.dinner")}</option>
+                <option value="pantry">{t("records.pantry")}</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>{t("records.calorie")}</span>
+              <input inputMode="numeric" type="number" value={mealCalories} onChange={(e) => setMealCalories(Number(e.target.value))} />
+            </label>
+          </div>
           <label className="field">
             <span>{t("records.food")}</span>
             <input value={mealName} onChange={(e) => setMealName(e.target.value)} />
-          </label>
-          <label className="field">
-            <span>{t("records.calorie")}</span>
-            <input inputMode="numeric" type="number" value={mealCalories} onChange={(e) => setMealCalories(Number(e.target.value))} />
           </label>
           <div className="two-col nutrition-macro-fields">
             <label className="field"><span>{locale === "zh" ? "蛋白质 g" : "Protein g"}</span><input inputMode="decimal" type="number" min="0" value={proteinGrams} onChange={(e) => setProteinGrams(Number(e.target.value))} /></label>
@@ -883,7 +884,7 @@ export default function RecordsScreen({
             <label className="field"><span>{locale === "zh" ? "脂肪 g" : "Fat g"}</span><input inputMode="decimal" type="number" min="0" value={fatGrams} onChange={(e) => setFatGrams(Number(e.target.value))} /></label>
             <label className="field"><span>{locale === "zh" ? "饮水 ml" : "Hydration ml"}</span><input inputMode="numeric" type="number" min="0" value={hydrationMl} onChange={(e) => setHydrationMl(Number(e.target.value))} /></label>
           </div>
-          <label className="field"><span>{locale === "zh" ? `饮食自评 ${dietRating}/5` : `Diet rating ${dietRating}/5`}</span><input className="range" type="range" min="1" max="5" value={dietRating} onChange={(e) => setDietRating(Number(e.target.value))} /></label>
+          <label className="field diet-rating-field"><span>{locale === "zh" ? `饮食自评 ${dietRating}/5` : `Diet rating ${dietRating}/5`}</span><input className="range" type="range" min="1" max="5" value={dietRating} onChange={(e) => setDietRating(Number(e.target.value))} /></label>
           <ActionButton type="submit" icon={<Drumstick size={18} />} variant="secondary" disabled={busy === "records.diet"}>
             {dietItems.length > 0 ? t("records.saveDetected") : t("records.saveDiet")}
           </ActionButton>
@@ -928,7 +929,7 @@ export default function RecordsScreen({
           </div>
           <label className="face-consent"><input type="checkbox" checked={faceConsent} onChange={(event) => setFaceConsent(event.target.checked)} /><span>{locale === "zh" ? "我同意将照片加密上传至账号隔离的私密存储，并以 10 分钟签名链接完成本次非医疗状态分析。" : "I consent to private encrypted upload and a 10-minute signed link for this non-medical state analysis."}</span></label>
           <label className="photo-picker face">
-            {faceImage ? <img src={faceImage} alt="面部照片" /> : <ScanFace size={30} />}
+            {faceImage ? <img src={faceImage} alt={locale === "zh" ? "面部照片" : "Face photo"} /> : <ScanFace size={30} />}
             <span>{faceAnalyzing ? t("records.faceScanning") : t("records.scanFace")}</span>
             <input
               aria-label={t("records.frontCamera")}
@@ -945,16 +946,20 @@ export default function RecordsScreen({
             <div className="face-result">
               <strong>{t("records.score", { score: Math.round(faceResult.overall_score) })}</strong>
               <p>{faceResult.feedback}</p>
-              <div className="detected-list">
-                {faceResult.annotations.map((item) => (
-                  <div key={item.id}>
-                    <strong>{item.label}</strong>
-                    <span>{item.desc}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+               <div className="detected-list">
+                 {faceResult.annotations.map((item) => (
+                   <div key={item.id}>
+                     <strong>{item.label}</strong>
+                     <span>{item.desc}</span>
+                   </div>
+                 ))}
+               </div>
+               <div className="face-result-meta">
+                 <span><ShieldCheck size={16} />{locale === "zh" ? "结果用于日常状态观察，不构成医疗诊断" : "For daily state tracking, not medical diagnosis"}</span>
+                 <span><LockKeyhole size={16} />{locale === "zh" ? "照片与结果按当前账号隔离保存" : "Photo and result stay isolated to this account"}</span>
+               </div>
+             </div>
+           )}
         </SectionCard>
       </div>
       </div>}

@@ -76,19 +76,23 @@ export async function analyzeFacePhoto(input: {
   date: string;
   file: File;
   captureMode: "bare_face" | "makeup";
+  locale?: "zh" | "en";
 }): Promise<{ image: string; imagePath?: string; result: FaceAnalysisResult }> {
   const image = await fileToDataUrl(input.file);
   if (isDemoMode()) {
+    const english = input.locale === "en";
     return {
       image,
       imagePath: `demo/${input.userId}/${input.date}/face.jpg`,
       result: {
         overall_score: 82,
-        feedback: "整体状态良好，眼周略疲劳，建议今晚提前休息并补充水分。",
+        feedback: english
+          ? "Overall condition looks steady. Mild eye fatigue suggests an earlier night and a little more water."
+          : "整体状态良好，眼周略疲劳，建议今晚提前休息并补充水分。",
         annotations: [
-          { id: "eye", label: "眼周疲劳", desc: "轻微黑眼圈", dot_x: 52, dot_y: 36 },
-          { id: "skin", label: "肤色", desc: "整体均匀", dot_x: 42, dot_y: 58 },
-          { id: "lip", label: "唇部", desc: "轻微干燥", dot_x: 51, dot_y: 72 },
+          { id: "eye", label: english ? "Eye fatigue" : "眼周疲劳", desc: english ? "Mild dark circles" : "轻微黑眼圈", dot_x: 52, dot_y: 36 },
+          { id: "skin", label: english ? "Skin tone" : "肤色", desc: english ? "Generally even" : "整体均匀", dot_x: 42, dot_y: 58 },
+          { id: "lip", label: english ? "Lips" : "唇部", desc: english ? "Slightly dry" : "轻微干燥", dot_x: 51, dot_y: 72 },
         ],
         modelVersion: "demo",
         confidence: 0.9,
@@ -103,7 +107,7 @@ export async function analyzeFacePhoto(input: {
   const imagePath = upload.error ? undefined : path;
 
   const response = await supabase.functions.invoke<FaceAnalysisResult>("face-analyze", {
-    body: { image: imagePath ? undefined : image, imagePath, captureMode: input.captureMode, lang: "zh", selfRatings: null },
+    body: { image: imagePath ? undefined : image, imagePath, captureMode: input.captureMode, lang: input.locale ?? "zh", selfRatings: null },
   });
   if (response.error) throw response.error;
   if (!response.data) throw new Error("面部分析没有返回结果。");

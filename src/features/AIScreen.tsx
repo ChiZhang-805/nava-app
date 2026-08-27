@@ -3,7 +3,9 @@ import { Bot, Check, Mic, Pencil, SendHorizontal, Sparkles, X } from "lucide-rea
 import { FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocale } from "../i18n";
 import { loadConversation, sendAiMessage } from "../services/ai";
-import { loadProfile } from "../services/profile";
+import type { AiProcessingStep } from "../services/aiProcessing";
+import { loadProfileWithOnboarding } from "../services/onboarding";
+import type { UserProfile } from "../services/profile";
 import { startVoiceInput, type VoiceInputError, type VoiceInputSession } from "../services/voice";
 import { confirmStructuredEntry, parseStructuredEntry, type StructuredEntry } from "../services/structuredEntry";
 import { updateStructuredEntryField } from "../services/structuredEntryParser";
@@ -18,6 +20,12 @@ type ConversationSnapshot = {
   id: string;
   createdAt: string;
   messages: ChatMessage[];
+};
+
+type StreamingPreview = {
+  status: AiProcessingStep | null;
+  content: string;
+  startedAt: string;
 };
 
 export default function AIScreen({
@@ -48,7 +56,8 @@ export default function AIScreen({
   const [pendingEntry, setPendingEntry] = useState<StructuredEntry | null>(null);
   const [editingEntry, setEditingEntry] = useState(false);
   const [savingEntry, setSavingEntry] = useState(false);
-  const [profile, setProfile] = useState<{ username: string | null; avatar_url?: string | null } | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [streamingPreview, setStreamingPreview] = useState<StreamingPreview | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<ConversationSnapshot[]>([]);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
@@ -61,6 +70,7 @@ export default function AIScreen({
   const voicePointerActiveRef = useRef(false);
   const voicePointerStartYRef = useRef(0);
   const handledCommandRef = useRef(0);
+  const streamAbortRef = useRef<AbortController | null>(null);
   const historyKey = `nava-ai-history:${user.id}`;
 
   const readHistory = useCallback(() => {
@@ -103,20 +113,37 @@ export default function AIScreen({
     setInput("");
     setSending(true);
     setError(null);
+    const controller = new AbortController();
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = controller;
+    let userCommitted = false;
+    setStreamingPreview({ status: null, content: "", startedAt: new Date().toISOString() });
     try {
       const result = await sendAiMessage({
         userId: user.id,
         message,
         history: messages,
         lang: locale,
+        profile,
+        signal: controller.signal,
+        onUserMessage: (userMessage) => {
+          userCommitted = true;
+          setMessages((current) => [...current, userMessage]);
+        },
+        onStatus: (status) => setStreamingPreview((current) => current ? { ...current, status } : current),
+        onDelta: (content) => setStreamingPreview((current) => current ? { ...current, status: null, content } : current),
       });
-      setMessages((current) => [...current, result.userMessage, result.assistantMessage]);
+      setMessages((current) => [...current, result.assistantMessage]);
+      setStreamingPreview(null);
       setPendingEntry(parseStructuredEntry(message, locale));
       setEditingEntry(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setInput(message);
+      if (!(e instanceof DOMException && e.name === "AbortError")) setError(e instanceof Error ? e.message : String(e));
+      if (!userCommitted) setInput(message);
+      setStreamingPreview(null);
+      controller.abort();
     } finally {
+      if (streamAbortRef.current === controller) streamAbortRef.current = null;
       setSending(false);
     }
   }
@@ -149,7 +176,16 @@ export default function AIScreen({
   }, [refresh]);
 
   useEffect(() => {
-    loadProfile(user.id).then(setProfile).catch(() => setProfile(null));
+    loadProfileWithOnboarding(user.id).then(({ profile: loadedProfile, onboarding }) => {
+      if (!loadedProfile) return setProfile(null);
+      const answers = onboarding?.answers ?? loadedProfile.onboarding_answers ?? {};
+      setProfile({
+        ...loadedProfile,
+        age_group: loadedProfile.age_group ?? (typeof answers.ageGroup === "string" ? answers.ageGroup : null),
+        ai_personalization_consent: loadedProfile.ai_personalization_consent ?? answers.aiPersonalizationConsent === true,
+        onboarding_answers: answers,
+      });
+    }).catch(() => setProfile(null));
     setHistory(readHistory());
   }, [readHistory, user.id]);
 
@@ -159,9 +195,16 @@ export default function AIScreen({
     if (!command || command.id === handledCommandRef.current) return;
     handledCommandRef.current = command.id;
     if (command.type === "new") {
+      streamAbortRef.current?.abort();
+      streamAbortRef.current = null;
       setHistory(archiveConversation(messages));
       setMessages([]);
       setInput("");
+      setPendingEntry(null);
+      setEditingEntry(false);
+      setStreamingPreview(null);
+      setSending(false);
+      setError(null);
       setHistoryOpen(false);
       return;
     }
@@ -171,8 +214,15 @@ export default function AIScreen({
       return;
     }
     if (command.type === "clear") {
+      streamAbortRef.current?.abort();
+      streamAbortRef.current = null;
       setMessages([]);
       setInput("");
+      setPendingEntry(null);
+      setEditingEntry(false);
+      setStreamingPreview(null);
+      setSending(false);
+      setError(null);
       setHistoryOpen(false);
       return;
     }
@@ -187,7 +237,7 @@ export default function AIScreen({
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "auto" });
-  }, [messages.length]);
+  }, [messages.length, streamingPreview?.content, streamingPreview?.status?.id]);
 
   const voiceErrorText = useCallback((voiceError: VoiceInputError) => {
     if (voiceError.code === "permission_denied") return t("ai.voicePermissionDenied");
@@ -276,6 +326,8 @@ export default function AIScreen({
   };
 
   useEffect(() => () => {
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
     void voiceSessionRef.current?.cancel();
     voiceSessionRef.current = null;
   }, []);
@@ -314,6 +366,34 @@ export default function AIScreen({
             </div>
           );
         })}
+        {streamingPreview && (
+          <div className="chat-message-row assistant ai-streaming-row" data-ai-streaming="true" aria-live="polite">
+            <span className="chat-avatar assistant" aria-hidden="true">
+              <Sparkles size={16} />
+            </span>
+            <article className="chat-bubble assistant streaming">
+              {streamingPreview.status ? (
+                <p
+                  className={`ai-processing-status tone-${streamingPreview.status.tone}`}
+                  data-ai-processing-step={streamingPreview.status.id}
+                  data-ai-processing-tone={streamingPreview.status.tone}
+                  key={streamingPreview.status.id}
+                >
+                  <span aria-hidden="true" />
+                  {streamingPreview.status.label}
+                </p>
+              ) : (
+                <p className="ai-streaming-content">
+                  {streamingPreview.content}
+                  <span className="ai-streaming-cursor" aria-hidden="true" />
+                </p>
+              )}
+              {streamingPreview.content && (
+                <time>{new Date(streamingPreview.startedAt).toLocaleTimeString(locale === "en" ? "en-US" : "zh-CN", { hour: "2-digit", minute: "2-digit" })}</time>
+              )}
+            </article>
+          </div>
+        )}
       </div>
 
       {error && <p className="error-text">{error}</p>}

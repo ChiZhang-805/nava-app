@@ -27,7 +27,7 @@
     "supabase:verify-shared": "node scripts/verify-shared-supabase.mjs",
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy",
     "motion:test": "node --experimental-strip-types --test tests/background-motion.test.ts",
-    "ai:prompt:test": "node --experimental-strip-types --test tests/ai-chat-prompt.test.ts tests/ai-review-access.test.ts",
+    "ai:prompt:test": "node --experimental-strip-types --test tests/ai-chat-prompt.test.ts tests/ai-context-router.test.ts tests/ai-review-access.test.ts",
     "structured:test": "node --experimental-strip-types --test tests/structured-entry.test.ts",
     "algorithm:test": "node --experimental-strip-types --test tests/rhythm-core.test.ts",
     "fdnb:test": "node --experimental-strip-types --test tests/fdnb-health-core.test.ts",

@@ -1,7 +1,6 @@
 import { supabase } from "./supabaseClient";
 import type { ChatMessage } from "../types";
 import {
-  getTodaySnapshot,
   refreshRhythmScore,
   saveExerciseRecord,
   saveFocusSession,
@@ -12,7 +11,8 @@ import {
 } from "./records";
 import { todayISO } from "./date";
 import { demoMessagesFor, isDemoMode } from "./demo";
-import { loadProfileWithOnboarding } from "./onboarding";
+import { buildAiProcessingSteps, type AiProcessingStep } from "./aiProcessing";
+import type { UserProfile } from "./profile";
 
 function assertNoError(error: unknown) {
   if (!error) return;
@@ -38,12 +38,30 @@ export async function sendAiMessage(input: {
   message: string;
   history: ChatMessage[];
   lang?: "zh" | "en";
+  profile?: UserProfile | null;
+  signal?: AbortSignal;
+  onUserMessage?: (message: ChatMessage) => void;
+  onStatus?: (step: AiProcessingStep | null) => void;
+  onDelta?: (content: string, delta: string) => void;
 }) {
+  const lang = input.lang ?? "zh";
+  const processing = playProcessingSteps(input.profile, lang, input.onStatus, input.signal);
+
   if (isDemoMode()) {
     const now = new Date().toISOString();
-    const content = demoAiReply(input.message, input.lang ?? "zh");
+    const content = demoAiReply(input.message, lang);
+    const userMessage = { id: `demo-user-${Date.now()}`, role: "user", content: input.message, created_at: now } as ChatMessage;
+    input.onUserMessage?.(userMessage);
+    await processing;
+    let streamed = "";
+    for (const delta of splitDemoStream(content)) {
+      throwIfAborted(input.signal);
+      streamed += delta;
+      input.onDelta?.(streamed, delta);
+      await abortableDelay(34, input.signal);
+    }
     return {
-      userMessage: { id: `demo-user-${Date.now()}`, role: "user", content: input.message, created_at: now } as ChatMessage,
+      userMessage,
       assistantMessage: {
         id: `demo-assistant-${Date.now()}`,
         role: "assistant",
@@ -65,13 +83,14 @@ export async function sendAiMessage(input: {
     .select("*")
     .single();
   assertNoError(userInsert.error);
+  input.onUserMessage?.(userInsert.data as ChatMessage);
 
   const extract = await supabase.functions.invoke("ai-extract-data", {
     body: {
       message: input.message,
       todos: [],
-      lang: input.lang ?? "zh",
-      language: input.lang ?? "zh",
+      lang,
+      language: lang,
     },
   });
 
@@ -79,11 +98,13 @@ export async function sendAiMessage(input: {
   const extractedData = extraction?.extractedData ?? null;
   const content = await requestAiReply({
     message: input.message,
-    history: input.history,
-    lang: input.lang ?? "zh",
+    lang,
     dataType: extraction?.dataType ?? null,
     extractedData,
-    healthContext: await buildHealthContext(input.userId),
+    signal: input.signal,
+    processing,
+    onStatus: input.onStatus,
+    onDelta: input.onDelta,
   });
   const assistantInsert = await supabase
     .from("ai_conversations")
@@ -115,92 +136,139 @@ function demoAiReply(message: string, lang: "zh" | "en") {
 
 async function requestAiReply(input: {
   message: string;
-  history: ChatMessage[];
   lang: "zh" | "en";
   dataType?: unknown;
   extractedData?: unknown;
-  healthContext?: unknown;
+  signal?: AbortSignal;
+  processing: Promise<void>;
+  onStatus?: (step: AiProcessingStep | null) => void;
+  onDelta?: (content: string, delta: string) => void;
 }) {
-  const reply = await supabase.functions.invoke("ai-chat-reply", {
+  const reply = await supabase.functions.invoke<Response>("ai-chat-reply", {
     body: {
       message: input.message,
       dataType: input.dataType ?? null,
       extractedData: input.extractedData ?? null,
-      healthContext: input.healthContext ?? null,
-      conversationHistory: input.history.slice(-10),
       lang: input.lang,
       reviewMode: isDemoMode(),
+      stream: true,
     },
+    signal: input.signal,
   });
   assertNoError(reply.error);
-  const content = reply.data?.reply ?? reply.data?.message ?? reply.data?.content;
-  if (typeof content !== "string" || !content.trim()) throw new Error("真实 AI 服务没有返回有效内容，请稍后重试。");
-  return content.trim();
+  if (!(reply.data instanceof Response)) throw new Error("AI 回复服务没有返回可读取的流，请稍后重试。");
+  return consumeAiStream(reply.data, input);
 }
 
-async function buildHealthContext(userId: string) {
+async function consumeAiStream(response: Response, input: {
+  processing: Promise<void>;
+  onStatus?: (step: AiProcessingStep | null) => void;
+  onDelta?: (content: string, delta: string) => void;
+}) {
+  if (!response.body) throw new Error("AI 回复服务没有返回可读取的流，请稍后重试。");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let streamed = "";
+  let finalReply = "";
+  let preludeFinished = false;
+
+  const finishPrelude = async () => {
+    if (preludeFinished) return;
+    await input.processing;
+    input.onStatus?.(null);
+    preludeFinished = true;
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+    const blocks = buffer.split(/\r?\n\r?\n/);
+    buffer = blocks.pop() ?? "";
+
+    for (const block of blocks) {
+      const parsed = parseSseBlock(block);
+      if (!parsed) continue;
+      if (parsed.event === "error") throw new Error(typeof parsed.data.message === "string" ? parsed.data.message : "AI 回复失败，请稍后重试。");
+      if (parsed.event === "delta") {
+        const delta = typeof parsed.data.text === "string" ? parsed.data.text : "";
+        if (!delta) continue;
+        await finishPrelude();
+        streamed += delta;
+        input.onDelta?.(streamed, delta);
+      }
+      if (parsed.event === "done") {
+        finalReply = typeof parsed.data.reply === "string" ? parsed.data.reply : streamed;
+      }
+    }
+
+    if (done) break;
+  }
+
+  await finishPrelude();
+  const content = (finalReply || streamed).trim();
+  if (!content) throw new Error("真实 AI 服务没有返回有效内容，请稍后重试。");
+  if (!streamed) input.onDelta?.(content, content);
+  return content;
+}
+
+function parseSseBlock(block: string) {
+  let event = "message";
+  const dataLines: string[] = [];
+  for (const line of block.split(/\r?\n/)) {
+    if (line.startsWith("event:")) event = line.slice(6).trim();
+    if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
+  }
+  if (dataLines.length === 0) return null;
   try {
-    const [snapshot, identity] = await Promise.all([
-      getTodaySnapshot(userId, todayISO()),
-      loadProfileWithOnboarding(userId).catch(() => ({ profile: null, onboarding: null })),
-    ]);
-    const profile = identity.profile;
-    const onboardingAnswers = identity.onboarding?.answers;
-    const personalizationAllowed = profile?.ai_personalization_consent
-      ?? onboardingAnswers?.aiPersonalizationConsent
-      ?? false;
-    return {
-      date: snapshot.date,
-      profile: personalizationAllowed ? {
-        ageGroup: profile?.age_group ?? onboardingAnswers?.ageGroup ?? null,
-        gender: onboardingAnswers?.gender ?? null,
-        occupation: profile?.occupation ?? onboardingAnswers?.occupation ?? null,
-        hobbies: onboardingAnswers?.hobbies ?? [],
-        primaryGoal: profile?.goal ?? null,
-        exerciseDuration: onboardingAnswers?.exerciseDuration ?? profile?.exercise_frequency ?? null,
-        sleepDuration: onboardingAnswers?.sleepDuration ?? profile?.sleep_schedule ?? null,
-        dietPreferences: onboardingAnswers?.dietPreferences ?? profile?.diet_preference ?? [],
-        stressFactors: profile?.stress_factors ?? null,
-        personalizationAllowed: true,
-      } : { personalizationAllowed: false },
-      rhythm: {
-        score: snapshot.rhythmScore,
-        confidence: snapshot.rhythmConfidence ?? null,
-      },
-      sleep: snapshot.sleep ? {
-        start: snapshot.sleep.sleep_start,
-        end: snapshot.sleep.sleep_end,
-        minutes: snapshot.sleep.sleep_duration_minutes,
-        selfRating: snapshot.sleep.self_rating,
-      } : null,
-      exercise: snapshot.exercise ? {
-        steps: snapshot.exercise.steps,
-        calories: snapshot.exercise.calories,
-        minutes: snapshot.exercise.exercise_minutes,
-        heartRate: snapshot.exercise.heart_rate,
-      } : null,
-      mood: snapshot.mood ? {
-        score: snapshot.mood.mood_score,
-        factors: snapshot.mood.factors,
-      } : null,
-      nutrition: snapshot.nutrition ? {
-        totalCalories: snapshot.nutrition.total_calories,
-        breakfast: snapshot.nutrition.breakfast_items?.map((item) => item.name) ?? [],
-        lunch: snapshot.nutrition.lunch_items?.map((item) => item.name) ?? [],
-        dinner: snapshot.nutrition.dinner_items?.map((item) => item.name) ?? [],
-      } : null,
-      focus: {
-        minutes: snapshot.focusMinutes,
-        sessions: snapshot.focusSessions,
-      },
-      face: snapshot.face ? {
-        skinAge: snapshot.face.skin_age,
-        feedback: snapshot.face.feedback,
-      } : null,
-    };
+    return { event, data: JSON.parse(dataLines.join("\n")) as Record<string, unknown> };
   } catch {
     return null;
   }
+}
+
+async function playProcessingSteps(
+  profile: UserProfile | null | undefined,
+  lang: "zh" | "en",
+  onStatus?: (step: AiProcessingStep | null) => void,
+  signal?: AbortSignal,
+) {
+  try {
+    for (const step of buildAiProcessingSteps(profile, lang)) {
+      throwIfAborted(signal);
+      onStatus?.(step);
+      await abortableDelay(360, signal);
+    }
+  } catch (error) {
+    if (!(error instanceof DOMException && error.name === "AbortError")) throw error;
+  }
+}
+
+function splitDemoStream(content: string) {
+  const characters = Array.from(content);
+  const chunks: string[] = [];
+  for (let index = 0; index < characters.length; index += 3) chunks.push(characters.slice(index, index + 3).join(""));
+  return chunks;
+}
+
+function abortableDelay(milliseconds: number, signal?: AbortSignal) {
+  if (!signal) return new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
+  return new Promise<void>((resolve, reject) => {
+    if (signal.aborted) return reject(new DOMException("Aborted", "AbortError"));
+    const timeout = window.setTimeout(() => {
+      signal.removeEventListener("abort", abort);
+      resolve();
+    }, milliseconds);
+    const abort = () => {
+      window.clearTimeout(timeout);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    signal.addEventListener("abort", abort, { once: true });
+  });
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 }
 
 export async function applyExtractedData(userId: string, extraction: Record<string, unknown>) {

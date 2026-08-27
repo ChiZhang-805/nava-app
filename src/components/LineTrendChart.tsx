@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type CSSProperties } from "react";
 
 export interface LineTrendPoint {
   id: string;
@@ -107,7 +107,13 @@ export default function LineTrendChart({
           const y = yAt(point.value);
           const showDate = points.length <= 4 || index % 2 === 0 || index === points.length - 1;
           return (
-            <g className="trend-point" key={point.id} data-label={point.label} data-value={point.value}>
+            <g
+              className="trend-point"
+              key={point.id}
+              data-label={point.label}
+              data-value={point.value}
+              style={{ "--trend-point-index": index } as CSSProperties}
+            >
               <circle cx={x} cy={y} r="4.5">
                 <title>{`${point.label}: ${Math.round(point.value)}`}</title>
               </circle>

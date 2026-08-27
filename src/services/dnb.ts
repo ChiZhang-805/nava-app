@@ -52,7 +52,7 @@ export function currentSevenDayPeriod(reference = new Date()) {
   };
 }
 
-export async function loadDnbWeeklyReport(reference = new Date()): Promise<DnbWeeklyReport> {
+export async function loadDnbWeeklyReport(reference = new Date(), locale: "zh" | "en" = "zh"): Promise<DnbWeeklyReport> {
   if (isDemoMode()) {
     return {
       status: "ready",
@@ -64,14 +64,20 @@ export async function loadDnbWeeklyReport(reference = new Date()): Promise<DnbWe
       dataQuality: 0.76,
       accepted: false,
       evidenceLevel: "candidate",
-      summary: "公开演示数据出现一个待验证的多模块波动候选；它没有通过全部稳定性门禁。",
-      recommendations: ["继续连续记录睡眠、活动和情绪，以确认候选波动是否持续。"],
+      summary: locale === "zh"
+        ? "公开演示数据出现一个待验证的多模块波动候选；它没有通过全部稳定性门禁。"
+        : "The demo data shows a multi-module change candidate that has not passed every stability gate yet.",
+      recommendations: [locale === "zh"
+        ? "继续连续记录睡眠、活动和情绪，以确认候选波动是否持续。"
+        : "Keep logging sleep, activity, and mood to see whether this change persists."],
       contributors: [
         { feature: "sleep.midpoint_minutes", module: "sleep", strength: 0.72, direction: "up", reliability: 0.86 },
         { feature: "recovery.hrv_sdnn", module: "recovery", strength: 0.61, direction: "down", reliability: 0.82 },
         { feature: "focus.minutes", module: "focus", strength: 0.48, direction: "mixed", reliability: 0.72 },
       ],
-      disclaimer: "公开演示结果；研究性健康状态转变提示，不构成医疗诊断。",
+      disclaimer: locale === "zh"
+        ? "公开演示结果；研究性健康状态转变提示，不构成医疗诊断。"
+        : "Public demo result; a research health-state signal, not a medical diagnosis.",
       modelVersion: "nava-fdnb-health-research-v0.1-demo",
       availableDays: 56,
       requiredDays: 14,
@@ -81,14 +87,14 @@ export async function loadDnbWeeklyReport(reference = new Date()): Promise<DnbWe
 
   const period = currentSevenDayPeriod(reference);
   const response = await supabase.functions.invoke<Partial<DnbWeeklyReport>>("dnb-weekly-report", {
-    body: { ...period, analysisDays: 56 },
+    body: { ...period, analysisDays: 56, locale },
   });
 
   if (response.error) {
     return {
       status: "unavailable",
       recommendations: [],
-      reason: response.error.message || "DNB 算法服务暂时不可用。",
+      reason: response.error.message || (locale === "zh" ? "DNB 算法服务暂时不可用。" : "The DNB analysis service is temporarily unavailable."),
     };
   }
 

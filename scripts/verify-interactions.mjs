@@ -12,6 +12,8 @@ const screenshotLabel = process.env.SCREENSHOT_LABEL?.trim();
 const outputDir = path.join(root, "artifacts", screenshotLabel ? `interaction-review-${screenshotLabel}` : "interaction-review");
 const port = Number(process.env.PORT || 5192);
 const reviewBaseUrl = process.env.REVIEW_BASE_URL?.trim().replace(/\/$/, "");
+const reviewLocale = process.env.REVIEW_LOCALE === "en" ? "en" : "zh";
+const skipAuthAudit = process.env.SKIP_AUTH_AUDIT === "1";
 const demoAccount = "13800138000";
 const demoPassword = "12345678";
 const demoSmsOtp = "123456";
@@ -171,6 +173,11 @@ async function createReviewPage(browser, baseUrl, consoleErrors) {
       .catch(() => consoleErrors.push(`edge response ${response.status()}: unreadable body`));
   });
   await loginWithPassword(page, baseUrl);
+  if (reviewLocale === "en") {
+    await page.evaluate(() => window.localStorage.setItem("nava.locale", "en"));
+    await page.reload({ waitUntil: "networkidle" });
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  }
   return { context, page };
 }
 
@@ -283,6 +290,125 @@ async function createBarePage(browser, consoleErrors) {
   return { context, page };
 }
 
+async function assertStaticLayout(page, label) {
+  const audit = await page.evaluate((auditLabel) => {
+    const frame = document.querySelector(".phone-frame");
+    if (!frame) return { auditLabel, error: "phone frame missing" };
+    const frameRect = frame.getBoundingClientRect();
+    const visible = (node) => {
+      if (node.closest('[aria-hidden="true"], [inert]')) return false;
+      const style = getComputedStyle(node);
+      const rect = node.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0.01 && rect.width > 0 && rect.height > 0;
+    };
+    const selectors = [
+      "[data-record-module]",
+      ".figma-module-card",
+      ".section-card",
+      ".weekly-score-card",
+      ".weekly-trend-card",
+      ".weekly-insight-card",
+      ".weekly-module-status",
+      ".growth-summary-card",
+      ".growth-task-group",
+      ".growth-task-card",
+      ".growth-badge-card",
+      ".rhythm-detail-sheet",
+      ".utility-drawer",
+      ".drawer-todo-section",
+      ".drawer-points-card",
+      ".drawer-placeholder-card",
+      ".profile-account-card",
+      ".profile-personal-card",
+      ".profile-device-card",
+      ".module-modal-card",
+      ".focus-interruption",
+      ".chat-bubble",
+      ".chat-recognition-card",
+    ].join(",");
+    const horizontalOffenders = [...document.querySelectorAll(selectors)]
+      .filter(visible)
+      .map((node) => ({ node, rect: node.getBoundingClientRect() }))
+      .filter(({ rect }) => rect.left < frameRect.left - 1 || rect.right > frameRect.right + 1)
+      .slice(0, 5)
+      .map(({ node, rect }) => ({
+        className: node.className,
+        left: Math.round(rect.left * 10) / 10,
+        right: Math.round(rect.right * 10) / 10,
+      }));
+    const header = document.querySelector(".figma-app-header");
+    let headerAlignment = null;
+    if (header && visible(header)) {
+      const actions = [...header.querySelectorAll(":scope > button")].filter(visible);
+      const heading = header.querySelector("h1");
+      if (actions.length >= 2 && heading) {
+        const first = actions[0].getBoundingClientRect();
+        const last = actions.at(-1).getBoundingClientRect();
+        const title = heading.getBoundingClientRect();
+        headerAlignment = {
+          actionCenterOffset: Math.abs((first.top + first.height / 2) - (last.top + last.height / 2)),
+          titleCenterOffset: Math.abs((title.left + title.width / 2) - (frameRect.left + frameRect.width / 2)),
+        };
+      }
+    }
+    return {
+      auditLabel,
+      horizontalOffenders,
+      frameOverflow: Math.max(0, frame.scrollWidth - frame.clientWidth),
+      headerAlignment,
+    };
+  }, label);
+  if (audit.error) throw new Error(`${label}: ${audit.error}`);
+  if (audit.frameOverflow > 1 || audit.horizontalOffenders.length > 0) {
+    throw new Error(`${label}: horizontal layout overflow ${JSON.stringify(audit)}`);
+  }
+  if (audit.headerAlignment && (audit.headerAlignment.actionCenterOffset > 1 || audit.headerAlignment.titleCenterOffset > 1)) {
+    throw new Error(`${label}: header controls are not aligned ${JSON.stringify(audit.headerAlignment)}`);
+  }
+}
+
+async function assertNoBottomNavClipping(page, label, selectors) {
+  const offenders = await page.evaluate(({ auditLabel, query }) => {
+    const nav = document.querySelector(".bottom-nav");
+    if (!nav) return [{ auditLabel, error: "bottom navigation missing" }];
+    const navTop = nav.getBoundingClientRect().top;
+    return [...document.querySelectorAll(query)]
+      .filter((node) => {
+        if (node.closest('[aria-hidden="true"], [inert], [hidden]')) return false;
+        const style = getComputedStyle(node);
+        const rect = node.getBoundingClientRect();
+        return style.display !== "none"
+          && style.visibility !== "hidden"
+          && Number(style.opacity) > 0.01
+          && rect.width > 0
+          && rect.height > 0
+          && rect.top < navTop - 1
+          && rect.bottom > navTop + 1;
+      })
+      .slice(0, 6)
+      .map((node) => {
+        const rect = node.getBoundingClientRect();
+        return {
+          auditLabel,
+          className: node.className,
+          top: Math.round(rect.top * 10) / 10,
+          bottom: Math.round(rect.bottom * 10) / 10,
+          navTop: Math.round(navTop * 10) / 10,
+        };
+      });
+  }, { auditLabel: label, query: selectors });
+  if (offenders.length > 0) {
+    throw new Error(`${label}: an interactive row is clipped by the bottom navigation ${JSON.stringify(offenders)}`);
+  }
+}
+
+async function assertAnimation(locator, expectedName, label) {
+  const animationNames = await locator.first().evaluate((node) => getComputedStyle(node).animationName.split(",").map((name) => name.trim()));
+  if (!animationNames.includes(expectedName)) {
+    throw new Error(`${label}: expected ${expectedName}, found ${animationNames.join(", ") || "none"}`);
+  }
+}
+
 async function verifyRecordModules(page, results) {
   await page.locator('[data-tab="record"]').click();
   await expect(page.locator("[data-record-module]")).toHaveCount(6);
@@ -290,6 +416,17 @@ async function verifyRecordModules(page, results) {
     await page.locator(`[data-record-module="${module}"]`).click();
     await expect(page.locator(`[data-record-detail="${module}"]`)).toBeVisible();
     await expect.poll(() => page.locator(".app-content").evaluate((node) => node.scrollTop)).toBe(0);
+    await assertStaticLayout(page, `record-${module}-overview`);
+  };
+  const returnFromSubview = async () => {
+    const routeLabel = await page.locator("[data-record-detail]").evaluate((root) => {
+      const detail = root.getAttribute("data-record-detail") ?? "unknown";
+      const view = root.querySelector("[data-module-view]")?.getAttribute("data-module-view") ?? "subview";
+      return `record-${detail}-${view}`;
+    });
+    await assertStaticLayout(page, routeLabel);
+    await page.locator('.figma-app-header [aria-label="返回记录入口"], .figma-app-header [aria-label="Back to records"]').click();
+    await expect(page.locator('[data-module-view$="-overview"]')).toBeVisible();
   };
   const returnToHub = async () => {
     await page.locator('.figma-app-header [aria-label="返回记录入口"], .figma-app-header [aria-label="Back to records"]').click();
@@ -310,11 +447,31 @@ async function verifyRecordModules(page, results) {
   await page.locator('[aria-label="填写情绪日记"], [aria-label="Write mood journal"]').click();
   await expect(page.locator('[role="dialog"]')).toBeVisible();
   await page.locator('[role="dialog"] textarea').fill("今天节律平稳，午后状态更好。");
+  await page.waitForTimeout(350);
+  await assertStaticLayout(page, "record-mood-journal");
+  await page.screenshot({ path: path.join(outputDir, "record-mood-journal.png") });
   await page.locator('[role="dialog"] button[type="submit"]').click();
   await expect(page.locator('[data-module-view="mood-overview"] button[aria-label="情绪已保存"], [data-module-view="mood-overview"] button[aria-label="Mood saved"]')).toBeVisible();
+  const moodOverlap = await page.locator('[data-module-view="mood-overview"]').evaluate((dashboard) => {
+    const entry = dashboard.querySelector(".mood-entry-card");
+    const diary = dashboard.querySelector(".mood-diary-trigger");
+    const trend = dashboard.querySelector(".mood-trend-card");
+    if (!entry || !diary || !trend) return [{ error: "mood cards missing" }];
+    const entryRect = entry.getBoundingClientRect();
+    const diaryRect = diary.getBoundingClientRect();
+    const trendRect = trend.getBoundingClientRect();
+    const offenders = [];
+    if (diaryRect.bottom > entryRect.bottom + 0.5) offenders.push({ type: "diary-overflow", diaryBottom: diaryRect.bottom, entryBottom: entryRect.bottom });
+    if (diaryRect.bottom > trendRect.top - 0.5) offenders.push({ type: "entry-trend-overlap", diaryBottom: diaryRect.bottom, trendTop: trendRect.top });
+    return offenders;
+  });
+  if (moodOverlap.length > 0) throw new Error(`Mood dashboard cards overlap: ${JSON.stringify(moodOverlap)}`);
   await page.locator('[aria-label="查看情绪趋势"], [aria-label="View mood trend"]').click();
   await expect(page.locator('[data-record-detail="mood"] .line-trend-chart')).toBeVisible();
-  await page.locator(".module-inline-back").click();
+  await assertAnimation(page.locator('[data-record-detail="mood"] .trend-line'), "trend-line-draw", "mood trend line");
+  await page.waitForTimeout(1_050);
+  await page.screenshot({ path: path.join(outputDir, "record-mood-trend.png") });
+  await returnFromSubview();
   await expect(page.locator('[data-module-view="mood-overview"]')).toBeVisible();
   await page.waitForTimeout(450);
   await page.screenshot({ path: path.join(outputDir, "record-mood.png") });
@@ -322,16 +479,27 @@ async function verifyRecordModules(page, results) {
 
   await openModule("sleep");
   await expect(page.locator('[data-module-view="sleep-overview"]')).toBeVisible();
+  await assertAnimation(page.locator('[data-module-view="sleep-overview"] .sleep-bars i'), "chart-bar-rise", "sleep-stage bars");
   const alertCopy = page.locator(".sleep-alert-copy");
   if (await alertCopy.isVisible().catch(() => false)) {
     await alertCopy.click();
     await expect(page.locator(".lock-screen-preview")).toBeVisible();
+    await page.waitForTimeout(500);
+    await assertStaticLayout(page, "record-sleep-alert");
+    await page.screenshot({ path: path.join(outputDir, "record-sleep-alert.png") });
     await page.locator(".sleep-alert-modal header button").click();
   }
   await page.locator('[aria-label="查看睡眠趋势"], [aria-label="View sleep trend"]').click();
   await expect(page.locator('[data-record-detail="sleep"] .line-trend-chart')).toBeVisible();
-  await page.locator(".module-inline-back").click();
+  await assertAnimation(page.locator('[data-record-detail="sleep"] .trend-line'), "trend-line-draw", "sleep trend line");
+  await page.waitForTimeout(1_050);
+  await page.screenshot({ path: path.join(outputDir, "record-sleep-trend.png") });
+  await returnFromSubview();
   await page.locator('[aria-label="更新睡眠记录"], [aria-label="Update sleep record"]').click();
+  await expect(page.locator('[data-record-detail="sleep"] form:not([hidden])')).toBeVisible();
+  await page.waitForTimeout(450);
+  await assertNoBottomNavClipping(page, "sleep-editor", '[data-record-detail="sleep"] form:not([hidden]) .field, [data-record-detail="sleep"] form:not([hidden]) .action-button');
+  await page.screenshot({ path: path.join(outputDir, "record-sleep-editor.png") });
   await page.locator('[data-record-detail="sleep"] form:not([hidden]) .action-button').click();
   await expect(page.locator('[data-record-detail="sleep"] .success-text')).toBeVisible();
   await expect(page.locator('[data-module-view="sleep-overview"]')).toBeVisible();
@@ -341,29 +509,53 @@ async function verifyRecordModules(page, results) {
 
   await openModule("exercise");
   await expect(page.locator('[data-module-view="exercise-overview"]')).toBeVisible();
+  await assertAnimation(page.locator('[data-module-view="exercise-overview"] .mini-donut'), "ring-progress-fill", "exercise progress ring");
+  const assessmentHeaderColor = await page.locator(".assessment-card > header").evaluate((node) => getComputedStyle(node).color);
+  const assessmentChannels = assessmentHeaderColor.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [];
+  if (assessmentChannels.length !== 3 || Math.min(...assessmentChannels) < 220) {
+    throw new Error(`Exercise self-assessment heading lacks contrast: ${assessmentHeaderColor}`);
+  }
   await page.locator(".exercise-device-card header button").click();
   await expect(page.locator(".device-picker")).toBeVisible();
-  await page.locator(".module-inline-back").click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(outputDir, "record-exercise-devices.png") });
+  await returnFromSubview();
   await page.locator(".health-card").click();
   await expect(page.locator(".metric-detail-grid")).toBeVisible();
-  await page.locator(".module-inline-back").click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(outputDir, "record-exercise-vitals.png") });
+  await returnFromSubview();
   await page.locator(".heat-card").click();
   await expect(page.locator(".detail-heatmap")).toBeVisible();
-  await page.locator(".module-inline-back").click();
+  await assertAnimation(page.locator(".detail-heatmap i"), "heat-cell-in", "exercise heatmap cells");
+  await page.waitForTimeout(550);
+  await page.screenshot({ path: path.join(outputDir, "record-exercise-heatmap.png") });
+  await returnFromSubview();
   await page.locator(".clock-sync-card").click();
   await expect(page.locator(".clock-alignment")).toBeVisible();
-  await page.locator(".module-inline-back").click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(outputDir, "record-exercise-clock.png") });
+  await returnFromSubview();
   await page.locator(".module-assistant-card.is-interactive").click();
   await expect(page.locator(".sports-plan")).toBeVisible();
-  await page.locator(".module-inline-back").click();
+  await assertAnimation(page.locator(".sports-plan-steps span"), "data-card-enter", "exercise plan steps");
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(outputDir, "record-exercise-sports.png") });
+  await returnFromSubview();
   await page.locator('[aria-label="查看运动详情"], [aria-label="View activity details"]').click();
   await expect(page.locator('[data-module-view="exercise-detail"]')).toBeVisible();
+  await assertAnimation(page.locator('[data-module-view="exercise-detail"] .steps-bars > span'), "chart-bar-rise", "exercise step bars");
+  await assertAnimation(page.locator('[data-module-view="exercise-detail"] .exercise-ring'), "progress-ring-fill", "exercise detail ring");
   await expect(page).toHaveURL(/tab=record.*module=exercise.*view=detail/);
   await page.reload({ waitUntil: "networkidle" });
   await expect(page.locator('[data-module-view="exercise-detail"]')).toBeVisible();
   await page.screenshot({ path: path.join(outputDir, "record-exercise-detail.png") });
-  await page.locator('[data-module-view="exercise-detail"] .module-inline-back').click();
+  await returnFromSubview();
   await page.locator('[aria-label="填写运动自评"], [aria-label="Edit self assessment"]').click();
+  await expect(page.locator('[data-record-detail="exercise"] form:not([hidden])')).toBeVisible();
+  await page.waitForTimeout(450);
+  await assertNoBottomNavClipping(page, "exercise-editor", '[data-record-detail="exercise"] form:not([hidden]) .field, [data-record-detail="exercise"] form:not([hidden]) .action-button');
+  await page.screenshot({ path: path.join(outputDir, "record-exercise-editor.png") });
   await page.locator('[data-record-detail="exercise"] form:not([hidden]) .action-button').click();
   await expect(page.locator('[data-record-detail="exercise"] .success-text')).toBeVisible();
   await expect(page.locator('[data-module-view="exercise-overview"]')).toBeVisible();
@@ -374,22 +566,44 @@ async function verifyRecordModules(page, results) {
   await openModule("diet");
   await expect(page.locator('[data-module-view="diet-overview"]')).toBeVisible();
   await page.locator('[aria-label="记录饮食"], [aria-label="Log a meal"]').click();
+  await expect(page.locator('[data-record-detail="diet"] form:not([hidden])')).toBeVisible();
+  await page.waitForTimeout(450);
+  await assertNoBottomNavClipping(page, "diet-editor", '[data-record-detail="diet"] form:not([hidden]) .field, [data-record-detail="diet"] form:not([hidden]) .action-button');
+  await page.screenshot({ path: path.join(outputDir, "record-diet-editor.png") });
   await page.locator('[data-record-detail="diet"] input[type="file"][capture="environment"]').setInputFiles(samplePhoto);
   await expect(page.locator('[data-record-detail="diet"] .success-text')).toBeVisible();
   await page.locator('[data-record-detail="diet"] form:not([hidden]) .action-button').click();
+  await expect(page.locator('[data-module-view="diet-overview"]')).toBeVisible();
+  await page.locator('.diet-trend-card .module-card-nav-button').click();
+  await expect(page.locator('[data-record-detail="diet"] .module-history-chart')).toBeVisible();
+  await assertAnimation(page.locator('[data-record-detail="diet"] .module-history-chart i'), "chart-bar-rise", "diet history bars");
+  await page.waitForTimeout(1_050);
+  await assertNoBottomNavClipping(page, "diet-history", '[data-record-detail="diet"] .module-history-list p, [data-record-detail="diet"] .module-history-share');
+  await page.screenshot({ path: path.join(outputDir, "record-diet-trend.png") });
+  await returnFromSubview();
+  // Let the staged chart animation reach its settled geometry before the
+  // screenshot is used for visual-regression review.
+  await page.waitForTimeout(1_250);
   await page.screenshot({ path: path.join(outputDir, "record-diet.png") });
   await returnToHub();
 
   await openModule("focus");
   await expect(page.locator('[data-module-view="focus-overview"]')).toBeVisible();
+  await assertAnimation(page.locator('[data-module-view="focus-overview"] .focus-pie'), "ring-progress-fill", "focus goal ring");
   const focusDuration = page.locator('.focus-quick-card input[aria-label="专注分钟数"], .focus-quick-card input[aria-label="Focus duration in minutes"]');
   await focusDuration.fill("37");
   await page.locator('[aria-label="开始专注"], [aria-label="Start focus"]').click();
   await expect(page.locator('[data-module-view="focus-immersive"]')).toBeVisible();
+  await assertAnimation(page.locator('[data-module-view="focus-immersive"] .focus-timer-ring'), "timer-progress-fill", "focus timer ring");
   await expect(page.locator(".focus-timer-ring strong")).toHaveText("37:00");
   await expect(page.locator(".focus-timer-ring span")).toContainText(/准备开始|Ready/);
+  await page.waitForTimeout(750);
+  await page.screenshot({ path: path.join(outputDir, "record-focus-immersive.png") });
   await page.locator(".focus-interruption-trigger").click();
   await expect(page.locator(".focus-interruption")).toBeVisible();
+  await page.waitForTimeout(350);
+  await assertStaticLayout(page, "record-focus-interruption");
+  await page.screenshot({ path: path.join(outputDir, "record-focus-interruption.png") });
   await page.locator(".focus-interruption button").nth(1).click();
   await page.locator('[data-module-view="focus-immersive"] [aria-label="开始"], [data-module-view="focus-immersive"] [aria-label="Start"]').click();
   await page.waitForTimeout(1100);
@@ -402,12 +616,25 @@ async function verifyRecordModules(page, results) {
 
   await page.locator('[data-record-module="face"]').click();
   await expect(page.locator('[data-module-view="face-overview"]')).toBeVisible();
+  await assertAnimation(page.locator('[data-module-view="face-overview"] .face-score-ring'), "face-score-fill", "face score ring");
+  await page.locator('.face-trend-card .module-card-nav-button').click();
+  await expect(page.locator('[data-record-detail="face"] .module-history-chart')).toBeVisible();
+  await page.waitForTimeout(1_050);
+  await assertNoBottomNavClipping(page, "face-history", '[data-record-detail="face"] .module-history-list p, [data-record-detail="face"] .module-history-share');
+  await page.screenshot({ path: path.join(outputDir, "record-face-trend.png") });
+  await returnFromSubview();
   await page.locator('[aria-label="使用前置摄像头拍照"], [aria-label="Take a front-camera photo"]').click();
+  await expect(page.locator('[data-record-detail="face"] .face-consent')).toBeVisible();
+  await page.waitForTimeout(450);
+  await assertNoBottomNavClipping(page, "face-editor", '[data-record-detail="face"] .field, [data-record-detail="face"] .action-button, [data-record-detail="face"] .photo-picker.face');
+  await page.screenshot({ path: path.join(outputDir, "record-face-editor.png") });
   await page.locator('[data-record-detail="face"] .face-consent input').check();
   await page.locator('[data-record-detail="face"] input[type="file"][capture="user"]').setInputFiles(samplePhoto);
   await expect(page.locator('[data-record-detail="face"] .success-text')).toBeVisible();
   await page.waitForTimeout(900);
+  await assertNoBottomNavClipping(page, "face-result", '[data-record-detail="face"] .face-result .detected-list div, [data-record-detail="face"] .face-result-meta span');
   await page.screenshot({ path: path.join(outputDir, "record-face.png") });
+  await returnFromSubview();
   await returnToHub();
   results.push("六类记录入口、四类 Figma 概览/二级页、保存、计时与拍照分析");
 }
@@ -424,7 +651,30 @@ async function verifyHomeShortcuts(page, results) {
     await page.locator(`.option-two-health-entry--${module}`).click();
     await expect(page.locator(`[data-record-detail="${module}"]`)).toBeVisible();
   }
-  results.push("首页展开菜单与六个健康快捷入口");
+  await page.locator('[data-tab="today"]').click();
+  await page.locator(".option-two-side-actions button").nth(1).click();
+  await expect(page.locator("[data-record-module]")).toHaveCount(6);
+  await page.locator('[data-tab="today"]').click();
+  await page.locator(".option-two-side-actions button").nth(2).click();
+  await expect(page.locator(".chat-layout")).toBeVisible();
+  await page.locator('[data-tab="today"]').click();
+  await page.locator(".option-two-side-actions button").nth(3).click();
+  await expect(page.locator('.utility-drawer[role="dialog"]')).toBeVisible();
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: path.join(outputDir, "today-utilities.png") });
+  const todoDraft = page.locator('.utility-drawer input[placeholder*="添加"], .utility-drawer input[placeholder*="Add"]');
+  await todoDraft.fill(reviewLocale === "zh" ? "晚饭后散步 20 分钟" : "Walk for 20 minutes after dinner");
+  await page.locator('.drawer-todo-section form button[type="submit"]').click();
+  const newTodo = page.locator(".drawer-todo-list button").first();
+  await expect(newTodo).toBeVisible();
+  await newTodo.click();
+  await expect(newTodo.locator("svg")).toBeVisible();
+  await assertStaticLayout(page, "today-utilities-with-todo");
+  await page.waitForTimeout(280);
+  await page.screenshot({ path: path.join(outputDir, "today-utilities-with-todo.png") });
+  await page.locator('.utility-drawer[role="dialog"] header button').click();
+  await expect(page.locator('.utility-drawer[role="dialog"]')).toBeHidden();
+  results.push("首页展开菜单、六个健康快捷入口与三类侧边跳转");
 }
 
 async function verifyAi(page, results, diagnostics) {
@@ -432,8 +682,11 @@ async function verifyAi(page, results, diagnostics) {
   await expect(page.locator(".chat-message-row")).toHaveCount(3);
   await page.locator(".chat-composer input").fill("我今天吃什么好？请直接推荐一份午餐。");
   await page.locator(".chat-send-button").click();
+  await expect(page.locator("[data-ai-streaming=true]")).toBeVisible();
+  await page.screenshot({ path: path.join(outputDir, "ai-processing.png") });
   await page.waitForFunction(() => {
-    const replyReady = document.querySelectorAll(".chat-message-row").length === 5;
+    const replyReady = document.querySelectorAll(".chat-message-row").length === 5
+      && !document.querySelector("[data-ai-streaming=true]");
     const errorText = document.querySelector(".error-text")?.textContent?.trim();
     return replyReady || Boolean(errorText);
   }, null, { timeout: 30_000 });
@@ -444,11 +697,12 @@ async function verifyAi(page, results, diagnostics) {
   }
   await expect(page.locator(".chat-message-row")).toHaveCount(5, { timeout: 30_000 });
   const realReply = (await page.locator(".chat-message-row.assistant .chat-bubble p").last().innerText()).trim();
-  if (Array.from(realReply).length > 180) throw new Error(`AI reply exceeded 180 Chinese characters: ${realReply}`);
-  if (!/午餐|主食|蛋白|蔬菜|鸡|鱼|蛋|豆|饭|面|餐/.test(realReply)) {
+  const replyLimit = reviewLocale === "en" ? 280 : 180;
+  if (Array.from(realReply).length > replyLimit) throw new Error(`AI reply exceeded ${replyLimit} characters: ${realReply}`);
+  if (!/午餐|主食|蛋白|蔬菜|鸡|鱼|蛋|豆|饭|面|餐|meal|lunch|calorie|protein|vegetable|chicken|fish|egg|tofu|rice|noodle/i.test(realReply)) {
     throw new Error(`AI reply did not directly answer the meal question: ${realReply}`);
   }
-  if (/Edge Function|数据库|JSON|系统提示词|模型名称/.test(realReply)) {
+  if (/Edge Function|数据库|JSON|系统提示词|模型名称|database|system prompt|model name/i.test(realReply)) {
     throw new Error(`AI reply exposed implementation details: ${realReply}`);
   }
   await page.locator(".figma-header-action").last().click();
@@ -457,6 +711,16 @@ async function verifyAi(page, results, diagnostics) {
   await page.locator(".figma-header-action").last().click();
   await page.locator(".app-utility-popover button").filter({ hasText: /历史|History/ }).click();
   await expect(page.locator(".ai-history-sheet")).toBeVisible();
+  await assertAnimation(page.locator(".ai-history-sheet"), "sheet-rise", "AI history sheet");
+  const historyBackdrop = await page.locator(".chat-layout").evaluate((node) => ({
+    content: getComputedStyle(node, "::before").content,
+    background: getComputedStyle(node, "::before").backgroundColor,
+  }));
+  if (historyBackdrop.content === "none" || historyBackdrop.background === "rgba(0, 0, 0, 0)") {
+    throw new Error(`AI history sheet backdrop is missing: ${JSON.stringify(historyBackdrop)}`);
+  }
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: path.join(outputDir, "ai-history.png") });
   await page.locator(".ai-history-sheet > div > button").first().click();
   await expect(page.locator(".chat-message-row")).toHaveCount(5);
   await page.waitForTimeout(100);
@@ -508,8 +772,16 @@ async function verifyProfile(page, results) {
   await expect(save).toHaveClass(/success/);
   await expect(accountName).toHaveText("功能验收");
 
+  const nextProfileSection = page.locator(".profile-next-section-button");
+  if (await nextProfileSection.isVisible().catch(() => false)) {
+    await nextProfileSection.click();
+    await expect(page.locator(".profile-device-card").first()).toBeInViewport();
+  }
+
   await page.locator(".avatar-button").click();
   await expect(page.locator(".avatar-sheet")).toBeVisible();
+  await page.waitForTimeout(420);
+  await page.screenshot({ path: path.join(outputDir, "profile-avatar-sheet.png") });
   await page.locator('.profile-account-card input[type="file"]:not([capture])').setInputFiles(samplePhoto);
   await expect(page.locator(".avatar-button img")).toBeVisible();
 
@@ -527,6 +799,18 @@ async function verifyProfile(page, results) {
   const download = await downloadPromise;
   await download.cancel();
 
+  const deleteButton = page.getByRole("button", { name: /删除账号与全部数据|Delete account and all data/ });
+  await deleteButton.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(700);
+  await assertStaticLayout(page, "profile-bottom");
+  await page.screenshot({ path: path.join(outputDir, "profile-bottom.png") });
+  await deleteButton.click();
+  await expect(page.locator(".account-delete-sheet")).toBeVisible();
+  await page.waitForTimeout(420);
+  await page.screenshot({ path: path.join(outputDir, "profile-delete-sheet.png") });
+  await page.locator(".account-delete-sheet header button").click();
+  await expect(page.locator(".account-delete-sheet")).toBeHidden();
+
   await page.locator(".app-content").evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
   await page.locator('[data-tab="record"]').click();
   await expect.poll(() => page.locator(".app-content").evaluate((node) => node.scrollTop)).toBe(0);
@@ -541,6 +825,7 @@ async function verifyNavigationAndMotion(page, results) {
     await expect(page.locator(`[data-tab="${tab}"]`)).toHaveAttribute("aria-current", "page");
     if (tab === "trends") {
       await expect(page.locator("[data-growth-screen]")).toBeVisible();
+      await assertAnimation(page.locator(".growth-progress-track span"), "growth-progress-in", "growth progress bar");
       await expect(page.locator("[data-growth-task]")).toHaveCount(8);
       await expect(page.locator(".growth-task-group")).toHaveCount(2);
       await expect(page.locator(".growth-task-group").first().locator("[data-growth-task]")).toHaveCount(2);
@@ -552,8 +837,47 @@ async function verifyNavigationAndMotion(page, results) {
     });
     if (tab !== "ai" && animationName !== "nav-icon-construct") throw new Error(`${tab} icon motion did not replay: ${animationName}`);
     await page.waitForTimeout(900);
+    await assertStaticLayout(page, `tab-${tab}`);
     await page.screenshot({ path: path.join(outputDir, `tab-${tab}.png`) });
+    if (tab === "trends") {
+      const taskList = page.locator(".growth-task-list");
+      await taskList.evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
+      await expect(page.locator("[data-growth-task]").last()).toBeVisible();
+      const clippedTasks = await taskList.evaluate((node) => {
+        const listRect = node.getBoundingClientRect();
+        return [...node.querySelectorAll("[data-growth-task]")]
+          .map((task) => ({ id: task.getAttribute("data-growth-task"), rect: task.getBoundingClientRect() }))
+          .filter(({ rect }) => (rect.top < listRect.top - 0.1 && rect.bottom > listRect.top + 0.1)
+            || (rect.top < listRect.bottom - 0.1 && rect.bottom > listRect.bottom + 0.1))
+          .map(({ id, rect }) => ({ id, top: rect.top, bottom: rect.bottom, listTop: listRect.top, listBottom: listRect.bottom }));
+      });
+      if (clippedTasks.length > 0) throw new Error(`Growth task cards are clipped after scrolling: ${JSON.stringify(clippedTasks)}`);
+      await assertStaticLayout(page, "tab-trends-lower");
+      await page.waitForTimeout(250);
+      await page.screenshot({ path: path.join(outputDir, "tab-trends-lower.png") });
+      await taskList.evaluate((node) => node.scrollTo({ top: 0 }));
+    }
   }
+  await page.locator('[data-tab="record"]').click();
+  await page.getByRole("tab", { name: /本周报告|Weekly/ }).click();
+  await expect(page.locator("[data-weekly-health-report]")).toBeVisible();
+  await assertAnimation(page.locator(".weekly-trend-card .trend-line"), "trend-line-draw", "weekly rhythm line");
+  await page.waitForTimeout(1_050);
+  await assertStaticLayout(page, "record-weekly");
+  const weeklyOverflow = await page.locator(".weekly-insight-card").evaluate((card) => {
+    const cardRect = card.getBoundingClientRect();
+    return [...card.children]
+      .map((node) => ({ className: node.className, bottom: node.getBoundingClientRect().bottom }))
+      .filter(({ bottom }) => bottom > cardRect.bottom + 1);
+  });
+  if (weeklyOverflow.length > 0) throw new Error(`Weekly insight content overflowed its card: ${JSON.stringify(weeklyOverflow)}`);
+  await page.screenshot({ path: path.join(outputDir, "record-weekly.png") });
+  await page.locator(".weekly-module-status button").filter({ hasText: /睡眠|Sleep/ }).click();
+  await expect(page.locator('[data-record-detail="sleep"] [data-module-view="sleep-overview"]')).toBeVisible();
+  await expect(page).toHaveURL(/tab=record.*module=sleep/);
+  await page.goBack();
+  await expect(page.locator("[data-weekly-health-report]")).toBeVisible();
+  await page.getByRole("tab", { name: /分项报告|Modules/ }).click();
   const recordButton = page.locator('[data-tab="record"]');
   const recordBox = await recordButton.boundingBox();
   if (!recordBox) throw new Error("Record navigation button has no bounds");
@@ -565,6 +889,8 @@ async function verifyNavigationAndMotion(page, results) {
   const utilityPopover = page.locator(".app-utility-popover");
   await expect(utilityPopover).toBeVisible();
   await expect(utilityPopover.locator(".network-badge")).toHaveCount(0);
+  await page.waitForTimeout(280);
+  await page.screenshot({ path: path.join(outputDir, "header-utility-menu.png") });
   const utilityAlignment = await utilityPopover.evaluate((popover) => {
     const regularIcon = popover.querySelector("button:not(.language-toggle) svg");
     const languageIcon = popover.querySelector(".language-toggle svg");
@@ -580,6 +906,9 @@ async function verifyNavigationAndMotion(page, results) {
   if (utilityAlignment.leftOffset > 0.6 || utilityAlignment.widthOffset > 0.6 || utilityAlignment.heightOffset > 0.6) {
     throw new Error(`Utility menu icons are not aligned: ${JSON.stringify(utilityAlignment)}`);
   }
+  const utilityBackground = await utilityPopover.evaluate((popover) => getComputedStyle(popover).backgroundColor);
+  const utilityAlpha = Number(utilityBackground.match(/[\d.]+/g)?.[3] ?? 1);
+  if (utilityAlpha < 0.96) throw new Error(`Utility menu background is too transparent: ${utilityBackground}`);
   await page.locator(".figma-header-action").last().click();
   await expect(utilityPopover).toBeHidden();
   results.push("五项底部导航、趋势折线、图标构建立体动效与页头工具菜单");
@@ -596,9 +925,11 @@ async function main() {
   const baseUrl = reviewBaseUrl ?? server?.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? `http://127.0.0.1:${port}`;
   const browser = await chromium.launch();
   try {
-    await verifyAuthControls(browser, baseUrl, results, consoleErrors);
-    await verifyOtpLogin(browser, baseUrl, results, consoleErrors);
-    await verifyRegistration(browser, baseUrl, results, consoleErrors);
+    if (!skipAuthAudit) {
+      await verifyAuthControls(browser, baseUrl, results, consoleErrors);
+      await verifyOtpLogin(browser, baseUrl, results, consoleErrors);
+      await verifyRegistration(browser, baseUrl, results, consoleErrors);
+    }
     const { context, page } = await createReviewPage(browser, baseUrl, consoleErrors);
     await verifyNavigationAndMotion(page, results);
     await verifyHomeShortcuts(page, results);

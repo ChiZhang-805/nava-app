@@ -22,6 +22,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import LanguageToggle from "./components/LanguageToggle";
 import MascotMotionSlot from "./components/MascotMotionSlot";
 import UtilityDrawer from "./components/UtilityDrawer";
+import DevSeedPanel from "./components/DevSeedPanel";
 import { LocaleProvider, useLocale, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
@@ -285,7 +286,8 @@ function MobileShell() {
   useEffect(() => {
     contentRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
     setUtilityOpen(false);
-  }, [activeTab]);
+    setDrawerOpen(false);
+  }, [activeTab, recordModule, recordView]);
 
   useEffect(() => () => {
     if (aiLongPressTimerRef.current !== null) window.clearTimeout(aiLongPressTimerRef.current);
@@ -303,7 +305,8 @@ function MobileShell() {
             type="button"
             onClick={() => {
               if (activeTab === "record" && recordModule) {
-                navigate("record");
+                if (recordView && recordView !== "overview") navigate("record", recordModule);
+                else navigate("record");
                 return;
               }
               navigate("today");
@@ -336,7 +339,7 @@ function MobileShell() {
                 <button type="button" onClick={() => void shareCurrentPage()}><Share2 size={17} />{locale === "zh" ? "分享页面" : "Share"}</button>
               </>}
               <button type="button" onClick={() => { setUtilityOpen(false); setDrawerOpen(true); }}><ListTodo size={17} />{locale === "zh" ? "功能导航" : "Utilities"}</button>
-              <LanguageToggle />
+              <LanguageToggle onToggle={() => setUtilityOpen(false)} />
             </div>
           )}
         </header>
@@ -374,7 +377,11 @@ function MobileShell() {
               onViewChange={(view) => navigate("record", recordModule, view)}
             />
           )}
-          <div className={["ai-screen-host", activeTab === "ai" ? "is-active" : "is-background"].join(" ")} aria-hidden={activeTab !== "ai"}>
+          <div
+            className={["ai-screen-host", activeTab === "ai" ? "is-active" : "is-background"].join(" ")}
+            aria-hidden={activeTab !== "ai"}
+            {...(activeTab !== "ai" ? { inert: "" } : {})}
+          >
             <AIScreen
               user={user}
               voiceRequestId={voiceRequestId}
@@ -497,6 +504,7 @@ function AppContent() {
   return (
     <div className="nava-app-stage">
       {screen}
+      {user && <DevSeedPanel user={user} />}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { Award, Check, Flame, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "../i18n";
 import { growthXp, loadGrowthTasks, reconcileGrowthRewards, resolveGrowthTasks, subscribeProductivity, type GrowthSummary, type GrowthTask } from "../services/productivity";
 
@@ -9,6 +9,17 @@ export default function GrowthTasksScreen({ user }: { user: User }) {
   const [tasks, setTasks] = useState<GrowthTask[]>(() => loadGrowthTasks(user.id));
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<GrowthSummary | null>(null);
+  const taskListRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const list = taskListRef.current;
+    if (!list) return undefined;
+    list.scrollTop = 0;
+    const frame = window.requestAnimationFrame(() => {
+      if (taskListRef.current) taskListRef.current.scrollTop = 0;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [user.id]);
 
   useEffect(() => {
     let active = true;
@@ -44,7 +55,7 @@ export default function GrowthTasksScreen({ user }: { user: User }) {
         <Sparkles size={22} aria-hidden="true" />
       </header>
 
-      <div className="growth-task-list" aria-busy={loading}>
+      <div className="growth-task-list" aria-busy={loading} ref={taskListRef}>
         {(["profile", "daily"] as const).map((category) => <section className="growth-task-group" key={category}>
           <header>{category === "profile" ? (locale === "zh" ? "画像完善" : "Profile") : (locale === "zh" ? "今日节律" : "Today")}</header>
           {tasks.filter((task) => task.category === category).map((task) => (

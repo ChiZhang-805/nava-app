@@ -855,6 +855,76 @@ textarea {
   background: #ffffff;
 }
 
+.chat-bubble.streaming {
+  min-width: min(64%, 250px);
+  min-height: 48px;
+  display: grid;
+  align-content: center;
+}
+
+.ai-processing-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #31697f;
+  font-size: 13px;
+  font-weight: 680;
+  animation: ai-processing-step 360ms ease-in-out both;
+}
+
+.ai-processing-status > span {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #2da8d5;
+  box-shadow: 0 0 0 5px rgba(45, 168, 213, 0.12);
+}
+
+.ai-processing-status.tone-cute {
+  color: #735a9a;
+}
+
+.ai-processing-status.tone-cute > span {
+  background: #9e7bc4;
+  box-shadow: 0 0 0 5px rgba(158, 123, 196, 0.12);
+}
+
+.ai-processing-status.tone-practical {
+  color: #245d78;
+}
+
+.ai-processing-status.tone-gentle,
+.ai-processing-status.tone-calm {
+  color: #4d7080;
+}
+
+.ai-streaming-content {
+  white-space: pre-wrap;
+}
+
+.ai-streaming-cursor {
+  width: 2px;
+  height: 1.05em;
+  display: inline-block;
+  margin-left: 2px;
+  border-radius: 2px;
+  vertical-align: -0.12em;
+  background: #178dbd;
+  animation: ai-streaming-cursor 720ms steps(1, end) infinite;
+}
+
+@keyframes ai-processing-step {
+  0% { opacity: 0; transform: translateY(4px); }
+  24%, 72% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-3px); }
+}
+
+@keyframes ai-streaming-cursor {
+  0%, 48% { opacity: 1; }
+  49%, 100% { opacity: 0; }
+}
+
 .chat-composer {
   flex: 0 0 auto;
   display: grid;
@@ -918,6 +988,13 @@ textarea {
 @keyframes voice-listening-pulse {
   0%, 100% { opacity: 0.5; transform: scale(0.88); }
   50% { opacity: 1; transform: scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-processing-status,
+  .ai-streaming-cursor {
+    animation: none;
+  }
 }
 
 .empty-chat {
@@ -4920,4 +4997,47 @@ textarea::placeholder {
     min-height: 38px;
     margin-top: 2px;
   }
+}
+
+.dev-seed-panel {
+  position: fixed;
+  z-index: 1000;
+  right: 18px;
+  bottom: 18px;
+  width: min(340px, calc(100vw - 36px));
+  padding: 16px;
+  border: 1px solid rgba(13, 113, 157, 0.2);
+  border-radius: 18px;
+  background: rgba(244, 252, 255, 0.97);
+  box-shadow: 0 16px 44px rgba(12, 76, 108, 0.2);
+  color: #14384b;
+}
+
+.dev-seed-panel strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.dev-seed-panel p {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.dev-seed-panel button {
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  border-radius: 12px;
+  background: #0d8fc2;
+  color: #fff;
+  font-weight: 700;
+}
+
+.dev-seed-panel.is-done {
+  border-color: rgba(31, 135, 96, 0.36);
+}
+
+.dev-seed-panel.is-error {
+  border-color: rgba(176, 59, 59, 0.35);
 }

@@ -72,7 +72,10 @@ export async function ensureProfile(userId: string, fallbackName?: string | null
 export async function signInWithPassword(account: string, password: string) {
   if (!password) throw new Error("请输入密码。");
   const email = toAuthEmail(account);
-  await assertAccountEligibility(account, "login");
+  const localSeedMode = import.meta.env.DEV
+    && typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).get("seedHistory") === "1";
+  if (!localSeedMode) await assertAccountEligibility(account, "login");
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
   if (data.user) await ensureProfile(data.user.id, account.trim());
