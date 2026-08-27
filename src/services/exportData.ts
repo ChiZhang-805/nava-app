@@ -39,6 +39,14 @@ export async function exportUserData(userId: string) {
     "health_metric_snapshots",
     "watch_snapshots",
     "daily_rhythm_scores",
+    "health_feature_snapshots",
+    "fdnb_health_scores",
+    "weekly_health_reports",
+    "record_drafts",
+    "notification_preferences",
+    "growth_reward_ledger",
+    "growth_badges",
+    "analytics_events",
   ];
 
   const result: Record<string, unknown> = {

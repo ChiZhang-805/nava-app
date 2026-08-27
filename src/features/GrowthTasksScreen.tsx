@@ -2,23 +2,28 @@ import type { User } from "@supabase/supabase-js";
 import { Award, Check, Flame, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useLocale } from "../i18n";
-import { growthXp, loadGrowthTasks, resolveGrowthTasks, subscribeProductivity, type GrowthTask } from "../services/productivity";
+import { growthXp, loadGrowthTasks, reconcileGrowthRewards, resolveGrowthTasks, subscribeProductivity, type GrowthSummary, type GrowthTask } from "../services/productivity";
 
 export default function GrowthTasksScreen({ user }: { user: User }) {
   const { locale } = useLocale();
   const [tasks, setTasks] = useState<GrowthTask[]>(() => loadGrowthTasks(user.id));
   const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState<GrowthSummary | null>(null);
 
   useEffect(() => {
     let active = true;
     void resolveGrowthTasks(user.id)
-      .then((next) => { if (active) setTasks(next); })
+      .then(async (next) => {
+        if (active) setTasks(next);
+        const rewards = await reconcileGrowthRewards(next);
+        if (active) setSummary(rewards);
+      })
       .finally(() => { if (active) setLoading(false); });
     const unsubscribe = subscribeProductivity(() => setTasks(loadGrowthTasks(user.id)));
     return () => { active = false; unsubscribe(); };
   }, [user.id]);
 
-  const xp = useMemo(() => growthXp(tasks), [tasks]);
+  const xp = useMemo(() => summary?.totalPoints ?? growthXp(tasks), [summary, tasks]);
   const level = Math.floor(xp / 100) + 1;
   const progress = xp % 100;
 
@@ -61,7 +66,7 @@ export default function GrowthTasksScreen({ user }: { user: User }) {
 
       <section className="growth-badge-card">
         <Award size={28} />
-        <div><strong>{locale === "zh" ? "下一枚徽章" : "Next badge"}</strong><span>{locale === "zh" ? "再获得 100 XP，解锁节律观察者" : "Earn 100 XP to unlock Rhythm Observer"}</span></div>
+        <div><strong>{summary?.badges.includes("bare_face_week") ? (locale === "zh" ? "素颜七日徽章" : "Bare-face week") : summary?.badges.includes("rhythm_observer") ? (locale === "zh" ? "节律观察者" : "Rhythm Observer") : (locale === "zh" ? "下一枚徽章" : "Next badge")}</strong><span>{summary?.badges.length ? (locale === "zh" ? "奖励已由后端依据真实记录核验。" : "Rewards verified from real records by the backend.") : (locale === "zh" ? `再获得 ${Math.max(0, 100 - xp)} XP，解锁节律观察者` : `Earn ${Math.max(0, 100 - xp)} XP to unlock Rhythm Observer`)}</span></div>
       </section>
     </div>
   );

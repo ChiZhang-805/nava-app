@@ -16,6 +16,14 @@ const tableContracts = [
   { name: "health_metric_snapshots", column: "user_id" },
   { name: "watch_snapshots", column: "user_id" },
   { name: "daily_rhythm_scores", column: "user_id" },
+  { name: "health_feature_snapshots", column: "user_id" },
+  { name: "fdnb_health_scores", column: "user_id" },
+  { name: "weekly_health_reports", column: "user_id" },
+  { name: "record_drafts", column: "user_id" },
+  { name: "notification_preferences", column: "user_id" },
+  { name: "growth_reward_ledger", column: "user_id" },
+  { name: "growth_badges", column: "user_id" },
+  { name: "analytics_events", column: "user_id" },
 ];
 
 Deno.serve(async (req) => {

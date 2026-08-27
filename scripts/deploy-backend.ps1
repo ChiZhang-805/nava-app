@@ -16,7 +16,10 @@ $appFunctions = @(
   "health-sync-ingest",
   "watch-sync",
   "rhythm-score",
+  "dnb-weekly-report",
+  "fdnb-recompute",
   "export-user-data",
+  "delete-account",
   "aliyun-sms-send",
   "aliyun-sms-verify",
   "auth-account-status"

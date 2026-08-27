@@ -55,6 +55,11 @@ export interface NutritionRecord {
   lunch_items?: FoodItem[];
   dinner_items?: FoodItem[];
   pantry_items?: FoodItem[];
+  protein_grams?: number | null;
+  carbohydrate_grams?: number | null;
+  fat_grams?: number | null;
+  hydration_ml?: number | null;
+  health_rating?: number | null;
   ai_feedback: string | null;
 }
 
@@ -77,6 +82,10 @@ export interface FocusRecord {
   record_date: string;
   completed_sessions: number;
   total_minutes: number;
+  interrupted_sessions?: number;
+  category?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
 }
 
 export interface TodaySnapshot {
@@ -183,4 +192,7 @@ export interface FaceRecord {
   annotations: FaceAnnotation[];
   feedback: string | null;
   model_version: string | null;
+  capture_mode?: "bare_face" | "makeup";
+  analysis_confidence?: number | null;
+  derived_features?: Record<string, number | string | boolean | null>;
 }

@@ -1,16 +1,17 @@
-# DNB weekly report adapter
+# NAVA-FDNB Health weekly report
 
-This Edge Function is the only integration point between the NAVA app and the external DNB algorithm service.
+This authenticated Edge Function is the application-facing entry point for the
+NAVA-FDNB Health research adapter. It reads up to 84 days of the authenticated
+user's six record groups and wearable snapshots, creates privacy-safe derived
+features, runs the longitudinal window scorer, and persists a versioned weekly
+snapshot when the corresponding migration is available.
 
-Required secret after the algorithm team supplies the endpoint:
+The response keeps `transitionScore` (window transition strength) separate from
+`peakScore` (candidate localization) and includes `evidenceLevel`, `accepted`,
+data quality, contributors, diagnostics, model version, and an explicit
+non-diagnostic disclaimer. Insufficient coverage never receives a synthetic or
+fallback DNB score.
 
-- `DNB_API_URL`: HTTPS endpoint for the DNB service.
-- `DNB_API_KEY`: optional bearer token. Keep it in Supabase Edge Function secrets, never in the client app.
-
-The function sends `nava.dnb.weekly.v1` with the authenticated user ID, requested period, coverage count, and the user's six record groups plus Apple Health snapshots. The DNB service should return one of:
-
-- `ready`: real score, confidence, summary, recommendations, and model version.
-- `insufficient_data`: required and available day counts plus a reason.
-- `unavailable`: service-level failure reason.
-
-Until `DNB_API_URL` exists, the function deliberately returns `unavailable`; it never substitutes the local baseline rhythm score for a DNB result.
+The original single-cell `h5ad` FDNB package is not executed here. This adapter
+is an independently implemented health-time-series research layer and requires
+separate longitudinal validation before any clinical or diagnostic use.

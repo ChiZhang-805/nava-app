@@ -25,10 +25,17 @@ const extensionTables = {
   health_metric_snapshots: "id,user_id,record_date,source",
   health_sync_jobs: "id,user_id,status,created_at",
   watch_snapshots: "id,user_id,payload,pushed_at",
+  health_feature_snapshots: "id,user_id,record_date,schema_version,features,data_quality",
+  fdnb_health_scores: "id,user_id,report_start,report_end,status,evidence_level,model_version",
+  weekly_health_reports: "id,user_id,week_start,week_end,status,model_version",
+  record_drafts: "id,user_id,module,record_date,status",
+  notification_preferences: "id,user_id,notification_type,enabled,local_time",
+  growth_reward_ledger: "id,user_id,event_key,points,source",
+  growth_badges: "id,user_id,badge_key,awarded_at",
 };
 
 const sharedFunctions = ["ai-extract-data", "ai-chat-reply", "diet-extract", "face-analyze", "aliyun-sms-send", "aliyun-sms-verify"];
-const appFunctions = ["health-sync-ingest", "watch-sync", "rhythm-score", "export-user-data", "auth-account-status"];
+const appFunctions = ["health-sync-ingest", "watch-sync", "rhythm-score", "dnb-weekly-report", "fdnb-recompute", "export-user-data", "delete-account", "auth-account-status"];
 const sharedBuckets = ["diet-photos"];
 const appBuckets = ["face-photos", "profile-avatars"];
 

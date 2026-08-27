@@ -359,7 +359,7 @@ export default function AuthScreen() {
           </label>
         )}
       </div>
-      {consentOpen && <div className="auth-consent-dialog" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "协议确认" : "Agreement confirmation"}><div><header><strong>{locale === "zh" ? "请先确认协议" : "Review agreements"}</strong><button type="button" onClick={() => setConsentOpen(false)}>×</button></header><p>{locale === "zh" ? "继续注册即表示你已阅读并同意《用户协议》和《隐私政策》。" : "Continue only after reviewing the User Agreement and Privacy Policy."}</p><nav><a href="#agreement">{locale === "zh" ? "用户协议" : "User Agreement"}</a><a href="#privacy">{locale === "zh" ? "隐私政策" : "Privacy Policy"}</a></nav><button type="button" onClick={() => { setAcceptedTerms(true); setConsentOpen(false); setSignUpStep("password"); }}>{locale === "zh" ? "同意并继续" : "Agree and continue"}</button></div></div>}
+      {consentOpen && <div className="auth-consent-dialog" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "协议确认" : "Agreement confirmation"}><div><header><strong>{locale === "zh" ? "请先确认协议" : "Review agreements"}</strong><button type="button" onClick={() => setConsentOpen(false)}>×</button></header><p>{locale === "zh" ? "继续注册即表示你已阅读并同意《用户协议》和《隐私政策》。" : "Continue only after reviewing the User Agreement and Privacy Policy."}</p><nav><a href="./terms.html" target="_blank" rel="noreferrer">{locale === "zh" ? "用户协议" : "User Agreement"}</a><a href="./privacy.html" target="_blank" rel="noreferrer">{locale === "zh" ? "隐私政策" : "Privacy Policy"}</a></nav><button type="button" onClick={() => { setAcceptedTerms(true); setConsentOpen(false); setSignUpStep("password"); }}>{locale === "zh" ? "同意并继续" : "Agree and continue"}</button></div></div>}
     </main>
   );
 }

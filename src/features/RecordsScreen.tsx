@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { ArrowLeft, BedDouble, Brain, Camera, Check, ChevronRight, Drumstick, Dumbbell, Loader2, ScanFace, SmilePlus, type LucideIcon } from "lucide-react";
+import { ArrowLeft, BedDouble, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Loader2, ScanFace, Share2, SmilePlus, type LucideIcon } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import LineTrendChart from "../components/LineTrendChart";
@@ -19,7 +19,9 @@ import {
 } from "../services/records";
 import { todayISO } from "../services/date";
 import { analyzeDietPhoto, analyzeFacePhoto } from "../services/media";
-import { loadDnbWeeklyReport, type DnbWeeklyReport } from "../services/dnb";
+import { currentSevenDayPeriod, loadDnbWeeklyReport, refreshFdnbHealth, shareDnbWeeklyPoster, type DnbWeeklyReport } from "../services/dnb";
+import { trackAnalyticsEvent } from "../services/analytics";
+import { clearRecordDraft, loadRecordDraft, saveRecordDraft, type RecordDraftModule } from "../services/drafts";
 import { loadProfile, type UserProfile } from "../services/profile";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 import RecordModuleDashboard from "./RecordModuleDashboard";
@@ -112,6 +114,8 @@ export default function RecordsScreen({
   const [reportMode, setReportMode] = useState<"modules" | "weekly">("modules");
   const [dnbReport, setDnbReport] = useState<DnbWeeklyReport | null>(null);
   const [dnbLoading, setDnbLoading] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [draftReady, setDraftReady] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const [moodScore, setMoodScore] = useState(70);
@@ -137,6 +141,11 @@ export default function RecordsScreen({
   const [meal, setMeal] = useState<"breakfast" | "lunch" | "dinner" | "pantry">("lunch");
   const [mealName, setMealName] = useState("鸡胸肉沙拉");
   const [mealCalories, setMealCalories] = useState(520);
+  const [proteinGrams, setProteinGrams] = useState(0);
+  const [carbohydrateGrams, setCarbohydrateGrams] = useState(0);
+  const [fatGrams, setFatGrams] = useState(0);
+  const [hydrationMl, setHydrationMl] = useState(0);
+  const [dietRating, setDietRating] = useState(3);
   const [dietPhotoUrl, setDietPhotoUrl] = useState<string | null>(null);
   const [dietPhotoPath, setDietPhotoPath] = useState<string | null>(null);
   const [dietItems, setDietItems] = useState<FoodItem[]>([]);
@@ -147,9 +156,12 @@ export default function RecordsScreen({
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [faceResult, setFaceResult] = useState<FaceAnalysisResult | null>(null);
   const [faceAnalyzing, setFaceAnalyzing] = useState(false);
+  const [faceMode, setFaceMode] = useState<"bare_face" | "makeup">("bare_face");
+  const [faceConsent, setFaceConsent] = useState(false);
   const facePhotoInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadRecordData = useCallback(async () => {
+    setDraftReady(false);
     try {
       const [snapshot, trends, loadedProfile] = await Promise.all([
         getTodaySnapshot(user.id, recordDate),
@@ -180,15 +192,76 @@ export default function RecordsScreen({
         setHeartRate(snapshot.exercise.heart_rate ?? "");
         setSpo2(snapshot.exercise.spo2 ?? "");
       }
-      if (snapshot.nutrition) setMealCalories(snapshot.nutrition.total_calories ?? 0);
+      if (snapshot.nutrition) {
+        setMealCalories(snapshot.nutrition.total_calories ?? 0);
+        setProteinGrams(snapshot.nutrition.protein_grams ?? 0);
+        setCarbohydrateGrams(snapshot.nutrition.carbohydrate_grams ?? 0);
+        setFatGrams(snapshot.nutrition.fat_grams ?? 0);
+        setHydrationMl(snapshot.nutrition.hydration_ml ?? 0);
+        setDietRating(snapshot.nutrition.health_rating ?? 3);
+      }
+      const draftModule = activeModule === "diet" ? "nutrition" : activeModule;
+      const draft = draftModule ? await loadRecordDraft(user.id, draftModule, recordDate) : null;
+      if (draft && activeModule === "mood") {
+        if (typeof draft.moodScore === "number") setMoodScore(draft.moodScore);
+        if (Array.isArray(draft.selectedFactors)) setSelectedFactors(draft.selectedFactors.filter((item): item is string => typeof item === "string"));
+        if (typeof draft.diary === "string") setDiary(draft.diary);
+      }
+      if (draft && activeModule === "sleep") {
+        if (typeof draft.start === "string") setSleepStart(draft.start);
+        if (typeof draft.end === "string") setSleepEnd(draft.end);
+        if (typeof draft.rating === "number") setSleepRating(draft.rating);
+        if (typeof draft.note === "string") setSleepNote(draft.note);
+      }
+      if (draft && activeModule === "exercise") {
+        if (typeof draft.steps === "number") setSteps(draft.steps);
+        if (typeof draft.calories === "number") setCalories(draft.calories);
+        if (typeof draft.minutes === "number") setExerciseMinutes(draft.minutes);
+        if (typeof draft.note === "string") setExerciseNote(draft.note);
+      }
+      if (draft && activeModule === "diet") {
+        if (typeof draft.meal === "string" && ["breakfast", "lunch", "dinner", "pantry"].includes(draft.meal)) setMeal(draft.meal as typeof meal);
+        if (typeof draft.name === "string") setMealName(draft.name);
+        if (typeof draft.calories === "number") setMealCalories(draft.calories);
+        if (Array.isArray(draft.items)) setDietItems(draft.items as FoodItem[]);
+        if (typeof draft.proteinGrams === "number") setProteinGrams(draft.proteinGrams);
+        if (typeof draft.carbohydrateGrams === "number") setCarbohydrateGrams(draft.carbohydrateGrams);
+        if (typeof draft.fatGrams === "number") setFatGrams(draft.fatGrams);
+        if (typeof draft.hydrationMl === "number") setHydrationMl(draft.hydrationMl);
+        if (typeof draft.rating === "number") setDietRating(draft.rating);
+      }
+      if (draft && activeModule === "focus") {
+        if (typeof draft.title === "string") setFocusTitle(draft.title);
+        if (typeof draft.minutes === "number") setFocusMinutes(draft.minutes);
+      }
     } catch (loadError) {
       console.warn("Failed to load record dashboard data", loadError);
+    } finally {
+      setDraftReady(true);
     }
-  }, [recordDate, user.id]);
+  }, [activeModule, recordDate, user.id]);
 
   useEffect(() => {
     void loadRecordData();
   }, [loadRecordData]);
+
+  useEffect(() => {
+    if (!draftReady || !activeModule || activeModule === "face" || (!showEditor && activeModule !== "mood" && activeModule !== "focus")) return;
+    const module: RecordDraftModule = activeModule === "diet" ? "nutrition" : activeModule;
+    const payload: Record<string, unknown> = activeModule === "mood"
+      ? { moodScore, selectedFactors, diary }
+      : activeModule === "sleep"
+        ? { start: sleepStart, end: sleepEnd, duration: sleepDuration, deep: deepSleep, light: lightSleep, rem: remSleep, rating: sleepRating, note: sleepNote }
+        : activeModule === "exercise"
+          ? { steps, calories, minutes: exerciseMinutes, heartRate, spo2, note: exerciseNote }
+          : activeModule === "diet"
+            ? { meal, name: mealName, calories: mealCalories, items: dietItems, proteinGrams, carbohydrateGrams, fatGrams, hydrationMl, rating: dietRating }
+            : { title: focusTitle, minutes: focusMinutes };
+    const timer = window.setTimeout(() => {
+      void saveRecordDraft(user.id, module, recordDate, payload).catch((draftError) => console.warn("Record draft sync deferred", draftError));
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [activeModule, calories, carbohydrateGrams, deepSleep, diary, dietItems, dietRating, draftReady, exerciseMinutes, exerciseNote, fatGrams, focusMinutes, focusTitle, heartRate, hydrationMl, lightSleep, meal, mealCalories, mealName, moodScore, proteinGrams, recordDate, remSleep, selectedFactors, showEditor, sleepDuration, sleepEnd, sleepNote, sleepRating, sleepStart, spo2, steps, user.id]);
 
   useEffect(() => {
     const estimated = estimateMinutes(sleepStart, sleepEnd);
@@ -208,7 +281,9 @@ export default function RecordsScreen({
     if (reportMode !== "weekly") return;
     let active = true;
     setDnbLoading(true);
-    void loadDnbWeeklyReport()
+    const reference = new Date();
+    reference.setDate(reference.getDate() - weekOffset * 7);
+    void loadDnbWeeklyReport(reference)
       .then((report) => {
         if (active) setDnbReport(report);
       })
@@ -218,7 +293,7 @@ export default function RecordsScreen({
     return () => {
       active = false;
     };
-  }, [reportMode, user.id]);
+  }, [reportMode, user.id, weekOffset]);
 
   function estimateMinutes(start: string, end: string) {
     const [sh, sm] = start.split(":").map(Number);
@@ -237,13 +312,22 @@ export default function RecordsScreen({
     try {
       await fn();
       try {
-        await refreshRhythmScore(recordDate);
+        await Promise.allSettled([
+          refreshRhythmScore(recordDate),
+          refreshFdnbHealth(recordDate),
+          trackAnalyticsEvent(user.id, "record_saved", { module: labelKey, date: recordDate }),
+        ]);
         setNotice(t("records.saved", { label: t(labelKey) }));
       } catch (refreshError) {
         console.warn("Failed to refresh rhythm score after saving record", refreshError);
         setNotice(t("records.savedPending", { label: t(labelKey) }));
       }
       await loadRecordData();
+      if (activeModule) {
+        const module: RecordDraftModule = activeModule === "diet" ? "nutrition" : activeModule;
+        await clearRecordDraft(user.id, module, recordDate).catch((draftError) => console.warn("Record draft cleanup deferred", draftError));
+        setShowEditor(false);
+      }
       onSaved();
       return true;
     } catch (e) {
@@ -320,6 +404,11 @@ export default function RecordsScreen({
           meal,
           items: dietItems,
           photoUrl: dietPhotoPath ?? dietPhotoUrl ?? undefined,
+          proteinGrams,
+          carbohydrateGrams,
+          fatGrams,
+          hydrationMl,
+          healthRating: dietRating,
         }),
       );
       return;
@@ -336,6 +425,11 @@ export default function RecordsScreen({
           amount: "1 份",
         },
         totalCalories: mealCalories,
+        proteinGrams,
+        carbohydrateGrams,
+        fatGrams,
+        hydrationMl,
+        healthRating: dietRating,
       }),
     );
   }
@@ -368,7 +462,8 @@ export default function RecordsScreen({
     setNotice(null);
     setError(null);
     try {
-      const { image, imagePath, result } = await analyzeFacePhoto({ userId: user.id, date: recordDate, file });
+      if (!faceConsent) throw new Error(locale === "zh" ? "请先确认面部照片隐私说明。" : "Please confirm the face-photo privacy notice first.");
+      const { image, imagePath, result } = await analyzeFacePhoto({ userId: user.id, date: recordDate, file, captureMode: faceMode });
       setFaceImage(image);
       setFaceResult(result);
       const saved = await saveFaceAnalysisRecord({
@@ -377,6 +472,7 @@ export default function RecordsScreen({
         result,
         imagePath,
         modelVersion: result.modelVersion ?? result.model_version,
+        captureMode: faceMode,
       });
       setNotice("persisted" in saved && !saved.persisted ? t("records.faceAnalyzed") : t("records.faceSaved"));
     } catch (e) {
@@ -398,26 +494,33 @@ export default function RecordsScreen({
     );
   }
 
-  async function saveFocusMinutes(minutes: number) {
+  async function saveFocusMinutes(minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string }) {
     await run("records.focus", () =>
       saveFocusSession({
         userId: user.id,
         date: recordDate,
         taskTitle: focusTitle,
         minutes,
+        interruptions: details?.interruptions,
+        startedAt: details?.startedAt,
+        endedAt: details?.endedAt,
       }),
     );
   }
 
   if (!activeModule) {
-    const rhythmPoints = (trendBundle?.rhythms ?? []).slice(-7).map((item) => ({
+    const dnbReference = new Date();
+    dnbReference.setDate(dnbReference.getDate() - weekOffset * 7);
+    const dnbPeriod = currentSevenDayPeriod(dnbReference);
+    const inSelectedWeek = (date: string) => date >= dnbPeriod.startDate && date <= dnbPeriod.endDate;
+    const rhythmPoints = (trendBundle?.rhythms ?? []).filter((item) => inSelectedWeek(item.record_date)).slice(-7).map((item) => ({
       id: item.id,
       label: new Date(`${item.record_date}T00:00:00`).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", { month: "numeric", day: "numeric" }),
       value: item.score,
       lower: item.score_lower,
       upper: item.score_upper,
     }));
-    const moodPoints = (trendBundle?.moods ?? []).slice(-7).map((item) => ({
+    const moodPoints = (trendBundle?.moods ?? []).filter((item) => inSelectedWeek(item.record_date)).slice(-7).map((item) => ({
       id: item.id,
       label: new Date(`${item.record_date}T00:00:00`).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", { month: "numeric", day: "numeric" }),
       value: item.mood_score,
@@ -437,7 +540,7 @@ export default function RecordsScreen({
       <div className="record-hub" ref={rootRef}>
         <div className="health-report-tabs" role="tablist" aria-label={locale === "zh" ? "健康报告视图" : "Health report view"}>
           <button type="button" role="tab" aria-selected={reportMode === "modules"} onClick={() => setReportMode("modules")}>{locale === "zh" ? "分项报告" : "Modules"}</button>
-          <button type="button" role="tab" aria-selected={reportMode === "weekly"} onClick={() => setReportMode("weekly")}>{locale === "zh" ? "本周报告" : "Weekly"}</button>
+          <button type="button" role="tab" aria-selected={reportMode === "weekly"} onClick={() => { setReportMode("weekly"); void trackAnalyticsEvent(user.id, "weekly_report_opened", { weekOffset }); }}>{locale === "zh" ? "本周报告" : "Weekly"}</button>
         </div>
 
         {reportMode === "modules" ? <>
@@ -481,6 +584,12 @@ export default function RecordsScreen({
           </div>
         </> : (
           <div className="weekly-health-report" data-weekly-health-report>
+            <div className="weekly-period-controls">
+              <button type="button" onClick={() => setWeekOffset((value) => value + 1)} aria-label={locale === "zh" ? "上一周" : "Previous week"}><ChevronLeft size={18} /></button>
+              <strong>{dnbPeriod.startDate} — {dnbPeriod.endDate}</strong>
+              <button type="button" disabled={weekOffset === 0} onClick={() => setWeekOffset((value) => Math.max(0, value - 1))} aria-label={locale === "zh" ? "下一周" : "Next week"}><ChevronRight size={18} /></button>
+              <button type="button" className="weekly-share-button" disabled={!dnbReport || dnbReport.status !== "ready"} onClick={() => { if (dnbReport) void shareDnbWeeklyPoster(dnbReport, locale, `${dnbPeriod.startDate}-${dnbPeriod.endDate}`).then(() => trackAnalyticsEvent(user.id, "weekly_report_shared", { weekOffset })).catch((shareError) => setError(shareError instanceof Error ? shareError.message : String(shareError))); }}><Share2 size={16} />{locale === "zh" ? "保存海报" : "Poster"}</button>
+            </div>
             <section className="weekly-score-card">
               <div><span>{locale === "zh" ? "基础节律" : "Baseline rhythm"}</span><strong>{todaySnapshot?.rhythmScore ?? "--"}</strong></div>
               <div><span>{locale === "zh" ? "数据完整度" : "Data complete"}</span><strong>{completedModules}/6</strong></div>
@@ -493,28 +602,42 @@ export default function RecordsScreen({
                 : <p>{locale === "zh" ? "完成两天记录后生成折线。" : "Log two days to create a chart."}</p>}
             </section>
             <section className={`weekly-insight-card weekly-insight-card--${dnbReport?.status ?? "unavailable"}`} data-dnb-status={dnbReport?.status ?? "loading"}>
-              <span>DNB</span>
+              <span>NAVA-FDNB Health · Research</span>
               <strong>
                 {dnbLoading
-                  ? (locale === "zh" ? "正在检查算法接口" : "Checking algorithm")
+                  ? (locale === "zh" ? "正在分析多模块状态" : "Analyzing multi-module state")
                   : dnbReport?.status === "ready"
-                    ? (locale === "zh" ? "DNB 周度结论" : "DNB weekly result")
+                    ? dnbReport.evidenceLevel === "supported"
+                      ? (locale === "zh" ? "发现有支持的转变信号" : "Supported transition signal")
+                      : dnbReport.evidenceLevel === "candidate"
+                        ? (locale === "zh" ? "发现待验证候选波动" : "Candidate change to verify")
+                        : (locale === "zh" ? "本周无充分转变证据" : "No supported transition this week")
                     : dnbReport?.status === "insufficient_data"
-                      ? (locale === "zh" ? "DNB 数据不足" : "DNB needs more data")
-                      : (locale === "zh" ? "DNB 接口待接入" : "DNB connection pending")}
+                      ? (locale === "zh" ? "数据仍在建立个人基线" : "Building your baseline")
+                      : (locale === "zh" ? "分析服务暂时不可用" : "Analysis temporarily unavailable")}
                 {dnbReport?.status === "ready" && dnbReport.score != null
-                  ? <small>{locale === "zh" ? `评分 ${Math.round(dnbReport.score)}` : `Score ${Math.round(dnbReport.score)}`}</small>
+                  ? <small>{locale === "zh"
+                    ? `稳定度 ${Math.round(dnbReport.stabilityScore ?? dnbReport.score)} · 转变强度 ${Math.round(dnbReport.transitionScore ?? 0)}`
+                    : `Stability ${Math.round(dnbReport.stabilityScore ?? dnbReport.score)} · transition ${Math.round(dnbReport.transitionScore ?? 0)}`}</small>
                   : null}
               </strong>
               <p>{dnbLoading
-                ? (locale === "zh" ? "正在确认算法服务和本周数据覆盖情况。" : "Checking service and weekly data coverage.")
+                ? (locale === "zh" ? "正在核对 56 天数据覆盖、窗口一致性和对照检验。" : "Checking 56-day coverage, window agreement, and null controls.")
                 : dnbReport?.status === "ready"
                   ? [dnbReport.summary, dnbReport.recommendations[0]].filter(Boolean).join(" ")
                   : dnbReport?.status === "insufficient_data"
                     ? (locale === "zh"
                       ? `当前已有 ${dnbReport.availableDays ?? 0} 天有效记录${dnbReport.requiredDays ? `，算法至少需要 ${dnbReport.requiredDays} 天` : ""}。`
                       : `${dnbReport.availableDays ?? 0} valid days recorded${dnbReport.requiredDays ? `; ${dnbReport.requiredDays} required` : ""}.`)
-                    : (dnbReport?.reason || (locale === "zh" ? "当前仅展示基础统计，未生成 DNB 算法结论。" : "Only baseline statistics are shown; no DNB result was generated."))}</p>
+                    : (dnbReport?.reason || (locale === "zh" ? "当前仅展示基础统计，未生成研究性状态结论。" : "Only baseline statistics are shown; no research signal was generated."))}</p>
+              {dnbReport?.status === "ready" && (dnbReport.contributors?.length ?? 0) > 0 && (
+                <div className="weekly-fdnb-contributors" aria-label={locale === "zh" ? "主要贡献信号" : "Leading signals"}>
+                  {dnbReport.contributors?.slice(0, 3).map((item) => (
+                    <span key={item.feature}>{item.module} · {(item.feature.split(".").slice(-1)[0] ?? item.feature).replace(/_/g, " ")}</span>
+                  ))}
+                </div>
+              )}
+              {dnbReport?.disclaimer && <small className="weekly-fdnb-disclaimer">{dnbReport.disclaimer}</small>}
             </section>
             <section className="weekly-module-status">
               {recordModules.map(({ id, labelKey, icon: Icon }) => <button type="button" key={id} onClick={() => { setActiveModule(id); onModuleChange?.(id); }}><Icon size={20} /><span>{t(labelKey)}</span><ChevronRight size={17} /></button>)}
@@ -558,7 +681,7 @@ export default function RecordsScreen({
         </label>
       </div>}
 
-      {(error || (notice && (showEditor || !dashboardModules.has(activeModule)))) && (
+      {(error || notice) && (
         <SectionCard title={notice ? t("records.synced") : t("records.needsFix")}>
           {notice && <p className="success-text">{notice}</p>}
           {error && <p className="error-text">{error}</p>}
@@ -567,6 +690,7 @@ export default function RecordsScreen({
 
       {!showEditor && dashboardModules.has(activeModule) && (
         <RecordModuleDashboard
+          userId={user.id}
           module={activeModule}
           moodScore={moodScore}
           setMoodScore={setMoodScore}
@@ -753,6 +877,13 @@ export default function RecordsScreen({
             <span>{t("records.calorie")}</span>
             <input inputMode="numeric" type="number" value={mealCalories} onChange={(e) => setMealCalories(Number(e.target.value))} />
           </label>
+          <div className="two-col nutrition-macro-fields">
+            <label className="field"><span>{locale === "zh" ? "蛋白质 g" : "Protein g"}</span><input inputMode="decimal" type="number" min="0" value={proteinGrams} onChange={(e) => setProteinGrams(Number(e.target.value))} /></label>
+            <label className="field"><span>{locale === "zh" ? "碳水 g" : "Carbs g"}</span><input inputMode="decimal" type="number" min="0" value={carbohydrateGrams} onChange={(e) => setCarbohydrateGrams(Number(e.target.value))} /></label>
+            <label className="field"><span>{locale === "zh" ? "脂肪 g" : "Fat g"}</span><input inputMode="decimal" type="number" min="0" value={fatGrams} onChange={(e) => setFatGrams(Number(e.target.value))} /></label>
+            <label className="field"><span>{locale === "zh" ? "饮水 ml" : "Hydration ml"}</span><input inputMode="numeric" type="number" min="0" value={hydrationMl} onChange={(e) => setHydrationMl(Number(e.target.value))} /></label>
+          </div>
+          <label className="field"><span>{locale === "zh" ? `饮食自评 ${dietRating}/5` : `Diet rating ${dietRating}/5`}</span><input className="range" type="range" min="1" max="5" value={dietRating} onChange={(e) => setDietRating(Number(e.target.value))} /></label>
           <ActionButton type="submit" icon={<Drumstick size={18} />} variant="secondary" disabled={busy === "records.diet"}>
             {dietItems.length > 0 ? t("records.saveDetected") : t("records.saveDiet")}
           </ActionButton>
@@ -791,6 +922,11 @@ export default function RecordsScreen({
             </button>
           }
         >
+          <div className="face-mode-picker" role="group" aria-label={locale === "zh" ? "拍摄模式" : "Capture mode"}>
+            <button type="button" className={faceMode === "bare_face" ? "selected" : ""} onClick={() => setFaceMode("bare_face")}>{locale === "zh" ? "素颜模式" : "Bare face"}</button>
+            <button type="button" className={faceMode === "makeup" ? "selected" : ""} onClick={() => setFaceMode("makeup")}>{locale === "zh" ? "带妆模式" : "Makeup"}</button>
+          </div>
+          <label className="face-consent"><input type="checkbox" checked={faceConsent} onChange={(event) => setFaceConsent(event.target.checked)} /><span>{locale === "zh" ? "我同意将照片加密上传至账号隔离的私密存储，并以 10 分钟签名链接完成本次非医疗状态分析。" : "I consent to private encrypted upload and a 10-minute signed link for this non-medical state analysis."}</span></label>
           <label className="photo-picker face">
             {faceImage ? <img src={faceImage} alt="面部照片" /> : <ScanFace size={30} />}
             <span>{faceAnalyzing ? t("records.faceScanning") : t("records.scanFace")}</span>
@@ -800,7 +936,7 @@ export default function RecordsScreen({
               type="file"
               accept="image/*"
               capture="user"
-              disabled={faceAnalyzing}
+              disabled={faceAnalyzing || !faceConsent}
               onChange={(e) => void handleFacePhoto(e.target.files?.[0] ?? null)}
             />
             {faceAnalyzing && <Loader2 className="spin" size={18} />}

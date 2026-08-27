@@ -1,6 +1,5 @@
 import { errorResponse, jsonResponse, optionsResponse, readJson } from "../_shared/http.ts";
 import {
-  accountEligibilityError,
   inspectAccountRegistration,
   normalizeAuthAccount,
   normalizeAuthAccountPurpose,
@@ -32,15 +31,10 @@ Deno.serve(async (req) => {
   try {
     const body = await readJson(req);
     const account = normalizeAuthAccount(body.account);
-    const purpose = normalizeAuthAccountPurpose(body.purpose);
-    const registered = await inspectAccountRegistration(createOtpAdminClient(), req, account);
-    const eligibilityError = accountEligibilityError(purpose, registered);
-    if (eligibilityError) {
-      return jsonResponse(
-        { error: eligibilityError.message, code: eligibilityError.code },
-        { status: eligibilityError.status },
-      );
-    }
+    normalizeAuthAccountPurpose(body.purpose);
+    await inspectAccountRegistration(createOtpAdminClient(), req, account);
+    // Never reveal whether an account exists. The actual OTP/password operation
+    // performs the eligibility decision and returns the same public shape.
     return jsonResponse({ allowed: true, channel: account.channel });
   } catch (error) {
     return requestError(error);

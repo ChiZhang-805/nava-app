@@ -40,12 +40,7 @@ export async function sendAiMessage(input: {
 }) {
   if (isDemoMode()) {
     const now = new Date().toISOString();
-    const content = await requestAiReply({
-      message: input.message,
-      history: input.history,
-      lang: input.lang ?? "zh",
-      healthContext: await buildHealthContext(input.userId),
-    });
+    const content = demoAiReply(input.message, input.lang ?? "zh");
     return {
       userMessage: { id: `demo-user-${Date.now()}`, role: "user", content: input.message, created_at: now } as ChatMessage,
       assistantMessage: {
@@ -81,8 +76,6 @@ export async function sendAiMessage(input: {
 
   const extraction = extract.error ? null : extract.data ?? null;
   const extractedData = extraction?.extractedData ?? null;
-  const applied = extraction ? await applyExtractedData(input.userId, extraction) : null;
-
   const content = await requestAiReply({
     message: input.message,
     history: input.history,
@@ -106,8 +99,17 @@ export async function sendAiMessage(input: {
     userMessage: userInsert.data as ChatMessage,
     assistantMessage: assistantInsert.data as ChatMessage,
     extractedData,
-    applied,
+    applied: null,
   };
+}
+
+function demoAiReply(message: string, lang: "zh" | "en") {
+  const zh = lang === "zh";
+  if (/睡|sleep|晚睡|失眠/i.test(message)) return zh ? "我听见你在关注睡眠。公开演示不会把内容发送给外部模型；你可以继续输入起止时间，确认卡片后再保存。" : "I hear that sleep is on your mind. The public demo keeps this local; add your times and confirm the card before saving.";
+  if (/焦虑|压力|难过|mood|stress|sad/i.test(message)) return zh ? "先慢一点也没关系。公开演示只在本机生成这段回应；如果低落或焦虑持续影响生活，请联系可信赖的人或专业支持。" : "It is okay to slow down. This public-demo reply is generated locally. If distress keeps affecting daily life, reach out to someone you trust or professional support.";
+  if (/吃|饮食|food|meal/i.test(message)) return zh ? "我可以帮你整理这次饮食记录。公开演示不会调用付费 AI；请核对自动识别的餐次和热量后再确认保存。" : "I can help organize this meal log. The public demo does not call paid AI; review the meal and calories before confirming.";
+  if (/专注|focus|番茄/i.test(message)) return zh ? "先选一个最小可完成的专注块吧：25、45 或 60 分钟。切到后台时计时器会自动暂停。" : "Pick the smallest workable block: 25, 45, or 60 minutes. The timer pauses when the app goes to the background.";
+  return zh ? "这是安全的公开演示回应：内容不会发送给外部模型。登录正式账号后，NAVA 才会在你的授权范围内结合健康记录提供个性化回复。" : "This is a safe public-demo reply and is not sent to an external model. Sign in to use personalized replies within your consent settings.";
 }
 
 async function requestAiReply(input: {

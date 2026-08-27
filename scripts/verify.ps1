@@ -31,27 +31,31 @@ Write-Host "5. Rhythm algorithm tests"
 Invoke-Npm -Arguments @("run", "algorithm:test")
 
 Write-Host ""
-Write-Host "6. AI prompt tests"
+Write-Host "6. FDNB health algorithm tests"
+Invoke-Npm -Arguments @("run", "fdnb:test")
+
+Write-Host ""
+Write-Host "7. AI prompt tests"
 Invoke-Npm -Arguments @("run", "ai:prompt:test")
 
 Write-Host ""
-Write-Host "7. Structured entry parser"
+Write-Host "8. Structured entry parser"
 Invoke-Npm -Arguments @("run", "structured:test")
 
 Write-Host ""
-Write-Host "8. Backend contract"
+Write-Host "9. Backend contract"
 Invoke-Npm -Arguments @("run", "backend:verify")
 
 Write-Host ""
-Write-Host "9. Edge Function type check"
+Write-Host "10. Edge Function type check"
 Invoke-Npm -Arguments @("run", "backend:typecheck")
 
 Write-Host ""
-Write-Host "10. Phone OTP tests"
+Write-Host "11. Phone OTP tests"
 Invoke-Npm -Arguments @("run", "backend:test")
 
 Write-Host ""
-Write-Host "11. iOS project contract"
+Write-Host "12. iOS project contract"
 Invoke-Npm -Arguments @("run", "ios:verify")
 
 Write-Host ""

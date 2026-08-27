@@ -60,10 +60,8 @@ Deno.serve(async (req) => {
     const registered = await inspectAccountRegistration(admin, req, account);
     const eligibilityError = accountEligibilityError(purpose, registered);
     if (eligibilityError) {
-      return jsonResponse(
-        { error: eligibilityError.message, code: eligibilityError.code },
-        { status: eligibilityError.status },
-      );
+      console.info("OTP request suppressed by account eligibility policy", { purpose, code: eligibilityError.code });
+      return jsonResponse({ sent: true, expiresInSeconds: 600, cooldownSeconds: 60 });
     }
     const code = generateOtpCode();
     const secret = otpHmacSecret();

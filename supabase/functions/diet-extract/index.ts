@@ -24,7 +24,8 @@ Deno.serve(async (req) => {
     const body = await readJson(req);
     const lang = stringValue(body.lang) ?? "zh";
     const imagePath = stringValue(body.imagePath);
-    const imageUrl = stringValue(body.imageUrl) ?? await signedImageUrl(adminClient ?? userClient, imagePath);
+    const imageUrl = stringValue(body.image) ?? await signedImageUrl(adminClient ?? userClient, imagePath);
+    if (!imageUrl) throw new Error("没有可供分析的饮食图片；私密存储签名失败。");
     const providerResult = await callProvider({ imageUrl, imagePath, lang, meal: stringValue(body.meal) });
     return jsonResponse(providerResult);
   } catch (error) {

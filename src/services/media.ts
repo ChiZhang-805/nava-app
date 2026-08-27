@@ -43,10 +43,8 @@ export async function analyzeDietPhoto(input: {
   const upload = await supabase.storage.from("diet-photos").upload(path, input.file, { upsert: true });
   if (upload.error && !isMissingStorageBucket(upload.error)) throw upload.error;
   const imagePath = upload.error ? undefined : path;
-  const imageUrl = imagePath
-    ? supabase.storage.from("diet-photos").getPublicUrl(imagePath).data.publicUrl
-    : await fileToDataUrl(input.file);
-  if (!imageUrl) throw new Error("饮食照片上传后没有获得可分析的地址。");
+  const image = imagePath ? undefined : await fileToDataUrl(input.file);
+  if (!imagePath && !image) throw new Error("饮食照片上传后没有获得可分析的数据。");
 
   const extracted = await supabase.functions.invoke<{
     items: Array<{ name: string; amount?: string; weight_g?: number; calories?: number }>;
@@ -54,7 +52,7 @@ export async function analyzeDietPhoto(input: {
     model_version?: string;
     confidence?: number;
   }>("diet-extract", {
-    body: { imageUrl, imagePath, meal: input.meal, date: input.date, lang: "zh" },
+    body: { image, imagePath, meal: input.meal, date: input.date, lang: "zh" },
   });
   if (extracted.error) throw extracted.error;
 
@@ -77,6 +75,7 @@ export async function analyzeFacePhoto(input: {
   userId: string;
   date: string;
   file: File;
+  captureMode: "bare_face" | "makeup";
 }): Promise<{ image: string; imagePath?: string; result: FaceAnalysisResult }> {
   const image = await fileToDataUrl(input.file);
   if (isDemoMode()) {
@@ -104,7 +103,7 @@ export async function analyzeFacePhoto(input: {
   const imagePath = upload.error ? undefined : path;
 
   const response = await supabase.functions.invoke<FaceAnalysisResult>("face-analyze", {
-    body: { image, imagePath, lang: "zh", selfRatings: null },
+    body: { image: imagePath ? undefined : image, imagePath, captureMode: input.captureMode, lang: "zh", selfRatings: null },
   });
   if (response.error) throw response.error;
   if (!response.data) throw new Error("面部分析没有返回结果。");

@@ -18,7 +18,8 @@ export function canUseReviewAi(input: {
   origin: string;
   configuredOrigins: string | undefined;
 }) {
-  return input.requested
-    && input.enabled === "true"
-    && isReviewOriginAllowed(input.origin, input.configuredOrigins ?? "");
+  void input;
+  // Origin headers are not authentication. Public review AI is intentionally
+  // disabled; the app uses a local deterministic demo reply instead.
+  return false;
 }

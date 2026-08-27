@@ -24,6 +24,8 @@ import type { TodaySnapshot } from "../types";
 import { loadProfile, type UserProfile } from "./profile";
 import { getTodaySnapshot } from "./records";
 import { todayISO } from "./date";
+import { isDemoMode } from "./demo";
+import { supabase } from "./supabaseClient";
 
 const productivityEvent = "nava-productivity-change";
 
@@ -199,6 +201,22 @@ export async function resolveGrowthTasks(userId: string): Promise<GrowthTask[]> 
 
 export function growthXp(tasks: GrowthTask[]) {
   return tasks.filter((task) => task.completed).reduce((sum, task) => sum + task.xp, 0);
+}
+
+export type GrowthSummary = { totalPoints: number; badges: string[] };
+
+export async function reconcileGrowthRewards(tasks: GrowthTask[]): Promise<GrowthSummary> {
+  if (isDemoMode()) return { totalPoints: growthXp(tasks), badges: growthXp(tasks) >= 100 ? ["rhythm_observer"] : [] };
+  const { data, error } = await supabase.rpc("nava_reconcile_growth_rewards");
+  if (error) {
+    if (/nava_reconcile_growth_rewards|schema cache|does not exist/i.test(error.message)) return { totalPoints: growthXp(tasks), badges: [] };
+    throw error;
+  }
+  const result = data && typeof data === "object" ? data as Record<string, unknown> : {};
+  return {
+    totalPoints: Number(result.totalPoints) || growthXp(tasks),
+    badges: Array.isArray(result.badges) ? result.badges.filter((item): item is string => typeof item === "string") : [],
+  };
 }
 
 export function subscribeProductivity(callback: () => void) {

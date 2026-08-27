@@ -12,7 +12,9 @@ $requiredFunctions = @(
   "watch-sync",
   "rhythm-score",
   "dnb-weekly-report",
+  "fdnb-recompute",
   "export-user-data",
+  "delete-account",
   "aliyun-sms-send",
   "aliyun-sms-verify",
   "auth-account-status"
@@ -28,7 +30,7 @@ foreach ($functionName in $requiredFunctions) {
   Write-Host "Found function: $functionName"
 }
 
-$sharedFiles = @("_shared\http.ts", "_shared\phone-otp.ts", "_shared\rhythm.ts", "_shared\rhythm-core.ts")
+$sharedFiles = @("_shared\http.ts", "_shared\phone-otp.ts", "_shared\rhythm.ts", "_shared\rhythm-core.ts", "_shared\fdnb-health-core.ts", "_shared\fdnb-health-features.ts", "_shared\fdnb-health-service.ts")
 foreach ($shared in $sharedFiles) {
   $path = Join-Path $functionsRoot $shared
   if (!(Test-Path -LiteralPath $path)) {

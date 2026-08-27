@@ -21,6 +21,7 @@ Deno.serve(async (req) => {
       image,
       imageUrl,
       imagePath,
+      captureMode: stringValue(body.captureMode) === "makeup" ? "makeup" : "bare_face",
       lang: stringValue(body.lang) ?? "zh",
       selfRatings: body.selfRatings ?? null,
     });
@@ -34,6 +35,7 @@ async function callProvider(input: {
   image?: string;
   imageUrl?: string;
   imagePath?: string;
+  captureMode: "bare_face" | "makeup";
   lang: string;
   selfRatings: unknown;
 }) {

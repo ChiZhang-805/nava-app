@@ -387,6 +387,11 @@ export async function saveNutritionRecord(input: {
   meal: "breakfast" | "lunch" | "dinner" | "pantry";
   item: FoodItem;
   totalCalories: number;
+  proteinGrams?: number;
+  carbohydrateGrams?: number;
+  fatGrams?: number;
+  hydrationMl?: number;
+  healthRating?: number;
 }) {
   if (isDemoMode()) return saveDemoNutrition({ date: input.date, meal: input.meal, items: [input.item], totalCalories: input.totalCalories, append: true });
 
@@ -417,6 +422,11 @@ export async function saveNutritionRecord(input: {
     dinner_items: current.dinner_items ?? [],
     pantry_items: current.pantry_items ?? [],
     total_calories: totalCalories,
+    protein_grams: input.proteinGrams ?? current.protein_grams ?? null,
+    carbohydrate_grams: input.carbohydrateGrams ?? current.carbohydrate_grams ?? null,
+    fat_grams: input.fatGrams ?? current.fat_grams ?? null,
+    hydration_ml: input.hydrationMl ?? current.hydration_ml ?? null,
+    health_rating: input.healthRating ?? current.health_rating ?? null,
     [key]: newMealItems,
   };
 
@@ -436,6 +446,11 @@ export async function saveNutritionItems(input: {
   meal: "breakfast" | "lunch" | "dinner" | "pantry";
   items: FoodItem[];
   photoUrl?: string;
+  proteinGrams?: number;
+  carbohydrateGrams?: number;
+  fatGrams?: number;
+  hydrationMl?: number;
+  healthRating?: number;
 }) {
   if (input.items.length === 0) throw new Error("没有可保存的食物条目。");
   if (isDemoMode()) return saveDemoNutrition({ date: input.date, meal: input.meal, items: input.items });
@@ -459,6 +474,11 @@ export async function saveNutritionItems(input: {
     lunch_items: current.lunch_items ?? [],
     dinner_items: current.dinner_items ?? [],
     pantry_items: current.pantry_items ?? [],
+    protein_grams: input.proteinGrams ?? current.protein_grams ?? null,
+    carbohydrate_grams: input.carbohydrateGrams ?? current.carbohydrate_grams ?? null,
+    fat_grams: input.fatGrams ?? current.fat_grams ?? null,
+    hydration_ml: input.hydrationMl ?? current.hydration_ml ?? null,
+    health_rating: input.healthRating ?? current.health_rating ?? null,
     breakfast_photo_url: "breakfast_photo_url" in current ? current.breakfast_photo_url : undefined,
     lunch_photo_url: "lunch_photo_url" in current ? current.lunch_photo_url : undefined,
     dinner_photo_url: "dinner_photo_url" in current ? current.dinner_photo_url : undefined,
@@ -488,6 +508,7 @@ export async function saveFaceAnalysisRecord(input: {
   result: FaceAnalysisResult;
   imagePath?: string;
   modelVersion?: string;
+  captureMode?: "bare_face" | "makeup";
 }) {
   if (isDemoMode()) {
     return saveDemoFace(input.date ?? todayISO(), {
@@ -499,6 +520,9 @@ export async function saveFaceAnalysisRecord(input: {
       annotations: input.result.annotations,
       feedback: input.result.feedback,
       model_version: input.modelVersion ?? "demo",
+      capture_mode: input.captureMode ?? "bare_face",
+      analysis_confidence: input.result.confidence ?? null,
+      derived_features: faceDerivedFeatures(input.result),
       persisted: true,
     } as FaceRecord);
   }
@@ -515,6 +539,9 @@ export async function saveFaceAnalysisRecord(input: {
         annotations: input.result.annotations,
         feedback: input.result.feedback,
         model_version: input.modelVersion ?? null,
+        capture_mode: input.captureMode ?? "bare_face",
+        analysis_confidence: input.result.confidence ?? null,
+        derived_features: faceDerivedFeatures(input.result),
       },
       { onConflict: "user_id,record_date" },
     )
@@ -531,11 +558,24 @@ export async function saveFaceAnalysisRecord(input: {
       annotations: input.result.annotations,
       feedback: input.result.feedback,
       model_version: input.modelVersion ?? null,
+      capture_mode: input.captureMode ?? "bare_face",
+      analysis_confidence: input.result.confidence ?? null,
+      derived_features: faceDerivedFeatures(input.result),
       persisted: false,
     } as FaceRecord & { persisted: false };
   }
   assertNoError(error);
   return { ...(data as FaceRecord), persisted: true } as FaceRecord & { persisted: true };
+}
+
+function faceDerivedFeatures(result: FaceAnalysisResult) {
+  const labels = result.annotations.map((item) => `${item.label} ${item.desc}`).join(" ");
+  return {
+    annotation_count: result.annotations.length,
+    fatigue_signal: /疲|黑眼圈|eye|tired|fatigue/i.test(labels),
+    skin_signal: /肤|痘|skin|acne/i.test(labels),
+    overall_score: result.overall_score,
+  };
 }
 
 async function ensureTask(userId: string, title: string, date: string) {
@@ -569,6 +609,10 @@ export async function saveFocusSession(input: {
   date?: string;
   taskTitle: string;
   minutes: number;
+  interruptions?: number;
+  category?: string;
+  startedAt?: string;
+  endedAt?: string;
 }) {
   if (isDemoMode()) return saveDemoFocus(input);
 
@@ -591,6 +635,10 @@ export async function saveFocusSession(input: {
     record_date: recordDate,
     completed_sessions: (existing.data?.completed_sessions ?? 0) + 1,
     total_minutes: (existing.data?.total_minutes ?? 0) + minutes,
+    interrupted_sessions: (existing.data?.interrupted_sessions ?? 0) + Math.max(0, Math.round(input.interruptions ?? 0)),
+    category: input.category?.trim() || existing.data?.category || null,
+    started_at: input.startedAt ?? existing.data?.started_at ?? null,
+    ended_at: input.endedAt ?? new Date().toISOString(),
   };
 
   const response = existing.data
@@ -638,7 +686,7 @@ async function upsertFocusDistribution(userId: string, recordDate: string, minut
 export async function getTrends(userId: string): Promise<TrendBundle> {
   if (isDemoMode()) return demoTrends();
 
-  const start = daysAgoISO(6);
+  const start = daysAgoISO(55);
   const [moods, sleeps, exercises, nutritions, faces, focus, rhythms] = await Promise.all([
     supabase.from("mood_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("sleep_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),

@@ -7,7 +7,6 @@ import {
   stringValue,
 } from "../_shared/http.ts";
 import { buildSystemPrompt, enforceReplyLength } from "./prompt.ts";
-import { canUseReviewAi } from "./review-access.ts";
 
 type ConversationMessage = {
   role?: string;
@@ -17,7 +16,6 @@ type ConversationMessage = {
 const requestWindows = new Map<string, { count: number; startedAt: number }>();
 const requestWindowMs = 60_000;
 const authenticatedRequestsPerWindow = 20;
-const reviewRequestsPerWindow = 8;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return optionsResponse();
@@ -32,18 +30,14 @@ Deno.serve(async (req) => {
     const address = clientAddress(req);
     const reviewMode = body.reviewMode === true || body.review_mode === true;
     if (reviewMode) {
-      const allowed = canUseReviewAi({
-        requested: true,
-        enabled: Deno.env.get("NAVA_REVIEW_AI_ENABLED"),
-        origin: req.headers.get("origin") ?? "",
-        configuredOrigins: Deno.env.get("NAVA_REVIEW_ALLOWED_ORIGINS"),
-      });
-      if (!allowed) throw new Error("当前公开评审来源未获准调用 AI。请使用项目发布的预览链接。");
-      enforceRateLimit(`review:${address}`, reviewRequestsPerWindow);
-    } else {
-      const { user } = await requireUser(req);
-      enforceRateLimit(`${user.id}:${address}`, authenticatedRequestsPerWindow);
+      throw new Error("公开预览不直接调用付费 AI；登录后可使用真实对话服务。");
     }
+    const { user, userClient } = await requireUser(req);
+    const durableQuota = await userClient.rpc("nava_consume_ai_quota", { p_limit: authenticatedRequestsPerWindow });
+    const quotaUnavailable = durableQuota.error && /nava_consume_ai_quota|schema cache|does not exist/i.test(durableQuota.error.message);
+    if (durableQuota.error && !quotaUnavailable) throw durableQuota.error;
+    if (!quotaUnavailable && durableQuota.data !== true) throw new Error("请求过于频繁，请稍后再试。");
+    enforceRateLimit(`${user.id}:${address}`, authenticatedRequestsPerWindow);
 
     const lang = stringValue(body.lang) === "en" || stringValue(body.language) === "en" ? "en" : "zh";
     const reply = await buildReply({

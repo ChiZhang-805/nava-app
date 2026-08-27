@@ -14,8 +14,8 @@ test("allows local review ports but rejects lookalike remote origins", () => {
   assert.equal(isReviewOriginAllowed("https://chizhang-805.github.io.attacker.example", configuredOrigins), false);
 });
 
-test("requires the server feature flag and an explicit review request", () => {
-  assert.equal(canUseReviewAi({ requested: true, enabled: "true", origin: publicOrigin, configuredOrigins }), true);
+test("never treats an allowed Origin header as AI authentication", () => {
+  assert.equal(canUseReviewAi({ requested: true, enabled: "true", origin: publicOrigin, configuredOrigins }), false);
   assert.equal(canUseReviewAi({ requested: true, enabled: "false", origin: publicOrigin, configuredOrigins }), false);
   assert.equal(canUseReviewAi({ requested: false, enabled: "true", origin: publicOrigin, configuredOrigins }), false);
 });

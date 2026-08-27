@@ -8,6 +8,8 @@ import {
 } from "./records";
 import { addTodo } from "./productivity";
 import { todayISO } from "./date";
+import { refreshFdnbHealth } from "./dnb";
+import { trackAnalyticsEvent } from "./analytics";
 import { type StructuredEntry } from "./structuredEntryParser";
 
 export { parseStructuredEntry } from "./structuredEntryParser";
@@ -35,7 +37,11 @@ export async function confirmStructuredEntry(userId: string, candidate: Structur
   if (candidate.type === "nutrition") await saveNutritionRecord({ userId, meal: data.meal as "breakfast" | "lunch" | "dinner" | "pantry", item: { name: String(data.name), calories: Number(data.calories ?? 0) }, totalCalories: Number(data.calories ?? 0) });
   if (candidate.type === "focus") await saveFocusSession({ userId, taskTitle: String(data.taskTitle), minutes: Number(data.minutes) });
   try {
-    await refreshRhythmScore();
+    await Promise.allSettled([
+      refreshRhythmScore(),
+      refreshFdnbHealth(todayISO()),
+      trackAnalyticsEvent(userId, "structured_entry_confirmed", { type: candidate.type }),
+    ]);
   } catch (error) {
     console.warn("Rhythm refresh deferred after structured entry", error);
   }

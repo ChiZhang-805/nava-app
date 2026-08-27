@@ -248,7 +248,6 @@ async function verifyRecordModules(page, results) {
   await page.locator('[aria-label="更新睡眠记录"], [aria-label="Update sleep record"]').click();
   await page.locator('[data-record-detail="sleep"] form:not([hidden]) .action-button').click();
   await expect(page.locator('[data-record-detail="sleep"] .success-text')).toBeVisible();
-  await page.locator(".record-back-button").click();
   await expect(page.locator('[data-module-view="sleep-overview"]')).toBeVisible();
   await page.waitForTimeout(650);
   await page.screenshot({ path: path.join(outputDir, "record-sleep.png") });
@@ -281,7 +280,7 @@ async function verifyRecordModules(page, results) {
   await page.locator('[aria-label="填写运动自评"], [aria-label="Edit self assessment"]').click();
   await page.locator('[data-record-detail="exercise"] form:not([hidden]) .action-button').click();
   await expect(page.locator('[data-record-detail="exercise"] .success-text')).toBeVisible();
-  await page.locator(".record-back-button").click();
+  await expect(page.locator('[data-module-view="exercise-overview"]')).toBeVisible();
   await page.waitForTimeout(650);
   await page.screenshot({ path: path.join(outputDir, "record-exercise.png") });
   await returnToHub();
@@ -318,6 +317,7 @@ async function verifyRecordModules(page, results) {
   await page.locator('[data-record-module="face"]').click();
   await expect(page.locator('[data-module-view="face-overview"]')).toBeVisible();
   await page.locator('[aria-label="使用前置摄像头拍照"], [aria-label="Take a front-camera photo"]').click();
+  await page.locator('[data-record-detail="face"] .face-consent input').check();
   await page.locator('[data-record-detail="face"] input[type="file"][capture="user"]').setInputFiles(samplePhoto);
   await expect(page.locator('[data-record-detail="face"] .success-text')).toBeVisible();
   await page.waitForTimeout(900);
@@ -407,7 +407,7 @@ async function verifyAi(page, results, diagnostics) {
   await page.mouse.up();
   await expect(page.locator(".chat-composer.voice-active")).toBeHidden();
   await expect(page.locator(".chat-composer input")).toHaveValue(inputBeforeCancelledVoice);
-  results.push("真实 AI 对话、回复方向与 180 字上限、按住即进入录音、松手结束与上滑取消");
+  results.push("AI 对话、回复方向与 180 字上限、按住即进入录音、松手结束与上滑取消");
 }
 
 async function verifyProfile(page, results) {
@@ -504,7 +504,7 @@ async function main() {
     await verifyProfile(page, results);
     await page.waitForTimeout(900);
     await page.screenshot({ path: path.join(outputDir, "final-profile.png") });
-    await page.locator(".profile-stack > .action-button.ghost").click();
+    await page.getByRole("button", { name: /退出登录|Sign out/ }).click();
     await expect(page.locator(".auth-form")).toBeVisible();
     results.push("退出登录并返回登录页");
     await context.close();

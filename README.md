@@ -84,10 +84,10 @@ npm run algorithm:benchmark
 
 `verify` 会执行构建、lint、npm audit、动效/算法测试、后端契约、全部 Edge Function Deno 类型检查、OTP 安全测试与 iOS 工程契约；`data:audit` 默认生成并审计 5000 个合成用户；`data:export` 默认导出同一批 5000 用户 JSONL 和 manifest 到 `artifacts/synthetic-population`，该目录只作为本地大文件产物，不提交 Git；`algorithm:test` / `algorithm:benchmark` 用于验证 V4.8 算法核心，正式 benchmark 默认 5000 用户。
 
-当前 App 后端函数：`ai-extract-data`、`ai-chat-reply`、`diet-extract`、`face-analyze`、`health-sync-ingest`、`watch-sync`、`rhythm-score`、`export-user-data`、`aliyun-sms-send`、`aliyun-sms-verify`。
+当前 App 后端函数：`ai-extract-data`、`ai-chat-reply`、`diet-extract`、`face-analyze`、`health-sync-ingest`、`watch-sync`、`rhythm-score`、`dnb-weekly-report`、`fdnb-recompute`、`export-user-data`、`delete-account`、`aliyun-sms-send`、`aliyun-sms-verify`、`auth-account-status`。
 
 ## 已知边界
 
 - Windows 本机不能完成 iOS/Watch 真机编译与签名；iPhone 工程已生成并静态验证，最终构建仍需 Mac + Xcode，watchOS target 也需在 Xcode 创建。
 - App 端只保存 Supabase anon key，不允许保存 service role key 或模型服务密钥。
-- 饮食照片和面部照片上线前必须改为私有 Storage 策略。
+- 饮食与面部照片使用私有 Storage、账号路径隔离和短时签名链接；个人头像按产品展示需求保持公开读取。

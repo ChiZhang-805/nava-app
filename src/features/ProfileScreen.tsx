@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { Apple, Camera, Check, Download, Images, Link2, LogOut, RefreshCw, Save, ShieldCheck, Watch, X } from "lucide-react";
+import { Apple, Camera, Check, Download, Images, Link2, LogOut, RefreshCw, Save, ShieldCheck, Trash2, Watch, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import SectionCard from "../components/SectionCard";
@@ -17,6 +17,7 @@ import { loadProfile, saveProfile, saveProfileAvatar, type UserProfile } from ".
 import { flushPendingWatchActions, getWatchReachability, publishWatchSnapshot, readLastWatchSnapshot } from "../services/watch";
 import { useAuth } from "../state/authContext";
 import type { WatchUserSnapshot } from "../types";
+import { deleteCurrentAccount } from "../services/account";
 
 function daysSinceSignup(createdAt?: string) {
   const created = Date.parse(createdAt ?? "");
@@ -38,6 +39,8 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
   const [profileSaved, setProfileSaved] = useState(false);
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const [profileDraft, setProfileDraft] = useState({
@@ -116,6 +119,19 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
       const data = await exportUserData(user.id);
       downloadJson(`nava-export-${user.id}.json`, data);
     });
+  }
+
+  async function deleteAccount() {
+    if (deleteConfirmation !== "DELETE") return;
+    setBusy("delete-account");
+    setError(null);
+    try {
+      await deleteCurrentAccount();
+      await signOut();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : String(deleteError));
+      setBusy(null);
+    }
   }
 
   async function handleAvatarFile(file: File | null) {
@@ -403,6 +419,11 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
       <ActionButton icon={<LogOut size={18} />} variant="ghost" onClick={signOut}>
         {t("profile.signOut")}
       </ActionButton>
+      <ActionButton icon={<Trash2 size={18} />} variant="ghost" onClick={() => setDeleteDialogOpen(true)}>
+        {locale === "zh" ? "删除账号与全部数据" : "Delete account and all data"}
+      </ActionButton>
+
+      {deleteDialogOpen && <div className="avatar-sheet-overlay" role="presentation" onClick={() => setDeleteDialogOpen(false)}><section className="avatar-sheet account-delete-sheet" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "删除账号" : "Delete account"} onClick={(event) => event.stopPropagation()}><header><strong>{locale === "zh" ? "永久删除账号" : "Permanently delete account"}</strong><button type="button" onClick={() => setDeleteDialogOpen(false)} aria-label={t("common.close")}><X size={20} /></button></header><p>{locale === "zh" ? "这会删除账号、健康记录、AI 对话、周报和私密照片，无法恢复。请输入 DELETE 确认。" : "This removes the account, health records, AI chats, reports, and private photos. Type DELETE to confirm."}</p><input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} placeholder="DELETE" autoCapitalize="characters" /><button type="button" disabled={deleteConfirmation !== "DELETE" || busy === "delete-account"} onClick={() => void deleteAccount()}>{busy === "delete-account" ? (locale === "zh" ? "正在删除…" : "Deleting…") : (locale === "zh" ? "永久删除" : "Delete permanently")}</button></section></div>}
     </div>
   );
 }
