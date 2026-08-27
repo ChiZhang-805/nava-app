@@ -33,6 +33,6 @@ $headers = @{
 }
 $uri = "https://api.supabase.com/v1/projects/$ProjectRef/config/auth"
 
-Write-Host "Configuring hosted Supabase email templates for six-digit OTP..."
+Write-Host "Configuring hosted Supabase email templates for eight-digit email OTP..."
 Invoke-RestMethod -Method Patch -Uri $uri -Headers $headers -Body ([Text.Encoding]::UTF8.GetBytes($payload)) | Out-Null
 Write-Host "Email OTP templates configured."

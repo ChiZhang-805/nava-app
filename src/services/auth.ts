@@ -4,10 +4,27 @@ import { createEphemeralSupabaseClient, supabase } from "./supabaseClient";
 export const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 export const isPhone = (value: string) => /^1[3-9]\d{9}$/.test(value.trim());
 
+export const EMAIL_OTP_LENGTH = 8;
+export const SMS_OTP_LENGTH = 6;
+
+export function otpLengthForAccount(account: string) {
+  return isPhone(account) ? SMS_OTP_LENGTH : EMAIL_OTP_LENGTH;
+}
+
+export function isOtpCodeValid(account: string, code: string) {
+  const expectedLength = otpLengthForAccount(account);
+  return new RegExp(`^\\d{${expectedLength}}$`).test(code.trim());
+}
+
+function otpCodeFormatError(account: string) {
+  return isPhone(account) ? "请输入 6 位短信验证码。" : "请输入 8 位邮箱验证码。";
+}
+
 type AuthErrorTranslationKey =
   | "auth.error.accountExists"
   | "auth.error.accountNotFound"
   | "auth.error.codeFormat"
+  | "auth.error.emailCodeFormat"
   | "auth.error.emailNotConfirmed"
   | "auth.error.invalidAccount"
   | "auth.error.loginInvalid"
@@ -18,7 +35,8 @@ type AuthErrorTranslationKey =
   | "auth.error.otpRateLimit"
   | "auth.error.otpUnavailable"
   | "auth.error.passwordLength"
-  | "auth.error.passwordSame";
+  | "auth.error.passwordSame"
+  | "auth.error.smsCodeFormat";
 
 class AuthServiceError extends Error {
   constructor(message: string, readonly code?: string) {
@@ -182,7 +200,7 @@ export async function sendLoginOtp(account: string) {
 
 export async function verifyLoginOtp(account: string, code: string) {
   const normalized = account.trim();
-  if (!/^\d{6}$/.test(code.trim())) throw new Error("请输入 6 位验证码。");
+  if (!isOtpCodeValid(normalized, code)) throw new Error(otpCodeFormatError(normalized));
 
   if (isPhone(normalized)) {
     await verifySmsOtp(normalized, code, "login");
@@ -203,7 +221,7 @@ export async function verifyLoginOtp(account: string, code: string) {
 
 export async function verifyRegistrationOtp(account: string, code: string, password: string) {
   const normalized = account.trim();
-  if (!/^\d{6}$/.test(code.trim())) throw new Error("请输入 6 位验证码。");
+  if (!isOtpCodeValid(normalized, code)) throw new Error(otpCodeFormatError(normalized));
   if (password.length < 6) throw new Error("密码至少需要 6 位。");
 
   if (isPhone(normalized)) {
@@ -248,7 +266,7 @@ export async function sendPasswordResetOtp(account: string) {
 
 export async function verifyPasswordResetOtp(account: string, code: string, password: string) {
   const normalized = account.trim();
-  if (!/^\d{6}$/.test(code.trim())) throw new Error("请输入 6 位验证码。");
+  if (!isOtpCodeValid(normalized, code)) throw new Error(otpCodeFormatError(normalized));
   const authClient = createEphemeralSupabaseClient();
   let session: Session;
   let fallbackName = normalized;
@@ -323,6 +341,11 @@ export function formatAuthError(error: unknown, translate?: (key: AuthErrorTrans
   if (message.includes("至少需要 6 位") || message.includes("at least 6")) {
     return localized("auth.error.passwordLength", "密码至少需要 6 位。");
   }
-  if (message.includes("6 位") || message.includes("6-digit")) return localized("auth.error.codeFormat", "请输入 6 位验证码。");
+  if (message.includes("8 位") || message.includes("8-digit")) {
+    return localized("auth.error.emailCodeFormat", "请输入 8 位邮箱验证码。");
+  }
+  if (message.includes("6 位") || message.includes("6-digit")) {
+    return localized("auth.error.smsCodeFormat", "请输入 6 位短信验证码。");
+  }
   return message;
 }

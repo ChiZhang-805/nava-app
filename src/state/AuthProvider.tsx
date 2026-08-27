@@ -5,6 +5,7 @@ import { AuthContext } from "./authContext";
 import {
   ensureProfile,
   isEmail,
+  otpLengthForAccount,
   sendLoginOtp as sendLoginOtpRemote,
   sendPasswordResetOtp as sendPasswordResetOtpRemote,
   sendRegistrationOtp as sendRegistrationOtpRemote,
@@ -117,8 +118,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(demoUser);
   }, []);
 
-  const requireDemoOtp = useCallback((code: string) => {
-    if (!isDemoOtpCode(code)) throw new Error("请输入 6 位验证码。");
+  const requireDemoOtp = useCallback((account: string, code: string) => {
+    const expectedLength = otpLengthForAccount(account);
+    if (!isDemoOtpCode(code, expectedLength)) {
+      throw new Error(expectedLength === 8 ? "请输入 8 位邮箱验证码。" : "请输入 6 位短信验证码。");
+    }
   }, []);
 
   const sendLoginOtp = useCallback(async (account: string) => {
@@ -128,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyLoginOtp = useCallback(async (account: string, code: string) => {
     if (isDemoMode()) {
-      requireDemoOtp(code);
+      requireDemoOtp(account, code);
       activateDemoSession();
       return;
     }
@@ -142,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyRegistrationOtp = useCallback(async (account: string, code: string, password: string) => {
     if (isDemoMode()) {
-      requireDemoOtp(code);
+      requireDemoOtp(account, code);
       if (password.length < 6) throw new Error("密码至少需要 6 位。");
       activateDemoSession();
       return;
@@ -157,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyPasswordResetOtp = useCallback(async (account: string, code: string, password: string) => {
     if (isDemoMode()) {
-      requireDemoOtp(code);
+      requireDemoOtp(account, code);
       if (password.length < 6) throw new Error("密码至少需要 6 位。");
       return;
     }

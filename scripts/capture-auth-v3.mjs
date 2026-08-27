@@ -283,7 +283,7 @@ async function main() {
     await emailLoginPage.locator(".auth-method-switch").tap();
     await emailLoginPage.locator('input[autocomplete="username"]').fill("login@example.com");
     await emailLoginPage.locator(".auth-code-button").tap();
-    await emailLoginPage.locator('input[autocomplete="one-time-code"]').fill("654321");
+    await emailLoginPage.locator('input[autocomplete="one-time-code"]').fill("65432109");
     await emailLoginPage.screenshot({ path: path.join(outputDir, "08-email-otp-login.png") });
     await emailLoginPage.locator(".auth-submit").tap();
     await emailLoginPage.locator(".phone-frame").waitFor({ timeout: 10000 });
@@ -311,7 +311,7 @@ async function main() {
     await signupPage.locator(".auth-mode-icon").tap();
     await signupPage.locator('input[autocomplete="username"]').fill("signup@example.com");
     await signupPage.locator(".auth-code-button").tap();
-    await signupPage.locator('input[autocomplete="one-time-code"]').fill("123456");
+    await signupPage.locator('input[autocomplete="one-time-code"]').fill("12345678");
     await fillNewPasswords(signupPage, "new-sample-password");
     metrics.emailSignupAgreement = {
       visible: await signupPage.locator(".auth-consent").isVisible(),
@@ -446,13 +446,13 @@ async function main() {
         throw new Error(`NAVA glyph pixels are off-center or clipped: ${JSON.stringify(layout.wordmarkPixels)}`);
       }
     }
-    if (metrics.emailSignupFlow.otp[0]?.email !== "signup@example.com" || metrics.emailSignupFlow.verify[0]?.token !== "123456" || !metrics.emailSignupFlow.userUpdates[0]?.password) {
+    if (metrics.emailSignupFlow.otp[0]?.email !== "signup@example.com" || metrics.emailSignupFlow.verify[0]?.token !== "12345678" || !metrics.emailSignupFlow.userUpdates[0]?.password) {
       throw new Error(`Email OTP registration sequence is incomplete: ${JSON.stringify(metrics.emailSignupFlow)}`);
     }
     if (
       metrics.emailOtpLoginFlow.otp[0]?.email !== "login@example.com"
       || metrics.emailOtpLoginFlow.otp[0]?.create_user !== false
-      || metrics.emailOtpLoginFlow.verify[0]?.token !== "654321"
+      || metrics.emailOtpLoginFlow.verify[0]?.token !== "65432109"
       || metrics.emailOtpLoginFlow.verify[0]?.type !== "email"
     ) {
       throw new Error(`Email OTP login sequence is incomplete: ${JSON.stringify(metrics.emailOtpLoginFlow)}`);

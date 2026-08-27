@@ -14,7 +14,7 @@ import { FormEvent, useEffect, useState } from "react";
 import LanguageToggle from "../components/LanguageToggle";
 import NavaWordmark from "../components/NavaWordmark";
 import { useLocale } from "../i18n";
-import { formatAuthError, isEmail, isPhone } from "../services/auth";
+import { formatAuthError, isEmail, isOtpCodeValid, isPhone, otpLengthForAccount } from "../services/auth";
 import { useAuth } from "../state/authContext";
 
 type AuthMode = "signIn" | "signUp" | "reset" | "recoveryChoice";
@@ -55,6 +55,8 @@ export default function AuthScreen() {
   const accountIsEmail = isEmail(normalizedAccount);
   const accountIsPhone = isPhone(normalizedAccount);
   const accountIsValid = accountIsEmail || accountIsPhone;
+  const otpLength = otpLengthForAccount(normalizedAccount);
+  const otpIsValid = isOtpCodeValid(normalizedAccount, otp);
   const isOtpSignIn = mode === "signIn" && signInMethod === "otp";
   const requiresCode = mode === "reset" || mode === "signUp" || isOtpSignIn;
   const requiresPassword = mode === "reset" || mode === "signUp" || (mode === "signIn" && signInMethod === "password");
@@ -67,8 +69,8 @@ export default function AuthScreen() {
     (mode === "signIn"
       ? signInMethod === "password"
         ? Boolean(password)
-        : otpSent && sentTo === normalizedAccount && /^\d{6}$/.test(otp)
-      : password.length >= 6 && Boolean(confirmPassword) && otpSent && sentTo === normalizedAccount && /^\d{6}$/.test(otp));
+        : otpSent && sentTo === normalizedAccount && otpIsValid
+      : password.length >= 6 && Boolean(confirmPassword) && otpSent && sentTo === normalizedAccount && otpIsValid);
 
   useEffect(() => {
     if (codeCooldown <= 0) return;
@@ -151,7 +153,9 @@ export default function AuthScreen() {
       if (password !== confirmPassword) throw new Error(t("auth.error.passwordMismatch"));
 
       if (!otpSent || sentTo !== normalizedAccount) throw new Error(t("auth.error.codeFirst"));
-      if (!/^\d{6}$/.test(otp)) throw new Error(t("auth.error.codeFormat"));
+      if (!otpIsValid) {
+        throw new Error(t(accountIsPhone ? "auth.error.smsCodeFormat" : "auth.error.emailCodeFormat"));
+      }
       if (mode === "signUp" && !acceptedTerms) {
         setConsentOpen(true);
         return;
@@ -238,10 +242,10 @@ export default function AuthScreen() {
                   <input
                     autoComplete="one-time-code"
                     inputMode="numeric"
-                    maxLength={6}
+                    maxLength={otpLength}
                     value={otp}
-                    onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder={t("auth.otpPlaceholder")}
+                    onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, otpLength))}
+                    placeholder={t(accountIsPhone ? "auth.smsOtpPlaceholder" : "auth.emailOtpPlaceholder")}
                   />
                   <button
                     className="auth-code-button"

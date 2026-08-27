@@ -14,7 +14,8 @@ const port = Number(process.env.PORT || 5192);
 const reviewBaseUrl = process.env.REVIEW_BASE_URL?.trim().replace(/\/$/, "");
 const demoAccount = "13800138000";
 const demoPassword = "12345678";
-const demoOtp = "123456";
+const demoSmsOtp = "123456";
+const demoEmailOtp = "12345678";
 const samplePhoto = {
   name: "sample.svg",
   mimeType: "image/svg+xml",
@@ -149,7 +150,9 @@ async function verifyOtpLogin(browser, baseUrl, results, consoleErrors) {
   await page.locator('[data-recovery-option="otp"]').click();
   await page.locator('input[autocomplete="username"]').fill(demoAccount);
   await page.locator(".auth-code-button").click();
-  await page.locator('input[autocomplete="one-time-code"]').fill(demoOtp);
+  const otp = page.locator('input[autocomplete="one-time-code"]');
+  await expect(otp).toHaveAttribute("maxlength", "6");
+  await otp.fill(demoSmsOtp);
   await page.screenshot({ path: path.join(outputDir, "auth-otp-login.png") });
   await page.locator(".auth-submit").click();
   await completeOnboardingIfNeeded(page);
@@ -175,7 +178,9 @@ async function verifyAuthControls(browser, baseUrl, results, consoleErrors) {
   await page.locator('[data-recovery-option="reset"]').click();
   await page.locator('input[autocomplete="username"]').fill(demoAccount);
   await page.locator(".auth-code-button").click();
-  await page.locator('input[autocomplete="one-time-code"]').fill(demoOtp);
+  const otp = page.locator('input[autocomplete="one-time-code"]');
+  await expect(otp).toHaveAttribute("maxlength", "6");
+  await otp.fill(demoSmsOtp);
   await page.locator('input[autocomplete="new-password"]').first().fill("87654321");
   await page.locator('input[autocomplete="new-password"]').nth(1).fill("87654321");
   await page.screenshot({ path: path.join(outputDir, "auth-reset.png") });
@@ -194,7 +199,10 @@ async function verifyRegistration(browser, baseUrl, results, consoleErrors) {
   await expect(page.locator(".field-label").filter({ hasText: "新密码" })).toBeVisible();
   await page.locator('input[autocomplete="username"]').fill("review@nava.app");
   await page.locator(".auth-code-button").click();
-  await page.locator('input[autocomplete="one-time-code"]').fill(demoOtp);
+  const otp = page.locator('input[autocomplete="one-time-code"]');
+  await expect(otp).toHaveAttribute("maxlength", "8");
+  await expect(otp).toHaveAttribute("placeholder", "8 位邮箱验证码");
+  await otp.fill(demoEmailOtp);
   await page.locator('input[autocomplete="new-password"]').first().fill("87654321");
   await page.locator('input[autocomplete="new-password"]').nth(1).fill("87654321");
   await page.locator('.auth-consent input[type="checkbox"]').check();

@@ -36,8 +36,8 @@ export function isDemoLoginCredential(account: string, password: string) {
   return account.trim().length > 0 && password.length >= 6;
 }
 
-export function isDemoOtpCode(code: string) {
-  return /^\d{6}$/.test(code.trim());
+export function isDemoOtpCode(code: string, expectedLength = 8) {
+  return new RegExp(`^\\d{${expectedLength}}$`).test(code.trim());
 }
 
 export const demoUser = {

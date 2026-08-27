@@ -10,7 +10,7 @@ npm run build:pages
 
 The generated `dist` directory is ready for GitHub Pages. It includes `404.html` for direct page recovery and `.nojekyll` for static asset delivery.
 
-The site opens on the static Figma splash screen. Tap anywhere to continue to sign-in. Accounts must exist in the shared Supabase Auth project. Existing users without a known password should use the six-digit-code reset-password flow to set one.
+The site opens on the static Figma splash screen. Tap anywhere to continue to sign-in. Accounts must exist in the shared Supabase Auth project. Existing users without a known password should use the eight-digit email-code reset-password flow to set one; SMS codes remain six digits.
 
 ## Splash provenance
 
