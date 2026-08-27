@@ -25,8 +25,10 @@ const ALIYUN_HOST = "dysmsapi.aliyuncs.com";
 const ALIYUN_ACTION = "SendSms";
 const ALIYUN_VERSION = "2017-05-25";
 
-function requiredEnv(name: string, fallbackName?: string) {
-  const value = Deno.env.get(name) ?? (fallbackName ? Deno.env.get(fallbackName) : undefined);
+function requiredEnv(name: string, ...fallbackNames: string[]) {
+  const value = [name, ...fallbackNames]
+    .map((candidate) => Deno.env.get(candidate)?.trim())
+    .find(Boolean);
   if (!value?.trim()) throw new Error(`Missing server secret: ${name}`);
   return value.trim();
 }
@@ -123,8 +125,8 @@ export function createOtpAdminClient(): SupabaseClient {
 
 function aliyunCredentials() {
   return {
-    accessKeyId: requiredEnv("ALIYUN_SMS_ACCESS_KEY_ID", "ALIBABA_CLOUD_ACCESS_KEY_ID"),
-    accessKeySecret: requiredEnv("ALIYUN_SMS_ACCESS_KEY_SECRET", "ALIBABA_CLOUD_ACCESS_KEY_SECRET"),
+    accessKeyId: requiredEnv("ALIYUN_SMS_ACCESS_KEY_ID", "ALIBABA_CLOUD_ACCESS_KEY_ID", "ALIYUN_ACCESS_KEY_ID"),
+    accessKeySecret: requiredEnv("ALIYUN_SMS_ACCESS_KEY_SECRET", "ALIBABA_CLOUD_ACCESS_KEY_SECRET", "ALIYUN_ACCESS_KEY_SECRET"),
     signName: requiredEnv("ALIYUN_SMS_SIGN_NAME"),
     templateCode: requiredEnv("ALIYUN_SMS_TEMPLATE_CODE"),
     templateParamKey: Deno.env.get("ALIYUN_SMS_TEMPLATE_PARAM_KEY")?.trim() || "code",

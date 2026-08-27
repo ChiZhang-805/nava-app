@@ -25,7 +25,7 @@ copy .env.example .env
 npm run dev
 ```
 
-需要跳过登录查看完整 App 界面时，打开 `http://127.0.0.1:5173/?demo=1`。团队评审链接可以通过 `VITE_ENABLE_REVIEW_DEMO=true` 或 `nava-app-preview*.pages.dev` 域名进入完整 demo；正式生产域名不要开启这个变量。
+仅在本地开发需要跳过登录查看完整 App 界面时，打开 `http://127.0.0.1:5173/?demo=1`。两个公开部署均关闭演示认证，统一连接正式 Supabase 项目并执行真实注册、登录和密码重置流程。
 
 ## 团队评审链接
 
@@ -43,14 +43,7 @@ Production branch: main
 npm run deploy:cloudflare
 ```
 
-当前公开预览链接也可用于评审：`https://nava-app-preview-cz.chizhang1031.chatgpt.site`。
-
-团队评审演示账号：
-
-```text
-手机号：13800138000
-密码：12345678
-```
+当前公开链接：`https://nava-app-preview-cz.chizhang1031.chatgpt.site`。该地址使用真实账号系统，不提供固定演示账号或固定验证码。任意外部邮箱的生产投递还需要按 `docs/auth-email-flow.md` 接入自定义 SMTP；默认 Supabase 邮件服务不作为正式投递通道。
 
 `.env` 必须使用和 Web 端同一个 Supabase 项目：
 

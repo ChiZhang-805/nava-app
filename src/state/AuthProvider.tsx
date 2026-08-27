@@ -16,8 +16,6 @@ import {
 } from "../services/auth";
 import {
   clearDemoAuthSession,
-  demoLoginPassword,
-  demoOtpCode,
   demoUser,
   hasDemoAuthSession,
   isDemoLoginCredential,
@@ -120,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const requireDemoOtp = useCallback((code: string) => {
-    if (!isDemoOtpCode(code)) throw new Error(`验证码不正确，请输入 ${demoOtpCode}。`);
+    if (!isDemoOtpCode(code)) throw new Error("请输入 6 位验证码。");
   }, []);
 
   const sendLoginOtp = useCallback(async (account: string) => {
@@ -161,7 +159,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isDemoMode()) {
       requireDemoOtp(code);
       if (password.length < 6) throw new Error("密码至少需要 6 位。");
-      if (password === demoLoginPassword) throw new Error("新密码不能与当前密码相同。");
       return;
     }
     await verifyPasswordResetOtpRemote(account, code, password);
@@ -170,7 +167,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateCurrentPassword = useCallback(async (password: string, requireDifferent = false) => {
     if (isDemoMode()) {
       if (password.length < 6) throw new Error("密码至少需要 6 位。");
-      if (requireDifferent && password === demoLoginPassword) throw new Error("新密码不能与当前密码相同。");
       return;
     }
     await updateCurrentPasswordRemote(password, requireDifferent);

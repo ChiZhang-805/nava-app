@@ -19,17 +19,29 @@
 - 内部映射不得展示给用户；资料页仍显示原手机号。
 - Web 端若改用另一种手机号建号规则，会生成第二个账号，历史健康数据无法自动合并。
 
-## 托管邮件模板
+## 托管邮件与验证码模板
 
-托管 Supabase 项目必须让 Magic Link 和 Confirm signup 模板包含 `{{ .Token }}`，否则邮件仍会显示确认链接。已有自动配置脚本：
+生产邮件必须先配置自定义 SMTP；Supabase 默认邮件服务只用于开发，而且免费层在未配置自定义 SMTP 时会拒绝修改邮件模板。推荐为认证邮件使用独立域名和发件地址，例如 `no-reply@auth.example.com`。准备好 SMTP 凭据后：
 
 ```powershell
-$env:SUPABASE_PROJECT_REF="项目 ref"
+$env:SUPABASE_PROJECT_REF="wxteapvwagvhhtrjrbim"
 $env:SUPABASE_ACCESS_TOKEN="Supabase personal access token"
+$env:NAVA_SMTP_HOST="SMTP host"
+$env:NAVA_SMTP_PORT="587"
+$env:NAVA_SMTP_USER="SMTP user"
+$env:NAVA_SMTP_PASSWORD="SMTP password"
+$env:NAVA_SMTP_FROM_EMAIL="no-reply@auth.example.com"
+$env:NAVA_SMTP_SENDER_NAME="NAVA"
+powershell -ExecutionPolicy Bypass -File scripts/configure-auth-smtp.ps1
+```
+
+然后让 Magic Link 和 Confirm signup 模板包含 `{{ .Token }}`，否则邮件仍会显示确认链接：
+
+```powershell
 powershell -ExecutionPolicy Bypass -File scripts/configure-auth-email-otp.ps1
 ```
 
-`SUPABASE_ACCESS_TOKEN` 只用于部署，不得写入 APP 前端 `.env`、Git 或 iOS 包。
+也可以一次执行 `scripts/deploy-backend.ps1 -ConfigureAuthSmtp -ConfigureAuthEmailOtp`，部署脚本会保证先配置 SMTP、再更新验证码模板。SMTP 密码和 Supabase access token 只通过进程环境传入，不写入仓库。发件域名必须同时配置 SPF、DKIM 和 DMARC。
 
 ## 手机短信后端
 
@@ -55,6 +67,12 @@ powershell -ExecutionPolicy Bypass -File scripts/deploy-backend.ps1 -ConfigureSm
 
 `NAVA_OTP_HMAC_SECRET` 可以由部署脚本安全生成，也可以由运维通过环境变量提供稳定的 32 位以上随机值。
 
+兼容旧部署时，短信函数也可读取 `ALIYUN_ACCESS_KEY_ID` / `ALIYUN_ACCESS_KEY_SECRET`；新部署仍应使用权限更小的专用 RAM 用户和 `ALIYUN_SMS_ACCESS_KEY_ID` / `ALIYUN_SMS_ACCESS_KEY_SECRET`。
+
+## 公开部署
+
+`.env.review` 只包含可公开的 Supabase URL 和 publishable key，且必须保持 `VITE_ENABLE_REVIEW_DEMO=false`。GitHub Pages 与 Sites 都执行真实认证；`?demo=1` 仅在 Vite 开发模式生效，不能绕过线上登录。
+
 部署脚本通过系统临时目录中的一次性 `.env` 向 Supabase CLI 传递短信密钥，执行结束后立即删除，密钥不会进入仓库或 CLI 参数列表。
 
 ## 后端验证
@@ -65,7 +83,7 @@ npm run backend:typecheck
 npm run backend:test
 ```
 
-验证范围包括 10 个 Edge Function 的文件契约、前端服务角色密钥扫描、全部函数的 Deno 类型检查、OTP 随机性/HMAC 域隔离，以及阿里云 V3 签名官方固定向量。
+验证范围包括 14 个 Edge Function 的文件契约、前端服务角色密钥扫描、全部函数的 Deno 类型检查、OTP 随机性/HMAC 域隔离，以及阿里云 V3 签名官方固定向量。
 
 ## 重置密码
 

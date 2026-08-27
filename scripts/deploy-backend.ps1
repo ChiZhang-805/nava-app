@@ -4,6 +4,7 @@ param(
   [switch]$SkipFunctions,
   [switch]$DeploySharedFunctions,
   [switch]$ConfigureAuthEmailOtp,
+  [switch]$ConfigureAuthSmtp,
   [switch]$ConfigureSmsSecrets
 )
 
@@ -86,6 +87,10 @@ try {
     }
   }
 
+  if ($ConfigureAuthSmtp) {
+    & (Join-Path $PSScriptRoot "configure-auth-smtp.ps1") -ProjectRef $ProjectRef
+  }
+
   if ($ConfigureAuthEmailOtp) {
     & (Join-Path $PSScriptRoot "configure-auth-email-otp.ps1") -ProjectRef $ProjectRef
   }
@@ -96,7 +101,7 @@ try {
   Write-Host "  supabase secrets set NAVA_DIET_EXTRACT_URL=... NAVA_DIET_EXTRACT_KEY=... --project-ref $ProjectRef"
   Write-Host "  supabase secrets set NAVA_FACE_ANALYZE_URL=... NAVA_FACE_ANALYZE_KEY=... --project-ref $ProjectRef"
   Write-Host "Phone OTP deployment:"
-  Write-Host "  .\scripts\deploy-backend.ps1 -ProjectRef $ProjectRef -ConfigureSmsSecrets -ConfigureAuthEmailOtp"
+  Write-Host "  .\scripts\deploy-backend.ps1 -ProjectRef $ProjectRef -ConfigureSmsSecrets -ConfigureAuthEmailOtp -ConfigureAuthSmtp"
   Write-Host "Database migrations are never pushed implicitly; add -ApplyAllMigrations only after reviewing the linked project."
 } finally {
   Pop-Location

@@ -6,9 +6,6 @@ import type { UserProfile } from "./profile";
 const DEMO_SESSION_KEY = "nava.review.demo.auth.v1";
 const DEMO_MOOD_HISTORY_KEY = "nava.review.demo.mood-history.v1";
 const DEMO_RECORDS_KEY = "nava.review.demo.records.v1";
-export const demoLoginAccount = "13800138000";
-export const demoLoginPassword = "12345678";
-export const demoOtpCode = "123456";
 
 export function isDemoMode() {
   if (typeof window === "undefined") return false;
@@ -36,17 +33,16 @@ export function clearDemoAuthSession() {
 }
 
 export function isDemoLoginCredential(account: string, password: string) {
-  const normalized = account.trim();
-  return normalized === demoLoginAccount && password === demoLoginPassword;
+  return account.trim().length > 0 && password.length >= 6;
 }
 
 export function isDemoOtpCode(code: string) {
-  return code.trim() === demoOtpCode;
+  return /^\d{6}$/.test(code.trim());
 }
 
 export const demoUser = {
   id: "00000000-0000-4000-8000-000000000001",
-  email: `${demoLoginAccount}@phone.nava.app`,
+  email: "local-demo@nava.invalid",
   aud: "authenticated",
   role: "authenticated",
   app_metadata: {},

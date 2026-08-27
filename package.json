@@ -16,6 +16,7 @@
     "backend:typecheck": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/typecheck-edge-functions.ps1",
     "backend:test": "npx -y deno test supabase/functions/tests",
     "backend:deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-backend.ps1",
+    "auth:verify:production": "node scripts/verify-production-auth.mjs",
     "screenshots": "node scripts/capture-figma-pages.mjs",
     "screenshots:legacy": "node scripts/capture-screenshots.mjs",
     "screenshots:auth": "node scripts/capture-auth-v3.mjs",

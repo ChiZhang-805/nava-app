@@ -25,8 +25,11 @@ function parseEnvFile(filePath) {
   return values;
 }
 
-export function applyProjectPublicEnv(root = process.cwd()) {
-  const values = parseEnvFile(path.join(root, ".env"));
+export function applyProjectPublicEnv(root = process.cwd(), mode) {
+  const values = {
+    ...parseEnvFile(path.join(root, ".env")),
+    ...(mode ? parseEnvFile(path.join(root, `.env.${mode}`)) : {}),
+  };
   for (const key of publicProjectKeys) {
     if (values[key]) process.env[key] = values[key];
   }
