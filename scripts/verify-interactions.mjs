@@ -169,9 +169,13 @@ async function verifyRegistration(browser, baseUrl, results, consoleErrors) {
   await page.goto(`${baseUrl}?demo=1`, { waitUntil: "networkidle" });
   await dismissLaunch(page);
   await page.locator(".auth-mode-icon").click();
+  await expect(page.locator('input[autocomplete="new-password"]')).toHaveCount(2);
+  await expect(page.locator(".field-label").filter({ hasText: "新密码" })).toBeVisible();
   await page.locator('input[autocomplete="username"]').fill("review@nava.app");
   await page.locator(".auth-code-button").click();
   await page.locator('input[autocomplete="one-time-code"]').fill(demoOtp);
+  await page.locator('input[autocomplete="new-password"]').first().fill("87654321");
+  await page.locator('input[autocomplete="new-password"]').nth(1).fill("87654321");
   await page.locator('.auth-consent input[type="checkbox"]').check();
   const consentMetrics = await page.locator(".auth-consent--screen").evaluate((label) => {
     const checkbox = label.querySelector("input");
@@ -192,14 +196,6 @@ async function verifyRegistration(browser, baseUrl, results, consoleErrors) {
     || Math.abs(consentMetrics.checkboxHeight - consentMetrics.fontSize) > 0.6) {
     throw new Error(`Consent alignment or sizing is incorrect: ${JSON.stringify(consentMetrics)}`);
   }
-  await expect(page.locator('input[autocomplete="new-password"]')).toHaveCount(0);
-  await page.screenshot({ path: path.join(outputDir, "auth-register-code.png") });
-  await page.locator(".auth-submit").click();
-  await expect(page.locator(".auth-verified-account")).toBeVisible();
-  await expect(page.locator('input[autocomplete="new-password"]')).toHaveCount(2);
-  await expect(page.locator(".field-label").filter({ hasText: "新密码" })).toBeVisible();
-  await page.locator('input[autocomplete="new-password"]').first().fill("87654321");
-  await page.locator('input[autocomplete="new-password"]').nth(1).fill("87654321");
   await page.screenshot({ path: path.join(outputDir, "auth-register.png") });
   await page.locator(".auth-submit").click();
   await completeOnboardingIfNeeded(page);

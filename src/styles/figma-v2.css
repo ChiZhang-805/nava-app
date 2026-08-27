@@ -1790,6 +1790,40 @@ body::before {
 }
 
 @media (max-width: 340px), (max-height: 680px) {
+  .auth-screen--signUp {
+    grid-template-rows: minmax(120px, 22dvh) auto;
+    overflow-y: auto;
+  }
+
+  .auth-screen--signUp .auth-brand .nava-wordmark {
+    min-height: 58px;
+  }
+
+  .auth-screen--signUp .auth-form-region {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  .auth-screen--signUp .auth-form .field {
+    margin-bottom: 8px;
+  }
+
+  .auth-screen--signUp .auth-feedback-slot {
+    min-height: 22px;
+    margin-bottom: 3px;
+  }
+
+  .auth-screen--signUp .auth-consent.auth-consent--screen {
+    position: static;
+    left: auto;
+    bottom: auto;
+    width: 100%;
+    margin: 6px auto 10px;
+    transform: none;
+  }
+
   .auth-recovery-choice {
     gap: 12px;
   }
