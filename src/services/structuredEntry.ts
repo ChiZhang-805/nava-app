@@ -53,8 +53,13 @@ export async function confirmStructuredEntry(userId: string, candidate: Structur
     if (items.length > 0) {
       await saveNutritionItems({
         userId,
+        date: data.date ? String(data.date) : undefined,
         meal: data.meal as "breakfast" | "lunch" | "dinner" | "pantry",
         items,
+        photoUrl: data.photoUrl ? String(data.photoUrl) : undefined,
+        proteinGrams: finiteNumber(data.proteinGrams),
+        carbohydrateGrams: finiteNumber(data.carbohydrateGrams),
+        fatGrams: finiteNumber(data.fatGrams),
       });
     } else {
       await saveNutritionRecord({
@@ -76,4 +81,10 @@ export async function confirmStructuredEntry(userId: string, candidate: Structur
     console.warn("Rhythm refresh deferred after structured entry", error);
   }
   return candidate;
+}
+
+function finiteNumber(value: unknown) {
+  if (value === null || value === undefined || value === "") return undefined;
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, number) : undefined;
 }

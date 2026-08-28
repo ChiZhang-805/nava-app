@@ -833,7 +833,7 @@ async function verifyHomeShortcuts(page, results) {
 async function verifyAi(page, results, diagnostics) {
   await page.locator('[data-tab="ai"]').click();
   await expect(page.locator(".chat-message-row")).toHaveCount(3);
-  await page.locator(".chat-composer input").fill("我今天吃什么好？请直接推荐一份午餐。");
+  await page.locator(".chat-input-shell input").fill("我今天吃什么好？请直接推荐一份午餐。");
   await page.locator(".chat-send-button").click();
   await expect(page.locator("[data-ai-streaming=true]")).toBeVisible();
   await assertStaticLayout(page, "ai-processing");
@@ -903,12 +903,33 @@ async function verifyAi(page, results, diagnostics) {
   await expect(utilityPopover).toBeVisible();
   await languageToggle.click();
   await expect(utilityPopover).toBeVisible();
-  await page.locator(".chat-composer input").click();
+  await page.locator(".chat-input-shell input").click();
   await expect(utilityPopover).toBeHidden();
   await headerMenuButton.click();
   await expect(utilityPopover).toBeVisible();
   await headerMenuButton.click();
   await expect(utilityPopover).toBeHidden();
+
+  const composerMic = page.locator(".chat-voice-button");
+  const composerMicBox = await composerMic.boundingBox();
+  if (!composerMicBox) throw new Error("Chat microphone has no visible bounds");
+  const composerPointer = { x: composerMicBox.x + composerMicBox.width / 2, y: composerMicBox.y + composerMicBox.height / 2 };
+  await page.mouse.move(composerPointer.x, composerPointer.y);
+  await page.mouse.down();
+  await page.waitForTimeout(380);
+  await expect(page.locator(".chat-camera-shortcut")).toBeVisible();
+  await page.mouse.move(composerPointer.x, composerPointer.y - 72, { steps: 4 });
+  await expect(page.locator(".chat-camera-shortcut.selected")).toBeVisible();
+  const fileChooserPromise = page.waitForEvent("filechooser");
+  await page.mouse.up();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles(samplePhoto);
+  await expect(page.locator('[data-chat-photo="analyzing"], [data-chat-photo="saved"]')).toBeVisible();
+  await expect(page.locator('[data-structured-confirmation="nutrition"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-chat-photo="saved"]')).toBeVisible();
+  await expect(page.locator('[data-structured-record="nutrition"]')).toContainText(/鸡胸肉|Chicken|蓝莓|yogurt/i);
+  await page.locator('[data-confirm-structured]').click();
+  await expect(page.locator('[data-structured-confirmation="nutrition"]')).toBeHidden();
 
   await page.locator('[data-tab="today"]').click();
   const aiButton = page.locator('[data-tab="ai"]');
@@ -925,8 +946,8 @@ async function verifyAi(page, results, diagnostics) {
   await page.waitForTimeout(120);
   await page.mouse.up();
   await expect(page.locator(".chat-composer.voice-active")).toBeHidden();
-  await expect(page.locator(".chat-composer input")).toHaveValue("今天感觉很平稳");
-  const inputBeforeCancelledVoice = await page.locator(".chat-composer input").inputValue();
+  await expect(page.locator(".chat-input-shell input")).toHaveValue("今天感觉很平稳");
+  const inputBeforeCancelledVoice = await page.locator(".chat-input-shell input").inputValue();
 
   await page.locator('[data-tab="today"]').click();
   const cancelBox = await aiButton.boundingBox();
@@ -941,8 +962,8 @@ async function verifyAi(page, results, diagnostics) {
   await expect(page.locator(".chat-voice-button.cancel-armed")).toBeVisible();
   await page.mouse.up();
   await expect(page.locator(".chat-composer.voice-active")).toBeHidden();
-  await expect(page.locator(".chat-composer input")).toHaveValue(inputBeforeCancelledVoice);
-  results.push("AI 对话、完整短答与模型侧字数契约、菜单内朗读/语言保持展开、菜单外关闭、按住录音与上滑取消");
+  await expect(page.locator(".chat-input-shell input")).toHaveValue(inputBeforeCancelledVoice);
+  results.push("AI 对话、完整短答与模型侧字数契约、菜单交互、长按麦克风上滑拍照、视觉餐食确认保存、按住录音与上滑取消");
 }
 
 async function verifyProfile(page, results) {

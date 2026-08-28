@@ -36,10 +36,15 @@ export async function loadConversation(userId: string, locale: "zh" | "en" = "zh
 export async function sendAiMessage(input: {
   userId: string;
   message: string;
+  displayMessage?: string;
   history: ChatMessage[];
   lang?: "zh" | "en";
   profile?: UserProfile | null;
   responseMode?: "text" | "voice";
+  preExtracted?: {
+    dataType: string;
+    extractedData: unknown;
+  };
   signal?: AbortSignal;
   onUserMessage?: (message: ChatMessage) => void;
   onStatus?: (step: AiProcessingStep | null) => void;
@@ -51,7 +56,7 @@ export async function sendAiMessage(input: {
   if (isDemoMode()) {
     const now = new Date().toISOString();
     const content = demoAiReply(input.message, lang);
-    const userMessage = { id: `demo-user-${Date.now()}`, role: "user", content: input.message, created_at: now } as ChatMessage;
+    const userMessage = { id: `demo-user-${Date.now()}`, role: "user", content: input.displayMessage ?? input.message, created_at: now } as ChatMessage;
     input.onUserMessage?.(userMessage);
     await processing;
     let streamed = "";
@@ -79,23 +84,24 @@ export async function sendAiMessage(input: {
     .insert({
       user_id: input.userId,
       role: "user",
-      content: input.message,
+      content: input.displayMessage ?? input.message,
     })
     .select("*")
     .single();
   assertNoError(userInsert.error);
   input.onUserMessage?.(userInsert.data as ChatMessage);
 
-  const extract = await supabase.functions.invoke("ai-extract-data", {
-    body: {
-      message: input.message,
-      todos: [],
-      lang,
-      language: lang,
-    },
-  });
-
-  const extraction = extract.error ? null : extract.data ?? null;
+  const extraction = input.preExtracted ?? await (async () => {
+    const extract = await supabase.functions.invoke("ai-extract-data", {
+      body: {
+        message: input.message,
+        todos: [],
+        lang,
+        language: lang,
+      },
+    });
+    return extract.error ? null : extract.data ?? null;
+  })();
   const extractedData = extraction?.extractedData ?? null;
   const content = await requestAiReply({
     message: input.message,

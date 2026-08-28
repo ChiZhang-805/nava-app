@@ -1,17 +1,19 @@
 import type { User } from "@supabase/supabase-js";
-import { Bot, Check, Mic, Pencil, PhoneCall, PhoneOff, SendHorizontal, Sparkles, X } from "lucide-react";
+import { Bot, Camera, Check, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, SendHorizontal, Sparkles, X } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocale } from "../i18n";
 import { loadConversation, sendAiMessage } from "../services/ai";
 import type { AiProcessingStep } from "../services/aiProcessing";
 import { createStreamingAiSpeaker, isAiSpeechSupported, type StreamingAiSpeaker } from "../services/aiSpeech";
+import { todayISO } from "../services/date";
+import { analyzeDietPhoto } from "../services/media";
 import { loadProfileWithOnboarding } from "../services/onboarding";
 import type { UserProfile } from "../services/profile";
 import { startVoiceInput, type VoiceInputError, type VoiceInputSession } from "../services/voice";
 import { voiceEndpointDelayMs } from "../services/voiceEndpoint";
 import { confirmStructuredEntry, parseStructuredEntry, type StructuredEntry } from "../services/structuredEntry";
 import { updateStructuredEntryField } from "../services/structuredEntryParser";
-import type { ChatMessage } from "../types";
+import type { ChatMessage, DietExtractResult } from "../types";
 
 export type AiCommand = {
   id: number;
@@ -31,6 +33,70 @@ type StreamingPreview = {
 };
 
 type VoiceCallPhase = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
+
+type MealType = "breakfast" | "lunch" | "dinner" | "pantry";
+
+function currentMeal(): MealType {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 10) return "breakfast";
+  if (hour >= 10 && hour < 15) return "lunch";
+  if (hour >= 17 && hour < 22) return "dinner";
+  return "pantry";
+}
+
+function mealLabel(meal: MealType, locale: "zh" | "en") {
+  const labels = locale === "zh"
+    ? { breakfast: "早餐", lunch: "午餐", dinner: "晚餐", pantry: "加餐" }
+    : { breakfast: "breakfast", lunch: "lunch", dinner: "dinner", pantry: "snack" };
+  return labels[meal];
+}
+
+function buildPhotoNutritionEntry(result: DietExtractResult, meal: MealType, date: string, locale: "zh" | "en"): StructuredEntry {
+  const totals = result.totals ?? {
+    calories: result.items.reduce((sum, item) => sum + (Number(item.calories) || 0), 0),
+    proteinGrams: result.items.reduce((sum, item) => sum + (Number(item.protein_grams) || 0), 0),
+    carbohydrateGrams: result.items.reduce((sum, item) => sum + (Number(item.carbohydrate_grams) || 0), 0),
+    fatGrams: result.items.reduce((sum, item) => sum + (Number(item.fat_grams) || 0), 0),
+  };
+  const fields = result.items.map((item, index) => ({
+    id: crypto.randomUUID(),
+    label: item.name,
+    value: String(Math.max(0, Math.round(Number(item.calories) || 0))),
+    unit: locale === "zh" ? "千卡" : "kcal",
+    path: `items.${index}.calories`,
+    valueType: "number" as const,
+  }));
+  fields.push(
+    { id: crypto.randomUUID(), label: locale === "zh" ? "总热量" : "Total calories", value: String(Math.max(0, Math.round(totals.calories))), unit: locale === "zh" ? "千卡" : "kcal", path: "totalCalories", valueType: "number" as const },
+    { id: crypto.randomUUID(), label: locale === "zh" ? "蛋白质摄入量" : "Protein", value: String(Math.max(0, totals.proteinGrams)), unit: "g", path: "proteinGrams", valueType: "number" as const },
+    { id: crypto.randomUUID(), label: locale === "zh" ? "碳水摄入量" : "Carbohydrates", value: String(Math.max(0, totals.carbohydrateGrams)), unit: "g", path: "carbohydrateGrams", valueType: "number" as const },
+    { id: crypto.randomUUID(), label: locale === "zh" ? "脂肪摄入量" : "Fat", value: String(Math.max(0, totals.fatGrams)), unit: "g", path: "fatGrams", valueType: "number" as const },
+  );
+  const names = result.items.map((item) => item.name).join(locale === "zh" ? "、" : ", ");
+  return {
+    id: crypto.randomUUID(),
+    type: "nutrition",
+    title: locale === "zh" ? "饮食记录" : "Meal record",
+    summary: names,
+    fields,
+    payload: {
+      source: "vision",
+      date,
+      meal,
+      name: names,
+      items: result.items,
+      totalCalories: Math.max(0, Math.round(totals.calories)),
+      calories: Math.max(0, Math.round(totals.calories)),
+      proteinGrams: Math.max(0, totals.proteinGrams),
+      carbohydrateGrams: Math.max(0, totals.carbohydrateGrams),
+      fatGrams: Math.max(0, totals.fatGrams),
+      photoUrl: result.imagePath,
+      visionProvider: result.provider,
+      visionModel: result.modelVersion,
+    },
+    confidence: Math.max(0, Math.min(1, Number(result.confidence) || 0.76)),
+  };
+}
 
 export default function AIScreen({
   user,
@@ -63,6 +129,11 @@ export default function AIScreen({
   const [error, setError] = useState<string | null>(null);
   const [voiceState, setVoiceState] = useState<"idle" | "starting" | "listening">("idle");
   const [voiceCancelArmed, setVoiceCancelArmed] = useState(false);
+  const [composerToolOpen, setComposerToolOpen] = useState(false);
+  const [composerCameraArmed, setComposerCameraArmed] = useState(false);
+  const [photoAnalyzing, setPhotoAnalyzing] = useState(false);
+  const [pendingPhotoPreview, setPendingPhotoPreview] = useState<string | null>(null);
+  const [photoPreviews, setPhotoPreviews] = useState<Record<string, string>>({});
   const [pendingEntry, setPendingEntry] = useState<StructuredEntry | null>(null);
   const [editingEntry, setEditingEntry] = useState(false);
   const [savingEntry, setSavingEntry] = useState(false);
@@ -83,6 +154,10 @@ export default function AIScreen({
   const voiceInitialInputRef = useRef("");
   const voicePointerActiveRef = useRef(false);
   const voicePointerStartYRef = useRef(0);
+  const voiceToolTimerRef = useRef<number | null>(null);
+  const voiceCameraArmedRef = useRef(false);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const photoObjectUrlsRef = useRef(new Set<string>());
   const handledCommandRef = useRef(0);
   const streamAbortRef = useRef<AbortController | null>(null);
   const speechRef = useRef<StreamingAiSpeaker | null>(null);
@@ -174,6 +249,95 @@ export default function AIScreen({
       controller.abort();
     } finally {
       if (streamAbortRef.current === controller) streamAbortRef.current = null;
+      setSending(false);
+    }
+  }
+
+  async function handleComposerPhoto(file: File | null) {
+    if (!file || sending || photoAnalyzing) return;
+    const previewUrl = URL.createObjectURL(file);
+    photoObjectUrlsRef.current.add(previewUrl);
+    setPendingPhotoPreview(previewUrl);
+    setPhotoAnalyzing(true);
+    setSending(true);
+    setError(null);
+    setPendingEntry(null);
+    setEditingEntry(false);
+    setStreamingPreview({
+      status: {
+        id: "vision-food",
+        label: locale === "zh" ? "正在认真辨认照片里的食物…" : "Carefully identifying the food…",
+        tone: profile?.occupation === "student" ? "cute" : "practical",
+      },
+      content: "",
+      startedAt: new Date().toISOString(),
+    });
+
+    const controller = new AbortController();
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = controller;
+    let userCommitted = false;
+    try {
+      const meal = currentMeal();
+      const date = todayISO();
+      const result = await analyzeDietPhoto({ userId: user.id, date, meal, file });
+      if (result.imageUrl !== previewUrl && result.imageUrl.startsWith("blob:")) URL.revokeObjectURL(result.imageUrl);
+      const candidate = result.items.length > 0 ? buildPhotoNutritionEntry(result, meal, date, locale) : null;
+      const itemSummary = result.items.slice(0, 6).map((item) => `${item.name}${item.amount ? ` ${item.amount}` : ""} ${Math.max(0, Math.round(Number(item.calories) || 0))}kcal`).join(locale === "zh" ? "；" : "; ");
+      const modelMessage = result.items.length > 0
+        ? (locale === "zh"
+          ? `我用相机记录了${mealLabel(meal, locale)}。视觉模型识别为：${itemSummary}。请结合这些结构化结果与我近期的饮食数据，简短评价并提醒我核对后确认保存；不要声称你亲自看过照片。`
+          : `I photographed my ${mealLabel(meal, locale)}. The vision model identified: ${itemSummary}. Briefly assess it with my recent diet data, ask me to verify before saving, and do not claim that you viewed the image yourself.`)
+        : (locale === "zh"
+          ? "我上传了一张准备记录饮食的照片，但视觉模型没有可靠识别出食物。请简短告诉我如何重新拍摄或补充说明，不要猜测食物和热量。"
+          : "I uploaded a photo for a meal record, but the vision model could not reliably identify food. Briefly explain how to retake it or add details without guessing food or calories.");
+      const extractedData = candidate?.payload ?? {
+        source: "vision",
+        date,
+        meal,
+        analysisAvailable: result.analysisAvailable ?? false,
+        note: result.note,
+        items: [],
+      };
+      speechRef.current?.start();
+      const response = await sendAiMessage({
+        userId: user.id,
+        message: modelMessage,
+        displayMessage: locale === "zh" ? `拍照记录${mealLabel(meal, locale)}` : `Photo ${mealLabel(meal, locale)} record`,
+        history: messages,
+        lang: locale,
+        profile,
+        preExtracted: { dataType: "nutrition", extractedData },
+        signal: controller.signal,
+        onUserMessage: (userMessage) => {
+          userCommitted = true;
+          setPhotoPreviews((current) => ({ ...current, [userMessage.id]: previewUrl }));
+          setPendingPhotoPreview(null);
+          setMessages((current) => [...current, userMessage]);
+        },
+        onStatus: (status) => setStreamingPreview((current) => current ? { ...current, status } : current),
+        onDelta: (content) => {
+          speechRef.current?.update(content);
+          setStreamingPreview((current) => current ? { ...current, status: null, content } : current);
+        },
+      });
+      speechRef.current?.finish(response.assistantMessage.content);
+      setMessages((current) => [...current, response.assistantMessage]);
+      setPendingEntry(candidate);
+      setStreamingPreview(null);
+    } catch (photoError) {
+      speechRef.current?.cancel();
+      if (!(photoError instanceof DOMException && photoError.name === "AbortError")) setError(photoError instanceof Error ? photoError.message : String(photoError));
+      if (!userCommitted) {
+        setPendingPhotoPreview(null);
+        photoObjectUrlsRef.current.delete(previewUrl);
+        URL.revokeObjectURL(previewUrl);
+      }
+      setStreamingPreview(null);
+      controller.abort();
+    } finally {
+      if (streamAbortRef.current === controller) streamAbortRef.current = null;
+      setPhotoAnalyzing(false);
       setSending(false);
     }
   }
@@ -295,7 +459,7 @@ export default function AIScreen({
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "auto" });
-  }, [messages.length, streamingPreview?.content, streamingPreview?.status?.id]);
+  }, [messages.length, pendingPhotoPreview, streamingPreview?.content, streamingPreview?.status?.id]);
 
   const voiceErrorText = useCallback((voiceError: VoiceInputError) => {
     if (voiceError.code === "permission_denied") return t("ai.voicePermissionDenied");
@@ -526,27 +690,70 @@ export default function AIScreen({
     if (voiceSessionRef.current) void stopVoiceInput(voiceReleaseCancelled);
   }, [stopVoiceInput, voiceReleaseCancelled, voiceReleaseId]);
 
+  const clearComposerToolTimer = () => {
+    if (voiceToolTimerRef.current === null) return;
+    window.clearTimeout(voiceToolTimerRef.current);
+    voiceToolTimerRef.current = null;
+  };
+
+  const closeComposerTools = () => {
+    clearComposerToolTimer();
+    voiceCameraArmedRef.current = false;
+    setComposerCameraArmed(false);
+    setComposerToolOpen(false);
+  };
+
+  const openComposerCamera = () => {
+    voicePointerActiveRef.current = false;
+    voiceStopIntentRef.current = "cancel";
+    if (voiceSessionRef.current) void stopVoiceInput(true);
+    closeComposerTools();
+    cameraInputRef.current?.click();
+  };
+
   const beginComposerVoice = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
+    if (sending || photoAnalyzing) return;
     voicePointerActiveRef.current = true;
     voicePointerStartYRef.current = event.clientY;
     setVoiceCancelArmed(false);
+    voiceCameraArmedRef.current = false;
+    setComposerCameraArmed(false);
+    setComposerToolOpen(false);
+    clearComposerToolTimer();
+    voiceToolTimerRef.current = window.setTimeout(() => {
+      voiceToolTimerRef.current = null;
+      if (!voicePointerActiveRef.current) return;
+      setComposerToolOpen(true);
+      navigator.vibrate?.(8);
+    }, 320);
     event.currentTarget.setPointerCapture?.(event.pointerId);
     void beginVoiceInput();
   };
 
   const moveComposerVoice = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!voicePointerActiveRef.current) return;
-    setVoiceCancelArmed(voicePointerStartYRef.current - event.clientY >= 64);
+    const cameraArmed = voicePointerStartYRef.current - event.clientY >= 58;
+    if (cameraArmed === voiceCameraArmedRef.current) return;
+    voiceCameraArmedRef.current = cameraArmed;
+    setComposerCameraArmed(cameraArmed);
+    setComposerToolOpen(true);
+    navigator.vibrate?.(cameraArmed ? 12 : 5);
   };
 
   const finishComposerVoice = (event: ReactPointerEvent<HTMLButtonElement>, forceCancel = false) => {
     if (!voicePointerActiveRef.current) return;
     voicePointerActiveRef.current = false;
-    const cancelled = forceCancel || voicePointerStartYRef.current - event.clientY >= 64;
-    voiceStopIntentRef.current = cancelled ? "cancel" : "stop";
-    if (voiceSessionRef.current) void stopVoiceInput(cancelled);
+    clearComposerToolTimer();
+    const cameraSelected = !forceCancel && (voiceCameraArmedRef.current || voicePointerStartYRef.current - event.clientY >= 58);
+    if (cameraSelected) {
+      openComposerCamera();
+      return;
+    }
+    voiceStopIntentRef.current = forceCancel ? "cancel" : "stop";
+    if (voiceSessionRef.current) void stopVoiceInput(forceCancel);
     setVoiceCancelArmed(false);
+    closeComposerTools();
   };
 
   useEffect(() => {
@@ -554,6 +761,9 @@ export default function AIScreen({
   }, [active, endVoiceCall, voiceCallOpen]);
 
   useEffect(() => () => {
+    if (voiceToolTimerRef.current !== null) window.clearTimeout(voiceToolTimerRef.current);
+    photoObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    photoObjectUrlsRef.current.clear();
     voiceCallOpenRef.current = false;
     voiceCallSubmittingRef.current = false;
     clearVoiceCallSilenceTimer();
@@ -600,6 +810,9 @@ export default function AIScreen({
                 </span>
               )}
               <article className={isUser ? "chat-bubble user" : "chat-bubble assistant"}>
+                {isUser && photoPreviews[message.id] && (
+                  <img className="chat-photo-preview" src={photoPreviews[message.id]} alt={locale === "zh" ? "刚刚拍摄的饮食照片" : "New meal photo"} data-chat-photo="saved" />
+                )}
                 <p>{message.content}</p>
                 <time>{new Date(message.created_at).toLocaleTimeString(locale === "en" ? "en-US" : "zh-CN", { hour: "2-digit", minute: "2-digit" })}</time>
               </article>
@@ -613,6 +826,20 @@ export default function AIScreen({
             </div>
           );
         })}
+        {pendingPhotoPreview && (
+          <div className="chat-message-row user chat-photo-pending" aria-live="polite">
+            <article className="chat-bubble user">
+              <img className="chat-photo-preview" src={pendingPhotoPreview} alt={locale === "zh" ? "正在识别的饮食照片" : "Meal photo being analyzed"} data-chat-photo="analyzing" />
+              <p><LoaderCircle size={14} aria-hidden="true" />{locale === "zh" ? "正在识别餐食…" : "Identifying meal…"}</p>
+              <time>{new Date().toLocaleTimeString(locale === "en" ? "en-US" : "zh-CN", { hour: "2-digit", minute: "2-digit" })}</time>
+            </article>
+            <span className="chat-avatar user" aria-hidden="true">
+              {profile?.avatar_url && !avatarLoadFailed
+                ? <img src={profile.avatar_url} alt="" onError={() => setAvatarLoadFailed(true)} />
+                : (profile?.username?.trim().slice(0, 1).toUpperCase() || user.email?.slice(0, 1).toUpperCase() || "N")}
+            </span>
+          </div>
+        )}
         {streamingPreview && (
           <div className="chat-message-row assistant ai-streaming-row" data-ai-streaming="true" aria-live="polite">
             <span className="chat-avatar assistant" aria-hidden="true">
@@ -685,27 +912,62 @@ export default function AIScreen({
         </section>
       )}
 
-      <form className={["chat-composer", voiceState !== "idle" ? "voice-active" : ""].filter(Boolean).join(" ")} onSubmit={submit}>
+      <form className={["chat-composer", voiceState !== "idle" ? "voice-active" : "", composerToolOpen ? "tool-open" : "", photoAnalyzing ? "photo-analyzing" : ""].filter(Boolean).join(" ")} onSubmit={submit}>
         <div className="chat-input-shell">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={(voiceCancelArmed || externalVoiceCancelArmed) ? t("ai.voiceCancelHint") : voiceState === "starting" ? t("ai.voiceStarting") : voiceState === "listening" ? t("ai.voiceListening") : t("ai.placeholder")}
+            placeholder={composerCameraArmed
+              ? (locale === "zh" ? "松手拍照识别" : "Release to take a photo")
+              : (voiceCancelArmed || externalVoiceCancelArmed)
+                ? t("ai.voiceCancelHint")
+                : voiceState === "starting"
+                  ? t("ai.voiceStarting")
+                  : voiceState === "listening"
+                    ? (composerToolOpen ? (locale === "zh" ? "上滑到相机，松手拍照" : "Slide up to the camera") : t("ai.voiceListening"))
+                    : t("ai.placeholder")}
           />
         </div>
-        <button
-          className={["chat-voice-button", voiceState !== "idle" ? "active" : "", (voiceCancelArmed || externalVoiceCancelArmed) ? "cancel-armed" : ""].filter(Boolean).join(" ")}
-          type="button"
-          onPointerDown={beginComposerVoice}
-          onPointerMove={moveComposerVoice}
-          onPointerUp={(event) => finishComposerVoice(event)}
-          onPointerCancel={(event) => finishComposerVoice(event, true)}
-          onContextMenu={(event) => event.preventDefault()}
-          aria-label={voiceCancelArmed ? t("ai.voiceCancelHint") : t("ai.voiceReleaseHint")}
-          title={t("ai.voiceReleaseHint")}
-        >
-          <Mic size={20} />
-        </button>
+        <div className="chat-voice-control" data-composer-camera-armed={composerCameraArmed ? "true" : "false"}>
+          {composerToolOpen && (
+            <button
+              className={["chat-camera-shortcut", composerCameraArmed ? "selected" : ""].filter(Boolean).join(" ")}
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={openComposerCamera}
+              aria-label={locale === "zh" ? "拍照识别并记录" : "Take a photo to identify and record"}
+            >
+              <Camera size={21} />
+              <span>{locale === "zh" ? "拍照" : "Photo"}</span>
+            </button>
+          )}
+          <input
+            ref={cameraInputRef}
+            className="chat-camera-input"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            capture="environment"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0] ?? null;
+              event.currentTarget.value = "";
+              void handleComposerPhoto(file);
+            }}
+          />
+          <button
+            className={["chat-voice-button", voiceState !== "idle" ? "active" : "", (voiceCancelArmed || externalVoiceCancelArmed) ? "cancel-armed" : "", composerCameraArmed ? "camera-armed" : ""].filter(Boolean).join(" ")}
+            type="button"
+            disabled={sending || photoAnalyzing}
+            onPointerDown={beginComposerVoice}
+            onPointerMove={moveComposerVoice}
+            onPointerUp={(event) => finishComposerVoice(event)}
+            onPointerCancel={(event) => finishComposerVoice(event, true)}
+            onContextMenu={(event) => event.preventDefault()}
+            aria-label={composerCameraArmed ? (locale === "zh" ? "松手拍照" : "Release for photo") : t("ai.voiceReleaseHint")}
+            title={locale === "zh" ? "按住说话，上滑拍照" : "Hold to speak, slide up for a photo"}
+          >
+            {photoAnalyzing ? <LoaderCircle className="chat-photo-spinner" size={20} /> : <Mic size={20} />}
+          </button>
+        </div>
         <button
           className="chat-send-button"
           type="submit"

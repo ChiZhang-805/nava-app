@@ -4278,9 +4278,50 @@ body::before {
 .structured-confirmation footer button[data-confirm-structured] { min-width: 106px; padding-inline: 11px; color: white; background: linear-gradient(135deg,#31afe2,#147da9); font-weight: 760; }
 
 .chat-composer { grid-template-columns: minmax(0, 1fr) 42px 46px; gap: 7px; }
+.chat-voice-control { position: relative; width: 42px; height: 42px; display: grid; place-items: center; z-index: 8; }
 .chat-voice-button { width: 42px; height: 42px; border: 0; border-radius: 50%; display: grid; place-items: center; color: #157ca6; background: #e0f3fa; transition: transform 160ms ease, color 160ms ease, background 160ms ease; }
 .chat-voice-button.active { color: white; background: #1b91be; animation: voice-listening-pulse 1.2s ease-in-out infinite; }
 .chat-voice-button.cancel-armed { background: #d95b6d; transform: translateY(-5px); }
+.chat-voice-button.camera-armed { color: #fff; background: linear-gradient(145deg,#2ab2df,#087da9); transform: translateY(-4px) scale(1.04); animation: none; box-shadow: 0 7px 18px rgba(14,125,169,.3); }
+.chat-voice-button:disabled { cursor: wait; opacity: .74; }
+.chat-camera-input { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.chat-camera-shortcut {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 17px);
+  width: 58px;
+  min-height: 58px;
+  border: 1px solid rgba(255,255,255,.96);
+  border-radius: 19px;
+  padding: 7px 5px 6px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 2px;
+  color: #14799e;
+  background: rgba(244,252,255,.97);
+  box-shadow: 0 12px 28px rgba(15,98,136,.2), inset 0 1px 0 #fff;
+  transform: translateX(-50%);
+  transform-origin: 50% 100%;
+  animation: chat-camera-shortcut-in 220ms cubic-bezier(.2,.85,.3,1.18) both;
+  z-index: 4;
+}
+.chat-camera-shortcut::after { content: ""; position: absolute; top: 100%; left: 50%; width: 2px; height: 17px; border-radius: 9px; background: rgba(58,163,205,.34); transform: translateX(-50%); }
+.chat-camera-shortcut span { font-size: 9px; line-height: 1; font-weight: 780; }
+.chat-camera-shortcut.selected { color: #fff; border-color: rgba(255,255,255,.9); background: linear-gradient(145deg,#30b7e4,#0878a5); box-shadow: 0 14px 30px rgba(7,113,158,.32), 0 0 0 5px rgba(94,197,236,.2); transform: translateX(-50%) scale(1.08); }
+.chat-photo-spinner { animation: chat-photo-spin .75s linear infinite; }
+.chat-photo-preview { width: 100%; height: auto; display: block; margin: 0 0 8px; border-radius: 12px; object-fit: contain; background: rgba(255,255,255,.18); }
+.chat-bubble.user:has(.chat-photo-preview) { width: min(72%, 300px); padding: 7px; }
+.chat-bubble.user:has(.chat-photo-preview) p { padding: 1px 5px 2px; }
+.chat-photo-pending .chat-bubble p { display: flex; align-items: center; gap: 5px; }
+.chat-photo-pending .chat-bubble p svg { flex: 0 0 auto; animation: chat-photo-spin 900ms linear infinite; }
+
+@keyframes chat-camera-shortcut-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(11px) scale(.78); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+@keyframes chat-photo-spin { to { transform: rotate(360deg); } }
 
 .focus-title-field {
   grid-template-columns: minmax(0, 1fr);

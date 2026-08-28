@@ -46,6 +46,34 @@ test("editing a recognized food quantity recalculates item and total calories", 
   assert.equal(updated.fields.find((field) => field.label === "预估热量")?.value, "585");
 });
 
+test("editing a vision total redistributes calories without losing photo metadata", () => {
+  const entry = {
+    id: "vision-entry",
+    type: "nutrition" as const,
+    title: "饮食记录",
+    summary: "米饭、鸡胸肉",
+    confidence: 0.9,
+    fields: [
+      { id: "rice", label: "米饭", value: "200", unit: "千卡", path: "items.0.calories", valueType: "number" as const },
+      { id: "chicken", label: "鸡胸肉", value: "300", unit: "千卡", path: "items.1.calories", valueType: "number" as const },
+      { id: "total", label: "总热量", value: "500", unit: "千卡", path: "totalCalories", valueType: "number" as const },
+    ],
+    payload: {
+      source: "vision",
+      photoUrl: "user/day/lunch.jpg",
+      items: [{ name: "米饭", calories: 200 }, { name: "鸡胸肉", calories: 300 }],
+      totalCalories: 500,
+      calories: 500,
+    },
+  };
+  const updated = updateStructuredEntryField(entry, "total", "600");
+  const items = updated.payload.items as Array<Record<string, unknown>>;
+  assert.deepEqual(items.map((item) => item.calories), [240, 360]);
+  assert.equal(updated.fields.find((field) => field.id === "rice")?.value, "240");
+  assert.equal(updated.fields.find((field) => field.id === "chicken")?.value, "360");
+  assert.equal(updated.payload.photoUrl, "user/day/lunch.jpg");
+});
+
 test("sleep and exercise durations remain separated in one sentence", () => {
   const entry = parseStructuredEntry("我睡了3小时，然后跑步30分钟", "zh");
   assert.equal(entry?.type, "multi");

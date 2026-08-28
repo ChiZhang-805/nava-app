@@ -364,6 +364,34 @@ function updateSingleEntry(candidate: StructuredEntry, fieldId: string, value: s
   let fields = candidate.fields.map((item) => item.id === fieldId ? { ...item, value } : item);
 
   if (candidate.type === "nutrition") {
+    if (payload.source === "vision") {
+      const items = Array.isArray(payload.items) ? payload.items as Array<Record<string, unknown>> : [];
+      if (fieldToUpdate.path?.startsWith("items.") && fieldToUpdate.path.endsWith(".calories")) {
+        const totalCalories = items.reduce((sum, item) => sum + Math.max(0, Number(item.calories) || 0), 0);
+        payload.totalCalories = Math.round(totalCalories);
+        payload.calories = Math.round(totalCalories);
+        fields = fields.map((item) => item.path === "totalCalories" ? { ...item, value: String(Math.round(totalCalories)) } : item);
+      }
+      if (fieldToUpdate.path === "totalCalories") {
+        const nextTotal = Math.max(0, Math.round(Number(value) || 0));
+        const previousTotal = items.reduce((sum, item) => sum + Math.max(0, Number(item.calories) || 0), 0) || 1;
+        let assigned = 0;
+        items.forEach((item, index) => {
+          const calories = index === items.length - 1
+            ? Math.max(0, nextTotal - assigned)
+            : Math.max(0, Math.round(nextTotal * (Math.max(0, Number(item.calories) || 0) / previousTotal)));
+          item.calories = calories;
+          assigned += calories;
+        });
+        payload.totalCalories = nextTotal;
+        payload.calories = nextTotal;
+        fields = fields.map((item) => {
+          const match = item.path?.match(/^items\.(\d+)\.calories$/);
+          return match ? { ...item, value: String(items[Number(match[1])]?.calories ?? 0) } : item;
+        });
+      }
+      return { ...candidate, fields, payload };
+    }
     const items = Array.isArray(payload.items) ? payload.items as FoodItemDraft[] : [];
     for (const item of items) {
       item.quantity = Math.max(0, Number(item.quantity) || 0);
