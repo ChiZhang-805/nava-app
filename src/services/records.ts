@@ -49,6 +49,12 @@ function assertOptionalResourceError(error: unknown) {
   assertNoError(error);
 }
 
+function trendRows<T>(result: { data: unknown; error: unknown }, table: string) {
+  if (!result.error) return asArray<T>(result.data);
+  console.warn(`Trend data unavailable for ${table}`, result.error);
+  return [];
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -710,25 +716,15 @@ export async function getTrends(userId: string): Promise<TrendBundle> {
     supabase.from("daily_rhythm_scores").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
   ]);
 
-  assertNoError(moods.error);
-  assertNoError(sleeps.error);
-  assertNoError(exercises.error);
-  assertNoError(nutritions.error);
-  assertOptionalResourceError(faces.error);
-  assertNoError(focus.error);
-  assertOptionalResourceError(focusDistributions.error);
-  assertOptionalResourceError(healthMetrics.error);
-  assertOptionalResourceError(rhythms.error);
-
   return {
-    moods: asArray<MoodRecord>(moods.data),
-    sleeps: asArray<SleepRecord>(sleeps.data),
-    exercises: asArray<ExerciseRecord>(exercises.data),
-    nutritions: asArray<NutritionRecord>(nutritions.data),
-    faces: faces.error ? [] : asArray<FaceRecord>(faces.data),
-    focus: asArray<FocusRecord>(focus.data),
-    focusDistributions: focusDistributions.error ? [] : asArray<FocusTimeDistribution>(focusDistributions.data),
-    healthMetrics: healthMetrics.error ? [] : asArray<HealthMetricSnapshot>(healthMetrics.data),
-    rhythms: rhythms.error ? [] : asArray<DailyRhythmScore>(rhythms.data),
+    moods: trendRows<MoodRecord>(moods, "mood_records"),
+    sleeps: trendRows<SleepRecord>(sleeps, "sleep_records"),
+    exercises: trendRows<ExerciseRecord>(exercises, "exercise_records"),
+    nutritions: trendRows<NutritionRecord>(nutritions, "nutrition_records"),
+    faces: trendRows<FaceRecord>(faces, "face_records"),
+    focus: trendRows<FocusRecord>(focus, "focus_records"),
+    focusDistributions: trendRows<FocusTimeDistribution>(focusDistributions, "focus_time_distribution"),
+    healthMetrics: trendRows<HealthMetricSnapshot>(healthMetrics, "health_metric_snapshots"),
+    rhythms: trendRows<DailyRhythmScore>(rhythms, "daily_rhythm_scores"),
   };
 }

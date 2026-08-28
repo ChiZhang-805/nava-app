@@ -2594,7 +2594,7 @@ body::before {
   flex: 1 1 auto;
   height: 100%;
   display: grid;
-  grid-template-rows: minmax(276px, 1.22fr) minmax(188px, 1fr) minmax(88px, 0.52fr);
+  grid-template-rows: minmax(306px, 1.42fr) minmax(188px, 1fr) minmax(64px, 0.32fr);
   align-content: stretch;
 }
 
@@ -2686,6 +2686,9 @@ body::before {
   width: 100%;
   min-height: 39px;
   margin-top: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 7px 12px;
   overflow: hidden;
   border: 0;
@@ -2693,7 +2696,7 @@ body::before {
   color: white;
   background: linear-gradient(135deg, #286b88, #16485f);
   font-size: 11px;
-  text-align: left;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3403,7 +3406,7 @@ body::before {
 /* Keep the mood dashboard balanced across portrait iPhone heights. */
 @media (max-height: 860px) {
   .mood-dashboard {
-    grid-template-rows: minmax(260px, 1.42fr) minmax(150px, 0.9fr) minmax(72px, 0.52fr);
+    grid-template-rows: minmax(286px, 1.64fr) minmax(150px, 0.9fr) minmax(54px, 0.3fr);
   }
 
   .mood-entry-card,
@@ -3421,7 +3424,7 @@ body::before {
 
 @media (max-height: 700px) and (max-width: 430px) {
   .mood-dashboard {
-    grid-template-rows: minmax(246px, 1.32fr) minmax(122px, 0.82fr) minmax(56px, 0.46fr);
+    grid-template-rows: minmax(270px, 1.5fr) minmax(122px, 0.82fr) minmax(46px, 0.28fr);
   }
 
   .mood-entry-card,

@@ -286,6 +286,18 @@ export default function RecordsScreen({
   }, [loadRecordData]);
 
   useEffect(() => {
+    const refreshVisibleRecords = () => {
+      if (document.visibilityState === "visible") void loadRecordData();
+    };
+    window.addEventListener("focus", refreshVisibleRecords);
+    document.addEventListener("visibilitychange", refreshVisibleRecords);
+    return () => {
+      window.removeEventListener("focus", refreshVisibleRecords);
+      document.removeEventListener("visibilitychange", refreshVisibleRecords);
+    };
+  }, [loadRecordData]);
+
+  useEffect(() => {
     if (!draftReady || !activeModule || activeModule === "face" || (!showEditor && activeModule !== "mood" && activeModule !== "focus")) return;
     const module: RecordDraftModule = activeModule === "diet" ? "nutrition" : activeModule;
     const payload: Record<string, unknown> = activeModule === "mood"

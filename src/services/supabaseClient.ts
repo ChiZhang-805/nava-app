@@ -10,6 +10,9 @@ export const supabase = createClient(safeSupabaseUrl, safeSupabaseKey, {
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },
+  global: {
+    fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+  },
 });
 
 export function createEphemeralSupabaseClient() {
@@ -18,6 +21,9 @@ export function createEphemeralSupabaseClient() {
       persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: false,
+    },
+    global: {
+      fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
     },
   });
 }

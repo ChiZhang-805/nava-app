@@ -1,5 +1,6 @@
 param(
-  [string]$Anchor = "2026-08-28"
+  [string]$Anchor = "2026-08-28",
+  [switch]$AuditOnly
 )
 
 $secureEmail = Read-Host "NAVA account email" -AsSecureString
@@ -14,11 +15,16 @@ try {
   $startDate = $anchorDate.AddDays(-13).ToString("yyyy-MM-dd")
   $endDate = $anchorDate.AddDays(-1).ToString("yyyy-MM-dd")
 
-  node scripts/seed-account-history.mjs "--anchor=$Anchor"
-  if ($LASTEXITCODE -ne 0) { throw "Core history seed failed." }
+  if ($AuditOnly) {
+    node scripts/audit-account-history.mjs "--anchor=$Anchor"
+    if ($LASTEXITCODE -ne 0) { throw "History audit failed." }
+  } else {
+    node scripts/seed-account-history.mjs "--anchor=$Anchor"
+    if ($LASTEXITCODE -ne 0) { throw "Core history seed failed." }
 
-  node scripts/backfill-account-auxiliary.mjs "--start=$startDate" "--end=$endDate"
-  if ($LASTEXITCODE -ne 0) { throw "Auxiliary history backfill failed." }
+    node scripts/backfill-account-auxiliary.mjs "--start=$startDate" "--end=$endDate"
+    if ($LASTEXITCODE -ne 0) { throw "Auxiliary history backfill failed." }
+  }
 } finally {
   Remove-Item Env:NAVA_ACCOUNT_EMAIL -ErrorAction SilentlyContinue
   Remove-Item Env:NAVA_ACCOUNT_PASSWORD -ErrorAction SilentlyContinue

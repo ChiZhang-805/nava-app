@@ -228,34 +228,51 @@ function HistoryView({ module, locale, trendBundle }: { module: RecordModule; lo
     focus: { zh: "专注", en: "Focus" },
     face: { zh: "面部", en: "Face" },
   };
-  const values = useMemo(() => {
+  const entries = useMemo(() => {
     if (!trendBundle) return [];
-    if (module === "mood") return trendBundle.moods.map((record) => record.mood_score);
-    if (module === "sleep") return trendBundle.sleeps.map((record) => record.rhythm_score ?? Math.min(100, ((record.sleep_duration_minutes ?? 0) / 480) * 100));
-    if (module === "exercise") return trendBundle.exercises.map((record) => Math.min(100, ((record.steps ?? 0) / 10000) * 100));
-    if (module === "diet") return trendBundle.nutritions.map((record) => Math.min(100, (record.total_calories / 2000) * 100));
-    if (module === "focus") return aggregateFocusByDate(trendBundle.focus).map((record) => Math.min(100, (record.total_minutes / 120) * 100));
-    return trendBundle.faces.map((record) => record.overall_score ?? 0);
+    if (module === "mood") return trendBundle.moods.map((record) => ({ id: record.id, date: record.record_date, value: record.mood_score }));
+    if (module === "sleep") return trendBundle.sleeps.map((record) => ({ id: record.id, date: record.record_date, value: record.sleep_duration_minutes ?? 0 }));
+    if (module === "exercise") return trendBundle.exercises.map((record) => ({ id: record.id, date: record.record_date, value: record.steps ?? 0 }));
+    if (module === "diet") return trendBundle.nutritions.map((record) => ({ id: record.id, date: record.record_date, value: record.total_calories }));
+    if (module === "focus") return aggregateFocusByDate(trendBundle.focus).map((record) => ({ id: record.id, date: record.record_date, value: record.total_minutes }));
+    return trendBundle.faces.map((record) => ({ id: record.id, date: record.record_date, value: record.overall_score ?? 0 }));
   }, [module, trendBundle]);
-  const displayValues = values.length > 0 ? values.slice(-7) : [0];
+  const displayEntries = entries.slice(-7);
+  const chartMaximum = Math.max(1, ...displayEntries.map((entry) => entry.value));
   const shareSummary = async () => {
     const label = moduleNames[module][locale];
-    const average = Math.round(displayValues.reduce((sum, value) => sum + value, 0) / Math.max(1, displayValues.length));
-    const text = locale === "zh" ? `我的 NAVA ${label}近 7 日平均状态为 ${average}。每一次记录都在帮助我找到自己的节律。` : `My 7-day NAVA ${label} average is ${average}. Every check-in helps me find my rhythm.`;
+    const average = Math.round(displayEntries.reduce((sum, entry) => sum + entry.value, 0) / Math.max(1, displayEntries.length));
+    const averageText = historyValueText(module, average, locale);
+    const text = locale === "zh" ? `我的 NAVA ${label}近 7 日平均记录为 ${averageText}。每一次记录都在帮助我找到自己的节律。` : `My 7-day NAVA ${label} average is ${averageText}. Every check-in helps me find my rhythm.`;
     if (navigator.share) await navigator.share({ title: `NAVA · ${label}`, text });
     else await navigator.clipboard.writeText(text);
   };
   return (
     <ModuleDetailView title={`${moduleNames[module][locale]}${locale === "zh" ? "历史记录" : " history"}`}>
-      <div className="module-history-chart" aria-label={locale === "zh" ? "近七天记录" : "Last seven days"}>
-        {displayValues.map((value, index) => <span key={index}><i style={{ height: `${Math.max(4, value)}%` }} /><small>{locale === "zh" ? `第${index + 1}天` : `D${index + 1}`}</small></span>)}
-      </div>
-      <div className={`module-history-list module-history-list--${module}`}>
-        {displayValues.slice(-3).reverse().map((value, index) => <p key={index}><CalendarDays size={16} /><span>{locale === "zh" ? `最近第 ${index + 1} 次记录` : `Recent entry ${index + 1}`}</span><strong>{Math.round(value)}</strong></p>)}
-      </div>
-      <button className="module-history-share" type="button" onClick={() => void shareSummary()}><Share2 size={16} />{locale === "zh" ? "分享近 7 日状态" : "Share 7-day state"}</button>
+      {displayEntries.length > 0 ? <>
+        <div className="module-history-chart" aria-label={locale === "zh" ? "近七天记录" : "Last seven days"}>
+          {displayEntries.map((entry) => <span key={entry.id}><i title={`${shortDate(entry.date, locale)} · ${historyValueText(module, entry.value, locale)}`} style={{ height: `${Math.max(8, (entry.value / chartMaximum) * 100)}%` }} /><small>{shortDate(entry.date, locale)}</small></span>)}
+        </div>
+        <div className={`module-history-list module-history-list--${module}`}>
+          {displayEntries.slice(-3).reverse().map((entry) => <p key={entry.id}><CalendarDays size={16} /><span>{shortDate(entry.date, locale)}</span><strong>{historyValueText(module, entry.value, locale)}</strong></p>)}
+        </div>
+        <button className="module-history-share" type="button" onClick={() => void shareSummary()}><Share2 size={16} />{locale === "zh" ? "分享近 7 日状态" : "Share 7-day state"}</button>
+      </> : <p className="module-empty-copy module-history-empty">{trendBundle ? (locale === "zh" ? "当前账号尚无该项历史记录" : "No history for this account yet") : (locale === "zh" ? "正在读取历史记录…" : "Loading history…")}</p>}
     </ModuleDetailView>
   );
+}
+
+function historyValueText(module: RecordModule, value: number, locale: "zh" | "en") {
+  const rounded = Math.round(value);
+  if (module === "sleep") {
+    const hours = Math.floor(rounded / 60);
+    const minutes = rounded % 60;
+    return locale === "zh" ? `${hours}小时${minutes}分` : `${hours}h ${minutes}m`;
+  }
+  if (module === "exercise") return locale === "zh" ? `${rounded} 步` : `${rounded} steps`;
+  if (module === "diet") return `${rounded} kcal`;
+  if (module === "focus") return locale === "zh" ? `${rounded} 分钟` : `${rounded} min`;
+  return locale === "zh" ? `${rounded} 分` : `${rounded}`;
 }
 
 function ExerciseDashboard({
