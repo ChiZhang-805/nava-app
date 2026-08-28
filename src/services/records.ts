@@ -397,6 +397,7 @@ export async function saveNutritionRecord(input: {
   fatGrams?: number;
   hydrationMl?: number;
   healthRating?: number;
+  photoUrl?: string;
 }) {
   if (isDemoMode()) return saveDemoNutrition({ date: input.date, meal: input.meal, items: [input.item], totalCalories: input.totalCalories, append: true });
 
@@ -433,6 +434,11 @@ export async function saveNutritionRecord(input: {
     hydration_ml: input.hydrationMl ?? current.hydration_ml ?? null,
     health_rating: input.healthRating ?? current.health_rating ?? null,
     [key]: newMealItems,
+    ...(
+      input.meal !== "pantry" && input.photoUrl
+        ? { [`${input.meal}_photo_url`]: input.photoUrl }
+        : {}
+    ),
   };
 
   const { data, error } = await supabase

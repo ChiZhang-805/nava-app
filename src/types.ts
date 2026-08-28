@@ -67,6 +67,11 @@ export interface FoodItem {
   name: string;
   calories?: number;
   amount?: string;
+  weight_grams?: number;
+  protein_grams?: number;
+  carbohydrate_grams?: number;
+  fat_grams?: number;
+  confidence?: number;
 }
 
 export interface TaskRecord {
@@ -196,6 +201,15 @@ export interface DietExtractResult {
   items: FoodItem[];
   modelVersion?: string;
   confidence?: number;
+  provider?: string;
+  note?: string;
+  analysisAvailable?: boolean;
+  totals?: {
+    calories: number;
+    proteinGrams: number;
+    carbohydrateGrams: number;
+    fatGrams: number;
+  };
 }
 
 export interface FaceAnnotation {

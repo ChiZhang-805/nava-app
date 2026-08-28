@@ -12,6 +12,9 @@ type FoodItem = {
   amount?: string;
   weight_g?: number;
   calories?: number;
+  protein_g?: number;
+  carbohydrate_g?: number;
+  fat_g?: number;
   confidence?: number;
 };
 
@@ -26,14 +29,20 @@ Deno.serve(async (req) => {
     const imagePath = stringValue(body.imagePath);
     const imageUrl = stringValue(body.image) ?? await signedImageUrl(adminClient ?? userClient, imagePath);
     if (!imageUrl) throw new Error("没有可供分析的饮食图片；私密存储签名失败。");
-    const providerResult = await callProvider({ imageUrl, imagePath, lang, meal: stringValue(body.meal) });
+    const providerResult = await callProvider({
+      imageUrl,
+      imagePath,
+      lang,
+      meal: stringValue(body.meal),
+      date: stringValue(body.date),
+    });
     return jsonResponse(providerResult);
   } catch (error) {
     return errorResponse(error);
   }
 });
 
-async function callProvider(input: { imageUrl?: string; imagePath?: string; lang: string; meal?: string }) {
+async function callProvider(input: { imageUrl: string; imagePath?: string; lang: string; meal?: string; date?: string }) {
   const endpoint = Deno.env.get("NAVA_DIET_EXTRACT_URL");
   const apiKey = Deno.env.get("NAVA_DIET_EXTRACT_KEY");
 
@@ -44,44 +53,142 @@ async function callProvider(input: { imageUrl?: string; imagePath?: string; lang
         "Content-Type": "application/json",
         ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
       },
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        ...input,
+        prompt: dietRecognitionPrompt(input.lang, input.meal),
+        response_schema: "nava.diet.v2",
+      }),
     });
     if (!response.ok) throw new Error(`饮食识别服务返回 ${response.status}`);
     const data = await response.json();
-    return normalizeProviderResult(data, "provider");
+    return normalizeProviderResult(data, "custom-provider", true);
+  }
+
+  const visionEndpoint = Deno.env.get("NAVA_DIET_VISION_URL");
+  const visionKey = Deno.env.get("NAVA_DIET_VISION_KEY");
+  const visionModel = Deno.env.get("NAVA_DIET_VISION_MODEL");
+  if (visionEndpoint && visionKey && visionModel) {
+    return await callVisionProvider({ ...input, endpoint: visionEndpoint, apiKey: visionKey, model: visionModel });
   }
 
   return normalizeProviderResult(
     {
-      items: [
-        { name: input.lang === "en" ? "Meal item to confirm" : "待确认餐食", amount: "1 份", calories: 0, confidence: 0.2 },
-      ],
-      confidence: 0.2,
-      note: "未配置 NAVA_DIET_EXTRACT_URL，当前返回保守占位识别结果。",
+      items: [],
+      confidence: 0,
+      note: input.lang === "en"
+        ? "The photo was uploaded, but no vision model is configured."
+        : "照片已上传，但尚未配置可读取图片的视觉模型。",
     },
-    "fallback",
+    "unavailable",
+    false,
   );
 }
 
-function normalizeProviderResult(data: Record<string, unknown>, provider: "provider" | "fallback") {
+async function callVisionProvider(input: {
+  imageUrl: string;
+  imagePath?: string;
+  lang: string;
+  meal?: string;
+  date?: string;
+  endpoint: string;
+  apiKey: string;
+  model: string;
+}) {
+  const response = await fetch(input.endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${input.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: input.model,
+      temperature: 0.1,
+      messages: [
+        {
+          role: "system",
+          content: dietRecognitionPrompt(input.lang, input.meal),
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: input.lang === "en"
+                ? `Analyze this ${input.meal ?? "meal"} photo${input.date ? ` for ${input.date}` : ""}. Return JSON only.`
+                : `分析这张${mealLabel(input.meal)}照片${input.date ? `，记录日期为 ${input.date}` : ""}。只返回 JSON。`,
+            },
+            { type: "image_url", image_url: { url: input.imageUrl, detail: "high" } },
+          ],
+        },
+      ],
+    }),
+  });
+  if (!response.ok) throw new Error(`视觉识别服务返回 ${response.status}`);
+  const payload = await response.json() as Record<string, unknown>;
+  const choices = Array.isArray(payload.choices) ? payload.choices : [];
+  const message = choices[0] && typeof choices[0] === "object"
+    ? (choices[0] as Record<string, unknown>).message
+    : undefined;
+  const rawContent = message && typeof message === "object"
+    ? (message as Record<string, unknown>).content
+    : undefined;
+  const content = typeof rawContent === "string" ? rawContent : "";
+  if (!content.trim()) throw new Error("视觉识别服务没有返回可解析内容。");
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, ""));
+  } catch {
+    throw new Error("视觉识别结果不是有效 JSON，请检查模型或提示词配置。");
+  }
+  return normalizeProviderResult(parsed, input.model, true);
+}
+
+function dietRecognitionPrompt(lang: string, meal?: string) {
+  if (lang === "en") {
+    return `You are NAVA's food-photo analyst. Inspect only visible food in this ${meal ?? "meal"} image. Identify every distinct dish or drink, use ordinary specific food names, estimate visible portion/weight and calories conservatively, and estimate protein, carbohydrate and fat. Never invent hidden ingredients. If an item cannot be identified reliably, omit it and explain why in note. Return one JSON object only: {"items":[{"name":"","amount":"","weight_g":0,"calories":0,"protein_g":0,"carbohydrate_g":0,"fat_g":0,"confidence":0}],"totals":{"calories":0,"protein_g":0,"carbohydrate_g":0,"fat_g":0},"confidence":0,"note":""}. Confidence is 0..1; all other numbers are non-negative.`;
+  }
+  return `你是 NAVA 的饮食照片分析器。认真观察这张${mealLabel(meal)}照片，只识别画面中确实可见的食物和饮品。每一种菜品分别列一项，使用普通用户看得懂的具体中文名称；结合餐盘、餐具和食物体积保守估算份量、克重、热量、蛋白质、碳水和脂肪。不要把多个明显不同的菜合并为“待确认餐食”，不要虚构看不见的配料；无法可靠判断时宁可省略并在 note 说明。只返回一个 JSON 对象，不要 Markdown：{"items":[{"name":"","amount":"","weight_g":0,"calories":0,"protein_g":0,"carbohydrate_g":0,"fat_g":0,"confidence":0}],"totals":{"calories":0,"protein_g":0,"carbohydrate_g":0,"fat_g":0},"confidence":0,"note":""}。confidence 范围 0 到 1，其余数字不得为负数。`;
+}
+
+function mealLabel(meal?: string) {
+  if (meal === "breakfast") return "早餐";
+  if (meal === "dinner") return "晚餐";
+  if (meal === "pantry") return "加餐";
+  return "午餐";
+}
+
+function normalizeProviderResult(data: Record<string, unknown>, provider: string, analysisAvailable: boolean) {
   const rawItems = Array.isArray(data.items) ? data.items : [];
   const items: FoodItem[] = rawItems.map((item) => {
     const value = item as Record<string, unknown>;
     return {
-      name: String(value.name ?? "待确认餐食"),
+      name: String(value.name ?? "").trim(),
       amount: typeof value.amount === "string" ? value.amount : value.weight_g ? `${Math.round(Number(value.weight_g))}g` : undefined,
       weight_g: numeric(value.weight_g),
       calories: numeric(value.calories),
+      protein_g: numeric(value.protein_g),
+      carbohydrate_g: numeric(value.carbohydrate_g),
+      fat_g: numeric(value.fat_g),
       confidence: numeric(value.confidence),
     };
-  });
+  }).filter((item) => item.name && !/^(?:待确认餐食|meal item to confirm)$/i.test(item.name));
+
+  const rawTotals = data.totals && typeof data.totals === "object" ? data.totals as Record<string, unknown> : {};
+  const sum = (field: keyof FoodItem) => items.reduce((total, item) => total + (Number(item[field]) || 0), 0);
 
   return {
-    schemaVersion: "1.0.0",
+    schemaVersion: "2.0.0",
     modelVersion: String(data.modelVersion ?? data.model_version ?? `diet-${provider}-2026-07`),
     provider,
+    analysisAvailable,
     confidence: numeric(data.confidence) ?? Math.max(...items.map((item) => item.confidence ?? 0), 0),
     items,
+    totals: {
+      calories: numeric(rawTotals.calories) ?? sum("calories"),
+      protein_g: numeric(rawTotals.protein_g) ?? sum("protein_g"),
+      carbohydrate_g: numeric(rawTotals.carbohydrate_g) ?? sum("carbohydrate_g"),
+      fat_g: numeric(rawTotals.fat_g) ?? sum("fat_g"),
+    },
     note: typeof data.note === "string" ? data.note : undefined,
   };
 }

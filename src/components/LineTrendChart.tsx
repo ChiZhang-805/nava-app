@@ -41,10 +41,14 @@ export default function LineTrendChart({
   if (points.length === 0) return null;
   const gradientId = `trend-gradient-${rawId.replace(/:/g, "")}`;
   const areaGradientId = `trend-area-gradient-${rawId.replace(/:/g, "")}`;
-  const width = 320;
+  // Compact dashboard cards are considerably wider than they are tall. Give
+  // them a matching internal coordinate system so the browser does not center
+  // a narrow 320px plot and leave large unused gutters on both sides.
+  const width = compact ? 600 : 360;
   const height = compact ? 148 : 184;
-  const left = 16;
-  const right = 304;
+  const horizontalInset = compact ? 22 : 20;
+  const left = horizontalInset;
+  const right = width - horizontalInset;
   const top = compact ? 18 : 22;
   const bottom = compact ? 108 : 142;
   const dateY = compact ? 136 : 169;

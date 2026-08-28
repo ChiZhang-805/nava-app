@@ -47,10 +47,28 @@ export async function analyzeDietPhoto(input: {
   if (!imagePath && !image) throw new Error("饮食照片上传后没有获得可分析的数据。");
 
   const extracted = await supabase.functions.invoke<{
-    items: Array<{ name: string; amount?: string; weight_g?: number; calories?: number }>;
+    items: Array<{
+      name: string;
+      amount?: string;
+      weight_g?: number;
+      calories?: number;
+      protein_g?: number;
+      carbohydrate_g?: number;
+      fat_g?: number;
+      confidence?: number;
+    }>;
     modelVersion?: string;
     model_version?: string;
     confidence?: number;
+    provider?: string;
+    note?: string;
+    analysisAvailable?: boolean;
+    totals?: {
+      calories?: number;
+      protein_g?: number;
+      carbohydrate_g?: number;
+      fat_g?: number;
+    };
   }>("diet-extract", {
     body: { image, imagePath, meal: input.meal, date: input.date, lang: "zh" },
   });
@@ -60,7 +78,16 @@ export async function analyzeDietPhoto(input: {
     name: item.name,
     calories: Math.round(Number(item.calories) || 0),
     amount: item.amount ?? (item.weight_g ? `${Math.round(Number(item.weight_g))}g` : undefined),
+    weight_grams: Number(item.weight_g) || undefined,
+    protein_grams: Number(item.protein_g) || undefined,
+    carbohydrate_grams: Number(item.carbohydrate_g) || undefined,
+    fat_grams: Number(item.fat_g) || undefined,
+    confidence: Number(item.confidence) || undefined,
   }));
+
+  const sum = (field: "calories" | "protein_grams" | "carbohydrate_grams" | "fat_grams") =>
+    items.reduce((total, item) => total + (Number(item[field]) || 0), 0);
+  const totals = extracted.data?.totals;
 
   return {
     imageUrl: previewUrl,
@@ -68,7 +95,24 @@ export async function analyzeDietPhoto(input: {
     items,
     modelVersion: extracted.data?.modelVersion ?? extracted.data?.model_version,
     confidence: extracted.data?.confidence,
+    provider: extracted.data?.provider,
+    note: extracted.data?.note,
+    analysisAvailable: extracted.data?.analysisAvailable ?? items.length > 0,
+    totals: {
+      calories: Math.round(Number(totals?.calories) || sum("calories")),
+      proteinGrams: Math.round((Number(totals?.protein_g) || sum("protein_grams")) * 10) / 10,
+      carbohydrateGrams: Math.round((Number(totals?.carbohydrate_g) || sum("carbohydrate_grams")) * 10) / 10,
+      fatGrams: Math.round((Number(totals?.fat_g) || sum("fat_grams")) * 10) / 10,
+    },
   };
+}
+
+export async function resolveDietPhotoUrl(imagePath?: string | null) {
+  if (!imagePath) return null;
+  if (/^(?:blob:|data:|https?:\/\/)/i.test(imagePath)) return imagePath;
+  const signed = await supabase.storage.from("diet-photos").createSignedUrl(imagePath, 60 * 30);
+  if (signed.error) throw signed.error;
+  return signed.data.signedUrl;
 }
 
 export async function analyzeFacePhoto(input: {

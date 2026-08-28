@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { BedDouble, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Loader2, LockKeyhole, ScanFace, Share2, ShieldCheck, SmilePlus, type LucideIcon } from "lucide-react";
+import { BedDouble, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Loader2, LockKeyhole, ScanFace, Share2, ShieldCheck, SmilePlus, X, type LucideIcon } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import AnimatedNumber from "../components/AnimatedNumber";
@@ -19,7 +19,7 @@ import {
   getTrends,
 } from "../services/records";
 import { todayISO } from "../services/date";
-import { analyzeDietPhoto, analyzeFacePhoto } from "../services/media";
+import { analyzeDietPhoto, analyzeFacePhoto, resolveDietPhotoUrl } from "../services/media";
 import { currentSevenDayPeriod, loadDnbWeeklyReport, refreshFdnbHealth, shareDnbWeeklyPoster, type DnbWeeklyReport } from "../services/dnb";
 import { trackAnalyticsEvent } from "../services/analytics";
 import { clearRecordDraft, loadRecordDraft, saveRecordDraft, type RecordDraftModule } from "../services/drafts";
@@ -149,8 +149,8 @@ export default function RecordsScreen({
   const [exerciseNote, setExerciseNote] = useState("");
 
   const [meal, setMeal] = useState<"breakfast" | "lunch" | "dinner" | "pantry">("lunch");
-  const [mealName, setMealName] = useState(() => locale === "zh" ? "鸡胸肉沙拉" : "Chicken salad");
-  const [mealCalories, setMealCalories] = useState(520);
+  const [mealName, setMealName] = useState("");
+  const [mealCalories, setMealCalories] = useState(0);
   const [proteinGrams, setProteinGrams] = useState(0);
   const [carbohydrateGrams, setCarbohydrateGrams] = useState(0);
   const [fatGrams, setFatGrams] = useState(0);
@@ -171,13 +171,16 @@ export default function RecordsScreen({
   const facePhotoInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    setMealName((current) => current === "鸡胸肉沙拉" || current === "Chicken salad"
-      ? (locale === "zh" ? "鸡胸肉沙拉" : "Chicken salad")
-      : current);
     setFocusTitle((current) => current === "产品原型" || current === "Product prototype" || current === "Prototype"
       ? (locale === "zh" ? "产品原型" : "Prototype")
       : current);
   }, [locale]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), 4500);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   const loadRecordData = useCallback(async () => {
     setDraftReady(false);
@@ -190,35 +193,38 @@ export default function RecordsScreen({
       setTodaySnapshot(snapshot);
       setTrendBundle(trends);
       setProfile(loadedProfile);
-      if (snapshot.mood) {
-        setMoodScore(snapshot.mood.mood_score);
-        setSelectedFactors(snapshot.mood.factors ?? []);
-        setDiary(snapshot.mood.diary_content ?? "");
-      }
-      if (snapshot.sleep) {
-        setSleepStart(snapshot.sleep.sleep_start ?? "23:30");
-        setSleepEnd(snapshot.sleep.sleep_end ?? "07:10");
-        setSleepDuration(snapshot.sleep.sleep_duration_minutes ?? 460);
-        setDeepSleep(snapshot.sleep.deep_sleep_minutes ?? 85);
-        setLightSleep(snapshot.sleep.light_sleep_minutes ?? 280);
-        setRemSleep(snapshot.sleep.rem_minutes ?? 95);
-        setSleepRating(snapshot.sleep.self_rating ?? 4);
-      }
-      if (snapshot.exercise) {
-        setSteps(snapshot.exercise.steps ?? 0);
-        setCalories(snapshot.exercise.calories ?? 0);
-        setExerciseMinutes(snapshot.exercise.exercise_minutes ?? 0);
-        setHeartRate(snapshot.exercise.heart_rate ?? "");
-        setSpo2(snapshot.exercise.spo2 ?? "");
-      }
-      if (snapshot.nutrition) {
-        setMealCalories(snapshot.nutrition.total_calories ?? 0);
-        setProteinGrams(snapshot.nutrition.protein_grams ?? 0);
-        setCarbohydrateGrams(snapshot.nutrition.carbohydrate_grams ?? 0);
-        setFatGrams(snapshot.nutrition.fat_grams ?? 0);
-        setHydrationMl(snapshot.nutrition.hydration_ml ?? 0);
-        setDietRating(snapshot.nutrition.health_rating ?? 3);
-      }
+      setMoodScore(snapshot.mood?.mood_score ?? 70);
+      setSelectedFactors(snapshot.mood?.factors ?? []);
+      setDiary(snapshot.mood?.diary_content ?? "");
+      setSleepStart(snapshot.sleep?.sleep_start ?? "23:30");
+      setSleepEnd(snapshot.sleep?.sleep_end ?? "07:10");
+      setSleepDuration(snapshot.sleep?.sleep_duration_minutes ?? 460);
+      setDeepSleep(snapshot.sleep?.deep_sleep_minutes ?? 85);
+      setLightSleep(snapshot.sleep?.light_sleep_minutes ?? 280);
+      setRemSleep(snapshot.sleep?.rem_minutes ?? 95);
+      setSleepRating(snapshot.sleep?.self_rating ?? 4);
+      setSteps(snapshot.exercise?.steps ?? 0);
+      setCalories(snapshot.exercise?.calories ?? 0);
+      setExerciseMinutes(snapshot.exercise?.exercise_minutes ?? 0);
+      setHeartRate(snapshot.exercise?.heart_rate ?? "");
+      setSpo2(snapshot.exercise?.spo2 ?? "");
+
+      const nutrition = snapshot.nutrition;
+      const mealItems = nutrition?.[`${meal}_items` as keyof typeof nutrition];
+      const loadedItems = Array.isArray(mealItems) ? mealItems as FoodItem[] : [];
+      const photoField = meal === "pantry" ? null : `${meal}_photo_url` as keyof NonNullable<typeof nutrition>;
+      const photoPath = photoField && nutrition ? nutrition[photoField] : null;
+      const selectedMealCalories = loadedItems.reduce((sum, item) => sum + (Number(item.calories) || 0), 0);
+      setDietItems(loadedItems);
+      setMealName(loadedItems.map((item) => item.name).filter(Boolean).join("、"));
+      setMealCalories(selectedMealCalories || (nutrition?.total_calories ?? 0));
+      setProteinGrams(nutrition?.protein_grams ?? 0);
+      setCarbohydrateGrams(nutrition?.carbohydrate_grams ?? 0);
+      setFatGrams(nutrition?.fat_grams ?? 0);
+      setHydrationMl(nutrition?.hydration_ml ?? 0);
+      setDietRating(nutrition?.health_rating ?? 3);
+      setDietPhotoPath(typeof photoPath === "string" ? photoPath : null);
+      setDietPhotoUrl(typeof photoPath === "string" ? await resolveDietPhotoUrl(photoPath).catch(() => null) : null);
       const draftModule = activeModule === "diet" ? "nutrition" : activeModule;
       const draft = draftModule ? await loadRecordDraft(user.id, draftModule, recordDate) : null;
       if (draft && activeModule === "mood") {
@@ -239,15 +245,30 @@ export default function RecordsScreen({
         if (typeof draft.note === "string") setExerciseNote(draft.note);
       }
       if (draft && activeModule === "diet") {
-        if (typeof draft.meal === "string" && ["breakfast", "lunch", "dinner", "pantry"].includes(draft.meal)) setMeal(draft.meal as typeof meal);
-        if (typeof draft.name === "string") setMealName(draft.name);
-        if (typeof draft.calories === "number") setMealCalories(draft.calories);
-        if (Array.isArray(draft.items)) setDietItems(draft.items as FoodItem[]);
-        if (typeof draft.proteinGrams === "number") setProteinGrams(draft.proteinGrams);
-        if (typeof draft.carbohydrateGrams === "number") setCarbohydrateGrams(draft.carbohydrateGrams);
-        if (typeof draft.fatGrams === "number") setFatGrams(draft.fatGrams);
-        if (typeof draft.hydrationMl === "number") setHydrationMl(draft.hydrationMl);
-        if (typeof draft.rating === "number") setDietRating(draft.rating);
+        const draftItems = Array.isArray(draft.items) ? draft.items as FoodItem[] : [];
+        const normalizedDraftName = typeof draft.name === "string" ? draft.name.trim().toLowerCase() : "";
+        const hasLegacyPlaceholder = normalizedDraftName === "待确认餐食"
+          || (normalizedDraftName === "鸡胸肉沙拉" && draft.calories === 520 && draftItems.length === 0)
+          || draftItems.some((item) => item.name?.trim() === "待确认餐食");
+        // A saved nutrition record is the source of truth for its date. Old
+        // placeholder drafts must never replace real Supabase data when the
+        // user moves between historical dates.
+        const canRestoreDraftValues = !nutrition && !hasLegacyPlaceholder;
+        if (canRestoreDraftValues) {
+          if (typeof draft.meal === "string" && ["breakfast", "lunch", "dinner", "pantry"].includes(draft.meal)) setMeal(draft.meal as typeof meal);
+          if (typeof draft.name === "string") setMealName(draft.name);
+          if (typeof draft.calories === "number") setMealCalories(draft.calories);
+          if (Array.isArray(draft.items)) setDietItems(draftItems);
+          if (typeof draft.proteinGrams === "number") setProteinGrams(draft.proteinGrams);
+          if (typeof draft.carbohydrateGrams === "number") setCarbohydrateGrams(draft.carbohydrateGrams);
+          if (typeof draft.fatGrams === "number") setFatGrams(draft.fatGrams);
+          if (typeof draft.hydrationMl === "number") setHydrationMl(draft.hydrationMl);
+          if (typeof draft.rating === "number") setDietRating(draft.rating);
+        }
+        if (!nutrition && typeof draft.photoPath === "string") {
+          setDietPhotoPath(draft.photoPath);
+          setDietPhotoUrl(await resolveDietPhotoUrl(draft.photoPath).catch(() => null));
+        }
       }
       if (draft && activeModule === "focus") {
         if (typeof draft.title === "string") setFocusTitle(draft.title);
@@ -258,7 +279,7 @@ export default function RecordsScreen({
     } finally {
       setDraftReady(true);
     }
-  }, [activeModule, recordDate, user.id]);
+  }, [activeModule, meal, recordDate, user.id]);
 
   useEffect(() => {
     void loadRecordData();
@@ -274,13 +295,13 @@ export default function RecordsScreen({
         : activeModule === "exercise"
           ? { steps, calories, minutes: exerciseMinutes, heartRate, spo2, note: exerciseNote }
           : activeModule === "diet"
-            ? { meal, name: mealName, calories: mealCalories, items: dietItems, proteinGrams, carbohydrateGrams, fatGrams, hydrationMl, rating: dietRating }
+            ? { meal, name: mealName, calories: mealCalories, items: dietItems, photoPath: dietPhotoPath, proteinGrams, carbohydrateGrams, fatGrams, hydrationMl, rating: dietRating }
             : { title: focusTitle, minutes: focusMinutes };
     const timer = window.setTimeout(() => {
       void saveRecordDraft(user.id, module, recordDate, payload).catch((draftError) => console.warn("Record draft sync deferred", draftError));
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [activeModule, calories, carbohydrateGrams, deepSleep, diary, dietItems, dietRating, draftReady, exerciseMinutes, exerciseNote, fatGrams, focusMinutes, focusTitle, heartRate, hydrationMl, lightSleep, meal, mealCalories, mealName, moodScore, proteinGrams, recordDate, remSleep, selectedFactors, showEditor, sleepDuration, sleepEnd, sleepNote, sleepRating, sleepStart, spo2, steps, user.id]);
+  }, [activeModule, calories, carbohydrateGrams, deepSleep, diary, dietItems, dietPhotoPath, dietRating, draftReady, exerciseMinutes, exerciseNote, fatGrams, focusMinutes, focusTitle, heartRate, hydrationMl, lightSleep, meal, mealCalories, mealName, moodScore, proteinGrams, recordDate, remSleep, selectedFactors, showEditor, sleepDuration, sleepEnd, sleepNote, sleepRating, sleepStart, spo2, steps, user.id]);
 
   useEffect(() => {
     const estimated = estimateMinutes(sleepStart, sleepEnd);
@@ -455,6 +476,7 @@ export default function RecordsScreen({
         fatGrams,
         hydrationMl,
         healthRating: dietRating,
+        photoUrl: dietPhotoPath ?? dietPhotoUrl ?? undefined,
       }),
     );
   }
@@ -469,11 +491,24 @@ export default function RecordsScreen({
       setDietPhotoUrl(result.imageUrl);
       setDietPhotoPath(result.imagePath ?? null);
       setDietItems(result.items);
-      if (result.items[0]) {
-        setMealName(result.items[0].name);
-        setMealCalories(Number(result.items[0].calories) || mealCalories);
+      if (result.items.length > 0) {
+        setMealName(result.items.map((item) => item.name).join("、"));
+        setMealCalories(result.totals?.calories ?? result.items.reduce((sum, item) => sum + (Number(item.calories) || 0), 0));
+        setProteinGrams(result.totals?.proteinGrams ?? 0);
+        setCarbohydrateGrams(result.totals?.carbohydrateGrams ?? 0);
+        setFatGrams(result.totals?.fatGrams ?? 0);
+        setNotice(locale === "zh"
+          ? `图片已上传，AI 已识别 ${result.items.length} 项餐食`
+          : `Uploaded · AI identified ${result.items.length} item${result.items.length === 1 ? "" : "s"}`);
+      } else {
+        setNotice(result.analysisAvailable === false
+          ? (locale === "zh"
+            ? "图片已上传；视觉识别服务尚未配置，请手动填写食物和热量"
+            : "Uploaded · vision recognition is not configured; please enter the meal manually")
+          : (locale === "zh"
+            ? "图片已上传；AI 未能可靠确认餐食，请手动填写"
+            : "Uploaded · AI could not identify the meal reliably; please enter it manually"));
       }
-      setNotice(t("records.detected", { count: result.items.length }));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -689,6 +724,11 @@ export default function RecordsScreen({
       ref={rootRef}
     >
       {showEditor && <div className="record-detail-toolbar record-detail-toolbar--editor">
+        {notice && <div className="record-upload-toast" role="status" aria-live="polite">
+          <Check size={15} />
+          <span>{notice}</span>
+          <button type="button" onClick={() => setNotice(null)} aria-label={locale === "zh" ? "关闭提示" : "Dismiss notification"}><X size={14} /></button>
+        </div>}
         <label className="record-detail-date">
           <input
             aria-label={t("records.date")}
@@ -700,9 +740,8 @@ export default function RecordsScreen({
         </label>
       </div>}
 
-      {(error || notice) && (
-        <SectionCard className={["record-feedback-card", notice ? "is-success" : "is-error"].join(" ")} title={notice ? t("records.synced") : t("records.needsFix")}>
-          {notice && <p className="success-text">{notice}</p>}
+      {error && (
+        <SectionCard className="record-feedback-card is-error" title={t("records.needsFix")}>
           {error && <p className="error-text">{error}</p>}
         </SectionCard>
       )}
@@ -901,7 +940,7 @@ export default function RecordsScreen({
           </div>
           <label className="field">
             <span>{t("records.food")}</span>
-            <input value={mealName} onChange={(e) => setMealName(e.target.value)} />
+            <input value={mealName} onChange={(e) => setMealName(e.target.value)} placeholder={locale === "zh" ? "AI 识别后自动填写，也可手动输入" : "Filled by AI or entered manually"} />
           </label>
           <div className="two-col nutrition-macro-fields">
             <label className="field"><span>{locale === "zh" ? "蛋白质 g" : "Protein g"}</span><input inputMode="decimal" type="number" min="0" value={proteinGrams} onChange={(e) => setProteinGrams(Number(e.target.value))} /></label>

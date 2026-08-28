@@ -119,12 +119,12 @@ function MobileShell() {
   const rewardClaimTailRef = useRef<Promise<GrowthSummary | null>>(Promise.resolve(null));
   const currentTab = tabs.find((tab) => tab.id === activeTab);
   const recordTitles: Record<RecordModule, { zh: string; en: string }> = {
-    mood: { zh: "今日情绪", en: "Today's Mood" },
-    sleep: { zh: "今日睡眠记录", en: "Today's Sleep" },
-    exercise: { zh: "今日运动", en: "Today's Activity" },
-    diet: { zh: "今日饮食", en: "Today's Diet" },
-    focus: { zh: "今日专注记录", en: "Today's Focus" },
-    face: { zh: "今日面部分析", en: "Face Analysis" },
+    mood: { zh: "情绪记录", en: "Mood Record" },
+    sleep: { zh: "睡眠记录", en: "Sleep Record" },
+    exercise: { zh: "运动记录", en: "Activity Record" },
+    diet: { zh: "饮食记录", en: "Diet Record" },
+    focus: { zh: "专注记录", en: "Focus Record" },
+    face: { zh: "面部分析", en: "Face Analysis" },
   };
   const currentTitle = activeTab === "record" && recordModule
     ? recordTitles[recordModule][locale]

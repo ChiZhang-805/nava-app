@@ -1272,7 +1272,51 @@ body::before {
 }
 
 .record-detail-toolbar--editor {
-  justify-content: flex-end;
+  justify-content: space-between;
+}
+
+.record-upload-toast {
+  min-width: 0;
+  max-width: calc(100% - 192px);
+  min-height: 50px;
+  border: 1px solid rgba(255, 255, 255, .9);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 8px 7px 11px;
+  color: #116c62;
+  background: rgba(236, 253, 248, .9);
+  box-shadow: 0 8px 22px rgba(25, 133, 113, .1);
+  backdrop-filter: blur(16px) saturate(1.08);
+  animation: record-feedback-arrive 360ms var(--motion-ease-spring) backwards;
+}
+
+.record-upload-toast > svg {
+  flex: 0 0 auto;
+}
+
+.record-upload-toast > span {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-upload-toast > button {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #437a74;
+  background: rgba(255, 255, 255, .68);
 }
 
 .record-detail-toolbar--global-back {
@@ -5188,6 +5232,44 @@ body::before {
 
 .record-detail .photo-picker.has-image img {
   animation: record-image-reveal 520ms var(--motion-ease-out) backwards;
+}
+
+.record-detail .photo-picker:not(.face).has-image {
+  min-height: 0;
+  display: block;
+  align-content: initial;
+  background: rgba(239, 250, 254, .84);
+}
+
+.record-detail .photo-picker:not(.face).has-image img {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  display: block;
+  object-fit: contain;
+}
+
+.record-detail .photo-picker:not(.face).has-image > span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  max-width: calc(100% - 28px);
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+}
+
+.record-detail .photo-picker:not(.face).has-image > input {
+  z-index: 4;
+}
+
+.record-detail .photo-picker:not(.face).has-image > .spin {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 5;
 }
 
 .record-detail .detected-list > div,
