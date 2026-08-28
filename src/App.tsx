@@ -39,6 +39,7 @@ const tabs: Array<{ id: AppTab; labelKey: TranslationKey; icon: string }> = [
 ];
 
 type ShellRoute = { tab: AppTab; module: RecordModule | null; view: string | null };
+type ShellHistoryState = { navaShell: true; depth: number; route: ShellRoute };
 const appTabs = new Set<AppTab>(["today", "record", "ai", "trends", "profile"]);
 const recordModules = new Set<RecordModule>(["mood", "sleep", "exercise", "diet", "focus", "face"]);
 
@@ -135,7 +136,19 @@ function MobileShell() {
     setRecordModule(next.module);
     setRecordView(next.view);
     const url = `${window.location.pathname}${window.location.search}${shellRouteHash(next)}`;
-    window.history[replace ? "replaceState" : "pushState"](null, "", url);
+    const currentState = window.history.state as Partial<ShellHistoryState> | null;
+    const currentDepth = currentState?.navaShell === true && Number.isInteger(currentState.depth) ? Number(currentState.depth) : 0;
+    const nextState: ShellHistoryState = { navaShell: true, depth: replace ? currentDepth : currentDepth + 1, route: next };
+    window.history[replace ? "replaceState" : "pushState"](nextState, "", url);
+  };
+
+  const navigateBack = (fallback: ShellRoute) => {
+    const currentState = window.history.state as Partial<ShellHistoryState> | null;
+    if (currentState?.navaShell === true && Number(currentState.depth) > 0) {
+      window.history.back();
+      return;
+    }
+    navigate(fallback.tab, fallback.module, fallback.view, true);
   };
 
   const runAiCommand = (type: AiCommand["type"]) => {
@@ -244,6 +257,12 @@ function MobileShell() {
 
   useEffect(() => {
     if (!window.location.hash) navigate(initialRouteRef.current.tab, initialRouteRef.current.module, initialRouteRef.current.view, true);
+    else {
+      const currentState = window.history.state as Partial<ShellHistoryState> | null;
+      if (currentState?.navaShell !== true) {
+        window.history.replaceState({ navaShell: true, depth: 0, route: readShellRoute() } satisfies ShellHistoryState, "", window.location.href);
+      }
+    }
     const restoreRoute = () => {
       const route = readShellRoute();
       setActiveTab(route.tab);
@@ -305,8 +324,8 @@ function MobileShell() {
             type="button"
             onClick={() => {
               if (activeTab === "record" && recordModule) {
-                if (recordView && recordView !== "overview") navigate("record", recordModule);
-                else navigate("record");
+                if (recordView && recordView !== "overview") navigateBack({ tab: "record", module: recordModule, view: null });
+                else navigate("record", null, null, true);
                 return;
               }
               navigate("today");
@@ -374,7 +393,7 @@ function MobileShell() {
               initialModule={recordModule}
               initialView={recordView}
               onModuleChange={(module) => navigate("record", module)}
-              onViewChange={(view) => navigate("record", recordModule, view)}
+              onViewChange={(view, replace = false) => navigate("record", recordModule, view, replace)}
             />
           )}
           <div
@@ -392,7 +411,18 @@ function MobileShell() {
               onDataSaved={markChanged}
             />
           </div>
-          {activeTab === "trends" && <GrowthTasksScreen user={user} />}
+          {activeTab === "trends" && (
+            <GrowthTasksScreen
+              user={user}
+              onOpenTarget={(target) => {
+                if (target === "profile") {
+                  navigate("profile");
+                  return;
+                }
+                navigate("record", target === "nutrition" ? "diet" : target);
+              }}
+            />
+          )}
           {activeTab === "profile" && <ProfileScreen user={user} onChanged={markChanged} />}
         </div>
       </main>

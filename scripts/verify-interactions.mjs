@@ -434,6 +434,27 @@ async function assertAnimation(locator, expectedName, label) {
   }
 }
 
+async function assertWholeGrowthTaskCards(page, label) {
+  const taskGeometry = await page.locator(".growth-task-list").evaluate((node) => {
+    const listRect = node.getBoundingClientRect();
+    const cards = [...node.querySelectorAll("[data-growth-task]")]
+      .map((task) => {
+        const rect = task.getBoundingClientRect();
+        return { id: task.getAttribute("data-growth-task"), top: rect.top, bottom: rect.bottom };
+      });
+    return {
+      cards,
+      listTop: listRect.top,
+      listBottom: listRect.bottom,
+      scrollTop: node.scrollTop,
+      scrollHeight: node.scrollHeight,
+    };
+  });
+  const clippedTasks = taskGeometry.cards.filter(({ top, bottom }) => (top < taskGeometry.listTop - 0.1 && bottom > taskGeometry.listTop + 0.1)
+    || (top < taskGeometry.listBottom - 0.1 && bottom > taskGeometry.listBottom + 0.1));
+  if (clippedTasks.length > 0) throw new Error(`${label}: growth task cards are clipped ${JSON.stringify({ clippedTasks, ...taskGeometry })}`);
+}
+
 async function verifyRecordModules(page, results) {
   await page.locator('[data-tab="record"]').click();
   await expect(page.locator("[data-record-module]")).toHaveCount(6);
@@ -452,10 +473,13 @@ async function verifyRecordModules(page, results) {
     await assertStaticLayout(page, routeLabel);
     await page.locator('.figma-app-header [aria-label="返回记录入口"], .figma-app-header [aria-label="Back to records"]').click();
     await expect(page.locator('[data-module-view$="-overview"]')).toBeVisible();
+    await expect.poll(() => new URL(page.url()).hash).not.toContain("view=");
   };
   const returnToHub = async () => {
+    await expect.poll(() => new URL(page.url()).hash).not.toContain("view=");
     await page.locator('.figma-app-header [aria-label="返回记录入口"], .figma-app-header [aria-label="Back to records"]').click();
     await expect(page.locator("[data-record-module]")).toHaveCount(6);
+    await expect.poll(() => new URL(page.url()).hash).not.toContain("module=");
   };
 
   await openModule("mood");
@@ -828,8 +852,8 @@ async function verifyProfile(page, results) {
   await watchActions.nth(0).click();
   await watchActions.nth(1).click();
   await page.locator(".profile-device-card").nth(1).scrollIntoViewIfNeeded();
-  await assertStaticLayout(page, "profile-devices");
   await page.screenshot({ path: path.join(outputDir, "profile-devices.png") });
+  await assertStaticLayout(page, "profile-devices");
 
   const downloadPromise = page.waitForEvent("download");
   await page.locator(".profile-stack > .section-card").last().locator(".section-icon-action").click();
@@ -876,36 +900,46 @@ async function verifyNavigationAndMotion(page, results) {
     if (tab !== "ai" && animationName !== "nav-icon-construct") throw new Error(`${tab} icon motion did not replay: ${animationName}`);
     await page.waitForTimeout(900);
     await assertStaticLayout(page, `tab-${tab}`);
+    if (tab === "trends") await assertWholeGrowthTaskCards(page, "tab-trends");
     await page.screenshot({ path: path.join(outputDir, `tab-${tab}.png`) });
     if (tab === "trends") {
       const taskList = page.locator(".growth-task-list");
       await taskList.evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
       await expect(page.locator("[data-growth-task]").last()).toBeVisible();
       await page.waitForTimeout(180);
-      const taskGeometry = await taskList.evaluate((node) => {
-        const listRect = node.getBoundingClientRect();
-        const cards = [...node.querySelectorAll("[data-growth-task]")]
-          .map((task) => {
-            const rect = task.getBoundingClientRect();
-            return { id: task.getAttribute("data-growth-task"), top: rect.top, bottom: rect.bottom };
-          });
-        return {
-          cards,
-          listTop: listRect.top,
-          listBottom: listRect.bottom,
-          scrollTop: node.scrollTop,
-          scrollHeight: node.scrollHeight,
-        };
-      });
-      const clippedTasks = taskGeometry.cards.filter(({ top, bottom }) => (top < taskGeometry.listTop - 0.1 && bottom > taskGeometry.listTop + 0.1)
-        || (top < taskGeometry.listBottom - 0.1 && bottom > taskGeometry.listBottom + 0.1));
-      if (clippedTasks.length > 0) throw new Error(`Growth task cards are clipped after scrolling: ${JSON.stringify({ clippedTasks, ...taskGeometry })}`);
+      await assertWholeGrowthTaskCards(page, "tab-trends-lower");
       await assertStaticLayout(page, "tab-trends-lower");
       await page.waitForTimeout(250);
       await page.screenshot({ path: path.join(outputDir, "tab-trends-lower.png") });
       await taskList.evaluate((node) => node.scrollTo({ top: 0 }));
     }
   }
+
+  const growthTargetRoutes = [
+    ["profile-foundation", "profile", null],
+    ["profile-goal", "profile", null],
+    ["sleep-window", "record", "sleep"],
+    ["move-break", "record", "exercise"],
+    ["mood-checkin", "record", "mood"],
+    ["nutrition-log", "record", "diet"],
+    ["focus-block", "record", "focus"],
+    ["face-check", "record", "face"],
+  ];
+  await page.locator('[data-tab="trends"]').click();
+  for (const [taskId, targetTab, targetModule] of growthTargetRoutes) {
+    const task = page.locator(`[data-growth-task="${taskId}"]`);
+    await expect(task).toHaveJSProperty("tagName", "BUTTON");
+    await expect(task.locator(".growth-task-meta svg")).toBeVisible();
+    await task.scrollIntoViewIfNeeded();
+    await task.click();
+    await expect(page.locator(`[data-tab="${targetTab}"]`)).toHaveAttribute("aria-current", "page");
+    if (targetModule) await expect(page.locator(`[data-record-detail="${targetModule}"]`)).toBeVisible();
+    else await expect(page.locator(".profile-stack")).toBeVisible();
+    await page.goBack();
+    await expect(page.locator("[data-growth-screen]")).toBeVisible();
+    await expect(page.locator('[data-tab="trends"]')).toHaveAttribute("aria-current", "page");
+  }
+
   await page.locator('[data-tab="record"]').click();
   await page.getByRole("tab", { name: /本周报告|Weekly/ }).click();
   await expect(page.locator("[data-weekly-health-report]")).toBeVisible();
@@ -920,11 +954,13 @@ async function verifyNavigationAndMotion(page, results) {
   });
   if (weeklyOverflow.length > 0) throw new Error(`Weekly insight content overflowed its card: ${JSON.stringify(weeklyOverflow)}`);
   await page.screenshot({ path: path.join(outputDir, "record-weekly.png") });
-  await page.locator(".weekly-module-status button").filter({ hasText: /睡眠|Sleep/ }).click();
-  await expect(page.locator('[data-record-detail="sleep"] [data-module-view="sleep-overview"]')).toBeVisible();
-  await expect(page).toHaveURL(/tab=record.*module=sleep/);
-  await page.goBack();
-  await expect(page.locator("[data-weekly-health-report]")).toBeVisible();
+  for (const [index, module] of ["mood", "sleep", "exercise", "diet", "focus", "face"].entries()) {
+    await page.locator(".weekly-module-status button").nth(index).click();
+    await expect(page.locator(`[data-record-detail="${module}"] [data-module-view="${module}-overview"]`)).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`tab=record.*module=${module}`));
+    await page.goBack();
+    await expect(page.locator("[data-weekly-health-report]")).toBeVisible();
+  }
   await page.getByRole("tab", { name: /分项报告|Modules/ }).click();
   const recordButton = page.locator('[data-tab="record"]');
   const recordBox = await recordButton.boundingBox();
@@ -959,7 +995,7 @@ async function verifyNavigationAndMotion(page, results) {
   if (utilityAlpha < 0.96) throw new Error(`Utility menu background is too transparent: ${utilityBackground}`);
   await page.locator(".figma-header-action").last().click();
   await expect(utilityPopover).toBeHidden();
-  results.push("五项底部导航、趋势折线、图标构建立体动效与页头工具菜单");
+  results.push("五项底部导航、八个成长任务入口、六个周报模块入口、浏览器返回、趋势折线、图标动效与页头工具菜单");
 }
 
 async function main() {

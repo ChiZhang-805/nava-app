@@ -70,7 +70,7 @@ type Props = {
   trendBundle: TrendBundle | null;
   profile: UserProfile | null;
   initialView?: string | null;
-  onViewChange?: (view: string | null) => void;
+  onViewChange?: (view: string | null, replace?: boolean) => void;
 };
 
 const moodFaces = [
@@ -747,7 +747,7 @@ export default function RecordModuleDashboard(props: Props) {
   useEffect(() => setView(props.initialView ?? "overview"), [props.initialView, props.module]);
   const openView = (next: string) => {
     setView(next);
-    props.onViewChange?.(next === "overview" ? null : next);
+    props.onViewChange?.(next === "overview" ? null : next, next === "overview");
   };
   if (view === "history") return <HistoryView module={props.module} locale={locale} trendBundle={props.trendBundle} />;
   const common = { ...props, locale };

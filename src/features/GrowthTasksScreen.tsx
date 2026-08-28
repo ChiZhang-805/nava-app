@@ -1,10 +1,16 @@
 import type { User } from "@supabase/supabase-js";
-import { Award, Check, Flame, Sparkles } from "lucide-react";
+import { Award, Check, ChevronRight, Flame, Sparkles } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "../i18n";
 import { growthXp, loadGrowthTasks, reconcileGrowthRewards, resolveGrowthTasks, subscribeProductivity, type GrowthSummary, type GrowthTask } from "../services/productivity";
 
-export default function GrowthTasksScreen({ user }: { user: User }) {
+export default function GrowthTasksScreen({
+  user,
+  onOpenTarget,
+}: {
+  user: User;
+  onOpenTarget?: (target: GrowthTask["target"]) => void;
+}) {
   const { locale } = useLocale();
   const [tasks, setTasks] = useState<GrowthTask[]>(() => loadGrowthTasks(user.id));
   const [loading, setLoading] = useState(true);
@@ -59,18 +65,20 @@ export default function GrowthTasksScreen({ user }: { user: User }) {
         {(["profile", "daily"] as const).map((category) => <section className="growth-task-group" key={category}>
           <header>{category === "profile" ? (locale === "zh" ? "画像完善" : "Profile") : (locale === "zh" ? "今日节律" : "Today")}</header>
           {tasks.filter((task) => task.category === category).map((task) => (
-          <article
+          <button
             className={["growth-task-card", task.completed ? "completed" : ""].filter(Boolean).join(" ")}
             data-growth-task={task.id}
             key={task.id}
+            type="button"
+            onClick={() => onOpenTarget?.(task.target)}
           >
             <span className="growth-task-check">{task.completed ? <Check size={19} /> : <span />}</span>
             <span className="growth-task-copy">
               <strong>{locale === "zh" ? task.titleZh : task.titleEn}</strong>
               <small>{locale === "zh" ? task.detailZh : task.detailEn}</small>
             </span>
-            <b>+{task.xp}</b>
-          </article>
+            <span className="growth-task-meta"><b>+{task.xp}</b><ChevronRight size={15} aria-hidden="true" /></span>
+          </button>
           ))}
         </section>)}
       </div>

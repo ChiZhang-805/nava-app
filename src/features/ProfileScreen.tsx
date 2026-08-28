@@ -392,6 +392,7 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
       </div>
 
       <SectionCard
+        className="profile-privacy-card"
         title={t("profile.privacy")}
         action={(
           <button

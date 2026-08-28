@@ -111,7 +111,7 @@ const defaultGrowthTasks: Omit<GrowthTask, "completed">[] = [
   {
     id: "move-break",
     titleZh: "完成轻量活动",
-    titleEn: "Complete light movement",
+    titleEn: "Light movement",
     detailZh: "今天完成一次 20 分钟低强度活动",
     detailEn: "Complete one 20-minute low-intensity activity today",
     xp: 25,
@@ -141,7 +141,7 @@ const defaultGrowthTasks: Omit<GrowthTask, "completed">[] = [
   {
     id: "focus-block",
     titleZh: "完成专注时段",
-    titleEn: "Complete a focus block",
+    titleEn: "Focus block",
     detailZh: "累计完成至少 25 分钟专注",
     detailEn: "Complete at least 25 focused minutes",
     xp: 20,
@@ -151,7 +151,7 @@ const defaultGrowthTasks: Omit<GrowthTask, "completed">[] = [
   {
     id: "face-check",
     titleZh: "完成面部记录",
-    titleEn: "Complete a face check",
+    titleEn: "Face check",
     detailZh: "在授权后保存一次今日面部状态",
     detailEn: "Save today's face check after consent",
     xp: 15,

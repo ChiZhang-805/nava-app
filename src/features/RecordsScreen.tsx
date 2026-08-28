@@ -99,7 +99,7 @@ export default function RecordsScreen({
   initialModule?: RecordModule | null;
   initialView?: string | null;
   onModuleChange?: (module: RecordModule | null) => void;
-  onViewChange?: (view: string | null) => void;
+  onViewChange?: (view: string | null, replace?: boolean) => void;
 }) {
   const { locale, t } = useLocale();
   const [busy, setBusy] = useState<string | null>(null);
@@ -339,7 +339,7 @@ export default function RecordsScreen({
         const module: RecordDraftModule = activeModule === "diet" ? "nutrition" : activeModule;
         await clearRecordDraft(user.id, module, recordDate).catch((draftError) => console.warn("Record draft cleanup deferred", draftError));
         setShowEditor(false);
-        onViewChange?.(null);
+        onViewChange?.(null, true);
       }
       onSaved();
       return true;
