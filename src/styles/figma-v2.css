@@ -742,6 +742,10 @@ body::before {
   box-shadow: 0 8px 20px rgba(21, 127, 174, 0.2);
 }
 
+.phone-frame:not(.phone-frame--option2) .record-detail form:not([hidden]) .diet-rating-field + .action-button {
+  margin-top: 30px;
+}
+
 .phone-frame:not(.phone-frame--option2) .record-detail .section-icon-action {
   color: #0e86bb;
   background: #ddf4fc;
@@ -3722,7 +3726,15 @@ body::before {
 .growth-progress-copy > span { color: #668897; font-size: 11px; }
 .growth-progress-copy > strong { font-size: 21px; }
 .growth-progress-track { height: 7px; overflow: hidden; border-radius: 99px; background: #d9edf5; }
-.growth-progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #22a9df, #63c9ea); transition: width 90ms linear; }
+.growth-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22a9df, #63c9ea);
+  transform-origin: left center;
+  animation: growth-progress-in 760ms cubic-bezier(.2, .82, .24, 1) both;
+  transition: width 90ms linear;
+}
 .growth-summary-card.is-settling .growth-level-orb { animation: growth-level-settle 720ms cubic-bezier(.2,.82,.24,1) both; }
 
 .growth-section-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 5px; }
@@ -5791,6 +5803,11 @@ body::before {
 @keyframes growth-level-settle {
   0%, 100% { transform: scale(1); }
   45% { transform: scale(1.08) rotate(-3deg); box-shadow: 0 12px 28px rgba(19, 121, 167, 0.3); }
+}
+
+@keyframes growth-progress-in {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
 @keyframes growth-task-complete {

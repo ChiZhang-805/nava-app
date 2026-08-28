@@ -515,10 +515,14 @@ async function verifyRecordModules(page, results) {
   await expect(page.locator(".mood-chart .trend-area")).toHaveCount(1);
   const curveBefore = await moodCurve.getAttribute("d");
   if (!curveBefore?.includes(" C ")) throw new Error(`Mood trend is not a smooth cubic curve: ${curveBefore}`);
-  const pieBefore = await page.locator(".mood-pie").evaluate((node) => node.style.background);
+  const pieBefore = await page.locator(".mood-pie > svg").evaluate((node) => [...node.querySelectorAll("circle")]
+    .map((circle) => `${circle.getAttribute("stroke-dasharray")}:${circle.getAttribute("stroke-dashoffset")}`)
+    .join("|"));
   await page.locator(".mood-face-row button").first().click();
   await expect.poll(() => moodCurve.getAttribute("d")).not.toBe(curveBefore);
-  await expect.poll(() => page.locator(".mood-pie").evaluate((node) => node.style.background)).not.toBe(pieBefore);
+  await expect.poll(() => page.locator(".mood-pie > svg").evaluate((node) => [...node.querySelectorAll("circle")]
+    .map((circle) => `${circle.getAttribute("stroke-dasharray")}:${circle.getAttribute("stroke-dashoffset")}`)
+    .join("|"))).not.toBe(pieBefore);
   await page.screenshot({ path: path.join(outputDir, "record-mood-before-journal.png") });
   await assertMoodCardSeparation(page, "record-mood-before-journal");
   await page.locator('[aria-label="填写情绪日记"], [aria-label="Write mood journal"]').click();
@@ -544,7 +548,7 @@ async function verifyRecordModules(page, results) {
 
   await openModule("sleep");
   await expect(page.locator('[data-module-view="sleep-overview"]')).toBeVisible();
-  await assertAnimation(page.locator('[data-module-view="sleep-overview"] .sleep-bars i'), "chart-bar-rise", "sleep-stage bars");
+  await assertAnimation(page.locator('[data-module-view="sleep-overview"] .sleep-stage-shape i'), "sleep-stage-rise", "sleep-stage bars");
   const alertCopy = page.locator(".sleep-alert-copy");
   if (await alertCopy.isVisible().catch(() => false)) {
     await alertCopy.click();
@@ -555,8 +559,8 @@ async function verifyRecordModules(page, results) {
     await page.locator(".sleep-alert-modal header button").click();
   }
   await page.locator('[aria-label="查看睡眠趋势"], [aria-label="View sleep trend"]').click();
-  await expect(page.locator('[data-record-detail="sleep"] .line-trend-chart')).toBeVisible();
-  await assertAnimation(page.locator('[data-record-detail="sleep"] .trend-line'), "trend-line-draw", "sleep trend line");
+  await expect(page.locator('[data-record-detail="sleep"] .bar-line-trend-chart')).toBeVisible();
+  await assertAnimation(page.locator('[data-record-detail="sleep"] .bar-line-path'), "combo-line-draw", "sleep trend line");
   await page.waitForTimeout(1_050);
   await page.screenshot({ path: path.join(outputDir, "record-sleep-trend.png") });
   await returnFromSubview();
@@ -566,7 +570,7 @@ async function verifyRecordModules(page, results) {
   await assertNoBottomNavClipping(page, "sleep-editor", '[data-record-detail="sleep"] form:not([hidden]) .field, [data-record-detail="sleep"] form:not([hidden]) .action-button');
   await page.screenshot({ path: path.join(outputDir, "record-sleep-editor.png") });
   await page.locator('[data-record-detail="sleep"] form:not([hidden]) .action-button').click();
-  await expect(page.locator('[data-record-detail="sleep"] .success-text')).toBeVisible();
+  await expect(page.locator('[data-record-detail="sleep"]')).toHaveAttribute("data-record-status", "success");
   await expect(page.locator('[data-module-view="sleep-overview"]')).toBeVisible();
   await page.waitForTimeout(650);
   await assertStaticLayout(page, "record-sleep-saved");
@@ -623,7 +627,7 @@ async function verifyRecordModules(page, results) {
   await page.screenshot({ path: path.join(outputDir, "record-exercise-editor.png") });
   await assertNoBottomNavClipping(page, "exercise-editor", '[data-record-detail="exercise"] form:not([hidden]) .field, [data-record-detail="exercise"] form:not([hidden]) .action-button');
   await page.locator('[data-record-detail="exercise"] form:not([hidden]) .action-button').click();
-  await expect(page.locator('[data-record-detail="exercise"] .success-text')).toBeVisible();
+  await expect(page.locator('[data-record-detail="exercise"]')).toHaveAttribute("data-record-status", "success");
   await expect(page.locator('[data-module-view="exercise-overview"]')).toBeVisible();
   await page.waitForTimeout(650);
   await assertStaticLayout(page, "record-exercise-saved");
@@ -638,7 +642,7 @@ async function verifyRecordModules(page, results) {
   await page.screenshot({ path: path.join(outputDir, "record-diet-editor.png") });
   await assertNoBottomNavClipping(page, "diet-editor", '[data-record-detail="diet"] form:not([hidden]) .field, [data-record-detail="diet"] form:not([hidden]) .action-button');
   await page.locator('[data-record-detail="diet"] input[type="file"][capture="environment"]').setInputFiles(samplePhoto);
-  await expect(page.locator('[data-record-detail="diet"] .success-text')).toBeVisible();
+  await expect(page.locator('[data-record-detail="diet"] .record-upload-toast')).toBeVisible();
   await page.locator('[data-record-detail="diet"] form:not([hidden]) .action-button').click();
   await expect(page.locator('[data-module-view="diet-overview"]')).toBeVisible();
   await page.locator('.diet-trend-card .module-card-nav-button').click();
@@ -699,7 +703,7 @@ async function verifyRecordModules(page, results) {
   await page.screenshot({ path: path.join(outputDir, "record-face-editor.png") });
   await page.locator('[data-record-detail="face"] .face-consent input').check();
   await page.locator('[data-record-detail="face"] input[type="file"][capture="user"]').setInputFiles(samplePhoto);
-  await expect(page.locator('[data-record-detail="face"] .success-text')).toBeVisible();
+  await expect(page.locator('[data-record-detail="face"] .record-upload-toast')).toBeVisible();
   await page.waitForTimeout(900);
   await assertStaticLayout(page, "record-face-saved");
   await assertNoBottomNavClipping(page, "face-result", '[data-record-detail="face"] .face-result .detected-list div, [data-record-detail="face"] .face-result-meta span');
@@ -944,6 +948,12 @@ async function verifyNavigationAndMotion(page, results) {
   for (const [taskId, targetTab, targetModule] of growthTargetRoutes) {
     const task = page.locator(`[data-growth-task="${taskId}"]`);
     await expect(task).toHaveJSProperty("tagName", "BUTTON");
+    const completed = await task.getAttribute("data-completed") === "true";
+    if (completed) {
+      await expect(task).toBeDisabled();
+      await expect(task.locator(".growth-task-meta svg")).toHaveCount(0);
+      continue;
+    }
     await expect(task.locator(".growth-task-meta svg")).toBeVisible();
     await task.scrollIntoViewIfNeeded();
     await task.click();

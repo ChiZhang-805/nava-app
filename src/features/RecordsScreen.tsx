@@ -384,8 +384,9 @@ export default function RecordsScreen({
       if (activeModule) {
         const module: RecordDraftModule = activeModule === "diet" ? "nutrition" : activeModule;
         await clearRecordDraft(user.id, module, recordDate).catch((draftError) => console.warn("Record draft cleanup deferred", draftError));
+        const wasEditor = showEditor || initialView === "editor";
         setShowEditor(false);
-        onViewChange?.(null, true);
+        if (wasEditor) onViewChange?.(null, true);
       }
       return true;
     } catch (e) {
