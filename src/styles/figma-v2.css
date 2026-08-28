@@ -4960,6 +4960,265 @@ body::before {
   animation: todo-check-arrive 360ms var(--motion-ease-spring) backwards;
 }
 
+/* Motion system, pass 2: editor, save, analysis and module-state feedback. */
+.record-editor-stack > form:not([hidden]) > .section-card,
+.record-editor-stack > div:not([hidden]) > .section-card {
+  animation: record-editor-surface-in 440ms var(--motion-ease-out) backwards;
+}
+
+.record-editor-stack > form:not([hidden]) > .section-card > *,
+.record-editor-stack > div:not([hidden]) > .section-card > * {
+  animation: record-editor-row-in 360ms var(--motion-ease-out) backwards;
+}
+
+.record-editor-stack > form:not([hidden]) > .section-card > :nth-child(1),
+.record-editor-stack > div:not([hidden]) > .section-card > :nth-child(1) { animation-delay: 50ms; }
+.record-editor-stack > form:not([hidden]) > .section-card > :nth-child(2),
+.record-editor-stack > div:not([hidden]) > .section-card > :nth-child(2) { animation-delay: 85ms; }
+.record-editor-stack > form:not([hidden]) > .section-card > :nth-child(3),
+.record-editor-stack > div:not([hidden]) > .section-card > :nth-child(3) { animation-delay: 120ms; }
+.record-editor-stack > form:not([hidden]) > .section-card > :nth-child(4),
+.record-editor-stack > div:not([hidden]) > .section-card > :nth-child(4) { animation-delay: 155ms; }
+.record-editor-stack > form:not([hidden]) > .section-card > :nth-child(5),
+.record-editor-stack > div:not([hidden]) > .section-card > :nth-child(5) { animation-delay: 190ms; }
+.record-editor-stack > form:not([hidden]) > .section-card > :nth-child(6),
+.record-editor-stack > div:not([hidden]) > .section-card > :nth-child(6) { animation-delay: 225ms; }
+.record-editor-stack > form:not([hidden]) > .section-card > :nth-child(n + 7),
+.record-editor-stack > div:not([hidden]) > .section-card > :nth-child(n + 7) { animation-delay: 260ms; }
+
+.record-detail:has(.record-editor-stack) .field > span,
+.profile-form .field > span {
+  transition: color var(--motion-fast) ease, transform var(--motion-fast) ease;
+}
+
+.record-detail:has(.record-editor-stack) .field:focus-within > span,
+.profile-form .field:focus-within > span {
+  color: #0d7fad;
+  transform: translateX(2px);
+}
+
+.record-detail:has(.record-editor-stack) input:not([type="range"]):not([type="file"]):not([type="checkbox"]),
+.record-detail:has(.record-editor-stack) textarea,
+.record-detail:has(.record-editor-stack) select,
+.profile-form input,
+.profile-form select {
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease, background var(--motion-fast) ease, transform var(--motion-instant) ease;
+}
+
+.record-detail:has(.record-editor-stack) input:not([type="range"]):not([type="file"]):not([type="checkbox"]):focus,
+.record-detail:has(.record-editor-stack) textarea:focus,
+.record-detail:has(.record-editor-stack) select:focus,
+.profile-form input:focus,
+.profile-form select:focus {
+  border-color: rgba(20, 145, 190, .68);
+  background: rgba(253, 255, 255, .98);
+  box-shadow: 0 0 0 3px rgba(29, 164, 211, .12), 0 8px 20px rgba(21, 111, 149, .08);
+  transform: translateY(-1px);
+}
+
+.record-detail .chip.selected,
+.record-detail .face-mode-picker button.selected {
+  animation: record-choice-settle 300ms var(--motion-ease-spring) backwards;
+}
+
+.record-detail .face-consent input:checked {
+  animation: record-check-settle 280ms var(--motion-ease-spring) backwards;
+}
+
+.record-detail .photo-picker {
+  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease, box-shadow var(--motion-fast) ease, transform var(--motion-fast) ease;
+}
+
+.record-detail .photo-picker:active {
+  transform: scale(.992);
+}
+
+.record-detail .photo-picker.is-analyzing {
+  border-color: rgba(25, 151, 197, .68);
+  background: rgba(225, 246, 253, .9);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .8), 0 10px 28px rgba(18, 120, 161, .12);
+  animation: record-analysis-breathe 1.4s ease-in-out infinite;
+}
+
+.record-detail .photo-picker.is-analyzing::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(105deg, transparent 34%, rgba(255, 255, 255, .62) 49%, transparent 64%);
+  transform: translateX(-120%);
+  animation: record-scan-sweep 1.15s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.record-detail .photo-picker.has-image img {
+  animation: record-image-reveal 520ms var(--motion-ease-out) backwards;
+}
+
+.record-detail .detected-list > div,
+.record-detail .face-result-meta > span {
+  animation: record-result-row-in 340ms var(--motion-ease-out) backwards;
+}
+
+.record-detail .detected-list > div:nth-child(2),
+.record-detail .face-result-meta > span:nth-child(2) { animation-delay: 55ms; }
+.record-detail .detected-list > div:nth-child(3) { animation-delay: 110ms; }
+.record-detail .detected-list > div:nth-child(4) { animation-delay: 165ms; }
+.record-detail .detected-list > div:nth-child(n + 5) { animation-delay: 220ms; }
+
+.record-detail .face-result {
+  animation: record-result-card-in 440ms var(--motion-ease-out) backwards;
+}
+
+.record-detail .face-result > strong {
+  display: inline-block;
+  animation: record-result-score-in 520ms var(--motion-ease-spring) 120ms backwards;
+}
+
+.record-detail[data-record-busy] form:not([hidden]) .action-button {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  opacity: .82;
+}
+
+.record-detail[data-record-busy] form:not([hidden]) .action-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(100deg, transparent 28%, rgba(255,255,255,.42) 49%, transparent 70%);
+  transform: translateX(-120%);
+  animation: record-save-sweep 1s ease-in-out infinite;
+}
+
+.record-detail[data-record-busy] form:not([hidden]) .action-button svg {
+  animation: record-save-icon 820ms ease-in-out infinite;
+}
+
+.record-feedback-card {
+  position: relative;
+  overflow: hidden;
+  animation: record-feedback-arrive 440ms var(--motion-ease-spring) backwards;
+}
+
+.record-feedback-card.is-success {
+  box-shadow: 0 12px 30px rgba(26, 145, 116, .14), inset 0 1px 0 rgba(255,255,255,.92);
+}
+
+.record-feedback-card.is-success::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, #25b682, #4dc7e8);
+  transform-origin: left;
+  animation: record-feedback-line 620ms var(--motion-ease-out) 120ms backwards;
+}
+
+.record-feedback-card.is-error {
+  animation-name: record-feedback-arrive, record-error-nudge;
+  animation-duration: 440ms, 260ms;
+  animation-timing-function: var(--motion-ease-spring), ease-in-out;
+}
+
+.module-subview-card > * {
+  animation: module-detail-row-in 380ms var(--motion-ease-out) backwards;
+}
+
+.module-subview-card > :nth-child(2) { animation-delay: 70ms; }
+.module-subview-card > :nth-child(3) { animation-delay: 120ms; }
+.module-subview-card > :nth-child(4) { animation-delay: 170ms; }
+.module-subview-card > :nth-child(n + 5) { animation-delay: 220ms; }
+
+.device-picker button,
+.metric-detail-grid > span,
+.module-history-list > p,
+.weekly-fdnb-contributors > span {
+  animation: module-detail-item-in 380ms var(--motion-ease-spring) backwards;
+}
+
+.device-picker button:nth-child(2),
+.metric-detail-grid > span:nth-child(2),
+.module-history-list > p:nth-child(2),
+.weekly-fdnb-contributors > span:nth-child(2) { animation-delay: 55ms; }
+.metric-detail-grid > span:nth-child(3),
+.module-history-list > p:nth-child(3),
+.weekly-fdnb-contributors > span:nth-child(3) { animation-delay: 110ms; }
+
+.detail-status-strip svg,
+.module-history-share svg {
+  animation: module-status-icon-in 440ms var(--motion-ease-spring) 160ms backwards;
+}
+
+.focus-controls button,
+.focus-mode-switch button,
+.focus-presets button,
+.focus-interruption-trigger {
+  transition: transform var(--motion-instant) ease, filter var(--motion-fast) ease, box-shadow var(--motion-fast) ease, background var(--motion-fast) ease;
+}
+
+.focus-controls button:active,
+.focus-mode-switch button:active,
+.focus-presets button:active,
+.focus-interruption-trigger:active {
+  transform: scale(.94);
+}
+
+.focus-immersive.is-running .focus-timer-ring::before {
+  animation: focus-core-breathe 1.8s ease-in-out infinite;
+}
+
+.focus-immersive.is-running .focus-controls button.primary {
+  animation: focus-control-pulse 1.5s ease-in-out infinite;
+}
+
+.focus-immersive.is-paused .focus-timer-ring {
+  filter: saturate(.76);
+}
+
+.profile-personal-card.is-expanded .profile-extended-field {
+  animation: profile-field-expand 360ms var(--motion-ease-out) backwards;
+}
+
+.profile-stack > .success-text,
+.profile-stack > .error-text {
+  animation: profile-message-arrive 380ms var(--motion-ease-spring) backwards;
+}
+
+.profile-account-card .avatar-button img {
+  animation: profile-avatar-reveal 460ms var(--motion-ease-out) backwards;
+}
+
+.avatar-sheet-actions button {
+  animation: picker-option-arrive 380ms var(--motion-ease-spring) 70ms backwards;
+}
+
+.avatar-sheet-actions button:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.device-connection-icon svg,
+.privacy-list > div svg {
+  animation: module-status-icon-in 440ms var(--motion-ease-spring) backwards;
+}
+
+.privacy-list > div:nth-child(2) svg { animation-delay: 55ms; }
+.privacy-list > div:nth-child(3) svg { animation-delay: 110ms; }
+
+.weekly-insight-card[data-dnb-status="loading"] strong,
+.weekly-insight-card[data-dnb-status="loading"] p {
+  animation: report-analysis-pulse 1.35s ease-in-out infinite;
+}
+
+.weekly-insight-card[data-dnb-status="ready"] strong,
+.weekly-insight-card[data-dnb-status="insufficient_data"] strong,
+.weekly-insight-card[data-dnb-status="unavailable"] strong {
+  animation: report-result-settle 420ms var(--motion-ease-out) backwards;
+}
+
 @media (hover: hover) {
   .figma-header-action:hover,
   .module-card-nav-button:hover,
@@ -4971,6 +5230,13 @@ body::before {
   .option-two-side-actions button:hover,
   .option-two-health-entry:hover {
     filter: brightness(1.04) saturate(1.08);
+  }
+
+  .record-detail .photo-picker:hover:not(.is-analyzing),
+  .device-picker button:hover,
+  .module-history-share:hover {
+    filter: brightness(1.025) saturate(1.05);
+    transform: translateY(-1px);
   }
 }
 
@@ -5161,6 +5427,138 @@ body::before {
 @keyframes todo-check-arrive {
   from { opacity: 0; transform: rotate(-18deg) scale(.3); }
   72% { opacity: 1; transform: rotate(3deg) scale(1.12); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes record-editor-surface-in {
+  from { opacity: 0; transform: translateY(12px) scale(.988); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes record-editor-row-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes record-choice-settle {
+  from { filter: brightness(1.12); transform: scale(.9); }
+  68% { transform: scale(1.045); }
+  to { filter: none; transform: none; }
+}
+
+@keyframes record-check-settle {
+  from { transform: rotate(-16deg) scale(.6); }
+  72% { transform: rotate(3deg) scale(1.12); }
+  to { transform: none; }
+}
+
+@keyframes record-analysis-breathe {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.045); }
+}
+
+@keyframes record-scan-sweep {
+  0% { transform: translateX(-120%); }
+  62%, 100% { transform: translateX(120%); }
+}
+
+@keyframes record-image-reveal {
+  from { opacity: 0; filter: blur(8px) saturate(.8); transform: scale(1.045); }
+  to { opacity: 1; filter: none; transform: none; }
+}
+
+@keyframes record-result-row-in {
+  from { opacity: 0; transform: translateX(-7px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes record-result-card-in {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes record-result-score-in {
+  from { opacity: 0; transform: translateY(6px) scale(.82); }
+  70% { opacity: 1; transform: translateY(-1px) scale(1.06); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes record-save-sweep {
+  0% { transform: translateX(-120%); }
+  66%, 100% { transform: translateX(120%); }
+}
+
+@keyframes record-save-icon {
+  0%, 100% { opacity: .72; transform: translateY(0) scale(.94); }
+  50% { opacity: 1; transform: translateY(-1px) scale(1.06); }
+}
+
+@keyframes record-feedback-arrive {
+  from { opacity: 0; transform: translateY(-8px) scale(.97); }
+  72% { opacity: 1; transform: translateY(1px) scale(1.01); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes record-feedback-line {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes record-error-nudge {
+  0%, 100% { translate: 0; }
+  35% { translate: -2px; }
+  70% { translate: 2px; }
+}
+
+@keyframes module-detail-row-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes module-detail-item-in {
+  from { opacity: 0; transform: translateY(7px) scale(.96); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes module-status-icon-in {
+  from { opacity: 0; transform: rotate(-18deg) scale(.58); }
+  72% { opacity: 1; transform: rotate(3deg) scale(1.08); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes focus-core-breathe {
+  0%, 100% { box-shadow: inset 0 0 0 1px #d7e9f0, 0 0 0 10px rgba(255,255,255,.36), 0 0 0 0 rgba(62, 187, 228, 0); }
+  50% { box-shadow: inset 0 0 0 1px #d7e9f0, 0 0 0 10px rgba(255,255,255,.46), 0 0 0 8px rgba(62, 187, 228, .1); }
+}
+
+@keyframes focus-control-pulse {
+  0%, 100% { filter: brightness(1); box-shadow: 0 9px 24px rgba(12, 83, 117, .12); }
+  50% { filter: brightness(1.1); box-shadow: 0 12px 30px rgba(12, 105, 146, .22); }
+}
+
+@keyframes profile-field-expand {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes profile-message-arrive {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  72% { opacity: 1; transform: translateY(-1px) scale(1.01); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes profile-avatar-reveal {
+  from { opacity: 0; filter: blur(5px); transform: scale(1.1); }
+  to { opacity: 1; filter: none; transform: none; }
+}
+
+@keyframes report-analysis-pulse {
+  0%, 100% { opacity: .62; }
+  50% { opacity: 1; }
+}
+
+@keyframes report-result-settle {
+  from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: none; }
 }
 
@@ -6214,6 +6612,71 @@ body::before {
     animation: none;
     opacity: 1;
     transform: none;
+  }
+
+  .record-editor-stack > form:not([hidden]) > .section-card,
+  .record-editor-stack > div:not([hidden]) > .section-card,
+  .record-editor-stack > form:not([hidden]) > .section-card > *,
+  .record-editor-stack > div:not([hidden]) > .section-card > *,
+  .record-detail .chip.selected,
+  .record-detail .face-mode-picker button.selected,
+  .record-detail .face-consent input:checked,
+  .record-detail .photo-picker.is-analyzing,
+  .record-detail .photo-picker.is-analyzing::after,
+  .record-detail .photo-picker.has-image img,
+  .record-detail .detected-list > div,
+  .record-detail .face-result,
+  .record-detail .face-result > strong,
+  .record-detail .face-result-meta > span,
+  .record-detail[data-record-busy] form:not([hidden]) .action-button::after,
+  .record-detail[data-record-busy] form:not([hidden]) .action-button svg,
+  .record-feedback-card,
+  .record-feedback-card.is-success::after,
+  .module-subview-card > *,
+  .device-picker button,
+  .metric-detail-grid > span,
+  .module-history-list > p,
+  .weekly-fdnb-contributors > span,
+  .detail-status-strip svg,
+  .module-history-share svg,
+  .focus-immersive.is-running .focus-timer-ring::before,
+  .focus-immersive.is-running .focus-controls button.primary,
+  .profile-personal-card.is-expanded .profile-extended-field,
+  .profile-stack > .success-text,
+  .profile-stack > .error-text,
+  .profile-account-card .avatar-button img,
+  .avatar-sheet-actions button,
+  .device-connection-icon svg,
+  .privacy-list > div svg,
+  .weekly-insight-card[data-dnb-status="loading"] strong,
+  .weekly-insight-card[data-dnb-status="loading"] p,
+  .weekly-insight-card[data-dnb-status="ready"] strong,
+  .weekly-insight-card[data-dnb-status="insufficient_data"] strong,
+  .weekly-insight-card[data-dnb-status="unavailable"] strong {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    translate: none;
+  }
+
+  .record-detail .photo-picker.is-analyzing::after,
+  .record-detail[data-record-busy] form:not([hidden]) .action-button::after {
+    display: none;
+  }
+
+  .record-detail:has(.record-editor-stack) .field > span,
+  .profile-form .field > span,
+  .record-detail:has(.record-editor-stack) input,
+  .record-detail:has(.record-editor-stack) textarea,
+  .record-detail:has(.record-editor-stack) select,
+  .profile-form input,
+  .profile-form select,
+  .record-detail .photo-picker,
+  .focus-controls button,
+  .focus-mode-switch button,
+  .focus-presets button,
+  .focus-interruption-trigger {
+    transition-duration: 1ms;
   }
 
   .option-two-life-stage img {

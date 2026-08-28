@@ -664,7 +664,20 @@ export default function RecordsScreen({
   }
 
   return (
-    <div className="stack record-detail" data-record-detail={activeModule} ref={rootRef}>
+    <div
+      className={[
+        "stack",
+        "record-detail",
+        busy ? "is-saving" : "",
+        notice ? "has-save-success" : "",
+        error ? "has-save-error" : "",
+      ].filter(Boolean).join(" ")}
+      data-record-detail={activeModule}
+      data-record-busy={busy ?? undefined}
+      data-record-status={notice ? "success" : error ? "error" : undefined}
+      aria-busy={Boolean(busy)}
+      ref={rootRef}
+    >
       {showEditor && <div className="record-detail-toolbar record-detail-toolbar--editor">
         <label className="record-detail-date">
           <input
@@ -678,7 +691,7 @@ export default function RecordsScreen({
       </div>}
 
       {(error || notice) && (
-        <SectionCard className="record-feedback-card" title={notice ? t("records.synced") : t("records.needsFix")}>
+        <SectionCard className={["record-feedback-card", notice ? "is-success" : "is-error"].join(" ")} title={notice ? t("records.synced") : t("records.needsFix")}>
           {notice && <p className="success-text">{notice}</p>}
           {error && <p className="error-text">{error}</p>}
         </SectionCard>
@@ -839,7 +852,7 @@ export default function RecordsScreen({
 
       <form hidden={activeModule !== "diet"} onSubmit={saveDiet}>
         <SectionCard title={t("records.diet")}>
-          <label className="photo-picker">
+          <label className={["photo-picker", dietAnalyzing ? "is-analyzing" : "", dietPhotoUrl ? "has-image" : ""].filter(Boolean).join(" ")}>
             {dietPhotoUrl ? <img src={dietPhotoUrl} alt="饮食照片" /> : <Camera size={28} />}
             <span>{dietAnalyzing ? t("records.aiScanning") : t("records.scanDiet")}</span>
             <input
@@ -930,7 +943,7 @@ export default function RecordsScreen({
             <button type="button" className={faceMode === "makeup" ? "selected" : ""} onClick={() => setFaceMode("makeup")}>{locale === "zh" ? "带妆模式" : "Makeup"}</button>
           </div>
           <label className="face-consent"><input type="checkbox" checked={faceConsent} onChange={(event) => setFaceConsent(event.target.checked)} /><span>{locale === "zh" ? "我同意将照片加密上传至账号隔离的私密存储，并以 10 分钟签名链接完成本次非医疗状态分析。" : "I consent to private encrypted upload and a 10-minute signed link for this non-medical state analysis."}</span></label>
-          <label className="photo-picker face">
+          <label className={["photo-picker", "face", faceAnalyzing ? "is-analyzing" : "", faceImage ? "has-image" : ""].filter(Boolean).join(" ")}>
             {faceImage ? <img src={faceImage} alt={locale === "zh" ? "面部照片" : "Face photo"} /> : <ScanFace size={30} />}
             <span>{faceAnalyzing ? t("records.faceScanning") : t("records.scanFace")}</span>
             <input

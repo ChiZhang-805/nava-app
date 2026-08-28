@@ -682,7 +682,11 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
 
   if (immersive) {
     return (
-      <div className="module-dashboard focus-immersive" data-module-view="focus-immersive">
+      <div
+        className={["module-dashboard", "focus-immersive", running ? "is-running" : hasStarted ? "is-paused" : "is-ready"].join(" ")}
+        data-module-view="focus-immersive"
+        data-focus-state={running ? "running" : hasStarted ? "paused" : "ready"}
+      >
         <div className="focus-title-field">
           <input aria-label={locale === "zh" ? "专注事项" : "Focus activity"} value={displayedFocusTitle} onChange={(event) => setFocusTitle(event.target.value)} />
           <div className="focus-mode-switch" role="group" aria-label={locale === "zh" ? "计时模式" : "Timer mode"}>
