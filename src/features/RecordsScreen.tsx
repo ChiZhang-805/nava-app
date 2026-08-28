@@ -103,10 +103,15 @@ export default function RecordsScreen({
   onViewChange?: (view: string | null, replace?: boolean) => void;
 }) {
   const { locale, t } = useLocale();
+  const recordDateStorageKey = `nava-record-date:${user.id}`;
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [recordDate, setRecordDate] = useState(todayISO());
+  const [recordDate, setRecordDate] = useState(() => {
+    if (typeof window === "undefined") return todayISO();
+    const stored = window.sessionStorage.getItem(recordDateStorageKey);
+    return stored && /^\d{4}-\d{2}-\d{2}$/.test(stored) && stored <= todayISO() ? stored : todayISO();
+  });
   const [activeModule, setActiveModule] = useState<RecordModule | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [todaySnapshot, setTodaySnapshot] = useState<TodaySnapshot | null>(null);
@@ -118,6 +123,10 @@ export default function RecordsScreen({
   const [weekOffset, setWeekOffset] = useState(0);
   const [draftReady, setDraftReady] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    window.sessionStorage.setItem(recordDateStorageKey, recordDate);
+  }, [recordDate, recordDateStorageKey]);
 
   const [moodScore, setMoodScore] = useState(70);
   const [selectedFactors, setSelectedFactors] = useState<string[]>([]);

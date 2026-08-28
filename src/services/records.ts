@@ -5,11 +5,13 @@ import type {
   DailyRhythmScore,
   FaceAnalysisResult,
   FaceRecord,
+  FocusTimeDistribution,
   FocusRecord,
   FoodItem,
   MoodRecord,
   NutritionRecord,
   SleepRecord,
+  HealthMetricSnapshot,
   TodaySnapshot,
   TrendBundle,
 } from "../types";
@@ -172,7 +174,10 @@ export async function getTodaySnapshot(userId: string, date = todayISO()): Promi
   };
 
   const rhythm = rhythmRes.error ? null : rhythmRes.data as DailyRhythmScore | null;
-  const rhythmScore = rhythm?.score == null ? calculateTodayRhythm(base) : Math.round(Number(rhythm.score));
+  const hasDailySignal = Boolean(base.mood || base.sleep || base.exercise || base.nutrition || base.face || focus.length > 0);
+  const rhythmScore = rhythm?.score == null
+    ? (hasDailySignal ? calculateTodayRhythm(base) : null)
+    : Math.round(Number(rhythm.score));
   return {
     ...base,
     rhythmScore,
@@ -687,13 +692,15 @@ export async function getTrends(userId: string): Promise<TrendBundle> {
   if (isDemoMode()) return demoTrends();
 
   const start = daysAgoISO(55);
-  const [moods, sleeps, exercises, nutritions, faces, focus, rhythms] = await Promise.all([
+  const [moods, sleeps, exercises, nutritions, faces, focus, focusDistributions, healthMetrics, rhythms] = await Promise.all([
     supabase.from("mood_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("sleep_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("exercise_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("nutrition_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("face_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("focus_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
+    supabase.from("focus_time_distribution").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
+    supabase.from("health_metric_snapshots").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
     supabase.from("daily_rhythm_scores").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
   ]);
 
@@ -703,6 +710,8 @@ export async function getTrends(userId: string): Promise<TrendBundle> {
   assertNoError(nutritions.error);
   assertOptionalResourceError(faces.error);
   assertNoError(focus.error);
+  assertOptionalResourceError(focusDistributions.error);
+  assertOptionalResourceError(healthMetrics.error);
   assertOptionalResourceError(rhythms.error);
 
   return {
@@ -712,6 +721,8 @@ export async function getTrends(userId: string): Promise<TrendBundle> {
     nutritions: asArray<NutritionRecord>(nutritions.data),
     faces: faces.error ? [] : asArray<FaceRecord>(faces.data),
     focus: asArray<FocusRecord>(focus.data),
+    focusDistributions: focusDistributions.error ? [] : asArray<FocusTimeDistribution>(focusDistributions.data),
+    healthMetrics: healthMetrics.error ? [] : asArray<HealthMetricSnapshot>(healthMetrics.data),
     rhythms: rhythms.error ? [] : asArray<DailyRhythmScore>(rhythms.data),
   };
 }

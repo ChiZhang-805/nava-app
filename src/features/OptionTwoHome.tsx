@@ -15,6 +15,7 @@ import focusIcon from "../assets/figma/option-two-icons/focus.svg";
 import moodIcon from "../assets/figma/option-two-icons/mood.svg";
 import sleepIcon from "../assets/figma/option-two-icons/sleep.svg";
 import { useLocale } from "../i18n";
+import AnimatedNumber from "../components/AnimatedNumber";
 import { getTodaySnapshot } from "../services/records";
 import type { TodaySnapshot } from "../types";
 import type { RecordModule } from "./RecordsScreen";
@@ -68,8 +69,8 @@ export default function OptionTwoHome({
   return (
     <section className={["option-two-home", expanded ? "is-expanded" : "", snapshot ? "is-loaded" : ""].filter(Boolean).join(" ")}>
       <div className="option-two-scores" aria-label={t("today.overview")} aria-live="polite">
-        <div><span>{t("today.rhythm")}</span><strong>{rhythmScore}</strong></div>
-        <div><span>{t("today.dataQuality")}</span><strong>{completeness}</strong></div>
+        <div><span>{t("today.rhythm")}</span><strong>{typeof rhythmScore === "number" ? <AnimatedNumber value={rhythmScore} /> : rhythmScore}</strong></div>
+        <div><span>{t("today.dataQuality")}</span><strong>{typeof completeness === "number" ? <AnimatedNumber value={completeness} duration={760} /> : completeness}</strong></div>
       </div>
 
       <div className="option-two-side-actions">

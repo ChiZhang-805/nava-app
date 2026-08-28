@@ -88,6 +88,37 @@ export interface FocusRecord {
   ended_at?: string | null;
 }
 
+export interface FocusTimeDistribution {
+  id: string;
+  record_date: string;
+  period_0_6: number;
+  period_6_12: number;
+  period_12_18: number;
+  period_18_24: number;
+}
+
+export interface ActivityBin {
+  hour: number;
+  steps?: number | null;
+  exerciseMinutes?: number | null;
+}
+
+export interface HealthMetricSnapshot {
+  id: string;
+  record_date: string;
+  latest_heart_rate: number | null;
+  resting_heart_rate: number | null;
+  heart_rate_variability_sdnn: number | null;
+  blood_oxygen: number | null;
+  activity_bins?: ActivityBin[];
+  sleep_stage_minutes?: Record<string, number> | null;
+  sleep_start_at?: string | null;
+  sleep_end_at?: string | null;
+  sleep_efficiency?: number | null;
+  activity_coverage_hours?: number | null;
+  source: string;
+}
+
 export interface TodaySnapshot {
   date: string;
   mood: MoodRecord | null;
@@ -97,7 +128,7 @@ export interface TodaySnapshot {
   face: FaceRecord | null;
   focusMinutes: number;
   focusSessions: number;
-  rhythmScore: number;
+  rhythmScore: number | null;
   rhythmConfidence?: number;
   rhythmScoreLower?: number;
   rhythmScoreUpper?: number;
@@ -133,6 +164,8 @@ export interface TrendBundle {
   nutritions: NutritionRecord[];
   faces: FaceRecord[];
   focus: FocusRecord[];
+  focusDistributions: FocusTimeDistribution[];
+  healthMetrics: HealthMetricSnapshot[];
   rhythms: DailyRhythmScore[];
 }
 

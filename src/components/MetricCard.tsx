@@ -8,7 +8,7 @@ export default function MetricCard({
   className,
 }: {
   label: string;
-  value: string | number;
+  value: ReactNode;
   detail?: string;
   icon?: ReactNode;
   className?: string;

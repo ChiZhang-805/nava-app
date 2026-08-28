@@ -1538,6 +1538,21 @@ body::before {
 .clock-alignment { min-height: 190px; }
 .sports-plan { min-height: 226px; }
 
+.clock-alignment-gauge {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #1682ad;
+  background:
+    radial-gradient(circle, rgba(248, 253, 255, 0.98) 0 55%, transparent 57%),
+    conic-gradient(#1682ad 0 var(--progress), #d5eaf2 var(--progress) 100%);
+  animation: progress-ring-fill 900ms cubic-bezier(0.2, 0.8, 0.2, 1) 100ms both;
+}
+
+.clock-alignment-gauge > svg { width: 31px; height: 31px; }
+
 .clock-alignment > svg,
 .sports-plan > svg { width: 54px; height: 54px; color: #1682ad; }
 .clock-alignment > strong { font-size: 48px; }
@@ -2332,9 +2347,11 @@ body::before {
 }
 
 .day-distribution span {
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-end;
   gap: 5px;
   color: #7a909b;
   font-size: 9px;
@@ -2342,6 +2359,8 @@ body::before {
 
 .day-distribution i {
   width: 42px;
+  max-height: calc(100% - 18px);
+  flex: 0 0 auto;
   border-radius: 8px 8px 2px 2px;
   background: #dbe8ed;
 }
@@ -2542,6 +2561,21 @@ body::before {
   position: relative;
   display: grid;
   place-items: center;
+  overflow: hidden;
+  background: rgba(216, 238, 246, 0.78);
+}
+
+.mood-pie > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.mood-pie > svg circle {
+  animation: mood-donut-draw 760ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(120ms + var(--donut-index, 0) * 90ms);
 }
 
 .mood-pie::after {
@@ -2667,9 +2701,13 @@ body::before {
 .sleep-timeline i {
   position: absolute;
   top: 0;
+  left: var(--sleep-left, 0%);
+  width: var(--sleep-width, 0%);
   height: 100%;
   border-radius: inherit;
   background: repeating-linear-gradient(90deg, #287ea0 0 7px, #69b5d0 7px 9px);
+  transform-origin: center;
+  animation: sleep-timeline-fill 860ms cubic-bezier(0.2, 0.8, 0.2, 1) 120ms both;
 }
 
 .sleep-stage-row {
@@ -2690,15 +2728,18 @@ body::before {
 }
 
 .sleep-stage-shape i {
-  height: 72%;
+  height: var(--stage-height, 72%);
   min-width: 22px;
   border-radius: 42% 56% 45% 55%;
   background: linear-gradient(145deg, #205a79, #72b9d4);
   box-shadow: 0 7px 15px rgba(15, 79, 105, 0.18);
+  transform: scaleY(0);
+  transform-origin: center bottom;
+  animation: sleep-stage-rise 640ms cubic-bezier(0.2, 0.8, 0.2, 1) 180ms forwards;
 }
 
-.sleep-stage-shape i:nth-child(2) { height: 92%; background: linear-gradient(145deg, #4f9dc0, #91cfe5); }
-.sleep-stage-shape i:nth-child(3) { height: 52%; background: linear-gradient(145deg, #a9cfdd, #e5f4f8); }
+.sleep-stage-shape i:nth-child(2) { background: linear-gradient(145deg, #4f9dc0, #91cfe5); animation-delay: 260ms; animation-duration: 760ms; }
+.sleep-stage-shape i:nth-child(3) { background: linear-gradient(145deg, #a9cfdd, #e5f4f8); animation-delay: 340ms; animation-duration: 690ms; }
 
 .sleep-stage-row ul { margin: 0; padding: 0; list-style: none; color: #5c7785; font-size: 9px; }
 .sleep-stage-row li { display: flex; align-items: center; gap: 4px; margin: 5px 0; }
@@ -2731,7 +2772,7 @@ body::before {
 .bar-line-trend-chart {
   --combo-line-delay: 1000ms;
   position: relative;
-  height: 112px;
+  height: 96px;
   margin-top: 5px;
   overflow: hidden;
 }
@@ -3029,6 +3070,7 @@ body::before {
   .sleep-stage-row { min-height: 116px; }
   .sleep-trend-card { min-height: 139px; }
   .sleep-bars { height: 86px; }
+  .sleep-trend-card .bar-line-trend-chart { height: 70px; }
   .focus-grid { grid-template-rows: 146px 122px; gap: 7px; }
   .focus-period-card > div { height: 104px; }
   .focus-category-card .focus-pie { width: 88px; height: 88px; }
@@ -3112,6 +3154,7 @@ body::before {
   .sleep-stage-row { min-height: 86px; }
   .sleep-trend-card { min-height: 112px; }
   .sleep-bars { height: 61px; }
+  .sleep-trend-card .bar-line-trend-chart { height: 43px; }
   .focus-grid { grid-template-rows: 112px 88px; }
   .focus-period-card > div { height: 74px; }
   .focus-category-card .focus-pie { width: 68px; height: 68px; }
@@ -4567,6 +4610,12 @@ body::before {
   initial-value: 0%;
 }
 
+@property --score {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
 @property --ring-progress {
   syntax: "<percentage>";
   inherits: false;
@@ -4760,11 +4809,8 @@ body::before {
 .detail-heatmap i {
   transform: scale(0.65);
   animation: heat-cell-in 360ms ease forwards;
+  animation-delay: calc(25ms + var(--heat-index, 0) * 7ms);
 }
-
-.detail-heatmap i:nth-child(3n + 1) { animation-delay: 45ms; }
-.detail-heatmap i:nth-child(3n + 2) { animation-delay: 90ms; }
-.detail-heatmap i:nth-child(3n) { animation-delay: 135ms; }
 
 .sports-plan-steps span {
   animation: data-card-enter 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -4832,6 +4878,12 @@ body::before {
 
 .mood-pie {
   animation: donut-arrive 720ms cubic-bezier(0.18, 0.82, 0.22, 1.08) 180ms both;
+}
+
+.rhythm-detail-trigger {
+  animation:
+    rhythm-score-fill 940ms cubic-bezier(0.2, 0.8, 0.2, 1) 100ms both,
+    ring-breathe 3600ms ease-in-out 1080ms infinite;
 }
 
 .module-dashboard > .figma-module-card,
@@ -5353,8 +5405,21 @@ body::before {
   to { transform: scaleY(1); }
 }
 
+@keyframes sleep-timeline-fill {
+  from { transform: scaleX(0); opacity: 0.45; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+
+@keyframes sleep-stage-rise {
+  to { transform: scaleY(1); }
+}
+
 @keyframes progress-ring-fill {
   from { --progress: 0%; }
+}
+
+@keyframes rhythm-score-fill {
+  from { --score: 0%; }
 }
 
 @keyframes ring-progress-fill {
@@ -5372,6 +5437,11 @@ body::before {
 @keyframes donut-arrive {
   from { opacity: 0; transform: rotate(-52deg) scale(0.72); }
   to { opacity: 1; transform: none; }
+}
+
+@keyframes mood-donut-draw {
+  from { stroke-dasharray: 0 100; opacity: 0.2; }
+  to { opacity: 1; }
 }
 
 @keyframes data-card-enter {
@@ -5884,6 +5954,7 @@ body::before {
   .sleep-stage-row { min-height: 102px; }
   .sleep-trend-card { min-height: 126px; }
   .sleep-bars { height: 74px; }
+  .sleep-trend-card .bar-line-trend-chart { height: 57px; }
   .sleep-dashboard .module-assistant-card {
     min-height: 60px;
     max-height: 60px;
@@ -6153,6 +6224,7 @@ body::before {
   .sleep-stage-row { min-height: 86px; }
   .sleep-trend-card { min-height: 112px; }
   .sleep-bars { height: 61px; }
+  .sleep-trend-card .bar-line-trend-chart { height: 43px; }
   .sleep-dashboard .module-assistant-card {
     min-height: 52px;
     max-height: 52px;
@@ -6247,8 +6319,9 @@ body::before {
   .sleep-alert { min-height: 48px; }
   .sleep-summary-card { min-height: 200px; }
   .sleep-stage-row { min-height: 96px; }
-  .sleep-trend-card { min-height: 100px; }
+  .sleep-trend-card { min-height: 112px; }
   .sleep-bars { height: 52px; }
+  .sleep-trend-card .bar-line-trend-chart { height: 43px; }
 
   .focus-summary-card { min-height: 72px; padding-block: 6px; }
   .focus-grid { grid-template-rows: 96px 72px; gap: 5px; }
@@ -6655,12 +6728,17 @@ body::before {
   .steps-bars > span,
   .module-history-chart i,
   .day-distribution i,
+  .sleep-timeline i,
+  .sleep-stage-shape i,
   .progress-ring,
+  .clock-alignment-gauge,
+  .rhythm-detail-trigger,
   .focus-pie,
   .exercise-data-card .mini-donut,
   .face-score-ring,
   .focus-timer-ring,
   .mood-pie,
+  .mood-pie > svg circle,
   .profile-next-section-button svg,
   .module-dashboard > .figma-module-card,
   .exercise-grid > .figma-module-card,

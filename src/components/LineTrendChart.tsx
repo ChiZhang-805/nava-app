@@ -27,11 +27,15 @@ export default function LineTrendChart({
   ariaLabel,
   tone = "mood",
   compact = false,
+  scale = "score",
+  valueFormatter = (value) => Math.round(value).toString(),
 }: {
   points: LineTrendPoint[];
   ariaLabel: string;
   tone?: "mood" | "rhythm";
   compact?: boolean;
+  scale?: "score" | "auto";
+  valueFormatter?: (value: number) => string;
 }) {
   const rawId = useId();
   if (points.length === 0) return null;
@@ -49,18 +53,32 @@ export default function LineTrendChart({
   const scaleValues = points.flatMap((point) => [point.value, point.lower, point.upper]).filter((value): value is number => value != null);
   const rawMin = Math.min(...scaleValues);
   const rawMax = Math.max(...scaleValues);
-  let domainMin = Math.max(0, Math.floor((rawMin - 5) / 10) * 10);
-  let domainMax = Math.min(100, Math.ceil((rawMax + 5) / 10) * 10);
-  while (domainMax - domainMin < 30) {
-    if (domainMin > 0) domainMin = Math.max(0, domainMin - 10);
-    if (domainMax - domainMin >= 30) break;
-    if (domainMax < 100) domainMax = Math.min(100, domainMax + 10);
-    else break;
+  let domainMin: number;
+  let domainMax: number;
+  if (scale === "auto") {
+    const rawRange = Math.max(1, rawMax - rawMin);
+    const padding = Math.max(1, rawRange * 0.18);
+    const magnitude = 10 ** Math.max(0, Math.floor(Math.log10((rawRange + padding * 2) / 4)));
+    domainMin = Math.max(0, Math.floor((rawMin - padding) / magnitude) * magnitude);
+    domainMax = Math.ceil((rawMax + padding) / magnitude) * magnitude;
+    if (domainMax <= domainMin) domainMax = domainMin + magnitude;
+  } else {
+    domainMin = Math.max(0, Math.floor((rawMin - 5) / 10) * 10);
+    domainMax = Math.min(100, Math.ceil((rawMax + 5) / 10) * 10);
+    while (domainMax - domainMin < 30) {
+      if (domainMin > 0) domainMin = Math.max(0, domainMin - 10);
+      if (domainMax - domainMin >= 30) break;
+      if (domainMax < 100) domainMax = Math.min(100, domainMax + 10);
+      else break;
+    }
+    if (domainMax <= domainMin) domainMax = Math.min(100, domainMin + 30);
   }
-  if (domainMax <= domainMin) domainMax = Math.min(100, domainMin + 30);
   const domainSpan = Math.max(1, domainMax - domainMin);
   const xAt = (index: number) => left + (points.length <= 1 ? spanX / 2 : (index / (points.length - 1)) * spanX);
-  const yAt = (value: number) => top + ((domainMax - Math.min(domainMax, Math.max(domainMin, clampScore(value)))) / domainSpan) * spanY;
+  const yAt = (value: number) => {
+    const scaledValue = scale === "score" ? clampScore(value) : value;
+    return top + ((domainMax - Math.min(domainMax, Math.max(domainMin, scaledValue))) / domainSpan) * spanY;
+  };
   const plottedPoints = points.map((point, index) => ({ x: xAt(index), y: yAt(point.value) }));
   const linePath = smoothPath(plottedPoints);
   const lastPlottedPoint = plottedPoints[plottedPoints.length - 1];
@@ -124,16 +142,16 @@ export default function LineTrendChart({
               style={{ "--trend-point-index": index } as CSSProperties}
             >
               <circle cx={x} cy={y} r="4.5">
-                <title>{`${point.label}: ${Math.round(point.value)}`}</title>
+                <title>{`${point.label}: ${valueFormatter(point.value)}`}</title>
               </circle>
-              <text className="trend-value" x={x} y={Math.max(12, y - 9)} textAnchor="middle">{Math.round(point.value)}</text>
+              <text className="trend-value" x={x} y={Math.max(12, y - 9)} textAnchor="middle">{valueFormatter(point.value)}</text>
               {showDate && <text className="trend-date" x={x} y={dateY} textAnchor="middle">{point.label}</text>}
             </g>
           );
         })}
       </svg>
       <ol className="sr-only">
-        {points.map((point) => <li key={point.id}>{point.label}: {Math.round(point.value)}</li>)}
+        {points.map((point) => <li key={point.id}>{point.label}: {valueFormatter(point.value)}</li>)}
       </ol>
     </div>
   );

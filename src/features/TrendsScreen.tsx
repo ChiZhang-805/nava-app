@@ -2,6 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import { Activity, BedDouble, Brain, Flame, SmilePlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import LineTrendChart from "../components/LineTrendChart";
+import AnimatedNumber from "../components/AnimatedNumber";
 import MetricCard from "../components/MetricCard";
 import SectionCard from "../components/SectionCard";
 import { useLocale } from "../i18n";
@@ -51,10 +52,10 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
   return (
     <div className="trend-dashboard">
       <div className="metric-grid trend-metric-grid">
-        <MetricCard label={t("trends.avgMood")} value={totals.avgMood || "--"} icon={<SmilePlus size={18} />} />
-        <MetricCard label={t("trends.avgSleep")} value={minutesToText(totals.sleepMinutes, locale)} icon={<BedDouble size={18} />} />
-        <MetricCard label={t("trends.avgSteps")} value={totals.steps ? totals.steps.toLocaleString(locale === "en" ? "en-US" : "zh-CN") : "--"} icon={<Flame size={18} />} />
-        <MetricCard label={t("trends.focusTotal")} value={minutesToText(totals.focus, locale)} icon={<Brain size={18} />} />
+        <MetricCard label={t("trends.avgMood")} value={totals.avgMood ? <AnimatedNumber value={totals.avgMood} /> : "--"} icon={<SmilePlus size={18} />} />
+        <MetricCard label={t("trends.avgSleep")} value={totals.sleepMinutes ? <AnimatedNumber value={totals.sleepMinutes} formatter={(value) => minutesToText(Math.round(value), locale)} /> : "--"} icon={<BedDouble size={18} />} />
+        <MetricCard label={t("trends.avgSteps")} value={totals.steps ? <AnimatedNumber value={totals.steps} formatter={(value) => Math.round(value).toLocaleString(locale === "en" ? "en-US" : "zh-CN")} /> : "--"} icon={<Flame size={18} />} />
+        <MetricCard label={t("trends.focusTotal")} value={totals.focus ? <AnimatedNumber value={totals.focus} formatter={(value) => minutesToText(Math.round(value), locale)} /> : "--"} icon={<Brain size={18} />} />
       </div>
 
       <div className="trend-chart-section">

@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { todayISO } from "./date";
-import type { ChatMessage, DailyRhythmScore, ExerciseRecord, FaceRecord, FocusRecord, FoodItem, MoodRecord, NutritionRecord, SleepRecord, TodaySnapshot, TrendBundle } from "../types";
+import type { ChatMessage, DailyRhythmScore, ExerciseRecord, FaceRecord, FocusRecord, FocusTimeDistribution, FoodItem, HealthMetricSnapshot, MoodRecord, NutritionRecord, SleepRecord, TodaySnapshot, TrendBundle } from "../types";
 import type { UserProfile } from "./profile";
 
 const DEMO_SESSION_KEY = "nava.review.demo.auth.v1";
@@ -149,6 +149,10 @@ export const demoNutrition: NutritionRecord = {
   id: "demo-nutrition",
   record_date: todayISO(),
   total_calories: 1680,
+  protein_grams: 96,
+  carbohydrate_grams: 184,
+  fat_grams: 58,
+  hydration_ml: 2100,
   breakfast_items: [{ name: "燕麦酸奶", calories: 360, amount: "1 碗" }],
   lunch_items: [{ name: "鸡胸肉沙拉", calories: 520, amount: "1 份" }],
   dinner_items: [{ name: "三文鱼糙米饭", calories: 620, amount: "1 份" }],
@@ -316,6 +320,8 @@ export function demoTodaySnapshot(date = todayISO()): TodaySnapshot {
       annotations: [],
       feedback: "面部状态平稳。",
       model_version: "demo",
+      capture_mode: "bare_face",
+      analysis_confidence: 0.91,
     },
     focusMinutes: focus ? focus.reduce((sum, item) => sum + item.total_minutes, 0) : 95,
     focusSessions: focus ? focus.reduce((sum, item) => sum + item.completed_sessions, 0) : 4,
@@ -361,6 +367,8 @@ export function demoTrends(): TrendBundle {
     annotations: [],
     feedback: "面部状态整体平稳。",
     model_version: "demo",
+    capture_mode: "bare_face",
+    analysis_confidence: 0.88 + index * 0.01,
   }));
   const focus: FocusRecord[] = moods.flatMap((mood, index) => overrides.focus[mood.record_date] ?? [{
     id: `demo-focus-${index}`,
@@ -369,6 +377,33 @@ export function demoTrends(): TrendBundle {
     completed_sessions: 1 + (index % 3),
     total_minutes: 25 + (index % 4) * 20,
   }]);
+  const focusDistributions: FocusTimeDistribution[] = moods.map((mood, index) => ({
+    id: `demo-focus-distribution-${index}`,
+    record_date: mood.record_date,
+    period_0_6: 0,
+    period_6_12: 15 + (index % 3) * 10,
+    period_12_18: 10 + (index % 4) * 8,
+    period_18_24: 5 + (index % 2) * 10,
+  }));
+  const healthMetrics: HealthMetricSnapshot[] = moods.map((mood, index) => ({
+    id: `demo-health-${index}`,
+    record_date: mood.record_date,
+    latest_heart_rate: 78 + (index % 4),
+    resting_heart_rate: 61 + (index % 3),
+    heart_rate_variability_sdnn: 43 + (index % 5) * 2,
+    blood_oxygen: 97 + (index % 2),
+    activity_bins: Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      steps: Math.round((exercises[index].steps ?? 0) * ([7, 8, 12, 13, 17, 18, 19].includes(hour) ? 0.1 : 0.012)),
+      exerciseMinutes: hour === 18 ? exercises[index].exercise_minutes ?? 0 : 0,
+    })),
+    sleep_stage_minutes: {},
+    sleep_start_at: `${mood.record_date}T23:20:00+08:00`,
+    sleep_end_at: `${mood.record_date}T07:05:00+08:00`,
+    sleep_efficiency: 0.88,
+    activity_coverage_hours: 16,
+    source: "demo_health",
+  }));
   const rhythms: DailyRhythmScore[] = moods.map((mood, index) => ({
     id: `demo-rhythm-${index}`,
     record_date: mood.record_date,
@@ -401,7 +436,7 @@ export function demoTrends(): TrendBundle {
     anomaly_flags: [],
     actions: [],
   }));
-  return { moods, sleeps, exercises, nutritions, faces, focus, rhythms };
+  return { moods, sleeps, exercises, nutritions, faces, focus, focusDistributions, healthMetrics, rhythms };
 }
 
 export const demoMessages: ChatMessage[] = [

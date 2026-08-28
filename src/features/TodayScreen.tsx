@@ -53,7 +53,7 @@ export default function TodayScreen({
         userId: user.id,
         displayName: user.email ?? undefined,
         today: {
-          rhythmScore: today.rhythmScore,
+          rhythmScore: today.rhythmScore ?? undefined,
           sleepScore: today.sleep?.rhythm_score ?? undefined,
           steps: today.exercise?.steps ?? native?.steps ?? undefined,
           activeCalories: today.exercise?.calories ?? native?.activeEnergyKcal ?? undefined,
@@ -197,25 +197,25 @@ export default function TodayScreen({
         <MetricCard
           className="today-compact-metric"
           label={t("today.sleep")}
-          value={minutesToText(snapshot?.sleep?.sleep_duration_minutes, locale)}
+          value={snapshot?.sleep?.sleep_duration_minutes ? <AnimatedNumber value={snapshot.sleep.sleep_duration_minutes} formatter={(value) => minutesToText(Math.round(value), locale)} /> : "--"}
           icon={<BedDouble size={18} />}
         />
         <MetricCard
           className="today-compact-metric"
           label={t("today.exercise")}
-          value={(snapshot?.exercise?.steps ?? nativeSteps ?? 0).toLocaleString(locale === "en" ? "en-US" : "zh-CN")}
+          value={(snapshot?.exercise?.steps ?? nativeSteps) == null ? "--" : <AnimatedNumber value={snapshot?.exercise?.steps ?? nativeSteps ?? 0} formatter={(value) => Math.round(value).toLocaleString(locale === "en" ? "en-US" : "zh-CN")} />}
           icon={<Flame size={18} />}
         />
         <MetricCard
           className="today-compact-metric"
           label={t("today.mood")}
-          value={snapshot?.mood?.mood_score ?? "--"}
+          value={snapshot?.mood?.mood_score == null ? "--" : <AnimatedNumber value={snapshot.mood.mood_score} />}
           icon={<SmilePlus size={18} />}
         />
         <MetricCard
           className="today-compact-metric"
           label={t("today.focus")}
-          value={minutesToText(snapshot?.focusMinutes, locale)}
+          value={snapshot?.focusMinutes ? <AnimatedNumber value={snapshot.focusMinutes} formatter={(value) => minutesToText(Math.round(value), locale)} /> : "--"}
           icon={<Brain size={18} />}
         />
       </div>

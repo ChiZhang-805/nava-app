@@ -39,6 +39,7 @@
     "data:audit": "node --experimental-strip-types scripts/audit-synthetic-distribution.ts",
     "data:export": "node --experimental-strip-types scripts/export-synthetic-population.ts",
     "data:export:fixed": "node --experimental-strip-types scripts/export-synthetic-population.ts --out=Z:\\NAVA\\data\\synthetic-population",
+    "data:backfill:account": "node scripts/backfill-account-auxiliary.mjs",
     "algorithm:tune": "node --experimental-strip-types scripts/benchmark-rhythm-v4.ts --tune",
     "cap:sync": "npm run build && npx cap sync && npm run ios:configure-motion",
     "cap:add:ios": "npx cap add ios && npm run ios:configure-motion",
