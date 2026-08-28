@@ -42,11 +42,66 @@ function emitChange() {
   window.dispatchEvent(new CustomEvent(productivityEvent));
 }
 
-export function loadTodos(userId: string): TodoItem[] {
-  return readJson<TodoItem[]>(`nava-todos:${userId}`, []);
+function todoStorageKey(userId: string) {
+  return `nava-todos:${userId}`;
 }
 
-export function addTodo(
+function todoMigrationKey(userId: string) {
+  return `nava-todos-migrated:${userId}:v1`;
+}
+
+function writeTodos(userId: string, items: TodoItem[]) {
+  window.localStorage.setItem(todoStorageKey(userId), JSON.stringify(items.slice(0, 40)));
+  emitChange();
+  return items.slice(0, 40);
+}
+
+export function loadTodos(userId: string): TodoItem[] {
+  return readJson<TodoItem[]>(todoStorageKey(userId), []);
+}
+
+export async function syncTodos(userId: string): Promise<TodoItem[]> {
+  const cached = loadTodos(userId);
+  if (isDemoMode()) return cached;
+
+  const needsMigration = window.localStorage.getItem(todoMigrationKey(userId)) !== "done";
+  if (needsMigration && cached.length > 0) {
+    const migrated = await supabase.from("tasks").upsert(cached.map((item) => ({
+      id: item.id,
+      user_id: userId,
+      title: item.title,
+      scheduled_date: item.scheduledDate,
+      completed: item.completed,
+      category: "todo",
+    })), { onConflict: "id" });
+    if (migrated.error && !todoBackendUnavailable(migrated.error.message)) throw migrated.error;
+    if (!migrated.error) window.localStorage.setItem(todoMigrationKey(userId), "done");
+  } else if (needsMigration) {
+    window.localStorage.setItem(todoMigrationKey(userId), "done");
+  }
+
+  const result = await supabase
+    .from("tasks")
+    .select("id,title,scheduled_date,completed,created_at")
+    .eq("user_id", userId)
+    .eq("category", "todo")
+    .order("created_at", { ascending: false })
+    .limit(40);
+  if (result.error) {
+    if (todoBackendUnavailable(result.error.message)) return cached;
+    throw result.error;
+  }
+  return writeTodos(userId, (result.data ?? []).map((row) => ({
+    id: String(row.id),
+    title: String(row.title ?? ""),
+    scheduledDate: String(row.scheduled_date ?? todayISO()),
+    completed: row.completed === true,
+    source: "manual" as const,
+    createdAt: String(row.created_at ?? new Date().toISOString()),
+  })));
+}
+
+export async function addTodo(
   userId: string,
   title: string,
   source: TodoItem["source"] = "manual",
@@ -64,17 +119,43 @@ export function addTodo(
     source,
     createdAt: new Date().toISOString(),
   };
-  const next = [nextItem, ...loadTodos(userId)].slice(0, 40);
-  window.localStorage.setItem(`nava-todos:${userId}`, JSON.stringify(next));
-  emitChange();
+  if (isDemoMode()) {
+    writeTodos(userId, [nextItem, ...loadTodos(userId)]);
+    return nextItem;
+  }
+
+  const created = await supabase.from("tasks").insert({
+    id: nextItem.id,
+    user_id: userId,
+    title: nextItem.title,
+    scheduled_date: nextItem.scheduledDate,
+    completed: false,
+    category: "todo",
+  }).select("id,title,scheduled_date,completed,created_at").single();
+  if (created.error && !todoBackendUnavailable(created.error.message)) throw created.error;
+  writeTodos(userId, [nextItem, ...loadTodos(userId)]);
   return nextItem;
 }
 
-export function toggleTodo(userId: string, id: string) {
-  const next = loadTodos(userId).map((item) => item.id === id ? { ...item, completed: !item.completed } : item);
-  window.localStorage.setItem(`nava-todos:${userId}`, JSON.stringify(next));
-  emitChange();
-  return next;
+export async function toggleTodo(userId: string, id: string) {
+  const current = loadTodos(userId);
+  const item = current.find((candidate) => candidate.id === id);
+  if (!item) return current;
+  const completed = !item.completed;
+  if (!isDemoMode()) {
+    const updated = await supabase
+      .from("tasks")
+      .update({ completed })
+      .eq("id", id)
+      .eq("user_id", userId)
+      .eq("category", "todo");
+    if (updated.error && !todoBackendUnavailable(updated.error.message)) throw updated.error;
+  }
+  return writeTodos(userId, current.map((candidate) => candidate.id === id ? { ...candidate, completed } : candidate));
+}
+
+function todoBackendUnavailable(message: string) {
+  return /schema cache|relation .*tasks.* does not exist|column .*category.* does not exist|could not find.*category/i.test(message);
 }
 
 const defaultGrowthTasks: Omit<GrowthTask, "completed">[] = [
@@ -203,20 +284,48 @@ export function growthXp(tasks: GrowthTask[]) {
   return tasks.filter((task) => task.completed).reduce((sum, task) => sum + task.xp, 0);
 }
 
-export type GrowthSummary = { totalPoints: number; badges: string[] };
+export type GrowthRewardGrant = {
+  eventKey: string;
+  points: number;
+  source: string;
+};
+
+export type GrowthSummary = { totalPoints: number; badges: string[]; awarded: GrowthRewardGrant[] };
 
 export async function reconcileGrowthRewards(tasks: GrowthTask[]): Promise<GrowthSummary> {
-  if (isDemoMode()) return { totalPoints: growthXp(tasks), badges: growthXp(tasks) >= 100 ? ["rhythm_observer"] : [] };
+  if (isDemoMode()) return reconcileDemoGrowthRewards(tasks);
   const { data, error } = await supabase.rpc("nava_reconcile_growth_rewards");
   if (error) {
-    if (/nava_reconcile_growth_rewards|schema cache|does not exist/i.test(error.message)) return { totalPoints: growthXp(tasks), badges: [] };
+    if (/nava_reconcile_growth_rewards|schema cache|does not exist/i.test(error.message)) return { totalPoints: growthXp(tasks), badges: [], awarded: [] };
     throw error;
   }
   const result = data && typeof data === "object" ? data as Record<string, unknown> : {};
   return {
     totalPoints: Number(result.totalPoints) || growthXp(tasks),
     badges: Array.isArray(result.badges) ? result.badges.filter((item): item is string => typeof item === "string") : [],
+    awarded: Array.isArray(result.awarded) ? result.awarded.flatMap((item) => {
+      if (!item || typeof item !== "object") return [];
+      const reward = item as Record<string, unknown>;
+      const eventKey = typeof reward.eventKey === "string" ? reward.eventKey : "";
+      const points = Number(reward.points);
+      if (!eventKey || !Number.isFinite(points) || points <= 0) return [];
+      return [{ eventKey, points: Math.round(points), source: typeof reward.source === "string" ? reward.source : "verified" }];
+    }) : [],
   };
+}
+
+function reconcileDemoGrowthRewards(tasks: GrowthTask[]): GrowthSummary {
+  const storageKey = "nava-demo-growth-reward-ledger:v1";
+  const claimed = new Set(readJson<string[]>(storageKey, []));
+  const awarded = tasks.filter((task) => task.completed).flatMap<GrowthRewardGrant>((task) => {
+    const eventKey = task.category === "profile" ? `profile:${task.id}` : `${todayISO()}:${task.target}`;
+    if (claimed.has(eventKey)) return [];
+    claimed.add(eventKey);
+    return [{ eventKey, points: task.xp, source: task.category === "profile" ? "verified_profile" : "verified_record" }];
+  });
+  window.localStorage.setItem(storageKey, JSON.stringify([...claimed]));
+  const totalPoints = growthXp(tasks);
+  return { totalPoints, badges: totalPoints >= 100 ? ["rhythm_observer"] : [], awarded };
 }
 
 export function subscribeProductivity(callback: () => void) {

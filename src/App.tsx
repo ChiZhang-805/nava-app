@@ -1,5 +1,5 @@
 import { Activity, ArrowLeft, Download, History, Home, ListTodo, MessageSquarePlus, MoreHorizontal, Share2, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import navDataIcon from "./assets/figma/option-two-icons/data.png";
 import navHomeIcon from "./assets/figma/option-two-icons/home-glyph.svg";
 import navProfileIcon from "./assets/figma/option-two-icons/profile.svg";
@@ -23,10 +23,12 @@ import LanguageToggle from "./components/LanguageToggle";
 import MascotMotionSlot from "./components/MascotMotionSlot";
 import UtilityDrawer from "./components/UtilityDrawer";
 import DevSeedPanel from "./components/DevSeedPanel";
+import RewardCelebration from "./components/RewardCelebration";
 import { LocaleProvider, useLocale, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
 import { loadOnboardingStatus } from "./services/onboarding";
+import { reconcileGrowthRewards, resolveGrowthTasks, type GrowthRewardGrant, type GrowthSummary } from "./services/productivity";
 
 const aiLongPressDelayMs = 450;
 
@@ -105,6 +107,7 @@ function MobileShell() {
   const [aiPressing, setAiPressing] = useState(false);
   const [mascotPlayToken, setMascotPlayToken] = useState(0);
   const [aiCommand, setAiCommand] = useState<AiCommand | null>(null);
+  const [rewardQueue, setRewardQueue] = useState<GrowthRewardGrant[][]>([]);
   const contentRef = useRef<HTMLElement | null>(null);
   const aiLongPressTimerRef = useRef<number | null>(null);
   const aiLongPressTriggeredRef = useRef(false);
@@ -113,6 +116,7 @@ function MobileShell() {
   const aiLatestYRef = useRef(0);
   const voiceCancelArmedRef = useRef(false);
   const aiGestureCleanupRef = useRef<(() => void) | null>(null);
+  const rewardClaimTailRef = useRef<Promise<GrowthSummary | null>>(Promise.resolve(null));
   const currentTab = tabs.find((tab) => tab.id === activeTab);
   const recordTitles: Record<RecordModule, { zh: string; en: string }> = {
     mood: { zh: "今日情绪", en: "Today's Mood" },
@@ -128,7 +132,35 @@ function MobileShell() {
       ? t(currentTab.labelKey)
       : "";
 
-  const markChanged = () => setRefreshKey((value) => value + 1);
+  const claimGrowthAfterChange = useCallback(() => {
+    if (!user) return Promise.resolve(null);
+    const next = rewardClaimTailRef.current
+      .catch(() => null)
+      .then(async () => {
+        const tasks = await resolveGrowthTasks(user.id);
+        const summary = await reconcileGrowthRewards(tasks);
+        if (summary.awarded.length > 0) setRewardQueue((queue) => [...queue, summary.awarded]);
+        return summary;
+      })
+      .catch((rewardError) => {
+        console.warn("Growth reward reconciliation deferred", rewardError);
+        return null;
+      });
+    rewardClaimTailRef.current = next;
+    return next;
+  }, [user]);
+
+  const markChanged = useCallback(() => {
+    setRefreshKey((value) => value + 1);
+    void claimGrowthAfterChange();
+  }, [claimGrowthAfterChange]);
+
+  const markTodoCompleted = useCallback(() => {
+    setRefreshKey((value) => value + 1);
+    return claimGrowthAfterChange();
+  }, [claimGrowthAfterChange]);
+
+  const dismissReward = useCallback(() => setRewardQueue((queue) => queue.slice(1)), []);
 
   const navigate = (tab: AppTab, module: RecordModule | null = null, view: string | null = null, replace = false) => {
     const next: ShellRoute = { tab, module: tab === "record" ? module : null, view: tab === "record" && module ? view : null };
@@ -282,13 +314,13 @@ function MobileShell() {
     let alive = true;
     let listenerHandle: Awaited<ReturnType<typeof subscribeWatchActions>> = null;
     void flushPendingWatchActions(user.id).then(() => {
-      if (alive) setRefreshKey((value) => value + 1);
+      if (alive) markChanged();
     }).catch((syncError) => console.warn("pending watch actions remain queued", syncError));
     subscribeWatchActions(async (action) => {
       if (!alive) return;
       try {
         await enqueueAndFlushWatchAction(user.id, action);
-        setRefreshKey((value) => value + 1);
+        markChanged();
       } catch (e) {
         console.warn("watch action remains queued", e);
       }
@@ -300,7 +332,7 @@ function MobileShell() {
       alive = false;
       void listenerHandle?.remove();
     };
-  }, [user]);
+  }, [markChanged, user]);
 
   useEffect(() => {
     contentRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -477,7 +509,13 @@ function MobileShell() {
           );
         })}
       </nav>
-      <UtilityDrawer user={user} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <UtilityDrawer
+        user={user}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onTaskCompleted={markTodoCompleted}
+      />
+      {rewardQueue[0] && <RewardCelebration rewards={rewardQueue[0]} locale={locale} onDismiss={dismissReward} />}
     </div>
   );
 }

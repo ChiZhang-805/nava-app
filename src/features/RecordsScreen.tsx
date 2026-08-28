@@ -323,6 +323,9 @@ export default function RecordsScreen({
     setError(null);
     try {
       await fn();
+      // Claim the once-daily completion reward as soon as the record itself is
+      // durable; slower score/report refreshes can continue underneath it.
+      onSaved();
       try {
         await Promise.allSettled([
           refreshRhythmScore(recordDate),
@@ -341,7 +344,6 @@ export default function RecordsScreen({
         setShowEditor(false);
         onViewChange?.(null, true);
       }
-      onSaved();
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
