@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, Download, History, ListTodo, MessageSquarePlus, MoreHorizontal, Share2, Trash2 } from "lucide-react";
+import { Activity, ArrowLeft, Download, History, ListTodo, MessageSquarePlus, MoreHorizontal, PhoneCall, Share2, Trash2, Volume2, VolumeX } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import navDataIcon from "./assets/figma/option-two-icons/data.png";
 import navHomeIcon from "./assets/figma/option-two-icons/home-glyph.svg";
@@ -29,6 +29,7 @@ import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
 import { loadOnboardingStatus } from "./services/onboarding";
 import { reconcileGrowthRewards, resolveGrowthTasks, type GrowthRewardGrant, type GrowthSummary } from "./services/productivity";
+import { isAiSpeechSupported } from "./services/aiSpeech";
 import {
   fallbackShellRoute,
   hasPreviousShellRoute,
@@ -115,6 +116,14 @@ function MobileShell() {
   const [aiPressing, setAiPressing] = useState(false);
   const [mascotPlayToken, setMascotPlayToken] = useState(0);
   const [aiCommand, setAiCommand] = useState<AiCommand | null>(null);
+  const aiSpeechStorageKey = `nava-ai-speech-enabled:${user?.id ?? "anonymous"}`;
+  const [aiSpeechEnabled, setAiSpeechEnabled] = useState(() => {
+    try {
+      return window.localStorage.getItem(aiSpeechStorageKey) !== "false";
+    } catch {
+      return true;
+    }
+  });
   const [rewardQueue, setRewardQueue] = useState<GrowthRewardGrant[][]>([]);
   const contentRef = useRef<HTMLElement | null>(null);
   const aiLongPressTimerRef = useRef<number | null>(null);
@@ -126,6 +135,7 @@ function MobileShell() {
   const aiGestureCleanupRef = useRef<(() => void) | null>(null);
   const rewardClaimTailRef = useRef<Promise<GrowthSummary | null>>(Promise.resolve(null));
   const currentTab = tabs.find((tab) => tab.id === activeTab);
+  const aiSpeechSupported = isAiSpeechSupported();
   const recordTitles: Record<RecordModule, { zh: string; en: string }> = {
     mood: { zh: "情绪记录", en: "Mood Record" },
     sleep: { zh: "睡眠记录", en: "Sleep Record" },
@@ -198,6 +208,20 @@ function MobileShell() {
 
   const runAiCommand = (type: AiCommand["type"]) => {
     setAiCommand((current) => ({ id: (current?.id ?? 0) + 1, type }));
+    setUtilityOpen(false);
+  };
+
+  const toggleAiSpeech = () => {
+    if (!aiSpeechSupported) return;
+    setAiSpeechEnabled((enabled) => {
+      const next = !enabled;
+      try {
+        window.localStorage.setItem(aiSpeechStorageKey, String(next));
+      } catch {
+        // The current session can still use the selected setting.
+      }
+      return next;
+    });
     setUtilityOpen(false);
   };
 
@@ -388,8 +412,23 @@ function MobileShell() {
               {activeTab === "ai" && <>
                 <button type="button" onClick={() => runAiCommand("new")}><MessageSquarePlus size={17} />{locale === "zh" ? "新会话" : "New chat"}</button>
                 <button type="button" onClick={() => runAiCommand("history")}><History size={17} />{locale === "zh" ? "历史" : "History"}</button>
+                <button type="button" onClick={() => runAiCommand("voice-call")}><PhoneCall size={17} />{locale === "zh" ? "语音聊天" : "Voice chat"}</button>
                 <button type="button" onClick={() => runAiCommand("clear")}><Trash2 size={17} />{locale === "zh" ? "清空" : "Clear"}</button>
                 <button type="button" onClick={() => runAiCommand("export")}><Download size={17} />{locale === "zh" ? "导出" : "Export"}</button>
+                <button
+                  type="button"
+                  onClick={toggleAiSpeech}
+                  disabled={!aiSpeechSupported}
+                  aria-pressed={aiSpeechEnabled}
+                  title={!aiSpeechSupported ? (locale === "zh" ? "当前设备不支持系统朗读" : "System speech is unavailable") : undefined}
+                >
+                  {aiSpeechEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
+                  {!aiSpeechSupported
+                    ? (locale === "zh" ? "此设备不支持朗读" : "Voice unavailable")
+                    : aiSpeechEnabled
+                      ? (locale === "zh" ? "关闭朗读" : "Turn off voice")
+                      : (locale === "zh" ? "开启朗读" : "Turn on voice")}
+                </button>
               </>}
               {activeTab === "record" && recordModule && <>
                 <button type="button" onClick={() => { setRecordView("history"); navigate("record", recordModule, "history"); setUtilityOpen(false); }}><History size={17} />{locale === "zh" ? "历史记录" : "History"}</button>
@@ -453,6 +492,8 @@ function MobileShell() {
               externalVoiceCancelArmed={voiceCancelArmed}
               command={aiCommand}
               profileRefreshKey={refreshKey}
+              speechEnabled={aiSpeechEnabled}
+              active={activeTab === "ai"}
               onDataSaved={markChanged}
             />
           </div>

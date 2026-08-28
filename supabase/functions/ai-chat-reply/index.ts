@@ -13,7 +13,14 @@ import {
   loadOwnedRelevantHealthContext,
   type ConversationMessage,
 } from "./context.ts";
-import { AI_REPLY_LIMITS, buildSystemPrompt, enforceReplyLength } from "./prompt.ts";
+import {
+  AI_REPLY_LIMITS,
+  AI_VOICE_REPLY_LIMITS,
+  buildSystemPrompt,
+  buildVoiceConversationPrompt,
+  enforceReplyLength,
+  enforceVoiceReplyLength,
+} from "./prompt.ts";
 import {
   buildDeterministicRoute,
   fallbackRoute,
@@ -23,6 +30,7 @@ import {
 } from "./router.ts";
 
 type ReplyLanguage = "zh" | "en";
+type ReplyMode = "text" | "voice";
 
 type ReplyInput = {
   message: string;
@@ -32,6 +40,7 @@ type ReplyInput = {
   conversationHistory: ConversationMessage[];
   route: AiRoute;
   lang: ReplyLanguage;
+  responseMode: ReplyMode;
   providerUserId: string;
 };
 
@@ -72,11 +81,12 @@ Deno.serve(async (req) => {
     enforceRateLimit(`${user.id}:${address}`, authenticatedRequestsPerWindow);
 
     const lang: ReplyLanguage = stringValue(body.lang) === "en" || stringValue(body.language) === "en" ? "en" : "zh";
-    const baseInput = {
+    const baseInput: Pick<ReplyInput, "message" | "dataType" | "extractedData" | "lang" | "responseMode"> = {
       message,
       dataType: stringValue(body.dataType) ?? stringValue(body.data_type),
       extractedData: body.extractedData ?? body.extracted_data ?? null,
       lang,
+      responseMode: body.responseMode === "voice" || body.response_mode === "voice" ? "voice" : "text",
     };
 
     const prepareInput = () => prepareReplyInput(userClient, user.id, baseInput);
@@ -92,7 +102,7 @@ Deno.serve(async (req) => {
 async function prepareReplyInput(
   client: SupabaseClient,
   userId: string,
-  input: Pick<ReplyInput, "message" | "dataType" | "extractedData" | "lang">,
+  input: Pick<ReplyInput, "message" | "dataType" | "extractedData" | "lang" | "responseMode">,
 ): Promise<ReplyInput> {
   const base = await loadOwnedAiBaseContext(client, userId, input.message);
   const providerUserId = await anonymizeUserId(userId);
@@ -211,11 +221,12 @@ async function customProviderReply(input: ReplyInput, endpoint: string, apiKey?:
       conversationHistory: input.conversationHistory,
       route: input.route,
       lang: input.lang,
-      systemPrompt: buildSystemPrompt(input.lang, input.healthContext, input.route),
+      systemPrompt: `${buildSystemPrompt(input.lang, input.healthContext, input.route)}${input.responseMode === "voice" ? buildVoiceConversationPrompt(input.lang) : ""}`,
+      responseMode: input.responseMode,
     }),
   });
   if (!response.ok) throw new Error(`AI 回复服务返回 ${response.status}`);
-  return normalizeProviderReply(await response.json(), input.lang);
+  return normalizeProviderReply(await response.json(), input.lang, input.responseMode);
 }
 
 async function deepSeekReply(input: ReplyInput, apiKey: string): Promise<ProviderReply> {
@@ -226,7 +237,7 @@ async function deepSeekReply(input: ReplyInput, apiKey: string): Promise<Provide
     if (!response.ok) throw await deepSeekHttpError(response);
     const data = await response.json();
     return {
-      reply: enforceReplyLength(
+      reply: (input.responseMode === "voice" ? enforceVoiceReplyLength : enforceReplyLength)(
         String(data?.choices?.[0]?.message?.content ?? "").trim() || emptyModelReply(input.lang),
         input.lang,
       ),
@@ -281,7 +292,7 @@ async function deepSeekStream(input: ReplyInput, apiKey: string, emit: (event: S
         // DeepSeek may return reasoning_content for reasoning models. NAVA deliberately never exposes it.
         if (!content) continue;
 
-        const limited = appendVisibleDelta(reply, content, input.lang);
+        const limited = appendVisibleDelta(reply, content, input.lang, input.responseMode);
         reply = limited.reply;
         truncated = limited.truncated;
         if (limited.delta) emit("delta", { text: limited.delta });
@@ -320,11 +331,14 @@ function deepSeekRequestBody(input: ReplyInput, stream: boolean) {
     model: deepSeekModel,
     thinking: { type: "disabled" },
     temperature: 0.68,
-    max_tokens: input.route.complexity === "complex" ? 300 : 240,
+    max_tokens: input.responseMode === "voice" ? 120 : input.route.complexity === "complex" ? 300 : 240,
     stream,
     user_id: input.providerUserId,
     messages: [
-      { role: "system", content: buildSystemPrompt(input.lang, input.healthContext, input.route) },
+      {
+        role: "system",
+        content: `${buildSystemPrompt(input.lang, input.healthContext, input.route)}${input.responseMode === "voice" ? buildVoiceConversationPrompt(input.lang) : ""}`,
+      },
       ...history,
       {
         role: "user",
@@ -377,12 +391,12 @@ async function deepSeekHttpError(response: Response) {
   return new Error(`AI 回复服务返回 ${response.status}${detail ? `：${detail}` : ""}`);
 }
 
-function appendVisibleDelta(current: string, incoming: string, lang: ReplyLanguage) {
+function appendVisibleDelta(current: string, incoming: string, lang: ReplyLanguage, mode: ReplyMode = "text") {
   const candidate = current + incoming;
   if (lang === "zh") {
     const currentLength = Array.from(current).length;
     const candidateLength = Array.from(candidate).length;
-    const limit = AI_REPLY_LIMITS.zh.hardMaxCharacters;
+    const limit = mode === "voice" ? AI_VOICE_REPLY_LIMITS.zh.hardMaxCharacters : AI_REPLY_LIMITS.zh.hardMaxCharacters;
     if (candidateLength <= limit) return { reply: candidate, delta: incoming, truncated: false };
     const remaining = Math.max(0, limit - 1 - currentLength);
     const delta = `${Array.from(incoming).slice(0, remaining).join("")}…`;
@@ -390,7 +404,7 @@ function appendVisibleDelta(current: string, incoming: string, lang: ReplyLangua
   }
 
   const words = Array.from(candidate.matchAll(/\S+/g));
-  const limit = AI_REPLY_LIMITS.en.hardMaxWords;
+  const limit = mode === "voice" ? AI_VOICE_REPLY_LIMITS.en.hardMaxWords : AI_REPLY_LIMITS.en.hardMaxWords;
   if (words.length <= limit) return { reply: candidate, delta: incoming, truncated: false };
   const lastAllowed = words[limit - 1];
   const end = (lastAllowed.index ?? 0) + lastAllowed[0].length;
@@ -398,8 +412,8 @@ function appendVisibleDelta(current: string, incoming: string, lang: ReplyLangua
   return { reply: current + delta, delta, truncated: true };
 }
 
-function normalizeProviderReply(data: Record<string, unknown>, lang: ReplyLanguage): ProviderReply {
-  const reply = enforceReplyLength(String(data.reply ?? data.message ?? data.content ?? ""), lang);
+function normalizeProviderReply(data: Record<string, unknown>, lang: ReplyLanguage, mode: ReplyMode = "text"): ProviderReply {
+  const reply = (mode === "voice" ? enforceVoiceReplyLength : enforceReplyLength)(String(data.reply ?? data.message ?? data.content ?? ""), lang);
   if (!reply) throw new Error("真实 AI 服务没有返回有效内容。");
   return {
     reply,

@@ -1,19 +1,21 @@
 import type { User } from "@supabase/supabase-js";
-import { Bot, Check, Mic, Pencil, SendHorizontal, Sparkles, X } from "lucide-react";
+import { Bot, Check, Mic, Pencil, PhoneCall, PhoneOff, SendHorizontal, Sparkles, X } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocale } from "../i18n";
 import { loadConversation, sendAiMessage } from "../services/ai";
 import type { AiProcessingStep } from "../services/aiProcessing";
+import { createStreamingAiSpeaker, isAiSpeechSupported, type StreamingAiSpeaker } from "../services/aiSpeech";
 import { loadProfileWithOnboarding } from "../services/onboarding";
 import type { UserProfile } from "../services/profile";
 import { startVoiceInput, type VoiceInputError, type VoiceInputSession } from "../services/voice";
+import { voiceEndpointDelayMs } from "../services/voiceEndpoint";
 import { confirmStructuredEntry, parseStructuredEntry, type StructuredEntry } from "../services/structuredEntry";
 import { updateStructuredEntryField } from "../services/structuredEntryParser";
 import type { ChatMessage } from "../types";
 
 export type AiCommand = {
   id: number;
-  type: "new" | "history" | "clear" | "export";
+  type: "new" | "history" | "voice-call" | "clear" | "export";
 };
 
 type ConversationSnapshot = {
@@ -28,6 +30,8 @@ type StreamingPreview = {
   startedAt: string;
 };
 
+type VoiceCallPhase = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
+
 export default function AIScreen({
   user,
   voiceRequestId = 0,
@@ -36,6 +40,8 @@ export default function AIScreen({
   externalVoiceCancelArmed = false,
   command = null,
   profileRefreshKey = 0,
+  speechEnabled = true,
+  active = true,
   onDataSaved,
 }: {
   user: User;
@@ -45,6 +51,8 @@ export default function AIScreen({
   externalVoiceCancelArmed?: boolean;
   command?: AiCommand | null;
   profileRefreshKey?: number;
+  speechEnabled?: boolean;
+  active?: boolean;
   onDataSaved?: () => void;
 }) {
   const { locale, t } = useLocale();
@@ -63,6 +71,10 @@ export default function AIScreen({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<ConversationSnapshot[]>([]);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  const [voiceCallOpen, setVoiceCallOpen] = useState(false);
+  const [voiceCallPhase, setVoiceCallPhase] = useState<VoiceCallPhase>("idle");
+  const [voiceCallTranscript, setVoiceCallTranscript] = useState("");
+  const [voiceCallError, setVoiceCallError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const voiceSessionRef = useRef<VoiceInputSession | null>(null);
   const handledVoiceRequestRef = useRef(0);
@@ -73,6 +85,16 @@ export default function AIScreen({
   const voicePointerStartYRef = useRef(0);
   const handledCommandRef = useRef(0);
   const streamAbortRef = useRef<AbortController | null>(null);
+  const speechRef = useRef<StreamingAiSpeaker | null>(null);
+  const voiceCallSpeakerRef = useRef<StreamingAiSpeaker | null>(null);
+  const voiceCallSessionRef = useRef<VoiceInputSession | null>(null);
+  const voiceCallOpenRef = useRef(false);
+  const voiceCallTranscriptRef = useRef("");
+  const voiceCallSilenceTimerRef = useRef<number | null>(null);
+  const voiceCallSubmittingRef = useRef(false);
+  const beginVoiceCallListeningRef = useRef<() => void>(() => {});
+  const submitVoiceCallTurnRef = useRef<(message: string) => void>(() => {});
+  const finalizeVoiceCallInputRef = useRef<() => void>(() => {});
   const historyKey = `nava-ai-history:${user.id}`;
 
   const readHistory = useCallback(() => {
@@ -115,6 +137,7 @@ export default function AIScreen({
     setInput("");
     setSending(true);
     setError(null);
+    speechRef.current?.start();
     const controller = new AbortController();
     streamAbortRef.current?.abort();
     streamAbortRef.current = controller;
@@ -133,13 +156,18 @@ export default function AIScreen({
           setMessages((current) => [...current, userMessage]);
         },
         onStatus: (status) => setStreamingPreview((current) => current ? { ...current, status } : current),
-        onDelta: (content) => setStreamingPreview((current) => current ? { ...current, status: null, content } : current),
+        onDelta: (content) => {
+          speechRef.current?.update(content);
+          setStreamingPreview((current) => current ? { ...current, status: null, content } : current);
+        },
       });
+      speechRef.current?.finish(result.assistantMessage.content);
       setMessages((current) => [...current, result.assistantMessage]);
       setStreamingPreview(null);
       setPendingEntry(parseStructuredEntry(message, locale));
       setEditingEntry(false);
     } catch (e) {
+      speechRef.current?.cancel();
       if (!(e instanceof DOMException && e.name === "AbortError")) setError(e instanceof Error ? e.message : String(e));
       if (!userCommitted) setInput(message);
       setStreamingPreview(null);
@@ -194,9 +222,21 @@ export default function AIScreen({
   useEffect(() => setAvatarLoadFailed(false), [profile?.avatar_url]);
 
   useEffect(() => {
+    speechRef.current?.cancel();
+    speechRef.current = speechEnabled && active
+      ? createStreamingAiSpeaker(profile, locale)
+      : null;
+    return () => {
+      speechRef.current?.cancel();
+      speechRef.current = null;
+    };
+  }, [active, locale, profile, speechEnabled]);
+
+  useEffect(() => {
     if (!command || command.id === handledCommandRef.current) return;
     handledCommandRef.current = command.id;
     if (command.type === "new") {
+      speechRef.current?.cancel();
       streamAbortRef.current?.abort();
       streamAbortRef.current = null;
       setHistory(archiveConversation(messages));
@@ -215,7 +255,23 @@ export default function AIScreen({
       setHistoryOpen(true);
       return;
     }
+    if (command.type === "voice-call") {
+      if (voiceCallOpenRef.current) return;
+      speechRef.current?.cancel();
+      void voiceSessionRef.current?.cancel();
+      voiceSessionRef.current = null;
+      setVoiceState("idle");
+      voiceCallOpenRef.current = true;
+      voiceCallSubmittingRef.current = false;
+      voiceCallTranscriptRef.current = "";
+      setVoiceCallTranscript("");
+      setVoiceCallError(null);
+      setVoiceCallPhase("connecting");
+      setVoiceCallOpen(true);
+      return;
+    }
     if (command.type === "clear") {
+      speechRef.current?.cancel();
       streamAbortRef.current?.abort();
       streamAbortRef.current = null;
       setMessages([]);
@@ -248,6 +304,171 @@ export default function AIScreen({
     return t("ai.voiceFailed");
   }, [t]);
 
+  const clearVoiceCallSilenceTimer = useCallback(() => {
+    if (voiceCallSilenceTimerRef.current === null) return;
+    window.clearTimeout(voiceCallSilenceTimerRef.current);
+    voiceCallSilenceTimerRef.current = null;
+  }, []);
+
+  const endVoiceCall = useCallback(() => {
+    voiceCallOpenRef.current = false;
+    voiceCallSubmittingRef.current = false;
+    clearVoiceCallSilenceTimer();
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
+    void voiceCallSessionRef.current?.cancel();
+    voiceCallSessionRef.current = null;
+    voiceCallSpeakerRef.current?.cancel();
+    voiceCallSpeakerRef.current = null;
+    setVoiceCallOpen(false);
+    setVoiceCallPhase("idle");
+    setVoiceCallTranscript("");
+    setVoiceCallError(null);
+    setSending(false);
+  }, [clearVoiceCallSilenceTimer]);
+
+  const beginVoiceCallListening = useCallback(async () => {
+    if (!voiceCallOpenRef.current || voiceCallSessionRef.current || voiceCallSubmittingRef.current) return;
+    clearVoiceCallSilenceTimer();
+    voiceCallTranscriptRef.current = "";
+    setVoiceCallTranscript("");
+    setVoiceCallError(null);
+    setVoiceCallPhase("listening");
+    try {
+      const session = await startVoiceInput({
+        locale,
+        onTranscript: (transcript, isFinal) => {
+          if (!voiceCallOpenRef.current || voiceCallSubmittingRef.current) return;
+          const normalized = transcript.trim();
+          if (!normalized) return;
+          voiceCallTranscriptRef.current = normalized;
+          setVoiceCallTranscript(normalized);
+          clearVoiceCallSilenceTimer();
+          voiceCallSilenceTimerRef.current = window.setTimeout(
+            () => finalizeVoiceCallInputRef.current(),
+            voiceEndpointDelayMs(normalized, isFinal),
+          );
+        },
+        onEnd: () => {
+          voiceCallSessionRef.current = null;
+          if (!voiceCallOpenRef.current || voiceCallSubmittingRef.current) return;
+          clearVoiceCallSilenceTimer();
+          voiceCallSilenceTimerRef.current = window.setTimeout(
+            () => voiceCallTranscriptRef.current.trim()
+              ? finalizeVoiceCallInputRef.current()
+              : beginVoiceCallListeningRef.current(),
+            voiceCallTranscriptRef.current.trim()
+              ? voiceEndpointDelayMs(voiceCallTranscriptRef.current, true)
+              : 300,
+          );
+        },
+        onError: (voiceError) => {
+          if (!voiceCallOpenRef.current) return;
+          voiceCallSubmittingRef.current = true;
+          setVoiceCallError(voiceErrorText(voiceError));
+          setVoiceCallPhase("error");
+        },
+      });
+      if (!voiceCallOpenRef.current || voiceCallSubmittingRef.current) {
+        await session.cancel();
+        return;
+      }
+      voiceCallSessionRef.current = session;
+    } catch (voiceError) {
+      if (!voiceCallOpenRef.current) return;
+      voiceCallSubmittingRef.current = true;
+      setVoiceCallError(voiceErrorText(voiceError as VoiceInputError));
+      setVoiceCallPhase("error");
+    }
+  }, [clearVoiceCallSilenceTimer, locale, voiceErrorText]);
+  beginVoiceCallListeningRef.current = () => void beginVoiceCallListening();
+
+  const submitVoiceCallTurn = useCallback(async (message: string) => {
+    if (!voiceCallOpenRef.current || !message.trim()) return;
+    if (!isAiSpeechSupported()) {
+      setVoiceCallError(locale === "zh" ? "当前设备不支持语音播放。" : "Speech playback is unavailable on this device.");
+      setVoiceCallPhase("error");
+      voiceCallSubmittingRef.current = false;
+      return;
+    }
+
+    setSending(true);
+    setVoiceCallError(null);
+    setVoiceCallPhase("thinking");
+    const controller = new AbortController();
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = controller;
+    const speaker = createStreamingAiSpeaker(profile, locale);
+    voiceCallSpeakerRef.current?.cancel();
+    voiceCallSpeakerRef.current = speaker;
+    speaker.start();
+    try {
+      const result = await sendAiMessage({
+        userId: user.id,
+        message,
+        history: messages,
+        lang: locale,
+        profile,
+        responseMode: "voice",
+        signal: controller.signal,
+        onUserMessage: (userMessage) => setMessages((current) => [...current, userMessage]),
+        onStatus: () => {
+          if (voiceCallOpenRef.current) setVoiceCallPhase("thinking");
+        },
+        onDelta: (content) => {
+          if (!voiceCallOpenRef.current) return;
+          setVoiceCallPhase("speaking");
+          speaker.update(content);
+        },
+      });
+      speaker.finish(result.assistantMessage.content);
+      setMessages((current) => [...current, result.assistantMessage]);
+      setPendingEntry(parseStructuredEntry(message, locale));
+      setEditingEntry(false);
+      await speaker.whenDone();
+      if (!voiceCallOpenRef.current) return;
+      voiceCallSubmittingRef.current = false;
+      setVoiceCallPhase("connecting");
+      window.setTimeout(() => beginVoiceCallListeningRef.current(), 360);
+    } catch (callError) {
+      speaker.cancel();
+      if (!voiceCallOpenRef.current) return;
+      voiceCallSubmittingRef.current = false;
+      if (!(callError instanceof DOMException && callError.name === "AbortError")) {
+        setVoiceCallError(callError instanceof Error ? callError.message : String(callError));
+        setVoiceCallPhase("error");
+      }
+    } finally {
+      if (streamAbortRef.current === controller) streamAbortRef.current = null;
+      if (voiceCallSpeakerRef.current === speaker) voiceCallSpeakerRef.current = null;
+      setSending(false);
+    }
+  }, [locale, messages, profile, user.id]);
+  submitVoiceCallTurnRef.current = (message) => void submitVoiceCallTurn(message);
+
+  const finalizeVoiceCallInput = useCallback(async () => {
+    if (!voiceCallOpenRef.current || voiceCallSubmittingRef.current) return;
+    clearVoiceCallSilenceTimer();
+    const message = voiceCallTranscriptRef.current.trim();
+    if (!message) {
+      beginVoiceCallListeningRef.current();
+      return;
+    }
+    voiceCallSubmittingRef.current = true;
+    const session = voiceCallSessionRef.current;
+    voiceCallSessionRef.current = null;
+    if (session) await session.stop();
+    if (!voiceCallOpenRef.current) return;
+    submitVoiceCallTurnRef.current(message);
+  }, [clearVoiceCallSilenceTimer]);
+  finalizeVoiceCallInputRef.current = () => void finalizeVoiceCallInput();
+
+  useEffect(() => {
+    if (!voiceCallOpen || voiceCallPhase !== "connecting") return undefined;
+    const timer = window.setTimeout(() => beginVoiceCallListeningRef.current(), 420);
+    return () => window.clearTimeout(timer);
+  }, [voiceCallOpen, voiceCallPhase]);
+
   const stopVoiceInput = useCallback(async (cancel = false) => {
     const session = voiceSessionRef.current;
     voiceSessionRef.current = null;
@@ -262,6 +483,7 @@ export default function AIScreen({
 
   const beginVoiceInput = useCallback(async () => {
     if (sending || voiceState !== "idle") return;
+    speechRef.current?.cancel();
     voiceInitialInputRef.current = input;
     voiceStopIntentRef.current = null;
     setError(null);
@@ -327,12 +549,35 @@ export default function AIScreen({
     setVoiceCancelArmed(false);
   };
 
+  useEffect(() => {
+    if (!active && voiceCallOpen) endVoiceCall();
+  }, [active, endVoiceCall, voiceCallOpen]);
+
   useEffect(() => () => {
+    voiceCallOpenRef.current = false;
+    voiceCallSubmittingRef.current = false;
+    clearVoiceCallSilenceTimer();
+    void voiceCallSessionRef.current?.cancel();
+    voiceCallSessionRef.current = null;
+    voiceCallSpeakerRef.current?.cancel();
+    voiceCallSpeakerRef.current = null;
+    speechRef.current?.cancel();
+    speechRef.current = null;
     streamAbortRef.current?.abort();
     streamAbortRef.current = null;
     void voiceSessionRef.current?.cancel();
     voiceSessionRef.current = null;
-  }, []);
+  }, [clearVoiceCallSilenceTimer]);
+
+  const voiceCallStatus = voiceCallPhase === "listening"
+    ? (locale === "zh" ? "我在听，说完后会自动回应" : "Listening — I will respond when you finish")
+    : voiceCallPhase === "thinking"
+      ? (locale === "zh" ? "正在理解你的话" : "Understanding what you said")
+      : voiceCallPhase === "speaking"
+        ? (locale === "zh" ? "NAVA 正在回答" : "NAVA is speaking")
+        : voiceCallPhase === "error"
+          ? (locale === "zh" ? "通话暂时中断" : "The call was interrupted")
+          : (locale === "zh" ? "正在接通…" : "Connecting…");
 
   return (
     <div className="chat-layout">
@@ -471,6 +716,48 @@ export default function AIScreen({
           <SendHorizontal size={21} />
         </button>
       </form>
+
+      {voiceCallOpen && (
+        <section
+          className={`ai-voice-call phase-${voiceCallPhase}`}
+          role="dialog"
+          aria-modal="true"
+          aria-label={locale === "zh" ? "与 NAVA 语音聊天" : "Voice chat with NAVA"}
+          data-voice-call-phase={voiceCallPhase}
+        >
+          <div className="ai-voice-call-heading">
+            <span>{locale === "zh" ? "与 NAVA 通话中" : "NAVA voice chat"}</span>
+            <small>{locale === "zh" ? "自动识别说话结束" : "Automatic turn detection"}</small>
+          </div>
+          <div className="ai-voice-call-stage" aria-live="polite">
+            <span className="voice-ripple ripple-one" aria-hidden="true" />
+            <span className="voice-ripple ripple-two" aria-hidden="true" />
+            <span className="voice-ripple ripple-three" aria-hidden="true" />
+            <div className="voice-call-orb" aria-hidden="true">
+              <PhoneCall size={48} strokeWidth={1.7} />
+            </div>
+          </div>
+          <div className="ai-voice-call-copy">
+            <strong>{voiceCallStatus}</strong>
+            {voiceCallPhase === "listening" && voiceCallTranscript && (
+              <span>{voiceCallTranscript.length > 42 ? `${voiceCallTranscript.slice(0, 42)}…` : voiceCallTranscript}</span>
+            )}
+            {voiceCallError && <span className="voice-call-error">{voiceCallError}</span>}
+            {voiceCallPhase === "error" && (
+              <button type="button" onClick={() => {
+                voiceCallSubmittingRef.current = false;
+                setVoiceCallError(null);
+                setVoiceCallPhase("connecting");
+              }}>
+                {locale === "zh" ? "重新连接" : "Reconnect"}
+              </button>
+            )}
+          </div>
+          <button className="voice-call-end" type="button" onClick={endVoiceCall} aria-label={locale === "zh" ? "结束通话" : "End call"}>
+            <PhoneOff size={25} />
+          </button>
+        </section>
+      )}
 
       {historyOpen && (
         <div className="ai-history-sheet" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "历史会话" : "Conversation history"}>

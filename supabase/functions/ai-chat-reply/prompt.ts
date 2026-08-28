@@ -17,6 +17,11 @@ export const AI_REPLY_LIMITS = {
   },
 } as const;
 
+export const AI_VOICE_REPLY_LIMITS = {
+  zh: { hardMaxCharacters: 72 },
+  en: { hardMaxWords: 38 },
+} as const;
+
 type UnknownRecord = Record<string, unknown>;
 
 const profileLabels = {
@@ -211,6 +216,18 @@ Safety:
 - 不提供极端节食、危险运动或自行用药建议。${personalization}${relevantHealth}${example}`;
 }
 
+export function buildVoiceConversationPrompt(lang: AiReplyLanguage) {
+  return lang === "en"
+    ? `\n\nVoice-call mode:
+- This reply will be spoken aloud. Answer in 1-3 short, natural sentences and never exceed 38 words.
+- Lead with the useful answer. Use plain conversational wording; no markdown, headings, lists, URLs, or parenthetical notes.
+- Do not narrate your reasoning or mention that this is a voice call. Ask at most one very short question.`
+    : `\n\n语音通话模式：
+- 这段回复会直接朗读。只说 1—3 句自然口语，任何回复不得超过 72 个中文字符。
+- 先说最有用的结论；不得使用 Markdown、标题、列表、网址或括号补充。
+- 不讲述思考过程，不提“语音通话”；最多追问一个很短的问题。`;
+}
+
 export function buildRelevantHealthPrompt(lang: AiReplyLanguage, healthContext?: unknown) {
   const context = recordValue(healthContext);
   if (!context || context.healthDataAllowed !== true) {
@@ -286,4 +303,29 @@ export function enforceReplyLength(reply: string, lang: AiReplyLanguage) {
   const punctuation = Math.max(candidate.lastIndexOf("。"), candidate.lastIndexOf("！"), candidate.lastIndexOf("？"));
   if (punctuation >= Math.floor(limit * 0.65)) return candidate.slice(0, punctuation + 1);
   return `${candidate.replace(/[，、；：,.!?\s]+$/, "")}…`;
+}
+
+export function enforceVoiceReplyLength(reply: string, lang: AiReplyLanguage) {
+  const normalized = reply
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/^\s{0,3}(?:#{1,6}|[-*+] |\d+[.)] )/gm, "")
+    .replace(/[>*_~`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return normalized;
+  if (lang === "en") {
+    const words = normalized.split(/\s+/);
+    const limit = AI_VOICE_REPLY_LIMITS.en.hardMaxWords;
+    return words.length <= limit
+      ? normalized
+      : `${words.slice(0, limit).join(" ").replace(/[,:;.!?]+$/, "")}…`;
+  }
+  const characters = Array.from(normalized);
+  const limit = AI_VOICE_REPLY_LIMITS.zh.hardMaxCharacters;
+  if (characters.length <= limit) return normalized;
+  const candidate = characters.slice(0, limit - 1).join("");
+  const punctuation = Math.max(candidate.lastIndexOf("。"), candidate.lastIndexOf("！"), candidate.lastIndexOf("？"));
+  return punctuation >= Math.floor(limit * 0.55)
+    ? candidate.slice(0, punctuation + 1)
+    : `${candidate.replace(/[，、；：,.!?\s]+$/, "")}…`;
 }

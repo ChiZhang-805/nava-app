@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { AI_REPLY_LIMITS, buildSystemPrompt, enforceReplyLength } from "../supabase/functions/ai-chat-reply/prompt.ts";
+import {
+  AI_REPLY_LIMITS,
+  AI_VOICE_REPLY_LIMITS,
+  buildSystemPrompt,
+  buildVoiceConversationPrompt,
+  enforceReplyLength,
+  enforceVoiceReplyLength,
+} from "../supabase/functions/ai-chat-reply/prompt.ts";
 
 test("Chinese prompt answers the explicit question before rhythm interpretation", () => {
   const prompt = buildSystemPrompt("zh");
@@ -63,4 +70,17 @@ test("English replies are hard-limited on the server", () => {
   const output = enforceReplyLength(Array.from({ length: 130 }, (_, index) => `word${index}`).join(" "), "en");
   assert.ok(output.split(/\s+/).length <= AI_REPLY_LIMITS.en.hardMaxWords);
   assert.match(output, /…$/);
+});
+
+test("voice mode asks for short spoken language without visual formatting", () => {
+  const prompt = buildVoiceConversationPrompt("zh");
+  assert.match(prompt, /直接朗读/);
+  assert.match(prompt, /不得超过 72 个中文字符/);
+  assert.match(prompt, /不得使用 Markdown/);
+});
+
+test("voice replies have a stricter server limit", () => {
+  const output = enforceVoiceReplyLength(`**建议**${"先休息一下。".repeat(30)}`, "zh");
+  assert.ok(Array.from(output).length <= AI_VOICE_REPLY_LIMITS.zh.hardMaxCharacters);
+  assert.doesNotMatch(output, /\*/);
 });

@@ -39,6 +39,7 @@ export async function sendAiMessage(input: {
   history: ChatMessage[];
   lang?: "zh" | "en";
   profile?: UserProfile | null;
+  responseMode?: "text" | "voice";
   signal?: AbortSignal;
   onUserMessage?: (message: ChatMessage) => void;
   onStatus?: (step: AiProcessingStep | null) => void;
@@ -101,6 +102,7 @@ export async function sendAiMessage(input: {
     lang,
     dataType: extraction?.dataType ?? null,
     extractedData,
+    responseMode: input.responseMode,
     signal: input.signal,
     processing,
     onStatus: input.onStatus,
@@ -139,6 +141,7 @@ async function requestAiReply(input: {
   lang: "zh" | "en";
   dataType?: unknown;
   extractedData?: unknown;
+  responseMode?: "text" | "voice";
   signal?: AbortSignal;
   processing: Promise<void>;
   onStatus?: (step: AiProcessingStep | null) => void;
@@ -149,6 +152,7 @@ async function requestAiReply(input: {
       message: input.message,
       dataType: input.dataType ?? null,
       extractedData: input.extractedData ?? null,
+      responseMode: input.responseMode ?? "text",
       lang: input.lang,
       reviewMode: isDemoMode(),
       stream: true,
