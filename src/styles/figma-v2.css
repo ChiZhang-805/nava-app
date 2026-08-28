@@ -4919,16 +4919,65 @@ body::before {
 }
 
 .focus-summary-card {
-  min-height: 90px;
+  min-height: 104px;
+  padding: 13px 15px;
+}
+
+.focus-summary-content {
+  min-height: 76px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 14px;
+}
+
+.focus-summary-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-block: 3px;
+}
+
+.focus-summary-copy > strong {
+  color: #15384a;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.focus-summary-start {
+  min-width: 82px;
+  min-height: 76px;
+  border: 0;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px 12px;
+  color: #fff;
+  background: linear-gradient(145deg, #249dcb, #126f97);
+  box-shadow: 0 8px 18px rgba(20, 119, 158, .18), inset 0 1px rgba(255,255,255,.26);
+  font-size: 12px;
+  font-weight: 760;
+  transition: transform 170ms ease, box-shadow 170ms ease, background 170ms ease;
+}
+
+.focus-summary-start:active {
+  transform: scale(.95);
+  box-shadow: 0 4px 10px rgba(20, 119, 158, .17);
+}
+
+.focus-summary-start.success {
+  background: linear-gradient(145deg, #29b77f, #14845d);
 }
 
 .focus-summary-metrics {
   min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 12px;
-  margin-top: 7px;
+  display: flex;
+  align-items: baseline;
+  margin-top: 10px;
 }
 
 .focus-summary-metrics > span {
@@ -4937,11 +4986,7 @@ body::before {
   align-items: baseline;
   gap: 3px;
   color: #68818d;
-  white-space: nowrap;
-}
-
-.focus-summary-metrics > span:last-child {
-  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .focus-summary-metrics small {
@@ -4954,6 +4999,32 @@ body::before {
   font-size: 23px;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+}
+
+.focus-summary-metrics i {
+  margin-inline: 4px;
+  color: #76a2b4;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.focus-duration-field.compact {
+  min-width: 104px;
+  grid-template-columns: 44px auto;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 8px;
+}
+
+.focus-duration-field.compact input {
+  width: 44px;
+  height: 25px;
+  border-radius: 999px;
+  display: block;
+  padding: 0;
+  text-align: center;
+  background: #dff4fb;
+  box-shadow: inset 0 0 0 1px rgba(62, 158, 197, .18);
 }
 
 .line-trend-chart .trend-line {

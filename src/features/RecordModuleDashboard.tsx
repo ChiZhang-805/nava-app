@@ -700,17 +700,11 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
   const todayMinutes = todaySnapshot?.focusMinutes ?? 0;
   const todaySessions = todaySnapshot?.focusSessions ?? 0;
   const recentFocus = focusRecords.slice(-4);
-  const sortedFocusDistributions = [...(trendBundle?.focusDistributions ?? [])]
-    .sort((a, b) => a.record_date.localeCompare(b.record_date));
-  const latestFocusDistribution = sortedFocusDistributions[sortedFocusDistributions.length - 1];
-  const focusPeriodValues = latestFocusDistribution
-    ? [
-        { id: "night", label: locale === "zh" ? "深夜" : "Night", value: latestFocusDistribution.period_0_6 },
-        { id: "morning", label: locale === "zh" ? "上午" : "AM", value: latestFocusDistribution.period_6_12 },
-        { id: "afternoon", label: locale === "zh" ? "下午" : "PM", value: latestFocusDistribution.period_12_18 },
-        { id: "evening", label: locale === "zh" ? "晚间" : "Eve", value: latestFocusDistribution.period_18_24 },
-      ]
-    : recentFocus.map((record) => ({ id: record.id, label: shortDate(record.record_date, locale), value: record.total_minutes }));
+  const focusPeriodValues = recentFocus.map((record) => ({
+    id: record.id,
+    label: shortDate(record.record_date, locale),
+    value: record.total_minutes,
+  }));
   const focusPeriodMax = Math.max(1, ...focusPeriodValues.map((period) => period.value));
   const focusTrendPoints = focusRecords.map((record) => ({
     id: record.id,
@@ -834,19 +828,33 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
   return (
     <div className="module-dashboard focus-dashboard" data-module-view="focus-overview">
       <section className="figma-module-card focus-summary-card">
-        <header><strong>{locale === "zh" ? "今日专注数据摘要" : "Today's focus"}</strong><button className={saved ? "success" : ""} type="button" onClick={() => { setSaved(false); setHasStarted(false); openView("immersive"); }} aria-label={saved ? (locale === "zh" ? "专注已记录" : "Focus saved") : (locale === "zh" ? "开始专注" : "Start focus")}>{saved ? <Check size={19} /> : <><CirclePlay size={18} />{locale === "zh" ? "开始" : "Start"}</>}</button></header>
-        <div className="focus-summary-metrics">
-          <span><small>{locale === "zh" ? "今日共计专注" : "Sessions"}</small><strong><AnimatedNumber value={todaySessions} /></strong>{locale === "zh" && <small>次</small>}</span>
-          <span><small>{locale === "zh" ? "总时长" : "Total"}</small><strong><AnimatedNumber value={Math.floor(todayMinutes / 60)} /></strong><small>{locale === "zh" ? "小时" : "h"}</small><strong><AnimatedNumber value={todayMinutes % 60} /></strong><small>{locale === "zh" ? "分" : "m"}</small></span>
+        <div className="focus-summary-content">
+          <div className="focus-summary-copy">
+            <strong>{locale === "zh" ? "今日专注数据摘要" : "Today's focus"}</strong>
+            <div className="focus-summary-metrics">
+              <span>
+                <small>{locale === "zh" ? "今日共计专注" : "Sessions"}</small>
+                <strong><AnimatedNumber value={todaySessions} /></strong>
+                {locale === "zh" && <small>次</small>}
+                <i aria-hidden="true">·</i>
+                <small>{locale === "zh" ? "总时长" : "Total"}</small>
+                <strong><AnimatedNumber value={Math.floor(todayMinutes / 60)} /></strong>
+                <small>{locale === "zh" ? "小时" : "h"}</small>
+                <strong><AnimatedNumber value={todayMinutes % 60} /></strong>
+                <small>{locale === "zh" ? "分" : "m"}</small>
+              </span>
+            </div>
+          </div>
+          <button className={["focus-summary-start", saved ? "success" : ""].filter(Boolean).join(" ")} type="button" onClick={() => { setSaved(false); setHasStarted(false); openView("immersive"); }} aria-label={saved ? (locale === "zh" ? "专注已记录" : "Focus saved") : (locale === "zh" ? "开始专注" : "Start focus")}>{saved ? <Check size={23} /> : <><CirclePlay size={23} /><span>{locale === "zh" ? "开始" : "Start"}</span></>}</button>
         </div>
       </section>
       <div className="focus-grid">
-        <section className="figma-module-card focus-period-card"><header>{latestFocusDistribution ? (locale === "zh" ? "最近一次时段分布" : "Latest time-of-day") : (locale === "zh" ? "近 4 日时长" : "Last 4 days")}</header><div>{focusPeriodValues.map((period) => <span key={period.id}><i title={`${period.label} · ${period.value} min`} style={{ height: `${Math.max(8, (period.value / focusPeriodMax) * 100)}%` }} /><small>{period.label}</small></span>)}</div></section>
+        <section className="figma-module-card focus-period-card"><header>{locale === "zh" ? "近 4 日时长" : "Last 4 days"}</header><div>{focusPeriodValues.map((period) => <span key={period.id}><i title={`${period.label} · ${period.value} min`} style={{ height: `${Math.max(8, (period.value / focusPeriodMax) * 100)}%` }} /><small>{period.label}</small></span>)}</div></section>
         <section className="figma-module-card focus-category-card"><header>{locale === "zh" ? "今日目标" : "Daily goal"}</header><div className="focus-pie" style={{ "--ring-progress": `${goalProgress}%` } as CSSProperties}><span><AnimatedNumber value={goalProgress} />%</span></div></section>
         <section className="figma-module-card focus-week-card"><header>{locale === "zh" ? "近 7 日目标完成度" : "7-day goal"}</header><LineTrendChart points={focusTrendPoints} compact ariaLabel={locale === "zh" ? "近七日专注目标完成度" : "Seven-day focus goal completion"} /></section>
         <section className="figma-module-card focus-history-card"><header>{locale === "zh" ? "完成记录" : "Completed"}</header>{focusRecords.slice(-3).reverse().map((record) => <p key={record.id}><Check size={13} />{shortDate(record.record_date, locale)} · {record.completed_sessions}{locale === "zh" ? "次" : " sessions"} · {record.total_minutes} min</p>)}</section>
       </div>
-      <section className="figma-module-card focus-quick-card"><div><Clock3 size={20} /><input value={displayedFocusTitle} onChange={(event) => setFocusTitle(event.target.value)} /></div><div><button type="button" onClick={() => updateDuration(focusMinutes - 5)} aria-label={locale === "zh" ? "减少五分钟" : "Decrease five minutes"}>-</button><label className="focus-duration-field compact"><input aria-label={locale === "zh" ? "专注分钟数" : "Focus duration in minutes"} inputMode="numeric" min={1} max={180} type="number" value={focusMinutes} onChange={(event) => updateDuration(Number(event.target.value))} /><span>{locale === "zh" ? "分钟" : "min"}</span></label><button type="button" onClick={() => updateDuration(focusMinutes + 5)} aria-label={locale === "zh" ? "增加五分钟" : "Increase five minutes"}>+</button></div><button type="button" onClick={() => { setHasStarted(false); setRemaining(focusMinutes * 60); setElapsedSeconds(0); setInterruptions(0); setStartedAt(undefined); openView("immersive"); }}>{locale === "zh" ? "进入专注" : "Start focus"}</button></section>
+      <section className="figma-module-card focus-quick-card"><div><Clock3 size={20} /><input value={displayedFocusTitle} onChange={(event) => setFocusTitle(event.target.value)} /></div><div><button type="button" onClick={() => updateDuration(focusMinutes - 1)} aria-label={locale === "zh" ? "减少一分钟" : "Decrease one minute"}>-</button><label className="focus-duration-field compact"><input aria-label={locale === "zh" ? "专注分钟数" : "Focus duration in minutes"} inputMode="numeric" min={1} max={180} type="number" value={focusMinutes} onChange={(event) => updateDuration(Number(event.target.value))} /><span>{locale === "zh" ? "分钟" : "min"}</span></label><button type="button" onClick={() => updateDuration(focusMinutes + 1)} aria-label={locale === "zh" ? "增加一分钟" : "Increase one minute"}>+</button></div><button type="button" onClick={() => { setHasStarted(false); setRemaining(focusMinutes * 60); setElapsedSeconds(0); setInterruptions(0); setStartedAt(undefined); openView("immersive"); }}>{locale === "zh" ? "进入专注" : "Start focus"}</button></section>
       <AssistantCard text={feedback} />
     </div>
   );
