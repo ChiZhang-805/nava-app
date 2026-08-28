@@ -1811,7 +1811,7 @@ body::before {
 
 .focus-interruption-trigger {
   min-height: 34px;
-  margin-top: 12px;
+  margin-top: 16px;
   border: 0;
   border-radius: 999px;
   display: inline-flex;
@@ -3255,36 +3255,52 @@ body::before {
   position: relative;
   height: 100%;
   align-items: center;
-  padding-top: 4px;
+  justify-content: flex-start;
+  gap: 0;
+  padding: 8px 0 12px;
+  overflow: hidden;
 }
 
 .focus-immersive .module-inline-back { align-self: flex-start; }
 
 .focus-title-field {
-  width: min(86%, 340px);
+  width: min(88%, 360px);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 7px 9px;
-  margin-top: 14px;
+  gap: 12px;
+  margin-top: 12px;
 }
 
-.focus-title-field > input { grid-column: 1 / -1; width: 100%; border: 0; color: #15384a; background: transparent; font-size: 22px; font-weight: 650; text-align: center; }
-.focus-title-field span { color: #6d8591; font-size: 11px; }
+.focus-title-field > input {
+  grid-column: 1;
+  width: 100%;
+  min-height: 52px;
+  box-sizing: border-box;
+  border: 1px solid rgba(67, 153, 188, 0.22);
+  border-radius: 17px;
+  padding: 0 18px;
+  color: #15384a;
+  background: rgba(246, 252, 255, 0.74);
+  box-shadow: 0 10px 28px rgba(24, 105, 139, 0.08);
+  font-size: 16px;
+  font-weight: 650;
+  text-align: center;
+  outline: none;
+}
 
-.focus-mode-switch,
-.focus-presets {
+.focus-title-field > input::placeholder { color: rgba(73, 111, 129, 0.55); font-weight: 550; }
+.focus-title-field > input:focus { border-color: rgba(20, 126, 170, 0.56); box-shadow: 0 0 0 4px rgba(25, 145, 192, 0.1), 0 10px 28px rgba(24, 105, 139, 0.08); }
+
+.focus-mode-switch {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.focus-mode-switch { grid-column: 1 / -1; justify-self: center; }
-.focus-presets { grid-column: 1; justify-self: end; }
-.focus-title-field > .focus-duration-field { grid-column: 2; }
+.focus-mode-switch { grid-column: 1; justify-self: center; margin-top: 18px; }
 
-.focus-mode-switch button,
-.focus-presets button {
+.focus-mode-switch button {
   min-height: 30px;
   border: 1px solid rgba(59, 146, 182, 0.22);
   border-radius: 999px;
@@ -3295,8 +3311,7 @@ body::before {
   font-weight: 700;
 }
 
-.focus-mode-switch button.active,
-.focus-presets button.active {
+.focus-mode-switch button.active {
   color: white;
   border-color: transparent;
   background: #176f94;
@@ -3307,15 +3322,34 @@ body::before {
   width: min(74vw, 310px);
   max-width: 310px;
   aspect-ratio: 1;
-  margin-top: 24px;
+  margin-top: 25px;
   background: conic-gradient(#155a78 0 var(--timer-progress), #86c4dd var(--timer-progress) 100%);
   box-shadow: 0 20px 50px rgba(12, 85, 119, 0.18);
 }
 
 .focus-timer-ring::before { inset: 25px; box-shadow: inset 0 0 0 1px #d7e9f0, 0 0 0 10px rgba(255,255,255,.36); }
 .focus-timer-ring > div { position: relative; display: flex; flex-direction: column; align-items: center; }
-.focus-timer-ring strong { font-size: 48px; line-height: 1; font-variant-numeric: tabular-nums; }
-.focus-timer-ring span { margin-top: 7px; color: #66808c; font-size: 12px; }
+.focus-timer-edit { display: flex; align-items: center; justify-content: center; gap: 2px; }
+.focus-timer-edit input {
+  width: 2.6ch;
+  border: 0;
+  border-radius: 12px;
+  padding: 5px 2px;
+  color: #0b2e3e;
+  background: transparent;
+  font: inherit;
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
+  caret-color: #168dbb;
+}
+.focus-timer-edit input:first-child { width: 3.2ch; }
+.focus-timer-edit input:focus { background: rgba(216, 242, 251, 0.76); box-shadow: inset 0 0 0 2px rgba(31, 148, 193, 0.2); }
+.focus-timer-edit b { color: #0b2e3e; font-size: 46px; line-height: 1; }
+.focus-timer-ring .focus-timer-status { margin-top: 9px; color: #66808c; font-size: 12px; }
 
 .focus-controls {
   width: min(74vw, 310px);
@@ -3327,7 +3361,6 @@ body::before {
 
 .focus-controls button { width: 54px; height: 54px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #1b566e; background: rgba(245,252,255,.76); box-shadow: 0 9px 24px rgba(12, 83, 117, .12); }
 .focus-controls button.primary { width: 66px; height: 66px; margin-top: -6px; color: white; background: linear-gradient(145deg, #3fb5e0, #11658b); }
-.focus-immersive-hint { margin-top: auto; margin-bottom: 14px; color: #5b7b8b; font-size: 12px; }
 
 @keyframes module-view-in {
   from { opacity: 0; transform: translateY(10px); }
@@ -3383,25 +3416,22 @@ body::before {
   .focus-week-line { height: 76px; }
   .focus-summary-card { min-height: 76px; padding: 10px 13px; }
   .focus-quick-card { min-height: 104px; }
-  .focus-timer-ring { width: min(62vh, 280px); margin-top: 12px; }
-  .focus-controls { margin-top: 18px; }
+  .focus-timer-ring { width: min(57vh, 280px); margin-top: 14px; }
+  .focus-controls { margin-top: 16px; }
 }
 
 @media (max-height: 760px) {
-  .focus-immersive { justify-content: flex-start; }
-  .focus-title-field { width: min(90%, 350px); gap: 5px 7px; margin-top: 4px; }
-  .focus-title-field > input { min-height: 42px; font-size: 18px; }
-  .focus-mode-switch button,
-  .focus-presets button { min-height: 27px; padding: 4px 9px; }
-  .focus-title-field > .focus-duration-field { height: 34px; }
+  .focus-title-field { width: min(90%, 350px); gap: 8px; margin-top: 4px; }
+  .focus-title-field > input { min-height: 44px; font-size: 14px; }
+  .focus-mode-switch button { min-height: 27px; padding: 4px 9px; }
   .focus-timer-ring { width: 208px; margin-top: 7px; }
   .focus-timer-ring::before { inset: 19px; }
-  .focus-timer-ring strong { font-size: 40px; }
+  .focus-timer-edit input { font-size: 40px; }
+  .focus-timer-edit b { font-size: 38px; }
   .focus-controls { width: 230px; margin-top: 10px; }
   .focus-controls button { width: 46px; height: 46px; }
   .focus-controls button.primary { width: 56px; height: 56px; }
   .focus-interruption-trigger { margin-top: 5px; }
-  .focus-immersive-hint { margin: 4px 0 8px; }
 
   .exercise-detail-dashboard .energy-card {
     min-height: 116px;
@@ -4183,7 +4213,7 @@ body::before {
 .chat-voice-button.cancel-armed { background: #d95b6d; transform: translateY(-5px); }
 
 .focus-title-field {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 10px;
 }

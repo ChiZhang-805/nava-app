@@ -681,8 +681,15 @@ async function verifyRecordModules(page, results) {
   await page.locator('[aria-label="开始专注"], [aria-label="Start focus"]').click();
   await expect(page.locator('[data-module-view="focus-immersive"]')).toBeVisible();
   await assertAnimation(page.locator('[data-module-view="focus-immersive"] .focus-timer-ring'), "timer-progress-fill", "focus timer ring");
-  await expect(page.locator(".focus-timer-ring strong")).toHaveText("37:00");
-  await expect(page.locator(".focus-timer-ring span")).toContainText(/准备开始|Ready/);
+  await expect(page.locator('.focus-timer-ring input[aria-label="分钟"], .focus-timer-ring input[aria-label="Minutes"]')).toHaveValue("37");
+  await expect(page.locator('.focus-timer-ring input[aria-label="秒钟"], .focus-timer-ring input[aria-label="Seconds"]')).toHaveValue("00");
+  await expect(page.locator(".focus-timer-status")).toContainText(/轻触数字可修改|Tap the time to edit/);
+  await expect(page.locator(".focus-presets")).toHaveCount(0);
+  await expect(page.getByText(/一次只做一件事|One thing at a time/)).toHaveCount(0);
+  await expect(page.getByLabel(/专注事项|Focus activity/)).toHaveAttribute("placeholder", /请填写今日要完成的任务|Enter today's task/);
+  const focusSeconds = page.locator('.focus-timer-ring input[aria-label="秒钟"], .focus-timer-ring input[aria-label="Seconds"]');
+  await focusSeconds.fill("30");
+  await expect(focusSeconds).toHaveValue("30");
   await page.waitForTimeout(750);
   await page.screenshot({ path: path.join(outputDir, "record-focus-immersive.png") });
   await page.locator(".focus-interruption-trigger").click();

@@ -172,12 +172,6 @@ function aggregateFocusByDate(records: FocusRecord[]) {
   return [...daily.values()].sort((a, b) => a.record_date.localeCompare(b.record_date));
 }
 
-function formatDuration(seconds: number) {
-  const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
-  const rest = (seconds % 60).toString().padStart(2, "0");
-  return `${minutes}:${rest}`;
-}
-
 function AssistantCard({ text, onClick }: { text: string; onClick?: () => void }) {
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (!onClick || (event.key !== "Enter" && event.key !== " ")) return;
@@ -701,11 +695,12 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "pro
 function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setFocusTitle" | "setFocusMinutes" | "onSaveFocusMinutes" | "todaySnapshot" | "trendBundle" | "profile"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
   const { locale, focusTitle, focusMinutes, setFocusTitle, setFocusMinutes, onSaveFocusMinutes, todaySnapshot, trendBundle, profile, view, openView } = props;
   const displayedFocusTitle = focusTitle === "产品原型" || focusTitle === "Product prototype" || focusTitle === "Prototype"
-    ? (locale === "zh" ? "产品原型" : "Prototype")
+    ? ""
     : focusTitle;
   const immersive = view === "immersive" || view === "interruption";
   const [running, setRunning] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [countdownDurationSeconds, setCountdownDurationSeconds] = useState(focusMinutes * 60);
   const [remaining, setRemaining] = useState(focusMinutes * 60);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [timerMode, setTimerMode] = useState<"countdown" | "countup">("countdown");
@@ -733,12 +728,39 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
 
   const updateDuration = (nextValue: number) => {
     const nextMinutes = Math.min(180, Math.max(1, Math.round(nextValue || 1)));
+    const nextSeconds = nextMinutes * 60;
     setFocusMinutes(nextMinutes);
-    setRemaining(nextMinutes * 60);
+    setCountdownDurationSeconds(nextSeconds);
+    setRemaining(nextSeconds);
     setElapsedSeconds(0);
     setRunning(false);
     setHasStarted(false);
     setSaved(false);
+  };
+
+  const updateTimerPart = (part: "minutes" | "seconds", rawValue: string) => {
+    const parsed = Number.parseInt(rawValue.replace(/\D/g, ""), 10);
+    const value = Number.isFinite(parsed) ? parsed : 0;
+    const currentTotal = timerMode === "countup" ? elapsedSeconds : countdownDurationSeconds;
+    const currentMinutes = Math.floor(currentTotal / 60);
+    const currentSeconds = currentTotal % 60;
+    const nextMinutes = part === "minutes" ? Math.min(180, Math.max(0, value)) : currentMinutes;
+    const nextSeconds = part === "seconds" ? Math.min(59, Math.max(0, value)) : currentSeconds;
+    const maxSeconds = 180 * 60;
+    const requestedTotal = Math.min(maxSeconds, nextMinutes * 60 + nextSeconds);
+    const nextTotal = timerMode === "countdown" ? Math.max(1, requestedTotal) : requestedTotal;
+
+    setRunning(false);
+    setHasStarted(false);
+    setSaved(false);
+    setStartedAt(undefined);
+    if (timerMode === "countup") {
+      setElapsedSeconds(nextTotal);
+      return;
+    }
+    setCountdownDurationSeconds(nextTotal);
+    setRemaining(nextTotal);
+    setFocusMinutes(Math.max(1, Math.ceil(nextTotal / 60)));
   };
 
   useEffect(() => {
@@ -752,7 +774,9 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
 
   useEffect(() => {
     if (!immersive) {
-      setRemaining(focusMinutes * 60);
+      const nextSeconds = focusMinutes * 60;
+      setCountdownDurationSeconds(nextSeconds);
+      setRemaining(nextSeconds);
       setRunning(false);
     }
   }, [focusMinutes, immersive]);
@@ -774,15 +798,17 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
   }, [immersive, openView, running]);
 
   const timerDisplay = timerMode === "countup" ? elapsedSeconds : remaining;
+  const timerMinutes = Math.floor(timerDisplay / 60);
+  const timerSeconds = timerDisplay % 60;
   const progress = timerMode === "countup"
-    ? Math.min(100, (elapsedSeconds / Math.max(1, focusMinutes * 60)) * 100)
-    : 100 - (remaining / Math.max(1, focusMinutes * 60)) * 100;
+    ? Math.min(100, (elapsedSeconds / Math.max(1, countdownDurationSeconds)) * 100)
+    : 100 - (remaining / Math.max(1, countdownDurationSeconds)) * 100;
 
   const finish = useCallback(async () => {
     if (saving || !hasStarted) return;
     setRunning(false);
     setSaving(true);
-    const seconds = timerMode === "countup" ? elapsedSeconds : focusMinutes * 60 - remaining;
+    const seconds = timerMode === "countup" ? elapsedSeconds : countdownDurationSeconds - remaining;
     const elapsed = Math.max(1, Math.ceil(seconds / 60));
     try {
       await onSaveFocusMinutes(elapsed, { interruptions, startedAt, endedAt: new Date().toISOString() });
@@ -791,7 +817,7 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
     } finally {
       setSaving(false);
     }
-  }, [elapsedSeconds, focusMinutes, hasStarted, interruptions, onSaveFocusMinutes, openView, remaining, saving, startedAt, timerMode]);
+  }, [countdownDurationSeconds, elapsedSeconds, hasStarted, interruptions, onSaveFocusMinutes, openView, remaining, saving, startedAt, timerMode]);
 
   useEffect(() => {
     if (!immersive || timerMode !== "countdown" || remaining !== 0 || !hasStarted || saving || saved) return;
@@ -806,37 +832,47 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
         data-focus-state={running ? "running" : hasStarted ? "paused" : "ready"}
       >
         <div className="focus-title-field">
-          <input aria-label={locale === "zh" ? "专注事项" : "Focus activity"} value={displayedFocusTitle} onChange={(event) => setFocusTitle(event.target.value)} />
+          <input
+            aria-label={locale === "zh" ? "专注事项" : "Focus activity"}
+            value={displayedFocusTitle}
+            onChange={(event) => setFocusTitle(event.target.value)}
+            placeholder={locale === "zh" ? "请填写今日要完成的任务" : "Enter today's task"}
+          />
           <div className="focus-mode-switch" role="group" aria-label={locale === "zh" ? "计时模式" : "Timer mode"}>
-            <button type="button" className={timerMode === "countdown" ? "active" : ""} onClick={() => { setTimerMode("countdown"); setRunning(false); }}>{locale === "zh" ? "倒计时" : "Countdown"}</button>
-            <button type="button" className={timerMode === "countup" ? "active" : ""} onClick={() => { setTimerMode("countup"); setRunning(false); }}>{locale === "zh" ? "正计时" : "Count up"}</button>
+            <button type="button" className={timerMode === "countdown" ? "active" : ""} onClick={() => { setTimerMode("countdown"); setRemaining(countdownDurationSeconds); setRunning(false); setHasStarted(false); }}>{locale === "zh" ? "倒计时" : "Countdown"}</button>
+            <button type="button" className={timerMode === "countup" ? "active" : ""} onClick={() => { setTimerMode("countup"); setElapsedSeconds(0); setRunning(false); setHasStarted(false); }}>{locale === "zh" ? "正计时" : "Count up"}</button>
           </div>
-          <div className="focus-presets" aria-label={locale === "zh" ? "快捷时长" : "Duration presets"}>
-            {[25, 45, 60].map((minutes) => <button key={minutes} type="button" className={focusMinutes === minutes ? "active" : ""} onClick={() => updateDuration(minutes)}>{minutes} min</button>)}
-          </div>
-          <label className="focus-duration-field">
-            <input
-              aria-label={locale === "zh" ? "专注分钟数" : "Focus duration in minutes"}
-              inputMode="numeric"
-              min={1}
-              max={180}
-              type="number"
-              value={focusMinutes}
-              onChange={(event) => updateDuration(Number(event.target.value))}
-            />
-            <span>{locale === "zh" ? "分钟" : "min"}</span>
-          </label>
         </div>
         <div className="focus-timer-ring" style={{ "--timer-progress": `${progress}%` } as CSSProperties}>
-          <div><strong>{formatDuration(timerDisplay)}</strong><span>{running ? (locale === "zh" ? "专注中" : "Focusing") : hasStarted ? (locale === "zh" ? "已暂停" : "Paused") : (locale === "zh" ? "准备开始" : "Ready")}</span></div>
+          <div>
+            <div className="focus-timer-edit" role="group" aria-label={locale === "zh" ? "触摸修改计时时间" : "Tap to edit timer"}>
+              <input
+                aria-label={locale === "zh" ? "分钟" : "Minutes"}
+                inputMode="numeric"
+                maxLength={3}
+                value={String(timerMinutes).padStart(2, "0")}
+                onFocus={(event) => { setRunning(false); event.currentTarget.select(); }}
+                onChange={(event) => updateTimerPart("minutes", event.target.value)}
+              />
+              <b aria-hidden="true">:</b>
+              <input
+                aria-label={locale === "zh" ? "秒钟" : "Seconds"}
+                inputMode="numeric"
+                maxLength={2}
+                value={String(timerSeconds).padStart(2, "0")}
+                onFocus={(event) => { setRunning(false); event.currentTarget.select(); }}
+                onChange={(event) => updateTimerPart("seconds", event.target.value)}
+              />
+            </div>
+            <span className="focus-timer-status">{running ? (locale === "zh" ? "专注中" : "Focusing") : hasStarted ? (locale === "zh" ? "已暂停" : "Paused") : (locale === "zh" ? "轻触数字可修改" : "Tap the time to edit")}</span>
+          </div>
         </div>
         <div className="focus-controls">
-          <button type="button" onClick={() => { setRemaining(focusMinutes * 60); setElapsedSeconds(0); setRunning(false); setHasStarted(false); setSaved(false); }} aria-label={locale === "zh" ? "重置" : "Reset"}><TimerReset /></button>
+          <button type="button" onClick={() => { setRemaining(countdownDurationSeconds); setElapsedSeconds(0); setRunning(false); setHasStarted(false); setSaved(false); }} aria-label={locale === "zh" ? "重置" : "Reset"}><TimerReset /></button>
           <button className="primary" type="button" onClick={() => { setHasStarted(true); if (!startedAt) setStartedAt(new Date().toISOString()); setRunning((value) => !value); }} aria-label={running ? (locale === "zh" ? "暂停" : "Pause") : (locale === "zh" ? "开始" : "Start")}>{running ? <Pause /> : <Play />}</button>
           <button type="button" onClick={() => void finish()} disabled={saving} aria-label={locale === "zh" ? "结束" : "Finish"}><Square /></button>
         </div>
         <button className="focus-interruption-trigger" type="button" onClick={() => { setRunning(false); setInterruptions((value) => value + 1); openView("interruption"); }}><PhoneIncoming size={17} />{locale === "zh" ? "模拟来电打断" : "Simulate interruption"}</button>
-        <p className="focus-immersive-hint">{locale === "zh" ? "一次只做一件事。" : "One thing at a time."}</p>
         {view === "interruption" && <div className="focus-interruption" role="dialog" aria-modal="true"><PhoneIncoming size={38} /><strong>{locale === "zh" ? "来电打断" : "Incoming call"}</strong><p>{locale === "zh" ? "专注计时已自动暂停" : "Focus timer paused automatically"}</p><div><button type="button" onClick={() => { setRunning(true); setHasStarted(true); openView("immersive", true); }}>{locale === "zh" ? "继续专注" : "Keep focusing"}</button><button type="button" onClick={() => openView("immersive", true)}>{locale === "zh" ? "接听并暂停" : "Answer and pause"}</button></div></div>}
       </div>
     );

@@ -160,7 +160,7 @@ export default function RecordsScreen({
   const [dietItems, setDietItems] = useState<FoodItem[]>([]);
   const [dietAnalyzing, setDietAnalyzing] = useState(false);
 
-  const [focusTitle, setFocusTitle] = useState(() => locale === "zh" ? "产品原型" : "Prototype");
+  const [focusTitle, setFocusTitle] = useState("");
   const [focusMinutes, setFocusMinutes] = useState(25);
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [faceResult, setFaceResult] = useState<FaceAnalysisResult | null>(null);
@@ -170,9 +170,7 @@ export default function RecordsScreen({
   const facePhotoInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    setFocusTitle((current) => current === "产品原型" || current === "Product prototype" || current === "Prototype"
-      ? (locale === "zh" ? "产品原型" : "Prototype")
-      : current);
+    setFocusTitle((current) => current === "产品原型" || current === "Product prototype" || current === "Prototype" ? "" : current);
   }, [locale]);
 
   useEffect(() => {
