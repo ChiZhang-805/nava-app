@@ -28,6 +28,7 @@ export default function LineTrendChart({
   tone = "mood",
   compact = false,
   scale = "score",
+  verticalEmphasis = false,
   valueFormatter = (value) => Math.round(value).toString(),
 }: {
   points: LineTrendPoint[];
@@ -35,6 +36,7 @@ export default function LineTrendChart({
   tone?: "mood" | "rhythm";
   compact?: boolean;
   scale?: "score" | "auto";
+  verticalEmphasis?: boolean;
   valueFormatter?: (value: number) => string;
 }) {
   const rawId = useId();
@@ -45,13 +47,13 @@ export default function LineTrendChart({
   // them a matching internal coordinate system so the browser does not center
   // a narrow 320px plot and leave large unused gutters on both sides.
   const width = compact ? 600 : 360;
-  const height = compact ? 148 : 184;
+  const height = compact ? (verticalEmphasis ? 320 : 148) : 184;
   const horizontalInset = compact ? 22 : 20;
   const left = horizontalInset;
   const right = width - horizontalInset;
-  const top = compact ? 18 : 22;
-  const bottom = compact ? 108 : 142;
-  const dateY = compact ? 136 : 169;
+  const top = compact ? (verticalEmphasis ? 24 : 18) : 22;
+  const bottom = compact ? (verticalEmphasis ? 258 : 108) : 142;
+  const dateY = compact ? (verticalEmphasis ? 306 : 136) : 169;
   const spanX = right - left;
   const spanY = bottom - top;
   const scaleValues = points.flatMap((point) => [point.value, point.lower, point.upper]).filter((value): value is number => value != null);
@@ -60,12 +62,25 @@ export default function LineTrendChart({
   let domainMin: number;
   let domainMax: number;
   if (scale === "auto") {
-    const rawRange = Math.max(1, rawMax - rawMin);
-    const padding = Math.max(1, rawRange * 0.18);
-    const magnitude = 10 ** Math.max(0, Math.floor(Math.log10((rawRange + padding * 2) / 4)));
-    domainMin = Math.max(0, Math.floor((rawMin - padding) / magnitude) * magnitude);
-    domainMax = Math.ceil((rawMax + padding) / magnitude) * magnitude;
-    if (domainMax <= domainMin) domainMax = domainMin + magnitude;
+    const rawRange = rawMax - rawMin;
+    if (verticalEmphasis) {
+      // Dashboard energy values typically sit close together. Preserve the
+      // real ratios while using most of the available height, rather than
+      // rounding the domain out to broad hundreds that visually flatten it.
+      const fallbackRange = Math.max(1, Math.abs(rawMax) * 0.08);
+      const effectiveRange = rawRange > 0 ? rawRange : fallbackRange;
+      const padding = Math.max(1, effectiveRange * 0.08);
+      domainMin = Math.max(0, rawMin - padding);
+      domainMax = rawMax + padding;
+      if (domainMax <= domainMin) domainMax = domainMin + effectiveRange;
+    } else {
+      const effectiveRange = Math.max(1, rawRange);
+      const padding = Math.max(1, effectiveRange * 0.18);
+      const magnitude = 10 ** Math.max(0, Math.floor(Math.log10((effectiveRange + padding * 2) / 4)));
+      domainMin = Math.max(0, Math.floor((rawMin - padding) / magnitude) * magnitude);
+      domainMax = Math.ceil((rawMax + padding) / magnitude) * magnitude;
+      if (domainMax <= domainMin) domainMax = domainMin + magnitude;
+    }
   } else {
     domainMin = Math.max(0, Math.floor((rawMin - 5) / 10) * 10);
     domainMax = Math.min(100, Math.ceil((rawMax + 5) / 10) * 10);
@@ -99,7 +114,7 @@ export default function LineTrendChart({
   const signature = points.map((point) => `${point.id}:${point.value}:${point.lower ?? ""}:${point.upper ?? ""}`).join("|");
 
   return (
-    <div className={["line-trend-chart", tone].join(" ")}>
+    <div className={["line-trend-chart", tone, verticalEmphasis ? "is-vertically-emphasized" : ""].filter(Boolean).join(" ")}>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel}>
         <title>{ariaLabel}</title>
         <defs>

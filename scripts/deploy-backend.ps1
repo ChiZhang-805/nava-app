@@ -28,6 +28,7 @@ $appFunctions = @(
 $sharedFunctions = @(
   "ai-extract-data",
   "ai-chat-reply",
+  "ai-diet-report",
   "diet-extract",
   "face-analyze"
 )

@@ -3,6 +3,7 @@ import {
   Bell,
   BellOff,
   Bluetooth,
+  Bot,
   Camera,
   CalendarDays,
   Check,
@@ -35,6 +36,7 @@ import { useLocale } from "../i18n";
 import type { FocusRecord, MoodRecord, TodaySnapshot, TrendBundle } from "../types";
 import { buildModuleFeedback } from "../services/personalizedFeedback";
 import { enableNavaNotifications } from "../services/notifications";
+import { loadDietAiReport, parseDietAiReport, type DietAiReport } from "../services/dietReport";
 import {
   activityHeatmap,
   activityPeriodDistribution,
@@ -73,6 +75,7 @@ type Props = {
   setFocusTitle: (value: string) => void;
   setFocusMinutes: (value: number) => void;
   onOpenEditor: () => void;
+  onOpenDietCamera: () => void;
   onSaveFocusMinutes: (minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string }) => Promise<void>;
   busy: string | null;
   recordDate: string;
@@ -197,15 +200,17 @@ function AssistantCard({ text, onClick }: { text: string; onClick?: () => void }
 function ModuleDetailView({
   title,
   compact = false,
+  className,
   children,
 }: {
   title: string;
   compact?: boolean;
+  className?: string;
   children: ReactNode;
 }) {
   return (
     <div className="module-dashboard module-subview" data-module-view="module-subview">
-      <section className={["figma-module-card", "module-subview-card", compact ? "is-compact" : ""].filter(Boolean).join(" ")}>
+      <section className={["figma-module-card", "module-subview-card", compact ? "is-compact" : "", className].filter(Boolean).join(" ")}>
         <header><strong>{title}</strong></header>
         {children}
       </section>
@@ -233,6 +238,37 @@ function HistoryView({ module, locale, trendBundle }: { module: RecordModule; lo
   }, [module, trendBundle]);
   const displayEntries = entries.slice(-7);
   const chartMaximum = Math.max(1, ...displayEntries.map((entry) => entry.value));
+  const sortedNutrition = trendBundle?.nutritions.slice().sort((a, b) => a.record_date.localeCompare(b.record_date)) ?? [];
+  const latestNutrition = sortedNutrition[sortedNutrition.length - 1] ?? null;
+  const [dietReport, setDietReport] = useState<DietAiReport | null>(() => parseDietAiReport(latestNutrition?.ai_feedback));
+  const [dietReportLoading, setDietReportLoading] = useState(false);
+  const [dietReportUnavailable, setDietReportUnavailable] = useState(false);
+  useEffect(() => {
+    if (module !== "diet" || !latestNutrition) return;
+    const stored = parseDietAiReport(latestNutrition.ai_feedback);
+    if (stored) {
+      setDietReport(stored);
+      setDietReportUnavailable(false);
+      return;
+    }
+    let active = true;
+    setDietReportLoading(true);
+    setDietReportUnavailable(false);
+    void loadDietAiReport({ date: latestNutrition.record_date, locale })
+      .then((report) => {
+        if (active) setDietReport(report);
+      })
+      .catch((error) => {
+        console.warn("AI diet report generation deferred", error);
+        if (active) setDietReportUnavailable(true);
+      })
+      .finally(() => {
+        if (active) setDietReportLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [latestNutrition, locale, module]);
   const shareSummary = async () => {
     const label = moduleNames[module][locale];
     const average = Math.round(displayEntries.reduce((sum, entry) => sum + entry.value, 0) / Math.max(1, displayEntries.length));
@@ -242,18 +278,74 @@ function HistoryView({ module, locale, trendBundle }: { module: RecordModule; lo
     else await navigator.clipboard.writeText(text);
   };
   return (
-    <ModuleDetailView title={`${moduleNames[module][locale]}${locale === "zh" ? "历史记录" : " history"}`}>
+    <ModuleDetailView
+      className={module === "diet" ? "module-history-report-card" : undefined}
+      title={module === "diet" ? (locale === "zh" ? "饮食趋势报告" : "Diet trend report") : `${moduleNames[module][locale]}${locale === "zh" ? "历史记录" : " history"}`}
+    >
       {displayEntries.length > 0 ? <>
-        <div className="module-history-chart" aria-label={locale === "zh" ? "近七天记录" : "Last seven days"}>
-          {displayEntries.map((entry) => <span key={entry.id}><i title={`${shortDate(entry.date, locale)} · ${historyValueText(module, entry.value, locale)}`} style={{ height: `${Math.max(8, (entry.value / chartMaximum) * 100)}%` }} /><small>{shortDate(entry.date, locale)}</small></span>)}
-        </div>
+        {module === "diet"
+          ? <DietHistoryTrendChart entries={displayEntries} locale={locale} />
+          : <div className="module-history-chart" aria-label={locale === "zh" ? "近七天记录" : "Last seven days"}>
+            {displayEntries.map((entry) => <span key={entry.id}><i title={`${shortDate(entry.date, locale)} · ${historyValueText(module, entry.value, locale)}`} style={{ height: `${Math.max(8, (entry.value / chartMaximum) * 100)}%` }} /><small>{shortDate(entry.date, locale)}</small></span>)}
+          </div>}
         <div className={`module-history-list module-history-list--${module}`}>
           {displayEntries.slice(-3).reverse().map((entry) => <p key={entry.id}><CalendarDays size={16} /><span>{shortDate(entry.date, locale)}</span><strong>{historyValueText(module, entry.value, locale)}</strong></p>)}
         </div>
+        {module === "diet" && <section className="diet-ai-report" aria-live="polite">
+          <header><span><Bot size={16} /></span><strong>{locale === "zh" ? "AI 饮食洞察" : "AI diet insights"}</strong></header>
+          {dietReportLoading
+            ? <div className="diet-ai-report-loading">{locale === "zh" ? "正在结合你的画像与近七日数据生成…" : "Reviewing your profile and seven-day data…"}</div>
+            : dietReport
+              ? <ul>{dietReport.bullets.map((bullet, index) => <li key={`${index}-${bullet}`}>{bullet}</li>)}</ul>
+              : <div className="diet-ai-report-loading">{dietReportUnavailable
+                ? (locale === "zh" ? "AI 报告暂时不可用，保存下一餐后会自动重试。" : "AI report is temporarily unavailable and will retry after your next meal.")
+                : (locale === "zh" ? "保存今日饮食后生成四项个性化洞察。" : "Save today's diet to generate four personalized insights.")}</div>}
+        </section>}
         <button className="module-history-share" type="button" onClick={() => void shareSummary()}><Share2 size={16} />{locale === "zh" ? "分享近 7 日状态" : "Share 7-day state"}</button>
       </> : <p className="module-empty-copy module-history-empty">{trendBundle ? (locale === "zh" ? "当前账号尚无该项历史记录" : "No history for this account yet") : (locale === "zh" ? "正在读取历史记录…" : "Loading history…")}</p>}
     </ModuleDetailView>
   );
+}
+
+function DietHistoryTrendChart({ entries, locale }: { entries: Array<{ id: string; date: string; value: number }>; locale: "zh" | "en" }) {
+  const width = 700;
+  const height = 190;
+  const left = 48;
+  const right = 652;
+  const top = 24;
+  const bottom = 144;
+  const values = entries.map((entry) => entry.value);
+  const rawMin = Math.min(...values);
+  const rawMax = Math.max(...values);
+  const rawRange = Math.max(1, rawMax - rawMin);
+  const domainMin = Math.max(0, rawMin - rawRange * 0.1);
+  const domainMax = rawMax + rawRange * 0.1;
+  const domainSpan = Math.max(1, domainMax - domainMin);
+  const xAt = (index: number) => left + (entries.length <= 1 ? (right - left) / 2 : (index / (entries.length - 1)) * (right - left));
+  const yAt = (value: number) => top + ((domainMax - value) / domainSpan) * (bottom - top);
+  const points = entries.map((entry, index) => ({ x: xAt(index), y: yAt(entry.value) }));
+  const linePath = points.slice(1).reduce((path, point, index) => {
+    const previous = points[index];
+    const controlX = (previous.x + point.x) / 2;
+    return `${path} C ${controlX} ${previous.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
+  }, points.length > 0 ? `M ${points[0].x} ${points[0].y}` : "");
+
+  return <div className="diet-history-trend-chart">
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={locale === "zh" ? "近七日能量柱状图与折线趋势" : "Seven-day energy bars and line trend"}>
+      {[0.25, 0.5, 0.75].map((ratio) => <line className="diet-history-grid" key={ratio} x1={left} x2={right} y1={top + ratio * (bottom - top)} y2={top + ratio * (bottom - top)} />)}
+      {entries.map((entry, index) => {
+        const x = xAt(index);
+        const y = yAt(entry.value);
+        return <g className="diet-history-bar" key={entry.id} style={{ "--history-index": index } as CSSProperties}>
+          <rect x={x - 15} y={y} width="30" height={bottom - y} rx="8"><title>{`${shortDate(entry.date, locale)} · ${entry.value} kcal`}</title></rect>
+          <text className="diet-history-value" x={x} y={Math.max(14, y - 8)} textAnchor="middle">{Math.round(entry.value)}</text>
+          <text className="diet-history-date" x={x} y="176" textAnchor="middle">{shortDate(entry.date, locale)}</text>
+        </g>;
+      })}
+      <path className="diet-history-line" d={linePath} pathLength="1" />
+      {points.map((point, index) => <circle className="diet-history-dot" key={entries[index].id} cx={point.x} cy={point.y} r="5" style={{ "--history-index": index } as CSSProperties} />)}
+    </svg>
+  </div>;
 }
 
 function historyValueText(module: RecordModule, value: number, locale: "zh" | "en") {
@@ -591,8 +683,8 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
   );
 }
 
-function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "profile" | "onOpenEditor"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
-  const { locale, todaySnapshot, trendBundle, profile, onOpenEditor, openView } = props;
+function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "onOpenEditor" | "onOpenDietCamera"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
+  const { locale, todaySnapshot, trendBundle, onOpenEditor, onOpenDietCamera, openView } = props;
   const nutrition = todaySnapshot?.nutrition;
   const records = useMemo(() => {
     const byDate = new Map((trendBundle?.nutritions ?? []).map((record) => [record.record_date, record]));
@@ -610,27 +702,18 @@ function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "pro
     { key: "dinner", zh: "晚餐", en: "Dinner", items: nutrition?.dinner_items ?? [] },
     { key: "pantry", zh: "加餐", en: "Snack", items: nutrition?.pantry_items ?? [] },
   ];
-  const completedMeals = meals.slice(0, 3).filter((meal) => meal.items.length > 0).length;
-  const itemCount = meals.reduce((sum, meal) => sum + meal.items.length, 0);
-  const feedback = buildModuleFeedback({ module: "diet", locale, profile, snapshot: todaySnapshot, trends: trendBundle });
-
   return (
     <div className="module-dashboard diet-dashboard" data-module-view="diet-overview">
       <section className="figma-module-card diet-summary-card">
         <header>
-          <div><span>{locale === "zh" ? "今日饮食" : "Today's diet"}</span><strong><AnimatedNumber value={nutrition?.total_calories ?? 0} /><small> kcal</small></strong></div>
-          <button type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "记录饮食" : "Log a meal"}><Camera size={20} /></button>
+          <strong>{locale === "zh" ? "今日饮食" : "Today's diet"}</strong>
+          <button type="button" onClick={onOpenDietCamera} aria-label={locale === "zh" ? "直接拍照识别饮食" : "Photograph a meal for AI recognition"}><Camera size={20} /></button>
         </header>
-        <div className="diet-completion">
-          <span><strong><AnimatedNumber value={completedMeals} duration={520} />/3</strong><small>{locale === "zh" ? "正餐" : "meals"}</small></span>
-          <span><strong><AnimatedNumber value={itemCount} duration={600} /></strong><small>{locale === "zh" ? "食物项" : "items"}</small></span>
-          <span><strong><AnimatedNumber value={records.length} duration={680} /></strong><small>{locale === "zh" ? "近七日记录" : "logged days"}</small></span>
-        </div>
-        <div className="diet-macro-summary">
-          <span>P <AnimatedNumber value={Math.round(nutrition?.protein_grams ?? 0)} />g</span>
-          <span>C <AnimatedNumber value={Math.round(nutrition?.carbohydrate_grams ?? 0)} />g</span>
-          <span>F <AnimatedNumber value={Math.round(nutrition?.fat_grams ?? 0)} />g</span>
-          <span><AnimatedNumber value={Math.round(nutrition?.hydration_ml ?? 0)} />ml</span>
+        <div className="diet-nutrition-summary">
+          <span><small>{locale === "zh" ? "蛋白质" : "Protein"}</small><strong><AnimatedNumber value={Math.round(nutrition?.protein_grams ?? 0)} /><em>g</em></strong></span>
+          <span><small>{locale === "zh" ? "碳水化合物" : "Carbohydrates"}</small><strong><AnimatedNumber value={Math.round(nutrition?.carbohydrate_grams ?? 0)} /><em>g</em></strong></span>
+          <span><small>{locale === "zh" ? "脂肪" : "Fat"}</small><strong><AnimatedNumber value={Math.round(nutrition?.fat_grams ?? 0)} /><em>g</em></strong></span>
+          <span><small>{locale === "zh" ? "饮水量" : "Water"}</small><strong><AnimatedNumber value={Math.round(nutrition?.hydration_ml ?? 0)} /><em>ml</em></strong></span>
         </div>
       </section>
       <section className="figma-module-card diet-meals-card">
@@ -647,9 +730,8 @@ function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "pro
       </section>
       <section className="figma-module-card diet-trend-card">
         <header><strong>{locale === "zh" ? "近 7 日能量记录" : "7-day energy log"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("history")} aria-label={locale === "zh" ? "查看饮食历史" : "View diet history"}><ChevronRight size={18} /></button></header>
-        {trendPoints.length > 0 ? <LineTrendChart points={trendPoints} compact scale="auto" ariaLabel={locale === "zh" ? "近七日饮食能量趋势，单位千卡" : "Seven-day dietary energy trend in kilocalories"} /> : <p className="module-empty-copy">{locale === "zh" ? "完成第一餐记录后显示趋势" : "Log a meal to begin the trend"}</p>}
+        {trendPoints.length > 0 ? <LineTrendChart points={trendPoints} compact scale="auto" verticalEmphasis ariaLabel={locale === "zh" ? "近七日饮食能量趋势，单位千卡" : "Seven-day dietary energy trend in kilocalories"} /> : <p className="module-empty-copy">{locale === "zh" ? "完成第一餐记录后显示趋势" : "Log a meal to begin the trend"}</p>}
       </section>
-      <AssistantCard text={feedback} />
     </div>
   );
 }
@@ -926,7 +1008,7 @@ export default function RecordModuleDashboard(props: Props) {
   if (props.module === "exercise") return <ExerciseDashboard locale={locale} steps={props.steps} calories={props.calories} exerciseMinutes={props.exerciseMinutes} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
   if (props.module === "mood") return <MoodDashboard {...common} view={view} openView={openView} />;
   if (props.module === "sleep") return <SleepDashboard userId={props.userId} locale={locale} sleepStart={props.sleepStart} sleepEnd={props.sleepEnd} deepSleep={props.deepSleep} lightSleep={props.lightSleep} remSleep={props.remSleep} sleepRating={props.sleepRating} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
-  if (props.module === "diet") return <DietDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} profile={props.profile} onOpenEditor={props.onOpenEditor} view={view} openView={openView} />;
+  if (props.module === "diet") return <DietDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} onOpenEditor={props.onOpenEditor} onOpenDietCamera={props.onOpenDietCamera} view={view} openView={openView} />;
   if (props.module === "face") return <FaceDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} profile={props.profile} onOpenEditor={props.onOpenEditor} view={view} openView={openView} />;
   if (props.module === "focus") return <FocusDashboard locale={locale} focusTitle={props.focusTitle} focusMinutes={props.focusMinutes} setFocusTitle={props.setFocusTitle} setFocusMinutes={props.setFocusMinutes} onSaveFocusMinutes={props.onSaveFocusMinutes} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} profile={props.profile} view={view} openView={openView} />;
   return null;

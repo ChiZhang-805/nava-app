@@ -636,9 +636,30 @@ async function verifyRecordModules(page, results) {
 
   await openModule("diet");
   await expect(page.locator('[data-module-view="diet-overview"]')).toBeVisible();
-  await page.locator('[aria-label="记录饮食"], [aria-label="Log a meal"]').click();
+  await expect(page.locator(".diet-nutrition-summary > span")).toHaveCount(4);
+  await expect(page.locator(".diet-nutrition-summary small")).toHaveText(reviewLocale === "zh" ? ["蛋白质", "碳水化合物", "脂肪", "饮水量"] : ["Protein", "Carbohydrates", "Fat", "Water"]);
+  await expect(page.locator(".diet-completion, .diet-macro-summary")).toHaveCount(0);
+  await expect(page.locator(".diet-summary-card header small")).toHaveCount(0);
+  await expect(page.locator(".diet-dashboard > .module-assistant-card")).toHaveCount(0);
+  const dietHeadingStyles = await page.locator(".diet-summary-card header > strong, .diet-meals-card header > strong, .diet-trend-card header > strong").evaluateAll((nodes) => nodes.map((node) => {
+    const style = getComputedStyle(node);
+    return { color: style.color, fontSize: style.fontSize, fontWeight: style.fontWeight };
+  }));
+  if (new Set(dietHeadingStyles.map((style) => JSON.stringify(style))).size !== 1) throw new Error(`Diet card headings do not match: ${JSON.stringify(dietHeadingStyles)}`);
+  const dietTrendGeometry = await page.locator(".diet-trend-card .line-trend-chart svg").evaluate((svg) => ({
+    dateY: [...svg.querySelectorAll(".trend-date")].map((node) => Number(node.getAttribute("y"))),
+    pointY: [...svg.querySelectorAll(".trend-point circle")].map((node) => Number(node.getAttribute("cy"))),
+  }));
+  if (dietTrendGeometry.dateY.length === 0 || Math.min(...dietTrendGeometry.dateY) < 300) {
+    throw new Error(`Diet trend dates are not positioned near the chart bottom: ${dietTrendGeometry.dateY.join(", ")}`);
+  }
+  if (dietTrendGeometry.pointY.length > 1 && Math.max(...dietTrendGeometry.pointY) - Math.min(...dietTrendGeometry.pointY) < 80) {
+    throw new Error(`Diet trend does not use enough vertical range: ${dietTrendGeometry.pointY.join(", ")}`);
+  }
+  await page.locator("input[data-diet-quick-camera]").setInputFiles(samplePhoto);
   await expect(page.locator('[data-record-detail="diet"] form:not([hidden])')).toBeVisible();
   const dietForm = page.locator('[data-record-detail="diet"] form:not([hidden])');
+  await expect(page.locator('[data-record-detail="diet"] .record-upload-toast')).toBeVisible();
   await expect(dietForm.locator(".diet-photo-action")).toHaveCount(2);
   await expect(dietForm.locator('input[type="file"][capture="environment"]')).toHaveCount(1);
   await expect(dietForm.locator('input[type="file"]:not([capture])')).toHaveCount(1);
@@ -649,21 +670,27 @@ async function verifyRecordModules(page, results) {
     return Math.abs((node.getBoundingClientRect().right - unit.getBoundingClientRect().right) - 14);
   }));
   if (unitOffsets.some((offset) => offset > 1.5)) throw new Error(`Diet units are not right aligned: ${unitOffsets.join(", ")}`);
-  await page.waitForTimeout(450);
+  await page.waitForTimeout(700);
   await page.screenshot({ path: path.join(outputDir, "record-diet-editor.png") });
   await assertNoBottomNavClipping(page, "diet-editor", '[data-record-detail="diet"] form:not([hidden]) .field, [data-record-detail="diet"] form:not([hidden]) .action-button');
-  await page.locator('[data-record-detail="diet"] input[type="file"][capture="environment"]').setInputFiles(samplePhoto);
-  await expect(page.locator('[data-record-detail="diet"] .record-upload-toast')).toBeVisible();
   await expect(dietForm.locator(".detected-list")).toHaveCount(0);
   await expect(dietForm.getByLabel(/食物|Food/)).not.toHaveValue("");
   await expect(dietForm.getByLabel(/热量|Calorie/)).not.toHaveValue("0");
   await page.locator('[data-record-detail="diet"] form:not([hidden]) .action-button').click();
   await expect(page.locator('[data-module-view="diet-overview"]')).toBeVisible();
   await page.locator('.diet-trend-card .module-card-nav-button').click();
-  await expect(page.locator('[data-record-detail="diet"] .module-history-chart')).toBeVisible();
-  await assertAnimation(page.locator('[data-record-detail="diet"] .module-history-chart i'), "chart-bar-rise", "diet history bars");
+  await expect(page.locator('[data-record-detail="diet"] .diet-history-trend-chart')).toBeVisible();
+  await assertAnimation(page.locator('[data-record-detail="diet"] .diet-history-bar rect'), "chart-bar-rise", "diet history bars");
+  await assertAnimation(page.locator('[data-record-detail="diet"] .diet-history-line'), "trend-line-draw", "diet history line");
+  await expect(page.locator('[data-record-detail="diet"] .diet-ai-report li')).toHaveCount(4);
   await page.waitForTimeout(1_050);
   await assertNoBottomNavClipping(page, "diet-history", '[data-record-detail="diet"] .module-history-list p, [data-record-detail="diet"] .module-history-share');
+  const reportFooterGap = await page.locator('[data-record-detail="diet"] .module-history-report-card').evaluate((card) => {
+    const share = card.querySelector(".module-history-share");
+    if (!share) return Number.POSITIVE_INFINITY;
+    return Math.round(card.getBoundingClientRect().bottom - share.getBoundingClientRect().bottom);
+  });
+  if (reportFooterGap > 30) throw new Error(`Diet history share action is not anchored to the report bottom: ${reportFooterGap}px`);
   await page.screenshot({ path: path.join(outputDir, "record-diet-trend.png") });
   await returnFromSubview();
   // Let the staged chart animation reach its settled geometry before the

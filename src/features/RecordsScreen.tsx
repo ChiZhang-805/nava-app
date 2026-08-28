@@ -23,6 +23,7 @@ import { currentSevenDayPeriod, loadDnbWeeklyReport, refreshFdnbHealth, shareDnb
 import { trackAnalyticsEvent } from "../services/analytics";
 import { clearRecordDraft, loadRecordDraft, saveRecordDraft, type RecordDraftModule } from "../services/drafts";
 import { loadProfile, type UserProfile } from "../services/profile";
+import { loadDietAiReport } from "../services/dietReport";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 import RecordModuleDashboard from "./RecordModuleDashboard";
 
@@ -167,6 +168,7 @@ export default function RecordsScreen({
   const [faceAnalyzing, setFaceAnalyzing] = useState(false);
   const [faceMode, setFaceMode] = useState<"bare_face" | "makeup">("bare_face");
   const [faceConsent, setFaceConsent] = useState(false);
+  const dietQuickCameraInputRef = useRef<HTMLInputElement | null>(null);
   const facePhotoInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -452,8 +454,8 @@ export default function RecordsScreen({
 
   async function saveDiet(event: FormEvent) {
     event.preventDefault();
-    await run("records.diet", () =>
-      saveNutritionRecord({
+    await run("records.diet", async () => {
+      await saveNutritionRecord({
         userId: user.id,
         date: recordDate,
         meal,
@@ -469,8 +471,15 @@ export default function RecordsScreen({
         hydrationMl,
         healthRating: dietRating,
         photoUrl: dietPhotoPath ?? dietPhotoUrl ?? undefined,
-      }),
-    );
+      });
+      try {
+        await loadDietAiReport({ date: recordDate, locale, refresh: true });
+      } catch (reportError) {
+        // The meal is already durable. A transient model failure must not
+        // discard it; opening the report retries the authenticated AI call.
+        console.warn("AI diet report refresh deferred", reportError);
+      }
+    });
   }
 
   async function handleDietPhoto(file: File | null) {
@@ -501,6 +510,17 @@ export default function RecordsScreen({
             ? "图片已上传；AI 未能可靠确认餐食，请手动填写"
             : "Uploaded · AI could not identify the meal reliably; please enter it manually"));
       }
+      window.requestAnimationFrame(() => {
+        window.setTimeout(() => {
+          const root = rootRef.current;
+          const scroller = root?.closest<HTMLElement>(".app-content");
+          if (!scroller) return;
+          scroller.scrollTo({
+            top: Math.max(scroller.scrollTop, 220),
+            behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+          });
+        }, 80);
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -715,6 +735,24 @@ export default function RecordsScreen({
       aria-busy={Boolean(busy)}
       ref={rootRef}
     >
+      <input
+        ref={dietQuickCameraInputRef}
+        className="visually-hidden"
+        data-diet-quick-camera
+        aria-label={locale === "zh" ? "使用后置摄像头拍摄饮食" : "Use rear camera to photograph meal"}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        disabled={dietAnalyzing}
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0] ?? null;
+          event.currentTarget.value = "";
+          if (!file) return;
+          setShowEditor(true);
+          onViewChange?.("editor");
+          void handleDietPhoto(file);
+        }}
+      />
       {showEditor && <div className="record-detail-toolbar record-detail-toolbar--editor">
         {notice && <div className="record-upload-toast" role="status" aria-live="polite">
           <Check size={15} />
@@ -767,6 +805,7 @@ export default function RecordsScreen({
             setShowEditor(true);
             onViewChange?.("editor");
           }}
+          onOpenDietCamera={() => dietQuickCameraInputRef.current?.click()}
           onSaveFocusMinutes={saveFocusMinutes}
           busy={busy}
           recordDate={recordDate}

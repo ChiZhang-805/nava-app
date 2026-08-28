@@ -6,6 +6,7 @@ $functionsRoot = Join-Path $root "supabase\functions"
 $requiredFunctions = @(
   "ai-extract-data",
   "ai-chat-reply",
+  "ai-diet-report",
   "diet-extract",
   "face-analyze",
   "health-sync-ingest",

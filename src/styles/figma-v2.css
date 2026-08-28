@@ -3752,6 +3752,76 @@ body::before {
 .account-delete-sheet input { background: #f8fdff; }
 .account-delete-sheet > button:disabled { opacity: 1; color: rgba(255, 255, 255, 0.72); background: #d9949e; }
 .module-history-share { width: 100%; min-height: 40px; margin-top: 10px; border: 0; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: white; background: #177ca5; font-weight: 720; }
+
+.module-history-report-card {
+  display: grid;
+  grid-template-rows: auto 178px auto minmax(118px, 1fr) auto;
+  gap: 10px;
+}
+
+.module-history-report-card > header,
+.module-history-report-card > .module-history-list,
+.module-history-report-card > .module-history-share { margin: 0; }
+
+.diet-history-trend-chart {
+  width: 100%;
+  height: 178px;
+  min-height: 0;
+}
+
+.diet-history-trend-chart svg { width: 100%; height: 100%; overflow: visible; }
+.diet-history-grid { stroke: rgba(43, 121, 154, 0.13); stroke-width: 1; }
+.diet-history-bar rect {
+  fill: #2ca2cf;
+  transform: scaleY(0);
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: chart-bar-rise 660ms cubic-bezier(.16, .82, .2, 1) forwards;
+  animation-delay: calc(80ms + var(--history-index, 0) * 70ms);
+}
+.diet-history-value,
+.diet-history-date { fill: #557584; font-size: 11px; font-weight: 650; }
+.diet-history-value { fill: #244f63; font-size: 10px; }
+.diet-history-line {
+  fill: none;
+  stroke: #075f91;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: trend-line-draw 900ms cubic-bezier(.2, .76, .2, 1) 980ms forwards;
+}
+.diet-history-dot {
+  fill: #f7fdff;
+  stroke: #075f91;
+  stroke-width: 4;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: trend-point-in 260ms cubic-bezier(.18, .82, .22, 1.18) forwards;
+  animation-delay: calc(1050ms + var(--history-index, 0) * 95ms);
+}
+
+.diet-ai-report {
+  min-height: 118px;
+  padding: 12px 14px;
+  border: 1px solid rgba(171, 218, 236, 0.72);
+  border-radius: 15px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 8px;
+  color: #214d61;
+  background: linear-gradient(145deg, rgba(244, 252, 255, .9), rgba(226, 246, 253, .82));
+}
+.diet-ai-report header { display: flex; align-items: center; gap: 8px; }
+.diet-ai-report header > span { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: #087ca9; background: rgba(255, 255, 255, .86); box-shadow: 0 4px 12px rgba(22, 123, 166, .1); }
+.diet-ai-report header strong { font-size: 13px; }
+.diet-ai-report ul { margin: 0; padding: 0; display: grid; align-content: space-evenly; gap: 4px; list-style: none; }
+.diet-ai-report li { min-width: 0; display: grid; grid-template-columns: 7px minmax(0, 1fr); align-items: center; gap: 7px; font-size: 10px; line-height: 1.35; }
+.diet-ai-report li::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: #1c96c2; box-shadow: 0 0 0 3px rgba(45, 165, 207, .12); }
+.diet-ai-report-loading { display: grid; place-items: center start; color: #6b8794; font-size: 10px; line-height: 1.5; }
+.module-history-report-card > .module-history-share { align-self: end; }
 .weekly-fdnb-contributors {
   display: flex;
   flex-wrap: wrap;
@@ -4835,9 +4905,11 @@ body::before {
 .face-dashboard {
   min-height: 100%;
   display: grid;
-  grid-template-rows: auto auto minmax(154px, 1fr) auto;
   gap: 10px;
 }
+
+.diet-dashboard { grid-template-rows: auto auto minmax(0, 1fr); }
+.face-dashboard { grid-template-rows: auto auto minmax(154px, 1fr) auto; }
 
 .diet-summary-card,
 .diet-meals-card,
@@ -4847,10 +4919,14 @@ body::before {
   padding: 14px 16px;
 }
 
-.diet-summary-card header > div { display: grid; gap: 2px; }
-.diet-summary-card header span { color: #658696; font-size: 11px; font-weight: 750; }
-.diet-summary-card header strong { font-size: 27px; line-height: 1; font-variant-numeric: tabular-nums; }
-.diet-summary-card header strong small { color: #72909f; font-size: 11px; }
+.diet-summary-card header > strong,
+.diet-meals-card header > strong,
+.diet-trend-card header > strong {
+  color: #153346;
+  font-size: 16px;
+  font-weight: 760;
+  line-height: 1.25;
+}
 .diet-summary-card header > button,
 .face-summary-card header > button {
   width: 42px;
@@ -4864,11 +4940,12 @@ body::before {
   box-shadow: 0 8px 18px rgba(8, 116, 160, 0.2);
 }
 
-.diet-completion { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 13px; }
-.diet-completion > span { min-width: 0; display: grid; gap: 2px; padding: 0 9px; border-left: 1px solid rgba(55, 134, 168, 0.18); }
-.diet-completion > span:first-child { padding-left: 0; border-left: 0; }
-.diet-completion strong { font-size: 18px; font-variant-numeric: tabular-nums; }
-.diet-completion small { overflow: hidden; color: #72909f; font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
+.diet-nutrition-summary { position: relative; left: -34px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 16px; }
+.diet-nutrition-summary > span { min-width: 0; display: grid; justify-items: center; gap: 5px; padding: 2px 7px; border-left: 1px solid rgba(55, 134, 168, 0.18); text-align: center; }
+.diet-nutrition-summary > span:first-child { border-left: 0; }
+.diet-nutrition-summary small { color: #668696; font-size: 10px; font-weight: 650; white-space: nowrap; }
+.diet-nutrition-summary strong { color: #153346; font-size: 18px; line-height: 1; font-variant-numeric: tabular-nums; }
+.diet-nutrition-summary em { margin-left: 2px; color: #72909f; font-size: 9px; font-style: normal; font-weight: 650; }
 
 .diet-meals-card header button { min-height: 34px; border: 0; display: flex; align-items: center; gap: 5px; color: #0b7199; background: transparent; font: inherit; font-size: 12px; font-weight: 760; }
 .diet-meal-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 11px; }
@@ -4883,6 +4960,23 @@ body::before {
 .face-trend-card .line-trend-chart { height: 112px; margin-top: 5px; }
 .diet-trend-card .line-trend-chart svg,
 .face-trend-card .line-trend-chart svg { height: 100%; }
+
+.diet-dashboard .diet-trend-card {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.diet-dashboard .diet-trend-card .line-trend-chart {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.diet-dashboard .diet-trend-card .line-trend-chart svg {
+  width: 100%;
+  height: 100%;
+}
 .module-empty-copy { min-height: 104px; margin: 0; display: grid; place-items: center; color: #72909f; font-size: 12px; text-align: center; }
 
 .face-privacy-card { min-height: 48px; padding: 9px 13px; display: flex; align-items: center; gap: 9px; color: #1b6683; background: rgba(229, 248, 255, 0.9); }
@@ -4929,7 +5023,9 @@ body::before {
   .diet-trend-card,
   .face-summary-card,
   .face-trend-card { padding-inline: 11px; }
-  .diet-completion > span { padding-inline: 6px; }
+  .diet-nutrition-summary { left: -28px; }
+  .diet-nutrition-summary > span { padding-inline: 4px; }
+  .diet-nutrition-summary small { font-size: 9px; }
   .face-score-row { grid-template-columns: 86px minmax(0, 1fr); gap: 10px; }
   .face-score-ring { width: 84px; }
 
@@ -7185,6 +7281,9 @@ body::before {
   .focus-period-card i,
   .steps-bars > span,
   .module-history-chart i,
+  .diet-history-bar rect,
+  .diet-history-line,
+  .diet-history-dot,
   .day-distribution i,
   .sleep-timeline i,
   .sleep-stage-shape i,

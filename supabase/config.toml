@@ -14,6 +14,9 @@ verify_jwt = true
 [functions.ai-chat-reply]
 verify_jwt = true
 
+[functions.ai-diet-report]
+verify_jwt = true
+
 [functions.diet-extract]
 verify_jwt = true
 
