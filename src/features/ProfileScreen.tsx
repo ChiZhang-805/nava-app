@@ -108,8 +108,10 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
       if (profileDraft.username.trim()) updates.username = profileDraft.username.trim();
       if (profileDraft.height.trim()) updates.height = Number(profileDraft.height);
       if (profileDraft.weight.trim()) updates.weight = Number(profileDraft.weight);
-      if (profileDraft.goal.trim()) updates.goal = profileDraft.goal.trim();
-      if (profileDraft.occupation.trim()) updates.occupation = profileDraft.occupation.trim();
+      // Empty optional fields are intentional edits too; persist them as null so
+      // users can remove a previously saved goal or occupation.
+      updates.goal = profileDraft.goal.trim() || null;
+      updates.occupation = profileDraft.occupation.trim() || null;
 
       const saved = Object.keys(updates).length > 1 ? await saveProfile(updates) : profile;
       if (!saved) return;
