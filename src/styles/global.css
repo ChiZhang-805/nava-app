@@ -4509,6 +4509,41 @@ textarea::placeholder {
   18%, 84% { opacity: 1; }
 }
 
+/* Frame-by-frame home mascot. The artwork itself supplies each pose; the app
+   only advances the sprite viewport at 24 fps, so no cat image is stretched,
+   skewed, rotated or cross-faded to simulate movement. */
+.nava-mascot > .nava-mascot-pose--idle {
+  left: 45%;
+  bottom: -9%;
+  width: 100%;
+  height: 100%;
+  transform: translateX(-50%);
+}
+
+.nava-mascot > .nava-mascot-animation {
+  position: absolute;
+  left: 35%;
+  bottom: 1%;
+  display: block;
+  width: 70%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background-repeat: no-repeat;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 16px 22px rgba(0, 31, 50, 0.13));
+  pointer-events: none;
+  user-select: none;
+  will-change: background-position;
+}
+
+.nava-mascot:focus-visible > .nava-mascot-animation {
+  filter: drop-shadow(0 0 10px rgba(8, 125, 176, 0.58)) drop-shadow(0 16px 22px rgba(0, 31, 50, 0.13));
+}
+
+.option-two-home.is-expanded .nava-mascot > .nava-mascot-animation {
+  transform: translateX(-50%);
+}
+
 .option-two-aura {
   position: absolute;
   inset: 13% 9% 7%;

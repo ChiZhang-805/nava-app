@@ -789,25 +789,30 @@ async function verifyHomeShortcuts(page, results) {
   await expect(mascot).toHaveAttribute("data-next-motion", "wave");
   await mascot.click();
   await expect(mascot).toHaveAttribute("data-mascot-motion", "wave");
-  const waveMotion = await page.locator(".nava-mascot-pose--wave").evaluate((node) => {
+  await expect(mascot).toHaveAttribute("data-animation-fps", "24");
+  const waveMotion = await page.locator(".nava-mascot-animation--wave").evaluate((node) => {
     const style = getComputedStyle(node);
-    return { name: style.animationName, duration: Number.parseFloat(style.animationDuration), objectFit: style.objectFit };
+    return { backgroundImage: style.backgroundImage, backgroundPosition: style.backgroundPosition, transform: style.transform };
   });
-  if (!waveMotion.name.includes("nava-pose-wave") || waveMotion.duration < 3 || waveMotion.duration > 4 || waveMotion.objectFit !== "contain") {
+  if (!waveMotion.backgroundImage.includes("nava-wave-sprite") || waveMotion.transform === "none") {
     throw new Error(`home mascot wave motion is invalid: ${JSON.stringify(waveMotion)}`);
   }
-  await page.waitForTimeout(720);
+  await page.waitForTimeout(420);
+  const waveDisplayFrame = Number(await mascot.getAttribute("data-display-frame"));
+  if (waveDisplayFrame < 7 || waveDisplayFrame > 14) throw new Error(`home mascot is not advancing near 24 fps: ${waveDisplayFrame}`);
+  const advancedWavePosition = await page.locator(".nava-mascot-animation--wave").evaluate((node) => getComputedStyle(node).backgroundPosition);
+  if (advancedWavePosition === waveMotion.backgroundPosition) throw new Error("home mascot sprite did not advance to a new hand-drawn frame");
   await page.screenshot({ path: path.join(outputDir, "today-mascot-wave.png") });
-  await page.waitForTimeout(2_600);
+  await page.waitForTimeout(3_650);
   await expect(mascot).toHaveAttribute("data-mascot-motion", "idle");
   await expect(mascot).toHaveAttribute("data-next-motion", "tail");
   await mascot.click();
   await expect(mascot).toHaveAttribute("data-mascot-motion", "tail");
-  const tailMotion = await page.locator(".nava-mascot-pose--tail").evaluate((node) => {
+  const tailMotion = await page.locator(".nava-mascot-animation--tail").evaluate((node) => {
     const style = getComputedStyle(node);
-    return { name: style.animationName, duration: Number.parseFloat(style.animationDuration), objectFit: style.objectFit };
+    return { backgroundImage: style.backgroundImage, backgroundPosition: style.backgroundPosition };
   });
-  if (!tailMotion.name.includes("nava-pose-tail") || tailMotion.duration < 3 || tailMotion.duration > 4 || tailMotion.objectFit !== "contain") {
+  if (!tailMotion.backgroundImage.includes("nava-tail-sprite")) {
     throw new Error(`home mascot tail motion is invalid: ${JSON.stringify(tailMotion)}`);
   }
 
