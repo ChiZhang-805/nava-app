@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { App as CapacitorApp } from "@capacitor/app";
+import AnimatedNumber from "../components/AnimatedNumber";
+import BarLineTrendChart, { type BarLineTrendPoint } from "../components/BarLineTrendChart";
 import LineTrendChart, { type LineTrendPoint } from "../components/LineTrendChart";
 import { useLocale } from "../i18n";
 import type { FocusRecord, MoodRecord, TodaySnapshot, TrendBundle } from "../types";
@@ -446,12 +448,28 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
   const [alertVisible, setAlertVisible] = useState(() => window.sessionStorage.getItem(todayKey) !== "1");
   const [notificationEnabled, setNotificationEnabled] = useState(false);
   const total = Math.max(1, deepSleep + lightSleep + remSleep);
-  const score = Math.round(58 + sleepRating * 5.5);
+  const fallbackScore = Math.round(58 + sleepRating * 5.5);
+  const score = Math.round(todaySnapshot?.sleep?.rhythm_score ?? fallbackScore);
   const sleepTrend = useMemo(() => {
-    const records = new Map((trendBundle?.sleeps ?? []).map((record) => [record.record_date, record.rhythm_score ?? Math.min(100, ((record.sleep_duration_minutes ?? 0) / 480) * 100)]));
-    records.set(recordDate, score);
-    return [...records.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(-7);
-  }, [recordDate, score, trendBundle]);
+    const records = new Map((trendBundle?.sleeps ?? []).map((record) => [record.record_date, record]));
+    if (todaySnapshot?.sleep) records.set(recordDate, todaySnapshot.sleep);
+    return [...records.values()]
+      .sort((a, b) => a.record_date.localeCompare(b.record_date))
+      .slice(-7)
+      .map((record): BarLineTrendPoint => {
+        const minutes = Math.max(0, record.sleep_duration_minutes ?? 0);
+        const rhythmScore = Math.round(record.rhythm_score ?? Math.min(100, (minutes / 480) * 100));
+        const hours = minutes / 60;
+        return {
+          id: record.id,
+          label: shortDate(record.record_date, locale),
+          barValue: minutes,
+          lineValue: rhythmScore,
+          barText: locale === "zh" ? `${hours.toFixed(1)} 小时` : `${hours.toFixed(1)} h`,
+          lineText: locale === "zh" ? `${rhythmScore} 分` : `${rhythmScore} pts`,
+        };
+      });
+  }, [locale, recordDate, todaySnapshot?.sleep, trendBundle]);
   const feedback = buildModuleFeedback({ module: "sleep", locale, profile, snapshot: todaySnapshot, trends: trendBundle });
 
   const enableNotification = async () => {
@@ -459,7 +477,7 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
     setNotificationEnabled(true);
   };
 
-  if (view === "trend") return <ModuleDetailView compact title={locale === "zh" ? "睡眠趋势" : "Sleep trend"}><LineTrendChart points={sleepTrend.map(([date, value]) => ({ id: date, label: shortDate(date, locale), value }))} ariaLabel={locale === "zh" ? "近七日睡眠趋势" : "Seven-day sleep trend"} tone="rhythm" /><p>{locale === "zh" ? "曲线由近七日睡眠时长与节律评分生成，更新今日睡眠后会同步变化。" : "This curve is generated from seven days of sleep duration and rhythm scores."}</p></ModuleDetailView>;
+  if (view === "trend") return <ModuleDetailView compact title={locale === "zh" ? "睡眠趋势" : "Sleep trend"}>{sleepTrend.length > 0 ? <BarLineTrendChart points={sleepTrend} ariaLabel={locale === "zh" ? "近七日睡眠时长柱状图与节律评分折线图" : "Seven-day sleep duration bars and rhythm score line"} /> : <p className="module-empty-copy">{locale === "zh" ? "完成睡眠记录后显示趋势" : "Log sleep to begin the trend"}</p>}<p>{locale === "zh" ? "柱形代表真实睡眠时长，折线代表对应日期的节律评分；柱形生长完成后折线才开始绘制。" : "Bars show actual sleep duration and the line shows the corresponding rhythm score. The line draws after the bars finish."}</p></ModuleDetailView>;
 
   return (
     <div className="module-dashboard sleep-dashboard" data-module-view="sleep-overview">
@@ -470,12 +488,14 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
         <div className="sleep-stage-row">
           <div className="sleep-stage-shape"><i style={{ flex: deepSleep / total }} /><i style={{ flex: lightSleep / total }} /><i style={{ flex: remSleep / total }} /></div>
           <ul><li><i />{locale === "zh" ? "深睡" : "Deep"}</li><li><i />{locale === "zh" ? "浅睡" : "Light"}</li><li><i />REM</li></ul>
-          <strong>{score}<small>{locale === "zh" ? "分" : "pts"}</small></strong>
+          <strong><AnimatedNumber value={score} /><small>{locale === "zh" ? "分" : "pts"}</small></strong>
         </div>
       </section>
       <section className="figma-module-card sleep-trend-card">
         <header><strong>{locale === "zh" ? "7 日趋势" : "7-day trend"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("trend")} aria-label={locale === "zh" ? "查看睡眠趋势" : "View sleep trend"}><ChevronRight size={18} /></button></header>
-        <div className="sleep-bars">{sleepTrend.map(([date, height]) => <span key={date}><i style={{ height: `${Math.max(6, height)}%` }} /><small>{shortDate(date, locale)}</small></span>)}</div>
+        {sleepTrend.length > 0
+          ? <BarLineTrendChart points={sleepTrend} ariaLabel={locale === "zh" ? "近七日睡眠时长柱状图与节律评分折线图" : "Seven-day sleep duration bars and rhythm score line"} />
+          : <p className="module-empty-copy">{locale === "zh" ? "完成睡眠记录后显示趋势" : "Log sleep to begin the trend"}</p>}
       </section>
       <AssistantCard text={feedback} />
       {view === "alert" && <div className="module-modal" role="dialog" aria-modal="true"><div className="module-modal-card sleep-alert-modal"><header><strong>{locale === "zh" ? "睡眠提醒" : "Sleep reminder"}</strong><button type="button" onClick={() => openView("overview")}><X size={20} /></button></header><div className="lock-screen-preview"><Bell size={24} /><strong>NAVA</strong><p>{locale === "zh" ? "该准备入睡了，给今天一个安静的收尾。" : "Time to wind down and close the day quietly."}</p></div><button type="button" onClick={() => void enableNotification()}>{notificationEnabled ? <BellOff size={18} /> : <Bell size={18} />}{notificationEnabled ? (locale === "zh" ? "提醒已开启" : "Reminder enabled") : (locale === "zh" ? "开启锁屏提醒" : "Enable lock-screen reminder")}</button><button type="button" onClick={() => { window.sessionStorage.setItem(todayKey, "1"); setAlertVisible(false); openView("overview"); }}>{locale === "zh" ? "今天不再提醒" : "Not again today"}</button></div></div>}
@@ -568,7 +588,7 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "pro
       <section className="figma-module-card face-summary-card">
         <header><strong>{locale === "zh" ? "今日面部状态" : "Today's face state"}</strong><button type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "使用前置摄像头拍照" : "Take a front-camera photo"}><Camera size={20} /></button></header>
         <div className="face-score-row">
-          <div className="face-score-ring" style={{ "--face-score": `${face?.overall_score ?? 0}%` } as CSSProperties}><ScanFace size={28} /><strong>{face?.overall_score ?? "--"}</strong></div>
+          <div className="face-score-ring" style={{ "--face-score": `${face?.overall_score ?? 0}%` } as CSSProperties}><ScanFace size={28} /><strong>{face?.overall_score == null ? "--" : <AnimatedNumber value={face.overall_score} />}</strong></div>
           <div><span>{locale === "zh" ? "肤龄参考" : "Skin-age reference"}<strong>{face?.skin_age ?? "--"}</strong></span><span>{locale === "zh" ? "拍摄模式" : "Capture mode"}<strong>{face?.capture_mode === "makeup" ? (locale === "zh" ? "带妆" : "Makeup") : (locale === "zh" ? "素颜" : "Bare")}</strong></span><span>{locale === "zh" ? "分析置信度" : "Confidence"}<strong>{face?.analysis_confidence != null ? `${Math.round(face.analysis_confidence * 100)}%` : "--"}</strong></span></div>
         </div>
         <div className="face-annotation-list">

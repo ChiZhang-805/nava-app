@@ -3,6 +3,7 @@ import { Activity, BedDouble, Brain, Check, CircleDashed, Flame, HeartPulse, Moo
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useState } from "react";
 import ActionButton from "../components/ActionButton";
+import AnimatedNumber from "../components/AnimatedNumber";
 import MetricCard from "../components/MetricCard";
 import SectionCard from "../components/SectionCard";
 import StatusPill from "../components/StatusPill";
@@ -143,7 +144,7 @@ export default function TodayScreen({
         <div className="hero-copy">
           <p className="eyebrow">{t("today.rhythm")}</p>
           <div>
-            <strong>{snapshot?.rhythmScore ?? "--"}</strong>
+            <strong>{snapshot?.rhythmScore == null ? "--" : <AnimatedNumber value={snapshot.rhythmScore} />}</strong>
             <span>/ 100</span>
           </div>
         </div>

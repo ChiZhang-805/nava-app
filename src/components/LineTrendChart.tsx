@@ -74,6 +74,7 @@ export default function LineTrendChart({
         ...points.map((point, index) => `${xAt(points.length - index - 1)},${yAt(points[points.length - index - 1].lower as number)}`),
       ].join(" ")
     : "";
+  const signature = points.map((point) => `${point.id}:${point.value}:${point.lower ?? ""}:${point.upper ?? ""}`).join("|");
 
   return (
     <div className={["line-trend-chart", tone].join(" ")}>
@@ -108,7 +109,7 @@ export default function LineTrendChart({
 
         {hasBand && <polygon className="trend-confidence-band" points={bandPoints} />}
         {areaPath && <path className="trend-area" d={areaPath} style={{ fill: `url(#${areaGradientId})` }} />}
-        <path className="trend-line" d={linePath} style={{ stroke: `url(#${gradientId})` }} />
+        <path key={`trend-${signature}`} className="trend-line" d={linePath} pathLength={1} style={{ stroke: `url(#${gradientId})` }} />
 
         {points.map((point, index) => {
           const x = xAt(index);
@@ -117,7 +118,7 @@ export default function LineTrendChart({
           return (
             <g
               className="trend-point"
-              key={point.id}
+              key={`${point.id}-${signature}`}
               data-label={point.label}
               data-value={point.value}
               style={{ "--trend-point-index": index } as CSSProperties}

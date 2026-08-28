@@ -2728,6 +2728,89 @@ body::before {
 .sleep-bars i { width: 100%; max-width: 25px; border-radius: 8px 8px 1px 1px; background: linear-gradient(180deg, #52b1d5, #176484); }
 .sleep-bars small { color: #718894; font-size: 8px; }
 
+.bar-line-trend-chart {
+  --combo-line-delay: 1000ms;
+  position: relative;
+  height: 112px;
+  margin-top: 5px;
+  overflow: hidden;
+}
+
+.bar-line-bars {
+  position: absolute;
+  inset: 4px 8px 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 7px;
+  border-bottom: 1px solid #d6e5eb;
+}
+
+.bar-line-bars > span {
+  height: calc(100% - 4px);
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.bar-line-bars i {
+  width: min(24px, 72%);
+  min-height: 6px;
+  display: block;
+  border-radius: 8px 8px 2px 2px;
+  background: linear-gradient(180deg, rgba(79, 191, 225, .82), rgba(17, 104, 141, .86));
+  box-shadow: 0 5px 10px rgba(25, 116, 153, .12);
+  transform: scaleY(0);
+  transform-origin: center bottom;
+  animation: chart-bar-rise var(--bar-duration, 680ms) cubic-bezier(.18, .82, .2, 1) var(--bar-delay, 80ms) forwards;
+}
+
+.bar-line-bars small {
+  color: #718894;
+  font-size: 8px;
+  opacity: 0;
+  animation: chart-label-reveal 260ms ease calc(var(--bar-delay, 80ms) + var(--bar-duration, 680ms) - 90ms) forwards;
+}
+
+.bar-line-trend-chart > svg {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.bar-line-path {
+  fill: none;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 2px 3px rgba(8, 82, 117, .18));
+  animation: combo-line-draw 760ms cubic-bezier(.2, .76, .2, 1) var(--combo-line-delay) forwards;
+}
+
+.bar-line-point {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: combo-point-in 260ms cubic-bezier(.18, .82, .22, 1.18) calc(var(--combo-line-delay) + 190ms + var(--point-index, 0) * 72ms) forwards;
+}
+
+.bar-line-point circle {
+  fill: #f5fcff;
+  stroke: #0a709c;
+  stroke-width: 2;
+}
+
 .focus-summary-card {
   min-height: 90px;
   padding: 14px 16px;
@@ -4608,8 +4691,8 @@ body::before {
 }
 
 .line-trend-chart .trend-line {
-  stroke-dasharray: 1200;
-  stroke-dashoffset: 1200;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
   animation: trend-line-draw 920ms cubic-bezier(0.2, 0.76, 0.2, 1) 160ms forwards;
 }
 
@@ -5242,6 +5325,15 @@ body::before {
 
 @keyframes trend-line-draw {
   to { stroke-dashoffset: 0; }
+}
+
+@keyframes combo-line-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes combo-point-in {
+  from { opacity: 0; transform: translateY(5px) scale(.5); }
+  to { opacity: 1; transform: none; }
 }
 
 @keyframes trend-grid-reveal {
@@ -6554,6 +6646,10 @@ body::before {
   .line-trend-chart .trend-area,
   .line-trend-chart .trend-confidence-band,
   .line-trend-chart .trend-point,
+  .bar-line-bars i,
+  .bar-line-bars small,
+  .bar-line-path,
+  .bar-line-point,
   .sleep-bars i,
   .focus-period-card i,
   .steps-bars > span,

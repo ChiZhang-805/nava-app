@@ -2,6 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import { BedDouble, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Loader2, LockKeyhole, ScanFace, Share2, ShieldCheck, SmilePlus, type LucideIcon } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
+import AnimatedNumber from "../components/AnimatedNumber";
 import LineTrendChart from "../components/LineTrendChart";
 import SectionCard from "../components/SectionCard";
 import { useLocale, type TranslationKey } from "../i18n";
@@ -606,9 +607,9 @@ export default function RecordsScreen({
               <button type="button" className="weekly-share-button" disabled={!dnbReport || dnbReport.status !== "ready"} onClick={() => { if (dnbReport) void shareDnbWeeklyPoster(dnbReport, locale, `${dnbPeriod.startDate}-${dnbPeriod.endDate}`).then(() => trackAnalyticsEvent(user.id, "weekly_report_shared", { weekOffset })).catch((shareError) => setError(shareError instanceof Error ? shareError.message : String(shareError))); }}><Share2 size={16} />{locale === "zh" ? "保存海报" : "Poster"}</button>
             </div>
             <section className="weekly-score-card">
-              <div><span>{locale === "zh" ? "基础节律" : "Baseline rhythm"}</span><strong>{todaySnapshot?.rhythmScore ?? "--"}</strong></div>
-              <div><span>{locale === "zh" ? "数据完整度" : "Data complete"}</span><strong>{completedModules}/6</strong></div>
-              <div><span>{locale === "zh" ? "周内变化" : "Weekly change"}</span><strong>{weekChange >= 0 ? "+" : ""}{weekChange}</strong></div>
+              <div><span>{locale === "zh" ? "基础节律" : "Baseline rhythm"}</span><strong>{todaySnapshot?.rhythmScore == null ? "--" : <AnimatedNumber value={todaySnapshot.rhythmScore} />}</strong></div>
+              <div><span>{locale === "zh" ? "数据完整度" : "Data complete"}</span><strong><AnimatedNumber value={completedModules} duration={520} />/6</strong></div>
+              <div><span>{locale === "zh" ? "周内变化" : "Weekly change"}</span><strong>{weekChange >= 0 ? "+" : ""}<AnimatedNumber value={weekChange} duration={640} /></strong></div>
             </section>
             <section className="weekly-trend-card">
               <header><strong>{locale === "zh" ? "节律轨迹" : "Rhythm trajectory"}</strong><span>{locale === "zh" ? "近 7 天" : "7 days"}</span></header>
