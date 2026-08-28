@@ -336,6 +336,25 @@ async function assertStaticLayout(page, label) {
         left: Math.round(rect.left * 10) / 10,
         right: Math.round(rect.right * 10) / 10,
       }));
+    const nav = document.querySelector(".bottom-nav");
+    const navTop = nav?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY;
+    const bottomNavOffenders = [...document.querySelectorAll('button, input, select, textarea, [role="button"]')]
+      .filter((node) => !node.closest(".bottom-nav") && visible(node))
+      .map((node) => ({ node, rect: node.getBoundingClientRect() }))
+      .filter(({ rect }) => rect.top < navTop - 1 && rect.bottom > navTop + 1)
+      .filter(({ node, rect }) => {
+        const hit = document.elementFromPoint(rect.left + rect.width / 2, Math.max(rect.top + 1, navTop - 2));
+        return hit === node || (hit instanceof Node && node.contains(hit));
+      })
+      .slice(0, 5)
+      .map(({ node, rect }) => ({
+        tagName: node.tagName.toLowerCase(),
+        className: node.className,
+        text: (node.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 80),
+        top: Math.round(rect.top * 10) / 10,
+        bottom: Math.round(rect.bottom * 10) / 10,
+        navTop: Math.round(navTop * 10) / 10,
+      }));
     const header = document.querySelector(".figma-app-header");
     let headerAlignment = null;
     if (header && visible(header)) {
@@ -354,6 +373,7 @@ async function assertStaticLayout(page, label) {
     return {
       auditLabel,
       horizontalOffenders,
+      bottomNavOffenders,
       frameOverflow: Math.max(0, frame.scrollWidth - frame.clientWidth),
       headerAlignment,
     };
@@ -361,6 +381,9 @@ async function assertStaticLayout(page, label) {
   if (audit.error) throw new Error(`${label}: ${audit.error}`);
   if (audit.frameOverflow > 1 || audit.horizontalOffenders.length > 0) {
     throw new Error(`${label}: horizontal layout overflow ${JSON.stringify(audit)}`);
+  }
+  if (audit.bottomNavOffenders.length > 0) {
+    throw new Error(`${label}: an interactive control is partially hidden by the bottom navigation ${JSON.stringify(audit.bottomNavOffenders)}`);
   }
   if (audit.headerAlignment && (audit.headerAlignment.actionCenterOffset > 1 || audit.headerAlignment.titleCenterOffset > 1)) {
     throw new Error(`${label}: header controls are not aligned ${JSON.stringify(audit.headerAlignment)}`);
@@ -476,6 +499,7 @@ async function verifyRecordModules(page, results) {
   await returnFromSubview();
   await expect(page.locator('[data-module-view="mood-overview"]')).toBeVisible();
   await page.waitForTimeout(450);
+  await assertStaticLayout(page, "record-mood-saved");
   await page.screenshot({ path: path.join(outputDir, "record-mood.png") });
   await returnToHub();
 
@@ -506,6 +530,7 @@ async function verifyRecordModules(page, results) {
   await expect(page.locator('[data-record-detail="sleep"] .success-text')).toBeVisible();
   await expect(page.locator('[data-module-view="sleep-overview"]')).toBeVisible();
   await page.waitForTimeout(650);
+  await assertStaticLayout(page, "record-sleep-saved");
   await page.screenshot({ path: path.join(outputDir, "record-sleep.png") });
   await returnToHub();
 
@@ -562,6 +587,7 @@ async function verifyRecordModules(page, results) {
   await expect(page.locator('[data-record-detail="exercise"] .success-text')).toBeVisible();
   await expect(page.locator('[data-module-view="exercise-overview"]')).toBeVisible();
   await page.waitForTimeout(650);
+  await assertStaticLayout(page, "record-exercise-saved");
   await page.screenshot({ path: path.join(outputDir, "record-exercise.png") });
   await returnToHub();
 
@@ -586,6 +612,7 @@ async function verifyRecordModules(page, results) {
   // Let the staged chart animation reach its settled geometry before the
   // screenshot is used for visual-regression review.
   await page.waitForTimeout(1_250);
+  await assertStaticLayout(page, "record-diet-saved");
   await page.screenshot({ path: path.join(outputDir, "record-diet.png") });
   await returnToHub();
 
@@ -613,6 +640,7 @@ async function verifyRecordModules(page, results) {
   await expect(page.locator('[data-module-view="focus-overview"]')).toBeVisible();
   await expect(page.locator('[aria-label="专注已记录"], [aria-label="Focus saved"]')).toBeVisible();
   await page.waitForTimeout(650);
+  await assertStaticLayout(page, "record-focus-saved");
   await page.screenshot({ path: path.join(outputDir, "record-focus.png") });
   await returnToHub();
 
@@ -634,6 +662,7 @@ async function verifyRecordModules(page, results) {
   await page.locator('[data-record-detail="face"] input[type="file"][capture="user"]').setInputFiles(samplePhoto);
   await expect(page.locator('[data-record-detail="face"] .success-text')).toBeVisible();
   await page.waitForTimeout(900);
+  await assertStaticLayout(page, "record-face-saved");
   await assertNoBottomNavClipping(page, "face-result", '[data-record-detail="face"] .face-result .detected-list div, [data-record-detail="face"] .face-result-meta span');
   await page.screenshot({ path: path.join(outputDir, "record-face.png") });
   await returnFromSubview();
@@ -685,6 +714,7 @@ async function verifyAi(page, results, diagnostics) {
   await page.locator(".chat-composer input").fill("我今天吃什么好？请直接推荐一份午餐。");
   await page.locator(".chat-send-button").click();
   await expect(page.locator("[data-ai-streaming=true]")).toBeVisible();
+  await assertStaticLayout(page, "ai-processing");
   await page.screenshot({ path: path.join(outputDir, "ai-processing.png") });
   await page.waitForFunction(() => {
     const replyReady = document.querySelectorAll(".chat-message-row").length === 5
@@ -722,10 +752,12 @@ async function verifyAi(page, results, diagnostics) {
     throw new Error(`AI history sheet backdrop is missing: ${JSON.stringify(historyBackdrop)}`);
   }
   await page.waitForTimeout(350);
+  await assertStaticLayout(page, "ai-history");
   await page.screenshot({ path: path.join(outputDir, "ai-history.png") });
   await page.locator(".ai-history-sheet > div > button").first().click();
   await expect(page.locator(".chat-message-row")).toHaveCount(5);
   await page.waitForTimeout(100);
+  await assertStaticLayout(page, "ai-reply");
   await page.screenshot({ path: path.join(outputDir, "ai-reply.png") });
 
   await page.locator('[data-tab="today"]').click();
@@ -738,6 +770,7 @@ async function verifyAi(page, results, diagnostics) {
   await page.waitForTimeout(520);
   await expect(page).toHaveURL(/tab=ai/);
   await expect(page.locator(".chat-composer.voice-active")).toBeVisible();
+  await assertStaticLayout(page, "voice-recording");
   await page.screenshot({ path: path.join(outputDir, "voice-recording.png") });
   await page.waitForTimeout(120);
   await page.mouse.up();
@@ -783,6 +816,7 @@ async function verifyProfile(page, results) {
   await page.locator(".avatar-button").click();
   await expect(page.locator(".avatar-sheet")).toBeVisible();
   await page.waitForTimeout(420);
+  await assertStaticLayout(page, "profile-avatar-sheet");
   await page.screenshot({ path: path.join(outputDir, "profile-avatar-sheet.png") });
   await page.locator('.profile-account-card input[type="file"]:not([capture])').setInputFiles(samplePhoto);
   await expect(page.locator(".avatar-button img")).toBeVisible();
@@ -794,6 +828,7 @@ async function verifyProfile(page, results) {
   await watchActions.nth(0).click();
   await watchActions.nth(1).click();
   await page.locator(".profile-device-card").nth(1).scrollIntoViewIfNeeded();
+  await assertStaticLayout(page, "profile-devices");
   await page.screenshot({ path: path.join(outputDir, "profile-devices.png") });
 
   const downloadPromise = page.waitForEvent("download");
@@ -809,6 +844,7 @@ async function verifyProfile(page, results) {
   await deleteButton.click();
   await expect(page.locator(".account-delete-sheet")).toBeVisible();
   await page.waitForTimeout(420);
+  await assertStaticLayout(page, "profile-delete-sheet");
   await page.screenshot({ path: path.join(outputDir, "profile-delete-sheet.png") });
   await page.locator(".account-delete-sheet header button").click();
   await expect(page.locator(".account-delete-sheet")).toBeHidden();
