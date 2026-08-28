@@ -3817,8 +3817,8 @@ body::before {
 
 @media (min-height: 781px) and (max-height: 860px) {
   .growth-task-list {
-    max-height: 346px;
-    padding-bottom: 48px;
+    max-height: 320px;
+    padding-bottom: 23px;
   }
   .growth-task-card { min-height: 69px; }
 }
@@ -5303,6 +5303,16 @@ body::before {
   }
   .phone-frame:not(.phone-frame--option2) .record-detail:has(.record-editor-stack) .record-editor-stack > div:not([hidden]):not(:has(.face-result)) .photo-picker.face {
     min-height: 296px;
+  }
+}
+
+@media (max-width: 390px) and (min-height: 781px) and (max-height: 860px) {
+  .mood-dashboard {
+    grid-template-rows: 304px minmax(142px, 1fr) minmax(70px, 0.52fr);
+  }
+
+  .record-detail:has(> .record-feedback-card) .mood-dashboard {
+    grid-template-rows: 330px 142px minmax(70px, 1fr);
   }
 }
 

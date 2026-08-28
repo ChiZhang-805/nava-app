@@ -455,6 +455,32 @@ async function assertWholeGrowthTaskCards(page, label) {
   if (clippedTasks.length > 0) throw new Error(`${label}: growth task cards are clipped ${JSON.stringify({ clippedTasks, ...taskGeometry })}`);
 }
 
+async function assertMoodCardSeparation(page, label) {
+  const audit = await page.locator('[data-module-view="mood-overview"]').evaluate((dashboard) => {
+    const entry = dashboard.querySelector(".mood-entry-card");
+    const diary = dashboard.querySelector(".mood-diary-trigger");
+    const trend = dashboard.querySelector(".mood-trend-card");
+    if (!entry || !diary || !trend) return { error: "mood cards missing" };
+    const entryRect = entry.getBoundingClientRect();
+    const diaryRect = diary.getBoundingClientRect();
+    const trendRect = trend.getBoundingClientRect();
+    return {
+      innerWidth: window.innerWidth,
+      media390: window.matchMedia("(max-width: 390px)").matches,
+      gridRows: getComputedStyle(dashboard).gridTemplateRows,
+      entryBottom: entryRect.bottom,
+      diaryTop: diaryRect.top,
+      diaryBottom: diaryRect.bottom,
+      trendTop: trendRect.top,
+      diaryOverflow: diaryRect.bottom - entryRect.bottom,
+      cardOverlap: diaryRect.bottom - trendRect.top,
+    };
+  });
+  if (audit.error || audit.diaryOverflow > 0.5 || audit.cardOverlap > -0.5) {
+    throw new Error(`${label}: mood entry controls overlap the trend card ${JSON.stringify(audit)}`);
+  }
+}
+
 async function verifyRecordModules(page, results) {
   await page.locator('[data-tab="record"]').click();
   await expect(page.locator("[data-record-module]")).toHaveCount(6);
@@ -493,6 +519,8 @@ async function verifyRecordModules(page, results) {
   await page.locator(".mood-face-row button").first().click();
   await expect.poll(() => moodCurve.getAttribute("d")).not.toBe(curveBefore);
   await expect.poll(() => page.locator(".mood-pie").evaluate((node) => node.style.background)).not.toBe(pieBefore);
+  await page.screenshot({ path: path.join(outputDir, "record-mood-before-journal.png") });
+  await assertMoodCardSeparation(page, "record-mood-before-journal");
   await page.locator('[aria-label="填写情绪日记"], [aria-label="Write mood journal"]').click();
   await expect(page.locator('[role="dialog"]')).toBeVisible();
   await page.locator('[role="dialog"] textarea').fill("今天节律平稳，午后状态更好。");
@@ -501,20 +529,7 @@ async function verifyRecordModules(page, results) {
   await page.screenshot({ path: path.join(outputDir, "record-mood-journal.png") });
   await page.locator('[role="dialog"] button[type="submit"]').click();
   await expect(page.locator('[data-module-view="mood-overview"] button[aria-label="情绪已保存"], [data-module-view="mood-overview"] button[aria-label="Mood saved"]')).toBeVisible();
-  const moodOverlap = await page.locator('[data-module-view="mood-overview"]').evaluate((dashboard) => {
-    const entry = dashboard.querySelector(".mood-entry-card");
-    const diary = dashboard.querySelector(".mood-diary-trigger");
-    const trend = dashboard.querySelector(".mood-trend-card");
-    if (!entry || !diary || !trend) return [{ error: "mood cards missing" }];
-    const entryRect = entry.getBoundingClientRect();
-    const diaryRect = diary.getBoundingClientRect();
-    const trendRect = trend.getBoundingClientRect();
-    const offenders = [];
-    if (diaryRect.bottom > entryRect.bottom + 0.5) offenders.push({ type: "diary-overflow", diaryBottom: diaryRect.bottom, entryBottom: entryRect.bottom });
-    if (diaryRect.bottom > trendRect.top - 0.5) offenders.push({ type: "entry-trend-overlap", diaryBottom: diaryRect.bottom, trendTop: trendRect.top });
-    return offenders;
-  });
-  if (moodOverlap.length > 0) throw new Error(`Mood dashboard cards overlap: ${JSON.stringify(moodOverlap)}`);
+  await assertMoodCardSeparation(page, "record-mood-after-journal");
   await page.locator('[aria-label="查看情绪趋势"], [aria-label="View mood trend"]').click();
   await expect(page.locator('[data-record-detail="mood"] .line-trend-chart')).toBeVisible();
   await assertAnimation(page.locator('[data-record-detail="mood"] .trend-line'), "trend-line-draw", "mood trend line");
