@@ -881,15 +881,25 @@ async function verifyNavigationAndMotion(page, results) {
       const taskList = page.locator(".growth-task-list");
       await taskList.evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
       await expect(page.locator("[data-growth-task]").last()).toBeVisible();
-      const clippedTasks = await taskList.evaluate((node) => {
+      await page.waitForTimeout(180);
+      const taskGeometry = await taskList.evaluate((node) => {
         const listRect = node.getBoundingClientRect();
-        return [...node.querySelectorAll("[data-growth-task]")]
-          .map((task) => ({ id: task.getAttribute("data-growth-task"), rect: task.getBoundingClientRect() }))
-          .filter(({ rect }) => (rect.top < listRect.top - 0.1 && rect.bottom > listRect.top + 0.1)
-            || (rect.top < listRect.bottom - 0.1 && rect.bottom > listRect.bottom + 0.1))
-          .map(({ id, rect }) => ({ id, top: rect.top, bottom: rect.bottom, listTop: listRect.top, listBottom: listRect.bottom }));
+        const cards = [...node.querySelectorAll("[data-growth-task]")]
+          .map((task) => {
+            const rect = task.getBoundingClientRect();
+            return { id: task.getAttribute("data-growth-task"), top: rect.top, bottom: rect.bottom };
+          });
+        return {
+          cards,
+          listTop: listRect.top,
+          listBottom: listRect.bottom,
+          scrollTop: node.scrollTop,
+          scrollHeight: node.scrollHeight,
+        };
       });
-      if (clippedTasks.length > 0) throw new Error(`Growth task cards are clipped after scrolling: ${JSON.stringify(clippedTasks)}`);
+      const clippedTasks = taskGeometry.cards.filter(({ top, bottom }) => (top < taskGeometry.listTop - 0.1 && bottom > taskGeometry.listTop + 0.1)
+        || (top < taskGeometry.listBottom - 0.1 && bottom > taskGeometry.listBottom + 0.1));
+      if (clippedTasks.length > 0) throw new Error(`Growth task cards are clipped after scrolling: ${JSON.stringify({ clippedTasks, ...taskGeometry })}`);
       await assertStaticLayout(page, "tab-trends-lower");
       await page.waitForTimeout(250);
       await page.screenshot({ path: path.join(outputDir, "tab-trends-lower.png") });
@@ -905,7 +915,7 @@ async function verifyNavigationAndMotion(page, results) {
   const weeklyOverflow = await page.locator(".weekly-insight-card").evaluate((card) => {
     const cardRect = card.getBoundingClientRect();
     return [...card.children]
-      .map((node) => ({ className: node.className, bottom: node.getBoundingClientRect().bottom }))
+      .map((node) => ({ className: node.className, tagName: node.tagName.toLowerCase(), top: node.getBoundingClientRect().top, bottom: node.getBoundingClientRect().bottom, cardTop: cardRect.top, cardBottom: cardRect.bottom }))
       .filter(({ bottom }) => bottom > cardRect.bottom + 1);
   });
   if (weeklyOverflow.length > 0) throw new Error(`Weekly insight content overflowed its card: ${JSON.stringify(weeklyOverflow)}`);
