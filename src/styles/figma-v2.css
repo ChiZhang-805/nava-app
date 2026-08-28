@@ -730,6 +730,87 @@ body::before {
   background: rgba(239, 250, 254, 0.84);
 }
 
+.phone-frame:not(.phone-frame--option2) .record-detail .diet-photo-preview {
+  margin-bottom: 8px;
+  cursor: default;
+}
+
+.diet-photo-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.diet-photo-action {
+  position: relative;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid rgba(92, 181, 217, 0.28);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  overflow: hidden;
+  color: #176d91;
+  background: rgba(229, 246, 252, 0.86);
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: transform var(--motion-fast, 180ms) ease, border-color var(--motion-fast, 180ms) ease, background var(--motion-fast, 180ms) ease;
+}
+
+.diet-photo-action:active {
+  transform: scale(.985);
+  border-color: rgba(38, 151, 195, .5);
+  background: rgba(213, 241, 251, .96);
+}
+
+.diet-photo-action:has(input:disabled) {
+  opacity: .56;
+  cursor: wait;
+}
+
+.diet-photo-action input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.nutrition-unit-input {
+  position: relative;
+  width: 100%;
+}
+
+.phone-frame:not(.phone-frame--option2) .record-detail .nutrition-unit-input input {
+  width: 100%;
+  padding-right: 52px;
+  appearance: textfield;
+}
+
+.nutrition-unit-input input::-webkit-inner-spin-button,
+.nutrition-unit-input input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.nutrition-unit-input b {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  color: #5b8295;
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1;
+  pointer-events: none;
+}
+
 .phone-frame:not(.phone-frame--option2) .record-detail .photo-picker.face {
   min-height: 212px;
 }

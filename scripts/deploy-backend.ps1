@@ -97,7 +97,11 @@ try {
 
   Write-Host ""
   Write-Host "Backend deploy completed."
-  Write-Host "Optional secrets for formal algorithm providers:"
+  Write-Host "Required AI secret for food-photo recognition (Qwen VL default):"
+  Write-Host "  supabase secrets set DASHSCOPE_API_KEY=... --project-ref $ProjectRef"
+  Write-Host "Optional OpenAI-compatible vision overrides:"
+  Write-Host "  supabase secrets set NAVA_DIET_VISION_URL=... NAVA_DIET_VISION_KEY=... NAVA_DIET_VISION_MODEL=qwen3-vl-plus --project-ref $ProjectRef"
+  Write-Host "Optional custom algorithm providers:"
   Write-Host "  supabase secrets set NAVA_DIET_EXTRACT_URL=... NAVA_DIET_EXTRACT_KEY=... --project-ref $ProjectRef"
   Write-Host "  supabase secrets set NAVA_FACE_ANALYZE_URL=... NAVA_FACE_ANALYZE_KEY=... --project-ref $ProjectRef"
   Write-Host "Phone OTP deployment:"

@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { BedDouble, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Loader2, LockKeyhole, ScanFace, Share2, ShieldCheck, SmilePlus, X, type LucideIcon } from "lucide-react";
+import { BedDouble, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Loader2, LockKeyhole, ScanFace, Share2, ShieldCheck, SmilePlus, Upload, X, type LucideIcon } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import AnimatedNumber from "../components/AnimatedNumber";
@@ -11,7 +11,6 @@ import {
   saveFocusSession,
   saveMoodRecord,
   saveFaceAnalysisRecord,
-  saveNutritionItems,
   saveNutritionRecord,
   saveSleepRecord,
   refreshRhythmScore,
@@ -455,24 +454,6 @@ export default function RecordsScreen({
 
   async function saveDiet(event: FormEvent) {
     event.preventDefault();
-    if (dietItems.length > 0) {
-      await run("records.diet", () =>
-        saveNutritionItems({
-          userId: user.id,
-          date: recordDate,
-          meal,
-          items: dietItems,
-          photoUrl: dietPhotoPath ?? dietPhotoUrl ?? undefined,
-          proteinGrams,
-          carbohydrateGrams,
-          fatGrams,
-          hydrationMl,
-          healthRating: dietRating,
-        }),
-      );
-      return;
-    }
-
     await run("records.diet", () =>
       saveNutritionRecord({
         userId: user.id,
@@ -914,28 +895,44 @@ export default function RecordsScreen({
 
       <form hidden={activeModule !== "diet"} onSubmit={saveDiet}>
         <SectionCard title={t("records.diet")}>
-          <label className={["photo-picker", dietAnalyzing ? "is-analyzing" : "", dietPhotoUrl ? "has-image" : ""].filter(Boolean).join(" ")}>
+          <div className={["photo-picker", "diet-photo-preview", dietAnalyzing ? "is-analyzing" : "", dietPhotoUrl ? "has-image" : ""].filter(Boolean).join(" ")} aria-live="polite">
             {dietPhotoUrl ? <img src={dietPhotoUrl} alt="饮食照片" /> : <Camera size={28} />}
             <span>{dietAnalyzing ? t("records.aiScanning") : t("records.scanDiet")}</span>
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              disabled={dietAnalyzing}
-              onChange={(e) => void handleDietPhoto(e.target.files?.[0] ?? null)}
-            />
             {dietAnalyzing && <Loader2 className="spin" size={18} />}
-          </label>
-          {dietItems.length > 0 && (
-            <div className="detected-list">
-              {dietItems.map((item, index) => (
-                <div key={`${item.name}-${index}`}>
-                  <strong>{item.name}</strong>
-                  <span>{item.amount ?? t("records.estimated")} · {item.calories ?? 0} kcal</span>
-                </div>
-              ))}
-            </div>
-          )}
+          </div>
+          <div className="diet-photo-actions" role="group" aria-label={locale === "zh" ? "选择饮食照片来源" : "Choose meal photo source"}>
+            <label className="diet-photo-action">
+              <Camera size={18} />
+              <span>{locale === "zh" ? "打开摄像头" : "Open camera"}</span>
+              <input
+                aria-label={locale === "zh" ? "打开摄像头拍摄饮食" : "Open camera to photograph meal"}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                disabled={dietAnalyzing}
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0] ?? null;
+                  event.currentTarget.value = "";
+                  void handleDietPhoto(file);
+                }}
+              />
+            </label>
+            <label className="diet-photo-action">
+              <Upload size={18} />
+              <span>{locale === "zh" ? "上传照片" : "Upload photo"}</span>
+              <input
+                aria-label={locale === "zh" ? "从相册上传饮食照片" : "Upload meal photo from library"}
+                type="file"
+                accept="image/*"
+                disabled={dietAnalyzing}
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0] ?? null;
+                  event.currentTarget.value = "";
+                  void handleDietPhoto(file);
+                }}
+              />
+            </label>
+          </div>
           <div className="two-col">
             <label className="field">
               <span>{t("records.meal")}</span>
@@ -946,9 +943,12 @@ export default function RecordsScreen({
                 <option value="pantry">{t("records.pantry")}</option>
               </select>
             </label>
-            <label className="field">
+            <label className="field nutrition-unit-field">
               <span>{t("records.calorie")}</span>
-              <input inputMode="numeric" type="number" value={mealCalories} onChange={(e) => setMealCalories(Number(e.target.value))} />
+              <div className="nutrition-unit-input">
+                <input inputMode="numeric" type="number" value={mealCalories} onChange={(e) => setMealCalories(Number(e.target.value))} />
+                <b aria-hidden="true">kcal</b>
+              </div>
             </label>
           </div>
           <label className="field">
@@ -956,10 +956,22 @@ export default function RecordsScreen({
             <input value={mealName} onChange={(e) => setMealName(e.target.value)} placeholder={locale === "zh" ? "AI 识别后自动填写，也可手动输入" : "Filled by AI or entered manually"} />
           </label>
           <div className="two-col nutrition-macro-fields">
-            <label className="field"><span>{locale === "zh" ? "蛋白质 g" : "Protein g"}</span><input inputMode="decimal" type="number" min="0" value={proteinGrams} onChange={(e) => setProteinGrams(Number(e.target.value))} /></label>
-            <label className="field"><span>{locale === "zh" ? "碳水 g" : "Carbs g"}</span><input inputMode="decimal" type="number" min="0" value={carbohydrateGrams} onChange={(e) => setCarbohydrateGrams(Number(e.target.value))} /></label>
-            <label className="field"><span>{locale === "zh" ? "脂肪 g" : "Fat g"}</span><input inputMode="decimal" type="number" min="0" value={fatGrams} onChange={(e) => setFatGrams(Number(e.target.value))} /></label>
-            <label className="field"><span>{locale === "zh" ? "饮水 ml" : "Hydration ml"}</span><input inputMode="numeric" type="number" min="0" value={hydrationMl} onChange={(e) => setHydrationMl(Number(e.target.value))} /></label>
+            <label className="field nutrition-unit-field">
+              <span>{locale === "zh" ? "蛋白质摄入量" : "Protein intake"}</span>
+              <div className="nutrition-unit-input"><input inputMode="decimal" type="number" min="0" value={proteinGrams} onChange={(e) => setProteinGrams(Number(e.target.value))} /><b aria-hidden="true">g</b></div>
+            </label>
+            <label className="field nutrition-unit-field">
+              <span>{locale === "zh" ? "碳水摄入量" : "Carbohydrate intake"}</span>
+              <div className="nutrition-unit-input"><input inputMode="decimal" type="number" min="0" value={carbohydrateGrams} onChange={(e) => setCarbohydrateGrams(Number(e.target.value))} /><b aria-hidden="true">g</b></div>
+            </label>
+            <label className="field nutrition-unit-field">
+              <span>{locale === "zh" ? "脂肪摄入量" : "Fat intake"}</span>
+              <div className="nutrition-unit-input"><input inputMode="decimal" type="number" min="0" value={fatGrams} onChange={(e) => setFatGrams(Number(e.target.value))} /><b aria-hidden="true">g</b></div>
+            </label>
+            <label className="field nutrition-unit-field">
+              <span>{locale === "zh" ? "饮水摄入量" : "Water intake"}</span>
+              <div className="nutrition-unit-input"><input inputMode="numeric" type="number" min="0" value={hydrationMl} onChange={(e) => setHydrationMl(Number(e.target.value))} /><b aria-hidden="true">ml</b></div>
+            </label>
           </div>
           <label className="field diet-rating-field"><span>{locale === "zh" ? `饮食自评 ${dietRating}/5` : `Diet rating ${dietRating}/5`}</span><input className="range" type="range" min="1" max="5" value={dietRating} onChange={(e) => setDietRating(Number(e.target.value))} /></label>
           <ActionButton type="submit" icon={<Drumstick size={18} />} variant="secondary" disabled={busy === "records.diet"}>

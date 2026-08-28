@@ -638,11 +638,25 @@ async function verifyRecordModules(page, results) {
   await expect(page.locator('[data-module-view="diet-overview"]')).toBeVisible();
   await page.locator('[aria-label="记录饮食"], [aria-label="Log a meal"]').click();
   await expect(page.locator('[data-record-detail="diet"] form:not([hidden])')).toBeVisible();
+  const dietForm = page.locator('[data-record-detail="diet"] form:not([hidden])');
+  await expect(dietForm.locator(".diet-photo-action")).toHaveCount(2);
+  await expect(dietForm.locator('input[type="file"][capture="environment"]')).toHaveCount(1);
+  await expect(dietForm.locator('input[type="file"]:not([capture])')).toHaveCount(1);
+  await expect(dietForm.locator(".nutrition-unit-input b")).toHaveText(["kcal", "g", "g", "g", "ml"]);
+  const unitOffsets = await dietForm.locator(".nutrition-unit-input").evaluateAll((nodes) => nodes.map((node) => {
+    const unit = node.querySelector("b");
+    if (!unit) return Number.POSITIVE_INFINITY;
+    return Math.abs((node.getBoundingClientRect().right - unit.getBoundingClientRect().right) - 14);
+  }));
+  if (unitOffsets.some((offset) => offset > 1.5)) throw new Error(`Diet units are not right aligned: ${unitOffsets.join(", ")}`);
   await page.waitForTimeout(450);
   await page.screenshot({ path: path.join(outputDir, "record-diet-editor.png") });
   await assertNoBottomNavClipping(page, "diet-editor", '[data-record-detail="diet"] form:not([hidden]) .field, [data-record-detail="diet"] form:not([hidden]) .action-button');
   await page.locator('[data-record-detail="diet"] input[type="file"][capture="environment"]').setInputFiles(samplePhoto);
   await expect(page.locator('[data-record-detail="diet"] .record-upload-toast')).toBeVisible();
+  await expect(dietForm.locator(".detected-list")).toHaveCount(0);
+  await expect(dietForm.getByLabel(/食物|Food/)).not.toHaveValue("");
+  await expect(dietForm.getByLabel(/热量|Calorie/)).not.toHaveValue("0");
   await page.locator('[data-record-detail="diet"] form:not([hidden]) .action-button').click();
   await expect(page.locator('[data-module-view="diet-overview"]')).toBeVisible();
   await page.locator('.diet-trend-card .module-card-nav-button').click();

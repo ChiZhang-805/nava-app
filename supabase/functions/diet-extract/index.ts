@@ -64,24 +64,17 @@ async function callProvider(input: { imageUrl: string; imagePath?: string; lang:
     return normalizeProviderResult(data, "custom-provider", true);
   }
 
-  const visionEndpoint = Deno.env.get("NAVA_DIET_VISION_URL");
-  const visionKey = Deno.env.get("NAVA_DIET_VISION_KEY");
-  const visionModel = Deno.env.get("NAVA_DIET_VISION_MODEL");
-  if (visionEndpoint && visionKey && visionModel) {
-    return await callVisionProvider({ ...input, endpoint: visionEndpoint, apiKey: visionKey, model: visionModel });
+  const visionKey = Deno.env.get("NAVA_DIET_VISION_KEY") ?? Deno.env.get("DASHSCOPE_API_KEY");
+  if (!visionKey) {
+    throw new Error(input.lang === "en"
+      ? "Food-photo recognition requires a vision AI key. Configure DASHSCOPE_API_KEY in Supabase Edge Function secrets."
+      : "照片识别必须使用视觉 AI。请先在 Supabase Edge Function Secrets 配置 DASHSCOPE_API_KEY。");
   }
 
-  return normalizeProviderResult(
-    {
-      items: [],
-      confidence: 0,
-      note: input.lang === "en"
-        ? "The photo was uploaded, but no vision model is configured."
-        : "照片已上传，但尚未配置可读取图片的视觉模型。",
-    },
-    "unavailable",
-    false,
-  );
+  const visionEndpoint = Deno.env.get("NAVA_DIET_VISION_URL")
+    ?? "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
+  const visionModel = Deno.env.get("NAVA_DIET_VISION_MODEL") ?? "qwen3-vl-plus";
+  return await callVisionProvider({ ...input, endpoint: visionEndpoint, apiKey: visionKey, model: visionModel });
 }
 
 async function callVisionProvider(input: {
@@ -140,7 +133,13 @@ async function callVisionProvider(input: {
   } catch {
     throw new Error("视觉识别结果不是有效 JSON，请检查模型或提示词配置。");
   }
-  return normalizeProviderResult(parsed, input.model, true);
+  const normalized = normalizeProviderResult(parsed, input.model, true);
+  if (normalized.items.length === 0) {
+    throw new Error(input.lang === "en"
+      ? "The vision AI could not identify any food in this photo. Try a clearer photo with the full meal visible."
+      : "视觉 AI 没有从照片中可靠识别出食物，请重新拍摄一张光线充足、餐食完整可见的照片。");
+  }
+  return normalized;
 }
 
 function dietRecognitionPrompt(lang: string, meal?: string) {
