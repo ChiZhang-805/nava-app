@@ -91,10 +91,18 @@ export default function LineTrendChart({
           </linearGradient>
         </defs>
 
-        {[0.25, 0.5, 0.75].map((ratio) => {
+        {[0.25, 0.5, 0.75].map((ratio, index) => {
           const score = domainMin + domainSpan * ratio;
           return (
-          <line className="trend-grid-line" x1={left} x2={right} y1={yAt(score)} y2={yAt(score)} key={score} />
+          <line
+            className="trend-grid-line"
+            x1={left}
+            x2={right}
+            y1={yAt(score)}
+            y2={yAt(score)}
+            key={score}
+            style={{ "--trend-grid-index": index } as CSSProperties}
+          />
           );
         })}
 

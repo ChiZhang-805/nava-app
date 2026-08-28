@@ -6,7 +6,7 @@ import {
   Menu,
   UsersRound,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import lifeFigure from "../assets/figma/home-option2/raw-01.png";
 import dietIcon from "../assets/figma/option-two-icons/diet.svg";
 import exerciseIcon from "../assets/figma/option-two-icons/exercise.svg";
@@ -66,14 +66,14 @@ export default function OptionTwoHome({
   const completeness = snapshot?.rhythmDataQuality ?? "--";
 
   return (
-    <section className={["option-two-home", expanded ? "is-expanded" : ""].filter(Boolean).join(" ")}>
-      <div className="option-two-scores" aria-label={t("today.overview")}>
+    <section className={["option-two-home", expanded ? "is-expanded" : "", snapshot ? "is-loaded" : ""].filter(Boolean).join(" ")}>
+      <div className="option-two-scores" aria-label={t("today.overview")} aria-live="polite">
         <div><span>{t("today.rhythm")}</span><strong>{rhythmScore}</strong></div>
         <div><span>{t("today.dataQuality")}</span><strong>{completeness}</strong></div>
       </div>
 
       <div className="option-two-side-actions">
-        <button type="button" onClick={() => setExpanded((value) => !value)} aria-label={expanded ? t("common.close") : t("today.overview")} title={expanded ? t("common.close") : t("today.overview")}>
+        <button className="option-two-menu-toggle" type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} aria-label={expanded ? t("common.close") : t("today.overview")} title={expanded ? t("common.close") : t("today.overview")}>
           {expanded ? <ChevronUp size={23} /> : <Menu size={23} />}
         </button>
         <button type="button" onClick={() => onOpenRecord()} aria-label={t("tabs.record")} title={t("tabs.record")}><CalendarDays size={23} /></button>
@@ -87,7 +87,7 @@ export default function OptionTwoHome({
       </div>
 
       <div className="option-two-health-menu" aria-hidden={!expanded}>
-        {healthEntries.map(({ id, icon, labelKey, className }) => (
+        {healthEntries.map(({ id, icon, labelKey, className }, index) => (
           <button
             className={`option-two-health-entry option-two-health-entry--${className}`}
             key={id}
@@ -96,6 +96,7 @@ export default function OptionTwoHome({
             tabIndex={expanded ? 0 : -1}
             aria-label={t(labelKey)}
             title={t(labelKey)}
+            style={{ "--option-entry-index": index } as CSSProperties}
           >
             <img
               className={`option-two-health-icon option-two-health-icon--${className}`}

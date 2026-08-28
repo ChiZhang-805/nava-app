@@ -1,4 +1,11 @@
 :root {
+  --motion-instant: 140ms;
+  --motion-fast: 200ms;
+  --motion-ui: 320ms;
+  --motion-enter: 520ms;
+  --motion-emphasis: 760ms;
+  --motion-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-ease-spring: cubic-bezier(0.18, 0.88, 0.22, 1.16);
   color: #17211b;
   background: #f6f8f4;
   font-family:
