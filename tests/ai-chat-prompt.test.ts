@@ -5,22 +5,27 @@ import {
   AI_VOICE_REPLY_LIMITS,
   buildSystemPrompt,
   buildVoiceConversationPrompt,
+  enforceReplyBudget,
   enforceReplyLength,
   enforceVoiceReplyLength,
+  replyFitsBudget,
+  resolveReplyBudget,
 } from "../supabase/functions/ai-chat-reply/prompt.ts";
 
 test("Chinese prompt answers the explicit question before rhythm interpretation", () => {
   const prompt = buildSystemPrompt("zh");
   assert.match(prompt, /第一句话必须直接回答/);
   assert.match(prompt, /今天吃什么好/);
-  assert.match(prompt, /40-120 个中文字符/);
-  assert.match(prompt, /不得超过 180 个中文字符/);
+  assert.match(prompt, /完整成稿最多 112 个中文字符/);
+  assert.match(prompt, /不是界面截断规则/);
+  assert.match(prompt, /禁止用“…”或“\.\.\.”/);
 });
 
 test("English prompt defines direct-answer and bounded-length behavior", () => {
   const prompt = buildSystemPrompt("en");
   assert.match(prompt, /Answer the user's explicit question in the first sentence/);
-  assert.match(prompt, /Never exceed 100 words/);
+  assert.match(prompt, /at most 64 words/);
+  assert.match(prompt, /not a UI truncation rule/);
 });
 
 test("authorized profile changes Chinese response style by age and role", () => {
@@ -63,24 +68,43 @@ test("English personalization is concise and avoids age stereotypes", () => {
 test("Chinese replies are hard-limited on the server", () => {
   const output = enforceReplyLength("这".repeat(260), "zh");
   assert.ok(Array.from(output).length <= AI_REPLY_LIMITS.zh.hardMaxCharacters);
-  assert.match(output, /…$/);
+  assert.doesNotMatch(output, /…$/);
+  assert.match(output, /。$/);
 });
 
 test("English replies are hard-limited on the server", () => {
   const output = enforceReplyLength(Array.from({ length: 130 }, (_, index) => `word${index}`).join(" "), "en");
   assert.ok(output.split(/\s+/).length <= AI_REPLY_LIMITS.en.hardMaxWords);
-  assert.match(output, /…$/);
+  assert.doesNotMatch(output, /…$/);
+  assert.match(output, /\.$/);
+});
+
+test("complex replies receive an explicit model-side budget below the hard safety ceiling", () => {
+  const route = { intent: "advice", domains: ["sleep", "focus"], lookbackDays: 7, complexity: "complex", source: "deterministic" } as const;
+  const budget = resolveReplyBudget("zh", route);
+  const prompt = buildSystemPrompt("zh", undefined, route);
+  assert.equal(budget.targetMax, 165);
+  assert.equal(budget.hardMax, 180);
+  assert.match(prompt, /完整成稿最多 165 个中文字符/);
+  assert.equal(replyFitsBudget(`${"先".repeat(80)}。`, "zh", route), true);
+  assert.equal(replyFitsBudget(`${"先".repeat(170)}…`, "zh", route), false);
+  const fallback = enforceReplyBudget(`${"先做最重要的事。".repeat(30)}这句不完整`, "zh", route);
+  assert.ok(Array.from(fallback).length <= budget.targetMax);
+  assert.match(fallback, /。$/);
+  assert.doesNotMatch(fallback, /…$/);
 });
 
 test("voice mode asks for short spoken language without visual formatting", () => {
-  const prompt = buildVoiceConversationPrompt("zh");
+  const prompt = `${buildVoiceConversationPrompt("zh")}${buildSystemPrompt("zh", undefined, undefined, "voice")}`;
   assert.match(prompt, /直接朗读/);
   assert.match(prompt, /不得超过 72 个中文字符/);
   assert.match(prompt, /不得使用 Markdown/);
+  assert.match(prompt, /完整成稿最多 64 个中文字符/);
 });
 
 test("voice replies have a stricter server limit", () => {
   const output = enforceVoiceReplyLength(`**建议**${"先休息一下。".repeat(30)}`, "zh");
   assert.ok(Array.from(output).length <= AI_VOICE_REPLY_LIMITS.zh.hardMaxCharacters);
   assert.doesNotMatch(output, /\*/);
+  assert.doesNotMatch(output, /…$/);
 });

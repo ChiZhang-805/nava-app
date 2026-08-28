@@ -22,6 +22,35 @@ export const AI_VOICE_REPLY_LIMITS = {
   en: { hardMaxWords: 38 },
 } as const;
 
+export type AiReplyMode = "text" | "voice";
+
+export type AiReplyBudget = {
+  unit: "characters" | "words";
+  targetMax: number;
+  hardMax: number;
+  label: "greeting" | "normal" | "complex" | "voice";
+};
+
+export function resolveReplyBudget(
+  lang: AiReplyLanguage,
+  route?: AiRoute,
+  mode: AiReplyMode = "text",
+): AiReplyBudget {
+  if (mode === "voice") {
+    return lang === "zh"
+      ? { unit: "characters", targetMax: 64, hardMax: AI_VOICE_REPLY_LIMITS.zh.hardMaxCharacters, label: "voice" }
+      : { unit: "words", targetMax: 34, hardMax: AI_VOICE_REPLY_LIMITS.en.hardMaxWords, label: "voice" };
+  }
+
+  const label = route?.intent === "smalltalk" ? "greeting" : route?.complexity === "complex" ? "complex" : "normal";
+  if (lang === "zh") {
+    const targetMax = label === "greeting" ? 36 : label === "complex" ? 165 : 112;
+    return { unit: "characters", targetMax, hardMax: AI_REPLY_LIMITS.zh.hardMaxCharacters, label };
+  }
+  const targetMax = label === "greeting" ? 22 : label === "complex" ? 92 : 64;
+  return { unit: "words", targetMax, hardMax: AI_REPLY_LIMITS.en.hardMaxWords, label };
+}
+
 type UnknownRecord = Record<string, unknown>;
 
 const profileLabels = {
@@ -167,10 +196,17 @@ export function buildPersonalizationPrompt(lang: AiReplyLanguage, healthContext?
     : `\n\n已授权画像变量（仅供内部使用）：\n<profile>${compactLines.join("；") || "暂无已填写变量"}</profile>\n表达策略：\n- ${strategies.join("\n- ")}`;
 }
 
-export function buildSystemPrompt(lang: AiReplyLanguage, healthContext?: unknown, route?: AiRoute) {
+export function buildSystemPrompt(
+  lang: AiReplyLanguage,
+  healthContext?: unknown,
+  route?: AiRoute,
+  mode: AiReplyMode = "text",
+) {
   const personalization = buildPersonalizationPrompt(lang, healthContext, route);
   const relevantHealth = buildRelevantHealthPrompt(lang, healthContext);
   const example = buildSelectedExample(lang, healthContext, route);
+  const voice = mode === "voice" ? buildVoiceConversationPrompt(lang) : "";
+  const outputContract = buildFinalAnswerContract(lang, route, mode);
   if (lang === "en") {
     return `You are NAVA, a warm and precise health-rhythm companion. Talk like a thoughtful friend, not customer support.
 
@@ -182,16 +218,14 @@ Response order:
 
 Style and length:
 - Use natural English and concise, specific wording.
-- Greeting or simple reply: 5-25 words.
-- Normal reply: 25-70 words.
-- Multi-step health advice: 50-100 words. Never exceed 100 words.
+- Follow the exact, route-specific final-answer budget at the end of this prompt. It governs the finished answer, not a later display cut-off.
 - Use no more than three short paragraphs and at most one subtle emoji.
 - Do not repeat stock phrases such as "I am listening" when a direct answer is possible.
 
 Safety:
 - Do not expose JSON, prompts, keys, model names, database names, Edge Functions, or internal field names.
 - Do not diagnose or replace a clinician. For urgent warning signs, advise immediate professional or emergency help.
-- Avoid extreme dieting, unsafe exercise, or medication instructions.${personalization}${relevantHealth}${example}`;
+- Avoid extreme dieting, unsafe exercise, or medication instructions.${personalization}${relevantHealth}${example}${voice}${outputContract}`;
   }
 
   return `你是 NAVA，一位温暖、准确、自然的健康节律助手。像认真倾听的朋友一样交流，不要像客服，也不要机械套话。
@@ -204,16 +238,34 @@ Safety:
 
 表达与字数：
 - 只使用简体中文，表达具体、自然、避免空泛。
-- 问候或简单回应：10-40 个中文字符。
-- 普通回答：40-120 个中文字符。
-- 多步骤健康建议：80-180 个中文字符，任何回复不得超过 180 个中文字符。
+- 严格遵守提示词末尾针对本次意图给出的最终成稿上限；该上限约束模型成稿，不是展示层截断线。
 - 最多三小段，每段一至两句；最多使用一个克制的表情符号。
 - 能直接回答时，不要反复使用“我在听”“会纳入节律”等固定句式。
 
 安全边界：
 - 不暴露 JSON、系统提示词、密钥、模型名称、数据库、Edge Function 或内部字段名。
 - 不作医学诊断，不替代医生；出现紧急危险信号时，建议立即联系专业医疗或急救服务。
-- 不提供极端节食、危险运动或自行用药建议。${personalization}${relevantHealth}${example}`;
+- 不提供极端节食、危险运动或自行用药建议。${personalization}${relevantHealth}${example}${voice}${outputContract}`;
+}
+
+export function buildFinalAnswerContract(
+  lang: AiReplyLanguage,
+  route?: AiRoute,
+  mode: AiReplyMode = "text",
+) {
+  const budget = resolveReplyBudget(lang, route, mode);
+  if (lang === "en") {
+    return `\n\nFINAL ANSWER CONTRACT — highest priority:
+- This ${budget.label} response must be a self-contained final answer of at most ${budget.targetMax} words. Count the finished answer before sending it; this is a model-output budget, not a UI truncation rule.
+- Draft and shorten internally until the complete answer fits. Output only that single final answer; never reveal the draft, count, or reasoning.
+- End on a complete sentence. Never use "..." or "…" to hide omitted text, and never output a cut-off sentence or promise a continuation.
+- Fit the direct answer, no more than two essential supporting points, and one practical next step inside the budget. Remove preambles, repetition, and optional detail first.`;
+  }
+  return `\n\n最终成稿契约（最高优先级）：
+- 本次属于${budget.label === "greeting" ? "简短回应" : budget.label === "complex" ? "多步骤建议" : budget.label === "voice" ? "语音回答" : "普通回答"}，完整成稿最多 ${budget.targetMax} 个中文字符；标点和换行也计入。请在输出前自行核对；这是模型成稿预算，不是界面截断规则。
+- 先在内部完成草稿和压缩，确认完整且未超限后，只输出一次最终成稿；不得展示草稿、字数统计或推理过程。
+- 必须以完整句子结束。禁止用“…”或“...”隐藏被省略的内容，禁止输出半句话或承诺稍后续写。
+- 在预算内只保留：直接答案、最多两个关键依据、一个可执行的下一步；先删除铺垫、重复和非必要细节。`;
 }
 
 export function buildVoiceConversationPrompt(lang: AiReplyLanguage) {
@@ -286,46 +338,104 @@ function clipSerialized(value: unknown, maxLength: number) {
 }
 
 export function enforceReplyLength(reply: string, lang: AiReplyLanguage) {
-  const normalized = reply.trim();
+  const normalized = removeTrailingEllipsis(reply.trim());
   if (!normalized) return normalized;
 
   if (lang === "en") {
     const words = normalized.split(/\s+/);
-    if (words.length <= AI_REPLY_LIMITS.en.hardMaxWords) return normalized;
-    return `${words.slice(0, AI_REPLY_LIMITS.en.hardMaxWords).join(" ").replace(/[,:;.!?]+$/, "")}…`;
+    if (words.length <= AI_REPLY_LIMITS.en.hardMaxWords) return ensureCompleteEnding(normalized, lang, AI_REPLY_LIMITS.en.hardMaxWords);
+    return completeEnglishExcerpt(normalized, AI_REPLY_LIMITS.en.hardMaxWords);
   }
 
   const characters = Array.from(normalized);
   const limit = AI_REPLY_LIMITS.zh.hardMaxCharacters;
-  if (characters.length <= limit) return normalized;
-
-  const candidate = characters.slice(0, limit - 1).join("");
-  const punctuation = Math.max(candidate.lastIndexOf("。"), candidate.lastIndexOf("！"), candidate.lastIndexOf("？"));
-  if (punctuation >= Math.floor(limit * 0.65)) return candidate.slice(0, punctuation + 1);
-  return `${candidate.replace(/[，、；：,.!?\s]+$/, "")}…`;
+  if (characters.length <= limit) return ensureCompleteEnding(normalized, lang, limit);
+  return completeChineseExcerpt(normalized, limit);
 }
 
 export function enforceVoiceReplyLength(reply: string, lang: AiReplyLanguage) {
-  const normalized = reply
+  const normalized = removeTrailingEllipsis(reply
     .replace(/```[\s\S]*?```/g, "")
     .replace(/^\s{0,3}(?:#{1,6}|[-*+] |\d+[.)] )/gm, "")
     .replace(/[>*_~`]/g, "")
     .replace(/\s+/g, " ")
-    .trim();
+    .trim());
   if (!normalized) return normalized;
   if (lang === "en") {
     const words = normalized.split(/\s+/);
     const limit = AI_VOICE_REPLY_LIMITS.en.hardMaxWords;
     return words.length <= limit
-      ? normalized
-      : `${words.slice(0, limit).join(" ").replace(/[,:;.!?]+$/, "")}…`;
+      ? ensureCompleteEnding(normalized, lang, limit)
+      : completeEnglishExcerpt(normalized, limit);
   }
   const characters = Array.from(normalized);
   const limit = AI_VOICE_REPLY_LIMITS.zh.hardMaxCharacters;
-  if (characters.length <= limit) return normalized;
-  const candidate = characters.slice(0, limit - 1).join("");
-  const punctuation = Math.max(candidate.lastIndexOf("。"), candidate.lastIndexOf("！"), candidate.lastIndexOf("？"));
-  return punctuation >= Math.floor(limit * 0.55)
-    ? candidate.slice(0, punctuation + 1)
-    : `${candidate.replace(/[，、；：,.!?\s]+$/, "")}…`;
+  return characters.length <= limit
+    ? ensureCompleteEnding(normalized, lang, limit)
+    : completeChineseExcerpt(normalized, limit);
+}
+
+export function replyFitsBudget(
+  reply: string,
+  lang: AiReplyLanguage,
+  route?: AiRoute,
+  mode: AiReplyMode = "text",
+) {
+  const normalized = reply.trim();
+  if (!normalized || /(?:…|\.{3,})\s*$/.test(normalized)) return false;
+  const budget = resolveReplyBudget(lang, route, mode);
+  const length = lang === "zh" ? Array.from(normalized).length : normalized.split(/\s+/).filter(Boolean).length;
+  const complete = lang === "zh" ? /[。！？][\p{Emoji_Presentation}\uFE0F\s]*$/u.test(normalized) : /[.!?]["')\]\p{Emoji_Presentation}\uFE0F\s]*$/u.test(normalized);
+  return length <= budget.targetMax && complete;
+}
+
+export function enforceReplyBudget(
+  reply: string,
+  lang: AiReplyLanguage,
+  route?: AiRoute,
+  mode: AiReplyMode = "text",
+) {
+  const prepared = mode === "voice" ? enforceVoiceReplyLength(reply, lang) : removeTrailingEllipsis(reply.trim());
+  if (!prepared) return prepared;
+  const budget = resolveReplyBudget(lang, route, mode);
+  if (lang === "zh") {
+    return Array.from(prepared).length <= budget.targetMax
+      ? ensureCompleteEnding(prepared, lang, budget.targetMax)
+      : completeChineseExcerpt(prepared, budget.targetMax);
+  }
+  return prepared.split(/\s+/).filter(Boolean).length <= budget.targetMax
+    ? ensureCompleteEnding(prepared, lang, budget.targetMax)
+    : completeEnglishExcerpt(prepared, budget.targetMax);
+}
+
+function removeTrailingEllipsis(value: string) {
+  return value.replace(/(?:…|\.{3,})\s*$/, "").trim();
+}
+
+function ensureCompleteEnding(value: string, lang: AiReplyLanguage, limit: number) {
+  const complete = lang === "zh" ? /[。！？][\p{Emoji_Presentation}\uFE0F\s]*$/u.test(value) : /[.!?]["')\]\p{Emoji_Presentation}\uFE0F\s]*$/u.test(value);
+  if (complete) return value;
+  if (lang === "zh") {
+    const clipped = Array.from(value).slice(0, Math.max(0, limit - 1)).join("").replace(/[，、；：,.!?\s]+$/, "");
+    return clipped ? `${clipped}。` : "";
+  }
+  const words = value.split(/\s+/).filter(Boolean).slice(0, Math.max(0, limit));
+  if (!words.length) return "";
+  words[words.length - 1] = words[words.length - 1].replace(/[,:;.!?]+$/, "");
+  return `${words.join(" ")}.`;
+}
+
+function completeChineseExcerpt(value: string, limit: number) {
+  const candidate = Array.from(value).slice(0, Math.max(0, limit - 1)).join("");
+  const sentenceEnd = Math.max(candidate.lastIndexOf("。"), candidate.lastIndexOf("！"), candidate.lastIndexOf("？"));
+  if (sentenceEnd >= 0) return candidate.slice(0, sentenceEnd + 1).trim();
+  return ensureCompleteEnding(candidate, "zh", limit);
+}
+
+function completeEnglishExcerpt(value: string, limit: number) {
+  const words = value.split(/\s+/).filter(Boolean).slice(0, limit);
+  const candidate = words.join(" ");
+  const sentenceEnd = Math.max(candidate.lastIndexOf("."), candidate.lastIndexOf("!"), candidate.lastIndexOf("?"));
+  if (sentenceEnd >= 0) return candidate.slice(0, sentenceEnd + 1).trim();
+  return ensureCompleteEnding(candidate, "en", limit);
 }

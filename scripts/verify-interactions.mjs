@@ -786,15 +786,21 @@ async function verifyAi(page, results, diagnostics) {
   }
   await expect(page.locator(".chat-message-row")).toHaveCount(5, { timeout: 30_000 });
   const realReply = (await page.locator(".chat-message-row.assistant .chat-bubble p").last().innerText()).trim();
-  const replyLimit = reviewLocale === "en" ? 280 : 180;
-  if (Array.from(realReply).length > replyLimit) throw new Error(`AI reply exceeded ${replyLimit} characters: ${realReply}`);
+  const replyLength = reviewLocale === "en" ? realReply.split(/\s+/).filter(Boolean).length : Array.from(realReply).length;
+  const replyLimit = reviewLocale === "en" ? 100 : 180;
+  const replyUnit = reviewLocale === "en" ? "words" : "characters";
+  if (replyLength > replyLimit) throw new Error(`AI reply exceeded ${replyLimit} ${replyUnit}: ${realReply}`);
+  if (/(?:…|\.{3,})\s*$/.test(realReply)) throw new Error(`AI reply ended with a display-layer ellipsis: ${realReply}`);
+  const completeReply = reviewLocale === "en" ? /[.!?]["')\]\s]*$/.test(realReply) : /[。！？]\s*$/.test(realReply);
+  if (!completeReply) throw new Error(`AI reply did not end on a complete sentence: ${realReply}`);
   if (!/午餐|主食|蛋白|蔬菜|鸡|鱼|蛋|豆|饭|面|餐|meal|lunch|calorie|protein|vegetable|chicken|fish|egg|tofu|rice|noodle/i.test(realReply)) {
     throw new Error(`AI reply did not directly answer the meal question: ${realReply}`);
   }
   if (/Edge Function|数据库|JSON|系统提示词|模型名称|database|system prompt|model name/i.test(realReply)) {
     throw new Error(`AI reply exposed implementation details: ${realReply}`);
   }
-  await page.locator(".figma-header-action").last().click();
+  const headerMenuButton = page.locator(".figma-header-action").last();
+  await headerMenuButton.click();
   await page.locator(".app-utility-popover button").filter({ hasText: /新会话|New chat/ }).click();
   await expect(page.locator(".chat-message-row")).toHaveCount(0);
   await page.locator(".figma-header-action").last().click();
@@ -816,6 +822,28 @@ async function verifyAi(page, results, diagnostics) {
   await page.waitForTimeout(100);
   await assertStaticLayout(page, "ai-reply");
   await page.screenshot({ path: path.join(outputDir, "ai-reply.png") });
+
+  await headerMenuButton.click();
+  const utilityPopover = page.locator(".app-utility-popover");
+  await expect(utilityPopover).toBeVisible();
+  const speechToggle = utilityPopover.locator("button").filter({ hasText: /朗读|voice/i });
+  if (await speechToggle.isEnabled()) {
+    await speechToggle.click();
+    await expect(utilityPopover).toBeVisible();
+    await speechToggle.click();
+    await expect(utilityPopover).toBeVisible();
+  }
+  const languageToggle = utilityPopover.locator(".language-toggle");
+  await languageToggle.click();
+  await expect(utilityPopover).toBeVisible();
+  await languageToggle.click();
+  await expect(utilityPopover).toBeVisible();
+  await page.locator(".chat-composer input").click();
+  await expect(utilityPopover).toBeHidden();
+  await headerMenuButton.click();
+  await expect(utilityPopover).toBeVisible();
+  await headerMenuButton.click();
+  await expect(utilityPopover).toBeHidden();
 
   await page.locator('[data-tab="today"]').click();
   const aiButton = page.locator('[data-tab="ai"]');
@@ -849,7 +877,7 @@ async function verifyAi(page, results, diagnostics) {
   await page.mouse.up();
   await expect(page.locator(".chat-composer.voice-active")).toBeHidden();
   await expect(page.locator(".chat-composer input")).toHaveValue(inputBeforeCancelledVoice);
-  results.push("AI 对话、回复方向与 180 字上限、按住即进入录音、松手结束与上滑取消");
+  results.push("AI 对话、完整短答与模型侧字数契约、菜单内朗读/语言保持展开、菜单外关闭、按住录音与上滑取消");
 }
 
 async function verifyProfile(page, results) {

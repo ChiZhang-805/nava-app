@@ -126,6 +126,8 @@ function MobileShell() {
   });
   const [rewardQueue, setRewardQueue] = useState<GrowthRewardGrant[][]>([]);
   const contentRef = useRef<HTMLElement | null>(null);
+  const utilityButtonRef = useRef<HTMLButtonElement | null>(null);
+  const utilityPopoverRef = useRef<HTMLDivElement | null>(null);
   const aiLongPressTimerRef = useRef<number | null>(null);
   const aiLongPressTriggeredRef = useRef(false);
   const aiGesturePointerActiveRef = useRef(false);
@@ -222,7 +224,6 @@ function MobileShell() {
       }
       return next;
     });
-    setUtilityOpen(false);
   };
 
   const shareCurrentPage = async () => {
@@ -377,6 +378,25 @@ function MobileShell() {
     setDrawerOpen(false);
   }, [activeTab, recordModule, recordView]);
 
+  useEffect(() => {
+    if (!utilityOpen) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (utilityButtonRef.current?.contains(target) || utilityPopoverRef.current?.contains(target)) return;
+      setUtilityOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setUtilityOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [utilityOpen]);
+
   useEffect(() => () => {
     if (aiLongPressTimerRef.current !== null) window.clearTimeout(aiLongPressTimerRef.current);
   }, []);
@@ -399,6 +419,7 @@ function MobileShell() {
           </button>
           <h1>{currentTitle}</h1>
           <button
+            ref={utilityButtonRef}
             className="figma-header-action"
             type="button"
             onClick={() => setUtilityOpen((open) => !open)}
@@ -408,7 +429,7 @@ function MobileShell() {
             <MoreHorizontal size={23} />
           </button>
           {utilityOpen && (
-            <div className="app-utility-popover">
+            <div className="app-utility-popover" ref={utilityPopoverRef}>
               {activeTab === "ai" && <>
                 <button type="button" onClick={() => runAiCommand("new")}><MessageSquarePlus size={17} />{locale === "zh" ? "新会话" : "New chat"}</button>
                 <button type="button" onClick={() => runAiCommand("history")}><History size={17} />{locale === "zh" ? "历史" : "History"}</button>
@@ -435,7 +456,7 @@ function MobileShell() {
                 <button type="button" onClick={() => void shareCurrentPage()}><Share2 size={17} />{locale === "zh" ? "分享页面" : "Share"}</button>
               </>}
               <button type="button" onClick={() => { setUtilityOpen(false); setDrawerOpen(true); }}><ListTodo size={17} />{locale === "zh" ? "功能导航" : "Utilities"}</button>
-              <LanguageToggle onToggle={() => setUtilityOpen(false)} />
+              <LanguageToggle />
             </div>
           )}
         </header>
