@@ -408,6 +408,7 @@ function MobileShell() {
               voiceReleaseCancelled={voiceRelease.cancelled}
               externalVoiceCancelArmed={voiceCancelArmed}
               command={aiCommand}
+              profileRefreshKey={refreshKey}
               onDataSaved={markChanged}
             />
           </div>

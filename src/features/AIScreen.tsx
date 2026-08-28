@@ -35,6 +35,7 @@ export default function AIScreen({
   voiceReleaseCancelled = false,
   externalVoiceCancelArmed = false,
   command = null,
+  profileRefreshKey = 0,
   onDataSaved,
 }: {
   user: User;
@@ -43,6 +44,7 @@ export default function AIScreen({
   voiceReleaseCancelled?: boolean;
   externalVoiceCancelArmed?: boolean;
   command?: AiCommand | null;
+  profileRefreshKey?: number;
   onDataSaved?: () => void;
 }) {
   const { locale, t } = useLocale();
@@ -187,7 +189,7 @@ export default function AIScreen({
       });
     }).catch(() => setProfile(null));
     setHistory(readHistory());
-  }, [readHistory, user.id]);
+  }, [profileRefreshKey, readHistory, user.id]);
 
   useEffect(() => setAvatarLoadFailed(false), [profile?.avatar_url]);
 
