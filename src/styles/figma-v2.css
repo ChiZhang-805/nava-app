@@ -341,7 +341,8 @@ body::before {
   height: min(63dvh, 620px);
 }
 
-.option-two-life-stage img {
+.option-two-life-stage img,
+.nava-mascot {
   width: 100%;
   height: 100%;
 }
@@ -5300,7 +5301,7 @@ body::before {
 
 .option-two-scores > div,
 .option-two-side-actions > button,
-.option-two-life-stage img {
+.nava-mascot {
   animation: option-home-control-in var(--motion-enter) var(--motion-ease-spring) backwards;
 }
 
@@ -5311,7 +5312,7 @@ body::before {
 .option-two-side-actions > button:nth-child(3) { animation-delay: 180ms; }
 .option-two-side-actions > button:nth-child(4) { animation-delay: 225ms; }
 
-.option-two-life-stage img {
+.nava-mascot {
   animation-name: option-life-arrive;
   animation-duration: var(--motion-emphasis);
   animation-delay: 90ms;
@@ -7180,7 +7181,10 @@ body::before {
   .option-two-home,
   .option-two-scores > div,
   .option-two-side-actions > button,
-  .option-two-life-stage img,
+  .nava-mascot,
+  .nava-mascot-pose,
+  .nava-mascot-pose-shadow,
+  .nava-mascot svg *,
   .option-two-home.is-loaded .option-two-scores strong,
   .option-two-home.is-expanded .option-two-menu-toggle svg,
   .option-two-home.is-expanded .option-two-health-icon,
@@ -7280,7 +7284,7 @@ body::before {
     transition-duration: 1ms;
   }
 
-  .option-two-life-stage img {
+  .nava-mascot {
     transform: translateX(-50%);
   }
 

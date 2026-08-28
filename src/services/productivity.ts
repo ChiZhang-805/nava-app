@@ -285,6 +285,22 @@ export function growthXp(tasks: GrowthTask[]) {
   return tasks.filter((task) => task.completed).reduce((sum, task) => sum + task.xp, 0);
 }
 
+export async function loadGrowthTotalPoints(userId: string) {
+  if (isDemoMode()) return growthXp(loadGrowthTasks(userId));
+  const { data, error } = await supabase
+    .from("growth_reward_ledger")
+    .select("points")
+    .eq("user_id", userId);
+  if (error) {
+    if (/growth_reward_ledger|schema cache|does not exist/i.test(error.message)) return growthXp(loadGrowthTasks(userId));
+    throw error;
+  }
+  return (data ?? []).reduce((total, row) => {
+    const points = Number(row.points);
+    return total + (Number.isFinite(points) && points > 0 ? Math.round(points) : 0);
+  }, 0);
+}
+
 export type GrowthRewardGrant = {
   eventKey: string;
   points: number;

@@ -728,6 +728,37 @@ async function verifyRecordModules(page, results) {
 }
 
 async function verifyHomeShortcuts(page, results) {
+  await page.locator('[data-tab="today"]').click();
+  const homeScores = page.locator(".option-two-scores");
+  await expect(homeScores).toContainText(reviewLocale === "zh" ? "我的积分" : "My points");
+  await expect(homeScores).not.toContainText(reviewLocale === "zh" ? "数据完整度" : "Data complete");
+
+  const mascot = page.locator(".nava-mascot");
+  await expect(mascot).toHaveAttribute("data-next-motion", "wave");
+  await mascot.click();
+  await expect(mascot).toHaveAttribute("data-mascot-motion", "wave");
+  const waveMotion = await page.locator(".nava-mascot-pose--wave").evaluate((node) => {
+    const style = getComputedStyle(node);
+    return { name: style.animationName, duration: Number.parseFloat(style.animationDuration), objectFit: style.objectFit };
+  });
+  if (!waveMotion.name.includes("nava-pose-wave") || waveMotion.duration < 3 || waveMotion.duration > 4 || waveMotion.objectFit !== "contain") {
+    throw new Error(`home mascot wave motion is invalid: ${JSON.stringify(waveMotion)}`);
+  }
+  await page.waitForTimeout(720);
+  await page.screenshot({ path: path.join(outputDir, "today-mascot-wave.png") });
+  await page.waitForTimeout(2_600);
+  await expect(mascot).toHaveAttribute("data-mascot-motion", "idle");
+  await expect(mascot).toHaveAttribute("data-next-motion", "tail");
+  await mascot.click();
+  await expect(mascot).toHaveAttribute("data-mascot-motion", "tail");
+  const tailMotion = await page.locator(".nava-mascot-pose--tail").evaluate((node) => {
+    const style = getComputedStyle(node);
+    return { name: style.animationName, duration: Number.parseFloat(style.animationDuration), objectFit: style.objectFit };
+  });
+  if (!tailMotion.name.includes("nava-pose-tail") || tailMotion.duration < 3 || tailMotion.duration > 4 || tailMotion.objectFit !== "contain") {
+    throw new Error(`home mascot tail motion is invalid: ${JSON.stringify(tailMotion)}`);
+  }
+
   for (const [index, module] of ["exercise", "diet", "sleep", "face", "focus", "mood"].entries()) {
     await page.locator('[data-tab="today"]').click();
     const menuButton = page.locator(".option-two-side-actions button").first();
@@ -762,7 +793,7 @@ async function verifyHomeShortcuts(page, results) {
   await page.screenshot({ path: path.join(outputDir, "today-utilities-with-todo.png") });
   await page.locator('.utility-drawer[role="dialog"] header button').click();
   await expect(page.locator('.utility-drawer[role="dialog"]')).toBeHidden();
-  results.push("首页展开菜单、六个健康快捷入口与三类侧边跳转");
+  results.push("首页真实积分、顺序小猫动作、展开菜单、六个健康快捷入口与三类侧边跳转");
 }
 
 async function verifyAi(page, results, diagnostics) {
