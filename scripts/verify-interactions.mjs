@@ -510,16 +510,26 @@ async function verifyRecordModules(page, results) {
 
   await openModule("mood");
   await expect(page.locator('[data-module-view="mood-overview"]')).toBeVisible();
-  await expect(page.locator('[data-ui-revision="mood-curve-v2"]')).toBeVisible();
-  const moodCurve = page.locator(".mood-chart .trend-line");
-  await expect(page.locator(".mood-chart .trend-area")).toHaveCount(1);
+  await expect(page.locator('[data-ui-revision="mood-bar-line-v3"]')).toBeVisible();
+  await expect(page.locator(".mood-entry-card > header button")).toHaveCount(0);
+  await expect(page.locator(".mood-chart .bar-line-bars > span")).toHaveCount(7);
+  const expectedMoodDates = await page.evaluate(() => Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - index));
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  }));
+  await expect(page.locator(".mood-chart .bar-line-bars small")).toHaveText(expectedMoodDates);
+  const moodCurve = page.locator(".mood-chart .bar-line-path");
   const curveBefore = await moodCurve.getAttribute("d");
   if (!curveBefore?.includes(" C ")) throw new Error(`Mood trend is not a smooth cubic curve: ${curveBefore}`);
+  const lastMoodBar = page.locator(".mood-chart .bar-line-bars i").last();
+  const lastBarBefore = await lastMoodBar.getAttribute("style");
   const pieBefore = await page.locator(".mood-pie > svg").evaluate((node) => [...node.querySelectorAll("circle")]
     .map((circle) => `${circle.getAttribute("stroke-dasharray")}:${circle.getAttribute("stroke-dashoffset")}`)
     .join("|"));
   await page.locator(".mood-face-row button").first().click();
   await expect.poll(() => moodCurve.getAttribute("d")).not.toBe(curveBefore);
+  await expect.poll(() => lastMoodBar.getAttribute("style")).not.toBe(lastBarBefore);
   await expect.poll(() => page.locator(".mood-pie > svg").evaluate((node) => [...node.querySelectorAll("circle")]
     .map((circle) => `${circle.getAttribute("stroke-dasharray")}:${circle.getAttribute("stroke-dashoffset")}`)
     .join("|"))).not.toBe(pieBefore);
@@ -532,16 +542,17 @@ async function verifyRecordModules(page, results) {
   await assertStaticLayout(page, "record-mood-journal");
   await page.screenshot({ path: path.join(outputDir, "record-mood-journal.png") });
   await page.locator('[role="dialog"] button[type="submit"]').click();
-  await expect(page.locator('[data-module-view="mood-overview"] button[aria-label="情绪已保存"], [data-module-view="mood-overview"] button[aria-label="Mood saved"]')).toBeVisible();
+  await expect(page.locator('[role="dialog"]')).toBeHidden();
+  await expect(page.locator(".mood-entry-card > header button")).toHaveCount(0);
   await assertMoodCardSeparation(page, "record-mood-after-journal");
   await page.locator('[aria-label="查看情绪趋势"], [aria-label="View mood trend"]').click();
-  await expect(page.locator('[data-record-detail="mood"] .line-trend-chart')).toBeVisible();
-  await assertAnimation(page.locator('[data-record-detail="mood"] .trend-line'), "trend-line-draw", "mood trend line");
-  await page.waitForTimeout(1_050);
+  await expect(page.locator('[data-record-detail="mood"] .bar-line-trend-chart')).toBeVisible();
+  await assertAnimation(page.locator('[data-record-detail="mood"] .bar-line-path'), "combo-line-draw", "mood trend line");
+  await page.waitForTimeout(2_250);
   await page.screenshot({ path: path.join(outputDir, "record-mood-trend.png") });
   await returnFromSubview();
   await expect(page.locator('[data-module-view="mood-overview"]')).toBeVisible();
-  await page.waitForTimeout(450);
+  await page.waitForTimeout(2_250);
   await assertStaticLayout(page, "record-mood-saved");
   await page.screenshot({ path: path.join(outputDir, "record-mood.png") });
   await returnToHub();
@@ -561,7 +572,7 @@ async function verifyRecordModules(page, results) {
   await page.locator('[aria-label="查看睡眠趋势"], [aria-label="View sleep trend"]').click();
   await expect(page.locator('[data-record-detail="sleep"] .bar-line-trend-chart')).toBeVisible();
   await assertAnimation(page.locator('[data-record-detail="sleep"] .bar-line-path'), "combo-line-draw", "sleep trend line");
-  await page.waitForTimeout(1_050);
+  await page.waitForTimeout(2_150);
   await page.screenshot({ path: path.join(outputDir, "record-sleep-trend.png") });
   await returnFromSubview();
   await page.locator('[aria-label="更新睡眠记录"], [aria-label="Update sleep record"]').click();
@@ -683,7 +694,14 @@ async function verifyRecordModules(page, results) {
   await assertAnimation(page.locator('[data-record-detail="diet"] .diet-history-bar rect'), "chart-bar-rise", "diet history bars");
   await assertAnimation(page.locator('[data-record-detail="diet"] .diet-history-line'), "trend-line-draw", "diet history line");
   await expect(page.locator('[data-record-detail="diet"] .diet-ai-report li')).toHaveCount(4);
-  await page.waitForTimeout(1_050);
+  await expect(page.locator('[data-record-detail="diet"] .diet-ai-mascot')).toBeVisible();
+  const dietHistoryGeometry = await page.locator('[data-record-detail="diet"] .diet-history-trend-chart svg').evaluate((svg) => ({
+    dateY: [...svg.querySelectorAll(".diet-history-date")].map((node) => Number(node.getAttribute("y"))),
+    pointY: [...svg.querySelectorAll(".diet-history-dot")].map((node) => Number(node.getAttribute("cy"))),
+  }));
+  if (Math.min(...dietHistoryGeometry.dateY) < 425) throw new Error(`Diet history dates are not low enough: ${dietHistoryGeometry.dateY.join(", ")}`);
+  if (Math.max(...dietHistoryGeometry.pointY) - Math.min(...dietHistoryGeometry.pointY) < 330) throw new Error(`Diet history chart does not use enough vertical depth: ${dietHistoryGeometry.pointY.join(", ")}`);
+  await page.waitForTimeout(2_150);
   await assertNoBottomNavClipping(page, "diet-history", '[data-record-detail="diet"] .module-history-list p, [data-record-detail="diet"] .module-history-share');
   const reportFooterGap = await page.locator('[data-record-detail="diet"] .module-history-report-card').evaluate((card) => {
     const share = card.querySelector(".module-history-share");

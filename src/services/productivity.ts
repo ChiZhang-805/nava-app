@@ -261,7 +261,12 @@ function taskCompleted(task: Omit<GrowthTask, "completed">, profile: UserProfile
     case "move-break":
       return Number(snapshot.exercise?.exercise_minutes ?? 0) >= 20 || Number(snapshot.exercise?.steps ?? 0) >= 3000;
     case "mood-checkin":
-      return Boolean(snapshot.mood);
+      return Boolean(
+        snapshot.mood
+        && Array.isArray(snapshot.mood.factors)
+        && snapshot.mood.factors.length > 0
+        && snapshot.mood.diary_content?.trim(),
+      );
     case "nutrition-log":
       return Boolean(snapshot.nutrition);
     case "focus-block":

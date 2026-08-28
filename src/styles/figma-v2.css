@@ -2807,9 +2807,15 @@ body::before {
 }
 
 .mood-chart .line-trend-chart,
-.mood-chart .line-trend-chart svg {
+.mood-chart .line-trend-chart svg,
+.mood-chart .bar-line-trend-chart,
+.mood-chart .bar-line-trend-chart svg {
   width: 100%;
   height: 100%;
+}
+
+.mood-chart .bar-line-trend-chart {
+  margin-top: 0;
 }
 
 .mood-chart .trend-value {
@@ -2952,9 +2958,11 @@ body::before {
 .module-modal-card header { display: flex; align-items: center; justify-content: space-between; }
 .module-modal-card header button { width: 34px; height: 34px; border: 0; border-radius: 50%; background: #e5f3f8; }
 .module-modal-card textarea { width: 100%; min-height: 230px; margin-top: 14px; padding: 14px; resize: none; border: 1px solid #d6e8ef; border-radius: 16px; color: #16384a; background: #edf6f9; }
+.module-modal-card .mood-completion-hint { margin: 8px 2px 0; color: #6d8793; font-size: 11px; line-height: 1.4; }
 .module-modal-card > div { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
 .module-modal-card > div button { min-height: 42px; border: 0; border-radius: 12px; color: #315b6e; background: #e6f1f5; }
 .module-modal-card > div button:last-child { color: white; background: #1d7296; }
+.module-modal-card > div button:disabled { cursor: not-allowed; opacity: .46; }
 
 .sleep-alert {
   min-height: 76px;
@@ -3156,6 +3164,64 @@ body::before {
   fill: #f5fcff;
   stroke: #0a709c;
   stroke-width: 2;
+}
+
+.bar-line-trend-chart.is-score-scale .bar-line-bars {
+  inset: 11.2% 0 25.9%;
+  display: block;
+  border-bottom-color: rgba(79, 135, 157, .22);
+}
+
+.bar-line-trend-chart.is-score-scale .bar-line-bars > span {
+  position: absolute;
+  bottom: 0;
+  left: var(--bar-left);
+  width: clamp(12px, 5.8%, 23px);
+  height: 100%;
+  display: block;
+  transform: translateX(-50%);
+}
+
+.bar-line-trend-chart.is-score-scale .bar-line-bars i {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  min-height: 0;
+  border-radius: 6px 6px 1px 1px;
+  transition: height 150ms cubic-bezier(.2, .76, .2, 1);
+}
+
+.bar-line-trend-chart.is-score-scale .bar-line-bars small {
+  position: absolute;
+  top: calc(100% + 9px);
+  left: 50%;
+  width: 42px;
+  color: #6d8792;
+  line-height: 1;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.bar-line-trend-chart.is-interactive .bar-line-path {
+  transition: d 170ms cubic-bezier(.2, .76, .2, 1);
+}
+
+.bar-line-trend-chart.is-interactive .bar-line-point circle {
+  transition: cy 170ms cubic-bezier(.2, .76, .2, 1);
+}
+
+.mood-trend-detail-chart {
+  width: 100%;
+  min-height: 260px;
+  padding: 18px 6px 8px;
+  border-radius: 18px;
+  background: repeating-linear-gradient(0deg, transparent 0 54px, rgba(70, 130, 154, .1) 55px);
+}
+
+.mood-trend-detail-chart .bar-line-trend-chart {
+  height: 230px;
+  margin: 0;
 }
 
 .focus-summary-card {
@@ -3514,6 +3580,7 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   .module-dashboard,
   .module-modal-card,
+  .diet-ai-mascot,
   .ai-history-sheet,
   .phone-frame .rhythm-detail-sheet,
   .phone-frame .avatar-sheet { animation: none; }
@@ -3755,7 +3822,7 @@ body::before {
 
 .module-history-report-card {
   display: grid;
-  grid-template-rows: auto 178px auto minmax(118px, 1fr) auto;
+  grid-template-rows: auto 228px auto minmax(148px, 1fr) auto;
   gap: 10px;
 }
 
@@ -3765,7 +3832,7 @@ body::before {
 
 .diet-history-trend-chart {
   width: 100%;
-  height: 178px;
+  height: 228px;
   min-height: 0;
 }
 
@@ -3804,16 +3871,19 @@ body::before {
 }
 
 .diet-ai-report {
-  min-height: 118px;
+  min-height: 148px;
   padding: 12px 14px;
   border: 1px solid rgba(171, 218, 236, 0.72);
   border-radius: 15px;
   display: grid;
-  grid-template-rows: auto 1fr;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 118px;
+  align-items: stretch;
+  gap: 10px;
   color: #214d61;
   background: linear-gradient(145deg, rgba(244, 252, 255, .9), rgba(226, 246, 253, .82));
+  overflow: hidden;
 }
+.diet-ai-report-copy { min-width: 0; display: grid; grid-template-rows: auto 1fr; gap: 8px; }
 .diet-ai-report header { display: flex; align-items: center; gap: 8px; }
 .diet-ai-report header > span { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: #087ca9; background: rgba(255, 255, 255, .86); box-shadow: 0 4px 12px rgba(22, 123, 166, .1); }
 .diet-ai-report header strong { font-size: 13px; }
@@ -3821,6 +3891,18 @@ body::before {
 .diet-ai-report li { min-width: 0; display: grid; grid-template-columns: 7px minmax(0, 1fr); align-items: center; gap: 7px; font-size: 10px; line-height: 1.35; }
 .diet-ai-report li::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: #1c96c2; box-shadow: 0 0 0 3px rgba(45, 165, 207, .12); }
 .diet-ai-report-loading { display: grid; place-items: center start; color: #6b8794; font-size: 10px; line-height: 1.5; }
+.diet-ai-mascot {
+  width: 100%;
+  height: 100%;
+  max-width: 118px;
+  max-height: 100%;
+  align-self: stretch;
+  justify-self: center;
+  margin: 0;
+  object-fit: contain;
+  object-position: center;
+  animation: diet-mascot-arrive 620ms cubic-bezier(.18, .82, .22, 1.06) 240ms both;
+}
 .module-history-report-card > .module-history-share { align-self: end; }
 .weekly-fdnb-contributors {
   display: flex;
@@ -6032,6 +6114,11 @@ body::before {
 @keyframes mood-donut-draw {
   from { stroke-dasharray: 0 100; opacity: 0.2; }
   to { opacity: 1; }
+}
+
+@keyframes diet-mascot-arrive {
+  from { opacity: 0; transform: translate3d(10px, 7px, 0) scale(.9); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
 @keyframes data-card-enter {

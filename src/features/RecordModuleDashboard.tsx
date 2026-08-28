@@ -31,12 +31,14 @@ import { FormEvent, useCallback, useEffect, useMemo, useState, type CSSPropertie
 import { App as CapacitorApp } from "@capacitor/app";
 import AnimatedNumber from "../components/AnimatedNumber";
 import BarLineTrendChart, { type BarLineTrendPoint } from "../components/BarLineTrendChart";
-import LineTrendChart, { type LineTrendPoint } from "../components/LineTrendChart";
+import LineTrendChart from "../components/LineTrendChart";
 import { useLocale } from "../i18n";
+import dietInsightMascot from "../assets/mascot/nava-eat-v5.webp";
 import type { FocusRecord, MoodRecord, TodaySnapshot, TrendBundle } from "../types";
 import { buildModuleFeedback } from "../services/personalizedFeedback";
 import { enableNavaNotifications } from "../services/notifications";
 import { loadDietAiReport, parseDietAiReport, type DietAiReport } from "../services/dietReport";
+import { isCompleteMoodRecord, moodBandForScore, moodBands, moodDateWindow } from "../services/mood";
 import {
   activityHeatmap,
   activityPeriodDistribution,
@@ -54,7 +56,7 @@ type Props = {
   userId: string;
   module: RecordModule;
   moodScore: number;
-  setMoodScore: (value: number) => void;
+  setMoodScore: (value: number, immediate?: boolean) => void;
   moodFactors: MoodFactor[];
   selectedFactors: string[];
   setPrimaryFactor: (value: string) => void;
@@ -88,14 +90,6 @@ type Props = {
 
 type OpenModuleView = (view: string, returnToPrevious?: boolean) => void;
 
-const moodFaces = [
-  { score: 88, zh: "愉悦", en: "Bright" },
-  { score: 76, zh: "平静", en: "Calm" },
-  { score: 62, zh: "一般", en: "Neutral" },
-  { score: 46, zh: "疲惫", en: "Tired" },
-  { score: 30, zh: "低落", en: "Low" },
-];
-
 function shortDate(date: string, locale: "zh" | "en") {
   const [, month = "", day = ""] = date.split("-");
   return locale === "zh" ? `${Number(month)}/${Number(day)}` : `${Number(month)}/${Number(day)}`;
@@ -109,7 +103,10 @@ function mergeLiveMood(
   diary: string,
   includeCurrent: boolean,
 ) {
-  const records = new Map((trendBundle?.moods ?? []).map((record) => [record.record_date, record]));
+  const dateWindow = new Set(moodDateWindow(recordDate));
+  const records = new Map((trendBundle?.moods ?? [])
+    .filter((record) => dateWindow.has(record.record_date))
+    .map((record) => [record.record_date, record]));
   if (includeCurrent) {
     const previous = records.get(recordDate);
     records.set(recordDate, {
@@ -122,26 +119,35 @@ function mergeLiveMood(
       diary_sentiment: previous?.diary_sentiment ?? null,
     });
   }
-  return [...records.values()].sort((a, b) => a.record_date.localeCompare(b.record_date)).slice(-7);
+  return [...records.values()].sort((a, b) => a.record_date.localeCompare(b.record_date));
 }
 
-function moodTrendPoints(records: MoodRecord[], locale: "zh" | "en"): LineTrendPoint[] {
-  return records.map((record) => ({
-    id: record.id,
-    label: shortDate(record.record_date, locale),
-    value: record.mood_score,
-  }));
+function moodTrendPoints(records: MoodRecord[], recordDate: string, locale: "zh" | "en"): BarLineTrendPoint[] {
+  const byDate = new Map(records.map((record) => [record.record_date, record]));
+  return moodDateWindow(recordDate).map((date) => {
+    const record = byDate.get(date);
+    const value = record?.mood_score ?? 0;
+    return {
+      id: date,
+      label: shortDate(date, locale),
+      barValue: value,
+      lineValue: value,
+      barText: record ? `${value}` : (locale === "zh" ? "暂无记录" : "No entry"),
+      lineText: record ? `${value}` : (locale === "zh" ? "暂无记录" : "No entry"),
+    };
+  });
 }
 
 function moodDistribution(records: MoodRecord[], locale: "zh" | "en") {
-  const groups = [
-    { key: "bright", label: locale === "zh" ? "愉悦" : "Bright", color: "#075f88", count: 0 },
-    { key: "calm", label: locale === "zh" ? "平静" : "Calm", color: "#32a8d2", count: 0 },
-    { key: "neutral", label: locale === "zh" ? "一般" : "Neutral", color: "#8bd7ee", count: 0 },
-    { key: "low", label: locale === "zh" ? "低能量" : "Low", color: "#d8eef6", count: 0 },
-  ];
+  const colors = ["#075f88", "#238fb8", "#62bfdb", "#a3ddec", "#d8eef6"];
+  const groups = moodBands.map((band, index) => ({
+    key: band.key,
+    label: locale === "zh" ? band.zh : band.en,
+    color: colors[index],
+    count: 0,
+  }));
   records.forEach((record) => {
-    const index = record.mood_score >= 82 ? 0 : record.mood_score >= 68 ? 1 : record.mood_score >= 52 ? 2 : 3;
+    const index = moodBands.findIndex((band) => band.key === moodBandForScore(record.mood_score).key);
     groups[index].count += 1;
   });
   const total = Math.max(1, records.length);
@@ -292,14 +298,17 @@ function HistoryView({ module, locale, trendBundle }: { module: RecordModule; lo
           {displayEntries.slice(-3).reverse().map((entry) => <p key={entry.id}><CalendarDays size={16} /><span>{shortDate(entry.date, locale)}</span><strong>{historyValueText(module, entry.value, locale)}</strong></p>)}
         </div>
         {module === "diet" && <section className="diet-ai-report" aria-live="polite">
-          <header><span><Bot size={16} /></span><strong>{locale === "zh" ? "AI 饮食洞察" : "AI diet insights"}</strong></header>
-          {dietReportLoading
-            ? <div className="diet-ai-report-loading">{locale === "zh" ? "正在结合你的画像与近七日数据生成…" : "Reviewing your profile and seven-day data…"}</div>
-            : dietReport
-              ? <ul>{dietReport.bullets.map((bullet, index) => <li key={`${index}-${bullet}`}>{bullet}</li>)}</ul>
-              : <div className="diet-ai-report-loading">{dietReportUnavailable
-                ? (locale === "zh" ? "AI 报告暂时不可用，保存下一餐后会自动重试。" : "AI report is temporarily unavailable and will retry after your next meal.")
-                : (locale === "zh" ? "保存今日饮食后生成四项个性化洞察。" : "Save today's diet to generate four personalized insights.")}</div>}
+          <div className="diet-ai-report-copy">
+            <header><span><Bot size={16} /></span><strong>{locale === "zh" ? "AI 饮食洞察" : "AI diet insights"}</strong></header>
+            {dietReportLoading
+              ? <div className="diet-ai-report-loading">{locale === "zh" ? "正在结合你的画像与近七日数据生成…" : "Reviewing your profile and seven-day data…"}</div>
+              : dietReport
+                ? <ul>{dietReport.bullets.map((bullet, index) => <li key={`${index}-${bullet}`}>{bullet}</li>)}</ul>
+                : <div className="diet-ai-report-loading">{dietReportUnavailable
+                  ? (locale === "zh" ? "AI 报告暂时不可用，保存下一餐后会自动重试。" : "AI report is temporarily unavailable and will retry after your next meal.")
+                  : (locale === "zh" ? "保存今日饮食后生成四项个性化洞察。" : "Save today's diet to generate four personalized insights.")}</div>}
+          </div>
+          <img className="diet-ai-mascot" src={dietInsightMascot} alt={locale === "zh" ? "NAVA 小猫正在吃健康餐" : "NAVA cat eating a healthy meal"} />
         </section>}
         <button className="module-history-share" type="button" onClick={() => void shareSummary()}><Share2 size={16} />{locale === "zh" ? "分享近 7 日状态" : "Share 7-day state"}</button>
       </> : <p className="module-empty-copy module-history-empty">{trendBundle ? (locale === "zh" ? "当前账号尚无该项历史记录" : "No history for this account yet") : (locale === "zh" ? "正在读取历史记录…" : "Loading history…")}</p>}
@@ -309,17 +318,17 @@ function HistoryView({ module, locale, trendBundle }: { module: RecordModule; lo
 
 function DietHistoryTrendChart({ entries, locale }: { entries: Array<{ id: string; date: string; value: number }>; locale: "zh" | "en" }) {
   const width = 700;
-  const height = 190;
+  const height = 440;
   const left = 48;
   const right = 652;
-  const top = 24;
-  const bottom = 144;
+  const top = 6;
+  const bottom = 400;
   const values = entries.map((entry) => entry.value);
   const rawMin = Math.min(...values);
   const rawMax = Math.max(...values);
   const rawRange = Math.max(1, rawMax - rawMin);
-  const domainMin = Math.max(0, rawMin - rawRange * 0.1);
-  const domainMax = rawMax + rawRange * 0.1;
+  const domainMin = Math.max(0, rawMin - rawRange * 0.04);
+  const domainMax = rawMax + rawRange * 0.04;
   const domainSpan = Math.max(1, domainMax - domainMin);
   const xAt = (index: number) => left + (entries.length <= 1 ? (right - left) / 2 : (index / (entries.length - 1)) * (right - left));
   const yAt = (value: number) => top + ((domainMax - value) / domainSpan) * (bottom - top);
@@ -339,7 +348,7 @@ function DietHistoryTrendChart({ entries, locale }: { entries: Array<{ id: strin
         return <g className="diet-history-bar" key={entry.id} style={{ "--history-index": index } as CSSProperties}>
           <rect x={x - 15} y={y} width="30" height={bottom - y} rx="8"><title>{`${shortDate(entry.date, locale)} · ${entry.value} kcal`}</title></rect>
           <text className="diet-history-value" x={x} y={Math.max(14, y - 8)} textAnchor="middle">{Math.round(entry.value)}</text>
-          <text className="diet-history-date" x={x} y="176" textAnchor="middle">{shortDate(entry.date, locale)}</text>
+          <text className="diet-history-date" x={x} y="430" textAnchor="middle">{shortDate(entry.date, locale)}</text>
         </g>;
       })}
       <path className="diet-history-line" d={linePath} pathLength="1" />
@@ -508,19 +517,27 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
     openView,
   } = props;
   const [saved, setSaved] = useState(false);
+  const [moodTouched, setMoodTouched] = useState(false);
   const hasCurrentMood = Boolean(todaySnapshot?.mood?.record_date === recordDate);
+  const hasCompletedMood = hasCurrentMood && isCompleteMoodRecord(todaySnapshot?.mood);
+  const selectedBand = moodBandForScore(moodScore);
+  const canComplete = (moodTouched || hasCurrentMood) && selectedFactors.length > 0 && diary.trim().length > 0;
+  useEffect(() => {
+    setMoodTouched(false);
+    setSaved(hasCompletedMood);
+  }, [hasCompletedMood, recordDate]);
   const moodRecords = useMemo(
-    () => mergeLiveMood(trendBundle, recordDate, moodScore, selectedFactors, diary, hasCurrentMood || saved),
-    [diary, hasCurrentMood, moodScore, recordDate, saved, selectedFactors, trendBundle],
+    () => mergeLiveMood(trendBundle, recordDate, moodScore, selectedFactors, diary, hasCurrentMood || moodTouched || saved),
+    [diary, hasCurrentMood, moodScore, moodTouched, recordDate, saved, selectedFactors, trendBundle],
   );
-  const trendPoints = useMemo(() => moodTrendPoints(moodRecords, locale), [locale, moodRecords]);
+  const trendPoints = useMemo(() => moodTrendPoints(moodRecords, recordDate, locale), [locale, moodRecords, recordDate]);
   const distribution = useMemo(() => moodDistribution(moodRecords, locale), [locale, moodRecords]);
   const average = moodRecords.reduce((sum, record) => sum + record.mood_score, 0) / Math.max(1, moodRecords.length);
   const firstScore = moodRecords[0]?.mood_score ?? 0;
   const latestRecord = moodRecords[moodRecords.length - 1];
   const latestScore = latestRecord?.mood_score ?? 0;
   const latestDelta = latestScore - firstScore;
-  const latestFactor = hasCurrentMood || saved ? selectedFactors[0] : latestRecord?.factors?.[0];
+  const latestFactor = hasCurrentMood || moodTouched || saved ? selectedFactors[0] : latestRecord?.factors?.[0];
   const primaryFactor = moodFactors.find((factor) => factor.value === latestFactor)?.label ?? latestFactor;
   const assistantText = locale === "zh"
     ? moodRecords.length > 0
@@ -537,30 +554,35 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
     openView("overview");
   };
 
-  if (view === "trend") return <ModuleDetailView compact title={locale === "zh" ? "情绪趋势" : "Mood trend"}><LineTrendChart points={trendPoints} ariaLabel={locale === "zh" ? "近七日情绪趋势" : "Seven-day mood trend"} /><p>{assistantText}</p></ModuleDetailView>;
+  if (view === "trend") return <ModuleDetailView compact title={locale === "zh" ? "情绪趋势" : "Mood trend"}><div className="mood-trend-detail-chart"><BarLineTrendChart points={trendPoints} scoreScale interactive ariaLabel={locale === "zh" ? "近七日情绪强度柱状图与趋势折线图，纵轴范围零到一百" : "Seven-day mood intensity bars and trend line on a zero to one hundred scale"} /></div><p>{assistantText}</p></ModuleDetailView>;
 
   return (
-    <form className="module-dashboard mood-dashboard" onSubmit={(event) => void submitMood(event)} data-module-view="mood-overview" data-ui-revision="mood-curve-v2">
+    <form className="module-dashboard mood-dashboard" onSubmit={(event) => void submitMood(event)} data-module-view="mood-overview" data-ui-revision="mood-bar-line-v3">
       <section className="figma-module-card mood-entry-card">
         <header>
           <strong>{locale === "zh" ? "情绪记录" : "Mood check-in"}</strong>
-          <button
-            className={["module-card-nav-button", saved ? "success" : ""].filter(Boolean).join(" ")}
-            type="button"
-            onClick={() => { setSaved(false); openView("journal"); }}
-            aria-label={saved ? (locale === "zh" ? "情绪已保存" : "Mood saved") : (locale === "zh" ? "打开情绪日记" : "Open mood journal")}
-          >
-            {saved ? <Check size={18} /> : <ChevronRight size={18} />}
-          </button>
         </header>
         <div className="mood-face-row">
-          {moodFaces.map((face) => (
-            <button className={Math.abs(face.score - moodScore) < 8 ? "selected" : ""} key={face.score} type="button" onClick={() => setMoodScore(face.score)}>
+          {moodBands.map((face) => (
+            <button className={selectedBand.key === face.key ? "selected" : ""} key={face.key} type="button" onClick={() => { setMoodTouched(true); setMoodScore(face.score, true); }}>
               <span><HeartPulse size={22} /></span><small>{locale === "zh" ? face.zh : face.en}</small>
             </button>
           ))}
         </div>
-        <label className="mood-intensity"><span>{locale === "zh" ? "情绪强度" : "Intensity"}<strong>{moodScore}</strong></span><input type="range" min="0" max="100" value={moodScore} onChange={(event) => setMoodScore(Number(event.target.value))} /></label>
+        <label className="mood-intensity">
+          <span><span>{locale === "zh" ? `情绪强度 · ${selectedBand.zh}` : `Intensity · ${selectedBand.en}`}</span><strong>{moodScore}</strong></span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={moodScore}
+            aria-valuetext={`${moodScore} · ${locale === "zh" ? selectedBand.zh : selectedBand.en}`}
+            onChange={(event) => { setMoodTouched(true); setMoodScore(Number(event.target.value)); }}
+            onPointerUp={(event) => setMoodScore(Number(event.currentTarget.value), true)}
+            onKeyUp={(event) => setMoodScore(Number(event.currentTarget.value), true)}
+            onBlur={(event) => setMoodScore(Number(event.currentTarget.value), true)}
+          />
+        </label>
         <div className="mood-factor-row">
           <span>{locale === "zh" ? "主要原因" : "Main cause"}</span>
           <select value={selectedFactors[0] ?? ""} onChange={(event) => setPrimaryFactor(event.target.value)}>
@@ -572,7 +594,7 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
       </section>
       <section className="figma-module-card mood-trend-card">
         <header><strong>{locale === "zh" ? "近 7 天情绪趋势" : "7-day mood"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("trend")} aria-label={locale === "zh" ? "查看情绪趋势" : "View mood trend"}><ChevronRight size={18} /></button></header>
-        <div className="mood-chart"><LineTrendChart points={trendPoints} compact ariaLabel={locale === "zh" ? "近七日情绪曲线" : "Seven-day mood curve"} /></div>
+        <div className="mood-chart"><BarLineTrendChart points={trendPoints} scoreScale interactive ariaLabel={locale === "zh" ? `近七日情绪强度柱状图与趋势折线图，日期从${trendPoints[0]?.label}至${trendPoints[trendPoints.length - 1]?.label}，纵轴范围零到一百` : `Seven-day mood intensity bars and trend line, ${trendPoints[0]?.label} to ${trendPoints[trendPoints.length - 1]?.label}, on a zero to one hundred scale`} /></div>
         <div className="mood-pie-wrap">
           <div className="mood-pie" aria-label={distribution.summary}>
             <svg viewBox="0 0 40 40" aria-hidden="true">
@@ -603,7 +625,8 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
           <div className="module-modal-card">
             <header><strong>{locale === "zh" ? "情绪日记" : "Mood journal"}</strong><button type="button" onClick={() => openView("overview")}><X size={20} /></button></header>
             <textarea autoFocus value={diary} onChange={(event) => setDiary(event.target.value)} placeholder={locale === "zh" ? "写下此刻发生的事……" : "What happened just now?"} />
-            <div><button type="button" onClick={() => openView("overview")}>{locale === "zh" ? "取消" : "Cancel"}</button><button type="submit" disabled={busy !== null}>{locale === "zh" ? "保存" : "Save"}</button></div>
+            {!canComplete && <p className="mood-completion-hint">{locale === "zh" ? "请先调整情绪强度、选择主要原因，并写下今天的情绪。" : "Adjust the intensity, choose a cause, and write today's mood before saving."}</p>}
+            <div><button type="button" onClick={() => openView("overview")}>{locale === "zh" ? "取消" : "Cancel"}</button><button type="submit" disabled={busy !== null || !canComplete}>{locale === "zh" ? "保存" : "Save"}</button></div>
           </div>
         </div>
       )}

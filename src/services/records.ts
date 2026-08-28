@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient";
 import { daysAgoISO, todayISO } from "./date";
+import { isCompleteMoodRecord } from "./mood";
 import type {
   ExerciseRecord,
   DailyRhythmScore,
@@ -134,7 +135,7 @@ function nextAction(snapshot: Omit<TodaySnapshot, "rhythmScore" | "nextAction">)
   if (!snapshot.sleep) return "先补齐昨晚睡眠，NAVA 会用它校准今日节律。";
   if (!snapshot.exercise || (snapshot.exercise.steps ?? 0) < 3000) return "今天活动量偏低，先安排 10 分钟轻步行。";
   if (!snapshot.nutrition) return "记录一餐饮食，方便和运动消耗一起判断。";
-  if (!snapshot.mood) return "用 10 秒记录情绪，帮助 AI 判断今天的压力曲线。";
+  if (!isCompleteMoodRecord(snapshot.mood)) return "选择主要原因并写下今天的情绪，完成今日情绪记录。";
   if (snapshot.focusMinutes < 25) return "开启一个 25 分钟专注块，让今日节律更稳定。";
   return "今天基础数据完整，可以让 AI 总结一条个性化建议。";
 }

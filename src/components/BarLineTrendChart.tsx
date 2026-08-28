@@ -23,25 +23,30 @@ function smoothPath(points: Array<{ x: number; y: number }>) {
 export default function BarLineTrendChart({
   points,
   ariaLabel,
+  scoreScale = false,
+  interactive = false,
 }: {
   points: BarLineTrendPoint[];
   ariaLabel: string;
+  scoreScale?: boolean;
+  interactive?: boolean;
 }) {
   const rawId = useId().replace(/:/g, "");
   if (points.length === 0) return null;
 
   const width = 320;
   const height = 116;
-  const left = 18;
-  const right = 302;
+  const left = 28;
+  // Keep the final label clear of compact-card clipping and the adjacent donut.
+  const right = 280;
   const top = 13;
   const bottom = 86;
-  const maxBarValue = Math.max(1, ...points.map((point) => point.barValue));
+  const maxBarValue = scoreScale ? 100 : Math.max(1, ...points.map((point) => point.barValue));
   const lineValues = points.map((point) => clampChartPercent(point.lineValue));
   const rawLineMin = Math.min(...lineValues);
   const rawLineMax = Math.max(...lineValues);
-  const lineMin = Math.max(0, Math.floor((rawLineMin - 8) / 10) * 10);
-  const lineMax = Math.min(100, Math.max(lineMin + 20, Math.ceil((rawLineMax + 8) / 10) * 10));
+  const lineMin = scoreScale ? 0 : Math.max(0, Math.floor((rawLineMin - 8) / 10) * 10);
+  const lineMax = scoreScale ? 100 : Math.min(100, Math.max(lineMin + 20, Math.ceil((rawLineMax + 8) / 10) * 10));
   const lineSpan = Math.max(1, lineMax - lineMin);
   const step = points.length <= 1 ? 0 : (right - left) / (points.length - 1);
   const xAt = (index: number) => points.length <= 1 ? width / 2 : left + step * index;
@@ -54,7 +59,7 @@ export default function BarLineTrendChart({
 
   return (
     <div
-      className="bar-line-trend-chart"
+      className={["bar-line-trend-chart", scoreScale ? "is-score-scale" : "", interactive ? "is-interactive" : ""].filter(Boolean).join(" ")}
       role="img"
       aria-label={ariaLabel}
       data-chart-points={points.length}
@@ -63,9 +68,11 @@ export default function BarLineTrendChart({
       <div className="bar-line-bars" aria-hidden="true">
         {points.map((point, index) => {
           const motion = chartBarMotion(index, point.barValue, maxBarValue);
-          const heightPercent = Math.max(7, (point.barValue / maxBarValue) * 100);
+          const heightPercent = scoreScale
+            ? clampChartPercent(point.barValue)
+            : Math.max(7, (point.barValue / maxBarValue) * 100);
           return (
-            <span key={point.id} style={{ "--bar-index": index } as CSSProperties}>
+            <span key={point.id} style={{ "--bar-index": index, "--bar-left": `${(xAt(index) / width) * 100}%` } as CSSProperties}>
               <i
                 title={`${point.label} · ${point.barText ?? Math.round(point.barValue)}`}
                 style={{
@@ -88,7 +95,7 @@ export default function BarLineTrendChart({
           </linearGradient>
         </defs>
         <path
-          key={`line-${signature}`}
+          key={`line-${interactive ? "interactive" : signature}`}
           className="bar-line-path"
           d={linePath}
           pathLength={1}
@@ -97,7 +104,7 @@ export default function BarLineTrendChart({
         {plotted.map((point, index) => (
           <g
             className="bar-line-point"
-            key={`${points[index].id}-${signature}`}
+            key={`${points[index].id}-${interactive ? "interactive" : signature}`}
             style={{ "--point-index": index } as CSSProperties}
           >
             <circle cx={point.x} cy={point.y} r="3.4">

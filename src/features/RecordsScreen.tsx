@@ -170,6 +170,9 @@ export default function RecordsScreen({
   const [faceConsent, setFaceConsent] = useState(false);
   const dietQuickCameraInputRef = useRef<HTMLInputElement | null>(null);
   const facePhotoInputRef = useRef<HTMLInputElement | null>(null);
+  const moodAutoSaveTimerRef = useRef<number | null>(null);
+  const moodAutoSaveRequestRef = useRef(0);
+  const moodAutoSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     setFocusTitle((current) => current === "产品原型" || current === "Product prototype" || current === "Prototype" ? "" : current);
@@ -332,6 +335,16 @@ export default function RecordsScreen({
   }, [initialView]);
 
   useEffect(() => {
+    if (activeModule !== "mood") return;
+    const today = todayISO();
+    if (recordDate !== today) setRecordDate(today);
+  }, [activeModule, recordDate]);
+
+  useEffect(() => () => {
+    if (moodAutoSaveTimerRef.current !== null) window.clearTimeout(moodAutoSaveTimerRef.current);
+  }, []);
+
+  useEffect(() => {
     if (reportMode !== "weekly") return;
     let active = true;
     setDnbLoading(true);
@@ -404,12 +417,87 @@ export default function RecordsScreen({
     setSelectedFactors(factor ? [factor] : []);
   }
 
+  function updateMoodScore(value: number, immediate = false) {
+    const nextScore = Math.min(100, Math.max(0, Math.round(value)));
+    const today = todayISO();
+    const rolledToNewDay = recordDate !== today;
+    setMoodScore(nextScore);
+    if (rolledToNewDay) {
+      setRecordDate(today);
+      setSelectedFactors([]);
+      setDiary("");
+    }
+    const factorsForSave = rolledToNewDay ? [] : selectedFactors;
+    const diaryForSave = rolledToNewDay ? "" : diary;
+
+    const persist = () => {
+      const request = ++moodAutoSaveRequestRef.current;
+      const operation = moodAutoSaveQueueRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          try {
+            const savedMood = await saveMoodRecord({
+              userId: user.id,
+              date: today,
+              moodScore: nextScore,
+              factors: factorsForSave,
+              diary: diaryForSave,
+            });
+            if (request !== moodAutoSaveRequestRef.current) return;
+            setTodaySnapshot((current) => current && current.date === today ? { ...current, mood: savedMood } : current);
+            setTrendBundle((current) => {
+              if (!current) return current;
+              const moods = current.moods.filter((item) => item.record_date !== today);
+              return { ...current, moods: [...moods, savedMood].sort((a, b) => a.record_date.localeCompare(b.record_date)) };
+            });
+          } catch (saveError) {
+            console.warn("Mood score auto-save deferred", saveError);
+          }
+        });
+      moodAutoSaveQueueRef.current = operation;
+      return operation;
+    };
+
+    if (moodAutoSaveTimerRef.current !== null) window.clearTimeout(moodAutoSaveTimerRef.current);
+    if (immediate) {
+      moodAutoSaveTimerRef.current = null;
+      void persist();
+      return;
+    }
+    moodAutoSaveTimerRef.current = window.setTimeout(() => {
+      moodAutoSaveTimerRef.current = null;
+      void persist();
+    }, 420);
+  }
+
   async function saveMood(event: FormEvent) {
     event.preventDefault();
+    const today = todayISO();
+    if (recordDate !== today) {
+      setRecordDate(today);
+      setSelectedFactors([]);
+      setDiary("");
+      setError(locale === "zh" ? "已经进入新的一天，请重新选择原因并写下今天的情绪。" : "A new day has started. Choose a cause and write today's mood again.");
+      return false;
+    }
+    if (selectedFactors.length === 0) {
+      setError(locale === "zh" ? "请选择今天情绪的主要原因。" : "Choose the main cause of today's mood.");
+      return false;
+    }
+    if (!diary.trim()) {
+      setError(locale === "zh" ? "请写下今天的情绪后再保存。" : "Write today's mood before saving.");
+      return false;
+    }
+    if (moodAutoSaveTimerRef.current !== null) {
+      window.clearTimeout(moodAutoSaveTimerRef.current);
+      moodAutoSaveTimerRef.current = null;
+    }
+    await moodAutoSaveQueueRef.current.catch(() => undefined);
+    moodAutoSaveRequestRef.current += 1;
     return run("records.mood", () =>
       saveMoodRecord({
         userId: user.id,
-        date: recordDate,
+        date: today,
         moodScore,
         factors: selectedFactors,
         diary,
@@ -781,7 +869,7 @@ export default function RecordsScreen({
           userId={user.id}
           module={activeModule}
           moodScore={moodScore}
-          setMoodScore={setMoodScore}
+          setMoodScore={updateMoodScore}
           moodFactors={moodFactors.map((factor) => ({ value: factor.value, label: t(factor.labelKey) }))}
           selectedFactors={selectedFactors}
           setPrimaryFactor={setPrimaryFactor}
@@ -825,7 +913,7 @@ export default function RecordsScreen({
             <SmilePlus size={20} />
             <strong>{moodScore}</strong>
           </div>
-          <input className="range" type="range" min="0" max="100" value={moodScore} onChange={(e) => setMoodScore(Number(e.target.value))} />
+          <input className="range" type="range" min="0" max="100" value={moodScore} onChange={(e) => updateMoodScore(Number(e.target.value))} onPointerUp={(e) => updateMoodScore(Number(e.currentTarget.value), true)} onKeyUp={(e) => updateMoodScore(Number(e.currentTarget.value), true)} />
           <div className="chip-grid">
             {moodFactors.map((factor) => (
               <button

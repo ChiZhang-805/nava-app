@@ -9,6 +9,7 @@ import SectionCard from "../components/SectionCard";
 import StatusPill from "../components/StatusPill";
 import { useLocale, type TranslationKey } from "../i18n";
 import { minutesToText } from "../services/date";
+import { isCompleteMoodRecord } from "../services/mood";
 import { getTodaySnapshot } from "../services/records";
 import { getNativeTodaySummary, syncNativeHealthNow } from "../services/health";
 import { publishWatchSnapshot } from "../services/watch";
@@ -114,7 +115,7 @@ export default function TodayScreen({
     {
       id: "mood",
       label: t("today.mood"),
-      ready: Boolean(snapshot?.mood),
+      ready: isCompleteMoodRecord(snapshot?.mood),
       icon: <SmilePlus size={17} />,
     },
     {
