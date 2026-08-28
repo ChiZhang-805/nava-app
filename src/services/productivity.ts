@@ -26,6 +26,7 @@ import { getTodaySnapshot } from "./records";
 import { todayISO } from "./date";
 import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
+import type { GrowthProgressVisit } from "./growthProgressPresentation";
 
 const productivityEvent = "nava-productivity-change";
 
@@ -291,6 +292,98 @@ export type GrowthRewardGrant = {
 };
 
 export type GrowthSummary = { totalPoints: number; badges: string[]; awarded: GrowthRewardGrant[] };
+
+type GrowthProgressCache = {
+  points: number;
+  taskKeys: string[];
+};
+
+function growthProgressStorageKey(userId: string) {
+  return `nava-growth-progress-view:${userId}:v1`;
+}
+
+export function loadLastViewedGrowthPoints(userId: string) {
+  const cached = readJson<GrowthProgressCache | null>(growthProgressStorageKey(userId), null);
+  return cached && Number.isFinite(cached.points) && cached.points >= 0 ? Math.round(cached.points) : null;
+}
+
+export function loadLastViewedGrowthTaskKeys(userId: string) {
+  const cached = readJson<GrowthProgressCache | null>(growthProgressStorageKey(userId), null);
+  return cached && Array.isArray(cached.taskKeys) ? cached.taskKeys.filter((key): key is string => typeof key === "string") : null;
+}
+
+function writeGrowthProgressCache(userId: string, points: number, taskKeys: string[]) {
+  window.localStorage.setItem(growthProgressStorageKey(userId), JSON.stringify({
+    points: Math.max(0, Math.round(points)),
+    taskKeys: [...new Set(taskKeys.filter((key) => typeof key === "string" && key.length > 0))],
+  } satisfies GrowthProgressCache));
+}
+
+export async function readGrowthProgress(userId: string, tasks: GrowthTask[], currentPoints: number): Promise<GrowthProgressVisit> {
+  if (isDemoMode()) return readLocalGrowthProgress(userId, tasks, currentPoints);
+  const { data, error } = await supabase.rpc("nava_read_growth_progress");
+  if (error) {
+    if (/nava_read_growth_progress|growth_progress_views|schema cache|does not exist/i.test(error.message)) {
+      return readLocalGrowthProgress(userId, tasks, currentPoints);
+    }
+    throw error;
+  }
+  return parseGrowthProgressVisit(data, currentPoints);
+}
+
+export async function acknowledgeGrowthProgress(userId: string, visit: GrowthProgressVisit) {
+  writeGrowthProgressCache(userId, visit.currentPoints, visit.currentTaskKeys);
+  if (isDemoMode()) return;
+  const { error } = await supabase.rpc("nava_ack_growth_progress", {
+    acknowledged_points: visit.currentPoints,
+    acknowledged_task_keys: visit.currentTaskKeys,
+  });
+  if (error && !/nava_ack_growth_progress|growth_progress_views|schema cache|does not exist/i.test(error.message)) throw error;
+}
+
+function parseGrowthProgressVisit(data: unknown, fallbackPoints: number): GrowthProgressVisit {
+  const value = data && typeof data === "object" ? data as Record<string, unknown> : {};
+  const currentPoints = finiteNonNegative(value.currentPoints, fallbackPoints);
+  const previousPoints = Math.min(currentPoints, finiteNonNegative(value.previousPoints, currentPoints));
+  const delta = Math.max(0, finiteNonNegative(value.delta, currentPoints - previousPoints));
+  return {
+    isFirstVisit: value.isFirstVisit === true,
+    previousPoints,
+    currentPoints,
+    delta,
+    currentTaskKeys: stringArray(value.currentTaskKeys),
+    newTaskKeys: stringArray(value.newTaskKeys),
+  };
+}
+
+function finiteNonNegative(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : Math.max(0, Math.round(fallback));
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.length > 0) : [];
+}
+
+function readLocalGrowthProgress(userId: string, tasks: GrowthTask[], currentPoints: number): GrowthProgressVisit {
+  const storageKey = growthProgressStorageKey(userId);
+  const cached = readJson<GrowthProgressCache | null>(storageKey, null);
+  const currentTaskKeys = tasks.filter((task) => task.completed).map((task) => task.category === "daily" ? `${todayISO()}:${task.id}` : task.id);
+  if (!cached) {
+    writeGrowthProgressCache(userId, currentPoints, currentTaskKeys);
+    return { isFirstVisit: true, previousPoints: currentPoints, currentPoints, delta: 0, currentTaskKeys, newTaskKeys: [] };
+  }
+  const previousPoints = Math.min(currentPoints, finiteNonNegative(cached.points, currentPoints));
+  const seenKeys = new Set(cached.taskKeys);
+  return {
+    isFirstVisit: false,
+    previousPoints,
+    currentPoints,
+    delta: Math.max(0, currentPoints - previousPoints),
+    currentTaskKeys,
+    newTaskKeys: currentTaskKeys.filter((key) => !seenKeys.has(key)),
+  };
+}
 
 export async function reconcileGrowthRewards(tasks: GrowthTask[]): Promise<GrowthSummary> {
   if (isDemoMode()) return reconcileDemoGrowthRewards(tasks);

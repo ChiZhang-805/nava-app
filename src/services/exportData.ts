@@ -46,6 +46,7 @@ export async function exportUserData(userId: string) {
     "notification_preferences",
     "growth_reward_ledger",
     "growth_badges",
+    "growth_progress_views",
     "analytics_events",
   ];
 

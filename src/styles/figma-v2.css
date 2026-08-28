@@ -3163,8 +3163,7 @@ body::before {
 .weekly-insight-card,
 .weekly-module-status,
 .growth-summary-card,
-.growth-task-card,
-.growth-badge-card {
+.growth-task-card {
   border: 1px solid rgba(255, 255, 255, 0.9);
   background: rgba(249, 254, 255, 0.84);
   box-shadow: 0 9px 25px rgba(27, 124, 166, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
@@ -3341,10 +3340,11 @@ body::before {
 .weekly-module-status button:not(:nth-child(3n + 1)) { border-left: 1px solid rgba(91, 173, 207, 0.18); }
 
 .growth-screen {
+  position: relative;
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -3376,7 +3376,8 @@ body::before {
 .growth-progress-copy > span { color: #668897; font-size: 11px; }
 .growth-progress-copy > strong { font-size: 21px; }
 .growth-progress-track { height: 7px; overflow: hidden; border-radius: 99px; background: #d9edf5; }
-.growth-progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #22a9df, #63c9ea); }
+.growth-progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #22a9df, #63c9ea); transition: width 90ms linear; }
+.growth-summary-card.is-settling .growth-level-orb { animation: growth-level-settle 720ms cubic-bezier(.2,.82,.24,1) both; }
 
 .growth-section-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 5px; }
 .growth-section-heading span { color: #5d8497; font-size: 10px; font-weight: 760; letter-spacing: 0.08em; }
@@ -3385,14 +3386,14 @@ body::before {
 
 .growth-task-list {
   min-height: 0;
-  max-height: 408px;
-  align-self: start;
+  max-height: none;
+  align-self: stretch;
   overflow-y: auto;
   display: grid;
   align-content: start;
   gap: 10px;
   padding-right: 2px;
-  padding-bottom: 39px;
+  padding-bottom: 14px;
   scrollbar-width: none;
   overscroll-behavior: contain;
   scroll-snap-type: y mandatory;
@@ -3416,17 +3417,24 @@ body::before {
   text-align: left;
   scroll-snap-align: start;
   cursor: pointer;
-  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+  transition: transform 220ms ease, box-shadow 220ms ease, opacity 220ms ease, background-color 260ms ease, border-color 260ms ease;
 }
 
 .growth-task-card:hover { transform: translateY(-1px); }
 .growth-task-card:active { transform: scale(0.985); }
 .growth-task-card:focus-visible { outline: 3px solid rgba(13, 139, 188, 0.3); outline-offset: 2px; }
 
-.growth-task-card.completed { opacity: 0.72; }
-.growth-task-card.completed .growth-task-copy strong { text-decoration: line-through; text-decoration-thickness: 1px; }
+.growth-task-card:disabled { opacity: 1; cursor: default; }
+.growth-task-card:disabled:hover,
+.growth-task-card:disabled:active { transform: none; }
+.growth-task-card.completed {
+  border-color: rgba(108, 210, 167, 0.48);
+  color: #174c43;
+  background: rgba(244, 255, 250, 0.9);
+  box-shadow: 0 8px 22px rgba(40, 143, 108, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.94);
+}
 .growth-task-check { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; color: white; background: #d8edf5; }
-.growth-task-card.completed .growth-task-check { background: #2caf82; }
+.growth-task-card.completed .growth-task-check { background: #2caf82; box-shadow: 0 5px 13px rgba(38, 158, 116, 0.22); }
 .growth-task-check > span { width: 11px; height: 11px; border: 2px solid #72a8bc; border-radius: 50%; }
 .growth-task-copy { min-width: 0; display: grid; gap: 3px; }
 .growth-task-copy strong { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
@@ -3443,37 +3451,40 @@ body::before {
 .profile-details-toggle { display: none; }
 .growth-task-meta { display: inline-flex; align-items: center; gap: 1px; color: #0c8abb; }
 .growth-task-meta b { font-size: 12px; }
+.growth-task-card.completed .growth-task-meta { color: #218461; }
+.growth-task-card.completion-reveal { animation: growth-task-complete 620ms cubic-bezier(.18,1.15,.28,1) both; }
+.growth-task-card.completion-reveal .growth-task-check { animation: growth-check-reveal 560ms cubic-bezier(.16,1.4,.32,1) both; }
+.growth-task-card.completion-reveal .growth-task-meta { animation: growth-completed-copy 440ms ease-out both; }
 
 .drawer-todo-list button b { min-width: 0; display: grid; gap: 2px; }
 .drawer-todo-list button b small { color: #76909b; font-size: 9px; font-weight: 620; }
 
-.growth-badge-card {
-  min-height: 70px;
-  border-radius: 18px;
-  display: flex;
+.growth-screen.has-toast .growth-task-list { padding-bottom: 82px; }
+.growth-earned-toast {
+  position: absolute;
+  z-index: 8;
+  right: 6px;
+  bottom: 8px;
+  left: 6px;
+  min-height: 66px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 11px 14px;
-  color: #126f97;
+  border: 1px solid rgba(255, 255, 255, 0.94);
+  border-radius: 20px;
+  color: #143e4d;
+  background: rgba(249, 255, 252, 0.96);
+  box-shadow: 0 18px 40px rgba(13, 92, 92, 0.22), inset 0 1px 0 #fff;
+  backdrop-filter: blur(18px) saturate(1.12);
+  animation: growth-toast-rise 520ms cubic-bezier(.18,1.12,.28,1) both;
 }
-.growth-badge-card div { min-width: 0; display: grid; gap: 3px; }
-.growth-badge-card strong { color: #0b3347; font-size: 13px; }
-.growth-badge-card span { color: #6b8997; font-size: 10.5px; }
-
-.growth-progress-track span {
-  transform-origin: left center;
-  animation: growth-progress-in 760ms cubic-bezier(0.2, 0.8, 0.2, 1) 120ms both;
-}
-
-.growth-task-card {
-  animation: data-card-enter 380ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
-}
-
-.growth-task-group .growth-task-card:nth-of-type(2) { animation-delay: 45ms; }
-.growth-task-group .growth-task-card:nth-of-type(3) { animation-delay: 90ms; }
-.growth-task-group .growth-task-card:nth-of-type(4) { animation-delay: 135ms; }
-.growth-task-group .growth-task-card:nth-of-type(5) { animation-delay: 180ms; }
-.growth-task-group .growth-task-card:nth-of-type(6) { animation-delay: 225ms; }
+.growth-earned-toast > span { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 14px; color: #fff; background: linear-gradient(145deg, #2cb889, #1589aa); box-shadow: 0 7px 16px rgba(24, 145, 130, 0.2); }
+.growth-earned-toast > div { min-width: 0; display: grid; gap: 2px; }
+.growth-earned-toast strong { font-size: 13px; }
+.growth-earned-toast small { overflow: hidden; color: #6a898d; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.growth-earned-toast > b { color: #159768; font-size: 20px; font-variant-numeric: tabular-nums; }
 
 .phone-frame .utility-drawer-layer,
 .phone-frame .cat-module-picker-layer {
@@ -3809,25 +3820,24 @@ body::before {
   .growth-summary-card { min-height: 78px; padding-block: 9px; }
   .growth-level-orb { width: 52px; height: 52px; }
   .growth-task-list {
-    max-height: 280px;
+    max-height: none;
     gap: 6px;
-    padding-bottom: 42px;
+    padding-bottom: 10px;
   }
-  .growth-badge-card { min-height: 58px; }
 }
 
 @media (min-height: 781px) and (max-height: 860px) {
   .growth-task-list {
-    max-height: 320px;
-    padding-bottom: 23px;
+    max-height: none;
+    padding-bottom: 12px;
   }
   .growth-task-card { min-height: 69px; }
 }
 
 @media (min-height: 861px) {
   .growth-task-list {
-    max-height: 456px;
-    padding-bottom: 87px;
+    max-height: none;
+    padding-bottom: 16px;
   }
 }
 
@@ -3837,8 +3847,8 @@ body::before {
   }
 
   .growth-task-list {
-    max-height: 219px;
-    padding-bottom: 12px;
+    max-height: none;
+    padding-bottom: 8px;
   }
 
   .weekly-insight-card p {
@@ -4809,9 +4819,31 @@ body::before {
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes growth-progress-in {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
+@keyframes growth-level-settle {
+  0%, 100% { transform: scale(1); }
+  45% { transform: scale(1.08) rotate(-3deg); box-shadow: 0 12px 28px rgba(19, 121, 167, 0.3); }
+}
+
+@keyframes growth-task-complete {
+  0% { transform: scale(1); }
+  42% { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+
+@keyframes growth-check-reveal {
+  0% { opacity: 0; transform: scale(.25) rotate(-22deg); }
+  68% { opacity: 1; transform: scale(1.16) rotate(4deg); }
+  100% { transform: none; }
+}
+
+@keyframes growth-completed-copy {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes growth-toast-rise {
+  from { opacity: 0; transform: translateY(34px) scale(.96); }
+  to { opacity: 1; transform: none; }
 }
 
 @keyframes heat-cell-in {
@@ -5528,15 +5560,10 @@ body::before {
     display: none;
   }
 
-  .growth-badge-card {
-    position: relative;
-    z-index: 2;
-    background: rgb(242, 251, 254);
-  }
   .growth-task-list {
-    height: 132px;
-    max-height: 132px;
-    padding-bottom: 41px;
+    height: auto;
+    max-height: none;
+    padding-bottom: 8px;
   }
   .growth-task-card {
     gap: 8px;
@@ -5865,6 +5892,11 @@ body::before {
 
   .growth-progress-track span,
   .growth-task-card,
+  .growth-summary-card.is-settling .growth-level-orb,
+  .growth-task-card.completion-reveal,
+  .growth-task-card.completion-reveal .growth-task-check,
+  .growth-task-card.completion-reveal .growth-task-meta,
+  .growth-earned-toast,
   .record-module-entry,
   .weekly-score-card,
   .weekly-trend-card,

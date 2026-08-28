@@ -23,6 +23,7 @@ const tableContracts = [
   { name: "notification_preferences", column: "user_id" },
   { name: "growth_reward_ledger", column: "user_id" },
   { name: "growth_badges", column: "user_id" },
+  { name: "growth_progress_views", column: "user_id" },
   { name: "analytics_events", column: "user_id" },
 ];
 
