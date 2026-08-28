@@ -26,7 +26,9 @@ function parseEnvFile(filePath) {
 }
 
 export function applyProjectPublicEnv(root = process.cwd(), mode) {
+  const reviewFallback = mode ? {} : parseEnvFile(path.join(root, ".env.review"));
   const values = {
+    ...reviewFallback,
     ...parseEnvFile(path.join(root, ".env")),
     ...(mode ? parseEnvFile(path.join(root, `.env.${mode}`)) : {}),
   };
