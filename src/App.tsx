@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, Download, History, Home, ListTodo, MessageSquarePlus, MoreHorizontal, Share2, Trash2 } from "lucide-react";
+import { Activity, ArrowLeft, Download, History, ListTodo, MessageSquarePlus, MoreHorizontal, Share2, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import navDataIcon from "./assets/figma/option-two-icons/data.png";
 import navHomeIcon from "./assets/figma/option-two-icons/home-glyph.svg";
@@ -29,6 +29,16 @@ import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
 import { loadOnboardingStatus } from "./services/onboarding";
 import { reconcileGrowthRewards, resolveGrowthTasks, type GrowthRewardGrant, type GrowthSummary } from "./services/productivity";
+import {
+  fallbackShellRoute,
+  hasPreviousShellRoute,
+  nextShellHistoryState,
+  normalizeShellRoute,
+  shellHistoryDepth,
+  shellRoutesEqual,
+  type ShellHistoryState,
+  type ShellRoute,
+} from "./services/shellHistory";
 
 const aiLongPressDelayMs = 450;
 
@@ -40,8 +50,6 @@ const tabs: Array<{ id: AppTab; labelKey: TranslationKey; icon: string }> = [
   { id: "profile", labelKey: "tabs.profile", icon: navProfileIcon },
 ];
 
-type ShellRoute = { tab: AppTab; module: RecordModule | null; view: string | null };
-type ShellHistoryState = { navaShell: true; depth: number; route: ShellRoute };
 const appTabs = new Set<AppTab>(["today", "record", "ai", "trends", "profile"]);
 const recordModules = new Set<RecordModule>(["mood", "sleep", "exercise", "diet", "focus", "face"]);
 
@@ -51,7 +59,7 @@ function readShellRoute(): ShellRoute {
   const tab = candidateTab && appTabs.has(candidateTab) ? candidateTab : "today";
   const candidateModule = query.get("module") as RecordModule | null;
   const module = tab === "record" && candidateModule && recordModules.has(candidateModule) ? candidateModule : null;
-  return { tab, module, view: module ? query.get("view") : null };
+  return normalizeShellRoute(tab, module, module ? query.get("view") : null);
 }
 
 function shellRouteHash(route: ShellRoute) {
@@ -163,20 +171,25 @@ function MobileShell() {
   const dismissReward = useCallback(() => setRewardQueue((queue) => queue.slice(1)), []);
 
   const navigate = (tab: AppTab, module: RecordModule | null = null, view: string | null = null, replace = false) => {
-    const next: ShellRoute = { tab, module: tab === "record" ? module : null, view: tab === "record" && module ? view : null };
+    const next = normalizeShellRoute(tab, module, view);
     setActiveTab(next.tab);
     setRecordModule(next.module);
     setRecordView(next.view);
     const url = `${window.location.pathname}${window.location.search}${shellRouteHash(next)}`;
-    const currentState = window.history.state as Partial<ShellHistoryState> | null;
-    const currentDepth = currentState?.navaShell === true && Number.isInteger(currentState.depth) ? Number(currentState.depth) : 0;
-    const nextState: ShellHistoryState = { navaShell: true, depth: replace ? currentDepth : currentDepth + 1, route: next };
+    const currentState = window.history.state;
+    const currentDepth = shellHistoryDepth(currentState);
+    if (shellRoutesEqual(readShellRoute(), next) && window.location.hash) {
+      if (!currentState || (currentState as Partial<ShellHistoryState>).navaShell !== true) {
+        window.history.replaceState({ navaShell: true, depth: currentDepth, route: next } satisfies ShellHistoryState, "", url);
+      }
+      return;
+    }
+    const nextState = nextShellHistoryState(currentState, next, replace);
     window.history[replace ? "replaceState" : "pushState"](nextState, "", url);
   };
 
   const navigateBack = (fallback: ShellRoute) => {
-    const currentState = window.history.state as Partial<ShellHistoryState> | null;
-    if (currentState?.navaShell === true && Number(currentState.depth) > 0) {
+    if (hasPreviousShellRoute(window.history.state)) {
       window.history.back();
       return;
     }
@@ -354,18 +367,11 @@ function MobileShell() {
           <button
             className="figma-header-action"
             type="button"
-            onClick={() => {
-              if (activeTab === "record" && recordModule) {
-                if (recordView && recordView !== "overview") navigateBack({ tab: "record", module: recordModule, view: null });
-                else navigate("record", null, null, true);
-                return;
-              }
-              navigate("today");
-            }}
-            aria-label={activeTab === "record" && recordModule ? t("records.back") : t("tabs.today")}
-            title={activeTab === "record" && recordModule ? t("records.back") : t("tabs.today")}
+            onClick={() => navigateBack(fallbackShellRoute(normalizeShellRoute(activeTab, recordModule, recordView)))}
+            aria-label={t("records.back")}
+            title={t("records.back")}
           >
-            {activeTab === "record" && recordModule ? <ArrowLeft size={21} /> : <Home size={21} />}
+            <ArrowLeft size={21} />
           </button>
           <h1>{currentTitle}</h1>
           <button
@@ -425,7 +431,13 @@ function MobileShell() {
               initialModule={recordModule}
               initialView={recordView}
               onModuleChange={(module) => navigate("record", module)}
-              onViewChange={(view, replace = false) => navigate("record", recordModule, view, replace)}
+              onViewChange={(view, replace = false) => {
+                if (replace && recordView) {
+                  navigateBack(normalizeShellRoute("record", recordModule, view));
+                  return;
+                }
+                navigate("record", recordModule, view, replace);
+              }}
             />
           )}
           <div

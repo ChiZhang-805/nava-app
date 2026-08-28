@@ -83,6 +83,8 @@ type Props = {
   onViewChange?: (view: string | null, replace?: boolean) => void;
 };
 
+type OpenModuleView = (view: string, returnToPrevious?: boolean) => void;
+
 const moodFaces = [
   { score: 88, zh: "愉悦", en: "Bright" },
   { score: 76, zh: "平静", en: "Calm" },
@@ -266,7 +268,7 @@ function ExerciseDashboard({
   profile,
   view,
   openView,
-}: Pick<Props, "steps" | "calories" | "exerciseMinutes" | "onOpenEditor" | "recordDate" | "trendBundle" | "todaySnapshot" | "profile"> & { locale: "zh" | "en"; view: string; openView: (view: string) => void }) {
+}: Pick<Props, "steps" | "calories" | "exerciseMinutes" | "onOpenEditor" | "recordDate" | "trendBundle" | "todaySnapshot" | "profile"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
   const [syncing, setSyncing] = useState(false);
   const [syncedAt, setSyncedAt] = useState(locale === "zh" ? "3 分钟前" : "3 min ago");
   const latestExercise = useMemo(() => {
@@ -384,7 +386,7 @@ function ExerciseDashboard({
   );
 }
 
-function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openView: (view: string) => void }) {
+function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
   const {
     locale,
     moodScore,
@@ -506,7 +508,7 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
   );
 }
 
-function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" | "deepSleep" | "lightSleep" | "remSleep" | "sleepRating" | "onOpenEditor" | "recordDate" | "trendBundle" | "todaySnapshot" | "profile"> & { locale: "zh" | "en"; view: string; openView: (view: string) => void }) {
+function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" | "deepSleep" | "lightSleep" | "remSleep" | "sleepRating" | "onOpenEditor" | "recordDate" | "trendBundle" | "todaySnapshot" | "profile"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
   const { userId, locale, onOpenEditor, recordDate, trendBundle, todaySnapshot, profile, view, openView } = props;
   const todayKey = `nava-sleep-alert-dismissed:${new Date().toISOString().slice(0, 10)}`;
   const [alertVisible, setAlertVisible] = useState(() => window.sessionStorage.getItem(todayKey) !== "1");
@@ -578,7 +580,7 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
   );
 }
 
-function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "profile" | "onOpenEditor"> & { locale: "zh" | "en"; view: string; openView: (view: string) => void }) {
+function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "profile" | "onOpenEditor"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
   const { locale, todaySnapshot, trendBundle, profile, onOpenEditor, openView } = props;
   const nutrition = todaySnapshot?.nutrition;
   const records = useMemo(() => {
@@ -641,7 +643,7 @@ function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "pro
   );
 }
 
-function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "profile" | "onOpenEditor"> & { locale: "zh" | "en"; view: string; openView: (view: string) => void }) {
+function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "profile" | "onOpenEditor"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
   const { locale, todaySnapshot, trendBundle, profile, onOpenEditor, openView } = props;
   const face = todaySnapshot?.face;
   const records = useMemo(() => {
@@ -679,7 +681,7 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "pro
   );
 }
 
-function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setFocusTitle" | "setFocusMinutes" | "onSaveFocusMinutes" | "todaySnapshot" | "trendBundle" | "profile"> & { locale: "zh" | "en"; view: string; openView: (view: string) => void }) {
+function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setFocusTitle" | "setFocusMinutes" | "onSaveFocusMinutes" | "todaySnapshot" | "trendBundle" | "profile"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
   const { locale, focusTitle, focusMinutes, setFocusTitle, setFocusMinutes, onSaveFocusMinutes, todaySnapshot, trendBundle, profile, view, openView } = props;
   const displayedFocusTitle = focusTitle === "产品原型" || focusTitle === "Product prototype" || focusTitle === "Prototype"
     ? (locale === "zh" ? "产品原型" : "Prototype")
@@ -824,7 +826,7 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
         </div>
         <button className="focus-interruption-trigger" type="button" onClick={() => { setRunning(false); setInterruptions((value) => value + 1); openView("interruption"); }}><PhoneIncoming size={17} />{locale === "zh" ? "模拟来电打断" : "Simulate interruption"}</button>
         <p className="focus-immersive-hint">{locale === "zh" ? "一次只做一件事。" : "One thing at a time."}</p>
-        {view === "interruption" && <div className="focus-interruption" role="dialog" aria-modal="true"><PhoneIncoming size={38} /><strong>{locale === "zh" ? "来电打断" : "Incoming call"}</strong><p>{locale === "zh" ? "专注计时已自动暂停" : "Focus timer paused automatically"}</p><div><button type="button" onClick={() => { setRunning(true); setHasStarted(true); openView("immersive"); }}>{locale === "zh" ? "继续专注" : "Keep focusing"}</button><button type="button" onClick={() => openView("immersive")}>{locale === "zh" ? "接听并暂停" : "Answer and pause"}</button></div></div>}
+        {view === "interruption" && <div className="focus-interruption" role="dialog" aria-modal="true"><PhoneIncoming size={38} /><strong>{locale === "zh" ? "来电打断" : "Incoming call"}</strong><p>{locale === "zh" ? "专注计时已自动暂停" : "Focus timer paused automatically"}</p><div><button type="button" onClick={() => { setRunning(true); setHasStarted(true); openView("immersive", true); }}>{locale === "zh" ? "继续专注" : "Keep focusing"}</button><button type="button" onClick={() => openView("immersive", true)}>{locale === "zh" ? "接听并暂停" : "Answer and pause"}</button></div></div>}
       </div>
     );
   }
@@ -854,9 +856,9 @@ export default function RecordModuleDashboard(props: Props) {
   const { locale } = useLocale();
   const [view, setView] = useState(props.initialView ?? "overview");
   useEffect(() => setView(props.initialView ?? "overview"), [props.initialView, props.module]);
-  const openView = (next: string) => {
+  const openView = (next: string, returnToPrevious = next === "overview") => {
     setView(next);
-    props.onViewChange?.(next === "overview" ? null : next, next === "overview");
+    props.onViewChange?.(next === "overview" ? null : next, returnToPrevious);
   };
   if (view === "history") return <HistoryView module={props.module} locale={locale} trendBundle={props.trendBundle} />;
   const common = { ...props, locale };

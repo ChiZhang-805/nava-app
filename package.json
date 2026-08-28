@@ -28,6 +28,7 @@
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy",
     "motion:test": "node --experimental-strip-types --test tests/background-motion.test.ts",
     "chart-motion:test": "node --experimental-strip-types --test tests/chart-motion.test.ts",
+    "navigation:test": "node --experimental-strip-types --test tests/shell-history.test.ts",
     "reward:test": "node --experimental-strip-types --test tests/growth-reward-presentation.test.ts tests/growth-progress-presentation.test.ts",
     "ai:prompt:test": "node --experimental-strip-types --test tests/ai-chat-prompt.test.ts tests/ai-context-router.test.ts tests/ai-review-access.test.ts",
     "structured:test": "node --experimental-strip-types --test tests/structured-entry.test.ts",
