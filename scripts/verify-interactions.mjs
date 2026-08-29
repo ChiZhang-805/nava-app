@@ -374,10 +374,36 @@ async function assertStaticLayout(page, label) {
         };
       }
     }
+    const chartDateAlignmentOffenders = [
+      ...[...document.querySelectorAll(".bar-line-trend-chart.is-score-scale .bar-line-bars > span")].map((slot) => ({
+        bar: slot.querySelector("i"),
+        date: slot.querySelector("small"),
+      })),
+      ...[...document.querySelectorAll(".report-history-trend-chart .diet-history-bar")].map((group) => ({
+        bar: group.querySelector("rect"),
+        date: group.querySelector(".diet-history-date"),
+      })),
+    ]
+      .filter(({ bar, date }) => bar && date && visible(bar) && visible(date))
+      .map(({ bar, date }) => {
+        const barRect = bar.getBoundingClientRect();
+        const dateRect = date.getBoundingClientRect();
+        const barCenter = barRect.left + barRect.width / 2;
+        const dateCenter = dateRect.left + dateRect.width / 2;
+        return {
+          label: (date.textContent ?? "").trim(),
+          barCenter: Math.round(barCenter * 10) / 10,
+          dateCenter: Math.round(dateCenter * 10) / 10,
+          offset: Math.round(Math.abs(barCenter - dateCenter) * 10) / 10,
+        };
+      })
+      .filter(({ offset }) => offset > 0.75)
+      .slice(0, 7);
     return {
       auditLabel,
       horizontalOffenders,
       bottomNavOffenders,
+      chartDateAlignmentOffenders,
       frameOverflow: Math.max(0, frame.scrollWidth - frame.clientWidth),
       headerAlignment,
     };
@@ -388,6 +414,9 @@ async function assertStaticLayout(page, label) {
   }
   if (audit.bottomNavOffenders.length > 0) {
     throw new Error(`${label}: an interactive control is partially hidden by the bottom navigation ${JSON.stringify(audit.bottomNavOffenders)}`);
+  }
+  if (audit.chartDateAlignmentOffenders.length > 0) {
+    throw new Error(`${label}: chart dates are not centered below their bars ${JSON.stringify(audit.chartDateAlignmentOffenders)}`);
   }
   if (audit.headerAlignment && (audit.headerAlignment.actionCenterOffset > 1 || audit.headerAlignment.titleCenterOffset > 1)) {
     throw new Error(`${label}: header controls are not aligned ${JSON.stringify(audit.headerAlignment)}`);

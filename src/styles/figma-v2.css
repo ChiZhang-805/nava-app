@@ -3201,6 +3201,15 @@ body::before {
   line-height: 1;
   text-align: center;
   transform: translateX(-50%);
+  animation-name: bar-line-date-reveal;
+}
+
+/* The shared chart-label animation ends at `transform: none`, which used to
+   discard the centering translate above and move every date half a label-width
+   to the right. Keep the horizontal centering throughout the reveal. */
+@keyframes bar-line-date-reveal {
+  from { opacity: 0; transform: translate(-50%, 4px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }
 
 .bar-line-trend-chart.is-interactive .bar-line-path {
