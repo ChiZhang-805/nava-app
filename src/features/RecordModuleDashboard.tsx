@@ -634,7 +634,23 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
   if (view === "trend") return <HistoryView module="mood" locale={locale} trendBundle={trendBundle} />;
 
   return (
-    <form className="module-dashboard mood-dashboard" onSubmit={(event) => void submitMood(event)} data-module-view="mood-overview" data-ui-revision="mood-bar-line-v3">
+    <form className="module-dashboard mood-dashboard" onSubmit={(event) => void submitMood(event)} data-module-view="mood-overview" data-ui-revision="mood-summary-live-v4">
+      <section
+        className="figma-module-card mood-summary-card"
+        style={{ "--mood-score": `${moodScore}%` } as CSSProperties}
+        data-record-date={recordDate}
+      >
+        <header>
+          <strong>{locale === "zh" ? "今日情绪摘要" : "Today's mood"}</strong>
+          <span className="mood-summary-date"><CalendarDays size={14} />{shortDate(recordDate, locale)}</span>
+        </header>
+        <div className="mood-summary-content">
+          <output className="mood-summary-score" aria-live="polite"><AnimatedNumber value={moodScore} duration={360} /><small>{locale === "zh" ? "分" : "pts"}</small></output>
+          <span className={`mood-summary-band is-${selectedBand.key}`}><HeartPulse size={15} />{locale === "zh" ? selectedBand.zh : selectedBand.en}</span>
+          <span className="mood-summary-sync">{locale === "zh" ? "下方强度将同步今天" : "The slider updates today"}</span>
+        </div>
+        <div className="mood-summary-progress" aria-hidden="true"><i /></div>
+      </section>
       <section className="figma-module-card mood-entry-card">
         <header>
           <strong>{locale === "zh" ? "情绪记录" : "Mood check-in"}</strong>
@@ -671,7 +687,7 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
       </section>
       <section className="figma-module-card mood-trend-card">
         <header><strong>{locale === "zh" ? "近 7 天情绪趋势" : "7-day mood"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("history")} aria-label={locale === "zh" ? "查看情绪趋势报告" : "View mood trend report"}><ChevronRight size={18} /></button></header>
-        <div className="mood-chart"><BarLineTrendChart points={trendPoints} scoreScale interactive ariaLabel={locale === "zh" ? `近七日情绪强度柱状图与趋势折线图，日期从${trendPoints[0]?.label}至${trendPoints[trendPoints.length - 1]?.label}，纵轴范围零到一百` : `Seven-day mood intensity bars and trend line, ${trendPoints[0]?.label} to ${trendPoints[trendPoints.length - 1]?.label}, on a zero to one hundred scale`} /></div>
+        <div className="mood-chart"><BarLineTrendChart points={trendPoints} scoreScale interactive curve="monotone" lineAnchor="bar-center" ariaLabel={locale === "zh" ? `近七日情绪强度柱状图与平滑趋势曲线，日期从${trendPoints[0]?.label}至${trendPoints[trendPoints.length - 1]?.label}，当天为${trendPoints[trendPoints.length - 1]?.label}，纵轴范围零到一百` : `Seven-day mood intensity bars and smooth trend line, ${trendPoints[0]?.label} to ${trendPoints[trendPoints.length - 1]?.label}; the final point is today, on a zero to one hundred scale`} /></div>
         <div className="mood-pie-wrap">
           <div className="mood-pie" aria-label={distribution.summary}>
             <svg viewBox="0 0 40 40" aria-hidden="true">

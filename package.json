@@ -45,6 +45,7 @@
     "data:export:fixed": "node --experimental-strip-types scripts/export-synthetic-population.ts --out=Z:\\NAVA\\data\\synthetic-population",
     "data:audit:account": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-account-history-secure.ps1 -AuditOnly",
     "data:seed:account": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-account-history-secure.ps1",
+    "data:backfill:mood:account": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-mood-history-secure.ps1",
     "data:backfill:account": "node scripts/backfill-account-auxiliary.mjs",
     "algorithm:tune": "node --experimental-strip-types scripts/benchmark-rhythm-v4.ts --tune",
     "cap:sync": "npm run build && npx cap sync && npm run ios:configure-motion",
