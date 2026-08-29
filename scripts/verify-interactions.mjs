@@ -308,7 +308,6 @@ async function assertStaticLayout(page, label) {
       ".weekly-score-card",
       ".weekly-trend-card",
       ".weekly-insight-card",
-      ".weekly-module-status",
       ".growth-summary-card",
       ".growth-task-group",
       ".growth-task-card",
@@ -1164,6 +1163,66 @@ async function verifyNavigationAndMotion(page, results) {
   await assertAnimation(page.locator(".weekly-trend-card .trend-line"), "trend-line-draw", "weekly rhythm line");
   await page.waitForTimeout(1_050);
   await assertStaticLayout(page, "record-weekly");
+  await expect(page.locator(".weekly-period-controls .weekly-share-button")).toHaveCount(0);
+  await expect(page.locator(".weekly-insight-card .weekly-share-button")).toBeVisible();
+  await expect(page.locator(".weekly-insight-body li")).toHaveCount(4);
+  await expect(page.locator(".weekly-insight-mascot")).toBeVisible();
+  await expect(page.locator(".weekly-module-status")).toHaveCount(0);
+  await expect(page.locator(".weekly-fdnb-contributors, .weekly-fdnb-disclaimer")).toHaveCount(0);
+  await expect(page.locator(".weekly-trend-card .trend-date")).toHaveCount(7);
+  await expect(page.locator(".weekly-trend-card .trend-area, .weekly-trend-card .trend-confidence-band")).toHaveCount(0);
+  const scoreLayout = await page.locator(".weekly-score-card > div").evaluateAll((cells) => cells.map((cell) => {
+    const label = cell.querySelector("span");
+    const value = cell.querySelector("strong");
+    const labelRect = label?.getBoundingClientRect();
+    const valueRect = value?.getBoundingClientRect();
+    return {
+      labelSize: label ? getComputedStyle(label).fontSize : "",
+      valueSize: value ? getComputedStyle(value).fontSize : "",
+      centerDelta: labelRect && valueRect ? Math.abs((labelRect.top + labelRect.bottom) / 2 - (valueRect.top + valueRect.bottom) / 2) : 99,
+    };
+  }));
+  if (scoreLayout.some(({ labelSize, valueSize, centerDelta }) => labelSize !== valueSize || centerDelta > 1.5)) {
+    throw new Error(`Weekly score labels and values are not aligned at one size: ${JSON.stringify(scoreLayout)}`);
+  }
+  const weeklyChartLayout = await page.locator(".weekly-trend-card").evaluate((card) => {
+    const dates = [...card.querySelectorAll(".trend-date")];
+    const points = [...card.querySelectorAll(".trend-point")];
+    const cardRect = card.getBoundingClientRect();
+    const dateRects = dates.map((date) => date.getBoundingClientRect());
+    const pointData = points.map((point) => {
+      const circle = point.querySelector("circle");
+      return {
+        value: Number(point.getAttribute("data-value")),
+        rect: circle?.getBoundingClientRect(),
+      };
+    });
+    const minimum = pointData.reduce((best, point) => point.value < best.value ? point : best, pointData[0]);
+    const dateTop = Math.min(...dateRects.map((rect) => rect.top));
+    return {
+      dateBottomGap: cardRect.bottom - Math.max(...dateRects.map((rect) => rect.bottom)),
+      minimumFloorGap: minimum?.rect ? dateTop - minimum.rect.bottom : -1,
+    };
+  });
+  if (weeklyChartLayout.dateBottomGap > 18 || weeklyChartLayout.minimumFloorGap < 24) {
+    throw new Error(`Weekly chart is not using its vertical depth: ${JSON.stringify(weeklyChartLayout)}`);
+  }
+  const weeklyInsightAlignment = await page.locator(".weekly-insight-card").evaluate((card) => {
+    const header = card.querySelector(".weekly-insight-header");
+    const centers = header ? [...header.children].map((child) => {
+      const rect = child.getBoundingClientRect();
+      return (rect.top + rect.bottom) / 2;
+    }) : [];
+    const mascot = card.querySelector(".weekly-insight-mascot")?.getBoundingClientRect();
+    const lastBullet = card.querySelector(".weekly-insight-body li:last-child")?.getBoundingClientRect();
+    return {
+      headerCenterDelta: centers.length ? Math.max(...centers) - Math.min(...centers) : 99,
+      mascotBulletBottomDelta: mascot && lastBullet ? Math.abs(mascot.bottom - lastBullet.bottom) : 99,
+    };
+  });
+  if (weeklyInsightAlignment.headerCenterDelta > 1 || weeklyInsightAlignment.mascotBulletBottomDelta > 12) {
+    throw new Error(`Weekly insight alignment regressed: ${JSON.stringify(weeklyInsightAlignment)}`);
+  }
   const weeklyOverflow = await page.locator(".weekly-insight-card").evaluate((card) => {
     const cardRect = card.getBoundingClientRect();
     return [...card.children]
@@ -1172,13 +1231,6 @@ async function verifyNavigationAndMotion(page, results) {
   });
   if (weeklyOverflow.length > 0) throw new Error(`Weekly insight content overflowed its card: ${JSON.stringify(weeklyOverflow)}`);
   await page.screenshot({ path: path.join(outputDir, "record-weekly.png") });
-  for (const [index, module] of ["mood", "sleep", "exercise", "diet", "focus", "face"].entries()) {
-    await page.locator(".weekly-module-status button").nth(index).click();
-    await expect(page.locator(`[data-record-detail="${module}"] [data-module-view="${module}-overview"]`)).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`tab=record.*module=${module}`));
-    await page.goBack();
-    await expect(page.locator("[data-weekly-health-report]")).toBeVisible();
-  }
   await page.getByRole("tab", { name: /分项报告|Modules/ }).click();
   const recordButton = page.locator('[data-tab="record"]');
   const recordBox = await recordButton.boundingBox();

@@ -7932,3 +7932,236 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   .growth-task-card { animation: none !important; }
 }
+
+/* Weekly report approval layout (2026-08-29). */
+.weekly-health-report {
+  grid-template-rows: auto auto minmax(190px, 1.08fr) minmax(148px, .9fr);
+  touch-action: pan-y;
+}
+
+.weekly-period-controls {
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+}
+
+.weekly-period-controls > strong {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.weekly-score-card {
+  min-height: 58px;
+}
+
+.weekly-score-card > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 5px;
+  color: #123c54;
+  font-size: clamp(9.2px, 2.65vw, 11.5px);
+  font-weight: 720;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.weekly-score-card span,
+.weekly-score-card strong {
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.weekly-trend-card {
+  padding: 14px 15px 8px;
+}
+
+.weekly-trend-card .line-trend-chart.is-vertically-emphasized,
+.weekly-trend-card .line-trend-chart.is-vertically-emphasized svg {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.weekly-insight-card {
+  min-height: 148px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 12px 14px 11px;
+  overflow: hidden;
+}
+
+.weekly-insight-header {
+  grid-column: 1 / -1;
+  min-height: 30px;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.weekly-insight-header > span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #087ca9;
+  background: rgba(255, 255, 255, .88);
+  box-shadow: 0 4px 12px rgba(22, 123, 166, .1);
+}
+
+.weekly-insight-header > strong {
+  min-width: 0;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  align-self: center;
+  color: #123c54;
+  font-size: 13px;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.weekly-share-button {
+  min-height: 30px;
+  border: 1px solid rgba(20, 148, 198, .62);
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 8px;
+  color: #087ca9;
+  background: rgba(249, 254, 255, .78);
+  font: inherit;
+  font-size: 9.5px;
+  font-weight: 760;
+  white-space: nowrap;
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+
+.weekly-share-button:active:not(:disabled) { transform: scale(.96); }
+.weekly-share-button:disabled { opacity: .46; }
+
+.weekly-insight-body {
+  grid-column: 1 / -1;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(108px, 40%, 172px);
+  align-items: stretch;
+  gap: 8px;
+}
+
+.weekly-insight-body ul {
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  align-content: space-evenly;
+  gap: 3px;
+  list-style: none;
+}
+
+.weekly-insight-body li {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 7px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  color: #315c70;
+  font-size: clamp(9.5px, 2.8vw, 11.5px);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.weekly-insight-body li::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #1c96c2;
+  box-shadow: 0 0 0 3px rgba(45, 165, 207, .12);
+}
+
+.weekly-insight-mascot {
+  --weekly-mascot-y: -20px;
+  width: 100%;
+  height: 100%;
+  max-height: 144px;
+  align-self: end;
+  justify-self: end;
+  object-fit: contain;
+  object-position: center bottom;
+  transform: translateY(var(--weekly-mascot-y)) scale(1.15);
+  transform-origin: center bottom;
+  animation: weekly-mascot-arrive 620ms cubic-bezier(.18, .82, .22, 1.06) 260ms both;
+}
+
+.weekly-health-report[data-long-pressing="true"] .weekly-share-button {
+  animation: weekly-share-hold 680ms linear both;
+}
+
+@keyframes weekly-mascot-arrive {
+  from { opacity: 0; transform: translate3d(14px, calc(var(--weekly-mascot-y) - 6px), 0) scale(1.07); }
+  to { opacity: 1; transform: translateY(var(--weekly-mascot-y)) scale(1.15); }
+}
+
+@keyframes weekly-share-hold {
+  from { box-shadow: 0 0 0 0 rgba(26, 159, 207, .28); }
+  to { box-shadow: 0 0 0 5px rgba(26, 159, 207, .16); }
+}
+
+@media (max-height: 860px) {
+  .weekly-health-report {
+    grid-template-rows: auto auto minmax(166px, 1fr) minmax(132px, .82fr);
+    gap: 7px;
+  }
+  .weekly-score-card { min-height: 52px; }
+  .weekly-insight-card { min-height: 132px; padding-block: 9px; }
+  .weekly-insight-mascot { max-height: 128px; }
+  .weekly-insight-body li { font-size: clamp(9px, 2.55vw, 10.5px); }
+}
+
+@media (max-height: 700px) {
+  .record-hub:has(.weekly-health-report) {
+    height: auto;
+    min-height: 570px;
+  }
+  .weekly-health-report {
+    min-height: 514px;
+    grid-template-rows: auto 52px 214px 150px;
+    overflow: visible;
+  }
+  .weekly-insight-card { min-height: 150px; }
+  .weekly-insight-mascot { max-height: 136px; }
+}
+
+@media (max-width: 359px) {
+  .weekly-score-card > div {
+    gap: 1px;
+    padding-inline: 3px;
+    font-size: 8.35px;
+  }
+  .weekly-insight-card { padding-inline: 10px; }
+  .weekly-insight-header { grid-template-columns: 26px minmax(0, 1fr) auto; gap: 5px; }
+  .weekly-insight-header > span { width: 26px; height: 26px; }
+  .weekly-insight-header > strong { font-size: 11.5px; }
+  .weekly-share-button { padding-inline: 6px; font-size: 8.5px; }
+  .weekly-insight-body { grid-template-columns: minmax(0, 1fr) 100px; gap: 5px; }
+  .weekly-insight-body li { gap: 5px; font-size: 8.9px; }
+  .weekly-insight-mascot { --weekly-mascot-y: -8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weekly-insight-mascot,
+  .weekly-health-report[data-long-pressing="true"] .weekly-share-button {
+    animation: none !important;
+  }
+}

@@ -1,10 +1,11 @@
 import type { User } from "@supabase/supabase-js";
-import { BedDouble, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Loader2, LockKeyhole, ScanFace, Share2, ShieldCheck, SmilePlus, Upload, X, type LucideIcon } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { BedDouble, Bot, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Loader2, LockKeyhole, ScanFace, Share2, ShieldCheck, SmilePlus, Upload, X, type LucideIcon } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import ActionButton from "../components/ActionButton";
 import AnimatedNumber from "../components/AnimatedNumber";
 import LineTrendChart from "../components/LineTrendChart";
 import SectionCard from "../components/SectionCard";
+import weeklyRunMascot from "../assets/mascot/nava-run-v1.png";
 import { useLocale, type TranslationKey } from "../i18n";
 import {
   saveExerciseRecord,
@@ -25,6 +26,7 @@ import type { GrowthActivityKind } from "../services/productivity";
 import { clearRecordDraft, loadRecordDraft, saveRecordDraft, type RecordDraftModule } from "../services/drafts";
 import { loadProfile, type UserProfile } from "../services/profile";
 import { loadDietAiReport } from "../services/dietReport";
+import { buildWeeklyInsights } from "../services/weeklyReport";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 import RecordModuleDashboard from "./RecordModuleDashboard";
 
@@ -124,8 +126,11 @@ export default function RecordsScreen({
   const [dnbReport, setDnbReport] = useState<DnbWeeklyReport | null>(null);
   const [dnbLoading, setDnbLoading] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [weeklyLongPressing, setWeeklyLongPressing] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const weeklyLongPressTimerRef = useRef<number | null>(null);
+  const weeklyLongPressOriginRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     window.sessionStorage.setItem(recordDateStorageKey, recordDate);
@@ -364,6 +369,54 @@ export default function RecordsScreen({
       active = false;
     };
   }, [locale, reportMode, user.id, weekOffset]);
+
+  const clearWeeklyLongPress = useCallback(() => {
+    if (weeklyLongPressTimerRef.current !== null) {
+      window.clearTimeout(weeklyLongPressTimerRef.current);
+      weeklyLongPressTimerRef.current = null;
+    }
+    weeklyLongPressOriginRef.current = null;
+    setWeeklyLongPressing(false);
+  }, []);
+
+  useEffect(() => clearWeeklyLongPress, [clearWeeklyLongPress]);
+
+  const shareWeeklyReport = useCallback(async () => {
+    if (!dnbReport || dnbReport.status !== "ready") return;
+    const reference = new Date();
+    reference.setDate(reference.getDate() - weekOffset * 7);
+    const period = currentSevenDayPeriod(reference);
+    try {
+      await shareDnbWeeklyPoster(dnbReport, locale, `${period.startDate}-${period.endDate}`);
+      await trackAnalyticsEvent(user.id, "weekly_report_shared", { weekOffset });
+      await onGrowthActivity?.("share");
+    } catch (shareError) {
+      if ((shareError as DOMException)?.name === "AbortError") return;
+      setError(shareError instanceof Error ? shareError.message : String(shareError));
+    }
+  }, [dnbReport, locale, onGrowthActivity, user.id, weekOffset]);
+
+  const beginWeeklyLongPress = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dnbReport || dnbReport.status !== "ready") return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    if ((event.target as HTMLElement).closest("button, a, input, select, textarea, [role='button']")) return;
+    clearWeeklyLongPress();
+    weeklyLongPressOriginRef.current = { x: event.clientX, y: event.clientY };
+    setWeeklyLongPressing(true);
+    weeklyLongPressTimerRef.current = window.setTimeout(() => {
+      weeklyLongPressTimerRef.current = null;
+      weeklyLongPressOriginRef.current = null;
+      setWeeklyLongPressing(false);
+      navigator.vibrate?.(16);
+      void shareWeeklyReport();
+    }, 680);
+  }, [clearWeeklyLongPress, dnbReport, shareWeeklyReport]);
+
+  const moveWeeklyLongPress = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const origin = weeklyLongPressOriginRef.current;
+    if (!origin) return;
+    if (Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > 12) clearWeeklyLongPress();
+  }, [clearWeeklyLongPress]);
 
   function estimateMinutes(start: string, end: string) {
     const [sh, sm] = start.split(":").map(Number);
@@ -699,6 +752,13 @@ export default function RecordsScreen({
       todaySnapshot.face,
       todaySnapshot.focusMinutes > 0 ? true : null,
     ].filter(Boolean).length : 0;
+    const weeklyInsights = buildWeeklyInsights({
+      locale,
+      weekChange,
+      completedModules,
+      loading: dnbLoading,
+      report: dnbReport,
+    });
     return (
       <div className="record-hub" ref={rootRef}>
         <div className="health-report-tabs" role="tablist" aria-label={locale === "zh" ? "健康报告视图" : "Health report view"}>
@@ -746,64 +806,43 @@ export default function RecordsScreen({
             ))}
           </div>
         </> : (
-          <div className="weekly-health-report" data-weekly-health-report>
+          <div
+            className="weekly-health-report"
+            data-weekly-health-report
+            data-long-pressing={weeklyLongPressing || undefined}
+            onPointerDown={beginWeeklyLongPress}
+            onPointerMove={moveWeeklyLongPress}
+            onPointerUp={clearWeeklyLongPress}
+            onPointerCancel={clearWeeklyLongPress}
+            onPointerLeave={clearWeeklyLongPress}
+            onContextMenu={(event) => event.preventDefault()}
+          >
             <div className="weekly-period-controls">
               <button type="button" onClick={() => setWeekOffset((value) => value + 1)} aria-label={locale === "zh" ? "上一周" : "Previous week"}><ChevronLeft size={18} /></button>
               <strong>{dnbPeriod.startDate} — {dnbPeriod.endDate}</strong>
               <button type="button" disabled={weekOffset === 0} onClick={() => setWeekOffset((value) => Math.max(0, value - 1))} aria-label={locale === "zh" ? "下一周" : "Next week"}><ChevronRight size={18} /></button>
-              <button type="button" className="weekly-share-button" disabled={!dnbReport || dnbReport.status !== "ready"} onClick={() => { if (dnbReport) void shareDnbWeeklyPoster(dnbReport, locale, `${dnbPeriod.startDate}-${dnbPeriod.endDate}`).then(async () => { await trackAnalyticsEvent(user.id, "weekly_report_shared", { weekOffset }); await onGrowthActivity?.("share"); }).catch((shareError) => setError(shareError instanceof Error ? shareError.message : String(shareError))); }}><Share2 size={16} />{locale === "zh" ? "保存海报" : "Poster"}</button>
             </div>
             <section className="weekly-score-card">
-              <div><span>{locale === "zh" ? "基础节律" : "Baseline rhythm"}</span><strong>{todaySnapshot?.rhythmScore == null ? "--" : <AnimatedNumber value={todaySnapshot.rhythmScore} />}</strong></div>
-              <div><span>{locale === "zh" ? "数据完整度" : "Data complete"}</span><strong><AnimatedNumber value={completedModules} duration={520} />/6</strong></div>
-              <div><span>{locale === "zh" ? "周内变化" : "Weekly change"}</span><strong>{weekChange >= 0 ? "+" : ""}<AnimatedNumber value={weekChange} duration={640} /></strong></div>
+              <div><span>{locale === "zh" ? "基础节律：" : "Baseline: "}</span><strong>{todaySnapshot?.rhythmScore == null ? "--" : <AnimatedNumber value={todaySnapshot.rhythmScore} />}</strong></div>
+              <div><span>{locale === "zh" ? "数据完整度：" : "Complete: "}</span><strong><AnimatedNumber value={completedModules} duration={520} />/6</strong></div>
+              <div><span>{locale === "zh" ? "周内变化：" : "Change: "}</span><strong>{weekChange >= 0 ? "+" : ""}<AnimatedNumber value={weekChange} duration={640} /></strong></div>
             </section>
             <section className="weekly-trend-card">
               <header><strong>{locale === "zh" ? "节律轨迹" : "Rhythm trajectory"}</strong><span>{locale === "zh" ? "近 7 天" : "7 days"}</span></header>
               {reportPoints.length > 0
-                ? <LineTrendChart points={reportPoints} tone="rhythm" compact ariaLabel={locale === "zh" ? "近七天节律折线图" : "Seven-day rhythm chart"} />
-                : <p>{locale === "zh" ? "完成两天记录后生成折线。" : "Log two days to create a chart."}</p>}
+                ? <LineTrendChart points={reportPoints} tone="rhythm" compact scale="range" verticalEmphasis curve="monotone" showAllDates rangeFloorRatio={0.3} showArea={false} showConfidenceBand={false} ariaLabel={locale === "zh" ? "近七天节律单调平滑趋势曲线，最低值保留三成基础高度，最高值对应顶部" : "Seven-day monotone rhythm curve with a thirty-percent floor and proportional scaling"} />
+                : <p>{locale === "zh" ? "完成两天记录后生成节律轨迹。" : "Log two days to create the rhythm trajectory."}</p>}
             </section>
             <section className={`weekly-insight-card weekly-insight-card--${dnbReport?.status ?? "unavailable"}`} data-dnb-status={dnbReport?.status ?? "loading"}>
-              <span>NAVA-FDNB Health · Research</span>
-              <strong>
-                {dnbLoading
-                  ? (locale === "zh" ? "正在分析多模块状态" : "Analyzing multi-module state")
-                  : dnbReport?.status === "ready"
-                    ? dnbReport.evidenceLevel === "supported"
-                      ? (locale === "zh" ? "发现有支持的转变信号" : "Supported transition signal")
-                      : dnbReport.evidenceLevel === "candidate"
-                        ? (locale === "zh" ? "发现待验证候选波动" : "Candidate change to verify")
-                        : (locale === "zh" ? "本周无充分转变证据" : "No supported transition this week")
-                    : dnbReport?.status === "insufficient_data"
-                      ? (locale === "zh" ? "数据仍在建立个人基线" : "Building your baseline")
-                      : (locale === "zh" ? "分析服务暂时不可用" : "Analysis temporarily unavailable")}
-                {dnbReport?.status === "ready" && dnbReport.score != null
-                  ? <small>{locale === "zh"
-                    ? `稳定度 ${Math.round(dnbReport.stabilityScore ?? dnbReport.score)} · 转变强度 ${Math.round(dnbReport.transitionScore ?? 0)}`
-                    : `Stability ${Math.round(dnbReport.stabilityScore ?? dnbReport.score)} · transition ${Math.round(dnbReport.transitionScore ?? 0)}`}</small>
-                  : null}
-              </strong>
-              <p>{dnbLoading
-                ? (locale === "zh" ? "正在核对 56 天数据覆盖、窗口一致性和对照检验。" : "Checking 56-day coverage, window agreement, and null controls.")
-                : dnbReport?.status === "ready"
-                  ? [dnbReport.summary, dnbReport.recommendations[0]].filter(Boolean).join(" ")
-                  : dnbReport?.status === "insufficient_data"
-                    ? (locale === "zh"
-                      ? `当前已有 ${dnbReport.availableDays ?? 0} 天有效记录${dnbReport.requiredDays ? `，算法至少需要 ${dnbReport.requiredDays} 天` : ""}。`
-                      : `${dnbReport.availableDays ?? 0} valid days recorded${dnbReport.requiredDays ? `; ${dnbReport.requiredDays} required` : ""}.`)
-                    : (dnbReport?.reason || (locale === "zh" ? "当前仅展示基础统计，未生成研究性状态结论。" : "Only baseline statistics are shown; no research signal was generated."))}</p>
-              {dnbReport?.status === "ready" && (dnbReport.contributors?.length ?? 0) > 0 && (
-                <div className="weekly-fdnb-contributors" aria-label={locale === "zh" ? "主要贡献信号" : "Leading signals"}>
-                  {dnbReport.contributors?.slice(0, 3).map((item) => (
-                    <span key={item.feature}>{item.module} · {(item.feature.split(".").slice(-1)[0] ?? item.feature).replace(/_/g, " ")}</span>
-                  ))}
-                </div>
-              )}
-              {dnbReport?.disclaimer && <small className="weekly-fdnb-disclaimer">{dnbReport.disclaimer}</small>}
-            </section>
-            <section className="weekly-module-status">
-              {recordModules.map(({ id, labelKey, icon: Icon }) => <button type="button" key={id} onClick={() => { setActiveModule(id); onModuleChange?.(id); }}><Icon size={20} /><span>{t(labelKey)}</span><ChevronRight size={17} /></button>)}
+              <header className="weekly-insight-header">
+                <span aria-hidden="true"><Bot size={18} /></span>
+                <strong>{locale === "zh" ? "AI 本周节律洞察" : "AI weekly rhythm insights"}</strong>
+                <button type="button" className="weekly-share-button" disabled={!dnbReport || dnbReport.status !== "ready"} onClick={() => void shareWeeklyReport()}><Share2 size={15} />{locale === "zh" ? "保存海报" : "Save poster"}</button>
+              </header>
+              <div className="weekly-insight-body" aria-live="polite">
+                <ul>{weeklyInsights.map((insight) => <li key={insight}>{insight}</li>)}</ul>
+                <img className="weekly-insight-mascot" src={weeklyRunMascot} alt={locale === "zh" ? "NAVA 小猫在跑步机上跑步" : "NAVA cat running on a treadmill"} />
+              </div>
             </section>
           </div>
         )}

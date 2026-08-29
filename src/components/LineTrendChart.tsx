@@ -1,4 +1,5 @@
 import { useId, type CSSProperties } from "react";
+import { chartCurvePath, type ChartCurveMode } from "../services/chartCurves";
 
 export interface LineTrendPoint {
   id: string;
@@ -12,16 +13,6 @@ function clampScore(value: number) {
   return Math.min(100, Math.max(0, value));
 }
 
-function smoothPath(points: Array<{ x: number; y: number }>) {
-  if (points.length === 0) return "";
-  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
-  return points.slice(1).reduce((path, point, index) => {
-    const previous = points[index];
-    const controlX = (previous.x + point.x) / 2;
-    return `${path} C ${controlX} ${previous.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
-  }, `M ${points[0].x} ${points[0].y}`);
-}
-
 export default function LineTrendChart({
   points,
   ariaLabel,
@@ -29,14 +20,24 @@ export default function LineTrendChart({
   compact = false,
   scale = "score",
   verticalEmphasis = false,
+  curve = "bump",
+  showAllDates = false,
+  rangeFloorRatio = 0,
+  showArea = true,
+  showConfidenceBand = true,
   valueFormatter = (value) => Math.round(value).toString(),
 }: {
   points: LineTrendPoint[];
   ariaLabel: string;
   tone?: "mood" | "rhythm";
   compact?: boolean;
-  scale?: "score" | "auto";
+  scale?: "score" | "auto" | "range";
   verticalEmphasis?: boolean;
+  curve?: ChartCurveMode;
+  showAllDates?: boolean;
+  rangeFloorRatio?: number;
+  showArea?: boolean;
+  showConfidenceBand?: boolean;
   valueFormatter?: (value: number) => string;
 }) {
   const rawId = useId();
@@ -53,15 +54,31 @@ export default function LineTrendChart({
   const right = width - horizontalInset;
   const top = compact ? (verticalEmphasis ? 24 : 18) : 22;
   const bottom = compact ? (verticalEmphasis ? 258 : 108) : 142;
-  const dateY = compact ? (verticalEmphasis ? 306 : 136) : 169;
+  const dateY = compact ? (verticalEmphasis ? height - 5 : 136) : 169;
   const spanX = right - left;
   const spanY = bottom - top;
-  const scaleValues = points.flatMap((point) => [point.value, point.lower, point.upper]).filter((value): value is number => value != null);
+  const valueBottom = scale === "range"
+    ? bottom - spanY * Math.min(0.6, Math.max(0, rangeFloorRatio))
+    : bottom;
+  const valueSpanY = valueBottom - top;
+  const scaleValues = (scale === "range"
+    ? points.map((point) => point.value)
+    : points.flatMap((point) => [point.value, point.lower, point.upper]))
+    .filter((value): value is number => value != null);
   const rawMin = Math.min(...scaleValues);
   const rawMax = Math.max(...scaleValues);
   let domainMin: number;
   let domainMax: number;
-  if (scale === "auto") {
+  if (scale === "range") {
+    if (rawMax === rawMin) {
+      const padding = Math.max(1, Math.abs(rawMax) * 0.05);
+      domainMin = Math.max(0, rawMin - padding);
+      domainMax = rawMax + padding;
+    } else {
+      domainMin = rawMin;
+      domainMax = rawMax;
+    }
+  } else if (scale === "auto") {
     const rawRange = rawMax - rawMin;
     if (verticalEmphasis) {
       // Dashboard energy values typically sit close together. Preserve the
@@ -96,15 +113,15 @@ export default function LineTrendChart({
   const xAt = (index: number) => left + (points.length <= 1 ? spanX / 2 : (index / (points.length - 1)) * spanX);
   const yAt = (value: number) => {
     const scaledValue = scale === "score" ? clampScore(value) : value;
-    return top + ((domainMax - Math.min(domainMax, Math.max(domainMin, scaledValue))) / domainSpan) * spanY;
+    return top + ((domainMax - Math.min(domainMax, Math.max(domainMin, scaledValue))) / domainSpan) * valueSpanY;
   };
   const plottedPoints = points.map((point, index) => ({ x: xAt(index), y: yAt(point.value) }));
-  const linePath = smoothPath(plottedPoints);
+  const linePath = chartCurvePath(plottedPoints, curve);
   const lastPlottedPoint = plottedPoints[plottedPoints.length - 1];
-  const areaPath = plottedPoints.length > 1
+  const areaPath = showArea && plottedPoints.length > 1
     ? `${linePath} L ${lastPlottedPoint.x} ${bottom} L ${plottedPoints[0].x} ${bottom} Z`
     : "";
-  const hasBand = points.length > 1 && points.every((point) => point.lower != null && point.upper != null);
+  const hasBand = showConfidenceBand && points.length > 1 && points.every((point) => point.lower != null && point.upper != null);
   const bandPoints = hasBand
     ? [
         ...points.map((point, index) => `${xAt(index)},${yAt(point.upper as number)}`),
@@ -115,7 +132,7 @@ export default function LineTrendChart({
 
   return (
     <div className={["line-trend-chart", tone, verticalEmphasis ? "is-vertically-emphasized" : ""].filter(Boolean).join(" ")}>
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel}>
+      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio={verticalEmphasis ? "xMidYMax meet" : undefined} role="img" aria-label={ariaLabel}>
         <title>{ariaLabel}</title>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
@@ -151,7 +168,7 @@ export default function LineTrendChart({
         {points.map((point, index) => {
           const x = xAt(index);
           const y = yAt(point.value);
-          const showDate = points.length <= 4 || index % 2 === 0 || index === points.length - 1;
+          const showDate = showAllDates || points.length <= 4 || index % 2 === 0 || index === points.length - 1;
           return (
             <g
               className="trend-point"
