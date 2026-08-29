@@ -330,6 +330,7 @@ function HistoryView({
         moduleLabel: label,
         entries: displayEntries,
         insights: reportInsights,
+        mascotUrl: reportMascotByModule[module],
         locale,
         valueFormatter: (value) => historyValueText(module, value, locale),
       });

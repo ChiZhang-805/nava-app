@@ -10,6 +10,7 @@ type ReportCardOptions = {
   moduleLabel: string;
   entries: ReportCardEntry[];
   insights: string[];
+  mascotUrl?: string;
   locale: "zh" | "en";
   valueFormatter: (value: number) => string;
 };
@@ -28,6 +29,89 @@ function roundedRect(context: CanvasRenderingContext2D, x: number, y: number, wi
 function shortDate(date: string) {
   const [, month = "", day = ""] = date.split("-");
   return `${Number(month)}/${Number(day)}`;
+}
+
+function localDateISO(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function shiftLocalDate(date: string, offset: number) {
+  const [year, month, day] = date.split("-").map(Number);
+  const value = new Date(year, month - 1, day, 12, 0, 0);
+  value.setDate(value.getDate() + offset);
+  return localDateISO(value);
+}
+
+export function currentReportDateRange(date = new Date()) {
+  const endDate = localDateISO(date);
+  return { startDate: shiftLocalDate(endDate, -6), endDate };
+}
+
+function loadImage(url: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Failed to load report mascot"));
+    image.src = url;
+  });
+}
+
+function drawContainedImage(context: CanvasRenderingContext2D, image: HTMLImageElement, x: number, y: number, width: number, height: number) {
+  let sourceX = 0;
+  let sourceY = 0;
+  let sourceWidth = image.naturalWidth;
+  let sourceHeight = image.naturalHeight;
+  try {
+    const sample = document.createElement("canvas");
+    sample.width = image.naturalWidth;
+    sample.height = image.naturalHeight;
+    const sampleContext = sample.getContext("2d", { willReadFrequently: true });
+    sampleContext?.drawImage(image, 0, 0);
+    const pixels = sampleContext?.getImageData(0, 0, sample.width, sample.height).data;
+    if (pixels) {
+      let minX = sample.width;
+      let minY = sample.height;
+      let maxX = -1;
+      let maxY = -1;
+      for (let pixelY = 0; pixelY < sample.height; pixelY += 1) {
+        for (let pixelX = 0; pixelX < sample.width; pixelX += 1) {
+          if (pixels[(pixelY * sample.width + pixelX) * 4 + 3] <= 8) continue;
+          minX = Math.min(minX, pixelX);
+          minY = Math.min(minY, pixelY);
+          maxX = Math.max(maxX, pixelX);
+          maxY = Math.max(maxY, pixelY);
+        }
+      }
+      if (maxX >= minX && maxY >= minY) {
+        const padding = Math.max(4, Math.round(Math.max(maxX - minX, maxY - minY) * 0.03));
+        sourceX = Math.max(0, minX - padding);
+        sourceY = Math.max(0, minY - padding);
+        sourceWidth = Math.min(sample.width - sourceX, maxX - minX + 1 + padding * 2);
+        sourceHeight = Math.min(sample.height - sourceY, maxY - minY + 1 + padding * 2);
+      }
+    }
+  } catch {
+    // Same-origin mascot assets are readable. If a future external asset is
+    // not, retain the full-image contain behavior instead of blocking sharing.
+  }
+  const scale = Math.min(width / sourceWidth, height / sourceHeight);
+  const drawWidth = sourceWidth * scale;
+  const drawHeight = sourceHeight * scale;
+  context.drawImage(
+    image,
+    sourceX,
+    sourceY,
+    sourceWidth,
+    sourceHeight,
+    x + (width - drawWidth) / 2,
+    y + (height - drawHeight) / 2,
+    drawWidth,
+    drawHeight,
+  );
 }
 
 function moduleAccent(module: ReportModule) {
@@ -58,8 +142,13 @@ function writeWrappedLine(context: CanvasRenderingContext2D, text: string, x: nu
 }
 
 export async function createReportShareImage(options: ReportCardOptions) {
-  const { module, moduleLabel, entries, insights, locale, valueFormatter } = options;
+  const { module, moduleLabel, entries, insights, mascotUrl, locale, valueFormatter } = options;
   if (entries.length === 0) throw new Error("Cannot create a report card without entries");
+
+  const { startDate, endDate } = currentReportDateRange();
+  const currentEntries = entries.filter((entry) => entry.date >= startDate && entry.date <= endDate).slice(-7);
+  const chartEntries = currentEntries.length > 0 ? currentEntries : entries.slice(-7);
+  const mascot = mascotUrl ? await loadImage(mascotUrl).catch(() => null) : null;
 
   const width = 1080;
   const height = 1440;
@@ -95,27 +184,26 @@ export async function createReportShareImage(options: ReportCardOptions) {
   context.fillStyle = "#113348";
   context.font = "700 58px system-ui, -apple-system, 'Microsoft YaHei', sans-serif";
   context.fillText(locale === "zh" ? `${moduleLabel}趋势报告` : `${moduleLabel} trend report`, 104, 158);
-  context.fillStyle = accent;
-  context.font = "800 34px system-ui, -apple-system, 'Microsoft YaHei', sans-serif";
-  context.fillText("NAVA", 860, 152);
-
-  const average = entries.reduce((sum, entry) => sum + entry.value, 0) / entries.length;
   context.fillStyle = "#78919d";
   context.font = "500 27px system-ui, -apple-system, 'Microsoft YaHei', sans-serif";
-  context.fillText(`${shortDate(entries[0].date)} — ${shortDate(entries[entries.length - 1].date)}`, 106, 210);
+  context.textAlign = "right";
+  context.fillText(`${shortDate(startDate)} — ${shortDate(endDate)}`, 976, 158);
+  context.textAlign = "start";
+
+  const average = chartEntries.reduce((sum, entry) => sum + entry.value, 0) / chartEntries.length;
   context.fillStyle = "#14394d";
   context.font = "750 34px system-ui, -apple-system, 'Microsoft YaHei', sans-serif";
-  context.fillText(locale === "zh" ? `近 7 日平均  ${valueFormatter(average)}` : `7-day average  ${valueFormatter(average)}`, 106, 270);
+  context.fillText(locale === "zh" ? `近 7 日平均  ${valueFormatter(average)}` : `7-day average  ${valueFormatter(average)}`, 106, 236);
 
   const chartX = 104;
-  const chartY = 334;
+  const chartY = 292;
   const chartWidth = 872;
   const chartHeight = 430;
   roundedRect(context, chartX, chartY, chartWidth, chartHeight, 32);
   context.fillStyle = "rgba(225, 245, 252, 0.72)";
   context.fill();
 
-  const values = entries.map((entry) => entry.value);
+  const values = chartEntries.map((entry) => entry.value);
   const rawMin = Math.min(...values);
   const rawMax = Math.max(...values);
   const range = Math.max(1, rawMax - rawMin);
@@ -129,7 +217,7 @@ export async function createReportShareImage(options: ReportCardOptions) {
     const heightRatio = minimumBarRatio + valueRatio * (1 - minimumBarRatio);
     return plotBottom - heightRatio * (plotBottom - plotTop);
   };
-  const xAt = (index: number) => plotLeft + (entries.length <= 1 ? (plotRight - plotLeft) / 2 : (index / (entries.length - 1)) * (plotRight - plotLeft));
+  const xAt = (index: number) => plotLeft + (chartEntries.length <= 1 ? (plotRight - plotLeft) / 2 : (index / (chartEntries.length - 1)) * (plotRight - plotLeft));
 
   context.strokeStyle = "rgba(43, 121, 154, 0.16)";
   context.lineWidth = 2;
@@ -144,7 +232,7 @@ export async function createReportShareImage(options: ReportCardOptions) {
   const barGradient = context.createLinearGradient(0, plotTop, 0, plotBottom);
   barGradient.addColorStop(0, accentSoft);
   barGradient.addColorStop(1, accent);
-  entries.forEach((entry, index) => {
+  chartEntries.forEach((entry, index) => {
     const x = xAt(index);
     const y = yAt(entry.value);
     roundedRect(context, x - 19, y, 38, plotBottom - y, 12);
@@ -161,14 +249,14 @@ export async function createReportShareImage(options: ReportCardOptions) {
   context.lineCap = "round";
   context.lineJoin = "round";
   context.beginPath();
-  entries.forEach((entry, index) => {
+  chartEntries.forEach((entry, index) => {
     const x = xAt(index);
     const y = (yAt(entry.value) + plotBottom) / 2;
     if (index === 0) context.moveTo(x, y);
     else context.lineTo(x, y);
   });
   context.stroke();
-  entries.forEach((entry, index) => {
+  chartEntries.forEach((entry, index) => {
     const x = xAt(index);
     const y = (yAt(entry.value) + plotBottom) / 2;
     context.beginPath();
@@ -183,17 +271,19 @@ export async function createReportShareImage(options: ReportCardOptions) {
 
   context.fillStyle = "#173d51";
   context.font = "750 36px system-ui, -apple-system, 'Microsoft YaHei', sans-serif";
-  context.fillText(locale === "zh" ? "AI 状态洞察" : "AI status insights", 108, 858);
+  context.fillText(locale === "zh" ? "AI 状态洞察" : "AI status insights", 108, 806);
   context.font = "500 28px system-ui, -apple-system, 'Microsoft YaHei', sans-serif";
   insights.slice(0, 4).forEach((insight, index) => {
-    const y = 924 + index * 92;
+    const y = 894 + index * 70;
     context.beginPath();
     context.arc(123, y - 8, 7, 0, Math.PI * 2);
     context.fillStyle = accent;
     context.fill();
     context.fillStyle = "#31566a";
-    writeWrappedLine(context, insight, 151, y, 790, 36);
+    writeWrappedLine(context, insight, 151, y, mascot ? 540 : 790, 34);
   });
+
+  if (mascot) drawContainedImage(context, mascot, 706, 818, 270, 312);
 
   context.fillStyle = "#78919d";
   context.font = "500 24px system-ui, -apple-system, 'Microsoft YaHei', sans-serif";
@@ -208,7 +298,7 @@ export async function createReportShareImage(options: ReportCardOptions) {
 
 export async function shareReportImage(options: ReportCardOptions) {
   const blob = await createReportShareImage(options);
-  const fileName = `NAVA-${options.module}-${options.entries[options.entries.length - 1].date}.png`;
+  const fileName = `NAVA-${options.module}-${currentReportDateRange().endDate}.png`;
   const file = new File([blob], fileName, { type: "image/png" });
   if (navigator.share && navigator.canShare?.({ files: [file] })) {
     await navigator.share({
