@@ -1,5 +1,6 @@
 import { useId, type CSSProperties } from "react";
 import { chartBarMotion, chartSequenceEnd, clampChartPercent } from "../services/chartMotion";
+import { chartCurvePath, type ChartCurveMode } from "../services/chartCurves";
 
 export type BarLineTrendPoint = {
   id: string;
@@ -10,28 +11,20 @@ export type BarLineTrendPoint = {
   lineText?: string;
 };
 
-function smoothPath(points: Array<{ x: number; y: number }>) {
-  if (points.length === 0) return "";
-  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
-  return points.slice(1).reduce((path, point, index) => {
-    const previous = points[index];
-    const controlX = (previous.x + point.x) / 2;
-    return `${path} C ${controlX} ${previous.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
-  }, `M ${points[0].x} ${points[0].y}`);
-}
-
 export default function BarLineTrendChart({
   points,
   ariaLabel,
   scoreScale = false,
   interactive = false,
   lineAnchor = "bar-center",
+  curve = "bump",
 }: {
   points: BarLineTrendPoint[];
   ariaLabel: string;
   scoreScale?: boolean;
   interactive?: boolean;
   lineAnchor?: "value" | "bar-center";
+  curve?: ChartCurveMode;
 }) {
   const rawId = useId().replace(/:/g, "");
   if (points.length === 0) return null;
@@ -68,7 +61,7 @@ export default function BarLineTrendChart({
       y: lineAnchor === "bar-center" ? (barTop + bottom) / 2 : yAt(point.lineValue),
     };
   });
-  const linePath = smoothPath(plotted);
+  const linePath = chartCurvePath(plotted, curve);
   const barsEndAt = chartSequenceEnd(points.map((point) => ({ value: point.barValue })));
   const signature = points.map((point) => `${point.id}:${point.barValue}:${point.lineValue}`).join("|");
   const lineDelay = barsEndAt + 80;

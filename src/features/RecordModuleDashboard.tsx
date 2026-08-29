@@ -898,7 +898,7 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "pro
       </section>
       <section className="figma-module-card face-trend-card">
         <header><strong>{locale === "zh" ? "近 7 日状态" : "7-day state"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("history")} aria-label={locale === "zh" ? "查看面部趋势报告" : "View face trend report"}><ChevronRight size={18} /></button></header>
-        {points.length > 0 ? <BarLineTrendChart points={points} scoreScale ariaLabel={locale === "zh" ? "近七日面部状态柱状图与关联折线图，日期位于图表底部" : "Seven-day face-state bars and linked line with dates at the bottom"} /> : <p className="module-empty-copy">{locale === "zh" ? "完成第一次拍照后显示趋势" : "Take the first photo to begin the trend"}</p>}
+        {points.length > 0 ? <BarLineTrendChart points={points} scoreScale curve="monotone" ariaLabel={locale === "zh" ? "近七日面部状态柱状图与单调平滑趋势曲线，日期位于图表底部" : "Seven-day face-state bars with a monotone smooth trend curve and dates at the bottom"} /> : <p className="module-empty-copy">{locale === "zh" ? "完成第一次拍照后显示趋势" : "Take the first photo to begin the trend"}</p>}
       </section>
     </div>
   );

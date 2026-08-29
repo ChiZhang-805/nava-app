@@ -27,7 +27,7 @@
     "supabase:verify-shared": "node scripts/verify-shared-supabase.mjs",
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy",
     "motion:test": "node --experimental-strip-types --test tests/background-motion.test.ts tests/mascot-motion.test.ts",
-    "chart-motion:test": "node --experimental-strip-types --test tests/chart-motion.test.ts",
+    "chart-motion:test": "node --experimental-strip-types --test tests/chart-motion.test.ts tests/chart-curves.test.ts",
     "navigation:test": "node --experimental-strip-types --test tests/shell-history.test.ts",
     "ai:speech:test": "node --experimental-strip-types --test tests/ai-speech.test.ts",
     "voice:endpoint:test": "node --experimental-strip-types --test tests/voice-endpoint.test.ts",
