@@ -4241,6 +4241,257 @@ body::before {
   }
 }
 
+/* Focus overview: three clear, data-led sections. The shared chart owns the
+   date/bar x-coordinate and anchors every curve point at the bar geometry's
+   exact center, so labels cannot drift away from their columns. */
+.focus-dashboard {
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(238px, 1fr) auto;
+  gap: 10px;
+  padding-bottom: 8px;
+}
+
+.focus-dashboard .focus-summary-card {
+  min-height: 92px;
+  padding: 12px 15px;
+}
+
+.focus-dashboard .focus-summary-content {
+  min-height: 66px;
+  align-items: center;
+}
+
+.focus-dashboard .focus-summary-copy {
+  justify-content: center;
+  gap: 13px;
+  padding-block: 0;
+}
+
+.focus-dashboard .focus-summary-copy > strong,
+.focus-dashboard .focus-trend-card > header strong,
+.focus-dashboard .focus-quick-card > header strong {
+  color: #15384a;
+  font-size: 16px;
+  font-weight: 780;
+}
+
+.focus-summary-sentence {
+  margin: 0;
+  color: #68818d;
+  font-size: 11px;
+  font-weight: 620;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.focus-summary-sentence strong {
+  color: #15384a;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.focus-dashboard .focus-summary-start {
+  min-width: 70px;
+  min-height: 64px;
+  border-radius: 18px;
+  padding: 7px 10px;
+}
+
+.focus-trend-card {
+  min-height: 238px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  padding: 14px 16px 10px;
+}
+
+.focus-trend-card .bar-line-trend-chart {
+  width: 100%;
+  height: 100%;
+  min-height: 190px;
+  margin-top: 1px;
+}
+
+.focus-trend-card .bar-line-trend-chart.is-score-scale .bar-line-bars {
+  inset: 7.8% 0 17.2%;
+}
+
+.focus-trend-card .bar-line-bars i {
+  width: clamp(18px, 8.5vw, 28px);
+}
+
+.focus-quick-card {
+  min-height: 242px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr auto;
+  align-items: stretch;
+  gap: 10px;
+  padding: 13px 15px 14px;
+}
+
+.focus-quick-card > header {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+}
+
+.focus-quick-controls {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.focus-task-field {
+  min-width: 0;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid rgba(86, 171, 205, .2);
+  border-radius: 14px;
+  color: #175f7b;
+  background: rgba(232, 247, 252, .68);
+}
+
+.focus-dashboard .focus-task-field input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: #15384a;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.focus-dashboard .focus-task-field input::placeholder {
+  color: #8ba2ad;
+  opacity: 1;
+}
+
+.focus-duration-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.focus-duration-controls > button {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  color: #135b79;
+  background: #e1f1f7;
+  font-size: 18px;
+}
+
+.focus-recent-list {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+}
+
+.focus-recent-list > strong {
+  color: #15384a;
+  font-size: 11px;
+}
+
+.focus-recent-list > div {
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  padding: 3px 9px;
+  border: 1px solid rgba(86, 171, 205, .17);
+  border-radius: 11px;
+  background: rgba(240, 250, 253, .52);
+}
+
+.focus-recent-list > div > span {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #116f95;
+  background: rgba(222, 244, 251, .86);
+}
+
+.focus-recent-list p {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #416678;
+  font-size: 10.5px;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-recent-list p b {
+  color: #15384a;
+  font-size: inherit;
+}
+
+.focus-recent-list p i {
+  margin-inline: 6px;
+  color: #79a0b0;
+  font-style: normal;
+}
+
+.focus-empty-history {
+  padding: 12px;
+  border-radius: 11px;
+  color: #7b939e;
+  background: rgba(240, 250, 253, .52);
+  text-align: center;
+}
+
+.focus-enter-button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 12px;
+  color: white;
+  background: linear-gradient(135deg, #239bd0, #126388);
+  box-shadow: 0 7px 16px rgba(15, 112, 151, .16);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.focus-enter-button:active,
+.focus-duration-controls > button:active {
+  transform: scale(.96);
+}
+
+@media (max-width: 430px) and (max-height: 760px) {
+  .focus-dashboard {
+    grid-template-rows: auto minmax(190px, 1fr) auto;
+    gap: 7px;
+  }
+  .focus-dashboard .focus-summary-card { min-height: 82px; padding-block: 9px; }
+  .focus-dashboard .focus-summary-content { min-height: 60px; }
+  .focus-dashboard .focus-summary-copy { gap: 8px; }
+  .focus-trend-card { min-height: 190px; padding-block: 10px 7px; }
+  .focus-trend-card .bar-line-trend-chart { min-height: 145px; }
+  .focus-quick-card { min-height: 210px; gap: 7px; padding-block: 10px; }
+  .focus-recent-list > div { min-height: 29px; }
+  .focus-enter-button { min-height: 38px; }
+}
+
+@media (max-width: 360px) {
+  .focus-quick-controls { grid-template-columns: minmax(0, 1fr); }
+  .focus-duration-controls { justify-content: flex-end; }
+  .focus-summary-sentence { font-size: 9.5px; }
+  .focus-summary-sentence strong { font-size: 15px; }
+}
+
 .phone-frame .avatar-sheet-actions button {
   background: #f8fdff;
 }
@@ -8164,4 +8415,69 @@ body::before {
   .weekly-health-report[data-long-pressing="true"] .weekly-share-button {
     animation: none !important;
   }
+}
+
+/* Keep the approved focus composition authoritative after the legacy compact
+   phone rules above. */
+.focus-dashboard {
+  display: grid;
+  grid-template-rows: auto minmax(238px, 1fr) auto;
+  gap: 10px;
+}
+
+.focus-dashboard .focus-summary-card {
+  min-height: 92px;
+  padding: 12px 15px;
+}
+
+.focus-dashboard .focus-summary-content { min-height: 66px; }
+.focus-dashboard .focus-summary-start { min-width: 70px; min-height: 64px; }
+
+.focus-dashboard .focus-trend-card {
+  min-height: 238px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  padding: 14px 16px 10px;
+}
+
+.focus-dashboard .focus-trend-card .bar-line-trend-chart {
+  width: 100%;
+  height: 100%;
+  min-height: 190px;
+}
+
+.focus-dashboard .focus-quick-card {
+  min-height: 276px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto;
+  gap: 9px;
+  padding: 13px 15px 14px;
+}
+
+.focus-dashboard .focus-duration-controls > button {
+  width: 32px;
+  height: 32px;
+}
+
+.focus-dashboard .focus-duration-field.compact {
+  min-width: 88px;
+  grid-template-columns: 36px auto;
+  gap: 4px;
+  padding: 3px 6px;
+}
+
+.focus-dashboard .focus-duration-field.compact input { width: 36px; }
+
+@media (max-width: 430px) and (max-height: 760px) {
+  .focus-dashboard {
+    grid-template-rows: auto 190px auto;
+    gap: 7px;
+  }
+  .focus-dashboard .focus-summary-card { min-height: 82px; padding-block: 9px; }
+  .focus-dashboard .focus-summary-content { min-height: 60px; }
+  .focus-dashboard .focus-trend-card { min-height: 190px; padding-block: 10px 7px; }
+  .focus-dashboard .focus-trend-card .bar-line-trend-chart { min-height: 145px; }
+  .focus-dashboard .focus-quick-card { min-height: 266px; gap: 7px; padding-block: 10px; }
+  .focus-dashboard .focus-recent-list > div { min-height: 29px; }
+  .focus-dashboard .focus-enter-button { min-height: 38px; }
 }

@@ -370,12 +370,14 @@ export function demoTrends(): TrendBundle {
     capture_mode: "bare_face",
     analysis_confidence: 0.88 + index * 0.01,
   }));
+  const focusMinutes = [85, 140, 105, 175, 120, 155, 95];
+  const focusSessions = [3, 4, 3, 6, 4, 5, 4];
   const focus: FocusRecord[] = moods.flatMap((mood, index) => overrides.focus[mood.record_date] ?? [{
     id: `demo-focus-${index}`,
     task_id: `demo-task-${index}`,
     record_date: mood.record_date,
-    completed_sessions: 1 + (index % 3),
-    total_minutes: 25 + (index % 4) * 20,
+    completed_sessions: focusSessions[index],
+    total_minutes: focusMinutes[index],
   }]);
   const focusDistributions: FocusTimeDistribution[] = moods.map((mood, index) => ({
     id: `demo-focus-distribution-${index}`,
