@@ -56,46 +56,104 @@ async function callProvider(input: {
     return normalizeResult(data, "provider");
   }
 
-  return normalizeResult(
-    {
-      overall_score: 72,
-      feedback: input.lang === "en"
-        ? "Baseline analysis is enabled. Connect the formal face model before using this as a medical or skincare conclusion."
-        : "当前为基础分析结果。正式面部模型接入前，请只把它作为状态记录和提醒，不作为医疗或护肤诊断。",
-      annotations: [
-        { id: "eye", label: input.lang === "en" ? "Eye area" : "眼周", desc: input.lang === "en" ? "Low-confidence baseline" : "低置信度基础判断", dot_x: 50, dot_y: 35 },
-        { id: "skin", label: input.lang === "en" ? "Skin tone" : "肤色", desc: input.lang === "en" ? "Low-confidence baseline" : "低置信度基础判断", dot_x: 45, dot_y: 58 },
-      ],
-      confidence: 0.25,
-    },
-    "fallback",
-  );
+  const visionKey = Deno.env.get("NAVA_FACE_VISION_KEY") ?? Deno.env.get("DASHSCOPE_API_KEY");
+  if (!visionKey) throw new Error(input.lang === "en"
+    ? "Face analysis requires a vision AI key. Configure DASHSCOPE_API_KEY in Supabase."
+    : "面部分析必须使用真实视觉模型，请先在 Supabase 配置 DASHSCOPE_API_KEY。");
+  const source = input.imageUrl ?? input.image;
+  if (!source) throw new Error(input.lang === "en" ? "No private face image was available for analysis." : "没有可供分析的私密面部照片。");
+  return callVisionProvider({
+    ...input,
+    imageUrl: source,
+    apiKey: visionKey,
+    endpoint: Deno.env.get("NAVA_FACE_VISION_URL") ?? "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+    model: Deno.env.get("NAVA_FACE_VISION_MODEL") ?? "qwen3-vl-plus",
+  });
 }
 
-function normalizeResult(data: Record<string, unknown>, provider: "provider" | "fallback") {
+async function callVisionProvider(input: {
+  imageUrl: string;
+  captureMode: "bare_face" | "makeup";
+  lang: string;
+  selfRatings: unknown;
+  endpoint: string;
+  apiKey: string;
+  model: string;
+}) {
+  const english = input.lang === "en";
+  const prompt = english
+    ? "You are NAVA's non-medical facial wellness image analyst. Analyze only visible, non-sensitive appearance signals such as apparent eye-area tiredness, visible dryness, and tone evenness. Do not identify the person, infer protected traits, diagnose disease, or claim certainty. Return JSON only: {\"overall_score\":0,\"skin_age\":null,\"feedback\":\"\",\"confidence\":0,\"annotations\":[{\"id\":\"\",\"label\":\"\",\"desc\":\"\",\"dot_x\":50,\"dot_y\":50}]}. Score is 0..100, confidence 0..1, coordinates are percentages. Use at most four annotations and keep feedback concise."
+    : "你是 NAVA 的非医疗面部状态图像分析器。只能分析照片中可见、非敏感的外观状态，例如眼周疲劳感、可见干燥和肤色均匀度。不得识别人物身份，不得推断敏感属性，不得诊断疾病，也不得把不确定观察写成事实。只返回 JSON：{\"overall_score\":0,\"skin_age\":null,\"feedback\":\"\",\"confidence\":0,\"annotations\":[{\"id\":\"\",\"label\":\"\",\"desc\":\"\",\"dot_x\":50,\"dot_y\":50}]}。分数范围0到100，置信度0到1，坐标为百分比；最多四个标注，反馈简洁并明确仅供日常状态观察。";
+  const response = await fetch(input.endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${input.apiKey}` },
+    body: JSON.stringify({
+      model: input.model,
+      temperature: 0.1,
+      messages: [
+        { role: "system", content: prompt },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: english ? `Analyze this ${input.captureMode} photo and return JSON only.` : `分析这张${input.captureMode === "makeup" ? "带妆" : "素颜"}照片，只返回 JSON。` },
+            { type: "image_url", image_url: { url: input.imageUrl, detail: "high" } },
+          ],
+        },
+      ],
+    }),
+  });
+  if (!response.ok) throw new Error(`视觉面部分析服务返回 ${response.status}`);
+  const payload = await response.json() as Record<string, unknown>;
+  const choices = Array.isArray(payload.choices) ? payload.choices : [];
+  const message = choices[0] && typeof choices[0] === "object" ? (choices[0] as Record<string, unknown>).message : null;
+  const raw = message && typeof message === "object" ? (message as Record<string, unknown>).content : null;
+  if (typeof raw !== "string" || !raw.trim()) throw new Error("视觉面部分析没有返回可解析内容。");
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, ""));
+  } catch {
+    throw new Error("视觉面部分析结果不是有效 JSON。");
+  }
+  return normalizeResult({ ...parsed, modelVersion: input.model }, "vision-ai");
+}
+
+function normalizeResult(data: Record<string, unknown>, provider: "provider" | "vision-ai") {
   const annotations = Array.isArray(data.annotations)
-    ? data.annotations.map((item, index) => {
+    ? data.annotations.flatMap((item, index) => {
       const value = item as Record<string, unknown>;
-      return {
+      const x = numeric(value.dot_x) ?? numeric(value.x);
+      const y = numeric(value.dot_y) ?? numeric(value.y);
+      const label = String(value.label ?? "").trim();
+      if (x == null || y == null || !label) return [];
+      return [{
         id: String(value.id ?? `item-${index}`),
-        label: String(value.label ?? "状态"),
+        label,
         desc: String(value.desc ?? value.description ?? ""),
-        dot_x: numeric(value.dot_x) ?? numeric(value.x) ?? 50,
-        dot_y: numeric(value.dot_y) ?? numeric(value.y) ?? 50,
-      };
+        dot_x: clamp(x, 0, 100),
+        dot_y: clamp(y, 0, 100),
+      }];
     })
     : [];
+
+  const score = numeric(data.overall_score) ?? numeric(data.score);
+  const feedback = String(data.feedback ?? data.summary ?? "").trim();
+  if (score == null || !feedback) throw new Error("视觉面部分析缺少有效分数或反馈。");
+  const confidence = numeric(data.confidence);
 
   return {
     schemaVersion: "1.0.0",
     modelVersion: String(data.modelVersion ?? data.model_version ?? `face-${provider}-2026-07`),
     provider,
-    overall_score: numeric(data.overall_score) ?? numeric(data.score) ?? 70,
+    overall_score: clamp(score, 0, 100),
     skin_age: numeric(data.skin_age),
-    feedback: String(data.feedback ?? data.summary ?? "已完成面部状态分析。"),
-    confidence: numeric(data.confidence) ?? (provider === "fallback" ? 0.25 : 0.75),
+    feedback,
+    confidence: confidence == null ? undefined : clamp(confidence, 0, 1),
     annotations,
   };
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 async function signedImageUrl(adminClient: unknown, imagePath?: string) {

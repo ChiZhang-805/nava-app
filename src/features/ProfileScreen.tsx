@@ -8,6 +8,7 @@ import { exportUserData, downloadJson } from "../services/exportData";
 import {
   getHealthAuthorizationStatus,
   getLastHealthSyncAt,
+  isNativeHealthAvailable,
   readLastHealthSyncAt,
   requestHealthAuthorization,
   syncNativeHealthNow,
@@ -171,7 +172,8 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
 
   async function authorizeHealth() {
     await run("health-auth", null, async () => {
-      await requestHealthAuthorization();
+      const result = await requestHealthAuthorization();
+      if (!result.granted) throw new Error("reason" in result ? result.reason : (locale === "zh" ? "Apple 健康授权未完成。" : "Apple Health authorization was not completed."));
       setHealthAuthorization(await getHealthAuthorizationStatus());
     });
   }
@@ -179,19 +181,25 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
   async function syncHealth() {
     await run("health-sync", null, async () => {
       const result = await syncNativeHealthNow(user.id);
-      if (!("skipped" in result) || !result.skipped) setHealthLastSync(result.lastSyncDate);
+      if ("skipped" in result && result.skipped) throw new Error(locale === "zh" ? "网页不能直接访问 HealthKit，请在 iPhone App 中授权后同步。" : "Web pages cannot access HealthKit. Authorize and sync in the iPhone app.");
+      setHealthLastSync(result.lastSyncDate);
       setHealthAuthorization(await getHealthAuthorizationStatus());
     });
   }
 
   async function connectWatch() {
     await run("watch-connect", null, async () => {
-      setWatchReachable(await getWatchReachability());
+      if (!isNativeHealthAvailable()) throw new Error(locale === "zh" ? "Apple Watch 连接仅能在 iPhone App 中完成。" : "Apple Watch can only connect through the iPhone app.");
+      const reachability = await getWatchReachability();
+      setWatchReachable(reachability);
+      if (!reachability.paired) throw new Error(locale === "zh" ? "尚未检测到已配对的 Apple Watch，请先在系统 Watch App 中配对。" : "No paired Apple Watch was found. Pair it in the system Watch app first.");
     });
   }
 
   async function syncWatch() {
     await run("watch-sync", null, async () => {
+      const reachability = await getWatchReachability();
+      if (!reachability.paired) throw new Error(locale === "zh" ? "没有已配对的 Apple Watch，无法同步。" : "No paired Apple Watch is available to sync.");
       await flushPendingWatchActions(user.id);
       const now = new Date().toISOString();
       const nextSnapshot: WatchUserSnapshot = watchSnapshot

@@ -43,6 +43,15 @@ import type { FocusRecord, MoodRecord, TodaySnapshot, TrendBundle } from "../typ
 import { buildModuleFeedback } from "../services/personalizedFeedback";
 import { enableNavaNotifications } from "../services/notifications";
 import { loadDietAiReport, parseDietAiReport, type DietAiReport } from "../services/dietReport";
+import { loadHealthAiReport, type HealthAiReport } from "../services/healthReport";
+import {
+  getHealthAuthorizationStatus,
+  getLastHealthSyncAt,
+  isNativeHealthAvailable,
+  requestHealthAuthorization,
+  syncNativeHealthNow,
+} from "../services/health";
+import { getWatchReachability } from "../services/watch";
 import { shareReportImage } from "../services/reportShareCard";
 import type { GrowthActivityKind } from "../services/productivity";
 import { isCompleteMoodRecord, moodBandForScore, moodBands, moodDateWindow } from "../services/mood";
@@ -151,6 +160,7 @@ function moodTrendPoints(records: MoodRecord[], recordDate: string, locale: "zh"
       lineValue: value,
       barText: record ? `${value}` : (locale === "zh" ? "暂无记录" : "No entry"),
       lineText: record ? `${value}` : (locale === "zh" ? "暂无记录" : "No entry"),
+      missing: !record,
     };
   });
 }
@@ -241,73 +251,6 @@ function ModuleDetailView({
   );
 }
 
-function buildReportInsights(
-  module: RecordModule,
-  entries: Array<{ date: string; value: number }>,
-  locale: "zh" | "en",
-) {
-  if (entries.length === 0) return [];
-  const values = entries.map((entry) => entry.value);
-  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
-  const latest = values[values.length - 1];
-  const first = values[0];
-  const delta = latest - first;
-  const peakIndex = values.indexOf(Math.max(...values));
-  const troughIndex = values.indexOf(Math.min(...values));
-  const spread = Math.max(...values) - Math.min(...values);
-  const stability = average > 0 ? Math.max(0, 100 - (spread / average) * 100) : 0;
-  const format = (value: number) => historyValueText(module, value, locale);
-  const direction = delta >= 0 ? (locale === "zh" ? "上升" : "up") : (locale === "zh" ? "下降" : "down");
-  if (locale === "zh") {
-    const rising = delta >= 0;
-    const moduleInsights: Record<RecordModule, string[]> = {
-      mood: [
-        rising ? "近七日情绪强度整体呈现温和上升" : "近七日情绪强度整体呈现温和下降",
-        "日间情绪波动仍处于可调节范围内",
-        "较高状态多与睡眠和活动节奏相关",
-        "建议继续记录触发因素与恢复方式",
-      ],
-      sleep: [
-        rising ? "近七日睡眠时长整体呈现稳步上升" : "近七日睡眠时长整体呈现缓慢下降",
-        "夜间睡眠总时长波动仍需继续稳定",
-        "周期高点说明恢复能力正在逐步改善",
-        "建议固定睡前放松与晨起时间节律",
-      ],
-      exercise: [
-        rising ? "近七日活动步数整体呈现稳步上升" : "近七日活动步数整体呈现缓慢下降",
-        "日常活动量波动仍在合理节律范围",
-        "高峰日运动表现说明耐力正在提升",
-        "建议保持循序渐进并安排恢复时间",
-      ],
-      diet: [
-        rising ? "近七日能量摄入整体呈现温和上升" : "近七日能量摄入整体呈现温和下降",
-        "营养结构分配仍需持续保持均衡性",
-        "饮水节奏建议均匀分散至全天时段",
-        "下一餐优先增加蔬菜与优质蛋白质",
-      ],
-      focus: [
-        rising ? "近七日专注时长整体呈现稳步上升" : "近七日专注时长整体呈现轻微下降",
-        "专注时段波动仍处于可管理范围内",
-        "周期高点说明任务拆分方式较有效",
-        "建议继续保留休息并减少频繁切换",
-      ],
-      face: [
-        rising ? "近七日面部状态整体呈现稳步改善" : "近七日面部状态整体出现轻微回落",
-        "状态分值波动仍处于温和区间范围",
-        "周期高点说明近期作息支持较充分",
-        "建议保持光照稳定并持续观察记录",
-      ],
-    };
-    return moduleInsights[module];
-  }
-  return [
-    `Seven-day average: ${format(average)}`,
-    `${direction} ${format(Math.abs(delta))} from day one`,
-    `Peak ${format(values[peakIndex])} on ${shortDate(entries[peakIndex].date, locale)}`,
-    `Stability is about ${Math.round(stability)}%; low on ${shortDate(entries[troughIndex].date, locale)}`,
-  ];
-}
-
 function HistoryView({
   module,
   locale,
@@ -332,22 +275,23 @@ function HistoryView({
     const records = module === "mood"
       ? trendBundle.moods.map((record) => ({ id: record.id, date: record.record_date, value: record.mood_score }))
       : module === "sleep"
-        ? trendBundle.sleeps.map((record) => ({ id: record.id, date: record.record_date, value: record.sleep_duration_minutes ?? 0 }))
+        ? trendBundle.sleeps.flatMap((record) => record.sleep_duration_minutes == null ? [] : [{ id: record.id, date: record.record_date, value: record.sleep_duration_minutes }])
         : module === "exercise"
-          ? trendBundle.exercises.map((record) => ({ id: record.id, date: record.record_date, value: record.steps ?? 0 }))
+          ? trendBundle.exercises.flatMap((record) => record.steps == null ? [] : [{ id: record.id, date: record.record_date, value: record.steps }])
           : module === "diet"
             ? trendBundle.nutritions.map((record) => ({ id: record.id, date: record.record_date, value: record.total_calories }))
             : module === "focus"
               ? aggregateFocusByDate(trendBundle.focus).map((record) => ({ id: record.id, date: record.record_date, value: record.total_minutes }))
-              : trendBundle.faces.map((record) => ({ id: record.id, date: record.record_date, value: record.overall_score ?? 0 }));
+              : trendBundle.faces.flatMap((record) => record.overall_score == null ? [] : [{ id: record.id, date: record.record_date, value: record.overall_score }]);
     return records.sort((left, right) => left.date.localeCompare(right.date));
   }, [module, trendBundle]);
-  const displayEntries = entries.slice(-7);
-  const sortedNutrition = trendBundle?.nutritions.slice().sort((a, b) => a.record_date.localeCompare(b.record_date)) ?? [];
+  const displayEntries = useMemo(() => entries.slice(-7), [entries]);
+  const sortedNutrition = useMemo(() => trendBundle?.nutritions.slice().sort((a, b) => a.record_date.localeCompare(b.record_date)) ?? [], [trendBundle]);
   const latestNutrition = sortedNutrition[sortedNutrition.length - 1] ?? null;
   const [dietReport, setDietReport] = useState<DietAiReport | null>(() => parseDietAiReport(latestNutrition?.ai_feedback));
-  const [dietReportLoading, setDietReportLoading] = useState(false);
-  const [dietReportUnavailable, setDietReportUnavailable] = useState(false);
+  const [healthReport, setHealthReport] = useState<HealthAiReport | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportUnavailable, setReportUnavailable] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareComplete, setShareComplete] = useState(false);
   useEffect(() => {
@@ -355,29 +299,50 @@ function HistoryView({
     const stored = parseDietAiReport(latestNutrition.ai_feedback);
     if (stored) {
       setDietReport(stored);
-      setDietReportUnavailable(false);
+      setReportUnavailable(false);
+      setReportLoading(false);
       return;
     }
     let active = true;
-    setDietReportLoading(true);
-    setDietReportUnavailable(false);
+    setReportLoading(true);
+    setReportUnavailable(false);
     void loadDietAiReport({ date: latestNutrition.record_date, locale })
       .then((report) => {
         if (active) setDietReport(report);
       })
       .catch((error) => {
         console.warn("AI diet report generation deferred", error);
-        if (active) setDietReportUnavailable(true);
+        if (active) setReportUnavailable(true);
       })
       .finally(() => {
-        if (active) setDietReportLoading(false);
+        if (active) setReportLoading(false);
       });
     return () => {
       active = false;
     };
   }, [latestNutrition, locale, module]);
-  const fallbackInsights = useMemo(() => buildReportInsights(module, displayEntries, locale), [displayEntries, locale, module]);
-  const reportInsights = module === "diet" && dietReport?.bullets.length === 4 ? dietReport.bullets : fallbackInsights;
+  useEffect(() => {
+    if (module === "diet" || displayEntries.length === 0) return;
+    let active = true;
+    setHealthReport(null);
+    setReportLoading(true);
+    setReportUnavailable(false);
+    void loadHealthAiReport({ scope: module, endDate: displayEntries[displayEntries.length - 1].date, locale })
+      .then((report) => {
+        if (active) setHealthReport(report);
+      })
+      .catch((error) => {
+        console.warn("AI health report generation deferred", error);
+        if (active) setReportUnavailable(true);
+      })
+      .finally(() => {
+        if (active) setReportLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [displayEntries, locale, module]);
+  const reportInsights = module === "diet" ? (dietReport?.bullets ?? []) : (healthReport?.bullets ?? []);
   const shareSummary = async () => {
     const label = moduleNames[module][locale];
     setSharing(true);
@@ -413,10 +378,10 @@ function HistoryView({
         <section className="diet-ai-report module-ai-report" aria-live="polite">
           <div className="diet-ai-report-copy">
             <header><span><Bot size={16} /></span><strong>{locale === "zh" ? `AI ${moduleNames[module].zh}洞察` : `AI ${moduleNames[module].en.toLowerCase()} insights`}</strong></header>
-            {module === "diet" && dietReportLoading
+            {reportLoading
               ? <div className="diet-ai-report-loading">{locale === "zh" ? "正在结合你的画像与近七日数据生成…" : "Reviewing your profile and seven-day data…"}</div>
               : <ul>{reportInsights.map((bullet, index) => <li key={`${index}-${bullet}`}>{bullet}</li>)}</ul>}
-            {module === "diet" && dietReportUnavailable && <small className="module-ai-fallback-note">{locale === "zh" ? "云端洞察暂不可用，当前先展示真实数据分析。" : "Cloud insights are unavailable; showing real-data analysis."}</small>}
+            {reportUnavailable && <small className="module-ai-fallback-note">{locale === "zh" ? "真实 AI 洞察暂不可用，请稍后重试。" : "Real AI insights are temporarily unavailable. Please retry."}</small>}
           </div>
           <img
             className="diet-ai-mascot module-ai-mascot"
@@ -491,6 +456,7 @@ function historyValueText(module: RecordModule, value: number, locale: "zh" | "e
 }
 
 function ExerciseDashboard({
+  userId,
   locale,
   steps,
   onOpenEditor,
@@ -499,18 +465,16 @@ function ExerciseDashboard({
   todaySnapshot,
   view,
   openView,
-}: Pick<Props, "steps" | "calories" | "exerciseMinutes" | "onOpenEditor" | "recordDate" | "trendBundle" | "todaySnapshot" | "profile"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
+}: Pick<Props, "userId" | "steps" | "calories" | "exerciseMinutes" | "onOpenEditor" | "recordDate" | "trendBundle" | "todaySnapshot" | "profile"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
   const [syncing, setSyncing] = useState(false);
-  const [syncedAt, setSyncedAt] = useState(locale === "zh" ? "3 分钟前" : "3 min ago");
-  const latestExercise = useMemo(() => {
-    if (todaySnapshot?.exercise) return todaySnapshot.exercise;
-    const records = [...(trendBundle?.exercises ?? [])].sort((a, b) => a.record_date.localeCompare(b.record_date));
-    return records[records.length - 1] ?? null;
-  }, [todaySnapshot?.exercise, trendBundle]);
-  const displayedSteps = latestExercise?.steps ?? 0;
-  const displayedCalories = latestExercise?.calories ?? 0;
-  const displayedExerciseMinutes = latestExercise?.exercise_minutes ?? 0;
-  const latestIsSelectedDate = latestExercise?.record_date === recordDate;
+  const [syncedAt, setSyncedAt] = useState<string | null>(null);
+  const [watchState, setWatchState] = useState<{ paired: boolean; reachable: boolean } | null>(null);
+  const [deviceMessage, setDeviceMessage] = useState<string | null>(null);
+  const selectedExercise = todaySnapshot?.exercise ?? null;
+  const displayedSteps = selectedExercise?.steps ?? 0;
+  const displayedCalories = selectedExercise?.calories ?? 0;
+  const displayedExerciseMinutes = selectedExercise?.exercise_minutes ?? 0;
+  const selectedDateText = selectedExercise ? shortDate(selectedExercise.record_date, locale) : null;
   const stepValues = useMemo(() => {
     const records = new Map((trendBundle?.exercises ?? []).map((record) => [record.record_date, record.steps ?? 0]));
     if (todaySnapshot?.exercise) records.set(recordDate, todaySnapshot.exercise.steps ?? steps);
@@ -546,23 +510,52 @@ function ExerciseDashboard({
     };
   }), [locale, maxSteps, stepValues]);
 
-  const sync = () => {
+  useEffect(() => {
+    let active = true;
+    void Promise.all([getLastHealthSyncAt(userId), getWatchReachability()]).then(([lastSync, reachability]) => {
+      if (!active) return;
+      setSyncedAt(lastSync);
+      setWatchState(reachability);
+    });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  const sync = async () => {
     setSyncing(true);
-    window.setTimeout(() => {
+    setDeviceMessage(null);
+    try {
+      const status = await getHealthAuthorizationStatus();
+      if (status.available && !status.requested) await requestHealthAuthorization();
+      const result = await syncNativeHealthNow(userId);
+      if ("skipped" in result && result.skipped) {
+        setDeviceMessage(locale === "zh" ? "请在 iPhone App 中授权 Apple 健康后同步" : "Authorize Apple Health in the iPhone app to sync");
+      } else {
+        setSyncedAt(result.lastSyncDate);
+        setDeviceMessage(locale === "zh" ? `已同步 ${result.uploaded} 条真实健康记录` : `Synced ${result.uploaded} real health records`);
+      }
+      setWatchState(await getWatchReachability());
+    } catch (error) {
+      setDeviceMessage(error instanceof Error ? error.message : String(error));
+    } finally {
       setSyncing(false);
-      setSyncedAt(locale === "zh" ? "刚刚" : "Just now");
-    }, 760);
+    }
   };
+  const syncLabel = syncedAt
+    ? new Date(syncedAt).toLocaleString(locale === "zh" ? "zh-CN" : "en-US", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
+    : (locale === "zh" ? "尚未同步" : "Not synced");
+  const deviceTitle = watchState?.paired ? "Apple Watch" : (isNativeHealthAvailable() ? "Apple 健康" : (locale === "zh" ? "Apple 健康（需 iPhone App）" : "Apple Health (iPhone app required)"));
 
   if (view === "detail") {
     return (
       <div className="module-dashboard exercise-detail-dashboard" data-module-view="exercise-detail">
         <section className="figma-module-card energy-card">
-          <div><span>{latestIsSelectedDate ? (locale === "zh" ? "所选日期能量消耗" : "Selected-day energy") : (locale === "zh" ? "最近一次能量消耗" : "Latest energy")}</span><strong><AnimatedNumber value={displayedCalories} /><small>/1300 kcal</small></strong><p>{latestExercise ? (locale === "zh" ? `${shortDate(latestExercise.record_date, locale)} 的真实记录` : `Recorded ${shortDate(latestExercise.record_date, locale)}`) : (locale === "zh" ? "记录运动后生成进度" : "Log activity to build progress")}</p></div>
+          <div><span>{locale === "zh" ? "所选日期能量消耗" : "Selected-day energy"}</span><strong><AnimatedNumber value={displayedCalories} /><small>/1300 kcal</small></strong><p>{selectedExercise ? (locale === "zh" ? `${selectedDateText} 的真实记录` : `Recorded ${selectedDateText}`) : (locale === "zh" ? "该日期尚无运动记录" : "No activity recorded for this date")}</p></div>
           <div className="progress-ring exercise-ring" style={{ "--progress": `${Math.min(100, Math.round(displayedCalories / 13))}%` } as CSSProperties}><span><AnimatedNumber value={Math.round((displayedCalories / 1300) * 100)} />%</span></div>
         </section>
         <section className="figma-module-card steps-card">
-          <header><span>{latestIsSelectedDate ? (locale === "zh" ? "所选日期步数" : "Selected-day steps") : (locale === "zh" ? "最近一次步数" : "Latest steps")}</span><strong><AnimatedNumber value={displayedSteps} formatter={(value) => Math.round(value).toLocaleString()} /><small>{locale === "zh" ? "步" : "steps"}</small></strong></header>
+          <header><span>{locale === "zh" ? "所选日期步数" : "Selected-day steps"}</span><strong><AnimatedNumber value={displayedSteps} formatter={(value) => Math.round(value).toLocaleString()} /><small>{locale === "zh" ? "步" : "steps"}</small></strong></header>
           <div className="steps-bars" aria-label={locale === "zh" ? "近七日步数" : "Seven-day steps"}>
             {stepValues.map(([date, value]) => <span key={date} title={`${shortDate(date, locale)} · ${value.toLocaleString()}`} style={{ height: `${Math.max(8, (value / maxSteps) * 100)}%` }} />)}
           </div>
@@ -582,7 +575,7 @@ function ExerciseDashboard({
     );
   }
 
-  if (view === "device") return <ModuleDetailView compact title={locale === "zh" ? "运动设备" : "Activity devices"}><div className="device-picker"><button className="selected" type="button"><Watch />Apple Watch S11<Check /></button><button type="button"><Bluetooth />{locale === "zh" ? "连接其他设备" : "Connect another device"}<Plus /></button></div><div className="detail-status-strip"><RefreshCw size={17} /><span>{locale === "zh" ? "健康数据已自动同步" : "Health data synced automatically"}</span><strong>{syncedAt}</strong></div></ModuleDetailView>;
+  if (view === "device") return <ModuleDetailView compact title={locale === "zh" ? "运动设备" : "Activity devices"}><div className="device-picker"><button className="selected" type="button" onClick={() => void sync()} disabled={syncing}><Watch />{deviceTitle}{watchState?.paired && <Check />}</button><button type="button" onClick={() => void sync()} disabled={syncing}><Bluetooth />{locale === "zh" ? "授权并同步 Apple 健康" : "Authorize & sync Apple Health"}<Plus /></button></div><div className="detail-status-strip"><RefreshCw className={syncing ? "spin" : undefined} size={17} /><span>{deviceMessage ?? (locale === "zh" ? "数据由 HealthKit 读取并保存到云端" : "HealthKit data is saved to the cloud")}</span><strong>{syncLabel}</strong></div></ModuleDetailView>;
   if (view === "vitals") return <ModuleDetailView compact title={locale === "zh" ? "健康指标" : "Health metrics"}><div className="metric-detail-grid"><span><HeartPulse /><small>{locale === "zh" ? "静息心率" : "Resting HR"}</small><strong>{vitals.heartRate == null ? "--" : <><AnimatedNumber value={vitals.heartRate} /> bpm</>}</strong></span><span><Activity /><small>{locale === "zh" ? "血氧" : "SpO2"}</small><strong>{vitals.bloodOxygen == null ? "--" : <><AnimatedNumber value={vitals.bloodOxygen} formatter={(value) => value.toFixed(1)} />%</>}</strong></span><span><Gauge /><small>{locale === "zh" ? "恢复度" : "Recovery"}</small><strong>{vitals.recovery == null ? "--" : <AnimatedNumber value={vitals.recovery} />}</strong></span></div><div className="detail-status-strip"><ShieldCheck size={17} /><span>{locale === "zh" ? "指标来自最近一次健康快照与节律评分" : "Based on the latest health snapshot and rhythm score"}</span><strong>{vitals.date ? shortDate(vitals.date, locale) : "--"}</strong></div></ModuleDetailView>;
   if (view === "heatmap") return <ModuleDetailView compact title={locale === "zh" ? "节律热力图" : "Rhythm heatmap"}><div className="detail-heatmap">{heatmap.cells.map((cell, index) => <i key={cell.id} title={`${shortDate(cell.date, locale)} · ${String(cell.period * 2).padStart(2, "0")}:00 · ${Math.round(cell.value)}`} style={{ opacity: cell.intensity, "--heat-index": index } as CSSProperties} />)}</div><div className="heatmap-legend"><span>{locale === "zh" ? "低活跃" : "Low"}</span><i /><i /><i /><i /><span>{locale === "zh" ? "高活跃" : "High"}</span></div><p>{heatmap.cells.length > 0 ? (locale === "zh" ? `${peakWindow} 是近七日最稳定的活动窗口。` : `${peakWindow} is the most stable activity window across the last seven days.`) : (locale === "zh" ? "同步活动数据后生成热力图。" : "Sync activity data to build the heatmap.")}</p></ModuleDetailView>;
   if (view === "clock") return <ModuleDetailView compact title={locale === "zh" ? "生物钟同步" : "Clock alignment"}><div className="clock-alignment"><div className="clock-alignment-gauge" style={{ "--progress": `${alignment}%` } as CSSProperties}><Gauge /></div><strong><AnimatedNumber value={alignment} />%</strong><p>{locale === "zh" ? "该分数由近七日入睡时间、睡眠时长稳定性与节律评分共同计算。" : "Calculated from seven-day bedtime, sleep-duration regularity, and rhythm scores."}</p></div></ModuleDetailView>;
@@ -601,9 +594,10 @@ function ExerciseDashboard({
       <section className="figma-module-card exercise-health-card">
         <header><strong>{locale === "zh" ? "设备与身体状态" : "Device & body status"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("device")} aria-label={locale === "zh" ? "查看运动设备" : "View devices"}><ChevronRight size={18} /></button></header>
         <div className="exercise-device-status">
-          <span><Watch size={28} /><i><strong>Apple Watch S11</strong><small>{locale === "zh" ? `已同步 · ${syncedAt}` : `Synced · ${syncedAt}`}</small></i></span>
-          <button type="button" onClick={sync} disabled={syncing}><RefreshCw className={syncing ? "spin" : ""} size={16} />{locale === "zh" ? "同步" : "Sync"}</button>
+          <span><Watch size={28} /><i><strong>{deviceTitle}</strong><small>{syncLabel}</small></i></span>
+          <button type="button" onClick={() => void sync()} disabled={syncing}><RefreshCw className={syncing ? "spin" : ""} size={16} />{locale === "zh" ? "授权 / 同步" : "Authorize / sync"}</button>
         </div>
+        {deviceMessage && <p className="module-device-message">{deviceMessage}</p>}
         <div className="exercise-health-links">
           <button type="button" onClick={() => openView("vitals")}><HeartPulse size={17} /><span>{locale === "zh" ? "健康指标" : "Vitals"}</span><small>{vitals.heartRate == null ? "--" : `${vitals.heartRate} bpm`}</small></button>
           <button type="button" onClick={() => openView("heatmap")}><Activity size={17} /><span>{locale === "zh" ? "活跃窗口" : "Active window"}</span><small>{heatmap.cells.length > 0 ? peakWindow : "--"}</small></button>
@@ -1135,7 +1129,7 @@ export default function RecordModuleDashboard(props: Props) {
   };
   if (view === "history") return <HistoryView module={props.module} locale={locale} trendBundle={props.trendBundle} onGrowthActivity={props.onGrowthActivity} />;
   const common = { ...props, locale };
-  if (props.module === "exercise") return <ExerciseDashboard locale={locale} steps={props.steps} calories={props.calories} exerciseMinutes={props.exerciseMinutes} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
+  if (props.module === "exercise") return <ExerciseDashboard userId={props.userId} locale={locale} steps={props.steps} calories={props.calories} exerciseMinutes={props.exerciseMinutes} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
   if (props.module === "mood") return <MoodDashboard {...common} view={view} openView={openView} />;
   if (props.module === "sleep") return <SleepDashboard userId={props.userId} locale={locale} sleepStart={props.sleepStart} sleepEnd={props.sleepEnd} deepSleep={props.deepSleep} lightSleep={props.lightSleep} remSleep={props.remSleep} sleepRating={props.sleepRating} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
   if (props.module === "diet") return <DietDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} onOpenEditor={props.onOpenEditor} onOpenDietCamera={props.onOpenDietCamera} view={view} openView={openView} />;

@@ -26,7 +26,7 @@ import type { GrowthActivityKind } from "../services/productivity";
 import { clearRecordDraft, loadRecordDraft, saveRecordDraft, type RecordDraftModule } from "../services/drafts";
 import { loadProfile, type UserProfile } from "../services/profile";
 import { loadDietAiReport } from "../services/dietReport";
-import { buildWeeklyInsights } from "../services/weeklyReport";
+import { loadHealthAiReport, type HealthAiReport } from "../services/healthReport";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 import RecordModuleDashboard from "./RecordModuleDashboard";
 
@@ -124,7 +124,9 @@ export default function RecordsScreen({
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [reportMode, setReportMode] = useState<"modules" | "weekly">("modules");
   const [dnbReport, setDnbReport] = useState<DnbWeeklyReport | null>(null);
-  const [dnbLoading, setDnbLoading] = useState(false);
+  const [weeklyAiReport, setWeeklyAiReport] = useState<HealthAiReport | null>(null);
+  const [weeklyAiLoading, setWeeklyAiLoading] = useState(false);
+  const [weeklyAiUnavailable, setWeeklyAiUnavailable] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
   const [weeklyLongPressing, setWeeklyLongPressing] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
@@ -355,15 +357,37 @@ export default function RecordsScreen({
   useEffect(() => {
     if (reportMode !== "weekly") return;
     let active = true;
-    setDnbLoading(true);
     const reference = new Date();
     reference.setDate(reference.getDate() - weekOffset * 7);
     void loadDnbWeeklyReport(reference, locale)
       .then((report) => {
         if (active) setDnbReport(report);
       })
+      .finally(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [locale, reportMode, user.id, weekOffset]);
+
+  useEffect(() => {
+    if (reportMode !== "weekly") return;
+    const reference = new Date();
+    reference.setDate(reference.getDate() - weekOffset * 7);
+    const period = currentSevenDayPeriod(reference);
+    let active = true;
+    setWeeklyAiReport(null);
+    setWeeklyAiLoading(true);
+    setWeeklyAiUnavailable(false);
+    void loadHealthAiReport({ scope: "weekly", endDate: period.endDate, locale })
+      .then((report) => {
+        if (active) setWeeklyAiReport(report);
+      })
+      .catch((reportError) => {
+        console.warn("Weekly AI report generation deferred", reportError);
+        if (active) setWeeklyAiUnavailable(true);
+      })
       .finally(() => {
-        if (active) setDnbLoading(false);
+        if (active) setWeeklyAiLoading(false);
       });
     return () => {
       active = false;
@@ -438,9 +462,13 @@ export default function RecordsScreen({
       // durable; slower score/report refreshes can continue underneath it.
       onSaved();
       try {
+        const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
         await Promise.allSettled([
-          refreshRhythmScore(recordDate),
+          refreshRhythmScore(recordDate).then(() => loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate, locale, refresh: true })),
           refreshFdnbHealth(recordDate),
+          activeModule && activeModule !== "diet"
+            ? loadHealthAiReport({ scope: activeModule, endDate: recordDate, locale, refresh: true })
+            : Promise.resolve(),
           trackAnalyticsEvent(user.id, "record_saved", { module: labelKey, date: recordDate }),
         ]);
         setNotice(t("records.saved", { label: t(labelKey) }));
@@ -618,6 +646,8 @@ export default function RecordsScreen({
       });
       try {
         await loadDietAiReport({ date: recordDate, locale, refresh: true });
+        const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
+        await loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate, locale, refresh: true });
       } catch (reportError) {
         // The meal is already durable. A transient model failure must not
         // discard it; opening the report retries the authenticated AI call.
@@ -690,6 +720,14 @@ export default function RecordsScreen({
         modelVersion: result.modelVersion ?? result.model_version,
         captureMode: faceMode,
       });
+      await Promise.allSettled([
+        refreshRhythmScore(recordDate).then(() => {
+          const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
+          return loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate, locale, refresh: true });
+        }),
+        refreshFdnbHealth(recordDate),
+        loadHealthAiReport({ scope: "face", endDate: recordDate, locale, refresh: true }),
+      ]);
       setNotice("persisted" in saved && !saved.persisted ? t("records.faceAnalyzed") : t("records.faceSaved"));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -736,29 +774,18 @@ export default function RecordsScreen({
       lower: item.score_lower,
       upper: item.score_upper,
     }));
-    const moodPoints = (trendBundle?.moods ?? []).filter((item) => inSelectedWeek(item.record_date)).slice(-7).map((item) => ({
-      id: item.id,
-      label: new Date(`${item.record_date}T00:00:00`).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", { month: "numeric", day: "numeric" }),
-      value: item.mood_score,
-    }));
-    const reportPoints = rhythmPoints.length >= 2 ? rhythmPoints : moodPoints;
+    const reportPoints = rhythmPoints;
     const latestReportPoint = reportPoints[reportPoints.length - 1];
-    const weekChange = reportPoints.length >= 2 ? Math.round(latestReportPoint.value - reportPoints[0].value) : 0;
-    const completedModules = todaySnapshot ? [
-      todaySnapshot.mood,
-      todaySnapshot.sleep,
-      todaySnapshot.exercise,
-      todaySnapshot.nutrition,
-      todaySnapshot.face,
-      todaySnapshot.focusMinutes > 0 ? true : null,
-    ].filter(Boolean).length : 0;
-    const weeklyInsights = buildWeeklyInsights({
-      locale,
-      weekChange,
-      completedModules,
-      loading: dnbLoading,
-      report: dnbReport,
-    });
+    const weekChange = reportPoints.length >= 2 && latestReportPoint ? Math.round(latestReportPoint.value - reportPoints[0].value) : 0;
+    const completedModules = [
+      (trendBundle?.moods ?? []).some((item) => inSelectedWeek(item.record_date)),
+      (trendBundle?.sleeps ?? []).some((item) => inSelectedWeek(item.record_date)),
+      (trendBundle?.exercises ?? []).some((item) => inSelectedWeek(item.record_date)),
+      (trendBundle?.nutritions ?? []).some((item) => inSelectedWeek(item.record_date)),
+      (trendBundle?.focus ?? []).some((item) => inSelectedWeek(item.record_date)),
+      (trendBundle?.faces ?? []).some((item) => inSelectedWeek(item.record_date)),
+    ].filter(Boolean).length;
+    const weeklyInsights = weeklyAiReport?.bullets ?? [];
     return (
       <div className="record-hub" ref={rootRef}>
         <div className="health-report-tabs" role="tablist" aria-label={locale === "zh" ? "健康报告视图" : "Health report view"}>
@@ -823,7 +850,7 @@ export default function RecordsScreen({
               <button type="button" disabled={weekOffset === 0} onClick={() => setWeekOffset((value) => Math.max(0, value - 1))} aria-label={locale === "zh" ? "下一周" : "Next week"}><ChevronRight size={18} /></button>
             </div>
             <section className="weekly-score-card">
-              <div><span>{locale === "zh" ? "基础节律：" : "Baseline: "}</span><strong>{todaySnapshot?.rhythmScore == null ? "--" : <AnimatedNumber value={todaySnapshot.rhythmScore} />}</strong></div>
+              <div><span>{locale === "zh" ? "基础节律：" : "Baseline: "}</span><strong>{latestReportPoint == null ? "--" : <AnimatedNumber value={latestReportPoint.value} />}</strong></div>
               <div><span>{locale === "zh" ? "数据完整度：" : "Complete: "}</span><strong><AnimatedNumber value={completedModules} duration={520} />/6</strong></div>
               <div><span>{locale === "zh" ? "周内变化：" : "Change: "}</span><strong>{weekChange >= 0 ? "+" : ""}<AnimatedNumber value={weekChange} duration={640} /></strong></div>
             </section>
@@ -840,7 +867,10 @@ export default function RecordsScreen({
                 <button type="button" className="weekly-share-button" disabled={!dnbReport || dnbReport.status !== "ready"} onClick={() => void shareWeeklyReport()}><Share2 size={15} />{locale === "zh" ? "保存海报" : "Save poster"}</button>
               </header>
               <div className="weekly-insight-body" aria-live="polite">
-                <ul>{weeklyInsights.map((insight) => <li key={insight}>{insight}</li>)}</ul>
+                {weeklyAiLoading
+                  ? <p>{locale === "zh" ? "正在调用 AI 生成本周节律洞察…" : "Generating this week's AI insights…"}</p>
+                  : <ul>{weeklyInsights.map((insight) => <li key={insight}>{insight}</li>)}</ul>}
+                {weeklyAiUnavailable && <small>{locale === "zh" ? "真实 AI 洞察暂不可用，请稍后重试。" : "Real AI insights are temporarily unavailable."}</small>}
                 <img className="weekly-insight-mascot" src={weeklyRunMascot} alt={locale === "zh" ? "NAVA 小猫在跑步机上跑步" : "NAVA cat running on a treadmill"} />
               </div>
             </section>

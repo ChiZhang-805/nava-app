@@ -10,6 +10,7 @@ const tableContracts = [
   { name: "focus_time_distribution", column: "user_id" },
   { name: "tasks", column: "user_id" },
   { name: "ai_conversations", column: "user_id" },
+  { name: "ai_health_reports", column: "user_id" },
   { name: "face_records", column: "user_id" },
   { name: "device_connections", column: "user_id" },
   { name: "health_sync_jobs", column: "user_id" },

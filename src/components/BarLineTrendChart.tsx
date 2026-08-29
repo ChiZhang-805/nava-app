@@ -9,6 +9,7 @@ export type BarLineTrendPoint = {
   lineValue: number;
   barText?: string;
   lineText?: string;
+  missing?: boolean;
 };
 
 export default function BarLineTrendChart({
@@ -36,15 +37,17 @@ export default function BarLineTrendChart({
   const right = 280;
   const top = scoreScale ? 9 : 13;
   const bottom = scoreScale ? 96 : 86;
-  const rawBarMin = Math.min(...points.map((point) => point.barValue));
-  const rawBarMax = Math.max(...points.map((point) => point.barValue));
+  const recordedPoints = points.filter((point) => !point.missing);
+  if (recordedPoints.length === 0) return null;
+  const rawBarMin = Math.min(...recordedPoints.map((point) => point.barValue));
+  const rawBarMax = Math.max(...recordedPoints.map((point) => point.barValue));
   const rawBarSpan = Math.max(1, rawBarMax - rawBarMin);
   const maxBarValue = Math.max(1, rawBarMax);
   const heightPercentAt = (value: number) => {
     if (rawBarMax === rawBarMin) return 67;
     return 34 + ((value - rawBarMin) / rawBarSpan) * 66;
   };
-  const lineValues = points.map((point) => clampChartPercent(point.lineValue));
+  const lineValues = recordedPoints.map((point) => clampChartPercent(point.lineValue));
   const rawLineMin = Math.min(...lineValues);
   const rawLineMax = Math.max(...lineValues);
   const lineMin = scoreScale ? 0 : Math.max(0, Math.floor((rawLineMin - 8) / 10) * 10);
@@ -53,16 +56,22 @@ export default function BarLineTrendChart({
   const step = points.length <= 1 ? 0 : (right - left) / (points.length - 1);
   const xAt = (index: number) => points.length <= 1 ? width / 2 : left + step * index;
   const yAt = (value: number) => top + ((lineMax - Math.min(lineMax, Math.max(lineMin, value))) / lineSpan) * (bottom - top);
-  const plotted = points.map((point, index) => {
+  const plottedSegments: Array<Array<{ index: number; x: number; y: number }>> = [];
+  points.forEach((point, index) => {
+    if (point.missing) return;
     const barPercent = heightPercentAt(point.barValue);
     const barTop = bottom - (barPercent / 100) * (bottom - top);
-    return {
+    const plottedPoint = {
+      index,
       x: xAt(index),
       y: lineAnchor === "bar-center" ? (barTop + bottom) / 2 : yAt(point.lineValue),
     };
+    const previousWasRecorded = index > 0 && !points[index - 1].missing;
+    if (previousWasRecorded && plottedSegments.length > 0) plottedSegments[plottedSegments.length - 1].push(plottedPoint);
+    else plottedSegments.push([plottedPoint]);
   });
-  const linePath = chartCurvePath(plotted, curve);
-  const barsEndAt = chartSequenceEnd(points.map((point) => ({ value: point.barValue })));
+  const plotted = plottedSegments.flat();
+  const barsEndAt = chartSequenceEnd(recordedPoints.map((point) => ({ value: point.barValue })));
   const signature = points.map((point) => `${point.id}:${point.barValue}:${point.lineValue}`).join("|");
   const lineDelay = barsEndAt + 80;
 
@@ -79,15 +88,15 @@ export default function BarLineTrendChart({
           const motion = chartBarMotion(index, point.barValue, maxBarValue);
           const heightPercent = heightPercentAt(point.barValue);
           return (
-            <span key={point.id} style={{ "--bar-index": index, "--bar-left": `${(xAt(index) / width) * 100}%` } as CSSProperties}>
-              <i
+            <span className={point.missing ? "is-missing" : undefined} key={point.id} style={{ "--bar-index": index, "--bar-left": `${(xAt(index) / width) * 100}%` } as CSSProperties}>
+              {!point.missing && <i
                 title={`${point.label} · ${point.barText ?? Math.round(point.barValue)}`}
                 style={{
                   height: `${heightPercent}%`,
                   "--bar-delay": `${motion.delayMs}ms`,
                   "--bar-duration": `${motion.durationMs}ms`,
                 } as CSSProperties}
-              />
+              />}
               <small>{point.label}</small>
             </span>
           );
@@ -101,29 +110,31 @@ export default function BarLineTrendChart({
             <stop offset="100%" stopColor="#074f75" />
           </linearGradient>
         </defs>
-        <path
-          key={`line-${interactive ? "interactive" : signature}`}
-          className="bar-line-path"
-          d={linePath}
-          pathLength={1}
-          vectorEffect="non-scaling-stroke"
-          style={{ stroke: `url(#bar-line-gradient-${rawId})` }}
-        />
+        {plottedSegments.filter((segment) => segment.length > 1).map((segment, segmentIndex) => (
+          <path
+            key={`line-${segmentIndex}-${interactive ? "interactive" : signature}`}
+            className="bar-line-path"
+            d={chartCurvePath(segment, curve)}
+            pathLength={1}
+            vectorEffect="non-scaling-stroke"
+            style={{ stroke: `url(#bar-line-gradient-${rawId})` }}
+          />
+        ))}
       </svg>
-      {plotted.map((point, index) => (
+      {plotted.map((point) => (
         <span
           className="bar-line-html-point"
-          key={`${points[index].id}-${interactive ? "interactive" : signature}`}
-          title={`${points[index].label} · ${points[index].lineText ?? Math.round(points[index].lineValue)}`}
+          key={`${points[point.index].id}-${interactive ? "interactive" : signature}`}
+          title={`${points[point.index].label} · ${points[point.index].lineText ?? Math.round(points[point.index].lineValue)}`}
           style={{
-            "--point-index": index,
+            "--point-index": point.index,
             "--point-left": `${(point.x / width) * 100}%`,
             "--point-top": `${(point.y / height) * 100}%`,
           } as CSSProperties}
         />
       ))}
       <ol className="sr-only">
-        {points.map((point) => <li key={point.id}>{point.label}: {point.barText ?? point.barValue}; {point.lineText ?? point.lineValue}</li>)}
+        {points.map((point) => <li key={point.id}>{point.label}: {point.missing ? (point.barText ?? "No record") : `${point.barText ?? point.barValue}; ${point.lineText ?? point.lineValue}`}</li>)}
       </ol>
     </div>
   );

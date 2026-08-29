@@ -33,6 +33,7 @@ export async function exportUserData(userId: string) {
     "focus_time_distribution",
     "tasks",
     "ai_conversations",
+    "ai_health_reports",
     "face_records",
     "device_connections",
     "health_sync_jobs",

@@ -5,13 +5,6 @@ import type {
   SleepRecord,
 } from "../types";
 
-const hourlyActivityWeights = [
-  0.003, 0.002, 0.002, 0.002, 0.003, 0.008,
-  0.03, 0.065, 0.075, 0.055, 0.06, 0.07,
-  0.055, 0.05, 0.055, 0.065, 0.06, 0.085,
-  0.105, 0.07, 0.04, 0.02, 0.01, 0.005,
-];
-
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
@@ -62,6 +55,7 @@ export function sleepTimelineGeometry(start?: string | null, end?: string | null
 
 export function sleepStageHeights(stages: number[]) {
   const safe = stages.map((value) => Math.max(0, finite(value)));
+  if (safe.every((value) => value === 0)) return safe.map(() => 0);
   const maximum = Math.max(1, ...safe);
   return safe.map((value) => Math.round(38 + (value / maximum) * 58));
 }
@@ -78,18 +72,9 @@ export function clockAlignmentScore(sleeps: SleepRecord[], rhythms: DailyRhythmS
   return Math.round(rhythmValues.length ? regularity * 0.68 + average(rhythmValues) * 0.32 : regularity);
 }
 
-function fallbackHourlyActivity(record?: ExerciseRecord) {
-  const steps = Math.max(0, finite(record?.steps, 0));
-  const minutes = Math.max(0, finite(record?.exercise_minutes, 0));
-  return hourlyActivityWeights.map((weight, hour) => ({
-    hour,
-    value: steps * weight + minutes * weight * (hour >= 17 && hour <= 20 ? 125 : 70),
-  }));
-}
-
-function snapshotHourlyActivity(snapshot?: HealthMetricSnapshot, fallback?: ExerciseRecord) {
+function snapshotHourlyActivity(snapshot?: HealthMetricSnapshot) {
   const bins = Array.isArray(snapshot?.activity_bins) ? snapshot.activity_bins : [];
-  if (bins.length === 0) return fallbackHourlyActivity(fallback);
+  if (bins.length === 0) return [];
   const values = Array.from({ length: 24 }, (_, hour) => ({ hour, value: 0 }));
   bins.forEach((bin) => {
     const hour = Math.round(finite(bin.hour, -1));
@@ -100,11 +85,11 @@ function snapshotHourlyActivity(snapshot?: HealthMetricSnapshot, fallback?: Exer
 }
 
 export function activityPeriodDistribution(healthMetrics: HealthMetricSnapshot[], exercises: ExerciseRecord[]) {
+  void exercises;
   const sortedHealth = [...healthMetrics].sort((a, b) => a.record_date.localeCompare(b.record_date));
-  const sortedExercises = [...exercises].sort((a, b) => a.record_date.localeCompare(b.record_date));
-  const latestHealth = sortedHealth[sortedHealth.length - 1];
-  const latestExercise = sortedExercises[sortedExercises.length - 1];
-  const hourly = snapshotHourlyActivity(latestHealth, latestExercise);
+  const latestHealth = [...sortedHealth].reverse().find((item) => Array.isArray(item.activity_bins) && item.activity_bins.length > 0);
+  const hourly = snapshotHourlyActivity(latestHealth);
+  if (hourly.length === 0) return ["0–6", "6–12", "12–18", "18–24"].map((label) => ({ label, value: 0, heightPercent: 0, active: false }));
   const values = [0, 1, 2, 3].map((period) => hourly
     .slice(period * 6, period * 6 + 6)
     .reduce((sum, item) => sum + item.value, 0));
@@ -127,10 +112,14 @@ export type ActivityHeatCell = {
 
 export function activityHeatmap(healthMetrics: HealthMetricSnapshot[], exercises: ExerciseRecord[]) {
   const healthByDate = new Map(healthMetrics.map((item) => [item.record_date, item]));
-  const exerciseByDate = new Map(exercises.map((item) => [item.record_date, item]));
-  const dates = [...new Set([...healthByDate.keys(), ...exerciseByDate.keys()])].sort().slice(-7);
+  void exercises;
+  const dates = [...healthByDate.values()]
+    .filter((item) => Array.isArray(item.activity_bins) && item.activity_bins.length > 0)
+    .map((item) => item.record_date)
+    .sort()
+    .slice(-7);
   const raw = dates.flatMap((date) => {
-    const hourly = snapshotHourlyActivity(healthByDate.get(date), exerciseByDate.get(date));
+    const hourly = snapshotHourlyActivity(healthByDate.get(date));
     return Array.from({ length: 12 }, (_, period) => ({
       id: `${date}-${period}`,
       date,
@@ -138,6 +127,7 @@ export function activityHeatmap(healthMetrics: HealthMetricSnapshot[], exercises
       value: hourly.slice(period * 2, period * 2 + 2).reduce((sum, item) => sum + item.value, 0),
     }));
   });
+  if (raw.length === 0) return { cells: [], peakStartHour: 0, peakEndHour: 0 };
   const maximum = Math.max(1, ...raw.map((item) => item.value));
   const cells: ActivityHeatCell[] = raw.map((item) => ({
     ...item,

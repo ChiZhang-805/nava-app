@@ -41,6 +41,7 @@ test("maps sleep timing and stages from actual record values", () => {
   const heights = sleepStageHeights([85, 247, 77]);
   assert.equal(heights[1], 96);
   assert.ok(heights[0] > heights[2]);
+  assert.deepEqual(sleepStageHeights([0, 0, 0]), [0, 0, 0]);
 });
 
 test("derives the four activity periods and the heatmap from activity bins", () => {
@@ -62,6 +63,12 @@ test("derives the four activity periods and the heatmap from activity bins", () 
   assert.equal(heatmap.cells.length, 12);
   assert.equal(heatmap.peakStartHour, 18);
   assert.ok(heatmap.cells.every((cell) => cell.intensity >= 0.12 && cell.intensity <= 1));
+});
+
+test("does not invent hourly activity from daily totals", () => {
+  const exercise = [{ id: "exercise-1", record_date: "2026-08-29", steps: 8420, calories: 486, exercise_minutes: 42, heart_rate: null, spo2: null, self_rating: null, ai_feedback: null }];
+  assert.ok(activityPeriodDistribution([], exercise).every((period) => period.heightPercent === 0));
+  assert.deepEqual(activityHeatmap([], exercise).cells, []);
 });
 
 test("clock alignment responds to real bedtime variance", () => {

@@ -15,7 +15,8 @@ type StoredReport = {
   modelVersion: string;
 };
 
-const modelVersion = "deepseek-v4-flash-15-18-v2";
+const deepSeekModel = "deepseek-v4-flash";
+const modelVersion = "deepseek-v4-flash-15-18-v3";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return optionsResponse();
@@ -109,7 +110,7 @@ async function generateReport(input: {
       method: "POST",
       headers: { Authorization: `Bearer ${input.apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: modelVersion,
+        model: deepSeekModel,
         thinking: { type: "disabled" },
         temperature: 0.35,
         max_tokens: 220,

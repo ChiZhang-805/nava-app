@@ -34,11 +34,13 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
     const avgMood = bundle?.moods.length
       ? Math.round(bundle.moods.reduce((sum, item) => sum + item.mood_score, 0) / bundle.moods.length)
       : 0;
-    const sleepMinutes = bundle?.sleeps.length
-      ? Math.round(bundle.sleeps.reduce((sum, item) => sum + (item.sleep_duration_minutes ?? 0), 0) / bundle.sleeps.length)
+    const validSleep = bundle?.sleeps.map((item) => item.sleep_duration_minutes).filter((value): value is number => value != null) ?? [];
+    const validSteps = bundle?.exercises.map((item) => item.steps).filter((value): value is number => value != null) ?? [];
+    const sleepMinutes = validSleep.length
+      ? Math.round(validSleep.reduce((sum, value) => sum + value, 0) / validSleep.length)
       : 0;
-    const steps = bundle?.exercises.length
-      ? Math.round(bundle.exercises.reduce((sum, item) => sum + (item.steps ?? 0), 0) / bundle.exercises.length)
+    const steps = validSteps.length
+      ? Math.round(validSteps.reduce((sum, value) => sum + value, 0) / validSteps.length)
       : 0;
     const focus = bundle?.focus.reduce((sum, item) => sum + item.total_minutes, 0) ?? 0;
     return { avgMood, sleepMinutes, steps, focus };

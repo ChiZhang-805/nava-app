@@ -52,8 +52,8 @@ function assertOptionalResourceError(error: unknown) {
 
 function trendRows<T>(result: { data: unknown; error: unknown }, table: string) {
   if (!result.error) return asArray<T>(result.data);
-  console.warn(`Trend data unavailable for ${table}`, result.error);
-  return [];
+  const detail = result.error instanceof Error ? result.error.message : JSON.stringify(result.error);
+  throw new Error(`无法读取 ${table} 的真实趋势数据：${detail}`);
 }
 
 function clamp(value: number, min: number, max: number) {
