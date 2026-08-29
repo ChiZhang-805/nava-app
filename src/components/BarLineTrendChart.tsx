@@ -25,11 +25,13 @@ export default function BarLineTrendChart({
   ariaLabel,
   scoreScale = false,
   interactive = false,
+  lineAnchor = "bar-center",
 }: {
   points: BarLineTrendPoint[];
   ariaLabel: string;
   scoreScale?: boolean;
   interactive?: boolean;
+  lineAnchor?: "value" | "bar-center";
 }) {
   const rawId = useId().replace(/:/g, "");
   if (points.length === 0) return null;
@@ -39,9 +41,16 @@ export default function BarLineTrendChart({
   const left = 28;
   // Keep the final label clear of compact-card clipping and the adjacent donut.
   const right = 280;
-  const top = 13;
-  const bottom = 86;
-  const maxBarValue = scoreScale ? 100 : Math.max(1, ...points.map((point) => point.barValue));
+  const top = scoreScale ? 9 : 13;
+  const bottom = scoreScale ? 96 : 86;
+  const rawBarMin = Math.min(...points.map((point) => point.barValue));
+  const rawBarMax = Math.max(...points.map((point) => point.barValue));
+  const rawBarSpan = Math.max(1, rawBarMax - rawBarMin);
+  const maxBarValue = Math.max(1, rawBarMax);
+  const heightPercentAt = (value: number) => {
+    if (rawBarMax === rawBarMin) return 67;
+    return 34 + ((value - rawBarMin) / rawBarSpan) * 66;
+  };
   const lineValues = points.map((point) => clampChartPercent(point.lineValue));
   const rawLineMin = Math.min(...lineValues);
   const rawLineMax = Math.max(...lineValues);
@@ -51,7 +60,14 @@ export default function BarLineTrendChart({
   const step = points.length <= 1 ? 0 : (right - left) / (points.length - 1);
   const xAt = (index: number) => points.length <= 1 ? width / 2 : left + step * index;
   const yAt = (value: number) => top + ((lineMax - Math.min(lineMax, Math.max(lineMin, value))) / lineSpan) * (bottom - top);
-  const plotted = points.map((point, index) => ({ x: xAt(index), y: yAt(point.lineValue) }));
+  const plotted = points.map((point, index) => {
+    const barPercent = heightPercentAt(point.barValue);
+    const barTop = bottom - (barPercent / 100) * (bottom - top);
+    return {
+      x: xAt(index),
+      y: lineAnchor === "bar-center" ? (barTop + bottom) / 2 : yAt(point.lineValue),
+    };
+  });
   const linePath = smoothPath(plotted);
   const barsEndAt = chartSequenceEnd(points.map((point) => ({ value: point.barValue })));
   const signature = points.map((point) => `${point.id}:${point.barValue}:${point.lineValue}`).join("|");
@@ -68,9 +84,7 @@ export default function BarLineTrendChart({
       <div className="bar-line-bars" aria-hidden="true">
         {points.map((point, index) => {
           const motion = chartBarMotion(index, point.barValue, maxBarValue);
-          const heightPercent = scoreScale
-            ? clampChartPercent(point.barValue)
-            : Math.max(7, (point.barValue / maxBarValue) * 100);
+          const heightPercent = heightPercentAt(point.barValue);
           return (
             <span key={point.id} style={{ "--bar-index": index, "--bar-left": `${(xAt(index) / width) * 100}%` } as CSSProperties}>
               <i
@@ -86,7 +100,7 @@ export default function BarLineTrendChart({
           );
         })}
       </div>
-      <svg viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
+      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
         <defs>
           <linearGradient id={`bar-line-gradient-${rawId}`} x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="#75d5ee" />
@@ -99,20 +113,22 @@ export default function BarLineTrendChart({
           className="bar-line-path"
           d={linePath}
           pathLength={1}
+          vectorEffect="non-scaling-stroke"
           style={{ stroke: `url(#bar-line-gradient-${rawId})` }}
         />
-        {plotted.map((point, index) => (
-          <g
-            className="bar-line-point"
-            key={`${points[index].id}-${interactive ? "interactive" : signature}`}
-            style={{ "--point-index": index } as CSSProperties}
-          >
-            <circle cx={point.x} cy={point.y} r="3.4">
-              <title>{`${points[index].label} · ${points[index].lineText ?? Math.round(points[index].lineValue)}`}</title>
-            </circle>
-          </g>
-        ))}
       </svg>
+      {plotted.map((point, index) => (
+        <span
+          className="bar-line-html-point"
+          key={`${points[index].id}-${interactive ? "interactive" : signature}`}
+          title={`${points[index].label} · ${points[index].lineText ?? Math.round(points[index].lineValue)}`}
+          style={{
+            "--point-index": index,
+            "--point-left": `${(point.x / width) * 100}%`,
+            "--point-top": `${(point.y / height) * 100}%`,
+          } as CSSProperties}
+        />
+      ))}
       <ol className="sr-only">
         {points.map((point) => <li key={point.id}>{point.label}: {point.barText ?? point.barValue}; {point.lineText ?? point.lineValue}</li>)}
       </ol>

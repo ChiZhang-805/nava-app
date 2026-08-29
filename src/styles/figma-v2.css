@@ -7590,3 +7590,235 @@ body::before {
     animation: none;
   }
 }
+
+/* Unified record/report architecture (2026-08-29) */
+.module-history-report-card {
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(188px, 1.12fr) auto minmax(126px, .82fr) auto;
+  gap: 9px;
+  padding: 15px 17px;
+  overflow: hidden;
+}
+
+.module-history-report-card > header,
+.module-history-report-card > .module-history-list,
+.module-history-report-card > .module-history-share { margin: 0; }
+
+.report-history-trend-chart { width: 100%; height: 100%; min-height: 188px; }
+
+.module-history-report-card .module-history-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0;
+}
+
+.module-history-report-card .module-history-list p {
+  min-height: 50px;
+  grid-template-columns: 20px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 2px 7px;
+  padding: 8px 10px;
+}
+
+.module-history-report-card .module-history-list p > svg { grid-row: 1 / span 2; }
+.module-history-report-card .module-history-list p > strong { font-size: 11px; white-space: nowrap; }
+.module-ai-report:not(:has(.diet-ai-mascot)) { grid-template-columns: minmax(0, 1fr); }
+.module-ai-report:not(:has(.diet-ai-mascot)) .diet-ai-report-copy { width: 100%; }
+.module-history-report-card .diet-ai-report li { font-size: 11.5px; line-height: 1.4; }
+.module-ai-fallback-note { color: #78909b; font-size: 8px; line-height: 1.3; }
+.module-history-share:disabled { opacity: .7; cursor: wait; }
+
+.bar-line-trend-chart.is-score-scale .bar-line-bars { inset: 7.8% 0 17.2%; }
+.bar-line-trend-chart.is-score-scale .bar-line-bars small { top: calc(100% + 7px); }
+.bar-line-trend-chart .bar-line-path {
+  stroke-dasharray: none;
+  stroke-dashoffset: 0;
+  clip-path: inset(0 100% 0 0);
+  animation: bar-line-clip-reveal 760ms cubic-bezier(.2, .76, .2, 1) var(--combo-line-delay) forwards;
+}
+@keyframes bar-line-clip-reveal { to { clip-path: inset(0); } }
+.bar-line-html-point {
+  position: absolute;
+  top: var(--point-top);
+  left: var(--point-left);
+  z-index: 3;
+  width: 7px;
+  height: 7px;
+  border: 2px solid #0a709c;
+  border-radius: 50%;
+  background: #f5fcff;
+  box-sizing: border-box;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  animation: bar-line-html-point-in 260ms cubic-bezier(.18, .82, .22, 1.18) calc(var(--combo-line-delay) + 190ms + var(--point-index, 0) * 72ms) forwards;
+}
+.bar-line-trend-chart.is-interactive .bar-line-html-point { transition: top 170ms cubic-bezier(.2, .76, .2, 1); }
+@keyframes bar-line-html-point-in {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 5px)) scale(.5); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.exercise-dashboard {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-rows: auto auto minmax(180px, 1fr);
+  gap: 10px;
+}
+
+.exercise-summary-card,
+.exercise-health-card,
+.exercise-trend-card { padding: 14px 16px; }
+
+.exercise-summary-card header > strong,
+.exercise-health-card header > strong,
+.exercise-trend-card header > strong { font-size: 16px; font-weight: 760; }
+
+.exercise-summary-card header > button {
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: white;
+  background: linear-gradient(145deg, #39b9d7, #087d9d);
+  box-shadow: 0 8px 18px rgba(8, 116, 160, .2);
+}
+
+.exercise-summary-metrics { display: grid; grid-template-columns: 1.2fr 1fr 1fr; margin-top: 13px; }
+.exercise-summary-metrics > span { min-width: 0; display: grid; justify-items: center; gap: 5px; padding: 1px 8px; border-left: 1px solid rgba(55, 134, 168, .18); }
+.exercise-summary-metrics > span:first-child { border-left: 0; }
+.exercise-summary-metrics small { color: #668696; font-size: 10px; font-weight: 650; }
+.exercise-summary-metrics strong { color: #153346; font-size: 19px; font-variant-numeric: tabular-nums; }
+.exercise-summary-metrics em { margin-left: 3px; color: #74909c; font-size: 9px; font-style: normal; }
+
+.exercise-device-status { min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; padding: 7px 9px; border-radius: 13px; background: rgba(226, 245, 251, .72); }
+.exercise-device-status > span { min-width: 0; display: flex; align-items: center; gap: 9px; color: #1a789b; }
+.exercise-device-status > span > i { min-width: 0; display: grid; gap: 2px; font-style: normal; }
+.exercise-device-status > span strong { overflow: hidden; color: #234d60; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.exercise-device-status > span small { color: #708b98; font-size: 9px; }
+.exercise-device-status > button { min-height: 31px; border: 0; border-radius: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 0 10px; color: #0e7197; background: #f5fcff; font-size: 10px; font-weight: 720; }
+
+.exercise-health-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 8px; }
+.exercise-health-links button { min-width: 0; min-height: 47px; border: 0; border-radius: 12px; display: grid; grid-template-columns: 20px minmax(0, 1fr); grid-template-rows: auto auto; align-content: center; gap: 1px 4px; padding: 6px 7px; color: #187da2; background: rgba(232, 247, 252, .78); text-align: left; }
+.exercise-health-links button > svg { grid-row: 1 / span 2; align-self: center; }
+.exercise-health-links button > span { overflow: hidden; color: #31586a; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.exercise-health-links button > small { overflow: hidden; color: #718c98; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+
+.exercise-trend-card,
+.sleep-trend-card,
+.face-trend-card { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+
+.exercise-trend-card .bar-line-trend-chart,
+.sleep-trend-card .bar-line-trend-chart,
+.face-trend-card .bar-line-trend-chart { width: 100%; height: 100%; min-height: 142px; margin-top: 0; }
+
+.sleep-dashboard { flex: 1 1 auto; }
+.sleep-dashboard .sleep-trend-card { flex: 1 1 190px; min-height: 190px; }
+.face-dashboard { flex: 1 1 auto; grid-template-rows: auto auto minmax(190px, 1fr); }
+.face-summary-card { min-height: 205px; }
+.face-summary-card > header > strong { font-size: 17px; }
+.face-score-row {
+  grid-template-columns: 142px minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 8px;
+}
+.face-score-ring { width: 138px; }
+.face-score-ring > svg { width: 34px; height: 34px; }
+.face-score-ring strong { font-size: 31px; }
+.face-score-row > div:last-child {
+  gap: 12px;
+  transform: translateX(6px);
+}
+.face-score-row > div:last-child span {
+  align-items: center;
+  gap: 12px;
+  color: #66889a;
+  font-size: 13px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.face-score-row > div:last-child strong {
+  display: inline-flex;
+  min-width: 38px;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  max-width: none;
+  overflow: visible;
+  color: #12364a;
+  font-size: 15px;
+  line-height: 1.25;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+.face-trend-card .bar-line-trend-chart { min-height: 172px; }
+.mood-dashboard { grid-template-rows: minmax(306px, 1.25fr) minmax(230px, 1fr); }
+.mood-trend-card .bar-line-trend-chart { min-height: 150px; }
+
+/* Let the exercise note absorb the remaining viewport height. This keeps the
+   editor one-screen on tall phones without leaving a large dead area. */
+.record-detail[data-record-detail="exercise"]:has(.record-editor-stack) {
+  height: 100%;
+  min-height: 0;
+}
+.record-detail[data-record-detail="exercise"] .record-editor-stack,
+.record-detail[data-record-detail="exercise"] .record-editor-stack > form:not([hidden]) {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+}
+.record-detail[data-record-detail="exercise"] .record-editor-stack > form:not([hidden]) > .section-card {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.record-detail[data-record-detail="exercise"] .exercise-note-field {
+  min-height: 94px;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.record-detail[data-record-detail="exercise"] .exercise-note-field textarea {
+  min-height: 72px;
+  height: auto;
+  flex: 1 1 auto;
+  resize: none;
+}
+.record-detail[data-record-detail="exercise"] .action-button { flex: 0 0 auto; }
+
+@media (max-height: 780px) {
+  .module-history-report-card { grid-template-rows: auto minmax(145px, 1fr) auto minmax(104px, .72fr) auto; gap: 7px; padding: 11px 13px; }
+  .report-history-trend-chart { min-height: 145px; }
+  .module-history-report-card .module-history-list p { min-height: 43px; padding-block: 5px; }
+  .diet-ai-report { min-height: 104px; padding-block: 8px; }
+  .module-history-report-card .diet-ai-report li { font-size: 10.5px; }
+  .exercise-dashboard { grid-template-rows: auto auto minmax(142px, 1fr); gap: 7px; }
+  .exercise-summary-card,
+  .exercise-health-card,
+  .exercise-trend-card { padding: 10px 12px; }
+  .exercise-device-status { min-height: 44px; margin-top: 5px; }
+  .exercise-health-links { margin-top: 5px; }
+  .exercise-health-links button { min-height: 39px; }
+  .exercise-trend-card .bar-line-trend-chart,
+  .sleep-trend-card .bar-line-trend-chart,
+  .face-trend-card .bar-line-trend-chart { min-height: 112px; }
+  .record-detail[data-record-detail="exercise"] .exercise-note-field { min-height: 70px; }
+  .record-detail[data-record-detail="exercise"] .exercise-note-field textarea { min-height: 54px; }
+  .sleep-dashboard .sleep-trend-card { flex-basis: 154px; min-height: 154px; }
+  .face-dashboard { grid-template-rows: auto auto minmax(154px, 1fr); gap: 7px; }
+  .mood-dashboard { grid-template-rows: minmax(288px, 1.25fr) minmax(190px, 1fr); gap: 7px; }
+}
+
+@media (max-width: 370px) {
+  .module-history-report-card .module-history-list p { padding-inline: 6px; }
+  .module-history-report-card .module-history-list p > strong { font-size: 9px; }
+  .exercise-summary-card,
+  .exercise-health-card,
+  .exercise-trend-card { padding-inline: 11px; }
+  .exercise-summary-metrics > span { padding-inline: 4px; }
+  .exercise-summary-metrics strong { font-size: 16px; }
+  .exercise-health-links button { padding-inline: 4px; }
+}

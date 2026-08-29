@@ -15,7 +15,7 @@ type StoredReport = {
   modelVersion: string;
 };
 
-const modelVersion = "deepseek-v4-flash";
+const modelVersion = "deepseek-v4-flash-15-18-v2";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return optionsResponse();
@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     if (!current) throw new Error(lang === "zh" ? "保存饮食记录后才能生成报告。" : "Save a diet record before generating a report.");
 
     if (!refresh) {
-      const stored = parseStoredReport(current.ai_feedback);
+      const stored = parseStoredReport(current.ai_feedback, lang);
       if (stored) return jsonResponse(stored);
     }
 
@@ -102,7 +102,7 @@ async function generateReport(input: {
   try {
     const zh = input.lang === "zh";
     const system = zh
-      ? "你是 NAVA 的饮食趋势报告编辑器。根据用户画像与最近七日真实记录，写四条客观、克制、可行动的饮食洞察。严格只输出 JSON：{\"bullets\":[\"...\",\"...\",\"...\",\"...\"]}。必须恰好四条；每条 10 至 18 个中文字符，单句、完整、不换行、不编号、不加项目符号。四条依次关注：能量趋势、营养结构、饮水节奏、下一步行动。语气适配年龄与职业，但不要提及画像标签。不得虚构未提供的数据，不作诊断，不使用省略号。"
+      ? "你是 NAVA 的饮食趋势报告编辑器。根据用户画像与最近七日真实记录，写四条客观、克制、可行动的饮食洞察。严格只输出 JSON：{\"bullets\":[\"...\",\"...\",\"...\",\"...\"]}。必须恰好四条；每条必须含 15 至 18 个汉字（标点不计入字数），输出前逐条自检字数；单句完整、不换行、不编号、不加项目符号。四条依次关注：能量趋势、营养结构、饮水节奏、下一步行动。语气适配年龄与职业，但不要提及画像标签。不得虚构未提供的数据，不作诊断，不使用省略号。"
       : "You edit NAVA diet trend reports. Use only the supplied profile and seven-day records. Return strict JSON only: {\"bullets\":[\"...\",\"...\",\"...\",\"...\"]}. Return exactly four complete, unnumbered, single-line bullets of 5-10 words, covering energy trend, nutrient balance, hydration rhythm, and one next action. Adapt tone to the profile without naming profile labels. Do not invent data, diagnose, or use ellipses.";
     const payload = JSON.stringify({ profile: input.profileContext, recentNutrition: input.nutritionContext });
     const response = await fetch("https://api.deepseek.com/chat/completions", {
@@ -139,15 +139,19 @@ async function generateReport(input: {
 function cleanBullet(value: unknown, lang: Language) {
   if (typeof value !== "string") return "";
   const cleaned = value.replace(/^\s*(?:[-•·]|\d+[.、)])\s*/u, "").replace(/\s+/g, " ").replace(/…|\.\.\./g, "").trim();
-  if (lang === "en") return cleaned.split(/\s+/).slice(0, 10).join(" ");
-  return Array.from(cleaned).slice(0, 22).join("");
+  if (lang === "en") {
+    const wordCount = cleaned.split(/\s+/).filter(Boolean).length;
+    return wordCount >= 5 && wordCount <= 10 ? cleaned : "";
+  }
+  const hanCount = cleaned.match(/\p{Script=Han}/gu)?.length ?? 0;
+  return hanCount >= 15 && hanCount <= 18 ? cleaned : "";
 }
 
-function parseStoredReport(value: unknown): StoredReport | null {
+function parseStoredReport(value: unknown, lang: Language): StoredReport | null {
   if (typeof value !== "string" || !value.trim()) return null;
   try {
     const parsed = JSON.parse(value) as Partial<StoredReport>;
-    const bullets = Array.isArray(parsed.bullets) ? parsed.bullets.filter((item): item is string => typeof item === "string" && item.trim().length > 0).slice(0, 4) : [];
+    const bullets = Array.isArray(parsed.bullets) ? parsed.bullets.map((item) => cleanBullet(item, lang)).filter(Boolean).slice(0, 4) : [];
     return bullets.length === 4
       ? { bullets, generatedAt: parsed.generatedAt ?? "", modelVersion: parsed.modelVersion ?? modelVersion }
       : null;
