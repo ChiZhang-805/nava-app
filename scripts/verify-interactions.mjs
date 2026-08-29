@@ -340,6 +340,10 @@ async function assertStaticLayout(page, label) {
     const navTop = nav?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY;
     const bottomNavOffenders = [...document.querySelectorAll('button, input, select, textarea, [role="button"]')]
       .filter((node) => !node.closest(".bottom-nav") && visible(node))
+      // Growth tasks intentionally live in the page scroller. A card peeking
+      // above the fixed navigation is normal while scrolling; the dedicated
+      // growth audit below verifies that every card can become fully visible.
+      .filter((node) => !node.closest("[data-growth-screen]"))
       .map((node) => ({ node, rect: node.getBoundingClientRect() }))
       .filter(({ rect }) => rect.top < navTop - 1 && rect.bottom > navTop + 1)
       .filter(({ node, rect }) => {
@@ -1060,10 +1064,10 @@ async function verifyNavigationAndMotion(page, results) {
     if (tab === "trends") {
       await expect(page.locator("[data-growth-screen]")).toBeVisible();
       await assertAnimation(page.locator(".growth-progress-track span"), "growth-progress-in", "growth progress bar");
-      await expect(page.locator("[data-growth-task]")).toHaveCount(8);
+      await expect(page.locator("[data-growth-task]")).toHaveCount(11);
       await expect(page.locator(".growth-task-group")).toHaveCount(2);
       await expect(page.locator(".growth-task-group").first().locator("[data-growth-task]")).toHaveCount(2);
-      await expect(page.locator(".growth-task-group").last().locator("[data-growth-task]")).toHaveCount(6);
+      await expect(page.locator(".growth-task-group").last().locator("[data-growth-task]")).toHaveCount(9);
     }
     const animationName = await page.locator(`[data-tab="${tab}"]`).evaluate((button) => {
       const glyph = button.querySelector("svg, .figma-nav-icon");
@@ -1075,30 +1079,33 @@ async function verifyNavigationAndMotion(page, results) {
     if (tab === "trends") await assertWholeGrowthTaskCards(page, "tab-trends");
     await page.screenshot({ path: path.join(outputDir, `tab-${tab}.png`) });
     if (tab === "trends") {
-      const taskList = page.locator(".growth-task-list");
-      await taskList.evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
+      const growthScroller = page.locator(".app-content--trends");
+      await growthScroller.evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
       await expect(page.locator("[data-growth-task]").last()).toBeVisible();
       await page.waitForTimeout(180);
       await assertWholeGrowthTaskCards(page, "tab-trends-lower");
       await assertStaticLayout(page, "tab-trends-lower");
       await page.waitForTimeout(250);
       await page.screenshot({ path: path.join(outputDir, "tab-trends-lower.png") });
-      await taskList.evaluate((node) => node.scrollTo({ top: 0 }));
+      await growthScroller.evaluate((node) => node.scrollTo({ top: 0 }));
     }
   }
 
   const growthTargetRoutes = [
-    ["profile-foundation", "profile", null],
-    ["profile-goal", "profile", null],
-    ["sleep-window", "record", "sleep"],
-    ["move-break", "record", "exercise"],
-    ["mood-checkin", "record", "mood"],
-    ["nutrition-log", "record", "diet"],
-    ["focus-block", "record", "focus"],
-    ["face-check", "record", "face"],
+    ["profile-foundation", "profile", null, null],
+    ["profile-goal", "profile", null, null],
+    ["daily-checkin", "today", null, null],
+    ["share-card", "record", "diet", "history"],
+    ["ai-conversation", "ai", null, null],
+    ["sleep-window", "record", "sleep", null],
+    ["move-break", "record", "exercise", null],
+    ["mood-checkin", "record", "mood", null],
+    ["nutrition-log", "record", "diet", null],
+    ["focus-block", "record", "focus", null],
+    ["face-check", "record", "face", null],
   ];
   await page.locator('[data-tab="trends"]').click();
-  for (const [taskId, targetTab, targetModule] of growthTargetRoutes) {
+  for (const [taskId, targetTab, targetModule, targetView] of growthTargetRoutes) {
     const task = page.locator(`[data-growth-task="${taskId}"]`);
     await expect(task).toHaveJSProperty("tagName", "BUTTON");
     const completed = await task.getAttribute("data-completed") === "true";
@@ -1111,8 +1118,12 @@ async function verifyNavigationAndMotion(page, results) {
     await task.scrollIntoViewIfNeeded();
     await task.click();
     await expect(page.locator(`[data-tab="${targetTab}"]`)).toHaveAttribute("aria-current", "page");
-    if (targetModule) await expect(page.locator(`[data-record-detail="${targetModule}"]`)).toBeVisible();
-    else await expect(page.locator(".profile-stack")).toBeVisible();
+    if (targetModule) {
+      await expect(page.locator(`[data-record-detail="${targetModule}"]`)).toBeVisible();
+      if (targetView === "history") await expect(page.locator(".module-history-report-card")).toBeVisible();
+    } else if (targetTab === "profile") await expect(page.locator(".profile-stack")).toBeVisible();
+    else if (targetTab === "ai") await expect(page.locator(".chat-layout")).toBeVisible();
+    else if (targetTab === "today") await expect(page.locator(".option-two-home")).toBeVisible();
     await page.goBack();
     await expect(page.locator("[data-growth-screen]")).toBeVisible();
     await expect(page.locator('[data-tab="trends"]')).toHaveAttribute("aria-current", "page");
@@ -1173,7 +1184,7 @@ async function verifyNavigationAndMotion(page, results) {
   if (utilityAlpha < 0.96) throw new Error(`Utility menu background is too transparent: ${utilityBackground}`);
   await page.locator(".figma-header-action").last().click();
   await expect(utilityPopover).toBeHidden();
-  results.push("五项底部导航、八个成长任务入口、六个周报模块入口、浏览器返回、趋势折线、图标动效与页头工具菜单");
+  results.push("五项底部导航、十一个成长任务入口、六个周报模块入口、浏览器返回、趋势折线、图标动效与页头工具菜单");
 }
 
 async function main() {

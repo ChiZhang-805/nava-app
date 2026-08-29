@@ -44,6 +44,7 @@ import { buildModuleFeedback } from "../services/personalizedFeedback";
 import { enableNavaNotifications } from "../services/notifications";
 import { loadDietAiReport, parseDietAiReport, type DietAiReport } from "../services/dietReport";
 import { shareReportImage } from "../services/reportShareCard";
+import type { GrowthActivityKind } from "../services/productivity";
 import { isCompleteMoodRecord, moodBandForScore, moodBands, moodDateWindow } from "../services/mood";
 import {
   activityHeatmap,
@@ -92,6 +93,7 @@ type Props = {
   profile: UserProfile | null;
   initialView?: string | null;
   onViewChange?: (view: string | null, replace?: boolean) => void;
+  onGrowthActivity?: (activity: GrowthActivityKind) => void | Promise<unknown>;
 };
 
 type OpenModuleView = (view: string, returnToPrevious?: boolean) => void;
@@ -306,7 +308,17 @@ function buildReportInsights(
   ];
 }
 
-function HistoryView({ module, locale, trendBundle }: { module: RecordModule; locale: "zh" | "en"; trendBundle: TrendBundle | null }) {
+function HistoryView({
+  module,
+  locale,
+  trendBundle,
+  onGrowthActivity,
+}: {
+  module: RecordModule;
+  locale: "zh" | "en";
+  trendBundle: TrendBundle | null;
+  onGrowthActivity?: (activity: GrowthActivityKind) => void | Promise<unknown>;
+}) {
   const moduleNames: Record<RecordModule, { zh: string; en: string }> = {
     mood: { zh: "情绪", en: "Mood" },
     sleep: { zh: "睡眠", en: "Sleep" },
@@ -379,6 +391,7 @@ function HistoryView({ module, locale, trendBundle }: { module: RecordModule; lo
         locale,
         valueFormatter: (value) => historyValueText(module, value, locale),
       });
+      await onGrowthActivity?.("share");
       setShareComplete(true);
       window.setTimeout(() => setShareComplete(false), 2400);
     } catch (error) {
@@ -1120,7 +1133,7 @@ export default function RecordModuleDashboard(props: Props) {
     setView(next);
     props.onViewChange?.(next === "overview" ? null : next, returnToPrevious);
   };
-  if (view === "history") return <HistoryView module={props.module} locale={locale} trendBundle={props.trendBundle} />;
+  if (view === "history") return <HistoryView module={props.module} locale={locale} trendBundle={props.trendBundle} onGrowthActivity={props.onGrowthActivity} />;
   const common = { ...props, locale };
   if (props.module === "exercise") return <ExerciseDashboard locale={locale} steps={props.steps} calories={props.calories} exerciseMinutes={props.exerciseMinutes} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
   if (props.module === "mood") return <MoodDashboard {...common} view={view} openView={openView} />;

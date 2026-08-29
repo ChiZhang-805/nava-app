@@ -6,6 +6,9 @@ test("daily reward labels match the completed record or task", () => {
   assert.equal(rewardLabel("2026-08-28:sleep", "zh"), "睡眠记录完成");
   assert.equal(rewardLabel("2026-08-28:task", "en"), "Daily task completed");
   assert.equal(rewardLabel("profile:goal", "zh"), "节律目标已设定");
+  assert.equal(rewardLabel("2026-08-29:checkin", "zh"), "今日登录打卡完成");
+  assert.equal(rewardLabel("2026-08-29:share", "en"), "Report card shared");
+  assert.equal(rewardLabel("2026-08-29:ai", "zh"), "AI 对话任务完成");
 });
 
 test("one completion can combine a base reward and its bonus", () => {

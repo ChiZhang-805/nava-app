@@ -7822,3 +7822,104 @@ body::before {
   .exercise-summary-metrics strong { font-size: 16px; }
   .exercise-health-links button { padding-inline: 4px; }
 }
+
+/* Very short phones should scroll the complete report instead of shrinking its
+   chart and insight rows until they are no longer useful. */
+@media (max-height: 700px) {
+  .record-detail:has(.module-history-report-card),
+  .record-detail:has(.module-history-report-card) .module-subview {
+    height: auto;
+    min-height: 700px;
+  }
+
+  .module-history-report-card {
+    min-height: 680px;
+    grid-template-rows: auto 230px auto 146px auto;
+    gap: 8px;
+    overflow: visible;
+  }
+
+  .report-history-trend-chart {
+    height: 230px;
+    min-height: 230px;
+  }
+
+  .diet-ai-report { min-height: 146px; }
+}
+
+/* Keep the complete home mascot in frame on narrow phones. Its artwork is
+   scaled uniformly; the pose and animation frames are never stretched. */
+@media (max-width: 359px) {
+  .option-two-life-stage {
+    left: calc(50% + 82px);
+    width: min(112vw, 390px);
+    height: min(57dvh, 520px);
+  }
+}
+
+/* Growth tasks intentionally use the page scroller. The list can keep growing
+   without compressing cards into a fixed-height inner viewport. */
+.phone-frame:not(.phone-frame--option2) .app-content.app-content--trends {
+  overflow-y: auto;
+  padding-bottom: 24px;
+}
+.app-content--trends .screen-panel {
+  height: auto;
+  min-height: 100%;
+}
+.growth-screen {
+  height: auto;
+  min-height: 100%;
+  grid-template-rows: auto auto auto;
+  align-content: start;
+  padding-bottom: 18px;
+}
+.growth-task-list {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  scroll-snap-type: none;
+  overscroll-behavior: auto;
+}
+@media (max-height: 780px) {
+  .growth-task-list { height: auto; max-height: none; overflow: visible; }
+}
+.growth-task-card {
+  min-height: 64px;
+  scroll-snap-align: none;
+  animation: growth-task-enter 460ms cubic-bezier(.2, .82, .24, 1) both;
+}
+.growth-task-group:nth-child(1) .growth-task-card:nth-of-type(2) { animation-delay: 45ms; }
+.growth-task-group:nth-child(2) .growth-task-card:nth-of-type(2) { animation-delay: 70ms; }
+.growth-task-group:nth-child(2) .growth-task-card:nth-of-type(3) { animation-delay: 105ms; }
+.growth-task-group:nth-child(2) .growth-task-card:nth-of-type(4) { animation-delay: 140ms; }
+.growth-task-group:nth-child(2) .growth-task-card:nth-of-type(n + 5) { animation-delay: 175ms; }
+.growth-earned-toast {
+  position: fixed;
+  right: max(16px, calc((100vw - 480px) / 2 + 16px));
+  bottom: calc(100px + env(safe-area-inset-bottom));
+  left: max(16px, calc((100vw - 480px) / 2 + 16px));
+}
+
+@keyframes growth-task-enter {
+  from { opacity: 0; transform: translateY(12px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 359px) {
+  .figma-app-header { grid-template-columns: 40px minmax(0, 1fr) 40px; padding-inline: 12px; }
+  .phone-frame:not(.phone-frame--option2) .app-content { padding-inline: 12px; }
+  .phone-frame:not(.phone-frame--option2) .bottom-nav { gap: 4px; padding-inline: 12px; }
+  .phone-frame:not(.phone-frame--option2) .nav-button { width: 40px; height: 40px; min-width: 40px; }
+  .phone-frame:not(.phone-frame--option2) .ai-nav-button { width: 66px; height: 66px; min-width: 66px; border-width: 4px; }
+  .phone-frame:not(.phone-frame--option2) .ai-nav-orb { width: 56px; height: 56px; }
+  .phone-frame:not(.phone-frame--option2) .ai-nav-orb img { width: 76px; height: 76px; }
+  .growth-summary-card { grid-template-columns: 54px minmax(0, 1fr) 24px; gap: 9px; padding-inline: 12px; }
+  .growth-level-orb { width: 54px; height: 54px; }
+  .growth-task-card { grid-template-columns: 30px minmax(0, 1fr) auto; gap: 7px; padding-inline: 10px; }
+  .growth-task-check { width: 28px; height: 28px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .growth-task-card { animation: none !important; }
+}

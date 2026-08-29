@@ -21,6 +21,7 @@ import { todayISO } from "../services/date";
 import { analyzeDietPhoto, analyzeFacePhoto, resolveDietPhotoUrl } from "../services/media";
 import { currentSevenDayPeriod, loadDnbWeeklyReport, refreshFdnbHealth, shareDnbWeeklyPoster, type DnbWeeklyReport } from "../services/dnb";
 import { trackAnalyticsEvent } from "../services/analytics";
+import type { GrowthActivityKind } from "../services/productivity";
 import { clearRecordDraft, loadRecordDraft, saveRecordDraft, type RecordDraftModule } from "../services/drafts";
 import { loadProfile, type UserProfile } from "../services/profile";
 import { loadDietAiReport } from "../services/dietReport";
@@ -90,6 +91,7 @@ const recordModules: Array<{
 export default function RecordsScreen({
   user,
   onSaved,
+  onGrowthActivity,
   initialModule = null,
   initialView = null,
   onModuleChange,
@@ -97,6 +99,7 @@ export default function RecordsScreen({
 }: {
   user: User;
   onSaved: () => void;
+  onGrowthActivity?: (activity: GrowthActivityKind) => void | Promise<unknown>;
   initialModule?: RecordModule | null;
   initialView?: string | null;
   onModuleChange?: (module: RecordModule | null) => void;
@@ -748,7 +751,7 @@ export default function RecordsScreen({
               <button type="button" onClick={() => setWeekOffset((value) => value + 1)} aria-label={locale === "zh" ? "上一周" : "Previous week"}><ChevronLeft size={18} /></button>
               <strong>{dnbPeriod.startDate} — {dnbPeriod.endDate}</strong>
               <button type="button" disabled={weekOffset === 0} onClick={() => setWeekOffset((value) => Math.max(0, value - 1))} aria-label={locale === "zh" ? "下一周" : "Next week"}><ChevronRight size={18} /></button>
-              <button type="button" className="weekly-share-button" disabled={!dnbReport || dnbReport.status !== "ready"} onClick={() => { if (dnbReport) void shareDnbWeeklyPoster(dnbReport, locale, `${dnbPeriod.startDate}-${dnbPeriod.endDate}`).then(() => trackAnalyticsEvent(user.id, "weekly_report_shared", { weekOffset })).catch((shareError) => setError(shareError instanceof Error ? shareError.message : String(shareError))); }}><Share2 size={16} />{locale === "zh" ? "保存海报" : "Poster"}</button>
+              <button type="button" className="weekly-share-button" disabled={!dnbReport || dnbReport.status !== "ready"} onClick={() => { if (dnbReport) void shareDnbWeeklyPoster(dnbReport, locale, `${dnbPeriod.startDate}-${dnbPeriod.endDate}`).then(async () => { await trackAnalyticsEvent(user.id, "weekly_report_shared", { weekOffset }); await onGrowthActivity?.("share"); }).catch((shareError) => setError(shareError instanceof Error ? shareError.message : String(shareError))); }}><Share2 size={16} />{locale === "zh" ? "保存海报" : "Poster"}</button>
             </div>
             <section className="weekly-score-card">
               <div><span>{locale === "zh" ? "基础节律" : "Baseline rhythm"}</span><strong>{todaySnapshot?.rhythmScore == null ? "--" : <AnimatedNumber value={todaySnapshot.rhythmScore} />}</strong></div>
@@ -900,6 +903,7 @@ export default function RecordsScreen({
           todaySnapshot={todaySnapshot}
           trendBundle={trendBundle}
           profile={profile}
+          onGrowthActivity={onGrowthActivity}
           initialView={initialView === "editor" ? null : initialView}
           onViewChange={onViewChange}
         />

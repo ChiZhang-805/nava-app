@@ -28,7 +28,7 @@ import { LocaleProvider, useLocale, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
 import { loadOnboardingStatus } from "./services/onboarding";
-import { reconcileGrowthRewards, resolveGrowthTasks, type GrowthRewardGrant, type GrowthSummary } from "./services/productivity";
+import { recordGrowthActivity, reconcileGrowthRewards, resolveGrowthTasks, type GrowthActivityKind, type GrowthRewardGrant, type GrowthSummary } from "./services/productivity";
 import { isAiSpeechSupported } from "./services/aiSpeech";
 import {
   fallbackShellRoute,
@@ -136,6 +136,7 @@ function MobileShell() {
   const voiceCancelArmedRef = useRef(false);
   const aiGestureCleanupRef = useRef<(() => void) | null>(null);
   const rewardClaimTailRef = useRef<Promise<GrowthSummary | null>>(Promise.resolve(null));
+  const checkinUserRef = useRef<string | null>(null);
   const currentTab = tabs.find((tab) => tab.id === activeTab);
   const aiSpeechSupported = isAiSpeechSupported();
   const recordTitles: Record<RecordModule, { zh: string; en: string }> = {
@@ -180,7 +181,27 @@ function MobileShell() {
     return claimGrowthAfterChange();
   }, [claimGrowthAfterChange]);
 
+  const completeGrowthActivity = useCallback(async (activity: GrowthActivityKind) => {
+    if (!user) return null;
+    try {
+      const reward = await recordGrowthActivity(user.id, activity);
+      if (reward) setRewardQueue((queue) => [...queue, [reward]]);
+      setRefreshKey((value) => value + 1);
+      await claimGrowthAfterChange();
+      return reward;
+    } catch (rewardError) {
+      console.warn("Growth activity could not be recorded", rewardError);
+      return null;
+    }
+  }, [claimGrowthAfterChange, user]);
+
   const dismissReward = useCallback(() => setRewardQueue((queue) => queue.slice(1)), []);
+
+  useEffect(() => {
+    if (!user || checkinUserRef.current === user.id) return;
+    checkinUserRef.current = user.id;
+    void completeGrowthActivity("checkin");
+  }, [completeGrowthActivity, user]);
 
   const navigate = (tab: AppTab, module: RecordModule | null = null, view: string | null = null, replace = false) => {
     const next = normalizeShellRoute(tab, module, view);
@@ -488,6 +509,7 @@ function MobileShell() {
             <RecordsScreen
               user={user}
               onSaved={markChanged}
+              onGrowthActivity={completeGrowthActivity}
               initialModule={recordModule}
               initialView={recordView}
               onModuleChange={(module) => navigate("record", module)}
@@ -516,6 +538,7 @@ function MobileShell() {
               speechEnabled={aiSpeechEnabled}
               active={activeTab === "ai"}
               onDataSaved={markChanged}
+              onConversationCompleted={() => void completeGrowthActivity("ai")}
             />
           </div>
           {activeTab === "trends" && (
@@ -524,6 +547,18 @@ function MobileShell() {
               onOpenTarget={(target) => {
                 if (target === "profile") {
                   navigate("profile");
+                  return;
+                }
+                if (target === "today") {
+                  navigate("today");
+                  return;
+                }
+                if (target === "ai") {
+                  navigate("ai");
+                  return;
+                }
+                if (target === "share") {
+                  navigate("record", "diet", "history");
                   return;
                 }
                 navigate("record", target === "nutrition" ? "diet" : target);

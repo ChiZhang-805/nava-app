@@ -109,6 +109,7 @@ export default function AIScreen({
   speechEnabled = true,
   active = true,
   onDataSaved,
+  onConversationCompleted,
 }: {
   user: User;
   voiceRequestId?: number;
@@ -120,6 +121,7 @@ export default function AIScreen({
   speechEnabled?: boolean;
   active?: boolean;
   onDataSaved?: () => void;
+  onConversationCompleted?: () => void;
 }) {
   const { locale, t } = useLocale();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -238,6 +240,7 @@ export default function AIScreen({
       });
       speechRef.current?.finish(result.assistantMessage.content);
       setMessages((current) => [...current, result.assistantMessage]);
+      onConversationCompleted?.();
       setStreamingPreview(null);
       setPendingEntry(parseStructuredEntry(message, locale));
       setEditingEntry(false);
@@ -323,6 +326,7 @@ export default function AIScreen({
       });
       speechRef.current?.finish(response.assistantMessage.content);
       setMessages((current) => [...current, response.assistantMessage]);
+      onConversationCompleted?.();
       setPendingEntry(candidate);
       setStreamingPreview(null);
     } catch (photoError) {
@@ -587,6 +591,7 @@ export default function AIScreen({
       });
       speaker.finish(result.assistantMessage.content);
       setMessages((current) => [...current, result.assistantMessage]);
+      onConversationCompleted?.();
       setPendingEntry(parseStructuredEntry(message, locale));
       setEditingEntry(false);
       await speaker.whenDone();
@@ -607,7 +612,7 @@ export default function AIScreen({
       if (voiceCallSpeakerRef.current === speaker) voiceCallSpeakerRef.current = null;
       setSending(false);
     }
-  }, [locale, messages, profile, user.id]);
+  }, [locale, messages, onConversationCompleted, profile, user.id]);
   submitVoiceCallTurnRef.current = (message) => void submitVoiceCallTurn(message);
 
   const finalizeVoiceCallInput = useCallback(async () => {

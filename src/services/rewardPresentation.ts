@@ -13,6 +13,9 @@ export function rewardLabel(eventKey: string, locale: "zh" | "en") {
     face: ["面部记录完成", "Face check completed"],
     "bare-face-bonus": ["素颜记录加成", "Bare-face bonus"],
     task: ["今日任务完成", "Daily task completed"],
+    checkin: ["今日登录打卡完成", "Daily check-in completed"],
+    share: ["报告卡片分享完成", "Report card shared"],
+    ai: ["AI 对话任务完成", "AI chat completed"],
   };
   const pair = labels[key] ?? ["今日进度已记录", "Today's progress logged"];
   return pair[locale === "zh" ? 0 : 1];

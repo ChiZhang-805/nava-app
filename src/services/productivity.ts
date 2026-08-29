@@ -17,8 +17,10 @@ export type GrowthTask = {
   xp: number;
   completed: boolean;
   category: "profile" | "daily";
-  target: "profile" | "sleep" | "exercise" | "mood" | "nutrition" | "focus" | "face";
+  target: "profile" | "sleep" | "exercise" | "mood" | "nutrition" | "focus" | "face" | "today" | "share" | "ai";
 };
+
+export type GrowthActivityKind = "checkin" | "share" | "ai";
 
 import type { TodaySnapshot } from "../types";
 import { loadProfile, type UserProfile } from "./profile";
@@ -29,6 +31,12 @@ import { supabase } from "./supabaseClient";
 import type { GrowthProgressVisit } from "./growthProgressPresentation";
 
 const productivityEvent = "nava-productivity-change";
+
+const growthActivityPoints: Record<GrowthActivityKind, number> = {
+  checkin: 10,
+  share: 15,
+  ai: 15,
+};
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -181,6 +189,36 @@ const defaultGrowthTasks: Omit<GrowthTask, "completed">[] = [
     target: "profile",
   },
   {
+    id: "daily-checkin",
+    titleZh: "完成今日打卡",
+    titleEn: "Daily check-in",
+    detailZh: "今日登录 NAVA 即可自动完成",
+    detailEn: "Open NAVA today to complete this automatically",
+    xp: growthActivityPoints.checkin,
+    category: "daily",
+    target: "today",
+  },
+  {
+    id: "share-card",
+    titleZh: "分享一次报告卡片",
+    titleEn: "Share a report card",
+    detailZh: "生成并分享任意一张状态报告卡片",
+    detailEn: "Create and share any status report card",
+    xp: growthActivityPoints.share,
+    category: "daily",
+    target: "share",
+  },
+  {
+    id: "ai-conversation",
+    titleZh: "完成一次 AI 对话",
+    titleEn: "Complete an AI chat",
+    detailZh: "向 NAVA 发送消息并收到一次回复",
+    detailEn: "Send NAVA a message and receive a reply",
+    xp: growthActivityPoints.ai,
+    category: "daily",
+    target: "ai",
+  },
+  {
     id: "sleep-window",
     titleZh: "记录昨夜睡眠",
     titleEn: "Log last night's sleep",
@@ -244,18 +282,68 @@ const defaultGrowthTasks: Omit<GrowthTask, "completed">[] = [
 
 type GrowthCache = { date: string; tasks: GrowthTask[] };
 
+function growthActivityStorageKey(userId: string) {
+  return `nava-growth-activities:${userId}:${todayISO()}:v1`;
+}
+
+function loadLocalGrowthActivities(userId: string) {
+  return new Set(readJson<GrowthActivityKind[]>(growthActivityStorageKey(userId), []));
+}
+
+function writeLocalGrowthActivities(userId: string, activities: Set<GrowthActivityKind>) {
+  window.localStorage.setItem(growthActivityStorageKey(userId), JSON.stringify([...activities]));
+  emitChange();
+}
+
+async function loadGrowthActivities(userId: string) {
+  const activities = loadLocalGrowthActivities(userId);
+  if (isDemoMode()) return activities;
+  const date = todayISO();
+  const eventKeys: Record<GrowthActivityKind, string> = {
+    checkin: `${date}:checkin`,
+    share: `${date}:share`,
+    ai: `${date}:ai`,
+  };
+  const { data, error } = await supabase
+    .from("growth_reward_ledger")
+    .select("event_key")
+    .eq("user_id", userId)
+    .in("event_key", Object.values(eventKeys));
+  if (error) {
+    if (/growth_reward_ledger|schema cache|does not exist/i.test(error.message)) return activities;
+    throw error;
+  }
+  const completedKeys = new Set((data ?? []).map((row) => String(row.event_key ?? "")));
+  (Object.entries(eventKeys) as Array<[GrowthActivityKind, string]>).forEach(([activity, eventKey]) => {
+    if (completedKeys.has(eventKey)) activities.add(activity);
+  });
+  writeLocalGrowthActivities(userId, activities);
+  return activities;
+}
+
 export function loadGrowthTasks(userId: string): GrowthTask[] {
   const cache = readJson<GrowthCache | null>(`nava-growth-state:${userId}`, null);
   if (cache?.date === todayISO() && Array.isArray(cache.tasks)) return cache.tasks;
   return defaultGrowthTasks.map((task) => ({ ...task, completed: false }));
 }
 
-function taskCompleted(task: Omit<GrowthTask, "completed">, profile: UserProfile | null, snapshot: TodaySnapshot) {
+function taskCompleted(
+  task: Omit<GrowthTask, "completed">,
+  profile: UserProfile | null,
+  snapshot: TodaySnapshot,
+  activities: Set<GrowthActivityKind>,
+) {
   switch (task.id) {
     case "profile-foundation":
       return Boolean(profile?.username?.trim() && profile?.occupation?.trim() && profile?.age_group?.trim());
     case "profile-goal":
       return Boolean(profile?.goal?.trim());
+    case "daily-checkin":
+      return activities.has("checkin");
+    case "share-card":
+      return activities.has("share");
+    case "ai-conversation":
+      return activities.has("ai");
     case "sleep-window":
       return Boolean(snapshot.sleep);
     case "move-break":
@@ -279,11 +367,39 @@ function taskCompleted(task: Omit<GrowthTask, "completed">, profile: UserProfile
 }
 
 export async function resolveGrowthTasks(userId: string): Promise<GrowthTask[]> {
-  const [profile, snapshot] = await Promise.all([loadProfile(userId), getTodaySnapshot(userId)]);
-  const tasks = defaultGrowthTasks.map((task) => ({ ...task, completed: taskCompleted(task, profile, snapshot) }));
+  const [profile, snapshot, activities] = await Promise.all([loadProfile(userId), getTodaySnapshot(userId), loadGrowthActivities(userId)]);
+  const tasks = defaultGrowthTasks.map((task) => ({ ...task, completed: taskCompleted(task, profile, snapshot, activities) }));
   window.localStorage.setItem(`nava-growth-state:${userId}`, JSON.stringify({ date: todayISO(), tasks } satisfies GrowthCache));
   emitChange();
   return tasks;
+}
+
+export async function recordGrowthActivity(userId: string, activity: GrowthActivityKind): Promise<GrowthRewardGrant | null> {
+  const localActivities = loadLocalGrowthActivities(userId);
+  if (isDemoMode()) {
+    if (localActivities.has(activity)) return null;
+    localActivities.add(activity);
+    writeLocalGrowthActivities(userId, localActivities);
+    return null;
+  }
+
+  const { data, error } = await supabase.rpc("nava_record_growth_activity", { activity_kind: activity });
+  if (error) {
+    if (/nava_record_growth_activity|schema cache|does not exist/i.test(error.message)) {
+      console.warn("Growth activity reward is not available yet", error.message);
+      return null;
+    }
+    throw error;
+  }
+  localActivities.add(activity);
+  writeLocalGrowthActivities(userId, localActivities);
+  const result = data && typeof data === "object" ? data as Record<string, unknown> : {};
+  const awarded = Array.isArray(result.awarded) ? result.awarded : [];
+  const reward = awarded.find((item) => item && typeof item === "object") as Record<string, unknown> | undefined;
+  const eventKey = typeof reward?.eventKey === "string" ? reward.eventKey : "";
+  const points = Number(reward?.points);
+  if (!eventKey || !Number.isFinite(points) || points <= 0) return null;
+  return { eventKey, points: Math.round(points), source: typeof reward?.source === "string" ? reward.source : "verified_engagement" };
 }
 
 export function growthXp(tasks: GrowthTask[]) {
@@ -432,7 +548,14 @@ function reconcileDemoGrowthRewards(tasks: GrowthTask[]): GrowthSummary {
   const storageKey = "nava-demo-growth-reward-ledger:v1";
   const claimed = new Set(readJson<string[]>(storageKey, []));
   const awarded = tasks.filter((task) => task.completed).flatMap<GrowthRewardGrant>((task) => {
-    const eventKey = task.category === "profile" ? `profile:${task.id}` : `${todayISO()}:${task.target}`;
+    const eventSuffix = task.id === "daily-checkin"
+      ? "checkin"
+      : task.id === "share-card"
+        ? "share"
+        : task.id === "ai-conversation"
+          ? "ai"
+          : task.target;
+    const eventKey = task.category === "profile" ? `profile:${task.id}` : `${todayISO()}:${eventSuffix}`;
     if (claimed.has(eventKey)) return [];
     claimed.add(eventKey);
     return [{ eventKey, points: task.xp, source: task.category === "profile" ? "verified_profile" : "verified_record" }];
