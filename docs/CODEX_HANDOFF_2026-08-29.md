@@ -3,7 +3,7 @@
 > 最终核验：2026-08-29，Asia/Shanghai  
 > NAVA 唯一顶级根：`Q:\NAVA-Workspace`  
 > 主源码仓：`Q:\NAVA-Workspace\nava-app`  
-> 静态预览发布仓：`Q:\NAVA-Workspace\nava-app-figma-preview`  
+> 静态预览发布仓：`Q:\NAVA-Workspace\nava-app-preview`
 > 当前任务到此停止：只完成交接，不继续实现或发布，不移动或删除项目数据。
 
 ## 1. 当前目标和范围
@@ -43,7 +43,7 @@ Q 盘治理已由专门任务完成，不得重做：
 - Q 根目录只读审计结果为 `retired=0`、`unknown=0`。
 - DroneDream、NAVA、Codex 三个所有权域必须长期隔离。
 - `Q:\NAVA-Workspace` 是 NAVA 唯一顶级根；不要创建或建议 `Q:\Projects`。
-- `nava-app`、`nava-app-figma-preview` 和旧 `.review-venv` 路径保持不动。
+- `nava-app`、`nava-app-preview` 和旧 `.review-venv` 路径保持不动。
 - 三个 Sites 包已归档到 `Q:\NAVA-Workspace\Build\Sites\Packages`，移动前后 SHA-256 一致且各有 16 个条目。
 - 整理收据：`Q:\NAVA-Workspace\Documents\q-drive-reorganization-20260829.md`。
 - Codex sessions 去重已完成；不要再次扫描、合并、重命名或删除 session 数据。
@@ -88,17 +88,17 @@ Sites 当前实际状态：
 - `scripts/verify-shared-supabase.mjs`：不再依赖 `process.cwd()` 或旧 Z 盘，默认定位工作区 preview 仓，并支持 `NAVA_WEB_REPO` 覆盖。
 - 本交接文件当前是未跟踪文件。
 
-### 静态预览发布仓 `Q:\NAVA-Workspace\nava-app-figma-preview`
+### 静态预览发布仓 `Q:\NAVA-Workspace\nava-app-preview`
 
 - 分支：`main`
 - HEAD：`313c9e456297c5ba2e5eef648f1b6340401c0000`
 - 上游 HEAD：`acdd69d0e6a686aa1eb3e196c59c7fecdbbfae22`
 - 关系：`ahead 1, behind 0`
-- 远端：`https://github.com/ChiZhang-805/nava-app-figma-preview.git`
+- 远端：`https://github.com/ChiZhang-805/nava-app-preview.git`
 - 工作区干净。
 - 尚未推送：`313c9e4 deploy: prepare diet and contextual navigation updates`。
 
-`nava-app` 是唯一源码事实来源；`nava-app-figma-preview` 只保存 `npm run build:pages` 生成的静态发布产物。两者不是 worktree、submodule 或链接，也没有本地绝对路径绑定。允许的方向只有“主源码仓构建 -> 受控同步编译产物 -> preview 发布仓”，禁止从 preview 反向合并编译 JS/CSS 到主仓。
+`nava-app` 是唯一源码事实来源；`nava-app-preview` 只保存 `npm run build:pages` 生成的静态发布产物。两者不是 worktree、submodule 或链接，也没有本地绝对路径绑定。允许的方向只有“主源码仓构建 -> 受控同步编译产物 -> preview 发布仓”，禁止从 preview 反向合并编译 JS/CSS 到主仓。
 
 ## 4. 重要文件及用途
 
@@ -199,7 +199,7 @@ Sites 当前实际状态：
    git status --short --branch
    git log -12 --oneline --decorate
    git diff -- docs/local-workspace.md package.json scripts/benchmark-fixed-dataset.ts scripts/compare-fixed-benchmarks.ts scripts/verify-shared-supabase.mjs
-   git -C Q:\NAVA-Workspace\nava-app-figma-preview status --short --branch
+   git -C Q:\NAVA-Workspace\nava-app-preview status --short --branch
    & 'Q:\CodexData\Governance\Audit-QDrive.ps1' -FailOnUnknown
    ```
 
@@ -234,7 +234,7 @@ Sites 当前实际状态：
 17. DroneDream、NAVA、Codex 所有权域严格隔离，不能跨域放源码、缓存、构建或 session。
 18. 不重做已经完成的目录迁移、包归档、Q 根清理或 Codex sessions 去重。
 19. 全局规则只在 `Q:\Codex\Live\AGENTS.md`，不得重建旧 `Q:\AGENTS.md`。
-20. `nava-app` 是源码，`nava-app-figma-preview` 是编译发布仓，禁止反向同步。
+20. `nava-app` 是源码，`nava-app-preview` 是编译发布仓，禁止反向同步。
 
 ## 9. 归档旧对话、删除旧项目入口和创建新 NAVA 项目/新对话
 
@@ -254,7 +254,7 @@ Git 仓库：否
 3. 在 Codex UI 移除旧 Saved Project“`NAVA`”时，只删除应用入口，绝不能删除本地目录/仓库。
 4. 不要重复 Codex sessions 去重。
 5. 新增本地项目时准确选择：`Q:\NAVA-Workspace\nava-app`。
-6. 不要选择 `Q:\NAVA-Workspace`、`nava-app-figma-preview` 或 `Q:\`。
+6. 不要选择 `Q:\NAVA-Workspace`、`nava-app-preview` 或 `Q:\`。
 7. 新项目必须识别为 Git 仓库，远端应为 `ChiZhang-805/nava-app`。
 8. 因当前有未提交治理修改，第一个新任务应使用现有本地 checkout/working tree，不要使用不包含这些修改的新 worktree。
 9. 新对话首条提示建议：
@@ -269,6 +269,6 @@ Git 仓库：否
    ```
 
 10. 新任务应先确认：cwd 正确、主仓 HEAD/ahead 状态、全部未提交内容被保留、preview 仍独立且 ahead 1、Q 审计仍为 retired=0/unknown=0。
-11. `nava-app-figma-preview` 可仅在静态发布时单独打开，但绝不能作为 NAVA 主开发项目。
+11. `nava-app-preview` 可仅在静态发布时单独打开，但绝不能作为 NAVA 主开发项目。
 
 完成以上交接后，本旧对话可以归档；后续 NAVA 工作从指向 `Q:\NAVA-Workspace\nava-app` 的新项目/新对话恢复。

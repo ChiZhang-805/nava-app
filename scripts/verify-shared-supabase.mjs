@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workspaceRoot = path.resolve(appRoot, "..");
-const webRoot = process.env.NAVA_WEB_REPO || path.join(workspaceRoot, "nava-app-figma-preview");
+const webRoot = process.env.NAVA_WEB_REPO || path.join(workspaceRoot, "nava-app-preview");
 const outputPath = path.join(appRoot, "artifacts", "backend-review", "shared-supabase.json");
 const targetPath = path.join(appRoot, "config", "backend-target.json");
 const cliProjectRefPath = path.join(appRoot, "supabase", ".temp", "project-ref");

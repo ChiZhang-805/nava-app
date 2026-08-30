@@ -6,7 +6,7 @@
 ```text
 Q:\NAVA-Workspace
 ├─ nava-app
-├─ nava-app-figma-preview
+├─ nava-app-preview
 ├─ Build
 │  ├─ Sites\Packages
 │  ├─ TestRuns
@@ -24,7 +24,7 @@ Q:\NAVA-Workspace
 ## Paths
 
 - `Q:\NAVA-Workspace\nava-app`: APP 主工程，也是日常开发唯一入口。
-- `Q:\NAVA-Workspace\nava-app-figma-preview`: 独立的静态预览发布仓库，
+- `Q:\NAVA-Workspace\nava-app-preview`: 独立的静态预览发布仓库，
   不是 `nava-app` 的 worktree 或 submodule。
 - `Q:\NAVA-Workspace\Data`: 固定算法数据集和 benchmark 输出；大文件不提交 Git。
 - `Q:\NAVA-Workspace\Build`: Sites 包、跨项目测试证据和构建历史。
