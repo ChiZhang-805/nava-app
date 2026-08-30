@@ -9,6 +9,10 @@ const DEMO_RECORDS_KEY = "nava.review.demo.records.v1";
 
 export function isDemoMode() {
   if (typeof window === "undefined") return false;
+  const isLocalPreviewHost = window.location.hostname === "localhost"
+    || window.location.hostname === "127.0.0.1"
+    || window.location.hostname === "::1";
+  if (!isLocalPreviewHost) return false;
   const reviewDemoEnabled = import.meta.env.VITE_ENABLE_REVIEW_DEMO === "true";
   if (!import.meta.env.DEV && !reviewDemoEnabled) return false;
   const demoParam = new URLSearchParams(window.location.search).get("demo");
