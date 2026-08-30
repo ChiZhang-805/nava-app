@@ -2999,7 +2999,7 @@ body::before {
   grid-template-columns: 48px 1fr 48px;
   align-items: center;
   gap: 8px;
-  margin-top: 13px;
+  margin-top: 19px;
   color: #718995;
   font-size: 10px;
   text-align: center;
@@ -3055,7 +3055,7 @@ body::before {
 .sleep-stage-shape i:nth-child(2) { background: linear-gradient(145deg, #4f9dc0, #91cfe5); animation-delay: 260ms; animation-duration: 760ms; }
 .sleep-stage-shape i:nth-child(3) { background: linear-gradient(145deg, #a9cfdd, #e5f4f8); animation-delay: 340ms; animation-duration: 690ms; }
 
-.sleep-stage-row ul { margin: 0; padding: 0; list-style: none; color: #5c7785; font-size: 9px; }
+.sleep-stage-row ul { justify-self: center; margin: 0; padding: 0; list-style: none; color: #5c7785; font-size: 9px; transform: translateX(-6px); }
 .sleep-stage-row li { display: flex; align-items: center; gap: 4px; margin: 5px 0; }
 .sleep-stage-row li i { width: 8px; height: 8px; border-radius: 50%; background: #225e7c; }
 .sleep-stage-row li:nth-child(2) i { background: #69b2cf; }
