@@ -114,8 +114,8 @@ function CalendarScreen({
       </header>
 
       <section className="home-calendar-overview">
-        <div><span><CalendarDays size={19} />{locale === "zh" ? "本月记录" : "Recorded days"}</span><strong><AnimatedNumber value={monthDates.length} /><small>{locale === "zh" ? " 天" : " days"}</small></strong></div>
-        <div><span><CircleGauge size={19} />{locale === "zh" ? "平均节律" : "Avg. rhythm"}</span><strong>{averageRhythm == null ? "--" : <AnimatedNumber value={averageRhythm} />}<small>{averageRhythm == null ? "" : (locale === "zh" ? " 分" : " pts")}</small></strong></div>
+        <div><CalendarDays size={20} /><span>{locale === "zh" ? "本月记录" : "Recorded days"}</span><strong><AnimatedNumber value={monthDates.length} /><small>{locale === "zh" ? " 天" : " days"}</small></strong></div>
+        <div><CircleGauge size={20} /><span>{locale === "zh" ? "平均节律" : "Avg. rhythm"}</span><strong>{averageRhythm == null ? "--" : <AnimatedNumber value={averageRhythm} />}<small>{averageRhythm == null ? "" : (locale === "zh" ? " 分" : " pts")}</small></strong></div>
       </section>
 
       <section className="home-calendar-card">

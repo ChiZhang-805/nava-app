@@ -131,7 +131,7 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
     <section className="home-experience advanced-profile-screen" data-home-view="profile-details">
       <header className="home-experience-header">
         <button className="home-experience-back" type="button" onClick={onBack} aria-label={copy("返回首页", "Back home")}><ArrowLeft size={22} /></button>
-        <div><small>{copy("个人中心", "Personal center")}</small><h1>{copy("详细资料设置", "Detailed profile")}</h1></div>
+        <div><h1>{copy("详细资料设置", "Detailed profile")}</h1></div>
         <span className="advanced-profile-header-icon"><UserRound size={22} /></span>
       </header>
 

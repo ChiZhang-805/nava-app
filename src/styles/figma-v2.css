@@ -8962,6 +8962,8 @@ body::before {
 .home-experience-header > div { min-width: 0; text-align: center; }
 .home-experience-header small { display: block; color: #638596; font-size: 9px; font-weight: 700; letter-spacing: .06em; }
 .home-experience-header h1 { margin: 3px 0 0; color: #12364a; font-size: 19px; line-height: 1.2; }
+.advanced-profile-screen .home-experience-header > div { display: grid; place-items: center; }
+.advanced-profile-screen .home-experience-header h1 { margin: 0; }
 .home-experience-back,
 .home-calendar-today,
 .home-report-date-icon,
@@ -8989,18 +8991,21 @@ body::before {
   margin-bottom: 10px;
 }
 .home-calendar-overview > div {
-  min-height: 76px;
+  min-height: 70px;
   padding: 11px 13px;
   border: 1px solid rgba(255,255,255,.75);
   border-radius: 19px;
   display: grid;
-  align-content: space-between;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
   background: rgba(247,253,255,.78);
   box-shadow: 0 9px 22px rgba(24,110,146,.09), inset 0 1px 0 rgba(255,255,255,.95);
 }
-.home-calendar-overview span { display: flex; align-items: center; gap: 6px; color: #52788b; font-size: 10px; font-weight: 720; }
-.home-calendar-overview strong { color: #12364a; font-size: 22px; line-height: 1; }
-.home-calendar-overview strong small { display: inline; margin-left: 2px; color: #7593a1; font-size: 9px; letter-spacing: 0; }
+.home-calendar-overview > div > svg { flex: 0 0 auto; color: #52788b; }
+.home-calendar-overview span { min-width: 0; color: #52788b; font-size: 11.5px; font-weight: 720; white-space: nowrap; }
+.home-calendar-overview strong { color: #12364a; font-size: 19px; line-height: 1; text-align: right; white-space: nowrap; }
+.home-calendar-overview strong small { display: inline; margin-left: 2px; color: #7593a1; font-size: 10.5px; letter-spacing: 0; }
 
 .home-calendar-card {
   padding: 14px 13px 12px;
