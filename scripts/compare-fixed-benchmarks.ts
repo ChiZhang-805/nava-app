@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 type MetricGroup = {
   count: number;
@@ -36,7 +37,9 @@ type FixedBenchmarkReport = {
   cohorts: Record<string, MetricGroup>;
 };
 
-const defaultReportDirectory = "Z:\\NAVA\\data\\synthetic-population\\benchmarks";
+const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const workspaceRoot = resolve(appRoot, "..");
+const defaultReportDirectory = join(workspaceRoot, "Data", "synthetic-population", "benchmarks");
 const leftPath = resolve(argumentValue("--left") ?? join(defaultReportDirectory, "nava-chronostate-v4.8-2026-07.json"));
 const rightPath = resolve(argumentValue("--right") ?? join(defaultReportDirectory, "nava-chronostate-v4.9-2026-07.json"));
 const allowMismatch = process.argv.includes("--allow-dataset-mismatch");

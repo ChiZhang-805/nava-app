@@ -43,7 +43,7 @@
     "algorithm:compare:fixed": "node --experimental-strip-types scripts/compare-fixed-benchmarks.ts",
     "data:audit": "node --experimental-strip-types scripts/audit-synthetic-distribution.ts",
     "data:export": "node --experimental-strip-types scripts/export-synthetic-population.ts",
-    "data:export:fixed": "node --experimental-strip-types scripts/export-synthetic-population.ts --out=Z:\\NAVA\\data\\synthetic-population",
+    "data:export:fixed": "node --experimental-strip-types scripts/export-synthetic-population.ts --out=../Data/synthetic-population",
     "data:audit:account": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-account-history-secure.ps1 -AuditOnly",
     "data:seed:account": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-account-history-secure.ps1",
     "data:backfill:mood:account": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-mood-history-secure.ps1",

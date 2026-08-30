@@ -1,8 +1,10 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const appRoot = process.cwd();
-const webRoot = process.env.NAVA_WEB_REPO || "Z:/style-muse-next";
+const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const workspaceRoot = path.resolve(appRoot, "..");
+const webRoot = process.env.NAVA_WEB_REPO || path.join(workspaceRoot, "nava-app-figma-preview");
 const outputPath = path.join(appRoot, "artifacts", "backend-review", "shared-supabase.json");
 const targetPath = path.join(appRoot, "config", "backend-target.json");
 const cliProjectRefPath = path.join(appRoot, "supabase", ".temp", "project-ref");

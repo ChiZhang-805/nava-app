@@ -1,22 +1,39 @@
 # NAVA App local workspace
 
-当前本机只使用一个 NAVA App 工作区：
+当前本机只使用一个 NAVA 工作区根；源码、构建、数据、缓存与归档都必须
+落在这个根下面，不得在 `Q:\` 或旧 `Z:\NAVA` 路径创建新内容：
 
 ```text
-Z:\NAVA
-├─ app
-├─ data
-├─ archive
-└─ _local
+Q:\NAVA-Workspace
+├─ nava-app
+├─ nava-app-figma-preview
+├─ Build
+│  ├─ Sites\Packages
+│  ├─ TestRuns
+│  └─ History
+├─ Caches
+│  ├─ VirtualEnvs
+│  └─ Tooling
+├─ Data
+├─ Documents
+├─ Archive
+├─ Temp
+└─ Tools
 ```
 
 ## Paths
 
-- `Z:\NAVA\app`: APP 主工程，也是日常开发唯一入口。
-- `Z:\NAVA\data`: 固定算法数据集和 benchmark 输出。这里的大文件不提交 Git。
-- `Z:\NAVA\archive\nava-app-v46-worktree`: 旧 v46 临时 worktree，只做历史参考。
-- `Z:\NAVA\_local`: 本机备份和敏感本地文件备份，不提交 Git。
-- `Z:\style-muse-next`: Web 端同学维护的网页仓库/上游参考，APP 端不在这里开发。
+- `Q:\NAVA-Workspace\nava-app`: APP 主工程，也是日常开发唯一入口。
+- `Q:\NAVA-Workspace\nava-app-figma-preview`: 独立的静态预览发布仓库，
+  不是 `nava-app` 的 worktree 或 submodule。
+- `Q:\NAVA-Workspace\Data`: 固定算法数据集和 benchmark 输出；大文件不提交 Git。
+- `Q:\NAVA-Workspace\Build`: Sites 包、跨项目测试证据和构建历史。
+- `Q:\NAVA-Workspace\Caches`: 可重建虚拟环境与工具缓存；不得保存唯一结果。
+- `Q:\NAVA-Workspace\Archive`: 带清单和来源的历史材料。
+
+脚本必须从脚本文件位置解析 `nava-app` 和 workspace 根，不能把
+`process.cwd()` 当成可信项目根。需要引用另一个 Web 仓库时显式设置
+`NAVA_WEB_REPO`；默认只检查当前 workspace 中的预览仓库。
 
 ## Supabase env
 

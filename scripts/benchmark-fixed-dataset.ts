@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { basename, dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { performance } from "node:perf_hooks";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { allCohorts, allScenarios, legacyFusionProxy, type SyntheticTrajectory } from "../algorithm/synthetic.ts";
 import type { RhythmConfig, RhythmInputs } from "../supabase/functions/_shared/rhythm-core.ts";
 
@@ -35,8 +35,10 @@ type Prediction = {
   changePoint: number;
 };
 
-const fixedDatasetPath = "Z:\\NAVA\\data\\synthetic-population\\nava-synthetic-users-5000-seed-240724.jsonl";
-const localArtifactDatasetPath = join("artifacts", "synthetic-population", "nava-synthetic-users-5000-seed-240724.jsonl");
+const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const workspaceRoot = resolve(appRoot, "..");
+const fixedDatasetPath = join(workspaceRoot, "Data", "synthetic-population", "nava-synthetic-users-5000-seed-240724.jsonl");
+const localArtifactDatasetPath = join(appRoot, "artifacts", "synthetic-population", "nava-synthetic-users-5000-seed-240724.jsonl");
 const datasetPath = resolve(argumentValue("--dataset") ?? process.env.NAVA_FIXED_DATASET ?? defaultDatasetPath());
 const reportDirectory = resolve(argumentValue("--report-dir") ?? process.env.NAVA_BENCHMARK_REPORT_DIR ?? join(dirname(datasetPath), "benchmarks"));
 const modelModulePath = argumentValue("--model-module");
