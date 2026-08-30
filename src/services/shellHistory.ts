@@ -16,7 +16,11 @@ export type ShellHistoryState = {
 
 export function normalizeShellRoute(tab: AppTab, module: ShellRecordModule | null = null, view: string | null = null): ShellRoute {
   const normalizedModule = tab === "record" ? module : null;
-  const normalizedView = normalizedModule && view && view !== "overview" ? view : null;
+  const normalizedView = tab === "today"
+    ? view || null
+    : normalizedModule && view && view !== "overview"
+      ? view
+      : null;
   return { tab, module: normalizedModule, view: normalizedView };
 }
 
@@ -42,6 +46,8 @@ export function nextShellHistoryState(currentState: unknown, route: ShellRoute, 
 }
 
 export function fallbackShellRoute(route: ShellRoute): ShellRoute {
+  if (route.tab === "today" && route.view?.startsWith("day-")) return normalizeShellRoute("today", null, "calendar");
+  if (route.tab === "today" && route.view) return normalizeShellRoute("today");
   if (route.tab === "record" && route.module && route.view) return normalizeShellRoute("record", route.module);
   if (route.tab === "record" && route.module) return normalizeShellRoute("record");
   return normalizeShellRoute("today");

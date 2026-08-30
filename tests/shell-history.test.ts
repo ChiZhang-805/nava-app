@@ -12,6 +12,7 @@ import {
 test("normalizes non-record routes and overview aliases", () => {
   assert.deepEqual(normalizeShellRoute("profile", "diet", "history"), { tab: "profile", module: null, view: null });
   assert.deepEqual(normalizeShellRoute("record", "diet", "overview"), { tab: "record", module: "diet", view: null });
+  assert.deepEqual(normalizeShellRoute("today", null, "calendar"), { tab: "today", module: null, view: "calendar" });
 });
 
 test("fallbacks only cover direct entry without overwriting real history", () => {
@@ -21,6 +22,8 @@ test("fallbacks only cover direct entry without overwriting real history", () =>
   assert.deepEqual(moduleView, { tab: "record", module: "diet", view: null });
   assert.deepEqual(recordHub, { tab: "record", module: null, view: null });
   assert.deepEqual(fallbackShellRoute(normalizeShellRoute("profile")), { tab: "today", module: null, view: null });
+  assert.deepEqual(fallbackShellRoute(normalizeShellRoute("today", null, "day-2026-08-30")), { tab: "today", module: null, view: "calendar" });
+  assert.deepEqual(fallbackShellRoute(normalizeShellRoute("today", null, "calendar")), { tab: "today", module: null, view: null });
 });
 
 test("accepts only a positive NAVA history depth as a previous page", () => {

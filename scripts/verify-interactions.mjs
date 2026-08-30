@@ -848,10 +848,32 @@ async function verifyHomeShortcuts(page, results) {
     throw new Error(`home mascot tail motion is invalid: ${JSON.stringify(tailMotion)}`);
   }
 
+  const sideActions = page.locator(".option-two-side-actions button");
+  await expect(sideActions).toHaveCount(4);
+  await expect(sideActions.nth(1)).toBeVisible();
+  await sideActions.first().click();
+  await expect(page.locator(".option-two-side-actions")).toHaveClass(/is-collapsed/);
+  await expect(sideActions.nth(1)).toBeHidden();
+  await sideActions.first().click();
+  await expect(page.locator(".option-two-side-actions")).toHaveClass(/is-open/);
+  await expect(sideActions.nth(1)).toBeVisible();
+
+  const openHealthMenuBySwipe = async () => {
+    const home = page.locator(".option-two-home");
+    const box = await home.boundingBox();
+    if (!box) throw new Error("home screen has no swipeable bounds");
+    const x = box.x + box.width * 0.5;
+    const startY = box.y + box.height * 0.78;
+    await page.mouse.move(x, startY);
+    await page.mouse.down();
+    await page.mouse.move(x + 4, startY - Math.max(160, box.height / 5), { steps: 8 });
+    await page.mouse.up();
+    await expect(home).toHaveAttribute("data-health-menu-open", "true");
+  };
+
   for (const [index, module] of ["exercise", "diet", "sleep", "face", "focus", "mood"].entries()) {
     await page.locator('[data-tab="today"]').click();
-    const menuButton = page.locator(".option-two-side-actions button").first();
-    if (!(await page.locator(".option-two-home").evaluate((node) => node.classList.contains("is-expanded")))) await menuButton.click();
+    await openHealthMenuBySwipe();
     if (index === 0) {
       await page.waitForTimeout(700);
       await page.screenshot({ path: path.join(outputDir, "today-expanded.png") });
@@ -861,11 +883,17 @@ async function verifyHomeShortcuts(page, results) {
   }
   await page.locator('[data-tab="today"]').click();
   await page.locator(".option-two-side-actions button").nth(1).click();
-  await expect(page.locator("[data-record-module]")).toHaveCount(6);
-  await page.locator('[data-tab="today"]').click();
+  await expect(page.locator('[data-home-view="calendar"]')).toBeVisible();
+  await page.locator('.home-calendar-month-switcher button').first().click();
+  await page.locator('.home-calendar-today').click();
+  await page.locator('.home-calendar-day.is-today').click();
+  await expect(page.locator('[data-home-view="daily"]')).toBeVisible();
+  await page.locator('.home-experience-back').click();
+  await expect(page.locator('[data-home-view="calendar"]')).toBeVisible();
+  await page.locator('.home-experience-back').click();
   await page.locator(".option-two-side-actions button").nth(2).click();
-  await expect(page.locator(".chat-layout")).toBeVisible();
-  await page.locator('[data-tab="today"]').click();
+  await expect(page.locator('[data-home-view="profile-details"]')).toBeVisible();
+  await page.locator('.home-experience-back').click();
   await page.locator(".option-two-side-actions button").nth(3).click();
   await expect(page.locator('.utility-drawer[role="dialog"]')).toBeVisible();
   await page.waitForTimeout(350);
@@ -882,7 +910,7 @@ async function verifyHomeShortcuts(page, results) {
   await page.screenshot({ path: path.join(outputDir, "today-utilities-with-todo.png") });
   await page.locator('.utility-drawer[role="dialog"] header button').click();
   await expect(page.locator('.utility-drawer[role="dialog"]')).toBeHidden();
-  results.push("首页真实积分、顺序小猫动作、展开菜单、六个健康快捷入口与三类侧边跳转");
+  results.push("首页真实积分、小猫动作、快捷入口折叠、上滑健康圆盘、月历/日报告、详细资料与待办入口");
 }
 
 async function verifyAi(page, results, diagnostics) {

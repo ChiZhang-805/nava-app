@@ -4109,7 +4109,7 @@ textarea::placeholder {
   stroke-linecap: round;
 }
 
-.option-two-home.is-expanded .nava-mascot {
+.option-two-home.is-health-menu-open .nava-mascot {
   transform: translateX(-50%) translateY(-2%) scale(0.98);
   filter: drop-shadow(0 20px 30px rgba(0, 31, 50, 0.08));
 }
@@ -4342,7 +4342,7 @@ textarea::placeholder {
   filter: drop-shadow(0 0 10px rgba(8, 125, 176, 0.58)) drop-shadow(0 16px 22px rgba(0, 31, 50, 0.13));
 }
 
-.option-two-home.is-expanded .nava-mascot {
+.option-two-home.is-health-menu-open .nava-mascot {
   transform: translateX(-50%);
 }
 
@@ -4442,7 +4442,7 @@ textarea::placeholder {
   filter: drop-shadow(0 0 10px rgba(8, 125, 176, 0.58)) drop-shadow(0 16px 22px rgba(0, 31, 50, 0.13));
 }
 
-.option-two-home.is-expanded .nava-mascot > .nava-mascot-pose {
+.option-two-home.is-health-menu-open .nava-mascot > .nava-mascot-pose {
   transform: translateX(-50%);
 }
 
@@ -4539,7 +4539,7 @@ textarea::placeholder {
   filter: drop-shadow(0 0 10px rgba(8, 125, 176, 0.58)) drop-shadow(0 16px 22px rgba(0, 31, 50, 0.13));
 }
 
-.option-two-home.is-expanded .nava-mascot > .nava-mascot-animation {
+.option-two-home.is-health-menu-open .nava-mascot > .nava-mascot-animation {
   transform: translateX(-50%);
 }
 
@@ -4552,7 +4552,7 @@ textarea::placeholder {
   animation: option-two-aura 5.4s ease-in-out infinite;
 }
 
-.option-two-home.is-expanded .option-two-life-stage img {
+.option-two-home.is-health-menu-open .option-two-life-stage img {
   transform: translateX(-50%) translateY(-2%) scale(0.98);
   filter: drop-shadow(0 20px 30px rgba(0, 31, 50, 0.08));
 }
@@ -4574,7 +4574,7 @@ textarea::placeholder {
   transition: opacity 360ms ease, transform 560ms cubic-bezier(0.18, 0.86, 0.2, 1);
 }
 
-.option-two-home.is-expanded .option-two-health-menu {
+.option-two-home.is-health-menu-open .option-two-health-menu {
   opacity: 1;
   transform: translate(-50%, 0) scale(1);
   pointer-events: auto;
@@ -4590,7 +4590,7 @@ textarea::placeholder {
   transition: opacity 260ms ease, transform 480ms cubic-bezier(0.18, 0.86, 0.2, 1);
 }
 
-.option-two-home.is-expanded .option-two-health-entry {
+.option-two-home.is-health-menu-open .option-two-health-entry {
   opacity: 1;
   transform: scale(1);
 }

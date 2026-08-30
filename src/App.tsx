@@ -61,13 +61,14 @@ function readShellRoute(): ShellRoute {
   const tab = candidateTab && appTabs.has(candidateTab) ? candidateTab : "today";
   const candidateModule = query.get("module") as RecordModule | null;
   const module = tab === "record" && candidateModule && recordModules.has(candidateModule) ? candidateModule : null;
-  return normalizeShellRoute(tab, module, module ? query.get("view") : null);
+  return normalizeShellRoute(tab, module, tab === "today" || module ? query.get("view") : null);
 }
 
 function shellRouteHash(route: ShellRoute) {
   const query = new URLSearchParams({ tab: route.tab });
   if (route.tab === "record" && route.module) query.set("module", route.module);
   if (route.tab === "record" && route.module && route.view) query.set("view", route.view);
+  if (route.tab === "today" && route.view) query.set("view", route.view);
   return `#${query.toString()}`;
 }
 
@@ -507,11 +508,15 @@ function MobileShell() {
             <OptionTwoHome
               user={user}
               refreshKey={refreshKey}
+              deviceDate={deviceDate}
+              view={recordView}
               onOpenRecord={(module) => {
                 navigate("record", module ?? null);
               }}
-              onOpenAi={() => navigate("ai")}
               onOpenUtility={() => setDrawerOpen(true)}
+              onViewChange={(view, replace = false) => navigate("today", null, view, replace)}
+              onBack={(fallbackView) => navigateBack(normalizeShellRoute("today", null, fallbackView))}
+              onChanged={markChanged}
             />
           )}
           {activeTab === "record" && (
