@@ -7,6 +7,7 @@ export interface LineTrendPoint {
   value: number;
   lower?: number | null;
   upper?: number | null;
+  missing?: boolean;
 }
 
 function clampScore(value: number) {
@@ -42,6 +43,8 @@ export default function LineTrendChart({
 }) {
   const rawId = useId();
   if (points.length === 0) return null;
+  const recordedPoints = points.filter((point) => !point.missing);
+  if (recordedPoints.length === 0) return null;
   const gradientId = `trend-gradient-${rawId.replace(/:/g, "")}`;
   const areaGradientId = `trend-area-gradient-${rawId.replace(/:/g, "")}`;
   // Compact dashboard cards are considerably wider than they are tall. Give
@@ -62,8 +65,8 @@ export default function LineTrendChart({
     : bottom;
   const valueSpanY = valueBottom - top;
   const scaleValues = (scale === "range"
-    ? points.map((point) => point.value)
-    : points.flatMap((point) => [point.value, point.lower, point.upper]))
+    ? recordedPoints.map((point) => point.value)
+    : recordedPoints.flatMap((point) => [point.value, point.lower, point.upper]))
     .filter((value): value is number => value != null);
   const rawMin = Math.min(...scaleValues);
   const rawMax = Math.max(...scaleValues);
@@ -115,20 +118,27 @@ export default function LineTrendChart({
     const scaledValue = scale === "score" ? clampScore(value) : value;
     return top + ((domainMax - Math.min(domainMax, Math.max(domainMin, scaledValue))) / domainSpan) * valueSpanY;
   };
-  const plottedPoints = points.map((point, index) => ({ x: xAt(index), y: yAt(point.value) }));
-  const linePath = chartCurvePath(plottedPoints, curve);
-  const lastPlottedPoint = plottedPoints[plottedPoints.length - 1];
-  const areaPath = showArea && plottedPoints.length > 1
-    ? `${linePath} L ${lastPlottedPoint.x} ${bottom} L ${plottedPoints[0].x} ${bottom} Z`
-    : "";
-  const hasBand = showConfidenceBand && points.length > 1 && points.every((point) => point.lower != null && point.upper != null);
+  const plottedSegments: Array<Array<{ index: number; x: number; y: number }>> = [];
+  points.forEach((point, index) => {
+    if (point.missing) return;
+    const plottedPoint = { index, x: xAt(index), y: yAt(point.value) };
+    if (index > 0 && !points[index - 1].missing && plottedSegments.length > 0) plottedSegments[plottedSegments.length - 1].push(plottedPoint);
+    else plottedSegments.push([plottedPoint]);
+  });
+  const segmentPaths = plottedSegments.map((segment) => chartCurvePath(segment, curve));
+  const areaPaths = showArea
+    ? plottedSegments.map((segment, index) => segment.length > 1
+      ? `${segmentPaths[index]} L ${segment[segment.length - 1].x} ${bottom} L ${segment[0].x} ${bottom} Z`
+      : "")
+    : [];
+  const hasBand = showConfidenceBand && points.length > 1 && points.every((point) => !point.missing && point.lower != null && point.upper != null);
   const bandPoints = hasBand
     ? [
         ...points.map((point, index) => `${xAt(index)},${yAt(point.upper as number)}`),
         ...points.map((point, index) => `${xAt(points.length - index - 1)},${yAt(points[points.length - index - 1].lower as number)}`),
       ].join(" ")
     : "";
-  const signature = points.map((point) => `${point.id}:${point.value}:${point.lower ?? ""}:${point.upper ?? ""}`).join("|");
+  const signature = points.map((point) => `${point.id}:${point.value}:${point.lower ?? ""}:${point.upper ?? ""}:${point.missing ? "missing" : "recorded"}`).join("|");
 
   return (
     <div className={["line-trend-chart", tone, verticalEmphasis ? "is-vertically-emphasized" : ""].filter(Boolean).join(" ")}>
@@ -162,12 +172,12 @@ export default function LineTrendChart({
         })}
 
         {hasBand && <polygon className="trend-confidence-band" points={bandPoints} />}
-        {areaPath && <path className="trend-area" d={areaPath} style={{ fill: `url(#${areaGradientId})` }} />}
-        <path key={`trend-${signature}`} className="trend-line" d={linePath} pathLength={1} style={{ stroke: `url(#${gradientId})` }} />
+        {areaPaths.map((areaPath, index) => areaPath && <path className="trend-area" d={areaPath} key={`area-${index}`} style={{ fill: `url(#${areaGradientId})` }} />)}
+        {segmentPaths.map((linePath, index) => plottedSegments[index].length > 1 && <path key={`trend-${index}-${signature}`} className="trend-line" d={linePath} pathLength={1} style={{ stroke: `url(#${gradientId})` }} />)}
 
         {points.map((point, index) => {
           const x = xAt(index);
-          const y = yAt(point.value);
+          const y = point.missing ? null : yAt(point.value);
           const showDate = showAllDates || points.length <= 4 || index % 2 === 0 || index === points.length - 1;
           return (
             <g
@@ -177,17 +187,18 @@ export default function LineTrendChart({
               data-value={point.value}
               style={{ "--trend-point-index": index } as CSSProperties}
             >
-              <circle cx={x} cy={y} r="4.5">
+              {!point.missing && y != null && <><circle cx={x} cy={y} r="4.5">
                 <title>{`${point.label}: ${valueFormatter(point.value)}`}</title>
               </circle>
               <text className="trend-value" x={x} y={Math.max(12, y - 9)} textAnchor="middle">{valueFormatter(point.value)}</text>
+              </>}
               {showDate && <text className="trend-date" x={x} y={dateY} textAnchor="middle">{point.label}</text>}
             </g>
           );
         })}
       </svg>
       <ol className="sr-only">
-        {points.map((point) => <li key={point.id}>{point.label}: {valueFormatter(point.value)}</li>)}
+        {points.map((point) => <li key={point.id}>{point.label}: {point.missing ? "No record" : valueFormatter(point.value)}</li>)}
       </ol>
     </div>
   );

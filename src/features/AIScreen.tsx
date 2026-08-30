@@ -456,7 +456,7 @@ export default function AIScreen({
     const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `nava-conversation-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `nava-conversation-${todayISO()}.json`;
     link.click();
     URL.revokeObjectURL(url);
   }, [archiveConversation, command, messages, readHistory]);

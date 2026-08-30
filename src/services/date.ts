@@ -5,10 +5,26 @@ export function todayISO(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
-export function daysAgoISO(days: number) {
-  const d = new Date();
+export function daysAgoISO(days: number, reference = new Date()) {
+  const d = new Date(reference);
   d.setDate(d.getDate() - days);
   return todayISO(d);
+}
+
+export function shiftDateISO(date: string, days: number) {
+  const [year, month, day] = date.split("-").map(Number);
+  const value = new Date(year, month - 1, day, 12, 0, 0);
+  value.setDate(value.getDate() + days);
+  return todayISO(value);
+}
+
+export function rollingDateWindow(endDate: string, days = 7) {
+  const count = Math.max(1, Math.round(days));
+  return Array.from({ length: count }, (_, index) => shiftDateISO(endDate, index - count + 1));
+}
+
+export function sevenDayDateRange(endDate: string) {
+  return { startDate: shiftDateISO(endDate, -6), endDate };
 }
 
 export type DateLocale = "zh" | "en";

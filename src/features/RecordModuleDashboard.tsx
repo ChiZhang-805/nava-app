@@ -64,6 +64,7 @@ import {
 } from "../services/visualMetrics";
 import type { UserProfile } from "../services/profile";
 import type { RecordModule } from "./RecordsScreen";
+import { rollingDateWindow } from "../services/date";
 
 type MoodFactor = { value: string; label: string };
 
@@ -96,6 +97,7 @@ type Props = {
   onSaveFocusMinutes: (minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string }) => Promise<void>;
   busy: string | null;
   recordDate: string;
+  deviceDate: string;
   todaySnapshot: TodaySnapshot | null;
   trendBundle: TrendBundle | null;
   profile: UserProfile | null;
@@ -127,8 +129,9 @@ function mergeLiveMood(
   factors: string[],
   diary: string,
   includeCurrent: boolean,
+  windowEndDate = recordDate,
 ) {
-  const dateWindow = new Set(moodDateWindow(recordDate));
+  const dateWindow = new Set(moodDateWindow(windowEndDate));
   const records = new Map((trendBundle?.moods ?? [])
     .filter((record) => dateWindow.has(record.record_date))
     .map((record) => [record.record_date, record]));
@@ -232,11 +235,13 @@ function HistoryView({
   module,
   locale,
   trendBundle,
+  deviceDate,
   onGrowthActivity,
 }: {
   module: RecordModule;
   locale: "zh" | "en";
   trendBundle: TrendBundle | null;
+  deviceDate: string;
   onGrowthActivity?: (activity: GrowthActivityKind) => void | Promise<unknown>;
 }) {
   const moduleNames: Record<RecordModule, { zh: string; en: string }> = {
@@ -262,8 +267,15 @@ function HistoryView({
               : trendBundle.faces.flatMap((record) => record.overall_score == null ? [] : [{ id: record.id, date: record.record_date, value: record.overall_score }]);
     return records.sort((left, right) => left.date.localeCompare(right.date));
   }, [module, trendBundle]);
-  const displayEntries = useMemo(() => entries.slice(-7), [entries]);
-  const sortedNutrition = useMemo(() => trendBundle?.nutritions.slice().sort((a, b) => a.record_date.localeCompare(b.record_date)) ?? [], [trendBundle]);
+  const displayEntries = useMemo(() => {
+    const byDate = new Map(entries.map((entry) => [entry.date, entry]));
+    return rollingDateWindow(deviceDate).map((date) => byDate.get(date) ?? ({ id: `missing-${module}-${date}`, date, value: null }));
+  }, [deviceDate, entries, module]);
+  const recordedEntries = useMemo(
+    () => displayEntries.filter((entry): entry is { id: string; date: string; value: number } => entry.value != null),
+    [displayEntries],
+  );
+  const sortedNutrition = useMemo(() => trendBundle?.nutritions.filter((item) => item.record_date <= deviceDate).slice().sort((a, b) => a.record_date.localeCompare(b.record_date)) ?? [], [deviceDate, trendBundle]);
   const latestNutrition = sortedNutrition[sortedNutrition.length - 1] ?? null;
   const [dietReport, setDietReport] = useState<DietAiReport | null>(() => parseDietAiReport(latestNutrition?.ai_feedback));
   const [healthReport, setHealthReport] = useState<HealthAiReport | null>(null);
@@ -299,12 +311,12 @@ function HistoryView({
     };
   }, [latestNutrition, locale, module]);
   useEffect(() => {
-    if (module === "diet" || displayEntries.length === 0) return;
+    if (module === "diet" || recordedEntries.length === 0) return;
     let active = true;
     setHealthReport(null);
     setReportLoading(true);
     setReportUnavailable(false);
-    void loadHealthAiReport({ scope: module, endDate: displayEntries[displayEntries.length - 1].date, locale })
+    void loadHealthAiReport({ scope: module, endDate: deviceDate, locale })
       .then((report) => {
         if (active) setHealthReport(report);
       })
@@ -318,7 +330,7 @@ function HistoryView({
     return () => {
       active = false;
     };
-  }, [displayEntries, locale, module]);
+  }, [deviceDate, locale, module, recordedEntries.length]);
   const reportInsights = module === "diet" ? (dietReport?.bullets ?? []) : (healthReport?.bullets ?? []);
   const reportIsDemo = module === "diet" ? dietReport?.modelVersion === "demo-only" : healthReport?.provider === "demo";
   const shareSummary = async () => {
@@ -329,7 +341,7 @@ function HistoryView({
       await shareReportImage({
         module,
         moduleLabel: label,
-        entries: displayEntries,
+        entries: recordedEntries,
         insights: reportInsights,
         mascotUrl: reportMascotByModule[module],
         locale,
@@ -349,10 +361,10 @@ function HistoryView({
       className="module-history-report-card"
       title={`${moduleNames[module][locale]}${locale === "zh" ? "趋势报告" : " trend report"}`}
     >
-      {displayEntries.length > 0 ? <>
+      {recordedEntries.length > 0 ? <>
         <ReportTrendChart entries={displayEntries} module={module} locale={locale} />
         <div className={`module-history-list module-history-list--${module}`}>
-          {displayEntries.slice(-3).reverse().map((entry) => <p key={entry.id}><CalendarDays size={16} /><span>{shortDate(entry.date, locale)}</span><strong>{historyValueText(module, entry.value, locale)}</strong></p>)}
+          {displayEntries.slice(-3).reverse().map((entry) => <p key={entry.id}><CalendarDays size={16} /><span>{shortDate(entry.date, locale)}</span><strong>{entry.value == null ? (locale === "zh" ? "暂无记录" : "No entry") : historyValueText(module, entry.value, locale)}</strong></p>)}
         </div>
         <section className="diet-ai-report module-ai-report" aria-live="polite">
           <div className="diet-ai-report-copy">
@@ -376,7 +388,7 @@ function HistoryView({
   );
 }
 
-function ReportTrendChart({ entries, module, locale }: { entries: Array<{ id: string; date: string; value: number }>; module: RecordModule; locale: "zh" | "en" }) {
+function ReportTrendChart({ entries, module, locale }: { entries: Array<{ id: string; date: string; value: number | null }>; module: RecordModule; locale: "zh" | "en" }) {
   const width = 700;
   const height = 440;
   const left = 48;
@@ -386,7 +398,8 @@ function ReportTrendChart({ entries, module, locale }: { entries: Array<{ id: st
   const top = 28;
   const bottom = 400;
   const valueLabelGap = 9;
-  const values = entries.map((entry) => entry.value);
+  const values = entries.flatMap((entry) => entry.value == null ? [] : [entry.value]);
+  if (values.length === 0) return null;
   const rawMin = Math.min(...values);
   const rawMax = Math.max(...values);
   const rawRange = Math.max(1, rawMax - rawMin);
@@ -400,25 +413,31 @@ function ReportTrendChart({ entries, module, locale }: { entries: Array<{ id: st
     return bottom - heightRatio * (bottom - top);
   };
   const points = entries.map((entry, index) => {
+    if (entry.value == null) return null;
     const barTop = yAt(entry.value);
-    return { x: xAt(index), y: (barTop + bottom) / 2 };
+    return { x: xAt(index), y: (barTop + bottom) / 2, index };
   });
-  const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+  const lineSegments: Array<Array<NonNullable<(typeof points)[number]>>> = [];
+  points.forEach((point, index) => {
+    if (!point) return;
+    if (index > 0 && points[index - 1] && lineSegments.length > 0) lineSegments[lineSegments.length - 1].push(point);
+    else lineSegments.push([point]);
+  });
 
   return <div className="diet-history-trend-chart report-history-trend-chart">
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={locale === "zh" ? "近七日柱状图与折线趋势，折线点位于每根柱子的几何中心" : "Seven-day bars and line trend with points at each bar's geometric center"}>
       {[0.25, 0.5, 0.75].map((ratio) => <line className="diet-history-grid" key={ratio} x1={left} x2={right} y1={top + ratio * (bottom - top)} y2={top + ratio * (bottom - top)} />)}
       {entries.map((entry, index) => {
         const x = xAt(index);
-        const y = yAt(entry.value);
+        const y = entry.value == null ? null : yAt(entry.value);
         return <g className="diet-history-bar" key={entry.id} transform={`translate(${x} 0)`} style={{ "--history-index": index } as CSSProperties}>
-          <rect x="-15" y={y} width="30" height={bottom - y} rx="8"><title>{`${shortDate(entry.date, locale)} · ${historyValueText(module, entry.value, locale)}`}</title></rect>
-          <text className="diet-history-value" x="0" y={y - valueLabelGap} textAnchor="middle">{module === "sleep" ? (entry.value / 60).toFixed(1) : Math.round(entry.value)}</text>
+          {entry.value != null && y != null && <><rect x="-15" y={y} width="30" height={bottom - y} rx="8"><title>{`${shortDate(entry.date, locale)} · ${historyValueText(module, entry.value, locale)}`}</title></rect>
+          <text className="diet-history-value" x="0" y={y - valueLabelGap} textAnchor="middle">{module === "sleep" ? (entry.value / 60).toFixed(1) : Math.round(entry.value)}</text></>}
           <text className="diet-history-date" x="0" y="430" textAnchor="middle">{shortDate(entry.date, locale)}</text>
         </g>;
       })}
-      <path className="diet-history-line" d={linePath} pathLength="1" />
-      {points.map((point, index) => <circle className="diet-history-dot" key={entries[index].id} cx={point.x} cy={point.y} r="5" style={{ "--history-index": index } as CSSProperties} />)}
+      {lineSegments.filter((segment) => segment.length > 1).map((segment, segmentIndex) => <path className="diet-history-line" d={segment.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ")} key={segmentIndex} pathLength="1" />)}
+      {points.flatMap((point) => point ? [<circle className="diet-history-dot" key={entries[point.index].id} cx={point.x} cy={point.y} r="5" style={{ "--history-index": point.index } as CSSProperties} />] : [])}
     </svg>
   </div>;
 }
@@ -442,11 +461,12 @@ function ExerciseDashboard({
   steps,
   onOpenEditor,
   recordDate,
+  deviceDate,
   trendBundle,
   todaySnapshot,
   view,
   openView,
-}: Pick<Props, "userId" | "steps" | "calories" | "exerciseMinutes" | "onOpenEditor" | "recordDate" | "trendBundle" | "todaySnapshot" | "profile"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
+}: Pick<Props, "userId" | "steps" | "calories" | "exerciseMinutes" | "onOpenEditor" | "recordDate" | "deviceDate" | "trendBundle" | "todaySnapshot" | "profile"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
   const [syncing, setSyncing] = useState(false);
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
   const [watchState, setWatchState] = useState<{ paired: boolean; reachable: boolean } | null>(null);
@@ -459,37 +479,48 @@ function ExerciseDashboard({
   const stepValues = useMemo(() => {
     const records = new Map((trendBundle?.exercises ?? []).map((record) => [record.record_date, record.steps ?? 0]));
     if (todaySnapshot?.exercise) records.set(recordDate, todaySnapshot.exercise.steps ?? steps);
-    return [...records.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(-7);
-  }, [recordDate, steps, todaySnapshot?.exercise, trendBundle]);
-  const maxSteps = Math.max(1, ...stepValues.map(([, value]) => value));
+    return rollingDateWindow(deviceDate).map((date) => [date, records.get(date) ?? null] as const);
+  }, [deviceDate, recordDate, steps, todaySnapshot?.exercise, trendBundle]);
+  const maxSteps = Math.max(1, ...stepValues.flatMap(([, value]) => value == null ? [] : [value]));
+  const recentData = useMemo(() => {
+    const dateSet = new Set(rollingDateWindow(deviceDate));
+    return {
+      exercises: (trendBundle?.exercises ?? []).filter((record) => dateSet.has(record.record_date)),
+      sleeps: (trendBundle?.sleeps ?? []).filter((record) => dateSet.has(record.record_date)),
+      rhythms: (trendBundle?.rhythms ?? []).filter((record) => dateSet.has(record.record_date)),
+      healthMetrics: (trendBundle?.healthMetrics ?? []).filter((record) => dateSet.has(record.record_date)),
+    };
+  }, [deviceDate, trendBundle]);
   const periods = useMemo(
-    () => activityPeriodDistribution(trendBundle?.healthMetrics ?? [], trendBundle?.exercises ?? []),
-    [trendBundle],
+    () => activityPeriodDistribution(recentData.healthMetrics, recentData.exercises),
+    [recentData],
   );
   const heatmap = useMemo(
-    () => activityHeatmap(trendBundle?.healthMetrics ?? [], trendBundle?.exercises ?? []),
-    [trendBundle],
+    () => activityHeatmap(recentData.healthMetrics, recentData.exercises),
+    [recentData],
   );
   const alignment = useMemo(
-    () => clockAlignmentScore(trendBundle?.sleeps ?? [], trendBundle?.rhythms ?? []),
-    [trendBundle],
+    () => clockAlignmentScore(recentData.sleeps, recentData.rhythms),
+    [recentData],
   );
   const vitals = useMemo(
-    () => latestVitals(trendBundle?.healthMetrics ?? [], trendBundle?.exercises ?? [], trendBundle?.rhythms ?? []),
-    [trendBundle],
+    () => latestVitals(recentData.healthMetrics, recentData.exercises, recentData.rhythms),
+    [recentData],
   );
   const peakWindow = `${String(heatmap.peakStartHour).padStart(2, "0")}:00–${String(heatmap.peakEndHour).padStart(2, "0")}:00`;
   const exerciseTrendPoints = useMemo(() => stepValues.map(([date, value]) => {
-    const normalized = (value / maxSteps) * 100;
+    const normalized = value == null ? 0 : (value / maxSteps) * 100;
     return {
       id: date,
       label: shortDate(date, locale),
       barValue: normalized,
       lineValue: normalized,
-      barText: locale === "zh" ? `${value.toLocaleString()} 步` : `${value.toLocaleString()} steps`,
-      lineText: locale === "zh" ? `${value.toLocaleString()} 步` : `${value.toLocaleString()} steps`,
+      barText: value == null ? (locale === "zh" ? "暂无记录" : "No entry") : (locale === "zh" ? `${value.toLocaleString()} 步` : `${value.toLocaleString()} steps`),
+      lineText: value == null ? (locale === "zh" ? "暂无记录" : "No entry") : (locale === "zh" ? `${value.toLocaleString()} 步` : `${value.toLocaleString()} steps`),
+      missing: value == null,
     };
   }), [locale, maxSteps, stepValues]);
+  const hasExerciseTrend = stepValues.some(([, value]) => value != null);
 
   useEffect(() => {
     let active = true;
@@ -538,7 +569,7 @@ function ExerciseDashboard({
         <section className="figma-module-card steps-card">
           <header><span>{locale === "zh" ? "所选日期步数" : "Selected-day steps"}</span><strong><AnimatedNumber value={displayedSteps} formatter={(value) => Math.round(value).toLocaleString()} /><small>{locale === "zh" ? "步" : "steps"}</small></strong></header>
           <div className="steps-bars" aria-label={locale === "zh" ? "近七日步数" : "Seven-day steps"}>
-            {stepValues.map(([date, value]) => <span key={date} title={`${shortDate(date, locale)} · ${value.toLocaleString()}`} style={{ height: `${Math.max(8, (value / maxSteps) * 100)}%` }} />)}
+            {stepValues.map(([date, value]) => <span className={value == null ? "is-missing" : undefined} key={date} title={`${shortDate(date, locale)} · ${value == null ? (locale === "zh" ? "暂无记录" : "No entry") : value.toLocaleString()}`} style={{ height: `${value == null ? 0 : Math.max(8, (value / maxSteps) * 100)}%` }} />)}
           </div>
         </section>
         <section className="figma-module-card activity-card">
@@ -587,7 +618,7 @@ function ExerciseDashboard({
       </section>
       <section className="figma-module-card exercise-trend-card">
         <header><strong>{locale === "zh" ? "近 7 日活动趋势" : "7-day activity trend"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("history")} aria-label={locale === "zh" ? "查看运动趋势报告" : "View activity trend report"}><ChevronRight size={18} /></button></header>
-        {exerciseTrendPoints.length > 0 ? <BarLineTrendChart points={exerciseTrendPoints} scoreScale ariaLabel={locale === "zh" ? "近七日步数柱状图与关联折线图" : "Seven-day step bars and linked line"} /> : <p className="module-empty-copy">{locale === "zh" ? "记录运动后显示趋势" : "Log activity to begin the trend"}</p>}
+        {hasExerciseTrend ? <BarLineTrendChart points={exerciseTrendPoints} scoreScale ariaLabel={locale === "zh" ? "按设备日期滚动的近七日步数趋势；未记录日期保留为空位" : "Device-date rolling seven-day step trend with empty slots for missing dates"} /> : <p className="module-empty-copy">{locale === "zh" ? "记录运动后显示趋势" : "Log activity to begin the trend"}</p>}
       </section>
     </div>
   );
@@ -606,6 +637,7 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
     onSaveMood,
     busy,
     recordDate,
+    deviceDate,
     trendBundle,
     todaySnapshot,
     view,
@@ -622,10 +654,10 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
     setSaved(hasCompletedMood);
   }, [hasCompletedMood, recordDate]);
   const moodRecords = useMemo(
-    () => mergeLiveMood(trendBundle, recordDate, moodScore, selectedFactors, diary, hasCurrentMood || moodTouched || saved),
-    [diary, hasCurrentMood, moodScore, moodTouched, recordDate, saved, selectedFactors, trendBundle],
+    () => mergeLiveMood(trendBundle, recordDate, moodScore, selectedFactors, diary, hasCurrentMood || moodTouched || saved, deviceDate),
+    [deviceDate, diary, hasCurrentMood, moodScore, moodTouched, recordDate, saved, selectedFactors, trendBundle],
   );
-  const trendPoints = useMemo(() => moodTrendPoints(moodRecords, recordDate, locale), [locale, moodRecords, recordDate]);
+  const trendPoints = useMemo(() => moodTrendPoints(moodRecords, deviceDate, locale), [deviceDate, locale, moodRecords]);
   const distribution = useMemo(() => moodDistribution(moodRecords, locale), [locale, moodRecords]);
 
   const submitMood = async (event: FormEvent<HTMLFormElement>) => {
@@ -635,7 +667,7 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
     openView("overview");
   };
 
-  if (view === "trend") return <HistoryView module="mood" locale={locale} trendBundle={trendBundle} />;
+  if (view === "trend") return <HistoryView module="mood" locale={locale} trendBundle={trendBundle} deviceDate={deviceDate} />;
 
   return (
     <form className="module-dashboard mood-dashboard" onSubmit={(event) => void submitMood(event)} data-module-view="mood-overview" data-ui-revision="mood-summary-live-v4">
@@ -730,9 +762,9 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
   );
 }
 
-function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" | "deepSleep" | "lightSleep" | "remSleep" | "sleepRating" | "onOpenEditor" | "recordDate" | "trendBundle" | "todaySnapshot" | "profile"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
-  const { userId, locale, onOpenEditor, recordDate, trendBundle, todaySnapshot, view, openView } = props;
-  const todayKey = `nava-sleep-alert-dismissed:${new Date().toISOString().slice(0, 10)}`;
+function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" | "deepSleep" | "lightSleep" | "remSleep" | "sleepRating" | "onOpenEditor" | "recordDate" | "deviceDate" | "trendBundle" | "todaySnapshot" | "profile"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
+  const { userId, locale, onOpenEditor, recordDate, deviceDate, trendBundle, todaySnapshot, view, openView } = props;
+  const todayKey = `nava-sleep-alert-dismissed:${deviceDate}`;
   const [alertVisible, setAlertVisible] = useState(() => window.sessionStorage.getItem(todayKey) !== "1");
   const [notificationEnabled, setNotificationEnabled] = useState(false);
   const latestSleep = useMemo(() => {
@@ -752,31 +784,31 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
   const sleepTrend = useMemo(() => {
     const records = new Map((trendBundle?.sleeps ?? []).map((record) => [record.record_date, record]));
     if (todaySnapshot?.sleep) records.set(recordDate, todaySnapshot.sleep);
-    const recentRecords = [...records.values()]
-      .sort((a, b) => a.record_date.localeCompare(b.record_date))
-      .slice(-7);
-    const maxMinutes = Math.max(1, ...recentRecords.map((record) => Math.max(0, record.sleep_duration_minutes ?? 0)));
-    return recentRecords.map((record): BarLineTrendPoint => {
-        const minutes = Math.max(0, record.sleep_duration_minutes ?? 0);
+    const recentRecords = rollingDateWindow(deviceDate).map((date) => ({ date, record: records.get(date) ?? null }));
+    const maxMinutes = Math.max(1, ...recentRecords.flatMap(({ record }) => record ? [Math.max(0, record.sleep_duration_minutes ?? 0)] : []));
+    return recentRecords.map(({ date, record }): BarLineTrendPoint => {
+        const minutes = Math.max(0, record?.sleep_duration_minutes ?? 0);
         const hours = minutes / 60;
         const normalized = (minutes / maxMinutes) * 100;
         return {
-          id: record.id,
-          label: shortDate(record.record_date, locale),
+          id: record?.id ?? `missing-sleep-${date}`,
+          label: shortDate(date, locale),
           barValue: normalized,
           lineValue: normalized,
-          barText: locale === "zh" ? `${hours.toFixed(1)} 小时` : `${hours.toFixed(1)} h`,
-          lineText: locale === "zh" ? `${hours.toFixed(1)} 小时` : `${hours.toFixed(1)} h`,
+          barText: record ? (locale === "zh" ? `${hours.toFixed(1)} 小时` : `${hours.toFixed(1)} h`) : (locale === "zh" ? "暂无记录" : "No entry"),
+          lineText: record ? (locale === "zh" ? `${hours.toFixed(1)} 小时` : `${hours.toFixed(1)} h`) : (locale === "zh" ? "暂无记录" : "No entry"),
+          missing: !record,
         };
       });
-  }, [locale, recordDate, todaySnapshot?.sleep, trendBundle]);
+  }, [deviceDate, locale, recordDate, todaySnapshot?.sleep, trendBundle]);
+  const hasSleepTrend = sleepTrend.some((point) => !point.missing);
 
   const enableNotification = async () => {
     await enableNavaNotifications(userId, "22:30");
     setNotificationEnabled(true);
   };
 
-  if (view === "trend") return <HistoryView module="sleep" locale={locale} trendBundle={trendBundle} />;
+  if (view === "trend") return <HistoryView module="sleep" locale={locale} trendBundle={trendBundle} deviceDate={deviceDate} />;
 
   return (
     <div className="module-dashboard sleep-dashboard" data-module-view="sleep-overview">
@@ -792,7 +824,7 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
       </section>
       <section className="figma-module-card sleep-trend-card">
         <header><strong>{locale === "zh" ? "7 日睡眠趋势" : "7-day sleep trend"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("history")} aria-label={locale === "zh" ? "查看睡眠趋势报告" : "View sleep trend report"}><ChevronRight size={18} /></button></header>
-        {sleepTrend.length > 0
+        {hasSleepTrend
           ? <BarLineTrendChart points={sleepTrend} scoreScale lineAnchor="bar-center" ariaLabel={locale === "zh" ? "近七日睡眠时长柱状图与同源趋势折线图，每个点对应同日柱子的几何中心" : "Seven-day sleep-duration bars with a linked line whose points match each bar's geometric center"} />
           : <p className="module-empty-copy">{locale === "zh" ? "完成睡眠记录后显示趋势" : "Log sleep to begin the trend"}</p>}
       </section>
@@ -801,19 +833,21 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
   );
 }
 
-function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "onOpenEditor" | "onOpenDietCamera"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
-  const { locale, todaySnapshot, trendBundle, onOpenEditor, onOpenDietCamera, openView } = props;
+function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "deviceDate" | "onOpenEditor" | "onOpenDietCamera"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
+  const { locale, todaySnapshot, trendBundle, deviceDate, onOpenEditor, onOpenDietCamera, openView } = props;
   const nutrition = todaySnapshot?.nutrition;
   const records = useMemo(() => {
     const byDate = new Map((trendBundle?.nutritions ?? []).map((record) => [record.record_date, record]));
     if (nutrition) byDate.set(nutrition.record_date, nutrition);
-    return [...byDate.values()].sort((a, b) => a.record_date.localeCompare(b.record_date)).slice(-7);
-  }, [nutrition, trendBundle]);
-  const trendPoints = records.map((record) => ({
-    id: record.id,
-    label: shortDate(record.record_date, locale),
-    value: Math.round(record.total_calories),
+    return rollingDateWindow(deviceDate).map((date) => ({ date, record: byDate.get(date) ?? null }));
+  }, [deviceDate, nutrition, trendBundle]);
+  const trendPoints = records.map(({ date, record }) => ({
+    id: record?.id ?? `missing-diet-${date}`,
+    label: shortDate(date, locale),
+    value: Math.round(record?.total_calories ?? 0),
+    missing: !record,
   }));
+  const hasTrend = records.some(({ record }) => Boolean(record));
   const meals = [
     { key: "breakfast", zh: "早餐", en: "Breakfast", items: nutrition?.breakfast_items ?? [] },
     { key: "lunch", zh: "午餐", en: "Lunch", items: nutrition?.lunch_items ?? [] },
@@ -848,33 +882,33 @@ function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "onO
       </section>
       <section className="figma-module-card diet-trend-card">
         <header><strong>{locale === "zh" ? "近 7 日能量记录" : "7-day energy log"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("history")} aria-label={locale === "zh" ? "查看饮食历史" : "View diet history"}><ChevronRight size={18} /></button></header>
-        {trendPoints.length > 0 ? <LineTrendChart points={trendPoints} compact scale="auto" verticalEmphasis ariaLabel={locale === "zh" ? "近七日饮食能量趋势，单位千卡" : "Seven-day dietary energy trend in kilocalories"} /> : <p className="module-empty-copy">{locale === "zh" ? "完成第一餐记录后显示趋势" : "Log a meal to begin the trend"}</p>}
+        {hasTrend ? <LineTrendChart points={trendPoints} compact scale="auto" verticalEmphasis showAllDates ariaLabel={locale === "zh" ? "近七日饮食能量趋势，单位千卡；未记录日期保留为空位" : "Seven-day dietary energy trend in kilocalories with empty slots for missing dates"} /> : <p className="module-empty-copy">{locale === "zh" ? "完成第一餐记录后显示趋势" : "Log a meal to begin the trend"}</p>}
       </section>
     </div>
   );
 }
 
-function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "profile" | "onOpenEditor"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
-  const { locale, todaySnapshot, trendBundle, onOpenEditor, openView } = props;
+function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "deviceDate" | "profile" | "onOpenEditor"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
+  const { locale, todaySnapshot, trendBundle, deviceDate, onOpenEditor, openView } = props;
   const face = todaySnapshot?.face;
   const records = useMemo(() => {
     const byDate = new Map((trendBundle?.faces ?? []).map((record) => [record.record_date, record]));
     if (face) byDate.set(face.record_date, face);
-    return [...byDate.values()].sort((a, b) => a.record_date.localeCompare(b.record_date)).slice(-7);
-  }, [face, trendBundle]);
-  const points = records
-    .filter((record) => record.overall_score != null)
-    .map((record) => {
-      const value = record.overall_score ?? 0;
+    return rollingDateWindow(deviceDate).map((date) => ({ date, record: byDate.get(date) ?? null }));
+  }, [deviceDate, face, trendBundle]);
+  const points = records.map(({ date, record }) => {
+      const value = record?.overall_score ?? 0;
       return {
-        id: record.id,
-        label: shortDate(record.record_date, locale),
+        id: record?.id ?? `missing-face-${date}`,
+        label: shortDate(date, locale),
         barValue: value,
         lineValue: value,
-        barText: locale === "zh" ? `${value} 分` : `${value} pts`,
-        lineText: locale === "zh" ? `${value} 分` : `${value} pts`,
+        barText: record?.overall_score == null ? (locale === "zh" ? "暂无记录" : "No entry") : (locale === "zh" ? `${value} 分` : `${value} pts`),
+        lineText: record?.overall_score == null ? (locale === "zh" ? "暂无记录" : "No entry") : (locale === "zh" ? `${value} 分` : `${value} pts`),
+        missing: record?.overall_score == null,
       };
     });
+  const hasTrend = points.some((point) => !point.missing);
   return (
     <div className="module-dashboard face-dashboard" data-module-view="face-overview">
       <section className="figma-module-card face-privacy-card">
@@ -889,14 +923,14 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "pro
       </section>
       <section className="figma-module-card face-trend-card">
         <header><strong>{locale === "zh" ? "近 7 日状态" : "7-day state"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("history")} aria-label={locale === "zh" ? "查看面部趋势报告" : "View face trend report"}><ChevronRight size={18} /></button></header>
-        {points.length > 0 ? <BarLineTrendChart points={points} scoreScale curve="monotone" ariaLabel={locale === "zh" ? "近七日面部状态柱状图与单调平滑趋势曲线，日期位于图表底部" : "Seven-day face-state bars with a monotone smooth trend curve and dates at the bottom"} /> : <p className="module-empty-copy">{locale === "zh" ? "完成第一次拍照后显示趋势" : "Take the first photo to begin the trend"}</p>}
+        {hasTrend ? <BarLineTrendChart points={points} scoreScale curve="monotone" ariaLabel={locale === "zh" ? "按设备日期滚动的近七日面部状态趋势；未记录日期保留为空位" : "Device-date rolling seven-day face-state trend with empty slots for missing dates"} /> : <p className="module-empty-copy">{locale === "zh" ? "完成第一次拍照后显示趋势" : "Take the first photo to begin the trend"}</p>}
       </section>
     </div>
   );
 }
 
-function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setFocusTitle" | "setFocusMinutes" | "onSaveFocusMinutes" | "todaySnapshot" | "trendBundle" | "profile"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
-  const { locale, focusTitle, focusMinutes, setFocusTitle, setFocusMinutes, onSaveFocusMinutes, todaySnapshot, trendBundle, view, openView } = props;
+function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setFocusTitle" | "setFocusMinutes" | "onSaveFocusMinutes" | "todaySnapshot" | "trendBundle" | "deviceDate" | "profile"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
+  const { locale, focusTitle, focusMinutes, setFocusTitle, setFocusMinutes, onSaveFocusMinutes, todaySnapshot, trendBundle, deviceDate, view, openView } = props;
   const displayedFocusTitle = focusTitle === "产品原型" || focusTitle === "Product prototype" || focusTitle === "Prototype"
     ? ""
     : focusTitle;
@@ -911,18 +945,23 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
   const [startedAt, setStartedAt] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const focusRecords = useMemo(() => aggregateFocusByDate(trendBundle?.focus ?? []).slice(-7), [trendBundle]);
+  const focusRecords = useMemo(() => {
+    const byDate = new Map(aggregateFocusByDate(trendBundle?.focus ?? []).map((record) => [record.record_date, record]));
+    return rollingDateWindow(deviceDate).map((date) => ({ date, record: byDate.get(date) ?? null }));
+  }, [deviceDate, trendBundle]);
   const todayMinutes = todaySnapshot?.focusMinutes ?? 0;
   const todaySessions = todaySnapshot?.focusSessions ?? 0;
-  const focusTrendPoints: BarLineTrendPoint[] = focusRecords.map((record) => ({
-    id: record.id,
-    label: shortDate(record.record_date, locale),
-    barValue: record.total_minutes,
-    lineValue: record.total_minutes,
-    barText: locale === "zh" ? `${record.total_minutes} 分钟` : `${record.total_minutes} min`,
-    lineText: locale === "zh" ? `${record.total_minutes} 分钟` : `${record.total_minutes} min`,
+  const focusTrendPoints: BarLineTrendPoint[] = focusRecords.map(({ date, record }) => ({
+    id: record?.id ?? `missing-focus-${date}`,
+    label: shortDate(date, locale),
+    barValue: record?.total_minutes ?? 0,
+    lineValue: record?.total_minutes ?? 0,
+    barText: record ? (locale === "zh" ? `${record.total_minutes} 分钟` : `${record.total_minutes} min`) : (locale === "zh" ? "暂无记录" : "No entry"),
+    lineText: record ? (locale === "zh" ? `${record.total_minutes} 分钟` : `${record.total_minutes} min`) : (locale === "zh" ? "暂无记录" : "No entry"),
+    missing: !record,
   }));
-  const recentFocus = focusRecords.slice(-3).reverse();
+  const hasFocusTrend = focusTrendPoints.some((point) => !point.missing);
+  const recentFocus = focusRecords.flatMap(({ record }) => record ? [record] : []).slice(-3).reverse();
 
   const updateDuration = (nextValue: number) => {
     const nextMinutes = Math.min(180, Math.max(1, Math.round(nextValue || 1)));
@@ -1095,7 +1134,7 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
       </section>
       <section className="figma-module-card focus-trend-card">
         <header><strong>{locale === "zh" ? "近 7 日专注时长" : "7-day focus duration"}</strong></header>
-        {focusTrendPoints.length > 0 ? <BarLineTrendChart
+        {hasFocusTrend ? <BarLineTrendChart
           points={focusTrendPoints}
           scoreScale
           lineAnchor="bar-center"
@@ -1127,13 +1166,13 @@ export default function RecordModuleDashboard(props: Props) {
     setView(next);
     props.onViewChange?.(next === "overview" ? null : next, returnToPrevious);
   };
-  if (view === "history") return <HistoryView module={props.module} locale={locale} trendBundle={props.trendBundle} onGrowthActivity={props.onGrowthActivity} />;
+  if (view === "history") return <HistoryView module={props.module} locale={locale} trendBundle={props.trendBundle} deviceDate={props.deviceDate} onGrowthActivity={props.onGrowthActivity} />;
   const common = { ...props, locale };
-  if (props.module === "exercise") return <ExerciseDashboard userId={props.userId} locale={locale} steps={props.steps} calories={props.calories} exerciseMinutes={props.exerciseMinutes} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
+  if (props.module === "exercise") return <ExerciseDashboard userId={props.userId} locale={locale} steps={props.steps} calories={props.calories} exerciseMinutes={props.exerciseMinutes} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} deviceDate={props.deviceDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
   if (props.module === "mood") return <MoodDashboard {...common} view={view} openView={openView} />;
-  if (props.module === "sleep") return <SleepDashboard userId={props.userId} locale={locale} sleepStart={props.sleepStart} sleepEnd={props.sleepEnd} deepSleep={props.deepSleep} lightSleep={props.lightSleep} remSleep={props.remSleep} sleepRating={props.sleepRating} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
-  if (props.module === "diet") return <DietDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} onOpenEditor={props.onOpenEditor} onOpenDietCamera={props.onOpenDietCamera} view={view} openView={openView} />;
-  if (props.module === "face") return <FaceDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} profile={props.profile} onOpenEditor={props.onOpenEditor} view={view} openView={openView} />;
-  if (props.module === "focus") return <FocusDashboard locale={locale} focusTitle={props.focusTitle} focusMinutes={props.focusMinutes} setFocusTitle={props.setFocusTitle} setFocusMinutes={props.setFocusMinutes} onSaveFocusMinutes={props.onSaveFocusMinutes} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} profile={props.profile} view={view} openView={openView} />;
+  if (props.module === "sleep") return <SleepDashboard userId={props.userId} locale={locale} sleepStart={props.sleepStart} sleepEnd={props.sleepEnd} deepSleep={props.deepSleep} lightSleep={props.lightSleep} remSleep={props.remSleep} sleepRating={props.sleepRating} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} deviceDate={props.deviceDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
+  if (props.module === "diet") return <DietDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} onOpenEditor={props.onOpenEditor} onOpenDietCamera={props.onOpenDietCamera} view={view} openView={openView} />;
+  if (props.module === "face") return <FaceDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} onOpenEditor={props.onOpenEditor} view={view} openView={openView} />;
+  if (props.module === "focus") return <FocusDashboard locale={locale} focusTitle={props.focusTitle} focusMinutes={props.focusMinutes} setFocusTitle={props.setFocusTitle} setFocusMinutes={props.setFocusMinutes} onSaveFocusMinutes={props.onSaveFocusMinutes} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} view={view} openView={openView} />;
   return null;
 }

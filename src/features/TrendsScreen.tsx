@@ -6,19 +6,28 @@ import AnimatedNumber from "../components/AnimatedNumber";
 import MetricCard from "../components/MetricCard";
 import SectionCard from "../components/SectionCard";
 import { useLocale } from "../i18n";
-import { minutesToText } from "../services/date";
+import { minutesToText, rollingDateWindow } from "../services/date";
 import { getTrends } from "../services/records";
 import type { TrendBundle } from "../types";
+import useDeviceDate from "../hooks/useDeviceDate";
+
+function chartDate(date: string, locale: "zh" | "en") {
+  return new Date(`${date}T00:00:00`).toLocaleDateString(locale === "en" ? "en-US" : "zh-CN", {
+    month: "numeric",
+    day: "numeric",
+  });
+}
 
 export default function TrendsScreen({ user, refreshKey }: { user: User; refreshKey: number }) {
   const { locale, t } = useLocale();
+  const deviceDate = useDeviceDate();
   const [bundle, setBundle] = useState<TrendBundle | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
     setError(null);
-    getTrends(user.id)
+    getTrends(user.id, deviceDate)
       .then((data) => {
         if (alive) setBundle(data);
       })
@@ -28,7 +37,22 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
     return () => {
       alive = false;
     };
-  }, [refreshKey, user.id]);
+  }, [deviceDate, refreshKey, user.id]);
+
+  const recentMoodPoints = useMemo(() => {
+    const byDate = new Map((bundle?.moods ?? []).map((item) => [item.record_date, item]));
+    return rollingDateWindow(deviceDate).map((date) => {
+      const item = byDate.get(date);
+      return { id: item?.id ?? `missing-mood-${date}`, label: chartDate(date, locale), value: item?.mood_score ?? 0, missing: !item };
+    });
+  }, [bundle?.moods, deviceDate, locale]);
+  const recentRhythmPoints = useMemo(() => {
+    const byDate = new Map((bundle?.rhythms ?? []).map((item) => [item.record_date, item]));
+    return rollingDateWindow(deviceDate).map((date) => {
+      const item = byDate.get(date);
+      return { id: item?.id ?? `missing-rhythm-${date}`, label: chartDate(date, locale), value: item?.score ?? 0, lower: item?.score_lower, upper: item?.score_upper, missing: !item };
+    });
+  }, [bundle?.rhythms, deviceDate, locale]);
 
   const totals = useMemo(() => {
     const avgMood = bundle?.moods.length
@@ -46,11 +70,6 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
     return { avgMood, sleepMinutes, steps, focus };
   }, [bundle]);
 
-  const chartDate = (date: string) => new Date(`${date}T00:00:00`).toLocaleDateString(locale === "en" ? "en-US" : "zh-CN", {
-    month: "numeric",
-    day: "numeric",
-  });
-
   return (
     <div className="trend-dashboard">
       <div className="metric-grid trend-metric-grid">
@@ -65,18 +84,15 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
           <div className="trend-chart-block">
             {error && <p className="error-text">{error}</p>}
             {!bundle && !error && <p className="muted">正在加载趋势</p>}
-            {bundle && bundle.moods.length > 0 && (
+            {bundle && recentMoodPoints.some((point) => !point.missing) && (
               <LineTrendChart
                 ariaLabel={t("trends.moodChartLabel")}
                 compact
-                points={bundle.moods.slice(-7).map((item) => ({
-                  id: item.id,
-                  label: chartDate(item.record_date),
-                  value: item.mood_score,
-                }))}
+                points={recentMoodPoints}
+                showAllDates
               />
             )}
-            {bundle && bundle.moods.length === 0 && (
+            {bundle && !recentMoodPoints.some((point) => !point.missing) && (
               <div className="empty-chat compact">
                 <Activity size={24} />
                 <span>{t("trends.empty")}</span>
@@ -87,21 +103,16 @@ export default function TrendsScreen({ user, refreshKey }: { user: User; refresh
           <div className="trend-chart-divider" />
           <h3 className="trend-subheading">{t("trends.rhythmState")}</h3>
           <div className="trend-chart-block">
-            {bundle && bundle.rhythms.length > 0 && (
+            {bundle && recentRhythmPoints.some((point) => !point.missing) && (
               <LineTrendChart
                 ariaLabel={t("trends.rhythmChartLabel")}
                 compact
                 tone="rhythm"
-                points={bundle.rhythms.slice(-7).map((item) => ({
-                  id: item.id,
-                  label: chartDate(item.record_date),
-                  value: item.score,
-                  lower: item.score_lower,
-                  upper: item.score_upper,
-                }))}
+                points={recentRhythmPoints}
+                showAllDates
               />
             )}
-            {bundle && bundle.rhythms.length === 0 && <p className="muted">{t("trends.rhythmEmpty")}</p>}
+            {bundle && !recentRhythmPoints.some((point) => !point.missing) && <p className="muted">{t("trends.rhythmEmpty")}</p>}
           </div>
         </SectionCard>
       </div>

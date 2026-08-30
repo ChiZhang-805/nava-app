@@ -29,7 +29,7 @@
     "motion:test": "node --experimental-strip-types --test tests/background-motion.test.ts tests/mascot-motion.test.ts",
     "chart-motion:test": "node --experimental-strip-types --test tests/chart-motion.test.ts tests/chart-curves.test.ts",
     "weekly-report:test": "node --experimental-strip-types --test tests/weekly-report.test.ts",
-    "report-share:test": "node --experimental-strip-types --test tests/report-share-card.test.ts",
+    "report-share:test": "node --experimental-strip-types --test tests/report-share-card.test.ts tests/device-date.test.ts",
     "navigation:test": "node --experimental-strip-types --test tests/shell-history.test.ts",
     "ai:speech:test": "node --experimental-strip-types --test tests/ai-speech.test.ts",
     "voice:endpoint:test": "node --experimental-strip-types --test tests/voice-endpoint.test.ts",

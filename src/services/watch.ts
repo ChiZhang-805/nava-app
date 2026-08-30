@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import type { WatchUserSnapshot } from "../types";
 import { isDemoMode } from "./demo";
+import { todayISO } from "./date";
 import { supabase } from "./supabaseClient";
 
 export type WatchAction =
@@ -55,7 +56,7 @@ export async function publishWatchSnapshot(snapshot: WatchUserSnapshot) {
       await supabase.functions.invoke("watch-sync", {
         body: {
           type: "snapshot",
-          date: new Date(snapshot.lastSyncedAt).toISOString().slice(0, 10),
+          date: todayISO(new Date(snapshot.lastSyncedAt)),
           snapshot,
         },
       });

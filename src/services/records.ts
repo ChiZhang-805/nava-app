@@ -1,5 +1,5 @@
 import { supabase } from "./supabaseClient";
-import { daysAgoISO, todayISO } from "./date";
+import { shiftDateISO, todayISO } from "./date";
 import { isCompleteMoodRecord } from "./mood";
 import type {
   ExerciseRecord,
@@ -701,20 +701,20 @@ async function upsertFocusDistribution(userId: string, recordDate: string, minut
   assertNoError(response.error);
 }
 
-export async function getTrends(userId: string): Promise<TrendBundle> {
-  if (isDemoMode()) return demoTrends();
+export async function getTrends(userId: string, endDate = todayISO()): Promise<TrendBundle> {
+  if (isDemoMode()) return demoTrends(endDate);
 
-  const start = daysAgoISO(55);
+  const start = shiftDateISO(endDate, -55);
   const [moods, sleeps, exercises, nutritions, faces, focus, focusDistributions, healthMetrics, rhythms] = await Promise.all([
-    supabase.from("mood_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
-    supabase.from("sleep_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
-    supabase.from("exercise_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
-    supabase.from("nutrition_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
-    supabase.from("face_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
-    supabase.from("focus_records").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
-    supabase.from("focus_time_distribution").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
-    supabase.from("health_metric_snapshots").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
-    supabase.from("daily_rhythm_scores").select("*").eq("user_id", userId).gte("record_date", start).order("record_date"),
+    supabase.from("mood_records").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
+    supabase.from("sleep_records").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
+    supabase.from("exercise_records").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
+    supabase.from("nutrition_records").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
+    supabase.from("face_records").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
+    supabase.from("focus_records").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
+    supabase.from("focus_time_distribution").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
+    supabase.from("health_metric_snapshots").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
+    supabase.from("daily_rhythm_scores").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
   ]);
 
   return {

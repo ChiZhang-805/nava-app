@@ -92,6 +92,7 @@ const recordModules: Array<{
 
 export default function RecordsScreen({
   user,
+  deviceDate,
   onSaved,
   onGrowthActivity,
   initialModule = null,
@@ -100,6 +101,7 @@ export default function RecordsScreen({
   onViewChange,
 }: {
   user: User;
+  deviceDate: string;
   onSaved: () => void;
   onGrowthActivity?: (activity: GrowthActivityKind) => void | Promise<unknown>;
   initialModule?: RecordModule | null;
@@ -108,15 +110,10 @@ export default function RecordsScreen({
   onViewChange?: (view: string | null, replace?: boolean) => void;
 }) {
   const { locale, t } = useLocale();
-  const recordDateStorageKey = `nava-record-date:${user.id}`;
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [recordDate, setRecordDate] = useState(() => {
-    if (typeof window === "undefined") return todayISO();
-    const stored = window.sessionStorage.getItem(recordDateStorageKey);
-    return stored && /^\d{4}-\d{2}-\d{2}$/.test(stored) && stored <= todayISO() ? stored : todayISO();
-  });
+  const [recordDate, setRecordDate] = useState(deviceDate);
   const [activeModule, setActiveModule] = useState<RecordModule | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [todaySnapshot, setTodaySnapshot] = useState<TodaySnapshot | null>(null);
@@ -133,10 +130,6 @@ export default function RecordsScreen({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const weeklyLongPressTimerRef = useRef<number | null>(null);
   const weeklyLongPressOriginRef = useRef<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    window.sessionStorage.setItem(recordDateStorageKey, recordDate);
-  }, [recordDate, recordDateStorageKey]);
 
   const [moodScore, setMoodScore] = useState(70);
   const [selectedFactors, setSelectedFactors] = useState<string[]>([]);
@@ -199,7 +192,7 @@ export default function RecordsScreen({
     try {
       const [snapshot, trends, loadedProfile] = await Promise.all([
         getTodaySnapshot(user.id, recordDate),
-        getTrends(user.id),
+        getTrends(user.id, deviceDate),
         loadProfile(user.id).catch(() => null),
       ]);
       setTodaySnapshot(snapshot);
@@ -291,11 +284,15 @@ export default function RecordsScreen({
     } finally {
       setDraftReady(true);
     }
-  }, [activeModule, meal, recordDate, user.id]);
+  }, [activeModule, deviceDate, meal, recordDate, user.id]);
 
   useEffect(() => {
     void loadRecordData();
   }, [loadRecordData]);
+
+  useEffect(() => {
+    setRecordDate(deviceDate);
+  }, [deviceDate]);
 
   useEffect(() => {
     const refreshVisibleRecords = () => {
@@ -357,7 +354,7 @@ export default function RecordsScreen({
   useEffect(() => {
     if (reportMode !== "weekly") return;
     let active = true;
-    const reference = new Date();
+    const reference = new Date(`${deviceDate}T12:00:00`);
     reference.setDate(reference.getDate() - weekOffset * 7);
     void loadDnbWeeklyReport(reference, locale)
       .then((report) => {
@@ -367,11 +364,11 @@ export default function RecordsScreen({
     return () => {
       active = false;
     };
-  }, [locale, reportMode, user.id, weekOffset]);
+  }, [deviceDate, locale, reportMode, user.id, weekOffset]);
 
   useEffect(() => {
     if (reportMode !== "weekly") return;
-    const reference = new Date();
+    const reference = new Date(`${deviceDate}T12:00:00`);
     reference.setDate(reference.getDate() - weekOffset * 7);
     const period = currentSevenDayPeriod(reference);
     let active = true;
@@ -392,7 +389,7 @@ export default function RecordsScreen({
     return () => {
       active = false;
     };
-  }, [locale, reportMode, user.id, weekOffset]);
+  }, [deviceDate, locale, reportMode, user.id, weekOffset]);
 
   const clearWeeklyLongPress = useCallback(() => {
     if (weeklyLongPressTimerRef.current !== null) {
@@ -407,7 +404,7 @@ export default function RecordsScreen({
 
   const shareWeeklyReport = useCallback(async () => {
     if (!dnbReport || dnbReport.status !== "ready") return;
-    const reference = new Date();
+    const reference = new Date(`${deviceDate}T12:00:00`);
     reference.setDate(reference.getDate() - weekOffset * 7);
     const period = currentSevenDayPeriod(reference);
     try {
@@ -418,7 +415,7 @@ export default function RecordsScreen({
       if ((shareError as DOMException)?.name === "AbortError") return;
       setError(shareError instanceof Error ? shareError.message : String(shareError));
     }
-  }, [dnbReport, locale, onGrowthActivity, user.id, weekOffset]);
+  }, [deviceDate, dnbReport, locale, onGrowthActivity, user.id, weekOffset]);
 
   const beginWeeklyLongPress = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (!dnbReport || dnbReport.status !== "ready") return;
@@ -763,7 +760,7 @@ export default function RecordsScreen({
   }
 
   if (!activeModule) {
-    const dnbReference = new Date();
+    const dnbReference = new Date(`${deviceDate}T12:00:00`);
     dnbReference.setDate(dnbReference.getDate() - weekOffset * 7);
     const dnbPeriod = currentSevenDayPeriod(dnbReference);
     const inSelectedWeek = (date: string) => date >= dnbPeriod.startDate && date <= dnbPeriod.endDate;
@@ -799,7 +796,7 @@ export default function RecordsScreen({
               aria-label={t("records.date")}
               type="date"
               value={recordDate}
-              max={todayISO()}
+              max={deviceDate}
               onChange={(event) => setRecordDate(event.target.value)}
             />
           </label>
@@ -926,7 +923,7 @@ export default function RecordsScreen({
             aria-label={t("records.date")}
             type="date"
             value={recordDate}
-            max={todayISO()}
+            max={deviceDate}
             onChange={(event) => setRecordDate(event.target.value)}
           />
         </label>
@@ -971,6 +968,7 @@ export default function RecordsScreen({
           onSaveFocusMinutes={saveFocusMinutes}
           busy={busy}
           recordDate={recordDate}
+          deviceDate={deviceDate}
           todaySnapshot={todaySnapshot}
           trendBundle={trendBundle}
           profile={profile}

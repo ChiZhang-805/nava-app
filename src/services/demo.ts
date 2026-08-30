@@ -337,9 +337,9 @@ export function demoTodaySnapshot(date = todayISO()): TodaySnapshot {
   };
 }
 
-export function demoTrends(): TrendBundle {
+export function demoTrends(endDate = todayISO()): TrendBundle {
   const overrides = readDemoRecordOverrides();
-  const moods = demoMoodHistory();
+  const moods = demoMoodHistory(endDate);
   const sleeps: SleepRecord[] = moods.map((mood, index) => overrides.sleeps[mood.record_date] ?? ({
     ...demoSleep,
     id: `demo-sleep-${index}`,

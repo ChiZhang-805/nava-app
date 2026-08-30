@@ -29,6 +29,7 @@ import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
 import { loadOnboardingStatus } from "./services/onboarding";
 import { recordGrowthActivity, reconcileGrowthRewards, resolveGrowthTasks, type GrowthActivityKind, type GrowthRewardGrant, type GrowthSummary } from "./services/productivity";
+import useDeviceDate from "./hooks/useDeviceDate";
 import { isAiSpeechSupported } from "./services/aiSpeech";
 import {
   fallbackShellRoute,
@@ -110,6 +111,8 @@ function MobileShell() {
   const [utilityOpen, setUtilityOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const deviceDate = useDeviceDate();
+  const previousDeviceDateRef = useRef(deviceDate);
   const [voiceRequestId, setVoiceRequestId] = useState(0);
   const [voiceRelease, setVoiceRelease] = useState({ id: 0, cancelled: false });
   const [voiceCancelArmed, setVoiceCancelArmed] = useState(false);
@@ -196,6 +199,12 @@ function MobileShell() {
   }, [claimGrowthAfterChange, user]);
 
   const dismissReward = useCallback(() => setRewardQueue((queue) => queue.slice(1)), []);
+
+  useEffect(() => {
+    if (previousDeviceDateRef.current === deviceDate) return;
+    previousDeviceDateRef.current = deviceDate;
+    setRefreshKey((value) => value + 1);
+  }, [deviceDate]);
 
   useEffect(() => {
     if (!user || checkinUserRef.current === user.id) return;
@@ -508,6 +517,7 @@ function MobileShell() {
           {activeTab === "record" && (
             <RecordsScreen
               user={user}
+              deviceDate={deviceDate}
               onSaved={markChanged}
               onGrowthActivity={completeGrowthActivity}
               initialModule={recordModule}
@@ -543,6 +553,7 @@ function MobileShell() {
           </div>
           {activeTab === "trends" && (
             <GrowthTasksScreen
+              key={deviceDate}
               user={user}
               onOpenTarget={(target) => {
                 if (target === "profile") {

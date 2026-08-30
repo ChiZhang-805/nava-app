@@ -1,5 +1,6 @@
 import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
+import { sevenDayDateRange, todayISO } from "./date";
 
 export type DnbStatus = "ready" | "insufficient_data" | "unavailable";
 export type DnbEvidenceLevel = "supported" | "candidate" | "no_support";
@@ -42,14 +43,7 @@ export type DnbWeeklyReport = {
 };
 
 export function currentSevenDayPeriod(reference = new Date()) {
-  const end = new Date(reference);
-  end.setHours(12, 0, 0, 0);
-  const start = new Date(end);
-  start.setDate(start.getDate() - 6);
-  return {
-    startDate: start.toISOString().slice(0, 10),
-    endDate: end.toISOString().slice(0, 10),
-  };
+  return sevenDayDateRange(todayISO(reference));
 }
 
 export async function loadDnbWeeklyReport(reference = new Date(), locale: "zh" | "en" = "zh"): Promise<DnbWeeklyReport> {
@@ -178,7 +172,7 @@ function wrapCanvasText(context: CanvasRenderingContext2D, text: string, x: numb
   if (line && lines < maxLines) context.fillText(line, x, y + lines * lineHeight);
 }
 
-export async function refreshFdnbHealth(endDate = new Date().toISOString().slice(0, 10)) {
+export async function refreshFdnbHealth(endDate = todayISO()) {
   if (isDemoMode()) return null;
   const response = await supabase.functions.invoke("fdnb-recompute", {
     body: { endDate, analysisDays: 56 },

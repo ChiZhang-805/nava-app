@@ -1,7 +1,18 @@
 param(
   [string]$Anchor = "2026-08-28",
-  [switch]$AuditOnly
+  [switch]$AuditOnly,
+  [string]$ReceiptPath = ""
 )
+
+function Invoke-HistoryNode {
+  param([string[]]$Arguments)
+  if ($ReceiptPath) {
+    & node @Arguments | Tee-Object -FilePath $ReceiptPath -Append
+  } else {
+    & node @Arguments
+  }
+  if ($LASTEXITCODE -ne 0) { throw "History command failed." }
+}
 
 $secureEmail = Read-Host "NAVA account email" -AsSecureString
 $securePassword = Read-Host "NAVA account password" -AsSecureString
@@ -16,14 +27,12 @@ try {
   $endDate = $anchorDate.AddDays(-1).ToString("yyyy-MM-dd")
 
   if ($AuditOnly) {
-    node scripts/audit-account-history.mjs "--anchor=$Anchor"
-    if ($LASTEXITCODE -ne 0) { throw "History audit failed." }
+    Invoke-HistoryNode @("scripts/audit-account-history.mjs", "--anchor=$Anchor")
   } else {
-    node scripts/seed-account-history.mjs "--anchor=$Anchor"
-    if ($LASTEXITCODE -ne 0) { throw "Core history seed failed." }
-
-    node scripts/backfill-account-auxiliary.mjs "--start=$startDate" "--end=$endDate"
-    if ($LASTEXITCODE -ne 0) { throw "Auxiliary history backfill failed." }
+    Invoke-HistoryNode @("scripts/seed-account-history.mjs", "--anchor=$Anchor")
+    Invoke-HistoryNode @("scripts/backfill-account-auxiliary.mjs", "--start=$startDate", "--end=$endDate")
+    Invoke-HistoryNode @("scripts/audit-account-history.mjs", "--anchor=$Anchor")
+    if ($ReceiptPath) { "__NAVA_SECURE_HISTORY_COMPLETE__" | Add-Content -LiteralPath $ReceiptPath }
   }
 } finally {
   Remove-Item Env:NAVA_ACCOUNT_EMAIL -ErrorAction SilentlyContinue

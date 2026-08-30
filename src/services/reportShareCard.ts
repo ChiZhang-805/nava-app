@@ -1,3 +1,5 @@
+import { sevenDayDateRange, todayISO } from "./date";
+
 export type ReportModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
 
 export type ReportCardEntry = {
@@ -31,23 +33,8 @@ function shortDate(date: string) {
   return `${Number(month)}/${Number(day)}`;
 }
 
-function localDateISO(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function shiftLocalDate(date: string, offset: number) {
-  const [year, month, day] = date.split("-").map(Number);
-  const value = new Date(year, month - 1, day, 12, 0, 0);
-  value.setDate(value.getDate() + offset);
-  return localDateISO(value);
-}
-
 export function currentReportDateRange(date = new Date()) {
-  const endDate = localDateISO(date);
-  return { startDate: shiftLocalDate(endDate, -6), endDate };
+  return sevenDayDateRange(todayISO(date));
 }
 
 function loadImage(url: string) {
