@@ -286,9 +286,7 @@ function extractFoodItems(value: string, locale: "zh" | "en"): FoodItemDraft[] {
     estimated: true,
     estimationBasis: locale === "zh" ? "按常见单份估算" : "Estimated from a common serving",
   }];
-  const generic = value.match(/(?:吃了?|喝了?|ate|had)\s*(?:一(?:个|份|块|片))?\s*([^，。,.！!？?]{1,18}?)(?=[，。,.！!？?]|然后|并且|而且|我(?:要|很|真)|$)/i)?.[1]?.trim();
-  if (!generic || /小时|分钟|运动|睡眠|跑步/.test(generic)) return [];
-  return [{ name: generic, quantity: 1, unit: locale === "zh" ? "份" : "serving", amount: locale === "zh" ? "1份" : "1 serving", calories: 0, caloriesPerUnit: 0, estimated: true }];
+  return [];
 }
 
 function extractNutritionEntry(value: string, locale: "zh" | "en") {
@@ -430,7 +428,9 @@ function modelEntry(dataType: string, data: Record<string, unknown>, text: strin
       const quantity = numberValue(item.quantity) ?? numberValue(amount.match(/[\d.]+/)?.[0]) ?? 1;
       const unit = stringValue(item.unit) ?? (amount.replace(/[\d.\s]/g, "") || (locale === "zh" ? "份" : "serving"));
       const itemName = stringValue(item.name) ?? (locale === "zh" ? "饮食记录" : "Meal item");
-      const calories = Math.max(0, Math.round(numberValue(item.calories) ?? calorieRule(itemName, unit)));
+      const statedCalories = numberValue(item.calories);
+      const ruleCalories = calorieRule(itemName, unit);
+      const calories = Math.max(0, Math.round(statedCalories != null && statedCalories > 0 ? statedCalories : ruleCalories));
       return {
         name: itemName,
         quantity,
@@ -443,6 +443,7 @@ function modelEntry(dataType: string, data: Record<string, unknown>, text: strin
       };
     });
     const resolvedTotal = totalCalories || items.reduce((sum, item) => sum + item.calories, 0);
+    if (resolvedTotal <= 0 && !items.every((item) => /水|白开水|无糖茶|water|unsweetened tea/i.test(item.name))) return null;
     const fields: Array<Omit<StructuredField, "id">> = items.map((item, index) => ({
       label: item.name,
       value: String(item.quantity),
