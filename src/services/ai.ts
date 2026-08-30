@@ -44,6 +44,7 @@ export async function sendAiMessage(input: {
   preExtracted?: {
     dataType: string;
     extractedData: unknown;
+    knowledge?: unknown;
   };
   signal?: AbortSignal;
   onUserMessage?: (message: ChatMessage) => void;
@@ -111,6 +112,7 @@ export async function sendAiMessage(input: {
     lang,
     dataType: extraction?.dataType ?? null,
     extractedData,
+    knowledge: extraction?.knowledge ?? null,
     responseMode: input.responseMode,
     signal: input.signal,
     processing,
@@ -134,6 +136,7 @@ export async function sendAiMessage(input: {
     dataType: extraction?.dataType ?? null,
     extractedData,
     extractionConfidence: typeof extraction?.confidence === "number" ? extraction.confidence : null,
+    knowledge: extraction?.knowledge ?? null,
     applied: null,
   };
 }
@@ -152,6 +155,7 @@ async function requestAiReply(input: {
   lang: "zh" | "en";
   dataType?: unknown;
   extractedData?: unknown;
+  knowledge?: unknown;
   responseMode?: "text" | "voice";
   signal?: AbortSignal;
   processing: Promise<void>;
@@ -163,6 +167,7 @@ async function requestAiReply(input: {
       message: input.message,
       dataType: input.dataType ?? null,
       extractedData: input.extractedData ?? null,
+      knowledge: input.knowledge ?? null,
       responseMode: input.responseMode ?? "text",
       lang: input.lang,
       deviceDate: todayISO(),

@@ -9,6 +9,14 @@ import {
 } from "../_shared/http.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.52.1";
 import {
+  knowledgeAuditSummary,
+  markKnowledgeUsage,
+  mergeKnowledgeBundles,
+  normalizeKnowledgeBundle,
+  runKnowledgeTools,
+  type KnowledgeBundle,
+} from "../_shared/knowledge-tools.ts";
+import {
   loadOwnedAiBaseContext,
   loadOwnedRelevantHealthContext,
   type ConversationMessage,
@@ -41,6 +49,7 @@ type ReplyInput = {
   lang: ReplyLanguage;
   responseMode: ReplyMode;
   providerUserId: string;
+  knowledge: KnowledgeBundle;
 };
 
 type ProviderReply = {
@@ -48,6 +57,7 @@ type ProviderReply = {
   provider: string;
   modelVersion: string;
   actions: unknown[];
+  knowledgeTrace: unknown[];
 };
 
 type StreamEvent = "delta" | "done" | "error";
@@ -80,11 +90,12 @@ Deno.serve(async (req) => {
     enforceRateLimit(`${user.id}:${address}`, authenticatedRequestsPerWindow);
 
     const lang: ReplyLanguage = stringValue(body.lang) === "en" || stringValue(body.language) === "en" ? "en" : "zh";
-    const baseInput: Pick<ReplyInput, "message" | "deviceDate" | "dataType" | "extractedData" | "lang" | "responseMode"> = {
+    const baseInput: Pick<ReplyInput, "message" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode"> = {
       message,
       deviceDate: stringValue(body.deviceDate) ?? stringValue(body.device_date),
       dataType: stringValue(body.dataType) ?? stringValue(body.data_type),
       extractedData: body.extractedData ?? body.extracted_data ?? null,
+      knowledge: normalizeKnowledgeBundle(body.knowledge),
       lang,
       responseMode: body.responseMode === "voice" || body.response_mode === "voice" ? "voice" : "text",
     };
@@ -102,18 +113,29 @@ Deno.serve(async (req) => {
 async function prepareReplyInput(
   client: SupabaseClient,
   userId: string,
-  input: Pick<ReplyInput, "message" | "deviceDate" | "dataType" | "extractedData" | "lang" | "responseMode">,
+  input: Pick<ReplyInput, "message" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode">,
 ): Promise<ReplyInput> {
   const base = await loadOwnedAiBaseContext(client, userId, input.message);
   const providerUserId = await anonymizeUserId(userId);
   const route = await resolveRoute(input, providerUserId);
   const healthContext = await loadOwnedRelevantHealthContext(client, userId, base, route, input.deviceDate);
+  const profile = healthContext && typeof healthContext === "object" && !Array.isArray(healthContext)
+    ? (healthContext as Record<string, unknown>).profile
+    : null;
+  const styleKnowledge = await runKnowledgeTools({ domains: ["style"], profile });
+  const styleToolIds = styleKnowledge.evidence.map((item) => item.toolId);
+  const knowledge = mergeKnowledgeBundles(
+    input.knowledge,
+    markKnowledgeUsage(styleKnowledge, { suppliedToolIds: styleToolIds, usedToolIds: styleToolIds }),
+  );
+  console.info("NAVA knowledge audit", JSON.stringify({ stage: "reply", domains: route.domains, tools: knowledgeAuditSummary(knowledge) }));
   return {
     ...input,
     conversationHistory: base.conversationHistory,
     healthContext,
     route,
     providerUserId,
+    knowledge,
   };
 }
 
@@ -222,8 +244,9 @@ async function customProviderReply(input: ReplyInput, endpoint: string, apiKey?:
       conversationHistory: input.conversationHistory,
       route: input.route,
       lang: input.lang,
-      systemPrompt: buildSystemPrompt(input.lang, input.healthContext, input.route, input.responseMode),
+      systemPrompt: buildSystemPrompt(input.lang, input.healthContext, input.route, input.responseMode, input.knowledge),
       responseMode: input.responseMode,
+      knowledge: input.knowledge,
     }),
   });
   if (!response.ok) throw new Error(`AI 回复服务返回 ${response.status}`);
@@ -246,6 +269,7 @@ async function deepSeekReply(input: ReplyInput, apiKey: string): Promise<Provide
       provider: "deepseek",
       modelVersion: deepSeekModel,
       actions: [],
+      knowledgeTrace: input.knowledge.traces,
     };
   } finally {
     clearTimeout(timeout);
@@ -283,7 +307,7 @@ function deepSeekRequestBody(input: ReplyInput) {
     messages: [
       {
         role: "system",
-        content: buildSystemPrompt(input.lang, input.healthContext, input.route, input.responseMode),
+        content: buildSystemPrompt(input.lang, input.healthContext, input.route, input.responseMode, input.knowledge),
       },
       ...history,
       {
@@ -378,6 +402,7 @@ function normalizeProviderReply(data: Record<string, unknown>, input: ReplyInput
     provider: "provider",
     modelVersion: String(data.modelVersion ?? data.model_version ?? "ai-chat-provider-2026-08"),
     actions: Array.isArray(data.actions) ? data.actions : [],
+    knowledgeTrace: input.knowledge.traces,
   };
 }
 

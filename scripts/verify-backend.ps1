@@ -32,7 +32,7 @@ foreach ($functionName in $requiredFunctions) {
   Write-Host "Found function: $functionName"
 }
 
-$sharedFiles = @("_shared\http.ts", "_shared\phone-otp.ts", "_shared\rhythm.ts", "_shared\rhythm-core.ts", "_shared\fdnb-health-core.ts", "_shared\fdnb-health-features.ts", "_shared\fdnb-health-service.ts")
+$sharedFiles = @("_shared\http.ts", "_shared\phone-otp.ts", "_shared\knowledge-tools.ts", "_shared\rhythm.ts", "_shared\rhythm-core.ts", "_shared\fdnb-health-core.ts", "_shared\fdnb-health-features.ts", "_shared\fdnb-health-service.ts")
 foreach ($shared in $sharedFiles) {
   $path = Join-Path $functionsRoot $shared
   if (!(Test-Path -LiteralPath $path)) {
