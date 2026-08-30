@@ -3902,7 +3902,7 @@ textarea::placeholder {
 
 .option-two-side-actions {
   position: absolute;
-  top: max(38px, calc(18px + env(safe-area-inset-top)));
+  top: max(27px, calc(7px + env(safe-area-inset-top)));
   right: 18px;
   z-index: 8;
   display: flex;

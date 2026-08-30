@@ -877,6 +877,9 @@ async function verifyHomeShortcuts(page, results) {
     if (index === 0) {
       await page.waitForTimeout(700);
       await page.screenshot({ path: path.join(outputDir, "today-expanded.png") });
+      await page.locator(".option-two-scores").click();
+      await expect(page.locator(".option-two-home")).toHaveAttribute("data-health-menu-open", "false");
+      await openHealthMenuBySwipe();
     }
     await page.locator(`.option-two-health-entry--${module}`).click();
     await expect(page.locator(`[data-record-detail="${module}"]`)).toBeVisible();

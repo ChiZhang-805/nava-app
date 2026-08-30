@@ -5,7 +5,7 @@ import {
   Menu,
   UsersRound,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import dietIcon from "../assets/figma/option-two-icons/diet.svg";
 import exerciseIcon from "../assets/figma/option-two-icons/exercise.svg";
 import faceIcon from "../assets/figma/option-two-icons/face.svg";
@@ -64,6 +64,7 @@ export default function OptionTwoHome({
   const [snapshot, setSnapshot] = useState<TodaySnapshot | null>(null);
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
   const gestureRef = useRef<{ pointerId: number; startX: number; startY: number; lastX: number; lastY: number } | null>(null);
+  const ignoreClickUntilRef = useRef(0);
 
   const refresh = useCallback(async () => {
     const [snapshotResult, pointsResult] = await Promise.allSettled([
@@ -119,10 +120,18 @@ export default function OptionTwoHome({
     const endX = event.clientX || gesture.lastX;
     const endY = event.clientY || gesture.lastY;
     if (isVerticalHomeSwipe(gesture.startX, gesture.startY, endX, endY, window.innerHeight, "up")) {
+      ignoreClickUntilRef.current = Date.now() + 450;
       setHealthMenuOpen(true);
       return;
     }
     if (isVerticalHomeSwipe(gesture.startX, gesture.startY, endX, endY, window.innerHeight, "down")) setHealthMenuOpen(false);
+  };
+
+  const dismissHealthMenuOutside = (event: ReactMouseEvent<HTMLElement>) => {
+    if (!healthMenuOpen || Date.now() < ignoreClickUntilRef.current) return;
+    const target = event.target as HTMLElement;
+    if (target.closest(".option-two-health-disc, .option-two-health-entry")) return;
+    setHealthMenuOpen(false);
   };
 
   return (
@@ -132,6 +141,7 @@ export default function OptionTwoHome({
       onPointerMove={moveHomeGesture}
       onPointerUp={endHomeGesture}
       onPointerCancel={() => { gestureRef.current = null; }}
+      onClickCapture={dismissHealthMenuOutside}
       data-health-menu-open={healthMenuOpen}
     >
       <div className="option-two-scores" aria-label={t("today.overview")} aria-live="polite">
@@ -154,6 +164,7 @@ export default function OptionTwoHome({
       </div>
 
       <div className="option-two-health-menu" aria-hidden={!healthMenuOpen}>
+        <span className="option-two-health-disc" aria-hidden="true" />
         {healthEntries.map(({ id, icon, labelKey, className }, index) => (
           <button
             className={`option-two-health-entry option-two-health-entry--${className}`}
