@@ -76,6 +76,7 @@ Deno.serve(async (req) => {
     if (saved.error) throw saved.error;
     return jsonResponse({ bullets, provider: "deepseek", modelVersion, sourceCount: context.sourceCount, generatedAt, periodStart, periodEnd });
   } catch (error) {
+    console.error("ai-health-report failed", error instanceof Error ? error.message : String(error));
     return errorResponse(error);
   }
 });

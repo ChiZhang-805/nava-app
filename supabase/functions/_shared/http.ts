@@ -57,7 +57,13 @@ export async function requireUser(req: Request): Promise<FunctionContext> {
   });
 
   const { data, error } = await userClient.auth.getUser();
-  if (error || !data.user) throw new Error("请先登录后再调用 App 后端。");
+  if (error || !data.user) {
+    console.error("requireUser failed", JSON.stringify({
+      authorizationPresent: authorization.startsWith("Bearer "),
+      authError: error?.message ?? "No authenticated user",
+    }));
+    throw new Error("请先登录后再调用 App 后端。");
+  }
 
   const adminClient = serviceRoleKey
     ? createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })

@@ -108,8 +108,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const { error: authError } = await supabase.auth.signOut();
     if (authError) {
-      setError(authError.message);
-      throw authError;
+      const { error: localError } = await supabase.auth.signOut({ scope: "local" });
+      if (localError) {
+        setError(localError.message);
+        throw localError;
+      }
+      setUser(null);
+      setPasswordRecovery(false);
     }
   }, []);
 
