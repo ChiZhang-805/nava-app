@@ -320,6 +320,7 @@ function HistoryView({
     };
   }, [displayEntries, locale, module]);
   const reportInsights = module === "diet" ? (dietReport?.bullets ?? []) : (healthReport?.bullets ?? []);
+  const reportIsDemo = module === "diet" ? dietReport?.modelVersion === "demo-only" : healthReport?.provider === "demo";
   const shareSummary = async () => {
     const label = moduleNames[module][locale];
     setSharing(true);
@@ -355,7 +356,9 @@ function HistoryView({
         </div>
         <section className="diet-ai-report module-ai-report" aria-live="polite">
           <div className="diet-ai-report-copy">
-            <header><span><Bot size={16} /></span><strong>{locale === "zh" ? `AI ${moduleNames[module].zh}洞察` : `AI ${moduleNames[module].en.toLowerCase()} insights`}</strong></header>
+            <header><span><Bot size={16} /></span><strong>{reportIsDemo
+              ? (locale === "zh" ? `演示${moduleNames[module].zh}洞察` : `Demo ${moduleNames[module].en.toLowerCase()} insights`)
+              : (locale === "zh" ? `AI ${moduleNames[module].zh}洞察` : `AI ${moduleNames[module].en.toLowerCase()} insights`)}</strong></header>
             {reportLoading
               ? <div className="diet-ai-report-loading">{locale === "zh" ? "正在结合你的画像与近七日数据生成…" : "Reviewing your profile and seven-day data…"}</div>
               : <ul>{reportInsights.map((bullet, index) => <li key={`${index}-${bullet}`}>{bullet}</li>)}</ul>}
@@ -564,7 +567,7 @@ function ExerciseDashboard({
       <section className="figma-module-card exercise-summary-card">
         <header><strong>{locale === "zh" ? "今日运动" : "Today's activity"}</strong><button type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "记录今日运动" : "Log today's activity"}><Plus size={20} /></button></header>
         <div className="exercise-summary-metrics">
-          <span><small>{locale === "zh" ? "步数" : "Steps"}</small><strong><AnimatedNumber value={displayedSteps} formatter={(value) => Math.round(value).toLocaleString()} /></strong></span>
+          <span><small>{locale === "zh" ? "步数" : "Steps"}</small><strong><AnimatedNumber value={displayedSteps} formatter={(value) => Math.round(value).toLocaleString()} /><em>STEP</em></strong></span>
           <span><small>{locale === "zh" ? "活动消耗" : "Energy"}</small><strong><AnimatedNumber value={displayedCalories} /><em>kcal</em></strong></span>
           <span><small>{locale === "zh" ? "运动时长" : "Duration"}</small><strong><AnimatedNumber value={displayedExerciseMinutes} /><em>min</em></strong></span>
         </div>
@@ -577,9 +580,9 @@ function ExerciseDashboard({
         </div>
         {deviceMessage && <p className="module-device-message">{deviceMessage}</p>}
         <div className="exercise-health-links">
-          <button type="button" onClick={() => openView("vitals")}><HeartPulse size={17} /><span>{locale === "zh" ? "健康指标" : "Vitals"}</span><small>{vitals.heartRate == null ? "--" : `${vitals.heartRate} bpm`}</small></button>
-          <button type="button" onClick={() => openView("heatmap")}><Activity size={17} /><span>{locale === "zh" ? "活跃窗口" : "Active window"}</span><small>{heatmap.cells.length > 0 ? peakWindow : "--"}</small></button>
-          <button type="button" onClick={() => openView("clock")}><Gauge size={17} /><span>{locale === "zh" ? "节律同步" : "Rhythm"}</span><small>{alignment}%</small></button>
+          <button type="button" onClick={() => openView("vitals")}><HeartPulse size={20} /><span>{locale === "zh" ? "健康指标" : "Vitals"}</span><small>{vitals.heartRate == null ? "--" : `${vitals.heartRate} bpm`}</small></button>
+          <button type="button" onClick={() => openView("heatmap")}><Activity size={20} /><span>{locale === "zh" ? "活跃窗口" : "Active window"}</span><small>{heatmap.cells.length > 0 ? peakWindow : "--"}</small></button>
+          <button type="button" onClick={() => openView("clock")}><Gauge size={20} /><span>{locale === "zh" ? "节律同步" : "Rhythm"}</span><small>{alignment}%</small></button>
         </div>
       </section>
       <section className="figma-module-card exercise-trend-card">

@@ -542,7 +542,7 @@ async function verifyRecordModules(page, results) {
 
   await openModule("mood");
   await expect(page.locator('[data-module-view="mood-overview"]')).toBeVisible();
-  await expect(page.locator('[data-ui-revision="mood-bar-line-v3"]')).toBeVisible();
+  await expect(page.locator('[data-ui-revision="mood-summary-live-v4"]')).toBeVisible();
   await expect(page.locator(".mood-entry-card > header button")).toHaveCount(0);
   await expect(page.locator(".mood-chart .bar-line-bars > span")).toHaveCount(7);
   const expectedMoodDates = await page.evaluate(() => Array.from({ length: 7 }, (_, index) => {
@@ -744,7 +744,8 @@ async function verifyRecordModules(page, results) {
 
   await openModule("focus");
   await expect(page.locator('[data-module-view="focus-overview"]')).toBeVisible();
-  await assertAnimation(page.locator('[data-module-view="focus-overview"] .focus-pie'), "ring-progress-fill", "focus goal ring");
+  await assertAnimation(page.locator('[data-module-view="focus-overview"] .focus-trend-card .bar-line-bars i').first(), "chart-bar-rise", "focus trend bars");
+  await assertAnimation(page.locator('[data-module-view="focus-overview"] .focus-trend-card .bar-line-path'), "bar-line-clip-reveal", "focus trend line");
   const focusDuration = page.locator('.focus-quick-card input[aria-label="专注分钟数"], .focus-quick-card input[aria-label="Focus duration in minutes"]');
   await focusDuration.fill("37");
   await page.locator('[aria-label="开始专注"], [aria-label="Start focus"]').click();

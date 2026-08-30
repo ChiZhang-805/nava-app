@@ -7946,9 +7946,9 @@ body::before {
   box-shadow: 0 8px 18px rgba(8, 116, 160, .2);
 }
 
-.exercise-summary-metrics { display: grid; grid-template-columns: 1.2fr 1fr 1fr; margin-top: 13px; }
-.exercise-summary-metrics > span { min-width: 0; display: grid; justify-items: center; gap: 5px; padding: 1px 8px; border-left: 1px solid rgba(55, 134, 168, .18); }
-.exercise-summary-metrics > span:first-child { border-left: 0; }
+.exercise-summary-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 13px; }
+.exercise-summary-metrics > span { min-width: 0; display: grid; justify-items: start; gap: 5px; padding: 1px 8px; border-left: 1px solid rgba(55, 134, 168, .18); text-align: left; }
+.exercise-summary-metrics > span:first-child { border-left: 0; padding-left: 0; }
 .exercise-summary-metrics small { color: #668696; font-size: 10px; font-weight: 650; }
 .exercise-summary-metrics strong { color: #153346; font-size: 19px; font-variant-numeric: tabular-nums; }
 .exercise-summary-metrics em { margin-left: 3px; color: #74909c; font-size: 9px; font-style: normal; }
@@ -7961,10 +7961,10 @@ body::before {
 .exercise-device-status > button { min-height: 31px; border: 0; border-radius: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 0 10px; color: #0e7197; background: #f5fcff; font-size: 10px; font-weight: 720; }
 
 .exercise-health-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 8px; }
-.exercise-health-links button { min-width: 0; min-height: 47px; border: 0; border-radius: 12px; display: grid; grid-template-columns: 20px minmax(0, 1fr); grid-template-rows: auto auto; align-content: center; gap: 1px 4px; padding: 6px 7px; color: #187da2; background: rgba(232, 247, 252, .78); text-align: left; }
+.exercise-health-links button { min-width: 0; min-height: 51px; border: 0; border-radius: 12px; display: grid; grid-template-columns: 23px minmax(0, 1fr); grid-template-rows: auto auto; align-content: center; gap: 1px 5px; padding: 6px 7px; color: #187da2; background: rgba(232, 247, 252, .78); text-align: left; }
 .exercise-health-links button > svg { grid-row: 1 / span 2; align-self: center; }
-.exercise-health-links button > span { overflow: hidden; color: #31586a; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.exercise-health-links button > small { overflow: hidden; color: #718c98; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.exercise-health-links button > span { overflow: hidden; color: #31586a; font-size: 10px; font-weight: 680; text-overflow: ellipsis; white-space: nowrap; }
+.exercise-health-links button > small { overflow: hidden; color: #718c98; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 
 .exercise-trend-card,
 .sleep-trend-card,
@@ -8061,7 +8061,7 @@ body::before {
   .exercise-trend-card { padding: 10px 12px; }
   .exercise-device-status { min-height: 44px; margin-top: 5px; }
   .exercise-health-links { margin-top: 5px; }
-  .exercise-health-links button { min-height: 39px; }
+  .exercise-health-links button { min-height: 43px; }
   .exercise-trend-card .bar-line-trend-chart,
   .sleep-trend-card .bar-line-trend-chart,
   .face-trend-card .bar-line-trend-chart { min-height: 112px; }

@@ -863,7 +863,9 @@ export default function RecordsScreen({
             <section className={`weekly-insight-card weekly-insight-card--${dnbReport?.status ?? "unavailable"}`} data-dnb-status={dnbReport?.status ?? "loading"}>
               <header className="weekly-insight-header">
                 <span aria-hidden="true"><Bot size={18} /></span>
-                <strong>{locale === "zh" ? "AI 本周节律洞察" : "AI weekly rhythm insights"}</strong>
+                <strong>{weeklyAiReport?.provider === "demo"
+                  ? (locale === "zh" ? "演示本周节律洞察" : "Demo weekly rhythm insights")
+                  : (locale === "zh" ? "AI 本周节律洞察" : "AI weekly rhythm insights")}</strong>
                 <button type="button" className="weekly-share-button" disabled={!dnbReport || dnbReport.status !== "ready"} onClick={() => void shareWeeklyReport()}><Share2 size={15} />{locale === "zh" ? "保存海报" : "Save poster"}</button>
               </header>
               <div className="weekly-insight-body" aria-live="polite">
