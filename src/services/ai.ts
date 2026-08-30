@@ -11,7 +11,7 @@ import {
 } from "./records";
 import { todayISO } from "./date";
 import { demoMessagesFor, isDemoMode } from "./demo";
-import { buildAiProcessingSteps, type AiProcessingStep } from "./aiProcessing";
+import { AI_PROCESSING_STEP_MIN_MS, buildAiProcessingSteps, type AiProcessingStep } from "./aiProcessing";
 import type { UserProfile } from "./profile";
 
 function assertNoError(error: unknown) {
@@ -160,6 +160,7 @@ async function requestAiReply(input: {
       extractedData: input.extractedData ?? null,
       responseMode: input.responseMode ?? "text",
       lang: input.lang,
+      deviceDate: todayISO(),
       reviewMode: isDemoMode(),
       stream: true,
     },
@@ -247,7 +248,7 @@ async function playProcessingSteps(
     for (const step of buildAiProcessingSteps(profile, lang)) {
       throwIfAborted(signal);
       onStatus?.(step);
-      await abortableDelay(360, signal);
+      await abortableDelay(AI_PROCESSING_STEP_MIN_MS, signal);
     }
   } catch (error) {
     if (!(error instanceof DOMException && error.name === "AbortError")) throw error;

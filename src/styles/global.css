@@ -876,7 +876,7 @@ textarea {
   color: #31697f;
   font-size: 13px;
   font-weight: 680;
-  animation: ai-processing-step 360ms ease-in-out both;
+  animation: ai-processing-step 280ms ease-out both;
 }
 
 .ai-processing-status > span {
@@ -923,8 +923,7 @@ textarea {
 
 @keyframes ai-processing-step {
   0% { opacity: 0; transform: translateY(4px); }
-  24%, 72% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-3px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes ai-streaming-cursor {

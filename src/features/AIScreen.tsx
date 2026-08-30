@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { Bot, Camera, Check, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, SendHorizontal, Sparkles, X } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { Fragment, FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocale } from "../i18n";
 import { loadConversation, sendAiMessage } from "../services/ai";
 import type { AiProcessingStep } from "../services/aiProcessing";
@@ -137,6 +137,7 @@ export default function AIScreen({
   const [pendingPhotoPreview, setPendingPhotoPreview] = useState<string | null>(null);
   const [photoPreviews, setPhotoPreviews] = useState<Record<string, string>>({});
   const [pendingEntry, setPendingEntry] = useState<StructuredEntry | null>(null);
+  const [pendingEntryMessageId, setPendingEntryMessageId] = useState<string | null>(null);
   const [editingEntry, setEditingEntry] = useState(false);
   const [savingEntry, setSavingEntry] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -240,10 +241,12 @@ export default function AIScreen({
       });
       speechRef.current?.finish(result.assistantMessage.content);
       setMessages((current) => [...current, result.assistantMessage]);
-      onConversationCompleted?.();
       setStreamingPreview(null);
-      setPendingEntry(parseStructuredEntry(message, locale));
+      const recognizedEntry = parseStructuredEntry(message, locale);
+      setPendingEntry(recognizedEntry);
+      setPendingEntryMessageId(recognizedEntry ? result.assistantMessage.id : null);
       setEditingEntry(false);
+      if (!recognizedEntry) onConversationCompleted?.();
     } catch (e) {
       speechRef.current?.cancel();
       if (!(e instanceof DOMException && e.name === "AbortError")) setError(e instanceof Error ? e.message : String(e));
@@ -265,6 +268,7 @@ export default function AIScreen({
     setSending(true);
     setError(null);
     setPendingEntry(null);
+    setPendingEntryMessageId(null);
     setEditingEntry(false);
     setStreamingPreview({
       status: {
@@ -326,9 +330,10 @@ export default function AIScreen({
       });
       speechRef.current?.finish(response.assistantMessage.content);
       setMessages((current) => [...current, response.assistantMessage]);
-      onConversationCompleted?.();
       setPendingEntry(candidate);
+      setPendingEntryMessageId(candidate ? response.assistantMessage.id : null);
       setStreamingPreview(null);
+      if (!candidate) onConversationCompleted?.();
     } catch (photoError) {
       speechRef.current?.cancel();
       if (!(photoError instanceof DOMException && photoError.name === "AbortError")) setError(photoError instanceof Error ? photoError.message : String(photoError));
@@ -360,8 +365,10 @@ export default function AIScreen({
       };
       setMessages((current) => [...current, savedMessage]);
       setPendingEntry(null);
+      setPendingEntryMessageId(null);
       setEditingEntry(false);
       onDataSaved?.();
+      onConversationCompleted?.();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : String(saveError));
     } finally {
@@ -411,6 +418,7 @@ export default function AIScreen({
       setMessages([]);
       setInput("");
       setPendingEntry(null);
+      setPendingEntryMessageId(null);
       setEditingEntry(false);
       setStreamingPreview(null);
       setSending(false);
@@ -445,6 +453,7 @@ export default function AIScreen({
       setMessages([]);
       setInput("");
       setPendingEntry(null);
+      setPendingEntryMessageId(null);
       setEditingEntry(false);
       setStreamingPreview(null);
       setSending(false);
@@ -463,7 +472,7 @@ export default function AIScreen({
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "auto" });
-  }, [messages.length, pendingPhotoPreview, streamingPreview?.content, streamingPreview?.status?.id]);
+  }, [messages.length, pendingEntry?.id, pendingPhotoPreview, streamingPreview?.content, streamingPreview?.status?.id]);
 
   const voiceErrorText = useCallback((voiceError: VoiceInputError) => {
     if (voiceError.code === "permission_denied") return t("ai.voicePermissionDenied");
@@ -591,9 +600,11 @@ export default function AIScreen({
       });
       speaker.finish(result.assistantMessage.content);
       setMessages((current) => [...current, result.assistantMessage]);
-      onConversationCompleted?.();
-      setPendingEntry(parseStructuredEntry(message, locale));
+      const recognizedEntry = parseStructuredEntry(message, locale);
+      setPendingEntry(recognizedEntry);
+      setPendingEntryMessageId(recognizedEntry ? result.assistantMessage.id : null);
       setEditingEntry(false);
+      if (!recognizedEntry) onConversationCompleted?.();
       await speaker.whenDone();
       if (!voiceCallOpenRef.current) return;
       voiceCallSubmittingRef.current = false;
@@ -794,6 +805,46 @@ export default function AIScreen({
           ? (locale === "zh" ? "通话暂时中断" : "The call was interrupted")
           : (locale === "zh" ? "正在接通…" : "Connecting…");
 
+  const structuredConfirmation = pendingEntry ? (
+    <section className="structured-confirmation" data-structured-confirmation={pendingEntry.type}>
+      <header className="structured-confirmation-title">
+        <h2>{locale === "zh" ? "识别结果" : "Recognized data"}</h2>
+      </header>
+      <div className="structured-record-list">
+        {(pendingEntry.entries ?? [pendingEntry]).map((record) => (
+          <section className="structured-record" key={record.id} data-structured-record={record.type}>
+            <h3>{record.title}</h3>
+            <div className="structured-field-list">
+              {record.fields.map((field) => (
+                <label className="structured-field-row" key={field.id}>
+                  <span>{field.label}</span>
+                  {editingEntry ? (
+                    <span className="structured-field-editor">
+                      <input
+                        aria-label={`${field.label}${locale === "zh" ? "数值" : " value"}`}
+                        inputMode={field.valueType === "number" ? "decimal" : "text"}
+                        value={field.value}
+                        onChange={(event) => setPendingEntry((current) => current ? updateStructuredEntryField(current, field.id, event.target.value) : current)}
+                      />
+                      {field.unit && <em>{field.unit}</em>}
+                    </span>
+                  ) : (
+                    <strong>{field.value}{field.unit ? ` ${field.unit}` : ""}</strong>
+                  )}
+                </label>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+      <footer>
+        <button type="button" className={editingEntry ? "active" : ""} onClick={() => setEditingEntry((current) => !current)} aria-label={locale === "zh" ? "逐项编辑" : "Edit fields"}>{editingEntry ? <Check size={18} /> : <Pencil size={18} />}</button>
+        <button type="button" onClick={() => { setPendingEntry(null); setPendingEntryMessageId(null); setEditingEntry(false); }} aria-label={locale === "zh" ? "取消" : "Cancel"}><X size={18} /></button>
+        <button type="button" data-confirm-structured onClick={() => void confirmPendingEntry()} disabled={savingEntry}><Check size={18} /><span>{locale === "zh" ? "确认保存" : "Confirm"}</span></button>
+      </footer>
+    </section>
+  ) : null;
+
   return (
     <div className="chat-layout">
       <div className="chat-list" ref={listRef}>
@@ -808,27 +859,30 @@ export default function AIScreen({
         {messages.map((message) => {
           const isUser = message.role === "user";
           return (
-            <div className={["chat-message-row", isUser ? "user" : "assistant"].join(" ")} key={message.id}>
-              {!isUser && (
-                <span className="chat-avatar assistant" aria-hidden="true">
-                  <Sparkles size={16} />
-                </span>
-              )}
-              <article className={isUser ? "chat-bubble user" : "chat-bubble assistant"}>
-                {isUser && photoPreviews[message.id] && (
-                  <img className="chat-photo-preview" src={photoPreviews[message.id]} alt={locale === "zh" ? "刚刚拍摄的饮食照片" : "New meal photo"} data-chat-photo="saved" />
+            <Fragment key={message.id}>
+              <div className={["chat-message-row", isUser ? "user" : "assistant"].join(" ")}>
+                {!isUser && (
+                  <span className="chat-avatar assistant" aria-hidden="true">
+                    <Sparkles size={16} />
+                  </span>
                 )}
-                <p>{message.content}</p>
-                <time>{new Date(message.created_at).toLocaleTimeString(locale === "en" ? "en-US" : "zh-CN", { hour: "2-digit", minute: "2-digit" })}</time>
-              </article>
-              {isUser && (
-                <span className="chat-avatar user" aria-hidden="true">
-                  {profile?.avatar_url && !avatarLoadFailed
-                    ? <img src={profile.avatar_url} alt="" onError={() => setAvatarLoadFailed(true)} />
-                    : (profile?.username?.trim().slice(0, 1).toUpperCase() || user.email?.slice(0, 1).toUpperCase() || "N")}
-                </span>
-              )}
-            </div>
+                <article className={isUser ? "chat-bubble user" : "chat-bubble assistant"}>
+                  {isUser && photoPreviews[message.id] && (
+                    <img className="chat-photo-preview" src={photoPreviews[message.id]} alt={locale === "zh" ? "刚刚拍摄的饮食照片" : "New meal photo"} data-chat-photo="saved" />
+                  )}
+                  <p>{message.content}</p>
+                  <time>{new Date(message.created_at).toLocaleTimeString(locale === "en" ? "en-US" : "zh-CN", { hour: "2-digit", minute: "2-digit" })}</time>
+                </article>
+                {isUser && (
+                  <span className="chat-avatar user" aria-hidden="true">
+                    {profile?.avatar_url && !avatarLoadFailed
+                      ? <img src={profile.avatar_url} alt="" onError={() => setAvatarLoadFailed(true)} />
+                      : (profile?.username?.trim().slice(0, 1).toUpperCase() || user.email?.slice(0, 1).toUpperCase() || "N")}
+                  </span>
+                )}
+              </div>
+              {!isUser && pendingEntryMessageId === message.id && structuredConfirmation}
+            </Fragment>
           );
         })}
         {pendingPhotoPreview && (
@@ -876,46 +930,6 @@ export default function AIScreen({
       </div>
 
       {error && <p className="error-text">{error}</p>}
-
-      {pendingEntry && (
-        <section className="structured-confirmation" data-structured-confirmation={pendingEntry.type}>
-          <header className="structured-confirmation-title">
-            <h2>{locale === "zh" ? "识别结果" : "Recognized data"}</h2>
-          </header>
-          <div className="structured-record-list">
-            {(pendingEntry.entries ?? [pendingEntry]).map((record) => (
-              <section className="structured-record" key={record.id} data-structured-record={record.type}>
-                <h3>{record.title}</h3>
-                <div className="structured-field-list">
-                  {record.fields.map((field) => (
-                    <label className="structured-field-row" key={field.id}>
-                      <span>{field.label}</span>
-                      {editingEntry ? (
-                        <span className="structured-field-editor">
-                          <input
-                            aria-label={`${field.label}${locale === "zh" ? "数值" : " value"}`}
-                            inputMode={field.valueType === "number" ? "decimal" : "text"}
-                            value={field.value}
-                            onChange={(event) => setPendingEntry((current) => current ? updateStructuredEntryField(current, field.id, event.target.value) : current)}
-                          />
-                          {field.unit && <em>{field.unit}</em>}
-                        </span>
-                      ) : (
-                        <strong>{field.value}{field.unit ? ` ${field.unit}` : ""}</strong>
-                      )}
-                    </label>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-          <footer>
-            <button type="button" className={editingEntry ? "active" : ""} onClick={() => setEditingEntry((current) => !current)} aria-label={locale === "zh" ? "逐项编辑" : "Edit fields"}>{editingEntry ? <Check size={18} /> : <Pencil size={18} />}</button>
-            <button type="button" onClick={() => { setPendingEntry(null); setEditingEntry(false); }} aria-label={locale === "zh" ? "取消" : "Cancel"}><X size={18} /></button>
-            <button type="button" data-confirm-structured onClick={() => void confirmPendingEntry()} disabled={savingEntry}><Check size={18} /><span>{locale === "zh" ? "确认保存" : "Confirm"}</span></button>
-          </footer>
-        </section>
-      )}
 
       <form className={["chat-composer", voiceState !== "idle" ? "voice-active" : "", composerToolOpen ? "tool-open" : "", photoAnalyzing ? "photo-analyzing" : ""].filter(Boolean).join(" ")} onSubmit={submit}>
         <div className="chat-input-shell">

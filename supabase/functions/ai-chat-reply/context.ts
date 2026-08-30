@@ -34,10 +34,13 @@ export async function loadOwnedRelevantHealthContext(
   userId: string,
   base: OwnedAiBaseContext,
   route: AiRoute,
+  deviceDate?: string,
 ) {
-  const date = new Date().toISOString().slice(0, 10);
+  const date = validDate(deviceDate) ?? new Date().toISOString().slice(0, 10);
+  const startDate = dateOffset(date, -(route.lookbackDays - 1));
   const context: Record<string, unknown> = {
     date,
+    window: { startDate, endDate: date, days: route.lookbackDays },
     profile: base.profile,
     healthDataAllowed: base.healthDataAllowed,
     route: {
@@ -49,7 +52,6 @@ export async function loadOwnedRelevantHealthContext(
   };
   if (!base.healthDataAllowed || route.domains.length === 0) return context;
 
-  const startDate = dateOffset(date, -(route.lookbackDays - 1));
   const entries = await Promise.all(route.domains.map(async (domain) => {
     const value = await loadDomainContext(client, userId, domain, startDate, date, route.lookbackDays);
     return [domain, value] as const;
@@ -241,6 +243,12 @@ function dateOffset(date: string, days: number) {
   const value = new Date(`${date}T00:00:00.000Z`);
   value.setUTCDate(value.getUTCDate() + days);
   return value.toISOString().slice(0, 10);
+}
+
+function validDate(value: unknown) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value ? null : value;
 }
 
 function record(value: unknown): Record<string, unknown> | null {

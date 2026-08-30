@@ -4,6 +4,8 @@ export type AiProcessingStep = {
   tone: "cute" | "practical" | "flexible" | "gentle" | "calm" | "neutral";
 };
 
+export const AI_PROCESSING_STEP_MIN_MS = 1_000;
+
 type ProcessingProfile = {
   occupation?: string | null;
   age_group?: string | null;
@@ -88,7 +90,7 @@ export function buildAiProcessingSteps(profile: ProcessingProfile | null | undef
 }
 
 function selectTone(occupation: string | null, ageGroup: string | null): AiProcessingStep["tone"] {
-  if (occupation === "student" && ageGroup === "18_24") return "cute";
+  if (occupation === "student") return "cute";
   if (occupation === "employee") return "practical";
   if (occupation === "freelance") return "flexible";
   if (occupation === "caregiver") return "gentle";

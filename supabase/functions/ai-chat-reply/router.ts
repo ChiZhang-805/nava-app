@@ -2,10 +2,12 @@ export type AiDomain = "sleep" | "exercise" | "mood" | "nutrition" | "focus" | "
 
 export type AiIntent = "record" | "advice" | "question" | "emotional_support" | "smalltalk";
 
+export type AiLookbackDays = 1 | 3 | 6 | 7 | 14 | 30;
+
 export type AiRoute = {
   intent: AiIntent;
   domains: AiDomain[];
-  lookbackDays: 1 | 7 | 14 | 30;
+  lookbackDays: AiLookbackDays;
   complexity: "simple" | "complex";
   source: "deterministic" | "model" | "fallback";
 };
@@ -59,7 +61,19 @@ export function normalizeModelRoute(value: unknown): AiRoute {
     : [];
   const intent = isIntent(item?.intent) ? item.intent : "question";
   const requestedDays = Number(item?.lookbackDays ?? item?.lookback_days);
-  const lookbackDays = requestedDays >= 30 ? 30 : requestedDays >= 14 ? 14 : requestedDays <= 1 ? 1 : 7;
+  const lookbackDays: AiLookbackDays = requestedDays >= 30
+    ? 30
+    : requestedDays >= 14
+      ? 14
+      : requestedDays >= 7
+        ? 7
+        : requestedDays >= 6
+          ? 6
+          : requestedDays >= 3
+            ? 3
+            : requestedDays <= 1
+              ? 1
+              : 7;
   return {
     intent,
     domains: routedDomains,
@@ -84,13 +98,13 @@ export function routeSystemPrompt(lang: "zh" | "en") {
     return `Classify one NAVA user message for context retrieval. Return JSON only.
 Allowed domains: sleep, exercise, mood, nutrition, focus, face, rhythm. Choose at most 3 and only when relevant.
 Allowed intent: record, advice, question, emotional_support, smalltalk.
-lookbackDays must be 1, 7, 14, or 30. Use 1 for current facts, 7 by default, 14/30 only for explicit trend questions.
+lookbackDays must be 1, 3, 6, 7, 14, or 30. Use 7 for health records by default, 3/6 when explicitly requested, 1 only when the user explicitly asks to exclude historical comparison, and 14/30 only for explicit longer trend questions.
 JSON example: {"intent":"advice","domains":["sleep"],"lookbackDays":7,"complexity":"simple"}`;
   }
   return `对一条 NAVA 用户消息做上下文检索分类，只返回 JSON。
 可选领域：sleep、exercise、mood、nutrition、focus、face、rhythm。最多选 3 个，只有相关时才选。
 可选意图：record、advice、question、emotional_support、smalltalk。
-lookbackDays 只能是 1、7、14、30；当前事实用 1，默认用 7，只有明确询问趋势时才用 14/30。
+lookbackDays 只能是 1、3、6、7、14、30；健康记录默认用 7，明确要求近 3 天或 6 天时使用对应天数，只有用户明确说不做历史比较时才用 1，明确询问更长趋势时才用 14/30。
 JSON 示例：{"intent":"advice","domains":["sleep"],"lookbackDays":7,"complexity":"simple"}`;
 }
 
@@ -111,11 +125,15 @@ function prioritizeDomains(values: AiDomain[]) {
   return unique.slice(0, 3);
 }
 
-function inferLookbackDays(message: string): 1 | 7 | 14 | 30 {
+function inferLookbackDays(message: string): AiLookbackDays {
   if (/一个月|30\s*天|近月|monthly|month/i.test(message)) return 30;
   if (/两周|14\s*天|半个月|fortnight|two weeks/i.test(message)) return 14;
+  if (/(?:近|过去|最近)?\s*(?:七|7)\s*天|一周|week/i.test(message)) return 7;
+  if (/(?:近|过去|最近)?\s*(?:六|6)\s*天/i.test(message)) return 6;
+  if (/(?:近|过去|最近)?\s*(?:三|3)\s*天|three days/i.test(message)) return 3;
+  if (/只看今天|只说今天|不要对比历史|不看历史|today only|no history/i.test(message)) return 1;
   if (/最近|这几天|一周|趋势|总是|一直|recent|week|trend|lately|often/i.test(message)) return 7;
-  return 1;
+  return 7;
 }
 
 function isSmalltalk(message: string) {

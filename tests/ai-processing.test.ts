@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAiProcessingSteps } from "../src/services/aiProcessing.ts";
+import { AI_PROCESSING_STEP_MIN_MS, buildAiProcessingSteps } from "../src/services/aiProcessing.ts";
+
+test("each visible processing step has a one-second minimum", () => {
+  assert.equal(AI_PROCESSING_STEP_MIN_MS, 1_000);
+});
 
 test("young students get a one-pass cute processing sequence when personalization is authorized", () => {
   const steps = buildAiProcessingSteps({
@@ -11,6 +15,11 @@ test("young students get a one-pass cute processing sequence when personalizatio
   assert.equal(steps.length, 3);
   assert.ok(steps.every((step) => step.tone === "cute"));
   assert.match(steps[0].label, /小雷达/);
+});
+
+test("student role keeps the student tone across age groups", () => {
+  const steps = buildAiProcessingSteps({ occupation: "student", age_group: "35_44", ai_personalization_consent: true }, "zh");
+  assert.ok(steps.every((step) => step.tone === "cute"));
 });
 
 test("employees get practical language without a looping step", () => {

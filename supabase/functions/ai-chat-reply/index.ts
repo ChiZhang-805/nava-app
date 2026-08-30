@@ -32,6 +32,7 @@ type ReplyMode = "text" | "voice";
 
 type ReplyInput = {
   message: string;
+  deviceDate?: string;
   dataType?: string;
   extractedData: unknown;
   healthContext: unknown;
@@ -79,8 +80,9 @@ Deno.serve(async (req) => {
     enforceRateLimit(`${user.id}:${address}`, authenticatedRequestsPerWindow);
 
     const lang: ReplyLanguage = stringValue(body.lang) === "en" || stringValue(body.language) === "en" ? "en" : "zh";
-    const baseInput: Pick<ReplyInput, "message" | "dataType" | "extractedData" | "lang" | "responseMode"> = {
+    const baseInput: Pick<ReplyInput, "message" | "deviceDate" | "dataType" | "extractedData" | "lang" | "responseMode"> = {
       message,
+      deviceDate: stringValue(body.deviceDate) ?? stringValue(body.device_date),
       dataType: stringValue(body.dataType) ?? stringValue(body.data_type),
       extractedData: body.extractedData ?? body.extracted_data ?? null,
       lang,
@@ -100,12 +102,12 @@ Deno.serve(async (req) => {
 async function prepareReplyInput(
   client: SupabaseClient,
   userId: string,
-  input: Pick<ReplyInput, "message" | "dataType" | "extractedData" | "lang" | "responseMode">,
+  input: Pick<ReplyInput, "message" | "deviceDate" | "dataType" | "extractedData" | "lang" | "responseMode">,
 ): Promise<ReplyInput> {
   const base = await loadOwnedAiBaseContext(client, userId, input.message);
   const providerUserId = await anonymizeUserId(userId);
   const route = await resolveRoute(input, providerUserId);
-  const healthContext = await loadOwnedRelevantHealthContext(client, userId, base, route);
+  const healthContext = await loadOwnedRelevantHealthContext(client, userId, base, route, input.deviceDate);
   return {
     ...input,
     conversationHistory: base.conversationHistory,
@@ -359,11 +361,12 @@ async function emitReplyProgressively(
   lang: ReplyLanguage,
   emit: (event: StreamEvent, data: Record<string, unknown>) => void,
 ) {
-  const sentencePattern = lang === "zh" ? /[^。！？]+[。！？]?/gu : /[^.!?]+[.!?]?["')\]]*/gu;
-  const chunks = reply.match(sentencePattern)?.filter((chunk) => chunk.length > 0) ?? [reply];
-  for (const chunk of chunks) {
+  const units = lang === "zh" ? Array.from(reply) : reply.match(/\S+\s*/g) ?? [reply];
+  const unitsPerChunk = lang === "zh" ? 2 : 1;
+  for (let index = 0; index < units.length; index += unitsPerChunk) {
+    const chunk = units.slice(index, index + unitsPerChunk).join("");
     emit("delta", { text: chunk });
-    if (chunks.length > 1) await delay(55);
+    if (index + unitsPerChunk < units.length) await delay(lang === "zh" ? 36 : 52);
   }
 }
 
