@@ -116,7 +116,8 @@ async function probeStorageRoutes(url, key, names) {
 
 async function main() {
   const [appText, targetText, webText, cliProjectRefText] = await Promise.all([
-    readFile(path.join(appRoot, ".env"), "utf8"),
+    readFile(path.join(appRoot, ".env"), "utf8")
+      .catch(() => readFile(path.join(appRoot, ".env.review"), "utf8")),
     readFile(targetPath, "utf8"),
     readFile(path.join(webRoot, ".env"), "utf8").catch(() => ""),
     readFile(cliProjectRefPath, "utf8").catch(() => ""),

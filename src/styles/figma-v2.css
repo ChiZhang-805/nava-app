@@ -6741,6 +6741,27 @@ body::before {
   .phone-frame:not(.phone-frame--option2) .record-detail:has(.record-editor-stack) .nutrition-macro-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  /* End the device section cleanly above the fixed navigation instead of
+     exposing a clipped privacy action at the next section boundary. */
+  .profile-device-stack + .profile-privacy-card {
+    margin-top: 48px;
+  }
+}
+
+/* Keep the analyzed meal preview useful without pushing the rating and save
+   action behind the persistent navigation on compact portrait phones. */
+@media (max-width: 420px) and (max-height: 880px) {
+  .phone-frame:not(.phone-frame--option2) .record-detail:has(.record-editor-stack) .diet-photo-preview.has-image {
+    height: min(23dvh, 194px);
+    overflow: hidden;
+  }
+
+  .phone-frame:not(.phone-frame--option2) .record-detail:has(.record-editor-stack) .diet-photo-preview.has-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
 }
 
 /* Mid-size phones have enough width for a single macro row. Keeping all four
@@ -8644,8 +8665,8 @@ body::before {
 }
 
 .mood-dashboard .mood-diary-trigger {
-  min-height: 35px;
-  margin-top: 5px;
+  min-height: 34px;
+  margin-top: 4px;
   padding-block: 5px;
   font-size: 10.5px;
 }
@@ -8681,7 +8702,7 @@ body::before {
   .mood-dashboard .mood-entry-card { padding-block: 8px; }
   .mood-dashboard .mood-face-row { margin-block: 4px; padding-bottom: 4px; }
   .mood-dashboard .mood-face-row button > span { width: min(100%, 34px); }
-  .mood-dashboard .mood-diary-trigger { min-height: 32px; margin-top: 3px; }
+  .mood-dashboard .mood-diary-trigger { min-height: 31px; margin-top: 2px; }
   .mood-dashboard .mood-trend-card { padding-block: 9px 6px; }
 }
 
