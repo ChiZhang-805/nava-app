@@ -5,6 +5,7 @@ import ActionButton from "../components/ActionButton";
 import AnimatedNumber from "../components/AnimatedNumber";
 import LineTrendChart from "../components/LineTrendChart";
 import SectionCard from "../components/SectionCard";
+import WeeklyRadarChart from "../components/WeeklyRadarChart";
 import weeklyRunMascot from "../assets/mascot/nava-run-v1.png";
 import { useLocale, type TranslationKey } from "../i18n";
 import {
@@ -27,6 +28,7 @@ import { clearRecordDraft, loadRecordDraft, saveRecordDraft, type RecordDraftMod
 import { loadProfile, type UserProfile } from "../services/profile";
 import { loadDietAiReport } from "../services/dietReport";
 import { loadHealthAiReport, type HealthAiReport } from "../services/healthReport";
+import { calculateWeeklyModuleScores, type WeeklyModuleKey } from "../services/weeklyModuleScores";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 import RecordModuleDashboard from "./RecordModuleDashboard";
 
@@ -126,6 +128,7 @@ export default function RecordsScreen({
   const [weeklyAiUnavailable, setWeeklyAiUnavailable] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
   const [weeklyLongPressing, setWeeklyLongPressing] = useState(false);
+  const [weeklyChartMode, setWeeklyChartMode] = useState<"trend" | "radar">("trend");
   const [draftReady, setDraftReady] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const weeklyLongPressTimerRef = useRef<number | null>(null);
@@ -782,6 +785,11 @@ export default function RecordsScreen({
       (trendBundle?.focus ?? []).some((item) => inSelectedWeek(item.record_date)),
       (trendBundle?.faces ?? []).some((item) => inSelectedWeek(item.record_date)),
     ].filter(Boolean).length;
+    const radarLabels: Record<WeeklyModuleKey, string> = locale === "zh"
+      ? { sleep: "睡眠", exercise: "运动", nutrition: "饮食", focus: "专注", face: "面部", mood: "情绪" }
+      : { sleep: "Sleep", exercise: "Activity", nutrition: "Diet", focus: "Focus", face: "Face", mood: "Mood" };
+    const weeklyRadarPoints = calculateWeeklyModuleScores(trendBundle, dnbPeriod.startDate, dnbPeriod.endDate)
+      .map((point) => ({ ...point, label: radarLabels[point.key] }));
     const weeklyInsights = weeklyAiReport?.bullets ?? [];
     return (
       <div className="record-hub" ref={rootRef}>
@@ -852,10 +860,26 @@ export default function RecordsScreen({
               <div><span>{locale === "zh" ? "周内变化：" : "Change: "}</span><strong>{weekChange >= 0 ? "+" : ""}<AnimatedNumber value={weekChange} duration={640} /></strong></div>
             </section>
             <section className="weekly-trend-card">
-              <header><strong>{locale === "zh" ? "节律轨迹" : "Rhythm trajectory"}</strong><span>{locale === "zh" ? "近 7 天" : "7 days"}</span></header>
-              {reportPoints.length > 0
-                ? <LineTrendChart points={reportPoints} tone="rhythm" compact scale="range" verticalEmphasis curve="monotone" showAllDates rangeFloorRatio={0.3} showArea={false} showConfidenceBand={false} ariaLabel={locale === "zh" ? "近七天节律单调平滑趋势曲线，最低值保留三成基础高度，最高值对应顶部" : "Seven-day monotone rhythm curve with a thirty-percent floor and proportional scaling"} />
-                : <p>{locale === "zh" ? "完成两天记录后生成节律轨迹。" : "Log two days to create the rhythm trajectory."}</p>}
+              <header>
+                <strong>{weeklyChartMode === "trend" ? (locale === "zh" ? "节律轨迹" : "Rhythm trajectory") : (locale === "zh" ? "六维节律雷达图" : "Weekly rhythm radar")}</strong>
+                <button
+                  className="weekly-chart-switch"
+                  type="button"
+                  aria-label={weeklyChartMode === "trend" ? (locale === "zh" ? "切换到六维雷达图" : "Switch to the six-dimension radar chart") : (locale === "zh" ? "切换到节律曲线图" : "Switch to the rhythm line chart")}
+                  aria-pressed={weeklyChartMode === "radar"}
+                  onClick={() => setWeeklyChartMode((mode) => mode === "trend" ? "radar" : "trend")}
+                >
+                  <svg viewBox="0 0 30 22" aria-hidden="true">
+                    <path d="M27 6H3M3 6l5-4.5" />
+                    <path d="M3 16h24M27 16l-5 4.5" />
+                  </svg>
+                </button>
+              </header>
+              {weeklyChartMode === "trend"
+                ? (reportPoints.length > 0
+                    ? <LineTrendChart points={reportPoints} tone="rhythm" compact scale="range" verticalEmphasis curve="monotone" showAllDates rangeFloorRatio={0.3} showArea showConfidenceBand={false} ariaLabel={locale === "zh" ? "近七天节律单调平滑趋势曲线与下方渐变面积，最低值保留三成基础高度，最高值对应顶部" : "Seven-day monotone rhythm curve with a gradient area, a thirty-percent floor, and proportional scaling"} />
+                    : <p>{locale === "zh" ? "完成两天记录后生成节律轨迹。" : "Log two days to create the rhythm trajectory."}</p>)
+                : <WeeklyRadarChart points={weeklyRadarPoints} ariaLabel={locale === "zh" ? "本周睡眠、运动、饮食、专注、面部和情绪六个维度的实际记录日平均分；缺失日期不按零分计算" : "Recorded-day weekly averages for sleep, activity, diet, focus, face, and mood; missing dates are excluded"} />}
             </section>
             <section className={`weekly-insight-card weekly-insight-card--${dnbReport?.status ?? "unavailable"}`} data-dnb-status={dnbReport?.status ?? "loading"}>
               <header className="weekly-insight-header">

@@ -1171,7 +1171,8 @@ async function verifyNavigationAndMotion(page, results) {
   await expect(page.locator(".weekly-module-status")).toHaveCount(0);
   await expect(page.locator(".weekly-fdnb-contributors, .weekly-fdnb-disclaimer")).toHaveCount(0);
   await expect(page.locator(".weekly-trend-card .trend-date")).toHaveCount(7);
-  await expect(page.locator(".weekly-trend-card .trend-area, .weekly-trend-card .trend-confidence-band")).toHaveCount(0);
+  await expect(page.locator(".weekly-trend-card .trend-area")).toHaveCount(1);
+  await expect(page.locator(".weekly-trend-card .trend-confidence-band")).toHaveCount(0);
   const scoreLayout = await page.locator(".weekly-score-card > div").evaluateAll((cells) => cells.map((cell) => {
     const label = cell.querySelector("span");
     const value = cell.querySelector("strong");
@@ -1208,6 +1209,23 @@ async function verifyNavigationAndMotion(page, results) {
   if (weeklyChartLayout.dateBottomGap > 18 || weeklyChartLayout.minimumFloorGap < 24) {
     throw new Error(`Weekly chart is not using its vertical depth: ${JSON.stringify(weeklyChartLayout)}`);
   }
+  const weeklyChartSwitch = page.locator(".weekly-chart-switch");
+  await expect(weeklyChartSwitch).toBeVisible();
+  await expect(weeklyChartSwitch.locator("path")).toHaveCount(2);
+  await weeklyChartSwitch.click();
+  await expect(page.locator(".weekly-trend-card header strong")).toHaveText(/六维节律雷达图|Weekly rhythm radar/);
+  await expect(page.locator(".weekly-radar-chart")).toBeVisible();
+  await expect(page.locator(".weekly-radar-caption")).toHaveCount(6);
+  const radarOverflow = await page.locator(".weekly-trend-card").evaluate((card) => {
+    const cardRect = card.getBoundingClientRect();
+    return [...card.querySelectorAll(".weekly-radar-caption")]
+      .map((label) => ({ text: label.textContent, rect: label.getBoundingClientRect() }))
+      .filter(({ rect }) => rect.top < cardRect.top || rect.bottom > cardRect.bottom || rect.left < cardRect.left || rect.right > cardRect.right);
+  });
+  if (radarOverflow.length > 0) throw new Error(`Weekly radar labels overflowed the chart card: ${JSON.stringify(radarOverflow)}`);
+  await page.screenshot({ path: path.join(outputDir, "record-weekly-radar.png") });
+  await weeklyChartSwitch.click();
+  await expect(page.locator(".weekly-trend-card .trend-line")).toBeVisible();
   const weeklyInsightAlignment = await page.locator(".weekly-insight-card").evaluate((card) => {
     const header = card.querySelector(".weekly-insight-header");
     const centers = header ? [...header.children].map((child) => {

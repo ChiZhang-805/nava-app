@@ -3739,7 +3739,6 @@ body::before {
 
 .weekly-trend-card header { display: flex; align-items: center; justify-content: space-between; }
 .weekly-trend-card header strong { font-size: 16px; }
-.weekly-trend-card header span,
 .weekly-trend-card > p { color: #6c8b9b; font-size: 11px; }
 .weekly-trend-card > p { align-self: center; margin: 0; text-align: center; }
 .weekly-trend-card .line-trend-chart {
@@ -3750,6 +3749,44 @@ body::before {
 .weekly-trend-card .line-trend-chart svg {
   width: 100%;
   height: 100%;
+}
+
+.weekly-chart-switch {
+  width: 32px;
+  height: 25px;
+  flex: 0 0 32px;
+  border: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #147da7;
+  background: transparent;
+}
+
+.weekly-chart-switch svg { width: 30px; height: 22px; overflow: visible; }
+.weekly-chart-switch path { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.weekly-chart-switch:active { transform: scale(.94); }
+.weekly-chart-switch:focus-visible { outline: 0; }
+.weekly-chart-switch:focus-visible svg { filter: drop-shadow(0 0 4px rgba(18, 135, 178, .45)); }
+
+.weekly-radar-chart,
+.weekly-radar-chart svg {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.weekly-radar-chart { overflow: hidden; }
+.weekly-radar-chart svg { display: block; overflow: visible; }
+.weekly-radar-grid { fill: rgba(91, 188, 224, .025); stroke: rgba(32, 125, 168, .17); stroke-width: 1; }
+.weekly-radar-axis { stroke: rgba(31, 127, 169, .15); stroke-width: 1; }
+.weekly-radar-area { stroke: #117eae; stroke-width: 3; stroke-linejoin: round; animation: weekly-radar-reveal 460ms ease-out both; }
+.weekly-radar-point { fill: #f6fcff; stroke: #0e719f; stroke-width: 2.5; }
+.weekly-radar-caption { fill: #476f82; font-family: inherit; font-size: 19px; font-weight: 760; }
+.weekly-radar-score { fill: #0a719e; font-weight: 840; }
+
+@keyframes weekly-radar-reveal {
+  from { opacity: 0; transform: scale(.72); transform-origin: center; }
 }
 
 .weekly-insight-card {
@@ -5641,8 +5678,6 @@ body::before {
 
 .line-trend-chart .trend-grid-line {
   opacity: 0;
-  stroke-dasharray: 320;
-  stroke-dashoffset: 320;
   animation: trend-grid-reveal var(--motion-enter) var(--motion-ease-out) forwards;
   animation-delay: calc(40ms + var(--trend-grid-index, 0) * 70ms);
 }
@@ -6321,7 +6356,7 @@ body::before {
 }
 
 @keyframes trend-grid-reveal {
-  to { opacity: 1; stroke-dashoffset: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes trend-area-in {
@@ -8121,6 +8156,43 @@ body::before {
 }
 .record-detail[data-record-detail="exercise"] .action-button { flex: 0 0 auto; }
 
+/* Keep the sleep editor on one screen and let the note use the otherwise empty
+   lower part of the viewport. The card stops above the persistent navigation,
+   while the textarea remains non-resizable so the intended spacing is stable. */
+.record-detail[data-record-detail="sleep"]:has(.record-editor-stack) {
+  height: 100%;
+  min-height: 0;
+}
+.record-detail[data-record-detail="sleep"] .record-editor-stack,
+.record-detail[data-record-detail="sleep"] .record-editor-stack > form:not([hidden]) {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+}
+.record-detail[data-record-detail="sleep"] .record-editor-stack > form:not([hidden]) > .section-card {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.record-detail[data-record-detail="sleep"] .sleep-note-field {
+  min-height: 104px;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  margin-top: 0;
+}
+.record-detail[data-record-detail="sleep"] .sleep-note-field textarea {
+  min-height: 82px;
+  height: auto;
+  flex: 1 1 auto;
+  resize: none;
+}
+.record-detail[data-record-detail="sleep"] .sleep-note-field + .action-button {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
 @media (max-height: 780px) {
   .module-history-report-card { grid-template-rows: auto minmax(145px, 1fr) auto minmax(104px, .72fr) auto; gap: 7px; padding: 11px 13px; }
   .report-history-trend-chart { min-height: 145px; }
@@ -8139,9 +8211,34 @@ body::before {
   .face-trend-card .bar-line-trend-chart { min-height: 112px; }
   .record-detail[data-record-detail="exercise"] .exercise-note-field { min-height: 70px; }
   .record-detail[data-record-detail="exercise"] .exercise-note-field textarea { min-height: 54px; }
+  .record-detail[data-record-detail="sleep"] .sleep-note-field { min-height: 82px; }
+  .record-detail[data-record-detail="sleep"] .sleep-note-field textarea { min-height: 60px; }
   .sleep-dashboard .sleep-trend-card { flex-basis: 154px; min-height: 154px; }
   .face-dashboard { grid-template-rows: auto auto minmax(154px, 1fr); gap: 7px; }
   .mood-dashboard { grid-template-rows: minmax(288px, 1.25fr) minmax(190px, 1fr); gap: 7px; }
+}
+
+@media (max-height: 700px) {
+  .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="sleep"] .record-editor-stack > form:not([hidden]) > .section-card {
+    padding: 8px 10px;
+  }
+  .record-detail[data-record-detail="sleep"] .section-heading { margin-bottom: 4px; }
+  .record-detail[data-record-detail="sleep"] .section-heading h2 { font-size: 16px; }
+  .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="sleep"] .field {
+    gap: 2px;
+    margin-bottom: 3px;
+  }
+  .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="sleep"] .field > span { font-size: 10px; }
+  .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="sleep"] input:not([type="range"]) {
+    min-height: 34px;
+    padding-block: 5px;
+  }
+  .record-detail[data-record-detail="sleep"] .sleep-note-field { min-height: 49px; }
+  .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="sleep"] .sleep-note-field textarea {
+    min-height: 38px;
+    padding: 7px 10px;
+  }
+  .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="sleep"] .action-button { min-height: 38px; }
 }
 
 @media (max-width: 370px) {
