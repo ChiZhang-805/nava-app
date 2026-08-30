@@ -3752,9 +3752,9 @@ body::before {
 }
 
 .weekly-chart-switch {
-  width: 32px;
-  height: 25px;
-  flex: 0 0 32px;
+  width: 28px;
+  height: 22px;
+  flex: 0 0 28px;
   border: 0;
   display: grid;
   place-items: center;
@@ -3763,8 +3763,8 @@ body::before {
   background: transparent;
 }
 
-.weekly-chart-switch svg { width: 30px; height: 22px; overflow: visible; }
-.weekly-chart-switch path { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.weekly-chart-switch svg { width: 25px; height: 18px; overflow: visible; }
+.weekly-chart-switch path { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .weekly-chart-switch:active { transform: scale(.94); }
 .weekly-chart-switch:focus-visible { outline: 0; }
 .weekly-chart-switch:focus-visible svg { filter: drop-shadow(0 0 4px rgba(18, 135, 178, .45)); }
