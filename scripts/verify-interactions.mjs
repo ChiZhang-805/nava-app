@@ -658,6 +658,7 @@ async function verifyRecordModules(page, results) {
   await page.waitForTimeout(1_100);
   await page.screenshot({ path: path.join(outputDir, "record-exercise-trend.png") });
   await returnFromSubview();
+  await expect(page.locator('.exercise-summary-card header [aria-label="记录今日运动"], .exercise-summary-card header [aria-label="Log today activity"]')).toHaveClass(/module-card-icon-action/);
   await page.locator('[aria-label="记录今日运动"], [aria-label="Log today activity"]').click();
   await expect(page.locator('[data-record-detail="exercise"] form:not([hidden])')).toBeVisible();
   await page.waitForTimeout(450);

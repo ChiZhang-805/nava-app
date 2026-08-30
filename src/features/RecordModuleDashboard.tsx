@@ -627,7 +627,7 @@ function ExerciseDashboard({
   return (
     <div className="module-dashboard exercise-dashboard" data-module-view="exercise-overview">
       <section className="figma-module-card exercise-summary-card">
-        <header><strong>{locale === "zh" ? "今日运动" : "Today's activity"}</strong><button type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "记录今日运动" : "Log today's activity"}><Plus size={20} /></button></header>
+        <header><strong>{locale === "zh" ? "今日运动" : "Today's activity"}</strong><button className="module-card-icon-action" type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "记录今日运动" : "Log today's activity"}><Activity size={18} /><span>{locale === "zh" ? "添加" : "Add"}</span></button></header>
         <div className="exercise-summary-metrics">
           <span><small>{locale === "zh" ? "步数" : "Steps"}</small><strong><AnimatedNumber value={displayedSteps} formatter={(value) => Math.round(value).toLocaleString()} /><em>STEP</em></strong></span>
           <span><small>{locale === "zh" ? "活动消耗" : "Energy"}</small><strong><AnimatedNumber value={displayedCalories} /><em>kcal</em></strong></span>
