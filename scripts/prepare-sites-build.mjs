@@ -28,6 +28,14 @@ html = html.replace(
   },
 );
 
+// Sites publishes Vite's static assets at the deployment root. Keep module
+// preloads aligned with the same root-relative URLs used by the inlined entry
+// module and its dynamic imports.
+html = html.replace(
+  /(<link rel="modulepreload"[^>]*href=")(?:\.\/)?assets\//g,
+  "$1./",
+);
+
 writeFileSync(
   join(dist, "server", "index.js"),
   `const html = ${JSON.stringify(html)};

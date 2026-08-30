@@ -7,7 +7,7 @@ export default defineConfig({
   build: {
     rolldownOptions: {
       output: {
-        codeSplitting: false,
+        codeSplitting: true,
       },
     },
   },

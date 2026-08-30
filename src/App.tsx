@@ -1,5 +1,5 @@
 import { Activity, ArrowLeft, Download, History, ListTodo, MessageSquarePlus, MoreHorizontal, PhoneCall, Share2, Trash2, Volume2, VolumeX } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import navDataIcon from "./assets/figma/option-two-icons/data.png";
 import navHomeIcon from "./assets/figma/option-two-icons/home-glyph.svg";
 import navProfileIcon from "./assets/figma/option-two-icons/profile.svg";
@@ -7,24 +7,19 @@ import navRecordIcon from "./assets/figma/option-two-icons/record.svg";
 import lifeFigure from "./assets/figma/home-option2/raw-01.png";
 import { assertConfig } from "./config";
 import AuthScreen from "./features/AuthScreen";
-import RecordsScreen from "./features/RecordsScreen";
 import type { RecordModule } from "./features/RecordsScreen";
 import OptionTwoHome from "./features/OptionTwoHome";
-import AIScreen, { type AiCommand } from "./features/AIScreen";
-import GrowthTasksScreen from "./features/GrowthTasksScreen";
-import ProfileScreen from "./features/ProfileScreen";
+import type { AiCommand } from "./features/AIScreen";
 import PasswordRecoveryScreen from "./features/PasswordRecoveryScreen";
 import OnboardingScreen from "./features/OnboardingScreen";
-import { AuthProvider } from "./state/AuthProvider";
 import { useAuth } from "./state/authContext";
 import { enqueueAndFlushWatchAction, flushPendingWatchActions, subscribeWatchActions } from "./services/watch";
-import ErrorBoundary from "./components/ErrorBoundary";
 import LanguageToggle from "./components/LanguageToggle";
 import MascotMotionSlot from "./components/MascotMotionSlot";
 import UtilityDrawer from "./components/UtilityDrawer";
 import DevSeedPanel from "./components/DevSeedPanel";
 import RewardCelebration from "./components/RewardCelebration";
-import { LocaleProvider, useLocale, useT, type TranslationKey } from "./i18n";
+import { useLocale, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
 import { loadOnboardingStatus } from "./services/onboarding";
@@ -43,6 +38,11 @@ import {
 } from "./services/shellHistory";
 
 const aiLongPressDelayMs = 450;
+
+const RecordsScreen = lazy(() => import("./features/RecordsScreen"));
+const AIScreen = lazy(() => import("./features/AIScreen"));
+const GrowthTasksScreen = lazy(() => import("./features/GrowthTasksScreen"));
+const ProfileScreen = lazy(() => import("./features/ProfileScreen"));
 
 const tabs: Array<{ id: AppTab; labelKey: TranslationKey; icon: string }> = [
   { id: "today", labelKey: "tabs.today", icon: navHomeIcon },
@@ -120,6 +120,7 @@ function MobileShell() {
   const [aiPressing, setAiPressing] = useState(false);
   const [mascotPlayToken, setMascotPlayToken] = useState(0);
   const [aiCommand, setAiCommand] = useState<AiCommand | null>(null);
+  const [aiHasMounted, setAiHasMounted] = useState(initialRouteRef.current.tab === "ai");
   const aiSpeechStorageKey = `nava-ai-speech-enabled:${user?.id ?? "anonymous"}`;
   const [aiSpeechEnabled, setAiSpeechEnabled] = useState(() => {
     try {
@@ -206,6 +207,10 @@ function MobileShell() {
     previousDeviceDateRef.current = deviceDate;
     setRefreshKey((value) => value + 1);
   }, [deviceDate]);
+
+  useEffect(() => {
+    if (activeTab === "ai") setAiHasMounted(true);
+  }, [activeTab]);
 
   useEffect(() => {
     if (!user || checkinUserRef.current === user.id) return;
@@ -520,68 +525,76 @@ function MobileShell() {
             />
           )}
           {activeTab === "record" && (
-            <RecordsScreen
-              user={user}
-              deviceDate={deviceDate}
-              onSaved={markChanged}
-              onGrowthActivity={completeGrowthActivity}
-              initialModule={recordModule}
-              initialView={recordView}
-              onModuleChange={(module) => navigate("record", module)}
-              onViewChange={(view, replace = false) => {
-                if (replace && recordView) {
-                  navigateBack(normalizeShellRoute("record", recordModule, view));
-                  return;
-                }
-                navigate("record", recordModule, view, replace);
-              }}
-            />
+            <Suspense fallback={<LoadingScreen />}>
+              <RecordsScreen
+                user={user}
+                deviceDate={deviceDate}
+                onSaved={markChanged}
+                onGrowthActivity={completeGrowthActivity}
+                initialModule={recordModule}
+                initialView={recordView}
+                onModuleChange={(module) => navigate("record", module)}
+                onViewChange={(view, replace = false) => {
+                  if (replace && recordView) {
+                    navigateBack(normalizeShellRoute("record", recordModule, view));
+                    return;
+                  }
+                  navigate("record", recordModule, view, replace);
+                }}
+              />
+            </Suspense>
           )}
-          <div
-            className={["ai-screen-host", activeTab === "ai" ? "is-active" : "is-background"].join(" ")}
-            aria-hidden={activeTab !== "ai"}
-            {...(activeTab !== "ai" ? { inert: "" } : {})}
-          >
-            <AIScreen
-              user={user}
-              voiceRequestId={voiceRequestId}
-              voiceReleaseId={voiceRelease.id}
-              voiceReleaseCancelled={voiceRelease.cancelled}
-              externalVoiceCancelArmed={voiceCancelArmed}
-              command={aiCommand}
-              profileRefreshKey={refreshKey}
-              speechEnabled={aiSpeechEnabled}
-              active={activeTab === "ai"}
-              onDataSaved={markChanged}
-              onConversationCompleted={() => void completeGrowthActivity("ai")}
-            />
-          </div>
+          {aiHasMounted && (
+            <div
+              className={["ai-screen-host", activeTab === "ai" ? "is-active" : "is-background"].join(" ")}
+              aria-hidden={activeTab !== "ai"}
+              {...(activeTab !== "ai" ? { inert: "" } : {})}
+            >
+              <Suspense fallback={activeTab === "ai" ? <LoadingScreen /> : null}>
+                <AIScreen
+                  user={user}
+                  voiceRequestId={voiceRequestId}
+                  voiceReleaseId={voiceRelease.id}
+                  voiceReleaseCancelled={voiceRelease.cancelled}
+                  externalVoiceCancelArmed={voiceCancelArmed}
+                  command={aiCommand}
+                  profileRefreshKey={refreshKey}
+                  speechEnabled={aiSpeechEnabled}
+                  active={activeTab === "ai"}
+                  onDataSaved={markChanged}
+                  onConversationCompleted={() => void completeGrowthActivity("ai")}
+                />
+              </Suspense>
+            </div>
+          )}
           {activeTab === "trends" && (
-            <GrowthTasksScreen
-              key={deviceDate}
-              user={user}
-              onOpenTarget={(target) => {
-                if (target === "profile") {
-                  navigate("profile");
-                  return;
-                }
-                if (target === "today") {
-                  navigate("today");
-                  return;
-                }
-                if (target === "ai") {
-                  navigate("ai");
-                  return;
-                }
-                if (target === "share") {
-                  navigate("record", "diet", "history");
-                  return;
-                }
-                navigate("record", target === "nutrition" ? "diet" : target);
-              }}
-            />
+            <Suspense fallback={<LoadingScreen />}>
+              <GrowthTasksScreen
+                key={deviceDate}
+                user={user}
+                onOpenTarget={(target) => {
+                  if (target === "profile") {
+                    navigate("profile");
+                    return;
+                  }
+                  if (target === "today") {
+                    navigate("today");
+                    return;
+                  }
+                  if (target === "ai") {
+                    navigate("ai");
+                    return;
+                  }
+                  if (target === "share") {
+                    navigate("record", "diet", "history");
+                    return;
+                  }
+                  navigate("record", target === "nutrition" ? "diet" : target);
+                }}
+              />
+            </Suspense>
           )}
-          {activeTab === "profile" && <ProfileScreen user={user} onChanged={markChanged} />}
+          {activeTab === "profile" && <Suspense fallback={<LoadingScreen />}><ProfileScreen user={user} onChanged={markChanged} /></Suspense>}
         </div>
       </main>
 
@@ -645,10 +658,10 @@ function MobileShell() {
   );
 }
 
-function AppContent() {
+function AppContent({ signedOutScreenSeen: initialSignedOutScreenSeen = false }: { signedOutScreenSeen?: boolean }) {
   const configError = assertConfig();
   const { user, loading, passwordRecovery } = useAuth();
-  const signedOutScreenSeen = useRef(false);
+  const signedOutScreenSeen = useRef(initialSignedOutScreenSeen);
   const userId = user?.id ?? null;
   const forceOnboarding = new URLSearchParams(window.location.search).get("onboarding") === "1";
   const [onboardingRoute, setOnboardingRoute] = useState<{ userId: string; required: boolean } | null>(null);
@@ -703,14 +716,6 @@ function AppContent() {
   );
 }
 
-export default function App() {
-  return (
-    <LocaleProvider>
-      <ErrorBoundary>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </ErrorBoundary>
-    </LocaleProvider>
-  );
+export default function AuthenticatedApp({ signedOutScreenSeen = false }: { signedOutScreenSeen?: boolean }) {
+  return <AppContent signedOutScreenSeen={signedOutScreenSeen} />;
 }
