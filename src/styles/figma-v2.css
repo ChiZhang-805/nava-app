@@ -7909,6 +7909,57 @@ body::before {
 .module-history-report-card .diet-ai-report li { font-size: 11.5px; line-height: 1.4; }
 .module-ai-fallback-note { color: #78909b; font-size: 8px; line-height: 1.3; }
 .module-history-share:disabled { opacity: .7; cursor: wait; }
+.module-history-chart-empty {
+  min-height: 188px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  border-radius: 16px;
+  color: #7292a0;
+  background: linear-gradient(145deg, rgba(235, 249, 254, .76), rgba(220, 242, 250, .56));
+  font-size: 11px;
+  font-weight: 700;
+}
+.module-today-empty-state {
+  min-height: 126px;
+  padding: 2px 14px 9px;
+  border: 1px solid rgba(171, 218, 236, .72);
+  border-radius: 15px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  place-items: center;
+  gap: 1px;
+  color: #3d7085;
+  background: linear-gradient(145deg, rgba(244, 252, 255, .92), rgba(226, 246, 253, .84));
+  overflow: hidden;
+}
+.module-today-empty-mascot {
+  width: min(220px, 72%);
+  height: 94px;
+  min-height: 0;
+  object-fit: contain;
+  object-position: center;
+  filter: drop-shadow(0 7px 10px rgba(42, 112, 141, .1));
+  animation: diet-mascot-arrive 620ms cubic-bezier(.18, .82, .22, 1.06) 160ms both;
+}
+.module-today-empty-state p {
+  margin: 0;
+  font-family: ui-rounded, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: .02em;
+  text-align: center;
+}
+.module-history-share.is-today-missing,
+.module-history-share.is-today-missing:disabled {
+  opacity: 1;
+  color: #7393a1;
+  background: linear-gradient(135deg, #e2f2f8, #d4eaf3);
+  cursor: not-allowed;
+  box-shadow: inset 0 0 0 1px rgba(79, 157, 188, .16);
+}
 
 .bar-line-trend-chart.is-score-scale .bar-line-bars { inset: 7.8% 0 17.2%; }
 .bar-line-trend-chart.is-score-scale .bar-line-bars small { top: calc(100% + 7px); }

@@ -39,6 +39,7 @@ import exerciseInsightMascot from "../assets/mascot/nava-lift-v1.png";
 import moodInsightMascot from "../assets/mascot/nava-journal-v1.png";
 import focusInsightMascot from "../assets/mascot/nava-read-v1.png";
 import faceInsightMascot from "../assets/mascot/nava-mirror-v1.png";
+import emptyTodayMascot from "../assets/mascot/nava-empty-cry-v1.png";
 import type { FocusRecord, MoodRecord, TodaySnapshot, TrendBundle } from "../types";
 import { enableNavaNotifications } from "../services/notifications";
 import { loadDietAiReport, parseDietAiReport, type DietAiReport } from "../services/dietReport";
@@ -65,6 +66,7 @@ import {
 import type { UserProfile } from "../services/profile";
 import type { RecordModule } from "./RecordsScreen";
 import { rollingDateWindow } from "../services/date";
+import { currentDayRequiredShareCopy, hasCurrentDayRecord, missingCurrentDayCopy } from "../services/historyReportState";
 
 type MoodFactor = { value: string; label: string };
 
@@ -275,17 +277,27 @@ function HistoryView({
     () => displayEntries.filter((entry): entry is { id: string; date: string; value: number } => entry.value != null),
     [displayEntries],
   );
+  const recordedToday = useMemo(() => hasCurrentDayRecord(displayEntries, deviceDate), [deviceDate, displayEntries]);
+  // Development-only visual fixture for the missing-today report state.
+  const forceMissingToday = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "today-missing";
+  const hasTodayRecord = recordedToday && !forceMissingToday;
   const sortedNutrition = useMemo(() => trendBundle?.nutritions.filter((item) => item.record_date <= deviceDate).slice().sort((a, b) => a.record_date.localeCompare(b.record_date)) ?? [], [deviceDate, trendBundle]);
-  const latestNutrition = sortedNutrition[sortedNutrition.length - 1] ?? null;
-  const [dietReport, setDietReport] = useState<DietAiReport | null>(() => parseDietAiReport(latestNutrition?.ai_feedback));
+  const todayNutrition = sortedNutrition.find((item) => item.record_date === deviceDate) ?? null;
+  const [dietReport, setDietReport] = useState<DietAiReport | null>(() => parseDietAiReport(todayNutrition?.ai_feedback));
   const [healthReport, setHealthReport] = useState<HealthAiReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportUnavailable, setReportUnavailable] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareComplete, setShareComplete] = useState(false);
   useEffect(() => {
-    if (module !== "diet" || !latestNutrition) return;
-    const stored = parseDietAiReport(latestNutrition.ai_feedback);
+    if (module !== "diet") return;
+    if (!hasTodayRecord || !todayNutrition) {
+      setDietReport(null);
+      setReportUnavailable(false);
+      setReportLoading(false);
+      return;
+    }
+    const stored = parseDietAiReport(todayNutrition.ai_feedback);
     if (stored) {
       setDietReport(stored);
       setReportUnavailable(false);
@@ -295,7 +307,7 @@ function HistoryView({
     let active = true;
     setReportLoading(true);
     setReportUnavailable(false);
-    void loadDietAiReport({ date: latestNutrition.record_date, locale })
+    void loadDietAiReport({ date: todayNutrition.record_date, locale })
       .then((report) => {
         if (active) setDietReport(report);
       })
@@ -309,9 +321,15 @@ function HistoryView({
     return () => {
       active = false;
     };
-  }, [latestNutrition, locale, module]);
+  }, [hasTodayRecord, locale, module, todayNutrition]);
   useEffect(() => {
-    if (module === "diet" || recordedEntries.length === 0) return;
+    if (module === "diet") return;
+    if (!hasTodayRecord) {
+      setHealthReport(null);
+      setReportUnavailable(false);
+      setReportLoading(false);
+      return;
+    }
     let active = true;
     setHealthReport(null);
     setReportLoading(true);
@@ -330,10 +348,11 @@ function HistoryView({
     return () => {
       active = false;
     };
-  }, [deviceDate, locale, module, recordedEntries.length]);
-  const reportInsights = module === "diet" ? (dietReport?.bullets ?? []) : (healthReport?.bullets ?? []);
+  }, [deviceDate, hasTodayRecord, locale, module]);
+  const reportInsights = hasTodayRecord ? (module === "diet" ? (dietReport?.bullets ?? []) : (healthReport?.bullets ?? [])) : [];
   const reportIsDemo = module === "diet" ? dietReport?.modelVersion === "demo-only" : healthReport?.provider === "demo";
   const shareSummary = async () => {
+    if (!hasTodayRecord) return;
     const label = moduleNames[module][locale];
     setSharing(true);
     setShareComplete(false);
@@ -361,29 +380,41 @@ function HistoryView({
       className="module-history-report-card"
       title={`${moduleNames[module][locale]}${locale === "zh" ? "趋势报告" : " trend report"}`}
     >
-      {recordedEntries.length > 0 ? <>
-        <ReportTrendChart entries={displayEntries} module={module} locale={locale} />
+      {trendBundle ? <>
+        {recordedEntries.length > 0
+          ? <ReportTrendChart entries={displayEntries} module={module} locale={locale} />
+          : <div className="module-history-chart-empty"><CalendarDays size={22} /><span>{locale === "zh" ? "近七日暂无记录" : "No entries in the last seven days"}</span></div>}
         <div className={`module-history-list module-history-list--${module}`}>
           {displayEntries.slice(-3).reverse().map((entry) => <p key={entry.id}><CalendarDays size={16} /><span>{shortDate(entry.date, locale)}</span><strong>{entry.value == null ? (locale === "zh" ? "暂无记录" : "No entry") : historyValueText(module, entry.value, locale)}</strong></p>)}
         </div>
-        <section className="diet-ai-report module-ai-report" aria-live="polite">
-          <div className="diet-ai-report-copy">
-            <header><span><Bot size={16} /></span><strong>{reportIsDemo
-              ? (locale === "zh" ? `演示${moduleNames[module].zh}洞察` : `Demo ${moduleNames[module].en.toLowerCase()} insights`)
-              : (locale === "zh" ? `AI ${moduleNames[module].zh}洞察` : `AI ${moduleNames[module].en.toLowerCase()} insights`)}</strong></header>
-            {reportLoading
-              ? <div className="diet-ai-report-loading">{locale === "zh" ? "正在结合你的画像与近七日数据生成…" : "Reviewing your profile and seven-day data…"}</div>
-              : <ul>{reportInsights.map((bullet, index) => <li key={`${index}-${bullet}`}>{bullet}</li>)}</ul>}
-            {reportUnavailable && <small className="module-ai-fallback-note">{locale === "zh" ? "真实 AI 洞察暂不可用，请稍后重试。" : "Real AI insights are temporarily unavailable. Please retry."}</small>}
-          </div>
-          <img
-            className="diet-ai-mascot module-ai-mascot"
-            src={reportMascotByModule[module]}
-            alt={locale === "zh" ? `NAVA 小猫展示${moduleNames[module].zh}主题动作` : `NAVA cat illustrating the ${moduleNames[module].en.toLowerCase()} report`}
-          />
-        </section>
-        <button className="module-history-share" type="button" disabled={sharing} onClick={() => void shareSummary()}><Share2 size={16} />{sharing ? (locale === "zh" ? "正在生成图片…" : "Creating image…") : shareComplete ? (locale === "zh" ? "图片已生成" : "Image ready") : (locale === "zh" ? "生成图片并分享" : "Create image & share")}</button>
-      </> : <p className="module-empty-copy module-history-empty">{trendBundle ? (locale === "zh" ? "当前账号尚无该项历史记录" : "No history for this account yet") : (locale === "zh" ? "正在读取历史记录…" : "Loading history…")}</p>}
+        {hasTodayRecord
+          ? <section className="diet-ai-report module-ai-report" aria-live="polite" data-report-today-state="ready">
+              <div className="diet-ai-report-copy">
+                <header><span><Bot size={16} /></span><strong>{reportIsDemo
+                  ? (locale === "zh" ? `演示${moduleNames[module].zh}洞察` : `Demo ${moduleNames[module].en.toLowerCase()} insights`)
+                  : (locale === "zh" ? `AI ${moduleNames[module].zh}洞察` : `AI ${moduleNames[module].en.toLowerCase()} insights`)}</strong></header>
+                {reportLoading
+                  ? <div className="diet-ai-report-loading">{locale === "zh" ? "正在结合你的画像与近七日数据生成…" : "Reviewing your profile and seven-day data…"}</div>
+                  : <ul>{reportInsights.map((bullet, index) => <li key={`${index}-${bullet}`}>{bullet}</li>)}</ul>}
+                {reportUnavailable && <small className="module-ai-fallback-note">{locale === "zh" ? "真实 AI 洞察暂不可用，请稍后重试。" : "Real AI insights are temporarily unavailable. Please retry."}</small>}
+              </div>
+              <img
+                className="diet-ai-mascot module-ai-mascot"
+                src={reportMascotByModule[module]}
+                alt={locale === "zh" ? `NAVA 小猫展示${moduleNames[module].zh}主题动作` : `NAVA cat illustrating the ${moduleNames[module].en.toLowerCase()} report`}
+              />
+            </section>
+          : <section className="module-today-empty-state" aria-live="polite" data-report-today-state="missing">
+              <img className="module-today-empty-mascot" src={emptyTodayMascot} alt={locale === "zh" ? "NAVA 小猫趴着哭泣" : "NAVA cat lying down with two little tears"} />
+              <p>{missingCurrentDayCopy(module, locale)}</p>
+            </section>}
+        <button
+          className={`module-history-share${hasTodayRecord ? "" : " is-today-missing"}`}
+          type="button"
+          disabled={sharing || !hasTodayRecord}
+          onClick={() => void shareSummary()}
+        ><Share2 size={16} />{!hasTodayRecord ? currentDayRequiredShareCopy(module, locale) : sharing ? (locale === "zh" ? "正在生成图片…" : "Creating image…") : shareComplete ? (locale === "zh" ? "图片已生成" : "Image ready") : (locale === "zh" ? "生成图片并分享" : "Create image & share")}</button>
+      </> : <p className="module-empty-copy module-history-empty">{locale === "zh" ? "正在读取历史记录…" : "Loading history…"}</p>}
     </ModuleDetailView>
   );
 }
