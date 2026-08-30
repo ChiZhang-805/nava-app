@@ -74,7 +74,9 @@ export async function sendAiMessage(input: {
         content,
         created_at: now,
       } as ChatMessage,
+      dataType: null,
       extractedData: null,
+      extractionConfidence: null,
       applied: null,
     };
   }
@@ -128,7 +130,9 @@ export async function sendAiMessage(input: {
   return {
     userMessage: userInsert.data as ChatMessage,
     assistantMessage: assistantInsert.data as ChatMessage,
+    dataType: extraction?.dataType ?? null,
     extractedData,
+    extractionConfidence: typeof extraction?.confidence === "number" ? extraction.confidence : null,
     applied: null,
   };
 }

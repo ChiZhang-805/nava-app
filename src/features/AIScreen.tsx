@@ -242,7 +242,11 @@ export default function AIScreen({
       speechRef.current?.finish(result.assistantMessage.content);
       setMessages((current) => [...current, result.assistantMessage]);
       setStreamingPreview(null);
-      const recognizedEntry = parseStructuredEntry(message, locale);
+      const recognizedEntry = parseStructuredEntry(message, locale, {
+        dataType: result.dataType,
+        extractedData: result.extractedData,
+        confidence: result.extractionConfidence,
+      });
       setPendingEntry(recognizedEntry);
       setPendingEntryMessageId(recognizedEntry ? result.assistantMessage.id : null);
       setEditingEntry(false);
@@ -600,7 +604,11 @@ export default function AIScreen({
       });
       speaker.finish(result.assistantMessage.content);
       setMessages((current) => [...current, result.assistantMessage]);
-      const recognizedEntry = parseStructuredEntry(message, locale);
+      const recognizedEntry = parseStructuredEntry(message, locale, {
+        dataType: result.dataType,
+        extractedData: result.extractedData,
+        confidence: result.extractionConfidence,
+      });
       setPendingEntry(recognizedEntry);
       setPendingEntryMessageId(recognizedEntry ? result.assistantMessage.id : null);
       setEditingEntry(false);

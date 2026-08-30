@@ -20,6 +20,12 @@ export type StructuredEntry = {
   entries?: StructuredEntry[];
 };
 
+export type StructuredExtraction = {
+  dataType?: unknown;
+  extractedData?: unknown;
+  confidence?: unknown;
+};
+
 type FoodItemDraft = {
   name: string;
   quantity: number;
@@ -30,7 +36,7 @@ type FoodItemDraft = {
 };
 
 const moodWords: Array<[RegExp, number]> = [
-  [/开心|愉快|兴奋|很好|happy|great/i, 85],
+  [/开心|高兴|愉快|兴奋|很好|快乐|happy|glad|great|excited/i, 85],
   [/平静|稳定|一般|calm|steady|okay/i, 68],
   [/焦虑|压力|烦|难过|低落|anxious|stress|sad/i, 38],
 ];
@@ -245,7 +251,7 @@ function normalizeFoodName(raw: string, locale: "zh" | "en") {
 
 function calorieRule(name: string, unit: string) {
   const known = foodCalories.find((food) => food.pattern.test(name));
-  if (!known) return 100;
+  if (!known) return 0;
   if (/克|g/i.test(unit)) return known.calories / 100;
   if (/毫升|ml/i.test(unit)) return known.calories / 250;
   return known.calories;
@@ -265,8 +271,10 @@ function extractFoodItems(value: string, locale: "zh" | "en"): FoodItemDraft[] {
   }
   if (items.length > 0) return items;
   const known = foodCalories.find((food) => food.pattern.test(value));
-  if (!known) return [];
-  return [{ name: locale === "zh" ? known.nameZh : known.nameEn, quantity: 1, unit: known.defaultUnit, amount: `1${known.defaultUnit}`, calories: known.calories, caloriesPerUnit: known.calories }];
+  if (known) return [{ name: locale === "zh" ? known.nameZh : known.nameEn, quantity: 1, unit: known.defaultUnit, amount: `1${known.defaultUnit}`, calories: known.calories, caloriesPerUnit: known.calories }];
+  const generic = value.match(/(?:吃了?|喝了?|ate|had)\s*(?:一(?:个|份|块|片))?\s*([^，。,.！!？?]{1,18}?)(?=[，。,.！!？?]|然后|并且|而且|我(?:要|很|真)|$)/i)?.[1]?.trim();
+  if (!generic || /小时|分钟|运动|睡眠|跑步/.test(generic)) return [];
+  return [{ name: generic, quantity: 1, unit: locale === "zh" ? "份" : "serving", amount: locale === "zh" ? "1份" : "1 serving", calories: 0, caloriesPerUnit: 0 }];
 }
 
 function extractNutritionEntry(value: string, locale: "zh" | "en") {
@@ -301,11 +309,11 @@ function extractNutritionEntry(value: string, locale: "zh" | "en") {
     totalCalories,
     calories: totalCalories,
     name: items.map((item) => `${item.amount}${item.name}`).join("、") || value,
-  }, explicitCalories == null ? 0.74 : 0.88);
+  }, explicitCalories == null ? (totalCalories > 0 ? 0.74 : 0.62) : 0.88);
 }
 
 function extractMoodEntry(value: string, locale: "zh" | "en") {
-  if (!/情绪|心情|压力|焦虑|开心|平静|难过|mood|stress|anxious|happy|calm/i.test(value)) return null;
+  if (!/情绪|心情|压力|焦虑|开心|高兴|快乐|愉快|兴奋|平静|难过|低落|mood|stress|anxious|happy|glad|excited|calm|sad/i.test(value)) return null;
   const explicit = numberMatch(value, /(?:情绪|心情|mood)?\s*(\d{1,3})\s*(?:分|\/100)?/i);
   const inferred = moodWords.find(([pattern]) => pattern.test(value))?.[1] ?? 60;
   const score = Math.max(0, Math.min(100, explicit ?? inferred));
@@ -315,7 +323,158 @@ function extractMoodEntry(value: string, locale: "zh" | "en") {
   ], { moodScore: score, factors: [], diary: value });
 }
 
-export function parseStructuredEntry(text: string, locale: "zh" | "en"): StructuredEntry | null {
+function recordValue(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function numberValue(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+function extractionConfidence(value: unknown, fallback = 0.76) {
+  const parsed = numberValue(value);
+  return parsed == null ? fallback : Math.max(0, Math.min(1, parsed));
+}
+
+function modelEntry(dataType: string, data: Record<string, unknown>, text: string, locale: "zh" | "en", confidence: number): StructuredEntry | null {
+  if (dataType === "mood") {
+    const score = numberValue(data.moodScore) ?? numberValue(data.mood_score) ?? numberValue(data.score);
+    if (score == null) return null;
+    const diary = stringValue(data.diary) ?? stringValue(data.note) ?? text;
+    const factors = Array.isArray(data.factors) ? data.factors.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+    const normalizedScore = Math.max(0, Math.min(100, Math.round(score)));
+    return entry("mood", locale, diary, [
+      { label: locale === "zh" ? "情绪强度" : "Mood score", value: String(normalizedScore), unit: "/100", path: "moodScore", valueType: "number" },
+      { label: locale === "zh" ? "情绪描述" : "Note", value: diary, path: "diary" },
+    ], { moodScore: normalizedScore, factors, diary }, confidence);
+  }
+
+  if (dataType === "sleep") {
+    let start = stringValue(data.sleepStart) ?? stringValue(data.sleep_start) ?? stringValue(data.start);
+    let end = stringValue(data.sleepEnd) ?? stringValue(data.sleep_end) ?? stringValue(data.end);
+    let durationMinutes = numberValue(data.sleepDurationMinutes) ?? numberValue(data.sleep_duration_minutes) ?? numberValue(data.durationMinutes);
+    if (durationMinutes == null && start && end) durationMinutes = sleepMinutes(start, end);
+    if (durationMinutes != null && (!start || !end)) {
+      const endMinutes = currentClockMinutes();
+      end = end ?? clockFromMinutes(endMinutes);
+      start = start ?? clockFromMinutes(endMinutes - durationMinutes);
+    }
+    if (!start || !end || durationMinutes == null || durationMinutes <= 0) return null;
+    return entry("sleep", locale, text, [
+      { label: locale === "zh" ? "入睡时间" : "Bedtime", value: start, path: "start" },
+      { label: locale === "zh" ? "醒来时间" : "Wake time", value: end, path: "end" },
+      { label: locale === "zh" ? "睡眠时长" : "Sleep duration", value: String(Math.round(durationMinutes)), unit: locale === "zh" ? "分钟" : "min", path: "durationMinutes", valueType: "number" },
+    ], { start, end, durationMinutes: Math.round(durationMinutes) }, confidence);
+  }
+
+  if (dataType === "exercise") {
+    const steps = numberValue(data.steps);
+    const calories = numberValue(data.calories);
+    const minutes = numberValue(data.exerciseMinutes) ?? numberValue(data.exercise_minutes) ?? numberValue(data.minutes);
+    if (steps == null && calories == null && minutes == null) return null;
+    const fields: Array<Omit<StructuredField, "id">> = [];
+    if (steps != null) fields.push({ label: locale === "zh" ? "运动步数" : "Steps", value: String(Math.round(steps)), unit: locale === "zh" ? "步" : "steps", path: "steps", valueType: "number" });
+    if (minutes != null) fields.push({ label: locale === "zh" ? "运动时长" : "Activity duration", value: String(Math.round(minutes)), unit: locale === "zh" ? "分钟" : "min", path: "minutes", valueType: "number" });
+    if (calories != null) fields.push({ label: locale === "zh" ? "运动消耗" : "Calories burned", value: String(Math.round(calories)), unit: locale === "zh" ? "千卡" : "kcal", path: "calories", valueType: "number" });
+    return entry("exercise", locale, text, fields, { steps: steps ?? 0, calories: calories ?? 0, minutes: minutes ?? 0 }, confidence);
+  }
+
+  if (dataType === "focus") {
+    const minutes = numberValue(data.minutes) ?? numberValue(data.totalMinutes) ?? numberValue(data.total_minutes);
+    if (minutes == null || minutes <= 0) return null;
+    const taskTitle = stringValue(data.taskTitle) ?? stringValue(data.task_title) ?? (locale === "zh" ? "专注任务" : "Focus task");
+    return entry("focus", locale, text, [
+      { label: locale === "zh" ? "专注事项" : "Task", value: taskTitle, path: "taskTitle" },
+      { label: locale === "zh" ? "专注时长" : "Duration", value: String(Math.round(minutes)), unit: locale === "zh" ? "分钟" : "min", path: "minutes", valueType: "number" },
+    ], { taskTitle, minutes: Math.round(minutes) }, confidence);
+  }
+
+  if (dataType === "nutrition") {
+    const totalCalories = Math.max(0, Math.round(numberValue(data.totalCalories) ?? numberValue(data.total_calories) ?? numberValue(data.calories) ?? numberValue(data.kcal) ?? 0));
+    const rawItems = Array.isArray(data.items) ? data.items.map(recordValue).filter((item): item is Record<string, unknown> => item != null) : [];
+    if (rawItems.length === 0) {
+      const name = stringValue(data.name) ?? stringValue(data.food) ?? stringValue(data.title);
+      if (name) rawItems.push({ name, amount: stringValue(data.amount), calories: totalCalories });
+    }
+    if (rawItems.length === 0) return null;
+    const items: FoodItemDraft[] = rawItems.map((item) => {
+      const amount = stringValue(item.amount) ?? "";
+      const quantity = numberValue(item.quantity) ?? numberValue(amount.match(/[\d.]+/)?.[0]) ?? 1;
+      const unit = stringValue(item.unit) ?? (amount.replace(/[\d.\s]/g, "") || (locale === "zh" ? "份" : "serving"));
+      const calories = Math.max(0, Math.round(numberValue(item.calories) ?? 0));
+      return {
+        name: stringValue(item.name) ?? (locale === "zh" ? "饮食记录" : "Meal item"),
+        quantity,
+        unit,
+        amount: amount || `${quantity}${unit}`,
+        calories,
+        caloriesPerUnit: quantity > 0 ? calories / quantity : 0,
+      };
+    });
+    const resolvedTotal = totalCalories || items.reduce((sum, item) => sum + item.calories, 0);
+    const fields: Array<Omit<StructuredField, "id">> = items.map((item, index) => ({
+      label: item.name,
+      value: String(item.quantity),
+      unit: item.unit,
+      path: `items.${index}.quantity`,
+      valueType: "number",
+    }));
+    fields.push({ label: locale === "zh" ? "预估热量" : "Estimated calories", value: String(resolvedTotal), unit: locale === "zh" ? "千卡" : "kcal", path: "totalCalories", valueType: "number" });
+    const meal = stringValue(data.meal) ?? "pantry";
+    return entry("nutrition", locale, text, fields, {
+      meal,
+      items,
+      totalCalories: resolvedTotal,
+      calories: resolvedTotal,
+      name: items.map((item) => `${item.amount}${item.name}`).join("、"),
+    }, confidence);
+  }
+
+  return null;
+}
+
+function entryFromExtraction(extraction: StructuredExtraction | undefined, text: string, locale: "zh" | "en") {
+  if (!extraction) return null;
+  const dataType = stringValue(extraction.dataType);
+  const data = recordValue(extraction.extractedData);
+  if (!dataType || !data || dataType === "unknown" || dataType === "profile") return null;
+  if (dataType !== "multi") return modelEntry(dataType, data, text, locale, extractionConfidence(extraction.confidence));
+  const records = Array.isArray(data.records) ? data.records.map(recordValue).filter((item): item is Record<string, unknown> => item != null) : [];
+  const entries = records.map((record) => {
+    const recordType = stringValue(record.dataType) ?? stringValue(record.data_type) ?? stringValue(record.type);
+    const recordData = recordValue(record.extractedData) ?? recordValue(record.extracted_data) ?? recordValue(record.data);
+    return recordType && recordData ? modelEntry(recordType, recordData, text, locale, extractionConfidence(record.confidence, extractionConfidence(extraction.confidence))) : null;
+  }).filter((candidate): candidate is StructuredEntry => candidate != null);
+  return entries.length === 0 ? null : entries.length === 1 ? entries[0] : multiEntry(entries, locale, text);
+}
+
+function localStructuredEntry(value: string, locale: "zh" | "en") {
+  const entries = [
+    extractSleepEntry(value, locale),
+    extractExerciseEntry(value, locale),
+    extractFocusEntry(value, locale),
+    extractNutritionEntry(value, locale),
+    extractMoodEntry(value, locale),
+  ].filter((candidate): candidate is StructuredEntry => candidate != null);
+  if (entries.length === 0) return null;
+  return entries.length === 1 ? entries[0] : multiEntry(entries, locale, value);
+}
+
+function flattenedEntries(candidate: StructuredEntry | null) {
+  if (!candidate) return [];
+  return candidate.entries ?? [candidate];
+}
+
+export function parseStructuredEntry(text: string, locale: "zh" | "en", extraction?: StructuredExtraction): StructuredEntry | null {
   const value = text.trim();
   if (!value) return null;
 
@@ -329,14 +488,12 @@ export function parseStructuredEntry(text: string, locale: "zh" | "en"): Structu
     ], { title: todoTitle, scheduledDate: schedule.scheduledDate, scheduledTime: schedule.scheduledTime });
   }
 
-  const entries = [
-    extractSleepEntry(value, locale),
-    extractExerciseEntry(value, locale),
-    extractFocusEntry(value, locale),
-    extractNutritionEntry(value, locale),
-    extractMoodEntry(value, locale),
-  ].filter((candidate): candidate is StructuredEntry => candidate != null);
-
+  const model = entryFromExtraction(extraction, value, locale);
+  const local = localStructuredEntry(value, locale);
+  const entries = [...flattenedEntries(model)];
+  for (const candidate of flattenedEntries(local)) {
+    if (!entries.some((item) => item.type === candidate.type)) entries.push(candidate);
+  }
   if (entries.length === 0) return null;
   return entries.length === 1 ? entries[0] : multiEntry(entries, locale, value);
 }

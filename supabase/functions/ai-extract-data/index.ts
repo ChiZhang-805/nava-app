@@ -254,11 +254,11 @@ function extractExercise(message: string): ExtractedRecord | null {
 }
 
 function extractMood(message: string): ExtractedRecord | null {
-  if (!/(情绪|心情|压力|焦虑|开心|难受|低落|mood|stress|anxious|happy|sad)/i.test(message)) return null;
+  if (!/(情绪|心情|压力|焦虑|开心|高兴|快乐|愉快|兴奋|难受|低落|mood|stress|anxious|happy|glad|excited|sad)/i.test(message)) return null;
   const explicit = extractScore(message, ["情绪", "心情", "状态", "mood"]);
   const score =
     explicit ??
-    (/(开心|不错|很好|放松|happy|good|great)/i.test(message)
+    (/(开心|高兴|快乐|愉快|兴奋|不错|很好|放松|happy|glad|excited|good|great)/i.test(message)
       ? 78
       : /(焦虑|压力|难受|低落|崩溃|anxious|stress|sad|bad)/i.test(message)
         ? 42
@@ -305,6 +305,10 @@ function extractNutrition(message: string): ExtractedRecord | null {
   }
   const calories = matchLocalizedNumber(message, new RegExp(`(${localizedNumberToken})\\s*(?:千卡|大卡|卡路里|kcal|calories?)`, "i"));
   const items = extractFoodItems(message);
+  if (items.length === 0) {
+    const name = extractFoodName(message);
+    if (name) items.push({ name, quantity: 1, unit: "份", amount: "1份", calories: 0, caloriesPerUnit: 0 });
+  }
   if (calories == null && items.length === 0) return null;
 
   const meal = /早餐|breakfast/i.test(message)
@@ -453,7 +457,7 @@ function clockFromMinutes(minutes: number) {
 
 function foodCalories(name: string, unit: string) {
   const rule = foodCalorieRules.find((item) => item.pattern.test(name));
-  if (!rule) return 100;
+  if (!rule) return 0;
   if (/克|g/i.test(unit)) return rule.calories / 100;
   if (/毫升|ml/i.test(unit)) return rule.calories / 250;
   return rule.calories;
@@ -489,7 +493,7 @@ function distributeCalories(items: FoodDraft[], total: number) {
 }
 
 function extractFoodName(message: string) {
-  const match = message.match(/(?:早餐|午餐|晚餐|加餐|吃了|喝了|ate)\s*([^，。,.]{1,18})/i);
+  const match = message.match(/(?:早餐|午餐|晚餐|加餐|吃了?|喝了?|ate|had)\s*(?:一(?:个|份|块|片))?\s*([^，。,.！!？?]{1,18}?)(?=[，。,.！!？?]|然后|并且|而且|我(?:要|很|真)|$)/i);
   return match?.[1]?.trim();
 }
 

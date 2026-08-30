@@ -80,3 +80,50 @@ test("sleep and exercise durations remain separated in one sentence", () => {
   assert.equal(entry?.entries?.find((item) => item.type === "sleep")?.payload.durationMinutes, 180);
   assert.equal(entry?.entries?.find((item) => item.type === "exercise")?.payload.minutes, 30);
 });
+
+test("high emotion wording creates a mood confirmation card", () => {
+  const entry = parseStructuredEntry("我今天非常高兴！！", "zh");
+  assert.equal(entry?.type, "mood");
+  assert.equal(entry?.payload.moodScore, 85);
+});
+
+test("unquantified pizza and high emotion create two editable records without invented calories", () => {
+  const entry = parseStructuredEntry("我今天吃了披萨！！我要高兴死了！！！", "zh");
+  assert.equal(entry?.type, "multi");
+  assert.deepEqual(entry?.entries?.map((item) => item.type), ["nutrition", "mood"]);
+  const nutrition = entry?.entries?.find((item) => item.type === "nutrition");
+  assert.equal((nutrition?.payload.items as Array<Record<string, unknown>>)[0].name, "披萨");
+  assert.equal(nutrition?.payload.totalCalories, 0);
+  assert.equal(nutrition?.fields.some((item) => item.path === "totalCalories" && item.value === "0"), true);
+});
+
+test("AI extraction is preserved and merged with locally recognized record types", () => {
+  const entry = parseStructuredEntry("我今天吃了披萨！！我要高兴死了！！！", "zh", {
+    dataType: "nutrition",
+    extractedData: {
+      meal: "pantry",
+      items: [{ name: "披萨" }],
+      totalCalories: 0,
+    },
+    confidence: 0.91,
+  });
+  assert.equal(entry?.type, "multi");
+  assert.deepEqual(entry?.entries?.map((item) => item.type), ["nutrition", "mood"]);
+  assert.equal(entry?.entries?.find((item) => item.type === "nutrition")?.confidence, 0.91);
+});
+
+test("AI multi extraction becomes one multi-record confirmation card", () => {
+  const entry = parseStructuredEntry("今天心情很好，还吃了披萨", "zh", {
+    dataType: "multi",
+    extractedData: {
+      records: [
+        { dataType: "mood", extractedData: { moodScore: 88, diary: "今天心情很好" }, confidence: 0.9 },
+        { dataType: "nutrition", extractedData: { items: [{ name: "披萨", calories: 0 }], totalCalories: 0 }, confidence: 0.83 },
+      ],
+    },
+    confidence: 0.86,
+  });
+  assert.equal(entry?.type, "multi");
+  assert.deepEqual(entry?.entries?.map((item) => item.type), ["mood", "nutrition"]);
+  assert.equal(entry?.entries?.find((item) => item.type === "mood")?.payload.moodScore, 88);
+});
