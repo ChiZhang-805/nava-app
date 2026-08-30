@@ -7,6 +7,7 @@ $requiredFunctions = @(
   "ai-extract-data",
   "ai-chat-reply",
   "ai-diet-report",
+  "ai-health-report",
   "diet-extract",
   "face-analyze",
   "health-sync-ingest",
