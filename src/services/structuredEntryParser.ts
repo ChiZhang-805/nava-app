@@ -33,9 +33,13 @@ type FoodItemDraft = {
   amount: string;
   calories: number;
   caloriesPerUnit: number;
+  estimated?: boolean;
+  estimationBasis?: string;
 };
 
 const moodWords: Array<[RegExp, number]> = [
+  [/高兴死了|开心死了|快乐死了|兴奋(?:得)?(?:要命|爆棚)|overjoyed|ecstatic/i, 94],
+  [/非常(?:的)?(?:开心|高兴|快乐|愉快|兴奋)|特别(?:开心|高兴|快乐)|extremely happy|very excited/i, 90],
   [/开心|高兴|愉快|兴奋|很好|快乐|happy|glad|great|excited/i, 85],
   [/平静|稳定|一般|calm|steady|okay/i, 68],
   [/焦虑|压力|烦|难过|低落|anxious|stress|sad/i, 38],
@@ -54,6 +58,7 @@ const foodCalories: Array<{ pattern: RegExp; calories: number; defaultUnit: stri
   { pattern: /牛奶|milk/i, calories: 120, defaultUnit: "杯", nameZh: "牛奶", nameEn: "Milk" },
   { pattern: /咖啡|coffee/i, calories: 5, defaultUnit: "杯", nameZh: "咖啡", nameEn: "Coffee" },
   { pattern: /酸奶|yogurt/i, calories: 120, defaultUnit: "杯", nameZh: "酸奶", nameEn: "Yogurt" },
+  { pattern: /披萨|比萨|pizza/i, calories: 270, defaultUnit: "片", nameZh: "披萨", nameEn: "Pizza" },
 ];
 
 const numericToken = "[\\d一二两三四五六七八九十百零〇]+(?:\\.\\d+)?";
@@ -271,10 +276,19 @@ function extractFoodItems(value: string, locale: "zh" | "en"): FoodItemDraft[] {
   }
   if (items.length > 0) return items;
   const known = foodCalories.find((food) => food.pattern.test(value));
-  if (known) return [{ name: locale === "zh" ? known.nameZh : known.nameEn, quantity: 1, unit: known.defaultUnit, amount: `1${known.defaultUnit}`, calories: known.calories, caloriesPerUnit: known.calories }];
+  if (known) return [{
+    name: locale === "zh" ? known.nameZh : known.nameEn,
+    quantity: 1,
+    unit: known.defaultUnit,
+    amount: `1${known.defaultUnit}`,
+    calories: known.calories,
+    caloriesPerUnit: known.calories,
+    estimated: true,
+    estimationBasis: locale === "zh" ? "按常见单份估算" : "Estimated from a common serving",
+  }];
   const generic = value.match(/(?:吃了?|喝了?|ate|had)\s*(?:一(?:个|份|块|片))?\s*([^，。,.！!？?]{1,18}?)(?=[，。,.！!？?]|然后|并且|而且|我(?:要|很|真)|$)/i)?.[1]?.trim();
   if (!generic || /小时|分钟|运动|睡眠|跑步/.test(generic)) return [];
-  return [{ name: generic, quantity: 1, unit: locale === "zh" ? "份" : "serving", amount: locale === "zh" ? "1份" : "1 serving", calories: 0, caloriesPerUnit: 0 }];
+  return [{ name: generic, quantity: 1, unit: locale === "zh" ? "份" : "serving", amount: locale === "zh" ? "1份" : "1 serving", calories: 0, caloriesPerUnit: 0, estimated: true }];
 }
 
 function extractNutritionEntry(value: string, locale: "zh" | "en") {
@@ -320,7 +334,7 @@ function extractMoodEntry(value: string, locale: "zh" | "en") {
   return entry("mood", locale, value, [
     { label: locale === "zh" ? "情绪强度" : "Mood score", value: String(score), unit: "/100", path: "moodScore", valueType: "number" },
     { label: locale === "zh" ? "情绪描述" : "Note", value, path: "diary" },
-  ], { moodScore: score, factors: [], diary: value });
+  ], { moodScore: score, factors: [], diary: value, estimated: explicit == null });
 }
 
 function recordValue(value: unknown) {
@@ -355,7 +369,12 @@ function modelEntry(dataType: string, data: Record<string, unknown>, text: strin
     return entry("mood", locale, diary, [
       { label: locale === "zh" ? "情绪强度" : "Mood score", value: String(normalizedScore), unit: "/100", path: "moodScore", valueType: "number" },
       { label: locale === "zh" ? "情绪描述" : "Note", value: diary, path: "diary" },
-    ], { moodScore: normalizedScore, factors, diary }, confidence);
+    ], {
+      moodScore: normalizedScore,
+      factors,
+      diary,
+      estimated: data.estimated === true,
+    }, confidence);
   }
 
   if (dataType === "sleep") {
@@ -410,14 +429,17 @@ function modelEntry(dataType: string, data: Record<string, unknown>, text: strin
       const amount = stringValue(item.amount) ?? "";
       const quantity = numberValue(item.quantity) ?? numberValue(amount.match(/[\d.]+/)?.[0]) ?? 1;
       const unit = stringValue(item.unit) ?? (amount.replace(/[\d.\s]/g, "") || (locale === "zh" ? "份" : "serving"));
-      const calories = Math.max(0, Math.round(numberValue(item.calories) ?? 0));
+      const itemName = stringValue(item.name) ?? (locale === "zh" ? "饮食记录" : "Meal item");
+      const calories = Math.max(0, Math.round(numberValue(item.calories) ?? calorieRule(itemName, unit)));
       return {
-        name: stringValue(item.name) ?? (locale === "zh" ? "饮食记录" : "Meal item"),
+        name: itemName,
         quantity,
         unit,
         amount: amount || `${quantity}${unit}`,
         calories,
         caloriesPerUnit: quantity > 0 ? calories / quantity : 0,
+        estimated: typeof item.estimated === "boolean" ? item.estimated : numberValue(item.calories) == null,
+        estimationBasis: stringValue(item.estimationBasis) ?? stringValue(item.estimation_basis),
       };
     });
     const resolvedTotal = totalCalories || items.reduce((sum, item) => sum + item.calories, 0);
@@ -436,6 +458,8 @@ function modelEntry(dataType: string, data: Record<string, unknown>, text: strin
       totalCalories: resolvedTotal,
       calories: resolvedTotal,
       name: items.map((item) => `${item.amount}${item.name}`).join("、"),
+      estimated: data.estimated === true || items.some((item) => item.estimated === true),
+      estimationBasis: stringValue(data.estimationBasis) ?? stringValue(data.estimation_basis),
     }, confidence);
   }
 

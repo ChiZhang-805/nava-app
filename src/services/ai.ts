@@ -100,6 +100,7 @@ export async function sendAiMessage(input: {
         todos: [],
         lang,
         language: lang,
+        deviceDate: todayISO(),
       },
     });
     return extract.error ? null : extract.data ?? null;

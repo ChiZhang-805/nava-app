@@ -84,17 +84,18 @@ test("sleep and exercise durations remain separated in one sentence", () => {
 test("high emotion wording creates a mood confirmation card", () => {
   const entry = parseStructuredEntry("我今天非常高兴！！", "zh");
   assert.equal(entry?.type, "mood");
-  assert.equal(entry?.payload.moodScore, 85);
+  assert.equal(entry?.payload.moodScore, 90);
 });
 
-test("unquantified pizza and high emotion create two editable records without invented calories", () => {
+test("unquantified pizza and high emotion create two editable records with a common-serving estimate", () => {
   const entry = parseStructuredEntry("我今天吃了披萨！！我要高兴死了！！！", "zh");
   assert.equal(entry?.type, "multi");
   assert.deepEqual(entry?.entries?.map((item) => item.type), ["nutrition", "mood"]);
   const nutrition = entry?.entries?.find((item) => item.type === "nutrition");
   assert.equal((nutrition?.payload.items as Array<Record<string, unknown>>)[0].name, "披萨");
-  assert.equal(nutrition?.payload.totalCalories, 0);
-  assert.equal(nutrition?.fields.some((item) => item.path === "totalCalories" && item.value === "0"), true);
+  assert.equal(nutrition?.payload.totalCalories, 270);
+  assert.equal(nutrition?.fields.some((item) => item.path === "totalCalories" && item.value === "270"), true);
+  assert.equal(entry?.entries?.find((item) => item.type === "mood")?.payload.moodScore, 94);
 });
 
 test("AI extraction is preserved and merged with locally recognized record types", () => {
@@ -110,6 +111,7 @@ test("AI extraction is preserved and merged with locally recognized record types
   assert.equal(entry?.type, "multi");
   assert.deepEqual(entry?.entries?.map((item) => item.type), ["nutrition", "mood"]);
   assert.equal(entry?.entries?.find((item) => item.type === "nutrition")?.confidence, 0.91);
+  assert.equal(entry?.entries?.find((item) => item.type === "nutrition")?.payload.totalCalories, 270);
 });
 
 test("AI multi extraction becomes one multi-record confirmation card", () => {
