@@ -635,7 +635,7 @@ function ExerciseDashboard({
         </div>
       </section>
       <section className="figma-module-card exercise-health-card">
-        <header><strong>{locale === "zh" ? "设备与身体状态" : "Device & body status"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("device")} aria-label={locale === "zh" ? "查看运动设备" : "View devices"}><ChevronRight size={18} /></button></header>
+        <header><strong>{locale === "zh" ? "设备与身体状态" : "Device & body status"}</strong><button className="module-card-icon-action" type="button" onClick={() => openView("device")} aria-label={locale === "zh" ? "查看运动设备" : "View devices"}><Watch size={18} /><span>{locale === "zh" ? "设备" : "Devices"}</span></button></header>
         <div className="exercise-device-status">
           <span><Watch size={28} /><i><strong>{deviceTitle}</strong><small>{syncLabel}</small></i></span>
           <button type="button" onClick={() => void sync()} disabled={syncing}><RefreshCw className={syncing ? "spin" : ""} size={16} />{locale === "zh" ? "授权 / 同步" : "Authorize / sync"}</button>
@@ -845,7 +845,7 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
     <div className="module-dashboard sleep-dashboard" data-module-view="sleep-overview">
       {alertVisible && latestSleep && <section className="sleep-alert"><MoonStar size={20} /><button className="sleep-alert-copy" type="button" onClick={() => openView("alert")}><strong>{locale === "zh" ? "作息节律提醒" : "Sleep rhythm note"}</strong><p>{locale === "zh" ? `最近一次在 ${displayStart} 入睡，建议围绕这一时间提前 30 分钟放松。` : `Your latest bedtime was ${displayStart}. Start winding down 30 minutes beforehand.`}</p></button><button type="button" onClick={() => setAlertVisible(false)} aria-label={locale === "zh" ? "关闭" : "Close"}><X size={18} /></button></section>}
       <section className="figma-module-card sleep-summary-card">
-        <header><strong>{locale === "zh" ? "睡眠摘要" : "Sleep summary"}</strong><button className="module-card-text-action" type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "更新睡眠记录" : "Update sleep record"}><span>{locale === "zh" ? "设备导入 / 更新" : "Import / update"}</span><ChevronRight size={18} /></button></header>
+        <header><strong>{locale === "zh" ? "睡眠摘要" : "Sleep summary"}</strong><button className="module-card-icon-action" type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "更新睡眠记录" : "Update sleep record"}><MoonStar size={18} /><span>{locale === "zh" ? "更新" : "Update"}</span></button></header>
         <div className="sleep-timeline"><span>{displayStart}</span><div><i style={{ "--sleep-left": `${timeline.leftPercent}%`, "--sleep-width": `${timeline.widthPercent}%` } as CSSProperties} /></div><span>{displayEnd}</span></div>
         <div className="sleep-stage-row">
           <div className="sleep-stage-shape"><i style={{ flex: deepMinutes / total, "--stage-height": `${stageHeights[0]}%` } as CSSProperties} /><i style={{ flex: lightMinutes / total, "--stage-height": `${stageHeights[1]}%` } as CSSProperties} /><i style={{ flex: remMinutes / total, "--stage-height": `${stageHeights[2]}%` } as CSSProperties} /></div>
@@ -900,7 +900,7 @@ function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
         </div>
       </section>
       <section className="figma-module-card diet-meals-card">
-        <header><strong>{locale === "zh" ? "餐次记录" : "Meals"}</strong><button type="button" onClick={onOpenEditor}><Utensils size={18} /><span>{locale === "zh" ? "添加" : "Add"}</span></button></header>
+        <header><strong>{locale === "zh" ? "餐次记录" : "Meals"}</strong><button className="module-card-icon-action" type="button" onClick={onOpenEditor}><Utensils size={18} /><span>{locale === "zh" ? "添加" : "Add"}</span></button></header>
         <div className="diet-meal-grid">
           {meals.map((meal) => (
             <button type="button" key={meal.key} onClick={onOpenEditor}>
@@ -946,7 +946,7 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
         <ShieldCheck size={18} /><p>{locale === "zh" ? "照片经明确同意后进入账号隔离的私密存储；分析只使用短时签名链接，结果不构成医疗诊断。" : "With consent, photos use account-isolated private storage and short-lived signed links; results are not medical diagnoses."}</p>
       </section>
       <section className="figma-module-card face-summary-card">
-        <header><strong>{locale === "zh" ? "今日面部状态" : "Today's face state"}</strong><button type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "使用前置摄像头拍照" : "Take a front-camera photo"}><Camera size={20} /></button></header>
+        <header><strong>{locale === "zh" ? "今日面部状态" : "Today's face state"}</strong><button className="module-card-icon-action" type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "使用前置摄像头拍照" : "Take a front-camera photo"}><Camera size={18} /><span>{locale === "zh" ? "拍照" : "Capture"}</span></button></header>
         <div className="face-score-row">
           <div className="face-score-ring" style={{ "--face-score": `${face?.overall_score ?? 0}%` } as CSSProperties}><ScanFace size={28} /><strong>{face?.overall_score == null ? "--" : <AnimatedNumber value={face.overall_score} />}</strong></div>
           <div><span>{locale === "zh" ? "肤龄参考" : "Skin-age reference"}<strong>{face?.skin_age == null ? "--" : <AnimatedNumber value={face.skin_age} />}</strong></span><span>{locale === "zh" ? "拍摄模式" : "Capture mode"}<strong>{face?.capture_mode === "makeup" ? (locale === "zh" ? "带妆" : "Makeup") : (locale === "zh" ? "素颜" : "Bare")}</strong></span><span>{locale === "zh" ? "分析置信度" : "Confidence"}<strong>{face?.analysis_confidence != null ? <><AnimatedNumber value={face.analysis_confidence * 100} />%</> : "--"}</strong></span></div>

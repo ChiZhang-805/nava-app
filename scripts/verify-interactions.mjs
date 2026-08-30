@@ -593,6 +593,7 @@ async function verifyRecordModules(page, results) {
 
   await openModule("sleep");
   await expect(page.locator('[data-module-view="sleep-overview"]')).toBeVisible();
+  await expect(page.locator('.sleep-summary-card header [aria-label="更新睡眠记录"], .sleep-summary-card header [aria-label="Update sleep record"]')).toHaveClass(/module-card-icon-action/);
   await assertAnimation(page.locator('[data-module-view="sleep-overview"] .sleep-stage-shape i'), "sleep-stage-rise", "sleep-stage bars");
   const alertCopy = page.locator(".sleep-alert-copy");
   if (await alertCopy.isVisible().catch(() => false)) {
@@ -628,7 +629,8 @@ async function verifyRecordModules(page, results) {
   await expect(page.locator('[data-module-view="exercise-overview"]')).toBeVisible();
   await expect(page.locator('[data-module-view="exercise-overview"] > .module-assistant-card')).toHaveCount(0);
   await assertAnimation(page.locator('[data-module-view="exercise-overview"] .exercise-trend-card .bar-line-bars i').first(), "chart-bar-rise", "exercise trend bars");
-  await page.locator('.exercise-health-card header .module-card-nav-button').click();
+  await expect(page.locator('.exercise-health-card header [aria-label="查看运动设备"], .exercise-health-card header [aria-label="View devices"]')).toHaveClass(/module-card-icon-action/);
+  await page.locator('.exercise-health-card header .module-card-icon-action').click();
   await expect(page.locator(".device-picker")).toBeVisible();
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(outputDir, "record-exercise-devices.png") });
@@ -676,6 +678,7 @@ async function verifyRecordModules(page, results) {
   await expect(page.locator(".diet-completion, .diet-macro-summary")).toHaveCount(0);
   await expect(page.locator(".diet-summary-card header small")).toHaveCount(0);
   await expect(page.locator(".diet-dashboard > .module-assistant-card")).toHaveCount(0);
+  await expect(page.locator(".diet-meals-card header .module-card-icon-action")).toHaveText(reviewLocale === "zh" ? "添加" : "Add");
   const dietHeadingStyles = await page.locator(".diet-summary-card header > strong, .diet-meals-card header > strong, .diet-trend-card header > strong").evaluateAll((nodes) => nodes.map((node) => {
     const style = getComputedStyle(node);
     return { color: style.color, fontSize: style.fontSize, fontWeight: style.fontWeight };
@@ -780,6 +783,7 @@ async function verifyRecordModules(page, results) {
 
   await page.locator('[data-record-module="face"]').click();
   await expect(page.locator('[data-module-view="face-overview"]')).toBeVisible();
+  await expect(page.locator('.face-summary-card header [aria-label="使用前置摄像头拍照"], .face-summary-card header [aria-label="Take a front-camera photo"]')).toHaveClass(/module-card-icon-action/);
   await assertAnimation(page.locator('[data-module-view="face-overview"] .face-score-ring'), "face-score-fill", "face score ring");
   await page.locator('.face-trend-card .module-card-nav-button').click();
   await expect(page.locator('[data-record-detail="face"] .report-history-trend-chart')).toBeVisible();
