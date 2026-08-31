@@ -43,7 +43,12 @@ Production branch: main
 npm run deploy:cloudflare
 ```
 
-当前公开链接：`https://nava-app-preview-cz.chizhang1031.chatgpt.site`。该地址使用真实账号系统，不提供固定演示账号或固定验证码。任意外部邮箱的生产投递还需要按 `docs/auth-email-flow.md` 接入自定义 SMTP；默认 Supabase 邮件服务不作为正式投递通道。
+当前两个公开链接：
+
+- ChatGPT Sites：`https://nava-app-preview-cz.chizhang1031.chatgpt.site`
+- GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
+
+两个站点必须从同一个源提交发布，并连接同一个正式 Supabase 项目；它们使用真实账号系统，不提供固定演示账号或固定验证码。任意外部邮箱的生产投递还需要按 `docs/auth-email-flow.md` 接入自定义 SMTP；默认 Supabase 邮件服务不作为正式投递通道。GitHub Pages 的公开仓库只保存编译产物与 `source.json`，真正的私有源码仍在 `nava-app`。
 
 `.env` 必须使用和 Web 端同一个 Supabase 项目：
 

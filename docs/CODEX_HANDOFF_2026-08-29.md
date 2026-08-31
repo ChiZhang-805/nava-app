@@ -1,5 +1,9 @@
 # NAVA Codex 最终任务交接（2026-08-29）
 
+> **历史快照，已被取代。** 当前任务必须先阅读
+> `docs/CODEX_HANDOFF_CURRENT.md`。本文件里的 Git、部署和待办状态已经过期，
+> 不得作为新的起点。
+
 > 最终核验：2026-08-29，Asia/Shanghai  
 > NAVA 唯一顶级根：`Q:\NAVA-Workspace`  
 > 主源码仓：`Q:\NAVA-Workspace\nava-app`  
