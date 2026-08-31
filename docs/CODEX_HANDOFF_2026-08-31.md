@@ -26,13 +26,17 @@ ahead/behind, and dirty-worktree statements are superseded.
 | `Q:\NAVA-Workspace\Build\TestRuns` | Cross-project test output | Use for new durable test evidence |
 | `Q:\CodexData\Migration\NAVA-chat-recovery-2026-08-31.md` | Codex transcript recovery receipt | Preserved evidence; do not edit as project state |
 
-Source Git state verified before this handoff:
+Source Git release state verified before the documentation handoff:
 
 - Branch: `main`
-- Local HEAD and `origin/main`:
+- Last product-release commit before the docs-only handoff:
   `88df0cfb7197d19ba3b10a12bfd9c774decaf6a1`
 - Commit title: `Reduce mobile startup latency with route splitting`
 - Worktree: clean before handoff documentation edits
+- The handoff is committed and pushed as one or more docs-only descendants of
+  that release commit. A new task must discover the exact current HEAD with Git;
+  the deployed product release remains anchored to `88df0cf...` until the next
+  user-authorized dual-site product release.
 - Remote: `https://github.com/ChiZhang-805/nava-app.git`
 - Repository is private; an anonymous GitHub request returns 404.
 
