@@ -140,6 +140,8 @@ export async function analyzeFacePhoto(input: {
         ],
         modelVersion: "demo",
         confidence: 0.9,
+        makeup_level: input.captureMode === "makeup" ? "light" : "bare",
+        makeup_confidence: 0.92,
       },
     };
   }

@@ -228,6 +228,8 @@ export interface FaceAnalysisResult {
   model_version?: string;
   confidence?: number;
   skin_age?: number | null;
+  makeup_level?: "bare" | "light" | "heavy" | "uncertain";
+  makeup_confidence?: number;
 }
 
 export interface FaceRecord {

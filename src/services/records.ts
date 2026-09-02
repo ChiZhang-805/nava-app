@@ -593,6 +593,8 @@ function faceDerivedFeatures(result: FaceAnalysisResult) {
     fatigue_signal: /疲|黑眼圈|eye|tired|fatigue/i.test(labels),
     skin_signal: /肤|痘|skin|acne/i.test(labels),
     overall_score: result.overall_score,
+    makeup_level: result.makeup_level ?? "uncertain",
+    makeup_confidence: result.makeup_confidence ?? null,
   };
 }
 

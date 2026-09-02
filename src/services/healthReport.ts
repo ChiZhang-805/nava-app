@@ -4,8 +4,20 @@ import { shiftDateISO } from "./date";
 
 export type HealthReportScope = "mood" | "sleep" | "exercise" | "focus" | "face" | "weekly";
 
+export type HealthReportSection = {
+  id: "trend" | "variation" | "association" | "action";
+  title: string;
+  headline: string;
+  explanation: string;
+  evidence: string[];
+  action: string;
+  confidence: "high" | "medium" | "low";
+};
+
 export interface HealthAiReport {
   bullets: string[];
+  overview: string;
+  sections: HealthReportSection[];
   provider: "deepseek" | "demo";
   modelVersion: string;
   generatedAt: string;
@@ -19,10 +31,30 @@ const pending = new Map<string, Promise<HealthAiReport>>();
 function validBullet(value: string, locale: "zh" | "en") {
   if (locale === "en") {
     const words = value.trim().split(/\s+/).filter(Boolean).length;
-    return words >= 5 && words <= 10;
+    return words >= 5 && words <= 12;
   }
   const han = value.match(/\p{Script=Han}/gu)?.length ?? 0;
-  return han >= 15 && han <= 18;
+  return han >= 15 && han <= 24;
+}
+
+function validLongText(value: string, locale: "zh" | "en") {
+  if (locale === "en") return value.trim().split(/\s+/).filter(Boolean).length >= 20;
+  return (value.match(/\p{Script=Han}/gu)?.length ?? 0) >= 30;
+}
+
+function validStructuredReport(report: HealthAiReport, locale: "zh" | "en") {
+  const ids = ["trend", "variation", "association", "action"];
+  return validLongText(report.overview, locale)
+    && report.sections.length === 4
+    && report.sections.every((section, index) => section.id === ids[index]
+      && Boolean(section.title.trim())
+      && validBullet(section.headline, locale)
+      && validLongText(section.explanation, locale)
+      && section.evidence.length >= 1
+      && section.evidence.length <= 3
+      && section.evidence.every((entry) => Boolean(entry.trim()))
+      && Boolean(section.action.trim())
+      && ["high", "medium", "low"].includes(section.confidence));
 }
 
 export async function loadHealthAiReport(input: {
@@ -32,10 +64,25 @@ export async function loadHealthAiReport(input: {
   refresh?: boolean;
 }) {
   if (isDemoMode()) {
+    const sections: HealthReportSection[] = input.locale === "zh"
+      ? [
+          { id: "trend", title: "整体节律", headline: "近七日节律记录整体平稳且连续性良好", explanation: "这是本地评审模式的示例说明，用于检查长报告展开、滚动和排版，不代表真实用户结论，也没有调用生产模型。公开版本不会展示这段演示内容。", evidence: ["本地评审数据：近七日共有七个演示记录日"], action: "继续使用评审数据检查交互。", confidence: "high" },
+          { id: "variation", title: "波动范围", headline: "睡眠与活动变化和每日状态呈同步趋势", explanation: "这是显式标注的本地演示解释，仅用于确认每一个摘要都能打开对应的详细内容、证据和行动区域，不应被理解为健康判断。", evidence: ["本地评审数据：睡眠与活动演示记录均已填充"], action: "不要把演示结论用于真实健康决策。", confidence: "medium" },
+          { id: "association", title: "跨模块关联", headline: "午后活动增加时整体节律表现更稳定", explanation: "关联模块在演示环境中只验证信息结构。生产环境会由服务端模型读取当前账号授权的同期真实记录，并区分共同变化与因果关系。", evidence: ["本地评审数据：活动和节律使用同一演示日期窗口"], action: "上线验收时使用真实账号重新生成。", confidence: "low" },
+          { id: "action", title: "下一步", headline: "建议继续规律记录并观察周末作息变化", explanation: "这条行动建议只用于视觉测试。真实周报会结合数据覆盖范围、变化幅度和置信度生成个性化行动，不会用本段固定文字替代模型结果。", evidence: ["本地评审模式不会写入生产健康记录"], action: "完成至少五个真实记录日后查看生产周报。", confidence: "medium" },
+        ]
+      : [
+          { id: "trend", title: "Overall rhythm", headline: "Seven-day rhythm records remain broadly stable", explanation: "This is explicitly labeled local review copy for testing the expanded report layout. It is not a real user conclusion and does not call the production model.", evidence: ["Review fixture contains seven demonstration days"], action: "Use this fixture only for interaction review.", confidence: "high" },
+          { id: "variation", title: "Variation", headline: "Sleep and activity changes track daily status", explanation: "This demonstration explanation only verifies that each summary opens its matching detail, evidence, and action area. It is not health guidance.", evidence: ["Review sleep and activity fixtures are populated"], action: "Do not use demo conclusions for health decisions.", confidence: "medium" },
+          { id: "association", title: "Associations", headline: "Afternoon movement aligns with steadier rhythm scores", explanation: "In production the server model reads consent-authorized records for the signed-in account and distinguishes co-variation from causation. This fixture tests structure only.", evidence: ["Review activity and rhythm use the same fixture dates"], action: "Regenerate with a real account during release validation.", confidence: "low" },
+          { id: "action", title: "Next step", headline: "Keep logging consistently through the weekend", explanation: "This action is visual-test copy. A production report generates personalized actions from real coverage, changes, and confidence rather than substituting this fixed sentence.", evidence: ["Review mode never writes production health records"], action: "Log at least five real days before viewing a production report.", confidence: "medium" },
+        ];
     return {
-      bullets: input.locale === "zh"
-        ? ["近七日节律记录整体平稳且连续性良好", "睡眠与活动变化和每日状态呈同步趋势", "午后活动增加时整体节律表现更稳定", "建议继续规律记录并观察周末作息变化"]
-        : ["Seven-day rhythm records remain broadly stable", "Sleep and activity changes track daily status", "Afternoon movement aligns with steadier rhythm scores", "Keep logging consistently through the weekend"],
+      bullets: sections.map((section) => section.headline),
+      overview: input.locale === "zh"
+        ? "这是明确标注的本地评审周报，只用于验证详细解读的页面结构、点击展开和移动端排版。它没有读取生产用户记录，也没有调用真实模型，公开版本不会把它作为用户结论。"
+        : "This explicitly labeled local review report tests the detailed report structure, expansion behavior, and mobile layout. It does not read production records or call the production model, and public builds never present it as a user conclusion.",
+      sections,
       provider: "demo",
       modelVersion: "review-demo-health-report-v1",
       generatedAt: new Date().toISOString(),
@@ -54,7 +101,7 @@ export async function loadHealthAiReport(input: {
     });
     if (response.error) throw response.error;
     const report = response.data;
-    if (!report || report.provider !== "deepseek" || report.bullets.length !== 4 || !report.bullets.every((bullet) => validBullet(bullet, input.locale))) {
+    if (!report || report.provider !== "deepseek" || report.bullets.length !== 4 || !report.bullets.every((bullet) => validBullet(bullet, input.locale)) || !validStructuredReport(report, input.locale)) {
       throw new Error(input.locale === "zh" ? "AI 健康报告格式无效，请稍后重试。" : "The AI health report was invalid. Please retry.");
     }
     return report;

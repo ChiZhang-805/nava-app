@@ -58,7 +58,20 @@ function todoStorageKey(userId: string) {
 }
 
 function todoMigrationKey(userId: string) {
-  return `nava-todos-migrated:${userId}:v1`;
+  return `nava-todos-migrated:${userId}:v2`;
+}
+
+function reminderAt(scheduledDate: string, scheduledTime?: string) {
+  if (!scheduledTime || !/^\d{2}:\d{2}$/.test(scheduledTime)) return null;
+  const value = new Date(`${scheduledDate}T${scheduledTime}:00`);
+  return Number.isNaN(value.getTime()) ? null : value.toISOString();
+}
+
+function scheduledTimeFromReminder(value: unknown) {
+  if (typeof value !== "string" || !value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 function writeTodos(userId: string, items: TodoItem[]) {
@@ -83,6 +96,8 @@ export async function syncTodos(userId: string): Promise<TodoItem[]> {
       title: item.title,
       scheduled_date: item.scheduledDate,
       estimated_minutes: item.focusMinutes ?? null,
+      focus_sessions: item.focusSessions ?? null,
+      reminder_at: reminderAt(item.scheduledDate, item.scheduledTime),
       completed: item.completed,
       category: "todo",
     })), { onConflict: "id" });
@@ -94,7 +109,7 @@ export async function syncTodos(userId: string): Promise<TodoItem[]> {
 
   const result = await supabase
     .from("tasks")
-    .select("id,title,scheduled_date,completed,created_at,estimated_minutes")
+    .select("id,title,scheduled_date,completed,created_at,estimated_minutes,focus_sessions,reminder_at")
     .eq("user_id", userId)
     .eq("category", "todo")
     .order("created_at", { ascending: false })
@@ -109,12 +124,12 @@ export async function syncTodos(userId: string): Promise<TodoItem[]> {
       id: String(row.id),
       title: String(row.title ?? ""),
       scheduledDate: String(row.scheduled_date ?? todayISO()),
-      scheduledTime: previous?.scheduledTime,
+      scheduledTime: scheduledTimeFromReminder(row.reminder_at) ?? previous?.scheduledTime,
       completed: row.completed === true,
       source: previous?.source ?? "manual" as const,
       createdAt: String(row.created_at ?? new Date().toISOString()),
       focusMinutes: Number(row.estimated_minutes) > 0 ? Number(row.estimated_minutes) : previous?.focusMinutes,
-      focusSessions: previous?.focusSessions,
+      focusSessions: Number(row.focus_sessions) > 0 ? Number(row.focus_sessions) : previous?.focusSessions,
     };
   }));
 }
@@ -151,6 +166,8 @@ export async function addTodo(
     title: nextItem.title,
     scheduled_date: nextItem.scheduledDate,
     estimated_minutes: nextItem.focusMinutes ?? null,
+    focus_sessions: nextItem.focusSessions ?? null,
+    reminder_at: reminderAt(nextItem.scheduledDate, nextItem.scheduledTime),
     completed: false,
     category: "todo",
   }).select("id,title,scheduled_date,completed,created_at").single();
@@ -177,7 +194,7 @@ export async function toggleTodo(userId: string, id: string) {
 }
 
 function todoBackendUnavailable(message: string) {
-  return /schema cache|relation .*tasks.* does not exist|column .*(category|estimated_minutes).* does not exist|could not find.*(category|estimated_minutes)/i.test(message);
+  return /schema cache|relation .*tasks.* does not exist|column .*(category|estimated_minutes|focus_sessions|reminder_at).* does not exist|could not find.*(category|estimated_minutes|focus_sessions|reminder_at)/i.test(message);
 }
 
 const defaultGrowthTasks: Omit<GrowthTask, "completed">[] = [

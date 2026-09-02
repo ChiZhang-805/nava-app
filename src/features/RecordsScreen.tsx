@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { BedDouble, Bot, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Loader2, LockKeyhole, ScanFace, Share2, ShieldCheck, SmilePlus, Upload, X, type LucideIcon } from "lucide-react";
+import { BedDouble, Bot, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Loader2, LockKeyhole, RefreshCw, ScanFace, Share2, ShieldCheck, SmilePlus, Upload, X, type LucideIcon } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import ActionButton from "../components/ActionButton";
 import AnimatedNumber from "../components/AnimatedNumber";
@@ -27,9 +27,10 @@ import type { GrowthActivityKind } from "../services/productivity";
 import { clearRecordDraft, loadRecordDraft, saveRecordDraft, type RecordDraftModule } from "../services/drafts";
 import { loadProfile, type UserProfile } from "../services/profile";
 import { loadDietAiReport } from "../services/dietReport";
-import { loadHealthAiReport, type HealthAiReport } from "../services/healthReport";
+import { loadHealthAiReport, type HealthAiReport, type HealthReportSection } from "../services/healthReport";
 import { calculateWeeklyModuleScores, type WeeklyModuleKey } from "../services/weeklyModuleScores";
 import { allHealthModulesRecorded, buildHealthModulePresentations, compareRecordedPeriodAverages } from "../services/healthReportPresentation";
+import { clearSecureFaceDraft, loadSecureFaceDraft, saveSecureFaceDraft } from "../services/secureFaceDraft";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 import RecordModuleDashboard from "./RecordModuleDashboard";
 
@@ -98,6 +99,28 @@ function recordedDateCount(bundle: TrendBundle | null, startDate: string, endDat
   ].filter((date) => date >= startDate && date <= endDate)).size;
 }
 
+type PendingFaceAnalysis = {
+  image: string;
+  imagePath?: string;
+  result: FaceAnalysisResult;
+  file: File;
+  captureMode: "bare_face" | "makeup";
+};
+
+function faceModeMismatch(result: FaceAnalysisResult, captureMode: "bare_face" | "makeup") {
+  if ((result.makeup_confidence ?? 0) < 0.65 || !result.makeup_level || result.makeup_level === "uncertain") return false;
+  return captureMode === "bare_face" ? result.makeup_level !== "bare" : result.makeup_level === "bare";
+}
+
+function filePreview(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Unable to preview face draft."));
+    reader.onerror = () => reject(reader.error ?? new Error("Unable to preview face draft."));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function RecordsScreen({
   user,
   deviceDate,
@@ -134,14 +157,16 @@ export default function RecordsScreen({
   const [weeklyAiReport, setWeeklyAiReport] = useState<HealthAiReport | null>(null);
   const [weeklyAiLoading, setWeeklyAiLoading] = useState(false);
   const [weeklyAiUnavailable, setWeeklyAiUnavailable] = useState(false);
+  const [weeklyDetailSection, setWeeklyDetailSection] = useState<HealthReportSection | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [weeklyLongPressing, setWeeklyLongPressing] = useState(false);
   const [weeklyChartMode, setWeeklyChartMode] = useState<"trend" | "radar">("trend");
   const [hubAiReport, setHubAiReport] = useState<HealthAiReport | null>(null);
-  const [hubAiLoading, setHubAiLoading] = useState(false);
+  const [, setHubAiLoading] = useState(false);
   const [hubAiUnavailable, setHubAiUnavailable] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
   const [dataLoadError, setDataLoadError] = useState<string | null>(null);
+  const forceWeeklyAiFixture = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "weekly-ai";
   const rootRef = useRef<HTMLDivElement | null>(null);
   const weeklyLongPressTimerRef = useRef<number | null>(null);
   const weeklyLongPressOriginRef = useRef<{ x: number; y: number } | null>(null);
@@ -183,6 +208,8 @@ export default function RecordsScreen({
   const [focusMinutes, setFocusMinutes] = useState(25);
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [faceResult, setFaceResult] = useState<FaceAnalysisResult | null>(null);
+  const [pendingFaceAnalysis, setPendingFaceAnalysis] = useState<PendingFaceAnalysis | null>(null);
+  const [faceDraftFile, setFaceDraftFile] = useState<File | null>(null);
   const [faceAnalyzing, setFaceAnalyzing] = useState(false);
   const faceSettingsKey = `nava-face-capture-settings:${user.id}`;
   const [faceMode, setFaceMode] = useState<"bare_face" | "makeup">(() => {
@@ -207,6 +234,22 @@ export default function RecordsScreen({
   useEffect(() => {
     window.sessionStorage.setItem(faceSettingsKey, JSON.stringify({ mode: faceMode, consent: faceConsent }));
   }, [faceConsent, faceMode, faceSettingsKey]);
+
+  useEffect(() => {
+    let active = true;
+    if (activeModule !== "face" || !showEditor || !faceConsent || faceImage || faceResult) return () => { active = false; };
+    void loadSecureFaceDraft(user.id, recordDate)
+      .then(async (file) => {
+        if (!active || !file) return;
+        const preview = await filePreview(file);
+        if (!active) return;
+        setFaceDraftFile(file);
+        setFaceImage(preview);
+        setNotice(locale === "zh" ? "已安全恢复30分钟内未完成的拍摄，可继续分析。" : "Securely restored an unfinished capture from the last 30 minutes.");
+      })
+      .catch((draftError) => console.warn("Secure face draft recovery deferred", draftError));
+    return () => { active = false; };
+  }, [activeModule, faceConsent, faceImage, faceResult, locale, recordDate, showEditor, user.id]);
 
   useEffect(() => {
     if (!notice) return;
@@ -435,7 +478,8 @@ export default function RecordsScreen({
     const availableEndDate = period.endDate > deviceDate ? deviceDate : period.endDate;
     let active = true;
     setWeeklyAiReport(null);
-    if (recordedDateCount(trendBundle, period.startDate, availableEndDate) < 5) {
+    setWeeklyDetailSection(null);
+    if (!forceWeeklyAiFixture && recordedDateCount(trendBundle, period.startDate, availableEndDate) < 5) {
       setWeeklyAiLoading(false);
       setWeeklyAiUnavailable(false);
       return () => { active = false; };
@@ -456,7 +500,7 @@ export default function RecordsScreen({
     return () => {
       active = false;
     };
-  }, [deviceDate, locale, reportMode, trendBundle, user.id, weekOffset]);
+  }, [deviceDate, forceWeeklyAiFixture, locale, reportMode, trendBundle, user.id, weekOffset]);
 
   const clearWeeklyLongPress = useCallback(() => {
     if (weeklyLongPressTimerRef.current !== null) {
@@ -782,44 +826,82 @@ export default function RecordsScreen({
     }
   }
 
-  async function handleFacePhoto(file: File | null) {
+  async function persistFaceAnalysis(analysis: PendingFaceAnalysis) {
+    const { imagePath, result, captureMode } = analysis;
+    const saved = await saveFaceAnalysisRecord({
+      userId: user.id,
+      date: recordDate,
+      result,
+      imagePath,
+      modelVersion: result.modelVersion ?? result.model_version,
+      captureMode,
+    });
+    await Promise.allSettled([
+      refreshRhythmScore(recordDate).then(() => {
+        const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
+        return loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate > recordDate ? recordDate : savedPeriod.endDate, locale, refresh: true });
+      }),
+      refreshFdnbHealth(recordDate),
+      loadHealthAiReport({ scope: "face", endDate: recordDate, locale, refresh: true }),
+    ]);
+    setPendingFaceAnalysis(null);
+    setNotice("persisted" in saved && !saved.persisted ? t("records.faceAnalyzed") : t("records.faceSaved"));
+    if (!("persisted" in saved) || saved.persisted) {
+      await clearSecureFaceDraft(user.id, recordDate).catch((draftError) => console.warn("Secure face draft cleanup deferred", draftError));
+      setFaceDraftFile(null);
+      await loadRecordData();
+      onSaved();
+      setShowEditor(false);
+      onViewChange?.(null, true);
+    }
+  }
+
+  async function handleFacePhoto(file: File | null, requestedMode: "bare_face" | "makeup" = faceMode) {
     if (!file) return;
     setFaceAnalyzing(true);
     setNotice(null);
     setError(null);
     try {
       if (!faceConsent) throw new Error(locale === "zh" ? "请先确认面部照片隐私说明。" : "Please confirm the face-photo privacy notice first.");
-      const { image, imagePath, result } = await analyzeFacePhoto({ userId: user.id, date: recordDate, file, captureMode: faceMode, locale });
+      await saveSecureFaceDraft(user.id, recordDate, file).catch((draftError) => console.warn("Secure face draft save deferred", draftError));
+      setFaceDraftFile(file);
+      const { image, imagePath, result } = await analyzeFacePhoto({ userId: user.id, date: recordDate, file, captureMode: requestedMode, locale });
       setFaceImage(image);
       setFaceResult(result);
-      const saved = await saveFaceAnalysisRecord({
-        userId: user.id,
-        date: recordDate,
-        result,
-        imagePath,
-        modelVersion: result.modelVersion ?? result.model_version,
-        captureMode: faceMode,
-      });
-      await Promise.allSettled([
-        refreshRhythmScore(recordDate).then(() => {
-          const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
-          return loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate > recordDate ? recordDate : savedPeriod.endDate, locale, refresh: true });
-        }),
-        refreshFdnbHealth(recordDate),
-        loadHealthAiReport({ scope: "face", endDate: recordDate, locale, refresh: true }),
-      ]);
-      setNotice("persisted" in saved && !saved.persisted ? t("records.faceAnalyzed") : t("records.faceSaved"));
-      if (!("persisted" in saved) || saved.persisted) {
-        await loadRecordData();
-        onSaved();
-        setShowEditor(false);
-        onViewChange?.(null, true);
+      const analysis = { image, imagePath, result, file, captureMode: requestedMode } satisfies PendingFaceAnalysis;
+      if (faceModeMismatch(result, requestedMode)) {
+        setPendingFaceAnalysis(analysis);
+        setNotice(locale === "zh" ? "AI 检测到拍摄模式可能不匹配，请确认后再保存。" : "AI detected a possible capture-mode mismatch. Confirm before saving.");
+      } else {
+        await persistFaceAnalysis(analysis);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setFaceAnalyzing(false);
     }
+  }
+
+  async function continuePendingFaceAnalysis() {
+    if (!pendingFaceAnalysis || faceAnalyzing) return;
+    setFaceAnalyzing(true);
+    setError(null);
+    try {
+      await persistFaceAnalysis(pendingFaceAnalysis);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setFaceAnalyzing(false);
+    }
+  }
+
+  async function switchPendingFaceMode() {
+    if (!pendingFaceAnalysis || faceAnalyzing) return;
+    const nextMode = pendingFaceAnalysis.captureMode === "bare_face" ? "makeup" : "bare_face";
+    const file = pendingFaceAnalysis.file;
+    setFaceMode(nextMode);
+    setPendingFaceAnalysis(null);
+    await handleFacePhoto(file, nextMode);
   }
 
   async function saveFocus(event: FormEvent) {
@@ -854,7 +936,7 @@ export default function RecordsScreen({
     dnbReference.setDate(dnbReference.getDate() - weekOffset * 7);
     const dnbPeriod = currentSevenDayPeriod(dnbReference);
     const availablePeriodEnd = dnbPeriod.endDate > deviceDate ? deviceDate : dnbPeriod.endDate;
-    const weeklyRecordedDays = recordedDateCount(trendBundle, dnbPeriod.startDate, availablePeriodEnd);
+    const weeklyRecordedDays = forceWeeklyAiFixture ? 7 : recordedDateCount(trendBundle, dnbPeriod.startDate, availablePeriodEnd);
     const inSelectedWeek = (date: string) => date >= dnbPeriod.startDate && date <= dnbPeriod.endDate;
     const rhythmsByDate = new Map((trendBundle?.rhythms ?? [])
       .filter((item) => inSelectedWeek(item.record_date))
@@ -899,6 +981,11 @@ export default function RecordsScreen({
     const weeklyRadarPoints = calculateWeeklyModuleScores(trendBundle, dnbPeriod.startDate, dnbPeriod.endDate)
       .map((point) => ({ ...point, label: radarLabels[point.key] }));
     const weeklyInsights = weeklyAiReport?.bullets ?? [];
+    const weeklySections = weeklyAiReport?.sections ?? [];
+    const hubAssociation = hubAiReport?.sections.find((section) => section.id === "association") ?? null;
+    const hubHasSignificantPattern = Boolean(hubAssociation
+      && hubAssociation.confidence !== "low"
+      && !/(记录不足|无法判断|insufficient|cannot determine)/i.test(`${hubAssociation.headline} ${hubAssociation.explanation}`));
     return (
       <div className="record-hub" ref={rootRef}>
         <div className="health-report-tabs" role="tablist" aria-label={locale === "zh" ? "健康报告视图" : "Health report view"}>
@@ -924,16 +1011,14 @@ export default function RecordsScreen({
             </section>
           )}
 
-          {allHubModulesComplete && (
+          {allHubModulesComplete && hubHasSignificantPattern && (
             <section className="record-hub-ai-summary" aria-live="polite" data-provider={hubAiReport?.provider ?? undefined}>
               <span aria-hidden="true"><Bot size={17} /></span>
               <div>
                 <strong>{hubAiReport?.provider === "demo"
                   ? (locale === "zh" ? "演示节律总提示" : "Demo rhythm overview")
                   : (locale === "zh" ? "AI 节律总提示" : "AI rhythm overview")}</strong>
-                <p>{hubAiLoading
-                  ? (locale === "zh" ? "正在根据六项真实记录生成提示…" : "Generating an insight from all six records…")
-                  : hubAiReport?.bullets[0] ?? (locale === "zh" ? "六项记录已完成，真实 AI 提示暂不可用。" : "All six records are complete; the AI insight is unavailable.")}</p>
+                <p>{hubAssociation?.headline}</p>
                 {hubAiUnavailable && <small>{locale === "zh" ? "稍后重试，不影响查看分项报告。" : "Retry later; module reports remain available."}</small>}
               </div>
             </section>
@@ -956,9 +1041,11 @@ export default function RecordsScreen({
                   }
                   setNotice(null);
                   setError(null);
-                  setShowEditor(false);
+                  const openEntry = !presentation.recorded;
+                  setShowEditor(openEntry);
                   setActiveModule(id);
                   onModuleChange?.(id);
+                  if (openEntry) onViewChange?.("editor");
                 }}
               >
                 <span className="record-module-header">
@@ -999,7 +1086,7 @@ export default function RecordsScreen({
               <div><span>{locale === "zh" ? "数据完整度：" : "Complete: "}</span><strong><AnimatedNumber value={completedModules} duration={520} />/6</strong></div>
               <div><span>{locale === "zh" ? "较上周：" : "Previous week: "}</span><strong>{periodComparison.change == null ? (periodComparison.currentAverage == null ? "--" : (locale === "zh" ? "首次记录" : "First week")) : <>{periodComparison.change >= 0 ? "+" : ""}<AnimatedNumber value={periodComparison.change} duration={640} /></>}</strong></div>
             </section>
-            <section className="weekly-trend-card">
+            <section className={["weekly-trend-card", recordedReportPointCount < 2 && weeklyChartMode === "trend" ? "is-sparse" : ""].filter(Boolean).join(" ")}>
               <header>
                 <strong>{weeklyChartMode === "trend" ? (locale === "zh" ? "节律轨迹" : "Rhythm trajectory") : (locale === "zh" ? "六维节律雷达图" : "Weekly rhythm radar")}</strong>
                 <button
@@ -1034,11 +1121,39 @@ export default function RecordsScreen({
                   ? <p>{locale === "zh" ? "正在调用 AI 生成本周节律洞察…" : "Generating this week's AI insights…"}</p>
                   : weeklyRecordedDays < 5
                     ? <p>{locale === "zh" ? `本自然周目前有 ${weeklyRecordedDays} 个记录日；至少记录 5 天后才生成跨模块 AI 关联，避免用稀疏数据下结论。` : `This natural week currently has ${weeklyRecordedDays} recorded days. Cross-module AI analysis starts after 5 days to avoid conclusions from sparse data.`}</p>
-                    : <ul>{weeklyInsights.map((insight) => <li key={insight}>{insight}</li>)}</ul>}
+                    : <div className="weekly-ai-summary-list">
+                        {weeklyAiReport?.overview && <p className="weekly-ai-overview">{weeklyAiReport.overview}</p>}
+                        <ul>{weeklyInsights.map((insight, index) => {
+                          const section = weeklySections[index];
+                          return <li key={`${section?.id ?? index}-${insight}`}><button type="button" disabled={!section} onClick={() => section && setWeeklyDetailSection(section)}><span>{insight}</span><ChevronRight size={15} aria-hidden="true" /></button></li>;
+                        })}</ul>
+                      </div>}
                 {weeklyAiUnavailable && <small>{locale === "zh" ? "真实 AI 洞察暂不可用，请稍后重试。" : "Real AI insights are temporarily unavailable."}</small>}
                 <img className="weekly-insight-mascot" src={weeklyRunMascot} alt={locale === "zh" ? "NAVA 小猫在跑步机上跑步" : "NAVA cat running on a treadmill"} />
               </div>
             </section>
+            {weeklyDetailSection && <div className="weekly-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="weekly-detail-title" onClick={(event) => { if (event.target === event.currentTarget) setWeeklyDetailSection(null); }}>
+              <article>
+                <header>
+                  <div><small>{locale === "zh" ? "真实 AI 个性化解读" : "Personalized AI interpretation"}</small><h2 id="weekly-detail-title">{weeklyDetailSection.title}</h2></div>
+                  <button type="button" onClick={() => setWeeklyDetailSection(null)} aria-label={locale === "zh" ? "关闭详细解读" : "Close detailed interpretation"}><X size={20} /></button>
+                </header>
+                <p className="weekly-detail-headline">{weeklyDetailSection.headline}</p>
+                <section>
+                  <strong>{locale === "zh" ? "详细解释" : "Detailed interpretation"}</strong>
+                  <p>{weeklyDetailSection.explanation}</p>
+                </section>
+                <section>
+                  <strong>{locale === "zh" ? "依据的真实记录" : "Evidence from your records"}</strong>
+                  <ul>{weeklyDetailSection.evidence.map((item) => <li key={item}>{item}</li>)}</ul>
+                </section>
+                <section className="weekly-detail-action">
+                  <strong>{locale === "zh" ? "下一步建议" : "Next action"}</strong>
+                  <p>{weeklyDetailSection.action}</p>
+                </section>
+                <footer><span>{locale === "zh" ? "结论置信度" : "Confidence"}</span><b data-confidence={weeklyDetailSection.confidence}>{locale === "zh" ? ({ high: "较高", medium: "中等", low: "有限" }[weeklyDetailSection.confidence]) : weeklyDetailSection.confidence}</b><small>{locale === "zh" ? "仅基于本周已授权记录，不构成医疗诊断，也不代表因果关系。" : "Based only on consent-authorized weekly records; not a diagnosis or a causal claim."}</small></footer>
+              </article>
+            </div>}
           </div>
         )}
       </div>
@@ -1435,6 +1550,14 @@ export default function RecordsScreen({
             <button type="button" disabled={faceAnalyzing || !faceConsent} onClick={() => faceLibraryInputRef.current?.click()}><Upload size={17} />{locale === "zh" ? "从相册重选" : "Choose from library"}</button>
             <input ref={faceLibraryInputRef} hidden aria-label={locale === "zh" ? "从相册选择面部照片" : "Choose face photo from library"} type="file" accept="image/*" disabled={faceAnalyzing || !faceConsent} onChange={(e) => { const file = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ""; void handleFacePhoto(file); }} />
           </div>
+          {faceDraftFile && !faceResult && !faceAnalyzing && <button className="face-resume-analysis" type="button" onClick={() => void handleFacePhoto(faceDraftFile)}><RefreshCw size={16} />{locale === "zh" ? "继续分析已恢复的照片" : "Analyze the restored photo"}</button>}
+          {pendingFaceAnalysis && <div className="face-makeup-check" role="alert">
+            <div><Bot size={18} /><p><strong>{locale === "zh" ? "AI 妆容识别需要你确认" : "Confirm the AI makeup check"}</strong><span>{locale === "zh"
+              ? `模型判断为${({ bare: "素颜", light: "淡妆", heavy: "浓妆", uncertain: "无法判断" } as const)[pendingFaceAnalysis.result.makeup_level ?? "uncertain"]}，置信度 ${Math.round((pendingFaceAnalysis.result.makeup_confidence ?? 0) * 100)}%。当前选择的是${pendingFaceAnalysis.captureMode === "bare_face" ? "素颜" : "带妆"}模式。`
+              : `The model estimated ${pendingFaceAnalysis.result.makeup_level ?? "uncertain"} makeup at ${Math.round((pendingFaceAnalysis.result.makeup_confidence ?? 0) * 100)}% confidence, which may not match the selected ${pendingFaceAnalysis.captureMode === "bare_face" ? "bare-face" : "makeup"} mode.`}</span></p></div>
+            <small>{locale === "zh" ? "妆容识别只是视觉估计；光线、滤镜和遮挡会影响结果。" : "Makeup detection is a visual estimate affected by lighting, filters, and occlusion."}</small>
+            <div><button type="button" disabled={faceAnalyzing} onClick={() => void continuePendingFaceAnalysis()}>{locale === "zh" ? "仍按当前模式保存" : "Save with current mode"}</button><button type="button" disabled={faceAnalyzing} onClick={() => void switchPendingFaceMode()}>{locale === "zh" ? `切换到${pendingFaceAnalysis.captureMode === "bare_face" ? "带妆" : "素颜"}并重新分析` : `Switch to ${pendingFaceAnalysis.captureMode === "bare_face" ? "makeup" : "bare"} and re-analyze`}</button></div>
+          </div>}
           {faceResult && (
             <div className="face-result">
               <strong>{t("records.score", { score: Math.round(faceResult.overall_score) })}</strong>

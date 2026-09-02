@@ -7,6 +7,10 @@ import type { TrendBundle } from "../src/types.ts";
 
 const recordsScreen = readFileSync(new URL("../src/features/RecordsScreen.tsx", import.meta.url), "utf8");
 const reportFunction = readFileSync(new URL("../supabase/functions/ai-health-report/index.ts", import.meta.url), "utf8");
+const faceFunction = readFileSync(new URL("../supabase/functions/face-analyze/index.ts", import.meta.url), "utf8");
+const faceDraftService = readFileSync(new URL("../src/services/secureFaceDraft.ts", import.meta.url), "utf8");
+const dashboard = readFileSync(new URL("../src/features/RecordModuleDashboard.tsx", import.meta.url), "utf8");
+const productivity = readFileSync(new URL("../src/services/productivity.ts", import.meta.url), "utf8");
 
 test("weekly report periods follow the local Monday-to-Sunday natural week", () => {
   assert.deepEqual(naturalWeekDateRange(new Date("2026-09-02T12:00:00")), {
@@ -27,7 +31,34 @@ test("weekly insight UI loads the authenticated cloud AI report", () => {
 test("weekly AI report is persisted and rejects non-model providers", () => {
   assert.match(reportFunction, /from\("ai_health_reports"\)\.upsert/);
   assert.match(reportFunction, /row\.provider !== "deepseek"/);
-  assert.match(reportFunction, /bullets\.length !== 4/);
+  assert.match(reportFunction, /deepseek-v4-flash-health-report-v2/);
+  assert.match(reportFunction, /expectedIds = \["trend", "variation", "association", "action"\]/);
+  assert.match(reportFunction, /bullets: report/);
+  assert.match(recordsScreen, /weekly-detail-dialog/);
+  assert.match(recordsScreen, /weeklyDetailSection\.evidence/);
+  assert.match(reportFunction, /consentAuthorizedCompanionRecords/);
+});
+
+test("face makeup routing uses a real vision-model output and a confidence gate", () => {
+  assert.match(faceFunction, /makeup_level/);
+  assert.match(faceFunction, /makeup_confidence/);
+  assert.match(recordsScreen, /makeup_confidence \?\? 0\) < 0\.65/);
+  assert.match(recordsScreen, /AI 妆容识别需要你确认/);
+  assert.doesNotMatch(faceFunction, /captureMode === "makeup" \? "heavy" : "bare"/);
+});
+
+test("unfinished face captures are encrypted and scoped to the current tab", () => {
+  assert.match(faceDraftService, /AES-GCM/);
+  assert.match(faceDraftService, /window\.sessionStorage/);
+  assert.match(faceDraftService, /30 \* 60 \* 1000/);
+  assert.match(faceDraftService, /crypto\.subtle\.decrypt/);
+});
+
+test("focus todo plans persist time, duration and session count and complete from real sessions", () => {
+  assert.match(productivity, /focus_sessions/);
+  assert.match(productivity, /reminder_at/);
+  assert.match(dashboard, /selectedTodoCompletedSessions \+ 1 >= \(selectedTodo\.focusSessions \?\? 1\)/);
+  assert.match(dashboard, /计划专注次数/);
 });
 
 test("weekly radar averages only recorded days and returns zero only for a wholly missing dimension", () => {

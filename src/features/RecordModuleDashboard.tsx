@@ -1087,6 +1087,9 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [saved, setSaved] = useState(false);
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [todoTitle, setTodoTitle] = useState("");
+  const [todoTime, setTodoTime] = useState("");
+  const [todoMinutes, setTodoMinutes] = useState(Math.max(1, focusMinutes));
+  const [todoSessions, setTodoSessions] = useState(1);
   const [todoView, setTodoView] = useState<"list" | "calendar">("list");
   const [calendarDate, setCalendarDate] = useState(deviceDate);
   const [selectedTodoId, setSelectedTodoId] = useState<string | null>(restoredTimer?.selectedTodoId ?? null);
@@ -1127,6 +1130,15 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const calendarDays = rollingDateWindow(deviceDate);
   const visibleTodos = todoView === "list" ? todayTodos : todos.filter((item) => item.scheduledDate === calendarDate);
   const selectedTodo = todos.find((item) => item.id === selectedTodoId) ?? null;
+  const todoSessionProgress = useMemo(() => {
+    const totals = new Map<string, number>();
+    (trendBundle?.focus ?? []).forEach((record) => {
+      if (!record.task_id) return;
+      totals.set(record.task_id, (totals.get(record.task_id) ?? 0) + Math.max(0, Number(record.completed_sessions) || 0));
+    });
+    return totals;
+  }, [trendBundle]);
+  const selectedTodoCompletedSessions = selectedTodo ? (todoSessionProgress.get(selectedTodo.id) ?? 0) : 0;
   const focusRecords = useMemo(() => {
     const byDate = new Map(aggregateFocusByDate(trendBundle?.focus ?? []).map((record) => [record.record_date, record]));
     return rollingDateWindow(deviceDate).map((date) => ({ date, record: byDate.get(date) ?? null }));
@@ -1174,7 +1186,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     event.preventDefault();
     const title = todoTitle.trim();
     if (!title) return;
-    const created = await addTodo(userId, title, "manual", deviceDate, undefined, { focusMinutes, focusSessions: 1 });
+    const created = await addTodo(userId, title, "manual", deviceDate, todoTime || undefined, { focusMinutes: todoMinutes, focusSessions: todoSessions });
     setTodoTitle("");
     setTodos((items) => [created, ...items.filter((item) => item.id !== created.id)]);
   };
@@ -1271,14 +1283,14 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     const elapsed = Math.max(1, Math.ceil(seconds / 60));
     try {
       await onSaveFocusMinutes(elapsed, { interruptions, startedAt, endedAt: new Date().toISOString(), category: focusCategory });
-      if (selectedTodo && !selectedTodo.completed) await toggleTodo(userId, selectedTodo.id);
+      if (selectedTodo && !selectedTodo.completed && selectedTodoCompletedSessions + 1 >= (selectedTodo.focusSessions ?? 1)) await toggleTodo(userId, selectedTodo.id);
       refreshTodos();
       setSaved(true);
       openView("overview");
     } finally {
       setSaving(false);
     }
-  }, [countdownDurationSeconds, elapsedSeconds, focusCategory, hasStarted, interruptions, onSaveFocusMinutes, openView, refreshTodos, remaining, saving, selectedTodo, startedAt, timerMode, userId]);
+  }, [countdownDurationSeconds, elapsedSeconds, focusCategory, hasStarted, interruptions, onSaveFocusMinutes, openView, refreshTodos, remaining, saving, selectedTodo, selectedTodoCompletedSessions, startedAt, timerMode, userId]);
 
   useEffect(() => {
     if (!immersive || timerMode !== "countdown" || remaining !== 0 || !hasStarted || saving || saved) return;
@@ -1375,7 +1387,13 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       </section>
       <section className="figma-module-card focus-todo-card">
         <header><strong>{locale === "zh" ? "今日待办" : "Today's tasks"}</strong><div className="focus-todo-tabs"><button type="button" className={todoView === "list" ? "active" : ""} onClick={() => setTodoView("list")}>{locale === "zh" ? "列表" : "List"}</button><button type="button" className={todoView === "calendar" ? "active" : ""} onClick={() => setTodoView("calendar")}><CalendarDays size={14} />{locale === "zh" ? "日历" : "Calendar"}</button></div></header>
-        <form className="focus-todo-add" onSubmit={(event) => void createTodo(event)}><input value={todoTitle} onChange={(event) => setTodoTitle(event.target.value)} placeholder={locale === "zh" ? "添加一项待办" : "Add a task"} /><button type="submit" aria-label={locale === "zh" ? "添加待办" : "Add task"}><Plus size={17} /></button></form>
+        <form className="focus-todo-add focus-todo-plan-form" onSubmit={(event) => void createTodo(event)}>
+          <input className="focus-todo-title-input" value={todoTitle} onChange={(event) => setTodoTitle(event.target.value)} placeholder={locale === "zh" ? "添加一项待办" : "Add a task"} />
+          <label><span>{locale === "zh" ? "时间" : "Time"}</span><input aria-label={locale === "zh" ? "待办时间" : "Task time"} type="time" value={todoTime} onChange={(event) => setTodoTime(event.target.value)} /></label>
+          <label><span>{locale === "zh" ? "每次" : "Minutes"}</span><input aria-label={locale === "zh" ? "每次专注分钟数" : "Minutes per session"} type="number" inputMode="numeric" min={1} max={180} value={todoMinutes} onChange={(event) => setTodoMinutes(Math.min(180, Math.max(1, Number(event.target.value) || 1)))} /><b>{locale === "zh" ? "分" : "m"}</b></label>
+          <label><span>{locale === "zh" ? "次数" : "Sessions"}</span><input aria-label={locale === "zh" ? "计划专注次数" : "Planned sessions"} type="number" inputMode="numeric" min={1} max={12} value={todoSessions} onChange={(event) => setTodoSessions(Math.min(12, Math.max(1, Number(event.target.value) || 1)))} /><b>{locale === "zh" ? "次" : "x"}</b></label>
+          <button type="submit" aria-label={locale === "zh" ? "添加待办" : "Add task"}><Plus size={17} /></button>
+        </form>
         {todoView === "calendar" && <div className="focus-todo-calendar">{calendarDays.map((date) => {
           const dayTodos = todos.filter((item) => item.scheduledDate === date);
           const completed = dayTodos.filter((item) => item.completed).length;
@@ -1384,7 +1402,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
         <div className={["focus-todo-list", `is-${todoView}`].join(" ")}>
           {visibleTodos.map((item) => <div className={[item.completed ? "completed" : "", selectedTodoId === item.id ? "selected" : ""].filter(Boolean).join(" ")} key={item.id}>
             <button className="focus-todo-check" type="button" onClick={() => void toggleTodo(userId, item.id)} aria-label={item.completed ? (locale === "zh" ? "标记未完成" : "Mark incomplete") : (locale === "zh" ? "标记完成" : "Mark complete")}>{item.completed && <Check size={14} />}</button>
-            <button className="focus-todo-copy" type="button" onClick={() => chooseTodo(item)}><strong>{item.title}</strong><small>{todoView === "calendar" ? `${shortDate(item.scheduledDate, locale)} · ` : ""}{item.focusMinutes ? `${item.focusMinutes} ${locale === "zh" ? "分钟" : "min"}` : (locale === "zh" ? "未设置时长" : "No duration")}</small></button>
+            <button className="focus-todo-copy" type="button" onClick={() => chooseTodo(item)}><strong>{item.title}</strong><small>{todoView === "calendar" ? `${shortDate(item.scheduledDate, locale)} · ` : ""}{item.scheduledTime ? `${item.scheduledTime} · ` : ""}{item.focusMinutes ? `${item.focusMinutes} ${locale === "zh" ? "分钟" : "min"}` : (locale === "zh" ? "未设置时长" : "No duration")}{item.focusSessions ? ` × ${item.focusSessions} · ${Math.min(item.focusSessions, todoSessionProgress.get(item.id) ?? 0)}/${item.focusSessions}` : ""}</small></button>
             <button className="focus-todo-start" type="button" onClick={() => { chooseTodo(item); setHasStarted(false); openView("immersive"); }} disabled={item.completed}><Play size={14} /></button>
           </div>)}
           {visibleTodos.length === 0 && <p>{locale === "zh" ? "这一天还没有待办。" : "No tasks on this day."}</p>}
@@ -1436,10 +1454,17 @@ export default function RecordModuleDashboard(props: Props) {
     setOverviewInsightLoading(true);
     setOverviewInsightError(false);
     try {
-      const bullets = props.module === "diet"
-        ? (await loadDietAiReport({ date: props.recordDate, locale })).bullets
-        : (await loadHealthAiReport({ scope: props.module, endDate: props.recordDate, locale })).bullets;
-      setOverviewInsight(bullets[0] ?? null);
+      if (props.module === "diet") {
+        const report = await loadDietAiReport({ date: props.recordDate, locale });
+        setOverviewInsight(report.bullets[0] ?? null);
+      } else {
+        const report = await loadHealthAiReport({ scope: props.module, endDate: props.recordDate, locale });
+        const association = report.sections.find((section) => section.id === "association");
+        const associationIsUseful = association
+          && association.confidence !== "low"
+          && !/(记录不足|无法判断|insufficient|cannot determine)/i.test(`${association.headline} ${association.explanation}`);
+        setOverviewInsight((associationIsUseful ? association.headline : report.sections[0]?.headline) ?? report.bullets[0] ?? null);
+      }
     } catch (error) {
       console.warn("Module overview AI insight unavailable", error);
       setOverviewInsight(null);
