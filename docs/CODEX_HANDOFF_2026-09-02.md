@@ -9,9 +9,10 @@ This is the current continuation handoff. Read it together with:
    authentication, data, AI, and deployment baseline
 3. the feature documentation relevant to the next requested batch
 
-The verified batch was released as public version 77 on both ChatGPT Sites and
-GitHub Pages. The release did not change Supabase, migrations, Edge Functions,
-or Sites access.
+The verified PRD batch was first released as public version 77. Its subsequent
+full-code and visual-audit fixes are now released as public version 78 on both
+ChatGPT Sites and GitHub Pages. Neither release changed Supabase, migrations,
+Edge Functions, or Sites access.
 
 ## 2. Local source state
 
@@ -23,10 +24,10 @@ Starting source HEAD for this batch:
 
 Released source state for the 2026-09-02 product batch:
 
-- Source commit: `d3b4a0236005baf8116101c3bdc326c672d448c9`
-- Commit title: `feat: complete remaining mobile PRD workflows`
-- ChatGPT Sites: public version 77
-- GitHub Pages mirror: v77, commit `91e13369e2775bfdbbcc326b5b584ade8dd0076a`
+- Source commit: `85b56d22a7e758ff0afdfd022292f2fa41471bd5`
+- Commit title: `fix: harden mobile interactions and layouts`
+- ChatGPT Sites: public version 78
+- GitHub Pages mirror: v78, commit `75f71a5b43af9d32845dad82de543a29c047139e`
 
 ## 3. First PRD gap-closure batch
 
@@ -166,13 +167,12 @@ Verified on 2026-09-02 after the broad batch:
   but remains flaky at an unrelated Home swipe gesture; the new bounded batch
   verifier is the authoritative UI evidence for these changes.
 
-## 9. Full-code and visual audit follow-up (local, unreleased)
+## 9. Full-code and visual audit follow-up (released as v78)
 
 A subsequent 2026-09-02 audit re-read this handoff, the 2026-08-31 architecture
 handoff, the technical product requirements, and the full tracked-code
 inventory. It then ran static, production-build, backend, interaction, and
-four-viewport visual checks. The following local fixes are not part of public
-v77 yet:
+four-viewport visual checks. The following fixes were released in public v78:
 
 - The document root opts out of automatic page translation and marks the React
   root as `notranslate`. This reduces external translation scripts mutating
@@ -215,7 +215,12 @@ Verification after these fixes:
 - `npm run prd-batch:test`: passed at all four required viewports. Evidence
   remains at `Q:\NAVA-Workspace\Build\TestRuns\nava-prd-batch-20260902`.
 
-No migration, Edge Function deployment, production account mutation, public
-site deployment, or Sites access change was performed in this follow-up. The
-public release remains source `d3b4a0236005baf8116101c3bdc326c672d448c9`,
-Sites v77, and Pages v77 until an explicitly authorized dual-site release.
+The authorized dual-site release used source commit
+`85b56d22a7e758ff0afdfd022292f2fa41471bd5` for both artifacts. ChatGPT Sites
+version 78 and GitHub Pages v78 (`75f71a5b43af9d32845dad82de543a29c047139e`)
+both returned HTTP 200 and passed headless Playwright checks at 360x740,
+375x812, 390x844, and 430x932 with the real login entry, no horizontal
+overflow, no page exceptions, and the translation-mutation guard present.
+Pages `source.json`, Sites source provenance, and the canonical Supabase project
+`wxteapvwagvhhtrjrbim` were verified. No migration, Edge Function deployment,
+production account mutation, or Sites access change was performed.
