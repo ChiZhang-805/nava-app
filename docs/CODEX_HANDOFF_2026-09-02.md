@@ -290,7 +290,86 @@ Release provenance:
 - GitHub Pages v79; mirror commit
   `1474f92ffce9d1f2de939fdcf46ab099cbfbb378`
 
-The five capability/contract boundaries in section 7 remain intentionally
-unresolved. No production account was seeded or mutated, so actual per-user
-records, provider responses, OTP delivery, and wearable hardware behavior still
-require their real authenticated or physical boundaries to prove them.
+At the v79 milestone, the five capability/contract boundaries in section 7
+remained intentionally unresolved. Section 11 records which of them were closed
+in v80. No production account was seeded or mutated, so actual per-user records,
+provider responses, OTP delivery, and wearable hardware behavior still require
+their real authenticated or physical boundaries to prove them.
+
+## 11. Grounded AI reports, face recovery, and Focus planning (released as v80)
+
+This batch replaces the remaining fixed or shallow report paths that could be
+mistaken for personalized AI analysis:
+
+- `ai-health-report` now uses production DeepSeek output under a strict v2 JSON
+  contract: overview plus trend, variation, association, and action sections.
+  Each section contains a headline, long explanation, evidence, action, and
+  confidence. The complete report is persisted in the existing
+  `ai_health_reports.bullets` JSONB field; legacy v1 cache entries are
+  regenerated.
+- The new shared health-report harness derives same-date, consent-authorized
+  cross-module evidence from real persisted records. It requires at least three
+  overlapping dates, keeps the analysis descriptive and non-causal, caps
+  confidence for a seven-day window, and rejects model-generated numeric
+  evidence that is absent from the supplied context.
+- Weekly summary rows are real buttons. They open a polished long-form detail
+  sheet showing the model explanation, evidence, action, confidence, and
+  non-diagnostic notice. The overall AI bubble appears only for a grounded
+  medium-or-higher-confidence association.
+- Per-module immediate AI reports receive consent-authorized companion records
+  while still requiring a real primary-module record. Provider failure is an
+  explicit error; production never substitutes fixed fallback prose.
+- `face-analyze` now returns model-derived `makeup_level` and
+  `makeup_confidence`. A confident mismatch with the user's selected capture
+  mode requires confirmation rather than deterministic remapping.
+- Interrupted Face analysis is recoverable for 30 minutes from an AES-GCM
+  encrypted IndexedDB draft. Its key exists only in tab-scoped
+  `sessionStorage`; closing the tab makes retained ciphertext unusable.
+- Focus todo planning persists `reminder_at`, per-session minutes, and the new
+  append-only `tasks.focus_sessions` column. A task completes only when the
+  required number of real `focus_records` exists.
+- Missing weekly-module cards now route directly to the corresponding real
+  entry editor, and sparse weekly layouts no longer reserve an oversized empty
+  chart region.
+
+Production backend state:
+
+- Migration `202609020001_focus_todo_plan.sql` is applied to canonical project
+  `wxteapvwagvhhtrjrbim`; REST confirms `tasks.focus_sessions` is available.
+- `ai-health-report` is active at version 7 and `face-analyze` at version 14.
+- Required model-secret names are present. Secret values were not printed.
+
+Verification:
+
+- `npm run verify`: passed completely, including production build, lint, zero
+  npm audit findings, 9 motion tests, 5 rhythm tests, 4 FDNB tests, 18 AI prompt
+  tests, 11 structured-entry tests, all 16 Edge Function type checks, 15 Deno
+  backend tests, and the iOS contract.
+- `npm run weekly-report:test`: 8 passed.
+- `npm run backend:test`: 15 passed.
+- `npm run interaction:test`: all 9 groups passed.
+- `npm run auth:verify:production`: passed canonical-project, public-demo,
+  tab-session, email-registration, and phone-function checks. SMTP delivery was
+  not inspected.
+- `npm run prd-batch:test`: passed at 360x740, 375x812, 390x844, and 430x932.
+  Evidence is at
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-prd-batch-20260902`.
+- Post-deployment local headless Playwright passed both public URLs at all four
+  viewports: HTTP 200, real login even with `?demo=1`, no page or console errors,
+  and no horizontal overflow. Screenshots are under
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v80`.
+
+Release provenance:
+
+- Source commit: `5e1efe81de9950cb054c469a987995501a911052`
+- Sites version 80; deployment `appgdep_6a97fd4d61b08191af1dada00d5d5482`
+- GitHub Pages v80; mirror commit
+  `a9de53240480978b398e2f36d50fbf47e8aa21c2`
+
+Three strict PRD boundaries remain unresolved after this batch: the Face
+"photo only analyzed locally" promise conflicts with the current private
+Supabase-upload architecture; Focus does not yet ingest timestamp-aligned
+wearable hardware metrics; and Growth has no reward-store catalog, redemption
+ledger, or idempotent spending transaction. No production account was seeded or
+mutated, so live per-user provider wording remains an authenticated-boundary
+check rather than a fabricated verification claim.
