@@ -135,7 +135,7 @@ export default function LineTrendChart({
   const bandPoints = hasBand
     ? [
         ...points.map((point, index) => `${xAt(index)},${yAt(point.upper as number)}`),
-        ...points.map((point, index) => `${xAt(points.length - index - 1)},${yAt(points[points.length - index - 1].lower as number)}`),
+        ...points.map((_, index) => `${xAt(points.length - index - 1)},${yAt(points[points.length - index - 1].lower as number)}`),
       ].join(" ")
     : "";
   const signature = points.map((point) => `${point.id}:${point.value}:${point.lower ?? ""}:${point.upper ?? ""}:${point.missing ? "missing" : "recorded"}`).join("|");

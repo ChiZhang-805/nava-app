@@ -1343,15 +1343,15 @@ export default function RecordModuleDashboard(props: Props) {
   if (props.module === "diet") dashboard = <DietDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} onOpenEditor={props.onOpenEditor} onOpenDietCamera={props.onOpenDietCamera} view={view} openView={openView} />;
   if (props.module === "face") dashboard = <FaceDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} onOpenEditor={props.onOpenEditor} view={view} openView={openView} />;
   if (props.module === "focus") dashboard = <FocusDashboard userId={props.userId} locale={locale} focusTitle={props.focusTitle} focusMinutes={props.focusMinutes} setFocusTitle={props.setFocusTitle} setFocusMinutes={props.setFocusMinutes} onSaveFocusMinutes={props.onSaveFocusMinutes} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} onOpenAi={props.onOpenAi} view={view} openView={openView} />;
-  if (props.module === "focus" && (view === "immersive" || view === "interruption")) return dashboard;
+  const focusImmersive = props.module === "focus" && (view === "immersive" || view === "interruption");
   const moduleLabels: Record<RecordModule, { zh: string; en: string }> = {
     mood: { zh: "情绪", en: "mood" }, sleep: { zh: "睡眠", en: "sleep" }, exercise: { zh: "运动", en: "activity" },
     diet: { zh: "饮食", en: "diet" }, focus: { zh: "专注", en: "focus" }, face: { zh: "面部状态", en: "face state" },
   };
   const moduleLabel = locale === "zh" ? moduleLabels[props.module].zh : moduleLabels[props.module].en;
-  return <div className="record-module-dashboard-shell">
+  return <div className={["record-module-dashboard-shell", focusImmersive ? "record-module-dashboard-shell--focus-immersive" : ""].filter(Boolean).join(" ")}>
     {dashboard}
-    {view === "overview" && <nav className="module-cross-actions" aria-label={locale === "zh" ? "模块快捷入口" : "Module shortcuts"}>
+    {!focusImmersive && view === "overview" && <nav className="module-cross-actions" aria-label={locale === "zh" ? "模块快捷入口" : "Module shortcuts"}>
       <button type="button" onClick={() => props.onOpenAi?.(locale === "zh" ? `请结合我已授权的真实${moduleLabel}记录，分析近期变化，并给出一条今天可执行的建议。` : `Analyze my consent-authorized ${moduleLabel} records and suggest one practical action for today.`)}><Bot size={16} /><span>{locale === "zh" ? "问 NAVA" : "Ask NAVA"}</span></button>
       <button type="button" onClick={props.onOpenWeeklyReport}><Gauge size={16} /><span>{locale === "zh" ? "DNB 周报" : "DNB weekly"}</span></button>
     </nav>}

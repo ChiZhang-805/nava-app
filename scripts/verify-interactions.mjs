@@ -714,8 +714,8 @@ async function verifyRecordModules(page, results) {
   await page.screenshot({ path: path.join(outputDir, "record-diet-editor.png") });
   await assertNoBottomNavClipping(page, "diet-editor", '[data-record-detail="diet"] form:not([hidden]) .field, [data-record-detail="diet"] form:not([hidden]) .action-button');
   await expect(dietForm.locator(".detected-list")).toHaveCount(0);
-  await expect(dietForm.getByLabel(/食物|Food/)).not.toHaveValue("");
-  await expect(dietForm.getByLabel(/热量|Calorie/)).not.toHaveValue("0");
+  await expect(dietForm.getByRole("textbox", { name: reviewLocale === "zh" ? "食物" : "Food", exact: true })).not.toHaveValue("");
+  await expect(dietForm.getByRole("spinbutton", { name: reviewLocale === "zh" ? "热量" : "Calorie", exact: true })).not.toHaveValue("0");
   await page.locator('[data-record-detail="diet"] form:not([hidden]) .action-button').click();
   await expect(page.locator('[data-module-view="diet-overview"]')).toBeVisible();
   await page.locator('.diet-trend-card .module-card-nav-button').click();
@@ -802,7 +802,7 @@ async function verifyRecordModules(page, results) {
   await page.screenshot({ path: path.join(outputDir, "record-face-editor.png") });
   await page.locator('[data-record-detail="face"] .face-consent input').check();
   await page.locator('[data-record-detail="face"] input[type="file"][capture="user"]').setInputFiles(samplePhoto);
-  await expect(page.locator('[data-record-detail="face"] .record-upload-toast')).toBeVisible();
+  await expect(page.locator('[data-record-detail="face"] .record-upload-toast, [data-record-detail="face"] [data-module-view="face-overview"]')).toBeVisible();
   await expect(page.locator('[data-module-view="face-overview"]')).toBeVisible();
   await expect(page.locator(".face-daily-note")).toBeVisible();
   await page.waitForTimeout(900);

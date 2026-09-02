@@ -165,3 +165,57 @@ Verified on 2026-09-02 after the broad batch:
 - The older full interaction suite advanced through the changed record paths
   but remains flaky at an unrelated Home swipe gesture; the new bounded batch
   verifier is the authoritative UI evidence for these changes.
+
+## 9. Full-code and visual audit follow-up (local, unreleased)
+
+A subsequent 2026-09-02 audit re-read this handoff, the 2026-08-31 architecture
+handoff, the technical product requirements, and the full tracked-code
+inventory. It then ran static, production-build, backend, interaction, and
+four-viewport visual checks. The following local fixes are not part of public
+v77 yet:
+
+- The document root opts out of automatic page translation and marks the React
+  root as `notranslate`. This reduces external translation scripts mutating
+  React-owned nodes, the reproduced class of failure behind the reported
+  `removeChild` page exception. The existing home glyph is also emitted as the
+  favicon.
+- Upward Home swipes now work when they begin on the mascot, while a completed
+  swipe suppresses the mascot click that would otherwise start an animation.
+  Other interactive controls still reject page gestures.
+- Auth session initialization now always leaves the loading state on Supabase
+  error or rejected promises and ignores callbacks after unmount.
+- Onboarding transition/completion timers are cleaned up safely, including
+  React Strict Mode's development effect replay.
+- Mood entry content no longer spills out of its card at 430x932.
+- The compact Diet macro row extends through 430px and uses narrow-field
+  typography that keeps values such as `2100 ml` fully visible while avoiding
+  fixed-navigation clipping.
+- Focus keeps a stable component position between immersive and overview
+  states, so the real post-save success state remains visible.
+- Successful Face analysis replaces the editor route instead of pushing a new
+  overview entry, so Back returns to the six-module hub rather than reopening
+  the completed editor.
+- The headless screenshot and interaction suites were updated to the current
+  onboarding, module, editor, and accessibility structure. Screenshot evidence
+  now uses the governed `Q:\NAVA-Workspace\Build\TestRuns` root.
+- Two unused callback parameters were removed; no runtime behavior changed.
+
+Verification after these fixes:
+
+- `npm run verify`: passed completely, including production build, lint, zero
+  npm audit findings, algorithms, AI contracts, backend secret/contract checks,
+  all 16 Edge Function type checks, 12 Deno tests, and the iOS contract.
+- Strict TypeScript unused-symbol check: passed.
+- `npm run interaction:test`: all 9 groups passed, including password, OTP,
+  registration, Home gestures, six record modules, AI, Profile, and sign-out.
+  The previously documented Home swipe flake is resolved.
+- `npm run screenshots`: 92 states passed across 360x740, 375x812, 390x844,
+  and 430x932. Evidence is at
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-figma-pages`.
+- `npm run prd-batch:test`: passed at all four required viewports. Evidence
+  remains at `Q:\NAVA-Workspace\Build\TestRuns\nava-prd-batch-20260902`.
+
+No migration, Edge Function deployment, production account mutation, public
+site deployment, or Sites access change was performed in this follow-up. The
+public release remains source `d3b4a0236005baf8116101c3bdc326c672d448c9`,
+Sites v77, and Pages v77 until an explicitly authorized dual-site release.

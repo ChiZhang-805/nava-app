@@ -768,7 +768,7 @@ export default function RecordsScreen({
         await loadRecordData();
         onSaved();
         setShowEditor(false);
-        onViewChange?.(null);
+        onViewChange?.(null, true);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

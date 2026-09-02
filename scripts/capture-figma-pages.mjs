@@ -4,15 +4,18 @@ import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
 
 const root = process.cwd();
-const outputDir = path.join(root, "artifacts", "figma-pages");
+const outputDir = process.env.SCREENSHOT_OUTPUT_DIR
+  ? path.resolve(process.env.SCREENSHOT_OUTPUT_DIR)
+  : path.resolve(root, "..", "Build", "TestRuns", "nava-figma-pages");
 const port = Number(process.env.PORT || 5194);
 const demoAccount = "13800138000";
 const demoPassword = "12345678";
 
 const viewports = [
-  { name: "iphone-14-pro-max", width: 430, height: 932 },
-  { name: "iphone-standard", width: 390, height: 844 },
-  { name: "iphone-compact", width: 375, height: 667 },
+  { name: "phone-360x740", width: 360, height: 740 },
+  { name: "phone-375x812", width: 375, height: 812 },
+  { name: "phone-390x844", width: 390, height: 844 },
+  { name: "phone-430x932", width: 430, height: 932 },
 ];
 
 async function dismissLaunch(page) {
@@ -40,19 +43,38 @@ async function captureOnboarding(page, viewport, name, report) {
 }
 
 async function completeOnboarding(page, viewport, report) {
+  await page.locator(".onboarding-screen, .phone-frame").first().waitFor({ state: "visible", timeout: 10_000 });
   const onboarding = page.locator(".onboarding-screen");
   if (!(await onboarding.isVisible().catch(() => false))) return;
 
+  const welcome = page.locator(".onboarding-welcome");
+  if (await welcome.isVisible().catch(() => false)) {
+    await captureOnboarding(page, viewport, "00-onboarding-welcome", report);
+    await welcome.waitFor({ state: "hidden", timeout: 6_000 });
+  }
+
+  const steps = [
+    { key: "gender", multi: false },
+    { key: "occupation", multi: false },
+    { key: "ageGroup", multi: false },
+    { key: "hobbies", multi: true },
+    { key: "sleepDuration", multi: false },
+    { key: "exerciseDuration", multi: false },
+    { key: "dietPreferences", multi: true },
+  ];
+  for (let index = 0; index < steps.length; index += 1) {
+    const step = steps[index];
+    await expect(onboarding).toHaveAttribute("data-onboarding-step", step.key);
+    await captureOnboarding(page, viewport, `00-onboarding-${index + 1}-${step.key}`, report);
+    await page.locator(".onboarding-option-grid button").first().click();
+    if (step.multi) await page.locator(".onboarding-next").click();
+  }
+
+  await expect(onboarding).toHaveAttribute("data-onboarding-step", "privacy");
   await captureOnboarding(page, viewport, "00-onboarding-privacy", report);
   await page.locator(".onboarding-consent-row input").first().check({ force: true });
   await page.locator(".onboarding-next").click();
-
-  const steps = ["age", "occupation", "goal", "sleep", "activity", "diet"];
-  for (let index = 0; index < steps.length; index += 1) {
-    await captureOnboarding(page, viewport, `00-onboarding-${index + 1}-${steps[index]}`, report);
-    await page.locator(".onboarding-option-grid button").first().click();
-    await page.locator(".onboarding-next").click();
-  }
+  await expect(page.locator(".phone-frame")).toBeVisible();
 }
 
 async function login(page, baseUrl, viewport, report) {
@@ -122,30 +144,33 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
 
   await page.locator('[data-record-module="exercise"]').click();
   await capture(page, viewport, "05-exercise", '[data-module-view="exercise-overview"]', report);
-  await page.locator('[aria-label="查看运动详情"], [aria-label="View activity details"]').click();
-  await capture(page, viewport, "06-exercise-detail", '[data-module-view="exercise-detail"]', report);
-  await page.locator('[data-module-view="exercise-detail"] .module-inline-back').click();
+  await page.locator('[aria-label="查看运动设备"], [aria-label="View devices"]').click();
+  await capture(page, viewport, "06-exercise-device", '[data-module-view="module-subview"]', report);
+  await page.locator('.figma-app-header [aria-label="返回记录入口"], .figma-app-header [aria-label="Back to records"]').click();
+  await expect(page.locator('[data-module-view="exercise-overview"]')).toBeVisible();
   await returnToHub(page);
 
   await page.locator('[data-record-module="focus"]').click();
   await capture(page, viewport, "07-focus", '[data-module-view="focus-overview"]', report);
   await page.locator('[aria-label="开始专注"], [aria-label="Start focus"]').click();
   await capture(page, viewport, "08-focus-immersive", '[data-module-view="focus-immersive"]', report);
-  await page.locator('[data-module-view="focus-immersive"] .module-inline-back').click();
+  await page.locator('[data-module-view="focus-immersive"] .focus-immersive-exit').click();
   await returnToHub(page);
 
   await page.locator('[data-record-module="diet"]').click();
   await capture(page, viewport, "09-diet", '[data-module-view="diet-overview"]', report);
-  await page.locator('[aria-label="记录饮食"], [aria-label="Log a meal"]').click();
+  await page.locator('.diet-meals-card .module-card-icon-action').click();
   await capture(page, viewport, "09b-diet-editor", '[data-record-detail="diet"] .record-editor-stack', report);
-  await page.locator('[data-record-detail="diet"] .record-back-button').click();
+  await page.locator('.figma-app-header [aria-label="返回记录入口"], .figma-app-header [aria-label="Back to records"]').click();
+  await expect(page.locator('[data-module-view="diet-overview"]')).toBeVisible();
   await returnToHub(page);
 
   await page.locator('[data-record-module="face"]').click();
   await capture(page, viewport, "10-face", '[data-module-view="face-overview"]', report);
   await page.locator('[aria-label="使用前置摄像头拍照"], [aria-label="Take a front-camera photo"]').click();
   await capture(page, viewport, "10b-face-editor", '[data-record-detail="face"] .record-editor-stack', report);
-  await page.locator('[data-record-detail="face"] .record-back-button').click();
+  await page.locator('.figma-app-header [aria-label="返回记录入口"], .figma-app-header [aria-label="Back to records"]').click();
+  await expect(page.locator('[data-module-view="face-overview"]')).toBeVisible();
   await returnToHub(page);
 
   await page.locator('.health-report-tabs [role="tab"]').last().click();

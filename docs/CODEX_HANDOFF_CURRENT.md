@@ -17,3 +17,9 @@ Current release anchor:
 - GitHub Pages mirror release: v77 (`91e13369e2775bfdbbcc326b5b584ade8dd0076a`)
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
 - The 2026-09-02 PRD gap-closure batch is verified and deployed to both public sites.
+
+Current local continuation:
+
+- Section 9 of the dated handoff records a full-code and four-viewport audit
+  completed after v77. Those fixes are local and unreleased; the public release
+  anchors above have not changed.

@@ -106,7 +106,7 @@ export async function seedThirteenDayHistory(userId: string, anchorDate = localD
     analysis_confidence: 0.82,
     derived_features: { synthetic: true, fatigue_signal: item.sleepMinutes < 400 },
   }));
-  const tasks = seedDays.map((item, index) => ({
+  const tasks = seedDays.map((_, index) => ({
     id: crypto.randomUUID(),
     user_id: userId,
     title: index % 3 === 0 ? "项目整理" : index % 3 === 1 ? "阅读学习" : "课程复习",

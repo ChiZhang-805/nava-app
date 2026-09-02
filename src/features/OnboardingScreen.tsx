@@ -29,7 +29,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { User } from "@supabase/supabase-js";
 import lifeFigure from "../assets/figma/home-option2/raw-01.png";
 import { useLocale } from "../i18n";
@@ -166,8 +166,20 @@ export default function OnboardingScreen({ user, onComplete }: { user: User; onC
   const [transitioning, setTransitioning] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const transitionTimerRef = useRef<number | null>(null);
+  const completionTimerRef = useRef<number | null>(null);
+  const mountedRef = useRef(true);
   const question = questions[step];
   const progress = ((step + 1) / questions.length) * 100;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (transitionTimerRef.current !== null) window.clearTimeout(transitionTimerRef.current);
+      if (completionTimerRef.current !== null) window.clearTimeout(completionTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (phase !== "welcome") return undefined;
@@ -213,9 +225,10 @@ export default function OnboardingScreen({ user, onComplete }: { user: User; onC
 
     setAnswers((current) => ({ ...current, [question.key]: value }));
     setTransitioning(true);
-    window.setTimeout(() => {
+    transitionTimerRef.current = window.setTimeout(() => {
       advance();
       setTransitioning(false);
+      transitionTimerRef.current = null;
     }, 320);
   };
 
@@ -225,9 +238,14 @@ export default function OnboardingScreen({ user, onComplete }: { user: User; onC
     setError(null);
     try {
       await completeOnboarding(user.id, answers);
+      if (!mountedRef.current) return;
       setPhase("complete");
-      window.setTimeout(onComplete, 1050);
+      completionTimerRef.current = window.setTimeout(() => {
+        completionTimerRef.current = null;
+        onComplete();
+      }, 1050);
     } catch (saveError) {
+      if (!mountedRef.current) return;
       setError(saveError instanceof Error ? saveError.message : String(saveError));
       setBusy(false);
     }
