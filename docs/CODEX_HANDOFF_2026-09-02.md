@@ -581,3 +581,15 @@ comparisons, execute the prepared two-account RLS check, then distribute through
 TestFlight/App Store. These gates are not marked complete without evidence.
 Focus-session hardware correlation and the points store remain intentionally
 deferred by the product owner.
+
+Release provenance for this completion batch:
+
+- Source commit: `0b009010cab5a9a8e9e2991ec038a5ee1186c450`
+- ChatGPT Sites version 82; deployment
+  `appgdep_6a983a34523881918d07de4750482441`
+- GitHub Pages v82; mirror commit
+  `af2dda3fe3e16da715c734d089bf9f6e7e4d779f`
+- Both public URLs passed 8/8 post-deployment checks at all four required
+  viewports: HTTP 200, auth-first behavior even with `?demo=1`, canonical
+  Supabase marker, no console/page error, and no horizontal overflow. Evidence:
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v82`.

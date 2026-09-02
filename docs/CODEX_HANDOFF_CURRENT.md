@@ -12,9 +12,9 @@ architecture and release baseline. Older dated handoffs are historical evidence.
 
 Current release anchor:
 
-- Source commit: `445ccdc0cb16a22289f65ea8de6fa382c5356cd5`
-- ChatGPT Sites: version 81, public
-- GitHub Pages mirror release: v81 (`e2446154f0c5a2f36848949a141f37e002c85884`)
+- Source commit: `0b009010cab5a9a8e9e2991ec038a5ee1186c450`
+- ChatGPT Sites: version 82, public
+- GitHub Pages mirror release: v82 (`af2dda3fe3e16da715c734d089bf9f6e7e4d779f`)
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
 - The 2026-09-02 PRD gap-closure and audit-fix batches are verified and deployed to both public sites.
 
@@ -30,11 +30,11 @@ Current continuation:
 - Updated Edge Function sources are live as new production versions, and
   migration `202609020002_health_sync_realtime.sql` is applied to canonical
   project `wxteapvwagvhhtrjrbim`. Section 15 records exact versions and scope.
-- Both public v81 URLs passed post-deployment headless verification at 360x740,
+- Both public v82 URLs passed post-deployment headless verification at 360x740,
   375x812, 390x844, and 430x932: HTTP 200, auth-first entry even with
   `?demo=1`, canonical Supabase marker, no runtime errors, and no horizontal
   overflow. Evidence is under
-  `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v81`.
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v82`.
 
 - Sections 9 through 11 of the dated handoff record the full-code audit, the
   real-data/natural-week corrections, the grounded AI health-report batch, and
@@ -96,7 +96,6 @@ Current continuation:
   compilation, physical iPhone/Watch checks, RLS real-account execution,
   signing/TestFlight, and legacy retirement remain
   explicitly unverified human/external gates.
-- The Apple/client and full-audit source is committed at the v81 release anchor
-  and both public frontends are published. Backend changes are now shipped;
-  the embedded Watch target and final frontend will be recorded at the next
-  dual-site release anchor. Physical-device acceptance remains unverified.
+- The embedded Watch target, durable bridge queue, audited backend changes and
+  final frontend are committed and published at the v82 dual-site release
+  anchor. Physical-device acceptance remains unverified.
