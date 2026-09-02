@@ -12,13 +12,13 @@ architecture and release baseline. Older dated handoffs are historical evidence.
 
 Current release anchor:
 
-- Source commit: `85b56d22a7e758ff0afdfd022292f2fa41471bd5`
-- ChatGPT Sites: version 78, public
-- GitHub Pages mirror release: v78 (`75f71a5b43af9d32845dad82de543a29c047139e`)
+- Source commit: `0adf2824496c86ceb41fdd9477281a7502edc769`
+- ChatGPT Sites: version 79, public
+- GitHub Pages mirror release: v79 (`1474f92ffce9d1f2de939fdcf46ab099cbfbb378`)
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
 - The 2026-09-02 PRD gap-closure and audit-fix batches are verified and deployed to both public sites.
 
 Current continuation:
 
-- Section 9 of the dated handoff records the full-code and four-viewport audit
-  completed after v77 and its dual-site v78 release verification.
+- Sections 9 and 10 of the dated handoff record the full-code audit, the
+  real-data/natural-week corrections, and the dual-site v79 verification.

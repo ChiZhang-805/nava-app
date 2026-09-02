@@ -10,9 +10,10 @@ This is the current continuation handoff. Read it together with:
 3. the feature documentation relevant to the next requested batch
 
 The verified PRD batch was first released as public version 77. Its subsequent
-full-code and visual-audit fixes are now released as public version 78 on both
-ChatGPT Sites and GitHub Pages. Neither release changed Supabase, migrations,
-Edge Functions, or Sites access.
+full-code and visual-audit fixes were released as public version 78. A further
+real-data, natural-week, resilience, and visual-completeness audit is now
+released as public version 79 on both ChatGPT Sites and GitHub Pages. None of
+these releases changed Supabase, migrations, Edge Functions, or Sites access.
 
 ## 2. Local source state
 
@@ -24,10 +25,10 @@ Starting source HEAD for this batch:
 
 Released source state for the 2026-09-02 product batch:
 
-- Source commit: `85b56d22a7e758ff0afdfd022292f2fa41471bd5`
-- Commit title: `fix: harden mobile interactions and layouts`
-- ChatGPT Sites: public version 78
-- GitHub Pages mirror: v78, commit `75f71a5b43af9d32845dad82de543a29c047139e`
+- Source commit: `0adf2824496c86ceb41fdd9477281a7502edc769`
+- Commit title: `fix: ground health insights in real records`
+- ChatGPT Sites: public version 79
+- GitHub Pages mirror: v79, commit `1474f92ffce9d1f2de939fdcf46ab099cbfbb378`
 
 ## 3. First PRD gap-closure batch
 
@@ -224,3 +225,72 @@ overflow, no page exceptions, and the translation-mutation guard present.
 Pages `source.json`, Sites source provenance, and the canonical Supabase project
 `wxteapvwagvhhtrjrbim` were verified. No migration, Edge Function deployment,
 production account mutation, or Sites access change was performed.
+
+## 10. Real-data and natural-week follow-up (released as v79)
+
+The next audit removed several remaining ways that suggested values, stale
+snapshots, sparse records, or generic copy could be mistaken for real user
+results:
+
+- Record loading failures now clear stale snapshots and trends, expose retry
+  states, and cannot arm draft autosave. Suggested entry values therefore cannot
+  be silently persisted after a failed Supabase read.
+- The weekly report is a device-local natural week (Monday through Sunday),
+  compares with the previous natural week, renders all seven date slots, and
+  excludes missing days from averages. Future dates in the current week remain
+  empty, and backend report requests are clamped to the device date.
+- Cross-module weekly AI requires at least five distinct recorded days. Sparse
+  periods explain that more records are needed instead of presenting a generic
+  AI conclusion as a completed personal report.
+- Mood saves a formal record only after the factor and diary are complete, and
+  its suggested score is not shown as a measured result before a real record
+  exists.
+- Exercise comparisons use the user's real recorded-day average rather than a
+  fixed calorie target. Sports planning and the heatmap use the selected day's
+  actual records and are explicitly descriptive, not medical or training
+  prescriptions.
+- Sleep no longer substitutes the latest record for an unrecorded selected day.
+  Diet and Face empty states show missing values rather than plausible-looking
+  defaults.
+- Per-module immediate AI uses the existing authenticated report services and
+  has an explicit provider-failure state; no fixed fallback report is presented
+  as a model result. Demo output remains labeled as demo.
+- Focus timer state is restored from tab-scoped `sessionStorage`; leaving the
+  immersive view pauses rather than discards it. The simulated incoming-call
+  control is development-only.
+- Growth task load failures expose a retry state instead of showing cached local
+  completion as cloud truth. Real zero reward totals remain zero.
+- Exercise, sports, heatmap, sleep, weekly, and hub layouts were rechecked and
+  adjusted to avoid clipped content, weak contrast, oversized blank regions,
+  and narrow-screen overflow.
+
+Verification for v79:
+
+- `npm run verify`: passed completely, including production build, lint, zero
+  npm audit findings, algorithm and AI contracts, all Edge Function type checks,
+  12 Deno tests, and the iOS contract.
+- `npm run interaction:test`: all 9 groups passed, including restored Focus
+  state and the reachable Sports detail route.
+- `npm run weekly-report:test`: 5 passed for natural-week date behavior.
+- `npm run prd-batch:test`: passed at 360x740, 375x812, 390x844, and 430x932.
+- `npm run screenshots`: 92 states captured at the same four viewports. Durable
+  evidence is under `Q:\NAVA-Workspace\Build\TestRuns`.
+- After deployment, local headless Playwright passed both public URLs at all
+  four viewports: HTTP 200, real auth-first entry even with `?demo=1`, no page or
+  console errors, no horizontal overflow, and the translation guard present.
+- `npm run auth:verify:production` passed the canonical Supabase project,
+  disabled public demo bypass, tab-scoped session, email registration, and
+  phone-function reachability contracts. Strict SMTP inspection was not run
+  because no management token was supplied.
+
+Release provenance:
+
+- Source commit: `0adf2824496c86ceb41fdd9477281a7502edc769`
+- Sites version 79; deployment `appgdep_6a97c99c02c48191bebd25bb0be49c83`
+- GitHub Pages v79; mirror commit
+  `1474f92ffce9d1f2de939fdcf46ab099cbfbb378`
+
+The five capability/contract boundaries in section 7 remain intentionally
+unresolved. No production account was seeded or mutated, so actual per-user
+records, provider responses, OTP delivery, and wearable hardware behavior still
+require their real authenticated or physical boundaries to prove them.
