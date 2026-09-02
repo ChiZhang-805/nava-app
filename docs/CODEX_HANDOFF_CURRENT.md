@@ -45,3 +45,18 @@ Current continuation:
   `npm run prd-batch:test` all passed. The public v80 sites passed local
   headless Playwright at all four required viewports with real auth-first entry,
   no console/page errors, and no horizontal overflow.
+- Product has now resolved the Face privacy wording: with explicit consent,
+  photos are encrypted in transit to account-isolated private Supabase storage
+  and analyzed by a controlled server through a short-lived signed URL. The
+  obsolete "local-only analysis" promise is no longer a requirement; this moves
+  the strict audit to 50/52 in source/product terms.
+- Wearable research is recorded in
+  `docs/WEARABLE_WEB_INTEGRATION_2026-09-02.md`. The repository already contains
+  the iOS HealthKit bridge, WatchConnectivity sources, authenticated ingest,
+  watch action idempotency, and normalized health storage. A public website
+  cannot generally read arbitrary watch history merely through shared Wi-Fi or
+  Bluetooth. The recommended paths are Apple/Android native companions, vendor
+  cloud OAuth, and a narrowly labeled optional Web Bluetooth live-HR route.
+- No vendor-cloud credentials are currently configured. The existing
+  `HEALTH_EXPORT_API_KEY` name is unused by repository code and is not evidence
+  of a working watch integration.

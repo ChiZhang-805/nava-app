@@ -366,10 +366,47 @@ Release provenance:
 - GitHub Pages v80; mirror commit
   `a9de53240480978b398e2f36d50fbf47e8aa21c2`
 
-Three strict PRD boundaries remain unresolved after this batch: the Face
-"photo only analyzed locally" promise conflicts with the current private
-Supabase-upload architecture; Focus does not yet ingest timestamp-aligned
-wearable hardware metrics; and Growth has no reward-store catalog, redemption
-ledger, or idempotent spending transaction. No production account was seeded or
-mutated, so live per-user provider wording remains an authenticated-boundary
-check rather than a fabricated verification claim.
+At the v80 release point, three strict PRD boundaries remained unresolved: the
+Face "photo only analyzed locally" promise conflicted with the current private
+Supabase-upload architecture; Focus did not ingest timestamp-aligned wearable
+hardware metrics; and Growth had no reward-store catalog, redemption ledger, or
+idempotent spending transaction. The later product decision in section 12
+resolves the Face contract. No production account was seeded or mutated, so live
+per-user provider wording remains an authenticated-boundary check rather than a
+fabricated verification claim.
+
+## 12. Face privacy decision and wearable-web research
+
+The product owner explicitly replaced the old Face "local-only analysis"
+promise with the actual secure architecture: after explicit consent, the photo
+is encrypted in transit to account-isolated private Supabase storage; a
+controlled server uses a ten-minute signed URL for the requested non-diagnostic
+analysis. User-facing consent, Face detail copy, and the privacy policy now state
+that contract. This closes the Face T0 privacy row and moves the strict source
+audit to **50/52**: Face 16/16, Focus 19/20, Health 11/11, Growth 4/5.
+
+The wearable research and delivery decision is recorded in
+`docs/WEARABLE_WEB_INTEGRATION_2026-09-02.md`. Important findings:
+
+- The repository already has an iOS HealthKit Capacitor bridge, HealthKit
+  entitlement and permission copy, WatchConnectivity bridge/source, authenticated
+  `health-sync-ingest`, idempotent `watch-sync`, device/snapshot tables, and the
+  ChronoState pipeline.
+- The Xcode project still has only an iPhone target. `native/watch/` is source
+  material, not a built and signed watchOS target, and no physical-device
+  HealthKit/Watch verification has occurred.
+- Shared Wi-Fi or Bluetooth is not a general health-data protocol. Apple Watch
+  history requires HealthKit/native authorization; Android history requires a
+  Health Connect/native client; vendor cloud access requires user OAuth.
+- Web Bluetooth is a bounded optional route for devices that advertise a
+  supported standard GATT service, such as live Heart Rate Service data. It does
+  not imply Apple Watch compatibility or historical sleep/HRV access.
+- The production Supabase secret-name audit found no Fitbit, Garmin, Withings,
+  Oura, Huawei, or Samsung credentials. `HEALTH_EXPORT_API_KEY` is present but
+  unreferenced in the repository, so it is not treated as a functional wearable
+  credential.
+- The remaining Focus hardware row needs timestamped samples aligned to an
+  actual focus session; daily health snapshots alone are insufficient.
+
+These post-v80 source/document updates were not published in this turn because
+the user did not explicitly authorize another public deployment.

@@ -1049,7 +1049,7 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
   return (
     <div className="module-dashboard face-dashboard" data-module-view="face-overview">
       <section className="figma-module-card face-privacy-card">
-        <ShieldCheck size={18} /><p>{locale === "zh" ? "照片经明确同意后进入账号隔离的私密存储；分析只使用短时签名链接，结果不构成医疗诊断。" : "With consent, photos use account-isolated private storage and short-lived signed links; results are not medical diagnoses."}</p>
+        <ShieldCheck size={18} /><p>{locale === "zh" ? "照片经明确同意后通过加密连接进入账号隔离的 Supabase 私有存储；受控服务端只使用短时签名链接分析，结果不构成医疗诊断。" : "With consent, photos are encrypted in transit to account-isolated private Supabase storage; the controlled server analyzes only through a short-lived signed link, and results are not medical diagnoses."}</p>
       </section>
       <section className="figma-module-card face-summary-card">
         <header><strong>{locale === "zh" ? "今日面部状态" : "Today's face state"}</strong><div className="face-summary-actions"><button type="button" onClick={() => openView("compare")} disabled={!previousFace}><RefreshCw size={16} /><span>{locale === "zh" ? "对比" : "Compare"}</span></button><button className="module-card-icon-action" type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "使用前置摄像头拍照" : "Take a front-camera photo"}><Camera size={18} /><span>{locale === "zh" ? "拍照" : "Capture"}</span></button></div></header>
