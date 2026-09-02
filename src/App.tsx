@@ -13,7 +13,7 @@ import type { AiCommand } from "./features/AIScreen";
 import PasswordRecoveryScreen from "./features/PasswordRecoveryScreen";
 import OnboardingScreen from "./features/OnboardingScreen";
 import { useAuth } from "./state/authContext";
-import { enqueueAndFlushWatchAction, flushPendingWatchActions, subscribeWatchActions } from "./services/watch";
+import { flushPendingWatchActions, subscribeWatchActions } from "./services/watch";
 import LanguageToggle from "./components/LanguageToggle";
 import MascotMotionSlot from "./components/MascotMotionSlot";
 import UtilityDrawer from "./components/UtilityDrawer";
@@ -404,10 +404,10 @@ function MobileShell() {
     void flushPendingWatchActions(user.id).then(() => {
       if (alive) markChanged();
     }).catch((syncError) => console.warn("pending watch actions remain queued", syncError));
-    subscribeWatchActions(async (action) => {
+    subscribeWatchActions(user.id, async () => {
       if (!alive) return;
       try {
-        await enqueueAndFlushWatchAction(user.id, action);
+        await flushPendingWatchActions(user.id);
         markChanged();
       } catch (e) {
         console.warn("watch action remains queued", e);

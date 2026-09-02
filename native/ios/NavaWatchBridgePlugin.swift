@@ -8,8 +8,13 @@ public class NavaWatchBridgePlugin: CAPPlugin, CAPBridgedPlugin, WCSessionDelega
     public let jsName = "NavaWatchBridge"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "publishSnapshot", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "isReachable", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "isReachable", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "drainPendingActions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "acknowledgePendingActions", returnType: CAPPluginReturnPromise)
     ]
+
+    private let pendingActionsQueue = DispatchQueue(label: "health.nava.watch.pending-actions")
+    private let maxPendingActions = 100
 
     public override func load() {
         super.load()
@@ -44,6 +49,47 @@ public class NavaWatchBridgePlugin: CAPPlugin, CAPBridgedPlugin, WCSessionDelega
         ])
     }
 
+    @objc func drainPendingActions(_ call: CAPPluginCall) {
+        pendingActionsQueue.async {
+            do {
+                let actions = try self.readPendingActions()
+                DispatchQueue.main.async {
+                    call.resolve(["actions": actions])
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    call.reject("Unable to read pending Watch actions.", nil, error)
+                }
+            }
+        }
+    }
+
+    @objc func acknowledgePendingActions(_ call: CAPPluginCall) {
+        let actionIds = Set(call.getArray("actionIds", String.self) ?? [])
+        guard !actionIds.isEmpty else {
+            call.resolve(["ok": true, "removed": 0])
+            return
+        }
+
+        pendingActionsQueue.async {
+            do {
+                let current = try self.readPendingActions()
+                let retained = current.filter { action in
+                    guard let actionId = action["actionId"] as? String else { return true }
+                    return !actionIds.contains(actionId)
+                }
+                try self.writePendingActions(retained)
+                DispatchQueue.main.async {
+                    call.resolve(["ok": true, "removed": current.count - retained.count])
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    call.reject("Unable to acknowledge pending Watch actions.", nil, error)
+                }
+            }
+        }
+    }
+
     private func activateSession() {
         guard WCSession.isSupported() else { return }
         if WCSession.default.delegate !== self {
@@ -62,27 +108,88 @@ public class NavaWatchBridgePlugin: CAPPlugin, CAPBridgedPlugin, WCSessionDelega
         session.activate()
     }
 
-    private func deliverAction(_ action: [String: Any]) {
-        DispatchQueue.main.async {
-            self.notifyListeners("watchAction", data: action)
+    private func pendingActionsURL() throws -> URL {
+        guard let applicationSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        let directory = applicationSupport.appendingPathComponent("NAVA", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory.appendingPathComponent("pending-watch-actions.json", isDirectory: false)
+    }
+
+    private func readPendingActions() throws -> [[String: Any]] {
+        let url = try pendingActionsURL()
+        guard FileManager.default.fileExists(atPath: url.path) else { return [] }
+        let data = try Data(contentsOf: url)
+        guard !data.isEmpty else { return [] }
+        return try JSONSerialization.jsonObject(with: data) as? [[String: Any]] ?? []
+    }
+
+    private func writePendingActions(_ actions: [[String: Any]]) throws {
+        let url = try pendingActionsURL()
+        let data = try JSONSerialization.data(withJSONObject: actions)
+        try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+
+    private func persistAndDeliverAction(_ receivedAction: [String: Any], completion: ((Result<[String: Any], Error>) -> Void)? = nil) {
+        pendingActionsQueue.async {
+            do {
+                var action = receivedAction
+                if (action["actionId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
+                    action["actionId"] = UUID().uuidString
+                }
+                guard JSONSerialization.isValidJSONObject(action) else {
+                    throw CocoaError(.propertyListReadCorrupt)
+                }
+
+                var pending = try self.readPendingActions()
+                let actionId = action["actionId"] as? String ?? ""
+                if !pending.contains(where: { ($0["actionId"] as? String) == actionId }) {
+                    pending.append(action)
+                    if pending.count > self.maxPendingActions {
+                        pending.removeFirst(pending.count - self.maxPendingActions)
+                    }
+                    try self.writePendingActions(pending)
+                }
+
+                DispatchQueue.main.async {
+                    self.notifyListeners("watchAction", data: action)
+                    completion?(.success(action))
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion?(.failure(error))
+                }
+            }
         }
     }
 
     public func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-        deliverAction(message)
+        persistAndDeliverAction(message)
     }
 
     public func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
-        deliverAction(message)
-        replyHandler([
-            "ok": true,
-            "accepted": true,
-            "actionId": message["actionId"] as? String ?? "",
-            "acceptedAt": ISO8601DateFormatter().string(from: Date())
-        ])
+        persistAndDeliverAction(message) { result in
+            switch result {
+            case .success(let action):
+                replyHandler([
+                    "ok": true,
+                    "accepted": true,
+                    "actionId": action["actionId"] as? String ?? "",
+                    "acceptedAt": ISO8601DateFormatter().string(from: Date())
+                ])
+            case .failure:
+                replyHandler([
+                    "ok": false,
+                    "accepted": false,
+                    "actionId": message["actionId"] as? String ?? "",
+                    "errorCode": "phone_queue_unavailable"
+                ])
+            }
+        }
     }
 
     public func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any]) {
-        deliverAction(userInfo)
+        persistAndDeliverAction(userInfo)
     }
 }

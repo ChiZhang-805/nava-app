@@ -67,3 +67,19 @@ test("web clients refresh from account-scoped successful sync jobs", () => {
   assert.match(health, /\.gt\("sample_count", 0\)/);
   assert.match(migration, /ALTER PUBLICATION supabase_realtime ADD TABLE public\.health_sync_jobs/);
 });
+
+test("Watch actions survive inactive web runtime and the watchOS target is embedded", () => {
+  const bridge = read("native/ios/NavaWatchBridgePlugin.swift");
+  const watchService = read("src/services/watch.ts");
+  const project = read("ios/App/App.xcodeproj/project.pbxproj");
+  assert.match(bridge, /pending-watch-actions\.json/);
+  assert.match(bridge, /completeFileProtectionUntilFirstUserAuthentication/);
+  assert.match(bridge, /drainPendingActions/);
+  assert.match(bridge, /acknowledgePendingActions/);
+  assert.match(watchService, /enqueueWatchAction\(userId, action\)/);
+  assert.match(watchService, /acknowledgeNativeWatchActions/);
+  assert.match(project, /NAVA Watch\.app in Embed Watch Content/);
+  assert.match(project, /com\.apple\.product-type\.application\.watchapp2/);
+  assert.match(project, /PRODUCT_BUNDLE_IDENTIFIER = "\$\(NAVA_APP_BUNDLE_ID\)\.watchkitapp"/);
+  assert.match(project, /INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "\$\(NAVA_APP_BUNDLE_ID\)"/);
+});

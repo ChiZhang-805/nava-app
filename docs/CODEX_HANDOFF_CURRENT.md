@@ -27,9 +27,9 @@ Current continuation:
 - `npm run verify`, the nine-group interaction suite, the PRD four-viewport
   suite, 96-state screenshots, production Auth, shared Supabase alignment, and
   the production Health Function audit all pass in the current checkout.
-- Updated Edge Function sources and migration
-  `202609020002_health_sync_realtime.sql` are still staged, not production
-  claims. They require explicit backend/migration authorization.
+- Updated Edge Function sources are live as new production versions, and
+  migration `202609020002_health_sync_realtime.sql` is applied to canonical
+  project `wxteapvwagvhhtrjrbim`. Section 15 records exact versions and scope.
 - Both public v81 URLs passed post-deployment headless verification at 360x740,
   375x812, 390x844, and 430x932: HTTP 200, auth-first entry even with
   `?demo=1`, canonical Supabase marker, no runtime errors, and no horizontal
@@ -84,14 +84,19 @@ Current continuation:
   durable background-change observation, start/foreground/live auto-sync,
   JWT-only and partial-field-preserving ingest, account-filtered nonzero Realtime
   refresh, truthful server-timestamp
-  status, a pending Realtime migration, Mac packaging helper, secure boundary
+  status, the applied Realtime migration, Mac packaging helper, secure boundary
   verifier, production Function audit, and true-device acceptance template.
-- Windows verification passed `npm run verify`, the 9-group interaction suite,
+- The Xcode project now includes an embedded `NAVA Watch` watchOS target with
+  shared bundle-ID root configuration, resources and app icon. iPhone-side
+  Watch actions first enter a protected native queue and are acknowledged only
+  after handoff to the account-scoped Web queue.
+- Final Windows verification passed `npm run verify`, the 9-group interaction suite,
   production-auth/shared-Supabase/function audits, Capacitor sync, and a
   96-state four-viewport visual run including the Profile device area. Mac/Xcode
-  compilation, updated ingest deployment, production migration, physical iPhone/Watch checks, RLS
-  real-account execution, signing/TestFlight, and legacy retirement remain
+  compilation, physical iPhone/Watch checks, RLS real-account execution,
+  signing/TestFlight, and legacy retirement remain
   explicitly unverified human/external gates.
 - The Apple/client and full-audit source is committed at the v81 release anchor
-  and both public frontends are published. Updated Edge Functions, Realtime
-  migration, and physical-device acceptance remain separately unshipped.
+  and both public frontends are published. Backend changes are now shipped;
+  the embedded Watch target and final frontend will be recorded at the next
+  dual-site release anchor. Physical-device acceptance remains unverified.

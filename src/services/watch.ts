@@ -17,6 +17,8 @@ export type WatchAck =
 interface NavaWatchBridgePlugin {
   publishSnapshot: (options: { snapshot: WatchUserSnapshot }) => Promise<{ ok: boolean }>;
   isReachable: () => Promise<{ reachable: boolean; paired: boolean }>;
+  drainPendingActions: () => Promise<{ actions: WatchAction[] }>;
+  acknowledgePendingActions: (options: { actionIds: string[] }) => Promise<{ ok: boolean; removed: number }>;
   addListener?: (eventName: "watchAction", listenerFunc: (action: WatchAction) => void) => Promise<PluginListenerHandle>;
 }
 
@@ -178,9 +180,33 @@ export async function enqueueAndFlushWatchAction(userId: string, action: WatchAc
   return flushPendingWatchActions(userId);
 }
 
-export async function subscribeWatchActions(listener: (action: WatchAction) => void) {
+async function acknowledgeNativeWatchActions(actionIds: string[]) {
+  if (actionIds.length === 0) return;
+  try {
+    await NavaWatchBridge.acknowledgePendingActions({ actionIds });
+  } catch {
+    // The native queue remains intact and will be offered again on the next launch.
+  }
+}
+
+export async function subscribeWatchActions(userId: string, listener: (action: ResolvedWatchAction) => void | Promise<void>) {
   if (isDemoMode()) return null;
 
   if (!Capacitor.isNativePlatform() || !NavaWatchBridge.addListener) return null;
-  return NavaWatchBridge.addListener("watchAction", listener);
+  const handle = await NavaWatchBridge.addListener("watchAction", async (action) => {
+    const resolved = enqueueWatchAction(userId, action);
+    await acknowledgeNativeWatchActions([resolved.actionId]);
+    await listener(resolved);
+  });
+
+  try {
+    const drained = await NavaWatchBridge.drainPendingActions();
+    const resolvedActions = (drained.actions ?? []).map((action) => enqueueWatchAction(userId, action));
+    await acknowledgeNativeWatchActions(resolvedActions.map((action) => action.actionId));
+    for (const action of resolvedActions) await listener(action);
+  } catch {
+    // Older native builds may not expose the durable queue yet; live events still work.
+  }
+
+  return handle;
 }

@@ -31,6 +31,10 @@ interaction testing on localhost; they are not evidence of production data.
 - Apple Health uploads use the authenticated ingest Function; partial HealthKit
   reads preserve previously stored metrics, malformed ranges are rejected, and
   a sync-success event is account-filtered before refreshing the UI.
+- The iOS project now contains an embedded `NAVA Watch` watchOS target. Watch
+  actions are persisted in a protected native iPhone queue before delivery to
+  the authenticated Web runtime, then retained in an account-scoped Web queue
+  until `watch-sync` succeeds.
 - Async screen loads, native listener registration, share timers, launch exit,
   and major animated views were reviewed for stale updates and lifecycle leaks.
 
@@ -82,20 +86,21 @@ interaction testing on localhost; they are not evidence of production data.
   Storage routes, and Function endpoints passed against project
   `wxteapvwagvhhtrjrbim`.
 - `npm run health:audit:production`: JWT-protected `health-sync-ingest` is
-  active at production version 10. The legacy `health-auto-export` remains an
+  active at production version 11. The legacy `health-auto-export` remains an
   explicitly human-authorized retirement task.
+- Production migration `202609020002_health_sync_realtime.sql` is applied. The
+  six AI/image Functions and four account/health Functions changed by this
+  audit were deployed as new ACTIVE versions with their intended JWT settings.
 
 ## External/manual gates
 
-The source fixes to consent enforcement, report cache fingerprints, strict
-private-image processing, recursive deletion, validation, and Health ingest are
-not production backend changes until the corresponding Edge Functions are
-explicitly deployed. Migration `202609020002_health_sync_realtime.sql` is also
-pending explicit production authorization. This audit does not claim those
-staged server changes are live.
-
-Physical Apple Health/Watch acceptance still needs a Mac, Xcode, signing,
-Developer Team selection, a real iPhone and Watch, permission/value comparison,
-RLS boundary execution, and TestFlight/App Store work. The points store and
-Focus-session wearable correlation are product-deferred items, not disguised as
-complete features.
+The audited Edge Function changes and Realtime migration are live in canonical
+project `wxteapvwagvhhtrjrbim`; they are no longer staged-only claims. The
+remaining Apple gates require facts that Windows automation cannot create:
+product selection of the registered bundle ID, Apple Developer Team/signing,
+Mac/Xcode compilation and Archive, a real iPhone/Watch permission and value
+comparison, two-account RLS execution, and TestFlight/App Store work. Legacy
+`health-auto-export` retirement and `HEALTH_EXPORT_API_KEY` rotation must wait
+for the web-team client/history review so this release does not break an
+external client. The points store and Focus-session wearable correlation remain
+product-deferred items, not disguised as complete features.

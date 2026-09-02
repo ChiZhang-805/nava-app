@@ -18,6 +18,8 @@ $requiredFiles = @(
   "native\ios\NavaSecureStoragePlugin.swift",
   "native\ios\NavaSpeechPlugin.swift",
   "native\ios\NavaWatchBridgePlugin.swift",
+  "native\watch\Assets.xcassets\AppIcon.appiconset\AppIcon-1024.png",
+  "native\watch\Assets.xcassets\AppIcon.appiconset\Contents.json",
   "native\watch\en.lproj\Localizable.strings",
   "native\watch\NavaWatchApp.swift",
   "native\watch\WatchHomeView.swift",
@@ -45,7 +47,8 @@ function Get-PngDimensions {
 
 foreach ($asset in @(
   @{ Path = "ios\App\App\Assets.xcassets\AppIcon.appiconset\AppIcon-512@2x.png"; Size = 1024 },
-  @{ Path = "ios\App\App\Assets.xcassets\Splash.imageset\splash-2732x2732.png"; Size = 2732 }
+  @{ Path = "ios\App\App\Assets.xcassets\Splash.imageset\splash-2732x2732.png"; Size = 2732 },
+  @{ Path = "native\watch\Assets.xcassets\AppIcon.appiconset\AppIcon-1024.png"; Size = 1024 }
 )) {
   $dimensions = Get-PngDimensions -Path (Join-Path $root $asset.Path)
   if ($dimensions.Width -ne $asset.Size -or $dimensions.Height -ne $asset.Size) {
@@ -120,6 +123,13 @@ foreach ($expected in @(
   "NavaSecureStoragePlugin.swift in Sources",
   "NavaSpeechPlugin.swift in Sources",
   "NavaWatchBridgePlugin.swift in Sources",
+  "NavaWatchApp.swift in Sources",
+  "WatchHomeView.swift in Sources",
+  "WatchSessionManager.swift in Sources",
+  "NAVA Watch.app in Embed Watch Content",
+  'productType = "com.apple.product-type.application.watchapp2";',
+  'PRODUCT_BUNDLE_IDENTIFIER = "$(NAVA_APP_BUNDLE_ID).watchkitapp";',
+  'INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "$(NAVA_APP_BUNDLE_ID)";',
   "NavaBridgeViewController.swift in Sources",
   "CODE_SIGN_ENTITLEMENTS = App/App.entitlements;",
   "TARGETED_DEVICE_FAMILY = 1;"
@@ -131,13 +141,18 @@ foreach ($relativeSource in @("..\..\..\native\ios\NavaHealthPlugin.swift", "..\
   if (!(Test-Path -LiteralPath (Join-Path $appRoot $relativeSource))) { throw "Broken Xcode source reference: $relativeSource" }
 }
 
+$xcodeProjectRoot = Join-Path $root "ios\App"
+foreach ($relativeSource in @("..\..\native\watch\NavaWatchApp.swift", "..\..\native\watch\WatchHomeView.swift", "..\..\native\watch\WatchSessionManager.swift", "..\..\native\watch\Assets.xcassets")) {
+  if (!(Test-Path -LiteralPath (Join-Path $xcodeProjectRoot $relativeSource))) { throw "Broken Watch target source reference: $relativeSource" }
+}
+
 $watchManager = Get-Content -LiteralPath (Join-Path $root "native\watch\WatchSessionManager.swift") -Raw -Encoding UTF8
 foreach ($expected in @("import Combine", "transferUserInfo", "actionId")) {
   if (!$watchManager.Contains($expected)) { throw "Watch session manager is missing: $expected" }
 }
 $watchBridge = Get-Content -LiteralPath (Join-Path $root "native\ios\NavaWatchBridgePlugin.swift") -Raw -Encoding UTF8
-foreach ($expected in @("didReceiveMessage message", "replyHandler", "didReceiveUserInfo")) {
+foreach ($expected in @("didReceiveMessage message", "replyHandler", "didReceiveUserInfo", "drainPendingActions", "acknowledgePendingActions", "completeFileProtectionUntilFirstUserAuthentication")) {
   if (!$watchBridge.Contains($expected)) { throw "iPhone Watch bridge is missing: $expected" }
 }
 
-Write-Host "iOS project contract verified: iPhone portrait, HealthKit, motion, speech input, native plugins, and Watch companion sources."
+Write-Host "iOS project contract verified: iPhone portrait, HealthKit, motion, speech input, native plugins, durable Watch actions, and an embedded watchOS target."

@@ -37,10 +37,10 @@ HealthKit 历史”。网页只展示已经由受信任原生客户端或以后�
 - `health-sync-ingest` 使用已登录用户 JWT，服务端从会话确定用户，写入规范化
   表并刷新节律结果。
 - `health-sync-ingest`、`watch-sync`、`rhythm-score` 当前已在线。
-- WatchConnectivity 的 iPhone 端和 watchOS 源码已存在；服务端动作收据提供
-  幂等保护。
-- 当前 Xcode 工程只有 iPhone target；`native/watch/` 尚不是可签名的 watchOS
-  产品。
+- WatchConnectivity 的 iPhone 端、watchOS 源码和 `NAVA Watch` target 已接入
+  Xcode 工程；iPhone target 会嵌入 Watch 产品，服务端动作收据提供幂等保护。
+- Watch 动作在 iPhone WebView 尚未启动时先写入受文件保护的原生队列；只有
+  转存到账号隔离的 Web 队列后才从原生队列确认删除。
 - 当前尚无 Mac/Xcode 编译、HealthKit 权限、Apple Watch 真机、TestFlight
   或 App Store 验收证据。
 
@@ -117,12 +117,9 @@ HealthKit 历史”。网页只展示已经由受信任原生客户端或以后�
 - [x] 正式入口使用 `health-sync-ingest`，并验证用户 JWT。
 - [x] 本地 `health-sync-ingest` 源码按真实可用字段规范化写入运动、睡眠、健康
   快照和同步任务；部分权限不会用 0 或 null 覆盖同日已有真实值。
-- [ ] 由获授权人员部署并验证本轮更新后的 `health-sync-ingest`；线上 v10 仍是
-  本轮修改前版本。
-- [x] 已新增 append-only 迁移，把 `health_sync_jobs` 加入 Supabase Realtime
-  publication；生产环境尚未应用，见下一个人工步骤。
-- [ ] 由获授权人员在生产 Supabase 审核并应用
-  `202609020002_health_sync_realtime.sql`。
+- [x] 已部署并验证本轮更新后的 `health-sync-ingest`；线上为 v11 且强制 JWT。
+- [x] append-only 迁移 `202609020002_health_sync_realtime.sql` 已在生产项目
+  应用，把 `health_sync_jobs` 加入 Supabase Realtime publication。
 - [x] 当前登录用户收到成功同步事件后，首页、记录页和个人页重新读取真实数据。
 - [x] “最近同步”读取 `health_sync_jobs.finished_at`，不使用固定的“3 分钟
   前”等文案。
@@ -145,13 +142,19 @@ HealthKit 历史”。网页只展示已经由受信任原生客户端或以后�
 
 HealthKit 历史同步不依赖 watchOS App，因此本阶段排在 iPhone 闭环之后。
 
-- [ ] 在 Xcode 创建与正式 iPhone App 配套的 watchOS App target。
-- [ ] 加入 `NavaWatchApp.swift`、`WatchHomeView.swift`、
+- [x] 在 Xcode 工程创建与正式 iPhone App 配套的 `NAVA Watch` watchOS App
+  target，并由 iPhone target 依赖、嵌入。
+- [x] 加入 `NavaWatchApp.swift`、`WatchHomeView.swift`、
   `WatchSessionManager.swift` 和本地化资源。
-- [ ] 为 Watch target 设置配套 bundle ID、签名和 WatchConnectivity capability。
-- [ ] iPhone 登录后向 Watch 发送最小今日快照；Watch 不保存 service role 或模型
+- [x] Watch target 使用 `$(NAVA_APP_BUNDLE_ID).watchkitapp`，并设置
+  `WKCompanionAppBundleIdentifier`；iPhone 与 Watch 可通过一个工程级根值一起
+  切换正式 bundle ID。
+- [ ] 人工在 Xcode 为两个 target 选择 Developer Team 并让自动签名生成对应
+  Provisioning Profile。WatchConnectivity 本身不需要额外客户端密钥。
+- [x] iPhone 登录后向 Watch 发送最小今日快照；Watch 不保存 service role 或模型
   密钥。
-- [ ] Watch 情绪/专注动作通过 iPhone 队列和 `watch-sync` 上传，使用 `actionId`
+- [x] Watch 情绪/专注动作通过 iPhone 原生持久队列、账号隔离 Web 队列和
+  `watch-sync` 上传，使用 `actionId`
   保证至多一次落库。
 - [ ] 真机验证即时消息、Watch 不可达、离线 `transferUserInfo` 重放和重复动作。
 
@@ -253,8 +256,9 @@ npx cap open ios
 合同、Mac 操作脚本、真机验收脚本与文档、TypeScript/后端/视觉自动化。
 
 必须由人工或外部账号完成：唯一 bundle ID 决策、Apple Developer Team
-授权、Mac/Xcode 编译、Capability 在开发者后台生效、iPhone/Watch 权限点击、
-真机数值比对、TestFlight/App Store 上传、生产迁移/Function 退役和密钥轮换。
+授权、Mac/Xcode 编译与签名、iPhone/Watch 权限点击、真机数值比对、带两个
+测试账号的 RLS 验收、TestFlight/App Store 上传，以及确认旧客户端和历史数据
+后的旧 Function 退役与密钥轮换。
 
 ## 9. 已生成的执行与验收工具
 
@@ -269,11 +273,13 @@ npx cap open ios
 - `tests/health-native-contract.test.ts`：Keychain、JWT、缺失值、后台标记和
   Realtime 用户过滤的跨层合同。
 
-截至 2026-09-02，Windows 自动化已通过 `npm run verify`、
+截至 2026-09-02，本轮 Windows 自动化已通过 `npm run verify`、
 `npm run interaction:test`、`npm run auth:verify:production`、
 `npm run supabase:verify-shared`、`npm run health:audit:production`、
-`npm run cap:sync`，并生成 4 个规定视口共 96 个页面状态截图，零控制台错误和
-零横向溢出。该证据不能替代 Mac Swift 编译或 Apple 真机验收。
+`npm run cap:sync`、PBX 独立解析和 watchOS target 静态合同；生产 Realtime
+迁移与 10 个更新 Function 已上线。最终视觉回归生成 4 个规定视口共 96 个
+页面状态截图，零控制台错误和零横向溢出。该证据不能替代 Mac Swift 编译或
+Apple 真机验收。
 
 ## 10. 官方依据
 

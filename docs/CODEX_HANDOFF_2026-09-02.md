@@ -540,3 +540,44 @@ Release provenance for this batch:
   375x812, 390x844, and 430x932 with auth-first entry, canonical Supabase,
   no console/page errors, and no horizontal overflow. Evidence is at
   `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v81`.
+
+## 15. Production backend and embedded Watch target completion
+
+After explicit authorization to finish all non-human work and deploy, the
+remaining Windows-side Apple/backend work was completed:
+
+- `ios/App/App.xcodeproj` now contains an actual `NAVA Watch` watchOS target,
+  its three Swift sources, localizations, app icon asset, build phases, target
+  dependency, and `Embed Watch Content` phase. Both products derive from the
+  single project setting `NAVA_APP_BUNDLE_ID`; the companion product uses the
+  required `.watchkitapp` suffix and companion identifier key.
+- The iPhone Watch bridge persists every received action in a protected
+  Application Support JSON queue before notifying Capacitor. JavaScript drains
+  that queue into the current user's local pending queue and acknowledges the
+  native copy only after the durable handoff, preventing loss when the WebView
+  was not ready. Server `actionId` receipts remain the final idempotency boundary.
+- Production migration `202609020002_health_sync_realtime.sql` is applied in
+  canonical Supabase project `wxteapvwagvhhtrjrbim`.
+- Updated production Functions were deployed and confirmed ACTIVE:
+  `ai-chat-reply` v19, `ai-diet-report` v6, `ai-extract-data` v18,
+  `ai-health-report` v8, `diet-extract` v16, `face-analyze` v15,
+  `delete-account` v8, `export-user-data` v13, `health-sync-ingest` v11, and
+  `watch-sync` v11. Protected endpoints still verify JWT.
+- The legacy `health-auto-export` v13 remains online deliberately. It must not
+  be deleted or have its shared secret rotated until the separate web client
+  and any `health_imports` history have been reviewed.
+
+Final source verification for this batch passed `npm run verify`, all 9
+interaction groups, the PRD batch at 360x740/375x812/390x844/430x932, 96 final
+screenshots, icons, production Auth, shared Supabase alignment, production
+Health Function audit, Capacitor sync, iOS/Watch static contracts, and an
+independent PBX parser. Representative onboarding, records, immersive focus,
+diet editor, weekly report, and device screenshots were visually inspected.
+
+Only human/external Apple acceptance remains: choose the already registered
+bundle identity, select the Developer Team and signing in Xcode, compile and
+Archive on a Mac, exercise real iPhone/Apple Watch authorization and data
+comparisons, execute the prepared two-account RLS check, then distribute through
+TestFlight/App Store. These gates are not marked complete without evidence.
+Focus-session hardware correlation and the points store remain intentionally
+deferred by the product owner.
