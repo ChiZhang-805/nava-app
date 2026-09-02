@@ -19,7 +19,7 @@ import {
   getTodaySnapshot,
   getTrends,
 } from "../services/records";
-import { todayISO } from "../services/date";
+import { shiftDateISO, todayISO } from "../services/date";
 import { analyzeDietPhoto, analyzeFacePhoto, resolveDietPhotoUrl } from "../services/media";
 import { currentSevenDayPeriod, loadDnbWeeklyReport, refreshFdnbHealth, shareDnbWeeklyPoster, type DnbWeeklyReport } from "../services/dnb";
 import { trackAnalyticsEvent } from "../services/analytics";
@@ -29,6 +29,7 @@ import { loadProfile, type UserProfile } from "../services/profile";
 import { loadDietAiReport } from "../services/dietReport";
 import { loadHealthAiReport, type HealthAiReport } from "../services/healthReport";
 import { calculateWeeklyModuleScores, type WeeklyModuleKey } from "../services/weeklyModuleScores";
+import { allHealthModulesRecorded, buildHealthModulePresentations, compareRecordedPeriodAverages } from "../services/healthReportPresentation";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 import RecordModuleDashboard from "./RecordModuleDashboard";
 
@@ -52,43 +53,36 @@ const recordModules: Array<{
   id: RecordModule;
   labelKey: TranslationKey;
   icon: LucideIcon;
-  summaryKeys: [TranslationKey, TranslationKey, TranslationKey, TranslationKey];
 }> = [
   {
     id: "mood",
     labelKey: "records.mood",
     icon: SmilePlus,
-    summaryKeys: ["records.hub.mood.one", "records.hub.mood.two", "records.hub.mood.three", "records.hub.mood.four"],
   },
   {
     id: "sleep",
     labelKey: "records.sleep",
     icon: BedDouble,
-    summaryKeys: ["records.hub.sleep.one", "records.hub.sleep.two", "records.hub.sleep.three", "records.hub.sleep.four"],
   },
   {
     id: "exercise",
     labelKey: "records.exercise",
     icon: Dumbbell,
-    summaryKeys: ["records.hub.exercise.one", "records.hub.exercise.two", "records.hub.exercise.three", "records.hub.exercise.four"],
   },
   {
     id: "diet",
     labelKey: "records.diet",
     icon: Drumstick,
-    summaryKeys: ["records.hub.diet.one", "records.hub.diet.two", "records.hub.diet.three", "records.hub.diet.four"],
   },
   {
     id: "focus",
     labelKey: "records.focus",
     icon: Brain,
-    summaryKeys: ["records.hub.focus.one", "records.hub.focus.two", "records.hub.focus.three", "records.hub.focus.four"],
   },
   {
     id: "face",
     labelKey: "records.faceShort",
     icon: ScanFace,
-    summaryKeys: ["records.hub.face.one", "records.hub.face.two", "records.hub.face.three", "records.hub.face.four"],
   },
 ];
 
@@ -97,6 +91,7 @@ export default function RecordsScreen({
   deviceDate,
   onSaved,
   onGrowthActivity,
+  onOpenAi,
   initialModule = null,
   initialView = null,
   onModuleChange,
@@ -106,6 +101,7 @@ export default function RecordsScreen({
   deviceDate: string;
   onSaved: () => void;
   onGrowthActivity?: (activity: GrowthActivityKind) => void | Promise<unknown>;
+  onOpenAi?: (prompt: string) => void;
   initialModule?: RecordModule | null;
   initialView?: string | null;
   onModuleChange?: (module: RecordModule | null) => void;
@@ -129,6 +125,9 @@ export default function RecordsScreen({
   const [weekOffset, setWeekOffset] = useState(0);
   const [weeklyLongPressing, setWeeklyLongPressing] = useState(false);
   const [weeklyChartMode, setWeeklyChartMode] = useState<"trend" | "radar">("trend");
+  const [hubAiReport, setHubAiReport] = useState<HealthAiReport | null>(null);
+  const [hubAiLoading, setHubAiLoading] = useState(false);
+  const [hubAiUnavailable, setHubAiUnavailable] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const weeklyLongPressTimerRef = useRef<number | null>(null);
@@ -172,17 +171,29 @@ export default function RecordsScreen({
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [faceResult, setFaceResult] = useState<FaceAnalysisResult | null>(null);
   const [faceAnalyzing, setFaceAnalyzing] = useState(false);
-  const [faceMode, setFaceMode] = useState<"bare_face" | "makeup">("bare_face");
-  const [faceConsent, setFaceConsent] = useState(false);
+  const faceSettingsKey = `nava-face-capture-settings:${user.id}`;
+  const [faceMode, setFaceMode] = useState<"bare_face" | "makeup">(() => {
+    try { return JSON.parse(window.sessionStorage.getItem(faceSettingsKey) ?? "{}").mode === "makeup" ? "makeup" : "bare_face"; } catch { return "bare_face"; }
+  });
+  const [faceConsent, setFaceConsent] = useState(() => {
+    try { return JSON.parse(window.sessionStorage.getItem(faceSettingsKey) ?? "{}").consent === true; } catch { return false; }
+  });
   const dietQuickCameraInputRef = useRef<HTMLInputElement | null>(null);
   const facePhotoInputRef = useRef<HTMLInputElement | null>(null);
+  const faceLibraryInputRef = useRef<HTMLInputElement | null>(null);
   const moodAutoSaveTimerRef = useRef<number | null>(null);
   const moodAutoSaveRequestRef = useRef(0);
   const moodAutoSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const healthModulePresentations = buildHealthModulePresentations(todaySnapshot, locale);
+  const allHubModulesComplete = allHealthModulesRecorded(healthModulePresentations);
 
   useEffect(() => {
     setFocusTitle((current) => current === "产品原型" || current === "Product prototype" || current === "Prototype" ? "" : current);
   }, [locale]);
+
+  useEffect(() => {
+    window.sessionStorage.setItem(faceSettingsKey, JSON.stringify({ mode: faceMode, consent: faceConsent }));
+  }, [faceConsent, faceMode, faceSettingsKey]);
 
   useEffect(() => {
     if (!notice) return;
@@ -368,6 +379,30 @@ export default function RecordsScreen({
       active = false;
     };
   }, [deviceDate, locale, reportMode, user.id, weekOffset]);
+
+  useEffect(() => {
+    let active = true;
+    if (!allHubModulesComplete) {
+      setHubAiReport(null);
+      setHubAiLoading(false);
+      setHubAiUnavailable(false);
+      return () => { active = false; };
+    }
+    setHubAiLoading(true);
+    setHubAiUnavailable(false);
+    void loadHealthAiReport({ scope: "weekly", endDate: recordDate, locale })
+      .then((report) => {
+        if (active) setHubAiReport(report);
+      })
+      .catch((reportError) => {
+        console.warn("Health report overview AI generation deferred", reportError);
+        if (active) setHubAiUnavailable(true);
+      })
+      .finally(() => {
+        if (active) setHubAiLoading(false);
+      });
+    return () => { active = false; };
+  }, [allHubModulesComplete, locale, recordDate, user.id]);
 
   useEffect(() => {
     if (reportMode !== "weekly") return;
@@ -729,6 +764,12 @@ export default function RecordsScreen({
         loadHealthAiReport({ scope: "face", endDate: recordDate, locale, refresh: true }),
       ]);
       setNotice("persisted" in saved && !saved.persisted ? t("records.faceAnalyzed") : t("records.faceSaved"));
+      if (!("persisted" in saved) || saved.persisted) {
+        await loadRecordData();
+        onSaved();
+        setShowEditor(false);
+        onViewChange?.(null);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -748,7 +789,7 @@ export default function RecordsScreen({
     );
   }
 
-  async function saveFocusMinutes(minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string }) {
+  async function saveFocusMinutes(minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string; category?: string }) {
     await run("records.focus", () =>
       saveFocusSession({
         userId: user.id,
@@ -758,6 +799,7 @@ export default function RecordsScreen({
         interruptions: details?.interruptions,
         startedAt: details?.startedAt,
         endedAt: details?.endedAt,
+        category: details?.category,
       }),
     );
   }
@@ -776,7 +818,17 @@ export default function RecordsScreen({
     }));
     const reportPoints = rhythmPoints;
     const latestReportPoint = reportPoints[reportPoints.length - 1];
-    const weekChange = reportPoints.length >= 2 && latestReportPoint ? Math.round(latestReportPoint.value - reportPoints[0].value) : 0;
+    const previousPeriodStart = shiftDateISO(dnbPeriod.startDate, -7);
+    const previousPeriodEnd = shiftDateISO(dnbPeriod.endDate, -7);
+    const periodComparison = compareRecordedPeriodAverages(
+      reportPoints.map((point) => point.value),
+      (trendBundle?.rhythms ?? [])
+      .filter((item) => item.record_date >= previousPeriodStart && item.record_date <= previousPeriodEnd)
+      .map((item) => item.score),
+    );
+    const overallScore = dnbReport?.status === "ready"
+      ? Math.round(dnbReport.stabilityScore ?? dnbReport.score ?? periodComparison.currentAverage ?? latestReportPoint?.value ?? 0)
+      : periodComparison.currentAverage;
     const completedModules = [
       (trendBundle?.moods ?? []).some((item) => inSelectedWeek(item.record_date)),
       (trendBundle?.sleeps ?? []).some((item) => inSelectedWeek(item.record_date)),
@@ -809,11 +861,29 @@ export default function RecordsScreen({
             />
           </label>
 
+          {allHubModulesComplete && (
+            <section className="record-hub-ai-summary" aria-live="polite" data-provider={hubAiReport?.provider ?? undefined}>
+              <span aria-hidden="true"><Bot size={17} /></span>
+              <div>
+                <strong>{hubAiReport?.provider === "demo"
+                  ? (locale === "zh" ? "演示节律总提示" : "Demo rhythm overview")
+                  : (locale === "zh" ? "AI 节律总提示" : "AI rhythm overview")}</strong>
+                <p>{hubAiLoading
+                  ? (locale === "zh" ? "正在根据六项真实记录生成提示…" : "Generating an insight from all six records…")
+                  : hubAiReport?.bullets[0] ?? (locale === "zh" ? "六项记录已完成，真实 AI 提示暂不可用。" : "All six records are complete; the AI insight is unavailable.")}</p>
+                {hubAiUnavailable && <small>{locale === "zh" ? "稍后重试，不影响查看分项报告。" : "Retry later; module reports remain available."}</small>}
+              </div>
+            </section>
+          )}
+
           <div className="record-module-grid">
-            {recordModules.map(({ id, labelKey, icon: Icon, summaryKeys }) => (
+            {recordModules.map(({ id, labelKey, icon: Icon }) => {
+              const presentation = healthModulePresentations[id];
+              return (
               <button
-                className="record-module-entry"
+                className={["record-module-entry", presentation.recorded ? "is-recorded" : "is-missing"].join(" ")}
                 data-record-module={id}
+                data-record-state={presentation.recorded ? "recorded" : "missing"}
                 key={id}
                 type="button"
                 onClick={() => {
@@ -831,11 +901,12 @@ export default function RecordsScreen({
                   </span>
                 </span>
                 <span className="record-module-points" aria-hidden="true">
-                  {summaryKeys.map((key) => <span key={key}>{t(key)}</span>)}
+                  {presentation.points.map((point) => <span key={point}>{point}</span>)}
                 </span>
                 <ChevronRight className="record-module-arrow" size={20} aria-hidden="true" />
               </button>
-            ))}
+              );
+            })}
           </div>
         </> : (
           <div
@@ -855,9 +926,9 @@ export default function RecordsScreen({
               <button type="button" disabled={weekOffset === 0} onClick={() => setWeekOffset((value) => Math.max(0, value - 1))} aria-label={locale === "zh" ? "下一周" : "Next week"}><ChevronRight size={18} /></button>
             </div>
             <section className="weekly-score-card">
-              <div><span>{locale === "zh" ? "基础节律：" : "Baseline: "}</span><strong>{latestReportPoint == null ? "--" : <AnimatedNumber value={latestReportPoint.value} />}</strong></div>
+              <div><span>{locale === "zh" ? "综合节律：" : "Overall: "}</span><strong>{overallScore == null ? "--" : <AnimatedNumber value={overallScore} />}</strong></div>
               <div><span>{locale === "zh" ? "数据完整度：" : "Complete: "}</span><strong><AnimatedNumber value={completedModules} duration={520} />/6</strong></div>
-              <div><span>{locale === "zh" ? "周内变化：" : "Change: "}</span><strong>{weekChange >= 0 ? "+" : ""}<AnimatedNumber value={weekChange} duration={640} /></strong></div>
+              <div><span>{locale === "zh" ? "较上周期：" : "Previous: "}</span><strong>{periodComparison.change == null ? "--" : <>{periodComparison.change >= 0 ? "+" : ""}<AnimatedNumber value={periodComparison.change} duration={640} /></>}</strong></div>
             </section>
             <section className="weekly-trend-card">
               <header>
@@ -968,6 +1039,7 @@ export default function RecordsScreen({
           moodFactors={moodFactors.map((factor) => ({ value: factor.value, label: t(factor.labelKey) }))}
           selectedFactors={selectedFactors}
           setPrimaryFactor={setPrimaryFactor}
+          toggleMoodFactor={toggleFactor}
           diary={diary}
           setDiary={setDiary}
           onSaveMood={saveMood}
@@ -997,6 +1069,12 @@ export default function RecordsScreen({
           trendBundle={trendBundle}
           profile={profile}
           onGrowthActivity={onGrowthActivity}
+          onOpenAi={onOpenAi}
+          onOpenWeeklyReport={() => {
+            setActiveModule(null);
+            setReportMode("weekly");
+            onModuleChange?.(null);
+          }}
           initialView={initialView === "editor" ? null : initialView}
           onViewChange={onViewChange}
         />
@@ -1035,6 +1113,13 @@ export default function RecordsScreen({
 
       <form hidden={activeModule !== "sleep"} onSubmit={saveSleep}>
         <SectionCard title={t("records.sleep")}>
+          <div className="sleep-preset-row" role="group" aria-label={locale === "zh" ? "常用作息预设" : "Common sleep presets"}>
+            {[
+              { label: locale === "zh" ? "早睡" : "Early", start: "22:30", end: "06:30", minutes: 480 },
+              { label: locale === "zh" ? "标准" : "Standard", start: "23:00", end: "07:00", minutes: 480 },
+              { label: locale === "zh" ? "晚睡" : "Late", start: "00:30", end: "08:00", minutes: 450 },
+            ].map((preset) => <button type="button" key={preset.label} onClick={() => { setSleepStart(preset.start); setSleepEnd(preset.end); setSleepDuration(preset.minutes); setDeepSleep(Math.round(preset.minutes * .2)); setLightSleep(Math.round(preset.minutes * .58)); setRemSleep(preset.minutes - Math.round(preset.minutes * .2) - Math.round(preset.minutes * .58)); }}>{preset.label}<small>{preset.start}–{preset.end}</small></button>)}
+          </div>
           <div className="two-col">
             <label className="field">
               <span>{t("records.sleepStart")}</span>
@@ -1117,6 +1202,14 @@ export default function RecordsScreen({
 
       <form hidden={activeModule !== "diet"} onSubmit={saveDiet}>
         <SectionCard title={t("records.diet")}>
+          <div className="diet-quick-foods" role="group" aria-label={locale === "zh" ? "常见食物估算快捷填入" : "Quick estimated foods"}>
+            {[
+              { zh: "鸡蛋 1 个", en: "1 egg", calories: 78, protein: 6, carbs: 1, fat: 5 },
+              { zh: "米饭 1 碗", en: "Rice bowl", calories: 230, protein: 4, carbs: 50, fat: 1 },
+              { zh: "牛奶 250ml", en: "Milk 250ml", calories: 150, protein: 8, carbs: 12, fat: 8 },
+              { zh: "苹果 1 个", en: "1 apple", calories: 95, protein: 0, carbs: 25, fat: 0 },
+            ].map((food) => <button type="button" key={food.zh} onClick={() => { setMealName(locale === "zh" ? `${food.zh}（估算）` : `${food.en} (estimate)`); setMealCalories(food.calories); setProteinGrams(food.protein); setCarbohydrateGrams(food.carbs); setFatGrams(food.fat); setDietItems([]); }}><strong>{locale === "zh" ? food.zh : food.en}</strong><small>≈ {food.calories} kcal</small></button>)}
+          </div>
           <div className={["photo-picker", "diet-photo-preview", dietAnalyzing ? "is-analyzing" : "", dietPhotoUrl ? "has-image" : ""].filter(Boolean).join(" ")} aria-live="polite">
             {dietPhotoUrl ? <img src={dietPhotoUrl} alt="饮食照片" /> : <Camera size={28} />}
             <span>{dietAnalyzing ? t("records.aiScanning") : t("records.scanDiet")}</span>
@@ -1238,6 +1331,7 @@ export default function RecordsScreen({
             <button type="button" className={faceMode === "bare_face" ? "selected" : ""} onClick={() => setFaceMode("bare_face")}>{locale === "zh" ? "素颜模式" : "Bare face"}</button>
             <button type="button" className={faceMode === "makeup" ? "selected" : ""} onClick={() => setFaceMode("makeup")}>{locale === "zh" ? "带妆模式" : "Makeup"}</button>
           </div>
+          {faceMode === "bare_face" && <div className="face-bare-guidance"><Bot size={19} /><p><strong>{locale === "zh" ? "真实状态就是最好的记录" : "Your real state is the best record"}</strong><span>{locale === "zh" ? "不需要修饰，也不需要达到任何标准。照片只有在你明确同意后才会加密上传到账号隔离的私密存储。" : "No retouching and no standard to meet. The photo is encrypted and uploaded to account-isolated private storage only after your explicit consent."}</span></p></div>}
           <label className="face-consent"><input type="checkbox" checked={faceConsent} onChange={(event) => setFaceConsent(event.target.checked)} /><span>{locale === "zh" ? "我同意将照片加密上传至账号隔离的私密存储，并以 10 分钟签名链接完成本次非医疗状态分析。" : "I consent to private encrypted upload and a 10-minute signed link for this non-medical state analysis."}</span></label>
           <label className={["photo-picker", "face", faceAnalyzing ? "is-analyzing" : "", faceImage ? "has-image" : ""].filter(Boolean).join(" ")}>
             {faceImage ? <img src={faceImage} alt={locale === "zh" ? "面部照片" : "Face photo"} /> : <ScanFace size={30} />}
@@ -1249,10 +1343,15 @@ export default function RecordsScreen({
               accept="image/*"
               capture="user"
               disabled={faceAnalyzing || !faceConsent}
-              onChange={(e) => void handleFacePhoto(e.target.files?.[0] ?? null)}
+              onChange={(e) => { const file = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ""; void handleFacePhoto(file); }}
             />
             {faceAnalyzing && <Loader2 className="spin" size={18} />}
           </label>
+          <div className="face-photo-actions">
+            <button type="button" disabled={faceAnalyzing || !faceConsent} onClick={() => facePhotoInputRef.current?.click()}><Camera size={17} />{faceImage ? (locale === "zh" ? "重新拍摄" : "Retake") : (locale === "zh" ? "前置拍摄" : "Front camera")}</button>
+            <button type="button" disabled={faceAnalyzing || !faceConsent} onClick={() => faceLibraryInputRef.current?.click()}><Upload size={17} />{locale === "zh" ? "从相册重选" : "Choose from library"}</button>
+            <input ref={faceLibraryInputRef} hidden aria-label={locale === "zh" ? "从相册选择面部照片" : "Choose face photo from library"} type="file" accept="image/*" disabled={faceAnalyzing || !faceConsent} onChange={(e) => { const file = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ""; void handleFacePhoto(file); }} />
+          </div>
           {faceResult && (
             <div className="face-result">
               <strong>{t("records.score", { score: Math.round(faceResult.overall_score) })}</strong>

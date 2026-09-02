@@ -30,6 +30,10 @@ export async function confirmStructuredEntry(userId: string, candidate: Structur
       "ai",
       String(data.scheduledDate ?? todayISO()),
       data.scheduledTime ? String(data.scheduledTime) : undefined,
+      {
+        focusMinutes: finitePositiveInteger(data.focusMinutes),
+        focusSessions: finitePositiveInteger(data.focusSessions),
+      },
     );
   }
   if (candidate.type === "mood") await saveMoodRecord({
@@ -87,4 +91,9 @@ function finiteNumber(value: unknown) {
   if (value === null || value === undefined || value === "") return undefined;
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(0, number) : undefined;
+}
+
+function finitePositiveInteger(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? Math.round(number) : undefined;
 }

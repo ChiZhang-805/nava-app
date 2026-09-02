@@ -23,6 +23,7 @@
     "screenshots:background": "node scripts/capture-background-states.mjs",
     "screenshots:motion": "node scripts/capture-motion-background.mjs",
     "interaction:test": "node scripts/verify-interactions.mjs",
+    "prd-batch:test": "node scripts/verify-prd-batch.mjs",
     "icons:test": "node scripts/verify-navigation-icons.mjs",
     "supabase:verify-shared": "node scripts/verify-shared-supabase.mjs",
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy",

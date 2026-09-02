@@ -141,7 +141,7 @@ export default function GrowthTasksScreen({
       <div className="growth-task-list" aria-busy={loading}>
         {(["profile", "daily"] as const).map((category) => <section className="growth-task-group" key={category}>
           <header>{category === "profile" ? (locale === "zh" ? "画像完善" : "Profile") : (locale === "zh" ? "今日节律" : "Today")}</header>
-          {tasks.filter((task) => task.category === category).map((task) => {
+          {tasks.filter((task) => task.category === category && !(category === "profile" && task.completed)).map((task) => {
             const isIncoming = newTaskIds.has(task.id);
             const completedVisible = task.completed && (!isIncoming || revealedTaskIds.has(task.id));
             const justRevealed = isIncoming && revealedTaskIds.has(task.id);

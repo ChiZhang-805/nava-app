@@ -120,6 +120,7 @@ function MobileShell() {
   const [aiPressing, setAiPressing] = useState(false);
   const [mascotPlayToken, setMascotPlayToken] = useState(0);
   const [aiCommand, setAiCommand] = useState<AiCommand | null>(null);
+  const [aiPromptRequest, setAiPromptRequest] = useState<{ id: number; text: string } | null>(null);
   const [aiHasMounted, setAiHasMounted] = useState(initialRouteRef.current.tab === "ai");
   const aiSpeechStorageKey = `nava-ai-speech-enabled:${user?.id ?? "anonymous"}`;
   const [aiSpeechEnabled, setAiSpeechEnabled] = useState(() => {
@@ -439,10 +440,12 @@ function MobileShell() {
 
   if (!user) return null;
 
+  const focusImmersive = activeTab === "record" && recordModule === "focus" && (recordView === "immersive" || recordView === "interruption");
+
   return (
-    <div className={["phone-frame", activeTab === "today" ? "phone-frame--option2" : ""].filter(Boolean).join(" ")}>
+    <div className={["phone-frame", activeTab === "today" ? "phone-frame--option2" : "", focusImmersive ? "phone-frame--focus-immersive" : ""].filter(Boolean).join(" ")}>
       <div className="safe-top" />
-      {activeTab !== "today" && (
+      {activeTab !== "today" && !focusImmersive && (
         <header className="app-header figma-app-header">
           <button
             className="figma-header-action"
@@ -531,6 +534,10 @@ function MobileShell() {
                 deviceDate={deviceDate}
                 onSaved={markChanged}
                 onGrowthActivity={completeGrowthActivity}
+                onOpenAi={(prompt) => {
+                  setAiPromptRequest((current) => ({ id: (current?.id ?? 0) + 1, text: prompt }));
+                  navigate("ai");
+                }}
                 initialModule={recordModule}
                 initialView={recordView}
                 onModuleChange={(module) => navigate("record", module)}
@@ -561,6 +568,7 @@ function MobileShell() {
                   profileRefreshKey={refreshKey}
                   speechEnabled={aiSpeechEnabled}
                   active={activeTab === "ai"}
+                  initialPromptRequest={aiPromptRequest}
                   onDataSaved={markChanged}
                   onConversationCompleted={() => void completeGrowthActivity("ai")}
                 />
@@ -598,7 +606,7 @@ function MobileShell() {
         </div>
       </main>
 
-      <nav className="bottom-nav" aria-label="主导航">
+      {!focusImmersive && <nav className="bottom-nav" aria-label="主导航">
         {tabs.map((tab) => {
           const selected = activeTab === tab.id;
           const isAiTab = tab.id === "ai";
@@ -646,7 +654,7 @@ function MobileShell() {
             </button>
           );
         })}
-      </nav>
+      </nav>}
       <UtilityDrawer
         user={user}
         open={drawerOpen}

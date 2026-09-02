@@ -53,7 +53,7 @@ import {
 } from "../services/health";
 import { getWatchReachability } from "../services/watch";
 import { shareReportImage } from "../services/reportShareCard";
-import type { GrowthActivityKind } from "../services/productivity";
+import { addTodo, subscribeProductivity, syncTodos, toggleTodo, type GrowthActivityKind, type TodoItem } from "../services/productivity";
 import { isCompleteMoodRecord, moodBandForScore, moodBands, moodDateWindow } from "../services/mood";
 import {
   activityHeatmap,
@@ -78,6 +78,7 @@ type Props = {
   moodFactors: MoodFactor[];
   selectedFactors: string[];
   setPrimaryFactor: (value: string) => void;
+  toggleMoodFactor: (value: string) => void;
   diary: string;
   setDiary: (value: string) => void;
   onSaveMood: (event: FormEvent<HTMLFormElement>) => Promise<boolean>;
@@ -96,7 +97,7 @@ type Props = {
   setFocusMinutes: (value: number) => void;
   onOpenEditor: () => void;
   onOpenDietCamera: () => void;
-  onSaveFocusMinutes: (minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string }) => Promise<void>;
+  onSaveFocusMinutes: (minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string; category?: string }) => Promise<void>;
   busy: string | null;
   recordDate: string;
   deviceDate: string;
@@ -106,6 +107,8 @@ type Props = {
   initialView?: string | null;
   onViewChange?: (view: string | null, replace?: boolean) => void;
   onGrowthActivity?: (activity: GrowthActivityKind) => void | Promise<unknown>;
+  onOpenAi?: (prompt: string) => void;
+  onOpenWeeklyReport?: () => void;
 };
 
 type OpenModuleView = (view: string, returnToPrevious?: boolean) => void;
@@ -662,7 +665,7 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
     setMoodScore,
     moodFactors,
     selectedFactors,
-    setPrimaryFactor,
+    toggleMoodFactor,
     diary,
     setDiary,
     onSaveMood,
@@ -690,6 +693,8 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
   );
   const trendPoints = useMemo(() => moodTrendPoints(moodRecords, deviceDate, locale), [deviceDate, locale, moodRecords]);
   const distribution = useMemo(() => moodDistribution(moodRecords, locale), [locale, moodRecords]);
+  const recentLowMood = moodRecords.filter((record) => record.mood_score <= 40).slice(-3);
+  const repeatedLowMood = recentLowMood.length >= 3 && moodRecords.slice(-3).every((record) => record.mood_score <= 40);
 
   const submitMood = async (event: FormEvent<HTMLFormElement>) => {
     const didSave = await onSaveMood(event);
@@ -743,15 +748,13 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
             onBlur={(event) => setMoodScore(Number(event.currentTarget.value), true)}
           />
         </label>
-        <div className="mood-factor-row">
-          <span>{locale === "zh" ? "主要原因" : "Main cause"}</span>
-          <select value={selectedFactors[0] ?? ""} onChange={(event) => setPrimaryFactor(event.target.value)}>
-            <option value="">{locale === "zh" ? "请选择" : "Choose"}</option>
-            {moodFactors.map((factor) => <option key={factor.value} value={factor.value}>{factor.label}</option>)}
-          </select>
+        <div className="mood-factor-row mood-factor-chips">
+          <span>{locale === "zh" ? "影响因素（可多选）" : "Factors (multiple)"}</span>
+          <div>{moodFactors.map((factor) => <button type="button" className={selectedFactors.includes(factor.value) ? "selected" : ""} key={factor.value} onClick={() => toggleMoodFactor(factor.value)}>{factor.label}</button>)}</div>
         </div>
         <button className="mood-diary-trigger" type="button" onClick={() => openView("journal")} aria-label={locale === "zh" ? "填写情绪日记" : "Write mood journal"}>{diary || (locale === "zh" ? "写下今天的情绪" : "Write a mood note")}</button>
       </section>
+      {repeatedLowMood && <section className="mood-pattern-alert" role="status"><HeartPulse size={18} /><p>{locale === "zh" ? "最近 3 次记录都处于低位。可以先降低今天的任务负荷；如果这种状态持续或影响安全，请联系可信任的人或专业支持。" : "Your last 3 entries were low. Reduce today's load, and seek trusted or professional support if this persists or affects safety."}</p></section>}
       <section className="figma-module-card mood-trend-card">
         <header><strong>{locale === "zh" ? "近 7 天情绪趋势" : "7-day mood"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("history")} aria-label={locale === "zh" ? "查看情绪趋势报告" : "View mood trend report"}><ChevronRight size={18} /></button></header>
         <div className="mood-chart"><BarLineTrendChart points={trendPoints} scoreScale interactive curve="monotone" lineAnchor="bar-center" ariaLabel={locale === "zh" ? `近七日情绪强度柱状图与平滑趋势曲线，日期从${trendPoints[0]?.label}至${trendPoints[trendPoints.length - 1]?.label}，当天为${trendPoints[trendPoints.length - 1]?.label}，纵轴范围零到一百` : `Seven-day mood intensity bars and smooth trend line, ${trendPoints[0]?.label} to ${trendPoints[trendPoints.length - 1]?.label}; the final point is today, on a zero to one hundred scale`} /></div>
@@ -798,6 +801,9 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
   const todayKey = `nava-sleep-alert-dismissed:${deviceDate}`;
   const [alertVisible, setAlertVisible] = useState(() => window.sessionStorage.getItem(todayKey) !== "1");
   const [notificationEnabled, setNotificationEnabled] = useState(false);
+  const notificationTimeKey = `nava-sleep-reminder-time:${userId}`;
+  const [reminderTime, setReminderTime] = useState(() => window.localStorage.getItem(notificationTimeKey) ?? "22:30");
+  const [sleepChartMode, setSleepChartMode] = useState<"duration" | "rating">("duration");
   const latestSleep = useMemo(() => {
     if (todaySnapshot?.sleep) return todaySnapshot.sleep;
     const records = [...(trendBundle?.sleeps ?? [])].sort((a, b) => a.record_date.localeCompare(b.record_date));
@@ -820,22 +826,27 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
     return recentRecords.map(({ date, record }): BarLineTrendPoint => {
         const minutes = Math.max(0, record?.sleep_duration_minutes ?? 0);
         const hours = minutes / 60;
-        const normalized = (minutes / maxMinutes) * 100;
+        const rating = Math.max(0, record?.self_rating ?? 0);
+        const normalized = sleepChartMode === "duration" ? (minutes / maxMinutes) * 100 : rating * 20;
+        const valueText = sleepChartMode === "duration"
+          ? (locale === "zh" ? `${hours.toFixed(1)} 小时` : `${hours.toFixed(1)} h`)
+          : (locale === "zh" ? `${rating}/5 分` : `${rating}/5`);
         return {
           id: record?.id ?? `missing-sleep-${date}`,
           label: shortDate(date, locale),
           barValue: normalized,
           lineValue: normalized,
-          barText: record ? (locale === "zh" ? `${hours.toFixed(1)} 小时` : `${hours.toFixed(1)} h`) : (locale === "zh" ? "暂无记录" : "No entry"),
-          lineText: record ? (locale === "zh" ? `${hours.toFixed(1)} 小时` : `${hours.toFixed(1)} h`) : (locale === "zh" ? "暂无记录" : "No entry"),
+          barText: record ? valueText : (locale === "zh" ? "暂无记录" : "No entry"),
+          lineText: record ? valueText : (locale === "zh" ? "暂无记录" : "No entry"),
           missing: !record,
         };
       });
-  }, [deviceDate, locale, recordDate, todaySnapshot?.sleep, trendBundle]);
+  }, [deviceDate, locale, recordDate, sleepChartMode, todaySnapshot?.sleep, trendBundle]);
   const hasSleepTrend = sleepTrend.some((point) => !point.missing);
 
   const enableNotification = async () => {
-    await enableNavaNotifications(userId, "22:30");
+    await enableNavaNotifications(userId, reminderTime);
+    window.localStorage.setItem(notificationTimeKey, reminderTime);
     setNotificationEnabled(true);
   };
 
@@ -854,12 +865,12 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
         </div>
       </section>
       <section className="figma-module-card sleep-trend-card">
-        <header><strong>{locale === "zh" ? "7 日睡眠趋势" : "7-day sleep trend"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("history")} aria-label={locale === "zh" ? "查看睡眠趋势报告" : "View sleep trend report"}><ChevronRight size={18} /></button></header>
+        <header><strong>{locale === "zh" ? "7 日睡眠趋势" : "7-day sleep trend"}</strong><div className="sleep-chart-actions"><div><button type="button" className={sleepChartMode === "duration" ? "active" : ""} onClick={() => setSleepChartMode("duration")}>{locale === "zh" ? "时长" : "Duration"}</button><button type="button" className={sleepChartMode === "rating" ? "active" : ""} onClick={() => setSleepChartMode("rating")}>{locale === "zh" ? "自评" : "Rating"}</button></div><button className="module-card-nav-button" type="button" onClick={() => openView("history")} aria-label={locale === "zh" ? "查看睡眠趋势报告" : "View sleep trend report"}><ChevronRight size={18} /></button></div></header>
         {hasSleepTrend
           ? <BarLineTrendChart points={sleepTrend} scoreScale lineAnchor="bar-center" ariaLabel={locale === "zh" ? "近七日睡眠时长柱状图与同源趋势折线图，每个点对应同日柱子的几何中心" : "Seven-day sleep-duration bars with a linked line whose points match each bar's geometric center"} />
           : <p className="module-empty-copy">{locale === "zh" ? "完成睡眠记录后显示趋势" : "Log sleep to begin the trend"}</p>}
       </section>
-      {view === "alert" && <div className="module-modal" role="dialog" aria-modal="true"><div className="module-modal-card sleep-alert-modal"><header><strong>{locale === "zh" ? "睡眠提醒" : "Sleep reminder"}</strong><button type="button" onClick={() => openView("overview")}><X size={20} /></button></header><div className="lock-screen-preview"><Bell size={24} /><strong>NAVA</strong><p>{locale === "zh" ? "该准备入睡了，给今天一个安静的收尾。" : "Time to wind down and close the day quietly."}</p></div><button type="button" onClick={() => void enableNotification()}>{notificationEnabled ? <BellOff size={18} /> : <Bell size={18} />}{notificationEnabled ? (locale === "zh" ? "提醒已开启" : "Reminder enabled") : (locale === "zh" ? "开启锁屏提醒" : "Enable lock-screen reminder")}</button><button type="button" onClick={() => { window.sessionStorage.setItem(todayKey, "1"); setAlertVisible(false); openView("overview"); }}>{locale === "zh" ? "今天不再提醒" : "Not again today"}</button></div></div>}
+      {view === "alert" && <div className="module-modal" role="dialog" aria-modal="true"><div className="module-modal-card sleep-alert-modal"><header><strong>{locale === "zh" ? "睡眠提醒" : "Sleep reminder"}</strong><button type="button" onClick={() => openView("overview")}><X size={20} /></button></header><div className="lock-screen-preview"><Bell size={24} /><strong>NAVA</strong><p>{locale === "zh" ? "该准备入睡了，给今天一个安静的收尾。" : "Time to wind down and close the day quietly."}</p></div><label className="sleep-reminder-time"><span>{locale === "zh" ? "每天提醒时间" : "Daily reminder"}</span><input type="time" value={reminderTime} onChange={(event) => setReminderTime(event.target.value)} /></label><button type="button" onClick={() => void enableNotification()}>{notificationEnabled ? <BellOff size={18} /> : <Bell size={18} />}{notificationEnabled ? (locale === "zh" ? `已设为 ${reminderTime}` : `Set for ${reminderTime}`) : (locale === "zh" ? "开启锁屏提醒" : "Enable lock-screen reminder")}</button><button type="button" onClick={() => { window.sessionStorage.setItem(todayKey, "1"); setAlertVisible(false); openView("overview"); }}>{locale === "zh" ? "今天不再提醒" : "Not again today"}</button></div></div>}
     </div>
   );
 }
@@ -879,6 +890,18 @@ function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
     missing: !record,
   }));
   const hasTrend = records.some(({ record }) => Boolean(record));
+  const recordedCalories = records.flatMap(({ record }) => record && record.total_calories > 0 ? [record.total_calories] : []);
+  const calorieAverage = recordedCalories.length > 0 ? recordedCalories.reduce((sum, value) => sum + value, 0) / recordedCalories.length : null;
+  const calorieRange = calorieAverage == null ? null : { low: Math.round(calorieAverage * .85), high: Math.round(calorieAverage * 1.15) };
+  const macroEnergy = {
+    protein: Math.max(0, nutrition?.protein_grams ?? 0) * 4,
+    carbs: Math.max(0, nutrition?.carbohydrate_grams ?? 0) * 4,
+    fat: Math.max(0, nutrition?.fat_grams ?? 0) * 9,
+  };
+  const macroTotal = Math.max(1, macroEnergy.protein + macroEnergy.carbs + macroEnergy.fat);
+  const proteinEnd = macroEnergy.protein / macroTotal * 100;
+  const carbsEnd = proteinEnd + macroEnergy.carbs / macroTotal * 100;
+  const calorieOutlier = calorieAverage != null && nutrition?.total_calories != null && recordedCalories.length >= 3 && (nutrition.total_calories > calorieAverage * 1.5 || nutrition.total_calories < calorieAverage * .5);
   const meals = [
     { key: "breakfast", zh: "早餐", en: "Breakfast", items: nutrition?.breakfast_items ?? [] },
     { key: "lunch", zh: "午餐", en: "Lunch", items: nutrition?.lunch_items ?? [] },
@@ -898,7 +921,12 @@ function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
           <span><small>{locale === "zh" ? "脂肪" : "Fat"}</small><strong><AnimatedNumber value={Math.round(nutrition?.fat_grams ?? 0)} /><em>g</em></strong></span>
           <span><small>{locale === "zh" ? "饮水量" : "Water"}</small><strong><AnimatedNumber value={Math.round(nutrition?.hydration_ml ?? 0)} /><em>ml</em></strong></span>
         </div>
+        <div className="diet-energy-context">
+          <div className="diet-macro-ring" style={{ background: `conic-gradient(#218fba 0 ${proteinEnd}%, #69c3d9 ${proteinEnd}% ${carbsEnd}%, #f3ba70 ${carbsEnd}% 100%)` }}><span>{Math.round(nutrition?.total_calories ?? 0)}<small>kcal</small></span></div>
+          <p>{calorieRange ? (locale === "zh" ? `你近 7 日有记录日的日均参考范围为 ${calorieRange.low}–${calorieRange.high} kcal；缺失日未按 0 计算。` : `Your recorded-day 7-day reference range is ${calorieRange.low}–${calorieRange.high} kcal; missing days are excluded.`) : (locale === "zh" ? "累积更多真实记录后生成个人历史参考范围。" : "Log more days to build your recorded-history reference range.")}</p>
+        </div>
       </section>
+      {calorieOutlier && <section className="diet-pattern-alert"><Utensils size={18} /><p>{locale === "zh" ? "今天的能量记录与近期有记录日均值差异较大。请先检查是否漏记餐次或份量；这里仅做记录异常提示，不作营养诊断。" : "Today's logged energy differs notably from your recent recorded-day average. Check for missing meals or portions; this is a logging prompt, not a diagnosis."}</p></section>}
       <section className="figma-module-card diet-meals-card">
         <header><strong>{locale === "zh" ? "餐次记录" : "Meals"}</strong><button className="module-card-icon-action" type="button" onClick={onOpenEditor}><Utensils size={18} /><span>{locale === "zh" ? "添加" : "Add"}</span></button></header>
         <div className="diet-meal-grid">
@@ -920,7 +948,7 @@ function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
 }
 
 function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "deviceDate" | "profile" | "onOpenEditor"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
-  const { locale, todaySnapshot, trendBundle, deviceDate, onOpenEditor, openView } = props;
+  const { locale, todaySnapshot, trendBundle, deviceDate, onOpenEditor, view, openView } = props;
   const face = todaySnapshot?.face;
   const records = useMemo(() => {
     const byDate = new Map((trendBundle?.faces ?? []).map((record) => [record.record_date, record]));
@@ -940,18 +968,32 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
       };
     });
   const hasTrend = points.some((point) => !point.missing);
+  const priorFaces = records.map(({ record }) => record).filter((record): record is NonNullable<typeof record> => Boolean(record && record.record_date !== face?.record_date));
+  const previousFace = priorFaces[priorFaces.length - 1] ?? null;
+  const scoreDelta = face?.overall_score != null && previousFace?.overall_score != null ? Math.round(face.overall_score - previousFace.overall_score) : null;
+  const feedbackSentence = face?.feedback?.split(/(?<=[。！？.!?])/)[0]?.trim() || (locale === "zh" ? "完成一次拍摄后，这里会显示基于真实分析结果的今日一句话。" : "Complete a capture to see today's result-based note.");
+  const recentScoredFaces = records.flatMap(({ record }) => record?.overall_score == null ? [] : [record]).slice(-3);
+  const repeatedLowFace = recentScoredFaces.length === 3 && recentScoredFaces.every((record) => (record.overall_score ?? 100) < 55);
+  if (view === "compare") return <ModuleDetailView compact title={locale === "zh" ? "面部状态对比" : "Face-state comparison"}>
+    {face && previousFace ? <div className="face-comparison">
+      {[previousFace, face].map((record, index) => <section key={record.id}><small>{index === 0 ? (locale === "zh" ? "上次" : "Previous") : (locale === "zh" ? "本次" : "Current")} · {shortDate(record.record_date, locale)}</small><strong>{record.overall_score == null ? "--" : Math.round(record.overall_score)}<em>{locale === "zh" ? "分" : "pts"}</em></strong><span>{locale === "zh" ? "肤龄参考" : "Skin-age ref."} {record.skin_age == null ? "--" : Math.round(record.skin_age)}</span></section>)}
+      <div className={scoreDelta != null && scoreDelta >= 0 ? "positive" : "negative"}><RefreshCw size={18} /><strong>{scoreDelta == null ? "--" : `${scoreDelta >= 0 ? "+" : ""}${scoreDelta}`}</strong><p>{locale === "zh" ? "仅比较两次真实分析结果；拍摄光线、角度与妆容可能影响分数。" : "Compares two real analyses only; lighting, angle, and makeup can affect scores."}</p></div>
+    </div> : <p className="module-empty-copy">{locale === "zh" ? "至少完成两次拍摄后才能比较。" : "Complete at least two captures to compare them."}</p>}
+  </ModuleDetailView>;
   return (
     <div className="module-dashboard face-dashboard" data-module-view="face-overview">
       <section className="figma-module-card face-privacy-card">
         <ShieldCheck size={18} /><p>{locale === "zh" ? "照片经明确同意后进入账号隔离的私密存储；分析只使用短时签名链接，结果不构成医疗诊断。" : "With consent, photos use account-isolated private storage and short-lived signed links; results are not medical diagnoses."}</p>
       </section>
       <section className="figma-module-card face-summary-card">
-        <header><strong>{locale === "zh" ? "今日面部状态" : "Today's face state"}</strong><button className="module-card-icon-action" type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "使用前置摄像头拍照" : "Take a front-camera photo"}><Camera size={18} /><span>{locale === "zh" ? "拍照" : "Capture"}</span></button></header>
+        <header><strong>{locale === "zh" ? "今日面部状态" : "Today's face state"}</strong><div className="face-summary-actions"><button type="button" onClick={() => openView("compare")} disabled={!previousFace}><RefreshCw size={16} /><span>{locale === "zh" ? "对比" : "Compare"}</span></button><button className="module-card-icon-action" type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "使用前置摄像头拍照" : "Take a front-camera photo"}><Camera size={18} /><span>{locale === "zh" ? "拍照" : "Capture"}</span></button></div></header>
         <div className="face-score-row">
           <div className="face-score-ring" style={{ "--face-score": `${face?.overall_score ?? 0}%` } as CSSProperties}><ScanFace size={28} /><strong>{face?.overall_score == null ? "--" : <AnimatedNumber value={face.overall_score} />}</strong></div>
           <div><span>{locale === "zh" ? "肤龄参考" : "Skin-age reference"}<strong>{face?.skin_age == null ? "--" : <AnimatedNumber value={face.skin_age} />}</strong></span><span>{locale === "zh" ? "拍摄模式" : "Capture mode"}<strong>{face?.capture_mode === "makeup" ? (locale === "zh" ? "带妆" : "Makeup") : (locale === "zh" ? "素颜" : "Bare")}</strong></span><span>{locale === "zh" ? "分析置信度" : "Confidence"}<strong>{face?.analysis_confidence != null ? <><AnimatedNumber value={face.analysis_confidence * 100} />%</> : "--"}</strong></span></div>
         </div>
+        <div className="face-daily-note"><Bot size={17} /><p>{feedbackSentence}</p>{scoreDelta != null && <strong className={scoreDelta >= 0 ? "positive" : "negative"}>{scoreDelta >= 0 ? "+" : ""}{scoreDelta}</strong>}</div>
       </section>
+      {repeatedLowFace && <section className="face-pattern-alert" role="status"><ScanFace size={18} /><p>{locale === "zh" ? "最近 3 次面部状态评分都偏低。拍摄条件也会影响结果；可以结合睡眠、情绪和运动记录问 NAVA 查看可能关联，本提示不构成医疗诊断。" : "Your last 3 face-state scores were low. Capture conditions can affect results; ask NAVA to review possible links with sleep, mood, and activity. This is not a diagnosis."}</p></section>}
       <section className="figma-module-card face-trend-card">
         <header><strong>{locale === "zh" ? "近 7 日状态" : "7-day state"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("history")} aria-label={locale === "zh" ? "查看面部趋势报告" : "View face trend report"}><ChevronRight size={18} /></button></header>
         {hasTrend ? <BarLineTrendChart points={points} scoreScale curve="monotone" ariaLabel={locale === "zh" ? "按设备日期滚动的近七日面部状态趋势；未记录日期保留为空位" : "Device-date rolling seven-day face-state trend with empty slots for missing dates"} /> : <p className="module-empty-copy">{locale === "zh" ? "完成第一次拍照后显示趋势" : "Take the first photo to begin the trend"}</p>}
@@ -960,8 +1002,8 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
   );
 }
 
-function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setFocusTitle" | "setFocusMinutes" | "onSaveFocusMinutes" | "todaySnapshot" | "trendBundle" | "deviceDate" | "profile"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
-  const { locale, focusTitle, focusMinutes, setFocusTitle, setFocusMinutes, onSaveFocusMinutes, todaySnapshot, trendBundle, deviceDate, view, openView } = props;
+function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinutes" | "setFocusTitle" | "setFocusMinutes" | "onSaveFocusMinutes" | "todaySnapshot" | "trendBundle" | "deviceDate" | "profile" | "onOpenAi"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
+  const { userId, locale, focusTitle, focusMinutes, setFocusTitle, setFocusMinutes, onSaveFocusMinutes, todaySnapshot, trendBundle, deviceDate, view, openView, onOpenAi } = props;
   const displayedFocusTitle = focusTitle === "产品原型" || focusTitle === "Product prototype" || focusTitle === "Prototype"
     ? ""
     : focusTitle;
@@ -976,6 +1018,24 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
   const [startedAt, setStartedAt] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [todoTitle, setTodoTitle] = useState("");
+  const [todoView, setTodoView] = useState<"list" | "calendar">("list");
+  const [calendarDate, setCalendarDate] = useState(deviceDate);
+  const [selectedTodoId, setSelectedTodoId] = useState<string | null>(null);
+  const [focusCategory, setFocusCategory] = useState("work");
+  const [chartMode, setChartMode] = useState<"trend" | "period" | "category">("trend");
+  const refreshTodos = useCallback(() => {
+    void syncTodos(userId).then(setTodos).catch((error) => console.warn("Todo sync deferred", error));
+  }, [userId]);
+  useEffect(() => {
+    refreshTodos();
+    return subscribeProductivity(refreshTodos);
+  }, [refreshTodos]);
+  const todayTodos = todos.filter((item) => item.scheduledDate === deviceDate);
+  const calendarDays = rollingDateWindow(deviceDate);
+  const visibleTodos = todoView === "list" ? todayTodos : todos.filter((item) => item.scheduledDate === calendarDate);
+  const selectedTodo = todos.find((item) => item.id === selectedTodoId) ?? null;
   const focusRecords = useMemo(() => {
     const byDate = new Map(aggregateFocusByDate(trendBundle?.focus ?? []).map((record) => [record.record_date, record]));
     return rollingDateWindow(deviceDate).map((date) => ({ date, record: byDate.get(date) ?? null }));
@@ -993,6 +1053,46 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
   }));
   const hasFocusTrend = focusTrendPoints.some((point) => !point.missing);
   const recentFocus = focusRecords.flatMap(({ record }) => record ? [record] : []).slice(-3).reverse();
+  const periodDistribution = useMemo(() => {
+    const allowedDates = new Set(rollingDateWindow(deviceDate));
+    const totals = (trendBundle?.focusDistributions ?? []).filter((item) => allowedDates.has(item.record_date)).reduce((sum, item) => ({
+      dawn: sum.dawn + item.period_0_6,
+      morning: sum.morning + item.period_6_12,
+      afternoon: sum.afternoon + item.period_12_18,
+      evening: sum.evening + item.period_18_24,
+    }), { dawn: 0, morning: 0, afternoon: 0, evening: 0 });
+    return [
+      { key: "dawn", label: locale === "zh" ? "凌晨" : "Night", value: totals.dawn },
+      { key: "morning", label: locale === "zh" ? "上午" : "Morning", value: totals.morning },
+      { key: "afternoon", label: locale === "zh" ? "下午" : "Afternoon", value: totals.afternoon },
+      { key: "evening", label: locale === "zh" ? "晚间" : "Evening", value: totals.evening },
+    ];
+  }, [deviceDate, locale, trendBundle]);
+  const categoryDistribution = useMemo(() => {
+    const allowedDates = new Set(rollingDateWindow(deviceDate));
+    const totals = new Map<string, number>();
+    (trendBundle?.focus ?? []).filter((item) => allowedDates.has(item.record_date)).forEach((item) => {
+      const key = item.category?.trim() || "other";
+      totals.set(key, (totals.get(key) ?? 0) + item.total_minutes);
+    });
+    const labels: Record<string, string> = locale === "zh" ? { work: "工作", study: "学习", life: "生活", other: "其他" } : { work: "Work", study: "Study", life: "Life", other: "Other" };
+    return [...totals.entries()].map(([key, value]) => ({ key, label: labels[key] ?? key, value })).sort((a, b) => b.value - a.value);
+  }, [deviceDate, locale, trendBundle]);
+
+  const createTodo = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const title = todoTitle.trim();
+    if (!title) return;
+    const created = await addTodo(userId, title, "manual", deviceDate, undefined, { focusMinutes, focusSessions: 1 });
+    setTodoTitle("");
+    setTodos((items) => [created, ...items.filter((item) => item.id !== created.id)]);
+  };
+
+  const chooseTodo = (item: TodoItem) => {
+    setSelectedTodoId(item.id);
+    setFocusTitle(item.title);
+    if (item.focusMinutes) updateDuration(item.focusMinutes);
+  };
 
   const updateDuration = (nextValue: number) => {
     const nextMinutes = Math.min(180, Math.max(1, Math.round(nextValue || 1)));
@@ -1079,13 +1179,15 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
     const seconds = timerMode === "countup" ? elapsedSeconds : countdownDurationSeconds - remaining;
     const elapsed = Math.max(1, Math.ceil(seconds / 60));
     try {
-      await onSaveFocusMinutes(elapsed, { interruptions, startedAt, endedAt: new Date().toISOString() });
+      await onSaveFocusMinutes(elapsed, { interruptions, startedAt, endedAt: new Date().toISOString(), category: focusCategory });
+      if (selectedTodo && !selectedTodo.completed) await toggleTodo(userId, selectedTodo.id);
+      refreshTodos();
       setSaved(true);
       openView("overview");
     } finally {
       setSaving(false);
     }
-  }, [countdownDurationSeconds, elapsedSeconds, hasStarted, interruptions, onSaveFocusMinutes, openView, remaining, saving, startedAt, timerMode]);
+  }, [countdownDurationSeconds, elapsedSeconds, focusCategory, hasStarted, interruptions, onSaveFocusMinutes, openView, refreshTodos, remaining, saving, selectedTodo, startedAt, timerMode, userId]);
 
   useEffect(() => {
     if (!immersive || timerMode !== "countdown" || remaining !== 0 || !hasStarted || saving || saved) return;
@@ -1099,6 +1201,7 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
         data-module-view="focus-immersive"
         data-focus-state={running ? "running" : hasStarted ? "paused" : "ready"}
       >
+        <button className="focus-immersive-exit" type="button" onClick={() => openView("overview")} aria-label={locale === "zh" ? "退出沉浸专注" : "Exit immersive focus"}><X size={19} /></button>
         <div className="focus-title-field">
           <input
             aria-label={locale === "zh" ? "专注事项" : "Focus activity"}
@@ -1110,7 +1213,11 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
             <button type="button" className={timerMode === "countdown" ? "active" : ""} onClick={() => { setTimerMode("countdown"); setRemaining(countdownDurationSeconds); setRunning(false); setHasStarted(false); }}>{locale === "zh" ? "倒计时" : "Countdown"}</button>
             <button type="button" className={timerMode === "countup" ? "active" : ""} onClick={() => { setTimerMode("countup"); setElapsedSeconds(0); setRunning(false); setHasStarted(false); }}>{locale === "zh" ? "正计时" : "Count up"}</button>
           </div>
+          {timerMode === "countdown" && !hasStarted && <div className="focus-presets focus-presets--immersive" role="group" aria-label={locale === "zh" ? "快捷专注时长" : "Focus duration presets"}>
+            {[25, 45, 60].map((minutes) => <button type="button" className={focusMinutes === minutes ? "active" : ""} key={minutes} onClick={() => updateDuration(minutes)}>{minutes}{locale === "zh" ? " 分钟" : " min"}</button>)}
+          </div>}
         </div>
+        <img className="focus-immersive-mascot" src={focusInsightMascot} alt="" aria-hidden="true" />
         <div className="focus-timer-ring" style={{ "--timer-progress": `${progress}%` } as CSSProperties}>
           <div>
             <div className="focus-timer-edit" role="group" aria-label={locale === "zh" ? "触摸修改计时时间" : "Tap to edit timer"}>
@@ -1164,14 +1271,33 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
         </div>
       </section>
       <section className="figma-module-card focus-trend-card">
-        <header><strong>{locale === "zh" ? "近 7 日专注时长" : "7-day focus duration"}</strong></header>
-        {hasFocusTrend ? <BarLineTrendChart
+        <header><strong>{locale === "zh" ? "专注统计" : "Focus insights"}</strong><div className="focus-chart-tabs">{(["trend", "period", "category"] as const).map((mode) => <button type="button" className={chartMode === mode ? "active" : ""} key={mode} onClick={() => setChartMode(mode)}>{locale === "zh" ? ({ trend: "趋势", period: "时段", category: "分类" }[mode]) : ({ trend: "Trend", period: "Time", category: "Type" }[mode])}</button>)}</div></header>
+        {chartMode === "trend" && (hasFocusTrend ? <BarLineTrendChart
           points={focusTrendPoints}
           scoreScale
           lineAnchor="bar-center"
           curve="monotone"
           ariaLabel={locale === "zh" ? "近七日专注时长柱状图与平滑趋势曲线，曲线节点位于每根柱子的几何中心" : "Seven-day focus duration bars with a smooth trend line anchored at each bar's geometric center"}
-        /> : <p className="module-empty-copy">{locale === "zh" ? "完成第一次专注后显示近七日趋势" : "Complete your first focus session to begin the trend"}</p>}
+        /> : <p className="module-empty-copy">{locale === "zh" ? "完成第一次专注后显示近七日趋势" : "Complete your first focus session to begin the trend"}</p>)}
+        {chartMode === "period" && <FocusDistributionBars items={periodDistribution} locale={locale} />}
+        {chartMode === "category" && <FocusDistributionBars items={categoryDistribution} locale={locale} />}
+      </section>
+      <section className="figma-module-card focus-todo-card">
+        <header><strong>{locale === "zh" ? "今日待办" : "Today's tasks"}</strong><div className="focus-todo-tabs"><button type="button" className={todoView === "list" ? "active" : ""} onClick={() => setTodoView("list")}>{locale === "zh" ? "列表" : "List"}</button><button type="button" className={todoView === "calendar" ? "active" : ""} onClick={() => setTodoView("calendar")}><CalendarDays size={14} />{locale === "zh" ? "日历" : "Calendar"}</button></div></header>
+        <form className="focus-todo-add" onSubmit={(event) => void createTodo(event)}><input value={todoTitle} onChange={(event) => setTodoTitle(event.target.value)} placeholder={locale === "zh" ? "添加一项待办" : "Add a task"} /><button type="submit" aria-label={locale === "zh" ? "添加待办" : "Add task"}><Plus size={17} /></button></form>
+        {todoView === "calendar" && <div className="focus-todo-calendar">{calendarDays.map((date) => {
+          const dayTodos = todos.filter((item) => item.scheduledDate === date);
+          const completed = dayTodos.filter((item) => item.completed).length;
+          return <button type="button" className={calendarDate === date ? "selected" : ""} key={date} onClick={() => setCalendarDate(date)}><small>{new Date(`${date}T12:00:00`).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", { weekday: "narrow" })}</small><strong>{Number(date.slice(-2))}</strong><i style={{ "--completion": dayTodos.length > 0 ? `${completed / dayTodos.length * 100}%` : "0%" } as CSSProperties} /></button>;
+        })}</div>}
+        <div className={["focus-todo-list", `is-${todoView}`].join(" ")}>
+          {visibleTodos.map((item) => <div className={[item.completed ? "completed" : "", selectedTodoId === item.id ? "selected" : ""].filter(Boolean).join(" ")} key={item.id}>
+            <button className="focus-todo-check" type="button" onClick={() => void toggleTodo(userId, item.id)} aria-label={item.completed ? (locale === "zh" ? "标记未完成" : "Mark incomplete") : (locale === "zh" ? "标记完成" : "Mark complete")}>{item.completed && <Check size={14} />}</button>
+            <button className="focus-todo-copy" type="button" onClick={() => chooseTodo(item)}><strong>{item.title}</strong><small>{todoView === "calendar" ? `${shortDate(item.scheduledDate, locale)} · ` : ""}{item.focusMinutes ? `${item.focusMinutes} ${locale === "zh" ? "分钟" : "min"}` : (locale === "zh" ? "未设置时长" : "No duration")}</small></button>
+            <button className="focus-todo-start" type="button" onClick={() => { chooseTodo(item); setHasStarted(false); openView("immersive"); }} disabled={item.completed}><Play size={14} /></button>
+          </div>)}
+          {visibleTodos.length === 0 && <p>{locale === "zh" ? "这一天还没有待办。" : "No tasks on this day."}</p>}
+        </div>
       </section>
       <section className="figma-module-card focus-quick-card">
         <header><strong>{locale === "zh" ? "开启专注时刻" : "Start a focus moment"}</strong></header>
@@ -1179,6 +1305,11 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
           <label className="focus-task-field"><Clock3 size={19} /><input aria-label={locale === "zh" ? "专注事项" : "Focus activity"} placeholder={locale === "zh" ? "请填写要专注的事项" : "What do you want to focus on?"} value={displayedFocusTitle} onChange={(event) => setFocusTitle(event.target.value)} /></label>
           <div className="focus-duration-controls"><button type="button" onClick={() => updateDuration(focusMinutes - 1)} aria-label={locale === "zh" ? "减少一分钟" : "Decrease one minute"}>-</button><label className="focus-duration-field compact"><input aria-label={locale === "zh" ? "专注分钟数" : "Focus duration in minutes"} inputMode="numeric" min={1} max={180} type="number" value={focusMinutes} onChange={(event) => updateDuration(Number(event.target.value))} /><span>{locale === "zh" ? "分钟" : "min"}</span></label><button type="button" onClick={() => updateDuration(focusMinutes + 1)} aria-label={locale === "zh" ? "增加一分钟" : "Increase one minute"}>+</button></div>
         </div>
+        <div className="focus-presets" role="group" aria-label={locale === "zh" ? "快捷专注时长" : "Focus duration presets"}>
+          {[25, 45, 60].map((minutes) => <button type="button" className={focusMinutes === minutes ? "active" : ""} key={minutes} onClick={() => updateDuration(minutes)}>{minutes}{locale === "zh" ? " 分钟" : " min"}</button>)}
+        </div>
+        <label className="focus-category-field"><span>{locale === "zh" ? "专注分类" : "Category"}</span><select value={focusCategory} onChange={(event) => setFocusCategory(event.target.value)}><option value="work">{locale === "zh" ? "工作" : "Work"}</option><option value="study">{locale === "zh" ? "学习" : "Study"}</option><option value="life">{locale === "zh" ? "生活" : "Life"}</option><option value="other">{locale === "zh" ? "其他" : "Other"}</option></select></label>
+        <button className="focus-ai-plan-button" type="button" onClick={() => onOpenAi?.(locale === "zh" ? `我准备专注“${displayedFocusTitle || "尚未命名的任务"}”${focusMinutes}分钟。请先用一句话帮我进入状态，再把任务拆成3个明确小步骤；如果目标太模糊，请先问我一个澄清问题。` : `I plan to focus on “${displayedFocusTitle || "an unnamed task"}” for ${focusMinutes} minutes. Give me one short starting cue and split it into 3 concrete steps; ask one clarifying question first if the goal is vague.`)}><Bot size={16} />{locale === "zh" ? "AI 进入状态与任务拆解" : "AI starting cue & task plan"}</button>
         <div className="focus-recent-list">
           <strong>{locale === "zh" ? "最近完成" : "Recently completed"}</strong>
           {recentFocus.length > 0 ? recentFocus.map((record) => <div key={record.id}><span><Clock3 size={14} /></span><p><b>{shortDate(record.record_date, locale)}</b><i aria-hidden="true">·</i>{record.completed_sessions}{locale === "zh" ? " 次" : " sessions"}<i aria-hidden="true">·</i>{record.total_minutes}{locale === "zh" ? " 分钟" : " min"}</p></div>) : <p className="focus-empty-history">{locale === "zh" ? "还没有完成记录" : "No completed sessions yet"}</p>}
@@ -1187,6 +1318,12 @@ function FocusDashboard(props: Pick<Props, "focusTitle" | "focusMinutes" | "setF
       </section>
     </div>
   );
+}
+
+function FocusDistributionBars({ items, locale }: { items: Array<{ key: string; label: string; value: number }>; locale: "zh" | "en" }) {
+  const max = Math.max(1, ...items.map((item) => item.value));
+  if (items.length === 0 || items.every((item) => item.value === 0)) return <p className="module-empty-copy">{locale === "zh" ? "完成专注后生成分布统计" : "Complete focus sessions to build this distribution"}</p>;
+  return <div className="focus-distribution-bars">{items.map((item) => <div key={item.key}><span>{item.label}</span><i><b style={{ width: `${Math.max(4, item.value / max * 100)}%` }} /></i><strong>{item.value}{locale === "zh" ? " 分钟" : " min"}</strong></div>)}</div>;
 }
 
 export default function RecordModuleDashboard(props: Props) {
@@ -1199,11 +1336,24 @@ export default function RecordModuleDashboard(props: Props) {
   };
   if (view === "history") return <HistoryView module={props.module} locale={locale} trendBundle={props.trendBundle} deviceDate={props.deviceDate} onGrowthActivity={props.onGrowthActivity} />;
   const common = { ...props, locale };
-  if (props.module === "exercise") return <ExerciseDashboard userId={props.userId} locale={locale} steps={props.steps} calories={props.calories} exerciseMinutes={props.exerciseMinutes} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} deviceDate={props.deviceDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
-  if (props.module === "mood") return <MoodDashboard {...common} view={view} openView={openView} />;
-  if (props.module === "sleep") return <SleepDashboard userId={props.userId} locale={locale} sleepStart={props.sleepStart} sleepEnd={props.sleepEnd} deepSleep={props.deepSleep} lightSleep={props.lightSleep} remSleep={props.remSleep} sleepRating={props.sleepRating} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} deviceDate={props.deviceDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
-  if (props.module === "diet") return <DietDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} onOpenEditor={props.onOpenEditor} onOpenDietCamera={props.onOpenDietCamera} view={view} openView={openView} />;
-  if (props.module === "face") return <FaceDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} onOpenEditor={props.onOpenEditor} view={view} openView={openView} />;
-  if (props.module === "focus") return <FocusDashboard locale={locale} focusTitle={props.focusTitle} focusMinutes={props.focusMinutes} setFocusTitle={props.setFocusTitle} setFocusMinutes={props.setFocusMinutes} onSaveFocusMinutes={props.onSaveFocusMinutes} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} view={view} openView={openView} />;
-  return null;
+  let dashboard: ReactNode = null;
+  if (props.module === "exercise") dashboard = <ExerciseDashboard userId={props.userId} locale={locale} steps={props.steps} calories={props.calories} exerciseMinutes={props.exerciseMinutes} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} deviceDate={props.deviceDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
+  if (props.module === "mood") dashboard = <MoodDashboard {...common} view={view} openView={openView} />;
+  if (props.module === "sleep") dashboard = <SleepDashboard userId={props.userId} locale={locale} sleepStart={props.sleepStart} sleepEnd={props.sleepEnd} deepSleep={props.deepSleep} lightSleep={props.lightSleep} remSleep={props.remSleep} sleepRating={props.sleepRating} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} deviceDate={props.deviceDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
+  if (props.module === "diet") dashboard = <DietDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} onOpenEditor={props.onOpenEditor} onOpenDietCamera={props.onOpenDietCamera} view={view} openView={openView} />;
+  if (props.module === "face") dashboard = <FaceDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} onOpenEditor={props.onOpenEditor} view={view} openView={openView} />;
+  if (props.module === "focus") dashboard = <FocusDashboard userId={props.userId} locale={locale} focusTitle={props.focusTitle} focusMinutes={props.focusMinutes} setFocusTitle={props.setFocusTitle} setFocusMinutes={props.setFocusMinutes} onSaveFocusMinutes={props.onSaveFocusMinutes} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} onOpenAi={props.onOpenAi} view={view} openView={openView} />;
+  if (props.module === "focus" && (view === "immersive" || view === "interruption")) return dashboard;
+  const moduleLabels: Record<RecordModule, { zh: string; en: string }> = {
+    mood: { zh: "情绪", en: "mood" }, sleep: { zh: "睡眠", en: "sleep" }, exercise: { zh: "运动", en: "activity" },
+    diet: { zh: "饮食", en: "diet" }, focus: { zh: "专注", en: "focus" }, face: { zh: "面部状态", en: "face state" },
+  };
+  const moduleLabel = locale === "zh" ? moduleLabels[props.module].zh : moduleLabels[props.module].en;
+  return <div className="record-module-dashboard-shell">
+    {dashboard}
+    {view === "overview" && <nav className="module-cross-actions" aria-label={locale === "zh" ? "模块快捷入口" : "Module shortcuts"}>
+      <button type="button" onClick={() => props.onOpenAi?.(locale === "zh" ? `请结合我已授权的真实${moduleLabel}记录，分析近期变化，并给出一条今天可执行的建议。` : `Analyze my consent-authorized ${moduleLabel} records and suggest one practical action for today.`)}><Bot size={16} /><span>{locale === "zh" ? "问 NAVA" : "Ask NAVA"}</span></button>
+      <button type="button" onClick={props.onOpenWeeklyReport}><Gauge size={16} /><span>{locale === "zh" ? "DNB 周报" : "DNB weekly"}</span></button>
+    </nav>}
+  </div>;
 }

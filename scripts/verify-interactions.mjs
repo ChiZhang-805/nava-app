@@ -38,6 +38,7 @@ async function dismissLaunch(page) {
 }
 
 async function completeOnboardingIfNeeded(page) {
+  await page.locator(".onboarding-screen, .phone-frame").first().waitFor({ state: "visible", timeout: 10_000 });
   const onboarding = page.locator(".onboarding-screen");
   if (!(await onboarding.isVisible().catch(() => false))) {
     await expect(page.locator(".phone-frame")).toBeVisible();
@@ -758,7 +759,7 @@ async function verifyRecordModules(page, results) {
   await expect(page.locator('.focus-timer-ring input[aria-label="分钟"], .focus-timer-ring input[aria-label="Minutes"]')).toHaveValue("37");
   await expect(page.locator('.focus-timer-ring input[aria-label="秒钟"], .focus-timer-ring input[aria-label="Seconds"]')).toHaveValue("00");
   await expect(page.locator(".focus-timer-status")).toContainText(/轻触数字可修改|Tap the time to edit/);
-  await expect(page.locator(".focus-presets")).toHaveCount(0);
+  await expect(page.locator(".focus-presets--immersive button")).toHaveCount(3);
   await expect(page.getByText(/一次只做一件事|One thing at a time/)).toHaveCount(0);
   await expect(page.getByLabel(/专注事项|Focus activity/)).toHaveAttribute("placeholder", /请填写今日要完成的任务|Enter today's task/);
   const focusSeconds = page.locator('.focus-timer-ring input[aria-label="秒钟"], .focus-timer-ring input[aria-label="Seconds"]');
@@ -802,11 +803,11 @@ async function verifyRecordModules(page, results) {
   await page.locator('[data-record-detail="face"] .face-consent input').check();
   await page.locator('[data-record-detail="face"] input[type="file"][capture="user"]').setInputFiles(samplePhoto);
   await expect(page.locator('[data-record-detail="face"] .record-upload-toast')).toBeVisible();
+  await expect(page.locator('[data-module-view="face-overview"]')).toBeVisible();
+  await expect(page.locator(".face-daily-note")).toBeVisible();
   await page.waitForTimeout(900);
   await assertStaticLayout(page, "record-face-saved");
-  await assertNoBottomNavClipping(page, "face-result", '[data-record-detail="face"] .face-result .detected-list div, [data-record-detail="face"] .face-result-meta span');
   await page.screenshot({ path: path.join(outputDir, "record-face.png") });
-  await returnFromSubview();
   await returnToHub();
   results.push("六类记录入口、四类 Figma 概览/二级页、保存、计时与拍照分析");
 }
@@ -1129,9 +1130,10 @@ async function verifyNavigationAndMotion(page, results) {
     if (tab === "trends") {
       await expect(page.locator("[data-growth-screen]")).toBeVisible();
       await assertAnimation(page.locator(".growth-progress-track span"), "growth-progress-in", "growth progress bar");
-      await expect(page.locator("[data-growth-task]")).toHaveCount(11);
+      await expect(page.locator("[data-growth-task]")).toHaveCount(10);
       await expect(page.locator(".growth-task-group")).toHaveCount(2);
-      await expect(page.locator(".growth-task-group").first().locator("[data-growth-task]")).toHaveCount(2);
+      await expect(page.locator(".growth-task-group").first().locator("[data-growth-task]")).toHaveCount(1);
+      await expect(page.locator(".growth-task-group").first().locator("[data-growth-task]")).toHaveAttribute("data-completed", "false");
       await expect(page.locator(".growth-task-group").last().locator("[data-growth-task]")).toHaveCount(9);
     }
     const animationName = await page.locator(`[data-tab="${tab}"]`).evaluate((button) => {
@@ -1172,6 +1174,7 @@ async function verifyNavigationAndMotion(page, results) {
   await page.locator('[data-tab="trends"]').click();
   for (const [taskId, targetTab, targetModule, targetView] of growthTargetRoutes) {
     const task = page.locator(`[data-growth-task="${taskId}"]`);
+    if (await task.count() === 0) continue;
     await expect(task).toHaveJSProperty("tagName", "BUTTON");
     const completed = await task.getAttribute("data-completed") === "true";
     if (completed) {

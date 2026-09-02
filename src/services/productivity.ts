@@ -6,6 +6,8 @@ export type TodoItem = {
   completed: boolean;
   source: "manual" | "ai";
   createdAt: string;
+  focusMinutes?: number;
+  focusSessions?: number;
 };
 
 export type GrowthTask = {
@@ -80,6 +82,7 @@ export async function syncTodos(userId: string): Promise<TodoItem[]> {
       user_id: userId,
       title: item.title,
       scheduled_date: item.scheduledDate,
+      estimated_minutes: item.focusMinutes ?? null,
       completed: item.completed,
       category: "todo",
     })), { onConflict: "id" });
@@ -91,7 +94,7 @@ export async function syncTodos(userId: string): Promise<TodoItem[]> {
 
   const result = await supabase
     .from("tasks")
-    .select("id,title,scheduled_date,completed,created_at")
+    .select("id,title,scheduled_date,completed,created_at,estimated_minutes")
     .eq("user_id", userId)
     .eq("category", "todo")
     .order("created_at", { ascending: false })
@@ -100,14 +103,20 @@ export async function syncTodos(userId: string): Promise<TodoItem[]> {
     if (todoBackendUnavailable(result.error.message)) return cached;
     throw result.error;
   }
-  return writeTodos(userId, (result.data ?? []).map((row) => ({
-    id: String(row.id),
-    title: String(row.title ?? ""),
-    scheduledDate: String(row.scheduled_date ?? todayISO()),
-    completed: row.completed === true,
-    source: "manual" as const,
-    createdAt: String(row.created_at ?? new Date().toISOString()),
-  })));
+  return writeTodos(userId, (result.data ?? []).map((row) => {
+    const previous = cached.find((item) => item.id === String(row.id));
+    return {
+      id: String(row.id),
+      title: String(row.title ?? ""),
+      scheduledDate: String(row.scheduled_date ?? todayISO()),
+      scheduledTime: previous?.scheduledTime,
+      completed: row.completed === true,
+      source: previous?.source ?? "manual" as const,
+      createdAt: String(row.created_at ?? new Date().toISOString()),
+      focusMinutes: Number(row.estimated_minutes) > 0 ? Number(row.estimated_minutes) : previous?.focusMinutes,
+      focusSessions: previous?.focusSessions,
+    };
+  }));
 }
 
 export async function addTodo(
@@ -116,6 +125,7 @@ export async function addTodo(
   source: TodoItem["source"] = "manual",
   scheduledDate = todayISO(),
   scheduledTime?: string,
+  focusPlan?: { focusMinutes?: number; focusSessions?: number },
 ) {
   const normalized = title.trim();
   if (!normalized) throw new Error("待办事项不能为空。");
@@ -127,6 +137,8 @@ export async function addTodo(
     completed: false,
     source,
     createdAt: new Date().toISOString(),
+    focusMinutes: focusPlan?.focusMinutes,
+    focusSessions: focusPlan?.focusSessions,
   };
   if (isDemoMode()) {
     writeTodos(userId, [nextItem, ...loadTodos(userId)]);
@@ -138,6 +150,7 @@ export async function addTodo(
     user_id: userId,
     title: nextItem.title,
     scheduled_date: nextItem.scheduledDate,
+    estimated_minutes: nextItem.focusMinutes ?? null,
     completed: false,
     category: "todo",
   }).select("id,title,scheduled_date,completed,created_at").single();
@@ -164,7 +177,7 @@ export async function toggleTodo(userId: string, id: string) {
 }
 
 function todoBackendUnavailable(message: string) {
-  return /schema cache|relation .*tasks.* does not exist|column .*category.* does not exist|could not find.*category/i.test(message);
+  return /schema cache|relation .*tasks.* does not exist|column .*(category|estimated_minutes).* does not exist|could not find.*(category|estimated_minutes)/i.test(message);
 }
 
 const defaultGrowthTasks: Omit<GrowthTask, "completed">[] = [

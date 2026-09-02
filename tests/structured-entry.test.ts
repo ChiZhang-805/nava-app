@@ -6,8 +6,21 @@ test("todo parser keeps tomorrow and afternoon time", () => {
   const entry = parseStructuredEntry("明天下午3点提醒我给团队开会", "zh");
   assert.equal(entry?.type, "todo");
   assert.equal(entry?.payload.scheduledTime, "15:00");
+  assert.equal(entry?.payload.focusMinutes, 25);
+  assert.equal(entry?.payload.focusSessions, 1);
   assert.equal(entry?.fields.some((field) => field.label === "日期"), true);
   assert.match(String(entry?.payload.title), /团队开会/);
+});
+
+test("todo parser adds editable focus suggestions for deep work", () => {
+  const entry = parseStructuredEntry("明天提醒我写项目报告", "zh");
+  assert.equal(entry?.type, "todo");
+  assert.equal(entry?.payload.focusMinutes, 45);
+  assert.equal(entry?.payload.focusSessions, 2);
+  const minutes = entry?.fields.find((field) => field.path === "focusMinutes");
+  assert.ok(minutes);
+  const updated = updateStructuredEntryField(entry!, minutes!.id, "60");
+  assert.equal(updated.payload.focusMinutes, 60);
 });
 
 test("sleep parser understands Chinese evening and morning periods", () => {

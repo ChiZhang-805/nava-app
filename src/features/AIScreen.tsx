@@ -108,6 +108,7 @@ export default function AIScreen({
   profileRefreshKey = 0,
   speechEnabled = true,
   active = true,
+  initialPromptRequest = null,
   onDataSaved,
   onConversationCompleted,
 }: {
@@ -120,6 +121,7 @@ export default function AIScreen({
   profileRefreshKey?: number;
   speechEnabled?: boolean;
   active?: boolean;
+  initialPromptRequest?: { id: number; text: string } | null;
   onDataSaved?: () => void;
   onConversationCompleted?: () => void;
 }) {
@@ -153,6 +155,7 @@ export default function AIScreen({
   const voiceSessionRef = useRef<VoiceInputSession | null>(null);
   const handledVoiceRequestRef = useRef(0);
   const handledVoiceReleaseRef = useRef(0);
+  const handledPromptRequestRef = useRef(0);
   const voiceStopIntentRef = useRef<"stop" | "cancel" | null>(null);
   const voiceInitialInputRef = useRef("");
   const voicePointerActiveRef = useRef(false);
@@ -399,6 +402,13 @@ export default function AIScreen({
   }, [profileRefreshKey, readHistory, user.id]);
 
   useEffect(() => setAvatarLoadFailed(false), [profile?.avatar_url]);
+
+  useEffect(() => {
+    if (!active || !initialPromptRequest || initialPromptRequest.id === handledPromptRequestRef.current) return;
+    handledPromptRequestRef.current = initialPromptRequest.id;
+    setInput(initialPromptRequest.text);
+    setError(null);
+  }, [active, initialPromptRequest]);
 
   useEffect(() => {
     speechRef.current?.cancel();

@@ -506,11 +506,14 @@ export function parseStructuredEntry(text: string, locale: "zh" | "en", extracti
   if (/待办|提醒我|记得要|todo|remind me/i.test(value)) {
     const schedule = todoSchedule(value);
     const todoTitle = cleanTodoTitle(value, schedule.matchedDateText) || value;
+    const focusPlan = suggestedFocusPlan(todoTitle);
     return entry("todo", locale, todoTitle, [
       { label: locale === "zh" ? "事项" : "Task", value: todoTitle, path: "title" },
       { label: locale === "zh" ? "日期" : "Date", value: schedule.scheduledDate, path: "scheduledDate" },
       ...(schedule.scheduledTime ? [{ label: locale === "zh" ? "时间" : "Time", value: schedule.scheduledTime, path: "scheduledTime" }] : []),
-    ], { title: todoTitle, scheduledDate: schedule.scheduledDate, scheduledTime: schedule.scheduledTime });
+      { label: locale === "zh" ? "建议专注时长" : "Suggested focus", value: String(focusPlan.focusMinutes), unit: locale === "zh" ? "分钟" : "min", valueType: "number", path: "focusMinutes" },
+      { label: locale === "zh" ? "建议次数" : "Suggested sessions", value: String(focusPlan.focusSessions), unit: locale === "zh" ? "次" : "sessions", valueType: "number", path: "focusSessions" },
+    ], { title: todoTitle, scheduledDate: schedule.scheduledDate, scheduledTime: schedule.scheduledTime, ...focusPlan });
   }
 
   const model = entryFromExtraction(extraction, value, locale);
@@ -521,6 +524,16 @@ export function parseStructuredEntry(text: string, locale: "zh" | "en", extracti
   }
   if (entries.length === 0) return null;
   return entries.length === 1 ? entries[0] : multiEntry(entries, locale, value);
+}
+
+function suggestedFocusPlan(title: string) {
+  if (/论文|报告|方案|项目|编程|代码|复习|学习|写作|research|report|project|code|study|write/i.test(title)) {
+    return { focusMinutes: 45, focusSessions: 2 };
+  }
+  if (/整理|阅读|会议|准备|review|read|meeting|prepare/i.test(title)) {
+    return { focusMinutes: 25, focusSessions: 2 };
+  }
+  return { focusMinutes: 25, focusSessions: 1 };
 }
 
 function setByPath(payload: Record<string, unknown>, path: string, nextValue: string, valueType: StructuredField["valueType"]) {

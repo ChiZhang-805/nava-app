@@ -1348,6 +1348,58 @@ body::before {
   }
 }
 
+/* Focus task planning and real-data distribution views. */
+.focus-dashboard { grid-template-rows: auto auto auto auto; }
+.focus-dashboard .focus-trend-card { min-height: 214px; }
+.focus-trend-card > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.focus-chart-tabs,
+.focus-todo-tabs { display: inline-flex; align-items: center; gap: 3px; padding: 3px; border-radius: 10px; background: rgba(221,242,249,.74); }
+.focus-chart-tabs button,
+.focus-todo-tabs button { min-height: 25px; border: 0; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; padding: 4px 7px; color: #557a8c; background: transparent; font: inherit; font-size: 8.5px; font-weight: 760; }
+.focus-chart-tabs button.active,
+.focus-todo-tabs button.active { color: #0c7199; background: rgba(255,255,255,.94); box-shadow: 0 3px 9px rgba(33,110,139,.12); }
+.focus-distribution-bars { min-height: 148px; display: grid; align-content: center; gap: 11px; padding: 8px 2px 2px; }
+.focus-distribution-bars > div { display: grid; grid-template-columns: 44px minmax(0,1fr) 54px; align-items: center; gap: 8px; color: #507487; font-size: 9px; }
+.focus-distribution-bars i { height: 9px; border-radius: 999px; overflow: hidden; background: rgba(205,232,242,.7); }
+.focus-distribution-bars i b { height: 100%; display: block; border-radius: inherit; background: linear-gradient(90deg,#35afd3,#137ca8); }
+.focus-distribution-bars strong { color: #194b62; font-size: 9px; text-align: right; }
+.focus-todo-card { display: grid; gap: 9px; padding: 12px 15px; }
+.focus-todo-card > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.focus-todo-card > header > strong { color: #12384d; font-size: 13px; }
+.focus-todo-add { min-height: 38px; display: grid; grid-template-columns: minmax(0,1fr) 34px; gap: 6px; padding: 3px 3px 3px 11px; border: 1px solid rgba(78,157,188,.18); border-radius: 13px; background: rgba(232,247,252,.66); }
+.focus-todo-add input { min-width: 0; border: 0; outline: 0; color: #143e51; background: transparent; font: inherit; font-size: 10px; }
+.focus-todo-add button { border: 0; border-radius: 10px; display: grid; place-items: center; color: white; background: linear-gradient(145deg,#31acd2,#087da9); }
+.focus-todo-list { max-height: 190px; display: grid; gap: 6px; overflow: auto; scrollbar-width: thin; }
+.focus-todo-calendar { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 4px; }
+.focus-todo-calendar button { min-height: 48px; border: 1px solid rgba(67,153,184,.12); border-radius: 11px; display: grid; place-items: center; gap: 1px; padding: 4px 2px; color: #6c8996; background: rgba(241,250,253,.76); font: inherit; }
+.focus-todo-calendar button.selected { border-color: rgba(20,144,188,.43); color: #087ba6; background: rgba(218,242,250,.92); }
+.focus-todo-calendar small { font-size: 7px; }
+.focus-todo-calendar strong { font-size: 10px; }
+.focus-todo-calendar i { --completion: 0%; width: 16px; height: 3px; border-radius: 99px; background: linear-gradient(90deg,#2cad83 var(--completion),#d5e9f0 var(--completion)); }
+.focus-todo-list > div { min-height: 46px; display: grid; grid-template-columns: 26px minmax(0,1fr) 30px; align-items: center; gap: 6px; padding: 5px 7px; border: 1px solid rgba(64,151,184,.14); border-radius: 12px; background: rgba(249,253,255,.78); }
+.focus-todo-list > div.selected { border-color: rgba(20,145,190,.48); box-shadow: inset 0 0 0 1px rgba(20,145,190,.09); }
+.focus-todo-list > div.completed { opacity: .68; }
+.focus-todo-list > div.completed strong { text-decoration: line-through; }
+.focus-todo-check { width: 22px; height: 22px; border: 1px solid rgba(46,144,178,.42); border-radius: 7px; display: grid; place-items: center; color: white; background: transparent; }
+.focus-todo-list > div.completed .focus-todo-check { border-color: transparent; background: #2caf82; }
+.focus-todo-copy { min-width: 0; border: 0; display: grid; gap: 2px; padding: 0; text-align: left; background: transparent; }
+.focus-todo-copy strong { overflow: hidden; color: #193f52; font-size: 10.5px; text-overflow: ellipsis; white-space: nowrap; }
+.focus-todo-copy small { color: #718e9b; font-size: 8px; }
+.focus-todo-start { width: 28px; height: 28px; border: 0; border-radius: 9px; display: grid; place-items: center; color: #0a7da8; background: #dff3fa; }
+.focus-todo-start:disabled { opacity: .35; }
+.focus-todo-list > p { margin: 5px 0; color: #78939f; font-size: 9px; text-align: center; }
+.focus-category-field { min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #56798a; font-size: 9px; font-weight: 700; }
+.focus-category-field select { min-height: 31px; border: 1px solid rgba(67,149,180,.18); border-radius: 10px; padding: 4px 27px 4px 10px; color: #17465c; background: rgba(231,246,251,.72); font: inherit; font-size: 9px; font-weight: 720; }
+.focus-ai-plan-button { min-height: 38px; border: 1px solid rgba(36,145,187,.2); border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: #0b739b; background: rgba(220,243,251,.82); font: inherit; font-size: 9px; font-weight: 760; }
+
+@media (max-width: 430px) and (max-height: 760px) {
+  .focus-dashboard { grid-template-rows: auto auto auto auto; }
+  .focus-dashboard .focus-trend-card { min-height: 184px; }
+  .focus-distribution-bars { min-height: 130px; gap: 8px; }
+  .focus-todo-card { padding-block: 10px; }
+  .focus-todo-list { max-height: 150px; }
+}
+
 /* Figma v2 health modules: exercise, mood, sleep and focus. */
 .record-detail:has(.module-dashboard) {
   height: 100%;
@@ -3340,6 +3392,40 @@ body::before {
   overflow: hidden;
 }
 
+.focus-immersive-exit {
+  position: absolute;
+  z-index: 4;
+  top: 2px;
+  left: 0;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .82);
+  border-radius: 50%;
+  color: #285b70;
+  background: rgba(247, 253, 255, .76);
+  box-shadow: 0 7px 20px rgba(25, 103, 137, .1);
+}
+
+.focus-immersive-mascot {
+  position: absolute;
+  z-index: 0;
+  right: -42px;
+  bottom: -30px;
+  width: min(52vw, 220px);
+  max-height: 250px;
+  object-fit: contain;
+  opacity: .28;
+  filter: saturate(.9) drop-shadow(0 15px 22px rgba(18, 91, 126, .12));
+  pointer-events: none;
+}
+
+.focus-title-field,
+.focus-timer-ring,
+.focus-controls,
+.focus-interruption-trigger { position: relative; z-index: 1; }
+
 .focus-immersive .module-inline-back { align-self: flex-start; }
 
 .focus-title-field {
@@ -3396,6 +3482,40 @@ body::before {
   background: #176f94;
 }
 
+.focus-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.focus-presets button {
+  min-height: 30px;
+  border: 1px solid rgba(60, 151, 188, .2);
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: #376b80;
+  background: rgba(237, 249, 253, .88);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 760;
+}
+
+.focus-presets button.active {
+  border-color: transparent;
+  color: white;
+  background: linear-gradient(135deg, #31a9d6, #176e95);
+  box-shadow: 0 5px 13px rgba(18, 113, 153, .17);
+}
+
+.focus-presets--immersive {
+  width: min(100%, 270px);
+  grid-column: 1;
+  justify-self: center;
+  margin-top: -5px;
+}
+
+.focus-presets--immersive button { min-height: 28px; padding-block: 4px; background: rgba(246, 253, 255, .74); }
+
 .focus-timer-ring {
   --progress: var(--timer-progress);
   width: min(74vw, 310px);
@@ -3440,6 +3560,17 @@ body::before {
 
 .focus-controls button { width: 54px; height: 54px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #1b566e; background: rgba(245,252,255,.76); box-shadow: 0 9px 24px rgba(12, 83, 117, .12); }
 .focus-controls button.primary { width: 66px; height: 66px; margin-top: -6px; color: white; background: linear-gradient(145deg, #3fb5e0, #11658b); }
+
+.phone-frame--focus-immersive .app-content.app-content--record {
+  margin-bottom: 0;
+  padding-top: 4px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+
+.phone-frame--focus-immersive .app-content--record .screen-panel,
+.phone-frame--focus-immersive .record-detail,
+.phone-frame--focus-immersive .record-detail > .module-dashboard { height: 100%; min-height: 0; }
 
 @keyframes module-view-in {
   from { opacity: 0; transform: translateY(10px); }
@@ -4124,6 +4255,8 @@ body::before {
 .growth-task-meta { display: inline-flex; align-items: center; gap: 1px; color: #0c8abb; }
 .growth-task-meta b { font-size: 12px; }
 .growth-task-card.completed .growth-task-meta { color: #218461; }
+.growth-task-card.completed .growth-task-copy strong,
+.growth-task-card.completed .growth-task-copy small { text-decoration: line-through; text-decoration-color: rgba(33,132,97,.42); }
 .growth-task-card.completion-reveal { animation: growth-task-complete 620ms cubic-bezier(.18,1.15,.28,1) both; }
 .growth-task-card.completion-reveal .growth-task-check { animation: growth-check-reveal 560ms cubic-bezier(.16,1.4,.32,1) both; }
 .growth-task-card.completion-reveal .growth-task-meta { animation: growth-completed-copy 440ms ease-out both; }
@@ -4366,7 +4499,7 @@ body::before {
   min-height: 242px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   align-items: stretch;
   gap: 10px;
   padding: 13px 15px 14px;
@@ -5961,6 +6094,60 @@ body::before {
   animation: module-icon-lift 520ms cubic-bezier(0.16, 0.9, 0.24, 1) both;
   animation-delay: 0ms;
 }
+
+.record-hub-ai-summary {
+  flex: 0 0 auto;
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, .92);
+  border-radius: 18px;
+  padding: 9px 13px;
+  color: #123d53;
+  background: linear-gradient(135deg, rgba(248, 254, 255, .94), rgba(212, 242, 252, .86));
+  box-shadow: 0 8px 22px rgba(35, 126, 166, .1), inset 0 1px 0 rgba(255, 255, 255, .92);
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+.record-hub-ai-summary > span {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  background: linear-gradient(145deg, #3bb2df, #126e96);
+  box-shadow: 0 6px 15px rgba(19, 115, 153, .2);
+}
+
+.record-hub-ai-summary > div { min-width: 0; display: grid; gap: 2px; }
+.record-hub-ai-summary strong { color: #0a5677; font-size: 11px; }
+.record-hub-ai-summary p,
+.record-hub-ai-summary small { margin: 0; color: #567989; font-size: 10px; line-height: 1.3; }
+.record-hub-ai-summary p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.record-hub-ai-summary small { color: #7b919b; }
+
+.phone-frame:not(.phone-frame--option2) .record-module-entry.is-missing {
+  border-color: rgba(225, 234, 238, .9);
+  background: linear-gradient(145deg, rgba(248, 251, 252, .86), rgba(223, 234, 238, .74));
+  box-shadow: 0 8px 20px rgba(74, 101, 114, .08), inset 0 1px 0 rgba(255, 255, 255, .9);
+}
+
+.phone-frame:not(.phone-frame--option2) .record-module-entry.is-missing .record-module-icon {
+  color: #8298a2;
+  background: linear-gradient(145deg, #fbfdfe, #e4edf0);
+}
+
+.phone-frame:not(.phone-frame--option2) .record-module-entry.is-missing .record-module-points span { color: #7d929b; }
+.phone-frame:not(.phone-frame--option2) .record-module-entry.is-missing .record-module-points span::before {
+  background: #a5b5bc;
+  box-shadow: 0 0 0 3px rgba(164, 181, 189, .14);
+}
+
+.record-hub:has(.record-hub-ai-summary) .record-module-entry { gap: 7px; padding-block: 9px; }
+.record-hub:has(.record-hub-ai-summary) .record-module-points { gap: 5px; padding-top: 0; }
 
 .sleep-bars small,
 .focus-period-card small,
@@ -8647,7 +8834,7 @@ body::before {
 .focus-dashboard .focus-quick-card {
   min-height: 276px;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   gap: 9px;
   padding: 13px 15px 14px;
 }
@@ -9150,4 +9337,73 @@ body::before {
   .home-calendar-day { min-height: 39px; }
   .home-report-hero { min-height: 136px; }
   .home-report-metric { min-height: 112px; }
+}
+
+/* This four-card composition intentionally follows every legacy focus rule. */
+.record-module-dashboard-shell { min-width: 0; display: grid; gap: 9px; }
+.module-cross-actions { min-height: 44px; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; padding: 7px; border: 1px solid rgba(255,255,255,.82); border-radius: 17px; background: rgba(242,251,254,.78); box-shadow: 0 8px 20px rgba(18,104,141,.08); }
+.module-cross-actions button { min-height: 32px; border: 0; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: #0c7098; background: rgba(219,242,250,.86); font: inherit; font-size: 9.5px; font-weight: 760; }
+.module-cross-actions button:last-child { color: #21596e; background: rgba(235,246,250,.92); }
+.module-cross-actions button:active { transform: scale(.98); }
+.face-photo-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.face-photo-actions button { min-height: 40px; border: 1px solid rgba(63,153,188,.2); border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: #116f94; background: rgba(226,245,251,.76); font: inherit; font-size: 10px; font-weight: 740; }
+.face-photo-actions button:disabled { opacity: .46; }
+.face-bare-guidance { min-height: 64px; display: grid; grid-template-columns: 28px minmax(0,1fr); align-items: center; gap: 8px; padding: 9px 11px; border-radius: 15px; color: #1481a9; background: linear-gradient(145deg,rgba(224,246,252,.9),rgba(242,250,254,.82)); }
+.face-bare-guidance p { margin: 0; display: grid; gap: 3px; }
+.face-bare-guidance strong { color: #16495f; font-size: 10px; }
+.face-bare-guidance span { color: #607f8c; font-size: 8px; line-height: 1.4; }
+.face-daily-note { min-height: 44px; display: grid; grid-template-columns: 22px minmax(0,1fr) auto; align-items: center; gap: 7px; margin-top: 8px; padding: 7px 9px; border-radius: 13px; color: #1a6e91; background: rgba(222,244,251,.68); }
+.face-daily-note p { margin: 0; color: #456d7e; font-size: 9px; line-height: 1.4; }
+.face-daily-note strong { font-size: 11px; }
+.face-daily-note strong.positive { color: #218461; }
+.face-daily-note strong.negative { color: #ba6670; }
+.face-summary-actions { display: inline-flex; align-items: center; gap: 5px; }
+.face-summary-actions > button:first-child { min-height: 31px; border: 1px solid rgba(58,150,185,.18); border-radius: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; color: #1a7395; background: rgba(228,246,252,.78); font: inherit; font-size: 8.5px; font-weight: 740; }
+.face-summary-actions > button:first-child:disabled { opacity: .38; }
+.face-summary-actions .module-card-icon-action { min-height: 32px; border: 0; border-radius: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; color: white; background: linear-gradient(145deg,#31acd2,#087da9); box-shadow: 0 5px 12px rgba(10,119,160,.17); font: inherit; font-size: 8.5px; font-weight: 760; }
+.face-comparison { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
+.face-comparison > section { min-height: 112px; display: grid; place-items: center; gap: 5px; padding: 10px; border-radius: 17px; background: rgba(229,246,251,.78); }
+.face-comparison > section small { color: #6e8b98; font-size: 8px; }
+.face-comparison > section > strong { color: #164a62; font-size: 29px; }
+.face-comparison > section em { margin-left: 3px; font-size: 8px; font-style: normal; }
+.face-comparison > section span { color: #557989; font-size: 8.5px; }
+.face-comparison > div { grid-column: 1/-1; min-height: 72px; display: grid; grid-template-columns: 24px auto minmax(0,1fr); align-items: center; gap: 7px; padding: 9px 11px; border-radius: 15px; background: rgba(239,249,252,.84); }
+.face-comparison > div.positive { color: #20845f; }
+.face-comparison > div.negative { color: #b85e6a; }
+.face-comparison > div p { margin: 0; color: #66838f; font-size: 8px; line-height: 1.4; }
+.face-pattern-alert { min-height: 52px; display: grid; grid-template-columns: 24px minmax(0,1fr); align-items: center; gap: 7px; padding: 8px 11px; border: 1px solid rgba(213,151,157,.2); border-radius: 15px; color: #aa5d68; background: rgba(255,242,243,.84); }
+.face-pattern-alert p { margin: 0; color: #795e64; font-size: 8.3px; line-height: 1.45; }
+.sleep-preset-row { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }
+.sleep-preset-row button { min-height: 47px; border: 1px solid rgba(64,153,188,.18); border-radius: 13px; display: grid; place-items: center; gap: 2px; color: #145c79; background: rgba(228,246,252,.72); font: inherit; font-size: 10px; font-weight: 760; }
+.sleep-preset-row small { color: #73909d; font-size: 7.5px; font-weight: 620; }
+.sleep-chart-actions { display: inline-flex; align-items: center; gap: 5px; }
+.sleep-chart-actions > div { display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(220,242,249,.76); }
+.sleep-chart-actions > div button { min-height: 24px; border: 0; border-radius: 7px; padding: 3px 7px; color: #617f8d; background: transparent; font: inherit; font-size: 8px; font-weight: 740; }
+.sleep-chart-actions > div button.active { color: #0a769f; background: white; box-shadow: 0 2px 7px rgba(30,103,133,.11); }
+.sleep-reminder-time { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 10px; border-radius: 13px; color: #456d7f; background: rgba(230,246,251,.82); font-size: 10px; font-weight: 720; }
+.sleep-reminder-time input { min-height: 31px; border: 1px solid rgba(65,151,183,.2); border-radius: 9px; padding: 4px 8px; color: #17485d; background: white; font: inherit; }
+.mood-factor-chips { align-items: stretch; }
+.mood-factor-chips > div { display: flex; flex-wrap: wrap; gap: 5px; }
+.mood-factor-chips > div button { min-height: 27px; border: 1px solid rgba(64,153,188,.16); border-radius: 999px; padding: 4px 9px; color: #55798a; background: rgba(235,248,252,.82); font: inherit; font-size: 8px; font-weight: 710; }
+.mood-factor-chips > div button.selected { border-color: rgba(22,139,182,.42); color: #087ca7; background: rgba(209,240,250,.92); }
+.mood-pattern-alert { min-height: 56px; display: grid; grid-template-columns: 24px minmax(0,1fr); align-items: center; gap: 7px; padding: 9px 12px; border: 1px solid rgba(210,140,145,.18); border-radius: 16px; color: #a45461; background: rgba(255,241,241,.82); }
+.mood-pattern-alert p { margin: 0; color: #7d5961; font-size: 8.7px; line-height: 1.45; }
+.mood-dashboard:has(.mood-pattern-alert) { grid-template-rows: 88px minmax(232px,.92fr) minmax(208px,1.08fr) auto; }
+.diet-quick-foods { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+.diet-quick-foods button { min-height: 45px; border: 1px solid rgba(72,156,186,.16); border-radius: 13px; display: grid; gap: 2px; place-content: center; color: #1b5269; background: rgba(233,248,252,.82); font: inherit; text-align: center; }
+.diet-quick-foods strong { font-size: 9.5px; }
+.diet-quick-foods small { color: #6e8d9a; font-size: 7.5px; }
+.diet-energy-context { min-height: 70px; display: grid; grid-template-columns: 58px minmax(0,1fr); align-items: center; gap: 10px; margin-top: 8px; padding: 7px 9px; border-radius: 15px; background: rgba(232,247,251,.72); }
+.diet-macro-ring { width: 55px; height: 55px; border-radius: 50%; display: grid; place-items: center; box-shadow: inset 0 0 0 1px rgba(255,255,255,.68); }
+.diet-macro-ring::before { content: ""; width: 39px; height: 39px; border-radius: 50%; grid-area: 1/1; background: rgba(249,254,255,.94); }
+.diet-macro-ring span { z-index: 1; grid-area: 1/1; display: grid; color: #194a61; font-size: 10px; font-weight: 800; text-align: center; }
+.diet-macro-ring small { font-size: 6px; font-weight: 650; }
+.diet-energy-context p { margin: 0; color: #55798a; font-size: 8.3px; line-height: 1.45; }
+.diet-pattern-alert { min-height: 52px; display: grid; grid-template-columns: 24px minmax(0,1fr); align-items: center; gap: 7px; padding: 8px 11px; border: 1px solid rgba(231,174,104,.22); border-radius: 15px; color: #b8782f; background: rgba(255,247,232,.86); }
+.diet-pattern-alert p { margin: 0; color: #80684c; font-size: 8.5px; line-height: 1.45; }
+.focus-dashboard { grid-template-rows: auto auto auto auto; }
+.focus-dashboard .focus-trend-card { min-height: 214px; }
+@media (max-width: 430px) and (max-height: 760px) {
+  .focus-dashboard { grid-template-rows: auto auto auto auto; }
+  .focus-dashboard .focus-trend-card { min-height: 184px; }
 }
