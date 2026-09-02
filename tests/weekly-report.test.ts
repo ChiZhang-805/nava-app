@@ -31,7 +31,7 @@ test("weekly insight UI loads the authenticated cloud AI report", () => {
 test("weekly AI report is persisted and rejects non-model providers", () => {
   assert.match(reportFunction, /from\("ai_health_reports"\)\.upsert/);
   assert.match(reportFunction, /row\.provider !== "deepseek"/);
-  assert.match(reportFunction, /deepseek-v4-flash-health-report-v2/);
+  assert.match(reportFunction, /deepseek-v4-flash-health-report-v3/);
   assert.match(reportFunction, /expectedIds = \["trend", "variation", "association", "action"\]/);
   assert.match(reportFunction, /bullets: report/);
   assert.match(recordsScreen, /weekly-detail-dialog/);

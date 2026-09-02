@@ -1,4 +1,5 @@
 import { errorResponse, jsonResponse, optionsResponse, readJson, requireUser, stringValue } from "../_shared/http.ts";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.52.1";
 
 const privateBuckets = ["diet-photos", "face-photos", "profile-avatars"];
 
@@ -12,11 +13,9 @@ Deno.serve(async (req) => {
     if (!adminClient) throw new Error("账号删除服务尚未配置管理员密钥。");
 
     for (const bucket of privateBuckets) {
-      const { data, error } = await adminClient.storage.from(bucket).list(user.id, { limit: 1000 });
-      if (error && !/bucket not found|not found/i.test(error.message)) throw error;
-      const paths = (data ?? []).filter((item) => item.id).map((item) => `${user.id}/${item.name}`);
-      if (paths.length > 0) {
-        const removed = await adminClient.storage.from(bucket).remove(paths);
+      const paths = await listOwnedFiles(adminClient, bucket, user.id);
+      for (let offset = 0; offset < paths.length; offset += 100) {
+        const removed = await adminClient.storage.from(bucket).remove(paths.slice(offset, offset + 100));
         if (removed.error) throw removed.error;
       }
     }
@@ -28,3 +27,24 @@ Deno.serve(async (req) => {
     return errorResponse(error);
   }
 });
+
+async function listOwnedFiles(client: SupabaseClient, bucket: string, prefix: string, depth = 0): Promise<string[]> {
+  if (depth > 8) throw new Error(`私有存储目录层级异常：${bucket}`);
+  const files: string[] = [];
+  for (let offset = 0; ; offset += 1_000) {
+    const { data, error } = await client.storage.from(bucket).list(prefix, { limit: 1_000, offset });
+    if (error) {
+      if (/bucket not found|not found/i.test(error.message)) return [];
+      throw error;
+    }
+    const entries = data ?? [];
+    for (const entry of entries) {
+      if (!entry.name || entry.name === ".emptyFolderPlaceholder") continue;
+      const path = `${prefix}/${entry.name}`;
+      if (entry.id) files.push(path);
+      else files.push(...await listOwnedFiles(client, bucket, path, depth + 1));
+    }
+    if (entries.length < 1_000) break;
+  }
+  return files;
+}

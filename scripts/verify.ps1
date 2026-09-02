@@ -55,8 +55,16 @@ Write-Host "11. Phone OTP tests"
 Invoke-Npm -Arguments @("run", "backend:test")
 
 Write-Host ""
-Write-Host "12. iOS project contract"
+Write-Host "12. Native health and auth contract"
+Invoke-Npm -Arguments @("run", "health:contract:test")
+
+Write-Host ""
+Write-Host "13. iOS project contract"
 Invoke-Npm -Arguments @("run", "ios:verify")
+
+Write-Host ""
+Write-Host "14. Consent and real-data boundary contract"
+Invoke-Npm -Arguments @("run", "consent:contract:test")
 
 Write-Host ""
 Write-Host "Verification completed."

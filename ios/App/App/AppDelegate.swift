@@ -7,7 +7,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Observer queries must be registered at launch so HealthKit can deliver changes
+        // while the app is backgrounded. Permission may not exist yet; the plugin retries
+        // background delivery after the user authorizes HealthKit.
+        NavaHealthBackgroundObserver.shared.start()
         return true
     }
 

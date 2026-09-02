@@ -15,6 +15,7 @@ import {
   type KnowledgeBundle,
   type KnowledgeDomain,
 } from "../_shared/knowledge-tools.ts";
+import { loadConsentFlags } from "../_shared/consent.ts";
 
 type ExtractedRecord = {
   dataType: "sleep" | "exercise" | "mood" | "focus" | "nutrition" | "profile";
@@ -46,6 +47,7 @@ type ExtractionHarness = {
   version: string;
   deviceDate: string;
   domains: HealthDomain[];
+  historicalContextAllowed: boolean;
   recentContext: Partial<Record<HealthDomain, Array<Record<string, unknown>>>>;
   rules: Partial<Record<HealthDomain, string[]>>;
 };
@@ -81,7 +83,8 @@ Deno.serve(async (req) => {
     const deviceDate = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) ? requestedDate : chinaDateISO();
     const candidate = localExtract(message, lang);
     const domains = detectHealthDomains(message, candidate);
-    const harness = await buildExtractionHarness(userClient, user.id, deviceDate, domains, lang);
+    const consent = await loadConsentFlags(userClient, user.id);
+    const harness = await buildExtractionHarness(userClient, user.id, deviceDate, domains, lang, consent.aiPersonalization);
     const result = await extractData({ message, lang, userId: user.id, candidate, harness });
     console.info("NAVA knowledge audit", JSON.stringify({ stage: "extraction", domains, tools: knowledgeAuditSummary((result as Record<string, unknown>).knowledge) }));
     return jsonResponse(result);
@@ -104,10 +107,11 @@ async function extractData(input: { message: string; lang: "zh" | "en"; userId: 
       body: JSON.stringify({
         message: input.message,
         lang: input.lang,
-        userId: input.userId,
+        userId: await anonymizeUserId(input.userId),
         ruleCandidate: input.candidate,
         harness: input.harness,
       }),
+      signal: AbortSignal.timeout(60_000),
     });
     if (!response.ok) throw new Error(`自然语言抽取服务返回 ${response.status}`);
     const data = await response.json();
@@ -291,12 +295,16 @@ async function buildExtractionHarness(
   deviceDate: string,
   domains: HealthDomain[],
   lang: "zh" | "en",
+  allowHistoricalContext: boolean,
 ): Promise<ExtractionHarness> {
-  const recentContext = await loadRecentDomainContext(client, userId, deviceDate, domains);
+  const recentContext = allowHistoricalContext
+    ? await loadRecentDomainContext(client, userId, deviceDate, domains)
+    : {};
   return {
     version: "nava-structured-harness-v1.0.0",
     deviceDate,
     domains,
+    historicalContextAllowed: allowHistoricalContext,
     recentContext,
     rules: buildDomainRules(domains, lang),
   };
@@ -381,7 +389,8 @@ function withHarnessMetadata(result: Record<string, unknown>, harness: Extractio
         ...(knowledge?.traces.some((item) => item.suppliedToModel) ? ["evidence_calibration"] : []),
       ],
       domains: harness.domains,
-      historyLookbackDays: 7,
+      historyAccessAllowed: harness.historicalContextAllowed,
+      historyLookbackDays: harness.historicalContextAllowed ? 7 : 0,
       historyRecordsUsed: Object.fromEntries(harness.domains.map((domain) => [domain, harness.recentContext[domain]?.length ?? 0])),
       rulesApplied: harness.domains.filter((domain) => (harness.rules[domain]?.length ?? 0) > 0),
       knowledgeTools: knowledge?.traces.map(({ toolId, status, invoked, suppliedToModel, used }) => ({ toolId, status, invoked, suppliedToModel, used })) ?? [],
@@ -456,8 +465,8 @@ function extractSleep(message: string): ExtractedRecord | null {
     times.find((time) => /(睡|入睡|上床|bed|slept|sleep)/i.test(time.context)) ?? times[0];
   const endMention =
     times.find((time) => /(醒|起床|起来|wake|woke|up)/i.test(time.context)) ?? times.find((time) => time !== startMention);
-  let start = startMention?.value;
-  let end = endMention?.value;
+  const start = startMention?.value;
+  const end = endMention?.value;
   let durationMinutes = start && end ? estimateSleepMinutes(start, end) : undefined;
   if (durationMinutes == null) {
     const hours = matchLocalizedNumber(message, new RegExp(`(?:睡了?|睡眠|休息|slept|sleep)[^\\d一二两三四五六七八九十百零〇]{0,8}(${localizedNumberToken})\\s*(?:个)?(?:小时|钟头|hours?|hrs?|h)`, "i"))
@@ -466,14 +475,8 @@ function extractSleep(message: string): ExtractedRecord | null {
       ? matchLocalizedNumber(message, new RegExp(`${localizedNumberToken}\\s*(?:个)?(?:小时|钟头|hours?|hrs?|h)\\s*(${localizedNumberToken})\\s*(?:分钟|mins?|minutes?)`, "i"))
       : matchLocalizedNumber(message, new RegExp(`(?:睡了?|睡眠|休息|slept|sleep)[^\\d一二两三四五六七八九十百零〇]{0,8}(${localizedNumberToken})\\s*(?:分钟|mins?|minutes?)`, "i"));
     durationMinutes = hours != null ? Math.round(hours * 60 + (minutes ?? 0)) : minutes;
-    if (durationMinutes && durationMinutes > 0) {
-      const now = new Date();
-      const endMinutes = now.getUTCHours() * 60 + now.getUTCMinutes() + 8 * 60;
-      end = clockFromMinutes(endMinutes);
-      start = clockFromMinutes(endMinutes - durationMinutes);
-    }
   }
-  if (!start || !end || !durationMinutes) return null;
+  if (!durationMinutes || Boolean(start) !== Boolean(end)) return null;
   const rating = extractScore(message, ["睡眠", "睡得", "sleep", "quality"]);
   const deepMinutes = extractMinutesByKeyword(message, /(深睡|deep)/i);
   const remMinutes = extractMinutesByKeyword(message, /(rem|快速眼动)/i);
@@ -490,7 +493,7 @@ function extractSleep(message: string): ExtractedRecord | null {
       remMinutes,
       selfRating: rating,
     },
-    confidence: startMention && endMention ? 0.86 : 0.78,
+    confidence: startMention && endMention ? 0.86 : 0.74,
   };
 }
 
@@ -721,11 +724,6 @@ function parseLocalizedNumber(value: string | undefined): number | undefined {
 
 function matchLocalizedNumber(message: string, pattern: RegExp) {
   return parseLocalizedNumber(message.match(pattern)?.[1]);
-}
-
-function clockFromMinutes(minutes: number) {
-  const normalized = ((minutes % 1440) + 1440) % 1440;
-  return `${String(Math.floor(normalized / 60)).padStart(2, "0")}:${String(normalized % 60).padStart(2, "0")}`;
 }
 
 function foodCalories(name: string, unit: string) {

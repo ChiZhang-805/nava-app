@@ -1,6 +1,7 @@
 import type { RecordModule } from "../features/RecordsScreen";
 import type { TodaySnapshot, TrendBundle } from "../types";
 import type { UserProfile } from "./profile";
+import { onboardingAnswers, resolveConsentFlag } from "./consent.ts";
 
 type Locale = "zh" | "en";
 
@@ -43,7 +44,9 @@ function localizedProfileValue(value: string | null | undefined, locale: Locale)
 }
 
 function profileSuffix(profile: UserProfile | null, locale: Locale) {
-  if (!profile || profile.ai_personalization_consent === false) return "";
+  if (!profile) return "";
+  const answers = onboardingAnswers(profile.onboarding_answers);
+  if (!resolveConsentFlag(profile.ai_personalization_consent, answers?.aiPersonalizationConsent)) return "";
   const goal = profile.goal?.trim();
   if (!goal) return "";
   return locale === "zh" ? `结合你“${goal}”的目标，先保持一个容易持续的小调整。` : `For your “${goal}” goal, start with one change you can sustain.`;

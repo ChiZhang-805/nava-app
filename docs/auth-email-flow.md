@@ -19,6 +19,20 @@
 - 内部映射不得展示给用户；资料页仍显示原手机号。
 - Web 端若改用另一种手机号建号规则，会生成第二个账号，历史健康数据无法自动合并。
 
+### 会话存储边界
+
+- GitHub Pages、ChatGPT Sites 和普通浏览器继续使用当前标签页的
+  `sessionStorage`。关闭标签页后不保留公开网页登录，不得静默改成
+  `localStorage`。
+- Capacitor iOS 原生包使用 `NavaSecureStoragePlugin` 将 Supabase 会话保存到
+  当前 App 隔离的 iOS Keychain；退出登录时 Supabase 会通过同一适配器删除
+  会话。
+- Keychain 项使用 `AfterFirstUnlockThisDeviceOnly`，不会通过 iCloud Keychain
+  同步到其他设备。这样 HealthKit 后台变化在用户首次解锁后可以安全恢复当前
+  会话，同时不会把 token 写入 Web 存储、日志或源码。
+- Android 后续需要独立的 Keystore-backed 适配器；在它完成前不得把 iOS
+  Keychain 合同假定为跨平台实现。
+
 ## 托管邮件与验证码模板
 
 生产邮件必须先配置自定义 SMTP；Supabase 默认邮件服务只用于开发，而且免费层在未配置自定义 SMTP 时会拒绝修改邮件模板。推荐为认证邮件使用独立域名和发件地址，例如 `no-reply@auth.example.com`。准备好 SMTP 凭据后：

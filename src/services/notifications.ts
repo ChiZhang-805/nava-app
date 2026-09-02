@@ -24,7 +24,12 @@ async function savePreference(userId: string, type: "sleep" | "weekly_report", l
     last_scheduled_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }, { onConflict: "user_id,notification_type" });
-  if (error && !/notification_preferences|schema cache|does not exist/i.test(error.message)) throw error;
+  if (error) {
+    if (/notification_preferences|schema cache|does not exist/i.test(error.message)) {
+      throw new Error("共享后端尚未启用通知偏好存储，本次提醒设置没有保存到账号。");
+    }
+    throw error;
+  }
 }
 
 export async function enableNavaNotifications(userId: string, sleepTime = "22:30") {

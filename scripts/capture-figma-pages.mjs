@@ -178,6 +178,12 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
 
   await page.locator('[data-tab="trends"]').click();
   await capture(page, viewport, "12-growth-tasks", "[data-growth-screen]", report);
+
+  await page.locator('[data-tab="profile"]').click();
+  await expect(page.locator(".profile-stack")).toBeVisible();
+  await page.locator(".profile-next-section-button").click();
+  await expect(page.locator(".profile-device-card").first()).toBeInViewport();
+  await capture(page, viewport, "13-profile-devices", ".profile-device-stack", report);
   await context.close();
 }
 

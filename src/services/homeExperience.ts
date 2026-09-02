@@ -91,7 +91,7 @@ export function dailyMetrics(snapshot: TodaySnapshot, locale: "zh" | "en" = "zh"
   const dietScore = snapshot.nutrition
     ? snapshot.nutrition.health_rating != null
       ? Number(snapshot.nutrition.health_rating) * 20
-      : 70
+      : null
     : null;
   const focusScore = snapshot.focusSessions > 0 || snapshot.focusMinutes > 0
     ? Math.round(clamp((snapshot.focusMinutes / 60) * 100, 0, 100))

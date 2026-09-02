@@ -9,6 +9,8 @@ import {
 } from "../_shared/http.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.52.1";
 import { calculateHealthAssociations } from "../_shared/health-report-harness.ts";
+import { requireAiPersonalizationConsent, resolveConsentFlag } from "../_shared/consent.ts";
+import { sourceFingerprint } from "../_shared/source-fingerprint.ts";
 
 type Language = "zh" | "en";
 type ReportScope = "mood" | "sleep" | "exercise" | "focus" | "face" | "weekly";
@@ -30,7 +32,7 @@ type StructuredReport = {
 };
 
 const scopes = new Set<ReportScope>(["mood", "sleep", "exercise", "focus", "face", "weekly"]);
-const modelVersion = "deepseek-v4-flash-health-report-v2";
+const modelVersion = "deepseek-v4-flash-health-report-v3";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return optionsResponse();
@@ -45,6 +47,18 @@ Deno.serve(async (req) => {
     const lang: Language = stringValue(body.lang) === "en" ? "en" : "zh";
     const refresh = body.refresh === true;
     const { user, userClient } = await requireUser(req);
+    await requireAiPersonalizationConsent(userClient, user.id, lang);
+
+    const context = await loadScopeContext(userClient, user.id, rawScope, periodStart, periodEnd);
+    if (context.primarySourceCount === 0) {
+      throw new Error(lang === "zh" ? "保存真实记录后才能生成 AI 洞察。" : "Save a real record before generating AI insights.");
+    }
+    if (rawScope === "weekly" && recordedDayCount(context.payload) < 5) {
+      throw new Error(lang === "zh" ? "至少需要 5 个真实记录日才能生成 AI 周报。" : "At least five recorded days are required for an AI weekly report.");
+    }
+
+    const profile = await loadProfileContext(userClient, user.id);
+    const fingerprint = await sourceFingerprint({ scope: rawScope, profile, context: context.payload });
 
     if (!refresh) {
       const cached = await userClient
@@ -57,16 +71,9 @@ Deno.serve(async (req) => {
         .eq("language", lang)
         .maybeSingle();
       if (cached.error) throw cached.error;
-      const parsed = normalizeStoredReport(cached.data, lang);
+      const parsed = normalizeStoredReport(cached.data, lang, fingerprint);
       if (parsed) return jsonResponse(parsed);
     }
-
-    const context = await loadScopeContext(userClient, user.id, rawScope, periodStart, periodEnd);
-    if (context.primarySourceCount === 0) {
-      throw new Error(lang === "zh" ? "保存真实记录后才能生成 AI 洞察。" : "Save a real record before generating AI insights.");
-    }
-
-    const profile = await loadProfileContext(userClient, user.id);
     const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
     if (!apiKey) throw new Error(lang === "zh" ? "真实 AI 模型尚未配置。" : "The real AI model is not configured.");
     const report = await generateReport({
@@ -87,7 +94,7 @@ Deno.serve(async (req) => {
       language: lang,
       // The existing jsonb column keeps backward compatibility with v1 rows
       // while allowing the v2 report to persist its complete structured body.
-      bullets: report,
+      bullets: { ...report, sourceFingerprint: fingerprint },
       provider: "deepseek",
       model_version: modelVersion,
       source_count: context.sourceCount,
@@ -151,7 +158,10 @@ async function loadScopeContext(client: SupabaseClient, userId: string, scope: R
   ]);
   const sourceCount = rhythms.length + moods.length + sleeps.length + exercises.length + nutrition.length + focus.length + faces.length;
   const aggregatedFocus = aggregateFocusRows(focus);
-  const series = { rhythm: rhythms, mood: moods, sleep: sleeps, exercise: exercises, nutrition, focus: aggregatedFocus, face: faces };
+  // The harness uses singular domain keys to select each table's metric.
+  // Keep the persisted/prompt payload names below plural for compatibility,
+  // but never pass those plural collection names into the harness.
+  const associationSeries = { rhythm: rhythms, mood: moods, sleep: sleeps, exercise: exercises, nutrition, focus: aggregatedFocus, face: faces };
   return {
     primarySourceCount: sourceCount,
     sourceCount,
@@ -164,7 +174,7 @@ async function loadScopeContext(client: SupabaseClient, userId: string, scope: R
       nutrition,
       focus: aggregatedFocus,
       faces,
-      associationHarness: calculateHealthAssociations(series),
+      associationHarness: calculateHealthAssociations(associationSeries),
     },
   };
 }
@@ -190,10 +200,11 @@ async function query(client: SupabaseClient, table: string, select: string, user
 
 async function loadProfileContext(client: SupabaseClient, userId: string) {
   const result = await client.from("profiles").select("age_group,occupation,goal,onboarding_answers,ai_personalization_consent").eq("id", userId).maybeSingle();
-  if (result.error || !result.data) return { personalizationAllowed: false };
+  if (result.error) throw result.error;
+  if (!result.data) return { personalizationAllowed: false };
   const row = result.data as Record<string, unknown>;
   const answers = record(row.onboarding_answers);
-  const allowed = row.ai_personalization_consent === true || answers?.aiPersonalizationConsent === true;
+  const allowed = resolveConsentFlag(row.ai_personalization_consent, answers?.aiPersonalizationConsent);
   if (!allowed) return { personalizationAllowed: false };
   return {
     personalizationAllowed: true,
@@ -324,9 +335,11 @@ function validLongText(value: string, lang: Language, minimum: number) {
   return (value.match(/\p{Script=Han}/gu)?.length ?? 0) >= minimum;
 }
 
-function normalizeStoredReport(value: unknown, lang: Language) {
+function normalizeStoredReport(value: unknown, lang: Language, expectedFingerprint: string) {
   const row = record(value);
   if (!row) return null;
+  const storedBody = record(row.bullets);
+  if (storedBody?.sourceFingerprint !== expectedFingerprint) return null;
   const report = normalizeGeneratedReport(row.bullets, lang);
   if (!report || row.provider !== "deepseek" || row.model_version !== modelVersion) return null;
   return {
@@ -339,6 +352,20 @@ function normalizeStoredReport(value: unknown, lang: Language) {
     periodStart: row.period_start,
     periodEnd: row.period_end,
   };
+}
+
+function recordedDayCount(value: unknown) {
+  const root = record(value);
+  if (!root) return 0;
+  const dates = new Set<string>();
+  for (const key of ["rhythms", "moods", "sleeps", "exercises", "nutrition", "focus", "faces"]) {
+    const rows = Array.isArray(root[key]) ? root[key] : [];
+    for (const item of rows) {
+      const date = record(item)?.record_date;
+      if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) dates.add(date);
+    }
+  }
+  return dates.size;
 }
 
 function subtractDays(date: string, days: number) {

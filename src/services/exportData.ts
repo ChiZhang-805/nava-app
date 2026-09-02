@@ -21,7 +21,13 @@ export async function exportUserData(userId: string) {
   }
 
   const exported = await supabase.functions.invoke<Record<string, unknown>>("export-user-data", { body: {} });
-  if (!exported.error && exported.data) return exported.data;
+  if (!exported.error && exported.data) {
+    const exportErrors = exported.data.errors;
+    if (exportErrors && typeof exportErrors === "object" && Object.keys(exportErrors).length > 0) {
+      throw new Error(`账号数据导出不完整：${Object.keys(exportErrors).join("、")}`);
+    }
+    return exported.data;
+  }
 
   const tables = [
     "profiles",
@@ -59,7 +65,10 @@ export async function exportUserData(userId: string) {
   for (const table of tables) {
     const column = table === "profiles" ? "id" : "user_id";
     const { data, error } = await supabase.from(table).select("*").eq(column, userId);
-    if (error && !isMissingBackendResource(error)) throw error;
+    if (error) {
+      if (isMissingBackendResource(error)) throw new Error(`共享后端尚未部署 ${table}，无法生成完整账号数据导出。`);
+      throw error;
+    }
     result[table] = data ?? [];
   }
 

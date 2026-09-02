@@ -55,3 +55,25 @@ claim that hidden model causality can be observed.
 failure fallback, face safety selection, tool identity normalization, and compact
 evidence size. `npm run ai:prompt:test` checks that valid evidence reaches the
 final prompt without becoming instructions.
+
+## Report and consent contracts
+
+- Dedicated `profiles.ai_personalization_consent` and
+  `profiles.health_data_consent` columns are authoritative. Legacy onboarding
+  JSON is consulted only for profiles that do not yet have a boolean value;
+  an explicit revocation can never be overwritten by an old `true` answer.
+- AI chat history and stored health context are loaded only when personalized
+  AI consent is enabled. The current message can still be processed without
+  historical personalization, but no prior health records are attached.
+- Per-module and weekly health reports read the authenticated user's persisted
+  records, run the bounded same-date association harness, and require real
+  primary evidence. Weekly generation requires at least five distinct recorded
+  days.
+- Health and diet report caches carry a SHA-256 fingerprint of the normalized
+  source profile and records. A source change invalidates the cached prose.
+- Invalid or incomplete structured report output receives one bounded model
+  repair attempt. If the contract still fails, the request fails visibly; no
+  fixed production prose replaces the model.
+- The knowledge trace distinguishes evidence supplied to a model from evidence
+  demonstrably adopted by a validated stage. It never presents hidden
+  chain-of-thought as an audit record.

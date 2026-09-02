@@ -14,6 +14,7 @@ import { voiceEndpointDelayMs } from "../services/voiceEndpoint";
 import { confirmStructuredEntry, parseStructuredEntry, type StructuredEntry } from "../services/structuredEntry";
 import { updateStructuredEntryField } from "../services/structuredEntryParser";
 import type { ChatMessage, DietExtractResult } from "../types";
+import { isDemoMode } from "../services/demo";
 
 export type AiCommand = {
   id: number;
@@ -176,6 +177,7 @@ export default function AIScreen({
   const beginVoiceCallListeningRef = useRef<() => void>(() => {});
   const submitVoiceCallTurnRef = useRef<(message: string) => void>(() => {});
   const finalizeVoiceCallInputRef = useRef<() => void>(() => {});
+  const conversationLoadRequestRef = useRef(0);
   const historyKey = `nava-ai-history:${user.id}`;
 
   const readHistory = useCallback(() => {
@@ -200,14 +202,16 @@ export default function AIScreen({
   }, [historyKey, readHistory]);
 
   const refresh = useCallback(async () => {
+    const requestId = ++conversationLoadRequestRef.current;
     setLoading(true);
     setError(null);
     try {
-      setMessages(await loadConversation(user.id, locale));
+      const conversation = await loadConversation(user.id, locale);
+      if (requestId === conversationLoadRequestRef.current) setMessages(conversation);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (requestId === conversationLoadRequestRef.current) setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      if (requestId === conversationLoadRequestRef.current) setLoading(false);
     }
   }, [locale, user.id]);
 
@@ -249,7 +253,7 @@ export default function AIScreen({
         dataType: result.dataType,
         extractedData: result.extractedData,
         confidence: result.extractionConfidence,
-      });
+      }, { allowLocalHealthFallback: isDemoMode() });
       setPendingEntry(recognizedEntry);
       setPendingEntryMessageId(recognizedEntry ? result.assistantMessage.id : null);
       setEditingEntry(false);
@@ -385,10 +389,15 @@ export default function AIScreen({
 
   useEffect(() => {
     void refresh();
+    return () => {
+      conversationLoadRequestRef.current += 1;
+    };
   }, [refresh]);
 
   useEffect(() => {
+    let activeRequest = true;
     loadProfileWithOnboarding(user.id).then(({ profile: loadedProfile, onboarding }) => {
+      if (!activeRequest) return;
       if (!loadedProfile) return setProfile(null);
       const answers = onboarding?.answers ?? loadedProfile.onboarding_answers ?? {};
       setProfile({
@@ -397,8 +406,13 @@ export default function AIScreen({
         ai_personalization_consent: loadedProfile.ai_personalization_consent ?? answers.aiPersonalizationConsent === true,
         onboarding_answers: answers,
       });
-    }).catch(() => setProfile(null));
+    }).catch(() => {
+      if (activeRequest) setProfile(null);
+    });
     setHistory(readHistory());
+    return () => {
+      activeRequest = false;
+    };
   }, [profileRefreshKey, readHistory, user.id]);
 
   useEffect(() => setAvatarLoadFailed(false), [profile?.avatar_url]);
@@ -618,7 +632,7 @@ export default function AIScreen({
         dataType: result.dataType,
         extractedData: result.extractedData,
         confidence: result.extractionConfidence,
-      });
+      }, { allowLocalHealthFallback: isDemoMode() });
       setPendingEntry(recognizedEntry);
       setPendingEntryMessageId(recognizedEntry ? result.assistantMessage.id : null);
       setEditingEntry(false);

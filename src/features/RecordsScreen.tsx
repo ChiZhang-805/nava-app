@@ -170,6 +170,7 @@ export default function RecordsScreen({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const weeklyLongPressTimerRef = useRef<number | null>(null);
   const weeklyLongPressOriginRef = useRef<{ x: number; y: number } | null>(null);
+  const recordLoadRequestRef = useRef(0);
 
   const [moodScore, setMoodScore] = useState(70);
   const [selectedFactors, setSelectedFactors] = useState<string[]>([]);
@@ -226,6 +227,8 @@ export default function RecordsScreen({
   const moodAutoSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const healthModulePresentations = buildHealthModulePresentations(todaySnapshot, locale);
   const allHubModulesComplete = allHealthModulesRecorded(healthModulePresentations);
+  const hubAiEligible = allHubModulesComplete
+    && recordedDateCount(trendBundle, shiftDateISO(recordDate, -6), recordDate) >= 5;
 
   useEffect(() => {
     setFocusTitle((current) => current === "产品原型" || current === "Product prototype" || current === "Prototype" ? "" : current);
@@ -258,6 +261,7 @@ export default function RecordsScreen({
   }, [notice]);
 
   const loadRecordData = useCallback(async () => {
+    const requestId = ++recordLoadRequestRef.current;
     let loaded = false;
     setDraftReady(false);
     setDataLoadError(null);
@@ -267,6 +271,7 @@ export default function RecordsScreen({
         getTrends(user.id, deviceDate),
         loadProfile(user.id).catch(() => null),
       ]);
+      if (requestId !== recordLoadRequestRef.current) return;
       setTodaySnapshot(snapshot);
       setTrendBundle(trends);
       setProfile(loadedProfile);
@@ -301,9 +306,12 @@ export default function RecordsScreen({
       setHydrationMl(nutrition?.hydration_ml ?? 0);
       setDietRating(nutrition?.health_rating ?? 3);
       setDietPhotoPath(typeof photoPath === "string" ? photoPath : null);
-      setDietPhotoUrl(typeof photoPath === "string" ? await resolveDietPhotoUrl(photoPath).catch(() => null) : null);
+      const resolvedDietPhotoUrl = typeof photoPath === "string" ? await resolveDietPhotoUrl(photoPath).catch(() => null) : null;
+      if (requestId !== recordLoadRequestRef.current) return;
+      setDietPhotoUrl(resolvedDietPhotoUrl);
       const draftModule = activeModule === "diet" ? "nutrition" : activeModule;
       const draft = draftModule ? await loadRecordDraft(user.id, draftModule, recordDate) : null;
+      if (requestId !== recordLoadRequestRef.current) return;
       if (draft && activeModule === "mood") {
         if (typeof draft.moodScore === "number") setMoodScore(draft.moodScore);
         if (Array.isArray(draft.selectedFactors)) setSelectedFactors(draft.selectedFactors.filter((item): item is string => typeof item === "string"));
@@ -344,7 +352,9 @@ export default function RecordsScreen({
         }
         if (!nutrition && typeof draft.photoPath === "string") {
           setDietPhotoPath(draft.photoPath);
-          setDietPhotoUrl(await resolveDietPhotoUrl(draft.photoPath).catch(() => null));
+          const draftPhotoUrl = await resolveDietPhotoUrl(draft.photoPath).catch(() => null);
+          if (requestId !== recordLoadRequestRef.current) return;
+          setDietPhotoUrl(draftPhotoUrl);
         }
       }
       if (draft && activeModule === "focus") {
@@ -353,6 +363,7 @@ export default function RecordsScreen({
       }
       loaded = true;
     } catch (loadError) {
+      if (requestId !== recordLoadRequestRef.current) return;
       console.warn("Failed to load record dashboard data", loadError);
       setTodaySnapshot(null);
       setTrendBundle(null);
@@ -362,12 +373,15 @@ export default function RecordsScreen({
     } finally {
       // Draft autosave must never write the form's input suggestions after a
       // failed Supabase read. Only a successful load may arm draft syncing.
-      setDraftReady(loaded);
+      if (requestId === recordLoadRequestRef.current) setDraftReady(loaded);
     }
   }, [activeModule, deviceDate, locale, meal, recordDate, user.id]);
 
   useEffect(() => {
     void loadRecordData();
+    return () => {
+      recordLoadRequestRef.current += 1;
+    };
   }, [loadRecordData]);
 
   useEffect(() => {
@@ -448,7 +462,7 @@ export default function RecordsScreen({
 
   useEffect(() => {
     let active = true;
-    if (!allHubModulesComplete) {
+    if (!hubAiEligible) {
       setHubAiReport(null);
       setHubAiLoading(false);
       setHubAiUnavailable(false);
@@ -468,7 +482,7 @@ export default function RecordsScreen({
         if (active) setHubAiLoading(false);
       });
     return () => { active = false; };
-  }, [allHubModulesComplete, locale, recordDate, user.id]);
+  }, [hubAiEligible, locale, recordDate, user.id]);
 
   useEffect(() => {
     if (reportMode !== "weekly") return;
@@ -1011,7 +1025,7 @@ export default function RecordsScreen({
             </section>
           )}
 
-          {allHubModulesComplete && hubHasSignificantPattern && (
+          {hubAiEligible && hubHasSignificantPattern && (
             <section className="record-hub-ai-summary" aria-live="polite" data-provider={hubAiReport?.provider ?? undefined}>
               <span aria-hidden="true"><Bot size={17} /></span>
               <div>

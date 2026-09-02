@@ -31,8 +31,8 @@ export function buildHealthModulePresentations(snapshot: TodaySnapshot | null, l
     mood: mood ? {
       recorded: true,
       points: locale === "zh"
-        ? [`情绪 ${Math.round(mood.mood_score)}/100`, `原因 ${mood.factors.slice(0, 2).join("、") || "未选择"}`, mood.diary_content ? "已写情绪日记" : "未写情绪日记", mood.ai_feedback ? "已有 AI 反馈" : "待生成 AI 反馈"]
-        : [`Mood ${Math.round(mood.mood_score)}/100`, `Factors: ${mood.factors.slice(0, 2).join(", ") || "none"}`, mood.diary_content ? "Journal added" : "No journal yet", mood.ai_feedback ? "AI feedback ready" : "AI feedback pending"],
+        ? [`情绪 ${Math.round(mood.mood_score)}/100`, `原因 ${mood.factors.slice(0, 2).join("、") || "未选择"}`, mood.diary_content ? "已写情绪日记" : "未写情绪日记", "记录已保存到当前账号"]
+        : [`Mood ${Math.round(mood.mood_score)}/100`, `Factors: ${mood.factors.slice(0, 2).join(", ") || "none"}`, mood.diary_content ? "Journal added" : "No journal yet", "Saved to this account"],
     } : missing,
     sleep: sleep ? {
       recorded: true,

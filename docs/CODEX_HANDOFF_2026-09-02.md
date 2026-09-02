@@ -410,3 +410,120 @@ The wearable research and delivery decision is recorded in
 
 These post-v80 source/document updates were not published in this turn because
 the user did not explicitly authorize another public deployment.
+
+## 13. Apple Health / Apple Watch delivery implementation
+
+The formal delivery plan is now
+`docs/APPLE_HEALTH_WATCH_DELIVERY_PLAN_2026-09-02.md`. It defines the only
+supported historical-data path as Apple Watch -> iPhone HealthKit -> NAVA iOS
+client -> authenticated `health-sync-ingest` -> normalized Supabase records ->
+all clients. Shared Wi-Fi/Bluetooth is not treated as a HealthKit transport.
+
+Implemented in the source checkout after v80:
+
+- Native Supabase auth now uses an app-isolated iOS Keychain Capacitor plugin;
+  browser auth remains current-tab `sessionStorage`. Native storage errors do
+  not silently downgrade to browser storage.
+- HealthKit no-sample values are omitted instead of forced to zero. Payload
+  metadata records available metrics and the native collector schema.
+- The local ingest source preserves previously stored fields during partial
+  permission reads, does not create a new legacy exercise row unless the
+  activity tuple is complete, and counts only actual normalized writes. The
+  public v10 Function predates this patch and still requires an authorized
+  deployment plus real-account verification.
+- The client no longer falls back to direct table writes after an ingest
+  failure. All native health uploads require the logged-in user's JWT and the
+  `health-sync-ingest` boundary.
+- An iOS HealthKit observer registers hourly background delivery, persists only
+  a pending-change marker, not health values, and acknowledges the marker only
+  after the corresponding sync succeeds. App start, foreground, and live
+  observer events trigger a deduplicated sync with a cooldown.
+- A successful, account-filtered `health_sync_jobs` Realtime event refreshes
+  app data only when `sample_count > 0`. Profile sync status uses the server's actual `finished_at` time and
+  distinguishes cloud data, recent/stale sync, authorization requested, and
+  no-data/error outcomes.
+- Append-only migration `202609020002_health_sync_realtime.sql` prepares the
+  Realtime publication. It is intentionally not applied to production without
+  explicit migration authorization.
+- The Mac release helper, real-account boundary verifier, production Function
+  audit, true-device acceptance template, and native cross-layer contract test
+  are now checked in.
+- The fixed screenshot suite now includes the Profile Health/Watch device area
+  at 360x740, 375x812, 390x844, and 430x932.
+
+Verification completed on Windows:
+
+- `npm run verify`: passed, including frontend build/lint/audit, algorithms,
+  AI contracts, 16 Edge Function type checks, 15 backend tests, native health
+  contracts, and iOS project contracts.
+- `npm run interaction:test`: passed all 9 groups with no console errors.
+- `npm run screenshots`: captured 96 states at the four required viewports,
+  with no console/page errors or horizontal overflow; the four new Profile
+  device screenshots were visually inspected.
+- `npm run auth:verify:production`: passed.
+- `npm run supabase:verify-shared`: canonical APP/CLI backend checks passed;
+  the legacy web alignment check remains pending.
+- `npm run health:audit:production`: secure `health-sync-ingest` is active with
+  JWT verification; legacy `health-auto-export` remains active without JWT and
+  therefore must be retired only after its clients/history are audited.
+- `npm run cap:sync`: Web assets and native project synchronization passed;
+  CocoaPods/Xcode compilation was correctly unavailable on Windows.
+
+The earlier secret-name wording needs this qualification: `HEALTH_EXPORT_API_KEY`
+is not referenced by this APP repository, but the audited web-team prototype
+uses that shared-key contract with legacy `health-auto-export`. It is not an
+Apple/vendor credential and is not safe as the final ingest identity boundary.
+
+Only external/human gates remain for a truthful Apple Watch release claim:
+bundle ID/Developer Team selection, Mac/Xcode Swift compilation and signing,
+deployment of the updated ingest Function, production Realtime migration,
+real iPhone/Apple Watch permission and value
+comparison, authenticated RLS boundary execution, TestFlight/App Store work,
+then legacy Function retirement and secret rotation. No public deployment was
+performed for this implementation batch.
+
+## 14. Full real-data, AI, transfer, and visual audit
+
+The post-Apple implementation audit is recorded in
+`docs/FULL_PRODUCT_RUNTIME_AUDIT_2026-09-02.md`. The complete tracked source
+inventory, frontend service boundaries, Supabase Functions/migrations, native
+sources, and required portrait states were rescanned.
+
+Corrections completed in source include:
+
+- Dedicated consent columns are authoritative; an old onboarding `true` can no
+  longer cancel a later explicit revocation. Chat history, stored health
+  context, health reports, image analysis, and HealthKit ingest enforce their
+  relevant consent and ownership boundaries.
+- Health/diet AI report caches now validate a SHA-256 fingerprint of normalized
+  source rows and profile context. Weekly AI requires five distinct recorded
+  days. Diet and health reports have bounded structured-output repair rather
+  than fixed fallback prose.
+- Production structured entry no longer merges a local health guess into the
+  model result or invents sleep clock times. Duration-only sleep is saved as a
+  duration summary.
+- Diet/face images must exist in the authenticated user's private Storage
+  prefix. Functions create ten-minute signed URLs; raw base64 fallback and
+  cross-account paths are rejected.
+- Todos, growth points, onboarding, notifications, export, Face saves, Watch
+  snapshots, and report displays no longer turn missing Supabase contracts into
+  local production success. The fixed no-data diet score was removed.
+- Health ingest validates ranges and preserves prior values when HealthKit
+  permissions return only a partial metric set. Account deletion recursively
+  removes nested private objects.
+- Stale async screen updates, listener setup races, and timer cleanup were
+  corrected across Today, Records, AI, Profile, Utility, launch, share, and
+  native-sync paths.
+
+Verification after these changes passed `npm run verify`, all nine interaction
+groups, the PRD four-viewport batch, the 96-state screenshot run, navigation
+icons, production Auth, shared Supabase alignment, and the production health
+Function audit. The generated GitHub Pages mirror, APP environment, and CLI
+link all resolve to `wxteapvwagvhhtrjrbim`.
+
+The Edge Function source changes and migration
+`202609020002_health_sync_realtime.sql` remain staged until explicit production
+backend authorization. Publishing the frontend does not make those server
+changes live. Physical Apple device acceptance, Focus-session wearable
+correlation, and the product-deferred points store remain outside the completed
+source audit.

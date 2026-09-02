@@ -1,8 +1,7 @@
-import { Capacitor, registerPlugin } from "@capacitor/core";
-import { refreshRhythmScore, saveExerciseRecord, saveSleepSummaryRecord } from "./records";
+import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
-import { todayISO } from "./date";
+import { onboardingAnswers, resolveConsentFlag } from "./consent.ts";
 
 export interface HealthTodayNativeSummary {
   date?: string;
@@ -44,6 +43,22 @@ interface NavaHealthPlugin {
   getAuthorizationStatus: () => Promise<HealthAuthorizationStatus>;
   getTodaySummary: () => Promise<HealthTodayNativeSummary>;
   getRecentSummaries: (options: { days: number }) => Promise<{ summaries: HealthTodayNativeSummary[] }>;
+  startBackgroundDelivery: () => Promise<{ enabled: boolean; errors: string[] }>;
+  readPendingBackgroundUpdate: () => Promise<NativeHealthPendingUpdate>;
+  acknowledgePendingBackgroundUpdate: (options: { through: string }) => Promise<void>;
+  addListener: (
+    eventName: "healthDataChanged",
+    listener: (event: NativeHealthChange) => void,
+  ) => Promise<PluginListenerHandle>;
+}
+
+export interface NativeHealthChange {
+  occurredAt: string;
+  types: string[];
+}
+
+export interface NativeHealthPendingUpdate extends NativeHealthChange {
+  pending: boolean;
 }
 
 const NavaHealth = registerPlugin<NavaHealthPlugin>("NavaHealth");
@@ -58,6 +73,18 @@ export function isNativeHealthAvailable() {
   return Capacitor.isNativePlatform();
 }
 
+export async function isHealthSyncEnabled(userId: string) {
+  if (isDemoMode()) return true;
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("health_data_consent,onboarding_answers")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  const answers = onboardingAnswers(data?.onboarding_answers);
+  return resolveConsentFlag(data?.health_data_consent, answers?.healthDataConsent);
+}
+
 export async function requestHealthAuthorization() {
   if (isDemoMode()) return { granted: true };
 
@@ -65,6 +92,21 @@ export async function requestHealthAuthorization() {
     return { granted: false, reason: "当前是在浏览器预览，HealthKit 只能在 iPhone 真机或模拟器中使用。" };
   }
   return NavaHealth.requestAuthorization();
+}
+
+export async function startNativeHealthBackgroundDelivery() {
+  if (!isNativeHealthAvailable() || isDemoMode()) return { enabled: false, errors: [] as string[] };
+  return NavaHealth.startBackgroundDelivery();
+}
+
+export async function readPendingNativeHealthUpdate(): Promise<NativeHealthPendingUpdate> {
+  if (!isNativeHealthAvailable() || isDemoMode()) return { pending: false, occurredAt: "", types: [] };
+  return NavaHealth.readPendingBackgroundUpdate();
+}
+
+export async function subscribeNativeHealthChanges(listener: (event: NativeHealthChange) => void) {
+  if (!isNativeHealthAvailable() || isDemoMode()) return null;
+  return NavaHealth.addListener("healthDataChanged", listener);
 }
 
 export async function getHealthAuthorizationStatus(): Promise<HealthAuthorizationStatus> {
@@ -96,6 +138,7 @@ export async function getLastHealthSyncAt(userId: string) {
       .select("finished_at,created_at")
       .eq("user_id", userId)
       .eq("status", "success")
+      .gt("sample_count", 0)
       .order("finished_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -109,6 +152,32 @@ export async function getLastHealthSyncAt(userId: string) {
   }
 }
 
+export function subscribeHealthSyncCompletion(userId: string, onCompleted: (finishedAt: string | null) => void) {
+  const topicSuffix = typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random()}`;
+  const channel = supabase
+    .channel(`health-sync:${userId}:${topicSuffix}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "health_sync_jobs",
+        filter: `user_id=eq.${userId}`,
+      },
+      (payload) => {
+        const next = payload.new as { status?: string; sample_count?: number | null; finished_at?: string | null };
+        if (next.status === "success" && Number(next.sample_count ?? 0) > 0) onCompleted(next.finished_at ?? null);
+      },
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
 function rememberHealthSync<T extends { lastSyncDate: string }>(userId: string, result: T) {
   try {
     localStorage.setItem(healthLastSyncKey(userId), result.lastSyncDate);
@@ -118,7 +187,7 @@ function rememberHealthSync<T extends { lastSyncDate: string }>(userId: string, 
   return result;
 }
 
-export async function getNativeTodaySummary() {
+export async function getNativeTodaySummary(userId: string) {
   if (isDemoMode()) {
     return {
       steps: 8420,
@@ -148,7 +217,7 @@ export async function getNativeTodaySummary() {
     };
   }
 
-  if (!isNativeHealthAvailable()) return null;
+  if (!isNativeHealthAvailable() || !await isHealthSyncEnabled(userId)) return null;
   return NavaHealth.getTodaySummary();
 }
 
@@ -158,6 +227,10 @@ export async function syncNativeHealthNow(userId: string) {
   if (!isNativeHealthAvailable()) {
     return { uploaded: 0, lastSyncDate: new Date().toISOString(), skipped: true };
   }
+  if (!await isHealthSyncEnabled(userId)) {
+    return { uploaded: 0, lastSyncDate: new Date().toISOString(), skipped: true, reason: "health_sync_consent_disabled" };
+  }
+  const syncStartedAt = new Date().toISOString();
   let summaries: HealthTodayNativeSummary[];
   try {
     const recent = await NavaHealth.getRecentSummaries({ days: 14 });
@@ -173,78 +246,13 @@ export async function syncNativeHealthNow(userId: string) {
     rhythm?: unknown;
   }>("health-sync-ingest", { body: { summaries, source: "apple_health" } });
 
-  if (!response.error && response.data) return rememberHealthSync(userId, { ...response.data, summary });
-
-  let uploaded = 0;
-  for (const item of summaries) {
-    await saveHealthSnapshotFallback(userId, item);
-    await saveExerciseRecord({
-      userId,
-      date: item.date,
-      steps: Math.round(item.steps ?? 0),
-      calories: Math.round(item.activeEnergyKcal ?? 0),
-      minutes: Math.round(item.exerciseMinutes ?? 0),
-      heartRate: item.latestHeartRate ? String(Math.round(item.latestHeartRate)) : undefined,
-      spo2: item.latestBloodOxygen ? `${Math.round(item.latestBloodOxygen * 100)}%` : undefined,
-      source: "apple_health",
-    });
-    uploaded += 1;
-    if (item.sleepMinutes && item.sleepMinutes > 0) {
-      await saveSleepSummaryRecord({
-        userId,
-        date: item.date,
-        durationMinutes: Math.round(item.sleepMinutes),
-        source: "apple_watch",
-      });
-      uploaded += 1;
-    }
-  }
-  const refreshDate = summary.date ?? summaries.find((item) => item.date)?.date ?? todayISO();
+  if (response.error) throw response.error;
+  if (!response.data) throw new Error("健康同步服务没有返回结果。");
   try {
-    await refreshRhythmScore(refreshDate);
+    await NavaHealth.acknowledgePendingBackgroundUpdate({ through: syncStartedAt });
   } catch (error) {
-    console.warn("Failed to refresh rhythm score after fallback health sync", error);
+    console.warn("Health sync succeeded but the background marker could not be acknowledged", error);
   }
-  return rememberHealthSync(userId, { uploaded, syncedDates: summaries.map((item) => item.date).filter(Boolean), lastSyncDate: new Date().toISOString(), summary });
-}
-
-async function saveHealthSnapshotFallback(userId: string, item: HealthTodayNativeSummary) {
-  const date = item.date ?? todayISO();
-  const hasSnapshot =
-    item.latestHeartRate != null ||
-    item.restingHeartRate != null ||
-    item.heartRateVariabilitySDNN != null ||
-    item.latestBloodOxygen != null ||
-    item.sleepStageMinutes != null ||
-    (item.activityBins?.length ?? 0) > 0;
-  if (!hasSnapshot) return;
-
-  const { error } = await supabase.from("health_metric_snapshots").upsert(
-    {
-      user_id: userId,
-      record_date: date,
-      latest_heart_rate: item.latestHeartRate ?? null,
-      resting_heart_rate: item.restingHeartRate ?? null,
-      heart_rate_variability_sdnn: item.heartRateVariabilitySDNN ?? null,
-      blood_oxygen: normalizeBloodOxygen(item.latestBloodOxygen),
-      activity_bins: item.activityBins ?? [],
-      sleep_stage_minutes: item.sleepStageMinutes ?? {},
-      sleep_start_at: item.sleepStart ?? null,
-      sleep_end_at: item.sleepEnd ?? null,
-      sleep_efficiency: item.sleepEfficiency ?? null,
-      timezone_offset_minutes: item.timezoneOffsetMinutes == null ? null : Math.round(item.timezoneOffsetMinutes),
-      activity_coverage_hours: item.activityCoverageHours ?? item.activityBins?.length ?? null,
-      source_metadata: item.sourceMetadata ?? {},
-      raw_payload: item,
-      source: "apple_health",
-    },
-    { onConflict: "user_id,record_date,source" },
-  );
-
-  if (error) console.warn("Failed to save fallback health snapshot", error);
-}
-
-function normalizeBloodOxygen(value?: number) {
-  if (value == null || !Number.isFinite(value)) return null;
-  return value <= 1 ? Math.round(value * 1000) / 10 : value;
+  const result = { ...response.data, summary };
+  return result.uploaded > 0 ? rememberHealthSync(userId, result) : result;
 }

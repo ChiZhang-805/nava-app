@@ -65,13 +65,16 @@ export default function OptionTwoHome({
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
   const gestureRef = useRef<{ pointerId: number; startX: number; startY: number; lastX: number; lastY: number } | null>(null);
   const ignoreClickUntilRef = useRef(0);
+  const refreshRequestRef = useRef(0);
 
   const refresh = useCallback(async () => {
+    const requestId = ++refreshRequestRef.current;
     const [snapshotResult, pointsResult] = await Promise.allSettled([
       getTodaySnapshot(user.id),
       loadGrowthTotalPoints(user.id),
     ]);
 
+    if (requestId !== refreshRequestRef.current) return;
     if (snapshotResult.status === "fulfilled") {
       setSnapshot(snapshotResult.value);
     } else {
@@ -87,6 +90,9 @@ export default function OptionTwoHome({
 
   useEffect(() => {
     void refresh();
+    return () => {
+      refreshRequestRef.current += 1;
+    };
   }, [refresh, refreshKey]);
 
   const rhythmScore = snapshot?.rhythmScore ?? "--";

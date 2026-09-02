@@ -38,6 +38,10 @@
     "ai:prompt:test": "node --experimental-strip-types --test tests/ai-chat-prompt.test.ts tests/ai-context-router.test.ts tests/ai-review-access.test.ts",
     "structured:test": "node --experimental-strip-types --test tests/structured-entry.test.ts",
     "algorithm:test": "node --experimental-strip-types --test tests/rhythm-core.test.ts",
+    "health:contract:test": "node --experimental-strip-types --test tests/health-native-contract.test.ts",
+    "consent:contract:test": "node --experimental-strip-types --test tests/consent-data-boundary.test.ts",
+    "health:verify:account": "node scripts/verify-health-sync-boundary.mjs",
+    "health:audit:production": "node scripts/audit-health-functions.mjs",
     "fdnb:test": "node --experimental-strip-types --test tests/fdnb-health-core.test.ts",
     "algorithm:benchmark": "node --experimental-strip-types scripts/benchmark-rhythm-v4.ts",
     "algorithm:benchmark:fixed": "node --experimental-strip-types scripts/benchmark-fixed-dataset.ts",
@@ -56,6 +60,7 @@
     "ios:configure-motion": "node scripts/configure-ios-motion.mjs",
     "ios:assets": "node scripts/generate-ios-assets.mjs",
     "ios:verify": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-ios-project.ps1",
+    "ios:prepare:release": "bash scripts/prepare-ios-release.sh",
     "upstream:diff": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync-web-upstream.ps1"
   },
   "dependencies": {

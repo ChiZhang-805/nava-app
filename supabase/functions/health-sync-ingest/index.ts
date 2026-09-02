@@ -11,6 +11,7 @@ import {
   stringValue,
 } from "../_shared/http.ts";
 import { calculateRhythm, loadDailyInputs, saveRhythmScore } from "../_shared/rhythm.ts";
+import { requireHealthSyncConsent } from "../_shared/consent.ts";
 
 type HealthSummary = {
   date?: string;
@@ -44,6 +45,7 @@ Deno.serve(async (req) => {
 
   try {
     const { user, userClient } = await requireUser(req);
+    await requireHealthSyncConsent(userClient, user.id);
     const body = await readJson(req);
     const requestedDate = normalizeDate(body.date);
     const rawSummaries = Array.isArray(body.summaries) ? body.summaries : [body.summary ?? body];
@@ -71,19 +73,25 @@ Deno.serve(async (req) => {
     const syncedDates: string[] = [];
     for (const summary of summaries) {
       const date = normalizeDate(summary.date ?? requestedDate);
+      let savedForDate = false;
       if (hasHealthMetrics(summary)) {
         await upsertHealthMetricSnapshot(userClient, user.id, date, summary);
         uploaded += 1;
+        savedForDate = true;
       }
       if (hasExerciseMetrics(summary)) {
-        await upsertExercise(userClient, user.id, date, summary);
-        uploaded += 1;
+        const savedExercise = await upsertExercise(userClient, user.id, date, summary);
+        if (savedExercise) {
+          uploaded += 1;
+          savedForDate = true;
+        }
       }
       if (summary.sleepMinutes && summary.sleepMinutes > 0) {
         await upsertSleep(userClient, user.id, date, summary);
         uploaded += 1;
+        savedForDate = true;
       }
-      syncedDates.push(date);
+      if (savedForDate) syncedDates.push(date);
     }
 
     const scoringDate = syncedDates.includes(requestedDate) ? requestedDate : syncedDates.at(-1) ?? requestedDate;
@@ -119,7 +127,7 @@ Deno.serve(async (req) => {
 });
 
 function normalizeSummary(input: Record<string, unknown>): HealthSummary {
-  return {
+  const summary: HealthSummary = {
     date: stringValue(input.date) ?? stringValue(input.record_date),
     steps: numberValue(input.steps),
     activeEnergyKcal: numberValue(input.activeEnergyKcal) ?? numberValue(input.active_energy_kcal),
@@ -145,6 +153,37 @@ function normalizeSummary(input: Record<string, unknown>): HealthSummary {
     sourceMetadata: normalizeRecord(input.sourceMetadata ?? input.source_metadata),
     source: stringValue(input.source),
   };
+  assertRange(summary.steps, "步数", 0, 250_000);
+  assertRange(summary.activeEnergyKcal, "活动能量", 0, 20_000);
+  assertRange(summary.exerciseMinutes, "运动分钟", 0, 1_440);
+  assertNumericRange(summary.latestHeartRate, "最新心率", 20, 250);
+  assertNumericRange(summary.restingHeartRate, "静息心率", 20, 220);
+  assertNumericRange(summary.heartRateVariabilitySDNN, "心率变异性", 0, 1_000);
+  assertRange(summary.sleepMinutes, "睡眠分钟", 0, 1_440);
+  assertRange(summary.sleepEfficiency, "睡眠效率", 0, 1);
+  assertRange(summary.activityCoverageHours, "活动覆盖小时", 0, 24);
+  assertRange(summary.timezoneOffsetMinutes, "时区偏移", -840, 840);
+  const bloodOxygen = numericOrNull(summary.latestBloodOxygen);
+  if (summary.latestBloodOxygen != null && bloodOxygen == null) throw new Error("血氧数据不是有效数值。");
+  if (bloodOxygen != null && !((bloodOxygen >= 0.5 && bloodOxygen <= 1) || (bloodOxygen >= 50 && bloodOxygen <= 100))) {
+    throw new Error("血氧数据超出可接受范围。");
+  }
+  Object.values(summary.sleepStageMinutes ?? {}).forEach((value) => assertRange(value, "睡眠阶段分钟", 0, 1_440));
+  if ((summary.activityBins?.length ?? 0) > 96) throw new Error("活动时间分箱数量超出单日上限。");
+  return summary;
+}
+
+function assertRange(value: unknown, field: string, minimum: number, maximum: number) {
+  if (value == null) return;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < minimum || parsed > maximum) throw new Error(`${field}数据超出可接受范围。`);
+}
+
+function assertNumericRange(value: unknown, field: string, minimum: number, maximum: number) {
+  if (value == null) return;
+  const parsed = numericOrNull(value as number | string);
+  if (parsed == null) throw new Error(`${field}数据不是有效数值。`);
+  assertRange(parsed, field, minimum, maximum);
 }
 
 function hasExerciseMetrics(summary: HealthSummary) {
@@ -153,37 +192,53 @@ function hasExerciseMetrics(summary: HealthSummary) {
 }
 
 function hasHealthMetrics(summary: HealthSummary) {
-  return Boolean(
-    summary.latestHeartRate ||
-      summary.restingHeartRate ||
-      summary.heartRateVariabilitySDNN ||
-      summary.latestBloodOxygen ||
-      summary.steps ||
-      summary.activeEnergyKcal ||
-      summary.exerciseMinutes ||
-      summary.sleepMinutes ||
-      (summary.activityBins?.length ?? 0) > 0 ||
-      Object.keys(summary.sleepStageMinutes ?? {}).length > 0,
-  );
+  return [
+    summary.latestHeartRate,
+    summary.restingHeartRate,
+    summary.heartRateVariabilitySDNN,
+    summary.latestBloodOxygen,
+    summary.steps,
+    summary.activeEnergyKcal,
+    summary.exerciseMinutes,
+    summary.sleepMinutes,
+  ].some((value) => value != null) ||
+    (summary.activityBins?.length ?? 0) > 0 ||
+    Object.keys(summary.sleepStageMinutes ?? {}).length > 0;
 }
 
 async function upsertHealthMetricSnapshot(client: SupabaseClient, userId: string, date: string, summary: HealthSummary) {
+  const existing = await client
+    .from("health_metric_snapshots")
+    .select("latest_heart_rate,resting_heart_rate,heart_rate_variability_sdnn,blood_oxygen,activity_bins,sleep_stage_minutes,sleep_start_at,sleep_end_at,sleep_efficiency,timezone_offset_minutes,activity_coverage_hours,source_metadata")
+    .eq("user_id", userId)
+    .eq("record_date", date)
+    .eq("source", summary.source ?? "apple_health")
+    .maybeSingle();
+  assertNoError(existing.error);
+  const previous = (existing.data ?? {}) as Record<string, unknown>;
+  const nextActivityBins = summary.activityBins?.length ? summary.activityBins : previous.activity_bins ?? [];
+  const nextSleepStages = Object.keys(summary.sleepStageMinutes ?? {}).length > 0
+    ? summary.sleepStageMinutes
+    : previous.sleep_stage_minutes ?? {};
   const { error } = await client.from("health_metric_snapshots").upsert(
     {
       user_id: userId,
       record_date: date,
-      latest_heart_rate: numericOrNull(summary.latestHeartRate),
-      resting_heart_rate: numericOrNull(summary.restingHeartRate),
-      heart_rate_variability_sdnn: numericOrNull(summary.heartRateVariabilitySDNN),
-      blood_oxygen: numericOrNull(normalizeSpo2(summary.latestBloodOxygen)),
-      activity_bins: summary.activityBins ?? [],
-      sleep_stage_minutes: summary.sleepStageMinutes ?? {},
-      sleep_start_at: validIso(summary.sleepStart),
-      sleep_end_at: validIso(summary.sleepEnd),
-      sleep_efficiency: summary.sleepEfficiency ?? null,
-      timezone_offset_minutes: summary.timezoneOffsetMinutes == null ? null : Math.round(summary.timezoneOffsetMinutes),
-      activity_coverage_hours: summary.activityCoverageHours ?? observedActivityHours(summary.activityBins),
-      source_metadata: summary.sourceMetadata ?? {},
+      latest_heart_rate: summary.latestHeartRate != null ? numericOrNull(summary.latestHeartRate) : previous.latest_heart_rate ?? null,
+      resting_heart_rate: summary.restingHeartRate != null ? numericOrNull(summary.restingHeartRate) : previous.resting_heart_rate ?? null,
+      heart_rate_variability_sdnn: summary.heartRateVariabilitySDNN != null ? numericOrNull(summary.heartRateVariabilitySDNN) : previous.heart_rate_variability_sdnn ?? null,
+      blood_oxygen: summary.latestBloodOxygen != null ? numericOrNull(normalizeSpo2(summary.latestBloodOxygen)) : previous.blood_oxygen ?? null,
+      activity_bins: nextActivityBins,
+      sleep_stage_minutes: nextSleepStages,
+      sleep_start_at: summary.sleepStart ? validIso(summary.sleepStart) : previous.sleep_start_at ?? null,
+      sleep_end_at: summary.sleepEnd ? validIso(summary.sleepEnd) : previous.sleep_end_at ?? null,
+      sleep_efficiency: summary.sleepEfficiency ?? previous.sleep_efficiency ?? null,
+      timezone_offset_minutes: summary.timezoneOffsetMinutes == null ? previous.timezone_offset_minutes ?? null : Math.round(summary.timezoneOffsetMinutes),
+      activity_coverage_hours: summary.activityCoverageHours ?? observedActivityHours(summary.activityBins) ?? previous.activity_coverage_hours ?? null,
+      source_metadata: {
+        ...normalizeRecord(previous.source_metadata),
+        ...(summary.sourceMetadata ?? {}),
+      },
       raw_payload: summary,
       source: summary.source ?? "apple_health",
     },
@@ -193,20 +248,39 @@ async function upsertHealthMetricSnapshot(client: SupabaseClient, userId: string
 }
 
 async function upsertExercise(client: SupabaseClient, userId: string, date: string, summary: HealthSummary) {
-  const { error } = await client.from("exercise_records").upsert(
-    {
-      user_id: userId,
-      record_date: date,
-      steps: Math.round(summary.steps ?? 0),
-      calories: Math.round(summary.activeEnergyKcal ?? 0),
-      exercise_minutes: Math.round(summary.exerciseMinutes ?? 0),
-      heart_rate: normalizeHeartRate(summary.latestHeartRate),
-      spo2: normalizeSpo2(summary.latestBloodOxygen),
-      device_type: "apple_health",
-    },
-    { onConflict: "user_id,record_date" },
-  );
+  const existing = await client
+    .from("exercise_records")
+    .select("id,device_type")
+    .eq("user_id", userId)
+    .eq("record_date", date)
+    .maybeSingle();
+  assertNoError(existing.error);
+
+  const patch: Record<string, unknown> = {};
+  if (summary.steps != null) patch.steps = Math.max(0, Math.round(summary.steps));
+  if (summary.activeEnergyKcal != null) patch.calories = Math.max(0, Math.round(summary.activeEnergyKcal));
+  if (summary.exerciseMinutes != null) patch.exercise_minutes = Math.max(0, Math.round(summary.exerciseMinutes));
+  if (summary.latestHeartRate != null) patch.heart_rate = normalizeHeartRate(summary.latestHeartRate);
+  if (summary.latestBloodOxygen != null) patch.spo2 = normalizeSpo2(summary.latestBloodOxygen);
+
+  if (existing.data?.id) {
+    const { error } = await client.from("exercise_records").update(patch).eq("id", existing.data.id);
+    assertNoError(error);
+    return Object.keys(patch).length > 0;
+  }
+
+  // The legacy daily exercise table requires a complete activity tuple. Partial
+  // HealthKit authorization remains available in health_metric_snapshots and must
+  // not be represented here with invented zero values.
+  if (summary.steps == null || summary.activeEnergyKcal == null || summary.exerciseMinutes == null) return false;
+  const { error } = await client.from("exercise_records").insert({
+    user_id: userId,
+    record_date: date,
+    ...patch,
+    device_type: "apple_health",
+  });
   assertNoError(error);
+  return true;
 }
 
 async function upsertSleep(client: SupabaseClient, userId: string, date: string, summary: HealthSummary) {
@@ -215,22 +289,35 @@ async function upsertSleep(client: SupabaseClient, userId: string, date: string,
   const start = normalizeClock(summary.sleepStartLocal) ?? localClockFromIso(summary.sleepStart, summary.timezoneOffsetMinutes);
   const end = normalizeClock(summary.sleepEndLocal) ?? localClockFromIso(summary.sleepEnd, summary.timezoneOffsetMinutes);
   const rhythmScore = Math.round(Math.min(100, Math.max(0, 68 + Math.min(18, 18 - Math.abs(450 - duration) / 9))));
+  const existing = await client
+    .from("sleep_records")
+    .select("sleep_start,sleep_end,deep_sleep_minutes,light_sleep_minutes,rem_minutes")
+    .eq("user_id", userId)
+    .eq("record_date", date)
+    .maybeSingle();
+  assertNoError(existing.error);
+  const previous = (existing.data ?? {}) as Record<string, unknown>;
   const { error } = await client.from("sleep_records").upsert(
     {
       user_id: userId,
       record_date: date,
-      sleep_start: start,
-      sleep_end: end,
+      sleep_start: start ?? previous.sleep_start ?? null,
+      sleep_end: end ?? previous.sleep_end ?? null,
       sleep_duration_minutes: duration,
-      deep_sleep_minutes: roundedStage(stages.deep),
-      light_sleep_minutes: roundedStage(stages.core ?? stages.light),
-      rem_minutes: roundedStage(stages.rem),
+      deep_sleep_minutes: stageOrPrevious(stages.deep, previous.deep_sleep_minutes),
+      light_sleep_minutes: stageOrPrevious(stages.core ?? stages.light, previous.light_sleep_minutes),
+      rem_minutes: stageOrPrevious(stages.rem, previous.rem_minutes),
       device_type: "apple_watch",
       rhythm_score: rhythmScore,
     },
     { onConflict: "user_id,record_date" },
   );
   assertNoError(error);
+}
+
+function stageOrPrevious(value: unknown, previous: unknown) {
+  const next = roundedStage(value);
+  return next ?? (numberValue(previous) == null ? null : Math.max(0, Math.round(numberValue(previous)!)));
 }
 
 function normalizeSpo2(value: number | string | undefined) {
@@ -256,11 +343,12 @@ function numericOrNull(value: number | string | null | undefined) {
 
 function normalizeNumberRecord(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>)
-      .map(([key, item]) => [key, numberValue(item) ?? 0])
-      .filter(([, item]) => Number(item) >= 0),
-  );
+  const entries = Object.entries(value as Record<string, unknown>).map(([key, item]) => {
+    const parsed = numberValue(item);
+    if (parsed == null || parsed < 0 || parsed > 1_440) throw new Error(`睡眠阶段 ${key} 不是有效的分钟数。`);
+    return [key, parsed] as const;
+  });
+  return Object.fromEntries(entries);
 }
 
 function normalizeRecord(value: unknown) {

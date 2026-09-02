@@ -25,6 +25,8 @@ import { isDemoMode } from "./services/demo";
 import { loadOnboardingStatus } from "./services/onboarding";
 import { recordGrowthActivity, reconcileGrowthRewards, resolveGrowthTasks, type GrowthActivityKind, type GrowthRewardGrant, type GrowthSummary } from "./services/productivity";
 import useDeviceDate from "./hooks/useDeviceDate";
+import useNativeHealthAutoSync from "./hooks/useNativeHealthAutoSync";
+import { subscribeHealthSyncCompletion } from "./services/health";
 import { isAiSpeechSupported } from "./services/aiSpeech";
 import {
   fallbackShellRoute,
@@ -186,6 +188,17 @@ function MobileShell() {
     setRefreshKey((value) => value + 1);
     return claimGrowthAfterChange();
   }, [claimGrowthAfterChange]);
+
+  const refreshHealthViews = useCallback(() => {
+    setRefreshKey((value) => value + 1);
+  }, []);
+
+  useNativeHealthAutoSync(user?.id ?? null, refreshHealthViews, refreshKey);
+
+  useEffect(() => {
+    if (!user) return;
+    return subscribeHealthSyncCompletion(user.id, refreshHealthViews);
+  }, [refreshHealthViews, user]);
 
   const completeGrowthActivity = useCallback(async (activity: GrowthActivityKind) => {
     if (!user) return null;
@@ -602,7 +615,7 @@ function MobileShell() {
               />
             </Suspense>
           )}
-          {activeTab === "profile" && <Suspense fallback={<LoadingScreen />}><ProfileScreen user={user} onChanged={markChanged} /></Suspense>}
+          {activeTab === "profile" && <Suspense fallback={<LoadingScreen />}><ProfileScreen user={user} refreshKey={refreshKey} onChanged={markChanged} /></Suspense>}
         </div>
       </main>
 

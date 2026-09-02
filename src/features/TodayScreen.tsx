@@ -1,7 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 import { Activity, BedDouble, Brain, Check, CircleDashed, Flame, HeartPulse, Moon, RefreshCw, ScanFace, SmilePlus, Utensils, X } from "lucide-react";
 import type { CSSProperties } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import AnimatedNumber from "../components/AnimatedNumber";
 import MetricCard from "../components/MetricCard";
@@ -40,14 +40,18 @@ export default function TodayScreen({
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rhythmDetailsOpen, setRhythmDetailsOpen] = useState(false);
+  const refreshRequestRef = useRef(0);
   const nextAction = snapshot?.nextAction === demoNextActionZh ? t("today.demoNextAction") : snapshot?.nextAction;
   const recommendation = t("today.adviceCompact", { action: nextAction ?? t("today.adviceWaiting") });
+  const rhythmIsLocalEstimate = snapshot?.rhythmModelVersion === "nava-client-estimate-v1";
 
   const refresh = useCallback(async () => {
+    const requestId = ++refreshRequestRef.current;
     setLoading(true);
     setError(null);
     try {
-      const [today, native] = await Promise.all([getTodaySnapshot(user.id), getNativeTodaySummary()]);
+      const [today, native] = await Promise.all([getTodaySnapshot(user.id), getNativeTodaySummary(user.id)]);
+      if (requestId !== refreshRequestRef.current) return;
       setSnapshot(today);
       setNativeSteps(native?.steps ?? null);
       await publishWatchSnapshot({
@@ -64,9 +68,9 @@ export default function TodayScreen({
         lastSyncedAt: new Date().toISOString(),
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (requestId === refreshRequestRef.current) setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      if (requestId === refreshRequestRef.current) setLoading(false);
     }
   }, [user.email, user.id]);
 
@@ -74,7 +78,16 @@ export default function TodayScreen({
     setSyncing(true);
     setError(null);
     try {
-      await syncNativeHealthNow(user.id);
+      const result = await syncNativeHealthNow(user.id);
+      if ("skipped" in result && result.skipped) {
+        const consentDisabled = "reason" in result && result.reason === "health_sync_consent_disabled";
+        throw new Error(consentDisabled
+          ? (locale === "zh" ? "健康数据同步已在隐私设置中关闭。" : "Health data sync is disabled in Privacy settings.")
+          : (locale === "zh" ? "请在 iPhone App 中授权 Apple 健康后同步。" : "Authorize Apple Health in the iPhone app to sync."));
+      }
+      if (result.uploaded === 0) {
+        throw new Error(locale === "zh" ? "本次未读取到已授权的健康记录；既有数据未被零值覆盖。" : "No authorized health records were found; existing data was not overwritten.");
+      }
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -85,6 +98,9 @@ export default function TodayScreen({
 
   useEffect(() => {
     void refresh();
+    return () => {
+      refreshRequestRef.current += 1;
+    };
   }, [refresh, refreshKey]);
 
   if (loading && !snapshot) {
@@ -148,6 +164,9 @@ export default function TodayScreen({
             <strong>{snapshot?.rhythmScore == null ? "--" : <AnimatedNumber value={snapshot.rhythmScore} />}</strong>
             <span>/ 100</span>
           </div>
+          {snapshot?.rhythmScore != null && <p className="algorithm-meta">{rhythmIsLocalEstimate
+            ? (locale === "zh" ? "基于当前真实记录的本地估算" : "Local estimate from current records")
+            : (locale === "zh" ? "已保存的服务端节律评分" : "Saved server rhythm score")}</p>}
         </div>
         <button
           className="ring rhythm-detail-trigger"

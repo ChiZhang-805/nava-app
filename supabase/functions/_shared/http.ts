@@ -102,6 +102,8 @@ export function todayISO() {
 export function normalizeDate(value: unknown) {
   const date = stringValue(value) ?? todayISO();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("日期格式必须是 YYYY-MM-DD。");
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) throw new Error("日期不是有效的日历日期。");
   return date;
 }
 
@@ -110,6 +112,8 @@ export function dateOnly(value: unknown) {
   if (!raw) return todayISO();
   const date = raw.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("日期格式必须是 YYYY-MM-DD 或 ISO 时间。");
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) throw new Error("日期不是有效的日历日期。");
   return date;
 }
 

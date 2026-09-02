@@ -10,11 +10,38 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getAuthorizationStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getTodaySummary", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getRecentSummaries", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "getRecentSummaries", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "startBackgroundDelivery", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "readPendingBackgroundUpdate", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "acknowledgePendingBackgroundUpdate", returnType: CAPPluginReturnPromise)
     ]
 
     private let healthStore = HKHealthStore()
     private let isoFormatter = ISO8601DateFormatter()
+    private var healthChangeObserver: NSObjectProtocol?
+
+    public override func load() {
+        super.load()
+        healthChangeObserver = NotificationCenter.default.addObserver(
+            forName: .navaHealthDataDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let occurredAt = notification.userInfo?["occurredAt"] as? String ?? ISO8601DateFormatter().string(from: Date())
+            let types = notification.userInfo?["types"] as? [String] ?? []
+            self?.notifyListeners(
+                "healthDataChanged",
+                data: ["occurredAt": occurredAt, "types": types],
+                retainUntilConsumed: true
+            )
+        }
+    }
+
+    deinit {
+        if let healthChangeObserver {
+            NotificationCenter.default.removeObserver(healthChangeObserver)
+        }
+    }
 
     private var readTypes: Set<HKObjectType> {
         var types = Set<HKObjectType>()
@@ -42,8 +69,35 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.reject(error.localizedDescription)
                 return
             }
+            if success {
+                NavaHealthBackgroundObserver.shared.start()
+            }
             call.resolve(["granted": success])
         }
+    }
+
+    @objc func startBackgroundDelivery(_ call: CAPPluginCall) {
+        NavaHealthBackgroundObserver.shared.start { enabled, errors in
+            call.resolve(["enabled": enabled, "errors": errors])
+        }
+    }
+
+    @objc func readPendingBackgroundUpdate(_ call: CAPPluginCall) {
+        call.resolve(NavaHealthBackgroundObserver.shared.readPendingChange())
+    }
+
+    @objc func acknowledgePendingBackgroundUpdate(_ call: CAPPluginCall) {
+        let through = call.getString("through").flatMap { value -> Date? in
+            let fractional = ISO8601DateFormatter()
+            fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return fractional.date(from: value) ?? ISO8601DateFormatter().date(from: value)
+        }
+        guard let through else {
+            call.reject("Missing or invalid background acknowledgement timestamp")
+            return
+        }
+        NavaHealthBackgroundObserver.shared.acknowledgePendingChange(through: through)
+        call.resolve()
     }
 
     @objc func getAuthorizationStatus(_ call: CAPPluginCall) {
@@ -144,9 +198,9 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             "timezoneOffsetMinutes": TimeZone.current.secondsFromGMT(for: dayStart) / 60
         ]
 
-        queryCumulativeField(.stepCount, unit: .count(), start: dayStart, end: activityEnd, group: group) { value in resultQueue.sync { result["steps"] = value } }
-        queryCumulativeField(.activeEnergyBurned, unit: .kilocalorie(), start: dayStart, end: activityEnd, group: group) { value in resultQueue.sync { result["activeEnergyKcal"] = value } }
-        queryCumulativeField(.appleExerciseTime, unit: .minute(), start: dayStart, end: activityEnd, group: group) { value in resultQueue.sync { result["exerciseMinutes"] = value } }
+        queryCumulativeField(.stepCount, unit: .count(), start: dayStart, end: activityEnd, group: group) { value in if let value = value { resultQueue.sync { result["steps"] = value } } }
+        queryCumulativeField(.activeEnergyBurned, unit: .kilocalorie(), start: dayStart, end: activityEnd, group: group) { value in if let value = value { resultQueue.sync { result["activeEnergyKcal"] = value } } }
+        queryCumulativeField(.appleExerciseTime, unit: .minute(), start: dayStart, end: activityEnd, group: group) { value in if let value = value { resultQueue.sync { result["exerciseMinutes"] = value } } }
         queryLatestField(.heartRate, unit: HKUnit.count().unitDivided(by: .minute()), start: dayStart, end: activityEnd, group: group) { value in if let value = value { resultQueue.sync { result["latestHeartRate"] = value } } }
         queryLatestField(.restingHeartRate, unit: HKUnit.count().unitDivided(by: .minute()), start: dayStart, end: activityEnd, group: group) { value in if let value = value { resultQueue.sync { result["restingHeartRate"] = value } } }
         queryLatestField(.heartRateVariabilitySDNN, unit: HKUnit.secondUnit(with: .milli), start: dayStart, end: activityEnd, group: group) { value in if let value = value { resultQueue.sync { result["heartRateVariabilitySDNN"] = value } } }
@@ -156,21 +210,23 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             group.enter()
             querySleep(type: sleepType, start: sleepWindowStart, end: sleepWindowEnd) { sleep in
                 resultQueue.sync {
-                    result["sleepMinutes"] = sleep.totalMinutes
-                    result["sleepStageMinutes"] = sleep.stages
-                    result["sleepEfficiency"] = sleep.efficiency
-                    if let start = sleep.start {
-                        result["sleepStart"] = self.isoFormatter.string(from: start)
-                        result["sleepStartLocal"] = self.localClockString(start)
+                    if sleep.sampleCount > 0, sleep.totalMinutes > 0 {
+                        result["sleepMinutes"] = sleep.totalMinutes
+                        result["sleepStageMinutes"] = sleep.stages
+                        result["sleepEfficiency"] = sleep.efficiency
+                        if let start = sleep.start {
+                            result["sleepStart"] = self.isoFormatter.string(from: start)
+                            result["sleepStartLocal"] = self.localClockString(start)
+                        }
+                        if let end = sleep.end {
+                            result["sleepEnd"] = self.isoFormatter.string(from: end)
+                            result["sleepEndLocal"] = self.localClockString(end)
+                        }
+                        result["sourceMetadata"] = [
+                            "sleepSourceBundle": sleep.sourceBundle ?? "unknown",
+                            "sleepSampleCount": sleep.sampleCount
+                        ]
                     }
-                    if let end = sleep.end {
-                        result["sleepEnd"] = self.isoFormatter.string(from: end)
-                        result["sleepEndLocal"] = self.localClockString(end)
-                    }
-                    result["sourceMetadata"] = [
-                        "sleepSourceBundle": sleep.sourceBundle ?? "unknown",
-                        "sleepSampleCount": sleep.sampleCount
-                    ]
                 }
                 group.leave()
             }
@@ -179,14 +235,28 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         group.enter()
         queryHourlyActivity(start: dayStart, end: activityEnd) { bins in
             resultQueue.sync {
-                result["activityBins"] = bins
-                result["activityCoverageHours"] = bins.count
+                if !bins.isEmpty {
+                    result["activityBins"] = bins
+                    result["activityCoverageHours"] = bins.count
+                }
             }
             group.leave()
         }
 
         group.notify(queue: .global(qos: .userInitiated)) {
-            resultQueue.sync { completion(result) }
+            resultQueue.sync {
+                let metricKeys = [
+                    "steps", "activeEnergyKcal", "exerciseMinutes", "latestHeartRate",
+                    "restingHeartRate", "heartRateVariabilitySDNN", "latestBloodOxygen",
+                    "sleepMinutes", "sleepStageMinutes", "activityBins"
+                ]
+                var metadata = result["sourceMetadata"] as? [String: Any] ?? [:]
+                metadata["availableMetrics"] = metricKeys.filter { result[$0] != nil }
+                metadata["collector"] = "nava-healthkit-ios"
+                metadata["schemaVersion"] = 2
+                result["sourceMetadata"] = metadata
+                completion(result)
+            }
         }
     }
 
@@ -196,7 +266,7 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         start: Date,
         end: Date,
         group: DispatchGroup,
-        completion: @escaping (Double) -> Void
+        completion: @escaping (Double?) -> Void
     ) {
         guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { return }
         group.enter()
@@ -222,10 +292,10 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    private func queryCumulative(type: HKQuantityType, unit: HKUnit, start: Date, end: Date, completion: @escaping (Double) -> Void) {
+    private func queryCumulative(type: HKQuantityType, unit: HKUnit, start: Date, end: Date, completion: @escaping (Double?) -> Void) {
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: [.strictStartDate, .strictEndDate])
         let query = HKStatisticsQuery(quantityType: type, quantitySamplePredicate: predicate, options: .cumulativeSum) { _, statistics, _ in
-            completion(statistics?.sumQuantity()?.doubleValue(for: unit) ?? 0)
+            completion(statistics?.sumQuantity()?.doubleValue(for: unit))
         }
         healthStore.execute(query)
     }
@@ -332,17 +402,21 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         group.notify(queue: .global(qos: .userInitiated)) {
             let calendar = Calendar.current
             let elapsedHours = min(24, max(1, Int(ceil(end.timeIntervalSince(start) / 3600))))
-            let bins = (0..<elapsedHours).map { hour -> [String: Any] in
+            let bins = (0..<elapsedHours).compactMap { hour -> [String: Any]? in
                 let binStart = calendar.date(byAdding: .hour, value: hour, to: start) ?? start
                 let binEnd = min(end, calendar.date(byAdding: .hour, value: 1, to: binStart) ?? end)
-                return [
+                guard steps[binStart] != nil || energy[binStart] != nil || exercise[binStart] != nil else {
+                    return nil
+                }
+                var bin: [String: Any] = [
                     "hour": hour,
                     "start": self.isoFormatter.string(from: binStart),
-                    "end": self.isoFormatter.string(from: binEnd),
-                    "steps": steps[binStart] ?? 0,
-                    "activeEnergyKcal": energy[binStart] ?? 0,
-                    "exerciseMinutes": exercise[binStart] ?? 0
+                    "end": self.isoFormatter.string(from: binEnd)
                 ]
+                if let value = steps[binStart] { bin["steps"] = value }
+                if let value = energy[binStart] { bin["activeEnergyKcal"] = value }
+                if let value = exercise[binStart] { bin["exerciseMinutes"] = value }
+                return bin
             }
             completion(bins)
         }
@@ -376,7 +450,9 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         query.initialResultsHandler = { _, collection, _ in
             var values: [Date: Double] = [:]
             collection?.enumerateStatistics(from: start, to: end) { statistics, _ in
-                values[statistics.startDate] = statistics.sumQuantity()?.doubleValue(for: unit) ?? 0
+                if let quantity = statistics.sumQuantity() {
+                    values[statistics.startDate] = quantity.doubleValue(for: unit)
+                }
             }
             completion(values)
         }

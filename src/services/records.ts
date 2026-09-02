@@ -74,6 +74,8 @@ function validateHHMM(value: string, fieldName: string) {
 function normalizeRecordDate(input?: string) {
   const date = input ?? todayISO();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("记录日期格式应为 YYYY-MM-DD。");
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) throw new Error("记录日期不是有效的日历日期。");
   if (date > todayISO()) throw new Error("记录日期不能晚于今天。");
   return date;
 }
@@ -191,7 +193,9 @@ export async function getTodaySnapshot(userId: string, date = todayISO()): Promi
     rhythmConfidence: rhythm?.confidence == null ? undefined : Number(rhythm.confidence),
     rhythmScoreLower: rhythm?.score_lower == null ? undefined : Math.round(Number(rhythm.score_lower)),
     rhythmScoreUpper: rhythm?.score_upper == null ? undefined : Math.round(Number(rhythm.score_upper)),
-    rhythmModelVersion: rhythm?.model_version ?? undefined,
+    rhythmModelVersion: rhythm
+      ? (rhythm.model_version ?? "nava-server-score")
+      : (rhythmScore == null ? undefined : "nava-client-estimate-v1"),
     rhythmDataQuality: rhythm?.data_quality_score == null ? undefined : Math.round(Number(rhythm.data_quality_score)),
     rhythmTrendSlope: rhythm?.trend_slope == null ? undefined : Number(rhythm.trend_slope),
     rhythmAnomalyCount: Array.isArray(rhythm?.anomaly_flags) ? rhythm.anomaly_flags.length : 0,
@@ -566,22 +570,6 @@ export async function saveFaceAnalysisRecord(input: {
     .select("*")
     .single();
 
-  if (isMissingBackendResource(error)) {
-    return {
-      id: `transient-face-${input.date ?? todayISO()}`,
-      record_date: input.date ?? todayISO(),
-      image_path: input.imagePath ?? null,
-      overall_score: input.result.overall_score,
-      skin_age: input.result.skin_age ?? null,
-      annotations: input.result.annotations,
-      feedback: input.result.feedback,
-      model_version: input.modelVersion ?? null,
-      capture_mode: input.captureMode ?? "bare_face",
-      analysis_confidence: input.result.confidence ?? null,
-      derived_features: faceDerivedFeatures(input.result),
-      persisted: false,
-    } as FaceRecord & { persisted: false };
-  }
   assertNoError(error);
   return { ...(data as FaceRecord), persisted: true } as FaceRecord & { persisted: true };
 }

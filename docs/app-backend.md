@@ -10,8 +10,8 @@ App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负�
 | `ai-chat-reply` | AI 页回复入口；未配置外部模型时根据抽取结果生成轻量建议 | App 写 `ai_conversations` |
 | `health-sync-ingest` | 接收 iPhone / Apple Watch HealthKit 摘要，写运动、睡眠、小时活动、睡眠阶段、同步任务，并刷新节律分数 | `exercise_records`、`sleep_records`、`health_metric_snapshots`、`health_sync_jobs`、`daily_rhythm_scores` |
 | `watch-sync` | 保存 Watch 快照，处理手表快速情绪和专注动作 | `watch_snapshots`、`device_connections`、`mood_records`、`focus_records` |
-| `diet-extract` | 饮食照片识别入口，支持正式算法服务转发和 fallback | 不直接写表，App 确认后写 `nutrition_records` |
-| `face-analyze` | 面部状态分析入口，支持正式算法服务转发和 fallback | App 确认后写 `face_records` |
+| `diet-extract` | 私有饮食照片的真实视觉模型识别入口 | 不直接写表，App 确认后写 `nutrition_records` |
+| `face-analyze` | 私有面部照片的非诊断真实视觉模型入口 | App 确认后写 `face_records` |
 | `rhythm-score` | 读取 42 天窗口，生成 NAVA ChronoState V4.8 节律分、个人基线、节律特征、动态状态、慢性负债压力、功能补偿门控、稀疏断崖冲击、慢性停滞压力、绝对生理压力、假恢复 drawdown 压力、相位扰动保护、昼夜漂移压力、生理先导预警、硬撑型消耗压力、自适应端点校准、尾部过反应缓释、不确定性区间、异常旗标和建议 | `daily_rhythm_scores` |
 | `export-user-data` | 导出当前用户 App/Web 共享数据 | 只读 |
 
@@ -25,6 +25,7 @@ supabase/migrations/202607170002_app_edge_backend.sql
 supabase/migrations/202607180001_nava_rhythm_v2.sql
 supabase/migrations/202607180002_nava_fusion_v3.sql
 supabase/migrations/202607180003_nava_chronostate_v4.sql
+supabase/migrations/202609020002_health_sync_realtime.sql
 ```
 
 新增或加固的对象：
@@ -39,6 +40,27 @@ supabase/migrations/202607180003_nava_chronostate_v4.sql
 - 私有 bucket：`diet-photos`
 - 私有 bucket：`face-photos`
 - Storage RLS：用户只能访问自己 `user_id/` 路径下的照片
+- `health_sync_jobs` Realtime publication：登录用户只通过现有 RLS 接收自己的
+  同步完成事件，网页收到成功事件后重新读取规范化记录。
+
+## Apple Health 正式同步合同
+
+- iPhone 客户端只调用启用 JWT 验证的 `health-sync-ingest`；服务端通过
+  `requireUser(req)` 得到用户身份，忽略客户端伪造用户归属的可能性。
+- 客户端不得包含 `HEALTH_EXPORT_API_KEY`、`x-api-key` 共享写入协议或 service
+  role。旧 `health-auto-export` 属于待退役的网页原型链路。
+- HealthKit 无样本、用户未授权和真实零值不能混用。原生桥只有在 HealthKit
+  返回实际统计量时才发送对应字段，服务端不会用缺失的零覆盖既有记录。
+- HealthKit Observer Query 在 App 启动时注册；后台变化先持久化为不包含健康
+  数值的待同步标记，运行中的桥或下次前台启动再调用正式 JWT 链路。
+- 当前自动同步冷却为 15 分钟；手动同步和真实 HealthKit 变化可越过冷却。
+- 无样本日期不会生成伪造零值；部分权限同步会保留同日已有真实字段。旧的每日
+  运动表只在有完整活动三元组时新建记录，部分指标仍保存在健康快照，不用 0
+  填满缺失字段。
+- 页面“最近同步”和 Realtime 刷新只认 `sample_count > 0` 的成功任务；零数据
+  尝试仍留在任务表供审计，但不冒充成功连接。
+- 完整交付和真机验收见
+  `docs/APPLE_HEALTH_WATCH_DELIVERY_PLAN_2026-09-02.md`。
 
 ## NAVA ChronoState V4.8 输出
 
@@ -135,11 +157,18 @@ supabase secrets set DEEPSEEK_API_KEY="..." --project-ref $env:SUPABASE_PROJECT_
 
 未配置正式算法时：
 
-- `ai-extract-data` 使用规则引擎抽取睡眠、运动、情绪、专注、饮食和资料更新。
+- `ai-extract-data` 明确返回“真实记录抽取模型尚未配置”；规则解析只作为模型输入候选，不会在正式模式冒充模型结果。
 - `ai-chat-reply` 返回“真实 AI 尚未配置”，不会用演示文案伪装成外部模型结果。
-- `diet-extract` 返回低置信度 fallback 食物条目。
-- `face-analyze` 返回低置信度基础状态结果。
-- App 不会崩溃，但结果不能当成正式算法结论。
+- `diet-extract` 和 `face-analyze` 明确返回视觉模型未配置，不会生成固定食物、分数或面部结论。
+- App 保持可操作并显示可理解的错误，但不会把失败包装成分析成功。
+
+饮食和面部照片必须先上传到当前账号前缀下的私有 Storage。
+Edge Function 会校验对象路径归属，只生成十分钟签名 URL；客户端提供的
+原始 `data:` 图片或任意其他账号路径都不能绕过此边界。
+
+健康和饮食 AI 报告的缓存包含规范化源数据指纹。只要画像或对应时期的
+真实记录发生变化，旧缓存即失效并重新调用模型；仅凭同一日期和报告类型
+不再复用已经过期的文字。
 
 ## 仍需人工提供
 

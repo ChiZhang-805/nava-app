@@ -26,7 +26,10 @@ Deno.serve(async (req) => {
 
     if (mode === "snapshot") {
       const date = normalizeDate(body.date ?? (body.snapshot as Record<string, unknown> | undefined)?.date);
-      const snapshot = body.snapshot ?? await buildSnapshot(userClient, user.id, date);
+      // Watch payloads are always reconstructed from the authenticated user's
+      // persisted Supabase rows. Client-supplied scores are never promoted to a
+      // server snapshot.
+      const snapshot = await buildSnapshot(userClient, user.id, date);
       const { error } = await userClient.from("watch_snapshots").upsert(
         {
           user_id: user.id,
@@ -227,13 +230,21 @@ async function upsertFocusDistribution(client: SupabaseClient, userId: string, d
 }
 
 async function buildSnapshot(client: SupabaseClient, userId: string, date: string) {
-  const rhythm = calculateRhythm(await loadDailyInputs(client, userId, date));
+  const inputs = await loadDailyInputs(client, userId, date);
+  const rhythm = calculateRhythm(inputs);
+  const profile = await client.from("profiles").select("username").eq("id", userId).maybeSingle();
+  assertNoError(profile.error);
+  const today = inputs.today;
   return {
     userId,
-    date,
+    displayName: stringValue(profile.data?.username),
     today: {
       rhythmScore: rhythm.score,
-      nextAction: rhythm.actions[0] ?? "保持当前节奏。",
+      sleepScore: numberValue(today.sleep?.rhythm_score),
+      steps: numberValue(today.exercise?.steps),
+      activeCalories: numberValue(today.exercise?.calories),
+      mood: numberValue(today.mood?.mood_score),
+      focusMinutes: today.focusMinutes,
     },
     lastSyncedAt: new Date().toISOString(),
   };

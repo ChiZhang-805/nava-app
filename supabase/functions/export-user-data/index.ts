@@ -53,6 +53,11 @@ Deno.serve(async (req) => {
       }
     }
 
+    const failedTables = Object.keys((result.errors ?? {}) as Record<string, string>);
+    if (failedTables.length > 0) {
+      throw new Error(`账号数据导出不完整，以下数据表读取失败：${failedTables.join("、")}`);
+    }
+
     return jsonResponse(result);
   } catch (error) {
     return errorResponse(error);

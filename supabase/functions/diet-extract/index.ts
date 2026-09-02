@@ -6,6 +6,7 @@ import {
   requireUser,
   stringValue,
 } from "../_shared/http.ts";
+import { assertOwnedStoragePath } from "../_shared/storage-ownership.ts";
 
 type FoodItem = {
   name: string;
@@ -23,11 +24,13 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return errorResponse("仅支持 POST。", 405);
 
   try {
-    const { userClient, adminClient } = await requireUser(req);
+    const { user, userClient, adminClient } = await requireUser(req);
     const body = await readJson(req);
     const lang = stringValue(body.lang) ?? "zh";
     const imagePath = stringValue(body.imagePath);
-    const imageUrl = stringValue(body.image) ?? await signedImageUrl(adminClient ?? userClient, imagePath);
+    assertOwnedStoragePath(imagePath, user.id, "饮食照片");
+    if (!imagePath) throw new Error("饮食照片必须先保存到当前账号的私有存储。");
+    const imageUrl = await signedImageUrl(adminClient ?? userClient, imagePath);
     if (!imageUrl) throw new Error("没有可供分析的饮食图片；私密存储签名失败。");
     const providerResult = await callProvider({
       imageUrl,
@@ -58,10 +61,13 @@ async function callProvider(input: { imageUrl: string; imagePath?: string; lang:
         prompt: dietRecognitionPrompt(input.lang, input.meal),
         response_schema: "nava.diet.v2",
       }),
+      signal: AbortSignal.timeout(60_000),
     });
     if (!response.ok) throw new Error(`饮食识别服务返回 ${response.status}`);
     const data = await response.json();
-    return normalizeProviderResult(data, "custom-provider", true);
+    const normalized = normalizeProviderResult(data, "custom-provider", true);
+    if (normalized.items.length === 0) throw new Error("真实饮食识别服务没有返回可确认的食物项目。");
+    return normalized;
   }
 
   const visionKey = Deno.env.get("NAVA_DIET_VISION_KEY") ?? Deno.env.get("DASHSCOPE_API_KEY");
@@ -115,6 +121,7 @@ async function callVisionProvider(input: {
         },
       ],
     }),
+    signal: AbortSignal.timeout(60_000),
   });
   if (!response.ok) throw new Error(`视觉识别服务返回 ${response.status}`);
   const payload = await response.json() as Record<string, unknown>;
@@ -163,12 +170,12 @@ function normalizeProviderResult(data: Record<string, unknown>, provider: string
     return {
       name: String(value.name ?? "").trim(),
       amount: typeof value.amount === "string" ? value.amount : value.weight_g ? `${Math.round(Number(value.weight_g))}g` : undefined,
-      weight_g: numeric(value.weight_g),
-      calories: numeric(value.calories),
-      protein_g: numeric(value.protein_g),
-      carbohydrate_g: numeric(value.carbohydrate_g),
-      fat_g: numeric(value.fat_g),
-      confidence: numeric(value.confidence),
+      weight_g: nonNegative(value.weight_g),
+      calories: nonNegative(value.calories),
+      protein_g: nonNegative(value.protein_g),
+      carbohydrate_g: nonNegative(value.carbohydrate_g),
+      fat_g: nonNegative(value.fat_g),
+      confidence: boundedConfidence(value.confidence),
     };
   }).filter((item) => item.name && !/^(?:待确认餐食|meal item to confirm)$/i.test(item.name));
 
@@ -180,13 +187,13 @@ function normalizeProviderResult(data: Record<string, unknown>, provider: string
     modelVersion: String(data.modelVersion ?? data.model_version ?? `diet-${provider}-2026-07`),
     provider,
     analysisAvailable,
-    confidence: numeric(data.confidence) ?? Math.max(...items.map((item) => item.confidence ?? 0), 0),
+    confidence: boundedConfidence(data.confidence) ?? Math.max(...items.map((item) => item.confidence ?? 0), 0),
     items,
     totals: {
-      calories: numeric(rawTotals.calories) ?? sum("calories"),
-      protein_g: numeric(rawTotals.protein_g) ?? sum("protein_g"),
-      carbohydrate_g: numeric(rawTotals.carbohydrate_g) ?? sum("carbohydrate_g"),
-      fat_g: numeric(rawTotals.fat_g) ?? sum("fat_g"),
+      calories: nonNegative(rawTotals.calories) ?? sum("calories"),
+      protein_g: nonNegative(rawTotals.protein_g) ?? sum("protein_g"),
+      carbohydrate_g: nonNegative(rawTotals.carbohydrate_g) ?? sum("carbohydrate_g"),
+      fat_g: nonNegative(rawTotals.fat_g) ?? sum("fat_g"),
     },
     note: typeof data.note === "string" ? data.note : undefined,
   };
@@ -209,4 +216,14 @@ function numeric(value: unknown) {
     return Number.isFinite(parsed) ? parsed : undefined;
   }
   return undefined;
+}
+
+function nonNegative(value: unknown) {
+  const parsed = numeric(value);
+  return parsed == null ? undefined : Math.max(0, parsed);
+}
+
+function boundedConfidence(value: unknown) {
+  const parsed = numeric(value);
+  return parsed == null ? undefined : Math.min(1, Math.max(0, parsed));
 }

@@ -13,20 +13,21 @@ import {
   runKnowledgeTools,
   type KnowledgeBundle,
 } from "../_shared/knowledge-tools.ts";
+import { assertOwnedStoragePath } from "../_shared/storage-ownership.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return optionsResponse();
   if (req.method !== "POST") return errorResponse("仅支持 POST。", 405);
 
   try {
-    const { userClient, adminClient } = await requireUser(req);
+    const { user, userClient, adminClient } = await requireUser(req);
     const body = await readJson(req);
     const imagePath = stringValue(body.imagePath);
-    const imageUrl = stringValue(body.imageUrl) ?? await signedImageUrl(adminClient ?? userClient, imagePath);
-    const image = stringValue(body.image);
+    assertOwnedStoragePath(imagePath, user.id, "面部照片");
+    if (!imagePath) throw new Error("面部照片必须先保存到当前账号的私有存储。");
+    const imageUrl = await signedImageUrl(adminClient ?? userClient, imagePath);
     const knowledge = await runKnowledgeTools({ domains: ["face"] });
     const result = await callProvider({
-      image,
       imageUrl,
       imagePath,
       captureMode: stringValue(body.captureMode) === "makeup" ? "makeup" : "bare_face",
@@ -41,7 +42,6 @@ Deno.serve(async (req) => {
 });
 
 async function callProvider(input: {
-  image?: string;
   imageUrl?: string;
   imagePath?: string;
   captureMode: "bare_face" | "makeup";
@@ -59,6 +59,7 @@ async function callProvider(input: {
         ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
       },
       body: JSON.stringify({ ...input, knowledge }),
+      signal: AbortSignal.timeout(60_000),
     });
     if (!response.ok) throw new Error(`面部分析服务返回 ${response.status}`);
     const data = await response.json();
@@ -69,7 +70,7 @@ async function callProvider(input: {
   if (!visionKey) throw new Error(input.lang === "en"
     ? "Face analysis requires a vision AI key. Configure DASHSCOPE_API_KEY in Supabase."
     : "面部分析必须使用真实视觉模型，请先在 Supabase 配置 DASHSCOPE_API_KEY。");
-  const source = input.imageUrl ?? input.image;
+  const source = input.imageUrl;
   if (!source) throw new Error(input.lang === "en" ? "No private face image was available for analysis." : "没有可供分析的私密面部照片。");
   return callVisionProvider({
     ...input,
@@ -112,6 +113,7 @@ async function callVisionProvider(input: {
         },
       ],
     }),
+    signal: AbortSignal.timeout(60_000),
   });
   if (!response.ok) throw new Error(`视觉面部分析服务返回 ${response.status}`);
   const payload = await response.json() as Record<string, unknown>;
@@ -151,6 +153,7 @@ function normalizeResult(data: Record<string, unknown>, provider: "provider" | "
   if (score == null || !feedback) throw new Error("视觉面部分析缺少有效分数或反馈。");
   validateNonDiagnosticFaceOutput(feedback, annotations);
   const confidence = numeric(data.confidence);
+  const skinAge = numeric(data.skin_age);
   const makeupLevel = normalizeMakeupLevel(data.makeup_level ?? data.makeupLevel);
   const makeupConfidence = numeric(data.makeup_confidence ?? data.makeupConfidence);
   const toolIds = knowledge.evidence.map((item) => item.toolId);
@@ -161,7 +164,7 @@ function normalizeResult(data: Record<string, unknown>, provider: "provider" | "
     modelVersion: String(data.modelVersion ?? data.model_version ?? `face-${provider}-2026-07`),
     provider,
     overall_score: clamp(score, 0, 100),
-    skin_age: numeric(data.skin_age),
+    skin_age: skinAge == null ? undefined : clamp(skinAge, 0, 120),
     feedback,
     confidence: confidence == null ? undefined : clamp(confidence, 0, 1),
     makeup_level: makeupLevel,

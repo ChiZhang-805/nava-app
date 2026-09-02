@@ -32,7 +32,7 @@ foreach ($functionName in $requiredFunctions) {
   Write-Host "Found function: $functionName"
 }
 
-$sharedFiles = @("_shared\http.ts", "_shared\phone-otp.ts", "_shared\knowledge-tools.ts", "_shared\rhythm.ts", "_shared\rhythm-core.ts", "_shared\fdnb-health-core.ts", "_shared\fdnb-health-features.ts", "_shared\fdnb-health-service.ts")
+$sharedFiles = @("_shared\http.ts", "_shared\phone-otp.ts", "_shared\knowledge-tools.ts", "_shared\consent.ts", "_shared\source-fingerprint.ts", "_shared\storage-ownership.ts", "_shared\rhythm.ts", "_shared\rhythm-core.ts", "_shared\fdnb-health-core.ts", "_shared\fdnb-health-features.ts", "_shared\fdnb-health-service.ts")
 foreach ($shared in $sharedFiles) {
   $path = Join-Path $functionsRoot $shared
   if (!(Test-Path -LiteralPath $path)) {
@@ -52,5 +52,11 @@ if ($frontendServiceRoleHits) {
   throw "Frontend must not reference service role secrets."
 }
 Write-Host "Frontend secret scan: ok"
+
+$frontendSharedHealthSecretHits = Select-String -LiteralPath $frontendFiles.FullName -Pattern "HEALTH_EXPORT_API_KEY|VITE_HEALTH_EXPORT|x-api-key" -CaseSensitive:$false -ErrorAction SilentlyContinue
+if ($frontendSharedHealthSecretHits) {
+  throw "Frontend must not contain the retired shared health-ingest credential contract."
+}
+Write-Host "Health ingest credential scan: JWT-only client contract verified"
 
 Write-Host "Backend contract verification completed. Run npm run backend:typecheck for all Edge Function entrypoints."

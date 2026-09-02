@@ -50,28 +50,29 @@ function resolveAction(action: WatchAction): ResolvedWatchAction {
 }
 
 export async function publishWatchSnapshot(snapshot: WatchUserSnapshot) {
-  localStorage.setItem(accountKey(WATCH_SNAPSHOT_KEY, snapshot.userId), JSON.stringify(snapshot));
+  let canonicalSnapshot = snapshot;
   if (!isDemoMode()) {
-    try {
-      await supabase.functions.invoke("watch-sync", {
-        body: {
-          type: "snapshot",
-          date: todayISO(new Date(snapshot.lastSyncedAt)),
-          snapshot,
-        },
-      });
-    } catch {
-      // Native transfer and local cache still proceed if backend sync is unavailable.
+    const response = await supabase.functions.invoke<{ snapshot?: WatchUserSnapshot }>("watch-sync", {
+      body: {
+        type: "snapshot",
+        date: todayISO(new Date(snapshot.lastSyncedAt)),
+      },
+    });
+    if (response.error) throw response.error;
+    if (!response.data?.snapshot || response.data.snapshot.userId !== snapshot.userId) {
+      throw new Error("手表同步服务没有返回当前账号的真实数据快照。");
     }
+    canonicalSnapshot = response.data.snapshot;
   }
+  localStorage.setItem(accountKey(WATCH_SNAPSHOT_KEY, canonicalSnapshot.userId), JSON.stringify(canonicalSnapshot));
   if (Capacitor.isNativePlatform()) {
     try {
-      await NavaWatchBridge.publishSnapshot({ snapshot });
+      await NavaWatchBridge.publishSnapshot({ snapshot: canonicalSnapshot });
     } catch {
       // Local snapshot remains available for the app even if no Watch is paired.
     }
   }
-  return snapshot;
+  return canonicalSnapshot;
 }
 
 export async function readLastWatchSnapshot(userId: string): Promise<WatchUserSnapshot | null> {
@@ -85,25 +86,21 @@ export async function readLastWatchSnapshot(userId: string): Promise<WatchUserSn
   }
 
   if (isDemoMode()) return localSnapshot;
-  try {
-    const { data, error } = await supabase
-      .from("watch_snapshots")
-      .select("payload,pushed_at")
-      .eq("user_id", userId)
-      .order("pushed_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) throw error;
-    const serverSnapshot = data?.payload as WatchUserSnapshot | null;
-    if (!serverSnapshot || serverSnapshot.userId !== userId) return localSnapshot;
-    if (!localSnapshot || Date.parse(serverSnapshot.lastSyncedAt) > Date.parse(localSnapshot.lastSyncedAt)) {
-      localStorage.setItem(accountKey(WATCH_SNAPSHOT_KEY, userId), JSON.stringify(serverSnapshot));
-      return serverSnapshot;
-    }
-    return localSnapshot;
-  } catch {
-    return localSnapshot;
+  const { data, error } = await supabase
+    .from("watch_snapshots")
+    .select("payload,pushed_at")
+    .eq("user_id", userId)
+    .order("pushed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  const serverSnapshot = data?.payload as WatchUserSnapshot | null;
+  if (!serverSnapshot || serverSnapshot.userId !== userId) return localSnapshot;
+  if (!localSnapshot || Date.parse(serverSnapshot.lastSyncedAt) > Date.parse(localSnapshot.lastSyncedAt)) {
+    localStorage.setItem(accountKey(WATCH_SNAPSHOT_KEY, userId), JSON.stringify(serverSnapshot));
+    return serverSnapshot;
   }
+  return localSnapshot;
 }
 
 export async function getWatchReachability() {

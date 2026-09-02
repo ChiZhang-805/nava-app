@@ -124,10 +124,18 @@ async function prepareReplyInput(
     : null;
   const styleKnowledge = await runKnowledgeTools({ domains: ["style"], profile });
   const styleToolIds = styleKnowledge.evidence.map((item) => item.toolId);
-  const knowledge = mergeKnowledgeBundles(
+  const mergedKnowledge = mergeKnowledgeBundles(
     input.knowledge,
     markKnowledgeUsage(styleKnowledge, { suppliedToolIds: styleToolIds, usedToolIds: styleToolIds }),
   );
+  // Every compact evidence item in the merged bundle is placed in the final
+  // system prompt. Record that fact even when the extraction-stage model did
+  // not consume the evidence (for example, a health question with no record to
+  // extract). `used` remains false unless a stage can prove material use.
+  const knowledge = markKnowledgeUsage(mergedKnowledge, {
+    suppliedToolIds: mergedKnowledge.evidence.map((item) => item.toolId),
+    usedToolIds: styleToolIds,
+  });
   console.info("NAVA knowledge audit", JSON.stringify({ stage: "reply", domains: route.domains, tools: knowledgeAuditSummary(knowledge) }));
   return {
     ...input,
@@ -230,27 +238,34 @@ async function buildReply(input: ReplyInput): Promise<ProviderReply> {
 }
 
 async function customProviderReply(input: ReplyInput, endpoint: string, apiKey?: string): Promise<ProviderReply> {
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
-    },
-    body: JSON.stringify({
-      message: input.message,
-      dataType: input.dataType,
-      extractedData: input.extractedData,
-      healthContext: input.healthContext,
-      conversationHistory: input.conversationHistory,
-      route: input.route,
-      lang: input.lang,
-      systemPrompt: buildSystemPrompt(input.lang, input.healthContext, input.route, input.responseMode, input.knowledge),
-      responseMode: input.responseMode,
-      knowledge: input.knowledge,
-    }),
-  });
-  if (!response.ok) throw new Error(`AI 回复服务返回 ${response.status}`);
-  return normalizeProviderReply(await response.json(), input);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), deepSeekTimeoutMs);
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+      },
+      body: JSON.stringify({
+        message: input.message,
+        dataType: input.dataType,
+        extractedData: input.extractedData,
+        healthContext: input.healthContext,
+        conversationHistory: input.conversationHistory,
+        route: input.route,
+        lang: input.lang,
+        systemPrompt: buildSystemPrompt(input.lang, input.healthContext, input.route, input.responseMode, input.knowledge),
+        responseMode: input.responseMode,
+        knowledge: input.knowledge,
+      }),
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`AI 回复服务返回 ${response.status}`);
+    return normalizeProviderReply(await response.json(), input);
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function deepSeekReply(input: ReplyInput, apiKey: string): Promise<ProviderReply> {

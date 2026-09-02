@@ -101,8 +101,8 @@ export async function syncTodos(userId: string): Promise<TodoItem[]> {
       completed: item.completed,
       category: "todo",
     })), { onConflict: "id" });
-    if (migrated.error && !todoBackendUnavailable(migrated.error.message)) throw migrated.error;
-    if (!migrated.error) window.localStorage.setItem(todoMigrationKey(userId), "done");
+    if (migrated.error) throw migrated.error;
+    window.localStorage.setItem(todoMigrationKey(userId), "done");
   } else if (needsMigration) {
     window.localStorage.setItem(todoMigrationKey(userId), "done");
   }
@@ -115,7 +115,6 @@ export async function syncTodos(userId: string): Promise<TodoItem[]> {
     .order("created_at", { ascending: false })
     .limit(40);
   if (result.error) {
-    if (todoBackendUnavailable(result.error.message)) return cached;
     throw result.error;
   }
   return writeTodos(userId, (result.data ?? []).map((row) => {
@@ -171,7 +170,7 @@ export async function addTodo(
     completed: false,
     category: "todo",
   }).select("id,title,scheduled_date,completed,created_at").single();
-  if (created.error && !todoBackendUnavailable(created.error.message)) throw created.error;
+  if (created.error) throw created.error;
   writeTodos(userId, [nextItem, ...loadTodos(userId)]);
   return nextItem;
 }
@@ -187,14 +186,13 @@ export async function toggleTodo(userId: string, id: string) {
       .update({ completed })
       .eq("id", id)
       .eq("user_id", userId)
-      .eq("category", "todo");
-    if (updated.error && !todoBackendUnavailable(updated.error.message)) throw updated.error;
+      .eq("category", "todo")
+      .select("id")
+      .maybeSingle();
+    if (updated.error) throw updated.error;
+    if (!updated.data) throw new Error("待办更新没有写入共享数据库，请刷新后重试。");
   }
   return writeTodos(userId, current.map((candidate) => candidate.id === id ? { ...candidate, completed } : candidate));
-}
-
-function todoBackendUnavailable(message: string) {
-  return /schema cache|relation .*tasks.* does not exist|column .*(category|estimated_minutes|focus_sessions|reminder_at).* does not exist|could not find.*(category|estimated_minutes|focus_sessions|reminder_at)/i.test(message);
 }
 
 const defaultGrowthTasks: Omit<GrowthTask, "completed">[] = [
@@ -340,7 +338,6 @@ async function loadGrowthActivities(userId: string) {
     .eq("user_id", userId)
     .in("event_key", Object.values(eventKeys));
   if (error) {
-    if (/growth_reward_ledger|schema cache|does not exist/i.test(error.message)) return activities;
     throw error;
   }
   const completedKeys = new Set((data ?? []).map((row) => String(row.event_key ?? "")));
@@ -443,7 +440,6 @@ export async function loadGrowthTotalPoints(userId: string) {
     .select("points")
     .eq("user_id", userId);
   if (error) {
-    if (/growth_reward_ledger|schema cache|does not exist/i.test(error.message)) return growthXp(loadGrowthTasks(userId));
     throw error;
   }
   return (data ?? []).reduce((total, row) => {
@@ -490,9 +486,6 @@ export async function readGrowthProgress(userId: string, tasks: GrowthTask[], cu
   if (isDemoMode()) return readLocalGrowthProgress(userId, tasks, currentPoints);
   const { data, error } = await supabase.rpc("nava_read_growth_progress");
   if (error) {
-    if (/nava_read_growth_progress|growth_progress_views|schema cache|does not exist/i.test(error.message)) {
-      return readLocalGrowthProgress(userId, tasks, currentPoints);
-    }
     throw error;
   }
   return parseGrowthProgressVisit(data, currentPoints);
@@ -505,7 +498,7 @@ export async function acknowledgeGrowthProgress(userId: string, visit: GrowthPro
     acknowledged_points: visit.currentPoints,
     acknowledged_task_keys: visit.currentTaskKeys,
   });
-  if (error && !/nava_ack_growth_progress|growth_progress_views|schema cache|does not exist/i.test(error.message)) throw error;
+  if (error) throw error;
 }
 
 function parseGrowthProgressVisit(data: unknown, fallbackPoints: number): GrowthProgressVisit {
@@ -556,13 +549,13 @@ export async function reconcileGrowthRewards(tasks: GrowthTask[]): Promise<Growt
   if (isDemoMode()) return reconcileDemoGrowthRewards(tasks);
   const { data, error } = await supabase.rpc("nava_reconcile_growth_rewards");
   if (error) {
-    if (/nava_reconcile_growth_rewards|schema cache|does not exist/i.test(error.message)) return { totalPoints: growthXp(tasks), badges: [], awarded: [] };
     throw error;
   }
   const result = data && typeof data === "object" ? data as Record<string, unknown> : {};
   const totalPoints = Number(result.totalPoints);
+  if (!Number.isFinite(totalPoints) || totalPoints < 0) throw new Error("成长积分服务没有返回有效的真实积分总数。");
   return {
-    totalPoints: Number.isFinite(totalPoints) && totalPoints >= 0 ? Math.round(totalPoints) : growthXp(tasks),
+    totalPoints: Math.round(totalPoints),
     badges: Array.isArray(result.badges) ? result.badges.filter((item): item is string => typeof item === "string") : [],
     awarded: Array.isArray(result.awarded) ? result.awarded.flatMap((item) => {
       if (!item || typeof item !== "object") return [];

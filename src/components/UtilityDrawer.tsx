@@ -29,11 +29,18 @@ export default function UtilityDrawer({
 
   useEffect(() => {
     if (!open) return;
+    let active = true;
     void Promise.all([syncTodos(user.id), resolveGrowthTasks(user.id)]).then(async ([nextTodos, tasks]) => {
-      setTodos(nextTodos);
       const summary = await reconcileGrowthRewards(tasks);
+      if (!active) return;
+      setTodos(nextTodos);
       setXp(summary.totalPoints);
-    }).catch((loadError) => setError(loadError instanceof Error ? loadError.message : String(loadError)));
+    }).catch((loadError) => {
+      if (active) setError(loadError instanceof Error ? loadError.message : String(loadError));
+    });
+    return () => {
+      active = false;
+    };
   }, [open, user.id]);
 
   async function submit(event: FormEvent) {

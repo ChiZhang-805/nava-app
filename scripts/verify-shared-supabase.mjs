@@ -115,11 +115,12 @@ async function probeStorageRoutes(url, key, names) {
 }
 
 async function main() {
-  const [appText, targetText, webText, cliProjectRefText] = await Promise.all([
+  const [appText, targetText, webText, webIndexText, cliProjectRefText] = await Promise.all([
     readFile(path.join(appRoot, ".env"), "utf8")
       .catch(() => readFile(path.join(appRoot, ".env.review"), "utf8")),
     readFile(targetPath, "utf8"),
     readFile(path.join(webRoot, ".env"), "utf8").catch(() => ""),
+    readFile(path.join(webRoot, "index.html"), "utf8").catch(() => ""),
     readFile(cliProjectRefPath, "utf8").catch(() => ""),
   ]);
   const appEnv = parseEnv(appText);
@@ -127,7 +128,8 @@ async function main() {
   const target = JSON.parse(targetText);
   const appUrl = appEnv.VITE_SUPABASE_URL;
   const appKey = appEnv.VITE_SUPABASE_PUBLISHABLE_KEY;
-  const webUrl = webEnv.VITE_SUPABASE_URL;
+  const generatedWebUrl = webIndexText.match(/https:\/\/([a-z0-9]+)\.supabase\.co/i)?.[0];
+  const webUrl = webEnv.VITE_SUPABASE_URL || generatedWebUrl;
   if (!appUrl || !appKey) throw new Error("APP .env 缺少公开 Supabase URL/key。");
 
   const expectedProjectRef = target.projectRef;

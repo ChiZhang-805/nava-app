@@ -1,4 +1,4 @@
-import { useCallback, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import launchTexture from "../assets/figma/launch-background-source.jpg";
 
 const EXIT_DURATION_MS = 420;
@@ -6,11 +6,19 @@ const EXIT_DURATION_MS = 420;
 export default function LaunchSequence() {
   const [visible, setVisible] = useState(true);
   const [exiting, setExiting] = useState(false);
+  const exitTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (exitTimerRef.current !== null) window.clearTimeout(exitTimerRef.current);
+  }, []);
 
   const close = useCallback(() => {
     if (exiting) return;
     setExiting(true);
-    window.setTimeout(() => setVisible(false), EXIT_DURATION_MS);
+    exitTimerRef.current = window.setTimeout(() => {
+      exitTimerRef.current = null;
+      setVisible(false);
+    }, EXIT_DURATION_MS);
   }, [exiting]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {

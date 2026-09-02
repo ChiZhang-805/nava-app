@@ -121,6 +121,7 @@ async function main() {
     await detailTrigger.click();
     await expect(page.locator(".weekly-detail-dialog")).toBeVisible();
     await expect(page.locator(".weekly-detail-dialog")).toContainText("详细解释");
+    await page.waitForTimeout(320);
     await assertPortraitFit(page, `weekly-detail-${suffix}`);
     await page.screenshot({ path: path.join(outputDir, `weekly-detail-${suffix}.png`), fullPage: true });
     await page.locator('.weekly-detail-dialog header button').click();

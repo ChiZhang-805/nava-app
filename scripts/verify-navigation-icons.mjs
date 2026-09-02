@@ -44,8 +44,11 @@ try {
     await page.locator('input[autocomplete="current-password"]').fill("12345678");
     await page.locator(".auth-submit").click();
     await expect(page.locator(".option-two-home")).toBeVisible();
-    await page.locator(".option-two-side-actions button").first().click();
-    await expect(page.locator(".option-two-home")).toHaveClass(/is-expanded/);
+    const shortcutToggle = page.locator(".option-two-menu-toggle");
+    if (await shortcutToggle.getAttribute("aria-expanded") !== "true") {
+      await shortcutToggle.click();
+    }
+    await expect(page.locator(".option-two-home")).toHaveClass(/shortcuts-open/);
     await page.waitForTimeout(650);
 
     await expect(page.locator(".option-two-health-entry")).toHaveCount(6);

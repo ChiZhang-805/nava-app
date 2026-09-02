@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.52.1";
 import type { AiDomain, AiRoute } from "./router.ts";
+import { resolveConsentFlag } from "../_shared/consent.ts";
 
 export type ConversationMessage = {
   role?: string;
@@ -15,6 +16,7 @@ export type OwnedAiBaseContext = {
   conversationHistory: ConversationMessage[];
   profile: Record<string, unknown>;
   healthDataAllowed: boolean;
+  personalizationAllowed: boolean;
 };
 
 export async function loadOwnedAiBaseContext(
@@ -22,10 +24,10 @@ export async function loadOwnedAiBaseContext(
   userId: string,
   currentMessage: string,
 ): Promise<OwnedAiBaseContext> {
-  const [conversationHistory, profileContext] = await Promise.all([
-    loadConversationHistory(client, userId, currentMessage),
-    loadProfileContext(client, userId),
-  ]);
+  const profileContext = await loadProfileContext(client, userId);
+  const conversationHistory = profileContext.personalizationAllowed
+    ? await loadConversationHistory(client, userId, currentMessage)
+    : [];
   return { conversationHistory, ...profileContext };
 }
 
@@ -99,10 +101,14 @@ async function loadProfileContext(client: SupabaseClient, userId: string) {
 
   const profile = record(result.data);
   const answers = record(profile?.onboarding_answers);
-  const personalizationAllowed = profile?.ai_personalization_consent === true || answers?.aiPersonalizationConsent === true;
-  const healthDataAllowed = profile?.health_data_consent === true || answers?.healthDataConsent === true;
+  const personalizationAllowed = resolveConsentFlag(profile?.ai_personalization_consent, answers?.aiPersonalizationConsent);
+  // The personalized-AI switch governs whether stored profile, conversation,
+  // and health history may be used by the model. The separate health-data
+  // switch governs native device synchronization, not AI access by itself.
+  const healthDataAllowed = personalizationAllowed;
   return {
     healthDataAllowed,
+    personalizationAllowed,
     profile: personalizationAllowed
       ? {
         ageGroup: profile?.age_group ?? answers?.ageGroup ?? null,

@@ -27,7 +27,7 @@ import {
   Utensils,
   X,
 } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { App as CapacitorApp } from "@capacitor/app";
 import AnimatedNumber from "../components/AnimatedNumber";
 import BarLineTrendChart, { type BarLineTrendPoint } from "../components/BarLineTrendChart";
@@ -42,7 +42,7 @@ import faceInsightMascot from "../assets/mascot/nava-mirror-v1.png";
 import emptyTodayMascot from "../assets/mascot/nava-empty-cry-v1.png";
 import type { FocusRecord, MoodRecord, TodaySnapshot, TrendBundle } from "../types";
 import { enableNavaNotifications } from "../services/notifications";
-import { loadDietAiReport, parseDietAiReport, type DietAiReport } from "../services/dietReport";
+import { loadDietAiReport, type DietAiReport } from "../services/dietReport";
 import { loadHealthAiReport, type HealthAiReport } from "../services/healthReport";
 import {
   getHealthAuthorizationStatus,
@@ -323,12 +323,16 @@ function HistoryView({
   const hasTodayRecord = recordedToday && !forceMissingToday;
   const sortedNutrition = useMemo(() => trendBundle?.nutritions.filter((item) => item.record_date <= deviceDate).slice().sort((a, b) => a.record_date.localeCompare(b.record_date)) ?? [], [deviceDate, trendBundle]);
   const todayNutrition = sortedNutrition.find((item) => item.record_date === deviceDate) ?? null;
-  const [dietReport, setDietReport] = useState<DietAiReport | null>(() => parseDietAiReport(todayNutrition?.ai_feedback));
+  const [dietReport, setDietReport] = useState<DietAiReport | null>(null);
   const [healthReport, setHealthReport] = useState<HealthAiReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportUnavailable, setReportUnavailable] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareComplete, setShareComplete] = useState(false);
+  const shareCompleteTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (shareCompleteTimerRef.current !== null) window.clearTimeout(shareCompleteTimerRef.current);
+  }, []);
   useEffect(() => {
     if (module !== "diet") return;
     if (!hasTodayRecord || !todayNutrition) {
@@ -337,14 +341,8 @@ function HistoryView({
       setReportLoading(false);
       return;
     }
-    const stored = parseDietAiReport(todayNutrition.ai_feedback);
-    if (stored) {
-      setDietReport(stored);
-      setReportUnavailable(false);
-      setReportLoading(false);
-      return;
-    }
     let active = true;
+    setDietReport(null);
     setReportLoading(true);
     setReportUnavailable(false);
     void loadDietAiReport({ date: todayNutrition.record_date, locale })
@@ -408,7 +406,11 @@ function HistoryView({
       });
       await onGrowthActivity?.("share");
       setShareComplete(true);
-      window.setTimeout(() => setShareComplete(false), 2400);
+      if (shareCompleteTimerRef.current !== null) window.clearTimeout(shareCompleteTimerRef.current);
+      shareCompleteTimerRef.current = window.setTimeout(() => {
+        shareCompleteTimerRef.current = null;
+        setShareComplete(false);
+      }, 2400);
     } catch (error) {
       if ((error as DOMException)?.name !== "AbortError") console.warn("report image share failed", error);
     } finally {
@@ -639,7 +641,12 @@ function ExerciseDashboard({
       if (status.available && !status.requested) await requestHealthAuthorization();
       const result = await syncNativeHealthNow(userId);
       if ("skipped" in result && result.skipped) {
-        setDeviceMessage(locale === "zh" ? "请在 iPhone App 中授权 Apple 健康后同步" : "Authorize Apple Health in the iPhone app to sync");
+        const consentDisabled = "reason" in result && result.reason === "health_sync_consent_disabled";
+        setDeviceMessage(consentDisabled
+          ? (locale === "zh" ? "健康数据同步已在隐私设置中关闭" : "Health data sync is disabled in Privacy settings")
+          : (locale === "zh" ? "请在 iPhone App 中授权 Apple 健康后同步" : "Authorize Apple Health in the iPhone app to sync"));
+      } else if (result.uploaded === 0) {
+        setDeviceMessage(locale === "zh" ? "未读取到已授权的健康记录；既有数据未被零值覆盖" : "No authorized health records found; existing data was not overwritten");
       } else {
         setSyncedAt(result.lastSyncDate);
         setDeviceMessage(locale === "zh" ? `已同步 ${result.uploaded} 条真实健康记录` : `Synced ${result.uploaded} real health records`);
@@ -1258,14 +1265,21 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
 
   useEffect(() => {
     let listener: { remove: () => Promise<void> } | undefined;
+    let active = true;
     if (!immersive) return;
     void CapacitorApp.addListener("appStateChange", ({ isActive }) => {
       if (isActive || !running) return;
       setRunning(false);
       setInterruptions((value) => value + 1);
       openView("interruption");
-    }).then((handle) => { listener = handle; });
-    return () => { void listener?.remove(); };
+    }).then((handle) => {
+      if (active) listener = handle;
+      else void handle.remove();
+    });
+    return () => {
+      active = false;
+      void listener?.remove();
+    };
   }, [immersive, openView, running]);
 
   const timerDisplay = timerMode === "countup" ? elapsedSeconds : remaining;
@@ -1441,6 +1455,7 @@ export default function RecordModuleDashboard(props: Props) {
   const [overviewInsight, setOverviewInsight] = useState<string | null>(null);
   const [overviewInsightLoading, setOverviewInsightLoading] = useState(false);
   const [overviewInsightError, setOverviewInsightError] = useState(false);
+  const overviewInsightRequestRef = useRef(0);
   useEffect(() => setView(props.initialView ?? "overview"), [props.initialView, props.module]);
   const openView = (next: string, returnToPrevious = next === "overview") => {
     setView(next);
@@ -1451,32 +1466,40 @@ export default function RecordModuleDashboard(props: Props) {
     : Boolean(props.todaySnapshot?.[props.module === "diet" ? "nutrition" : props.module]);
   const loadOverviewInsight = useCallback(async () => {
     if (!hasCurrentRecord) return;
+    const requestId = ++overviewInsightRequestRef.current;
     setOverviewInsightLoading(true);
     setOverviewInsightError(false);
     try {
       if (props.module === "diet") {
         const report = await loadDietAiReport({ date: props.recordDate, locale });
-        setOverviewInsight(report.bullets[0] ?? null);
+        if (requestId === overviewInsightRequestRef.current) setOverviewInsight(report.bullets[0] ?? null);
       } else {
         const report = await loadHealthAiReport({ scope: props.module, endDate: props.recordDate, locale });
         const association = report.sections.find((section) => section.id === "association");
         const associationIsUseful = association
           && association.confidence !== "low"
           && !/(记录不足|无法判断|insufficient|cannot determine)/i.test(`${association.headline} ${association.explanation}`);
-        setOverviewInsight((associationIsUseful ? association.headline : report.sections[0]?.headline) ?? report.bullets[0] ?? null);
+        if (requestId === overviewInsightRequestRef.current) {
+          setOverviewInsight((associationIsUseful ? association.headline : report.sections[0]?.headline) ?? report.bullets[0] ?? null);
+        }
       }
     } catch (error) {
       console.warn("Module overview AI insight unavailable", error);
-      setOverviewInsight(null);
-      setOverviewInsightError(true);
+      if (requestId === overviewInsightRequestRef.current) {
+        setOverviewInsight(null);
+        setOverviewInsightError(true);
+      }
     } finally {
-      setOverviewInsightLoading(false);
+      if (requestId === overviewInsightRequestRef.current) setOverviewInsightLoading(false);
     }
   }, [hasCurrentRecord, locale, props.module, props.recordDate]);
   useEffect(() => {
     setOverviewInsight(null);
     setOverviewInsightError(false);
     if (view === "overview" && hasCurrentRecord) void loadOverviewInsight();
+    return () => {
+      overviewInsightRequestRef.current += 1;
+    };
   }, [hasCurrentRecord, loadOverviewInsight, view]);
   if (view === "history") return <HistoryView module={props.module} locale={locale} trendBundle={props.trendBundle} deviceDate={props.deviceDate} onGrowthActivity={props.onGrowthActivity} />;
   const common = { ...props, locale };

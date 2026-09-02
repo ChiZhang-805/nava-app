@@ -6,6 +6,7 @@ import {
   saveNutritionItems,
   saveNutritionRecord,
   saveSleepRecord,
+  saveSleepSummaryRecord,
 } from "./records";
 import { addTodo } from "./productivity";
 import { todayISO } from "./date";
@@ -42,7 +43,13 @@ export async function confirmStructuredEntry(userId: string, candidate: Structur
     factors: Array.isArray(data.factors) ? data.factors as string[] : [],
     diary: String(data.diary ?? ""),
   });
-  if (candidate.type === "sleep") await saveSleepRecord({ userId, start: String(data.start), end: String(data.end), durationMinutes: Number(data.durationMinutes), source: "manual" });
+  if (candidate.type === "sleep") {
+    if (typeof data.start === "string" && typeof data.end === "string") {
+      await saveSleepRecord({ userId, start: data.start, end: data.end, durationMinutes: Number(data.durationMinutes), source: "manual" });
+    } else {
+      await saveSleepSummaryRecord({ userId, durationMinutes: Number(data.durationMinutes), source: "manual" });
+    }
+  }
   if (candidate.type === "exercise") await saveExerciseRecord({ userId, steps: Number(data.steps ?? 0), calories: Number(data.calories ?? 0), minutes: Number(data.minutes ?? 0), source: "manual" });
   if (candidate.type === "nutrition") {
     const items = Array.isArray(data.items)

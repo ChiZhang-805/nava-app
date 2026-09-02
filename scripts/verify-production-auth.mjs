@@ -18,12 +18,19 @@ const root = process.cwd();
 const env = parseEnv(await readFile(path.join(root, ".env.review"), "utf8"));
 const demoSource = await readFile(path.join(root, "src", "services", "demo.ts"), "utf8");
 const supabaseClientSource = await readFile(path.join(root, "src", "services", "supabaseClient.ts"), "utf8");
+const authStorageSource = await readFile(path.join(root, "src", "services", "authStorage.ts"), "utf8");
 const expectedProjectRef = "wxteapvwagvhhtrjrbim";
 const expectedUrl = `https://${expectedProjectRef}.supabase.co`;
 
 if (env.VITE_ENABLE_REVIEW_DEMO !== "false") throw new Error("Public builds must disable review demo authentication.");
 if (!demoSource.includes('if (!isLocalPreviewHost) return false;')) throw new Error("Public hosts must never enable demo authentication.");
-if (!supabaseClientSource.includes("storage: browserSessionStorage")) throw new Error("Public authentication must use tab-scoped session storage.");
+if (!supabaseClientSource.includes("storage: authSessionStorage")) throw new Error("Supabase authentication must use the platform-aware storage adapter.");
+if (!authStorageSource.includes("window.sessionStorage") || !authStorageSource.includes("Capacitor.isNativePlatform()")) {
+  throw new Error("Public authentication must remain tab-scoped while native authentication uses the secure adapter.");
+}
+if (!authStorageSource.includes('registerPlugin<NavaSecureStoragePlugin>("NavaSecureStorage")')) {
+  throw new Error("Native authentication must use the Keychain-backed NavaSecureStorage plugin.");
+}
 if (env.VITE_SUPABASE_URL !== expectedUrl) throw new Error("Public builds must target the canonical NAVA Supabase project.");
 if (env.VITE_SUPABASE_PROJECT_ID !== expectedProjectRef) throw new Error("Public build project ID is not canonical.");
 if (!env.VITE_SUPABASE_PUBLISHABLE_KEY?.startsWith("sb_publishable_")) throw new Error("Public build must use a Supabase publishable key.");
@@ -69,7 +76,7 @@ if (process.env.SUPABASE_ACCESS_TOKEN) {
 console.log("Production authentication contract passed.");
 console.log(`- Project: ${expectedProjectRef}`);
 console.log("- Public demo bypass: disabled");
-console.log("- Sign-in persistence: current browser tab only");
+console.log("- Sign-in persistence: current browser tab; native iOS uses its Keychain adapter");
 console.log("- Email registration: enabled with confirmation");
 console.log("- Phone OTP Edge Functions: reachable");
 console.log(`- Custom SMTP: ${smtpStatus}`);

@@ -81,7 +81,7 @@ export async function loadOnboardingStatus(userId: string): Promise<OnboardingSt
 
   if (result.error) {
     if (isMissingOnboardingColumn(result.error)) {
-      return local ?? { completed: false, completedAt: null, version: ONBOARDING_VERSION, answers: {}, source: "none" };
+      throw new Error("共享后端尚未部署完整的入门与隐私同意字段，无法安全确认当前账号状态。");
     }
     throw result.error;
   }
@@ -117,15 +117,16 @@ export async function completeOnboarding(userId: string, answers: OnboardingAnsw
     diet_preference: answers.dietPreferences.join("、"),
   };
 
-  await saveProfile(profileChanges);
   if (isDemoMode()) {
+    await saveProfile(profileChanges);
     writeLocalStatus(userId, answers, completedAt);
     return;
   }
 
   const result = await supabase
     .from("profiles")
-    .update({
+    .upsert({
+      ...profileChanges,
       age_group: answers.ageGroup,
       privacy_consent_at: completedAt,
       health_data_consent: answers.healthDataConsent,
@@ -133,13 +134,13 @@ export async function completeOnboarding(userId: string, answers: OnboardingAnsw
       onboarding_completed_at: completedAt,
       onboarding_version: ONBOARDING_VERSION,
       onboarding_answers: answers,
-    })
-    .eq("id", userId);
+    }, { onConflict: "id" });
 
   if (result.error) {
-    if (!isMissingOnboardingColumn(result.error)) throw result.error;
-    writeLocalStatus(userId, answers, completedAt);
-    return;
+    if (isMissingOnboardingColumn(result.error)) {
+      throw new Error("共享后端尚未部署完整的入门与隐私同意字段，本次设置没有保存到账号。");
+    }
+    throw result.error;
   }
 
   writeLocalStatus(userId, answers, completedAt);

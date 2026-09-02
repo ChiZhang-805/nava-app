@@ -1,4 +1,5 @@
 import type { UserProfile } from "./profile";
+import { onboardingAnswers, resolveConsentFlag } from "./consent.ts";
 
 export type AiSpeechStyle = {
   lang: "zh-CN" | "en-US";
@@ -31,12 +32,6 @@ const closingMarks = new Set(["”", "’", "\"", "'", "）", ")", "】", "]", "
 const preferredClauseLength = 42;
 const hardChunkLength = 96;
 
-function record(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null;
-}
-
 function text(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -51,9 +46,8 @@ export function resolveAiSpeechStyle(
     pitch: 1,
     volume: 1,
   };
-  const answers = record(profile?.onboarding_answers);
-  const personalized = profile?.ai_personalization_consent === true
-    || answers?.aiPersonalizationConsent === true;
+  const answers = onboardingAnswers(profile?.onboarding_answers);
+  const personalized = resolveConsentFlag(profile?.ai_personalization_consent, answers?.aiPersonalizationConsent);
   if (!personalized) return neutral;
 
   const occupation = text(profile?.occupation ?? answers?.occupation);

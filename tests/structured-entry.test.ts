@@ -127,6 +127,35 @@ test("AI extraction is preserved and merged with locally recognized record types
   assert.equal(entry?.entries?.find((item) => item.type === "nutrition")?.payload.totalCalories, 270);
 });
 
+test("production model mode does not add locally inferred records or fixed nutrition values", () => {
+  const entry = parseStructuredEntry("我今天吃了披萨！！我要高兴死了！！！", "zh", {
+    dataType: "mood",
+    extractedData: { moodScore: 94, diary: "高兴死了" },
+    confidence: 0.92,
+  }, { allowLocalHealthFallback: false });
+  assert.equal(entry?.type, "mood");
+  assert.equal(entry?.payload.moodScore, 94);
+
+  const ungroundedNutrition = parseStructuredEntry("我今天吃了披萨", "zh", {
+    dataType: "nutrition",
+    extractedData: { meal: "pantry", items: [{ name: "披萨" }], totalCalories: 0 },
+    confidence: 0.7,
+  }, { allowLocalHealthFallback: false });
+  assert.equal(ungroundedNutrition, null);
+});
+
+test("production model mode preserves a duration-only sleep record without inventing clock times", () => {
+  const entry = parseStructuredEntry("我睡了三个小时", "zh", {
+    dataType: "sleep",
+    extractedData: { sleepDurationMinutes: 180 },
+    confidence: 0.9,
+  }, { allowLocalHealthFallback: false });
+  assert.equal(entry?.type, "sleep");
+  assert.equal(entry?.payload.durationMinutes, 180);
+  assert.equal(entry?.payload.start, undefined);
+  assert.equal(entry?.payload.end, undefined);
+});
+
 test("AI multi extraction becomes one multi-record confirmation card", () => {
   const entry = parseStructuredEntry("今天心情很好，还吃了披萨", "zh", {
     dataType: "multi",

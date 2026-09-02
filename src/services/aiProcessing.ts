@@ -1,3 +1,5 @@
+import { onboardingAnswers, resolveConsentFlag } from "./consent.ts";
+
 export type AiProcessingStep = {
   id: string;
   label: string;
@@ -80,8 +82,8 @@ const enSteps: Record<AiProcessingStep["tone"], string[]> = {
 };
 
 export function buildAiProcessingSteps(profile: ProcessingProfile | null | undefined, lang: "zh" | "en") {
-  const answers = record(profile?.onboarding_answers);
-  const consent = profile?.ai_personalization_consent === true || answers?.aiPersonalizationConsent === true;
+  const answers = onboardingAnswers(profile?.onboarding_answers);
+  const consent = resolveConsentFlag(profile?.ai_personalization_consent, answers?.aiPersonalizationConsent);
   const occupation = consent ? text(profile?.occupation ?? answers?.occupation) : null;
   const ageGroup = consent ? text(profile?.age_group ?? answers?.ageGroup) : null;
   const tone = selectTone(occupation, ageGroup);
@@ -97,10 +99,6 @@ function selectTone(occupation: string | null, ageGroup: string | null): AiProce
   if (occupation === "retired" || ageGroup === "55_64" || ageGroup === "65_plus") return "calm";
   if (ageGroup === "18_24") return "cute";
   return "neutral";
-}
-
-function record(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
 
 function text(value: unknown) {

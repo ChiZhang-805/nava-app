@@ -14,6 +14,8 @@ $requiredFiles = @(
   "ios\App\App\NavaBridgeViewController.swift",
   "ios\App\App\zh-Hans.lproj\InfoPlist.strings",
   "native\ios\NavaHealthPlugin.swift",
+  "native\ios\NavaHealthBackgroundObserver.swift",
+  "native\ios\NavaSecureStoragePlugin.swift",
   "native\ios\NavaSpeechPlugin.swift",
   "native\ios\NavaWatchBridgePlugin.swift",
   "native\watch\en.lproj\Localizable.strings",
@@ -78,6 +80,8 @@ if ($orientationValues.Count -ne 1 -or $orientationValues[0] -ne "UIInterfaceOri
 [xml]$entitlements = Get-Content -LiteralPath (Join-Path $appRoot "App.entitlements") -Raw -Encoding UTF8
 $healthEntitlement = Get-PlistValueNode -Document $entitlements -Key "com.apple.developer.healthkit"
 if (!$healthEntitlement -or $healthEntitlement.Name -ne "true") { throw "HealthKit entitlement is missing." }
+$backgroundHealthEntitlement = Get-PlistValueNode -Document $entitlements -Key "com.apple.developer.healthkit.background-delivery"
+if (!$backgroundHealthEntitlement -or $backgroundHealthEntitlement.Name -ne "true") { throw "HealthKit background delivery entitlement is missing." }
 
 [xml]$storyboard = Get-Content -LiteralPath (Join-Path $appRoot "Base.lproj\Main.storyboard") -Raw -Encoding UTF8
 if (!$storyboard.SelectSingleNode("//viewController[@customClass='NavaBridgeViewController']")) {
@@ -85,18 +89,35 @@ if (!$storyboard.SelectSingleNode("//viewController[@customClass='NavaBridgeView
 }
 
 $bridge = Get-Content -LiteralPath (Join-Path $appRoot "NavaBridgeViewController.swift") -Raw -Encoding UTF8
-foreach ($plugin in @("NavaHealthPlugin", "NavaSpeechPlugin", "NavaWatchBridgePlugin")) {
+foreach ($plugin in @("NavaHealthPlugin", "NavaSecureStoragePlugin", "NavaSpeechPlugin", "NavaWatchBridgePlugin")) {
   if (!$bridge.Contains("registerPluginInstance($plugin())")) { throw "Bridge does not register $plugin." }
 }
 
+$appDelegate = Get-Content -LiteralPath (Join-Path $appRoot "AppDelegate.swift") -Raw -Encoding UTF8
+if (!$appDelegate.Contains("NavaHealthBackgroundObserver.shared.start()")) {
+  throw "AppDelegate must register HealthKit observer queries during app launch."
+}
+
 $healthPlugin = Get-Content -LiteralPath (Join-Path $root "native\ios\NavaHealthPlugin.swift") -Raw -Encoding UTF8
-foreach ($expected in @("getAuthorizationStatus", "getRequestStatusForAuthorization")) {
+foreach ($expected in @("getAuthorizationStatus", "getRequestStatusForAuthorization", "startBackgroundDelivery", "readPendingBackgroundUpdate", "acknowledgePendingBackgroundUpdate", "healthDataChanged")) {
   if (!$healthPlugin.Contains($expected)) { throw "Health plugin is missing: $expected" }
+}
+
+$healthObserver = Get-Content -LiteralPath (Join-Path $root "native\ios\NavaHealthBackgroundObserver.swift") -Raw -Encoding UTF8
+foreach ($expected in @("HKObserverQuery", "enableBackgroundDelivery", "finish()", "recordPendingChange")) {
+  if (!$healthObserver.Contains($expected)) { throw "Health background observer is missing: $expected" }
+}
+
+$secureStorage = Get-Content -LiteralPath (Join-Path $root "native\ios\NavaSecureStoragePlugin.swift") -Raw -Encoding UTF8
+foreach ($expected in @("kSecClassGenericPassword", "kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly", "SecItemCopyMatching", "SecItemUpdate")) {
+  if (!$secureStorage.Contains($expected)) { throw "Secure storage plugin is missing: $expected" }
 }
 
 $project = Get-Content -LiteralPath (Join-Path $root "ios\App\App.xcodeproj\project.pbxproj") -Raw -Encoding UTF8
 foreach ($expected in @(
   "NavaHealthPlugin.swift in Sources",
+  "NavaHealthBackgroundObserver.swift in Sources",
+  "NavaSecureStoragePlugin.swift in Sources",
   "NavaSpeechPlugin.swift in Sources",
   "NavaWatchBridgePlugin.swift in Sources",
   "NavaBridgeViewController.swift in Sources",
@@ -106,7 +127,7 @@ foreach ($expected in @(
   if (!$project.Contains($expected)) { throw "Xcode project is missing: $expected" }
 }
 
-foreach ($relativeSource in @("..\..\..\native\ios\NavaHealthPlugin.swift", "..\..\..\native\ios\NavaSpeechPlugin.swift", "..\..\..\native\ios\NavaWatchBridgePlugin.swift")) {
+foreach ($relativeSource in @("..\..\..\native\ios\NavaHealthPlugin.swift", "..\..\..\native\ios\NavaHealthBackgroundObserver.swift", "..\..\..\native\ios\NavaSecureStoragePlugin.swift", "..\..\..\native\ios\NavaSpeechPlugin.swift", "..\..\..\native\ios\NavaWatchBridgePlugin.swift")) {
   if (!(Test-Path -LiteralPath (Join-Path $appRoot $relativeSource))) { throw "Broken Xcode source reference: $relativeSource" }
 }
 

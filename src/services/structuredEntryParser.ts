@@ -357,7 +357,7 @@ function extractionConfidence(value: unknown, fallback = 0.76) {
   return parsed == null ? fallback : Math.max(0, Math.min(1, parsed));
 }
 
-function modelEntry(dataType: string, data: Record<string, unknown>, text: string, locale: "zh" | "en", confidence: number): StructuredEntry | null {
+function modelEntry(dataType: string, data: Record<string, unknown>, text: string, locale: "zh" | "en", confidence: number, allowLocalEstimates = true): StructuredEntry | null {
   if (dataType === "mood") {
     const score = numberValue(data.moodScore) ?? numberValue(data.mood_score) ?? numberValue(data.score);
     if (score == null) return null;
@@ -380,17 +380,19 @@ function modelEntry(dataType: string, data: Record<string, unknown>, text: strin
     let end = stringValue(data.sleepEnd) ?? stringValue(data.sleep_end) ?? stringValue(data.end);
     let durationMinutes = numberValue(data.sleepDurationMinutes) ?? numberValue(data.sleep_duration_minutes) ?? numberValue(data.durationMinutes);
     if (durationMinutes == null && start && end) durationMinutes = sleepMinutes(start, end);
-    if (durationMinutes != null && (!start || !end)) {
+    if (durationMinutes != null && (!start || !end) && allowLocalEstimates) {
       const endMinutes = currentClockMinutes();
       end = end ?? clockFromMinutes(endMinutes);
       start = start ?? clockFromMinutes(endMinutes - durationMinutes);
     }
-    if (!start || !end || durationMinutes == null || durationMinutes <= 0) return null;
+    if (durationMinutes == null || durationMinutes <= 0 || Boolean(start) !== Boolean(end)) return null;
     return entry("sleep", locale, text, [
-      { label: locale === "zh" ? "入睡时间" : "Bedtime", value: start, path: "start" },
-      { label: locale === "zh" ? "醒来时间" : "Wake time", value: end, path: "end" },
+      ...(start && end ? [
+        { label: locale === "zh" ? "入睡时间" : "Bedtime", value: start, path: "start" },
+        { label: locale === "zh" ? "醒来时间" : "Wake time", value: end, path: "end" },
+      ] : []),
       { label: locale === "zh" ? "睡眠时长" : "Sleep duration", value: String(Math.round(durationMinutes)), unit: locale === "zh" ? "分钟" : "min", path: "durationMinutes", valueType: "number" },
-    ], { start, end, durationMinutes: Math.round(durationMinutes) }, confidence);
+    ], { ...(start && end ? { start, end } : {}), durationMinutes: Math.round(durationMinutes) }, confidence);
   }
 
   if (dataType === "exercise") {
@@ -429,7 +431,7 @@ function modelEntry(dataType: string, data: Record<string, unknown>, text: strin
       const unit = stringValue(item.unit) ?? (amount.replace(/[\d.\s]/g, "") || (locale === "zh" ? "份" : "serving"));
       const itemName = stringValue(item.name) ?? (locale === "zh" ? "饮食记录" : "Meal item");
       const statedCalories = numberValue(item.calories);
-      const ruleCalories = calorieRule(itemName, unit);
+      const ruleCalories = allowLocalEstimates ? calorieRule(itemName, unit) : 0;
       const calories = Math.max(0, Math.round(statedCalories != null && statedCalories > 0 ? statedCalories : ruleCalories));
       return {
         name: itemName,
@@ -467,17 +469,17 @@ function modelEntry(dataType: string, data: Record<string, unknown>, text: strin
   return null;
 }
 
-function entryFromExtraction(extraction: StructuredExtraction | undefined, text: string, locale: "zh" | "en") {
+function entryFromExtraction(extraction: StructuredExtraction | undefined, text: string, locale: "zh" | "en", allowLocalEstimates = true) {
   if (!extraction) return null;
   const dataType = stringValue(extraction.dataType);
   const data = recordValue(extraction.extractedData);
   if (!dataType || !data || dataType === "unknown" || dataType === "profile") return null;
-  if (dataType !== "multi") return modelEntry(dataType, data, text, locale, extractionConfidence(extraction.confidence));
+  if (dataType !== "multi") return modelEntry(dataType, data, text, locale, extractionConfidence(extraction.confidence), allowLocalEstimates);
   const records = Array.isArray(data.records) ? data.records.map(recordValue).filter((item): item is Record<string, unknown> => item != null) : [];
   const entries = records.map((record) => {
     const recordType = stringValue(record.dataType) ?? stringValue(record.data_type) ?? stringValue(record.type);
     const recordData = recordValue(record.extractedData) ?? recordValue(record.extracted_data) ?? recordValue(record.data);
-    return recordType && recordData ? modelEntry(recordType, recordData, text, locale, extractionConfidence(record.confidence, extractionConfidence(extraction.confidence))) : null;
+    return recordType && recordData ? modelEntry(recordType, recordData, text, locale, extractionConfidence(record.confidence, extractionConfidence(extraction.confidence)), allowLocalEstimates) : null;
   }).filter((candidate): candidate is StructuredEntry => candidate != null);
   return entries.length === 0 ? null : entries.length === 1 ? entries[0] : multiEntry(entries, locale, text);
 }
@@ -499,7 +501,12 @@ function flattenedEntries(candidate: StructuredEntry | null) {
   return candidate.entries ?? [candidate];
 }
 
-export function parseStructuredEntry(text: string, locale: "zh" | "en", extraction?: StructuredExtraction): StructuredEntry | null {
+export function parseStructuredEntry(
+  text: string,
+  locale: "zh" | "en",
+  extraction?: StructuredExtraction,
+  options: { allowLocalHealthFallback?: boolean } = {},
+): StructuredEntry | null {
   const value = text.trim();
   if (!value) return null;
 
@@ -516,8 +523,9 @@ export function parseStructuredEntry(text: string, locale: "zh" | "en", extracti
     ], { title: todoTitle, scheduledDate: schedule.scheduledDate, scheduledTime: schedule.scheduledTime, ...focusPlan });
   }
 
-  const model = entryFromExtraction(extraction, value, locale);
-  const local = localStructuredEntry(value, locale);
+  const allowLocalHealthFallback = options.allowLocalHealthFallback !== false;
+  const model = entryFromExtraction(extraction, value, locale, allowLocalHealthFallback);
+  const local = allowLocalHealthFallback ? localStructuredEntry(value, locale) : null;
   const entries = [...flattenedEntries(model)];
   for (const candidate of flattenedEntries(local)) {
     if (!entries.some((item) => item.type === candidate.type)) entries.push(candidate);

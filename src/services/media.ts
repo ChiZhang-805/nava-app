@@ -41,10 +41,11 @@ export async function analyzeDietPhoto(input: {
   const ext = input.file.name.split(".").pop() || "jpg";
   const path = `${input.userId}/${input.date}/${input.meal}-${Date.now()}.${ext}`;
   const upload = await supabase.storage.from("diet-photos").upload(path, input.file, { upsert: true });
-  if (upload.error && !isMissingStorageBucket(upload.error)) throw upload.error;
-  const imagePath = upload.error ? undefined : path;
-  const image = imagePath ? undefined : await fileToDataUrl(input.file);
-  if (!imagePath && !image) throw new Error("饮食照片上传后没有获得可分析的数据。");
+  if (upload.error) {
+    if (isMissingStorageBucket(upload.error)) throw new Error("共享后端尚未启用私有饮食照片存储，照片不会绕过私有存储直接发送给模型。");
+    throw upload.error;
+  }
+  const imagePath = path;
 
   const extracted = await supabase.functions.invoke<{
     items: Array<{
@@ -70,7 +71,7 @@ export async function analyzeDietPhoto(input: {
       fat_g?: number;
     };
   }>("diet-extract", {
-    body: { image, imagePath, meal: input.meal, date: input.date, lang: "zh" },
+    body: { imagePath, meal: input.meal, date: input.date, lang: "zh" },
   });
   if (extracted.error) throw extracted.error;
 
@@ -149,11 +150,14 @@ export async function analyzeFacePhoto(input: {
   const ext = input.file.name.split(".").pop() || "jpg";
   const path = `${input.userId}/${input.date}/face-${Date.now()}.${ext}`;
   const upload = await supabase.storage.from("face-photos").upload(path, input.file, { upsert: true });
-  if (upload.error && !isMissingStorageBucket(upload.error)) throw upload.error;
-  const imagePath = upload.error ? undefined : path;
+  if (upload.error) {
+    if (isMissingStorageBucket(upload.error)) throw new Error("共享后端尚未启用私有面部照片存储，照片不会绕过私有存储直接发送给模型。");
+    throw upload.error;
+  }
+  const imagePath = path;
 
   const response = await supabase.functions.invoke<FaceAnalysisResult>("face-analyze", {
-    body: { image: imagePath ? undefined : image, imagePath, captureMode: input.captureMode, lang: input.locale ?? "zh", selfRatings: null },
+    body: { imagePath, captureMode: input.captureMode, lang: input.locale ?? "zh", selfRatings: null },
   });
   if (response.error) throw response.error;
   if (!response.data) throw new Error("面部分析没有返回结果。");

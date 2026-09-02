@@ -35,7 +35,7 @@ function daysSinceSignup(createdAt?: string) {
   return Math.max(1, Math.floor((Date.now() - created) / 86_400_000) + 1);
 }
 
-export default function ProfileScreen({ user, onChanged }: { user: User; onChanged: () => void }) {
+export default function ProfileScreen({ user, refreshKey, onChanged }: { user: User; refreshKey?: number; onChanged: () => void }) {
   const { signOut } = useAuth();
   const { locale, t } = useLocale();
   const [busy, setBusy] = useState<string | null>(null);
@@ -82,12 +82,29 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
   }
 
   useEffect(() => {
-    readLastWatchSnapshot(user.id).then(setWatchSnapshot);
-    getWatchReachability().then(setWatchReachable);
-    getHealthAuthorizationStatus().then(setHealthAuthorization);
-    getLastHealthSyncAt(user.id).then(setHealthLastSync);
+    let active = true;
+    void Promise.allSettled([
+      readLastWatchSnapshot(user.id),
+      getWatchReachability(),
+      getHealthAuthorizationStatus(),
+      getLastHealthSyncAt(user.id),
+    ]).then(([watch, reachability, authorization, lastSync]) => {
+      if (!active) return;
+      if (watch.status === "fulfilled") setWatchSnapshot(watch.value);
+      if (reachability.status === "fulfilled") setWatchReachable(reachability.value);
+      if (authorization.status === "fulfilled") setHealthAuthorization(authorization.value);
+      if (lastSync.status === "fulfilled") setHealthLastSync(lastSync.value);
+    });
+    return () => {
+      active = false;
+    };
+  }, [refreshKey, user.id]);
+
+  useEffect(() => {
+    let active = true;
     loadProfile(user.id)
       .then((data) => {
+        if (!active) return;
         setProfile(data);
         setProfileDraft({
           username: data?.username ?? "",
@@ -97,7 +114,12 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
           occupation: data?.occupation ?? "",
         });
       })
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+      .catch((e) => {
+        if (active) setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => {
+      active = false;
+    };
   }, [user.id]);
 
   useEffect(() => setAvatarLoadFailed(false), [profile?.avatar_url]);
@@ -171,17 +193,34 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
   }
 
   async function authorizeHealth() {
-    await run("health-auth", null, async () => {
-      const result = await requestHealthAuthorization();
-      if (!result.granted) throw new Error("reason" in result ? result.reason : (locale === "zh" ? "Apple 健康授权未完成。" : "Apple Health authorization was not completed."));
+    let uploaded = 0;
+    const completed = await run("health-auth", null, async () => {
+      const authorization = await requestHealthAuthorization();
+      if (!authorization.granted) throw new Error("reason" in authorization ? authorization.reason : (locale === "zh" ? "Apple 健康授权未完成。" : "Apple Health authorization was not completed."));
       setHealthAuthorization(await getHealthAuthorizationStatus());
+      const syncResult = await syncNativeHealthNow(user.id);
+      if (!("skipped" in syncResult && syncResult.skipped) && syncResult.uploaded > 0) {
+        uploaded = syncResult.uploaded;
+        setHealthLastSync(syncResult.lastSyncDate);
+      }
     });
+    if (completed) setMessage(uploaded > 0
+      ? t("profile.syncSuccess")
+      : (locale === "zh" ? "授权已更新；当前没有可同步的健康记录。" : "Authorization updated; no health records are currently available."));
   }
 
   async function syncHealth() {
     await run("health-sync", null, async () => {
       const result = await syncNativeHealthNow(user.id);
-      if ("skipped" in result && result.skipped) throw new Error(locale === "zh" ? "网页不能直接访问 HealthKit，请在 iPhone App 中授权后同步。" : "Web pages cannot access HealthKit. Authorize and sync in the iPhone app.");
+      if ("skipped" in result && result.skipped) {
+        const consentDisabled = "reason" in result && result.reason === "health_sync_consent_disabled";
+        throw new Error(consentDisabled
+          ? (locale === "zh" ? "健康数据同步已在隐私设置中关闭。" : "Health data sync is disabled in Privacy settings.")
+          : (locale === "zh" ? "网页不能直接访问 HealthKit，请在 iPhone App 中授权后同步。" : "Web pages cannot access HealthKit. Authorize and sync in the iPhone app."));
+      }
+      if (result.uploaded === 0) throw new Error(locale === "zh"
+        ? "本次没有读取到已授权的 Apple 健康记录，既有真实数据未被零值覆盖。请检查健康权限和手表同步状态。"
+        : "No authorized Apple Health records were available. Existing data was not overwritten with zeros; check Health permissions and Watch sync.");
       setHealthLastSync(result.lastSyncDate);
       setHealthAuthorization(await getHealthAuthorizationStatus());
     });
@@ -217,8 +256,7 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
 
   const displayName = profile?.username?.trim() || t("profile.defaultName");
   const memberDays = String(daysSinceSignup(user.created_at)).padStart(3, "0");
-  const connectionMeta = (lastSyncAt: string | null | undefined, online: boolean) => {
-    const timestamp = lastSyncAt
+  const connectionTimestamp = (lastSyncAt: string | null | undefined) => lastSyncAt
       ? new Date(lastSyncAt).toLocaleString(locale === "en" ? "en-US" : "zh-CN", {
           month: "numeric",
           day: "numeric",
@@ -226,14 +264,17 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
           minute: "2-digit",
         })
       : t("profile.waitingSync");
-    return `${timestamp} · ${t(online ? "profile.online" : "profile.offline")}`;
-  };
+  const connectionMeta = (lastSyncAt: string | null | undefined, online: boolean) =>
+    `${connectionTimestamp(lastSyncAt)} · ${t(online ? "profile.online" : "profile.offline")}`;
   const healthConnected = Boolean(healthLastSync);
-  const healthOnline = Boolean(healthAuthorization?.available && healthAuthorization.requested);
-  const healthStatus = !healthAuthorization?.available
-    ? t("profile.healthUnavailable")
-    : healthConnected
+  const healthLastSyncTime = Date.parse(healthLastSync ?? "");
+  const healthSyncIsRecent = Number.isFinite(healthLastSyncTime) && Date.now() - healthLastSyncTime < 24 * 60 * 60 * 1000;
+  const healthStatus = healthConnected
+    ? healthAuthorization?.available
       ? t("profile.healthConnected")
+      : t("profile.healthCloudSynced")
+    : !healthAuthorization?.available
+      ? t("profile.healthUnavailable")
       : healthAuthorization.requested
         ? t("profile.healthAuthorizationRequested")
         : t("profile.healthNeedsAuthorization");
@@ -372,7 +413,9 @@ export default function ProfileScreen({ user, onChanged }: { user: User; onChang
             <span className="device-connection-icon" aria-hidden="true"><Apple size={30} /></span>
             <div>
               <strong>{healthStatus}</strong>
-              <p className="muted">{connectionMeta(healthLastSync, healthOnline)}</p>
+              <p className="muted">{healthLastSync
+                ? `${connectionTimestamp(healthLastSync)} · ${t(healthSyncIsRecent ? "profile.syncRecent" : "profile.syncStale")}`
+                : t("profile.waitingSync")}</p>
             </div>
           </div>
         </SectionCard>
