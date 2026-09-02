@@ -2,10 +2,22 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { calculateWeeklyModuleScores } from "../src/services/weeklyModuleScores.ts";
+import { naturalWeekDateRange } from "../src/services/date.ts";
 import type { TrendBundle } from "../src/types.ts";
 
 const recordsScreen = readFileSync(new URL("../src/features/RecordsScreen.tsx", import.meta.url), "utf8");
 const reportFunction = readFileSync(new URL("../supabase/functions/ai-health-report/index.ts", import.meta.url), "utf8");
+
+test("weekly report periods follow the local Monday-to-Sunday natural week", () => {
+  assert.deepEqual(naturalWeekDateRange(new Date("2026-09-02T12:00:00")), {
+    startDate: "2026-08-31",
+    endDate: "2026-09-06",
+  });
+  assert.deepEqual(naturalWeekDateRange(new Date("2026-09-06T12:00:00")), {
+    startDate: "2026-08-31",
+    endDate: "2026-09-06",
+  });
+});
 
 test("weekly insight UI loads the authenticated cloud AI report", () => {
   assert.match(recordsScreen, /loadHealthAiReport\(\{ scope: "weekly"/);

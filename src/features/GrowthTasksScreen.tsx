@@ -31,6 +31,9 @@ export default function GrowthTasksScreen({
   const [revealedTaskIds, setRevealedTaskIds] = useState<Set<string>>(() => new Set());
   const [settling, setSettling] = useState(false);
   const [toastDelta, setToastDelta] = useState<number | null>(null);
+  const [badges, setBadges] = useState<string[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryVersion, setRetryVersion] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -43,6 +46,7 @@ export default function GrowthTasksScreen({
     };
 
     setLoading(true);
+    setLoadError(null);
     setSettling(false);
     setToastDelta(null);
     setRevealedTaskIds(new Set());
@@ -54,6 +58,7 @@ export default function GrowthTasksScreen({
         if (!active) return;
 
         setTasks(next);
+        setBadges(rewards.badges);
         const shouldAnimate = shouldAnimateGrowthVisit(visit);
         const completedIds = new Set(next.filter((task) => task.completed).map((task) => task.id));
         const incomingTaskIds = growthNewTaskIds(visit).filter((id) => completedIds.has(id));
@@ -107,7 +112,10 @@ export default function GrowthTasksScreen({
 
         void acknowledgeGrowthProgress(user.id, visit).catch((error) => console.warn("Growth progress acknowledgement deferred", error));
       })
-      .catch((error) => console.warn("Growth progress could not be refreshed", error))
+      .catch((error) => {
+        console.warn("Growth progress could not be refreshed", error);
+        if (active) setLoadError(locale === "zh" ? "成长任务加载失败，当前没有用本地推测结果冒充云端进度。" : "Growth tasks could not be loaded; local guesses are not being shown as cloud progress.");
+      })
       .finally(() => { if (active) setLoading(false); });
     const unsubscribe = subscribeProductivity(() => setTasks(loadGrowthTasks(user.id)));
     return () => {
@@ -116,7 +124,7 @@ export default function GrowthTasksScreen({
       timers.forEach((timer) => window.clearTimeout(timer));
       unsubscribe();
     };
-  }, [user.id]);
+  }, [locale, retryVersion, user.id]);
 
   const level = Math.floor(displayedXp / 100) + 1;
   const progress = displayedXp % 100;
@@ -129,6 +137,7 @@ export default function GrowthTasksScreen({
           <span>{locale === "zh" ? "本周成长" : "Weekly growth"}</span>
           <strong aria-live="polite">{displayedXp} XP</strong>
           <div className="growth-progress-track" aria-label={`${progress}%`}><span style={{ width: `${progress}%` }} /></div>
+          {badges.length > 0 && <small>{locale === "zh" ? `已获得 ${badges.length} 枚徽章` : `${badges.length} badge${badges.length === 1 ? "" : "s"} earned`}</small>}
         </div>
         <Flame size={25} aria-hidden="true" />
       </section>
@@ -138,7 +147,9 @@ export default function GrowthTasksScreen({
         <Sparkles size={22} aria-hidden="true" />
       </header>
 
-      <div className="growth-task-list" aria-busy={loading}>
+      {loadError && <section className="growth-load-error" role="alert"><span>{loadError}</span><button type="button" onClick={() => setRetryVersion((value) => value + 1)}>{locale === "zh" ? "重新加载" : "Retry"}</button></section>}
+
+      {!loadError && <div className="growth-task-list" aria-busy={loading}>
         {(["profile", "daily"] as const).map((category) => <section className="growth-task-group" key={category}>
           <header>{category === "profile" ? (locale === "zh" ? "画像完善" : "Profile") : (locale === "zh" ? "今日节律" : "Today")}</header>
           {tasks.filter((task) => task.category === category && !(category === "profile" && task.completed)).map((task) => {
@@ -167,7 +178,7 @@ export default function GrowthTasksScreen({
             );
           })}
         </section>)}
-      </div>
+      </div>}
 
       {toastDelta !== null && (
         <div className="growth-earned-toast" role="status" aria-live="polite">

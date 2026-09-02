@@ -27,6 +27,18 @@ export function sevenDayDateRange(endDate: string) {
   return { startDate: shiftDateISO(endDate, -6), endDate };
 }
 
+export function naturalWeekDateRange(reference: Date | string = new Date()) {
+  const value = typeof reference === "string"
+    ? new Date(`${reference}T12:00:00`)
+    : new Date(reference);
+  const mondayOffset = (value.getDay() + 6) % 7;
+  const monday = new Date(value);
+  monday.setDate(value.getDate() - mondayOffset);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { startDate: todayISO(monday), endDate: todayISO(sunday) };
+}
+
 export type DateLocale = "zh" | "en";
 
 export function shortDate(date: string, locale: DateLocale = "zh") {

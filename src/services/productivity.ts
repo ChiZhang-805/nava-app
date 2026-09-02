@@ -543,8 +543,9 @@ export async function reconcileGrowthRewards(tasks: GrowthTask[]): Promise<Growt
     throw error;
   }
   const result = data && typeof data === "object" ? data as Record<string, unknown> : {};
+  const totalPoints = Number(result.totalPoints);
   return {
-    totalPoints: Number(result.totalPoints) || growthXp(tasks),
+    totalPoints: Number.isFinite(totalPoints) && totalPoints >= 0 ? Math.round(totalPoints) : growthXp(tasks),
     badges: Array.isArray(result.badges) ? result.badges.filter((item): item is string => typeof item === "string") : [],
     awarded: Array.isArray(result.awarded) ? result.awarded.flatMap((item) => {
       if (!item || typeof item !== "object") return [];

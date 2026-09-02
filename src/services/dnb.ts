@@ -1,6 +1,6 @@
 import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
-import { sevenDayDateRange, todayISO } from "./date";
+import { naturalWeekDateRange, todayISO } from "./date";
 
 export type DnbStatus = "ready" | "insufficient_data" | "unavailable";
 export type DnbEvidenceLevel = "supported" | "candidate" | "no_support";
@@ -43,7 +43,7 @@ export type DnbWeeklyReport = {
 };
 
 export function currentSevenDayPeriod(reference = new Date()) {
-  return sevenDayDateRange(todayISO(reference));
+  return naturalWeekDateRange(reference);
 }
 
 export async function loadDnbWeeklyReport(reference = new Date(), locale: "zh" | "en" = "zh"): Promise<DnbWeeklyReport> {
@@ -80,8 +80,9 @@ export async function loadDnbWeeklyReport(reference = new Date(), locale: "zh" |
   }
 
   const period = currentSevenDayPeriod(reference);
+  const availableEndDate = period.endDate > todayISO() ? todayISO() : period.endDate;
   const response = await supabase.functions.invoke<Partial<DnbWeeklyReport>>("dnb-weekly-report", {
-    body: { ...period, analysisDays: 56, locale },
+    body: { startDate: period.startDate, endDate: availableEndDate, analysisDays: 56, locale },
   });
 
   if (response.error) {

@@ -86,6 +86,18 @@ const recordModules: Array<{
   },
 ];
 
+function recordedDateCount(bundle: TrendBundle | null, startDate: string, endDate: string) {
+  if (!bundle) return 0;
+  return new Set([
+    ...bundle.moods.map((item) => item.record_date),
+    ...bundle.sleeps.map((item) => item.record_date),
+    ...bundle.exercises.map((item) => item.record_date),
+    ...bundle.nutritions.map((item) => item.record_date),
+    ...bundle.focus.map((item) => item.record_date),
+    ...bundle.faces.map((item) => item.record_date),
+  ].filter((date) => date >= startDate && date <= endDate)).size;
+}
+
 export default function RecordsScreen({
   user,
   deviceDate,
@@ -129,6 +141,7 @@ export default function RecordsScreen({
   const [hubAiLoading, setHubAiLoading] = useState(false);
   const [hubAiUnavailable, setHubAiUnavailable] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
+  const [dataLoadError, setDataLoadError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const weeklyLongPressTimerRef = useRef<number | null>(null);
   const weeklyLongPressOriginRef = useRef<{ x: number; y: number } | null>(null);
@@ -202,7 +215,9 @@ export default function RecordsScreen({
   }, [notice]);
 
   const loadRecordData = useCallback(async () => {
+    let loaded = false;
     setDraftReady(false);
+    setDataLoadError(null);
     try {
       const [snapshot, trends, loadedProfile] = await Promise.all([
         getTodaySnapshot(user.id, recordDate),
@@ -293,12 +308,20 @@ export default function RecordsScreen({
         if (typeof draft.title === "string") setFocusTitle(draft.title);
         if (typeof draft.minutes === "number") setFocusMinutes(draft.minutes);
       }
+      loaded = true;
     } catch (loadError) {
       console.warn("Failed to load record dashboard data", loadError);
+      setTodaySnapshot(null);
+      setTrendBundle(null);
+      setDataLoadError(locale === "zh"
+        ? "健康数据加载失败。为避免显示默认值，当前结果已隐藏，请点击重试。"
+        : "Health data could not be loaded. Results are hidden to avoid showing defaults; tap to retry.");
     } finally {
-      setDraftReady(true);
+      // Draft autosave must never write the form's input suggestions after a
+      // failed Supabase read. Only a successful load may arm draft syncing.
+      setDraftReady(loaded);
     }
-  }, [activeModule, deviceDate, meal, recordDate, user.id]);
+  }, [activeModule, deviceDate, locale, meal, recordDate, user.id]);
 
   useEffect(() => {
     void loadRecordData();
@@ -409,11 +432,17 @@ export default function RecordsScreen({
     const reference = new Date(`${deviceDate}T12:00:00`);
     reference.setDate(reference.getDate() - weekOffset * 7);
     const period = currentSevenDayPeriod(reference);
+    const availableEndDate = period.endDate > deviceDate ? deviceDate : period.endDate;
     let active = true;
     setWeeklyAiReport(null);
+    if (recordedDateCount(trendBundle, period.startDate, availableEndDate) < 5) {
+      setWeeklyAiLoading(false);
+      setWeeklyAiUnavailable(false);
+      return () => { active = false; };
+    }
     setWeeklyAiLoading(true);
     setWeeklyAiUnavailable(false);
-    void loadHealthAiReport({ scope: "weekly", endDate: period.endDate, locale })
+    void loadHealthAiReport({ scope: "weekly", endDate: availableEndDate, locale })
       .then((report) => {
         if (active) setWeeklyAiReport(report);
       })
@@ -427,7 +456,7 @@ export default function RecordsScreen({
     return () => {
       active = false;
     };
-  }, [deviceDate, locale, reportMode, user.id, weekOffset]);
+  }, [deviceDate, locale, reportMode, trendBundle, user.id, weekOffset]);
 
   const clearWeeklyLongPress = useCallback(() => {
     if (weeklyLongPressTimerRef.current !== null) {
@@ -499,7 +528,7 @@ export default function RecordsScreen({
       try {
         const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
         await Promise.allSettled([
-          refreshRhythmScore(recordDate).then(() => loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate, locale, refresh: true })),
+          refreshRhythmScore(recordDate).then(() => loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate > recordDate ? recordDate : savedPeriod.endDate, locale, refresh: true })),
           refreshFdnbHealth(recordDate),
           activeModule && activeModule !== "diet"
             ? loadHealthAiReport({ scope: activeModule, endDate: recordDate, locale, refresh: true })
@@ -529,25 +558,27 @@ export default function RecordsScreen({
   }
 
   function toggleFactor(factor: string) {
-    setSelectedFactors((items) => (items.includes(factor) ? items.filter((item) => item !== factor) : [...items, factor]));
+    const nextFactors = selectedFactors.includes(factor)
+      ? selectedFactors.filter((item) => item !== factor)
+      : [...selectedFactors, factor];
+    setSelectedFactors(nextFactors);
+    queueMoodAutoSave(moodScore, nextFactors, diary);
   }
 
   function setPrimaryFactor(factor: string) {
-    setSelectedFactors(factor ? [factor] : []);
+    const nextFactors = factor ? [factor] : [];
+    setSelectedFactors(nextFactors);
+    queueMoodAutoSave(moodScore, nextFactors, diary);
   }
 
-  function updateMoodScore(value: number, immediate = false) {
-    const nextScore = Math.min(100, Math.max(0, Math.round(value)));
+  function updateMoodDiary(value: string) {
+    setDiary(value);
+    queueMoodAutoSave(moodScore, selectedFactors, value);
+  }
+
+  function queueMoodAutoSave(nextScore: number, factorsForSave: string[], diaryForSave: string, immediate = false) {
     const today = todayISO();
-    const rolledToNewDay = recordDate !== today;
-    setMoodScore(nextScore);
-    if (rolledToNewDay) {
-      setRecordDate(today);
-      setSelectedFactors([]);
-      setDiary("");
-    }
-    const factorsForSave = rolledToNewDay ? [] : selectedFactors;
-    const diaryForSave = rolledToNewDay ? "" : diary;
+    if (recordDate !== today || factorsForSave.length === 0 || !diaryForSave.trim()) return;
 
     const persist = () => {
       const request = ++moodAutoSaveRequestRef.current;
@@ -587,6 +618,20 @@ export default function RecordsScreen({
       moodAutoSaveTimerRef.current = null;
       void persist();
     }, 420);
+  }
+
+  function updateMoodScore(value: number, immediate = false) {
+    const nextScore = Math.min(100, Math.max(0, Math.round(value)));
+    const today = todayISO();
+    const rolledToNewDay = recordDate !== today;
+    setMoodScore(nextScore);
+    if (rolledToNewDay) {
+      setRecordDate(today);
+      setSelectedFactors([]);
+      setDiary("");
+      return;
+    }
+    queueMoodAutoSave(nextScore, selectedFactors, diary, immediate);
   }
 
   async function saveMood(event: FormEvent) {
@@ -682,7 +727,7 @@ export default function RecordsScreen({
       try {
         await loadDietAiReport({ date: recordDate, locale, refresh: true });
         const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
-        await loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate, locale, refresh: true });
+        await loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate > recordDate ? recordDate : savedPeriod.endDate, locale, refresh: true });
       } catch (reportError) {
         // The meal is already durable. A transient model failure must not
         // discard it; opening the report retries the authenticated AI call.
@@ -758,7 +803,7 @@ export default function RecordsScreen({
       await Promise.allSettled([
         refreshRhythmScore(recordDate).then(() => {
           const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
-          return loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate, locale, refresh: true });
+          return loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate > recordDate ? recordDate : savedPeriod.endDate, locale, refresh: true });
         }),
         refreshFdnbHealth(recordDate),
         loadHealthAiReport({ scope: "face", endDate: recordDate, locale, refresh: true }),
@@ -808,20 +853,31 @@ export default function RecordsScreen({
     const dnbReference = new Date(`${deviceDate}T12:00:00`);
     dnbReference.setDate(dnbReference.getDate() - weekOffset * 7);
     const dnbPeriod = currentSevenDayPeriod(dnbReference);
+    const availablePeriodEnd = dnbPeriod.endDate > deviceDate ? deviceDate : dnbPeriod.endDate;
+    const weeklyRecordedDays = recordedDateCount(trendBundle, dnbPeriod.startDate, availablePeriodEnd);
     const inSelectedWeek = (date: string) => date >= dnbPeriod.startDate && date <= dnbPeriod.endDate;
-    const rhythmPoints = (trendBundle?.rhythms ?? []).filter((item) => inSelectedWeek(item.record_date)).slice(-7).map((item) => ({
-      id: item.id,
-      label: new Date(`${item.record_date}T00:00:00`).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", { month: "numeric", day: "numeric" }),
-      value: item.score,
-      lower: item.score_lower,
-      upper: item.score_upper,
-    }));
+    const rhythmsByDate = new Map((trendBundle?.rhythms ?? [])
+      .filter((item) => inSelectedWeek(item.record_date))
+      .map((item) => [item.record_date, item]));
+    const rhythmPoints = Array.from({ length: 7 }, (_, index) => {
+      const date = shiftDateISO(dnbPeriod.startDate, index);
+      const item = rhythmsByDate.get(date);
+      return {
+        id: item?.id ?? `missing-rhythm-${date}`,
+        label: new Date(`${date}T00:00:00`).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", { month: "numeric", day: "numeric" }),
+        value: item?.score ?? 0,
+        lower: item?.score_lower,
+        upper: item?.score_upper,
+        missing: !item,
+      };
+    });
     const reportPoints = rhythmPoints;
-    const latestReportPoint = reportPoints[reportPoints.length - 1];
+    const recordedReportPointCount = reportPoints.filter((point) => !point.missing).length;
+    const latestReportPoint = [...reportPoints].reverse().find((point) => !point.missing);
     const previousPeriodStart = shiftDateISO(dnbPeriod.startDate, -7);
     const previousPeriodEnd = shiftDateISO(dnbPeriod.endDate, -7);
     const periodComparison = compareRecordedPeriodAverages(
-      reportPoints.map((point) => point.value),
+      reportPoints.filter((point) => !point.missing).map((point) => point.value),
       (trendBundle?.rhythms ?? [])
       .filter((item) => item.record_date >= previousPeriodStart && item.record_date <= previousPeriodEnd)
       .map((item) => item.score),
@@ -861,6 +917,13 @@ export default function RecordsScreen({
             />
           </label>
 
+          {dataLoadError && (
+            <section className="record-hub-load-error" role="alert">
+              <span>{dataLoadError}</span>
+              <button type="button" onClick={() => void loadRecordData()}>{locale === "zh" ? "重新加载" : "Retry"}</button>
+            </section>
+          )}
+
           {allHubModulesComplete && (
             <section className="record-hub-ai-summary" aria-live="polite" data-provider={hubAiReport?.provider ?? undefined}>
               <span aria-hidden="true"><Bot size={17} /></span>
@@ -881,12 +944,16 @@ export default function RecordsScreen({
               const presentation = healthModulePresentations[id];
               return (
               <button
-                className={["record-module-entry", presentation.recorded ? "is-recorded" : "is-missing"].join(" ")}
+                className={["record-module-entry", dataLoadError ? "is-error" : presentation.recorded ? "is-recorded" : "is-missing"].join(" ")}
                 data-record-module={id}
-                data-record-state={presentation.recorded ? "recorded" : "missing"}
+                data-record-state={dataLoadError ? "error" : presentation.recorded ? "recorded" : "missing"}
                 key={id}
                 type="button"
                 onClick={() => {
+                  if (dataLoadError) {
+                    void loadRecordData();
+                    return;
+                  }
                   setNotice(null);
                   setError(null);
                   setShowEditor(false);
@@ -901,7 +968,9 @@ export default function RecordsScreen({
                   </span>
                 </span>
                 <span className="record-module-points" aria-hidden="true">
-                  {presentation.points.map((point) => <span key={point}>{point}</span>)}
+                  {(dataLoadError
+                    ? (locale === "zh" ? ["加载失败", "点击重试", "未展示默认数值", "不会把缺失当作零"] : ["Load failed", "Tap to retry", "Defaults are hidden", "Missing is not zero"])
+                    : presentation.points).map((point) => <span key={point}>{point}</span>)}
                 </span>
                 <ChevronRight className="record-module-arrow" size={20} aria-hidden="true" />
               </button>
@@ -926,9 +995,9 @@ export default function RecordsScreen({
               <button type="button" disabled={weekOffset === 0} onClick={() => setWeekOffset((value) => Math.max(0, value - 1))} aria-label={locale === "zh" ? "下一周" : "Next week"}><ChevronRight size={18} /></button>
             </div>
             <section className="weekly-score-card">
-              <div><span>{locale === "zh" ? "综合节律：" : "Overall: "}</span><strong>{overallScore == null ? "--" : <AnimatedNumber value={overallScore} />}</strong></div>
+              <div><span>{dnbReport?.status === "ready" ? (locale === "zh" ? "DNB 稳定度：" : "DNB stability: ") : (locale === "zh" ? "有记录日节律均值：" : "Recorded-day rhythm avg: ")}</span><strong>{overallScore == null ? "--" : <AnimatedNumber value={overallScore} />}</strong></div>
               <div><span>{locale === "zh" ? "数据完整度：" : "Complete: "}</span><strong><AnimatedNumber value={completedModules} duration={520} />/6</strong></div>
-              <div><span>{locale === "zh" ? "较上周期：" : "Previous: "}</span><strong>{periodComparison.change == null ? "--" : <>{periodComparison.change >= 0 ? "+" : ""}<AnimatedNumber value={periodComparison.change} duration={640} /></>}</strong></div>
+              <div><span>{locale === "zh" ? "较上周：" : "Previous week: "}</span><strong>{periodComparison.change == null ? (periodComparison.currentAverage == null ? "--" : (locale === "zh" ? "首次记录" : "First week")) : <>{periodComparison.change >= 0 ? "+" : ""}<AnimatedNumber value={periodComparison.change} duration={640} /></>}</strong></div>
             </section>
             <section className="weekly-trend-card">
               <header>
@@ -947,7 +1016,7 @@ export default function RecordsScreen({
                 </button>
               </header>
               {weeklyChartMode === "trend"
-                ? (reportPoints.length > 0
+                ? (recordedReportPointCount >= 2
                     ? <LineTrendChart points={reportPoints} tone="rhythm" compact scale="range" verticalEmphasis curve="monotone" showAllDates rangeFloorRatio={0.3} showArea showConfidenceBand={false} ariaLabel={locale === "zh" ? "近七天节律单调平滑趋势曲线与下方渐变面积，最低值保留三成基础高度，最高值对应顶部" : "Seven-day monotone rhythm curve with a gradient area, a thirty-percent floor, and proportional scaling"} />
                     : <p>{locale === "zh" ? "完成两天记录后生成节律轨迹。" : "Log two days to create the rhythm trajectory."}</p>)
                 : <WeeklyRadarChart points={weeklyRadarPoints} ariaLabel={locale === "zh" ? "本周睡眠、运动、饮食、专注、面部和情绪六个维度的实际记录日平均分；缺失日期不按零分计算" : "Recorded-day weekly averages for sleep, activity, diet, focus, face, and mood; missing dates are excluded"} />}
@@ -963,13 +1032,27 @@ export default function RecordsScreen({
               <div className="weekly-insight-body" aria-live="polite">
                 {weeklyAiLoading
                   ? <p>{locale === "zh" ? "正在调用 AI 生成本周节律洞察…" : "Generating this week's AI insights…"}</p>
-                  : <ul>{weeklyInsights.map((insight) => <li key={insight}>{insight}</li>)}</ul>}
+                  : weeklyRecordedDays < 5
+                    ? <p>{locale === "zh" ? `本自然周目前有 ${weeklyRecordedDays} 个记录日；至少记录 5 天后才生成跨模块 AI 关联，避免用稀疏数据下结论。` : `This natural week currently has ${weeklyRecordedDays} recorded days. Cross-module AI analysis starts after 5 days to avoid conclusions from sparse data.`}</p>
+                    : <ul>{weeklyInsights.map((insight) => <li key={insight}>{insight}</li>)}</ul>}
                 {weeklyAiUnavailable && <small>{locale === "zh" ? "真实 AI 洞察暂不可用，请稍后重试。" : "Real AI insights are temporarily unavailable."}</small>}
                 <img className="weekly-insight-mascot" src={weeklyRunMascot} alt={locale === "zh" ? "NAVA 小猫在跑步机上跑步" : "NAVA cat running on a treadmill"} />
               </div>
             </section>
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (dataLoadError) {
+    return (
+      <div className="record-data-error" ref={rootRef} role="alert">
+        <section className="figma-module-card">
+          <strong>{locale === "zh" ? "暂时无法读取真实记录" : "Real records are temporarily unavailable"}</strong>
+          <p>{dataLoadError}</p>
+          <button type="button" onClick={() => void loadRecordData()}>{locale === "zh" ? "重新加载" : "Retry"}</button>
+        </section>
       </div>
     );
   }
@@ -1041,7 +1124,7 @@ export default function RecordsScreen({
           setPrimaryFactor={setPrimaryFactor}
           toggleMoodFactor={toggleFactor}
           diary={diary}
-          setDiary={setDiary}
+          setDiary={updateMoodDiary}
           onSaveMood={saveMood}
           sleepStart={sleepStart}
           sleepEnd={sleepEnd}
@@ -1103,7 +1186,7 @@ export default function RecordsScreen({
           </div>
           <label className="field">
             <span>{t("records.diary")}</span>
-            <textarea value={diary} onChange={(e) => setDiary(e.target.value)} placeholder={t("records.diaryPlaceholder")} rows={3} />
+            <textarea value={diary} onChange={(e) => updateMoodDiary(e.target.value)} placeholder={t("records.diaryPlaceholder")} rows={3} />
           </label>
           <ActionButton type="submit" icon={<Check size={18} />} disabled={busy === "records.mood"}>
             {t("records.saveMood")}

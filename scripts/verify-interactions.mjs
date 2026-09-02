@@ -652,6 +652,15 @@ async function verifyRecordModules(page, results) {
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(outputDir, "record-exercise-clock.png") });
   await returnFromSubview();
+  await page.locator(".exercise-sports-entry").click();
+  await expect(page.locator(".sports-plan")).toBeVisible();
+  await expect(page.locator(".sports-plan-steps span")).toHaveCount(3);
+  await expect(page.locator(".sports-plan > p")).toContainText(/根据|Based on/);
+  await expect(page.locator(".sports-plan-disclaimer")).toBeVisible();
+  await page.waitForTimeout(700);
+  await assertStaticLayout(page, "record-exercise-sports");
+  await page.screenshot({ path: path.join(outputDir, "record-exercise-sports.png") });
+  await returnFromSubview();
   await page.locator('.exercise-trend-card .module-card-nav-button').click();
   await expect(page.locator('[data-record-detail="exercise"] .report-history-trend-chart')).toBeVisible();
   await expect(page.locator('[data-record-detail="exercise"] .module-ai-report li')).toHaveCount(4);
@@ -775,6 +784,13 @@ async function verifyRecordModules(page, results) {
   await page.locator(".focus-interruption button").nth(1).click();
   await page.locator('[data-module-view="focus-immersive"] [aria-label="开始"], [data-module-view="focus-immersive"] [aria-label="Start"]').click();
   await page.waitForTimeout(1100);
+  const persistedFocusDraft = await page.evaluate(() => Object.keys(sessionStorage).some((key) => key.startsWith("nava-focus-timer:")));
+  if (!persistedFocusDraft) throw new Error("Active focus timer did not persist a tab-scoped recovery draft.");
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(page.locator('[data-module-view="focus-immersive"]')).toBeVisible();
+  await expect(page.locator('[data-module-view="focus-immersive"]')).toHaveAttribute("data-focus-state", "paused");
+  await expect(page.locator(".focus-timer-status")).toContainText(/已暂停|Paused/);
+  await page.locator('[data-module-view="focus-immersive"] [aria-label="开始"], [data-module-view="focus-immersive"] [aria-label="Start"]').click();
   await page.locator('[data-module-view="focus-immersive"] [aria-label="结束"], [data-module-view="focus-immersive"] [aria-label="Finish"]').click();
   await expect(page.locator('[data-module-view="focus-overview"]')).toBeVisible();
   await expect(page.locator('[aria-label="专注已记录"], [aria-label="Focus saved"]')).toBeVisible();
@@ -1205,7 +1221,8 @@ async function verifyNavigationAndMotion(page, results) {
   await assertStaticLayout(page, "record-weekly");
   await expect(page.locator(".weekly-period-controls .weekly-share-button")).toHaveCount(0);
   await expect(page.locator(".weekly-insight-card .weekly-share-button")).toBeVisible();
-  await expect(page.locator(".weekly-insight-body li")).toHaveCount(4);
+  await expect(page.locator(".weekly-insight-body")).toContainText(/至少记录 5 天|at least 5 days/);
+  await expect(page.locator(".weekly-insight-body li")).toHaveCount(0);
   await expect(page.locator(".weekly-insight-mascot")).toBeVisible();
   await expect(page.locator(".weekly-module-status")).toHaveCount(0);
   await expect(page.locator(".weekly-fdnb-contributors, .weekly-fdnb-disclaimer")).toHaveCount(0);
@@ -1231,12 +1248,12 @@ async function verifyNavigationAndMotion(page, results) {
     const points = [...card.querySelectorAll(".trend-point")];
     const cardRect = card.getBoundingClientRect();
     const dateRects = dates.map((date) => date.getBoundingClientRect());
-    const pointData = points.map((point) => {
+    const pointData = points.flatMap((point) => {
       const circle = point.querySelector("circle");
-      return {
+      return circle ? [{
         value: Number(point.getAttribute("data-value")),
-        rect: circle?.getBoundingClientRect(),
-      };
+        rect: circle.getBoundingClientRect(),
+      }] : [];
     });
     const minimum = pointData.reduce((best, point) => point.value < best.value ? point : best, pointData[0]);
     const dateTop = Math.min(...dateRects.map((rect) => rect.top));
@@ -1275,7 +1292,7 @@ async function verifyNavigationAndMotion(page, results) {
     const lastBullet = card.querySelector(".weekly-insight-body li:last-child")?.getBoundingClientRect();
     return {
       headerCenterDelta: centers.length ? Math.max(...centers) - Math.min(...centers) : 99,
-      mascotBulletBottomDelta: mascot && lastBullet ? Math.abs(mascot.bottom - lastBullet.bottom) : 99,
+      mascotBulletBottomDelta: lastBullet ? (mascot ? Math.abs(mascot.bottom - lastBullet.bottom) : 99) : 0,
     };
   });
   if (weeklyInsightAlignment.headerCenterDelta > 1 || weeklyInsightAlignment.mascotBulletBottomDelta > 12) {
