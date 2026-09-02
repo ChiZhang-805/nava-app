@@ -12,8 +12,8 @@ architecture and release baseline. Older dated handoffs are historical evidence.
 
 Current release anchor:
 
-- Source commit: `88df0cfb7197d19ba3b10a12bfd9c774decaf6a1`
-- ChatGPT Sites: version 76, public
-- GitHub Pages mirror release: v76
+- Source commit: `d3b4a0236005baf8116101c3bdc326c672d448c9`
+- ChatGPT Sites: version 77, public
+- GitHub Pages mirror release: v77 (`91e13369e2775bfdbbcc326b5b584ade8dd0076a`)
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
-- The 2026-09-02 PRD gap-closure batch is local, verified, and not deployed.
+- The 2026-09-02 PRD gap-closure batch is verified and deployed to both public sites.

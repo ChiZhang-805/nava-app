@@ -9,9 +9,9 @@ This is the current continuation handoff. Read it together with:
    authentication, data, AI, and deployment baseline
 3. the feature documentation relevant to the next requested batch
 
-The public release facts remain unchanged from 2026-08-31. This batch was not
-deployed and did not change Supabase, migrations, Edge Functions, Sites access,
-or the GitHub Pages mirror.
+The verified batch was released as public version 77 on both ChatGPT Sites and
+GitHub Pages. The release did not change Supabase, migrations, Edge Functions,
+or Sites access.
 
 ## 2. Local source state
 
@@ -21,8 +21,12 @@ Starting source HEAD for this batch:
 - Commit: `7cb9745ffe18b691649d0291c839bbb7c38165de`
 - Commit title: `docs: clarify release and handoff commits`
 
-The 2026-09-02 product batch is intentionally left as local source changes for
-user review. It is not committed or published at this handoff point.
+Released source state for the 2026-09-02 product batch:
+
+- Source commit: `d3b4a0236005baf8116101c3bdc326c672d448c9`
+- Commit title: `feat: complete remaining mobile PRD workflows`
+- ChatGPT Sites: public version 77
+- GitHub Pages mirror: v77, commit `91e13369e2775bfdbbcc326b5b584ade8dd0076a`
 
 ## 3. First PRD gap-closure batch
 
@@ -113,8 +117,12 @@ The same local, uncommitted 2026-09-02 batch now also implements:
 - Completed profile growth tasks disappear permanently; completed daily tasks
   remain in their group with a strikethrough.
 
-No deployment, migration application, Edge Function deployment, production
-seed, or Sites access change was performed.
+The batch was deployed to both public sites from the same source commit. A
+post-deployment headless Playwright check passed for both URLs at 360x740,
+375x812, 390x844, and 430x932; the public login entry, horizontal fit, Pages
+`source.json`, and production authentication contract were verified. No
+migration application, Edge Function deployment, production seed, or Sites
+access change was performed.
 
 ## 7. Current priority audit
 
