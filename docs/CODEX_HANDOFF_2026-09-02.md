@@ -461,8 +461,8 @@ Verification completed on Windows:
   with no console/page errors or horizontal overflow; the four new Profile
   device screenshots were visually inspected.
 - `npm run auth:verify:production`: passed.
-- `npm run supabase:verify-shared`: canonical APP/CLI backend checks passed;
-  the legacy web alignment check remains pending.
+- `npm run supabase:verify-shared`: canonical APP, CLI, and generated Web mirror
+  alignment passed together with the backend contract probes.
 - `npm run health:audit:production`: secure `health-sync-ingest` is active with
   JWT verification; legacy `health-auto-export` remains active without JWT and
   therefore must be retired only after its clients/history are audited.
@@ -479,8 +479,9 @@ bundle ID/Developer Team selection, Mac/Xcode Swift compilation and signing,
 deployment of the updated ingest Function, production Realtime migration,
 real iPhone/Apple Watch permission and value
 comparison, authenticated RLS boundary execution, TestFlight/App Store work,
-then legacy Function retirement and secret rotation. No public deployment was
-performed for this implementation batch.
+then legacy Function retirement and secret rotation. The later v81 release in
+section 14 publishes the web frontend, but does not change those backend or
+physical-device gates.
 
 ## 14. Full real-data, AI, transfer, and visual audit
 
@@ -527,3 +528,15 @@ backend authorization. Publishing the frontend does not make those server
 changes live. Physical Apple device acceptance, Focus-session wearable
 correlation, and the product-deferred points store remain outside the completed
 source audit.
+
+Release provenance for this batch:
+
+- Source commit: `445ccdc0cb16a22289f65ea8de6fa382c5356cd5`
+- ChatGPT Sites version 81; deployment
+  `appgdep_6a982c92ed8c8191b08a0f3927e26a2e`
+- GitHub Pages v81; mirror commit
+  `e2446154f0c5a2f36848949a141f37e002c85884`
+- Post-deployment headless verification passed both public URLs at 360x740,
+  375x812, 390x844, and 430x932 with auth-first entry, canonical Supabase,
+  no console/page errors, and no horizontal overflow. Evidence is at
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v81`.

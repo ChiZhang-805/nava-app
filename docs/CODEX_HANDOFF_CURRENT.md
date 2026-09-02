@@ -12,9 +12,9 @@ architecture and release baseline. Older dated handoffs are historical evidence.
 
 Current release anchor:
 
-- Source commit: `5e1efe81de9950cb054c469a987995501a911052`
-- ChatGPT Sites: version 80, public
-- GitHub Pages mirror release: v80 (`a9de53240480978b398e2f36d50fbf47e8aa21c2`)
+- Source commit: `445ccdc0cb16a22289f65ea8de6fa382c5356cd5`
+- ChatGPT Sites: version 81, public
+- GitHub Pages mirror release: v81 (`e2446154f0c5a2f36848949a141f37e002c85884`)
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
 - The 2026-09-02 PRD gap-closure and audit-fix batches are verified and deployed to both public sites.
 
@@ -30,6 +30,11 @@ Current continuation:
 - Updated Edge Function sources and migration
   `202609020002_health_sync_realtime.sql` are still staged, not production
   claims. They require explicit backend/migration authorization.
+- Both public v81 URLs passed post-deployment headless verification at 360x740,
+  375x812, 390x844, and 430x932: HTTP 200, auth-first entry even with
+  `?demo=1`, canonical Supabase marker, no runtime errors, and no horizontal
+  overflow. Evidence is under
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v81`.
 
 - Sections 9 through 11 of the dated handoff record the full-code audit, the
   real-data/natural-week corrections, the grounded AI health-report batch, and
@@ -87,5 +92,6 @@ Current continuation:
   compilation, updated ingest deployment, production migration, physical iPhone/Watch checks, RLS
   real-account execution, signing/TestFlight, and legacy retirement remain
   explicitly unverified human/external gates.
-- This Apple delivery implementation has not been committed or published yet;
-  v80 remains the current public release anchor.
+- The Apple/client and full-audit source is committed at the v81 release anchor
+  and both public frontends are published. Updated Edge Functions, Realtime
+  migration, and physical-device acceptance remain separately unshipped.
