@@ -23,6 +23,7 @@
     "screenshots:background": "node scripts/capture-background-states.mjs",
     "screenshots:motion": "node scripts/capture-motion-background.mjs",
     "interaction:test": "node scripts/verify-interactions.mjs",
+    "translation:test": "node scripts/verify-translation-resilience.mjs",
     "prd-batch:test": "node scripts/verify-prd-batch.mjs",
     "icons:test": "node scripts/verify-navigation-icons.mjs",
     "supabase:verify-shared": "node scripts/verify-shared-supabase.mjs",
@@ -73,7 +74,8 @@
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "three": "^0.185.1"
+    "three": "^0.185.1",
+    "translation-resilience": "0.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

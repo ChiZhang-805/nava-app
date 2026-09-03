@@ -67,4 +67,8 @@ Write-Host "14. Consent and real-data boundary contract"
 Invoke-Npm -Arguments @("run", "consent:contract:test")
 
 Write-Host ""
+Write-Host "15. Browser translation DOM resilience"
+Invoke-Npm -Arguments @("run", "translation:test")
+
+Write-Host ""
 Write-Host "Verification completed."
