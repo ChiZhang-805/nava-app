@@ -21,6 +21,14 @@ Current release anchor:
 
 Current continuation:
 
+- Section 9 of the dated handoff records the verified v86 detailed-profile
+  release candidate:
+  unresolved account identity is fully skeletonized, the subpage omits the
+  bottom five-button navigation in loading and loaded states, and the navigation
+  returns on back. Lint, production build, all 10 interaction groups, and eight
+  loading/loaded screenshots across four required viewports pass. The public
+  sites remain on v85 until the authorized dual-site publication finishes.
+
 - Section 8 of the dated handoff records the v85 loading-state and weekly
   empty-chart release. It adds auth plus nine destination-specific loading
   skeletons, local AI/history/device skeleton regions, and an equal-height

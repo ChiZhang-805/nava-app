@@ -135,14 +135,15 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
         <span className="advanced-profile-header-icon"><UserRound size={22} /></span>
       </header>
 
-      <section className="advanced-profile-identity">
-        <div className="advanced-profile-avatar">{(profile?.username || user.email || "N").slice(0, 1).toUpperCase()}</div>
-        <div><strong>{profile?.username || copy("NAVA 用户", "NAVA user")}</strong><small>{user.email || user.phone || copy("已登录账号", "Signed-in account")}</small></div>
-        <div className="advanced-profile-completeness"><b>{completeness}%</b><span>{copy("资料完整度", "Complete")}</span></div>
-      </section>
-
       {loading ? <PageSkeleton variant="advanced-profile" /> : (
-        <form className="advanced-profile-form" onSubmit={submit}>
+        <>
+          <section className="advanced-profile-identity">
+            <div className="advanced-profile-avatar">{(profile?.username || user.email || "N").slice(0, 1).toUpperCase()}</div>
+            <div><strong>{profile?.username || copy("NAVA 用户", "NAVA user")}</strong><small>{user.email || user.phone || copy("已登录账号", "Signed-in account")}</small></div>
+            <div className="advanced-profile-completeness"><b>{completeness}%</b><span>{copy("资料完整度", "Complete")}</span></div>
+          </section>
+
+          <form className="advanced-profile-form" onSubmit={submit}>
           <section className="advanced-profile-section">
             <header><span><BriefcaseBusiness size={20} /></span><div><strong>{copy("身份与阶段", "Identity & stage")}</strong><small>{copy("帮助 NAVA 调整表达方式与建议强度", "Shapes NAVA's tone and recommendations")}</small></div></header>
             <label><span>{copy("昵称", "Nickname")}</span><input value={draft.username} onChange={(event) => update("username", event.target.value)} placeholder={copy("你希望 NAVA 如何称呼你", "How should NAVA address you?")} /></label>
@@ -175,7 +176,8 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
           {error && <p className="home-experience-error" role="alert">{error}</p>}
           {saved && <p className="advanced-profile-saved" role="status"><Check size={17} />{copy("详细资料已保存", "Detailed profile saved")}</p>}
           <button className="advanced-profile-save" type="submit" disabled={saving}>{saved ? <Check size={20} /> : <Save size={20} />}{saving ? copy("正在保存…", "Saving…") : copy("保存详细资料", "Save detailed profile")}</button>
-        </form>
+          </form>
+        </>
       )}
     </section>
   );

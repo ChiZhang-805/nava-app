@@ -449,9 +449,11 @@ function MobileShell() {
   if (!user) return null;
 
   const focusImmersive = activeTab === "record" && recordModule === "focus" && (recordView === "immersive" || recordView === "interruption");
+  const profileDetailsSubpage = activeTab === "today" && recordView === "profile-details";
+  const hideBottomNavigation = focusImmersive || profileDetailsSubpage;
 
   return (
-    <div className={["phone-frame", activeTab === "today" ? "phone-frame--option2" : "", focusImmersive ? "phone-frame--focus-immersive" : ""].filter(Boolean).join(" ")}>
+    <div className={["phone-frame", activeTab === "today" ? "phone-frame--option2" : "", focusImmersive ? "phone-frame--focus-immersive" : "", profileDetailsSubpage ? "phone-frame--subpage-no-nav" : ""].filter(Boolean).join(" ")}>
       <div className="safe-top" />
       {activeTab !== "today" && !focusImmersive && (
         <header className="app-header figma-app-header">
@@ -522,7 +524,7 @@ function MobileShell() {
         <div className="screen-panel">
           {forcePageSkeleton
             ? activeTab === "today" && forcedSkeletonVariant !== "today"
-              ? <section className="home-experience page-loading-home-experience"><header className="home-experience-header page-loading-subheader" aria-hidden="true"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-title" /><SkeletonBlock className="is-circle" /></header><PageSkeleton variant={forcedSkeletonVariant} /></section>
+              ? <section className={["home-experience", "page-loading-home-experience", forcedSkeletonVariant === "advanced-profile" ? "advanced-profile-screen" : ""].filter(Boolean).join(" ")}><header className="home-experience-header page-loading-subheader" aria-hidden="true"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-title" /><SkeletonBlock className="is-circle" /></header><PageSkeleton variant={forcedSkeletonVariant} /></section>
               : <PageSkeleton variant={forcedSkeletonVariant} />
             : <>
           {activeTab === "today" && (
@@ -620,7 +622,7 @@ function MobileShell() {
         </div>
       </main>
 
-      {!focusImmersive && <nav className="bottom-nav" aria-label="主导航">
+      {!hideBottomNavigation && <nav className="bottom-nav" aria-label="主导航">
         {tabs.map((tab) => {
           const selected = activeTab === tab.id;
           const isAiTab = tab.id === "ai";

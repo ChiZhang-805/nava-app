@@ -913,7 +913,10 @@ async function verifyHomeShortcuts(page, results) {
   await page.locator('.home-experience-back').click();
   await page.locator(".option-two-side-actions button").nth(2).click();
   await expect(page.locator('[data-home-view="profile-details"]')).toBeVisible();
+  await expect(page.locator(".advanced-profile-form")).toBeVisible();
+  await expect(page.locator(".bottom-nav")).toHaveCount(0);
   await page.locator('.home-experience-back').click();
+  await expect(page.locator(".bottom-nav")).toBeVisible();
   await page.locator(".option-two-side-actions button").nth(3).click();
   await expect(page.locator('.utility-drawer[role="dialog"]')).toBeVisible();
   await page.waitForTimeout(350);
@@ -1400,6 +1403,11 @@ async function verifyPageSkeletons(browser, baseUrl, results, consoleErrors) {
     });
     if (geometry.blocks < 4 || geometry.overflow > 1 || geometry.animation !== "nava-skeleton-sweep") {
       throw new Error(`Page skeleton ${variant} is incomplete: ${JSON.stringify(geometry)}`);
+    }
+    if (variant === "advanced-profile") {
+      await expect(page.locator(".advanced-profile-identity")).toHaveCount(0);
+      await expect(page.locator(".page-skeleton-profile-identity")).toHaveCount(1);
+      await expect(page.locator(".bottom-nav")).toHaveCount(0);
     }
   }
   await context.close();

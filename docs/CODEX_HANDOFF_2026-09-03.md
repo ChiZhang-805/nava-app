@@ -161,10 +161,9 @@ hard refresh on v83, record the enabled translation/content-rewrite extension
 and browser console component stack; do not infer a new cause from the generic
 error text alone.
 
-## 8. Local loading-state and weekly empty-chart continuation
+## 8. v85 loading-state and weekly empty-chart release
 
-The current checkout contains a local, not-yet-published UI continuation after
-the v84 release anchor:
+The v85 release adds the following UI continuation after the v84 anchor:
 
 - the sparse weekly rhythm view keeps exactly the same chart-card geometry as
   the six-dimension radar view and renders a static seven-date bar-chart shape
@@ -224,3 +223,32 @@ lazy assets were still propagating and received one transient dynamic-import
 fetch failure. The asset became HTTP 200 moments later, and the complete
 two-origin authenticated acceptance run then passed. No source change or
 redeployment was needed.
+
+## 9. v86 detailed-profile loading and navigation release candidate
+
+The verified v86 release candidate adds the following detailed-profile subpage
+correction after v85:
+
+- the account identity card is now gated by the same profile request as the
+  form, so username, email, avatar initial, and completeness never render before
+  the persisted profile has finished loading;
+- the existing advanced-profile skeleton supplies the identity-card placeholder
+  during both application bootstrap and in-page profile loading;
+- the bottom five-button navigation is absent from this subpage in both loading
+  and loaded states, and returns after navigating back to the Today root;
+- the page uses reduced bottom padding without the removed navigation, avoiding
+  a false empty footer.
+
+Verification passed locally on 2026-09-03:
+
+- `npm run lint` and `npm run build`;
+- `npm run interaction:test`: all 10 groups, including loaded subpage navigation
+  removal and loading-state regression assertions;
+- loading and loaded screenshots at 360x740, 375x812, 390x844, and 430x932;
+  all eight states have no horizontal overflow, loading exposes no account copy,
+  and neither state renders the bottom navigation.
+
+Evidence is under
+`Q:\NAVA-Workspace\Build\TestRuns\nava-advanced-profile-shell-20260903`.
+The public sites remain on v85 until the authorized dual-site publication of
+this candidate finishes; exact v86 provenance will be recorded after release.

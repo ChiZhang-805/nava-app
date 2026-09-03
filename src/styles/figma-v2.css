@@ -9574,6 +9574,7 @@ body::before {
 .home-experience-header h1 { margin: 3px 0 0; color: #12364a; font-size: 19px; line-height: 1.2; }
 .advanced-profile-screen .home-experience-header > div { display: grid; place-items: center; }
 .advanced-profile-screen .home-experience-header h1 { margin: 0; }
+.advanced-profile-screen { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 .home-experience-back,
 .home-calendar-today,
 .home-report-date-icon,
