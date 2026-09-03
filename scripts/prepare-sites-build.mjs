@@ -23,16 +23,21 @@ html = html.replace(
 html = html.replace(
   /<script type="module" crossorigin src="([^"]+)"><\/script>/g,
   (_match, src) => {
-    const js = readFileSync(join(dist, src.replace(/^\//, "")), "utf8").replace(/<\/script/gi, "<\\/script");
-    return `<script type="module">${js}</script>`;
+    const hostedSrc = src.replace(/^(?:\.\/)?assets\//, "./");
+    return `<script type="module" crossorigin src="${hostedSrc}"></script>`;
   },
 );
 
-// Sites publishes Vite's static assets at the deployment root. Keep module
-// preloads aligned with the same root-relative URLs used by the inlined entry
-// module and its dynamic imports.
+// Sites publishes Vite's static assets at the deployment root. Keep the entry
+// module external and give it the same URL identity used by lazy chunks. If the
+// entry is inlined, a lazy chunk can import the external copy again, duplicating
+// React contexts such as AuthContext after sign-in.
 html = html.replace(
   /(<link rel="modulepreload"[^>]*href=")(?:\.\/)?assets\//g,
+  "$1./",
+);
+html = html.replace(
+  /(<link rel="icon"[^>]*href=")(?:\.\/)?assets\//g,
   "$1./",
 );
 

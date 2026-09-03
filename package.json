@@ -24,6 +24,7 @@
     "screenshots:motion": "node scripts/capture-motion-background.mjs",
     "interaction:test": "node scripts/verify-interactions.mjs",
     "translation:test": "node scripts/verify-translation-resilience.mjs",
+    "sites:artifact:test": "node scripts/verify-sites-artifact.mjs",
     "prd-batch:test": "node scripts/verify-prd-batch.mjs",
     "icons:test": "node scripts/verify-navigation-icons.mjs",
     "supabase:verify-shared": "node scripts/verify-shared-supabase.mjs",
