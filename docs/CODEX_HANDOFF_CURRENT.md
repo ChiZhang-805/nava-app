@@ -12,22 +12,21 @@ Apple/Watch baseline. Older dated handoffs are historical evidence.
 
 Current release anchor:
 
-- Source commit: `0c4165568fbfb8c45b92b00a45315dbae44d43af`
-- ChatGPT Sites: version 84, public
-- GitHub Pages mirror release: v84 (`c9bafc4e7f1fcda150a20c9e282d14fb68413fb3`)
+- Source commit: `be8d81407a973e7d621b5291a8a3ad4d44129628`
+- ChatGPT Sites: version 85, public
+- GitHub Pages mirror release: v85 (`942e0efe1c6cf98273309b8697da1d5a7599f218`)
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
-- The authenticated Sites module-identity correction is verified with a real account and deployed to both public sites.
+- The page-specific skeletons and equal-height empty weekly rhythm chart are
+  deployed to both public sites and verified with a real account.
 
 Current continuation:
 
-- The checkout now has a local, unshipped loading-state and weekly empty-chart
-  continuation documented in section 8 of the dated handoff. It adds auth plus
-  nine destination-specific loading skeletons, local AI/history/device
-  skeleton regions, and an equal-height static seven-day sparse rhythm chart.
-  `npm run verify`, the 10-group interaction suite, and four-viewport visual
-  geometry checks pass. This is the verified v85 release candidate; public
-  release anchors remain v84 until the authorized dual-site publication
-  finishes.
+- Section 8 of the dated handoff records the v85 loading-state and weekly
+  empty-chart release. It adds auth plus nine destination-specific loading
+  skeletons, local AI/history/device skeleton regions, and an equal-height
+  static seven-day sparse rhythm chart. `npm run verify`, the 10-group
+  interaction suite, four-viewport visual geometry checks, and the final
+  40-combination real-account dual-origin acceptance run pass.
 
 - Real-account production diagnostics showed the v83 Sites failure began with
   `useAuth must be used inside AuthProvider`; `removeChild` was a secondary

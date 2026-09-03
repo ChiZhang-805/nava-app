@@ -196,7 +196,31 @@ Visual evidence is under
 `Q:\NAVA-Workspace\Build\TestRuns\nava-loading-skeletons-20260903` and
 `Q:\NAVA-Workspace\Build\TestRuns\nava-weekly-height-20260903`.
 
-This continuation is the verified v85 release candidate. The public Sites and
-GitHub Pages anchors remain v84 until the authorized dual-site publication
-finishes; post-release provenance is recorded in a follow-up documentation
-commit.
+The continuation is published as v85 on both public sites.
+
+v85 provenance:
+
+- released source commit:
+  `be8d81407a973e7d621b5291a8a3ad4d44129628`;
+- ChatGPT Sites version 85, deployment
+  `appgdep_6a98e619b26c819181343477f7eedc4e`;
+- GitHub Pages mirror commit:
+  `942e0efe1c6cf98273309b8697da1d5a7599f218`;
+- Sites package:
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-sites-v85-be8d814.tgz`.
+
+Post-deployment verification passed on both origins:
+
+- unauthenticated auth-first entry, canonical Supabase project identity, HTTP
+  200, no runtime errors, and no horizontal overflow at 360x740, 375x812,
+  390x844, and 430x932;
+- real-account sign-in followed by Today, Record, AI, Trends, and Profile at all
+  four viewports: 40 authenticated origin/viewport/tab combinations with no
+  runtime error, error boundary, or horizontal frame overflow;
+- GitHub Pages `source.json` records the exact v85 source commit.
+
+The first immediate authenticated Sites probe occurred while newly published
+lazy assets were still propagating and received one transient dynamic-import
+fetch failure. The asset became HTTP 200 moments later, and the complete
+two-origin authenticated acceptance run then passed. No source change or
+redeployment was needed.
