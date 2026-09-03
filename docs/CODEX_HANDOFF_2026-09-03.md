@@ -332,7 +332,7 @@ The v87 publication provenance is:
 - post-deployment evidence:
   `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v87`.
 
-## 11. Unpublished daily module completion and entry routing
+## 11. Published v88 daily module completion and entry routing
 
 Source commit `836d81ef5635b0067a4bcb9c85fcec332fbbd930` implements the
 confirmed Today/Record entry behavior without changing the backend schema or
@@ -371,6 +371,32 @@ Verification completed on 2026-09-03:
 - focused screenshots and geometry are under
   `Q:\NAVA-Workspace\Build\TestRuns\nava-module-progress-20260903`.
 
-This source continuation is not deployed. ChatGPT Sites and GitHub Pages remain
-on the v87 provenance recorded in section 10 until a later explicit deployment
-request.
+The v88 publication provenance is:
+
+- source commit: `a42b6a36a04ca45506bbb59d254b8e9730e975db`;
+- ChatGPT Sites version 88, deployment
+  `appgdep_6a9956469efc819188b8cbc22c209293`;
+- GitHub Pages mirror v88 commit
+  `550e529bb8d21113e66f0df64a228342f6e4e0e5`;
+- Sites package:
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-sites-v88-a42b6a3.tgz`;
+- post-deployment evidence:
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v88`.
+
+Post-deployment verification confirms both origins return HTTP 200, refuse the
+public `?demo=1` bypass, target Supabase project `wxteapvwagvhhtrjrbim`, and
+have no horizontal overflow at 360x740, 375x812, 390x844, or 430x932. The real
+production account had no current-day module records during acceptance, so all
+six persisted empty states were checked to open their editors on both origins
+at all four viewports. Completed-to-overview and partial-diet routing remain
+covered by the passing local interaction suite without mutating production
+records.
+
+## 12. Standing frontend release authorization
+
+On 2026-09-03 the user explicitly requested that future APP code, page, or
+feature changes be verified and deployed to both public sites as one task,
+without requiring a separate deployment prompt. This standing authorization
+applies unless the user explicitly says not to deploy. It does not extend to
+read-only audits or to backend migrations, Edge Function deployment, production
+seeding, secrets, or access-policy changes.

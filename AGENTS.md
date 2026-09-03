@@ -100,6 +100,14 @@ They complement the Q-drive workspace rules in the parent environment.
 ## Release and dual-site parity
 
 - A product release is incomplete if only one public site is updated.
+- Standing user authorization from 2026-09-03: unless the user explicitly says
+  not to deploy, every user-requested APP code, page, or feature modification
+  includes authorization to publish both public sites after verification. Do
+  not make the user request implementation and deployment in separate turns.
+  Read-only audits, explanations, and test-evidence changes alone do not trigger
+  a release. This standing frontend authorization does not authorize backend
+  migrations, Edge Function deployment, production seeds, secret changes, or
+  access-policy changes.
 - Build both public artifacts from the same clean, pushed source commit.
 - ChatGPT Sites must reuse the project ID in `.openai/hosting.json`; never create
   a second NAVA Sites project.
@@ -108,8 +116,9 @@ They complement the Q-drive workspace rules in the parent environment.
 - Verify both unauthenticated URLs, real login routing, Supabase project identity,
   and the release commit after deployment. Hosting internals may differ, but the
   product behavior and visual source must match.
-- Public deployment is an external action. Perform it only when the current user
-  request explicitly authorizes publishing; then update both sites, not one.
+- Public deployment is an external action. Perform it when the current request
+  explicitly authorizes publishing or is covered by the standing authorization
+  above; then update both sites, not one.
 
 ## End-of-task handoff
 

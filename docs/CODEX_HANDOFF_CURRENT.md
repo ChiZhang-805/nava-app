@@ -12,25 +12,31 @@ Apple/Watch baseline. Older dated handoffs are historical evidence.
 
 Current release anchor:
 
-- Source commit: `ee102a979f1b788f2cd03a77fe869ac44bb8e101`
-- ChatGPT Sites: version 87, public
-- GitHub Pages mirror release: v87 (`a0176c5510e6262cf76e41d9bed70d588331e093`)
+- Source commit: `a42b6a36a04ca45506bbb59d254b8e9730e975db`
+- ChatGPT Sites: version 88, public
+- GitHub Pages mirror release: v88 (`550e529bb8d21113e66f0df64a228342f6e4e0e5`)
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
-- The profile-switch containment, normalized sparse weekly bars, baseline
-  alignment, and lower radar Focus caption are deployed to both public sites
-  and verified with a real account at all four required mobile viewports.
+- The shared six-module progress rings and completion-aware entry routing are
+  deployed to both public sites. Public auth checks pass at all four required
+  mobile viewports; the real production account's empty-today state opens each
+  editor correctly on both origins without overflow or runtime errors.
 
 Current continuation:
 
-- Unpublished source commit `836d81ef5635b0067a4bcb9c85fcec332fbbd930`
+- Published source continuation `836d81ef5635b0067a4bcb9c85fcec332fbbd930`
   adds one shared real-data completion model for the six Today/Record modules,
   animated green progress rings in both entry surfaces, and atomic routing:
   incomplete modules open their editor while completed modules open the data
   overview. Diet advances by the four persisted meal slots; saving a partial
   day stays in the editor, and completed overviews retain explicit update/edit
   actions. `npm run verify`, the 11-group interaction suite, and a focused
-  four-viewport visual suite pass. This commit has not been deployed; both
-  public sites remain on v87.
+  four-viewport visual suite pass. The continuation and its verification handoff
+  are published together as v88 from source commit `a42b6a36a04ca45506bbb59d254b8e9730e975db`.
+
+- The user has given standing authorization that every future requested APP
+  code, page, or feature modification should finish with verified dual-site
+  deployment unless they explicitly opt out. Read-only work and backend or
+  access-policy mutations remain outside that standing authorization.
 
 - Section 10 of the dated handoff records the published v87 visual correction:
   detailed-profile toggle knobs remain inside dedicated tracks,
