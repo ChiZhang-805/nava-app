@@ -224,10 +224,10 @@ fetch failure. The asset became HTTP 200 moments later, and the complete
 two-origin authenticated acceptance run then passed. No source change or
 redeployment was needed.
 
-## 9. v86 detailed-profile loading and navigation release candidate
+## 9. v86 detailed-profile loading and navigation release
 
-The verified v86 release candidate adds the following detailed-profile subpage
-correction after v85:
+The published v86 release adds the following detailed-profile subpage correction
+after v85:
 
 - the account identity card is now gated by the same profile request as the
   form, so username, email, avatar initial, and completeness never render before
@@ -250,5 +250,27 @@ Verification passed locally on 2026-09-03:
 
 Evidence is under
 `Q:\NAVA-Workspace\Build\TestRuns\nava-advanced-profile-shell-20260903`.
-The public sites remain on v85 until the authorized dual-site publication of
-this candidate finishes; exact v86 provenance will be recorded after release.
+
+Release-level verification also passed:
+
+- `npm run verify` and `npm run auth:verify:production`;
+- eight unauthenticated dual-origin checks covering HTTP success, auth-first
+  behavior, the canonical Supabase project, four required viewports, runtime
+  errors, and horizontal overflow;
+- 40 real-account dual-origin checks covering Today, Record, AI, Trends, and
+  Profile at all four required viewports;
+- eight focused real-account detailed-profile checks. Both public origins load
+  the persisted account identity, render no bottom navigation or error boundary,
+  and have no horizontal overflow at all four viewports.
+
+The v86 publication provenance is:
+
+- source commit: `77bcc10c635679596e9209c33e6367f6732d43c9`;
+- ChatGPT Sites version 86, deployment
+  `appgdep_6a98edea34d08191a013c23e166be6e5`;
+- GitHub Pages mirror v86 commit
+  `ed1d0a7f8d4c5d0682aef5d73b1216e5c2d7bdba`;
+- Sites package:
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-sites-v86-77bcc10.tgz`;
+- public and focused authenticated evidence:
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v86`.

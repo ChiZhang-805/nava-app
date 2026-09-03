@@ -12,22 +12,24 @@ Apple/Watch baseline. Older dated handoffs are historical evidence.
 
 Current release anchor:
 
-- Source commit: `be8d81407a973e7d621b5291a8a3ad4d44129628`
-- ChatGPT Sites: version 85, public
-- GitHub Pages mirror release: v85 (`942e0efe1c6cf98273309b8697da1d5a7599f218`)
+- Source commit: `77bcc10c635679596e9209c33e6367f6732d43c9`
+- ChatGPT Sites: version 86, public
+- GitHub Pages mirror release: v86 (`ed1d0a7f8d4c5d0682aef5d73b1216e5c2d7bdba`)
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
-- The page-specific skeletons and equal-height empty weekly rhythm chart are
-  deployed to both public sites and verified with a real account.
+- The detailed-profile loading gate and subpage navigation removal are deployed
+  to both public sites and verified with a real account at all four required
+  mobile viewports.
 
 Current continuation:
 
-- Section 9 of the dated handoff records the verified v86 detailed-profile
-  release candidate:
+- Section 9 of the dated handoff records the published v86 detailed-profile
+  release:
   unresolved account identity is fully skeletonized, the subpage omits the
   bottom five-button navigation in loading and loaded states, and the navigation
-  returns on back. Lint, production build, all 10 interaction groups, and eight
-  loading/loaded screenshots across four required viewports pass. The public
-  sites remain on v85 until the authorized dual-site publication finishes.
+  returns on back. The full verification suite, production authentication
+  check, all 10 interaction groups, local loading/loaded screenshots, eight
+  public smoke checks, 40 real-account main-page checks, and eight focused
+  real-account subpage checks pass.
 
 - Section 8 of the dated handoff records the v85 loading-state and weekly
   empty-chart release. It adds auth plus nine destination-specific loading
