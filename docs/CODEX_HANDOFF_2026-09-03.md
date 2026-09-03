@@ -100,7 +100,7 @@ the final account-specific confirmation boundary.
 Both artifacts were built from the same pushed source commit. GitHub Pages
 `source.json` and the Sites saved version both record that commit.
 
-## 7. v84 authenticated Sites correction
+## 6. v84 authenticated Sites correction
 
 The user confirmed that v83 still failed immediately after a real-account
 sign-in on ChatGPT Sites. A sanitized headless production diagnostic then used
@@ -152,7 +152,7 @@ that translation mutation was the authenticated crash root cause is superseded
 by this real-account v84 diagnosis. Translation resilience remains installed
 for the separate, reproducible browser-translation mutation class.
 
-## 6. Remaining boundaries
+## 7. Remaining boundaries
 
 The human/external Apple gates listed in the 2026-09-02 handoff remain
 unchanged. Focus-session wearable correlation and the points store remain
