@@ -12,26 +12,25 @@ Apple/Watch baseline. Older dated handoffs are historical evidence.
 
 Current release anchor:
 
-- Source commit: `e7da7104150e930762963304f70e3bca8e7cc208`
-- ChatGPT Sites: version 83, public
-- GitHub Pages mirror release: v83 (`b26952b5ec7360f73eda76948a1999f9e4999761`)
+- Source commit: `0c4165568fbfb8c45b92b00a45315dbae44d43af`
+- ChatGPT Sites: version 84, public
+- GitHub Pages mirror release: v84 (`c9bafc4e7f1fcda150a20c9e282d14fb68413fb3`)
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
-- The browser-translation DOM resilience correction is verified and deployed to both public sites.
+- The authenticated Sites module-identity correction is verified with a real account and deployed to both public sites.
 
 Current continuation:
 
-- The reported authenticated Today `removeChild` error was reproduced
-  deterministically as React 18 reconciling text nodes displaced by browser
-  translation/content-rewrite extensions. Exact-pinned DOM re-adoption now runs
-  before React, and the regression is part of `npm run verify`.
-- `npm run verify`, all 9 interaction groups, the PRD four-viewport suite,
-  production Auth, and an 8/8 dual-site post-deployment translated-DOM smoke
-  pass. Evidence is under
-  `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v83`.
-- Public smoke tests cannot reuse the user's intentionally tab-scoped private
-  session. A hard-refresh retest in the original Chrome profile remains the
-  final account-specific confirmation; this is not treated as proof of a new
-  failure unless v83 still reproduces it.
+- Real-account production diagnostics showed the v83 Sites failure began with
+  `useAuth must be used inside AuthProvider`; `removeChild` was a secondary
+  cleanup error. The Sites worker had inlined the entry while lazy chunks
+  imported a second external copy, duplicating `AuthContext`. v84 keeps one
+  external entry-module identity and protects it with
+  `npm run sites:artifact:test` inside the full verification suite.
+- The explicitly authorized real account successfully entered both public
+  sites and navigated Today, Record, AI, Trends, and Profile at all four required
+  viewports (40 combinations), with no runtime/reconciliation error, error
+  boundary, or horizontal frame overflow. Credentials were standard-input only
+  and were not persisted.
 
 - The full post-Apple source/runtime audit is
   `docs/FULL_PRODUCT_RUNTIME_AUDIT_2026-09-02.md`; section 14 of the 2026-09-02

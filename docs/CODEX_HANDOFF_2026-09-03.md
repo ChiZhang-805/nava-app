@@ -100,6 +100,58 @@ the final account-specific confirmation boundary.
 Both artifacts were built from the same pushed source commit. GitHub Pages
 `source.json` and the Sites saved version both record that commit.
 
+## 7. v84 authenticated Sites correction
+
+The user confirmed that v83 still failed immediately after a real-account
+sign-in on ChatGPT Sites. A sanitized headless production diagnostic then used
+the explicitly authorized account on both public origins. GitHub Pages entered
+the authenticated Today screen normally, while Sites first threw
+`useAuth must be used inside AuthProvider`; the visible `removeChild` exception
+was a second error while React removed the first error boundary tree.
+
+The Sites worker had inlined Vite's entry module into its HTML while retaining
+lazy chunks that imported the external entry asset. After authentication loaded
+`App`, the browser therefore evaluated two entry-module identities and created
+two different `AuthContext` singletons. `scripts/prepare-sites-build.mjs` now
+keeps the entry as one external, deployment-root module. The lazy chunks and
+the initial render consequently share the same module and context instance.
+`npm run sites:artifact:test` guards this invariant and is included in
+`npm run verify`.
+
+Verification passed on 2026-09-03:
+
+- complete `npm run verify`, including the new Sites artifact test;
+- `npm run auth:verify:production` against canonical Supabase project
+  `wxteapvwagvhhtrjrbim`;
+- real-account public sign-in on both Sites and GitHub Pages;
+- authenticated navigation through Today, Record, AI, Trends, and Profile at
+  360x740, 375x812, 390x844, and 430x932 on both origins (40 combinations),
+  with no page/console reconciliation error, error boundary, or horizontal
+  frame overflow.
+
+The acceptance run only signed in, loaded existing account-scoped data, and
+navigated read-only screens. It did not save records, edit profile fields,
+complete onboarding, seed data, invoke AI prompts, or change Supabase schema or
+Functions. Credentials were passed to temporary local Playwright processes via
+standard input and were not written to the repository, test artifacts, logs, or
+handoff.
+
+v84 provenance:
+
+- released source commit:
+  `0c4165568fbfb8c45b92b00a45315dbae44d43af`;
+- ChatGPT Sites version 84, deployment
+  `appgdep_6a98d6b1140c8191ba50aea5bb91e5af`;
+- GitHub Pages mirror commit:
+  `c9bafc4e7f1fcda150a20c9e282d14fb68413fb3`;
+- Sites package:
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-sites-v84-0c41655.tgz`.
+
+The v83 section above is retained as incident history; its earlier assertion
+that translation mutation was the authenticated crash root cause is superseded
+by this real-account v84 diagnosis. Translation resilience remains installed
+for the separate, reproducible browser-translation mutation class.
+
 ## 6. Remaining boundaries
 
 The human/external Apple gates listed in the 2026-09-02 handoff remain
