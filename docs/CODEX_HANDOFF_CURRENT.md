@@ -1,27 +1,40 @@
 # NAVA current Codex handoff
 
-Current handoff date: **2026-09-02**
+Current handoff date: **2026-09-03**
 
 The authoritative full handoff is:
 
-- [`CODEX_HANDOFF_2026-09-02.md`](./CODEX_HANDOFF_2026-09-02.md)
+- [`CODEX_HANDOFF_2026-09-03.md`](./CODEX_HANDOFF_2026-09-03.md)
 
 Read it together with the repository-level [`AGENTS.md`](../AGENTS.md) before
-changing code. The new handoff explicitly points back to the 2026-08-31 full
-architecture and release baseline. Older dated handoffs are historical evidence.
+changing code. The current handoff points to the 2026-09-02 full product and
+Apple/Watch baseline. Older dated handoffs are historical evidence.
 
 Current release anchor:
 
-- Source commit: `0b009010cab5a9a8e9e2991ec038a5ee1186c450`
-- ChatGPT Sites: version 82, public
-- GitHub Pages mirror release: v82 (`af2dda3fe3e16da715c734d089bf9f6e7e4d779f`)
+- Source commit: `e7da7104150e930762963304f70e3bca8e7cc208`
+- ChatGPT Sites: version 83, public
+- GitHub Pages mirror release: v83 (`b26952b5ec7360f73eda76948a1999f9e4999761`)
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
-- The 2026-09-02 PRD gap-closure and audit-fix batches are verified and deployed to both public sites.
+- The browser-translation DOM resilience correction is verified and deployed to both public sites.
 
 Current continuation:
 
+- The reported authenticated Today `removeChild` error was reproduced
+  deterministically as React 18 reconciling text nodes displaced by browser
+  translation/content-rewrite extensions. Exact-pinned DOM re-adoption now runs
+  before React, and the regression is part of `npm run verify`.
+- `npm run verify`, all 9 interaction groups, the PRD four-viewport suite,
+  production Auth, and an 8/8 dual-site post-deployment translated-DOM smoke
+  pass. Evidence is under
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v83`.
+- Public smoke tests cannot reuse the user's intentionally tab-scoped private
+  session. A hard-refresh retest in the original Chrome profile remains the
+  final account-specific confirmation; this is not treated as proof of a new
+  failure unless v83 still reproduces it.
+
 - The full post-Apple source/runtime audit is
-  `docs/FULL_PRODUCT_RUNTIME_AUDIT_2026-09-02.md`; section 14 of the dated
+  `docs/FULL_PRODUCT_RUNTIME_AUDIT_2026-09-02.md`; section 14 of the 2026-09-02
   handoff records the real-data, consent, AI cache/harness, private-image,
   transfer, lifecycle, and four-viewport corrections.
 - `npm run verify`, the nine-group interaction suite, the PRD four-viewport
@@ -29,14 +42,15 @@ Current continuation:
   the production Health Function audit all pass in the current checkout.
 - Updated Edge Function sources are live as new production versions, and
   migration `202609020002_health_sync_realtime.sql` is applied to canonical
-  project `wxteapvwagvhhtrjrbim`. Section 15 records exact versions and scope.
-- Both public v82 URLs passed post-deployment headless verification at 360x740,
+  project `wxteapvwagvhhtrjrbim`. Section 15 of the 2026-09-02 handoff records
+  exact versions and scope.
+- The underlying public v82 baseline passed post-deployment headless verification at 360x740,
   375x812, 390x844, and 430x932: HTTP 200, auth-first entry even with
   `?demo=1`, canonical Supabase marker, no runtime errors, and no horizontal
   overflow. Evidence is under
   `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v82`.
 
-- Sections 9 through 11 of the dated handoff record the full-code audit, the
+- Sections 9 through 11 of the 2026-09-02 handoff record the full-code audit, the
   real-data/natural-week corrections, the grounded AI health-report batch, and
   the dual-site v80 verification.
 
