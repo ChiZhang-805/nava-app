@@ -2,6 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import { Apple, Camera, Check, ChevronDown, Download, Images, Link2, LogOut, RefreshCw, Save, ShieldCheck, Trash2, Watch, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
+import PageSkeleton, { SkeletonLines } from "../components/PageSkeleton";
 import SectionCard from "../components/SectionCard";
 import { useLocale } from "../i18n";
 import { exportUserData, downloadJson } from "../services/exportData";
@@ -46,6 +47,8 @@ export default function ProfileScreen({ user, refreshKey, onChanged }: { user: U
   const [healthAuthorization, setHealthAuthorization] = useState<HealthAuthorizationStatus | null>(null);
   const [healthLastSync, setHealthLastSync] = useState<string | null>(() => readLastHealthSyncAt(user.id));
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [devicesLoading, setDevicesLoading] = useState(true);
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileDetailsExpanded, setProfileDetailsExpanded] = useState(false);
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false);
@@ -83,6 +86,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged }: { user: U
 
   useEffect(() => {
     let active = true;
+    setDevicesLoading(true);
     void Promise.allSettled([
       readLastWatchSnapshot(user.id),
       getWatchReachability(),
@@ -94,7 +98,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged }: { user: U
       if (reachability.status === "fulfilled") setWatchReachable(reachability.value);
       if (authorization.status === "fulfilled") setHealthAuthorization(authorization.value);
       if (lastSync.status === "fulfilled") setHealthLastSync(lastSync.value);
-    });
+    }).finally(() => { if (active) setDevicesLoading(false); });
     return () => {
       active = false;
     };
@@ -102,6 +106,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged }: { user: U
 
   useEffect(() => {
     let active = true;
+    setProfileLoading(true);
     loadProfile(user.id)
       .then((data) => {
         if (!active) return;
@@ -116,7 +121,8 @@ export default function ProfileScreen({ user, refreshKey, onChanged }: { user: U
       })
       .catch((e) => {
         if (active) setError(e instanceof Error ? e.message : String(e));
-      });
+      })
+      .finally(() => { if (active) setProfileLoading(false); });
     return () => {
       active = false;
     };
@@ -279,6 +285,8 @@ export default function ProfileScreen({ user, refreshKey, onChanged }: { user: U
         ? t("profile.healthAuthorizationRequested")
         : t("profile.healthNeedsAuthorization");
 
+  if (profileLoading) return <PageSkeleton variant="profile" />;
+
   return (
     <div className="stack profile-stack">
       <SectionCard className="profile-account-card" title={t("profile.account")}>
@@ -400,10 +408,10 @@ export default function ProfileScreen({ user, refreshKey, onChanged }: { user: U
           title={t("profile.appleHealth")}
           action={(
             <div className="section-icon-actions">
-              <button className="section-icon-action" type="button" aria-label={t("profile.requestAuth")} title={t("profile.requestAuth")} onClick={authorizeHealth} disabled={busy === "health-auth"}>
+              <button className="section-icon-action" type="button" aria-label={t("profile.requestAuth")} title={t("profile.requestAuth")} onClick={authorizeHealth} disabled={devicesLoading || busy === "health-auth"}>
                 <ShieldCheck size={21} />
               </button>
-              <button className="section-icon-action" type="button" aria-label={t("profile.syncNow")} title={t("profile.syncNow")} onClick={syncHealth} disabled={busy === "health-sync"}>
+              <button className="section-icon-action" type="button" aria-label={t("profile.syncNow")} title={t("profile.syncNow")} onClick={syncHealth} disabled={devicesLoading || busy === "health-sync"}>
                 <RefreshCw className={busy === "health-sync" ? "spin" : undefined} size={21} />
               </button>
             </div>
@@ -411,12 +419,12 @@ export default function ProfileScreen({ user, refreshKey, onChanged }: { user: U
         >
           <div className="device-connection-row">
             <span className="device-connection-icon" aria-hidden="true"><Apple size={30} /></span>
-            <div>
+            {devicesLoading ? <SkeletonLines count={2} compact /> : <div>
               <strong>{healthStatus}</strong>
               <p className="muted">{healthLastSync
                 ? `${connectionTimestamp(healthLastSync)} · ${t(healthSyncIsRecent ? "profile.syncRecent" : "profile.syncStale")}`
                 : t("profile.waitingSync")}</p>
-            </div>
+            </div>}
           </div>
         </SectionCard>
 
@@ -425,10 +433,10 @@ export default function ProfileScreen({ user, refreshKey, onChanged }: { user: U
           title={t("profile.appleWatch")}
           action={(
             <div className="section-icon-actions">
-              <button className="section-icon-action" type="button" aria-label={t("profile.watchConnect")} title={t("profile.watchConnect")} onClick={connectWatch} disabled={busy === "watch-connect"}>
+              <button className="section-icon-action" type="button" aria-label={t("profile.watchConnect")} title={t("profile.watchConnect")} onClick={connectWatch} disabled={devicesLoading || busy === "watch-connect"}>
                 <Link2 size={21} />
               </button>
-              <button className="section-icon-action" type="button" aria-label={t("profile.watchSync")} title={t("profile.watchSync")} onClick={syncWatch} disabled={busy === "watch-sync"}>
+              <button className="section-icon-action" type="button" aria-label={t("profile.watchSync")} title={t("profile.watchSync")} onClick={syncWatch} disabled={devicesLoading || busy === "watch-sync"}>
                 <RefreshCw className={busy === "watch-sync" ? "spin" : undefined} size={21} />
               </button>
             </div>
@@ -436,10 +444,10 @@ export default function ProfileScreen({ user, refreshKey, onChanged }: { user: U
         >
           <div className="device-connection-row">
             <span className="device-connection-icon" aria-hidden="true"><Watch size={30} /></span>
-            <div>
+            {devicesLoading ? <SkeletonLines count={2} compact /> : <div>
               <strong>{watchReachable?.paired ? t("profile.watchPaired") : watchSnapshot ? t("profile.watchSnapshot") : t("profile.watchWaiting")}</strong>
               <p className="muted">{connectionMeta(watchSnapshot?.lastSyncedAt, Boolean(watchReachable?.reachable))}</p>
-            </div>
+            </div>}
           </div>
         </SectionCard>
       </div>

@@ -2,6 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import { Award, Check, ChevronRight, CircleDollarSign, Flame, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocale } from "../i18n";
+import PageSkeleton from "../components/PageSkeleton";
 import { growthCounterValue, growthNewTaskIds, shouldAnimateGrowthVisit } from "../services/growthProgressPresentation";
 import { todayISO } from "../services/date";
 import { acknowledgeGrowthProgress, growthXp, loadGrowthTasks, loadLastViewedGrowthPoints, loadLastViewedGrowthTaskKeys, readGrowthProgress, reconcileGrowthRewards, resolveGrowthTasks, subscribeProductivity, type GrowthTask } from "../services/productivity";
@@ -128,6 +129,8 @@ export default function GrowthTasksScreen({
 
   const level = Math.floor(displayedXp / 100) + 1;
   const progress = displayedXp % 100;
+
+  if (loading) return <PageSkeleton variant="growth" />;
 
   return (
     <div className={["growth-screen", toastDelta !== null ? "has-toast" : ""].filter(Boolean).join(" ")} data-growth-screen>

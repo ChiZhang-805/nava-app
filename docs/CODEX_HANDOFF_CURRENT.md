@@ -20,6 +20,15 @@ Current release anchor:
 
 Current continuation:
 
+- The checkout now has a local, unshipped loading-state and weekly empty-chart
+  continuation documented in section 8 of the dated handoff. It adds auth plus
+  nine destination-specific loading skeletons, local AI/history/device
+  skeleton regions, and an equal-height static seven-day sparse rhythm chart.
+  `npm run verify`, the 10-group interaction suite, and four-viewport visual
+  geometry checks pass. This is the verified v85 release candidate; public
+  release anchors remain v84 until the authorized dual-site publication
+  finishes.
+
 - Real-account production diagnostics showed the v83 Sites failure began with
   `useAuth must be used inside AuthProvider`; `removeChild` was a secondary
   cleanup error. The Sites worker had inlined the entry while lazy chunks

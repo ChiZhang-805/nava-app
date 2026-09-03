@@ -32,6 +32,7 @@ import { App as CapacitorApp } from "@capacitor/app";
 import AnimatedNumber from "../components/AnimatedNumber";
 import BarLineTrendChart, { type BarLineTrendPoint } from "../components/BarLineTrendChart";
 import LineTrendChart from "../components/LineTrendChart";
+import { SkeletonBars, SkeletonLines } from "../components/PageSkeleton";
 import { useLocale } from "../i18n";
 import dietInsightMascot from "../assets/mascot/nava-eat-v5.webp";
 import sleepInsightMascot from "../assets/mascot/nava-sleep-v1.png";
@@ -436,7 +437,7 @@ function HistoryView({
                   ? (locale === "zh" ? `演示${moduleNames[module].zh}洞察` : `Demo ${moduleNames[module].en.toLowerCase()} insights`)
                   : (locale === "zh" ? `AI ${moduleNames[module].zh}洞察` : `AI ${moduleNames[module].en.toLowerCase()} insights`)}</strong></header>
                 {reportLoading
-                  ? <div className="diet-ai-report-loading">{locale === "zh" ? "正在结合你的画像与近七日数据生成…" : "Reviewing your profile and seven-day data…"}</div>
+                  ? <SkeletonLines count={3} compact />
                   : <ul>{reportInsights.map((bullet, index) => <li key={`${index}-${bullet}`}>{bullet}</li>)}</ul>}
                 {reportUnavailable && <small className="module-ai-fallback-note">{locale === "zh" ? "真实 AI 洞察暂不可用，请稍后重试。" : "Real AI insights are temporarily unavailable. Please retry."}</small>}
               </div>
@@ -456,7 +457,7 @@ function HistoryView({
           disabled={sharing || !hasTodayRecord}
           onClick={() => void shareSummary()}
         ><Share2 size={16} />{!hasTodayRecord ? currentDayRequiredShareCopy(module, locale) : sharing ? (locale === "zh" ? "正在生成图片…" : "Creating image…") : shareComplete ? (locale === "zh" ? "图片已生成" : "Image ready") : (locale === "zh" ? "生成图片并分享" : "Create image & share")}</button>
-      </> : <p className="module-empty-copy module-history-empty">{locale === "zh" ? "正在读取历史记录…" : "Loading history…"}</p>}
+      </> : <div className="module-history-loading"><SkeletonBars /><SkeletonLines count={3} compact /></div>}
     </ModuleDetailView>
   );
 }
@@ -1520,9 +1521,9 @@ export default function RecordModuleDashboard(props: Props) {
     {dashboard}
     {!focusImmersive && view === "overview" && hasCurrentRecord && <section className="figma-module-card module-assistant-card module-overview-ai" aria-live="polite">
       <span className="module-assistant-icon"><Bot size={18} /></span>
-      <div><strong>{isDemoMode() ? (locale === "zh" ? "演示 AI 即时反馈" : "Demo AI feedback") : (locale === "zh" ? "基于真实记录的 AI 即时反馈" : "AI feedback from your real records")}</strong><p>{overviewInsightLoading
-        ? (locale === "zh" ? "正在读取近期记录并生成…" : "Reviewing your recent records…")
-        : overviewInsight ?? (locale === "zh" ? "真实 AI 暂时不可用，没有使用固定建议代替。" : "Real AI is temporarily unavailable; no fixed suggestion was substituted.")}</p>{overviewInsightError && <button type="button" onClick={() => void loadOverviewInsight()}>{locale === "zh" ? "重试真实 AI" : "Retry real AI"}</button>}</div>
+      <div><strong>{isDemoMode() ? (locale === "zh" ? "演示 AI 即时反馈" : "Demo AI feedback") : (locale === "zh" ? "基于真实记录的 AI 即时反馈" : "AI feedback from your real records")}</strong>{overviewInsightLoading
+        ? <SkeletonLines count={2} compact />
+        : <p>{overviewInsight ?? (locale === "zh" ? "真实 AI 暂时不可用，没有使用固定建议代替。" : "Real AI is temporarily unavailable; no fixed suggestion was substituted.")}</p>}{overviewInsightError && <button type="button" onClick={() => void loadOverviewInsight()}>{locale === "zh" ? "重试真实 AI" : "Retry real AI"}</button>}</div>
     </section>}
     {!focusImmersive && view === "overview" && <nav className="module-cross-actions" aria-label={locale === "zh" ? "模块快捷入口" : "Module shortcuts"}>
       <button type="button" onClick={() => props.onOpenAi?.(locale === "zh" ? `请结合我已授权的真实${moduleLabel}记录，分析近期变化，并给出一条今天可执行的建议。` : `Analyze my consent-authorized ${moduleLabel} records and suggest one practical action for today.`)}><Bot size={16} /><span>{locale === "zh" ? "问 NAVA" : "Ask NAVA"}</span></button>

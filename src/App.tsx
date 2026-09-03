@@ -19,6 +19,9 @@ import MascotMotionSlot from "./components/MascotMotionSlot";
 import UtilityDrawer from "./components/UtilityDrawer";
 import DevSeedPanel from "./components/DevSeedPanel";
 import RewardCelebration from "./components/RewardCelebration";
+import PageSkeleton, { SkeletonBlock } from "./components/PageSkeleton";
+import LoadingShell from "./components/LoadingShell";
+import { currentSkeletonVariant } from "./services/loadingRoute";
 import { useLocale, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
@@ -75,17 +78,7 @@ function shellRouteHash(route: ShellRoute) {
 }
 
 function LoadingScreen() {
-  const t = useT();
-
-  return (
-    <main className="app-screen centered-screen">
-      <div className="brand-mark">
-        <Activity size={28} />
-      </div>
-      <h1>NAVA</h1>
-      <p className="muted">{t("app.loading")}</p>
-    </main>
-  );
+  return <LoadingShell />;
 }
 
 function ConfigErrorScreen({ message }: { message: string }) {
@@ -107,6 +100,8 @@ function MobileShell() {
   const { user } = useAuth();
   const t = useT();
   const { locale } = useLocale();
+  const forcePageSkeleton = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "skeleton";
+  const forcedSkeletonVariant = currentSkeletonVariant();
   const initialRouteRef = useRef<ShellRoute>(readShellRoute());
   const [activeTab, setActiveTab] = useState<AppTab>(initialRouteRef.current.tab);
   const [recordModule, setRecordModule] = useState<RecordModule | null>(initialRouteRef.current.module);
@@ -525,6 +520,11 @@ function MobileShell() {
         ref={contentRef}
       >
         <div className="screen-panel">
+          {forcePageSkeleton
+            ? activeTab === "today" && forcedSkeletonVariant !== "today"
+              ? <section className="home-experience page-loading-home-experience"><header className="home-experience-header page-loading-subheader" aria-hidden="true"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-title" /><SkeletonBlock className="is-circle" /></header><PageSkeleton variant={forcedSkeletonVariant} /></section>
+              : <PageSkeleton variant={forcedSkeletonVariant} />
+            : <>
           {activeTab === "today" && (
             <OptionTwoHome
               user={user}
@@ -541,7 +541,7 @@ function MobileShell() {
             />
           )}
           {activeTab === "record" && (
-            <Suspense fallback={<LoadingScreen />}>
+            <Suspense fallback={<PageSkeleton variant={recordModule ? "record-detail" : "records"} />}>
               <RecordsScreen
                 user={user}
                 deviceDate={deviceDate}
@@ -570,7 +570,7 @@ function MobileShell() {
               aria-hidden={activeTab !== "ai"}
               {...(activeTab !== "ai" ? { inert: "" } : {})}
             >
-              <Suspense fallback={activeTab === "ai" ? <LoadingScreen /> : null}>
+              <Suspense fallback={activeTab === "ai" ? <PageSkeleton variant="ai" /> : null}>
                 <AIScreen
                   user={user}
                   voiceRequestId={voiceRequestId}
@@ -589,7 +589,7 @@ function MobileShell() {
             </div>
           )}
           {activeTab === "trends" && (
-            <Suspense fallback={<LoadingScreen />}>
+            <Suspense fallback={<PageSkeleton variant="growth" />}>
               <GrowthTasksScreen
                 key={deviceDate}
                 user={user}
@@ -615,7 +615,8 @@ function MobileShell() {
               />
             </Suspense>
           )}
-          {activeTab === "profile" && <Suspense fallback={<LoadingScreen />}><ProfileScreen user={user} refreshKey={refreshKey} onChanged={markChanged} /></Suspense>}
+          {activeTab === "profile" && <Suspense fallback={<PageSkeleton variant="profile" />}><ProfileScreen user={user} refreshKey={refreshKey} onChanged={markChanged} /></Suspense>}
+          </>}
         </div>
       </main>
 

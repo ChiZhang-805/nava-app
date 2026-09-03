@@ -11,12 +11,12 @@ import {
   Frown,
   MoonStar,
   ScanFace,
-  Sparkles,
   Target,
   Utensils,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import AnimatedNumber from "../components/AnimatedNumber";
+import PageSkeleton from "../components/PageSkeleton";
 import { useLocale } from "../i18n";
 import {
   buildDailyCoverage,
@@ -113,7 +113,7 @@ function CalendarScreen({
         <button className="home-calendar-today" type="button" onClick={() => setDisplayMonth(deviceDate.slice(0, 7))}>{locale === "zh" ? "本月" : "Today"}</button>
       </header>
 
-      <section className="home-calendar-overview">
+      {loading ? <PageSkeleton variant="calendar" /> : <><section className="home-calendar-overview">
         <div><CalendarDays size={20} /><span>{locale === "zh" ? "本月记录" : "Recorded days"}</span><strong><AnimatedNumber value={monthDates.length} /><small>{locale === "zh" ? " 天" : " days"}</small></strong></div>
         <div><CircleGauge size={20} /><span>{locale === "zh" ? "平均节律" : "Avg. rhythm"}</span><strong>{averageRhythm == null ? "--" : <AnimatedNumber value={averageRhythm} />}<small>{averageRhythm == null ? "" : (locale === "zh" ? " 分" : " pts")}</small></strong></div>
       </section>
@@ -125,7 +125,7 @@ function CalendarScreen({
           <button type="button" onClick={() => setDisplayMonth(shiftMonth(displayMonth, 1))} aria-label={locale === "zh" ? "下个月" : "Next month"}><ChevronRight size={22} /></button>
         </header>
         <div className="home-calendar-weekdays">{weekdays.map((weekday) => <span key={weekday}>{weekday}</span>)}</div>
-        <div className={['home-calendar-grid', loading ? 'is-loading' : ''].join(' ')} aria-busy={loading}>
+        <div className="home-calendar-grid">
           {cells.map((cell, index) => {
             if (!cell.date || !cell.day) return <span className="home-calendar-spacer" key={`empty-${index}`} aria-hidden="true" />;
             const count = coverage[cell.date]?.length ?? 0;
@@ -149,7 +149,7 @@ function CalendarScreen({
           })}
         </div>
         <footer className="home-calendar-legend"><span><i />{locale === "zh" ? "已有记录" : "Recorded"}</span><span>{locale === "zh" ? "点击日期查看当日综合报告" : "Tap a date for its daily report"}</span></footer>
-      </section>
+      </section></>}
       {error && <p className="home-experience-error" role="alert">{error}</p>}
     </section>
   );
@@ -184,7 +184,7 @@ function DailyReportScreen({ user, date, onBack }: { user: User; date: string; o
         <span className="home-report-date-icon"><CalendarDays size={21} /></span>
       </header>
 
-      {loading && <div className="home-experience-loading"><Sparkles size={24} /><span>{locale === "zh" ? "正在整理当日数据…" : "Preparing the daily report…"}</span></div>}
+      {loading && <PageSkeleton variant="daily-report" />}
       {!loading && snapshot && <>
         <section className="home-report-hero">
           <div className="home-report-rhythm" style={{ "--daily-rhythm-score": `${rhythmScore ?? 0}%` } as CSSProperties}>

@@ -3,6 +3,7 @@ import { BedDouble, Bot, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumst
 import { FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import ActionButton from "../components/ActionButton";
 import AnimatedNumber from "../components/AnimatedNumber";
+import PageSkeleton, { SkeletonBlock, SkeletonLines } from "../components/PageSkeleton";
 import LineTrendChart from "../components/LineTrendChart";
 import SectionCard from "../components/SectionCard";
 import WeeklyRadarChart from "../components/WeeklyRadarChart";
@@ -87,6 +88,8 @@ const recordModules: Array<{
   },
 ];
 
+const weeklyPlaceholderHeights = ["44%", "62%", "52%", "72%", "57%", "67%", "49%"] as const;
+
 function recordedDateCount(bundle: TrendBundle | null, startDate: string, endDate: string) {
   if (!bundle) return 0;
   return new Set([
@@ -162,10 +165,12 @@ export default function RecordsScreen({
   const [weeklyLongPressing, setWeeklyLongPressing] = useState(false);
   const [weeklyChartMode, setWeeklyChartMode] = useState<"trend" | "radar">("trend");
   const [hubAiReport, setHubAiReport] = useState<HealthAiReport | null>(null);
-  const [, setHubAiLoading] = useState(false);
+  const [hubAiLoading, setHubAiLoading] = useState(false);
   const [hubAiUnavailable, setHubAiUnavailable] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
   const [dataLoadError, setDataLoadError] = useState<string | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [loadedRecordKey, setLoadedRecordKey] = useState<string | null>(null);
   const forceWeeklyAiFixture = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "weekly-ai";
   const rootRef = useRef<HTMLDivElement | null>(null);
   const weeklyLongPressTimerRef = useRef<number | null>(null);
@@ -262,7 +267,9 @@ export default function RecordsScreen({
 
   const loadRecordData = useCallback(async () => {
     const requestId = ++recordLoadRequestRef.current;
+    const recordKey = `${recordDate}:${activeModule ?? "hub"}:${activeModule === "diet" ? meal : ""}`;
     let loaded = false;
+    setDataLoading(true);
     setDraftReady(false);
     setDataLoadError(null);
     try {
@@ -362,6 +369,7 @@ export default function RecordsScreen({
         if (typeof draft.minutes === "number") setFocusMinutes(draft.minutes);
       }
       loaded = true;
+      setLoadedRecordKey(recordKey);
     } catch (loadError) {
       if (requestId !== recordLoadRequestRef.current) return;
       console.warn("Failed to load record dashboard data", loadError);
@@ -373,7 +381,10 @@ export default function RecordsScreen({
     } finally {
       // Draft autosave must never write the form's input suggestions after a
       // failed Supabase read. Only a successful load may arm draft syncing.
-      if (requestId === recordLoadRequestRef.current) setDraftReady(loaded);
+      if (requestId === recordLoadRequestRef.current) {
+        setDraftReady(loaded);
+        setDataLoading(false);
+      }
     }
   }, [activeModule, deviceDate, locale, meal, recordDate, user.id]);
 
@@ -448,6 +459,7 @@ export default function RecordsScreen({
   useEffect(() => {
     if (reportMode !== "weekly") return;
     let active = true;
+    setDnbReport(null);
     const reference = new Date(`${deviceDate}T12:00:00`);
     reference.setDate(reference.getDate() - weekOffset * 7);
     void loadDnbWeeklyReport(reference, locale)
@@ -945,6 +957,11 @@ export default function RecordsScreen({
     );
   }
 
+  const currentRecordKey = `${recordDate}:${activeModule ?? "hub"}:${activeModule === "diet" ? meal : ""}`;
+  if (dataLoading && loadedRecordKey !== currentRecordKey) {
+    return <PageSkeleton variant={activeModule ? "record-detail" : "records"} />;
+  }
+
   if (!activeModule) {
     const dnbReference = new Date(`${deviceDate}T12:00:00`);
     dnbReference.setDate(dnbReference.getDate() - weekOffset * 7);
@@ -1025,6 +1042,13 @@ export default function RecordsScreen({
             </section>
           )}
 
+          {hubAiEligible && hubAiLoading && (
+            <section className="record-hub-ai-summary is-loading" aria-busy="true">
+              <SkeletonBlock className="is-circle" />
+              <SkeletonLines count={2} compact />
+            </section>
+          )}
+
           {hubAiEligible && hubHasSignificantPattern && (
             <section className="record-hub-ai-summary" aria-live="polite" data-provider={hubAiReport?.provider ?? undefined}>
               <span aria-hidden="true"><Bot size={17} /></span>
@@ -1096,7 +1120,7 @@ export default function RecordsScreen({
               <button type="button" disabled={weekOffset === 0} onClick={() => setWeekOffset((value) => Math.max(0, value - 1))} aria-label={locale === "zh" ? "下一周" : "Next week"}><ChevronRight size={18} /></button>
             </div>
             <section className="weekly-score-card">
-              <div><span>{dnbReport?.status === "ready" ? (locale === "zh" ? "DNB 稳定度：" : "DNB stability: ") : (locale === "zh" ? "有记录日节律均值：" : "Recorded-day rhythm avg: ")}</span><strong>{overallScore == null ? "--" : <AnimatedNumber value={overallScore} />}</strong></div>
+              <div><span>{dnbReport?.status === "ready" ? (locale === "zh" ? "DNB 稳定度：" : "DNB stability: ") : (locale === "zh" ? "有记录日节律均值：" : "Recorded-day rhythm avg: ")}</span><strong>{dnbReport === null ? <SkeletonBlock className="weekly-score-skeleton" /> : overallScore == null ? "--" : <AnimatedNumber value={overallScore} />}</strong></div>
               <div><span>{locale === "zh" ? "数据完整度：" : "Complete: "}</span><strong><AnimatedNumber value={completedModules} duration={520} />/6</strong></div>
               <div><span>{locale === "zh" ? "较上周：" : "Previous week: "}</span><strong>{periodComparison.change == null ? (periodComparison.currentAverage == null ? "--" : (locale === "zh" ? "首次记录" : "First week")) : <>{periodComparison.change >= 0 ? "+" : ""}<AnimatedNumber value={periodComparison.change} duration={640} /></>}</strong></div>
             </section>
@@ -1119,7 +1143,18 @@ export default function RecordsScreen({
               {weeklyChartMode === "trend"
                 ? (recordedReportPointCount >= 2
                     ? <LineTrendChart points={reportPoints} tone="rhythm" compact scale="range" verticalEmphasis curve="monotone" showAllDates rangeFloorRatio={0.3} showArea showConfidenceBand={false} ariaLabel={locale === "zh" ? "近七天节律单调平滑趋势曲线与下方渐变面积，最低值保留三成基础高度，最高值对应顶部" : "Seven-day monotone rhythm curve with a gradient area, a thirty-percent floor, and proportional scaling"} />
-                    : <p>{locale === "zh" ? "完成两天记录后生成节律轨迹。" : "Log two days to create the rhythm trajectory."}</p>)
+                    : <div
+                        className="weekly-trajectory-placeholder"
+                        role="img"
+                        aria-label={locale === "zh" ? "暂无节律数据的七日轨迹图" : "Seven-day rhythm chart with no recorded data"}
+                      >
+                        <div className="weekly-trajectory-placeholder-bars" aria-hidden="true">
+                          {reportPoints.map((point, index) => <span className="weekly-trajectory-placeholder-day" key={point.id}>
+                            <i style={{ height: weeklyPlaceholderHeights[index] }} />
+                            <b>{point.label}</b>
+                          </span>)}
+                        </div>
+                      </div>)
                 : <WeeklyRadarChart points={weeklyRadarPoints} ariaLabel={locale === "zh" ? "本周睡眠、运动、饮食、专注、面部和情绪六个维度的实际记录日平均分；缺失日期不按零分计算" : "Recorded-day weekly averages for sleep, activity, diet, focus, face, and mood; missing dates are excluded"} />}
             </section>
             <section className={`weekly-insight-card weekly-insight-card--${dnbReport?.status ?? "unavailable"}`} data-dnb-status={dnbReport?.status ?? "loading"}>
@@ -1132,7 +1167,7 @@ export default function RecordsScreen({
               </header>
               <div className="weekly-insight-body" aria-live="polite">
                 {weeklyAiLoading
-                  ? <p>{locale === "zh" ? "正在调用 AI 生成本周节律洞察…" : "Generating this week's AI insights…"}</p>
+                  ? <SkeletonLines count={4} />
                   : weeklyRecordedDays < 5
                     ? <p>{locale === "zh" ? `本自然周目前有 ${weeklyRecordedDays} 个记录日；至少记录 5 天后才生成跨模块 AI 关联，避免用稀疏数据下结论。` : `This natural week currently has ${weeklyRecordedDays} recorded days. Cross-module AI analysis starts after 5 days to avoid conclusions from sparse data.`}</p>
                     : <div className="weekly-ai-summary-list">

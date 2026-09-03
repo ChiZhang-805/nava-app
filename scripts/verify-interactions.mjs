@@ -1282,6 +1282,23 @@ async function verifyNavigationAndMotion(page, results) {
   await page.screenshot({ path: path.join(outputDir, "record-weekly-radar.png") });
   await weeklyChartSwitch.click();
   await expect(page.locator(".weekly-trend-card .trend-line")).toBeVisible();
+  const previousWeekButton = page.locator(".weekly-period-controls > button").first();
+  await previousWeekButton.click();
+  await previousWeekButton.click();
+  await expect(page.locator(".weekly-trajectory-placeholder")).toBeVisible();
+  await expect(page.locator(".weekly-trajectory-placeholder-day")).toHaveCount(7);
+  await expect(page.locator(".weekly-trajectory-placeholder")).toHaveAttribute("aria-label", /暂无节律数据|no recorded data/);
+  await expect(page.getByText(/7 天占位|7-day placeholder|完成两天记录后|Log two days/i)).toHaveCount(0);
+  await expect(page.locator(".weekly-trajectory-placeholder .nava-skeleton-block")).toHaveCount(0);
+  const sparseTrendHeight = await page.locator(".weekly-trend-card").evaluate((card) => card.getBoundingClientRect().height);
+  await page.screenshot({ path: path.join(outputDir, "record-weekly-sparse-trend.png") });
+  await weeklyChartSwitch.click();
+  await expect(page.locator(".weekly-radar-chart")).toBeVisible();
+  const sparseRadarHeight = await page.locator(".weekly-trend-card").evaluate((card) => card.getBoundingClientRect().height);
+  if (Math.abs(sparseTrendHeight - sparseRadarHeight) > 1) {
+    throw new Error(`Sparse weekly chart height changes across modes: ${JSON.stringify({ sparseTrendHeight, sparseRadarHeight })}`);
+  }
+  await page.screenshot({ path: path.join(outputDir, "record-weekly-sparse-radar.png") });
   const weeklyInsightAlignment = await page.locator(".weekly-insight-card").evaluate((card) => {
     const header = card.querySelector(".weekly-insight-header");
     const centers = header ? [...header.children].map((child) => {
@@ -1343,6 +1360,52 @@ async function verifyNavigationAndMotion(page, results) {
   results.push("五项底部导航、十一个成长任务入口、六个周报模块入口、浏览器返回、趋势折线、图标动效与页头工具菜单");
 }
 
+async function verifyPageSkeletons(browser, baseUrl, results, consoleErrors) {
+  const context = await browser.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  await context.addInitScript(() => {
+    sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
+    localStorage.setItem("nava.onboarding.v2.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 2, answers: {}, source: "local" }));
+  });
+  const page = await context.newPage();
+  page.on("pageerror", (error) => consoleErrors.push(`skeleton page: ${error.message}`));
+  await page.goto(`${baseUrl}?demo=1&qa=auth-skeleton`, { waitUntil: "networkidle" });
+  const authSkeleton = page.locator('[data-page-skeleton="auth"]');
+  await expect(authSkeleton).toBeVisible();
+  await expect(authSkeleton.locator(".nava-skeleton-block")).toHaveCount(8);
+  const routes = [
+    ["today", "#tab=today"],
+    ["records", "#tab=record"],
+    ["record-detail", "#tab=record&module=sleep"],
+    ["ai", "#tab=ai"],
+    ["growth", "#tab=trends"],
+    ["profile", "#tab=profile"],
+    ["calendar", "#tab=today&view=calendar"],
+    ["daily-report", "#tab=today&view=day-2026-09-03"],
+    ["advanced-profile", "#tab=today&view=profile-details"],
+  ];
+  for (const [variant, hash] of routes) {
+    await page.goto(`${baseUrl}?demo=1&qa=skeleton${hash}`, { waitUntil: "networkidle" });
+    const reward = page.locator(".reward-celebration-layer");
+    if (await reward.isVisible().catch(() => false)) await reward.locator("button").click();
+    const skeleton = page.locator(`[data-page-skeleton="${variant}"]`);
+    await expect(skeleton).toBeVisible();
+    await expect(page.locator(".centered-screen")).toHaveCount(0);
+    const geometry = await skeleton.evaluate((node) => {
+      const firstBlock = node.querySelector(".nava-skeleton-block");
+      return {
+        blocks: node.querySelectorAll(".nava-skeleton-block").length,
+        overflow: node.scrollWidth - node.clientWidth,
+        animation: firstBlock ? getComputedStyle(firstBlock, "::after").animationName : "none",
+      };
+    });
+    if (geometry.blocks < 4 || geometry.overflow > 1 || geometry.animation !== "nava-skeleton-sweep") {
+      throw new Error(`Page skeleton ${variant} is incomplete: ${JSON.stringify(geometry)}`);
+    }
+  }
+  await context.close();
+  results.push("登录与九类应用页面专属加载骨架、扫光动画与无横向溢出");
+}
+
 async function main() {
   await mkdir(outputDir, { recursive: true });
   const results = [];
@@ -1359,6 +1422,7 @@ async function main() {
       await verifyOtpLogin(browser, baseUrl, results, consoleErrors);
       await verifyRegistration(browser, baseUrl, results, consoleErrors);
     }
+    if (!reviewBaseUrl) await verifyPageSkeletons(browser, baseUrl, results, consoleErrors);
     const { context, page } = await createReviewPage(browser, baseUrl, consoleErrors);
     await verifyNavigationAndMotion(page, results);
     await verifyHomeShortcuts(page, results);

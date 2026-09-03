@@ -160,3 +160,43 @@ product-deferred. If the same Chrome profile still shows a DOM exception after
 hard refresh on v83, record the enabled translation/content-rewrite extension
 and browser console component stack; do not infer a new cause from the generic
 error text alone.
+
+## 8. Local loading-state and weekly empty-chart continuation
+
+The current checkout contains a local, not-yet-published UI continuation after
+the v84 release anchor:
+
+- the sparse weekly rhythm view keeps exactly the same chart-card geometry as
+  the six-dimension radar view and renders a static seven-date bar-chart shape
+  without explanatory placeholder copy or invented numeric values;
+- switching between the sparse rhythm chart and radar produces zero card-height,
+  card-top, and following-card displacement at 360x740, 375x812, 390x844, and
+  430x932;
+- the generic authenticated loading interstitial has been replaced by
+  destination-specific skeletons for auth, Today, record hub, record detail,
+  AI, growth, profile, calendar, daily report, and advanced profile;
+- unresolved AI summaries, history charts, Today scores, profile data, and
+  Health/Watch connection state use matching local skeleton regions instead of
+  temporary fixed copy, zero values, or a generic spinner;
+- shimmer is limited to unresolved loading state and is disabled under reduced
+  motion. The loaded sparse weekly chart is static and explicitly exposed to
+  accessibility APIs as a no-data chart.
+
+Verification passed locally on 2026-09-03:
+
+- `npm run verify`;
+- `npm run interaction:test`: 10 groups, including the auth plus nine-page
+  skeleton regression;
+- four-viewport skeleton geometry and shimmer review across all nine app
+  variants, with no horizontal overflow;
+- four-viewport weekly sparse/radar geometry comparison, with zero measured
+  displacement at every required size.
+
+Visual evidence is under
+`Q:\NAVA-Workspace\Build\TestRuns\nava-loading-skeletons-20260903` and
+`Q:\NAVA-Workspace\Build\TestRuns\nava-weekly-height-20260903`.
+
+This continuation is the verified v85 release candidate. The public Sites and
+GitHub Pages anchors remain v84 until the authorized dual-site publication
+finishes; post-release provenance is recorded in a follow-up documentation
+commit.

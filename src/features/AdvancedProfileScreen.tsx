@@ -8,13 +8,13 @@ import {
   MoonStar,
   Save,
   ShieldCheck,
-  Sparkles,
   Target,
   UserRound,
   Utensils,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useLocale } from "../i18n";
+import PageSkeleton from "../components/PageSkeleton";
 import { loadProfile, saveProfile, type UserProfile } from "../services/profile";
 
 type Draft = {
@@ -141,7 +141,7 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
         <div className="advanced-profile-completeness"><b>{completeness}%</b><span>{copy("资料完整度", "Complete")}</span></div>
       </section>
 
-      {loading ? <div className="home-experience-loading"><Sparkles size={24} /><span>{copy("正在读取详细资料…", "Loading profile…")}</span></div> : (
+      {loading ? <PageSkeleton variant="advanced-profile" /> : (
         <form className="advanced-profile-form" onSubmit={submit}>
           <section className="advanced-profile-section">
             <header><span><BriefcaseBusiness size={20} /></span><div><strong>{copy("身份与阶段", "Identity & stage")}</strong><small>{copy("帮助 NAVA 调整表达方式与建议强度", "Shapes NAVA's tone and recommendations")}</small></div></header>

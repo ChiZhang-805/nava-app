@@ -14,6 +14,7 @@ import moodIcon from "../assets/figma/option-two-icons/mood.svg";
 import sleepIcon from "../assets/figma/option-two-icons/sleep.svg";
 import { useLocale } from "../i18n";
 import AnimatedNumber from "../components/AnimatedNumber";
+import { SkeletonBlock } from "../components/PageSkeleton";
 import InteractiveMascot from "../components/InteractiveMascot";
 import { loadGrowthTotalPoints } from "../services/productivity";
 import { getTodaySnapshot } from "../services/records";
@@ -63,12 +64,14 @@ export default function OptionTwoHome({
   const [healthMenuOpen, setHealthMenuOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<TodaySnapshot | null>(null);
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
   const gestureRef = useRef<{ pointerId: number; startX: number; startY: number; lastX: number; lastY: number } | null>(null);
   const ignoreClickUntilRef = useRef(0);
   const refreshRequestRef = useRef(0);
 
   const refresh = useCallback(async () => {
     const requestId = ++refreshRequestRef.current;
+    setLoading(true);
     const [snapshotResult, pointsResult] = await Promise.allSettled([
       getTodaySnapshot(user.id),
       loadGrowthTotalPoints(user.id),
@@ -86,6 +89,7 @@ export default function OptionTwoHome({
     } else {
       console.warn("Unable to load the option-two points total", pointsResult.reason);
     }
+    setLoading(false);
   }, [user.id]);
 
   useEffect(() => {
@@ -163,9 +167,9 @@ export default function OptionTwoHome({
       onClickCapture={dismissHealthMenuOutside}
       data-health-menu-open={healthMenuOpen}
     >
-      <div className="option-two-scores" aria-label={t("today.overview")} aria-live="polite">
-        <div><span>{t("today.rhythm")}</span><strong>{typeof rhythmScore === "number" ? <AnimatedNumber value={rhythmScore} /> : rhythmScore}</strong></div>
-        <div><span>{t("today.myPoints")}</span><strong>{typeof points === "number" ? <AnimatedNumber value={points} duration={760} /> : points}</strong></div>
+      <div className="option-two-scores" aria-label={t("today.overview")} aria-live="polite" aria-busy={loading}>
+        <div><span>{t("today.rhythm")}</span><strong>{loading && snapshot === null ? <SkeletonBlock className="option-two-score-skeleton" /> : typeof rhythmScore === "number" ? <AnimatedNumber value={rhythmScore} /> : rhythmScore}</strong></div>
+        <div><span>{t("today.myPoints")}</span><strong>{loading && totalPoints === null ? <SkeletonBlock className="option-two-score-skeleton" /> : typeof points === "number" ? <AnimatedNumber value={points} duration={760} /> : points}</strong></div>
       </div>
 
       <div className={["option-two-side-actions", shortcutsOpen ? "is-open" : "is-collapsed"].join(" ")}>

@@ -7,21 +7,17 @@ import { LocaleProvider, useT } from "./i18n";
 import { isDemoMode } from "./services/demo";
 import { AuthProvider } from "./state/AuthProvider";
 import { useAuth } from "./state/authContext";
+import LoadingShell from "./components/LoadingShell";
+import PageSkeleton from "./components/PageSkeleton";
 
 const AuthenticatedApp = lazy(() => import("./App"));
 
 function LoadingScreen() {
-  const t = useT();
+  return <LoadingShell />;
+}
 
-  return (
-    <main className="app-screen centered-screen">
-      <div className="brand-mark">
-        <Activity size={28} />
-      </div>
-      <h1>NAVA</h1>
-      <p className="muted">{t("app.loading")}</p>
-    </main>
-  );
+function AuthLoadingScreen() {
+  return <main className="auth-screen auth-loading-screen"><PageSkeleton variant="auth" /></main>;
 }
 
 function ConfigErrorScreen({ message }: { message: string }) {
@@ -43,11 +39,13 @@ function BootstrapContent() {
   const configError = assertConfig();
   const { user, loading } = useAuth();
   const signedOutScreenSeen = useRef(false);
+  const forceAuthSkeleton = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "auth-skeleton";
 
   if (!loading && !user) signedOutScreenSeen.current = true;
 
+  if (forceAuthSkeleton) return <AuthLoadingScreen />;
   if (configError && !isDemoMode()) return <ConfigErrorScreen message={configError} />;
-  if (loading) return <LoadingScreen />;
+  if (loading) return <AuthLoadingScreen />;
   if (!user) return <AuthScreen />;
 
   return (

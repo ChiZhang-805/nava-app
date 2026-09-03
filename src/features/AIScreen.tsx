@@ -2,6 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import { Bot, Camera, Check, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, SendHorizontal, Sparkles, X } from "lucide-react";
 import { Fragment, FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocale } from "../i18n";
+import PageSkeleton from "../components/PageSkeleton";
 import { loadConversation, sendAiMessage } from "../services/ai";
 import type { AiProcessingStep } from "../services/aiProcessing";
 import { createStreamingAiSpeaker, isAiSpeechSupported, type StreamingAiSpeaker } from "../services/aiSpeech";
@@ -877,11 +878,12 @@ export default function AIScreen({
     </section>
   ) : null;
 
+  if (loading) return <div className="chat-layout"><PageSkeleton variant="ai" /></div>;
+
   return (
     <div className="chat-layout">
       <div className="chat-list" ref={listRef}>
-        {loading && <p className="muted">{t("ai.loading")}</p>}
-        {!loading && messages.length === 0 && (
+        {messages.length === 0 && (
           <div className="empty-chat">
             <Bot size={30} />
             <strong>{t("ai.emptyTitle")}</strong>
