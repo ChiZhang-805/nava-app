@@ -331,3 +331,46 @@ The v87 publication provenance is:
   `Q:\NAVA-Workspace\Build\Sites\Packages\nava-sites-v87-ee102a9.tgz`;
 - post-deployment evidence:
   `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v87`.
+
+## 11. Unpublished daily module completion and entry routing
+
+Source commit `836d81ef5635b0067a4bcb9c85fcec332fbbd930` implements the
+confirmed Today/Record entry behavior without changing the backend schema or
+inventing a separate completion store:
+
+- both the six circular Today entries and the six Record hub cards derive from
+  the same selected-day `TodaySnapshot`; production snapshots continue to come
+  from the authenticated user's Supabase rows;
+- mood completes only after a cause and diary are both persisted; sleep,
+  exercise, and face each complete after their saved daily record; focus
+  completes after at least one completed session with positive duration; diet
+  progresses through breakfast, lunch, dinner, and snack at 0/4 through 4/4;
+- each entry renders a centered, animated green SVG progress ring. Empty and
+  loading states do not invent a completed fraction, partial diet data renders
+  the exact quarter fraction, and reduced-motion users receive the settled
+  state without the fill animation;
+- incomplete entry clicks atomically navigate to `view=editor`; completed
+  entry clicks navigate to the real-data overview. This removes the former
+  two-callback route race in the Record hub;
+- saving a partial diet day reloads the durable snapshot and remains in the
+  editor, so 1/4 can advance to 2/4 without falsely presenting completion;
+- completed module overviews retain their existing update controls. Selecting
+  a particular saved diet meal now opens the editor with that exact meal slot,
+  allowing the user's own record to be reviewed or changed.
+
+Verification completed on 2026-09-03:
+
+- `npm run verify`: all 17 stages passed, including the new seven-case daily
+  module completion and routing contract;
+- `npm run interaction:test`: all 11 groups passed. The focused flow verifies
+  Today and Record 1/4 routing, completed-module overview routing, overview-to-
+  editor updates, partial-save retention, 1/4 to 2/4 advancement, and exact
+  diet-meal editor selection;
+- `npm run module-progress:visual`: passed at 360x740, 375x812, 390x844, and
+  430x932 with no horizontal overflow, ring clipping, or center misalignment;
+- focused screenshots and geometry are under
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-module-progress-20260903`.
+
+This source continuation is not deployed. ChatGPT Sites and GitHub Pages remain
+on the v87 provenance recorded in section 10 until a later explicit deployment
+request.

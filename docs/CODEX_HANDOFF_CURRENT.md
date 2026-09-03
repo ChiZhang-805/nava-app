@@ -22,6 +22,16 @@ Current release anchor:
 
 Current continuation:
 
+- Unpublished source commit `836d81ef5635b0067a4bcb9c85fcec332fbbd930`
+  adds one shared real-data completion model for the six Today/Record modules,
+  animated green progress rings in both entry surfaces, and atomic routing:
+  incomplete modules open their editor while completed modules open the data
+  overview. Diet advances by the four persisted meal slots; saving a partial
+  day stays in the editor, and completed overviews retain explicit update/edit
+  actions. `npm run verify`, the 11-group interaction suite, and a focused
+  four-viewport visual suite pass. This commit has not been deployed; both
+  public sites remain on v87.
+
 - Section 10 of the dated handoff records the published v87 visual correction:
   detailed-profile toggle knobs remain inside dedicated tracks,
   sparse weekly bars span a proportional 30%–100% plot range and meet their
