@@ -275,9 +275,9 @@ The v86 publication provenance is:
 - public and focused authenticated evidence:
   `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v86`.
 
-## 10. Local profile-switch and weekly-chart visual correction
+## 10. v87 profile-switch and weekly-chart visual release
 
-The checkout contains a verified local continuation after v86:
+The published v87 release adds the following visual correction after v86:
 
 - the detailed-profile consent toggles now use a dedicated 38x22 track and an
   independently positioned 18x18 knob. Global text-input padding, borders, and
@@ -306,4 +306,28 @@ Verification passed locally on 2026-09-03:
 
 Evidence is under
 `Q:\NAVA-Workspace\Build\TestRuns\nava-profile-switch-20260903`.
-This continuation is not deployed; v86 remains the public release anchor.
+
+Release-level and post-deployment verification also passed:
+
+- `npm run verify` and `npm run auth:verify:production`;
+- eight unauthenticated dual-origin checks covering HTTP success, auth-first
+  behavior, the canonical Supabase project, runtime errors, horizontal overflow,
+  and exact GitHub Pages provenance at all four required viewports;
+- 40 real-account dual-origin checks covering Today, Record, AI, Trends, and
+  Profile at all four viewports;
+- eight focused real-account profile checks and eight focused real-account
+  weekly-chart checks across both origins. Both saved consent switches are
+  enabled with a 2px right inset, the sparse bars span 30%–100% and meet their
+  baseline, and the lowered Focus caption stays inside its chart card.
+
+The v87 publication provenance is:
+
+- source commit: `ee102a979f1b788f2cd03a77fe869ac44bb8e101`;
+- ChatGPT Sites version 87, deployment
+  `appgdep_6a9902b522e481918bf9727d072ea44d`;
+- GitHub Pages mirror v87 commit
+  `a0176c5510e6262cf76e41d9bed70d588331e093`;
+- Sites package:
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-sites-v87-ee102a9.tgz`;
+- post-deployment evidence:
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v87`.

@@ -12,23 +12,23 @@ Apple/Watch baseline. Older dated handoffs are historical evidence.
 
 Current release anchor:
 
-- Source commit: `77bcc10c635679596e9209c33e6367f6732d43c9`
-- ChatGPT Sites: version 86, public
-- GitHub Pages mirror release: v86 (`ed1d0a7f8d4c5d0682aef5d73b1216e5c2d7bdba`)
+- Source commit: `ee102a979f1b788f2cd03a77fe869ac44bb8e101`
+- ChatGPT Sites: version 87, public
+- GitHub Pages mirror release: v87 (`a0176c5510e6262cf76e41d9bed70d588331e093`)
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
-- The detailed-profile loading gate and subpage navigation removal are deployed
-  to both public sites and verified with a real account at all four required
-  mobile viewports.
+- The profile-switch containment, normalized sparse weekly bars, baseline
+  alignment, and lower radar Focus caption are deployed to both public sites
+  and verified with a real account at all four required mobile viewports.
 
 Current continuation:
 
-- Section 10 of the dated handoff records a verified local visual correction
-  after v86: detailed-profile toggle knobs remain inside dedicated tracks,
+- Section 10 of the dated handoff records the published v87 visual correction:
+  detailed-profile toggle knobs remain inside dedicated tracks,
   sparse weekly bars span a proportional 30%–100% plot range and meet their
   baseline, and the radar Focus caption plus score move down together. Lint,
-  production build, all 10 interaction groups, and focused four-viewport
-  geometry/screenshots pass. This continuation is not deployed; v86 remains
-  public.
+  the full verification suite, all 10 interaction groups, eight public smoke
+  checks, 40 real-account main-page checks, and 16 focused real-account visual
+  checks pass across both public origins.
 
 - Section 9 of the dated handoff records the published v86 detailed-profile
   release:
