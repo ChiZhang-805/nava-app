@@ -41,7 +41,7 @@ import moodInsightMascot from "../assets/mascot/nava-journal-v1.png";
 import focusInsightMascot from "../assets/mascot/nava-read-v1.png";
 import faceInsightMascot from "../assets/mascot/nava-mirror-v1.png";
 import emptyTodayMascot from "../assets/mascot/nava-empty-cry-v1.png";
-import type { FocusRecord, MoodRecord, TodaySnapshot, TrendBundle } from "../types";
+import type { FocusRecord, FoodItem, MoodRecord, TodaySnapshot, TrendBundle } from "../types";
 import { enableNavaNotifications } from "../services/notifications";
 import { loadDietAiReport, type DietAiReport } from "../services/dietReport";
 import { loadHealthAiReport, type HealthAiReport } from "../services/healthReport";
@@ -135,6 +135,7 @@ type Props = {
   setFocusMinutes: (value: number) => void;
   onOpenEditor: () => void;
   onOpenDietCamera: () => void;
+  onOpenDietMeal: (meal: "breakfast" | "lunch" | "dinner" | "pantry") => void;
   onSaveFocusMinutes: (minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string; category?: string }) => Promise<void>;
   busy: string | null;
   recordDate: string;
@@ -949,8 +950,8 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
   );
 }
 
-function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "deviceDate" | "onOpenEditor" | "onOpenDietCamera"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
-  const { locale, todaySnapshot, trendBundle, deviceDate, onOpenEditor, onOpenDietCamera, openView } = props;
+function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "deviceDate" | "onOpenEditor" | "onOpenDietCamera" | "onOpenDietMeal"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
+  const { locale, todaySnapshot, trendBundle, deviceDate, onOpenEditor, onOpenDietCamera, onOpenDietMeal, openView } = props;
   const nutrition = todaySnapshot?.nutrition;
   const records = useMemo(() => {
     const byDate = new Map((trendBundle?.nutritions ?? []).map((record) => [record.record_date, record]));
@@ -976,7 +977,7 @@ function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
   const proteinEnd = macroEnergy.protein / macroTotal * 100;
   const carbsEnd = proteinEnd + macroEnergy.carbs / macroTotal * 100;
   const calorieOutlier = calorieAverage != null && nutrition?.total_calories != null && recordedCalories.length >= 3 && (nutrition.total_calories > calorieAverage * 1.5 || nutrition.total_calories < calorieAverage * .5);
-  const meals = [
+  const meals: Array<{ key: "breakfast" | "lunch" | "dinner" | "pantry"; zh: string; en: string; items: FoodItem[] }> = [
     { key: "breakfast", zh: "早餐", en: "Breakfast", items: nutrition?.breakfast_items ?? [] },
     { key: "lunch", zh: "午餐", en: "Lunch", items: nutrition?.lunch_items ?? [] },
     { key: "dinner", zh: "晚餐", en: "Dinner", items: nutrition?.dinner_items ?? [] },
@@ -1005,7 +1006,7 @@ function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
         <header><strong>{locale === "zh" ? "餐次记录" : "Meals"}</strong><button className="module-card-icon-action" type="button" onClick={onOpenEditor}><Utensils size={18} /><span>{locale === "zh" ? "添加" : "Add"}</span></button></header>
         <div className="diet-meal-grid">
           {meals.map((meal) => (
-            <button type="button" key={meal.key} onClick={onOpenEditor}>
+            <button type="button" key={meal.key} onClick={() => onOpenDietMeal(meal.key)}>
               <span>{meal.items.length > 0 ? <Check size={17} /> : <Plus size={17} />}</span>
               <strong>{locale === "zh" ? meal.zh : meal.en}</strong>
               <small>{meal.items.length > 0 ? `${meal.items.length}${locale === "zh" ? " 项" : " items"}` : (locale === "zh" ? "待记录" : "Pending")}</small>
@@ -1508,7 +1509,7 @@ export default function RecordModuleDashboard(props: Props) {
   if (props.module === "exercise") dashboard = <ExerciseDashboard userId={props.userId} locale={locale} steps={props.steps} calories={props.calories} exerciseMinutes={props.exerciseMinutes} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} deviceDate={props.deviceDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
   if (props.module === "mood") dashboard = <MoodDashboard {...common} view={view} openView={openView} />;
   if (props.module === "sleep") dashboard = <SleepDashboard userId={props.userId} locale={locale} sleepStart={props.sleepStart} sleepEnd={props.sleepEnd} deepSleep={props.deepSleep} lightSleep={props.lightSleep} remSleep={props.remSleep} sleepRating={props.sleepRating} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} deviceDate={props.deviceDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
-  if (props.module === "diet") dashboard = <DietDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} onOpenEditor={props.onOpenEditor} onOpenDietCamera={props.onOpenDietCamera} view={view} openView={openView} />;
+  if (props.module === "diet") dashboard = <DietDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} onOpenEditor={props.onOpenEditor} onOpenDietCamera={props.onOpenDietCamera} onOpenDietMeal={props.onOpenDietMeal} view={view} openView={openView} />;
   if (props.module === "face") dashboard = <FaceDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} onOpenEditor={props.onOpenEditor} view={view} openView={openView} />;
   if (props.module === "focus") dashboard = <FocusDashboard userId={props.userId} locale={locale} focusTitle={props.focusTitle} focusMinutes={props.focusMinutes} setFocusTitle={props.setFocusTitle} setFocusMinutes={props.setFocusMinutes} onSaveFocusMinutes={props.onSaveFocusMinutes} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} onOpenAi={props.onOpenAi} view={view} openView={openView} />;
   const focusImmersive = props.module === "focus" && (view === "immersive" || view === "interruption");

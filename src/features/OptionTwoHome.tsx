@@ -14,10 +14,12 @@ import moodIcon from "../assets/figma/option-two-icons/mood.svg";
 import sleepIcon from "../assets/figma/option-two-icons/sleep.svg";
 import { useLocale } from "../i18n";
 import AnimatedNumber from "../components/AnimatedNumber";
+import ModuleProgressRing from "../components/ModuleProgressRing";
 import { SkeletonBlock } from "../components/PageSkeleton";
 import InteractiveMascot from "../components/InteractiveMascot";
 import { loadGrowthTotalPoints } from "../services/productivity";
 import { getTodaySnapshot } from "../services/records";
+import { buildHealthModuleProgress, healthModuleEntryView, healthModuleProgressLabel } from "../services/healthReportPresentation";
 import { isVerticalHomeSwipe } from "../services/homeExperience";
 import type { TodaySnapshot } from "../types";
 import type { RecordModule } from "./RecordsScreen";
@@ -53,7 +55,7 @@ export default function OptionTwoHome({
   refreshKey: number;
   deviceDate: string;
   view: string | null;
-  onOpenRecord: (module?: RecordModule) => void;
+  onOpenRecord: (module?: RecordModule, view?: "editor" | null) => void;
   onOpenUtility: () => void;
   onViewChange: (view: string | null, replace?: boolean) => void;
   onBack: (fallbackView: string | null) => void;
@@ -73,7 +75,7 @@ export default function OptionTwoHome({
     const requestId = ++refreshRequestRef.current;
     setLoading(true);
     const [snapshotResult, pointsResult] = await Promise.allSettled([
-      getTodaySnapshot(user.id),
+      getTodaySnapshot(user.id, deviceDate),
       loadGrowthTotalPoints(user.id),
     ]);
 
@@ -90,7 +92,7 @@ export default function OptionTwoHome({
       console.warn("Unable to load the option-two points total", pointsResult.reason);
     }
     setLoading(false);
-  }, [user.id]);
+  }, [deviceDate, user.id]);
 
   useEffect(() => {
     void refresh();
@@ -101,6 +103,7 @@ export default function OptionTwoHome({
 
   const rhythmScore = snapshot?.rhythmScore ?? "--";
   const points = totalPoints ?? "--";
+  const moduleProgress = buildHealthModuleProgress(snapshot);
 
   if (view === "calendar" || view?.startsWith("day-")) {
     return <HomeCalendarExperience user={user} deviceDate={deviceDate} view={view} onOpenDate={(date) => onViewChange(`day-${date}`)} onBack={onBack} />;
@@ -188,17 +191,24 @@ export default function OptionTwoHome({
 
       <div className="option-two-health-menu" aria-hidden={!healthMenuOpen}>
         <span className="option-two-health-disc" aria-hidden="true" />
-        {healthEntries.map(({ id, icon, labelKey, className }, index) => (
+        {healthEntries.map(({ id, icon, labelKey, className }, index) => {
+          const progress = moduleProgress[id];
+          const progressLabel = healthModuleProgressLabel(progress, locale);
+          const accessibleLabel = `${t(labelKey)}${locale === "zh" ? "，" : ". "}${progressLabel}`;
+          return (
           <button
-            className={`option-two-health-entry option-two-health-entry--${className}`}
+            className={[`option-two-health-entry option-two-health-entry--${className}`, progress.completed ? "is-complete" : progress.recorded ? "is-partial" : "is-empty"].join(" ")}
             key={id}
             type="button"
-            onClick={() => onOpenRecord(id)}
+            onClick={() => onOpenRecord(id, healthModuleEntryView(progress))}
             tabIndex={healthMenuOpen ? 0 : -1}
-            aria-label={t(labelKey)}
-            title={t(labelKey)}
+            aria-label={accessibleLabel}
+            title={`${t(labelKey)} · ${progressLabel}`}
+            data-module-progress={loading && snapshot === null ? undefined : progress.progress}
+            data-module-state={loading && snapshot === null ? "loading" : progress.completed ? "complete" : progress.recorded ? "partial" : "empty"}
             style={{ "--option-entry-index": index } as CSSProperties}
           >
+            <ModuleProgressRing progress={progress.progress} loading={loading && snapshot === null} />
             <img
               className={`option-two-health-icon option-two-health-icon--${className}`}
               src={icon}
@@ -207,7 +217,8 @@ export default function OptionTwoHome({
               draggable={false}
             />
           </button>
-        ))}
+          );
+        })}
       </div>
 
     </section>

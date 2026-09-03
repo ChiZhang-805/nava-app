@@ -533,8 +533,8 @@ function MobileShell() {
               refreshKey={refreshKey}
               deviceDate={deviceDate}
               view={recordView}
-              onOpenRecord={(module) => {
-                navigate("record", module ?? null);
+              onOpenRecord={(module, view = null) => {
+                navigate("record", module ?? null, view);
               }}
               onOpenUtility={() => setDrawerOpen(true)}
               onViewChange={(view, replace = false) => navigate("today", null, view, replace)}
@@ -555,7 +555,7 @@ function MobileShell() {
                 }}
                 initialModule={recordModule}
                 initialView={recordView}
-                onModuleChange={(module) => navigate("record", module)}
+                onModuleChange={(module, view = null) => navigate("record", module, view)}
                 onViewChange={(view, replace = false) => {
                   if (replace && recordView) {
                     navigateBack(normalizeShellRoute("record", recordModule, view));

@@ -705,6 +705,8 @@ async function verifyRecordModules(page, results) {
   if (dietTrendGeometry.pointY.length > 1 && Math.max(...dietTrendGeometry.pointY) - Math.min(...dietTrendGeometry.pointY) < 80) {
     throw new Error(`Diet trend does not use enough vertical range: ${dietTrendGeometry.pointY.join(", ")}`);
   }
+  await page.locator(".diet-meal-grid button").first().click();
+  await expect(page.locator('[data-record-detail="diet"] form:not([hidden]) select')).toHaveValue("breakfast");
   await page.locator("input[data-diet-quick-camera]").setInputFiles(samplePhoto);
   await expect(page.locator('[data-record-detail="diet"] form:not([hidden])')).toBeVisible();
   const dietForm = page.locator('[data-record-detail="diet"] form:not([hidden])');
@@ -1471,6 +1473,128 @@ async function verifyPageSkeletons(browser, baseUrl, results, consoleErrors) {
   results.push("登录与九类应用页面专属加载骨架、扫光动画与无横向溢出");
 }
 
+async function verifyModuleCompletionRouting(browser, baseUrl, results, consoleErrors) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  await context.addInitScript(() => {
+    const now = new Date();
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
+    localStorage.setItem("nava.onboarding.v2.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 2, answers: {}, source: "local" }));
+    localStorage.setItem("nava.review.demo.records.v1", JSON.stringify({
+      sleeps: {},
+      exercises: {},
+      nutritions: {
+        [date]: {
+          id: `partial-diet-${date}`,
+          record_date: date,
+          total_calories: 360,
+          breakfast_items: [{ name: "燕麦", calories: 360, amount: "1 碗" }],
+          lunch_items: [],
+          dinner_items: [],
+          pantry_items: [],
+          protein_grams: 16,
+          carbohydrate_grams: 52,
+          fat_grams: 9,
+          hydration_ml: 300,
+          health_rating: 4,
+          ai_feedback: null,
+        },
+      },
+      focus: {},
+      faces: {},
+    }));
+    Object.defineProperty(navigator, "vibrate", { configurable: true, value: () => true });
+  });
+  const page = await context.newPage();
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(`module progress console: ${message.text()}`);
+  });
+  page.on("pageerror", (error) => consoleErrors.push(`module progress page: ${error.message}`));
+  await page.goto(`${baseUrl}?demo=1#tab=today`, { waitUntil: "networkidle" });
+  await dismissLaunch(page);
+  await completeOnboardingIfNeeded(page);
+  const reward = page.locator(".reward-celebration-layer");
+  if (await reward.isVisible().catch(() => false)) await reward.locator("button").click();
+
+  const openHealthMenu = async () => {
+    const home = page.locator(".option-two-home");
+    const box = await home.boundingBox();
+    if (!box) throw new Error("Today screen has no swipe bounds for module-progress routing.");
+    const x = box.x + box.width * .5;
+    const startY = box.y + box.height * .78;
+    await page.mouse.move(x, startY);
+    await page.mouse.down();
+    await page.mouse.move(x + 4, startY - Math.max(160, box.height / 5), { steps: 8 });
+    await page.mouse.up();
+    await expect(home).toHaveAttribute("data-health-menu-open", "true");
+  };
+
+  await openHealthMenu();
+  const partialDiet = page.locator(".option-two-health-entry--diet");
+  await expect(partialDiet).toHaveAttribute("data-module-state", "partial");
+  await expect(partialDiet).toHaveAttribute("data-module-progress", "0.25");
+  await expect(partialDiet).toHaveAttribute("aria-label", /1\/4/);
+  await page.waitForTimeout(760);
+  const homeRingGeometry = await partialDiet.evaluate((entry) => {
+    const button = entry.getBoundingClientRect();
+    const ring = entry.querySelector(".module-progress-ring")?.getBoundingClientRect();
+    return ring ? {
+      widthDelta: ring.width - button.width,
+      heightDelta: ring.height - button.height,
+      centerXDelta: Math.abs((ring.left + ring.right - button.left - button.right) / 2),
+      centerYDelta: Math.abs((ring.top + ring.bottom - button.top - button.bottom) / 2),
+    } : null;
+  });
+  if (!homeRingGeometry
+    || homeRingGeometry.widthDelta < 5
+    || homeRingGeometry.widthDelta > 9
+    || homeRingGeometry.heightDelta < 5
+    || homeRingGeometry.heightDelta > 9
+    || homeRingGeometry.centerXDelta > 1
+    || homeRingGeometry.centerYDelta > 1) {
+    throw new Error(`Today progress ring is not tightly centered: ${JSON.stringify(homeRingGeometry)}`);
+  }
+  await partialDiet.click();
+  await expect(page.locator('[data-record-detail="diet"]')).toBeVisible();
+  await expect(page.locator('[data-record-detail="diet"] .record-editor-stack > form:not([hidden])')).toBeVisible();
+  await expect.poll(() => new URL(page.url()).hash).toContain("view=editor");
+
+  await page.locator('[data-tab="today"]').click();
+  await openHealthMenu();
+  const completedExercise = page.locator(".option-two-health-entry--exercise");
+  await expect(completedExercise).toHaveAttribute("data-module-state", "complete");
+  await expect(completedExercise).toHaveAttribute("data-module-progress", "1");
+  await completedExercise.click();
+  await expect(page.locator('[data-module-view="exercise-overview"]')).toBeVisible();
+  if (new URL(page.url()).hash.includes("view=editor")) throw new Error("A completed Today module routed to the editor.");
+  await page.locator('[data-module-view="exercise-overview"] .module-card-icon-action').first().click();
+  await expect(page.locator('[data-record-detail="exercise"] .record-editor-stack > form:not([hidden])')).toBeVisible();
+  await expect.poll(() => new URL(page.url()).hash).toContain("view=editor");
+
+  await page.locator('[data-tab="record"]').click();
+  const hubDiet = page.locator('[data-record-module="diet"]');
+  await expect(hubDiet).toHaveAttribute("data-record-state", "partial");
+  await expect(hubDiet).toHaveAttribute("data-module-progress", "0.25");
+  await expect(page.locator(".record-module-entry .module-progress-ring")).toHaveCount(6);
+  await hubDiet.click();
+  const partialDietEditor = page.locator('[data-record-detail="diet"] .record-editor-stack > form:not([hidden])');
+  await expect(partialDietEditor).toBeVisible();
+  await expect.poll(() => new URL(page.url()).hash).toContain("view=editor");
+  await partialDietEditor.locator(".diet-quick-foods button").first().click();
+  await partialDietEditor.locator(".action-button").click();
+  await expect(partialDietEditor).toBeVisible();
+  await expect.poll(() => new URL(page.url()).hash).toContain("view=editor");
+  await page.locator('[data-tab="record"]').click();
+  await expect(page.locator('[data-record-module="diet"]')).toHaveAttribute("data-module-progress", "0.5");
+  await page.locator('[data-record-module="diet"]').click();
+  await expect(partialDietEditor).toBeVisible();
+  await assertStaticLayout(page, "partial-diet-editor-routing");
+  await page.waitForTimeout(520);
+  await page.screenshot({ path: path.join(outputDir, "module-progress-partial-diet.png") });
+  await context.close();
+  results.push("首页与记录中心共享真实日进度、绿色进度环及未完成/完成跳转分流");
+}
+
 async function main() {
   await mkdir(outputDir, { recursive: true });
   const results = [];
@@ -1488,6 +1612,7 @@ async function main() {
       await verifyRegistration(browser, baseUrl, results, consoleErrors);
     }
     if (!reviewBaseUrl) await verifyPageSkeletons(browser, baseUrl, results, consoleErrors);
+    if (!reviewBaseUrl) await verifyModuleCompletionRouting(browser, baseUrl, results, consoleErrors);
     const { context, page } = await createReviewPage(browser, baseUrl, consoleErrors);
     await verifyNavigationAndMotion(page, results);
     await verifyHomeShortcuts(page, results);

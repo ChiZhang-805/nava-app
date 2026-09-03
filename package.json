@@ -30,6 +30,8 @@
     "supabase:verify-shared": "node scripts/verify-shared-supabase.mjs",
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy",
     "motion:test": "node --experimental-strip-types --test tests/background-motion.test.ts tests/mascot-motion.test.ts",
+    "module-progress:test": "node --experimental-strip-types --test tests/health-report-presentation.test.ts",
+    "module-progress:visual": "node scripts/verify-module-progress-ui.mjs",
     "chart-motion:test": "node --experimental-strip-types --test tests/chart-motion.test.ts tests/chart-curves.test.ts",
     "weekly-report:test": "node --experimental-strip-types --test tests/weekly-report.test.ts",
     "report-share:test": "node --experimental-strip-types --test tests/report-share-card.test.ts tests/device-date.test.ts tests/history-report-state.test.ts",

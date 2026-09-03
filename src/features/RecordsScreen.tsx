@@ -3,6 +3,7 @@ import { BedDouble, Bot, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumst
 import { FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import ActionButton from "../components/ActionButton";
 import AnimatedNumber from "../components/AnimatedNumber";
+import ModuleProgressRing from "../components/ModuleProgressRing";
 import PageSkeleton, { SkeletonBlock, SkeletonLines } from "../components/PageSkeleton";
 import LineTrendChart from "../components/LineTrendChart";
 import SectionCard from "../components/SectionCard";
@@ -30,7 +31,7 @@ import { loadProfile, type UserProfile } from "../services/profile";
 import { loadDietAiReport } from "../services/dietReport";
 import { loadHealthAiReport, type HealthAiReport, type HealthReportSection } from "../services/healthReport";
 import { calculateWeeklyModuleScores, type WeeklyModuleKey } from "../services/weeklyModuleScores";
-import { allHealthModulesRecorded, buildHealthModulePresentations, compareRecordedPeriodAverages } from "../services/healthReportPresentation";
+import { allHealthModulesComplete, buildHealthModulePresentations, compareRecordedPeriodAverages, healthModuleEntryView, healthModuleProgressLabel } from "../services/healthReportPresentation";
 import { clearSecureFaceDraft, loadSecureFaceDraft, saveSecureFaceDraft } from "../services/secureFaceDraft";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 import RecordModuleDashboard from "./RecordModuleDashboard";
@@ -148,7 +149,7 @@ export default function RecordsScreen({
   onOpenAi?: (prompt: string) => void;
   initialModule?: RecordModule | null;
   initialView?: string | null;
-  onModuleChange?: (module: RecordModule | null) => void;
+  onModuleChange?: (module: RecordModule | null, view?: "editor" | null) => void;
   onViewChange?: (view: string | null, replace?: boolean) => void;
 }) {
   const { locale, t } = useLocale();
@@ -237,7 +238,7 @@ export default function RecordsScreen({
   const moodAutoSaveRequestRef = useRef(0);
   const moodAutoSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const healthModulePresentations = buildHealthModulePresentations(todaySnapshot, locale);
-  const allHubModulesComplete = allHealthModulesRecorded(healthModulePresentations);
+  const allHubModulesComplete = allHealthModulesComplete(healthModulePresentations);
   const hubAiEligible = allHubModulesComplete
     && recordedDateCount(trendBundle, shiftDateISO(recordDate, -6), recordDate) >= 5;
 
@@ -376,6 +377,7 @@ export default function RecordsScreen({
       }
       loaded = true;
       setLoadedRecordKey(recordKey);
+      return snapshot;
     } catch (loadError) {
       if (requestId !== recordLoadRequestRef.current) return;
       console.warn("Failed to load record dashboard data", loadError);
@@ -384,6 +386,7 @@ export default function RecordsScreen({
       setDataLoadError(locale === "zh"
         ? "健康数据加载失败。为避免显示默认值，当前结果已隐藏，请点击重试。"
         : "Health data could not be loaded. Results are hidden to avoid showing defaults; tap to retry.");
+      return null;
     } finally {
       // Draft autosave must never write the form's input suggestions after a
       // failed Supabase read. Only a successful load may arm draft syncing.
@@ -616,13 +619,16 @@ export default function RecordsScreen({
         console.warn("Failed to refresh rhythm score after saving record", refreshError);
         setNotice(t("records.savedPending", { label: t(labelKey) }));
       }
-      await loadRecordData();
+      const refreshedSnapshot = await loadRecordData();
       if (activeModule) {
         const module: RecordDraftModule = activeModule === "diet" ? "nutrition" : activeModule;
         await clearRecordDraft(user.id, module, recordDate).catch((draftError) => console.warn("Record draft cleanup deferred", draftError));
         const wasEditor = showEditor || initialView === "editor";
-        setShowEditor(false);
-        if (wasEditor) onViewChange?.(null, true);
+        const completed = refreshedSnapshot
+          ? buildHealthModulePresentations(refreshedSnapshot, locale)[activeModule].completed
+          : false;
+        setShowEditor(!completed);
+        if (wasEditor && completed) onViewChange?.(null, true);
       }
       return true;
     } catch (e) {
@@ -1071,13 +1077,17 @@ export default function RecordsScreen({
           <div className="record-module-grid">
             {recordModules.map(({ id, labelKey, icon: Icon }) => {
               const presentation = healthModulePresentations[id];
+              const progressLabel = healthModuleProgressLabel(presentation, locale, recordDate === deviceDate ? "today" : "selected-date");
+              const accessibleLabel = `${t(labelKey)}${locale === "zh" ? "，" : ". "}${progressLabel}`;
               return (
               <button
-                className={["record-module-entry", dataLoadError ? "is-error" : presentation.recorded ? "is-recorded" : "is-missing"].join(" ")}
+                className={["record-module-entry", dataLoadError ? "is-error" : presentation.completed ? "is-complete" : presentation.recorded ? "is-partial" : "is-missing"].join(" ")}
                 data-record-module={id}
-                data-record-state={dataLoadError ? "error" : presentation.recorded ? "recorded" : "missing"}
+                data-record-state={dataLoadError ? "error" : presentation.completed ? "complete" : presentation.recorded ? "partial" : "missing"}
+                data-module-progress={presentation.progress}
                 key={id}
                 type="button"
+                aria-label={accessibleLabel}
                 onClick={() => {
                   if (dataLoadError) {
                     void loadRecordData();
@@ -1085,16 +1095,16 @@ export default function RecordsScreen({
                   }
                   setNotice(null);
                   setError(null);
-                  const openEntry = !presentation.recorded;
+                  const openEntry = healthModuleEntryView(presentation) === "editor";
                   setShowEditor(openEntry);
                   setActiveModule(id);
-                  onModuleChange?.(id);
-                  if (openEntry) onViewChange?.("editor");
+                  onModuleChange?.(id, openEntry ? "editor" : null);
                 }}
               >
                 <span className="record-module-header">
                   <strong>{t(labelKey)}</strong>
                   <span className="record-module-icon" aria-hidden="true">
+                    <ModuleProgressRing progress={presentation.progress} />
                     <Icon size={25} strokeWidth={1.9} />
                   </span>
                 </span>
@@ -1314,6 +1324,11 @@ export default function RecordsScreen({
             onViewChange?.("editor");
           }}
           onOpenDietCamera={() => dietQuickCameraInputRef.current?.click()}
+          onOpenDietMeal={(nextMeal) => {
+            setMeal(nextMeal);
+            setShowEditor(true);
+            onViewChange?.("editor");
+          }}
           onSaveFocusMinutes={saveFocusMinutes}
           busy={busy}
           recordDate={recordDate}

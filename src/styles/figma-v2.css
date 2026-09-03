@@ -1348,6 +1348,96 @@ body::before {
   }
 }
 
+/* Shared real-record completion rings for the Today arc and record hub. */
+.module-progress-ring {
+  position: absolute;
+  inset: -4px;
+  z-index: 2;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  overflow: visible;
+  pointer-events: none;
+  transform: rotate(-90deg) !important;
+  animation: none !important;
+}
+
+.module-progress-ring circle {
+  fill: none;
+  stroke-width: 2.8;
+  vector-effect: non-scaling-stroke;
+}
+
+.module-progress-ring__track {
+  stroke: rgba(27, 113, 139, .17);
+}
+
+.module-progress-ring__value {
+  stroke: #34b884;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: var(--module-progress-offset);
+  filter: drop-shadow(0 1px 2px rgba(20, 130, 91, .2));
+  animation: module-progress-ring-fill 720ms cubic-bezier(.2, .8, .2, 1) both;
+  transition: stroke-dashoffset 620ms cubic-bezier(.2, .8, .2, 1), stroke 220ms ease;
+}
+
+.module-progress-ring.is-complete .module-progress-ring__value {
+  stroke: #24a978;
+  filter: drop-shadow(0 1px 3px rgba(13, 132, 88, .28));
+}
+
+.module-progress-ring.is-loading .module-progress-ring__track {
+  stroke: rgba(39, 133, 162, .12);
+}
+
+.module-progress-ring.is-loading .module-progress-ring__value {
+  stroke: rgba(41, 151, 185, .58);
+  stroke-dasharray: 18 82;
+  stroke-dashoffset: 0;
+  animation: module-progress-ring-loading 980ms linear infinite;
+}
+
+.option-two-health-entry > .option-two-health-icon,
+.record-module-icon > svg:not(.module-progress-ring) {
+  position: relative;
+  z-index: 3;
+}
+
+.record-module-icon {
+  position: relative;
+}
+
+.phone-frame:not(.phone-frame--option2) .record-module-entry.is-partial {
+  border-color: rgba(61, 180, 135, .48);
+  background: linear-gradient(145deg, rgba(248, 254, 253, .92), rgba(215, 242, 235, .78));
+}
+
+.phone-frame:not(.phone-frame--option2) .record-module-entry.is-partial .record-module-icon {
+  color: #147b69;
+  background: linear-gradient(145deg, #fbfffe, #dbf4ed);
+}
+
+.phone-frame:not(.phone-frame--option2) .record-module-entry.is-complete .record-module-icon {
+  color: #0d846a;
+}
+
+@keyframes module-progress-ring-fill {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: var(--module-progress-offset); }
+}
+
+@keyframes module-progress-ring-loading {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -100; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .module-progress-ring__value {
+    animation: none;
+    transition: none;
+  }
+}
+
 /* Focus task planning and real-data distribution views. */
 .focus-dashboard { grid-template-rows: auto auto auto auto; }
 .focus-dashboard .focus-trend-card { min-height: 214px; }
