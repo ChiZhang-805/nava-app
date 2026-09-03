@@ -88,7 +88,13 @@ const recordModules: Array<{
   },
 ];
 
-const weeklyPlaceholderHeights = ["44%", "62%", "52%", "72%", "57%", "67%", "49%"] as const;
+const weeklyPlaceholderValues = [44, 62, 52, 72, 57, 67, 49] as const;
+const weeklyPlaceholderHeights = (() => {
+  const minimum = Math.min(...weeklyPlaceholderValues);
+  const maximum = Math.max(...weeklyPlaceholderValues);
+  const span = Math.max(1, maximum - minimum);
+  return weeklyPlaceholderValues.map((value) => `${Math.round(30 + ((value - minimum) / span) * 70)}%`);
+})();
 
 function recordedDateCount(bundle: TrendBundle | null, startDate: string, endDate: string) {
   if (!bundle) return 0;

@@ -915,6 +915,43 @@ async function verifyHomeShortcuts(page, results) {
   await expect(page.locator('[data-home-view="profile-details"]')).toBeVisible();
   await expect(page.locator(".advanced-profile-form")).toBeVisible();
   await expect(page.locator(".bottom-nav")).toHaveCount(0);
+  const profileSwitches = page.locator(".advanced-profile-switch-control");
+  await expect(profileSwitches).toHaveCount(2);
+  const switchGeometry = await profileSwitches.evaluateAll((controls) => controls.map((control) => {
+    const track = control.getBoundingClientRect();
+    const knob = control.querySelector("i")?.getBoundingClientRect();
+    const input = control.querySelector("input")?.getBoundingClientRect();
+    return {
+      track: { width: track.width, height: track.height, left: track.left, right: track.right },
+      knob: knob ? { left: knob.left, right: knob.right, top: knob.top, bottom: knob.bottom } : null,
+      input: input ? { left: input.left, right: input.right, top: input.top, bottom: input.bottom } : null,
+    };
+  }));
+  for (const geometry of switchGeometry) {
+    if (!geometry.knob || !geometry.input
+      || Math.abs(geometry.track.width - 38) > 1 || Math.abs(geometry.track.height - 22) > 1
+      || geometry.knob.left < geometry.track.left - 1 || geometry.knob.right > geometry.track.right + 1
+      || Math.abs(geometry.input.left - geometry.track.left) > 1 || Math.abs(geometry.input.right - geometry.track.right) > 1) {
+      throw new Error(`Advanced profile switch escapes its track: ${JSON.stringify(geometry)}`);
+    }
+  }
+  const firstProfileSwitchInput = profileSwitches.first().locator("input");
+  const firstProfileSwitchWasChecked = await firstProfileSwitchInput.isChecked();
+  await firstProfileSwitchInput.check({ force: true });
+  await expect(profileSwitches.first()).toHaveClass(/is-checked/);
+  await page.waitForTimeout(220);
+  const checkedSwitchGeometry = await profileSwitches.first().evaluate((control) => {
+    const track = control.getBoundingClientRect();
+    const knob = control.querySelector("i")?.getBoundingClientRect();
+    return knob ? { trackLeft: track.left, trackRight: track.right, knobLeft: knob.left, knobRight: knob.right } : null;
+  });
+  if (!checkedSwitchGeometry
+    || checkedSwitchGeometry.knobLeft < checkedSwitchGeometry.trackLeft - 1
+    || checkedSwitchGeometry.knobRight > checkedSwitchGeometry.trackRight + 1
+    || Math.abs((checkedSwitchGeometry.trackRight - checkedSwitchGeometry.knobRight) - 2) > 1) {
+    throw new Error(`Checked advanced profile switch escapes its track: ${JSON.stringify(checkedSwitchGeometry)}`);
+  }
+  if (!firstProfileSwitchWasChecked) await firstProfileSwitchInput.uncheck({ force: true });
   await page.locator('.home-experience-back').click();
   await expect(page.locator(".bottom-nav")).toBeVisible();
   await page.locator(".option-two-side-actions button").nth(3).click();
@@ -1275,6 +1312,10 @@ async function verifyNavigationAndMotion(page, results) {
   await expect(page.locator(".weekly-trend-card header strong")).toHaveText(/六维节律雷达图|Weekly rhythm radar/);
   await expect(page.locator(".weekly-radar-chart")).toBeVisible();
   await expect(page.locator(".weekly-radar-caption")).toHaveCount(6);
+  const focusRadarLabelY = Number(await page.locator('.weekly-radar-caption[data-radar-key="focus"]').getAttribute("y"));
+  if (!Number.isFinite(focusRadarLabelY) || focusRadarLabelY < 250) {
+    throw new Error(`Weekly radar focus label was not shifted down with its value: ${focusRadarLabelY}`);
+  }
   const radarOverflow = await page.locator(".weekly-trend-card").evaluate((card) => {
     const cardRect = card.getBoundingClientRect();
     return [...card.querySelectorAll(".weekly-radar-caption")]
@@ -1294,6 +1335,22 @@ async function verifyNavigationAndMotion(page, results) {
   await expect(page.getByText(/7 天占位|7-day placeholder|完成两天记录后|Log two days/i)).toHaveCount(0);
   await expect(page.locator(".weekly-trajectory-placeholder .nava-skeleton-block")).toHaveCount(0);
   const sparseTrendHeight = await page.locator(".weekly-trend-card").evaluate((card) => card.getBoundingClientRect().height);
+  const sparseBarGeometry = await page.locator(".weekly-trajectory-placeholder-bars").evaluate((chart) => {
+    const chartRect = chart.getBoundingClientRect();
+    const bars = [...chart.querySelectorAll(".weekly-trajectory-placeholder-day i")].map((bar) => {
+      const rect = bar.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, height: rect.height, inlineHeight: bar.style.height };
+    });
+    const baselineBottom = Number.parseFloat(getComputedStyle(chart, "::after").bottom);
+    return { chartTop: chartRect.top, baselineY: chartRect.bottom - baselineBottom, bars };
+  });
+  const sparseBarHeights = sparseBarGeometry.bars.map((bar) => Number.parseFloat(bar.inlineHeight));
+  const highestSparseBar = sparseBarGeometry.bars.reduce((highest, bar) => bar.height > highest.height ? bar : highest);
+  if (Math.min(...sparseBarHeights) !== 30 || Math.max(...sparseBarHeights) !== 100
+    || Math.abs(highestSparseBar.top - sparseBarGeometry.chartTop) > 1
+    || sparseBarGeometry.bars.some((bar) => Math.abs(bar.bottom - sparseBarGeometry.baselineY) > 1)) {
+    throw new Error(`Sparse weekly bars are not normalized to the full plot or aligned with the baseline: ${JSON.stringify(sparseBarGeometry)}`);
+  }
   await page.screenshot({ path: path.join(outputDir, "record-weekly-sparse-trend.png") });
   await weeklyChartSwitch.click();
   await expect(page.locator(".weekly-radar-chart")).toBeVisible();

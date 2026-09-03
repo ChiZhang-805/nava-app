@@ -59,11 +59,12 @@ export default function WeeklyRadarChart({ points, ariaLabel }: { points: Weekly
           const label = polarPoint(index, 1.18);
           const cosine = Math.cos(label.angle);
           const anchor = cosine > 0.35 ? "start" : cosine < -0.35 ? "end" : "middle";
-          const yOffset = Math.sin(label.angle) > 0.55 ? -2 : Math.sin(label.angle) < -0.55 ? 7 : 4;
+          const verticalSine = Math.sin(label.angle);
+          const yOffset = point.key === "focus" ? 5 : verticalSine > 0.55 ? -2 : verticalSine < -0.55 ? 7 : 4;
           return <g key={point.key} data-recorded-days={point.recordedDays}>
             <title>{`${point.label}: ${point.value}; ${point.recordedDays} recorded days`}</title>
             <circle className="weekly-radar-point" cx={data.x} cy={data.y} r="4.5" />
-            <text className="weekly-radar-caption" x={label.x} y={label.y + yOffset} textAnchor={anchor}>
+            <text className="weekly-radar-caption" data-radar-key={point.key} x={label.x} y={label.y + yOffset} textAnchor={anchor}>
               <tspan>{point.label}</tspan><tspan className="weekly-radar-score" dx="5">{point.value}</tspan>
             </text>
           </g>;

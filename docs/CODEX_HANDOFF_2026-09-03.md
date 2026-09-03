@@ -274,3 +274,36 @@ The v86 publication provenance is:
   `Q:\NAVA-Workspace\Build\Sites\Packages\nava-sites-v86-77bcc10.tgz`;
 - public and focused authenticated evidence:
   `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v86`.
+
+## 10. Local profile-switch and weekly-chart visual correction
+
+The checkout contains a verified local continuation after v86:
+
+- the detailed-profile consent toggles now use a dedicated 38x22 track and an
+  independently positioned 18x18 knob. Global text-input padding, borders, and
+  default margins can no longer enlarge the checkbox or push its knob outside
+  the track;
+- the sparse seven-day rhythm bars are normalized from a 30% visible floor to
+  a 100% ceiling. The largest placeholder value reaches the plot top, the
+  smallest retains a useful height, and every intermediate bar uses the same
+  linear interpolation;
+- the sparse-chart baseline is positioned at the shared bottom edge of all
+  seven bars instead of crossing their lower area;
+- the Focus caption and its score in the weekly radar are one text group and
+  move down together by seven SVG units, without changing the radar grid or the
+  other five captions.
+
+Verification passed locally on 2026-09-03:
+
+- `npm run lint` and `npm run build`;
+- `npm run interaction:test`: all 10 groups, including checked and unchecked
+  switch containment, sparse-bar normalization, baseline alignment, radar Focus
+  offset, and radar-label overflow checks;
+- focused headless screenshots at 360x740, 375x812, 390x844, and 430x932. At
+  every viewport the enabled knob has 2px right inset, the maximum bar is 100%,
+  the minimum bar is 30%, every bar bottom meets the baseline within one pixel,
+  and the Focus caption remains inside the chart card.
+
+Evidence is under
+`Q:\NAVA-Workspace\Build\TestRuns\nava-profile-switch-20260903`.
+This continuation is not deployed; v86 remains the public release anchor.

@@ -169,8 +169,8 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
 
           <section className="advanced-profile-section advanced-profile-consents">
             <header><span><ShieldCheck size={20} /></span><div><strong>{copy("数据与 AI 偏好", "Data & AI preferences")}</strong><small>{copy("随时可以修改，不影响账号登录", "Change anytime without affecting sign-in")}</small></div></header>
-            <label className="advanced-profile-switch"><span><b>{copy("健康数据分析", "Health data analysis")}</b><small>{copy("允许使用已保存的健康记录生成趋势", "Use saved health records for trends")}</small></span><input type="checkbox" checked={draft.healthDataConsent} onChange={(event) => update("healthDataConsent", event.target.checked)} /></label>
-            <label className="advanced-profile-switch"><span><b>{copy("AI 个性化", "AI personalization")}</b><small>{copy("结合身份、目标和近况调整回复", "Tailor replies using your profile and recent data")}</small></span><input type="checkbox" checked={draft.aiPersonalizationConsent} onChange={(event) => update("aiPersonalizationConsent", event.target.checked)} /></label>
+            <label className="advanced-profile-switch"><span><b>{copy("健康数据分析", "Health data analysis")}</b><small>{copy("允许使用已保存的健康记录生成趋势", "Use saved health records for trends")}</small></span><span className={`advanced-profile-switch-control${draft.healthDataConsent ? " is-checked" : ""}`}><input type="checkbox" checked={draft.healthDataConsent} onChange={(event) => update("healthDataConsent", event.target.checked)} /><i aria-hidden="true" /></span></label>
+            <label className="advanced-profile-switch"><span><b>{copy("AI 个性化", "AI personalization")}</b><small>{copy("结合身份、目标和近况调整回复", "Tailor replies using your profile and recent data")}</small></span><span className={`advanced-profile-switch-control${draft.aiPersonalizationConsent ? " is-checked" : ""}`}><input type="checkbox" checked={draft.aiPersonalizationConsent} onChange={(event) => update("aiPersonalizationConsent", event.target.checked)} /><i aria-hidden="true" /></span></label>
           </section>
 
           {error && <p className="home-experience-error" role="alert">{error}</p>}

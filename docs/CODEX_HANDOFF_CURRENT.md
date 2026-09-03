@@ -22,6 +22,14 @@ Current release anchor:
 
 Current continuation:
 
+- Section 10 of the dated handoff records a verified local visual correction
+  after v86: detailed-profile toggle knobs remain inside dedicated tracks,
+  sparse weekly bars span a proportional 30%–100% plot range and meet their
+  baseline, and the radar Focus caption plus score move down together. Lint,
+  production build, all 10 interaction groups, and focused four-viewport
+  geometry/screenshots pass. This continuation is not deployed; v86 remains
+  public.
+
 - Section 9 of the dated handoff records the published v86 detailed-profile
   release:
   unresolved account identity is fully skeletonized, the subpage omits the
