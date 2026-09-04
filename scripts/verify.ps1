@@ -47,35 +47,39 @@ Write-Host "9. AI prompt tests"
 Invoke-Npm -Arguments @("run", "ai:prompt:test")
 
 Write-Host ""
-Write-Host "10. Structured entry parser"
+Write-Host "10. AI dual-summary contract"
+Invoke-Npm -Arguments @("run", "ai:compact:test")
+
+Write-Host ""
+Write-Host "11. Structured entry parser"
 Invoke-Npm -Arguments @("run", "structured:test")
 
 Write-Host ""
-Write-Host "11. Backend contract"
+Write-Host "12. Backend contract"
 Invoke-Npm -Arguments @("run", "backend:verify")
 
 Write-Host ""
-Write-Host "12. Edge Function type check"
+Write-Host "13. Edge Function type check"
 Invoke-Npm -Arguments @("run", "backend:typecheck")
 
 Write-Host ""
-Write-Host "13. Phone OTP tests"
+Write-Host "14. Phone OTP tests"
 Invoke-Npm -Arguments @("run", "backend:test")
 
 Write-Host ""
-Write-Host "14. Native health and auth contract"
+Write-Host "15. Native health and auth contract"
 Invoke-Npm -Arguments @("run", "health:contract:test")
 
 Write-Host ""
-Write-Host "15. iOS project contract"
+Write-Host "16. iOS project contract"
 Invoke-Npm -Arguments @("run", "ios:verify")
 
 Write-Host ""
-Write-Host "16. Consent and real-data boundary contract"
+Write-Host "17. Consent and real-data boundary contract"
 Invoke-Npm -Arguments @("run", "consent:contract:test")
 
 Write-Host ""
-Write-Host "17. Browser translation DOM resilience"
+Write-Host "18. Browser translation DOM resilience"
 Invoke-Npm -Arguments @("run", "translation:test")
 
 Write-Host ""

@@ -2,6 +2,7 @@ import type { TodaySnapshot } from "../types";
 import { isCompleteMoodRecord } from "./mood.ts";
 
 export type HealthModuleKey = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
+export type HealthModulePoints = [string, string, string, string];
 
 export type HealthModulePresentation = {
   recorded: boolean;
@@ -9,7 +10,7 @@ export type HealthModulePresentation = {
   completedUnits: number;
   requiredUnits: number;
   progress: number;
-  points: [string, string, string, string];
+  points: HealthModulePoints;
 };
 
 export type HealthModuleProgress = Pick<
@@ -65,8 +66,7 @@ export function healthModuleProgressLabel(progress: HealthModuleProgress, locale
 
 export function buildHealthModulePresentations(snapshot: TodaySnapshot | null, locale: "zh" | "en") {
   const progress = buildHealthModuleProgress(snapshot);
-  const missing = missingPresentation(locale);
-  const missingFor = (key: HealthModuleKey) => ({ ...missing, ...progress[key] });
+  const missingFor = (key: HealthModuleKey) => ({ ...missingPresentation(key, locale), ...progress[key] });
   if (!snapshot) {
     return {
       mood: missingFor("mood"),
@@ -143,16 +143,34 @@ export function compareRecordedPeriodAverages(currentValues: number[], previousV
   };
 }
 
-function missingPresentation(locale: "zh" | "en"): HealthModulePresentation {
+export function healthModuleDictionaryPoints(key: HealthModuleKey, locale: "zh" | "en"): HealthModulePoints {
+  const zh: Record<HealthModuleKey, HealthModulePoints> = {
+    mood: ["今日情绪总状态", "主要情绪触发源", "压力强度起伏值", "身体感受备注项"],
+    sleep: ["入睡醒来时间点", "夜间醒来次数值", "睡眠恢复感受值", "白天困倦程度值"],
+    exercise: ["今日步数消耗量", "运动训练类型项", "运动强度反馈值", "疲劳疼痛记录项"],
+    diet: ["今日三餐完成度", "饮水咖啡摄入量", "胃肠反应饱腹感", "酒精补剂记录项"],
+    focus: ["专注工作总时长", "今日任务完成度", "中断分心次数值", "效率感受反馈值"],
+    face: ["今日面部拍照项", "眼周疲态变化值", "肤色水肿情况项", "面部状态备注项"],
+  };
+  const en: Record<HealthModuleKey, HealthModulePoints> = {
+    mood: ["Mood score", "Main trigger", "Stress shift", "Body note"],
+    sleep: ["Sleep window", "Wake count", "Recovery feel", "Daytime tired"],
+    exercise: ["Steps burned", "Training type", "Effort level", "Pain or fatigue"],
+    diet: ["Meals complete", "Water coffee", "Gut response", "Alcohol extras"],
+    focus: ["Focus time", "Task progress", "Interruptions", "Efficiency feel"],
+    face: ["Face photo", "Eye fatigue", "Color swelling", "Face note"],
+  };
+  return (locale === "zh" ? zh : en)[key];
+}
+
+function missingPresentation(key: HealthModuleKey, locale: "zh" | "en"): HealthModulePresentation {
   return {
     recorded: false,
     completed: false,
     completedUnits: 0,
     requiredUnits: 1,
     progress: 0,
-    points: locale === "zh"
-      ? ["暂无记录", "点击进入补录", "补齐后生成真实摘要", "缺失数据不按零分计算"]
-      : ["No record yet", "Tap to add data", "Summary appears after logging", "Missing data is not scored as zero"],
+    points: healthModuleDictionaryPoints(key, locale),
   };
 }
 

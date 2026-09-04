@@ -6,6 +6,7 @@ import {
   buildHealthModulePresentations,
   buildHealthModuleProgress,
   compareRecordedPeriodAverages,
+  healthModuleDictionaryPoints,
   healthModuleEntryView,
 } from "../src/services/healthReportPresentation.ts";
 import type { TodaySnapshot } from "../src/types.ts";
@@ -35,7 +36,7 @@ test("health report cards are generated from the selected date snapshot", () => 
 test("a missing module stays explicitly missing and blocks the six-module AI prompt", () => {
   const cards = buildHealthModulePresentations({ ...completeSnapshot, face: null }, "zh");
   assert.equal(cards.face.recorded, false);
-  assert.match(cards.face.points[0], /暂无记录/);
+  assert.deepEqual(cards.face.points, ["今日面部拍照项", "眼周疲态变化值", "肤色水肿情况项", "面部状态备注项"]);
   assert.equal(allHealthModulesRecorded(cards), false);
   assert.equal(allHealthModulesComplete(cards), false);
 });
@@ -97,12 +98,24 @@ test("an empty snapshot keeps the diet denominator at four without inventing pro
   assert.equal(cards.diet.requiredUnits, 4);
   assert.equal(cards.diet.progress, 0);
   assert.equal(healthModuleEntryView(cards.diet), "editor");
+  assert.deepEqual(cards.diet.points, ["今日三餐完成度", "饮水咖啡摄入量", "胃肠反应饱腹感", "酒精补剂记录项"]);
+});
+
+test("all empty Chinese cards restore their module dictionary and keep every line at seven characters", () => {
+  for (const module of ["mood", "sleep", "exercise", "diet", "focus", "face"] as const) {
+    const points = healthModuleDictionaryPoints(module, "zh");
+    assert.equal(points.length, 4);
+    points.forEach((point) => {
+      assert.equal(Array.from(point).length, 7, `${module}: ${point}`);
+      assert.match(point, /^\p{Script=Han}{7}$/u);
+    });
+  }
 });
 
 test("zero focus duration is missing rather than presented as a completed record", () => {
   const cards = buildHealthModulePresentations({ ...completeSnapshot, focusMinutes: 0, focusSessions: 0 }, "en");
   assert.equal(cards.focus.recorded, false);
-  assert.equal(cards.focus.points[0], "No record yet");
+  assert.equal(cards.focus.points[0], "Focus time");
 });
 
 test("period comparison averages recorded days and preserves a missing previous period", () => {

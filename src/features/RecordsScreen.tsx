@@ -31,7 +31,7 @@ import { loadProfile, type UserProfile } from "../services/profile";
 import { loadDietAiReport } from "../services/dietReport";
 import { loadHealthAiReport, type HealthAiReport, type HealthReportSection } from "../services/healthReport";
 import { calculateWeeklyModuleScores, type WeeklyModuleKey } from "../services/weeklyModuleScores";
-import { allHealthModulesComplete, buildHealthModulePresentations, compareRecordedPeriodAverages, healthModuleEntryView, healthModuleProgressLabel } from "../services/healthReportPresentation";
+import { allHealthModulesComplete, buildHealthModulePresentations, compareRecordedPeriodAverages, healthModuleEntryView, healthModuleProgressLabel, type HealthModulePoints } from "../services/healthReportPresentation";
 import { clearSecureFaceDraft, loadSecureFaceDraft, saveSecureFaceDraft } from "../services/secureFaceDraft";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 import RecordModuleDashboard from "./RecordModuleDashboard";
@@ -174,6 +174,7 @@ export default function RecordsScreen({
   const [hubAiReport, setHubAiReport] = useState<HealthAiReport | null>(null);
   const [hubAiLoading, setHubAiLoading] = useState(false);
   const [hubAiUnavailable, setHubAiUnavailable] = useState(false);
+  const [hubCompactPoints, setHubCompactPoints] = useState<Partial<Record<RecordModule, HealthModulePoints>>>({});
   const [draftReady, setDraftReady] = useState(false);
   const [dataLoadError, setDataLoadError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
@@ -504,6 +505,34 @@ export default function RecordsScreen({
       });
     return () => { active = false; };
   }, [hubAiEligible, locale, recordDate, user.id]);
+
+  useEffect(() => {
+    let active = true;
+    if (activeModule || reportMode !== "modules" || dataLoading || dataLoadError) {
+      setHubCompactPoints({});
+      return () => { active = false; };
+    }
+
+    const presentations = buildHealthModulePresentations(todaySnapshot, locale);
+    const recordedModules = recordModules
+      .map(({ id }) => id)
+      .filter((id) => presentations[id].recorded);
+    setHubCompactPoints({});
+    recordedModules.forEach((module) => {
+      const request = module === "diet"
+        ? loadDietAiReport({ date: recordDate, locale })
+        : loadHealthAiReport({ scope: module, endDate: recordDate, locale });
+      void request
+        .then((report) => {
+          if (!active || !report.compactBullets) return;
+          setHubCompactPoints((current) => ({ ...current, [module]: report.compactBullets }));
+        })
+        .catch((reportError) => {
+          console.warn(`Compact ${module} AI summary deferred`, reportError);
+        });
+    });
+    return () => { active = false; };
+  }, [activeModule, dataLoadError, dataLoading, locale, recordDate, reportMode, todaySnapshot, user.id]);
 
   useEffect(() => {
     if (reportMode !== "weekly") return;
@@ -1077,6 +1106,8 @@ export default function RecordsScreen({
           <div className="record-module-grid">
             {recordModules.map(({ id, labelKey, icon: Icon }) => {
               const presentation = healthModulePresentations[id];
+              const compactPoints = presentation.recorded ? hubCompactPoints[id] : undefined;
+              const cardPoints = compactPoints ?? presentation.points;
               const progressLabel = healthModuleProgressLabel(presentation, locale, recordDate === deviceDate ? "today" : "selected-date");
               const accessibleLabel = `${t(labelKey)}${locale === "zh" ? "，" : ". "}${progressLabel}`;
               return (
@@ -1085,6 +1116,7 @@ export default function RecordsScreen({
                 data-record-module={id}
                 data-record-state={dataLoadError ? "error" : presentation.completed ? "complete" : presentation.recorded ? "partial" : "missing"}
                 data-module-progress={presentation.progress}
+                data-summary-source={compactPoints ? "ai-compact" : presentation.recorded ? "record-facts" : "module-dictionary"}
                 key={id}
                 type="button"
                 aria-label={accessibleLabel}
@@ -1111,7 +1143,7 @@ export default function RecordsScreen({
                 <span className="record-module-points" aria-hidden="true">
                   {(dataLoadError
                     ? (locale === "zh" ? ["加载失败", "点击重试", "未展示默认数值", "不会把缺失当作零"] : ["Load failed", "Tap to retry", "Defaults are hidden", "Missing is not zero"])
-                    : presentation.points).map((point) => <span key={point}>{point}</span>)}
+                    : cardPoints).map((point, index) => <span key={`${index}-${point}`}>{point}</span>)}
                 </span>
                 <ChevronRight className="record-module-arrow" size={20} aria-hidden="true" />
               </button>

@@ -1,6 +1,7 @@
 import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
 import { shiftDateISO } from "./date";
+import { validCompactReportBullet, type CompactSummary } from "./reportSummaryContract";
 
 export type HealthReportScope = "mood" | "sleep" | "exercise" | "focus" | "face" | "weekly";
 
@@ -16,6 +17,7 @@ export type HealthReportSection = {
 
 export interface HealthAiReport {
   bullets: string[];
+  compactBullets?: CompactSummary;
   overview: string;
   sections: HealthReportSection[];
   provider: "deepseek" | "demo";
@@ -27,6 +29,33 @@ export interface HealthAiReport {
 }
 
 const pending = new Map<string, Promise<HealthAiReport>>();
+
+const demoCompactByScope: Record<HealthReportScope, { zh: CompactSummary; en: CompactSummary }> = {
+  mood: {
+    zh: ["近周情绪较平稳", "压力波动较温和", "睡眠情绪同步变", "继续记录触发源"],
+    en: ["Mood stays steady", "Stress shifts mildly", "Sleep tracks mood", "Keep logging triggers"],
+  },
+  sleep: {
+    zh: ["近周睡眠较规律", "夜间恢复较稳定", "睡眠活动同步变", "继续固定入睡点"],
+    en: ["Sleep stays regular", "Recovery remains steady", "Sleep tracks activity", "Keep bedtime consistent"],
+  },
+  exercise: {
+    zh: ["近周活动较平稳", "运动负荷较温和", "活动睡眠同步变", "继续保持轻运动"],
+    en: ["Activity stays steady", "Load remains moderate", "Activity tracks sleep", "Keep moving gently"],
+  },
+  focus: {
+    zh: ["近周专注较平稳", "中断次数较温和", "专注睡眠同步变", "继续分段做任务"],
+    en: ["Focus stays steady", "Interruptions remain mild", "Focus tracks sleep", "Keep tasks segmented"],
+  },
+  face: {
+    zh: ["近周面部较平稳", "拍摄质量较稳定", "面部睡眠同步变", "继续同光线拍摄"],
+    en: ["Face state steady", "Capture quality stable", "Face tracks sleep", "Keep lighting consistent"],
+  },
+  weekly: {
+    zh: ["近周节律较平稳", "睡眠活动同步变", "午后活动助稳定", "继续规律做记录"],
+    en: ["Rhythm stays steady", "Sleep tracks activity", "Movement supports rhythm", "Keep logging consistently"],
+  },
+};
 
 function validBullet(value: string, locale: "zh" | "en") {
   if (locale === "en") {
@@ -79,6 +108,7 @@ export async function loadHealthAiReport(input: {
         ];
     return {
       bullets: sections.map((section) => section.headline),
+      compactBullets: demoCompactByScope[input.scope][input.locale],
       overview: input.locale === "zh"
         ? "这是明确标注的本地评审周报，只用于验证详细解读的页面结构、点击展开和移动端排版。它没有读取生产用户记录，也没有调用真实模型，公开版本不会把它作为用户结论。"
         : "This explicitly labeled local review report tests the detailed report structure, expansion behavior, and mobile layout. It does not read production records or call the production model, and public builds never present it as a user conclusion.",
@@ -101,7 +131,9 @@ export async function loadHealthAiReport(input: {
     });
     if (response.error) throw response.error;
     const report = response.data;
-    if (!report || report.provider !== "deepseek" || report.bullets.length !== 4 || !report.bullets.every((bullet) => validBullet(bullet, input.locale)) || !validStructuredReport(report, input.locale)) {
+    const compactBulletsValid = report?.compactBullets == null
+      || (report.compactBullets.length === 4 && report.compactBullets.every((bullet) => validCompactReportBullet(bullet, input.locale)));
+    if (!report || report.provider !== "deepseek" || report.bullets.length !== 4 || !report.bullets.every((bullet) => validBullet(bullet, input.locale)) || !compactBulletsValid || !validStructuredReport(report, input.locale)) {
       throw new Error(input.locale === "zh" ? "AI 健康报告格式无效，请稍后重试。" : "The AI health report was invalid. Please retry.");
     }
     return report;
