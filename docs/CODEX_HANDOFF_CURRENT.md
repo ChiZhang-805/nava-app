@@ -13,10 +13,10 @@ current release state.
 
 Current public release anchor:
 
-- Source release commit: `93a787b991c45410c2662ca1d8ff100dd0f407e8`
-- ChatGPT Sites: version 90, public
-- GitHub Pages mirror: v90 at
-  `a1c730a22798a135eb880605a138dbb29a1cd1b6`
+- Source release commit: `3ceaad3f1c7720fe0bfa9bcf7c26ea9bad6eb2fc`
+- ChatGPT Sites: version 91, public
+- GitHub Pages mirror: v91 at
+  `cd5fbfcc59c9ba4f0eedc1286c0c36c72203b2af`
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
 
 The six Health Report cards now keep four complete lines at every required
@@ -25,7 +25,11 @@ intersection, safety-gap, overflow, and excessive-whitespace checks for both
 populated and empty local states plus the authenticated public state on both
 origins.
 
+Version 91 keeps the v90 responsive layout while reducing repeated Supabase
+reads, lazily loading record-detail code, and shrinking lossless mascot media.
+Both public origins passed authenticated 360/375/390/430px acceptance checks.
+
 The dual normal/compact AI-report contract is implemented in source. The two
-changed Edge Functions have **not** been deployed as part of v89/v90 because
+changed Edge Functions have **not** been deployed as part of v89/v90/v91 because
 backend deployment requires separate explicit authorization. See the dated
 handoff for the exact boundary and remaining action.
