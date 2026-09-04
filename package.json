@@ -31,6 +31,7 @@
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy",
     "motion:test": "node --experimental-strip-types --test tests/background-motion.test.ts tests/mascot-motion.test.ts",
     "module-progress:test": "node --experimental-strip-types --test tests/health-report-presentation.test.ts",
+    "performance:test": "node --experimental-strip-types --test tests/single-request-cache.test.ts",
     "module-progress:visual": "node scripts/verify-module-progress-ui.mjs",
     "chart-motion:test": "node --experimental-strip-types --test tests/chart-motion.test.ts tests/chart-curves.test.ts",
     "weekly-report:test": "node --experimental-strip-types --test tests/weekly-report.test.ts",
@@ -78,7 +79,6 @@
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "three": "^0.185.1",
     "translation-resilience": "0.3.0"
   },
   "devDependencies": {
@@ -86,7 +86,6 @@
     "@playwright/test": "^1.61.1",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
-    "@types/three": "^0.185.0",
     "@vitejs/plugin-react-swc": "^4.3.1",
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^5.1.0",

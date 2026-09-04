@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { BedDouble, Bot, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Loader2, LockKeyhole, RefreshCw, ScanFace, Share2, ShieldCheck, SmilePlus, Upload, X, type LucideIcon } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { FormEvent, lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import ActionButton from "../components/ActionButton";
 import AnimatedNumber from "../components/AnimatedNumber";
 import ModuleProgressRing from "../components/ModuleProgressRing";
@@ -8,7 +8,7 @@ import PageSkeleton, { SkeletonBlock, SkeletonLines } from "../components/PageSk
 import LineTrendChart from "../components/LineTrendChart";
 import SectionCard from "../components/SectionCard";
 import WeeklyRadarChart from "../components/WeeklyRadarChart";
-import weeklyRunMascot from "../assets/mascot/nava-run-v1.png";
+import weeklyRunMascot from "../assets/mascot/nava-run-v1.webp";
 import { useLocale, type TranslationKey } from "../i18n";
 import {
   saveExerciseRecord,
@@ -33,8 +33,10 @@ import { loadHealthAiReport, type HealthAiReport, type HealthReportSection } fro
 import { calculateWeeklyModuleScores, type WeeklyModuleKey } from "../services/weeklyModuleScores";
 import { allHealthModulesComplete, buildHealthModulePresentations, compareRecordedPeriodAverages, healthModuleEntryView, healthModuleProgressLabel, type HealthModulePoints } from "../services/healthReportPresentation";
 import { clearSecureFaceDraft, loadSecureFaceDraft, saveSecureFaceDraft } from "../services/secureFaceDraft";
+import { loadSingleKey, type SingleRequestSlot } from "../services/singleRequestCache";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
-import RecordModuleDashboard from "./RecordModuleDashboard";
+
+const RecordModuleDashboard = lazy(() => import("./RecordModuleDashboard"));
 
 const moodFactors: Array<{ value: string; labelKey: TranslationKey }> = [
   { value: "压力", labelKey: "records.factor.pressure" },
@@ -184,6 +186,10 @@ export default function RecordsScreen({
   const weeklyLongPressTimerRef = useRef<number | null>(null);
   const weeklyLongPressOriginRef = useRef<{ x: number; y: number } | null>(null);
   const recordLoadRequestRef = useRef(0);
+  const lastVisibleRefreshRef = useRef(0);
+  const snapshotRequestRef = useRef<SingleRequestSlot<TodaySnapshot>>(null);
+  const trendRequestRef = useRef<SingleRequestSlot<TrendBundle>>(null);
+  const profileRequestRef = useRef<SingleRequestSlot<UserProfile | null>>(null);
 
   const [moodScore, setMoodScore] = useState(70);
   const [selectedFactors, setSelectedFactors] = useState<string[]>([]);
@@ -273,18 +279,20 @@ export default function RecordsScreen({
     return () => window.clearTimeout(timer);
   }, [notice]);
 
-  const loadRecordData = useCallback(async () => {
+  const loadRecordData = useCallback(async ({ refreshBase = false }: { refreshBase?: boolean } = {}) => {
     const requestId = ++recordLoadRequestRef.current;
     const recordKey = `${recordDate}:${activeModule ?? "hub"}:${activeModule === "diet" ? meal : ""}`;
+    const snapshotKey = `${user.id}:${recordDate}`;
+    const trendKey = `${user.id}:${deviceDate}`;
     let loaded = false;
     setDataLoading(true);
     setDraftReady(false);
     setDataLoadError(null);
     try {
       const [snapshot, trends, loadedProfile] = await Promise.all([
-        getTodaySnapshot(user.id, recordDate),
-        getTrends(user.id, deviceDate),
-        loadProfile(user.id).catch(() => null),
+        loadSingleKey(snapshotRequestRef, snapshotKey, () => getTodaySnapshot(user.id, recordDate), refreshBase),
+        loadSingleKey(trendRequestRef, trendKey, () => getTrends(user.id, deviceDate), refreshBase),
+        loadSingleKey(profileRequestRef, user.id, () => loadProfile(user.id).catch(() => null), refreshBase),
       ]);
       if (requestId !== recordLoadRequestRef.current) return;
       setTodaySnapshot(snapshot);
@@ -411,7 +419,13 @@ export default function RecordsScreen({
 
   useEffect(() => {
     const refreshVisibleRecords = () => {
-      if (document.visibilityState === "visible") void loadRecordData();
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      // Browsers commonly dispatch visibilitychange and focus back-to-back.
+      // Treat that pair as one refresh so it cannot duplicate all Supabase reads.
+      if (now - lastVisibleRefreshRef.current < 500) return;
+      lastVisibleRefreshRef.current = now;
+      void loadRecordData({ refreshBase: true });
     };
     window.addEventListener("focus", refreshVisibleRecords);
     document.addEventListener("visibilitychange", refreshVisibleRecords);
@@ -648,7 +662,7 @@ export default function RecordsScreen({
         console.warn("Failed to refresh rhythm score after saving record", refreshError);
         setNotice(t("records.savedPending", { label: t(labelKey) }));
       }
-      const refreshedSnapshot = await loadRecordData();
+      const refreshedSnapshot = await loadRecordData({ refreshBase: true });
       if (activeModule) {
         const module: RecordDraftModule = activeModule === "diet" ? "nutrition" : activeModule;
         await clearRecordDraft(user.id, module, recordDate).catch((draftError) => console.warn("Record draft cleanup deferred", draftError));
@@ -916,7 +930,7 @@ export default function RecordsScreen({
     if (!("persisted" in saved) || saved.persisted) {
       await clearSecureFaceDraft(user.id, recordDate).catch((draftError) => console.warn("Secure face draft cleanup deferred", draftError));
       setFaceDraftFile(null);
-      await loadRecordData();
+      await loadRecordData({ refreshBase: true });
       onSaved();
       setShowEditor(false);
       onViewChange?.(null, true);
@@ -1079,7 +1093,7 @@ export default function RecordsScreen({
           {dataLoadError && (
             <section className="record-hub-load-error" role="alert">
               <span>{dataLoadError}</span>
-              <button type="button" onClick={() => void loadRecordData()}>{locale === "zh" ? "重新加载" : "Retry"}</button>
+              <button type="button" onClick={() => void loadRecordData({ refreshBase: true })}>{locale === "zh" ? "重新加载" : "Retry"}</button>
             </section>
           )}
 
@@ -1122,7 +1136,7 @@ export default function RecordsScreen({
                 aria-label={accessibleLabel}
                 onClick={() => {
                   if (dataLoadError) {
-                    void loadRecordData();
+                    void loadRecordData({ refreshBase: true });
                     return;
                   }
                   setNotice(null);
@@ -1263,7 +1277,7 @@ export default function RecordsScreen({
         <section className="figma-module-card">
           <strong>{locale === "zh" ? "暂时无法读取真实记录" : "Real records are temporarily unavailable"}</strong>
           <p>{dataLoadError}</p>
-          <button type="button" onClick={() => void loadRecordData()}>{locale === "zh" ? "重新加载" : "Retry"}</button>
+          <button type="button" onClick={() => void loadRecordData({ refreshBase: true })}>{locale === "zh" ? "重新加载" : "Retry"}</button>
         </section>
       </div>
     );
@@ -1326,7 +1340,8 @@ export default function RecordsScreen({
       )}
 
       {!showEditor && dashboardModules.has(activeModule) && (
-        <RecordModuleDashboard
+        <Suspense fallback={<PageSkeleton variant="record-detail" />}>
+          <RecordModuleDashboard
           userId={user.id}
           module={activeModule}
           moodScore={moodScore}
@@ -1377,7 +1392,8 @@ export default function RecordsScreen({
           }}
           initialView={initialView === "editor" ? null : initialView}
           onViewChange={onViewChange}
-        />
+          />
+        </Suspense>
       )}
 
       {(showEditor || !dashboardModules.has(activeModule)) && <div className="record-editor-stack">

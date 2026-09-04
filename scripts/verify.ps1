@@ -87,4 +87,8 @@ Write-Host "19. Browser translation DOM resilience"
 Invoke-Npm -Arguments @("run", "translation:test")
 
 Write-Host ""
+Write-Host "20. Supabase request reuse and refresh boundaries"
+Invoke-Npm -Arguments @("run", "performance:test")
+
+Write-Host ""
 Write-Host "Verification completed."

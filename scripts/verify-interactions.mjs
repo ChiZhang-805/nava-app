@@ -1263,8 +1263,15 @@ async function verifyNavigationAndMotion(page, results) {
   await assertStaticLayout(page, "record-weekly");
   await expect(page.locator(".weekly-period-controls .weekly-share-button")).toHaveCount(0);
   await expect(page.locator(".weekly-insight-card .weekly-share-button")).toBeVisible();
-  await expect(page.locator(".weekly-insight-body")).toContainText(/至少记录 5 天|at least 5 days/);
-  await expect(page.locator(".weekly-insight-body li")).toHaveCount(0);
+  // The local review fixture contains seven recorded days, so the current
+  // product contract must render the explicitly labeled demo AI report rather
+  // than the sparse-data gate used by older fixtures.
+  await expect(page.locator(".weekly-insight-body")).toContainText(/本地评审周报|local review report/i);
+  await expect(page.locator(".weekly-insight-body li")).toHaveCount(4);
+  await page.locator(".weekly-insight-body li button").first().click();
+  await expect(page.locator(".weekly-detail-dialog")).toBeVisible();
+  await page.locator(".weekly-detail-dialog header button").click();
+  await expect(page.locator(".weekly-detail-dialog")).toBeHidden();
   await expect(page.locator(".weekly-insight-mascot")).toBeVisible();
   await expect(page.locator(".weekly-module-status")).toHaveCount(0);
   await expect(page.locator(".weekly-fdnb-contributors, .weekly-fdnb-disclaimer")).toHaveCount(0);
