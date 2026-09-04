@@ -6,6 +6,7 @@ import type { UserProfile } from "./profile";
 const DEMO_SESSION_KEY = "nava.review.demo.auth.v1";
 const DEMO_MOOD_HISTORY_KEY = "nava.review.demo.mood-history.v1";
 const DEMO_RECORDS_KEY = "nava.review.demo.records.v1";
+const DEMO_EMPTY_SNAPSHOT_DATE_KEY = "nava.review.demo.empty-snapshot-date.v1";
 
 export function isDemoMode() {
   if (typeof window === "undefined") return false;
@@ -305,6 +306,23 @@ export function saveDemoFace(date: string, face: NonNullable<TodaySnapshot["face
 }
 
 export function demoTodaySnapshot(date = todayISO()): TodaySnapshot {
+  // Local visual QA needs a deterministic empty state without weakening public
+  // authentication or fabricating a stored user record. This branch is reached
+  // only through isDemoMode(), which is restricted to localhost.
+  if (typeof window !== "undefined" && window.localStorage.getItem(DEMO_EMPTY_SNAPSHOT_DATE_KEY) === date) {
+    return {
+      date,
+      mood: null,
+      sleep: null,
+      exercise: null,
+      nutrition: null,
+      face: null,
+      focusMinutes: 0,
+      focusSessions: 0,
+      rhythmScore: null,
+      nextAction: "",
+    };
+  }
   const overrides = readDemoRecordOverrides();
   const moodHistory = demoMoodHistory(date);
   const mood = moodHistory[moodHistory.length - 1] ?? demoMood;

@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-module-progress-20260903";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-module-progress-20260905";
 const port = 5198;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -22,6 +22,127 @@ const baseUrl = server.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? `http://127
 const browser = await chromium.launch({ headless: true });
 const report = [];
 
+const rectanglesOverlap = (a, b, gap = 0) => !(
+  a.right + gap <= b.left
+  || b.right + gap <= a.left
+  || a.bottom + gap <= b.top
+  || b.bottom + gap <= a.top
+);
+
+async function inspectRecordHub(page, viewportName, stateName) {
+  const geometry = await page.evaluate(() => {
+    const toRect = (rect) => ({
+      left: rect.left,
+      right: rect.right,
+      top: rect.top,
+      bottom: rect.bottom,
+      width: rect.width,
+      height: rect.height,
+    });
+    const textRect = (element) => {
+      const textNode = [...element.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim());
+      if (!textNode) return toRect(element.getBoundingClientRect());
+      const range = document.createRange();
+      range.selectNodeContents(textNode);
+      return toRect(range.getBoundingClientRect());
+    };
+    const cards = [...document.querySelectorAll(".record-module-entry")].map((card) => {
+      const header = card.querySelector(".record-module-header");
+      const title = header?.querySelector("strong");
+      const icon = card.querySelector(".record-module-icon");
+      const points = card.querySelector(".record-module-points");
+      const arrow = card.querySelector(".record-module-arrow");
+      const lines = [...card.querySelectorAll(".record-module-points > span")].map((line) => {
+        const style = getComputedStyle(line);
+        return {
+          text: line.textContent?.trim() ?? "",
+          rect: toRect(line.getBoundingClientRect()),
+          textRect: textRect(line),
+          clientWidth: line.clientWidth,
+          scrollWidth: line.scrollWidth,
+          clientHeight: line.clientHeight,
+          scrollHeight: line.scrollHeight,
+          visible: style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) !== 0,
+        };
+      });
+      return {
+        module: card.getAttribute("data-record-module"),
+        state: card.getAttribute("data-record-state"),
+        summarySource: card.getAttribute("data-summary-source"),
+        rect: toRect(card.getBoundingClientRect()),
+        header: header ? toRect(header.getBoundingClientRect()) : null,
+        title: title ? { rect: toRect(title.getBoundingClientRect()), textRect: textRect(title) } : null,
+        icon: icon ? toRect(icon.getBoundingClientRect()) : null,
+        points: points ? {
+          rect: toRect(points.getBoundingClientRect()),
+          clientHeight: points.clientHeight,
+          scrollHeight: points.scrollHeight,
+        } : null,
+        arrow: arrow ? toRect(arrow.getBoundingClientRect()) : null,
+        lines,
+        clientHeight: card.clientHeight,
+        scrollHeight: card.scrollHeight,
+      };
+    });
+    const frame = document.querySelector(".phone-frame");
+    const hub = document.querySelector(".record-hub");
+    const date = document.querySelector(".record-hub-date");
+    const grid = document.querySelector(".record-module-grid");
+    const nav = document.querySelector(".bottom-nav");
+    return {
+      documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      frameOverflow: frame ? frame.scrollWidth - frame.clientWidth : null,
+      frame: frame ? toRect(frame.getBoundingClientRect()) : null,
+      hub: hub ? toRect(hub.getBoundingClientRect()) : null,
+      date: date ? toRect(date.getBoundingClientRect()) : null,
+      grid: grid ? toRect(grid.getBoundingClientRect()) : null,
+      nav: nav ? toRect(nav.getBoundingClientRect()) : null,
+      cards,
+    };
+  });
+
+  const fail = (message, evidence = geometry) => {
+    throw new Error(`${viewportName} ${stateName}: ${message} ${JSON.stringify(evidence)}`);
+  };
+  if (!geometry.frame || !geometry.hub || !geometry.date || !geometry.grid || !geometry.nav) fail("missing a required layout region");
+  if (geometry.cards.length !== 6) fail(`expected 6 cards, found ${geometry.cards.length}`);
+  if (geometry.documentOverflow > 1 || geometry.frameOverflow > 1) fail("horizontal overflow", { documentOverflow: geometry.documentOverflow, frameOverflow: geometry.frameOverflow });
+  if (rectanglesOverlap(geometry.date, geometry.grid, 4)) fail("date selector intersects the card grid", { date: geometry.date, grid: geometry.grid });
+  if (rectanglesOverlap(geometry.grid, geometry.nav, 8)) fail("card grid does not preserve an 8px safety gap above navigation", { grid: geometry.grid, nav: geometry.nav });
+  if (geometry.grid.left < geometry.hub.left - 1 || geometry.grid.right > geometry.hub.right + 1) fail("card grid escapes its hub horizontally", { hub: geometry.hub, grid: geometry.grid });
+
+  for (let index = 0; index < geometry.cards.length; index += 1) {
+    const card = geometry.cards[index];
+    if (!card.header || !card.title || !card.icon || !card.points || !card.arrow) fail("card is missing an inspected child", card);
+    if (card.lines.length !== 4) fail(`card ${card.module} must contain exactly four lines`, card);
+    if (card.scrollHeight > card.clientHeight + 1 || card.points.scrollHeight > card.points.clientHeight + 1) fail(`card ${card.module} clips vertical content`, card);
+    if (rectanglesOverlap(card.title.textRect, card.icon, 4)) fail(`card ${card.module} title intersects its icon`, card);
+    for (const child of [card.header, card.icon, card.points, card.arrow]) {
+      if (child.left < card.rect.left - 1 || child.right > card.rect.right + 1 || child.top < card.rect.top - 1 || child.bottom > card.rect.bottom + 1) {
+        fail(`card ${card.module} has content outside its boundary`, card);
+      }
+    }
+    for (const line of card.lines) {
+      if (!line.visible || line.rect.height < 1 || line.textRect.height < 1) fail(`card ${card.module} has a hidden summary line`, { card, line });
+      if (line.scrollWidth > line.clientWidth + 1 || line.scrollHeight > line.clientHeight + 1) fail(`card ${card.module} truncates summary text`, { card, line });
+      if (line.rect.left < card.points.rect.left - 1 || line.rect.right > card.points.rect.right + 1 || line.rect.top < card.points.rect.top - 1 || line.rect.bottom > card.points.rect.bottom + 1) {
+        fail(`card ${card.module} summary line escapes its list`, { card, line });
+      }
+      if (rectanglesOverlap(line.textRect, card.arrow, 4)) fail(`card ${card.module} summary text intersects its arrow`, { card, line });
+      if (/^[\p{Script=Han}]+$/u.test(line.text) && [...line.text].length !== 7) fail(`card ${card.module} compact Chinese line is not exactly seven characters`, { card, line });
+    }
+    for (let otherIndex = index + 1; otherIndex < geometry.cards.length; otherIndex += 1) {
+      if (rectanglesOverlap(card.rect, geometry.cards[otherIndex].rect, 3)) {
+        fail(`cards ${card.module} and ${geometry.cards[otherIndex].module} do not preserve a 3px gap`, { card: card.rect, other: geometry.cards[otherIndex].rect });
+      }
+    }
+    const usedBottom = Math.max(card.points.rect.bottom, card.arrow.bottom);
+    const bottomWhitespace = card.rect.bottom - usedBottom;
+    if (bottomWhitespace > Math.max(18, card.rect.height * 0.16)) fail(`card ${card.module} has excessive unused space below its content`, { card: card.rect, usedBottom, bottomWhitespace });
+  }
+  return geometry;
+}
+
 try {
   for (const viewport of viewports) {
     const context = await browser.newContext({
@@ -29,6 +150,7 @@ try {
       deviceScaleFactor: 1,
       isMobile: true,
       hasTouch: true,
+      timezoneId: "Asia/Shanghai",
       userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Version/17.5 Mobile/15E148 Safari/604.1",
     });
     await context.addInitScript(() => {
@@ -130,9 +252,25 @@ try {
     await expect(hubDiet).toHaveAttribute("data-module-progress", "0.25");
     await expect(page.locator(".record-module-entry .module-progress-ring")).toHaveCount(6);
     await page.waitForTimeout(620);
-    const hubOverflow = await page.locator(".phone-frame").evaluate((frame) => frame.scrollWidth - frame.clientWidth);
-    if (hubOverflow > 1) throw new Error(`${viewport.name}: record hub has ${hubOverflow}px horizontal overflow.`);
+    const populatedHubGeometry = await inspectRecordHub(page, viewport.name, "populated record hub");
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-record-progress.png`) });
+
+    const dateInput = page.locator(".record-hub-date input[type=date]");
+    await page.evaluate(() => localStorage.setItem("nava.review.demo.empty-snapshot-date.v1", "2020-01-01"));
+    await dateInput.fill("2020-01-01");
+    await dateInput.dispatchEvent("change");
+    await expect(page.locator('.record-module-entry[data-summary-source="module-dictionary"]')).toHaveCount(6);
+    await page.waitForTimeout(220);
+    const emptyHubGeometry = await inspectRecordHub(page, viewport.name, "empty record hub");
+    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-record-empty.png`) });
+
+    const browserLocalDate = await page.evaluate(() => {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    });
+    await dateInput.fill(browserLocalDate);
+    await dateInput.dispatchEvent("change");
+    await expect(hubDiet).toHaveAttribute("data-record-state", "partial");
 
     await hubDiet.click();
     await expect(page.locator('[data-record-detail="diet"] .record-editor-stack > form:not([hidden])')).toBeVisible();
@@ -143,7 +281,7 @@ try {
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-partial-diet-editor.png`) });
 
     if (errors.length) throw new Error(`${viewport.name}: browser errors ${JSON.stringify(errors)}`);
-    report.push({ viewport, homeGeometry, hubOverflow, detailOverflow });
+    report.push({ viewport, homeGeometry, populatedHubGeometry, emptyHubGeometry, detailOverflow });
     await context.close();
   }
 } finally {
