@@ -15,6 +15,7 @@ import {
   TimerReset,
   Utensils,
   UsersRound,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
@@ -31,7 +32,6 @@ import { SkeletonBlock } from "../components/PageSkeleton";
 import InteractiveMascot from "../components/InteractiveMascot";
 import { loadGrowthTotalPoints } from "../services/productivity";
 import { getTodaySnapshot, getTrends } from "../services/records";
-import { loadProfile } from "../services/profile";
 import { buildHealthModuleProgress, healthModuleEntryView, healthModuleProgressLabel } from "../services/healthReportPresentation";
 import { buildHomeGuidance, homeDayPhase, isVerticalHomeSwipe, type HomeGuidanceAction } from "../services/homeExperience";
 import { buildHomeWidgetPresentation, loadHomeWidgetIds, saveHomeWidgetIds, type HomeWidgetId } from "../services/homeWidgets";
@@ -120,6 +120,7 @@ export default function OptionTwoHome({
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [localHour, setLocalHour] = useState(() => new Date().getHours());
+  const [guidanceDismissed, setGuidanceDismissed] = useState(false);
   const gestureRef = useRef<{ pointerId: number; startX: number; startY: number; lastX: number; lastY: number } | null>(null);
   const ignoreClickUntilRef = useRef(0);
   const refreshRequestRef = useRef(0);
@@ -127,10 +128,9 @@ export default function OptionTwoHome({
   const refresh = useCallback(async () => {
     const requestId = ++refreshRequestRef.current;
     setLoading(true);
-    const [snapshotResult, pointsResult, profileResult, trendsResult] = await Promise.allSettled([
+    const [snapshotResult, pointsResult, trendsResult] = await Promise.allSettled([
       getTodaySnapshot(user.id, deviceDate),
       loadGrowthTotalPoints(user.id),
-      loadProfile(user.id),
       getTrends(user.id, deviceDate),
     ]);
 
@@ -147,7 +147,6 @@ export default function OptionTwoHome({
     } else {
       console.warn("Unable to load the option-two points total", pointsResult.reason);
     }
-    if (profileResult.status === "fulfilled") setWidgetIds(loadHomeWidgetIds(user.id, profileResult.value?.goal));
     if (trendsResult.status === "fulfilled") setTrends(trendsResult.value);
     else console.warn("Unable to load home widget trends", trendsResult.reason);
     setLoading(false);
@@ -165,6 +164,13 @@ export default function OptionTwoHome({
     const timer = window.setInterval(updateHour, 60_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (view !== null) return;
+    setGuidanceDismissed(false);
+    const timer = window.setTimeout(() => setGuidanceDismissed(true), 10_000);
+    return () => window.clearTimeout(timer);
+  }, [deviceDate, view]);
 
   const rhythmScore = snapshot?.rhythmScore ?? "--";
   const points = totalPoints ?? "--";
@@ -264,18 +270,18 @@ export default function OptionTwoHome({
         <button className="option-two-menu-toggle" type="button" onClick={() => setShortcutsOpen((value) => !value)} aria-expanded={shortcutsOpen} aria-label={shortcutsOpen ? (locale === "zh" ? "收起快捷入口" : "Collapse shortcuts") : (locale === "zh" ? "展开快捷入口" : "Expand shortcuts")} title={shortcutsOpen ? (locale === "zh" ? "收起快捷入口" : "Collapse shortcuts") : (locale === "zh" ? "展开快捷入口" : "Expand shortcuts")}>
           <Menu size={23} />
         </button>
-        <button className="option-two-side-shortcut" type="button" onClick={() => onViewChange("calendar")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "健康月历" : "Health calendar"} title={locale === "zh" ? "健康月历" : "Health calendar"}><CalendarDays size={23} /></button>
-        <button className="option-two-side-shortcut" type="button" onClick={() => onViewChange("profile-details")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "详细资料设置" : "Detailed profile"} title={locale === "zh" ? "详细资料设置" : "Detailed profile"}><UsersRound size={24} /></button>
-        <button className="option-two-side-shortcut" type="button" onClick={onOpenUtility} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "功能导航" : "Utilities"} title={locale === "zh" ? "功能导航" : "Utilities"}><ListTodo size={23} /></button>
-        <button className="option-two-notification-button" type="button" onClick={() => onViewChange("notifications")} aria-label={locale === "zh" ? "通知中心" : "Notifications"} title={locale === "zh" ? "通知中心" : "Notifications"}>
+        <button className="option-two-side-shortcut option-two-notification-button" type="button" onClick={() => onViewChange("notifications")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "通知中心" : "Notifications"} title={locale === "zh" ? "通知中心" : "Notifications"}>
           <Bell size={22} />
           {notifications.some((item) => !item.readAt) && <span className="option-two-notification-badge" aria-label={locale === "zh" ? `${notifications.filter((item) => !item.readAt).length} 条未读` : `${notifications.filter((item) => !item.readAt).length} unread`}>{Math.min(99, notifications.filter((item) => !item.readAt).length)}</span>}
         </button>
+        <button className="option-two-side-shortcut" type="button" onClick={() => onViewChange("calendar")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "健康月历" : "Health calendar"} title={locale === "zh" ? "健康月历" : "Health calendar"}><CalendarDays size={23} /></button>
+        <button className="option-two-side-shortcut" type="button" onClick={() => onViewChange("profile-details")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "详细资料设置" : "Detailed profile"} title={locale === "zh" ? "详细资料设置" : "Detailed profile"}><UsersRound size={24} /></button>
+        <button className="option-two-side-shortcut" type="button" onClick={onOpenUtility} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "功能导航" : "Utilities"} title={locale === "zh" ? "功能导航" : "Utilities"}><ListTodo size={23} /></button>
       </div>
 
       <section className={["home-widget-grid", widgetIds.length === 0 ? "is-empty" : ""].join(" ")} aria-label={locale === "zh" ? "我的健康小组件" : "My health widgets"} data-widget-count={widgetIds.length}>
         {loading && snapshot === null
-          ? [0, 1, 2, 3].map((index) => <SkeletonBlock className="home-widget-skeleton" key={index} />)
+          ? [0, 1, 2, 3, 4].map((index) => <SkeletonBlock className="home-widget-skeleton" key={index} />)
           : widgetIds.length === 0
             ? <button className="home-widget-empty" type="button" onClick={() => onViewChange("home-widgets")}><Sparkles size={18} /><span><strong>{locale === "zh" ? "添加关注的小组件" : "Add widgets you care about"}</strong><small>{locale === "zh" ? "最多 6 个，每行 3 个" : "Up to 6, three per row"}</small></span></button>
             : widgetIds.map((id) => {
@@ -296,8 +302,9 @@ export default function OptionTwoHome({
             })}
       </section>
 
-      {homeGuidance && (
+      {homeGuidance && !guidanceDismissed && (
         <aside className="option-two-guidance" aria-live="polite" data-guidance-reason={homeGuidance.reason}>
+          <button className="option-two-guidance-close" type="button" onClick={() => setGuidanceDismissed(true)} aria-label={locale === "zh" ? "关闭今日提示" : "Dismiss today's guidance"} title={locale === "zh" ? "关闭今日提示" : "Dismiss today's guidance"}><X size={16} /></button>
           <div className="option-two-guidance-copy">
             <span><Sparkles size={14} />{homeGuidance.eyebrow}</span>
             <p>{homeGuidance.message}</p>

@@ -16,9 +16,9 @@ const snapshot: TodaySnapshot = {
   nextAction: "今晚早点休息。",
 };
 
-test("goal-aware defaults remain four widgets and never exceed the six-widget contract", () => {
-  assert.deepEqual(defaultHomeWidgetIds("改善运动健康"), ["exercise", "diet", "sleep", "mood"]);
-  assert.deepEqual(defaultHomeWidgetIds("提升工作专注"), ["focus", "sleep", "mood", "exercise"]);
+test("the default home uses the fixed five-widget product order and leaves face optional", () => {
+  const expected = ["sleep", "focus", "exercise", "mood", "diet"];
+  assert.deepEqual(defaultHomeWidgetIds(), expected);
 });
 
 test("widget order supports direct drag moves and accessible single-step moves", () => {

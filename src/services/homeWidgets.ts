@@ -21,18 +21,12 @@ function validIds(value: unknown): HomeWidgetId[] | null {
   return [...new Set(ids)].slice(0, HOME_WIDGET_LIMIT);
 }
 
-export function defaultHomeWidgetIds(goal?: string | null): HomeWidgetId[] {
-  const normalized = (goal ?? "").toLowerCase();
-  if (/运动|健身|减脂|体能|exercise|fitness|weight/.test(normalized)) return ["exercise", "diet", "sleep", "mood"];
-  if (/睡眠|作息|恢复|sleep|recovery/.test(normalized)) return ["sleep", "mood", "focus", "exercise"];
-  if (/情绪|压力|心理|mood|stress/.test(normalized)) return ["mood", "sleep", "focus", "exercise"];
-  if (/皮肤|面部|护肤|face|skin/.test(normalized)) return ["face", "sleep", "mood", "diet"];
-  if (/专注|工作|学习|效率|focus|work|study/.test(normalized)) return ["focus", "sleep", "mood", "exercise"];
-  return ["sleep", "focus", "exercise", "mood"];
+export function defaultHomeWidgetIds(): HomeWidgetId[] {
+  return ["sleep", "focus", "exercise", "mood", "diet"];
 }
 
-export function loadHomeWidgetIds(userId: string, goal?: string | null): HomeWidgetId[] {
-  if (typeof window === "undefined") return defaultHomeWidgetIds(goal);
+export function loadHomeWidgetIds(userId: string): HomeWidgetId[] {
+  if (typeof window === "undefined") return defaultHomeWidgetIds();
   try {
     const parsed = JSON.parse(window.localStorage.getItem(storageKey(userId)) ?? "null") as { ids?: unknown } | null;
     const ids = validIds(parsed?.ids);
@@ -40,7 +34,7 @@ export function loadHomeWidgetIds(userId: string, goal?: string | null): HomeWid
   } catch {
     // A malformed device preference must not affect the user's health data.
   }
-  return defaultHomeWidgetIds(goal);
+  return defaultHomeWidgetIds();
 }
 
 export function saveHomeWidgetIds(userId: string, ids: HomeWidgetId[]) {

@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-widgets-20260905";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-widgets-v100-20260905";
 const port = 5204;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -61,7 +61,10 @@ try {
     await openRoute(page, "tab=today");
     const homeGrid = page.locator(".home-widget-grid");
     await expect(homeGrid).toBeVisible();
-    await expect(page.locator(".home-health-widget")).toHaveCount(4);
+    const defaultWidgets = page.locator(".home-health-widget");
+    await expect(defaultWidgets).toHaveCount(5);
+    const defaultWidgetOrder = await defaultWidgets.evaluateAll((items) => items.map((item) => item.getAttribute("data-home-widget")));
+    if (defaultWidgetOrder.join(",") !== "sleep,focus,exercise,mood,diet") throw new Error(`${viewport.name}: unexpected default widget order ${defaultWidgetOrder.join(",")}`);
     const initialGeometry = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame");
       const grid = document.querySelector(".home-widget-grid");
@@ -85,7 +88,18 @@ try {
     const menuToggle = page.locator(".option-two-menu-toggle");
     if ((await menuToggle.getAttribute("aria-expanded")) !== "true") await menuToggle.click();
     await expect(menuToggle).toHaveAttribute("aria-expanded", "true");
-    await page.locator(".option-two-side-shortcut").nth(2).click();
+    const sideButtons = page.locator(".option-two-side-actions > button");
+    await expect(sideButtons).toHaveCount(5);
+    await expect(sideButtons.nth(0)).toHaveClass(/option-two-menu-toggle/);
+    await expect(sideButtons.nth(1)).toHaveClass(/option-two-notification-button/);
+    const sideTops = await sideButtons.evaluateAll((items) => items.map((item) => item.getBoundingClientRect().top));
+    if (sideTops.some((top, index) => index > 0 && top <= sideTops[index - 1])) throw new Error(`${viewport.name}: side actions are not visually ordered ${JSON.stringify(sideTops)}`);
+    await menuToggle.click();
+    await expect(menuToggle).toHaveAttribute("aria-expanded", "false");
+    await expect(page.locator(".option-two-notification-button")).toBeHidden();
+    await menuToggle.click();
+    await expect(page.locator(".option-two-notification-button")).toBeVisible();
+    await page.locator(".option-two-side-actions > button").last().click();
     await expect(page.locator(".utility-drawer")).toBeVisible();
     await page.locator(".drawer-home-edit").click();
     await expect(page.locator(".home-widget-editor")).toBeVisible();

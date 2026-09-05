@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-notifications-20260905";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-notifications-v100-20260905";
 const port = 5201;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -81,6 +81,18 @@ try {
     const bell = page.locator(".option-two-notification-button");
     await expect(bell).toBeVisible();
     await expect(page.locator(".option-two-notification-badge")).toBeVisible();
+    const sideButtons = page.locator(".option-two-side-actions > button");
+    await expect(sideButtons).toHaveCount(5);
+    await expect(sideButtons.nth(0)).toHaveClass(/option-two-menu-toggle/);
+    await expect(sideButtons.nth(1)).toHaveClass(/option-two-notification-button/);
+    const menuToggle = page.locator(".option-two-menu-toggle");
+    await menuToggle.click();
+    await expect(menuToggle).toHaveAttribute("aria-expanded", "false");
+    await expect(bell).toBeHidden();
+    await menuToggle.click();
+    await expect(menuToggle).toHaveAttribute("aria-expanded", "true");
+    await expect(bell).toBeVisible();
+    await page.waitForTimeout(350);
     const bellBox = await bell.boundingBox();
     if (!bellBox || bellBox.width < 40 || bellBox.height < 40 || bellBox.x + bellBox.width > viewport.width + 1) throw new Error(`${viewport.name}: bell touch target is invalid ${JSON.stringify(bellBox)}`);
     await bell.click();

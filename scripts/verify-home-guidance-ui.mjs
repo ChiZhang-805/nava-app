@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-guidance-20260905";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-guidance-v100-20260905";
 const port = 5202;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -64,11 +64,13 @@ try {
     const home = page.locator(".option-two-home");
     const guidance = page.locator(".option-two-guidance");
     const actions = guidance.locator(".option-two-guidance-actions button");
+    const closeGuidance = guidance.locator(".option-two-guidance-close");
     const mascot = page.locator(".nava-mascot");
     await expect(home).toHaveAttribute("data-home-phase", /^(dawn|day|evening|night)$/);
     await expect(home).not.toHaveAttribute("data-home-guidance", "loading");
     await expect(guidance).toBeVisible();
     await expect(actions).toHaveCount(2);
+    await expect(closeGuidance).toBeVisible();
     await expect(mascot).toHaveAttribute("data-context-motion", /^(wave|tail|read|sleep|lift)$/);
 
     const geometry = await page.evaluate(() => {
@@ -94,6 +96,18 @@ try {
     if (geometry.navTop != null && geometry.guidance.bottom > geometry.navTop - 8) throw new Error(`${viewport.name}: guidance collides with navigation ${JSON.stringify(geometry)}`);
 
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-guidance.png`) });
+    await closeGuidance.click();
+    await expect(guidance).toBeHidden();
+    await page.reload({ waitUntil: "networkidle" });
+    await dismissRewardIfPresent(page);
+    await expect(guidance).toBeVisible();
+    if (viewport.name === "360x740") {
+      await page.waitForTimeout(10_100);
+      await expect(guidance).toBeHidden();
+      await page.reload({ waitUntil: "networkidle" });
+      await dismissRewardIfPresent(page);
+      await expect(guidance).toBeVisible();
+    }
     const preferredMotion = await mascot.getAttribute("data-context-motion");
     await mascot.click({ position: { x: 120, y: 120 } });
     await expect(mascot).toHaveAttribute("data-mascot-motion", preferredMotion);
