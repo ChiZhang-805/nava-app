@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-widgets-v100-20260905";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-widgets-v101-20260905";
 const port = 5204;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -73,16 +73,29 @@ try {
         return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height, scrollWidth: item.scrollWidth, clientWidth: item.clientWidth };
       });
       const style = grid ? getComputedStyle(grid) : null;
+      const sideButtons = [...document.querySelectorAll(".option-two-side-actions > button")].map((item) => {
+        const box = item.getBoundingClientRect();
+        return { top: box.top, bottom: box.bottom, height: box.height };
+      });
       return {
         documentOverflow: document.documentElement.scrollWidth - window.innerWidth,
         frameOverflow: frame ? frame.scrollWidth - frame.clientWidth : null,
         columns: style?.gridTemplateColumns.split(" ").filter(Boolean).length ?? 0,
         cards,
+        sideButtons,
       };
     });
     assertNoHorizontalOverflow(initialGeometry, `${viewport.name} default home`);
     if (initialGeometry.columns !== 3) throw new Error(`${viewport.name}: home widget grid must have three columns`);
     if (initialGeometry.cards.some((card) => card.scrollWidth > card.clientWidth + 1 || card.left < -1 || card.right > viewport.width + 1)) throw new Error(`${viewport.name}: a home widget clips or escapes ${JSON.stringify(initialGeometry)}`);
+    const [firstRow, , , secondRow] = initialGeometry.cards;
+    const [, notificationButton, calendarButton, profileButton, utilityButton] = initialGeometry.sideButtons;
+    const aligned = firstRow && secondRow && notificationButton && calendarButton && profileButton && utilityButton
+      && Math.abs(firstRow.top - notificationButton.top) <= 2
+      && Math.abs(firstRow.bottom - calendarButton.bottom) <= 2
+      && Math.abs(secondRow.top - profileButton.top) <= 2
+      && Math.abs(secondRow.bottom - utilityButton.bottom) <= 2;
+    if (!aligned) throw new Error(`${viewport.name}: home rows do not align to side-action bands ${JSON.stringify(initialGeometry)}`);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-default.png`) });
 
     const menuToggle = page.locator(".option-two-menu-toggle");
@@ -136,7 +149,7 @@ try {
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-editor-six.png`) });
     await page.locator(".home-widget-editor > footer button").last().click();
     await expect(page.locator(".home-health-widget")).toHaveCount(6);
-    await expect(page.locator(".option-two-guidance")).toBeVisible();
+    await expect(page.locator(".option-two-guidance")).toHaveCount(0);
     await page.waitForTimeout(700);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-six.png`) });
 
@@ -147,7 +160,7 @@ try {
     await page.locator(".home-widget-editor > footer button").last().click();
     await expect(page.locator(".home-widget-empty")).toBeVisible();
     await expect(page.locator(".home-health-widget")).toHaveCount(0);
-    await expect(page.locator(".option-two-guidance")).toBeVisible();
+    await expect(page.locator(".option-two-guidance")).toHaveCount(0);
     await page.waitForTimeout(700);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-empty.png`) });
 

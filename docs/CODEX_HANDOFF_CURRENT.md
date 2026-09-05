@@ -519,6 +519,9 @@ Wi-Fi 或蓝牙范围，就直接读取 Apple Watch 的完整历史 HealthKit �
   睡眠维持、面部稳定拍摄条件，以及专注快捷预设口径统一。
 - v100：首页默认五项统一为睡眠、专注、运动 / 情绪、饮食；右侧快捷入口改为菜单
   始终第一、通知第二且统一收放；今日建议卡补齐关闭按钮和约 10 秒自动消失。
+- v101：首页五卡放大并按右侧通知/日历、详细资料/功能导航两段精确对齐；今日建议改为
+  仅成功登录后的首次首页展示；通知中心补齐紧凑自适应卡、分类图标、完整详情、条件权限卡、
+  三点菜单和长按/全选/批量管理。
 
 发布演进已经压缩进本节；精确差异使用 Git log/commit 查看，视觉和运行证据保存在
 第 15 节列出的 TestRuns 目录，不再维护重复的 dated handoff。
@@ -798,10 +801,17 @@ Supabase 资源。
 ## 23. 通知与提醒最新状态
 
 2026-09-05 已在源码中补齐统一通知体验：首页右上角铃铛和未读数、一次一条的顶部
-圆角横幅（上滑/关闭/点击跳转）、通知中心全部/未读筛选、全部已读、单条已读/未读、
-右滑露出删除、左滑露出已读动作、删除撤销和空状态。通知卡沿用冰蓝玻璃系统；专项
-Playwright 在 360x740、375x812、390x844、430x932 验证了横幅、列表、两种滑动、
-撤销、空状态和无横向溢出。
+圆角横幅（上滑/关闭/点击跳转）；通知中心标题不再显示状态副标题，右上角三点菜单提供
+全部已读、全部删除和多选。权限卡仅在尚未授权或不支持时显示，成功开启后立即移除。
+列表按类别使用不同颜色和睡眠/月亮、饮食/餐具、运动/脚步等语义图标；一至两行正文
+决定紧凑卡片高度，超出显示省略号，点击先开完整详情弹窗，再由明确按钮进入目标页面。
+右滑露出删除、左滑露出已读动作仍保留；菜单或长按进入多选后可全选、批量已读或删除，
+单条和批量删除均可撤销。
+
+专项 Playwright 在 360x740、375x812、390x844、430x932 实跑横幅、列表高度适配、
+类别图标、详情弹窗、权限卡消失、三点菜单、长按与批量操作、两种滑动、删除撤销、
+空状态和无横向溢出。证据在
+`Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v101-20260905`。
 
 通知内容不使用生产示例数据。六模块成功保存会产生完成通知；首页读取当前用户真实
 `TodaySnapshot` 后，按本地时间和真实缺失/低活动/专注/情绪完整性/面部记录以及
@@ -815,9 +825,8 @@ Capacitor 本地通知现可安排睡眠、饮食、专注、情绪、今日状�
 工程，所以华为锁屏通知也尚未交付；APNs/FCM/HMS 远程 Push、设备 token、服务端发送
 与多端已读同步均未实现，且需要用户另行授权 migration、secret 与 Edge Function。
 
-完整边界见 [`NOTIFICATIONS_DELIVERY.md`](./NOTIFICATIONS_DELIVERY.md)。应用内通知已随
-v97 同源发布到 Sites 与 GitHub Pages；两个站点的未登录真实认证页均已用无头
-Playwright 验证。原生锁屏送达仍必须等 Mac/Xcode/iPhone 真机验收后才能写成完成。
+完整边界见 [`NOTIFICATIONS_DELIVERY.md`](./NOTIFICATIONS_DELIVERY.md)。原生锁屏送达仍
+必须等 Mac/Xcode/iPhone 真机验收后才能写成完成。
 
 ## 24. 首页动态状态最新状态
 
@@ -851,9 +860,14 @@ canonical Supabase project ref `wxteapvwagvhhtrjrbim` 与本轮 guidance 实现�
 偏好只存在当前设备，不扩大 AI consent 范围。
 
 首页右侧快捷入口已固定为三横杠菜单、通知、健康日历、详细资料、功能导航；三横杠始终
-在最上方，并统一收起/展开其余四项，收起时这些按钮退出键盘焦点。今日建议卡新增右上角
-关闭按钮，并在每次进入首页停留约 10 秒后自动移除；不显示倒计时，数据来源和跳转入口
-仍保持真实 `TodaySnapshot` / ChronoState 合同。
+在最上方，并统一收起/展开其余四项，收起时这些按钮退出键盘焦点。首页健康卡统一为
+106 CSS px 高：第一行上下边界对齐通知按钮顶部与日历按钮底部，第二行对齐详细资料按钮
+顶部与功能导航按钮底部；卡内标题、核心值和辅助文本同步放大。
+
+今日建议卡只在用户以邮箱/手机号密码或 OTP 成功登录后的本次首次首页展示；恢复已有
+session、刷新页面或从其他页面返回首页均不会再次出现。卡片保留右上角关闭，并在连续
+停留约 10 秒后自动移除；不显示倒计时，数据来源和跳转入口仍保持真实
+`TodaySnapshot` / ChronoState 合同。
 
 睡眠“维持”被定义为设备侧可恢复的进行中会话，结束后只填表、不直接伪造或保存记录；
 面部“维持”被定义为素颜/带妆模式、稳定光线、面部居中、自然表情与已有 30 分钟
@@ -864,14 +878,15 @@ canonical Supabase project ref `wxteapvwagvhhtrjrbim` 与本轮 guidance 实现�
 - `npm run verify` 25 个阶段全部通过；`npm run auth:verify:production` 通过，严格 SMTP
   因未提供 Management token 而未检查。
 - `npm run home-widgets:visual` 在 360x740、375x812、390x844、430x932 实跑默认五项
-  固定顺序、六项、零项、三列排序与拖动、右侧按钮顺序/收放、底部 AI 路由、睡眠刷新
+  固定顺序、放大后两行和右侧按钮区段的精确对齐、六项、零项、三列排序与拖动、右侧按钮顺序/收放、底部 AI 路由、睡眠刷新
   恢复/结束填表和面部 3/3 条件；证据在
-  `Q:\NAVA-Workspace\Build\TestRuns\nava-home-widgets-v100-20260905`。
-- `npm run home-guidance:visual` 四档实跑提示卡关闭，并在 360x740 实际等待 10.1 秒确认
-  自动消失；`npm run notification:visual` 四档复验通知按钮第二位、随菜单收起/展开及原有
-  横幅/收件箱手势。证据分别在
-  `Q:\NAVA-Workspace\Build\TestRuns\nava-home-guidance-v100-20260905` 与
-  `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v100-20260905`。
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-home-widgets-v101-20260905`。
+- `npm run home-guidance:visual` 四档实跑成功登录后首次展示，并分别验证 10.1 秒自动消失、
+  手动关闭后刷新不重复、页面间返回首页不重复和快捷入口跳转；证据在
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-home-guidance-v101-20260905`。
+- `npm run notification:visual` 四档实跑紧凑自适应列表、语义图标、详情、权限、三点菜单、
+  长按/全选/批量操作、滑动与撤销；证据在
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v101-20260905`。
 - 功能源码 commit `c6c6067a5f0efcf2c480583a4e0a1773983a1bba` 已发布为 ChatGPT
   Sites v100，并同步为 GitHub Pages v100；镜像 commit 为
   `3227a35141e4688c5910b45aad83aa21ef03bd2b`。

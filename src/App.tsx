@@ -107,7 +107,11 @@ function ConfigErrorScreen({ message }: { message: string }) {
   );
 }
 
-function MobileShell() {
+function MobileShell({
+  showInitialHomeGuidance,
+}: {
+  showInitialHomeGuidance: boolean;
+}) {
   const { user } = useAuth();
   const t = useT();
   const { locale } = useLocale();
@@ -153,6 +157,7 @@ function MobileShell() {
   const aiGestureCleanupRef = useRef<(() => void) | null>(null);
   const rewardClaimTailRef = useRef<Promise<GrowthSummary | null>>(Promise.resolve(null));
   const checkinUserRef = useRef<string | null>(null);
+  const initialHomeGuidanceShownRef = useRef(false);
   const currentTab = tabs.find((tab) => tab.id === activeTab);
   const aiSpeechSupported = isAiSpeechSupported();
   const recordTitles: Record<RecordModule, { zh: string; en: string }> = {
@@ -602,6 +607,8 @@ function MobileShell() {
               onChanged={markChanged}
               notifications={notificationItems}
               onOpenNotificationTarget={openNotificationTarget}
+              showInitialGuidance={showInitialHomeGuidance && !initialHomeGuidanceShownRef.current}
+              onInitialGuidanceShown={() => { initialHomeGuidanceShownRef.current = true; }}
             />
           )}
           {activeTab === "record" && (
@@ -750,9 +757,11 @@ function MobileShell() {
 
 function AppContent({
   signedOutScreenSeen: initialSignedOutScreenSeen = false,
+  showInitialHomeGuidance = false,
   onReady,
 }: {
   signedOutScreenSeen?: boolean;
+  showInitialHomeGuidance?: boolean;
   onReady?: (userId: string) => void;
 }) {
   const configError = assertConfig();
@@ -806,7 +815,7 @@ function AppContent({
       window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
       setOnboardingRoute({ userId: user.id, required: false });
     }} />;
-  } else screen = <MobileShell />;
+  } else screen = <MobileShell showInitialHomeGuidance={showInitialHomeGuidance} />;
 
   return (
     <div className="nava-app-stage">
@@ -818,10 +827,12 @@ function AppContent({
 
 export default function AuthenticatedApp({
   signedOutScreenSeen = false,
+  showInitialHomeGuidance = false,
   onReady,
 }: {
   signedOutScreenSeen?: boolean;
+  showInitialHomeGuidance?: boolean;
   onReady?: (userId: string) => void;
 }) {
-  return <AppContent signedOutScreenSeen={signedOutScreenSeen} onReady={onReady} />;
+  return <AppContent signedOutScreenSeen={signedOutScreenSeen} showInitialHomeGuidance={showInitialHomeGuidance} onReady={onReady} />;
 }

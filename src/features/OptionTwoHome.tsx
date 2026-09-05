@@ -98,6 +98,8 @@ export default function OptionTwoHome({
   onChanged,
   notifications,
   onOpenNotificationTarget,
+  showInitialGuidance,
+  onInitialGuidanceShown,
 }: {
   user: User;
   refreshKey: number;
@@ -110,6 +112,8 @@ export default function OptionTwoHome({
   onChanged: () => void;
   notifications: NavaNotificationItem[];
   onOpenNotificationTarget: (target?: NavaNotificationTarget) => void;
+  showInitialGuidance: boolean;
+  onInitialGuidanceShown: () => void;
 }) {
   const { locale, t } = useLocale();
   const [shortcutsOpen, setShortcutsOpen] = useState(true);
@@ -121,6 +125,7 @@ export default function OptionTwoHome({
   const [loading, setLoading] = useState(true);
   const [localHour, setLocalHour] = useState(() => new Date().getHours());
   const [guidanceDismissed, setGuidanceDismissed] = useState(false);
+  const [guidanceEligible] = useState(showInitialGuidance);
   const gestureRef = useRef<{ pointerId: number; startX: number; startY: number; lastX: number; lastY: number } | null>(null);
   const ignoreClickUntilRef = useRef(0);
   const refreshRequestRef = useRef(0);
@@ -166,11 +171,18 @@ export default function OptionTwoHome({
   }, []);
 
   useEffect(() => {
-    if (view !== null) return;
-    setGuidanceDismissed(false);
+    if (!guidanceEligible) return;
+    onInitialGuidanceShown();
+  }, [guidanceEligible, onInitialGuidanceShown]);
+
+  useEffect(() => {
+    if (!guidanceEligible || view !== null) {
+      if (view !== null) setGuidanceDismissed(true);
+      return;
+    }
     const timer = window.setTimeout(() => setGuidanceDismissed(true), 10_000);
     return () => window.clearTimeout(timer);
-  }, [deviceDate, view]);
+  }, [deviceDate, guidanceEligible, view]);
 
   const rhythmScore = snapshot?.rhythmScore ?? "--";
   const points = totalPoints ?? "--";
@@ -302,7 +314,7 @@ export default function OptionTwoHome({
             })}
       </section>
 
-      {homeGuidance && !guidanceDismissed && (
+      {homeGuidance && guidanceEligible && !guidanceDismissed && (
         <aside className="option-two-guidance" aria-live="polite" data-guidance-reason={homeGuidance.reason}>
           <button className="option-two-guidance-close" type="button" onClick={() => setGuidanceDismissed(true)} aria-label={locale === "zh" ? "关闭今日提示" : "Dismiss today's guidance"} title={locale === "zh" ? "关闭今日提示" : "Dismiss today's guidance"}><X size={16} /></button>
           <div className="option-two-guidance-copy">

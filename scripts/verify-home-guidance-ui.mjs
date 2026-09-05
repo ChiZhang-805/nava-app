@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-guidance-v100-20260905";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-guidance-v101-20260905";
 const port = 5202;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -96,25 +96,32 @@ try {
     if (geometry.navTop != null && geometry.guidance.bottom > geometry.navTop - 8) throw new Error(`${viewport.name}: guidance collides with navigation ${JSON.stringify(geometry)}`);
 
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-guidance.png`) });
-    await closeGuidance.click();
-    await expect(guidance).toBeHidden();
-    await page.reload({ waitUntil: "networkidle" });
-    await dismissRewardIfPresent(page);
-    await expect(guidance).toBeVisible();
-    if (viewport.name === "360x740") {
-      await page.waitForTimeout(10_100);
-      await expect(guidance).toBeHidden();
-      await page.reload({ waitUntil: "networkidle" });
-      await dismissRewardIfPresent(page);
-      await expect(guidance).toBeVisible();
-    }
     const preferredMotion = await mascot.getAttribute("data-context-motion");
-    await mascot.click({ position: { x: 120, y: 120 } });
+    const mascotBox = await mascot.boundingBox();
+    if (!mascotBox) throw new Error(`${viewport.name}: mascot has no interaction geometry`);
+    await mascot.click({ position: { x: mascotBox.width * .5, y: mascotBox.height * .65 } });
     await expect(mascot).toHaveAttribute("data-mascot-motion", preferredMotion);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-context-motion.png`) });
 
-    await actions.first().click();
-    await expect.poll(() => new URL(page.url()).hash).toContain("tab=record");
+    if (viewport.name === "360x740") {
+      await page.waitForTimeout(10_100);
+      await expect(guidance).toBeHidden();
+    } else if (viewport.name === "375x812") {
+      await closeGuidance.click();
+      await expect(guidance).toBeHidden();
+      await page.reload({ waitUntil: "networkidle" });
+      await dismissRewardIfPresent(page);
+      await expect(guidance).toHaveCount(0);
+    } else if (viewport.name === "390x844") {
+      await page.locator('.nav-button[data-tab="record"]').click();
+      await expect.poll(() => new URL(page.url()).hash).toContain("tab=record");
+      await page.locator('.nav-button[data-tab="today"]').click();
+      await expect.poll(() => new URL(page.url()).hash).toContain("tab=today");
+      await expect(guidance).toHaveCount(0);
+    } else {
+      await actions.first().click();
+      await expect.poll(() => new URL(page.url()).hash).toContain("tab=record");
+    }
     if (errors.length) throw new Error(`${viewport.name}: browser errors ${JSON.stringify(errors)}`);
     results.push({ viewport, preferredMotion, geometry });
     await context.close();

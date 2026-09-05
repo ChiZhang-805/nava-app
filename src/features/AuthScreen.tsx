@@ -20,7 +20,13 @@ import { useAuth } from "../state/authContext";
 type AuthMode = "signIn" | "signUp" | "reset" | "recoveryChoice";
 type SignInMethod = "password" | "otp";
 
-export default function AuthScreen({ transitionPending = false }: { transitionPending?: boolean }) {
+export default function AuthScreen({
+  transitionPending = false,
+  onAuthenticated,
+}: {
+  transitionPending?: boolean;
+  onAuthenticated?: () => void;
+}) {
   const {
     signIn,
     sendLoginOtp,
@@ -147,6 +153,7 @@ export default function AuthScreen({ transitionPending = false }: { transitionPe
       if (mode === "signIn") {
         if (signInMethod === "otp") await verifyLoginOtp(normalizedAccount, otp);
         else await signIn(normalizedAccount, password);
+        onAuthenticated?.();
         return;
       }
 
@@ -166,6 +173,7 @@ export default function AuthScreen({ transitionPending = false }: { transitionPe
         setNotice(t("auth.notice.passwordUpdated"));
       } else {
         await verifyRegistrationOtp(normalizedAccount, otp, password);
+        onAuthenticated?.();
         setNotice(t("auth.notice.registered"));
       }
     } catch (authError) {

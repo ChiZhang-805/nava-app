@@ -131,9 +131,14 @@ export function publishNavaNotification(
 }
 
 export function markNavaNotification(userId: string, id: string, read: boolean) {
+  return markNavaNotifications(userId, [id], read);
+}
+
+export function markNavaNotifications(userId: string, ids: string[], read: boolean) {
+  const selected = new Set(ids);
   const now = new Date().toISOString();
   return writeStoredItems(userId, readStoredItems(userId).map((item) => (
-    item.id === id ? { ...item, readAt: read ? now : undefined } : item
+    selected.has(item.id) ? { ...item, readAt: read ? now : undefined } : item
   )));
 }
 
@@ -145,20 +150,33 @@ export function markAllNavaNotificationsRead(userId: string) {
 }
 
 export function deleteNavaNotification(userId: string, id: string) {
-  const item = readStoredItems(userId).find((candidate) => candidate.id === id && !candidate.deletedAt);
-  if (!item) return null;
-  writeStoredItems(userId, readStoredItems(userId).map((candidate) => (
-    candidate.id === id ? { ...candidate, deletedAt: new Date().toISOString() } : candidate
+  return deleteNavaNotifications(userId, [id])[0] ?? null;
+}
+
+export function deleteNavaNotifications(userId: string, ids: string[]) {
+  const selected = new Set(ids);
+  const items = readStoredItems(userId);
+  const removed = items.filter((candidate) => selected.has(candidate.id) && !candidate.deletedAt);
+  if (removed.length === 0) return [];
+  const deletedAt = new Date().toISOString();
+  writeStoredItems(userId, items.map((candidate) => (
+    selected.has(candidate.id) && !candidate.deletedAt ? { ...candidate, deletedAt } : candidate
   )));
-  return item;
+  return removed;
 }
 
 export function restoreNavaNotification(userId: string, item: NavaNotificationItem) {
+  return restoreNavaNotifications(userId, [item]);
+}
+
+export function restoreNavaNotifications(userId: string, restoredItems: NavaNotificationItem[]) {
   const items = readStoredItems(userId);
-  const restored = { ...item, deletedAt: undefined };
-  const index = items.findIndex((candidate) => candidate.id === item.id);
-  if (index >= 0) items.splice(index, 1, restored);
-  else items.unshift(restored);
+  for (const item of restoredItems) {
+    const restored = { ...item, deletedAt: undefined };
+    const index = items.findIndex((candidate) => candidate.id === item.id);
+    if (index >= 0) items.splice(index, 1, restored);
+    else items.unshift(restored);
+  }
   return writeStoredItems(userId, items);
 }
 
@@ -202,7 +220,7 @@ export function ensureNotificationQaState(userId: string, locale: "zh" | "en") {
   const qaItems: Array<Omit<NavaNotificationItem, "source">> = [
     { id: "qa:notification-banner", category: "system", createdAt: new Date(now).toISOString(), title: locale === "zh" ? "NAVA 今日提醒" : "NAVA reminder", body: locale === "zh" ? "轻轻补齐一项记录，今天的节律画像就会更完整。" : "Add one record to complete today's rhythm picture.", target: { tab: "record" } },
     { id: "qa:sleep", category: "sleep", createdAt: new Date(now - 18 * 60_000).toISOString(), title: locale === "zh" ? "今晚早点放松" : "Wind down earlier", body: locale === "zh" ? "把睡眠提醒设在准备休息前，留一点安静过渡。" : "Set a reminder before bed for a calmer transition.", target: { tab: "record", module: "sleep", view: "editor" } },
-    { id: "qa:nutrition", category: "nutrition", createdAt: new Date(now - 75 * 60_000).toISOString(), title: locale === "zh" ? "午餐还没有记录" : "Lunch is not recorded", body: locale === "zh" ? "拍一张或手动补充，营养视图会同步更新。" : "Capture or add it and the nutrition view will update.", target: { tab: "record", module: "diet", view: "editor" } },
+    { id: "qa:nutrition", category: "nutrition", createdAt: new Date(now - 75 * 60_000).toISOString(), title: locale === "zh" ? "午餐还没有记录" : "Lunch is not recorded", body: locale === "zh" ? "拍一张照片或手动补充今天的午餐，营养视图、能量结构和本周健康报告都会根据这条真实记录同步更新。" : "Capture a photo or add lunch manually so nutrition, energy balance, and the weekly health report can update from this real record.", target: { tab: "record", module: "diet", view: "editor" } },
     { id: "qa:focus", category: "focus", createdAt: new Date(now - 26 * 60 * 60_000).toISOString(), title: locale === "zh" ? "完成一个专注块" : "Focus block completed", body: locale === "zh" ? "昨天的 25 分钟已经保存，可以在历史里回看。" : "Yesterday's 25 minutes are saved in history.", target: { tab: "record", module: "focus", view: "history" }, readAt: new Date(now - 25 * 60 * 60_000).toISOString() },
   ];
   qaItems.forEach((item, index) => publishNavaNotification(userId, { ...item, source: "system" }, { present: index === 0, replace: true }));

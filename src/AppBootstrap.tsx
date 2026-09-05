@@ -41,6 +41,7 @@ function BootstrapContent() {
   const { user, loading } = useAuth();
   const signedOutScreenSeen = useRef(false);
   const [readyUserId, setReadyUserId] = useState<string | null>(null);
+  const [freshAuthentication, setFreshAuthentication] = useState(false);
   const forceAuthSkeleton = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "auth-skeleton";
 
   if (!loading && !user) signedOutScreenSeen.current = true;
@@ -72,7 +73,7 @@ function BootstrapContent() {
   return (
     <>
       {(!user || preserveSubmittedAuthScreen) && (
-        <AuthScreen transitionPending={preserveSubmittedAuthScreen} />
+        <AuthScreen transitionPending={preserveSubmittedAuthScreen} onAuthenticated={() => setFreshAuthentication(true)} />
       )}
       {showSessionRestoreLoading && <LoadingScreen />}
       {user && (
@@ -84,6 +85,7 @@ function BootstrapContent() {
           <Suspense fallback={null}>
             <AuthenticatedApp
               signedOutScreenSeen={signedOutScreenSeen.current}
+              showInitialHomeGuidance={freshAuthentication}
               onReady={markAuthenticatedAppReady}
             />
           </Suspense>

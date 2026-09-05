@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-notifications-v100-20260905";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-notifications-v101-20260905";
 const port = 5201;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -99,7 +99,32 @@ try {
     await expect(page.locator("[data-notification-center]")).toBeVisible();
     await expect.poll(() => new URL(page.url()).hash).toContain("view=notifications");
     await expect(page.locator(".notification-row-shell")).toHaveCount(4);
+    await expect(page.locator(".notification-center-title")).toHaveText("通知中心");
+    await expect(page.locator(".notification-center-title small")).toHaveCount(0);
+    await expect(page.locator(".notification-swipe-hint")).toHaveCount(0);
+    const categoryIcons = await page.locator(".notification-row-icon").evaluateAll((icons) => icons.map((icon) => ({ category: icon.getAttribute("data-category"), svg: icon.innerHTML })));
+    if (new Set(categoryIcons.map((item) => item.svg)).size !== categoryIcons.length) throw new Error(`${viewport.name}: category icons are not distinct ${JSON.stringify(categoryIcons)}`);
+    const initialRowHeights = await page.locator(".notification-row-shell").evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height));
+    if (Math.max(...initialRowHeights) - Math.min(...initialRowHeights) < 5) throw new Error(`${viewport.name}: notification rows are not adapting to their content ${JSON.stringify(initialRowHeights)}`);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-center-populated.png`) });
+
+    const firstBody = await page.locator(".notification-row-body").first().textContent();
+    await page.locator(".notification-row-main").first().click();
+    const detail = page.locator(".notification-detail-dialog");
+    await expect(detail).toBeVisible();
+    await expect(detail).toContainText(firstBody ?? "");
+    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-detail.png`) });
+    await detail.locator(".notification-detail-close").click();
+    await expect(detail).toBeHidden();
+
+    const permissionCard = page.locator(".notification-permission-card");
+    await expect(permissionCard).toBeVisible();
+    await page.evaluate(() => Object.defineProperty(Notification, "permission", { configurable: true, value: "granted" }));
+    const grantedState = await page.evaluate(() => Notification.permission);
+    if (grantedState !== "granted") throw new Error(`${viewport.name}: browser notification permission fixture is ${grantedState}`);
+    await permissionCard.locator(":scope > button").click();
+    await expect(permissionCard).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.locator(".notification-row-shell")).toHaveCount(5);
 
     let row = page.locator(".notification-row-shell").first();
     await swipe(page, row.locator(".notification-row-card"), "right");
@@ -107,19 +132,52 @@ try {
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-swipe-delete.png`) });
     await row.locator(".notification-swipe-delete").click();
     await expect(page.locator(".notification-undo")).toBeVisible();
-    await expect(page.locator(".notification-row-shell")).toHaveCount(3);
-    await page.locator(".notification-undo button").click();
     await expect(page.locator(".notification-row-shell")).toHaveCount(4);
+    await page.locator(".notification-undo button").click();
+    await expect(page.locator(".notification-row-shell")).toHaveCount(5);
 
     row = page.locator(".notification-row-shell").first();
+    const readBeforeSwipe = await row.getAttribute("data-read");
     await swipe(page, row.locator(".notification-row-card"), "left");
     await expect(row).toHaveAttribute("data-swipe", "read");
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-swipe-read.png`) });
     await row.locator(".notification-swipe-read").click();
-    await expect(row).toHaveAttribute("data-read", "true");
-    await page.locator(".notification-center-header > button").last().click();
+    await expect(row).toHaveAttribute("data-read", readBeforeSwipe === "true" ? "false" : "true");
+
+    const menuButton = page.locator(".notification-header-menu-wrap > button");
+    await menuButton.click();
+    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-menu.png`) });
+    await page.getByRole("menuitem", { name: "多选" }).click();
+    await expect(page.locator(".notification-center-header")).toHaveClass(/is-selecting/);
+    await expect(page.locator(".notification-selection-actions > button")).toHaveCount(2);
+    await page.locator(".notification-selection-bar button").click();
+    await expect(page.locator(".notification-row-shell.is-selected")).toHaveCount(5);
+    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-multi-select.png`) });
+    await page.locator(".notification-selection-actions > button").nth(1).click();
+    await expect(page.locator(".notification-center-header")).not.toHaveClass(/is-selecting/);
     await page.locator('.notification-filter-tabs [role="tab"]').nth(1).click();
     await expect(page.locator(".notification-empty-state")).toBeVisible();
+    await page.locator('.notification-filter-tabs [role="tab"]').first().click();
+
+    row = page.locator(".notification-row-shell").first();
+    const longPressBox = await row.locator(".notification-row-card").boundingBox();
+    if (!longPressBox) throw new Error(`${viewport.name}: long-press target has no box`);
+    const pressX = longPressBox.x + longPressBox.width / 2;
+    const pressY = longPressBox.y + longPressBox.height / 2;
+    await row.locator(".notification-row-card").dispatchEvent("pointerdown", { pointerId: 11, pointerType: "touch", isPrimary: true, clientX: pressX, clientY: pressY, button: 0 });
+    await page.waitForTimeout(560);
+    await row.locator(".notification-row-card").dispatchEvent("pointerup", { pointerId: 11, pointerType: "touch", isPrimary: true, clientX: pressX, clientY: pressY, button: 0 });
+    await expect(page.locator(".notification-center-header")).toHaveClass(/is-selecting/);
+    await expect(page.locator(".notification-row-shell.is-selected")).toHaveCount(1);
+    await page.locator(".notification-center-header > button").click();
+
+    page.once("dialog", (dialog) => dialog.accept());
+    await menuButton.click();
+    await page.getByRole("menuitem", { name: "全部删除" }).click();
+    await expect(page.locator(".notification-empty-state")).toBeVisible();
+    await expect(page.locator(".notification-undo")).toBeVisible();
+    await page.locator(".notification-undo button").click();
+    await expect(page.locator(".notification-row-shell")).toHaveCount(5);
 
     const geometry = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame");
@@ -137,7 +195,7 @@ try {
     if ((geometry.documentOverflow ?? 0) > 1 || (geometry.frameOverflow ?? 0) > 1 || (geometry.centerOverflow ?? 0) > 1) throw new Error(`${viewport.name}: notification UI overflows horizontally ${JSON.stringify(geometry)}`);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-center.png`) });
     if (errors.length) throw new Error(`${viewport.name}: browser errors ${JSON.stringify(errors)}`);
-    results.push({ viewport, bannerBox, bellBox, geometry });
+    results.push({ viewport, bannerBox, bellBox, categoryIcons: categoryIcons.map((item) => item.category), initialRowHeights, geometry });
     await context.close();
   }
 } finally {
