@@ -682,7 +682,13 @@ function MobileShell() {
   );
 }
 
-function AppContent({ signedOutScreenSeen: initialSignedOutScreenSeen = false }: { signedOutScreenSeen?: boolean }) {
+function AppContent({
+  signedOutScreenSeen: initialSignedOutScreenSeen = false,
+  onReady,
+}: {
+  signedOutScreenSeen?: boolean;
+  onReady?: (userId: string) => void;
+}) {
   const configError = assertConfig();
   const { user, loading, passwordRecovery } = useAuth();
   const signedOutScreenSeen = useRef(initialSignedOutScreenSeen);
@@ -716,6 +722,10 @@ function AppContent({ signedOutScreenSeen: initialSignedOutScreenSeen = false }:
   if (!loading && !user) signedOutScreenSeen.current = true;
   const checkingOnboarding = Boolean(userId && onboardingRoute?.userId !== userId);
 
+  useEffect(() => {
+    if (!loading && userId && (passwordRecovery || !checkingOnboarding)) onReady?.(userId);
+  }, [checkingOnboarding, loading, onReady, passwordRecovery, userId]);
+
   let screen;
   if (configError && !isDemoMode()) screen = <ConfigErrorScreen message={configError} />;
   else if (loading) screen = <LoadingScreen />;
@@ -740,6 +750,12 @@ function AppContent({ signedOutScreenSeen: initialSignedOutScreenSeen = false }:
   );
 }
 
-export default function AuthenticatedApp({ signedOutScreenSeen = false }: { signedOutScreenSeen?: boolean }) {
-  return <AppContent signedOutScreenSeen={signedOutScreenSeen} />;
+export default function AuthenticatedApp({
+  signedOutScreenSeen = false,
+  onReady,
+}: {
+  signedOutScreenSeen?: boolean;
+  onReady?: (userId: string) => void;
+}) {
+  return <AppContent signedOutScreenSeen={signedOutScreenSeen} onReady={onReady} />;
 }

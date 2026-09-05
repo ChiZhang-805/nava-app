@@ -86,24 +86,38 @@ async function completeOnboardingIfNeeded(page) {
 
 async function beginLoginInterstitialWatch(page) {
   await page.evaluate(() => {
-    const state = { loadingSeen: false };
+    const initialAccount = document.querySelector('input[autocomplete="username"]')?.value ?? "";
+    const state = { loadingSeen: false, submittedFormResetSeen: false };
     const scan = () => {
       if (document.querySelector(".centered-screen")) state.loadingSeen = true;
+      const authScreen = document.querySelector(".auth-screen");
+      const account = document.querySelector('input[autocomplete="username"]');
+      const submitText = document.querySelector(".auth-submit")?.textContent?.replace(/\s+/g, " ").trim() ?? "";
+      if (authScreen
+        && account instanceof HTMLInputElement
+        && initialAccount
+        && account.value !== initialAccount
+        && /处理中|Processing/i.test(submitText)) {
+        state.submittedFormResetSeen = true;
+      }
     };
     const observer = new MutationObserver(scan);
     observer.observe(document.body, { childList: true, subtree: true });
-    window.__navaLoginInterstitialWatch = { observer, state };
+    const interval = window.setInterval(scan, 16);
+    window.__navaLoginInterstitialWatch = { interval, observer, state };
     scan();
   });
 }
 
 async function expectNoLoginInterstitial(page) {
-  const loadingSeen = await page.evaluate(() => {
+  const state = await page.evaluate(() => {
     const watch = window.__navaLoginInterstitialWatch;
     watch?.observer.disconnect();
-    return watch?.state.loadingSeen ?? false;
+    if (watch?.interval) window.clearInterval(watch.interval);
+    return watch?.state ?? { loadingSeen: false, submittedFormResetSeen: false };
   });
-  if (loadingSeen) throw new Error("A full-screen loading interstitial appeared after authentication.");
+  if (state.loadingSeen) throw new Error("A full-screen loading interstitial appeared after authentication.");
+  if (state.submittedFormResetSeen) throw new Error("The submitted login form was replaced by an empty processing form.");
 }
 
 async function loginWithPassword(page, baseUrl) {

@@ -39,6 +39,15 @@ body::before {
   margin-inline: auto;
 }
 
+.authenticated-app-gate {
+  width: 100%;
+  height: 100%;
+}
+
+.authenticated-app-gate[hidden] {
+  display: none !important;
+}
+
 @media (max-width: 480px) {
   .nava-app-stage > .phone-frame,
   .nava-app-stage > .auth-screen,
