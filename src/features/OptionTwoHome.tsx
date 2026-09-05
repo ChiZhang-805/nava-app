@@ -1,10 +1,21 @@
 import type { User } from "@supabase/supabase-js";
 import {
   Bell,
+  BrainCircuit,
   CalendarDays,
+  ChartNoAxesCombined,
+  Footprints,
   ListTodo,
+  MessageCircle,
   Menu,
+  MoonStar,
+  ScanFace,
+  SmilePlus,
+  Sparkles,
+  TimerReset,
+  Utensils,
   UsersRound,
+  type LucideIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import dietIcon from "../assets/figma/option-two-icons/diet.svg";
@@ -21,7 +32,7 @@ import InteractiveMascot from "../components/InteractiveMascot";
 import { loadGrowthTotalPoints } from "../services/productivity";
 import { getTodaySnapshot } from "../services/records";
 import { buildHealthModuleProgress, healthModuleEntryView, healthModuleProgressLabel } from "../services/healthReportPresentation";
-import { isVerticalHomeSwipe } from "../services/homeExperience";
+import { buildHomeGuidance, homeDayPhase, isVerticalHomeSwipe, type HomeGuidanceAction } from "../services/homeExperience";
 import { syncContextualNotifications, type NavaNotificationItem, type NavaNotificationTarget } from "../services/notifications";
 import type { TodaySnapshot } from "../types";
 import type { RecordModule } from "./RecordsScreen";
@@ -42,6 +53,17 @@ const healthEntries: Array<{
   { id: "focus", icon: focusIcon, labelKey: "records.focus", className: "focus" },
   { id: "mood", icon: moodIcon, labelKey: "records.mood", className: "mood" },
 ];
+
+const homeGuidanceIcons: Record<HomeGuidanceAction["id"], LucideIcon> = {
+  sleep: MoonStar,
+  diet: Utensils,
+  focus: TimerReset,
+  exercise: Footprints,
+  mood: SmilePlus,
+  face: ScanFace,
+  report: ChartNoAxesCombined,
+  ai: MessageCircle,
+};
 
 export default function OptionTwoHome({
   user,
@@ -74,6 +96,7 @@ export default function OptionTwoHome({
   const [snapshot, setSnapshot] = useState<TodaySnapshot | null>(null);
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [localHour, setLocalHour] = useState(() => new Date().getHours());
   const gestureRef = useRef<{ pointerId: number; startX: number; startY: number; lastX: number; lastY: number } | null>(null);
   const ignoreClickUntilRef = useRef(0);
   const refreshRequestRef = useRef(0);
@@ -109,9 +132,17 @@ export default function OptionTwoHome({
     };
   }, [refresh, refreshKey]);
 
+  useEffect(() => {
+    const updateHour = () => setLocalHour(new Date().getHours());
+    const timer = window.setInterval(updateHour, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const rhythmScore = snapshot?.rhythmScore ?? "--";
   const points = totalPoints ?? "--";
   const moduleProgress = buildHealthModuleProgress(snapshot);
+  const homeGuidance = snapshot ? buildHomeGuidance(snapshot, localHour, locale) : null;
+  const phase = homeGuidance?.phase ?? homeDayPhase(localHour);
 
   if (view === "calendar" || view?.startsWith("day-")) {
     return <HomeCalendarExperience user={user} deviceDate={deviceDate} view={view} onOpenDate={(date) => onViewChange(`day-${date}`)} onBack={onBack} />;
@@ -174,13 +205,15 @@ export default function OptionTwoHome({
 
   return (
     <section
-      className={["option-two-home", healthMenuOpen ? "is-health-menu-open" : "", shortcutsOpen ? "shortcuts-open" : "shortcuts-collapsed", snapshot ? "is-loaded" : ""].filter(Boolean).join(" ")}
+      className={["option-two-home", `home-phase-${phase}`, healthMenuOpen ? "is-health-menu-open" : "", shortcutsOpen ? "shortcuts-open" : "shortcuts-collapsed", snapshot ? "is-loaded" : ""].filter(Boolean).join(" ")}
       onPointerDown={beginHomeGesture}
       onPointerMove={moveHomeGesture}
       onPointerUp={endHomeGesture}
       onPointerCancel={() => { gestureRef.current = null; }}
       onClickCapture={dismissHealthMenuOutside}
       data-health-menu-open={healthMenuOpen}
+      data-home-phase={phase}
+      data-home-guidance={homeGuidance?.reason ?? "loading"}
     >
       <div className="option-two-scores" aria-label={t("today.overview")} aria-live="polite" aria-busy={loading}>
         <div><span>{t("today.rhythm")}</span><strong>{loading && snapshot === null ? <SkeletonBlock className="option-two-score-skeleton" /> : typeof rhythmScore === "number" ? <AnimatedNumber value={rhythmScore} /> : rhythmScore}</strong></div>
@@ -200,9 +233,24 @@ export default function OptionTwoHome({
         </button>
       </div>
 
+      {homeGuidance && (
+        <aside className="option-two-guidance" aria-live="polite" data-guidance-reason={homeGuidance.reason}>
+          <div className="option-two-guidance-copy">
+            <span><Sparkles size={14} />{homeGuidance.eyebrow}</span>
+            <p>{homeGuidance.message}</p>
+          </div>
+          <div className="option-two-guidance-actions" aria-label={locale === "zh" ? "根据今日状态推荐的快捷操作" : "Recommended actions for today"}>
+            {homeGuidance.actions.map((action) => {
+              const Icon = homeGuidanceIcons[action.id] ?? BrainCircuit;
+              return <button key={action.id} type="button" onClick={() => onOpenNotificationTarget(action.target)}><Icon size={15} /><span>{action.label}</span></button>;
+            })}
+          </div>
+        </aside>
+      )}
+
       <div className="option-two-life-stage">
         <span className="option-two-aura" aria-hidden="true" />
-        <InteractiveMascot locale={locale} />
+        <InteractiveMascot locale={locale} preferredMotion={homeGuidance?.motion} />
       </div>
 
       <div className="option-two-health-menu" aria-hidden={!healthMenuOpen}>

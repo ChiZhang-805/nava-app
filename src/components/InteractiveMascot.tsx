@@ -9,6 +9,7 @@ import {
   mascotArtworkFrame,
   mascotFramesPerSecond,
   mascotMotionAt,
+  mascotMotionSequence,
   nextMascotMotionIndex,
   type MascotMotion,
 } from "../services/mascotMotion";
@@ -29,7 +30,7 @@ const actionSprites: Record<MascotMotion, { source: string; columns: number; row
   lift: { source: liftSprite, columns: 5, rows: 4 },
 };
 
-export default function InteractiveMascot({ locale }: { locale: "zh" | "en" }) {
+export default function InteractiveMascot({ locale, preferredMotion }: { locale: "zh" | "en"; preferredMotion?: MascotMotion }) {
   const [sequenceIndex, setSequenceIndex] = useState(0);
   const [motion, setMotion] = useState<MascotMotion | null>(null);
   const [run, setRun] = useState(0);
@@ -73,10 +74,12 @@ export default function InteractiveMascot({ locale }: { locale: "zh" | "en" }) {
       window.requestAnimationFrame(() => { home.scrollLeft = 0; });
     }
 
-    const next = mascotMotionAt(sequenceIndex);
+    const next = preferredMotion
+      ? mascotMotionSequence.find((candidate) => candidate.id === preferredMotion) ?? mascotMotionAt(sequenceIndex)
+      : mascotMotionAt(sequenceIndex);
     setMotion(next.id);
     setRun((value) => value + 1);
-    setSequenceIndex((value) => nextMascotMotionIndex(value));
+    if (!preferredMotion) setSequenceIndex((value) => nextMascotMotionIndex(value));
     navigator.vibrate?.(12);
     timerRef.current = window.setTimeout(() => {
       setMotion(null);
@@ -84,7 +87,7 @@ export default function InteractiveMascot({ locale }: { locale: "zh" | "en" }) {
     }, next.durationMs);
   };
 
-  const nextMotion = mascotMotionAt(sequenceIndex).id;
+  const nextMotion = preferredMotion ?? mascotMotionAt(sequenceIndex).id;
   const nextLabel = motionLabels[nextMotion][locale];
   const activeLabel = motion ? motionLabels[motion][locale] : null;
   const artworkFrame = motion ? mascotArtworkFrame(motion, displayFrame) : 0;
@@ -108,6 +111,7 @@ export default function InteractiveMascot({ locale }: { locale: "zh" | "en" }) {
       aria-disabled={motion ? "true" : "false"}
       data-mascot-motion={motion ?? "idle"}
       data-next-motion={nextMotion}
+      data-context-motion={preferredMotion ?? "sequence"}
       data-motion-run={run}
       data-display-frame={displayFrame}
       data-artwork-frame={artworkFrame}

@@ -1,4 +1,5 @@
 import type { TodaySnapshot, TrendBundle } from "../types";
+import type { MascotMotion } from "./mascotMotion";
 
 export type CalendarCell = {
   date: string | null;
@@ -13,12 +14,110 @@ export type DailyMetric = {
   secondary: string;
 };
 
+export type HomeDayPhase = "dawn" | "day" | "evening" | "night";
+
+export type HomeGuidanceAction = {
+  id: "sleep" | "diet" | "focus" | "exercise" | "mood" | "face" | "report" | "ai";
+  label: string;
+  target: {
+    tab: "record" | "ai";
+    module?: "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
+    view?: string | null;
+  };
+};
+
+export type HomeGuidance = {
+  phase: HomeDayPhase;
+  reason: "sleep_low" | "rhythm_signal" | "movement_low" | "focus_complete" | "focus_missing" | "wind_down" | "steady";
+  eyebrow: string;
+  message: string;
+  motion: MascotMotion;
+  actions: HomeGuidanceAction[];
+};
+
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
 function pad(value: number) {
   return String(value).padStart(2, "0");
+}
+
+export function homeDayPhase(hour: number): HomeDayPhase {
+  const normalized = ((Math.trunc(hour) % 24) + 24) % 24;
+  if (normalized >= 5 && normalized < 9) return "dawn";
+  if (normalized >= 9 && normalized < 17) return "day";
+  if (normalized >= 17 && normalized < 21) return "evening";
+  return "night";
+}
+
+function completeMood(snapshot: TodaySnapshot) {
+  return Boolean(snapshot.mood?.factors.length && snapshot.mood.diary_content?.trim());
+}
+
+function homeGuidanceActions(snapshot: TodaySnapshot, hour: number, locale: "zh" | "en") {
+  const zh = locale === "zh";
+  const actions: HomeGuidanceAction[] = [];
+  const add = (action: HomeGuidanceAction) => {
+    if (!actions.some((candidate) => candidate.id === action.id)) actions.push(action);
+  };
+
+  if (hour >= 9 && !snapshot.sleep) add({ id: "sleep", label: zh ? "补睡眠" : "Add sleep", target: { tab: "record", module: "sleep", view: "editor" } });
+  if (hour >= 10 && snapshot.focusMinutes < 25) add({ id: "focus", label: zh ? "去专注" : "Start focus", target: { tab: "record", module: "focus" } });
+  if (hour >= 12 && !snapshot.nutrition) add({ id: "diet", label: zh ? "记一餐" : "Log a meal", target: { tab: "record", module: "diet", view: "editor" } });
+  if (hour >= 17 && (!snapshot.exercise || (snapshot.exercise.steps ?? 0) < 3_000)) add({ id: "exercise", label: zh ? "动一动" : "Move gently", target: { tab: "record", module: "exercise" } });
+  if (hour >= 18 && !completeMood(snapshot)) add({ id: "mood", label: zh ? "写心情" : "Check mood", target: { tab: "record", module: "mood", view: "editor" } });
+  if (hour >= 20 && !snapshot.face) add({ id: "face", label: zh ? "记面部" : "Log face", target: { tab: "record", module: "face", view: "editor" } });
+
+  add({ id: "report", label: zh ? "看报告" : "View report", target: { tab: "record" } });
+  add({ id: "ai", label: zh ? "问 NAVA" : "Ask NAVA", target: { tab: "ai" } });
+  return actions.slice(0, 3);
+}
+
+export function buildHomeGuidance(snapshot: TodaySnapshot, hour: number, locale: "zh" | "en" = "zh"): HomeGuidance {
+  const zh = locale === "zh";
+  const phase = homeDayPhase(hour);
+  const actions = homeGuidanceActions(snapshot, hour, locale);
+  const sleepMinutes = snapshot.sleep?.sleep_duration_minutes;
+  const steps = snapshot.exercise?.steps ?? 0;
+
+  if (sleepMinutes != null && sleepMinutes < 360) {
+    return {
+      phase,
+      reason: "sleep_low",
+      eyebrow: zh ? "恢复优先" : "Recovery first",
+      message: zh ? `昨晚记录了 ${Math.floor(sleepMinutes / 60)} 小时 ${sleepMinutes % 60} 分睡眠，今天先把节奏放轻一点。` : `Last night recorded ${Math.floor(sleepMinutes / 60)}h ${sleepMinutes % 60}m of sleep. Keep today's pace gentle.`,
+      motion: "sleep",
+      actions,
+    };
+  }
+
+  if ((snapshot.rhythmAnomalyCount ?? 0) > 0 && snapshot.nextAction.trim()) {
+    return { phase, reason: "rhythm_signal", eyebrow: zh ? "今日节律提示" : "Rhythm signal", message: snapshot.nextAction.trim(), motion: "tail", actions };
+  }
+
+  if (hour >= 17 && steps < 3_000) {
+    return { phase, reason: "movement_low", eyebrow: zh ? "傍晚活动提示" : "Evening movement", message: zh ? `今天记录了 ${steps.toLocaleString()} 步；身体感觉合适时，可以轻走 10 分钟。` : `${steps.toLocaleString()} steps are recorded today. If it feels right, try a gentle 10-minute walk.`, motion: "lift", actions };
+  }
+
+  if (snapshot.focusMinutes >= 25) {
+    return { phase, reason: "focus_complete", eyebrow: zh ? "专注完成" : "Focus completed", message: zh ? `今天已经完成 ${Math.round(snapshot.focusMinutes)} 分钟专注，给自己一个短暂的放松间隔。` : `You have completed ${Math.round(snapshot.focusMinutes)} focus minutes today. Take a short reset.`, motion: "wave", actions };
+  }
+
+  if (hour >= 10 && snapshot.focusMinutes < 25) {
+    return { phase, reason: "focus_missing", eyebrow: zh ? "下一步建议" : "Suggested next step", message: zh ? "从一个 25 分钟专注块开始，把今天最重要的一件事先完成。" : "Start with one 25-minute focus block for today's most important task.", motion: "read", actions };
+  }
+
+  if (phase === "night") {
+    return { phase, reason: "wind_down", eyebrow: zh ? "夜间节律" : "Night rhythm", message: zh ? "把屏幕和高强度任务慢慢放下，为睡眠留一段安静过渡。" : "Ease away from screens and intense tasks to leave a quiet transition into sleep.", motion: "sleep", actions };
+  }
+
+  const phaseMessage = phase === "dawn"
+    ? (zh ? "新的一天刚开始，先确认身体感受，再安排第一个小目标。" : "The day is beginning. Check how you feel before choosing the first small goal.")
+    : phase === "evening"
+      ? (zh ? "傍晚适合回看今天的记录，再决定休息还是轻量活动。" : "Review today's records, then choose rest or light activity for the evening.")
+      : (zh ? "今天的状态保持平稳，补齐一项记录会让节律判断更完整。" : "Today's state looks steady. One more record will make the rhythm picture clearer.");
+  return { phase, reason: "steady", eyebrow: zh ? "NAVA 今日建议" : "NAVA today", message: phaseMessage, motion: phase === "dawn" ? "wave" : phase === "evening" ? "tail" : "read", actions };
 }
 
 export function homeSwipeThreshold(viewportHeight: number) {

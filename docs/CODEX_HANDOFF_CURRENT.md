@@ -599,14 +599,14 @@ npm run ios:verify
 npm run supabase:verify-shared
 ```
 
-`npm run verify` 当前是 23 阶段综合门禁，interaction suite 当前记录为 11 组；具体
+`npm run verify` 当前是 24 阶段综合门禁，interaction suite 当前记录为 11 组；具体
 数字可能随脚本更新，新任务应以运行输出为准。构建通过不等于真实 Supabase 写入、
 OTP 送达、模型 provider 可用、HealthKit 真机权限或视觉验收通过。
 
-本交接完成后已于 2026-09-05 再运行一次完整 `npm run verify`：23 个阶段全部通过，
+本交接完成后已于 2026-09-05 再运行一次完整 `npm run verify`：24 个阶段全部通过，
 包括生产构建、lint、Sites 单入口身份、四尺寸六卡、四尺寸记录编辑器、真实完成度、
 AI 双摘要、后端合同、16 个 Edge Function typecheck、Deno 测试、Health/Watch、iOS、
-consent、翻译 DOM 韧性、请求缓存边界和通知规划合同。这个结果验证当前源树的一致性，但仍不替代
+consent、翻译 DOM 韧性、请求缓存边界、通知规划和首页动态 guidance 合同。这个结果验证当前源树的一致性，但仍不替代
 第 9.2 节的 Apple 真机验收或第 8.1 节的生产 Function 部署验收。
 
 近期证据目录：
@@ -617,6 +617,7 @@ consent、翻译 DOM 韧性、请求缓存边界和通知规划合同。这个�
 - `Q:\NAVA-Workspace\Build\TestRuns\nava-v96-record-editors`
 - `Q:\NAVA-Workspace\Build\TestRuns\nava-v96-public`
 - `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-20260905`
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-home-guidance-20260905`
 
 截图只能证明被截取时的视觉状态。凡涉及写入、RLS、provider、HealthKit 或 Watch
 队列，必须在真正边界记录网络/数据库/真机证据。
@@ -803,3 +804,18 @@ Capacitor 本地通知现可安排睡眠、饮食、专注、情绪、今日状�
 完整边界见 [`NOTIFICATIONS_DELIVERY.md`](./NOTIFICATIONS_DELIVERY.md)。应用内通知已随
 v97 同源发布到 Sites 与 GitHub Pages；两个站点的未登录真实认证页均已用无头
 Playwright 验证。原生锁屏送达仍必须等 Mac/Xcode/iPhone 真机验收后才能写成完成。
+
+## 24. 首页动态状态最新状态
+
+2026-09-05 已在源码中新增 `buildHomeGuidance` 纯规则合同：首页按设备本地小时切换
+清晨、白天、傍晚、夜间四种轻量氛围；读取当天真实 `TodaySnapshot`，按睡眠不足、
+ChronoState 已持久化行动、傍晚低活动、专注完成/缺失、夜间放松和稳定状态排序，
+选择一条最多两行的建议、一个小猫动作及 2–3 个真实页面入口。规则不调用新模型、
+不发明健康结论，缺数据时只引导补记录。
+
+小猫保留原有五套精灵动画；首页有真实 guidance 时，点击优先播放建议动作，没有
+guidance 时仍使用原序列。健康建议卡在六模块圆盘展开时自动淡出，避免遮挡入口。
+`npm run home-guidance:test` 覆盖时段边界、状态优先级、动作映射和入口去重；
+`npm run home-guidance:visual` 已在 360x740、375x812、390x844、430x932 验证建议卡、
+上下层关系、无横向溢出、小猫动作和报告跳转。证据在
+`Q:\NAVA-Workspace\Build\TestRuns\nava-home-guidance-20260905`。

@@ -20,7 +20,7 @@ export function buildContextualNotificationDrafts(snapshot: TodaySnapshot, hour:
   if (hour >= 18 && !hasCompleteMood(snapshot)) add({ id: `context:${snapshot.date}:mood`, category: "mood", hour: 18, title: zh ? "给今天的心情留句话" : "Check in with your mood", body: zh ? "选一个感受和主要原因，完成今天的情绪记录。" : "Choose a feeling and its main factor to complete today.", target: { tab: "record", module: "mood", view: "editor" } });
   if (hour >= 10 && snapshot.focusMinutes < 25) add({ id: `context:${snapshot.date}:focus`, category: "focus", hour: 10, title: zh ? "安排一个专注块" : "Plan a focus block", body: zh ? "从 25 分钟开始，让今天的节律更稳定。" : "Start with 25 minutes to steady today's rhythm.", target: { tab: "record", module: "focus", view: null } });
   if (hour >= 20 && !snapshot.face) add({ id: `context:${snapshot.date}:face`, category: "face", hour: 20, title: zh ? "记录今天的面部状态" : "Capture today's face status", body: zh ? "在光线稳定时拍一张，结果只用于非诊断趋势记录。" : "Capture in steady light for non-diagnostic trend tracking.", target: { tab: "record", module: "face", view: "editor" } });
-  if (hour >= 11 && (snapshot.rhythmAnomalyCount ?? 0) > 0 && snapshot.nextAction.trim()) add({ id: `context:${snapshot.date}:rhythm`, category: "system", hour: 11, title: zh ? "今天有一项状态值得留意" : "One signal deserves attention", body: snapshot.nextAction, target: { tab: "record", view: "weekly" } });
+  if (hour >= 11 && (snapshot.rhythmAnomalyCount ?? 0) > 0 && snapshot.nextAction.trim()) add({ id: `context:${snapshot.date}:rhythm`, category: "system", hour: 11, title: zh ? "今天有一项状态值得留意" : "One signal deserves attention", body: snapshot.nextAction, target: { tab: "record" } });
 
   return drafts.sort((left, right) => right.hour - left.hour).slice(0, 4);
 }

@@ -247,7 +247,7 @@ async function scheduleNativeSuite(sleepTime: string, comprehensive: boolean) {
   await LocalNotifications.cancel({ notifications: ids.map((id) => ({ id })) });
   const notifications: LocalNotificationSchema[] = [
     { id: SLEEP_ID, title: "NAVA · 睡眠提醒", body: "该准备入睡了，给今天一个安静的收尾。", schedule: { on: { hour: sleep.hour, minute: sleep.minute }, allowWhileIdle: true }, extra: { notificationId: "native:sleep", category: "sleep", destination: "record/sleep/editor" } },
-    { id: WEEKLY_ID, title: "NAVA · 本周健康报告", body: "小猫已经整理好你的跨模块周报。", schedule: { on: { weekday: 2, hour: 8, minute: 0 }, allowWhileIdle: true }, extra: { notificationId: "native:weekly", category: "weekly", destination: "record//weekly" } },
+    { id: WEEKLY_ID, title: "NAVA · 本周健康报告", body: "小猫已经整理好你的跨模块周报。", schedule: { on: { weekday: 2, hour: 8, minute: 0 }, allowWhileIdle: true }, extra: { notificationId: "native:weekly", category: "weekly", destination: "record" } },
   ];
   if (comprehensive) notifications.push(
     { id: NUTRITION_ID, title: "NAVA · 饮食提醒", body: "记录一餐，让今天的能量和营养更清楚。", schedule: { on: { hour: 12, minute: 30 }, allowWhileIdle: true }, extra: { notificationId: "native:nutrition", category: "nutrition", destination: "record/diet/editor" } },

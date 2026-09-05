@@ -103,4 +103,8 @@ Write-Host "23. Notification planner contract"
 Invoke-Npm -Arguments @("run", "notification:test")
 
 Write-Host ""
+Write-Host "24. Home guidance and mascot-state contract"
+Invoke-Npm -Arguments @("run", "home-guidance:test")
+
+Write-Host ""
 Write-Host "Verification completed."

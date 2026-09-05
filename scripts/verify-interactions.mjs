@@ -874,16 +874,10 @@ async function verifyHomeShortcuts(page, results) {
   await page.screenshot({ path: path.join(outputDir, "today-mascot-wave.png") });
   await page.waitForTimeout(3_650);
   await expect(mascot).toHaveAttribute("data-mascot-motion", "idle");
-  await expect(mascot).toHaveAttribute("data-next-motion", "tail");
+  await expect(mascot).toHaveAttribute("data-context-motion", "wave");
+  await expect(mascot).toHaveAttribute("data-next-motion", "wave");
   await mascot.click();
-  await expect(mascot).toHaveAttribute("data-mascot-motion", "tail");
-  const tailMotion = await page.locator(".nava-mascot-animation--tail").evaluate((node) => {
-    const style = getComputedStyle(node);
-    return { backgroundImage: style.backgroundImage, backgroundPosition: style.backgroundPosition };
-  });
-  if (!tailMotion.backgroundImage.includes("nava-tail-sprite")) {
-    throw new Error(`home mascot tail motion is invalid: ${JSON.stringify(tailMotion)}`);
-  }
+  await expect(mascot).toHaveAttribute("data-mascot-motion", "wave");
 
   const sideActions = page.locator(".option-two-side-actions button");
   await expect(sideActions).toHaveCount(5);
