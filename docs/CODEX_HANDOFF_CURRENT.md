@@ -365,33 +365,38 @@ AI 链路的正确结构是：
 
 ### 8.1 已上线和未上线必须分开说
 
-当前前端支持普通摘要 + 紧凑七字摘要双合同，相关测试也存在；但是下面三个 Edge
-Function 的**最新源码改动尚未部署**：
+当前前端支持普通摘要 + 紧凑七字摘要双合同，相关测试也存在。2026-09-06 已将
+`supabase/functions/ai-health-report` 的最新源码部署到 canonical Supabase；下面两个
+Edge Function 的**最新源码改动仍未部署**：
 
-- `supabase/functions/ai-health-report`
 - `supabase/functions/ai-diet-report`
 - `supabase/functions/diet-extract`
 
 其中：
 
-- 前两个源码已经包含 normal + compact 双输出、严格校验、一次 repair 与缓存版本
-  更新；`ai-health-report` 当前源码为
+- `ai-health-report` 当前线上源码为
   `deepseek-v4-flash-health-report-v5-targeted-repair`，repair 会带上上一版 JSON 和
-  具体失败项，仍然保留数字证据与关联置信边界；
+  具体失败项，仍然保留数字证据与关联置信边界；生产状态为 function version 9 / active /
+  `verify_jwt=true`，只读下载的 `index.ts` 与本地 SHA-256 完全一致；
+- `ai-diet-report` 源码已经包含 normal + compact 双输出、严格校验、一次 repair 与缓存
+  版本更新，但仍未部署；
 - `diet-extract` 源码已经更新为“按菜识别、复合菜描述可见原料”的 prompt；
-- 当前公开前端不能宣称生产模型已经稳定生成精确七汉字四行，也不能宣称新版菜品粒度
-  prompt 已经在线；
-- 部署这三项不需要迁移、seed、secret 或访问策略修改，但仍需要用户明确授权
+- 当前仍不能宣称健康报告生产模型已经稳定生成精确七汉字四行：部署身份与未登录拒绝
+  已实测，但真实账户的 provider 返回、成功写缓存、无变化复用和数据变化后单次重算尚未
+  亲自验证；也不能宣称新版菜品粒度 prompt 已经在线；
+- 部署余下两项不需要迁移、seed、secret 或访问策略修改，但仍需要用户明确授权对应的
   Edge Function 部署，然后必须在真实边界验收。
 
-2026-09-05 对截图所示周报失败做了真实只读诊断：生产 Supabase 的
-`ai-health-report` 仍是 version 8 / 模型合同 v3；15:08–15:09 UTC 两次日志均为
+2026-09-05 对截图所示周报失败做了真实只读诊断：当时生产 Supabase 的
+`ai-health-report` 是 version 8 / 模型合同 v3；15:08–15:09 UTC 两次日志均为
 “AI 未返回有效的结构化健康报告”，而不是 `DeepSeek 402/429`。生产旧函数确实已有
 source fingerprint 与数据库缓存，但因为两次模型结果都未通过 schema/长度/证据/关联
 边界中的至少一项，未生成可保存结果，页面再次进入时只能重新请求。旧 repair 也没有
 把上一版草稿和失败字段交给模型，是本次确认的代码缺陷。开发机密钥的无用户数据检查
 显示余额可用且同一模型名能返回 JSON，但其 digest 与生产 secret 不同，不能据此声称
 生产账户具体余额；上述生产日志足以确认截图对应失败发生在模型响应后的结构校验阶段。
+2026-09-06 获用户明确授权后只部署了 `ai-health-report`，生产已升为 version 9 / v5；
+没有部署其他 Function，也没有修改 migration、seed、secret 或访问策略。
 
 不要因为用户说过“AI key 已经配好”就在文档或客户端寻找/打印 key。只能通过
 Supabase secrets 与已有部署工具验证 provider 可用性。
@@ -588,9 +593,9 @@ v91 已做并应保留：
 
 2026-09-02 的生产后端完成批次记录了当时部署版本：ai-chat v19、ai-diet v6、
 ai-extract v18、ai-health v8、diet-extract v16、face v15、delete v8、export v13、
-health ingest v11、watch v11。此后本地又修改了第 8.1 节列出的三个函数，所以不要
-把这些旧版本号理解为“包含最新本地 prompt/双摘要”。发布前必须重新查看本地 diff
-和远端 function 状态。
+health ingest v11、watch v11。此后本地修改了第 8.1 节列出的三个函数；其中
+`ai-health-report` 已于 2026-09-06 单独升为 v9，另外两个仍未部署。不要把其他旧版本号
+理解为“包含最新本地 prompt/双摘要”，发布前必须重新查看本地 diff 和远端状态。
 
 ## 14. ChronoState、FDNB 与报告真实性
 
@@ -644,12 +649,13 @@ OTP 送达、模型 provider 可用、HealthKit 真机权限或视觉验收通�
 包括生产构建、lint、Sites 单入口身份、四尺寸六卡、四尺寸记录编辑器、真实完成度、
 AI 双摘要、后端合同、16 个 Edge Function typecheck、Deno 测试、Health/Watch、iOS、
 consent、翻译 DOM 韧性、请求缓存边界、通知规划和首页动态 guidance 合同。这个结果验证当前源树的一致性，但仍不替代
-第 9.2 节的 Apple 真机验收或第 8.1 节的生产 Function 部署验收。
+第 9.2 节的 Apple 真机验收或第 8.1 节的真实账户模型验收。
 
 2026-09-05 健康 AI 定向修复批次再次运行完整 `npm run verify`，25 个阶段全部通过；
 另外 `npm run weekly-report:test` 为 9/9、`npm run ai:compact:test` 为 4/4，16 个 Edge
-Function typecheck 全部通过。这些结果验证的是当前源码合同，尚未验证未获授权部署的
-生产 `ai-health-report` v5。
+Function typecheck 全部通过。2026-09-06 部署前又运行相同的三个定向命令，结果仍为
+9/9、4/4 和 16 个 Function typecheck 全部通过；生产 `ai-health-report` v5 随后已部署，
+但真实账户模型生成和缓存行为仍未验证。
 
 近期证据目录：
 
@@ -712,15 +718,20 @@ Function typecheck 全部通过。这些结果验证的是当前源码合同，�
 
 ### A. 有源码但尚未上线
 
-- 最新 `ai-health-report` v5 定向 repair、双摘要和缓存合同。生产日志已经确认旧 v3
-  的失败发生在结构化结果校验，并非截图所猜测的余额 HTTP 错误；但 v5 尚未部署，
-  因此截图中的生产问题还不能写成线上已修复。
 - 最新 `ai-diet-report` 双摘要合同。
 - 最新 `diet-extract` 按菜识别 prompt。
 
-下一步需要用户明确授权部署这三个 Edge Functions，然后使用真实账户、真实数据和
+下一步需要用户明确授权部署这两个 Edge Functions，然后使用真实账户、真实数据和
 真实图片验证返回 schema、精确七汉字四行、长摘要、缓存失效、菜品粒度和 provider
 失败状态。
+
+### A.1 已上线但仍需真实账户验收
+
+- 最新 `ai-health-report` v5 定向 repair、双摘要和缓存合同已于 2026-09-06 部署为生产
+  version 9。生产日志已经确认旧 v3 的失败发生在结构化结果校验，并非截图所猜测的余额
+  HTTP 错误；当前已验证生产源码身份和未登录拒绝，尚未验证真实账户首次生成、数据库
+  持久化缓存、跨重载复用以及相关数据变化后恰好重算一次，因此还不能把截图问题写成
+  真实账户端已闭环。
 
 ### B. 必须人工 / Apple 环境
 
@@ -764,7 +775,8 @@ App Store。
 
 在用户完成 Apple 人工流程前，自动化代理仍可做且最有价值的工作顺序是：
 
-1. 经用户明确授权后部署并验收第 18.A 节三个 Edge Functions。
+1. 用真实账户验收 `ai-health-report` v9；经用户明确授权后再部署并验收第 18.A 节余下
+   两个 Edge Functions。
 2. 在不写生产数据的前提下复核两个公开站的 v102 登录、六模块路由、详细资料头像
    sheet、专注和面部页面，以及四视口无重叠。
 3. 为 Apple 真机验收准备可重复的记录模板、账号 A/B 测试清单和失败恢复说明；
@@ -935,7 +947,7 @@ session、刷新页面或从其他页面返回首页均不会再次出现。卡�
 
 持续清单 [`PRODUCT_REQUIREMENTS_CHECKLIST.md`](./PRODUCT_REQUIREMENTS_CHECKLIST.md)
 当前为 61 项完成、34 项待完成。剩余项中，Apple/通知真机、Android/华为、远程 Push、
-最新 AI/饮食/健康 Edge Function 上线需要人工环境或额外后端授权；商城、社区、复杂
+健康报告 AI 真实账户验收和余下饮食 Edge Function 上线需要人工环境或额外后端授权；商城、社区、复杂
 猫窝与多尺寸组件明确延期；AI 半屏、长按手势归属、运动结构化会话等仍需后续产品或
 实现批次，不能写成已完成。
 
@@ -954,9 +966,13 @@ session、刷新页面或从其他页面返回首页均不会再次出现。卡�
 200、显示真实登录门、拒绝公开 `?demo=1` 绕过并包含 canonical Supabase project ref；
 两边线上 `healthReport-CbDTFbwO.js` 与本地构建 SHA-256 一致。
 
-`supabase/functions/ai-health-report` v5 仍只是源码，未部署到生产。由于 Edge Function
-部署需要单独明确授权，不能把 v104 的双站前端发布描述成截图问题已经在线修复；当前
-生产仍是 function version 8 / 模型合同 v3。获授权后的下一步应只部署
-`ai-health-report`，再用产生截图的真实账户/同一周数据验证：首次生成成功并写缓存、
-页面切换零重复调用、无数据变化跨重载命中持久化缓存、修改一条相关记录后指纹变化并
-恰好重新生成一次。
+2026-09-06 获用户明确授权后，只将 `supabase/functions/ai-health-report` v5 部署到
+canonical Supabase；生产由 function version 8 / 模型合同 v3 升为 version 9 /
+`deepseek-v4-flash-health-report-v5-targeted-repair`，状态 active 且 `verify_jwt=true`。
+生产只读下载的 `index.ts` 与本地 SHA-256 完全一致；对 canonical endpoint 的未登录调用
+实际返回 `请先登录后再调用 App 后端。`，证明线上函数可达且用户边界生效。此次没有部署
+其他 Edge Function，也没有执行 migration、seed、backfill、secret 或访问策略修改。
+
+仍需用产生截图的真实账户/同一周数据验证：首次生成成功并写缓存、页面切换零重复调用、
+无数据变化跨重载命中持久化缓存、修改一条相关记录后指纹变化并恰好重新生成一次。在这组
+真实账户证据完成前，只能说修复已上线，不能说截图问题已在真实数据边界闭环。

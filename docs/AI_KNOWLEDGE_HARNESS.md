@@ -103,11 +103,18 @@ final prompt without becoming instructions.
   resends the source data with a generic repair sentence but does not include
   the failed draft or identify which checks failed. Repeating that call can
   therefore reproduce the same invalid shape and never create a cache row.
-- The local source now identifies itself as
+- The repaired source identifies itself as
   `deepseek-v4-flash-health-report-v5-targeted-repair`, includes the targeted
-  bounded repair described above, and logs only issue codes. It is source-only
-  until an explicitly authorized Edge Function deployment and a real-account
-  verification are completed.
+  bounded repair described above, and logs only issue codes. On 2026-09-06 it
+  was deployed to the canonical Supabase project as active function version 9
+  with JWT verification enabled. A read-only production download matched the
+  local `index.ts` SHA-256 exactly, and an unauthenticated canonical endpoint
+  call was rejected with `请先登录后再调用 App 后端。`
+- Deployment identity and the unauthenticated boundary are verified, but a safe
+  authenticated production session was not available during deployment. Real
+  DeepSeek generation, successful report persistence, unchanged-data cache
+  reuse, and one-time regeneration after a source-data change still require a
+  real-account acceptance run. Do not describe those boundaries as verified yet.
 - A separate no-user-data check showed that the developer-machine DeepSeek key
   currently has available balance and that `deepseek-v4-flash` returns valid
   JSON. Its digest does not match the production Supabase secret, so it is not
