@@ -886,11 +886,13 @@ async function verifyHomeShortcuts(page, results) {
   }
 
   const sideActions = page.locator(".option-two-side-actions button");
-  await expect(sideActions).toHaveCount(4);
+  await expect(sideActions).toHaveCount(5);
   await expect(sideActions.nth(1)).toBeVisible();
+  await expect(sideActions.nth(4)).toBeVisible();
   await sideActions.first().click();
   await expect(page.locator(".option-two-side-actions")).toHaveClass(/is-collapsed/);
   await expect(sideActions.nth(1)).toBeHidden();
+  await expect(sideActions.nth(4)).toBeVisible();
   await sideActions.first().click();
   await expect(page.locator(".option-two-side-actions")).toHaveClass(/is-open/);
   await expect(sideActions.nth(1)).toBeVisible();

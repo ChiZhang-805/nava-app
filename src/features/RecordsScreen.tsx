@@ -205,7 +205,7 @@ export default function RecordsScreen({
 }: {
   user: User;
   deviceDate: string;
-  onSaved: () => void;
+  onSaved: (module?: RecordModule) => void;
   onGrowthActivity?: (activity: GrowthActivityKind) => void | Promise<unknown>;
   onOpenAi?: (prompt: string) => void;
   initialModule?: RecordModule | null;
@@ -739,7 +739,7 @@ export default function RecordsScreen({
       await fn();
       // Claim the once-daily completion reward as soon as the record itself is
       // durable; slower score/report refreshes can continue underneath it.
-      onSaved();
+      onSaved(activeModule ?? undefined);
       try {
         const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
         await Promise.allSettled([
@@ -1039,7 +1039,7 @@ export default function RecordsScreen({
       await clearSecureFaceDraft(user.id, recordDate).catch((draftError) => console.warn("Secure face draft cleanup deferred", draftError));
       setFaceDraftFile(null);
       await loadRecordData({ refreshBase: true });
-      onSaved();
+      onSaved("face");
     }
   }
 

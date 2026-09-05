@@ -75,6 +75,19 @@ Get-ChildItem -LiteralPath supabase/migrations -File | Sort-Object Name
 - 完整交付和真机验收见
   `docs/APPLE_HEALTH_WATCH_DELIVERY.md`。
 
+## 通知数据与送达边界
+
+- 应用内通知由当天真实 `TodaySnapshot`、ChronoState 已持久化 action 或成功保存的
+  记录事件生成；生产构建不注入演示通知。
+- `notification_preferences` 只保存当前用户的提醒类型、是否启用、本地时间、时区和
+  最近调度时间，并由 RLS 隔离。它不是通知消息表。
+- 通知收件箱、已读/删除和撤销状态当前保存在用户当前设备的 `localStorage`，不会跨
+  浏览器或设备同步；不要把它描述成 Supabase 多端消息中心。
+- Capacitor 本地通知可在已安装原生 App 中由系统离线调度；网页 Notification API
+  只在页面打开且浏览器允许时作为增强。远程 APNs/FCM/HMS 尚无 token 表或发送函数。
+- 详细合同与人工验收边界见
+  [`NOTIFICATIONS_DELIVERY.md`](./NOTIFICATIONS_DELIVERY.md)。
+
 ## NAVA ChronoState V4.27 输出
 
 `rhythm-score` 和 `health-sync-ingest` 会写入：

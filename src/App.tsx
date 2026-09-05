@@ -19,6 +19,7 @@ import MascotMotionSlot from "./components/MascotMotionSlot";
 import UtilityDrawer from "./components/UtilityDrawer";
 import DevSeedPanel from "./components/DevSeedPanel";
 import RewardCelebration from "./components/RewardCelebration";
+import NotificationBanner from "./components/NotificationBanner";
 import PageSkeleton, { SkeletonBlock } from "./components/PageSkeleton";
 import LoadingShell from "./components/LoadingShell";
 import { currentSkeletonVariant, recordSkeletonVariant } from "./services/loadingRoute";
@@ -31,6 +32,16 @@ import useDeviceDate from "./hooks/useDeviceDate";
 import useNativeHealthAutoSync from "./hooks/useNativeHealthAutoSync";
 import { subscribeHealthSyncCompletion } from "./services/health";
 import { isAiSpeechSupported } from "./services/aiSpeech";
+import {
+  ensureNotificationQaState,
+  listNavaNotifications,
+  markNavaNotification,
+  notifyRecordSaved,
+  subscribeNavaNotifications,
+  subscribeNativeNotificationActions,
+  type NavaNotificationItem,
+  type NavaNotificationTarget,
+} from "./services/notifications";
 import {
   fallbackShellRoute,
   hasPreviousShellRoute,
@@ -128,6 +139,8 @@ function MobileShell() {
     }
   });
   const [rewardQueue, setRewardQueue] = useState<GrowthRewardGrant[][]>([]);
+  const [notificationItems, setNotificationItems] = useState<NavaNotificationItem[]>(() => user ? listNavaNotifications(user.id) : []);
+  const [notificationBanner, setNotificationBanner] = useState<NavaNotificationItem | null>(null);
   const contentRef = useRef<HTMLElement | null>(null);
   const utilityButtonRef = useRef<HTMLButtonElement | null>(null);
   const utilityPopoverRef = useRef<HTMLDivElement | null>(null);
@@ -174,10 +187,11 @@ function MobileShell() {
     return next;
   }, [user]);
 
-  const markChanged = useCallback(() => {
+  const markChanged = useCallback((module?: RecordModule) => {
     setRefreshKey((value) => value + 1);
     void claimGrowthAfterChange();
-  }, [claimGrowthAfterChange]);
+    if (user && module) notifyRecordSaved(user.id, module, deviceDate, locale);
+  }, [claimGrowthAfterChange, deviceDate, locale, user]);
 
   const markTodoCompleted = useCallback(() => {
     setRefreshKey((value) => value + 1);
@@ -252,6 +266,50 @@ function MobileShell() {
     }
     navigate(fallback.tab, fallback.module, fallback.view, true);
   };
+
+  const openNotificationTarget = useCallback((target?: NavaNotificationTarget) => {
+    if (!target) {
+      navigate("today", null, "notifications");
+      return;
+    }
+    navigate(target.tab, target.module ?? null, target.view ?? null);
+  }, []);
+
+  const openNotificationItem = useCallback((item: NavaNotificationItem) => {
+    if (user) markNavaNotification(user.id, item.id, true);
+    setNotificationBanner(null);
+    openNotificationTarget(item.target);
+  }, [openNotificationTarget, user]);
+
+  const dismissNotificationBanner = useCallback(() => setNotificationBanner(null), []);
+
+  useEffect(() => {
+    if (!user) return;
+    setNotificationItems(listNavaNotifications(user.id));
+    const unsubscribe = subscribeNavaNotifications(user.id, (change) => {
+      setNotificationItems(change.items);
+      if (change.presented) setNotificationBanner(change.presented);
+      if (change.opened) openNotificationItem(change.opened);
+    });
+    ensureNotificationQaState(user.id, locale);
+    return unsubscribe;
+  }, [locale, openNotificationItem, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    let listenerHandle: Awaited<ReturnType<typeof subscribeNativeNotificationActions>> = null;
+    void subscribeNativeNotificationActions(user.id, (item) => {
+      if (alive) openNotificationItem(item);
+    }).then((handle) => {
+      if (!alive) void handle?.remove();
+      else listenerHandle = handle;
+    });
+    return () => {
+      alive = false;
+      void listenerHandle?.remove();
+    };
+  }, [openNotificationItem, user]);
 
   const runAiCommand = (type: AiCommand["type"]) => {
     setAiCommand((current) => ({ id: (current?.id ?? 0) + 1, type }));
@@ -455,6 +513,7 @@ function MobileShell() {
   return (
     <div className={["phone-frame", activeTab === "today" ? "phone-frame--option2" : "", focusImmersive ? "phone-frame--focus-immersive" : "", profileDetailsSubpage ? "phone-frame--subpage-no-nav" : ""].filter(Boolean).join(" ")}>
       <div className="safe-top" />
+      {notificationBanner && <NotificationBanner item={notificationBanner} locale={locale} onOpen={() => openNotificationItem(notificationBanner)} onDismiss={dismissNotificationBanner} />}
       {activeTab !== "today" && !focusImmersive && (
         <header className="app-header figma-app-header">
           <button
@@ -540,6 +599,8 @@ function MobileShell() {
               onViewChange={(view, replace = false) => navigate("today", null, view, replace)}
               onBack={(fallbackView) => navigateBack(normalizeShellRoute("today", null, fallbackView))}
               onChanged={markChanged}
+              notifications={notificationItems}
+              onOpenNotificationTarget={openNotificationTarget}
             />
           )}
           {activeTab === "record" && (

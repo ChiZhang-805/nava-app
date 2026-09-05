@@ -1,5 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import {
+  Bell,
   CalendarDays,
   ListTodo,
   Menu,
@@ -21,10 +22,12 @@ import { loadGrowthTotalPoints } from "../services/productivity";
 import { getTodaySnapshot } from "../services/records";
 import { buildHealthModuleProgress, healthModuleEntryView, healthModuleProgressLabel } from "../services/healthReportPresentation";
 import { isVerticalHomeSwipe } from "../services/homeExperience";
+import { syncContextualNotifications, type NavaNotificationItem, type NavaNotificationTarget } from "../services/notifications";
 import type { TodaySnapshot } from "../types";
 import type { RecordModule } from "./RecordsScreen";
 import HomeCalendarExperience from "./HomeCalendarExperience";
 import AdvancedProfileScreen from "./AdvancedProfileScreen";
+import NotificationCenter from "./NotificationCenter";
 
 const healthEntries: Array<{
   id: RecordModule;
@@ -50,6 +53,8 @@ export default function OptionTwoHome({
   onViewChange,
   onBack,
   onChanged,
+  notifications,
+  onOpenNotificationTarget,
 }: {
   user: User;
   refreshKey: number;
@@ -60,6 +65,8 @@ export default function OptionTwoHome({
   onViewChange: (view: string | null, replace?: boolean) => void;
   onBack: (fallbackView: string | null) => void;
   onChanged: () => void;
+  notifications: NavaNotificationItem[];
+  onOpenNotificationTarget: (target?: NavaNotificationTarget) => void;
 }) {
   const { locale, t } = useLocale();
   const [shortcutsOpen, setShortcutsOpen] = useState(true);
@@ -82,6 +89,7 @@ export default function OptionTwoHome({
     if (requestId !== refreshRequestRef.current) return;
     if (snapshotResult.status === "fulfilled") {
       setSnapshot(snapshotResult.value);
+      syncContextualNotifications(user.id, snapshotResult.value, locale, new Date());
     } else {
       console.warn("Unable to load the option-two home snapshot", snapshotResult.reason);
     }
@@ -92,7 +100,7 @@ export default function OptionTwoHome({
       console.warn("Unable to load the option-two points total", pointsResult.reason);
     }
     setLoading(false);
-  }, [deviceDate, user.id]);
+  }, [deviceDate, locale, user.id]);
 
   useEffect(() => {
     void refresh();
@@ -111,6 +119,10 @@ export default function OptionTwoHome({
 
   if (view === "profile-details") {
     return <AdvancedProfileScreen user={user} onBack={() => onBack(null)} onChanged={onChanged} />;
+  }
+
+  if (view === "notifications") {
+    return <NotificationCenter userId={user.id} items={notifications} locale={locale} onBack={() => onBack(null)} onOpenTarget={onOpenNotificationTarget} />;
   }
 
   const beginHomeGesture = (event: ReactPointerEvent<HTMLElement>) => {
@@ -182,6 +194,10 @@ export default function OptionTwoHome({
         <button className="option-two-side-shortcut" type="button" onClick={() => onViewChange("calendar")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "健康月历" : "Health calendar"} title={locale === "zh" ? "健康月历" : "Health calendar"}><CalendarDays size={23} /></button>
         <button className="option-two-side-shortcut" type="button" onClick={() => onViewChange("profile-details")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "详细资料设置" : "Detailed profile"} title={locale === "zh" ? "详细资料设置" : "Detailed profile"}><UsersRound size={24} /></button>
         <button className="option-two-side-shortcut" type="button" onClick={onOpenUtility} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "功能导航" : "Utilities"} title={locale === "zh" ? "功能导航" : "Utilities"}><ListTodo size={23} /></button>
+        <button className="option-two-notification-button" type="button" onClick={() => onViewChange("notifications")} aria-label={locale === "zh" ? "通知中心" : "Notifications"} title={locale === "zh" ? "通知中心" : "Notifications"}>
+          <Bell size={22} />
+          {notifications.some((item) => !item.readAt) && <span className="option-two-notification-badge" aria-label={locale === "zh" ? `${notifications.filter((item) => !item.readAt).length} 条未读` : `${notifications.filter((item) => !item.readAt).length} unread`}>{Math.min(99, notifications.filter((item) => !item.readAt).length)}</span>}
+        </button>
       </div>
 
       <div className="option-two-life-stage">

@@ -9,10 +9,12 @@
 | 文档 | 用途 |
 | --- | --- |
 | [`CODEX_HANDOFF_CURRENT.md`](./CODEX_HANDOFF_CURRENT.md) | 产品、架构、线上版本、视觉规则、未完成项和接手流程的唯一总交接 |
+| [`PRODUCT_REQUIREMENTS_CHECKLIST.md`](./PRODUCT_REQUIREMENTS_CHECKLIST.md) | 新纵向模块与首页策划案对当前实现的持续可勾选映射 |
 | [`app-backend.md`](./app-backend.md) | Supabase、Edge Functions、真实数据和 ChronoState 服务合同 |
 | [`auth-email-flow.md`](./auth-email-flow.md) | 邮箱、手机号、OTP、会话和找回密码合同 |
 | [`SHARED_SUPABASE_READINESS.md`](./SHARED_SUPABASE_READINESS.md) | canonical Supabase 共享状态与核验入口 |
 | [`AI_KNOWLEDGE_HARNESS.md`](./AI_KNOWLEDGE_HARNESS.md) | AI 路由、工具、证据、隐私和报告合同 |
+| [`NOTIFICATIONS_DELIVERY.md`](./NOTIFICATIONS_DELIVERY.md) | 应用内收件箱、设备本地通知、网页通知与远程推送边界 |
 | [`APPLE_HEALTH_WATCH_DELIVERY.md`](./APPLE_HEALTH_WATCH_DELIVERY.md) | Apple Health / Watch 已实现链路与剩余人工门槛 |
 | [`APPLE_HEALTH_DEVICE_ACCEPTANCE_TEMPLATE.md`](./APPLE_HEALTH_DEVICE_ACCEPTANCE_TEMPLATE.md) | iPhone / Watch 真机验收记录模板 |
 | [`watch-architecture.md`](./watch-architecture.md) | Watch companion、动作和通信协议 |

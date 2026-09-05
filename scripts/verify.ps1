@@ -99,4 +99,8 @@ Write-Host "22. Supabase request reuse and refresh boundaries"
 Invoke-Npm -Arguments @("run", "performance:test")
 
 Write-Host ""
+Write-Host "23. Notification planner contract"
+Invoke-Npm -Arguments @("run", "notification:test")
+
+Write-Host ""
 Write-Host "Verification completed."

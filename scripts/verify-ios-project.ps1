@@ -142,6 +142,12 @@ foreach ($relativeSource in @("..\..\..\native\ios\NavaHealthPlugin.swift", "..\
 }
 
 $xcodeProjectRoot = Join-Path $root "ios\App"
+$podfile = Get-Content -LiteralPath (Join-Path $xcodeProjectRoot "Podfile") -Raw -Encoding UTF8
+if (!$podfile.Contains("CapacitorLocalNotifications")) { throw "iOS Podfile is missing CapacitorLocalNotifications." }
+$notificationService = Get-Content -LiteralPath (Join-Path $root "src\services\notifications.ts") -Raw -Encoding UTF8
+foreach ($expected in @("LocalNotifications.schedule", "localNotificationReceived", "localNotificationActionPerformed")) {
+  if (!$notificationService.Contains($expected)) { throw "Notification service is missing: $expected" }
+}
 foreach ($relativeSource in @("..\..\native\watch\NavaWatchApp.swift", "..\..\native\watch\WatchHomeView.swift", "..\..\native\watch\WatchSessionManager.swift", "..\..\native\watch\Assets.xcassets")) {
   if (!(Test-Path -LiteralPath (Join-Path $xcodeProjectRoot $relativeSource))) { throw "Broken Watch target source reference: $relativeSource" }
 }
