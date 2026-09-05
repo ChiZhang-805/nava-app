@@ -13,10 +13,10 @@ current release state.
 
 Current public release anchor:
 
-- Source release commit: `c01b7fab4cffb987416e9c2df1c6d1e49391cfcc`
-- ChatGPT Sites: version 95, public
-- GitHub Pages mirror: v95 at
-  `8e95241418ebbc4d6590d6ef4d6f1919a0f90c64`
+- Source release commit: `60f877cbb6f6ea2a40fad576a164183b06c1c3a9`
+- ChatGPT Sites: version 96, public
+- GitHub Pages mirror: v96 at
+  `419a8bd7590a4d64f3f6d61700f172a18aa9543b`
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
 
 The six Health Report cards now keep four complete lines at every required
@@ -31,8 +31,10 @@ Version 92 fixes the post-login blank-form flash by preserving the submitted
 form until the authenticated destination is ready. Version 94 redesigns the
 mood, sleep, diet, focus, and face record editors. Version 95 tightens their
 short-screen geometry, removes a diet-page gap, and prevents face-insight text
-from being clipped. The strict four-viewport gates and real-account checks pass
-on both public origins.
+from being clipped. Version 96 adds real profile-avatar capture/library upload,
+a functional profile menu, simplified focus setup, compact face-mode icons, and
+target-page-specific record-editor skeletons. The strict four-viewport gates and
+real-account checks pass on both public origins.
 
 The dual normal/compact AI-report contract and dish-level diet-recognition prompt
 are implemented in source. The three changed Edge Functions have **not** been

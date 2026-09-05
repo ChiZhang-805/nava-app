@@ -9,22 +9,22 @@ Supabase, Apple Health/Watch, and release baseline.
 
 - Editable source repository: `Q:\NAVA-Workspace\nava-app`
 - Released source commit:
-  `c01b7fab4cffb987416e9c2df1c6d1e49391cfcc`
+  `60f877cbb6f6ea2a40fad576a164183b06c1c3a9`
 - ChatGPT Sites project:
   `appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites version: 95
+- ChatGPT Sites version: 96
 - ChatGPT Sites version ID:
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_900f3d64592c81918809813325f8d623`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_6bc885f71820819189e40f7278c0ad85`
 - ChatGPT Sites deployment:
-  `appgdep_6a9b8d6898348191a3f2622218b915ee`
+  `appgdep_6a9ba918b27c8191b2d45fa2c47a341f`
 - ChatGPT Sites URL:
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages generated mirror commit:
-  `8e95241418ebbc4d6590d6ef4d6f1919a0f90c64`
+  `419a8bd7590a4d64f3f6d61700f172a18aa9543b`
 - GitHub Pages URL:
   `https://chizhang-805.github.io/nava-app-preview/`
 - Sites package:
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v95.tar.gz`
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v96.tar.gz`
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
 
 Version 89 was an intermediate release from source commit
@@ -36,7 +36,9 @@ performance and media improvements described below. Version 92 adds the
 authenticated transition correction described in section 8. Version 94 adds
 the five record-editor flows described in section 9. Version 95 adds the
 follow-up visual corrections and strengthened acceptance gates described in
-section 10 and is the current release anchor.
+section 10. Version 96 adds the profile-avatar, target-state skeleton, focus,
+and face-mode refinements described in section 11 and is the current release
+anchor.
 
 ## 2. Six-card copy and AI-report contract
 
@@ -293,3 +295,49 @@ frame overflow, zero content overflow, and safe separation from fixed
 navigation. No production record was mutated. Public evidence is under:
 
 - `Q:\NAVA-Workspace\Build\TestRuns\nava-v95-public`
+
+## 11. Version 96 profile, focus, face, and loading-state refinement
+
+Version 96 implements the latest requested interaction changes without changing
+the production schema or backend deployment state:
+
+- the avatar in Detailed Profile is now an accessible action. Users can open a
+  bottom sheet and either invoke the front camera or choose an image from the
+  photo library. Production uploads reuse the existing `profile-avatars`
+  user-prefix storage policy and persist the returned URL in `profiles.avatar_url`;
+- the former inert profile header glyph is now a three-dot menu with Change
+  avatar, Data & AI preferences, and Save profile actions. The profile subpage
+  still intentionally hides the bottom navigation;
+- the focus editor keeps count-up/countdown and manual countdown minutes, but
+  removes the 25/45/60 shortcut controls;
+- the face editor replaces the two large text mode tabs with aligned bare-face
+  and makeup-brush icon actions, expands the capture surface, removes the
+  redundant non-diagnostic footer from the compact AI card, and keeps the
+  mascot contained at the same responsive scale as the established assistant
+  cards;
+- record loading now resolves the actual destination first. A partial or empty
+  module routed to entry gets a module-specific editor skeleton, while a
+  completed module routed to its data dashboard keeps the dashboard skeleton.
+  Six editor skeletons cover mood, sleep, exercise, diet, focus, and face.
+
+The visual gate now also checks the Detailed Profile menu and avatar sheet and
+all six target-state editor skeletons at 360x740, 375x812, 390x844, and 430x932.
+It found and corrected a real avatar-sheet containment bug in the long scrolling
+profile page and a 13px hidden overflow in the 375x812 diet skeleton. The final
+22-stage `npm run verify`, 11-group interaction suite, and production-auth
+contract all passed.
+
+Both public origins were then logged into with the user-authorized production
+account and checked at all four required portrait viewports. Detailed Profile,
+its three-action menu and two-action avatar sheet, focus editor, and face editor
+all had zero horizontal overflow; the face editor remained one-screen with safe
+navigation separation. The acceptance run opened the avatar choices but did not
+upload a new avatar or mutate any production record. GitHub Pages `source.json`
+also reports the exact v96 source commit. Evidence is under:
+
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-v96-record-editors`
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-v96-public`
+
+Version 96 did not deploy migrations, Edge Functions, production seeds, secrets,
+or access-policy changes. The separate backend boundary in section 6 is
+unchanged.
