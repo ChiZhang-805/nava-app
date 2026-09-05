@@ -341,3 +341,17 @@ also reports the exact v96 source commit. Evidence is under:
 Version 96 did not deploy migrations, Edge Functions, production seeds, secrets,
 or access-policy changes. The separate backend boundary in section 6 is
 unchanged.
+
+## 12. Standalone continuity handoff
+
+The short pointer previously stored in `docs/CODEX_HANDOFF_CURRENT.md` has been
+replaced with a standalone Chinese onboarding and continuity document. It now
+records the product purpose, current repository and dual-site release anchors,
+page and service architecture, real-data and AI contracts, six-module completion
+and routing rules, responsive visual conventions, verification commands,
+deployment authorization boundaries, the implemented iOS/watchOS chain, exact
+human Apple gates, deferred product scope, and known stale documentation.
+
+New tasks should read `AGENTS.md` and `docs/CODEX_HANDOFF_CURRENT.md` first. This
+dated file remains the detailed v89-v96 release history; it is no longer
+necessary to reconstruct current state from the old long Codex transcript.

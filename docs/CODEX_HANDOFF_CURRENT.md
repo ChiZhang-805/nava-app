@@ -1,42 +1,770 @@
-# NAVA current Codex handoff
+# NAVA 当前完整交接（新任务唯一入口）
 
-Current handoff date: **2026-09-05**
+更新时间：**2026-09-05**
 
-The authoritative current handoff is:
+这份文件是新 Codex 任务接手 NAVA 时的第一入口，也是当前项目状态的
+**独立、可直接使用的交接文档**。它不依赖这段很长、曾多次出现界面回退的
+聊天记录。新任务必须以代码、数据库边界和本文件为准，不要根据旧聊天画面
+推断进度。
 
+## 0. 新任务先做什么
+
+开始任何工作前，按下面顺序执行：
+
+1. 阅读仓库根目录的 [`AGENTS.md`](../AGENTS.md)。其中的仓库边界、真实数据、
+   视觉验收、双站发布和安全要求高于历史交接。
+2. 运行 `git status --short --branch`，确认自己位于
+   `Q:\NAVA-Workspace\nava-app`，保留所有既有改动，不得 reset、clean 或覆盖
+   用户工作。
+3. 完整阅读本文件，然后根据任务类型阅读：
+   - 产品语义：`Q:\NAVA-Workspace\产品需求文档-技术对接.md`
+   - 认证：[`auth-email-flow.md`](./auth-email-flow.md)
+   - 数据与后端：[`app-backend.md`](./app-backend.md) 和
+     [`SHARED_SUPABASE_READINESS.md`](./SHARED_SUPABASE_READINESS.md)
+   - AI：[`AI_KNOWLEDGE_HARNESS.md`](./AI_KNOWLEDGE_HARNESS.md)
+   - Apple Health / Apple Watch：
+     [`APPLE_HEALTH_WATCH_DELIVERY_PLAN_2026-09-02.md`](./APPLE_HEALTH_WATCH_DELIVERY_PLAN_2026-09-02.md)
+     和
+     [`APPLE_HEALTH_DEVICE_ACCEPTANCE_TEMPLATE.md`](./APPLE_HEALTH_DEVICE_ACCEPTANCE_TEMPLATE.md)
+4. 阅读与当前任务直接相关的实现、样式、服务、测试及 Edge Function 后再编辑。
+5. 页面改动必须在 360x740、375x812、390x844、430x932 四种 CSS 视口分别验收；
+   一个尺寸或一张截图不能代表通过。
+6. 代码、页面或功能修改在验证后默认发布到两个公开站点；纯文档、只读审计、
+   测试证据修改不触发发布。Edge Function、数据库迁移、生产 seed、secret 和
+   访问策略仍需用户单独明确授权。
+
+不要把 [`next-development-queue.md`](./next-development-queue.md)、README 或早期
+交接中的“待开发”列表直接当作当前事实。它们有些内容已被后续实现覆盖，具体
+见本文“过时资料”一节。
+
+## 1. 项目是什么
+
+NAVA 是以手机竖屏为主的个人节律与生活状态应用。它把六类日常记录放在一个
+统一体验中：
+
+- 情绪
+- 睡眠
+- 运动
+- 饮食
+- 专注
+- 面部状态
+
+产品的核心不是展示一组演示数字，而是让经过认证的用户记录真实数据，将数据
+安全写入同一个 Supabase 账户空间，再由统计、ChronoState、FDNB 与受约束的
+AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页、AI 助手、报告、
+成长反馈和部分空状态的产品角色，但不能用吉祥物或动画掩盖数据缺失、模型失败
+或权限失败。
+
+底部五个主入口目前在代码中的内部 tab 名是：
+
+| 位置 | 内部 tab | 用户侧含义 | 主要实现 |
+| --- | --- | --- | --- |
+| 1 | `today` | 首页 / 今日状态 | `OptionTwoHome.tsx`、`TodayScreen.tsx` |
+| 2 | `record` | 健康报告与六模块记录 | `RecordsScreen.tsx`、`RecordModuleDashboard.tsx` |
+| 3 | `ai` | NAVA AI 助手 | `AIScreen.tsx` |
+| 4 | `trends` | 成长任务与积分进度 | `GrowthTasksScreen.tsx` |
+| 5 | `profile` | 个人资料、隐私与账户 | `ProfileScreen.tsx`、`AdvancedProfileScreen.tsx` |
+
+`trends` 是历史内部命名，不代表现在仍是一个纯趋势页。不要仅凭变量名改变产品
+文案或导航含义。
+
+## 2. 仓库、公开版本和唯一后端
+
+### 2.1 目录所有权
+
+- 唯一可编辑源仓库：`Q:\NAVA-Workspace\nava-app`
+- GitHub Pages 生成镜像：`Q:\NAVA-Workspace\nava-app-preview`
+- Sites 包：`Q:\NAVA-Workspace\Build\Sites\Packages`
+- 跨项目测试证据：`Q:\NAVA-Workspace\Build\TestRuns`
+
+禁止在 `nava-app-preview` 里开发，也禁止把它的编译产物复制回源仓库。
+
+### 2.2 当前公开发布锚点
+
+截至本文件写入前，公开 APP 的最新功能源码为：
+
+- 源码发布 commit：`60f877cbb6f6ea2a40fad576a164183b06c1c3a9`
+- 源仓库随后记录发布文档的 commit：
+  `f00259884727fb84301b80cdb8cb66af012ea7e0`
+- ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
+- ChatGPT Sites 版本：v96，public
+- Sites version ID：
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_6bc885f71820819189e40f7278c0ad85`
+- Sites deployment ID：`appgdep_6a9ba918b27c8191b2d45fa2c47a341f`
+- ChatGPT Sites：
+  `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
+- GitHub Pages 镜像 commit：
+  `419a8bd7590a4d64f3f6d61700f172a18aa9543b`
+- GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
+- v96 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v96.tar.gz`
+
+GitHub Pages 镜像的 `source.json` 已记录 v96 和上述功能源码 commit。两个站点应当
+始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
+
+### 2.3 Canonical Supabase
+
+两个公开站点以及未来 iOS/watchOS 客户端共享唯一 Supabase 项目：
+
+- project ref：`wxteapvwagvhhtrjrbim`
+
+公开构建必须使用真实 Supabase Auth；`?demo=1` 只能在本地 review 环境使用，
+不得绕过公开站点登录。前端只能持有 publishable/anon 能力，service-role、模型
+密钥、短信/SMTP 密钥等永远只能留在服务端或安全配置中。
+
+## 3. 当前代码架构
+
+### 3.1 Web / Capacitor 壳
+
+- React 18 + TypeScript + Vite。
+- `src/App.tsx` 维护主 tab、hash 路由、返回栈、懒加载、底部导航、工具菜单、
+  Watch/Health 刷新和奖励反馈。
+- `src/styles.css` 是当前主要视觉实现，包含大量针对不同宽高、键盘高度、安全区、
+  固定导航与单屏编辑器的精细规则。不要为了“简化 CSS”批量删除媒体查询。
+- `capacitor.config.ts` 当前 appId 是 `health.nava.mobile`，webDir 为 `dist`。
+- `ios/App` 是已有 Capacitor iOS 工程；不是待创建的空壳。
+- `native/ios` 包含 HealthKit、后台观察、Watch bridge、secure storage、speech 等
+  原生插件实现。
+- `native/watch` 包含真正的 SwiftUI Watch app、WatchConnectivity、节律首页、
+  情绪快捷记录与专注计时。
+- `ios/App/App.xcodeproj/project.pbxproj` 已嵌入 `NAVA Watch` target，bundle ID 使用
+  `$(NAVA_APP_BUNDLE_ID).watchkitapp`。
+
+### 3.2 页面和组件
+
+主要页面：
+
+- `src/features/OptionTwoHome.tsx`：当前首页视觉与六模块入口。
+- `src/features/HomeCalendarExperience.tsx`：日历及日状态。
+- `src/features/RecordsScreen.tsx`：健康报告、六模块卡片和六类编辑器。
+- `src/features/RecordModuleDashboard.tsx`：模块完成后的真实数据详情、历史/报告。
+- `src/features/AIScreen.tsx`：文本、结构化确认、语音/图片相关 AI 交互。
+- `src/features/GrowthTasksScreen.tsx`：成长任务、积分与奖励入口。
+- `src/features/ProfileScreen.tsx`：账户、隐私、连接、导出/删除等。
+- `src/features/AdvancedProfileScreen.tsx`：详细资料、头像、AI/数据偏好。
+- `src/features/AuthScreen.tsx`、`PasswordRecoveryScreen.tsx`、
+  `OnboardingScreen.tsx`：认证与首次进入流程。
+
+复用组件：
+
+- `PageSkeleton.tsx`：按目标页面设计的骨架屏，不是统一全屏 loading。
+- `WeeklyRadarChart.tsx`、`BarLineTrendChart.tsx`、`LineTrendChart.tsx`：报告图表。
+- `ModuleProgressRing.tsx`：首页和记录页六模块完成度环。
+- `LivingBackground.tsx` 与 `livingBackgroundRenderer.ts`：动态冰蓝背景。
+- `MascotMotionSlot.tsx`、`InteractiveMascot.tsx`：NAVA 猫动画/状态。
+- `RewardCelebration.tsx`：确认保存后的成长奖励反馈。
+- `UtilityDrawer.tsx`：待办、积分等侧边入口。
+
+### 3.3 服务层
+
+服务不是单纯 mock 适配器。重要文件包括：
+
+- `auth.ts`、`authStorage.ts`：Supabase 身份和当前 tab 会话存储。
+- `records.ts`：六模块记录读取、保存、日快照、趋势 bundle。
+- `singleRequestCache.ts`：同一窗口内的读请求合并与缓存失效。
+- `health.ts`、`watch.ts`：原生 HealthKit、云端同步、Realtime 完成事件和 Watch
+  action 队列。
+- `healthReport.ts`、`dietReport.ts`、`weeklyModuleScores.ts`：真实报告数据与 AI 报告。
+- `ai.ts`、`structuredEntry.ts`、`structuredEntryParser.ts`、`aiProcessing.ts`：AI
+  调用、结构化记录确认和产品化处理状态。
+- `consent.ts`：授权边界，不能被页面快捷逻辑绕过。
+- `secureFaceDraft.ts`：AES-GCM + IndexedDB 的短期面部草稿恢复。
+- `productivity.ts`、`growthProgressPresentation.ts`、`rewardPresentation.ts`：任务、
+  积分、奖励与已确认保存后的反馈。
+- `date.ts`、`useDeviceDate.ts`：设备本地日期和跨日刷新，禁止重新写死演示日期。
+- `loadingRoute.ts`：根据真正目的页选择首页、详情或六种记录编辑器骨架。
+
+## 4. 真实数据与安全不变量
+
+以下不是建议，而是继续开发时不可破坏的产品合同：
+
+1. UI 数字、完成状态、图表、摘要和报告必须来自当前认证用户的实际持久化数据，
+   或明确标注为估算。不能用固定文案、随机数或演示对象伪装成功。
+2. 无记录不等于零分。历史平均只除以有记录的天数；整个期间完全无记录时才使用
+   规定的空状态。
+3. 所有日期页使用设备当前本地日期，并在跨日时自动刷新。
+4. 客户端通过 Supabase JWT 访问后端；不同用户依赖 RLS 隔离。不得在客户端加入
+   shared ingest key 或 service-role。
+5. 面部和饮食照片放在私有 bucket，展示使用短时 signed URL；头像复用已有
+   `profile-avatars` 用户路径策略。
+6. 健康和面部输出必须保持非诊断、带不确定性与来源边界。某个紧凑卡片删除一行
+   重复免责声明，不代表可以删除全产品的安全合同。
+7. AI 只能读取用户已经认证并明确授权的上下文。
+8. 模型、网络或解析失败必须显示可理解的失败/重试状态，不能回落成一段看似成功
+   的固定“AI 建议”。
+9. 只有用户确认记录成功后，才能出现积分/成长奖励；AI 预览或识别草稿不能提前
+   发奖励。
+10. 浏览器登录有意使用 `sessionStorage` 按 tab 隔离。不要未经产品和安全决策改成
+    跨浏览器长期持久化。
+
+Supabase 当前重要表、bucket、迁移和 Edge Function 以
+[`app-backend.md`](./app-backend.md) 为准。迁移是 append-only，绝不能修改一个
+已应用迁移来“修正”生产库。
+
+## 5. 认证状态
+
+已经实现的主合同：
+
+- 邮箱注册/登录走 Supabase Auth，邮箱验证码为 8 位。
+- 中国大陆手机号走服务端 Aliyun SMS，验证码为 6 位；手机号 alias 最终收敛到
+  同一 Supabase 身份模型。
+- 浏览器会话按当前 tab 存储；iOS 原生安全会话使用 Keychain 的仅本设备策略。
+- 公开站点没有生产 demo 绕过。
+- v92 修复了真实登录时的“提交后先变处理中，随后闪回一个空邮箱/空密码的处理中
+  表单，再进入首页”问题：提交时的 AuthScreen 实例会一直保留到认证目的页和
+  onboarding 决策均就绪，再一次性切换。
+- v84 修复了 Sites 把主入口内联后可能重复加载 React/AuthContext 的问题；
+  `scripts/prepare-sites-build.mjs` 故意保持入口模块外置并统一 lazy chunk URL 身份。
+  不要把入口重新内联。
+
+仍需运营/人工确认的认证事项：
+
+- 正式发信域名、SMTP、SPF、DKIM、DMARC 的生产配置和外部邮箱送达率。
+- 手机号短信模板、签名、地域限制和真实设备送达率。
+- 在新环境继续确认密码复用保护 RPC 的生产暴露状态；不要只根据旧文档断言。
+
+任何账户审计都要使用已有 secure script，不得在终端输出密码、access token、
+OTP、service-role 或私有记录。本交接也不得保存用户曾在聊天里提供的密码。
+
+## 6. 六模块当前交互合同
+
+首页和健康报告页的六个模块入口共享选中日期的真实日快照。点击后的目的页不是
+固定的：
+
+- 未开始或部分完成：进入对应的记录编辑器。
+- 达到当天完成标准：进入真实数据详情页。
+- 详情页仍提供进入历史和继续修改当天记录的路径。
+
+进度环紧贴六个圆形按钮外缘，以绿色动画表示真实完成比例：
+
+| 模块 | 当日完成判定 | 部分进度 |
+| --- | --- | --- |
+| 情绪 | 情绪分数、原因/标签与日记满足保存合同 | 保存前保持未完成 |
+| 睡眠 | 当天存在有效睡眠记录 | 无有效记录时未完成 |
+| 运动 | 当天存在有效运动记录 | 无有效记录时未完成 |
+| 饮食 | 早餐、午餐、晚餐、加餐四餐均有记录 | 按 0/4、1/4、2/4、3/4、4/4 |
+| 专注 | 至少一个计时会话真实结束且时长大于 0 | 创建任务或开始计时不算完成 |
+| 面部 | 当天分析成功并保存真实记录 | 仅选照片或分析中不算完成 |
+
+### 6.1 情绪
+
+- 一屏式记录页。
+- 情绪滑杆、影响因素、日记与保存组成同一卡片。
+- 日记区域根据可用高度吸收空间，使卡片底部接近固定导航但保留呼吸距离。
+- 不同屏高不能简单使用同一个固定 textarea 高度；键盘高度代理也要验收。
+- AI 反馈必须基于真实保存内容和授权上下文。
+
+### 6.2 睡眠
+
+- 一屏式记录页。
+- 早睡、标准、晚睡采用与标题水平对齐的三个紧凑圆形图标快捷操作，而不是三块
+  大文字按钮。
+- 入睡、醒来、总分钟、深睡、浅睡、REM、自评和备注保留真实字段语义。
+- 备注吸收快捷操作收紧后释放的空间；保存按钮需要留在卡片边界内，并和底部导航
+  保持安全间距。
+
+### 6.3 运动
+
+- 记录步骤、热量、运动分钟、心率、血氧、自评等实际字段。
+- HealthKit 同步的数据和手工记录必须遵守合并/来源规则，不得用缺失值覆盖已有值。
+- 图表的健康样本成功状态只在实际 `sample_count > 0` 时成立。
+
+### 6.4 饮食
+
+- 饮食页可以滚动，不强求一屏，因为照片及识别结果高度会变化。
+- 鸡蛋、米饭、牛奶、苹果是标题行右侧的四个紧凑图标快捷项。
+- 拍照/相册上传后由真实 `diet-extract` 分析，结果仍是可编辑草稿；用户确认后才
+  保存。
+- 食物输入支持自适应多行。结构化识别出的多道菜按一道菜一项保存，不把沙拉中
+  看见的每个原料误拆成独立菜；复合菜可写成“沙拉（可见原料……）”。
+- 识别项在数据层继续保持结构化，不能为了展示把数组永久压成一条字符串。
+
+### 6.5 专注
+
+- 一屏式准备页，保留正计时/倒计时两个模式图标。
+- 25/45/60 分钟快捷按钮已经按最新要求删除；倒计时分钟手工输入。
+- 正计时只要求任务和备注；倒计时增加分钟。
+- 备注是帮助用户规划的私有说明，主要列表只展示任务，不把备注当标题。
+- 主操作是“开始专注”。开始后进入沉浸计时页，底部导航隐藏。
+- 只有用户结束真实计时，才写入有效 focus session；开始后未结束不能伪造完成。
+- Watch 端也能开始/停止专注，并通过幂等 action queue 与手机汇合。
+
+### 6.6 面部
+
+- 一屏式入口，面部拍摄框占主要空间。
+- 素颜/带妆是标题右侧的两个紧凑图标模式按钮，替代大文字 tabs。
+- 无需在此页重复显示“真实状态最好”指导或再次勾选上传同意；授权在进入产品流程
+  前完成，后端仍必须校验有效 consent。
+- 支持前置摄像头和相册重选。
+- 分析完成后显示来自真实分析反馈/annotations 的 AI 状态评价，最多四条适合卡片
+  的语义句；不能用空状态固定文案冒充分析结果。
+- 猫图 `src/assets/mascot/nava-face-insight-v2.webp` 的尺寸应与其他 AI 评价卡片
+  的角色比例一致，文字不能被猫遮挡或截断。
+- 相片分析草稿用 AES-GCM 加密保存到 IndexedDB，解密 key 只在当前 tab session，
+  恢复窗口约 30 分钟。
+
+## 7. 健康报告、图表和摘要合同
+
+### 7.1 分项报告六卡
+
+六张小卡空间非常有限，但必须始终保留完整四行：
+
+- 无记录：显示各模块自己的固定四句词典，不使用统一的“暂无记录 / 点击补录 /
+  补录后生成摘要 / 缺失不按零分”工程占位词。
+- 有记录：显示 AI 独立生成的四行紧凑摘要。
+- 中文紧凑摘要每行必须恰好 7 个汉字，不含空格、数字、拉丁字母或标点。
+- 普通详情摘要与七字卡片摘要是同一次报告合同中的两套不同输出；不能把长摘要
+  在前端机械截断成七字文案。
+- 旧缓存没有 compact 字段时，前端只允许从该用户真实数据安全派生兼容内容，不能
+  补固定成功话术。
+
+### 7.2 周报
+
+- 周报以自然周为单位，选周、前后周、数据完整度和较上周均来自真实日期范围。
+- 雷达图和节律轨迹共用同一个模块高度；即使轨迹没有真实数据，切换时卡片也不能
+  跳高或塌缩。
+- 稀疏周的七日柱形占位保留日期轴和合理的视觉节奏，但不冒充真实分数。
+- 柱高映射规则：该组最大值到有效绘图区最高处，最小值仍有可见最小高度，其余按
+  比例分布；起始横线与柱底重合，不能切入柱体中间。
+- 雷达图底部“专注 + 数值”已单独下移，避免与多边形过近。
+- AI 周报解读不是一段固定示例。详情行可打开更长解释，解释需要引用实际证据、
+  给出行动项和置信/不确定性，并保持非因果、非诊断措辞。
+- 有数据不足门槛时必须诚实显示不足。周报告的跨模块 AI 关联至少需要 5 个记录日，
+  不使用稀疏数据制造强结论。
+
+## 8. AI Model + Harness 当前合同
+
+AI 链路的正确结构是：
+
+1. 识别用户意图和涉及领域。
+2. 只收集该用户、该日期范围、且经过 consent 授权的上下文。
+3. 对自然语言/图片先产生结构化、可编辑的确认卡。
+4. 需要时调用受限知识工具，例如 USDA FoodData Central、睡眠/AASM 参考、运动
+   compendium、情绪 rubric、面部安全资料或个人资料风格工具。
+5. 保存证据摘要、来源、置信度、模型版本和 source fingerprint。
+6. 对模型 JSON 做 schema 校验；允许一次有边界的修复，不得无限递归调用。
+7. 模型失败就返回可审计失败，不得展示预写的“AI 已完成”文本。
+8. 用户确认后保存；奖励在保存成功后出现。
+
+知识工具有调用数量和数据最小化限制，例如营养查询最多 3 次、证据条目最多 8 个；
+不能把完整知识库或用户原始私密记录塞进日志。trace 只记录路由、工具、证据摘要、
+置信和 fallback，不记录密钥、完整 prompt 或隐藏思维链。
+
+### 8.1 已上线和未上线必须分开说
+
+当前前端支持普通摘要 + 紧凑七字摘要双合同，相关测试也存在；但是下面三个 Edge
+Function 的**最新源码改动尚未部署**：
+
+- `supabase/functions/ai-health-report`
+- `supabase/functions/ai-diet-report`
+- `supabase/functions/diet-extract`
+
+其中：
+
+- 前两个源码已经包含 normal + compact 双输出、严格校验、一次 repair 与缓存版本
+  更新；
+- `diet-extract` 源码已经更新为“按菜识别、复合菜描述可见原料”的 prompt；
+- 公开 v96 不能宣称生产模型已经稳定生成精确七汉字四行，也不能宣称新版菜品粒度
+  prompt 已经在线；
+- 部署这三项不需要迁移、seed、secret 或访问策略修改，但仍需要用户明确授权
+  Edge Function 部署，然后必须在真实边界验收。
+
+不要因为用户说过“AI key 已经配好”就在文档或客户端寻找/打印 key。只能通过
+Supabase secrets 与已有部署工具验证 provider 可用性。
+
+## 9. Apple Health / Apple Watch：代码完成到哪、人工还剩什么
+
+### 9.1 已经在源码和后端完成的链路
+
+目标数据流已经按下面路径实现：
+
+`Apple Watch -> iPhone HealthKit -> Capacitor iOS 原生桥 -> 用户 JWT ->`
+`health-sync-ingest -> canonical Supabase -> ChronoState / FDNB / AI -> 页面刷新`
+
+已经存在：
+
+- Capacitor iOS 工程与原生插件注册。
+- HealthKit 权限请求、样本读取、后台观察和增量同步代码。
+- 用户 JWT 服务端同步；客户端不持有 service-role 或共享 ingest key。
+- `health_sync_jobs` Realtime 完成事件，前端收到后刷新相关页面。
+- 部分指标上传保护：没有新样本的字段应被省略，不能用零/null 擦除服务器已有值。
+- 15 分钟自动同步冷却、前台/冷启动触发与失败恢复逻辑。
+- `NAVA Watch` target 已嵌入 Xcode project。
+- Watch 首页节律快照、连接状态、请求同步、情绪快捷记录、专注开始/停止。
+- WatchConnectivity 即时 message + 不可达时 `transferUserInfo` 队列。
+- actionId 幂等、手机侧 protected queue、ACK/重放路径。
+- migration `202609020002_health_sync_realtime.sql` 已在当时的生产实施中应用。
+- 相关 Health/Watch Edge Functions 在 2026-09-02 的生产完成批次已经部署；具体版本
+  见 [`CODEX_HANDOFF_2026-09-02.md`](./CODEX_HANDOFF_2026-09-02.md) 第 15 节。
+
+必须纠正一个常见误解：普通网页不能因为电脑、iPhone 和 Apple Watch 位于同一
+Wi-Fi 或蓝牙范围，就直接读取 Apple Watch 的完整历史 HealthKit 数据。正式路径
+必须经签名 iOS app 获得 HealthKit 授权，再用用户 JWT 上传。网页预览只能读取
+已经同步到 Supabase 的同一用户数据。
+
+### 9.2 现在确实需要人工 / Apple 环境完成的事项
+
+以下工作不能在当前 Windows/Codex 网页环境里冒充完成：
+
+1. 在 Mac 上安装项目所需 Node、Xcode、CocoaPods，并运行 iOS release 准备流程。
+2. 在 `health.nava.mobile` 与历史文档中的 `health.nava.app` 之间确认唯一正式 bundle
+   ID；同步 Apple Developer、App Store Connect、Associated targets 和 Supabase
+   redirect 配置。当前代码值不能自动等同于最终产品决策。
+3. 选择 Apple Developer Team，为 iPhone app 和 `NAVA Watch` target 配置证书、
+   profiles、HealthKit、WatchConnectivity、Background Delivery 等 capabilities。
+4. 在真实 iPhone + Apple Watch 上验证：首次登录、杀进程重开后的安全会话恢复、
+   首次授权、部分授权、拒绝、撤销、无血氧能力设备。
+5. 真机验证 HealthKit background observer 在系统调度、低电量、离线、重启后的
+   实际行为。模拟器或 TypeScript 测试不能证明后台持续同步。
+6. 验证 Watch 在线即时动作、离线排队、重连重放、重复 actionId、ACK 和 UI 状态。
+7. 用两个真实测试账户做完整 RLS/Storage 隔离：A 不能读取、覆盖或收到 B 的记录、
+   图片、同步任务、Watch 动作或 AI 上下文。
+8. 确认 HealthKit 部分指标、无样本和权限撤销时的最终中文文案。
+9. 审计旧 `health_imports`/网页上游是否仍有真实消费者；确认无依赖后，单独授权
+   退役 `health-auto-export`、删除/轮换 `HEALTH_EXPORT_API_KEY`，并让旧网页停止解析
+   legacy import。当前 legacy function 有意保留，不能擅自删除。
+10. 在真机完整运行
+    [`APPLE_HEALTH_DEVICE_ACCEPTANCE_TEMPLATE.md`](./APPLE_HEALTH_DEVICE_ACCEPTANCE_TEMPLATE.md)，
+    保存截图、时间戳、sample count、失败证据与账号隔离结果。
+11. Archive、TestFlight 内测、隐私清单/App Store 元数据和最终商店提交。
+
+所以“只剩人工”只对 Apple 签名、真机、账户隔离和发布门槛成立；它不代表三个未
+发布 AI Edge Functions 已上线，也不代表真机链路已经验收。
+
+## 10. 视觉语言与排版习惯
+
+### 10.1 总体视觉
+
+- 手机竖屏优先，桌面浏览器只在中间呈现手机画布。
+- 冰蓝/浅蓝玻璃质感、深海军蓝文字、白色描边、圆角卡片和柔和发光是基础系统。
+- 背景有纹理和光影动画；NAVA 猫是有意识的品牌视觉，不可随意换成通用 emoji。
+- 主要操作倾向“图标 + 短标签”；紧凑动作可只用可识别图标，但必须有 accessible
+  label 和足够 touch target。
+- 文字权级清楚：页面标题、卡片标题、字段 label、辅助说明不能挤成同一层级。
+
+### 10.2 单屏与滚动
+
+- 情绪、睡眠、专注准备页、面部入口是有意设计的一屏式页面。
+- “一屏式”不是把内容强行缩小：表单卡底接近底部导航，但至少保留视觉呼吸区和
+  safe-area；输入框/备注通过可用高度响应式伸缩。
+- 饮食因为照片和可变识别行数允许滚动；详细资料也允许长页滚动。
+- 详细资料是子页面，加载前和加载后都隐藏底部五键导航。
+- 专注沉浸/中断页隐藏底部导航。
+
+### 10.3 骨架屏
+
+- 每个页面有符合自身最终结构的 loading skeleton；不能全部跳到统一 loading 页。
+- 文本有几行，骨架就应有相近的几行；图表页有图表骨架；表单页有对应字段骨架。
+- 从模块按钮跳转时，先根据真实 snapshot 决定下一页：未完成显示该模块 editor
+  skeleton，完成显示 detail/dashboard skeleton。
+- 加载中不得提前显示真实姓名、邮箱、“NAVA 用户”、完成度或其他尚未加载的数据。
+- 没有数据与正在加载不是同一状态。加载完成后的空图表可以保留设计好的空结构，
+  但不能继续播放无休止的 shimmer 让用户误以为仍在请求。
+
+### 10.4 固定导航和布局验收
+
+每次视觉改动必须分别检查：
+
+- 360x740
+- 375x812
+- 390x844
+- 430x932
+
+至少检查以下项目：
+
+- 页面根、手机 frame、内容容器和卡片无横向 overflow。
+- 任何两个文字、图标、按钮、图表标签、猫图或固定导航都无交叉/重叠。
+- 长中文、英文和真实 AI 返回不能被 `ellipsis` 隐藏关键内容。
+- 卡片子元素完全位于卡片边界内；按钮距离边界和导航有安全间距。
+- 底部导航不会遮挡最后一个输入框、按钮或 AI 评价。
+- 侧边抽屉、弹层、头像 bottom sheet 位于当前手机 frame 内，不相对整个长文档错误
+  定位。
+- 软键盘代理高度下表单仍可编辑、滚动和保存。
+- 空状态和有数据状态都检查；AI 短句和长句都检查。
+- 没有不合理大留白；同时不要为了消除留白破坏节奏或把元素贴到一起。
+- touch target、focus、aria label、返回栈、浏览器后退和 safe area 正常。
+- `prefers-reduced-motion` 下动画可降级，功能不能消失。
+
+响应式含义是卡片、字体、图标、间距和可变输入区随宽高共同调整，不是简单对整个
+画面做 `transform: scale(...)`。已有 CSS 中看似重复的宽高规则常常对应一次真实
+截图缺陷，删除前必须用四尺寸证据证明等价。
+
+## 11. 已完成的近期修复（v83-v96）
+
+这些是新任务最容易从旧聊天里误判的近期状态：
+
+- v83：翻译扩展/外部 DOM 改写引发 `removeChild` 异常的韧性保护。
+- v84：Sites 认证后重复入口与 AuthContext 问题，改为外置入口模块。
+- v85：按页面骨架屏；周报空数据七日柱形结构；轨迹/雷达等高。
+- v86：详细资料 loading 不泄露用户身份；子页面隐藏底部导航。
+- v87：资料页开关排版；柱形最大/最小映射和基线；雷达“专注”下移。
+- v88：六模块真实完成度、绿色进度环和“未完成进编辑器 / 完成进详情”路由。
+- v90：健康报告六卡在小尺寸完整显示四行。
+- v91：真实读请求合并、保存后失效、懒加载和无损 WebP 资源减重。
+- v92：登录提交后空表单闪屏修复。
+- v94：情绪、睡眠、饮食、专注、面部编辑器重构。
+- v95：短屏睡眠保存边距、饮食多余 72px 空隙、面部 AI 文字截断修复。
+- v96：详细资料头像拍照/相册更换；三点菜单；移除专注 25/45/60；面部模式紧凑
+  图标与拍摄框；六模块目的页骨架。
+
+更详细的发布演进、测试证据和版本 ID 在：
+
+- [`CODEX_HANDOFF_2026-09-03.md`](./CODEX_HANDOFF_2026-09-03.md)
 - [`CODEX_HANDOFF_2026-09-05.md`](./CODEX_HANDOFF_2026-09-05.md)
 
-Read it together with the repository-level [`AGENTS.md`](../AGENTS.md), then
-follow its links to the 2026-09-03 and 2026-09-02 baselines when changing the
-affected area. Older dated handoffs are historical evidence rather than the
-current release state.
+## 12. 性能优化习惯：不能用视觉退化换速度
 
-Current public release anchor:
+v91 已做并应保留：
 
-- Source release commit: `60f877cbb6f6ea2a40fad576a164183b06c1c3a9`
-- ChatGPT Sites: version 96, public
-- GitHub Pages mirror: v96 at
-  `419a8bd7590a4d64f3f6d61700f172a18aa9543b`
-- Canonical Supabase project: `wxteapvwagvhhtrjrbim`
+- 同一渲染窗口的重复 Supabase read 合并。
+- 保存、Health Realtime 完成和回到前台后的有意 cache invalidation。
+- `RecordsScreen`、AI、成长、个人页及记录详情按需加载。
+- AI 页面挂载策略保留会话体验，但非激活时 inert/隐藏。
+- 大型猫图从约 6.82 MB 优化到约 3.55 MB 的无损 WebP。
+- 初始 record chunk 从约 163.63 KB 降到约 59.67 KB；dashboard 为约 91.96 KB
+  lazy chunk（以当时构建为准）。
 
-The six Health Report cards now keep four complete lines at every required
-portrait viewport. Release verification includes element-level clipping,
-intersection, safety-gap, overflow, and excessive-whitespace checks for both
-populated and empty local states plus the authenticated public state on both
-origins.
+后续优化优先做：请求去重、正确缓存粒度、chunk 拆分、资源编码、避免重复上下文和
+无意义重渲染。不能通过删除背景光影、猫动画、页面过渡、真实状态检查或 skeleton
+来换取“更快”。也不能加长 cache 导致保存后仍显示旧完成状态。
 
-Version 91 keeps the v90 responsive layout while reducing repeated Supabase
-reads, lazily loading record-detail code, and shrinking lossless mascot media.
-Version 92 fixes the post-login blank-form flash by preserving the submitted
-form until the authenticated destination is ready. Version 94 redesigns the
-mood, sleep, diet, focus, and face record editors. Version 95 tightens their
-short-screen geometry, removes a diet-page gap, and prevents face-insight text
-from being clipped. Version 96 adds real profile-avatar capture/library upload,
-a functional profile menu, simplified focus setup, compact face-mode icons, and
-target-page-specific record-editor skeletons. The strict four-viewport gates and
-real-account checks pass on both public origins.
+## 13. Supabase / 后端实施状态
 
-The dual normal/compact AI-report contract and dish-level diet-recognition prompt
-are implemented in source. The three changed Edge Functions have **not** been
-deployed because backend deployment requires separate explicit authorization.
-See the dated handoff for the exact boundary and remaining action.
+当前仓库有 20 个 append-only migration，覆盖移动端合同、AI/记录、ChronoState、
+密码与短信、Watch 幂等、头像、onboarding、FDNB、会话隔离、奖励、健康报告、
+专注计划与 Health Realtime。
+
+主要 Edge Function 目录：
+
+- `ai-chat-reply`
+- `ai-diet-report`
+- `ai-extract-data`
+- `ai-health-report`
+- `diet-extract`
+- `face-analyze`
+- `rhythm-score`
+- `dnb-weekly-report`
+- `fdnb-recompute`
+- `health-sync-ingest`
+- `watch-sync`
+- `export-user-data`
+- `delete-account`
+- `aliyun-sms-send` / `aliyun-sms-verify`
+- `auth-account-status`
+
+2026-09-02 的生产后端完成批次记录了当时部署版本：ai-chat v19、ai-diet v6、
+ai-extract v18、ai-health v8、diet-extract v16、face v15、delete v8、export v13、
+health ingest v11、watch v11。此后本地又修改了第 8.1 节列出的三个函数，所以不要
+把这些旧版本号理解为“包含最新本地 prompt/双摘要”。发布前必须重新查看本地 diff
+和远端 function 状态。
+
+## 14. ChronoState、FDNB 与报告真实性
+
+ChronoState 是可审计的节律计算层，不是装饰性分数。当前合同包括 score、置信区间、
+信号、融合、baseline、数据质量、活动 bins、睡眠阶段、规律度、碎片化、异常、趋势、
+change point、model/schema version 等。页面只展示适合用户的子集，但后端证据应当
+可追踪。
+
+FDNB 是研究性、非诊断增强层：
+
+- 至少 14 个有效天；
+- 4 个特征 / 3 个模块门槛；
+- 使用 7/14/21 天窗口；
+- 输出可以进入健康功能、FDNB 详情和周报，但必须标明研究/不确定性边界。
+
+不能因为算法需要更多天，就生成一套固定曲线让页面“好看”。数据不足时展示结构化
+空态或数据质量说明。真实报告缓存要使用 source fingerprint；记录改变后旧报告不能
+继续当作当前结论。
+
+## 15. 验证命令与证据
+
+发布候选至少运行：
+
+```powershell
+npm run verify
+npm run auth:verify:production
+```
+
+按变更补充：
+
+```powershell
+npm run interaction:test
+npm run record-editor:visual
+npm run module-progress:visual
+npm run ai:compact:test
+npm run weekly-report:test
+npm run performance:test
+npm run consent:contract:test
+npm run health:contract:test
+npm run ios:verify
+npm run supabase:verify-shared
+```
+
+`npm run verify` 当前是 22 阶段综合门禁，interaction suite 当前记录为 11 组；具体
+数字可能随脚本更新，新任务应以运行输出为准。构建通过不等于真实 Supabase 写入、
+OTP 送达、模型 provider 可用、HealthKit 真机权限或视觉验收通过。
+
+本交接完成后已于 2026-09-05 再运行一次完整 `npm run verify`：22 个阶段全部通过，
+包括生产构建、lint、Sites 单入口身份、四尺寸六卡、四尺寸记录编辑器、真实完成度、
+AI 双摘要、后端合同、16 个 Edge Function typecheck、Deno 测试、Health/Watch、iOS、
+consent、翻译 DOM 韧性和请求缓存边界。这个结果验证当前源树的一致性，但仍不替代
+第 9.2 节的 Apple 真机验收或第 8.1 节的生产 Function 部署验收。
+
+近期证据目录：
+
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-auth-transition-local`
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-record-editor-v95-recheck`
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-v95-public`
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-v96-record-editors`
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-v96-public`
+
+截图只能证明被截取时的视觉状态。凡涉及写入、RLS、provider、HealthKit 或 Watch
+队列，必须在真正边界记录网络/数据库/真机证据。
+
+## 16. 发布流程和授权边界
+
+### 16.1 前端双站
+
+用户已给出持续授权：以后只要用户要求修改 APP 代码、页面或功能，完成并验证后就
+同时发布 Sites 和 GitHub Pages，不必让用户再单独说“部署”。
+
+发布必须满足：
+
+1. 源仓库状态可解释，所有本任务改动已验证。
+2. 从同一个已 commit、已 push 的源状态构建两种 artifact。
+3. Sites 复用 `.openai/hosting.json` 中现有 project ID，不得创建第二个 NAVA Sites
+   项目。
+4. Pages 由源仓库生成后单向复制到 preview 镜像，并更新 `source.json`。
+5. 验证两个未登录 URL、真实登录路由、canonical Supabase project ref、发布 commit
+   和关键改动页面。
+6. 公开验收不得随意修改生产记录；如果测试需要写入，先说明范围并使用可恢复数据。
+
+### 16.2 仍需单独授权的外部动作
+
+持续前端授权不包括：
+
+- 应用 migration
+- 部署或删除 Edge Function
+- 改 Supabase secret
+- 改 Storage/RLS/访问策略
+- 生产 seed、账户 backfill 或删除记录
+- 退役 legacy function / 轮换 legacy key
+- TestFlight 或 App Store 发布
+
+本次交接是纯文档修改，不需要重新部署 v96 网站。
+
+## 17. 详细资料与账户页最新合同
+
+- 详细资料加载时整页使用自身 skeleton，不能先暴露邮箱、用户名或完成度。
+- 加载完成后首卡显示实际 profile；详细资料子页无底部五键导航。
+- 左侧头像是可点击 action，打开位于手机 frame 内的 bottom sheet：前置摄像头拍照
+  或从相册选择。
+- 图片上传到 `profile-avatars` 当前用户路径，成功后更新 `profiles.avatar_url`。
+- 右上角是三点菜单，不是无功能的人形图标。当前动作：更换头像、数据与 AI 偏好、
+  保存资料。
+- “数据与 AI 偏好”的 toggle 圆点必须完全位于轨道内；窄屏不能向右溢出。
+- 账户导出、删除、隐私与 consent 的实际能力不能被视觉菜单遮蔽或降级。
+
+## 18. 明确未完成、延期或需后续决策的工作
+
+### A. 有源码但尚未上线
+
+- 最新 `ai-health-report` 双摘要合同。
+- 最新 `ai-diet-report` 双摘要合同。
+- 最新 `diet-extract` 按菜识别 prompt。
+
+下一步需要用户明确授权部署这三个 Edge Functions，然后使用真实账户、真实数据和
+真实图片验证返回 schema、精确七汉字四行、长摘要、缓存失效、菜品粒度和 provider
+失败状态。
+
+### B. 必须人工 / Apple 环境
+
+第 9.2 节全部事项：bundle ID 与 Developer Team、签名/capabilities、真实 iPhone +
+Watch、HealthKit 权限矩阵、后台行为、离线重放、双账户 RLS、Archive、TestFlight、
+App Store。
+
+### C. 运营与生产治理
+
+- 正式 SMTP / DNS 与邮件送达率。
+- Aliyun SMS 正式模板、签名、限流和真机送达。
+- staging / production 项目分离策略；当前两个公开站共享 canonical project 是既定
+  产品事实，不要未经决策擅自拆分。
+- 旧 health import/export 消费者审计和有序退役。
+- 定期核验函数版本、secret 存在性、RLS、私有 bucket 和删除/导出闭环。
+
+### D. 产品明确延期
+
+- 积分商城。
+- 社区。
+- 用可穿戴时间序列做专注会话的硬件相关性判断。
+- Android Health Connect、厂商云 API 和可选标准 BLE 设备路线。
+
+“延期”不应在 UI 中伪装成可工作的按钮；若保留入口，必须明确是未开放状态。
+
+## 19. 建议的后续优先级
+
+在用户完成 Apple 人工流程前，自动化代理仍可做且最有价值的工作顺序是：
+
+1. 经用户明确授权后部署并验收第 18.A 节三个 Edge Functions。
+2. 在不写生产数据的前提下复核两个公开站的 v96 登录、六模块路由、详细资料头像
+   sheet、专注和面部页面，以及四视口无重叠。
+3. 为 Apple 真机验收准备可重复的记录模板、账号 A/B 测试清单和失败恢复说明；
+   不伪造真机结果。
+4. 用户在 Mac 上完成签名后，逐条协助处理 Xcode/HealthKit/WatchConnectivity 的真实
+   失败证据。
+5. 真机主链路稳定后再评估运营 SMTP/SMS、staging/prod 和 legacy health 退役。
+6. 商城、社区、Android/厂商手表只在产品重新排期后开始。
+
+每轮修改继续遵循“读相关代码 -> 修改 -> 自动测试 -> 四尺寸视觉验收 -> 双站发布 ->
+真实边界复核 -> 更新本交接”的闭环。
+
+## 20. 已知过时或只能当历史看的资料
+
+- [`next-development-queue.md`](./next-development-queue.md) 中仍把 Watch target、
+  若干成长/报告能力列为未完成；这些条目已被 2026-09-02 之后代码覆盖。
+- README 中“仍需创建 Watch target”的说法已经过时；Xcode project 中有真实 target。
+- [`WEARABLE_WEB_INTEGRATION_2026-09-02.md`](./WEARABLE_WEB_INTEGRATION_2026-09-02.md)
+  对“浏览器不能直接读 Apple Watch”仍然正确，但其中“仓库只有 iPhone target”的
+  盘点已被后续实现取代。
+- [`backend-required-changes.md`](./backend-required-changes.md) 是实施过程资料；已应用
+  migration 和后续 function 版本以当前代码、Supabase 核验与较新交接为准。
+- 旧日期交接保留的是证据和演进史，不是新的待办队列。
+
+新任务遇到冲突时采用以下优先级：`AGENTS.md` > 用户当前明确要求 > 当前代码和真实
+外部状态 > 本文件 > 专项当前文档 > 旧交接/旧队列/README。
+
+## 21. 新任务接手检查单
+
+可以把下面这组命令作为安全起点：
+
+```powershell
+Set-Location -LiteralPath 'Q:\NAVA-Workspace\nava-app'
+git status --short --branch
+git log -8 --oneline
+Get-Content -LiteralPath 'docs\CODEX_HANDOFF_CURRENT.md' -Raw
+npm run verify
+```
+
+随后根据任务决定是否运行 public auth、视觉或后端核验。不要自动运行会写生产数据的
+seed/backfill，也不要自动部署 migration/function。
+
+完成任务时必须报告：
+
+- 实际改了哪些文件和行为；
+- 哪些测试和尺寸真正通过；
+- 哪些结论只在本地验证，哪些已在两个公开站验证；
+- 是否改动生产数据、backend、secret 或策略；
+- 当前源 commit、Sites 版本、Pages mirror commit；
+- 剩余人工或外部门槛，不能把“未验证”写成“完成”。
+
+## 22. 最后一条连续性说明
+
+这次交接写作的直接原因是旧 Codex 任务非常长，包含大量图片与多次上下文压缩，
+桌面界面曾回退显示数天前的消息。项目代码、Git 历史和本文件才是连续性来源。
+归档旧任务、重新建立 Codex 项目或打开新任务不会删除源仓库；但用户如果要在 Codex
+界面删除“项目”，应确认操作只影响 Codex 的项目索引/会话，不要删除
+`Q:\NAVA-Workspace\nava-app`、`Q:\NAVA-Workspace\nava-app-preview`、Build 证据或
+Supabase 资源。
+
+新任务不需要复述整段聊天，也不要重新从零实现已经存在的功能。先用本文件定位，
+再用代码、测试和真实外部边界验证，然后从第 18、19 节继续。
