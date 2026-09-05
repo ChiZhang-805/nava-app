@@ -1,6 +1,6 @@
 # NAVA 算法调研与自研路线
 
-本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端已实现 NAVA ChronoState V4.8：42 天鲁棒个人基线、小时活动节律、恢复指标、异常检测、四因子动态状态空间模型、Student-t 鲁棒滤波、信号连续性质量建模、自适应残差区间、风险敏感下尾效用、急性多域一致证据、慢性负债记忆、功能补偿门控、稀疏断崖响应、慢性停滞锚点、绝对生理压力门控、假恢复 drawdown 压力、相位扰动保护、昼夜漂移压力、生理先导预警、硬撑型消耗压力、自适应端点校准、尾部过反应缓释、冲突型假恢复债务、Bayesian online change-point detection、5000 用户合成分布审计和分数不确定性区间。
+本调研面向 Apple Watch / Apple 健康用户。结论是：不采用简单加权平均，也不直接上不可解释黑盒模型。当前后端源码模型版本是 `nava-chronostate-v4.27-2026-07`：42 天鲁棒个人基线、小时活动节律、恢复指标、异常检测、四因子动态状态空间模型、Student-t 鲁棒滤波、信号连续性质量建模、自适应残差区间、风险敏感下尾效用、急性多域一致证据、慢性负债记忆、功能补偿门控、稀疏断崖响应、慢性停滞锚点、绝对生理压力门控、假恢复 drawdown 压力、相位扰动保护、昼夜漂移压力、生理先导预警、硬撑型消耗压力、自适应端点校准、尾部过反应缓释、冲突型假恢复债务、Bayesian online change-point detection、5000 用户固定合成集审计和分数不确定性区间。当前基准见 [`chrono-v4.27-fixed-dataset-benchmark.md`](./chrono-v4.27-fixed-dataset-benchmark.md)。
 
 ## 已调研的算法/方法
 
@@ -84,7 +84,7 @@
 3. 输出 `score`、`confidence`、`signals`、`reasons`、`actions`。
 4. 写入 `daily_rhythm_scores`。
 
-`rhythm-score` Edge Function 曾实现 v1 baseline，现在已升级为 NAVA ChronoState V4.8。
+`rhythm-score` Edge Function 曾实现 v1 baseline，现在使用 NAVA ChronoState V4.27。
 
 ### v2：个人基线 + 经典节律特征（已升级）
 
@@ -316,7 +316,7 @@ tests/rhythm-core.test.ts
 - `masked_gradual_decline`：新增压力场景，V4.7 MAE `16.329`，优于 V4.6 `16.829` 和旧 proxy `20.455`；但它仍是下一轮最明确的算法短板。
 - `conflicting_signals`：扩展 22 场景下 V4.7 MAE `5.270`，仍优于旧 proxy `6.097`。
 
-### v4.8：NAVA ChronoState（当前后端版本）
+### v4.8：NAVA ChronoState（历史演进节点）
 
 目标：把 V4.7 从 1000 用户压力测试升级到 5000 用户分布审计，并针对 Apple Watch 自动数据补强三类派生压力：昼夜漂移、生理先导预警、硬撑型消耗。
 
@@ -357,6 +357,15 @@ tests/rhythm-core.test.ts
 - `burnout_presenteeism`：V4.8 MAE `9.347`，明显优于旧 proxy `20.524`，但仍需要真实反馈校准“硬撑”标签。
 - `abrupt_shift`：V4.8 MAE `3.815`，略高于旧 proxy `3.555`，但 RMSE `4.598` 优于旧 proxy `5.058`。
 - `overtraining`：V4.8 MAE `6.683`，略优于旧 proxy `6.954`，但 RMSE 略差。
+
+### v4.27：当前稳定主线
+
+V4.27 在同一份 5000 用户固定数据集上继续收敛了 V4.8 之后的门控和校准。当前
+源码常量、服务输出和前端演示模型标识统一为 `nava-chronostate-v4.27-2026-07`。
+它在该固定集上的整体 MAE、RMSE 和低状态 AUROC 均优于对照的 V4.9 与 V4.13，
+并改善 `circadian_drift`；`burnout_presenteeism`、`masked_gradual_decline` 和
+`overtraining` 仍需真实 Apple Watch 连续数据与用户反馈校准。精确指标、复现命令
+和未采用候选见当前固定数据集报告。
 
 ### v5：个性化推荐模型
 

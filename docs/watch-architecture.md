@@ -1,10 +1,9 @@
 # Apple Watch 架构
 
-> 2026-09-02 补充：公开网页不能因为与手表处于同一 Wi-Fi 或蓝牙环境就
-> 直接读取 HealthKit 历史。Apple Watch 的正式路线仍是
-> Watch → iPhone/HealthKit → NAVA 原生桥 → Supabase；厂商云 OAuth、
-> Android Health Connect 和可选 Web Bluetooth 的完整边界与实施顺序见
-> [`WEARABLE_WEB_INTEGRATION_2026-09-02.md`](./WEARABLE_WEB_INTEGRATION_2026-09-02.md)。
+> 公开网页不能因为与手表处于同一 Wi-Fi 或蓝牙环境就直接读取 HealthKit
+> 历史。Apple Watch 的正式路线是 Watch → iPhone/HealthKit → NAVA 原生桥 →
+> Supabase；当前实现和真机门槛见
+> [`APPLE_HEALTH_WATCH_DELIVERY.md`](./APPLE_HEALTH_WATCH_DELIVERY.md)。
 
 第一版 Apple Watch 不做完整独立 App，而是 iPhone companion。
 

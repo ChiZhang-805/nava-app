@@ -29,9 +29,18 @@ after any required historical `health_imports` data has been reviewed and migrat
 The source migration `202609020002_health_sync_realtime.sql` publishes only sync-job
 changes; existing RLS still limits each authenticated subscriber to its own rows.
 
-Missing APP extensions no longer prevent the core Today and Trends screens from loading. Their full production features still require the Web backend owner to deploy the corresponding migrations, Storage buckets, RLS policies, and Edge Functions from this repository.
+The read-only shared-backend check passed on 2026-09-05: Auth, core tables, APP
+extension tables, shared and APP function endpoints, and shared/private Storage
+routes were all reachable on the canonical project. The linked migration list
+also matched all 20 local migrations. This contract check does not prove that a
+function contains the newest un-deployed local source revision; the three known
+source/production deltas remain listed in `CODEX_HANDOFF_CURRENT.md`.
 
-The shared project does not yet expose `nava_password_matches_current`. Password reset therefore still updates the authenticated account, but strict rejection of password reuse becomes active only after the backend owner deploys `202607190001_password_reuse_guard.sql`.
+Migration `202607190001_password_reuse_guard.sql` is present in the linked
+production migration history. It grants `nava_password_matches_current` only to
+authenticated users and denies anon/public execution. A real authenticated
+password-reset acceptance test is still required whenever that flow changes;
+migration parity alone is not proof of end-to-end email delivery or UI behavior.
 
 The shared project currently exposes the `diet-photos`, `face-photos`, and
 `profile-avatars` storage routes, and the corresponding migrations define

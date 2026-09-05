@@ -13,29 +13,29 @@
 
 1. 阅读仓库根目录的 [`AGENTS.md`](../AGENTS.md)。其中的仓库边界、真实数据、
    视觉验收、双站发布和安全要求高于历史交接。
-2. 运行 `git status --short --branch`，确认自己位于
+2. 阅读 [`INDEX.md`](./INDEX.md)，只使用仍在索引中的当前专项文档。
+3. 运行 `git status --short --branch`，确认自己位于
    `Q:\NAVA-Workspace\nava-app`，保留所有既有改动，不得 reset、clean 或覆盖
    用户工作。
-3. 完整阅读本文件，然后根据任务类型阅读：
+4. 完整阅读本文件，然后根据任务类型阅读：
    - 产品语义：`Q:\NAVA-Workspace\产品需求文档-技术对接.md`
    - 认证：[`auth-email-flow.md`](./auth-email-flow.md)
    - 数据与后端：[`app-backend.md`](./app-backend.md) 和
      [`SHARED_SUPABASE_READINESS.md`](./SHARED_SUPABASE_READINESS.md)
    - AI：[`AI_KNOWLEDGE_HARNESS.md`](./AI_KNOWLEDGE_HARNESS.md)
    - Apple Health / Apple Watch：
-     [`APPLE_HEALTH_WATCH_DELIVERY_PLAN_2026-09-02.md`](./APPLE_HEALTH_WATCH_DELIVERY_PLAN_2026-09-02.md)
+     [`APPLE_HEALTH_WATCH_DELIVERY.md`](./APPLE_HEALTH_WATCH_DELIVERY.md)
      和
      [`APPLE_HEALTH_DEVICE_ACCEPTANCE_TEMPLATE.md`](./APPLE_HEALTH_DEVICE_ACCEPTANCE_TEMPLATE.md)
-4. 阅读与当前任务直接相关的实现、样式、服务、测试及 Edge Function 后再编辑。
-5. 页面改动必须在 360x740、375x812、390x844、430x932 四种 CSS 视口分别验收；
+5. 阅读与当前任务直接相关的实现、样式、服务、测试及 Edge Function 后再编辑。
+6. 页面改动必须在 360x740、375x812、390x844、430x932 四种 CSS 视口分别验收；
    一个尺寸或一张截图不能代表通过。
-6. 代码、页面或功能修改在验证后默认发布到两个公开站点；纯文档、只读审计、
+7. 代码、页面或功能修改在验证后默认发布到两个公开站点；纯文档、只读审计、
    测试证据修改不触发发布。Edge Function、数据库迁移、生产 seed、secret 和
    访问策略仍需用户单独明确授权。
 
-不要把 [`next-development-queue.md`](./next-development-queue.md)、README 或早期
-交接中的“待开发”列表直接当作当前事实。它们有些内容已被后续实现覆盖，具体
-见本文“过时资料”一节。
+不要从 Git 历史恢复旧的 dated handoff、旧开发队列或一次性审计报告来推断当前
+状态；这些文件已经由本交接吸收并从工作树删除。
 
 ## 1. 项目是什么
 
@@ -221,7 +221,8 @@ Supabase 当前重要表、bucket、迁移和 Edge Function 以
 
 - 正式发信域名、SMTP、SPF、DKIM、DMARC 的生产配置和外部邮箱送达率。
 - 手机号短信模板、签名、地域限制和真实设备送达率。
-- 在新环境继续确认密码复用保护 RPC 的生产暴露状态；不要只根据旧文档断言。
+- 生产 migration 历史已经包含密码复用保护 RPC；后续改动仍需以真实认证用户验证
+  “禁止复用当前密码”的完整页面与服务端流程。
 
 任何账户审计都要使用已有 secure script，不得在终端输出密码、access token、
 OTP、service-role 或私有记录。本交接也不得保存用户曾在聊天里提供的密码。
@@ -394,8 +395,8 @@ Supabase secrets 与已有部署工具验证 provider 可用性。
 - WatchConnectivity 即时 message + 不可达时 `transferUserInfo` 队列。
 - actionId 幂等、手机侧 protected queue、ACK/重放路径。
 - migration `202609020002_health_sync_realtime.sql` 已在当时的生产实施中应用。
-- 相关 Health/Watch Edge Functions 在 2026-09-02 的生产完成批次已经部署；具体版本
-  见 [`CODEX_HANDOFF_2026-09-02.md`](./CODEX_HANDOFF_2026-09-02.md) 第 15 节。
+- 相关 Health/Watch Edge Functions 在 2026-09-02 的生产完成批次已经部署；当时
+  的版本锚点保留在本文第 13 节和 Git 历史中。
 
 必须纠正一个常见误解：普通网页不能因为电脑、iPhone 和 Apple Watch 位于同一
 Wi-Fi 或蓝牙范围，就直接读取 Apple Watch 的完整历史 HealthKit 数据。正式路径
@@ -507,10 +508,8 @@ Wi-Fi 或蓝牙范围，就直接读取 Apple Watch 的完整历史 HealthKit �
 - v96：详细资料头像拍照/相册更换；三点菜单；移除专注 25/45/60；面部模式紧凑
   图标与拍摄框；六模块目的页骨架。
 
-更详细的发布演进、测试证据和版本 ID 在：
-
-- [`CODEX_HANDOFF_2026-09-03.md`](./CODEX_HANDOFF_2026-09-03.md)
-- [`CODEX_HANDOFF_2026-09-05.md`](./CODEX_HANDOFF_2026-09-05.md)
+发布演进已经压缩进本节；精确差异使用 Git log/commit 查看，视觉和运行证据保存在
+第 15 节列出的 TestRuns 目录，不再维护重复的 dated handoff。
 
 ## 12. 性能优化习惯：不能用视觉退化换速度
 
@@ -560,7 +559,9 @@ health ingest v11、watch v11。此后本地又修改了第 8.1 节列出的三�
 
 ## 14. ChronoState、FDNB 与报告真实性
 
-ChronoState 是可审计的节律计算层，不是装饰性分数。当前合同包括 score、置信区间、
+ChronoState 是可审计的节律计算层，不是装饰性分数。当前生产源码模型版本是
+`nava-chronostate-v4.27-2026-07`；V4.8 是早期演进节点，不是当前版本号。当前合同
+包括 score、置信区间、
 信号、融合、baseline、数据质量、活动 bins、睡眠阶段、规律度、碎片化、异常、趋势、
 change point、model/schema version 等。页面只展示适合用户的子集，但后端证据应当
 可追踪。
@@ -718,20 +719,17 @@ App Store。
 每轮修改继续遵循“读相关代码 -> 修改 -> 自动测试 -> 四尺寸视觉验收 -> 双站发布 ->
 真实边界复核 -> 更新本交接”的闭环。
 
-## 20. 已知过时或只能当历史看的资料
+## 20. 文档维护和冲突处理
 
-- [`next-development-queue.md`](./next-development-queue.md) 中仍把 Watch target、
-  若干成长/报告能力列为未完成；这些条目已被 2026-09-02 之后代码覆盖。
-- README 中“仍需创建 Watch target”的说法已经过时；Xcode project 中有真实 target。
-- [`WEARABLE_WEB_INTEGRATION_2026-09-02.md`](./WEARABLE_WEB_INTEGRATION_2026-09-02.md)
-  对“浏览器不能直接读 Apple Watch”仍然正确，但其中“仓库只有 iPhone target”的
-  盘点已被后续实现取代。
-- [`backend-required-changes.md`](./backend-required-changes.md) 是实施过程资料；已应用
-  migration 和后续 function 版本以当前代码、Supabase 核验与较新交接为准。
-- 旧日期交接保留的是证据和演进史，不是新的待办队列。
+旧日期交接、旧新任务提示、旧开发队列、一次性审计、早期 Figma 预览、旧
+ChronoState/Fusion 实现报告和已经被正式 Apple 方案覆盖的 wearable 调研已经从
+工作树删除。需要追溯时使用 Git 历史，不把它们恢复成并列“现行文档”。
 
 新任务遇到冲突时采用以下优先级：`AGENTS.md` > 用户当前明确要求 > 当前代码和真实
-外部状态 > 本文件 > 专项当前文档 > 旧交接/旧队列/README。
+外部状态 > 本文件 > [`INDEX.md`](./INDEX.md) 中列出的专项当前文档 > Git 历史。
+
+以后每轮迭代直接更新本文件和受影响的专项文档；如果一个新文档完全取代旧文档，
+同一提交删除旧文件、修复所有引用并更新 `INDEX.md`。
 
 ## 21. 新任务接手检查单
 

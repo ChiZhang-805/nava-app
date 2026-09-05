@@ -9,9 +9,12 @@ They complement the Q-drive workspace rules in the parent environment.
 - `Q:\NAVA-Workspace\nava-app-preview` is a generated, public GitHub Pages
   deployment mirror. Never develop there and never copy its compiled files back
   into the source repository.
-- Read `docs/CODEX_HANDOFF_CURRENT.md`, the dated handoff it points to, and the
-  relevant feature documentation before changing code.
-- Treat older dated handoffs as historical evidence, not current status.
+- Read `docs/INDEX.md`, `docs/CODEX_HANDOFF_CURRENT.md`, and the relevant current
+  feature documentation before changing code.
+- Update the current handoff and current specialist document in place. Do not
+  create dated handoff copies, temporary task prompts, or one-off audit reports
+  under `docs`; Git history and `Q:\NAVA-Workspace\Build\TestRuns` preserve
+  historical evidence.
 
 ## Start-of-task safety
 

@@ -14,7 +14,7 @@ NAVA App 是 `Tj-jiaoao/style-muse-next` 的移动端工程，目标是服务 Ap
 - Apple Watch 快照发布与已注册的 WatchConnectivity iPhone 侧插件。
 - Web 上游同步脚本。
 - App 专属 Edge Functions、Supabase migrations 和部署脚本。
-- NAVA ChronoState V4.8 服务端节律算法。
+- NAVA ChronoState V4.27 服务端节律算法。
 - 合成数据压力测试与算法回归测试。
 
 ## 本地运行
@@ -65,7 +65,7 @@ npm run ios:verify
 npm run cap:open:ios
 ```
 
-`ios/` 工程已提交，不要再次执行 `npx cap add ios`。在 Mac 上首次打开前安装 CocoaPods；随后在 Xcode 选择 Apple Developer Team，并确认 HealthKit capability 与 `App/App.entitlements` 一致。Apple Watch target 仍需在 Xcode 中创建 watchOS App，并按 `docs/watch-architecture.md` 接入 WatchConnectivity。
+`ios/` 工程已提交，不要再次执行 `npx cap add ios`。在 Mac 上首次打开前安装 CocoaPods；随后在 Xcode 选择 Apple Developer Team，并确认 HealthKit capability 与 `App/App.entitlements` 一致。`NAVA Watch` target 已经嵌入 Xcode 工程并接入 WatchConnectivity；仍需在 Mac/Xcode 中完成签名、capabilities、真机与 TestFlight 验收，见 `docs/APPLE_HEALTH_WATCH_DELIVERY.md`。
 
 App 图标和启动图由当前 NAVA 字标与 WebGL 背景生成，不依赖外部图片。需要重做资源时，先运行 `npm run dev`，再在另一个终端执行 `npm run ios:assets`；脚本会生成 `1024x1024` 图标和 `2732x2732` 启动图，并检查字形中心与裁边安全区。
 
@@ -80,12 +80,12 @@ npm run data:export
 npm run algorithm:benchmark
 ```
 
-`verify` 会执行构建、lint、npm audit、动效/算法测试、后端契约、全部 Edge Function Deno 类型检查、OTP 安全测试与 iOS 工程契约；`data:audit` 默认生成并审计 5000 个合成用户；`data:export` 默认导出同一批 5000 用户 JSONL 和 manifest 到 `artifacts/synthetic-population`，该目录只作为本地大文件产物，不提交 Git；`algorithm:test` / `algorithm:benchmark` 用于验证 V4.8 算法核心，正式 benchmark 默认 5000 用户。
+`verify` 会执行构建、lint、npm audit、动效/算法测试、后端契约、全部 Edge Function Deno 类型检查、OTP 安全测试与 iOS 工程契约；`data:audit` 默认生成并审计 5000 个合成用户；`data:export` 默认导出同一批 5000 用户 JSONL 和 manifest 到 `artifacts/synthetic-population`，该目录只作为本地大文件产物，不提交 Git；`algorithm:test` / `algorithm:benchmark` 用于验证当前 ChronoState V4.27 算法核心，正式 benchmark 默认 5000 用户。
 
 当前 App 后端函数：`ai-extract-data`、`ai-chat-reply`、`diet-extract`、`face-analyze`、`health-sync-ingest`、`watch-sync`、`rhythm-score`、`dnb-weekly-report`、`fdnb-recompute`、`export-user-data`、`delete-account`、`aliyun-sms-send`、`aliyun-sms-verify`、`auth-account-status`。
 
 ## 已知边界
 
-- Windows 本机不能完成 iOS/Watch 真机编译与签名；iPhone 工程已生成并静态验证，最终构建仍需 Mac + Xcode，watchOS target 也需在 Xcode 创建。
+- Windows 本机不能完成 iOS/Watch 真机编译与签名；iPhone 工程和嵌入式 watchOS target 已生成并静态验证，最终签名、真机权限、后台行为和 TestFlight 仍需 Mac + Xcode。
 - App 端只保存 Supabase anon key，不允许保存 service role key 或模型服务密钥。
 - 饮食与面部照片使用私有 Storage、账号路径隔离和短时签名链接；个人头像按产品展示需求保持公开读取。

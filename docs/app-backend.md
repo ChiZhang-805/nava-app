@@ -6,29 +6,42 @@ App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负�
 
 | Function | 作用 | 主要写入 |
 | --- | --- | --- |
-| `ai-extract-data` | 自然语言记录抽取入口；未配置外部模型时使用本地规则，可识别睡眠、运动、情绪、专注、饮食和资料更新 | App 确认后写对应业务表 |
-| `ai-chat-reply` | AI 页回复入口；未配置外部模型时根据抽取结果生成轻量建议 | App 写 `ai_conversations` |
+| `ai-extract-data` | 使用正式模型提取睡眠、运动、情绪、专注、饮食和资料更新；本地规则只形成候选，用户确认后保存 | App 确认后写对应业务表 |
+| `ai-chat-reply` | 基于当前 JWT、授权画像与真实记录流式生成 NAVA AI 回复 | App 写 `ai_conversations` |
+| `ai-diet-report` | 根据最近七日真实饮食和授权画像生成普通与紧凑摘要 | 当前日 `nutrition_records.ai_feedback` |
+| `ai-health-report` | 为情绪、睡眠、运动、专注、面部和周报生成带证据、行动与置信度的结构化报告 | `ai_health_reports` |
+| `dnb-weekly-report` | 对明确日期区间运行研究性 FDNB 周分析 | `fdnb_health_scores`、`weekly_health_reports` |
+| `fdnb-recompute` | 对截至指定日期的纵向窗口重新计算 FDNB | `fdnb_health_scores`、`weekly_health_reports` |
 | `health-sync-ingest` | 接收 iPhone / Apple Watch HealthKit 摘要，写运动、睡眠、小时活动、睡眠阶段、同步任务，并刷新节律分数 | `exercise_records`、`sleep_records`、`health_metric_snapshots`、`health_sync_jobs`、`daily_rhythm_scores` |
 | `watch-sync` | 保存 Watch 快照，处理手表快速情绪和专注动作 | `watch_snapshots`、`device_connections`、`mood_records`、`focus_records` |
 | `diet-extract` | 私有饮食照片的真实视觉模型识别入口 | 不直接写表，App 确认后写 `nutrition_records` |
 | `face-analyze` | 私有面部照片的非诊断真实视觉模型入口 | App 确认后写 `face_records` |
-| `rhythm-score` | 读取 42 天窗口，生成 NAVA ChronoState V4.8 节律分、个人基线、节律特征、动态状态、慢性负债压力、功能补偿门控、稀疏断崖冲击、慢性停滞压力、绝对生理压力、假恢复 drawdown 压力、相位扰动保护、昼夜漂移压力、生理先导预警、硬撑型消耗压力、自适应端点校准、尾部过反应缓释、不确定性区间、异常旗标和建议 | `daily_rhythm_scores` |
+| `rhythm-score` | 读取 42 天窗口，生成 NAVA ChronoState V4.27 节律分、个人基线、节律特征、动态状态、慢性负债压力、功能补偿门控、稀疏断崖冲击、慢性停滞压力、绝对生理压力、假恢复 drawdown 压力、相位扰动保护、昼夜漂移压力、生理先导预警、硬撑型消耗压力、自适应端点校准、尾部过反应缓释、不确定性区间、异常旗标和建议 | `daily_rhythm_scores` |
 | `export-user-data` | 导出当前用户 App/Web 共享数据 | 只读 |
+| `delete-account` | 删除当前用户三个私有 bucket 下的对象并删除 Auth 身份 | 私有文件与当前 Auth 用户 |
+| `aliyun-sms-send` | 生成、限流、发送中国大陆手机号 OTP | `nava_phone_otp_challenges` |
+| `aliyun-sms-verify` | 校验 OTP 并完成手机号身份映射/登录流程 | OTP challenge 与 Auth identity |
+| `auth-account-status` | 以不暴露账号是否存在的公共响应执行注册/登录资格检查 | 只读 |
+
+上表描述当前仓库源码能力，不等同于每一项最新改动都已经在线。截至 2026-09-05，
+`ai-health-report`、`ai-diet-report` 的普通/紧凑双摘要版本和 `diet-extract` 的按菜识别
+prompt 仍等待用户单独授权部署；生产环境已有这些函数的较早版本。部署状态和验收
+边界统一记录在 [`CODEX_HANDOFF_CURRENT.md`](./CODEX_HANDOFF_CURRENT.md) 第 8、18 节。
 
 ## 已实现数据库/Storage
 
-迁移文件：
+当前共有 20 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单
+来源。它们按顺序覆盖：移动端业务表和 Edge 后端、Rhythm/Fusion/ChronoState、
+密码复用保护、手机号 OTP、Watch action 幂等、头像、账号状态、onboarding、FDNB、
+AI 会话隔离、成长奖励、健康报告、专注待办以及 Health Realtime。
 
-```text
-supabase/migrations/202607170001_app_mobile_contracts.sql
-supabase/migrations/202607170002_app_edge_backend.sql
-supabase/migrations/202607180001_nava_rhythm_v2.sql
-supabase/migrations/202607180002_nava_fusion_v3.sql
-supabase/migrations/202607180003_nava_chronostate_v4.sql
-supabase/migrations/202609020002_health_sync_realtime.sql
+查看精确清单：
+
+```powershell
+Get-ChildItem -LiteralPath supabase/migrations -File | Sort-Object Name
 ```
 
-新增或加固的对象：
+其中与健康/Watch 主链路直接相关的新增或加固对象包括：
 
 - `face_records`
 - `device_connections`
@@ -60,9 +73,9 @@ supabase/migrations/202609020002_health_sync_realtime.sql
 - 页面“最近同步”和 Realtime 刷新只认 `sample_count > 0` 的成功任务；零数据
   尝试仍留在任务表供审计，但不冒充成功连接。
 - 完整交付和真机验收见
-  `docs/APPLE_HEALTH_WATCH_DELIVERY_PLAN_2026-09-02.md`。
+  `docs/APPLE_HEALTH_WATCH_DELIVERY.md`。
 
-## NAVA ChronoState V4.8 输出
+## NAVA ChronoState V4.27 输出
 
 `rhythm-score` 和 `health-sync-ingest` 会写入：
 
