@@ -318,8 +318,8 @@ async function main() {
       await expect(detail.locator('.record-editor-stack > form:not([hidden])')).toBeVisible();
       await expect(detail.locator(".focus-entry-mode-icons button")).toHaveCount(2);
       await detail.locator('[data-focus-mode="countdown"]').click();
-      await expect(detail.locator(".focus-duration-preset-icons button")).toHaveCount(3);
-      await detail.locator('[data-focus-duration="45"]').click();
+      await expect(detail.locator(".focus-duration-preset-icons, [data-focus-duration]")).toHaveCount(0);
+      await detail.locator('.focus-entry-minutes-field > input').fill("45");
       await expect(detail.locator('.focus-entry-minutes-field > input')).toHaveValue("45");
       await detail.locator(".focus-entry-note-field textarea").fill("先完成资料梳理，再写出第一版提纲。\n遇到分心时先记下，不立刻切换任务。");
       const minimum = viewport.height <= 780 ? 74 : 126;
@@ -353,6 +353,9 @@ async function main() {
       await detail.locator('.record-detail-date input[type="date"]').blur();
       await expect(detail.locator(".face-bare-guidance, .face-consent")).toHaveCount(0);
       await expect(detail.locator(".face-photo-actions button")).toHaveCount(2);
+      await expect(detail.locator(".face-mode-icon-actions button")).toHaveCount(2);
+      await expect(detail.locator(".face-mode-picker")).toHaveCount(0);
+      await expect(detail.locator(".face-ai-evaluation footer")).toHaveCount(0);
       await expect(detail.locator(".face-photo-actions button").first()).toBeEnabled();
       await expect(detail.locator(".face-ai-evaluation")).toBeVisible();
       await expect(detail.locator(".face-ai-evaluation")).toHaveClass(/is-empty/);
@@ -361,10 +364,29 @@ async function main() {
       const alignment = await detail.evaluate((node) => {
         const active = node.querySelector(".record-editor-stack > div:not([hidden])");
         const title = active?.querySelector(".section-heading h2")?.getBoundingClientRect();
-        const action = active?.querySelector(".face-camera-action")?.getBoundingClientRect();
-        return { titleCenter: title ? title.top + title.height / 2 : null, actionCenter: action ? action.top + action.height / 2 : null };
+        const action = active?.querySelector(".face-mode-icon-actions")?.getBoundingClientRect();
+        const buttons = [...(active?.querySelectorAll(".face-mode-icon-actions button") ?? [])].map((button) => {
+          const rect = button.getBoundingClientRect();
+          return { width: rect.width, height: rect.height };
+        });
+        const photo = active?.querySelector(".photo-picker.face")?.getBoundingClientRect();
+        const mascot = active?.querySelector(".face-ai-evaluation > img")?.getBoundingClientRect();
+        const ai = active?.querySelector(".face-ai-evaluation")?.getBoundingClientRect();
+        return {
+          titleCenter: title ? title.top + title.height / 2 : null,
+          actionCenter: action ? action.top + action.height / 2 : null,
+          buttons,
+          photoHeight: photo?.height ?? null,
+          mascot: mascot ? { width: mascot.width, height: mascot.height, right: mascot.right, bottom: mascot.bottom } : null,
+          ai: ai ? { top: ai.top, right: ai.right, bottom: ai.bottom, left: ai.left } : null,
+        };
       });
-      if (alignment.titleCenter == null || alignment.actionCenter == null || Math.abs(alignment.titleCenter - alignment.actionCenter) > 3) throw new Error(`face/${viewport.name}: title and camera action are not aligned ${JSON.stringify(alignment)}`);
+      if (alignment.titleCenter == null || alignment.actionCenter == null || Math.abs(alignment.titleCenter - alignment.actionCenter) > 3) throw new Error(`face/${viewport.name}: title and mode actions are not aligned ${JSON.stringify(alignment)}`);
+      if (alignment.buttons.some((button) => Math.abs(button.width - button.height) > .5 || button.width < 32 || button.width > 38)) throw new Error(`face/${viewport.name}: mode actions are not compact circles ${JSON.stringify(alignment)}`);
+      if (alignment.photoHeight == null || alignment.photoHeight < (viewport.height <= 780 ? 108 : 138)) throw new Error(`face/${viewport.name}: capture surface is not tall enough ${JSON.stringify(alignment)}`);
+      if (!alignment.mascot || !alignment.ai || alignment.mascot.width < 70 || alignment.mascot.right > alignment.ai.right + 1 || alignment.mascot.bottom > alignment.ai.bottom + 1) throw new Error(`face/${viewport.name}: mascot sizing escapes the AI card ${JSON.stringify(alignment)}`);
+      await detail.locator('[data-face-mode="makeup"]').click();
+      await expect(detail.locator('[data-face-mode="makeup"]')).toHaveAttribute("aria-pressed", "true");
       faceResults.push({ name: viewport.name, geometry, alignment });
       await page.screenshot({ path: path.join(outputDir, `face-${viewport.name}.png`) });
     }
@@ -387,6 +409,90 @@ async function main() {
     if (resultScrollY > 1) throw new Error(`face/430x932-result: upload shifted the page by ${resultScrollY}px ${JSON.stringify(resultGeometry)}`);
     await page.screenshot({ path: path.join(outputDir, "face-430x932-result.png") });
 
+    const profileResults = [];
+    for (const viewport of viewports) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto(`${baseUrl}?demo=1#tab=today&view=profile-details`, { waitUntil: "networkidle" });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      const profile = page.locator('[data-home-view="profile-details"]');
+      await expect(profile).toBeVisible();
+      await expect(profile.locator('[data-profile-details-avatar]')).toBeVisible();
+      await expect(profile.locator('.advanced-profile-header-icon')).toHaveAttribute('aria-label', /更多资料操作|More profile actions/);
+      await expect(page.locator('.bottom-nav')).toHaveCount(0);
+      const geometry = await profile.evaluate((node) => {
+        const frame = node.closest('.phone-frame');
+        const header = node.querySelector('.home-experience-header')?.getBoundingClientRect();
+        const identity = node.querySelector('.advanced-profile-identity')?.getBoundingClientRect();
+        const avatar = node.querySelector('[data-profile-details-avatar]')?.getBoundingClientRect();
+        const menuButton = node.querySelector('.advanced-profile-header-icon')?.getBoundingClientRect();
+        return {
+          frameOverflowX: frame ? frame.scrollWidth - frame.clientWidth : null,
+          header: header ? { top: header.top, right: header.right, bottom: header.bottom, left: header.left } : null,
+          identity: identity ? { top: identity.top, right: identity.right, bottom: identity.bottom, left: identity.left } : null,
+          avatar: avatar ? { top: avatar.top, right: avatar.right, bottom: avatar.bottom, left: avatar.left, width: avatar.width, height: avatar.height } : null,
+          menuButton: menuButton ? { top: menuButton.top, right: menuButton.right, bottom: menuButton.bottom, left: menuButton.left } : null,
+        };
+      });
+      if ((geometry.frameOverflowX ?? 0) > 1 || !geometry.header || !geometry.identity || !geometry.avatar || !geometry.menuButton) throw new Error(`profile/${viewport.name}: incomplete or overflowing profile layout ${JSON.stringify(geometry)}`);
+      if (Math.abs(geometry.avatar.width - geometry.avatar.height) > .5 || geometry.avatar.left < geometry.identity.left || geometry.avatar.right > geometry.identity.right) throw new Error(`profile/${viewport.name}: avatar escapes identity card ${JSON.stringify(geometry)}`);
+      await profile.locator('.advanced-profile-header-icon').click();
+      const menu = profile.locator('.advanced-profile-menu');
+      await expect(menu).toBeVisible();
+      await expect(menu.locator('button')).toHaveCount(3);
+      const menuGeometry = await menu.evaluate((node) => {
+        const rect = node.getBoundingClientRect();
+        return { top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight };
+      });
+      if (menuGeometry.left < 0 || menuGeometry.right > menuGeometry.viewportWidth + 1 || menuGeometry.top < 0 || menuGeometry.bottom > menuGeometry.viewportHeight + 1) throw new Error(`profile/${viewport.name}: menu escapes viewport ${JSON.stringify(menuGeometry)}`);
+      await page.screenshot({ path: path.join(outputDir, `profile-menu-${viewport.name}.png`) });
+      await profile.locator('.advanced-profile-header-icon').click();
+      await profile.locator('[data-profile-details-avatar]').click();
+      const sheet = profile.locator('.avatar-sheet');
+      await expect(sheet).toBeVisible();
+      await expect(sheet.locator('.avatar-sheet-actions button')).toHaveCount(2);
+      await page.waitForTimeout(260);
+      const sheetGeometry = await sheet.evaluate((node) => {
+        const rect = node.getBoundingClientRect();
+        const overlay = node.closest('.avatar-sheet-overlay');
+        const actions = [...node.querySelectorAll('.avatar-sheet-actions button')].map((button) => {
+          const buttonRect = button.getBoundingClientRect();
+          return { top: buttonRect.top, right: buttonRect.right, bottom: buttonRect.bottom, left: buttonRect.left };
+        });
+        return { top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight, overflowX: node.scrollWidth - node.clientWidth, overlayOpacity: overlay ? Number(getComputedStyle(overlay).opacity) : 0, actions };
+      });
+      if (sheetGeometry.left < 0 || sheetGeometry.right > sheetGeometry.viewportWidth + 1 || sheetGeometry.top < 0 || sheetGeometry.bottom > sheetGeometry.viewportHeight + 1 || sheetGeometry.overflowX > 1 || sheetGeometry.overlayOpacity < .99 || sheetGeometry.actions.some((action) => action.left < sheetGeometry.left || action.right > sheetGeometry.right || action.top < sheetGeometry.top || action.bottom > sheetGeometry.bottom)) throw new Error(`profile/${viewport.name}: avatar sheet escapes viewport or is not fully visible ${JSON.stringify(sheetGeometry)}`);
+      profileResults.push({ name: viewport.name, geometry, menuGeometry, sheetGeometry });
+      await page.screenshot({ path: path.join(outputDir, `profile-avatar-sheet-${viewport.name}.png`) });
+      await page.locator('.avatar-sheet-overlay').click({ position: { x: 2, y: 2 } });
+    }
+
+    const skeletonResults = [];
+    for (const viewport of viewports) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      for (const module of ['mood', 'sleep', 'exercise', 'diet', 'focus', 'face']) {
+        const variant = `record-editor-${module}`;
+        await page.goto(`${baseUrl}?demo=1&qa=skeleton#tab=record&module=${module}&view=editor`, { waitUntil: 'networkidle' });
+        const skeleton = page.locator(`[data-page-skeleton="${variant}"]`);
+        await expect(skeleton).toBeVisible();
+        const geometry = await skeleton.evaluate((node) => {
+          const frame = node.closest('.phone-frame');
+          const content = node.closest('.app-content');
+          const nav = frame?.querySelector('.bottom-nav')?.getBoundingClientRect();
+          const rect = node.getBoundingClientRect();
+          return {
+            frameOverflowX: frame ? frame.scrollWidth - frame.clientWidth : null,
+            contentOverflowY: content ? content.scrollHeight - content.clientHeight : null,
+            blockCount: node.querySelectorAll('.nava-skeleton-block').length,
+            skeletonBottom: rect.bottom,
+            navTop: nav?.top ?? null,
+          };
+        });
+        if ((geometry.frameOverflowX ?? 0) > 1 || (geometry.contentOverflowY ?? 0) > 1 || geometry.blockCount < 8 || geometry.navTop == null || geometry.skeletonBottom > geometry.navTop + 1) throw new Error(`skeleton/${variant}/${viewport.name}: target-state skeleton overflowed or was incomplete ${JSON.stringify(geometry)}`);
+        skeletonResults.push({ name: viewport.name, variant, ...geometry });
+        await page.screenshot({ path: path.join(outputDir, `skeleton-${module}-${viewport.name}.png`) });
+      }
+    }
+
     await page.setViewportSize({ width: 430, height: 932 });
     await page.goto(`${baseUrl}?demo=1#tab=record&module=mood&view=editor`, { waitUntil: "networkidle" });
     await expect(page.locator(".mood-diary-field textarea")).toBeVisible();
@@ -400,8 +506,8 @@ async function main() {
     await page.screenshot({ path: path.join(outputDir, "390x600-keyboard-proxy.png") });
 
     if (errors.length) throw new Error(`Browser errors:\n${errors.join("\n")}`);
-    await writeFile(path.join(outputDir, "report.json"), `${JSON.stringify({ moodResults, sleepResults, dietResults, focusResults, faceResults, errors }, null, 2)}\n`, "utf8");
-    console.log(`Mood, sleep, diet, focus, and face editor layouts passed ${viewports.length} required phone sizes plus a keyboard-height proxy.`);
+    await writeFile(path.join(outputDir, "report.json"), `${JSON.stringify({ moodResults, sleepResults, dietResults, focusResults, faceResults, profileResults, skeletonResults, errors }, null, 2)}\n`, "utf8");
+    console.log(`Mood, sleep, diet, focus, face, profile, and target-state skeleton layouts passed ${viewports.length} required phone sizes plus a keyboard-height proxy.`);
   } finally {
     await context.close();
     await browser.close();

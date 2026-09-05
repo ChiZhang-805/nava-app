@@ -21,7 +21,7 @@ import DevSeedPanel from "./components/DevSeedPanel";
 import RewardCelebration from "./components/RewardCelebration";
 import PageSkeleton, { SkeletonBlock } from "./components/PageSkeleton";
 import LoadingShell from "./components/LoadingShell";
-import { currentSkeletonVariant } from "./services/loadingRoute";
+import { currentSkeletonVariant, recordSkeletonVariant } from "./services/loadingRoute";
 import { useLocale, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
@@ -543,7 +543,7 @@ function MobileShell() {
             />
           )}
           {activeTab === "record" && (
-            <Suspense fallback={<PageSkeleton variant={recordModule ? "record-detail" : "records"} />}>
+            <Suspense fallback={<PageSkeleton variant={recordSkeletonVariant(recordModule, recordView)} />}>
               <RecordsScreen
                 user={user}
                 deviceDate={deviceDate}

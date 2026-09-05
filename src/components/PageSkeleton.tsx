@@ -6,6 +6,12 @@ export type PageSkeletonVariant =
   | "today"
   | "records"
   | "record-detail"
+  | "record-editor-mood"
+  | "record-editor-sleep"
+  | "record-editor-exercise"
+  | "record-editor-diet"
+  | "record-editor-focus"
+  | "record-editor-face"
   | "ai"
   | "growth"
   | "profile"
@@ -63,6 +69,67 @@ function RecordDetailSkeleton() {
     <section className="page-skeleton-card page-skeleton-chart-card"><SkeletonBlock className="is-title" /><SkeletonBars /></section>
     <section className="page-skeleton-card"><SkeletonBlock className="is-title" /><SkeletonLines count={4} /></section>
     <section className="page-skeleton-card is-short"><SkeletonLines count={2} /></section>
+  </>;
+}
+
+type RecordEditorSkeletonModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
+
+function EditorSkeletonHeader({ actions = 0 }: { actions?: number }) {
+  return <div className="page-skeleton-editor-heading"><SkeletonBlock className="is-title" />{actions > 0 && <span>{Array.from({ length: actions }, (_, index) => <SkeletonBlock className="is-circle" key={index} />)}</span>}</div>;
+}
+
+function EditorSkeletonFields({ count, twoColumn = false }: { count: number; twoColumn?: boolean }) {
+  return <div className={twoColumn ? "page-skeleton-editor-fields is-two-column" : "page-skeleton-editor-fields"}>{Array.from({ length: count }, (_, index) => <span key={index}><SkeletonBlock className="is-label" /><SkeletonBlock className="is-field" /></span>)}</div>;
+}
+
+function RecordEditorSkeleton({ module }: { module: RecordEditorSkeletonModule }) {
+  let body;
+  if (module === "mood") body = <>
+    <EditorSkeletonHeader />
+    <div className="page-skeleton-editor-score"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-score" /></div>
+    <SkeletonBlock className="is-track" />
+    <div className="page-skeleton-editor-chips">{Array.from({ length: 9 }, (_, index) => <SkeletonBlock key={index} />)}</div>
+    <div className="page-skeleton-editor-note"><SkeletonBlock className="is-label" /><SkeletonBlock className="is-field" /></div>
+    <SkeletonBlock className="is-button" />
+  </>;
+  else if (module === "sleep") body = <>
+    <EditorSkeletonHeader actions={3} />
+    <EditorSkeletonFields count={6} twoColumn />
+    <SkeletonBlock className="is-track" />
+    <div className="page-skeleton-editor-note"><SkeletonBlock className="is-label" /><SkeletonBlock className="is-field" /></div>
+    <SkeletonBlock className="is-button" />
+  </>;
+  else if (module === "exercise") body = <>
+    <EditorSkeletonHeader />
+    <EditorSkeletonFields count={5} twoColumn />
+    <div className="page-skeleton-editor-note"><SkeletonBlock className="is-label" /><SkeletonBlock className="is-field" /></div>
+    <SkeletonBlock className="is-button" />
+  </>;
+  else if (module === "diet") body = <>
+    <EditorSkeletonHeader actions={4} />
+    <SkeletonBlock className="page-skeleton-editor-photo" />
+    <div className="page-skeleton-editor-photo-actions"><SkeletonBlock /><SkeletonBlock /></div>
+    <EditorSkeletonFields count={2} twoColumn />
+    <div className="page-skeleton-editor-food"><SkeletonBlock className="is-label" /><SkeletonLines count={2} compact /></div>
+    <EditorSkeletonFields count={4} twoColumn />
+    <SkeletonBlock className="is-button" />
+  </>;
+  else if (module === "focus") body = <>
+    <EditorSkeletonHeader actions={2} />
+    <EditorSkeletonFields count={2} />
+    <div className="page-skeleton-editor-note is-large"><SkeletonBlock className="is-label" /><SkeletonBlock className="is-field" /></div>
+    <SkeletonBlock className="is-button" />
+  </>;
+  else body = <>
+    <EditorSkeletonHeader actions={2} />
+    <SkeletonBlock className="page-skeleton-editor-photo is-face" />
+    <div className="page-skeleton-editor-photo-actions"><SkeletonBlock /><SkeletonBlock /></div>
+    <section className="page-skeleton-editor-ai"><span><SkeletonBlock className="is-title" /><SkeletonLines count={3} compact /></span><SkeletonBlock className="is-orb" /></section>
+  </>;
+
+  return <>
+    <SkeletonBlock className="page-skeleton-editor-date" />
+    <section className={`page-skeleton-card page-skeleton-editor-card is-${module}`}>{body}</section>
   </>;
 }
 
@@ -134,9 +201,11 @@ function AdvancedProfileSkeleton() {
 
 export default function PageSkeleton({ variant, className = "" }: { variant: PageSkeletonVariant; className?: string }) {
   const { locale } = useLocale();
+  const editorModule = variant.startsWith("record-editor-") ? variant.slice("record-editor-".length) as RecordEditorSkeletonModule : null;
   const content = variant === "auth" ? <AuthSkeleton />
     : variant === "records" ? <RecordsSkeleton />
     : variant === "record-detail" ? <RecordDetailSkeleton />
+      : editorModule ? <RecordEditorSkeleton module={editorModule} />
       : variant === "ai" ? <AiSkeleton />
         : variant === "growth" ? <GrowthSkeleton />
           : variant === "profile" ? <ProfileSkeleton />

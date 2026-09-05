@@ -3,19 +3,23 @@ import {
   ArrowLeft,
   Brain,
   BriefcaseBusiness,
+  Camera,
   Check,
   HeartPulse,
+  Images,
+  Loader2,
+  MoreHorizontal,
   MoonStar,
   Save,
   ShieldCheck,
   Target,
-  UserRound,
   Utensils,
+  X,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "../i18n";
 import PageSkeleton from "../components/PageSkeleton";
-import { loadProfile, saveProfile, type UserProfile } from "../services/profile";
+import { loadProfile, saveProfile, saveProfileAvatar, type UserProfile } from "../services/profile";
 
 type Draft = {
   username: string;
@@ -69,7 +73,17 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [avatarSaved, setAvatarSaved] = useState(false);
+  const [avatarSaving, setAvatarSaving] = useState(false);
+  const [avatarSheetOpen, setAvatarSheetOpen] = useState(false);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const preferencesRef = useRef<HTMLElement | null>(null);
   const copy = <T,>(zh: T, en: T) => locale === "zh" ? zh : en;
 
   useEffect(() => {
@@ -86,6 +100,22 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
     return () => { active = false; };
   }, [user.id]);
 
+  useEffect(() => setAvatarLoadFailed(false), [profile?.avatar_url]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) setMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setMenuOpen(false); };
+    document.addEventListener("pointerdown", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [menuOpen]);
+
   const completeness = useMemo(() => {
     const values = [draft.username, draft.ageGroup, draft.occupation, draft.mbti, draft.goal, draft.sleepSchedule, draft.exerciseFrequency, draft.dietPreference, draft.stressFactors];
     return Math.round(values.filter((value) => value.trim()).length / values.length * 100);
@@ -93,6 +123,7 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
 
   const update = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     setSaved(false);
+    setAvatarSaved(false);
     setDraft((current) => ({ ...current, [key]: value }));
   };
 
@@ -100,6 +131,7 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
     event.preventDefault();
     setSaving(true);
     setSaved(false);
+    setAvatarSaved(false);
     setError(null);
     try {
       const result = await saveProfile({
@@ -127,23 +159,64 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
     }
   }
 
+  async function handleAvatarFile(file: File | null) {
+    setAvatarSheetOpen(false);
+    if (!file) return;
+    setAvatarSaving(true);
+    setAvatarSaved(false);
+    setSaved(false);
+    setError(null);
+    try {
+      const avatarUrl = await saveProfileAvatar(user.id, file);
+      setProfile((current) => current ? { ...current, avatar_url: avatarUrl } : {
+        id: user.id,
+        username: draft.username.trim() || null,
+        height: null,
+        weight: null,
+        occupation: draft.occupation || null,
+        goal: draft.goal.trim() || null,
+        mbti: draft.mbti || null,
+        exercise_frequency: draft.exerciseFrequency || null,
+        sleep_schedule: draft.sleepSchedule.trim() || null,
+        diet_preference: draft.dietPreference.trim() || null,
+        stress_factors: draft.stressFactors.trim() || null,
+        avatar_url: avatarUrl,
+      });
+      setAvatarSaved(true);
+      onChanged();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setAvatarSaving(false);
+    }
+  }
+
   return (
     <section className="home-experience advanced-profile-screen" data-home-view="profile-details">
       <header className="home-experience-header">
         <button className="home-experience-back" type="button" onClick={onBack} aria-label={copy("返回首页", "Back home")}><ArrowLeft size={22} /></button>
         <div><h1>{copy("详细资料设置", "Detailed profile")}</h1></div>
-        <span className="advanced-profile-header-icon"><UserRound size={22} /></span>
+        <div className="advanced-profile-header-menu-wrap" ref={menuRef}>
+          <button className="advanced-profile-header-icon" type="button" aria-label={copy("更多资料操作", "More profile actions")} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><MoreHorizontal size={23} /></button>
+          {menuOpen && <div className="app-utility-popover advanced-profile-menu" role="menu">
+            <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setAvatarSheetOpen(true); }}><Camera size={17} />{copy("更换头像", "Change avatar")}</button>
+            <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); preferencesRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }}><ShieldCheck size={17} />{copy("数据与 AI 偏好", "Data & AI preferences")}</button>
+            <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); formRef.current?.requestSubmit(); }}><Save size={17} />{copy("保存详细资料", "Save profile")}</button>
+          </div>}
+        </div>
       </header>
 
       {loading ? <PageSkeleton variant="advanced-profile" /> : (
         <>
           <section className="advanced-profile-identity">
-            <div className="advanced-profile-avatar">{(profile?.username || user.email || "N").slice(0, 1).toUpperCase()}</div>
+            <button className="advanced-profile-avatar" data-profile-details-avatar type="button" aria-label={copy("更换头像", "Change avatar")} title={copy("更换头像", "Change avatar")} onClick={() => setAvatarSheetOpen(true)} disabled={avatarSaving}>
+              {avatarSaving ? <Loader2 className="spin" size={21} /> : profile?.avatar_url && !avatarLoadFailed ? <img src={profile.avatar_url} alt="" onError={() => setAvatarLoadFailed(true)} /> : <span>{(profile?.username || user.email || "N").slice(0, 1).toUpperCase()}</span>}
+            </button>
             <div><strong>{profile?.username || copy("NAVA 用户", "NAVA user")}</strong><small>{user.email || user.phone || copy("已登录账号", "Signed-in account")}</small></div>
             <div className="advanced-profile-completeness"><b>{completeness}%</b><span>{copy("资料完整度", "Complete")}</span></div>
           </section>
 
-          <form className="advanced-profile-form" onSubmit={submit}>
+          <form className="advanced-profile-form" ref={formRef} onSubmit={submit}>
           <section className="advanced-profile-section">
             <header><span><BriefcaseBusiness size={20} /></span><div><strong>{copy("身份与阶段", "Identity & stage")}</strong><small>{copy("帮助 NAVA 调整表达方式与建议强度", "Shapes NAVA's tone and recommendations")}</small></div></header>
             <label><span>{copy("昵称", "Nickname")}</span><input value={draft.username} onChange={(event) => update("username", event.target.value)} placeholder={copy("你希望 NAVA 如何称呼你", "How should NAVA address you?")} /></label>
@@ -167,16 +240,29 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
             <label><span>{copy("主要压力来源", "Main stressors")}</span><textarea rows={2} value={draft.stressFactors} onChange={(event) => update("stressFactors", event.target.value)} placeholder={copy("学业、工作、家庭、睡眠等", "Study, work, family, sleep, etc.")} /></label>
           </section>
 
-          <section className="advanced-profile-section advanced-profile-consents">
+          <section className="advanced-profile-section advanced-profile-consents" ref={preferencesRef}>
             <header><span><ShieldCheck size={20} /></span><div><strong>{copy("数据与 AI 偏好", "Data & AI preferences")}</strong><small>{copy("随时可以修改，不影响账号登录", "Change anytime without affecting sign-in")}</small></div></header>
             <label className="advanced-profile-switch"><span><b>{copy("健康数据分析", "Health data analysis")}</b><small>{copy("允许使用已保存的健康记录生成趋势", "Use saved health records for trends")}</small></span><span className={`advanced-profile-switch-control${draft.healthDataConsent ? " is-checked" : ""}`}><input type="checkbox" checked={draft.healthDataConsent} onChange={(event) => update("healthDataConsent", event.target.checked)} /><i aria-hidden="true" /></span></label>
             <label className="advanced-profile-switch"><span><b>{copy("AI 个性化", "AI personalization")}</b><small>{copy("结合身份、目标和近况调整回复", "Tailor replies using your profile and recent data")}</small></span><span className={`advanced-profile-switch-control${draft.aiPersonalizationConsent ? " is-checked" : ""}`}><input type="checkbox" checked={draft.aiPersonalizationConsent} onChange={(event) => update("aiPersonalizationConsent", event.target.checked)} /><i aria-hidden="true" /></span></label>
           </section>
 
           {error && <p className="home-experience-error" role="alert">{error}</p>}
+          {avatarSaved && <p className="advanced-profile-saved" role="status"><Check size={17} />{copy("头像已更新", "Avatar updated")}</p>}
           {saved && <p className="advanced-profile-saved" role="status"><Check size={17} />{copy("详细资料已保存", "Detailed profile saved")}</p>}
           <button className="advanced-profile-save" type="submit" disabled={saving}>{saved ? <Check size={20} /> : <Save size={20} />}{saving ? copy("正在保存…", "Saving…") : copy("保存详细资料", "Save detailed profile")}</button>
           </form>
+
+          <input ref={galleryInputRef} data-profile-avatar-input="gallery" className="visually-hidden" type="file" accept="image/*" onChange={(event) => { const file = event.currentTarget.files?.[0] ?? null; event.currentTarget.value = ""; void handleAvatarFile(file); }} />
+          <input ref={cameraInputRef} data-profile-avatar-input="camera" className="visually-hidden" type="file" accept="image/*" capture="user" onChange={(event) => { const file = event.currentTarget.files?.[0] ?? null; event.currentTarget.value = ""; void handleAvatarFile(file); }} />
+          {avatarSheetOpen && <div className="avatar-sheet-overlay" role="presentation" onClick={() => setAvatarSheetOpen(false)}>
+            <section className="avatar-sheet" role="dialog" aria-modal="true" aria-label={copy("更换头像", "Change avatar")} onClick={(event) => event.stopPropagation()}>
+              <div className="section-heading"><h2>{copy("更换头像", "Change avatar")}</h2><button className="section-icon-action" type="button" aria-label={copy("关闭", "Close")} onClick={() => setAvatarSheetOpen(false)}><X size={21} /></button></div>
+              <div className="avatar-sheet-actions">
+                <button type="button" onClick={() => cameraInputRef.current?.click()}><Camera size={22} /><span>{copy("调用摄像头拍摄", "Take a photo")}</span></button>
+                <button type="button" onClick={() => galleryInputRef.current?.click()}><Images size={22} /><span>{copy("从相册选择", "Choose from library")}</span></button>
+              </div>
+            </section>
+          </div>}
         </>
       )}
     </section>

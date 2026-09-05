@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { AlarmClock, Apple, BedDouble, Bot, Brain, Camera, Check, ChevronLeft, ChevronRight, Clock3, Drumstick, Dumbbell, Egg, Hourglass, Loader2, Milk, MoonStar, Play, RefreshCw, ScanFace, Share2, SmilePlus, Soup, Sunset, Timer, Upload, X, type LucideIcon } from "lucide-react";
+import { AlarmClock, Apple, BedDouble, Bot, Brain, Brush, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Egg, Hourglass, Loader2, Milk, MoonStar, Play, RefreshCw, ScanFace, Share2, SmilePlus, Soup, Sunset, Timer, Upload, X, type LucideIcon } from "lucide-react";
 import { FormEvent, lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import ActionButton from "../components/ActionButton";
 import AnimatedNumber from "../components/AnimatedNumber";
@@ -37,6 +37,7 @@ import { allHealthModulesComplete, buildHealthModulePresentations, compareRecord
 import { clearSecureFaceDraft, loadSecureFaceDraft, saveSecureFaceDraft } from "../services/secureFaceDraft";
 import { loadSingleKey, type SingleRequestSlot } from "../services/singleRequestCache";
 import { estimatedFoodLabel, formatDetectedDishList } from "../services/dietEntryPresentation";
+import { recordSkeletonVariant } from "../services/loadingRoute";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 
 const RecordModuleDashboard = lazy(() => import("./RecordModuleDashboard"));
@@ -89,8 +90,6 @@ export type FocusLaunchConfig = {
   note: string;
   startedAt: string;
 };
-
-const focusDurationPresets = [25, 45, 60] as const;
 
 const dashboardModules = new Set<RecordModule>(["mood", "sleep", "exercise", "diet", "focus", "face"]);
 
@@ -1122,7 +1121,7 @@ export default function RecordsScreen({
   const currentRecordKey = `${recordDate}:${activeModule ?? "hub"}:${activeModule === "diet" ? meal : ""}`;
   const visibleFaceInsights = faceInsightPoints(faceResult, locale);
   if (dataLoading && loadedRecordKey !== currentRecordKey) {
-    return <PageSkeleton variant={activeModule ? "record-detail" : "records"} />;
+    return <PageSkeleton variant={recordSkeletonVariant(activeModule, showEditor || initialView === "editor")} />;
   }
 
   if (!activeModule) {
@@ -1813,21 +1812,7 @@ export default function RecordsScreen({
             <input value={focusTitle} onChange={(e) => setFocusTitle(e.target.value)} placeholder={locale === "zh" ? "这次准备专注完成什么？" : "What will you focus on?"} />
           </label>
           {focusMode === "countdown" && <label className="field focus-entry-minutes-field">
-            <span>
-              <span>{t("records.minutes")}</span>
-              <span className="focus-duration-preset-icons" role="group" aria-label={locale === "zh" ? "快捷专注时长" : "Quick focus durations"}>
-                {focusDurationPresets.map((minutes) => <button
-                  type="button"
-                  key={minutes}
-                  className={focusMinutes === minutes ? "selected" : ""}
-                  data-focus-duration={minutes}
-                  aria-label={locale === "zh" ? `${minutes} 分钟` : `${minutes} minutes`}
-                  aria-pressed={focusMinutes === minutes}
-                  title={locale === "zh" ? `${minutes} 分钟` : `${minutes} minutes`}
-                  onClick={() => setFocusMinutes(minutes)}
-                ><Clock3 size={14} /><small>{minutes}</small></button>)}
-              </span>
-            </span>
+            <span>{t("records.minutes")}</span>
             <input inputMode="numeric" min="1" max="180" type="number" value={focusMinutes} onChange={(e) => setFocusMinutes(Math.min(180, Math.max(1, Number(e.target.value) || 1)))} />
           </label>}
           <label className="field focus-entry-note-field">
@@ -1843,23 +1828,11 @@ export default function RecordsScreen({
       <div hidden={activeModule !== "face"}>
         <SectionCard
           title={t("records.face")}
-          action={
-            <button
-              className="section-icon-action face-camera-action"
-              type="button"
-              aria-label={t("records.frontCamera")}
-              title={t("records.frontCamera")}
-              disabled={faceAnalyzing}
-              onClick={() => facePhotoInputRef.current?.click()}
-            >
-              {faceAnalyzing ? <Loader2 className="spin" size={22} /> : <Camera size={23} strokeWidth={1.9} />}
-            </button>
-          }
+          action={<div className="face-mode-icon-actions" role="group" aria-label={locale === "zh" ? "拍摄模式" : "Capture mode"}>
+            <button type="button" className={faceMode === "bare_face" ? "selected" : ""} data-face-mode="bare_face" aria-label={locale === "zh" ? "素颜模式" : "Bare-face mode"} aria-pressed={faceMode === "bare_face"} title={locale === "zh" ? "素颜模式" : "Bare-face mode"} disabled={faceAnalyzing} onClick={() => setFaceMode("bare_face")}><ScanFace size={18} strokeWidth={2.05} /></button>
+            <button type="button" className={faceMode === "makeup" ? "selected" : ""} data-face-mode="makeup" aria-label={locale === "zh" ? "带妆模式" : "Makeup mode"} aria-pressed={faceMode === "makeup"} title={locale === "zh" ? "带妆模式" : "Makeup mode"} disabled={faceAnalyzing} onClick={() => setFaceMode("makeup")}><Brush size={18} strokeWidth={2.05} /></button>
+          </div>}
         >
-          <div className="face-mode-picker" role="group" aria-label={locale === "zh" ? "拍摄模式" : "Capture mode"}>
-            <button type="button" className={faceMode === "bare_face" ? "selected" : ""} onClick={() => setFaceMode("bare_face")}>{locale === "zh" ? "素颜模式" : "Bare face"}</button>
-            <button type="button" className={faceMode === "makeup" ? "selected" : ""} onClick={() => setFaceMode("makeup")}>{locale === "zh" ? "带妆模式" : "Makeup"}</button>
-          </div>
           <label className={["photo-picker", "face", faceAnalyzing ? "is-analyzing" : "", faceImage ? "has-image" : ""].filter(Boolean).join(" ")}>
             {faceImage ? <img src={faceImage} alt={locale === "zh" ? "面部照片" : "Face photo"} /> : <ScanFace size={30} />}
             <span>{faceAnalyzing ? t("records.faceScanning") : t("records.scanFace")}</span>
@@ -1887,7 +1860,6 @@ export default function RecordsScreen({
                 : <p>{locale === "zh" ? "等待本次面部状态分析" : "Waiting for this face-state analysis"}</p>}
             </div>
             <img src={faceInsightMascot} alt="" aria-hidden="true" />
-            <footer>{locale === "zh" ? "仅用于日常状态观察，不构成医疗诊断" : "For everyday observation only; not a medical diagnosis"}</footer>
           </section>
           {faceDraftFile && !faceResult && !faceAnalyzing && <button className="face-resume-analysis" type="button" onClick={() => void handleFacePhoto(faceDraftFile)}><RefreshCw size={16} />{locale === "zh" ? "继续分析已恢复的照片" : "Analyze the restored photo"}</button>}
           {pendingFaceAnalysis && <div className="face-makeup-check" role="alert">

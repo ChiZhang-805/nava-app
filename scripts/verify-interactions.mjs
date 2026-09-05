@@ -935,6 +935,18 @@ async function verifyHomeShortcuts(page, results) {
   await expect(page.locator('[data-home-view="profile-details"]')).toBeVisible();
   await expect(page.locator(".advanced-profile-form")).toBeVisible();
   await expect(page.locator(".bottom-nav")).toHaveCount(0);
+  const profileMenuButton = page.locator('.advanced-profile-header-icon[aria-label="更多资料操作"], .advanced-profile-header-icon[aria-label="More profile actions"]');
+  await profileMenuButton.click();
+  await expect(page.locator(".advanced-profile-menu")).toBeVisible();
+  await expect(page.locator(".advanced-profile-menu button")).toHaveCount(3);
+  await page.locator(".advanced-profile-menu button").first().click();
+  await expect(page.locator(".advanced-profile-screen .avatar-sheet")).toBeVisible();
+  await page.locator(".advanced-profile-screen .avatar-sheet-overlay").click({ position: { x: 2, y: 2 } });
+  await page.locator("[data-profile-details-avatar]").click();
+  await expect(page.locator(".advanced-profile-screen .avatar-sheet")).toBeVisible();
+  await page.locator('[data-profile-avatar-input="gallery"]').setInputFiles(samplePhoto);
+  await expect(page.locator("[data-profile-details-avatar] img")).toBeVisible();
+  await expect(page.locator(".advanced-profile-screen .advanced-profile-saved")).toContainText(/头像已更新|Avatar updated/);
   const profileSwitches = page.locator(".advanced-profile-switch-control");
   await expect(profileSwitches).toHaveCount(2);
   const switchGeometry = await profileSwitches.evaluateAll((controls) => controls.map((control) => {
@@ -1463,6 +1475,12 @@ async function verifyPageSkeletons(browser, baseUrl, results, consoleErrors) {
     ["today", "#tab=today"],
     ["records", "#tab=record"],
     ["record-detail", "#tab=record&module=sleep"],
+    ["record-editor-mood", "#tab=record&module=mood&view=editor"],
+    ["record-editor-sleep", "#tab=record&module=sleep&view=editor"],
+    ["record-editor-exercise", "#tab=record&module=exercise&view=editor"],
+    ["record-editor-diet", "#tab=record&module=diet&view=editor"],
+    ["record-editor-focus", "#tab=record&module=focus&view=editor"],
+    ["record-editor-face", "#tab=record&module=face&view=editor"],
     ["ai", "#tab=ai"],
     ["growth", "#tab=trends"],
     ["profile", "#tab=profile"],
@@ -1495,7 +1513,7 @@ async function verifyPageSkeletons(browser, baseUrl, results, consoleErrors) {
     }
   }
   await context.close();
-  results.push("登录与九类应用页面专属加载骨架、扫光动画与无横向溢出");
+  results.push("登录、九类应用页面与六个记录表单的目标态加载骨架、扫光动画及无横向溢出");
 }
 
 async function verifyModuleCompletionRouting(browser, baseUrl, results, consoleErrors) {
