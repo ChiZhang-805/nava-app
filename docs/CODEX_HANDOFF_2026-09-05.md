@@ -9,22 +9,22 @@ Supabase, Apple Health/Watch, and release baseline.
 
 - Editable source repository: `Q:\NAVA-Workspace\nava-app`
 - Released source commit:
-  `83c8ae8c2fa9ab11911f3d5d3a3e32694ff09123`
+  `c01b7fab4cffb987416e9c2df1c6d1e49391cfcc`
 - ChatGPT Sites project:
   `appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites version: 94
+- ChatGPT Sites version: 95
 - ChatGPT Sites version ID:
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_bee740d3dcf88191a26fb8c08dbca32c`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_900f3d64592c81918809813325f8d623`
 - ChatGPT Sites deployment:
-  `appgdep_6a9b83eb41f08191bd1d090400f54d71`
+  `appgdep_6a9b8d6898348191a3f2622218b915ee`
 - ChatGPT Sites URL:
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages generated mirror commit:
-  `41eda95eebd968c40740d886b6099daa80246ad8`
+  `8e95241418ebbc4d6590d6ef4d6f1919a0f90c64`
 - GitHub Pages URL:
   `https://chizhang-805.github.io/nava-app-preview/`
 - Sites package:
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v94.tar.gz`
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v95.tar.gz`
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
 
 Version 89 was an intermediate release from source commit
@@ -34,8 +34,9 @@ previous visual test did not detect. Version 90 replaces it and is the
 responsive-card baseline; version 91 preserves that layout and adds the
 performance and media improvements described below. Version 92 adds the
 authenticated transition correction described in section 8. Version 94 adds
-the five record-editor flows described in section 9 and is the current release
-anchor.
+the five record-editor flows described in section 9. Version 95 adds the
+follow-up visual corrections and strengthened acceptance gates described in
+section 10 and is the current release anchor.
 
 ## 2. Six-card copy and AI-report contract
 
@@ -145,10 +146,10 @@ truncation, no icon/text/arrow/card intersection, navigation safety, no excessiv
 bottom whitespace, and no horizontal overflow. Both extreme viewport screenshots
 were also inspected directly and the two origins match.
 
-Version 94 was re-tested on both origins with the user-authorized production
+Version 95 was re-tested on both origins with the user-authorized production
 account after deployment. Public release evidence is under:
 
-- `Q:\NAVA-Workspace\Build\TestRuns\nava-v94-public`
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-v95-public`
 
 The account had no recorded module data for 2026-09-05 during this acceptance
 run, so the public checks exercised all six real missing states and confirmed
@@ -254,6 +255,41 @@ account then passed both public origins: no blank processing-form flash, canonic
 Supabase project observed, no horizontal overflow, no shifted page, and face
 editor vertical overflow of at most one rounding pixel.
 
-No production record was mutated by the public acceptance run. Version 94 uses
+No production record was mutated by the public acceptance run. Version 94 used
 source commit `83c8ae8c2fa9ab11911f3d5d3a3e32694ff09123`, Sites version 94, and Pages
 mirror commit `41eda95eebd968c40740d886b6099daa80246ad8`.
+
+## 10. Version 95 record-editor visual re-audit
+
+The complete five-editor audit found and corrected three issues that were not
+strictly covered by the v94 checks:
+
+- the sleep save action could sit too close to the card edge at short heights;
+- the diet editor retained a legacy 72px gap above its lower controls;
+- long face-insight bullets could be visually ellipsized despite being derived
+  from real returned analysis text.
+
+The sleep form now compacts its fields and note area only on the affected height
+range while preserving a usable note surface and an 8px-or-greater action inset.
+Diet keeps its intentionally scrollable composition but removes the excess gap
+and keeps the final action above fixed navigation. Face insight is split into
+bounded semantic clauses, limited to four items, and checked for both horizontal
+and vertical clipping; it remains sourced from actual analysis feedback and
+annotations rather than placeholder copy.
+
+`scripts/verify-mood-editor-layout.mjs` now verifies card-child containment and
+action insets for the one-screen editors, bottom-navigation clearance throughout
+the diet flow, and true face empty/result states including complete AI bullets.
+The suite passed at 360x740, 375x812, 390x844, and 430x932 plus the 390x600
+keyboard-height proxy. The complete 22-stage `npm run verify` and 11-group
+interaction suite also passed. Local evidence is under:
+
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-record-editor-v95-recheck`
+
+After deploying both public origins, the user-authorized real account completed
+login without the blank processing-form flash and reached the face editor on
+both sites. Both builds reported the canonical Supabase project, zero horizontal
+frame overflow, zero content overflow, and safe separation from fixed
+navigation. No production record was mutated. Public evidence is under:
+
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-v95-public`
