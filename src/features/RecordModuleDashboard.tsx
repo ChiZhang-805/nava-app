@@ -65,7 +65,7 @@ import {
   sleepTimelineGeometry,
 } from "../services/visualMetrics";
 import type { UserProfile } from "../services/profile";
-import type { RecordModule } from "./RecordsScreen";
+import type { FocusLaunchConfig, RecordModule } from "./RecordsScreen";
 import { rollingDateWindow } from "../services/date";
 import { currentDayRequiredShareCopy, hasCurrentDayRecord, missingCurrentDayCopy } from "../services/historyReportState";
 import { isDemoMode } from "../services/demo";
@@ -80,6 +80,7 @@ type FocusTimerDraft = {
   interruptions: number;
   startedAt?: string;
   title?: string;
+  note?: string;
   category: string;
   selectedTodoId?: string;
 };
@@ -100,6 +101,7 @@ function readFocusTimerDraft(userId: string): FocusTimerDraft | null {
       interruptions: Math.max(0, Math.round(Number(parsed.interruptions) || 0)),
       startedAt: typeof parsed.startedAt === "string" ? parsed.startedAt : undefined,
       title: typeof parsed.title === "string" ? parsed.title : undefined,
+      note: typeof parsed.note === "string" ? parsed.note : undefined,
       category: typeof parsed.category === "string" && parsed.category ? parsed.category : "work",
       selectedTodoId: typeof parsed.selectedTodoId === "string" ? parsed.selectedTodoId : undefined,
     };
@@ -131,8 +133,12 @@ type Props = {
   exerciseMinutes: number;
   focusTitle: string;
   focusMinutes: number;
+  focusNote: string;
   setFocusTitle: (value: string) => void;
   setFocusMinutes: (value: number) => void;
+  setFocusNote: (value: string) => void;
+  focusLaunch: FocusLaunchConfig | null;
+  onFocusLaunchConsumed: () => void;
   onOpenEditor: () => void;
   onOpenDietCamera: () => void;
   onOpenDietMeal: (meal: "breakfast" | "lunch" | "dinner" | "pantry") => void;
@@ -1077,21 +1083,22 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
   );
 }
 
-function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinutes" | "setFocusTitle" | "setFocusMinutes" | "onSaveFocusMinutes" | "todaySnapshot" | "trendBundle" | "deviceDate" | "profile" | "onOpenAi"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
-  const { userId, locale, focusTitle, focusMinutes, setFocusTitle, setFocusMinutes, onSaveFocusMinutes, todaySnapshot, trendBundle, deviceDate, view, openView, onOpenAi } = props;
+function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinutes" | "focusNote" | "setFocusTitle" | "setFocusMinutes" | "setFocusNote" | "focusLaunch" | "onFocusLaunchConsumed" | "onSaveFocusMinutes" | "todaySnapshot" | "trendBundle" | "deviceDate" | "profile" | "onOpenAi"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
+  const { userId, locale, focusTitle, focusMinutes, focusNote, setFocusTitle, setFocusMinutes, setFocusNote, focusLaunch, onFocusLaunchConsumed, onSaveFocusMinutes, todaySnapshot, trendBundle, deviceDate, view, openView, onOpenAi } = props;
   const restoredTimer = useMemo(() => readFocusTimerDraft(userId), [userId]);
+  const launchedFromEditorRef = useRef(Boolean(focusLaunch));
   const displayedFocusTitle = focusTitle === "产品原型" || focusTitle === "Product prototype" || focusTitle === "Prototype"
     ? ""
     : focusTitle;
   const immersive = view === "immersive" || view === "interruption";
-  const [running, setRunning] = useState(false);
-  const [hasStarted, setHasStarted] = useState(Boolean(restoredTimer));
-  const [countdownDurationSeconds, setCountdownDurationSeconds] = useState(restoredTimer?.countdownDurationSeconds ?? focusMinutes * 60);
-  const [remaining, setRemaining] = useState(restoredTimer?.remaining ?? focusMinutes * 60);
-  const [elapsedSeconds, setElapsedSeconds] = useState(restoredTimer?.elapsedSeconds ?? 0);
-  const [timerMode, setTimerMode] = useState<"countdown" | "countup">(restoredTimer?.mode ?? "countdown");
-  const [interruptions, setInterruptions] = useState(restoredTimer?.interruptions ?? 0);
-  const [startedAt, setStartedAt] = useState<string | undefined>(restoredTimer?.startedAt);
+  const [running, setRunning] = useState(Boolean(focusLaunch));
+  const [hasStarted, setHasStarted] = useState(Boolean(restoredTimer || focusLaunch));
+  const [countdownDurationSeconds, setCountdownDurationSeconds] = useState(focusLaunch ? focusMinutes * 60 : restoredTimer?.countdownDurationSeconds ?? focusMinutes * 60);
+  const [remaining, setRemaining] = useState(focusLaunch ? focusMinutes * 60 : restoredTimer?.remaining ?? focusMinutes * 60);
+  const [elapsedSeconds, setElapsedSeconds] = useState(focusLaunch ? 0 : restoredTimer?.elapsedSeconds ?? 0);
+  const [timerMode, setTimerMode] = useState<"countdown" | "countup">(focusLaunch?.mode ?? restoredTimer?.mode ?? "countdown");
+  const [interruptions, setInterruptions] = useState(focusLaunch ? 0 : restoredTimer?.interruptions ?? 0);
+  const [startedAt, setStartedAt] = useState<string | undefined>(focusLaunch?.startedAt ?? restoredTimer?.startedAt);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [todos, setTodos] = useState<TodoItem[]>([]);
@@ -1112,10 +1119,28 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     return subscribeProductivity(refreshTodos);
   }, [refreshTodos]);
   useEffect(() => {
+    if (focusLaunch) {
+      launchedFromEditorRef.current = true;
+      const nextDuration = focusMinutes * 60;
+      setTimerMode(focusLaunch.mode);
+      setFocusNote(focusLaunch.note);
+      setCountdownDurationSeconds(nextDuration);
+      setRemaining(nextDuration);
+      setElapsedSeconds(0);
+      setInterruptions(0);
+      setStartedAt(focusLaunch.startedAt);
+      setSaved(false);
+      setHasStarted(true);
+      setRunning(true);
+      onFocusLaunchConsumed();
+      return;
+    }
+    if (launchedFromEditorRef.current) return;
     if (!restoredTimer) return;
     if (restoredTimer.title) setFocusTitle(restoredTimer.title);
+    if (restoredTimer.note) setFocusNote(restoredTimer.note);
     setFocusMinutes(Math.max(1, Math.ceil(restoredTimer.countdownDurationSeconds / 60)));
-  }, [restoredTimer, setFocusMinutes, setFocusTitle]);
+  }, [focusLaunch, focusMinutes, onFocusLaunchConsumed, restoredTimer, setFocusMinutes, setFocusNote, setFocusTitle]);
   useEffect(() => {
     const key = `nava-focus-timer:${userId}`;
     if (!hasStarted || saved) {
@@ -1130,11 +1155,12 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       interruptions,
       startedAt,
       title: displayedFocusTitle,
+      note: focusNote,
       category: focusCategory,
       selectedTodoId: selectedTodoId ?? undefined,
     };
     window.sessionStorage.setItem(key, JSON.stringify(draft));
-  }, [countdownDurationSeconds, displayedFocusTitle, elapsedSeconds, focusCategory, hasStarted, interruptions, remaining, saved, selectedTodoId, startedAt, timerMode, userId]);
+  }, [countdownDurationSeconds, displayedFocusTitle, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptions, remaining, saved, selectedTodoId, startedAt, timerMode, userId]);
   const todayTodos = todos.filter((item) => item.scheduledDate === deviceDate);
   const calendarDays = rollingDateWindow(deviceDate);
   const visibleTodos = todoView === "list" ? todayTodos : todos.filter((item) => item.scheduledDate === calendarDate);
@@ -1328,14 +1354,15 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
             onChange={(event) => setFocusTitle(event.target.value)}
             placeholder={locale === "zh" ? "请填写今日要完成的任务" : "Enter today's task"}
           />
-          <div className="focus-mode-switch" role="group" aria-label={locale === "zh" ? "计时模式" : "Timer mode"}>
+          {!hasStarted && <div className="focus-mode-switch" role="group" aria-label={locale === "zh" ? "计时模式" : "Timer mode"}>
             <button type="button" className={timerMode === "countdown" ? "active" : ""} onClick={() => { setTimerMode("countdown"); setRemaining(countdownDurationSeconds); setRunning(false); setHasStarted(false); }}>{locale === "zh" ? "倒计时" : "Countdown"}</button>
             <button type="button" className={timerMode === "countup" ? "active" : ""} onClick={() => { setTimerMode("countup"); setElapsedSeconds(0); setRunning(false); setHasStarted(false); }}>{locale === "zh" ? "正计时" : "Count up"}</button>
-          </div>
+          </div>}
           {timerMode === "countdown" && !hasStarted && <div className="focus-presets focus-presets--immersive" role="group" aria-label={locale === "zh" ? "快捷专注时长" : "Focus duration presets"}>
             {[25, 45, 60].map((minutes) => <button type="button" className={focusMinutes === minutes ? "active" : ""} key={minutes} onClick={() => updateDuration(minutes)}>{minutes}{locale === "zh" ? " 分钟" : " min"}</button>)}
           </div>}
         </div>
+        {focusNote && <p className="focus-immersive-note">{focusNote}</p>}
         <img className="focus-immersive-mascot" src={focusInsightMascot} alt="" aria-hidden="true" />
         <div className="focus-timer-ring" style={{ "--timer-progress": `${progress}%` } as CSSProperties}>
           <div>
@@ -1511,7 +1538,7 @@ export default function RecordModuleDashboard(props: Props) {
   if (props.module === "sleep") dashboard = <SleepDashboard userId={props.userId} locale={locale} sleepStart={props.sleepStart} sleepEnd={props.sleepEnd} deepSleep={props.deepSleep} lightSleep={props.lightSleep} remSleep={props.remSleep} sleepRating={props.sleepRating} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} deviceDate={props.deviceDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
   if (props.module === "diet") dashboard = <DietDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} onOpenEditor={props.onOpenEditor} onOpenDietCamera={props.onOpenDietCamera} onOpenDietMeal={props.onOpenDietMeal} view={view} openView={openView} />;
   if (props.module === "face") dashboard = <FaceDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} onOpenEditor={props.onOpenEditor} view={view} openView={openView} />;
-  if (props.module === "focus") dashboard = <FocusDashboard userId={props.userId} locale={locale} focusTitle={props.focusTitle} focusMinutes={props.focusMinutes} setFocusTitle={props.setFocusTitle} setFocusMinutes={props.setFocusMinutes} onSaveFocusMinutes={props.onSaveFocusMinutes} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} onOpenAi={props.onOpenAi} view={view} openView={openView} />;
+  if (props.module === "focus") dashboard = <FocusDashboard userId={props.userId} locale={locale} focusTitle={props.focusTitle} focusMinutes={props.focusMinutes} focusNote={props.focusNote} setFocusTitle={props.setFocusTitle} setFocusMinutes={props.setFocusMinutes} setFocusNote={props.setFocusNote} focusLaunch={props.focusLaunch} onFocusLaunchConsumed={props.onFocusLaunchConsumed} onSaveFocusMinutes={props.onSaveFocusMinutes} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} onOpenAi={props.onOpenAi} view={view} openView={openView} />;
   const focusImmersive = props.module === "focus" && (view === "immersive" || view === "interruption");
   const moduleLabels: Record<RecordModule, { zh: string; en: string }> = {
     mood: { zh: "情绪", en: "mood" }, sleep: { zh: "睡眠", en: "sleep" }, exercise: { zh: "运动", en: "activity" },

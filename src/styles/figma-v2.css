@@ -8529,14 +8529,15 @@ body::before {
   flex-direction: column;
 }
 .record-detail[data-record-detail="sleep"] .sleep-note-field {
-  min-height: 104px;
+  min-height: 86px;
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   margin-top: 0;
+  margin-bottom: 10px;
 }
 .record-detail[data-record-detail="sleep"] .sleep-note-field textarea {
-  min-height: 82px;
+  min-height: 62px;
   height: auto;
   flex: 1 1 auto;
   resize: none;
@@ -8544,6 +8545,41 @@ body::before {
 .record-detail[data-record-detail="sleep"] .sleep-note-field + .action-button {
   flex: 0 0 auto;
   margin-top: 0;
+}
+
+/* The mood editor is a deliberate one-screen composition. Its journal grows
+   into the free space between the compact controls and persistent navigation,
+   keeping the save action anchored without relying on one device height. */
+.record-detail[data-record-detail="mood"]:has(.record-editor-stack) {
+  height: 100%;
+  min-height: 0;
+}
+.record-detail[data-record-detail="mood"] .record-editor-stack,
+.record-detail[data-record-detail="mood"] .record-editor-stack > form:not([hidden]) {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+}
+.record-detail[data-record-detail="mood"] .record-editor-stack > form:not([hidden]) > .section-card {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.record-detail[data-record-detail="mood"] .mood-diary-field {
+  min-height: 110px;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.record-detail[data-record-detail="mood"] .mood-diary-field textarea {
+  min-height: 88px;
+  height: auto;
+  flex: 1 1 auto;
+  resize: none;
+}
+.record-detail[data-record-detail="mood"] .mood-diary-field + .action-button {
+  flex: 0 0 auto;
 }
 
 @media (max-height: 780px) {
@@ -8564,14 +8600,31 @@ body::before {
   .face-trend-card .bar-line-trend-chart { min-height: 112px; }
   .record-detail[data-record-detail="exercise"] .exercise-note-field { min-height: 70px; }
   .record-detail[data-record-detail="exercise"] .exercise-note-field textarea { min-height: 54px; }
+  .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="sleep"] .record-editor-stack > form:not([hidden]) > .section-card { padding: 12px 14px; }
   .record-detail[data-record-detail="sleep"] .sleep-note-field { min-height: 82px; }
   .record-detail[data-record-detail="sleep"] .sleep-note-field textarea { min-height: 60px; }
+  .record-detail[data-record-detail="mood"] .mood-diary-field { min-height: 72px; }
+  .record-detail[data-record-detail="mood"] .mood-diary-field textarea { min-height: 52px; }
   .sleep-dashboard .sleep-trend-card { flex-basis: 154px; min-height: 154px; }
   .face-dashboard { grid-template-rows: auto auto minmax(154px, 1fr); gap: 7px; }
   .mood-dashboard { grid-template-rows: minmax(288px, 1.25fr) minmax(190px, 1fr); gap: 7px; }
 }
 
 @media (max-height: 700px) {
+  .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="mood"] .record-editor-stack > form:not([hidden]) > .section-card {
+    padding: 8px 10px;
+  }
+  .record-detail[data-record-detail="mood"] .section-heading { margin-bottom: 4px; }
+  .record-detail[data-record-detail="mood"] .module-title strong { font-size: 26px; }
+  .record-detail[data-record-detail="mood"] .chip-grid { gap: 6px; margin-block: 7px 8px; }
+  .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="mood"] .chip { min-height: 34px; padding-block: 6px; }
+  .record-detail[data-record-detail="mood"] .mood-diary-field { min-height: 58px; margin-bottom: 6px; }
+  .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="mood"] .mood-diary-field textarea {
+    min-height: 40px;
+    padding: 7px 10px;
+  }
+  .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="mood"] .action-button { min-height: 38px; }
+
   .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="sleep"] .record-editor-stack > form:not([hidden]) > .section-card {
     padding: 8px 10px;
   }
@@ -9923,9 +9976,34 @@ body::before {
 .face-comparison > div p { margin: 0; color: #66838f; font-size: 8px; line-height: 1.4; }
 .face-pattern-alert { min-height: 52px; display: grid; grid-template-columns: 24px minmax(0,1fr); align-items: center; gap: 7px; padding: 8px 11px; border: 1px solid rgba(213,151,157,.2); border-radius: 15px; color: #aa5d68; background: rgba(255,242,243,.84); }
 .face-pattern-alert p { margin: 0; color: #795e64; font-size: 8.3px; line-height: 1.45; }
-.sleep-preset-row { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }
-.sleep-preset-row button { min-height: 47px; border: 1px solid rgba(64,153,188,.18); border-radius: 13px; display: grid; place-items: center; gap: 2px; color: #145c79; background: rgba(228,246,252,.72); font: inherit; font-size: 10px; font-weight: 760; }
-.sleep-preset-row small { color: #73909d; font-size: 7.5px; font-weight: 620; }
+.sleep-preset-icons,
+.diet-quick-food-icons { display: inline-flex; align-items: center; gap: 6px; }
+.sleep-preset-icons button,
+.diet-quick-food-icons button {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border: 1px solid rgba(64,153,188,.2);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #477b91;
+  background: linear-gradient(145deg,rgba(247,253,255,.96),rgba(215,240,249,.86));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.88), 0 4px 10px rgba(20,116,151,.08);
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+.sleep-preset-icons button:active,
+.diet-quick-food-icons button:active { transform: scale(.94); }
+.sleep-preset-icons button.selected,
+.diet-quick-food-icons button.selected {
+  border-color: rgba(29,159,202,.54);
+  color: #067ca8;
+  background: linear-gradient(145deg,#f8feff,#cceefa);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.72), 0 5px 13px rgba(14,128,169,.18);
+}
+.sleep-preset-icons button:focus-visible,
+.diet-quick-food-icons button:focus-visible { outline: 3px solid rgba(35,166,210,.25); outline-offset: 2px; }
 .sleep-chart-actions { display: inline-flex; align-items: center; gap: 5px; }
 .sleep-chart-actions > div { display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(220,242,249,.76); }
 .sleep-chart-actions > div button { min-height: 24px; border: 0; border-radius: 7px; padding: 3px 7px; color: #617f8d; background: transparent; font: inherit; font-size: 8px; font-weight: 740; }
@@ -9939,10 +10017,140 @@ body::before {
 .mood-pattern-alert { min-height: 56px; display: grid; grid-template-columns: 24px minmax(0,1fr); align-items: center; gap: 7px; padding: 9px 12px; border: 1px solid rgba(210,140,145,.18); border-radius: 16px; color: #a45461; background: rgba(255,241,241,.82); }
 .mood-pattern-alert p { margin: 0; color: #7d5961; font-size: 8.7px; line-height: 1.45; }
 .mood-dashboard:has(.mood-pattern-alert) { grid-template-rows: 88px minmax(232px,.92fr) minmax(208px,1.08fr) auto; }
-.diet-quick-foods { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
-.diet-quick-foods button { min-height: 45px; border: 1px solid rgba(72,156,186,.16); border-radius: 13px; display: grid; gap: 2px; place-content: center; color: #1b5269; background: rgba(233,248,252,.82); font: inherit; text-align: center; }
-.diet-quick-foods strong { font-size: 9.5px; }
-.diet-quick-foods small { color: #6e8d9a; font-size: 7.5px; }
+.diet-food-field textarea {
+  min-height: 46px;
+  overflow: hidden;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  resize: none;
+}
+
+/* Record-entry shortcuts use one compact circular visual language. */
+.focus-entry-mode-icons,
+.focus-duration-preset-icons { display: inline-flex; align-items: center; gap: 6px; }
+.focus-entry-mode-icons button,
+.focus-duration-preset-icons button {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border: 1px solid rgba(64,153,188,.2);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #477b91;
+  background: linear-gradient(145deg,rgba(247,253,255,.96),rgba(215,240,249,.86));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.88), 0 4px 10px rgba(20,116,151,.08);
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+.focus-entry-mode-icons button:active,
+.focus-duration-preset-icons button:active { transform: scale(.94); }
+.focus-entry-mode-icons button.selected,
+.focus-duration-preset-icons button.selected {
+  border-color: rgba(29,159,202,.54);
+  color: #067ca8;
+  background: linear-gradient(145deg,#f8feff,#cceefa);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.72), 0 5px 13px rgba(14,128,169,.18);
+}
+.focus-duration-preset-icons button { position: relative; }
+.focus-duration-preset-icons button svg { transform: translate(-3px,-2px); }
+.focus-duration-preset-icons button small { position: absolute; right: 4px; bottom: 3px; font-size: 7px; font-weight: 850; line-height: 1; }
+.focus-entry-mode-icons button:focus-visible,
+.focus-duration-preset-icons button:focus-visible { outline: 3px solid rgba(35,166,210,.25); outline-offset: 2px; }
+
+/* Focus setup is intentionally a one-screen form. The private planning note
+   expands into free viewport height, while completion is still owned by the
+   existing immersive timer and only persisted when that timer finishes. */
+.record-detail[data-record-detail="focus"]:has(.record-editor-stack) { height: 100%; min-height: 0; }
+.record-detail[data-record-detail="focus"] .record-editor-stack,
+.record-detail[data-record-detail="focus"] .record-editor-stack > form:not([hidden]) { min-height: 0; flex: 1 1 auto; display: flex; }
+.record-detail[data-record-detail="focus"] .record-editor-stack > form:not([hidden]) > .section-card { min-height: 0; flex: 1 1 auto; display: flex; flex-direction: column; }
+.focus-entry-minutes-field > span { min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.focus-entry-note-field { min-height: 150px; flex: 1 1 auto; display: flex; flex-direction: column; }
+.focus-entry-note-field textarea { min-height: 126px; height: auto; flex: 1 1 auto; resize: none; }
+.focus-entry-note-field + .action-button { flex: 0 0 auto; }
+.focus-immersive-note {
+  z-index: 2;
+  width: min(82%, 340px);
+  max-height: 54px;
+  margin: 0 auto;
+  padding: 7px 11px;
+  overflow: auto;
+  border: 1px solid rgba(70,158,190,.2);
+  border-radius: 13px;
+  color: #4d7485;
+  background: rgba(239,249,252,.76);
+  font-size: 9.5px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* The face editor is a one-screen capture flow. Per-use consent is not
+   repeated here because onboarding's required submitted-data consent already
+   gates entry to the product; privacy and non-diagnostic boundaries remain in
+   the storage/backend contract and the result footer. */
+.record-detail[data-record-detail="face"]:has(.record-editor-stack) { height: 100%; min-height: 0; }
+.record-detail[data-record-detail="face"] .record-editor-stack,
+.record-detail[data-record-detail="face"] .record-editor-stack > div:not([hidden]) { min-height: 0; flex: 1 1 auto; display: flex; }
+.record-detail[data-record-detail="face"] .record-editor-stack > div:not([hidden]) > .section-card { min-height: 0; flex: 1 1 auto; display: flex; flex-direction: column; }
+.phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="face"]:has(.record-editor-stack) .record-editor-stack > div:not([hidden]) .photo-picker.face { min-height: 112px; flex: 1 1 150px; margin-bottom: 8px; }
+.record-detail[data-record-detail="face"] .photo-picker.face.has-image img { object-fit: contain; }
+.face-ai-evaluation {
+  position: relative;
+  min-height: 134px;
+  flex: 1 1 158px;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 94px;
+  grid-template-rows: auto minmax(0,1fr) auto;
+  column-gap: 8px;
+  margin-top: 9px;
+  padding: 10px 10px 8px 12px;
+  overflow: hidden;
+  border: 1px solid rgba(69,159,192,.18);
+  border-radius: 17px;
+  background: linear-gradient(145deg,rgba(236,249,253,.94),rgba(216,241,249,.82));
+}
+.face-ai-evaluation header { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #126f95; }
+.face-ai-evaluation header span { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; }
+.face-ai-evaluation header small { padding: 3px 6px; border-radius: 999px; color: #147c9e; background: rgba(255,255,255,.7); font-size: 8px; font-weight: 800; }
+.face-ai-evaluation-copy { min-width: 0; align-self: center; }
+.face-ai-evaluation-copy ul { margin: 5px 0 0; padding: 0; display: grid; gap: 4px; list-style: none; }
+.face-ai-evaluation-copy li { position: relative; padding-left: 10px; overflow: hidden; color: #4f7180; font-size: 8.8px; font-weight: 650; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.face-ai-evaluation-copy li::before { content: ""; position: absolute; left: 0; top: .48em; width: 5px; height: 5px; border-radius: 50%; background: #2bb4d7; }
+.face-ai-evaluation-copy p { margin: 0; color: #72909d; font-size: 9px; }
+.face-ai-evaluation > img { grid-column: 2; grid-row: 2/4; width: 100%; max-height: 108px; align-self: end; object-fit: contain; object-position: right bottom; }
+.face-ai-evaluation footer { grid-column: 1; align-self: end; color: #75909a; font-size: 7.4px; line-height: 1.25; }
+.face-ai-evaluation-copy > i { display: block; width: 88%; height: 8px; margin-top: 7px; border-radius: 999px; background: linear-gradient(90deg,rgba(169,216,231,.4),rgba(243,252,255,.9),rgba(169,216,231,.4)); background-size: 220% 100%; animation: skeleton-shimmer 1.25s linear infinite; }
+.face-ai-evaluation-copy > i:nth-child(2) { width: 72%; }
+.face-ai-evaluation-copy > i:nth-child(3) { width: 81%; }
+@keyframes face-ai-shimmer { to { background-position: -220% 0; } }
+.face-ai-evaluation-copy > i { animation-name: face-ai-shimmer; }
+
+@media (max-height: 860px) {
+  .record-detail[data-record-detail="face"] .record-editor-stack > div:not([hidden]) > .section-card { padding: 10px 12px; }
+  .record-detail[data-record-detail="face"] .section-heading { margin-bottom: 5px; }
+  .record-detail[data-record-detail="face"] .face-mode-picker { margin-bottom: 6px; }
+  .record-detail[data-record-detail="face"] .face-mode-picker button { min-height: 34px; }
+  .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="face"]:has(.record-editor-stack) .record-editor-stack > div:not([hidden]) .photo-picker.face { min-height: 86px; flex-basis: 104px; margin-bottom: 5px; }
+  .record-detail[data-record-detail="face"] .face-photo-actions button { min-height: 36px; }
+  .record-detail[data-record-detail="face"] .face-ai-evaluation { min-height: 112px; flex-basis: 122px; margin-top: 6px; padding-block: 8px 6px; }
+}
+
+@media (max-height: 780px) {
+  .record-detail[data-record-detail="sleep"] .section-heading { margin-bottom: 6px; }
+  .record-detail[data-record-detail="sleep"] .sleep-note-field { margin-bottom: 6px; }
+  .record-detail[data-record-detail="focus"] .focus-entry-note-field { min-height: 96px; }
+  .record-detail[data-record-detail="focus"] .focus-entry-note-field textarea { min-height: 74px; }
+}
+
+@media (max-height: 700px) {
+  .record-detail[data-record-detail="focus"] .record-editor-stack > form:not([hidden]) > .section-card { padding: 9px 11px; }
+  .record-detail[data-record-detail="focus"] .section-heading { margin-bottom: 5px; }
+  .record-detail[data-record-detail="focus"] .field { gap: 3px; margin-bottom: 5px; }
+  .record-detail[data-record-detail="focus"] .focus-entry-note-field { min-height: 64px; }
+  .record-detail[data-record-detail="focus"] .focus-entry-note-field textarea { min-height: 45px; padding-block: 7px; }
+  .record-detail[data-record-detail="focus"] .action-button { min-height: 38px; }
+}
 .diet-energy-context { min-height: 70px; display: grid; grid-template-columns: 58px minmax(0,1fr); align-items: center; gap: 10px; margin-top: 8px; padding: 7px 9px; border-radius: 15px; background: rgba(232,247,251,.72); }
 .diet-macro-ring { width: 55px; height: 55px; border-radius: 50%; display: grid; place-items: center; box-shadow: inset 0 0 0 1px rgba(255,255,255,.68); }
 .diet-macro-ring::before { content: ""; width: 39px; height: 39px; border-radius: 50%; grid-area: 1/1; background: rgba(249,254,255,.94); }

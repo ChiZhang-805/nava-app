@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { BedDouble, Bot, Brain, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Loader2, LockKeyhole, RefreshCw, ScanFace, Share2, ShieldCheck, SmilePlus, Upload, X, type LucideIcon } from "lucide-react";
+import { AlarmClock, Apple, BedDouble, Bot, Brain, Camera, Check, ChevronLeft, ChevronRight, Clock3, Drumstick, Dumbbell, Egg, Hourglass, Loader2, Milk, MoonStar, Play, RefreshCw, ScanFace, Share2, SmilePlus, Soup, Sunset, Timer, Upload, X, type LucideIcon } from "lucide-react";
 import { FormEvent, lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import ActionButton from "../components/ActionButton";
 import AnimatedNumber from "../components/AnimatedNumber";
@@ -9,6 +9,7 @@ import LineTrendChart from "../components/LineTrendChart";
 import SectionCard from "../components/SectionCard";
 import WeeklyRadarChart from "../components/WeeklyRadarChart";
 import weeklyRunMascot from "../assets/mascot/nava-run-v1.webp";
+import faceInsightMascot from "../assets/mascot/nava-face-insight-v2.webp";
 import { useLocale, type TranslationKey } from "../i18n";
 import {
   saveExerciseRecord,
@@ -16,6 +17,7 @@ import {
   saveMoodRecord,
   saveFaceAnalysisRecord,
   saveNutritionRecord,
+  saveNutritionItems,
   saveSleepRecord,
   refreshRhythmScore,
   getTodaySnapshot,
@@ -34,6 +36,7 @@ import { calculateWeeklyModuleScores, type WeeklyModuleKey } from "../services/w
 import { allHealthModulesComplete, buildHealthModulePresentations, compareRecordedPeriodAverages, healthModuleEntryView, healthModuleProgressLabel, type HealthModulePoints } from "../services/healthReportPresentation";
 import { clearSecureFaceDraft, loadSecureFaceDraft, saveSecureFaceDraft } from "../services/secureFaceDraft";
 import { loadSingleKey, type SingleRequestSlot } from "../services/singleRequestCache";
+import { estimatedFoodLabel, formatDetectedDishList } from "../services/dietEntryPresentation";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 
 const RecordModuleDashboard = lazy(() => import("./RecordModuleDashboard"));
@@ -50,7 +53,44 @@ const moodFactors: Array<{ value: string; labelKey: TranslationKey }> = [
   { value: "其他", labelKey: "records.factor.other" },
 ];
 
+const sleepPresets: Array<{
+  id: "early" | "standard" | "late";
+  label: { zh: string; en: string };
+  start: string;
+  end: string;
+  minutes: number;
+  icon: LucideIcon;
+}> = [
+  { id: "early", label: { zh: "早睡", en: "Early" }, start: "22:30", end: "06:30", minutes: 480, icon: Sunset },
+  { id: "standard", label: { zh: "标准", en: "Standard" }, start: "23:00", end: "07:00", minutes: 480, icon: MoonStar },
+  { id: "late", label: { zh: "晚睡", en: "Late" }, start: "00:30", end: "08:00", minutes: 450, icon: AlarmClock },
+];
+
+const quickFoodPresets: Array<{
+  id: "egg" | "rice" | "milk" | "apple";
+  label: { zh: string; en: string };
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  icon: LucideIcon;
+}> = [
+  { id: "egg", label: { zh: "鸡蛋 1 个", en: "1 egg" }, calories: 78, protein: 6, carbs: 1, fat: 5, icon: Egg },
+  { id: "rice", label: { zh: "米饭 1 碗", en: "Rice bowl" }, calories: 230, protein: 4, carbs: 50, fat: 1, icon: Soup },
+  { id: "milk", label: { zh: "牛奶 250ml", en: "Milk 250ml" }, calories: 150, protein: 8, carbs: 12, fat: 8, icon: Milk },
+  { id: "apple", label: { zh: "苹果 1 个", en: "1 apple" }, calories: 95, protein: 0, carbs: 25, fat: 0, icon: Apple },
+];
+
 export type RecordModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
+
+export type FocusLaunchConfig = {
+  id: number;
+  mode: "countdown" | "countup";
+  note: string;
+  startedAt: string;
+};
+
+const focusDurationPresets = [25, 45, 60] as const;
 
 const dashboardModules = new Set<RecordModule>(["mood", "sleep", "exercise", "diet", "focus", "face"]);
 
@@ -124,6 +164,22 @@ function faceModeMismatch(result: FaceAnalysisResult, captureMode: "bare_face" |
   return captureMode === "bare_face" ? result.makeup_level !== "bare" : result.makeup_level === "bare";
 }
 
+function compactFaceInsight(value: string, locale: "zh" | "en") {
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  const limit = locale === "zh" ? 28 : 72;
+  const characters = Array.from(cleaned);
+  return characters.length > limit ? `${characters.slice(0, limit).join("")}…` : cleaned;
+}
+
+function faceInsightPoints(result: FaceAnalysisResult | null, locale: "zh" | "en") {
+  if (!result) return [];
+  const candidates = [
+    result.feedback,
+    ...result.annotations.map((item) => `${item.label}${item.desc ? locale === "zh" ? `：${item.desc}` : `: ${item.desc}` : ""}`),
+  ].map((item) => compactFaceInsight(item, locale)).filter(Boolean);
+  return [...new Set(candidates)].slice(0, 4);
+}
+
 function filePreview(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -186,6 +242,7 @@ export default function RecordsScreen({
   const weeklyLongPressTimerRef = useRef<number | null>(null);
   const weeklyLongPressOriginRef = useRef<{ x: number; y: number } | null>(null);
   const recordLoadRequestRef = useRef(0);
+  const dietFoodTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const lastVisibleRefreshRef = useRef(0);
   const snapshotRequestRef = useRef<SingleRequestSlot<TodaySnapshot>>(null);
   const trendRequestRef = useRef<SingleRequestSlot<TrendBundle>>(null);
@@ -226,6 +283,9 @@ export default function RecordsScreen({
 
   const [focusTitle, setFocusTitle] = useState("");
   const [focusMinutes, setFocusMinutes] = useState(25);
+  const [focusMode, setFocusMode] = useState<"countdown" | "countup">("countdown");
+  const [focusNote, setFocusNote] = useState("");
+  const [pendingFocusLaunch, setPendingFocusLaunch] = useState<FocusLaunchConfig | null>(null);
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [faceResult, setFaceResult] = useState<FaceAnalysisResult | null>(null);
   const [pendingFaceAnalysis, setPendingFaceAnalysis] = useState<PendingFaceAnalysis | null>(null);
@@ -234,9 +294,6 @@ export default function RecordsScreen({
   const faceSettingsKey = `nava-face-capture-settings:${user.id}`;
   const [faceMode, setFaceMode] = useState<"bare_face" | "makeup">(() => {
     try { return JSON.parse(window.sessionStorage.getItem(faceSettingsKey) ?? "{}").mode === "makeup" ? "makeup" : "bare_face"; } catch { return "bare_face"; }
-  });
-  const [faceConsent, setFaceConsent] = useState(() => {
-    try { return JSON.parse(window.sessionStorage.getItem(faceSettingsKey) ?? "{}").consent === true; } catch { return false; }
   });
   const dietQuickCameraInputRef = useRef<HTMLInputElement | null>(null);
   const facePhotoInputRef = useRef<HTMLInputElement | null>(null);
@@ -254,12 +311,12 @@ export default function RecordsScreen({
   }, [locale]);
 
   useEffect(() => {
-    window.sessionStorage.setItem(faceSettingsKey, JSON.stringify({ mode: faceMode, consent: faceConsent }));
-  }, [faceConsent, faceMode, faceSettingsKey]);
+    window.sessionStorage.setItem(faceSettingsKey, JSON.stringify({ mode: faceMode }));
+  }, [faceMode, faceSettingsKey]);
 
   useEffect(() => {
     let active = true;
-    if (activeModule !== "face" || !showEditor || !faceConsent || faceImage || faceResult) return () => { active = false; };
+    if (activeModule !== "face" || !showEditor || faceImage || faceResult) return () => { active = false; };
     void loadSecureFaceDraft(user.id, recordDate)
       .then(async (file) => {
         if (!active || !file) return;
@@ -271,7 +328,7 @@ export default function RecordsScreen({
       })
       .catch((draftError) => console.warn("Secure face draft recovery deferred", draftError));
     return () => { active = false; };
-  }, [activeModule, faceConsent, faceImage, faceResult, locale, recordDate, showEditor, user.id]);
+  }, [activeModule, faceImage, faceResult, locale, recordDate, showEditor, user.id]);
 
   useEffect(() => {
     if (!notice) return;
@@ -314,6 +371,20 @@ export default function RecordsScreen({
       setHeartRate(snapshot.exercise?.heart_rate ?? "");
       setSpo2(snapshot.exercise?.spo2 ?? "");
 
+      if (snapshot.face?.overall_score != null && snapshot.face.feedback) {
+        setFaceResult({
+          overall_score: snapshot.face.overall_score,
+          skin_age: snapshot.face.skin_age,
+          feedback: snapshot.face.feedback,
+          annotations: snapshot.face.annotations ?? [],
+          modelVersion: snapshot.face.model_version ?? undefined,
+          confidence: snapshot.face.analysis_confidence ?? undefined,
+        });
+        if (snapshot.face.capture_mode) setFaceMode(snapshot.face.capture_mode);
+      } else if (activeModule === "face") {
+        setFaceResult(null);
+      }
+
       const nutrition = snapshot.nutrition;
       const mealItems = nutrition?.[`${meal}_items` as keyof typeof nutrition];
       const loadedItems = Array.isArray(mealItems) ? mealItems as FoodItem[] : [];
@@ -321,7 +392,7 @@ export default function RecordsScreen({
       const photoPath = photoField && nutrition ? nutrition[photoField] : null;
       const selectedMealCalories = loadedItems.reduce((sum, item) => sum + (Number(item.calories) || 0), 0);
       setDietItems(loadedItems);
-      setMealName(loadedItems.map((item) => item.name).filter(Boolean).join("、"));
+      setMealName(formatDetectedDishList(loadedItems));
       setMealCalories(selectedMealCalories || (nutrition?.total_calories ?? 0));
       setProteinGrams(nutrition?.protein_grams ?? 0);
       setCarbohydrateGrams(nutrition?.carbohydrate_grams ?? 0);
@@ -383,6 +454,8 @@ export default function RecordsScreen({
       if (draft && activeModule === "focus") {
         if (typeof draft.title === "string") setFocusTitle(draft.title);
         if (typeof draft.minutes === "number") setFocusMinutes(draft.minutes);
+        if (draft.mode === "countdown" || draft.mode === "countup") setFocusMode(draft.mode);
+        if (typeof draft.note === "string") setFocusNote(draft.note);
       }
       loaded = true;
       setLoadedRecordKey(recordKey);
@@ -446,17 +519,34 @@ export default function RecordsScreen({
           ? { steps, calories, minutes: exerciseMinutes, heartRate, spo2, note: exerciseNote }
           : activeModule === "diet"
             ? { meal, name: mealName, calories: mealCalories, items: dietItems, photoPath: dietPhotoPath, proteinGrams, carbohydrateGrams, fatGrams, hydrationMl, rating: dietRating }
-            : { title: focusTitle, minutes: focusMinutes };
+            : { title: focusTitle, minutes: focusMinutes, mode: focusMode, note: focusNote };
     const timer = window.setTimeout(() => {
       void saveRecordDraft(user.id, module, recordDate, payload).catch((draftError) => console.warn("Record draft sync deferred", draftError));
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [activeModule, calories, carbohydrateGrams, deepSleep, diary, dietItems, dietPhotoPath, dietRating, draftReady, exerciseMinutes, exerciseNote, fatGrams, focusMinutes, focusTitle, heartRate, hydrationMl, lightSleep, meal, mealCalories, mealName, moodScore, proteinGrams, recordDate, remSleep, selectedFactors, showEditor, sleepDuration, sleepEnd, sleepNote, sleepRating, sleepStart, spo2, steps, user.id]);
+  }, [activeModule, calories, carbohydrateGrams, deepSleep, diary, dietItems, dietPhotoPath, dietRating, draftReady, exerciseMinutes, exerciseNote, fatGrams, focusMinutes, focusMode, focusNote, focusTitle, heartRate, hydrationMl, lightSleep, meal, mealCalories, mealName, moodScore, proteinGrams, recordDate, remSleep, selectedFactors, showEditor, sleepDuration, sleepEnd, sleepNote, sleepRating, sleepStart, spo2, steps, user.id]);
 
   useEffect(() => {
     const estimated = estimateMinutes(sleepStart, sleepEnd);
     if (estimated > 0) setSleepDuration(estimated);
   }, [sleepStart, sleepEnd]);
+
+  useEffect(() => {
+    if (activeModule !== "diet" || !showEditor) return;
+    const textarea = dietFoodTextareaRef.current;
+    if (!textarea) return;
+    const fitToContent = () => {
+      textarea.style.height = "auto";
+      const borderHeight = textarea.offsetHeight - textarea.clientHeight;
+      textarea.style.height = `${Math.max(46, textarea.scrollHeight + borderHeight)}px`;
+    };
+    const frame = window.requestAnimationFrame(fitToContent);
+    window.addEventListener("resize", fitToContent);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", fitToContent);
+    };
+  }, [activeModule, mealName, showEditor]);
 
   useEffect(() => {
     rootRef.current?.closest(".app-content")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -832,23 +922,38 @@ export default function RecordsScreen({
   async function saveDiet(event: FormEvent) {
     event.preventDefault();
     await run("records.diet", async () => {
-      await saveNutritionRecord({
-        userId: user.id,
-        date: recordDate,
-        meal,
-        item: {
-          name: mealName,
-          calories: mealCalories,
-          amount: "1 份",
-        },
-        totalCalories: mealCalories,
-        proteinGrams,
-        carbohydrateGrams,
-        fatGrams,
-        hydrationMl,
-        healthRating: dietRating,
-        photoUrl: dietPhotoPath ?? dietPhotoUrl ?? undefined,
-      });
+      if (dietItems.length > 0) {
+        await saveNutritionItems({
+          userId: user.id,
+          date: recordDate,
+          meal,
+          items: dietItems,
+          proteinGrams,
+          carbohydrateGrams,
+          fatGrams,
+          hydrationMl,
+          healthRating: dietRating,
+          photoUrl: dietPhotoPath ?? dietPhotoUrl ?? undefined,
+        });
+      } else {
+        await saveNutritionRecord({
+          userId: user.id,
+          date: recordDate,
+          meal,
+          item: {
+            name: mealName,
+            calories: mealCalories,
+            amount: "1 份",
+          },
+          totalCalories: mealCalories,
+          proteinGrams,
+          carbohydrateGrams,
+          fatGrams,
+          hydrationMl,
+          healthRating: dietRating,
+          photoUrl: dietPhotoPath ?? dietPhotoUrl ?? undefined,
+        });
+      }
       try {
         await loadDietAiReport({ date: recordDate, locale, refresh: true });
         const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
@@ -872,7 +977,7 @@ export default function RecordsScreen({
       setDietPhotoPath(result.imagePath ?? null);
       setDietItems(result.items);
       if (result.items.length > 0) {
-        setMealName(result.items.map((item) => item.name).join("、"));
+        setMealName(formatDetectedDishList(result.items));
         setMealCalories(result.totals?.calories ?? result.items.reduce((sum, item) => sum + (Number(item.calories) || 0), 0));
         setProteinGrams(result.totals?.proteinGrams ?? 0);
         setCarbohydrateGrams(result.totals?.carbohydrateGrams ?? 0);
@@ -932,8 +1037,6 @@ export default function RecordsScreen({
       setFaceDraftFile(null);
       await loadRecordData({ refreshBase: true });
       onSaved();
-      setShowEditor(false);
-      onViewChange?.(null, true);
     }
   }
 
@@ -943,7 +1046,6 @@ export default function RecordsScreen({
     setNotice(null);
     setError(null);
     try {
-      if (!faceConsent) throw new Error(locale === "zh" ? "请先确认面部照片隐私说明。" : "Please confirm the face-photo privacy notice first.");
       await saveSecureFaceDraft(user.id, recordDate, file).catch((draftError) => console.warn("Secure face draft save deferred", draftError));
       setFaceDraftFile(file);
       const { image, imagePath, result } = await analyzeFacePhoto({ userId: user.id, date: recordDate, file, captureMode: requestedMode, locale });
@@ -985,16 +1087,17 @@ export default function RecordsScreen({
     await handleFacePhoto(file, nextMode);
   }
 
-  async function saveFocus(event: FormEvent) {
+  function startFocus(event: FormEvent) {
     event.preventDefault();
-    await run("records.focus", () =>
-      saveFocusSession({
-        userId: user.id,
-        date: recordDate,
-        taskTitle: focusTitle,
-        minutes: focusMinutes,
-      }),
-    );
+    if (!focusTitle.trim()) {
+      setError(locale === "zh" ? "请先填写本次专注任务。" : "Enter a task before starting focus.");
+      return;
+    }
+    setError(null);
+    setFocusTitle(focusTitle.trim());
+    setPendingFocusLaunch({ id: Date.now(), mode: focusMode, note: focusNote.trim(), startedAt: new Date().toISOString() });
+    setShowEditor(false);
+    onViewChange?.("immersive");
   }
 
   async function saveFocusMinutes(minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string; category?: string }) {
@@ -1013,6 +1116,7 @@ export default function RecordsScreen({
   }
 
   const currentRecordKey = `${recordDate}:${activeModule ?? "hub"}:${activeModule === "diet" ? meal : ""}`;
+  const visibleFaceInsights = faceInsightPoints(faceResult, locale);
   if (dataLoading && loadedRecordKey !== currentRecordKey) {
     return <PageSkeleton variant={activeModule ? "record-detail" : "records"} />;
   }
@@ -1364,8 +1468,12 @@ export default function RecordsScreen({
           exerciseMinutes={exerciseMinutes}
           focusTitle={focusTitle}
           focusMinutes={focusMinutes}
+          focusNote={focusNote}
           setFocusTitle={setFocusTitle}
           setFocusMinutes={setFocusMinutes}
+          setFocusNote={setFocusNote}
+          focusLaunch={pendingFocusLaunch}
+          onFocusLaunchConsumed={() => setPendingFocusLaunch(null)}
           onOpenEditor={() => {
             setShowEditor(true);
             onViewChange?.("editor");
@@ -1417,7 +1525,7 @@ export default function RecordsScreen({
               </button>
             ))}
           </div>
-          <label className="field">
+          <label className="field mood-diary-field">
             <span>{t("records.diary")}</span>
             <textarea value={diary} onChange={(e) => updateMoodDiary(e.target.value)} placeholder={t("records.diaryPlaceholder")} rows={3} />
           </label>
@@ -1428,14 +1536,39 @@ export default function RecordsScreen({
       </form>
 
       <form hidden={activeModule !== "sleep"} onSubmit={saveSleep}>
-        <SectionCard title={t("records.sleep")}>
-          <div className="sleep-preset-row" role="group" aria-label={locale === "zh" ? "常用作息预设" : "Common sleep presets"}>
-            {[
-              { label: locale === "zh" ? "早睡" : "Early", start: "22:30", end: "06:30", minutes: 480 },
-              { label: locale === "zh" ? "标准" : "Standard", start: "23:00", end: "07:00", minutes: 480 },
-              { label: locale === "zh" ? "晚睡" : "Late", start: "00:30", end: "08:00", minutes: 450 },
-            ].map((preset) => <button type="button" key={preset.label} onClick={() => { setSleepStart(preset.start); setSleepEnd(preset.end); setSleepDuration(preset.minutes); setDeepSleep(Math.round(preset.minutes * .2)); setLightSleep(Math.round(preset.minutes * .58)); setRemSleep(preset.minutes - Math.round(preset.minutes * .2) - Math.round(preset.minutes * .58)); }}>{preset.label}<small>{preset.start}–{preset.end}</small></button>)}
-          </div>
+        <SectionCard
+          title={t("records.sleep")}
+          action={(
+            <div className="sleep-preset-icons" role="group" aria-label={locale === "zh" ? "常用作息预设" : "Common sleep presets"}>
+              {sleepPresets.map((preset) => {
+                const PresetIcon = preset.icon;
+                const label = locale === "zh" ? preset.label.zh : preset.label.en;
+                const selected = sleepStart === preset.start && sleepEnd === preset.end;
+                return (
+                  <button
+                    className={selected ? "selected" : ""}
+                    type="button"
+                    key={preset.id}
+                    data-sleep-preset={preset.id}
+                    aria-label={`${label} · ${preset.start}–${preset.end}`}
+                    aria-pressed={selected}
+                    title={`${label} · ${preset.start}–${preset.end}`}
+                    onClick={() => {
+                      setSleepStart(preset.start);
+                      setSleepEnd(preset.end);
+                      setSleepDuration(preset.minutes);
+                      setDeepSleep(Math.round(preset.minutes * .2));
+                      setLightSleep(Math.round(preset.minutes * .58));
+                      setRemSleep(preset.minutes - Math.round(preset.minutes * .2) - Math.round(preset.minutes * .58));
+                    }}
+                  >
+                    <PresetIcon size={17} strokeWidth={2.1} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        >
           <div className="two-col">
             <label className="field">
               <span>{t("records.sleepStart")}</span>
@@ -1517,15 +1650,40 @@ export default function RecordsScreen({
       </form>
 
       <form hidden={activeModule !== "diet"} onSubmit={saveDiet}>
-        <SectionCard title={t("records.diet")}>
-          <div className="diet-quick-foods" role="group" aria-label={locale === "zh" ? "常见食物估算快捷填入" : "Quick estimated foods"}>
-            {[
-              { zh: "鸡蛋 1 个", en: "1 egg", calories: 78, protein: 6, carbs: 1, fat: 5 },
-              { zh: "米饭 1 碗", en: "Rice bowl", calories: 230, protein: 4, carbs: 50, fat: 1 },
-              { zh: "牛奶 250ml", en: "Milk 250ml", calories: 150, protein: 8, carbs: 12, fat: 8 },
-              { zh: "苹果 1 个", en: "1 apple", calories: 95, protein: 0, carbs: 25, fat: 0 },
-            ].map((food) => <button type="button" key={food.zh} onClick={() => { setMealName(locale === "zh" ? `${food.zh}（估算）` : `${food.en} (estimate)`); setMealCalories(food.calories); setProteinGrams(food.protein); setCarbohydrateGrams(food.carbs); setFatGrams(food.fat); setDietItems([]); }}><strong>{locale === "zh" ? food.zh : food.en}</strong><small>≈ {food.calories} kcal</small></button>)}
-          </div>
+        <SectionCard
+          title={t("records.diet")}
+          action={(
+            <div className="diet-quick-food-icons" role="group" aria-label={locale === "zh" ? "常见食物估算快捷填入" : "Quick estimated foods"}>
+              {quickFoodPresets.map((food) => {
+                const FoodIcon = food.icon;
+                const label = locale === "zh" ? food.label.zh : food.label.en;
+                const displayName = estimatedFoodLabel(label, locale);
+                const selected = mealName === displayName && dietItems.length === 0;
+                return (
+                  <button
+                    className={selected ? "selected" : ""}
+                    type="button"
+                    key={food.id}
+                    data-quick-food={food.id}
+                    aria-label={`${label} · ${food.calories} kcal`}
+                    aria-pressed={selected}
+                    title={`${label} · ${food.calories} kcal`}
+                    onClick={() => {
+                      setMealName(displayName);
+                      setMealCalories(food.calories);
+                      setProteinGrams(food.protein);
+                      setCarbohydrateGrams(food.carbs);
+                      setFatGrams(food.fat);
+                      setDietItems([]);
+                    }}
+                  >
+                    <FoodIcon size={17} strokeWidth={2.1} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        >
           <div className={["photo-picker", "diet-photo-preview", dietAnalyzing ? "is-analyzing" : "", dietPhotoUrl ? "has-image" : ""].filter(Boolean).join(" ")} aria-live="polite">
             {dietPhotoUrl ? <img src={dietPhotoUrl} alt="饮食照片" /> : <Camera size={28} />}
             <span>{dietAnalyzing ? t("records.aiScanning") : t("records.scanDiet")}</span>
@@ -1582,9 +1740,18 @@ export default function RecordsScreen({
               </div>
             </label>
           </div>
-          <label className="field">
+          <label className="field diet-food-field">
             <span>{t("records.food")}</span>
-            <input value={mealName} onChange={(e) => setMealName(e.target.value)} placeholder={locale === "zh" ? "AI 识别后自动填写，也可手动输入" : "Filled by AI or entered manually"} />
+            <textarea
+              ref={dietFoodTextareaRef}
+              rows={1}
+              value={mealName}
+              onChange={(event) => {
+                setMealName(event.target.value);
+                setDietItems([]);
+              }}
+              placeholder={locale === "zh" ? "AI 识别后自动填写，也可手动输入" : "Filled by AI or entered manually"}
+            />
           </label>
           <div className="two-col nutrition-macro-fields">
             <label className="field nutrition-unit-field">
@@ -1611,18 +1778,60 @@ export default function RecordsScreen({
         </SectionCard>
       </form>
 
-      <form hidden={activeModule !== "focus"} onSubmit={saveFocus}>
-        <SectionCard title={t("records.focus")}>
-          <label className="field">
+      <form hidden={activeModule !== "focus"} onSubmit={startFocus}>
+        <SectionCard
+          title={t("records.focus")}
+          action={(
+            <div className="focus-entry-mode-icons" role="group" aria-label={locale === "zh" ? "专注计时模式" : "Focus timer mode"}>
+              <button
+                type="button"
+                className={focusMode === "countup" ? "selected" : ""}
+                data-focus-mode="countup"
+                aria-label={locale === "zh" ? "正计时" : "Count up"}
+                aria-pressed={focusMode === "countup"}
+                title={locale === "zh" ? "正计时" : "Count up"}
+                onClick={() => setFocusMode("countup")}
+              ><Timer size={18} strokeWidth={2.05} /></button>
+              <button
+                type="button"
+                className={focusMode === "countdown" ? "selected" : ""}
+                data-focus-mode="countdown"
+                aria-label={locale === "zh" ? "倒计时" : "Countdown"}
+                aria-pressed={focusMode === "countdown"}
+                title={locale === "zh" ? "倒计时" : "Countdown"}
+                onClick={() => setFocusMode("countdown")}
+              ><Hourglass size={18} strokeWidth={2.05} /></button>
+            </div>
+          )}
+        >
+          <label className="field focus-entry-task-field">
             <span>{t("records.task")}</span>
-            <input value={focusTitle} onChange={(e) => setFocusTitle(e.target.value)} />
+            <input value={focusTitle} onChange={(e) => setFocusTitle(e.target.value)} placeholder={locale === "zh" ? "这次准备专注完成什么？" : "What will you focus on?"} />
           </label>
-          <label className="field">
-            <span>{t("records.minutes")}</span>
-            <input inputMode="numeric" type="number" value={focusMinutes} onChange={(e) => setFocusMinutes(Number(e.target.value))} />
+          {focusMode === "countdown" && <label className="field focus-entry-minutes-field">
+            <span>
+              <span>{t("records.minutes")}</span>
+              <span className="focus-duration-preset-icons" role="group" aria-label={locale === "zh" ? "快捷专注时长" : "Quick focus durations"}>
+                {focusDurationPresets.map((minutes) => <button
+                  type="button"
+                  key={minutes}
+                  className={focusMinutes === minutes ? "selected" : ""}
+                  data-focus-duration={minutes}
+                  aria-label={locale === "zh" ? `${minutes} 分钟` : `${minutes} minutes`}
+                  aria-pressed={focusMinutes === minutes}
+                  title={locale === "zh" ? `${minutes} 分钟` : `${minutes} minutes`}
+                  onClick={() => setFocusMinutes(minutes)}
+                ><Clock3 size={14} /><small>{minutes}</small></button>)}
+              </span>
+            </span>
+            <input inputMode="numeric" min="1" max="180" type="number" value={focusMinutes} onChange={(e) => setFocusMinutes(Math.min(180, Math.max(1, Number(e.target.value) || 1)))} />
+          </label>}
+          <label className="field focus-entry-note-field">
+            <span>{t("records.note")}</span>
+            <textarea rows={3} value={focusNote} onChange={(event) => setFocusNote(event.target.value)} placeholder={locale === "zh" ? "写下步骤、资料或需要提醒自己的要点" : "Add steps, references, or a reminder to yourself"} />
           </label>
-          <ActionButton type="submit" icon={<Brain size={18} />} variant="secondary" disabled={busy === "records.focus"}>
-            {t("records.saveFocus")}
+          <ActionButton type="submit" icon={<Play size={18} />} variant="secondary" disabled={!focusTitle.trim()}>
+            {locale === "zh" ? "开始专注" : "Start focus"}
           </ActionButton>
         </SectionCard>
       </form>
@@ -1647,8 +1856,6 @@ export default function RecordsScreen({
             <button type="button" className={faceMode === "bare_face" ? "selected" : ""} onClick={() => setFaceMode("bare_face")}>{locale === "zh" ? "素颜模式" : "Bare face"}</button>
             <button type="button" className={faceMode === "makeup" ? "selected" : ""} onClick={() => setFaceMode("makeup")}>{locale === "zh" ? "带妆模式" : "Makeup"}</button>
           </div>
-          {faceMode === "bare_face" && <div className="face-bare-guidance"><Bot size={19} /><p><strong>{locale === "zh" ? "真实状态就是最好的记录" : "Your real state is the best record"}</strong><span>{locale === "zh" ? "不需要修饰，也不需要达到任何标准。照片只有在你明确同意后，才会通过加密连接上传至账号隔离的 Supabase 私有存储，并交由受控服务端分析。" : "No retouching and no standard to meet. Only after your explicit consent is the photo encrypted in transit, uploaded to account-isolated private Supabase storage, and analyzed by the controlled server."}</span></p></div>}
-          <label className="face-consent"><input type="checkbox" checked={faceConsent} onChange={(event) => setFaceConsent(event.target.checked)} /><span>{locale === "zh" ? "我同意通过加密连接将照片上传至账号隔离的 Supabase 私有存储，由受控服务端使用 10 分钟签名链接完成本次非医疗状态分析。" : "I consent to encrypted upload into account-isolated private Supabase storage so the controlled server can use a 10-minute signed link for this non-medical state analysis."}</span></label>
           <label className={["photo-picker", "face", faceAnalyzing ? "is-analyzing" : "", faceImage ? "has-image" : ""].filter(Boolean).join(" ")}>
             {faceImage ? <img src={faceImage} alt={locale === "zh" ? "面部照片" : "Face photo"} /> : <ScanFace size={30} />}
             <span>{faceAnalyzing ? t("records.faceScanning") : t("records.scanFace")}</span>
@@ -1658,16 +1865,26 @@ export default function RecordsScreen({
               type="file"
               accept="image/*"
               capture="user"
-              disabled={faceAnalyzing || !faceConsent}
+              disabled={faceAnalyzing}
               onChange={(e) => { const file = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ""; void handleFacePhoto(file); }}
             />
             {faceAnalyzing && <Loader2 className="spin" size={18} />}
           </label>
           <div className="face-photo-actions">
-            <button type="button" disabled={faceAnalyzing || !faceConsent} onClick={() => facePhotoInputRef.current?.click()}><Camera size={17} />{faceImage ? (locale === "zh" ? "重新拍摄" : "Retake") : (locale === "zh" ? "前置拍摄" : "Front camera")}</button>
-            <button type="button" disabled={faceAnalyzing || !faceConsent} onClick={() => faceLibraryInputRef.current?.click()}><Upload size={17} />{locale === "zh" ? "从相册重选" : "Choose from library"}</button>
-            <input ref={faceLibraryInputRef} hidden aria-label={locale === "zh" ? "从相册选择面部照片" : "Choose face photo from library"} type="file" accept="image/*" disabled={faceAnalyzing || !faceConsent} onChange={(e) => { const file = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ""; void handleFacePhoto(file); }} />
+            <button type="button" disabled={faceAnalyzing} onClick={() => facePhotoInputRef.current?.click()}><Camera size={17} />{faceImage ? (locale === "zh" ? "重新拍摄" : "Retake") : (locale === "zh" ? "前置拍摄" : "Front camera")}</button>
+            <button type="button" disabled={faceAnalyzing} onClick={() => faceLibraryInputRef.current?.click()}><Upload size={17} />{locale === "zh" ? "从相册重选" : "Choose from library"}</button>
+            <input ref={faceLibraryInputRef} hidden aria-label={locale === "zh" ? "从相册选择面部照片" : "Choose face photo from library"} type="file" accept="image/*" disabled={faceAnalyzing} onChange={(e) => { const file = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ""; void handleFacePhoto(file); }} />
           </div>
+          <section className={["face-ai-evaluation", faceAnalyzing ? "is-loading" : faceResult ? "has-result" : "is-empty"].join(" ")} aria-live="polite">
+            <header><span><Bot size={17} />{locale === "zh" ? "AI 状态评价" : "AI state notes"}</span>{faceResult?.confidence != null && <small>{Math.round(faceResult.confidence * 100)}%</small>}</header>
+            <div className="face-ai-evaluation-copy">
+              {faceAnalyzing ? <><i /><i /><i /></> : visibleFaceInsights.length > 0
+                ? <ul>{visibleFaceInsights.map((insight) => <li key={insight}>{insight}</li>)}</ul>
+                : <p>{locale === "zh" ? "等待本次面部状态分析" : "Waiting for this face-state analysis"}</p>}
+            </div>
+            <img src={faceInsightMascot} alt="" aria-hidden="true" />
+            <footer>{locale === "zh" ? "仅用于日常状态观察，不构成医疗诊断" : "For everyday observation only; not a medical diagnosis"}</footer>
+          </section>
           {faceDraftFile && !faceResult && !faceAnalyzing && <button className="face-resume-analysis" type="button" onClick={() => void handleFacePhoto(faceDraftFile)}><RefreshCw size={16} />{locale === "zh" ? "继续分析已恢复的照片" : "Analyze the restored photo"}</button>}
           {pendingFaceAnalysis && <div className="face-makeup-check" role="alert">
             <div><Bot size={18} /><p><strong>{locale === "zh" ? "AI 妆容识别需要你确认" : "Confirm the AI makeup check"}</strong><span>{locale === "zh"
@@ -1676,24 +1893,6 @@ export default function RecordsScreen({
             <small>{locale === "zh" ? "妆容识别只是视觉估计；光线、滤镜和遮挡会影响结果。" : "Makeup detection is a visual estimate affected by lighting, filters, and occlusion."}</small>
             <div><button type="button" disabled={faceAnalyzing} onClick={() => void continuePendingFaceAnalysis()}>{locale === "zh" ? "仍按当前模式保存" : "Save with current mode"}</button><button type="button" disabled={faceAnalyzing} onClick={() => void switchPendingFaceMode()}>{locale === "zh" ? `切换到${pendingFaceAnalysis.captureMode === "bare_face" ? "带妆" : "素颜"}并重新分析` : `Switch to ${pendingFaceAnalysis.captureMode === "bare_face" ? "makeup" : "bare"} and re-analyze`}</button></div>
           </div>}
-          {faceResult && (
-            <div className="face-result">
-              <strong>{t("records.score", { score: Math.round(faceResult.overall_score) })}</strong>
-              <p>{faceResult.feedback}</p>
-               <div className="detected-list">
-                 {faceResult.annotations.map((item) => (
-                   <div key={item.id}>
-                     <strong>{item.label}</strong>
-                     <span>{item.desc}</span>
-                   </div>
-                 ))}
-               </div>
-               <div className="face-result-meta">
-                 <span><ShieldCheck size={16} />{locale === "zh" ? "结果用于日常状态观察，不构成医疗诊断" : "For daily state tracking, not medical diagnosis"}</span>
-                 <span><LockKeyhole size={16} />{locale === "zh" ? "照片与结果按当前账号隔离保存" : "Photo and result stay isolated to this account"}</span>
-               </div>
-             </div>
-           )}
         </SectionCard>
       </div>
       </div>}
