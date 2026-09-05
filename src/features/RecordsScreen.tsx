@@ -166,15 +166,19 @@ function faceModeMismatch(result: FaceAnalysisResult, captureMode: "bare_face" |
 
 function compactFaceInsight(value: string, locale: "zh" | "en") {
   const cleaned = value.replace(/\s+/g, " ").trim();
-  const limit = locale === "zh" ? 28 : 72;
+  const limit = locale === "zh" ? 18 : 38;
   const characters = Array.from(cleaned);
   return characters.length > limit ? `${characters.slice(0, limit).join("")}…` : cleaned;
 }
 
 function faceInsightPoints(result: FaceAnalysisResult | null, locale: "zh" | "en") {
   if (!result) return [];
+  const feedbackPoints = result.feedback
+    .split(locale === "zh" ? /[，。；！？!?]+/ : /[.!?;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
   const candidates = [
-    result.feedback,
+    ...feedbackPoints,
     ...result.annotations.map((item) => `${item.label}${item.desc ? locale === "zh" ? `：${item.desc}` : `: ${item.desc}` : ""}`),
   ].map((item) => compactFaceInsight(item, locale)).filter(Boolean);
   return [...new Set(candidates)].slice(0, 4);

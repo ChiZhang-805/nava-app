@@ -136,6 +136,14 @@ async function readGeometry(page, module, fieldSelector) {
       detail: rect(detail),
       toolbar: rect(toolbar),
       card: rect(card),
+      cardChildren: card ? Array.from(card.children).map((node) => ({
+        className: node.className,
+        marginTop: getComputedStyle(node).marginTop,
+        marginBottom: getComputedStyle(node).marginBottom,
+        minHeight: getComputedStyle(node).minHeight,
+        flex: getComputedStyle(node).flex,
+        rect: rect(node),
+      })) : [],
       field: rect(field),
       textarea: rect(textarea),
       save: rect(save),
@@ -149,14 +157,16 @@ function assertGeometry(name, geometry, expectedMinimum) {
   if (!card || !field || !textarea || !save || !nav || !toolbar) throw new Error(`${name}: editor geometry is incomplete ${JSON.stringify(geometry)}`);
   const cardNavGap = nav.top - card.bottom;
   const toolbarCardGap = card.top - toolbar.bottom;
+  const actionBottomInset = card.bottom - save.bottom;
   if ((frameOverflowX ?? 0) > 1) throw new Error(`${name}: horizontal overflow ${JSON.stringify(geometry)}`);
   if ((contentOverflowY ?? 0) > 1) throw new Error(`${name}: normal editor should fit one screen ${JSON.stringify(geometry)}`);
   if (cardNavGap < 10 || cardNavGap > 44) throw new Error(`${name}: card/navigation gap is ${cardNavGap.toFixed(1)}px ${JSON.stringify(geometry)}`);
   if (toolbarCardGap < 5 || toolbarCardGap > 16) throw new Error(`${name}: toolbar/card gap is ${toolbarCardGap.toFixed(1)}px ${JSON.stringify(geometry)}`);
+  if (actionBottomInset < 8 || actionBottomInset > 28) throw new Error(`${name}: save action bottom inset is ${actionBottomInset.toFixed(1)}px ${JSON.stringify(geometry)}`);
   if (field.top < card.top || field.bottom > save.top + 1 || save.bottom > card.bottom + 1) throw new Error(`${name}: journal or save action escapes/overlaps the card ${JSON.stringify(geometry)}`);
   if (textarea.top < field.top || textarea.bottom > field.bottom + 1) throw new Error(`${name}: textarea escapes its field ${JSON.stringify(geometry)}`);
   if (textarea.height < expectedMinimum - 1) throw new Error(`${name}: textarea is only ${textarea.height.toFixed(1)}px tall ${JSON.stringify(geometry)}`);
-  return { ...geometry, cardNavGap, toolbarCardGap };
+  return { ...geometry, cardNavGap, toolbarCardGap, actionBottomInset };
 }
 
 async function main() {
@@ -269,7 +279,33 @@ async function main() {
       const textareaGeometry = await detail.locator(".diet-food-field textarea").evaluate((textarea) => ({ height: textarea.getBoundingClientRect().height, scrollHeight: textarea.scrollHeight, clientHeight: textarea.clientHeight }));
       if (textareaGeometry.height < 78 || textareaGeometry.scrollHeight > textareaGeometry.clientHeight + 1) throw new Error(`diet/${viewport.name}: recognized dishes do not auto-fit ${JSON.stringify(textareaGeometry)}`);
       dietResults.push({ name: viewport.name, shortcutGeometry, textareaGeometry });
-      await detail.locator(".diet-food-field textarea").scrollIntoViewIfNeeded();
+      const saveAction = detail.locator("form:not([hidden]) .action-button");
+      await saveAction.scrollIntoViewIfNeeded();
+      const bottomGeometry = await detail.evaluate((node) => {
+        const action = node.querySelector("form:not([hidden]) .action-button")?.getBoundingClientRect();
+        const macros = node.querySelector("form:not([hidden]) .nutrition-macro-fields")?.getBoundingClientRect();
+        const rating = node.querySelector("form:not([hidden]) .diet-rating-field")?.getBoundingClientRect();
+        const nav = node.closest(".phone-frame")?.querySelector(".bottom-nav")?.getBoundingClientRect();
+        const content = node.closest(".app-content");
+        return {
+          action: action ? { top: action.top, bottom: action.bottom } : null,
+          macros: macros ? { top: macros.top, bottom: macros.bottom } : null,
+          rating: rating ? { top: rating.top, bottom: rating.bottom } : null,
+          navTop: nav?.top ?? null,
+          scrollTop: content?.scrollTop ?? null,
+          scrollHeight: content?.scrollHeight ?? null,
+          clientHeight: content?.clientHeight ?? null,
+        };
+      });
+      if (!bottomGeometry.action || bottomGeometry.navTop == null || bottomGeometry.action.bottom > bottomGeometry.navTop - 8) {
+        throw new Error(`diet/${viewport.name}: final controls cannot clear the fixed navigation ${JSON.stringify(bottomGeometry)}`);
+      }
+      if (!bottomGeometry.macros || !bottomGeometry.rating
+        || bottomGeometry.rating.top - bottomGeometry.macros.bottom > 30
+        || bottomGeometry.action.top - bottomGeometry.rating.bottom > 30) {
+        throw new Error(`diet/${viewport.name}: final form groups have excessive whitespace ${JSON.stringify(bottomGeometry)}`);
+      }
+      dietResults.at(-1).bottomGeometry = bottomGeometry;
       await page.screenshot({ path: path.join(outputDir, `diet-${viewport.name}.png`) });
     }
 
@@ -306,16 +342,20 @@ async function main() {
     await page.locator(".focus-immersive-exit").click();
 
     const faceResults = [];
+    await page.evaluate(() => localStorage.setItem("nava.review.demo.empty-snapshot-date.v1", "2020-01-01"));
     for (const viewport of viewports) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto(`${baseUrl}?demo=1#tab=record&module=face&view=editor`, { waitUntil: "networkidle" });
       await page.evaluate(() => window.scrollTo(0, 0));
       const detail = page.locator('.record-detail[data-record-detail="face"]');
       await expect(detail.locator('.record-editor-stack > div:not([hidden])')).toBeVisible();
+      await detail.locator('.record-detail-date input[type="date"]').fill("2020-01-01");
+      await detail.locator('.record-detail-date input[type="date"]').blur();
       await expect(detail.locator(".face-bare-guidance, .face-consent")).toHaveCount(0);
       await expect(detail.locator(".face-photo-actions button")).toHaveCount(2);
       await expect(detail.locator(".face-photo-actions button").first()).toBeEnabled();
       await expect(detail.locator(".face-ai-evaluation")).toBeVisible();
+      await expect(detail.locator(".face-ai-evaluation")).toHaveClass(/is-empty/);
       await page.waitForTimeout(760);
       const geometry = assertOneScreenCard(`face/${viewport.name}`, await readCardGeometry(page, "face"));
       const alignment = await detail.evaluate((node) => {
@@ -328,8 +368,19 @@ async function main() {
       faceResults.push({ name: viewport.name, geometry, alignment });
       await page.screenshot({ path: path.join(outputDir, `face-${viewport.name}.png`) });
     }
+    await page.evaluate(() => localStorage.removeItem("nava.review.demo.empty-snapshot-date.v1"));
     await page.locator('input[aria-label="从相册选择面部照片"]').setInputFiles(path.join(root, "src", "assets", "mascot", "nava-face-insight-v2.webp"));
     await expect(page.locator(".face-ai-evaluation.has-result li")).toHaveCount(4);
+    const faceInsightGeometry = await page.locator(".face-ai-evaluation.has-result li").evaluateAll((items) => items.map((item) => ({
+      text: item.textContent,
+      clientWidth: item.clientWidth,
+      scrollWidth: item.scrollWidth,
+      clientHeight: item.clientHeight,
+      scrollHeight: item.scrollHeight,
+    })));
+    if (faceInsightGeometry.some((item) => item.scrollWidth > item.clientWidth + 1 || item.scrollHeight > item.clientHeight + 1)) {
+      throw new Error(`face/430x932-result: an AI insight is clipped ${JSON.stringify(faceInsightGeometry)}`);
+    }
     await expect(page.locator('.record-detail[data-record-detail="face"]')).toBeVisible();
     const resultGeometry = assertOneScreenCard("face/430x932-result", await readCardGeometry(page, "face"));
     const resultScrollY = await page.evaluate(() => window.scrollY);
