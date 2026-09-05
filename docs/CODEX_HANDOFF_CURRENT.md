@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`7422ca948f3cc25b2631ab6aa815981b7b5d5b98`
+- 源码发布 commit：`c6c6067a5f0efcf2c480583a4e0a1773983a1bba`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v99，public
+- ChatGPT Sites 版本：v100，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_e0171b5e1dd88191886b47fe8773f2a4`
-- Sites deployment ID：`appgdep_6a9c0794a4c0819182f617f842ca5496`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_7bb3255090bc8191834f68df70a5b3da`
+- Sites deployment ID：`appgdep_6a9c0e68b0dc81918f15da2b84b59d96`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `e11d34baf6f5a80f3c78ef23e1e02637976c30dd`
+  `3227a35141e4688c5910b45aad83aa21ef03bd2b`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v99 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v99.tar.gz`
+- v100 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v100.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v99 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v100 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -496,7 +496,7 @@ Wi-Fi 或蓝牙范围，就直接读取 Apple Watch 的完整历史 HealthKit �
 画面做 `transform: scale(...)`。已有 CSS 中看似重复的宽高规则常常对应一次真实
 截图缺陷，删除前必须用四尺寸证据证明等价。
 
-## 11. 已完成的近期修复（v83-v99）
+## 11. 已完成的近期修复（v83-v100）
 
 这些是新任务最容易从旧聊天里误判的近期状态：
 
@@ -517,6 +517,8 @@ Wi-Fi 或蓝牙范围，就直接读取 Apple Watch 的完整历史 HealthKit �
 - v98：首页时段氛围、真实状态 guidance、动态入口和状态驱动小猫动作。
 - v99：首页 0–6 个可配置健康组件、目标默认组合、三列拖动排序、近七日真实变化、
   睡眠维持、面部稳定拍摄条件，以及专注快捷预设口径统一。
+- v100：首页默认五项统一为睡眠、专注、运动 / 情绪、饮食；右侧快捷入口改为菜单
+  始终第一、通知第二且统一收放；今日建议卡补齐关闭按钮和约 10 秒自动消失。
 
 发布演进已经压缩进本节；精确差异使用 Git log/commit 查看，视觉和运行证据保存在
 第 15 节列出的 TestRuns 目录，不再维护重复的 dated handoff。
@@ -733,7 +735,7 @@ App Store。
 在用户完成 Apple 人工流程前，自动化代理仍可做且最有价值的工作顺序是：
 
 1. 经用户明确授权后部署并验收第 18.A 节三个 Edge Functions。
-2. 在不写生产数据的前提下复核两个公开站的 v99 登录、六模块路由、详细资料头像
+2. 在不写生产数据的前提下复核两个公开站的 v100 登录、六模块路由、详细资料头像
    sheet、专注和面部页面，以及四视口无重叠。
 3. 为 Apple 真机验收准备可重复的记录模板、账号 A/B 测试清单和失败恢复说明；
    不伪造真机结果。
@@ -841,10 +843,17 @@ canonical Supabase project ref `wxteapvwagvhhtrjrbim` 与本轮 guidance 实现�
 
 2026-09-05 用户明确一期首页健康组件最多 6 个、固定三列，专注不显示快捷时长，
 底部中央按钮固定进入 AI 对话。`HomeWidgetEditor` 现在从功能抽屉进入，支持 0–6 个
-组件选择、两步编辑、指针拖动、辅助前后移动、保存/取消和未保存退出确认。没有配置
-时根据详细资料目标生成四项默认组合；首页组件只显示一个核心值和一条辅助信息，值
-来自当前用户真实 `TodaySnapshot`，至少有两个更早记录日时才显示最近最多七个记录日
-的百分比变化。组件显示偏好只存在当前设备，不扩大 AI consent 范围。
+组件选择、两步编辑、指针拖动、辅助前后移动、保存/取消和未保存退出确认。2026-09-05
+最新产品决定覆盖旧策划案的按目标默认组合：没有设备配置时固定显示睡眠、专注、运动 /
+情绪、饮食五项，面部作为可选第六项。首页组件只显示一个核心值和一条辅助信息，值来自
+当前用户真实 `TodaySnapshot`；未完成或部分完成点击进入编辑器，达到模块完整标准后点击
+进入数据详情。至少有两个更早记录日时才显示最近最多七个记录日的百分比变化。组件显示
+偏好只存在当前设备，不扩大 AI consent 范围。
+
+首页右侧快捷入口已固定为三横杠菜单、通知、健康日历、详细资料、功能导航；三横杠始终
+在最上方，并统一收起/展开其余四项，收起时这些按钮退出键盘焦点。今日建议卡新增右上角
+关闭按钮，并在每次进入首页停留约 10 秒后自动移除；不显示倒计时，数据来源和跳转入口
+仍保持真实 `TodaySnapshot` / ChronoState 合同。
 
 睡眠“维持”被定义为设备侧可恢复的进行中会话，结束后只填表、不直接伪造或保存记录；
 面部“维持”被定义为素颜/带妆模式、稳定光线、面部居中、自然表情与已有 30 分钟
@@ -854,13 +863,18 @@ canonical Supabase project ref `wxteapvwagvhhtrjrbim` 与本轮 guidance 实现�
 
 - `npm run verify` 25 个阶段全部通过；`npm run auth:verify:production` 通过，严格 SMTP
   因未提供 Management token 而未检查。
-- `npm run home-widgets:visual` 在 360x740、375x812、390x844、430x932 实跑默认四项、
-  六项、零项、三列排序与拖动、底部 AI 路由、睡眠刷新恢复/结束填表和面部 3/3 条件；
-  证据在 `Q:\NAVA-Workspace\Build\TestRuns\nava-home-widgets-20260905`。
-- `npm run home-guidance:visual` 和原有记录编辑器四档几何回归继续通过。
-- 功能源码 commit `7422ca948f3cc25b2631ab6aa815981b7b5d5b98` 已发布为 ChatGPT
-  Sites v99，并同步为 GitHub Pages v99；镜像 commit 为
-  `e11d34baf6f5a80f3c78ef23e1e02637976c30dd`。
+- `npm run home-widgets:visual` 在 360x740、375x812、390x844、430x932 实跑默认五项
+  固定顺序、六项、零项、三列排序与拖动、右侧按钮顺序/收放、底部 AI 路由、睡眠刷新
+  恢复/结束填表和面部 3/3 条件；证据在
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-home-widgets-v100-20260905`。
+- `npm run home-guidance:visual` 四档实跑提示卡关闭，并在 360x740 实际等待 10.1 秒确认
+  自动消失；`npm run notification:visual` 四档复验通知按钮第二位、随菜单收起/展开及原有
+  横幅/收件箱手势。证据分别在
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-home-guidance-v100-20260905` 与
+  `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v100-20260905`。
+- 功能源码 commit `c6c6067a5f0efcf2c480583a4e0a1773983a1bba` 已发布为 ChatGPT
+  Sites v100，并同步为 GitHub Pages v100；镜像 commit 为
+  `3227a35141e4688c5910b45aad83aa21ef03bd2b`。
 - 两个公开 URL 均返回 200；在线入口与功能 chunks 字节一致，包含本轮组件/睡眠/面部
   实现及 canonical Supabase project ref。对两个公开 URL 使用 `?demo=1` 仍只出现真实
   登录页，未出现 `.phone-frame` 演示态。
