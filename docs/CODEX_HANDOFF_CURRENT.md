@@ -338,6 +338,10 @@ OTP、service-role 或私有记录。本交接也不得保存用户曾在聊天�
   给出行动项和置信/不确定性，并保持非因果、非诊断措辞。
 - 有数据不足门槛时必须诚实显示不足。周报告的跨模块 AI 关联至少需要 5 个记录日，
   不使用稀疏数据制造强结论。
+- 成功报告在当前 APP 运行期间按“认证用户 + scope + 周期 + 语言”复用，不因页面来回
+  切换而再次请求；保存真实记录的既有 `refresh: true` 路径会清除此结果并重算。跨
+  重载和设备仍以服务端 source fingerprint 为准：指纹与模型版本都不变时返回
+  `ai_health_reports` 持久化缓存，只有授权的记录或画像变化才重新调用模型。
 
 ## 8. AI Model + Harness 当前合同
 
@@ -369,12 +373,23 @@ Function 的**最新源码改动尚未部署**：
 其中：
 
 - 前两个源码已经包含 normal + compact 双输出、严格校验、一次 repair 与缓存版本
-  更新；
+  更新；`ai-health-report` 当前源码为
+  `deepseek-v4-flash-health-report-v5-targeted-repair`，repair 会带上上一版 JSON 和
+  具体失败项，仍然保留数字证据与关联置信边界；
 - `diet-extract` 源码已经更新为“按菜识别、复合菜描述可见原料”的 prompt；
-- 公开 v96 不能宣称生产模型已经稳定生成精确七汉字四行，也不能宣称新版菜品粒度
+- 当前公开前端不能宣称生产模型已经稳定生成精确七汉字四行，也不能宣称新版菜品粒度
   prompt 已经在线；
 - 部署这三项不需要迁移、seed、secret 或访问策略修改，但仍需要用户明确授权
   Edge Function 部署，然后必须在真实边界验收。
+
+2026-09-05 对截图所示周报失败做了真实只读诊断：生产 Supabase 的
+`ai-health-report` 仍是 version 8 / 模型合同 v3；15:08–15:09 UTC 两次日志均为
+“AI 未返回有效的结构化健康报告”，而不是 `DeepSeek 402/429`。生产旧函数确实已有
+source fingerprint 与数据库缓存，但因为两次模型结果都未通过 schema/长度/证据/关联
+边界中的至少一项，未生成可保存结果，页面再次进入时只能重新请求。旧 repair 也没有
+把上一版草稿和失败字段交给模型，是本次确认的代码缺陷。开发机密钥的无用户数据检查
+显示余额可用且同一模型名能返回 JSON，但其 digest 与生产 secret 不同，不能据此声称
+生产账户具体余额；上述生产日志足以确认截图对应失败发生在模型响应后的结构校验阶段。
 
 不要因为用户说过“AI key 已经配好”就在文档或客户端寻找/打印 key。只能通过
 Supabase secrets 与已有部署工具验证 provider 可用性。
@@ -623,11 +638,16 @@ npm run supabase:verify-shared
 数字可能随脚本更新，新任务应以运行输出为准。构建通过不等于真实 Supabase 写入、
 OTP 送达、模型 provider 可用、HealthKit 真机权限或视觉验收通过。
 
-本交接完成后已于 2026-09-05 再运行一次完整 `npm run verify`：24 个阶段全部通过，
+本交接完成后已于 2026-09-05 再运行一次完整 `npm run verify`：25 个阶段全部通过，
 包括生产构建、lint、Sites 单入口身份、四尺寸六卡、四尺寸记录编辑器、真实完成度、
 AI 双摘要、后端合同、16 个 Edge Function typecheck、Deno 测试、Health/Watch、iOS、
 consent、翻译 DOM 韧性、请求缓存边界、通知规划和首页动态 guidance 合同。这个结果验证当前源树的一致性，但仍不替代
 第 9.2 节的 Apple 真机验收或第 8.1 节的生产 Function 部署验收。
+
+2026-09-05 健康 AI 定向修复批次再次运行完整 `npm run verify`，25 个阶段全部通过；
+另外 `npm run weekly-report:test` 为 9/9、`npm run ai:compact:test` 为 4/4，16 个 Edge
+Function typecheck 全部通过。这些结果验证的是当前源码合同，尚未验证未获授权部署的
+生产 `ai-health-report` v5。
 
 近期证据目录：
 
@@ -690,7 +710,9 @@ consent、翻译 DOM 韧性、请求缓存边界、通知规划和首页动态 g
 
 ### A. 有源码但尚未上线
 
-- 最新 `ai-health-report` 双摘要合同。
+- 最新 `ai-health-report` v5 定向 repair、双摘要和缓存合同。生产日志已经确认旧 v3
+  的失败发生在结构化结果校验，并非截图所猜测的余额 HTTP 错误；但 v5 尚未部署，
+  因此截图中的生产问题还不能写成线上已修复。
 - 最新 `ai-diet-report` 双摘要合同。
 - 最新 `diet-extract` 按菜识别 prompt。
 

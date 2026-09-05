@@ -72,8 +72,42 @@ final prompt without becoming instructions.
 - Health and diet report caches carry a SHA-256 fingerprint of the normalized
   source profile and records. A source change invalidates the cached prose.
 - Invalid or incomplete structured report output receives one bounded model
-  repair attempt. If the contract still fails, the request fails visibly; no
-  fixed production prose replaces the model.
+  repair attempt. For `ai-health-report`, the repair turn receives the previous
+  JSON draft and non-sensitive validation issue codes, so it can correct the
+  actual failed fields instead of blindly generating the same shape again.
+  Numeric evidence grounding and association-confidence checks remain mandatory.
+  If the contract still fails, the request fails visibly; no fixed production
+  prose replaces the model.
+- A successfully validated health report is reused in memory for the current
+  authenticated user, scope, period and language. Confirmed record saves use the
+  explicit refresh path. Across reloads and devices, the Edge Function remains
+  authoritative: it reuses the Supabase row only when the SHA-256 source
+  fingerprint and model version still match, and calls the model only after the
+  authorized source data or profile changes.
 - The knowledge trace distinguishes evidence supplied to a model from evidence
   demonstrably adopted by a validated stage. It never presents hidden
   chain-of-thought as an audit record.
+
+## 2026-09-05 production diagnosis
+
+- Supabase production logs at 2026-09-05 15:08–15:09 UTC recorded two
+  `ai-health-report` failures as `AI 未返回有效的结构化健康报告。` They did not
+  record a DeepSeek HTTP error such as 402 or 429. This confirms that those
+  requests reached the post-response schema validator; it does not expose or
+  retain the model draft or private health context.
+- The production function downloaded read-only for comparison is version 8 and
+  identifies itself as `deepseek-v4-flash-health-report-v3`. Its second attempt
+  resends the source data with a generic repair sentence but does not include
+  the failed draft or identify which checks failed. Repeating that call can
+  therefore reproduce the same invalid shape and never create a cache row.
+- The local source now identifies itself as
+  `deepseek-v4-flash-health-report-v5-targeted-repair`, includes the targeted
+  bounded repair described above, and logs only issue codes. It is source-only
+  until an explicitly authorized Edge Function deployment and a real-account
+  verification are completed.
+- A separate no-user-data check showed that the developer-machine DeepSeek key
+  currently has available balance and that `deepseek-v4-flash` returns valid
+  JSON. Its digest does not match the production Supabase secret, so it is not
+  evidence of the production key's numeric balance. The production error class
+  above is the stronger evidence that the observed failures were validation
+  failures rather than provider HTTP quota failures.

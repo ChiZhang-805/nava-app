@@ -31,12 +31,21 @@ test("weekly insight UI loads the authenticated cloud AI report", () => {
 test("weekly AI report is persisted and rejects non-model providers", () => {
   assert.match(reportFunction, /from\("ai_health_reports"\)\.upsert/);
   assert.match(reportFunction, /row\.provider !== "deepseek"/);
-  assert.match(reportFunction, /deepseek-v4-flash-health-report-v4-compact-seven/);
+  assert.match(reportFunction, /deepseek-v4-flash-health-report-v5-targeted-repair/);
   assert.match(reportFunction, /expectedIds = \["trend", "variation", "association", "action"\]/);
   assert.match(reportFunction, /bullets: report/);
   assert.match(recordsScreen, /weekly-detail-dialog/);
   assert.match(recordsScreen, /weeklyDetailSection\.evidence/);
   assert.match(reportFunction, /consentAuthorizedCompanionRecords/);
+});
+
+test("invalid model JSON gets one targeted repair without weakening evidence checks", () => {
+  assert.match(reportFunction, /previousDraft/);
+  assert.match(reportFunction, /previousIssues/);
+  assert.match(reportFunction, /role: "assistant", content: previousDraft/);
+  assert.match(reportFunction, /section_\$\{index \+ 1\}_evidence_grounding/);
+  assert.match(reportFunction, /section_\$\{index \+ 1\}_association_boundary/);
+  assert.match(reportFunction, /for \(let attempt = 0; attempt < 2; attempt \+= 1\)/);
 });
 
 test("face makeup routing uses a real vision-model output and a confidence gate", () => {

@@ -7,6 +7,7 @@ const healthFunction = readFileSync(new URL("../supabase/functions/ai-health-rep
 const dietFunction = readFileSync(new URL("../supabase/functions/ai-diet-report/index.ts", import.meta.url), "utf8");
 const recordsScreen = readFileSync(new URL("../src/features/RecordsScreen.tsx", import.meta.url), "utf8");
 const dashboard = readFileSync(new URL("../src/features/RecordModuleDashboard.tsx", import.meta.url), "utf8");
+const healthService = readFileSync(new URL("../src/services/healthReport.ts", import.meta.url), "utf8");
 
 test("Chinese compact AI summaries accept exactly seven Han characters only", () => {
   assert.equal(validCompactReportBullet("近周节律较平稳", "zh"), true);
@@ -33,4 +34,12 @@ test("small report cards use compact output while detailed reports keep normal b
   assert.match(recordsScreen, /data-summary-source=\{compactPoints \? "ai-compact"/);
   assert.match(dashboard, /reportInsights = .*dietReport\?\.bullets/);
   assert.match(dashboard, /healthReport\?\.bullets/);
+});
+
+test("health report results stay in memory until a real save requests refresh", () => {
+  assert.match(healthService, /const resolved = new Map<string, HealthAiReport>/);
+  assert.match(healthService, /const userKey = sessionData\.session\?\.user\.id \?\? "anonymous"/);
+  assert.match(healthService, /if \(input\.refresh\) resolved\.delete\(baseKey\)/);
+  assert.match(healthService, /resolved\.set\(baseKey, report\)/);
+  assert.match(recordsScreen, /loadHealthAiReport\(\{ scope: "weekly"[^\n]+refresh: true/);
 });

@@ -29,6 +29,7 @@ export interface HealthAiReport {
 }
 
 const pending = new Map<string, Promise<HealthAiReport>>();
+const resolved = new Map<string, HealthAiReport>();
 
 const demoCompactByScope: Record<HealthReportScope, { zh: CompactSummary; en: CompactSummary }> = {
   mood: {
@@ -122,7 +123,15 @@ export async function loadHealthAiReport(input: {
     } satisfies HealthAiReport;
   }
 
-  const key = `${input.scope}:${input.endDate}:${input.locale}:${input.refresh ? "refresh" : "cached"}`;
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userKey = sessionData.session?.user.id ?? "anonymous";
+  const baseKey = `${userKey}:${input.scope}:${input.endDate}:${input.locale}`;
+  if (input.refresh) resolved.delete(baseKey);
+  else {
+    const cached = resolved.get(baseKey);
+    if (cached) return cached;
+  }
+  const key = `${baseKey}:${input.refresh ? "refresh" : "cached"}`;
   const active = pending.get(key);
   if (active) return active;
   const request = (async () => {
@@ -136,6 +145,7 @@ export async function loadHealthAiReport(input: {
     if (!report || report.provider !== "deepseek" || report.bullets.length !== 4 || !report.bullets.every((bullet) => validBullet(bullet, input.locale)) || !compactBulletsValid || !validStructuredReport(report, input.locale)) {
       throw new Error(input.locale === "zh" ? "AI 健康报告格式无效，请稍后重试。" : "The AI health report was invalid. Please retry.");
     }
+    resolved.set(baseKey, report);
     return report;
   })();
   pending.set(key, request);
