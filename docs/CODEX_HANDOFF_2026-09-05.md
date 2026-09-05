@@ -9,22 +9,22 @@ Supabase, Apple Health/Watch, and release baseline.
 
 - Editable source repository: `Q:\NAVA-Workspace\nava-app`
 - Released source commit:
-  `3ceaad3f1c7720fe0bfa9bcf7c26ea9bad6eb2fc`
+  `3f3c3266f19634932effdf715a7d854d8349b746`
 - ChatGPT Sites project:
   `appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites version: 91
+- ChatGPT Sites version: 92
 - ChatGPT Sites version ID:
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_57593b5b9f048191ae21a1585587aff3`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_3df947585d888191b613a58b126cd22c`
 - ChatGPT Sites deployment:
-  `appgdep_6a9af3c306ec8191a2aa80cd1b360179`
+  `appgdep_6a9b6d16e5108191aa1bdc7b985dc1a6`
 - ChatGPT Sites URL:
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages generated mirror commit:
-  `cd5fbfcc59c9ba4f0eedc1286c0c36c72203b2af`
+  `c3c2f2042de66af9be23ffc609ed38e85e87ae2c`
 - GitHub Pages URL:
   `https://chizhang-805.github.io/nava-app-preview/`
 - Sites package:
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v91.tar.gz`
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v92.tar.gz`
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
 
 Version 89 was an intermediate release from source commit
@@ -32,7 +32,8 @@ Version 89 was an intermediate release from source commit
 but the 360x740 layout exposed a real fourth-line clipping regression that the
 previous visual test did not detect. Version 90 replaces it and is the only
 responsive-layout baseline; version 91 preserves that layout and adds the
-performance and media improvements described below. Version 91 is the only
+performance and media improvements described below. Version 92 adds the
+authenticated transition correction described in section 8 and is the only
 current release anchor.
 
 ## 2. Six-card copy and AI-report contract
@@ -143,10 +144,10 @@ truncation, no icon/text/arrow/card intersection, navigation safety, no excessiv
 bottom whitespace, and no horizontal overflow. Both extreme viewport screenshots
 were also inspected directly and the two origins match.
 
-Version 91 was re-tested on both origins with the user-authorized production
+Version 92 was re-tested on both origins with the user-authorized production
 account after deployment. Public evidence is under:
 
-- `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v91`
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v92`
 
 The account had no recorded module data for 2026-09-05 during this acceptance
 run, so the public checks exercised all six real missing states and confirmed
@@ -163,7 +164,7 @@ authentication remains scoped to the current tab.
 The updated source for `ai-health-report` and `ai-diet-report` contains the new
 dual normal-plus-compact model output, strict validation, one bounded repair
 attempt, and cache versioning. These two changed Edge Functions were not deployed
-during versions 89, 90, or 91. Standing frontend release authorization does not cover
+during versions 89, 90, 91, or 92. Standing frontend release authorization does not cover
 Edge Function deployment.
 
 Therefore:
@@ -183,3 +184,40 @@ For every later visual modification, treat all four required portrait viewports
 as separate layouts. Validate element intersections, clipping, fixed navigation,
 touch targets, text fit, empty and populated states, and whitespace distribution.
 A build pass or one screenshot is never sufficient visual evidence.
+
+## 8. Version 92 authenticated transition correction
+
+The v91 public build reproduced a real post-login flash. Supabase authentication
+succeeded, but React then created a new `AuthScreen` while the lazy authenticated
+bundle loaded and while `loadOnboardingStatus` read the remote profile. The new
+component had empty local fields but inherited the parent transition flag, so it
+rendered an empty email/password form labeled “处理中”. This was a UI state
+handoff defect, not an authentication or account-data failure.
+
+Version 92 now:
+
+- retains the exact submitted `AuthScreen` instance, including its in-memory
+  field values, until the authenticated route and onboarding decision are both
+  ready;
+- keeps the authenticated application hidden while it prepares, then swaps the
+  two surfaces in one React commit;
+- preloads the authenticated application bundle after the signed-out screen is
+  ready, reducing the normal waiting interval without changing visual effects;
+- preserves the existing skeleton for a restored tab session, where there is no
+  submitted form to retain;
+- expands the interaction gate to fail if a processing form ever loses or
+  replaces the submitted account value.
+
+The local delay test intentionally held the authenticated bundle for two seconds
+at 360x740, 375x812, 390x844, and 430x932. Every viewport retained the submitted
+fields, displayed the original processing button, had zero horizontal overflow,
+and reached the authenticated destination. Evidence is under:
+
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-auth-transition-local`
+
+After deployment, the production account was used without record mutation on
+both public origins. The Sites transition produced 572 ten-millisecond samples
+and the Pages transition produced 403; neither observed a reset. Both origins
+then passed the four authenticated record-page viewports with zero runtime or
+overflow failures. The full 20-stage verification, 11-group interaction suite,
+and post-release production-auth contract also passed.
