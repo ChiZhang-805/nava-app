@@ -83,23 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`60f877cbb6f6ea2a40fad576a164183b06c1c3a9`
-- 源仓库随后记录发布文档的 commit：
-  `f00259884727fb84301b80cdb8cb66af012ea7e0`
+- 源码发布 commit：`6da2ce088f3d160ba11edafa554c05f04fa4c2a9`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v96，public
+- ChatGPT Sites 版本：v97，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_6bc885f71820819189e40f7278c0ad85`
-- Sites deployment ID：`appgdep_6a9ba918b27c8191b2d45fa2c47a341f`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_280cef5987408191944768bf648385e2`
+- Sites deployment ID：`appgdep_6a9beb28c7008191b00221e38abc10e2`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `419a8bd7590a4d64f3f6d61700f172a18aa9543b`
+  `3f46d12d12fcf7c566e40b1ff5c1e867e545b2c7`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v96 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v96.tar.gz`
+- v97 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v97.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v96 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v97 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -601,14 +599,14 @@ npm run ios:verify
 npm run supabase:verify-shared
 ```
 
-`npm run verify` 当前是 22 阶段综合门禁，interaction suite 当前记录为 11 组；具体
+`npm run verify` 当前是 23 阶段综合门禁，interaction suite 当前记录为 11 组；具体
 数字可能随脚本更新，新任务应以运行输出为准。构建通过不等于真实 Supabase 写入、
 OTP 送达、模型 provider 可用、HealthKit 真机权限或视觉验收通过。
 
-本交接完成后已于 2026-09-05 再运行一次完整 `npm run verify`：22 个阶段全部通过，
+本交接完成后已于 2026-09-05 再运行一次完整 `npm run verify`：23 个阶段全部通过，
 包括生产构建、lint、Sites 单入口身份、四尺寸六卡、四尺寸记录编辑器、真实完成度、
 AI 双摘要、后端合同、16 个 Edge Function typecheck、Deno 测试、Health/Watch、iOS、
-consent、翻译 DOM 韧性和请求缓存边界。这个结果验证当前源树的一致性，但仍不替代
+consent、翻译 DOM 韧性、请求缓存边界和通知规划合同。这个结果验证当前源树的一致性，但仍不替代
 第 9.2 节的 Apple 真机验收或第 8.1 节的生产 Function 部署验收。
 
 近期证据目录：
@@ -618,6 +616,7 @@ consent、翻译 DOM 韧性和请求缓存边界。这个结果验证当前源�
 - `Q:\NAVA-Workspace\Build\TestRuns\nava-v95-public`
 - `Q:\NAVA-Workspace\Build\TestRuns\nava-v96-record-editors`
 - `Q:\NAVA-Workspace\Build\TestRuns\nava-v96-public`
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-20260905`
 
 截图只能证明被截取时的视觉状态。凡涉及写入、RLS、provider、HealthKit 或 Watch
 队列，必须在真正边界记录网络/数据库/真机证据。
@@ -801,5 +800,6 @@ Capacitor 本地通知现可安排睡眠、饮食、专注、情绪、今日状�
 工程，所以华为锁屏通知也尚未交付；APNs/FCM/HMS 远程 Push、设备 token、服务端发送
 与多端已读同步均未实现，且需要用户另行授权 migration、secret 与 Edge Function。
 
-完整边界见 [`NOTIFICATIONS_DELIVERY.md`](./NOTIFICATIONS_DELIVERY.md)。本轮前端发布后
-应更新第 2.2 节的双站版本和 commit；未完成双站核验前不得写成线上可用。
+完整边界见 [`NOTIFICATIONS_DELIVERY.md`](./NOTIFICATIONS_DELIVERY.md)。应用内通知已随
+v97 同源发布到 Sites 与 GitHub Pages；两个站点的未登录真实认证页均已用无头
+Playwright 验证。原生锁屏送达仍必须等 Mac/Xcode/iPhone 真机验收后才能写成完成。
