@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`86c12e68b013895207ced562589e3a1d4ed790e7`
+- 源码发布 commit：`1cc66c088b3bc283c65c4b2b25c07898c3536513`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v103，public
+- ChatGPT Sites 版本：v104，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_0c7d3f14e0ac8191a91799996593d8d3`
-- Sites deployment ID：`appgdep_6a9c3609186c819186aaadb6b197330d`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_18402667c8dc8191a6cbe20b6b954bc3`
+- Sites deployment ID：`appgdep_6a9c39db16dc8191865f19b094e7e845`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `bfe1ca1160301b46f3ecb1328396a715a17f2bd1`
+  `58726594d02cf0b33b69e7e7952760d6d66aa9ff`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v103 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v103.tar.gz`
+- v104 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v104.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v103 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v104 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -939,7 +939,7 @@ session、刷新页面或从其他页面返回首页均不会再次出现。卡�
 猫窝与多尺寸组件明确延期；AI 半屏、长按手势归属、运动结构化会话等仍需后续产品或
 实现批次，不能写成已完成。
 
-## 26. 健康报告 AI 失败诊断与 v103 前端发布
+## 26. 健康报告 AI 失败诊断与 v104 前端发布
 
 2026-09-05 已完成第 8.1 节所述真实生产日志诊断，并在源码中修复旧 repair 看不到
 失败草稿/失败字段的问题。`src/services/healthReport.ts` 同时加入按认证用户和相关数据
@@ -948,14 +948,14 @@ session、刷新页面或从其他页面返回首页均不会再次出现。卡�
 跨运行期仍由 Supabase 的 source fingerprint
 持久化缓存判定数据是否变化。
 
-这项前端缓存已随源码 commit `86c12e68b013895207ced562589e3a1d4ed790e7`
-发布为 ChatGPT Sites v103，并同步为 GitHub Pages v103；镜像 commit 为
-`bfe1ca1160301b46f3ecb1328396a715a17f2bd1`。两个公开 URL 的无头 Playwright 均返回
+这项前端缓存已随源码 commit `1cc66c088b3bc283c65c4b2b25c07898c3536513`
+发布为 ChatGPT Sites v104，并同步为 GitHub Pages v104；镜像 commit 为
+`58726594d02cf0b33b69e7e7952760d6d66aa9ff`。两个公开 URL 的无头 Playwright 均返回
 200、显示真实登录门、拒绝公开 `?demo=1` 绕过并包含 canonical Supabase project ref；
-两边线上 `healthReport-D-FXGhIk.js` 与本地构建 SHA-256 一致。
+两边线上 `healthReport-CbDTFbwO.js` 与本地构建 SHA-256 一致。
 
 `supabase/functions/ai-health-report` v5 仍只是源码，未部署到生产。由于 Edge Function
-部署需要单独明确授权，不能把 v103 的双站前端发布描述成截图问题已经在线修复；当前
+部署需要单独明确授权，不能把 v104 的双站前端发布描述成截图问题已经在线修复；当前
 生产仍是 function version 8 / 模型合同 v3。获授权后的下一步应只部署
 `ai-health-report`，再用产生截图的真实账户/同一周数据验证：首次生成成功并写缓存、
 页面切换零重复调用、无数据变化跨重载命中持久化缓存、修改一条相关记录后指纹变化并
