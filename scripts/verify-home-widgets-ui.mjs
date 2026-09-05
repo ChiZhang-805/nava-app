@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-widgets-v101-20260905";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-widgets-v102-20260905";
 const port = 5204;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -58,6 +58,19 @@ try {
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
 
+    await page.goto(`${baseUrl}?demo=1&qa=home-widgets-loading#tab=today`, { waitUntil: "networkidle" });
+    const launch = page.locator(".launch-sequence");
+    if (await launch.isVisible().catch(() => false)) await launch.click();
+    const loadingReward = page.locator(".reward-celebration-layer");
+    if (await loadingReward.isVisible().catch(() => false)) await loadingReward.locator("button").first().click();
+    await expect(page.locator(".home-widget-skeleton")).toHaveCount(5);
+    const skeletonGeometry = await page.locator(".home-widget-skeleton").evaluateAll((items) => items.map((item) => {
+      const box = item.getBoundingClientRect();
+      return { width: box.width, height: box.height, borderRadius: getComputedStyle(item).borderRadius };
+    }));
+    if (skeletonGeometry.some((card) => card.height !== 106 || parseFloat(card.borderRadius) > 20)) throw new Error(`${viewport.name}: home loading cards do not match final card shape ${JSON.stringify(skeletonGeometry)}`);
+    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-loading.png`) });
+
     await openRoute(page, "tab=today");
     const homeGrid = page.locator(".home-widget-grid");
     await expect(homeGrid).toBeVisible();
@@ -88,6 +101,7 @@ try {
     assertNoHorizontalOverflow(initialGeometry, `${viewport.name} default home`);
     if (initialGeometry.columns !== 3) throw new Error(`${viewport.name}: home widget grid must have three columns`);
     if (initialGeometry.cards.some((card) => card.scrollWidth > card.clientWidth + 1 || card.left < -1 || card.right > viewport.width + 1)) throw new Error(`${viewport.name}: a home widget clips or escapes ${JSON.stringify(initialGeometry)}`);
+    if (initialGeometry.cards.some((card, index) => Math.abs(card.width - skeletonGeometry[index].width) > 1 || Math.abs(card.height - skeletonGeometry[index].height) > 1)) throw new Error(`${viewport.name}: loading and final home widget shapes differ ${JSON.stringify({ skeletonGeometry, cards: initialGeometry.cards })}`);
     const [firstRow, , , secondRow] = initialGeometry.cards;
     const [, notificationButton, calendarButton, profileButton, utilityButton] = initialGeometry.sideButtons;
     const aligned = firstRow && secondRow && notificationButton && calendarButton && profileButton && utilityButton
@@ -203,7 +217,7 @@ try {
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-face-readiness.png`) });
 
     if (errors.length) throw new Error(`${viewport.name}: browser errors ${JSON.stringify(errors)}`);
-    report.push({ viewport, initialGeometry, sortGeometry, faceGeometry });
+    report.push({ viewport, skeletonGeometry, initialGeometry, sortGeometry, faceGeometry });
     await context.close();
   }
 } finally {

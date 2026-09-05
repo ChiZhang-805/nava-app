@@ -116,6 +116,7 @@ export default function OptionTwoHome({
   onInitialGuidanceShown: () => void;
 }) {
   const { locale, t } = useLocale();
+  const forceHomeWidgetSkeleton = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "home-widgets-loading";
   const [shortcutsOpen, setShortcutsOpen] = useState(true);
   const [healthMenuOpen, setHealthMenuOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<TodaySnapshot | null>(null);
@@ -292,7 +293,7 @@ export default function OptionTwoHome({
       </div>
 
       <section className={["home-widget-grid", widgetIds.length === 0 ? "is-empty" : ""].join(" ")} aria-label={locale === "zh" ? "我的健康小组件" : "My health widgets"} data-widget-count={widgetIds.length}>
-        {loading && snapshot === null
+        {(loading && snapshot === null) || forceHomeWidgetSkeleton
           ? [0, 1, 2, 3, 4].map((index) => <SkeletonBlock className="home-widget-skeleton" key={index} />)
           : widgetIds.length === 0
             ? <button className="home-widget-empty" type="button" onClick={() => onViewChange("home-widgets")}><Sparkles size={18} /><span><strong>{locale === "zh" ? "添加关注的小组件" : "Add widgets you care about"}</strong><small>{locale === "zh" ? "最多 6 个，每行 3 个" : "Up to 6, three per row"}</small></span></button>

@@ -3,9 +3,9 @@ import {
   BellRing,
   ChartNoAxesCombined,
   Check,
-  CheckCheck,
   Footprints,
   Inbox,
+  ListPlus,
   Mail,
   MailOpen,
   MoreHorizontal,
@@ -65,7 +65,7 @@ function categoryLabel(item: NavaNotificationItem, locale: "zh" | "en") {
 
 function NotificationCategoryIcon({ item }: { item: NavaNotificationItem }) {
   const Icon = categoryIcons[item.category];
-  return <span className="notification-row-icon" data-category={item.category} aria-hidden="true"><Icon size={20} /></span>;
+  return <span className="notification-row-icon" data-category={item.category} aria-hidden="true"><Icon size={25} /></span>;
 }
 
 function NotificationRow({
@@ -176,11 +176,14 @@ function NotificationRow({
           {selectionMode && <span className="notification-select-check" aria-hidden="true">{selected && <Check size={15} />}</span>}
           <NotificationCategoryIcon item={item} />
           <span className="notification-row-copy">
-            <span className="notification-row-meta"><strong>{categoryLabel(item, locale)}</strong><time dateTime={item.createdAt}>{relativeTime(item.createdAt, locale)}</time></span>
+            <span className="notification-row-meta"><strong>{categoryLabel(item, locale)}</strong></span>
             <b>{item.title}</b>
             <span className="notification-row-body">{item.body}</span>
           </span>
-          {!item.readAt && !selectionMode && <i className="notification-unread-dot" aria-label={locale === "zh" ? "未读" : "Unread"} />}
+          <span className="notification-row-side">
+            <time dateTime={item.createdAt}>{relativeTime(item.createdAt, locale)}</time>
+            {!item.readAt && !selectionMode && <i className="notification-unread-dot" aria-label={locale === "zh" ? "未读" : "Unread"} />}
+          </span>
         </button>
       </div>
     </article>
@@ -230,6 +233,10 @@ export default function NotificationCenter({
     if (detailId && !items.some((item) => item.id === detailId)) setDetailId(null);
   }, [detailId, items]);
   useEffect(() => {
+    if (!detailItem || detailItem.readAt) return;
+    markNavaNotification(userId, detailItem.id, true);
+  }, [detailItem, userId]);
+  useEffect(() => {
     const closeMenu = (event: PointerEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
     };
@@ -264,7 +271,6 @@ export default function NotificationCenter({
   };
 
   const openDetails = (item: NavaNotificationItem) => {
-    markNavaNotification(userId, item.id, true);
     setDetailId(item.id);
   };
 
@@ -314,15 +320,15 @@ export default function NotificationCenter({
         {selectionMode ? (
           <div className="notification-selection-actions">
             <button type="button" onClick={deleteSelection} disabled={selectedIds.size === 0} aria-label={locale === "zh" ? "删除所选通知" : "Delete selected notifications"}><Trash2 size={20} /></button>
-            <button type="button" onClick={() => { markNavaNotifications(userId, [...selectedIds], true); leaveSelection(); }} disabled={selectedIds.size === 0} aria-label={locale === "zh" ? "标记所选通知为已读" : "Mark selected notifications read"}><CheckCheck size={20} /></button>
+            <button type="button" onClick={() => { markNavaNotifications(userId, [...selectedIds], true); leaveSelection(); }} disabled={selectedIds.size === 0} aria-label={locale === "zh" ? "标记所选通知为已读" : "Mark selected notifications read"}><MailOpen size={20} /></button>
           </div>
         ) : (
           <div className="notification-header-menu-wrap" ref={menuRef}>
             <button type="button" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)} aria-label={locale === "zh" ? "通知操作" : "Notification actions"}><MoreHorizontal size={22} /></button>
             {menuOpen && <div className="notification-header-menu" role="menu">
-              <button type="button" role="menuitem" disabled={unreadCount === 0} onClick={() => { markAllNavaNotificationsRead(userId); setMenuOpen(false); }}><CheckCheck size={17} />{locale === "zh" ? "全部已读" : "Mark all read"}</button>
+              <button type="button" role="menuitem" disabled={unreadCount === 0} onClick={() => { markAllNavaNotificationsRead(userId); setMenuOpen(false); }}><MailOpen size={17} />{locale === "zh" ? "全部已读" : "Mark all read"}</button>
               <button type="button" role="menuitem" disabled={items.length === 0} onClick={deleteAll}><Trash2 size={17} />{locale === "zh" ? "全部删除" : "Delete all"}</button>
-              <button type="button" role="menuitem" disabled={items.length === 0} onClick={() => enterSelection()}><Check size={17} />{locale === "zh" ? "多选" : "Select"}</button>
+              <button type="button" role="menuitem" disabled={items.length === 0} onClick={() => enterSelection()}><ListPlus size={17} />{locale === "zh" ? "多选" : "Select"}</button>
             </div>}
           </div>
         )}
@@ -368,8 +374,10 @@ export default function NotificationCenter({
       {detailItem && <div className="notification-detail-layer" role="presentation" onClick={() => setDetailId(null)}>
         <section className="notification-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="notification-detail-title" onClick={(event) => event.stopPropagation()}>
           <button className="notification-detail-close" type="button" onClick={() => setDetailId(null)} aria-label={locale === "zh" ? "关闭通知详情" : "Close notification details"}><X size={20} /></button>
-          <NotificationCategoryIcon item={detailItem} />
-          <div className="notification-detail-meta"><strong>{categoryLabel(detailItem, locale)}</strong><time dateTime={detailItem.createdAt}>{relativeTime(detailItem.createdAt, locale)}</time></div>
+          <div className="notification-detail-heading">
+            <NotificationCategoryIcon item={detailItem} />
+            <div><strong>{categoryLabel(detailItem, locale)}</strong><time dateTime={detailItem.createdAt}>{relativeTime(detailItem.createdAt, locale)}</time></div>
+          </div>
           <h2 id="notification-detail-title">{detailItem.title}</h2>
           <p>{detailItem.body}</p>
           {detailItem.target && <button className="notification-detail-target" type="button" onClick={() => { setDetailId(null); onOpenTarget(detailItem.target); }}>{locale === "zh" ? "打开相关页面" : "Open related page"}</button>}
