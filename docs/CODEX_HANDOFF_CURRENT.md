@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`6da2ce088f3d160ba11edafa554c05f04fa4c2a9`
+- 源码发布 commit：`bf4178f72c06595106090db0ed0a245dd11d867d`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v97，public
+- ChatGPT Sites 版本：v98，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_280cef5987408191944768bf648385e2`
-- Sites deployment ID：`appgdep_6a9beb28c7008191b00221e38abc10e2`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_2e643a9592888191a56251f23a20348a`
+- Sites deployment ID：`appgdep_6a9bf3d6ce488191ba28cbd907f8ce3e`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `3f46d12d12fcf7c566e40b1ff5c1e867e545b2c7`
+  `55cb3631fe28f1c5f607a4f4b00e755ca705fedb`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v97 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v97.tar.gz`
+- v98 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v98.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v97 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v98 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -819,3 +819,8 @@ guidance 时仍使用原序列。健康建议卡在六模块圆盘展开时自�
 `npm run home-guidance:visual` 已在 360x740、375x812、390x844、430x932 验证建议卡、
 上下层关系、无横向溢出、小猫动作和报告跳转。证据在
 `Q:\NAVA-Workspace\Build\TestRuns\nava-home-guidance-20260905`。
+
+上述首页动态状态已由同一源码 commit `bf4178f72c06595106090db0ed0a245dd11d867d`
+发布为 ChatGPT Sites v98，并同步到 GitHub Pages v98。线上无头 Playwright 已确认两个
+站点均返回 200、显示真实登录门而不出现 `.phone-frame` 演示态；线上构建资产均包含
+canonical Supabase project ref `wxteapvwagvhhtrjrbim` 与本轮 guidance 实现。
