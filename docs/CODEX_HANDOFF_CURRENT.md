@@ -13,10 +13,10 @@ current release state.
 
 Current public release anchor:
 
-- Source release commit: `3f3c3266f19634932effdf715a7d854d8349b746`
-- ChatGPT Sites: version 92, public
-- GitHub Pages mirror: v92 at
-  `c3c2f2042de66af9be23ffc609ed38e85e87ae2c`
+- Source release commit: `83c8ae8c2fa9ab11911f3d5d3a3e32694ff09123`
+- ChatGPT Sites: version 94, public
+- GitHub Pages mirror: v94 at
+  `41eda95eebd968c40740d886b6099daa80246ad8`
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
 
 The six Health Report cards now keep four complete lines at every required
@@ -28,10 +28,11 @@ origins.
 Version 91 keeps the v90 responsive layout while reducing repeated Supabase
 reads, lazily loading record-detail code, and shrinking lossless mascot media.
 Version 92 fixes the post-login blank-form flash by preserving the submitted
-form until the authenticated destination is ready. Both public origins passed
-real-account transition sampling and authenticated 360/375/390/430px checks.
+form until the authenticated destination is ready. Version 94 redesigns the
+mood, sleep, diet, focus, and face record editors, adds strict four-viewport
+editor geometry gates, and passed real-account checks on both public origins.
 
-The dual normal/compact AI-report contract is implemented in source. The two
-changed Edge Functions have **not** been deployed as part of v89/v90/v91/v92 because
-backend deployment requires separate explicit authorization. See the dated
-handoff for the exact boundary and remaining action.
+The dual normal/compact AI-report contract and dish-level diet-recognition prompt
+are implemented in source. The three changed Edge Functions have **not** been
+deployed because backend deployment requires separate explicit authorization.
+See the dated handoff for the exact boundary and remaining action.

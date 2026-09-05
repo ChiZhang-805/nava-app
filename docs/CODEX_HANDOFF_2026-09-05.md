@@ -9,32 +9,33 @@ Supabase, Apple Health/Watch, and release baseline.
 
 - Editable source repository: `Q:\NAVA-Workspace\nava-app`
 - Released source commit:
-  `3f3c3266f19634932effdf715a7d854d8349b746`
+  `83c8ae8c2fa9ab11911f3d5d3a3e32694ff09123`
 - ChatGPT Sites project:
   `appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites version: 92
+- ChatGPT Sites version: 94
 - ChatGPT Sites version ID:
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_3df947585d888191b613a58b126cd22c`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_bee740d3dcf88191a26fb8c08dbca32c`
 - ChatGPT Sites deployment:
-  `appgdep_6a9b6d16e5108191aa1bdc7b985dc1a6`
+  `appgdep_6a9b83eb41f08191bd1d090400f54d71`
 - ChatGPT Sites URL:
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages generated mirror commit:
-  `c3c2f2042de66af9be23ffc609ed38e85e87ae2c`
+  `41eda95eebd968c40740d886b6099daa80246ad8`
 - GitHub Pages URL:
   `https://chizhang-805.github.io/nava-app-preview/`
 - Sites package:
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v92.tar.gz`
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v94.tar.gz`
 - Canonical Supabase project: `wxteapvwagvhhtrjrbim`
 
 Version 89 was an intermediate release from source commit
 `9420a45932776f164bc16c7a3b2a1478b1406b2d`. Its compact-card source was valid,
 but the 360x740 layout exposed a real fourth-line clipping regression that the
-previous visual test did not detect. Version 90 replaces it and is the only
-responsive-layout baseline; version 91 preserves that layout and adds the
+previous visual test did not detect. Version 90 replaces it and is the
+responsive-card baseline; version 91 preserves that layout and adds the
 performance and media improvements described below. Version 92 adds the
-authenticated transition correction described in section 8 and is the only
-current release anchor.
+authenticated transition correction described in section 8. Version 94 adds
+the five record-editor flows described in section 9 and is the current release
+anchor.
 
 ## 2. Six-card copy and AI-report contract
 
@@ -97,7 +98,7 @@ Local evidence is under:
 
 - `Q:\NAVA-Workspace\Build\TestRuns\nava-module-progress-20260905`
 
-The complete 20-stage `npm run verify` passed after correcting a test-only
+The complete 22-stage `npm run verify` passed after correcting a test-only
 UTC/Asia-Shanghai cross-midnight mismatch. The Playwright context is now pinned
 to `Asia/Shanghai`, and its restore date is read from the same browser-local
 clock as the application.
@@ -144,10 +145,10 @@ truncation, no icon/text/arrow/card intersection, navigation safety, no excessiv
 bottom whitespace, and no horizontal overflow. Both extreme viewport screenshots
 were also inspected directly and the two origins match.
 
-Version 92 was re-tested on both origins with the user-authorized production
-account after deployment. Public evidence is under:
+Version 94 was re-tested on both origins with the user-authorized production
+account after deployment. Public release evidence is under:
 
-- `Q:\NAVA-Workspace\Build\TestRuns\nava-public-v92`
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-v94-public`
 
 The account had no recorded module data for 2026-09-05 during this acceptance
 run, so the public checks exercised all six real missing states and confirmed
@@ -163,9 +164,11 @@ authentication remains scoped to the current tab.
 
 The updated source for `ai-health-report` and `ai-diet-report` contains the new
 dual normal-plus-compact model output, strict validation, one bounded repair
-attempt, and cache versioning. These two changed Edge Functions were not deployed
-during versions 89, 90, 91, or 92. Standing frontend release authorization does not cover
-Edge Function deployment.
+attempt, and cache versioning. `diet-extract` now also contains a dish-level
+recognition prompt that keeps a composite dish such as salad as one item while
+describing clearly visible ingredients in parentheses. These three changed Edge
+Functions were not deployed through version 94. Standing frontend release
+authorization does not cover Edge Function deployment.
 
 Therefore:
 
@@ -173,7 +176,9 @@ Therefore:
 - the frontend accepts compact AI output when the backend provides it;
 - production generation of the new exact-seven-character AI card summaries is
   not claimed live until the user explicitly authorizes deployment of those two
-  Edge Functions and their live boundary is verified.
+  Edge Functions and their live boundary is verified;
+- production dish-level photo recognition is not claimed live until the user
+  explicitly authorizes deployment of the changed `diet-extract` function.
 
 No migration, production seed, secret change, or access-policy change is needed
 for that deployment.
@@ -219,5 +224,36 @@ After deployment, the production account was used without record mutation on
 both public origins. The Sites transition produced 572 ten-millisecond samples
 and the Pages transition produced 403; neither observed a reset. Both origins
 then passed the four authenticated record-page viewports with zero runtime or
-overflow failures. The full 20-stage verification, 11-group interaction suite,
+overflow failures. The full 22-stage verification, 11-group interaction suite,
 and post-release production-auth contract also passed.
+
+## 9. Version 94 record-editor redesign
+
+Version 94 completes the requested editor behavior without changing production
+data contracts:
+
+- mood and sleep are one-screen layouts whose note areas absorb available height;
+- the sleep presets are three compact icon actions aligned with the card title;
+- diet uses four title-row shortcut icons and an auto-growing, multiline dish
+  field. Structured AI items remain structured when saved rather than being
+  collapsed into one display string;
+- focus setup supports count-up or countdown, 25/45/60-minute shortcuts, a task,
+  and a private planning note. “Start focus” launches the existing immersive
+  timer, and no Supabase focus record is written until the timer finishes;
+- face capture no longer repeats the onboarding consent control or the removed
+  guidance paragraph. It adds a one-screen AI evaluation card derived from the
+  actual face-analysis feedback and annotations, retains the non-diagnostic
+  boundary, and uses `src/assets/mascot/nava-face-insight-v2.webp` generated for
+  this state.
+
+`scripts/verify-mood-editor-layout.mjs` checks all five editors at 360x740,
+375x812, 390x844, and 430x932 plus a keyboard-height proxy. It verifies overflow,
+card/navigation gaps, title/action alignment, shortcut behavior, multiline dish
+growth, real focus-timer launch, and face before/after states. The production
+account then passed both public origins: no blank processing-form flash, canonical
+Supabase project observed, no horizontal overflow, no shifted page, and face
+editor vertical overflow of at most one rounding pixel.
+
+No production record was mutated by the public acceptance run. Version 94 uses
+source commit `83c8ae8c2fa9ab11911f3d5d3a3e32694ff09123`, Sites version 94, and Pages
+mirror commit `41eda95eebd968c40740d886b6099daa80246ad8`.
