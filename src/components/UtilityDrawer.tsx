@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { Check, ChevronRight, CircleDollarSign, LockKeyhole, ShoppingBag, UsersRound, X } from "lucide-react";
+import { Check, ChevronRight, CircleDollarSign, LockKeyhole, ShoppingBag, SlidersHorizontal, UsersRound, X } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { useLocale } from "../i18n";
 import { addTodo, growthXp, loadGrowthTasks, loadTodos, reconcileGrowthRewards, resolveGrowthTasks, subscribeProductivity, syncTodos, toggleTodo, type GrowthSummary, type TodoItem } from "../services/productivity";
@@ -9,11 +9,13 @@ export default function UtilityDrawer({
   open,
   onClose,
   onTaskCompleted,
+  onEditHome,
 }: {
   user: User;
   open: boolean;
   onClose: () => void;
   onTaskCompleted?: () => Promise<GrowthSummary | null>;
+  onEditHome: () => void;
 }) {
   const { locale } = useLocale();
   const [todos, setTodos] = useState<TodoItem[]>(() => loadTodos(user.id));
@@ -94,6 +96,8 @@ export default function UtilityDrawer({
         </section>
 
         <section className="drawer-points-card"><CircleDollarSign size={24} /><div><span>{locale === "zh" ? "成长积分" : "Growth points"}</span><strong>{xp} XP</strong></div></section>
+
+        <button className="drawer-home-edit" type="button" onClick={onEditHome}><SlidersHorizontal size={22} /><span><strong>{locale === "zh" ? "编辑首页" : "Edit home"}</strong><small>{locale === "zh" ? "选择与排列健康小组件" : "Choose and arrange health widgets"}</small></span><ChevronRight size={18} /></button>
 
         <button className="drawer-placeholder-card" type="button" disabled><ShoppingBag size={22} /><span><strong>{locale === "zh" ? "积分商城" : "Points shop"}</strong><small>{locale === "zh" ? "功能预留" : "Reserved"}</small></span><LockKeyhole size={16} /></button>
         <button className="drawer-placeholder-card" type="button" disabled><UsersRound size={22} /><span><strong>{locale === "zh" ? "节律社区" : "Rhythm community"}</strong><small>{locale === "zh" ? "功能预留" : "Reserved"}</small></span><LockKeyhole size={16} /></button>

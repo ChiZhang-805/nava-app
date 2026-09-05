@@ -107,4 +107,8 @@ Write-Host "24. Home guidance and mascot-state contract"
 Invoke-Npm -Arguments @("run", "home-guidance:test")
 
 Write-Host ""
+Write-Host "25. Home widget and maintenance contracts"
+Invoke-Npm -Arguments @("run", "home-widgets:test")
+
+Write-Host ""
 Write-Host "Verification completed."

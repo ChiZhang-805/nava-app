@@ -508,7 +508,8 @@ function MobileShell() {
 
   const focusImmersive = activeTab === "record" && recordModule === "focus" && (recordView === "immersive" || recordView === "interruption");
   const profileDetailsSubpage = activeTab === "today" && recordView === "profile-details";
-  const hideBottomNavigation = focusImmersive || profileDetailsSubpage;
+  const todayFullSubpage = activeTab === "today" && (profileDetailsSubpage || recordView === "home-widgets");
+  const hideBottomNavigation = focusImmersive || todayFullSubpage;
 
   return (
     <div className={["phone-frame", activeTab === "today" ? "phone-frame--option2" : "", focusImmersive ? "phone-frame--focus-immersive" : "", profileDetailsSubpage ? "phone-frame--subpage-no-nav" : ""].filter(Boolean).join(" ")}>
@@ -737,6 +738,10 @@ function MobileShell() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onTaskCompleted={markTodoCompleted}
+        onEditHome={() => {
+          setDrawerOpen(false);
+          navigate("today", null, "home-widgets");
+        }}
       />
       {rewardQueue[0] && <RewardCelebration rewards={rewardQueue[0]} locale={locale} onDismiss={dismissReward} />}
     </div>

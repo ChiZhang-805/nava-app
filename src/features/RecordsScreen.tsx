@@ -38,6 +38,7 @@ import { clearSecureFaceDraft, loadSecureFaceDraft, saveSecureFaceDraft } from "
 import { loadSingleKey, type SingleRequestSlot } from "../services/singleRequestCache";
 import { estimatedFoodLabel, formatDetectedDishList } from "../services/dietEntryPresentation";
 import { recordSkeletonVariant } from "../services/loadingRoute";
+import { clearSleepMaintenance, loadSleepMaintenance, sleepMaintenanceElapsedMinutes, sleepMaintenanceFields, startSleepMaintenance, type SleepMaintenanceSession } from "../services/sessionMaintenance";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 
 const RecordModuleDashboard = lazy(() => import("./RecordModuleDashboard"));
@@ -263,6 +264,8 @@ export default function RecordsScreen({
   const [remSleep, setRemSleep] = useState(95);
   const [sleepRating, setSleepRating] = useState(4);
   const [sleepNote, setSleepNote] = useState("");
+  const [sleepMaintenance, setSleepMaintenance] = useState<SleepMaintenanceSession | null>(() => loadSleepMaintenance(user.id));
+  const [sleepMaintenanceNow, setSleepMaintenanceNow] = useState(() => Date.now());
 
   const [steps, setSteps] = useState(6500);
   const [calories, setCalories] = useState(420);
@@ -295,9 +298,19 @@ export default function RecordsScreen({
   const [faceDraftFile, setFaceDraftFile] = useState<File | null>(null);
   const [faceAnalyzing, setFaceAnalyzing] = useState(false);
   const faceSettingsKey = `nava-face-capture-settings:${user.id}`;
+  const faceReadinessKey = `nava-face-capture-readiness:${user.id}`;
   const [faceMode, setFaceMode] = useState<"bare_face" | "makeup">(() => {
     try { return JSON.parse(window.sessionStorage.getItem(faceSettingsKey) ?? "{}").mode === "makeup" ? "makeup" : "bare_face"; } catch { return "bare_face"; }
   });
+  const [faceCaptureChecks, setFaceCaptureChecks] = useState<{ light: boolean; position: boolean; expression: boolean }>(() => {
+    try {
+      const saved = JSON.parse(window.sessionStorage.getItem(faceReadinessKey) ?? "{}");
+      return { light: saved.light === true, position: saved.position === true, expression: saved.expression === true };
+    } catch {
+      return { light: false, position: false, expression: false };
+    }
+  });
+  const faceCaptureReady = Object.values(faceCaptureChecks).every(Boolean);
   const dietQuickCameraInputRef = useRef<HTMLInputElement | null>(null);
   const facePhotoInputRef = useRef<HTMLInputElement | null>(null);
   const faceLibraryInputRef = useRef<HTMLInputElement | null>(null);
@@ -316,6 +329,21 @@ export default function RecordsScreen({
   useEffect(() => {
     window.sessionStorage.setItem(faceSettingsKey, JSON.stringify({ mode: faceMode }));
   }, [faceMode, faceSettingsKey]);
+
+  useEffect(() => {
+    window.sessionStorage.setItem(faceReadinessKey, JSON.stringify(faceCaptureChecks));
+  }, [faceCaptureChecks, faceReadinessKey]);
+
+  useEffect(() => {
+    setSleepMaintenance(loadSleepMaintenance(user.id));
+  }, [user.id]);
+
+  useEffect(() => {
+    if (!sleepMaintenance) return;
+    setSleepMaintenanceNow(Date.now());
+    const timer = window.setInterval(() => setSleepMaintenanceNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, [sleepMaintenance]);
 
   useEffect(() => {
     let active = true;
@@ -727,7 +755,8 @@ export default function RecordsScreen({
     if ([sh, sm, eh, em].some((v) => Number.isNaN(v))) return 0;
     const startMin = sh * 60 + sm;
     let endMin = eh * 60 + em;
-    if (endMin <= startMin) endMin += 24 * 60;
+    if (endMin === startMin) return 0;
+    if (endMin < startMin) endMin += 24 * 60;
     return endMin - startMin;
   }
 
@@ -889,7 +918,7 @@ export default function RecordsScreen({
 
   async function saveSleep(event: FormEvent) {
     event.preventDefault();
-    await run("records.sleep", () =>
+    const saved = await run("records.sleep", () =>
       saveSleepRecord({
         userId: user.id,
         date: recordDate,
@@ -903,6 +932,42 @@ export default function RecordsScreen({
         note: sleepNote,
       }),
     );
+    if (saved) {
+      clearSleepMaintenance(user.id);
+      setSleepMaintenance(null);
+    }
+  }
+
+  function beginSleepMaintenance() {
+    if (recordDate !== deviceDate) {
+      setNotice(locale === "zh" ? "睡眠维持只记录当前设备日期；请先返回今天。" : "Sleep tracking can only start for the current device date.");
+      return;
+    }
+    const session = startSleepMaintenance(user.id);
+    setSleepMaintenance(session);
+    setSleepMaintenanceNow(Date.now());
+    setNotice(locale === "zh" ? "已开始维持睡眠记录。关闭页面后仍可在本设备继续。" : "Sleep tracking started and can resume on this device.");
+  }
+
+  function finishSleepMaintenance() {
+    if (!sleepMaintenance) return;
+    const fields = sleepMaintenanceFields(sleepMaintenance);
+    setSleepStart(fields.start);
+    setSleepEnd(fields.end);
+    setSleepDuration(fields.durationMinutes);
+    setDeepSleep(fields.deepMinutes);
+    setLightSleep(fields.lightMinutes);
+    setRemSleep(fields.remMinutes);
+    clearSleepMaintenance(user.id);
+    setSleepMaintenance(null);
+    setNotice(locale === "zh" ? "计时已结束并填入表单，请确认睡眠阶段与评分后保存。" : "Tracking ended and filled the form. Review the stages and rating before saving.");
+  }
+
+  function cancelSleepMaintenance() {
+    if (!sleepMaintenance) return;
+    if (!window.confirm(locale === "zh" ? "放弃这次尚未保存的睡眠维持记录吗？" : "Discard this unsaved sleep tracking session?")) return;
+    clearSleepMaintenance(user.id);
+    setSleepMaintenance(null);
   }
 
   async function saveExercise(event: FormEvent) {
@@ -1572,6 +1637,20 @@ export default function RecordsScreen({
             </div>
           )}
         >
+          <section className={sleepMaintenance ? "sleep-maintenance is-active" : "sleep-maintenance"} aria-live="polite">
+            <div>
+              <span><Timer size={17} />{locale === "zh" ? "睡眠维持" : "Sleep tracking"}</span>
+              {sleepMaintenance
+                ? <strong>{locale === "zh" ? `已维持 ${sleepMaintenanceElapsedMinutes(sleepMaintenance, new Date(sleepMaintenanceNow))} 分钟` : `${sleepMaintenanceElapsedMinutes(sleepMaintenance, new Date(sleepMaintenanceNow))} minutes tracked`}</strong>
+                : <strong>{locale === "zh" ? "从入睡开始，到醒来后填入记录" : "Track from bedtime, then fill the record when you wake"}</strong>}
+              <small>{sleepMaintenance
+                ? new Date(sleepMaintenance.startedAt).toLocaleString(locale === "zh" ? "zh-CN" : "en-US", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
+                : (locale === "zh" ? "本设备保存进度；结束后仍需你确认并保存到 Supabase" : "Progress stays on this device; you still review and save to Supabase")}</small>
+            </div>
+            {sleepMaintenance
+              ? <div><button type="button" onClick={finishSleepMaintenance}>{locale === "zh" ? "结束并填入" : "End & fill"}</button><button type="button" onClick={cancelSleepMaintenance}>{locale === "zh" ? "放弃" : "Discard"}</button></div>
+              : <button type="button" onClick={beginSleepMaintenance} disabled={recordDate !== deviceDate}><Play size={15} />{locale === "zh" ? "开始维持" : "Start"}</button>}
+          </section>
           <div className="two-col">
             <label className="field">
               <span>{t("records.sleepStart")}</span>
@@ -1833,6 +1912,26 @@ export default function RecordsScreen({
             <button type="button" className={faceMode === "makeup" ? "selected" : ""} data-face-mode="makeup" aria-label={locale === "zh" ? "带妆模式" : "Makeup mode"} aria-pressed={faceMode === "makeup"} title={locale === "zh" ? "带妆模式" : "Makeup mode"} disabled={faceAnalyzing} onClick={() => setFaceMode("makeup")}><Brush size={18} strokeWidth={2.05} /></button>
           </div>}
         >
+          <section className={faceCaptureReady ? "face-capture-readiness is-ready" : "face-capture-readiness"} aria-label={locale === "zh" ? "稳定拍摄条件" : "Consistent capture conditions"}>
+            <header><div><strong>{locale === "zh" ? "稳定拍摄条件" : "Consistent capture"}</strong><small>{locale === "zh" ? "每天保持相近条件，变化才更可比较" : "Keep conditions similar so changes are comparable"}</small></div><span>{Object.values(faceCaptureChecks).filter(Boolean).length}/3</span></header>
+            <div>
+              {([
+                ["light", locale === "zh" ? "光线稳定" : "Steady light"],
+                ["position", locale === "zh" ? "面部居中" : "Face centered"],
+                ["expression", locale === "zh" ? "自然表情" : "Neutral expression"],
+              ] as const).map(([id, label]) => <button
+                key={id}
+                type="button"
+                className={faceCaptureChecks[id] ? "selected" : ""}
+                aria-pressed={faceCaptureChecks[id]}
+                disabled={faceAnalyzing}
+                onClick={() => setFaceCaptureChecks((current) => ({ ...current, [id]: !current[id] }))}
+              ><i>{faceCaptureChecks[id] && <Check size={12} />}</i>{label}</button>)}
+            </div>
+            <p>{faceCaptureReady
+              ? (locale === "zh" ? "已就绪，可以拍摄或从相册选择。" : "Ready to capture or choose a photo.")
+              : (locale === "zh" ? "确认三项后再拍摄；结果仅用于非诊断状态参考。" : "Confirm all three before capture; results are non-diagnostic.")}</p>
+          </section>
           <label className={["photo-picker", "face", faceAnalyzing ? "is-analyzing" : "", faceImage ? "has-image" : ""].filter(Boolean).join(" ")}>
             {faceImage ? <img src={faceImage} alt={locale === "zh" ? "面部照片" : "Face photo"} /> : <ScanFace size={30} />}
             <span>{faceAnalyzing ? t("records.faceScanning") : t("records.scanFace")}</span>
@@ -1842,15 +1941,15 @@ export default function RecordsScreen({
               type="file"
               accept="image/*"
               capture="user"
-              disabled={faceAnalyzing}
+              disabled={faceAnalyzing || !faceCaptureReady}
               onChange={(e) => { const file = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ""; void handleFacePhoto(file); }}
             />
             {faceAnalyzing && <Loader2 className="spin" size={18} />}
           </label>
           <div className="face-photo-actions">
-            <button type="button" disabled={faceAnalyzing} onClick={() => facePhotoInputRef.current?.click()}><Camera size={17} />{faceImage ? (locale === "zh" ? "重新拍摄" : "Retake") : (locale === "zh" ? "前置拍摄" : "Front camera")}</button>
-            <button type="button" disabled={faceAnalyzing} onClick={() => faceLibraryInputRef.current?.click()}><Upload size={17} />{locale === "zh" ? "从相册重选" : "Choose from library"}</button>
-            <input ref={faceLibraryInputRef} hidden aria-label={locale === "zh" ? "从相册选择面部照片" : "Choose face photo from library"} type="file" accept="image/*" disabled={faceAnalyzing} onChange={(e) => { const file = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ""; void handleFacePhoto(file); }} />
+            <button type="button" disabled={faceAnalyzing || !faceCaptureReady} onClick={() => facePhotoInputRef.current?.click()}><Camera size={17} />{faceImage ? (locale === "zh" ? "重新拍摄" : "Retake") : (locale === "zh" ? "前置拍摄" : "Front camera")}</button>
+            <button type="button" disabled={faceAnalyzing || !faceCaptureReady} onClick={() => faceLibraryInputRef.current?.click()}><Upload size={17} />{locale === "zh" ? "从相册重选" : "Choose from library"}</button>
+            <input ref={faceLibraryInputRef} hidden aria-label={locale === "zh" ? "从相册选择面部照片" : "Choose face photo from library"} type="file" accept="image/*" disabled={faceAnalyzing || !faceCaptureReady} onChange={(e) => { const file = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ""; void handleFacePhoto(file); }} />
           </div>
           <section className={["face-ai-evaluation", faceAnalyzing ? "is-loading" : faceResult ? "has-result" : "is-empty"].join(" ")} aria-live="polite">
             <header><span><Bot size={17} />{locale === "zh" ? "AI 状态评价" : "AI state notes"}</span>{faceResult?.confidence != null && <small>{Math.round(faceResult.confidence * 100)}%</small>}</header>

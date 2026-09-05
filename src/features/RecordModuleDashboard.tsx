@@ -1358,9 +1358,6 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
             <button type="button" className={timerMode === "countdown" ? "active" : ""} onClick={() => { setTimerMode("countdown"); setRemaining(countdownDurationSeconds); setRunning(false); setHasStarted(false); }}>{locale === "zh" ? "倒计时" : "Countdown"}</button>
             <button type="button" className={timerMode === "countup" ? "active" : ""} onClick={() => { setTimerMode("countup"); setElapsedSeconds(0); setRunning(false); setHasStarted(false); }}>{locale === "zh" ? "正计时" : "Count up"}</button>
           </div>}
-          {timerMode === "countdown" && !hasStarted && <div className="focus-presets focus-presets--immersive" role="group" aria-label={locale === "zh" ? "快捷专注时长" : "Focus duration presets"}>
-            {[25, 45, 60].map((minutes) => <button type="button" className={focusMinutes === minutes ? "active" : ""} key={minutes} onClick={() => updateDuration(minutes)}>{minutes}{locale === "zh" ? " 分钟" : " min"}</button>)}
-          </div>}
         </div>
         {focusNote && <p className="focus-immersive-note">{focusNote}</p>}
         <img className="focus-immersive-mascot" src={focusInsightMascot} alt="" aria-hidden="true" />
@@ -1456,9 +1453,6 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
         <div className="focus-quick-controls">
           <label className="focus-task-field"><Clock3 size={19} /><input aria-label={locale === "zh" ? "专注事项" : "Focus activity"} placeholder={locale === "zh" ? "请填写要专注的事项" : "What do you want to focus on?"} value={displayedFocusTitle} onChange={(event) => setFocusTitle(event.target.value)} /></label>
           <div className="focus-duration-controls"><button type="button" onClick={() => updateDuration(focusMinutes - 1)} aria-label={locale === "zh" ? "减少一分钟" : "Decrease one minute"}>-</button><label className="focus-duration-field compact"><input aria-label={locale === "zh" ? "专注分钟数" : "Focus duration in minutes"} inputMode="numeric" min={1} max={180} type="number" value={focusMinutes} onChange={(event) => updateDuration(Number(event.target.value))} /><span>{locale === "zh" ? "分钟" : "min"}</span></label><button type="button" onClick={() => updateDuration(focusMinutes + 1)} aria-label={locale === "zh" ? "增加一分钟" : "Increase one minute"}>+</button></div>
-        </div>
-        <div className="focus-presets" role="group" aria-label={locale === "zh" ? "快捷专注时长" : "Focus duration presets"}>
-          {[25, 45, 60].map((minutes) => <button type="button" className={focusMinutes === minutes ? "active" : ""} key={minutes} onClick={() => updateDuration(minutes)}>{minutes}{locale === "zh" ? " 分钟" : " min"}</button>)}
         </div>
         <label className="focus-category-field"><span>{locale === "zh" ? "专注分类" : "Category"}</span><select value={focusCategory} onChange={(event) => setFocusCategory(event.target.value)}><option value="work">{locale === "zh" ? "工作" : "Work"}</option><option value="study">{locale === "zh" ? "学习" : "Study"}</option><option value="life">{locale === "zh" ? "生活" : "Life"}</option><option value="other">{locale === "zh" ? "其他" : "Other"}</option></select></label>
         <button className="focus-ai-plan-button" type="button" onClick={() => onOpenAi?.(locale === "zh" ? `我准备专注“${displayedFocusTitle || "尚未命名的任务"}”${focusMinutes}分钟。请先用一句话帮我进入状态，再把任务拆成3个明确小步骤；如果目标太模糊，请先问我一个澄清问题。` : `I plan to focus on “${displayedFocusTitle || "an unnamed task"}” for ${focusMinutes} minutes. Give me one short starting cue and split it into 3 concrete steps; ask one clarifying question first if the goal is vague.`)}><Bot size={16} />{locale === "zh" ? "AI 进入状态与任务拆解" : "AI starting cue & task plan"}</button>

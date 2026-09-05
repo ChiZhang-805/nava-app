@@ -30,15 +30,18 @@ import ModuleProgressRing from "../components/ModuleProgressRing";
 import { SkeletonBlock } from "../components/PageSkeleton";
 import InteractiveMascot from "../components/InteractiveMascot";
 import { loadGrowthTotalPoints } from "../services/productivity";
-import { getTodaySnapshot } from "../services/records";
+import { getTodaySnapshot, getTrends } from "../services/records";
+import { loadProfile } from "../services/profile";
 import { buildHealthModuleProgress, healthModuleEntryView, healthModuleProgressLabel } from "../services/healthReportPresentation";
 import { buildHomeGuidance, homeDayPhase, isVerticalHomeSwipe, type HomeGuidanceAction } from "../services/homeExperience";
+import { buildHomeWidgetPresentation, loadHomeWidgetIds, saveHomeWidgetIds, type HomeWidgetId } from "../services/homeWidgets";
 import { syncContextualNotifications, type NavaNotificationItem, type NavaNotificationTarget } from "../services/notifications";
-import type { TodaySnapshot } from "../types";
+import type { TodaySnapshot, TrendBundle } from "../types";
 import type { RecordModule } from "./RecordsScreen";
 import HomeCalendarExperience from "./HomeCalendarExperience";
 import AdvancedProfileScreen from "./AdvancedProfileScreen";
 import NotificationCenter from "./NotificationCenter";
+import HomeWidgetEditor from "./HomeWidgetEditor";
 
 const healthEntries: Array<{
   id: RecordModule;
@@ -63,6 +66,24 @@ const homeGuidanceIcons: Record<HomeGuidanceAction["id"], LucideIcon> = {
   face: ScanFace,
   report: ChartNoAxesCombined,
   ai: MessageCircle,
+};
+
+const homeWidgetIcons: Record<HomeWidgetId, LucideIcon> = {
+  sleep: MoonStar,
+  focus: TimerReset,
+  exercise: Footprints,
+  mood: SmilePlus,
+  diet: Utensils,
+  face: ScanFace,
+};
+
+const homeWidgetLabelKeys: Record<HomeWidgetId, "records.sleep" | "records.focus" | "records.exercise" | "records.mood" | "records.diet" | "records.faceShort"> = {
+  sleep: "records.sleep",
+  focus: "records.focus",
+  exercise: "records.exercise",
+  mood: "records.mood",
+  diet: "records.diet",
+  face: "records.faceShort",
 };
 
 export default function OptionTwoHome({
@@ -94,6 +115,8 @@ export default function OptionTwoHome({
   const [shortcutsOpen, setShortcutsOpen] = useState(true);
   const [healthMenuOpen, setHealthMenuOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<TodaySnapshot | null>(null);
+  const [trends, setTrends] = useState<TrendBundle | null>(null);
+  const [widgetIds, setWidgetIds] = useState<HomeWidgetId[]>(() => loadHomeWidgetIds(user.id));
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [localHour, setLocalHour] = useState(() => new Date().getHours());
@@ -104,9 +127,11 @@ export default function OptionTwoHome({
   const refresh = useCallback(async () => {
     const requestId = ++refreshRequestRef.current;
     setLoading(true);
-    const [snapshotResult, pointsResult] = await Promise.allSettled([
+    const [snapshotResult, pointsResult, profileResult, trendsResult] = await Promise.allSettled([
       getTodaySnapshot(user.id, deviceDate),
       loadGrowthTotalPoints(user.id),
+      loadProfile(user.id),
+      getTrends(user.id, deviceDate),
     ]);
 
     if (requestId !== refreshRequestRef.current) return;
@@ -122,6 +147,9 @@ export default function OptionTwoHome({
     } else {
       console.warn("Unable to load the option-two points total", pointsResult.reason);
     }
+    if (profileResult.status === "fulfilled") setWidgetIds(loadHomeWidgetIds(user.id, profileResult.value?.goal));
+    if (trendsResult.status === "fulfilled") setTrends(trendsResult.value);
+    else console.warn("Unable to load home widget trends", trendsResult.reason);
     setLoading(false);
   }, [deviceDate, locale, user.id]);
 
@@ -154,6 +182,18 @@ export default function OptionTwoHome({
 
   if (view === "notifications") {
     return <NotificationCenter userId={user.id} items={notifications} locale={locale} onBack={() => onBack(null)} onOpenTarget={onOpenNotificationTarget} />;
+  }
+
+  if (view === "home-widgets") {
+    return <HomeWidgetEditor
+      locale={locale}
+      initialIds={widgetIds}
+      onCancel={() => onBack(null)}
+      onSave={(ids) => {
+        setWidgetIds(saveHomeWidgetIds(user.id, ids));
+        onBack(null);
+      }}
+    />;
   }
 
   const beginHomeGesture = (event: ReactPointerEvent<HTMLElement>) => {
@@ -232,6 +272,29 @@ export default function OptionTwoHome({
           {notifications.some((item) => !item.readAt) && <span className="option-two-notification-badge" aria-label={locale === "zh" ? `${notifications.filter((item) => !item.readAt).length} 条未读` : `${notifications.filter((item) => !item.readAt).length} unread`}>{Math.min(99, notifications.filter((item) => !item.readAt).length)}</span>}
         </button>
       </div>
+
+      <section className={["home-widget-grid", widgetIds.length === 0 ? "is-empty" : ""].join(" ")} aria-label={locale === "zh" ? "我的健康小组件" : "My health widgets"} data-widget-count={widgetIds.length}>
+        {loading && snapshot === null
+          ? [0, 1, 2, 3].map((index) => <SkeletonBlock className="home-widget-skeleton" key={index} />)
+          : widgetIds.length === 0
+            ? <button className="home-widget-empty" type="button" onClick={() => onViewChange("home-widgets")}><Sparkles size={18} /><span><strong>{locale === "zh" ? "添加关注的小组件" : "Add widgets you care about"}</strong><small>{locale === "zh" ? "最多 6 个，每行 3 个" : "Up to 6, three per row"}</small></span></button>
+            : widgetIds.map((id) => {
+              const presentation = snapshot ? buildHomeWidgetPresentation(id, snapshot, locale, trends) : null;
+              const Icon = homeWidgetIcons[id];
+              return <button
+                className={["home-health-widget", presentation ? `is-${presentation.state}` : "is-missing"].join(" ")}
+                type="button"
+                key={id}
+                data-home-widget={id}
+                onClick={() => onOpenRecord(id, snapshot ? healthModuleEntryView(moduleProgress[id]) : "editor")}
+                aria-label={`${t(homeWidgetLabelKeys[id])}${locale === "zh" ? "，" : ", "}${presentation?.core ?? "--"}${locale === "zh" ? "，" : ", "}${presentation?.support ?? (locale === "zh" ? "加载中" : "Loading")}`}
+              >
+                <span><Icon size={15} /><b>{t(homeWidgetLabelKeys[id])}</b></span>
+                <strong>{presentation?.core ?? "--"}</strong>
+                <small>{presentation?.support ?? (locale === "zh" ? "加载中" : "Loading")}</small>
+              </button>;
+            })}
+      </section>
 
       {homeGuidance && (
         <aside className="option-two-guidance" aria-live="polite" data-guidance-reason={homeGuidance.reason}>

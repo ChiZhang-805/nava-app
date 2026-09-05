@@ -343,6 +343,7 @@ async function main() {
 
     const faceResults = [];
     await page.evaluate(() => localStorage.setItem("nava.review.demo.empty-snapshot-date.v1", "2020-01-01"));
+    await page.addInitScript(() => Object.keys(sessionStorage).filter((key) => key.startsWith("nava-face-capture-readiness:")).forEach((key) => sessionStorage.removeItem(key)));
     for (const viewport of viewports) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto(`${baseUrl}?demo=1#tab=record&module=face&view=editor`, { waitUntil: "networkidle" });
@@ -356,6 +357,14 @@ async function main() {
       await expect(detail.locator(".face-mode-icon-actions button")).toHaveCount(2);
       await expect(detail.locator(".face-mode-picker")).toHaveCount(0);
       await expect(detail.locator(".face-ai-evaluation footer")).toHaveCount(0);
+      const readinessButtons = detail.locator(".face-capture-readiness > div button");
+      await expect(readinessButtons).toHaveCount(3);
+      if ((await detail.locator(".face-capture-readiness").getAttribute("class"))?.includes("is-ready")) {
+        for (let readinessIndex = 0; readinessIndex < 3; readinessIndex += 1) await readinessButtons.nth(readinessIndex).click();
+      }
+      await expect(detail.locator(".face-photo-actions button").first()).toBeDisabled();
+      for (let readinessIndex = 0; readinessIndex < 3; readinessIndex += 1) await readinessButtons.nth(readinessIndex).click();
+      await expect(detail.locator(".face-capture-readiness")).toHaveClass(/is-ready/);
       await expect(detail.locator(".face-photo-actions button").first()).toBeEnabled();
       await expect(detail.locator(".face-ai-evaluation")).toBeVisible();
       await expect(detail.locator(".face-ai-evaluation")).toHaveClass(/is-empty/);

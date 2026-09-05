@@ -1,0 +1,61 @@
+export type SleepMaintenanceSession = {
+  version: 1;
+  startedAt: string;
+};
+
+const MAX_SLEEP_SESSION_MS = 24 * 60 * 60 * 1_000;
+const keyFor = (userId: string) => `nava.sleep-maintenance.v1:${userId}`;
+
+function validStartedAt(value: unknown, now: Date) {
+  if (typeof value !== "string") return false;
+  const started = new Date(value).getTime();
+  return Number.isFinite(started) && started <= now.getTime() + 60_000 && now.getTime() - started <= MAX_SLEEP_SESSION_MS;
+}
+
+export function loadSleepMaintenance(userId: string, now = new Date()): SleepMaintenanceSession | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(keyFor(userId)) ?? "null") as Partial<SleepMaintenanceSession> | null;
+    if (!parsed || parsed.version !== 1 || !validStartedAt(parsed.startedAt, now)) {
+      window.localStorage.removeItem(keyFor(userId));
+      return null;
+    }
+    return { version: 1, startedAt: parsed.startedAt as string };
+  } catch {
+    window.localStorage.removeItem(keyFor(userId));
+    return null;
+  }
+}
+
+export function startSleepMaintenance(userId: string, now = new Date()): SleepMaintenanceSession {
+  const session: SleepMaintenanceSession = { version: 1, startedAt: now.toISOString() };
+  if (typeof window !== "undefined") window.localStorage.setItem(keyFor(userId), JSON.stringify(session));
+  return session;
+}
+
+export function clearSleepMaintenance(userId: string) {
+  if (typeof window !== "undefined") window.localStorage.removeItem(keyFor(userId));
+}
+
+function localTime(date: Date) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+export function sleepMaintenanceFields(session: SleepMaintenanceSession, endedAt = new Date()) {
+  const startedAt = new Date(session.startedAt);
+  const durationMinutes = Math.max(1, Math.min(24 * 60, Math.round((endedAt.getTime() - startedAt.getTime()) / 60_000)));
+  const deepMinutes = Math.round(durationMinutes * .2);
+  const lightMinutes = Math.round(durationMinutes * .58);
+  return {
+    start: localTime(startedAt),
+    end: localTime(endedAt),
+    durationMinutes,
+    deepMinutes,
+    lightMinutes,
+    remMinutes: Math.max(0, durationMinutes - deepMinutes - lightMinutes),
+  };
+}
+
+export function sleepMaintenanceElapsedMinutes(session: SleepMaintenanceSession, now = new Date()) {
+  return Math.max(0, Math.floor((now.getTime() - new Date(session.startedAt).getTime()) / 60_000));
+}
