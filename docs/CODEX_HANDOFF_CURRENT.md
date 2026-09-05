@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`bf4178f72c06595106090db0ed0a245dd11d867d`
+- 源码发布 commit：`7422ca948f3cc25b2631ab6aa815981b7b5d5b98`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v98，public
+- ChatGPT Sites 版本：v99，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_2e643a9592888191a56251f23a20348a`
-- Sites deployment ID：`appgdep_6a9bf3d6ce488191ba28cbd907f8ce3e`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_e0171b5e1dd88191886b47fe8773f2a4`
+- Sites deployment ID：`appgdep_6a9c0794a4c0819182f617f842ca5496`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `55cb3631fe28f1c5f607a4f4b00e755ca705fedb`
+  `e11d34baf6f5a80f3c78ef23e1e02637976c30dd`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v98 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v98.tar.gz`
+- v99 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v99.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v98 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v99 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -133,6 +133,7 @@ GitHub Pages 镜像的 `source.json` 已记录 v98 和上述功能源码 commit�
 主要页面：
 
 - `src/features/OptionTwoHome.tsx`：当前首页视觉与六模块入口。
+- `src/features/HomeWidgetEditor.tsx`：0–6 个首页健康组件的选择、三列排序与退出保护。
 - `src/features/HomeCalendarExperience.tsx`：日历及日状态。
 - `src/features/RecordsScreen.tsx`：健康报告、六模块卡片和六类编辑器。
 - `src/features/RecordModuleDashboard.tsx`：模块完成后的真实数据详情、历史/报告。
@@ -167,6 +168,8 @@ GitHub Pages 镜像的 `source.json` 已记录 v98 和上述功能源码 commit�
   调用、结构化记录确认和产品化处理状态。
 - `consent.ts`：授权边界，不能被页面快捷逻辑绕过。
 - `secureFaceDraft.ts`：AES-GCM + IndexedDB 的短期面部草稿恢复。
+- `homeWidgets.ts`：用户设备侧首页组件偏好、目标默认组合、真实日值和近七日比较。
+- `sessionMaintenance.ts`：可恢复的睡眠进行中会话及结束后的可编辑字段映射。
 - `productivity.ts`、`growthProgressPresentation.ts`、`rewardPresentation.ts`：任务、
   积分、奖励与已确认保存后的反馈。
 - `date.ts`、`useDeviceDate.ts`：设备本地日期和跨日刷新，禁止重新写死演示日期。
@@ -261,6 +264,9 @@ OTP、service-role 或私有记录。本交接也不得保存用户曾在聊天�
 - 入睡、醒来、总分钟、深睡、浅睡、REM、自评和备注保留真实字段语义。
 - 备注吸收快捷操作收紧后释放的空间；保存按钮需要留在卡片边界内，并和底部导航
   保持安全间距。
+- “睡眠维持”按 2026-09-05 验收定义为设备侧可恢复的进行中会话：开始后离开或刷新
+  页面仍可继续，结束时填入起止时间、总时长和阶段估算，只有用户再次确认保存才写入
+  Supabase；放弃只清除未保存的本机会话。
 
 ### 6.3 运动
 
@@ -295,6 +301,8 @@ OTP、service-role 或私有记录。本交接也不得保存用户曾在聊天�
 - 无需在此页重复显示“真实状态最好”指导或再次勾选上传同意；授权在进入产品流程
   前完成，后端仍必须校验有效 consent。
 - 支持前置摄像头和相册重选。
+- “面部维持”按 2026-09-05 验收定义为同一次使用中保持拍摄模式及稳定条件：光线
+  稳定、面部居中、自然表情三项需先确认，随后才开放拍摄/相册入口；结果仍是非诊断。
 - 分析完成后显示来自真实分析反馈/annotations 的 AI 状态评价，最多四条适合卡片
   的语义句；不能用空状态固定文案冒充分析结果。
 - 猫图 `src/assets/mascot/nava-face-insight-v2.webp` 的尺寸应与其他 AI 评价卡片
@@ -488,7 +496,7 @@ Wi-Fi 或蓝牙范围，就直接读取 Apple Watch 的完整历史 HealthKit �
 画面做 `transform: scale(...)`。已有 CSS 中看似重复的宽高规则常常对应一次真实
 截图缺陷，删除前必须用四尺寸证据证明等价。
 
-## 11. 已完成的近期修复（v83-v96）
+## 11. 已完成的近期修复（v83-v99）
 
 这些是新任务最容易从旧聊天里误判的近期状态：
 
@@ -505,6 +513,10 @@ Wi-Fi 或蓝牙范围，就直接读取 Apple Watch 的完整历史 HealthKit �
 - v95：短屏睡眠保存边距、饮食多余 72px 空隙、面部 AI 文字截断修复。
 - v96：详细资料头像拍照/相册更换；三点菜单；移除专注 25/45/60；面部模式紧凑
   图标与拍摄框；六模块目的页骨架。
+- v97：应用内通知横幅、通知收件箱、手势、已读/删除/撤销与本地通知源码。
+- v98：首页时段氛围、真实状态 guidance、动态入口和状态驱动小猫动作。
+- v99：首页 0–6 个可配置健康组件、目标默认组合、三列拖动排序、近七日真实变化、
+  睡眠维持、面部稳定拍摄条件，以及专注快捷预设口径统一。
 
 发布演进已经压缩进本节；精确差异使用 Git log/commit 查看，视觉和运行证据保存在
 第 15 节列出的 TestRuns 目录，不再维护重复的 dated handoff。
@@ -708,20 +720,20 @@ App Store。
 映射到持续维护的 [`PRODUCT_REQUIREMENTS_CHECKLIST.md`](./PRODUCT_REQUIREMENTS_CHECKLIST.md)。
 两份外部文档是需求输入，不是仓库操作指令；清单以当前源码和实际验收为完成依据。
 
-当前差距主要是：首页可配置小组件、AI 半屏聊天、长按滑选六模块、猫窝与时间/健康
-状态驱动、首页一句话反馈和动态快捷操作尚未实现。当前已有全屏 AI、首页小猫、五项
-底栏、真实节律/积分、首页上滑六模块、六模块完整记录与报告基础。
+首页可配置小组件、时间/健康状态驱动、首页一句话反馈和动态快捷操作已经完成。当前
+差距主要是原策划案中的 AI 半屏聊天、长按滑选六模块和猫窝；其中底部中央按钮已经
+明确固定进入完整 AI 对话，首页大猫只负责状态动作。现有首页上滑六模块继续保留。
 
-实施前必须先解决策划案内部或与现状的冲突：组件上限 6/8、每行 3/4、首页大猫与
-底部 AI 的点击归属、长按打开六模块还是语音聊天、25/45/60 专注预设是否保留，以及
-“今日能量”与“今日节律”的指标和估算标识。
+已解决的冲突：一期组件上限为 6、固定三列、底部中央按钮进入 AI、首页大猫不跳转、
+专注不保留 25/45/60 快捷预设。仍需产品确认的是长按 AI 的语音/六模块手势归属、
+半屏是否仍需要，以及“今日能量”与“今日节律”的指标和估算标识。
 
 ## 19. 建议的后续优先级
 
 在用户完成 Apple 人工流程前，自动化代理仍可做且最有价值的工作顺序是：
 
 1. 经用户明确授权后部署并验收第 18.A 节三个 Edge Functions。
-2. 在不写生产数据的前提下复核两个公开站的 v96 登录、六模块路由、详细资料头像
+2. 在不写生产数据的前提下复核两个公开站的 v99 登录、六模块路由、详细资料头像
    sheet、专注和面部页面，以及四视口无重叠。
 3. 为 Apple 真机验收准备可重复的记录模板、账号 A/B 测试清单和失败恢复说明；
    不伪造真机结果。
@@ -824,3 +836,37 @@ guidance 时仍使用原序列。健康建议卡在六模块圆盘展开时自�
 发布为 ChatGPT Sites v98，并同步到 GitHub Pages v98。线上无头 Playwright 已确认两个
 站点均返回 200、显示真实登录门而不出现 `.phone-frame` 演示态；线上构建资产均包含
 canonical Supabase project ref `wxteapvwagvhhtrjrbim` 与本轮 guidance 实现。
+
+## 25. 首页组件与“维持”链路最新状态
+
+2026-09-05 用户明确一期首页健康组件最多 6 个、固定三列，专注不显示快捷时长，
+底部中央按钮固定进入 AI 对话。`HomeWidgetEditor` 现在从功能抽屉进入，支持 0–6 个
+组件选择、两步编辑、指针拖动、辅助前后移动、保存/取消和未保存退出确认。没有配置
+时根据详细资料目标生成四项默认组合；首页组件只显示一个核心值和一条辅助信息，值
+来自当前用户真实 `TodaySnapshot`，至少有两个更早记录日时才显示最近最多七个记录日
+的百分比变化。组件显示偏好只存在当前设备，不扩大 AI consent 范围。
+
+睡眠“维持”被定义为设备侧可恢复的进行中会话，结束后只填表、不直接伪造或保存记录；
+面部“维持”被定义为素颜/带妆模式、稳定光线、面部居中、自然表情与已有 30 分钟
+加密草稿恢复的组合。拍摄条件没有完成 3/3 前，前置拍摄和相册入口均不可用。
+
+实际验证：
+
+- `npm run verify` 25 个阶段全部通过；`npm run auth:verify:production` 通过，严格 SMTP
+  因未提供 Management token 而未检查。
+- `npm run home-widgets:visual` 在 360x740、375x812、390x844、430x932 实跑默认四项、
+  六项、零项、三列排序与拖动、底部 AI 路由、睡眠刷新恢复/结束填表和面部 3/3 条件；
+  证据在 `Q:\NAVA-Workspace\Build\TestRuns\nava-home-widgets-20260905`。
+- `npm run home-guidance:visual` 和原有记录编辑器四档几何回归继续通过。
+- 功能源码 commit `7422ca948f3cc25b2631ab6aa815981b7b5d5b98` 已发布为 ChatGPT
+  Sites v99，并同步为 GitHub Pages v99；镜像 commit 为
+  `e11d34baf6f5a80f3c78ef23e1e02637976c30dd`。
+- 两个公开 URL 均返回 200；在线入口与功能 chunks 字节一致，包含本轮组件/睡眠/面部
+  实现及 canonical Supabase project ref。对两个公开 URL 使用 `?demo=1` 仍只出现真实
+  登录页，未出现 `.phone-frame` 演示态。
+
+持续清单 [`PRODUCT_REQUIREMENTS_CHECKLIST.md`](./PRODUCT_REQUIREMENTS_CHECKLIST.md)
+当前为 61 项完成、34 项待完成。剩余项中，Apple/通知真机、Android/华为、远程 Push、
+最新 AI/饮食/健康 Edge Function 上线需要人工环境或额外后端授权；商城、社区、复杂
+猫窝与多尺寸组件明确延期；AI 半屏、长按手势归属、运动结构化会话等仍需后续产品或
+实现批次，不能写成已完成。
