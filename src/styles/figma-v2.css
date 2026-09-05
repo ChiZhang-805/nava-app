@@ -10133,7 +10133,7 @@ body::before {
   .record-detail[data-record-detail="face"] .face-mode-picker button { min-height: 34px; }
   .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="face"]:has(.record-editor-stack) .record-editor-stack > div:not([hidden]) .photo-picker.face { min-height: 86px; flex-basis: 104px; margin-bottom: 5px; }
   .record-detail[data-record-detail="face"] .face-photo-actions button { min-height: 36px; }
-  .record-detail[data-record-detail="face"] .face-ai-evaluation { min-height: 112px; flex-basis: 122px; margin-top: 6px; padding-block: 8px 6px; }
+  .record-detail[data-record-detail="face"] .face-ai-evaluation { min-height: 112px; flex-basis: 122px; margin-top: 4px; padding-block: 8px 6px; }
 }
 
 @media (max-height: 780px) {
