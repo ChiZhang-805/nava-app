@@ -44,7 +44,7 @@ import emptyTodayMascot from "../assets/mascot/nava-empty-cry-v1.webp";
 import type { FocusRecord, FoodItem, MoodRecord, TodaySnapshot, TrendBundle } from "../types";
 import { enableNavaNotifications } from "../services/notifications";
 import { loadDietAiReport, type DietAiReport } from "../services/dietReport";
-import { loadHealthAiReport, type HealthAiReport } from "../services/healthReport";
+import { healthReportSourceRevision, loadHealthAiReport, type HealthAiReport } from "../services/healthReport";
 import {
   getHealthAuthorizationStatus,
   getLastHealthSyncAt,
@@ -285,12 +285,14 @@ function HistoryView({
   module,
   locale,
   trendBundle,
+  profile,
   deviceDate,
   onGrowthActivity,
 }: {
   module: RecordModule;
   locale: "zh" | "en";
   trendBundle: TrendBundle | null;
+  profile: UserProfile | null;
   deviceDate: string;
   onGrowthActivity?: (activity: GrowthActivityKind) => void | Promise<unknown>;
 }) {
@@ -338,6 +340,7 @@ function HistoryView({
   const [sharing, setSharing] = useState(false);
   const [shareComplete, setShareComplete] = useState(false);
   const shareCompleteTimerRef = useRef<number | null>(null);
+  const healthSourceRevision = module === "diet" ? undefined : healthReportSourceRevision({ scope: module, endDate: deviceDate, trendBundle, profile });
   useEffect(() => () => {
     if (shareCompleteTimerRef.current !== null) window.clearTimeout(shareCompleteTimerRef.current);
   }, []);
@@ -380,7 +383,7 @@ function HistoryView({
     setHealthReport(null);
     setReportLoading(true);
     setReportUnavailable(false);
-    void loadHealthAiReport({ scope: module, endDate: deviceDate, locale })
+    void loadHealthAiReport({ scope: module, endDate: deviceDate, locale, sourceRevision: healthSourceRevision })
       .then((report) => {
         if (active) setHealthReport(report);
       })
@@ -394,7 +397,7 @@ function HistoryView({
     return () => {
       active = false;
     };
-  }, [deviceDate, hasTodayRecord, locale, module]);
+  }, [deviceDate, hasTodayRecord, healthSourceRevision, locale, module]);
   const reportInsights = hasTodayRecord ? (module === "diet" ? (dietReport?.bullets ?? []) : (healthReport?.bullets ?? [])) : [];
   const reportIsDemo = module === "diet" ? dietReport?.modelVersion === "demo-only" : healthReport?.provider === "demo";
   const shareSummary = async () => {
@@ -783,7 +786,7 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
     openView("overview");
   };
 
-  if (view === "trend") return <HistoryView module="mood" locale={locale} trendBundle={trendBundle} deviceDate={deviceDate} />;
+  if (view === "trend") return <HistoryView module="mood" locale={locale} trendBundle={trendBundle} profile={props.profile} deviceDate={deviceDate} />;
 
   return (
     <form className="module-dashboard mood-dashboard" onSubmit={(event) => void submitMood(event)} data-module-view="mood-overview" data-ui-revision="mood-summary-live-v4">
@@ -931,7 +934,7 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
     setNotificationEnabled(true);
   };
 
-  if (view === "trend") return <HistoryView module="sleep" locale={locale} trendBundle={trendBundle} deviceDate={deviceDate} />;
+  if (view === "trend") return <HistoryView module="sleep" locale={locale} trendBundle={trendBundle} profile={props.profile} deviceDate={deviceDate} />;
 
   return (
     <div className="module-dashboard sleep-dashboard" data-module-view="sleep-overview">
@@ -1497,7 +1500,17 @@ export default function RecordModuleDashboard(props: Props) {
         const report = await loadDietAiReport({ date: props.recordDate, locale });
         if (requestId === overviewInsightRequestRef.current) setOverviewInsight(report.bullets[0] ?? null);
       } else {
-        const report = await loadHealthAiReport({ scope: props.module, endDate: props.recordDate, locale });
+        const report = await loadHealthAiReport({
+          scope: props.module,
+          endDate: props.recordDate,
+          locale,
+          sourceRevision: healthReportSourceRevision({
+            scope: props.module,
+            endDate: props.recordDate,
+            trendBundle: props.trendBundle,
+            profile: props.profile,
+          }),
+        });
         const association = report.sections.find((section) => section.id === "association");
         const associationIsUseful = association
           && association.confidence !== "low"
@@ -1515,7 +1528,7 @@ export default function RecordModuleDashboard(props: Props) {
     } finally {
       if (requestId === overviewInsightRequestRef.current) setOverviewInsightLoading(false);
     }
-  }, [hasCurrentRecord, locale, props.module, props.recordDate]);
+  }, [hasCurrentRecord, locale, props.module, props.profile, props.recordDate, props.trendBundle]);
   useEffect(() => {
     setOverviewInsight(null);
     setOverviewInsightError(false);
@@ -1524,7 +1537,7 @@ export default function RecordModuleDashboard(props: Props) {
       overviewInsightRequestRef.current += 1;
     };
   }, [hasCurrentRecord, loadOverviewInsight, view]);
-  if (view === "history") return <HistoryView module={props.module} locale={locale} trendBundle={props.trendBundle} deviceDate={props.deviceDate} onGrowthActivity={props.onGrowthActivity} />;
+  if (view === "history") return <HistoryView module={props.module} locale={locale} trendBundle={props.trendBundle} profile={props.profile} deviceDate={props.deviceDate} onGrowthActivity={props.onGrowthActivity} />;
   const common = { ...props, locale };
   let dashboard: ReactNode = null;
   if (props.module === "exercise") dashboard = <ExerciseDashboard userId={props.userId} locale={locale} steps={props.steps} calories={props.calories} exerciseMinutes={props.exerciseMinutes} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} deviceDate={props.deviceDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;

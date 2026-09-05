@@ -79,8 +79,11 @@ final prompt without becoming instructions.
   If the contract still fails, the request fails visibly; no fixed production
   prose replaces the model.
 - A successfully validated health report is reused in memory for the current
-  authenticated user, scope, period and language. Confirmed record saves use the
-  explicit refresh path. Across reloads and devices, the Edge Function remains
+  authenticated user, scope, period and language only while the caller's local
+  revision of the relevant report records and authorized profile is unchanged.
+  HealthKit, Watch, Realtime or another refresh that changes those inputs changes
+  the revision; confirmed record saves also use the explicit refresh path.
+  Across reloads and devices, the Edge Function remains
   authoritative: it reuses the Supabase row only when the SHA-256 source
   fingerprint and model version still match, and calls the model only after the
   authorized source data or profile changes.

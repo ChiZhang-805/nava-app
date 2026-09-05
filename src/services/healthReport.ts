@@ -2,6 +2,8 @@ import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
 import { shiftDateISO } from "./date";
 import { validCompactReportBullet, type CompactSummary } from "./reportSummaryContract";
+import type { UserProfile } from "./profile";
+import type { TrendBundle } from "../types";
 
 export type HealthReportScope = "mood" | "sleep" | "exercise" | "focus" | "face" | "weekly";
 
@@ -29,7 +31,7 @@ export interface HealthAiReport {
 }
 
 const pending = new Map<string, Promise<HealthAiReport>>();
-const resolved = new Map<string, HealthAiReport>();
+const resolved = new Map<string, { sourceRevision: string; report: HealthAiReport }>();
 
 const demoCompactByScope: Record<HealthReportScope, { zh: CompactSummary; en: CompactSummary }> = {
   mood: {
@@ -87,11 +89,79 @@ function validStructuredReport(report: HealthAiReport, locale: "zh" | "en") {
       && ["high", "medium", "low"].includes(section.confidence));
 }
 
+function stableValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    .filter(([, entry]) => entry !== undefined)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, entry]) => [key, stableValue(entry)]));
+}
+
+function compactRevision(value: unknown) {
+  const source = JSON.stringify(stableValue(value));
+  let first = 0x811c9dc5;
+  let second = 0x9e3779b9;
+  for (let index = 0; index < source.length; index += 1) {
+    const code = source.charCodeAt(index);
+    first = Math.imul(first ^ code, 0x01000193);
+    second = Math.imul(second ^ code, 0x85ebca6b);
+  }
+  return `${(first >>> 0).toString(36)}${(second >>> 0).toString(36)}`;
+}
+
+export function healthReportSourceRevision(input: {
+  scope: HealthReportScope;
+  endDate: string;
+  trendBundle: TrendBundle | null;
+  profile: UserProfile | null;
+}) {
+  if (!input.trendBundle) return undefined;
+  const startDate = shiftDateISO(input.endDate, -6);
+  const inPeriod = <T extends { record_date: string }>(rows: T[]) => rows.filter((row) => row.record_date >= startDate && row.record_date <= input.endDate);
+  const bundle = input.trendBundle;
+  const companions = {
+    moods: inPeriod(bundle.moods),
+    sleeps: inPeriod(bundle.sleeps),
+    exercises: inPeriod(bundle.exercises),
+    focus: inPeriod(bundle.focus),
+  };
+  const records = input.scope === "weekly"
+    ? {
+        rhythms: inPeriod(bundle.rhythms),
+        ...companions,
+        nutrition: inPeriod(bundle.nutritions),
+        faces: inPeriod(bundle.faces),
+      }
+    : input.scope === "mood"
+      ? { primary: companions.moods, companions: { sleeps: companions.sleeps, exercises: companions.exercises, focus: companions.focus } }
+      : input.scope === "sleep"
+        ? { primary: companions.sleeps, companions: { moods: companions.moods, exercises: companions.exercises, focus: companions.focus } }
+        : input.scope === "exercise"
+          ? { primary: companions.exercises, companions: { sleeps: companions.sleeps, moods: companions.moods, focus: companions.focus } }
+          : input.scope === "focus"
+            ? { primary: companions.focus, companions: { sleeps: companions.sleeps, moods: companions.moods, exercises: companions.exercises } }
+            : { primary: inPeriod(bundle.faces), companions };
+  return compactRevision({
+    scope: input.scope,
+    period: { startDate, endDate: input.endDate },
+    profile: input.profile ? {
+      ageGroup: input.profile.age_group,
+      occupation: input.profile.occupation,
+      goal: input.profile.goal,
+      aiPersonalizationConsent: input.profile.ai_personalization_consent,
+      onboardingAnswers: input.profile.onboarding_answers,
+    } : null,
+    records,
+  });
+}
+
 export async function loadHealthAiReport(input: {
   scope: HealthReportScope;
   endDate: string;
   locale: "zh" | "en";
   refresh?: boolean;
+  sourceRevision?: string;
 }) {
   if (isDemoMode()) {
     const sections: HealthReportSection[] = input.locale === "zh"
@@ -127,11 +197,11 @@ export async function loadHealthAiReport(input: {
   const userKey = sessionData.session?.user.id ?? "anonymous";
   const baseKey = `${userKey}:${input.scope}:${input.endDate}:${input.locale}`;
   if (input.refresh) resolved.delete(baseKey);
-  else {
+  else if (input.sourceRevision) {
     const cached = resolved.get(baseKey);
-    if (cached) return cached;
+    if (cached?.sourceRevision === input.sourceRevision) return cached.report;
   }
-  const key = `${baseKey}:${input.refresh ? "refresh" : "cached"}`;
+  const key = `${baseKey}:${input.sourceRevision ?? "uncached"}:${input.refresh ? "refresh" : "cached"}`;
   const active = pending.get(key);
   if (active) return active;
   const request = (async () => {
@@ -145,7 +215,7 @@ export async function loadHealthAiReport(input: {
     if (!report || report.provider !== "deepseek" || report.bullets.length !== 4 || !report.bullets.every((bullet) => validBullet(bullet, input.locale)) || !compactBulletsValid || !validStructuredReport(report, input.locale)) {
       throw new Error(input.locale === "zh" ? "AI 健康报告格式无效，请稍后重试。" : "The AI health report was invalid. Please retry.");
     }
-    resolved.set(baseKey, report);
+    if (input.sourceRevision) resolved.set(baseKey, { sourceRevision: input.sourceRevision, report });
     return report;
   })();
   pending.set(key, request);

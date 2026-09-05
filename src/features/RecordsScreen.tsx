@@ -31,7 +31,7 @@ import type { GrowthActivityKind } from "../services/productivity";
 import { clearRecordDraft, loadRecordDraft, saveRecordDraft, type RecordDraftModule } from "../services/drafts";
 import { loadProfile, type UserProfile } from "../services/profile";
 import { loadDietAiReport } from "../services/dietReport";
-import { loadHealthAiReport, type HealthAiReport, type HealthReportSection } from "../services/healthReport";
+import { healthReportSourceRevision, loadHealthAiReport, type HealthAiReport, type HealthReportSection } from "../services/healthReport";
 import { calculateWeeklyModuleScores, type WeeklyModuleKey } from "../services/weeklyModuleScores";
 import { allHealthModulesComplete, buildHealthModulePresentations, compareRecordedPeriodAverages, healthModuleEntryView, healthModuleProgressLabel, type HealthModulePoints } from "../services/healthReportPresentation";
 import { clearSecureFaceDraft, loadSecureFaceDraft, saveSecureFaceDraft } from "../services/secureFaceDraft";
@@ -627,7 +627,8 @@ export default function RecordsScreen({
     }
     setHubAiLoading(true);
     setHubAiUnavailable(false);
-    void loadHealthAiReport({ scope: "weekly", endDate: recordDate, locale })
+    const sourceRevision = healthReportSourceRevision({ scope: "weekly", endDate: recordDate, trendBundle, profile });
+    void loadHealthAiReport({ scope: "weekly", endDate: recordDate, locale, sourceRevision })
       .then((report) => {
         if (active) setHubAiReport(report);
       })
@@ -639,7 +640,7 @@ export default function RecordsScreen({
         if (active) setHubAiLoading(false);
       });
     return () => { active = false; };
-  }, [hubAiEligible, locale, recordDate, user.id]);
+  }, [hubAiEligible, locale, profile, recordDate, trendBundle, user.id]);
 
   useEffect(() => {
     let active = true;
@@ -656,7 +657,12 @@ export default function RecordsScreen({
     recordedModules.forEach((module) => {
       const request = module === "diet"
         ? loadDietAiReport({ date: recordDate, locale })
-        : loadHealthAiReport({ scope: module, endDate: recordDate, locale });
+        : loadHealthAiReport({
+            scope: module,
+            endDate: recordDate,
+            locale,
+            sourceRevision: healthReportSourceRevision({ scope: module, endDate: recordDate, trendBundle, profile }),
+          });
       void request
         .then((report) => {
           if (!active || !report.compactBullets) return;
@@ -667,7 +673,7 @@ export default function RecordsScreen({
         });
     });
     return () => { active = false; };
-  }, [activeModule, dataLoadError, dataLoading, locale, recordDate, reportMode, todaySnapshot, user.id]);
+  }, [activeModule, dataLoadError, dataLoading, locale, profile, recordDate, reportMode, todaySnapshot, trendBundle, user.id]);
 
   useEffect(() => {
     if (reportMode !== "weekly") return;
@@ -685,7 +691,8 @@ export default function RecordsScreen({
     }
     setWeeklyAiLoading(true);
     setWeeklyAiUnavailable(false);
-    void loadHealthAiReport({ scope: "weekly", endDate: availableEndDate, locale })
+    const sourceRevision = healthReportSourceRevision({ scope: "weekly", endDate: availableEndDate, trendBundle, profile });
+    void loadHealthAiReport({ scope: "weekly", endDate: availableEndDate, locale, sourceRevision })
       .then((report) => {
         if (active) setWeeklyAiReport(report);
       })
@@ -699,7 +706,7 @@ export default function RecordsScreen({
     return () => {
       active = false;
     };
-  }, [deviceDate, forceWeeklyAiFixture, locale, reportMode, trendBundle, user.id, weekOffset]);
+  }, [deviceDate, forceWeeklyAiFixture, locale, profile, reportMode, trendBundle, user.id, weekOffset]);
 
   const clearWeeklyLongPress = useCallback(() => {
     if (weeklyLongPressTimerRef.current !== null) {
