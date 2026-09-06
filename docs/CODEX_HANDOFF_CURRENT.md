@@ -1323,3 +1323,31 @@ auth:verify:production` 继续确认 canonical project、公开登录门和禁�
 推送表 HTTP 404、`push-dispatch` HTTP 404，精确对应尚未获得授权的 production 变更。
 Android `gradlew` 也已尝试，当前唯一启动前阻塞是系统没有 Java/JDK，未把未编译状态写成
 通过。
+
+## 35. 2026-09-07 全应用布局与真实数据呈现复核
+
+本轮没有只复核首页，而是把首页、月历、日报、通知、组件编辑、详细资料、AI、记录中心、
+六类记录编辑与二级页、周报、成长和个人资料共 34 个页面/状态放入同一浏览器回归，在
+360×740、375×812、390×844、430×932 四个规定视口生成 136 张截图。截图脚本除横向
+溢出外，新增专注待办上下轨道不得重叠、运动设备卡不得留下异常内部空洞、组件排序必须
+符合首页 `1+3` 槽位，以及详细资料不得显示 `under_5h`、`almost_none`、`none` 等云端
+原始枚举的可执行断言。证据在
+`Q:\NAVA-Workspace\Build\TestRuns\nava-all-pages-layout-audit-20260907-final`。
+
+实际修正包括：专注待办标题与时间/分钟控件的网格高度和间距；运动设备二级页取消强制
+撑满整屏，并展示真实运行环境、Apple Watch 配对/可达、Health 授权和最后同步状态；首页
+组件排序页按最终首页槽位预览；个人资料首屏取消卡片内部人为撑高；详细资料把 onboarding
+和 Supabase 中的睡眠、运动、饮食 canonical 值映射为可读且可继续编辑的控件，同时保留
+未知旧值，避免仅为了显示而破坏原云端资料。网页预览会明确显示不能直接读取 HealthKit，
+不会把不可用能力写成已同步。
+
+本地 `npm run verify` 30 个阶段全部通过；全应用 interaction 11 组、首页组件、首页推荐、
+通知中心和桌面 iPhone 预览也分别通过四档或对应桌面/触屏验证。这里的“真实数据”结论
+限定为代码合同、读写路径、空值处理和 production schema 探测，不等同于擅自查看某位
+生产用户的私有内容。
+
+生产发布边界保持不变：canonical Supabase 的既有表和函数可用，但源码分支仍包含尚未获
+单独后端授权的 `202609070004`、`202609070005`、更新后的 `export-user-data` 与新
+`push-dispatch`。只读 readiness 探测仍以新运动字段 HTTP 400、两张推送表 HTTP 404 和
+`push-dispatch` HTTP 404 精确指出这些差异。本轮没有应用 migration、部署 Edge Function、
+修改 secret 或发布依赖不完整 schema 的双站前端。

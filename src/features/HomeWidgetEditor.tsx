@@ -96,6 +96,7 @@ export default function HomeWidgetEditor({
               key={id}
               role="listitem"
               data-sort-widget={id}
+              data-sort-index={index + 1}
               onPointerDown={(event) => { dragIdRef.current = id; event.currentTarget.setPointerCapture(event.pointerId); }}
               onPointerMove={movePointer}
               onPointerUp={() => { dragIdRef.current = null; }}

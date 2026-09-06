@@ -85,6 +85,9 @@ async function login(page, baseUrl, viewport, report) {
   await page.locator(".auth-submit").click();
   await completeOnboarding(page, viewport, report);
   await expect(page.locator(".phone-frame")).toBeVisible();
+  await page.waitForTimeout(350);
+  const reward = page.locator(".reward-celebration-card > button");
+  if (await reward.isVisible().catch(() => false)) await reward.click();
 }
 
 async function capture(page, viewport, name, selector, report) {
@@ -103,8 +106,65 @@ async function capture(page, viewport, name, selector, report) {
   if (layout.frameScrollWidth > layout.frameWidth + 1) {
     throw new Error(`${viewport.name}/${name} has horizontal overflow: ${JSON.stringify(layout)}`);
   }
+  if (name === "07-focus") {
+    const formGeometry = await page.locator(".focus-todo-plan-form").evaluate((form) => {
+      const title = form.querySelector(".focus-todo-title-input")?.getBoundingClientRect();
+      const controls = [...form.querySelectorAll("label")].map((node) => node.getBoundingClientRect());
+      return {
+        titleBottom: title?.bottom ?? 0,
+        controlsTop: controls.length > 0 ? Math.min(...controls.map((rect) => rect.top)) : Number.POSITIVE_INFINITY,
+      };
+    });
+    if (formGeometry.titleBottom > formGeometry.controlsTop + 1) {
+      throw new Error(`${viewport.name}/${name} task planner rows overlap: ${JSON.stringify(formGeometry)}`);
+    }
+  }
+  if (name === "06-exercise-device") {
+    const cardGeometry = await page.locator(".device-subview-card").evaluate((card) => {
+      const cardRect = card.getBoundingClientRect();
+      const lastChild = card.lastElementChild?.getBoundingClientRect();
+      return { cardBottom: cardRect.bottom, contentBottom: lastChild?.bottom ?? cardRect.bottom };
+    });
+    if (cardGeometry.cardBottom - cardGeometry.contentBottom > 32) {
+      throw new Error(`${viewport.name}/${name} leaves excessive empty space inside its card: ${JSON.stringify(cardGeometry)}`);
+    }
+  }
+  if (name === "00g-home-widgets-sort") {
+    const positions = await page.locator(".home-widget-sort > article").evaluateAll((items) => items.map((item) => {
+      const rect = item.getBoundingClientRect();
+      return { index: Number(item.getAttribute("data-sort-index")), top: rect.top, left: rect.left };
+    }));
+    const byIndex = new Map(positions.map((position) => [position.index, position]));
+    const first = byIndex.get(1);
+    const second = byIndex.get(2);
+    const third = byIndex.get(3);
+    const fourth = byIndex.get(4);
+    if (!first || !second || !third || !fourth
+      || first.top >= second.top
+      || Math.abs(second.top - third.top) > 1
+      || Math.abs(second.top - fourth.top) > 1
+      || !(second.left < third.left && third.left < fourth.left)) {
+      throw new Error(`${viewport.name}/${name} does not mirror the home 1+3 slots: ${JSON.stringify(positions)}`);
+    }
+  }
+  if (name === "00h-profile-details") {
+    const profilePresentation = await page.locator(".advanced-profile-section").nth(1).evaluate((section) => ({
+      selectedOptions: [...section.querySelectorAll("select")].map((select) => select.selectedOptions[0]?.textContent?.trim() ?? ""),
+      selectedDiet: [...section.querySelectorAll(".advanced-profile-diet-chips .is-selected")].map((button) => button.textContent?.trim() ?? ""),
+    }));
+    const rawCodes = new Set(["under_5h", "5_6h", "6_7h", "7_8h", "8_9h", "over_9h", "almost_none", "under_1h", "1_2h", "2_4h", "4_7h", "over_7h", "none"]);
+    if (profilePresentation.selectedOptions.some((value) => rawCodes.has(value))
+      || profilePresentation.selectedDiet.some((value) => rawCodes.has(value))) {
+      throw new Error(`${viewport.name}/${name} exposes stored profile codes instead of localized labels: ${JSON.stringify(profilePresentation)}`);
+    }
+  }
   report.push({ viewport: viewport.name, screen: name, ...layout });
   await page.screenshot({ path: path.join(outputDir, viewport.name, `${name}.png`) });
+}
+
+async function navigateRoute(page, hash, selector) {
+  await page.evaluate((nextHash) => { window.location.hash = nextHash; }, hash);
+  await expect(page.locator(selector).first()).toBeVisible();
 }
 
 async function returnToHub(page) {
@@ -128,6 +188,31 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
 
   await mkdir(path.join(outputDir, viewport.name), { recursive: true });
   await login(page, baseUrl, viewport, report);
+
+  await capture(page, viewport, "00-home", ".option-two-home", report);
+  await page.locator(".option-two-menu-toggle").click();
+  await capture(page, viewport, "00b-home-shortcuts", '.option-two-home[data-health-menu-open="false"]', report);
+
+  await navigateRoute(page, "#tab=today&view=calendar", '[data-home-view="calendar"]');
+  await capture(page, viewport, "00c-home-calendar", '[data-home-view="calendar"]', report);
+  await page.locator(".home-calendar-day.is-today").click();
+  await capture(page, viewport, "00d-home-daily-report", '[data-home-view="daily"]', report);
+
+  await navigateRoute(page, "#tab=today&view=notifications", "[data-notification-center]");
+  await capture(page, viewport, "00e-notifications", "[data-notification-center]", report);
+
+  await navigateRoute(page, "#tab=today&view=home-widgets", '[data-widget-editor-step="select"]');
+  await capture(page, viewport, "00f-home-widgets-select", '[data-widget-editor-step="select"]', report);
+  await page.locator(".home-widget-editor footer button").last().click();
+  await capture(page, viewport, "00g-home-widgets-sort", '[data-widget-editor-step="sort"]', report);
+
+  await navigateRoute(page, "#tab=today&view=profile-details", '[data-home-view="profile-details"]');
+  await capture(page, viewport, "00h-profile-details", '[data-home-view="profile-details"]', report);
+
+  await navigateRoute(page, "#tab=ai", ".chat-layout");
+  await capture(page, viewport, "00i-ai", ".chat-layout", report);
+
+  await navigateRoute(page, "#tab=record", "[data-record-module]");
   await page.locator('[data-tab="record"]').click();
   await capture(page, viewport, "01-record-hub", ".record-module-grid", report);
 
@@ -181,6 +266,7 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
 
   await page.locator('[data-tab="profile"]').click();
   await expect(page.locator(".profile-stack")).toBeVisible();
+  await capture(page, viewport, "13-profile", ".profile-stack", report);
   await page.locator(".profile-next-section-button").click();
   await expect(page.locator(".profile-device-card").first()).toBeInViewport();
   await capture(page, viewport, "13-profile-devices", ".profile-device-stack", report);

@@ -593,6 +593,7 @@ function ExerciseDashboard({
   const [syncing, setSyncing] = useState(false);
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
   const [watchState, setWatchState] = useState<{ paired: boolean; reachable: boolean } | null>(null);
+  const [healthAuthorization, setHealthAuthorization] = useState<Awaited<ReturnType<typeof getHealthAuthorizationStatus>> | null>(null);
   const [deviceMessage, setDeviceMessage] = useState<string | null>(null);
   const [sportsPresetId, setSportsPresetId] = useState<"recommended" | "mobility" | "walk" | "recovery">("recommended");
   const [exerciseSession, setExerciseSession] = useState<ExerciseSession | null>(null);
@@ -763,10 +764,11 @@ function ExerciseDashboard({
 
   useEffect(() => {
     let active = true;
-    void Promise.all([getLastHealthSyncAt(userId), getWatchReachability()]).then(([lastSync, reachability]) => {
+    void Promise.all([getLastHealthSyncAt(userId), getWatchReachability(), getHealthAuthorizationStatus()]).then(([lastSync, reachability, authorization]) => {
       if (!active) return;
       setSyncedAt(lastSync);
       setWatchState(reachability);
+      setHealthAuthorization(authorization);
     });
     return () => {
       active = false;
@@ -778,7 +780,11 @@ function ExerciseDashboard({
     setDeviceMessage(null);
     try {
       const status = await getHealthAuthorizationStatus();
-      if (status.available && !status.requested) await requestHealthAuthorization();
+      setHealthAuthorization(status);
+      if (status.available && !status.requested) {
+        await requestHealthAuthorization();
+        setHealthAuthorization(await getHealthAuthorizationStatus());
+      }
       const result = await syncNativeHealthNow(userId);
       if ("skipped" in result && result.skipped) {
         const consentDisabled = "reason" in result && result.reason === "health_sync_consent_disabled";
@@ -831,7 +837,18 @@ function ExerciseDashboard({
     );
   }
 
-  if (view === "device") return <ModuleDetailView compact className="device-subview-card" title={locale === "zh" ? "运动设备" : "Activity devices"}><div className="device-picker"><button className="selected" type="button" onClick={() => void sync()} disabled={syncing}><Watch />{deviceTitle}{watchState?.paired && <Check />}</button><button type="button" onClick={() => void sync()} disabled={syncing}><Bluetooth />{locale === "zh" ? "授权并同步 Apple 健康" : "Authorize & sync Apple Health"}<Plus /></button></div><div className="detail-status-strip"><RefreshCw className={syncing ? "spin" : undefined} size={17} /><span>{deviceMessage ?? (locale === "zh" ? "数据由 HealthKit 读取并保存到云端" : "HealthKit data is saved to the cloud")}</span><strong>{syncLabel}</strong></div></ModuleDetailView>;
+  if (view === "device") return <ModuleDetailView compact className="device-subview-card" title={locale === "zh" ? "运动设备" : "Activity devices"}>
+    <div className="device-picker">
+      <button className="selected" type="button" onClick={() => void sync()} disabled={syncing}><Watch />{deviceTitle}{watchState?.paired && <Check />}</button>
+      <button type="button" onClick={() => void sync()} disabled={syncing}><Bluetooth />{locale === "zh" ? "授权并同步 Apple 健康" : "Authorize & sync Apple Health"}<Plus /></button>
+    </div>
+    <div className="device-facts" aria-label={locale === "zh" ? "设备连接状态" : "Device connection status"}>
+      <span><small>{locale === "zh" ? "运行环境" : "Runtime"}</small><strong>{isNativeHealthAvailable() ? (locale === "zh" ? "iPhone App" : "iPhone app") : (locale === "zh" ? "网页预览" : "Web preview")}</strong></span>
+      <span><small>Apple Watch</small><strong>{watchState?.paired ? (watchState.reachable ? (locale === "zh" ? "已连接" : "Reachable") : (locale === "zh" ? "已配对" : "Paired")) : (locale === "zh" ? "未配对" : "Not paired")}</strong></span>
+      <span><small>{locale === "zh" ? "健康授权" : "Health access"}</small><strong>{healthAuthorization?.available ? (healthAuthorization.requested ? (locale === "zh" ? "已请求" : "Requested") : (locale === "zh" ? "待授权" : "Not requested")) : (locale === "zh" ? "当前不可用" : "Unavailable")}</strong></span>
+    </div>
+    <div className="detail-status-strip"><RefreshCw className={syncing ? "spin" : undefined} size={17} /><span>{deviceMessage ?? (isNativeHealthAvailable() ? (locale === "zh" ? "HealthKit 数据同步后保存到云端" : "HealthKit data is saved to the cloud after sync") : (locale === "zh" ? "网页预览无法直接读取 HealthKit" : "The web preview cannot read HealthKit directly"))}</span><strong>{syncLabel}</strong></div>
+  </ModuleDetailView>;
   if (view === "vitals") return <ModuleDetailView compact className="vitals-subview-card" title={locale === "zh" ? "健康指标" : "Health metrics"}><div className="metric-detail-grid"><span><HeartPulse /><small>{locale === "zh" ? "静息心率" : "Resting HR"}</small><strong>{vitals.heartRate == null ? "--" : <><AnimatedNumber value={vitals.heartRate} /> bpm</>}</strong></span><span><Activity /><small>{locale === "zh" ? "血氧" : "SpO2"}</small><strong>{vitals.bloodOxygen == null ? "--" : <><AnimatedNumber value={vitals.bloodOxygen} formatter={(value) => value.toFixed(1)} />%</>}</strong></span><span><Gauge /><small>{locale === "zh" ? "恢复度" : "Recovery"}</small><strong>{vitals.recovery == null ? "--" : <AnimatedNumber value={vitals.recovery} />}</strong></span></div><div className="detail-status-strip"><ShieldCheck size={17} /><span>{locale === "zh" ? "指标来自最近一次健康快照与节律评分" : "Based on the latest health snapshot and rhythm score"}</span><strong>{vitals.date ? shortDate(vitals.date, locale) : "--"}</strong></div></ModuleDetailView>;
   if (view === "heatmap") return <ModuleDetailView compact className="heatmap-subview-card" title={locale === "zh" ? "节律热力图" : "Rhythm heatmap"}><div className="heatmap-detail-content"><div className="detail-heatmap">{heatmap.cells.map((cell, index) => <i key={cell.id} title={`${shortDate(cell.date, locale)} · ${String(cell.period * 2).padStart(2, "0")}:00 · ${Math.round(cell.value)}`} style={{ opacity: cell.intensity, "--heat-index": index } as CSSProperties} />)}</div><div className="heatmap-legend"><span>{locale === "zh" ? "低活跃" : "Low"}</span><i /><i /><i /><i /><span>{locale === "zh" ? "高活跃" : "High"}</span></div><div className="heatmap-summary-grid"><span><small>{locale === "zh" ? "数据格" : "Data bins"}</small><strong>{heatmap.cells.length}</strong></span><span><small>{locale === "zh" ? "高峰窗口" : "Peak window"}</small><strong>{heatmap.cells.length > 0 ? peakWindow : "--"}</strong></span></div><p>{heatmap.cells.length > 0 ? (locale === "zh" ? `${peakWindow} 是近七日真实活动记录中相对集中的窗口；这里只描述分布，不评价运动质量。` : `${peakWindow} is the most concentrated window in the recorded seven-day activity data; this describes distribution, not workout quality.`) : (locale === "zh" ? "同步活动数据后生成热力图。" : "Sync activity data to build the heatmap.")}</p></div></ModuleDetailView>;
   if (view === "clock") return <ModuleDetailView compact className="clock-subview-card" title={locale === "zh" ? "生物钟同步" : "Clock alignment"}><div className="clock-alignment"><div className="clock-alignment-gauge" style={{ "--progress": `${alignment ?? 0}%` } as CSSProperties}><Gauge /></div><strong>{alignment == null ? "--" : <><AnimatedNumber value={alignment} />%</>}</strong><p>{alignment == null ? (locale === "zh" ? "同步睡眠或节律数据后，才能计算近七日生物钟同步分。" : "Sync sleep or rhythm data to calculate the seven-day clock-alignment score.") : (locale === "zh" ? "该分数由近七日入睡时间、睡眠时长稳定性与节律评分共同计算。" : "Calculated from seven-day bedtime, sleep-duration regularity, and rhythm scores.")}</p></div></ModuleDetailView>;

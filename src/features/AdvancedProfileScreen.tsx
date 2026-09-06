@@ -85,6 +85,35 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
   const formRef = useRef<HTMLFormElement | null>(null);
   const preferencesRef = useRef<HTMLElement | null>(null);
   const copy = <T,>(zh: T, en: T) => locale === "zh" ? zh : en;
+  const dietOptions = [
+    { value: "none", label: copy("无特殊偏好", "No preference") },
+    { value: "light", label: copy("清淡少油", "Light meals") },
+    { value: "high_protein", label: copy("高蛋白", "High protein") },
+    { value: "low_carb", label: copy("低碳控糖", "Lower carb") },
+    { value: "plant_based", label: copy("素食植物性", "Plant based") },
+    { value: "restrictions", label: copy("过敏或忌口", "Restrictions") },
+  ];
+  const dietCodes = new Set(dietOptions.map((option) => option.value));
+  const dietSegments = draft.dietPreference.split(/[、,，]/).map((value) => value.trim()).filter(Boolean);
+  const selectedDietCodes = dietSegments.filter((value) => dietCodes.has(value));
+  const customDietPreference = dietSegments.filter((value) => !dietCodes.has(value)).join("、");
+
+  const toggleDietPreference = (value: string) => {
+    const current = new Set(selectedDietCodes);
+    if (value === "none") {
+      current.clear();
+      current.add("none");
+    } else {
+      current.delete("none");
+      if (current.has(value)) current.delete(value);
+      else if (current.size < 3) current.add(value);
+    }
+    update("dietPreference", [...current, customDietPreference].filter(Boolean).join("、"));
+  };
+
+  const updateCustomDietPreference = (value: string) => {
+    update("dietPreference", [...selectedDietCodes, value.trim()].filter(Boolean).join("、"));
+  };
 
   useEffect(() => {
     let active = true;
@@ -229,9 +258,10 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
 
           <section className="advanced-profile-section">
             <header><span><HeartPulse size={20} /></span><div><strong>{copy("节律与生活方式", "Rhythm & lifestyle")}</strong><small>{copy("这些资料会参与个性化分析", "Used for personalized analysis")}</small></div></header>
-            <label><span><MoonStar size={15} />{copy("常规作息", "Usual sleep schedule")}</span><input value={draft.sleepSchedule} onChange={(event) => update("sleepSchedule", event.target.value)} placeholder={copy("例如：23:30 入睡，07:10 起床", "e.g. 23:30–07:10")} /></label>
-            <label><span><Target size={15} />{copy("运动频率", "Exercise frequency")}</span><select value={draft.exerciseFrequency} onChange={(event) => update("exerciseFrequency", event.target.value)}><option value="">{copy("请选择", "Choose")}</option><option value="rare">{copy("很少运动", "Rarely")}</option><option value="1_2_week">{copy("每周 1–2 次", "1–2 times/week")}</option><option value="3_4_week">{copy("每周 3–4 次", "3–4 times/week")}</option><option value="5_plus_week">{copy("每周 5 次以上", "5+ times/week")}</option></select></label>
-            <label><span><Utensils size={15} />{copy("饮食偏好", "Diet preferences")}</span><textarea rows={2} value={draft.dietPreference} onChange={(event) => update("dietPreference", event.target.value)} placeholder={copy("忌口、过敏、饮食习惯", "Allergies, restrictions, preferences")} /></label>
+            <label><span><MoonStar size={15} />{copy("每日睡眠时长", "Usual sleep duration")}</span><select value={draft.sleepSchedule} onChange={(event) => update("sleepSchedule", event.target.value)}><option value="">{copy("请选择", "Choose")}</option><option value="under_5h">{copy("少于 5 小时", "Under 5h")}</option><option value="5_6h">{copy("5–6 小时", "5–6h")}</option><option value="6_7h">{copy("6–7 小时", "6–7h")}</option><option value="7_8h">{copy("7–8 小时", "7–8h")}</option><option value="8_9h">{copy("8–9 小时", "8–9h")}</option><option value="over_9h">{copy("9 小时以上", "Over 9h")}</option>{draft.sleepSchedule && !["under_5h", "5_6h", "6_7h", "7_8h", "8_9h", "over_9h"].includes(draft.sleepSchedule) && <option value={draft.sleepSchedule}>{draft.sleepSchedule}</option>}</select></label>
+            <label><span><Target size={15} />{copy("每周运动", "Weekly exercise")}</span><select value={draft.exerciseFrequency} onChange={(event) => update("exerciseFrequency", event.target.value)}><option value="">{copy("请选择", "Choose")}</option><optgroup label={copy("按每周总时长", "By weekly duration")}><option value="almost_none">{copy("几乎不运动", "Almost none")}</option><option value="under_1h">{copy("少于 1 小时", "Under 1h")}</option><option value="1_2h">{copy("1–2 小时", "1–2h")}</option><option value="2_4h">{copy("2–4 小时", "2–4h")}</option><option value="4_7h">{copy("4–7 小时", "4–7h")}</option><option value="over_7h">{copy("7 小时以上", "Over 7h")}</option></optgroup><optgroup label={copy("按每周频率（旧资料）", "By weekly frequency (legacy)")}><option value="rare">{copy("很少运动", "Rarely")}</option><option value="1_2_week">{copy("每周 1–2 次", "1–2 times/week")}</option><option value="3_4_week">{copy("每周 3–4 次", "3–4 times/week")}</option><option value="5_plus_week">{copy("每周 5 次以上", "5+ times/week")}</option></optgroup></select></label>
+            <fieldset className="advanced-profile-diet-field"><legend><Utensils size={15} />{copy("饮食偏好", "Diet preferences")}</legend><div className="advanced-profile-diet-chips">{dietOptions.map((option) => <button type="button" className={selectedDietCodes.includes(option.value) ? "is-selected" : ""} key={option.value} aria-pressed={selectedDietCodes.includes(option.value)} onClick={() => toggleDietPreference(option.value)}>{option.label}</button>)}</div></fieldset>
+            <label><span>{copy("补充过敏、忌口或其他习惯", "Allergies, restrictions, or other notes")}</span><textarea rows={2} value={customDietPreference} onChange={(event) => updateCustomDietPreference(event.target.value)} placeholder={copy("没有可留空", "Leave blank if none")} /></label>
           </section>
 
           <section className="advanced-profile-section">
