@@ -17,6 +17,9 @@ verify_jwt = true
 [functions.ai-diet-report]
 verify_jwt = true
 
+[functions.ai-health-report]
+verify_jwt = true
+
 [functions.diet-extract]
 verify_jwt = true
 

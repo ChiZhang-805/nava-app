@@ -8,6 +8,7 @@ const tableContracts = [
   { name: "exercise_records", column: "user_id" },
   { name: "nutrition_records", column: "user_id" },
   { name: "focus_records", column: "user_id" },
+  { name: "focus_session_events", column: "user_id" },
   { name: "focus_time_distribution", column: "user_id" },
   { name: "tasks", column: "user_id" },
   { name: "ai_conversations", column: "user_id" },
@@ -51,7 +52,7 @@ Deno.serve(async (req) => {
     const { user, userClient } = await requireUser(req);
     await readJson(req);
     const result: Record<string, unknown> = {
-      schemaVersion: "1.1.0",
+      schemaVersion: "1.2.0",
       exportedAt: new Date().toISOString(),
       userId: user.id,
       account: {
@@ -106,16 +107,12 @@ async function listOwnedFiles(client: SupabaseClient, bucket: string, prefix: st
       if (!entry.name || entry.name === ".emptyFolderPlaceholder") continue;
       const path = `${prefix}/${entry.name}`;
       if (entry.id) {
-        const signed = await client.storage.from(bucket).createSignedUrl(path, 60 * 60);
-        if (signed.error) throw signed.error;
         files.push({
           path,
           bucket,
           size: Number(entry.metadata?.size ?? 0),
           contentType: entry.metadata?.mimetype ?? null,
           updatedAt: entry.updated_at ?? null,
-          downloadUrl: signed.data.signedUrl,
-          downloadUrlExpiresInSeconds: 3600,
         });
       } else {
         files.push(...await listOwnedFiles(client, bucket, path, depth + 1));

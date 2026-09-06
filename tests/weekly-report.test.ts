@@ -36,7 +36,7 @@ test("one real weekly rhythm point replaces the no-data placeholder", () => {
 test("weekly AI report is persisted and rejects non-model providers", () => {
   assert.match(reportFunction, /from\("ai_health_reports"\)\.upsert/);
   assert.match(reportFunction, /row\.provider !== "deepseek"/);
-  assert.match(reportFunction, /deepseek-v4-flash-health-report-v5-targeted-repair/);
+  assert.match(reportFunction, /deepseek-v4-flash-health-report-v6-health-metrics/);
   assert.match(reportFunction, /expectedIds = \["trend", "variation", "association", "action"\]/);
   assert.match(reportFunction, /bullets: report/);
   assert.match(recordsScreen, /weekly-detail-dialog/);

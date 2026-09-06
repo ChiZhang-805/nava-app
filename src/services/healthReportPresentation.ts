@@ -1,4 +1,4 @@
-import type { TodaySnapshot } from "../types";
+import type { ExerciseRecord, FaceRecord, NutritionRecord, SleepRecord, TodaySnapshot } from "../types";
 import { isCompleteMoodRecord } from "./mood.ts";
 
 export type HealthModuleKey = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
@@ -37,11 +37,11 @@ export function buildHealthModuleProgress(snapshot: TodaySnapshot | null) {
 
   return {
     mood: oneStepProgress(Boolean(snapshot.mood), isCompleteMoodRecord(snapshot.mood)),
-    sleep: oneStepProgress(Boolean(snapshot.sleep), Boolean(snapshot.sleep)),
-    exercise: oneStepProgress(Boolean(snapshot.exercise), Boolean(snapshot.exercise)),
+    sleep: oneStepProgress(Boolean(snapshot.sleep), isCompleteSleepRecord(snapshot.sleep)),
+    exercise: oneStepProgress(Boolean(snapshot.exercise), isCompleteExerciseRecord(snapshot.exercise)),
     diet: progressFromUnits(completedMeals, 4, Boolean(snapshot.nutrition)),
     focus: oneStepProgress(focusRecorded, focusCompleted),
-    face: oneStepProgress(Boolean(snapshot.face), Boolean(snapshot.face)),
+    face: oneStepProgress(Boolean(snapshot.face), isCompleteFaceRecord(snapshot.face)),
   } satisfies Record<HealthModuleKey, HealthModuleProgress>;
 }
 
@@ -210,6 +210,29 @@ function percentageOrPlaceholder(value: number | null | undefined) {
 function mealCount(nutrition: NonNullable<TodaySnapshot["nutrition"]>) {
   return [nutrition.breakfast_items, nutrition.lunch_items, nutrition.dinner_items, nutrition.pantry_items]
     .filter((items) => Array.isArray(items) && items.length > 0).length;
+}
+
+export function isCompleteSleepRecord(record: SleepRecord | null | undefined) {
+  return Boolean(record && Number.isFinite(Number(record.sleep_duration_minutes)) && Number(record.sleep_duration_minutes) > 0);
+}
+
+export function isCompleteExerciseRecord(record: ExerciseRecord | null | undefined) {
+  if (!record) return false;
+  return [record.steps, record.calories, record.exercise_minutes]
+    .some((value) => Number.isFinite(Number(value)) && Number(value) > 0);
+}
+
+export function isCompleteNutritionRecord(record: NutritionRecord | null | undefined) {
+  return Boolean(record && mealCount(record) >= 4);
+}
+
+export function isCompleteFaceRecord(record: FaceRecord | null | undefined) {
+  return Boolean(
+    record
+    && Number.isFinite(Number(record.overall_score))
+    && Number(record.overall_score) >= 0
+    && record.feedback?.trim(),
+  );
 }
 
 function averageFocusMinutes(snapshot: TodaySnapshot) {

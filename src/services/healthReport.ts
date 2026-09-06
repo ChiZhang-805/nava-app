@@ -125,6 +125,7 @@ export function healthReportSourceRevision(input: {
     sleeps: inPeriod(bundle.sleeps),
     exercises: inPeriod(bundle.exercises),
     focus: inPeriod(bundle.focus),
+    healthMetrics: inPeriod(bundle.healthMetrics),
   };
   const records = input.scope === "weekly"
     ? {
@@ -147,7 +148,10 @@ export function healthReportSourceRevision(input: {
     period: { startDate, endDate: input.endDate },
     profile: input.profile ? {
       ageGroup: input.profile.age_group,
+      heightCm: input.profile.height,
+      weightKg: input.profile.weight,
       occupation: input.profile.occupation,
+      mbti: input.profile.mbti,
       goal: input.profile.goal,
       aiPersonalizationConsent: input.profile.ai_personalization_consent,
       onboardingAnswers: input.profile.onboarding_answers,

@@ -43,6 +43,7 @@ test("health report results stay in memory and saved data relies on the server s
   assert.match(healthService, /cached\?\.sourceRevision === input\.sourceRevision/);
   assert.match(healthService, /resolved\.set\(baseKey, \{ sourceRevision: input\.sourceRevision, report \}\)/);
   assert.match(healthService, /healthReportSourceRevision/);
+  assert.match(healthService, /healthMetrics: inPeriod\(bundle\.healthMetrics\)/);
   assert.doesNotMatch(recordsScreen, /loadHealthAiReport\([^\n]+refresh: true/);
   assert.doesNotMatch(recordsScreen, /loadDietAiReport\([^\n]+refresh: true/);
 });

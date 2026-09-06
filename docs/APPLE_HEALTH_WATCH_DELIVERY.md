@@ -1,6 +1,6 @@
 # NAVA Apple Health / Apple Watch 当前交付方案
 
-首次制定：2026-09-02；当前状态同步：2026-09-05  
+首次制定：2026-09-02；当前状态同步：2026-09-07
 状态：实施基线；所有勾选项必须有代码、自动化或真机证据，不能以界面占位代替。
 
 ## 1. 最终目标
@@ -39,8 +39,9 @@ HealthKit 历史”。网页只展示已经由受信任原生客户端或以后�
 - `health-sync-ingest`、`watch-sync`、`rhythm-score` 当前已在线。
 - WatchConnectivity 的 iPhone 端、watchOS 源码和 `NAVA Watch` target 已接入
   Xcode 工程；iPhone target 会嵌入 Watch 产品，服务端动作收据提供幂等保护。
-- Watch 动作在 iPhone WebView 尚未启动时先写入受文件保护的原生队列；只有
-  转存到账号隔离的 Web 队列后才从原生队列确认删除。
+- Watch 动作在 iPhone WebView 尚未启动时先写入受文件保护的原生队列；转存到账号
+  隔离的 Web 队列后仍不立即删除，只有 canonical Supabase 已接受稳定 action id 才确认
+  原生副本；断网时两层队列都可安全重放。
 - 当前尚无 Mac/Xcode 编译、HealthKit 权限、Apple Watch 真机、TestFlight
   或 App Store 验收证据。
 
@@ -96,6 +97,8 @@ HealthKit 历史”。网页只展示已经由受信任原生客户端或以后�
 ### 阶段 C：HealthKit 读取正确性
 
 - [x] HealthKit 无样本时省略指标，不把缺少权限或缺少记录转换为零。
+- [x] 手工睡眠维持只填起止时间与总时长，不按比例伪造深睡、浅睡或 REM；阶段值只来自
+  HealthKit 实测或用户明确填写。
 - [x] 保存本地日期、时区、睡眠来源 bundle、睡眠样本数和可用指标集合。
 - [x] 首次同步最多回填 14 天；服务端最多接受 31 天，防止无界 payload。
 - [x] 重复同步按 `user_id + record_date + source` 覆盖每日快照，不制造重复记录。
@@ -117,7 +120,8 @@ HealthKit 历史”。网页只展示已经由受信任原生客户端或以后�
 - [x] 正式入口使用 `health-sync-ingest`，并验证用户 JWT。
 - [x] 本地 `health-sync-ingest` 源码按真实可用字段规范化写入运动、睡眠、健康
   快照和同步任务；部分权限不会用 0 或 null 覆盖同日已有真实值。
-- [x] 已部署并验证本轮更新后的 `health-sync-ingest`；线上为 v11 且强制 JWT。
+- [x] 已部署并验证本轮更新后的 `health-sync-ingest`；线上为 v12 且强制 JWT。空摘要不再
+  生成空节律分，活动分箱、ISO 时间、心率/HRV/血氧、睡眠效率和覆盖时长均先做边界校验。
 - [x] append-only 迁移 `202609020002_health_sync_realtime.sql` 已在生产项目
   应用，把 `health_sync_jobs` 加入 Supabase Realtime publication。
 - [x] 当前登录用户收到成功同步事件后，首页、记录页和个人页重新读取真实数据。
@@ -156,6 +160,9 @@ HealthKit 历史同步不依赖 watchOS App，因此本阶段排在 iPhone 闭�
 - [x] Watch 情绪/专注动作通过 iPhone 原生持久队列、账号隔离 Web 队列和
   `watch-sync` 上传，使用 `actionId`
   保证至多一次落库。
+- [x] `focus.start` 被服务端明确接收但不提前写完成记录；`focus.stop` 通过生产
+  `record_focus_session` RPC 在同一事务写 `focus_session_events`、日聚合与时段分布。
+  失败 receipt 和超过五分钟的处理中 receipt 可安全重领，重复 action id 不重复累计。
 - [x] Watch 动作携带设备本地日期与时区偏移；服务端按动作发生时间写入本地日期、
   专注起止时间和 `focus_time_distribution` 时段，不再使用服务器接收时间分桶。
 - [x] Watch 快捷情绪不会覆盖同一天已有的用户原因与日记；新建的快捷记录只保留
@@ -277,12 +284,13 @@ npx cap open ios
 - `tests/health-native-contract.test.ts`：Keychain、JWT、缺失值、后台标记和
   Realtime 用户过滤的跨层合同。
 
-截至 2026-09-02，本轮 Windows 自动化已通过 `npm run verify`、
+截至 2026-09-07，本轮 Windows 自动化已再次通过 `npm run verify`（27/27）、
 `npm run interaction:test`、`npm run auth:verify:production`、
 `npm run supabase:verify-shared`、`npm run health:audit:production`、
-`npm run cap:sync`、PBX 独立解析和 watchOS target 静态合同；生产 Realtime
-迁移与 10 个更新 Function 已上线。最终视觉回归生成 4 个规定视口共 96 个
-页面状态截图，零控制台错误和零横向溢出。该证据不能替代 Mac Swift 编译或
+PBX 独立解析和 watchOS target 静态合同；生产 24 项 migration 已对齐，
+`health-sync-ingest` ACTIVE v12 / `watch-sync` ACTIVE v13，且均强制 JWT。
+首页、通知和编辑器视觉回归在四个规定视口通过，交互回归通过 11 组主流程。
+该证据不能替代 Mac Swift 编译或
 Apple 真机验收。
 
 ## 10. 官方依据

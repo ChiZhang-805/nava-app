@@ -7,7 +7,7 @@ const session: SleepMaintenanceSession = { version: 1, startedAt: "2026-09-05T15
 test("sleep maintenance converts a completed interval into editable fields", () => {
   const fields = sleepMaintenanceFields(session, new Date("2026-09-05T23:10:00.000Z"));
   assert.equal(fields.durationMinutes, 460);
-  assert.equal(fields.deepMinutes + fields.lightMinutes + fields.remMinutes, 460);
+  assert.deepEqual([fields.deepMinutes, fields.lightMinutes, fields.remMinutes], [0, 0, 0]);
 });
 
 test("sleep maintenance reports whole elapsed minutes and never a negative value", () => {

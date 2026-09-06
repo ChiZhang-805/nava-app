@@ -79,7 +79,7 @@ export function buildHomeGuidance(snapshot: TodaySnapshot, hour: number, locale:
   const phase = homeDayPhase(hour);
   const actions = homeGuidanceActions(snapshot, hour, locale);
   const sleepMinutes = snapshot.sleep?.sleep_duration_minutes;
-  const steps = snapshot.exercise?.steps ?? 0;
+  const steps = snapshot.exercise?.steps;
 
   if (sleepMinutes != null && sleepMinutes < 360) {
     return {
@@ -96,8 +96,11 @@ export function buildHomeGuidance(snapshot: TodaySnapshot, hour: number, locale:
     return { phase, reason: "rhythm_signal", eyebrow: zh ? "今日节律提示" : "Rhythm signal", message: snapshot.nextAction.trim(), motion: "tail", actions };
   }
 
-  if (hour >= 17 && steps < 3_000) {
-    return { phase, reason: "movement_low", eyebrow: zh ? "傍晚活动提示" : "Evening movement", message: zh ? `今天记录了 ${steps.toLocaleString()} 步；身体感觉合适时，可以轻走 10 分钟。` : `${steps.toLocaleString()} steps are recorded today. If it feels right, try a gentle 10-minute walk.`, motion: "lift", actions };
+  if (hour >= 17 && (steps == null || steps < 3_000)) {
+    const message = steps == null
+      ? (zh ? "今天尚未同步步数；确认数据后，身体感觉合适时可以轻走 10 分钟。" : "Steps have not synced today. After checking your data, try a gentle 10-minute walk if it feels right.")
+      : (zh ? `今天记录了 ${steps.toLocaleString()} 步；身体感觉合适时，可以轻走 10 分钟。` : `${steps.toLocaleString()} steps are recorded today. If it feels right, try a gentle 10-minute walk.`);
+    return { phase, reason: "movement_low", eyebrow: zh ? "傍晚活动提示" : "Evening movement", message, motion: "lift", actions };
   }
 
   if (snapshot.focusMinutes >= 25) {

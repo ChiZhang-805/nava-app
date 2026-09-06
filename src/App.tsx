@@ -524,14 +524,9 @@ function MobileShell({
     void flushPendingWatchActions(user.id).then(() => {
       if (alive) markChanged();
     }).catch((syncError) => console.warn("pending watch actions remain queued", syncError));
-    subscribeWatchActions(user.id, async () => {
+    subscribeWatchActions(user.id, () => {
       if (!alive) return;
-      try {
-        await flushPendingWatchActions(user.id);
-        markChanged();
-      } catch (e) {
-        console.warn("watch action remains queued", e);
-      }
+      markChanged();
     }).then((handle) => {
       if (!alive) void handle?.remove();
       else listenerHandle = handle;
@@ -828,47 +823,59 @@ function AppContent({
 }) {
   const configError = assertConfig();
   const { user, loading, passwordRecovery } = useAuth();
+  const { locale } = useLocale();
   const signedOutScreenSeen = useRef(initialSignedOutScreenSeen);
   const userId = user?.id ?? null;
   const forceOnboarding = new URLSearchParams(window.location.search).get("onboarding") === "1";
   const [onboardingRoute, setOnboardingRoute] = useState<{ userId: string; required: boolean } | null>(null);
+  const [onboardingError, setOnboardingError] = useState<string | null>(null);
+  const [onboardingRetryKey, setOnboardingRetryKey] = useState(0);
 
   useEffect(() => {
     let alive = true;
     if (!userId) {
       setOnboardingRoute(null);
+      setOnboardingError(null);
       return () => {
         alive = false;
       };
     }
 
+    setOnboardingError(null);
     loadOnboardingStatus(userId)
       .then((status) => {
         if (alive) setOnboardingRoute({ userId, required: forceOnboarding || !status.completed });
       })
       .catch((error) => {
         console.warn("Unable to determine onboarding state", error);
-        if (alive) setOnboardingRoute({ userId, required: forceOnboarding });
+        if (alive) {
+          setOnboardingRoute(null);
+          setOnboardingError(locale === "zh"
+            ? "无法安全确认隐私同意状态，请检查网络后重试。"
+            : "Your privacy-consent status could not be verified. Check the connection and retry.");
+        }
       });
 
     return () => {
       alive = false;
     };
-  }, [forceOnboarding, userId]);
+  }, [forceOnboarding, locale, onboardingRetryKey, userId]);
 
   if (!loading && !user) signedOutScreenSeen.current = true;
   const checkingOnboarding = Boolean(userId && onboardingRoute?.userId !== userId);
 
   useEffect(() => {
-    if (!loading && userId && (passwordRecovery || !checkingOnboarding)) onReady?.(userId);
-  }, [checkingOnboarding, loading, onReady, passwordRecovery, userId]);
+    if (!loading && userId && (passwordRecovery || Boolean(onboardingError) || !checkingOnboarding)) onReady?.(userId);
+  }, [checkingOnboarding, loading, onReady, onboardingError, passwordRecovery, userId]);
 
   let screen;
   if (configError && !isDemoMode()) screen = <ConfigErrorScreen message={configError} />;
   else if (loading) screen = <LoadingScreen />;
   else if (user && passwordRecovery) screen = <PasswordRecoveryScreen />;
   else if (!user) screen = <AuthScreen />;
-  else if (checkingOnboarding) {
+  else if (onboardingError) {
+    screen = <main className="app-screen centered-screen"><div className="brand-mark warn"><Activity size={28} /></div><h1>{locale === "zh" ? "暂时无法进入" : "Unable to continue"}</h1><p className="muted">{onboardingError}</p><button className="primary" type="button" onClick={() => setOnboardingRetryKey((value) => value + 1)}>{locale === "zh" ? "重新检查" : "Retry"}</button></main>;
+  } else if (checkingOnboarding) {
     screen = signedOutScreenSeen.current ? <AuthScreen transitionPending /> : <LoadingScreen />;
   } else if (onboardingRoute?.required) {
     screen = <OnboardingScreen user={user} onComplete={() => {

@@ -27,6 +27,11 @@ import {
   saveDemoNutrition,
   saveDemoSleep,
 } from "./demo";
+import {
+  buildNutritionMutation,
+  type MealNutritionSummary,
+  type NutritionMeal,
+} from "./nutritionIntegrity";
 
 function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
@@ -36,18 +41,6 @@ function assertNoError(error: unknown) {
   if (!error) return;
   const message = error instanceof Error ? error.message : JSON.stringify(error);
   throw new Error(message);
-}
-
-function isMissingBackendResource(error: unknown) {
-  if (!error || typeof error !== "object") return false;
-  const candidate = error as { code?: string; message?: string; details?: string };
-  const detail = `${candidate.message ?? ""} ${candidate.details ?? ""}`;
-  return candidate.code === "PGRST205" || candidate.code === "42P01" || /could not find the table|relation .* does not exist/i.test(detail);
-}
-
-function assertOptionalResourceError(error: unknown) {
-  if (!error || isMissingBackendResource(error)) return;
-  assertNoError(error);
 }
 
 function trendRows<T>(result: { data: unknown; error: unknown }, table: string) {
@@ -62,6 +55,17 @@ function clamp(value: number, min: number, max: number) {
 
 function nonNegativeInt(value: number, fieldName: string) {
   if (!Number.isFinite(value) || value < 0) throw new Error(`${fieldName}不能为负数。`);
+  return Math.round(value);
+}
+
+function nonNegativeNumber(value: number, fieldName: string) {
+  if (!Number.isFinite(value) || value < 0) throw new Error(`${fieldName}必须是有效的非负数。`);
+  return value;
+}
+
+function ratingValue(value: number | undefined, fieldName: string) {
+  if (value == null) return undefined;
+  if (!Number.isFinite(value) || value < 1 || value > 5) throw new Error(`${fieldName}必须在 1 到 5 之间。`);
   return Math.round(value);
 }
 
@@ -167,8 +171,8 @@ export async function getTodaySnapshot(userId: string, date = todayISO()): Promi
   assertNoError(exerciseRes.error);
   assertNoError(nutritionRes.error);
   assertNoError(focusRes.error);
-  assertOptionalResourceError(faceRes.error);
-  assertOptionalResourceError(rhythmRes.error);
+  assertNoError(faceRes.error);
+  assertNoError(rhythmRes.error);
 
   const focus = asArray<FocusRecord>(focusRes.data);
   const base = {
@@ -177,12 +181,12 @@ export async function getTodaySnapshot(userId: string, date = todayISO()): Promi
     sleep: sleepRes.data as SleepRecord | null,
     exercise: exerciseRes.data as ExerciseRecord | null,
     nutrition: nutritionRes.data as NutritionRecord | null,
-    face: faceRes.error ? null : faceRes.data as FaceRecord | null,
+    face: faceRes.data as FaceRecord | null,
     focusMinutes: focus.reduce((sum, item) => sum + (item.total_minutes ?? 0), 0),
     focusSessions: focus.reduce((sum, item) => sum + (item.completed_sessions ?? 0), 0),
   };
 
-  const rhythm = rhythmRes.error ? null : rhythmRes.data as DailyRhythmScore | null;
+  const rhythm = rhythmRes.data as DailyRhythmScore | null;
   const hasDailySignal = Boolean(base.mood || base.sleep || base.exercise || base.nutrition || base.face || focus.length > 0);
   const rhythmScore = rhythm?.score == null
     ? (hasDailySignal ? calculateTodayRhythm(base) : null)
@@ -259,6 +263,10 @@ export async function saveSleepRecord(input: {
   validateHHMM(input.start, "入睡时间");
   validateHHMM(input.end, "醒来时间");
   const durationMinutes = nonNegativeInt(input.durationMinutes, "睡眠时长");
+  if (durationMinutes === 0) throw new Error("睡眠时长必须大于 0。");
+  if (input.rating != null && (!Number.isFinite(input.rating) || input.rating < 1 || input.rating > 5)) {
+    throw new Error("睡眠自评分必须在 1 到 5 之间。");
+  }
   const deepMinutes = input.deepMinutes == null ? undefined : nonNegativeInt(input.deepMinutes, "深睡时长");
   const lightMinutes = input.lightMinutes == null ? undefined : nonNegativeInt(input.lightMinutes, "浅睡时长");
   const remMinutes = input.remMinutes == null ? undefined : nonNegativeInt(input.remMinutes, "REM 时长");
@@ -309,6 +317,7 @@ export async function saveSleepSummaryRecord(input: {
   if (isDemoMode()) return saveDemoSleep(input);
 
   const durationMinutes = nonNegativeInt(input.durationMinutes, "睡眠时长");
+  if (durationMinutes === 0) throw new Error("睡眠时长必须大于 0。");
   const { data, error } = await supabase
     .from("sleep_records")
     .upsert(
@@ -316,7 +325,7 @@ export async function saveSleepSummaryRecord(input: {
         user_id: input.userId,
         record_date: normalizeRecordDate(input.date),
         sleep_duration_minutes: durationMinutes,
-        device_type: input.source ?? "apple_watch",
+        device_type: input.source ?? "manual",
         rhythm_score: calculateSleepRhythmScore({ durationMinutes }),
       },
       { onConflict: "user_id,record_date" },
@@ -328,17 +337,17 @@ export async function saveSleepSummaryRecord(input: {
   return data as SleepRecord;
 }
 
-async function findExerciseRecordId(userId: string, date: string) {
+async function findExerciseRecord(userId: string, date: string) {
   const { data, error } = await supabase
     .from("exercise_records")
-    .select("id")
+    .select("*")
     .eq("user_id", userId)
     .eq("record_date", date)
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   assertNoError(error);
-  return data?.id as string | undefined;
+  return data as ExerciseRecord | null;
 }
 
 async function dedupeExerciseRecords(userId: string, date: string, keepId: string) {
@@ -359,37 +368,59 @@ async function dedupeExerciseRecords(userId: string, date: string, keepId: strin
 export async function saveExerciseRecord(input: {
   userId: string;
   date?: string;
-  steps: number;
-  calories: number;
-  minutes: number;
+  steps?: number;
+  calories?: number;
+  minutes?: number;
   heartRate?: string;
   spo2?: string;
   rating?: number;
   note?: string;
   source?: "manual" | "apple_health";
 }) {
-  if (isDemoMode()) return saveDemoExercise(input);
+  if (input.steps == null && input.calories == null && input.minutes == null
+    && input.heartRate == null && input.spo2 == null && input.rating == null && input.note == null) {
+    throw new Error("没有可保存的运动数据。");
+  }
+  if (isDemoMode()) return saveDemoExercise({
+    ...input,
+    steps: input.steps ?? 0,
+    calories: input.calories ?? 0,
+    minutes: input.minutes ?? 0,
+  });
 
   const recordDate = normalizeRecordDate(input.date);
-  const steps = nonNegativeInt(input.steps, "步数");
-  const calories = nonNegativeInt(input.calories, "消耗热量");
-  const minutes = nonNegativeInt(input.minutes, "运动分钟");
-  const payload = {
+  const rating = ratingValue(input.rating, "运动自评分");
+  if (input.heartRate != null && input.heartRate.trim()) {
+    const heartRate = Number(input.heartRate.replace(/[^0-9.]/g, ""));
+    if (!Number.isFinite(heartRate) || heartRate < 20 || heartRate > 250) throw new Error("心率必须在 20 到 250 bpm 之间。");
+  }
+  if (input.spo2 != null && input.spo2.trim()) {
+    const spo2 = Number(input.spo2.replace(/[^0-9.]/g, ""));
+    if (!Number.isFinite(spo2) || spo2 < 50 || spo2 > 100) throw new Error("血氧必须在 50% 到 100% 之间。");
+  }
+  const existing = await findExerciseRecord(input.userId, recordDate);
+  const hasAllActivityMetrics = input.steps != null && input.calories != null && input.minutes != null;
+  const payload: Record<string, unknown> = {
     user_id: input.userId,
     record_date: recordDate,
-    steps,
-    calories,
-    exercise_minutes: minutes,
-    heart_rate: input.heartRate?.trim() || null,
-    spo2: input.spo2?.trim() || null,
-    self_rating: input.rating ?? null,
-    self_note: input.note?.trim() || null,
-    device_type: input.source ?? "manual",
+    ...(input.steps != null ? { steps: nonNegativeInt(input.steps, "步数") } : {}),
+    ...(input.calories != null ? { calories: nonNegativeInt(input.calories, "消耗热量") } : {}),
+    ...(input.minutes != null ? { exercise_minutes: nonNegativeInt(input.minutes, "运动分钟") } : {}),
+    ...(input.heartRate != null ? { heart_rate: input.heartRate.trim() || null } : {}),
+    ...(input.spo2 != null ? { spo2: input.spo2.trim() || null } : {}),
+    ...(rating != null ? { self_rating: rating } : {}),
+    ...(input.note != null ? { self_note: input.note.trim() || null } : {}),
+    ...(!existing || hasAllActivityMetrics ? { device_type: input.source ?? "manual" } : {}),
   };
 
-  const existingId = await findExerciseRecordId(input.userId, recordDate);
-  const response = existingId
-    ? await supabase.from("exercise_records").update(payload).eq("id", existingId).select("*").single()
+  if (!existing) {
+    payload.steps ??= 0;
+    payload.calories ??= 0;
+    payload.exercise_minutes ??= 0;
+  }
+
+  const response = existing
+    ? await supabase.from("exercise_records").update(payload).eq("id", existing.id).select("*").single()
     : await supabase.from("exercise_records").insert(payload).select("*").single();
 
   assertNoError(response.error);
@@ -411,58 +442,22 @@ export async function saveNutritionRecord(input: {
   photoUrl?: string;
   mealTime?: string;
 }) {
-  if (isDemoMode()) return saveDemoNutrition({ date: input.date, meal: input.meal, items: [input.item], totalCalories: input.totalCalories, append: true });
-
-  const recordDate = normalizeRecordDate(input.date);
-  const itemCalories = nonNegativeInt(input.item.calories ?? input.totalCalories, "食物热量");
-  const existing = await supabase
-    .from("nutrition_records")
-    .select("*")
-    .eq("user_id", input.userId)
-    .eq("record_date", recordDate)
-    .maybeSingle();
-
-  assertNoError(existing.error);
-
-  const current = (existing.data ?? {}) as Partial<NutritionRecord>;
-  const key = `${input.meal}_items` as keyof NutritionRecord;
-  const timeKey = `${input.meal}_time` as keyof NutritionRecord;
-  const items = asArray<FoodItem>(current[key]);
-  const existingTotal = current.total_calories ?? 0;
-  const previousItemCalories = items.reduce((sum, item) => sum + (Number(item.calories) || 0), 0);
-  const newMealItems = [...items, { ...input.item, calories: itemCalories }];
-  const newMealCalories = newMealItems.reduce((sum, item) => sum + (Number(item.calories) || 0), 0);
-  const totalCalories = Math.max(0, existingTotal - previousItemCalories + newMealCalories);
-  const payload = {
-    user_id: input.userId,
-    record_date: recordDate,
-    breakfast_items: current.breakfast_items ?? [],
-    lunch_items: current.lunch_items ?? [],
-    dinner_items: current.dinner_items ?? [],
-    pantry_items: current.pantry_items ?? [],
-    total_calories: totalCalories,
-    protein_grams: input.proteinGrams ?? current.protein_grams ?? null,
-    carbohydrate_grams: input.carbohydrateGrams ?? current.carbohydrate_grams ?? null,
-    fat_grams: input.fatGrams ?? current.fat_grams ?? null,
-    hydration_ml: input.hydrationMl ?? current.hydration_ml ?? null,
-    health_rating: input.healthRating ?? current.health_rating ?? null,
-    [key]: newMealItems,
-    [timeKey]: input.mealTime || current[timeKey] || null,
-    ...(
-      input.meal !== "pantry" && input.photoUrl
-        ? { [`${input.meal}_photo_url`]: input.photoUrl }
-        : {}
-    ),
+  const [validatedItem] = validatedFoodItems([input.item]);
+  if (isDemoMode()) return saveDemoNutrition({ date: input.date, meal: input.meal, items: [validatedItem], totalCalories: input.totalCalories, append: true });
+  const itemCalories = nonNegativeInt(validatedItem.calories ?? input.totalCalories, "食物热量");
+  const item: FoodItem = {
+    ...validatedItem,
+    calories: itemCalories,
+    ...(input.proteinGrams != null ? { protein_grams: input.proteinGrams } : {}),
+    ...(input.carbohydrateGrams != null ? { carbohydrate_grams: input.carbohydrateGrams } : {}),
+    ...(input.fatGrams != null ? { fat_grams: input.fatGrams } : {}),
   };
-
-  const { data, error } = await supabase
-    .from("nutrition_records")
-    .upsert(payload, { onConflict: "user_id,record_date" })
-    .select("*")
-    .single();
-
-  assertNoError(error);
-  return data as NutritionRecord;
+  return mutateNutritionMeal({
+    ...input,
+    items: [item],
+    append: true,
+    summary: nutritionInputSummary(input),
+  });
 }
 
 export async function saveNutritionItems(input: {
@@ -477,57 +472,115 @@ export async function saveNutritionItems(input: {
   hydrationMl?: number;
   healthRating?: number;
   mealTime?: string;
+  append?: boolean;
 }) {
   if (input.items.length === 0) throw new Error("没有可保存的食物条目。");
-  if (isDemoMode()) return saveDemoNutrition({ date: input.date, meal: input.meal, items: input.items });
+  const items = validatedFoodItems(input.items);
+  if (isDemoMode()) return saveDemoNutrition({ date: input.date, meal: input.meal, items });
 
-  const recordDate = normalizeRecordDate(input.date);
-  const existing = await supabase
-    .from("nutrition_records")
-    .select("*")
-    .eq("user_id", input.userId)
-    .eq("record_date", recordDate)
-    .maybeSingle();
-  assertNoError(existing.error);
+  return mutateNutritionMeal({
+    ...input,
+    items,
+    append: input.append === true,
+    summary: nutritionInputSummary(input),
+  });
+}
 
-  const current = (existing.data ?? {}) as Partial<NutritionRecord>;
-  const key = `${input.meal}_items` as keyof NutritionRecord;
-  const photoKey = `${input.meal}_photo_url`;
-  const timeKey = `${input.meal}_time` as keyof NutritionRecord;
-  const payload = {
-    user_id: input.userId,
-    record_date: recordDate,
-    breakfast_items: current.breakfast_items ?? [],
-    lunch_items: current.lunch_items ?? [],
-    dinner_items: current.dinner_items ?? [],
-    pantry_items: current.pantry_items ?? [],
-    protein_grams: input.proteinGrams ?? current.protein_grams ?? null,
-    carbohydrate_grams: input.carbohydrateGrams ?? current.carbohydrate_grams ?? null,
-    fat_grams: input.fatGrams ?? current.fat_grams ?? null,
-    hydration_ml: input.hydrationMl ?? current.hydration_ml ?? null,
-    health_rating: input.healthRating ?? current.health_rating ?? null,
-    breakfast_photo_url: "breakfast_photo_url" in current ? current.breakfast_photo_url : undefined,
-    lunch_photo_url: "lunch_photo_url" in current ? current.lunch_photo_url : undefined,
-    dinner_photo_url: "dinner_photo_url" in current ? current.dinner_photo_url : undefined,
-    [key]: input.items,
-    [timeKey]: input.mealTime || current[timeKey] || null,
-    ...(photoKey !== "pantry_photo_url" && input.photoUrl ? { [photoKey]: input.photoUrl } : {}),
+function nutritionInputSummary(input: {
+  items?: FoodItem[];
+  proteinGrams?: number;
+  carbohydrateGrams?: number;
+  fatGrams?: number;
+  hydrationMl?: number;
+  healthRating?: number;
+}): MealNutritionSummary {
+  const sum = (key: "protein_grams" | "carbohydrate_grams" | "fat_grams") =>
+    (input.items ?? []).reduce((total, item) => total + (Number(item[key]) || 0), 0);
+  const normalize = (value: number | undefined, fallback: number, fieldName: string) => value == null
+    ? Math.max(0, fallback)
+    : nonNegativeNumber(value, fieldName);
+  const healthRating = ratingValue(input.healthRating, "饮食自评分");
+  return {
+    protein_grams: normalize(input.proteinGrams, sum("protein_grams"), "蛋白质"),
+    carbohydrate_grams: normalize(input.carbohydrateGrams, sum("carbohydrate_grams"), "碳水化合物"),
+    fat_grams: normalize(input.fatGrams, sum("fat_grams"), "脂肪"),
+    hydration_ml: normalize(input.hydrationMl, 0, "饮水量"),
+    ...(healthRating == null ? {} : { health_rating: healthRating }),
   };
-  const totalCalories = [
-    ...(payload.breakfast_items as FoodItem[]),
-    ...(payload.lunch_items as FoodItem[]),
-    ...(payload.dinner_items as FoodItem[]),
-    ...(payload.pantry_items as FoodItem[]),
-  ].reduce((sum, item) => sum + (Number(item.calories) || 0), 0);
+}
 
-  const { data, error } = await supabase
-    .from("nutrition_records")
-    .upsert({ ...payload, total_calories: totalCalories }, { onConflict: "user_id,record_date" })
-    .select("*")
-    .single();
+function validatedFoodItems(items: FoodItem[]) {
+  return items.map((item) => {
+    const name = item.name?.trim();
+    if (!name) throw new Error("食物名称不能为空。");
+    if (Array.from(name).length > 160) throw new Error("食物名称不能超过 160 个字符。");
+    return {
+      ...item,
+      name,
+      ...(item.amount == null ? {} : { amount: item.amount.trim().slice(0, 80) || undefined }),
+      ...(item.calories == null ? {} : { calories: nonNegativeNumber(Number(item.calories), "食物热量") }),
+      ...(item.protein_grams == null ? {} : { protein_grams: nonNegativeNumber(Number(item.protein_grams), "食物蛋白质") }),
+      ...(item.carbohydrate_grams == null ? {} : { carbohydrate_grams: nonNegativeNumber(Number(item.carbohydrate_grams), "食物碳水化合物") }),
+      ...(item.fat_grams == null ? {} : { fat_grams: nonNegativeNumber(Number(item.fat_grams), "食物脂肪") }),
+    } satisfies FoodItem;
+  });
+}
 
-  assertNoError(error);
-  return data as NutritionRecord;
+async function mutateNutritionMeal(input: {
+  userId: string;
+  date?: string;
+  meal: NutritionMeal;
+  items: FoodItem[];
+  summary: MealNutritionSummary;
+  append: boolean;
+  photoUrl?: string;
+  mealTime?: string;
+}) {
+  const recordDate = normalizeRecordDate(input.date);
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const existing = await supabase
+      .from("nutrition_records")
+      .select("*")
+      .eq("user_id", input.userId)
+      .eq("record_date", recordDate)
+      .maybeSingle();
+    assertNoError(existing.error);
+    const current = (existing.data ?? {}) as Partial<NutritionRecord>;
+    const mutation = buildNutritionMutation({
+      current,
+      meal: input.meal,
+      items: input.items,
+      summary: input.summary,
+      append: input.append,
+    });
+    const photoKey = `${input.meal}_photo_url`;
+    const timeKey = `${input.meal}_time`;
+    const dailyPayload = Object.fromEntries(Object.entries(mutation)
+      .filter(([key]) => key !== "selectedItems" && key !== "selectedSummary"));
+    const payload: Record<string, unknown> = {
+      user_id: input.userId,
+      record_date: recordDate,
+      ...dailyPayload,
+      [timeKey]: input.mealTime || current[timeKey as keyof NutritionRecord] || null,
+      ...(photoKey !== "pantry_photo_url" && input.photoUrl ? { [photoKey]: input.photoUrl } : {}),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (existing.data?.id) {
+      let request = supabase.from("nutrition_records").update(payload).eq("id", existing.data.id);
+      if (existing.data.updated_at) request = request.eq("updated_at", existing.data.updated_at);
+      const updated = await request.select("*").maybeSingle();
+      assertNoError(updated.error);
+      if (updated.data) return updated.data as NutritionRecord;
+      continue;
+    }
+
+    const inserted = await supabase.from("nutrition_records").insert(payload).select("*").maybeSingle();
+    if (!inserted.error && inserted.data) return inserted.data as NutritionRecord;
+    if (inserted.error?.code === "23505") continue;
+    assertNoError(inserted.error);
+  }
+  throw new Error("饮食记录在其他设备上发生变化，请重试保存。");
 }
 
 export async function saveFaceAnalysisRecord(input: {
@@ -538,6 +591,13 @@ export async function saveFaceAnalysisRecord(input: {
   modelVersion?: string;
   captureMode?: "bare_face" | "makeup";
 }) {
+  if (!Number.isFinite(input.result.overall_score) || input.result.overall_score < 0 || input.result.overall_score > 100) {
+    throw new Error("面部状态分数必须在 0 到 100 之间。");
+  }
+  if (!input.result.feedback?.trim()) throw new Error("面部分析缺少可核对的反馈内容。");
+  if (input.result.confidence != null && (!Number.isFinite(input.result.confidence) || input.result.confidence < 0 || input.result.confidence > 1)) {
+    throw new Error("面部分析置信度必须在 0 到 1 之间。");
+  }
   if (isDemoMode()) {
     return saveDemoFace(input.date ?? todayISO(), {
       id: "demo-face",
@@ -628,6 +688,8 @@ export async function saveFocusSession(input: {
   startedAt?: string;
   endedAt?: string;
   note?: string;
+  source?: "manual" | "ai" | "watch";
+  sourceActionId?: string;
 }) {
   if (isDemoMode()) return saveDemoFocus(input);
 
@@ -635,68 +697,25 @@ export async function saveFocusSession(input: {
   const minutes = nonNegativeInt(input.minutes, "专注分钟");
   if (minutes === 0) throw new Error("专注分钟必须大于 0。");
   const task = await ensureTask(input.userId, input.taskTitle.trim() || "NAVA 专注", recordDate);
-  const existing = await supabase
-    .from("focus_records")
-    .select("*")
-    .eq("user_id", input.userId)
-    .eq("record_date", recordDate)
-    .eq("task_id", task.id)
-    .maybeSingle();
-  assertNoError(existing.error);
-
-  const payload = {
-    user_id: input.userId,
-    task_id: task.id,
-    record_date: recordDate,
-    completed_sessions: (existing.data?.completed_sessions ?? 0) + 1,
-    total_minutes: (existing.data?.total_minutes ?? 0) + minutes,
-    interrupted_sessions: (existing.data?.interrupted_sessions ?? 0) + Math.max(0, Math.round(input.interruptions ?? 0)),
-    category: input.category?.trim() || existing.data?.category || null,
-    started_at: input.startedAt ?? existing.data?.started_at ?? null,
-    ended_at: input.endedAt ?? new Date().toISOString(),
-    note: input.note?.trim() || existing.data?.note || null,
-  };
-
-  const response = existing.data
-    ? await supabase.from("focus_records").update(payload).eq("id", existing.data.id).select("*").single()
-    : await supabase.from("focus_records").insert(payload).select("*").single();
+  const endedAt = input.endedAt ?? new Date().toISOString();
+  const localHour = new Date(input.startedAt ?? endedAt).getHours();
+  const response = await supabase.rpc("record_focus_session", {
+    p_source_action_id: input.sourceActionId ?? crypto.randomUUID(),
+    p_task_id: task.id,
+    p_record_date: recordDate,
+    p_minutes: minutes,
+    p_interruptions: Math.max(0, Math.round(input.interruptions ?? 0)),
+    p_category: input.category?.trim() || null,
+    p_started_at: input.startedAt ?? null,
+    p_ended_at: endedAt,
+    p_local_hour: localHour,
+    p_note: input.note?.trim() || null,
+    p_source: input.source ?? "manual",
+  });
   assertNoError(response.error);
-
-  await upsertFocusDistribution(input.userId, recordDate, minutes);
-  return response.data as FocusRecord;
-}
-
-async function upsertFocusDistribution(userId: string, recordDate: string, minutes: number) {
-  const hour = new Date().getHours();
-  const period =
-    hour < 6 ? "period_0_6" : hour < 12 ? "period_6_12" : hour < 18 ? "period_12_18" : "period_18_24";
-
-  const existing = await supabase
-    .from("focus_time_distribution")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("record_date", recordDate)
-    .maybeSingle();
-  assertNoError(existing.error);
-
-  const base = existing.data ?? {
-    user_id: userId,
-    record_date: recordDate,
-    period_0_6: 0,
-    period_6_12: 0,
-    period_12_18: 0,
-    period_18_24: 0,
-  };
-
-  const payload = {
-    ...base,
-    [period]: (base[period] ?? 0) + minutes,
-  };
-
-  const response = existing.data
-    ? await supabase.from("focus_time_distribution").update(payload).eq("id", existing.data.id)
-    : await supabase.from("focus_time_distribution").insert(payload);
-  assertNoError(response.error);
+  const result = response.data as { applied?: boolean; record?: FocusRecord } | null;
+  if (!result?.record) throw new Error("专注会话没有返回可用的保存结果，请刷新后重试。");
+  return result.record;
 }
 
 export async function getTrends(userId: string, endDate = todayISO()): Promise<TrendBundle> {

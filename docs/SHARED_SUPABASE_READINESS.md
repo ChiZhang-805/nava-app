@@ -19,7 +19,8 @@ must never be copied into that repository.
 
 - Core shared data: `profiles`, mood, sleep, exercise, nutrition, focus, tasks, and AI conversations.
 - APP extensions: face records, rhythm scores, HealthKit snapshots, Watch snapshots, sync jobs,
-  cloud preferences, notification inbox, AI archives, and active focus/sleep sessions.
+  cloud preferences, notification inbox, AI archives, active focus/sleep sessions, and immutable
+  focus-session events.
 - Shared functions: AI extraction/reply, diet, face, and SMS endpoints.
 - APP functions: Health ingest, Watch sync, rhythm scoring, and account data export.
 
@@ -30,16 +31,19 @@ after any required historical `health_imports` data has been reviewed and migrat
 The source migration `202609020002_health_sync_realtime.sql` publishes only sync-job
 changes; existing RLS still limits each authenticated subscriber to its own rows.
 
-The read-only shared-backend check passed on 2026-09-06 after production migration
-`202609060001_cloud_data_completeness`: Auth, core tables, APP
+The read-only shared-backend check passed again on 2026-09-07 after production migrations
+`202609070001_focus_session_integrity`, `202609070002_profile_avatar_privacy`, and
+`202609070003_legacy_phone_cleanup`: Auth, core tables, APP
 extension tables, shared and APP function endpoints, and shared/private Storage
 routes were all reachable on the canonical project. The linked migration list
-also matched all 21 local migrations. The new migration itself successfully enforced that every
+matched all 24 local migrations and production schema lint returned no errors. The earlier cloud
+completeness migration successfully enforced that every
 current account-owned `user_id` table (and `profiles.id`) cascades from `auth.users`; it also
 backfilled the one previously missing profile, so production now reports three Auth profiles for
-three accounts. This contract check does not prove that a
-function contains the newest un-deployed local source revision; the three known
-source/production deltas remain listed in `CODEX_HANDOFF_CURRENT.md`.
+three accounts. All eight functions changed or awaiting deployment in this batch now match the
+released source intent and report ACTIVE/JWT enabled; real-account model output, actual archive
+download, destructive account deletion, and Apple-device behavior still require their explicit
+acceptance runs.
 
 Migration `202607190001_password_reuse_guard.sql` is present in the linked
 production migration history. It grants `nava_password_matches_current` only to

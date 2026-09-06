@@ -59,6 +59,8 @@ export async function loadOwnedRelevantHealthContext(
     return [domain, value] as const;
   }));
   context.recent = Object.fromEntries(entries.filter(([, value]) => value != null));
+  const healthMetrics = await recentRows(client, "health_metric_snapshots", userId, startDate, date, Math.min(route.lookbackDays, 14));
+  context.recentHealthMetrics = compactRows(healthMetrics, compactHealthMetricSnapshot);
   return context;
 }
 
@@ -74,10 +76,7 @@ async function loadConversationHistory(
     .order("created_at", { ascending: false })
     .limit(10);
 
-  if (result.error) {
-    console.warn("Could not load the authenticated user's AI history", result.error.message);
-    return [];
-  }
+  if (result.error) throw new Error(`AI conversation history unavailable: ${result.error.message ?? "query failed"}`);
 
   const history = (Array.isArray(result.data) ? result.data : [])
     .slice()
@@ -97,7 +96,7 @@ async function loadConversationHistory(
 
 async function loadProfileContext(client: SupabaseClient, userId: string) {
   const result = await client.from("profiles").select("*").eq("id", userId).maybeSingle();
-  if (result.error) console.warn("Could not load authenticated profile context", result.error.message);
+  if (result.error) throw new Error(`AI profile context unavailable: ${result.error.message ?? "query failed"}`);
 
   const profile = record(result.data);
   const answers = record(profile?.onboarding_answers);
@@ -112,7 +111,11 @@ async function loadProfileContext(client: SupabaseClient, userId: string) {
     profile: personalizationAllowed
       ? {
         ageGroup: profile?.age_group ?? answers?.ageGroup ?? null,
+        gender: answers?.gender ?? null,
+        heightCm: profile?.height ?? null,
+        weightKg: profile?.weight ?? null,
         occupation: profile?.occupation ?? answers?.occupation ?? null,
+        mbti: profile?.mbti ?? null,
         hobbies: stringArray(answers?.hobbies),
         primaryGoal: profile?.goal ?? null,
         exerciseDuration: answers?.exerciseDuration ?? profile?.exercise_frequency ?? null,
@@ -179,7 +182,7 @@ async function recentRows(
     .lte("record_date", endDate)
     .order("record_date", { ascending: false })
     .limit(limit);
-  if (result.error) console.warn(`Could not load authenticated ${table} context`, result.error.message);
+  if (result.error) throw new Error(`AI ${table} context unavailable: ${result.error.message ?? "query failed"}`);
   return result as QueryResult;
 }
 
@@ -190,19 +193,19 @@ function compactRows(result: QueryResult, compact: (row: Record<string, unknown>
 }
 
 function compactRhythm(row: Record<string, unknown>) {
-  return withoutEmpty({ date: row.record_date, score: row.score, confidence: row.confidence });
+  return withoutEmpty({ date: row.record_date, score: row.score, scoreLower: row.score_lower, scoreUpper: row.score_upper, confidence: row.confidence, dataQuality: row.data_quality_score, trendSlope: row.trend_slope, changePointProbability: row.change_point_probability });
 }
 
 function compactSleep(row: Record<string, unknown>) {
-  return withoutEmpty({ date: row.record_date, start: row.sleep_start, end: row.sleep_end, minutes: row.sleep_duration_minutes, selfRating: row.self_rating });
+  return withoutEmpty({ date: row.record_date, start: row.sleep_start, end: row.sleep_end, minutes: row.sleep_duration_minutes, deepMinutes: row.deep_sleep_minutes, lightMinutes: row.light_sleep_minutes, remMinutes: row.rem_minutes, selfRating: row.self_rating, rhythmScore: row.rhythm_score, source: row.device_type, note: clip(String(row.self_note ?? ""), 120) || null });
 }
 
 function compactExercise(row: Record<string, unknown>) {
-  return withoutEmpty({ date: row.record_date, steps: row.steps, calories: row.calories, minutes: row.exercise_minutes, heartRate: row.heart_rate });
+  return withoutEmpty({ date: row.record_date, steps: row.steps, calories: row.calories, minutes: row.exercise_minutes, heartRate: row.heart_rate, bloodOxygen: row.spo2, selfRating: row.self_rating, source: row.device_type, note: clip(String(row.self_note ?? ""), 120) || null });
 }
 
 function compactMood(row: Record<string, unknown>) {
-  return withoutEmpty({ date: row.record_date, score: row.mood_score, factors: stringArray(row.factors).slice(0, 4) });
+  return withoutEmpty({ date: row.record_date, score: row.mood_score, factors: stringArray(row.factors).slice(0, 6), diary: clip(String(row.diary_content ?? ""), 160) || null, sentiment: row.diary_sentiment });
 }
 
 function compactNutrition(row: Record<string, unknown>) {
@@ -212,22 +215,52 @@ function compactNutrition(row: Record<string, unknown>) {
     breakfast: foodNames(row.breakfast_items),
     lunch: foodNames(row.lunch_items),
     dinner: foodNames(row.dinner_items),
+    pantry: foodNames(row.pantry_items),
+    proteinGrams: row.protein_grams,
+    carbohydrateGrams: row.carbohydrate_grams,
+    fatGrams: row.fat_grams,
+    hydrationMl: row.hydration_ml,
+    healthRating: row.health_rating,
+    breakfastTime: row.breakfast_time,
+    lunchTime: row.lunch_time,
+    dinnerTime: row.dinner_time,
+    pantryTime: row.pantry_time,
   });
 }
 
 function compactFace(row: Record<string, unknown>) {
-  return withoutEmpty({ date: row.record_date, skinAge: row.skin_age, feedback: clip(String(row.feedback ?? ""), 100) || null });
+  return withoutEmpty({ date: row.record_date, overallScore: row.overall_score, skinAge: row.skin_age, confidence: row.analysis_confidence, captureMode: row.capture_mode, derivedFeatures: row.derived_features, feedback: clip(String(row.feedback ?? ""), 140) || null, modelVersion: row.model_version });
+}
+
+function compactHealthMetricSnapshot(row: Record<string, unknown>) {
+  return withoutEmpty({
+    date: row.record_date,
+    latestHeartRate: row.latest_heart_rate,
+    restingHeartRate: row.resting_heart_rate,
+    heartRateVariabilitySdnn: row.heart_rate_variability_sdnn,
+    bloodOxygen: row.blood_oxygen,
+    activityBins: row.activity_bins,
+    sleepStageMinutes: row.sleep_stage_minutes,
+    sleepStartAt: row.sleep_start_at,
+    sleepEndAt: row.sleep_end_at,
+    sleepEfficiency: row.sleep_efficiency,
+    activityCoverageHours: row.activity_coverage_hours,
+    source: row.source,
+    sourceMetadata: row.source_metadata,
+  });
 }
 
 function compactFocusRows(result: QueryResult) {
   if (result.error) return null;
-  const byDate = new Map<string, { date: string; minutes: number; sessions: number }>();
+  const byDate = new Map<string, { date: string; minutes: number; sessions: number; interruptions: number; categories: string[] }>();
   for (const row of arrayOfRecords(result.data)) {
     const date = String(row.record_date ?? "");
     if (!date) continue;
-    const current = byDate.get(date) ?? { date, minutes: 0, sessions: 0 };
+    const current = byDate.get(date) ?? { date, minutes: 0, sessions: 0, interruptions: 0, categories: [] };
     current.minutes += number(row.total_minutes);
     current.sessions += number(row.completed_sessions);
+    current.interruptions += number(row.interrupted_sessions);
+    if (typeof row.category === "string" && row.category.trim() && !current.categories.includes(row.category.trim())) current.categories.push(row.category.trim());
     byDate.set(date, current);
   }
   const rows = [...byDate.values()];

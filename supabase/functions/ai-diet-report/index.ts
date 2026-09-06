@@ -20,7 +20,7 @@ type StoredReport = {
 };
 
 const deepSeekModel = "deepseek-v4-flash";
-const modelVersion = "deepseek-v4-flash-15-18-plus-compact-seven-v5";
+const modelVersion = "deepseek-v4-flash-15-18-plus-compact-seven-v6-calendar-window";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return optionsResponse();
@@ -38,6 +38,7 @@ Deno.serve(async (req) => {
       .from("nutrition_records")
       .select("record_date,total_calories,protein_grams,carbohydrate_grams,fat_grams,hydration_ml,health_rating,breakfast_items,lunch_items,dinner_items,pantry_items,ai_feedback")
       .eq("user_id", user.id)
+      .gte("record_date", subtractDays(date, 6))
       .lte("record_date", date)
       .order("record_date", { ascending: false })
       .limit(7);
@@ -54,7 +55,12 @@ Deno.serve(async (req) => {
     const profileContext = personalizationAllowed
       ? {
         ageGroup: profile?.age_group ?? answers?.ageGroup ?? null,
+        gender: answers?.gender ?? null,
+        heightCm: profile?.height ?? null,
+        weightKg: profile?.weight ?? null,
         occupation: profile?.occupation ?? answers?.occupation ?? null,
+        mbti: profile?.mbti ?? null,
+        hobbies: arrayStrings(answers?.hobbies),
         primaryGoal: profile?.goal ?? null,
         dietPreferences: arrayStrings(answers?.dietPreferences).length > 0 ? arrayStrings(answers?.dietPreferences) : profile?.diet_preference ?? null,
         stressFactors: profile?.stress_factors ?? null,
@@ -217,8 +223,15 @@ function arrayStrings(value: unknown) {
 }
 
 function number(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function subtractDays(date: string, days: number) {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() - days);
+  return value.toISOString().slice(0, 10);
 }
 
 async function anonymizeUserId(userId: string) {

@@ -65,10 +65,19 @@ final prompt without becoming instructions.
 - AI chat history and stored health context are loaded only when personalized
   AI consent is enabled. The current message can still be processed without
   historical personalization, but no prior health records are attached.
+- When consent is enabled, the compact profile context may include age group,
+  gender, height, weight, occupation, MBTI, hobbies, goal, sleep schedule,
+  exercise pattern, diet preferences and stress factors. Missing fields remain
+  missing; query failures stop the request instead of silently producing an
+  answer from an incomplete context.
 - Per-module and weekly health reports read the authenticated user's persisted
   records, run the bounded same-date association harness, and require real
   primary evidence. Weekly generation requires at least five distinct recorded
   days.
+- AI chat and health reports also read the authenticated user's meaningful
+  `health_metric_snapshots` rows: heart rate, resting heart rate, HRV, blood
+  oxygen, activity bins/coverage, sleep stages/times and sleep efficiency.
+  Empty legacy snapshot rows do not count as report evidence.
 - Health and diet report caches carry a SHA-256 fingerprint of the normalized
   source profile and records. A source change invalidates the cached prose.
 - Invalid or incomplete structured report output receives one bounded model
@@ -91,7 +100,7 @@ final prompt without becoming instructions.
   demonstrably adopted by a validated stage. It never presents hidden
   chain-of-thought as an audit record.
 
-## 2026-09-05 production diagnosis
+## 2026-09-05 production diagnosis and 2026-09-07 deployment
 
 - Supabase production logs at 2026-09-05 15:08–15:09 UTC recorded two
   `ai-health-report` failures as `AI 未返回有效的结构化健康报告。` They did not
@@ -110,6 +119,13 @@ final prompt without becoming instructions.
   with JWT verification enabled. A read-only production download matched the
   local `index.ts` SHA-256 exactly, and an unauthenticated canonical endpoint
   call was rejected with `请先登录后再调用 App 后端。`
+- On 2026-09-07 the health-report contract advanced to
+  `deepseek-v4-flash-health-report-v6-health-metrics`: HealthKit snapshots and
+  the expanded consent-authorized profile are part of the source fingerprint,
+  and numeric evidence that cites a date must be grounded in rows for that date.
+  It is deployed as ACTIVE version 10 with JWT verification. The matching diet
+  calendar-window report is ACTIVE version 7 and AI chat context is ACTIVE
+  version 20; both also have JWT verification enabled.
 - Deployment identity and the unauthenticated boundary are verified, but a safe
   authenticated production session was not available during deployment. Real
   DeepSeek generation, successful report persistence, unchanged-data cache

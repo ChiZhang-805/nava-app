@@ -234,7 +234,11 @@ function extractExerciseEntry(value: string, locale: "zh" | "en") {
   if (steps != null) fields.push({ label: locale === "zh" ? "运动步数" : "Steps", value: String(steps), unit: locale === "zh" ? "步" : "steps", path: "steps", valueType: "number" });
   if (minutes != null) fields.push({ label: locale === "zh" ? "运动时长" : "Activity duration", value: String(minutes), unit: locale === "zh" ? "分钟" : "min", path: "minutes", valueType: "number" });
   if (calories != null) fields.push({ label: locale === "zh" ? "运动消耗" : "Calories burned", value: String(calories), unit: locale === "zh" ? "千卡" : "kcal", path: "calories", valueType: "number" });
-  return entry("exercise", locale, value, fields, { steps: steps ?? 0, minutes: minutes ?? 0, calories: calories ?? 0 });
+  return entry("exercise", locale, value, fields, {
+    ...(steps != null ? { steps } : {}),
+    ...(minutes != null ? { minutes } : {}),
+    ...(calories != null ? { calories } : {}),
+  });
 }
 
 function extractFocusEntry(value: string, locale: "zh" | "en") {
@@ -404,7 +408,11 @@ function modelEntry(dataType: string, data: Record<string, unknown>, text: strin
     if (steps != null) fields.push({ label: locale === "zh" ? "运动步数" : "Steps", value: String(Math.round(steps)), unit: locale === "zh" ? "步" : "steps", path: "steps", valueType: "number" });
     if (minutes != null) fields.push({ label: locale === "zh" ? "运动时长" : "Activity duration", value: String(Math.round(minutes)), unit: locale === "zh" ? "分钟" : "min", path: "minutes", valueType: "number" });
     if (calories != null) fields.push({ label: locale === "zh" ? "运动消耗" : "Calories burned", value: String(Math.round(calories)), unit: locale === "zh" ? "千卡" : "kcal", path: "calories", valueType: "number" });
-    return entry("exercise", locale, text, fields, { steps: steps ?? 0, calories: calories ?? 0, minutes: minutes ?? 0 }, confidence);
+    return entry("exercise", locale, text, fields, {
+      ...(steps != null ? { steps: Math.round(steps) } : {}),
+      ...(calories != null ? { calories: Math.round(calories) } : {}),
+      ...(minutes != null ? { minutes: Math.round(minutes) } : {}),
+    }, confidence);
   }
 
   if (dataType === "focus") {

@@ -5,7 +5,7 @@ import ActionButton from "../components/ActionButton";
 import PageSkeleton, { SkeletonLines } from "../components/PageSkeleton";
 import SectionCard from "../components/SectionCard";
 import { useLocale } from "../i18n";
-import { exportUserData, downloadJson } from "../services/exportData";
+import { downloadUserArchive, exportUserData } from "../services/exportData";
 import {
   getHealthAuthorizationStatus,
   getLastHealthSyncAt,
@@ -159,7 +159,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged }: { user: U
   async function exportData() {
     await run("export", t("profile.exportSuccess"), async () => {
       const data = await exportUserData(user.id);
-      downloadJson(`nava-export-${user.id}.json`, data);
+      await downloadUserArchive(`nava-export-${user.id}`, data);
     });
   }
 

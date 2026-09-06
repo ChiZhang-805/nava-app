@@ -204,17 +204,26 @@ export async function subscribeWatchActions(userId: string, listener: (action: R
   if (!Capacitor.isNativePlatform() || !NavaWatchBridge.addListener) return null;
   const handle = await NavaWatchBridge.addListener("watchAction", async (action) => {
     const resolved = enqueueWatchAction(userId, action);
-    await acknowledgeNativeWatchActions([resolved.actionId]);
-    await listener(resolved);
+    try {
+      await flushPendingWatchActions(userId);
+      await acknowledgeNativeWatchActions([resolved.actionId]);
+      await listener(resolved);
+    } catch (error) {
+      // Do not acknowledge the native copy until Supabase has accepted the
+      // action. Both queues may safely replay the stable action id.
+      console.warn("Watch action remains queued for retry", error);
+    }
   });
 
   try {
     const drained = await NavaWatchBridge.drainPendingActions();
     const resolvedActions = (drained.actions ?? []).map((action) => enqueueWatchAction(userId, action));
+    await flushPendingWatchActions(userId);
     await acknowledgeNativeWatchActions(resolvedActions.map((action) => action.actionId));
     for (const action of resolvedActions) await listener(action);
   } catch {
-    // Older native builds may not expose the durable queue yet; live events still work.
+    // Older native builds may not expose the durable queue, or Supabase may be
+    // offline. Unacknowledged native and local actions remain replayable.
   }
 
   return handle;

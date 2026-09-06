@@ -52,7 +52,7 @@ export async function loadProfile(userId: string): Promise<UserProfile | null> {
 
   const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
   if (error) throw error;
-  return data as UserProfile | null;
+  return hydrateProfileAvatar(data as UserProfile | null);
 }
 
 export async function saveProfile(profile: Partial<UserProfile> & { id: string }) {
@@ -63,11 +63,11 @@ export async function saveProfile(profile: Partial<UserProfile> & { id: string }
 
   const updated = await supabase.from("profiles").update(changes).eq("id", id).select("*").maybeSingle();
   if (updated.error) throw updated.error;
-  if (updated.data) return updated.data as UserProfile;
+  if (updated.data) return hydrateProfileAvatar(updated.data as UserProfile);
 
   const inserted = await supabase.from("profiles").insert({ id, ...changes }).select("*").single();
   if (inserted.error) throw inserted.error;
-  return inserted.data as UserProfile;
+  return hydrateProfileAvatar(inserted.data as UserProfile);
 }
 
 export async function saveProfileAvatar(userId: string, file: File) {
@@ -76,11 +76,12 @@ export async function saveProfileAvatar(userId: string, file: File) {
     return writeDemoProfile({ id: userId, avatar_url: preview }).avatar_url ?? preview;
   }
 
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `${userId}/avatar-${Date.now()}.${ext}`;
+  // One stable object prevents concurrent devices from deleting each other's
+  // newly uploaded avatar while still allowing old timestamped files to be removed.
+  const path = `${userId}/avatar-current`;
   const bucket = "profile-avatars";
   const upload = await supabase.storage.from(bucket).upload(path, file, {
-    cacheControl: "3600",
+    cacheControl: "60",
     upsert: true,
   });
   if (upload.error) {
@@ -91,8 +92,46 @@ export async function saveProfileAvatar(userId: string, file: File) {
     throw upload.error;
   }
 
-  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-  const avatarUrl = data.publicUrl || preview;
-  const saved = await saveProfile({ id: userId, avatar_url: avatarUrl });
-  return saved?.avatar_url ?? avatarUrl;
+  const storedReference = `storage://${bucket}/${path}`;
+  // Keep the private owner-scoped object if the following profile write fails.
+  // Removing a stable path here can delete a newer concurrent upload from
+  // another device; the next save can reuse it without timestamped orphans.
+  const saved = await saveProfile({ id: userId, avatar_url: storedReference });
+  const listed = await supabase.storage.from(bucket).list(userId, { limit: 100 });
+  if (!listed.error) {
+    const stale = (listed.data ?? [])
+      .filter((entry) => entry.id && `${userId}/${entry.name}` !== path)
+      .map((entry) => `${userId}/${entry.name}`);
+    if (stale.length > 0) {
+      const removed = await supabase.storage.from(bucket).remove(stale);
+      if (removed.error) console.warn("Old profile avatar cleanup deferred", removed.error);
+    }
+  }
+  return saved?.avatar_url ?? await signedAvatarUrl(path) ?? preview;
+}
+
+async function hydrateProfileAvatar(profile: UserProfile | null) {
+  if (!profile?.avatar_url) return profile;
+  const path = profileAvatarPath(profile.avatar_url);
+  if (!path) return profile;
+  const signed = await signedAvatarUrl(path);
+  return signed ? { ...profile, avatar_url: signed } : { ...profile, avatar_url: null };
+}
+
+function profileAvatarPath(value: string) {
+  const storagePrefix = "storage://profile-avatars/";
+  if (value.startsWith(storagePrefix)) return value.slice(storagePrefix.length);
+  const publicMarker = "/storage/v1/object/public/profile-avatars/";
+  const markerIndex = value.indexOf(publicMarker);
+  if (markerIndex < 0) return null;
+  return decodeURIComponent(value.slice(markerIndex + publicMarker.length));
+}
+
+async function signedAvatarUrl(path: string) {
+  const signed = await supabase.storage.from("profile-avatars").createSignedUrl(path, 60 * 60);
+  if (signed.error) {
+    console.warn("Profile avatar URL refresh deferred", signed.error);
+    return null;
+  }
+  return signed.data.signedUrl;
 }

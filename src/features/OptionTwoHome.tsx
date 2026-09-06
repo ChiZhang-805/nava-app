@@ -143,20 +143,27 @@ export default function OptionTwoHome({
     if (requestId !== refreshRequestRef.current) return;
     if (snapshotResult.status === "fulfilled") {
       setSnapshot(snapshotResult.value);
-      syncContextualNotifications(user.id, snapshotResult.value, locale, new Date());
+      syncContextualNotifications(user.id, snapshotResult.value, locale, new Date(), {
+        present: guidanceEligible,
+      });
     } else {
+      setSnapshot(null);
       console.warn("Unable to load the option-two home snapshot", snapshotResult.reason);
     }
 
     if (pointsResult.status === "fulfilled") {
       setTotalPoints(pointsResult.value);
     } else {
+      setTotalPoints(null);
       console.warn("Unable to load the option-two points total", pointsResult.reason);
     }
     if (trendsResult.status === "fulfilled") setTrends(trendsResult.value);
-    else console.warn("Unable to load home widget trends", trendsResult.reason);
+    else {
+      setTrends(null);
+      console.warn("Unable to load home widget trends", trendsResult.reason);
+    }
     setLoading(false);
-  }, [deviceDate, locale, user.id]);
+  }, [deviceDate, guidanceEligible, locale, user.id]);
 
   useEffect(() => {
     let active = true;
@@ -302,7 +309,7 @@ export default function OptionTwoHome({
 
       <section className={["home-widget-grid", widgetIds.length === 0 ? "is-empty" : ""].join(" ")} aria-label={locale === "zh" ? "我的健康小组件" : "My health widgets"} data-widget-count={widgetIds.length}>
         {(loading && snapshot === null) || forceHomeWidgetSkeleton
-          ? [0, 1, 2, 3, 4].map((index) => <SkeletonBlock className="home-widget-skeleton" key={index} />)
+          ? Array.from({ length: widgetIds.length || 5 }, (_, index) => <SkeletonBlock className="home-widget-skeleton" key={index} />)
           : widgetIds.length === 0
             ? <button className="home-widget-empty" type="button" onClick={() => onViewChange("home-widgets")}><Sparkles size={18} /><span><strong>{locale === "zh" ? "添加关注的小组件" : "Add widgets you care about"}</strong><small>{locale === "zh" ? "最多 6 个，每行 3 个" : "Up to 6, three per row"}</small></span></button>
             : widgetIds.map((id) => {

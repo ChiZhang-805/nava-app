@@ -22,5 +22,5 @@ export async function trackAnalyticsEvent(
     event_name: eventName.slice(0, 80),
     properties: safeProperties(properties),
   });
-  if (error && !/analytics_events|schema cache|does not exist/i.test(error.message)) throw error;
+  if (error) throw error;
 }

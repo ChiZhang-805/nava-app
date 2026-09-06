@@ -74,6 +74,7 @@ import { clearActiveUserSession, loadActiveUserSession, saveActiveUserSession } 
 type MoodFactor = { value: string; label: string };
 
 type FocusTimerDraft = {
+  sessionId?: string;
   mode: "countdown" | "countup";
   countdownDurationSeconds: number;
   remaining: number;
@@ -94,6 +95,7 @@ function normalizeFocusTimerDraft(parsed: Partial<FocusTimerDraft> | null): Focu
     if (![duration, remaining, elapsed].every((value) => Number.isFinite(value) && value >= 0)) return null;
     return {
       mode: parsed.mode,
+      sessionId: typeof parsed.sessionId === "string" && parsed.sessionId.length >= 8 ? parsed.sessionId : undefined,
       countdownDurationSeconds: Math.min(180 * 60, Math.max(1, Math.round(duration))),
       remaining: Math.min(180 * 60, Math.max(0, Math.round(remaining))),
       elapsedSeconds: Math.max(0, Math.round(elapsed)),
@@ -147,7 +149,7 @@ type Props = {
   onOpenEditor: () => void;
   onOpenDietCamera: () => void;
   onOpenDietMeal: (meal: "breakfast" | "lunch" | "dinner" | "pantry") => void;
-  onSaveFocusMinutes: (minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string; category?: string; note?: string }) => Promise<void>;
+  onSaveFocusMinutes: (minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string; category?: string; note?: string; sourceActionId?: string }) => Promise<void>;
   busy: string | null;
   recordDate: string;
   deviceDate: string;
@@ -917,6 +919,7 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
   const deepMinutes = selectedSleep?.deep_sleep_minutes ?? 0;
   const lightMinutes = selectedSleep?.light_sleep_minutes ?? 0;
   const remMinutes = selectedSleep?.rem_minutes ?? 0;
+  const hasSleepStages = deepMinutes + lightMinutes + remMinutes > 0;
   const total = Math.max(1, deepMinutes + lightMinutes + remMinutes);
   const score = Math.round(selectedSleep?.rhythm_score ?? 0);
   const timeline = sleepTimelineGeometry(displayStart, displayEnd, selectedSleep?.sleep_duration_minutes);
@@ -962,7 +965,9 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
         <header><strong>{locale === "zh" ? "睡眠摘要" : "Sleep summary"}</strong><button className="module-card-icon-action" type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "更新睡眠记录" : "Update sleep record"}><MoonStar size={18} /><span>{locale === "zh" ? "更新" : "Update"}</span></button></header>
         <div className="sleep-timeline"><span>{displayStart}</span><div><i style={{ "--sleep-left": `${timeline.leftPercent}%`, "--sleep-width": `${timeline.widthPercent}%` } as CSSProperties} /></div><span>{displayEnd}</span></div>
         <div className="sleep-stage-row">
-          <div className="sleep-stage-shape"><i style={{ flex: deepMinutes / total, "--stage-height": `${stageHeights[0]}%` } as CSSProperties} /><i style={{ flex: lightMinutes / total, "--stage-height": `${stageHeights[1]}%` } as CSSProperties} /><i style={{ flex: remMinutes / total, "--stage-height": `${stageHeights[2]}%` } as CSSProperties} /></div>
+          <div className={`sleep-stage-shape${hasSleepStages ? "" : " is-empty"}`}>{hasSleepStages
+            ? <><i style={{ flex: deepMinutes / total, "--stage-height": `${stageHeights[0]}%` } as CSSProperties} /><i style={{ flex: lightMinutes / total, "--stage-height": `${stageHeights[1]}%` } as CSSProperties} /><i style={{ flex: remMinutes / total, "--stage-height": `${stageHeights[2]}%` } as CSSProperties} /></>
+            : <span>{locale === "zh" ? "暂无阶段数据" : "No stage data"}</span>}</div>
           <ul><li><i />{locale === "zh" ? "深睡" : "Deep"}</li><li><i />{locale === "zh" ? "浅睡" : "Light"}</li><li><i />REM</li></ul>
           <strong>{selectedSleep ? <AnimatedNumber value={score} /> : "--"}<small>{locale === "zh" ? "分" : "pts"}</small></strong>
         </div>
@@ -1121,6 +1126,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [timerMode, setTimerMode] = useState<"countdown" | "countup">(focusLaunch?.mode ?? restoredTimer?.mode ?? "countdown");
   const [interruptions, setInterruptions] = useState(focusLaunch ? 0 : restoredTimer?.interruptions ?? 0);
   const [startedAt, setStartedAt] = useState<string | undefined>(focusLaunch?.startedAt ?? restoredTimer?.startedAt);
+  const [sessionId, setSessionId] = useState(focusLaunch?.id ?? restoredTimer?.sessionId ?? crypto.randomUUID());
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [todos, setTodos] = useState<TodoItem[]>([]);
@@ -1136,6 +1142,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [cloudTimerReady, setCloudTimerReady] = useState(() => isDemoMode());
   const lastCloudTimerWriteRef = useRef(0);
   const cloudTimerExistsRef = useRef(false);
+  const lastTimerTickRef = useRef<number | null>(null);
   const refreshTodos = useCallback(() => {
     void syncTodos(userId).then(setTodos).catch((error) => console.warn("Todo sync deferred", error));
   }, [userId]);
@@ -1154,6 +1161,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       setElapsedSeconds(0);
       setInterruptions(0);
       setStartedAt(focusLaunch.startedAt);
+      setSessionId(focusLaunch.id);
       setSaved(false);
       setHasStarted(true);
       setRunning(true);
@@ -1173,9 +1181,18 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       return () => { active = false; };
     }
     setCloudTimerReady(false);
-    void loadActiveUserSession<Partial<FocusTimerDraft>>(userId, "focus")
+    void loadActiveUserSession<Partial<FocusTimerDraft> & { clearedAt?: string }>(userId, "focus")
       .then((payload) => {
         if (!active) return;
+        if (typeof payload?.clearedAt === "string") {
+          window.sessionStorage.removeItem(`nava-focus-timer:${userId}`);
+          cloudTimerExistsRef.current = false;
+          if (!launchedFromEditorRef.current) {
+            setRunning(false);
+            setHasStarted(false);
+          }
+          return;
+        }
         const remote = normalizeFocusTimerDraft(payload);
         cloudTimerExistsRef.current = Boolean(remote);
         if (remote && !launchedFromEditorRef.current) {
@@ -1185,6 +1202,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           setElapsedSeconds(remote.elapsedSeconds);
           setInterruptions(remote.interruptions);
           setStartedAt(remote.startedAt);
+          setSessionId(remote.sessionId ?? crypto.randomUUID());
           setFocusTitle(remote.title ?? "");
           setFocusNote(remote.note ?? "");
           setFocusCategory(remote.category);
@@ -1213,6 +1231,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     }
     const draft: FocusTimerDraft = {
       mode: timerMode,
+      sessionId,
       countdownDurationSeconds,
       remaining,
       elapsedSeconds,
@@ -1231,7 +1250,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       void saveActiveUserSession(userId, "focus", { ...draft })
         .catch((error) => console.warn("Focus session cloud sync deferred", error));
     }
-  }, [cloudTimerReady, countdownDurationSeconds, displayedFocusTitle, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptions, remaining, running, saved, selectedTodoId, startedAt, timerMode, userId]);
+  }, [cloudTimerReady, countdownDurationSeconds, displayedFocusTitle, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptions, remaining, running, saved, selectedTodoId, sessionId, startedAt, timerMode, userId]);
   const todayTodos = todos.filter((item) => item.scheduledDate === deviceDate);
   const calendarDays = rollingDateWindow(deviceDate);
   const visibleTodos = todoView === "list" ? todayTodos : todos.filter((item) => item.scheduledDate === calendarDate);
@@ -1331,6 +1350,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setHasStarted(false);
     setSaved(false);
     setStartedAt(undefined);
+    setSessionId(crypto.randomUUID());
     if (timerMode === "countup") {
       setElapsedSeconds(nextTotal);
       return;
@@ -1342,11 +1362,22 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
 
   useEffect(() => {
     if (!immersive || !running) return;
-    const timer = window.setInterval(() => {
-      if (timerMode === "countup") setElapsedSeconds((value) => value + 1);
-      else setRemaining((value) => Math.max(0, value - 1));
-    }, 1000);
-    return () => window.clearInterval(timer);
+    lastTimerTickRef.current = Date.now();
+    const applyElapsedWallTime = () => {
+      const now = Date.now();
+      const previous = lastTimerTickRef.current ?? now;
+      const elapsed = Math.floor((now - previous) / 1000);
+      if (elapsed <= 0) return;
+      lastTimerTickRef.current = previous + elapsed * 1000;
+      if (timerMode === "countup") setElapsedSeconds((value) => value + elapsed);
+      else setRemaining((value) => Math.max(0, value - elapsed));
+    };
+    const timer = window.setInterval(applyElapsedWallTime, 250);
+    return () => {
+      applyElapsedWallTime();
+      lastTimerTickRef.current = null;
+      window.clearInterval(timer);
+    };
   }, [immersive, running, timerMode]);
 
   useEffect(() => {
@@ -1395,7 +1426,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     const seconds = timerMode === "countup" ? elapsedSeconds : countdownDurationSeconds - remaining;
     const elapsed = Math.max(1, Math.ceil(seconds / 60));
     try {
-      await onSaveFocusMinutes(elapsed, { interruptions, startedAt, endedAt: new Date().toISOString(), category: focusCategory, note: focusNote });
+      await onSaveFocusMinutes(elapsed, { interruptions, startedAt, endedAt: new Date().toISOString(), category: focusCategory, note: focusNote, sourceActionId: sessionId });
       if (selectedTodo && !selectedTodo.completed && selectedTodoCompletedSessions + 1 >= (selectedTodo.focusSessions ?? 1)) await toggleTodo(userId, selectedTodo.id);
       refreshTodos();
       setSaved(true);
@@ -1403,7 +1434,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     } finally {
       setSaving(false);
     }
-  }, [countdownDurationSeconds, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptions, onSaveFocusMinutes, openView, refreshTodos, remaining, saving, selectedTodo, selectedTodoCompletedSessions, startedAt, timerMode, userId]);
+  }, [countdownDurationSeconds, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptions, onSaveFocusMinutes, openView, refreshTodos, remaining, saving, selectedTodo, selectedTodoCompletedSessions, sessionId, startedAt, timerMode, userId]);
 
   useEffect(() => {
     if (!immersive || timerMode !== "countdown" || remaining !== 0 || !hasStarted || saving || saved) return;
@@ -1531,7 +1562,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           <strong>{locale === "zh" ? "最近完成" : "Recently completed"}</strong>
           {recentFocus.length > 0 ? recentFocus.map((record) => <div key={record.id}><span><Clock3 size={14} /></span><p><b>{shortDate(record.record_date, locale)}</b><i aria-hidden="true">·</i>{record.completed_sessions}{locale === "zh" ? " 次" : " sessions"}<i aria-hidden="true">·</i>{record.total_minutes}{locale === "zh" ? " 分钟" : " min"}</p></div>) : <p className="focus-empty-history">{locale === "zh" ? "还没有完成记录" : "No completed sessions yet"}</p>}
         </div>
-        <button className="focus-enter-button" type="button" onClick={() => { setHasStarted(false); setRemaining(focusMinutes * 60); setElapsedSeconds(0); setInterruptions(0); setStartedAt(undefined); openView("immersive"); }}>{locale === "zh" ? "进入专注" : "Start focus"}</button>
+        <button className="focus-enter-button" type="button" onClick={() => { setHasStarted(false); setRemaining(focusMinutes * 60); setElapsedSeconds(0); setInterruptions(0); setStartedAt(undefined); setSessionId(crypto.randomUUID()); openView("immersive"); }}>{locale === "zh" ? "进入专注" : "Start focus"}</button>
       </section>
     </div>
   );

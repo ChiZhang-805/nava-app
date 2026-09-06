@@ -38,7 +38,7 @@ type ReportValidationResult = {
 };
 
 const scopes = new Set<ReportScope>(["mood", "sleep", "exercise", "focus", "face", "weekly"]);
-const modelVersion = "deepseek-v4-flash-health-report-v5-targeted-repair";
+const modelVersion = "deepseek-v4-flash-health-report-v6-health-metrics";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return optionsResponse();
@@ -131,17 +131,20 @@ async function loadScopeContext(client: SupabaseClient, userId: string, scope: R
       scope === "mood" ? null : query(client, "mood_records", "record_date,mood_score,factors", userId, start, end),
       scope === "exercise" ? null : query(client, "exercise_records", "record_date,steps,exercise_minutes,calories", userId, start, end),
       scope === "focus" ? null : query(client, "focus_records", "record_date,total_minutes,completed_sessions,interrupted_sessions", userId, start, end),
+      query(client, "health_metric_snapshots", "record_date,latest_heart_rate,resting_heart_rate,heart_rate_variability_sdnn,blood_oxygen,activity_bins,sleep_stage_minutes,sleep_start_at,sleep_end_at,sleep_efficiency,activity_coverage_hours,source,source_metadata", userId, start, end),
     ];
-    const [sleep, moods, exercise, focus] = await Promise.all(companionTables.map(async (request) => request ? await request : []));
-    const companions = { sleep, moods, exercise, focus: aggregateFocusRows(focus) };
+    const [sleep, moods, exercise, focus, rawHealthMetrics] = await Promise.all(companionTables.map(async (request) => request ? await request : []));
+    const healthMetrics = rawHealthMetrics.filter(hasHealthMetricEvidence);
+    const companions = { sleep, moods, exercise, focus: aggregateFocusRows(focus), healthMetrics };
     const companionCount = Object.values(companions).reduce((total, rows) => total + rows.length, 0);
     const associationSeries: Record<string, Array<Record<string, unknown>>> = { [scope]: normalizedPrimary };
     if (scope !== "sleep") associationSeries.sleep = sleep;
     if (scope !== "mood") associationSeries.mood = moods;
     if (scope !== "exercise") associationSeries.exercise = exercise;
     if (scope !== "focus") associationSeries.focus = aggregateFocusRows(focus);
+    const healthPrimaryCount = scope === "sleep" || scope === "exercise" ? healthMetrics.length : 0;
     return {
-      primarySourceCount: normalizedPrimary.length,
+      primarySourceCount: normalizedPrimary.length + healthPrimaryCount,
       sourceCount: normalizedPrimary.length + companionCount,
       payload: {
         period: { start, end },
@@ -153,7 +156,7 @@ async function loadScopeContext(client: SupabaseClient, userId: string, scope: R
     };
   }
 
-  const [rhythms, moods, sleeps, exercises, nutrition, focus, faces] = await Promise.all([
+  const [rhythms, moods, sleeps, exercises, nutrition, focus, faces, healthMetrics] = await Promise.all([
     query(client, "daily_rhythm_scores", "record_date,score,confidence,data_quality_score,trend_slope,change_point_probability,model_version", userId, start, end),
     query(client, "mood_records", "record_date,mood_score,factors", userId, start, end),
     query(client, "sleep_records", "record_date,sleep_duration_minutes,self_rating,rhythm_score", userId, start, end),
@@ -161,8 +164,10 @@ async function loadScopeContext(client: SupabaseClient, userId: string, scope: R
     query(client, "nutrition_records", "record_date,total_calories,protein_grams,carbohydrate_grams,fat_grams,hydration_ml,health_rating", userId, start, end),
     query(client, "focus_records", "record_date,total_minutes,completed_sessions,interrupted_sessions", userId, start, end),
     query(client, "face_records", "record_date,overall_score,analysis_confidence", userId, start, end),
+    query(client, "health_metric_snapshots", "record_date,latest_heart_rate,resting_heart_rate,heart_rate_variability_sdnn,blood_oxygen,activity_bins,sleep_stage_minutes,sleep_start_at,sleep_end_at,sleep_efficiency,activity_coverage_hours,source,source_metadata", userId, start, end),
   ]);
-  const sourceCount = rhythms.length + moods.length + sleeps.length + exercises.length + nutrition.length + focus.length + faces.length;
+  const meaningfulHealthMetrics = healthMetrics.filter(hasHealthMetricEvidence);
+  const sourceCount = rhythms.length + moods.length + sleeps.length + exercises.length + nutrition.length + focus.length + faces.length + meaningfulHealthMetrics.length;
   const aggregatedFocus = aggregateFocusRows(focus);
   // The harness uses singular domain keys to select each table's metric.
   // Keep the persisted/prompt payload names below plural for compatibility,
@@ -180,9 +185,22 @@ async function loadScopeContext(client: SupabaseClient, userId: string, scope: R
       nutrition,
       focus: aggregatedFocus,
       faces,
+      healthMetrics: meaningfulHealthMetrics,
       associationHarness: calculateHealthAssociations(associationSeries),
     },
   };
+}
+
+function hasHealthMetricEvidence(row: Record<string, unknown>) {
+  const scalarKeys = [
+    "latest_heart_rate", "resting_heart_rate", "heart_rate_variability_sdnn",
+    "blood_oxygen", "sleep_start_at", "sleep_end_at", "sleep_efficiency",
+  ];
+  if (scalarKeys.some((key) => row[key] !== null && row[key] !== undefined && row[key] !== "")) return true;
+  if (number(row.activity_coverage_hours) > 0) return true;
+  if (Array.isArray(row.activity_bins) && row.activity_bins.length > 0) return true;
+  const stages = record(row.sleep_stage_minutes);
+  return Boolean(stages && Object.values(stages).some((value) => number(value) > 0));
 }
 
 function aggregateFocusRows(rows: Array<Record<string, unknown>>) {
@@ -205,7 +223,7 @@ async function query(client: SupabaseClient, table: string, select: string, user
 }
 
 async function loadProfileContext(client: SupabaseClient, userId: string) {
-  const result = await client.from("profiles").select("age_group,occupation,goal,onboarding_answers,ai_personalization_consent").eq("id", userId).maybeSingle();
+  const result = await client.from("profiles").select("height,weight,age_group,occupation,mbti,goal,sleep_schedule,exercise_frequency,diet_preference,stress_factors,onboarding_answers,ai_personalization_consent").eq("id", userId).maybeSingle();
   if (result.error) throw result.error;
   if (!result.data) return { personalizationAllowed: false };
   const row = result.data as Record<string, unknown>;
@@ -215,8 +233,17 @@ async function loadProfileContext(client: SupabaseClient, userId: string) {
   return {
     personalizationAllowed: true,
     ageGroup: row.age_group ?? answers?.ageGroup ?? null,
+    gender: answers?.gender ?? null,
+    heightCm: row.height ?? null,
+    weightKg: row.weight ?? null,
     occupation: row.occupation ?? answers?.occupation ?? null,
+    mbti: row.mbti ?? null,
     goal: row.goal ?? null,
+    sleepSchedule: row.sleep_schedule ?? answers?.sleepDuration ?? null,
+    exerciseFrequency: row.exercise_frequency ?? answers?.exerciseDuration ?? null,
+    dietPreferences: row.diet_preference ?? answers?.dietPreferences ?? null,
+    stressFactors: row.stress_factors ?? null,
+    hobbies: answers?.hobbies ?? null,
   };
 }
 
@@ -396,10 +423,28 @@ function associationConfidenceAllowed(confidence: ReportConfidence, text: string
 }
 
 function numericEvidenceGrounded(value: string, sourceContext: unknown) {
-  const claimed = value.match(/\d+(?:\.\d+)?/g) ?? [];
+  const claimed: string[] = value.match(/\d+(?:\.\d+)?/g) ?? [];
   if (claimed.length === 0) return true;
-  const supplied = new Set((JSON.stringify(sourceContext).match(/\d+(?:\.\d+)?/g) ?? []).map(normalizeNumberToken));
+  const citedDates: string[] = value.match(/\d{4}-\d{2}-\d{2}/g) ?? [];
+  const datedRows = collectDatedRows(sourceContext);
+  const relevantSource = citedDates.length > 0
+    ? datedRows.filter((row) => citedDates.includes(String(row.record_date)))
+    : datedRows;
+  const suppliedText = relevantSource.length > 0 ? JSON.stringify(relevantSource) : JSON.stringify(sourceContext);
+  const supplied = new Set((suppliedText.match(/\d+(?:\.\d+)?/g) ?? []).map(normalizeNumberToken));
   return claimed.map(normalizeNumberToken).every((token) => supplied.has(token));
+}
+
+function collectDatedRows(value: unknown, rows: Array<Record<string, unknown>> = []): Array<Record<string, unknown>> {
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectDatedRows(item, rows));
+    return rows;
+  }
+  const item = record(value);
+  if (!item) return rows;
+  if (typeof item.record_date === "string") rows.push(item);
+  Object.values(item).forEach((child) => collectDatedRows(child, rows));
+  return rows;
 }
 
 function normalizeNumberToken(value: string) {
@@ -439,7 +484,7 @@ function recordedDayCount(value: unknown) {
   const root = record(value);
   if (!root) return 0;
   const dates = new Set<string>();
-  for (const key of ["rhythms", "moods", "sleeps", "exercises", "nutrition", "focus", "faces"]) {
+  for (const key of ["rhythms", "moods", "sleeps", "exercises", "nutrition", "focus", "faces", "healthMetrics"]) {
     const rows = Array.isArray(root[key]) ? root[key] : [];
     for (const item of rows) {
       const date = record(item)?.record_date;

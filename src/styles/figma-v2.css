@@ -3211,6 +3211,18 @@ body::before {
 
 .sleep-stage-shape i:nth-child(2) { background: linear-gradient(145deg, #4f9dc0, #91cfe5); animation-delay: 260ms; animation-duration: 760ms; }
 .sleep-stage-shape i:nth-child(3) { background: linear-gradient(145deg, #a9cfdd, #e5f4f8); animation-delay: 340ms; animation-duration: 690ms; }
+.sleep-stage-shape.is-empty {
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed rgba(19, 91, 124, 0.28);
+  background: rgba(240, 250, 254, 0.42);
+}
+
+.sleep-stage-shape.is-empty span {
+  color: rgba(18, 74, 101, 0.68);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
 
 .sleep-stage-row ul { justify-self: center; margin: 0; padding: 0; list-style: none; color: #5c7785; font-size: 9px; transform: translateX(-6px); }
 .sleep-stage-row li { display: flex; align-items: center; gap: 4px; margin: 5px 0; }
@@ -4459,9 +4471,10 @@ body::before {
 }
 
 /* Avoid showing a clipped fragment of the next diet section on medium-height phones. */
-@media (max-width: 430px) and (max-height: 900px) {
-  .diet-rating-field {
-    margin-top: 16px;
+@media (max-width: 430px) and (max-height: 950px) {
+  .phone-frame:not(.phone-frame--option2) .record-detail:has(.record-editor-stack) .diet-rating-field {
+    gap: 2px;
+    margin-top: 0;
   }
 }
 

@@ -42,6 +42,7 @@
     "notification:visual": "node scripts/verify-notifications-ui.mjs",
     "chart-motion:test": "node --experimental-strip-types --test tests/chart-motion.test.ts tests/chart-curves.test.ts",
     "diet:presentation:test": "node --experimental-strip-types --test tests/diet-entry-presentation.test.ts",
+    "nutrition:integrity:test": "node --experimental-strip-types --test tests/nutrition-integrity.test.ts",
     "weekly-report:test": "node --experimental-strip-types --test tests/weekly-report.test.ts",
     "report-share:test": "node --experimental-strip-types --test tests/report-share-card.test.ts tests/device-date.test.ts tests/history-report-state.test.ts",
     "navigation:test": "node --experimental-strip-types --test tests/shell-history.test.ts tests/home-experience.test.ts",

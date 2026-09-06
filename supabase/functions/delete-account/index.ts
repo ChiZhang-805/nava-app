@@ -13,8 +13,6 @@ Deno.serve(async (req) => {
     if (stringValue(body.confirmation) !== "DELETE") throw new Error("删除确认无效。");
     if (!adminClient) throw new Error("账号删除服务尚未配置管理员密钥。");
 
-    await deleteAccountSecurityDigests(adminClient, user);
-
     for (const bucket of privateBuckets) {
       const paths = await listOwnedFiles(adminClient, bucket, user.id);
       for (let offset = 0; offset < paths.length; offset += 100) {
@@ -22,6 +20,8 @@ Deno.serve(async (req) => {
         if (removed.error) throw removed.error;
       }
     }
+
+    await deleteAccountSecurityDigests(adminClient, user);
 
     const { error } = await adminClient.auth.admin.deleteUser(user.id);
     if (error) throw error;
@@ -63,6 +63,10 @@ async function deleteAccountSecurityDigests(
   if (phoneDigests.length > 0) {
     const removed = await client.from("nava_phone_otp_challenges").delete().in("phone_hash", phoneDigests);
     if (removed.error) throw removed.error;
+  }
+  if (phoneIdentifiers.size > 0) {
+    const legacy = await client.rpc("nava_delete_legacy_phone_codes", { p_phones: [...phoneIdentifiers] });
+    if (legacy.error) throw legacy.error;
   }
 }
 

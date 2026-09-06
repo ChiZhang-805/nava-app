@@ -13,6 +13,8 @@ const HEALTH_ID = 41006;
 const INBOX_LIMIT = 80;
 const TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
 const notificationEventName = "nava:notifications-changed";
+const notificationFlushes = new Map<string, Promise<void>>();
+const notificationPreferenceFlushes = new Map<string, Promise<void>>();
 
 export type NavaNotificationCategory = "sleep" | "nutrition" | "mood" | "focus" | "exercise" | "face" | "weekly" | "system";
 export type NavaNotificationSource = "contextual" | "record" | "native" | "system";
@@ -44,8 +46,43 @@ export interface NavaNotificationChange {
 
 export type NotificationPreferenceType = "sleep" | "nutrition" | "mood" | "focus" | "weekly_report" | "fdnb_signal";
 
+type PendingNotificationPreference = {
+  type: NotificationPreferenceType;
+  localTime: string;
+  timezone: string;
+  scheduledAt: string;
+};
+
 function inboxKey(userId: string) {
   return `nava-notification-inbox:v1:${userId}`;
+}
+
+function pendingInboxKey(userId: string) {
+  return `nava-notification-pending:v1:${userId}`;
+}
+
+function pendingPreferenceKey(userId: string) {
+  return `nava-notification-preference-pending:v1:${userId}`;
+}
+
+function readPendingPreferences(userId: string): PendingNotificationPreference[] {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(pendingPreferenceKey(userId)) ?? "[]") as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is PendingNotificationPreference => Boolean(
+      item
+      && typeof item === "object"
+      && ["sleep", "nutrition", "mood", "focus", "weekly_report", "fdnb_signal"].includes(String((item as PendingNotificationPreference).type))
+      && /^\d{2}:\d{2}$/.test(String((item as PendingNotificationPreference).localTime)),
+    ));
+  } catch {
+    return [];
+  }
+}
+
+function writePendingPreferences(userId: string, items: PendingNotificationPreference[]) {
+  if (items.length === 0) window.localStorage.removeItem(pendingPreferenceKey(userId));
+  else window.localStorage.setItem(pendingPreferenceKey(userId), JSON.stringify(items));
 }
 
 function readStoredItems(userId: string): NavaNotificationItem[] {
@@ -66,10 +103,36 @@ function readStoredItems(userId: string): NavaNotificationItem[] {
 }
 
 function itemRevision(item: NavaNotificationItem) {
+  if (item.updatedAt) return item.updatedAt;
   const revisions = [item.updatedAt, item.deletedAt, item.readAt, item.createdAt]
     .filter((value): value is string => typeof value === "string")
     .sort();
   return revisions[revisions.length - 1] ?? item.createdAt;
+}
+
+function readPendingItems(userId: string): NavaNotificationItem[] {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(pendingInboxKey(userId)) ?? "[]") as unknown;
+    return Array.isArray(parsed) ? parsed.filter((item): item is NavaNotificationItem => Boolean(
+      item && typeof item === "object" && typeof (item as NavaNotificationItem).id === "string",
+    )) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePendingItems(userId: string, items: NavaNotificationItem[]) {
+  if (items.length === 0) window.localStorage.removeItem(pendingInboxKey(userId));
+  else window.localStorage.setItem(pendingInboxKey(userId), JSON.stringify(items));
+}
+
+function enqueueNotificationItems(userId: string, items: NavaNotificationItem[]) {
+  if (isDemoMode() || items.length === 0) return;
+  const pending = new Map(readPendingItems(userId).map((item) => [item.id, item]));
+  items.forEach((item) => pending.set(item.id, item));
+  writePendingItems(userId, [...pending.values()]);
+  void flushPendingNotificationItems(userId)
+    .catch((error) => console.warn("Notification cloud sync deferred", error));
 }
 
 function cloudRowToItem(row: Record<string, unknown>): NavaNotificationItem | null {
@@ -110,7 +173,7 @@ function emitChange(userId: string, presented?: NavaNotificationItem) {
 }
 
 async function persistNotificationItems(userId: string, items: NavaNotificationItem[]) {
-  if (isDemoMode() || items.length === 0) return;
+  if (isDemoMode() || items.length === 0) return [];
   const rows = compactItems(items).map((item) => ({
     user_id: userId,
     id: item.id,
@@ -122,10 +185,42 @@ async function persistNotificationItems(userId: string, items: NavaNotificationI
     created_at: item.createdAt,
     read_at: item.readAt ?? null,
     deleted_at: item.deletedAt ?? null,
-    updated_at: item.updatedAt ?? itemRevision(item),
   }));
-  const result = await supabase.from("user_notifications").upsert(rows, { onConflict: "user_id,id" });
+  const result = await supabase.from("user_notifications")
+    .upsert(rows, { onConflict: "user_id,id" })
+    .select("id,category,source,title,body,target,created_at,read_at,deleted_at,updated_at");
   if (result.error) throw result.error;
+  return (result.data ?? []).map((row) => cloudRowToItem(row)).filter((item): item is NavaNotificationItem => Boolean(item));
+}
+
+async function flushPendingNotificationItems(userId: string) {
+  const active = notificationFlushes.get(userId);
+  if (active) return active;
+  const task = (async () => {
+    for (;;) {
+      const batch = readPendingItems(userId);
+      if (batch.length === 0) return;
+      const submitted = new Map(batch.map((item) => [item.id, JSON.stringify(item)]));
+      const persisted = await persistNotificationItems(userId, batch);
+      const latest = readPendingItems(userId);
+      const remaining = latest.filter((item) => submitted.get(item.id) !== JSON.stringify(item));
+      writePendingItems(userId, remaining);
+
+      const stillPending = new Set(remaining.map((item) => item.id));
+      const local = new Map(readStoredItems(userId).map((item) => [item.id, item]));
+      persisted.forEach((item) => {
+        if (!stillPending.has(item.id)) local.set(item.id, item);
+      });
+      window.localStorage.setItem(inboxKey(userId), JSON.stringify(compactItems([...local.values()])));
+      emitChange(userId);
+    }
+  })();
+  notificationFlushes.set(userId, task);
+  try {
+    await task;
+  } finally {
+    if (notificationFlushes.get(userId) === task) notificationFlushes.delete(userId);
+  }
 }
 
 function writeStoredItems(
@@ -138,15 +233,13 @@ function writeStoredItems(
   window.localStorage.setItem(inboxKey(userId), JSON.stringify(compacted));
   emitChange(userId, presented);
   const cloudChanges = Array.isArray(persist) ? persist : persist ? compacted : [];
-  if (cloudChanges.length > 0) {
-    void persistNotificationItems(userId, cloudChanges)
-      .catch((error) => console.warn("Notification cloud sync deferred", error));
-  }
+  enqueueNotificationItems(userId, cloudChanges);
   return visibleItems(compacted);
 }
 
 export async function hydrateNavaNotifications(userId: string, migrateLocal = true) {
   const local = readStoredItems(userId);
+  const pending = readPendingItems(userId);
   if (isDemoMode()) return visibleItems(compactItems(local));
   const result = await supabase
     .from("user_notifications")
@@ -155,15 +248,25 @@ export async function hydrateNavaNotifications(userId: string, migrateLocal = tr
     .order("created_at", { ascending: false })
     .limit(200);
   if (result.error) throw result.error;
+  const cloud = (result.data ?? []).map((row) => cloudRowToItem(row)).filter((item): item is NavaNotificationItem => Boolean(item));
+  const cloudById = new Map(cloud.map((item) => [item.id, item]));
   const merged = new Map<string, NavaNotificationItem>();
-  for (const item of [...(result.data ?? []).map((row) => cloudRowToItem(row)).filter((item): item is NavaNotificationItem => Boolean(item)), ...local]) {
+  for (const item of [...cloud, ...local]) {
     const existing = merged.get(item.id);
     if (!existing || itemRevision(item) > itemRevision(existing)) merged.set(item.id, item);
   }
+  pending.forEach((item) => merged.set(item.id, item));
   const compacted = compactItems([...merged.values()]);
   writeStoredItems(userId, compacted, undefined, false);
-  if (migrateLocal && local.length > 0) await persistNotificationItems(userId, compacted);
-  return visibleItems(compacted);
+  if (migrateLocal) {
+    const legacyChanges = local.filter((item) => {
+      const remote = cloudById.get(item.id);
+      return !remote || itemRevision(item) > itemRevision(remote);
+    });
+    if (legacyChanges.length > 0) enqueueNotificationItems(userId, legacyChanges);
+  }
+  await flushPendingNotificationItems(userId);
+  return listNavaNotifications(userId);
 }
 
 export function listNavaNotifications(userId: string) {
@@ -303,7 +406,13 @@ export function notifyRecordSaved(userId: string, module: NavaNotificationTarget
   }, { present: true });
 }
 
-export function syncContextualNotifications(userId: string, snapshot: import("../types").TodaySnapshot, locale: "zh" | "en", now = new Date()) {
+export function syncContextualNotifications(
+  userId: string,
+  snapshot: import("../types").TodaySnapshot,
+  locale: "zh" | "en",
+  now = new Date(),
+  options: { present?: boolean } = { present: true },
+) {
   const drafts = buildContextualNotificationDrafts(snapshot, now.getHours(), locale);
   let presented = false;
   for (const draft of drafts) {
@@ -314,8 +423,9 @@ export function syncContextualNotifications(userId: string, snapshot: import("..
       body: draft.body,
       target: draft.target,
     };
-    const result = publishNavaNotification(userId, { ...item, source: "contextual" }, { present: !presented });
-    if (result.created && !presented) presented = true;
+    const shouldPresent = options.present === true && !presented;
+    const result = publishNavaNotification(userId, { ...item, source: "contextual" }, { present: shouldPresent });
+    if (result.created && shouldPresent) presented = true;
   }
   return listNavaNotifications(userId);
 }
@@ -343,6 +453,7 @@ function parseTime(value: string) {
 
 export async function loadNotificationPreference(userId: string, type: NotificationPreferenceType) {
   if (isDemoMode()) return null;
+  await flushPendingNotificationPreferences(userId);
   const result = await supabase
     .from("notification_preferences")
     .select("enabled,local_time,timezone")
@@ -359,14 +470,47 @@ export async function loadNotificationPreference(userId: string, type: Notificat
 
 async function savePreference(userId: string, type: NotificationPreferenceType, localTime: string) {
   if (isDemoMode()) return;
-  const { error } = await supabase.from("notification_preferences").upsert({
-    user_id: userId, notification_type: type, enabled: true, local_time: localTime,
+  const pending = new Map(readPendingPreferences(userId).map((item) => [item.type, item]));
+  pending.set(type, {
+    type,
+    localTime,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Shanghai",
-    last_scheduled_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-  }, { onConflict: "user_id,notification_type" });
-  if (error) {
-    if (/notification_preferences|schema cache|does not exist/i.test(error.message)) throw new Error("共享后端尚未启用通知偏好存储，本次提醒设置没有保存到账号。");
-    throw error;
+    scheduledAt: new Date().toISOString(),
+  });
+  writePendingPreferences(userId, [...pending.values()]);
+  await flushPendingNotificationPreferences(userId);
+}
+
+export async function flushPendingNotificationPreferences(userId: string) {
+  if (isDemoMode()) return;
+  const active = notificationPreferenceFlushes.get(userId);
+  if (active) return active;
+  const task = (async () => {
+    for (;;) {
+      const pending = readPendingPreferences(userId);
+      if (pending.length === 0) return;
+      const submitted = new Map(pending.map((item) => [item.type, JSON.stringify(item)]));
+      const { error } = await supabase.from("notification_preferences").upsert(pending.map((item) => ({
+        user_id: userId,
+        notification_type: item.type,
+        enabled: true,
+        local_time: item.localTime,
+        timezone: item.timezone,
+        last_scheduled_at: item.scheduledAt,
+      })), { onConflict: "user_id,notification_type" });
+      if (error) {
+        if (/notification_preferences|schema cache|does not exist/i.test(error.message)) throw new Error("共享后端尚未启用通知偏好存储，本次提醒设置没有保存到账号。");
+        throw error;
+      }
+      const latest = readPendingPreferences(userId);
+      writePendingPreferences(userId, latest.filter((item) => submitted.get(item.type) !== JSON.stringify(item)));
+    }
+  })();
+  notificationPreferenceFlushes.set(userId, task);
+  try {
+    await task;
+  } finally {
+    if (notificationPreferenceFlushes.get(userId) === task) notificationPreferenceFlushes.delete(userId);
   }
 }
 

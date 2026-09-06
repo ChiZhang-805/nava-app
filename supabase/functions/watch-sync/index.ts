@@ -54,26 +54,46 @@ Deno.serve(async (req) => {
       const claim = await adminClient
         .from("watch_action_receipts")
         .insert({ user_id: user.id, action_id: actionId, action_type: actionType, status: "processing" })
-        .select("status,result,completed_at")
+        .select("status,result,completed_at,created_at")
         .single();
+      let ownsClaim = !claim.error;
       if (claim.error?.code === "23505") {
         const existing = await adminClient
           .from("watch_action_receipts")
-          .select("status,result,completed_at")
+          .select("status,result,completed_at,created_at")
           .eq("user_id", user.id)
           .eq("action_id", actionId)
           .single();
         assertNoError(existing.error);
-        return jsonResponse({
-          ok: existing.data?.status === "completed",
-          type: "action",
-          duplicate: true,
-          status: existing.data?.status ?? "processing",
-          result: existing.data?.result ?? null,
-          syncedAt: existing.data?.completed_at ?? null,
-        });
+        const existingReceipt = existing.data;
+        if (!existingReceipt) throw new Error("无法读取手表动作幂等回执。");
+        const staleProcessing = existingReceipt.status === "processing"
+          && Date.parse(String(existingReceipt.created_at ?? "")) < Date.now() - 5 * 60_000;
+        if (existingReceipt.status === "failed" || staleProcessing) {
+          const reclaimedAt = new Date().toISOString();
+          let reclaimRequest = adminClient
+            .from("watch_action_receipts")
+            .update({ status: "processing", error_message: null, result: null, completed_at: null, created_at: reclaimedAt })
+            .eq("user_id", user.id)
+            .eq("action_id", actionId)
+            .eq("status", existingReceipt.status);
+          if (staleProcessing) reclaimRequest = reclaimRequest.eq("created_at", existingReceipt.created_at);
+          const reclaimed = await reclaimRequest.select("status").maybeSingle();
+          assertNoError(reclaimed.error);
+          ownsClaim = Boolean(reclaimed.data);
+        }
+        if (!ownsClaim) {
+          return jsonResponse({
+            ok: existingReceipt.status === "completed",
+            type: "action",
+            duplicate: true,
+            status: existingReceipt.status,
+            result: existingReceipt.result ?? null,
+            syncedAt: existingReceipt.completed_at ?? null,
+          });
+        }
       }
-      assertNoError(claim.error);
+      if (claim.error?.code !== "23505") assertNoError(claim.error);
 
       let result: unknown;
       try {
@@ -164,39 +184,36 @@ async function applyWatchAction(client: SupabaseClient, userId: string, action: 
     const minutes = numberValue(action.durationMinutes);
     if (!minutes || minutes <= 0) throw new Error("手表专注记录缺少 durationMinutes。");
     const task = await ensureTask(client, userId, stringValue(action.taskTitle) ?? "Apple Watch 专注", date);
-    const existing = await client
-      .from("focus_records")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("record_date", date)
-      .eq("task_id", task.id)
-      .maybeSingle();
-    assertNoError(existing.error);
-    const payload = {
-      user_id: userId,
-      task_id: task.id,
-      record_date: date,
-      completed_sessions: (existing.data?.completed_sessions ?? 0) + 1,
-      total_minutes: (existing.data?.total_minutes ?? 0) + Math.round(minutes),
-      interrupted_sessions: existing.data?.interrupted_sessions ?? 0,
-      category: existing.data?.category ?? "watch",
-      started_at: existing.data?.started_at ?? stringValue(action.startedAt) ?? null,
-      ended_at: stringValue(action.endedAt) ?? new Date().toISOString(),
-      note: existing.data?.note ?? null,
-    };
-    const response = existing.data
-      ? await client.from("focus_records").update(payload).eq("id", existing.data.id)
-      : await client.from("focus_records").insert(payload);
+    const response = await client.rpc("record_focus_session", {
+      p_source_action_id: stringValue(action.actionId),
+      p_task_id: task.id,
+      p_record_date: date,
+      p_minutes: Math.round(minutes),
+      p_interruptions: 0,
+      p_category: "watch",
+      p_started_at: stringValue(action.startedAt),
+      p_ended_at: stringValue(action.endedAt) ?? new Date().toISOString(),
+      p_local_hour: watchActionLocalHour(action),
+      p_note: null,
+      p_source: "watch",
+    });
     assertNoError(response.error);
-    await upsertFocusDistribution(client, userId, date, Math.round(minutes), watchActionLocalHour(action));
-    return { saved: true, table: "focus_records" };
+    const result = response.data as { applied?: boolean } | null;
+    return { saved: result?.applied === true, duplicate: result?.applied === false, table: "focus_records" };
+  }
+
+  if (actionType === "focus.start") {
+    const sessionId = stringValue(action.sessionId);
+    const startedAt = stringValue(action.startedAt);
+    if (!sessionId || !startedAt || Number.isNaN(Date.parse(startedAt))) throw new Error("手表专注开始动作缺少有效会话信息。");
+    return { saved: false, accepted: true, reason: "focus timer remains authoritative on Apple Watch until focus.stop" };
   }
 
   if (actionType === "sync.requestSnapshot") {
     return { saved: false, snapshot: await buildSnapshot(client, userId, date) };
   }
 
-  return { saved: false, reason: `暂不支持的手表动作：${actionType ?? "unknown"}` };
+  throw new Error(`暂不支持的手表动作：${actionType ?? "unknown"}`);
 }
 
 async function ensureTask(client: SupabaseClient, userId: string, title: string, date: string) {
@@ -218,29 +235,6 @@ async function ensureTask(client: SupabaseClient, userId: string, title: string,
     .single();
   assertNoError(created.error);
   return created.data as { id: string; title: string };
-}
-
-async function upsertFocusDistribution(client: SupabaseClient, userId: string, date: string, minutes: number, hour: number) {
-  const period = hour < 6 ? "period_0_6" : hour < 12 ? "period_6_12" : hour < 18 ? "period_12_18" : "period_18_24";
-  const existing = await client
-    .from("focus_time_distribution")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("record_date", date)
-    .maybeSingle();
-  assertNoError(existing.error);
-  const base = existing.data ?? {
-    user_id: userId,
-    record_date: date,
-    period_0_6: 0,
-    period_6_12: 0,
-    period_12_18: 0,
-    period_18_24: 0,
-  };
-  const response = existing.data
-    ? await client.from("focus_time_distribution").update({ ...base, [period]: (base[period] ?? 0) + minutes }).eq("id", existing.data.id)
-    : await client.from("focus_time_distribution").insert({ ...base, [period]: minutes });
-  assertNoError(response.error);
 }
 
 async function buildSnapshot(client: SupabaseClient, userId: string, date: string) {

@@ -33,10 +33,11 @@ import { loadProfile, type UserProfile } from "../services/profile";
 import { loadDietAiReport } from "../services/dietReport";
 import { healthReportSourceRevision, loadHealthAiReport, type HealthAiReport, type HealthReportSection } from "../services/healthReport";
 import { calculateWeeklyModuleScores, type WeeklyModuleKey } from "../services/weeklyModuleScores";
-import { allHealthModulesComplete, buildHealthModulePresentations, compareRecordedPeriodAverages, healthModuleEntryView, healthModuleProgressLabel, type HealthModulePoints } from "../services/healthReportPresentation";
+import { allHealthModulesComplete, buildHealthModulePresentations, compareRecordedPeriodAverages, healthModuleEntryView, healthModuleProgressLabel, isCompleteExerciseRecord, isCompleteFaceRecord, isCompleteNutritionRecord, isCompleteSleepRecord, type HealthModulePoints } from "../services/healthReportPresentation";
 import { clearSecureFaceDraft, loadSecureFaceDraft, saveSecureFaceDraft } from "../services/secureFaceDraft";
 import { loadSingleKey, type SingleRequestSlot } from "../services/singleRequestCache";
 import { estimatedFoodLabel, formatDetectedDishList } from "../services/dietEntryPresentation";
+import { readMealNutritionSummary, summaryFromItems } from "../services/nutritionIntegrity";
 import { recordSkeletonVariant } from "../services/loadingRoute";
 import { clearSleepMaintenance, hydrateSleepMaintenance, loadSleepMaintenance, sleepMaintenanceElapsedMinutes, sleepMaintenanceFields, startSleepMaintenance, type SleepMaintenanceSession } from "../services/sessionMaintenance";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
@@ -86,7 +87,7 @@ const quickFoodPresets: Array<{
 export type RecordModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
 
 export type FocusLaunchConfig = {
-  id: number;
+  id: string;
   mode: "countdown" | "countup";
   note: string;
   startedAt: string;
@@ -261,12 +262,12 @@ export default function RecordsScreen({
   const [selectedFactors, setSelectedFactors] = useState<string[]>([]);
   const [diary, setDiary] = useState("");
 
-  const [sleepStart, setSleepStart] = useState("23:30");
-  const [sleepEnd, setSleepEnd] = useState("07:10");
-  const [sleepDuration, setSleepDuration] = useState(460);
-  const [deepSleep, setDeepSleep] = useState(85);
-  const [lightSleep, setLightSleep] = useState(280);
-  const [remSleep, setRemSleep] = useState(95);
+  const [sleepStart, setSleepStart] = useState("");
+  const [sleepEnd, setSleepEnd] = useState("");
+  const [sleepDuration, setSleepDuration] = useState(0);
+  const [deepSleep, setDeepSleep] = useState(0);
+  const [lightSleep, setLightSleep] = useState(0);
+  const [remSleep, setRemSleep] = useState(0);
   const [sleepRating, setSleepRating] = useState(4);
   const [sleepNote, setSleepNote] = useState("");
   const [sleepMaintenance, setSleepMaintenance] = useState<SleepMaintenanceSession | null>(() => loadSleepMaintenance(user.id));
@@ -318,11 +319,9 @@ export default function RecordsScreen({
   });
   const faceCaptureReady = Object.values(faceCaptureChecks).every(Boolean);
   const dietQuickCameraInputRef = useRef<HTMLInputElement | null>(null);
+  const dietEntrySourceIdRef = useRef(crypto.randomUUID());
   const facePhotoInputRef = useRef<HTMLInputElement | null>(null);
   const faceLibraryInputRef = useRef<HTMLInputElement | null>(null);
-  const moodAutoSaveTimerRef = useRef<number | null>(null);
-  const moodAutoSaveRequestRef = useRef(0);
-  const moodAutoSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const healthModulePresentations = buildHealthModulePresentations(todaySnapshot, locale);
   const allHubModulesComplete = allHealthModulesComplete(healthModulePresentations);
   const hubAiEligible = allHubModulesComplete
@@ -400,12 +399,12 @@ export default function RecordsScreen({
       setMoodScore(snapshot.mood?.mood_score ?? 70);
       setSelectedFactors(snapshot.mood?.factors ?? []);
       setDiary(snapshot.mood?.diary_content ?? "");
-      setSleepStart(snapshot.sleep?.sleep_start ?? "23:30");
-      setSleepEnd(snapshot.sleep?.sleep_end ?? "07:10");
-      setSleepDuration(snapshot.sleep?.sleep_duration_minutes ?? 460);
-      setDeepSleep(snapshot.sleep?.deep_sleep_minutes ?? 85);
-      setLightSleep(snapshot.sleep?.light_sleep_minutes ?? 280);
-      setRemSleep(snapshot.sleep?.rem_minutes ?? 95);
+      setSleepStart(snapshot.sleep?.sleep_start ?? "");
+      setSleepEnd(snapshot.sleep?.sleep_end ?? "");
+      setSleepDuration(snapshot.sleep?.sleep_duration_minutes ?? 0);
+      setDeepSleep(snapshot.sleep?.deep_sleep_minutes ?? 0);
+      setLightSleep(snapshot.sleep?.light_sleep_minutes ?? 0);
+      setRemSleep(snapshot.sleep?.rem_minutes ?? 0);
       setSleepRating(snapshot.sleep?.self_rating ?? 4);
       setSleepNote(snapshot.sleep?.self_note ?? "");
       setSteps(snapshot.exercise?.steps ?? 0);
@@ -440,15 +439,17 @@ export default function RecordsScreen({
       const photoField = meal === "pantry" ? null : `${meal}_photo_url` as keyof NonNullable<typeof nutrition>;
       const photoPath = photoField && nutrition ? nutrition[photoField] : null;
       const selectedMealCalories = loadedItems.reduce((sum, item) => sum + (Number(item.calories) || 0), 0);
+      const storedMealSummary = readMealNutritionSummary(loadedItems);
+      const itemMealSummary = summaryFromItems(loadedItems);
       setDietItems(loadedItems);
       setMealName(formatDetectedDishList(loadedItems));
-      setMealCalories(selectedMealCalories || (nutrition?.total_calories ?? 0));
+      setMealCalories(selectedMealCalories);
       setMealTime(typeof savedMealTime === "string" ? savedMealTime.slice(0, 5) : currentLocalTimeInput());
-      setProteinGrams(nutrition?.protein_grams ?? 0);
-      setCarbohydrateGrams(nutrition?.carbohydrate_grams ?? 0);
-      setFatGrams(nutrition?.fat_grams ?? 0);
-      setHydrationMl(nutrition?.hydration_ml ?? 0);
-      setDietRating(nutrition?.health_rating ?? 3);
+      setProteinGrams(storedMealSummary?.protein_grams ?? itemMealSummary.protein_grams);
+      setCarbohydrateGrams(storedMealSummary?.carbohydrate_grams ?? itemMealSummary.carbohydrate_grams);
+      setFatGrams(storedMealSummary?.fat_grams ?? itemMealSummary.fat_grams);
+      setHydrationMl(storedMealSummary?.hydration_ml ?? 0);
+      setDietRating(storedMealSummary?.health_rating ?? 3);
       setDietPhotoPath(typeof photoPath === "string" ? photoPath : null);
       const resolvedDietPhotoUrl = typeof photoPath === "string" ? await resolveDietPhotoUrl(photoPath).catch(() => null) : null;
       if (requestId !== recordLoadRequestRef.current) return;
@@ -622,10 +623,6 @@ export default function RecordsScreen({
     const today = todayISO();
     if (recordDate !== today) setRecordDate(today);
   }, [activeModule, recordDate]);
-
-  useEffect(() => () => {
-    if (moodAutoSaveTimerRef.current !== null) window.clearTimeout(moodAutoSaveTimerRef.current);
-  }, []);
 
   useEffect(() => {
     if (reportMode !== "weekly") return;
@@ -842,65 +839,18 @@ export default function RecordsScreen({
       ? selectedFactors.filter((item) => item !== factor)
       : [...selectedFactors, factor];
     setSelectedFactors(nextFactors);
-    queueMoodAutoSave(moodScore, nextFactors, diary);
   }
 
   function setPrimaryFactor(factor: string) {
     const nextFactors = factor ? [factor] : [];
     setSelectedFactors(nextFactors);
-    queueMoodAutoSave(moodScore, nextFactors, diary);
   }
 
   function updateMoodDiary(value: string) {
     setDiary(value);
-    queueMoodAutoSave(moodScore, selectedFactors, value);
   }
 
-  function queueMoodAutoSave(nextScore: number, factorsForSave: string[], diaryForSave: string, immediate = false) {
-    const today = todayISO();
-    if (recordDate !== today || factorsForSave.length === 0 || !diaryForSave.trim()) return;
-
-    const persist = () => {
-      const request = ++moodAutoSaveRequestRef.current;
-      const operation = moodAutoSaveQueueRef.current
-        .catch(() => undefined)
-        .then(async () => {
-          try {
-            const savedMood = await saveMoodRecord({
-              userId: user.id,
-              date: today,
-              moodScore: nextScore,
-              factors: factorsForSave,
-              diary: diaryForSave,
-            });
-            if (request !== moodAutoSaveRequestRef.current) return;
-            setTodaySnapshot((current) => current && current.date === today ? { ...current, mood: savedMood } : current);
-            setTrendBundle((current) => {
-              if (!current) return current;
-              const moods = current.moods.filter((item) => item.record_date !== today);
-              return { ...current, moods: [...moods, savedMood].sort((a, b) => a.record_date.localeCompare(b.record_date)) };
-            });
-          } catch (saveError) {
-            console.warn("Mood score auto-save deferred", saveError);
-          }
-        });
-      moodAutoSaveQueueRef.current = operation;
-      return operation;
-    };
-
-    if (moodAutoSaveTimerRef.current !== null) window.clearTimeout(moodAutoSaveTimerRef.current);
-    if (immediate) {
-      moodAutoSaveTimerRef.current = null;
-      void persist();
-      return;
-    }
-    moodAutoSaveTimerRef.current = window.setTimeout(() => {
-      moodAutoSaveTimerRef.current = null;
-      void persist();
-    }, 420);
-  }
-
-  function updateMoodScore(value: number, immediate = false) {
+  function updateMoodScore(value: number) {
     const nextScore = Math.min(100, Math.max(0, Math.round(value)));
     const today = todayISO();
     const rolledToNewDay = recordDate !== today;
@@ -911,7 +861,6 @@ export default function RecordsScreen({
       setDiary("");
       return;
     }
-    queueMoodAutoSave(nextScore, selectedFactors, diary, immediate);
   }
 
   async function saveMood(event: FormEvent) {
@@ -932,12 +881,6 @@ export default function RecordsScreen({
       setError(locale === "zh" ? "请写下今天的情绪后再保存。" : "Write today's mood before saving.");
       return false;
     }
-    if (moodAutoSaveTimerRef.current !== null) {
-      window.clearTimeout(moodAutoSaveTimerRef.current);
-      moodAutoSaveTimerRef.current = null;
-    }
-    await moodAutoSaveQueueRef.current.catch(() => undefined);
-    moodAutoSaveRequestRef.current += 1;
     return run("records.mood", () =>
       saveMoodRecord({
         userId: user.id,
@@ -951,6 +894,12 @@ export default function RecordsScreen({
 
   async function saveSleep(event: FormEvent) {
     event.preventDefault();
+    if (!sleepStart || !sleepEnd || sleepDuration <= 0) {
+      setError(locale === "zh"
+        ? "请填写真实的入睡时间、醒来时间和睡眠时长后再保存。"
+        : "Enter the actual bedtime, wake time, and sleep duration before saving.");
+      return;
+    }
     const saved = await run("records.sleep", () =>
       saveSleepRecord({
         userId: user.id,
@@ -979,7 +928,7 @@ export default function RecordsScreen({
     const session = startSleepMaintenance(user.id);
     setSleepMaintenance(session);
     setSleepMaintenanceNow(Date.now());
-    setNotice(locale === "zh" ? "已开始维持睡眠记录。关闭页面后仍可在本设备继续。" : "Sleep tracking started and can resume on this device.");
+    setNotice(locale === "zh" ? "已开始维持睡眠记录。进度会同步到账号，可跨设备继续。" : "Sleep tracking started. Progress syncs to your account so another device can resume it.");
   }
 
   function finishSleepMaintenance() {
@@ -1047,6 +996,7 @@ export default function RecordsScreen({
             name: mealName,
             calories: mealCalories,
             amount: "1 份",
+            source_id: dietEntrySourceIdRef.current,
           },
           totalCalories: mealCalories,
           proteinGrams,
@@ -1066,6 +1016,7 @@ export default function RecordsScreen({
         // discard it; opening the report retries the authenticated AI call.
         console.warn("AI diet report refresh deferred", reportError);
       }
+      dietEntrySourceIdRef.current = crypto.randomUUID();
     });
   }
 
@@ -1198,12 +1149,12 @@ export default function RecordsScreen({
     }
     setError(null);
     setFocusTitle(focusTitle.trim());
-    setPendingFocusLaunch({ id: Date.now(), mode: focusMode, note: focusNote.trim(), startedAt: new Date().toISOString() });
+    setPendingFocusLaunch({ id: crypto.randomUUID(), mode: focusMode, note: focusNote.trim(), startedAt: new Date().toISOString() });
     setShowEditor(false);
     onViewChange?.("immersive");
   }
 
-  async function saveFocusMinutes(minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string; category?: string; note?: string }) {
+  async function saveFocusMinutes(minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string; category?: string; note?: string; sourceActionId?: string }) {
     await run("records.focus", () =>
       saveFocusSession({
         userId: user.id,
@@ -1215,6 +1166,8 @@ export default function RecordsScreen({
         endedAt: details?.endedAt,
         category: details?.category,
         note: details?.note ?? focusNote,
+        source: "manual",
+        sourceActionId: details?.sourceActionId,
       }),
     );
   }
@@ -1263,11 +1216,11 @@ export default function RecordsScreen({
       : periodComparison.currentAverage;
     const completedModules = [
       (trendBundle?.moods ?? []).some((item) => inSelectedWeek(item.record_date)),
-      (trendBundle?.sleeps ?? []).some((item) => inSelectedWeek(item.record_date)),
-      (trendBundle?.exercises ?? []).some((item) => inSelectedWeek(item.record_date)),
-      (trendBundle?.nutritions ?? []).some((item) => inSelectedWeek(item.record_date)),
-      (trendBundle?.focus ?? []).some((item) => inSelectedWeek(item.record_date)),
-      (trendBundle?.faces ?? []).some((item) => inSelectedWeek(item.record_date)),
+      (trendBundle?.sleeps ?? []).some((item) => inSelectedWeek(item.record_date) && isCompleteSleepRecord(item)),
+      (trendBundle?.exercises ?? []).some((item) => inSelectedWeek(item.record_date) && isCompleteExerciseRecord(item)),
+      (trendBundle?.nutritions ?? []).some((item) => inSelectedWeek(item.record_date) && isCompleteNutritionRecord(item)),
+      (trendBundle?.focus ?? []).some((item) => inSelectedWeek(item.record_date) && Number(item.total_minutes) > 0 && Number(item.completed_sessions) > 0),
+      (trendBundle?.faces ?? []).some((item) => inSelectedWeek(item.record_date) && isCompleteFaceRecord(item)),
     ].filter(Boolean).length;
     const radarLabels: Record<WeeklyModuleKey, string> = locale === "zh"
       ? { sleep: "睡眠", exercise: "运动", nutrition: "饮食", focus: "专注", face: "面部", mood: "情绪" }
@@ -1616,7 +1569,7 @@ export default function RecordsScreen({
             <SmilePlus size={20} />
             <strong>{moodScore}</strong>
           </div>
-          <input className="range" type="range" min="0" max="100" value={moodScore} onChange={(e) => updateMoodScore(Number(e.target.value))} onPointerUp={(e) => updateMoodScore(Number(e.currentTarget.value), true)} onKeyUp={(e) => updateMoodScore(Number(e.currentTarget.value), true)} />
+          <input className="range" type="range" min="0" max="100" value={moodScore} onChange={(e) => updateMoodScore(Number(e.target.value))} />
           <div className="chip-grid">
             {moodFactors.map((factor) => (
               <button
@@ -1681,7 +1634,7 @@ export default function RecordsScreen({
                 : <strong>{locale === "zh" ? "从入睡开始，到醒来后填入记录" : "Track from bedtime, then fill the record when you wake"}</strong>}
               <small>{sleepMaintenance
                 ? new Date(sleepMaintenance.startedAt).toLocaleString(locale === "zh" ? "zh-CN" : "en-US", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
-                : (locale === "zh" ? "本设备保存进度；结束后仍需你确认并保存到 Supabase" : "Progress stays on this device; you still review and save to Supabase")}</small>
+                : (locale === "zh" ? "进度同步到当前账号；结束后仍需你确认并保存正式记录" : "Progress syncs to this account; you still review and save the final record")}</small>
             </div>
             {sleepMaintenance
               ? <div><button type="button" onClick={finishSleepMaintenance}>{locale === "zh" ? "结束并填入" : "End & fill"}</button><button type="button" onClick={cancelSleepMaintenance}>{locale === "zh" ? "放弃" : "Discard"}</button></div>

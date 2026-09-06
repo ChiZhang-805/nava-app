@@ -149,7 +149,7 @@ export async function completeOnboarding(userId: string, answers: OnboardingAnsw
 export async function loadProfileWithOnboarding(userId: string) {
   const [profile, onboarding] = await Promise.all([
     loadProfile(userId),
-    loadOnboardingStatus(userId).catch(() => null),
+    loadOnboardingStatus(userId),
   ]);
   return { profile, onboarding };
 }

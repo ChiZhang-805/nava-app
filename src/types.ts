@@ -92,6 +92,7 @@ export interface NutritionRecord {
 
 export interface FoodItem {
   name: string;
+  source_id?: string;
   calories?: number;
   amount?: string;
   weight_grams?: number;
@@ -99,6 +100,13 @@ export interface FoodItem {
   carbohydrate_grams?: number;
   fat_grams?: number;
   confidence?: number;
+  meal_summary?: {
+    protein_grams: number;
+    carbohydrate_grams: number;
+    fat_grams: number;
+    hydration_ml: number;
+    health_rating?: number;
+  };
 }
 
 export interface TaskRecord {

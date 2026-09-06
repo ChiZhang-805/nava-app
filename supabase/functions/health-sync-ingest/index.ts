@@ -94,9 +94,12 @@ Deno.serve(async (req) => {
       if (savedForDate) syncedDates.push(date);
     }
 
-    const scoringDate = syncedDates.includes(requestedDate) ? requestedDate : syncedDates.at(-1) ?? requestedDate;
-    const rhythm = calculateRhythm(await loadDailyInputs(userClient, user.id, scoringDate));
-    await saveRhythmScore(userClient, user.id, rhythm);
+    let rhythm = null;
+    if (syncedDates.length > 0) {
+      const scoringDate = syncedDates.includes(requestedDate) ? requestedDate : syncedDates.at(-1)!;
+      rhythm = calculateRhythm(await loadDailyInputs(userClient, user.id, scoringDate));
+      await saveRhythmScore(userClient, user.id, rhythm);
+    }
 
     const finishedAt = new Date().toISOString();
     const update = await userClient
@@ -147,7 +150,7 @@ function normalizeSummary(input: Record<string, unknown>): HealthSummary {
     sleepEndLocal: stringValue(input.sleepEndLocal) ?? stringValue(input.sleep_end_local),
     sleepEfficiency: numberValue(input.sleepEfficiency) ?? numberValue(input.sleep_efficiency),
     sleepStageMinutes: normalizeNumberRecord(input.sleepStageMinutes ?? input.sleep_stage_minutes),
-    activityBins: Array.isArray(input.activityBins) ? input.activityBins as Array<Record<string, unknown>> : Array.isArray(input.activity_bins) ? input.activity_bins as Array<Record<string, unknown>> : undefined,
+    activityBins: normalizeActivityBins(input.activityBins ?? input.activity_bins),
     activityCoverageHours: numberValue(input.activityCoverageHours) ?? numberValue(input.activity_coverage_hours),
     timezoneOffsetMinutes: numberValue(input.timezoneOffsetMinutes) ?? numberValue(input.timezone_offset_minutes),
     sourceMetadata: normalizeRecord(input.sourceMetadata ?? input.source_metadata),
@@ -163,14 +166,49 @@ function normalizeSummary(input: Record<string, unknown>): HealthSummary {
   assertRange(summary.sleepEfficiency, "睡眠效率", 0, 1);
   assertRange(summary.activityCoverageHours, "活动覆盖小时", 0, 24);
   assertRange(summary.timezoneOffsetMinutes, "时区偏移", -840, 840);
+  if (summary.sleepStart && !validIso(summary.sleepStart)) throw new Error("睡眠开始时间不是有效时间。");
+  if (summary.sleepEnd && !validIso(summary.sleepEnd)) throw new Error("睡眠结束时间不是有效时间。");
+  if (summary.sleepStartLocal && !normalizeClock(summary.sleepStartLocal)) throw new Error("本地入睡时间不是有效时间。");
+  if (summary.sleepEndLocal && !normalizeClock(summary.sleepEndLocal)) throw new Error("本地醒来时间不是有效时间。");
   const bloodOxygen = numericOrNull(summary.latestBloodOxygen);
   if (summary.latestBloodOxygen != null && bloodOxygen == null) throw new Error("血氧数据不是有效数值。");
   if (bloodOxygen != null && !((bloodOxygen >= 0.5 && bloodOxygen <= 1) || (bloodOxygen >= 50 && bloodOxygen <= 100))) {
     throw new Error("血氧数据超出可接受范围。");
   }
   Object.values(summary.sleepStageMinutes ?? {}).forEach((value) => assertRange(value, "睡眠阶段分钟", 0, 1_440));
-  if ((summary.activityBins?.length ?? 0) > 96) throw new Error("活动时间分箱数量超出单日上限。");
   return summary;
+}
+
+function normalizeActivityBins(value: unknown): Array<Record<string, unknown>> | undefined {
+  if (value == null) return undefined;
+  if (!Array.isArray(value)) throw new Error("活动时间分箱必须是数组。");
+  if (value.length > 96) throw new Error("活动时间分箱数量超出单日上限。");
+  return value.map((entry) => {
+    const bin = normalizeRecord(entry);
+    if (!bin) throw new Error("活动时间分箱包含无效条目。");
+    const hour = numberValue(bin.hour);
+    if (hour == null || !Number.isInteger(hour) || hour < 0 || hour > 23) throw new Error("活动时间分箱包含无效小时。");
+    const steps = numberValue(bin.steps);
+    const activeEnergyKcal = numberValue(bin.activeEnergyKcal) ?? numberValue(bin.active_energy_kcal);
+    const exerciseMinutes = numberValue(bin.exerciseMinutes) ?? numberValue(bin.exercise_minutes);
+    assertRange(steps, "分箱步数", 0, 100_000);
+    assertRange(activeEnergyKcal, "分箱活动能量", 0, 10_000);
+    assertRange(exerciseMinutes, "分箱运动分钟", 0, 60);
+    const start = stringValue(bin.start);
+    const end = stringValue(bin.end);
+    const normalizedStart = start ? validIso(start) : null;
+    const normalizedEnd = end ? validIso(end) : null;
+    if (start && !normalizedStart) throw new Error("活动时间分箱包含无效开始时间。");
+    if (end && !normalizedEnd) throw new Error("活动时间分箱包含无效结束时间。");
+    return {
+      hour,
+      ...(normalizedStart ? { start: normalizedStart } : {}),
+      ...(normalizedEnd ? { end: normalizedEnd } : {}),
+      ...(steps != null ? { steps } : {}),
+      ...(activeEnergyKcal != null ? { activeEnergyKcal } : {}),
+      ...(exerciseMinutes != null ? { exerciseMinutes } : {}),
+    };
+  });
 }
 
 function assertRange(value: unknown, field: string, minimum: number, maximum: number) {
@@ -201,6 +239,10 @@ function hasHealthMetrics(summary: HealthSummary) {
     summary.activeEnergyKcal,
     summary.exerciseMinutes,
     summary.sleepMinutes,
+    summary.sleepStart,
+    summary.sleepEnd,
+    summary.sleepEfficiency,
+    summary.activityCoverageHours,
   ].some((value) => value != null) ||
     (summary.activityBins?.length ?? 0) > 0 ||
     Object.keys(summary.sleepStageMinutes ?? {}).length > 0;
@@ -262,6 +304,7 @@ async function upsertExercise(client: SupabaseClient, userId: string, date: stri
   if (summary.exerciseMinutes != null) patch.exercise_minutes = Math.max(0, Math.round(summary.exerciseMinutes));
   if (summary.latestHeartRate != null) patch.heart_rate = normalizeHeartRate(summary.latestHeartRate);
   if (summary.latestBloodOxygen != null) patch.spo2 = normalizeSpo2(summary.latestBloodOxygen);
+  if (Object.keys(patch).length > 0) patch.device_type = "apple_health";
 
   if (existing.data?.id) {
     const { error } = await client.from("exercise_records").update(patch).eq("id", existing.data.id);
@@ -307,7 +350,7 @@ async function upsertSleep(client: SupabaseClient, userId: string, date: string,
       deep_sleep_minutes: stageOrPrevious(stages.deep, previous.deep_sleep_minutes),
       light_sleep_minutes: stageOrPrevious(stages.core ?? stages.light, previous.light_sleep_minutes),
       rem_minutes: stageOrPrevious(stages.rem, previous.rem_minutes),
-      device_type: "apple_watch",
+      device_type: summary.source ?? "apple_health",
       rhythm_score: rhythmScore,
     },
     { onConflict: "user_id,record_date" },

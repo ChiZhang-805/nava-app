@@ -1,6 +1,6 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
-更新时间：**2026-09-06**
+更新时间：**2026-09-07**
 
 这份文件是新 Codex 任务接手 NAVA 时的第一入口，也是当前项目状态的
 **独立、可直接使用的交接文档**。它不依赖这段很长、曾多次出现界面回退的
@@ -199,7 +199,7 @@ GitHub Pages 镜像的 `source.json` 已记录 v106 和上述功能源码 commit
 10. 浏览器登录有意使用 `sessionStorage` 按 tab 隔离。不要未经产品和安全决策改成
     跨浏览器长期持久化。
 
-### 2026-09-06 数据事实源复核结论
+### 2026-09-07 数据事实源复核结论
 
 - 六模块页面、首页组件、日历、分项详情和周报从认证用户的 Supabase 行构建；正式站点
   不能启用 `?demo=1`。生产表统计确认六模块、健康快照、节律分和 AI 报告已有持久化行，
@@ -210,8 +210,9 @@ GitHub Pages 镜像的 `source.json` 已记录 v106 和上述功能源码 commit
   不再把每条 session 的均值误当成当日总分钟。
 - 云端记录草稿已补齐睡眠阶段/时长与运动心率/血氧恢复。AI 健康和饮食报告继续持久化，
   保存后由服务端源指纹判断是否重算，相同输入不重复消耗模型调用。
-- `watch-sync` 生产 v12 已上线：Watch 本地日期、时区和专注起止时间进入规范化写入链路；
-  快捷情绪不会覆盖用户已有日记。最终数值一致性仍需 Mac/Xcode/iPhone/Watch 真机验收。
+- `watch-sync` 生产 v13 已上线：Watch 本地日期、时区和专注起止时间进入规范化写入链路；
+  原生动作仅在 Supabase 接受后确认，专注完成使用稳定 action id 和数据库原子 RPC，快捷
+  情绪不会覆盖用户已有日记。最终数值一致性仍需 Mac/Xcode/iPhone/Watch 真机验收。
 - 扩展后的生产探针覆盖页面实际依赖的完整字段，并纳入健康/饮食 AI Function；本轮复核
   结果为 APP/CLI/Web target、Auth、核心表、扩展表、Functions 和 Storage 全部 READY。
 
@@ -382,27 +383,24 @@ AI 链路的正确结构是：
 
 ### 8.1 已上线和未上线必须分开说
 
-当前前端支持普通摘要 + 紧凑七字摘要双合同，相关测试也存在。2026-09-06 已将
-`supabase/functions/ai-health-report` 的最新源码部署到 canonical Supabase；下面两个
-Edge Function 的**最新源码改动仍未部署**：
+当前前端支持普通摘要 + 紧凑七字摘要双合同，相关测试存在且已通过。2026-09-07
+`ai-health-report`、`ai-diet-report`、`ai-chat-reply` 与 `diet-extract` 最新源码均已部署到
+canonical Supabase：
 
-- `supabase/functions/ai-diet-report`
-- `supabase/functions/diet-extract`
+- `ai-health-report`：模型合同
+  `deepseek-v4-flash-health-report-v6-health-metrics`，生产 ACTIVE version 10，
+  `verify_jwt=true`；定向 repair、数字/日期证据边界、HealthKit 快照和完整授权画像都进入
+  源指纹，相同输入复用持久化报告，相关输入变化才重算；
+- `ai-diet-report`：v6 日历七日窗口、normal + compact、严格校验、一次 repair 和缓存，
+  生产 ACTIVE version 7，`verify_jwt=true`；
+- `ai-chat-reply`：授权上下文查询失败时不再静默降级，HealthKit 指标和允许画像进入紧凑
+  context，生产 ACTIVE version 20，`verify_jwt=true`；
+- `diet-extract`：“按菜识别、复合菜描述可见原料” prompt 已上线，生产 ACTIVE version
+  17，`verify_jwt=true`。
 
-其中：
-
-- `ai-health-report` 当前线上源码为
-  `deepseek-v4-flash-health-report-v5-targeted-repair`，repair 会带上上一版 JSON 和
-  具体失败项，仍然保留数字证据与关联置信边界；生产状态为 function version 9 / active /
-  `verify_jwt=true`，只读下载的 `index.ts` 与本地 SHA-256 完全一致；
-- `ai-diet-report` 源码已经包含 normal + compact 双输出、严格校验、一次 repair 与缓存
-  版本更新，但仍未部署；
-- `diet-extract` 源码已经更新为“按菜识别、复合菜描述可见原料”的 prompt；
-- 当前仍不能宣称健康报告生产模型已经稳定生成精确七汉字四行：部署身份与未登录拒绝
-  已实测，但真实账户的 provider 返回、成功写缓存、无变化复用和数据变化后单次重算尚未
-  亲自验证；也不能宣称新版菜品粒度 prompt 已经在线；
-- 部署余下两项不需要迁移、seed、secret 或访问策略修改，但仍需要用户明确授权对应的
-  Edge Function 部署，然后必须在真实边界验收。
+部署完成仍不等于真实账号闭环：当前没有安全的用户会话去验证生产 provider 首次生成、
+成功写缓存、跨重载复用、数据变化后恰好重算一次和实际餐食识别质量，因此这些边界必须
+继续写为“已部署、待真实账号验收”。
 
 2026-09-05 对截图所示周报失败做了真实只读诊断：当时生产 Supabase 的
 `ai-health-report` 是 version 8 / 模型合同 v3；15:08–15:09 UTC 两次日志均为
@@ -412,8 +410,8 @@ source fingerprint 与数据库缓存，但因为两次模型结果都未通过 
 把上一版草稿和失败字段交给模型，是本次确认的代码缺陷。开发机密钥的无用户数据检查
 显示余额可用且同一模型名能返回 JSON，但其 digest 与生产 secret 不同，不能据此声称
 生产账户具体余额；上述生产日志足以确认截图对应失败发生在模型响应后的结构校验阶段。
-2026-09-06 获用户明确授权后只部署了 `ai-health-report`，生产已升为 version 9 / v5；
-没有部署其他 Function，也没有修改 migration、seed、secret 或访问策略。
+2026-09-07 获用户明确授权后完成上述 AI/饮食函数与本轮数据函数部署，并应用三个
+append-only migration；没有执行 seed、backfill、账号删除或 secret 修改。
 
 不要因为用户说过“AI key 已经配好”就在文档或客户端寻找/打印 key。只能通过
 Supabase secrets 与已有部署工具验证 provider 可用性。
@@ -586,9 +584,10 @@ v91 已做并应保留：
 
 ## 13. Supabase / 后端实施状态
 
-当前仓库有 20 个 append-only migration，覆盖移动端合同、AI/记录、ChronoState、
-密码与短信、Watch 幂等、头像、onboarding、FDNB、会话隔离、奖励、健康报告、
-专注计划与 Health Realtime。
+当前仓库和 canonical production 均有 24 个 append-only migration，覆盖移动端合同、
+AI/记录、ChronoState、密码与短信、Watch 幂等、头像、onboarding、FDNB、会话隔离、
+奖励、健康报告、专注计划、Health Realtime、完整云端状态、原子专注会话、私有头像和
+legacy phone 清理。
 
 主要 Edge Function 目录：
 
@@ -608,11 +607,11 @@ v91 已做并应保留：
 - `aliyun-sms-send` / `aliyun-sms-verify`
 - `auth-account-status`
 
-2026-09-02 的生产后端完成批次记录了当时部署版本：ai-chat v19、ai-diet v6、
-ai-extract v18、ai-health v8、diet-extract v16、face v15、delete v8、export v13、
-health ingest v11、watch v11。此后本地修改了第 8.1 节列出的三个函数；其中
-`ai-health-report` 已于 2026-09-06 单独升为 v9，另外两个仍未部署。不要把其他旧版本号
-理解为“包含最新本地 prompt/双摘要”，发布前必须重新查看本地 diff 和远端状态。
+2026-09-07 已把本轮涉及的最新源码部署到 canonical production：ai-chat v20、
+ai-diet v7、ai-health v10、diet-extract v17、delete v10、export v16、health ingest v12、
+watch v13，均为 ACTIVE 且 `verify_jwt=true`。ai-extract v18、face v15 等未涉及函数保持
+原版本。部署身份、共享项目和未登录边界已检查；真实账户 provider 输出、报告持久化、
+缓存命中与实际删除/导出内容仍要按第 18 节人工验收。
 
 ## 14. ChronoState、FDNB 与报告真实性
 
@@ -658,7 +657,7 @@ npm run ios:verify
 npm run supabase:verify-shared
 ```
 
-`npm run verify` 当前是 26 阶段综合门禁，interaction suite 当前记录为 11 组；具体
+`npm run verify` 当前是 27 阶段综合门禁，interaction suite 当前记录为 11 组；具体
 数字可能随脚本更新，新任务应以运行输出为准。构建通过不等于真实 Supabase 写入、
 OTP 送达、模型 provider 可用、HealthKit 真机权限或视觉验收通过。
 
@@ -679,6 +678,13 @@ Function typecheck 全部通过。2026-09-06 部署前又运行相同的三个�
 字段的合同。随后 `npm run auth:verify:production` 也通过，canonical project、公开站
 禁用 demo 绕过、当前 tab 认证和邮箱/手机号入口均符合合同；严格 SMTP 状态未检查。
 
+2026-09-07 更细一轮数据链路修复后，完整 `npm run verify` 的 27 个阶段、
+`npm run interaction:test` 的 11 组、`npm run auth:verify:production`、
+`npm run supabase:verify-shared`、production DB lint 和 migration history 均通过。
+首页 guidance、首页组件和通知中心分别在 360x740、375x812、390x844、430x932 四档
+无头 Playwright 通过；饮食评分在 430x932 的底部裁切也已修复。严格 SMTP、真实账户
+AI provider、真实导出内容和破坏性账号删除没有在本轮冒充为已验证。
+
 近期证据目录：
 
 - `Q:\NAVA-Workspace\Build\TestRuns\nava-auth-transition-local`
@@ -688,6 +694,9 @@ Function typecheck 全部通过。2026-09-06 部署前又运行相同的三个�
 - `Q:\NAVA-Workspace\Build\TestRuns\nava-v96-public`
 - `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-20260905`
 - `Q:\NAVA-Workspace\Build\TestRuns\nava-home-guidance-20260905`
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-home-widgets-v102-20260905`
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-home-guidance-v101-20260905`
+- `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v102-20260905`
 
 截图只能证明被截取时的视觉状态。凡涉及写入、RLS、provider、HealthKit 或 Watch
 队列，必须在真正边界记录网络/数据库/真机证据。
@@ -738,20 +747,18 @@ Function typecheck 全部通过。2026-09-06 部署前又运行相同的三个�
 
 ### A. 有源码但尚未上线
 
-- 最新 `ai-diet-report` 双摘要合同。
-- 最新 `diet-extract` 按菜识别 prompt。
-
-下一步需要用户明确授权部署这两个 Edge Functions，然后使用真实账户、真实数据和
-真实图片验证返回 schema、精确七汉字四行、长摘要、缓存失效、菜品粒度和 provider
-失败状态。
+截至 2026-09-07 本轮生产部署后，没有已知的本轮数据库或 Edge Function 源码只停留在
+本地。这里不等于所有产品路线都已经完成；Apple/Android 系统能力、远程 Push 和产品
+明确延期项仍按下面各节区分。
 
 ### A.1 已上线但仍需真实账户验收
 
-- 最新 `ai-health-report` v5 定向 repair、双摘要和缓存合同已于 2026-09-06 部署为生产
-  version 9。生产日志已经确认旧 v3 的失败发生在结构化结果校验，并非截图所猜测的余额
-  HTTP 错误；当前已验证生产源码身份和未登录拒绝，尚未验证真实账户首次生成、数据库
-  持久化缓存、跨重载复用以及相关数据变化后恰好重算一次，因此还不能把截图问题写成
-  真实账户端已闭环。
+- 最新 `ai-health-report` v6 健康指标/授权画像/定向 repair/双摘要/指纹缓存合同已部署为
+  生产 version 10；最新 `ai-diet-report` v6 日历七日双摘要合同为 version 7；最新
+  `diet-extract` 按菜识别合同为 version 17。生产日志确认旧健康报告失败发生在结构化
+  结果校验，并非截图所猜测的余额 HTTP 错误。当前已验证生产源码身份和未登录拒绝，
+  尚未用真实账户验证模型首次生成、持久化缓存、跨重载复用、数据变化后恰好重算一次，
+  也尚未用真实餐食照片抽样验证菜品粒度，不能把这些边界写成真实账户端已闭环。
 
 ### B. 必须人工 / Apple 环境
 
@@ -795,10 +802,10 @@ App Store。
 
 在用户完成 Apple 人工流程前，自动化代理仍可做且最有价值的工作顺序是：
 
-1. 用真实账户验收 `ai-health-report` v9；经用户明确授权后再部署并验收第 18.A 节余下
-   两个 Edge Functions。
-2. 在不写生产数据的前提下复核两个公开站的 v102 登录、六模块路由、详细资料头像
-   sheet、专注和面部页面，以及四视口无重叠。
+1. 用真实账户验收 `ai-health-report` v10、`ai-diet-report` v7 和 `diet-extract` v17：
+   provider 输出、持久化、缓存失效、精确七字摘要和真实餐食照片粒度。
+2. 发布后复核两个公开站的登录、六模块路由、详细资料头像 sheet、专注和面部页面，
+   以及四视口无重叠和公开 `?demo=1` 不可绕过登录。
 3. 为 Apple 真机验收准备可重复的记录模板、账号 A/B 测试清单和失败恢复说明；
    不伪造真机结果。
 4. 用户在 Mac 上完成签名后，逐条协助处理 Xcode/HealthKit/WatchConnectivity 的真实
@@ -966,8 +973,8 @@ session、刷新页面或从其他页面返回首页均不会再次出现。卡�
   登录页，未出现 `.phone-frame` 演示态。
 
 持续清单 [`PRODUCT_REQUIREMENTS_CHECKLIST.md`](./PRODUCT_REQUIREMENTS_CHECKLIST.md)
-加入四项账号数据完整性验收后当前为 65 项完成、34 项待完成。剩余项中，Apple/通知真机、Android/华为、远程 Push、
-健康报告 AI 真实账户验收和余下饮食 Edge Function 上线需要人工环境或额外后端授权；商城、社区、复杂
+加入四项账号数据完整性验收后当前为 66 项完成、33 项待完成。剩余项中，Apple/通知真机、Android/华为、远程 Push、
+健康/饮食 AI 真实账户验收和真实餐食图片识别抽样需要人工环境；商城、社区、复杂
 猫窝与多尺寸组件明确延期；AI 半屏、长按手势归属、运动结构化会话等仍需后续产品或
 实现批次，不能写成已完成。
 
@@ -1001,13 +1008,19 @@ canonical Supabase；生产由 function version 8 / 模型合同 v3 升为 versi
 
 2026-09-06 已获得用户对本轮 Supabase 数据完整性修改和部署的明确授权。生产 migration
 `202609060001_cloud_data_completeness.sql` 已实际应用到 canonical project
-`wxteapvwagvhhtrjrbim`，本地/远端 migration history 均为 21 项。新增：
+`wxteapvwagvhhtrjrbim`。2026-09-07 又实际应用三项 append-only migration：
+`focus_session_integrity`、`profile_avatar_privacy` 和 `legacy_phone_cleanup`；本地/远端
+migration history 现在均为 24 项。云端完整性批次新增：
 
 - `user_app_preferences`：语言、AI 语音、首页 0–6 个组件及顺序；
 - `user_notifications`：应用内收件箱、已读/删除状态与 Realtime；
 - `ai_conversation_archives`：AI 历史会话归档；
 - `active_user_sessions`：进行中的专注/睡眠会话；
 - `focus_records.note`、`tasks.source`、`nutrition_records.pantry_time`，并补齐四餐时间读写。
+- `focus_session_events` 与原子 `complete_focus_session` RPC：完成专注、积分与 receipt 在
+  单一数据库事务中落地，重试使用稳定 session ID 去重；
+- `profile-avatars` 变为私有 bucket，`profiles.avatar_url` 保存私有对象路径并临时签名展示；
+- 删除账户时额外清理历史 phone alias / verification / OTP 行，避免认证别名残留。
 
 迁移把 11 张旧业务表补成指向 `auth.users` 的级联外键，把 analytics 从
 `ON DELETE SET NULL` 改成 `ON DELETE CASCADE`，并在生产事务内遍历所有 public
@@ -1015,28 +1028,59 @@ canonical Supabase；生产由 function version 8 / 模型合同 v3 升为 versi
 实际生产结构证据，而不是只读源码推断。旧账号 profile 回填后，生产表统计显示 profiles
 从 2 行变为 3 行，与已知 3 个 Auth 用户一致；没有打印账号、token 或私有记录。
 
-`export-user-data` 已升级并部署为生产 version 15、ACTIVE、`verify_jwt=true`。导出包含
-Auth 基本身份、全部 39 张账号归属 public 表，以及 `diet-photos`、`face-photos`、
-`profile-avatars` 的路径/大小/类型/更新时间和一小时下载 URL；任一表或 Storage 读取失败
-会整体报错，不再返回伪完整结果。未登录实际 POST 返回 401。由于没有在本任务取得真实
-用户凭据，尚未把某个真实账号的完整 JSON 下载到本地；这项不能写成已做真实账号内容验收。
+`export-user-data` 已升级并部署为生产 version 16、ACTIVE、`verify_jwt=true`。导出包含
+Auth 基本身份、全部 40 张账号归属 public 表，以及 `diet-photos`、`face-photos`、
+`profile-avatars` 的对象清单；浏览器随后下载用户拥有的实际私有文件并与 JSON 一起打包
+为 `.tar.gz`。任一表、对象或文件内容读取失败会整体报错，不再用会过期的 signed URL
+冒充完整文件导出。未登录实际 POST 返回 401。由于没有在本任务取得真实用户凭据，尚未
+把某个真实账号的完整归档下载并逐项校验；这项不能写成已做真实账号内容验收。
 
 客户端删除确认现在也会清理该用户 local/session storage、30 分钟 AES-GCM 面部草稿、
 Watch 本地队列和应用上下文、已安排的六类系统本地通知；服务端仍先删除三个 Storage
 用户前缀，并用相同服务端 HMAC 合同清除该邮箱/手机号对应的账号检查与 OTP 摘要，
-再删除 Auth，由上述外键级联清表。更新后的 `delete-account` 已部署为生产 version 9、
+再删除 Auth，由上述外键级联清表。更新后的 `delete-account` 已部署为生产 version 10、
 ACTIVE、`verify_jwt=true`，未登录实际 POST 返回 401。本轮没有删除任何真实用户，也没有运行
 production seed/backfill；“没有残留”的证据是生产结构断言、删除源码合同与静态测试，
 仍建议在专门可牺牲测试账号上做一次端到端破坏性验收。
 
-有意保留在本机而不上传的只有：浏览器当前 tab 的认证会话、未由用户确认上传的短期
-加密面部草稿、Watch 离线待发送动作以及纯演示/视觉 QA 状态。其他 localStorage 项均为
-Supabase 事实源的缓存或迁移缓冲。`npm run cloud-data:test` 固定导出表清单、Storage、
-级联删除、云端偏好/通知/AI 归档/活动会话和以前丢失字段的源码合同；生产 REST 探测已
-确认新增表和字段可达。
+有意保留在本机而不上传的只有：浏览器当前 tab 的认证会话、尚未确认上传的短期加密
+面部草稿、待上传 outbox 本身、临时 UI/视觉 QA 状态和可重新取得的缓存。通知、偏好、
+AI 归档、记录草稿、活动会话及 Watch 动作都有 Supabase 事实源或可重放 outbox；应用
+启动/联网后会重试，不再把待发送本机状态当作云端已成功。`npm run cloud-data:test` 固定
+导出表清单、Storage、级联删除、云端偏好/通知/AI 归档/活动会话和以前丢失字段的源码
+合同；生产 REST 探测已确认新增表和字段可达。
 
 本轮功能源码 commit `00826372167d45b414531d4426ccc35c5ebbae6e` 已从同一干净、
 已 push 状态发布为 ChatGPT Sites v106，并同步到 GitHub Pages v106；镜像 commit 为
 `a1d2e61fe2d5ad0009e21ce84282b8fad5821a63`。两个公开根 URL 实际返回 200，均包含 NAVA
 与 canonical Supabase project ref；Pages `source.json` 实际返回 v106 和上述源码 commit。
 发布后生产认证合同再次通过，公开 demo 绕过保持禁用。
+
+## 28. 2026-09-07 全量数据链路复核与修复
+
+本轮在代码、migration、Edge Function、客户端缓存/重试和真实 production 结构之间又做了
+一轮逐项复核，并修复以下数据完整性问题：
+
+- 记录编辑器不再用虚构睡眠时间/阶段、全日营养或缺失运动指标填补空字段；六模块完成度、
+  周报和图表只依据满足各自完成合同的真实记录。
+- 饮食改为按餐保存营养摘要，覆盖一餐时保留其他餐并重算全日合计；AI/手动重试使用稳定
+  source ID，跨设备并发更新使用 optimistic concurrency，不再静默覆盖另一设备的新数据。
+- 专注完成通过 `record_focus_session` RPC 原子更新会话、分时分布、积分和幂等事件；倒计时
+  使用真实 wall clock，重复回执不会重复累计。
+- HealthKit/Watch 缺失字段保持缺失，不伪造 0 或睡眠阶段；Watch 只有 Supabase 成功后才
+  ack，失败 receipt 可重领并重试，未知动作显式失败。
+- 通知、偏好、记录草稿、活动会话和 Watch 队列都具有云端事实源或可重放 outbox；头像改为
+  私有对象路径；导出包含 40 张账号表和实际私有文件；删除补齐 legacy phone 残留清理。
+- 健康 AI v6 的源指纹纳入授权画像和 HealthKit 指标，饮食 AI 使用真实日历七日窗口；只有
+  相关源数据/授权画像改变才重算，普通摘要和严格七字紧凑摘要一起校验并缓存。
+
+真实 production 已应用全部 24 个 migration，并部署 ai-chat v20、ai-diet v7、ai-health
+v10、diet-extract v17、delete v10、export v16、health ingest v12、watch v13。共享项目检查、
+DB lint、migration history、生产 auth 合同和 `npm run verify` 27 阶段均通过；interaction
+11 组及首页/通知相关四视口无头 Playwright 也通过。没有执行 production seed、backfill、
+真实账号删除或写入用户记录。
+
+尚不能自动替代的证据仍是：真实账户 AI provider/缓存验收、真实完整导出和可牺牲账号删除、
+Mac/Xcode/iPhone/Apple Watch 签名与真机矩阵、APNs/FCM/HMS 远程推送以及 Android/华为
+原生壳。本轮完成的是源码、production schema/function 和非破坏性边界，不把这些人工项
+写成已经完成。

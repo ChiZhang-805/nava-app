@@ -13,24 +13,24 @@ App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负�
 | `dnb-weekly-report` | 对明确日期区间运行研究性 FDNB 周分析 | `fdnb_health_scores`、`weekly_health_reports` |
 | `fdnb-recompute` | 对截至指定日期的纵向窗口重新计算 FDNB | `fdnb_health_scores`、`weekly_health_reports` |
 | `health-sync-ingest` | 接收 iPhone / Apple Watch HealthKit 摘要，写运动、睡眠、小时活动、睡眠阶段、同步任务，并刷新节律分数 | `exercise_records`、`sleep_records`、`health_metric_snapshots`、`health_sync_jobs`、`daily_rhythm_scores` |
-| `watch-sync` | 保存 Watch 快照，处理手表快速情绪和专注动作 | `watch_snapshots`、`device_connections`、`mood_records`、`focus_records` |
+| `watch-sync` | 保存 Watch 快照，处理手表快速情绪和专注动作；完成事件通过稳定 action id 原子写入会话明细、日聚合和时段分布 | `watch_snapshots`、`device_connections`、`mood_records`、`focus_session_events`、`focus_records`、`focus_time_distribution` |
 | `diet-extract` | 私有饮食照片的真实视觉模型识别入口 | 不直接写表，App 确认后写 `nutrition_records` |
 | `face-analyze` | 私有面部照片的非诊断真实视觉模型入口 | App 确认后写 `face_records` |
 | `rhythm-score` | 读取 42 天窗口，生成 NAVA ChronoState V4.27 节律分、个人基线、节律特征、动态状态、慢性负债压力、功能补偿门控、稀疏断崖冲击、慢性停滞压力、绝对生理压力、假恢复 drawdown 压力、相位扰动保护、昼夜漂移压力、生理先导预警、硬撑型消耗压力、自适应端点校准、尾部过反应缓释、不确定性区间、异常旗标和建议 | `daily_rhythm_scores` |
-| `export-user-data` | 导出当前用户 Auth 身份、全部账号表以及三个私有 bucket 的文件清单和限时下载地址；任一表/文件读取失败则拒绝伪装成完整导出 | 只读 |
+| `export-user-data` | 导出当前用户 Auth 身份、全部账号表以及三个私有 bucket 的文件清单；客户端随后下载实际文件内容并与 JSON 打包，任一表/文件读取失败则拒绝伪装成完整导出 | 只读 |
 | `delete-account` | 先删除当前用户三个私有 bucket 下的对象及邮箱/手机号对应的服务端 HMAC 限流摘要，再删除 Auth 身份；所有账号表由数据库外键级联删除 | 私有文件、账号安全摘要与当前 Auth 用户 |
 | `aliyun-sms-send` | 生成、限流、发送中国大陆手机号 OTP | `nava_phone_otp_challenges` |
 | `aliyun-sms-verify` | 校验 OTP 并完成手机号身份映射/登录流程 | OTP challenge 与 Auth identity |
 | `auth-account-status` | 以不暴露账号是否存在的公共响应执行注册/登录资格检查 | 只读 |
 
-上表描述当前仓库源码能力，不等同于每一项最新改动都已经在线。截至 2026-09-05，
-`ai-health-report`、`ai-diet-report` 的普通/紧凑双摘要版本和 `diet-extract` 的按菜识别
-prompt 仍等待用户单独授权部署；生产环境已有这些函数的较早版本。部署状态和验收
-边界统一记录在 [`CODEX_HANDOFF_CURRENT.md`](./CODEX_HANDOFF_CURRENT.md) 第 8、18 节。
+截至 2026-09-07，本轮涉及的 `ai-chat-reply`、`ai-diet-report`、`ai-health-report`、
+`diet-extract`、`delete-account`、`export-user-data`、`health-sync-ingest` 和 `watch-sync`
+最新源码均已部署到 canonical 项目，状态 ACTIVE 且启用 JWT 验证。真实账号的模型输出、
+Apple 真机和破坏性账号删除仍按各专项文档明确为人工验收，不因部署完成而自动视为通过。
 
 ## 已实现数据库/Storage
 
-当前共有 21 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单
+当前共有 24 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单
 来源。它们按顺序覆盖：移动端业务表和 Edge 后端、Rhythm/Fusion/ChronoState、
 密码复用保护、手机号 OTP、Watch action 幂等、头像、账号状态、onboarding、FDNB、
 AI 会话隔离、成长奖励、健康报告、专注待办、Health Realtime，以及跨设备账号状态和
@@ -60,8 +60,12 @@ Get-ChildItem -LiteralPath supabase/migrations -File | Sort-Object Name
 - `user_notifications`：应用内收件箱、已读与删除 tombstone，并通过 Realtime 同步。
 - `ai_conversation_archives`：用户在 AI 页面创建的新会话归档。
 - `active_user_sessions`：进行中的专注/睡眠会话，供换设备或清理缓存后恢复。
+- `focus_session_events` 与 `record_focus_session`：以稳定 action id 保存每次专注完成事件，
+  并在同一数据库事务中更新 `focus_records` 和 `focus_time_distribution`，重复提交不会重复累计。
 - `focus_records.note`、`tasks.source` 与四餐时间字段均由编辑器真实读写；新增的
   `pantry_time` 补齐加餐时间。
+- `profile-avatars` 已从公开 bucket 收紧为私有、仅当前 owner 可读写删除；`profiles.avatar_url`
+  保存稳定 `storage://` 引用，页面展示时再签发一小时 URL。
 
 ## 账号数据完整性合同
 
@@ -70,9 +74,12 @@ Get-ChildItem -LiteralPath supabase/migrations -File | Sort-Object Name
   `profiles.id` 也有同样断言，旧账号缺失的 profile 会按 Auth 身份安全回填。
 - `delete-account` 还会用服务端相同 HMAC 合同清除该邮箱/手机号在
   `nava_auth_account_checks` 与 `nava_phone_otp_challenges` 中的账号相关限流摘要。
+  若共享项目仍保留旧 `phone_verification_codes` 表，也会用只授予 service role 的
+  `nava_delete_legacy_phone_codes` 清除匹配手机号残留。
   这些无明文、短期留存的服务器风控状态不属于用户内容，因此不进入用户导出。
-- `export-user-data` 当前覆盖全部 39 个账号归属 public 表、Auth 基本身份与三个用户
-  Storage 前缀。它不会导出 access token、service-role、OTP、服务器密钥或其他用户数据。
+- `export-user-data` 当前覆盖全部 40 个账号归属 public 表、Auth 基本身份与三个用户
+  Storage 前缀；客户端把清单中的私有文件逐一下载并连同 JSON 生成 `.tar.gz` / `.tar`。
+  它不会导出 access token、service-role、OTP、服务器密钥或其他凭据。
 - 删除账号时，服务端先清空三个用户 Storage 前缀，再删除 Auth 身份并触发数据库级联；
   客户端同时清除该用户的 local/session storage、AES-GCM 面部草稿、Watch 待处理动作、
   Watch 当前快照和已安排的本地系统通知。
@@ -107,7 +114,9 @@ Get-ChildItem -LiteralPath supabase/migrations -File | Sort-Object Name
   最近调度时间，并由 RLS 隔离。它不是通知消息表。
 - 通知收件箱、已读/删除和撤销状态以 `user_notifications` 为云端事实源；设备
   `localStorage` 是启动与离线缓存。只同步实际变更的通知行，避免一台设备用陈旧全量列表
-  覆盖另一台设备；Realtime 会刷新当前打开的客户端。
+  覆盖另一台设备；失败写入会留在账号隔离的 outbox 并在下次加载/导出前重试，Realtime
+  会刷新当前打开的客户端。通知偏好、记录草稿、首页偏好和进行中会话采用相同的先排队、
+  成功后才清除 pending 合同。
 - Capacitor 本地通知可在已安装原生 App 中由系统离线调度；网页 Notification API
   只在页面打开且浏览器允许时作为增强。远程 APNs/FCM/HMS 尚无 token 表或发送函数。
 - 详细合同与人工验收边界见
@@ -221,7 +230,7 @@ Edge Function 会校验对象路径归属，只生成十分钟签名 URL；客�
 真实记录发生变化，旧缓存即失效并重新调用模型；仅凭同一日期和报告类型
 不再复用已经过期的文字。
 
-## 2026-09-06 真实数据读写与可视化复核
+## 2026-09-07 真实数据读写、完整性与可视化复核
 
 - 生产共享项目再次通过扩展后的字段探针。探针不再只检查代表列，而是覆盖六模块
   编辑器、详情页、HealthKit 快照、Watch 快照、ChronoState 特征、FDNB 输出、
@@ -237,13 +246,21 @@ Edge Function 会校验对象路径归属，只生成十分钟签名 URL；客�
 - 保存记录后的 AI 报告请求不再强制绕过缓存。Edge Function 每次根据当前画像与记录
   计算 `sourceFingerprint`：相同输入直接返回已存报告，输入变化才调用模型并覆盖同一
   日期/范围的报告。
-- Watch 动作新增设备本地日期和 UTC offset；生产 `watch-sync` v12 按动作发生时间分配
-  专注时段，而不是按服务器收到请求的 UTC 时间。专注起止时间写入 `focus_records`；
-  Watch 快捷情绪更新已有日记录时只更新分数，不覆盖用户已有原因和日记。
+- Watch 动作保留设备本地日期和 UTC offset；生产 `watch-sync` v13 按动作发生时间分配
+  专注时段，而不是按服务器收到请求的 UTC 时间。原生动作只有在服务端接收成功后才确认；
+  失败或超时的 receipt 可安全重领，`focus.stop` 通过原子 RPC 防止重复累计。
+- 手工饮食和 AI 确认饮食都带稳定来源 ID；同一编辑/确认动作在网络响应丢失后重试不会
+  重复追加。四餐各自保存宏量营养摘要，日总量由四餐真实合计重算，不再把全天总量复制到每餐。
+- HealthKit 空摘要不会创建空节律分；活动分箱、时间、心率、HRV、血氧、睡眠效率等在入库前
+  做边界校验。健康报告和 AI 对话授权上下文已纳入 `health_metric_snapshots` 与完整允许画像。
+- 2026-09-07 已实际应用 migration `202609070001`–`202609070003`；本地与远端均为 24 项，
+  `supabase db lint --linked --level warning` 返回零 schema 错误。生产表统计可见既有六模块、
+  健康快照、节律分、周报和 AI 报告真实行，新专注事件表已建立但尚无新客户端写入。
+- 当前函数版本：ai-chat v20、ai-diet v7、ai-health v10、diet-extract v17、delete v10、
+  export v16、health-ingest v12、watch v13；全部 ACTIVE、`verify_jwt=true`。
 
-本轮生产只更新 `watch-sync` Edge Function，没有执行 migration、seed 或 backfill。
-生产库已有六模块、健康快照、节律分、周报和 AI 报告实际行；这证明云端存在真实持久化
-记录，但不替代指定账号逐字段比对或 Apple 真机验收。
+上述结论证明结构、部署和既有真实持久化行已核对，但不替代指定账号逐字段比对、真实模型
+首次成功生成、Apple 真机或真实账号删除/完整导出等人工验收。
 
 ## 仍需人工提供
 

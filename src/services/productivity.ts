@@ -28,6 +28,7 @@ import type { TodaySnapshot } from "../types";
 import { loadProfile, type UserProfile } from "./profile";
 import { getTodaySnapshot } from "./records";
 import { todayISO } from "./date";
+import { isCompleteFaceRecord, isCompleteNutritionRecord, isCompleteSleepRecord } from "./healthReportPresentation";
 import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
 import type { GrowthProgressVisit } from "./growthProgressPresentation";
@@ -141,11 +142,12 @@ export async function addTodo(
   scheduledDate = todayISO(),
   scheduledTime?: string,
   focusPlan?: { focusMinutes?: number; focusSessions?: number },
+  sourceActionId?: string,
 ) {
   const normalized = title.trim();
   if (!normalized) throw new Error("待办事项不能为空。");
   const nextItem: TodoItem = {
-    id: crypto.randomUUID(),
+    id: sourceActionId ?? crypto.randomUUID(),
     title: normalized,
     scheduledDate,
     scheduledTime,
@@ -172,6 +174,11 @@ export async function addTodo(
     category: "todo",
     source: nextItem.source,
   }).select("id,title,scheduled_date,completed,created_at").single();
+  if (created.error?.code === "23505" && sourceActionId) {
+    const existing = await supabase.from("tasks").select("id,title,scheduled_date,completed,created_at").eq("user_id", userId).eq("id", sourceActionId).maybeSingle();
+    if (existing.error) throw existing.error;
+    if (existing.data) return nextItem;
+  }
   if (created.error) throw created.error;
   writeTodos(userId, [nextItem, ...loadTodos(userId)]);
   return nextItem;
@@ -374,7 +381,7 @@ function taskCompleted(
     case "ai-conversation":
       return activities.has("ai");
     case "sleep-window":
-      return Boolean(snapshot.sleep);
+      return isCompleteSleepRecord(snapshot.sleep);
     case "move-break":
       return Number(snapshot.exercise?.exercise_minutes ?? 0) >= 20 || Number(snapshot.exercise?.steps ?? 0) >= 3000;
     case "mood-checkin":
@@ -385,11 +392,11 @@ function taskCompleted(
         && snapshot.mood.diary_content?.trim(),
       );
     case "nutrition-log":
-      return Boolean(snapshot.nutrition);
+      return isCompleteNutritionRecord(snapshot.nutrition);
     case "focus-block":
       return snapshot.focusMinutes >= 25;
     case "face-check":
-      return Boolean(snapshot.face);
+      return isCompleteFaceRecord(snapshot.face);
     default:
       return false;
   }
@@ -414,10 +421,6 @@ export async function recordGrowthActivity(userId: string, activity: GrowthActiv
 
   const { data, error } = await supabase.rpc("nava_record_growth_activity", { activity_kind: activity });
   if (error) {
-    if (/nava_record_growth_activity|schema cache|does not exist/i.test(error.message)) {
-      console.warn("Growth activity reward is not available yet", error.message);
-      return null;
-    }
     throw error;
   }
   localActivities.add(activity);

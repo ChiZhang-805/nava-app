@@ -886,7 +886,7 @@ async function verifyHomeShortcuts(page, results) {
   await sideActions.first().click();
   await expect(page.locator(".option-two-side-actions")).toHaveClass(/is-collapsed/);
   await expect(sideActions.nth(1)).toBeHidden();
-  await expect(sideActions.nth(4)).toBeVisible();
+  await expect(sideActions.nth(4)).toBeHidden();
   await sideActions.first().click();
   await expect(page.locator(".option-two-side-actions")).toHaveClass(/is-open/);
   await expect(sideActions.nth(1)).toBeVisible();
@@ -918,7 +918,7 @@ async function verifyHomeShortcuts(page, results) {
     await expect(page.locator(`[data-record-detail="${module}"]`)).toBeVisible();
   }
   await page.locator('[data-tab="today"]').click();
-  await page.locator(".option-two-side-actions button").nth(1).click();
+  await page.getByRole("button", { name: /健康月历|Health calendar/ }).click();
   await expect(page.locator('[data-home-view="calendar"]')).toBeVisible();
   await page.locator('.home-calendar-month-switcher button').first().click();
   await page.locator('.home-calendar-today').click();
@@ -927,7 +927,7 @@ async function verifyHomeShortcuts(page, results) {
   await page.locator('.home-experience-back').click();
   await expect(page.locator('[data-home-view="calendar"]')).toBeVisible();
   await page.locator('.home-experience-back').click();
-  await page.locator(".option-two-side-actions button").nth(2).click();
+  await page.getByRole("button", { name: /详细资料设置|Detailed profile/ }).click();
   await expect(page.locator('[data-home-view="profile-details"]')).toBeVisible();
   await expect(page.locator(".advanced-profile-form")).toBeVisible();
   await expect(page.locator(".bottom-nav")).toHaveCount(0);
@@ -982,7 +982,7 @@ async function verifyHomeShortcuts(page, results) {
   if (!firstProfileSwitchWasChecked) await firstProfileSwitchInput.uncheck({ force: true });
   await page.locator('.home-experience-back').click();
   await expect(page.locator(".bottom-nav")).toBeVisible();
-  await page.locator(".option-two-side-actions button").nth(3).click();
+  await page.getByRole("button", { name: /功能导航|Utilities/ }).click();
   await expect(page.locator('.utility-drawer[role="dialog"]')).toBeVisible();
   await page.waitForTimeout(350);
   await page.screenshot({ path: path.join(outputDir, "today-utilities.png") });

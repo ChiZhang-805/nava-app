@@ -30,7 +30,11 @@ export function loadSleepMaintenance(userId: string, now = new Date()): SleepMai
 export async function hydrateSleepMaintenance(userId: string, now = new Date()): Promise<SleepMaintenanceSession | null> {
   const { clearActiveUserSession, loadActiveUserSession, saveActiveUserSession } = await import("./userCloudState.ts");
   const local = loadSleepMaintenance(userId, now);
-  const remote = await loadActiveUserSession<Partial<SleepMaintenanceSession>>(userId, "sleep");
+  const remote = await loadActiveUserSession<Partial<SleepMaintenanceSession> & { clearedAt?: string }>(userId, "sleep");
+  if (typeof remote?.clearedAt === "string") {
+    window.localStorage.removeItem(keyFor(userId));
+    return null;
+  }
   const resolved = remote?.version === 1 && validStartedAt(remote.startedAt, now)
     ? { version: 1 as const, startedAt: remote.startedAt as string }
     : local;
@@ -66,15 +70,15 @@ function localTime(date: Date) {
 export function sleepMaintenanceFields(session: SleepMaintenanceSession, endedAt = new Date()) {
   const startedAt = new Date(session.startedAt);
   const durationMinutes = Math.max(1, Math.min(24 * 60, Math.round((endedAt.getTime() - startedAt.getTime()) / 60_000)));
-  const deepMinutes = Math.round(durationMinutes * .2);
-  const lightMinutes = Math.round(durationMinutes * .58);
   return {
     start: localTime(startedAt),
     end: localTime(endedAt),
     durationMinutes,
-    deepMinutes,
-    lightMinutes,
-    remMinutes: Math.max(0, durationMinutes - deepMinutes - lightMinutes),
+    // A manual start/end timer cannot observe sleep stages. Keep them empty
+    // until HealthKit or the user supplies measured values.
+    deepMinutes: 0,
+    lightMinutes: 0,
+    remMinutes: 0,
   };
 }
 

@@ -3,6 +3,9 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const migration = readFileSync(new URL("../supabase/migrations/202609060001_cloud_data_completeness.sql", import.meta.url), "utf8");
+const focusMigration = readFileSync(new URL("../supabase/migrations/202609070001_focus_session_integrity.sql", import.meta.url), "utf8");
+const avatarMigration = readFileSync(new URL("../supabase/migrations/202609070002_profile_avatar_privacy.sql", import.meta.url), "utf8");
+const legacyPhoneCleanupMigration = readFileSync(new URL("../supabase/migrations/202609070003_legacy_phone_cleanup.sql", import.meta.url), "utf8");
 const edgeExport = readFileSync(new URL("../supabase/functions/export-user-data/index.ts", import.meta.url), "utf8");
 const frontendExport = readFileSync(new URL("../src/services/exportData.ts", import.meta.url), "utf8");
 const cloudState = readFileSync(new URL("../src/services/userCloudState.ts", import.meta.url), "utf8");
@@ -13,10 +16,12 @@ const deleteAccount = readFileSync(new URL("../supabase/functions/delete-account
 const secureFaceDraft = readFileSync(new URL("../src/services/secureFaceDraft.ts", import.meta.url), "utf8");
 const watch = readFileSync(new URL("../src/services/watch.ts", import.meta.url), "utf8");
 const recordsScreen = readFileSync(new URL("../src/features/RecordsScreen.tsx", import.meta.url), "utf8");
+const drafts = readFileSync(new URL("../src/services/drafts.ts", import.meta.url), "utf8");
+const profile = readFileSync(new URL("../src/services/profile.ts", import.meta.url), "utf8");
 
 const accountOwnedTables = [
   "profiles", "mood_records", "sleep_records", "exercise_records", "nutrition_records",
-  "focus_records", "focus_time_distribution", "tasks", "ai_conversations", "ai_health_reports",
+  "focus_records", "focus_session_events", "focus_time_distribution", "tasks", "ai_conversations", "ai_health_reports",
   "ai_conversation_archives", "ai_rate_limit_windows", "face_records", "device_connections",
   "health_sync_jobs", "health_metric_snapshots", "health_imports", "watch_snapshots",
   "daily_rhythm_scores", "health_feature_snapshots", "fdnb_health_scores", "weekly_health_reports",
@@ -38,6 +43,9 @@ test("authenticated export contains every account-owned public table and private
   assert.match(edgeExport, /throw new Error\(`账号数据导出不完整/);
   assert.match(edgeExport, /account:[\s\S]*userMetadata:[\s\S]*identities:/);
   assert.match(frontendExport, /supabase\.auth\.getUser\(\)/);
+  assert.doesNotMatch(edgeExport, /downloadUrl/);
+  assert.doesNotMatch(frontendExport, /createSignedUrl\(path, 60 \* 60\)/);
+  assert.match(frontendExport, /supabase\.storage\.from\(bucket\)\.download\(path\)/);
 });
 
 test("legacy account tables and analytics are converted to auth cascade deletion", () => {
@@ -58,6 +66,11 @@ test("legacy account tables and analytics are converted to auth cascade deletion
   assert.match(notifications, /LocalNotifications\.cancel/);
   assert.match(deleteAccount, /from\("nava_auth_account_checks"\)\.delete\(\)\.in\("account_hash"/);
   assert.match(deleteAccount, /from\("nava_phone_otp_challenges"\)\.delete\(\)\.in\("phone_hash"/);
+  assert.match(deleteAccount, /rpc\("nava_delete_legacy_phone_codes"/);
+  assert.match(legacyPhoneCleanupMigration, /DELETE FROM public\.phone_verification_codes/);
+  assert.match(legacyPhoneCleanupMigration, /TO service_role/);
+  assert.ok(deleteAccount.indexOf("for (const bucket") < deleteAccount.indexOf("deleteAccountSecurityDigests"), "owned files must be removed before irreversible security cleanup");
+  assert.match(focusMigration, /focus_session_events[\s\S]*REFERENCES auth\.users\(id\) ON DELETE CASCADE/);
 });
 
 test("device-local caches have authenticated cloud counterparts", () => {
@@ -70,6 +83,21 @@ test("device-local caches have authenticated cloud counterparts", () => {
   assert.match(cloudState, /from\("ai_conversation_archives"\)/);
   assert.match(notifications, /from\("user_notifications"\)/);
   assert.match(notifications, /postgres_changes/);
+  assert.match(notifications, /notification-pending:v1/);
+  assert.match(notifications, /flushPendingNotificationItems/);
+  assert.match(notifications, /notification-preference-pending:v1/);
+  assert.match(notifications, /flushPendingNotificationPreferences/);
+  assert.match(notifications, /\.upsert\(rows,[\s\S]*\.select\("id,category,source,title,body,target,created_at,read_at,deleted_at,updated_at"\)/);
+  assert.match(avatarMigration, /SET public = false/);
+  assert.match(avatarMigration, /auth\.uid\(\)::text = \(storage\.foldername\(name\)\)\[1\]/);
+  assert.match(cloudState, /preferences\.pending\.v1/);
+  assert.match(cloudState, /session\.pending\.v1/);
+  assert.match(drafts, /nava-record-draft-pending/);
+  assert.match(drafts, /flushRecordDraft/);
+  assert.match(frontendExport, /flushPendingRecordDraftsForUser\(userId\)/);
+  assert.match(frontendExport, /flushPendingNotificationPreferences\(userId\)/);
+  assert.match(profile, /avatar-current/);
+  assert.doesNotMatch(profile, /catch \(error\)[\s\S]{0,200}remove\(\[path\]\)/);
 });
 
 test("previously dropped record fields are persisted and restored", () => {

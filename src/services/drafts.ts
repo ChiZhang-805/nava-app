@@ -6,8 +6,15 @@ export type RecordDraftModule = "sleep" | "exercise" | "mood" | "nutrition" | "f
 function storageKey(userId: string, module: RecordDraftModule, date: string) {
   return `nava-record-draft:${userId}:${module}:${date}`;
 }
-function missingDraftTable(message: string) {
-  return /record_drafts|schema cache|does not exist/i.test(message);
+const draftWrites = new Map<string, Promise<void>>();
+function pendingKey(userId: string, module: RecordDraftModule, date: string) {
+  return `nava-record-draft-pending:${userId}:${module}:${date}`;
+}
+
+type PendingDraft = { operation: "save"; payload: Record<string, unknown> } | { operation: "clear" };
+
+function readPendingDraft(userId: string, module: RecordDraftModule, date: string): PendingDraft | null {
+  try { return JSON.parse(window.localStorage.getItem(pendingKey(userId, module, date)) ?? "null") as PendingDraft | null; } catch { return null; }
 }
 
 export async function loadRecordDraft(userId: string, module: RecordDraftModule, date: string) {
@@ -19,6 +26,7 @@ export async function loadRecordDraft(userId: string, module: RecordDraftModule,
     local = null;
   }
   if (isDemoMode()) return local;
+  if (readPendingDraft(userId, module, date)) await flushRecordDraft(userId, module, date);
   const { data, error } = await supabase
     .from("record_drafts")
     .select("payload")
@@ -27,32 +35,66 @@ export async function loadRecordDraft(userId: string, module: RecordDraftModule,
     .eq("record_date", date)
     .eq("status", "editing")
     .maybeSingle();
-  if (error && !missingDraftTable(error.message)) throw error;
+  if (error) throw error;
   return data?.payload && typeof data.payload === "object" ? data.payload as Record<string, unknown> : local;
 }
 
 export async function saveRecordDraft(userId: string, module: RecordDraftModule, date: string, payload: Record<string, unknown>) {
   window.localStorage.setItem(storageKey(userId, module, date), JSON.stringify(payload));
   if (isDemoMode()) return;
-  const { error } = await supabase.from("record_drafts").upsert({
-    user_id: userId,
-    module,
-    record_date: date,
-    payload,
-    status: "editing",
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "user_id,module,record_date" });
-  if (error && !missingDraftTable(error.message)) throw error;
+  window.localStorage.setItem(pendingKey(userId, module, date), JSON.stringify({ operation: "save", payload } satisfies PendingDraft));
+  return flushRecordDraft(userId, module, date);
 }
 
 export async function clearRecordDraft(userId: string, module: RecordDraftModule, date: string) {
   window.localStorage.removeItem(storageKey(userId, module, date));
   if (isDemoMode()) return;
-  const { error } = await supabase
-    .from("record_drafts")
-    .delete()
-    .eq("user_id", userId)
-    .eq("module", module)
-    .eq("record_date", date);
-  if (error && !missingDraftTable(error.message)) throw error;
+  window.localStorage.setItem(pendingKey(userId, module, date), JSON.stringify({ operation: "clear" } satisfies PendingDraft));
+  return flushRecordDraft(userId, module, date);
+}
+
+async function flushRecordDraft(userId: string, module: RecordDraftModule, date: string) {
+  const key = pendingKey(userId, module, date);
+  const active = draftWrites.get(key);
+  if (active) return active;
+  const task = (async () => {
+    for (;;) {
+      const pending = readPendingDraft(userId, module, date);
+      if (!pending) return;
+      const submitted = JSON.stringify(pending);
+      const result = pending.operation === "save"
+        ? await supabase.from("record_drafts").upsert({
+            user_id: userId,
+            module,
+            record_date: date,
+            payload: pending.payload,
+            status: "editing",
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "user_id,module,record_date" })
+        : await supabase.from("record_drafts")
+            .delete()
+            .eq("user_id", userId)
+            .eq("module", module)
+            .eq("record_date", date);
+      if (result.error) throw result.error;
+      const latest = readPendingDraft(userId, module, date);
+      if (JSON.stringify(latest) === submitted) window.localStorage.removeItem(key);
+    }
+  })();
+  draftWrites.set(key, task);
+  try { await task; } finally { if (draftWrites.get(key) === task) draftWrites.delete(key); }
+}
+
+export async function flushPendingRecordDraftsForUser(userId: string) {
+  const prefix = `nava-record-draft-pending:${userId}:`;
+  const modules = new Set<RecordDraftModule>(["sleep", "exercise", "mood", "nutrition", "focus", "face"]);
+  const pending: Array<Promise<void>> = [];
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+    if (!key?.startsWith(prefix)) continue;
+    const [module, date] = key.slice(prefix.length).split(":");
+    if (!modules.has(module as RecordDraftModule) || !/^\d{4}-\d{2}-\d{2}$/.test(date ?? "")) continue;
+    pending.push(flushRecordDraft(userId, module as RecordDraftModule, date));
+  }
+  await Promise.all(pending);
 }
