@@ -1193,3 +1193,33 @@ deployment ID 为 `appgdep_6a9d86942094819199b735d1dd603bbe`，Pages 镜像 comm
 `fe2c7d6995998b94c8253482a15aa226aca6443ae8e6839de207fe3a4b750eca`，生成背景 SHA-256 均为
 `390b8d3417dc1e35b43a2ffaaf0684298c777063dd7cb2c4684e907203c7766e`。线上证据在
 `Q:\NAVA-Workspace\Build\TestRuns\nava-v110-public`。
+
+## 32. 2026-09-07 首页像素复刻与桌面 iPhone 预览双轨
+
+首页已按用户提供的 430×932 Figma 参考重新建立可测量的坐标合同：默认是心率单卡加
+睡眠、运动、步数三卡的 `1+3` 排列，顶部保留两枚状态胶囊，右侧使用参考式快捷按钮，
+底部是五按钮磨砂 Dock 和居中的 AI 对话主按钮；上滑后的六模块圆弧使用同一套白色心率
+符号并按参考坐标展开。所有数值和辅助文案继续来自当前账号真实持久化数据，缺失值保持
+缺失，不把参考图数字写进生产。首页编辑器保留最多六卡，但默认四卡顺序固定为
+`heart, sleep, exercise, steps`。
+
+场景更新为 `home-scene-v3.png`，角色更新为 `home-mascot-v5.png`；两者均是独立装饰层，
+不会吞掉组件点击和可访问文本。首页状态、模块和底部导航图标改为本地 SVG/React SVG，
+不依赖操作系统 emoji。`create-home-parity-grid.mjs` 会把实际截图和参考画面裁成同一
+430×932 坐标系并输出 4px 网格及叠加图；默认态和六模块展开态的证据分别在
+`Q:\NAVA-Workspace\Build\TestRuns\nava-home-figma-parity-v111-20260906\grid-review` 与
+`Q:\NAVA-Workspace\Build\TestRuns\nava-home-guidance-figma-parity-v111-20260906\grid-review-expanded`。
+
+浏览器桌面预览与真实产品画布现在是两条明确隔离的显示路径：只有同时满足宽高至少
+700px、精细指针和 hover 的桌面环境才显示 `DesktopDevicePreviewChrome`。它提供外壳、
+圆角黑边、侧键、设备本地实时时钟、Dynamic Island、蜂窝信号、Wi-Fi 和电量图标；应用内
+通知会从灵动岛下方的系统保留区滑入。产品内容始终以原始 430×932 画布布局，矮电脑窗口
+只对整台设备作统一比例缩放，不触发第二套卡片重排。触屏、窄屏、移动浏览器、PWA 和原生
+App 中 `data-preview-only="desktop-device-chrome"` 保持 `display:none`，因此不会把模拟外壳
+或模拟系统状态栏打包成产品界面。
+
+`device-preview:visual` 已分别验证 1365×1000 桌面、1365×768 等比缩放桌面、桌面通知态
+和 430×932 触屏产品态；外壳/内容同轴、灵动岛居中、首页坐标不变且移动端模拟元素为零。
+证据在 `Q:\NAVA-Workspace\Build\TestRuns\nava-desktop-device-preview-v111-20260907`。
+首页组件与建议视觉脚本在 360×740、375×812、390×844、430×932 四个产品视口通过；
+完整 interaction 11 组、`npm run verify` 28 阶段和 production auth 合同也通过。

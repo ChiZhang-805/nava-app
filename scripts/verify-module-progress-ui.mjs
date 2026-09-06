@@ -216,12 +216,14 @@ try {
       const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
       const entries = [...document.querySelectorAll(".option-two-health-entry")].map((entry) => {
         const button = entry.getBoundingClientRect();
-        const ring = entry.querySelector(".module-progress-ring")?.getBoundingClientRect();
+        const ringNode = entry.querySelector(".module-progress-ring");
+        const icon = entry.querySelector(".option-two-health-icon")?.getBoundingClientRect();
         return {
           state: entry.getAttribute("data-module-state"),
           progress: entry.getAttribute("data-module-progress"),
           button: { left: button.left, right: button.right, top: button.top, bottom: button.bottom, width: button.width, height: button.height },
-          ring: ring ? { left: ring.left, right: ring.right, top: ring.top, bottom: ring.bottom, width: ring.width, height: ring.height } : null,
+          ringDisplay: ringNode ? getComputedStyle(ringNode).display : null,
+          icon: icon ? { left: icon.left, right: icon.right, top: icon.top, bottom: icon.bottom, width: icon.width, height: icon.height } : null,
         };
       });
       return {
@@ -234,14 +236,15 @@ try {
       throw new Error(`${viewport.name}: invalid Today progress layout ${JSON.stringify(homeGeometry)}`);
     }
     for (const entry of homeGeometry.entries) {
-      if (!entry.ring
-        || Math.abs((entry.ring.left + entry.ring.right - entry.button.left - entry.button.right) / 2) > 1
-        || Math.abs((entry.ring.top + entry.ring.bottom - entry.button.top - entry.button.bottom) / 2) > 1
-        || entry.ring.left < homeGeometry.frame.left - 1
-        || entry.ring.right > homeGeometry.frame.right + 1
-        || entry.ring.top < homeGeometry.frame.top - 1
-        || entry.ring.bottom > homeGeometry.frame.bottom + 1) {
-        throw new Error(`${viewport.name}: a Today progress ring is misaligned or clipped ${JSON.stringify(entry)}`);
+      if (entry.ringDisplay !== "none"
+        || !entry.icon
+        || Math.abs((entry.icon.left + entry.icon.right - entry.button.left - entry.button.right) / 2) > 1
+        || Math.abs((entry.icon.top + entry.icon.bottom - entry.button.top - entry.button.bottom) / 2) > 1
+        || entry.button.left < homeGeometry.frame.left - 1
+        || entry.button.right > homeGeometry.frame.right + 1
+        || entry.button.top < homeGeometry.frame.top - 1
+        || entry.button.bottom > homeGeometry.frame.bottom + 1) {
+        throw new Error(`${viewport.name}: a Today reference icon is misaligned, clipped, or still shows the legacy ring ${JSON.stringify(entry)}`);
       }
     }
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-today-progress.png`) });

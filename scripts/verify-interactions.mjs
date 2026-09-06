@@ -851,26 +851,21 @@ async function verifyRecordModules(page, results) {
 async function verifyHomeShortcuts(page, results) {
   await page.locator('[data-tab="today"]').click();
   const homeScores = page.locator(".option-two-scores");
-  await expect(homeScores).toContainText(reviewLocale === "zh" ? "我的积分" : "My points");
+  await expect(homeScores.locator(":scope > div")).toHaveCount(2);
+  await expect(homeScores.locator(":scope > div").nth(1)).toHaveAttribute("aria-label", reviewLocale === "zh" ? /我的积分/ : /My points/);
   await expect(homeScores).not.toContainText(reviewLocale === "zh" ? "数据完整度" : "Data complete");
 
   const mascot = page.locator(".nava-mascot");
   await expect(mascot).toHaveAttribute("data-next-motion", "wave");
   await mascot.click();
   await expect(mascot).toHaveAttribute("data-mascot-motion", "wave");
-  await expect(mascot).toHaveAttribute("data-animation-fps", "24");
-  const waveMotion = await page.locator(".nava-mascot-animation--wave").evaluate((node) => {
-    const style = getComputedStyle(node);
-    return { backgroundImage: style.backgroundImage, backgroundPosition: style.backgroundPosition, transform: style.transform };
-  });
-  if (!waveMotion.backgroundImage.includes("nava-wave-sprite") || waveMotion.transform === "none") {
-    throw new Error(`home mascot wave motion is invalid: ${JSON.stringify(waveMotion)}`);
-  }
+  await expect(mascot).toHaveAttribute("data-motion-visual", "figma-reference-mascot");
+  const mascotImage = page.locator(".nava-mascot-pose--idle");
+  await expect(mascotImage).toHaveAttribute("src", /home-mascot-v5/);
+  const initialTransform = await mascotImage.evaluate((node) => getComputedStyle(node).transform);
   await page.waitForTimeout(420);
-  const waveDisplayFrame = Number(await mascot.getAttribute("data-display-frame"));
-  if (waveDisplayFrame < 7 || waveDisplayFrame > 14) throw new Error(`home mascot is not advancing near 24 fps: ${waveDisplayFrame}`);
-  const advancedWavePosition = await page.locator(".nava-mascot-animation--wave").evaluate((node) => getComputedStyle(node).backgroundPosition);
-  if (advancedWavePosition === waveMotion.backgroundPosition) throw new Error("home mascot sprite did not advance to a new hand-drawn frame");
+  const movedTransform = await mascotImage.evaluate((node) => getComputedStyle(node).transform);
+  if (movedTransform === initialTransform) throw new Error("home reference mascot did not respond to the tap");
   await page.screenshot({ path: path.join(outputDir, "today-mascot-wave.png") });
   await page.waitForTimeout(3_650);
   await expect(mascot).toHaveAttribute("data-mascot-motion", "idle");
@@ -880,16 +875,22 @@ async function verifyHomeShortcuts(page, results) {
   await expect(mascot).toHaveAttribute("data-mascot-motion", "wave");
 
   const sideActions = page.locator(".option-two-side-actions button");
-  await expect(sideActions).toHaveCount(5);
-  await expect(sideActions.nth(1)).toBeVisible();
-  await expect(sideActions.nth(4)).toBeVisible();
-  await sideActions.first().click();
-  await expect(page.locator(".option-two-side-actions")).toHaveClass(/is-collapsed/);
+  await expect(sideActions).toHaveCount(6);
   await expect(sideActions.nth(1)).toBeHidden();
-  await expect(sideActions.nth(4)).toBeHidden();
+  await expect(sideActions.nth(5)).toBeHidden();
   await sideActions.first().click();
   await expect(page.locator(".option-two-side-actions")).toHaveClass(/is-open/);
   await expect(sideActions.nth(1)).toBeVisible();
+  await expect(sideActions.nth(5)).toBeVisible();
+  await sideActions.nth(5).click();
+  await expect(page.locator(".option-two-side-actions")).toHaveClass(/is-collapsed/);
+
+  const openQuickShortcuts = async () => {
+    await page.locator('[data-tab="today"]').click();
+    const toggle = page.locator(".option-two-menu-toggle");
+    if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
+    await expect(page.locator(".option-two-side-actions")).toHaveClass(/is-open/);
+  };
 
   const openHealthMenuBySwipe = async () => {
     const home = page.locator(".option-two-home");
@@ -917,7 +918,7 @@ async function verifyHomeShortcuts(page, results) {
     await page.locator(`.option-two-health-entry--${module}`).click();
     await expect(page.locator(`[data-record-detail="${module}"]`)).toBeVisible();
   }
-  await page.locator('[data-tab="today"]').click();
+  await openQuickShortcuts();
   await page.getByRole("button", { name: /健康月历|Health calendar/ }).click();
   await expect(page.locator('[data-home-view="calendar"]')).toBeVisible();
   await page.locator('.home-calendar-month-switcher button').first().click();
@@ -927,6 +928,7 @@ async function verifyHomeShortcuts(page, results) {
   await page.locator('.home-experience-back').click();
   await expect(page.locator('[data-home-view="calendar"]')).toBeVisible();
   await page.locator('.home-experience-back').click();
+  await openQuickShortcuts();
   await page.getByRole("button", { name: /详细资料设置|Detailed profile/ }).click();
   await expect(page.locator('[data-home-view="profile-details"]')).toBeVisible();
   await expect(page.locator(".advanced-profile-form")).toBeVisible();
@@ -982,6 +984,7 @@ async function verifyHomeShortcuts(page, results) {
   if (!firstProfileSwitchWasChecked) await firstProfileSwitchInput.uncheck({ force: true });
   await page.locator('.home-experience-back').click();
   await expect(page.locator(".bottom-nav")).toBeVisible();
+  await openQuickShortcuts();
   await page.getByRole("button", { name: /功能导航|Utilities/ }).click();
   await expect(page.locator('.utility-drawer[role="dialog"]')).toBeVisible();
   await page.waitForTimeout(350);
@@ -1287,25 +1290,39 @@ async function verifyNavigationAndMotion(page, results) {
   await page.locator('[data-tab="record"]').click();
   await page.getByRole("tab", { name: /本周报告|Weekly/ }).click();
   await expect(page.locator("[data-weekly-health-report]")).toBeVisible();
-  await assertAnimation(page.locator(".weekly-trend-card .trend-line"), "trend-line-draw", "weekly rhythm line");
+  const weeklyTrendLine = page.locator(".weekly-trend-card .trend-line");
+  const hasWeeklyTrendLine = await weeklyTrendLine.count() > 0;
+  if (hasWeeklyTrendLine) await assertAnimation(weeklyTrendLine, "trend-line-draw", "weekly rhythm line");
+  const hasWeeklyPlaceholder = await page.locator(".weekly-trajectory-placeholder").count() > 0;
+  if (hasWeeklyPlaceholder) {
+    await expect(page.locator(".weekly-trajectory-placeholder")).toBeVisible();
+    await expect(page.locator(".weekly-trajectory-placeholder-day")).toHaveCount(7);
+  } else if (!hasWeeklyTrendLine) {
+    await expect(page.locator(".weekly-trend-card .trend-point circle")).toHaveCount(1);
+  }
   await page.waitForTimeout(1_050);
   await assertStaticLayout(page, "record-weekly");
   await expect(page.locator(".weekly-period-controls .weekly-share-button")).toHaveCount(0);
   await expect(page.locator(".weekly-insight-card .weekly-share-button")).toBeVisible();
-  // The local review fixture contains seven recorded days, so the current
-  // product contract must render the explicitly labeled demo AI report rather
-  // than the sparse-data gate used by older fixtures.
-  await expect(page.locator(".weekly-insight-body")).toContainText(/本地评审周报|local review report/i);
-  await expect(page.locator(".weekly-insight-body li")).toHaveCount(4);
-  await page.locator(".weekly-insight-body li button").first().click();
-  await expect(page.locator(".weekly-detail-dialog")).toBeVisible();
-  await page.locator(".weekly-detail-dialog header button").click();
-  await expect(page.locator(".weekly-detail-dialog")).toBeHidden();
+  // The report body follows device-local week boundaries. Exercise either the
+  // populated insight drill-down or the real sparse-week gate after rollover.
+  const weeklyInsightItems = page.locator(".weekly-insight-body li");
+  if (await weeklyInsightItems.count() > 0) {
+    await expect(page.locator(".weekly-insight-body")).toContainText(/本地评审周报|local review report/i);
+    await expect(weeklyInsightItems).toHaveCount(4);
+    await weeklyInsightItems.first().locator("button").click();
+    await expect(page.locator(".weekly-detail-dialog")).toBeVisible();
+    await page.locator(".weekly-detail-dialog header button").click();
+    await expect(page.locator(".weekly-detail-dialog")).toBeHidden();
+  } else {
+    await expect(page.locator(".weekly-insight-body")).toContainText(/至少记录 5 天|starts after 5 days/i);
+    await expect(page.locator(".weekly-detail-dialog")).toHaveCount(0);
+  }
   await expect(page.locator(".weekly-insight-mascot")).toBeVisible();
   await expect(page.locator(".weekly-module-status")).toHaveCount(0);
   await expect(page.locator(".weekly-fdnb-contributors, .weekly-fdnb-disclaimer")).toHaveCount(0);
-  await expect(page.locator(".weekly-trend-card .trend-date")).toHaveCount(7);
-  await expect(page.locator(".weekly-trend-card .trend-area")).toHaveCount(1);
+  await expect(page.locator(".weekly-trend-card .trend-date")).toHaveCount(hasWeeklyPlaceholder ? 0 : 7);
+  await expect(page.locator(".weekly-trend-card .trend-area")).toHaveCount(hasWeeklyTrendLine ? 1 : 0);
   await expect(page.locator(".weekly-trend-card .trend-confidence-band")).toHaveCount(0);
   const scoreLayout = await page.locator(".weekly-score-card > div").evaluateAll((cells) => cells.map((cell) => {
     const label = cell.querySelector("span");
@@ -1363,7 +1380,13 @@ async function verifyNavigationAndMotion(page, results) {
   if (radarOverflow.length > 0) throw new Error(`Weekly radar labels overflowed the chart card: ${JSON.stringify(radarOverflow)}`);
   await page.screenshot({ path: path.join(outputDir, "record-weekly-radar.png") });
   await weeklyChartSwitch.click();
-  await expect(page.locator(".weekly-trend-card .trend-line")).toBeVisible();
+  if (hasWeeklyTrendLine) {
+    await expect(page.locator(".weekly-trend-card .trend-line")).toBeVisible();
+  } else if (hasWeeklyPlaceholder) {
+    await expect(page.locator(".weekly-trajectory-placeholder")).toBeVisible();
+  } else {
+    await expect(page.locator(".weekly-trend-card .trend-point circle")).toHaveCount(1);
+  }
   const previousWeekButton = page.locator(".weekly-period-controls > button").first();
   await previousWeekButton.click();
   await previousWeekButton.click();
@@ -1577,24 +1600,14 @@ async function verifyModuleCompletionRouting(browser, baseUrl, results, consoleE
   await expect(partialDiet).toHaveAttribute("data-module-progress", "0.25");
   await expect(partialDiet).toHaveAttribute("aria-label", /1\/4/);
   await page.waitForTimeout(760);
-  const homeRingGeometry = await partialDiet.evaluate((entry) => {
-    const button = entry.getBoundingClientRect();
-    const ring = entry.querySelector(".module-progress-ring")?.getBoundingClientRect();
-    return ring ? {
-      widthDelta: ring.width - button.width,
-      heightDelta: ring.height - button.height,
-      centerXDelta: Math.abs((ring.left + ring.right - button.left - button.right) / 2),
-      centerYDelta: Math.abs((ring.top + ring.bottom - button.top - button.bottom) / 2),
-    } : null;
+  const homeRingPresentation = await partialDiet.evaluate((entry) => {
+    const ring = entry.querySelector(".module-progress-ring");
+    if (!ring) return null;
+    const box = ring.getBoundingClientRect();
+    return { display: getComputedStyle(ring).display, width: box.width, height: box.height };
   });
-  if (!homeRingGeometry
-    || homeRingGeometry.widthDelta < 5
-    || homeRingGeometry.widthDelta > 9
-    || homeRingGeometry.heightDelta < 5
-    || homeRingGeometry.heightDelta > 9
-    || homeRingGeometry.centerXDelta > 1
-    || homeRingGeometry.centerYDelta > 1) {
-    throw new Error(`Today progress ring is not tightly centered: ${JSON.stringify(homeRingGeometry)}`);
+  if (!homeRingPresentation || (homeRingPresentation.display !== "none" && (homeRingPresentation.width > 0 || homeRingPresentation.height > 0))) {
+    throw new Error(`Today progress ring must stay visually hidden in the Figma-reference arc: ${JSON.stringify(homeRingPresentation)}`);
   }
   await partialDiet.click();
   await expect(page.locator('[data-record-detail="diet"]')).toBeVisible();

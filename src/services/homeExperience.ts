@@ -86,7 +86,7 @@ export function buildHomeGuidance(snapshot: TodaySnapshot, hour: number, locale:
       phase,
       reason: "sleep_low",
       eyebrow: zh ? "恢复优先" : "Recovery first",
-      message: zh ? `昨晚记录了 ${Math.floor(sleepMinutes / 60)} 小时 ${sleepMinutes % 60} 分睡眠，今天先把节奏放轻一点。` : `Last night recorded ${Math.floor(sleepMinutes / 60)}h ${sleepMinutes % 60}m of sleep. Keep today's pace gentle.`,
+      message: zh ? `昨晚睡了 ${Math.floor(sleepMinutes / 60)} 小时 ${sleepMinutes % 60} 分，今天放慢节奏。` : `You slept ${Math.floor(sleepMinutes / 60)}h ${sleepMinutes % 60}m. Keep today's pace gentle.`,
       motion: "sleep",
       actions,
     };
@@ -98,28 +98,28 @@ export function buildHomeGuidance(snapshot: TodaySnapshot, hour: number, locale:
 
   if (hour >= 17 && (steps == null || steps < 3_000)) {
     const message = steps == null
-      ? (zh ? "今天尚未同步步数；确认数据后，身体感觉合适时可以轻走 10 分钟。" : "Steps have not synced today. After checking your data, try a gentle 10-minute walk if it feels right.")
-      : (zh ? `今天记录了 ${steps.toLocaleString()} 步；身体感觉合适时，可以轻走 10 分钟。` : `${steps.toLocaleString()} steps are recorded today. If it feels right, try a gentle 10-minute walk.`);
+      ? (zh ? "步数尚未同步，感觉合适时轻走 10 分钟。" : "Steps have not synced. Try a gentle 10-minute walk if it feels right.")
+      : (zh ? `今天 ${steps.toLocaleString()} 步，感觉合适时轻走 10 分钟。` : `${steps.toLocaleString()} steps today. Try a gentle 10-minute walk if it feels right.`);
     return { phase, reason: "movement_low", eyebrow: zh ? "傍晚活动提示" : "Evening movement", message, motion: "lift", actions };
   }
 
   if (snapshot.focusMinutes >= 25) {
-    return { phase, reason: "focus_complete", eyebrow: zh ? "专注完成" : "Focus completed", message: zh ? `今天已经完成 ${Math.round(snapshot.focusMinutes)} 分钟专注，给自己一个短暂的放松间隔。` : `You have completed ${Math.round(snapshot.focusMinutes)} focus minutes today. Take a short reset.`, motion: "wave", actions };
+    return { phase, reason: "focus_complete", eyebrow: zh ? "专注完成" : "Focus completed", message: zh ? `已专注 ${Math.round(snapshot.focusMinutes)} 分钟，休息一下吧！` : `${Math.round(snapshot.focusMinutes)} focus minutes complete. Take a short reset.`, motion: "wave", actions };
   }
 
   if (hour >= 10 && snapshot.focusMinutes < 25) {
-    return { phase, reason: "focus_missing", eyebrow: zh ? "下一步建议" : "Suggested next step", message: zh ? "从一个 25 分钟专注块开始，把今天最重要的一件事先完成。" : "Start with one 25-minute focus block for today's most important task.", motion: "read", actions };
+    return { phase, reason: "focus_missing", eyebrow: zh ? "下一步建议" : "Suggested next step", message: zh ? "先专注 25 分钟，完成最重要的事。" : "Start with 25 minutes on today's most important task.", motion: "read", actions };
   }
 
   if (phase === "night") {
-    return { phase, reason: "wind_down", eyebrow: zh ? "夜间节律" : "Night rhythm", message: zh ? "把屏幕和高强度任务慢慢放下，为睡眠留一段安静过渡。" : "Ease away from screens and intense tasks to leave a quiet transition into sleep.", motion: "sleep", actions };
+    return { phase, reason: "wind_down", eyebrow: zh ? "夜间节律" : "Night rhythm", message: zh ? "慢慢放下屏幕，给睡眠留段安静时间。" : "Ease away from screens and leave a quiet transition into sleep.", motion: "sleep", actions };
   }
 
   const phaseMessage = phase === "dawn"
-    ? (zh ? "新的一天刚开始，先确认身体感受，再安排第一个小目标。" : "The day is beginning. Check how you feel before choosing the first small goal.")
+    ? (zh ? "先感受身体状态，再安排第一个小目标。" : "Check how you feel, then choose the first small goal.")
     : phase === "evening"
-      ? (zh ? "傍晚适合回看今天的记录，再决定休息还是轻量活动。" : "Review today's records, then choose rest or light activity for the evening.")
-      : (zh ? "今天的状态保持平稳，补齐一项记录会让节律判断更完整。" : "Today's state looks steady. One more record will make the rhythm picture clearer.");
+      ? (zh ? "回看今天的记录，再决定休息还是轻量活动。" : "Review today's records, then choose rest or light activity.")
+      : (zh ? "今天状态平稳，再补齐一项记录吧。" : "Today's state looks steady. Add one more record.");
   return { phase, reason: "steady", eyebrow: zh ? "NAVA 今日建议" : "NAVA today", message: phaseMessage, motion: phase === "dawn" ? "wave" : phase === "evening" ? "tail" : "read", actions };
 }
 

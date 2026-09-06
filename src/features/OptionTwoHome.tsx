@@ -1,40 +1,37 @@
 import type { User } from "@supabase/supabase-js";
 import {
-  Bell,
-  BrainCircuit,
   CalendarDays,
-  ChartNoAxesCombined,
-  Footprints,
-  ListTodo,
-  MessageCircle,
-  Menu,
-  MoonStar,
+  ChevronUp,
+  HeartPulse,
   ScanFace,
+  ShoppingCart,
   SmilePlus,
-  Sparkles,
   TimerReset,
   Utensils,
   UsersRound,
-  X,
-  type LucideIcon,
+  Wrench,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
-import dietIcon from "../assets/figma/option-two-icons/diet.svg";
-import exerciseIcon from "../assets/figma/option-two-icons/exercise.svg";
-import faceIcon from "../assets/figma/option-two-icons/face.svg";
-import focusIcon from "../assets/figma/option-two-icons/focus.svg";
-import moodIcon from "../assets/figma/option-two-icons/mood.svg";
-import sleepIcon from "../assets/figma/option-two-icons/sleep.svg";
-import homeSceneBackground from "../assets/figma/home-option2/home-scene-v1.png";
+import { useCallback, useEffect, useRef, useState, type ComponentType, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import homeSceneBackground from "../assets/figma/home-option2/home-scene-v3.png";
 import { useLocale } from "../i18n";
 import AnimatedNumber from "../components/AnimatedNumber";
 import ModuleProgressRing from "../components/ModuleProgressRing";
 import { SkeletonBlock } from "../components/PageSkeleton";
 import InteractiveMascot from "../components/InteractiveMascot";
+import {
+  EnergyStatusIcon,
+  HeartMetricIcon,
+  MenuReferenceIcon,
+  PointsStatusIcon,
+  RunMetricIcon,
+  SleepMetricIcon,
+  StepsMetricIcon,
+  type HomeReferenceIconProps,
+} from "../components/HomeReferenceIcons";
 import { loadGrowthTotalPoints } from "../services/productivity";
 import { getTodaySnapshot, getTrends } from "../services/records";
 import { buildHealthModuleProgress, healthModuleEntryView, healthModuleProgressLabel } from "../services/healthReportPresentation";
-import { buildHomeGuidance, homeDayPhase, isVerticalHomeSwipe, type HomeGuidanceAction } from "../services/homeExperience";
+import { buildHomeGuidance, homeDayPhase, isVerticalHomeSwipe } from "../services/homeExperience";
 import { buildHomeWidgetPresentation, hydrateHomeWidgetIds, loadHomeWidgetIds, saveHomeWidgetIds, type HomeWidgetId } from "../services/homeWidgets";
 import { syncContextualNotifications, type NavaNotificationItem, type NavaNotificationTarget } from "../services/notifications";
 import type { TodaySnapshot, TrendBundle } from "../types";
@@ -46,45 +43,48 @@ import HomeWidgetEditor from "./HomeWidgetEditor";
 
 const healthEntries: Array<{
   id: RecordModule;
-  icon: string;
   labelKey: "records.exercise" | "records.diet" | "records.sleep" | "records.faceShort" | "records.focus" | "records.mood";
   className: string;
 }> = [
-  { id: "exercise", icon: exerciseIcon, labelKey: "records.exercise", className: "exercise" },
-  { id: "diet", icon: dietIcon, labelKey: "records.diet", className: "diet" },
-  { id: "sleep", icon: sleepIcon, labelKey: "records.sleep", className: "sleep" },
-  { id: "face", icon: faceIcon, labelKey: "records.faceShort", className: "face" },
-  { id: "focus", icon: focusIcon, labelKey: "records.focus", className: "focus" },
-  { id: "mood", icon: moodIcon, labelKey: "records.mood", className: "mood" },
+  { id: "exercise", labelKey: "records.exercise", className: "exercise" },
+  { id: "diet", labelKey: "records.diet", className: "diet" },
+  { id: "sleep", labelKey: "records.sleep", className: "sleep" },
+  { id: "face", labelKey: "records.faceShort", className: "face" },
+  { id: "focus", labelKey: "records.focus", className: "focus" },
+  { id: "mood", labelKey: "records.mood", className: "mood" },
 ];
 
-const homeGuidanceIcons: Record<HomeGuidanceAction["id"], LucideIcon> = {
-  sleep: MoonStar,
-  diet: Utensils,
+const homeWidgetIcons: Record<HomeWidgetId, ComponentType<HomeReferenceIconProps>> = {
+  heart: HeartMetricIcon,
+  sleep: SleepMetricIcon,
+  exercise: RunMetricIcon,
+  steps: StepsMetricIcon,
   focus: TimerReset,
-  exercise: Footprints,
-  mood: SmilePlus,
-  face: ScanFace,
-  report: ChartNoAxesCombined,
-  ai: MessageCircle,
-};
-
-const homeWidgetIcons: Record<HomeWidgetId, LucideIcon> = {
-  sleep: MoonStar,
-  focus: TimerReset,
-  exercise: Footprints,
   mood: SmilePlus,
   diet: Utensils,
   face: ScanFace,
 };
 
-const homeWidgetLabelKeys: Record<HomeWidgetId, "records.sleep" | "records.focus" | "records.exercise" | "records.mood" | "records.diet" | "records.faceShort"> = {
-  sleep: "records.sleep",
-  focus: "records.focus",
-  exercise: "records.exercise",
-  mood: "records.mood",
-  diet: "records.diet",
-  face: "records.faceShort",
+const homeWidgetLabels: Record<HomeWidgetId, { zh: string; en: string }> = {
+  heart: { zh: "心率", en: "Heart rate" },
+  sleep: { zh: "睡眠", en: "Sleep" },
+  exercise: { zh: "运动", en: "Activity" },
+  steps: { zh: "步数", en: "Steps" },
+  focus: { zh: "专注", en: "Focus" },
+  mood: { zh: "情绪", en: "Mood" },
+  diet: { zh: "饮食", en: "Diet" },
+  face: { zh: "面部", en: "Face" },
+};
+
+const homeWidgetTargets: Record<HomeWidgetId, RecordModule> = {
+  heart: "exercise",
+  sleep: "sleep",
+  exercise: "exercise",
+  steps: "exercise",
+  focus: "focus",
+  mood: "mood",
+  diet: "diet",
+  face: "face",
 };
 
 export default function OptionTwoHome({
@@ -118,7 +118,7 @@ export default function OptionTwoHome({
 }) {
   const { locale, t } = useLocale();
   const forceHomeWidgetSkeleton = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "home-widgets-loading";
-  const [shortcutsOpen, setShortcutsOpen] = useState(true);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [healthMenuOpen, setHealthMenuOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<TodaySnapshot | null>(null);
   const [trends, setTrends] = useState<TrendBundle | null>(null);
@@ -299,60 +299,50 @@ export default function OptionTwoHome({
         decoding="async"
       />
       <div className="option-two-scores" aria-label={t("today.overview")} aria-live="polite" aria-busy={loading}>
-        <div><span>{t("today.rhythm")}</span><strong>{loading && snapshot === null ? <SkeletonBlock className="option-two-score-skeleton" /> : typeof rhythmScore === "number" ? <AnimatedNumber value={rhythmScore} /> : rhythmScore}</strong></div>
-        <div><span>{t("today.myPoints")}</span><strong>{loading && totalPoints === null ? <SkeletonBlock className="option-two-score-skeleton" /> : typeof points === "number" ? <AnimatedNumber value={points} duration={760} /> : points}</strong></div>
+        <div aria-label={`${t("today.rhythm")} ${rhythmScore}`}><EnergyStatusIcon className="option-two-score-icon option-two-score-icon--energy" size={17} /><strong>{loading && snapshot === null ? <SkeletonBlock className="option-two-score-skeleton" /> : <>{typeof rhythmScore === "number" ? <AnimatedNumber value={rhythmScore} /> : rhythmScore}<small>/100</small></>}</strong></div>
+        <div aria-label={`${t("today.myPoints")} ${points}`}><PointsStatusIcon className="option-two-score-icon option-two-score-icon--points" size={18} /><strong>{loading && totalPoints === null ? <SkeletonBlock className="option-two-score-skeleton" /> : typeof points === "number" ? <AnimatedNumber value={points} duration={760} /> : points}</strong></div>
       </div>
 
       <div className={["option-two-side-actions", shortcutsOpen ? "is-open" : "is-collapsed"].join(" ")}>
-        <button className="option-two-menu-toggle" type="button" onClick={() => setShortcutsOpen((value) => !value)} aria-expanded={shortcutsOpen} aria-label={shortcutsOpen ? (locale === "zh" ? "收起快捷入口" : "Collapse shortcuts") : (locale === "zh" ? "展开快捷入口" : "Expand shortcuts")} title={shortcutsOpen ? (locale === "zh" ? "收起快捷入口" : "Collapse shortcuts") : (locale === "zh" ? "展开快捷入口" : "Expand shortcuts")}>
-          <Menu size={23} />
-        </button>
-        <button className="option-two-side-shortcut option-two-notification-button" type="button" onClick={() => onViewChange("notifications")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "通知中心" : "Notifications"} title={locale === "zh" ? "通知中心" : "Notifications"}>
-          <Bell size={22} />
-          {notifications.some((item) => !item.readAt) && <span className="option-two-notification-badge" aria-label={locale === "zh" ? `${notifications.filter((item) => !item.readAt).length} 条未读` : `${notifications.filter((item) => !item.readAt).length} unread`}>{Math.min(99, notifications.filter((item) => !item.readAt).length)}</span>}
+        <button className="option-two-menu-toggle" type="button" onClick={() => { if (shortcutsOpen) onViewChange("notifications"); else setShortcutsOpen(true); }} aria-expanded={shortcutsOpen} aria-label={shortcutsOpen ? (locale === "zh" ? "打开通知中心" : "Open notifications") : (locale === "zh" ? "展开快捷入口" : "Expand shortcuts")} title={shortcutsOpen ? (locale === "zh" ? "打开通知中心" : "Open notifications") : (locale === "zh" ? "展开快捷入口" : "Expand shortcuts")}>
+          <MenuReferenceIcon size={23} />
+          {notifications.some((item) => !item.readAt) && <span className="option-two-menu-unread" aria-hidden="true" />}
         </button>
         <button className="option-two-side-shortcut" type="button" onClick={() => onViewChange("calendar")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "健康月历" : "Health calendar"} title={locale === "zh" ? "健康月历" : "Health calendar"}><CalendarDays size={23} /></button>
         <button className="option-two-side-shortcut" type="button" onClick={() => onViewChange("profile-details")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "详细资料设置" : "Detailed profile"} title={locale === "zh" ? "详细资料设置" : "Detailed profile"}><UsersRound size={24} /></button>
-        <button className="option-two-side-shortcut" type="button" onClick={onOpenUtility} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "功能导航" : "Utilities"} title={locale === "zh" ? "功能导航" : "Utilities"}><ListTodo size={23} /></button>
+        <button className="option-two-side-shortcut" type="button" onClick={onOpenUtility} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "积分商城" : "Points store"} title={locale === "zh" ? "积分商城" : "Points store"}><ShoppingCart size={22} /></button>
+        <button className="option-two-side-shortcut" type="button" onClick={onOpenUtility} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "功能导航" : "Utilities"} title={locale === "zh" ? "功能导航" : "Utilities"}><Wrench size={22} /></button>
+        <button className="option-two-side-shortcut option-two-side-collapse" type="button" onClick={() => setShortcutsOpen(false)} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "收起快捷入口" : "Collapse shortcuts"} title={locale === "zh" ? "收起快捷入口" : "Collapse shortcuts"}><ChevronUp size={23} /></button>
       </div>
 
       <section className={["home-widget-grid", widgetIds.length === 0 ? "is-empty" : ""].join(" ")} aria-label={locale === "zh" ? "我的健康小组件" : "My health widgets"} data-widget-count={widgetIds.length}>
         {(loading && snapshot === null) || forceHomeWidgetSkeleton
-          ? Array.from({ length: widgetIds.length || 5 }, (_, index) => <SkeletonBlock className="home-widget-skeleton" key={index} />)
+          ? Array.from({ length: widgetIds.length || 4 }, (_, index) => <SkeletonBlock className={`home-widget-skeleton home-widget-skeleton--position-${index + 1}`} key={index} />)
           : widgetIds.length === 0
-            ? <button className="home-widget-empty" type="button" onClick={() => onViewChange("home-widgets")}><Sparkles size={18} /><span><strong>{locale === "zh" ? "添加关注的小组件" : "Add widgets you care about"}</strong><small>{locale === "zh" ? "最多 6 个，每行 3 个" : "Up to 6, three per row"}</small></span></button>
-            : widgetIds.map((id) => {
+            ? <button className="home-widget-empty" type="button" onClick={() => onViewChange("home-widgets")}><HeartPulse size={18} /><span><strong>{locale === "zh" ? "添加关注的小组件" : "Add widgets you care about"}</strong><small>{locale === "zh" ? "最多 6 个" : "Up to 6"}</small></span></button>
+            : widgetIds.map((id, index) => {
               const presentation = snapshot ? buildHomeWidgetPresentation(id, snapshot, locale, trends) : null;
               const Icon = homeWidgetIcons[id];
+              const label = homeWidgetLabels[id][locale];
+              const target = homeWidgetTargets[id];
               return <button
-                className={["home-health-widget", presentation ? `is-${presentation.state}` : "is-missing"].join(" ")}
+                className={["home-health-widget", `home-health-widget--${id}`, `home-health-widget--position-${index + 1}`, presentation ? `is-${presentation.state}` : "is-missing"].join(" ")}
                 type="button"
                 key={id}
                 data-home-widget={id}
-                onClick={() => onOpenRecord(id, snapshot ? healthModuleEntryView(moduleProgress[id]) : "editor")}
-                aria-label={`${t(homeWidgetLabelKeys[id])}${locale === "zh" ? "，" : ", "}${presentation?.core ?? "--"}${locale === "zh" ? "，" : ", "}${presentation?.support ?? (locale === "zh" ? "加载中" : "Loading")}`}
+                onClick={() => onOpenRecord(target, snapshot ? healthModuleEntryView(moduleProgress[target]) : "editor")}
+                aria-label={`${label}${locale === "zh" ? "，" : ", "}${presentation?.core ?? "--"}${locale === "zh" ? "，" : ", "}${presentation?.support ?? (locale === "zh" ? "加载中" : "Loading")}`}
               >
-                <span><Icon size={15} /><b>{t(homeWidgetLabelKeys[id])}</b></span>
-                <strong>{presentation?.core ?? "--"}</strong>
-                <small>{presentation?.support ?? (locale === "zh" ? "加载中" : "Loading")}</small>
+                <span><Icon size={26} /><b>{label}</b></span>
+                <div className="home-widget-value"><strong>{presentation?.core ?? "--"}</strong><small>{presentation?.support ?? (locale === "zh" ? "加载中" : "Loading")}</small></div>
               </button>;
             })}
       </section>
 
       {homeGuidance && guidanceEligible && !guidanceDismissed && (
-        <aside className="option-two-guidance" aria-live="polite" data-guidance-reason={homeGuidance.reason}>
-          <button className="option-two-guidance-close" type="button" onClick={() => setGuidanceDismissed(true)} aria-label={locale === "zh" ? "关闭今日提示" : "Dismiss today's guidance"} title={locale === "zh" ? "关闭今日提示" : "Dismiss today's guidance"}><X size={16} /></button>
-          <div className="option-two-guidance-copy">
-            <span><Sparkles size={14} />{homeGuidance.eyebrow}</span>
-            <p>{homeGuidance.message}</p>
-          </div>
-          <div className="option-two-guidance-actions" aria-label={locale === "zh" ? "根据今日状态推荐的快捷操作" : "Recommended actions for today"}>
-            {homeGuidance.actions.map((action) => {
-              const Icon = homeGuidanceIcons[action.id] ?? BrainCircuit;
-              return <button key={action.id} type="button" onClick={() => onOpenNotificationTarget(action.target)}><Icon size={15} /><span>{action.label}</span></button>;
-            })}
-          </div>
-        </aside>
+        <button className="option-two-guidance" type="button" aria-live="polite" data-guidance-reason={homeGuidance.reason} onClick={() => homeGuidance.actions[0] && onOpenNotificationTarget(homeGuidance.actions[0].target)}>
+          <p>{homeGuidance.message}</p>
+        </button>
       )}
 
       <div className="option-two-life-stage">
@@ -362,7 +352,7 @@ export default function OptionTwoHome({
 
       <div className="option-two-health-menu" aria-hidden={!healthMenuOpen}>
         <span className="option-two-health-disc" aria-hidden="true" />
-        {healthEntries.map(({ id, icon, labelKey, className }, index) => {
+        {healthEntries.map(({ id, labelKey, className }, index) => {
           const progress = moduleProgress[id];
           const progressLabel = healthModuleProgressLabel(progress, locale);
           const accessibleLabel = `${t(labelKey)}${locale === "zh" ? "，" : ". "}${progressLabel}`;
@@ -380,13 +370,7 @@ export default function OptionTwoHome({
             style={{ "--option-entry-index": index } as CSSProperties}
           >
             <ModuleProgressRing progress={progress.progress} loading={loading && snapshot === null} />
-            <img
-              className={`option-two-health-icon option-two-health-icon--${className}`}
-              src={icon}
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-            />
+            <HeartMetricIcon className={`option-two-health-icon option-two-health-icon--${className}`} size={30} />
           </button>
           );
         })}

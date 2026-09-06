@@ -16,8 +16,8 @@ const snapshot: TodaySnapshot = {
   nextAction: "今晚早点休息。",
 };
 
-test("the default home uses the fixed five-widget product order and leaves face optional", () => {
-  const expected = ["sleep", "focus", "exercise", "mood", "diet"];
+test("the default home follows the four-card Figma metric order", () => {
+  const expected = ["heart", "sleep", "exercise", "steps"];
   assert.deepEqual(defaultHomeWidgetIds(), expected);
 });
 
@@ -30,9 +30,10 @@ test("widget presentation exposes only a core result and one real-data support l
   assert.deepEqual(buildHomeWidgetPresentation("focus", snapshot, "zh"), { id: "focus", core: "42m", support: "2 次完成", state: "ready" });
   assert.equal(buildHomeWidgetPresentation("sleep", snapshot, "zh").state, "attention");
   assert.equal(buildHomeWidgetPresentation("mood", snapshot, "zh").state, "missing");
+  assert.equal(buildHomeWidgetPresentation("heart", snapshot, "zh").state, "missing");
 });
 
-test("widget presentation uses real prior recorded days for a compact seven-day comparison", () => {
+test("the four visual-reference metrics keep compact unit labels", () => {
   const trendSnapshot: TodaySnapshot = { ...snapshot, exercise: { ...snapshot.exercise!, steps: 6_000 } };
   const trends: TrendBundle = {
     moods: [], sleeps: [], nutritions: [], faces: [], focus: [], focusDistributions: [], healthMetrics: [], rhythms: [],
@@ -41,7 +42,9 @@ test("widget presentation uses real prior recorded days for a compact seven-day 
       { ...trendSnapshot.exercise!, id: "e2", record_date: "2026-09-04", steps: 4_000 },
     ],
   };
-  assert.equal(buildHomeWidgetPresentation("exercise", trendSnapshot, "zh", trends).support, "较近7日 +50%");
+  assert.equal(buildHomeWidgetPresentation("sleep", trendSnapshot, "zh", trends).support, "小时 30 分");
+  assert.equal(buildHomeWidgetPresentation("exercise", trendSnapshot, "zh", trends).support, "分钟");
+  assert.equal(buildHomeWidgetPresentation("steps", trendSnapshot, "zh", trends).support, "步");
 });
 
 test("focus comparison sums multiple sessions within each recorded day", () => {

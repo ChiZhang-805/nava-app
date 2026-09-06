@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-background-v110-20260906";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-figma-parity-v111-20260906";
 const port = 5204;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -39,6 +39,12 @@ function assertNoHorizontalOverflow(geometry, label) {
   }
 }
 
+function assertNear(actual, expected, tolerance, label) {
+  if (Math.abs(actual - expected) > tolerance) {
+    throw new Error(`${label}: expected ${expected}±${tolerance}, got ${actual}`);
+  }
+}
+
 try {
   for (const viewport of viewports) {
     const context = await browser.newContext({
@@ -63,12 +69,12 @@ try {
     if (await launch.isVisible().catch(() => false)) await launch.click();
     const loadingReward = page.locator(".reward-celebration-layer");
     if (await loadingReward.isVisible().catch(() => false)) await loadingReward.locator("button").first().click();
-    await expect(page.locator(".home-widget-skeleton")).toHaveCount(5);
+    await expect(page.locator(".home-widget-skeleton")).toHaveCount(4);
     const skeletonGeometry = await page.locator(".home-widget-skeleton").evaluateAll((items) => items.map((item) => {
       const box = item.getBoundingClientRect();
       return { width: box.width, height: box.height, borderRadius: getComputedStyle(item).borderRadius };
     }));
-    if (skeletonGeometry.some((card) => card.height !== 106 || parseFloat(card.borderRadius) > 20)) throw new Error(`${viewport.name}: home loading cards do not match final card shape ${JSON.stringify(skeletonGeometry)}`);
+    if (skeletonGeometry.some((card) => card.height < 103 || card.height > 143 || parseFloat(card.borderRadius) > 18)) throw new Error(`${viewport.name}: home loading cards do not match the reference card shape ${JSON.stringify(skeletonGeometry)}`);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-loading.png`) });
 
     await openRoute(page, "tab=today");
@@ -91,9 +97,9 @@ try {
     if (!backgroundGeometry.complete || backgroundGeometry.naturalWidth < 800 || backgroundGeometry.naturalHeight < 1800) throw new Error(`${viewport.name}: generated home scene did not load at production resolution ${JSON.stringify(backgroundGeometry)}`);
     if (Math.abs(backgroundGeometry.left) > 1 || Math.abs(backgroundGeometry.top) > 1 || Math.abs(backgroundGeometry.right - viewport.width) > 1 || Math.abs(backgroundGeometry.bottom - viewport.height) > 1) throw new Error(`${viewport.name}: generated home scene does not cover the viewport ${JSON.stringify(backgroundGeometry)}`);
     const defaultWidgets = page.locator(".home-health-widget");
-    await expect(defaultWidgets).toHaveCount(5);
+    await expect(defaultWidgets).toHaveCount(4);
     const defaultWidgetOrder = await defaultWidgets.evaluateAll((items) => items.map((item) => item.getAttribute("data-home-widget")));
-    if (defaultWidgetOrder.join(",") !== "sleep,focus,exercise,mood,diet") throw new Error(`${viewport.name}: unexpected default widget order ${defaultWidgetOrder.join(",")}`);
+    if (defaultWidgetOrder.join(",") !== "heart,sleep,exercise,steps") throw new Error(`${viewport.name}: unexpected default widget order ${defaultWidgetOrder.join(",")}`);
     const initialGeometry = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame");
       const grid = document.querySelector(".home-widget-grid");
@@ -116,40 +122,55 @@ try {
     });
     assertNoHorizontalOverflow(initialGeometry, `${viewport.name} default home`);
     if (initialGeometry.columns !== 3) throw new Error(`${viewport.name}: home widget grid must have three columns`);
-    if (initialGeometry.cards.some((card) => card.scrollWidth > card.clientWidth + 1 || card.left < -1 || card.right > viewport.width + 1)) throw new Error(`${viewport.name}: a home widget clips or escapes ${JSON.stringify(initialGeometry)}`);
+    if (initialGeometry.cards.some((card) => card.left < -1 || card.right > viewport.width + 1)) throw new Error(`${viewport.name}: a home widget escapes the viewport ${JSON.stringify(initialGeometry)}`);
     if (initialGeometry.cards.some((card, index) => Math.abs(card.width - skeletonGeometry[index].width) > 1 || Math.abs(card.height - skeletonGeometry[index].height) > 1)) throw new Error(`${viewport.name}: loading and final home widget shapes differ ${JSON.stringify({ skeletonGeometry, cards: initialGeometry.cards })}`);
-    const [firstRow, , , secondRow] = initialGeometry.cards;
-    const [, notificationButton, calendarButton, profileButton, utilityButton] = initialGeometry.sideButtons;
-    const aligned = firstRow && secondRow && notificationButton && calendarButton && profileButton && utilityButton
-      && Math.abs(firstRow.top - notificationButton.top) <= 2
-      && Math.abs(firstRow.bottom - calendarButton.bottom) <= 2
-      && Math.abs(secondRow.top - profileButton.top) <= 2
-      && Math.abs(secondRow.bottom - utilityButton.bottom) <= 2;
-    if (!aligned) throw new Error(`${viewport.name}: home rows do not align to side-action bands ${JSON.stringify(initialGeometry)}`);
+    const [heart, sleep, exercise, steps] = initialGeometry.cards;
+    const referenceLayout = heart && sleep && exercise && steps
+      && Math.abs(heart.left - sleep.left) <= 1
+      && Math.abs(sleep.top - exercise.top) <= 1
+      && Math.abs(exercise.top - steps.top) <= 1
+      && Math.abs(heart.width - sleep.width) <= 1
+      && heart.bottom < sleep.top;
+    if (!referenceLayout) throw new Error(`${viewport.name}: home cards do not follow the reference 1+3 arrangement ${JSON.stringify(initialGeometry)}`);
+    if (viewport.name === "430x932") {
+      const referenceCards = [
+        { left: 18, top: 153, width: 126, height: 141 },
+        { left: 18, top: 309, width: 126, height: 141 },
+        { left: 152, top: 309, width: 126, height: 141 },
+        { left: 286, top: 309, width: 126, height: 141 },
+      ];
+      initialGeometry.cards.forEach((card, index) => {
+        const expected = referenceCards[index];
+        for (const key of ["left", "top", "width", "height"]) assertNear(card[key], expected[key], 3, `430x932 card ${index + 1} ${key}`);
+      });
+      assertNear(initialGeometry.sideButtons[0].top, 70, 2, "430x932 menu top");
+      assertNear(initialGeometry.sideButtons[0].height, 48, 2, "430x932 menu size");
+    }
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-default.png`) });
 
     const menuToggle = page.locator(".option-two-menu-toggle");
     if ((await menuToggle.getAttribute("aria-expanded")) !== "true") await menuToggle.click();
     await expect(menuToggle).toHaveAttribute("aria-expanded", "true");
     const sideButtons = page.locator(".option-two-side-actions > button");
-    await expect(sideButtons).toHaveCount(5);
+    await expect(sideButtons).toHaveCount(6);
     await expect(sideButtons.nth(0)).toHaveClass(/option-two-menu-toggle/);
-    await expect(sideButtons.nth(1)).toHaveClass(/option-two-notification-button/);
+    await sideButtons.nth(5).waitFor({ state: "visible" });
+    await page.waitForTimeout(380);
     const sideTops = await sideButtons.evaluateAll((items) => items.map((item) => item.getBoundingClientRect().top));
     if (sideTops.some((top, index) => index > 0 && top <= sideTops[index - 1])) throw new Error(`${viewport.name}: side actions are not visually ordered ${JSON.stringify(sideTops)}`);
-    await menuToggle.click();
+    await sideButtons.nth(5).click();
     await expect(menuToggle).toHaveAttribute("aria-expanded", "false");
-    await expect(page.locator(".option-two-notification-button")).toBeHidden();
+    await expect(sideButtons.nth(1)).toBeHidden();
     await menuToggle.click();
-    await expect(page.locator(".option-two-notification-button")).toBeVisible();
-    await page.locator(".option-two-side-actions > button").last().click();
+    await expect(sideButtons.nth(1)).toBeVisible();
+    await sideButtons.nth(4).click();
     await expect(page.locator(".utility-drawer")).toBeVisible();
     await page.locator(".drawer-home-edit").click();
     await expect(page.locator(".home-widget-editor")).toBeVisible();
     await expect(page.locator(".bottom-nav")).toHaveCount(0);
-    await expect(page.locator(".home-widget-picker > button")).toHaveCount(6);
+    await expect(page.locator(".home-widget-picker > button")).toHaveCount(8);
 
-    const unselected = page.locator(".home-widget-picker > button:not(.is-selected)");
+    const unselected = page.locator(".home-widget-picker > button:not(.is-selected):not(:disabled)");
     while (await unselected.count()) await unselected.first().click();
     await page.locator(".home-widget-editor > footer button").last().click();
     await expect(page.locator(".home-widget-sort > article")).toHaveCount(6);

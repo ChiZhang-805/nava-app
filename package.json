@@ -36,6 +36,7 @@
     "record-editor:visual": "node scripts/verify-mood-editor-layout.mjs",
     "home-guidance:test": "node --experimental-strip-types --test tests/home-guidance.test.ts",
     "home-guidance:visual": "node scripts/verify-home-guidance-ui.mjs",
+    "device-preview:visual": "node scripts/verify-device-preview-ui.mjs",
     "home-widgets:test": "node --experimental-strip-types --test tests/home-widgets.test.ts tests/session-maintenance.test.ts",
     "home-widgets:visual": "node scripts/verify-home-widgets-ui.mjs",
     "notification:test": "node --experimental-strip-types --test tests/notifications.test.ts",

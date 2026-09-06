@@ -1,10 +1,10 @@
 import { Activity, ArrowLeft, Download, History, ListTodo, MessageSquarePlus, MoreHorizontal, PhoneCall, ScanFace, Share2, Trash2, Volume2, VolumeX } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import navDataIcon from "./assets/figma/option-two-icons/data.png";
+import navChatIcon from "./assets/figma/option-two-icons/chat.svg";
 import navHomeIcon from "./assets/figma/option-two-icons/home-glyph.svg";
 import navProfileIcon from "./assets/figma/option-two-icons/profile.svg";
 import navRecordIcon from "./assets/figma/option-two-icons/record.svg";
-import lifeFigure from "./assets/figma/home-option2/raw-01.png";
+import navTasksIcon from "./assets/figma/option-two-icons/tasks.svg";
 import { assertConfig } from "./config";
 import AuthScreen from "./features/AuthScreen";
 import type { FocusTodoPrefill, RecordModule } from "./features/RecordsScreen";
@@ -15,11 +15,11 @@ import OnboardingScreen from "./features/OnboardingScreen";
 import { useAuth } from "./state/authContext";
 import { flushPendingWatchActions, subscribeWatchActions } from "./services/watch";
 import LanguageToggle from "./components/LanguageToggle";
-import MascotMotionSlot from "./components/MascotMotionSlot";
 import UtilityDrawer from "./components/UtilityDrawer";
 import DevSeedPanel from "./components/DevSeedPanel";
 import RewardCelebration from "./components/RewardCelebration";
 import NotificationBanner from "./components/NotificationBanner";
+import DesktopDevicePreviewChrome from "./components/DesktopDevicePreviewChrome";
 import PageSkeleton, { SkeletonBlock } from "./components/PageSkeleton";
 import LoadingShell from "./components/LoadingShell";
 import { currentSkeletonVariant, recordSkeletonVariant } from "./services/loadingRoute";
@@ -66,8 +66,8 @@ const ProfileScreen = lazy(() => import("./features/ProfileScreen"));
 const tabs: Array<{ id: AppTab; labelKey: TranslationKey; icon: string }> = [
   { id: "today", labelKey: "tabs.today", icon: navHomeIcon },
   { id: "record", labelKey: "tabs.record", icon: navRecordIcon },
-  { id: "ai", labelKey: "tabs.ai", icon: lifeFigure },
-  { id: "trends", labelKey: "tabs.trends", icon: navDataIcon },
+  { id: "ai", labelKey: "tabs.ai", icon: navChatIcon },
+  { id: "trends", labelKey: "tabs.trends", icon: navTasksIcon },
   { id: "profile", labelKey: "tabs.profile", icon: navProfileIcon },
 ];
 
@@ -134,7 +134,6 @@ function MobileShell({
   const [voiceRelease, setVoiceRelease] = useState({ id: 0, cancelled: false });
   const [voiceCancelArmed, setVoiceCancelArmed] = useState(false);
   const [aiPressing, setAiPressing] = useState(false);
-  const [mascotPlayToken, setMascotPlayToken] = useState(0);
   const [aiCommand, setAiCommand] = useState<AiCommand | null>(null);
   const [aiPromptRequest, setAiPromptRequest] = useState<{ id: number; text: string } | null>(null);
   const [aiHasMounted, setAiHasMounted] = useState(initialRouteRef.current.tab === "ai");
@@ -501,7 +500,6 @@ function MobileShell({
       voiceCancelArmedRef.current = cancelArmed;
       setVoiceCancelArmed(cancelArmed);
       setAiPressing(false);
-      setMascotPlayToken((value) => value + 1);
       navigate("ai");
       setVoiceRequestId((value) => value + 1);
       navigator.vibrate?.(20);
@@ -788,7 +786,6 @@ function MobileShell({
                   aiLongPressTriggeredRef.current = false;
                   return;
                 }
-                if (isAiTab) setMascotPlayToken((value) => value + 1);
                 navigate(tab.id);
               }}
               onPointerDown={isAiTab ? beginAiLongPress : undefined}
@@ -804,10 +801,7 @@ function MobileShell({
               {isAiTab ? (
                 <span className="ai-nav-orb" aria-hidden="true">
                    <span className="ai-nav-glow" />
-                   <MascotMotionSlot
-                     staticSrc={lifeFigure}
-                     playToken={mascotPlayToken}
-                   />
+                   <img className="figma-nav-ai-chat" src={tab.icon} alt="" draggable={false} />
                 </span>
               ) : (
                 <img
@@ -915,6 +909,7 @@ function AppContent({
   return (
     <div className="nava-app-stage">
       {screen}
+      <DesktopDevicePreviewChrome />
       {user && <DevSeedPanel user={user} />}
     </div>
   );

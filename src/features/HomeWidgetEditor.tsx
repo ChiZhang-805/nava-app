@@ -1,11 +1,13 @@
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Footprints, GripVertical, MoonStar, ScanFace, SmilePlus, TimerReset, Utensils, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Footprints, GripVertical, HeartPulse, MoonStar, ScanFace, SmilePlus, TimerReset, Utensils, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { HOME_WIDGET_LIMIT, homeWidgetIds, moveHomeWidget, shiftHomeWidget, type HomeWidgetId } from "../services/homeWidgets";
 
 const widgetMeta: Record<HomeWidgetId, { icon: LucideIcon; zh: string; en: string; descriptionZh: string; descriptionEn: string }> = {
+  heart: { icon: HeartPulse, zh: "心率", en: "Heart rate", descriptionZh: "最近同步的心率", descriptionEn: "Latest synced heart rate" },
   sleep: { icon: MoonStar, zh: "睡眠", en: "Sleep", descriptionZh: "昨夜时长与状态", descriptionEn: "Last sleep duration and state" },
+  exercise: { icon: Footprints, zh: "运动", en: "Activity", descriptionZh: "今日运动时长", descriptionEn: "Today's active time" },
+  steps: { icon: Footprints, zh: "步数", en: "Steps", descriptionZh: "今日同步步数", descriptionEn: "Today's synced steps" },
   focus: { icon: TimerReset, zh: "专注", en: "Focus", descriptionZh: "今日累计专注", descriptionEn: "Today's focus total" },
-  exercise: { icon: Footprints, zh: "运动", en: "Activity", descriptionZh: "今日步数与时长", descriptionEn: "Today's steps and active time" },
   mood: { icon: SmilePlus, zh: "情绪", en: "Mood", descriptionZh: "今日情绪状态", descriptionEn: "Today's mood state" },
   diet: { icon: Utensils, zh: "饮食", en: "Diet", descriptionZh: "今日能量与餐次", descriptionEn: "Today's energy and meals" },
   face: { icon: ScanFace, zh: "面部", en: "Face", descriptionZh: "今日非诊断状态", descriptionEn: "Today's non-diagnostic state" },

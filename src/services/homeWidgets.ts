@@ -2,7 +2,7 @@ import type { TodaySnapshot, TrendBundle } from "../types";
 
 export const HOME_WIDGET_LIMIT = 6;
 
-export type HomeWidgetId = "sleep" | "focus" | "exercise" | "mood" | "diet" | "face";
+export type HomeWidgetId = "heart" | "sleep" | "exercise" | "steps" | "focus" | "mood" | "diet" | "face";
 
 export type HomeWidgetPresentation = {
   id: HomeWidgetId;
@@ -11,7 +11,14 @@ export type HomeWidgetPresentation = {
   state: "ready" | "missing" | "attention";
 };
 
-export const homeWidgetIds: HomeWidgetId[] = ["sleep", "focus", "exercise", "mood", "diet", "face"];
+export const homeWidgetIds: HomeWidgetId[] = ["heart", "sleep", "exercise", "steps", "focus", "mood", "diet", "face"];
+
+const legacyDefaultHomeWidgetIds: HomeWidgetId[] = ["sleep", "focus", "exercise", "mood", "diet"];
+
+function isLegacyDefault(ids: HomeWidgetId[]) {
+  return ids.length === legacyDefaultHomeWidgetIds.length
+    && ids.every((id, index) => id === legacyDefaultHomeWidgetIds[index]);
+}
 
 const storageKey = (userId: string) => `nava.home-widgets.v1:${userId}`;
 
@@ -22,7 +29,7 @@ function validIds(value: unknown): HomeWidgetId[] | null {
 }
 
 export function defaultHomeWidgetIds(): HomeWidgetId[] {
-  return ["sleep", "focus", "exercise", "mood", "diet"];
+  return ["heart", "sleep", "exercise", "steps"];
 }
 
 export function loadHomeWidgetIds(userId: string): HomeWidgetId[] {
@@ -30,7 +37,7 @@ export function loadHomeWidgetIds(userId: string): HomeWidgetId[] {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(storageKey(userId)) ?? "null") as { ids?: unknown } | null;
     const ids = validIds(parsed?.ids);
-    if (ids) return ids;
+    if (ids) return isLegacyDefault(ids) ? defaultHomeWidgetIds() : ids;
   } catch {
     // A malformed device preference must not affect the user's health data.
   }
@@ -42,11 +49,11 @@ export async function hydrateHomeWidgetIds(userId: string): Promise<HomeWidgetId
   const local = loadHomeWidgetIds(userId);
   const preferences = await loadUserAppPreferences(userId);
   const remote = validIds(preferences?.homeWidgetIds);
-  const resolved = remote ?? local;
+  const resolved = remote && !isLegacyDefault(remote) ? remote : local;
   if (typeof window !== "undefined") {
     window.localStorage.setItem(storageKey(userId), JSON.stringify({ version: 1, ids: resolved }));
   }
-  if (!remote) await saveUserAppPreferences(userId, { homeWidgetIds: resolved });
+  if (!remote || isLegacyDefault(remote)) await saveUserAppPreferences(userId, { homeWidgetIds: resolved });
   return resolved;
 }
 
@@ -121,12 +128,28 @@ function trendSupport(current: number | null | undefined, previous: number[], lo
 
 export function buildHomeWidgetPresentation(id: HomeWidgetId, snapshot: TodaySnapshot, locale: "zh" | "en" = "zh", trends?: TrendBundle | null): HomeWidgetPresentation {
   const zh = locale === "zh";
+  if (id === "heart") {
+    const direct = Number.parseFloat(snapshot.exercise?.heart_rate ?? "");
+    const healthMetrics = trends?.healthMetrics ?? [];
+    const metric = healthMetrics.find((item) => item.record_date === snapshot.date)
+      ?? healthMetrics[healthMetrics.length - 1];
+    const value = Number.isFinite(direct)
+      ? direct
+      : Number(metric?.latest_heart_rate ?? metric?.resting_heart_rate);
+    return !Number.isFinite(value) || value <= 0
+      ? { id, core: "--", support: zh ? "尚未同步" : "Not synced", state: "missing" }
+      : { id, core: `${Math.round(value)}`, support: zh ? "次/分" : "bpm", state: value > 100 || value < 50 ? "attention" : "ready" };
+  }
   if (id === "sleep") {
     const minutes = snapshot.sleep?.sleep_duration_minutes;
-    const trend = trendSupport(minutes, previousRecordedDayValues(trends?.sleeps ?? [], snapshot.date, (record) => record.sleep_duration_minutes), locale);
     return minutes == null
       ? { id, core: "--", support: zh ? "尚未记录" : "Not logged", state: "missing" }
-      : { id, core: `${(minutes / 60).toFixed(1)}h`, support: trend ?? (zh ? "昨夜睡眠" : "Last sleep"), state: minutes < 360 ? "attention" : "ready" };
+      : {
+          id,
+          core: `${Math.floor(minutes / 60)}`,
+          support: zh ? `小时 ${minutes % 60} 分` : `h ${minutes % 60} min`,
+          state: minutes < 360 ? "attention" : "ready",
+        };
   }
   if (id === "focus") {
     const trend = trendSupport(snapshot.focusMinutes, previousRecordedDayValues(trends?.focus ?? [], snapshot.date, (record) => record.total_minutes, "sum"), locale);
@@ -136,10 +159,15 @@ export function buildHomeWidgetPresentation(id: HomeWidgetId, snapshot: TodaySna
   }
   if (id === "exercise") {
     const exercise = snapshot.exercise;
-    const trend = trendSupport(exercise?.steps, previousRecordedDayValues(trends?.exercises ?? [], snapshot.date, (record) => record.steps), locale);
     return !exercise
       ? { id, core: "--", support: zh ? "尚未记录" : "Not logged", state: "missing" }
-      : { id, core: Math.round(exercise.steps ?? 0).toLocaleString(), support: trend ?? (zh ? `${Math.round(exercise.exercise_minutes ?? 0)} 分钟` : `${Math.round(exercise.exercise_minutes ?? 0)} min`), state: (exercise.steps ?? 0) < 3000 ? "attention" : "ready" };
+      : { id, core: `${Math.round(exercise.exercise_minutes ?? 0)}`, support: zh ? "分钟" : "min", state: (exercise.exercise_minutes ?? 0) < 20 ? "attention" : "ready" };
+  }
+  if (id === "steps") {
+    const exercise = snapshot.exercise;
+    return exercise?.steps == null
+      ? { id, core: "--", support: zh ? "尚未同步" : "Not synced", state: "missing" }
+      : { id, core: `${Math.round(exercise.steps)}`, support: zh ? "步" : "steps", state: exercise.steps < 3000 ? "attention" : "ready" };
   }
   if (id === "mood") {
     const score = snapshot.mood?.mood_score;
