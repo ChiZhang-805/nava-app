@@ -58,6 +58,16 @@ export interface ExerciseRecord {
   device_type?: string | null;
   self_rating: number | null;
   self_note?: string | null;
+  soreness_level?: number | null;
+  fatigue_level?: number | null;
+  has_injury?: boolean | null;
+  injury_note?: string | null;
+  recovery_estimate_min_hours?: number | null;
+  recovery_estimate_max_hours?: number | null;
+  recovery_estimate_confidence?: number | null;
+  recovery_estimate_basis?: Record<string, unknown> | null;
+  recovery_status?: "recovered" | "improving" | "not_recovered" | null;
+  recovery_checked_at?: string | null;
   ai_feedback: string | null;
   hourly_steps?: Array<Record<string, unknown>> | null;
   created_at?: string;

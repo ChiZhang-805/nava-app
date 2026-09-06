@@ -122,14 +122,17 @@ test("immersive focus uses screen wake lock, browser full screen and a viewport 
   assert.match(dashboard, /breakIntervalMinutes/);
 });
 
-test("NAVA Sports presets prefill a real editable exercise record", () => {
+test("NAVA Sports presets start a recoverable timer and only prefill an editable record after finishing", () => {
   assert.match(dashboard, /sports-preset-picker/);
   assert.match(dashboard, /舒展恢复 · 15 分钟/);
   assert.match(dashboard, /轻快步行 · 25 分钟/);
   assert.match(dashboard, /轻量恢复 · 12 分钟/);
-  assert.match(dashboard, /setExerciseMinutes\(activeSportsPlan\.minutes\)/);
+  assert.match(dashboard, /startExerciseSession/);
+  assert.match(dashboard, /finishExerciseSession/);
+  assert.match(dashboard, /结束并填写感受/);
+  assert.match(dashboard, /开始此计划/);
+  assert.match(dashboard, /直接填写记录/);
   assert.match(dashboard, /setExerciseNote/);
-  assert.match(dashboard, /使用此计划并记录/);
 });
 
 test("weekly radar averages only recorded days and preserves a wholly missing dimension as missing", () => {

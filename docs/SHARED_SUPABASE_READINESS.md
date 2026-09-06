@@ -36,14 +36,23 @@ The read-only shared-backend check passed again on 2026-09-07 after production m
 `202609070003_legacy_phone_cleanup`: Auth, core tables, APP
 extension tables, shared and APP function endpoints, and shared/private Storage
 routes were all reachable on the canonical project. The linked migration list
-matched all 24 local migrations and production schema lint returned no errors. The earlier cloud
-completeness migration successfully enforced that every
+matched the 24 migrations that were local at that release point and production schema lint returned
+no errors. The source tree now contains 26 migrations: `202609070004_exercise_recovery_loop` and
+`202609070005_remote_push_devices` are intentionally **not** on production pending explicit backend
+authorization. The earlier cloud completeness migration successfully enforced that every
 current account-owned `user_id` table (and `profiles.id`) cascades from `auth.users`; it also
 backfilled the one previously missing profile, so production now reports three Auth profiles for
 three accounts. All eight functions changed or awaiting deployment in this batch now match the
 released source intent and report ACTIVE/JWT enabled; real-account model output, actual archive
 download, destructive account deletion, and Apple-device behavior still require their explicit
 acceptance runs.
+
+The production probe was extended after the source additions. Its current expected pre-deployment
+result is explicit rather than silently green: `exercise_records` returns HTTP 400 for the new
+recovery columns, `push_device_tokens` and `push_delivery_receipts` return HTTP 404, and
+`push-dispatch` returns HTTP 404. The APP/CLI project refs, Auth, previously deployed tables,
+functions, and Storage remain aligned. Apply the two pending migrations and deploy the two changed
+functions only after explicit authorization, then require this probe to return READY again.
 
 Migration `202607190001_password_reuse_guard.sql` is present in the linked
 production migration history. It grants `nava_password_matches_current` only to

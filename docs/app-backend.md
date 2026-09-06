@@ -22,6 +22,7 @@ App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负�
 | `aliyun-sms-send` | 生成、限流、发送中国大陆手机号 OTP | `nava_phone_otp_challenges` |
 | `aliyun-sms-verify` | 校验 OTP 并完成手机号身份映射/登录流程 | OTP challenge 与 Auth identity |
 | `auth-account-status` | 以不暴露账号是否存在的公共响应执行注册/登录资格检查 | 只读 |
+| `push-dispatch` | 以内部 secret 调度当前用户已有通知到 APNs、FCM v1 或 HMS，并记录幂等送达结果 | `push_delivery_receipts`、失效时更新 `push_device_tokens`（源码完成，尚未部署） |
 
 截至 2026-09-07，本轮涉及的 `ai-chat-reply`、`ai-diet-report`、`ai-health-report`、
 `diet-extract`、`delete-account`、`export-user-data`、`health-sync-ingest` 和 `watch-sync`
@@ -35,11 +36,12 @@ canonical query + 空请求体，并部署为 production version 17（ACTIVE，�
 
 ## 已实现数据库/Storage
 
-当前共有 24 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单
+当前源码共有 26 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单
 来源。它们按顺序覆盖：移动端业务表和 Edge 后端、Rhythm/Fusion/ChronoState、
 密码复用保护、手机号 OTP、Watch action 幂等、头像、账号状态、onboarding、FDNB、
 AI 会话隔离、成长奖励、健康报告、专注待办、Health Realtime，以及跨设备账号状态和
-删除/导出完整性。
+删除/导出完整性、运动恢复闭环与远程推送设备路由。生产当前只应用到前 24 项；
+`202609070004`/`202609070005` 尚待单独授权部署。
 
 查看精确清单：
 
@@ -64,13 +66,18 @@ Get-ChildItem -LiteralPath supabase/migrations -File | Sort-Object Name
 - `user_app_preferences`：语言、AI 语音和首页 0–6 个组件及排序；本地存储只作缓存。
 - `user_notifications`：应用内收件箱、已读与删除 tombstone，并通过 Realtime 同步。
 - `ai_conversation_archives`：用户在 AI 页面创建的新会话归档。
-- `active_user_sessions`：进行中的专注/睡眠会话，供换设备或清理缓存后恢复。
+- `active_user_sessions`：源码扩展为进行中的专注/睡眠/运动会话，供换设备或清理缓存后恢复；
+  production 在应用 `202609070004` 前仍只接受专注/睡眠。
 - `focus_session_events` 与 `record_focus_session`：以稳定 action id 保存每次专注完成事件，
   并在同一数据库事务中更新 `focus_records` 和 `focus_time_distribution`，重复提交不会重复累计。
 - `focus_records.note`、`tasks.source` 与四餐时间字段均由编辑器真实读写；新增的
   `pantry_time` 补齐加餐时间。
 - `profile-avatars` 已从公开 bucket 收紧为私有、仅当前 owner 可读写删除；`profiles.avatar_url`
   保存稳定 `storage://` 引用，页面展示时再签发一小时 URL。
+- `exercise_records` 源码新增酸痛、疲劳、伤病、保守恢复区间、置信度、可审计依据和后续
+  恢复状态；字段由 `202609070004` 定义，尚未应用 production。
+- `push_device_tokens` 与 `push_delivery_receipts` 源码定义账号隔离、级联删除、token 停用和
+  幂等 provider 送达记录；由 `202609070005` 定义，尚未应用 production。
 
 ## 账号数据完整性合同
 
@@ -82,9 +89,10 @@ Get-ChildItem -LiteralPath supabase/migrations -File | Sort-Object Name
   若共享项目仍保留旧 `phone_verification_codes` 表，也会用只授予 service role 的
   `nava_delete_legacy_phone_codes` 清除匹配手机号残留。
   这些无明文、短期留存的服务器风控状态不属于用户内容，因此不进入用户导出。
-- `export-user-data` 当前覆盖全部 40 个账号归属 public 表、Auth 基本身份与三个用户
+- `export-user-data` 更新后的源码覆盖全部 42 个账号归属 public 表、Auth 基本身份与三个用户
   Storage 前缀；客户端把清单中的私有文件逐一下载并连同 JSON 生成 `.tar.gz` / `.tar`。
-  它不会导出 access token、service-role、OTP、服务器密钥或其他凭据。
+  它不会导出 access token、service-role、OTP、服务器密钥或其他凭据。production 已部署
+  版本仍覆盖现有 40 表；新两表要等 migration 与函数更新一并部署后才进入线上导出。
 - 删除账号时，服务端先清空三个用户 Storage 前缀，再删除 Auth 身份并触发数据库级联；
   客户端同时清除该用户的 local/session storage、AES-GCM 面部草稿、Watch 待处理动作、
   Watch 当前快照和已安排的本地系统通知。
@@ -123,7 +131,8 @@ Get-ChildItem -LiteralPath supabase/migrations -File | Sort-Object Name
   会刷新当前打开的客户端。通知偏好、记录草稿、首页偏好和进行中会话采用相同的先排队、
   成功后才清除 pending 合同。
 - Capacitor 本地通知可在已安装原生 App 中由系统离线调度；网页 Notification API
-  只在页面打开且浏览器允许时作为增强。远程 APNs/FCM/HMS 尚无 token 表或发送函数。
+  只在页面打开且浏览器允许时作为增强。远程 APNs/FCM/HMS 已有 token 表、客户端注册和
+  `push-dispatch` 发送源码，但尚未部署 production，也没有配置 provider 凭据或完成真机验收。
 - 详细合同与人工验收边界见
   [`NOTIFICATIONS_DELIVERY.md`](./NOTIFICATIONS_DELIVERY.md)。
 
@@ -258,11 +267,25 @@ Edge Function 会校验对象路径归属，只生成十分钟签名 URL；客�
   重复追加。四餐各自保存宏量营养摘要，日总量由四餐真实合计重算，不再把全天总量复制到每餐。
 - HealthKit 空摘要不会创建空节律分；活动分箱、时间、心率、HRV、血氧、睡眠效率等在入库前
   做边界校验。健康报告和 AI 对话授权上下文已纳入 `health_metric_snapshots` 与完整允许画像。
-- 2026-09-07 已实际应用 migration `202609070001`–`202609070003`；本地与远端均为 24 项，
+- 2026-09-07 已实际应用 migration `202609070001`–`202609070003`；当次验收点本地与远端均为
+  24 项（之后新增但尚未部署的 004/005 见下节），
   `supabase db lint --linked --level warning` 返回零 schema 错误。生产表统计可见既有六模块、
   健康快照、节律分、周报和 AI 报告真实行，新专注事件表已建立但尚无新客户端写入。
 - 当前函数版本：ai-chat v20、ai-diet v7、ai-health v10、diet-extract v17、delete v10、
   export v16、health-ingest v12、watch v13；全部 ACTIVE、`verify_jwt=true`。
+
+## 2026-09-07 运动恢复与远程推送源码补齐
+
+- NAVA Sports 的预设现在可真正开始、暂停、继续、结束或放弃；wall-clock 活动会话通过
+  `active_user_sessions` 恢复，结束后只预填实际计时分钟并进入用户确认编辑器。
+- 运动记录新增 1–5 感受、0–10 酸痛/疲劳、伤病说明、规则恢复时间范围、置信度、依据和
+  后续恢复复测。估算是保守可审计规则，不冒充医学或训练处方。
+- 原生远程 token 注册、退出停用、通知点击深链、Android channel、APNs 桥、设备/receipt
+  migration 和 APNs/FCM/HMS 派发函数均已写入源码。推送正文继续来自
+  `user_notifications`，receipt 只记录 provider 状态，不伪造用户已收到。
+- 本轮本地 migration 总数为 26，更新后的导出源码覆盖 42 张账号表。production 仍为 24
+  个 migration/40 表；新 migration、更新后的 `export-user-data`、`push-dispatch` 和全部
+  provider secret 均未部署或配置，必须单独授权并在真实设备验证后才能写成上线。
 
 上述结论证明结构、部署和既有真实持久化行已核对，但不替代指定账号逐字段比对、真实模型
 首次成功生成、Apple 真机或真实账号删除/完整导出等人工验收。

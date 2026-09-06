@@ -1283,3 +1283,43 @@ deployment ID 为 `appgdep_6a9dbdadd9f8819195935e4327dd06c5`，Pages 镜像 comm
 本轮没有执行 migration、Edge Function 部署、secret 修改或生产用户写入。仍未写成完成
 的项目是：iPhone 真机锁屏/后台通知、APNs/FCM/HMS 远程推送、Android/华为原生壳、
 需要 schema 的运动活动会话和酸痛/疲劳/伤病独立字段、以及缺少验证模型的恢复时长预测。
+
+## 34. 2026-09-07 运动恢复闭环与原生远程推送源码
+
+本轮继续完成上节明确遗留且能在仓库内真实实现的功能。NAVA Sports 的四类计划现在可
+真正开始、暂停、继续、结束或放弃；计时依据 wall clock，活动状态同时写入本地离线缓存与
+当前账号 `active_user_sessions`，刷新、换页或同账号设备可恢复。结束不会直接制造运动完成
+记录，只把实际运行分钟和计划说明带入运动编辑器，由用户确认后保存。
+
+运动编辑器新增 1–5 运动感受、0–10 酸痛、0–10 疲劳、伤病开关/说明、恢复状态复测，
+以及由实际分钟、可选心率、上述自评和已记录睡眠生成的保守恢复时间范围。结果包含置信度、
+规则版本与可审计依据，明确标注非医疗建议；伤病或高不适只触发停止加重负荷和寻求专业
+评估的安全提示，不输出诊断。`202609070004_exercise_recovery_loop.sql` 扩展运动表和活动
+会话类型，但尚未应用 production。
+
+应用内提醒补齐按场景反馈：运动可选择调整/恢复/仍需恢复，情绪、饮食、面部也有各自
+确认和稍后动作；反馈写回 `user_notifications.target` 并跨设备同步。规划器新增低饮水、
+未恢复复测、面部记录空档和面部低分叠加短睡眠/低情绪的保守提醒，仍只读取当前账号真实
+数据，最多输出六条且不注入生产示例。
+
+原生远程推送源码现在包含：iOS APNs 注册桥与 capability、Android Capacitor 工程和
+`nava_general` channel、APNs/FCM token 注册、账号级停用、通知点击深链、
+`push_device_tokens`/`push_delivery_receipts` RLS 与级联删除，以及使用独立内部 secret 的
+`push-dispatch`。派发函数覆盖 APNs token auth、FCM HTTP v1 和 HMS，provider 明确判定
+token 失效时停用设备，并按通知/设备写幂等 receipt。更新后的账号导出源码覆盖 42 张
+账号表。
+
+当前必须保持清晰的生产边界：源码有 26 个 migration，canonical production 仍是 24 个；
+`202609070004`、`202609070005`、更新后的 `export-user-data` 和新 `push-dispatch` 均未部署，
+APNs/FCM/HMS secret 也未配置。Windows 环境缺少 JDK，Android Gradle 未能编译；iOS 仍需
+Mac/Xcode/Apple Developer Team，华为客户端仍需 HMS SDK、`agconnect-services.json` 和真机。
+这些不是“代码已写所以送达已通过”，必须在获得单独后端授权并提供平台凭据后部署、编译和
+真机验收。由于当前前端依赖尚未上线的新字段，本轮不会先行发布不兼容的双站前端。
+
+本地 `npm run verify` 30 个阶段全部通过，包含四档记录编辑器、完整业务合同、17 个 Edge
+Function typecheck、云端完整性、运动恢复和远程推送静态合同；`npm run
+auth:verify:production` 继续确认 canonical project、公开登录门和禁用 demo bypass。
+扩展后的只读 `npm run supabase:verify-shared` 有意返回未就绪：新运动字段 HTTP 400、两张
+推送表 HTTP 404、`push-dispatch` HTTP 404，精确对应尚未获得授权的 production 变更。
+Android `gradlew` 也已尝试，当前唯一启动前阻塞是系统没有 Java/JDK，未把未编译状态写成
+通过。

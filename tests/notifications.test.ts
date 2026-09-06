@@ -85,3 +85,17 @@ test("activity recommendation adapts to recorded recovery signals and personal l
   const overload = buildContextualNotificationDrafts(snapshot, 19, "zh", trends).find((item) => item.id.endsWith(":exercise-load"));
   assert.match(overload?.title ?? "", /个人近期水平/);
 });
+
+test("hydration, recovery, and cross-module reminders require saved evidence", () => {
+  const snapshot = emptySnapshot();
+  snapshot.nutrition = { id: "n", record_date: snapshot.date, total_calories: 600, lunch_time: "12:10", hydration_ml: 200, ai_feedback: null };
+  snapshot.exercise = { id: "e", record_date: snapshot.date, steps: 7_000, calories: 260, exercise_minutes: 40, heart_rate: null, spo2: null, self_rating: 2, recovery_status: "not_recovered", ai_feedback: null };
+  snapshot.sleep = { id: "s", record_date: snapshot.date, sleep_start: "01:00", sleep_end: "06:00", sleep_duration_minutes: 300, deep_sleep_minutes: null, light_sleep_minutes: null, rem_minutes: null, self_rating: null, rhythm_score: null, ai_feedback: null };
+  snapshot.mood = { id: "m", record_date: snapshot.date, mood_score: 35, factors: ["疲劳"], diary_content: "还没恢复", ai_feedback: null };
+  const trends = { moods: [snapshot.mood], sleeps: [snapshot.sleep], exercises: [snapshot.exercise], nutritions: [snapshot.nutrition], faces: [{ id: "f", record_date: "2026-09-02", image_path: null, overall_score: 45, skin_age: null, annotations: [], feedback: null, model_version: null }] };
+  const drafts = buildContextualNotificationDrafts(snapshot, 21, "zh", trends);
+  const ids = drafts.map((item) => item.id);
+  assert.ok(ids.includes(`context:${snapshot.date}:exercise-recovery`));
+  assert.ok(ids.includes(`context:${snapshot.date}:cross-state`));
+  assert.ok(ids.includes(`context:${snapshot.date}:hydration`));
+});

@@ -248,6 +248,28 @@ async function main() {
     const sleepStagesAfterPreset = await page.locator('.record-detail[data-record-detail="sleep"] input[type="number"]').evaluateAll((inputs) => inputs.map((input) => input.value));
     if (JSON.stringify(sleepStagesAfterPreset.slice(1)) !== JSON.stringify(sleepStagesBeforePreset.slice(1))) throw new Error(`Sleep preset invented stage values: ${JSON.stringify({ sleepStagesBeforePreset, sleepStagesAfterPreset })}`);
 
+    const exerciseResults = [];
+    for (const viewport of viewports) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto(`${baseUrl}?demo=1#tab=record&module=exercise&view=editor`, { waitUntil: "networkidle" });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      const detail = page.locator('.record-detail[data-record-detail="exercise"]');
+      await expect(detail.locator('.record-editor-stack > form:not([hidden])')).toBeVisible();
+      await expect(detail.locator('.exercise-self-check-grid .exercise-rating-field')).toHaveCount(3);
+      await expect(detail.locator('.exercise-injury-toggle')).toBeVisible();
+      await expect(detail.locator('.exercise-recovery-estimate')).toBeVisible();
+      await page.waitForTimeout(500);
+      const geometry = assertOneScreenCard(`exercise/${viewport.name}`, await readCardGeometry(page, "exercise"));
+      const action = await detail.locator('form:not([hidden]) .action-button').evaluate((node) => {
+        const rect = node.getBoundingClientRect();
+        const nav = node.closest('.phone-frame')?.querySelector('.bottom-nav')?.getBoundingClientRect();
+        return { bottom: rect.bottom, navTop: nav?.top ?? null };
+      });
+      if (action.navTop == null || action.bottom > action.navTop - 8) throw new Error(`exercise/${viewport.name}: save action is clipped ${JSON.stringify(action)}`);
+      exerciseResults.push({ name: viewport.name, ...geometry, action });
+      await page.screenshot({ path: path.join(outputDir, `exercise-${viewport.name}.png`) });
+    }
+
     const dietResults = [];
     for (const viewport of viewports) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -576,8 +598,8 @@ async function main() {
     await page.screenshot({ path: path.join(outputDir, "390x600-keyboard-proxy.png") });
 
     if (errors.length) throw new Error(`Browser errors:\n${errors.join("\n")}`);
-    await writeFile(path.join(outputDir, "report.json"), `${JSON.stringify({ moodResults, sleepResults, dietResults, focusResults, faceResults, profileResults, skeletonResults, errors }, null, 2)}\n`, "utf8");
-    console.log(`Mood, sleep, diet, focus, face, profile, and target-state skeleton layouts passed ${viewports.length} required phone sizes plus a keyboard-height proxy.`);
+    await writeFile(path.join(outputDir, "report.json"), `${JSON.stringify({ moodResults, sleepResults, exerciseResults, dietResults, focusResults, faceResults, profileResults, skeletonResults, errors }, null, 2)}\n`, "utf8");
+    console.log(`Mood, sleep, exercise, diet, focus, face, profile, and target-state skeleton layouts passed ${viewports.length} required phone sizes plus a keyboard-height proxy.`);
   } finally {
     await context.close();
     await browser.close();

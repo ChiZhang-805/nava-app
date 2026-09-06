@@ -13,7 +13,7 @@ const coreTables = {
   profiles: "id,username,height,weight,occupation,goal,mbti,exercise_frequency,sleep_schedule,diet_preference,stress_factors,avatar_url,birth_date,age_group,privacy_consent_at,health_data_consent,ai_personalization_consent,onboarding_completed_at,onboarding_version,onboarding_answers",
   mood_records: "id,user_id,record_date,mood_score,factors,diary_content,diary_sentiment,ai_feedback,created_at,updated_at",
   sleep_records: "id,user_id,record_date,sleep_start,sleep_end,sleep_duration_minutes,deep_sleep_minutes,light_sleep_minutes,rem_minutes,sleep_latency_minutes,device_type,self_rating,self_note,rhythm_score,ai_feedback,is_night_owl,created_at,updated_at",
-  exercise_records: "id,user_id,record_date,steps,calories,steps_goal,calories_goal,exercise_minutes,heart_rate,spo2,blood_pressure,respiratory_rate,device_type,self_rating,self_note,ai_feedback,hourly_steps,created_at,updated_at",
+  exercise_records: "id,user_id,record_date,steps,calories,steps_goal,calories_goal,exercise_minutes,heart_rate,spo2,blood_pressure,respiratory_rate,device_type,self_rating,self_note,ai_feedback,hourly_steps,soreness_level,fatigue_level,has_injury,injury_note,recovery_estimate_min_hours,recovery_estimate_max_hours,recovery_estimate_confidence,recovery_estimate_basis,recovery_status,recovery_checked_at,created_at,updated_at",
   nutrition_records: "id,user_id,record_date,total_calories,breakfast_items,lunch_items,dinner_items,pantry_items,breakfast_time,lunch_time,dinner_time,pantry_time,breakfast_photo_url,lunch_photo_url,dinner_photo_url,protein_grams,carbohydrate_grams,fat_grams,hydration_ml,health_rating,ai_feedback,created_at,updated_at",
   focus_records: "id,user_id,task_id,record_date,completed_sessions,total_minutes,interrupted_sessions,category,started_at,ended_at,note,created_at,updated_at",
   focus_time_distribution: "id,user_id,record_date,period_0_6,period_6_12,period_12_18,period_18_24",
@@ -40,10 +40,12 @@ const extensionTables = {
   user_notifications: "user_id,id,category,source,title,body,target,created_at,read_at,deleted_at,updated_at",
   ai_conversation_archives: "id,user_id,created_at,messages,updated_at",
   active_user_sessions: "user_id,session_type,payload,updated_at",
+  push_device_tokens: "id,user_id,installation_id,provider,platform,token_hash,locale,timezone,enabled,last_seen_at,invalidated_at,created_at,updated_at",
+  push_delivery_receipts: "id,user_id,notification_id,device_token_id,provider,status,provider_message_id,error_code,attempted_at,created_at,updated_at",
 };
 
 const sharedFunctions = ["ai-extract-data", "ai-chat-reply", "diet-extract", "face-analyze", "aliyun-sms-send", "aliyun-sms-verify"];
-const appFunctions = ["ai-health-report", "ai-diet-report", "health-sync-ingest", "watch-sync", "rhythm-score", "dnb-weekly-report", "fdnb-recompute", "export-user-data", "delete-account", "auth-account-status"];
+const appFunctions = ["ai-health-report", "ai-diet-report", "health-sync-ingest", "watch-sync", "rhythm-score", "dnb-weekly-report", "fdnb-recompute", "export-user-data", "delete-account", "auth-account-status", "push-dispatch"];
 const sharedBuckets = ["diet-photos"];
 const appBuckets = ["face-photos", "profile-avatars"];
 

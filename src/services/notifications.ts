@@ -18,11 +18,14 @@ const notificationPreferenceFlushes = new Map<string, Promise<void>>();
 
 export type NavaNotificationCategory = "sleep" | "nutrition" | "mood" | "focus" | "exercise" | "face" | "weekly" | "system";
 export type NavaNotificationSource = "contextual" | "record" | "native" | "system";
+export type NavaNotificationFeedback = "accepted" | "not_now" | "completed" | "still_recovering";
 
 export interface NavaNotificationTarget {
   tab: "today" | "record" | "ai" | "trends" | "profile";
   module?: "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
   view?: string | null;
+  feedback?: NavaNotificationFeedback;
+  feedbackAt?: string;
 }
 
 export interface NavaNotificationItem {
@@ -350,6 +353,28 @@ export function markAllNavaNotificationsRead(userId: string) {
   return writeStoredItems(userId, next, undefined, changed);
 }
 
+export function respondToNavaNotification(userId: string, id: string, feedback: NavaNotificationFeedback) {
+  const now = new Date().toISOString();
+  let changed: NavaNotificationItem | null = null;
+  const next = readStoredItems(userId).map((item) => {
+    if (item.id !== id || item.deletedAt) return item;
+    changed = {
+      ...item,
+      readAt: item.readAt ?? now,
+      updatedAt: now,
+      target: {
+        ...(item.target ?? { tab: "today" as const }),
+        feedback,
+        feedbackAt: now,
+      },
+    };
+    return changed;
+  });
+  if (!changed) return null;
+  writeStoredItems(userId, next, undefined, [changed]);
+  return changed;
+}
+
 export function deleteNavaNotification(userId: string, id: string) {
   return deleteNavaNotifications(userId, [id])[0] ?? null;
 }
@@ -564,6 +589,8 @@ export async function enableNavaNotificationSuite(userId: string, sleepTime = "2
     savePreference(userId, "mood", "20:30"), savePreference(userId, "fdnb_signal", "18:30"),
     savePreference(userId, "weekly_report", "08:00"),
   ]);
+  const { registerRemotePush } = await import("./remotePush");
+  await registerRemotePush(userId, true);
   publishNavaNotification(userId, {
     id: "system:notifications-enabled", category: "system", source: "system",
     title: locale === "zh" ? "系统提醒已开启" : "System reminders enabled",

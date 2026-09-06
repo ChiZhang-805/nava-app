@@ -85,6 +85,10 @@ $healthEntitlement = Get-PlistValueNode -Document $entitlements -Key "com.apple.
 if (!$healthEntitlement -or $healthEntitlement.Name -ne "true") { throw "HealthKit entitlement is missing." }
 $backgroundHealthEntitlement = Get-PlistValueNode -Document $entitlements -Key "com.apple.developer.healthkit.background-delivery"
 if (!$backgroundHealthEntitlement -or $backgroundHealthEntitlement.Name -ne "true") { throw "HealthKit background delivery entitlement is missing." }
+$pushEnvironment = Get-PlistValueNode -Document $entitlements -Key "aps-environment"
+if (!$pushEnvironment -or @("development", "production") -notcontains $pushEnvironment.InnerText) {
+  throw "APNs entitlement is missing or invalid."
+}
 
 [xml]$storyboard = Get-Content -LiteralPath (Join-Path $appRoot "Base.lproj\Main.storyboard") -Raw -Encoding UTF8
 if (!$storyboard.SelectSingleNode("//viewController[@customClass='NavaBridgeViewController']")) {
@@ -99,6 +103,9 @@ foreach ($plugin in @("NavaHealthPlugin", "NavaSecureStoragePlugin", "NavaSpeech
 $appDelegate = Get-Content -LiteralPath (Join-Path $appRoot "AppDelegate.swift") -Raw -Encoding UTF8
 if (!$appDelegate.Contains("NavaHealthBackgroundObserver.shared.start()")) {
   throw "AppDelegate must register HealthKit observer queries during app launch."
+}
+foreach ($expected in @("didRegisterForRemoteNotificationsWithDeviceToken", "didFailToRegisterForRemoteNotificationsWithError", ".capacitorDidRegisterForRemoteNotifications", ".capacitorDidFailToRegisterForRemoteNotifications")) {
+  if (!$appDelegate.Contains($expected)) { throw "AppDelegate is missing APNs registration bridge: $expected" }
 }
 
 $healthPlugin = Get-Content -LiteralPath (Join-Path $root "native\ios\NavaHealthPlugin.swift") -Raw -Encoding UTF8
@@ -144,6 +151,7 @@ foreach ($relativeSource in @("..\..\..\native\ios\NavaHealthPlugin.swift", "..\
 $xcodeProjectRoot = Join-Path $root "ios\App"
 $podfile = Get-Content -LiteralPath (Join-Path $xcodeProjectRoot "Podfile") -Raw -Encoding UTF8
 if (!$podfile.Contains("CapacitorLocalNotifications")) { throw "iOS Podfile is missing CapacitorLocalNotifications." }
+if (!$podfile.Contains("CapacitorPushNotifications")) { throw "iOS Podfile is missing CapacitorPushNotifications." }
 $notificationService = Get-Content -LiteralPath (Join-Path $root "src\services\notifications.ts") -Raw -Encoding UTF8
 foreach ($expected in @("LocalNotifications.schedule", "localNotificationReceived", "localNotificationActionPerformed")) {
   if (!$notificationService.Contains($expected)) { throw "Notification service is missing: $expected" }
@@ -161,4 +169,4 @@ foreach ($expected in @("didReceiveMessage message", "replyHandler", "didReceive
   if (!$watchBridge.Contains($expected)) { throw "iPhone Watch bridge is missing: $expected" }
 }
 
-Write-Host "iOS project contract verified: iPhone portrait, HealthKit, motion, speech input, native plugins, durable Watch actions, and an embedded watchOS target."
+Write-Host "iOS project contract verified: iPhone portrait, HealthKit, APNs registration, motion, speech input, native plugins, durable Watch actions, and an embedded watchOS target."

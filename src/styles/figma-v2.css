@@ -11480,6 +11480,11 @@ body::before {
 .notification-detail-dialog h2 { margin: 14px 0 0; font-size: 19px; line-height: 1.3; }
 .notification-detail-dialog p { margin: 10px 0 0; color: #4f7180; font-size: 12px; line-height: 1.7; white-space: pre-wrap; }
 .notification-detail-target { width: 100%; min-height: 43px; margin-top: 17px; border: 0; border-radius: 14px; color: #fff; background: linear-gradient(145deg,#2caed3,#087ca8); box-shadow: 0 9px 20px rgba(10,122,165,.2); font-size: 11px; font-weight: 800; }
+.notification-detail-feedback { min-width: 0; margin: 15px 0 0; border: 0; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; padding: 0; }
+.notification-detail-feedback legend { grid-column: 1 / -1; margin-bottom: 5px; color: #6d8995; font-size: 9.5px; font-weight: 760; }
+.notification-detail-feedback button { min-width: 0; min-height: 36px; border: 1px solid rgba(44,143,179,.19); border-radius: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 6px; color: #4f7483; background: rgba(232,247,252,.66); font-size: 9px; font-weight: 790; }
+.notification-detail-feedback button.selected { border-color: #168db9; color: #08739a; background: #ddf3fb; }
+.notification-detail-feedback small { grid-column: 1 / -1; color: #6d8995; font-size: 8.5px; text-align: center; }
 
 .notification-empty-state { min-height: 230px; display: grid; place-items: center; place-content: center; gap: 7px; padding: 30px; text-align: center; }
 .notification-empty-state > span { width: 62px; height: 62px; border-radius: 22px; display: grid; place-items: center; color: #348fb4; background: rgba(232,248,253,.82); box-shadow: inset 0 1px 0 rgba(255,255,255,.96); }
@@ -12006,4 +12011,161 @@ body::before {
   color: #087ba4;
   background: #def4fb;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.75);
+}
+
+/* Exercise sessions and recovery check-ins share the same compact glass rhythm as
+   the existing record editors. The layout intentionally wraps at narrow widths. */
+.exercise-self-check-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.exercise-rating-field {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(50, 148, 184, .16);
+  border-radius: 14px;
+  background: rgba(238, 249, 253, .64);
+}
+
+.exercise-rating-field > span { font-size: 10px; line-height: 1.35; }
+.exercise-rating-field .range { min-height: 26px; padding: 0; }
+
+.exercise-injury-toggle {
+  min-height: 42px;
+  border: 1px solid rgba(68, 145, 174, .17);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 11px;
+  color: #42697a;
+  background: rgba(246, 252, 254, .72);
+  font-size: 10.5px;
+  font-weight: 720;
+}
+
+.exercise-injury-toggle input { width: 18px; height: 18px; accent-color: #148ab6; }
+.exercise-injury-note input { min-height: 40px; }
+
+.exercise-recovery-estimate {
+  border: 1px solid rgba(64, 157, 190, .2);
+  border-radius: 16px;
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  color: #315f72;
+  background: linear-gradient(145deg, rgba(231, 248, 253, .9), rgba(246, 252, 254, .72));
+}
+
+.exercise-recovery-estimate.is-caution {
+  border-color: rgba(205, 122, 92, .25);
+  background: linear-gradient(145deg, rgba(255, 242, 233, .88), rgba(249, 252, 253, .76));
+}
+
+.exercise-recovery-estimate > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.exercise-recovery-estimate strong { color: #174e66; font-size: 12px; }
+.exercise-recovery-estimate small { color: #75909c; font-size: 8.5px; white-space: nowrap; }
+.exercise-recovery-estimate p { margin: 0; font-size: 9.5px; line-height: 1.5; }
+
+.exercise-recovery-checkin {
+  min-width: 0;
+  border: 1px solid rgba(47, 148, 185, .17);
+  border-radius: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px;
+  background: rgba(245, 252, 254, .68);
+}
+
+.exercise-recovery-checkin legend { padding: 0 5px; color: #507485; font-size: 9.5px; font-weight: 760; }
+.exercise-recovery-checkin button {
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid rgba(42, 142, 179, .18);
+  border-radius: 11px;
+  color: #557584;
+  background: rgba(255,255,255,.7);
+  font-size: 9.5px;
+  font-weight: 750;
+}
+.exercise-recovery-checkin button.selected { border-color: #168cb8; color: #08749b; background: #dff4fb; }
+
+.exercise-live-session {
+  width: min(100%, 390px);
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 11px;
+}
+
+.exercise-live-progress {
+  --progress: 0%;
+  width: 112px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 2px;
+  color: #176c8f;
+  background: radial-gradient(circle at center, rgba(247,253,255,.97) 62%, transparent 63%), conic-gradient(#24a5d2 var(--progress), rgba(130,193,215,.22) 0);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.78), 0 7px 18px rgba(20,102,136,.1);
+}
+.exercise-live-progress strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.exercise-live-progress small { color: #6b8996; font-size: 8px; }
+.exercise-live-copy { min-width: 0; display: grid; gap: 5px; }
+.exercise-live-copy strong { color: #174a61; font-size: 16px; }
+.exercise-live-copy p { min-height: 32px; margin: 0; color: #476f80; font-size: 10.5px; line-height: 1.45; }
+.exercise-live-copy span { color: #78929c; font-size: 9px; }
+.exercise-live-actions { grid-column: 1 / -1; display: grid; grid-template-columns: .8fr 1.2fr; gap: 7px; }
+.exercise-live-actions button,
+.sports-plan-actions button {
+  min-height: 39px;
+  border: 1px solid rgba(33, 139, 177, .2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  color: #14769c;
+  background: rgba(247,253,255,.82);
+  font-size: 9.5px;
+  font-weight: 800;
+}
+.exercise-live-actions button.primary,
+.sports-plan-actions button:first-child { border-color: transparent; color: white; background: linear-gradient(145deg,#2baed7,#0f7fae); }
+.exercise-live-discard { grid-column: 1 / -1; border: 0; padding: 2px; color: #8298a1; background: transparent; font-size: 8.5px; text-decoration: underline; }
+.sports-plan-actions { width: min(100%, 330px); display: grid; grid-template-columns: 1.15fr .85fr; gap: 7px; }
+
+@media (max-width: 370px), (max-height: 844px) {
+  .exercise-self-check-grid { gap: 5px; }
+  .exercise-rating-field { padding: 6px 7px; }
+  .exercise-live-session { grid-template-columns: 92px minmax(0,1fr); gap: 10px; padding: 6px; }
+  .exercise-live-progress { width: 92px; }
+  .exercise-live-progress strong { font-size: 17px; }
+
+  .record-detail[data-record-detail="exercise"] .record-editor-stack > form:not([hidden]) > .section-card { padding: 8px 10px; }
+  .record-detail[data-record-detail="exercise"] .section-heading { margin-bottom: 2px; }
+  .record-detail[data-record-detail="exercise"] .field { gap: 1px; margin-bottom: 2px; }
+  .record-detail[data-record-detail="exercise"] .field > span { font-size: 9px; line-height: 1.15; }
+  .record-detail[data-record-detail="exercise"] input:not([type="range"]):not([type="checkbox"]),
+  .record-detail[data-record-detail="exercise"] textarea { min-height: 34px; padding: 6px 9px; font-size: 12px; }
+  .record-detail[data-record-detail="exercise"] .exercise-self-check-grid { gap: 4px; }
+  .record-detail[data-record-detail="exercise"] .exercise-rating-field { min-height: 43px; padding: 4px 5px; }
+  .record-detail[data-record-detail="exercise"] .exercise-rating-field > span { overflow: hidden; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+  .record-detail[data-record-detail="exercise"] .exercise-rating-field .range { min-height: 18px; height: 18px; }
+  .record-detail[data-record-detail="exercise"] .exercise-injury-toggle { min-height: 34px; padding: 5px 8px; font-size: 9px; }
+  .record-detail[data-record-detail="exercise"] .exercise-injury-toggle input { width: 16px; height: 16px; }
+  .record-detail[data-record-detail="exercise"] .exercise-recovery-estimate { min-height: 38px; padding: 6px 8px; }
+  .record-detail[data-record-detail="exercise"] .exercise-recovery-estimate strong { font-size: 10px; }
+  .record-detail[data-record-detail="exercise"] .exercise-recovery-estimate small { font-size: 7.5px; }
+  .record-detail[data-record-detail="exercise"] .exercise-recovery-estimate:not(.is-caution) p { display: none; }
+  .record-detail[data-record-detail="exercise"] .exercise-note-field { min-height: 43px; }
+  .record-detail[data-record-detail="exercise"] .exercise-note-field textarea { min-height: 30px; }
+  .record-detail[data-record-detail="exercise"] .action-button { min-height: 38px; }
 }

@@ -72,6 +72,8 @@ export async function exportUserData(userId: string) {
     "record_drafts",
     "notification_preferences",
     "user_notifications",
+    "push_device_tokens",
+    "push_delivery_receipts",
     "user_app_preferences",
     "active_user_sessions",
     "growth_reward_ledger",

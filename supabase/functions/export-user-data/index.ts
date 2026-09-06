@@ -30,6 +30,8 @@ const tableContracts = [
   { name: "record_drafts", column: "user_id" },
   { name: "notification_preferences", column: "user_id" },
   { name: "user_notifications", column: "user_id" },
+  { name: "push_device_tokens", column: "user_id" },
+  { name: "push_delivery_receipts", column: "user_id" },
   { name: "user_app_preferences", column: "user_id" },
   { name: "active_user_sessions", column: "user_id" },
   { name: "growth_reward_ledger", column: "user_id" },

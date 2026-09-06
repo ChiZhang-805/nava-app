@@ -3,6 +3,7 @@ import { clearScheduledNavaNotifications } from "./notifications";
 import { clearSecureFaceDraftsForUser } from "./secureFaceDraft";
 import { supabase } from "./supabaseClient";
 import { clearWatchAccountState } from "./watch";
+import { deactivateRemotePush } from "./remotePush";
 
 function purgeAccountBrowserState(userId: string) {
   for (const storage of [window.localStorage, window.sessionStorage]) {
@@ -24,6 +25,7 @@ export async function deleteCurrentAccount(userId: string) {
     clearSecureFaceDraftsForUser(userId),
     clearScheduledNavaNotifications(),
     clearWatchAccountState(userId),
+    deactivateRemotePush(userId),
   ]);
   purgeAccountBrowserState(userId);
   await supabase.auth.signOut({ scope: "local" });

@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">NAVA</string>
+    <string name="title_activity_main">NAVA</string>
+    <string name="package_name">health.nava.mobile</string>
+    <string name="custom_url_scheme">health.nava.mobile</string>
+    <string name="default_notification_channel_id">nava_general</string>
+</resources>

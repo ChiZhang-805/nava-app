@@ -80,6 +80,7 @@ import { clearActiveUserSession, loadActiveUserSession, saveActiveUserSession } 
 import { resolveTodoFocusPlan } from "../services/focusPlanning.ts";
 import { exitFocusFullscreen, focusFullscreenActive, focusFullscreenSupported, requestFocusFullscreen, requestScreenWakeLock, screenWakeLockSupported, type ScreenWakeLockSentinel } from "../services/focusImmersion.ts";
 import { focusNoiseSupported, startFocusNoise, type FocusNoiseKind, type FocusNoiseSession } from "../services/focusAudio.ts";
+import { abandonExerciseSession, exerciseSessionElapsedSeconds, finishExerciseSession, hydrateExerciseSession, pauseExerciseSession, resumeExerciseSession, startExerciseSession, type ExerciseSession } from "../services/exerciseSession.ts";
 
 type MoodFactor = { value: string; label: string };
 
@@ -594,6 +595,9 @@ function ExerciseDashboard({
   const [watchState, setWatchState] = useState<{ paired: boolean; reachable: boolean } | null>(null);
   const [deviceMessage, setDeviceMessage] = useState<string | null>(null);
   const [sportsPresetId, setSportsPresetId] = useState<"recommended" | "mobility" | "walk" | "recovery">("recommended");
+  const [exerciseSession, setExerciseSession] = useState<ExerciseSession | null>(null);
+  const [exerciseSessionNow, setExerciseSessionNow] = useState(() => Date.now());
+  const [exerciseSessionMessage, setExerciseSessionMessage] = useState<string | null>(null);
   const selectedExercise = todaySnapshot?.exercise ?? null;
   const displayedSteps = selectedExercise?.steps ?? 0;
   const displayedCalories = selectedExercise?.calories ?? 0;
@@ -688,6 +692,77 @@ function ExerciseDashboard({
 
   useEffect(() => {
     let active = true;
+    void hydrateExerciseSession(userId)
+      .then((session) => { if (active) setExerciseSession(session); })
+      .catch((error) => { if (active) setExerciseSessionMessage(error instanceof Error ? error.message : String(error)); });
+    return () => { active = false; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!exerciseSession?.runningSince) return;
+    setExerciseSessionNow(Date.now());
+    const timer = window.setInterval(() => setExerciseSessionNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [exerciseSession?.runningSince]);
+
+  const exerciseElapsedSeconds = exerciseSession ? exerciseSessionElapsedSeconds(exerciseSession, new Date(exerciseSessionNow)) : 0;
+  const exerciseElapsedMinutes = Math.floor(exerciseElapsedSeconds / 60);
+  const exerciseTimerText = `${String(Math.floor(exerciseElapsedSeconds / 60)).padStart(2, "0")}:${String(exerciseElapsedSeconds % 60).padStart(2, "0")}`;
+  const exerciseProgress = exerciseSession ? Math.min(100, Math.round(exerciseElapsedSeconds / Math.max(60, exerciseSession.plannedMinutes * 60) * 100)) : 0;
+  const exerciseStepIndex = exerciseSession && exerciseSession.steps.length > 0
+    ? Math.min(exerciseSession.steps.length - 1, Math.floor(exerciseProgress / Math.max(1, 100 / exerciseSession.steps.length)))
+    : 0;
+
+  const beginExercise = () => {
+    if (recordDate !== deviceDate) {
+      setExerciseSessionMessage(locale === "zh" ? "运动计时只能从今天开始；历史日期仍可手动补录。" : "A live workout can only start today; past dates can still be logged manually.");
+      return;
+    }
+    const session = startExerciseSession(userId, { title: activeSportsPlan.title, minutes: activeSportsPlan.minutes, steps: activeSportsPlan.steps });
+    setExerciseSession(session);
+    setExerciseSessionNow(Date.now());
+    setExerciseSessionMessage(locale === "zh" ? "运动已开始，离开页面或换设备后仍可恢复。" : "Workout started and can resume after leaving or switching devices.");
+  };
+
+  const toggleExercisePause = async () => {
+    if (!exerciseSession) return;
+    try {
+      const next = exerciseSession.runningSince
+        ? await pauseExerciseSession(userId, exerciseSession)
+        : await resumeExerciseSession(userId, exerciseSession);
+      setExerciseSession(next);
+      setExerciseSessionNow(Date.now());
+    } catch (error) {
+      setExerciseSessionMessage(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const completeExercise = async () => {
+    if (!exerciseSession) return;
+    try {
+      const completed = await finishExerciseSession(userId, exerciseSession);
+      setExerciseMinutes(completed.minutes);
+      const sessionNote = locale === "zh"
+        ? `NAVA Sports 完成：${exerciseSession.title}（实际 ${completed.minutes} 分钟）`
+        : `NAVA Sports completed: ${exerciseSession.title} (${completed.minutes} actual minutes)`;
+      setExerciseNote([exerciseNote.trim(), sessionNote].filter(Boolean).join("\n"));
+      setExerciseSession(null);
+      setExerciseSessionMessage(null);
+      onOpenEditor();
+    } catch (error) {
+      setExerciseSessionMessage(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const discardExercise = () => {
+    if (!exerciseSession || !window.confirm(locale === "zh" ? "放弃这次尚未保存的运动计时吗？" : "Discard this unsaved workout timer?")) return;
+    abandonExerciseSession(userId);
+    setExerciseSession(null);
+    setExerciseSessionMessage(null);
+  };
+
+  useEffect(() => {
+    let active = true;
     void Promise.all([getLastHealthSyncAt(userId), getWatchReachability()]).then(([lastSync, reachability]) => {
       if (!active) return;
       setSyncedAt(lastSync);
@@ -760,7 +835,15 @@ function ExerciseDashboard({
   if (view === "vitals") return <ModuleDetailView compact className="vitals-subview-card" title={locale === "zh" ? "健康指标" : "Health metrics"}><div className="metric-detail-grid"><span><HeartPulse /><small>{locale === "zh" ? "静息心率" : "Resting HR"}</small><strong>{vitals.heartRate == null ? "--" : <><AnimatedNumber value={vitals.heartRate} /> bpm</>}</strong></span><span><Activity /><small>{locale === "zh" ? "血氧" : "SpO2"}</small><strong>{vitals.bloodOxygen == null ? "--" : <><AnimatedNumber value={vitals.bloodOxygen} formatter={(value) => value.toFixed(1)} />%</>}</strong></span><span><Gauge /><small>{locale === "zh" ? "恢复度" : "Recovery"}</small><strong>{vitals.recovery == null ? "--" : <AnimatedNumber value={vitals.recovery} />}</strong></span></div><div className="detail-status-strip"><ShieldCheck size={17} /><span>{locale === "zh" ? "指标来自最近一次健康快照与节律评分" : "Based on the latest health snapshot and rhythm score"}</span><strong>{vitals.date ? shortDate(vitals.date, locale) : "--"}</strong></div></ModuleDetailView>;
   if (view === "heatmap") return <ModuleDetailView compact className="heatmap-subview-card" title={locale === "zh" ? "节律热力图" : "Rhythm heatmap"}><div className="heatmap-detail-content"><div className="detail-heatmap">{heatmap.cells.map((cell, index) => <i key={cell.id} title={`${shortDate(cell.date, locale)} · ${String(cell.period * 2).padStart(2, "0")}:00 · ${Math.round(cell.value)}`} style={{ opacity: cell.intensity, "--heat-index": index } as CSSProperties} />)}</div><div className="heatmap-legend"><span>{locale === "zh" ? "低活跃" : "Low"}</span><i /><i /><i /><i /><span>{locale === "zh" ? "高活跃" : "High"}</span></div><div className="heatmap-summary-grid"><span><small>{locale === "zh" ? "数据格" : "Data bins"}</small><strong>{heatmap.cells.length}</strong></span><span><small>{locale === "zh" ? "高峰窗口" : "Peak window"}</small><strong>{heatmap.cells.length > 0 ? peakWindow : "--"}</strong></span></div><p>{heatmap.cells.length > 0 ? (locale === "zh" ? `${peakWindow} 是近七日真实活动记录中相对集中的窗口；这里只描述分布，不评价运动质量。` : `${peakWindow} is the most concentrated window in the recorded seven-day activity data; this describes distribution, not workout quality.`) : (locale === "zh" ? "同步活动数据后生成热力图。" : "Sync activity data to build the heatmap.")}</p></div></ModuleDetailView>;
   if (view === "clock") return <ModuleDetailView compact className="clock-subview-card" title={locale === "zh" ? "生物钟同步" : "Clock alignment"}><div className="clock-alignment"><div className="clock-alignment-gauge" style={{ "--progress": `${alignment ?? 0}%` } as CSSProperties}><Gauge /></div><strong>{alignment == null ? "--" : <><AnimatedNumber value={alignment} />%</>}</strong><p>{alignment == null ? (locale === "zh" ? "同步睡眠或节律数据后，才能计算近七日生物钟同步分。" : "Sync sleep or rhythm data to calculate the seven-day clock-alignment score.") : (locale === "zh" ? "该分数由近七日入睡时间、睡眠时长稳定性与节律评分共同计算。" : "Calculated from seven-day bedtime, sleep-duration regularity, and rhythm scores.")}</p></div></ModuleDetailView>;
-  if (view === "sports") return <ModuleDetailView compact className="sports-subview-card" title="NAVA Sports"><div className="sports-plan"><Activity /><div className="sports-preset-picker" role="group" aria-label={locale === "zh" ? "选择运动计划" : "Choose a movement plan"}><button type="button" className={sportsPresetId === "recommended" ? "selected" : ""} onClick={() => setSportsPresetId("recommended")}>{locale === "zh" ? "今日建议" : "Suggested"}</button>{sportsPresets.map((preset) => <button type="button" className={sportsPresetId === preset.id ? "selected" : ""} key={preset.id} onClick={() => setSportsPresetId(preset.id)}>{preset.minutes} min</button>)}</div><strong>{activeSportsPlan.title}</strong><p>{activeSportsPlan.reason}</p><div className="sports-plan-steps">{activeSportsPlan.steps.map((step, index) => <span key={step}><b>{index + 1}</b>{step}</span>)}</div><small className="sports-plan-disclaimer">{locale === "zh" ? "规则建议，不是医疗或训练处方；如有不适请停止。" : "Rule-based guidance, not a medical or training prescription. Stop if you feel unwell."}</small><button type="button" onClick={useSportsPlan}>{locale === "zh" ? "使用此计划并记录" : "Use plan & log"}</button></div></ModuleDetailView>;
+  if (view === "sports") return <ModuleDetailView compact className="sports-subview-card" title="NAVA Sports">
+    {exerciseSession ? <div className="exercise-live-session" data-exercise-session data-running={Boolean(exerciseSession.runningSince)}>
+      <div className="exercise-live-progress" style={{ "--progress": `${exerciseProgress}%` } as CSSProperties}><Activity size={28} /><strong>{exerciseTimerText}</strong><small>{locale === "zh" ? `计划 ${exerciseSession.plannedMinutes} 分钟` : `${exerciseSession.plannedMinutes}-minute plan`}</small></div>
+      <div className="exercise-live-copy"><strong>{exerciseSession.title}</strong><p>{exerciseSession.steps[exerciseStepIndex] ?? (locale === "zh" ? "按身体感受继续" : "Continue by feel")}</p><span>{locale === "zh" ? `已进行 ${exerciseElapsedMinutes} 分钟 · ${exerciseProgress}%` : `${exerciseElapsedMinutes} minutes · ${exerciseProgress}%`}</span></div>
+      <div className="exercise-live-actions"><button type="button" onClick={() => void toggleExercisePause()}>{exerciseSession.runningSince ? <Pause size={18} /> : <Play size={18} />}{exerciseSession.runningSince ? (locale === "zh" ? "暂停" : "Pause") : (locale === "zh" ? "继续" : "Resume")}</button><button type="button" className="primary" onClick={() => void completeExercise()}><Square size={17} />{locale === "zh" ? "结束并填写感受" : "Finish & check in"}</button></div>
+      <button className="exercise-live-discard" type="button" onClick={discardExercise}>{locale === "zh" ? "放弃本次计时" : "Discard timer"}</button>
+    </div> : <div className="sports-plan"><Activity /><div className="sports-preset-picker" role="group" aria-label={locale === "zh" ? "选择运动计划" : "Choose a movement plan"}><button type="button" className={sportsPresetId === "recommended" ? "selected" : ""} onClick={() => setSportsPresetId("recommended")}>{locale === "zh" ? "今日建议" : "Suggested"}</button>{sportsPresets.map((preset) => <button type="button" className={sportsPresetId === preset.id ? "selected" : ""} key={preset.id} onClick={() => setSportsPresetId(preset.id)}>{preset.minutes} min</button>)}</div><strong>{activeSportsPlan.title}</strong><p>{activeSportsPlan.reason}</p><div className="sports-plan-steps">{activeSportsPlan.steps.map((step, index) => <span key={step}><b>{index + 1}</b>{step}</span>)}</div><small className="sports-plan-disclaimer">{locale === "zh" ? "规则建议，不是医疗或训练处方；如有不适请停止。" : "Rule-based guidance, not a medical or training prescription. Stop if you feel unwell."}</small><div className="sports-plan-actions"><button type="button" onClick={beginExercise}><CirclePlay size={17} />{locale === "zh" ? "开始此计划" : "Start this plan"}</button><button type="button" onClick={useSportsPlan}>{locale === "zh" ? "直接填写记录" : "Log without timer"}</button></div></div>}
+    {exerciseSessionMessage && <p className="module-device-message" role="status">{exerciseSessionMessage}</p>}
+  </ModuleDetailView>;
 
   return (
     <div className="module-dashboard exercise-dashboard" data-module-view="exercise-overview">

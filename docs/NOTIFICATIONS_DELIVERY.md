@@ -37,13 +37,21 @@ Apple User Notifications 框架文档及 iPhone 用户指南为准：应用在�
   下次加载或账户导出前会重试，避免短暂断网留下仅本机可见的状态。
 - 六模块保存成功后生成真实完成通知；提醒规划器读取当前登录用户当天的真实
   `TodaySnapshot`、近期 `TrendBundle` 和 ChronoState 已持久化行动，依据缺失记录、
-  短睡眠下的专注/运动调整、连续低情绪、连续晚睡、个人近期活动/饮食基线和非诊断
-  面部趋势生成按优先级排序的最多六条当日提醒。生产页面不注入示例通知。
+  短睡眠下的专注/运动调整、连续低情绪、连续晚睡、个人近期活动/饮食基线、已有餐次
+  但饮水很少、恢复复测和非诊断面部趋势生成按优先级排序的最多六条当日提醒。生产页面
+  不注入示例通知。
+- 运动、情绪、饮食和面部提醒详情提供与场景匹配的确认/稍后/状态反馈；选择结果写回
+  `user_notifications.target`，随当前账号跨设备同步，后续规划器可依据仍未恢复等真实反馈
+  调整提醒，而不是只在当前设备改变一段 UI。
 
 ### iPhone / Android 设备本地通知
 
 - `@capacitor/local-notifications` 已接入；iOS Podfile 已包含
   `CapacitorLocalNotifications`。
+- iOS Podfile 同时包含 `CapacitorPushNotifications`，AppDelegate 已把 APNs 注册成功/失败
+  回调桥接给 Capacitor；Android Capacitor 工程、Android 13+ 通知权限声明、竖屏约束和
+  `nava_general` 高优先级 channel 已纳入源码。Android launcher 使用与 iOS 同源的 NAVA
+  品牌图，FCM 默认小图标使用独立单色 N 标识，避免系统把彩色应用图压成白色方块。
 - 原有每日睡眠和每周报告调度保留；通知中心可以一次开启睡眠、饮食、专注、情绪、
   今日状态和周报六类设备本地计划。
 - 用户点击设备通知时，WebView 会写入当前用户的应用内收件箱、标为已读并跳转到对应
@@ -54,6 +62,19 @@ Apple User Notifications 框架文档及 iPhone 用户指南为准：应用在�
 设备本地通知不需要远程推送服务器；安装版获得系统通知权限后，可以由操作系统在
 锁屏和通知中心展示计划通知。不过 Windows 自动化只能证明 TypeScript、Capacitor
 插件、Pod 接入和事件合同存在，不能证明某台 iPhone 的锁屏送达。
+
+### 远程推送源码
+
+- 原生启动或用户开启通知套件时会请求 APNs/FCM 注册，并把 token、稳定 installation id、
+  token SHA-256、时区和 locale 写入当前账号的 `push_device_tokens`；退出登录和删除账号
+  会先停用当前安装 token。原始 token 不写日志或前端构建常量。
+- append-only migration `202609070005_remote_push_devices.sql` 定义账号级 token、RLS、
+  级联删除和幂等 `push_delivery_receipts`。账号导出源码已纳入这两张表。
+- `push-dispatch` Edge Function 源码使用独立内部 secret 鉴权，从云端通知事实源读取正文，
+  可分别调用 APNs token auth、FCM HTTP v1 和 HMS Push；provider 明确返回 token 失效时会
+  停用该 token，每个通知/设备组合通过 receipt 防止重复派发。
+- 上述迁移、函数和 provider secret 目前都**只在源码中**，尚未应用 canonical production；
+  因此当前公开网页与已安装旧包不能据此宣称已经拥有远程锁屏送达。
 
 ### 网页通知
 
@@ -66,15 +87,16 @@ Apple User Notifications 框架文档及 iPhone 用户指南为准：应用在�
 
 - 在 Mac / Xcode 中签名并安装 iPhone 包，逐项验证首次拒绝、允许、再次关闭权限、
   前台、后台、锁屏、重启、跨时区、低电量和点击深链。
-- 当前仓库没有 Android 原生工程；通用 Capacitor 调度源码可复用，但 Android / 华为
-  锁屏通知不能写成已完成。需要建立 Android shell、通知 channel/icon、Android 13+
-  权限、厂商省电白名单与真实华为设备验收。
-- 远程运营通知和服务器按健康事件实时下发尚未实现。应用内收件箱的多设备数据同步已经
-  完成，但它不等同于锁屏远程 Push。完整远程送达链路仍需要
-  APNs、FCM，以及中国大陆华为设备可能需要的 HMS Push；还需要设备 token 表、RLS、
-  token 轮换、退订/删除、Edge Function 或通知服务、provider 凭据、速率限制和审计。
-- 上述远程链路涉及 migration、secret 和 Edge Function 部署，当前前端持续发布授权
-  不包含这些操作；必须得到用户单独授权后实施。
+- Android 工程已生成，但当前 Windows 环境没有 JDK，无法完成 Gradle 编译；项目也尚未
+  提供 Firebase `google-services.json`。需要配置后编译并在 Android 13+ 真机验证权限、
+  前后台、锁屏、点击深链、token 轮换与注销。
+- HMS 服务端派发源码存在，但华为客户端 token 注册仍需要 `agconnect-services.json`、
+  HMS Push SDK/插件和真实华为设备；还需按设备验证省电策略与厂商后台限制。
+- APNs 需要 Apple Developer Team、Push capability、`.p8` key 及正确 bundle id/environment；
+  FCM/HMS 需要各自项目凭据。任何凭据只能作为 Supabase server secret 配置，不能进入仓库。
+- 生产启用还需单独授权应用 migration `202609070004`/`202609070005`，部署更新后的
+  `export-user-data` 与新 `push-dispatch`，再做速率、审计和真实设备送达验收。当前前端
+  持续发布授权不包含这些后端操作。
 
 ## 当前自动验证
 
@@ -84,6 +106,8 @@ Apple User Notifications 框架文档及 iPhone 用户指南为准：应用在�
   进入页面不自动已读、打开详情后已读、右侧未读圆点几何位置、权限卡启用后移除、
   三点菜单图标、长按/全选/批量已读、批量删除与撤销、左右滑、空状态和横向溢出。
 - `npm run ios:verify`：静态验证 iOS Pod 和本地通知调度/接收/点击事件接线。
+- `npm run push:contract:test`：静态验证账号 token 注册/停用、APNs/FCM/HMS provider、
+  幂等 receipt、内部鉴权和“不记录 token/secret”的源码合同。
 
 视觉测试的通知数据只通过 `import.meta.env.DEV` 下的 `qa=notifications` 注入，不会进入
 生产构建，也不会写入 Supabase。

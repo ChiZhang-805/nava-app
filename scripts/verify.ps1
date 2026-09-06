@@ -123,4 +123,12 @@ Write-Host "28. Cloud persistence, export, and deletion contracts"
 Invoke-Npm -Arguments @("run", "cloud-data:test")
 
 Write-Host ""
+Write-Host "29. Exercise session and recovery contracts"
+Invoke-Npm -Arguments @("run", "exercise:test")
+
+Write-Host ""
+Write-Host "30. Native remote-push contracts"
+Invoke-Npm -Arguments @("run", "push:contract:test")
+
+Write-Host ""
 Write-Host "Verification completed."

@@ -42,6 +42,7 @@ import { recordSkeletonVariant } from "../services/loadingRoute";
 import { clearSleepMaintenance, hydrateSleepMaintenance, loadSleepMaintenance, sleepMaintenanceElapsedMinutes, sleepMaintenanceFields, startSleepMaintenance, type SleepMaintenanceSession } from "../services/sessionMaintenance";
 import { focusDurationChoice as focusDurationChoiceForMinutes } from "../services/focusPlanning.ts";
 import { requestFocusFullscreen } from "../services/focusImmersion.ts";
+import { estimateExerciseRecovery, type ExerciseRecoveryStatus } from "../services/exerciseRecovery.ts";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 
 const RecordModuleDashboard = lazy(() => import("./RecordModuleDashboard"));
@@ -290,11 +291,17 @@ export default function RecordsScreen({
   const [sleepMaintenance, setSleepMaintenance] = useState<SleepMaintenanceSession | null>(() => loadSleepMaintenance(user.id));
   const [sleepMaintenanceNow, setSleepMaintenanceNow] = useState(() => Date.now());
 
-  const [steps, setSteps] = useState(6500);
-  const [calories, setCalories] = useState(420);
-  const [exerciseMinutes, setExerciseMinutes] = useState(38);
+  const [steps, setSteps] = useState(0);
+  const [calories, setCalories] = useState(0);
+  const [exerciseMinutes, setExerciseMinutes] = useState(0);
   const [heartRate, setHeartRate] = useState("");
   const [spo2, setSpo2] = useState("");
+  const [exerciseRating, setExerciseRating] = useState(3);
+  const [sorenessLevel, setSorenessLevel] = useState(0);
+  const [fatigueLevel, setFatigueLevel] = useState(0);
+  const [hasInjury, setHasInjury] = useState(false);
+  const [injuryNote, setInjuryNote] = useState("");
+  const [recoveryStatus, setRecoveryStatus] = useState<ExerciseRecoveryStatus | null>(null);
   const [exerciseNote, setExerciseNote] = useState("");
 
   const [meal, setMeal] = useState<"breakfast" | "lunch" | "dinner" | "pantry">("lunch");
@@ -431,6 +438,12 @@ export default function RecordsScreen({
       setExerciseMinutes(snapshot.exercise?.exercise_minutes ?? 0);
       setHeartRate(snapshot.exercise?.heart_rate ?? "");
       setSpo2(snapshot.exercise?.spo2 ?? "");
+      setExerciseRating(snapshot.exercise?.self_rating ?? 3);
+      setSorenessLevel(snapshot.exercise?.soreness_level ?? 0);
+      setFatigueLevel(snapshot.exercise?.fatigue_level ?? 0);
+      setHasInjury(snapshot.exercise?.has_injury === true);
+      setInjuryNote(snapshot.exercise?.injury_note ?? "");
+      setRecoveryStatus(snapshot.exercise?.recovery_status ?? null);
       setExerciseNote(snapshot.exercise?.self_note ?? "");
       const latestFocusRecord = [...(trends.focus ?? [])]
         .filter((record) => record.record_date === recordDate)
@@ -497,6 +510,12 @@ export default function RecordsScreen({
         if (typeof draft.minutes === "number") setExerciseMinutes(draft.minutes);
         if (typeof draft.heartRate === "string") setHeartRate(draft.heartRate);
         if (typeof draft.spo2 === "string") setSpo2(draft.spo2);
+        if (typeof draft.rating === "number") setExerciseRating(draft.rating);
+        if (typeof draft.sorenessLevel === "number") setSorenessLevel(draft.sorenessLevel);
+        if (typeof draft.fatigueLevel === "number") setFatigueLevel(draft.fatigueLevel);
+        if (typeof draft.hasInjury === "boolean") setHasInjury(draft.hasInjury);
+        if (typeof draft.injuryNote === "string") setInjuryNote(draft.injuryNote);
+        if (draft.recoveryStatus === "recovered" || draft.recoveryStatus === "improving" || draft.recoveryStatus === "not_recovered") setRecoveryStatus(draft.recoveryStatus);
         if (typeof draft.note === "string") setExerciseNote(draft.note);
       }
       if (draft && activeModule === "diet") {
@@ -613,7 +632,7 @@ export default function RecordsScreen({
       : activeModule === "sleep"
         ? { start: sleepStart, end: sleepEnd, duration: sleepDuration, deep: deepSleep, light: lightSleep, rem: remSleep, rating: sleepRating, note: sleepNote }
         : activeModule === "exercise"
-          ? { steps, calories, minutes: exerciseMinutes, heartRate, spo2, note: exerciseNote }
+          ? { steps, calories, minutes: exerciseMinutes, heartRate, spo2, rating: exerciseRating, sorenessLevel, fatigueLevel, hasInjury, injuryNote, recoveryStatus, note: exerciseNote }
           : activeModule === "diet"
             ? { meal, mealTime, name: mealName, calories: mealCalories, items: dietItems, photoPath: dietPhotoPath, proteinGrams, carbohydrateGrams, fatGrams, hydrationMl, rating: dietRating }
             : { title: focusTitle, minutes: focusMinutes, mode: focusMode, note: focusNote, todoId: focusTodoId };
@@ -621,7 +640,7 @@ export default function RecordsScreen({
       void saveRecordDraft(user.id, module, recordDate, payload).catch((draftError) => console.warn("Record draft sync deferred", draftError));
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [activeModule, calories, carbohydrateGrams, deepSleep, diary, dietItems, dietPhotoPath, dietRating, draftReady, exerciseMinutes, exerciseNote, fatGrams, focusMinutes, focusMode, focusNote, focusTitle, focusTodoId, heartRate, hydrationMl, lightSleep, meal, mealCalories, mealName, mealTime, moodScore, proteinGrams, recordDate, remSleep, selectedFactors, showEditor, sleepDuration, sleepEnd, sleepNote, sleepRating, sleepStart, spo2, steps, user.id]);
+  }, [activeModule, calories, carbohydrateGrams, deepSleep, diary, dietItems, dietPhotoPath, dietRating, draftReady, exerciseMinutes, exerciseNote, exerciseRating, fatGrams, fatigueLevel, focusMinutes, focusMode, focusNote, focusTitle, focusTodoId, hasInjury, heartRate, hydrationMl, injuryNote, lightSleep, meal, mealCalories, mealName, mealTime, moodScore, proteinGrams, recordDate, recoveryStatus, remSleep, selectedFactors, showEditor, sleepDuration, sleepEnd, sleepNote, sleepRating, sleepStart, sorenessLevel, spo2, steps, user.id]);
 
   useEffect(() => {
     const estimated = estimateMinutes(sleepStart, sleepEnd);
@@ -993,6 +1012,14 @@ export default function RecordsScreen({
 
   async function saveExercise(event: FormEvent) {
     event.preventDefault();
+    const estimate = estimateExerciseRecovery({
+      minutes: exerciseMinutes,
+      heartRate,
+      sorenessLevel,
+      fatigueLevel,
+      hasInjury,
+      sleepMinutes: todaySnapshot?.sleep?.sleep_duration_minutes,
+    });
     await run("records.exercise", () =>
       saveExerciseRecord({
         userId: user.id,
@@ -1002,6 +1029,16 @@ export default function RecordsScreen({
         minutes: exerciseMinutes,
         heartRate,
         spo2,
+        rating: exerciseRating,
+        sorenessLevel,
+        fatigueLevel,
+        hasInjury,
+        injuryNote: hasInjury ? injuryNote : "",
+        recoveryEstimateMinHours: estimate.minHours,
+        recoveryEstimateMaxHours: estimate.maxHours,
+        recoveryEstimateConfidence: estimate.confidence,
+        recoveryEstimateBasis: { version: "nava-rule-v1", inputs: estimate.basis },
+        ...(recoveryStatus ? { recoveryStatus } : {}),
         note: exerciseNote,
         source: "manual",
       }),
@@ -1748,6 +1785,41 @@ export default function RecordsScreen({
               <input value={spo2} onChange={(e) => setSpo2(e.target.value)} placeholder="98%" />
             </label>
           </div>
+          <div className="exercise-self-check-grid">
+            <label className="field exercise-rating-field">
+              <span>{locale === "zh" ? `运动感受 ${exerciseRating}/5` : `Workout feeling ${exerciseRating}/5`}</span>
+              <input className="range" type="range" min="1" max="5" value={exerciseRating} onChange={(event) => setExerciseRating(Number(event.target.value))} />
+            </label>
+            <label className="field exercise-rating-field">
+              <span>{locale === "zh" ? `肌肉酸痛 ${sorenessLevel}/10` : `Muscle soreness ${sorenessLevel}/10`}</span>
+              <input className="range" type="range" min="0" max="10" value={sorenessLevel} onChange={(event) => setSorenessLevel(Number(event.target.value))} />
+            </label>
+            <label className="field exercise-rating-field">
+              <span>{locale === "zh" ? `疲劳程度 ${fatigueLevel}/10` : `Fatigue ${fatigueLevel}/10`}</span>
+              <input className="range" type="range" min="0" max="10" value={fatigueLevel} onChange={(event) => setFatigueLevel(Number(event.target.value))} />
+            </label>
+          </div>
+          <label className="exercise-injury-toggle">
+            <input type="checkbox" checked={hasInjury} onChange={(event) => setHasInjury(event.target.checked)} />
+            <span>{locale === "zh" ? "有伤病或限制活动的不适" : "Injury or discomfort limiting movement"}</span>
+          </label>
+          {hasInjury && <label className="field exercise-injury-note">
+            <span>{locale === "zh" ? "伤病 / 不适说明" : "Injury / discomfort note"}</span>
+            <input value={injuryNote} onChange={(event) => setInjuryNote(event.target.value)} placeholder={locale === "zh" ? "位置、感受和对活动的影响" : "Location, feeling, and impact on movement"} />
+          </label>}
+          {(() => {
+            const estimate = estimateExerciseRecovery({ minutes: exerciseMinutes, heartRate, sorenessLevel, fatigueLevel, hasInjury, sleepMinutes: todaySnapshot?.sleep?.sleep_duration_minutes });
+            return <section className={estimate.caution ? "exercise-recovery-estimate is-caution" : "exercise-recovery-estimate"} aria-live="polite">
+              <div><strong>{locale === "zh" ? `预计恢复 ${estimate.minHours}–${estimate.maxHours} 小时` : `Estimated recovery ${estimate.minHours}–${estimate.maxHours} hours`}</strong><small>{locale === "zh" ? `置信度 ${Math.round(estimate.confidence * 100)}% · 规则估算` : `${Math.round(estimate.confidence * 100)}% confidence · rule estimate`}</small></div>
+              <p>{estimate.caution ? (locale === "zh" ? "先停止加量；持续疼痛、明显肿胀或活动受限时请寻求专业评估。" : "Avoid adding load; seek professional assessment for persistent pain, swelling, or limited movement.") : (locale === "zh" ? "保存后可在运动页回来确认恢复情况，反馈会跟随账号。" : "After saving, return to the activity page to confirm recovery; the check-in follows your account.")}</p>
+            </section>;
+          })()}
+          {todaySnapshot?.exercise?.recovery_estimate_max_hours != null && <fieldset className="exercise-recovery-checkin">
+            <legend>{locale === "zh" ? "恢复复测" : "Recovery check-in"}</legend>
+            {([[
+              "recovered", locale === "zh" ? "已恢复" : "Recovered"
+            ], ["improving", locale === "zh" ? "在改善" : "Improving"], ["not_recovered", locale === "zh" ? "未恢复" : "Not recovered"]] as Array<[ExerciseRecoveryStatus, string]>).map(([value, label]) => <button type="button" key={value} className={recoveryStatus === value ? "selected" : ""} aria-pressed={recoveryStatus === value} onClick={() => setRecoveryStatus(value)}>{label}</button>)}
+          </fieldset>}
           <label className="field exercise-note-field">
             <span>{t("records.note")}</span>
             <textarea rows={2} value={exerciseNote} onChange={(e) => setExerciseNote(e.target.value)} placeholder={t("records.exerciseNotePlaceholder")} />

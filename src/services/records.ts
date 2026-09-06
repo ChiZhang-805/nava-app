@@ -375,10 +375,20 @@ export async function saveExerciseRecord(input: {
   spo2?: string;
   rating?: number;
   note?: string;
+  sorenessLevel?: number;
+  fatigueLevel?: number;
+  hasInjury?: boolean;
+  injuryNote?: string;
+  recoveryEstimateMinHours?: number;
+  recoveryEstimateMaxHours?: number;
+  recoveryEstimateConfidence?: number;
+  recoveryEstimateBasis?: Record<string, unknown>;
+  recoveryStatus?: "recovered" | "improving" | "not_recovered";
   source?: "manual" | "apple_health";
 }) {
   if (input.steps == null && input.calories == null && input.minutes == null
-    && input.heartRate == null && input.spo2 == null && input.rating == null && input.note == null) {
+    && input.heartRate == null && input.spo2 == null && input.rating == null && input.note == null
+    && input.sorenessLevel == null && input.fatigueLevel == null && input.hasInjury == null) {
     throw new Error("没有可保存的运动数据。");
   }
   if (isDemoMode()) return saveDemoExercise({
@@ -390,6 +400,8 @@ export async function saveExerciseRecord(input: {
 
   const recordDate = normalizeRecordDate(input.date);
   const rating = ratingValue(input.rating, "运动自评分");
+  const sorenessLevel = input.sorenessLevel == null ? null : Math.min(10, Math.max(0, Math.round(input.sorenessLevel)));
+  const fatigueLevel = input.fatigueLevel == null ? null : Math.min(10, Math.max(0, Math.round(input.fatigueLevel)));
   if (input.heartRate != null && input.heartRate.trim()) {
     const heartRate = Number(input.heartRate.replace(/[^0-9.]/g, ""));
     if (!Number.isFinite(heartRate) || heartRate < 20 || heartRate > 250) throw new Error("心率必须在 20 到 250 bpm 之间。");
@@ -410,6 +422,15 @@ export async function saveExerciseRecord(input: {
     ...(input.spo2 != null ? { spo2: input.spo2.trim() || null } : {}),
     ...(rating != null ? { self_rating: rating } : {}),
     ...(input.note != null ? { self_note: input.note.trim() || null } : {}),
+    ...(sorenessLevel != null ? { soreness_level: sorenessLevel } : {}),
+    ...(fatigueLevel != null ? { fatigue_level: fatigueLevel } : {}),
+    ...(input.hasInjury != null ? { has_injury: input.hasInjury } : {}),
+    ...(input.injuryNote != null ? { injury_note: input.injuryNote.trim() || null } : {}),
+    ...(input.recoveryEstimateMinHours != null ? { recovery_estimate_min_hours: nonNegativeInt(input.recoveryEstimateMinHours, "恢复估算下限") } : {}),
+    ...(input.recoveryEstimateMaxHours != null ? { recovery_estimate_max_hours: nonNegativeInt(input.recoveryEstimateMaxHours, "恢复估算上限") } : {}),
+    ...(input.recoveryEstimateConfidence != null ? { recovery_estimate_confidence: Math.min(1, Math.max(0, input.recoveryEstimateConfidence)) } : {}),
+    ...(input.recoveryEstimateBasis != null ? { recovery_estimate_basis: input.recoveryEstimateBasis } : {}),
+    ...(input.recoveryStatus != null ? { recovery_status: input.recoveryStatus, recovery_checked_at: new Date().toISOString() } : {}),
     ...(!existing || hasAllActivityMetrics ? { device_type: input.source ?? "manual" } : {}),
   };
 

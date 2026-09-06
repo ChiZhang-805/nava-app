@@ -6,6 +6,8 @@ const migration = readFileSync(new URL("../supabase/migrations/202609060001_clou
 const focusMigration = readFileSync(new URL("../supabase/migrations/202609070001_focus_session_integrity.sql", import.meta.url), "utf8");
 const avatarMigration = readFileSync(new URL("../supabase/migrations/202609070002_profile_avatar_privacy.sql", import.meta.url), "utf8");
 const legacyPhoneCleanupMigration = readFileSync(new URL("../supabase/migrations/202609070003_legacy_phone_cleanup.sql", import.meta.url), "utf8");
+const exerciseRecoveryMigration = readFileSync(new URL("../supabase/migrations/202609070004_exercise_recovery_loop.sql", import.meta.url), "utf8");
+const pushMigration = readFileSync(new URL("../supabase/migrations/202609070005_remote_push_devices.sql", import.meta.url), "utf8");
 const edgeExport = readFileSync(new URL("../supabase/functions/export-user-data/index.ts", import.meta.url), "utf8");
 const frontendExport = readFileSync(new URL("../src/services/exportData.ts", import.meta.url), "utf8");
 const cloudState = readFileSync(new URL("../src/services/userCloudState.ts", import.meta.url), "utf8");
@@ -26,7 +28,7 @@ const accountOwnedTables = [
   "health_sync_jobs", "health_metric_snapshots", "health_imports", "watch_snapshots",
   "daily_rhythm_scores", "health_feature_snapshots", "fdnb_health_scores", "weekly_health_reports",
   "fdnb_recompute_jobs", "rhythm_outcome_feedback", "record_drafts", "notification_preferences",
-  "user_notifications", "user_app_preferences", "active_user_sessions", "growth_reward_ledger",
+  "user_notifications", "push_device_tokens", "push_delivery_receipts", "user_app_preferences", "active_user_sessions", "growth_reward_ledger",
   "growth_badges", "growth_progress_views", "xp_awards", "analytics_events", "watch_action_receipts",
   "community_posts", "community_comments", "community_likes", "community_bookmarks",
 ] as const;
@@ -111,4 +113,11 @@ test("previously dropped record fields are persisted and restored", () => {
   }
   assert.match(recordsScreen, /typeof draft\.heartRate === "string"/);
   assert.match(recordsScreen, /typeof draft\.spo2 === "string"/);
+  for (const column of ["soreness_level", "fatigue_level", "has_injury", "injury_note", "recovery_estimate_min_hours", "recovery_estimate_max_hours", "recovery_status"]) {
+    assert.match(exerciseRecoveryMigration, new RegExp(column));
+    assert.match(records, new RegExp(column));
+  }
+  assert.match(exerciseRecoveryMigration, /session_type IN \('focus', 'sleep', 'exercise'\)/);
+  assert.match(pushMigration, /CREATE TABLE IF NOT EXISTS public\.push_device_tokens/);
+  assert.match(pushMigration, /CREATE TABLE IF NOT EXISTS public\.push_delivery_receipts/);
 });

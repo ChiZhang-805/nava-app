@@ -30,7 +30,9 @@ import {
   notificationPermissionState,
   restoreNavaNotification,
   restoreNavaNotifications,
+  respondToNavaNotification,
   type NavaNotificationItem,
+  type NavaNotificationFeedback,
   type NavaNotificationTarget,
 } from "../services/notifications";
 
@@ -66,6 +68,32 @@ function categoryLabel(item: NavaNotificationItem, locale: "zh" | "en") {
 function NotificationCategoryIcon({ item }: { item: NavaNotificationItem }) {
   const Icon = categoryIcons[item.category];
   return <span className="notification-row-icon" data-category={item.category} aria-hidden="true"><Icon size={25} /></span>;
+}
+
+function feedbackOptions(item: NavaNotificationItem, locale: "zh" | "en"): Array<[NavaNotificationFeedback, string]> {
+  if (item.source !== "contextual") return [];
+  const zh = locale === "zh";
+  if (item.category === "exercise") return [
+    ["accepted", zh ? "我会调整" : "I'll adjust"],
+    ["completed", zh ? "已经恢复" : "Recovered"],
+    ["still_recovering", zh ? "仍需恢复" : "Still recovering"],
+  ];
+  if (item.category === "mood") return [
+    ["accepted", zh ? "我知道了" : "Got it"],
+    ["completed", zh ? "已经好转" : "Feeling better"],
+    ["not_now", zh ? "稍后处理" : "Later"],
+  ];
+  if (item.category === "nutrition") return [
+    ["accepted", zh ? "我会补充" : "I'll add it"],
+    ["completed", zh ? "已经完成" : "Done"],
+    ["not_now", zh ? "稍后处理" : "Later"],
+  ];
+  if (item.category === "face") return [
+    ["accepted", zh ? "我知道了" : "Got it"],
+    ["completed", zh ? "已经记录" : "Recorded"],
+    ["not_now", zh ? "暂不记录" : "Not now"],
+  ];
+  return [];
 }
 
 function NotificationRow({
@@ -216,6 +244,7 @@ export default function NotificationCenter({
   const unreadCount = items.filter((item) => !item.readAt).length;
   const shownItems = useMemo(() => filter === "unread" ? items.filter((item) => !item.readAt) : items, [filter, items]);
   const detailItem = items.find((item) => item.id === detailId) ?? null;
+  const detailFeedbackOptions = detailItem ? feedbackOptions(detailItem, locale) : [];
   const allShownSelected = shownItems.length > 0 && shownItems.every((item) => selectedIds.has(item.id));
 
   useEffect(() => { void notificationPermissionState().then(setPermission); }, []);
@@ -380,6 +409,11 @@ export default function NotificationCenter({
           </div>
           <h2 id="notification-detail-title">{detailItem.title}</h2>
           <p>{detailItem.body}</p>
+          {detailFeedbackOptions.length > 0 && <fieldset className="notification-detail-feedback">
+            <legend>{locale === "zh" ? "反馈当前状态" : "Share current status"}</legend>
+            {detailFeedbackOptions.map(([value, label]) => <button key={value} type="button" className={detailItem.target?.feedback === value ? "selected" : ""} aria-pressed={detailItem.target?.feedback === value} onClick={() => respondToNavaNotification(userId, detailItem.id, value)}>{detailItem.target?.feedback === value && <Check size={14} />}{label}</button>)}
+            {detailItem.target?.feedbackAt && <small>{locale === "zh" ? "反馈已保存到当前账号" : "Feedback saved to your account"}</small>}
+          </fieldset>}
           {detailItem.target && <button className="notification-detail-target" type="button" onClick={() => { setDetailId(null); onOpenTarget(detailItem.target); }}>{locale === "zh" ? "打开相关页面" : "Open related page"}</button>}
         </section>
       </div>}

@@ -45,6 +45,7 @@ import {
   type NavaNotificationTarget,
 } from "./services/notifications";
 import { loadUserAppPreferences, saveUserAppPreferences } from "./services/userCloudState";
+import { registerRemotePush, subscribeRemoteNotificationActions } from "./services/remotePush";
 import {
   fallbackShellRoute,
   hasPreviousShellRoute,
@@ -396,6 +397,13 @@ function MobileShell({
       void listenerHandle?.remove();
     };
   }, [openNotificationItem, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    void registerRemotePush(user.id, false)
+      .catch((error) => console.warn("Remote push restore deferred", error));
+    return subscribeRemoteNotificationActions((target) => openNotificationTarget(target));
+  }, [openNotificationTarget, user]);
 
   const runAiCommand = (type: AiCommand["type"]) => {
     setAiCommand((current) => ({ id: (current?.id ?? 0) + 1, type }));

@@ -7,7 +7,7 @@ export type UserAppPreferences = {
   homeWidgetIds: string[];
 };
 
-type ActiveSessionType = "focus" | "sleep";
+type ActiveSessionType = "focus" | "sleep" | "exercise";
 type PendingSessionMutation = { operation: "save"; payload: Record<string, unknown> } | { operation: "clear"; clearedAt: string };
 
 const preferenceWrites = new Map<string, Promise<void>>();

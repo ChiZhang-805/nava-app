@@ -24,6 +24,7 @@ import {
   isDemoOtpCode,
   startDemoAuthSession,
 } from "../services/demo";
+import { deactivateRemotePush } from "../services/remotePush";
 
 function recoveryFlowInUrl() {
   if (typeof window === "undefined") return false;
@@ -120,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPasswordRecovery(false);
       return;
     }
+    if (user) await deactivateRemotePush(user.id).catch((pushError) => console.warn("Remote push deactivation deferred", pushError));
     const { error: authError } = await supabase.auth.signOut();
     if (authError) {
       const { error: localError } = await supabase.auth.signOut({ scope: "local" });
@@ -130,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setPasswordRecovery(false);
     }
-  }, []);
+  }, [user]);
 
   const activateDemoSession = useCallback(() => {
     startDemoAuthSession();

@@ -674,6 +674,14 @@ async function verifyRecordModules(page, results) {
   await page.waitForTimeout(700);
   await assertStaticLayout(page, "record-exercise-sports");
   await page.screenshot({ path: path.join(outputDir, "record-exercise-sports.png") });
+  await page.locator(".sports-plan-actions button").first().click();
+  await expect(page.locator("[data-exercise-session]")).toBeVisible();
+  await expect(page.locator("[data-exercise-session]")).toHaveAttribute("data-running", "true");
+  await page.locator(".exercise-live-actions button").first().click();
+  await expect(page.locator("[data-exercise-session]")).toHaveAttribute("data-running", "false");
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator(".exercise-live-discard").click();
+  await expect(page.locator(".sports-plan")).toBeVisible();
   await returnFromSubview();
   await page.locator('.exercise-trend-card .module-card-nav-button').click();
   await expect(page.locator('[data-record-detail="exercise"] .report-history-trend-chart')).toBeVisible();
