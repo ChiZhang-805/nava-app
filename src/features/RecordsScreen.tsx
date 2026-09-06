@@ -38,7 +38,7 @@ import { clearSecureFaceDraft, loadSecureFaceDraft, saveSecureFaceDraft } from "
 import { loadSingleKey, type SingleRequestSlot } from "../services/singleRequestCache";
 import { estimatedFoodLabel, formatDetectedDishList } from "../services/dietEntryPresentation";
 import { recordSkeletonVariant } from "../services/loadingRoute";
-import { clearSleepMaintenance, loadSleepMaintenance, sleepMaintenanceElapsedMinutes, sleepMaintenanceFields, startSleepMaintenance, type SleepMaintenanceSession } from "../services/sessionMaintenance";
+import { clearSleepMaintenance, hydrateSleepMaintenance, loadSleepMaintenance, sleepMaintenanceElapsedMinutes, sleepMaintenanceFields, startSleepMaintenance, type SleepMaintenanceSession } from "../services/sessionMaintenance";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 
 const RecordModuleDashboard = lazy(() => import("./RecordModuleDashboard"));
@@ -138,6 +138,11 @@ const weeklyPlaceholderHeights = (() => {
   const span = Math.max(1, maximum - minimum);
   return weeklyPlaceholderValues.map((value) => `${Math.round(30 + ((value - minimum) / span) * 70)}%`);
 })();
+
+function currentLocalTimeInput() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
 
 function recordedDateCount(bundle: TrendBundle | null, startDate: string, endDate: string) {
   if (!bundle) return 0;
@@ -275,6 +280,7 @@ export default function RecordsScreen({
   const [exerciseNote, setExerciseNote] = useState("");
 
   const [meal, setMeal] = useState<"breakfast" | "lunch" | "dinner" | "pantry">("lunch");
+  const [mealTime, setMealTime] = useState(currentLocalTimeInput);
   const [mealName, setMealName] = useState("");
   const [mealCalories, setMealCalories] = useState(0);
   const [proteinGrams, setProteinGrams] = useState(0);
@@ -336,6 +342,11 @@ export default function RecordsScreen({
 
   useEffect(() => {
     setSleepMaintenance(loadSleepMaintenance(user.id));
+    let active = true;
+    void hydrateSleepMaintenance(user.id)
+      .then((session) => { if (active) setSleepMaintenance(session); })
+      .catch((error) => console.warn("Sleep session restore deferred", error));
+    return () => { active = false; };
   }, [user.id]);
 
   useEffect(() => {
@@ -396,11 +407,17 @@ export default function RecordsScreen({
       setLightSleep(snapshot.sleep?.light_sleep_minutes ?? 280);
       setRemSleep(snapshot.sleep?.rem_minutes ?? 95);
       setSleepRating(snapshot.sleep?.self_rating ?? 4);
+      setSleepNote(snapshot.sleep?.self_note ?? "");
       setSteps(snapshot.exercise?.steps ?? 0);
       setCalories(snapshot.exercise?.calories ?? 0);
       setExerciseMinutes(snapshot.exercise?.exercise_minutes ?? 0);
       setHeartRate(snapshot.exercise?.heart_rate ?? "");
       setSpo2(snapshot.exercise?.spo2 ?? "");
+      setExerciseNote(snapshot.exercise?.self_note ?? "");
+      const latestFocusRecord = [...(trends.focus ?? [])]
+        .filter((record) => record.record_date === recordDate)
+        .sort((left, right) => String(right.ended_at ?? "").localeCompare(String(left.ended_at ?? "")))[0];
+      setFocusNote(latestFocusRecord?.note ?? "");
 
       if (snapshot.face?.overall_score != null && snapshot.face.feedback) {
         setFaceResult({
@@ -418,6 +435,7 @@ export default function RecordsScreen({
 
       const nutrition = snapshot.nutrition;
       const mealItems = nutrition?.[`${meal}_items` as keyof typeof nutrition];
+      const savedMealTime = nutrition?.[`${meal}_time` as keyof typeof nutrition];
       const loadedItems = Array.isArray(mealItems) ? mealItems as FoodItem[] : [];
       const photoField = meal === "pantry" ? null : `${meal}_photo_url` as keyof NonNullable<typeof nutrition>;
       const photoPath = photoField && nutrition ? nutrition[photoField] : null;
@@ -425,6 +443,7 @@ export default function RecordsScreen({
       setDietItems(loadedItems);
       setMealName(formatDetectedDishList(loadedItems));
       setMealCalories(selectedMealCalories || (nutrition?.total_calories ?? 0));
+      setMealTime(typeof savedMealTime === "string" ? savedMealTime.slice(0, 5) : currentLocalTimeInput());
       setProteinGrams(nutrition?.protein_grams ?? 0);
       setCarbohydrateGrams(nutrition?.carbohydrate_grams ?? 0);
       setFatGrams(nutrition?.fat_grams ?? 0);
@@ -466,6 +485,7 @@ export default function RecordsScreen({
         const canRestoreDraftValues = !nutrition && !hasLegacyPlaceholder;
         if (canRestoreDraftValues) {
           if (typeof draft.meal === "string" && ["breakfast", "lunch", "dinner", "pantry"].includes(draft.meal)) setMeal(draft.meal as typeof meal);
+          if (typeof draft.mealTime === "string") setMealTime(draft.mealTime);
           if (typeof draft.name === "string") setMealName(draft.name);
           if (typeof draft.calories === "number") setMealCalories(draft.calories);
           if (Array.isArray(draft.items)) setDietItems(draftItems);
@@ -549,13 +569,13 @@ export default function RecordsScreen({
         : activeModule === "exercise"
           ? { steps, calories, minutes: exerciseMinutes, heartRate, spo2, note: exerciseNote }
           : activeModule === "diet"
-            ? { meal, name: mealName, calories: mealCalories, items: dietItems, photoPath: dietPhotoPath, proteinGrams, carbohydrateGrams, fatGrams, hydrationMl, rating: dietRating }
+            ? { meal, mealTime, name: mealName, calories: mealCalories, items: dietItems, photoPath: dietPhotoPath, proteinGrams, carbohydrateGrams, fatGrams, hydrationMl, rating: dietRating }
             : { title: focusTitle, minutes: focusMinutes, mode: focusMode, note: focusNote };
     const timer = window.setTimeout(() => {
       void saveRecordDraft(user.id, module, recordDate, payload).catch((draftError) => console.warn("Record draft sync deferred", draftError));
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [activeModule, calories, carbohydrateGrams, deepSleep, diary, dietItems, dietPhotoPath, dietRating, draftReady, exerciseMinutes, exerciseNote, fatGrams, focusMinutes, focusMode, focusNote, focusTitle, heartRate, hydrationMl, lightSleep, meal, mealCalories, mealName, moodScore, proteinGrams, recordDate, remSleep, selectedFactors, showEditor, sleepDuration, sleepEnd, sleepNote, sleepRating, sleepStart, spo2, steps, user.id]);
+  }, [activeModule, calories, carbohydrateGrams, deepSleep, diary, dietItems, dietPhotoPath, dietRating, draftReady, exerciseMinutes, exerciseNote, fatGrams, focusMinutes, focusMode, focusNote, focusTitle, heartRate, hydrationMl, lightSleep, meal, mealCalories, mealName, mealTime, moodScore, proteinGrams, recordDate, remSleep, selectedFactors, showEditor, sleepDuration, sleepEnd, sleepNote, sleepRating, sleepStart, spo2, steps, user.id]);
 
   useEffect(() => {
     const estimated = estimateMinutes(sleepStart, sleepEnd);
@@ -1002,6 +1022,7 @@ export default function RecordsScreen({
           userId: user.id,
           date: recordDate,
           meal,
+          mealTime,
           items: dietItems,
           proteinGrams,
           carbohydrateGrams,
@@ -1015,6 +1036,7 @@ export default function RecordsScreen({
           userId: user.id,
           date: recordDate,
           meal,
+          mealTime,
           item: {
             name: mealName,
             calories: mealCalories,
@@ -1175,7 +1197,7 @@ export default function RecordsScreen({
     onViewChange?.("immersive");
   }
 
-  async function saveFocusMinutes(minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string; category?: string }) {
+  async function saveFocusMinutes(minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string; category?: string; note?: string }) {
     await run("records.focus", () =>
       saveFocusSession({
         userId: user.id,
@@ -1186,6 +1208,7 @@ export default function RecordsScreen({
         startedAt: details?.startedAt,
         endedAt: details?.endedAt,
         category: details?.category,
+        note: details?.note ?? focusNote,
       }),
     );
   }
@@ -1829,6 +1852,10 @@ export default function RecordsScreen({
               </div>
             </label>
           </div>
+          <label className="field">
+            <span>{locale === "zh" ? "用餐时间" : "Meal time"}</span>
+            <input type="time" value={mealTime} onChange={(event) => setMealTime(event.target.value)} />
+          </label>
           <label className="field diet-food-field">
             <span>{t("records.food")}</span>
             <textarea

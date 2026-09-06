@@ -168,7 +168,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged }: { user: U
     setBusy("delete-account");
     setError(null);
     try {
-      await deleteCurrentAccount();
+      await deleteCurrentAccount(user.id);
       await signOut();
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : String(deleteError));

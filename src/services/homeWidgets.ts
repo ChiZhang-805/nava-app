@@ -37,11 +37,27 @@ export function loadHomeWidgetIds(userId: string): HomeWidgetId[] {
   return defaultHomeWidgetIds();
 }
 
+export async function hydrateHomeWidgetIds(userId: string): Promise<HomeWidgetId[]> {
+  const { loadUserAppPreferences, saveUserAppPreferences } = await import("./userCloudState.ts");
+  const local = loadHomeWidgetIds(userId);
+  const preferences = await loadUserAppPreferences(userId);
+  const remote = validIds(preferences?.homeWidgetIds);
+  const resolved = remote ?? local;
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(storageKey(userId), JSON.stringify({ version: 1, ids: resolved }));
+  }
+  if (!remote) await saveUserAppPreferences(userId, { homeWidgetIds: resolved });
+  return resolved;
+}
+
 export function saveHomeWidgetIds(userId: string, ids: HomeWidgetId[]) {
   const normalized = validIds(ids) ?? [];
   if (typeof window !== "undefined") {
     window.localStorage.setItem(storageKey(userId), JSON.stringify({ version: 1, ids: normalized }));
   }
+  void import("./userCloudState.ts")
+    .then(({ saveUserAppPreferences }) => saveUserAppPreferences(userId, { homeWidgetIds: normalized }))
+    .catch((error) => console.warn("Home widget cloud sync deferred", error));
   return normalized;
 }
 

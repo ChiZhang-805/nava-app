@@ -34,7 +34,7 @@ import { loadGrowthTotalPoints } from "../services/productivity";
 import { getTodaySnapshot, getTrends } from "../services/records";
 import { buildHealthModuleProgress, healthModuleEntryView, healthModuleProgressLabel } from "../services/healthReportPresentation";
 import { buildHomeGuidance, homeDayPhase, isVerticalHomeSwipe, type HomeGuidanceAction } from "../services/homeExperience";
-import { buildHomeWidgetPresentation, loadHomeWidgetIds, saveHomeWidgetIds, type HomeWidgetId } from "../services/homeWidgets";
+import { buildHomeWidgetPresentation, hydrateHomeWidgetIds, loadHomeWidgetIds, saveHomeWidgetIds, type HomeWidgetId } from "../services/homeWidgets";
 import { syncContextualNotifications, type NavaNotificationItem, type NavaNotificationTarget } from "../services/notifications";
 import type { TodaySnapshot, TrendBundle } from "../types";
 import type { RecordModule } from "./RecordsScreen";
@@ -157,6 +157,14 @@ export default function OptionTwoHome({
     else console.warn("Unable to load home widget trends", trendsResult.reason);
     setLoading(false);
   }, [deviceDate, locale, user.id]);
+
+  useEffect(() => {
+    let active = true;
+    void hydrateHomeWidgetIds(user.id)
+      .then((ids) => { if (active) setWidgetIds(ids); })
+      .catch((error) => console.warn("Home widget restore deferred", error));
+    return () => { active = false; };
+  }, [user.id]);
 
   useEffect(() => {
     void refresh();

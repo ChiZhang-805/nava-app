@@ -1,4 +1,5 @@
 import { errorResponse, jsonResponse, optionsResponse, readJson, requireUser, stringValue } from "../_shared/http.ts";
+import { accountHash, otpHmacSecret, phoneHash } from "../_shared/phone-otp.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.52.1";
 
 const privateBuckets = ["diet-photos", "face-photos", "profile-avatars"];
@@ -11,6 +12,8 @@ Deno.serve(async (req) => {
     const body = await readJson(req);
     if (stringValue(body.confirmation) !== "DELETE") throw new Error("删除确认无效。");
     if (!adminClient) throw new Error("账号删除服务尚未配置管理员密钥。");
+
+    await deleteAccountSecurityDigests(adminClient, user);
 
     for (const bucket of privateBuckets) {
       const paths = await listOwnedFiles(adminClient, bucket, user.id);
@@ -27,6 +30,41 @@ Deno.serve(async (req) => {
     return errorResponse(error);
   }
 });
+
+async function deleteAccountSecurityDigests(
+  client: SupabaseClient,
+  user: { email?: string; phone?: string; user_metadata?: Record<string, unknown> },
+) {
+  const accountIdentifiers = new Set<string>();
+  const phoneIdentifiers = new Set<string>();
+  const email = user.email?.trim().toLowerCase();
+  if (email) accountIdentifiers.add(email);
+
+  const possiblePhones: unknown[] = [user.phone, user.user_metadata?.phone];
+  const aliasedPhone = email?.match(/^(1[3-9]\d{9})@phone\.nava\.app$/)?.[1];
+  if (aliasedPhone) possiblePhones.push(aliasedPhone);
+  for (const value of possiblePhones) {
+    const phone = typeof value === "string" ? value.trim().replace(/^\+86/, "") : "";
+    if (!/^1[3-9]\d{9}$/.test(phone)) continue;
+    phoneIdentifiers.add(phone);
+    accountIdentifiers.add(phone);
+  }
+
+  const secret = otpHmacSecret();
+  const [accountDigests, phoneDigests] = await Promise.all([
+    Promise.all([...accountIdentifiers].map((identifier) => accountHash(secret, identifier))),
+    Promise.all([...phoneIdentifiers].map((phone) => phoneHash(secret, phone))),
+  ]);
+
+  if (accountDigests.length > 0) {
+    const removed = await client.from("nava_auth_account_checks").delete().in("account_hash", accountDigests);
+    if (removed.error) throw removed.error;
+  }
+  if (phoneDigests.length > 0) {
+    const removed = await client.from("nava_phone_otp_challenges").delete().in("phone_hash", phoneDigests);
+    if (removed.error) throw removed.error;
+  }
+}
 
 async function listOwnedFiles(client: SupabaseClient, bucket: string, prefix: string, depth = 0): Promise<string[]> {
   if (depth > 8) throw new Error(`私有存储目录层级异常：${bucket}`);

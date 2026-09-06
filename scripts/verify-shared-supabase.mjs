@@ -14,10 +14,10 @@ const coreTables = {
   mood_records: "id,user_id,record_date,mood_score,factors,diary_content,ai_feedback",
   sleep_records: "id,user_id,record_date,sleep_start,sleep_end,sleep_duration_minutes,deep_sleep_minutes,light_sleep_minutes,rem_minutes,self_rating,rhythm_score",
   exercise_records: "id,user_id,record_date,steps,calories,exercise_minutes,heart_rate,spo2,self_rating,device_type,updated_at",
-  nutrition_records: "id,user_id,record_date,total_calories,breakfast_items,lunch_items,dinner_items,pantry_items",
-  focus_records: "id,user_id,task_id,record_date,completed_sessions,total_minutes",
+  nutrition_records: "id,user_id,record_date,total_calories,breakfast_items,lunch_items,dinner_items,pantry_items,breakfast_time,lunch_time,dinner_time,pantry_time",
+  focus_records: "id,user_id,task_id,record_date,completed_sessions,total_minutes,note",
   focus_time_distribution: "id,user_id,record_date,period_0_6,period_6_12,period_12_18,period_18_24",
-  tasks: "id,user_id,title,scheduled_date,completed",
+  tasks: "id,user_id,title,scheduled_date,completed,source",
   ai_conversations: "id,user_id,role,content,created_at",
 };
 
@@ -34,6 +34,10 @@ const extensionTables = {
   notification_preferences: "id,user_id,notification_type,enabled,local_time",
   growth_reward_ledger: "id,user_id,event_key,points,source",
   growth_badges: "id,user_id,badge_key,awarded_at",
+  user_app_preferences: "user_id,locale,ai_speech_enabled,home_widget_ids,updated_at",
+  user_notifications: "user_id,id,category,source,title,body,read_at,deleted_at,updated_at",
+  ai_conversation_archives: "id,user_id,created_at,messages,updated_at",
+  active_user_sessions: "user_id,session_type,payload,updated_at",
 };
 
 const sharedFunctions = ["ai-extract-data", "ai-chat-reply", "diet-extract", "face-analyze", "aliyun-sms-send", "aliyun-sms-verify"];

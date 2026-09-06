@@ -54,6 +54,7 @@
     "algorithm:test": "node --experimental-strip-types --test tests/rhythm-core.test.ts",
     "health:contract:test": "node --experimental-strip-types --test tests/health-native-contract.test.ts",
     "consent:contract:test": "node --experimental-strip-types --test tests/consent-data-boundary.test.ts",
+    "cloud-data:test": "node --experimental-strip-types --test tests/cloud-data-completeness.test.ts",
     "health:verify:account": "node scripts/verify-health-sync-boundary.mjs",
     "health:audit:production": "node scripts/audit-health-functions.mjs",
     "fdnb:test": "node --experimental-strip-types --test tests/fdnb-health-core.test.ts",

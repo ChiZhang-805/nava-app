@@ -10,7 +10,8 @@ public class NavaWatchBridgePlugin: CAPPlugin, CAPBridgedPlugin, WCSessionDelega
         CAPPluginMethod(name: "publishSnapshot", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "isReachable", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "drainPendingActions", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "acknowledgePendingActions", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "acknowledgePendingActions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "clearAccountState", returnType: CAPPluginReturnPromise)
     ]
 
     private let pendingActionsQueue = DispatchQueue(label: "health.nava.watch.pending-actions")
@@ -85,6 +86,26 @@ public class NavaWatchBridgePlugin: CAPPlugin, CAPBridgedPlugin, WCSessionDelega
             } catch {
                 DispatchQueue.main.async {
                     call.reject("Unable to acknowledge pending Watch actions.", nil, error)
+                }
+            }
+        }
+    }
+
+    @objc func clearAccountState(_ call: CAPPluginCall) {
+        pendingActionsQueue.async {
+            do {
+                try self.writePendingActions([])
+                if WCSession.isSupported() {
+                    self.activateSession()
+                    try WCSession.default.updateApplicationContext([
+                        "signedOut": true,
+                        "clearedAt": ISO8601DateFormatter().string(from: Date())
+                    ])
+                }
+                DispatchQueue.main.async { call.resolve(["ok": true]) }
+            } catch {
+                DispatchQueue.main.async {
+                    call.reject("Unable to clear Watch account state.", nil, error)
                 }
             }
         }

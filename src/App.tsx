@@ -34,6 +34,7 @@ import { subscribeHealthSyncCompletion } from "./services/health";
 import { isAiSpeechSupported } from "./services/aiSpeech";
 import {
   ensureNotificationQaState,
+  hydrateNavaNotifications,
   listNavaNotifications,
   markNavaNotification,
   notifyRecordSaved,
@@ -42,6 +43,7 @@ import {
   type NavaNotificationItem,
   type NavaNotificationTarget,
 } from "./services/notifications";
+import { loadUserAppPreferences, saveUserAppPreferences } from "./services/userCloudState";
 import {
   fallbackShellRoute,
   hasPreviousShellRoute,
@@ -114,7 +116,7 @@ function MobileShell({
 }) {
   const { user } = useAuth();
   const t = useT();
-  const { locale } = useLocale();
+  const { locale, setLocale } = useLocale();
   const forcePageSkeleton = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "skeleton";
   const forcedSkeletonVariant = currentSkeletonVariant();
   const initialRouteRef = useRef<ShellRoute>(readShellRoute());
@@ -145,6 +147,7 @@ function MobileShell({
   const [rewardQueue, setRewardQueue] = useState<GrowthRewardGrant[][]>([]);
   const [notificationItems, setNotificationItems] = useState<NavaNotificationItem[]>(() => user ? listNavaNotifications(user.id) : []);
   const [notificationBanner, setNotificationBanner] = useState<NavaNotificationItem | null>(null);
+  const [cloudBootstrapReady, setCloudBootstrapReady] = useState(() => isDemoMode());
   const contentRef = useRef<HTMLElement | null>(null);
   const utilityButtonRef = useRef<HTMLButtonElement | null>(null);
   const utilityPopoverRef = useRef<HTMLDivElement | null>(null);
@@ -158,6 +161,13 @@ function MobileShell({
   const rewardClaimTailRef = useRef<Promise<GrowthSummary | null>>(Promise.resolve(null));
   const checkinUserRef = useRef<string | null>(null);
   const initialHomeGuidanceShownRef = useRef(false);
+  const preferencesHydratedUserRef = useRef<string | null>(null);
+  const bootstrapLocaleRef = useRef(locale);
+  const bootstrapAiSpeechRef = useRef(aiSpeechEnabled);
+  const setLocaleRef = useRef(setLocale);
+  bootstrapLocaleRef.current = locale;
+  bootstrapAiSpeechRef.current = aiSpeechEnabled;
+  setLocaleRef.current = setLocale;
   const currentTab = tabs.find((tab) => tab.id === activeTab);
   const aiSpeechSupported = isAiSpeechSupported();
   const recordTitles: Record<RecordModule, { zh: string; en: string }> = {
@@ -289,16 +299,66 @@ function MobileShell({
   const dismissNotificationBanner = useCallback(() => setNotificationBanner(null), []);
 
   useEffect(() => {
-    if (!user) return;
-    setNotificationItems(listNavaNotifications(user.id));
+    const userId = user?.id;
+    if (!userId) return;
+    let active = true;
+    setCloudBootstrapReady(isDemoMode());
+    const localNotifications = listNavaNotifications(userId);
+    setNotificationItems(localNotifications);
+    void Promise.allSettled([
+      hydrateNavaNotifications(userId),
+      loadUserAppPreferences(userId),
+    ]).then(async ([notificationResult, preferenceResult]) => {
+      if (!active) return;
+      if (notificationResult.status === "fulfilled") setNotificationItems(notificationResult.value);
+      else console.warn("Notification cloud restore deferred", notificationResult.reason);
+      let effectiveLocale = bootstrapLocaleRef.current;
+      if (preferenceResult.status === "fulfilled" && preferenceResult.value) {
+        const preferences = preferenceResult.value;
+        setAiSpeechEnabled(preferences.aiSpeechEnabled);
+        window.localStorage.setItem(`nava-ai-speech-enabled:${userId}`, String(preferences.aiSpeechEnabled));
+        setLocaleRef.current(preferences.locale);
+        effectiveLocale = preferences.locale;
+      } else if (preferenceResult.status === "rejected") {
+        console.warn("Preference cloud restore deferred", preferenceResult.reason);
+      } else {
+        void saveUserAppPreferences(userId, {
+          locale: bootstrapLocaleRef.current,
+          aiSpeechEnabled: bootstrapAiSpeechRef.current,
+        })
+          .catch((error) => console.warn("Preference cloud bootstrap deferred", error));
+      }
+      preferencesHydratedUserRef.current = userId;
+      setCloudBootstrapReady(true);
+      ensureNotificationQaState(userId, effectiveLocale);
+    });
+    return () => { active = false; };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user || !cloudBootstrapReady) return;
     const unsubscribe = subscribeNavaNotifications(user.id, (change) => {
       setNotificationItems(change.items);
       if (change.presented) setNotificationBanner(change.presented);
       if (change.opened) openNotificationItem(change.opened);
     });
-    ensureNotificationQaState(user.id, locale);
-    return unsubscribe;
-  }, [locale, openNotificationItem, user]);
+    const refreshFromCloud = () => {
+      void hydrateNavaNotifications(user.id)
+        .then(setNotificationItems)
+        .catch((error) => console.warn("Notification foreground restore deferred", error));
+    };
+    window.addEventListener("focus", refreshFromCloud);
+    return () => {
+      unsubscribe();
+      window.removeEventListener("focus", refreshFromCloud);
+    };
+  }, [cloudBootstrapReady, openNotificationItem, user]);
+
+  useEffect(() => {
+    if (!user || preferencesHydratedUserRef.current !== user.id) return;
+    void saveUserAppPreferences(user.id, { locale })
+      .catch((error) => console.warn("Locale cloud sync deferred", error));
+  }, [locale, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -330,6 +390,8 @@ function MobileShell({
       } catch {
         // The current session can still use the selected setting.
       }
+      if (user) void saveUserAppPreferences(user.id, { aiSpeechEnabled: next })
+        .catch((error) => console.warn("AI speech preference cloud sync deferred", error));
       return next;
     });
   };
@@ -587,7 +649,7 @@ function MobileShell({
         ref={contentRef}
       >
         <div className="screen-panel">
-          {forcePageSkeleton
+          {!cloudBootstrapReady || forcePageSkeleton
             ? activeTab === "today" && forcedSkeletonVariant !== "today"
               ? <section className={["home-experience", "page-loading-home-experience", forcedSkeletonVariant === "advanced-profile" ? "advanced-profile-screen" : ""].filter(Boolean).join(" ")}><header className="home-experience-header page-loading-subheader" aria-hidden="true"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-title" /><SkeletonBlock className="is-circle" /></header><PageSkeleton variant={forcedSkeletonVariant} /></section>
               : <PageSkeleton variant={forcedSkeletonVariant} />

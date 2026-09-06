@@ -10,16 +10,20 @@ export interface AuthState {
 
 export interface MoodRecord {
   id: string;
+  user_id?: string;
   record_date: string;
   mood_score: number;
   factors: string[];
   diary_content: string | null;
   ai_feedback: string | null;
   diary_sentiment?: number | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface SleepRecord {
   id: string;
+  user_id?: string;
   record_date: string;
   sleep_start: string | null;
   sleep_end: string | null;
@@ -27,30 +31,51 @@ export interface SleepRecord {
   deep_sleep_minutes: number | null;
   light_sleep_minutes: number | null;
   rem_minutes: number | null;
+  sleep_latency_minutes?: number | null;
+  device_type?: string | null;
   self_rating: number | null;
+  self_note?: string | null;
   rhythm_score: number | null;
   ai_feedback: string | null;
+  is_night_owl?: boolean | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ExerciseRecord {
   id: string;
+  user_id?: string;
   record_date: string;
   steps: number | null;
   calories: number | null;
+  steps_goal?: number | null;
+  calories_goal?: number | null;
   exercise_minutes: number | null;
   heart_rate: string | null;
   spo2: string | null;
+  blood_pressure?: string | null;
+  respiratory_rate?: number | null;
+  device_type?: string | null;
   self_rating: number | null;
+  self_note?: string | null;
   ai_feedback: string | null;
+  hourly_steps?: Array<Record<string, unknown>> | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface NutritionRecord {
   id: string;
+  user_id?: string;
   record_date: string;
   total_calories: number;
   breakfast_photo_url?: string | null;
   lunch_photo_url?: string | null;
   dinner_photo_url?: string | null;
+  breakfast_time?: string | null;
+  lunch_time?: string | null;
+  dinner_time?: string | null;
+  pantry_time?: string | null;
   breakfast_items?: FoodItem[];
   lunch_items?: FoodItem[];
   dinner_items?: FoodItem[];
@@ -61,6 +86,8 @@ export interface NutritionRecord {
   hydration_ml?: number | null;
   health_rating?: number | null;
   ai_feedback: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface FoodItem {
@@ -76,13 +103,18 @@ export interface FoodItem {
 
 export interface TaskRecord {
   id: string;
+  user_id?: string;
   title: string;
   scheduled_date: string;
   completed: boolean;
+  source?: "manual" | "ai";
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface FocusRecord {
   id: string;
+  user_id?: string;
   task_id: string;
   record_date: string;
   completed_sessions: number;
@@ -91,6 +123,9 @@ export interface FocusRecord {
   category?: string | null;
   started_at?: string | null;
   ended_at?: string | null;
+  note?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface FocusTimeDistribution {

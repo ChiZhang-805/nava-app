@@ -1,6 +1,6 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
-更新时间：**2026-09-05**
+更新时间：**2026-09-06**
 
 这份文件是新 Codex 任务接手 NAVA 时的第一入口，也是当前项目状态的
 **独立、可直接使用的交接文档**。它不依赖这段很长、曾多次出现界面回退的
@@ -168,8 +168,9 @@ GitHub Pages 镜像的 `source.json` 已记录 v104 和上述功能源码 commit
   调用、结构化记录确认和产品化处理状态。
 - `consent.ts`：授权边界，不能被页面快捷逻辑绕过。
 - `secureFaceDraft.ts`：AES-GCM + IndexedDB 的短期面部草稿恢复。
-- `homeWidgets.ts`：用户设备侧首页组件偏好、目标默认组合、真实日值和近七日比较。
-- `sessionMaintenance.ts`：可恢复的睡眠进行中会话及结束后的可编辑字段映射。
+- `homeWidgets.ts`：账号云端首页组件偏好、本地离线缓存、统一默认组合、真实日值和近七日比较。
+- `userCloudState.ts`：语言/AI 语音/首页组件偏好、AI 会话归档和进行中专注/睡眠会话的云端读写。
+- `sessionMaintenance.ts`：可跨设备恢复的睡眠进行中会话及结束后的可编辑字段映射。
 - `productivity.ts`、`growthProgressPresentation.ts`、`rewardPresentation.ts`：任务、
   积分、奖励与已确认保存后的反馈。
 - `date.ts`、`useDeviceDate.ts`：设备本地日期和跨日刷新，禁止重新写死演示日期。
@@ -641,7 +642,7 @@ npm run ios:verify
 npm run supabase:verify-shared
 ```
 
-`npm run verify` 当前是 24 阶段综合门禁，interaction suite 当前记录为 11 组；具体
+`npm run verify` 当前是 26 阶段综合门禁，interaction suite 当前记录为 11 组；具体
 数字可能随脚本更新，新任务应以运行输出为准。构建通过不等于真实 Supabase 写入、
 OTP 送达、模型 provider 可用、HealthKit 真机权限或视觉验收通过。
 
@@ -656,6 +657,11 @@ consent、翻译 DOM 韧性、请求缓存边界、通知规划和首页动态 g
 Function typecheck 全部通过。2026-09-06 部署前又运行相同的三个定向命令，结果仍为
 9/9、4/4 和 16 个 Function typecheck 全部通过；生产 `ai-health-report` v5 随后已部署，
 但真实账户模型生成和缓存行为仍未验证。
+
+2026-09-06 本轮云端完整性最终源码再次运行完整 `npm run verify`，26 个阶段全部通过；
+新增第 26 阶段固定全部账号表/Storage 导出、级联删除、本地缓存云端对应物和以前遗漏
+字段的合同。随后 `npm run auth:verify:production` 也通过，canonical project、公开站
+禁用 demo 绕过、当前 tab 认证和邮箱/手机号入口均符合合同；严格 SMTP 状态未检查。
 
 近期证据目录：
 
@@ -699,8 +705,6 @@ Function typecheck 全部通过。2026-09-06 部署前又运行相同的三个�
 - 生产 seed、账户 backfill 或删除记录
 - 退役 legacy function / 轮换 legacy key
 - TestFlight 或 App Store 发布
-
-本次交接是纯文档修改，不需要重新部署 v96 网站。
 
 ## 17. 详细资料与账户页最新合同
 
@@ -858,15 +862,15 @@ Supabase 资源。
 
 通知内容不使用生产示例数据。六模块成功保存会产生完成通知；首页读取当前用户真实
 `TodaySnapshot` 后，按本地时间和真实缺失/低活动/专注/情绪完整性/面部记录以及
-ChronoState 已持久化 action 生成当日提醒。收件箱状态当前按用户保存在设备
-`localStorage`，并非 Supabase 跨设备消息表；`notification_preferences` 继续只保存
-已有 RLS 保护的提醒偏好。
+ChronoState 已持久化 action 生成当日提醒。收件箱、已读和删除 tombstone 以
+`user_notifications` 为跨设备事实源，`localStorage` 只作启动/离线缓存；
+`notification_preferences` 继续保存已有 RLS 保护的提醒偏好。
 
 Capacitor 本地通知现可安排睡眠、饮食、专注、情绪、今日状态和周报，前台接收或点击
 系统通知会回流应用内收件箱并打开相应模块。这个结论是源码与 Windows 静态合同，仍
 不能替代 Mac/Xcode/iPhone 的锁屏、后台、权限和深链真机验收。仓库没有 Android 原生
-工程，所以华为锁屏通知也尚未交付；APNs/FCM/HMS 远程 Push、设备 token、服务端发送
-与多端已读同步均未实现，且需要用户另行授权 migration、secret 与 Edge Function。
+工程，所以华为锁屏通知也尚未交付；APNs/FCM/HMS 远程 Push、设备 token 和服务端发送
+均未实现。应用内收件箱多端同步已完成，但不能冒充系统锁屏远程 Push。
 
 完整边界见 [`NOTIFICATIONS_DELIVERY.md`](./NOTIFICATIONS_DELIVERY.md)。原生锁屏送达仍
 必须等 Mac/Xcode/iPhone 真机验收后才能写成完成。
@@ -905,7 +909,7 @@ canonical Supabase project ref `wxteapvwagvhhtrjrbim` 与本轮 guidance 实现�
 情绪、饮食五项，面部作为可选第六项。首页组件只显示一个核心值和一条辅助信息，值来自
 当前用户真实 `TodaySnapshot`；未完成或部分完成点击进入编辑器，达到模块完整标准后点击
 进入数据详情。至少有两个更早记录日时才显示最近最多七个记录日的百分比变化。组件显示
-偏好只存在当前设备，不扩大 AI consent 范围。
+偏好同步到账号云端并在本机保留离线缓存，不扩大 AI consent 范围。
 
 首页右侧快捷入口已固定为三横杠菜单、通知、健康日历、详细资料、功能导航；三横杠始终
 在最上方，并统一收起/展开其余四项，收起时这些按钮退出键盘焦点。首页健康卡统一为
@@ -946,7 +950,7 @@ session、刷新页面或从其他页面返回首页均不会再次出现。卡�
   登录页，未出现 `.phone-frame` 演示态。
 
 持续清单 [`PRODUCT_REQUIREMENTS_CHECKLIST.md`](./PRODUCT_REQUIREMENTS_CHECKLIST.md)
-当前为 61 项完成、34 项待完成。剩余项中，Apple/通知真机、Android/华为、远程 Push、
+加入四项账号数据完整性验收后当前为 65 项完成、34 项待完成。剩余项中，Apple/通知真机、Android/华为、远程 Push、
 健康报告 AI 真实账户验收和余下饮食 Edge Function 上线需要人工环境或额外后端授权；商城、社区、复杂
 猫窝与多尺寸组件明确延期；AI 半屏、长按手势归属、运动结构化会话等仍需后续产品或
 实现批次，不能写成已完成。
@@ -976,3 +980,41 @@ canonical Supabase；生产由 function version 8 / 模型合同 v3 升为 versi
 仍需用产生截图的真实账户/同一周数据验证：首次生成成功并写缓存、页面切换零重复调用、
 无数据变化跨重载命中持久化缓存、修改一条相关记录后指纹变化并恰好重新生成一次。在这组
 真实账户证据完成前，只能说修复已上线，不能说截图问题已在真实数据边界闭环。
+
+## 27. 账号云端数据完整性与删除/导出合同
+
+2026-09-06 已获得用户对本轮 Supabase 数据完整性修改和部署的明确授权。生产 migration
+`202609060001_cloud_data_completeness.sql` 已实际应用到 canonical project
+`wxteapvwagvhhtrjrbim`，本地/远端 migration history 均为 21 项。新增：
+
+- `user_app_preferences`：语言、AI 语音、首页 0–6 个组件及顺序；
+- `user_notifications`：应用内收件箱、已读/删除状态与 Realtime；
+- `ai_conversation_archives`：AI 历史会话归档；
+- `active_user_sessions`：进行中的专注/睡眠会话；
+- `focus_records.note`、`tasks.source`、`nutrition_records.pantry_time`，并补齐四餐时间读写。
+
+迁移把 11 张旧业务表补成指向 `auth.users` 的级联外键，把 analytics 从
+`ON DELETE SET NULL` 改成 `ON DELETE CASCADE`，并在生产事务内遍历所有 public
+`user_id` 表及 `profiles.id`：任一对象没有 `ON DELETE CASCADE` 即失败。迁移成功因此是
+实际生产结构证据，而不是只读源码推断。旧账号 profile 回填后，生产表统计显示 profiles
+从 2 行变为 3 行，与已知 3 个 Auth 用户一致；没有打印账号、token 或私有记录。
+
+`export-user-data` 已升级并部署为生产 version 15、ACTIVE、`verify_jwt=true`。导出包含
+Auth 基本身份、全部 39 张账号归属 public 表，以及 `diet-photos`、`face-photos`、
+`profile-avatars` 的路径/大小/类型/更新时间和一小时下载 URL；任一表或 Storage 读取失败
+会整体报错，不再返回伪完整结果。未登录实际 POST 返回 401。由于没有在本任务取得真实
+用户凭据，尚未把某个真实账号的完整 JSON 下载到本地；这项不能写成已做真实账号内容验收。
+
+客户端删除确认现在也会清理该用户 local/session storage、30 分钟 AES-GCM 面部草稿、
+Watch 本地队列和应用上下文、已安排的六类系统本地通知；服务端仍先删除三个 Storage
+用户前缀，并用相同服务端 HMAC 合同清除该邮箱/手机号对应的账号检查与 OTP 摘要，
+再删除 Auth，由上述外键级联清表。更新后的 `delete-account` 已部署为生产 version 9、
+ACTIVE、`verify_jwt=true`，未登录实际 POST 返回 401。本轮没有删除任何真实用户，也没有运行
+production seed/backfill；“没有残留”的证据是生产结构断言、删除源码合同与静态测试，
+仍建议在专门可牺牲测试账号上做一次端到端破坏性验收。
+
+有意保留在本机而不上传的只有：浏览器当前 tab 的认证会话、未由用户确认上传的短期
+加密面部草稿、Watch 离线待发送动作以及纯演示/视觉 QA 状态。其他 localStorage 项均为
+Supabase 事实源的缓存或迁移缓冲。`npm run cloud-data:test` 固定导出表清单、Storage、
+级联删除、云端偏好/通知/AI 归档/活动会话和以前丢失字段的源码合同；生产 REST 探测已
+确认新增表和字段可达。

@@ -409,6 +409,7 @@ export async function saveNutritionRecord(input: {
   hydrationMl?: number;
   healthRating?: number;
   photoUrl?: string;
+  mealTime?: string;
 }) {
   if (isDemoMode()) return saveDemoNutrition({ date: input.date, meal: input.meal, items: [input.item], totalCalories: input.totalCalories, append: true });
 
@@ -425,6 +426,7 @@ export async function saveNutritionRecord(input: {
 
   const current = (existing.data ?? {}) as Partial<NutritionRecord>;
   const key = `${input.meal}_items` as keyof NutritionRecord;
+  const timeKey = `${input.meal}_time` as keyof NutritionRecord;
   const items = asArray<FoodItem>(current[key]);
   const existingTotal = current.total_calories ?? 0;
   const previousItemCalories = items.reduce((sum, item) => sum + (Number(item.calories) || 0), 0);
@@ -445,6 +447,7 @@ export async function saveNutritionRecord(input: {
     hydration_ml: input.hydrationMl ?? current.hydration_ml ?? null,
     health_rating: input.healthRating ?? current.health_rating ?? null,
     [key]: newMealItems,
+    [timeKey]: input.mealTime || current[timeKey] || null,
     ...(
       input.meal !== "pantry" && input.photoUrl
         ? { [`${input.meal}_photo_url`]: input.photoUrl }
@@ -473,6 +476,7 @@ export async function saveNutritionItems(input: {
   fatGrams?: number;
   hydrationMl?: number;
   healthRating?: number;
+  mealTime?: string;
 }) {
   if (input.items.length === 0) throw new Error("没有可保存的食物条目。");
   if (isDemoMode()) return saveDemoNutrition({ date: input.date, meal: input.meal, items: input.items });
@@ -489,6 +493,7 @@ export async function saveNutritionItems(input: {
   const current = (existing.data ?? {}) as Partial<NutritionRecord>;
   const key = `${input.meal}_items` as keyof NutritionRecord;
   const photoKey = `${input.meal}_photo_url`;
+  const timeKey = `${input.meal}_time` as keyof NutritionRecord;
   const payload = {
     user_id: input.userId,
     record_date: recordDate,
@@ -505,6 +510,7 @@ export async function saveNutritionItems(input: {
     lunch_photo_url: "lunch_photo_url" in current ? current.lunch_photo_url : undefined,
     dinner_photo_url: "dinner_photo_url" in current ? current.dinner_photo_url : undefined,
     [key]: input.items,
+    [timeKey]: input.mealTime || current[timeKey] || null,
     ...(photoKey !== "pantry_photo_url" && input.photoUrl ? { [photoKey]: input.photoUrl } : {}),
   };
   const totalCalories = [
@@ -621,6 +627,7 @@ export async function saveFocusSession(input: {
   category?: string;
   startedAt?: string;
   endedAt?: string;
+  note?: string;
 }) {
   if (isDemoMode()) return saveDemoFocus(input);
 
@@ -647,6 +654,7 @@ export async function saveFocusSession(input: {
     category: input.category?.trim() || existing.data?.category || null,
     started_at: input.startedAt ?? existing.data?.started_at ?? null,
     ended_at: input.endedAt ?? new Date().toISOString(),
+    note: input.note?.trim() || existing.data?.note || null,
   };
 
   const response = existing.data

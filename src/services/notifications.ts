@@ -33,6 +33,7 @@ export interface NavaNotificationItem {
   target?: NavaNotificationTarget;
   readAt?: string;
   deletedAt?: string;
+  updatedAt?: string;
 }
 
 export interface NavaNotificationChange {
@@ -41,7 +42,7 @@ export interface NavaNotificationChange {
   opened?: NavaNotificationItem;
 }
 
-type PreferenceType = "sleep" | "nutrition" | "mood" | "focus" | "weekly_report" | "fdnb_signal";
+export type NotificationPreferenceType = "sleep" | "nutrition" | "mood" | "focus" | "weekly_report" | "fdnb_signal";
 
 function inboxKey(userId: string) {
   return `nava-notification-inbox:v1:${userId}`;
@@ -64,6 +65,32 @@ function readStoredItems(userId: string): NavaNotificationItem[] {
   }
 }
 
+function itemRevision(item: NavaNotificationItem) {
+  const revisions = [item.updatedAt, item.deletedAt, item.readAt, item.createdAt]
+    .filter((value): value is string => typeof value === "string")
+    .sort();
+  return revisions[revisions.length - 1] ?? item.createdAt;
+}
+
+function cloudRowToItem(row: Record<string, unknown>): NavaNotificationItem | null {
+  if (typeof row.id !== "string" || typeof row.title !== "string" || typeof row.body !== "string" || typeof row.created_at !== "string") return null;
+  if (!["sleep", "nutrition", "mood", "focus", "exercise", "face", "weekly", "system"].includes(String(row.category))) return null;
+  if (!["contextual", "record", "native", "system"].includes(String(row.source))) return null;
+  const target = row.target && typeof row.target === "object" ? row.target as NavaNotificationTarget : undefined;
+  return {
+    id: row.id,
+    category: row.category as NavaNotificationCategory,
+    source: row.source as NavaNotificationSource,
+    title: row.title,
+    body: row.body,
+    createdAt: row.created_at,
+    target,
+    readAt: typeof row.read_at === "string" ? row.read_at : undefined,
+    deletedAt: typeof row.deleted_at === "string" ? row.deleted_at : undefined,
+    updatedAt: typeof row.updated_at === "string" ? row.updated_at : undefined,
+  };
+}
+
 function compactItems(items: NavaNotificationItem[]) {
   const cutoff = Date.now() - TOMBSTONE_RETENTION_MS;
   return [...items]
@@ -82,10 +109,60 @@ function emitChange(userId: string, presented?: NavaNotificationItem) {
   }));
 }
 
-function writeStoredItems(userId: string, items: NavaNotificationItem[], presented?: NavaNotificationItem) {
+async function persistNotificationItems(userId: string, items: NavaNotificationItem[]) {
+  if (isDemoMode() || items.length === 0) return;
+  const rows = compactItems(items).map((item) => ({
+    user_id: userId,
+    id: item.id,
+    category: item.category,
+    source: item.source,
+    title: item.title,
+    body: item.body,
+    target: item.target ?? null,
+    created_at: item.createdAt,
+    read_at: item.readAt ?? null,
+    deleted_at: item.deletedAt ?? null,
+    updated_at: item.updatedAt ?? itemRevision(item),
+  }));
+  const result = await supabase.from("user_notifications").upsert(rows, { onConflict: "user_id,id" });
+  if (result.error) throw result.error;
+}
+
+function writeStoredItems(
+  userId: string,
+  items: NavaNotificationItem[],
+  presented?: NavaNotificationItem,
+  persist: boolean | NavaNotificationItem[] = true,
+) {
   const compacted = compactItems(items);
   window.localStorage.setItem(inboxKey(userId), JSON.stringify(compacted));
   emitChange(userId, presented);
+  const cloudChanges = Array.isArray(persist) ? persist : persist ? compacted : [];
+  if (cloudChanges.length > 0) {
+    void persistNotificationItems(userId, cloudChanges)
+      .catch((error) => console.warn("Notification cloud sync deferred", error));
+  }
+  return visibleItems(compacted);
+}
+
+export async function hydrateNavaNotifications(userId: string, migrateLocal = true) {
+  const local = readStoredItems(userId);
+  if (isDemoMode()) return visibleItems(compactItems(local));
+  const result = await supabase
+    .from("user_notifications")
+    .select("id,category,source,title,body,target,created_at,read_at,deleted_at,updated_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (result.error) throw result.error;
+  const merged = new Map<string, NavaNotificationItem>();
+  for (const item of [...(result.data ?? []).map((row) => cloudRowToItem(row)).filter((item): item is NavaNotificationItem => Boolean(item)), ...local]) {
+    const existing = merged.get(item.id);
+    if (!existing || itemRevision(item) > itemRevision(existing)) merged.set(item.id, item);
+  }
+  const compacted = compactItems([...merged.values()]);
+  writeStoredItems(userId, compacted, undefined, false);
+  if (migrateLocal && local.length > 0) await persistNotificationItems(userId, compacted);
   return visibleItems(compacted);
 }
 
@@ -107,9 +184,19 @@ export function subscribeNavaNotifications(userId: string, listener: (change: Na
   };
   window.addEventListener(notificationEventName, onChange);
   window.addEventListener("storage", onStorage);
+  const channel = isDemoMode()
+    ? null
+    : supabase.channel(`user-notifications:${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_notifications", filter: `user_id=eq.${userId}` }, () => {
+        void hydrateNavaNotifications(userId, false)
+          .then((items) => listener({ items }))
+          .catch((error) => console.warn("Notification realtime refresh deferred", error));
+      })
+      .subscribe();
   return () => {
     window.removeEventListener(notificationEventName, onChange);
     window.removeEventListener("storage", onStorage);
+    if (channel) void supabase.removeChannel(channel);
   };
 }
 
@@ -122,10 +209,11 @@ export function publishNavaNotification(
   const existingIndex = items.findIndex((item) => item.id === input.id);
   if (existingIndex >= 0 && !options.replace) return { item: items[existingIndex], created: false };
 
-  const item: NavaNotificationItem = { ...input, createdAt: input.createdAt ?? new Date().toISOString() };
+  const now = new Date().toISOString();
+  const item: NavaNotificationItem = { ...input, createdAt: input.createdAt ?? now, updatedAt: now };
   if (existingIndex >= 0) items.splice(existingIndex, 1, item);
   else items.unshift(item);
-  writeStoredItems(userId, items, options.present ? item : undefined);
+  writeStoredItems(userId, items, options.present ? item : undefined, [item]);
   if (options.present) presentBrowserNotification(userId, item);
   return { item, created: existingIndex < 0 };
 }
@@ -137,16 +225,26 @@ export function markNavaNotification(userId: string, id: string, read: boolean) 
 export function markNavaNotifications(userId: string, ids: string[], read: boolean) {
   const selected = new Set(ids);
   const now = new Date().toISOString();
-  return writeStoredItems(userId, readStoredItems(userId).map((item) => (
-    selected.has(item.id) ? { ...item, readAt: read ? now : undefined } : item
-  )));
+  const changed: NavaNotificationItem[] = [];
+  const next = readStoredItems(userId).map((item) => {
+    if (!selected.has(item.id)) return item;
+    const updated = { ...item, readAt: read ? now : undefined, updatedAt: now };
+    changed.push(updated);
+    return updated;
+  });
+  return writeStoredItems(userId, next, undefined, changed);
 }
 
 export function markAllNavaNotificationsRead(userId: string) {
   const now = new Date().toISOString();
-  return writeStoredItems(userId, readStoredItems(userId).map((item) => (
-    item.deletedAt || item.readAt ? item : { ...item, readAt: now }
-  )));
+  const changed: NavaNotificationItem[] = [];
+  const next = readStoredItems(userId).map((item) => {
+    if (item.deletedAt || item.readAt) return item;
+    const updated = { ...item, readAt: now, updatedAt: now };
+    changed.push(updated);
+    return updated;
+  });
+  return writeStoredItems(userId, next, undefined, changed);
 }
 
 export function deleteNavaNotification(userId: string, id: string) {
@@ -159,9 +257,14 @@ export function deleteNavaNotifications(userId: string, ids: string[]) {
   const removed = items.filter((candidate) => selected.has(candidate.id) && !candidate.deletedAt);
   if (removed.length === 0) return [];
   const deletedAt = new Date().toISOString();
-  writeStoredItems(userId, items.map((candidate) => (
-    selected.has(candidate.id) && !candidate.deletedAt ? { ...candidate, deletedAt } : candidate
-  )));
+  const changed: NavaNotificationItem[] = [];
+  const next = items.map((candidate) => {
+    if (!selected.has(candidate.id) || candidate.deletedAt) return candidate;
+    const updated = { ...candidate, deletedAt, updatedAt: deletedAt };
+    changed.push(updated);
+    return updated;
+  });
+  writeStoredItems(userId, next, undefined, changed);
   return removed;
 }
 
@@ -171,13 +274,16 @@ export function restoreNavaNotification(userId: string, item: NavaNotificationIt
 
 export function restoreNavaNotifications(userId: string, restoredItems: NavaNotificationItem[]) {
   const items = readStoredItems(userId);
+  const updatedAt = new Date().toISOString();
+  const changed: NavaNotificationItem[] = [];
   for (const item of restoredItems) {
-    const restored = { ...item, deletedAt: undefined };
+    const restored = { ...item, deletedAt: undefined, updatedAt };
+    changed.push(restored);
     const index = items.findIndex((candidate) => candidate.id === item.id);
     if (index >= 0) items.splice(index, 1, restored);
     else items.unshift(restored);
   }
-  return writeStoredItems(userId, items);
+  return writeStoredItems(userId, items, undefined, changed);
 }
 
 export function notifyRecordSaved(userId: string, module: NavaNotificationTarget["module"], recordDate: string, locale: "zh" | "en") {
@@ -235,7 +341,23 @@ function parseTime(value: string) {
   };
 }
 
-async function savePreference(userId: string, type: PreferenceType, localTime: string) {
+export async function loadNotificationPreference(userId: string, type: NotificationPreferenceType) {
+  if (isDemoMode()) return null;
+  const result = await supabase
+    .from("notification_preferences")
+    .select("enabled,local_time,timezone")
+    .eq("user_id", userId)
+    .eq("notification_type", type)
+    .maybeSingle();
+  if (result.error) throw result.error;
+  return result.data ? {
+    enabled: result.data.enabled === true,
+    localTime: typeof result.data.local_time === "string" ? result.data.local_time.slice(0, 5) : null,
+    timezone: typeof result.data.timezone === "string" ? result.data.timezone : null,
+  } : null;
+}
+
+async function savePreference(userId: string, type: NotificationPreferenceType, localTime: string) {
   if (isDemoMode()) return;
   const { error } = await supabase.from("notification_preferences").upsert({
     user_id: userId, notification_type: type, enabled: true, local_time: localTime,
@@ -314,6 +436,13 @@ export async function notificationPermissionState(): Promise<"granted" | "prompt
   }
   if (!("Notification" in window)) return "unsupported";
   return Notification.permission === "default" ? "prompt" : Notification.permission;
+}
+
+export async function clearScheduledNavaNotifications() {
+  if (!Capacitor.isNativePlatform()) return;
+  await LocalNotifications.cancel({
+    notifications: [SLEEP_ID, WEEKLY_ID, NUTRITION_ID, FOCUS_ID, MOOD_ID, HEALTH_ID].map((id) => ({ id })),
+  });
 }
 
 function targetFromDestination(destination: unknown): NavaNotificationTarget | undefined {

@@ -27,14 +27,36 @@ export function loadSleepMaintenance(userId: string, now = new Date()): SleepMai
   }
 }
 
+export async function hydrateSleepMaintenance(userId: string, now = new Date()): Promise<SleepMaintenanceSession | null> {
+  const { clearActiveUserSession, loadActiveUserSession, saveActiveUserSession } = await import("./userCloudState.ts");
+  const local = loadSleepMaintenance(userId, now);
+  const remote = await loadActiveUserSession<Partial<SleepMaintenanceSession>>(userId, "sleep");
+  const resolved = remote?.version === 1 && validStartedAt(remote.startedAt, now)
+    ? { version: 1 as const, startedAt: remote.startedAt as string }
+    : local;
+  if (resolved) {
+    window.localStorage.setItem(keyFor(userId), JSON.stringify(resolved));
+    if (!remote) await saveActiveUserSession(userId, "sleep", { ...resolved });
+  } else if (remote) {
+    await clearActiveUserSession(userId, "sleep");
+  }
+  return resolved;
+}
+
 export function startSleepMaintenance(userId: string, now = new Date()): SleepMaintenanceSession {
   const session: SleepMaintenanceSession = { version: 1, startedAt: now.toISOString() };
   if (typeof window !== "undefined") window.localStorage.setItem(keyFor(userId), JSON.stringify(session));
+  void import("./userCloudState.ts")
+    .then(({ saveActiveUserSession }) => saveActiveUserSession(userId, "sleep", { ...session }))
+    .catch((error) => console.warn("Sleep session cloud sync deferred", error));
   return session;
 }
 
 export function clearSleepMaintenance(userId: string) {
   if (typeof window !== "undefined") window.localStorage.removeItem(keyFor(userId));
+  void import("./userCloudState.ts")
+    .then(({ clearActiveUserSession }) => clearActiveUserSession(userId, "sleep"))
+    .catch((error) => console.warn("Sleep session cloud cleanup deferred", error));
 }
 
 function localTime(date: Date) {

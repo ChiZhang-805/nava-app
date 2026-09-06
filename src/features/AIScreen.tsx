@@ -16,6 +16,7 @@ import { confirmStructuredEntry, parseStructuredEntry, type StructuredEntry } fr
 import { updateStructuredEntryField } from "../services/structuredEntryParser";
 import type { ChatMessage, DietExtractResult } from "../types";
 import { isDemoMode } from "../services/demo";
+import { loadConversationArchives, saveConversationArchive } from "../services/userCloudState";
 
 export type AiCommand = {
   id: number;
@@ -190,6 +191,26 @@ export default function AIScreen({
     }
   }, [historyKey]);
 
+  const writeHistory = useCallback((items: ConversationSnapshot[]) => {
+    const normalized = [...items]
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+      .slice(0, 20);
+    window.localStorage.setItem(historyKey, JSON.stringify(normalized));
+    return normalized;
+  }, [historyKey]);
+
+  const hydrateHistory = useCallback(async () => {
+    const local = readHistory();
+    const remote = await loadConversationArchives<ChatMessage>(user.id);
+    const merged = new Map<string, ConversationSnapshot>();
+    for (const snapshot of [...remote, ...local]) merged.set(snapshot.id, snapshot);
+    const normalized = writeHistory([...merged.values()]);
+    if (!isDemoMode() && local.length > 0) {
+      await Promise.all(local.map((snapshot) => saveConversationArchive(user.id, snapshot)));
+    }
+    return normalized;
+  }, [readHistory, user.id, writeHistory]);
+
   const archiveConversation = useCallback((current: ChatMessage[]) => {
     if (current.length === 0) return readHistory();
     const snapshot: ConversationSnapshot = {
@@ -197,10 +218,11 @@ export default function AIScreen({
       createdAt: new Date().toISOString(),
       messages: current,
     };
-    const next = [snapshot, ...readHistory()].slice(0, 20);
-    window.localStorage.setItem(historyKey, JSON.stringify(next));
+    const next = writeHistory([snapshot, ...readHistory()]);
+    void saveConversationArchive(user.id, snapshot)
+      .catch((archiveError) => console.warn("AI conversation archive sync deferred", archiveError));
     return next;
-  }, [historyKey, readHistory]);
+  }, [readHistory, user.id, writeHistory]);
 
   const refresh = useCallback(async () => {
     const requestId = ++conversationLoadRequestRef.current;
@@ -411,10 +433,13 @@ export default function AIScreen({
       if (activeRequest) setProfile(null);
     });
     setHistory(readHistory());
+    void hydrateHistory()
+      .then((items) => { if (activeRequest) setHistory(items); })
+      .catch((historyError) => console.warn("AI conversation history restore deferred", historyError));
     return () => {
       activeRequest = false;
     };
-  }, [profileRefreshKey, readHistory, user.id]);
+  }, [hydrateHistory, profileRefreshKey, readHistory, user.id]);
 
   useEffect(() => setAvatarLoadFailed(false), [profile?.avatar_url]);
 
@@ -458,6 +483,7 @@ export default function AIScreen({
     if (command.type === "history") {
       setHistory(readHistory());
       setHistoryOpen(true);
+      void hydrateHistory().then(setHistory).catch((historyError) => console.warn("AI conversation history restore deferred", historyError));
       return;
     }
     if (command.type === "voice-call") {
@@ -497,7 +523,7 @@ export default function AIScreen({
     link.download = `nava-conversation-${todayISO()}.json`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [archiveConversation, command, messages, readHistory]);
+  }, [archiveConversation, command, hydrateHistory, messages, readHistory]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "auto" });

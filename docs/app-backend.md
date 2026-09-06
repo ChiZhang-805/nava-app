@@ -17,8 +17,8 @@ App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负�
 | `diet-extract` | 私有饮食照片的真实视觉模型识别入口 | 不直接写表，App 确认后写 `nutrition_records` |
 | `face-analyze` | 私有面部照片的非诊断真实视觉模型入口 | App 确认后写 `face_records` |
 | `rhythm-score` | 读取 42 天窗口，生成 NAVA ChronoState V4.27 节律分、个人基线、节律特征、动态状态、慢性负债压力、功能补偿门控、稀疏断崖冲击、慢性停滞压力、绝对生理压力、假恢复 drawdown 压力、相位扰动保护、昼夜漂移压力、生理先导预警、硬撑型消耗压力、自适应端点校准、尾部过反应缓释、不确定性区间、异常旗标和建议 | `daily_rhythm_scores` |
-| `export-user-data` | 导出当前用户 App/Web 共享数据 | 只读 |
-| `delete-account` | 删除当前用户三个私有 bucket 下的对象并删除 Auth 身份 | 私有文件与当前 Auth 用户 |
+| `export-user-data` | 导出当前用户 Auth 身份、全部账号表以及三个私有 bucket 的文件清单和限时下载地址；任一表/文件读取失败则拒绝伪装成完整导出 | 只读 |
+| `delete-account` | 先删除当前用户三个私有 bucket 下的对象及邮箱/手机号对应的服务端 HMAC 限流摘要，再删除 Auth 身份；所有账号表由数据库外键级联删除 | 私有文件、账号安全摘要与当前 Auth 用户 |
 | `aliyun-sms-send` | 生成、限流、发送中国大陆手机号 OTP | `nava_phone_otp_challenges` |
 | `aliyun-sms-verify` | 校验 OTP 并完成手机号身份映射/登录流程 | OTP challenge 与 Auth identity |
 | `auth-account-status` | 以不暴露账号是否存在的公共响应执行注册/登录资格检查 | 只读 |
@@ -30,10 +30,11 @@ prompt 仍等待用户单独授权部署；生产环境已有这些函数的较�
 
 ## 已实现数据库/Storage
 
-当前共有 20 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单
+当前共有 21 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单
 来源。它们按顺序覆盖：移动端业务表和 Edge 后端、Rhythm/Fusion/ChronoState、
 密码复用保护、手机号 OTP、Watch action 幂等、头像、账号状态、onboarding、FDNB、
-AI 会话隔离、成长奖励、健康报告、专注待办以及 Health Realtime。
+AI 会话隔离、成长奖励、健康报告、专注待办、Health Realtime，以及跨设备账号状态和
+删除/导出完整性。
 
 查看精确清单：
 
@@ -55,6 +56,29 @@ Get-ChildItem -LiteralPath supabase/migrations -File | Sort-Object Name
 - Storage RLS：用户只能访问自己 `user_id/` 路径下的照片
 - `health_sync_jobs` Realtime publication：登录用户只通过现有 RLS 接收自己的
   同步完成事件，网页收到成功事件后重新读取规范化记录。
+- `user_app_preferences`：语言、AI 语音和首页 0–6 个组件及排序；本地存储只作缓存。
+- `user_notifications`：应用内收件箱、已读与删除 tombstone，并通过 Realtime 同步。
+- `ai_conversation_archives`：用户在 AI 页面创建的新会话归档。
+- `active_user_sessions`：进行中的专注/睡眠会话，供换设备或清理缓存后恢复。
+- `focus_records.note`、`tasks.source` 与四餐时间字段均由编辑器真实读写；新增的
+  `pantry_time` 补齐加餐时间。
+
+## 账号数据完整性合同
+
+- 生产 migration `202609060001_cloud_data_completeness.sql` 会遍历所有 public
+  `user_id` 表；任何表没有指向 `auth.users` 的 `ON DELETE CASCADE` 外键都会使迁移失败。
+  `profiles.id` 也有同样断言，旧账号缺失的 profile 会按 Auth 身份安全回填。
+- `delete-account` 还会用服务端相同 HMAC 合同清除该邮箱/手机号在
+  `nava_auth_account_checks` 与 `nava_phone_otp_challenges` 中的账号相关限流摘要。
+  这些无明文、短期留存的服务器风控状态不属于用户内容，因此不进入用户导出。
+- `export-user-data` 当前覆盖全部 39 个账号归属 public 表、Auth 基本身份与三个用户
+  Storage 前缀。它不会导出 access token、service-role、OTP、服务器密钥或其他用户数据。
+- 删除账号时，服务端先清空三个用户 Storage 前缀，再删除 Auth 身份并触发数据库级联；
+  客户端同时清除该用户的 local/session storage、AES-GCM 面部草稿、Watch 待处理动作、
+  Watch 当前快照和已安排的本地系统通知。
+- 浏览器 Supabase 登录仍有意保留为当前 tab 的 `sessionStorage`；未确认上传的原始面部
+  草稿仍只在本机加密保存 30 分钟；Watch 离线动作在送达前仍需要本机队列。这三类数据
+  留在设备是安全/离线边界，不是云端事实源缺口。
 
 ## Apple Health 正式同步合同
 
@@ -81,8 +105,9 @@ Get-ChildItem -LiteralPath supabase/migrations -File | Sort-Object Name
   记录事件生成；生产构建不注入演示通知。
 - `notification_preferences` 只保存当前用户的提醒类型、是否启用、本地时间、时区和
   最近调度时间，并由 RLS 隔离。它不是通知消息表。
-- 通知收件箱、已读/删除和撤销状态当前保存在用户当前设备的 `localStorage`，不会跨
-  浏览器或设备同步；不要把它描述成 Supabase 多端消息中心。
+- 通知收件箱、已读/删除和撤销状态以 `user_notifications` 为云端事实源；设备
+  `localStorage` 是启动与离线缓存。只同步实际变更的通知行，避免一台设备用陈旧全量列表
+  覆盖另一台设备；Realtime 会刷新当前打开的客户端。
 - Capacitor 本地通知可在已安装原生 App 中由系统离线调度；网页 Notification API
   只在页面打开且浏览器允许时作为增强。远程 APNs/FCM/HMS 尚无 token 表或发送函数。
 - 详细合同与人工验收边界见

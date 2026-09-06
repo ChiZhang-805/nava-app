@@ -112,3 +112,28 @@ export async function clearSecureFaceDraft(userId: string, date: string) {
   if (!window.indexedDB) return;
   await withStore("readwrite", (store) => store.delete(draftId(userId, date)));
 }
+
+export async function clearSecureFaceDraftsForUser(userId: string) {
+  if (!window.indexedDB) return;
+  const prefix = `${userId}:`;
+  const database = await openDatabase();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(storeName, "readwrite");
+      const store = transaction.objectStore(storeName);
+      const request = store.openKeyCursor();
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor) return;
+        if (typeof cursor.key === "string" && cursor.key.startsWith(prefix)) store.delete(cursor.key);
+        cursor.continue();
+      };
+      request.onerror = () => reject(request.error ?? new Error("Secure face draft cleanup failed."));
+      transaction.oncomplete = () => resolve();
+      transaction.onabort = () => reject(transaction.error ?? new Error("Secure face draft cleanup transaction aborted."));
+    });
+  } finally {
+    database.close();
+  }
+  window.sessionStorage.removeItem(keyStorageName(userId));
+}

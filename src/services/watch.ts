@@ -19,6 +19,7 @@ interface NavaWatchBridgePlugin {
   isReachable: () => Promise<{ reachable: boolean; paired: boolean }>;
   drainPendingActions: () => Promise<{ actions: WatchAction[] }>;
   acknowledgePendingActions: (options: { actionIds: string[] }) => Promise<{ ok: boolean; removed: number }>;
+  clearAccountState: () => Promise<{ ok: boolean }>;
   addListener?: (eventName: "watchAction", listenerFunc: (action: WatchAction) => void) => Promise<PluginListenerHandle>;
 }
 
@@ -32,6 +33,14 @@ type ResolvedWatchAction = WatchAction & { actionId: string };
 
 function accountKey(base: string, userId: string) {
   return `${base}.${userId}`;
+}
+
+export async function clearWatchAccountState(userId: string) {
+  for (const base of [WATCH_SNAPSHOT_KEY, PENDING_ACTIONS_KEY, PROCESSED_ACTIONS_KEY]) {
+    localStorage.removeItem(accountKey(base, userId));
+  }
+  flushPromises.delete(userId);
+  if (Capacitor.isNativePlatform()) await NavaWatchBridge.clearAccountState();
 }
 
 function readActionList(key: string): ResolvedWatchAction[] {

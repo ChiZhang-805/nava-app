@@ -42,7 +42,7 @@ import focusInsightMascot from "../assets/mascot/nava-read-v1.webp";
 import faceInsightMascot from "../assets/mascot/nava-mirror-v1.webp";
 import emptyTodayMascot from "../assets/mascot/nava-empty-cry-v1.webp";
 import type { FocusRecord, FoodItem, MoodRecord, TodaySnapshot, TrendBundle } from "../types";
-import { enableNavaNotifications } from "../services/notifications";
+import { enableNavaNotifications, loadNotificationPreference } from "../services/notifications";
 import { loadDietAiReport, type DietAiReport } from "../services/dietReport";
 import { healthReportSourceRevision, loadHealthAiReport, type HealthAiReport } from "../services/healthReport";
 import {
@@ -69,6 +69,7 @@ import type { FocusLaunchConfig, RecordModule } from "./RecordsScreen";
 import { rollingDateWindow } from "../services/date";
 import { currentDayRequiredShareCopy, hasCurrentDayRecord, missingCurrentDayCopy } from "../services/historyReportState";
 import { isDemoMode } from "../services/demo";
+import { clearActiveUserSession, loadActiveUserSession, saveActiveUserSession } from "../services/userCloudState";
 
 type MoodFactor = { value: string; label: string };
 
@@ -85,9 +86,7 @@ type FocusTimerDraft = {
   selectedTodoId?: string;
 };
 
-function readFocusTimerDraft(userId: string): FocusTimerDraft | null {
-  try {
-    const parsed = JSON.parse(window.sessionStorage.getItem(`nava-focus-timer:${userId}`) ?? "null") as Partial<FocusTimerDraft> | null;
+function normalizeFocusTimerDraft(parsed: Partial<FocusTimerDraft> | null): FocusTimerDraft | null {
     if (!parsed || (parsed.mode !== "countdown" && parsed.mode !== "countup")) return null;
     const duration = Number(parsed.countdownDurationSeconds);
     const remaining = Number(parsed.remaining);
@@ -105,6 +104,12 @@ function readFocusTimerDraft(userId: string): FocusTimerDraft | null {
       category: typeof parsed.category === "string" && parsed.category ? parsed.category : "work",
       selectedTodoId: typeof parsed.selectedTodoId === "string" ? parsed.selectedTodoId : undefined,
     };
+}
+
+function readFocusTimerDraft(userId: string): FocusTimerDraft | null {
+  try {
+    const parsed = JSON.parse(window.sessionStorage.getItem(`nava-focus-timer:${userId}`) ?? "null") as Partial<FocusTimerDraft> | null;
+    return normalizeFocusTimerDraft(parsed);
   } catch {
     return null;
   }
@@ -142,7 +147,7 @@ type Props = {
   onOpenEditor: () => void;
   onOpenDietCamera: () => void;
   onOpenDietMeal: (meal: "breakfast" | "lunch" | "dinner" | "pantry") => void;
-  onSaveFocusMinutes: (minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string; category?: string }) => Promise<void>;
+  onSaveFocusMinutes: (minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string; category?: string; note?: string }) => Promise<void>;
   busy: string | null;
   recordDate: string;
   deviceDate: string;
@@ -887,6 +892,20 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
   const notificationTimeKey = `nava-sleep-reminder-time:${userId}`;
   const [reminderTime, setReminderTime] = useState(() => window.localStorage.getItem(notificationTimeKey) ?? "22:30");
   const [sleepChartMode, setSleepChartMode] = useState<"duration" | "rating">("duration");
+  useEffect(() => {
+    let active = true;
+    void loadNotificationPreference(userId, "sleep")
+      .then((preference) => {
+        if (!active || !preference) return;
+        setNotificationEnabled(preference.enabled);
+        if (preference.localTime) {
+          setReminderTime(preference.localTime);
+          window.localStorage.setItem(notificationTimeKey, preference.localTime);
+        }
+      })
+      .catch((error) => console.warn("Sleep reminder preference restore deferred", error));
+    return () => { active = false; };
+  }, [notificationTimeKey, userId]);
   const selectedSleep = todaySnapshot?.sleep ?? null;
   const latestRecordedSleep = useMemo(() => {
     if (selectedSleep) return selectedSleep;
@@ -1114,6 +1133,9 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [selectedTodoId, setSelectedTodoId] = useState<string | null>(restoredTimer?.selectedTodoId ?? null);
   const [focusCategory, setFocusCategory] = useState(restoredTimer?.category ?? "work");
   const [chartMode, setChartMode] = useState<"trend" | "period" | "category">("trend");
+  const [cloudTimerReady, setCloudTimerReady] = useState(() => isDemoMode());
+  const lastCloudTimerWriteRef = useRef(0);
+  const cloudTimerExistsRef = useRef(false);
   const refreshTodos = useCallback(() => {
     void syncTodos(userId).then(setTodos).catch((error) => console.warn("Todo sync deferred", error));
   }, [userId]);
@@ -1145,9 +1167,48 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setFocusMinutes(Math.max(1, Math.ceil(restoredTimer.countdownDurationSeconds / 60)));
   }, [focusLaunch, focusMinutes, onFocusLaunchConsumed, restoredTimer, setFocusMinutes, setFocusNote, setFocusTitle]);
   useEffect(() => {
+    let active = true;
+    if (isDemoMode()) {
+      setCloudTimerReady(true);
+      return () => { active = false; };
+    }
+    setCloudTimerReady(false);
+    void loadActiveUserSession<Partial<FocusTimerDraft>>(userId, "focus")
+      .then((payload) => {
+        if (!active) return;
+        const remote = normalizeFocusTimerDraft(payload);
+        cloudTimerExistsRef.current = Boolean(remote);
+        if (remote && !launchedFromEditorRef.current) {
+          setTimerMode(remote.mode);
+          setCountdownDurationSeconds(remote.countdownDurationSeconds);
+          setRemaining(remote.remaining);
+          setElapsedSeconds(remote.elapsedSeconds);
+          setInterruptions(remote.interruptions);
+          setStartedAt(remote.startedAt);
+          setFocusTitle(remote.title ?? "");
+          setFocusNote(remote.note ?? "");
+          setFocusCategory(remote.category);
+          setSelectedTodoId(remote.selectedTodoId ?? null);
+          setFocusMinutes(Math.max(1, Math.ceil(remote.countdownDurationSeconds / 60)));
+          setHasStarted(true);
+          setRunning(false);
+          setSaved(false);
+        }
+      })
+      .catch((error) => console.warn("Focus session restore deferred", error))
+      .finally(() => { if (active) setCloudTimerReady(true); });
+    return () => { active = false; };
+  }, [setFocusMinutes, setFocusNote, setFocusTitle, userId]);
+  useEffect(() => {
+    if (!cloudTimerReady) return;
     const key = `nava-focus-timer:${userId}`;
     if (!hasStarted || saved) {
       window.sessionStorage.removeItem(key);
+      if (cloudTimerExistsRef.current) {
+        void clearActiveUserSession(userId, "focus")
+          .then(() => { cloudTimerExistsRef.current = false; })
+          .catch((error) => console.warn("Focus session cloud cleanup deferred", error));
+      }
       return;
     }
     const draft: FocusTimerDraft = {
@@ -1163,7 +1224,14 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       selectedTodoId: selectedTodoId ?? undefined,
     };
     window.sessionStorage.setItem(key, JSON.stringify(draft));
-  }, [countdownDurationSeconds, displayedFocusTitle, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptions, remaining, saved, selectedTodoId, startedAt, timerMode, userId]);
+    const now = Date.now();
+    if (!running || now - lastCloudTimerWriteRef.current >= 15_000) {
+      lastCloudTimerWriteRef.current = now;
+      cloudTimerExistsRef.current = true;
+      void saveActiveUserSession(userId, "focus", { ...draft })
+        .catch((error) => console.warn("Focus session cloud sync deferred", error));
+    }
+  }, [cloudTimerReady, countdownDurationSeconds, displayedFocusTitle, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptions, remaining, running, saved, selectedTodoId, startedAt, timerMode, userId]);
   const todayTodos = todos.filter((item) => item.scheduledDate === deviceDate);
   const calendarDays = rollingDateWindow(deviceDate);
   const visibleTodos = todoView === "list" ? todayTodos : todos.filter((item) => item.scheduledDate === calendarDate);
@@ -1327,7 +1395,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     const seconds = timerMode === "countup" ? elapsedSeconds : countdownDurationSeconds - remaining;
     const elapsed = Math.max(1, Math.ceil(seconds / 60));
     try {
-      await onSaveFocusMinutes(elapsed, { interruptions, startedAt, endedAt: new Date().toISOString(), category: focusCategory });
+      await onSaveFocusMinutes(elapsed, { interruptions, startedAt, endedAt: new Date().toISOString(), category: focusCategory, note: focusNote });
       if (selectedTodo && !selectedTodo.completed && selectedTodoCompletedSessions + 1 >= (selectedTodo.focusSessions ?? 1)) await toggleTodo(userId, selectedTodo.id);
       refreshTodos();
       setSaved(true);
@@ -1335,7 +1403,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     } finally {
       setSaving(false);
     }
-  }, [countdownDurationSeconds, elapsedSeconds, focusCategory, hasStarted, interruptions, onSaveFocusMinutes, openView, refreshTodos, remaining, saving, selectedTodo, selectedTodoCompletedSessions, startedAt, timerMode, userId]);
+  }, [countdownDurationSeconds, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptions, onSaveFocusMinutes, openView, refreshTodos, remaining, saving, selectedTodo, selectedTodoCompletedSessions, startedAt, timerMode, userId]);
 
   useEffect(() => {
     if (!immersive || timerMode !== "countdown" || remaining !== 0 || !hasStarted || saving || saved) return;

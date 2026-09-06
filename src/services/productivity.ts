@@ -100,6 +100,7 @@ export async function syncTodos(userId: string): Promise<TodoItem[]> {
       reminder_at: reminderAt(item.scheduledDate, item.scheduledTime),
       completed: item.completed,
       category: "todo",
+      source: item.source,
     })), { onConflict: "id" });
     if (migrated.error) throw migrated.error;
     window.localStorage.setItem(todoMigrationKey(userId), "done");
@@ -109,7 +110,7 @@ export async function syncTodos(userId: string): Promise<TodoItem[]> {
 
   const result = await supabase
     .from("tasks")
-    .select("id,title,scheduled_date,completed,created_at,estimated_minutes,focus_sessions,reminder_at")
+    .select("id,title,scheduled_date,completed,created_at,estimated_minutes,focus_sessions,reminder_at,source")
     .eq("user_id", userId)
     .eq("category", "todo")
     .order("created_at", { ascending: false })
@@ -125,7 +126,7 @@ export async function syncTodos(userId: string): Promise<TodoItem[]> {
       scheduledDate: String(row.scheduled_date ?? todayISO()),
       scheduledTime: scheduledTimeFromReminder(row.reminder_at) ?? previous?.scheduledTime,
       completed: row.completed === true,
-      source: previous?.source ?? "manual" as const,
+      source: row.source === "ai" ? "ai" : "manual",
       createdAt: String(row.created_at ?? new Date().toISOString()),
       focusMinutes: Number(row.estimated_minutes) > 0 ? Number(row.estimated_minutes) : previous?.focusMinutes,
       focusSessions: Number(row.focus_sessions) > 0 ? Number(row.focus_sessions) : previous?.focusSessions,
@@ -169,6 +170,7 @@ export async function addTodo(
     reminder_at: reminderAt(nextItem.scheduledDate, nextItem.scheduledTime),
     completed: false,
     category: "todo",
+    source: nextItem.source,
   }).select("id,title,scheduled_date,completed,created_at").single();
   if (created.error) throw created.error;
   writeTodos(userId, [nextItem, ...loadTodos(userId)]);

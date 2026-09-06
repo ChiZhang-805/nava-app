@@ -111,4 +111,8 @@ Write-Host "25. Home widget and maintenance contracts"
 Invoke-Npm -Arguments @("run", "home-widgets:test")
 
 Write-Host ""
+Write-Host "26. Cloud persistence, export, and deletion contracts"
+Invoke-Npm -Arguments @("run", "cloud-data:test")
+
+Write-Host ""
 Write-Host "Verification completed."
