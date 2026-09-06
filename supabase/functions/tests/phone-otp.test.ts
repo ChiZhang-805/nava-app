@@ -1,5 +1,6 @@
 import {
   accountHash,
+  createAliyunSendSmsQuery,
   createAliyunV3Signature,
   generateOtpCode,
   ipHash,
@@ -105,4 +106,20 @@ Deno.test("Alibaba Cloud V3 signer matches the official fixed vector", async () 
   assertEqual(signed.payloadHash, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "Payload hash");
   assertEqual(signed.hashedCanonicalRequest, "7ea06492da5221eba5297e897ce16e55f964061054b7695beedaac1145b1e259", "Canonical request hash");
   assertEqual(signed.signature, "06563a9e1b43f5dfe96b81484da74bceab24a1d853912eee15083a6f0f3283c0", "Signature");
+});
+
+Deno.test("Alibaba Cloud SendSms uses the documented canonical query transport", () => {
+  const query = createAliyunSendSmsQuery({
+    code: "123456",
+    phone: "13800138000",
+    signName: "嘉兴纳瓦信息科技",
+    templateCode: "SMS_123456789",
+    templateParamKey: "code",
+  });
+
+  assertEqual(
+    query,
+    "PhoneNumbers=13800138000&SignName=%E5%98%89%E5%85%B4%E7%BA%B3%E7%93%A6%E4%BF%A1%E6%81%AF%E7%A7%91%E6%8A%80&TemplateCode=SMS_123456789&TemplateParam=%7B%22code%22%3A%22123456%22%7D",
+    "SendSms canonical query",
+  );
 });

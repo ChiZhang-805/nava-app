@@ -19,6 +19,14 @@ export type AliyunSignatureInput = {
   method: string;
 };
 
+export type AliyunSendSmsQueryInput = {
+  code: string;
+  phone: string;
+  signName: string;
+  templateCode: string;
+  templateParamKey: string;
+};
+
 const encoder = new TextEncoder();
 const ALGORITHM = "ACS3-HMAC-SHA256";
 const ALIYUN_HOST = "dysmsapi.aliyuncs.com";
@@ -137,6 +145,17 @@ function aliyunDate() {
   return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
+export function createAliyunSendSmsQuery(input: AliyunSendSmsQueryInput) {
+  const query = new URLSearchParams({
+    PhoneNumbers: input.phone,
+    SignName: input.signName,
+    TemplateCode: input.templateCode,
+    TemplateParam: JSON.stringify({ [input.templateParamKey]: input.code }),
+  });
+  query.sort();
+  return query.toString();
+}
+
 export async function createAliyunV3Signature(input: AliyunSignatureInput) {
   const payloadHash = await sha256Hex(input.body);
   const headers = Object.fromEntries(
@@ -171,14 +190,14 @@ export async function createAliyunV3Signature(input: AliyunSignatureInput) {
   };
 }
 
-async function signedAliyunHeaders(body: string) {
+async function signedAliyunHeaders(canonicalQuery: string) {
   const credentials = aliyunCredentials();
   const signed = await createAliyunV3Signature({
     accessKeyId: credentials.accessKeyId,
     accessKeySecret: credentials.accessKeySecret,
-    body,
+    body: "",
+    canonicalQuery,
     headers: {
-      "content-type": "application/x-www-form-urlencoded",
       host: ALIYUN_HOST,
       "x-acs-action": ALIYUN_ACTION,
       "x-acs-date": aliyunDate(),
@@ -192,21 +211,21 @@ async function signedAliyunHeaders(body: string) {
 
 export async function sendAliyunOtp(phone: string, code: string): Promise<AliyunSmsResponse> {
   const credentials = aliyunCredentials();
-  const body = new URLSearchParams({
-    PhoneNumbers: phone,
-    SignName: credentials.signName,
-    TemplateCode: credentials.templateCode,
-    TemplateParam: JSON.stringify({ [credentials.templateParamKey]: code }),
-  }).toString();
-  const headers = await signedAliyunHeaders(body);
+  const canonicalQuery = createAliyunSendSmsQuery({
+    code,
+    phone,
+    signName: credentials.signName,
+    templateCode: credentials.templateCode,
+    templateParamKey: credentials.templateParamKey,
+  });
+  const headers = await signedAliyunHeaders(canonicalQuery);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 6_000);
 
   try {
-    const response = await fetch(`https://${ALIYUN_HOST}/`, {
+    const response = await fetch(`https://${ALIYUN_HOST}/?${canonicalQuery}`, {
       method: "POST",
       headers,
-      body,
       signal: controller.signal,
     });
     const raw = await response.text();
@@ -217,7 +236,8 @@ export async function sendAliyunOtp(phone: string, code: string): Promise<Aliyun
       throw new Error(`ALIYUN_INVALID_RESPONSE:${response.status}`);
     }
     if (!response.ok || payload.Code !== "OK") {
-      throw new Error(`ALIYUN_${payload.Code || response.status}:${payload.Message || "SendSms failed"}`);
+      const requestId = payload.RequestId ? `:RequestId=${payload.RequestId}` : "";
+      throw new Error(`ALIYUN_${payload.Code || response.status}:${payload.Message || "SendSms failed"}${requestId}`);
     }
     return payload;
   } finally {

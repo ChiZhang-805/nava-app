@@ -83,6 +83,18 @@ powershell -ExecutionPolicy Bypass -File scripts/deploy-backend.ps1 -ConfigureSm
 
 兼容旧部署时，短信函数也可读取 `ALIYUN_ACCESS_KEY_ID` / `ALIYUN_ACCESS_KEY_SECRET`；新部署仍应使用权限更小的专用 RAM 用户和 `ALIYUN_SMS_ACCESS_KEY_ID` / `ALIYUN_SMS_ACCESS_KEY_SECRET`。
 
+`aliyun-sms-send` 按阿里云 `SendSms` 自签名示例把业务参数放入排序后的 canonical query，
+使用空请求体计算 ACS3-HMAC-SHA256 签名。阿里云返回业务错误时，服务端会把错误码、
+消息和 `RequestId` 写入 challenge 的 `provider_error`，但不会把 AccessKey、验证码或手机号
+明文写入日志或前端。看到 `isv.SMS_SIGNATURE_ILLEGAL` 时应优先核对签名是否属于当前
+AccessKey 所在阿里云账号、签名文本是否完全一致且处于“可用-正常”；权限不足、余额不足
+和出站 IP 限制分别会返回不同的错误码，不能都归为“验证码服务暂不可用”。
+
+2026-09-06 已将上述 query 传输修复部署为 canonical production 的
+`aliyun-sms-send` version 17（ACTIVE，`verify_jwt=false`）。无效手机号线上请求已验证能命中
+新函数并返回参数校验错误；这项无副作用验证不等于真实短信已送达，仍须由用户用自己的
+中国大陆手机号完成一次发送和输入验证码验收。
+
 ## 公开部署
 
 `.env.review` 只包含可公开的 Supabase URL 和 publishable key，且必须保持 `VITE_ENABLE_REVIEW_DEMO=false`。GitHub Pages 与 Sites 都执行真实认证；`?demo=1` 仅在 Vite 开发模式生效，不能绕过线上登录。
@@ -97,7 +109,9 @@ npm run backend:typecheck
 npm run backend:test
 ```
 
-验证范围包括 14 个 Edge Function 的文件契约、前端服务角色密钥扫描、全部函数的 Deno 类型检查、OTP 随机性/HMAC 域隔离，以及阿里云 V3 签名官方固定向量。
+验证范围包括 Edge Function 文件契约、前端服务角色密钥扫描、全部函数的 Deno 类型检查、
+OTP 随机性/HMAC 域隔离、阿里云 V3 签名官方固定向量，以及 `SendSms` canonical query
+编码合同。
 
 ## 重置密码
 

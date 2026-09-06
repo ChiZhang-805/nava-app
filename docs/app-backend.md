@@ -28,6 +28,11 @@ App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负�
 最新源码均已部署到 canonical 项目，状态 ACTIVE 且启用 JWT 验证。真实账号的模型输出、
 Apple 真机和破坏性账号删除仍按各专项文档明确为人工验收，不因部署完成而自动视为通过。
 
+2026-09-06 单独将 `aliyun-sms-send` 的阿里云 `SendSms` 请求改为官方自签名示例使用的
+canonical query + 空请求体，并部署为 production version 17（ACTIVE，公开注册边界因此
+保持 `verify_jwt=false`）。上线后的无效手机号探测已确认请求进入新函数且业务校验正常；
+未向真实手机号发送测试短信，因此运营侧仍需完成一次真实发送、收码和校验验收。
+
 ## 已实现数据库/Storage
 
 当前共有 24 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单

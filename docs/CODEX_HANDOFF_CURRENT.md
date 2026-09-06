@@ -1111,3 +1111,28 @@ deployment ID 为 `appgdep_6a9d3967915881919f9dd4b3888fd87f`，Pages 镜像 comm
 线上证据在 `Q:\NAVA-Workspace\Build\TestRuns\nava-v108-public`。发布后
 `npm run auth:verify:production` 再次通过；严格
 SMTP 仍因未提供 Management token 而未检查。
+
+## 29. 2026-09-06 阿里云短信生产故障定位与单函数修复
+
+用户提供的阿里云控制台证据已经确认：当前 RAM 用户拥有
+`AliyunDysmsFullAccess`，新的 AccessKey 处于启用状态且已被 `Dysmsapi` 实际调用，旧 Key
+已禁用；短信签名处于“可用-正常”。Supabase Secret 的 SHA-256 摘要与当前启用的
+AccessKey ID、精确签名文本分别核对一致，全程未读取、打印或写入 AccessKey Secret。
+因此现有证据排除了仍在使用旧 Key、缺少 RAM 短信权限、Secret 多出引号/空格等原因。
+
+修复前 production challenge 的真实 provider 错误持续为
+`isv.SMS_SIGNATURE_ILLEGAL`，而不是权限不足、余额不足、IP 地域拒绝或 ACS3 签名错误。
+本地 V3 signer 也通过阿里云官方固定向量。剩余的代码差异是旧实现把 SendSms 业务参数
+放入 form body；本轮已改为与 SendSms 官方自签名示例一致的排序 canonical query，空
+body 参与签名，并在 provider 失败时保留 `RequestId` 供后续精确追查。新增回归测试固定
+中文签名、模板 JSON 和查询编码结果。
+
+`npm run backend:test` 为 16/16，16 个 Edge Function typecheck 和
+`npm run backend:verify` 均通过。只部署了 `aliyun-sms-send`，production 当前为 version 17、
+ACTIVE、`verify_jwt=false`；没有部署 migration、其他函数或前端双站。线上无效手机号探测
+返回预期 `INVALID_REQUEST`，证明新函数可达且入口校验生效，同时没有触发短信发送。
+
+真实短信送达尚未由本任务验证，必须由用户在公开站点使用本人中国大陆手机号重新点击
+“获取验证码”。若仍失败，应按新 challenge 保存的 provider error 与 `RequestId` 判断，
+不能再笼统猜测为余额或权限问题。Supabase Edge 当前出站地域可能在签名问题解决后暴露
+`isv.DENY_IP_RANGE`，但只有阿里云实际返回该码时才能认定，当前不能写成已发生。
