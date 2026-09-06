@@ -52,7 +52,7 @@
     "ai:compact:test": "node --experimental-strip-types --test tests/ai-compact-summary.test.ts",
     "structured:test": "node --experimental-strip-types --test tests/structured-entry.test.ts",
     "algorithm:test": "node --experimental-strip-types --test tests/rhythm-core.test.ts",
-    "health:contract:test": "node --experimental-strip-types --test tests/health-native-contract.test.ts",
+    "health:contract:test": "node --experimental-strip-types --test tests/health-native-contract.test.ts tests/watch-action-time.test.ts",
     "consent:contract:test": "node --experimental-strip-types --test tests/consent-data-boundary.test.ts",
     "cloud-data:test": "node --experimental-strip-types --test tests/cloud-data-completeness.test.ts",
     "health:verify:account": "node scripts/verify-health-sync-boundary.mjs",

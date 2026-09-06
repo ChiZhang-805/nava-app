@@ -87,7 +87,12 @@ function mealCount(snapshot: TodaySnapshot) {
     .filter((items) => Array.isArray(items) && items.length > 0).length;
 }
 
-function previousRecordedDayValues<T extends { record_date: string }>(records: T[], currentDate: string, read: (record: T) => number | null | undefined) {
+function previousRecordedDayValues<T extends { record_date: string }>(
+  records: T[],
+  currentDate: string,
+  read: (record: T) => number | null | undefined,
+  aggregate: "average" | "sum" = "average",
+) {
   const byDate = new Map<string, number[]>();
   records.forEach((record) => {
     if (record.record_date >= currentDate) return;
@@ -98,7 +103,10 @@ function previousRecordedDayValues<T extends { record_date: string }>(records: T
   return [...byDate.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .slice(-7)
-    .map(([, values]) => values.reduce((sum, value) => sum + value, 0) / values.length);
+    .map(([, values]) => {
+      const sum = values.reduce((total, value) => total + value, 0);
+      return aggregate === "sum" ? sum : sum / values.length;
+    });
 }
 
 function trendSupport(current: number | null | undefined, previous: number[], locale: "zh" | "en") {
@@ -121,7 +129,7 @@ export function buildHomeWidgetPresentation(id: HomeWidgetId, snapshot: TodaySna
       : { id, core: `${(minutes / 60).toFixed(1)}h`, support: trend ?? (zh ? "昨夜睡眠" : "Last sleep"), state: minutes < 360 ? "attention" : "ready" };
   }
   if (id === "focus") {
-    const trend = trendSupport(snapshot.focusMinutes, previousRecordedDayValues(trends?.focus ?? [], snapshot.date, (record) => record.total_minutes), locale);
+    const trend = trendSupport(snapshot.focusMinutes, previousRecordedDayValues(trends?.focus ?? [], snapshot.date, (record) => record.total_minutes, "sum"), locale);
     return snapshot.focusSessions <= 0
       ? { id, core: "--", support: zh ? "尚未完成" : "No session", state: "missing" }
       : { id, core: `${Math.round(snapshot.focusMinutes)}m`, support: trend ?? (zh ? `${snapshot.focusSessions} 次完成` : `${snapshot.focusSessions} sessions`), state: "ready" };

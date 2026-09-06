@@ -43,3 +43,16 @@ test("widget presentation uses real prior recorded days for a compact seven-day 
   };
   assert.equal(buildHomeWidgetPresentation("exercise", trendSnapshot, "zh", trends).support, "较近7日 +50%");
 });
+
+test("focus comparison sums multiple sessions within each recorded day", () => {
+  const trendSnapshot: TodaySnapshot = { ...snapshot, focusMinutes: 90, focusSessions: 2 };
+  const trends: TrendBundle = {
+    moods: [], sleeps: [], exercises: [], nutritions: [], faces: [], focusDistributions: [], healthMetrics: [], rhythms: [],
+    focus: [
+      { id: "f1", task_id: "a", record_date: "2026-09-03", completed_sessions: 1, total_minutes: 30 },
+      { id: "f2", task_id: "b", record_date: "2026-09-03", completed_sessions: 1, total_minutes: 30 },
+      { id: "f3", task_id: "c", record_date: "2026-09-04", completed_sessions: 2, total_minutes: 60 },
+    ],
+  };
+  assert.equal(buildHomeWidgetPresentation("focus", trendSnapshot, "zh", trends).support, "较近7日 +50%");
+});

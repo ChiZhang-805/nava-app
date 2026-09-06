@@ -28,6 +28,11 @@ test("weekly insight UI loads the authenticated cloud AI report", () => {
   assert.doesNotMatch(recordsScreen, /buildWeeklyInsights/);
 });
 
+test("one real weekly rhythm point replaces the no-data placeholder", () => {
+  assert.match(recordsScreen, /recordedReportPointCount > 0/);
+  assert.doesNotMatch(recordsScreen, /recordedReportPointCount >= 2/);
+});
+
 test("weekly AI report is persisted and rejects non-model providers", () => {
   assert.match(reportFunction, /from\("ai_health_reports"\)\.upsert/);
   assert.match(reportFunction, /row\.provider !== "deepseek"/);
@@ -70,7 +75,7 @@ test("focus todo plans persist time, duration and session count and complete fro
   assert.match(dashboard, /计划专注次数/);
 });
 
-test("weekly radar averages only recorded days and returns zero only for a wholly missing dimension", () => {
+test("weekly radar averages only recorded days and preserves a wholly missing dimension as missing", () => {
   const bundle: TrendBundle = {
     moods: [
       { id: "m1", record_date: "2026-08-24", mood_score: 80, factors: [], diary_content: null, ai_feedback: null },
@@ -100,7 +105,7 @@ test("weekly radar averages only recorded days and returns zero only for a wholl
   assert.deepEqual(scores.exercise, { key: "exercise", value: 75, recordedDays: 2 });
   assert.deepEqual(scores.nutrition, { key: "nutrition", value: 90, recordedDays: 2 });
   assert.deepEqual(scores.face, { key: "face", value: 80, recordedDays: 2 });
-  assert.deepEqual(scores.focus, { key: "focus", value: 0, recordedDays: 0 });
+  assert.deepEqual(scores.focus, { key: "focus", value: null, recordedDays: 0 });
 });
 
 test("weekly focus score aggregates sessions by day before averaging the week", () => {

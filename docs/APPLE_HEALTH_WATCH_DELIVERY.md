@@ -156,6 +156,10 @@ HealthKit 历史同步不依赖 watchOS App，因此本阶段排在 iPhone 闭�
 - [x] Watch 情绪/专注动作通过 iPhone 原生持久队列、账号隔离 Web 队列和
   `watch-sync` 上传，使用 `actionId`
   保证至多一次落库。
+- [x] Watch 动作携带设备本地日期与时区偏移；服务端按动作发生时间写入本地日期、
+  专注起止时间和 `focus_time_distribution` 时段，不再使用服务器接收时间分桶。
+- [x] Watch 快捷情绪不会覆盖同一天已有的用户原因与日记；新建的快捷记录只保留
+  Watch 来源因子，不伪造用户日记内容。
 - [ ] 真机验证即时消息、Watch 不可达、离线 `transferUserInfo` 重放和重复动作。
 
 积分商城和“专注期间硬件指标分析”按照本轮产品决定继续延期，不得因为已有

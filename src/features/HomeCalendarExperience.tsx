@@ -28,6 +28,7 @@ import {
   type DailyMetric,
 } from "../services/homeExperience";
 import { getTodaySnapshot, getTrends } from "../services/records";
+import { buildHealthModuleProgress } from "../services/healthReportPresentation";
 import type { TodaySnapshot, TrendBundle } from "../types";
 
 const metricMeta: Record<DailyMetric["key"], { zh: string; en: string; icon: ReactNode }> = {
@@ -173,7 +174,9 @@ function DailyReportScreen({ user, date, onBack }: { user: User; date: string; o
   }, [date, user.id]);
 
   const metrics = snapshot ? dailyMetrics(snapshot, locale) : [];
-  const completed = metrics.filter((metric) => metric.recorded).length;
+  const completed = snapshot
+    ? Object.values(buildHealthModuleProgress(snapshot)).filter((metric) => metric.completed).length
+    : 0;
   const rhythmScore = snapshot?.rhythmScore ?? null;
 
   return (

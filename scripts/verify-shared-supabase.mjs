@@ -10,38 +10,40 @@ const targetPath = path.join(appRoot, "config", "backend-target.json");
 const cliProjectRefPath = path.join(appRoot, "supabase", ".temp", "project-ref");
 
 const coreTables = {
-  profiles: "id,username,height,weight,occupation,goal,mbti,exercise_frequency,sleep_schedule,diet_preference,stress_factors,avatar_url",
-  mood_records: "id,user_id,record_date,mood_score,factors,diary_content,ai_feedback",
-  sleep_records: "id,user_id,record_date,sleep_start,sleep_end,sleep_duration_minutes,deep_sleep_minutes,light_sleep_minutes,rem_minutes,self_rating,rhythm_score",
-  exercise_records: "id,user_id,record_date,steps,calories,exercise_minutes,heart_rate,spo2,self_rating,device_type,updated_at",
-  nutrition_records: "id,user_id,record_date,total_calories,breakfast_items,lunch_items,dinner_items,pantry_items,breakfast_time,lunch_time,dinner_time,pantry_time",
-  focus_records: "id,user_id,task_id,record_date,completed_sessions,total_minutes,note",
+  profiles: "id,username,height,weight,occupation,goal,mbti,exercise_frequency,sleep_schedule,diet_preference,stress_factors,avatar_url,birth_date,age_group,privacy_consent_at,health_data_consent,ai_personalization_consent,onboarding_completed_at,onboarding_version,onboarding_answers",
+  mood_records: "id,user_id,record_date,mood_score,factors,diary_content,diary_sentiment,ai_feedback,created_at,updated_at",
+  sleep_records: "id,user_id,record_date,sleep_start,sleep_end,sleep_duration_minutes,deep_sleep_minutes,light_sleep_minutes,rem_minutes,sleep_latency_minutes,device_type,self_rating,self_note,rhythm_score,ai_feedback,is_night_owl,created_at,updated_at",
+  exercise_records: "id,user_id,record_date,steps,calories,steps_goal,calories_goal,exercise_minutes,heart_rate,spo2,blood_pressure,respiratory_rate,device_type,self_rating,self_note,ai_feedback,hourly_steps,created_at,updated_at",
+  nutrition_records: "id,user_id,record_date,total_calories,breakfast_items,lunch_items,dinner_items,pantry_items,breakfast_time,lunch_time,dinner_time,pantry_time,breakfast_photo_url,lunch_photo_url,dinner_photo_url,protein_grams,carbohydrate_grams,fat_grams,hydration_ml,health_rating,ai_feedback,created_at,updated_at",
+  focus_records: "id,user_id,task_id,record_date,completed_sessions,total_minutes,interrupted_sessions,category,started_at,ended_at,note,created_at,updated_at",
   focus_time_distribution: "id,user_id,record_date,period_0_6,period_6_12,period_12_18,period_18_24",
-  tasks: "id,user_id,title,scheduled_date,completed,source",
+  tasks: "id,user_id,title,scheduled_date,completed,estimated_minutes,reminder_at,category,focus_sessions,source,created_at,updated_at",
   ai_conversations: "id,user_id,role,content,created_at",
 };
 
 const extensionTables = {
-  face_records: "id,user_id,record_date,image_path,overall_score,skin_age,annotations,feedback,model_version",
-  daily_rhythm_scores: "id,user_id,record_date,score,confidence,model_version",
-  health_metric_snapshots: "id,user_id,record_date,source",
-  health_sync_jobs: "id,user_id,status,created_at",
-  watch_snapshots: "id,user_id,payload,pushed_at",
-  health_feature_snapshots: "id,user_id,record_date,schema_version,features,data_quality",
-  fdnb_health_scores: "id,user_id,report_start,report_end,status,evidence_level,model_version",
-  weekly_health_reports: "id,user_id,week_start,week_end,status,model_version",
-  record_drafts: "id,user_id,module,record_date,status",
-  notification_preferences: "id,user_id,notification_type,enabled,local_time",
-  growth_reward_ledger: "id,user_id,event_key,points,source",
-  growth_badges: "id,user_id,badge_key,awarded_at",
-  user_app_preferences: "user_id,locale,ai_speech_enabled,home_widget_ids,updated_at",
-  user_notifications: "user_id,id,category,source,title,body,read_at,deleted_at,updated_at",
+  face_records: "id,user_id,record_date,image_path,overall_score,skin_age,annotations,feedback,model_version,capture_mode,analysis_confidence,derived_features,created_at,updated_at",
+  daily_rhythm_scores: "id,user_id,record_date,score,confidence,signals,reasons,actions,model_version,features,baseline,anomaly_flags,profile_labels,phase_shift_minutes,regularity_score,fragmentation_score,recovery_score,fusion,circadian_score,data_quality_score,score_lower,score_upper,latent_state,change_point_probability,trend_slope,schema_version,created_at,updated_at",
+  health_metric_snapshots: "id,user_id,record_date,latest_heart_rate,resting_heart_rate,heart_rate_variability_sdnn,blood_oxygen,raw_payload,source,activity_bins,sleep_stage_minutes,sleep_start_at,sleep_end_at,sleep_efficiency,timezone_offset_minutes,activity_coverage_hours,source_metadata,created_at,updated_at",
+  health_sync_jobs: "id,user_id,source,status,started_at,finished_at,sample_count,error_message,created_at",
+  device_connections: "id,user_id,platform,device_name,device_model,os_version,app_version,last_seen_at,created_at",
+  watch_snapshots: "id,user_id,record_date,payload,pushed_at,created_at,updated_at",
+  health_feature_snapshots: "id,user_id,record_date,schema_version,features,feature_count,data_quality,created_at,updated_at",
+  fdnb_health_scores: "id,user_id,analysis_start,analysis_end,report_start,report_end,status,evidence_level,stability_score,transition_score,peak_score,confidence,data_quality,accepted,peak,contributors,diagnostics,summary,recommendations,reason,model_version,schema_version,generated_at",
+  weekly_health_reports: "id,user_id,week_start,week_end,status,score,confidence,evidence_level,summary,recommendations,algorithm_payload,model_version,generated_at",
+  ai_health_reports: "id,user_id,scope,period_start,period_end,language,bullets,provider,model_version,source_count,generated_at,created_at,updated_at",
+  record_drafts: "id,user_id,module,record_date,payload,status,created_at,updated_at",
+  notification_preferences: "id,user_id,notification_type,enabled,local_time,timezone,last_scheduled_at,created_at,updated_at",
+  growth_reward_ledger: "id,user_id,event_key,points,source,metadata,created_at",
+  growth_badges: "id,user_id,badge_key,awarded_at,metadata",
+  user_app_preferences: "user_id,locale,ai_speech_enabled,home_widget_ids,created_at,updated_at",
+  user_notifications: "user_id,id,category,source,title,body,target,created_at,read_at,deleted_at,updated_at",
   ai_conversation_archives: "id,user_id,created_at,messages,updated_at",
   active_user_sessions: "user_id,session_type,payload,updated_at",
 };
 
 const sharedFunctions = ["ai-extract-data", "ai-chat-reply", "diet-extract", "face-analyze", "aliyun-sms-send", "aliyun-sms-verify"];
-const appFunctions = ["health-sync-ingest", "watch-sync", "rhythm-score", "dnb-weekly-report", "fdnb-recompute", "export-user-data", "delete-account", "auth-account-status"];
+const appFunctions = ["ai-health-report", "ai-diet-report", "health-sync-ingest", "watch-sync", "rhythm-score", "dnb-weekly-report", "fdnb-recompute", "export-user-data", "delete-account", "auth-account-status"];
 const sharedBuckets = ["diet-photos"];
 const appBuckets = ["face-photos", "profile-avatars"];
 

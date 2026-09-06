@@ -13,6 +13,7 @@ import {
   todayISO,
 } from "../_shared/http.ts";
 import { calculateRhythm, loadDailyInputs, saveRhythmScore } from "../_shared/rhythm.ts";
+import { watchActionDate, watchActionLocalHour } from "../_shared/watch-action-time.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return optionsResponse();
@@ -86,7 +87,7 @@ Deno.serve(async (req) => {
         throw actionError;
       }
 
-      const date = dateOnly(action.recordedAt ?? action.endedAt ?? body.date ?? todayISO());
+      const date = watchActionDate(action, dateOnly(body.date ?? todayISO()));
       let rhythm = null;
       try {
         rhythm = calculateRhythm(await loadDailyInputs(userClient, user.id, date));
@@ -131,22 +132,31 @@ async function upsertDevice(client: SupabaseClient, userId: string, body: Record
 
 async function applyWatchAction(client: SupabaseClient, userId: string, action: Record<string, unknown>) {
   const actionType = stringValue(action.type);
-  const date = dateOnly(action.recordedAt ?? action.startedAt ?? action.endedAt ?? todayISO());
+  const date = watchActionDate(action, todayISO());
 
   if (actionType === "mood.quickLog") {
     const mood = numberValue(action.mood);
     if (mood == null) throw new Error("手表情绪记录缺少 mood。");
-    const { error } = await client.from("mood_records").upsert(
-      {
+    const existing = await client
+      .from("mood_records")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("record_date", date)
+      .maybeSingle();
+    assertNoError(existing.error);
+    const payload = existing.data
+      ? { mood_score: Math.round(Math.min(100, Math.max(0, mood))) }
+      : {
         user_id: userId,
         record_date: date,
         mood_score: Math.round(Math.min(100, Math.max(0, mood))),
         factors: ["Apple Watch"],
-        diary_content: "Apple Watch 快速记录",
-      },
-      { onConflict: "user_id,record_date" },
-    );
-    assertNoError(error);
+        diary_content: null,
+      };
+    const response = existing.data
+      ? await client.from("mood_records").update(payload).eq("id", existing.data.id)
+      : await client.from("mood_records").insert(payload);
+    assertNoError(response.error);
     return { saved: true, table: "mood_records" };
   }
 
@@ -168,12 +178,17 @@ async function applyWatchAction(client: SupabaseClient, userId: string, action: 
       record_date: date,
       completed_sessions: (existing.data?.completed_sessions ?? 0) + 1,
       total_minutes: (existing.data?.total_minutes ?? 0) + Math.round(minutes),
+      interrupted_sessions: existing.data?.interrupted_sessions ?? 0,
+      category: existing.data?.category ?? "watch",
+      started_at: existing.data?.started_at ?? stringValue(action.startedAt) ?? null,
+      ended_at: stringValue(action.endedAt) ?? new Date().toISOString(),
+      note: existing.data?.note ?? null,
     };
     const response = existing.data
       ? await client.from("focus_records").update(payload).eq("id", existing.data.id)
       : await client.from("focus_records").insert(payload);
     assertNoError(response.error);
-    await upsertFocusDistribution(client, userId, date, Math.round(minutes));
+    await upsertFocusDistribution(client, userId, date, Math.round(minutes), watchActionLocalHour(action));
     return { saved: true, table: "focus_records" };
   }
 
@@ -205,8 +220,7 @@ async function ensureTask(client: SupabaseClient, userId: string, title: string,
   return created.data as { id: string; title: string };
 }
 
-async function upsertFocusDistribution(client: SupabaseClient, userId: string, date: string, minutes: number) {
-  const hour = new Date().getHours();
+async function upsertFocusDistribution(client: SupabaseClient, userId: string, date: string, minutes: number, hour: number) {
   const period = hour < 6 ? "period_0_6" : hour < 12 ? "period_6_12" : hour < 18 ? "period_12_18" : "period_18_24";
   const existing = await client
     .from("focus_time_distribution")

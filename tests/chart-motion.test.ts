@@ -75,4 +75,5 @@ test("clock alignment responds to real bedtime variance", () => {
   const stable = ["23:30", "23:35", "23:25", "23:32"].map((sleep_start, index) => ({ id: `${index}`, record_date: `2026-08-${20 + index}`, sleep_start, sleep_end: "07:00", sleep_duration_minutes: 450, deep_sleep_minutes: 90, light_sleep_minutes: 260, rem_minutes: 85, self_rating: 4, rhythm_score: 82, ai_feedback: null }));
   const irregular = ["22:10", "01:40", "23:00", "02:20"].map((sleep_start, index) => ({ ...stable[index], sleep_start, sleep_duration_minutes: [360, 510, 390, 480][index] }));
   assert.ok(clockAlignmentScore(stable, []) > clockAlignmentScore(irregular, []));
+  assert.equal(clockAlignmentScore([], []), null);
 });

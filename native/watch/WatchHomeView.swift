@@ -1,6 +1,22 @@
 import Foundation
 import SwiftUI
 
+private func watchActionTimeContext(_ date: Date) -> [String: Any] {
+    let formatter = DateFormatter()
+    formatter.calendar = Calendar(identifier: .gregorian)
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = .current
+    formatter.dateFormat = "yyyy-MM-dd"
+    return [
+        "localDate": formatter.string(from: date),
+        "timezoneOffsetMinutes": TimeZone.current.secondsFromGMT(for: date) / 60
+    ]
+}
+
+private func mergingAction(_ action: [String: Any], at date: Date) -> [String: Any] {
+    action.merging(watchActionTimeContext(date)) { current, _ in current }
+}
+
 struct WatchHomeView: View {
     var body: some View {
         TabView {
@@ -52,10 +68,11 @@ private struct RhythmPage: View {
             }
 
             Button {
-                session.sendAction([
+                let now = Date()
+                session.sendAction(mergingAction([
                     "type": "sync.requestSnapshot",
-                    "recordedAt": ISO8601DateFormatter().string(from: Date())
-                ])
+                    "recordedAt": ISO8601DateFormatter().string(from: now)
+                ], at: now))
             } label: {
                 Label("watch.sync", systemImage: "arrow.triangle.2.circlepath")
             }
@@ -94,11 +111,12 @@ private struct MoodPage: View {
                     let icon = option.icon
                     Button {
                         selectedMood = mood
-                        session.sendAction([
+                        let now = Date()
+                        session.sendAction(mergingAction([
                             "type": "mood.quickLog",
                             "mood": mood,
-                            "recordedAt": ISO8601DateFormatter().string(from: Date())
-                        ])
+                            "recordedAt": ISO8601DateFormatter().string(from: now)
+                        ], at: now))
                     } label: {
                         Image(systemName: selectedMood == mood ? "checkmark" : icon)
                             .font(.system(size: 15, weight: .semibold))
@@ -157,22 +175,24 @@ private struct FocusPage: View {
         let now = Date()
         focusStartedAt = now.timeIntervalSince1970
         focusSessionId = UUID().uuidString.lowercased()
-        session.sendAction([
+        session.sendAction(mergingAction([
             "type": "focus.start",
             "sessionId": focusSessionId,
             "startedAt": ISO8601DateFormatter().string(from: now)
-        ])
+        ], at: now))
     }
 
     private func stop() {
         let now = Date()
         let minutes = max(1, Int(((now.timeIntervalSince1970 - focusStartedAt) / 60).rounded()))
-        session.sendAction([
+        let startedAt = Date(timeIntervalSince1970: focusStartedAt)
+        session.sendAction(mergingAction([
             "type": "focus.stop",
             "sessionId": focusSessionId,
+            "startedAt": ISO8601DateFormatter().string(from: startedAt),
             "endedAt": ISO8601DateFormatter().string(from: now),
             "durationMinutes": minutes
-        ])
+        ], at: now))
         focusStartedAt = 0
         focusSessionId = ""
     }

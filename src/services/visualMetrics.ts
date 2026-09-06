@@ -65,6 +65,7 @@ export function clockAlignmentScore(sleeps: SleepRecord[], rhythms: DailyRhythmS
   const bedtimes = recentSleeps.map((record) => normalizedBedtime(record.sleep_start)).filter((value): value is number => value != null);
   const durations = recentSleeps.map((record) => finite(record.sleep_duration_minutes, 0)).filter((value) => value > 0);
   const rhythmValues = [...rhythms].sort((a, b) => a.record_date.localeCompare(b.record_date)).slice(-7).map((record) => finite(record.score, 0)).filter((value) => value > 0);
+  if (bedtimes.length === 0 && durations.length === 0 && rhythmValues.length === 0) return null;
   if (bedtimes.length === 0 && durations.length === 0) return Math.round(average(rhythmValues));
   const timingPenalty = Math.min(34, meanAbsoluteDeviation(bedtimes) / 2.4);
   const durationPenalty = Math.min(22, meanAbsoluteDeviation(durations) / 4.5);

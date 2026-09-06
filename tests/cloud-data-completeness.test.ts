@@ -12,6 +12,7 @@ const account = readFileSync(new URL("../src/services/account.ts", import.meta.u
 const deleteAccount = readFileSync(new URL("../supabase/functions/delete-account/index.ts", import.meta.url), "utf8");
 const secureFaceDraft = readFileSync(new URL("../src/services/secureFaceDraft.ts", import.meta.url), "utf8");
 const watch = readFileSync(new URL("../src/services/watch.ts", import.meta.url), "utf8");
+const recordsScreen = readFileSync(new URL("../src/features/RecordsScreen.tsx", import.meta.url), "utf8");
 
 const accountOwnedTables = [
   "profiles", "mood_records", "sleep_records", "exercise_records", "nutrition_records",
@@ -77,4 +78,9 @@ test("previously dropped record fields are persisted and restored", () => {
   assert.match(migration, /nutrition_records[\s\S]*ADD COLUMN IF NOT EXISTS pantry_time time/);
   assert.match(records, /\[timeKey\]: input\.mealTime/);
   assert.match(records, /note: input\.note/);
+  for (const field of ["duration", "deep", "light", "rem"]) {
+    assert.match(recordsScreen, new RegExp(`typeof draft\\.${field} === "number"`));
+  }
+  assert.match(recordsScreen, /typeof draft\.heartRate === "string"/);
+  assert.match(recordsScreen, /typeof draft\.spo2 === "string"/);
 });

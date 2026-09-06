@@ -4,7 +4,7 @@ export type WeeklyModuleKey = "sleep" | "exercise" | "nutrition" | "focus" | "fa
 
 export type WeeklyModuleScore = {
   key: WeeklyModuleKey;
-  value: number;
+  value: number | null;
   recordedDays: number;
 };
 
@@ -40,7 +40,10 @@ function weeklyDailyAverage<T extends DatedRecord>(
     valuesByDate.set(record.record_date, values);
   });
   const dailyScores = [...valuesByDate.values()].map(mean);
-  return { value: Math.round(mean(dailyScores)), recordedDays: dailyScores.length };
+  return {
+    value: dailyScores.length ? Math.round(mean(dailyScores)) : null,
+    recordedDays: dailyScores.length,
+  };
 }
 
 function sleepScore(record: SleepRecord) {
@@ -75,7 +78,10 @@ function focusWeeklyScore(records: FocusRecord[], startDate: string, endDate: st
     minutesByDate.set(record.record_date, (minutesByDate.get(record.record_date) ?? 0) + Math.max(0, minutes));
   });
   const dailyScores = [...minutesByDate.values()].map((minutes) => clampScore((minutes / 120) * 100));
-  return { value: Math.round(mean(dailyScores)), recordedDays: dailyScores.length };
+  return {
+    value: dailyScores.length ? Math.round(mean(dailyScores)) : null,
+    recordedDays: dailyScores.length,
+  };
 }
 
 export function calculateWeeklyModuleScores(bundle: TrendBundle | null, startDate: string, endDate: string): WeeklyModuleScore[] {

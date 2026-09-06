@@ -5,10 +5,10 @@ import { todayISO } from "./date";
 import { supabase } from "./supabaseClient";
 
 export type WatchAction =
-  | { actionId?: string; type: "mood.quickLog"; mood: number; recordedAt: string }
-  | { actionId?: string; type: "focus.start"; sessionId?: string; taskTitle?: string; startedAt: string }
-  | { actionId?: string; type: "focus.stop"; sessionId: string; endedAt: string; durationMinutes?: number; taskTitle?: string }
-  | { actionId?: string; type: "sync.requestSnapshot"; recordedAt?: string };
+  | { actionId?: string; type: "mood.quickLog"; mood: number; recordedAt: string; localDate?: string; timezoneOffsetMinutes?: number }
+  | { actionId?: string; type: "focus.start"; sessionId?: string; taskTitle?: string; startedAt: string; localDate?: string; timezoneOffsetMinutes?: number }
+  | { actionId?: string; type: "focus.stop"; sessionId: string; startedAt?: string; endedAt: string; durationMinutes?: number; taskTitle?: string; localDate?: string; timezoneOffsetMinutes?: number }
+  | { actionId?: string; type: "sync.requestSnapshot"; recordedAt?: string; localDate?: string; timezoneOffsetMinutes?: number };
 
 export type WatchAck =
   | { ok: true; actionId: string; syncedAt: string }

@@ -464,6 +464,10 @@ export default function RecordsScreen({
       if (draft && activeModule === "sleep") {
         if (typeof draft.start === "string") setSleepStart(draft.start);
         if (typeof draft.end === "string") setSleepEnd(draft.end);
+        if (typeof draft.duration === "number") setSleepDuration(draft.duration);
+        if (typeof draft.deep === "number") setDeepSleep(draft.deep);
+        if (typeof draft.light === "number") setLightSleep(draft.light);
+        if (typeof draft.rem === "number") setRemSleep(draft.rem);
         if (typeof draft.rating === "number") setSleepRating(draft.rating);
         if (typeof draft.note === "string") setSleepNote(draft.note);
       }
@@ -471,6 +475,8 @@ export default function RecordsScreen({
         if (typeof draft.steps === "number") setSteps(draft.steps);
         if (typeof draft.calories === "number") setCalories(draft.calories);
         if (typeof draft.minutes === "number") setExerciseMinutes(draft.minutes);
+        if (typeof draft.heartRate === "string") setHeartRate(draft.heartRate);
+        if (typeof draft.spo2 === "string") setSpo2(draft.spo2);
         if (typeof draft.note === "string") setExerciseNote(draft.note);
       }
       if (draft && activeModule === "diet") {
@@ -799,10 +805,10 @@ export default function RecordsScreen({
       try {
         const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
         await Promise.allSettled([
-          refreshRhythmScore(recordDate).then(() => loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate > recordDate ? recordDate : savedPeriod.endDate, locale, refresh: true })),
+          refreshRhythmScore(recordDate).then(() => loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate > recordDate ? recordDate : savedPeriod.endDate, locale })),
           refreshFdnbHealth(recordDate),
           activeModule && activeModule !== "diet"
-            ? loadHealthAiReport({ scope: activeModule, endDate: recordDate, locale, refresh: true })
+            ? loadHealthAiReport({ scope: activeModule, endDate: recordDate, locale })
             : Promise.resolve(),
           trackAnalyticsEvent(user.id, "record_saved", { module: labelKey, date: recordDate }),
         ]);
@@ -1052,9 +1058,9 @@ export default function RecordsScreen({
         });
       }
       try {
-        await loadDietAiReport({ date: recordDate, locale, refresh: true });
+        await loadDietAiReport({ date: recordDate, locale });
         const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
-        await loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate > recordDate ? recordDate : savedPeriod.endDate, locale, refresh: true });
+        await loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate > recordDate ? recordDate : savedPeriod.endDate, locale });
       } catch (reportError) {
         // The meal is already durable. A transient model failure must not
         // discard it; opening the report retries the authenticated AI call.
@@ -1122,10 +1128,10 @@ export default function RecordsScreen({
     await Promise.allSettled([
       refreshRhythmScore(recordDate).then(() => {
         const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
-        return loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate > recordDate ? recordDate : savedPeriod.endDate, locale, refresh: true });
+        return loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate > recordDate ? recordDate : savedPeriod.endDate, locale });
       }),
       refreshFdnbHealth(recordDate),
-      loadHealthAiReport({ scope: "face", endDate: recordDate, locale, refresh: true }),
+      loadHealthAiReport({ scope: "face", endDate: recordDate, locale }),
     ]);
     setPendingFaceAnalysis(null);
     setNotice("persisted" in saved && !saved.persisted ? t("records.faceAnalyzed") : t("records.faceSaved"));
@@ -1388,7 +1394,7 @@ export default function RecordsScreen({
               <div><span>{locale === "zh" ? "数据完整度：" : "Complete: "}</span><strong><AnimatedNumber value={completedModules} duration={520} />/6</strong></div>
               <div><span>{locale === "zh" ? "较上周：" : "Previous week: "}</span><strong>{periodComparison.change == null ? (periodComparison.currentAverage == null ? "--" : (locale === "zh" ? "首次记录" : "First week")) : <>{periodComparison.change >= 0 ? "+" : ""}<AnimatedNumber value={periodComparison.change} duration={640} /></>}</strong></div>
             </section>
-            <section className={["weekly-trend-card", recordedReportPointCount < 2 && weeklyChartMode === "trend" ? "is-sparse" : ""].filter(Boolean).join(" ")}>
+            <section className={["weekly-trend-card", recordedReportPointCount === 0 && weeklyChartMode === "trend" ? "is-sparse" : ""].filter(Boolean).join(" ")}>
               <header>
                 <strong>{weeklyChartMode === "trend" ? (locale === "zh" ? "节律轨迹" : "Rhythm trajectory") : (locale === "zh" ? "六维节律雷达图" : "Weekly rhythm radar")}</strong>
                 <button
@@ -1405,7 +1411,7 @@ export default function RecordsScreen({
                 </button>
               </header>
               {weeklyChartMode === "trend"
-                ? (recordedReportPointCount >= 2
+                ? (recordedReportPointCount > 0
                     ? <LineTrendChart points={reportPoints} tone="rhythm" compact scale="range" verticalEmphasis curve="monotone" showAllDates rangeFloorRatio={0.3} showArea showConfidenceBand={false} ariaLabel={locale === "zh" ? "近七天节律单调平滑趋势曲线与下方渐变面积，最低值保留三成基础高度，最高值对应顶部" : "Seven-day monotone rhythm curve with a gradient area, a thirty-percent floor, and proportional scaling"} />
                     : <div
                         className="weekly-trajectory-placeholder"

@@ -4,7 +4,7 @@ import type { WeeklyModuleKey } from "../services/weeklyModuleScores";
 export type WeeklyRadarPoint = {
   key: WeeklyModuleKey;
   label: string;
-  value: number;
+  value: number | null;
   recordedDays: number;
 };
 
@@ -33,8 +33,9 @@ function polygonPoints(scale: number) {
 export default function WeeklyRadarChart({ points, ariaLabel }: { points: WeeklyRadarPoint[]; ariaLabel: string }) {
   const rawId = useId();
   const gradientId = `weekly-radar-${rawId.replace(/:/g, "")}`;
+  const recordedPoints = points.filter((point) => point.value != null && point.recordedDays > 0);
   const dataPoints = points.map((point, index) => {
-    const position = polarPoint(index, Math.min(100, Math.max(0, point.value)) / 100);
+    const position = polarPoint(index, Math.min(100, Math.max(0, point.value ?? 0)) / 100);
     return `${position.x},${position.y}`;
   }).join(" ");
 
@@ -53,25 +54,26 @@ export default function WeeklyRadarChart({ points, ariaLabel }: { points: Weekly
           const end = polarPoint(index, 1);
           return <line className="weekly-radar-axis" x1={centerX} y1={centerY} x2={end.x} y2={end.y} key={index} />;
         })}
-        <polygon className="weekly-radar-area" points={dataPoints} style={{ fill: `url(#${gradientId})` }} />
+        {recordedPoints.length === points.length && <polygon className="weekly-radar-area" points={dataPoints} style={{ fill: `url(#${gradientId})` }} />}
         {points.map((point, index) => {
-          const data = polarPoint(index, Math.min(100, Math.max(0, point.value)) / 100);
+          const recorded = point.value != null && point.recordedDays > 0;
+          const data = polarPoint(index, Math.min(100, Math.max(0, point.value ?? 0)) / 100);
           const label = polarPoint(index, 1.18);
           const cosine = Math.cos(label.angle);
           const anchor = cosine > 0.35 ? "start" : cosine < -0.35 ? "end" : "middle";
           const verticalSine = Math.sin(label.angle);
           const yOffset = point.key === "focus" ? 5 : verticalSine > 0.55 ? -2 : verticalSine < -0.55 ? 7 : 4;
           return <g key={point.key} data-recorded-days={point.recordedDays}>
-            <title>{`${point.label}: ${point.value}; ${point.recordedDays} recorded days`}</title>
-            <circle className="weekly-radar-point" cx={data.x} cy={data.y} r="4.5" />
+            <title>{`${point.label}: ${recorded ? point.value : "missing"}; ${point.recordedDays} recorded days`}</title>
+            {recorded && <circle className="weekly-radar-point" cx={data.x} cy={data.y} r="4.5" />}
             <text className="weekly-radar-caption" data-radar-key={point.key} x={label.x} y={label.y + yOffset} textAnchor={anchor}>
-              <tspan>{point.label}</tspan><tspan className="weekly-radar-score" dx="5">{point.value}</tspan>
+              <tspan>{point.label}</tspan><tspan className="weekly-radar-score" dx="5">{recorded ? point.value : "--"}</tspan>
             </text>
           </g>;
         })}
       </svg>
       <ol className="sr-only">
-        {points.map((point) => <li key={point.key}>{point.label}: {point.value}; {point.recordedDays} recorded days</li>)}
+        {points.map((point) => <li key={point.key}>{point.label}: {point.value ?? "missing"}; {point.recordedDays} recorded days</li>)}
       </ol>
     </div>
   );

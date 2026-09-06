@@ -36,12 +36,13 @@ test("small report cards use compact output while detailed reports keep normal b
   assert.match(dashboard, /healthReport\?\.bullets/);
 });
 
-test("health report results stay in memory until a real save requests refresh", () => {
+test("health report results stay in memory and saved data relies on the server source fingerprint", () => {
   assert.match(healthService, /sourceRevision: string; report: HealthAiReport/);
   assert.match(healthService, /const userKey = sessionData\.session\?\.user\.id \?\? "anonymous"/);
   assert.match(healthService, /if \(input\.refresh\) resolved\.delete\(baseKey\)/);
   assert.match(healthService, /cached\?\.sourceRevision === input\.sourceRevision/);
   assert.match(healthService, /resolved\.set\(baseKey, \{ sourceRevision: input\.sourceRevision, report \}\)/);
   assert.match(healthService, /healthReportSourceRevision/);
-  assert.match(recordsScreen, /loadHealthAiReport\(\{ scope: "weekly"[^\n]+refresh: true/);
+  assert.doesNotMatch(recordsScreen, /loadHealthAiReport\([^\n]+refresh: true/);
+  assert.doesNotMatch(recordsScreen, /loadDietAiReport\([^\n]+refresh: true/);
 });
