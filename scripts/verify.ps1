@@ -71,51 +71,55 @@ Write-Host "15. Structured entry parser"
 Invoke-Npm -Arguments @("run", "structured:test")
 
 Write-Host ""
-Write-Host "16. Backend contract"
+Write-Host "16. Weekly report and focus-flow contracts"
+Invoke-Npm -Arguments @("run", "weekly-report:test")
+
+Write-Host ""
+Write-Host "17. Backend contract"
 Invoke-Npm -Arguments @("run", "backend:verify")
 
 Write-Host ""
-Write-Host "17. Edge Function type check"
+Write-Host "18. Edge Function type check"
 Invoke-Npm -Arguments @("run", "backend:typecheck")
 
 Write-Host ""
-Write-Host "18. Phone OTP tests"
+Write-Host "19. Phone OTP tests"
 Invoke-Npm -Arguments @("run", "backend:test")
 
 Write-Host ""
-Write-Host "19. Native health and auth contract"
+Write-Host "20. Native health and auth contract"
 Invoke-Npm -Arguments @("run", "health:contract:test")
 
 Write-Host ""
-Write-Host "20. iOS project contract"
+Write-Host "21. iOS project contract"
 Invoke-Npm -Arguments @("run", "ios:verify")
 
 Write-Host ""
-Write-Host "21. Consent and real-data boundary contract"
+Write-Host "22. Consent and real-data boundary contract"
 Invoke-Npm -Arguments @("run", "consent:contract:test")
 
 Write-Host ""
-Write-Host "22. Browser translation DOM resilience"
+Write-Host "23. Browser translation DOM resilience"
 Invoke-Npm -Arguments @("run", "translation:test")
 
 Write-Host ""
-Write-Host "23. Supabase request reuse and refresh boundaries"
+Write-Host "24. Supabase request reuse and refresh boundaries"
 Invoke-Npm -Arguments @("run", "performance:test")
 
 Write-Host ""
-Write-Host "24. Notification planner contract"
+Write-Host "25. Notification planner contract"
 Invoke-Npm -Arguments @("run", "notification:test")
 
 Write-Host ""
-Write-Host "25. Home guidance and mascot-state contract"
+Write-Host "26. Home guidance and mascot-state contract"
 Invoke-Npm -Arguments @("run", "home-guidance:test")
 
 Write-Host ""
-Write-Host "26. Home widget and maintenance contracts"
+Write-Host "27. Home widget and maintenance contracts"
 Invoke-Npm -Arguments @("run", "home-widgets:test")
 
 Write-Host ""
-Write-Host "27. Cloud persistence, export, and deletion contracts"
+Write-Host "28. Cloud persistence, export, and deletion contracts"
 Invoke-Npm -Arguments @("run", "cloud-data:test")
 
 Write-Host ""

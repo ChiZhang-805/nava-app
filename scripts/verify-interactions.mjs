@@ -996,7 +996,10 @@ async function verifyHomeShortcuts(page, results) {
   await assertStaticLayout(page, "today-utilities-with-todo");
   await page.waitForTimeout(280);
   await page.screenshot({ path: path.join(outputDir, "today-utilities-with-todo.png") });
-  await page.locator('.utility-drawer[role="dialog"] header button').click();
+  await page.locator(".drawer-todo-item").first().locator(".drawer-todo-launch").click();
+  await expect(page.locator('.record-detail[data-record-detail="focus"] .record-editor-stack > form:not([hidden])')).toBeVisible();
+  await expect(page.locator('.record-detail[data-record-detail="focus"] .focus-entry-task-field input')).toHaveValue(reviewLocale === "zh" ? "晚饭后散步 20 分钟" : "Walk for 20 minutes after dinner");
+  await expect(page.locator('.record-detail[data-record-detail="focus"] .focus-entry-minutes-field select')).toHaveValue("25");
   await expect(page.locator('.utility-drawer[role="dialog"]')).toBeHidden();
   results.push("首页真实积分、小猫动作、快捷入口折叠、上滑健康圆盘、月历/日报告、详细资料与待办入口");
 }

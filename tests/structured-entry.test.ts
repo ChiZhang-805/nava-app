@@ -1,6 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseStructuredEntry, updateStructuredEntryField } from "../src/services/structuredEntryParser.ts";
+import { focusDurationChoice, resolveTodoFocusPlan, suggestedFocusPlan } from "../src/services/focusPlanning.ts";
+
+test("todo focus planning preserves user values and estimates missing plans", () => {
+  assert.deepEqual(suggestedFocusPlan("写作业"), { focusMinutes: 45, focusSessions: 2 });
+  assert.deepEqual(suggestedFocusPlan("上课"), { focusMinutes: 25, focusSessions: 2 });
+  assert.deepEqual(resolveTodoFocusPlan({ title: "复习", focusMinutes: 60, focusSessions: 3 }), {
+    focusMinutes: 60,
+    focusSessions: 3,
+    suggested: false,
+  });
+  assert.equal(resolveTodoFocusPlan({ title: "整理书桌" }).suggested, true);
+  assert.equal(focusDurationChoice(45), "45");
+  assert.equal(focusDurationChoice(37), "custom");
+});
 
 test("todo parser keeps tomorrow and afternoon time", () => {
   const entry = parseStructuredEntry("明天下午3点提醒我给团队开会", "zh");

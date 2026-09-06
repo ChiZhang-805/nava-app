@@ -1,3 +1,5 @@
+import { suggestedFocusPlan } from "./focusPlanning.ts";
+
 export type StructuredEntryType = "mood" | "sleep" | "exercise" | "nutrition" | "focus" | "todo" | "multi";
 
 export type StructuredField = {
@@ -540,16 +542,6 @@ export function parseStructuredEntry(
   }
   if (entries.length === 0) return null;
   return entries.length === 1 ? entries[0] : multiEntry(entries, locale, value);
-}
-
-function suggestedFocusPlan(title: string) {
-  if (/论文|报告|方案|项目|编程|代码|复习|学习|写作|research|report|project|code|study|write/i.test(title)) {
-    return { focusMinutes: 45, focusSessions: 2 };
-  }
-  if (/整理|阅读|会议|准备|review|read|meeting|prepare/i.test(title)) {
-    return { focusMinutes: 25, focusSessions: 2 };
-  }
-  return { focusMinutes: 25, focusSessions: 1 };
 }
 
 function setByPath(payload: Record<string, unknown>, path: string, nextValue: string, valueType: StructuredField["valueType"]) {

@@ -12,6 +12,9 @@ import {
   Clock3,
   Gauge,
   HeartPulse,
+  Lightbulb,
+  Maximize2,
+  Minimize2,
   MoonStar,
   Pause,
   Play,
@@ -29,6 +32,7 @@ import {
 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { App as CapacitorApp } from "@capacitor/app";
+import { createPortal } from "react-dom";
 import AnimatedNumber from "../components/AnimatedNumber";
 import BarLineTrendChart, { type BarLineTrendPoint } from "../components/BarLineTrendChart";
 import LineTrendChart from "../components/LineTrendChart";
@@ -54,7 +58,7 @@ import {
 } from "../services/health";
 import { getWatchReachability } from "../services/watch";
 import { shareReportImage } from "../services/reportShareCard";
-import { addTodo, subscribeProductivity, syncTodos, toggleTodo, type GrowthActivityKind, type TodoItem } from "../services/productivity";
+import { addTodo, saveTodoFocusPlan, subscribeProductivity, syncTodos, toggleTodo, type GrowthActivityKind, type TodoItem } from "../services/productivity";
 import { isCompleteMoodRecord, moodBandForScore, moodBands, moodDateWindow } from "../services/mood";
 import {
   activityHeatmap,
@@ -70,6 +74,8 @@ import { rollingDateWindow } from "../services/date";
 import { currentDayRequiredShareCopy, hasCurrentDayRecord, missingCurrentDayCopy } from "../services/historyReportState";
 import { isDemoMode } from "../services/demo";
 import { clearActiveUserSession, loadActiveUserSession, saveActiveUserSession } from "../services/userCloudState";
+import { resolveTodoFocusPlan } from "../services/focusPlanning.ts";
+import { exitFocusFullscreen, focusFullscreenActive, focusFullscreenSupported, requestFocusFullscreen, requestScreenWakeLock, screenWakeLockSupported, type ScreenWakeLockSentinel } from "../services/focusImmersion.ts";
 
 type MoodFactor = { value: string; label: string };
 
@@ -1118,6 +1124,13 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     ? ""
     : focusTitle;
   const immersive = view === "immersive" || view === "interruption";
+  const wakePreferenceKey = `nava-focus-keep-awake:${userId}`;
+  const wakeLockAvailable = screenWakeLockSupported();
+  const fullscreenAvailable = focusFullscreenSupported();
+  const wakeLockRef = useRef<ScreenWakeLockSentinel | null>(null);
+  const [keepAwakeEnabled, setKeepAwakeEnabled] = useState(() => window.sessionStorage.getItem(wakePreferenceKey) !== "false");
+  const [wakeLockActive, setWakeLockActive] = useState(false);
+  const [fullscreenActive, setFullscreenActive] = useState(focusFullscreenActive);
   const [running, setRunning] = useState(Boolean(focusLaunch));
   const [hasStarted, setHasStarted] = useState(Boolean(restoredTimer || focusLaunch));
   const [countdownDurationSeconds, setCountdownDurationSeconds] = useState(focusLaunch ? focusMinutes * 60 : restoredTimer?.countdownDurationSeconds ?? focusMinutes * 60);
@@ -1143,6 +1156,62 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const lastCloudTimerWriteRef = useRef(0);
   const cloudTimerExistsRef = useRef(false);
   const lastTimerTickRef = useRef<number | null>(null);
+  const releaseWakeLock = useCallback(async () => {
+    const sentinel = wakeLockRef.current;
+    wakeLockRef.current = null;
+    setWakeLockActive(false);
+    if (sentinel && sentinel.released !== true) await sentinel.release().catch(() => undefined);
+  }, []);
+  const acquireWakeLock = useCallback(async () => {
+    if (!immersive || !keepAwakeEnabled || document.visibilityState !== "visible" || wakeLockRef.current) return;
+    try {
+      const sentinel = await requestScreenWakeLock();
+      if (!sentinel) return;
+      wakeLockRef.current = sentinel;
+      setWakeLockActive(true);
+      sentinel.addEventListener("release", () => {
+        if (wakeLockRef.current === sentinel) wakeLockRef.current = null;
+        setWakeLockActive(false);
+      }, { once: true });
+    } catch {
+      setWakeLockActive(false);
+    }
+  }, [immersive, keepAwakeEnabled]);
+  useEffect(() => {
+    window.sessionStorage.setItem(wakePreferenceKey, String(keepAwakeEnabled));
+  }, [keepAwakeEnabled, wakePreferenceKey]);
+  useEffect(() => {
+    if (!immersive || !keepAwakeEnabled) {
+      void releaseWakeLock();
+      return;
+    }
+    void acquireWakeLock();
+    const restoreAfterVisibility = () => {
+      if (document.visibilityState === "visible") void acquireWakeLock();
+    };
+    document.addEventListener("visibilitychange", restoreAfterVisibility);
+    return () => document.removeEventListener("visibilitychange", restoreAfterVisibility);
+  }, [acquireWakeLock, immersive, keepAwakeEnabled, releaseWakeLock]);
+  useEffect(() => {
+    const syncFullscreenState = () => setFullscreenActive(focusFullscreenActive());
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    document.addEventListener("webkitfullscreenchange", syncFullscreenState);
+    return () => {
+      document.removeEventListener("fullscreenchange", syncFullscreenState);
+      document.removeEventListener("webkitfullscreenchange", syncFullscreenState);
+    };
+  }, []);
+  useEffect(() => {
+    if (immersive) return;
+    void releaseWakeLock();
+    void exitFocusFullscreen().then(() => setFullscreenActive(false));
+  }, [immersive, releaseWakeLock]);
+  useEffect(() => () => {
+    const sentinel = wakeLockRef.current;
+    wakeLockRef.current = null;
+    if (sentinel && sentinel.released !== true) void sentinel.release().catch(() => undefined);
+    void exitFocusFullscreen();
+  }, []);
   const refreshTodos = useCallback(() => {
     void syncTodos(userId).then(setTodos).catch((error) => console.warn("Todo sync deferred", error));
   }, [userId]);
@@ -1162,6 +1231,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       setInterruptions(0);
       setStartedAt(focusLaunch.startedAt);
       setSessionId(focusLaunch.id);
+      setSelectedTodoId(focusLaunch.selectedTodoId ?? null);
       setSaved(false);
       setHasStarted(true);
       setRunning(true);
@@ -1317,9 +1387,35 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   };
 
   const chooseTodo = (item: TodoItem) => {
+    const plan = resolveTodoFocusPlan(item);
     setSelectedTodoId(item.id);
     setFocusTitle(item.title);
-    if (item.focusMinutes) updateDuration(item.focusMinutes);
+    updateDuration(plan.focusMinutes);
+    if (plan.suggested) {
+      void saveTodoFocusPlan(userId, item.id, plan)
+        .then(setTodos)
+        .catch((error) => console.warn("Todo focus estimate sync deferred", error));
+    }
+  };
+
+  const enterImmersive = (replace = false) => {
+    openView("immersive", replace);
+    void requestFocusFullscreen().then(setFullscreenActive);
+  };
+
+  const leaveImmersive = () => {
+    setRunning(false);
+    void releaseWakeLock();
+    void exitFocusFullscreen().then(() => setFullscreenActive(false));
+    openView("overview");
+  };
+
+  const toggleFullscreen = () => {
+    if (focusFullscreenActive()) {
+      void exitFocusFullscreen().then(() => setFullscreenActive(false));
+      return;
+    }
+    void requestFocusFullscreen().then(setFullscreenActive);
   };
 
   const updateDuration = (nextValue: number) => {
@@ -1442,13 +1538,35 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   }, [finish, hasStarted, immersive, remaining, saved, saving, timerMode]);
 
   if (immersive) {
-    return (
+    return createPortal((
       <div
         className={["module-dashboard", "focus-immersive", running ? "is-running" : hasStarted ? "is-paused" : "is-ready"].join(" ")}
         data-module-view="focus-immersive"
         data-focus-state={running ? "running" : hasStarted ? "paused" : "ready"}
+        data-wake-lock={!wakeLockAvailable ? "unsupported" : wakeLockActive ? "active" : keepAwakeEnabled ? "requesting" : "off"}
+        data-fullscreen={fullscreenActive ? "active" : "viewport"}
       >
-        <button className="focus-immersive-exit" type="button" onClick={() => { setRunning(false); openView("overview"); }} aria-label={locale === "zh" ? "退出并暂停沉浸专注" : "Exit and pause immersive focus"}><X size={19} /></button>
+        <button className="focus-immersive-exit" type="button" onClick={leaveImmersive} aria-label={locale === "zh" ? "退出并暂停沉浸专注" : "Exit and pause immersive focus"}><X size={19} /></button>
+        <div className="focus-immersive-tools">
+          <button
+            type="button"
+            className={keepAwakeEnabled ? "active" : ""}
+            disabled={!wakeLockAvailable}
+            aria-pressed={keepAwakeEnabled}
+            aria-label={locale === "zh" ? "切换屏幕常亮" : "Toggle screen wake lock"}
+            title={!wakeLockAvailable ? (locale === "zh" ? "当前浏览器不支持屏幕常亮" : "Screen wake lock is unavailable") : undefined}
+            onClick={() => setKeepAwakeEnabled((value) => !value)}
+          ><Lightbulb size={15} /><span>{locale === "zh" ? (wakeLockActive ? "已常亮" : "常亮") : (wakeLockActive ? "Awake" : "Stay awake")}</span></button>
+          <button
+            type="button"
+            className={fullscreenActive ? "active" : ""}
+            disabled={!fullscreenAvailable}
+            aria-pressed={fullscreenActive}
+            aria-label={fullscreenActive ? (locale === "zh" ? "退出全屏" : "Exit full screen") : (locale === "zh" ? "进入全屏" : "Enter full screen")}
+            title={!fullscreenAvailable ? (locale === "zh" ? "当前浏览器不支持系统全屏，仍会使用视口沉浸模式" : "System full screen is unavailable; viewport immersion remains active") : undefined}
+            onClick={toggleFullscreen}
+          >{fullscreenActive ? <Minimize2 size={15} /> : <Maximize2 size={15} />}<span>{locale === "zh" ? (fullscreenActive ? "退出全屏" : "全屏") : (fullscreenActive ? "Exit" : "Full screen")}</span></button>
+        </div>
         <div className="focus-title-field">
           <input
             aria-label={locale === "zh" ? "专注事项" : "Focus activity"}
@@ -1493,9 +1611,9 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           <button type="button" onClick={() => void finish()} disabled={saving} aria-label={locale === "zh" ? "结束" : "Finish"}><Square /></button>
         </div>
         {import.meta.env.DEV && <button className="focus-interruption-trigger" type="button" onClick={() => { setRunning(false); setInterruptions((value) => value + 1); openView("interruption"); }}><PhoneIncoming size={17} />{locale === "zh" ? "模拟来电打断" : "Simulate interruption"}</button>}
-        {view === "interruption" && <div className="focus-interruption" role="dialog" aria-modal="true"><PhoneIncoming size={38} /><strong>{locale === "zh" ? "来电打断" : "Incoming call"}</strong><p>{locale === "zh" ? "专注计时已自动暂停" : "Focus timer paused automatically"}</p><div><button type="button" onClick={() => { setRunning(true); setHasStarted(true); openView("immersive", true); }}>{locale === "zh" ? "继续专注" : "Keep focusing"}</button><button type="button" onClick={() => openView("immersive", true)}>{locale === "zh" ? "接听并暂停" : "Answer and pause"}</button></div></div>}
+        {view === "interruption" && <div className="focus-interruption" role="dialog" aria-modal="true"><PhoneIncoming size={38} /><strong>{locale === "zh" ? "来电打断" : "Incoming call"}</strong><p>{locale === "zh" ? "专注计时已自动暂停" : "Focus timer paused automatically"}</p><div><button type="button" onClick={() => { setRunning(true); setHasStarted(true); enterImmersive(true); }}>{locale === "zh" ? "继续专注" : "Keep focusing"}</button><button type="button" onClick={() => enterImmersive(true)}>{locale === "zh" ? "接听并暂停" : "Answer and pause"}</button></div></div>}
       </div>
-    );
+    ), document.body);
   }
 
   return (
@@ -1512,7 +1630,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
               </>}
             </p>
           </div>
-          <button className={["focus-summary-start", saved ? "success" : ""].filter(Boolean).join(" ")} type="button" onClick={() => { if (saved) { setSaved(false); setHasStarted(false); } openView("immersive"); }} aria-label={saved ? (locale === "zh" ? "专注已记录" : "Focus saved") : hasStarted ? (locale === "zh" ? "恢复已暂停的专注" : "Resume paused focus") : (locale === "zh" ? "开始专注" : "Start focus")}>{saved ? <Check size={23} /> : <><CirclePlay size={23} /><span>{hasStarted ? (locale === "zh" ? "恢复" : "Resume") : (locale === "zh" ? "开始" : "Start")}</span></>}</button>
+          <button className={["focus-summary-start", saved ? "success" : ""].filter(Boolean).join(" ")} type="button" onClick={() => { if (saved) { setSaved(false); setHasStarted(false); } enterImmersive(); }} aria-label={saved ? (locale === "zh" ? "专注已记录" : "Focus saved") : hasStarted ? (locale === "zh" ? "恢复已暂停的专注" : "Resume paused focus") : (locale === "zh" ? "开始专注" : "Start focus")}>{saved ? <Check size={23} /> : <><CirclePlay size={23} /><span>{hasStarted ? (locale === "zh" ? "恢复" : "Resume") : (locale === "zh" ? "开始" : "Start")}</span></>}</button>
         </div>
       </section>
       <section className="figma-module-card focus-trend-card">
@@ -1545,7 +1663,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           {visibleTodos.map((item) => <div className={[item.completed ? "completed" : "", selectedTodoId === item.id ? "selected" : ""].filter(Boolean).join(" ")} key={item.id}>
             <button className="focus-todo-check" type="button" onClick={() => void toggleTodo(userId, item.id)} aria-label={item.completed ? (locale === "zh" ? "标记未完成" : "Mark incomplete") : (locale === "zh" ? "标记完成" : "Mark complete")}>{item.completed && <Check size={14} />}</button>
             <button className="focus-todo-copy" type="button" onClick={() => chooseTodo(item)}><strong>{item.title}</strong><small>{todoView === "calendar" ? `${shortDate(item.scheduledDate, locale)} · ` : ""}{item.scheduledTime ? `${item.scheduledTime} · ` : ""}{item.focusMinutes ? `${item.focusMinutes} ${locale === "zh" ? "分钟" : "min"}` : (locale === "zh" ? "未设置时长" : "No duration")}{item.focusSessions ? ` × ${item.focusSessions} · ${Math.min(item.focusSessions, todoSessionProgress.get(item.id) ?? 0)}/${item.focusSessions}` : ""}</small></button>
-            <button className="focus-todo-start" type="button" onClick={() => { chooseTodo(item); setHasStarted(false); openView("immersive"); }} disabled={item.completed}><Play size={14} /></button>
+            <button className="focus-todo-start" type="button" onClick={() => { chooseTodo(item); setHasStarted(false); enterImmersive(); }} disabled={item.completed}><Play size={14} /></button>
           </div>)}
           {visibleTodos.length === 0 && <p>{locale === "zh" ? "这一天还没有待办。" : "No tasks on this day."}</p>}
         </div>
@@ -1562,7 +1680,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           <strong>{locale === "zh" ? "最近完成" : "Recently completed"}</strong>
           {recentFocus.length > 0 ? recentFocus.map((record) => <div key={record.id}><span><Clock3 size={14} /></span><p><b>{shortDate(record.record_date, locale)}</b><i aria-hidden="true">·</i>{record.completed_sessions}{locale === "zh" ? " 次" : " sessions"}<i aria-hidden="true">·</i>{record.total_minutes}{locale === "zh" ? " 分钟" : " min"}</p></div>) : <p className="focus-empty-history">{locale === "zh" ? "还没有完成记录" : "No completed sessions yet"}</p>}
         </div>
-        <button className="focus-enter-button" type="button" onClick={() => { setHasStarted(false); setRemaining(focusMinutes * 60); setElapsedSeconds(0); setInterruptions(0); setStartedAt(undefined); setSessionId(crypto.randomUUID()); openView("immersive"); }}>{locale === "zh" ? "进入专注" : "Start focus"}</button>
+        <button className="focus-enter-button" type="button" onClick={() => { setHasStarted(false); setRemaining(focusMinutes * 60); setElapsedSeconds(0); setInterruptions(0); setStartedAt(undefined); setSessionId(crypto.randomUUID()); enterImmersive(); }}>{locale === "zh" ? "进入专注" : "Start focus"}</button>
       </section>
     </div>
   );

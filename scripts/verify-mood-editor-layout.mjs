@@ -6,7 +6,7 @@ import { createServer } from "vite";
 const root = process.cwd();
 const outputDir = process.env.RECORD_EDITOR_LAYOUT_OUTPUT_DIR
   ? path.resolve(process.env.RECORD_EDITOR_LAYOUT_OUTPUT_DIR)
-  : path.resolve(root, "..", "Build", "TestRuns", "nava-record-editor-layout-v108");
+  : path.resolve(root, "..", "Build", "TestRuns", "nava-record-editor-layout-v109");
 const port = Number(process.env.PORT || 5209);
 const demoAccount = "13800138000";
 const demoPassword = "12345678";
@@ -340,15 +340,49 @@ async function main() {
       focusResults.push({ name: viewport.name, countdownGeometry, countupGeometry });
       await page.screenshot({ path: path.join(outputDir, `focus-countup-${viewport.name}.png`) });
     }
-    await page.locator('.record-detail[data-record-detail="focus"] .focus-entry-task-field input').fill("完成产品方案提纲");
-    await page.locator('.record-detail[data-record-detail="focus"] form:not([hidden]) .action-button').click();
-    await expect(page.locator('[data-module-view="focus-immersive"]')).toHaveAttribute("data-focus-state", "running");
-    const runningDraft = await page.evaluate(() => {
-      const key = Object.keys(window.sessionStorage).find((item) => item.startsWith("nava-focus-timer:"));
-      return key ? JSON.parse(window.sessionStorage.getItem(key) ?? "null") : null;
-    });
-    if (!runningDraft || runningDraft.mode !== "countup" || runningDraft.title !== "完成产品方案提纲") throw new Error(`Focus launch did not start the real timer ${JSON.stringify(runningDraft)}`);
-    await page.locator(".focus-immersive-exit").click();
+    for (const viewport of viewports) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto(`${baseUrl}?demo=1#tab=record&module=focus&view=editor`, { waitUntil: "networkidle" });
+      const detail = page.locator('.record-detail[data-record-detail="focus"]');
+      await detail.locator('.focus-entry-task-field input').fill("完成产品方案提纲");
+      await detail.locator('[data-focus-mode="countup"]').click();
+      await detail.locator('form:not([hidden]) .action-button').click();
+      const immersive = page.locator('[data-module-view="focus-immersive"]');
+      await expect(immersive).toHaveAttribute("data-focus-state", "running");
+      await expect(immersive).toHaveAttribute("data-fullscreen", /active|viewport/);
+      await expect(immersive).toHaveAttribute("data-wake-lock", /active|requesting|off|unsupported/);
+      await expect(immersive.locator(".focus-immersive-tools button")).toHaveCount(2);
+      await page.waitForTimeout(520);
+      const immersiveGeometry = await immersive.evaluate((root) => {
+        const rect = root.getBoundingClientRect();
+        const title = root.querySelector(".focus-title-field")?.getBoundingClientRect();
+        const timer = root.querySelector(".focus-timer-ring")?.getBoundingClientRect();
+        const controls = root.querySelector(".focus-controls")?.getBoundingClientRect();
+        return {
+          root: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
+          title: title ? { top: title.top, bottom: title.bottom } : null,
+          timer: timer ? { top: timer.top, bottom: timer.bottom } : null,
+          controls: controls ? { top: controls.top, bottom: controls.bottom } : null,
+        };
+      });
+      if (Math.abs(immersiveGeometry.root.left) > 1 || Math.abs(immersiveGeometry.root.top) > 1
+        || Math.abs(immersiveGeometry.root.right - viewport.width) > 1 || Math.abs(immersiveGeometry.root.bottom - viewport.height) > 1
+        || !immersiveGeometry.title || !immersiveGeometry.timer || !immersiveGeometry.controls
+        || immersiveGeometry.title.top < 58
+        || immersiveGeometry.timer.top - immersiveGeometry.title.bottom < 12
+        || immersiveGeometry.controls.top - immersiveGeometry.timer.bottom < 8
+        || immersiveGeometry.controls.bottom > viewport.height - 8) {
+        throw new Error(`focus-immersive/${viewport.name}: viewport fill or spacing failed ${JSON.stringify(immersiveGeometry)}`);
+      }
+      const runningDraft = await page.evaluate(() => {
+        const key = Object.keys(window.sessionStorage).find((item) => item.startsWith("nava-focus-timer:"));
+        return key ? JSON.parse(window.sessionStorage.getItem(key) ?? "null") : null;
+      });
+      if (!runningDraft || runningDraft.mode !== "countup" || runningDraft.title !== "完成产品方案提纲") throw new Error(`Focus launch did not start the real timer ${JSON.stringify(runningDraft)}`);
+      focusResults.find((item) => item.name === viewport.name).immersiveGeometry = immersiveGeometry;
+      await page.screenshot({ path: path.join(outputDir, `focus-immersive-${viewport.name}.png`) });
+      await page.locator(".focus-immersive-exit").click();
+    }
 
     const faceResults = [];
     await page.evaluate(() => localStorage.setItem("nava.review.demo.empty-snapshot-date.v1", "2020-01-01"));

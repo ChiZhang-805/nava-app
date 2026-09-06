@@ -32,6 +32,7 @@ import { isCompleteFaceRecord, isCompleteNutritionRecord, isCompleteSleepRecord 
 import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
 import type { GrowthProgressVisit } from "./growthProgressPresentation";
+import type { FocusPlan } from "./focusPlanning.ts";
 
 const productivityEvent = "nava-productivity-change";
 
@@ -202,6 +203,30 @@ export async function toggleTodo(userId: string, id: string) {
     if (!updated.data) throw new Error("待办更新没有写入共享数据库，请刷新后重试。");
   }
   return writeTodos(userId, current.map((candidate) => candidate.id === id ? { ...candidate, completed } : candidate));
+}
+
+export async function saveTodoFocusPlan(userId: string, id: string, plan: FocusPlan) {
+  const current = loadTodos(userId);
+  const item = current.find((candidate) => candidate.id === id);
+  if (!item) return current;
+  const focusMinutes = Math.min(180, Math.max(1, Math.round(plan.focusMinutes)));
+  const focusSessions = Math.min(12, Math.max(1, Math.round(plan.focusSessions)));
+  if (item.focusMinutes === focusMinutes && item.focusSessions === focusSessions) return current;
+  if (!isDemoMode()) {
+    const updated = await supabase
+      .from("tasks")
+      .update({ estimated_minutes: focusMinutes, focus_sessions: focusSessions })
+      .eq("id", id)
+      .eq("user_id", userId)
+      .eq("category", "todo")
+      .select("id")
+      .maybeSingle();
+    if (updated.error) throw updated.error;
+    if (!updated.data) throw new Error("待办专注计划没有写入共享数据库，请刷新后重试。");
+  }
+  return writeTodos(userId, current.map((candidate) => candidate.id === id
+    ? { ...candidate, focusMinutes, focusSessions }
+    : candidate));
 }
 
 const defaultGrowthTasks: Omit<GrowthTask, "completed">[] = [

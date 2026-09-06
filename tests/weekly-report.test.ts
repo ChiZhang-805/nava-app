@@ -12,6 +12,9 @@ const faceFunction = readFileSync(new URL("../supabase/functions/face-analyze/in
 const faceDraftService = readFileSync(new URL("../src/services/secureFaceDraft.ts", import.meta.url), "utf8");
 const dashboard = readFileSync(new URL("../src/features/RecordModuleDashboard.tsx", import.meta.url), "utf8");
 const productivity = readFileSync(new URL("../src/services/productivity.ts", import.meta.url), "utf8");
+const utilityDrawer = readFileSync(new URL("../src/components/UtilityDrawer.tsx", import.meta.url), "utf8");
+const focusImmersion = readFileSync(new URL("../src/services/focusImmersion.ts", import.meta.url), "utf8");
+const focusStyles = readFileSync(new URL("../src/styles/figma-v2.css", import.meta.url), "utf8");
 
 test("weekly report periods follow the local Monday-to-Sunday natural week", () => {
   assert.deepEqual(naturalWeekDateRange(new Date("2026-09-02T12:00:00")), {
@@ -93,6 +96,23 @@ test("focus todo plans persist time, duration and session count and complete fro
   assert.match(productivity, /reminder_at/);
   assert.match(dashboard, /selectedTodoCompletedSessions \+ 1 >= \(selectedTodo\.focusSessions \?\? 1\)/);
   assert.match(dashboard, /计划专注次数/);
+});
+
+test("drawer todos launch a prefilled linked focus session without conflating completion", () => {
+  assert.match(utilityDrawer, /drawer-todo-check/);
+  assert.match(utilityDrawer, /drawer-todo-launch/);
+  assert.match(utilityDrawer, /onStartFocus\(todo\)/);
+  assert.match(appShell, /navigate\("record", "focus", "editor"\)/);
+  assert.match(recordsScreen, /selectedTodoId: focusTodoId/);
+  assert.match(dashboard, /setSelectedTodoId\(focusLaunch\.selectedTodoId \?\? null\)/);
+});
+
+test("immersive focus uses screen wake lock, browser full screen and a viewport fallback", () => {
+  assert.match(focusImmersion, /wakeLock/);
+  assert.match(focusImmersion, /requestFullscreen/);
+  assert.match(dashboard, /data-wake-lock/);
+  assert.match(dashboard, /focus-immersive-tools/);
+  assert.match(focusStyles, /\.focus-immersive \{[\s\S]*position: fixed;[\s\S]*height: 100dvh;/);
 });
 
 test("weekly radar averages only recorded days and preserves a wholly missing dimension as missing", () => {

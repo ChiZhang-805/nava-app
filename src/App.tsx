@@ -7,7 +7,7 @@ import navRecordIcon from "./assets/figma/option-two-icons/record.svg";
 import lifeFigure from "./assets/figma/home-option2/raw-01.png";
 import { assertConfig } from "./config";
 import AuthScreen from "./features/AuthScreen";
-import type { RecordModule } from "./features/RecordsScreen";
+import type { FocusTodoPrefill, RecordModule } from "./features/RecordsScreen";
 import OptionTwoHome from "./features/OptionTwoHome";
 import type { AiCommand } from "./features/AIScreen";
 import PasswordRecoveryScreen from "./features/PasswordRecoveryScreen";
@@ -27,7 +27,8 @@ import { useLocale, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
 import { loadOnboardingStatus } from "./services/onboarding";
-import { recordGrowthActivity, reconcileGrowthRewards, resolveGrowthTasks, type GrowthActivityKind, type GrowthRewardGrant, type GrowthSummary } from "./services/productivity";
+import { recordGrowthActivity, reconcileGrowthRewards, resolveGrowthTasks, saveTodoFocusPlan, type GrowthActivityKind, type GrowthRewardGrant, type GrowthSummary, type TodoItem } from "./services/productivity";
+import { resolveTodoFocusPlan } from "./services/focusPlanning.ts";
 import useDeviceDate from "./hooks/useDeviceDate";
 import useNativeHealthAutoSync from "./hooks/useNativeHealthAutoSync";
 import { subscribeHealthSyncCompletion } from "./services/health";
@@ -125,6 +126,7 @@ function MobileShell({
   const [recordView, setRecordView] = useState<string | null>(initialRouteRef.current.view);
   const [utilityOpen, setUtilityOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [focusTodoPrefill, setFocusTodoPrefill] = useState<FocusTodoPrefill | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const deviceDate = useDeviceDate();
   const previousDeviceDateRef = useRef(deviceDate);
@@ -272,6 +274,26 @@ function MobileShell({
     }
     const nextState = nextShellHistoryState(currentState, next, replace);
     window.history[replace ? "replaceState" : "pushState"](nextState, "", url);
+  };
+
+  const openTodoFocus = (todo: TodoItem) => {
+    if (!user) return;
+    const plan = resolveTodoFocusPlan(todo);
+    setFocusTodoPrefill((current) => ({
+      requestId: (current?.requestId ?? 0) + 1,
+      todoId: todo.id,
+      title: todo.title,
+      focusMinutes: plan.focusMinutes,
+      focusSessions: plan.focusSessions,
+      suggested: plan.suggested,
+    }));
+    setDrawerOpen(false);
+    setUtilityOpen(false);
+    navigate("record", "focus", "editor");
+    if (plan.suggested) {
+      void saveTodoFocusPlan(user.id, todo.id, plan)
+        .catch((error) => console.warn("Todo focus estimate sync deferred", error));
+    }
   };
 
   const navigateBack = (fallback: ShellRoute) => {
@@ -682,6 +704,8 @@ function MobileShell({
                 }}
                 initialModule={recordModule}
                 initialView={recordView}
+                focusTodoPrefill={focusTodoPrefill}
+                onFocusTodoPrefillApplied={(requestId) => setFocusTodoPrefill((current) => current?.requestId === requestId ? null : current)}
                 onModuleChange={(module, view = null) => navigate("record", module, view)}
                 onViewChange={(view, replace = false) => {
                   if (replace && recordView) {
@@ -803,6 +827,7 @@ function MobileShell({
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onTaskCompleted={markTodoCompleted}
+        onStartFocus={openTodoFocus}
         onEditHome={() => {
           setDrawerOpen(false);
           navigate("today", null, "home-widgets");

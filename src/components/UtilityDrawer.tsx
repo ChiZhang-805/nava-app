@@ -3,6 +3,7 @@ import { Check, ChevronRight, CircleDollarSign, LockKeyhole, ShoppingBag, Slider
 import { FormEvent, useEffect, useState } from "react";
 import { useLocale } from "../i18n";
 import { addTodo, growthXp, loadGrowthTasks, loadTodos, reconcileGrowthRewards, resolveGrowthTasks, subscribeProductivity, syncTodos, toggleTodo, type GrowthSummary, type TodoItem } from "../services/productivity";
+import { resolveTodoFocusPlan, suggestedFocusPlan } from "../services/focusPlanning.ts";
 
 export default function UtilityDrawer({
   user,
@@ -10,12 +11,14 @@ export default function UtilityDrawer({
   onClose,
   onTaskCompleted,
   onEditHome,
+  onStartFocus,
 }: {
   user: User;
   open: boolean;
   onClose: () => void;
   onTaskCompleted?: () => Promise<GrowthSummary | null>;
   onEditHome: () => void;
+  onStartFocus: (todo: TodoItem) => void;
 }) {
   const { locale } = useLocale();
   const [todos, setTodos] = useState<TodoItem[]>(() => loadTodos(user.id));
@@ -51,7 +54,7 @@ export default function UtilityDrawer({
     setBusyTodo("add");
     setError(null);
     try {
-      await addTodo(user.id, draft, "manual");
+      await addTodo(user.id, draft, "manual", undefined, undefined, suggestedFocusPlan(draft));
       setDraft("");
       setTodos(loadTodos(user.id));
     } catch (todoError) {
@@ -90,7 +93,30 @@ export default function UtilityDrawer({
           <form onSubmit={submit}><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={locale === "zh" ? "添加今天要做的事" : "Add a task"} /><button type="submit" disabled={busyTodo === "add"} aria-label={locale === "zh" ? "添加" : "Add"}><ChevronRight size={20} /></button></form>
           <div className="drawer-todo-list">
             {todos.length === 0 && <p>{locale === "zh" ? "也可以直接告诉 NAVA：今天待办完成一次散步。" : "You can also tell NAVA: add a walk to today's to-do list."}</p>}
-            {todos.slice(0, 5).map((todo) => <button type="button" key={todo.id} disabled={busyTodo === todo.id} onClick={() => void changeTodo(todo)}><span>{todo.completed && <Check size={15} />}</span><b>{todo.title}<small>{todo.scheduledDate}{todo.scheduledTime ? ` · ${todo.scheduledTime}` : ""}</small></b></button>)}
+            {todos.slice(0, 5).map((todo) => {
+              const plan = resolveTodoFocusPlan(todo);
+              const planLabel = plan.suggested
+                ? locale === "zh" ? `建议 ${plan.focusMinutes} 分钟` : `Suggested ${plan.focusMinutes} min`
+                : locale === "zh" ? `预计 ${plan.focusMinutes} 分钟` : `Planned ${plan.focusMinutes} min`;
+              return <div className={["drawer-todo-item", todo.completed ? "completed" : ""].filter(Boolean).join(" ")} key={todo.id}>
+                <button
+                  className="drawer-todo-check"
+                  type="button"
+                  disabled={busyTodo === todo.id}
+                  onClick={() => void changeTodo(todo)}
+                  aria-label={todo.completed ? (locale === "zh" ? `将“${todo.title}”标记为未完成` : `Mark ${todo.title} incomplete`) : (locale === "zh" ? `完成“${todo.title}”` : `Complete ${todo.title}`)}
+                >{todo.completed && <Check size={15} />}</button>
+                <button
+                  className="drawer-todo-launch"
+                  type="button"
+                  onClick={() => onStartFocus(todo)}
+                  aria-label={locale === "zh" ? `开始专注：${todo.title}` : `Focus on ${todo.title}`}
+                >
+                  <b>{todo.title}<small>{todo.scheduledDate}{todo.scheduledTime ? ` · ${todo.scheduledTime}` : ""} · {planLabel}</small></b>
+                  <ChevronRight size={17} aria-hidden="true" />
+                </button>
+              </div>;
+            })}
           </div>
           {error && <p className="drawer-todo-error" role="alert">{error}</p>}
         </section>

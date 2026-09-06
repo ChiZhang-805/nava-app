@@ -40,6 +40,8 @@ import { estimatedFoodLabel, formatDetectedDishList } from "../services/dietEntr
 import { readMealNutritionSummary, summaryFromItems } from "../services/nutritionIntegrity";
 import { recordSkeletonVariant } from "../services/loadingRoute";
 import { clearSleepMaintenance, hydrateSleepMaintenance, loadSleepMaintenance, sleepMaintenanceElapsedMinutes, sleepMaintenanceFields, startSleepMaintenance, type SleepMaintenanceSession } from "../services/sessionMaintenance";
+import { focusDurationChoice as focusDurationChoiceForMinutes } from "../services/focusPlanning.ts";
+import { requestFocusFullscreen } from "../services/focusImmersion.ts";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 
 const RecordModuleDashboard = lazy(() => import("./RecordModuleDashboard"));
@@ -91,6 +93,16 @@ export type FocusLaunchConfig = {
   mode: "countdown" | "countup";
   note: string;
   startedAt: string;
+  selectedTodoId?: string;
+};
+
+export type FocusTodoPrefill = {
+  requestId: number;
+  todoId: string;
+  title: string;
+  focusMinutes: number;
+  focusSessions: number;
+  suggested: boolean;
 };
 
 const dashboardModules = new Set<RecordModule>(["mood", "sleep", "exercise", "diet", "focus", "face"]);
@@ -207,6 +219,8 @@ export default function RecordsScreen({
   onOpenAi,
   initialModule = null,
   initialView = null,
+  focusTodoPrefill = null,
+  onFocusTodoPrefillApplied,
   onModuleChange,
   onViewChange,
 }: {
@@ -217,6 +231,8 @@ export default function RecordsScreen({
   onOpenAi?: (prompt: string) => void;
   initialModule?: RecordModule | null;
   initialView?: string | null;
+  focusTodoPrefill?: FocusTodoPrefill | null;
+  onFocusTodoPrefillApplied?: (requestId: number) => void;
   onModuleChange?: (module: RecordModule | null, view?: "editor" | null) => void;
   onViewChange?: (view: string | null, replace?: boolean) => void;
 }) {
@@ -257,6 +273,7 @@ export default function RecordsScreen({
   const snapshotRequestRef = useRef<SingleRequestSlot<TodaySnapshot>>(null);
   const trendRequestRef = useRef<SingleRequestSlot<TrendBundle>>(null);
   const profileRequestRef = useRef<SingleRequestSlot<UserProfile | null>>(null);
+  const appliedFocusTodoPrefillRef = useRef<number | null>(null);
 
   const [moodScore, setMoodScore] = useState(70);
   const [selectedFactors, setSelectedFactors] = useState<string[]>([]);
@@ -299,6 +316,7 @@ export default function RecordsScreen({
   const [focusDurationChoice, setFocusDurationChoice] = useState<"25" | "45" | "60" | "custom">("25");
   const [focusMode, setFocusMode] = useState<"countdown" | "countup">("countdown");
   const [focusNote, setFocusNote] = useState("");
+  const [focusTodoId, setFocusTodoId] = useState<string | null>(null);
   const [pendingFocusLaunch, setPendingFocusLaunch] = useState<FocusLaunchConfig | null>(null);
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [faceResult, setFaceResult] = useState<FaceAnalysisResult | null>(null);
@@ -514,10 +532,11 @@ export default function RecordsScreen({
         if (typeof draft.title === "string") setFocusTitle(draft.title);
         if (typeof draft.minutes === "number") {
           setFocusMinutes(draft.minutes);
-          setFocusDurationChoice([25, 45, 60].includes(draft.minutes) ? String(draft.minutes) as "25" | "45" | "60" : "custom");
+          setFocusDurationChoice(focusDurationChoiceForMinutes(draft.minutes));
         }
         if (draft.mode === "countdown" || draft.mode === "countup") setFocusMode(draft.mode);
         if (typeof draft.note === "string") setFocusNote(draft.note);
+        if (typeof draft.todoId === "string") setFocusTodoId(draft.todoId);
       }
       loaded = true;
       setLoadedRecordKey(recordKey);
@@ -553,6 +572,22 @@ export default function RecordsScreen({
   }, [deviceDate]);
 
   useEffect(() => {
+    if (!focusTodoPrefill || activeModule !== "focus" || !showEditor || !draftReady) return;
+    if (appliedFocusTodoPrefillRef.current === focusTodoPrefill.requestId) return;
+    appliedFocusTodoPrefillRef.current = focusTodoPrefill.requestId;
+    const nextMinutes = Math.min(180, Math.max(1, Math.round(focusTodoPrefill.focusMinutes)));
+    setFocusTodoId(focusTodoPrefill.todoId);
+    setFocusTitle(focusTodoPrefill.title.trim());
+    setFocusMinutes(nextMinutes);
+    setFocusDurationChoice(focusDurationChoiceForMinutes(nextMinutes));
+    setFocusMode("countdown");
+    setNotice(locale === "zh"
+      ? `${focusTodoPrefill.suggested ? "已预估" : "已带入"} ${nextMinutes} 分钟，可继续调整。`
+      : `${focusTodoPrefill.suggested ? "Estimated" : "Loaded"} ${nextMinutes} minutes; you can still adjust it.`);
+    onFocusTodoPrefillApplied?.(focusTodoPrefill.requestId);
+  }, [activeModule, draftReady, focusTodoPrefill, locale, onFocusTodoPrefillApplied, showEditor]);
+
+  useEffect(() => {
     const refreshVisibleRecords = () => {
       if (document.visibilityState !== "visible") return;
       const now = Date.now();
@@ -581,12 +616,12 @@ export default function RecordsScreen({
           ? { steps, calories, minutes: exerciseMinutes, heartRate, spo2, note: exerciseNote }
           : activeModule === "diet"
             ? { meal, mealTime, name: mealName, calories: mealCalories, items: dietItems, photoPath: dietPhotoPath, proteinGrams, carbohydrateGrams, fatGrams, hydrationMl, rating: dietRating }
-            : { title: focusTitle, minutes: focusMinutes, mode: focusMode, note: focusNote };
+            : { title: focusTitle, minutes: focusMinutes, mode: focusMode, note: focusNote, todoId: focusTodoId };
     const timer = window.setTimeout(() => {
       void saveRecordDraft(user.id, module, recordDate, payload).catch((draftError) => console.warn("Record draft sync deferred", draftError));
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [activeModule, calories, carbohydrateGrams, deepSleep, diary, dietItems, dietPhotoPath, dietRating, draftReady, exerciseMinutes, exerciseNote, fatGrams, focusMinutes, focusMode, focusNote, focusTitle, heartRate, hydrationMl, lightSleep, meal, mealCalories, mealName, mealTime, moodScore, proteinGrams, recordDate, remSleep, selectedFactors, showEditor, sleepDuration, sleepEnd, sleepNote, sleepRating, sleepStart, spo2, steps, user.id]);
+  }, [activeModule, calories, carbohydrateGrams, deepSleep, diary, dietItems, dietPhotoPath, dietRating, draftReady, exerciseMinutes, exerciseNote, fatGrams, focusMinutes, focusMode, focusNote, focusTitle, focusTodoId, heartRate, hydrationMl, lightSleep, meal, mealCalories, mealName, mealTime, moodScore, proteinGrams, recordDate, remSleep, selectedFactors, showEditor, sleepDuration, sleepEnd, sleepNote, sleepRating, sleepStart, spo2, steps, user.id]);
 
   useEffect(() => {
     const estimated = estimateMinutes(sleepStart, sleepEnd);
@@ -1154,9 +1189,10 @@ export default function RecordsScreen({
     }
     setError(null);
     setFocusTitle(focusTitle.trim());
-    setPendingFocusLaunch({ id: crypto.randomUUID(), mode: focusMode, note: focusNote.trim(), startedAt: new Date().toISOString() });
+    setPendingFocusLaunch({ id: crypto.randomUUID(), mode: focusMode, note: focusNote.trim(), startedAt: new Date().toISOString(), selectedTodoId: focusTodoId ?? undefined });
     setShowEditor(false);
     onViewChange?.("immersive");
+    void requestFocusFullscreen();
   }
 
   async function saveFocusMinutes(minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string; category?: string; note?: string; sourceActionId?: string }) {
