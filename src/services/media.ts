@@ -143,6 +143,7 @@ export async function analyzeFacePhoto(input: {
         confidence: 0.9,
         makeup_level: input.captureMode === "makeup" ? "light" : "bare",
         makeup_confidence: 0.92,
+        capture_conditions: { light: true, position: true, expression: true },
       },
     };
   }

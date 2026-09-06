@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, Download, History, ListTodo, MessageSquarePlus, MoreHorizontal, PhoneCall, Share2, Trash2, Volume2, VolumeX } from "lucide-react";
+import { Activity, ArrowLeft, Download, History, ListTodo, MessageSquarePlus, MoreHorizontal, PhoneCall, ScanFace, Share2, Trash2, Volume2, VolumeX } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import navDataIcon from "./assets/figma/option-two-icons/data.png";
 import navHomeIcon from "./assets/figma/option-two-icons/home-glyph.svg";
@@ -625,6 +625,7 @@ function MobileShell({
               {activeTab === "record" && recordModule && <>
                 <button type="button" onClick={() => { setRecordView("history"); navigate("record", recordModule, "history"); setUtilityOpen(false); }}><History size={17} />{locale === "zh" ? "历史记录" : "History"}</button>
                 <button type="button" onClick={() => void shareCurrentPage()}><Share2 size={17} />{locale === "zh" ? "分享页面" : "Share"}</button>
+                {recordModule === "face" && <button type="button" onClick={() => { setRecordView("conditions"); navigate("record", "face", "conditions"); setUtilityOpen(false); }}><ScanFace size={17} />{locale === "zh" ? "条件检验" : "Condition check"}</button>}
               </>}
               <button type="button" onClick={() => { setUtilityOpen(false); setDrawerOpen(true); }}><ListTodo size={17} />{locale === "zh" ? "功能导航" : "Utilities"}</button>
               <LanguageToggle />

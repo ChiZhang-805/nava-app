@@ -296,6 +296,7 @@ export default function RecordsScreen({
 
   const [focusTitle, setFocusTitle] = useState("");
   const [focusMinutes, setFocusMinutes] = useState(25);
+  const [focusDurationChoice, setFocusDurationChoice] = useState<"25" | "45" | "60" | "custom">("25");
   const [focusMode, setFocusMode] = useState<"countdown" | "countup">("countdown");
   const [focusNote, setFocusNote] = useState("");
   const [pendingFocusLaunch, setPendingFocusLaunch] = useState<FocusLaunchConfig | null>(null);
@@ -511,7 +512,10 @@ export default function RecordsScreen({
       }
       if (draft && activeModule === "focus") {
         if (typeof draft.title === "string") setFocusTitle(draft.title);
-        if (typeof draft.minutes === "number") setFocusMinutes(draft.minutes);
+        if (typeof draft.minutes === "number") {
+          setFocusMinutes(draft.minutes);
+          setFocusDurationChoice([25, 45, 60].includes(draft.minutes) ? String(draft.minutes) as "25" | "45" | "60" : "custom");
+        }
         if (draft.mode === "countdown" || draft.mode === "countup") setFocusMode(draft.mode);
         if (typeof draft.note === "string") setFocusNote(draft.note);
       }
@@ -615,7 +619,7 @@ export default function RecordsScreen({
   }, [initialModule]);
 
   useEffect(() => {
-    setShowEditor(initialView === "editor");
+    setShowEditor(initialView === "editor" || initialView === "conditions");
   }, [initialView]);
 
   useEffect(() => {
@@ -1105,6 +1109,7 @@ export default function RecordsScreen({
       const { image, imagePath, result } = await analyzeFacePhoto({ userId: user.id, date: recordDate, file, captureMode: requestedMode, locale });
       setFaceImage(image);
       setFaceResult(result);
+      if (result.capture_conditions) setFaceCaptureChecks(result.capture_conditions);
       const analysis = { image, imagePath, result, file, captureMode: requestedMode } satisfies PendingFaceAnalysis;
       if (faceModeMismatch(result, requestedMode)) {
         setPendingFaceAnalysis(analysis);
@@ -1175,7 +1180,7 @@ export default function RecordsScreen({
   const currentRecordKey = `${recordDate}:${activeModule ?? "hub"}:${activeModule === "diet" ? meal : ""}`;
   const visibleFaceInsights = faceInsightPoints(faceResult, locale);
   if (dataLoading && loadedRecordKey !== currentRecordKey) {
-    return <PageSkeleton variant={recordSkeletonVariant(activeModule, showEditor || initialView === "editor")} />;
+    return <PageSkeleton variant={recordSkeletonVariant(activeModule, showEditor || initialView === "editor" || initialView === "conditions")} />;
   }
 
   if (!activeModule) {
@@ -1614,9 +1619,6 @@ export default function RecordsScreen({
                       setSleepStart(preset.start);
                       setSleepEnd(preset.end);
                       setSleepDuration(preset.minutes);
-                      setDeepSleep(Math.round(preset.minutes * .2));
-                      setLightSleep(Math.round(preset.minutes * .58));
-                      setRemSleep(preset.minutes - Math.round(preset.minutes * .2) - Math.round(preset.minutes * .58));
                     }}
                   >
                     <PresetIcon size={17} strokeWidth={2.1} />
@@ -1632,13 +1634,10 @@ export default function RecordsScreen({
               {sleepMaintenance
                 ? <strong>{locale === "zh" ? `已维持 ${sleepMaintenanceElapsedMinutes(sleepMaintenance, new Date(sleepMaintenanceNow))} 分钟` : `${sleepMaintenanceElapsedMinutes(sleepMaintenance, new Date(sleepMaintenanceNow))} minutes tracked`}</strong>
                 : <strong>{locale === "zh" ? "从入睡开始，到醒来后填入记录" : "Track from bedtime, then fill the record when you wake"}</strong>}
-              <small>{sleepMaintenance
-                ? new Date(sleepMaintenance.startedAt).toLocaleString(locale === "zh" ? "zh-CN" : "en-US", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
-                : (locale === "zh" ? "进度同步到当前账号；结束后仍需你确认并保存正式记录" : "Progress syncs to this account; you still review and save the final record")}</small>
             </div>
             {sleepMaintenance
               ? <div><button type="button" onClick={finishSleepMaintenance}>{locale === "zh" ? "结束并填入" : "End & fill"}</button><button type="button" onClick={cancelSleepMaintenance}>{locale === "zh" ? "放弃" : "Discard"}</button></div>
-              : <button type="button" onClick={beginSleepMaintenance} disabled={recordDate !== deviceDate}><Play size={15} />{locale === "zh" ? "开始维持" : "Start"}</button>}
+              : <button type="button" onClick={beginSleepMaintenance} disabled={recordDate !== deviceDate}><Play size={15} />{locale === "zh" ? "开始记录" : "Start tracking"}</button>}
           </section>
           <div className="two-col">
             <label className="field">
@@ -1883,9 +1882,33 @@ export default function RecordsScreen({
             <span>{t("records.task")}</span>
             <input value={focusTitle} onChange={(e) => setFocusTitle(e.target.value)} placeholder={locale === "zh" ? "这次准备专注完成什么？" : "What will you focus on?"} />
           </label>
-          {focusMode === "countdown" && <label className="field focus-entry-minutes-field">
+          {focusMode === "countdown" && <label className={focusDurationChoice === "custom" ? "field focus-entry-minutes-field is-custom" : "field focus-entry-minutes-field"}>
             <span>{t("records.minutes")}</span>
-            <input inputMode="numeric" min="1" max="180" type="number" value={focusMinutes} onChange={(e) => setFocusMinutes(Math.min(180, Math.max(1, Number(e.target.value) || 1)))} />
+            <div className="focus-duration-controls">
+              <select
+                aria-label={locale === "zh" ? "专注时长" : "Focus duration"}
+                value={focusDurationChoice}
+                onChange={(event) => {
+                  const choice = event.target.value as "25" | "45" | "60" | "custom";
+                  setFocusDurationChoice(choice);
+                  if (choice !== "custom") setFocusMinutes(Number(choice));
+                }}
+              >
+                <option value="25">{locale === "zh" ? "25 分钟" : "25 minutes"}</option>
+                <option value="45">{locale === "zh" ? "45 分钟" : "45 minutes"}</option>
+                <option value="60">{locale === "zh" ? "60 分钟" : "60 minutes"}</option>
+                <option value="custom">{locale === "zh" ? "自定义" : "Custom"}</option>
+              </select>
+              {focusDurationChoice === "custom" && <input
+                aria-label={locale === "zh" ? "自定义分钟" : "Custom minutes"}
+                inputMode="numeric"
+                min="1"
+                max="180"
+                type="number"
+                value={focusMinutes}
+                onChange={(event) => setFocusMinutes(Math.min(180, Math.max(1, Number(event.target.value) || 1)))}
+              />}
+            </div>
           </label>}
           <label className="field focus-entry-note-field">
             <span>{t("records.note")}</span>
@@ -1905,8 +1928,8 @@ export default function RecordsScreen({
             <button type="button" className={faceMode === "makeup" ? "selected" : ""} data-face-mode="makeup" aria-label={locale === "zh" ? "带妆模式" : "Makeup mode"} aria-pressed={faceMode === "makeup"} title={locale === "zh" ? "带妆模式" : "Makeup mode"} disabled={faceAnalyzing} onClick={() => setFaceMode("makeup")}><Brush size={18} strokeWidth={2.05} /></button>
           </div>}
         >
-          <section className={faceCaptureReady ? "face-capture-readiness is-ready" : "face-capture-readiness"} aria-label={locale === "zh" ? "稳定拍摄条件" : "Consistent capture conditions"}>
-            <header><div><strong>{locale === "zh" ? "稳定拍摄条件" : "Consistent capture"}</strong><small>{locale === "zh" ? "每天保持相近条件，变化才更可比较" : "Keep conditions similar so changes are comparable"}</small></div><span>{Object.values(faceCaptureChecks).filter(Boolean).length}/3</span></header>
+          {initialView === "conditions" && <section className={faceCaptureReady ? "face-capture-readiness is-ready" : "face-capture-readiness"} data-face-condition-check aria-label={locale === "zh" ? "稳定拍摄条件" : "Consistent capture conditions"}>
+            <header><strong>{locale === "zh" ? "稳定拍摄条件" : "Capture conditions"}</strong></header>
             <div>
               {([
                 ["light", locale === "zh" ? "光线稳定" : "Steady light"],
@@ -1921,10 +1944,7 @@ export default function RecordsScreen({
                 onClick={() => setFaceCaptureChecks((current) => ({ ...current, [id]: !current[id] }))}
               ><i>{faceCaptureChecks[id] && <Check size={12} />}</i>{label}</button>)}
             </div>
-            <p>{faceCaptureReady
-              ? (locale === "zh" ? "已就绪，可以拍摄或从相册选择。" : "Ready to capture or choose a photo.")
-              : (locale === "zh" ? "确认三项后再拍摄；结果仅用于非诊断状态参考。" : "Confirm all three before capture; results are non-diagnostic.")}</p>
-          </section>
+          </section>}
           <label className={["photo-picker", "face", faceAnalyzing ? "is-analyzing" : "", faceImage ? "has-image" : ""].filter(Boolean).join(" ")}>
             {faceImage ? <img src={faceImage} alt={locale === "zh" ? "面部照片" : "Face photo"} /> : <ScanFace size={30} />}
             <span>{faceAnalyzing ? t("records.faceScanning") : t("records.scanFace")}</span>
@@ -1934,15 +1954,15 @@ export default function RecordsScreen({
               type="file"
               accept="image/*"
               capture="user"
-              disabled={faceAnalyzing || !faceCaptureReady}
+              disabled={faceAnalyzing}
               onChange={(e) => { const file = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ""; void handleFacePhoto(file); }}
             />
             {faceAnalyzing && <Loader2 className="spin" size={18} />}
           </label>
           <div className="face-photo-actions">
-            <button type="button" disabled={faceAnalyzing || !faceCaptureReady} onClick={() => facePhotoInputRef.current?.click()}><Camera size={17} />{faceImage ? (locale === "zh" ? "重新拍摄" : "Retake") : (locale === "zh" ? "前置拍摄" : "Front camera")}</button>
-            <button type="button" disabled={faceAnalyzing || !faceCaptureReady} onClick={() => faceLibraryInputRef.current?.click()}><Upload size={17} />{locale === "zh" ? "从相册重选" : "Choose from library"}</button>
-            <input ref={faceLibraryInputRef} hidden aria-label={locale === "zh" ? "从相册选择面部照片" : "Choose face photo from library"} type="file" accept="image/*" disabled={faceAnalyzing || !faceCaptureReady} onChange={(e) => { const file = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ""; void handleFacePhoto(file); }} />
+            <button type="button" disabled={faceAnalyzing} onClick={() => facePhotoInputRef.current?.click()}><Camera size={17} />{faceImage ? (locale === "zh" ? "重新拍摄" : "Retake") : (locale === "zh" ? "前置拍摄" : "Front camera")}</button>
+            <button type="button" disabled={faceAnalyzing} onClick={() => faceLibraryInputRef.current?.click()}><Upload size={17} />{locale === "zh" ? "从相册重选" : "Choose from library"}</button>
+            <input ref={faceLibraryInputRef} hidden aria-label={locale === "zh" ? "从相册选择面部照片" : "Choose face photo from library"} type="file" accept="image/*" disabled={faceAnalyzing} onChange={(e) => { const file = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ""; void handleFacePhoto(file); }} />
           </div>
           <section className={["face-ai-evaluation", faceAnalyzing ? "is-loading" : faceResult ? "has-result" : "is-empty"].join(" ")} aria-live="polite">
             <header><span><Bot size={17} />{locale === "zh" ? "AI 状态评价" : "AI state notes"}</span>{faceResult?.confidence != null && <small>{Math.round(faceResult.confidence * 100)}%</small>}</header>

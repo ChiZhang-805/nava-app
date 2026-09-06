@@ -10268,13 +10268,12 @@ body::before {
 .sleep-chart-actions > div button.active { color: #0a769f; background: white; box-shadow: 0 2px 7px rgba(30,103,133,.11); }
 .sleep-reminder-time { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 10px; border-radius: 13px; color: #456d7f; background: rgba(230,246,251,.82); font-size: 10px; font-weight: 720; }
 .sleep-reminder-time input { min-height: 31px; border: 1px solid rgba(65,151,183,.2); border-radius: 9px; padding: 4px 8px; color: #17485d; background: white; font: inherit; }
-.sleep-maintenance { min-height: 52px; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 9px; margin-bottom: 7px; padding: 6px 10px; border: 1px solid rgba(67,156,188,.18); border-radius: 15px; background: linear-gradient(145deg,rgba(236,249,253,.9),rgba(219,242,249,.76)); }
+.sleep-maintenance { min-height: 60px; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 9px; margin-bottom: 7px; padding: 8px 10px; border: 1px solid rgba(67,156,188,.18); border-radius: 15px; background: linear-gradient(145deg,rgba(236,249,253,.9),rgba(219,242,249,.76)); }
 .sleep-maintenance > div:first-child { min-width: 0; display: grid; gap: 2px; }
-.sleep-maintenance > div:first-child span { display: inline-flex; align-items: center; gap: 5px; color: #147b9e; font-size: 9px; font-weight: 800; }
-.sleep-maintenance > div:first-child strong { overflow: hidden; color: #18485d; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.sleep-maintenance > div:first-child small { overflow: hidden; color: #678590; font-size: 7.5px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.sleep-maintenance > div:first-child span { display: inline-flex; align-items: center; gap: 5px; color: #147b9e; font-size: 13px; font-weight: 800; line-height: 1.2; }
+.sleep-maintenance > div:first-child strong { overflow: hidden; color: #18485d; font-size: 13px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
 .sleep-maintenance > button,
-.sleep-maintenance > div:last-child button { min-height: 33px; border: 0; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 5px 9px; color: #fff; background: linear-gradient(145deg,#2aadd2,#087ca8); font: inherit; font-size: 8px; font-weight: 770; }
+.sleep-maintenance > div:last-child button { min-height: 36px; border: 0; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 5px 9px; color: #fff; background: linear-gradient(145deg,#2aadd2,#087ca8); font: inherit; font-size: 10px; font-weight: 770; }
 .sleep-maintenance > button:disabled { opacity: .4; }
 .sleep-maintenance > div:last-child { display: flex; gap: 4px; }
 .sleep-maintenance > div:last-child button:last-child { color: #69848f; background: rgba(255,255,255,.7); }
@@ -10325,6 +10324,7 @@ body::before {
 .face-mode-icon-actions button:focus-visible { outline: 3px solid rgba(35,166,210,.25); outline-offset: 2px; }
 .face-capture-readiness { display: grid; gap: 6px; margin-bottom: 8px; padding: 8px 9px; border: 1px solid rgba(71,157,188,.17); border-radius: 15px; background: rgba(232,247,251,.78); }
 .face-capture-readiness header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.face-capture-readiness header > strong { color: #17495e; font-size: 11px; }
 .face-capture-readiness header > div { min-width: 0; display: grid; gap: 1px; }
 .face-capture-readiness header strong { color: #17495e; font-size: 9.5px; }
 .face-capture-readiness header small { overflow: hidden; color: #6a8792; font-size: 7.5px; text-overflow: ellipsis; white-space: nowrap; }
@@ -10346,6 +10346,10 @@ body::before {
 .record-detail[data-record-detail="focus"] .record-editor-stack > form:not([hidden]) > .section-card { min-height: 0; flex: 1 1 auto; display: flex; flex-direction: column; }
 .focus-entry-note-field { min-height: 150px; flex: 1 1 auto; display: flex; flex-direction: column; }
 .focus-entry-note-field textarea { min-height: 126px; height: auto; flex: 1 1 auto; resize: none; }
+.focus-duration-controls { display: grid; grid-template-columns: minmax(0,1fr); gap: 7px; }
+.focus-entry-minutes-field.is-custom .focus-duration-controls { grid-template-columns: minmax(0,1fr) minmax(0,.72fr); }
+.focus-duration-controls select,
+.focus-duration-controls input { min-width: 0; }
 .focus-entry-note-field + .action-button { flex: 0 0 auto; }
 .focus-immersive-note {
   z-index: 2;
@@ -10451,8 +10455,7 @@ body::before {
 }
 
 @media (max-height: 780px) {
-  .record-detail[data-record-detail="sleep"] .sleep-maintenance { min-height: 42px; margin-bottom: 4px; padding-block: 4px; }
-  .record-detail[data-record-detail="sleep"] .sleep-maintenance > div:first-child small { display: none; }
+  .record-detail[data-record-detail="sleep"] .sleep-maintenance { min-height: 58px; margin-bottom: 4px; padding-block: 6px; }
   .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="sleep"] .field { gap: 2px; margin-bottom: 3px; }
   .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="sleep"] input:not([type="range"]) { min-height: 30px; height: 30px; padding-block: 3px; }
   .phone-frame:not(.phone-frame--option2) .record-detail[data-record-detail="sleep"] .sleep-note-field { min-height: 80px; margin-bottom: 3px; }

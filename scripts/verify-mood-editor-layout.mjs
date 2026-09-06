@@ -6,7 +6,7 @@ import { createServer } from "vite";
 const root = process.cwd();
 const outputDir = process.env.RECORD_EDITOR_LAYOUT_OUTPUT_DIR
   ? path.resolve(process.env.RECORD_EDITOR_LAYOUT_OUTPUT_DIR)
-  : path.resolve(root, "..", "Build", "TestRuns", "nava-record-editor-layout-v93");
+  : path.resolve(root, "..", "Build", "TestRuns", "nava-record-editor-layout-v108");
 const port = Number(process.env.PORT || 5209);
 const demoAccount = "13800138000";
 const demoPassword = "12345678";
@@ -240,10 +240,13 @@ async function main() {
     const shortSleepNote = sleepResults[0].textarea.height;
     const tallSleepNote = sleepResults.at(-1).textarea.height;
     if (tallSleepNote < shortSleepNote + 60) throw new Error(`Sleep note does not absorb taller viewports: ${shortSleepNote}px -> ${tallSleepNote}px`);
+    const sleepStagesBeforePreset = await page.locator('.record-detail[data-record-detail="sleep"] input[type="number"]').evaluateAll((inputs) => inputs.map((input) => input.value));
     await page.locator('[data-sleep-preset="early"]').click();
     await expect(page.locator('.record-detail[data-record-detail="sleep"] input[type="time"]').nth(0)).toHaveValue("22:30");
     await expect(page.locator('.record-detail[data-record-detail="sleep"] input[type="time"]').nth(1)).toHaveValue("06:30");
     await expect(page.locator('[data-sleep-preset="early"]')).toHaveAttribute("aria-pressed", "true");
+    const sleepStagesAfterPreset = await page.locator('.record-detail[data-record-detail="sleep"] input[type="number"]').evaluateAll((inputs) => inputs.map((input) => input.value));
+    if (JSON.stringify(sleepStagesAfterPreset.slice(1)) !== JSON.stringify(sleepStagesBeforePreset.slice(1))) throw new Error(`Sleep preset invented stage values: ${JSON.stringify({ sleepStagesBeforePreset, sleepStagesAfterPreset })}`);
 
     const dietResults = [];
     for (const viewport of viewports) {
@@ -319,8 +322,14 @@ async function main() {
       await expect(detail.locator(".focus-entry-mode-icons button")).toHaveCount(2);
       await detail.locator('[data-focus-mode="countdown"]').click();
       await expect(detail.locator(".focus-duration-preset-icons, [data-focus-duration]")).toHaveCount(0);
-      await detail.locator('.focus-entry-minutes-field > input').fill("45");
-      await expect(detail.locator('.focus-entry-minutes-field > input')).toHaveValue("45");
+      const durationSelect = detail.locator('.focus-entry-minutes-field select');
+      await expect(durationSelect.locator("option")).toHaveCount(4);
+      await durationSelect.selectOption("45");
+      await expect(durationSelect).toHaveValue("45");
+      await expect(detail.locator('input[aria-label="自定义分钟"]')).toHaveCount(0);
+      await durationSelect.selectOption("custom");
+      await detail.locator('input[aria-label="自定义分钟"]').fill("37");
+      await expect(detail.locator('input[aria-label="自定义分钟"]')).toHaveValue("37");
       await detail.locator(".focus-entry-note-field textarea").fill("先完成资料梳理，再写出第一版提纲。\n遇到分心时先记下，不立刻切换任务。");
       const minimum = viewport.height <= 780 ? 74 : 126;
       const countdownGeometry = assertGeometry(`focus-countdown/${viewport.name}`, await readGeometry(page, "focus", ".focus-entry-note-field"), minimum);
@@ -357,14 +366,7 @@ async function main() {
       await expect(detail.locator(".face-mode-icon-actions button")).toHaveCount(2);
       await expect(detail.locator(".face-mode-picker")).toHaveCount(0);
       await expect(detail.locator(".face-ai-evaluation footer")).toHaveCount(0);
-      const readinessButtons = detail.locator(".face-capture-readiness > div button");
-      await expect(readinessButtons).toHaveCount(3);
-      if ((await detail.locator(".face-capture-readiness").getAttribute("class"))?.includes("is-ready")) {
-        for (let readinessIndex = 0; readinessIndex < 3; readinessIndex += 1) await readinessButtons.nth(readinessIndex).click();
-      }
-      await expect(detail.locator(".face-photo-actions button").first()).toBeDisabled();
-      for (let readinessIndex = 0; readinessIndex < 3; readinessIndex += 1) await readinessButtons.nth(readinessIndex).click();
-      await expect(detail.locator(".face-capture-readiness")).toHaveClass(/is-ready/);
+      await expect(detail.locator(".face-capture-readiness")).toHaveCount(0);
       await expect(detail.locator(".face-photo-actions button").first()).toBeEnabled();
       await expect(detail.locator(".face-ai-evaluation")).toBeVisible();
       await expect(detail.locator(".face-ai-evaluation")).toHaveClass(/is-empty/);
@@ -396,11 +398,25 @@ async function main() {
       if (!alignment.mascot || !alignment.ai || alignment.mascot.width < 70 || alignment.mascot.right > alignment.ai.right + 1 || alignment.mascot.bottom > alignment.ai.bottom + 1) throw new Error(`face/${viewport.name}: mascot sizing escapes the AI card ${JSON.stringify(alignment)}`);
       await detail.locator('[data-face-mode="makeup"]').click();
       await expect(detail.locator('[data-face-mode="makeup"]')).toHaveAttribute("aria-pressed", "true");
-      faceResults.push({ name: viewport.name, geometry, alignment });
       await page.screenshot({ path: path.join(outputDir, `face-${viewport.name}.png`) });
+      await page.locator('.figma-app-header .figma-header-action').last().click();
+      await page.getByRole('button', { name: '条件检验' }).click();
+      await expect(page).toHaveURL(/view=conditions/);
+      const readinessButtons = detail.locator(".face-capture-readiness > div button");
+      await expect(readinessButtons).toHaveCount(3);
+      await expect(detail.locator(".face-photo-actions button").first()).toBeEnabled();
+      for (let readinessIndex = 0; readinessIndex < 3; readinessIndex += 1) await readinessButtons.nth(readinessIndex).click();
+      const conditionGeometry = assertOneScreenCard(`face-conditions/${viewport.name}`, await readCardGeometry(page, "face"));
+      faceResults.push({ name: viewport.name, geometry, alignment, conditionGeometry });
+      await page.screenshot({ path: path.join(outputDir, `face-conditions-${viewport.name}.png`) });
     }
     await page.evaluate(() => localStorage.removeItem("nava.review.demo.empty-snapshot-date.v1"));
+    const readinessButtons = page.locator('.record-detail[data-record-detail="face"] .face-capture-readiness > div button');
+    for (let readinessIndex = 0; readinessIndex < 3; readinessIndex += 1) {
+      if (await readinessButtons.nth(readinessIndex).getAttribute("aria-pressed") === "true") await readinessButtons.nth(readinessIndex).click();
+    }
     await page.locator('input[aria-label="从相册选择面部照片"]').setInputFiles(path.join(root, "src", "assets", "mascot", "nava-face-insight-v2.webp"));
+    await expect(page.locator('.face-capture-readiness > div button.selected')).toHaveCount(3);
     await expect(page.locator(".face-ai-evaluation.has-result li")).toHaveCount(4);
     const faceInsightGeometry = await page.locator(".face-ai-evaluation.has-result li").evaluateAll((items) => items.map((item) => ({
       text: item.textContent,

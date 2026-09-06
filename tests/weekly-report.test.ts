@@ -6,6 +6,7 @@ import { naturalWeekDateRange } from "../src/services/date.ts";
 import type { TrendBundle } from "../src/types.ts";
 
 const recordsScreen = readFileSync(new URL("../src/features/RecordsScreen.tsx", import.meta.url), "utf8");
+const appShell = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
 const reportFunction = readFileSync(new URL("../supabase/functions/ai-health-report/index.ts", import.meta.url), "utf8");
 const faceFunction = readFileSync(new URL("../supabase/functions/face-analyze/index.ts", import.meta.url), "utf8");
 const faceDraftService = readFileSync(new URL("../src/services/secureFaceDraft.ts", import.meta.url), "utf8");
@@ -59,6 +60,25 @@ test("face makeup routing uses a real vision-model output and a confidence gate"
   assert.match(recordsScreen, /makeup_confidence \?\? 0\) < 0\.65/);
   assert.match(recordsScreen, /AI 妆容识别需要你确认/);
   assert.doesNotMatch(faceFunction, /captureMode === "makeup" \? "heavy" : "bare"/);
+});
+
+test("face capture conditions are optional, model-assessed, and reachable from the page menu", () => {
+  assert.match(faceFunction, /capture_conditions/);
+  assert.match(faceFunction, /normalizeCaptureConditions/);
+  assert.match(recordsScreen, /initialView === "conditions"/);
+  assert.match(recordsScreen, /result\.capture_conditions/);
+  assert.doesNotMatch(recordsScreen, /faceAnalyzing \|\| !faceCaptureReady/);
+  assert.match(appShell, /条件检验/);
+});
+
+test("focus offers presets plus a custom duration while sleep shortcuts never invent stages", () => {
+  assert.match(recordsScreen, /<option value="25">/);
+  assert.match(recordsScreen, /<option value="45">/);
+  assert.match(recordsScreen, /<option value="60">/);
+  assert.match(recordsScreen, /<option value="custom">/);
+  assert.doesNotMatch(recordsScreen, /setDeepSleep\(Math\.round\(preset\.minutes/);
+  assert.doesNotMatch(recordsScreen, /进度同步到当前账号；结束后仍需你确认并保存正式记录/);
+  assert.match(recordsScreen, /开始记录/);
 });
 
 test("unfinished face captures are encrypted and scoped to the current tab", () => {

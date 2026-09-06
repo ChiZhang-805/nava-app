@@ -273,6 +273,11 @@ export interface FaceAnalysisResult {
   skin_age?: number | null;
   makeup_level?: "bare" | "light" | "heavy" | "uncertain";
   makeup_confidence?: number;
+  capture_conditions?: {
+    light: boolean;
+    position: boolean;
+    expression: boolean;
+  };
 }
 
 export interface FaceRecord {
