@@ -25,6 +25,7 @@ import faceIcon from "../assets/figma/option-two-icons/face.svg";
 import focusIcon from "../assets/figma/option-two-icons/focus.svg";
 import moodIcon from "../assets/figma/option-two-icons/mood.svg";
 import sleepIcon from "../assets/figma/option-two-icons/sleep.svg";
+import homeSceneBackground from "../assets/figma/home-option2/home-scene-v1.png";
 import { useLocale } from "../i18n";
 import AnimatedNumber from "../components/AnimatedNumber";
 import ModuleProgressRing from "../components/ModuleProgressRing";
@@ -289,6 +290,14 @@ export default function OptionTwoHome({
       data-home-phase={phase}
       data-home-guidance={homeGuidance?.reason ?? "loading"}
     >
+      <img
+        className="option-two-scene-background"
+        src={homeSceneBackground}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        decoding="async"
+      />
       <div className="option-two-scores" aria-label={t("today.overview")} aria-live="polite" aria-busy={loading}>
         <div><span>{t("today.rhythm")}</span><strong>{loading && snapshot === null ? <SkeletonBlock className="option-two-score-skeleton" /> : typeof rhythmScore === "number" ? <AnimatedNumber value={rhythmScore} /> : rhythmScore}</strong></div>
         <div><span>{t("today.myPoints")}</span><strong>{loading && totalPoints === null ? <SkeletonBlock className="option-two-score-skeleton" /> : typeof points === "number" ? <AnimatedNumber value={points} duration={760} /> : points}</strong></div>

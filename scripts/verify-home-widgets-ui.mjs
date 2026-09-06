@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-widgets-v102-20260905";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-background-v110-20260906";
 const port = 5204;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -74,6 +74,22 @@ try {
     await openRoute(page, "tab=today");
     const homeGrid = page.locator(".home-widget-grid");
     await expect(homeGrid).toBeVisible();
+    const sceneBackground = page.locator(".option-two-scene-background");
+    await expect(sceneBackground).toBeVisible();
+    const backgroundGeometry = await sceneBackground.evaluate((image) => {
+      const box = image.getBoundingClientRect();
+      return {
+        complete: image.complete,
+        naturalWidth: image.naturalWidth,
+        naturalHeight: image.naturalHeight,
+        left: box.left,
+        top: box.top,
+        right: box.right,
+        bottom: box.bottom,
+      };
+    });
+    if (!backgroundGeometry.complete || backgroundGeometry.naturalWidth < 800 || backgroundGeometry.naturalHeight < 1800) throw new Error(`${viewport.name}: generated home scene did not load at production resolution ${JSON.stringify(backgroundGeometry)}`);
+    if (Math.abs(backgroundGeometry.left) > 1 || Math.abs(backgroundGeometry.top) > 1 || Math.abs(backgroundGeometry.right - viewport.width) > 1 || Math.abs(backgroundGeometry.bottom - viewport.height) > 1) throw new Error(`${viewport.name}: generated home scene does not cover the viewport ${JSON.stringify(backgroundGeometry)}`);
     const defaultWidgets = page.locator(".home-health-widget");
     await expect(defaultWidgets).toHaveCount(5);
     const defaultWidgetOrder = await defaultWidgets.evaluateAll((items) => items.map((item) => item.getAttribute("data-home-widget")));
@@ -195,7 +211,7 @@ try {
     if (!Number.isFinite(duration) || duration !== 1) throw new Error(`${viewport.name}: sleep tracking did not preserve the one-minute minimum; got ${duration}`);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-sleep-maintenance.png`) });
 
-    await openRoute(page, "tab=record&module=face&view=editor");
+    await openRoute(page, "tab=record&module=face&view=conditions");
     const readinessButtons = page.locator(".face-capture-readiness > div button");
     await expect(readinessButtons).toHaveCount(3);
     for (let index = 0; index < 3; index += 1) {
@@ -217,7 +233,7 @@ try {
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-face-readiness.png`) });
 
     if (errors.length) throw new Error(`${viewport.name}: browser errors ${JSON.stringify(errors)}`);
-    report.push({ viewport, skeletonGeometry, initialGeometry, sortGeometry, faceGeometry });
+    report.push({ viewport, backgroundGeometry, skeletonGeometry, initialGeometry, sortGeometry, faceGeometry });
     await context.close();
   }
 } finally {

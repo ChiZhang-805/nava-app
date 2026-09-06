@@ -887,9 +887,8 @@ body::before {
 
 .option-two-home::before {
   background:
-    radial-gradient(ellipse at 48% 50%, rgba(255, 255, 255, 0.46), transparent 44%),
-    radial-gradient(circle at 82% 14%, rgba(237, 252, 255, 0.66), transparent 24%),
-    linear-gradient(180deg, rgba(224, 247, 255, 0.5) 0%, rgba(44, 170, 220, 0.28) 100%);
+    radial-gradient(ellipse at 48% 49%, rgba(255, 255, 255, 0.18), transparent 45%),
+    linear-gradient(180deg, rgba(239, 251, 255, 0.08) 0%, rgba(45, 167, 211, 0.06) 100%);
 }
 
 .option-two-health-menu {
@@ -9730,7 +9729,7 @@ body::before {
   position: absolute;
   inset: 0;
   z-index: -2;
-  opacity: .72;
+  opacity: .26;
   pointer-events: none;
   transition: opacity 800ms ease, background 1200ms ease;
 }

@@ -3857,7 +3857,21 @@ textarea::placeholder {
   overflow: hidden;
   overflow: clip;
   color: #071827;
+  background: #9cdcf2;
   isolation: isolate;
+}
+
+.option-two-scene-background {
+  position: absolute;
+  inset: 0;
+  z-index: -4;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 50%;
+  pointer-events: none;
+  user-select: none;
 }
 
 .option-two-home::before {

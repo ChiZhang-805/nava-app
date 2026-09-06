@@ -574,6 +574,9 @@ Wi-Fi 或蓝牙范围，就直接读取 Apple Watch 的完整历史 HealthKit �
 - v109：今日安排的待办正文可直达专注准备页并带入任务/计划，完成圆钮保持独立；缺少计划
   时按可审计规则估算并写回 `tasks`。沉浸计时改为 body portal 的全视口层，加入浏览器
   Fullscreen API、Screen Wake Lock 开关与兼容回退，专注概览卡距和沉浸页纵向节奏重新统一。
+- v110：首页不再复用登录页纸张纹理作为主场景，改为根据 Figma 参考图生成并随源码发布的
+  纯竖屏冰蓝室内背景；窗柱、斜向光束、圆形台面、半透明地台和底部弧形地面均位于独立
+  装饰层，卡片、猫咪、建议卡、快捷入口和导航继续由可交互 HTML/SVG 层呈现。
 
 发布演进已经压缩进本节；精确差异使用 Git log/commit 查看，视觉和运行证据保存在
 第 15 节列出的 TestRuns 目录，不再维护重复的 dated handoff。
@@ -1166,3 +1169,17 @@ deployment ID 为 `appgdep_6a9d7eedbed881919e1d6576a88bfaf7`，Pages 镜像 comm
 均返回 200、无横向溢出、显示真实登录页且 `?demo=1` 不可绕过；入口模块 SHA-256 均为
 `f085ce96b0bcc7d565e08acafb2ec0da6b6319675771cc3eec57c7022b72f96a`。线上证据在
 `Q:\NAVA-Workspace\Build\TestRuns\nava-v109-public`。
+
+## 31. 2026-09-06 首页 Figma 背景复刻
+
+首页新增 `home-scene-v1.png` 场景底图。该图由用户提供的 Figma 截图作为构图与风格参考生成，
+只保留冰蓝虚化室内、竖向透光窗柱、斜向白光、圆形台面、半透明地台和底部弧形地面；手机
+硬件、状态栏、文字、按钮、卡片、导航、猫咪和水印均被排除。`OptionTwoHome` 将其作为
+`aria-hidden` 的独立装饰图层加载，真实数据组件、右侧快捷入口、动态建议、角色和底部导航
+仍是独立可访问、可操作的产品层。
+
+四个规定视口 360x740、375x812、390x844、430x932 均已验证底图完整加载并覆盖首页，
+未引入横向溢出；首页加载态、五卡/六卡/空态、快捷入口、建议卡、健康圆盘、记录入口和导航
+回归保持通过。视觉证据保存在
+`Q:\NAVA-Workspace\Build\TestRuns\nava-home-background-v110-20260906` 与
+`Q:\NAVA-Workspace\Build\TestRuns\nava-home-background-guidance-v110-20260906`。
