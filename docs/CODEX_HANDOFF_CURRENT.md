@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`522a7126e5489b88325ee19fb7249923d34fbb66`
+- 源码发布 commit：`af24ec36d276d8b3fe6b2a5fb940beae3870878f`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v109，public
+- ChatGPT Sites 版本：v110，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_38cd74697aa08191a64b33313014f4de`
-- Sites deployment ID：`appgdep_6a9d7eedbed881919e1d6576a88bfaf7`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_2c90b4490a8c819193b2adeaad3d3547`
+- Sites deployment ID：`appgdep_6a9d86942094819199b735d1dd603bbe`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `71336f632bfb5fd593689523cbbfea3b10657d04`
+  `2c8f4017e4740818b8cd8dd9bc31219479f21648`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v109 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v109.tar.gz`
+- v110 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v110.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v109 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v110 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -1183,3 +1183,13 @@ deployment ID 为 `appgdep_6a9d7eedbed881919e1d6576a88bfaf7`，Pages 镜像 comm
 回归保持通过。视觉证据保存在
 `Q:\NAVA-Workspace\Build\TestRuns\nava-home-background-v110-20260906` 与
 `Q:\NAVA-Workspace\Build\TestRuns\nava-home-background-guidance-v110-20260906`。
+
+功能源码 commit `af24ec36d276d8b3fe6b2a5fb940beae3870878f` 已从同一个干净且已 push 的状态发布为
+ChatGPT Sites v110 和 GitHub Pages v110；Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_2c90b4490a8c819193b2adeaad3d3547`，
+deployment ID 为 `appgdep_6a9d86942094819199b735d1dd603bbe`，Pages 镜像 commit 为
+`2c8f4017e4740818b8cd8dd9bc31219479f21648`。两个公开站点在四个规定视口共 8 组
+均返回 200、无横向溢出、显示真实登录页且 `?demo=1` 不可绕过；入口模块 SHA-256 均为
+`fe2c7d6995998b94c8253482a15aa226aca6443ae8e6839de207fe3a4b750eca`，生成背景 SHA-256 均为
+`390b8d3417dc1e35b43a2ffaaf0684298c777063dd7cb2c4684e907203c7766e`。线上证据在
+`Q:\NAVA-Workspace\Build\TestRuns\nava-v110-public`。
