@@ -1223,3 +1223,20 @@ App 中 `data-preview-only="desktop-device-chrome"` 保持 `display:none`，因�
 证据在 `Q:\NAVA-Workspace\Build\TestRuns\nava-desktop-device-preview-v111-20260907`。
 首页组件与建议视觉脚本在 360×740、375×812、390×844、430×932 四个产品视口通过；
 完整 interaction 11 组、`npm run verify` 28 阶段和 production auth 合同也通过。
+
+v111 上线后的公开未登录边界复核发现，登录/注册页由 `AppBootstrap` 直接渲染，原先只挂在
+登录后 `App` 树中的桌面预览壳不会出现。v112 已把同一预览壳补到启动加载、配置错误、
+未登录、登录过渡和会话恢复路径；登录后的产品页继续使用原有唯一实例，不产生双壳。
+桌面登录页的语言按钮也下移到 64px 系统保留区之后，不再与 Wi-Fi/电量重叠。视觉脚本新增
+未登录桌面和未登录触屏两项断言，证据在
+`Q:\NAVA-Workspace\Build\TestRuns\nava-desktop-device-preview-v112-20260907`。
+
+修正源码 commit `527ab338bc515c61016509bc416c3499431306a8` 已从同一已 push 状态
+发布为 ChatGPT Sites v112 和 GitHub Pages v112；Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_752448391220819180f4b70c7ad53824`，
+deployment ID 为 `appgdep_6a9dac04cde881919de3695dd8cb6e71`，Pages 镜像 commit 为
+`705e36e7eef201d676d2b06582471c4f5f3fd316`。两个公开站点的 v112 入口模块 SHA-256
+均为 `2cb80766ae9855f06c3c6cd24c06be2af7a3ca4634336188baec1df55294ccac`；公开桌面均显示
+登录页、手机外壳和系统栏，430×932 触屏均不显示模拟外壳，`?demo=1` 不可绕过登录，
+canonical Supabase project ref 保持不变。线上证据在
+`Q:\NAVA-Workspace\Build\TestRuns\nava-v112-public`。
