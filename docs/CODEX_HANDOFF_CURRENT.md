@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`00826372167d45b414531d4426ccc35c5ebbae6e`
+- 源码发布 commit：`52f35805f652acdfbf80511816cfab11eb5e860b`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v106，public
+- ChatGPT Sites 版本：v107，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_749afd4e7fbc819189485c2f4ee1704e`
-- Sites deployment ID：`appgdep_6a9cdfea8d588191884a457e9d5fd988`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_e87af76cf1b081918bfa690dcf068818`
+- Sites deployment ID：`appgdep_6a9d09b0e3b08191ab3b83b92c00a78f`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `a1d2e61fe2d5ad0009e21ce84282b8fad5821a63`
+  `a1b8d4070a0796835f0d029fbcde877d5e7beb60`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v106 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v106.tar.gz`
+- v107 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v107.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v106 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v107 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -562,6 +562,9 @@ Wi-Fi 或蓝牙范围，就直接读取 Apple Watch 的完整历史 HealthKit �
 - v102：通知中心分类图标放大并垂直居中，时间和未读点改为右侧上下层级；打开具体详情
   后才标记已读，详情改为大分类名层级，全部已读/多选不再使用对钩图标；首页五张加载
   骨架与正式卡片统一为相同矩形尺寸和圆角。
+- v107：完成云端数据完整性复核、按餐营养并发/幂等、原子专注会话、私有头像、完整文件
+  导出、legacy phone 删除清理、Health/Watch 缺失值与 ack 边界、AI 授权画像/健康指标
+  指纹缓存，并将当前数据库/函数/前端从同一源码提交发布。
 
 发布演进已经压缩进本节；精确差异使用 Git log/commit 查看，视觉和运行证据保存在
 第 15 节列出的 TestRuns 目录，不再维护重复的 dated handoff。
@@ -1084,3 +1087,12 @@ DB lint、migration history、生产 auth 合同和 `npm run verify` 27 阶段�
 Mac/Xcode/iPhone/Apple Watch 签名与真机矩阵、APNs/FCM/HMS 远程推送以及 Android/华为
 原生壳。本轮完成的是源码、production schema/function 和非破坏性边界，不把这些人工项
 写成已经完成。
+
+功能源码 commit `52f35805f652acdfbf80511816cfab11eb5e860b` 已从同一已 push 状态
+发布为 ChatGPT Sites v107 和 GitHub Pages v107；Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_e87af76cf1b081918bfa690dcf068818`，
+deployment ID 为 `appgdep_6a9d09b0e3b08191ab3b83b92c00a78f`，Pages 镜像 commit 为
+`a1b8d4070a0796835f0d029fbcde877d5e7beb60`。两个公开根 URL 均返回 200；两个站点
+在四个规定视口的线上无头 Playwright 都显示真实登录页、无横向溢出，`?demo=1` 不可
+绕过，入口模块 SHA-256 相同。发布后 `npm run auth:verify:production` 再次通过；严格
+SMTP 仍因未提供 Management token 而未检查。
