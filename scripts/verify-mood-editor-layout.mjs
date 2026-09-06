@@ -351,7 +351,18 @@ async function main() {
       await expect(immersive).toHaveAttribute("data-focus-state", "running");
       await expect(immersive).toHaveAttribute("data-fullscreen", /active|viewport/);
       await expect(immersive).toHaveAttribute("data-wake-lock", /active|requesting|off|unsupported/);
-      await expect(immersive.locator(".focus-immersive-tools button")).toHaveCount(2);
+      const supportTools = immersive.locator(".focus-immersive-tools > button");
+      await expect(supportTools).toHaveCount(4);
+      await expect(supportTools).toContainText([/常亮/, /全屏/, /背景音/, /进入状态/]);
+      await supportTools.nth(2).click();
+      await expect(immersive.locator(".focus-noise-panel")).toBeVisible();
+      await expect(immersive.locator(".focus-noise-options button")).toHaveCount(4);
+      await immersive.getByRole("button", { name: "白噪音" }).click();
+      await expect(supportTools.nth(2)).toHaveAttribute("aria-pressed", "true");
+      await immersive.getByRole("button", { name: "关闭背景声音面板" }).click();
+      await supportTools.nth(3).click();
+      await expect(immersive.locator(".focus-guide-overlay")).toBeVisible();
+      await immersive.getByRole("button", { name: /开始专注|继续专注/ }).click();
       await page.waitForTimeout(520);
       const immersiveGeometry = await immersive.evaluate((root) => {
         const rect = root.getBoundingClientRect();

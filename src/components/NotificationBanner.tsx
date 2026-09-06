@@ -1,6 +1,6 @@
-import { Bell, X } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { NavaNotificationItem } from "../services/notifications";
+import navaAppIcon from "../assets/figma/option-two-icons/home-glyph.svg";
 
 export default function NotificationBanner({
   item,
@@ -58,15 +58,13 @@ export default function NotificationBanner({
         style={{ transform: `translateY(${offsetY}px)` }}
       >
         <button className="nava-notification-banner-main" type="button" onClick={onOpen}>
-          <span className="nava-notification-banner-icon" aria-hidden="true"><Bell size={19} /></span>
+          <span className="nava-notification-banner-icon" aria-hidden="true"><img src={navaAppIcon} alt="" /></span>
           <span className="nava-notification-banner-copy">
             <span className="nava-notification-banner-meta"><strong>NAVA</strong><time>{locale === "zh" ? "现在" : "now"}</time></span>
             <b>{item.title}</b>
             <span>{item.body}</span>
           </span>
         </button>
-        <button className="nava-notification-banner-close" type="button" onClick={onDismiss} aria-label={locale === "zh" ? "关闭提醒" : "Dismiss reminder"}><X size={16} /></button>
-        <span className="nava-notification-banner-grabber" aria-hidden="true" />
       </div>
     </div>
   );

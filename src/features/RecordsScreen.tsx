@@ -1564,6 +1564,9 @@ export default function RecordsScreen({
           steps={steps}
           calories={calories}
           exerciseMinutes={exerciseMinutes}
+          exerciseNote={exerciseNote}
+          setExerciseMinutes={setExerciseMinutes}
+          setExerciseNote={setExerciseNote}
           focusTitle={focusTitle}
           focusMinutes={focusMinutes}
           focusNote={focusNote}

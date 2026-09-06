@@ -412,8 +412,9 @@ export function syncContextualNotifications(
   locale: "zh" | "en",
   now = new Date(),
   options: { present?: boolean } = { present: true },
+  trends?: Pick<import("../types").TrendBundle, "moods" | "sleeps" | "exercises" | "nutritions" | "faces">,
 ) {
-  const drafts = buildContextualNotificationDrafts(snapshot, now.getHours(), locale);
+  const drafts = buildContextualNotificationDrafts(snapshot, now.getHours(), locale, trends);
   let presented = false;
   for (const draft of drafts) {
     const item = {
@@ -623,7 +624,10 @@ export async function subscribeNativeNotificationActions(userId: string, onOpen:
 }
 
 function presentBrowserNotification(userId: string, item: NavaNotificationItem) {
-  if (Capacitor.isNativePlatform() || !("Notification" in window) || Notification.permission !== "granted") return;
+  // Match iOS foreground behavior: while NAVA is visible, the in-app banner is
+  // the only presentation. A system/browser notification is reserved for a
+  // background tab so users never receive two alerts for the same event.
+  if (Capacitor.isNativePlatform() || document.visibilityState === "visible" || !("Notification" in window) || Notification.permission !== "granted") return;
   try {
     const notification = new Notification(item.title, { body: item.body, tag: item.id });
     notification.onclick = () => {

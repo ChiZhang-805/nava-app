@@ -1,5 +1,6 @@
 import {
   Activity,
+  AudioLines,
   Bell,
   BellOff,
   Bluetooth,
@@ -16,6 +17,7 @@ import {
   Maximize2,
   Minimize2,
   MoonStar,
+  MousePointerClick,
   Pause,
   Play,
   PhoneIncoming,
@@ -26,6 +28,7 @@ import {
   ShieldCheck,
   Square,
   TimerReset,
+  Volume2,
   Watch,
   Utensils,
   X,
@@ -76,8 +79,22 @@ import { isDemoMode } from "../services/demo";
 import { clearActiveUserSession, loadActiveUserSession, saveActiveUserSession } from "../services/userCloudState";
 import { resolveTodoFocusPlan } from "../services/focusPlanning.ts";
 import { exitFocusFullscreen, focusFullscreenActive, focusFullscreenSupported, requestFocusFullscreen, requestScreenWakeLock, screenWakeLockSupported, type ScreenWakeLockSentinel } from "../services/focusImmersion.ts";
+import { focusNoiseSupported, startFocusNoise, type FocusNoiseKind, type FocusNoiseSession } from "../services/focusAudio.ts";
 
 type MoodFactor = { value: string; label: string };
+
+type FocusInterruptionReason = "message" | "call" | "distraction" | "other";
+type FocusInterruptionReasons = Record<FocusInterruptionReason, number>;
+
+const emptyFocusInterruptionReasons = (): FocusInterruptionReasons => ({ message: 0, call: 0, distraction: 0, other: 0 });
+
+function normalizeFocusInterruptionReasons(value: Partial<FocusInterruptionReasons> | undefined): FocusInterruptionReasons {
+  const normalized = emptyFocusInterruptionReasons();
+  (Object.keys(normalized) as FocusInterruptionReason[]).forEach((reason) => {
+    normalized[reason] = Math.max(0, Math.round(Number(value?.[reason]) || 0));
+  });
+  return normalized;
+}
 
 type FocusTimerDraft = {
   sessionId?: string;
@@ -86,6 +103,7 @@ type FocusTimerDraft = {
   remaining: number;
   elapsedSeconds: number;
   interruptions: number;
+  interruptionReasons: FocusInterruptionReasons;
   startedAt?: string;
   title?: string;
   note?: string;
@@ -106,6 +124,7 @@ function normalizeFocusTimerDraft(parsed: Partial<FocusTimerDraft> | null): Focu
       remaining: Math.min(180 * 60, Math.max(0, Math.round(remaining))),
       elapsedSeconds: Math.max(0, Math.round(elapsed)),
       interruptions: Math.max(0, Math.round(Number(parsed.interruptions) || 0)),
+      interruptionReasons: normalizeFocusInterruptionReasons(parsed.interruptionReasons),
       startedAt: typeof parsed.startedAt === "string" ? parsed.startedAt : undefined,
       title: typeof parsed.title === "string" ? parsed.title : undefined,
       note: typeof parsed.note === "string" ? parsed.note : undefined,
@@ -144,6 +163,9 @@ type Props = {
   steps: number;
   calories: number;
   exerciseMinutes: number;
+  exerciseNote: string;
+  setExerciseMinutes: (value: number) => void;
+  setExerciseNote: (value: string) => void;
   focusTitle: string;
   focusMinutes: number;
   focusNote: string;
@@ -561,13 +583,17 @@ function ExerciseDashboard({
   deviceDate,
   trendBundle,
   todaySnapshot,
+  exerciseNote,
+  setExerciseMinutes,
+  setExerciseNote,
   view,
   openView,
-}: Pick<Props, "userId" | "steps" | "calories" | "exerciseMinutes" | "onOpenEditor" | "recordDate" | "deviceDate" | "trendBundle" | "todaySnapshot" | "profile"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
+}: Pick<Props, "userId" | "steps" | "calories" | "exerciseMinutes" | "exerciseNote" | "setExerciseMinutes" | "setExerciseNote" | "onOpenEditor" | "recordDate" | "deviceDate" | "trendBundle" | "todaySnapshot" | "profile"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
   const [syncing, setSyncing] = useState(false);
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
   const [watchState, setWatchState] = useState<{ paired: boolean; reachable: boolean } | null>(null);
   const [deviceMessage, setDeviceMessage] = useState<string | null>(null);
+  const [sportsPresetId, setSportsPresetId] = useState<"recommended" | "mobility" | "walk" | "recovery">("recommended");
   const selectedExercise = todaySnapshot?.exercise ?? null;
   const displayedSteps = selectedExercise?.steps ?? 0;
   const displayedCalories = selectedExercise?.calories ?? 0;
@@ -629,21 +655,36 @@ function ExerciseDashboard({
     : null;
   const sportsPlan = useMemo(() => {
     if (!selectedExercise) return {
+      minutes: 20,
       title: locale === "zh" ? "从轻量活动开始" : "Start with light movement",
       reason: locale === "zh" ? "所选日期尚无运动记录，以下是保守的入门规则建议。" : "There is no activity record for this date, so this is a conservative starter rule.",
       steps: locale === "zh" ? ["舒展与热身 5 分钟", "轻松步行 10 分钟", "放松拉伸 5 分钟"] : ["Mobility warm-up · 5 min", "Easy walk · 10 min", "Cool-down stretch · 5 min"],
     };
     if (displayedExerciseMinutes >= 30 || displayedSteps >= 8000) return {
+      minutes: 15,
       title: locale === "zh" ? "恢复与放松计划" : "Recovery & mobility plan",
       reason: locale === "zh" ? `根据 ${selectedDateText} 已记录的 ${displayedSteps.toLocaleString()} 步和 ${displayedExerciseMinutes} 分钟活动生成。` : `Based on ${displayedSteps.toLocaleString()} steps and ${displayedExerciseMinutes} active minutes recorded ${selectedDateText}.`,
       steps: locale === "zh" ? ["关节活动 3 分钟", "低强度拉伸 8 分钟", "呼吸放松 4 分钟"] : ["Joint mobility · 3 min", "Easy stretching · 8 min", "Breathing reset · 4 min"],
     };
     return {
+      minutes: 25,
       title: locale === "zh" ? "补充今日活动" : "Build today's activity",
       reason: locale === "zh" ? `根据 ${selectedDateText} 已记录的 ${displayedSteps.toLocaleString()} 步和 ${displayedExerciseMinutes} 分钟活动生成。` : `Based on ${displayedSteps.toLocaleString()} steps and ${displayedExerciseMinutes} active minutes recorded ${selectedDateText}.`,
       steps: locale === "zh" ? ["动态热身 5 分钟", "轻快步行 15 分钟", "小腿与髋部拉伸 5 分钟"] : ["Dynamic warm-up · 5 min", "Brisk walk · 15 min", "Calf and hip stretch · 5 min"],
     };
   }, [displayedExerciseMinutes, displayedSteps, locale, selectedDateText, selectedExercise]);
+  const sportsPresets = useMemo(() => ([
+    { id: "mobility" as const, minutes: 15, title: locale === "zh" ? "舒展恢复 · 15 分钟" : "Mobility reset · 15 min", reason: locale === "zh" ? "低冲击活动，适合久坐后的活动恢复。" : "Low-impact movement for a reset after sitting.", steps: locale === "zh" ? ["关节活动 3 分钟", "舒展 8 分钟", "呼吸放松 4 分钟"] : ["Joint mobility · 3 min", "Easy stretch · 8 min", "Breathing reset · 4 min"] },
+    { id: "walk" as const, minutes: 25, title: locale === "zh" ? "轻快步行 · 25 分钟" : "Brisk walk · 25 min", reason: locale === "zh" ? "包含热身、连续步行和放松。" : "Includes warm-up, steady walking, and cool-down.", steps: locale === "zh" ? ["动态热身 5 分钟", "轻快步行 15 分钟", "放松拉伸 5 分钟"] : ["Dynamic warm-up · 5 min", "Brisk walk · 15 min", "Cool-down · 5 min"] },
+    { id: "recovery" as const, minutes: 12, title: locale === "zh" ? "轻量恢复 · 12 分钟" : "Gentle recovery · 12 min", reason: locale === "zh" ? "当日活动已经较多时，优先放松而不是继续加量。" : "When today's load is already high, prioritize recovery over more volume.", steps: locale === "zh" ? ["慢走 4 分钟", "下肢放松 5 分钟", "缓慢呼吸 3 分钟"] : ["Easy walk · 4 min", "Lower-body release · 5 min", "Slow breathing · 3 min"] },
+  ]), [locale]);
+  const activeSportsPlan = sportsPresetId === "recommended" ? sportsPlan : sportsPresets.find((item) => item.id === sportsPresetId) ?? sportsPlan;
+  const useSportsPlan = () => {
+    setExerciseMinutes(activeSportsPlan.minutes);
+    const planNote = locale === "zh" ? `NAVA Sports 计划：${activeSportsPlan.title}` : `NAVA Sports plan: ${activeSportsPlan.title}`;
+    setExerciseNote([exerciseNote.trim(), planNote].filter(Boolean).join("\n"));
+    onOpenEditor();
+  };
 
   useEffect(() => {
     let active = true;
@@ -719,7 +760,7 @@ function ExerciseDashboard({
   if (view === "vitals") return <ModuleDetailView compact className="vitals-subview-card" title={locale === "zh" ? "健康指标" : "Health metrics"}><div className="metric-detail-grid"><span><HeartPulse /><small>{locale === "zh" ? "静息心率" : "Resting HR"}</small><strong>{vitals.heartRate == null ? "--" : <><AnimatedNumber value={vitals.heartRate} /> bpm</>}</strong></span><span><Activity /><small>{locale === "zh" ? "血氧" : "SpO2"}</small><strong>{vitals.bloodOxygen == null ? "--" : <><AnimatedNumber value={vitals.bloodOxygen} formatter={(value) => value.toFixed(1)} />%</>}</strong></span><span><Gauge /><small>{locale === "zh" ? "恢复度" : "Recovery"}</small><strong>{vitals.recovery == null ? "--" : <AnimatedNumber value={vitals.recovery} />}</strong></span></div><div className="detail-status-strip"><ShieldCheck size={17} /><span>{locale === "zh" ? "指标来自最近一次健康快照与节律评分" : "Based on the latest health snapshot and rhythm score"}</span><strong>{vitals.date ? shortDate(vitals.date, locale) : "--"}</strong></div></ModuleDetailView>;
   if (view === "heatmap") return <ModuleDetailView compact className="heatmap-subview-card" title={locale === "zh" ? "节律热力图" : "Rhythm heatmap"}><div className="heatmap-detail-content"><div className="detail-heatmap">{heatmap.cells.map((cell, index) => <i key={cell.id} title={`${shortDate(cell.date, locale)} · ${String(cell.period * 2).padStart(2, "0")}:00 · ${Math.round(cell.value)}`} style={{ opacity: cell.intensity, "--heat-index": index } as CSSProperties} />)}</div><div className="heatmap-legend"><span>{locale === "zh" ? "低活跃" : "Low"}</span><i /><i /><i /><i /><span>{locale === "zh" ? "高活跃" : "High"}</span></div><div className="heatmap-summary-grid"><span><small>{locale === "zh" ? "数据格" : "Data bins"}</small><strong>{heatmap.cells.length}</strong></span><span><small>{locale === "zh" ? "高峰窗口" : "Peak window"}</small><strong>{heatmap.cells.length > 0 ? peakWindow : "--"}</strong></span></div><p>{heatmap.cells.length > 0 ? (locale === "zh" ? `${peakWindow} 是近七日真实活动记录中相对集中的窗口；这里只描述分布，不评价运动质量。` : `${peakWindow} is the most concentrated window in the recorded seven-day activity data; this describes distribution, not workout quality.`) : (locale === "zh" ? "同步活动数据后生成热力图。" : "Sync activity data to build the heatmap.")}</p></div></ModuleDetailView>;
   if (view === "clock") return <ModuleDetailView compact className="clock-subview-card" title={locale === "zh" ? "生物钟同步" : "Clock alignment"}><div className="clock-alignment"><div className="clock-alignment-gauge" style={{ "--progress": `${alignment ?? 0}%` } as CSSProperties}><Gauge /></div><strong>{alignment == null ? "--" : <><AnimatedNumber value={alignment} />%</>}</strong><p>{alignment == null ? (locale === "zh" ? "同步睡眠或节律数据后，才能计算近七日生物钟同步分。" : "Sync sleep or rhythm data to calculate the seven-day clock-alignment score.") : (locale === "zh" ? "该分数由近七日入睡时间、睡眠时长稳定性与节律评分共同计算。" : "Calculated from seven-day bedtime, sleep-duration regularity, and rhythm scores.")}</p></div></ModuleDetailView>;
-  if (view === "sports") return <ModuleDetailView compact className="sports-subview-card" title="NAVA Sports"><div className="sports-plan"><Activity /><strong>{sportsPlan.title}</strong><p>{sportsPlan.reason}</p><div className="sports-plan-steps">{sportsPlan.steps.map((step, index) => <span key={step}><b>{index + 1}</b>{step}</span>)}</div><small className="sports-plan-disclaimer">{locale === "zh" ? "规则建议，不是医疗或训练处方；如有不适请停止。" : "Rule-based guidance, not a medical or training prescription. Stop if you feel unwell."}</small><button type="button" onClick={onOpenEditor}>{locale === "zh" ? "记录本次运动" : "Log this workout"}</button></div></ModuleDetailView>;
+  if (view === "sports") return <ModuleDetailView compact className="sports-subview-card" title="NAVA Sports"><div className="sports-plan"><Activity /><div className="sports-preset-picker" role="group" aria-label={locale === "zh" ? "选择运动计划" : "Choose a movement plan"}><button type="button" className={sportsPresetId === "recommended" ? "selected" : ""} onClick={() => setSportsPresetId("recommended")}>{locale === "zh" ? "今日建议" : "Suggested"}</button>{sportsPresets.map((preset) => <button type="button" className={sportsPresetId === preset.id ? "selected" : ""} key={preset.id} onClick={() => setSportsPresetId(preset.id)}>{preset.minutes} min</button>)}</div><strong>{activeSportsPlan.title}</strong><p>{activeSportsPlan.reason}</p><div className="sports-plan-steps">{activeSportsPlan.steps.map((step, index) => <span key={step}><b>{index + 1}</b>{step}</span>)}</div><small className="sports-plan-disclaimer">{locale === "zh" ? "规则建议，不是医疗或训练处方；如有不适请停止。" : "Rule-based guidance, not a medical or training prescription. Stop if you feel unwell."}</small><button type="button" onClick={useSportsPlan}>{locale === "zh" ? "使用此计划并记录" : "Use plan & log"}</button></div></ModuleDetailView>;
 
   return (
     <div className="module-dashboard exercise-dashboard" data-module-view="exercise-overview">
@@ -1125,12 +1166,28 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     : focusTitle;
   const immersive = view === "immersive" || view === "interruption";
   const wakePreferenceKey = `nava-focus-keep-awake:${userId}`;
+  const breakPreferenceKey = `nava-focus-break-interval:${userId}`;
   const wakeLockAvailable = screenWakeLockSupported();
   const fullscreenAvailable = focusFullscreenSupported();
+  const focusSoundAvailable = focusNoiseSupported();
   const wakeLockRef = useRef<ScreenWakeLockSentinel | null>(null);
+  const noiseSessionRef = useRef<FocusNoiseSession | null>(null);
+  const noiseRequestRef = useRef(0);
+  const interruptionGuardRef = useRef(0);
+  const breakCueSlotRef = useRef(0);
   const [keepAwakeEnabled, setKeepAwakeEnabled] = useState(() => window.sessionStorage.getItem(wakePreferenceKey) !== "false");
   const [wakeLockActive, setWakeLockActive] = useState(false);
   const [fullscreenActive, setFullscreenActive] = useState(focusFullscreenActive);
+  const [capabilityMessage, setCapabilityMessage] = useState<string | null>(null);
+  const [noiseKind, setNoiseKind] = useState<FocusNoiseKind>("off");
+  const [noiseVolume, setNoiseVolume] = useState(0.16);
+  const [noisePanelOpen, setNoisePanelOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [breakCue, setBreakCue] = useState(false);
+  const [breakIntervalMinutes, setBreakIntervalMinutes] = useState(() => {
+    const stored = Number(window.sessionStorage.getItem(breakPreferenceKey));
+    return [0, 25, 45, 60].includes(stored) ? stored : 25;
+  });
   const [running, setRunning] = useState(Boolean(focusLaunch));
   const [hasStarted, setHasStarted] = useState(Boolean(restoredTimer || focusLaunch));
   const [countdownDurationSeconds, setCountdownDurationSeconds] = useState(focusLaunch ? focusMinutes * 60 : restoredTimer?.countdownDurationSeconds ?? focusMinutes * 60);
@@ -1138,6 +1195,8 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [elapsedSeconds, setElapsedSeconds] = useState(focusLaunch ? 0 : restoredTimer?.elapsedSeconds ?? 0);
   const [timerMode, setTimerMode] = useState<"countdown" | "countup">(focusLaunch?.mode ?? restoredTimer?.mode ?? "countdown");
   const [interruptions, setInterruptions] = useState(focusLaunch ? 0 : restoredTimer?.interruptions ?? 0);
+  const [interruptionReasons, setInterruptionReasons] = useState<FocusInterruptionReasons>(() => focusLaunch ? emptyFocusInterruptionReasons() : restoredTimer?.interruptionReasons ?? emptyFocusInterruptionReasons());
+  const [currentInterruptionReason, setCurrentInterruptionReason] = useState<FocusInterruptionReason | null>(null);
   const [startedAt, setStartedAt] = useState<string | undefined>(focusLaunch?.startedAt ?? restoredTimer?.startedAt);
   const [sessionId, setSessionId] = useState(focusLaunch?.id ?? restoredTimer?.sessionId ?? crypto.randomUUID());
   const [saving, setSaving] = useState(false);
@@ -1164,22 +1223,81 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   }, []);
   const acquireWakeLock = useCallback(async () => {
     if (!immersive || !keepAwakeEnabled || document.visibilityState !== "visible" || wakeLockRef.current) return;
+    if (!wakeLockAvailable) {
+      setCapabilityMessage(locale === "zh" ? "当前浏览器不支持系统级屏幕常亮；计时仍会继续。" : "This browser does not support system wake lock; the timer will keep running.");
+      return;
+    }
     try {
       const sentinel = await requestScreenWakeLock();
-      if (!sentinel) return;
+      if (!sentinel) {
+        setCapabilityMessage(locale === "zh" ? "系统没有授予屏幕常亮；请检查浏览器权限。" : "Screen wake lock was not granted. Check browser permissions.");
+        return;
+      }
       wakeLockRef.current = sentinel;
       setWakeLockActive(true);
+      setCapabilityMessage(null);
       sentinel.addEventListener("release", () => {
         if (wakeLockRef.current === sentinel) wakeLockRef.current = null;
         setWakeLockActive(false);
       }, { once: true });
     } catch {
       setWakeLockActive(false);
+      setCapabilityMessage(locale === "zh" ? "屏幕常亮申请失败；请保持页面在前台或检查省电设置。" : "Wake lock failed. Keep this page visible or check battery-saving settings.");
     }
-  }, [immersive, keepAwakeEnabled]);
+  }, [immersive, keepAwakeEnabled, locale, wakeLockAvailable]);
+  const stopFocusNoise = useCallback(async () => {
+    noiseRequestRef.current += 1;
+    const activeNoise = noiseSessionRef.current;
+    noiseSessionRef.current = null;
+    setNoiseKind("off");
+    if (activeNoise) await activeNoise.stop();
+  }, []);
+  const selectFocusNoise = useCallback(async (kind: FocusNoiseKind) => {
+    setNoisePanelOpen(true);
+    if (kind === "off") {
+      await stopFocusNoise();
+      return;
+    }
+    if (!focusSoundAvailable) {
+      setCapabilityMessage(locale === "zh" ? "当前浏览器不支持背景声音播放。" : "Background sound is unavailable in this browser.");
+      return;
+    }
+    const requestId = noiseRequestRef.current + 1;
+    noiseRequestRef.current = requestId;
+    const previous = noiseSessionRef.current;
+    noiseSessionRef.current = null;
+    if (previous) await previous.stop();
+    try {
+      const session = await startFocusNoise(kind, noiseVolume);
+      if (noiseRequestRef.current !== requestId) {
+        await session.stop();
+        return;
+      }
+      noiseSessionRef.current = session;
+      setNoiseKind(kind);
+      setCapabilityMessage(null);
+    } catch {
+      setNoiseKind("off");
+      setCapabilityMessage(locale === "zh" ? "背景声音启动失败；请先确认浏览器允许播放声音。" : "Background sound could not start. Check browser audio permission.");
+    }
+  }, [focusSoundAvailable, locale, noiseVolume, stopFocusNoise]);
   useEffect(() => {
     window.sessionStorage.setItem(wakePreferenceKey, String(keepAwakeEnabled));
   }, [keepAwakeEnabled, wakePreferenceKey]);
+  useEffect(() => {
+    window.sessionStorage.setItem(breakPreferenceKey, String(breakIntervalMinutes));
+    breakCueSlotRef.current = 0;
+    setBreakCue(false);
+  }, [breakIntervalMinutes, breakPreferenceKey]);
+  useEffect(() => {
+    noiseSessionRef.current?.setVolume(noiseVolume);
+  }, [noiseVolume]);
+  useEffect(() => {
+    if (immersive) return;
+    setNoisePanelOpen(false);
+    setGuideOpen(false);
+    void stopFocusNoise();
+  }, [immersive, stopFocusNoise]);
   useEffect(() => {
     if (!immersive || !keepAwakeEnabled) {
       void releaseWakeLock();
@@ -1211,6 +1329,9 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     wakeLockRef.current = null;
     if (sentinel && sentinel.released !== true) void sentinel.release().catch(() => undefined);
     void exitFocusFullscreen();
+    const activeNoise = noiseSessionRef.current;
+    noiseSessionRef.current = null;
+    if (activeNoise) void activeNoise.stop();
   }, []);
   const refreshTodos = useCallback(() => {
     void syncTodos(userId).then(setTodos).catch((error) => console.warn("Todo sync deferred", error));
@@ -1229,6 +1350,10 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       setRemaining(nextDuration);
       setElapsedSeconds(0);
       setInterruptions(0);
+      setInterruptionReasons(emptyFocusInterruptionReasons());
+      setCurrentInterruptionReason(null);
+      breakCueSlotRef.current = 0;
+      setBreakCue(false);
       setStartedAt(focusLaunch.startedAt);
       setSessionId(focusLaunch.id);
       setSelectedTodoId(focusLaunch.selectedTodoId ?? null);
@@ -1271,6 +1396,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           setRemaining(remote.remaining);
           setElapsedSeconds(remote.elapsedSeconds);
           setInterruptions(remote.interruptions);
+          setInterruptionReasons(remote.interruptionReasons);
           setStartedAt(remote.startedAt);
           setSessionId(remote.sessionId ?? crypto.randomUUID());
           setFocusTitle(remote.title ?? "");
@@ -1306,6 +1432,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       remaining,
       elapsedSeconds,
       interruptions,
+      interruptionReasons,
       startedAt,
       title: displayedFocusTitle,
       note: focusNote,
@@ -1320,8 +1447,10 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       void saveActiveUserSession(userId, "focus", { ...draft })
         .catch((error) => console.warn("Focus session cloud sync deferred", error));
     }
-  }, [cloudTimerReady, countdownDurationSeconds, displayedFocusTitle, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptions, remaining, running, saved, selectedTodoId, sessionId, startedAt, timerMode, userId]);
+  }, [cloudTimerReady, countdownDurationSeconds, displayedFocusTitle, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptionReasons, interruptions, remaining, running, saved, selectedTodoId, sessionId, startedAt, timerMode, userId]);
   const todayTodos = todos.filter((item) => item.scheduledDate === deviceDate);
+  const incompleteTodayTodos = todayTodos.filter((item) => !item.completed);
+  const priorityTodoPrompt = incompleteTodayTodos.slice(0, 12).map((item, index) => `${index + 1}. ${item.title}${item.scheduledTime ? ` · ${item.scheduledTime}` : ""}${item.focusMinutes ? ` · ${item.focusMinutes}${locale === "zh" ? "分钟" : " min"}` : ""}`).join("\n");
   const calendarDays = rollingDateWindow(deviceDate);
   const visibleTodos = todoView === "list" ? todayTodos : todos.filter((item) => item.scheduledDate === calendarDate);
   const selectedTodo = todos.find((item) => item.id === selectedTodoId) ?? null;
@@ -1400,7 +1529,17 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
 
   const enterImmersive = (replace = false) => {
     openView("immersive", replace);
-    void requestFocusFullscreen().then(setFullscreenActive);
+    if (!fullscreenAvailable) {
+      setFullscreenActive(false);
+      setCapabilityMessage(locale === "zh" ? "已进入沉浸界面；当前浏览器不支持系统全屏。" : "Immersive view is active; system full screen is unavailable in this browser.");
+      return;
+    }
+    void requestFocusFullscreen()
+      .then((active) => {
+        setFullscreenActive(active);
+        if (!active) setCapabilityMessage(locale === "zh" ? "已进入沉浸界面，但系统全屏未获授权。" : "Immersive view is active, but system full screen was not granted.");
+      })
+      .catch(() => setCapabilityMessage(locale === "zh" ? "系统全屏申请失败，已保留沉浸界面。" : "System full screen failed; immersive view remains active."));
   };
 
   const leaveImmersive = () => {
@@ -1415,7 +1554,16 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       void exitFocusFullscreen().then(() => setFullscreenActive(false));
       return;
     }
-    void requestFocusFullscreen().then(setFullscreenActive);
+    if (!fullscreenAvailable) {
+      setCapabilityMessage(locale === "zh" ? "当前浏览器不支持系统全屏；沉浸界面仍然有效。" : "System full screen is unavailable; immersive view remains active.");
+      return;
+    }
+    void requestFocusFullscreen()
+      .then((active) => {
+        setFullscreenActive(active);
+        setCapabilityMessage(active ? null : (locale === "zh" ? "浏览器没有授予系统全屏。" : "The browser did not grant system full screen."));
+      })
+      .catch(() => setCapabilityMessage(locale === "zh" ? "系统全屏申请失败。" : "System full screen request failed."));
   };
 
   const updateDuration = (nextValue: number) => {
@@ -1489,15 +1637,35 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     if (timerMode === "countdown" && running && remaining === 0) setRunning(false);
   }, [remaining, running, timerMode]);
 
+  const recordInterruption = useCallback(() => {
+    if (!running) return;
+    const now = Date.now();
+    if (now - interruptionGuardRef.current < 1_500) return;
+    interruptionGuardRef.current = now;
+    setRunning(false);
+    setInterruptions((value) => value + 1);
+    setCurrentInterruptionReason(null);
+    setGuideOpen(false);
+    setNoisePanelOpen(false);
+    openView("interruption");
+  }, [openView, running]);
+
+  const chooseInterruptionReason = (reason: FocusInterruptionReason) => {
+    setInterruptionReasons((current) => {
+      const next = { ...current };
+      if (currentInterruptionReason) next[currentInterruptionReason] = Math.max(0, next[currentInterruptionReason] - 1);
+      next[reason] += 1;
+      return next;
+    });
+    setCurrentInterruptionReason(reason);
+  };
+
   useEffect(() => {
     let listener: { remove: () => Promise<void> } | undefined;
     let active = true;
     if (!immersive) return;
     void CapacitorApp.addListener("appStateChange", ({ isActive }) => {
-      if (isActive || !running) return;
-      setRunning(false);
-      setInterruptions((value) => value + 1);
-      openView("interruption");
+      if (!isActive) recordInterruption();
     }).then((handle) => {
       if (active) listener = handle;
       else void handle.remove();
@@ -1506,7 +1674,16 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       active = false;
       void listener?.remove();
     };
-  }, [immersive, openView, running]);
+  }, [immersive, recordInterruption]);
+
+  useEffect(() => {
+    if (!immersive) return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") recordInterruption();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [immersive, recordInterruption]);
 
   const timerDisplay = timerMode === "countup" ? elapsedSeconds : remaining;
   const timerMinutes = Math.floor(timerDisplay / 60);
@@ -1514,6 +1691,17 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const progress = timerMode === "countup"
     ? Math.min(100, (elapsedSeconds / Math.max(1, countdownDurationSeconds)) * 100)
     : 100 - (remaining / Math.max(1, countdownDurationSeconds)) * 100;
+  const focusedSeconds = timerMode === "countup" ? elapsedSeconds : Math.max(0, countdownDurationSeconds - remaining);
+
+  useEffect(() => {
+    if (!immersive || !running || breakIntervalMinutes <= 0) return;
+    const slot = Math.floor(focusedSeconds / (breakIntervalMinutes * 60));
+    if (slot <= 0 || slot <= breakCueSlotRef.current) return;
+    breakCueSlotRef.current = slot;
+    setBreakCue(true);
+    const timer = window.setTimeout(() => setBreakCue(false), 12_000);
+    return () => window.clearTimeout(timer);
+  }, [breakIntervalMinutes, focusedSeconds, immersive, running]);
 
   const finish = useCallback(async () => {
     if (saving || !hasStarted) return;
@@ -1521,8 +1709,16 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setSaving(true);
     const seconds = timerMode === "countup" ? elapsedSeconds : countdownDurationSeconds - remaining;
     const elapsed = Math.max(1, Math.ceil(seconds / 60));
+    const reasonLabels: Record<FocusInterruptionReason, string> = locale === "zh"
+      ? { message: "消息", call: "来电", distraction: "分心", other: "其他" }
+      : { message: "message", call: "call", distraction: "distraction", other: "other" };
+    const reasonSummary = (Object.entries(interruptionReasons) as Array<[FocusInterruptionReason, number]>)
+      .filter(([, count]) => count > 0)
+      .map(([reason, count]) => `${reasonLabels[reason]} ${count}`)
+      .join(locale === "zh" ? "、" : ", ");
+    const savedNote = [focusNote.trim(), reasonSummary ? (locale === "zh" ? `中断原因：${reasonSummary}` : `Interruption reasons: ${reasonSummary}`) : ""].filter(Boolean).join("\n");
     try {
-      await onSaveFocusMinutes(elapsed, { interruptions, startedAt, endedAt: new Date().toISOString(), category: focusCategory, note: focusNote, sourceActionId: sessionId });
+      await onSaveFocusMinutes(elapsed, { interruptions, startedAt, endedAt: new Date().toISOString(), category: focusCategory, note: savedNote, sourceActionId: sessionId });
       if (selectedTodo && !selectedTodo.completed && selectedTodoCompletedSessions + 1 >= (selectedTodo.focusSessions ?? 1)) await toggleTodo(userId, selectedTodo.id);
       refreshTodos();
       setSaved(true);
@@ -1530,7 +1726,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     } finally {
       setSaving(false);
     }
-  }, [countdownDurationSeconds, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptions, onSaveFocusMinutes, openView, refreshTodos, remaining, saving, selectedTodo, selectedTodoCompletedSessions, sessionId, startedAt, timerMode, userId]);
+  }, [countdownDurationSeconds, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptionReasons, interruptions, locale, onSaveFocusMinutes, openView, refreshTodos, remaining, saving, selectedTodo, selectedTodoCompletedSessions, sessionId, startedAt, timerMode, userId]);
 
   useEffect(() => {
     if (!immersive || timerMode !== "countdown" || remaining !== 0 || !hasStarted || saving || saved) return;
@@ -1551,22 +1747,45 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           <button
             type="button"
             className={keepAwakeEnabled ? "active" : ""}
-            disabled={!wakeLockAvailable}
             aria-pressed={keepAwakeEnabled}
             aria-label={locale === "zh" ? "切换屏幕常亮" : "Toggle screen wake lock"}
-            title={!wakeLockAvailable ? (locale === "zh" ? "当前浏览器不支持屏幕常亮" : "Screen wake lock is unavailable") : undefined}
-            onClick={() => setKeepAwakeEnabled((value) => !value)}
+            onClick={() => {
+              if (!wakeLockAvailable) {
+                setCapabilityMessage(locale === "zh" ? "当前浏览器不支持系统级屏幕常亮；计时仍会继续。" : "System wake lock is unavailable; the timer will keep running.");
+                return;
+              }
+              setKeepAwakeEnabled((value) => !value);
+            }}
           ><Lightbulb size={15} /><span>{locale === "zh" ? (wakeLockActive ? "已常亮" : "常亮") : (wakeLockActive ? "Awake" : "Stay awake")}</span></button>
           <button
             type="button"
             className={fullscreenActive ? "active" : ""}
-            disabled={!fullscreenAvailable}
             aria-pressed={fullscreenActive}
             aria-label={fullscreenActive ? (locale === "zh" ? "退出全屏" : "Exit full screen") : (locale === "zh" ? "进入全屏" : "Enter full screen")}
-            title={!fullscreenAvailable ? (locale === "zh" ? "当前浏览器不支持系统全屏，仍会使用视口沉浸模式" : "System full screen is unavailable; viewport immersion remains active") : undefined}
             onClick={toggleFullscreen}
           >{fullscreenActive ? <Minimize2 size={15} /> : <Maximize2 size={15} />}<span>{locale === "zh" ? (fullscreenActive ? "退出全屏" : "全屏") : (fullscreenActive ? "Exit" : "Full screen")}</span></button>
+          <button
+            type="button"
+            className={noiseKind !== "off" ? "active" : ""}
+            aria-pressed={noiseKind !== "off"}
+            aria-expanded={noisePanelOpen}
+            onClick={() => setNoisePanelOpen((value) => !value)}
+          ><AudioLines size={15} /><span>{locale === "zh" ? "背景音" : "Sound"}</span></button>
+          <button
+            type="button"
+            className={guideOpen ? "active" : ""}
+            aria-pressed={guideOpen}
+            onClick={() => { setNoisePanelOpen(false); setGuideOpen((value) => !value); }}
+          ><MousePointerClick size={15} /><span>{locale === "zh" ? "进入状态" : "Settle in"}</span></button>
         </div>
+        {noisePanelOpen && <section className="focus-noise-panel" aria-label={locale === "zh" ? "背景声音" : "Background sound"}>
+          <header><span><Volume2 size={15} />{locale === "zh" ? "背景声音" : "Background sound"}</span><button type="button" onClick={() => setNoisePanelOpen(false)} aria-label={locale === "zh" ? "关闭背景声音面板" : "Close background sound panel"}><X size={15} /></button></header>
+          <div className="focus-noise-options" role="group" aria-label={locale === "zh" ? "选择声音" : "Choose sound"}>
+            {(["off", "white", "pink", "brown"] as FocusNoiseKind[]).map((kind) => <button type="button" key={kind} className={noiseKind === kind ? "active" : ""} onClick={() => void selectFocusNoise(kind)}>{locale === "zh" ? ({ off: "关闭", white: "白噪音", pink: "粉噪音", brown: "棕噪音" } as const)[kind] : ({ off: "Off", white: "White", pink: "Pink", brown: "Brown" } as const)[kind]}</button>)}
+          </div>
+          <label><span>{locale === "zh" ? "音量" : "Volume"}</span><input type="range" min="0" max="0.45" step="0.01" value={noiseVolume} onChange={(event) => setNoiseVolume(Number(event.target.value))} /></label>
+        </section>}
+        {capabilityMessage && <button className="focus-capability-message" type="button" onClick={() => setCapabilityMessage(null)} aria-label={locale === "zh" ? "关闭功能状态提示" : "Dismiss capability status"}>{capabilityMessage}</button>}
         <div className="focus-title-field">
           <input
             aria-label={locale === "zh" ? "专注事项" : "Focus activity"}
@@ -1606,12 +1825,20 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           </div>
         </div>
         <div className="focus-controls">
-          <button type="button" onClick={() => { setRemaining(countdownDurationSeconds); setElapsedSeconds(0); setRunning(false); setHasStarted(false); setSaved(false); }} aria-label={locale === "zh" ? "重置" : "Reset"}><TimerReset /></button>
+          <button type="button" onClick={() => { setRemaining(countdownDurationSeconds); setElapsedSeconds(0); setRunning(false); setHasStarted(false); setInterruptions(0); setInterruptionReasons(emptyFocusInterruptionReasons()); setCurrentInterruptionReason(null); breakCueSlotRef.current = 0; setBreakCue(false); setSaved(false); }} aria-label={locale === "zh" ? "重置" : "Reset"}><TimerReset /></button>
           <button className="primary" type="button" onClick={() => { setHasStarted(true); if (!startedAt) setStartedAt(new Date().toISOString()); setRunning((value) => !value); }} aria-label={running ? (locale === "zh" ? "暂停" : "Pause") : (locale === "zh" ? "开始" : "Start")}>{running ? <Pause /> : <Play />}</button>
           <button type="button" onClick={() => void finish()} disabled={saving} aria-label={locale === "zh" ? "结束" : "Finish"}><Square /></button>
         </div>
-        {import.meta.env.DEV && <button className="focus-interruption-trigger" type="button" onClick={() => { setRunning(false); setInterruptions((value) => value + 1); openView("interruption"); }}><PhoneIncoming size={17} />{locale === "zh" ? "模拟来电打断" : "Simulate interruption"}</button>}
-        {view === "interruption" && <div className="focus-interruption" role="dialog" aria-modal="true"><PhoneIncoming size={38} /><strong>{locale === "zh" ? "来电打断" : "Incoming call"}</strong><p>{locale === "zh" ? "专注计时已自动暂停" : "Focus timer paused automatically"}</p><div><button type="button" onClick={() => { setRunning(true); setHasStarted(true); enterImmersive(true); }}>{locale === "zh" ? "继续专注" : "Keep focusing"}</button><button type="button" onClick={() => enterImmersive(true)}>{locale === "zh" ? "接听并暂停" : "Answer and pause"}</button></div></div>}
+        {breakCue && <section className="focus-break-cue" role="status"><span aria-hidden="true" /><div><strong>{locale === "zh" ? "轻轻活动一下" : "Take a brief reset"}</strong><p>{locale === "zh" ? "放松肩颈，眨眨眼，再决定是否继续。" : "Relax your shoulders, blink, then decide whether to continue."}</p></div><button type="button" onClick={() => setBreakCue(false)} aria-label={locale === "zh" ? "关闭休息提示" : "Dismiss break cue"}><X size={16} /></button></section>}
+        {guideOpen && <div className="focus-guide-overlay" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "进入专注状态" : "Settle into focus"}>
+          <button className="focus-guide-close" type="button" onClick={() => setGuideOpen(false)} aria-label={locale === "zh" ? "关闭" : "Close"}><X size={18} /></button>
+          <span className="focus-guide-orb" aria-hidden="true"><i /><i /><i /></span>
+          <strong>{locale === "zh" ? "用十秒进入状态" : "Settle in for ten seconds"}</strong>
+          <ol><li>{locale === "zh" ? "坐稳，放松肩膀" : "Settle your posture"}</li><li>{locale === "zh" ? "缓慢呼吸两次" : "Take two slow breaths"}</li><li>{locale === "zh" ? "只看眼前这一件事" : "Keep only this task in view"}</li></ol>
+          <button className="focus-guide-start" type="button" onClick={() => { setGuideOpen(false); setHasStarted(true); if (!startedAt) setStartedAt(new Date().toISOString()); setRunning(true); }}>{locale === "zh" ? "开始专注" : "Start focusing"}</button>
+        </div>}
+        {import.meta.env.DEV && <button className="focus-interruption-trigger" type="button" onClick={recordInterruption}><PhoneIncoming size={17} />{locale === "zh" ? "模拟中断" : "Simulate interruption"}</button>}
+        {view === "interruption" && <div className="focus-interruption" role="dialog" aria-modal="true"><PhoneIncoming size={38} /><strong>{locale === "zh" ? "专注被打断" : "Focus interrupted"}</strong><p>{locale === "zh" ? "计时已暂停。可以记录原因，再决定继续或结束。" : "The timer is paused. Record a reason, then continue or finish."}</p><div className="focus-interruption-reasons" role="group" aria-label={locale === "zh" ? "中断原因" : "Interruption reason"}>{(["message", "call", "distraction", "other"] as FocusInterruptionReason[]).map((reason) => <button type="button" className={currentInterruptionReason === reason ? "selected" : ""} key={reason} onClick={() => chooseInterruptionReason(reason)}>{locale === "zh" ? ({ message: "消息", call: "来电", distraction: "分心", other: "其他" } as const)[reason] : ({ message: "Message", call: "Call", distraction: "Distraction", other: "Other" } as const)[reason]}</button>)}</div><div className="focus-interruption-actions"><button type="button" onClick={() => { setRunning(true); setHasStarted(true); enterImmersive(true); }}>{locale === "zh" ? "继续专注" : "Keep focusing"}</button><button type="button" onClick={() => void finish()}>{locale === "zh" ? "结束并保存" : "Finish & save"}</button></div></div>}
       </div>
     ), document.body);
   }
@@ -1633,6 +1860,11 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           <button className={["focus-summary-start", saved ? "success" : ""].filter(Boolean).join(" ")} type="button" onClick={() => { if (saved) { setSaved(false); setHasStarted(false); } enterImmersive(); }} aria-label={saved ? (locale === "zh" ? "专注已记录" : "Focus saved") : hasStarted ? (locale === "zh" ? "恢复已暂停的专注" : "Resume paused focus") : (locale === "zh" ? "开始专注" : "Start focus")}>{saved ? <Check size={23} /> : <><CirclePlay size={23} /><span>{hasStarted ? (locale === "zh" ? "恢复" : "Resume") : (locale === "zh" ? "开始" : "Start")}</span></>}</button>
         </div>
       </section>
+      <div className="focus-capability-row" aria-label={locale === "zh" ? "专注维持功能" : "Focus support features"}>
+        <span><Maximize2 size={14} />{locale === "zh" ? "沉浸全屏" : "Immersive"}</span>
+        <span className={wakeLockAvailable ? "" : "limited"}><Lightbulb size={14} />{locale === "zh" ? "屏幕常亮" : "Wake lock"}</span>
+        <span className={focusSoundAvailable ? "" : "limited"}><AudioLines size={14} />{locale === "zh" ? "背景噪音" : "Noise"}</span>
+      </div>
       <section className="figma-module-card focus-trend-card">
         <header><strong>{locale === "zh" ? "专注统计" : "Focus insights"}</strong><div className="focus-chart-tabs">{(["trend", "period", "category"] as const).map((mode) => <button type="button" className={chartMode === mode ? "active" : ""} key={mode} onClick={() => setChartMode(mode)}>{locale === "zh" ? ({ trend: "趋势", period: "时段", category: "分类" }[mode]) : ({ trend: "Trend", period: "Time", category: "Type" }[mode])}</button>)}</div></header>
         {chartMode === "trend" && (hasFocusTrend ? <BarLineTrendChart
@@ -1654,6 +1886,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           <label><span>{locale === "zh" ? "次数" : "Sessions"}</span><input aria-label={locale === "zh" ? "计划专注次数" : "Planned sessions"} type="number" inputMode="numeric" min={1} max={12} value={todoSessions} onChange={(event) => setTodoSessions(Math.min(12, Math.max(1, Number(event.target.value) || 1)))} /><b>{locale === "zh" ? "次" : "x"}</b></label>
           <button type="submit" aria-label={locale === "zh" ? "添加待办" : "Add task"}><Plus size={17} /></button>
         </form>
+        {incompleteTodayTodos.length > 5 && <button className="focus-ai-priority-button" type="button" onClick={() => onOpenAi?.(locale === "zh" ? `以下是我今天尚未完成的真实待办。请结合截止时间、预计专注时长和任务依赖，给出优先顺序；先说明排序依据，再推荐我现在只做哪一项。不要虚构未提供的信息。\n${priorityTodoPrompt}` : `These are my real unfinished tasks for today. Rank them using timing, estimated focus duration, and dependencies. Explain the criteria, then recommend exactly one task to start now. Do not invent missing facts.\n${priorityTodoPrompt}`)}><Bot size={15} />{locale === "zh" ? `AI 排优先级 · ${incompleteTodayTodos.length} 项` : `AI prioritize · ${incompleteTodayTodos.length}`}</button>}
         {todoView === "calendar" && <div className="focus-todo-calendar">{calendarDays.map((date) => {
           const dayTodos = todos.filter((item) => item.scheduledDate === date);
           const completed = dayTodos.filter((item) => item.completed).length;
@@ -1674,13 +1907,16 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           <label className="focus-task-field"><Clock3 size={19} /><input aria-label={locale === "zh" ? "专注事项" : "Focus activity"} placeholder={locale === "zh" ? "请填写要专注的事项" : "What do you want to focus on?"} value={displayedFocusTitle} onChange={(event) => setFocusTitle(event.target.value)} /></label>
           <div className="focus-duration-controls"><button type="button" onClick={() => updateDuration(focusMinutes - 1)} aria-label={locale === "zh" ? "减少一分钟" : "Decrease one minute"}>-</button><label className="focus-duration-field compact"><input aria-label={locale === "zh" ? "专注分钟数" : "Focus duration in minutes"} inputMode="numeric" min={1} max={180} type="number" value={focusMinutes} onChange={(event) => updateDuration(Number(event.target.value))} /><span>{locale === "zh" ? "分钟" : "min"}</span></label><button type="button" onClick={() => updateDuration(focusMinutes + 1)} aria-label={locale === "zh" ? "增加一分钟" : "Increase one minute"}>+</button></div>
         </div>
-        <label className="focus-category-field"><span>{locale === "zh" ? "专注分类" : "Category"}</span><select value={focusCategory} onChange={(event) => setFocusCategory(event.target.value)}><option value="work">{locale === "zh" ? "工作" : "Work"}</option><option value="study">{locale === "zh" ? "学习" : "Study"}</option><option value="life">{locale === "zh" ? "生活" : "Life"}</option><option value="other">{locale === "zh" ? "其他" : "Other"}</option></select></label>
+        <div className="focus-settings-row">
+          <label className="focus-category-field"><span>{locale === "zh" ? "专注分类" : "Category"}</span><select value={focusCategory} onChange={(event) => setFocusCategory(event.target.value)}><option value="work">{locale === "zh" ? "工作" : "Work"}</option><option value="study">{locale === "zh" ? "学习" : "Study"}</option><option value="life">{locale === "zh" ? "生活" : "Life"}</option><option value="other">{locale === "zh" ? "其他" : "Other"}</option></select></label>
+          <label className="focus-category-field"><span>{locale === "zh" ? "休息提示" : "Break cue"}</span><select value={breakIntervalMinutes} onChange={(event) => setBreakIntervalMinutes(Number(event.target.value))}><option value={25}>{locale === "zh" ? "每 25 分钟" : "Every 25 min"}</option><option value={45}>{locale === "zh" ? "每 45 分钟" : "Every 45 min"}</option><option value={60}>{locale === "zh" ? "每 60 分钟" : "Every 60 min"}</option><option value={0}>{locale === "zh" ? "关闭" : "Off"}</option></select></label>
+        </div>
         <button className="focus-ai-plan-button" type="button" onClick={() => onOpenAi?.(locale === "zh" ? `我准备专注“${displayedFocusTitle || "尚未命名的任务"}”${focusMinutes}分钟。请先用一句话帮我进入状态，再把任务拆成3个明确小步骤；如果目标太模糊，请先问我一个澄清问题。` : `I plan to focus on “${displayedFocusTitle || "an unnamed task"}” for ${focusMinutes} minutes. Give me one short starting cue and split it into 3 concrete steps; ask one clarifying question first if the goal is vague.`)}><Bot size={16} />{locale === "zh" ? "AI 进入状态与任务拆解" : "AI starting cue & task plan"}</button>
         <div className="focus-recent-list">
           <strong>{locale === "zh" ? "最近完成" : "Recently completed"}</strong>
           {recentFocus.length > 0 ? recentFocus.map((record) => <div key={record.id}><span><Clock3 size={14} /></span><p><b>{shortDate(record.record_date, locale)}</b><i aria-hidden="true">·</i>{record.completed_sessions}{locale === "zh" ? " 次" : " sessions"}<i aria-hidden="true">·</i>{record.total_minutes}{locale === "zh" ? " 分钟" : " min"}</p></div>) : <p className="focus-empty-history">{locale === "zh" ? "还没有完成记录" : "No completed sessions yet"}</p>}
         </div>
-        <button className="focus-enter-button" type="button" onClick={() => { setHasStarted(false); setRemaining(focusMinutes * 60); setElapsedSeconds(0); setInterruptions(0); setStartedAt(undefined); setSessionId(crypto.randomUUID()); enterImmersive(); }}>{locale === "zh" ? "进入专注" : "Start focus"}</button>
+        <button className="focus-enter-button" type="button" onClick={() => { setHasStarted(false); setRemaining(focusMinutes * 60); setElapsedSeconds(0); setInterruptions(0); setInterruptionReasons(emptyFocusInterruptionReasons()); setCurrentInterruptionReason(null); breakCueSlotRef.current = 0; setBreakCue(false); setStartedAt(undefined); setSessionId(crypto.randomUUID()); enterImmersive(); }}>{locale === "zh" ? "进入专注" : "Start focus"}</button>
       </section>
     </div>
   );
@@ -1757,7 +1993,7 @@ export default function RecordModuleDashboard(props: Props) {
   if (view === "history") return <HistoryView module={props.module} locale={locale} trendBundle={props.trendBundle} profile={props.profile} deviceDate={props.deviceDate} onGrowthActivity={props.onGrowthActivity} />;
   const common = { ...props, locale };
   let dashboard: ReactNode = null;
-  if (props.module === "exercise") dashboard = <ExerciseDashboard userId={props.userId} locale={locale} steps={props.steps} calories={props.calories} exerciseMinutes={props.exerciseMinutes} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} deviceDate={props.deviceDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
+  if (props.module === "exercise") dashboard = <ExerciseDashboard userId={props.userId} locale={locale} steps={props.steps} calories={props.calories} exerciseMinutes={props.exerciseMinutes} exerciseNote={props.exerciseNote} setExerciseMinutes={props.setExerciseMinutes} setExerciseNote={props.setExerciseNote} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} deviceDate={props.deviceDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
   if (props.module === "mood") dashboard = <MoodDashboard {...common} view={view} openView={openView} />;
   if (props.module === "sleep") dashboard = <SleepDashboard userId={props.userId} locale={locale} sleepStart={props.sleepStart} sleepEnd={props.sleepEnd} deepSleep={props.deepSleep} lightSleep={props.lightSleep} remSleep={props.remSleep} sleepRating={props.sleepRating} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} deviceDate={props.deviceDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
   if (props.module === "diet") dashboard = <DietDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} onOpenEditor={props.onOpenEditor} onOpenDietCamera={props.onOpenDietCamera} onOpenDietMeal={props.onOpenDietMeal} view={view} openView={openView} />;

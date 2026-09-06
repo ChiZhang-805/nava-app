@@ -142,11 +142,12 @@ export default function OptionTwoHome({
     ]);
 
     if (requestId !== refreshRequestRef.current) return;
+    const loadedTrends = trendsResult.status === "fulfilled" ? trendsResult.value : null;
     if (snapshotResult.status === "fulfilled") {
       setSnapshot(snapshotResult.value);
       syncContextualNotifications(user.id, snapshotResult.value, locale, new Date(), {
         present: guidanceEligible,
-      });
+      }, loadedTrends ?? undefined);
     } else {
       setSnapshot(null);
       console.warn("Unable to load the option-two home snapshot", snapshotResult.reason);

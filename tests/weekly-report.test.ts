@@ -14,6 +14,7 @@ const dashboard = readFileSync(new URL("../src/features/RecordModuleDashboard.ts
 const productivity = readFileSync(new URL("../src/services/productivity.ts", import.meta.url), "utf8");
 const utilityDrawer = readFileSync(new URL("../src/components/UtilityDrawer.tsx", import.meta.url), "utf8");
 const focusImmersion = readFileSync(new URL("../src/services/focusImmersion.ts", import.meta.url), "utf8");
+const focusAudio = readFileSync(new URL("../src/services/focusAudio.ts", import.meta.url), "utf8");
 const focusStyles = readFileSync(new URL("../src/styles/figma-v2.css", import.meta.url), "utf8");
 
 test("weekly report periods follow the local Monday-to-Sunday natural week", () => {
@@ -113,6 +114,22 @@ test("immersive focus uses screen wake lock, browser full screen and a viewport 
   assert.match(dashboard, /data-wake-lock/);
   assert.match(dashboard, /focus-immersive-tools/);
   assert.match(focusStyles, /\.focus-immersive \{[\s\S]*position: fixed;[\s\S]*height: 100dvh;/);
+  assert.match(focusAudio, /createBufferSource/);
+  assert.match(focusAudio, /"white" \| "pink" \| "brown"/);
+  assert.match(dashboard, /focus-noise-panel/);
+  assert.match(dashboard, /focus-guide-overlay/);
+  assert.match(dashboard, /interruptionReasons/);
+  assert.match(dashboard, /breakIntervalMinutes/);
+});
+
+test("NAVA Sports presets prefill a real editable exercise record", () => {
+  assert.match(dashboard, /sports-preset-picker/);
+  assert.match(dashboard, /舒展恢复 · 15 分钟/);
+  assert.match(dashboard, /轻快步行 · 25 分钟/);
+  assert.match(dashboard, /轻量恢复 · 12 分钟/);
+  assert.match(dashboard, /setExerciseMinutes\(activeSportsPlan\.minutes\)/);
+  assert.match(dashboard, /setExerciseNote/);
+  assert.match(dashboard, /使用此计划并记录/);
 });
 
 test("weekly radar averages only recorded days and preserves a wholly missing dimension as missing", () => {
