@@ -9,6 +9,7 @@ import { AuthProvider } from "./state/AuthProvider";
 import { useAuth } from "./state/authContext";
 import LoadingShell from "./components/LoadingShell";
 import PageSkeleton from "./components/PageSkeleton";
+import DesktopDevicePreviewChrome from "./components/DesktopDevicePreviewChrome";
 
 const loadAuthenticatedApp = () => import("./App");
 const AuthenticatedApp = lazy(loadAuthenticatedApp);
@@ -62,9 +63,9 @@ function BootstrapContent() {
     setReadyUserId((current) => current === userId ? current : userId);
   }, []);
 
-  if (forceAuthSkeleton) return <AuthLoadingScreen />;
-  if (configError && !isDemoMode()) return <ConfigErrorScreen message={configError} />;
-  if (loading) return <AuthLoadingScreen />;
+  if (forceAuthSkeleton) return <div className="nava-app-stage"><AuthLoadingScreen /><DesktopDevicePreviewChrome /></div>;
+  if (configError && !isDemoMode()) return <div className="nava-app-stage"><ConfigErrorScreen message={configError} /><DesktopDevicePreviewChrome /></div>;
+  if (loading) return <div className="nava-app-stage"><AuthLoadingScreen /><DesktopDevicePreviewChrome /></div>;
 
   const authenticatedAppReady = Boolean(user && readyUserId === user.id);
   const preserveSubmittedAuthScreen = Boolean(user && !authenticatedAppReady && signedOutScreenSeen.current);
@@ -73,9 +74,17 @@ function BootstrapContent() {
   return (
     <>
       {(!user || preserveSubmittedAuthScreen) && (
-        <AuthScreen transitionPending={preserveSubmittedAuthScreen} onAuthenticated={() => setFreshAuthentication(true)} />
+        <div className="nava-app-stage">
+          <AuthScreen transitionPending={preserveSubmittedAuthScreen} onAuthenticated={() => setFreshAuthentication(true)} />
+          <DesktopDevicePreviewChrome />
+        </div>
       )}
-      {showSessionRestoreLoading && <LoadingScreen />}
+      {showSessionRestoreLoading && (
+        <div className="nava-app-stage">
+          <LoadingScreen />
+          <DesktopDevicePreviewChrome />
+        </div>
+      )}
       {user && (
         <div
           className="authenticated-app-gate"

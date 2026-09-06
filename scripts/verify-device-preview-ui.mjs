@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-desktop-device-preview-v111-20260907";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-desktop-device-preview-v112-20260907";
 const port = 5206;
 const demoUserId = "00000000-0000-4000-8000-000000000001";
 
@@ -53,6 +53,34 @@ async function readDesktopGeometry(page) {
 }
 
 try {
+  const signedOutDesktopContext = await browser.newContext({ viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
+  const signedOutDesktop = await signedOutDesktopContext.newPage();
+  await signedOutDesktop.goto(baseUrl, { waitUntil: "networkidle" });
+  const signedOutLaunch = signedOutDesktop.locator(".launch-sequence");
+  if (await signedOutLaunch.isVisible().catch(() => false)) await signedOutLaunch.click();
+  await expect(signedOutDesktop.locator(".auth-screen")).toBeVisible();
+  const signedOutDesktopGeometry = await signedOutDesktop.evaluate(() => {
+    const auth = document.querySelector(".auth-screen")?.getBoundingClientRect();
+    const chromeElement = document.querySelector(".nava-device-preview");
+    const chrome = chromeElement?.getBoundingClientRect();
+    const locale = document.querySelector(".auth-locale")?.getBoundingClientRect();
+    return {
+      auth: auth ? { left: auth.left, top: auth.top, width: auth.width, height: auth.height } : null,
+      chrome: chrome ? { left: chrome.left, top: chrome.top, width: chrome.width, height: chrome.height } : null,
+      locale: locale ? { left: locale.left, top: locale.top, width: locale.width, height: locale.height } : null,
+      chromeDisplay: chromeElement ? getComputedStyle(chromeElement).display : null,
+    };
+  });
+  if (!signedOutDesktopGeometry.auth || !signedOutDesktopGeometry.chrome || !signedOutDesktopGeometry.locale || signedOutDesktopGeometry.chromeDisplay === "none"
+    || Math.abs(signedOutDesktopGeometry.auth.left - signedOutDesktopGeometry.chrome.left) > 1
+    || Math.abs(signedOutDesktopGeometry.auth.top - signedOutDesktopGeometry.chrome.top) > 1
+    || signedOutDesktopGeometry.locale.top - signedOutDesktopGeometry.auth.top < 64) {
+    throw new Error(`Signed-out desktop entry is not inside the simulated device ${JSON.stringify(signedOutDesktopGeometry)}`);
+  }
+  await signedOutDesktop.screenshot({ path: path.join(outputDir, "desktop-auth-1365x1000.png"), fullPage: true });
+  report.push({ mode: "desktop-auth-preview", geometry: signedOutDesktopGeometry });
+  await signedOutDesktopContext.close();
+
   const desktopContext = await browser.newContext({ viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
   const desktop = await prepare(desktopContext);
   const desktopGeometry = await readDesktopGeometry(desktop);
@@ -124,6 +152,26 @@ try {
   await mobile.screenshot({ path: path.join(outputDir, "mobile-430x932.png"), fullPage: true });
   report.push({ mode: "mobile-product", geometry: mobileGeometry });
   await mobileContext.close();
+
+  const signedOutMobileContext = await browser.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  const signedOutMobile = await signedOutMobileContext.newPage();
+  await signedOutMobile.goto(baseUrl, { waitUntil: "networkidle" });
+  const signedOutMobileLaunch = signedOutMobile.locator(".launch-sequence");
+  if (await signedOutMobileLaunch.isVisible().catch(() => false)) await signedOutMobileLaunch.click();
+  await expect(signedOutMobile.locator(".auth-screen")).toBeVisible();
+  const signedOutMobileBoundary = await signedOutMobile.evaluate(() => {
+    const chrome = document.querySelector(".nava-device-preview");
+    return {
+      chromeDisplay: chrome ? getComputedStyle(chrome).display : null,
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+  if (signedOutMobileBoundary.chromeDisplay !== "none" || signedOutMobileBoundary.overflow > 1) {
+    throw new Error(`Preview-only chrome leaked into the signed-out mobile entry ${JSON.stringify(signedOutMobileBoundary)}`);
+  }
+  await signedOutMobile.screenshot({ path: path.join(outputDir, "mobile-auth-430x932.png"), fullPage: true });
+  report.push({ mode: "mobile-auth-product", boundary: signedOutMobileBoundary });
+  await signedOutMobileContext.close();
 } finally {
   await browser.close();
   await server.close();

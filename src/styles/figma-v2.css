@@ -10070,6 +10070,11 @@ body::before {
   }
   .nava-device-battery > i { position: absolute; inset: 1.5px; border-radius: 1.5px; background: #050607; }
 
+  .nava-app-stage > .auth-screen .auth-locale {
+    top: 65px;
+    right: 18px;
+  }
+
   .nava-device-side-button {
     position: absolute;
     width: 4px;
