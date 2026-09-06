@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`1cc66c088b3bc283c65c4b2b25c07898c3536513`
+- 源码发布 commit：`0bd0c9f742e1b15b794fcce5a79f4058383be473`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v104，public
+- ChatGPT Sites 版本：v105，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_18402667c8dc8191a6cbe20b6b954bc3`
-- Sites deployment ID：`appgdep_6a9c39db16dc8191865f19b094e7e845`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_2b27ab43971c8191807875e3fb11b3ff`
+- Sites deployment ID：`appgdep_6a9cd59a38748191a8d050a1b80aef36`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `58726594d02cf0b33b69e7e7952760d6d66aa9ff`
+  `5369f34568319a761e869f2d25461aaece7a12c9`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v104 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v104.tar.gz`
+- v105 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v105.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v104 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v105 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -1018,3 +1018,9 @@ production seed/backfill；“没有残留”的证据是生产结构断言、�
 Supabase 事实源的缓存或迁移缓冲。`npm run cloud-data:test` 固定导出表清单、Storage、
 级联删除、云端偏好/通知/AI 归档/活动会话和以前丢失字段的源码合同；生产 REST 探测已
 确认新增表和字段可达。
+
+本轮功能源码 commit `0bd0c9f742e1b15b794fcce5a79f4058383be473` 已从同一干净、
+已 push 状态发布为 ChatGPT Sites v105，并同步到 GitHub Pages v105；镜像 commit 为
+`5369f34568319a761e869f2d25461aaece7a12c9`。两个公开根 URL 实际返回 200，均包含 NAVA
+与 canonical Supabase project ref；Pages `source.json` 实际返回 v105 和上述源码 commit。
+发布后生产认证合同再次通过，公开 demo 绕过保持禁用。
