@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`52f35805f652acdfbf80511816cfab11eb5e860b`
+- 源码发布 commit：`1715af7c1bd204459a69962262b67b5a37dd1d5a`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v107，public
+- ChatGPT Sites 版本：v108，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_e87af76cf1b081918bfa690dcf068818`
-- Sites deployment ID：`appgdep_6a9d09b0e3b08191ab3b83b92c00a78f`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_ebebd39a845c81919a482b6b2aa04fd1`
+- Sites deployment ID：`appgdep_6a9d3967915881919f9dd4b3888fd87f`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `a1b8d4070a0796835f0d029fbcde877d5e7beb60`
+  `9d21493303e17f2de58e66fbb4e144c653311e1a`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v107 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v107.tar.gz`
+- v108 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v108.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v107 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v108 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -536,7 +536,7 @@ Wi-Fi 或蓝牙范围，就直接读取 Apple Watch 的完整历史 HealthKit �
 画面做 `transform: scale(...)`。已有 CSS 中看似重复的宽高规则常常对应一次真实
 截图缺陷，删除前必须用四尺寸证据证明等价。
 
-## 11. 已完成的近期修复（v83-v102）
+## 11. 已完成的近期修复（v83-v108）
 
 这些是新任务最容易从旧聊天里误判的近期状态：
 
@@ -568,6 +568,9 @@ Wi-Fi 或蓝牙范围，就直接读取 Apple Watch 的完整历史 HealthKit �
 - v107：完成云端数据完整性复核、按餐营养并发/幂等、原子专注会话、私有头像、完整文件
   导出、legacy phone 删除清理、Health/Watch 缺失值与 ack 边界、AI 授权画像/健康指标
   指纹缓存，并将当前数据库/函数/前端从同一源码提交发布。
+- v108：睡眠维持入口精简为两行并改为“开始记录”，作息快捷项不再推算睡眠阶段；专注
+  改为 25/45/60/自定义下拉；面部正常页移除强制条件块，三点菜单增加非阻塞条件检验，
+  face-analyze v16 返回三项视觉判断；双站与四尺寸线上登录边界同步验证。
 
 发布演进已经压缩进本节；精确差异使用 Git log/commit 查看，视觉和运行证据保存在
 第 15 节列出的 TestRuns 目录，不再维护重复的 dated handoff。
@@ -615,8 +618,8 @@ legacy phone 清理。
 
 2026-09-07 已把本轮涉及的最新源码部署到 canonical production：ai-chat v20、
 ai-diet v7、ai-health v10、diet-extract v17、delete v10、export v16、health ingest v12、
-watch v13，均为 ACTIVE 且 `verify_jwt=true`。ai-extract v18、face v15 等未涉及函数保持
-原版本。部署身份、共享项目和未登录边界已检查；真实账户 provider 输出、报告持久化、
+watch v13，均为 ACTIVE 且 `verify_jwt=true`。2026-09-06 又单独部署 face-analyze v16，
+加入非阻塞拍摄条件判断；ai-extract v18 等未涉及函数保持原版本。部署身份、共享项目和未登录边界已检查；真实账户 provider 输出、报告持久化、
 缓存命中与实际删除/导出内容仍要按第 18 节人工验收。
 
 ## 14. ChronoState、FDNB 与报告真实性
@@ -1088,7 +1091,7 @@ AI 归档、记录草稿、活动会话及 Watch 动作都有 Supabase 事实源
   相关源数据/授权画像改变才重算，普通摘要和严格七字紧凑摘要一起校验并缓存。
 
 真实 production 已应用全部 24 个 migration，并部署 ai-chat v20、ai-diet v7、ai-health
-v10、diet-extract v17、delete v10、export v16、health ingest v12、watch v13。共享项目检查、
+v10、diet-extract v17、face-analyze v16、delete v10、export v16、health ingest v12、watch v13。共享项目检查、
 DB lint、migration history、生产 auth 合同和 `npm run verify` 27 阶段均通过；interaction
 11 组及首页/通知相关四视口无头 Playwright 也通过。没有执行 production seed、backfill、
 真实账号删除或写入用户记录。
@@ -1098,11 +1101,13 @@ Mac/Xcode/iPhone/Apple Watch 签名与真机矩阵、APNs/FCM/HMS 远程推送�
 原生壳。本轮完成的是源码、production schema/function 和非破坏性边界，不把这些人工项
 写成已经完成。
 
-功能源码 commit `52f35805f652acdfbf80511816cfab11eb5e860b` 已从同一已 push 状态
-发布为 ChatGPT Sites v107 和 GitHub Pages v107；Sites version ID 为
-`appgprj_6a5de710811c8191af8ce2681358d518~appgver_e87af76cf1b081918bfa690dcf068818`，
-deployment ID 为 `appgdep_6a9d09b0e3b08191ab3b83b92c00a78f`，Pages 镜像 commit 为
-`a1b8d4070a0796835f0d029fbcde877d5e7beb60`。两个公开根 URL 均返回 200；两个站点
+功能源码 commit `1715af7c1bd204459a69962262b67b5a37dd1d5a` 已从同一已 push 状态
+发布为 ChatGPT Sites v108 和 GitHub Pages v108；Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_ebebd39a845c81919a482b6b2aa04fd1`，
+deployment ID 为 `appgdep_6a9d3967915881919f9dd4b3888fd87f`，Pages 镜像 commit 为
+`9d21493303e17f2de58e66fbb4e144c653311e1a`。两个公开根 URL 均返回 200；两个站点
 在四个规定视口的线上无头 Playwright 都显示真实登录页、无横向溢出，`?demo=1` 不可
-绕过，入口模块 SHA-256 相同。发布后 `npm run auth:verify:production` 再次通过；严格
+绕过，入口模块 SHA-256 均为 `3abbc659de9f3e37a49895b8dbb5c30074746166a631d945cdc50b0369f39404`。
+线上证据在 `Q:\NAVA-Workspace\Build\TestRuns\nava-v108-public`。发布后
+`npm run auth:verify:production` 再次通过；严格
 SMTP 仍因未提供 Management token 而未检查。

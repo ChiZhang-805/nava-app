@@ -15,7 +15,7 @@ App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负�
 | `health-sync-ingest` | 接收 iPhone / Apple Watch HealthKit 摘要，写运动、睡眠、小时活动、睡眠阶段、同步任务，并刷新节律分数 | `exercise_records`、`sleep_records`、`health_metric_snapshots`、`health_sync_jobs`、`daily_rhythm_scores` |
 | `watch-sync` | 保存 Watch 快照，处理手表快速情绪和专注动作；完成事件通过稳定 action id 原子写入会话明细、日聚合和时段分布 | `watch_snapshots`、`device_connections`、`mood_records`、`focus_session_events`、`focus_records`、`focus_time_distribution` |
 | `diet-extract` | 私有饮食照片的真实视觉模型识别入口 | 不直接写表，App 确认后写 `nutrition_records` |
-| `face-analyze` | 私有面部照片的非诊断真实视觉模型入口 | App 确认后写 `face_records` |
+| `face-analyze` | 私有面部照片的非诊断真实视觉模型入口；同时返回光线、居中、自然表情三项非阻塞拍摄条件判断 | App 确认后写 `face_records`；条件判断只用于当前拍摄交互 |
 | `rhythm-score` | 读取 42 天窗口，生成 NAVA ChronoState V4.27 节律分、个人基线、节律特征、动态状态、慢性负债压力、功能补偿门控、稀疏断崖冲击、慢性停滞压力、绝对生理压力、假恢复 drawdown 压力、相位扰动保护、昼夜漂移压力、生理先导预警、硬撑型消耗压力、自适应端点校准、尾部过反应缓释、不确定性区间、异常旗标和建议 | `daily_rhythm_scores` |
 | `export-user-data` | 导出当前用户 Auth 身份、全部账号表以及三个私有 bucket 的文件清单；客户端随后下载实际文件内容并与 JSON 打包，任一表/文件读取失败则拒绝伪装成完整导出 | 只读 |
 | `delete-account` | 先删除当前用户三个私有 bucket 下的对象及邮箱/手机号对应的服务端 HMAC 限流摘要，再删除 Auth 身份；所有账号表由数据库外键级联删除 | 私有文件、账号安全摘要与当前 Auth 用户 |
