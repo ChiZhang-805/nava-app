@@ -3,6 +3,11 @@
 本文区分应用内通知、设备本地通知和远程推送，避免把“网页上看见一条提醒”误写成
 “已经完成 iPhone / Android 锁屏推送”。
 
+视觉和行为参考以 Apple 官方 Human Interface Guidelines 的 Notifications 页面、
+Apple User Notifications 框架文档及 iPhone 用户指南为准：应用在前台时避免重复展示
+应用内横幅与系统通知；系统本地/远程通知必须获得用户授权；临时横幅支持点按打开和
+上滑收起。网页中的 NAVA 横幅只模拟信息层级与交互，不冒充 APNs 系统送达。
+
 ## 当前已实现源码
 
 ### 应用内通知

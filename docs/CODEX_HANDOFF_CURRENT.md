@@ -1240,3 +1240,46 @@ deployment ID 为 `appgdep_6a9dac04cde881919de3695dd8cb6e71`，Pages 镜像 comm
 登录页、手机外壳和系统栏，430×932 触屏均不显示模拟外壳，`?demo=1` 不可绕过登录，
 canonical Supabase project ref 保持不变。线上证据在
 `Q:\NAVA-Workspace\Build\TestRuns\nava-v112-public`。
+
+## 33. 2026-09-07 纵向需求补齐、专注维持与真实趋势提醒
+
+本轮重新逐页检查用户提供的 15 页《纵向｜app需求文档暑期整理》，并以当前用户要求
+覆盖文档中的 T0/T1/T2 排队限制：只要在现有前端和已授权数据合同内可以真实完成，就按
+功能验收而不是优先级标签实施。完整复核记录与 15 页渲染证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-requirements-audit-20260907`。
+
+专注沉浸页新增白噪音、粉噪音、棕噪音三种由 Web Audio 本地生成的背景声，音量控制、
+10 秒进入状态动画和 25/45/60 分钟休息提示。屏幕常亮和浏览器全屏在不支持或申请失败
+时不再静默失效，而是保留可操作入口并显示真实能力状态；应用内全视口沉浸与计时继续
+可用。页面转后台会暂停并进入中断确认，用户可记录消息、来电、分心或其他原因；原因
+统计随现有活动专注会话恢复，并写入最终专注记录备注，没有新增生产 schema。
+
+待办超过 5 项时出现“AI 排优先级”入口，把当前账号真实待办送入已有真实 AI 对话；
+模型被要求先澄清缺失截止期、重要性和工作量，不自动编造顺序。NAVA Sports 新增今日
+建议、15 分钟舒展、25 分钟轻步行和 12 分钟恢复四项可选择预设，选择后只预填真实可
+编辑运动记录，不冒充已完成运动。
+
+提醒规划器继续只读取当前登录用户的真实 TodaySnapshot、TrendBundle 与 ChronoState，
+新增短睡眠下的轻量专注/运动、连续低情绪、情绪大幅变化、连续晚睡、相对个人近期基线
+的运动负荷与饮食变化、以及非诊断面部趋势提醒，并按优先级最多保留 6 条。应用内横幅
+按 Apple 官方通知信息层级改为 NAVA 图标、应用名/“现在”、短标题与一至两行正文；
+支持点击打开、上滑关闭和 8.5 秒自动收起。页面在前台时不再重复弹出浏览器系统通知。
+
+`npm run verify` 全部 28 阶段、`npm run auth:verify:production`、通知四视口、
+记录编辑器/专注沉浸四视口、PRD 六模块四视口和全应用 interaction 11 组均通过。
+通知证据在 `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v113-20260907`；
+线上证据在 `Q:\NAVA-Workspace\Build\TestRuns\nava-v113-public`。
+
+功能源码 commit `807033df2f4dcbe49e9447d80fec3c07810d8e54` 已从同一干净且
+已 push 的状态发布为 ChatGPT Sites v113 和 GitHub Pages v113；Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_7cfcb7ff7ff48191a24592de95215a53`，
+deployment ID 为 `appgdep_6a9dbdadd9f8819195935e4327dd06c5`，Pages 镜像 commit
+为 `c21da4fd5f7b660d89638fe7b0f9055a7f601534`。两个公开根 URL 均返回真实登录
+门，公开 `?demo=1` 不可绕过，canonical Supabase project ref 保持
+`wxteapvwagvhhtrjrbim`；桌面预览壳与 430×932 触屏产品路径均无横向溢出。
+两种托管使用不同构建模式，所以产物哈希不同；线上校验逐站实际加载并确认新版专注功能
+字符串和数据边界存在，不用错误的“两个压缩文件必须字节相同”代替行为验证。
+
+本轮没有执行 migration、Edge Function 部署、secret 修改或生产用户写入。仍未写成完成
+的项目是：iPhone 真机锁屏/后台通知、APNs/FCM/HMS 远程推送、Android/华为原生壳、
+需要 schema 的运动活动会话和酸痛/疲劳/伤病独立字段、以及缺少验证模型的恢复时长预测。
