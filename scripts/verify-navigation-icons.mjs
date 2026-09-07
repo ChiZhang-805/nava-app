@@ -64,10 +64,11 @@ try {
         right: Number.parseFloat(style.right),
         height: Number.parseFloat(style.height),
         radius: Number.parseFloat(style.borderTopLeftRadius),
+        opacity: Number.parseFloat(style.opacity),
         width: home.width - Number.parseFloat(style.left) - Number.parseFloat(style.right),
       } : null;
     });
-    if (!collapsedDock || collapsedDock.width < viewport.width * 0.88 || collapsedDock.height < 68 || collapsedDock.radius < 30) {
+    if (!collapsedDock || collapsedDock.width < viewport.width * 0.88 || collapsedDock.height < 68 || collapsedDock.radius < 30 || collapsedDock.opacity < 0.99) {
       throw new Error(`${viewport.label}: collapsed dock must remain a low rounded capsule ${JSON.stringify(collapsedDock)}`);
     }
     await page.screenshot({ path: path.join(outputDir, `home-collapsed-${viewport.label}.png`), fullPage: true });
@@ -88,6 +89,19 @@ try {
     await page.mouse.up();
     await expect(page.locator(".option-two-home")).toHaveClass(/is-health-menu-open/);
     await page.waitForTimeout(650);
+
+    const expandedDock = await page.locator(".bottom-nav").evaluate((nav) => {
+      const style = getComputedStyle(nav, "::before");
+      return {
+        opacity: Number.parseFloat(style.opacity),
+        background: style.backgroundColor,
+        borderTopColor: style.borderTopColor,
+        boxShadow: style.boxShadow,
+      };
+    });
+    if (expandedDock.opacity > 0.02 || expandedDock.boxShadow !== "none") {
+      throw new Error(`${viewport.label}: expanded wheel still has a separate dock surface ${JSON.stringify(expandedDock)}`);
+    }
 
     const healthIconSources = await page.locator("[data-health-icon]").evaluateAll((icons) => icons.map((icon) => icon.getAttribute("src")));
     if (new Set(healthIconSources).size !== 6) {

@@ -10188,8 +10188,12 @@ body::before {
   .nava-app-stage {
     --nava-preview-scale: 1;
     position: relative;
-    min-height: 100dvh;
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
     place-items: center;
+    place-content: center;
     overflow: hidden;
     background:
       radial-gradient(circle at 50% 42%, rgba(113, 130, 142, .42), transparent 34%),
@@ -10213,6 +10217,8 @@ body::before {
       inset 0 0 0 1px rgba(255, 255, 255, .15);
     transform: scale(var(--nava-preview-scale));
     transform-origin: center;
+    align-self: center;
+    justify-self: center;
   }
 
   .nava-device-preview {
@@ -10341,6 +10347,17 @@ body::before {
   .nava-device-side-button--power { top: 180px; right: -12px; width: 4px; height: 86px; border-radius: 0 3px 3px 0; background: linear-gradient(90deg, #5c5f61, #070809); }
 
   .nava-app-stage > .phone-frame .nava-notification-banner-layer { top: 61px; }
+
+  /* The simulated status bar is overlay-only, so desktop preview pages need
+     an explicit system-safe header lane. Native iOS continues to use env(). */
+  .nava-app-stage > .phone-frame:not(.phone-frame--option2) .safe-top {
+    min-height: 64px;
+  }
+
+  .nava-app-stage > .phone-frame--option2 .home-experience,
+  .nava-app-stage > .phone-frame--option2 .home-widget-editor {
+    padding-top: 72px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -10355,16 +10372,15 @@ body::before {
   min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0,1fr) auto;
-  padding: max(16px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom));
+  padding: max(16px,calc(env(safe-area-inset-top) + 12px)) 16px max(18px,env(safe-area-inset-bottom));
   overflow: hidden;
   color: #123d52;
   background: radial-gradient(circle at 18% 12%,rgba(255,255,255,.82),transparent 36%),linear-gradient(160deg,#e7f8fd,#cdeef8 52%,#dff5fb);
 }
 .home-widget-editor-header { min-height: 60px; display: grid; grid-template-columns: 40px minmax(0,1fr) auto; align-items: center; gap: 9px; }
 .home-widget-editor-header > button { width: 38px; height: 38px; border: 1px solid rgba(255,255,255,.9); border-radius: 50%; display: grid; place-items: center; color: #176e90; background: rgba(255,255,255,.7); box-shadow: 0 8px 20px rgba(23,102,136,.09); }
-.home-widget-editor-header > div { min-width: 0; }
-.home-widget-editor-header small { color: #628693; font-size: 9px; font-weight: 720; }
-.home-widget-editor-header h1 { margin: 2px 0 0; font-size: 20px; line-height: 1.15; }
+.home-widget-editor-header > div { min-width: 0; display: grid; place-items: center; text-align: center; }
+.home-widget-editor-header h1 { margin: 0; font-size: 20px; line-height: 1.15; }
 .home-widget-editor-header > span { min-width: 42px; padding: 6px 8px; border-radius: 999px; color: #147ca3; background: rgba(255,255,255,.66); font-size: 10px; font-weight: 800; text-align: center; }
 .home-widget-picker { min-height: 0; display: grid; align-content: start; gap: 8px; padding: 10px 1px; overflow-x: hidden; overflow-y: auto; }
 .home-widget-picker > button { min-height: 64px; border: 1px solid rgba(255,255,255,.84); border-radius: 18px; display: grid; grid-template-columns: 40px minmax(0,1fr) 26px; align-items: center; gap: 10px; padding: 10px 12px; color: #17485d; background: rgba(249,253,255,.7); box-shadow: 0 8px 22px rgba(20,101,136,.08); font: inherit; text-align: left; }
@@ -10399,7 +10415,7 @@ body::before {
   width: 100%;
   height: 100%;
   min-height: 100%;
-  padding: 16px 18px 112px;
+  padding: max(16px,calc(env(safe-area-inset-top) + 12px)) 18px 112px;
   overflow-x: hidden;
   overflow-y: auto;
   color: #12364a;
@@ -10418,9 +10434,8 @@ body::before {
   gap: 10px;
   margin-bottom: 13px;
 }
-.home-experience-header > div { min-width: 0; text-align: center; }
-.home-experience-header small { display: block; color: #638596; font-size: 9px; font-weight: 700; letter-spacing: .06em; }
-.home-experience-header h1 { margin: 3px 0 0; color: #12364a; font-size: 19px; line-height: 1.2; }
+.home-experience-header > div { min-width: 0; display: grid; place-items: center; text-align: center; }
+.home-experience-header h1 { margin: 0; color: #12364a; font-size: 19px; line-height: 1.2; }
 .advanced-profile-screen .home-experience-header > div { display: grid; place-items: center; }
 .advanced-profile-screen .home-experience-header h1 { margin: 0; }
 .advanced-profile-screen { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
@@ -11930,6 +11945,19 @@ body::before {
   background: rgba(210, 231, 240, .7);
   box-shadow: 0 8px 22px rgba(31, 78, 100, .18), inset 0 1px 0 rgba(255, 255, 255, .72);
   backdrop-filter: blur(22px) saturate(1.05);
+  opacity: 1;
+  transition: opacity 260ms ease, background-color 260ms ease, border-color 260ms ease, box-shadow 260ms ease;
+}
+
+/* Collapsed and expanded navigation use separate surfaces. In the expanded
+   state the circle itself becomes the single shared background behind all
+   eleven controls, so no capsule edge or doubled translucency cuts across it. */
+.phone-frame--option2:has(.option-two-home.is-health-menu-open) .bottom-nav::before {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  opacity: 0;
 }
 .phone-frame--option2 .nav-button {
   --nav-size: clamp(44px, 11.3cqw, 49px);

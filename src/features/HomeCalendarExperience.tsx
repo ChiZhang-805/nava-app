@@ -110,7 +110,7 @@ function CalendarScreen({
     <section className="home-experience home-calendar-screen" data-home-view="calendar">
       <header className="home-experience-header">
         <button className="home-experience-back" type="button" onClick={onBack} aria-label={locale === "zh" ? "返回首页" : "Back home"}><ArrowLeft size={22} /></button>
-        <div><small>{locale === "zh" ? "健康档案" : "Health archive"}</small><h1>{locale === "zh" ? "我的月历" : "My calendar"}</h1></div>
+        <div><h1>{locale === "zh" ? "我的月历" : "My calendar"}</h1></div>
         <button className="home-calendar-today" type="button" onClick={() => setDisplayMonth(deviceDate.slice(0, 7))}>{locale === "zh" ? "本月" : "Today"}</button>
       </header>
 
@@ -183,7 +183,7 @@ function DailyReportScreen({ user, date, onBack }: { user: User; date: string; o
     <section className="home-experience home-daily-report" data-home-view="daily" data-report-date={date}>
       <header className="home-experience-header">
         <button className="home-experience-back" type="button" onClick={onBack} aria-label={locale === "zh" ? "返回月历" : "Back to calendar"}><ArrowLeft size={22} /></button>
-        <div><small>{dateTitle(date, locale)}</small><h1>{locale === "zh" ? "当日综合报告" : "Daily health report"}</h1></div>
+        <div><h1>{locale === "zh" ? "当日综合报告" : "Daily health report"}</h1></div>
         <span className="home-report-date-icon"><CalendarDays size={21} /></span>
       </header>
 

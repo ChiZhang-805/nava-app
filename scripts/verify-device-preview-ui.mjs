@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-desktop-device-preview-v112-20260907";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-device-safe-area-v117-20260907";
 const port = 5206;
 const demoUserId = "00000000-0000-4000-8000-000000000001";
 
@@ -17,19 +17,28 @@ const baseUrl = server.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? `http://127
 const browser = await chromium.launch({ headless: true });
 const report = [];
 
-async function prepare(context, search = "") {
+async function prepare(context, search = "", hash = "#tab=today") {
   await context.addInitScript(({ userId }) => {
     sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
     localStorage.setItem(`nava.onboarding.v2.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 2, answers: {}, source: "local" }));
   }, { userId: demoUserId });
   const page = await context.newPage();
-  await page.goto(`${baseUrl}?demo=1${search}#tab=today`, { waitUntil: "networkidle" });
+  await page.goto(`${baseUrl}?demo=1${search}${hash}`, { waitUntil: "networkidle" });
   const launch = page.locator(".launch-sequence");
   if (await launch.isVisible().catch(() => false)) await launch.click();
   await expect(page.locator(".phone-frame")).toBeVisible();
   const reward = page.locator(".reward-celebration-layer");
   if (await reward.isVisible().catch(() => false)) await reward.locator("button").first().click();
   return page;
+}
+
+function assertVerticallyCentered(label, geometry, viewportHeight, tolerance = 1.25) {
+  if (!geometry) throw new Error(`${label}: missing geometry`);
+  const topGap = geometry.top;
+  const bottomGap = viewportHeight - geometry.top - geometry.height;
+  if (Math.abs(topGap - bottomGap) > tolerance) {
+    throw new Error(`${label}: phone is not vertically centered ${JSON.stringify({ geometry, topGap, bottomGap, viewportHeight })}`);
+  }
 }
 
 async function readDesktopGeometry(page) {
@@ -85,6 +94,8 @@ try {
   const desktop = await prepare(desktopContext);
   const desktopGeometry = await readDesktopGeometry(desktop);
   if (!desktopGeometry.frame || !desktopGeometry.chrome || desktopGeometry.chrome.display === "none") throw new Error(`Desktop device shell is missing ${JSON.stringify(desktopGeometry)}`);
+  assertVerticallyCentered("Desktop frame", desktopGeometry.frame, 1000);
+  assertVerticallyCentered("Desktop chrome", desktopGeometry.chrome, 1000);
   if (Math.abs(desktopGeometry.frame.width - 430) > 1 || Math.abs(desktopGeometry.frame.height - 932) > 1) throw new Error(`Desktop content no longer uses the 430x932 reference canvas ${JSON.stringify(desktopGeometry.frame)}`);
   if (Math.abs(desktopGeometry.frame.left - desktopGeometry.chrome.left) > 1 || Math.abs(desktopGeometry.frame.top - desktopGeometry.chrome.top) > 1 || Math.abs(desktopGeometry.frame.width - desktopGeometry.chrome.width) > 1 || Math.abs(desktopGeometry.frame.height - desktopGeometry.chrome.height) > 1) throw new Error(`Desktop chrome and content are not aligned ${JSON.stringify(desktopGeometry)}`);
   if (desktopGeometry.frame.borderRadius !== "50px") throw new Error(`Desktop shell is missing the reference corner radius ${JSON.stringify(desktopGeometry.frame)}`);
@@ -122,6 +133,8 @@ try {
   const compactGeometry = await readDesktopGeometry(compactDesktop);
   const expectedScale = (768 - 52) / 932;
   if (!compactGeometry.frame || !compactGeometry.chrome || !compactGeometry.island || !compactGeometry.scores) throw new Error(`Compact desktop shell is incomplete ${JSON.stringify(compactGeometry)}`);
+  assertVerticallyCentered("Compact desktop frame", compactGeometry.frame, 768);
+  assertVerticallyCentered("Compact desktop chrome", compactGeometry.chrome, 768);
   if (Math.abs(compactGeometry.scale - expectedScale) > 0.001
     || Math.abs(compactGeometry.frame.width - 430 * expectedScale) > 1
     || Math.abs(compactGeometry.frame.height - 932 * expectedScale) > 1
@@ -133,6 +146,74 @@ try {
   await compactDesktop.screenshot({ path: path.join(outputDir, "desktop-1365x768.png"), fullPage: true });
   report.push({ mode: "compact-desktop-preview", geometry: compactGeometry });
   await compactDesktopContext.close();
+
+  const subpageDesktopContext = await browser.newContext({ viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
+  const subpageDesktop = await prepare(subpageDesktopContext, "", "#tab=today&view=profile-details");
+  await expect(subpageDesktop.locator('[data-home-view="profile-details"]')).toBeVisible();
+  const subpageHeaderGeometry = await subpageDesktop.evaluate(() => {
+    const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
+    const island = document.querySelector(".nava-device-dynamic-island")?.getBoundingClientRect();
+    const header = document.querySelector(".home-experience-header")?.getBoundingClientRect();
+    const title = document.querySelector(".home-experience-header h1")?.getBoundingClientRect();
+    const back = document.querySelector(".home-experience-back")?.getBoundingClientRect();
+    const action = document.querySelector(".advanced-profile-header-icon")?.getBoundingClientRect();
+    if (!frame || !island || !header || !title || !back || !action) return null;
+    return {
+      frame: { top: frame.top, bottom: frame.bottom },
+      island: { top: island.top, bottom: island.bottom },
+      header: { top: header.top, bottom: header.bottom },
+      title: { top: title.top, bottom: title.bottom, center: title.top + title.height / 2 },
+      backCenter: back.top + back.height / 2,
+      actionCenter: action.top + action.height / 2,
+    };
+  });
+  if (!subpageHeaderGeometry
+    || subpageHeaderGeometry.title.top <= subpageHeaderGeometry.island.bottom + 12
+    || Math.abs(subpageHeaderGeometry.title.center - subpageHeaderGeometry.backCenter) > 1
+    || Math.abs(subpageHeaderGeometry.title.center - subpageHeaderGeometry.actionCenter) > 1) {
+    throw new Error(`Desktop subpage header is not below the simulated status area and aligned ${JSON.stringify(subpageHeaderGeometry)}`);
+  }
+  await subpageDesktop.screenshot({ path: path.join(outputDir, "desktop-profile-safe-header-1365x1000.png"), fullPage: true });
+  report.push({ mode: "desktop-profile-safe-header", geometry: subpageHeaderGeometry });
+  await subpageDesktopContext.close();
+
+  const headerRoutes = [
+    { view: "calendar", selector: ".home-experience-header", title: "我的月历" },
+    { view: `day-${new Date().toISOString().slice(0, 10)}`, selector: ".home-experience-header", title: "当日综合报告" },
+    { view: "home-widgets", selector: ".home-widget-editor-header", title: "选择小组件" },
+  ];
+  for (const viewport of [
+    { width: 360, height: 740 },
+    { width: 375, height: 812 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+  ]) {
+    const context = await browser.newContext({ viewport, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+    for (const route of headerRoutes) {
+      const page = await prepare(context, "", `#tab=today&view=${route.view}`);
+      const header = page.locator(route.selector);
+      await expect(header).toBeVisible();
+      await expect(header.locator("h1")).toHaveText(route.title);
+      await expect(header.locator(":scope > div > small")).toHaveCount(0);
+      const alignment = await header.evaluate((node) => {
+        const title = node.querySelector("h1")?.getBoundingClientRect();
+        const first = node.firstElementChild?.getBoundingClientRect();
+        const last = node.lastElementChild?.getBoundingClientRect();
+        return title && first && last ? {
+          titleCenter: title.top + title.height / 2,
+          firstCenter: first.top + first.height / 2,
+          lastCenter: last.top + last.height / 2,
+          overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        } : null;
+      });
+      if (!alignment || Math.abs(alignment.titleCenter - alignment.firstCenter) > 1 || Math.abs(alignment.titleCenter - alignment.lastCenter) > 1 || alignment.overflow > 1) {
+        throw new Error(`${viewport.width}x${viewport.height} ${route.view}: single-line title controls are misaligned ${JSON.stringify(alignment)}`);
+      }
+      await page.screenshot({ path: path.join(outputDir, `${route.view}-${viewport.width}x${viewport.height}.png`), fullPage: true });
+      await page.close();
+    }
+    await context.close();
+  }
 
   const mobileContext = await browser.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   const mobile = await prepare(mobileContext);

@@ -68,7 +68,7 @@ export default function HomeWidgetEditor({
     <section className="home-widget-editor" data-widget-editor-step={step}>
       <header className="home-widget-editor-header">
         <button type="button" onClick={step === "sort" ? () => setStep("select") : cancel} aria-label={zh ? "返回" : "Back"}><ArrowLeft size={21} /></button>
-        <div><small>{zh ? "编辑首页" : "Edit home"}</small><h1>{step === "select" ? (zh ? "选择小组件" : "Choose widgets") : (zh ? "调整首页顺序" : "Arrange widgets")}</h1></div>
+        <div><h1>{step === "select" ? (zh ? "选择小组件" : "Choose widgets") : (zh ? "调整首页顺序" : "Arrange widgets")}</h1></div>
         <span>{ids.length}/{HOME_WIDGET_LIMIT}</span>
       </header>
 
