@@ -1494,3 +1494,40 @@ HTTP 200，并实际加载 `index-C3nJ5ZRh.js`；产物均包含 18 款目录和
 普通未登录访问与 `?demo=1` 均停留在真实登录门，无 console error。线上截图位于
 `Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v118-online`。本轮没有修改 Supabase、
 认证配置、secret、migration、Edge Function 或生产用户数据。
+
+## 41. 2026-09-08 共享安全页头、快捷入口语义与双站 v119
+
+本轮将业务页头与桌面预览的系统安全区统一到同一套节奏：桌面模拟壳中，刘海或灵动岛
+底缘到资料页、通知中心、月历、日报和首页组件编辑页单行标题的可见间距，由约 44px
+收至 21.6–24.6px。18 款 iPhone 预览机型均经过几何断言，标题、左侧返回与右侧动作的
+圆心误差不超过 1px；360×740、375×812、390×844、430×932 等真实移动视口继续使用
+原生 safe area，而不是把桌面模拟状态栏写进产品页面。通知中心标题改为语义化单行
+`h1`，资料页和共享业务页头同步受同一规则约束。
+
+首页右上角三横线现在只负责展开或收起右侧快捷入口，不再兼任通知跳转；未读红点和
+“消息通知”入口移至展开列表最后一个铃铛按钮。六个快捷入口仍保留各自真实模块图标。
+单个页头动作（资料页、报告日期、通知中心更多操作及通用卡片右上角跳转）移除了可见
+圆形/圆角矩形底色和阴影，同时保留至少 36px 的点击热区。交互测试断言快捷栏共有六项、
+三横线可往返展开/收起、最后一项铃铛进入通知中心，避免再次混淆两个职责。
+
+本轮 `npm run verify` 31 阶段、`npm run interaction:test` 11 组、
+`npm run icons:test`、`npm run notification:visual`、`npm run device-preview:visual` 与发布前后
+`npm run auth:verify:production` 均通过。35 个业务状态 × 4 个规定视口共 140 张完整视觉
+证据位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-release-gate-v119-20260908`；通知专项证据
+位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v119-20260908`；18 机型与九档
+移动视口证据位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v119-20260908`。
+
+只读 `npm run supabase:verify-shared` 复核 canonical project
+`wxteapvwagvhhtrjrbim` 的 Auth、核心/扩展表、共享/APP Edge Functions 和 Storage 均为
+READY，代码和生产契约确认这些可视化具有真实的 Supabase 读写路径；本轮没有读取私有
+生产用户记录，也没有修改 migration、Edge Function、secret、认证配置或生产数据。远程
+APNs/FCM/HMS 真机送达仍取决于 provider 凭据和真机验收，不能由结构检查代替。
+
+功能源码 commit `7db7e5574f2cc9309fe28b8953b09941f8940b05` 已由同一干净、已 push
+状态发布为 ChatGPT Sites v119 与 GitHub Pages v119。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_e43d0ba34e788191aa3be6c4196256e7`，
+deployment ID 为 `appgdep_6a9ee712fecc8191b04b16f095f17452`，状态 succeeded；Pages
+镜像 commit 为 `e10a64109e65df8dea960612c33dfd44f1457622`，在线 `source.json` 指向相同
+源码 commit 与 Sites v119。两个公开 URL 均返回 HTTP 200，并实际加载同一组
+`index-BpM-kRqH.js`、`App-CRNNL-qr.js` 与 `index-CQ3FbzUu.css`；在线内容探测确认新版
+安全页头样式、快捷栏收起文案和消息通知入口均已生效，公开 demo 绕过继续关闭。
