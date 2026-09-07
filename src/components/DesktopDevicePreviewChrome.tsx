@@ -6,10 +6,15 @@ import {
 } from "../constants/iphonePreviewDevices";
 
 const DEVICE_PREFERENCE_KEY = "nava.desktop-preview-device.v1";
+const GRID_PREFERENCE_KEY = "nava.desktop-preview-grid.v1";
 
 function currentClock() {
   const now = new Date();
   return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatMetric(value: number) {
+  return value.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
 }
 
 export default function DesktopDevicePreviewChrome() {
@@ -21,8 +26,16 @@ export default function DesktopDevicePreviewChrome() {
       return DEFAULT_IPHONE_PREVIEW_DEVICE_ID;
     }
   });
+  const [showCalibrationGrid, setShowCalibrationGrid] = useState(() => {
+    try {
+      return window.localStorage.getItem(GRID_PREFERENCE_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
   const previewRef = useRef<HTMLDivElement>(null);
   const device = findIPhonePreviewDevice(deviceId);
+  const { calibration } = device;
 
   useEffect(() => {
     const update = () => setClock(currentClock());
@@ -38,21 +51,6 @@ export default function DesktopDevicePreviewChrome() {
     const stage = previewRef.current?.parentElement;
     if (!stage) return;
     const desktopPreview = window.matchMedia("(hover: hover) and (pointer: fine) and (min-width: 700px) and (min-height: 700px)");
-    const largeCanvas = device.logicalWidth >= 435;
-    const mediumCanvas = device.logicalWidth >= 410;
-    const expandedSafeArea = [
-      "iphone-17",
-      "iphone-air",
-      "iphone-17-pro",
-      "iphone-17-pro-max",
-      "iphone-16-pro",
-      "iphone-16-pro-max",
-    ].includes(device.id);
-    const systemSafeTop = device.cutout === "notch" ? 47 : expandedSafeArea ? 62 : 59;
-    const deviceRadius = largeCanvas ? 54 : mediumCanvas ? 51 : 48;
-    const statusCenter = device.cutout === "notch" ? 26 : expandedSafeArea ? 31 : 30;
-    const statusInsetLeft = largeCanvas ? 56 : mediumCanvas ? 53 : device.logicalWidth >= 400 ? 51 : 49;
-    const statusInsetRight = largeCanvas ? 25 : mediumCanvas ? 24 : 23;
     const setMetric = (name: string, value: number) => stage.style.setProperty(name, `${value}px`);
 
     stage.dataset.navaPreviewDevice = device.id;
@@ -61,11 +59,25 @@ export default function DesktopDevicePreviewChrome() {
     stage.dataset.navaPreviewCameraControl = device.cameraControl ? "true" : "false";
     setMetric("--nava-device-width", device.logicalWidth);
     setMetric("--nava-device-height", device.logicalHeight);
-    setMetric("--nava-device-radius", deviceRadius);
-    setMetric("--nava-system-safe-top", systemSafeTop);
-    setMetric("--nava-status-center", statusCenter);
-    setMetric("--nava-status-left", statusInsetLeft);
-    setMetric("--nava-status-right", statusInsetRight);
+    setMetric("--nava-device-radius", calibration.shellRadius);
+    setMetric("--nava-system-safe-top", calibration.safeTop);
+    setMetric("--nava-cutout-top", calibration.cutout.top);
+    setMetric("--nava-cutout-width", calibration.cutout.width);
+    setMetric("--nava-cutout-height", calibration.cutout.height);
+    setMetric("--nava-cutout-radius", calibration.cutout.radius);
+    setMetric("--nava-status-center", calibration.status.centerY);
+    setMetric("--nava-status-height", calibration.status.height);
+    setMetric("--nava-status-time-left", calibration.status.timeLeft);
+    setMetric("--nava-status-time-width", calibration.status.timeWidth);
+    setMetric("--nava-status-signal-left", calibration.status.signalLeft);
+    setMetric("--nava-status-signal-width", calibration.status.signalWidth);
+    setMetric("--nava-status-wifi-left", calibration.status.wifiLeft);
+    setMetric("--nava-status-wifi-width", calibration.status.wifiWidth);
+    setMetric("--nava-status-battery-left", calibration.status.batteryLeft);
+    setMetric("--nava-status-battery-width", calibration.status.batteryWidth);
+    setMetric("--nava-home-indicator-bottom", calibration.homeIndicator.bottom);
+    setMetric("--nava-home-indicator-width", calibration.homeIndicator.width);
+    setMetric("--nava-home-indicator-height", calibration.homeIndicator.height);
 
     const updateScale = () => {
       if (!desktopPreview.matches) {
@@ -89,16 +101,30 @@ export default function DesktopDevicePreviewChrome() {
         "--nava-device-height",
         "--nava-device-radius",
         "--nava-system-safe-top",
+        "--nava-cutout-top",
+        "--nava-cutout-width",
+        "--nava-cutout-height",
+        "--nava-cutout-radius",
         "--nava-status-center",
-        "--nava-status-left",
-        "--nava-status-right",
+        "--nava-status-height",
+        "--nava-status-time-left",
+        "--nava-status-time-width",
+        "--nava-status-signal-left",
+        "--nava-status-signal-width",
+        "--nava-status-wifi-left",
+        "--nava-status-wifi-width",
+        "--nava-status-battery-left",
+        "--nava-status-battery-width",
+        "--nava-home-indicator-bottom",
+        "--nava-home-indicator-width",
+        "--nava-home-indicator-height",
       ]) stage.style.removeProperty(property);
       delete stage.dataset.navaPreviewDevice;
       delete stage.dataset.navaPreviewCutout;
       delete stage.dataset.navaPreviewUpperControl;
       delete stage.dataset.navaPreviewCameraControl;
     };
-  }, [device]);
+  }, [calibration, device]);
 
   const chooseDevice = (nextDeviceId: string) => {
     const nextDevice = findIPhonePreviewDevice(nextDeviceId);
@@ -109,6 +135,17 @@ export default function DesktopDevicePreviewChrome() {
       // The preview remains usable when storage is disabled.
     }
   };
+
+  const toggleCalibrationGrid = (visible: boolean) => {
+    setShowCalibrationGrid(visible);
+    try {
+      window.localStorage.setItem(GRID_PREFERENCE_KEY, String(visible));
+    } catch {
+      // The preview remains usable when storage is disabled.
+    }
+  };
+
+  const cutoutLeft = (device.logicalWidth - calibration.cutout.width) / 2;
 
   return (
     <>
@@ -132,9 +169,31 @@ export default function DesktopDevicePreviewChrome() {
         <p>
           <span>{device.pixelWidth} × {device.pixelHeight} px</span>
           <span>{device.logicalWidth} × {device.logicalHeight} pt · {device.screenInches.toFixed(1)}″ · {device.cutout === "notch" ? "刘海" : "灵动岛"}</span>
+          <span>
+            {device.cutout === "notch" ? "刘海" : "岛"} x {formatMetric(cutoutLeft)} · y {formatMetric(calibration.cutout.top)} · {formatMetric(calibration.cutout.width)} × {formatMetric(calibration.cutout.height)} pt
+          </span>
+          <span>
+            时间 x {formatMetric(calibration.status.timeLeft)} · 状态区 x {formatMetric(calibration.status.signalLeft)} · 中轴 y {formatMetric(calibration.status.centerY)}
+          </span>
+          <span>{device.geometryBasis} 实测校准</span>
         </p>
+        <label className="nava-device-grid-toggle">
+          <input
+            type="checkbox"
+            data-testid="nava-preview-grid-toggle"
+            checked={showCalibrationGrid}
+            onChange={(event) => toggleCalibrationGrid(event.target.checked)}
+          />
+          <span>1 pt 校准网格（10 pt 加粗）</span>
+        </label>
       </aside>
-      <div ref={previewRef} className="nava-device-preview" aria-hidden="true" data-preview-only="desktop-device-chrome">
+      <div
+        ref={previewRef}
+        className="nava-device-preview"
+        aria-hidden="true"
+        data-preview-only="desktop-device-chrome"
+        data-calibration-grid={showCalibrationGrid ? "true" : "false"}
+      >
         <span className={`nava-device-side-button nava-device-side-button--${device.upperControl}`} />
         <span className="nava-device-side-button nava-device-side-button--volume-up" />
         <span className="nava-device-side-button nava-device-side-button--volume-down" />
@@ -162,6 +221,7 @@ export default function DesktopDevicePreviewChrome() {
           </span>
         </div>
         <span className="nava-device-home-indicator" />
+        <span className="nava-device-calibration-grid" />
       </div>
     </>
   );

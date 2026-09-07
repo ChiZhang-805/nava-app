@@ -6,7 +6,7 @@ import { applyProjectPublicEnv } from "./project-env.mjs";
 import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-iphone-preview-v119-20260908";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-iphone-preview-v120-20260908";
 const port = 5206;
 const demoUserId = "00000000-0000-4000-8000-000000000001";
 
@@ -59,8 +59,12 @@ async function readDesktopGeometry(page) {
       notch: geometry(".nava-device-notch"),
       clock: geometry(".nava-device-status-bar time"),
       statusIcons: geometry(".nava-device-status-icons"),
+      signal: geometry(".nava-device-signal"),
+      wifi: geometry(".nava-device-wifi"),
+      battery: geometry(".nava-device-battery"),
       selector: geometry(".nava-device-selector"),
       homeIndicator: geometry(".nava-device-home-indicator"),
+      calibrationGrid: geometry(".nava-device-calibration-grid"),
       scores: geometry(".option-two-scores"),
       deviceId: document.querySelector(".nava-app-stage")?.getAttribute("data-nava-preview-device"),
       cutoutType: document.querySelector(".nava-app-stage")?.getAttribute("data-nava-preview-cutout"),
@@ -106,7 +110,8 @@ try {
   if (Math.abs(desktopGeometry.frame.width - 430) > 1 || Math.abs(desktopGeometry.frame.height - 932) > 1) throw new Error(`Desktop content no longer uses the 430x932 reference canvas ${JSON.stringify(desktopGeometry.frame)}`);
   if (Math.abs(desktopGeometry.frame.left - desktopGeometry.chrome.left) > 1 || Math.abs(desktopGeometry.frame.top - desktopGeometry.chrome.top) > 1 || Math.abs(desktopGeometry.frame.width - desktopGeometry.chrome.width) > 1 || Math.abs(desktopGeometry.frame.height - desktopGeometry.chrome.height) > 1) throw new Error(`Desktop chrome and content are not aligned ${JSON.stringify(desktopGeometry)}`);
   if (desktopGeometry.frame.borderRadius !== "51px") throw new Error(`Desktop shell is missing the selected-device corner radius ${JSON.stringify(desktopGeometry.frame)}`);
-  if (!desktopGeometry.island || Math.abs(desktopGeometry.island.width - 126) > 1 || Math.abs((desktopGeometry.island.left + desktopGeometry.island.width / 2) - (desktopGeometry.frame.left + desktopGeometry.frame.width / 2)) > 1) throw new Error(`Dynamic Island is not centered ${JSON.stringify(desktopGeometry)}`);
+  const defaultDevice = IPHONE_PREVIEW_DEVICES.find((device) => device.id === "iphone-15-pro-max");
+  if (!defaultDevice || !desktopGeometry.island || Math.abs(desktopGeometry.island.width - defaultDevice.calibration.cutout.width) > 0.1 || Math.abs((desktopGeometry.island.left + desktopGeometry.island.width / 2) - (desktopGeometry.frame.left + desktopGeometry.frame.width / 2)) > 0.1) throw new Error(`Dynamic Island is not calibrated and centered ${JSON.stringify(desktopGeometry)}`);
   if (!desktopGeometry.homeIndicator || Math.abs((desktopGeometry.homeIndicator.left + desktopGeometry.homeIndicator.width / 2) - (desktopGeometry.frame.left + desktopGeometry.frame.width / 2)) > 1) throw new Error(`Home indicator is not centered ${JSON.stringify(desktopGeometry)}`);
   if (desktopGeometry.deviceId !== "iphone-15-pro-max" || desktopGeometry.cutoutType !== "dynamic-island") throw new Error(`Default device selection changed ${JSON.stringify(desktopGeometry)}`);
   if (!desktopGeometry.scores || Math.abs((desktopGeometry.scores.top - desktopGeometry.frame.top) - 77) > 2) throw new Error(`Preview chrome changed homepage content coordinates ${JSON.stringify(desktopGeometry)}`);
@@ -143,7 +148,7 @@ try {
         }).slice(0, 12),
       };
     });
-    if (!geometry.frame || !geometry.chrome || !geometry.cutout || !geometry.selector || !geometry.clock || !geometry.statusIcons || !geometry.homeIndicator || !geometry.scores) {
+    if (!geometry.frame || !geometry.chrome || !geometry.cutout || !geometry.selector || !geometry.clock || !geometry.statusIcons || !geometry.signal || !geometry.wifi || !geometry.battery || !geometry.homeIndicator || !geometry.calibrationGrid || !geometry.scores) {
       throw new Error(`${device.label}: desktop preview is incomplete ${JSON.stringify(geometry)}`);
     }
     assertVerticallyCentered(`${device.label} frame`, geometry.frame, 1080);
@@ -151,17 +156,28 @@ try {
     const frameCenter = geometry.frame.left + geometry.frame.width / 2;
     const viewportCenter = 1440 / 2;
     const cutoutCenter = geometry.cutout.left + geometry.cutout.width / 2;
-    const expandedSafeArea = ["iphone-17", "iphone-air", "iphone-17-pro", "iphone-17-pro-max", "iphone-16-pro", "iphone-16-pro-max"].includes(device.id);
-    const statusCenter = geometry.frame.top + (device.cutout === "notch" ? 26 : expandedSafeArea ? 31 : 30);
+    const { calibration } = device;
+    const statusCenter = geometry.frame.top + calibration.status.centerY;
     if (Math.abs(geometry.scale - 1) > 0.001
       || Math.abs(geometry.frame.width - device.logicalWidth) > 1
       || Math.abs(geometry.frame.height - device.logicalHeight) > 1
       || Math.abs(geometry.chrome.left - geometry.frame.left) > 1
       || Math.abs(geometry.chrome.top - geometry.frame.top) > 1
       || Math.abs(frameCenter - viewportCenter) > 1
-      || Math.abs(cutoutCenter - frameCenter) > 1
-      || Math.abs((geometry.clock.top + geometry.clock.height / 2) - statusCenter) > 1
-      || Math.abs((geometry.statusIcons.top + geometry.statusIcons.height / 2) - statusCenter) > 1
+      || Math.abs(cutoutCenter - frameCenter) > 0.1
+      || Math.abs(geometry.cutout.top - geometry.frame.top - calibration.cutout.top) > 0.1
+      || Math.abs(geometry.cutout.width - calibration.cutout.width) > 0.1
+      || Math.abs(geometry.cutout.height - calibration.cutout.height) > 0.1
+      || Math.abs(geometry.clock.left - geometry.frame.left - calibration.status.timeLeft) > 0.1
+      || Math.abs((geometry.clock.top + geometry.clock.height / 2) - statusCenter) > 0.1
+      || Math.abs(geometry.signal.left - geometry.frame.left - calibration.status.signalLeft) > 0.1
+      || Math.abs(geometry.signal.width - calibration.status.signalWidth) > 0.1
+      || Math.abs(geometry.wifi.left - geometry.frame.left - calibration.status.wifiLeft) > 0.1
+      || Math.abs(geometry.wifi.width - calibration.status.wifiWidth) > 0.1
+      || Math.abs(geometry.battery.left - geometry.frame.left - calibration.status.batteryLeft) > 0.1
+      || Math.abs(geometry.battery.width - calibration.status.batteryWidth) > 0.1
+      || Math.abs(geometry.homeIndicator.width - calibration.homeIndicator.width) > 0.1
+      || Math.abs(geometry.frame.top + geometry.frame.height - geometry.homeIndicator.top - geometry.homeIndicator.height - calibration.homeIndicator.bottom) > 0.1
       || geometry.scores.top < geometry.frame.top + (device.cutout === "notch" ? 55 : 67)
       || geometry.selector.left <= geometry.frame.left + geometry.frame.width
       || cameraControlCount !== Number(device.cameraControl)) {
@@ -172,6 +188,14 @@ try {
     await catalogPage.screenshot({ path: path.join(outputDir, `${device.id}-1440x1080.png`), fullPage: true });
     report.push({ mode: "device-catalog", device: device.id, geometry, frameOverflow });
   }
+
+  const gridToggle = catalogPage.getByTestId("nava-preview-grid-toggle");
+  await gridToggle.check();
+  await expect(catalogPage.locator(".nava-device-preview")).toHaveAttribute("data-calibration-grid", "true");
+  await expect(catalogPage.locator(".nava-device-calibration-grid")).toHaveCSS("display", "block");
+  await catalogPage.screenshot({ path: path.join(outputDir, "desktop-1pt-calibration-grid-1440x1080.png"), fullPage: true });
+  report.push({ mode: "calibration-grid", device: "iphone-14-pro-max" });
+  await gridToggle.uncheck();
 
   await catalogPage.goto(`${baseUrl}?demo=1#tab=today&view=profile-details`, { waitUntil: "networkidle" });
   await expect(catalogPage.locator('[data-home-view="profile-details"]')).toBeVisible();
@@ -239,13 +263,15 @@ try {
   const compactDesktop = await prepare(compactDesktopContext);
   const compactGeometry = await readDesktopGeometry(compactDesktop);
   const expectedScale = (768 - 52) / 932;
+  const compactDevice = IPHONE_PREVIEW_DEVICES.find((device) => device.id === "iphone-15-pro-max");
   if (!compactGeometry.frame || !compactGeometry.chrome || !compactGeometry.island || !compactGeometry.selector || !compactGeometry.scores) throw new Error(`Compact desktop shell is incomplete ${JSON.stringify(compactGeometry)}`);
   assertVerticallyCentered("Compact desktop frame", compactGeometry.frame, 768);
   assertVerticallyCentered("Compact desktop chrome", compactGeometry.chrome, 768);
   if (Math.abs(compactGeometry.scale - expectedScale) > 0.001
     || Math.abs(compactGeometry.frame.width - 430 * expectedScale) > 1
     || Math.abs(compactGeometry.frame.height - 932 * expectedScale) > 1
-    || Math.abs(compactGeometry.island.width - 126 * expectedScale) > 1
+    || !compactDevice
+    || Math.abs(compactGeometry.island.width - compactDevice.calibration.cutout.width * expectedScale) > 1
     || Math.abs((compactGeometry.scores.top - compactGeometry.frame.top) - 77 * expectedScale) > 2) {
     throw new Error(`Compact desktop preview was reflowed instead of uniformly scaled ${JSON.stringify(compactGeometry)}`);
   }

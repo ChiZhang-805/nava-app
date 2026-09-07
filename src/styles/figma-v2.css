@@ -10192,9 +10192,23 @@ body::before {
     --nava-device-height: 932px;
     --nava-device-radius: 50px;
     --nava-system-safe-top: 59px;
-    --nava-status-center: 30px;
-    --nava-status-left: 55px;
-    --nava-status-right: 24px;
+    --nava-cutout-top: 11.333px;
+    --nava-cutout-width: 125.334px;
+    --nava-cutout-height: 36.667px;
+    --nava-cutout-radius: 21px;
+    --nava-status-center: 29.167px;
+    --nava-status-height: 13px;
+    --nava-status-time-left: 64.667px;
+    --nava-status-time-width: 44px;
+    --nava-status-signal-left: 309.667px;
+    --nava-status-signal-width: 19.333px;
+    --nava-status-wifi-left: 336.333px;
+    --nava-status-wifi-width: 17px;
+    --nava-status-battery-left: 360.333px;
+    --nava-status-battery-width: 27.667px;
+    --nava-home-indicator-bottom: 8px;
+    --nava-home-indicator-width: 134px;
+    --nava-home-indicator-height: 5px;
     position: relative;
     width: 100%;
     height: 100dvh;
@@ -10266,7 +10280,7 @@ body::before {
     top: 18px;
     right: 20px;
     z-index: 520;
-    width: 236px;
+    width: 262px;
     display: grid;
     gap: 7px;
     padding: 12px 13px 11px;
@@ -10316,14 +10330,34 @@ body::before {
     font-variant-numeric: tabular-nums;
   }
 
+  .nava-device-grid-toggle {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 25px;
+    color: rgba(236, 248, 255, .84);
+    font-size: 10px;
+    font-weight: 680;
+    letter-spacing: 0;
+    cursor: pointer;
+  }
+
+  .nava-device-grid-toggle input {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    accent-color: #4db4e2;
+  }
+
   .nava-device-status-bar {
     position: absolute;
     inset: 0 0 auto;
     z-index: 2;
     height: var(--nava-system-safe-top);
     color: #050607;
-    font-size: 15px;
-    font-weight: 720;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    font-size: 17px;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
     letter-spacing: -.02em;
   }
@@ -10331,20 +10365,21 @@ body::before {
   .nava-device-status-bar > time {
     position: absolute;
     top: var(--nava-status-center);
-    left: var(--nava-status-left);
-    min-width: 38px;
-    line-height: 18px;
-    text-align: center;
+    left: var(--nava-status-time-left);
+    width: var(--nava-status-time-width);
+    line-height: 22px;
+    text-align: left;
+    white-space: nowrap;
     transform: translateY(-50%);
   }
 
   .nava-device-dynamic-island {
     position: absolute;
-    top: 11px;
+    top: var(--nava-cutout-top);
     left: 50%;
-    width: 126px;
-    height: 37px;
-    border-radius: 21px;
+    width: var(--nava-cutout-width);
+    height: var(--nava-cutout-height);
+    border-radius: var(--nava-cutout-radius);
     background: #000;
     box-shadow: inset 0 -1px 2px rgba(255,255,255,.08), 0 1px 2px rgba(0,0,0,.2);
     transform: translateX(-50%);
@@ -10352,23 +10387,24 @@ body::before {
 
   .nava-device-dynamic-island > i {
     position: absolute;
-    top: 12px;
-    right: 12px;
+    top: 50%;
+    right: 12.5px;
     width: 9px;
     height: 9px;
     border-radius: 50%;
     background: radial-gradient(circle at 38% 38%, #243b89 0 12%, #10194b 28%, #050717 64%, #000 100%);
     box-shadow: 0 0 0 2px #080808, inset 0 0 2px rgba(93,124,255,.48);
+    transform: translateY(-50%);
   }
 
   .nava-device-notch {
     position: absolute;
-    top: 0;
+    top: var(--nava-cutout-top);
     left: 50%;
-    width: 210px;
-    height: 33px;
+    width: var(--nava-cutout-width);
+    height: var(--nava-cutout-height);
     overflow: hidden;
-    border-radius: 0 0 19px 19px;
+    border-radius: 0 0 var(--nava-cutout-radius) var(--nava-cutout-radius);
     background: #000;
     box-shadow: inset 0 -1px 2px rgba(255,255,255,.08), 0 1px 2px rgba(0,0,0,.2);
     transform: translateX(-50%);
@@ -10399,35 +10435,41 @@ body::before {
   .nava-device-status-icons {
     position: absolute;
     top: var(--nava-status-center);
-    right: var(--nava-status-right);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    height: 16px;
+    left: 0;
+    width: 100%;
+    height: var(--nava-status-height);
     transform: translateY(-50%);
   }
 
-  .nava-device-status-icons svg { display: block; fill: #050607; }
-  .nava-device-signal { width: 16px; height: 13px; }
-  .nava-device-wifi { width: 16px; height: 14px; fill: none !important; stroke: #050607; stroke-width: 2.1; stroke-linecap: round; }
+  .nava-device-status-icons svg { position: absolute; top: 50%; display: block; fill: #050607; transform: translateY(-50%); }
+  .nava-device-signal { left: var(--nava-status-signal-left); width: var(--nava-status-signal-width); height: var(--nava-status-height); }
+  .nava-device-wifi { left: var(--nava-status-wifi-left); width: var(--nava-status-wifi-width); height: var(--nava-status-height); fill: none !important; stroke: #050607; stroke-width: 2.1; stroke-linecap: round; }
   .nava-device-battery {
-    position: relative;
-    width: 24px;
-    height: 12px;
+    position: absolute;
+    top: 50%;
+    left: var(--nava-status-battery-left);
+    width: var(--nava-status-battery-width);
+    height: var(--nava-status-height);
+    transform: translateY(-50%);
+  }
+  .nava-device-battery::before {
+    position: absolute;
+    inset: 0 3.3px 0 0;
     border: 1.6px solid rgba(5,6,7,.82);
     border-radius: 3.5px;
+    content: "";
   }
   .nava-device-battery::after {
     position: absolute;
-    top: 3px;
-    right: -3.5px;
-    width: 2px;
+    top: calc(50% - 2.5px);
+    right: 0;
+    width: 2.2px;
     height: 5px;
     border-radius: 0 2px 2px 0;
     background: rgba(5,6,7,.55);
     content: "";
   }
-  .nava-device-battery > i { position: absolute; inset: 1.5px; border-radius: 1.5px; background: #050607; }
+  .nava-device-battery > i { position: absolute; inset: 2px 5.3px 2px 2px; border-radius: 1.5px; background: #050607; }
 
   .nava-app-stage > .auth-screen .auth-locale {
     top: 65px;
@@ -10451,16 +10493,34 @@ body::before {
   .nava-device-home-indicator {
     position: absolute;
     right: 0;
-    bottom: 7px;
+    bottom: var(--nava-home-indicator-bottom);
     left: 0;
     z-index: 3;
-    width: 134px;
-    height: 5px;
+    width: var(--nava-home-indicator-width);
+    height: var(--nava-home-indicator-height);
     margin-inline: auto;
     border-radius: 999px;
     background: #050607;
     box-shadow: 0 1px rgba(255,255,255,.13);
   }
+
+  .nava-device-calibration-grid {
+    position: absolute;
+    inset: 0;
+    z-index: 410;
+    display: none;
+    overflow: hidden;
+    border-radius: var(--nava-device-radius);
+    background-image:
+      linear-gradient(rgba(238, 69, 110, .34) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(238, 69, 110, .34) 1px, transparent 1px),
+      linear-gradient(rgba(31, 126, 180, .14) .5px, transparent .5px),
+      linear-gradient(90deg, rgba(31, 126, 180, .14) .5px, transparent .5px);
+    background-size: 10px 10px, 10px 10px, 1px 1px, 1px 1px;
+    pointer-events: none;
+  }
+
+  .nava-device-preview[data-calibration-grid="true"] .nava-device-calibration-grid { display: block; }
 
   .nava-app-stage > .phone-frame .nava-notification-banner-layer { top: calc(var(--nava-system-safe-top) + 2px); }
 

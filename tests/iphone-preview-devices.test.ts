@@ -29,7 +29,27 @@ test("logical canvases are exact @3x derivations of Apple pixel dimensions", () 
     assert.equal(device.pixelWidth / 3, device.logicalWidth, `${device.label} width`);
     assert.equal(device.pixelHeight / 3, device.logicalHeight, `${device.label} height`);
     assert.match(device.officialSpecUrl, /^https:\/\/(support\.)?apple\.com\//);
+    assert.match(device.officialGeometryUrl, /^https:\/\/(?:devimages-cdn\.apple\.com|developer\.apple\.com)\//);
+    assert.ok(device.calibration.cutout.width > 120 && device.calibration.cutout.width < 180, `${device.label} cutout width`);
+    assert.ok(device.calibration.cutout.height > 30 && device.calibration.cutout.height < 40, `${device.label} cutout height`);
+    const cutoutLeft = (device.logicalWidth - device.calibration.cutout.width) / 2;
+    const cutoutRight = cutoutLeft + device.calibration.cutout.width;
+    assert.ok(device.calibration.status.timeLeft + device.calibration.status.timeWidth < cutoutLeft, `${device.label} time/cutout separation`);
+    assert.ok(device.calibration.status.signalLeft > cutoutRight, `${device.label} cutout/status separation`);
+    assert.ok(device.calibration.status.batteryLeft + device.calibration.status.batteryWidth <= device.logicalWidth, `${device.label} status right edge`);
+    assert.ok(device.calibration.safeTop > device.calibration.cutout.top + device.calibration.cutout.height, `${device.label} safe top`);
   }
+});
+
+test("official geometry calibrations preserve model-specific cutout differences", () => {
+  assert.equal(findIPhonePreviewDevice("iphone-14").calibration.cutout.width, 171.333);
+  assert.equal(findIPhonePreviewDevice("iphone-14-plus").calibration.cutout.width, 171.333);
+  assert.equal(findIPhonePreviewDevice("iphone-16e").calibration.cutout.width, 161.785);
+  assert.equal(findIPhonePreviewDevice("iphone-17e").calibration.cutout.width, 161.785);
+  assert.equal(findIPhonePreviewDevice("iphone-16").calibration.cutout.top, 11.333);
+  assert.equal(findIPhonePreviewDevice("iphone-17").calibration.cutout.top, 14.333);
+  assert.equal(findIPhonePreviewDevice("iphone-air").calibration.cutout.top, 20.333);
+  assert.equal(findIPhonePreviewDevice("iphone-air").calibration.status.centerY, 38.5);
 });
 
 test("camera and upper-control details follow the model generations", () => {
