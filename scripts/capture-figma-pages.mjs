@@ -158,6 +158,16 @@ async function capture(page, viewport, name, selector, report) {
       throw new Error(`${viewport.name}/${name} exposes stored profile codes instead of localized labels: ${JSON.stringify(profilePresentation)}`);
     }
   }
+  if (name === "00a-home-health-wheel") {
+    const modules = await page.locator(".option-two-health-entry").evaluateAll((entries) => entries.map((entry) => ({
+      id: entry.getAttribute("data-health-module"),
+      visible: entry.getBoundingClientRect().width > 0 && entry.getBoundingClientRect().height > 0,
+    })));
+    const expected = ["exercise", "diet", "sleep", "face", "focus", "mood"];
+    if (JSON.stringify(modules.map(({ id }) => id)) !== JSON.stringify(expected) || modules.some(({ visible }) => !visible)) {
+      throw new Error(`${viewport.name}/${name} has an invalid six-module route wheel: ${JSON.stringify(modules)}`);
+    }
+  }
   report.push({ viewport: viewport.name, screen: name, ...layout });
   await page.screenshot({ path: path.join(outputDir, viewport.name, `${name}.png`) });
 }
@@ -190,6 +200,19 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
   await login(page, baseUrl, viewport, report);
 
   await capture(page, viewport, "00-home", ".option-two-home", report);
+  const home = page.locator(".option-two-home");
+  const homeBox = await home.boundingBox();
+  if (!homeBox) throw new Error(`${viewport.name}/00a-home-health-wheel has no swipeable home bounds`);
+  const healthWheelX = homeBox.x + homeBox.width * .5;
+  const healthWheelY = homeBox.y + homeBox.height * .78;
+  await page.mouse.move(healthWheelX, healthWheelY);
+  await page.mouse.down();
+  await page.mouse.move(healthWheelX + 4, healthWheelY - Math.max(160, homeBox.height / 5), { steps: 8 });
+  await page.mouse.up();
+  await expect(home).toHaveAttribute("data-health-menu-open", "true");
+  await capture(page, viewport, "00a-home-health-wheel", ".option-two-health-menu", report);
+  await page.locator(".option-two-scores").click();
+  await expect(home).toHaveAttribute("data-health-menu-open", "false");
   await page.locator(".option-two-menu-toggle").click();
   await capture(page, viewport, "00b-home-shortcuts", '.option-two-home[data-health-menu-open="false"]', report);
 

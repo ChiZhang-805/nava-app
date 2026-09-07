@@ -918,6 +918,14 @@ async function verifyHomeShortcuts(page, results) {
     await expect(home).toHaveAttribute("data-health-menu-open", "true");
   };
 
+  const expectedHealthModules = ["exercise", "diet", "sleep", "face", "focus", "mood"];
+  await page.locator('[data-tab="today"]').click();
+  await openHealthMenuBySwipe();
+  const renderedHealthModules = await page.locator(".option-two-health-entry").evaluateAll((entries) => entries.map((entry) => entry.getAttribute("data-health-module")));
+  if (JSON.stringify(renderedHealthModules) !== JSON.stringify(expectedHealthModules)) {
+    throw new Error(`home health wheel route order mismatch: ${JSON.stringify(renderedHealthModules)}`);
+  }
+
   for (const [index, module] of ["exercise", "diet", "sleep", "face", "focus", "mood"].entries()) {
     await page.locator('[data-tab="today"]').click();
     await openHealthMenuBySwipe();
@@ -928,8 +936,15 @@ async function verifyHomeShortcuts(page, results) {
       await expect(page.locator(".option-two-home")).toHaveAttribute("data-health-menu-open", "false");
       await openHealthMenuBySwipe();
     }
-    await page.locator(`.option-two-health-entry--${module}`).click();
+    const entry = page.locator(`[data-health-module="${module}"]`);
+    const moduleState = await entry.getAttribute("data-module-state");
+    await entry.click();
     await expect(page.locator(`[data-record-detail="${module}"]`)).toBeVisible();
+    await expect.poll(() => {
+      const route = new URL(page.url()).hash;
+      const query = new URLSearchParams(route.replace(/^#/, ""));
+      return { tab: query.get("tab"), module: query.get("module"), view: query.get("view") };
+    }).toEqual({ tab: "record", module, view: moduleState === "complete" ? null : "editor" });
   }
   await openQuickShortcuts();
   await page.getByRole("button", { name: /健康月历|Health calendar/ }).click();
@@ -1227,9 +1242,18 @@ async function verifyProfile(page, results) {
 }
 
 async function verifyNavigationAndMotion(page, results) {
+  const tabTargets = {
+    today: ".option-two-home",
+    record: "[data-record-module]",
+    ai: ".chat-layout",
+    trends: "[data-growth-screen]",
+    profile: ".profile-stack",
+  };
   for (const tab of ["today", "record", "ai", "trends", "profile"]) {
     await page.locator(`[data-tab="${tab}"]`).click();
     await expect(page.locator(`[data-tab="${tab}"]`)).toHaveAttribute("aria-current", "page");
+    await expect(page.locator(tabTargets[tab]).first()).toBeVisible();
+    await expect.poll(() => new URL(page.url()).hash).toBe(`#tab=${tab}`);
     if (tab === "trends") {
       await expect(page.locator("[data-growth-screen]")).toBeVisible();
       await assertAnimation(page.locator(".growth-progress-track span"), "growth-progress-in", "growth progress bar");
@@ -1491,7 +1515,7 @@ async function verifyNavigationAndMotion(page, results) {
   if (utilityAlpha < 0.96) throw new Error(`Utility menu background is too transparent: ${utilityBackground}`);
   await page.locator(".figma-header-action").last().click();
   await expect(utilityPopover).toBeHidden();
-  results.push("五项底部导航、十一个成长任务入口、六个周报模块入口、浏览器返回、趋势折线、图标动效与页头工具菜单");
+  results.push("首页六模块圆盘与五项底部导航的精确路由、十一个成长任务入口、六个周报模块入口、浏览器返回、趋势折线、图标动效与页头工具菜单");
 }
 
 async function verifyPageSkeletons(browser, baseUrl, results, consoleErrors) {

@@ -363,6 +363,7 @@ export default function OptionTwoHome({
             key={id}
             type="button"
             onClick={() => onOpenRecord(id, healthModuleEntryView(progress))}
+            data-health-module={id}
             tabIndex={healthMenuOpen ? 0 : -1}
             aria-label={accessibleLabel}
             title={`${t(labelKey)} · ${progressLabel}`}
