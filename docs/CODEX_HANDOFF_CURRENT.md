@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`a26fe18269bc8303556c3e7b641b45669a7935d9`
+- 源码发布 commit：`4889f699dcae24ac0cef05379915ac26a300e3b7`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v115，public
+- ChatGPT Sites 版本：v116，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_62ec18d8cdd08191ade3ff6d1422c603`
-- Sites deployment ID：`appgdep_6a9e7fa53f508191ab9eb17b7bf973f5`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_817bcfe771b48191a77dd573ae83cd67`
+- Sites deployment ID：`appgdep_6a9eb7cc804c819182f3d654c7a4d45f`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `bbf59225d5b4eda90b92d9f2928f51ee609891d4`
+  `7681cd99ccae24f0048935f6fe04e3e617decd98`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v115 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v115.tar.gz`
+- v116 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v116.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v115 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v116 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -1401,3 +1401,27 @@ commit 为 `bbf59225d5b4eda90b92d9f2928f51ee609891d4`。两站均返回 HTTP 200
 圆盘 `width: 120%`、`top: 71%` 和共享底栏圆心变量，公开 `?demo=1` 仍不能绕过真实登录门。
 图像生成仅用于一次结构校准草图，没有把生成位图作为产品圆盘或导航实现；最终界面仍由
 可测量、可响应、可交互的 HTML/CSS 和现有本地模块图标组成。
+
+## 38. 2026-09-07 首页圆盘像素复核与双站 v116
+
+根据圆盘局部参考图再次进行等比例叠图，本轮保留用户指定的六个真实模块图标，其余展开态
+继续向参考收敛。圆盘宽度由 120% 收至 98%，顶缘位于页面高度 69%；猫咪在展开时随圆盘
+平滑上移，让鼻口保持在圆盘顶沿上方。六个模块按钮增至最多 56px，并继续按三层左右对称
+弧线排列。底栏高度收至 70px，中央 AI 圆增至最多 100px，四个外侧圆增至最多 49px；
+五个按钮共享同一圆心水平线。外侧图标按各自 SVG 的视觉墨迹单独校准，不再出现首页、
+记录、成长和个人图标大小失衡；颜色统一为深蓝灰，未选中按钮改为半透明冰蓝。
+
+`scripts/verify-navigation-icons.mjs` 的圆盘几何门禁同步为 98% 宽、69% 顶缘，并继续在
+360×740、375×812、390×844、430×932 四种视口验证收起/展开、六模块唯一图标、无遮挡、
+左右对称弧线、五按钮圆心同线和 AI 图形比例。最终视觉证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-home-wheel-v123-20260907`。完整 `npm run verify`
+30 阶段、`npm run interaction:test` 11 组和 `npm run auth:verify:production` 均通过。
+
+功能源码 commit `4889f699dcae24ac0cef05379915ac26a300e3b7` 已由同一已 push 状态发布为
+ChatGPT Sites v116 与 GitHub Pages v116。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_817bcfe771b48191a77dd573ae83cd67`，
+deployment ID 为 `appgdep_6a9eb7cc804c819182f3d654c7a4d45f`，状态 succeeded；Pages
+镜像 commit 为 `7681cd99ccae24f0048935f6fe04e3e617decd98`，在线 `source.json` 指向同一
+源码 commit 与 Sites v116。两个公开 URL 均返回 HTTP 200，线上产物均包含新版圆盘
+`width: 98%` 与 `top: 69%` 样式；canonical Supabase、生产 secrets、migration 和
+Edge Function 均未在本轮修改。
