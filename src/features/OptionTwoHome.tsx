@@ -13,6 +13,12 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ComponentType, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import homeSceneBackground from "../assets/figma/home-option2/home-scene-v3.png";
+import healthDietIcon from "../assets/figma/option-two-icons/diet.svg";
+import healthExerciseIcon from "../assets/figma/option-two-icons/exercise.svg";
+import healthFaceIcon from "../assets/figma/option-two-icons/face.svg";
+import healthFocusIcon from "../assets/figma/option-two-icons/focus.svg";
+import healthMoodIcon from "../assets/figma/option-two-icons/mood.svg";
+import healthSleepIcon from "../assets/figma/option-two-icons/sleep.svg";
 import { useLocale } from "../i18n";
 import AnimatedNumber from "../components/AnimatedNumber";
 import ModuleProgressRing from "../components/ModuleProgressRing";
@@ -45,13 +51,14 @@ const healthEntries: Array<{
   id: RecordModule;
   labelKey: "records.exercise" | "records.diet" | "records.sleep" | "records.faceShort" | "records.focus" | "records.mood";
   className: string;
+  icon: string;
 }> = [
-  { id: "exercise", labelKey: "records.exercise", className: "exercise" },
-  { id: "diet", labelKey: "records.diet", className: "diet" },
-  { id: "sleep", labelKey: "records.sleep", className: "sleep" },
-  { id: "face", labelKey: "records.faceShort", className: "face" },
-  { id: "focus", labelKey: "records.focus", className: "focus" },
-  { id: "mood", labelKey: "records.mood", className: "mood" },
+  { id: "exercise", labelKey: "records.exercise", className: "exercise", icon: healthExerciseIcon },
+  { id: "diet", labelKey: "records.diet", className: "diet", icon: healthDietIcon },
+  { id: "sleep", labelKey: "records.sleep", className: "sleep", icon: healthSleepIcon },
+  { id: "face", labelKey: "records.faceShort", className: "face", icon: healthFaceIcon },
+  { id: "focus", labelKey: "records.focus", className: "focus", icon: healthFocusIcon },
+  { id: "mood", labelKey: "records.mood", className: "mood", icon: healthMoodIcon },
 ];
 
 const homeWidgetIcons: Record<HomeWidgetId, ComponentType<HomeReferenceIconProps>> = {
@@ -353,7 +360,7 @@ export default function OptionTwoHome({
 
       <div className="option-two-health-menu" aria-hidden={!healthMenuOpen}>
         <span className="option-two-health-disc" aria-hidden="true" />
-        {healthEntries.map(({ id, labelKey, className }, index) => {
+        {healthEntries.map(({ id, labelKey, className, icon }, index) => {
           const progress = moduleProgress[id];
           const progressLabel = healthModuleProgressLabel(progress, locale);
           const accessibleLabel = `${t(labelKey)}${locale === "zh" ? "，" : ". "}${progressLabel}`;
@@ -372,7 +379,14 @@ export default function OptionTwoHome({
             style={{ "--option-entry-index": index } as CSSProperties}
           >
             <ModuleProgressRing progress={progress.progress} loading={loading && snapshot === null} />
-            <HeartMetricIcon className={`option-two-health-icon option-two-health-icon--${className}`} size={30} />
+            <img
+              className={`option-two-health-icon option-two-health-icon--${className}`}
+              src={icon}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              data-health-icon={id}
+            />
           </button>
           );
         })}

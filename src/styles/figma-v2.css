@@ -879,6 +879,8 @@ body::before {
 
 /* Scheme two follows the selected high-fidelity canvas after authentication. */
 .phone-frame--option2 {
+  --home-dock-center-bottom: max(clamp(58px, 6.65cqh, 62px), calc(env(safe-area-inset-bottom) + 50px));
+  --home-dock-half-height: 38px;
   background:
     radial-gradient(circle at 76% 16%, rgba(255, 255, 255, 0.7), transparent 30%),
     linear-gradient(165deg, rgba(225, 248, 255, 0.52) 0%, rgba(107, 204, 239, 0.32) 52%, rgba(30, 157, 210, 0.28) 100%),
@@ -956,9 +958,11 @@ body::before {
   transition: opacity 360ms ease;
 }
 
+/* The expanded fan is a 1.2x-width circle whose centre sits on the lower
+   screen edge. Only its upper segment rises from behind the persistent dock. */
 .option-two-health-disc {
   position: absolute;
-  top: 63.4%;
+  top: 71%;
   left: 50%;
   width: 126%;
   aspect-ratio: 1;
@@ -971,8 +975,8 @@ body::before {
   opacity: 0;
   pointer-events: none;
   clip-path: circle(50%);
-  transform: translateX(-50%) scale(0.92);
-  transform-origin: 50% 0;
+  transform: translate(-50%, 18%) scale(0.84);
+  transform-origin: 50% 100%;
   transition: opacity 320ms ease, transform 560ms cubic-bezier(0.18, 0.86, 0.2, 1);
 }
 
@@ -985,7 +989,7 @@ body::before {
 .option-two-home.is-health-menu-open .option-two-health-disc {
   opacity: 1;
   pointer-events: auto;
-  transform: translateX(-50%) scale(1);
+  transform: translate(-50%, 0) scale(1);
 }
 
 .option-two-health-entry {
@@ -1003,17 +1007,17 @@ body::before {
   padding: 0;
   opacity: 0;
   pointer-events: none;
-  transform: translateX(-50%) scale(0.55);
+  transform: translate(-50%, 42px) scale(0.55);
 }
 
 .option-two-home.is-health-menu-open .option-two-health-entry {
   opacity: 1;
   pointer-events: auto;
-  transform: translateX(-50%) scale(1);
+  transform: translate(-50%, 0) scale(1);
 }
 
 .option-two-health-entry:active {
-  transform: translateX(-50%) scale(0.92);
+  transform: translate(-50%, 0) scale(0.92);
 }
 
 .option-two-health-icon {
@@ -11914,7 +11918,7 @@ body::before {
   content: "";
   position: absolute;
   right: 18px;
-  bottom: max(13px, calc(env(safe-area-inset-bottom) + 5px));
+  bottom: calc(var(--home-dock-center-bottom) - var(--home-dock-half-height));
   left: 18px;
   height: 76px;
   border: 1px solid rgba(255, 255, 255, .72);
@@ -11926,7 +11930,7 @@ body::before {
 .phone-frame--option2 .nav-button {
   --nav-size: clamp(44px, 11.2cqw, 49px);
   --nav-glyph-size: clamp(22px, 5.7cqw, 25px);
-  bottom: max(27px, calc(env(safe-area-inset-bottom) + 19px));
+  bottom: calc(var(--home-dock-center-bottom) - clamp(22px, 5.6cqw, 24.5px));
   border-color: rgba(255, 255, 255, .9);
   color: #183b61;
   background: rgba(249, 252, 253, .84);
@@ -11940,15 +11944,18 @@ body::before {
 .phone-frame--option2 .nav-button.selected::after { inset: -3px; border-color: rgba(255,255,255,.8); }
 .phone-frame--option2 .ai-nav-button,
 .phone-frame--option2 .ai-nav-button.selected {
-  bottom: max(8px, env(safe-area-inset-bottom));
+  bottom: calc(var(--home-dock-center-bottom) - clamp(42px, 10.93cqw, 47px));
   width: clamp(84px, 21.86cqw, 94px);
   height: clamp(84px, 21.86cqw, 94px);
   border: 0;
   background: transparent;
 }
 .phone-frame--option2 .ai-nav-orb {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+  margin: 0;
   overflow: hidden;
   color: #fff;
   background: linear-gradient(145deg, #315d6d, #173d4d 72%);
@@ -11956,9 +11963,19 @@ body::before {
 }
 .phone-frame--option2 .ai-nav-glow { display: none; }
 .figma-nav-ai-chat { position: relative; z-index: 1; width: 42%; height: 42%; object-fit: contain; filter: brightness(0) invert(1); }
+.phone-frame--option2 .ai-nav-orb .figma-nav-ai-chat { width: 44%; height: 44%; }
+.phone-frame--option2 .figma-nav-icon--today { width: 60%; height: 60%; }
+.phone-frame--option2 .figma-nav-icon--record { width: 60%; height: 60%; }
+.phone-frame--option2 .figma-nav-icon--trends { width: 65%; height: 65%; }
+.phone-frame--option2 .figma-nav-icon--profile { width: 64%; height: 64%; }
+.phone-frame:not(.phone-frame--option2) .ai-nav-orb .figma-nav-ai-chat {
+  width: 44%;
+  height: 44%;
+  filter: brightness(0) saturate(100%) invert(22%) sepia(23%) saturate(1108%) hue-rotate(151deg) brightness(90%) contrast(92%);
+}
 
 .option-two-health-disc {
-  top: 71.7%;
+  top: 71%;
   width: 120%;
   background: radial-gradient(circle at 50% 2%, rgba(255, 255, 255, .82), rgba(223, 238, 245, .78) 48%, rgba(197, 222, 232, .8) 100%);
   box-shadow: 0 -8px 24px rgba(38, 81, 101, .17), inset 0 1px 0 rgba(255, 255, 255, .88);
@@ -11972,15 +11989,16 @@ body::before {
   box-shadow: 0 6px 13px rgba(24, 73, 110, .28), inset 0 1px 0 rgba(255, 255, 255, .26);
 }
 .option-two-health-entry .module-progress-ring { display: none; }
-.option-two-health-icon { color: #fff; filter: drop-shadow(0 1px 0 rgba(255,255,255,.25)); }
-.option-two-health-entry--exercise { --entry-x: 16.75%; --entry-bottom: 10.7cqh; }
+.option-two-health-icon { color: #fff; filter: brightness(0) invert(1) drop-shadow(0 1px 0 rgba(255,255,255,.25)); }
+.option-two-health-entry--exercise { --entry-x: 16.75%; --entry-bottom: 11.2cqh; }
 .option-two-health-entry--diet { --entry-x: 27.2%; --entry-bottom: 16.95cqh; }
-.option-two-health-entry--sleep { --entry-x: 42.1%; --entry-bottom: 19.75cqh; }
-.option-two-health-entry--face { --entry-x: 57.2%; --entry-bottom: 19.75cqh; }
+.option-two-health-entry--sleep { --entry-x: 42.1%; --entry-bottom: 20.2cqh; }
+.option-two-health-entry--face { --entry-x: 57.2%; --entry-bottom: 20.2cqh; }
 .option-two-health-entry--focus { --entry-x: 72.3%; --entry-bottom: 16.95cqh; }
-.option-two-health-entry--mood { --entry-x: 82.3%; --entry-bottom: 10.7cqh; }
+.option-two-health-entry--mood { --entry-x: 82.3%; --entry-bottom: 11.2cqh; }
 
 @media (max-width: 370px), (max-height: 760px) {
+  .phone-frame--option2 { --home-dock-half-height: 34px; }
   .option-two-scores { top: max(64px, calc(env(safe-area-inset-top) + 42px)); left: 16px; gap: 8px; }
   .option-two-scores > div { width: 130px; min-height: 31px; gap: 8px; padding-inline: 12px; }
   .option-two-side-actions { top: max(58px, calc(env(safe-area-inset-top) + 36px)); right: 13px; }
@@ -12006,9 +12024,6 @@ body::before {
   .option-two-guidance > p { font-size: 10.5px; }
   .option-two-life-stage { bottom: 28px; width: min(93vw, 365px); }
   .phone-frame--option2 .bottom-nav::before { right: 14px; left: 14px; height: 68px; }
-  .phone-frame--option2 .nav-button { bottom: max(23px, calc(env(safe-area-inset-bottom) + 15px)); }
-  .phone-frame--option2 .ai-nav-button,
-  .phone-frame--option2 .ai-nav-button.selected { bottom: max(9px, calc(env(safe-area-inset-bottom) + 1px)); }
 }
 
 /* Keep the focus support rules above the final release cascade. */
