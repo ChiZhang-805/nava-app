@@ -1479,3 +1479,18 @@ Resources，以及每款机型对应的 Apple Support 技术规格页。自动�
 选择器在手机外、侧键差异和相机控制键条件；真实产品布局另在 360×740、375×812、
 390×844、393×852、402×874、420×912、428×926、430×932、440×956 九档视口复核。
 本轮证据位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v118-20260907`。
+
+功能源码 commit `1d10b9fadef8682a531deb473e23bca976a0524e` 已由同一干净、已 push
+状态发布为 ChatGPT Sites v118 与 GitHub Pages v118。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_dc40f0ceb49c8191be81dddcb04e7f6d`，
+deployment ID 为 `appgdep_6a9edacd2374819181a1d978b4e530a3`，状态 succeeded；Pages
+镜像 commit 为 `57c2d0b023af56b9ffb2c01268ad5df5837a74e5`，在线 `source.json` 指向同一
+源码 commit 与 Sites v118。
+
+本地 `npm run verify` 31 阶段、`npm run interaction:test` 11 组、
+`npm run auth:verify:production` 和 `npm run device-preview:visual` 均通过。线上两站都返回
+HTTP 200，并实际加载 `index-C3nJ5ZRh.js`；产物均包含 18 款目录和选择器标记。真实浏览器
+线上复核确认桌面选择器可见、切换到 iPhone 17e 后刘海结构生效、移动端选择器隐藏，且
+普通未登录访问与 `?demo=1` 均停留在真实登录门，无 console error。线上截图位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v118-online`。本轮没有修改 Supabase、
+认证配置、secret、migration、Edge Function 或生产用户数据。
