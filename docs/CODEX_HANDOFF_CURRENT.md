@@ -1295,7 +1295,7 @@ deployment ID 为 `appgdep_6a9dbdadd9f8819195935e4327dd06c5`，Pages 镜像 comm
 以及由实际分钟、可选心率、上述自评和已记录睡眠生成的保守恢复时间范围。结果包含置信度、
 规则版本与可审计依据，明确标注非医疗建议；伤病或高不适只触发停止加重负荷和寻求专业
 评估的安全提示，不输出诊断。`202609070004_exercise_recovery_loop.sql` 扩展运动表和活动
-会话类型，但尚未应用 production。
+会话类型，并已应用 production。
 
 应用内提醒补齐按场景反馈：运动可选择调整/恢复/仍需恢复，情绪、饮食、面部也有各自
 确认和稍后动作；反馈写回 `user_notifications.target` 并跨设备同步。规划器新增低饮水、
@@ -1309,18 +1309,17 @@ deployment ID 为 `appgdep_6a9dbdadd9f8819195935e4327dd06c5`，Pages 镜像 comm
 token 失效时停用设备，并按通知/设备写幂等 receipt。更新后的账号导出源码覆盖 42 张
 账号表。
 
-当前必须保持清晰的生产边界：源码有 26 个 migration，canonical production 仍是 24 个；
-`202609070004`、`202609070005`、更新后的 `export-user-data` 和新 `push-dispatch` 均未部署，
-APNs/FCM/HMS secret 也未配置。Windows 环境缺少 JDK，Android Gradle 未能编译；iOS 仍需
+2026-09-07 获得明确后端授权后，`202609070004`、`202609070005` 已应用，源码与 canonical
+production 均为 26 个 migration；更新后的 `export-user-data` production v24 和新
+`push-dispatch` production v1 均为 ACTIVE。内部调度 secret 与 APNs/FCM/HMS secret 仍未配置。Windows 环境缺少 JDK，Android Gradle 未能编译；iOS 仍需
 Mac/Xcode/Apple Developer Team，华为客户端仍需 HMS SDK、`agconnect-services.json` 和真机。
-这些不是“代码已写所以送达已通过”，必须在获得单独后端授权并提供平台凭据后部署、编译和
-真机验收。由于当前前端依赖尚未上线的新字段，本轮不会先行发布不兼容的双站前端。
+这些不是“函数已上线所以送达已通过”，仍必须在提供平台凭据后编译并做真机验收。
 
 本地 `npm run verify` 30 个阶段全部通过，包含四档记录编辑器、完整业务合同、17 个 Edge
 Function typecheck、云端完整性、运动恢复和远程推送静态合同；`npm run
 auth:verify:production` 继续确认 canonical project、公开登录门和禁用 demo bypass。
-扩展后的只读 `npm run supabase:verify-shared` 有意返回未就绪：新运动字段 HTTP 400、两张
-推送表 HTTP 404、`push-dispatch` HTTP 404，精确对应尚未获得授权的 production 变更。
+升级后的只读 `npm run supabase:verify-shared` 已恢复全部 READY：新运动字段、两张推送表、
+`push-dispatch`、既有 Auth/表/函数/Storage 均可访问，数据库 schema lint 无错误。
 Android `gradlew` 也已尝试，当前唯一启动前阻塞是系统没有 Java/JDK，未把未编译状态写成
 通过。
 
@@ -1348,8 +1347,7 @@ Android `gradlew` 也已尝试，当前唯一启动前阻塞是系统没有 Java
 限定为代码合同、读写路径、空值处理和 production schema 探测，不等同于擅自查看某位
 生产用户的私有内容。
 
-生产发布边界保持不变：canonical Supabase 的既有表和函数可用，但源码分支仍包含尚未获
-单独后端授权的 `202609070004`、`202609070005`、更新后的 `export-user-data` 与新
-`push-dispatch`。只读 readiness 探测仍以新运动字段 HTTP 400、两张推送表 HTTP 404 和
-`push-dispatch` HTTP 404 精确指出这些差异。本轮没有应用 migration、部署 Edge Function、
-修改 secret 或发布依赖不完整 schema 的双站前端。
+后续获得明确后端与双站发布授权后，canonical Supabase 已应用 `202609070004`、
+`202609070005`，并部署更新后的 `export-user-data` 与新 `push-dispatch`；只读 readiness
+探测恢复全部 READY，数据库 lint 无错误。内部调度 secret、provider secret 与真机推送送达
+仍是独立外部验收项。

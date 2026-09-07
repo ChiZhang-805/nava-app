@@ -32,27 +32,24 @@ The source migration `202609020002_health_sync_realtime.sql` publishes only sync
 changes; existing RLS still limits each authenticated subscriber to its own rows.
 
 The read-only shared-backend check passed again on 2026-09-07 after production migrations
-`202609070001_focus_session_integrity`, `202609070002_profile_avatar_privacy`, and
-`202609070003_legacy_phone_cleanup`: Auth, core tables, APP
+`202609070001_focus_session_integrity` through `202609070005_remote_push_devices`: Auth, core tables, APP
 extension tables, shared and APP function endpoints, and shared/private Storage
-routes were all reachable on the canonical project. The linked migration list
-matched the 24 migrations that were local at that release point and production schema lint returned
-no errors. The source tree now contains 26 migrations: `202609070004_exercise_recovery_loop` and
-`202609070005_remote_push_devices` are intentionally **not** on production pending explicit backend
-authorization. The earlier cloud completeness migration successfully enforced that every
+routes were all reachable on the canonical project. The linked migration list matched all 26 local
+migrations and production schema lint returned no errors. The earlier cloud completeness migration
+successfully enforced that every
 current account-owned `user_id` table (and `profiles.id`) cascades from `auth.users`; it also
 backfilled the one previously missing profile, so production now reports three Auth profiles for
-three accounts. All eight functions changed or awaiting deployment in this batch now match the
-released source intent and report ACTIVE/JWT enabled; real-account model output, actual archive
+three accounts. The updated `export-user-data` production v24 reports ACTIVE with JWT verification,
+and the new `push-dispatch` production v1 reports ACTIVE with its intended internal-secret boundary;
+real-account model output, actual archive
 download, destructive account deletion, and Apple-device behavior still require their explicit
 acceptance runs.
 
-The production probe was extended after the source additions. Its current expected pre-deployment
-result is explicit rather than silently green: `exercise_records` returns HTTP 400 for the new
-recovery columns, `push_device_tokens` and `push_delivery_receipts` return HTTP 404, and
-`push-dispatch` returns HTTP 404. The APP/CLI project refs, Auth, previously deployed tables,
-functions, and Storage remain aligned. Apply the two pending migrations and deploy the two changed
-functions only after explicit authorization, then require this probe to return READY again.
+The production probe was extended after the source additions and now returns READY for the new
+exercise recovery columns, `push_device_tokens`, `push_delivery_receipts`, and `push-dispatch` as
+well as the existing APP/CLI project refs, Auth, functions, and Storage. This proves deployed schema
+and endpoint reachability; the internal dispatch secret, APNs/FCM/HMS credentials, and real-device
+acceptance remain separate gates.
 
 Migration `202607190001_password_reuse_guard.sql` is present in the linked
 production migration history. It grants `nava_password_matches_current` only to

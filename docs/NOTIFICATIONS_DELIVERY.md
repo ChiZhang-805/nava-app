@@ -73,8 +73,8 @@ Apple User Notifications 框架文档及 iPhone 用户指南为准：应用在�
 - `push-dispatch` Edge Function 源码使用独立内部 secret 鉴权，从云端通知事实源读取正文，
   可分别调用 APNs token auth、FCM HTTP v1 和 HMS Push；provider 明确返回 token 失效时会
   停用该 token，每个通知/设备组合通过 receipt 防止重复派发。
-- 上述迁移、函数和 provider secret 目前都**只在源码中**，尚未应用 canonical production；
-  因此当前公开网页与已安装旧包不能据此宣称已经拥有远程锁屏送达。
+- 上述 migration 与 `push-dispatch` 已应用 canonical production；内部调度 secret、provider
+  secret 与真机验收尚未完成，因此当前公开网页与已安装旧包仍不能据此宣称已经拥有远程锁屏送达。
 
 ### 网页通知
 
@@ -94,9 +94,9 @@ Apple User Notifications 框架文档及 iPhone 用户指南为准：应用在�
   HMS Push SDK/插件和真实华为设备；还需按设备验证省电策略与厂商后台限制。
 - APNs 需要 Apple Developer Team、Push capability、`.p8` key 及正确 bundle id/environment；
   FCM/HMS 需要各自项目凭据。任何凭据只能作为 Supabase server secret 配置，不能进入仓库。
-- 生产启用还需单独授权应用 migration `202609070004`/`202609070005`，部署更新后的
-  `export-user-data` 与新 `push-dispatch`，再做速率、审计和真实设备送达验收。当前前端
-  持续发布授权不包含这些后端操作。
+- migration `202609070004`/`202609070005`、更新后的 `export-user-data` 与新
+  `push-dispatch` 已经部署；仍需配置内部调度 secret 与平台 provider secret，并完成速率、
+  审计和真实设备送达验收。
 
 ## 当前自动验证
 

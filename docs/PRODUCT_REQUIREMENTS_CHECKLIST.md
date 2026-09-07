@@ -143,14 +143,14 @@
 - [x] **NTF-06 通知偏好** — 现有 Supabase `notification_preferences` 与 RLS 继续保存允许的设备本地提醒偏好。
 - [ ] **NTF-07 iPhone 系统通知验收** — **源码完成、待人工**：需 Mac/Xcode/签名/iPhone 验证锁屏、后台、权限拒绝与点击深链。
 - [ ] **NTF-08 Android / 华为系统通知** — **Android 壳和通用 FCM 接线完成、待外部配置/真机**：仓库已有 Capacitor Android 工程、NAVA 品牌 launcher、独立单色通知小图标、竖屏约束、Android 13+ 权限插件、`nava_general` channel、退出注销和 FCM token 接线；当前 Windows 环境缺少 JDK，且还没有 `google-services.json`、华为 `agconnect-services.json` 与 HMS 客户端插件，因此不能写成已在 Android/华为真机完成。
-- [ ] **NTF-09 远程 Push** — **源码完成、待授权部署与凭据**：新增账号级 `push_device_tokens`、幂等 `push_delivery_receipts`、RLS/级联删除/导出合同和 `push-dispatch` Edge Function，派发器覆盖 APNs、FCM v1 和 HMS 并自动停用 provider 判定为失效的 token。migration、Edge Function、APNs/FCM/HMS secret 尚未部署；前端持续发布授权不包含这些生产后端操作。
+- [ ] **NTF-09 远程 Push** — **后端结构已部署、待凭据与真机**：账号级 `push_device_tokens`、幂等 `push_delivery_receipts`、RLS/级联删除/导出合同和 `push-dispatch` Edge Function 已上线 canonical production，派发器覆盖 APNs、FCM v1 和 HMS 并自动停用 provider 判定为失效的 token。内部调度 secret、APNs/FCM/HMS secret、客户端平台配置和真机锁屏送达尚未验收。
 
 ## 八、账号云端数据完整性
 
-- [x] **DATA-01 重要数据存在云端** — 六模块、画像/onboarding、AI 对话与报告、任务/成长、Health/Watch、草稿、通知、首页偏好、语言/AI 语音和进行中专注/睡眠均有 Supabase 事实源；详细资料会把云端 canonical 枚举映射为可读选项，保存时仍保留原合同，设备页只展示实际运行环境、配对、授权和同步状态；运动活动会话与结构化恢复字段的云端 schema 源码已完成，待 `202609070004` 获授权上线。本机只保留明确的缓存、认证会话、加密未上传面部草稿和离线待发送队列。
+- [x] **DATA-01 重要数据存在云端** — 六模块、画像/onboarding、AI 对话与报告、任务/成长、Health/Watch、草稿、通知、首页偏好、语言/AI 语音、进行中专注/睡眠/运动和结构化运动恢复字段均有 canonical Supabase 事实源；详细资料会把云端 canonical 枚举映射为可读选项，保存时仍保留原合同，设备页只展示实际运行环境、配对、授权和同步状态。本机只保留明确的缓存、认证会话、加密未上传面部草稿和离线待发送队列。
 - [x] **DATA-02 跨设备恢复** — 新增 `user_app_preferences`、`user_notifications`、`ai_conversation_archives`、`active_user_sessions`，并在登录/进入相关页面时恢复；生产表、RLS 与 Realtime 合同已经实际部署，仍建议用两台真实设备做最终体验验收。
 - [x] **DATA-03 删除账号无用户残留** — 生产迁移强制全部账号表 `ON DELETE CASCADE`，服务端先删除三个用户 Storage 前缀及邮箱/手机号对应的账号检查/OTP HMAC 摘要；客户端还会清理账号缓存、加密草稿、Watch 队列/快照和本地系统通知。未执行真实用户删除破坏性验收，结论来自生产结构断言与源码合同。
-- [x] **DATA-04 用户导出完整** — 更新后的 `export-user-data` 源码覆盖 Auth 基本身份、全部 42 个账号表和三个私有 Storage 前缀；浏览器把 JSON 与用户拥有的实际文件内容一起打包为 `.tar.gz`（不再把会过期的签名链接冒充文件导出），任一部分失败会整体报错。production 当前仍是现有 40 表版本；新推送两表要在 migration 与函数获授权一并部署后进入线上导出。未执行真实账号下载内容验收。
+- [x] **DATA-04 用户导出完整** — production `export-user-data` 已覆盖 Auth 基本身份、全部 42 个账号表和三个私有 Storage 前缀；浏览器把 JSON 与用户拥有的实际文件内容一起打包为 `.tar.gz`（不再把会过期的签名链接冒充文件导出），任一部分失败会整体报错。未执行真实账号下载内容验收。
 
 ## 九、策划案明确后置、不计入一期完成率
 
