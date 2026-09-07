@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`f79a9aa7a7b5f2c8e38d98e3f93d78c91cf4f388`
+- 源码发布 commit：`a26fe18269bc8303556c3e7b641b45669a7935d9`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v114，public
+- ChatGPT Sites 版本：v115，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_678073216a788191b1f88e3eae4413d8`
-- Sites deployment ID：`appgdep_6a9e467f19b081918764d16296480567`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_62ec18d8cdd08191ade3ff6d1422c603`
+- Sites deployment ID：`appgdep_6a9e7fa53f508191ab9eb17b7bf973f5`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `f327a34157cacedb685a19df4d6af75b0a06d11e`
+  `bbf59225d5b4eda90b92d9f2928f51ee609891d4`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v114 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v114.tar.gz`
+- v115 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v115.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v114 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v115 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -1375,3 +1375,29 @@ source commit 与 Sites v114。
 完整 `npm run verify` 30 阶段和 `npm run interaction:test` 11 组，精确覆盖首页六模块圆盘、
 底部五导航、十一个成长入口、六个周报入口和其余业务交互。四档 35 状态共 140 张视觉证据
 继续位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-release-gate-20260907`。
+
+## 37. 2026-09-07 首页健康圆盘 v115 校准与双站发布
+
+根据补充的展开前、展开后设计截图，本轮把首页健康入口拆成两个可独立验收的稳定态：
+收起态只保留底部低矮圆角胶囊和五个主导航按钮，不显示圆盘或六模块按钮；展开态使用
+宽度为页面 120% 的完整圆形，其顶缘位于页面高度约 71%，圆心落在页面下边缘附近，形成
+从底部胶囊后方向上展开的圆润扇面。六个模块按钮按三层左右对称弧线放置，并由运动、
+饮食、睡眠、面部、专注、情绪六个真实模块图标取代重复的心率占位图标。底部四个小圆与
+中央 AI 大圆继续使用一个共享圆心水平线，中央聊天图形和四个主导航图形做了光学校准。
+
+`scripts/verify-navigation-icons.mjs` 现在分别截图并断言收起态和展开态，覆盖 360×740、
+375×812、390×844、430×932 四个规定视口；它会检查收起态圆盘不可交互、底部胶囊宽高和
+圆角、六个模块图标唯一、按钮圆形且无遮挡、三层弧线左右同高、圆盘顶缘/宽度/圆心比例、
+五个底部按钮圆心同线，以及中央 AI 图形比例。稳定截图证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-home-wheel-v117-20260907`。完整 `npm run verify`
+30 阶段、`npm run interaction:test` 11 组和发布前后 `npm run auth:verify:production` 均通过。
+
+功能源码 commit `a26fe18269bc8303556c3e7b641b45669a7935d9` 已同时发布为 ChatGPT Sites
+v115 和 GitHub Pages v115。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_62ec18d8cdd08191ade3ff6d1422c603`，
+deployment ID 为 `appgdep_6a9e7fa53f508191ab9eb17b7bf973f5`，状态 succeeded；Pages 镜像
+commit 为 `bbf59225d5b4eda90b92d9f2928f51ee609891d4`。两站均返回 HTTP 200，并实际加载
+同一组 `index-DiZW3Ogp.js` / `index-BTA7zPHo.css` 内容；线上样式探测确认两站都包含
+圆盘 `width: 120%`、`top: 71%` 和共享底栏圆心变量，公开 `?demo=1` 仍不能绕过真实登录门。
+图像生成仅用于一次结构校准草图，没有把生成位图作为产品圆盘或导航实现；最终界面仍由
+可测量、可响应、可交互的 HTML/CSS 和现有本地模块图标组成。
