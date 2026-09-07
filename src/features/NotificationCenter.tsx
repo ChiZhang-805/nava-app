@@ -345,7 +345,7 @@ export default function NotificationCenter({
     <section className="home-experience notification-center" data-notification-center>
       <header className={`home-experience-header notification-center-header${selectionMode ? " is-selecting" : ""}`}>
         <button type="button" onClick={selectionMode ? leaveSelection : onBack} aria-label={selectionMode ? (locale === "zh" ? "退出多选" : "Exit selection") : (locale === "zh" ? "返回首页" : "Back home")}>{selectionMode ? <X size={21} /> : <ArrowLeft size={21} />}</button>
-        <div className="notification-center-title"><span>{selectionMode ? (locale === "zh" ? `已选择 ${selectedIds.size} 项` : `${selectedIds.size} selected`) : (locale === "zh" ? "通知中心" : "Notifications")}</span></div>
+        <div className="notification-center-title"><h1>{selectionMode ? (locale === "zh" ? `已选择 ${selectedIds.size} 项` : `${selectedIds.size} selected`) : (locale === "zh" ? "通知中心" : "Notifications")}</h1></div>
         {selectionMode ? (
           <div className="notification-selection-actions">
             <button type="button" onClick={deleteSelection} disabled={selectedIds.size === 0} aria-label={locale === "zh" ? "删除所选通知" : "Delete selected notifications"}><Trash2 size={20} /></button>

@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-notifications-v113-20260907";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-notifications-v119-20260908";
 const port = 5201;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -80,7 +80,8 @@ try {
 
     const menuToggle = page.locator(".option-two-menu-toggle");
     await expect(menuToggle).toBeVisible();
-    await expect(page.locator(".option-two-menu-unread")).toBeVisible();
+    await expect(page.locator(".option-two-menu-unread")).toHaveCount(1);
+    await expect(page.locator(".option-two-menu-unread")).toBeHidden();
     const sideButtons = page.locator(".option-two-side-actions > button");
     await expect(sideButtons).toHaveCount(6);
     await expect(sideButtons.nth(0)).toHaveClass(/option-two-menu-toggle/);
@@ -90,9 +91,13 @@ try {
     await expect(menuToggle).toHaveAttribute("aria-expanded", "true");
     await expect(sideButtons.nth(1)).toBeVisible();
     await page.waitForTimeout(350);
-    const bellBox = await menuToggle.boundingBox();
+    const notificationShortcut = sideButtons.nth(5);
+    await expect(notificationShortcut).toHaveAttribute("aria-label", "消息通知");
+    await expect(notificationShortcut.locator("svg")).toHaveClass(/lucide-bell/);
+    await expect(notificationShortcut.locator(".option-two-menu-unread")).toBeVisible();
+    const bellBox = await notificationShortcut.boundingBox();
     if (!bellBox || bellBox.width < 40 || bellBox.height < 40 || bellBox.x + bellBox.width > viewport.width + 1) throw new Error(`${viewport.name}: bell touch target is invalid ${JSON.stringify(bellBox)}`);
-    await menuToggle.click();
+    await notificationShortcut.click();
     await expect(page.locator("[data-notification-center]")).toBeVisible();
     await expect.poll(() => new URL(page.url()).hash).toContain("view=notifications");
     await expect(page.locator(".notification-row-shell")).toHaveCount(5);
@@ -169,6 +174,8 @@ try {
     await expect(row).toHaveAttribute("data-read", readBeforeSwipe === "true" ? "false" : "true");
 
     const menuButton = page.locator(".notification-header-menu-wrap > button");
+    await expect(menuButton).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await expect(menuButton).toHaveCSS("box-shadow", "none");
     await menuButton.click();
     await expect(page.getByRole("menuitem", { name: "全部已读" }).locator("svg")).toHaveClass(/lucide-mail-open/);
     await expect(page.getByRole("menuitem", { name: "多选" }).locator("svg")).toHaveClass(/lucide-list-plus/);

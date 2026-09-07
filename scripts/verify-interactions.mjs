@@ -895,8 +895,17 @@ async function verifyHomeShortcuts(page, results) {
   await expect(page.locator(".option-two-side-actions")).toHaveClass(/is-open/);
   await expect(sideActions.nth(1)).toBeVisible();
   await expect(sideActions.nth(5)).toBeVisible();
-  await sideActions.nth(5).click();
+  await expect(sideActions.nth(5)).toHaveAttribute("aria-label", reviewLocale === "zh" ? "消息通知" : "Notifications");
+  await expect(sideActions.nth(5).locator("svg")).toHaveClass(/lucide-bell/);
+  await sideActions.first().click();
   await expect(page.locator(".option-two-side-actions")).toHaveClass(/is-collapsed/);
+  await expect(sideActions.nth(5)).toBeHidden();
+  await sideActions.first().click();
+  await expect(page.locator(".option-two-side-actions")).toHaveClass(/is-open/);
+  await sideActions.nth(5).click();
+  await expect(page.locator("[data-notification-center]")).toBeVisible();
+  await expect.poll(() => new URL(page.url()).hash).toContain("view=notifications");
+  await page.locator('[data-tab="today"]').click();
 
   const openQuickShortcuts = async () => {
     await page.locator('[data-tab="today"]').click();

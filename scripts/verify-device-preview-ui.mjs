@@ -6,7 +6,7 @@ import { applyProjectPublicEnv } from "./project-env.mjs";
 import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-iphone-preview-v118-20260907";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-iphone-preview-v119-20260908";
 const port = 5206;
 const demoUserId = "00000000-0000-4000-8000-000000000001";
 
@@ -172,6 +172,41 @@ try {
     await catalogPage.screenshot({ path: path.join(outputDir, `${device.id}-1440x1080.png`), fullPage: true });
     report.push({ mode: "device-catalog", device: device.id, geometry, frameOverflow });
   }
+
+  await catalogPage.goto(`${baseUrl}?demo=1#tab=today&view=profile-details`, { waitUntil: "networkidle" });
+  await expect(catalogPage.locator('[data-home-view="profile-details"]')).toBeVisible();
+  for (const device of IPHONE_PREVIEW_DEVICES) {
+    await deviceSelector.selectOption(device.id);
+    await expect(catalogPage.locator(".nava-app-stage")).toHaveAttribute("data-nava-preview-device", device.id);
+    await catalogPage.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const safeHeader = await catalogPage.evaluate(() => {
+      const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
+      const cutout = document.querySelector(".nava-device-cutout")?.getBoundingClientRect();
+      const header = document.querySelector(".home-experience-header")?.getBoundingClientRect();
+      const title = document.querySelector(".home-experience-header h1")?.getBoundingClientRect();
+      const back = document.querySelector(".home-experience-back")?.getBoundingClientRect();
+      const action = document.querySelector(".advanced-profile-header-icon")?.getBoundingClientRect();
+      if (!frame || !cutout || !header || !title || !back || !action) return null;
+      return {
+        frameTop: frame.top,
+        cutoutBottom: cutout.bottom,
+        headerTop: header.top,
+        titleTop: title.top,
+        titleCenter: title.top + title.height / 2,
+        backCenter: back.top + back.height / 2,
+        actionCenter: action.top + action.height / 2,
+        breathingGap: title.top - cutout.bottom,
+      };
+    });
+    if (!safeHeader
+      || safeHeader.breathingGap < 18
+      || safeHeader.breathingGap > 27
+      || Math.abs(safeHeader.titleCenter - safeHeader.backCenter) > 1
+      || Math.abs(safeHeader.titleCenter - safeHeader.actionCenter) > 1) {
+      throw new Error(`${device.label}: subpage header breathing space is inconsistent ${JSON.stringify(safeHeader)}`);
+    }
+    report.push({ mode: "device-safe-header", device: device.id, geometry: safeHeader });
+  }
   await catalogContext.close();
 
   const notificationContext = await browser.newContext({ viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
@@ -240,11 +275,14 @@ try {
     };
   });
   if (!subpageHeaderGeometry
-    || subpageHeaderGeometry.title.top <= subpageHeaderGeometry.island.bottom + 12
+    || subpageHeaderGeometry.title.top < subpageHeaderGeometry.island.bottom + 18
+    || subpageHeaderGeometry.title.top > subpageHeaderGeometry.island.bottom + 27
     || Math.abs(subpageHeaderGeometry.title.center - subpageHeaderGeometry.backCenter) > 1
     || Math.abs(subpageHeaderGeometry.title.center - subpageHeaderGeometry.actionCenter) > 1) {
     throw new Error(`Desktop subpage header is not below the simulated status area and aligned ${JSON.stringify(subpageHeaderGeometry)}`);
   }
+  await expect(subpageDesktop.locator(".advanced-profile-header-icon")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(subpageDesktop.locator(".advanced-profile-header-icon")).toHaveCSS("box-shadow", "none");
   await subpageDesktop.screenshot({ path: path.join(outputDir, "desktop-profile-safe-header-1365x1000.png"), fullPage: true });
   report.push({ mode: "desktop-profile-safe-header", geometry: subpageHeaderGeometry });
   await subpageDesktopContext.close();
@@ -253,6 +291,8 @@ try {
     { view: "calendar", selector: ".home-experience-header", title: "我的月历" },
     { view: `day-${new Date().toISOString().slice(0, 10)}`, selector: ".home-experience-header", title: "当日综合报告" },
     { view: "home-widgets", selector: ".home-widget-editor-header", title: "选择小组件" },
+    { view: "profile-details", selector: ".home-experience-header", title: "详细资料设置" },
+    { view: "notifications", selector: ".notification-center-header", title: "通知中心" },
   ];
   for (const viewport of [
     { width: 360, height: 740 },

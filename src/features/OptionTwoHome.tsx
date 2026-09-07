@@ -1,7 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 import {
+  Bell,
   CalendarDays,
-  ChevronUp,
   HeartPulse,
   ScanFace,
   ShoppingCart,
@@ -312,15 +312,17 @@ export default function OptionTwoHome({
       </div>
 
       <div className={["option-two-side-actions", shortcutsOpen ? "is-open" : "is-collapsed"].join(" ")}>
-        <button className="option-two-menu-toggle" type="button" onClick={() => { if (shortcutsOpen) onViewChange("notifications"); else setShortcutsOpen(true); }} aria-expanded={shortcutsOpen} aria-label={shortcutsOpen ? (locale === "zh" ? "打开通知中心" : "Open notifications") : (locale === "zh" ? "展开快捷入口" : "Expand shortcuts")} title={shortcutsOpen ? (locale === "zh" ? "打开通知中心" : "Open notifications") : (locale === "zh" ? "展开快捷入口" : "Expand shortcuts")}>
+        <button className="option-two-menu-toggle" type="button" onClick={() => setShortcutsOpen((open) => !open)} aria-expanded={shortcutsOpen} aria-label={shortcutsOpen ? (locale === "zh" ? "收起快捷入口" : "Collapse shortcuts") : (locale === "zh" ? "展开快捷入口" : "Expand shortcuts")} title={shortcutsOpen ? (locale === "zh" ? "收起快捷入口" : "Collapse shortcuts") : (locale === "zh" ? "展开快捷入口" : "Expand shortcuts")}>
           <MenuReferenceIcon size={23} />
-          {notifications.some((item) => !item.readAt) && <span className="option-two-menu-unread" aria-hidden="true" />}
         </button>
         <button className="option-two-side-shortcut" type="button" onClick={() => onViewChange("calendar")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "健康月历" : "Health calendar"} title={locale === "zh" ? "健康月历" : "Health calendar"}><CalendarDays size={23} /></button>
         <button className="option-two-side-shortcut" type="button" onClick={() => onViewChange("profile-details")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "详细资料设置" : "Detailed profile"} title={locale === "zh" ? "详细资料设置" : "Detailed profile"}><UsersRound size={24} /></button>
         <button className="option-two-side-shortcut" type="button" onClick={onOpenUtility} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "积分商城" : "Points store"} title={locale === "zh" ? "积分商城" : "Points store"}><ShoppingCart size={22} /></button>
         <button className="option-two-side-shortcut" type="button" onClick={onOpenUtility} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "功能导航" : "Utilities"} title={locale === "zh" ? "功能导航" : "Utilities"}><Wrench size={22} /></button>
-        <button className="option-two-side-shortcut option-two-side-collapse" type="button" onClick={() => setShortcutsOpen(false)} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "收起快捷入口" : "Collapse shortcuts"} title={locale === "zh" ? "收起快捷入口" : "Collapse shortcuts"}><ChevronUp size={23} /></button>
+        <button className="option-two-side-shortcut option-two-side-notifications" type="button" onClick={() => onViewChange("notifications")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "消息通知" : "Notifications"} title={locale === "zh" ? "消息通知" : "Notifications"}>
+          <Bell size={22} />
+          {notifications.some((item) => !item.readAt) && <span className="option-two-menu-unread" aria-hidden="true" />}
+        </button>
       </div>
 
       <section className={["home-widget-grid", widgetIds.length === 0 ? "is-empty" : ""].join(" ")} aria-label={locale === "zh" ? "我的健康小组件" : "My health widgets"} data-widget-count={widgetIds.length}>
