@@ -1457,3 +1457,25 @@ commit 为 `5fe594704c5237f6d790250fb52d8f0eebb839c5`。两个公开 URL 均返�
 均加载 `index-D4JiTcga.js`；线上 CSS 包含居中、安全顶栏和展开态单一表面的新版规则，
 两个站点的真实浏览器均无 warning/error，公开 `?demo=1` 继续停留在真实登录门。本轮没有
 修改 Supabase、认证配置、短信/模型 secret、migration、Edge Function 或生产用户数据。
+
+## 40. 2026-09-07 Apple 全机型桌面预览矩阵 v118
+
+桌面开发预览新增右上角机型选择器，目录按代际完整覆盖 18 款：iPhone 14、14 Plus、
+14 Pro、14 Pro Max；iPhone 15、15 Plus、15 Pro、15 Pro Max；iPhone 16、16 Plus、
+16 Pro、16 Pro Max、16e；iPhone 17、iPhone Air、17 Pro、17 Pro Max、17e。每个选项
+都独立保存 Apple 官方技术规格中的物理像素、屏幕尺寸和产品特征；预览器显示物理像素，
+并以 @3x 推导对应的逻辑画布尺寸。这个逻辑点数是实现推导值，不冒充 Apple 另外公布的
+CSS viewport 数据。
+
+切换机型会同时改变手机宽高比例、圆角、安全顶栏、刘海或灵动岛、静音拨片或操作按钮，
+以及 iPhone 16/17 系列相应机型的相机控制键。iPhone 14、14 Plus、16e、17e 走刘海结构；
+其余目录机型走灵动岛结构。浏览器中的外壳、状态栏和 Home indicator 仅属于桌面开发预览，
+在 900px 以下和真实移动端路径中均隐藏，不会被打包成 APP 产品界面。选中机型保存在本地
+浏览器偏好中，不触碰用户账号或 Supabase 数据。
+
+实现依据为 Apple Human Interface Guidelines 的 Layout/safe-area 原则、Apple Design
+Resources，以及每款机型对应的 Apple Support 技术规格页。自动测试验证 18 个唯一机型、
+4/4/5/5 代际数量、像素到逻辑点的 @3x 对应、刘海/灵动岛互斥、状态栏同轴、机身居中、
+选择器在手机外、侧键差异和相机控制键条件；真实产品布局另在 360×740、375×812、
+390×844、393×852、402×874、420×912、428×926、430×932、440×956 九档视口复核。
+本轮证据位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v118-20260907`。

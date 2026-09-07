@@ -131,4 +131,8 @@ Write-Host "30. Native remote-push contracts"
 Invoke-Npm -Arguments @("run", "push:contract:test")
 
 Write-Host ""
+Write-Host "31. Apple device preview catalog"
+Invoke-Npm -Arguments @("run", "device-preview:test")
+
+Write-Host ""
 Write-Host "Verification completed."
