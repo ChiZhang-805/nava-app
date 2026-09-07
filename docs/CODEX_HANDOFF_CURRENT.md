@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`4c7f80397c0e548667f2ab32c6ae550ab7d5b2b5`
+- 源码发布 commit：`e41e6f4f3dfbde0895a11e19997118236d633034`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v120，public
+- ChatGPT Sites 版本：v121，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_ac422c46890c8191bbdb71b04e023b5f`
-- Sites deployment ID：`appgdep_6a9f008b09a48191a9de6376946ab688`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_aa8695156a0881918f20c5fce99c7306`
+- Sites deployment ID：`appgdep_6a9f0d5c78888191bfee1f3711ad7b4e`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `59bc44ff7f16b7d7bfd834d7e485d9294c5af9fc`
+  `19b7617bbd1cfe0e04e27f3e8595686c7e3c020d`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v120 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v120.tar.gz`
+- v121 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v121.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v120 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v121 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -1587,4 +1587,13 @@ Pointer Events 实现，没有为了小网格新增拖拽依赖。
 375×812、390×844、430×932 四档实跑普通点击、440ms 长按、6 槽位显示、空槽拖放、刷新
 持久化、Shift+Enter/方向键替代和编辑退出，证据位于
 `Q:\NAVA-Workspace\Build\TestRuns\nava-home-widget-drag-v121-20260908`。完整 interaction
-11 组也已通过，首页上滑圆盘、右侧快捷栏和底部导航未回退。发布锚点在双站完成后补录。
+11 组也已通过，首页上滑圆盘、右侧快捷栏和底部导航未回退。
+
+双站已从同一个功能提交 `e41e6f4f3dfbde0895a11e19997118236d633034` 发布：ChatGPT
+Sites v121 version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_aa8695156a0881918f20c5fce99c7306`，
+deployment ID 为 `appgdep_6a9f0d5c78888191bfee1f3711ad7b4e`，状态 succeeded；GitHub
+Pages 镜像 commit 为 `19b7617bbd1cfe0e04e27f3e8595686c7e3c020d`。两站均返回 HTTP
+200、加载同一 `App-BUlB1LyL.js` 拖拽实现和 `index-BQXnkHT9.css` 视觉样式；Pages
+`source.json` 已核验为 v121。无登录的新浏览器访问两站的 `?demo=1` 仍停留在真实登录页，
+没有出现公开 demo 绕过。
