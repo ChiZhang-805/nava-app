@@ -11,7 +11,7 @@ import {
   UsersRound,
   Wrench,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type ComponentType, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentType, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import homeSceneBackground from "../assets/figma/home-option2/home-scene-v3.png";
 import healthDietIcon from "../assets/figma/option-two-icons/diet.svg";
 import healthExerciseIcon from "../assets/figma/option-two-icons/exercise.svg";
@@ -38,7 +38,21 @@ import { loadGrowthTotalPoints } from "../services/productivity";
 import { getTodaySnapshot, getTrends } from "../services/records";
 import { buildHealthModuleProgress, healthModuleEntryView, healthModuleProgressLabel } from "../services/healthReportPresentation";
 import { buildHomeGuidance, homeDayPhase, isVerticalHomeSwipe } from "../services/homeExperience";
-import { buildHomeWidgetPresentation, hydrateHomeWidgetIds, loadHomeWidgetIds, saveHomeWidgetIds, type HomeWidgetId } from "../services/homeWidgets";
+import {
+  HOME_WIDGET_SLOT_COUNT,
+  buildHomeWidgetPresentation,
+  defaultHomeWidgetLayout,
+  homeWidgetIdsFromLayout,
+  homeWidgetLayoutFromIds,
+  hydrateHomeWidgetLayout,
+  loadHomeWidgetLayout,
+  moveHomeWidgetByDirection,
+  placeHomeWidgetInSlot,
+  saveHomeWidgetLayout,
+  type HomeWidgetDirection,
+  type HomeWidgetId,
+  type HomeWidgetSlot,
+} from "../services/homeWidgets";
 import { syncContextualNotifications, type NavaNotificationItem, type NavaNotificationTarget } from "../services/notifications";
 import type { TodaySnapshot, TrendBundle } from "../types";
 import type { RecordModule } from "./RecordsScreen";
@@ -94,6 +108,27 @@ const homeWidgetTargets: Record<HomeWidgetId, RecordModule> = {
   face: "face",
 };
 
+const HOME_WIDGET_LONG_PRESS_MS = 440;
+const HOME_WIDGET_PRESS_SLOP = 10;
+
+type HomeWidgetPress = {
+  id: HomeWidgetId;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  lastX: number;
+  lastY: number;
+  targetSlot: number;
+  active: boolean;
+};
+
+type HomeWidgetDragVisual = {
+  id: HomeWidgetId;
+  deltaX: number;
+  deltaY: number;
+  targetSlot: number;
+};
+
 export default function OptionTwoHome({
   user,
   refreshKey,
@@ -129,7 +164,10 @@ export default function OptionTwoHome({
   const [healthMenuOpen, setHealthMenuOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<TodaySnapshot | null>(null);
   const [trends, setTrends] = useState<TrendBundle | null>(null);
-  const [widgetIds, setWidgetIds] = useState<HomeWidgetId[]>(() => loadHomeWidgetIds(user.id));
+  const [widgetLayout, setWidgetLayout] = useState<HomeWidgetSlot[]>(() => loadHomeWidgetLayout(user.id));
+  const [widgetArrangeMode, setWidgetArrangeMode] = useState(false);
+  const [widgetDrag, setWidgetDrag] = useState<HomeWidgetDragVisual | null>(null);
+  const [widgetAnnouncement, setWidgetAnnouncement] = useState("");
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [localHour, setLocalHour] = useState(() => new Date().getHours());
@@ -137,7 +175,11 @@ export default function OptionTwoHome({
   const [guidanceEligible] = useState(showInitialGuidance);
   const gestureRef = useRef<{ pointerId: number; startX: number; startY: number; lastX: number; lastY: number } | null>(null);
   const ignoreClickUntilRef = useRef(0);
+  const widgetPressRef = useRef<HomeWidgetPress | null>(null);
+  const widgetLongPressTimerRef = useRef<number | null>(null);
+  const widgetIgnoreClickUntilRef = useRef(0);
   const refreshRequestRef = useRef(0);
+  const widgetIds = homeWidgetIdsFromLayout(widgetLayout);
 
   const refresh = useCallback(async () => {
     const requestId = ++refreshRequestRef.current;
@@ -176,8 +218,8 @@ export default function OptionTwoHome({
 
   useEffect(() => {
     let active = true;
-    void hydrateHomeWidgetIds(user.id)
-      .then((ids) => { if (active) setWidgetIds(ids); })
+    void hydrateHomeWidgetLayout(user.id)
+      .then((layout) => { if (active) setWidgetLayout(layout); })
       .catch((error) => console.warn("Home widget restore deferred", error));
     return () => { active = false; };
   }, [user.id]);
@@ -194,6 +236,23 @@ export default function OptionTwoHome({
     const timer = window.setInterval(updateHour, 60_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => () => {
+    if (widgetLongPressTimerRef.current !== null) window.clearTimeout(widgetLongPressTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (!widgetArrangeMode) return;
+    const exitOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setWidgetArrangeMode(false);
+      setWidgetDrag(null);
+      widgetPressRef.current = null;
+      setWidgetAnnouncement(locale === "zh" ? "已退出首页编辑" : "Home editing ended");
+    };
+    window.addEventListener("keydown", exitOnEscape);
+    return () => window.removeEventListener("keydown", exitOnEscape);
+  }, [locale, widgetArrangeMode]);
 
   useEffect(() => {
     if (!guidanceEligible) return;
@@ -233,7 +292,7 @@ export default function OptionTwoHome({
       initialIds={widgetIds}
       onCancel={() => onBack(null)}
       onSave={(ids) => {
-        setWidgetIds(saveHomeWidgetIds(user.id, ids));
+        setWidgetLayout(saveHomeWidgetLayout(user.id, homeWidgetLayoutFromIds(ids)));
         onBack(null);
       }}
     />;
@@ -248,6 +307,125 @@ export default function OptionTwoHome({
       return;
     }
     gestureRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, lastX: event.clientX, lastY: event.clientY };
+  };
+
+  const clearWidgetLongPress = () => {
+    if (widgetLongPressTimerRef.current === null) return;
+    window.clearTimeout(widgetLongPressTimerRef.current);
+    widgetLongPressTimerRef.current = null;
+  };
+
+  const nearestWidgetSlot = (clientX: number, clientY: number) => {
+    let nearest = -1;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    document.querySelectorAll<HTMLElement>("[data-home-widget-slot]").forEach((slot) => {
+      const box = slot.getBoundingClientRect();
+      const distance = Math.hypot(clientX - (box.left + box.width / 2), clientY - (box.top + box.height / 2));
+      if (distance >= nearestDistance) return;
+      nearestDistance = distance;
+      nearest = Number(slot.dataset.homeWidgetSlot);
+    });
+    return nearest;
+  };
+
+  const activateWidgetDrag = (press: HomeWidgetPress) => {
+    if (widgetPressRef.current !== press) return;
+    press.active = true;
+    clearWidgetLongPress();
+    setHealthMenuOpen(false);
+    setShortcutsOpen(false);
+    setWidgetArrangeMode(true);
+    setWidgetDrag({ id: press.id, deltaX: 0, deltaY: 0, targetSlot: press.targetSlot });
+    widgetIgnoreClickUntilRef.current = Date.now() + 600;
+    setWidgetAnnouncement(locale === "zh" ? `正在移动${homeWidgetLabels[press.id].zh}，拖到高亮位置后松手` : `Moving ${homeWidgetLabels[press.id].en}. Drag to a highlighted position and release.`);
+    if (typeof navigator.vibrate === "function") navigator.vibrate(10);
+  };
+
+  const beginWidgetPress = (event: ReactPointerEvent<HTMLButtonElement>, id: HomeWidgetId, slot: number) => {
+    if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+    event.stopPropagation();
+    clearWidgetLongPress();
+    const press: HomeWidgetPress = {
+      id,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      targetSlot: slot,
+      active: false,
+    };
+    widgetPressRef.current = press;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    if (widgetArrangeMode) activateWidgetDrag(press);
+    else widgetLongPressTimerRef.current = window.setTimeout(() => activateWidgetDrag(press), HOME_WIDGET_LONG_PRESS_MS);
+  };
+
+  const moveWidgetPress = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const press = widgetPressRef.current;
+    if (!press || press.pointerId !== event.pointerId) return;
+    press.lastX = event.clientX;
+    press.lastY = event.clientY;
+    const deltaX = event.clientX - press.startX;
+    const deltaY = event.clientY - press.startY;
+    if (!press.active) {
+      if (Math.hypot(deltaX, deltaY) > HOME_WIDGET_PRESS_SLOP) clearWidgetLongPress();
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const targetSlot = nearestWidgetSlot(event.clientX, event.clientY);
+    if (targetSlot >= 0) press.targetSlot = targetSlot;
+    setWidgetDrag({ id: press.id, deltaX, deltaY, targetSlot: press.targetSlot });
+  };
+
+  const finishWidgetPress = (event: ReactPointerEvent<HTMLButtonElement>, cancelled = false) => {
+    const press = widgetPressRef.current;
+    if (!press || press.pointerId !== event.pointerId) return;
+    clearWidgetLongPress();
+    widgetPressRef.current = null;
+    if (!press.active) return;
+    event.preventDefault();
+    event.stopPropagation();
+    widgetIgnoreClickUntilRef.current = Date.now() + 500;
+    setWidgetDrag(null);
+    if (cancelled) {
+      setWidgetAnnouncement(locale === "zh" ? "已取消本次移动" : "Move cancelled");
+      return;
+    }
+    const next = placeHomeWidgetInSlot(widgetLayout, press.id, press.targetSlot);
+    setWidgetLayout(saveHomeWidgetLayout(user.id, next));
+    const label = homeWidgetLabels[press.id][locale];
+    setWidgetAnnouncement(locale === "zh" ? `${label}已放到第 ${press.targetSlot + 1} 个位置` : `${label} moved to position ${press.targetSlot + 1}`);
+  };
+
+  const finishWidgetArrange = () => {
+    clearWidgetLongPress();
+    widgetPressRef.current = null;
+    setWidgetDrag(null);
+    setWidgetArrangeMode(false);
+    widgetIgnoreClickUntilRef.current = Date.now() + 250;
+    setWidgetAnnouncement(locale === "zh" ? "首页组件位置已保存" : "Home widget positions saved");
+  };
+
+  const handleWidgetKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, id: HomeWidgetId) => {
+    if (!widgetArrangeMode && event.shiftKey && event.key === "Enter") {
+      event.preventDefault();
+      setHealthMenuOpen(false);
+      setShortcutsOpen(false);
+      setWidgetArrangeMode(true);
+      setWidgetAnnouncement(locale === "zh" ? "已进入首页编辑，使用方向键移动组件" : "Home editing started. Use arrow keys to move widgets.");
+      return;
+    }
+    if (!widgetArrangeMode) return;
+    const directions: Partial<Record<string, HomeWidgetDirection>> = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" };
+    const direction = directions[event.key];
+    if (!direction) return;
+    event.preventDefault();
+    const next = moveHomeWidgetByDirection(widgetLayout, id, direction);
+    setWidgetLayout(saveHomeWidgetLayout(user.id, next));
+    const slot = next.indexOf(id);
+    setWidgetAnnouncement(locale === "zh" ? `${homeWidgetLabels[id].zh}已移动到第 ${slot + 1} 个位置` : `${homeWidgetLabels[id].en} moved to position ${slot + 1}`);
   };
 
   const moveHomeGesture = (event: ReactPointerEvent<HTMLElement>) => {
@@ -288,7 +466,7 @@ export default function OptionTwoHome({
 
   return (
     <section
-      className={["option-two-home", `home-phase-${phase}`, healthMenuOpen ? "is-health-menu-open" : "", shortcutsOpen ? "shortcuts-open" : "shortcuts-collapsed", snapshot ? "is-loaded" : ""].filter(Boolean).join(" ")}
+      className={["option-two-home", `home-phase-${phase}`, healthMenuOpen ? "is-health-menu-open" : "", widgetArrangeMode ? "is-widget-arranging" : "", shortcutsOpen ? "shortcuts-open" : "shortcuts-collapsed", snapshot ? "is-loaded" : ""].filter(Boolean).join(" ")}
       onPointerDown={beginHomeGesture}
       onPointerMove={moveHomeGesture}
       onPointerUp={endHomeGesture}
@@ -297,6 +475,7 @@ export default function OptionTwoHome({
       data-health-menu-open={healthMenuOpen}
       data-home-phase={phase}
       data-home-guidance={homeGuidance?.reason ?? "loading"}
+      data-home-widget-arranging={widgetArrangeMode}
     >
       <img
         className="option-two-scene-background"
@@ -315,38 +494,66 @@ export default function OptionTwoHome({
         <button className="option-two-menu-toggle" type="button" onClick={() => setShortcutsOpen((open) => !open)} aria-expanded={shortcutsOpen} aria-label={shortcutsOpen ? (locale === "zh" ? "收起快捷入口" : "Collapse shortcuts") : (locale === "zh" ? "展开快捷入口" : "Expand shortcuts")} title={shortcutsOpen ? (locale === "zh" ? "收起快捷入口" : "Collapse shortcuts") : (locale === "zh" ? "展开快捷入口" : "Expand shortcuts")}>
           <MenuReferenceIcon size={23} />
         </button>
-        <button className="option-two-side-shortcut" type="button" onClick={() => onViewChange("calendar")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "健康月历" : "Health calendar"} title={locale === "zh" ? "健康月历" : "Health calendar"}><CalendarDays size={23} /></button>
-        <button className="option-two-side-shortcut" type="button" onClick={() => onViewChange("profile-details")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "详细资料设置" : "Detailed profile"} title={locale === "zh" ? "详细资料设置" : "Detailed profile"}><UsersRound size={24} /></button>
-        <button className="option-two-side-shortcut" type="button" onClick={onOpenUtility} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "积分商城" : "Points store"} title={locale === "zh" ? "积分商城" : "Points store"}><ShoppingCart size={22} /></button>
-        <button className="option-two-side-shortcut" type="button" onClick={onOpenUtility} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "功能导航" : "Utilities"} title={locale === "zh" ? "功能导航" : "Utilities"}><Wrench size={22} /></button>
-        <button className="option-two-side-shortcut option-two-side-notifications" type="button" onClick={() => onViewChange("notifications")} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "消息通知" : "Notifications"} title={locale === "zh" ? "消息通知" : "Notifications"}>
+        <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("calendar"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "健康月历" : "Health calendar"} title={locale === "zh" ? "健康月历" : "Health calendar"}><CalendarDays size={23} /></button>
+        <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("profile-details"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "详细资料设置" : "Detailed profile"} title={locale === "zh" ? "详细资料设置" : "Detailed profile"}><UsersRound size={24} /></button>
+        <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onOpenUtility(); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "积分商城" : "Points store"} title={locale === "zh" ? "积分商城" : "Points store"}><ShoppingCart size={22} /></button>
+        <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onOpenUtility(); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "功能导航" : "Utilities"} title={locale === "zh" ? "功能导航" : "Utilities"}><Wrench size={22} /></button>
+        <button className="option-two-side-shortcut option-two-side-notifications" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("notifications"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "消息通知" : "Notifications"} title={locale === "zh" ? "消息通知" : "Notifications"}>
           <Bell size={22} />
           {notifications.some((item) => !item.readAt) && <span className="option-two-menu-unread" aria-hidden="true" />}
         </button>
       </div>
 
-      <section className={["home-widget-grid", widgetIds.length === 0 ? "is-empty" : ""].join(" ")} aria-label={locale === "zh" ? "我的健康小组件" : "My health widgets"} data-widget-count={widgetIds.length}>
+      {widgetArrangeMode && <button className="home-widget-edit-done" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={finishWidgetArrange}>{locale === "zh" ? "完成" : "Done"}</button>}
+
+      <section className={["home-widget-grid", widgetIds.length === 0 ? "is-empty" : "", widgetArrangeMode ? "is-arranging" : ""].join(" ")} aria-label={locale === "zh" ? "我的健康小组件" : "My health widgets"} aria-describedby="home-widget-arrange-help" data-widget-count={widgetIds.length}>
+        {Array.from({ length: HOME_WIDGET_SLOT_COUNT }, (_, slot) => <span
+          className={["home-widget-slot", `home-widget-slot--position-${slot + 1}`, widgetDrag?.targetSlot === slot ? "is-target" : ""].filter(Boolean).join(" ")}
+          data-home-widget-slot={slot}
+          aria-hidden="true"
+          key={`slot-${slot}`}
+        />)}
         {(loading && snapshot === null) || forceHomeWidgetSkeleton
-          ? Array.from({ length: widgetIds.length || 4 }, (_, index) => <SkeletonBlock className={`home-widget-skeleton home-widget-skeleton--position-${index + 1}`} key={index} />)
+          ? (widgetIds.length ? widgetLayout : defaultHomeWidgetLayout()).map((id, slot) => id ? <SkeletonBlock className={`home-widget-skeleton home-widget-skeleton--position-${slot + 1}`} key={`${id}-${slot}`} /> : null)
           : widgetIds.length === 0
             ? <button className="home-widget-empty" type="button" onClick={() => onViewChange("home-widgets")}><HeartPulse size={18} /><span><strong>{locale === "zh" ? "添加关注的小组件" : "Add widgets you care about"}</strong><small>{locale === "zh" ? "最多 6 个" : "Up to 6"}</small></span></button>
-            : widgetIds.map((id, index) => {
+            : widgetLayout.map((id, slot) => {
+              if (!id) return null;
               const presentation = snapshot ? buildHomeWidgetPresentation(id, snapshot, locale, trends) : null;
               const Icon = homeWidgetIcons[id];
               const label = homeWidgetLabels[id][locale];
               const target = homeWidgetTargets[id];
               return <button
-                className={["home-health-widget", `home-health-widget--${id}`, `home-health-widget--position-${index + 1}`, presentation ? `is-${presentation.state}` : "is-missing"].join(" ")}
+                className={["home-health-widget", `home-health-widget--${id}`, `home-health-widget--position-${slot + 1}`, presentation ? `is-${presentation.state}` : "is-missing", widgetDrag?.id === id ? "is-dragging" : ""].filter(Boolean).join(" ")}
                 type="button"
                 key={id}
                 data-home-widget={id}
-                onClick={() => onOpenRecord(target, snapshot ? healthModuleEntryView(moduleProgress[target]) : "editor")}
-                aria-label={`${label}${locale === "zh" ? "，" : ", "}${presentation?.core ?? "--"}${locale === "zh" ? "，" : ", "}${presentation?.support ?? (locale === "zh" ? "加载中" : "Loading")}`}
+                data-home-widget-position={slot + 1}
+                data-home-widget-dragging={widgetDrag?.id === id}
+                onPointerDown={(event) => beginWidgetPress(event, id, slot)}
+                onPointerMove={moveWidgetPress}
+                onPointerUp={(event) => finishWidgetPress(event)}
+                onPointerCancel={(event) => finishWidgetPress(event, true)}
+                onContextMenu={(event) => event.preventDefault()}
+                onKeyDown={(event) => handleWidgetKeyDown(event, id)}
+                onClick={(event) => {
+                  if (widgetArrangeMode || Date.now() < widgetIgnoreClickUntilRef.current) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return;
+                  }
+                  onOpenRecord(target, snapshot ? healthModuleEntryView(moduleProgress[target]) : "editor");
+                }}
+                aria-keyshortcuts="Shift+Enter"
+                aria-label={`${label}${locale === "zh" ? "，" : ", "}${presentation?.core ?? "--"}${locale === "zh" ? "，" : ", "}${presentation?.support ?? (locale === "zh" ? "加载中" : "Loading")}${widgetArrangeMode ? (locale === "zh" ? "，使用方向键移动" : ", use arrow keys to move") : (locale === "zh" ? "，长按可调整位置" : ", touch and hold to arrange")}`}
+                style={widgetDrag?.id === id ? { "--home-widget-drag-x": `${widgetDrag.deltaX}px`, "--home-widget-drag-y": `${widgetDrag.deltaY}px` } as CSSProperties : undefined}
               >
                 <span><Icon size={26} /><b>{label}</b></span>
                 <div className="home-widget-value"><strong>{presentation?.core ?? "--"}</strong><small>{presentation?.support ?? (locale === "zh" ? "加载中" : "Loading")}</small></div>
               </button>;
             })}
+        <span className="sr-only" id="home-widget-arrange-help">{locale === "zh" ? "长按组件进入编辑；拖动到六个高亮槽位之一并松手。键盘可按 Shift 加回车进入编辑，再用方向键移动。" : "Touch and hold a widget to edit, then drag it to one of six highlighted slots and release. With a keyboard, press Shift+Enter, then use the arrow keys."}</span>
+        <span className="sr-only" aria-live="polite">{widgetAnnouncement}</span>
       </section>
 
       {homeGuidance && guidanceEligible && !guidanceDismissed && (

@@ -4,7 +4,7 @@ import { supabase } from "./supabaseClient";
 export type UserAppPreferences = {
   locale: "zh" | "en";
   aiSpeechEnabled: boolean;
-  homeWidgetIds: string[];
+  homeWidgetIds: Array<string | null>;
 };
 
 type ActiveSessionType = "focus" | "sleep" | "exercise";
@@ -47,7 +47,7 @@ export async function loadUserAppPreferences(userId: string): Promise<UserAppPre
     locale: result.data.locale === "en" ? "en" : "zh",
     aiSpeechEnabled: result.data.ai_speech_enabled !== false,
     homeWidgetIds: Array.isArray(result.data.home_widget_ids)
-      ? result.data.home_widget_ids.filter((value): value is string => typeof value === "string")
+      ? result.data.home_widget_ids.map((value) => typeof value === "string" ? value : null)
       : [],
   };
 }

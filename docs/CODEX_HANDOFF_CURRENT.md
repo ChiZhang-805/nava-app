@@ -1566,3 +1566,25 @@ deployment ID 为 `appgdep_6a9f008b09a48191a9de6376946ab688`，状态 succeeded�
 切换 iPhone Air 与 iPhone 14、开关 1pt 网格均成功，公开普通入口和 `?demo=1` 均停留在
 真实登录门。本轮没有修改 Supabase、认证配置、secret、migration、Edge Function 或生产
 用户数据。
+
+## 43. 2026-09-08 首页六槽位长按拖拽
+
+首页四张核心健康卡现在可直接长按约 440ms 进入类似 iPhone 主屏编辑的抖动态。两行三列
+共 6 个固定槽位会同时显现；拖动卡片时卡片抬起、最近槽位高亮，松手可落入空位或与已有
+卡片交换。点右上角“完成”或按 Escape 退出，普通轻点仍进入原健康模块；键盘可用
+Shift+Enter 进入编辑并用方向键移动。`prefers-reduced-motion` 会停用抖动但保留全部功能。
+
+位置偏好继续复用 `user_app_preferences.home_widget_ids` 的 JSON 数组，不新增 migration：
+新版用 6 项数组中的 `null` 表示空槽，旧版紧凑数组会无损迁移；本地离线缓存和 Supabase
+排队同步仍走原有合同。独立“编辑首页”页继续承担增删组件和显式保存流程。
+
+实现参考 Apple 官方“长按后项目抖动、拖至同页其他位置、结束编辑”的主屏行为，以及
+Apple HIG 对拖放可访问替代方式的要求；同时复核 dnd-kit 的触摸 delay/tolerance、
+touch-action、最近目标和键盘坐标方案。由于这里只存在 6 个稳定槽位，最终使用现有 React
+Pointer Events 实现，没有为了小网格新增拖拽依赖。
+
+`npm run home-widgets:test` 当前 10 项通过；`npm run home-widgets:visual` 在 360×740、
+375×812、390×844、430×932 四档实跑普通点击、440ms 长按、6 槽位显示、空槽拖放、刷新
+持久化、Shift+Enter/方向键替代和编辑退出，证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-home-widget-drag-v121-20260908`。完整 interaction
+11 组也已通过，首页上滑圆盘、右侧快捷栏和底部导航未回退。发布锚点在双站完成后补录。

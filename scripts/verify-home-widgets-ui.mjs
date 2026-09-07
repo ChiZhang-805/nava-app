@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-figma-parity-v111-20260906";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-widget-drag-v121-20260908";
 const port = 5204;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -148,6 +148,57 @@ try {
     }
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-default.png`) });
 
+    await page.locator('[data-home-widget="sleep"]').click();
+    await expect.poll(() => new URL(page.url()).hash).toContain("tab=record");
+    await expect.poll(() => new URL(page.url()).hash).toContain("module=sleep");
+    await openRoute(page, "tab=today");
+
+    const draggableHeart = page.locator('[data-home-widget="heart"]');
+    const heartBox = await draggableHeart.boundingBox();
+    if (!heartBox) throw new Error(`${viewport.name}: heart widget has no long-press geometry`);
+    await page.mouse.move(heartBox.x + heartBox.width / 2, heartBox.y + heartBox.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(500);
+    await expect(page.locator(".home-widget-grid")).toHaveClass(/is-arranging/);
+    await expect(page.locator(".home-widget-edit-done")).toBeVisible();
+    await expect(page.locator(".home-widget-slot")).toHaveCount(6);
+    await page.waitForTimeout(260);
+    const slotGeometry = await page.locator(".home-widget-slot").evaluateAll((items) => items.map((item) => {
+      const box = item.getBoundingClientRect();
+      const style = getComputedStyle(item);
+      return { left: box.left, top: box.top, width: box.width, height: box.height, opacity: Number(style.opacity) };
+    }));
+    if (slotGeometry.some((slot) => slot.opacity < .99 || slot.width < 80 || slot.height < 100)) throw new Error(`${viewport.name}: six placement slots are not visible ${JSON.stringify(slotGeometry)}`);
+    const targetSlot = page.locator('[data-home-widget-slot="4"]');
+    const targetBox = await targetSlot.boundingBox();
+    if (!targetBox) throw new Error(`${viewport.name}: empty placement slot has no geometry`);
+    await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 10 });
+    await expect(targetSlot).toHaveClass(/is-target/);
+    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-dragging.png`) });
+    await page.mouse.up();
+    await expect(page.locator('[data-home-widget="heart"]')).toHaveAttribute("data-home-widget-position", "5");
+    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-arranged.png`) });
+    await page.locator(".home-widget-edit-done").click();
+    await expect(page.locator(".home-widget-grid")).not.toHaveClass(/is-arranging/);
+    await page.reload({ waitUntil: "networkidle" });
+    const reloadLaunch = page.locator(".launch-sequence");
+    if (await reloadLaunch.isVisible().catch(() => false)) await reloadLaunch.click();
+    await expect(page.locator('[data-home-widget="heart"]')).toHaveAttribute("data-home-widget-position", "5");
+    await page.locator('[data-home-widget="heart"]').focus();
+    await page.keyboard.press("Shift+Enter");
+    await expect(page.locator(".home-widget-grid")).toHaveClass(/is-arranging/);
+    await page.keyboard.press("ArrowRight");
+    await expect(page.locator('[data-home-widget="heart"]')).toHaveAttribute("data-home-widget-position", "6");
+    await page.keyboard.press("ArrowLeft");
+    await expect(page.locator('[data-home-widget="heart"]')).toHaveAttribute("data-home-widget-position", "5");
+    await page.keyboard.press("ArrowDown");
+    await expect(page.locator('[data-home-widget="heart"]')).toHaveAttribute("data-home-widget-position", "3");
+    await expect(page.locator('[data-home-widget="exercise"]')).toHaveAttribute("data-home-widget-position", "5");
+    await page.keyboard.press("ArrowUp");
+    await expect(page.locator('[data-home-widget="heart"]')).toHaveAttribute("data-home-widget-position", "5");
+    await expect(page.locator('[data-home-widget="exercise"]')).toHaveAttribute("data-home-widget-position", "3");
+    await page.locator(".home-widget-edit-done").click();
+
     const menuToggle = page.locator(".option-two-menu-toggle");
     if ((await menuToggle.getAttribute("aria-expanded")) !== "true") await menuToggle.click();
     await expect(menuToggle).toHaveAttribute("aria-expanded", "true");
@@ -159,6 +210,8 @@ try {
     const sideTops = await sideButtons.evaluateAll((items) => items.map((item) => item.getBoundingClientRect().top));
     if (sideTops.some((top, index) => index > 0 && top <= sideTops[index - 1])) throw new Error(`${viewport.name}: side actions are not visually ordered ${JSON.stringify(sideTops)}`);
     await sideButtons.nth(5).click();
+    await expect(page.locator(".notification-center")).toBeVisible();
+    await openRoute(page, "tab=today");
     await expect(menuToggle).toHaveAttribute("aria-expanded", "false");
     await expect(sideButtons.nth(1)).toBeHidden();
     await menuToggle.click();

@@ -1,8 +1,11 @@
 import type { TodaySnapshot, TrendBundle } from "../types";
 
 export const HOME_WIDGET_LIMIT = 6;
+export const HOME_WIDGET_SLOT_COUNT = 6;
 
 export type HomeWidgetId = "heart" | "sleep" | "exercise" | "steps" | "focus" | "mood" | "diet" | "face";
+export type HomeWidgetSlot = HomeWidgetId | null;
+export type HomeWidgetDirection = "left" | "right" | "up" | "down";
 
 export type HomeWidgetPresentation = {
   id: HomeWidgetId;
@@ -22,50 +25,129 @@ function isLegacyDefault(ids: HomeWidgetId[]) {
 
 const storageKey = (userId: string) => `nava.home-widgets.v1:${userId}`;
 
+// The visual grid is filled in the same order used by the Figma 1+3 layout:
+// first the upper-left card, then the lower row, followed by the two remaining
+// upper slots. Keeping this mapping explicit lets existing compact preference
+// arrays migrate without changing their visible layout.
+export const homeWidgetSlotGrid: ReadonlyArray<Readonly<{ row: number; column: number }>> = [
+  { row: 0, column: 0 },
+  { row: 1, column: 0 },
+  { row: 1, column: 1 },
+  { row: 1, column: 2 },
+  { row: 0, column: 1 },
+  { row: 0, column: 2 },
+];
+
 function validIds(value: unknown): HomeWidgetId[] | null {
   if (!Array.isArray(value)) return null;
   const ids = value.filter((item): item is HomeWidgetId => typeof item === "string" && homeWidgetIds.includes(item as HomeWidgetId));
   return [...new Set(ids)].slice(0, HOME_WIDGET_LIMIT);
 }
 
+export function normalizeHomeWidgetLayout(value: unknown): HomeWidgetSlot[] | null {
+  if (!Array.isArray(value)) return null;
+  const seen = new Set<HomeWidgetId>();
+  const layout = value.slice(0, HOME_WIDGET_SLOT_COUNT).map((item): HomeWidgetSlot => {
+    if (item === null) return null;
+    if (typeof item !== "string" || !homeWidgetIds.includes(item as HomeWidgetId)) return null;
+    const id = item as HomeWidgetId;
+    if (seen.has(id)) return null;
+    seen.add(id);
+    return id;
+  });
+  while (layout.length < HOME_WIDGET_SLOT_COUNT) layout.push(null);
+  return layout;
+}
+
+export function homeWidgetIdsFromLayout(layout: HomeWidgetSlot[]): HomeWidgetId[] {
+  return (normalizeHomeWidgetLayout(layout) ?? []).filter((id): id is HomeWidgetId => id !== null);
+}
+
+export function homeWidgetLayoutFromIds(ids: HomeWidgetId[]): HomeWidgetSlot[] {
+  return normalizeHomeWidgetLayout(validIds(ids) ?? []) ?? Array.from({ length: HOME_WIDGET_SLOT_COUNT }, () => null);
+}
+
 export function defaultHomeWidgetIds(): HomeWidgetId[] {
   return ["heart", "sleep", "exercise", "steps"];
 }
 
-export function loadHomeWidgetIds(userId: string): HomeWidgetId[] {
-  if (typeof window === "undefined") return defaultHomeWidgetIds();
+export function defaultHomeWidgetLayout(): HomeWidgetSlot[] {
+  return homeWidgetLayoutFromIds(defaultHomeWidgetIds());
+}
+
+export function loadHomeWidgetLayout(userId: string): HomeWidgetSlot[] {
+  if (typeof window === "undefined") return defaultHomeWidgetLayout();
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(storageKey(userId)) ?? "null") as { ids?: unknown } | null;
-    const ids = validIds(parsed?.ids);
-    if (ids) return isLegacyDefault(ids) ? defaultHomeWidgetIds() : ids;
+    const parsed = JSON.parse(window.localStorage.getItem(storageKey(userId)) ?? "null") as { ids?: unknown; layout?: unknown } | null;
+    const layout = normalizeHomeWidgetLayout(parsed?.layout ?? parsed?.ids);
+    if (layout) return parsed?.layout === undefined && isLegacyDefault(homeWidgetIdsFromLayout(layout)) ? defaultHomeWidgetLayout() : layout;
   } catch {
     // A malformed device preference must not affect the user's health data.
   }
-  return defaultHomeWidgetIds();
+  return defaultHomeWidgetLayout();
 }
 
-export async function hydrateHomeWidgetIds(userId: string): Promise<HomeWidgetId[]> {
+export function loadHomeWidgetIds(userId: string): HomeWidgetId[] {
+  return homeWidgetIdsFromLayout(loadHomeWidgetLayout(userId));
+}
+
+export async function hydrateHomeWidgetLayout(userId: string): Promise<HomeWidgetSlot[]> {
   const { loadUserAppPreferences, saveUserAppPreferences } = await import("./userCloudState.ts");
-  const local = loadHomeWidgetIds(userId);
+  const local = loadHomeWidgetLayout(userId);
   const preferences = await loadUserAppPreferences(userId);
-  const remote = validIds(preferences?.homeWidgetIds);
-  const resolved = remote && !isLegacyDefault(remote) ? remote : local;
+  const remote = normalizeHomeWidgetLayout(preferences?.homeWidgetIds);
+  const remoteIds = remote ? homeWidgetIdsFromLayout(remote) : null;
+  const remoteIsLegacyDefault = Array.isArray(preferences?.homeWidgetIds)
+    && preferences.homeWidgetIds.length === legacyDefaultHomeWidgetIds.length
+    && preferences.homeWidgetIds.every((id, index) => id === legacyDefaultHomeWidgetIds[index]);
+  const resolved = remote && remoteIds && !remoteIsLegacyDefault ? remote : local;
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(storageKey(userId), JSON.stringify({ version: 1, ids: resolved }));
+    window.localStorage.setItem(storageKey(userId), JSON.stringify({ version: 2, layout: resolved }));
   }
-  if (!remote || isLegacyDefault(remote)) await saveUserAppPreferences(userId, { homeWidgetIds: resolved });
+  if (!remote || remoteIsLegacyDefault) await saveUserAppPreferences(userId, { homeWidgetIds: resolved });
   return resolved;
 }
 
-export function saveHomeWidgetIds(userId: string, ids: HomeWidgetId[]) {
-  const normalized = validIds(ids) ?? [];
+export async function hydrateHomeWidgetIds(userId: string): Promise<HomeWidgetId[]> {
+  return homeWidgetIdsFromLayout(await hydrateHomeWidgetLayout(userId));
+}
+
+export function saveHomeWidgetLayout(userId: string, layout: HomeWidgetSlot[]) {
+  const normalized = normalizeHomeWidgetLayout(layout) ?? defaultHomeWidgetLayout();
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(storageKey(userId), JSON.stringify({ version: 1, ids: normalized }));
+    window.localStorage.setItem(storageKey(userId), JSON.stringify({ version: 2, layout: normalized }));
   }
   void import("./userCloudState.ts")
     .then(({ saveUserAppPreferences }) => saveUserAppPreferences(userId, { homeWidgetIds: normalized }))
     .catch((error) => console.warn("Home widget cloud sync deferred", error));
   return normalized;
+}
+
+export function saveHomeWidgetIds(userId: string, ids: HomeWidgetId[]) {
+  const normalized = validIds(ids) ?? [];
+  saveHomeWidgetLayout(userId, homeWidgetLayoutFromIds(normalized));
+  return normalized;
+}
+
+export function placeHomeWidgetInSlot(layout: HomeWidgetSlot[], source: HomeWidgetId, targetSlot: number): HomeWidgetSlot[] {
+  const next = normalizeHomeWidgetLayout(layout) ?? defaultHomeWidgetLayout();
+  const sourceSlot = next.indexOf(source);
+  if (sourceSlot < 0 || targetSlot < 0 || targetSlot >= HOME_WIDGET_SLOT_COUNT || sourceSlot === targetSlot) return next;
+  [next[sourceSlot], next[targetSlot]] = [next[targetSlot], next[sourceSlot]];
+  return next;
+}
+
+export function moveHomeWidgetByDirection(layout: HomeWidgetSlot[], source: HomeWidgetId, direction: HomeWidgetDirection): HomeWidgetSlot[] {
+  const normalized = normalizeHomeWidgetLayout(layout) ?? defaultHomeWidgetLayout();
+  const sourceSlot = normalized.indexOf(source);
+  if (sourceSlot < 0) return normalized;
+  const sourcePoint = homeWidgetSlotGrid[sourceSlot];
+  const delta = direction === "left" ? { row: 0, column: -1 }
+    : direction === "right" ? { row: 0, column: 1 }
+      : direction === "up" ? { row: -1, column: 0 }
+        : { row: 1, column: 0 };
+  const targetSlot = homeWidgetSlotGrid.findIndex((point) => point.row === sourcePoint.row + delta.row && point.column === sourcePoint.column + delta.column);
+  return targetSlot < 0 ? normalized : placeHomeWidgetInSlot(normalized, source, targetSlot);
 }
 
 export function moveHomeWidget(ids: HomeWidgetId[], source: HomeWidgetId, target: HomeWidgetId) {

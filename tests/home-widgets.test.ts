@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildHomeWidgetPresentation, defaultHomeWidgetIds, moveHomeWidget, shiftHomeWidget } from "../src/services/homeWidgets.ts";
+import {
+  buildHomeWidgetPresentation,
+  defaultHomeWidgetIds,
+  defaultHomeWidgetLayout,
+  homeWidgetIdsFromLayout,
+  moveHomeWidget,
+  moveHomeWidgetByDirection,
+  normalizeHomeWidgetLayout,
+  placeHomeWidgetInSlot,
+  shiftHomeWidget,
+} from "../src/services/homeWidgets.ts";
 import type { TodaySnapshot, TrendBundle } from "../src/types.ts";
 
 const snapshot: TodaySnapshot = {
@@ -24,6 +34,26 @@ test("the default home follows the four-card Figma metric order", () => {
 test("widget order supports direct drag moves and accessible single-step moves", () => {
   assert.deepEqual(moveHomeWidget(["sleep", "focus", "mood"], "sleep", "mood"), ["focus", "mood", "sleep"]);
   assert.deepEqual(shiftHomeWidget(["sleep", "focus", "mood"], "focus", -1), ["focus", "sleep", "mood"]);
+});
+
+test("the home exposes six persistent slots while keeping the four-card reference layout", () => {
+  assert.deepEqual(defaultHomeWidgetLayout(), ["heart", "sleep", "exercise", "steps", null, null]);
+  assert.deepEqual(normalizeHomeWidgetLayout(["heart", null, "sleep", "sleep", "bogus"]), ["heart", null, "sleep", null, null, null]);
+  assert.deepEqual(homeWidgetIdsFromLayout(["heart", null, "sleep", null, null, null]), ["heart", "sleep"]);
+});
+
+test("placing a widget uses empty slots and swaps occupied slots without losing data", () => {
+  const initial = defaultHomeWidgetLayout();
+  assert.deepEqual(placeHomeWidgetInSlot(initial, "heart", 4), [null, "sleep", "exercise", "steps", "heart", null]);
+  assert.deepEqual(placeHomeWidgetInSlot(initial, "heart", 2), ["exercise", "sleep", "heart", "steps", null, null]);
+  assert.deepEqual(homeWidgetIdsFromLayout(placeHomeWidgetInSlot(initial, "heart", 2)).sort(), defaultHomeWidgetIds().sort());
+});
+
+test("keyboard movement follows the visual two-by-three slot grid", () => {
+  const initial = defaultHomeWidgetLayout();
+  assert.deepEqual(moveHomeWidgetByDirection(initial, "heart", "right"), [null, "sleep", "exercise", "steps", "heart", null]);
+  assert.deepEqual(moveHomeWidgetByDirection(initial, "sleep", "up"), ["sleep", "heart", "exercise", "steps", null, null]);
+  assert.deepEqual(moveHomeWidgetByDirection(initial, "heart", "up"), initial);
 });
 
 test("widget presentation exposes only a core result and one real-data support line", () => {
