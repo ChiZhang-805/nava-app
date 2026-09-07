@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`af24ec36d276d8b3fe6b2a5fb940beae3870878f`
+- 源码发布 commit：`f79a9aa7a7b5f2c8e38d98e3f93d78c91cf4f388`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v110，public
+- ChatGPT Sites 版本：v114，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_2c90b4490a8c819193b2adeaad3d3547`
-- Sites deployment ID：`appgdep_6a9d86942094819199b735d1dd603bbe`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_678073216a788191b1f88e3eae4413d8`
+- Sites deployment ID：`appgdep_6a9e467f19b081918764d16296480567`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `2c8f4017e4740818b8cd8dd9bc31219479f21648`
+  `f327a34157cacedb685a19df4d6af75b0a06d11e`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v110 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v110.tar.gz`
+- v114 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v114.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v110 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v114 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -1351,3 +1351,27 @@ Android `gradlew` 也已尝试，当前唯一启动前阻塞是系统没有 Java
 `202609070005`，并部署更新后的 `export-user-data` 与新 `push-dispatch`；只读 readiness
 探测恢复全部 READY，数据库 lint 无错误。内部调度 secret、provider secret 与真机推送送达
 仍是独立外部验收项。
+
+## 36. 2026-09-07 后端升级、双站 v114 与线上复核
+
+在用户明确授权生产后端与双站发布后，canonical Supabase 已应用 append-only migration
+`202609070004_exercise_recovery_loop` 与 `202609070005_remote_push_devices`，本地/远端
+26 项历史完全对齐。`export-user-data` production v24（JWT）与 `push-dispatch`
+production v1（内部调度鉴权）均为 ACTIVE；`npm run supabase:verify-shared` 的 Auth、核心表、
+APP 扩展表、函数和 Storage 全部 READY，`supabase db lint --linked --level warning` 无错误。
+已存在的 secret 名称复核确认没有 `NAVA_PUSH_DISPATCH_SECRET` 或 APNs/FCM/HMS provider
+凭据，因此远程推送只完成了 production 结构和函数部署，仍不能宣称真机已经收到。
+
+发布源码 commit 为 `f79a9aa7a7b5f2c8e38d98e3f93d78c91cf4f388`。该提交先推送到
+GitHub 与 Sites 源码仓库，再从同一干净状态构建两个产物。ChatGPT Sites v114 version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_678073216a788191b1f88e3eae4413d8`，
+deployment ID 为 `appgdep_6a9e467f19b081918764d16296480567`，状态 succeeded；GitHub Pages
+镜像 commit 为 `f327a34157cacedb685a19df4d6af75b0a06d11e`，`source.json` 指向相同
+source commit 与 Sites v114。
+
+线上两站均返回 HTTP 200，并实际加载 v114 的 `index-BszBi6go.js`；真实浏览器复核登录、
+注册、找回方式、验证码登录、返回登录和中英文切换，双站均无 console warning/error，且
+`?demo=1` 保持真实登录门。登录后的私有页面没有借用或伪造生产账号；同一发布提交另行通过
+完整 `npm run verify` 30 阶段和 `npm run interaction:test` 11 组，精确覆盖首页六模块圆盘、
+底部五导航、十一个成长入口、六个周报入口和其余业务交互。四档 35 状态共 140 张视觉证据
+继续位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-release-gate-20260907`。
