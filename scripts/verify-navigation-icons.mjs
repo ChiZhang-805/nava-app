@@ -136,12 +136,13 @@ try {
       const rect = disc.getBoundingClientRect();
       return home ? { topRatio: (rect.top - home.top) / home.height, widthRatio: rect.width / home.width } : null;
     });
-    if (!discGeometry || discGeometry.topRatio < 0.707 || discGeometry.topRatio > 0.713 || discGeometry.widthRatio < 1.19 || discGeometry.widthRatio > 1.21) {
+    if (!discGeometry || discGeometry.topRatio < 0.687 || discGeometry.topRatio > 0.693 || discGeometry.widthRatio < 0.975 || discGeometry.widthRatio > 0.985) {
       throw new Error(`${viewport.label}: health disc geometry drifted ${JSON.stringify(discGeometry)}`);
     }
     const discCenterRatio = discGeometry.topRatio + ((discGeometry.widthRatio * homeBounds.width) / 2 / homeBounds.height);
-    if (discCenterRatio < 0.985 || discCenterRatio > 1.01) {
-      throw new Error(`${viewport.label}: health disc must emerge from a circle centered at the lower edge ${discCenterRatio.toFixed(3)}`);
+    const expectedDiscCenterRatio = 0.69 + ((0.98 * homeBounds.width) / 2 / homeBounds.height);
+    if (Math.abs(discCenterRatio - expectedDiscCenterRatio) > 0.004) {
+      throw new Error(`${viewport.label}: health disc centre drifted ${discCenterRatio.toFixed(3)}`);
     }
 
     const dockGeometry = await page.locator(".bottom-nav .nav-button").evaluateAll((buttons) => buttons.map((button) => {

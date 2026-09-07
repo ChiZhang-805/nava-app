@@ -880,7 +880,7 @@ body::before {
 /* Scheme two follows the selected high-fidelity canvas after authentication. */
 .phone-frame--option2 {
   --home-dock-center-bottom: max(clamp(58px, 6.65cqh, 62px), calc(env(safe-area-inset-bottom) + 50px));
-  --home-dock-half-height: 38px;
+  --home-dock-half-height: 35px;
   background:
     radial-gradient(circle at 76% 16%, rgba(255, 255, 255, 0.7), transparent 30%),
     linear-gradient(165deg, rgba(225, 248, 255, 0.52) 0%, rgba(107, 204, 239, 0.32) 52%, rgba(30, 157, 210, 0.28) 100%),
@@ -958,13 +958,13 @@ body::before {
   transition: opacity 360ms ease;
 }
 
-/* The expanded fan is a 1.2x-width circle whose centre sits on the lower
-   screen edge. Only its upper segment rises from behind the persistent dock. */
+/* The expanded fan is a near-screen-width circle whose lower centre settles
+   behind the persistent dock, so its upper segment appears to grow from it. */
 .option-two-health-disc {
   position: absolute;
-  top: 71%;
+  top: 69%;
   left: 50%;
-  width: 126%;
+  width: 98%;
   aspect-ratio: 1;
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 50%;
@@ -11865,10 +11865,11 @@ body::before {
 .option-two-life-stage {
   top: auto;
   left: calc(50% + clamp(52px, 16cqw, 69px));
-  bottom: max(38px, calc(env(safe-area-inset-bottom) + 30px));
+  bottom: max(44px, calc(env(safe-area-inset-bottom) + 36px));
   width: min(93vw, 400px);
   height: auto;
   aspect-ratio: 1;
+  transition: bottom 560ms cubic-bezier(0.18, 0.86, 0.2, 1);
 }
 .option-two-aura { inset: 9% 5% 2%; opacity: .68; }
 .option-two-life-stage .nava-mascot {
@@ -11895,6 +11896,9 @@ body::before {
 }
 .nava-mascot:not(.nava-mascot--idle) > .nava-mascot-pose--idle { animation: figma-home-cat-response 900ms ease-in-out infinite alternate; }
 .option-two-home.is-health-menu-open .option-two-life-stage .nava-mascot { opacity: 1; transform: none; }
+.option-two-home.is-health-menu-open .option-two-life-stage {
+  bottom: max(76px, calc(env(safe-area-inset-bottom) + 68px));
+}
 .option-two-home.is-health-menu-open .option-two-life-stage .nava-mascot > .nava-mascot-pose--idle {
   inset: 0;
   left: 0;
@@ -11920,33 +11924,33 @@ body::before {
   right: 18px;
   bottom: calc(var(--home-dock-center-bottom) - var(--home-dock-half-height));
   left: 18px;
-  height: 76px;
-  border: 1px solid rgba(255, 255, 255, .72);
+  height: 70px;
+  border: 1px solid rgba(255, 255, 255, .68);
   border-radius: 34px;
-  background: rgba(222, 239, 245, .67);
-  box-shadow: 0 8px 22px rgba(31, 78, 100, .2), inset 0 1px 0 rgba(255, 255, 255, .78);
+  background: rgba(210, 231, 240, .7);
+  box-shadow: 0 8px 22px rgba(31, 78, 100, .18), inset 0 1px 0 rgba(255, 255, 255, .72);
   backdrop-filter: blur(22px) saturate(1.05);
 }
 .phone-frame--option2 .nav-button {
-  --nav-size: clamp(44px, 11.2cqw, 49px);
-  --nav-glyph-size: clamp(22px, 5.7cqw, 25px);
-  bottom: calc(var(--home-dock-center-bottom) - clamp(22px, 5.6cqw, 24.5px));
-  border-color: rgba(255, 255, 255, .9);
+  --nav-size: clamp(44px, 11.3cqw, 49px);
+  --nav-glyph-size: clamp(22px, 5.55cqw, 24px);
+  bottom: calc(var(--home-dock-center-bottom) - clamp(22px, 5.65cqw, 24.5px));
+  border-color: rgba(255, 255, 255, .76);
   color: #183b61;
-  background: rgba(249, 252, 253, .84);
-  box-shadow: 0 5px 12px rgba(31, 67, 88, .19), inset 0 1px 0 rgba(255, 255, 255, .95);
+  background: rgba(214, 233, 242, .78);
+  box-shadow: 0 5px 12px rgba(31, 67, 88, .17), inset 0 1px 0 rgba(255, 255, 255, .82);
 }
 .phone-frame--option2 .nav-button[data-tab="today"] { --nav-x: 14%; }
 .phone-frame--option2 .nav-button[data-tab="record"] { --nav-x: 28.5%; }
 .phone-frame--option2 .nav-button[data-tab="trends"] { --nav-x: 71.5%; }
 .phone-frame--option2 .nav-button[data-tab="profile"] { --nav-x: 86.5%; }
-.phone-frame--option2 .nav-button.selected { color: #183b61; background: rgba(255, 255, 255, .94); transform: translateX(-50%); }
+.phone-frame--option2 .nav-button.selected { color: #183b61; background: rgba(255, 255, 255, .93); transform: translateX(-50%); }
 .phone-frame--option2 .nav-button.selected::after { inset: -3px; border-color: rgba(255,255,255,.8); }
 .phone-frame--option2 .ai-nav-button,
 .phone-frame--option2 .ai-nav-button.selected {
-  bottom: calc(var(--home-dock-center-bottom) - clamp(42px, 10.93cqw, 47px));
-  width: clamp(84px, 21.86cqw, 94px);
-  height: clamp(84px, 21.86cqw, 94px);
+  bottom: calc(var(--home-dock-center-bottom) - clamp(43px, 11.6cqw, 50px));
+  width: clamp(86px, 23.2cqw, 100px);
+  height: clamp(86px, 23.2cqw, 100px);
   border: 0;
   background: transparent;
 }
@@ -11963,11 +11967,14 @@ body::before {
 }
 .phone-frame--option2 .ai-nav-glow { display: none; }
 .figma-nav-ai-chat { position: relative; z-index: 1; width: 42%; height: 42%; object-fit: contain; filter: brightness(0) invert(1); }
-.phone-frame--option2 .ai-nav-orb .figma-nav-ai-chat { width: 44%; height: 44%; }
-.phone-frame--option2 .figma-nav-icon--today { width: 60%; height: 60%; }
-.phone-frame--option2 .figma-nav-icon--record { width: 60%; height: 60%; }
-.phone-frame--option2 .figma-nav-icon--trends { width: 65%; height: 65%; }
-.phone-frame--option2 .figma-nav-icon--profile { width: 64%; height: 64%; }
+.phone-frame--option2 .ai-nav-orb .figma-nav-ai-chat { width: 47%; height: 47%; }
+.phone-frame--option2 .figma-nav-icon {
+  filter: brightness(0) saturate(100%) invert(25%) sepia(26%) saturate(1182%) hue-rotate(169deg) brightness(84%) contrast(91%);
+}
+.phone-frame--option2 .figma-nav-icon--today { width: 58%; height: 58%; }
+.phone-frame--option2 .figma-nav-icon--record { width: 68%; height: 68%; }
+.phone-frame--option2 .figma-nav-icon--trends { width: 73%; height: 73%; }
+.phone-frame--option2 .figma-nav-icon--profile { width: 68%; height: 68%; }
 .phone-frame:not(.phone-frame--option2) .ai-nav-orb .figma-nav-ai-chat {
   width: 44%;
   height: 44%;
@@ -11975,27 +11982,27 @@ body::before {
 }
 
 .option-two-health-disc {
-  top: 71%;
-  width: 120%;
-  background: radial-gradient(circle at 50% 2%, rgba(255, 255, 255, .82), rgba(223, 238, 245, .78) 48%, rgba(197, 222, 232, .8) 100%);
-  box-shadow: 0 -8px 24px rgba(38, 81, 101, .17), inset 0 1px 0 rgba(255, 255, 255, .88);
-  backdrop-filter: blur(20px) saturate(.9);
+  top: 69%;
+  width: 98%;
+  background: radial-gradient(circle at 50% 4%, rgba(255, 255, 255, .7), rgba(225, 240, 247, .61) 49%, rgba(190, 220, 233, .66) 100%);
+  box-shadow: 0 -7px 20px rgba(38, 81, 101, .15), inset 0 1px 0 rgba(255, 255, 255, .9);
+  backdrop-filter: blur(11px) saturate(.92);
 }
 .option-two-health-entry {
-  --entry-size: clamp(46px, 12.1cqw, 52px);
-  --entry-glyph-size: clamp(24px, 6.45cqw, 28px);
+  --entry-size: clamp(46px, 13cqw, 56px);
+  --entry-glyph-size: clamp(24px, 6.7cqw, 29px);
   border-color: rgba(255,255,255,.82);
   background: linear-gradient(145deg, #5598cd, #3476b4);
-  box-shadow: 0 6px 13px rgba(24, 73, 110, .28), inset 0 1px 0 rgba(255, 255, 255, .26);
+  box-shadow: 0 8px 16px rgba(24, 73, 110, .3), inset 0 1px 0 rgba(255, 255, 255, .28);
 }
 .option-two-health-entry .module-progress-ring { display: none; }
 .option-two-health-icon { color: #fff; filter: brightness(0) invert(1) drop-shadow(0 1px 0 rgba(255,255,255,.25)); }
-.option-two-health-entry--exercise { --entry-x: 16.75%; --entry-bottom: 11.2cqh; }
-.option-two-health-entry--diet { --entry-x: 27.2%; --entry-bottom: 16.95cqh; }
-.option-two-health-entry--sleep { --entry-x: 42.1%; --entry-bottom: 20.2cqh; }
-.option-two-health-entry--face { --entry-x: 57.2%; --entry-bottom: 20.2cqh; }
-.option-two-health-entry--focus { --entry-x: 72.3%; --entry-bottom: 16.95cqh; }
-.option-two-health-entry--mood { --entry-x: 82.3%; --entry-bottom: 11.2cqh; }
+.option-two-health-entry--exercise { --entry-x: 16.7%; --entry-bottom: 12.1cqh; }
+.option-two-health-entry--diet { --entry-x: 27.1%; --entry-bottom: 18.2cqh; }
+.option-two-health-entry--sleep { --entry-x: 42.2%; --entry-bottom: 22cqh; }
+.option-two-health-entry--face { --entry-x: 57.8%; --entry-bottom: 22cqh; }
+.option-two-health-entry--focus { --entry-x: 72.9%; --entry-bottom: 18.2cqh; }
+.option-two-health-entry--mood { --entry-x: 83.3%; --entry-bottom: 12.1cqh; }
 
 @media (max-width: 370px), (max-height: 760px) {
   .phone-frame--option2 { --home-dock-half-height: 34px; }
@@ -12022,7 +12029,8 @@ body::before {
   .home-widget-value > small { font-size: 8px; }
   .option-two-guidance { bottom: clamp(255px, 34.5cqh, 290px); left: 16px; width: 168px; min-height: 82px; padding: 12px 15px; }
   .option-two-guidance > p { font-size: 10.5px; }
-  .option-two-life-stage { bottom: 28px; width: min(93vw, 365px); }
+  .option-two-life-stage { bottom: 34px; width: min(93vw, 365px); }
+  .option-two-home.is-health-menu-open .option-two-life-stage { bottom: 66px; }
   .phone-frame--option2 .bottom-nav::before { right: 14px; left: 14px; height: 68px; }
 }
 
