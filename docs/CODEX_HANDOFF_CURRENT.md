@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`4889f699dcae24ac0cef05379915ac26a300e3b7`
+- 源码发布 commit：`59520bc9ecff1f5d0da4f55cf03d7420ef715e1f`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v116，public
+- ChatGPT Sites 版本：v117，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_817bcfe771b48191a77dd573ae83cd67`
-- Sites deployment ID：`appgdep_6a9eb7cc804c819182f3d654c7a4d45f`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_cf44eab448d88191ac47a3aa9a9fdff4`
+- Sites deployment ID：`appgdep_6a9ec7377cb0819199afbcd4606eeeae`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `7681cd99ccae24f0048935f6fe04e3e617decd98`
+  `5fe594704c5237f6d790250fb52d8f0eebb839c5`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v116 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v116.tar.gz`
+- v117 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v117.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v116 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v117 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -1425,3 +1425,35 @@ deployment ID 为 `appgdep_6a9eb7cc804c819182f3d654c7a4d45f`，状态 succeeded�
 源码 commit 与 Sites v116。两个公开 URL 均返回 HTTP 200，线上产物均包含新版圆盘
 `width: 98%` 与 `top: 69%` 样式；canonical Supabase、生产 secrets、migration 和
 Edge Function 均未在本轮修改。
+
+## 39. 2026-09-07 桌面设备居中、安全顶栏与单一展开圆盘 v117
+
+本轮把桌面浏览器预览壳改为真正按视口双向居中：1365×1000 时手机上下空隙均为
+34px；1365×768 的缩放预览上下空隙均约为 26px。桌面 iPhone 壳内新增明确的系统安全
+顶栏轨道，动态岛底缘与业务页头之间保留 16px；资料页标题、返回按钮和右侧动作控件的
+圆心均为 137px。原生/窄屏路径继续使用 `safe-area-inset-top`，没有把桌面模拟状态栏写入
+最终 APP 内容。
+
+月历、当日综合报告和首页组件编辑页移除了页面标题上方的小字，只保留“我的月历”、
+“当日综合报告”和“选择小组件/调整首页顺序”单行标题。自动化在 360×740、375×812、
+390×844、430×932 四个规定视口逐页断言标题、左侧返回和右侧动作处于同一水平中线，且
+不存在横向溢出。相同标题结构已完成源码扫描；卡片内部用于解释字段或数据的辅助小字不
+属于页面标题，继续保留。
+
+首页展开态的底栏胶囊背景现在完全退场，圆盘自身成为六个模块按钮和五个底部导航共用的
+唯一玻璃表面；收起态仍只显示低矮圆角胶囊。圆盘、猫咪、六个真实模块图标和五个导航
+圆心的既有几何保持不变。回归测试会分别断言收起胶囊可见、展开胶囊透明且无阴影，避免
+再次出现圆盘和底栏分离的接缝。
+
+本地 `npm run verify` 30 阶段、`npm run interaction:test` 11 组与
+`npm run auth:verify:production` 均通过；设备安全区证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-device-safe-area-v117-20260907`，首页圆盘证据
+位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-home-wheel-v124-20260907`。功能源码
+commit `59520bc9ecff1f5d0da4f55cf03d7420ef715e1f` 已发布为 ChatGPT Sites v117 与
+GitHub Pages v117。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_cf44eab448d88191ac47a3aa9a9fdff4`，
+deployment ID 为 `appgdep_6a9ec7377cb0819199afbcd4606eeeae`，状态 succeeded；Pages 镜像
+commit 为 `5fe594704c5237f6d790250fb52d8f0eebb839c5`。两个公开 URL 均返回 HTTP 200，
+均加载 `index-D4JiTcga.js`；线上 CSS 包含居中、安全顶栏和展开态单一表面的新版规则，
+两个站点的真实浏览器均无 warning/error，公开 `?demo=1` 继续停留在真实登录门。本轮没有
+修改 Supabase、认证配置、短信/模型 secret、migration、Edge Function 或生产用户数据。
