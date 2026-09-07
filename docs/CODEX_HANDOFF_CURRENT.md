@@ -1,6 +1,6 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
-更新时间：**2026-09-07**
+更新时间：**2026-09-08**
 
 这份文件是新 Codex 任务接手 NAVA 时的第一入口，也是当前项目状态的
 **独立、可直接使用的交接文档**。它不依赖这段很长、曾多次出现界面回退的
@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`59520bc9ecff1f5d0da4f55cf03d7420ef715e1f`
+- 源码发布 commit：`4c7f80397c0e548667f2ab32c6ae550ab7d5b2b5`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v117，public
+- ChatGPT Sites 版本：v120，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_cf44eab448d88191ac47a3aa9a9fdff4`
-- Sites deployment ID：`appgdep_6a9ec7377cb0819199afbcd4606eeeae`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_ac422c46890c8191bbdb71b04e023b5f`
+- Sites deployment ID：`appgdep_6a9f008b09a48191a9de6376946ab688`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `5fe594704c5237f6d790250fb52d8f0eebb839c5`
+  `59bc44ff7f16b7d7bfd834d7e485d9294c5af9fc`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v117 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v117.tar.gz`
+- v120 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v120.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v117 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v120 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -1531,3 +1531,38 @@ deployment ID 为 `appgdep_6a9ee712fecc8191b04b16f095f17452`，状态 succeeded�
 源码 commit 与 Sites v119。两个公开 URL 均返回 HTTP 200，并实际加载同一组
 `index-BpM-kRqH.js`、`App-CRNNL-qr.js` 与 `index-CQ3FbzUu.css`；在线内容探测确认新版
 安全页头样式、快捷栏收起文案和消息通知入口均已生效，公开 demo 绕过继续关闭。
+
+## 42. 2026-09-08 Apple 官方几何校准与双站 v120
+
+本轮不再按宽度区间猜测设备顶栏，而是逐款核对 Apple Support 技术规格中的物理像素与
+逻辑点画布，并从 Apple Design Resources 的 iPhone 14、15、16、17 Product Bezels
+读取屏幕开孔和状态栏几何。Apple iOS 27 UI Kit 的 402×62 状态栏母版用于复核 17pt
+SF Pro Semibold 时间、Cellular、Wi-Fi 与 28×13pt 电池的内部关系；iPhone 16e、17e
+开孔使用 Apple Dimensional Drawings 中 64.58×139.77mm 有效显示区与
+26.79×5.58mm 开孔比例映射到 390×844pt 画布。由官方素材量测或按官方工程图换算的值
+在选择器中明确标记为“实测校准”，没有冒充 Apple 单独发布的 API 常量。
+
+18 款预览现在各自保存开孔 x/y/宽/高、状态栏中轴、时间 x、蜂窝/Wi-Fi/电池 x 与宽度、
+安全顶距、圆角和 Home Indicator。此前所有刘海机型共用 210pt 的错误已修正：
+iPhone 14/14 Plus 为 171.333pt，iPhone 16e/17e 为按工程图换算的 161.785pt；
+iPhone 17/17 Pro 的灵动岛顶距为 14.333pt，17 Pro Max 为 14.667pt，iPhone Air 为
+20.333pt，因而不再把 Air 的岛和状态栏错误上提。右上角开发选择器显示上述精确值，并
+新增可开关、可持久化的 1pt 校准网格（每 10pt 加粗）。网格和模拟机身只在桌面开发预览
+出现，900px 以下的移动/PWA 路径仍只使用系统 safe area。
+
+`npm run device-preview:visual` 对 18 款目录以 0.1pt 容差断言机身居中、开孔、时间、三项
+状态图标及 Home Indicator，并复核 9 档移动视口、资料页、通知页、月历、日报和首页组件；
+证据位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v120-20260908`。
+完整 `npm run verify` 31 阶段、`npm run interaction:test` 11 组、`npm run icons:test`、
+`npm run notification:visual` 与发布前后 `npm run auth:verify:production` 全部通过。通知页
+四档证据仍位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v119-20260908`。
+
+功能源码 commit `4c7f80397c0e548667f2ab32c6ae550ab7d5b2b5` 已从同一干净且已 push
+状态发布为 ChatGPT Sites v120 与 GitHub Pages v120。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_ac422c46890c8191bbdb71b04e023b5f`，
+deployment ID 为 `appgdep_6a9f008b09a48191a9de6376946ab688`，状态 succeeded；Pages
+镜像 commit 为 `59bc44ff7f16b7d7bfd834d7e485d9294c5af9fc`，在线 `source.json` 指向相同
+源码提交与 Sites v120。两站均返回 HTTP 200 并加载 `index-CqqEE0Hf.js`；线上浏览器实际
+切换 iPhone Air 与 iPhone 14、开关 1pt 网格均成功，公开普通入口和 `?demo=1` 均停留在
+真实登录门。本轮没有修改 Supabase、认证配置、secret、migration、Edge Function 或生产
+用户数据。
