@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`40a8025c3078085753c3a59f317cc7197f5e674a`
+- 源码发布 commit：`3a538efa0be0f41dc39c9f5ac34cef7c5c710e42`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v125，public
+- ChatGPT Sites 版本：v126，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_b13d3f149d508191994e8d8d775b2b94`
-- Sites deployment ID：`appgdep_6a9fdefc0cb481918a6ce338ed306ba5`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_1899367ec3b88191bd91a927bd66a41c`
+- Sites deployment ID：`appgdep_6a9ffd43c4308191a37d8ee7ee554b76`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `4611641a2d72e34f1a3d57c1f769545d2f88c648`
+  `be0356800dfacf113aa319beb288ccb83dc5ed60`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v125 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v125-40a8025.tar.gz`
+- v126 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v126-3a538ef.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v125 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v126 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -1793,3 +1793,18 @@ v125 并指向同一源码和 Sites 版本。两站均返回 HTTP 200；Sites �
 自动门禁会量取通知内容中轴、圆环可见度/进度 offset、完成对勾终态、中文奖励主词中轴
 （误差不超过 0.75px）、“积分”和 `+N` 字号一致性，以及规格卡最后一行的 12–18px
 底部余量。
+
+功能源码 commit `3a538efa0be0f41dc39c9f5ac34cef7c5c710e42` 已从同一干净、已 push
+状态发布为 ChatGPT Sites v126 与 GitHub Pages v126。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_1899367ec3b88191bd91a927bd66a41c`，
+deployment ID 为 `appgdep_6a9ffd43c4308191a37d8ee7ee554b76`，状态 succeeded；Pages
+镜像 commit 为 `be0356800dfacf113aa319beb288ccb83dc5ed60`。两站和 Pages `source.json`
+均返回 HTTP 200；Sites 在线入口 `index-VR44-nwZ.js` 与保存包内文件 SHA-256 同为
+`d316aa2a5f6fbc5a5750178bbc465db304c9302a35106d33fd10badaa96468fd`，Pages 在线入口
+`index-BX1F6lh3.js` 与本地构建 SHA-256 同为
+`a6ec12c8737ebc7d5cfe08c1ca7796b0b7cc4086568fb4b0b2de75945a698463`，在线 CSS
+`index-DPDtGXnW.css` 与本地构建 SHA-256 同为
+`4ce516d0cbfbd1256e9be3ec6e4cf2097fba40974da95ff0374c7575f03f57cd`。发布后
+`npm run auth:verify:production` 通过：两站仍指向 canonical Supabase
+`wxteapvwagvhhtrjrbim`，公开 `?demo=1` 绕过保持关闭。本轮未修改或部署 migration、
+Edge Function、secret 或生产用户数据。
