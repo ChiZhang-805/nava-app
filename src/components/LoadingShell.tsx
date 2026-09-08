@@ -5,7 +5,7 @@ export default function LoadingShell() {
   const variant = currentSkeletonVariant();
   const query = new URLSearchParams(window.location.hash.replace(/^#\??/, ""));
   const isTodayTab = (query.get("tab") ?? "today") === "today";
-  const contentModifier = isTodayTab ? "today" : variant === "ai" ? "chat" : variant === "growth" ? "trends" : variant === "records" || variant === "record-detail" ? "record" : variant;
+  const contentModifier = isTodayTab ? "today" : variant === "ai" ? "chat" : variant === "growth" ? "trends" : variant === "records" || variant.startsWith("record-detail-") ? "record" : variant;
   const nestedTodayView = isTodayTab && variant !== "today";
   const profileDetailsSubpage = nestedTodayView && variant === "advanced-profile";
   return (

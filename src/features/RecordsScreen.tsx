@@ -1579,7 +1579,7 @@ export default function RecordsScreen({
       )}
 
       {!showEditor && dashboardModules.has(activeModule) && (
-        <Suspense fallback={<PageSkeleton variant="record-detail" />}>
+        <Suspense fallback={<PageSkeleton variant={recordSkeletonVariant(activeModule, false)} />}>
           <RecordModuleDashboard
           userId={user.id}
           module={activeModule}

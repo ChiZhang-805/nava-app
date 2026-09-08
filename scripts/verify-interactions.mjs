@@ -1542,7 +1542,7 @@ async function verifyPageSkeletons(browser, baseUrl, results, consoleErrors) {
   const routes = [
     ["today", "#tab=today"],
     ["records", "#tab=record"],
-    ["record-detail", "#tab=record&module=sleep"],
+    ...["mood", "sleep", "exercise", "diet", "focus", "face"].map((module) => [`record-detail-${module}`, `#tab=record&module=${module}`]),
     ["record-editor-mood", "#tab=record&module=mood&view=editor"],
     ["record-editor-sleep", "#tab=record&module=sleep&view=editor"],
     ["record-editor-exercise", "#tab=record&module=exercise&view=editor"],
@@ -1565,9 +1565,10 @@ async function verifyPageSkeletons(browser, baseUrl, results, consoleErrors) {
     await expect(page.locator(".centered-screen")).toHaveCount(0);
     const geometry = await skeleton.evaluate((node) => {
       const firstBlock = node.querySelector(".nava-skeleton-block");
+      const frame = node.closest(".phone-frame") ?? node;
       return {
         blocks: node.querySelectorAll(".nava-skeleton-block").length,
-        overflow: node.scrollWidth - node.clientWidth,
+        overflow: frame.scrollWidth - frame.clientWidth,
         animation: firstBlock ? getComputedStyle(firstBlock, "::after").animationName : "none",
       };
     });
@@ -1581,7 +1582,7 @@ async function verifyPageSkeletons(browser, baseUrl, results, consoleErrors) {
     }
   }
   await context.close();
-  results.push("登录、九类应用页面与六个记录表单的目标态加载骨架、扫光动画及无横向溢出");
+  results.push("登录、首页、六类记录详情、六个记录表单及其他主要应用页面的目标态加载骨架、扫光动画及无横向溢出");
 }
 
 async function verifyModuleCompletionRouting(browser, baseUrl, results, consoleErrors) {

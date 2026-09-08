@@ -2327,6 +2327,26 @@ body::before {
   margin-bottom: 9px;
 }
 
+.profile-privacy-card {
+  padding-block: 10px;
+}
+
+.profile-privacy-card .section-heading {
+  min-height: 30px;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.profile-privacy-card .privacy-list {
+  gap: 7px;
+}
+
+.profile-privacy-card .privacy-list div {
+  min-height: 20px;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
 .profile-measure-input {
   position: relative;
   min-width: 0;

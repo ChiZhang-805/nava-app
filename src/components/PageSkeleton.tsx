@@ -1,11 +1,18 @@
 import type { CSSProperties } from "react";
 import { useLocale } from "../i18n";
+import homeMascot from "../assets/figma/home-option2/home-mascot-v5.png";
+import homeSceneBackground from "../assets/figma/home-option2/home-scene-v3.png";
 
 export type PageSkeletonVariant =
   | "auth"
   | "today"
   | "records"
-  | "record-detail"
+  | "record-detail-mood"
+  | "record-detail-sleep"
+  | "record-detail-exercise"
+  | "record-detail-diet"
+  | "record-detail-focus"
+  | "record-detail-face"
   | "record-editor-mood"
   | "record-editor-sleep"
   | "record-editor-exercise"
@@ -60,19 +67,54 @@ function RecordsSkeleton() {
   </>;
 }
 
-function RecordDetailSkeleton() {
+type RecordSkeletonModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
+
+function DetailHeading({ actions = 1 }: { actions?: number }) {
+  return <div className="page-skeleton-detail-heading"><SkeletonBlock className="is-title" /><span>{Array.from({ length: actions }, (_, index) => <SkeletonBlock className="is-circle" key={index} />)}</span></div>;
+}
+
+function RecordDetailSkeleton({ module }: { module: RecordSkeletonModule }) {
+  if (module === "mood") return <>
+    <section className="page-skeleton-card page-skeleton-mood-summary"><DetailHeading /><div className="page-skeleton-score-line"><SkeletonBlock className="is-score" /><SkeletonBlock /><SkeletonBlock /></div><SkeletonBlock className="is-track" /></section>
+    <section className="page-skeleton-card page-skeleton-mood-entry"><DetailHeading actions={0} /><div className="page-skeleton-choice-row">{Array.from({ length: 5 }, (_, index) => <SkeletonBlock className="is-circle" key={index} />)}</div><SkeletonBlock className="is-track" /><div className="page-skeleton-chip-grid">{Array.from({ length: 9 }, (_, index) => <SkeletonBlock key={index} />)}</div><SkeletonBlock className="is-button" /></section>
+    <section className="page-skeleton-card page-skeleton-chart-card"><DetailHeading /><SkeletonBars /></section>
+  </>;
+
+  if (module === "sleep") return <>
+    <section className="page-skeleton-card page-skeleton-detail-alert"><SkeletonBlock className="is-circle" /><SkeletonLines count={2} compact /><SkeletonBlock className="is-circle" /></section>
+    <section className="page-skeleton-card page-skeleton-sleep-summary"><DetailHeading /><SkeletonBlock className="is-track" /><div className="page-skeleton-orb-metrics"><SkeletonBlock className="is-orb" /><SkeletonLines count={3} /></div></section>
+    <section className="page-skeleton-card page-skeleton-chart-card"><DetailHeading actions={2} /><SkeletonBars /></section>
+    <section className="page-skeleton-card is-short"><SkeletonLines count={2} /></section>
+  </>;
+
+  if (module === "exercise") return <>
+    <section className="page-skeleton-card page-skeleton-record-summary"><DetailHeading /><div className="page-skeleton-metric-row"><SkeletonBlock /><SkeletonBlock /><SkeletonBlock /></div></section>
+    <section className="page-skeleton-card page-skeleton-device-overview"><DetailHeading /><SkeletonBlock className="is-field" /><div className="page-skeleton-metric-row"><SkeletonBlock /><SkeletonBlock /><SkeletonBlock /></div><SkeletonBlock className="is-button" /></section>
+    <section className="page-skeleton-card page-skeleton-chart-card"><DetailHeading /><SkeletonBars /></section>
+  </>;
+
+  if (module === "diet") return <>
+    <section className="page-skeleton-card page-skeleton-diet-summary"><DetailHeading /><div className="page-skeleton-metric-row is-four"><SkeletonBlock /><SkeletonBlock /><SkeletonBlock /><SkeletonBlock /></div><div className="page-skeleton-energy-row"><SkeletonBlock className="is-orb" /><SkeletonLines count={2} compact /></div></section>
+    <section className="page-skeleton-card page-skeleton-meal-card"><DetailHeading /><div className="page-skeleton-meal-grid">{Array.from({ length: 4 }, (_, index) => <SkeletonBlock key={index} />)}</div></section>
+    <section className="page-skeleton-card page-skeleton-chart-card"><DetailHeading /><SkeletonBars /></section>
+  </>;
+
+  if (module === "focus") return <>
+    <section className="page-skeleton-card page-skeleton-focus-summary"><span><SkeletonBlock className="is-title" /><SkeletonLines count={1} compact /></span><SkeletonBlock className="is-orb" /></section>
+    <section className="page-skeleton-focus-controls">{Array.from({ length: 3 }, (_, index) => <SkeletonBlock key={index} />)}</section>
+    <section className="page-skeleton-card page-skeleton-chart-card"><DetailHeading actions={3} /><SkeletonBars /></section>
+    <section className="page-skeleton-card page-skeleton-focus-todos"><DetailHeading actions={2} /><SkeletonBlock className="is-field" /><div className="page-skeleton-metric-row"><SkeletonBlock /><SkeletonBlock /><SkeletonBlock /></div></section>
+  </>;
+
   return <>
-    <section className="page-skeleton-card page-skeleton-record-summary">
-      <div><SkeletonBlock className="is-title" /><SkeletonBlock className="is-circle" /></div>
-      <div className="page-skeleton-metric-row"><SkeletonBlock /><SkeletonBlock /><SkeletonBlock /></div>
-    </section>
-    <section className="page-skeleton-card page-skeleton-chart-card"><SkeletonBlock className="is-title" /><SkeletonBars /></section>
-    <section className="page-skeleton-card"><SkeletonBlock className="is-title" /><SkeletonLines count={4} /></section>
+    <section className="page-skeleton-card page-skeleton-face-notice"><SkeletonBlock className="is-circle" /><SkeletonLines count={2} compact /></section>
+    <section className="page-skeleton-card page-skeleton-face-summary"><DetailHeading actions={2} /><div className="page-skeleton-orb-metrics"><SkeletonBlock className="is-orb" /><SkeletonLines count={3} /></div><div className="page-skeleton-face-feedback"><SkeletonBlock className="is-circle" /><SkeletonLines count={1} compact /></div></section>
+    <section className="page-skeleton-card page-skeleton-chart-card"><DetailHeading /><SkeletonBars /></section>
     <section className="page-skeleton-card is-short"><SkeletonLines count={2} /></section>
   </>;
 }
 
-type RecordEditorSkeletonModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
+type RecordEditorSkeletonModule = RecordSkeletonModule;
 
 function EditorSkeletonHeader({ actions = 0 }: { actions?: number }) {
   return <div className="page-skeleton-editor-heading"><SkeletonBlock className="is-title" />{actions > 0 && <span>{Array.from({ length: actions }, (_, index) => <SkeletonBlock className="is-circle" key={index} />)}</span>}</div>;
@@ -163,10 +205,14 @@ function ProfileSkeleton() {
 
 function TodaySkeleton() {
   return <>
-    <section className="page-skeleton-home-scores"><SkeletonBlock /><SkeletonBlock /></section>
-    <section className="page-skeleton-home-actions">{Array.from({ length: 4 }, (_, index) => <SkeletonBlock className="is-circle" key={index} />)}</section>
-    <SkeletonBlock className="page-skeleton-home-aura" />
-    <SkeletonBlock className="page-skeleton-home-mascot" />
+    <img className="page-skeleton-home-background" src={homeSceneBackground} alt="" aria-hidden="true" />
+    <section className="page-skeleton-home-scores">{Array.from({ length: 2 }, (_, index) => <span key={index}><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-value" /></span>)}</section>
+    <section className="page-skeleton-home-actions"><SkeletonBlock className="is-circle" /></section>
+    <section className="home-widget-grid page-skeleton-home-widget-grid">
+      {Array.from({ length: 4 }, (_, index) => <SkeletonBlock className={`home-widget-skeleton home-widget-skeleton--position-${index + 1}`} key={index} />)}
+    </section>
+    <SkeletonBlock className="page-skeleton-home-guidance" />
+    <div className="page-skeleton-home-life-stage"><img src={homeMascot} alt="" aria-hidden="true" /></div>
   </>;
 }
 
@@ -202,9 +248,10 @@ function AdvancedProfileSkeleton() {
 export default function PageSkeleton({ variant, className = "" }: { variant: PageSkeletonVariant; className?: string }) {
   const { locale } = useLocale();
   const editorModule = variant.startsWith("record-editor-") ? variant.slice("record-editor-".length) as RecordEditorSkeletonModule : null;
+  const detailModule = variant.startsWith("record-detail-") ? variant.slice("record-detail-".length) as RecordSkeletonModule : null;
   const content = variant === "auth" ? <AuthSkeleton />
     : variant === "records" ? <RecordsSkeleton />
-    : variant === "record-detail" ? <RecordDetailSkeleton />
+    : detailModule ? <RecordDetailSkeleton module={detailModule} />
       : editorModule ? <RecordEditorSkeleton module={editorModule} />
       : variant === "ai" ? <AiSkeleton />
         : variant === "growth" ? <GrowthSkeleton />
