@@ -573,11 +573,12 @@ body::before {
   border: 5px solid rgba(255, 255, 255, 0.76);
   background: rgba(241, 251, 255, 0.94);
   box-shadow: 0 10px 26px rgba(20, 126, 174, 0.2);
-  transform: translateY(-8px);
+  transform: translateY(-10.5px);
 }
 
 .phone-frame:not(.phone-frame--option2) .ai-nav-button.selected {
-  transform: translateY(-10px) scale(1.03);
+  animation: none;
+  transform: translateY(-11.5px) scale(1.03);
 }
 
 .phone-frame:not(.phone-frame--option2) .ai-nav-orb {
@@ -879,7 +880,13 @@ body::before {
 
 /* Scheme two follows the selected high-fidelity canvas after authentication. */
 .phone-frame--option2 {
-  --home-dock-center-bottom: max(clamp(58px, 6.65cqh, 62px), calc(env(safe-area-inset-bottom) + 50px));
+  --home-main-button-half: clamp(43px, 11.6cqw, 50px);
+  --home-indicator-bottom: var(--nava-home-indicator-bottom, 8px);
+  --home-indicator-height: var(--nava-home-indicator-height, 5px);
+  --home-dock-center-bottom: max(
+    calc(var(--home-main-button-half) + var(--home-indicator-height) + var(--home-indicator-bottom) + var(--home-indicator-bottom)),
+    calc(env(safe-area-inset-bottom) + 40px)
+  );
   --home-dock-half-height: 35px;
   background:
     radial-gradient(circle at 76% 16%, rgba(255, 255, 255, 0.7), transparent 30%),
@@ -2128,9 +2135,17 @@ body::before {
 
 .ai-history-sheet > header button { width: 36px; height: 36px; border: 0; border-radius: 50%; display: grid; place-items: center; background: #e1f3fa; }
 .ai-history-sheet > div { overflow-y: auto; display: grid; gap: 8px; }
-.ai-history-sheet > div > button { min-height: 58px; border: 0; border-radius: 13px; display: grid; gap: 4px; padding: 10px 12px; color: #173f53; background: rgba(255,255,255,.78); text-align: left; }
-.ai-history-sheet > div > button strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ai-history-sheet > div > button span { color: #76909c; font-size: 11px; }
+.ai-history-row { min-height: 62px; border-radius: 13px; display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: stretch; gap: 4px; padding: 4px; background: rgba(255,255,255,.78); }
+.ai-history-open { min-width: 0; border: 0; display: grid; align-content: center; gap: 4px; padding: 7px 8px; color: #173f53; background: transparent; text-align: left; }
+.ai-history-open strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-history-open span { color: #76909c; font-size: 11px; }
+.ai-history-delete { width: 40px; min-height: 40px; align-self: center; border: 0; border-radius: 12px; display: grid; place-items: center; color: #a24d5b; background: rgba(238, 246, 249, .86); }
+.ai-history-delete:disabled { opacity: .55; }
+.chat-archive-return { min-height: 72px; margin: 0 18px 4px; border: 1px solid rgba(255,255,255,.88); border-radius: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 11px 10px 14px; color: #173f53; background: rgba(239,250,254,.9); box-shadow: 0 8px 24px rgba(17,91,122,.12); }
+.chat-archive-return > span { min-width: 0; display: grid; gap: 3px; }
+.chat-archive-return strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.chat-archive-return small { color: #6d8a98; font-size: 9px; }
+.chat-archive-return button { min-height: 38px; flex: 0 0 auto; border: 0; border-radius: 13px; padding: 0 12px; color: #fff; background: #178fbd; font-size: 10px; font-weight: 750; }
 
 .ai-voice-call {
   --voice-call-accent: #1599c4;
@@ -12227,35 +12242,10 @@ body::before {
   to { transform: rotate(.65deg) translateY(.5px); }
 }
 
-.home-widget-edit-done {
-  position: absolute;
-  top: max(70px, calc(env(safe-area-inset-top) + 45px));
-  right: 22px;
-  z-index: 18;
-  min-width: 58px;
-  height: 48px;
-  border: 1px solid rgba(255, 255, 255, .94);
-  border-radius: 24px;
-  padding: 0 14px;
-  color: #164d69;
-  background: rgba(250, 253, 255, .9);
-  box-shadow: 0 8px 20px rgba(25, 74, 101, .2), inset 0 1px 0 rgba(255,255,255,.98);
-  backdrop-filter: blur(18px) saturate(1.1);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 760;
-  animation: home-widget-done-in 220ms cubic-bezier(.2,.8,.2,1) both;
-}
-
 .option-two-home.is-widget-arranging .option-two-side-actions {
   opacity: 0;
   pointer-events: none;
   transform: translateY(-5px) scale(.92);
-}
-
-@keyframes home-widget-done-in {
-  from { opacity: 0; transform: translateY(-5px) scale(.9); }
-  to { opacity: 1; transform: none; }
 }
 
 .home-health-widget--position-1 {
@@ -12417,7 +12407,7 @@ body::before {
 .phone-frame--option2 .nav-button.selected::after { inset: -3px; border-color: rgba(255,255,255,.8); }
 .phone-frame--option2 .ai-nav-button,
 .phone-frame--option2 .ai-nav-button.selected {
-  bottom: calc(var(--home-dock-center-bottom) - clamp(43px, 11.6cqw, 50px));
+  bottom: calc(var(--home-dock-center-bottom) - var(--home-main-button-half));
   width: clamp(86px, 23.2cqw, 100px);
   height: clamp(86px, 23.2cqw, 100px);
   border: 0;
@@ -12479,7 +12469,6 @@ body::before {
   .option-two-scores > div { width: 130px; min-height: 31px; gap: 8px; padding-inline: 12px; }
   .option-two-side-actions { top: max(58px, calc(env(safe-area-inset-top) + 36px)); right: 13px; }
   .option-two-side-actions button { width: 44px; height: 44px; }
-  .home-widget-edit-done { top: max(58px, calc(env(safe-area-inset-top) + 36px)); right: 13px; height: 44px; }
   .option-two-side-actions .option-two-side-shortcut { margin-top: 9px; }
   .home-widget-grid {
     top: clamp(114px, 16cqh, 122px);
@@ -12507,7 +12496,6 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   .home-widget-grid.is-arranging .home-health-widget { animation: none; }
   .home-widget-slot,
-  .home-widget-edit-done,
   .home-health-widget { transition: none; }
 }
 

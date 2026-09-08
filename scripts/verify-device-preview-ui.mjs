@@ -6,7 +6,7 @@ import { applyProjectPublicEnv } from "./project-env.mjs";
 import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-iphone-preview-v123-20260908";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-iphone-preview-v124-20260908";
 const port = 5206;
 const demoUserId = "00000000-0000-4000-8000-000000000001";
 
@@ -48,7 +48,7 @@ async function readDesktopGeometry(page) {
       const element = document.querySelector(selector);
       if (!element) return null;
       const box = element.getBoundingClientRect();
-      return { left: box.left, top: box.top, width: box.width, height: box.height, display: getComputedStyle(element).display, borderRadius: getComputedStyle(element).borderRadius };
+      return { left: box.left, top: box.top, width: box.width, height: box.height, display: getComputedStyle(element).display, borderRadius: getComputedStyle(element).borderRadius, transform: getComputedStyle(element).transform, className: element.className };
     };
     return {
       scale: Number.parseFloat(getComputedStyle(document.querySelector(".nava-app-stage")).getPropertyValue("--nava-preview-scale")) || 1,
@@ -66,6 +66,11 @@ async function readDesktopGeometry(page) {
       homeIndicator: geometry(".nava-device-home-indicator"),
       calibrationGrid: geometry(".nava-device-calibration-grid"),
       scores: geometry(".option-two-scores"),
+      navMain: geometry('.bottom-nav [data-tab="ai"]'),
+      navItems: [...document.querySelectorAll('.bottom-nav .nav-button:not(.ai-nav-button)')].map((element) => {
+        const box = element.getBoundingClientRect();
+        return { top: box.top, bottom: box.bottom, width: box.width, height: box.height };
+      }),
       deviceId: document.querySelector(".nava-app-stage")?.getAttribute("data-nava-preview-device"),
       cutoutType: document.querySelector(".nava-app-stage")?.getAttribute("data-nava-preview-cutout"),
     };
@@ -177,6 +182,7 @@ try {
   const defaultDevice = IPHONE_PREVIEW_DEVICES.find((device) => device.id === "iphone-15-pro-max");
   if (!defaultDevice || !desktopGeometry.island || Math.abs(desktopGeometry.island.width - defaultDevice.calibration.cutout.width) > 0.1 || Math.abs((desktopGeometry.island.left + desktopGeometry.island.width / 2) - (desktopGeometry.frame.left + desktopGeometry.frame.width / 2)) > 0.1) throw new Error(`Dynamic Island is not calibrated and centered ${JSON.stringify(desktopGeometry)}`);
   if (!desktopGeometry.homeIndicator || Math.abs((desktopGeometry.homeIndicator.left + desktopGeometry.homeIndicator.width / 2) - (desktopGeometry.frame.left + desktopGeometry.frame.width / 2)) > 1) throw new Error(`Home indicator is not centered ${JSON.stringify(desktopGeometry)}`);
+  if (!desktopGeometry.navMain || Math.abs(desktopGeometry.homeIndicator.top - (desktopGeometry.navMain.top + desktopGeometry.navMain.height) - defaultDevice.calibration.homeIndicator.bottom) > 1.25) throw new Error(`Homepage main navigation does not mirror the Home Indicator bottom clearance ${JSON.stringify(desktopGeometry)}`);
   if (desktopGeometry.deviceId !== "iphone-15-pro-max" || desktopGeometry.cutoutType !== "dynamic-island") throw new Error(`Default device selection changed ${JSON.stringify(desktopGeometry)}`);
   if (!desktopGeometry.scores || Math.abs((desktopGeometry.scores.top - desktopGeometry.frame.top) - 77) > 2) throw new Error(`Preview chrome changed homepage content coordinates ${JSON.stringify(desktopGeometry)}`);
   await desktop.screenshot({ path: path.join(outputDir, "desktop-1365x1000.png"), fullPage: true });
@@ -212,7 +218,7 @@ try {
         }).slice(0, 12),
       };
     });
-    if (!geometry.frame || !geometry.chrome || !geometry.cutout || !geometry.selector || !geometry.clock || !geometry.statusIcons || !geometry.signal || !geometry.wifi || !geometry.battery || !geometry.homeIndicator || !geometry.calibrationGrid || !geometry.scores) {
+    if (!geometry.frame || !geometry.chrome || !geometry.cutout || !geometry.selector || !geometry.clock || !geometry.statusIcons || !geometry.signal || !geometry.wifi || !geometry.battery || !geometry.homeIndicator || !geometry.calibrationGrid || !geometry.scores || !geometry.navMain) {
       throw new Error(`${device.label}: desktop preview is incomplete ${JSON.stringify(geometry)}`);
     }
     assertVerticallyCentered(`${device.label} frame`, geometry.frame, 1080);
@@ -242,6 +248,7 @@ try {
       || Math.abs(geometry.battery.width - calibration.status.batteryWidth) > 0.1
       || Math.abs(geometry.homeIndicator.width - calibration.homeIndicator.width) > 0.1
       || Math.abs(geometry.frame.top + geometry.frame.height - geometry.homeIndicator.top - geometry.homeIndicator.height - calibration.homeIndicator.bottom) > 0.1
+      || Math.abs(geometry.homeIndicator.top - (geometry.navMain.top + geometry.navMain.height) - calibration.homeIndicator.bottom) > 1.25
       || geometry.scores.top < geometry.frame.top + (device.cutout === "notch" ? 55 : 67)
       || geometry.selector.left <= geometry.frame.left + geometry.frame.width
       || cameraControlCount !== Number(device.cameraControl)) {
@@ -260,6 +267,23 @@ try {
   await catalogPage.screenshot({ path: path.join(outputDir, "desktop-1pt-calibration-grid-1440x1080.png"), fullPage: true });
   report.push({ mode: "calibration-grid", device: "iphone-14-pro-max" });
   await gridToggle.uncheck();
+
+  await catalogPage.goto(`${baseUrl}?demo=1#tab=ai`, { waitUntil: "networkidle" });
+  await expect(catalogPage.locator(".chat-layout")).toBeVisible();
+  for (const device of IPHONE_PREVIEW_DEVICES) {
+    await deviceSelector.selectOption(device.id);
+    await expect(catalogPage.locator(".nava-app-stage")).toHaveAttribute("data-nava-preview-device", device.id);
+    await catalogPage.waitForTimeout(360);
+    const geometry = await readDesktopGeometry(catalogPage);
+    const shallowNavGap = Math.min(...geometry.navItems.map((item) => geometry.homeIndicator.top - item.bottom));
+    if (!geometry.homeIndicator || !geometry.navMain
+      || Math.abs(geometry.homeIndicator.top - (geometry.navMain.top + geometry.navMain.height) - device.calibration.homeIndicator.bottom) > 1.75
+      || geometry.navItems.length !== 4
+      || shallowNavGap < device.calibration.homeIndicator.bottom - 1.75) {
+      throw new Error(`${device.label}: bottom navigation does not preserve Home Indicator breathing room ${JSON.stringify({ shallowNavGap, geometry })}`);
+    }
+    report.push({ mode: "device-bottom-navigation", device: device.id, geometry });
+  }
 
   await catalogPage.goto(`${baseUrl}?demo=1#tab=today&view=profile-details`, { waitUntil: "networkidle" });
   await expect(catalogPage.locator('[data-home-view="profile-details"]')).toBeVisible();

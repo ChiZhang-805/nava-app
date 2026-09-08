@@ -100,6 +100,43 @@ final prompt without becoming instructions.
   demonstrably adopted by a validated stage. It never presents hidden
   chain-of-thought as an audit record.
 
+## Frontend AI surface inventory
+
+The report UI has 20 distinct prose placements, all routed through authenticated
+report services rather than local production copy:
+
+- six module trend insight panels: mood, sleep, exercise, diet, focus and face;
+- six module overview instant-feedback panels for the same modules;
+- six compact summaries on the record-hub module cards;
+- one record-hub rhythm overview; and
+- one weekly rhythm insight.
+
+Mood, sleep, exercise, focus, face and weekly placements call
+`loadHealthAiReport`, which invokes `ai-health-report`; diet placements call
+`loadDietAiReport`, which invokes `ai-diet-report`. The normal and compact
+phrasing come from the same validated model result and source fingerprint.
+Unavailable model output is shown as unavailable and is never replaced by
+fixed production advice.
+
+The auxiliary AI paths are separate and remain wired as follows: AI chat uses
+`ai-extract-data` followed by streamed `ai-chat-reply`; meal-photo recognition
+uses private `diet-photos` storage followed by `diet-extract`; face-photo
+feedback uses private `face-photos` storage followed by `face-analyze`; and the
+two focus AI actions open AI chat with the authenticated task context. The
+daily `NAVA 当日洞察` value is intentionally not labeled AI: it is a persisted
+`rhythm-score` action or a deterministic local fallback, not model-generated
+prose.
+
+AI conversation titles reuse the authenticated `ai-chat-reply` boundary only
+after the user's AI-personalization consent is true. The title request contains
+at most the latest 12 messages and 2,800 characters, marks the transcript as
+reference data rather than instructions, and asks for an output-only summary of
+8–10 Han characters or 3–6 English words. The client applies a second length and
+character contract before accepting the result. Without consent, with an
+unavailable provider, or with invalid output, history keeps an explicitly dated
+local fallback title. Title generation never blocks the prior archive write or
+causes the active conversation to be deleted before that archive succeeds.
+
 ## 2026-09-05 production diagnosis and 2026-09-07 deployment
 
 - Supabase production logs at 2026-09-05 15:08–15:09 UTC recorded two

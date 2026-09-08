@@ -1,9 +1,9 @@
 import type { User } from "@supabase/supabase-js";
-import { Bot, Camera, Check, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, SendHorizontal, Sparkles, X } from "lucide-react";
+import { Bot, Camera, Check, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, SendHorizontal, Sparkles, Trash2, X } from "lucide-react";
 import { Fragment, FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocale } from "../i18n";
 import PageSkeleton from "../components/PageSkeleton";
-import { loadConversation, sendAiMessage } from "../services/ai";
+import { deleteConversationMessages, generateConversationTitle, loadConversation, sendAiMessage } from "../services/ai";
 import type { AiProcessingStep } from "../services/aiProcessing";
 import { createStreamingAiSpeaker, isAiSpeechSupported, type StreamingAiSpeaker } from "../services/aiSpeech";
 import { todayISO } from "../services/date";
@@ -16,17 +16,19 @@ import { confirmStructuredEntry, parseStructuredEntry, type StructuredEntry } fr
 import { updateStructuredEntryField } from "../services/structuredEntryParser";
 import type { ChatMessage, DietExtractResult } from "../types";
 import { isDemoMode } from "../services/demo";
-import { loadConversationArchives, saveConversationArchive } from "../services/userCloudState";
+import { deleteConversationArchive, loadConversationArchives, saveConversationArchive, type ConversationArchive } from "../services/userCloudState";
+import {
+  conversationArchiveId,
+  conversationDayKey,
+  conversationNeedsDailyRollover,
+  fallbackConversationTitle,
+  normalizeGeneratedConversationTitle,
+  type ConversationSnapshot,
+} from "../services/aiConversationSessions";
 
 export type AiCommand = {
   id: number;
   type: "new" | "history" | "voice-call" | "clear" | "export";
-};
-
-type ConversationSnapshot = {
-  id: string;
-  createdAt: string;
-  messages: ChatMessage[];
 };
 
 type StreamingPreview = {
@@ -149,6 +151,9 @@ export default function AIScreen({
   const [streamingPreview, setStreamingPreview] = useState<StreamingPreview | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<ConversationSnapshot[]>([]);
+  const [viewingArchiveId, setViewingArchiveId] = useState<string | null>(null);
+  const [deletingArchiveId, setDeletingArchiveId] = useState<string | null>(null);
+  const [deviceDayKey, setDeviceDayKey] = useState(() => todayISO());
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [voiceCallOpen, setVoiceCallOpen] = useState(false);
   const [voiceCallPhase, setVoiceCallPhase] = useState<VoiceCallPhase>("idle");
@@ -182,47 +187,85 @@ export default function AIScreen({
   const conversationLoadRequestRef = useRef(0);
   const historyKey = `nava-ai-history:${user.id}`;
 
+  const normalizeHistory = useCallback((items: Array<ConversationSnapshot | ConversationArchive<ChatMessage>>) => {
+    const normalized: ConversationSnapshot[] = [];
+    for (const candidate of [...items].sort((left, right) => String(left.createdAt).localeCompare(String(right.createdAt)))) {
+      if (!candidate || !Array.isArray(candidate.messages) || candidate.messages.length === 0) continue;
+      const createdAt = Number.isFinite(new Date(candidate.createdAt).getTime()) ? candidate.createdAt : candidate.messages[0].created_at;
+      const dayKey = candidate.dayKey || conversationDayKey(candidate.messages, new Date(createdAt));
+      normalized.push({
+        id: candidate.id || conversationArchiveId(candidate.messages),
+        createdAt,
+        dayKey,
+        title: candidate.title?.trim() || fallbackConversationTitle(dayKey, locale, normalized),
+        messages: candidate.messages,
+      });
+    }
+    return normalized.sort((left, right) => right.createdAt.localeCompare(left.createdAt)).slice(0, 20);
+  }, [locale]);
+
   const readHistory = useCallback(() => {
     try {
       const value = JSON.parse(window.localStorage.getItem(historyKey) ?? "[]") as ConversationSnapshot[];
-      return Array.isArray(value) ? value : [];
+      return Array.isArray(value) ? normalizeHistory(value) : [];
     } catch {
       return [];
     }
-  }, [historyKey]);
+  }, [historyKey, normalizeHistory]);
 
   const writeHistory = useCallback((items: ConversationSnapshot[]) => {
-    const normalized = [...items]
-      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-      .slice(0, 20);
+    const normalized = normalizeHistory(items);
     window.localStorage.setItem(historyKey, JSON.stringify(normalized));
     return normalized;
-  }, [historyKey]);
+  }, [historyKey, normalizeHistory]);
 
   const hydrateHistory = useCallback(async () => {
     const local = readHistory();
     const remote = await loadConversationArchives<ChatMessage>(user.id);
     const merged = new Map<string, ConversationSnapshot>();
-    for (const snapshot of [...remote, ...local]) merged.set(snapshot.id, snapshot);
+    for (const snapshot of [...normalizeHistory(remote), ...local]) merged.set(snapshot.id, snapshot);
     const normalized = writeHistory([...merged.values()]);
     if (!isDemoMode() && local.length > 0) {
       await Promise.all(local.map((snapshot) => saveConversationArchive(user.id, snapshot)));
     }
     return normalized;
-  }, [readHistory, user.id, writeHistory]);
+  }, [normalizeHistory, readHistory, user.id, writeHistory]);
 
   const archiveConversation = useCallback((current: ChatMessage[]) => {
     if (current.length === 0) return readHistory();
+    const existing = readHistory();
+    const dayKey = conversationDayKey(current);
     const snapshot: ConversationSnapshot = {
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
+      id: conversationArchiveId(current),
+      createdAt: current[0]?.created_at ?? new Date().toISOString(),
+      dayKey,
+      title: fallbackConversationTitle(dayKey, locale, existing),
       messages: current,
     };
-    const next = writeHistory([snapshot, ...readHistory()]);
-    void saveConversationArchive(user.id, snapshot)
-      .catch((archiveError) => console.warn("AI conversation archive sync deferred", archiveError));
+    const next = writeHistory([snapshot, ...existing.filter((item) => item.id !== snapshot.id)]);
+    void (async () => {
+      try {
+        await saveConversationArchive(user.id, snapshot);
+        await deleteConversationMessages(user.id, current.map((message) => message.id));
+      } catch (archiveError) {
+        console.warn("AI conversation archive sync deferred", archiveError);
+        return;
+      }
+      if (profile?.ai_personalization_consent !== true) return;
+      try {
+        const generated = await generateConversationTitle(current, locale);
+        const title = generated ? normalizeGeneratedConversationTitle(generated, locale) : null;
+        if (!title) return;
+        const titledSnapshot = { ...snapshot, title };
+        const titledHistory = writeHistory([titledSnapshot, ...readHistory().filter((item) => item.id !== snapshot.id)]);
+        setHistory(titledHistory);
+        await saveConversationArchive(user.id, titledSnapshot);
+      } catch (titleError) {
+        console.warn("AI conversation title generation deferred", titleError);
+      }
+    })();
     return next;
-  }, [readHistory, user.id, writeHistory]);
+  }, [locale, profile?.ai_personalization_consent, readHistory, user.id, writeHistory]);
 
   const refresh = useCallback(async () => {
     const requestId = ++conversationLoadRequestRef.current;
@@ -230,13 +273,32 @@ export default function AIScreen({
     setError(null);
     try {
       const conversation = await loadConversation(user.id, locale);
-      if (requestId === conversationLoadRequestRef.current) setMessages(conversation);
+      if (requestId === conversationLoadRequestRef.current) {
+        if (conversationNeedsDailyRollover(conversation, deviceDayKey)) {
+          setHistory(archiveConversation(conversation));
+          setMessages([]);
+        } else {
+          setMessages(conversation);
+        }
+        setViewingArchiveId(null);
+      }
     } catch (e) {
       if (requestId === conversationLoadRequestRef.current) setError(e instanceof Error ? e.message : String(e));
     } finally {
       if (requestId === conversationLoadRequestRef.current) setLoading(false);
     }
-  }, [locale, user.id]);
+  }, [archiveConversation, deviceDayKey, locale, user.id]);
+
+  const prepareConversationForMessage = useCallback(() => {
+    const currentDay = todayISO();
+    const rolledOver = conversationNeedsDailyRollover(messages, currentDay);
+    if (!rolledOver) return { history: messages, rolledOver: false };
+    setHistory(archiveConversation(messages));
+    setMessages([]);
+    setViewingArchiveId(null);
+    setDeviceDayKey(currentDay);
+    return { history: [] as ChatMessage[], rolledOver: true };
+  }, [archiveConversation, messages]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -249,19 +311,20 @@ export default function AIScreen({
     const controller = new AbortController();
     streamAbortRef.current?.abort();
     streamAbortRef.current = controller;
+    const conversation = prepareConversationForMessage();
     let userCommitted = false;
     setStreamingPreview({ status: null, content: "", startedAt: new Date().toISOString() });
     try {
       const result = await sendAiMessage({
         userId: user.id,
         message,
-        history: messages,
+        history: conversation.history,
         lang: locale,
         profile,
         signal: controller.signal,
         onUserMessage: (userMessage) => {
           userCommitted = true;
-          setMessages((current) => [...current, userMessage]);
+          setMessages((current) => [...(conversation.rolledOver ? [] : current), userMessage]);
         },
         onStatus: (status) => setStreamingPreview((current) => current ? { ...current, status } : current),
         onDelta: (content) => {
@@ -341,11 +404,12 @@ export default function AIScreen({
         items: [],
       };
       speechRef.current?.start();
+      const conversation = prepareConversationForMessage();
       const response = await sendAiMessage({
         userId: user.id,
         message: modelMessage,
         displayMessage: locale === "zh" ? `拍照记录${mealLabel(meal, locale)}` : `Photo ${mealLabel(meal, locale)} record`,
-        history: messages,
+        history: conversation.history,
         lang: locale,
         profile,
         preExtracted: { dataType: "nutrition", extractedData },
@@ -354,7 +418,7 @@ export default function AIScreen({
           userCommitted = true;
           setPhotoPreviews((current) => ({ ...current, [userMessage.id]: previewUrl }));
           setPendingPhotoPreview(null);
-          setMessages((current) => [...current, userMessage]);
+          setMessages((current) => [...(conversation.rolledOver ? [] : current), userMessage]);
         },
         onStatus: (status) => setStreamingPreview((current) => current ? { ...current, status } : current),
         onDelta: (content) => {
@@ -418,6 +482,18 @@ export default function AIScreen({
   }, [refresh]);
 
   useEffect(() => {
+    if (!active) return;
+    const updateDay = () => setDeviceDayKey(todayISO());
+    updateDay();
+    const timer = window.setInterval(updateDay, 30_000);
+    document.addEventListener("visibilitychange", updateDay);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", updateDay);
+    };
+  }, [active]);
+
+  useEffect(() => {
     let activeRequest = true;
     loadProfileWithOnboarding(user.id).then(({ profile: loadedProfile, onboarding }) => {
       if (!activeRequest) return;
@@ -468,8 +544,15 @@ export default function AIScreen({
       speechRef.current?.cancel();
       streamAbortRef.current?.abort();
       streamAbortRef.current = null;
-      setHistory(archiveConversation(messages));
+      if (viewingArchiveId) {
+        void loadConversation(user.id, locale)
+          .then((current) => setHistory(archiveConversation(current)))
+          .catch((archiveError) => console.warn("AI active conversation archive deferred", archiveError));
+      } else {
+        setHistory(archiveConversation(messages));
+      }
       setMessages([]);
+      setViewingArchiveId(null);
       setInput("");
       setPendingEntry(null);
       setPendingEntryMessageId(null);
@@ -505,7 +588,16 @@ export default function AIScreen({
       speechRef.current?.cancel();
       streamAbortRef.current?.abort();
       streamAbortRef.current = null;
+      if (viewingArchiveId) {
+        void loadConversation(user.id, locale)
+          .then((current) => deleteConversationMessages(user.id, current.map((message) => message.id)))
+          .catch((clearError) => console.warn("AI active conversation clear deferred", clearError));
+      } else {
+        void deleteConversationMessages(user.id, messages.map((message) => message.id))
+          .catch((clearError) => console.warn("AI active conversation clear deferred", clearError));
+      }
       setMessages([]);
+      setViewingArchiveId(null);
       setInput("");
       setPendingEntry(null);
       setPendingEntryMessageId(null);
@@ -523,11 +615,26 @@ export default function AIScreen({
     link.download = `nava-conversation-${todayISO()}.json`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [archiveConversation, command, hydrateHistory, messages, readHistory]);
+  }, [archiveConversation, command, hydrateHistory, locale, messages, readHistory, user.id, viewingArchiveId]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "auto" });
   }, [messages.length, pendingEntry?.id, pendingPhotoPreview, streamingPreview?.content, streamingPreview?.status?.id]);
+
+  async function removeArchivedConversation(snapshot: ConversationSnapshot) {
+    if (deletingArchiveId) return;
+    setDeletingArchiveId(snapshot.id);
+    try {
+      await deleteConversationArchive(user.id, snapshot.id);
+      const next = writeHistory(readHistory().filter((item) => item.id !== snapshot.id));
+      setHistory(next);
+      if (viewingArchiveId === snapshot.id) await refresh();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : String(deleteError));
+    } finally {
+      setDeletingArchiveId(null);
+    }
+  }
 
   const voiceErrorText = useCallback((voiceError: VoiceInputError) => {
     if (voiceError.code === "permission_denied") return t("ai.voicePermissionDenied");
@@ -635,15 +742,16 @@ export default function AIScreen({
     voiceCallSpeakerRef.current = speaker;
     speaker.start();
     try {
+      const conversation = prepareConversationForMessage();
       const result = await sendAiMessage({
         userId: user.id,
         message,
-        history: messages,
+        history: conversation.history,
         lang: locale,
         profile,
         responseMode: "voice",
         signal: controller.signal,
-        onUserMessage: (userMessage) => setMessages((current) => [...current, userMessage]),
+        onUserMessage: (userMessage) => setMessages((current) => [...(conversation.rolledOver ? [] : current), userMessage]),
         onStatus: () => {
           if (voiceCallOpenRef.current) setVoiceCallPhase("thinking");
         },
@@ -682,7 +790,7 @@ export default function AIScreen({
       if (voiceCallSpeakerRef.current === speaker) voiceCallSpeakerRef.current = null;
       setSending(false);
     }
-  }, [locale, messages, onConversationCompleted, profile, user.id]);
+  }, [locale, onConversationCompleted, prepareConversationForMessage, profile, user.id]);
   submitVoiceCallTurnRef.current = (message) => void submitVoiceCallTurn(message);
 
   const finalizeVoiceCallInput = useCallback(async () => {
@@ -903,6 +1011,7 @@ export default function AIScreen({
       </footer>
     </section>
   ) : null;
+  const viewingSnapshot = viewingArchiveId ? history.find((snapshot) => snapshot.id === viewingArchiveId) ?? null : null;
 
   if (loading) return <div className="chat-layout"><PageSkeleton variant="ai" /></div>;
 
@@ -991,7 +1100,10 @@ export default function AIScreen({
 
       {error && <p className="error-text">{error}</p>}
 
-      <form className={["chat-composer", voiceState !== "idle" ? "voice-active" : "", composerToolOpen ? "tool-open" : "", photoAnalyzing ? "photo-analyzing" : ""].filter(Boolean).join(" ")} onSubmit={submit}>
+      {viewingSnapshot ? <div className="chat-archive-return" role="status">
+        <span><strong>{viewingSnapshot.title}</strong><small>{locale === "zh" ? "历史会话只读预览" : "Read-only history preview"}</small></span>
+        <button type="button" onClick={() => void refresh()}>{locale === "zh" ? "返回今日对话" : "Back to today's chat"}</button>
+      </div> : <form className={["chat-composer", voiceState !== "idle" ? "voice-active" : "", composerToolOpen ? "tool-open" : "", photoAnalyzing ? "photo-analyzing" : ""].filter(Boolean).join(" ")} onSubmit={submit}>
         <div className="chat-input-shell">
           <input
             value={input}
@@ -1056,7 +1168,7 @@ export default function AIScreen({
         >
           <SendHorizontal size={21} />
         </button>
-      </form>
+      </form>}
 
       {voiceCallOpen && (
         <section
@@ -1109,10 +1221,15 @@ export default function AIScreen({
           <div>
             {history.length === 0 && <p className="muted">{locale === "zh" ? "还没有历史会话" : "No archived conversations"}</p>}
             {history.map((snapshot) => (
-              <button key={snapshot.id} type="button" onClick={() => { setMessages(snapshot.messages); setHistoryOpen(false); }}>
-                <strong>{snapshot.messages.find((item) => item.role === "user")?.content || (locale === "zh" ? "未命名会话" : "Untitled conversation")}</strong>
-                <span>{new Date(snapshot.createdAt).toLocaleString(locale === "zh" ? "zh-CN" : "en-US")}</span>
-              </button>
+              <div className="ai-history-row" key={snapshot.id}>
+                <button className="ai-history-open" type="button" onClick={() => { setMessages(snapshot.messages); setViewingArchiveId(snapshot.id); setHistoryOpen(false); }}>
+                  <strong>{snapshot.title}</strong>
+                  <span>{new Date(snapshot.createdAt).toLocaleString(locale === "zh" ? "zh-CN" : "en-US")}</span>
+                </button>
+                <button className="ai-history-delete" type="button" disabled={deletingArchiveId === snapshot.id} onClick={() => void removeArchivedConversation(snapshot)} aria-label={locale === "zh" ? `删除${snapshot.title}` : `Delete ${snapshot.title}`} title={locale === "zh" ? "删除历史会话" : "Delete conversation"}>
+                  {deletingArchiveId === snapshot.id ? <LoaderCircle className="spin" size={17} /> : <Trash2 size={17} />}
+                </button>
+              </div>
             ))}
           </div>
         </div>

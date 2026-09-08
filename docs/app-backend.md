@@ -65,7 +65,11 @@ Get-ChildItem -LiteralPath supabase/migrations -File | Sort-Object Name
   同步完成事件，网页收到成功事件后重新读取规范化记录。
 - `user_app_preferences`：语言、AI 语音和首页 0–6 个组件及排序；本地存储只作缓存。
 - `user_notifications`：应用内收件箱、已读与删除 tombstone，并通过 Realtime 同步。
-- `ai_conversation_archives`：用户在 AI 页面创建的新会话归档。
+- `ai_conversation_archives`：用户手动新建会话或设备本地日期跨日时的 AI 会话归档。
+  现有表仍只使用 `messages` JSONB；归档日期与标题保存在数组首项的版本化
+  `__navaArchive` 元数据中，读取时会剥离，旧版纯消息数组仍可兼容，因此本轮不需要
+  修改已应用 migration。归档写入成功后才按当前用户和消息 ID 删除活动会话行；历史
+  删除也同时约束 `user_id` 与归档 `id`。
 - `active_user_sessions`：支持进行中的专注/睡眠/运动会话，供换设备或清理缓存后恢复。
 - `focus_session_events` 与 `record_focus_session`：以稳定 action id 保存每次专注完成事件，
   并在同一数据库事务中更新 `focus_records` 和 `focus_time_distribution`，重复提交不会重复累计。

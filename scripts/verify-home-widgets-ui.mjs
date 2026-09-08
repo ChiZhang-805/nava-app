@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-widget-drag-v121-20260908";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-widget-tap-finish-v124-20260908";
 const port = 5204;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -160,7 +160,7 @@ try {
     await page.mouse.down();
     await page.waitForTimeout(500);
     await expect(page.locator(".home-widget-grid")).toHaveClass(/is-arranging/);
-    await expect(page.locator(".home-widget-edit-done")).toBeVisible();
+    await expect(page.locator(".home-widget-edit-done")).toHaveCount(0);
     await expect(page.locator(".home-widget-slot")).toHaveCount(6);
     await page.waitForTimeout(260);
     const slotGeometry = await page.locator(".home-widget-slot").evaluateAll((items) => items.map((item) => {
@@ -178,7 +178,9 @@ try {
     await page.mouse.up();
     await expect(page.locator('[data-home-widget="heart"]')).toHaveAttribute("data-home-widget-position", "5");
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-arranged.png`) });
-    await page.locator(".home-widget-edit-done").click();
+    await page.locator('[data-home-widget="heart"]').dispatchEvent("click");
+    await expect(page.locator(".home-widget-grid")).toHaveClass(/is-arranging/);
+    await page.locator(".option-two-scene-background").dispatchEvent("click");
     await expect(page.locator(".home-widget-grid")).not.toHaveClass(/is-arranging/);
     await page.reload({ waitUntil: "networkidle" });
     const reloadLaunch = page.locator(".launch-sequence");
@@ -197,7 +199,8 @@ try {
     await page.keyboard.press("ArrowUp");
     await expect(page.locator('[data-home-widget="heart"]')).toHaveAttribute("data-home-widget-position", "5");
     await expect(page.locator('[data-home-widget="exercise"]')).toHaveAttribute("data-home-widget-position", "3");
-    await page.locator(".home-widget-edit-done").click();
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".home-widget-grid")).not.toHaveClass(/is-arranging/);
 
     const menuToggle = page.locator(".option-two-menu-toggle");
     if ((await menuToggle.getAttribute("aria-expanded")) !== "true") await menuToggle.click();

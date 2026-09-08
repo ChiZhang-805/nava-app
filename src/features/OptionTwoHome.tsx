@@ -464,6 +464,19 @@ export default function OptionTwoHome({
     setHealthMenuOpen(false);
   };
 
+  const handleHomeClickCapture = (event: ReactMouseEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement;
+    if (widgetArrangeMode) {
+      const functionalTarget = target.closest("button, a, input, select, textarea, [role='button'], [role='link']");
+      if (!functionalTarget) {
+        event.preventDefault();
+        finishWidgetArrange();
+        return;
+      }
+    }
+    dismissHealthMenuOutside(event);
+  };
+
   return (
     <section
       className={["option-two-home", `home-phase-${phase}`, healthMenuOpen ? "is-health-menu-open" : "", widgetArrangeMode ? "is-widget-arranging" : "", shortcutsOpen ? "shortcuts-open" : "shortcuts-collapsed", snapshot ? "is-loaded" : ""].filter(Boolean).join(" ")}
@@ -471,7 +484,7 @@ export default function OptionTwoHome({
       onPointerMove={moveHomeGesture}
       onPointerUp={endHomeGesture}
       onPointerCancel={() => { gestureRef.current = null; }}
-      onClickCapture={dismissHealthMenuOutside}
+      onClickCapture={handleHomeClickCapture}
       data-health-menu-open={healthMenuOpen}
       data-home-phase={phase}
       data-home-guidance={homeGuidance?.reason ?? "loading"}
@@ -503,8 +516,6 @@ export default function OptionTwoHome({
           {notifications.some((item) => !item.readAt) && <span className="option-two-menu-unread" aria-hidden="true" />}
         </button>
       </div>
-
-      {widgetArrangeMode && <button className="home-widget-edit-done" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={finishWidgetArrange}>{locale === "zh" ? "完成" : "Done"}</button>}
 
       <section className={["home-widget-grid", widgetIds.length === 0 ? "is-empty" : "", widgetArrangeMode ? "is-arranging" : ""].join(" ")} aria-label={locale === "zh" ? "我的健康小组件" : "My health widgets"} aria-describedby="home-widget-arrange-help" data-widget-count={widgetIds.length}>
         {Array.from({ length: HOME_WIDGET_SLOT_COUNT }, (_, slot) => <span
@@ -552,7 +563,7 @@ export default function OptionTwoHome({
                 <div className="home-widget-value"><strong>{presentation?.core ?? "--"}</strong><small>{presentation?.support ?? (locale === "zh" ? "加载中" : "Loading")}</small></div>
               </button>;
             })}
-        <span className="sr-only" id="home-widget-arrange-help">{locale === "zh" ? "长按组件进入编辑；拖动到六个高亮槽位之一并松手。键盘可按 Shift 加回车进入编辑，再用方向键移动。" : "Touch and hold a widget to edit, then drag it to one of six highlighted slots and release. With a keyboard, press Shift+Enter, then use the arrow keys."}</span>
+        <span className="sr-only" id="home-widget-arrange-help">{locale === "zh" ? "长按组件进入编辑；拖动到六个高亮槽位之一并松手；轻触任意非功能空白区域即可保存并结束编辑。键盘可按 Shift 加回车进入编辑，再用方向键移动，按 Escape 完成。" : "Touch and hold a widget to edit, then drag it to one of six highlighted slots and release. Tap any non-interactive empty area to save and finish editing. With a keyboard, press Shift+Enter, use the arrow keys to move, and press Escape to finish."}</span>
         <span className="sr-only" aria-live="polite">{widgetAnnouncement}</span>
       </section>
 

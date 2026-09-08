@@ -1,5 +1,6 @@
 import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
+import { todayISO } from "./date";
 
 export type UserAppPreferences = {
   locale: "zh" | "en";
@@ -141,8 +142,26 @@ async function flushActiveUserSession(userId: string, sessionType: ActiveSession
 export type ConversationArchive<T> = {
   id: string;
   createdAt: string;
+  dayKey?: string;
+  title?: string;
   messages: T[];
 };
+
+type ConversationArchiveMetadata = {
+  __navaArchive: {
+    version: 1;
+    dayKey: string;
+    title: string;
+  };
+};
+
+function archiveMetadata(value: unknown): ConversationArchiveMetadata["__navaArchive"] | null {
+  if (!value || typeof value !== "object" || !("__navaArchive" in value)) return null;
+  const metadata = (value as ConversationArchiveMetadata).__navaArchive;
+  return metadata?.version === 1 && typeof metadata.dayKey === "string" && typeof metadata.title === "string"
+    ? metadata
+    : null;
+}
 
 export async function loadConversationArchives<T>(userId: string): Promise<Array<ConversationArchive<T>>> {
   if (isDemoMode()) return [];
@@ -153,20 +172,35 @@ export async function loadConversationArchives<T>(userId: string): Promise<Array
     .order("created_at", { ascending: false })
     .limit(20);
   assertNoError(result.error);
-  return (result.data ?? []).flatMap((row) => (
-    Array.isArray(row.messages)
-      ? [{ id: String(row.id), createdAt: String(row.created_at), messages: row.messages as T[] }]
-      : []
-  ));
+  return (result.data ?? []).flatMap((row) => {
+    if (!Array.isArray(row.messages)) return [];
+    const metadata = archiveMetadata(row.messages[0]);
+    const createdAt = String(row.created_at);
+    return [{
+      id: String(row.id),
+      createdAt,
+      dayKey: metadata?.dayKey ?? todayISO(new Date(createdAt)),
+      title: metadata?.title,
+      messages: (metadata ? row.messages.slice(1) : row.messages) as T[],
+    }];
+  });
 }
 
 export async function saveConversationArchive<T>(userId: string, archive: ConversationArchive<T>) {
   if (isDemoMode()) return;
+  const dayKey = archive.dayKey ?? todayISO(new Date(archive.createdAt));
+  const title = archive.title?.trim() ?? "";
   const result = await supabase.from("ai_conversation_archives").upsert({
     id: archive.id,
     user_id: userId,
     created_at: archive.createdAt,
-    messages: archive.messages,
+    messages: [{ __navaArchive: { version: 1, dayKey, title } }, ...archive.messages],
   }, { onConflict: "id" });
+  assertNoError(result.error);
+}
+
+export async function deleteConversationArchive(userId: string, archiveId: string) {
+  if (isDemoMode()) return;
+  const result = await supabase.from("ai_conversation_archives").delete().eq("user_id", userId).eq("id", archiveId);
   assertNoError(result.error);
 }

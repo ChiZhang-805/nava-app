@@ -1110,11 +1110,23 @@ async function verifyAi(page, results, diagnostics) {
   await page.waitForTimeout(350);
   await assertStaticLayout(page, "ai-history");
   await page.screenshot({ path: path.join(outputDir, "ai-history.png") });
-  await page.locator(".ai-history-sheet > div > button").first().click();
+  await page.locator(".ai-history-open").first().click();
   await expect(page.locator(".chat-message-row")).toHaveCount(5);
+  await expect(page.locator(".chat-archive-return")).toBeVisible();
+  await expect(page.locator(".chat-composer")).toHaveCount(0);
   await page.waitForTimeout(100);
   await assertStaticLayout(page, "ai-reply");
   await page.screenshot({ path: path.join(outputDir, "ai-reply.png") });
+  await page.locator(".chat-archive-return button").click();
+  await expect(page.locator(".chat-message-row")).toHaveCount(3);
+  await expect(page.locator(".chat-composer")).toBeVisible();
+
+  await headerMenuButton.click();
+  await page.locator(".app-utility-popover button").filter({ hasText: /历史|History/ }).click();
+  await expect(page.locator(".ai-history-delete")).toHaveCount(1);
+  await page.locator(".ai-history-delete").click();
+  await expect(page.locator(".ai-history-row")).toHaveCount(0);
+  await page.locator('.ai-history-sheet header button[aria-label="关闭"], .ai-history-sheet header button[aria-label="Close"]').click();
 
   await headerMenuButton.click();
   const utilityPopover = page.locator(".app-utility-popover");

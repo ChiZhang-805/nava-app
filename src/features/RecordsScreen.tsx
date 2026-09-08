@@ -1442,7 +1442,7 @@ export default function RecordsScreen({
               <button type="button" disabled={weekOffset === 0} onClick={() => setWeekOffset((value) => Math.max(0, value - 1))} aria-label={locale === "zh" ? "下一周" : "Next week"}><ChevronRight size={18} /></button>
             </div>
             <section className="weekly-score-card">
-              <div><span>{dnbReport?.status === "ready" ? (locale === "zh" ? "DNB 稳定度：" : "DNB stability: ") : (locale === "zh" ? "有记录日节律均值：" : "Recorded-day rhythm avg: ")}</span><strong>{dnbReport === null ? <SkeletonBlock className="weekly-score-skeleton" /> : overallScore == null ? "--" : <AnimatedNumber value={overallScore} />}</strong></div>
+              <div><span>{dnbReport?.status === "ready" ? (locale === "zh" ? "DNB 稳定度：" : "DNB stability: ") : (locale === "zh" ? "日节律均值：" : "Rhythm average: ")}</span><strong>{dnbReport === null ? <SkeletonBlock className="weekly-score-skeleton" /> : overallScore == null ? "--" : <AnimatedNumber value={overallScore} />}</strong></div>
               <div><span>{locale === "zh" ? "数据完整度：" : "Complete: "}</span><strong><AnimatedNumber value={completedModules} duration={520} />/6</strong></div>
               <div><span>{locale === "zh" ? "较上周：" : "Previous week: "}</span><strong>{periodComparison.change == null ? (periodComparison.currentAverage == null ? "--" : (locale === "zh" ? "首次记录" : "First week")) : <>{periodComparison.change >= 0 ? "+" : ""}<AnimatedNumber value={periodComparison.change} duration={640} /></>}</strong></div>
             </section>
