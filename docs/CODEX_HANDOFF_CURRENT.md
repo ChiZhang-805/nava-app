@@ -1597,3 +1597,38 @@ Pages 镜像 commit 为 `19b7617bbd1cfe0e04e27f3e8595686c7e3c020d`。两站均�
 200、加载同一 `App-BUlB1LyL.js` 拖拽实现和 `index-BQXnkHT9.css` 视觉样式；Pages
 `source.json` 已核验为 v121。无登录的新浏览器访问两站的 `?demo=1` 仍停留在真实登录页，
 没有出现公开 demo 绕过。
+
+## 44. 2026-09-08 全页面与加载态几何审计、双站 v122
+
+本轮把视觉验收从“截图存在”升级为可失败的几何审计。`scripts/capture-figma-pages.mjs`
+现在会在每个业务状态检查多行文本行高、文字裁切、交互控件横向越界、非预期控件重叠、
+共享页头左右操作与标题中轴，以及同一纵向模块栈的重叠和异常留白；仅为首页吉祥物、引导
+气泡和快捷组件之间经产品设计允许的覆盖关系保留明确豁免。最终矩阵覆盖 57 个状态 ×
+360×740、375×812、390×844、430×932 四个规定视口，共 228 张截图，其中 140 张为
+成型页面、88 张为加载页面；0 个几何错误，受跟踪模块栈最大间距约 16.04px。报告位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-figma-pages\report.json`。
+
+加载态不再只用一个通用占位：六个记录详情页分别使用情绪、睡眠、运动、饮食、专注、
+面部对应的真实结构骨架；首页加载态复用正式首页的背景、1+3 健康组件网格、顶部积分、
+引导气泡、真实吉祥物位置和底部导航。首页组件排序页由硬垂直居中改为从安全区下方稳定
+向下排布，避免矮屏顶底挤压；资料页移除了按屏高不断放大的外边距，并压缩隐私卡片内部
+无效留白，退出按钮不再半截藏在固定导航后面。奖励浮层会在加载态采集前关闭，避免遮挡
+目的页面骨架。
+
+完整 `npm run verify` 31 阶段、`npm run interaction:test` 11 组、`npm run screenshots`、
+`npm run device-preview:visual`、`npm run home-widgets:visual`、
+`npm run notification:visual` 与发布后 `npm run auth:verify:production` 均通过。专项证据分别
+位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v120-20260908`、
+`Q:\NAVA-Workspace\Build\TestRuns\nava-home-widget-drag-v121-20260908` 和
+`Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v119-20260908`。
+
+功能源码 commit `73321af4af5f831c3d0cdc0d319da41e58e90f27` 已从同一干净且已 push
+状态发布为 ChatGPT Sites v122 与 GitHub Pages v122。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_f2e6af4e116c819188ffcc184ce0f16f`，
+deployment ID 为 `appgdep_6a9f7a268bc881919fa3e41cfad3e431`，状态 succeeded；Pages
+镜像 commit 为 `abd857e6abfe0d7c76d2b5d852d6ea16604073fb`，在线 `source.json` 已核验为
+v122 并指向同一源码提交。两站均返回 HTTP 200，实际加载同一
+`index-BHSX1uk6.js`、`App-B-uPe6pf.js` 和 `index-Hs5E6ZBR.css` 内容哈希；在线无登录
+浏览器访问普通入口及 `?demo=1` 均显示真实登录页且无控制台错误。生产认证仍指向
+canonical Supabase project `wxteapvwagvhhtrjrbim`。本轮没有修改 migration、Edge
+Function、secret、认证配置或生产数据。
