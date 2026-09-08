@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`3a538efa0be0f41dc39c9f5ac34cef7c5c710e42`
+- 源码发布 commit：`b8e285163e135c6a39310bc01c3acb42c57a7641`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v126，public
+- ChatGPT Sites 版本：v127，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_1899367ec3b88191bd91a927bd66a41c`
-- Sites deployment ID：`appgdep_6a9ffd43c4308191a37d8ee7ee554b76`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_e8d685058b8c8191aa36fd985533809c`
+- Sites deployment ID：`appgdep_6aa0158af64c8191a441b68148267dda`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `be0356800dfacf113aa319beb288ccb83dc5ed60`
+  `25055883051cbbdb3c979c8ad450b39287c47821`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v126 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v126-3a538ef.tar.gz`
+- v127 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v127-b8e2851.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v126 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v127 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -388,16 +388,16 @@ AI 链路的正确结构是：
 
 ### 8.1 已上线和未上线必须分开说
 
-当前前端支持普通摘要 + 紧凑七字摘要双合同，相关测试存在且已通过。2026-09-07
+当前前端支持普通摘要 + 紧凑七字摘要双合同，相关测试存在且已通过。2026-09-08
 `ai-health-report`、`ai-diet-report`、`ai-chat-reply` 与 `diet-extract` 最新源码均已部署到
 canonical Supabase：
 
 - `ai-health-report`：模型合同
-  `deepseek-v4-flash-health-report-v6-health-metrics`，生产 ACTIVE version 10，
+  `deepseek-v4-flash-health-report-v6-health-metrics`，生产 ACTIVE version 18，
   `verify_jwt=true`；定向 repair、数字/日期证据边界、HealthKit 快照和完整授权画像都进入
   源指纹，相同输入复用持久化报告，相关输入变化才重算；
 - `ai-diet-report`：v6 日历七日窗口、normal + compact、严格校验、一次 repair 和缓存，
-  生产 ACTIVE version 7，`verify_jwt=true`；
+  生产 ACTIVE version 15，`verify_jwt=true`；
 - `ai-chat-reply`：授权上下文查询失败时不再静默降级，HealthKit 指标和允许画像进入紧凑
   context，生产 ACTIVE version 20，`verify_jwt=true`；
 - `diet-extract`：“按菜识别、复合菜描述可见原料” prompt 已上线，生产 ACTIVE version
@@ -771,7 +771,7 @@ AI provider、真实导出内容和破坏性账号删除没有在本轮冒充为
 ### A.1 已上线但仍需真实账户验收
 
 - 最新 `ai-health-report` v6 健康指标/授权画像/定向 repair/双摘要/指纹缓存合同已部署为
-  生产 version 10；最新 `ai-diet-report` v6 日历七日双摘要合同为 version 7；最新
+  生产 version 18；最新 `ai-diet-report` v6 日历七日双摘要合同为 version 15；最新
   `diet-extract` 按菜识别合同为 version 17。生产日志确认旧健康报告失败发生在结构化
   结果校验，并非截图所猜测的余额 HTTP 错误。当前已验证生产源码身份和未登录拒绝，
   尚未用真实账户验证模型首次生成、持久化缓存、跨重载复用、数据变化后恰好重算一次，
@@ -818,7 +818,7 @@ App Store。
 
 在用户完成 Apple 人工流程前，自动化代理仍可做且最有价值的工作顺序是：
 
-1. 用真实账户验收 `ai-health-report` v10、`ai-diet-report` v7 和 `diet-extract` v17：
+1. 用真实账户验收 `ai-health-report` v18、`ai-diet-report` v15 和 `diet-extract` v17：
    provider 输出、持久化、缓存失效、精确七字摘要和真实餐食照片粒度。
 2. 发布后复核两个公开站的登录、六模块路由、详细资料头像 sheet、专注和面部页面，
    以及四视口无重叠和公开 `?demo=1` 不可绕过登录。
@@ -1808,3 +1808,44 @@ deployment ID 为 `appgdep_6a9ffd43c4308191a37d8ee7ee554b76`，状态 succeeded�
 `npm run auth:verify:production` 通过：两站仍指向 canonical Supabase
 `wxteapvwagvhhtrjrbim`，公开 `?demo=1` 绕过保持关闭。本轮未修改或部署 migration、
 Edge Function、secret 或生产用户数据。
+
+## 49. 2026-09-08 六模块总览排版与真实 AI 失败链路收口、双站 v127
+
+本轮按六类记录页共同合同处理，没有把截图只当作情绪单页修补。情绪总览标题由
+“今日情绪摘要”收敛为“今日情绪”，并移除“下方强度将同步今天”的说明行；九个影响
+因素改为占满内容宽度的五列方形选择卡，保留多选状态和 `aria-pressed`。日记入口不再
+把正文挤进按钮：空状态显示“写下今天的情绪日志”，已有正文显示“查看 / 修改今天的
+情绪日志”。
+
+情绪、睡眠、运动、饮食、专注、面部六个完成后总览统一改为内容高度和 8–10px 模块
+节奏。各模块自身卡片、真实 AI 即时反馈和两个跨模块入口都处于正常滚动流；滚到底部时
+AI 卡和快捷入口均能完整停在固定底栏上方。新增
+`scripts/verify-module-overviews-ui.mjs`，逐一要求六个模块的 AI 卡达到 ready 状态、文本
+不裁切、无横向溢出、模块间距连续，并对情绪方格和日记状态文案做专门断言。
+
+AI 失败根因之一是模型已返回有证据、可用的完整报告，却可能只因次级 `compactBullets`
+没有精确满足七个汉字 / 2–4 个英文词而整体被丢弃。`ai-health-report` 与
+`ai-diet-report` 现在从同一模型生成的紧凑标签或正常 headline 做有界格式归一，不新增
+事实，原有证据核验、关联置信边界和结构校验不放宽。前端同时读取 Edge Function 的安全
+错误正文，显示具体失败原因与“重新生成”，不再把登录、限流、provider 和格式错误全部
+折叠成“真实 AI 暂时不可用”。两函数已部署到 canonical Supabase：
+`ai-health-report` ACTIVE version 18、`ai-diet-report` ACTIVE version 15，均为
+`verify_jwt=true`。生产下载源码与本地部署源码逐文件 SHA-256 一致，未认证请求均返回
+401；未修改 migration、secret 或生产用户数据。真实账号首次生成、写入缓存及改数据后的
+失效重算仍需持有安全登录态的人工验收，不能仅凭部署冒充通过。
+
+验证结果：完整 `npm run verify` 32 阶段、`npm run interaction:test` 11 组、
+`npm run backend:test` 16 项、`npm run supabase:verify-shared`、
+`npm run auth:verify:production` 均通过。六模块专项为 6 模块 × 4 视口共 24 个顶部/底部
+状态，证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-module-overviews-v127-20260908`；全页面正式态与
+加载骨架仍覆盖 228 张截图，位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-figma-pages-v127-20260908`。
+
+功能源码 commit `b8e285163e135c6a39310bc01c3acb42c57a7641` 已从同一干净、已 push
+状态发布为 ChatGPT Sites v127 与 GitHub Pages v127。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_e8d685058b8c8191aa36fd985533809c`，
+deployment ID 为 `appgdep_6aa0158af64c8191a441b68148267dda`，状态 succeeded；Pages
+镜像 commit 为 `25055883051cbbdb3c979c8ad450b39287c47821`，在线 `source.json` 已核验为
+v127 并指向同一源码和 Sites 版本。两站均返回 HTTP 200，公开 demo 绕过保持关闭，
+canonical Supabase project 仍为 `wxteapvwagvhhtrjrbim`。
