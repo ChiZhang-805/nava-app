@@ -2,6 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import {
   Bell,
   CalendarDays,
+  Check,
   HeartPulse,
   ScanFace,
   ShoppingCart,
@@ -612,6 +613,7 @@ export default function OptionTwoHome({
               draggable={false}
               data-health-icon={id}
             />
+            <Check className="option-two-health-complete-icon" size={30} strokeWidth={3.2} aria-hidden="true" />
           </button>
           );
         })}

@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-notifications-v119-20260908";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-notifications-v126-20260908";
 const port = 5201;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -74,6 +74,39 @@ try {
     await expect(banner).toContainText("NAVA 今日提醒");
     const bannerBox = await banner.boundingBox();
     if (!bannerBox || bannerBox.x < 0 || bannerBox.x + bannerBox.width > viewport.width + 1) throw new Error(`${viewport.name}: banner is clipped ${JSON.stringify(bannerBox)}`);
+    const bannerGeometry = await banner.evaluate((node) => {
+      const main = node.querySelector(".nava-notification-banner-main")?.getBoundingClientRect();
+      const icon = node.querySelector(".nava-notification-banner-icon")?.getBoundingClientRect();
+      const copy = node.querySelector(".nava-notification-banner-copy")?.getBoundingClientRect();
+      const title = node.querySelector(".nava-notification-banner-copy > b");
+      const body = node.querySelector(".nava-notification-banner-copy > span:last-child");
+      const meta = node.querySelector(".nava-notification-banner-meta");
+      return main && icon && copy && title && body && meta ? {
+        main: { top: main.top, bottom: main.bottom, height: main.height },
+        icon: { top: icon.top, bottom: icon.bottom, width: icon.width, height: icon.height },
+        copy: { top: copy.top, bottom: copy.bottom, height: copy.height },
+        centerDelta: Math.abs((main.top + main.bottom) / 2 - (copy.top + copy.bottom) / 2),
+        iconCenterDelta: Math.abs((main.top + main.bottom) / 2 - (icon.top + icon.bottom) / 2),
+        topInset: Math.min(icon.top, copy.top) - main.top,
+        bottomInset: main.bottom - Math.max(icon.bottom, copy.bottom),
+        titleFont: Number.parseFloat(getComputedStyle(title).fontSize),
+        bodyFont: Number.parseFloat(getComputedStyle(body).fontSize),
+        metaFont: Number.parseFloat(getComputedStyle(meta).fontSize),
+      } : null;
+    });
+    if (!bannerGeometry
+      || bannerGeometry.main.height < 88
+      || bannerGeometry.main.height > 96
+      || bannerGeometry.icon.width < 42
+      || bannerGeometry.icon.height < 42
+      || bannerGeometry.centerDelta > 1
+      || bannerGeometry.iconCenterDelta > 1
+      || Math.abs(bannerGeometry.topInset - bannerGeometry.bottomInset) > 1.5
+      || bannerGeometry.titleFont < 14
+      || bannerGeometry.bodyFont < 12
+      || bannerGeometry.metaFont < 10.5) {
+      throw new Error(`${viewport.name}: banner hierarchy is cramped or not vertically centered ${JSON.stringify(bannerGeometry)}`);
+    }
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-banner.png`) });
     await swipe(page, banner, "up");
     await expect(banner).toBeHidden();
@@ -228,7 +261,7 @@ try {
     if ((geometry.documentOverflow ?? 0) > 1 || (geometry.frameOverflow ?? 0) > 1 || (geometry.centerOverflow ?? 0) > 1) throw new Error(`${viewport.name}: notification UI overflows horizontally ${JSON.stringify(geometry)}`);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-center.png`) });
     if (errors.length) throw new Error(`${viewport.name}: browser errors ${JSON.stringify(errors)}`);
-    results.push({ viewport, bannerBox, bellBox, categoryIcons: categoryIcons.map((item) => item.category), initialRowHeights, notificationGeometry, detailGeometry, geometry });
+    results.push({ viewport, bannerBox, bannerGeometry, bellBox, categoryIcons: categoryIcons.map((item) => item.category), initialRowHeights, notificationGeometry, detailGeometry, geometry });
     await context.close();
   }
 } finally {

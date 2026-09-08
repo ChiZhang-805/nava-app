@@ -1,7 +1,7 @@
 import { Sparkles, Trophy } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { GrowthRewardGrant } from "../services/productivity";
-import { rewardLabel, rewardPoints } from "../services/rewardPresentation";
+import { rewardPoints } from "../services/rewardPresentation";
 
 const confettiColors = ["#ffcc4d", "#28b98a", "#36aeea", "#ff7b7b", "#9f78e8", "#ffffff"];
 const confetti = Array.from({ length: 30 }, (_, index) => ({
@@ -86,8 +86,9 @@ export default function RewardCelebration({
 
         <div className="reward-copy">
           <span>{locale === "zh" ? "NAVA 为你喝彩" : "NAVA celebrates you"}</span>
-          <h2 id="reward-celebration-title">{locale === "zh" ? "做得漂亮！" : "Nicely done!"}</h2>
-          <p>{rewardLabel(primaryReward.eventKey, locale)}</p>
+          <h2 id="reward-celebration-title" aria-label={locale === "zh" ? "做得漂亮！" : "Nicely done!"}>
+            <span>{locale === "zh" ? "做得漂亮" : "Nicely done"}</span><i aria-hidden="true">!</i>
+          </h2>
         </div>
 
         <div className="reward-points" aria-live="polite">

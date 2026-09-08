@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-shop-v125-20260908";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-shop-v126-20260908";
 const port = 5213;
 const demoUserId = "00000000-0000-4000-8000-000000000001";
 const report = [];
@@ -40,7 +40,17 @@ try {
   await desktop.waitForTimeout(450);
   await expect(desktop.getByText("规格参数", { exact: true })).toBeVisible();
   const backHeight = (await selector.boundingBox())?.height ?? 0;
-  if (frontHeight < 120 || backHeight < 250 || backHeight <= frontHeight) throw new Error(`Device specification card did not flip and expand ${JSON.stringify({ frontHeight, backHeight })}`);
+  const specificationGeometry = await desktop.evaluate(() => {
+    const selector = document.querySelector(".nava-device-selector")?.getBoundingClientRect();
+    const face = document.querySelector(".nava-device-selector-back")?.getBoundingClientRect();
+    const lastRow = document.querySelector(".nava-device-selector-back dl > div:last-child")?.getBoundingClientRect();
+    return selector && face && lastRow ? {
+      selectorHeight: selector.height,
+      faceHeight: face.height,
+      bottomInset: face.bottom - lastRow.bottom,
+    } : null;
+  });
+  if (frontHeight < 120 || backHeight <= frontHeight || !specificationGeometry || specificationGeometry.bottomInset < 12 || specificationGeometry.bottomInset > 18 || Math.abs(specificationGeometry.selectorHeight - specificationGeometry.faceHeight) > 2.5) throw new Error(`Device specification card did not fit its content ${JSON.stringify({ frontHeight, backHeight, specificationGeometry })}`);
   await desktop.screenshot({ path: path.join(outputDir, "desktop-device-specifications.png"), fullPage: true });
   await desktop.getByTitle("返回机型选择").click();
   await desktop.locator(".option-two-menu-toggle").click();

@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-module-progress-20260905";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-module-progress-v126-20260908";
 const port = 5198;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -207,7 +207,7 @@ try {
     await page.mouse.move(x + 4, startY - Math.max(150, homeBox.height / 5), { steps: 8 });
     await page.mouse.up();
     await expect(home).toHaveAttribute("data-health-menu-open", "true");
-    await page.waitForTimeout(820);
+    await page.waitForTimeout(1300);
 
     const diet = page.locator(".option-two-health-entry--diet");
     await expect(diet).toHaveAttribute("data-module-progress", "0.25");
@@ -217,12 +217,19 @@ try {
       const entries = [...document.querySelectorAll(".option-two-health-entry")].map((entry) => {
         const button = entry.getBoundingClientRect();
         const ringNode = entry.querySelector(".module-progress-ring");
+        const ringValue = entry.querySelector(".module-progress-ring__value");
+        const ringRect = ringNode?.getBoundingClientRect();
         const icon = entry.querySelector(".option-two-health-icon")?.getBoundingClientRect();
+        const completeIcon = entry.querySelector(".option-two-health-complete-icon");
         return {
           state: entry.getAttribute("data-module-state"),
           progress: entry.getAttribute("data-module-progress"),
           button: { left: button.left, right: button.right, top: button.top, bottom: button.bottom, width: button.width, height: button.height },
           ringDisplay: ringNode ? getComputedStyle(ringNode).display : null,
+          ringOpacity: ringNode ? Number(getComputedStyle(ringNode).opacity) : null,
+          ringDashOffset: ringValue ? Number.parseFloat(getComputedStyle(ringValue).strokeDashoffset) : null,
+          ringBox: ringRect ? { left: ringRect.left, right: ringRect.right, top: ringRect.top, bottom: ringRect.bottom, width: ringRect.width, height: ringRect.height } : null,
+          completeOpacity: completeIcon ? Number(getComputedStyle(completeIcon).opacity) : null,
           icon: icon ? { left: icon.left, right: icon.right, top: icon.top, bottom: icon.bottom, width: icon.width, height: icon.height } : null,
         };
       });
@@ -236,7 +243,16 @@ try {
       throw new Error(`${viewport.name}: invalid Today progress layout ${JSON.stringify(homeGeometry)}`);
     }
     for (const entry of homeGeometry.entries) {
-      if (entry.ringDisplay !== "none"
+      const expectsRing = entry.state === "partial" || entry.state === "complete";
+      if (entry.ringDisplay === "none"
+        || (expectsRing && (entry.ringOpacity ?? 0) < .99)
+        || (!expectsRing && (entry.ringOpacity ?? 0) > .01)
+        || (entry.state === "partial" && Math.abs((entry.ringDashOffset ?? 100) - (100 - Number(entry.progress) * 100)) > 1)
+        || (entry.state === "complete" && ((entry.ringDashOffset ?? 100) > 1 || (entry.completeOpacity ?? 0) < .99))
+        || (entry.state !== "complete" && (entry.completeOpacity ?? 0) > .01)
+        || !entry.ringBox
+        || entry.ringBox.width <= entry.button.width
+        || entry.ringBox.height <= entry.button.height
         || !entry.icon
         || Math.abs((entry.icon.left + entry.icon.right - entry.button.left - entry.button.right) / 2) > 1
         || Math.abs((entry.icon.top + entry.icon.bottom - entry.button.top - entry.button.bottom) / 2) > 1
@@ -244,7 +260,7 @@ try {
         || entry.button.right > homeGeometry.frame.right + 1
         || entry.button.top < homeGeometry.frame.top - 1
         || entry.button.bottom > homeGeometry.frame.bottom + 1) {
-        throw new Error(`${viewport.name}: a Today reference icon is misaligned, clipped, or still shows the legacy ring ${JSON.stringify(entry)}`);
+        throw new Error(`${viewport.name}: a Today progress ring, completion check, or module icon is misaligned ${JSON.stringify(entry)}`);
       }
     }
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-today-progress.png`) });

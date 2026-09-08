@@ -6,7 +6,7 @@ import { applyProjectPublicEnv } from "./project-env.mjs";
 import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-iphone-preview-v124-20260908";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-iphone-preview-v126-20260908";
 const port = 5206;
 const demoUserId = "00000000-0000-4000-8000-000000000001";
 
@@ -18,7 +18,7 @@ const baseUrl = server.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? `http://127
 const browser = await chromium.launch({ headless: true });
 const report = [];
 
-async function prepare(context, search = "", hash = "#tab=today") {
+async function prepare(context, search = "", hash = "#tab=today", dismissReward = true) {
   await context.addInitScript(({ userId }) => {
     sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
     localStorage.setItem(`nava.onboarding.v2.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 2, answers: {}, source: "local" }));
@@ -29,7 +29,7 @@ async function prepare(context, search = "", hash = "#tab=today") {
   if (await launch.isVisible().catch(() => false)) await launch.click();
   await expect(page.locator(".phone-frame")).toBeVisible();
   const reward = page.locator(".reward-celebration-layer");
-  if (await reward.isVisible().catch(() => false)) await reward.locator("button").first().click();
+  if (dismissReward && await reward.isVisible().catch(() => false)) await reward.locator("button").first().click();
   return page;
 }
 
@@ -322,25 +322,49 @@ try {
   await catalogContext.close();
 
   const notificationContext = await browser.newContext({ viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
-  const notificationDesktop = await prepare(notificationContext, "&qa=notifications");
+  const notificationDesktop = await prepare(notificationContext, "&qa=notifications", "#tab=today", false);
   const banner = notificationDesktop.locator(".nava-notification-banner-layer");
   await expect(banner).toBeVisible();
+  const reward = notificationDesktop.locator(".reward-celebration-card");
+  await expect(reward).toBeVisible();
+  await expect(reward.locator(".reward-copy p")).toHaveCount(0);
+  await expect(reward).not.toContainText(/记录完成|logged|completed/);
   await notificationDesktop.waitForTimeout(500);
   const notificationGeometry = await notificationDesktop.evaluate(() => {
     const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
     const layer = document.querySelector(".nava-notification-banner-layer")?.getBoundingClientRect();
     const stage = document.querySelector(".nava-app-stage");
     const safeTop = stage ? Number.parseFloat(getComputedStyle(stage).getPropertyValue("--nava-system-safe-top")) : 0;
-    return frame && layer ? {
+    const bannerMain = document.querySelector(".nava-notification-banner-main")?.getBoundingClientRect();
+    const bannerIcon = document.querySelector(".nava-notification-banner-icon")?.getBoundingClientRect();
+    const bannerCopy = document.querySelector(".nava-notification-banner-copy")?.getBoundingClientRect();
+    const pointsLabel = document.querySelector(".reward-points small");
+    const pointsValue = document.querySelector(".reward-points strong");
+    const rewardCard = document.querySelector(".reward-celebration-card")?.getBoundingClientRect();
+    const rewardTitleCore = document.querySelector(".reward-copy h2 > span")?.getBoundingClientRect();
+    return frame && layer && bannerMain && bannerIcon && bannerCopy && pointsLabel && pointsValue && rewardCard && rewardTitleCore ? {
       frame: { left: frame.left, top: frame.top, right: frame.right },
       layer: { left: layer.left, top: layer.top, right: layer.right, width: layer.width },
+      bannerContent: {
+        centerDelta: Math.abs((bannerMain.top + bannerMain.bottom) / 2 - (bannerCopy.top + bannerCopy.bottom) / 2),
+        iconCenterDelta: Math.abs((bannerMain.top + bannerMain.bottom) / 2 - (bannerIcon.top + bannerIcon.bottom) / 2),
+      },
+      rewardPoints: {
+        labelFont: Number.parseFloat(getComputedStyle(pointsLabel).fontSize),
+        valueFont: Number.parseFloat(getComputedStyle(pointsValue).fontSize),
+      },
+      rewardTitleCoreDelta: Math.abs((rewardCard.left + rewardCard.right) / 2 - (rewardTitleCore.left + rewardTitleCore.right) / 2),
       safeTop,
     } : null;
   });
   if (!notificationGeometry
     || Math.abs(notificationGeometry.layer.top - notificationGeometry.frame.top - notificationGeometry.safeTop - 2) > 2
     || notificationGeometry.layer.left < notificationGeometry.frame.left
-    || notificationGeometry.layer.right > notificationGeometry.frame.right) {
+    || notificationGeometry.layer.right > notificationGeometry.frame.right
+    || notificationGeometry.bannerContent.centerDelta > 1
+    || notificationGeometry.bannerContent.iconCenterDelta > 1
+    || Math.abs(notificationGeometry.rewardPoints.labelFont - notificationGeometry.rewardPoints.valueFont) > .1
+    || notificationGeometry.rewardTitleCoreDelta > .75) {
     throw new Error(`Desktop notification did not enter through the simulated system area ${JSON.stringify(notificationGeometry)}`);
   }
   await notificationDesktop.screenshot({ path: path.join(outputDir, "desktop-notification-1365x1000.png"), fullPage: true });

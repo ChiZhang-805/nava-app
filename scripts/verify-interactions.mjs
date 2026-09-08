@@ -1673,15 +1673,16 @@ async function verifyModuleCompletionRouting(browser, baseUrl, results, consoleE
   await expect(partialDiet).toHaveAttribute("data-module-state", "partial");
   await expect(partialDiet).toHaveAttribute("data-module-progress", "0.25");
   await expect(partialDiet).toHaveAttribute("aria-label", /1\/4/);
-  await page.waitForTimeout(760);
+  await page.waitForTimeout(950);
   const homeRingPresentation = await partialDiet.evaluate((entry) => {
     const ring = entry.querySelector(".module-progress-ring");
+    const value = entry.querySelector(".module-progress-ring__value");
     if (!ring) return null;
     const box = ring.getBoundingClientRect();
-    return { display: getComputedStyle(ring).display, width: box.width, height: box.height };
+    return { display: getComputedStyle(ring).display, opacity: Number(getComputedStyle(ring).opacity), dashOffset: value ? Number.parseFloat(getComputedStyle(value).strokeDashoffset) : null, width: box.width, height: box.height };
   });
-  if (!homeRingPresentation || (homeRingPresentation.display !== "none" && (homeRingPresentation.width > 0 || homeRingPresentation.height > 0))) {
-    throw new Error(`Today progress ring must stay visually hidden in the Figma-reference arc: ${JSON.stringify(homeRingPresentation)}`);
+  if (!homeRingPresentation || homeRingPresentation.display === "none" || homeRingPresentation.opacity < .99 || Math.abs((homeRingPresentation.dashOffset ?? 100) - 75) > 1 || homeRingPresentation.width <= 0 || homeRingPresentation.height <= 0) {
+    throw new Error(`Today partial progress ring did not draw clockwise to 25%: ${JSON.stringify(homeRingPresentation)}`);
   }
   await partialDiet.click();
   await expect(page.locator('[data-record-detail="diet"]')).toBeVisible();
@@ -1693,6 +1694,8 @@ async function verifyModuleCompletionRouting(browser, baseUrl, results, consoleE
   const completedExercise = page.locator(".option-two-health-entry--exercise");
   await expect(completedExercise).toHaveAttribute("data-module-state", "complete");
   await expect(completedExercise).toHaveAttribute("data-module-progress", "1");
+  await page.waitForTimeout(1100);
+  await expect(completedExercise.locator(".option-two-health-complete-icon")).toHaveCSS("opacity", "1");
   await completedExercise.click();
   await expect(page.locator('[data-module-view="exercise-overview"]')).toBeVisible();
   if (new URL(page.url()).hash.includes("view=editor")) throw new Error("A completed Today module routed to the editor.");

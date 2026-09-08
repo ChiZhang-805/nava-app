@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { RotateCcw, Smartphone } from "lucide-react";
 import {
   DEFAULT_IPHONE_PREVIEW_DEVICE_ID,
@@ -35,7 +35,10 @@ export default function DesktopDevicePreviewChrome() {
     }
   });
   const [showSpecifications, setShowSpecifications] = useState(false);
+  const [selectorHeight, setSelectorHeight] = useState(132);
   const previewRef = useRef<HTMLDivElement>(null);
+  const selectorFrontRef = useRef<HTMLElement>(null);
+  const selectorBackRef = useRef<HTMLElement>(null);
   const device = findIPhonePreviewDevice(deviceId);
   const { calibration } = device;
 
@@ -128,6 +131,16 @@ export default function DesktopDevicePreviewChrome() {
     };
   }, [calibration, device]);
 
+  useLayoutEffect(() => {
+    const face = showSpecifications ? selectorBackRef.current : selectorFrontRef.current;
+    if (!face) return;
+    const updateHeight = () => setSelectorHeight(Math.ceil(face.scrollHeight));
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(face);
+    return () => observer.disconnect();
+  }, [device.id, showSpecifications]);
+
   const chooseDevice = (nextDeviceId: string) => {
     const nextDevice = findIPhonePreviewDevice(nextDeviceId);
     setDeviceId(nextDevice.id);
@@ -152,8 +165,11 @@ export default function DesktopDevicePreviewChrome() {
   return (
     <>
       <aside className="nava-device-selector" data-preview-only="desktop-device-selector">
-        <div className={["nava-device-selector-turn", showSpecifications ? "is-flipped" : ""].filter(Boolean).join(" ")}>
-          <section className="nava-device-selector-face nava-device-selector-front" aria-hidden={showSpecifications} {...(showSpecifications ? { inert: "" } : {})}>
+        <div
+          className={["nava-device-selector-turn", showSpecifications ? "is-flipped" : ""].filter(Boolean).join(" ")}
+          style={{ "--nava-device-selector-height": `${selectorHeight}px` } as CSSProperties}
+        >
+          <section ref={selectorFrontRef} className="nava-device-selector-face nava-device-selector-front" aria-hidden={showSpecifications} {...(showSpecifications ? { inert: "" } : {})}>
             <header>
               <label htmlFor="nava-preview-device">预览机型</label>
               <button type="button" className="nava-device-selector-flip" onClick={() => setShowSpecifications(true)} aria-label="查看机型规格参数" title="查看规格参数"><Smartphone size={17} /></button>
@@ -183,7 +199,7 @@ export default function DesktopDevicePreviewChrome() {
               <span>1 pt 校准网格（10 pt 加粗）</span>
             </label>
           </section>
-          <section className="nava-device-selector-face nava-device-selector-back" aria-hidden={!showSpecifications} {...(!showSpecifications ? { inert: "" } : {})}>
+          <section ref={selectorBackRef} className="nava-device-selector-face nava-device-selector-back" aria-hidden={!showSpecifications} {...(!showSpecifications ? { inert: "" } : {})}>
             <header>
               <strong>规格参数</strong>
               <button type="button" className="nava-device-selector-flip" onClick={() => setShowSpecifications(false)} aria-label="返回机型选择" title="返回机型选择"><RotateCcw size={17} /></button>

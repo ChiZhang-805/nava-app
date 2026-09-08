@@ -8120,14 +8120,14 @@ body::before {
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
-.reward-copy h2 { margin: 0; color: #092f42; font-size: clamp(28px, 8vw, 34px); line-height: 1.12; letter-spacing: -0.035em; }
-.reward-copy p { margin: 0; color: #567786; font-size: 14px; font-weight: 720; }
+.reward-copy h2 { position: relative; justify-self: center; margin: 0; color: #092f42; font-size: clamp(28px, 8vw, 34px); line-height: 1.12; letter-spacing: -0.035em; }
+.reward-copy h2 > i { position: absolute; top: 0; left: 100%; font-style: normal; }
 
 .reward-points {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 9px;
-  margin-top: 20px;
+  margin-top: 18px;
   padding: 10px 22px 11px;
   border: 1px solid rgba(255, 207, 62, 0.7);
   border-radius: 999px;
@@ -8136,8 +8136,9 @@ body::before {
   box-shadow: inset 0 1px 0 #fff, 0 8px 18px rgba(200, 142, 16, 0.16);
   animation: reward-points-rise 440ms cubic-bezier(.18, 1.25, .3, 1) 620ms both;
 }
-.reward-points small { font-size: 13px; font-weight: 820; }
-.reward-points strong { min-width: 48px; font-size: 26px; font-variant-numeric: tabular-nums; line-height: 1; }
+.reward-points small,
+.reward-points strong { font-size: 26px; font-weight: 820; line-height: 1; }
+.reward-points strong { min-width: 48px; font-variant-numeric: tabular-nums; }
 .reward-daily-note { margin: 10px 0 18px; color: #6e8a96; font-size: 10.5px; font-weight: 650; }
 
 .reward-celebration-card > button {
@@ -10394,19 +10395,18 @@ body::before {
 
   .nava-device-selector-turn {
     position: relative;
-    min-height: 132px;
+    height: var(--nava-device-selector-height, 132px);
     transform-style: preserve-3d;
-    transition: min-height 280ms ease, transform 420ms cubic-bezier(.2,.8,.2,1);
+    transition: height 280ms ease, transform 420ms cubic-bezier(.2,.8,.2,1);
   }
 
   .nava-device-selector-turn.is-flipped {
-    min-height: 262px;
     transform: rotateY(180deg);
   }
 
   .nava-device-selector-face {
     position: absolute;
-    inset: 0;
+    inset: 0 0 auto;
     box-sizing: border-box;
     display: grid;
     align-content: start;
@@ -11803,17 +11803,17 @@ body::before {
   min-height: 90px;
   border: 0;
   display: grid;
-  grid-template-columns: 40px minmax(0,1fr);
-  align-items: start;
+  grid-template-columns: 42px minmax(0,1fr);
+  align-items: center;
   gap: 11px;
-  padding: 11px 14px 12px 11px;
+  padding: 10px 14px 10px 12px;
   color: inherit;
   text-align: left;
   background: transparent;
 }
 .nava-notification-banner-icon {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border: .5px solid rgba(255,255,255,.84);
   border-radius: 10px;
   display: grid;
@@ -11822,12 +11822,12 @@ body::before {
   background: linear-gradient(145deg,#f8fdff,#b9e9f7);
   box-shadow: 0 3px 9px rgba(20,82,108,.18);
 }
-.nava-notification-banner-icon img { width: 23px; height: 23px; object-fit: contain; }
-.nava-notification-banner-copy { min-width: 0; display: grid; gap: 2px; }
-.nava-notification-banner-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: rgba(35,45,53,.55); font-size: 10px; line-height: 1.2; }
-.nava-notification-banner-meta strong { color: rgba(27,36,43,.64); font-size: 10px; font-weight: 650; letter-spacing: .025em; }
-.nava-notification-banner-copy > b { overflow: hidden; color: #111820; font-size: 13px; font-weight: 720; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
-.nava-notification-banner-copy > span:last-child { display: -webkit-box; overflow: hidden; color: rgba(18,27,34,.78); font-size: 11.5px; line-height: 1.38; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.nava-notification-banner-icon img { width: 25px; height: 25px; object-fit: contain; }
+.nava-notification-banner-copy { min-width: 0; display: grid; gap: 2px; align-content: center; }
+.nava-notification-banner-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: rgba(35,45,53,.55); font-size: 10.5px; line-height: 1.2; }
+.nava-notification-banner-meta strong { color: rgba(27,36,43,.64); font-size: 10.5px; font-weight: 650; letter-spacing: .025em; }
+.nava-notification-banner-copy > b { overflow: hidden; color: #111820; font-size: 14px; font-weight: 720; line-height: 1.28; text-overflow: ellipsis; white-space: nowrap; }
+.nava-notification-banner-copy > span:last-child { display: -webkit-box; overflow: hidden; color: rgba(18,27,34,.78); font-size: 12px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 @keyframes notification-banner-layer-in { from { opacity: 0; transform: translate(-50%,-110%); } to { opacity: 1; transform: translate(-50%,0); } }
 
 .notification-center { position: relative; padding: max(12px, calc(env(safe-area-inset-top) - 9px)) 14px 116px; }
@@ -12645,8 +12645,71 @@ body::before {
   background: linear-gradient(145deg, #5598cd, #3476b4);
   box-shadow: 0 8px 16px rgba(24, 73, 110, .3), inset 0 1px 0 rgba(255, 255, 255, .28);
 }
-.option-two-health-entry .module-progress-ring { display: none; }
+.option-two-health-entry::after {
+  position: absolute;
+  inset: -1px;
+  z-index: 1;
+  border-radius: 50%;
+  content: "";
+  background: linear-gradient(145deg, #38b985, #199466);
+  box-shadow: 0 8px 18px rgba(22, 131, 91, .26), inset 0 1px 0 rgba(255,255,255,.35);
+  opacity: 0;
+  transform: scale(.78);
+  pointer-events: none;
+}
+.option-two-health-entry .module-progress-ring {
+  inset: -5px;
+  width: calc(100% + 10px);
+  height: calc(100% + 10px);
+  display: block;
+  opacity: 0;
+}
+.option-two-health-entry .module-progress-ring__track { stroke: rgba(52, 184, 132, .22); }
+.option-two-health-entry .module-progress-ring__value {
+  stroke-width: 3.1;
+  stroke-dashoffset: 100;
+  animation: none;
+}
+.option-two-home.is-health-menu-open .option-two-health-entry.is-partial .module-progress-ring,
+.option-two-home.is-health-menu-open .option-two-health-entry.is-complete .module-progress-ring { opacity: 1; }
+.option-two-home.is-health-menu-open .option-two-health-entry.is-partial .module-progress-ring__value,
+.option-two-home.is-health-menu-open .option-two-health-entry.is-complete .module-progress-ring__value {
+  animation: module-progress-ring-fill 620ms cubic-bezier(.2,.8,.2,1) both;
+  animation-delay: calc(150ms + var(--option-entry-index, 0) * 45ms);
+}
 .option-two-health-icon { color: #fff; filter: brightness(0) invert(1) drop-shadow(0 1px 0 rgba(255,255,255,.25)); }
+.option-two-health-complete-icon {
+  position: absolute;
+  z-index: 4;
+  color: #fff;
+  opacity: 0;
+  transform: scale(.7);
+  pointer-events: none;
+}
+.option-two-home.is-health-menu-open .option-two-health-entry.is-complete::after {
+  animation: option-health-complete-surface 260ms cubic-bezier(.2,.8,.2,1) both;
+  animation-delay: calc(730ms + var(--option-entry-index, 0) * 45ms);
+}
+.option-two-home.is-health-menu-open .option-two-health-entry.is-complete .option-two-health-icon {
+  animation: option-health-source-complete 220ms ease both;
+  animation-delay: calc(730ms + var(--option-entry-index, 0) * 45ms);
+}
+.option-two-home.is-health-menu-open .option-two-health-entry.is-complete .option-two-health-complete-icon {
+  animation: option-health-check-arrive 340ms cubic-bezier(.18,.9,.25,1.35) both;
+  animation-delay: calc(780ms + var(--option-entry-index, 0) * 45ms);
+}
+@keyframes option-health-complete-surface {
+  from { opacity: 0; transform: scale(.78); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes option-health-source-complete {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(.68); }
+}
+@keyframes option-health-check-arrive {
+  from { opacity: 0; transform: scale(.7) rotate(-12deg); }
+  to { opacity: 1; transform: scale(1) rotate(0deg); }
+}
 .option-two-health-entry--exercise { --entry-x: 16.7%; --entry-bottom: 12.1cqh; }
 .option-two-health-entry--diet { --entry-x: 27.1%; --entry-bottom: 18.2cqh; }
 .option-two-health-entry--sleep { --entry-x: 42.2%; --entry-bottom: 22cqh; }
@@ -12688,6 +12751,13 @@ body::before {
   .home-widget-grid.is-arranging .home-health-widget { animation: none; }
   .home-widget-slot,
   .home-health-widget { transition: none; }
+  .option-two-home.is-health-menu-open .option-two-health-entry.is-complete::after,
+  .option-two-home.is-health-menu-open .option-two-health-entry.is-complete .option-two-health-icon,
+  .option-two-home.is-health-menu-open .option-two-health-entry.is-complete .option-two-health-complete-icon,
+  .option-two-home.is-health-menu-open .option-two-health-entry .module-progress-ring__value {
+    animation-delay: 0ms;
+    animation-duration: 1ms;
+  }
 }
 
 /* Keep the focus support rules above the final release cascade. */
