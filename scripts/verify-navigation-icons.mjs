@@ -161,11 +161,58 @@ try {
 
     const dockGeometry = await page.locator(".bottom-nav .nav-button").evaluateAll((buttons) => buttons.map((button) => {
       const rect = button.getBoundingClientRect();
-      return { tab: button.getAttribute("data-tab"), centerY: rect.top + rect.height / 2 };
+      return {
+        tab: button.getAttribute("data-tab"),
+        left: rect.left,
+        right: rect.right,
+        centerX: rect.left + rect.width / 2,
+        centerY: rect.top + rect.height / 2,
+      };
     }));
     const dockCenters = dockGeometry.map(({ centerY }) => centerY);
     if (Math.max(...dockCenters) - Math.min(...dockCenters) > 0.75) {
       throw new Error(`${viewport.label}: dock button centers are not on one horizontal line ${JSON.stringify(dockGeometry)}`);
+    }
+    const dockGaps = dockGeometry.slice(1).map((button, index) => button.left - dockGeometry[index].right);
+    if (Math.max(...dockGaps) - Math.min(...dockGaps) > .75) {
+      throw new Error(`${viewport.label}: dock button edge gaps are not equal ${JSON.stringify({ dockGeometry, dockGaps })}`);
+    }
+    const secondaryOpticalSizes = [];
+    for (const tab of ["today", "record", "trends", "profile"]) {
+      const screenshot = await page.locator(`.nav-button[data-tab="${tab}"] .figma-nav-icon`).screenshot();
+      const opticalSize = await page.evaluate(async ({ dataUrl, ratio }) => {
+        const image = new Image();
+        image.src = dataUrl;
+        await image.decode();
+        const canvas = document.createElement("canvas");
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        context?.drawImage(image, 0, 0);
+        const pixels = context?.getImageData(0, 0, canvas.width, canvas.height).data;
+        if (!pixels) return 0;
+        let left = canvas.width;
+        let right = -1;
+        let top = canvas.height;
+        let bottom = -1;
+        for (let y = 0; y < canvas.height; y += 1) {
+          for (let x = 0; x < canvas.width; x += 1) {
+            const offset = (y * canvas.width + x) * 4;
+            const alpha = pixels[offset + 3];
+            const luminance = pixels[offset] * .2126 + pixels[offset + 1] * .7152 + pixels[offset + 2] * .0722;
+            if (alpha < 24 || luminance > 145) continue;
+            left = Math.min(left, x);
+            right = Math.max(right, x);
+            top = Math.min(top, y);
+            bottom = Math.max(bottom, y);
+          }
+        }
+        return right < left ? 0 : Math.max(right - left + 1, bottom - top + 1) / ratio;
+      }, { dataUrl: `data:image/png;base64,${screenshot.toString("base64")}`, ratio: 2 });
+      secondaryOpticalSizes.push(opticalSize);
+    }
+    if (secondaryOpticalSizes.some((size) => size <= 0) || Math.max(...secondaryOpticalSizes) - Math.min(...secondaryOpticalSizes) > 1.5) {
+      throw new Error(`${viewport.label}: secondary navigation glyphs are not optically normalized ${JSON.stringify({ dockGeometry, secondaryOpticalSizes })}`);
     }
 
     const aiGeometry = await page.locator('[data-tab="ai"]').evaluate((button) => {

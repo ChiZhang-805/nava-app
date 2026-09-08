@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-module-progress-v126-20260908";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-module-progress-v128-20260908";
 const port = 5198;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -228,6 +228,8 @@ try {
           ringDisplay: ringNode ? getComputedStyle(ringNode).display : null,
           ringOpacity: ringNode ? Number(getComputedStyle(ringNode).opacity) : null,
           ringDashOffset: ringValue ? Number.parseFloat(getComputedStyle(ringValue).strokeDashoffset) : null,
+          ringDashLength: ringValue ? Number.parseFloat(getComputedStyle(ringValue).strokeDasharray) : null,
+          ringPathLength: ringValue && "getTotalLength" in ringValue ? ringValue.getTotalLength() : null,
           ringBox: ringRect ? { left: ringRect.left, right: ringRect.right, top: ringRect.top, bottom: ringRect.bottom, width: ringRect.width, height: ringRect.height } : null,
           completeOpacity: completeIcon ? Number(getComputedStyle(completeIcon).opacity) : null,
           icon: icon ? { left: icon.left, right: icon.right, top: icon.top, bottom: icon.bottom, width: icon.width, height: icon.height } : null,
@@ -244,11 +246,13 @@ try {
     }
     for (const entry of homeGeometry.entries) {
       const expectsRing = entry.state === "partial" || entry.state === "complete";
+      const expectedOffset = (entry.ringPathLength ?? 0) * (1 - Number(entry.progress));
       if (entry.ringDisplay === "none"
         || (expectsRing && (entry.ringOpacity ?? 0) < .99)
         || (!expectsRing && (entry.ringOpacity ?? 0) > .01)
-        || (entry.state === "partial" && Math.abs((entry.ringDashOffset ?? 100) - (100 - Number(entry.progress) * 100)) > 1)
-        || (entry.state === "complete" && ((entry.ringDashOffset ?? 100) > 1 || (entry.completeOpacity ?? 0) < .99))
+        || (expectsRing && (!entry.ringPathLength || !entry.ringDashLength || entry.ringDashLength < entry.ringPathLength - .5))
+        || (entry.state === "partial" && Math.abs((entry.ringDashOffset ?? entry.ringPathLength ?? 0) - expectedOffset) > 1)
+        || (entry.state === "complete" && ((entry.ringDashOffset ?? entry.ringPathLength ?? 0) > .5 || (entry.completeOpacity ?? 0) < .99))
         || (entry.state !== "complete" && (entry.completeOpacity ?? 0) > .01)
         || !entry.ringBox
         || entry.ringBox.width <= entry.button.width

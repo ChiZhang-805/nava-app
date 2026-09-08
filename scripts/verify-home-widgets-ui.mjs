@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-widget-tap-finish-v124-20260908";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-widgets-v128-20260908";
 const port = 5204;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -221,7 +221,7 @@ try {
     await expect(sideButtons.nth(1)).toBeVisible();
     await sideButtons.nth(4).click();
     await expect(page.locator(".utility-drawer")).toBeVisible();
-    await page.locator(".drawer-home-edit").click();
+    await page.locator(".drawer-home-edit").first().click();
     await expect(page.locator(".home-widget-editor")).toBeVisible();
     await expect(page.locator(".bottom-nav")).toHaveCount(0);
     await expect(page.locator(".home-widget-picker > button")).toHaveCount(8);
@@ -258,6 +258,53 @@ try {
     await expect(page.locator(".home-health-widget")).toHaveCount(6);
     await expect(page.locator(".option-two-guidance")).toHaveCount(0);
     await page.waitForTimeout(700);
+    const widgetTextGeometry = await page.locator(".home-health-widget").evaluateAll((widgets) => widgets.map((widget) => {
+      const card = widget.getBoundingClientRect();
+      const value = widget.querySelector(".home-widget-value");
+      const core = value?.querySelector("strong");
+      const support = value?.querySelector("small");
+      const supportStyle = support ? getComputedStyle(support) : null;
+      const toRect = (element) => {
+        const rect = element?.getBoundingClientRect();
+        return rect ? { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height } : null;
+      };
+      return {
+        id: widget.getAttribute("data-home-widget"),
+        card: { left: card.left, right: card.right, top: card.top, bottom: card.bottom },
+        value: toRect(value),
+        core: core ? { text: core.textContent?.trim(), rect: toRect(core), scrollWidth: core.scrollWidth, clientWidth: core.clientWidth } : null,
+        support: support ? {
+          text: support.textContent?.trim(),
+          rect: toRect(support),
+          scrollWidth: support.scrollWidth,
+          clientWidth: support.clientWidth,
+          scrollHeight: support.scrollHeight,
+          clientHeight: support.clientHeight,
+          textOverflow: supportStyle?.textOverflow,
+        } : null,
+      };
+    }));
+    for (const widget of widgetTextGeometry) {
+      if (!widget.value || !widget.core?.rect || !widget.support?.rect
+        || widget.core.scrollWidth > widget.core.clientWidth + 1
+        || widget.support.scrollWidth > widget.support.clientWidth + 1
+        || widget.support.scrollHeight > widget.support.clientHeight + 1
+        || widget.value.left < widget.card.left - 1
+        || widget.value.right > widget.card.right + 1
+        || widget.value.bottom > widget.card.bottom + 1
+        || widget.core.rect.left < widget.card.left - 1
+        || widget.core.rect.right > widget.card.right + 1
+        || widget.support.rect.left < widget.card.left - 1
+        || widget.support.rect.right > widget.card.right + 1
+        || widget.support.rect.bottom > widget.card.bottom + 1
+        || widget.support.textOverflow === "ellipsis") {
+        throw new Error(`${viewport.name}: a populated home widget truncates its value or support text ${JSON.stringify(widget)}`);
+      }
+    }
+    const moodWidget = widgetTextGeometry.find(({ id }) => id === "mood");
+    if (!moodWidget || moodWidget.core?.text !== "平稳" || !moodWidget.support?.text?.startsWith("较近7日")) {
+      throw new Error(`${viewport.name}: populated mood widget did not expose its complete core and trend copy ${JSON.stringify(moodWidget)}`);
+    }
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-six.png`) });
 
     await openRoute(page, "tab=today&view=home-widgets");
@@ -310,7 +357,7 @@ try {
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-face-readiness.png`) });
 
     if (errors.length) throw new Error(`${viewport.name}: browser errors ${JSON.stringify(errors)}`);
-    report.push({ viewport, backgroundGeometry, skeletonGeometry, initialGeometry, sortGeometry, faceGeometry });
+    report.push({ viewport, backgroundGeometry, skeletonGeometry, initialGeometry, sortGeometry, widgetTextGeometry, faceGeometry });
     await context.close();
   }
 } finally {

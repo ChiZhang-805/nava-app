@@ -1679,9 +1679,25 @@ async function verifyModuleCompletionRouting(browser, baseUrl, results, consoleE
     const value = entry.querySelector(".module-progress-ring__value");
     if (!ring) return null;
     const box = ring.getBoundingClientRect();
-    return { display: getComputedStyle(ring).display, opacity: Number(getComputedStyle(ring).opacity), dashOffset: value ? Number.parseFloat(getComputedStyle(value).strokeDashoffset) : null, width: box.width, height: box.height };
+    return {
+      display: getComputedStyle(ring).display,
+      opacity: Number(getComputedStyle(ring).opacity),
+      dashOffset: value ? Number.parseFloat(getComputedStyle(value).strokeDashoffset) : null,
+      dashLength: value ? Number.parseFloat(getComputedStyle(value).strokeDasharray) : null,
+      pathLength: value && "getTotalLength" in value ? value.getTotalLength() : null,
+      width: box.width,
+      height: box.height,
+    };
   });
-  if (!homeRingPresentation || homeRingPresentation.display === "none" || homeRingPresentation.opacity < .99 || Math.abs((homeRingPresentation.dashOffset ?? 100) - 75) > 1 || homeRingPresentation.width <= 0 || homeRingPresentation.height <= 0) {
+  if (!homeRingPresentation
+    || homeRingPresentation.display === "none"
+    || homeRingPresentation.opacity < .99
+    || !homeRingPresentation.pathLength
+    || !homeRingPresentation.dashLength
+    || homeRingPresentation.dashLength < homeRingPresentation.pathLength - .5
+    || Math.abs((homeRingPresentation.dashOffset ?? homeRingPresentation.pathLength) - homeRingPresentation.pathLength * .75) > 1
+    || homeRingPresentation.width <= 0
+    || homeRingPresentation.height <= 0) {
     throw new Error(`Today partial progress ring did not draw clockwise to 25%: ${JSON.stringify(homeRingPresentation)}`);
   }
   await partialDiet.click();
@@ -1696,6 +1712,14 @@ async function verifyModuleCompletionRouting(browser, baseUrl, results, consoleE
   await expect(completedExercise).toHaveAttribute("data-module-progress", "1");
   await page.waitForTimeout(1100);
   await expect(completedExercise.locator(".option-two-health-complete-icon")).toHaveCSS("opacity", "1");
+  const completedRing = await completedExercise.locator(".module-progress-ring__value").evaluate((circle) => ({
+    dashOffset: Number.parseFloat(getComputedStyle(circle).strokeDashoffset),
+    dashLength: Number.parseFloat(getComputedStyle(circle).strokeDasharray),
+    pathLength: "getTotalLength" in circle ? circle.getTotalLength() : null,
+  }));
+  if (!completedRing.pathLength || completedRing.dashLength < completedRing.pathLength - .5 || Math.abs(completedRing.dashOffset) > .5) {
+    throw new Error(`Today completed progress ring is not a closed 100% circle: ${JSON.stringify(completedRing)}`);
+  }
   await completedExercise.click();
   await expect(page.locator('[data-module-view="exercise-overview"]')).toBeVisible();
   if (new URL(page.url()).hash.includes("view=editor")) throw new Error("A completed Today module routed to the editor.");
