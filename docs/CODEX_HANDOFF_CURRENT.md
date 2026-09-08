@@ -1664,3 +1664,51 @@ v123 并指向上述源码和 Sites 版本。两站均返回 HTTP 200，线上�
 `index-CMJiDAt1.js` SHA-256 完全一致；公开 demo 绕过继续关闭，canonical Supabase
 project 仍为 `wxteapvwagvhhtrjrbim`。本轮没有修改 migration、Edge Function、secret、
 认证配置或生产数据。
+
+## 46. 2026-09-08 每日 AI 会话、底部安全区与双站 v124
+
+AI 对话现在以设备本地日历日为会话边界。页面保持打开跨过午夜、从后台返回、进入 AI
+页面，或在换日后首次通过文字、拍照、语音发送时，都会先把旧会话持久化到
+`ai_conversation_archives`，确认成功后再按当前用户和消息 ID 从活动
+`ai_conversations` 中移走旧消息；当天从空白新会话开始。用户也可在同一天多次手动创建
+新会话。历史列表显示 8–10 个汉字或 3–6 个英文词的短标题、日期和独立删除键，历史打开
+后为只读并可返回今日会话。只有 `ai_personalization_consent` 为 true 时才通过现有、已认证
+的 `ai-chat-reply` 对最多 12 条/2,800 字符的旧会话生成标题；未同意、模型不可用或输出
+不合规时使用 `9月8日 AI 对话`、`9月8日 AI 对话之二` 等日期兜底。现有归档表无需新增
+migration：日期和标题作为版本化 `__navaArchive` 首项写入 JSONB，读取时剥离，并兼容
+旧版纯消息数组。
+
+首页组件长按编辑不再显示右上角“完成”；拖放后点击任意无功能的背景空白即可保存并退出，
+卡片、按钮、输入和链接不会误触退出，Escape 和键盘移动替代方式仍保留。周报表头已由
+`有记录日节律均值` 收敛为 `日节律均值`。AI 前端清单已逐项复核 20 个报告文案位置：
+六个模块趋势洞察、六个模块概览反馈、六个记录中心紧凑摘要、一个节律总览和一个周节律
+洞察；另有 AI 对话、饮食/面部视觉识别与两个专注 AI 入口的独立真实函数链路。
+
+底部导航统一遵守 Home Indicator 安全间距。首页圆盘与普通业务页的中间 AI 圆钮，其底缘
+到 Home Indicator 顶缘的空隙与 Indicator 到屏幕底边的 8pt 空隙对称；普通四个圆钮也
+至少保留同等呼吸空间。此前通用 `nav-settle` 动画会在结束后覆盖位移，本轮已对普通页面
+AI 圆钮停用该冲突动画。`npm run device-preview:visual` 对 18 款 iPhone 同时断言五个底栏
+按钮、开孔与状态栏几何，并复核移动/PWA 不泄漏预览机壳；证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v124-20260908`。首页空白点击专项
+覆盖 360×740、375×812、390×844、430×932，证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-home-widget-tap-finish-v124-20260908`。
+
+发布门槛全部通过：`npm run verify` 31 阶段、`npm run interaction:test` 11 组、
+`npm run screenshots`、`npm run device-preview:visual`、`npm run home-widgets:visual`、
+`npm run auth:verify:production` 与只读 `npm run supabase:verify-shared`。全页面矩阵仍为
+140 个正式状态加 88 个加载状态，共 228 张、4 个规定视口、0 个几何错误，最大受跟踪
+模块间距 16.04px，报告位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-figma-pages\report.json`。共享项目继续为
+`wxteapvwagvhhtrjrbim`，Auth、核心/扩展表、共享/APP Functions 与 Storage 均为 READY。
+
+功能源码 commit `805a02acd4f13e68fdbfd297e0293da9844d97a1` 已从同一干净、已 push
+状态发布为 ChatGPT Sites v124 与 GitHub Pages v124。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_5921fd5407948191951c95ec9eda522c`，
+deployment ID 为 `appgdep_6a9fbfa673c481919f1aba94748f7098`，状态 succeeded；Pages
+镜像 commit 为 `be7c4985664b5e338f70f199c4dfabfa7e6439e9`，在线 `source.json` 指向上述
+源码与 Sites 版本。两个公开站均返回 HTTP 200，并加载同一 `index-Bvklywxx.js`，线上与
+本地 SHA-256 均为 `07cb738b003eb64e9e9ba652defe39eecd8d5c7b7f6ef30222bf785aeb0aaa9c`；
+无登录浏览器访问两站的 `?demo=1` 均停留在真实登录页且无 console error，证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-v124-online`。本轮没有修改或部署 migration、
+Edge Function、secret、认证配置或生产用户数据；真实账号下的 AI 标题内容质量仍需人类
+账号验收，结构与失败兜底已自动化验证。
