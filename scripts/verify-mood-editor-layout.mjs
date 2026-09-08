@@ -6,7 +6,7 @@ import { createServer } from "vite";
 const root = process.cwd();
 const outputDir = process.env.RECORD_EDITOR_LAYOUT_OUTPUT_DIR
   ? path.resolve(process.env.RECORD_EDITOR_LAYOUT_OUTPUT_DIR)
-  : path.resolve(root, "..", "Build", "TestRuns", "nava-record-editor-layout-v109");
+  : path.resolve(root, "..", "Build", "TestRuns", "nava-record-editor-layout-v123");
 const port = Number(process.env.PORT || 5209);
 const demoAccount = "13800138000";
 const demoPassword = "12345678";
@@ -73,7 +73,7 @@ async function readCardGeometry(page, module) {
   return page.locator(`.record-detail[data-record-detail="${module}"]`).evaluate((detail) => {
     const frame = detail.closest(".phone-frame");
     const content = detail.closest(".app-content");
-    const toolbar = detail.querySelector(".record-detail-toolbar--editor");
+    const noticeToolbar = detail.querySelector(".record-detail-toolbar--notice-only");
     const card = detail.querySelector(".record-editor-stack > form:not([hidden]) > .section-card, .record-editor-stack > div:not([hidden]) > .section-card");
     const nav = frame?.querySelector(".bottom-nav");
     const rect = (node) => {
@@ -96,30 +96,29 @@ async function readCardGeometry(page, module) {
         marginBottom: getComputedStyle(node).marginBottom,
         rect: rect(node),
       })) : [],
-      toolbar: rect(toolbar),
       card: rect(card),
+      noticeToolbar: rect(noticeToolbar),
       nav: rect(nav),
     };
   });
 }
 
 function assertOneScreenCard(name, geometry) {
-  const { card, contentOverflowY, frameOverflowX, nav, toolbar } = geometry;
-  if (!card || !nav || !toolbar) throw new Error(`${name}: card geometry is incomplete ${JSON.stringify(geometry)}`);
+  const { card, contentOverflowY, detail, frameOverflowX, nav, noticeToolbar } = geometry;
+  if (!card || !detail || !nav) throw new Error(`${name}: card geometry is incomplete ${JSON.stringify(geometry)}`);
   const cardNavGap = nav.top - card.bottom;
-  const toolbarCardGap = card.top - toolbar.bottom;
+  const detailCardInset = card.top - (noticeToolbar?.bottom ?? detail.top);
   if ((frameOverflowX ?? 0) > 1) throw new Error(`${name}: horizontal overflow ${JSON.stringify(geometry)}`);
   if ((contentOverflowY ?? 0) > 1) throw new Error(`${name}: editor should fit one screen ${JSON.stringify(geometry)}`);
   if (cardNavGap < 8 || cardNavGap > 44) throw new Error(`${name}: card/navigation gap is ${cardNavGap.toFixed(1)}px ${JSON.stringify(geometry)}`);
-  if (toolbarCardGap < 5 || toolbarCardGap > 16) throw new Error(`${name}: toolbar/card gap is ${toolbarCardGap.toFixed(1)}px ${JSON.stringify(geometry)}`);
-  return { ...geometry, cardNavGap, toolbarCardGap };
+  if (detailCardInset < (noticeToolbar ? -12 : -1) || detailCardInset > 16) throw new Error(`${name}: editor card top inset is ${detailCardInset.toFixed(1)}px ${JSON.stringify(geometry)}`);
+  return { ...geometry, cardNavGap, detailCardInset };
 }
 
 async function readGeometry(page, module, fieldSelector) {
   return page.locator(`.record-detail[data-record-detail="${module}"]`).evaluate((detail, selector) => {
     const frame = detail.closest(".phone-frame");
     const content = detail.closest(".app-content");
-    const toolbar = detail.querySelector(".record-detail-toolbar--editor");
     const card = detail.querySelector(".record-editor-stack > form:not([hidden]) > .section-card");
     const field = detail.querySelector(selector);
     const textarea = field?.querySelector("textarea");
@@ -134,7 +133,6 @@ async function readGeometry(page, module, fieldSelector) {
       frameOverflowX: frame ? frame.scrollWidth - frame.clientWidth : null,
       contentOverflowY: content ? content.scrollHeight - content.clientHeight : null,
       detail: rect(detail),
-      toolbar: rect(toolbar),
       card: rect(card),
       cardChildren: card ? Array.from(card.children).map((node) => ({
         className: node.className,
@@ -153,20 +151,47 @@ async function readGeometry(page, module, fieldSelector) {
 }
 
 function assertGeometry(name, geometry, expectedMinimum) {
-  const { card, contentOverflowY, field, frameOverflowX, nav, save, textarea, toolbar } = geometry;
-  if (!card || !field || !textarea || !save || !nav || !toolbar) throw new Error(`${name}: editor geometry is incomplete ${JSON.stringify(geometry)}`);
+  const { card, contentOverflowY, detail, field, frameOverflowX, nav, save, textarea } = geometry;
+  if (!card || !detail || !field || !textarea || !save || !nav) throw new Error(`${name}: editor geometry is incomplete ${JSON.stringify(geometry)}`);
   const cardNavGap = nav.top - card.bottom;
-  const toolbarCardGap = card.top - toolbar.bottom;
+  const detailCardInset = card.top - detail.top;
   const actionBottomInset = card.bottom - save.bottom;
   if ((frameOverflowX ?? 0) > 1) throw new Error(`${name}: horizontal overflow ${JSON.stringify(geometry)}`);
   if ((contentOverflowY ?? 0) > 1) throw new Error(`${name}: normal editor should fit one screen ${JSON.stringify(geometry)}`);
   if (cardNavGap < 10 || cardNavGap > 44) throw new Error(`${name}: card/navigation gap is ${cardNavGap.toFixed(1)}px ${JSON.stringify(geometry)}`);
-  if (toolbarCardGap < 5 || toolbarCardGap > 16) throw new Error(`${name}: toolbar/card gap is ${toolbarCardGap.toFixed(1)}px ${JSON.stringify(geometry)}`);
+  if (detailCardInset < -1 || detailCardInset > 16) throw new Error(`${name}: editor card top inset is ${detailCardInset.toFixed(1)}px ${JSON.stringify(geometry)}`);
   if (actionBottomInset < 8 || actionBottomInset > 28) throw new Error(`${name}: save action bottom inset is ${actionBottomInset.toFixed(1)}px ${JSON.stringify(geometry)}`);
   if (field.top < card.top || field.bottom > save.top + 1 || save.bottom > card.bottom + 1) throw new Error(`${name}: journal or save action escapes/overlaps the card ${JSON.stringify(geometry)}`);
   if (textarea.top < field.top || textarea.bottom > field.bottom + 1) throw new Error(`${name}: textarea escapes its field ${JSON.stringify(geometry)}`);
   if (textarea.height < expectedMinimum - 1) throw new Error(`${name}: textarea is only ${textarea.height.toFixed(1)}px tall ${JSON.stringify(geometry)}`);
-  return { ...geometry, cardNavGap, toolbarCardGap, actionBottomInset };
+  return { ...geometry, cardNavGap, detailCardInset, actionBottomInset };
+}
+
+async function assertEditorHeader(page, module, expectedShortcutCount) {
+  const detail = page.locator(`.record-detail[data-record-detail="${module}"]`);
+  await expect(detail.locator(".record-detail-date")).toHaveCount(0);
+  await expect(detail.locator(".record-editor-stack > form:not([hidden]) .record-editor-title-icon, .record-editor-stack > div:not([hidden]) .record-editor-title-icon")).toHaveCount(1);
+  await expect(detail.locator(".record-editor-stack > form:not([hidden]) .record-section-date, .record-editor-stack > div:not([hidden]) .record-section-date")).toHaveCount(1);
+  const header = await detail.evaluate((node) => {
+    const active = node.querySelector(".record-editor-stack > form:not([hidden]), .record-editor-stack > div:not([hidden])");
+    const title = active?.querySelector(".record-editor-title")?.getBoundingClientRect();
+    const icon = active?.querySelector(".record-editor-title-icon")?.getBoundingClientRect();
+    const date = active?.querySelector(".record-section-date")?.getBoundingClientRect();
+    const dateStyle = active?.querySelector(".record-section-date") ? getComputedStyle(active.querySelector(".record-section-date")) : null;
+    const headingActions = active?.querySelector(".record-editor-heading-actions");
+    const shortcuts = headingActions ? [...headingActions.querySelectorAll("button")].length : 0;
+    return {
+      titleCenter: title ? title.top + title.height / 2 : null,
+      iconCenter: icon ? icon.top + icon.height / 2 : null,
+      dateCenter: date ? date.top + date.height / 2 : null,
+      dateBackground: dateStyle?.backgroundColor ?? null,
+      shortcuts,
+    };
+  });
+  if (header.titleCenter == null || header.iconCenter == null || header.dateCenter == null) throw new Error(`${module}: incomplete editor heading ${JSON.stringify(header)}`);
+  if (Math.abs(header.titleCenter - header.iconCenter) > 2 || Math.abs(header.titleCenter - header.dateCenter) > 3) throw new Error(`${module}: title/icon/date are not vertically aligned ${JSON.stringify(header)}`);
+  if (header.dateBackground !== "rgba(0, 0, 0, 0)") throw new Error(`${module}: date action has an unexpected background ${JSON.stringify(header)}`);
+  if (header.shortcuts !== expectedShortcutCount) throw new Error(`${module}: expected ${expectedShortcutCount} shortcuts before date action ${JSON.stringify(header)}`);
 }
 
 async function main() {
@@ -194,6 +219,7 @@ async function main() {
       await page.goto(`${baseUrl}?demo=1#tab=record&module=mood&view=editor`, { waitUntil: "networkidle" });
       await page.evaluate(() => window.scrollTo(0, 0));
       await expect(page.locator('.record-detail[data-record-detail="mood"] .record-editor-stack > form:not([hidden])')).toBeVisible();
+      await assertEditorHeader(page, "mood", 0);
       await page.waitForTimeout(760);
       const minimum = viewport.height <= 780 ? 52 : 88;
       const geometry = assertGeometry(`mood/${viewport.name}`, await readGeometry(page, "mood", ".mood-diary-field"), minimum);
@@ -211,6 +237,7 @@ async function main() {
       await page.evaluate(() => window.scrollTo(0, 0));
       await expect(page.locator('.record-detail[data-record-detail="sleep"] .record-editor-stack > form:not([hidden])')).toBeVisible();
       await expect(page.locator(".sleep-preset-icons button")).toHaveCount(3);
+      await assertEditorHeader(page, "sleep", 3);
       await page.waitForTimeout(760);
       const minimum = viewport.height <= 780 ? 60 : viewport.height <= 844 ? 64 : 82;
       const geometry = assertGeometry(`sleep/${viewport.name}`, await readGeometry(page, "sleep", ".sleep-note-field"), minimum);
@@ -258,6 +285,7 @@ async function main() {
       await expect(detail.locator('.exercise-self-check-grid .exercise-rating-field')).toHaveCount(3);
       await expect(detail.locator('.exercise-injury-toggle')).toBeVisible();
       await expect(detail.locator('.exercise-recovery-estimate')).toBeVisible();
+      await assertEditorHeader(page, "exercise", 0);
       await page.waitForTimeout(500);
       const geometry = assertOneScreenCard(`exercise/${viewport.name}`, await readCardGeometry(page, "exercise"));
       const action = await detail.locator('form:not([hidden]) .action-button').evaluate((node) => {
@@ -278,6 +306,7 @@ async function main() {
       const detail = page.locator('.record-detail[data-record-detail="diet"]');
       await expect(detail.locator('.record-editor-stack > form:not([hidden])')).toBeVisible();
       await expect(detail.locator(".diet-quick-food-icons button")).toHaveCount(4);
+      await assertEditorHeader(page, "diet", 4);
       const shortcutGeometry = await detail.evaluate((node) => {
         const active = node.querySelector(".record-editor-stack > form:not([hidden])");
         const title = active?.querySelector(".section-heading h2")?.getBoundingClientRect();
@@ -341,6 +370,7 @@ async function main() {
       await page.evaluate(() => window.scrollTo(0, 0));
       const detail = page.locator('.record-detail[data-record-detail="focus"]');
       await expect(detail.locator('.record-editor-stack > form:not([hidden])')).toBeVisible();
+      await assertEditorHeader(page, "focus", 2);
       await expect(detail.locator(".focus-entry-mode-icons button")).toHaveCount(2);
       await detail.locator('[data-focus-mode="countdown"]').click();
       await expect(detail.locator(".focus-duration-preset-icons, [data-focus-duration]")).toHaveCount(0);
@@ -426,8 +456,9 @@ async function main() {
       await page.evaluate(() => window.scrollTo(0, 0));
       const detail = page.locator('.record-detail[data-record-detail="face"]');
       await expect(detail.locator('.record-editor-stack > div:not([hidden])')).toBeVisible();
-      await detail.locator('.record-detail-date input[type="date"]').fill("2020-01-01");
-      await detail.locator('.record-detail-date input[type="date"]').blur();
+      await assertEditorHeader(page, "face", 2);
+      await detail.locator('.record-editor-stack > div:not([hidden]) .record-section-date input[type="date"]').fill("2020-01-01");
+      await detail.locator('.record-editor-stack > div:not([hidden]) .record-section-date input[type="date"]').blur();
       await expect(detail.locator(".face-bare-guidance, .face-consent")).toHaveCount(0);
       await expect(detail.locator(".face-photo-actions button")).toHaveCount(2);
       await expect(detail.locator(".face-mode-icon-actions button")).toHaveCount(2);

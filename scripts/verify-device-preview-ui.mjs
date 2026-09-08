@@ -6,7 +6,7 @@ import { applyProjectPublicEnv } from "./project-env.mjs";
 import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-iphone-preview-v120-20260908";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-iphone-preview-v123-20260908";
 const port = 5206;
 const demoUserId = "00000000-0000-4000-8000-000000000001";
 
@@ -100,6 +100,70 @@ try {
   await signedOutDesktop.screenshot({ path: path.join(outputDir, "desktop-auth-1365x1000.png"), fullPage: true });
   report.push({ mode: "desktop-auth-preview", geometry: signedOutDesktopGeometry });
   await signedOutDesktopContext.close();
+
+  const onboardingDesktopContext = await browser.newContext({ viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
+  await onboardingDesktopContext.addInitScript(({ userId }) => {
+    sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
+    localStorage.setItem(`nava.onboarding.v2.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 2, answers: {}, source: "local" }));
+  }, { userId: demoUserId });
+  const onboardingDesktop = await onboardingDesktopContext.newPage();
+  await onboardingDesktop.goto(`${baseUrl}?demo=1&onboarding=1`, { waitUntil: "networkidle" });
+  const onboardingLaunch = onboardingDesktop.locator(".launch-sequence");
+  if (await onboardingLaunch.isVisible().catch(() => false)) await onboardingLaunch.click();
+  const onboarding = onboardingDesktop.locator(".onboarding-screen");
+  await expect(onboarding).toBeVisible();
+  const welcome = onboardingDesktop.locator(".onboarding-welcome");
+  if (await welcome.isVisible().catch(() => false)) await welcome.waitFor({ state: "hidden", timeout: 6_000 });
+  await expect(onboarding).toHaveAttribute("data-onboarding-step", "gender");
+  const onboardingDesktopGeometry = await onboarding.evaluate((node) => {
+    const screen = node.getBoundingClientRect();
+    const chrome = document.querySelector(".nava-device-preview")?.getBoundingClientRect();
+    const cutout = document.querySelector(".nava-device-cutout")?.getBoundingClientRect();
+    const title = node.querySelector(".onboarding-question-copy h1")?.getBoundingClientRect();
+    const optionGrid = node.querySelector(".onboarding-option-grid")?.getBoundingClientRect();
+    const options = [...node.querySelectorAll(".onboarding-option-grid button")].map((element) => {
+      const rect = element.getBoundingClientRect();
+      return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height };
+    });
+    const footer = node.querySelector(".onboarding-footer")?.getBoundingClientRect();
+    const escaped = [...node.querySelectorAll("h1, button, .onboarding-option-grid, .onboarding-footer")].filter((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.left < screen.left - 1 || rect.right > screen.right + 1 || rect.top < screen.top - 1 || rect.bottom > screen.bottom + 1;
+    }).map((element) => ({ className: element.className, rect: element.getBoundingClientRect().toJSON() }));
+    return {
+      screen: { left: screen.left, top: screen.top, right: screen.right, bottom: screen.bottom, width: screen.width, height: screen.height },
+      chrome: chrome ? { left: chrome.left, top: chrome.top, right: chrome.right, bottom: chrome.bottom } : null,
+      cutoutBottom: cutout?.bottom ?? null,
+      title: title ? { left: title.left, top: title.top, right: title.right, bottom: title.bottom } : null,
+      optionGrid: optionGrid ? { left: optionGrid.left, right: optionGrid.right } : null,
+      options,
+      mascotCount: node.querySelectorAll(".onboarding-gender-mascot").length,
+      footer: footer ? { left: footer.left, right: footer.right, bottom: footer.bottom } : null,
+      scrollWidth: node.scrollWidth,
+      clientWidth: node.clientWidth,
+      escaped,
+    };
+  });
+  if (!onboardingDesktopGeometry.chrome || onboardingDesktopGeometry.cutoutBottom == null || !onboardingDesktopGeometry.title || !onboardingDesktopGeometry.optionGrid || !onboardingDesktopGeometry.footer
+    || Math.abs(onboardingDesktopGeometry.screen.left - onboardingDesktopGeometry.chrome.left) > 1
+    || Math.abs(onboardingDesktopGeometry.screen.top - onboardingDesktopGeometry.chrome.top) > 1
+    || onboardingDesktopGeometry.title.top < onboardingDesktopGeometry.cutoutBottom + 18
+    || onboardingDesktopGeometry.optionGrid.left < onboardingDesktopGeometry.screen.left
+    || onboardingDesktopGeometry.optionGrid.right > onboardingDesktopGeometry.screen.right
+    || onboardingDesktopGeometry.options.length !== 3
+    || onboardingDesktopGeometry.options.some((option) => Math.abs(option.left - onboardingDesktopGeometry.options[0].left) > 1)
+    || onboardingDesktopGeometry.options.some((option) => Math.abs(option.width - onboardingDesktopGeometry.options[0].width) > 1)
+    || onboardingDesktopGeometry.options.slice(1).some((option, index) => option.top <= onboardingDesktopGeometry.options[index].bottom)
+    || onboardingDesktopGeometry.options[0].width < onboardingDesktopGeometry.screen.width - 64
+    || onboardingDesktopGeometry.mascotCount !== 0
+    || onboardingDesktopGeometry.footer.bottom > onboardingDesktopGeometry.screen.bottom
+    || onboardingDesktopGeometry.scrollWidth > onboardingDesktopGeometry.clientWidth + 1
+    || onboardingDesktopGeometry.escaped.length > 0) {
+    throw new Error(`Desktop onboarding is not contained by the selected iPhone canvas ${JSON.stringify(onboardingDesktopGeometry)}`);
+  }
+  await onboardingDesktop.screenshot({ path: path.join(outputDir, "desktop-onboarding-gender-1365x1000.png"), fullPage: true });
+  report.push({ mode: "desktop-onboarding-preview", geometry: onboardingDesktopGeometry });
+  await onboardingDesktopContext.close();
 
   const desktopContext = await browser.newContext({ viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
   const desktop = await prepare(desktopContext);

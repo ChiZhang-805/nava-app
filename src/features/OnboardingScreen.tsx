@@ -5,9 +5,9 @@ import {
   BookOpen,
   BriefcaseBusiness,
   Check,
-  CircleUserRound,
   Clock3,
   Dumbbell,
+  EyeOff,
   Flame,
   Gamepad2,
   GraduationCap,
@@ -25,18 +25,17 @@ import {
   Timer,
   Trophy,
   Utensils,
-  UserRound,
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type ComponentType, type CSSProperties } from "react";
 import type { User } from "@supabase/supabase-js";
-import lifeFigure from "../assets/figma/home-option2/raw-01.png";
 import { useLocale } from "../i18n";
 import { completeOnboarding, type OnboardingAnswers } from "../services/onboarding";
 
 type Copy = { zh: string; en: string };
-type CardOption = { value: string; label: Copy; icon: LucideIcon };
+type OptionIcon = ComponentType<{ size?: string | number; strokeWidth?: string | number }>;
+type CardOption = { value: string; label: Copy; icon: OptionIcon };
 type QuestionKey =
   | "gender"
   | "occupation"
@@ -56,13 +55,32 @@ type Phase = "welcome" | "questions" | "privacy" | "complete";
 
 const c = (zh: string, en: string): Copy => ({ zh, en });
 
+function MaleIcon({ size = 24, strokeWidth = 2 }: { size?: string | number; strokeWidth?: string | number }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="15" r="5" />
+      <path d="m12.5 11.5 7-7M14 4.5h5.5V10" />
+    </svg>
+  );
+}
+
+function FemaleIcon({ size = 24, strokeWidth = 2 }: { size?: string | number; strokeWidth?: string | number }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="5" />
+      <path d="M12 13v8M8.5 18h7" />
+    </svg>
+  );
+}
+
 const questions: Question[] = [
   {
     key: "gender",
     title: c("你的性别是？", "How do you identify?"),
     options: [
-      { value: "male", label: c("男", "Male"), icon: UserRound },
-      { value: "female", label: c("女", "Female"), icon: CircleUserRound },
+      { value: "male", label: c("男", "Male"), icon: MaleIcon },
+      { value: "female", label: c("女", "Female"), icon: FemaleIcon },
+      { value: "prefer_not", label: c("暂不透露", "Prefer not to say"), icon: EyeOff },
     ],
   },
   {
@@ -309,11 +327,14 @@ export default function OnboardingScreen({ user, onComplete }: { user: User; onC
       </header>
 
       {showQuestion ? (
-        <section className="onboarding-question" key={question.key}>
+        <section
+          className={["onboarding-question", question.options.length === 2 ? "onboarding-question--two" : "", question.key === "gender" ? "onboarding-question--gender" : ""].filter(Boolean).join(" ")}
+          key={question.key}
+        >
           <div className="onboarding-question-copy">
             <h1>{question.title[locale]}</h1>
           </div>
-          <div className={["onboarding-option-grid", question.options.length === 2 ? "onboarding-option-grid--two" : ""].filter(Boolean).join(" ")}>
+          <div className={["onboarding-option-grid", question.options.length === 2 ? "onboarding-option-grid--two" : "", question.key === "gender" ? "onboarding-option-grid--gender" : ""].filter(Boolean).join(" ")}>
             {question.options.map((option) => {
               const Icon = option.icon;
               const selected = selectedValues(question.key).includes(option.value);
@@ -333,16 +354,6 @@ export default function OnboardingScreen({ user, onComplete }: { user: User; onC
               );
             })}
           </div>
-          {question.key === "gender" && (
-            <button className="onboarding-private-choice" type="button" disabled={transitioning} onClick={() => selectOption("prefer_not")}>
-              {locale === "zh" ? "暂不透露" : "Prefer not to say"}
-            </button>
-          )}
-          {question.key === "gender" && (
-            <div className="onboarding-gender-mascot" aria-hidden="true">
-              <img src={lifeFigure} alt="" draggable={false} />
-            </div>
-          )}
         </section>
       ) : (
         <section className="onboarding-privacy">

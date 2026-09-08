@@ -66,9 +66,23 @@ async function completeOnboardingIfNeeded(page) {
     await expect(page.locator(".onboarding-header small")).toHaveCount(0);
     await expect(page.locator(".onboarding-question-copy > span")).toHaveCount(0);
     await expect(page.locator(".onboarding-question-copy > p")).toHaveCount(0);
-    await expect(page.locator(".onboarding-gender-mascot")).toHaveCount(profileStep.key === "gender" ? 1 : 0);
+    await expect(page.locator(".onboarding-gender-mascot")).toHaveCount(0);
     if (profileStep.key === "gender") {
-      await expect(page.locator(".onboarding-gender-mascot img")).toHaveAttribute("src", /raw-01/);
+      const genderLayout = await page.locator(".onboarding-question").evaluate((section) => {
+        const options = [...section.querySelectorAll(".onboarding-option-grid button")].map((button) => button.getBoundingClientRect());
+        return {
+          options: options.map((rect) => ({ left: rect.left, top: rect.top, width: rect.width, height: rect.height, bottom: rect.bottom })),
+          iconShapes: [...section.querySelectorAll(".onboarding-option-grid button svg")].map((svg) => svg.innerHTML),
+        };
+      });
+      if (genderLayout.options.length !== 3
+        || genderLayout.options.some((option) => Math.abs(option.left - genderLayout.options[0].left) > 1)
+        || genderLayout.options.some((option) => Math.abs(option.width - genderLayout.options[0].width) > 1)
+        || genderLayout.options.slice(1).some((option, index) => option.top <= genderLayout.options[index].bottom)
+        || genderLayout.options.some((option) => option.height < 100)
+        || new Set(genderLayout.iconShapes).size !== 3) {
+        throw new Error(`Gender onboarding layout mismatch: ${JSON.stringify(genderLayout)}`);
+      }
     }
     await page.locator(".onboarding-option-grid button").first().click();
     if (profileStep.multi) {

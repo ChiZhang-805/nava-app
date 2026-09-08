@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { AlarmClock, Apple, BedDouble, Bot, Brain, Brush, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Egg, Hourglass, Loader2, Milk, MoonStar, Play, RefreshCw, ScanFace, Share2, SmilePlus, Soup, Sunset, Timer, Upload, X, type LucideIcon } from "lucide-react";
+import { AlarmClock, Apple, BedDouble, Bot, Brain, Brush, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Egg, Hourglass, Loader2, Milk, MoonStar, Play, RefreshCw, ScanFace, Share2, SmilePlus, Soup, Sunset, Timer, Upload, X, type LucideIcon } from "lucide-react";
 import { FormEvent, lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import ActionButton from "../components/ActionButton";
 import AnimatedNumber from "../components/AnimatedNumber";
@@ -107,6 +107,27 @@ export type FocusTodoPrefill = {
 };
 
 const dashboardModules = new Set<RecordModule>(["mood", "sleep", "exercise", "diet", "focus", "face"]);
+
+function RecordEditorTitle({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+  return <span className="record-editor-title"><Icon className="record-editor-title-icon" size={20} strokeWidth={2.15} aria-hidden="true" /><span>{label}</span></span>;
+}
+
+function RecordDateAction({
+  label,
+  value,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  max: string;
+  onChange: (value: string) => void;
+}) {
+  return <label className="record-section-date" title={label}>
+    <CalendarDays size={19} strokeWidth={2.15} aria-hidden="true" />
+    <input aria-label={label} type="date" value={value} max={max} onChange={(event) => onChange(event.target.value)} />
+  </label>;
+}
 
 const recordModules: Array<{
   id: RecordModule;
@@ -1555,21 +1576,12 @@ export default function RecordsScreen({
           void handleDietPhoto(file);
         }}
       />
-      {showEditor && <div className="record-detail-toolbar record-detail-toolbar--editor">
-        {notice && <div className="record-upload-toast" role="status" aria-live="polite">
+      {showEditor && notice && <div className="record-detail-toolbar record-detail-toolbar--editor record-detail-toolbar--notice-only">
+        <div className="record-upload-toast" role="status" aria-live="polite">
           <Check size={15} />
           <span>{notice}</span>
           <button type="button" onClick={() => setNotice(null)} aria-label={locale === "zh" ? "关闭提示" : "Dismiss notification"}><X size={14} /></button>
-        </div>}
-        <label className="record-detail-date">
-          <input
-            aria-label={t("records.date")}
-            type="date"
-            value={recordDate}
-            max={deviceDate}
-            onChange={(event) => setRecordDate(event.target.value)}
-          />
-        </label>
+        </div>
       </div>}
 
       {error && (
@@ -1645,7 +1657,10 @@ export default function RecordsScreen({
       {(showEditor || !dashboardModules.has(activeModule)) && <div className="record-editor-stack">
 
       <form hidden={activeModule !== "mood"} onSubmit={saveMood}>
-        <SectionCard title={t("records.mood")}>
+        <SectionCard
+          title={<RecordEditorTitle icon={SmilePlus} label={t("records.mood")} />}
+          action={<RecordDateAction label={t("records.date")} value={recordDate} max={deviceDate} onChange={setRecordDate} />}
+        >
           <div className="module-title">
             <SmilePlus size={20} />
             <strong>{moodScore}</strong>
@@ -1675,32 +1690,35 @@ export default function RecordsScreen({
 
       <form hidden={activeModule !== "sleep"} onSubmit={saveSleep}>
         <SectionCard
-          title={t("records.sleep")}
+          title={<RecordEditorTitle icon={BedDouble} label={t("records.sleep")} />}
           action={(
-            <div className="sleep-preset-icons" role="group" aria-label={locale === "zh" ? "常用作息预设" : "Common sleep presets"}>
-              {sleepPresets.map((preset) => {
-                const PresetIcon = preset.icon;
-                const label = locale === "zh" ? preset.label.zh : preset.label.en;
-                const selected = sleepStart === preset.start && sleepEnd === preset.end;
-                return (
-                  <button
-                    className={selected ? "selected" : ""}
-                    type="button"
-                    key={preset.id}
-                    data-sleep-preset={preset.id}
-                    aria-label={`${label} · ${preset.start}–${preset.end}`}
-                    aria-pressed={selected}
-                    title={`${label} · ${preset.start}–${preset.end}`}
-                    onClick={() => {
-                      setSleepStart(preset.start);
-                      setSleepEnd(preset.end);
-                      setSleepDuration(preset.minutes);
-                    }}
-                  >
-                    <PresetIcon size={17} strokeWidth={2.1} />
-                  </button>
-                );
-              })}
+            <div className="record-editor-heading-actions">
+              <div className="sleep-preset-icons" role="group" aria-label={locale === "zh" ? "常用作息预设" : "Common sleep presets"}>
+                {sleepPresets.map((preset) => {
+                  const PresetIcon = preset.icon;
+                  const label = locale === "zh" ? preset.label.zh : preset.label.en;
+                  const selected = sleepStart === preset.start && sleepEnd === preset.end;
+                  return (
+                    <button
+                      className={selected ? "selected" : ""}
+                      type="button"
+                      key={preset.id}
+                      data-sleep-preset={preset.id}
+                      aria-label={`${label} · ${preset.start}–${preset.end}`}
+                      aria-pressed={selected}
+                      title={`${label} · ${preset.start}–${preset.end}`}
+                      onClick={() => {
+                        setSleepStart(preset.start);
+                        setSleepEnd(preset.end);
+                        setSleepDuration(preset.minutes);
+                      }}
+                    >
+                      <PresetIcon size={17} strokeWidth={2.1} />
+                    </button>
+                  );
+                })}
+              </div>
+              <RecordDateAction label={t("records.date")} value={recordDate} max={deviceDate} onChange={setRecordDate} />
             </div>
           )}
         >
@@ -1760,7 +1778,10 @@ export default function RecordsScreen({
       </form>
 
       <form hidden={activeModule !== "exercise"} onSubmit={saveExercise}>
-        <SectionCard title={t("records.exercise")}>
+        <SectionCard
+          title={<RecordEditorTitle icon={Dumbbell} label={t("records.exercise")} />}
+          action={<RecordDateAction label={t("records.date")} value={recordDate} max={deviceDate} onChange={setRecordDate} />}
+        >
           <div className="two-col">
             <label className="field">
               <span>{t("records.steps")}</span>
@@ -1832,36 +1853,39 @@ export default function RecordsScreen({
 
       <form hidden={activeModule !== "diet"} onSubmit={saveDiet}>
         <SectionCard
-          title={t("records.diet")}
+          title={<RecordEditorTitle icon={Drumstick} label={t("records.diet")} />}
           action={(
-            <div className="diet-quick-food-icons" role="group" aria-label={locale === "zh" ? "常见食物估算快捷填入" : "Quick estimated foods"}>
-              {quickFoodPresets.map((food) => {
-                const FoodIcon = food.icon;
-                const label = locale === "zh" ? food.label.zh : food.label.en;
-                const displayName = estimatedFoodLabel(label, locale);
-                const selected = mealName === displayName && dietItems.length === 0;
-                return (
-                  <button
-                    className={selected ? "selected" : ""}
-                    type="button"
-                    key={food.id}
-                    data-quick-food={food.id}
-                    aria-label={`${label} · ${food.calories} kcal`}
-                    aria-pressed={selected}
-                    title={`${label} · ${food.calories} kcal`}
-                    onClick={() => {
-                      setMealName(displayName);
-                      setMealCalories(food.calories);
-                      setProteinGrams(food.protein);
-                      setCarbohydrateGrams(food.carbs);
-                      setFatGrams(food.fat);
-                      setDietItems([]);
-                    }}
-                  >
-                    <FoodIcon size={17} strokeWidth={2.1} />
-                  </button>
-                );
-              })}
+            <div className="record-editor-heading-actions">
+              <div className="diet-quick-food-icons" role="group" aria-label={locale === "zh" ? "常见食物估算快捷填入" : "Quick estimated foods"}>
+                {quickFoodPresets.map((food) => {
+                  const FoodIcon = food.icon;
+                  const label = locale === "zh" ? food.label.zh : food.label.en;
+                  const displayName = estimatedFoodLabel(label, locale);
+                  const selected = mealName === displayName && dietItems.length === 0;
+                  return (
+                    <button
+                      className={selected ? "selected" : ""}
+                      type="button"
+                      key={food.id}
+                      data-quick-food={food.id}
+                      aria-label={`${label} · ${food.calories} kcal`}
+                      aria-pressed={selected}
+                      title={`${label} · ${food.calories} kcal`}
+                      onClick={() => {
+                        setMealName(displayName);
+                        setMealCalories(food.calories);
+                        setProteinGrams(food.protein);
+                        setCarbohydrateGrams(food.carbs);
+                        setFatGrams(food.fat);
+                        setDietItems([]);
+                      }}
+                    >
+                      <FoodIcon size={17} strokeWidth={2.1} />
+                    </button>
+                  );
+                })}
+              </div>
+              <RecordDateAction label={t("records.date")} value={recordDate} max={deviceDate} onChange={setRecordDate} />
             </div>
           )}
         >
@@ -1965,27 +1989,30 @@ export default function RecordsScreen({
 
       <form hidden={activeModule !== "focus"} onSubmit={startFocus}>
         <SectionCard
-          title={t("records.focus")}
+          title={<RecordEditorTitle icon={Brain} label={t("records.focus")} />}
           action={(
-            <div className="focus-entry-mode-icons" role="group" aria-label={locale === "zh" ? "专注计时模式" : "Focus timer mode"}>
-              <button
-                type="button"
-                className={focusMode === "countup" ? "selected" : ""}
-                data-focus-mode="countup"
-                aria-label={locale === "zh" ? "正计时" : "Count up"}
-                aria-pressed={focusMode === "countup"}
-                title={locale === "zh" ? "正计时" : "Count up"}
-                onClick={() => setFocusMode("countup")}
-              ><Timer size={18} strokeWidth={2.05} /></button>
-              <button
-                type="button"
-                className={focusMode === "countdown" ? "selected" : ""}
-                data-focus-mode="countdown"
-                aria-label={locale === "zh" ? "倒计时" : "Countdown"}
-                aria-pressed={focusMode === "countdown"}
-                title={locale === "zh" ? "倒计时" : "Countdown"}
-                onClick={() => setFocusMode("countdown")}
-              ><Hourglass size={18} strokeWidth={2.05} /></button>
+            <div className="record-editor-heading-actions">
+              <div className="focus-entry-mode-icons" role="group" aria-label={locale === "zh" ? "专注计时模式" : "Focus timer mode"}>
+                <button
+                  type="button"
+                  className={focusMode === "countup" ? "selected" : ""}
+                  data-focus-mode="countup"
+                  aria-label={locale === "zh" ? "正计时" : "Count up"}
+                  aria-pressed={focusMode === "countup"}
+                  title={locale === "zh" ? "正计时" : "Count up"}
+                  onClick={() => setFocusMode("countup")}
+                ><Timer size={18} strokeWidth={2.05} /></button>
+                <button
+                  type="button"
+                  className={focusMode === "countdown" ? "selected" : ""}
+                  data-focus-mode="countdown"
+                  aria-label={locale === "zh" ? "倒计时" : "Countdown"}
+                  aria-pressed={focusMode === "countdown"}
+                  title={locale === "zh" ? "倒计时" : "Countdown"}
+                  onClick={() => setFocusMode("countdown")}
+                ><Hourglass size={18} strokeWidth={2.05} /></button>
+              </div>
+              <RecordDateAction label={t("records.date")} value={recordDate} max={deviceDate} onChange={setRecordDate} />
             </div>
           )}
         >
@@ -2033,10 +2060,13 @@ export default function RecordsScreen({
 
       <div hidden={activeModule !== "face"}>
         <SectionCard
-          title={t("records.face")}
-          action={<div className="face-mode-icon-actions" role="group" aria-label={locale === "zh" ? "拍摄模式" : "Capture mode"}>
-            <button type="button" className={faceMode === "bare_face" ? "selected" : ""} data-face-mode="bare_face" aria-label={locale === "zh" ? "素颜模式" : "Bare-face mode"} aria-pressed={faceMode === "bare_face"} title={locale === "zh" ? "素颜模式" : "Bare-face mode"} disabled={faceAnalyzing} onClick={() => setFaceMode("bare_face")}><ScanFace size={18} strokeWidth={2.05} /></button>
-            <button type="button" className={faceMode === "makeup" ? "selected" : ""} data-face-mode="makeup" aria-label={locale === "zh" ? "带妆模式" : "Makeup mode"} aria-pressed={faceMode === "makeup"} title={locale === "zh" ? "带妆模式" : "Makeup mode"} disabled={faceAnalyzing} onClick={() => setFaceMode("makeup")}><Brush size={18} strokeWidth={2.05} /></button>
+          title={<RecordEditorTitle icon={ScanFace} label={t("records.face")} />}
+          action={<div className="record-editor-heading-actions">
+            <div className="face-mode-icon-actions" role="group" aria-label={locale === "zh" ? "拍摄模式" : "Capture mode"}>
+              <button type="button" className={faceMode === "bare_face" ? "selected" : ""} data-face-mode="bare_face" aria-label={locale === "zh" ? "素颜模式" : "Bare-face mode"} aria-pressed={faceMode === "bare_face"} title={locale === "zh" ? "素颜模式" : "Bare-face mode"} disabled={faceAnalyzing} onClick={() => setFaceMode("bare_face")}><ScanFace size={18} strokeWidth={2.05} /></button>
+              <button type="button" className={faceMode === "makeup" ? "selected" : ""} data-face-mode="makeup" aria-label={locale === "zh" ? "带妆模式" : "Makeup mode"} aria-pressed={faceMode === "makeup"} title={locale === "zh" ? "带妆模式" : "Makeup mode"} disabled={faceAnalyzing} onClick={() => setFaceMode("makeup")}><Brush size={18} strokeWidth={2.05} /></button>
+            </div>
+            <RecordDateAction label={t("records.date")} value={recordDate} max={deviceDate} onChange={setRecordDate} />
           </div>}
         >
           {initialView === "conditions" && <section className={faceCaptureReady ? "face-capture-readiness is-ready" : "face-capture-readiness"} data-face-condition-check aria-label={locale === "zh" ? "稳定拍摄条件" : "Consistent capture conditions"}>

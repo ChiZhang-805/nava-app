@@ -117,7 +117,7 @@ function RecordDetailSkeleton({ module }: { module: RecordSkeletonModule }) {
 type RecordEditorSkeletonModule = RecordSkeletonModule;
 
 function EditorSkeletonHeader({ actions = 0 }: { actions?: number }) {
-  return <div className="page-skeleton-editor-heading"><SkeletonBlock className="is-title" />{actions > 0 && <span>{Array.from({ length: actions }, (_, index) => <SkeletonBlock className="is-circle" key={index} />)}</span>}</div>;
+  return <div className="page-skeleton-editor-heading"><span className="is-heading-title"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-title" /></span>{actions > 0 && <span className="is-heading-actions">{Array.from({ length: actions }, (_, index) => <SkeletonBlock className="is-circle" key={index} />)}</span>}</div>;
 }
 
 function EditorSkeletonFields({ count, twoColumn = false }: { count: number; twoColumn?: boolean }) {
@@ -127,7 +127,7 @@ function EditorSkeletonFields({ count, twoColumn = false }: { count: number; two
 function RecordEditorSkeleton({ module }: { module: RecordEditorSkeletonModule }) {
   let body;
   if (module === "mood") body = <>
-    <EditorSkeletonHeader />
+    <EditorSkeletonHeader actions={1} />
     <div className="page-skeleton-editor-score"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-score" /></div>
     <SkeletonBlock className="is-track" />
     <div className="page-skeleton-editor-chips">{Array.from({ length: 9 }, (_, index) => <SkeletonBlock key={index} />)}</div>
@@ -135,20 +135,20 @@ function RecordEditorSkeleton({ module }: { module: RecordEditorSkeletonModule }
     <SkeletonBlock className="is-button" />
   </>;
   else if (module === "sleep") body = <>
-    <EditorSkeletonHeader actions={3} />
+    <EditorSkeletonHeader actions={4} />
     <EditorSkeletonFields count={6} twoColumn />
     <SkeletonBlock className="is-track" />
     <div className="page-skeleton-editor-note"><SkeletonBlock className="is-label" /><SkeletonBlock className="is-field" /></div>
     <SkeletonBlock className="is-button" />
   </>;
   else if (module === "exercise") body = <>
-    <EditorSkeletonHeader />
+    <EditorSkeletonHeader actions={1} />
     <EditorSkeletonFields count={5} twoColumn />
     <div className="page-skeleton-editor-note"><SkeletonBlock className="is-label" /><SkeletonBlock className="is-field" /></div>
     <SkeletonBlock className="is-button" />
   </>;
   else if (module === "diet") body = <>
-    <EditorSkeletonHeader actions={4} />
+    <EditorSkeletonHeader actions={5} />
     <SkeletonBlock className="page-skeleton-editor-photo" />
     <div className="page-skeleton-editor-photo-actions"><SkeletonBlock /><SkeletonBlock /></div>
     <EditorSkeletonFields count={2} twoColumn />
@@ -157,22 +157,19 @@ function RecordEditorSkeleton({ module }: { module: RecordEditorSkeletonModule }
     <SkeletonBlock className="is-button" />
   </>;
   else if (module === "focus") body = <>
-    <EditorSkeletonHeader actions={2} />
+    <EditorSkeletonHeader actions={3} />
     <EditorSkeletonFields count={2} />
     <div className="page-skeleton-editor-note is-large"><SkeletonBlock className="is-label" /><SkeletonBlock className="is-field" /></div>
     <SkeletonBlock className="is-button" />
   </>;
   else body = <>
-    <EditorSkeletonHeader actions={2} />
+    <EditorSkeletonHeader actions={3} />
     <SkeletonBlock className="page-skeleton-editor-photo is-face" />
     <div className="page-skeleton-editor-photo-actions"><SkeletonBlock /><SkeletonBlock /></div>
     <section className="page-skeleton-editor-ai"><span><SkeletonBlock className="is-title" /><SkeletonLines count={3} compact /></span><SkeletonBlock className="is-orb" /></section>
   </>;
 
-  return <>
-    <SkeletonBlock className="page-skeleton-editor-date" />
-    <section className={`page-skeleton-card page-skeleton-editor-card is-${module}`}>{body}</section>
-  </>;
+  return <section className={`page-skeleton-card page-skeleton-editor-card is-${module}`}>{body}</section>;
 }
 
 function AiSkeleton() {

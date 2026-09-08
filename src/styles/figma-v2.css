@@ -1519,6 +1519,90 @@ body::before {
   justify-content: space-between;
 }
 
+.record-detail-toolbar--notice-only {
+  min-height: 0;
+}
+
+.record-detail-toolbar--notice-only .record-upload-toast {
+  width: 100%;
+  max-width: none;
+}
+
+.record-detail:has(.record-editor-stack) .section-heading {
+  align-items: center;
+  gap: 8px;
+}
+
+.record-detail:has(.record-editor-stack) .section-heading > div:first-child {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.record-editor-title {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.record-editor-title-icon {
+  flex: 0 0 auto;
+  color: #147da5;
+  background: transparent;
+}
+
+.record-editor-heading-actions {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.record-section-date {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  flex: 0 0 34px;
+  border: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #39758e;
+  background: transparent;
+  cursor: pointer;
+}
+
+.record-section-date:focus-within {
+  color: #087ca8;
+}
+
+.phone-frame:not(.phone-frame--option2) .record-detail:has(.record-editor-stack) .record-section-date input[type="date"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  opacity: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.phone-frame:not(.phone-frame--option2) .record-detail:has(.record-editor-stack) .record-section-date input[type="date"]:focus {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
 .record-upload-toast {
   min-width: 0;
   max-width: calc(100% - 192px);
@@ -5176,7 +5260,7 @@ body::before {
   width: min(100%, 480px);
   min-height: 100dvh;
   margin: 0 auto;
-  padding: max(20px, env(safe-area-inset-top)) 24px max(22px, env(safe-area-inset-bottom));
+  padding: max(20px, calc(env(safe-area-inset-top) + 10px)) 24px max(22px, calc(env(safe-area-inset-bottom) + 12px));
   display: grid;
   grid-template-rows: auto 3px minmax(0, 1fr) auto;
   gap: 16px;
@@ -5426,41 +5510,59 @@ body::before {
 }
 
 .onboarding-option-grid--two {
-  align-content: center;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 12px;
+}
+
+.onboarding-option-grid--two button {
+  width: 100%;
+  min-height: clamp(150px, 20dvh, 190px);
+  aspect-ratio: auto;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 18px;
+  padding: 18px 24px;
+  text-align: left;
+}
+
+.onboarding-option-grid--two button > span {
+  flex: 0 0 52px;
+}
+
+.onboarding-option-grid--two strong {
+  align-self: center;
+  font-size: 17px;
+}
+
+.onboarding-option-grid--gender {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 12px;
+}
+
+.onboarding-option-grid--gender button {
+  width: 100%;
+  min-height: clamp(104px, 15dvh, 150px);
+  aspect-ratio: auto;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 18px;
+  padding: 16px 24px;
+  text-align: left;
+}
+
+.onboarding-option-grid--gender button > span {
+  flex: 0 0 52px;
+}
+
+.onboarding-option-grid--gender strong {
+  align-self: center;
+  font-size: 17px;
 }
 
 .onboarding-option-grid button:disabled {
   cursor: default;
-}
-
-.onboarding-private-choice {
-  min-height: 34px;
-  align-self: center;
-  padding: 4px 14px;
-  border: 0;
-  color: rgba(7, 70, 99, 0.72);
-  background: transparent;
-  font: inherit;
-  font-size: 12px;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
-.onboarding-gender-mascot {
-  width: min(42vw, 164px);
-  height: clamp(96px, 16dvh, 148px);
-  margin: auto auto 0;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-}
-
-.onboarding-gender-mascot img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: contain;
-  filter: drop-shadow(0 14px 24px rgba(4, 72, 104, 0.15));
 }
 
 .onboarding-footer {
@@ -5552,18 +5654,16 @@ body::before {
   }
 
   .onboarding-option-grid--two button {
-    aspect-ratio: 1;
-    min-height: 0;
+    min-height: 150px;
+    aspect-ratio: auto;
+    gap: 13px;
+    padding: 12px 16px;
   }
 
-  .onboarding-private-choice {
-    min-height: 26px;
-    padding-block: 1px;
-  }
-
-  .onboarding-gender-mascot {
-    width: min(34vw, 116px);
-    height: 74px;
+  .onboarding-option-grid--gender button {
+    min-height: 104px;
+    gap: 13px;
+    padding: 10px 16px;
   }
 
   .onboarding-next {
@@ -7130,9 +7230,9 @@ body::before {
 
 /* Keep the analyzed meal preview useful without pushing the rating and save
    action behind the persistent navigation on compact portrait phones. */
-@media (max-width: 420px) and (max-height: 880px) {
+@media (max-width: 430px) and (max-height: 950px) {
   .phone-frame:not(.phone-frame--option2) .record-detail:has(.record-editor-stack) .diet-photo-preview.has-image {
-    height: min(23dvh, 194px);
+    height: min(21dvh, 194px);
     overflow: hidden;
   }
 
@@ -10200,7 +10300,8 @@ body::before {
 
   .nava-app-stage > .phone-frame,
   .nava-app-stage > .auth-screen,
-  .nava-app-stage > .app-screen {
+  .nava-app-stage > .app-screen,
+  .nava-app-stage > .onboarding-screen {
     width: var(--nava-device-width);
     max-width: none;
     height: var(--nava-device-height);
@@ -10217,6 +10318,12 @@ body::before {
     transform-origin: center;
     align-self: center;
     justify-self: center;
+  }
+
+  .nava-app-stage > .onboarding-screen {
+    box-sizing: border-box;
+    padding-top: calc(var(--nava-system-safe-top) + 10px);
+    padding-bottom: 24px;
   }
 
   .nava-device-preview {
@@ -11403,12 +11510,15 @@ body::before {
 .page-skeleton--record-editor-exercise,
 .page-skeleton--record-editor-diet,
 .page-skeleton--record-editor-focus,
-.page-skeleton--record-editor-face { height: 100%; min-height: 0; grid-template-rows: auto minmax(0,1fr); }
+.page-skeleton--record-editor-face { height: 100%; min-height: 0; grid-template-rows: minmax(0,1fr); }
 .page-skeleton-editor-date { width: min(42%, 156px); min-height: 46px; border-radius: 17px; }
 .page-skeleton-editor-card { min-height: 0; height: 100%; display: flex; flex-direction: column; gap: 10px; }
 .page-skeleton-editor-heading { min-height: 36px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.page-skeleton-editor-heading > .is-title { width: 25%; min-height: 18px; }
-.page-skeleton-editor-heading > span { display: inline-flex; gap: 6px; }
+.page-skeleton-editor-heading > span { display: inline-flex; align-items: center; gap: 6px; }
+.page-skeleton-editor-heading .is-heading-title { min-width: 74px; }
+.page-skeleton-editor-heading .is-heading-title .is-circle { width: 20px; min-height: 20px; background: rgba(77, 157, 187, .28); }
+.page-skeleton-editor-heading .is-heading-title .is-title { width: 46px; min-height: 18px; }
+.page-skeleton-editor-heading .is-heading-actions { margin-left: auto; }
 .page-skeleton-editor-heading .is-circle { width: 34px; min-height: 34px; }
 .page-skeleton-editor-score { display: flex; align-items: center; gap: 10px; }
 .page-skeleton-editor-score .is-circle { width: 28px; min-height: 28px; }
@@ -12484,6 +12594,11 @@ body::before {
 .exercise-injury-toggle input { width: 18px; height: 18px; accent-color: #148ab6; }
 .exercise-injury-note input { min-height: 40px; }
 
+.exercise-injury-toggle + .exercise-recovery-estimate,
+.exercise-injury-note + .exercise-recovery-estimate {
+  margin-top: 6px;
+}
+
 .exercise-recovery-estimate {
   border: 1px solid rgba(64, 157, 190, .2);
   border-radius: 16px;
@@ -12585,8 +12700,8 @@ body::before {
   .exercise-live-progress strong { font-size: 17px; }
 
   .record-detail[data-record-detail="exercise"] .record-editor-stack > form:not([hidden]) > .section-card { padding: 8px 10px; }
-  .record-detail[data-record-detail="exercise"] .section-heading { margin-bottom: 2px; }
-  .record-detail[data-record-detail="exercise"] .field { gap: 1px; margin-bottom: 2px; }
+  .record-detail[data-record-detail="exercise"] .section-heading { margin-bottom: 6px; }
+  .record-detail[data-record-detail="exercise"] .field { gap: 2px; margin-bottom: 4px; }
   .record-detail[data-record-detail="exercise"] .field > span { font-size: 9px; line-height: 1.15; }
   .record-detail[data-record-detail="exercise"] input:not([type="range"]):not([type="checkbox"]),
   .record-detail[data-record-detail="exercise"] textarea { min-height: 34px; padding: 6px 9px; font-size: 12px; }
@@ -12594,13 +12709,13 @@ body::before {
   .record-detail[data-record-detail="exercise"] .exercise-rating-field { min-height: 43px; padding: 4px 5px; }
   .record-detail[data-record-detail="exercise"] .exercise-rating-field > span { overflow: hidden; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
   .record-detail[data-record-detail="exercise"] .exercise-rating-field .range { min-height: 18px; height: 18px; }
-  .record-detail[data-record-detail="exercise"] .exercise-injury-toggle { min-height: 34px; padding: 5px 8px; font-size: 9px; }
+  .record-detail[data-record-detail="exercise"] .exercise-injury-toggle { min-height: 34px; margin-top: 2px; padding: 5px 8px; font-size: 9px; }
   .record-detail[data-record-detail="exercise"] .exercise-injury-toggle input { width: 16px; height: 16px; }
-  .record-detail[data-record-detail="exercise"] .exercise-recovery-estimate { min-height: 38px; padding: 6px 8px; }
+  .record-detail[data-record-detail="exercise"] .exercise-recovery-estimate { min-height: 38px; margin-bottom: 3px; padding: 6px 8px; }
   .record-detail[data-record-detail="exercise"] .exercise-recovery-estimate strong { font-size: 10px; }
   .record-detail[data-record-detail="exercise"] .exercise-recovery-estimate small { font-size: 7.5px; }
   .record-detail[data-record-detail="exercise"] .exercise-recovery-estimate:not(.is-caution) p { display: none; }
-  .record-detail[data-record-detail="exercise"] .exercise-note-field { min-height: 43px; }
+  .record-detail[data-record-detail="exercise"] .exercise-note-field { min-height: 50px; margin-top: 2px; }
   .record-detail[data-record-detail="exercise"] .exercise-note-field textarea { min-height: 30px; }
   .record-detail[data-record-detail="exercise"] .action-button { min-height: 38px; }
 }
