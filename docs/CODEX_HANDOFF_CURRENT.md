@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`e41e6f4f3dfbde0895a11e19997118236d633034`
+- 源码发布 commit：`40a8025c3078085753c3a59f317cc7197f5e674a`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v121，public
+- ChatGPT Sites 版本：v125，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_aa8695156a0881918f20c5fce99c7306`
-- Sites deployment ID：`appgdep_6a9f0d5c78888191bfee1f3711ad7b4e`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_b13d3f149d508191994e8d8d775b2b94`
+- Sites deployment ID：`appgdep_6a9fdefc0cb481918a6ce338ed306ba5`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `19b7617bbd1cfe0e04e27f3e8595686c7e3c020d`
+  `4611641a2d72e34f1a3d57c1f769545d2f88c648`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v121 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v121.tar.gz`
+- v125 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v125-40a8025.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v121 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v125 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -1747,4 +1747,17 @@ tests 与 production `supabase db lint`。商城/机型卡专项覆盖桌面及 
 390×844、430×932 四个移动视口，证据位于
 `Q:\NAVA-Workspace\Build\TestRuns\nava-shop-v125-20260908`；共享 Supabase 探针报告位于
 `artifacts/backend-review/shared-supabase.json`。`ai-chat-reply` 与 `export-user-data` 已部署
-production；双站 v125 的最终提交、版本和在线哈希在发布完成后补入本节。
+production。
+
+功能源码 commit `40a8025c3078085753c3a59f317cc7197f5e674a` 已从同一干净、已 push
+状态发布为 ChatGPT Sites v125 与 GitHub Pages v125。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_b13d3f149d508191994e8d8d775b2b94`，
+deployment ID 为 `appgdep_6a9fdefc0cb481918a6ce338ed306ba5`，状态 succeeded；Pages
+镜像 commit 为 `4611641a2d72e34f1a3d57c1f769545d2f88c648`，在线 `source.json` 已核验为
+v125 并指向同一源码和 Sites 版本。两站均返回 HTTP 200；Sites 在线入口脚本
+`index-DfiSsCDU.js` 与保存的 Sites 包 SHA-256 同为
+`6cc78d368f35f0220ea61837839e5a82a61cf85c36f4d80d1ffdb420d7011d34`，Pages 在线入口脚本
+`index-o2TdTvT6.js` 与本地 Pages 构建 SHA-256 同为
+`a8ceeee7a3daf4427ee43db121906456e9525851005ace382efdb221822b58ca`。全新无登录浏览器访问
+两站的 `?demo=1` 均显示真实登录页、未进入 App 且无 console error；截图证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-v125-online`。
