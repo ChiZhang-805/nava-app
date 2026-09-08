@@ -1632,3 +1632,35 @@ v122 并指向同一源码提交。两站均返回 HTTP 200，实际加载同一
 浏览器访问普通入口及 `?demo=1` 均显示真实登录页且无控制台错误。生产认证仍指向
 canonical Supabase project `wxteapvwagvhhtrjrbim`。本轮没有修改 migration、Edge
 Function、secret、认证配置或生产数据。
+
+## 45. 2026-09-08 新用户引导与六类记录页收口、双站 v123
+
+新用户首次画像问卷现已完整纳入桌面 iPhone 预览的机型画布和安全区，不再把内容绘制到
+模拟机身之外。性别题改为三个纵向、等宽的整行选项：男、女、暂不透露，分别使用明确
+区分的 Mars、Venus 与隐藏信息图标；引导流程中的装饰小猫已全部移除。单选题点选后约
+320ms 自动进入下一题，多选题仍须达到可提交条件后点击下一步。两项单选题也统一采用
+纵向大卡片，不再在窄屏中横向挤压。
+
+情绪、睡眠、运动、饮食、专注、面部六类记录编辑页移除了独立日期卡。每个主卡标题均为
+无底色的模块图标加标题，日期入口固定在同一标题行右端；睡眠原有三个快捷动作、饮食四个
+食物快捷动作、专注与面部模式动作继续保留并为日期图标让位。对应六类加载骨架同步采用
+相同的页头和字段结构。运动伤病/恢复区与保存动作重新留出稳定间距；饮食图片分析态在
+矮屏中压缩预览高度，保存按钮不再被固定导航遮挡。
+
+`npm run verify` 31 阶段、`npm run interaction:test` 11 组、
+`npm run device-preview:visual`、`npm run screenshots` 和发布后的
+`npm run auth:verify:production` 均通过。全页面矩阵覆盖 57 个正式/加载状态与
+360×740、375×812、390×844、430×932 四档视口，共 228 张截图、0 个几何错误，证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-full-page-audit-v123c-20260908`；桌面 iPhone
+新用户引导证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v123-20260908`。
+
+功能源码 commit `398b8346c80c8e6431cb257bc12f0c0e9e50ccc8` 已由同一构建发布为
+ChatGPT Sites v123 与 GitHub Pages v123。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_a019ed6741108191882c2eecbe85a671`，
+deployment ID 为 `appgdep_6a9fa9b9492c8191a21b5f0efa73e3d5`，状态 succeeded；Pages
+镜像 commit 为 `2346c82a93cacf3a90097636604859d443778ab5`，在线 `source.json` 已核验为
+v123 并指向上述源码和 Sites 版本。两站均返回 HTTP 200，线上与本地的
+`index-CMJiDAt1.js` SHA-256 完全一致；公开 demo 绕过继续关闭，canonical Supabase
+project 仍为 `wxteapvwagvhhtrjrbim`。本轮没有修改 migration、Edge Function、secret、
+认证配置或生产数据。
