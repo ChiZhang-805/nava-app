@@ -33,6 +33,7 @@
     "module-progress:test": "node --experimental-strip-types --test tests/health-report-presentation.test.ts",
     "performance:test": "node --experimental-strip-types --test tests/single-request-cache.test.ts",
     "module-progress:visual": "node scripts/verify-module-progress-ui.mjs",
+    "module-overviews:visual": "node scripts/verify-module-overviews-ui.mjs",
     "record-editor:visual": "node scripts/verify-mood-editor-layout.mjs",
     "home-guidance:test": "node --experimental-strip-types --test tests/home-guidance.test.ts",
     "home-guidance:visual": "node scripts/verify-home-guidance-ui.mjs",

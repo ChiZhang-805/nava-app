@@ -28,16 +28,37 @@ test("Chinese compact AI summaries accept exactly seven Han characters only", ()
   assert.equal(validCompactReportBullet("近周节律较平一", "zh"), true);
 });
 
-test("both AI functions generate and cache normal and compact summaries in one model result", () => {
+test("both AI functions keep a valid model report when only its compact labels need normalization", () => {
   for (const source of [healthFunction, dietFunction]) {
     assert.match(source, /compactBullets/);
     assert.match(source, /Array\.from\(cleaned\)\.length === 7/);
     assert.match(source, /\^\\p\{Script=Han\}\{7\}\$\/u/);
+    assert.match(source, /fallbackHan/);
+    assert.match(source, /slice\(0, 7\)/);
   }
   assert.match(healthFunction, /不能只是截断 headline/);
   assert.match(dietFunction, /不能只是截断 bullets/);
   assert.match(healthFunction, /bullets: \{ \.\.\.report, sourceFingerprint: fingerprint \}/);
   assert.match(dietFunction, /ai_feedback: JSON\.stringify\(stored\)/);
+});
+
+test("all module overview failures surface the server message and remain retryable", () => {
+  assert.match(healthService, /context\.clone\(\)\.json\(\)/);
+  assert.match(dietService, /context\.clone\(\)\.json\(\)/);
+  assert.match(dashboard, /data-ai-state=\{overviewInsightLoading \? "loading" : overviewInsight \? "ready" : overviewInsightError \? "error" : "idle"\}/);
+  assert.match(dashboard, /overviewInsight \?\? overviewInsightError/);
+  assert.match(dashboard, /重新生成/);
+  assert.doesNotMatch(dashboard, /真实 AI 暂时不可用/);
+});
+
+test("mood overview copy, factors, and diary action follow the shared compact layout contract", () => {
+  assert.match(dashboard, /"今日情绪"/);
+  assert.doesNotMatch(dashboard, /"今日情绪摘要"/);
+  assert.doesNotMatch(dashboard, /className="mood-summary-sync"/);
+  assert.match(dashboard, /data-diary-state=\{hasDiary \? "written" : "empty"\}/);
+  assert.match(dashboard, /"写下今天的情绪日志"/);
+  assert.match(dashboard, /"查看 \/ 修改今天的情绪日志"/);
+  assert.match(dashboard, /aria-pressed=\{selectedFactors\.includes\(factor\.value\)\}/);
 });
 
 test("small report cards use compact output while detailed reports keep normal bullets", () => {

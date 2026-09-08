@@ -39,7 +39,11 @@ Write-Host "7. Four-viewport record-card geometry"
 Invoke-Npm -Arguments @("run", "module-progress:visual")
 
 Write-Host ""
-Write-Host "8. Four-viewport record-editor geometry"
+Write-Host "8. Six-module overview and AI geometry"
+Invoke-Npm -Arguments @("run", "module-overviews:visual")
+
+Write-Host ""
+Write-Host "9. Four-viewport record-editor geometry"
 Invoke-Npm -Arguments @("run", "record-editor:visual")
 
 Write-Host ""

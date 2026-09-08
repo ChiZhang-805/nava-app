@@ -346,14 +346,22 @@ function cleanBullet(value: unknown, lang: Language) {
   return han >= 15 && han <= 24 ? cleaned : "";
 }
 
-function cleanCompactBullet(value: unknown, lang: Language) {
-  if (typeof value !== "string") return "";
-  const cleaned = value.replace(/^\s*(?:[-•·]|\d+[.、)])\s*/u, "").replace(/\s+/g, " ").trim();
+function cleanCompactBullet(value: unknown, lang: Language, fallback: unknown = "") {
+  const cleaned = typeof value === "string"
+    ? value.replace(/^\s*(?:[-•·]|\d+[.、)])\s*/u, "").replace(/\s+/g, " ").trim()
+    : "";
+  const fallbackText = typeof fallback === "string" ? fallback.replace(/\s+/g, " ").trim() : "";
   if (lang === "en") {
     const words = cleaned.split(/\s+/).filter(Boolean).length;
-    return words >= 2 && words <= 4 && cleaned.length <= 28 ? cleaned : "";
+    if (words >= 2 && words <= 4 && cleaned.length <= 28) return cleaned;
+    const fallbackWords = fallbackText.split(/\s+/).filter(Boolean).slice(0, 4);
+    return fallbackWords.length >= 2 ? fallbackWords.join(" ").slice(0, 28).trim() : "";
   }
-  return Array.from(cleaned).length === 7 && /^\p{Script=Han}{7}$/u.test(cleaned) ? cleaned : "";
+  if (Array.from(cleaned).length === 7 && /^\p{Script=Han}{7}$/u.test(cleaned)) return cleaned;
+  const compactHan = (cleaned.match(/\p{Script=Han}/gu) ?? []).slice(0, 7);
+  if (compactHan.length === 7) return compactHan.join("");
+  const fallbackHan = (fallbackText.match(/\p{Script=Han}/gu) ?? []).slice(0, 7);
+  return fallbackHan.length === 7 ? fallbackHan.join("") : "";
 }
 
 function validateGeneratedReport(value: unknown, lang: Language, sourceContext?: unknown): ReportValidationResult {
@@ -363,12 +371,6 @@ function validateGeneratedReport(value: unknown, lang: Language, sourceContext?:
   const overview = compactText(root.overview, lang === "zh" ? 420 : 900);
   if (!validLongText(overview, lang, lang === "zh" ? 40 : 30)) issues.push("overview_length");
   const rawCompactBullets = Array.isArray(root.compactBullets) ? root.compactBullets : [];
-  if (rawCompactBullets.length !== 4) issues.push("compactBullets_count");
-  const compactBullets = rawCompactBullets.slice(0, 4).map((item, index) => {
-    const normalized = cleanCompactBullet(item, lang);
-    if (!normalized) issues.push(`compactBullets_${index + 1}_length`);
-    return normalized;
-  });
   const expectedIds = ["trend", "variation", "association", "action"] as const;
   if (!Array.isArray(root.sections) || root.sections.length !== expectedIds.length) {
     issues.push("sections_count");
@@ -401,6 +403,15 @@ function validateGeneratedReport(value: unknown, lang: Language, sourceContext?:
     }
     if (section.id !== expectedIds[index] || !title || !headline || !validLongText(explanation, lang, lang === "zh" ? 30 : 20) || !action || evidence.length === 0 || !confidence) return [];
     return [{ id: expectedIds[index], title, headline, explanation, evidence, action, confidence }];
+  });
+  // A useful model report should not be discarded only because its secondary
+  // compact label missed the exact seven-Han / 2-4-word display contract. The
+  // fallback is derived from that same model-authored section headline, so it
+  // cannot introduce facts that were absent from the model result.
+  const compactBullets = expectedIds.map((_, index) => {
+    const normalized = cleanCompactBullet(rawCompactBullets[index], lang, sections[index]?.headline);
+    if (!normalized) issues.push(`compactBullets_${index + 1}_length`);
+    return normalized;
   });
   const uniqueIssues = [...new Set(issues)];
   return uniqueIssues.length === 0 && sections.length === expectedIds.length && compactBullets.length === 4

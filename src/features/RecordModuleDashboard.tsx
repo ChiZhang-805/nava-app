@@ -918,6 +918,7 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
   const hasCurrentMood = Boolean(todaySnapshot?.mood?.record_date === recordDate);
   const hasCompletedMood = hasCurrentMood && isCompleteMoodRecord(todaySnapshot?.mood);
   const hasVisibleMood = hasCurrentMood || moodTouched || saved;
+  const hasDiary = diary.trim().length > 0;
   const selectedBand = moodBandForScore(moodScore);
   const canComplete = (moodTouched || hasCurrentMood) && selectedFactors.length > 0 && diary.trim().length > 0;
   useEffect(() => {
@@ -950,13 +951,12 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
         data-record-date={recordDate}
       >
         <header>
-          <strong>{locale === "zh" ? "今日情绪摘要" : "Today's mood"}</strong>
+          <strong>{locale === "zh" ? "今日情绪" : "Today's mood"}</strong>
           <span className="mood-summary-date"><CalendarDays size={14} />{shortDate(recordDate, locale)}</span>
         </header>
         <div className="mood-summary-content">
           <output className="mood-summary-score" aria-live="polite">{hasVisibleMood ? <AnimatedNumber value={moodScore} duration={360} /> : "--"}<small>{locale === "zh" ? "分" : "pts"}</small></output>
           <span className={`mood-summary-band ${hasVisibleMood ? `is-${selectedBand.key}` : "is-missing"}`}><HeartPulse size={15} />{hasVisibleMood ? (locale === "zh" ? selectedBand.zh : selectedBand.en) : (locale === "zh" ? "尚未记录" : "Not recorded")}</span>
-          <span className="mood-summary-sync">{hasVisibleMood ? (locale === "zh" ? "下方强度将同步今天" : "The slider updates today") : (locale === "zh" ? "选择情绪后才会形成今日数据" : "Choose a mood to create today's data")}</span>
         </div>
         <div className="mood-summary-progress" aria-hidden="true"><i /></div>
       </section>
@@ -987,9 +987,19 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
         </label>
         <div className="mood-factor-row mood-factor-chips">
           <span>{locale === "zh" ? "影响因素（可多选）" : "Factors (multiple)"}</span>
-          <div>{moodFactors.map((factor) => <button type="button" className={selectedFactors.includes(factor.value) ? "selected" : ""} key={factor.value} onClick={() => toggleMoodFactor(factor.value)}>{factor.label}</button>)}</div>
+          <div>{moodFactors.map((factor) => <button type="button" aria-pressed={selectedFactors.includes(factor.value)} className={selectedFactors.includes(factor.value) ? "selected" : ""} key={factor.value} onClick={() => toggleMoodFactor(factor.value)}>{factor.label}</button>)}</div>
         </div>
-        <button className="mood-diary-trigger" type="button" onClick={() => openView("journal")} aria-label={locale === "zh" ? "填写情绪日记" : "Write mood journal"}>{diary || (locale === "zh" ? "写下今天的情绪" : "Write a mood note")}</button>
+        <button
+          className="mood-diary-trigger"
+          type="button"
+          data-diary-state={hasDiary ? "written" : "empty"}
+          onClick={() => openView("journal")}
+          aria-label={hasDiary
+            ? (locale === "zh" ? "查看或修改今天的情绪日志" : "View or edit today's mood journal")
+            : (locale === "zh" ? "写下今天的情绪日志" : "Write today's mood journal")}
+        >{hasDiary
+          ? (locale === "zh" ? "查看 / 修改今天的情绪日志" : "View / edit today's mood journal")
+          : (locale === "zh" ? "写下今天的情绪日志" : "Write today's mood journal")}</button>
       </section>
       {repeatedLowMood && <section className="mood-pattern-alert" role="status"><HeartPulse size={18} /><p>{locale === "zh" ? "最近 3 次记录都处于低位。可以先降低今天的任务负荷；如果这种状态持续或影响安全，请联系可信任的人或专业支持。" : "Your last 3 entries were low. Reduce today's load, and seek trusted or professional support if this persists or affects safety."}</p></section>}
       <section className="figma-module-card mood-trend-card">
@@ -2033,7 +2043,7 @@ export default function RecordModuleDashboard(props: Props) {
   const [view, setView] = useState(props.initialView ?? "overview");
   const [overviewInsight, setOverviewInsight] = useState<string | null>(null);
   const [overviewInsightLoading, setOverviewInsightLoading] = useState(false);
-  const [overviewInsightError, setOverviewInsightError] = useState(false);
+  const [overviewInsightError, setOverviewInsightError] = useState<string | null>(null);
   const overviewInsightRequestRef = useRef(0);
   useEffect(() => setView(props.initialView ?? "overview"), [props.initialView, props.module]);
   const openView = (next: string, returnToPrevious = next === "overview") => {
@@ -2047,7 +2057,7 @@ export default function RecordModuleDashboard(props: Props) {
     if (!hasCurrentRecord) return;
     const requestId = ++overviewInsightRequestRef.current;
     setOverviewInsightLoading(true);
-    setOverviewInsightError(false);
+    setOverviewInsightError(null);
     try {
       if (props.module === "diet") {
         const report = await loadDietAiReport({ date: props.recordDate, locale });
@@ -2076,7 +2086,9 @@ export default function RecordModuleDashboard(props: Props) {
       console.warn("Module overview AI insight unavailable", error);
       if (requestId === overviewInsightRequestRef.current) {
         setOverviewInsight(null);
-        setOverviewInsightError(true);
+        setOverviewInsightError(error instanceof Error && error.message.trim()
+          ? error.message
+          : (locale === "zh" ? "AI 反馈生成失败，请稍后重试。" : "AI feedback could not be generated. Please retry."));
       }
     } finally {
       if (requestId === overviewInsightRequestRef.current) setOverviewInsightLoading(false);
@@ -2084,7 +2096,7 @@ export default function RecordModuleDashboard(props: Props) {
   }, [hasCurrentRecord, locale, props.module, props.profile, props.recordDate, props.trendBundle]);
   useEffect(() => {
     setOverviewInsight(null);
-    setOverviewInsightError(false);
+    setOverviewInsightError(null);
     if (view === "overview" && hasCurrentRecord) void loadOverviewInsight();
     return () => {
       overviewInsightRequestRef.current += 1;
@@ -2107,11 +2119,11 @@ export default function RecordModuleDashboard(props: Props) {
   const moduleLabel = locale === "zh" ? moduleLabels[props.module].zh : moduleLabels[props.module].en;
   return <div className={["record-module-dashboard-shell", focusImmersive ? "record-module-dashboard-shell--focus-immersive" : ""].filter(Boolean).join(" ")}>
     {dashboard}
-    {!focusImmersive && view === "overview" && hasCurrentRecord && <section className="figma-module-card module-assistant-card module-overview-ai" aria-live="polite">
+    {!focusImmersive && view === "overview" && hasCurrentRecord && <section className="figma-module-card module-assistant-card module-overview-ai" aria-live="polite" data-ai-state={overviewInsightLoading ? "loading" : overviewInsight ? "ready" : overviewInsightError ? "error" : "idle"}>
       <span className="module-assistant-icon"><Bot size={18} /></span>
       <div><strong>{isDemoMode() ? (locale === "zh" ? "演示 AI 即时反馈" : "Demo AI feedback") : (locale === "zh" ? "基于真实记录的 AI 即时反馈" : "AI feedback from your real records")}</strong>{overviewInsightLoading
         ? <SkeletonLines count={2} compact />
-        : <p>{overviewInsight ?? (locale === "zh" ? "真实 AI 暂时不可用，没有使用固定建议代替。" : "Real AI is temporarily unavailable; no fixed suggestion was substituted.")}</p>}{overviewInsightError && <button type="button" onClick={() => void loadOverviewInsight()}>{locale === "zh" ? "重试真实 AI" : "Retry real AI"}</button>}</div>
+        : <p>{overviewInsight ?? overviewInsightError ?? (locale === "zh" ? "正在准备基于真实记录的反馈。" : "Preparing feedback from your real records.")}</p>}{overviewInsightError && <button type="button" onClick={() => void loadOverviewInsight()}>{locale === "zh" ? "重新生成" : "Generate again"}</button>}</div>
     </section>}
     {!focusImmersive && view === "overview" && <nav className="module-cross-actions" aria-label={locale === "zh" ? "模块快捷入口" : "Module shortcuts"}>
       <button type="button" onClick={() => props.onOpenAi?.(locale === "zh" ? `请结合我已授权的真实${moduleLabel}记录，分析近期变化，并给出一条今天可执行的建议。` : `Analyze my consent-authorized ${moduleLabel} records and suggest one practical action for today.`)}><Bot size={16} /><span>{locale === "zh" ? "问 NAVA" : "Ask NAVA"}</span></button>

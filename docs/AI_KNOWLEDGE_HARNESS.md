@@ -87,6 +87,11 @@ final prompt without becoming instructions.
   Numeric evidence grounding and association-confidence checks remain mandatory.
   If the contract still fails, the request fails visibly; no fixed production
   prose replaces the model.
+- The four compact labels are a secondary presentation shape, not evidence.
+  When the model has already returned a valid grounded normal report but a
+  compact label misses the exact seven-Han / 2–4-word constraint, the function
+  normalizes that label from the same model-authored label or section headline.
+  It does not discard the otherwise valid report or introduce new facts.
 - A successfully validated health report is reused in memory for the current
   authenticated user, scope, period and language only while the caller's local
   revision of the relevant report records and authorized profile is unchanged.
@@ -116,7 +121,9 @@ Mood, sleep, exercise, focus, face and weekly placements call
 `loadDietAiReport`, which invokes `ai-diet-report`. The normal and compact
 phrasing come from the same validated model result and source fingerprint.
 Unavailable model output is shown as unavailable and is never replaced by
-fixed production advice.
+fixed production advice. The module overview preserves the safe server error
+message and a retry action, so authentication, rate-limit, provider, and format
+failures do not collapse into one misleading generic “AI unavailable” state.
 
 The auxiliary AI paths are separate and remain wired as follows: AI chat uses
 `ai-extract-data` followed by streamed `ai-chat-reply`; meal-photo recognition

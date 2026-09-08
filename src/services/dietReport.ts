@@ -11,6 +11,24 @@ export interface DietAiReport {
 
 const pendingReports = new Map<string, Promise<DietAiReport>>();
 
+async function dietReportError(error: unknown, locale: "zh" | "en") {
+  const context = error && typeof error === "object" && "context" in error ? (error as { context?: unknown }).context : null;
+  if (context instanceof Response) {
+    try {
+      const payload = await context.clone().json() as { error?: unknown; message?: unknown };
+      const message = typeof payload.error === "string" ? payload.error : typeof payload.message === "string" ? payload.message : "";
+      if (message.trim()) return new Error(message.trim());
+    } catch {
+      // The status-specific message below remains safe and actionable.
+    }
+    if (context.status === 401) return new Error(locale === "zh" ? "登录状态已过期，请重新登录后生成 AI 反馈。" : "Your session expired. Sign in again to generate AI feedback.");
+    if (context.status === 429) return new Error(locale === "zh" ? "AI 服务正忙，请稍后重新生成。" : "AI is busy. Please generate again shortly.");
+  }
+  return error instanceof Error && error.message.trim()
+    ? error
+    : new Error(locale === "zh" ? "AI 反馈生成失败，请稍后重新生成。" : "AI feedback could not be generated. Please try again.");
+}
+
 function isReportBulletValid(value: string) {
   const hanCount = value.match(/\p{Script=Han}/gu)?.length ?? 0;
   if (hanCount > 0) return hanCount >= 15 && hanCount <= 18;
@@ -57,7 +75,7 @@ export async function loadDietAiReport(input: { date: string; locale: "zh" | "en
     const response = await supabase.functions.invoke<DietAiReport>("ai-diet-report", {
       body: { date: input.date, lang: input.locale, refresh: input.refresh === true },
     });
-    if (response.error) throw response.error;
+    if (response.error) throw await dietReportError(response.error, input.locale);
     const compactBulletsValid = response.data?.compactBullets == null
       || (response.data.compactBullets.length === 4 && response.data.compactBullets.every((bullet) => validCompactReportBullet(bullet, input.locale)));
     if (!response.data || !Array.isArray(response.data.bullets) || response.data.bullets.length !== 4 || !response.data.bullets.every(isReportBulletValid) || !compactBulletsValid) {

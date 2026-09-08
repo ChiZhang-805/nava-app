@@ -596,7 +596,7 @@ async function verifyRecordModules(page, results) {
     .join("|"))).not.toBe(pieBefore);
   await page.screenshot({ path: path.join(outputDir, "record-mood-before-journal.png") });
   await assertMoodCardSeparation(page, "record-mood-before-journal");
-  await page.locator('[aria-label="填写情绪日记"], [aria-label="Write mood journal"]').click();
+  await page.locator(".mood-diary-trigger").click();
   await expect(page.locator('[role="dialog"]')).toBeVisible();
   await page.locator('[role="dialog"] textarea').fill("今天节律平稳，午后状态更好。");
   await page.waitForTimeout(350);

@@ -147,10 +147,9 @@ async function generateReport(input: {
         const bullets = Array.isArray(parsed.bullets)
           ? parsed.bullets.map((item) => cleanBullet(item, input.lang)).filter(Boolean)
           : [];
-        const compactBullets = Array.isArray(parsed.compactBullets)
-          ? parsed.compactBullets.map((item) => cleanCompactBullet(item, input.lang)).filter(Boolean)
-          : [];
-        if (bullets.length === 4 && compactBullets.length === 4) {
+        const rawCompactBullets = Array.isArray(parsed.compactBullets) ? parsed.compactBullets : [];
+        const compactBullets = bullets.map((bullet, index) => cleanCompactBullet(rawCompactBullets[index], input.lang, bullet));
+        if (bullets.length === 4 && compactBullets.length === 4 && compactBullets.every(Boolean)) {
           return {
             bullets,
             compactBullets: compactBullets as [string, string, string, string],
@@ -177,14 +176,22 @@ function cleanBullet(value: unknown, lang: Language) {
   return hanCount >= 15 && hanCount <= 18 ? cleaned : "";
 }
 
-function cleanCompactBullet(value: unknown, lang: Language) {
-  if (typeof value !== "string") return "";
-  const cleaned = value.replace(/^\s*(?:[-•·]|\d+[.、)])\s*/u, "").replace(/\s+/g, " ").trim();
+function cleanCompactBullet(value: unknown, lang: Language, fallback: unknown = "") {
+  const cleaned = typeof value === "string"
+    ? value.replace(/^\s*(?:[-•·]|\d+[.、)])\s*/u, "").replace(/\s+/g, " ").trim()
+    : "";
+  const fallbackText = typeof fallback === "string" ? fallback.replace(/\s+/g, " ").trim() : "";
   if (lang === "en") {
     const wordCount = cleaned.split(/\s+/).filter(Boolean).length;
-    return wordCount >= 2 && wordCount <= 4 && cleaned.length <= 28 ? cleaned : "";
+    if (wordCount >= 2 && wordCount <= 4 && cleaned.length <= 28) return cleaned;
+    const fallbackWords = fallbackText.split(/\s+/).filter(Boolean).slice(0, 4);
+    return fallbackWords.length >= 2 ? fallbackWords.join(" ").slice(0, 28).trim() : "";
   }
-  return Array.from(cleaned).length === 7 && /^\p{Script=Han}{7}$/u.test(cleaned) ? cleaned : "";
+  if (Array.from(cleaned).length === 7 && /^\p{Script=Han}{7}$/u.test(cleaned)) return cleaned;
+  const compactHan = (cleaned.match(/\p{Script=Han}/gu) ?? []).slice(0, 7);
+  if (compactHan.length === 7) return compactHan.join("");
+  const fallbackHan = (fallbackText.match(/\p{Script=Han}/gu) ?? []).slice(0, 7);
+  return fallbackHan.length === 7 ? fallbackHan.join("") : "";
 }
 
 function parseStoredReport(value: unknown, lang: Language, expectedFingerprint: string): StoredReport | null {

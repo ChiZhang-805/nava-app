@@ -439,7 +439,7 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
 
   await page.locator('[data-record-module="mood"]').click();
   await capture(page, viewport, "02-mood", '[data-module-view="mood-overview"]', report);
-  await page.locator('[aria-label="填写情绪日记"], [aria-label="Write mood journal"]').click();
+  await page.locator(".mood-diary-trigger").click();
   await capture(page, viewport, "03-mood-journal", '[role="dialog"]', report);
   await page.locator('[role="dialog"] button[type="button"]').last().click();
   await returnToHub(page);
