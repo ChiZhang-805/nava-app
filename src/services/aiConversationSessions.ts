@@ -59,3 +59,26 @@ export function conversationNeedsDailyRollover(messages: ChatMessage[], currentD
   if (messages.length === 0) return false;
   return conversationDayKey(messages) !== currentDay;
 }
+
+const conversationGreetings = {
+  zh: [
+    "嗨，很高兴今天又见到你。昨晚睡得怎么样，有没有哪一点想先聊聊？",
+    "你好呀，今天想先从哪件事开始？吃饭、运动，还是现在的心情？",
+    "嗨，我在这儿陪你看看今天的状态。现在最想改善的是精力、专注还是休息？",
+    "你好，新的对话开始啦。今天吃得怎么样，有没有一餐想让我帮你一起梳理？",
+    "嗨，今天身体和心情各打几分？你也可以先说最明显的感受。",
+  ],
+  en: [
+    "Hi, it is good to see you today. How did you sleep, and what would you like to talk through first?",
+    "Hello! Where should we begin today: food, movement, or how you are feeling?",
+    "Hi, I am here to check in with you. Would you most like to improve energy, focus, or rest today?",
+    "Welcome to a fresh chat. How has eating felt today, and is there a meal you want to review together?",
+    "Hi! What score would you give your body and mood today, and what feels most noticeable?",
+  ],
+} as const;
+
+export function buildConversationGreeting(locale: "zh" | "en", seed = Date.now()) {
+  const options = conversationGreetings[locale];
+  const safeSeed = Number.isFinite(seed) ? Math.abs(Math.trunc(seed)) : 0;
+  return options[safeSeed % options.length];
+}

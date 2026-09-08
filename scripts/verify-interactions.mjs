@@ -1095,7 +1095,8 @@ async function verifyAi(page, results, diagnostics) {
   const headerMenuButton = page.locator(".figma-header-action").last();
   await headerMenuButton.click();
   await page.locator(".app-utility-popover button").filter({ hasText: /新会话|New chat/ }).click();
-  await expect(page.locator(".chat-message-row")).toHaveCount(0);
+  await expect(page.locator(".chat-message-row")).toHaveCount(1);
+  await expect(page.locator(".chat-message-row.assistant .chat-bubble p")).toContainText(/嗨|你好|Hi|Hello/);
   await page.locator(".figma-header-action").last().click();
   await page.locator(".app-utility-popover button").filter({ hasText: /历史|History/ }).click();
   await expect(page.locator(".ai-history-sheet")).toBeVisible();

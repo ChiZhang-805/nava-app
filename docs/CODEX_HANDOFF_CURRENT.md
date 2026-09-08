@@ -792,7 +792,6 @@ App Store。
 
 ### D. 产品明确延期
 
-- 积分商城。
 - 社区。
 - 用可穿戴时间序列做专注会话的硬件相关性判断。
 - Android Health Connect、厂商云 API 和可选标准 BLE 设备路线。
@@ -1712,3 +1711,40 @@ deployment ID 为 `appgdep_6a9fbfa673c481919f1aba94748f7098`，状态 succeeded�
 `Q:\NAVA-Workspace\Build\TestRuns\nava-v124-online`。本轮没有修改或部署 migration、
 Edge Function、secret、认证配置或生产用户数据；真实账号下的 AI 标题内容质量仍需人类
 账号验收，结构与失败兜底已自动化验证。
+
+## 47. 2026-09-08 积分商城、AI 新会话开场与全局安全区收口
+
+积分商城已从占位入口升级为完整前端流程：商品列表按一行一件展示，商品详情支持横向滑动
+多图和分页点，购物车支持数量调整与删除，售罄商品统一灰阶、水印且禁止加入购物车。
+production 暂无真实商品时显示四张不可购买的“商品待上架 / 定价：待填写”运营占位，不把
+假商品、假价格或假库存冒充真实数据。右侧首页快捷菜单中的购物车图标直接进入商城；抽屉
+内商城入口也已启用。
+
+canonical Supabase 已应用 migration `202609080001_reward_shop.sql`。新增商品、购物车、
+订单和订单明细表，并通过 RLS、列级授权和三个 security-definer RPC 保护数据：商品真实
+库存不下发到浏览器，购物车只归当前账号；结算使用用户级事务锁、按固定顺序取得商品行锁、
+幂等请求 UUID，并在同一事务内核验积分/库存、扣减、写订单和清理购物车。并发争抢最后库存
+时不会超卖。`export-user-data` production 已升级到 schema 1.3.0，覆盖新增的购物车、订单、
+订单明细；当前账号归属 public 表总数为 45。没有 seed 生产商品，也没有用真实账号发起
+积分扣款，因此自动化只证明结构、权限探针和事务合同，不冒充真实购买验收。
+
+AI 当日新会话不再显示空白提示。首次进入、跨日归档、手动新建和清空后都会写入一条真实
+assistant 问候，并在睡眠、饮食、运动、心情和今日安排间稳定轮换一个简短问题；现有历史
+归档与 AI 自动命名合同继续保留。`ai-chat-reply` 的生产提示已明确：用户分享状态或回答含糊
+时通常补一个容易回答的聚焦追问；已完成的事务动作和紧急安全回复不强行追问，且每次最多
+一个问题。
+
+桌面机型选择卡正面只保留机型下拉与 1 pt 校准网格；右上角纯手机图标可原位 3D 翻面，
+背面按当前机型显示物理分辨率、逻辑画布、灵动岛/刘海、状态栏定位和校准依据。普通子页的
+共享顶部安全区再次压缩，页头更靠近灵动岛但仍保留最小呼吸距离；共享底部导航增高并整体
+上提，中间 AI 圆钮与上方分界线、下方 Home Indicator 均保留独立间距。内容滚动底部余量
+同步增加，避免最后一个操作被新导航高度遮住。
+
+验证已通过：完整 `npm run verify` 31 阶段、`npm run interaction:test` 11 组、
+`npm run shop:test`、`npm run shop:visual`、`npm run device-preview:visual`、
+`npm run auth:verify:production`、`npm run supabase:verify-shared`、Edge Function typecheck/
+tests 与 production `supabase db lint`。商城/机型卡专项覆盖桌面及 360×740、375×812、
+390×844、430×932 四个移动视口，证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-shop-v125-20260908`；共享 Supabase 探针报告位于
+`artifacts/backend-review/shared-supabase.json`。`ai-chat-reply` 与 `export-user-data` 已部署
+production；双站 v125 的最终提交、版本和在线哈希在发布完成后补入本节。

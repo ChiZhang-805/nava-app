@@ -92,10 +92,10 @@ Get-ChildItem -LiteralPath supabase/migrations -File | Sort-Object Name
   若共享项目仍保留旧 `phone_verification_codes` 表，也会用只授予 service role 的
   `nava_delete_legacy_phone_codes` 清除匹配手机号残留。
   这些无明文、短期留存的服务器风控状态不属于用户内容，因此不进入用户导出。
-- `export-user-data` 更新后的源码覆盖全部 42 个账号归属 public 表、Auth 基本身份与三个用户
-  Storage 前缀；客户端把清单中的私有文件逐一下载并连同 JSON 生成 `.tar.gz` / `.tar`。
-  它不会导出 access token、service-role、OTP、服务器密钥或其他凭据。production 已部署
-  版本仍覆盖现有 40 表；新两表要等 migration 与函数更新一并部署后才进入线上导出。
+- `export-user-data` 生产源码覆盖全部 45 个账号归属 public 表、Auth 基本身份与三个用户
+  Storage 前缀；其中积分商城的购物车、订单和订单明细也属于导出范围，商品公共目录不属于
+  单一账号数据。客户端把清单中的私有文件逐一下载并连同 JSON 生成 `.tar.gz` / `.tar`。
+  它不会导出 access token、service-role、OTP、服务器密钥或其他凭据。
 - 删除账号时，服务端先清空三个用户 Storage 前缀，再删除 Auth 身份并触发数据库级联；
   客户端同时清除该用户的 local/session storage、AES-GCM 面部草稿、Watch 待处理动作、
   Watch 当前快照和已安排的本地系统通知。
@@ -285,13 +285,28 @@ Edge Function 会校验对象路径归属，只生成十分钟签名 URL；客�
 - 原生远程 token 注册、退出停用、通知点击深链、Android channel、APNs 桥、设备/receipt
   migration 和 APNs/FCM/HMS 派发函数均已写入源码。推送正文继续来自
   `user_notifications`，receipt 只记录 provider 状态，不伪造用户已收到。
-- 本轮本地和 production migration 总数均为 26，更新后的导出函数覆盖 42 张账号表；
+- 2026-09-07 本轮本地和 production migration 总数均为 26，当时导出函数覆盖 42 张账号表；
   `export-user-data` 与 `push-dispatch` 已部署。`NAVA_PUSH_DISPATCH_SECRET` 与 APNs/FCM/HMS
   provider secret 仍未配置，
   真实设备送达仍必须在提供平台凭据后验收，不能因函数 ACTIVE 就写成已经收到通知。
 
 上述结论证明结构、部署和既有真实持久化行已核对，但不替代指定账号逐字段比对、真实模型
 首次成功生成、Apple 真机或真实账号删除/完整导出等人工验收。
+
+## 2026-09-08 积分商城与原子购买合同
+
+- migration `202609080001_reward_shop.sql` 已应用到 canonical production；商品目录、购物车、
+  订单和订单明细分别使用 `reward_products`、`reward_cart_items`、`reward_orders`、
+  `reward_order_items`。商品库存字段不直接授予客户端读取，前端只看到 `sold_out`。
+- `nava_reward_points_balance()` 从当前账号的成长积分账本计算可用余额；
+  `nava_set_reward_cart_item()` 只修改当前账号购物车；`nava_checkout_reward_cart()` 使用
+  幂等 request UUID、用户级事务锁和商品行锁，在同一事务内核验余额、扣减库存、写订单及
+  清空已购买购物车。并发抢最后一件时只有锁内最先满足条件的请求能成功。
+- 当前 production 没有伪造商品或库存。空目录由前端显示四张“商品待上架 / 定价：待填写”
+  运营占位；占位不能加入购物车。真实商品上线需通过受控后台写入目录与库存，而不是把
+  inventory 或 service-role 暴露给浏览器。
+- `export-user-data` production 已升级到 schema 1.3.0，覆盖新增的三个账号归属商城表；
+  账号数据表总数为 45。商品公共目录不随单个用户导出。
 
 ## 仍需人工提供
 

@@ -79,6 +79,9 @@ export async function exportUserData(userId: string) {
     "growth_reward_ledger",
     "growth_badges",
     "growth_progress_views",
+    "reward_cart_items",
+    "reward_orders",
+    "reward_order_items",
     "xp_awards",
     "analytics_events",
     "watch_action_receipts",
@@ -89,7 +92,7 @@ export async function exportUserData(userId: string) {
   ];
 
   const result: Record<string, unknown> = {
-    schemaVersion: "1.2.0",
+    schemaVersion: "1.3.0",
     exportedAt: new Date().toISOString(),
     userId,
   };

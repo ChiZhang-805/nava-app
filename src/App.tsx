@@ -834,6 +834,10 @@ function MobileShell({
           setDrawerOpen(false);
           navigate("today", null, "home-widgets");
         }}
+        onOpenShop={() => {
+          setDrawerOpen(false);
+          navigate("today", null, "points-shop");
+        }}
       />
       {rewardQueue[0] && <RewardCelebration rewards={rewardQueue[0]} locale={locale} onDismiss={dismissReward} />}
     </div>

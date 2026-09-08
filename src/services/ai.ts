@@ -4,6 +4,7 @@ import { todayISO } from "./date";
 import { demoMessagesFor, isDemoMode } from "./demo";
 import { AI_PROCESSING_STEP_MIN_MS, buildAiProcessingSteps, type AiProcessingStep } from "./aiProcessing";
 import type { UserProfile } from "./profile";
+import { buildConversationGreeting } from "./aiConversationSessions";
 
 function assertNoError(error: unknown) {
   if (!error) return;
@@ -22,6 +23,21 @@ export async function loadConversation(userId: string, locale: "zh" | "en" = "zh
     .limit(80);
   assertNoError(error);
   return (data ?? []) as ChatMessage[];
+}
+
+export async function createConversationGreeting(userId: string, locale: "zh" | "en" = "zh"): Promise<ChatMessage> {
+  const createdAt = new Date().toISOString();
+  const content = buildConversationGreeting(locale);
+  if (isDemoMode()) {
+    return { id: `demo-greeting-${Date.now()}`, role: "assistant", content, created_at: createdAt } as ChatMessage;
+  }
+  const result = await supabase
+    .from("ai_conversations")
+    .insert({ user_id: userId, role: "assistant", content })
+    .select("*")
+    .single();
+  assertNoError(result.error);
+  return result.data as ChatMessage;
 }
 
 export async function deleteConversationMessages(userId: string, messageIds: string[]) {

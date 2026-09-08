@@ -60,6 +60,7 @@ import HomeCalendarExperience from "./HomeCalendarExperience";
 import AdvancedProfileScreen from "./AdvancedProfileScreen";
 import NotificationCenter from "./NotificationCenter";
 import HomeWidgetEditor from "./HomeWidgetEditor";
+import PointsShopExperience from "./PointsShopExperience";
 
 const healthEntries: Array<{
   id: RecordModule;
@@ -298,6 +299,10 @@ export default function OptionTwoHome({
     />;
   }
 
+  if (view === "points-shop" || view === "points-shop-cart" || view?.startsWith("points-shop-product-")) {
+    return <PointsShopExperience user={user} view={view} onViewChange={(nextView) => onViewChange(nextView)} onBack={() => onBack(null)} />;
+  }
+
   const beginHomeGesture = (event: ReactPointerEvent<HTMLElement>) => {
     if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
     const target = event.target as HTMLElement;
@@ -509,7 +514,7 @@ export default function OptionTwoHome({
         </button>
         <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("calendar"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "健康月历" : "Health calendar"} title={locale === "zh" ? "健康月历" : "Health calendar"}><CalendarDays size={23} /></button>
         <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("profile-details"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "详细资料设置" : "Detailed profile"} title={locale === "zh" ? "详细资料设置" : "Detailed profile"}><UsersRound size={24} /></button>
-        <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onOpenUtility(); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "积分商城" : "Points store"} title={locale === "zh" ? "积分商城" : "Points store"}><ShoppingCart size={22} /></button>
+        <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("points-shop"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "积分商城" : "Points store"} title={locale === "zh" ? "积分商城" : "Points store"}><ShoppingCart size={22} /></button>
         <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onOpenUtility(); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "功能导航" : "Utilities"} title={locale === "zh" ? "功能导航" : "Utilities"}><Wrench size={22} /></button>
         <button className="option-two-side-shortcut option-two-side-notifications" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("notifications"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "消息通知" : "Notifications"} title={locale === "zh" ? "消息通知" : "Notifications"}>
           <Bell size={22} />

@@ -1,9 +1,9 @@
 import type { User } from "@supabase/supabase-js";
-import { Bot, Camera, Check, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, SendHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import { Camera, Check, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, SendHorizontal, Sparkles, Trash2, X } from "lucide-react";
 import { Fragment, FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocale } from "../i18n";
 import PageSkeleton from "../components/PageSkeleton";
-import { deleteConversationMessages, generateConversationTitle, loadConversation, sendAiMessage } from "../services/ai";
+import { createConversationGreeting, deleteConversationMessages, generateConversationTitle, loadConversation, sendAiMessage } from "../services/ai";
 import type { AiProcessingStep } from "../services/aiProcessing";
 import { createStreamingAiSpeaker, isAiSpeechSupported, type StreamingAiSpeaker } from "../services/aiSpeech";
 import { todayISO } from "../services/date";
@@ -276,7 +276,11 @@ export default function AIScreen({
       if (requestId === conversationLoadRequestRef.current) {
         if (conversationNeedsDailyRollover(conversation, deviceDayKey)) {
           setHistory(archiveConversation(conversation));
-          setMessages([]);
+          const greeting = await createConversationGreeting(user.id, locale);
+          if (requestId === conversationLoadRequestRef.current) setMessages([greeting]);
+        } else if (conversation.length === 0) {
+          const greeting = await createConversationGreeting(user.id, locale);
+          if (requestId === conversationLoadRequestRef.current) setMessages([greeting]);
         } else {
           setMessages(conversation);
         }
@@ -561,6 +565,9 @@ export default function AIScreen({
       setSending(false);
       setError(null);
       setHistoryOpen(false);
+      void createConversationGreeting(user.id, locale)
+        .then((greeting) => setMessages([greeting]))
+        .catch((greetingError) => setError(greetingError instanceof Error ? greetingError.message : String(greetingError)));
       return;
     }
     if (command.type === "history") {
@@ -606,6 +613,9 @@ export default function AIScreen({
       setSending(false);
       setError(null);
       setHistoryOpen(false);
+      void createConversationGreeting(user.id, locale)
+        .then((greeting) => setMessages([greeting]))
+        .catch((greetingError) => setError(greetingError instanceof Error ? greetingError.message : String(greetingError)));
       return;
     }
     const payload = JSON.stringify({ exportedAt: new Date().toISOString(), messages }, null, 2);
@@ -1018,13 +1028,6 @@ export default function AIScreen({
   return (
     <div className="chat-layout">
       <div className="chat-list" ref={listRef}>
-        {messages.length === 0 && (
-          <div className="empty-chat">
-            <Bot size={30} />
-            <strong>{t("ai.emptyTitle")}</strong>
-            <span>{t("ai.emptyText")}</span>
-          </div>
-        )}
         {messages.map((message) => {
           const isUser = message.role === "user";
           return (

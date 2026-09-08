@@ -37,6 +37,9 @@ const tableContracts = [
   { name: "growth_reward_ledger", column: "user_id" },
   { name: "growth_badges", column: "user_id" },
   { name: "growth_progress_views", column: "user_id" },
+  { name: "reward_cart_items", column: "user_id" },
+  { name: "reward_orders", column: "user_id" },
+  { name: "reward_order_items", column: "user_id" },
   { name: "xp_awards", column: "user_id" },
   { name: "analytics_events", column: "user_id" },
   { name: "watch_action_receipts", column: "user_id" },
@@ -54,7 +57,7 @@ Deno.serve(async (req) => {
     const { user, userClient } = await requireUser(req);
     await readJson(req);
     const result: Record<string, unknown> = {
-      schemaVersion: "1.2.0",
+      schemaVersion: "1.3.0",
       exportedAt: new Date().toISOString(),
       userId: user.id,
       account: {

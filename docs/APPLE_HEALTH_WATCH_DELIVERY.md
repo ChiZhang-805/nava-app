@@ -169,8 +169,8 @@ HealthKit 历史同步不依赖 watchOS App，因此本阶段排在 iPhone 闭�
   Watch 来源因子，不伪造用户日记内容。
 - [ ] 真机验证即时消息、Watch 不可达、离线 `transferUserInfo` 重放和重复动作。
 
-积分商城和“专注期间硬件指标分析”按照本轮产品决定继续延期，不得因为已有
-每日 HealthKit 数据而标记完成。
+“专注期间硬件指标分析”继续延期，不得因为已有每日 HealthKit 数据而标记完成。
+积分商城已在独立的 Supabase 商品/购物车/订单合同中实现，不依赖 HealthKit 或 Watch 数据。
 
 ## 5. iOS 打包与发布流程
 

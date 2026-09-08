@@ -135,4 +135,8 @@ Write-Host "31. Apple device preview catalog"
 Invoke-Npm -Arguments @("run", "device-preview:test")
 
 Write-Host ""
+Write-Host "32. Points shop and daily AI conversation contracts"
+Invoke-Npm -Arguments @("run", "shop:test")
+
+Write-Host ""
 Write-Host "Verification completed."

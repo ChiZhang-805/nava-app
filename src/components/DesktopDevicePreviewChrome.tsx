@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { RotateCcw, Smartphone } from "lucide-react";
 import {
   DEFAULT_IPHONE_PREVIEW_DEVICE_ID,
   findIPhonePreviewDevice,
@@ -33,6 +34,7 @@ export default function DesktopDevicePreviewChrome() {
       return false;
     }
   });
+  const [showSpecifications, setShowSpecifications] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   const device = findIPhonePreviewDevice(deviceId);
   const { calibration } = device;
@@ -150,42 +152,52 @@ export default function DesktopDevicePreviewChrome() {
   return (
     <>
       <aside className="nava-device-selector" data-preview-only="desktop-device-selector">
-        <label htmlFor="nava-preview-device">预览机型</label>
-        <select
-          id="nava-preview-device"
-          data-testid="nava-preview-device-select"
-          value={device.id}
-          onChange={(event) => chooseDevice(event.target.value)}
-          aria-label="选择 iPhone 预览机型"
-        >
-          {["17", "16", "15", "14"].map((generation) => (
-            <optgroup key={generation} label={`iPhone ${generation} 系列`}>
-              {IPHONE_PREVIEW_DEVICES.filter((candidate) => candidate.generation === generation).map((candidate) => (
-                <option key={candidate.id} value={candidate.id}>{candidate.label}</option>
+        <div className={["nava-device-selector-turn", showSpecifications ? "is-flipped" : ""].filter(Boolean).join(" ")}>
+          <section className="nava-device-selector-face nava-device-selector-front" aria-hidden={showSpecifications} {...(showSpecifications ? { inert: "" } : {})}>
+            <header>
+              <label htmlFor="nava-preview-device">预览机型</label>
+              <button type="button" className="nava-device-selector-flip" onClick={() => setShowSpecifications(true)} aria-label="查看机型规格参数" title="查看规格参数"><Smartphone size={17} /></button>
+            </header>
+            <select
+              id="nava-preview-device"
+              data-testid="nava-preview-device-select"
+              value={device.id}
+              onChange={(event) => chooseDevice(event.target.value)}
+              aria-label="选择 iPhone 预览机型"
+            >
+              {["17", "16", "15", "14"].map((generation) => (
+                <optgroup key={generation} label={`iPhone ${generation} 系列`}>
+                  {IPHONE_PREVIEW_DEVICES.filter((candidate) => candidate.generation === generation).map((candidate) => (
+                    <option key={candidate.id} value={candidate.id}>{candidate.label}</option>
+                  ))}
+                </optgroup>
               ))}
-            </optgroup>
-          ))}
-        </select>
-        <p>
-          <span>{device.pixelWidth} × {device.pixelHeight} px</span>
-          <span>{device.logicalWidth} × {device.logicalHeight} pt · {device.screenInches.toFixed(1)}″ · {device.cutout === "notch" ? "刘海" : "灵动岛"}</span>
-          <span>
-            {device.cutout === "notch" ? "刘海" : "岛"} x {formatMetric(cutoutLeft)} · y {formatMetric(calibration.cutout.top)} · {formatMetric(calibration.cutout.width)} × {formatMetric(calibration.cutout.height)} pt
-          </span>
-          <span>
-            时间 x {formatMetric(calibration.status.timeLeft)} · 状态区 x {formatMetric(calibration.status.signalLeft)} · 中轴 y {formatMetric(calibration.status.centerY)}
-          </span>
-          <span>{device.geometryBasis} 实测校准</span>
-        </p>
-        <label className="nava-device-grid-toggle">
-          <input
-            type="checkbox"
-            data-testid="nava-preview-grid-toggle"
-            checked={showCalibrationGrid}
-            onChange={(event) => toggleCalibrationGrid(event.target.checked)}
-          />
-          <span>1 pt 校准网格（10 pt 加粗）</span>
-        </label>
+            </select>
+            <label className="nava-device-grid-toggle">
+              <input
+                type="checkbox"
+                data-testid="nava-preview-grid-toggle"
+                checked={showCalibrationGrid}
+                onChange={(event) => toggleCalibrationGrid(event.target.checked)}
+              />
+              <span>1 pt 校准网格（10 pt 加粗）</span>
+            </label>
+          </section>
+          <section className="nava-device-selector-face nava-device-selector-back" aria-hidden={!showSpecifications} {...(!showSpecifications ? { inert: "" } : {})}>
+            <header>
+              <strong>规格参数</strong>
+              <button type="button" className="nava-device-selector-flip" onClick={() => setShowSpecifications(false)} aria-label="返回机型选择" title="返回机型选择"><RotateCcw size={17} /></button>
+            </header>
+            <dl>
+              <div><dt>机型</dt><dd>{device.label}</dd></div>
+              <div><dt>物理分辨率</dt><dd>{device.pixelWidth} × {device.pixelHeight} px</dd></div>
+              <div><dt>逻辑画布</dt><dd>{device.logicalWidth} × {device.logicalHeight} pt · {device.screenInches.toFixed(1)}″</dd></div>
+              <div><dt>{device.cutout === "notch" ? "刘海" : "灵动岛"}</dt><dd>x {formatMetric(cutoutLeft)} · y {formatMetric(calibration.cutout.top)} · {formatMetric(calibration.cutout.width)} × {formatMetric(calibration.cutout.height)} pt</dd></div>
+              <div><dt>状态栏</dt><dd>时间 x {formatMetric(calibration.status.timeLeft)} · 状态区 x {formatMetric(calibration.status.signalLeft)} · 中轴 y {formatMetric(calibration.status.centerY)}</dd></div>
+              <div><dt>校准依据</dt><dd>{device.geometryBasis}</dd></div>
+            </dl>
+          </section>
+        </div>
       </aside>
       <div
         ref={previewRef}

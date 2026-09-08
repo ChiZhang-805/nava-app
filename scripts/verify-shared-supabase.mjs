@@ -35,6 +35,10 @@ const extensionTables = {
   record_drafts: "id,user_id,module,record_date,payload,status,created_at,updated_at",
   notification_preferences: "id,user_id,notification_type,enabled,local_time,timezone,last_scheduled_at,created_at,updated_at",
   growth_reward_ledger: "id,user_id,event_key,points,source,metadata,created_at",
+  reward_products: "id,slug,name,description,point_price,image_urls,sold_out,published,created_at,updated_at",
+  reward_cart_items: "user_id,product_id,quantity,created_at,updated_at",
+  reward_orders: "id,user_id,idempotency_key,status,total_points,created_at",
+  reward_order_items: "id,order_id,user_id,product_id,product_name,unit_points,quantity,created_at",
   growth_badges: "id,user_id,badge_key,awarded_at,metadata",
   user_app_preferences: "user_id,locale,ai_speech_enabled,home_widget_ids,created_at,updated_at",
   user_notifications: "user_id,id,category,source,title,body,target,created_at,read_at,deleted_at,updated_at",
@@ -48,6 +52,7 @@ const sharedFunctions = ["ai-extract-data", "ai-chat-reply", "diet-extract", "fa
 const appFunctions = ["ai-health-report", "ai-diet-report", "health-sync-ingest", "watch-sync", "rhythm-score", "dnb-weekly-report", "fdnb-recompute", "export-user-data", "delete-account", "auth-account-status", "push-dispatch"];
 const sharedBuckets = ["diet-photos"];
 const appBuckets = ["face-photos", "profile-avatars"];
+const authenticatedOnlyExtensionTables = new Set(["reward_products", "reward_cart_items", "reward_orders", "reward_order_items"]);
 
 function parseEnv(text) {
   const result = {};
@@ -88,7 +93,10 @@ async function requestStatus(url, key, options = {}) {
 async function probeTables(url, key, contracts) {
   const result = {};
   for (const [table, columns] of Object.entries(contracts)) {
-    result[table] = await requestStatus(`${url}/rest/v1/${table}?select=${encodeURIComponent(columns)}&limit=0`, key);
+    const probe = await requestStatus(`${url}/rest/v1/${table}?select=${encodeURIComponent(columns)}&limit=0`, key);
+    result[table] = authenticatedOnlyExtensionTables.has(table) && probe.status === 401
+      ? { ...probe, ok: true, scope: "authenticated-only" }
+      : probe;
   }
   return result;
 }

@@ -463,19 +463,15 @@ export function growthXp(tasks: GrowthTask[]) {
   return tasks.filter((task) => task.completed).reduce((sum, task) => sum + task.xp, 0);
 }
 
-export async function loadGrowthTotalPoints(userId: string) {
+export async function loadGrowthTotalPoints(userId = "") {
   if (isDemoMode()) return growthXp(loadGrowthTasks(userId));
-  const { data, error } = await supabase
-    .from("growth_reward_ledger")
-    .select("points")
-    .eq("user_id", userId);
+  const { data, error } = await supabase.rpc("nava_reward_points_balance");
   if (error) {
     throw error;
   }
-  return (data ?? []).reduce((total, row) => {
-    const points = Number(row.points);
-    return total + (Number.isFinite(points) && points > 0 ? Math.round(points) : 0);
-  }, 0);
+  const points = Number(data);
+  if (!Number.isFinite(points) || points < 0) throw new Error("成长积分服务没有返回有效的可用积分。");
+  return Math.round(points);
 }
 
 export type GrowthRewardGrant = {
