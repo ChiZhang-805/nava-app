@@ -26,6 +26,11 @@ const samplePhoto = {
     "utf8",
   ),
 };
+const sampleChatPhoto = {
+  name: "sample.png",
+  mimeType: "image/png",
+  buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
+};
 
 async function dismissLaunch(page) {
   const launch = page.locator(".launch-sequence");
@@ -1151,27 +1156,41 @@ async function verifyAi(page, results, diagnostics) {
   await headerMenuButton.click();
   await expect(utilityPopover).toBeHidden();
 
-  const composerMic = page.locator(".chat-voice-button");
-  const composerMicBox = await composerMic.boundingBox();
-  if (!composerMicBox) throw new Error("Chat microphone has no visible bounds");
-  const composerPointer = { x: composerMicBox.x + composerMicBox.width / 2, y: composerMicBox.y + composerMicBox.height / 2 };
-  await page.mouse.move(composerPointer.x, composerPointer.y);
-  await page.mouse.down();
-  await page.waitForTimeout(380);
-  await expect(page.locator(".chat-camera-shortcut")).toBeVisible();
-  await page.mouse.move(composerPointer.x, composerPointer.y - 72, { steps: 4 });
-  await expect(page.locator(".chat-camera-shortcut.selected")).toBeVisible();
+  const attachmentTrigger = page.locator(".chat-attachment-trigger");
+  await expect(attachmentTrigger).toBeVisible();
+  await attachmentTrigger.click();
+  const attachmentMenu = page.locator(".chat-attachment-menu");
+  await expect(attachmentMenu).toBeVisible();
+  await expect(attachmentMenu.locator('[role="menuitem"]')).toHaveCount(3);
+  await expect(page.locator('.chat-photo-input:not([capture])')).toHaveAttribute("accept", /image\/jpeg/);
+  await expect(page.locator(".chat-document-input")).toHaveAttribute("accept", /\.txt/);
+  await expect(page.locator('.chat-camera-input[capture="environment"]')).toHaveCount(1);
+  await assertStaticLayout(page, "ai-attachment-menu");
+  await page.screenshot({ path: path.join(outputDir, "ai-attachment-menu.png") });
+
+  await page.locator(".chat-document-input").setInputFiles({
+    name: "rhythm-notes.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("本周睡眠整体平稳，周三入睡较晚。"),
+  });
+  await expect(page.locator(".chat-pending-document")).toContainText("rhythm-notes.txt");
+  await expect(page.locator(".chat-send-button")).toBeEnabled();
+  await page.screenshot({ path: path.join(outputDir, "ai-document-ready.png") });
+  await page.locator(".chat-pending-document button").click();
+  await expect(page.locator(".chat-pending-document")).toHaveCount(0);
+
+  await attachmentTrigger.click();
   const fileChooserPromise = page.waitForEvent("filechooser", { timeout: 1500 }).catch(() => null);
-  await page.mouse.up();
+  await attachmentMenu.locator('[role="menuitem"]').nth(2).click();
   const fileChooser = await fileChooserPromise;
-  await expect(page.locator(".chat-camera-shortcut")).toBeHidden();
+  await expect(attachmentMenu).toBeHidden();
   if (fileChooser) {
-    await fileChooser.setFiles(samplePhoto);
+    await fileChooser.setFiles(sampleChatPhoto);
   } else {
     // Chromium may route capture="environment" through its camera surface
     // without exposing a desktop file chooser. Inject the captured file into
     // the same input so the remainder of the recognition flow is still tested.
-    await page.locator(".chat-camera-input").setInputFiles(samplePhoto);
+    await page.locator(".chat-camera-input").setInputFiles(sampleChatPhoto);
   }
   await expect(page.locator('[data-chat-photo="analyzing"], [data-chat-photo="saved"]')).toBeVisible();
   await expect(page.locator('[data-structured-confirmation="nutrition"]')).toBeVisible({ timeout: 30_000 });
@@ -1212,7 +1231,7 @@ async function verifyAi(page, results, diagnostics) {
   await page.mouse.up();
   await expect(page.locator(".chat-composer.voice-active")).toBeHidden();
   await expect(page.locator(".chat-input-shell input")).toHaveValue(inputBeforeCancelledVoice);
-  results.push("AI 对话、完整短答与模型侧字数契约、菜单交互、长按麦克风上滑拍照、视觉餐食确认保存、按住录音与上滑取消");
+  results.push("AI 对话、完整短答与模型侧字数契约、附件菜单、照片/文件/摄像头入口、视觉餐食确认保存、按住录音与上滑取消");
 }
 
 async function verifyProfile(page, results) {

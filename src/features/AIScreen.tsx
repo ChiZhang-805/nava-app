@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { Camera, Check, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, SendHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import { Camera, Check, FileText, Image as ImageIcon, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, Plus, SendHorizontal, Sparkles, Trash2, X } from "lucide-react";
 import { Fragment, FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocale } from "../i18n";
 import PageSkeleton from "../components/PageSkeleton";
@@ -17,6 +17,7 @@ import { updateStructuredEntryField } from "../services/structuredEntryParser";
 import type { ChatMessage, DietExtractResult } from "../types";
 import { isDemoMode } from "../services/demo";
 import { deleteConversationArchive, loadConversationArchives, saveConversationArchive, type ConversationArchive } from "../services/userCloudState";
+import { buildChatDocumentMessage, chatAttachmentAccept, readChatDocument, validateChatImage, type PendingChatDocument } from "../services/chatAttachments";
 import {
   conversationArchiveId,
   conversationDayKey,
@@ -138,8 +139,8 @@ export default function AIScreen({
   const [error, setError] = useState<string | null>(null);
   const [voiceState, setVoiceState] = useState<"idle" | "starting" | "listening">("idle");
   const [voiceCancelArmed, setVoiceCancelArmed] = useState(false);
-  const [composerToolOpen, setComposerToolOpen] = useState(false);
-  const [composerCameraArmed, setComposerCameraArmed] = useState(false);
+  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
+  const [pendingDocument, setPendingDocument] = useState<PendingChatDocument | null>(null);
   const [photoAnalyzing, setPhotoAnalyzing] = useState(false);
   const [pendingPhotoPreview, setPendingPhotoPreview] = useState<string | null>(null);
   const [photoPreviews, setPhotoPreviews] = useState<Record<string, string>>({});
@@ -168,8 +169,9 @@ export default function AIScreen({
   const voiceInitialInputRef = useRef("");
   const voicePointerActiveRef = useRef(false);
   const voicePointerStartYRef = useRef(0);
-  const voiceToolTimerRef = useRef<number | null>(null);
-  const voiceCameraArmedRef = useRef(false);
+  const attachmentControlRef = useRef<HTMLDivElement | null>(null);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const documentInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const photoObjectUrlsRef = useRef(new Set<string>());
   const handledCommandRef = useRef(0);
@@ -306,9 +308,16 @@ export default function AIScreen({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    const message = input.trim();
-    if (!message) return;
+    const typedMessage = input.trim();
+    const document = pendingDocument;
+    if (!typedMessage && !document) return;
+    const message = document ? buildChatDocumentMessage(document, typedMessage, locale) : typedMessage;
+    const displayMessage = document
+      ? [typedMessage, `📎 ${document.name}`].filter(Boolean).join("\n")
+      : undefined;
     setInput("");
+    setPendingDocument(null);
+    setAttachmentMenuOpen(false);
     setSending(true);
     setError(null);
     speechRef.current?.start();
@@ -322,6 +331,7 @@ export default function AIScreen({
       const result = await sendAiMessage({
         userId: user.id,
         message,
+        displayMessage,
         history: conversation.history,
         lang: locale,
         profile,
@@ -339,11 +349,13 @@ export default function AIScreen({
       speechRef.current?.finish(result.assistantMessage.content);
       setMessages((current) => [...current, result.assistantMessage]);
       setStreamingPreview(null);
-      const recognizedEntry = parseStructuredEntry(message, locale, {
-        dataType: result.dataType,
-        extractedData: result.extractedData,
-        confidence: result.extractionConfidence,
-      }, { allowLocalHealthFallback: isDemoMode() });
+      const recognizedEntry = typedMessage
+        ? parseStructuredEntry(typedMessage, locale, {
+          dataType: result.dataType,
+          extractedData: result.extractedData,
+          confidence: result.extractionConfidence,
+        }, { allowLocalHealthFallback: isDemoMode() })
+        : null;
       setPendingEntry(recognizedEntry);
       setPendingEntryMessageId(recognizedEntry ? result.assistantMessage.id : null);
       setEditingEntry(false);
@@ -351,7 +363,10 @@ export default function AIScreen({
     } catch (e) {
       speechRef.current?.cancel();
       if (!(e instanceof DOMException && e.name === "AbortError")) setError(e instanceof Error ? e.message : String(e));
-      if (!userCommitted) setInput(message);
+      if (!userCommitted) {
+        setInput(typedMessage);
+        setPendingDocument(document);
+      }
       setStreamingPreview(null);
       controller.abort();
     } finally {
@@ -362,6 +377,15 @@ export default function AIScreen({
 
   async function handleComposerPhoto(file: File | null) {
     if (!file || sending || photoAnalyzing) return;
+    const fileIssue = validateChatImage(file);
+    if (fileIssue) {
+      setError(locale === "zh"
+        ? (fileIssue === "too_large" ? "这张照片过大，请换一张较小的照片。" : "无法读取这张照片，请换用常见图片格式。")
+        : (fileIssue === "too_large" ? "This photo is too large. Choose a smaller one." : "This photo could not be read. Choose a common image format."));
+      return;
+    }
+    setAttachmentMenuOpen(false);
+    setPendingDocument(null);
     const previewUrl = URL.createObjectURL(file);
     photoObjectUrlsRef.current.add(previewUrl);
     setPendingPhotoPreview(previewUrl);
@@ -558,6 +582,8 @@ export default function AIScreen({
       setMessages([]);
       setViewingArchiveId(null);
       setInput("");
+      setPendingDocument(null);
+      setAttachmentMenuOpen(false);
       setPendingEntry(null);
       setPendingEntryMessageId(null);
       setEditingEntry(false);
@@ -606,6 +632,8 @@ export default function AIScreen({
       setMessages([]);
       setViewingArchiveId(null);
       setInput("");
+      setPendingDocument(null);
+      setAttachmentMenuOpen(false);
       setPendingEntry(null);
       setPendingEntryMessageId(null);
       setEditingEntry(false);
@@ -883,25 +911,35 @@ export default function AIScreen({
     if (voiceSessionRef.current) void stopVoiceInput(voiceReleaseCancelled);
   }, [stopVoiceInput, voiceReleaseCancelled, voiceReleaseId]);
 
-  const clearComposerToolTimer = () => {
-    if (voiceToolTimerRef.current === null) return;
-    window.clearTimeout(voiceToolTimerRef.current);
-    voiceToolTimerRef.current = null;
-  };
-
-  const closeComposerTools = () => {
-    clearComposerToolTimer();
-    voiceCameraArmedRef.current = false;
-    setComposerCameraArmed(false);
-    setComposerToolOpen(false);
-  };
-
   const openComposerCamera = () => {
-    voicePointerActiveRef.current = false;
-    voiceStopIntentRef.current = "cancel";
-    if (voiceSessionRef.current) void stopVoiceInput(true);
-    closeComposerTools();
+    setAttachmentMenuOpen(false);
     cameraInputRef.current?.click();
+  };
+
+  const openComposerPhotoLibrary = () => {
+    setAttachmentMenuOpen(false);
+    photoInputRef.current?.click();
+  };
+
+  const openComposerDocumentPicker = () => {
+    setAttachmentMenuOpen(false);
+    documentInputRef.current?.click();
+  };
+
+  const handleComposerDocument = async (file: File | null) => {
+    if (!file || sending || photoAnalyzing) return;
+    setAttachmentMenuOpen(false);
+    setError(null);
+    try {
+      const document = await readChatDocument(file);
+      setPendingDocument(document);
+      setPendingPhotoPreview(null);
+    } catch (documentError) {
+      const code = documentError instanceof Error ? documentError.message : "unsupported";
+      setError(locale === "zh"
+        ? (code === "too_large" ? "这个文件过大，请换一个较小的文件。" : "无法读取这个文件，请换用文本、Markdown、CSV 或 JSON 文件。")
+        : (code === "too_large" ? "This file is too large. Choose a smaller one." : "This file could not be read. Choose a text, Markdown, CSV, or JSON file."));
+    }
   };
 
   const beginComposerVoice = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -910,51 +948,51 @@ export default function AIScreen({
     voicePointerActiveRef.current = true;
     voicePointerStartYRef.current = event.clientY;
     setVoiceCancelArmed(false);
-    voiceCameraArmedRef.current = false;
-    setComposerCameraArmed(false);
-    setComposerToolOpen(false);
-    clearComposerToolTimer();
-    voiceToolTimerRef.current = window.setTimeout(() => {
-      voiceToolTimerRef.current = null;
-      if (!voicePointerActiveRef.current) return;
-      setComposerToolOpen(true);
-      navigator.vibrate?.(8);
-    }, 320);
+    setAttachmentMenuOpen(false);
     event.currentTarget.setPointerCapture?.(event.pointerId);
     void beginVoiceInput();
   };
 
   const moveComposerVoice = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!voicePointerActiveRef.current) return;
-    const cameraArmed = voicePointerStartYRef.current - event.clientY >= 58;
-    if (cameraArmed === voiceCameraArmedRef.current) return;
-    voiceCameraArmedRef.current = cameraArmed;
-    setComposerCameraArmed(cameraArmed);
-    setComposerToolOpen(true);
-    navigator.vibrate?.(cameraArmed ? 12 : 5);
+    const cancelArmed = voicePointerStartYRef.current - event.clientY >= 58;
+    setVoiceCancelArmed((current) => {
+      if (cancelArmed !== current) navigator.vibrate?.(cancelArmed ? 12 : 5);
+      return cancelArmed;
+    });
   };
 
   const finishComposerVoice = (event: ReactPointerEvent<HTMLButtonElement>, forceCancel = false) => {
     if (!voicePointerActiveRef.current) return;
     voicePointerActiveRef.current = false;
-    clearComposerToolTimer();
-    const cameraSelected = !forceCancel && (voiceCameraArmedRef.current || voicePointerStartYRef.current - event.clientY >= 58);
-    if (cameraSelected) {
-      openComposerCamera();
-      return;
-    }
-    voiceStopIntentRef.current = forceCancel ? "cancel" : "stop";
-    if (voiceSessionRef.current) void stopVoiceInput(forceCancel);
+    const cancel = forceCancel || voicePointerStartYRef.current - event.clientY >= 58;
+    voiceStopIntentRef.current = cancel ? "cancel" : "stop";
+    if (voiceSessionRef.current) void stopVoiceInput(cancel);
     setVoiceCancelArmed(false);
-    closeComposerTools();
   };
 
   useEffect(() => {
     if (!active && voiceCallOpen) endVoiceCall();
   }, [active, endVoiceCall, voiceCallOpen]);
 
+  useEffect(() => {
+    if (!attachmentMenuOpen) return undefined;
+    const dismiss = (event: PointerEvent) => {
+      if (event.target instanceof Node && attachmentControlRef.current?.contains(event.target)) return;
+      setAttachmentMenuOpen(false);
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setAttachmentMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", dismissOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("keydown", dismissOnEscape);
+    };
+  }, [attachmentMenuOpen]);
+
   useEffect(() => () => {
-    if (voiceToolTimerRef.current !== null) window.clearTimeout(voiceToolTimerRef.current);
     photoObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     photoObjectUrlsRef.current.clear();
     voiceCallOpenRef.current = false;
@@ -1106,40 +1144,72 @@ export default function AIScreen({
       {viewingSnapshot ? <div className="chat-archive-return" role="status">
         <span><strong>{viewingSnapshot.title}</strong><small>{locale === "zh" ? "历史会话只读预览" : "Read-only history preview"}</small></span>
         <button type="button" onClick={() => void refresh()}>{locale === "zh" ? "返回今日对话" : "Back to today's chat"}</button>
-      </div> : <form className={["chat-composer", voiceState !== "idle" ? "voice-active" : "", composerToolOpen ? "tool-open" : "", photoAnalyzing ? "photo-analyzing" : ""].filter(Boolean).join(" ")} onSubmit={submit}>
-        <div className="chat-input-shell">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={composerCameraArmed
-              ? (locale === "zh" ? "松手拍照识别" : "Release to take a photo")
-              : (voiceCancelArmed || externalVoiceCancelArmed)
-                ? t("ai.voiceCancelHint")
-                : voiceState === "starting"
-                  ? t("ai.voiceStarting")
-                  : voiceState === "listening"
-                    ? (composerToolOpen ? (locale === "zh" ? "上滑到相机，松手拍照" : "Slide up to the camera") : t("ai.voiceListening"))
-                    : t("ai.placeholder")}
-          />
-        </div>
-        <div className="chat-voice-control" data-composer-camera-armed={composerCameraArmed ? "true" : "false"}>
-          {composerToolOpen && (
-            <button
-              className={["chat-camera-shortcut", composerCameraArmed ? "selected" : ""].filter(Boolean).join(" ")}
-              type="button"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={openComposerCamera}
-              aria-label={locale === "zh" ? "拍照识别并记录" : "Take a photo to identify and record"}
-            >
-              <Camera size={21} />
-              <span>{locale === "zh" ? "拍照" : "Photo"}</span>
+      </div> : <form className={["chat-composer", voiceState !== "idle" ? "voice-active" : "", attachmentMenuOpen ? "attachment-open" : "", photoAnalyzing ? "photo-analyzing" : "", pendingDocument ? "has-document" : ""].filter(Boolean).join(" ")} onSubmit={submit}>
+        {pendingDocument && (
+          <div className="chat-pending-document" aria-live="polite">
+            <FileText size={17} aria-hidden="true" />
+            <span>{pendingDocument.name}</span>
+            <button type="button" onClick={() => setPendingDocument(null)} aria-label={locale === "zh" ? "移除文件" : "Remove file"}>
+              <X size={15} />
             </button>
+          </div>
+        )}
+        <div className="chat-attachment-control" ref={attachmentControlRef}>
+          <button
+            className="chat-attachment-trigger"
+            type="button"
+            disabled={sending || photoAnalyzing}
+            aria-expanded={attachmentMenuOpen}
+            aria-controls="chat-attachment-menu"
+            aria-label={locale === "zh" ? "添加附件" : "Add attachment"}
+            title={locale === "zh" ? "添加附件" : "Add attachment"}
+            onClick={() => setAttachmentMenuOpen((open) => !open)}
+          >
+            <Plus size={22} />
+          </button>
+          {attachmentMenuOpen && (
+            <div className="chat-attachment-menu" id="chat-attachment-menu" role="menu">
+              <button type="button" role="menuitem" onClick={openComposerPhotoLibrary}>
+                <ImageIcon size={19} aria-hidden="true" />
+                <span>{locale === "zh" ? "上传照片" : "Photo library"}</span>
+              </button>
+              <button type="button" role="menuitem" onClick={openComposerDocumentPicker}>
+                <FileText size={19} aria-hidden="true" />
+                <span>{locale === "zh" ? "上传文件" : "Choose file"}</span>
+              </button>
+              <button type="button" role="menuitem" onClick={openComposerCamera}>
+                <Camera size={19} aria-hidden="true" />
+                <span>{locale === "zh" ? "拍照" : "Take photo"}</span>
+              </button>
+            </div>
           )}
           <input
-            ref={cameraInputRef}
-            className="chat-camera-input"
+            ref={photoInputRef}
+            className="chat-attachment-input chat-photo-input"
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept={chatAttachmentAccept.images}
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0] ?? null;
+              event.currentTarget.value = "";
+              void handleComposerPhoto(file);
+            }}
+          />
+          <input
+            ref={documentInputRef}
+            className="chat-attachment-input chat-document-input"
+            type="file"
+            accept={chatAttachmentAccept.documents}
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0] ?? null;
+              event.currentTarget.value = "";
+              void handleComposerDocument(file);
+            }}
+          />
+          <input
+            ref={cameraInputRef}
+            className="chat-attachment-input chat-camera-input"
+            type="file"
+            accept={chatAttachmentAccept.images}
             capture="environment"
             onChange={(event) => {
               const file = event.currentTarget.files?.[0] ?? null;
@@ -1147,8 +1217,23 @@ export default function AIScreen({
               void handleComposerPhoto(file);
             }}
           />
+        </div>
+        <div className="chat-input-shell">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={(voiceCancelArmed || externalVoiceCancelArmed)
+              ? t("ai.voiceCancelHint")
+              : voiceState === "starting"
+                ? t("ai.voiceStarting")
+                : voiceState === "listening"
+                  ? t("ai.voiceListening")
+                  : t("ai.placeholder")}
+          />
+        </div>
+        <div className="chat-voice-control">
           <button
-            className={["chat-voice-button", voiceState !== "idle" ? "active" : "", (voiceCancelArmed || externalVoiceCancelArmed) ? "cancel-armed" : "", composerCameraArmed ? "camera-armed" : ""].filter(Boolean).join(" ")}
+            className={["chat-voice-button", voiceState !== "idle" ? "active" : "", (voiceCancelArmed || externalVoiceCancelArmed) ? "cancel-armed" : ""].filter(Boolean).join(" ")}
             type="button"
             disabled={sending || photoAnalyzing}
             onPointerDown={beginComposerVoice}
@@ -1156,8 +1241,8 @@ export default function AIScreen({
             onPointerUp={(event) => finishComposerVoice(event)}
             onPointerCancel={(event) => finishComposerVoice(event, true)}
             onContextMenu={(event) => event.preventDefault()}
-            aria-label={composerCameraArmed ? (locale === "zh" ? "松手拍照" : "Release for photo") : t("ai.voiceReleaseHint")}
-            title={locale === "zh" ? "按住说话，上滑拍照" : "Hold to speak, slide up for a photo"}
+            aria-label={t("ai.voiceReleaseHint")}
+            title={locale === "zh" ? "按住说话，上滑取消" : "Hold to speak, slide up to cancel"}
           >
             {photoAnalyzing ? <LoaderCircle className="chat-photo-spinner" size={20} /> : <Mic size={20} />}
           </button>
@@ -1165,7 +1250,7 @@ export default function AIScreen({
         <button
           className="chat-send-button"
           type="submit"
-          disabled={sending || !input.trim()}
+          disabled={sending || (!input.trim() && !pendingDocument)}
           aria-label={t("ai.send")}
           title={t("ai.send")}
         >

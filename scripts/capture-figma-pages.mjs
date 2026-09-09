@@ -432,6 +432,9 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
 
   await navigateRoute(page, "#tab=ai", ".chat-layout");
   await capture(page, viewport, "00i-ai", ".chat-layout", report);
+  await page.locator(".chat-attachment-trigger").click();
+  await capture(page, viewport, "00j-ai-attachment-menu", ".chat-layout", report);
+  await page.keyboard.press("Escape");
 
   await navigateRoute(page, "#tab=record", "[data-record-module]");
   await page.locator('[data-tab="record"]').click();
