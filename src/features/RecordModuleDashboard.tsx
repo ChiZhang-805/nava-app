@@ -372,7 +372,9 @@ function HistoryView({
   const [dietReport, setDietReport] = useState<DietAiReport | null>(null);
   const [healthReport, setHealthReport] = useState<HealthAiReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
-  const [reportUnavailable, setReportUnavailable] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportRefreshKey, setReportRefreshKey] = useState(0);
+  const reportRefreshHandledRef = useRef(0);
   const [sharing, setSharing] = useState(false);
   const [shareComplete, setShareComplete] = useState(false);
   const shareCompleteTimerRef = useRef<number | null>(null);
@@ -384,21 +386,25 @@ function HistoryView({
     if (module !== "diet") return;
     if (!hasTodayRecord || !todayNutrition) {
       setDietReport(null);
-      setReportUnavailable(false);
+      setReportError(null);
       setReportLoading(false);
       return;
     }
     let active = true;
+    const refresh = reportRefreshKey > reportRefreshHandledRef.current;
+    reportRefreshHandledRef.current = reportRefreshKey;
     setDietReport(null);
     setReportLoading(true);
-    setReportUnavailable(false);
-    void loadDietAiReport({ date: todayNutrition.record_date, locale })
+    setReportError(null);
+    void loadDietAiReport({ date: todayNutrition.record_date, locale, refresh })
       .then((report) => {
         if (active) setDietReport(report);
       })
       .catch((error) => {
         console.warn("AI diet report generation deferred", error);
-        if (active) setReportUnavailable(true);
+        if (active) setReportError(error instanceof Error && error.message.trim()
+          ? error.message
+          : (locale === "zh" ? "AI 饮食洞察生成失败，请重新生成。" : "AI diet insights could not be generated. Please try again."));
       })
       .finally(() => {
         if (active) setReportLoading(false);
@@ -406,26 +412,30 @@ function HistoryView({
     return () => {
       active = false;
     };
-  }, [hasTodayRecord, locale, module, todayNutrition]);
+  }, [hasTodayRecord, locale, module, reportRefreshKey, todayNutrition]);
   useEffect(() => {
     if (module === "diet") return;
     if (!hasTodayRecord) {
       setHealthReport(null);
-      setReportUnavailable(false);
+      setReportError(null);
       setReportLoading(false);
       return;
     }
     let active = true;
+    const refresh = reportRefreshKey > reportRefreshHandledRef.current;
+    reportRefreshHandledRef.current = reportRefreshKey;
     setHealthReport(null);
     setReportLoading(true);
-    setReportUnavailable(false);
-    void loadHealthAiReport({ scope: module, endDate: deviceDate, locale, sourceRevision: healthSourceRevision })
+    setReportError(null);
+    void loadHealthAiReport({ scope: module, endDate: deviceDate, locale, refresh, sourceRevision: healthSourceRevision })
       .then((report) => {
         if (active) setHealthReport(report);
       })
       .catch((error) => {
         console.warn("AI health report generation deferred", error);
-        if (active) setReportUnavailable(true);
+        if (active) setReportError(error instanceof Error && error.message.trim()
+          ? error.message
+          : (locale === "zh" ? "AI 健康洞察生成失败，请重新生成。" : "AI health insights could not be generated. Please try again."));
       })
       .finally(() => {
         if (active) setReportLoading(false);
@@ -433,7 +443,7 @@ function HistoryView({
     return () => {
       active = false;
     };
-  }, [deviceDate, hasTodayRecord, healthSourceRevision, locale, module]);
+  }, [deviceDate, hasTodayRecord, healthSourceRevision, locale, module, reportRefreshKey]);
   const reportInsights = hasTodayRecord ? (module === "diet" ? (dietReport?.bullets ?? []) : (healthReport?.bullets ?? [])) : [];
   const reportIsDemo = module === "diet" ? dietReport?.modelVersion === "demo-only" : healthReport?.provider === "demo";
   const shareSummary = async () => {
@@ -485,7 +495,7 @@ function HistoryView({
                 {reportLoading
                   ? <SkeletonLines count={3} compact />
                   : <ul>{reportInsights.map((bullet, index) => <li key={`${index}-${bullet}`}>{bullet}</li>)}</ul>}
-                {reportUnavailable && <small className="module-ai-fallback-note">{locale === "zh" ? "真实 AI 洞察暂不可用，请稍后重试。" : "Real AI insights are temporarily unavailable. Please retry."}</small>}
+                {reportError && <div className="module-ai-error"><small className="module-ai-fallback-note">{reportError}</small><button type="button" onClick={() => setReportRefreshKey((key) => key + 1)}>{locale === "zh" ? "重新生成" : "Generate again"}</button></div>}
               </div>
               <img
                 className="diet-ai-mascot module-ai-mascot"

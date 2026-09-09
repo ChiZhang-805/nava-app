@@ -767,3 +767,59 @@ export async function getTrends(userId: string, endDate = todayISO()): Promise<T
     rhythms: trendRows<DailyRhythmScore>(rhythms, "daily_rhythm_scores"),
   };
 }
+
+export type RecordCoverageDomain = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
+export type RecordCoverage = Record<string, RecordCoverageDomain[]>;
+
+async function recordDates(table: string, userId: string, startDate: string, endDate: string) {
+  const rows: Array<{ record_date: string }> = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const response = await supabase
+      .from(table)
+      .select("record_date")
+      .eq("user_id", userId)
+      .gte("record_date", startDate)
+      .lte("record_date", endDate)
+      .order("record_date")
+      .range(from, from + pageSize - 1);
+    assertNoError(response.error);
+    const page = (response.data ?? []) as Array<{ record_date: string }>;
+    rows.push(...page);
+    if (page.length < pageSize) return rows;
+  }
+}
+
+/** Fetch only persisted record dates for the compact annual calendar. */
+export async function getRecordCoverageRange(userId: string, startDate: string, endDate: string): Promise<RecordCoverage> {
+  const coverage = new Map<string, Set<RecordCoverageDomain>>();
+  const add = (date: string, domain: RecordCoverageDomain) => {
+    if (date < startDate || date > endDate) return;
+    const domains = coverage.get(date) ?? new Set<RecordCoverageDomain>();
+    domains.add(domain);
+    coverage.set(date, domains);
+  };
+
+  if (isDemoMode()) {
+    const demo = demoTrends(todayISO());
+    demo.moods.forEach((row) => add(row.record_date, "mood"));
+    demo.sleeps.forEach((row) => add(row.record_date, "sleep"));
+    demo.exercises.forEach((row) => add(row.record_date, "exercise"));
+    demo.nutritions.forEach((row) => add(row.record_date, "diet"));
+    demo.focus.forEach((row) => add(row.record_date, "focus"));
+    demo.faces.forEach((row) => add(row.record_date, "face"));
+  } else {
+    const sources = [
+      ["mood_records", "mood"],
+      ["sleep_records", "sleep"],
+      ["exercise_records", "exercise"],
+      ["nutrition_records", "diet"],
+      ["focus_records", "focus"],
+      ["face_records", "face"],
+    ] as const;
+    const results = await Promise.all(sources.map(async ([table, domain]) => ({ domain, rows: await recordDates(table, userId, startDate, endDate) })));
+    results.forEach(({ domain, rows }) => rows.forEach((row) => add(row.record_date, domain)));
+  }
+
+  return Object.fromEntries([...coverage].map(([date, domains]) => [date, [...domains]]));
+}

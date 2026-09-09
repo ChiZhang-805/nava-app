@@ -415,6 +415,9 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
   await capture(page, viewport, "00b-home-shortcuts", '.option-two-home[data-health-menu-open="false"]', report);
 
   await navigateRoute(page, "#tab=today&view=calendar", '[data-home-view="calendar"]');
+  await expect(page.locator(".home-year-card")).toBeVisible();
+  await expect(page.locator(".home-year-months > span")).toHaveCount(12);
+  await expect(page.locator(".home-year-weekdays > span")).toHaveCount(7);
   await capture(page, viewport, "00c-home-calendar", '[data-home-view="calendar"]', report);
   await page.locator(".home-calendar-day.is-today").click();
   await capture(page, viewport, "00d-home-daily-report", '[data-home-view="daily"]', report);

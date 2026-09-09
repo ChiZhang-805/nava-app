@@ -21,13 +21,14 @@ import { useLocale } from "../i18n";
 import {
   buildDailyCoverage,
   buildMonthCells,
+  buildYearHeatmap,
   dailyMetrics,
   monthEndISO,
   rhythmScoresByDate,
   shiftMonth,
   type DailyMetric,
 } from "../services/homeExperience";
-import { getTodaySnapshot, getTrends } from "../services/records";
+import { getRecordCoverageRange, getTodaySnapshot, getTrends, type RecordCoverage } from "../services/records";
 import { buildHealthModuleProgress } from "../services/healthReportPresentation";
 import type { TodaySnapshot, TrendBundle } from "../types";
 
@@ -80,10 +81,15 @@ function CalendarScreen({
   const [trends, setTrends] = useState<TrendBundle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [displayYear, setDisplayYear] = useState(Number(deviceDate.slice(0, 4)));
+  const [yearCoverage, setYearCoverage] = useState<RecordCoverage>({});
+  const [yearLoading, setYearLoading] = useState(true);
+  const [yearError, setYearError] = useState<string | null>(null);
   const cells = useMemo(() => buildMonthCells(displayMonth), [displayMonth]);
   const coverage = useMemo(() => trends ? buildDailyCoverage(trends) : {}, [trends]);
   const rhythms = useMemo(() => trends ? rhythmScoresByDate(trends) : {}, [trends]);
   const weekdays = locale === "zh" ? ["一", "二", "三", "四", "五", "六", "日"] : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const yearHeatmap = useMemo(() => buildYearHeatmap(displayYear), [displayYear]);
 
   useEffect(() => {
     let active = true;
@@ -102,9 +108,24 @@ function CalendarScreen({
     return () => { active = false; };
   }, [displayMonth, user.id]);
 
+  useEffect(() => {
+    let active = true;
+    setYearLoading(true);
+    setYearError(null);
+    getRecordCoverageRange(user.id, `${displayYear}-01-01`, `${displayYear}-12-31`)
+      .then((result) => { if (active) setYearCoverage(result); })
+      .catch((reason) => {
+        if (active) setYearError(reason instanceof Error ? reason.message : String(reason));
+      })
+      .finally(() => { if (active) setYearLoading(false); });
+    return () => { active = false; };
+  }, [displayYear, user.id]);
+
   const monthDates = Object.keys(coverage).filter((date) => date.startsWith(`${displayMonth}-`) && coverage[date].length > 0);
   const monthScores = Object.entries(rhythms).filter(([date]) => date.startsWith(`${displayMonth}-`)).map(([, score]) => score);
   const averageRhythm = monthScores.length > 0 ? Math.round(monthScores.reduce((sum, score) => sum + score, 0) / monthScores.length) : null;
+  const yearRecordedDays = Object.values(yearCoverage).filter((domains) => domains.length > 0).length;
+  const currentYear = Number(deviceDate.slice(0, 4));
 
   return (
     <section className="home-experience home-calendar-screen" data-home-view="calendar">
@@ -150,6 +171,35 @@ function CalendarScreen({
           })}
         </div>
         <footer className="home-calendar-legend"><span><i />{locale === "zh" ? "已有记录" : "Recorded"}</span><span>{locale === "zh" ? "点击日期查看当日综合报告" : "Tap a date for its daily report"}</span></footer>
+      </section>
+
+      <section className="home-year-card" aria-label={locale === "zh" ? `${displayYear} 年年度打卡` : `${displayYear} annual check-ins`} data-year={displayYear} data-week-count={yearHeatmap.weeks.length}>
+        <header className="home-year-header">
+          <div><strong>{locale === "zh" ? "年度打卡" : "Year in review"}</strong><small>{yearLoading ? (locale === "zh" ? "读取中" : "Loading") : `${yearRecordedDays}${locale === "zh" ? " 天有记录" : " recorded days"}`}</small></div>
+          <nav aria-label={locale === "zh" ? "切换年份" : "Change year"}>
+            <button type="button" onClick={() => setDisplayYear((year) => year - 1)} aria-label={locale === "zh" ? "上一年" : "Previous year"}><ChevronLeft size={15} /></button>
+            <b>{displayYear}</b>
+            <button type="button" disabled={displayYear >= currentYear} onClick={() => setDisplayYear((year) => Math.min(currentYear, year + 1))} aria-label={locale === "zh" ? "下一年" : "Next year"}><ChevronRight size={15} /></button>
+          </nav>
+        </header>
+        {yearError
+          ? <p className="home-year-error" role="alert">{yearError}</p>
+          : <div className={yearLoading ? "home-year-heatmap is-loading" : "home-year-heatmap"} style={{ "--year-week-count": yearHeatmap.weeks.length } as CSSProperties}>
+              <div className="home-year-months" aria-hidden="true">
+                {yearHeatmap.monthLabels.map(({ month, weekIndex }) => <span key={month} style={{ gridColumn: `${weekIndex + 1} / span 4` }}>{locale === "zh" ? `${month}月` : new Date(2024, month - 1, 1).toLocaleDateString("en-US", { month: "short" })}</span>)}
+              </div>
+              <div className="home-year-weekdays" aria-hidden="true">{weekdays.map((weekday) => <span key={weekday}>{weekday}</span>)}</div>
+              <div className="home-year-weeks" role="img" aria-label={locale === "zh" ? `${displayYear} 年共 ${yearRecordedDays} 天有记录` : `${yearRecordedDays} recorded days in ${displayYear}`}>
+                {yearHeatmap.weeks.map((week, weekIndex) => <div className="home-year-week" key={weekIndex}>
+                  {week.map((cell) => {
+                    const count = cell.inYear ? (yearCoverage[cell.date]?.length ?? 0) : 0;
+                    const level = count === 0 ? 0 : count === 1 ? 1 : count <= 3 ? 2 : count <= 5 ? 3 : 4;
+                    return <span className={cell.inYear ? "home-year-day" : "home-year-day is-outside"} data-date={cell.inYear ? cell.date : undefined} data-level={level} title={cell.inYear ? `${cell.date} · ${count}${locale === "zh" ? " 项记录" : " records"}` : undefined} aria-hidden="true" key={cell.date} />;
+                  })}
+                </div>)}
+              </div>
+            </div>}
+        <footer className="home-year-legend"><span>{locale === "zh" ? "少" : "Less"}</span>{[0, 1, 2, 3, 4].map((level) => <i data-level={level} key={level} />)}<span>{locale === "zh" ? "多" : "More"}</span></footer>
       </section></>}
       {error && <p className="home-experience-error" role="alert">{error}</p>}
     </section>

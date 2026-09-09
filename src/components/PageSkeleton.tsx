@@ -224,6 +224,7 @@ function CalendarSkeleton() {
   return <>
     <section className="page-skeleton-calendar-overview"><SkeletonBlock /><SkeletonBlock /></section>
     <section className="page-skeleton-card page-skeleton-calendar-card"><div className="page-skeleton-calendar-title"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-title" /><SkeletonBlock className="is-circle" /></div><div className="page-skeleton-calendar-grid">{Array.from({ length: 35 }, (_, index) => <SkeletonBlock key={index} />)}</div></section>
+    <section className="page-skeleton-card page-skeleton-calendar-year"><div><SkeletonBlock className="is-title" /><SkeletonBlock className="is-value" /></div><div className="page-skeleton-calendar-year-grid">{Array.from({ length: 91 }, (_, index) => <SkeletonBlock key={index} />)}</div></section>
   </>;
 }
 

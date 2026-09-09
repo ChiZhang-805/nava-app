@@ -261,6 +261,7 @@ try {
     const widgetTextGeometry = await page.locator(".home-health-widget").evaluateAll((widgets) => widgets.map((widget) => {
       const card = widget.getBoundingClientRect();
       const value = widget.querySelector(".home-widget-value");
+      const title = widget.querySelector(":scope > span > b");
       const core = value?.querySelector("strong");
       const support = value?.querySelector("small");
       const supportStyle = support ? getComputedStyle(support) : null;
@@ -271,6 +272,7 @@ try {
       return {
         id: widget.getAttribute("data-home-widget"),
         card: { left: card.left, right: card.right, top: card.top, bottom: card.bottom },
+        title: title ? { text: title.textContent?.trim(), rect: toRect(title) } : null,
         value: toRect(value),
         core: core ? { text: core.textContent?.trim(), rect: toRect(core), scrollWidth: core.scrollWidth, clientWidth: core.clientWidth } : null,
         support: support ? {
@@ -285,7 +287,9 @@ try {
       };
     }));
     for (const widget of widgetTextGeometry) {
-      if (!widget.value || !widget.core?.rect || !widget.support?.rect
+      const titleToCore = widget.title?.rect && widget.core?.rect ? widget.core.rect.top - widget.title.rect.bottom : -1;
+      const coreToSupport = widget.core?.rect && widget.support?.rect ? widget.support.rect.top - widget.core.rect.bottom : -1;
+      if (!widget.value || !widget.title?.rect || !widget.core?.rect || !widget.support?.rect
         || widget.core.scrollWidth > widget.core.clientWidth + 1
         || widget.support.scrollWidth > widget.support.clientWidth + 1
         || widget.support.scrollHeight > widget.support.clientHeight + 1
@@ -297,7 +301,10 @@ try {
         || widget.support.rect.left < widget.card.left - 1
         || widget.support.rect.right > widget.card.right + 1
         || widget.support.rect.bottom > widget.card.bottom + 1
-        || widget.support.textOverflow === "ellipsis") {
+        || widget.support.textOverflow === "ellipsis"
+        || titleToCore < 5
+        || coreToSupport < 3
+        || titleToCore < coreToSupport) {
         throw new Error(`${viewport.name}: a populated home widget truncates its value or support text ${JSON.stringify(widget)}`);
       }
     }

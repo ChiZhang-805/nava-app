@@ -123,6 +123,10 @@ Write-Host "27. Home widget and maintenance contracts"
 Invoke-Npm -Arguments @("run", "home-widgets:test")
 
 Write-Host ""
+Write-Host "27a. Annual calendar geometry"
+Invoke-Npm -Arguments @("run", "calendar:visual")
+
+Write-Host ""
 Write-Host "28. Cloud persistence, export, and deletion contracts"
 Invoke-Npm -Arguments @("run", "cloud-data:test")
 

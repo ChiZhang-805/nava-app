@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   buildDailyCoverage,
   buildMonthCells,
+  buildYearHeatmap,
   dailyMetrics,
   homeSwipeThreshold,
   isVerticalHomeSwipe,
@@ -34,6 +35,19 @@ test("builds a stable six-week month grid and crosses year boundaries", () => {
   assert.equal(august.length, 42);
   assert.equal(august.find((cell) => cell.day === 1)?.date, "2026-08-01");
   assert.equal(august.find((cell) => cell.day === 31)?.date, "2026-08-31");
+});
+
+test("annual heatmap contains every day once in Monday-first week columns", () => {
+  const regular = buildYearHeatmap(2026);
+  const leap = buildYearHeatmap(2028);
+  assert.equal(regular.monthLabels.length, 12);
+  assert.equal(regular.weeks.every((week) => week.length === 7), true);
+  assert.equal(regular.weeks.flat().filter((cell) => cell.inYear).length, 365);
+  assert.equal(leap.weeks.flat().filter((cell) => cell.inYear).length, 366);
+  assert.equal(regular.weeks.flat().filter((cell) => cell.date === "2026-01-01").length, 1);
+  assert.equal(regular.weeks.flat().filter((cell) => cell.date === "2026-12-31").length, 1);
+  assert.equal(new Date(`${regular.weeks[0][0].date}T00:00:00Z`).getUTCDay(), 1);
+  assert.equal(regular.monthLabels.every((label, index, labels) => index === 0 || label.weekIndex > labels[index - 1].weekIndex), true);
 });
 
 test("coverage is derived only from recorded categories", () => {

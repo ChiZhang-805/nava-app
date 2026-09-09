@@ -43,7 +43,7 @@ test("one real weekly rhythm point replaces the no-data placeholder", () => {
 test("weekly AI report is persisted and rejects non-model providers", () => {
   assert.match(reportFunction, /from\("ai_health_reports"\)\.upsert/);
   assert.match(reportFunction, /row\.provider !== "deepseek"/);
-  assert.match(reportFunction, /deepseek-v4-flash-health-report-v6-health-metrics/);
+  assert.match(reportFunction, /deepseek-v4-flash-health-report-v7-retry-resilience/);
   assert.match(reportFunction, /expectedIds = \["trend", "variation", "association", "action"\]/);
   assert.match(reportFunction, /bullets: report/);
   assert.match(recordsScreen, /weekly-detail-dialog/);
@@ -51,13 +51,15 @@ test("weekly AI report is persisted and rejects non-model providers", () => {
   assert.match(reportFunction, /consentAuthorizedCompanionRecords/);
 });
 
-test("invalid model JSON gets one targeted repair without weakening evidence checks", () => {
+test("invalid model JSON gets bounded targeted repairs without weakening evidence checks", () => {
   assert.match(reportFunction, /previousDraft/);
   assert.match(reportFunction, /previousIssues/);
   assert.match(reportFunction, /role: "assistant", content: previousDraft/);
   assert.match(reportFunction, /section_\$\{index \+ 1\}_evidence_grounding/);
   assert.match(reportFunction, /section_\$\{index \+ 1\}_association_boundary/);
-  assert.match(reportFunction, /for \(let attempt = 0; attempt < 2; attempt \+= 1\)/);
+  assert.match(reportFunction, /for \(let attempt = 0; attempt < 3; attempt \+= 1\)/);
+  assert.match(reportFunction, /response\.status === 408 \|\| response\.status === 429 \|\| response\.status >= 500/);
+  assert.match(reportFunction, /AI 模型账户余额不足/);
 });
 
 test("face makeup routing uses a real vision-model output and a confidence gate", () => {

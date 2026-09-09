@@ -6,6 +6,22 @@ export type CalendarCell = {
   day: number | null;
 };
 
+export type YearHeatmapCell = {
+  date: string;
+  day: number;
+  inYear: boolean;
+};
+
+export type YearHeatmapMonthLabel = {
+  month: number;
+  weekIndex: number;
+};
+
+export type YearHeatmap = {
+  weeks: YearHeatmapCell[][];
+  monthLabels: YearHeatmapMonthLabel[];
+};
+
 export type DailyMetric = {
   key: "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
   recorded: boolean;
@@ -157,6 +173,41 @@ export function buildMonthCells(month: string, weekStartsMonday = true): Calenda
     if (day < 1 || day > daysInMonth) return { date: null, day: null };
     return { date: `${month}-${pad(day)}`, day };
   });
+}
+
+function isoDateUtc(value: Date) {
+  return `${value.getUTCFullYear()}-${pad(value.getUTCMonth() + 1)}-${pad(value.getUTCDate())}`;
+}
+
+/** Build a Monday-first, whole-week grid that contains every day in the year. */
+export function buildYearHeatmap(year: number): YearHeatmap {
+  const normalizedYear = Number.isFinite(year) ? Math.trunc(year) : new Date().getFullYear();
+  const firstDay = new Date(Date.UTC(normalizedYear, 0, 1));
+  const lastDay = new Date(Date.UTC(normalizedYear, 11, 31));
+  const mondayOffset = (firstDay.getUTCDay() + 6) % 7;
+  const start = new Date(firstDay);
+  start.setUTCDate(start.getUTCDate() - mondayOffset);
+  const sundayOffset = (7 - lastDay.getUTCDay()) % 7;
+  const end = new Date(lastDay);
+  end.setUTCDate(end.getUTCDate() + sundayOffset);
+  const weekCount = Math.round((end.getTime() - start.getTime()) / 604_800_000) + 1;
+  const weeks = Array.from({ length: weekCount }, (_, weekIndex) => Array.from({ length: 7 }, (_, dayIndex) => {
+    const value = new Date(start);
+    value.setUTCDate(value.getUTCDate() + weekIndex * 7 + dayIndex);
+    return {
+      date: isoDateUtc(value),
+      day: value.getUTCDate(),
+      inYear: value.getUTCFullYear() === normalizedYear,
+    };
+  }));
+  const monthLabels = Array.from({ length: 12 }, (_, month) => {
+    const monthStart = new Date(Date.UTC(normalizedYear, month, 1));
+    return {
+      month: month + 1,
+      weekIndex: Math.floor((monthStart.getTime() - start.getTime()) / 604_800_000),
+    };
+  });
+  return { weeks, monthLabels };
 }
 
 export function buildDailyCoverage(trends: TrendBundle) {

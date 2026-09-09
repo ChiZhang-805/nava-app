@@ -41,6 +41,7 @@
     "device-preview:test": "node --experimental-strip-types --test tests/iphone-preview-devices.test.ts",
     "home-widgets:test": "node --experimental-strip-types --test tests/home-widgets.test.ts tests/session-maintenance.test.ts",
     "home-widgets:visual": "node scripts/verify-home-widgets-ui.mjs",
+    "calendar:visual": "node scripts/verify-calendar-year-ui.mjs",
     "notification:test": "node --experimental-strip-types --test tests/notifications.test.ts",
     "exercise:test": "node --experimental-strip-types --test tests/exercise-recovery.test.ts",
     "push:contract:test": "node --experimental-strip-types --test tests/remote-push-contract.test.ts",
