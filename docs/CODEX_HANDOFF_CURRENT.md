@@ -1849,3 +1849,48 @@ deployment ID 为 `appgdep_6aa0158af64c8191a441b68148267dda`，状态 succeeded�
 镜像 commit 为 `25055883051cbbdb3c979c8ad450b39287c47821`，在线 `source.json` 已核验为
 v127 并指向同一源码和 Sites 版本。两站均返回 HTTP 200，公开 demo 绕过保持关闭，
 canonical Supabase project 仍为 `wxteapvwagvhhtrjrbim`。
+
+## 50. 2026-09-09 首页完成环、卡片文案与底栏光学对齐、双站 v128
+
+首页六模块完成态的 SVG 圆环改为使用实际半径计算完整周长，不再因为固定周长只绘制约
+四分之三圈；完成态会完整转满后再切换为绿色底、白色对勾。首页卡片的结果和值说明改用
+可收缩网格和受控换行，长文案不再从卡片右侧或底部裁掉。底部五项导航改用相等边距的
+flex 分布，四段中心距和左右边距保持一致，并按图形视觉重量统一五个图标的光学尺寸。
+
+验证通过完整 `npm run verify`、`npm run interaction:test` 11 组、
+`npm run device-preview:visual`、`npm run screenshots` 228 状态和
+`npm run auth:verify:production`。功能源码 commit
+`7581ee866a6aa65d752e4f0d47cf8abd40235a82` 已发布为 ChatGPT Sites v128 与
+GitHub Pages v128。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_cf295ee9b96081918c05a92447bc0ed5`，
+deployment ID 为 `appgdep_6aa0a05865f88191bf55faa570e5e9b2`，状态 succeeded；Pages
+镜像 commit 为 `72915fd`。
+
+## 51. 2026-09-09 AI 对话附件输入栏与双站 v129
+
+AI 对话输入栏现固定为四段：左侧附件 `+`、中间文字输入、右侧麦克风与发送。点击附件
+入口会显示相册照片、文件和摄像头三项；展开时 `+` 旋转为关闭符号，点击外部或按 Escape
+可收起。照片入口沿用真实视觉识别和结构化确认流程；摄像头请求后置相机；文本、Markdown、
+CSV 和 JSON 文件会先显示可移除的文件暂存条，可单独发送，也可与用户问题一起进入真实 AI。
+文件正文不会显示在聊天气泡中，并在模型提示里明确标记为不可信参考数据而非指令。
+
+照片限制为 JPEG、PNG、WebP 且最大 10 MiB；文本文件最大 2 MiB，送入模型的正文最多
+12,000 字符。限制只在选择不合规附件时以错误状态反馈，没有把技术参数长期堆在输入栏。
+语音手势同时从“上滑拍照”收敛为“上滑取消”，拍照职责只属于附件菜单。新增单元测试覆盖
+格式、大小、空文件、正文边界和提示注入隔离；交互测试覆盖三项菜单、文件暂存/移除、
+摄像头文件选择、照片识别及原有语音和历史会话。
+
+验证通过完整 `npm run verify` 32 阶段、`npm run interaction:test` 11 组、附件/AI 提示
+21 项、四视口全页面 `npm run screenshots` 232 状态和
+`npm run auth:verify:production`。人工复核了 360×740 与 430×932 的附件菜单及文件暂存
+状态，未见横向溢出、裁切或底栏挤压。依赖审计同时把间接依赖 `js-yaml` 从 4.3.1 升至
+4.3.2，当前 `npm audit` 为 0 漏洞。
+
+功能源码 commit `1b7aaf3e4687832a23be271b2b60869d7cac6787` 已从同一干净、已 push
+状态发布为 ChatGPT Sites v129 与 GitHub Pages v129。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_b0bd88e8c2048191ad282645a0ed4639`，
+deployment ID 为 `appgdep_6aa1404bb0fc8191ac1664771e538611`，状态 succeeded；Pages
+镜像 commit 为 `9d2b72f17937599c03a3c73b7a42e52db46cd69f`。两站返回 HTTP 200，Pages 在线
+`source.json` 已核验为 v129 并指向上述源码与 Sites 版本；Sites 在线制品和 Pages 在线
+CSS/AI 懒加载代码均已核验包含附件入口。本轮未修改或部署 migration、Edge Function、
+secret、认证配置或生产用户数据。
