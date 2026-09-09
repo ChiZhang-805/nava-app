@@ -62,6 +62,8 @@ try {
       return home ? {
         left: Number.parseFloat(style.left),
         right: Number.parseFloat(style.right),
+        surfaceLeft: Number.parseFloat(style.left),
+        surfaceRight: home.width - Number.parseFloat(style.right),
         height: Number.parseFloat(style.height),
         radius: Number.parseFloat(style.borderTopLeftRadius),
         opacity: Number.parseFloat(style.opacity),
@@ -177,6 +179,14 @@ try {
     if (Math.max(...dockGaps) - Math.min(...dockGaps) > .75) {
       throw new Error(`${viewport.label}: dock button edge gaps are not equal ${JSON.stringify({ dockGeometry, dockGaps })}`);
     }
+    const dockSurfaceGaps = [
+      dockGeometry[0].left - (homeBounds.x + collapsedDock.surfaceLeft),
+      ...dockGaps,
+      (homeBounds.x + collapsedDock.surfaceRight) - dockGeometry.at(-1).right,
+    ];
+    if (Math.min(...dockSurfaceGaps) < 10 || Math.max(...dockSurfaceGaps) - Math.min(...dockSurfaceGaps) > 1.25) {
+      throw new Error(`${viewport.label}: dock circles must stay inside the capsule with equal edge whitespace ${JSON.stringify({ dockGeometry, dockSurfaceGaps, collapsedDock })}`);
+    }
     const secondaryOpticalSizes = [];
     for (const tab of ["today", "record", "trends", "profile"]) {
       const screenshot = await page.locator(`.nav-button[data-tab="${tab}"] .figma-nav-icon`).screenshot();
@@ -237,6 +247,14 @@ try {
     await page.locator('[data-tab="ai"]').click();
     await expect(page.locator('[data-tab="ai"]')).toHaveAttribute("aria-current", "page");
     await expect(page.locator('[data-tab="ai"] .figma-nav-ai-chat')).toBeVisible();
+    const subpageDockGeometry = await page.locator(".bottom-nav .nav-button").evaluateAll((buttons) => buttons.map((button) => {
+      const rect = button.getBoundingClientRect();
+      return { tab: button.getAttribute("data-tab"), left: rect.left, right: rect.right, centerX: rect.left + rect.width / 2 };
+    }));
+    const subpageEdgeGaps = subpageDockGeometry.slice(1).map((button, index) => button.left - subpageDockGeometry[index].right);
+    if (Math.max(...subpageEdgeGaps) - Math.min(...subpageEdgeGaps) > .75) {
+      throw new Error(`${viewport.label}: subpage navigation must distribute the visible circle edges evenly ${JSON.stringify({ subpageDockGeometry, subpageEdgeGaps })}`);
+    }
     await page.screenshot({ path: path.join(outputDir, `ai-${viewport.label}.png`), fullPage: true });
     await context.close();
   }
