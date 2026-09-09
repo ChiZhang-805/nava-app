@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`1ca810a06f47874e464719dfb83afac2738816d9`
+- 源码发布 commit：`08b140c095b5961e4a178343c2ddfeac21762e62`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v130，public
+- ChatGPT Sites 版本：v131，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_78cd12b4ffbc819181fcca56e8f3f802`
-- Sites deployment ID：`appgdep_6aa14a9c214481919b68aa10a9741dfe`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_c6cc67ff74a48191be6e330decf26e89`
+- Sites deployment ID：`appgdep_6aa17214c2788191a0a452e71253bf48`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `c47329d456cd69f3b3b5a52788b2bdb0fb3ba43d`
+  `551f870e2b8c318c58b30fcc80ba31bec80b3bcd`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v130 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v130-1ca810a.tar.gz`
+- v131 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v131-08b140c.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v130 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v131 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -388,14 +388,15 @@ AI 链路的正确结构是：
 
 ### 8.1 已上线和未上线必须分开说
 
-当前前端支持普通摘要 + 紧凑七字摘要双合同，相关测试存在且已通过。2026-09-08
+当前前端支持普通摘要 + 紧凑七字摘要双合同，相关测试存在且已通过。2026-09-09
 `ai-health-report`、`ai-diet-report`、`ai-chat-reply` 与 `diet-extract` 最新源码均已部署到
 canonical Supabase：
 
 - `ai-health-report`：模型合同
-  `deepseek-v4-flash-health-report-v6-health-metrics`，生产 ACTIVE version 18，
-  `verify_jwt=true`；定向 repair、数字/日期证据边界、HealthKit 快照和完整授权画像都进入
-  源指纹，相同输入复用持久化报告，相关输入变化才重算；
+  `deepseek-v4-flash-health-report-v7-retry-resilience`，生产 ACTIVE version 19，
+  `verify_jwt=true`；在 65 秒总预算内最多执行三次有界生成/修复，对网络、408、429 和
+  provider 5xx 做短退避重试；定向 repair、数字/日期证据边界、HealthKit 快照和完整授权
+  画像都进入源指纹，相同输入复用持久化报告，相关输入变化才重算；
 - `ai-diet-report`：v6 日历七日窗口、normal + compact、严格校验、一次 repair 和缓存，
   生产 ACTIVE version 15，`verify_jwt=true`；
 - `ai-chat-reply`：授权上下文查询失败时不再静默降级，HealthKit 指标和允许画像进入紧凑
@@ -770,8 +771,8 @@ AI provider、真实导出内容和破坏性账号删除没有在本轮冒充为
 
 ### A.1 已上线但仍需真实账户验收
 
-- 最新 `ai-health-report` v6 健康指标/授权画像/定向 repair/双摘要/指纹缓存合同已部署为
-  生产 version 18；最新 `ai-diet-report` v6 日历七日双摘要合同为 version 15；最新
+- 最新 `ai-health-report` v7 健康指标/授权画像/三次有界生成与修复/双摘要/指纹缓存合同
+  已部署为生产 version 19；最新 `ai-diet-report` v6 日历七日双摘要合同为 version 15；最新
   `diet-extract` 按菜识别合同为 version 17。生产日志确认旧健康报告失败发生在结构化
   结果校验，并非截图所猜测的余额 HTTP 错误。当前已验证生产源码身份和未登录拒绝，
   尚未用真实账户验证模型首次生成、持久化缓存、跨重载复用、数据变化后恰好重算一次，
@@ -818,7 +819,7 @@ App Store。
 
 在用户完成 Apple 人工流程前，自动化代理仍可做且最有价值的工作顺序是：
 
-1. 用真实账户验收 `ai-health-report` v18、`ai-diet-report` v15 和 `diet-extract` v17：
+1. 用真实账户验收 `ai-health-report` v19、`ai-diet-report` v15 和 `diet-extract` v17：
    provider 输出、持久化、缓存失效、精确七字摘要和真实餐食照片粒度。
 2. 发布后复核两个公开站的登录、六模块路由、详细资料头像 sheet、专注和面部页面，
    以及四视口无重叠和公开 `?demo=1` 不可绕过登录。
@@ -1921,3 +1922,40 @@ deployment ID 为 `appgdep_6aa14a9c214481919b68aa10a9741dfe`，状态 succeeded�
 在线 `source.json` 已核验为 v130 并指向上述源码与 Sites 版本，线上 CSS 已核验包含
 首页边缘间距及 flex 等距规则。本轮未修改或部署 migration、Edge Function、secret、
 认证配置或生产用户数据。
+
+## 53. 2026-09-09 年度打卡、首页组件节奏与 AI 失败可见性、双站 v131
+
+“我的日历”月历下方新增全年打卡热力图：按周一开头的一周一列呈现 1 月 1 日至
+12 月 31 日，完整标出十二个月和周一至周日，支持切换年份且禁止前进到未来年份。
+每个日期的 0–4 级颜色来自当前账号六类真实记录的当天覆盖数；查询按日期范围分页，
+不伪造记录。360×740、375×812、390×844、430×932 四个视口均要求 365/366 个真实日期、
+12 个月、7 个星期标签完整可见，且热力图不碰固定底栏。
+
+首页六个健康组件统一了标题、主值和辅助说明的垂直节奏。标题与内容之间保留更明显层级，
+主值与说明之间不再挤在一起；未记录、已记录和长文案状态共用同一套可收缩布局并通过四视口
+裁切/溢出门禁。
+
+截图所示“真实 AI 洞察暂不可用”并非前端未调用 AI，而是旧趋势卡把服务端具体失败折叠成
+通用文案。六模块趋势与总览现在保留服务端安全错误正文并提供“重新生成”。
+`ai-health-report` 已更新为 `deepseek-v4-flash-health-report-v7-retry-resilience` 并明确部署为
+canonical Supabase ACTIVE version 19、`verify_jwt=true`：总预算 65 秒、最多三次有界尝试，
+会对网络、408、429 和 5xx 短暂故障重试，结构修复继续携带上一稿和非敏感错误码；鉴权、
+余额、限流和超时返回可操作但不泄密的具体原因。生产下载源码与本地 SHA-256 一致，未认证
+请求由 JWT 边界返回 401；`DEEPSEEK_API_KEY` secret 名称存在。本轮仍没有安全的真实用户
+登录态，因此不能把 provider 成功生成、写入缓存与缓存失效重算冒充为已验收。
+
+验证通过完整 `npm run verify` 32 阶段、`npm run interaction:test` 11 组、
+`npm run calendar:visual`、`npm run home-widgets:visual`、AI/backend 合同与
+`npm run auth:verify:production`。年度日历证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-calendar-year-20260909`，首页组件证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-home-widgets-v128-20260908`，生产函数审计位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-ai-production-v19-20260909`。
+
+功能源码 commit `08b140c095b5961e4a178343c2ddfeac21762e62` 已从同一干净、已 push
+状态发布为 ChatGPT Sites v131 与 GitHub Pages v131。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_c6cc67ff74a48191be6e330decf26e89`，
+deployment ID 为 `appgdep_6aa17214c2788191a0a452e71253bf48`，状态 succeeded；Pages
+镜像 commit 为 `551f870e2b8c318c58b30fcc80ba31bec80b3bcd`。两站返回 HTTP 200，在线
+`source.json` 已核验为 v131 并指向上述源码与 Sites 版本；两站线上制品均核验包含年度
+热力图、首页组件节奏和 AI 具体失败/重试代码，canonical Supabase 仍为
+`wxteapvwagvhhtrjrbim`，公开 demo 绕过保持关闭。

@@ -24,10 +24,17 @@ App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负�
 | `auth-account-status` | 以不暴露账号是否存在的公共响应执行注册/登录资格检查 | 只读 |
 | `push-dispatch` | 以内部 secret 调度当前用户已有通知到 APNs、FCM v1 或 HMS，并记录幂等送达结果 | `push_delivery_receipts`、失效时更新 `push_device_tokens`（production 已部署；provider 凭据与真机送达待验收） |
 
-截至 2026-09-07，本轮涉及的 `ai-chat-reply`、`ai-diet-report`、`ai-health-report`、
+截至 2026-09-09，本轮涉及的 `ai-chat-reply`、`ai-diet-report`、`ai-health-report`、
 `diet-extract`、`delete-account`、`export-user-data`、`health-sync-ingest` 和 `watch-sync`
 最新源码均已部署到 canonical 项目，状态 ACTIVE 且启用 JWT 验证。真实账号的模型输出、
 Apple 真机和破坏性账号删除仍按各专项文档明确为人工验收，不因部署完成而自动视为通过。
+
+`ai-health-report` 当前生产模型合同为
+`deepseek-v4-flash-health-report-v7-retry-resilience`，canonical Supabase 上为 ACTIVE
+version 19、`verify_jwt=true`。它在 65 秒总预算内最多执行三次有界生成/结构修复，并对
+网络、408、429 与 provider 5xx 做短退避重试；前端保留安全的服务端错误正文和重试动作。
+生产函数源码已与本地逐字节核验，secret 名称存在，但仍需真实登录账号验证 provider
+成功生成、持久化命中与源数据变化后的缓存失效。
 
 2026-09-06 单独将 `aliyun-sms-send` 的阿里云 `SendSms` 请求改为官方自签名示例使用的
 canonical query + 空请求体，并部署为 production version 17（ACTIVE，公开注册边界因此

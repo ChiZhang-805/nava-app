@@ -80,8 +80,10 @@ final prompt without becoming instructions.
   Empty legacy snapshot rows do not count as report evidence.
 - Health and diet report caches carry a SHA-256 fingerprint of the normalized
   source profile and records. A source change invalidates the cached prose.
-- Invalid or incomplete structured report output receives one bounded model
-  repair attempt. For `ai-health-report`, the repair turn receives the previous
+- Invalid or incomplete structured report output receives bounded model repair.
+  `ai-health-report` now allows at most three total attempts inside a 65-second
+  request budget and retries transient network, 408, 429 and provider 5xx
+  failures with short backoff. Its repair turns receive the previous
   JSON draft and non-sensitive validation issue codes, so it can correct the
   actual failed fields instead of blindly generating the same shape again.
   Numeric evidence grounding and association-confidence checks remain mandatory.
@@ -144,7 +146,7 @@ unavailable provider, or with invalid output, history keeps an explicitly dated
 local fallback title. Title generation never blocks the prior archive write or
 causes the active conversation to be deleted before that archive succeeds.
 
-## 2026-09-05 production diagnosis and 2026-09-07 deployment
+## 2026-09-05 production diagnosis and 2026-09-09 deployment
 
 - Supabase production logs at 2026-09-05 15:08–15:09 UTC recorded two
   `ai-health-report` failures as `AI 未返回有效的结构化健康报告。` They did not
@@ -170,6 +172,14 @@ causes the active conversation to be deleted before that archive succeeds.
   It is deployed as ACTIVE version 10 with JWT verification. The matching diet
   calendar-window report is ACTIVE version 7 and AI chat context is ACTIVE
   version 20; both also have JWT verification enabled.
+- On 2026-09-09 the contract advanced to
+  `deepseek-v4-flash-health-report-v7-retry-resilience` and was deployed as
+  ACTIVE version 19 with JWT verification. It preserves the grounded schema,
+  source fingerprint and targeted repair contract while allowing up to three
+  total attempts within 65 seconds. The frontend now renders the safe server
+  error and an explicit retry action instead of collapsing all failures into
+  “AI unavailable”. A production download matched local source byte-for-byte;
+  the secret name exists, but its value was never read or exposed.
 - Deployment identity and the unauthenticated boundary are verified, but a safe
   authenticated production session was not available during deployment. Real
   DeepSeek generation, successful report persistence, unchanged-data cache
