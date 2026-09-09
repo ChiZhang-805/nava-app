@@ -1894,3 +1894,27 @@ deployment ID 为 `appgdep_6aa1404bb0fc8191ac1664771e538611`，状态 succeeded�
 `source.json` 已核验为 v129 并指向上述源码与 Sites 版本；Sites 在线制品和 Pages 在线
 CSS/AI 懒加载代码均已核验包含附件入口。本轮未修改或部署 migration、Edge Function、
 secret、认证配置或生产用户数据。
+
+## 52. 2026-09-09 底部导航可见边缘等距与双站 v130
+
+首页玻璃胶囊与普通子页底栏均从“中心点大致等分”改为按按钮圆形的可见边缘分配空隙。
+普通子页使用固定 44 px 次级圆与 76 px 中央 AI 圆，通过 `space-between` 让四段圆边缘
+间距一致，第二、第四项不再向中央大圆聚拢；窄屏分别使用 40 px / 66 px，并保持同一
+约束。首页同时把玻璃胶囊左右边缘纳入计算，覆盖“胶囊左缘—五个圆—胶囊右缘”六段
+空隙，首尾按钮不再贴住或越出圆角区域。中央选中态移除额外缩放，避免点击后破坏已校准
+的圆边界。
+
+`scripts/verify-navigation-icons.mjs` 新增首页六段边缘空隙与子页四段边缘空隙的数值断言，
+在 360×740、375×812、390×844、430×932 四种视口通过；截图位于
+`Q:\NAVA-Workspace\nava-app\artifacts\navigation-icons`。验证同时通过完整
+`npm run verify` 32 阶段、`npm run interaction:test` 11 组、
+`npm run device-preview:visual` 和 `npm run auth:verify:production`。
+
+功能源码 commit `1ca810a06f47874e464719dfb83afac2738816d9` 已从同一干净、已 push
+状态发布为 ChatGPT Sites v130 与 GitHub Pages v130。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_78cd12b4ffbc819181fcca56e8f3f802`，
+deployment ID 为 `appgdep_6aa14a9c214481919b68aa10a9741dfe`，状态 succeeded；Pages
+镜像 commit 为 `c47329d456cd69f3b3b5a52788b2bdb0fb3ba43d`。两站返回 HTTP 200，Pages
+在线 `source.json` 已核验为 v130 并指向上述源码与 Sites 版本，线上 CSS 已核验包含
+首页边缘间距及 flex 等距规则。本轮未修改或部署 migration、Edge Function、secret、
+认证配置或生产用户数据。
