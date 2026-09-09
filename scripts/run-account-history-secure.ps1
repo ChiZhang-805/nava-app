@@ -1,6 +1,7 @@
 param(
   [string]$Anchor = "2026-08-28",
   [switch]$AuditOnly,
+  [switch]$SummaryOnly,
   [string]$ReceiptPath = ""
 )
 
@@ -27,11 +28,19 @@ try {
   $endDate = $anchorDate.AddDays(-1).ToString("yyyy-MM-dd")
 
   if ($AuditOnly) {
-    Invoke-HistoryNode @("scripts/audit-account-history.mjs", "--anchor=$Anchor")
+    if ($SummaryOnly) {
+      Invoke-HistoryNode @("scripts/audit-account-completeness.mjs", "--start=$startDate", "--end=$endDate")
+    } else {
+      Invoke-HistoryNode @("scripts/audit-account-history.mjs", "--anchor=$Anchor")
+    }
   } else {
     Invoke-HistoryNode @("scripts/seed-account-history.mjs", "--anchor=$Anchor")
     Invoke-HistoryNode @("scripts/backfill-account-auxiliary.mjs", "--start=$startDate", "--end=$endDate")
-    Invoke-HistoryNode @("scripts/audit-account-history.mjs", "--anchor=$Anchor")
+    if ($SummaryOnly) {
+      Invoke-HistoryNode @("scripts/audit-account-completeness.mjs", "--start=$startDate", "--end=$endDate")
+    } else {
+      Invoke-HistoryNode @("scripts/audit-account-history.mjs", "--anchor=$Anchor")
+    }
     if ($ReceiptPath) { "__NAVA_SECURE_HISTORY_COMPLETE__" | Add-Content -LiteralPath $ReceiptPath }
   }
 } finally {

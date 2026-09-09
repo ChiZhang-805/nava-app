@@ -114,9 +114,16 @@ try {
   await insertMissing("health_metric_snapshots", healthRows);
   await insertMissing("rhythm_outcome_feedback", feedbackRows);
   const fdnb = await supabase.functions.invoke("fdnb-recompute", { body: { endDate } });
-  if (fdnb.error) throw fdnb.error;
+  if (fdnb.error) throw await functionError("fdnb-recompute", fdnb.error);
 
-  console.log(JSON.stringify({ startDate, endDate, focusDistributions: focusRows.length, healthSnapshots: healthRows.length, outcomeFeedback: feedbackRows.length, fdnb: fdnb.data }, null, 2));
+  console.log(JSON.stringify({
+    startDate,
+    endDate,
+    focusDistributions: focusRows.length,
+    healthSnapshots: healthRows.length,
+    outcomeFeedback: feedbackRows.length,
+    fdnbSucceeded: !fdnb.error,
+  }, null, 2));
 } finally {
   await supabase.auth.signOut();
 }
@@ -206,4 +213,22 @@ function timeMinutes(value) {
 
 function clamp(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+async function functionError(name, error) {
+  const context = error && typeof error === "object" && "context" in error ? error.context : null;
+  if (context instanceof Response) {
+    const body = await context.clone().text().catch(() => "");
+    if (body.trim()) {
+      try {
+        const parsed = JSON.parse(body);
+        const message = typeof parsed.error === "string" ? parsed.error : typeof parsed.message === "string" ? parsed.message : "";
+        if (message.trim()) return new Error(`${name}: ${message.trim()}`);
+      } catch {
+        return new Error(`${name}: HTTP ${context.status}`);
+      }
+    }
+    return new Error(`${name}: HTTP ${context.status}`);
+  }
+  return new Error(`${name}: ${error instanceof Error ? error.message : "request failed"}`);
 }
