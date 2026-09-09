@@ -1,6 +1,6 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
-更新时间：**2026-09-08**
+更新时间：**2026-09-09**
 
 这份文件是新 Codex 任务接手 NAVA 时的第一入口，也是当前项目状态的
 **独立、可直接使用的交接文档**。它不依赖这段很长、曾多次出现界面回退的
@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`b8e285163e135c6a39310bc01c3acb42c57a7641`
+- 源码发布 commit：`1ca810a06f47874e464719dfb83afac2738816d9`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v127，public
+- ChatGPT Sites 版本：v130，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_e8d685058b8c8191aa36fd985533809c`
-- Sites deployment ID：`appgdep_6aa0158af64c8191a441b68148267dda`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_78cd12b4ffbc819181fcca56e8f3f802`
+- Sites deployment ID：`appgdep_6aa14a9c214481919b68aa10a9741dfe`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `25055883051cbbdb3c979c8ad450b39287c47821`
+  `c47329d456cd69f3b3b5a52788b2bdb0fb3ba43d`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v127 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v127-b8e2851.tar.gz`
+- v130 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v130-1ca810a.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v127 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v130 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -1909,6 +1909,9 @@ secret、认证配置或生产用户数据。
 `Q:\NAVA-Workspace\nava-app\artifacts\navigation-icons`。验证同时通过完整
 `npm run verify` 32 阶段、`npm run interaction:test` 11 组、
 `npm run device-preview:visual` 和 `npm run auth:verify:production`。
+底栏发布后又补跑了正式页与目标态加载页的全量扫描：四视口共 232 个状态、0 个
+溢出或页面错误，版本化证据位于
+`Q:\NAVA-Workspace\Build\TestRuns\nava-figma-pages-v130-20260909`。
 
 功能源码 commit `1ca810a06f47874e464719dfb83afac2738816d9` 已从同一干净、已 push
 状态发布为 ChatGPT Sites v130 与 GitHub Pages v130。Sites version ID 为
