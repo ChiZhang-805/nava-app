@@ -24,17 +24,18 @@ App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负�
 | `auth-account-status` | 以不暴露账号是否存在的公共响应执行注册/登录资格检查 | 只读 |
 | `push-dispatch` | 以内部 secret 调度当前用户已有通知到 APNs、FCM v1 或 HMS，并记录幂等送达结果 | `push_delivery_receipts`、失效时更新 `push_device_tokens`（production 已部署；provider 凭据与真机送达待验收） |
 
-截至 2026-09-09，本轮涉及的 `ai-chat-reply`、`ai-diet-report`、`ai-health-report`、
+截至 2026-09-10，本轮涉及的 `ai-chat-reply`、`ai-diet-report`、`ai-health-report`、
 `diet-extract`、`delete-account`、`export-user-data`、`health-sync-ingest` 和 `watch-sync`
 最新源码均已部署到 canonical 项目，状态 ACTIVE 且启用 JWT 验证。真实账号的模型输出、
 Apple 真机和破坏性账号删除仍按各专项文档明确为人工验收，不因部署完成而自动视为通过。
 
 `ai-health-report` 当前生产模型合同为
-`deepseek-v4-flash-health-report-v7-retry-resilience`，canonical Supabase 上为 ACTIVE
-version 19、`verify_jwt=true`。它在 65 秒总预算内最多执行三次有界生成/结构修复，并对
-网络、408、429 与 provider 5xx 做短退避重试；前端保留安全的服务端错误正文和重试动作。
-生产函数源码已与本地逐字节核验，secret 名称存在，但仍需真实登录账号验证 provider
-成功生成、持久化命中与源数据变化后的缓存失效。
+`deepseek-v4-flash-health-report-v8-derived-evidence-normalization`，canonical Supabase
+上为 ACTIVE version 21、`verify_jwt=true`。它在 65 秒总预算内最多执行三次有界生成/结构
+修复，并对网络、408、429 与 provider 5xx 做短退避重试；模型使用的派生统计值只有在后端
+可从授权记录精确复算时才通过，无法核对的数字仍会被拒绝。2026-09-10 的真实登录强制刷新
+验收已确认情绪、睡眠、运动、专注、面部和周报 6/6 均由 DeepSeek 生成结构化 v8 报告并
+持久化；未认证请求返回 HTTP 401。源数据变化后的自动缓存失效仍是独立的后续验收边界。
 
 2026-09-06 单独将 `aliyun-sms-send` 的阿里云 `SendSms` 请求改为官方自签名示例使用的
 canonical query + 空请求体，并部署为 production version 17（ACTIVE，公开注册边界因此
@@ -43,7 +44,7 @@ canonical query + 空请求体，并部署为 production version 17（ACTIVE，�
 
 ## 已实现数据库/Storage
 
-当前源码共有 26 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单
+当前源码共有 27 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单
 来源。它们按顺序覆盖：移动端业务表和 Edge 后端、Rhythm/Fusion/ChronoState、
 密码复用保护、手机号 OTP、Watch action 幂等、头像、账号状态、onboarding、FDNB、
 AI 会话隔离、成长奖励、健康报告、专注待办、Health Realtime，以及跨设备账号状态和

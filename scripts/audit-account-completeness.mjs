@@ -56,17 +56,21 @@ try {
 
   const aiResult = await supabase
     .from("ai_health_reports")
-    .select("scope,model_version,provider,bullets,period_end")
+    .select("scope,model_version,provider,bullets,period_end,generated_at")
     .eq("user_id", userId)
     .gte("period_end", startDate)
-    .lte("period_end", endDate);
+    .lte("period_end", endDate)
+    .order("generated_at", { ascending: true });
   if (aiResult.error) throw aiResult.error;
   const aiByScope = {};
   for (const row of aiResult.data ?? []) {
     const scope = String(row.scope ?? "unknown");
-    const bucket = aiByScope[scope] ?? { rows: 0, structuredRows: 0, latestModelVersion: null, provider: null };
+    const bucket = aiByScope[scope] ?? { rows: 0, structuredRows: 0, structuredModelVersions: [], latestModelVersion: null, provider: null };
     bucket.rows += 1;
-    if (hasStructuredReport(row.bullets)) bucket.structuredRows += 1;
+    if (hasStructuredReport(row.bullets)) {
+      bucket.structuredRows += 1;
+      if (row.model_version && !bucket.structuredModelVersions.includes(row.model_version)) bucket.structuredModelVersions.push(row.model_version);
+    }
     bucket.latestModelVersion = row.model_version ?? bucket.latestModelVersion;
     bucket.provider = row.provider ?? bucket.provider;
     aiByScope[scope] = bucket;

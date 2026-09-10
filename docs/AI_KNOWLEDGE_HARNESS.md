@@ -146,7 +146,7 @@ unavailable provider, or with invalid output, history keeps an explicitly dated
 local fallback title. Title generation never blocks the prior archive write or
 causes the active conversation to be deleted before that archive succeeds.
 
-## 2026-09-05 production diagnosis and 2026-09-09 deployment
+## 2026-09-05 production diagnosis through 2026-09-10 deployment
 
 - Supabase production logs at 2026-09-05 15:08–15:09 UTC recorded two
   `ai-health-report` failures as `AI 未返回有效的结构化健康报告。` They did not
@@ -180,11 +180,30 @@ causes the active conversation to be deleted before that archive succeeds.
   error and an explicit retry action instead of collapsing all failures into
   “AI unavailable”. A production download matched local source byte-for-byte;
   the secret name exists, but its value was never read or exposed.
-- Deployment identity and the unauthenticated boundary are verified, but a safe
-  authenticated production session was not available during deployment. Real
-  DeepSeek generation, successful report persistence, unchanged-data cache
-  reuse, and one-time regeneration after a source-data change still require a
-  real-account acceptance run. Do not describe those boundaries as verified yet.
+- At the version 19 deployment, deployment identity and the unauthenticated
+  boundary were verified, but an authenticated production session was not yet
+  available. The later account acceptance run described below supersedes that
+  limitation for generation and persistence.
+- On 2026-09-10 an authenticated six-scope run showed that v7 systematically
+  rejected valid model evidence whenever the model rendered an exact derived
+  statistic (for example a correlation coefficient as a percentage) rather
+  than copying a raw JSON token. The v8 contract,
+  `deepseek-v4-flash-health-report-v8-derived-evidence-normalization`, keeps the
+  same evidence and association safety boundaries but allowlists only values
+  that the server can deterministically recompute from consent-authorized rows:
+  counts, period length, range, mean, median, standard deviation, first/last
+  change, bounded ratios, minute/hour conversion and correlation percentage.
+  Unsupported numeric tokens remain rejected and are returned to the bounded
+  repair prompt as numeric-only issue codes. Short display headings may be
+  normalized only by reusing the model-authored heading, explanation and action;
+  the server does not introduce new claims.
+- That v8 source was deployed only as `ai-health-report` to canonical Supabase
+  ACTIVE version 21 with `verify_jwt=true`; an unauthenticated call returned
+  HTTP 401. A subsequent forced authenticated run generated and persisted
+  structured DeepSeek v8 reports for mood, sleep, exercise, focus, face and
+  weekly scopes (6/6). The same run also independently confirmed the existing
+  diet visual extraction and four-item diet report path. Cache invalidation after
+  a new source-data write remains a separate future acceptance boundary.
 - A separate no-user-data check showed that the developer-machine DeepSeek key
   currently has available balance and that `deepseek-v4-flash` returns valid
   JSON. Its digest does not match the production Supabase secret, so it is not

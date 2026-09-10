@@ -127,8 +127,8 @@
 
 ## 六、已有基础能力但仍需外部验收
 
-- [ ] **OPS-01 最新健康报告双摘要上线** — **代码与部署完成、待真实账号验收**：`ai-health-report` v7 已于 2026-09-09 部署为生产 ACTIVE version 19，已纳入 HealthKit 指标、三次有界生成/定向 repair、瞬时 provider 重试和双摘要，并按源数据指纹复用缓存；前端会显示安全的具体错误与“重新生成”，仍需真实账号验证 provider 成功生成、持久化命中与数据变化后只重算一次。
-- [ ] **OPS-02 最新饮食报告双摘要上线** — **代码与部署完成、待真实账号验收**：`ai-diet-report` v6 日历窗口已于 2026-09-08 部署为生产 ACTIVE version 15；仍需真实饮食数据验证 provider 输出、七字摘要与缓存刷新。
+- [ ] **OPS-01 最新健康报告双摘要上线** — **真实生成与持久化已验收、剩余缓存失效边界**：`ai-health-report` v8 已于 2026-09-10 部署为生产 ACTIVE version 21；真实账号强制刷新已确认情绪、睡眠、运动、专注、面部和周报 6/6 均由 DeepSeek 生成结构化四段报告及双摘要并写入数据库。仍需在后续真实新增一日源数据时验证只失效并重算对应缓存一次。
+- [x] **OPS-02 最新饮食报告双摘要上线** — `ai-diet-report` v6 日历窗口为生产 ACTIVE version 15；2026-09-10 真实饮食图片链路验收确认视觉识别成功、provider 生成四条受七字合同约束的摘要并持久化。
 - [ ] **OPS-03 Apple Health 真机闭环** — 源码和静态合同完成；待 Mac/Xcode/iPhone 真机验证。
 - [ ] **OPS-04 Apple Watch 真机闭环** — 源码和静态合同完成；待签名、权限、离线重放和双账号验证。
 - [ ] **OPS-05 正式通知送达** — 六类 Capacitor 本地通知、应用内收件箱、原生点击回流、iOS APNs / Android FCM 令牌注册、Android 原生壳、账号级 token/receipt migration 与 `push-dispatch` Edge Function 已部署；仍待内部调度及 APNs/FCM/HMS provider secret、平台证书、客户端配置和 iOS/Android/华为真机权限与送达矩阵。
