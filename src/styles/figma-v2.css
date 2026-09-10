@@ -12632,13 +12632,13 @@ body::before {
   border: 1px solid rgba(255, 255, 255, .9);
   border-radius: 44px 44px 5px 44px;
   display: grid;
-  align-items: start;
+  place-items: center;
   padding: 20px 17px 15px;
   color: #102d42;
   background: rgba(232, 247, 252, .76);
   box-shadow: 0 8px 18px rgba(31, 81, 104, .16), inset 0 1px 0 rgba(255, 255, 255, .92);
   backdrop-filter: blur(20px) saturate(1.06);
-  text-align: left;
+  text-align: center;
 }
 
 .option-two-guidance::after {
@@ -12651,7 +12651,18 @@ body::before {
   background: linear-gradient(145deg, transparent 0 48%, rgba(232, 247, 252, .86) 49% 100%);
   clip-path: polygon(0 0, 100% 0, 100% 100%);
 }
-.option-two-guidance > p { display: -webkit-box; margin: 0; overflow: hidden; font-size: 11.5px; font-weight: 520; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.option-two-guidance > p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-family: ui-rounded, "SF Pro Rounded", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: clamp(13.5px, 3.4cqw, 15px);
+  font-weight: 700;
+  line-height: 1.44;
+  letter-spacing: .006em;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
 
 .option-two-life-stage {
   top: auto;
@@ -13035,7 +13046,7 @@ body::before {
   .home-widget-value > strong { font-size: 22px; }
   .home-widget-value > small { font-size: 8px; line-height: 1.25; }
   .option-two-guidance { bottom: clamp(255px, 34.5cqh, 290px); left: 16px; width: 168px; min-height: 82px; padding: 12px 15px; }
-  .option-two-guidance > p { font-size: 10.5px; }
+  .option-two-guidance > p { font-size: 13.5px; }
   .option-two-life-stage { bottom: 34px; width: min(93cqw, 365px); }
   .option-two-home.is-health-menu-open .option-two-life-stage { bottom: 66px; }
   .phone-frame--option2 .bottom-nav { padding-inline: 26px; }

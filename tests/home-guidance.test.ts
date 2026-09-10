@@ -57,6 +57,41 @@ test("low evening activity and completed focus map to distinct motions", () => {
   assert.equal(buildHomeGuidance(snapshot(), 13, "zh").motion, "wave");
 });
 
+test("focus guidance rotates through time-classified copy without losing the real duration", () => {
+  const current = snapshot();
+  current.focusMinutes = 95;
+  const phases = [
+    { hour: 6, phase: "dawn" },
+    { hour: 13, phase: "day" },
+    { hour: 18, phase: "evening" },
+    { hour: 22, phase: "night" },
+  ] as const;
+  const messages = new Set<string>();
+
+  for (const { hour, phase } of phases) {
+    const phaseMessages = [0, 1, 2].map((seed) => buildHomeGuidance(current, hour, "zh", seed));
+    assert.deepEqual(phaseMessages.map((guidance) => guidance.phase), [phase, phase, phase]);
+    assert.equal(new Set(phaseMessages.map((guidance) => guidance.message)).size, 3);
+    phaseMessages.forEach((guidance) => {
+      assert.equal(guidance.reason, "focus_complete");
+      assert.match(guidance.message, /95/);
+      messages.add(guidance.message);
+    });
+  }
+
+  assert.equal(messages.size, 12);
+});
+
+test("night-time incomplete focus yields a wind-down prompt instead of another work block", () => {
+  const current = snapshot();
+  current.focusMinutes = 0;
+  current.focusSessions = 0;
+  const guidance = buildHomeGuidance(current, 22, "zh", 1);
+  assert.equal(guidance.phase, "night");
+  assert.equal(guidance.reason, "wind_down");
+  assert.match(guidance.message, /屏幕|夜|休息/);
+});
+
 test("home always exposes two or three real destinations without duplicates", () => {
   const current = snapshot();
   const completeActions = buildHomeGuidance(current, 13, "zh").actions;

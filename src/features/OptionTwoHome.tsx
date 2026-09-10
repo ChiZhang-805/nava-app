@@ -173,6 +173,7 @@ export default function OptionTwoHome({
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [localHour, setLocalHour] = useState(() => new Date().getHours());
+  const [guidanceVariantSeed] = useState(() => Math.floor(Math.random() * 1_000_000));
   const [guidanceDismissed, setGuidanceDismissed] = useState(false);
   const [guidanceEligible] = useState(showInitialGuidance);
   const gestureRef = useRef<{ pointerId: number; startX: number; startY: number; lastX: number; lastY: number } | null>(null);
@@ -273,7 +274,7 @@ export default function OptionTwoHome({
   const rhythmScore = snapshot?.rhythmScore ?? "--";
   const points = totalPoints ?? "--";
   const moduleProgress = buildHealthModuleProgress(snapshot);
-  const homeGuidance = snapshot ? buildHomeGuidance(snapshot, localHour, locale) : null;
+  const homeGuidance = snapshot ? buildHomeGuidance(snapshot, localHour, locale, guidanceVariantSeed) : null;
   const phase = homeGuidance?.phase ?? homeDayPhase(localHour);
 
   if (view === "calendar" || view?.startsWith("day-")) {
@@ -574,7 +575,7 @@ export default function OptionTwoHome({
       </section>
 
       {homeGuidance && guidanceEligible && !guidanceDismissed && (
-        <button className="option-two-guidance" type="button" aria-live="polite" data-guidance-reason={homeGuidance.reason} onClick={() => homeGuidance.actions[0] && onOpenNotificationTarget(homeGuidance.actions[0].target)}>
+        <button className="option-two-guidance" type="button" aria-live="polite" data-guidance-reason={homeGuidance.reason} data-guidance-phase={homeGuidance.phase} onClick={() => homeGuidance.actions[0] && onOpenNotificationTarget(homeGuidance.actions[0].target)}>
           <p>{homeGuidance.message}</p>
         </button>
       )}

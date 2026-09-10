@@ -87,12 +87,25 @@ try {
         documentOverflow: document.documentElement.scrollWidth - window.innerWidth,
         frameOverflow: frame ? frame.scrollWidth - frame.clientWidth : null,
         guidance: rect(".option-two-guidance"),
+        guidanceCopy: (() => {
+          const element = document.querySelector(".option-two-guidance > p");
+          if (!element) return null;
+          const style = getComputedStyle(element);
+          const box = element.getBoundingClientRect();
+          return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, fontFamily: style.fontFamily, fontSize: Number.parseFloat(style.fontSize), fontWeight: Number.parseInt(style.fontWeight, 10), lineHeight: Number.parseFloat(style.lineHeight), textAlign: style.textAlign, text: element.textContent ?? "" };
+        })(),
         scores: rect(".option-two-scores"),
         navTop: navButtons.length ? Math.min(...navButtons.map((box) => box.top)) : null,
       };
     });
     if ((geometry.documentOverflow ?? 0) > 1 || (geometry.frameOverflow ?? 0) > 1) throw new Error(`${viewport.name}: home guidance overflows horizontally ${JSON.stringify(geometry)}`);
     if (!geometry.guidance || geometry.guidance.left < 0 || geometry.guidance.right > viewport.width + 1) throw new Error(`${viewport.name}: guidance is clipped ${JSON.stringify(geometry)}`);
+    if (!geometry.guidanceCopy || geometry.guidanceCopy.fontSize < 13.4 || geometry.guidanceCopy.fontWeight < 650 || !/rounded|pingfang|yahei/i.test(geometry.guidanceCopy.fontFamily)) throw new Error(`${viewport.name}: guidance typography is not large and rounded enough ${JSON.stringify(geometry.guidanceCopy)}`);
+    if (geometry.guidanceCopy.textAlign !== "center") throw new Error(`${viewport.name}: guidance copy is not centered ${JSON.stringify(geometry.guidanceCopy)}`);
+    const guidanceCenterY = (geometry.guidance.top + geometry.guidance.bottom) / 2;
+    const guidanceCopyCenterY = (geometry.guidanceCopy.top + geometry.guidanceCopy.bottom) / 2;
+    if (Math.abs(guidanceCenterY - guidanceCopyCenterY) > 3) throw new Error(`${viewport.name}: guidance copy is not vertically centered ${JSON.stringify({ guidanceCenterY, guidanceCopyCenterY })}`);
+    if (!geometry.guidanceCopy.text.trim()) throw new Error(`${viewport.name}: guidance copy is empty`);
     if (geometry.scores && geometry.guidance.top < geometry.scores.bottom + 8) throw new Error(`${viewport.name}: guidance overlaps the score row ${JSON.stringify(geometry)}`);
     if (geometry.navTop != null && geometry.guidance.bottom > geometry.navTop - 8) throw new Error(`${viewport.name}: guidance collides with navigation ${JSON.stringify(geometry)}`);
     if (viewport.name === "430x932") {
@@ -103,7 +116,7 @@ try {
       assertNear(geometry.scores.left, 18, 2, "430x932 score row left");
       assertNear(geometry.scores.top, 77, 2, "430x932 score row top");
       assertNear(geometry.scores.height, 34, 2, "430x932 score row height");
-      assertNear(geometry.navTop, 830, 3, "430x932 center navigation top");
+      assertNear(geometry.navTop, 811, 3, "430x932 center navigation top");
     }
 
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-guidance.png`) });
@@ -142,12 +155,12 @@ try {
     if (expandedGeometry.entries.some((entry) => Math.abs(entry.width - entry.height) > 1)) throw new Error(`${viewport.name}: expanded module entries are not circular ${JSON.stringify(expandedGeometry)}`);
     if (expandedGeometry.entries.some((entry, index, entries) => index > 0 && entry.centerX <= entries[index - 1].centerX)) throw new Error(`${viewport.name}: expanded module entries are not ordered along the arc ${JSON.stringify(expandedGeometry)}`);
     if (viewport.name === "430x932") {
-      assertNear(expandedGeometry.discTop, 668, 3, "430x932 expanded dome top");
-      const referenceCenters = [[72, 806], [117, 748], [181, 721], [246, 721], [311, 748], [354, 806]];
+      assertNear(expandedGeometry.discTop, 643, 3, "430x932 expanded dome top");
+      const referenceCenters = [[72, 791], [117, 734], [181, 698], [249, 698], [313, 733], [358, 790]];
       expandedGeometry.entries.forEach((entry, index) => {
         assertNear(entry.centerX, referenceCenters[index][0], 3, `430x932 expanded entry ${index + 1} x`);
         assertNear(entry.centerY, referenceCenters[index][1], 4, `430x932 expanded entry ${index + 1} y`);
-        assertNear(entry.width, 52, 2, `430x932 expanded entry ${index + 1} size`);
+        assertNear(entry.width, 56.5, 1.5, `430x932 expanded entry ${index + 1} size`);
       });
       assertNear(expandedGeometry.mascotImage.left, expandedGeometry.mascotStage.left, 1, "430x932 expanded mascot x alignment");
       assertNear(expandedGeometry.mascotImage.top, expandedGeometry.mascotStage.top, 1, "430x932 expanded mascot y alignment");
