@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`08b140c095b5961e4a178343c2ddfeac21762e62`
+- 源码发布 commit：`616d299c38e08dab7fe01d11145e36cfe3ddfb83`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v131，public
+- ChatGPT Sites 版本：v132，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_c6cc67ff74a48191be6e330decf26e89`
-- Sites deployment ID：`appgdep_6aa17214c2788191a0a452e71253bf48`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_dcb873e33c3081918af923e3ddf785a1`
+- Sites deployment ID：`appgdep_6aa2c9686db88191b40e95f007908a5d`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `551f870e2b8c318c58b30fcc80ba31bec80b3bcd`
+  `afc2c0cdc1e0a61bcfb1279ef4a56dc98181fa2a`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v131 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v131-08b140c.tar.gz`
+- v132 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-sites-v132.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v131 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v132 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
