@@ -202,8 +202,13 @@ causes the active conversation to be deleted before that archive succeeds.
   HTTP 401. A subsequent forced authenticated run generated and persisted
   structured DeepSeek v8 reports for mood, sleep, exercise, focus, face and
   weekly scopes (6/6). The same run also independently confirmed the existing
-  diet visual extraction and four-item diet report path. Cache invalidation after
-  a new source-data write remains a separate future acceptance boundary.
+  diet visual extraction and four-item diet report path. A follow-up authenticated
+  cache exercise temporarily replaced only each generated report's fingerprint
+  with a stale marker, never touching source health records. For all six scopes,
+  the original unchanged request reused the cache, the stale fingerprint forced
+  one new DeepSeek report and a subsequent unchanged request reused that new row.
+  This exercises the same expected-fingerprint mismatch branch used after a
+  consent-authorized source or profile change; all 18 cache checks passed.
 - A separate no-user-data check showed that the developer-machine DeepSeek key
   currently has available balance and that `deepseek-v4-flash` returns valid
   JSON. Its digest does not match the production Supabase secret, so it is not

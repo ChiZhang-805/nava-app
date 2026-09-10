@@ -2023,3 +2023,16 @@ v8 报告；同轮现有 `diet-extract` 识别 4 项午餐、`ai-diet-report` �
 AI 摘要/入口测试、backend contract、安全扫描和 ESLint。函数源码提交为 `363e1b1`；本轮
 只部署 `ai-health-report`，未部署其他函数、migration、secret，也没有前端代码变化或双站
 发布。
+
+在用户要求继续完成后，OPS-01 最后一项缓存边界也已闭环。新增安全验收器逐一检查六个
+作用域：相同源数据先命中现有缓存；随后只把可再生成的 `ai_health_reports` 指纹临时标记
+为过期，不修改情绪、睡眠、运动、饮食、专注、面部或画像源数据；下一次普通请求必须因
+expected fingerprint 不匹配而生成新的 DeepSeek v8 报告；再下一次请求必须复用该新缓存。
+六类的 `baselineReused`、`staleInvalidated`、`regeneratedCacheReused` 共 18 项均为 true，
+最终 `allPassed=true`。首次演练遇到一次模型 `json_parse` 瞬时失败，恢复分支按设计还原了
+原报告；验收器随后加入一次有界整请求重试。第二次演练还发现 UTC `Z` 与 `+00:00` 字符串
+表示不同但时刻相同，已改为按时间戳毫秒比较后完成最终验收。安全启动器继续通过
+SecureString 传入账号凭据并在进程结束清理环境变量，输出仅含作用域、布尔结果、provider
+和 model version。
+缓存演练后的最终完整度审计再次确认十类表仍为 13/13 天、要求字段缺失为 0，六类报告
+仍各有结构化 v8 行，2026-09-10 六类基础表合计仍为 0。
