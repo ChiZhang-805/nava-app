@@ -8,6 +8,7 @@ import type { TrendBundle } from "../src/types.ts";
 const recordsScreen = readFileSync(new URL("../src/features/RecordsScreen.tsx", import.meta.url), "utf8");
 const appShell = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
 const reportFunction = readFileSync(new URL("../supabase/functions/ai-health-report/index.ts", import.meta.url), "utf8");
+const reportValidation = readFileSync(new URL("../supabase/functions/_shared/health-report-validation.ts", import.meta.url), "utf8");
 const faceFunction = readFileSync(new URL("../supabase/functions/face-analyze/index.ts", import.meta.url), "utf8");
 const faceDraftService = readFileSync(new URL("../src/services/secureFaceDraft.ts", import.meta.url), "utf8");
 const dashboard = readFileSync(new URL("../src/features/RecordModuleDashboard.tsx", import.meta.url), "utf8");
@@ -43,7 +44,7 @@ test("one real weekly rhythm point replaces the no-data placeholder", () => {
 test("weekly AI report is persisted and rejects non-model providers", () => {
   assert.match(reportFunction, /from\("ai_health_reports"\)\.upsert/);
   assert.match(reportFunction, /row\.provider !== "deepseek"/);
-  assert.match(reportFunction, /deepseek-v4-flash-health-report-v7-retry-resilience/);
+  assert.match(reportFunction, /deepseek-v4-flash-health-report-v8-derived-evidence-normalization/);
   assert.match(reportFunction, /expectedIds = \["trend", "variation", "association", "action"\]/);
   assert.match(reportFunction, /bullets: report/);
   assert.match(recordsScreen, /weekly-detail-dialog/);
@@ -57,6 +58,8 @@ test("invalid model JSON gets bounded targeted repairs without weakening evidenc
   assert.match(reportFunction, /role: "assistant", content: previousDraft/);
   assert.match(reportFunction, /section_\$\{index \+ 1\}_evidence_grounding/);
   assert.match(reportFunction, /section_\$\{index \+ 1\}_association_boundary/);
+  assert.match(reportValidation, /collectDerivedEvidenceNumbers/);
+  assert.match(reportValidation, /normalizeModelHeadline/);
   assert.match(reportFunction, /for \(let attempt = 0; attempt < 3; attempt \+= 1\)/);
   assert.match(reportFunction, /response\.status === 408 \|\| response\.status === 429 \|\| response\.status >= 500/);
   assert.match(reportFunction, /AI 模型账户余额不足/);

@@ -11,6 +11,7 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.52.1
 import { calculateHealthAssociations } from "../_shared/health-report-harness.ts";
 import { requireAiPersonalizationConsent, resolveConsentFlag } from "../_shared/consent.ts";
 import { sourceFingerprint } from "../_shared/source-fingerprint.ts";
+import { normalizeModelHeadline, numericEvidenceGrounded } from "../_shared/health-report-validation.ts";
 
 type Language = "zh" | "en";
 type ReportScope = "mood" | "sleep" | "exercise" | "focus" | "face" | "weekly";
@@ -38,7 +39,7 @@ type ReportValidationResult = {
 };
 
 const scopes = new Set<ReportScope>(["mood", "sleep", "exercise", "focus", "face", "weekly"]);
-const modelVersion = "deepseek-v4-flash-health-report-v7-retry-resilience";
+const modelVersion = "deepseek-v4-flash-health-report-v8-derived-evidence-normalization";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return optionsResponse();
@@ -338,7 +339,10 @@ async function generateReport(input: { apiKey: string; userId: string; scope: Re
         issues: previousIssues,
       }));
     }
-    throw new Error(zh ? "AI 未返回有效的结构化健康报告。" : "AI did not return a valid structured health report.");
+    const issueSummary = previousIssues.slice(0, 8).join(",");
+    throw new Error(zh
+      ? `AI 未返回有效的结构化健康报告（${issueSummary}）。`
+      : `AI did not return a valid structured health report (${issueSummary}).`);
   } finally {
     clearTimeout(timeout);
   }
@@ -360,15 +364,11 @@ function parseModelJson(value: string) {
   }
 }
 
-function cleanBullet(value: unknown, lang: Language) {
-  if (typeof value !== "string") return "";
-  const cleaned = value.replace(/^\s*(?:[-•·]|\d+[.、)])\s*/u, "").replace(/\s+/g, " ").replace(/…|\.\.\./g, "").trim();
-  if (lang === "en") {
-    const words = cleaned.split(/\s+/).filter(Boolean).length;
-    return words >= 5 && words <= 12 ? cleaned : "";
-  }
-  const han = cleaned.match(/\p{Script=Han}/gu)?.length ?? 0;
-  return han >= 15 && han <= 24 ? cleaned : "";
+function normalizeModelLongText(value: unknown, fallback: unknown, lang: Language, minimum: number, maximum: number) {
+  const direct = compactText(value, maximum);
+  if (validLongText(direct, lang, minimum)) return direct;
+  const combined = compactText(`${typeof value === "string" ? value : ""} ${typeof fallback === "string" ? fallback : ""}`, maximum);
+  return validLongText(combined, lang, minimum) ? combined : direct;
 }
 
 function cleanCompactBullet(value: unknown, lang: Language, fallback: unknown = "") {
@@ -389,18 +389,20 @@ function cleanCompactBullet(value: unknown, lang: Language, fallback: unknown = 
   return fallbackHan.length === 7 ? fallbackHan.join("") : "";
 }
 
-function validateGeneratedReport(value: unknown, lang: Language, sourceContext?: unknown): ReportValidationResult {
+export function validateGeneratedReport(value: unknown, lang: Language, sourceContext?: unknown): ReportValidationResult {
   const issues: string[] = [];
   const root = record(value);
   if (!root || typeof root.overview !== "string") return { report: null, issues: ["root_or_overview"] };
-  const overview = compactText(root.overview, lang === "zh" ? 420 : 900);
-  if (!validLongText(overview, lang, lang === "zh" ? 40 : 30)) issues.push("overview_length");
-  const rawCompactBullets = Array.isArray(root.compactBullets) ? root.compactBullets : [];
   const expectedIds = ["trend", "variation", "association", "action"] as const;
   if (!Array.isArray(root.sections) || root.sections.length !== expectedIds.length) {
     issues.push("sections_count");
     return { report: null, issues: [...new Set(issues)] };
   }
+  const rawSections = root.sections.flatMap((item) => record(item) ? [record(item)!] : []);
+  const overviewFallback = rawSections.map((section) => `${compactText(section.explanation, 520)} ${compactText(section.action, 180)}`).join(" ");
+  const overview = normalizeModelLongText(root.overview, overviewFallback, lang, lang === "zh" ? 40 : 30, lang === "zh" ? 420 : 900);
+  if (!validLongText(overview, lang, lang === "zh" ? 40 : 30)) issues.push("overview_length");
+  const rawCompactBullets = Array.isArray(root.compactBullets) ? root.compactBullets : [];
   const sections = root.sections.flatMap<ReportSection>((item, index) => {
     const section = record(item);
     if (!section) {
@@ -409,12 +411,12 @@ function validateGeneratedReport(value: unknown, lang: Language, sourceContext?:
     }
     if (section.id !== expectedIds[index]) issues.push(`section_${index + 1}_id`);
     const title = compactText(section.title, 48);
-    const headline = cleanBullet(section.headline, lang);
-    const explanation = compactText(section.explanation, lang === "zh" ? 520 : 1200);
     const action = compactText(section.action, lang === "zh" ? 180 : 360);
     const evidence = Array.isArray(section.evidence)
       ? section.evidence.map((entry) => compactText(entry, lang === "zh" ? 140 : 260)).filter(Boolean).slice(0, 3)
       : [];
+    const headline = normalizeModelHeadline(section.headline, `${compactText(section.explanation, 520)} ${action}`, lang);
+    const explanation = normalizeModelLongText(section.explanation, `${evidence.join(" ")} ${action}`, lang, lang === "zh" ? 30 : 20, lang === "zh" ? 520 : 1200);
     const confidence = section.confidence === "high" || section.confidence === "medium" || section.confidence === "low" ? section.confidence : null;
     if (!title) issues.push(`section_${index + 1}_title`);
     if (!headline) issues.push(`section_${index + 1}_headline_length`);
@@ -456,36 +458,6 @@ function associationConfidenceAllowed(confidence: ReportConfidence, text: string
   const rank: Record<ReportConfidence, number> = { low: 0, medium: 1, high: 2 };
   const maximum = results.reduce<ReportConfidence>((current, item) => item.confidence === "medium" ? "medium" : current, "low");
   return rank[confidence] <= rank[maximum];
-}
-
-function numericEvidenceGrounded(value: string, sourceContext: unknown) {
-  const claimed: string[] = value.match(/\d+(?:\.\d+)?/g) ?? [];
-  if (claimed.length === 0) return true;
-  const citedDates: string[] = value.match(/\d{4}-\d{2}-\d{2}/g) ?? [];
-  const datedRows = collectDatedRows(sourceContext);
-  const relevantSource = citedDates.length > 0
-    ? datedRows.filter((row) => citedDates.includes(String(row.record_date)))
-    : datedRows;
-  const suppliedText = relevantSource.length > 0 ? JSON.stringify(relevantSource) : JSON.stringify(sourceContext);
-  const supplied = new Set((suppliedText.match(/\d+(?:\.\d+)?/g) ?? []).map(normalizeNumberToken));
-  return claimed.map(normalizeNumberToken).every((token) => supplied.has(token));
-}
-
-function collectDatedRows(value: unknown, rows: Array<Record<string, unknown>> = []): Array<Record<string, unknown>> {
-  if (Array.isArray(value)) {
-    value.forEach((item) => collectDatedRows(item, rows));
-    return rows;
-  }
-  const item = record(value);
-  if (!item) return rows;
-  if (typeof item.record_date === "string") rows.push(item);
-  Object.values(item).forEach((child) => collectDatedRows(child, rows));
-  return rows;
-}
-
-function normalizeNumberToken(value: string) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? String(parsed) : value;
 }
 
 function compactText(value: unknown, maxLength: number) {
