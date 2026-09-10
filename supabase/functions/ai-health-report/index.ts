@@ -11,7 +11,7 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.52.1
 import { calculateHealthAssociations } from "../_shared/health-report-harness.ts";
 import { requireAiPersonalizationConsent, resolveConsentFlag } from "../_shared/consent.ts";
 import { sourceFingerprint } from "../_shared/source-fingerprint.ts";
-import { normalizeModelHeadline, numericEvidenceGrounded } from "../_shared/health-report-validation.ts";
+import { normalizeModelHeadline, ungroundedNumericEvidenceTokens } from "../_shared/health-report-validation.ts";
 
 type Language = "zh" | "en";
 type ReportScope = "mood" | "sleep" | "exercise" | "focus" | "face" | "weekly";
@@ -424,7 +424,10 @@ export function validateGeneratedReport(value: unknown, lang: Language, sourceCo
     if (!action) issues.push(`section_${index + 1}_action`);
     if (evidence.length === 0) issues.push(`section_${index + 1}_evidence`);
     if (!confidence) issues.push(`section_${index + 1}_confidence`);
-    if (sourceContext && evidence.some((entry) => !numericEvidenceGrounded(entry, sourceContext))) issues.push(`section_${index + 1}_evidence_grounding`);
+    if (sourceContext) {
+      const unsupported = [...new Set(evidence.flatMap((entry) => ungroundedNumericEvidenceTokens(entry, sourceContext)))];
+      if (unsupported.length > 0) issues.push(`section_${index + 1}_evidence_grounding:${unsupported.slice(0, 6).join("|")}`);
+    }
     if (section.id === "association" && confidence && sourceContext && !associationConfidenceAllowed(confidence, `${headline} ${explanation}`, sourceContext)) {
       issues.push(`section_${index + 1}_association_boundary`);
     }

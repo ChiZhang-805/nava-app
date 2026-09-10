@@ -1,4 +1,4 @@
-import { normalizeModelHeadline, numericEvidenceGrounded } from "../_shared/health-report-validation.ts";
+import { normalizeModelHeadline, numericEvidenceGrounded, ungroundedNumericEvidenceTokens } from "../_shared/health-report-validation.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -12,12 +12,14 @@ const sourceContext = {
     { record_date: "2026-09-09", mood_score: 74 },
   ],
   consentAuthorizedCompanionRecords: {},
-  associationHarness: { results: [] },
+  associationHarness: { results: [{ domains: ["mood", "sleep"], overlapDays: 7, correlation: 0.42 }] },
 };
 
 Deno.test("health report evidence accepts exact server-derived period and aggregate numbers", () => {
   assert(numericEvidenceGrounded("2026-09-03 至 2026-09-09 共 7 天，平均情绪 72 分。", sourceContext), "Expected exact period length and average to be grounded.");
+  assert(numericEvidenceGrounded("同日情绪与睡眠的相关系数为 0.42，换算为 42%。", sourceContext), "Expected a correlation percentage derived from the harness to be grounded.");
   assert(!numericEvidenceGrounded("这段记录平均情绪 99 分。", sourceContext), "An unsupported number must remain rejected.");
+  assert(ungroundedNumericEvidenceTokens("平均情绪 99 分。", sourceContext).join(",") === "99", "Unsupported tokens must remain available for targeted repair.");
 });
 
 Deno.test("health report normalizes model-authored display lengths without adding new copy", () => {

@@ -15,8 +15,12 @@ export function normalizeModelHeadline(value: unknown, fallback: unknown, lang: 
 }
 
 export function numericEvidenceGrounded(value: string, sourceContext: unknown) {
+  return ungroundedNumericEvidenceTokens(value, sourceContext).length === 0;
+}
+
+export function ungroundedNumericEvidenceTokens(value: string, sourceContext: unknown) {
   const claimed: string[] = value.match(/\d+(?:\.\d+)?/g) ?? [];
-  if (claimed.length === 0) return true;
+  if (claimed.length === 0) return [];
   const citedDates: string[] = value.match(/\d{4}-\d{2}-\d{2}/g) ?? [];
   const datedRows = collectDatedRows(sourceContext);
   const relevantSource = citedDates.length > 0
@@ -25,7 +29,7 @@ export function numericEvidenceGrounded(value: string, sourceContext: unknown) {
   const suppliedText = relevantSource.length > 0 ? JSON.stringify(relevantSource) : JSON.stringify(sourceContext);
   const supplied = new Set((suppliedText.match(/\d+(?:\.\d+)?/g) ?? []).map(normalizeNumberToken));
   collectDerivedEvidenceNumbers(sourceContext, supplied);
-  return claimed.map(normalizeNumberToken).every((token) => supplied.has(token));
+  return [...new Set(claimed.map(normalizeNumberToken).filter((token) => !supplied.has(token)))];
 }
 
 function collectDerivedEvidenceNumbers(value: unknown, output: Set<string>, visited = new Set<unknown>()) {
@@ -47,11 +51,21 @@ function collectDerivedEvidenceNumbers(value: unknown, output: Set<string>, visi
         const minimum = Math.min(...values);
         const maximum = Math.max(...values);
         const delta = values.at(-1)! - values[0];
-        [sum, sum / values.length, minimum, maximum, maximum - minimum, Math.abs(delta)].forEach((item) => addNumberVariants(output, item));
+        const mean = sum / values.length;
+        const sorted = [...values].sort((left, right) => left - right);
+        const middle = Math.floor(sorted.length / 2);
+        const median = sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+        const standardDeviation = Math.sqrt(values.reduce((total, item) => total + (item - mean) ** 2, 0) / values.length);
+        [sum, mean, minimum, maximum, maximum - minimum, Math.abs(delta), median, standardDeviation]
+          .forEach((item) => addNumberVariants(output, item));
         if (values[0] !== 0) addNumberVariants(output, Math.abs(delta / values[0] * 100));
+        if (minimum !== 0) addNumberVariants(output, Math.abs(maximum / minimum));
+        if (mean !== 0) addNumberVariants(output, Math.abs(standardDeviation / mean * 100));
+        addNumberVariants(output, values.filter((item) => item > mean).length);
+        addNumberVariants(output, values.filter((item) => item < mean).length);
         if (/minutes?$/i.test(key)) {
           values.forEach((item) => addNumberVariants(output, item / 60));
-          addNumberVariants(output, (sum / values.length) / 60);
+          addNumberVariants(output, mean / 60);
         }
       }
     }
@@ -60,6 +74,14 @@ function collectDerivedEvidenceNumbers(value: unknown, output: Set<string>, visi
   }
   const item = record(value);
   if (!item) return;
+  Object.entries(item).forEach(([key, rawValue]) => {
+    const numeric = numericValue(rawValue);
+    if (numeric == null) return;
+    addNumberVariants(output, numeric);
+    if (/correlation|coefficient|ratio|rate/i.test(key) && Math.abs(numeric) <= 1) {
+      addNumberVariants(output, Math.abs(numeric * 100));
+    }
+  });
   const period = record(item.period);
   const start = typeof period?.start === "string" ? period.start : null;
   const end = typeof period?.end === "string" ? period.end : null;
