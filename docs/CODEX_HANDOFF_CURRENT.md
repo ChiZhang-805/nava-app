@@ -2073,5 +2073,5 @@ Sites v133 与 GitHub Pages v133。Sites version ID 为
 deployment ID 为 `appgdep_6aa69fd7e6e48191bc77f54aa4c99005`，状态 succeeded；
 Pages 镜像 commit 为 `37f71f783ea63a1472aa885bec0b6128d0e62ee1`，在线
 `source.json` 指向同一源码提交。两个公开站点的真实浏览器均通过登录门、公开 demo
-隔离，并对首页待机、情绪、睡眠三份线上动画与本地构建逐文件核对 SHA-256 一致。
+隔离，并对全部 22 份线上动画与本地构建逐文件核对 SHA-256 一致。
 本轮没有修改 Supabase、Edge Function、migration、secret 或生产用户记录。
