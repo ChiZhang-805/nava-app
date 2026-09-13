@@ -27,7 +27,7 @@ const specifications = [
   ["mood_records", ["mood_score", "factors", "diary_content"]],
   ["sleep_records", ["sleep_start", "sleep_end", "sleep_duration_minutes", "deep_sleep_minutes", "light_sleep_minutes", "rem_minutes", "self_rating", "self_note", "rhythm_score", "device_type"]],
   ["exercise_records", ["steps", "calories", "exercise_minutes", "heart_rate", "spo2", "self_rating", "self_note", "soreness_level", "fatigue_level", "has_injury", "recovery_estimate_min_hours", "recovery_estimate_max_hours", "recovery_estimate_confidence", "recovery_estimate_basis"]],
-  ["nutrition_records", ["total_calories", "breakfast_items", "lunch_items", "dinner_items", "breakfast_time", "lunch_time", "dinner_time", "protein_grams", "carbohydrate_grams", "fat_grams", "hydration_ml", "health_rating"]],
+  ["nutrition_records", ["total_calories", "breakfast_items", "lunch_items", "dinner_items", "pantry_items", "breakfast_time", "lunch_time", "dinner_time", "pantry_time", "protein_grams", "carbohydrate_grams", "fat_grams", "hydration_ml", "health_rating"]],
   ["focus_records", ["total_minutes", "completed_sessions", "interrupted_sessions", "category", "started_at", "ended_at", "note"]],
   ["face_records", ["overall_score", "annotations", "feedback", "model_version", "capture_mode", "analysis_confidence", "derived_features"]],
   ["focus_time_distribution", ["period_0_6", "period_6_12", "period_12_18", "period_18_24"]],
@@ -78,11 +78,37 @@ try {
 
   const dietResult = await supabase
     .from("nutrition_records")
-    .select("ai_feedback")
+    .select("record_date,breakfast_items,lunch_items,dinner_items,pantry_items,breakfast_time,lunch_time,dinner_time,pantry_time,breakfast_photo_url,lunch_photo_url,dinner_photo_url,total_calories,protein_grams,carbohydrate_grams,fat_grams,hydration_ml,ai_feedback")
     .eq("user_id", userId)
     .gte("record_date", startDate)
     .lte("record_date", endDate);
   if (dietResult.error) throw dietResult.error;
+  const nutritionDimensions = (dietResult.data ?? []).map((row) => {
+    const mealTotals = { calories: 0, protein_grams: 0, carbohydrate_grams: 0, fat_grams: 0, hydration_ml: 0 };
+    const meals = Object.fromEntries(["breakfast", "lunch", "dinner", "pantry"].map((meal) => {
+      const items = Array.isArray(row[`${meal}_items`]) ? row[`${meal}_items`] : [];
+      const summary = items.find((item) => item?.meal_summary)?.meal_summary;
+      mealTotals.calories += items.reduce((sum, item) => sum + finiteNonNegative(item?.calories), 0);
+      for (const key of ["protein_grams", "carbohydrate_grams", "fat_grams", "hydration_ml"]) {
+        mealTotals[key] += finiteNonNegative(summary?.[key]);
+      }
+      return [meal, {
+        itemCount: items.length,
+        timePresent: hasValue(row[`${meal}_time`]),
+        macroSummaryPresent: summary != null && ["protein_grams", "carbohydrate_grams", "fat_grams", "hydration_ml"].every((key) => Number.isFinite(Number(summary[key]))),
+        ...(meal === "pantry" ? {} : { photoPresent: hasValue(row[`${meal}_photo_url`]) }),
+      }];
+    }));
+    const allMealFieldsComplete = Object.values(meals).every((meal) => meal.itemCount > 0 && meal.timePresent && meal.macroSummaryPresent);
+    const dailyTotalsMatchMeals = Object.entries({
+      total_calories: "calories",
+      protein_grams: "protein_grams",
+      carbohydrate_grams: "carbohydrate_grams",
+      fat_grams: "fat_grams",
+      hydration_ml: "hydration_ml",
+    }).every(([dailyKey, mealKey]) => Math.abs(finiteNonNegative(row[dailyKey]) - mealTotals[mealKey]) <= 0.5);
+    return { date: row.record_date, meals, allMealFieldsComplete, dailyTotalsMatchMeals, aiReport: dietReportStatus(row.ai_feedback) };
+  });
 
   const nextDateBaseRows = {};
   for (const table of ["mood_records", "sleep_records", "exercise_records", "nutrition_records", "focus_records", "face_records"]) {
@@ -94,6 +120,7 @@ try {
   console.log(JSON.stringify({
     range: { startDate, endDate, expectedDays },
     tables: Object.fromEntries(tableEntries),
+    nutritionDimensions,
     aiReports: { byScope: aiByScope, dietRowsWithAiFeedback: (dietResult.data ?? []).filter((row) => hasValue(row.ai_feedback)).length },
     untouchedNextDate: { date: nextDate, tableRows: nextDateBaseRows, totalRows: Object.values(nextDateBaseRows).reduce((sum, value) => sum + value, 0) },
   }, null, 2));
@@ -109,6 +136,11 @@ function hasValue(value) {
   return true;
 }
 
+function finiteNonNegative(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, number) : 0;
+}
+
 function hasRequiredValue(table, field, value) {
   // A completed rhythm calculation may legitimately have no corrective action.
   // The persisted empty array is still a generated value, not a missing field.
@@ -119,6 +151,24 @@ function hasRequiredValue(table, field, value) {
 function hasStructuredReport(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   return typeof value.overview === "string" && value.overview.trim().length > 0 && Array.isArray(value.sections) && value.sections.length === 4;
+}
+
+function dietReportStatus(value) {
+  if (typeof value !== "string") return { persisted: false, validFormat: false, modelVersion: null };
+  try {
+    const report = JSON.parse(value);
+    const validBullets = Array.isArray(report?.bullets) && report.bullets.length === 4
+      && report.bullets.every((bullet) => typeof bullet === "string" && (bullet.match(/\p{Script=Han}/gu)?.length ?? 0) >= 15 && (bullet.match(/\p{Script=Han}/gu)?.length ?? 0) <= 18);
+    const validCompact = Array.isArray(report?.compactBullets) && report.compactBullets.length === 4
+      && report.compactBullets.every((bullet) => typeof bullet === "string" && /^\p{Script=Han}{7}$/u.test(bullet));
+    return {
+      persisted: true,
+      validFormat: validBullets && validCompact && typeof report.sourceFingerprint === "string" && report.sourceFingerprint.length > 0,
+      modelVersion: typeof report.modelVersion === "string" ? report.modelVersion : null,
+    };
+  } catch {
+    return { persisted: true, validFormat: false, modelVersion: null };
+  }
 }
 
 function dateRange(start, end) {

@@ -1,7 +1,9 @@
 param(
   [string]$Anchor = "2026-08-28",
+  [string]$Start = "",
   [switch]$AuditOnly,
   [switch]$SummaryOnly,
+  [switch]$SkipFace,
   [string]$ReceiptPath = ""
 )
 
@@ -24,8 +26,9 @@ try {
   $env:NAVA_ACCOUNT_EMAIL = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($emailPointer)
   $env:NAVA_ACCOUNT_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
   $anchorDate = [datetime]::ParseExact($Anchor, "yyyy-MM-dd", $null)
-  $startDate = $anchorDate.AddDays(-13).ToString("yyyy-MM-dd")
+  $startDate = if ($Start) { [datetime]::ParseExact($Start, "yyyy-MM-dd", $null).ToString("yyyy-MM-dd") } else { $anchorDate.AddDays(-13).ToString("yyyy-MM-dd") }
   $endDate = $anchorDate.AddDays(-1).ToString("yyyy-MM-dd")
+  if ($startDate -gt $endDate) { throw "Start must be on or before the day before Anchor." }
 
   if ($AuditOnly) {
     if ($SummaryOnly) {
@@ -34,7 +37,7 @@ try {
       Invoke-HistoryNode @("scripts/audit-account-history.mjs", "--anchor=$Anchor")
     }
   } else {
-    Invoke-HistoryNode @("scripts/seed-account-history.mjs", "--anchor=$Anchor")
+    Invoke-HistoryNode @("scripts/seed-account-history.mjs", "--anchor=$Anchor", "--skip-face=$($SkipFace.IsPresent.ToString().ToLowerInvariant())")
     Invoke-HistoryNode @("scripts/backfill-account-auxiliary.mjs", "--start=$startDate", "--end=$endDate")
     if ($SummaryOnly) {
       Invoke-HistoryNode @("scripts/audit-account-completeness.mjs", "--start=$startDate", "--end=$endDate")

@@ -6,6 +6,7 @@ applyProjectPublicEnv();
 const email = process.env.NAVA_ACCOUNT_EMAIL;
 const password = process.env.NAVA_ACCOUNT_PASSWORD;
 const anchorDate = argument("anchor") ?? localDate();
+const skipFace = argument("skip-face") === "true";
 if (!email || !password) throw new Error("请通过 NAVA_ACCOUNT_EMAIL 和 NAVA_ACCOUNT_PASSWORD 提供目标账号。");
 if (!/^\d{4}-\d{2}-\d{2}$/.test(anchorDate)) throw new Error("请提供 --anchor=YYYY-MM-DD。");
 
@@ -95,7 +96,7 @@ try {
     created_at: timestamp(date, "20:15"), updated_at: timestamp(date, "20:15"),
   })), existing.nutrition_records);
 
-  inserted.face_records = await insertMissing("face_records", dates.map((date, index) => ({
+  inserted.face_records = skipFace ? 0 : await insertMissing("face_records", dates.map((date, index) => ({
     user_id: userId, record_date: date, image_path: null, overall_score: daily[index].faceScore, skin_age: null,
     annotations: [{ label: daily[index].sleepMinutes < 400 ? "轻微疲劳信号" : "状态自然", desc: daily[index].sleepMinutes < 400 ? "眼周状态与近期睡眠偏少一致" : "面部状态与当日自评基本一致", dot_x: .5, dot_y: .42 }],
     feedback: daily[index].sleepMinutes < 400 ? "今天看起来稍有疲劳，优先补水并早点休息。" : "今天的面部状态较平稳，继续保持规律作息。",

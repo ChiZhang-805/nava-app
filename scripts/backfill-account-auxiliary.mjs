@@ -113,8 +113,10 @@ try {
   await insertMissing("focus_time_distribution", focusRows);
   await insertMissing("health_metric_snapshots", healthRows);
   await insertMissing("rhythm_outcome_feedback", feedbackRows);
-  const fdnb = await supabase.functions.invoke("fdnb-recompute", { body: { endDate } });
-  if (fdnb.error) throw await functionError("fdnb-recompute", fdnb.error);
+  const fdnb = await supabase.functions.invoke("dnb-weekly-report", {
+    body: { startDate: shiftDate(endDate, -6), endDate, analysisDays: 14 },
+  });
+  if (fdnb.error) throw await functionError("dnb-weekly-report", fdnb.error);
 
   console.log(JSON.stringify({
     startDate,

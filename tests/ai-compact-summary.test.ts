@@ -37,9 +37,14 @@ test("both AI functions keep a valid model report when only its compact labels n
     assert.match(source, /slice\(0, 7\)/);
   }
   assert.match(healthFunction, /不能只是截断 headline/);
-  assert.match(dietFunction, /不能只是截断 bullets/);
+  assert.match(dietFunction, /不能仅截断 B 项/);
   assert.match(healthFunction, /bullets: \{ \.\.\.report, sourceFingerprint: fingerprint \}/);
   assert.match(dietFunction, /ai_feedback: JSON\.stringify\(stored\)/);
+  assert.match(dietFunction, /max_tokens: 500/);
+  assert.match(dietFunction, /previousDraft\.slice\(0, 3000\)/);
+  assert.match(dietFunction, /attempt < 3/);
+  assert.match(dietFunction, /formatIssues\(rawBullets, rawCompactBullets, input\.lang\)/);
+  assert.match(dietFunction, /bullets\[\$\{index\}\] has \$\{count\}/);
 });
 
 test("all module overview failures surface the server message and remain retryable", () => {
