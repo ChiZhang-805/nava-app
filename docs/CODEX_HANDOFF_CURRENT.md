@@ -1,6 +1,6 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
-更新时间：**2026-09-10**
+更新时间：**2026-09-13**
 
 这份文件是新 Codex 任务接手 NAVA 时的第一入口，也是当前项目状态的
 **独立、可直接使用的交接文档**。它不依赖这段很长、曾多次出现界面回退的
@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`616d299c38e08dab7fe01d11145e36cfe3ddfb83`
+- 源码发布 commit：`73e0b72f80ff31a0e3057bca319bd25437941d87`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v132，public
+- ChatGPT Sites 版本：v133，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_dcb873e33c3081918af923e3ddf785a1`
-- Sites deployment ID：`appgdep_6aa2c9686db88191b40e95f007908a5d`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_c1182c384d088191bce70b5f33e4aa58`
+- Sites deployment ID：`appgdep_6aa69fd7e6e48191bc77f54aa4c99005`
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `afc2c0cdc1e0a61bcfb1279ef4a56dc98181fa2a`
+  `37f71f783ea63a1472aa885bec0b6128d0e62ee1`
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v132 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-sites-v132.tar.gz`
+- v133 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-sites-v133.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v132 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v133 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -2050,3 +2050,28 @@ SecureString 传入账号凭据并在进程结束清理环境变量，输出仅�
 垂直居中，仍限制为两行且保留原气泡尖角、位置和点击路由。首页专项测试新增 12 条专注
 文案的时段/随机/真实分钟断言，以及字号、字重、字体族、水平居中和垂直中轴断言；
 360×740、375×812、390×844、430×932 四档均需通过，无横向溢出或导航碰撞。
+
+## 57. 2026-09-13 用户提供的小猫动画与双站 v133
+
+用户提供的 `gif.zip` 含 22 段 GIF，逐段查看关键帧和动作含义后才接入：14 段首页
+待机、伸懒腰、蝴蝶互动、思考、阅读、哈欠、打盹、翻滚、鼓脸与玩鱼等；2 段用于
+加载/下拉刷新；6 段分别为情绪写日记、睡眠、运动举重、饮食、专注电脑和面部护理。
+首页点击小猫优先播放当天真实 guidance 对应动作，随后轮播其他动作；六模块趋势
+报告、面部结果、专注沉浸及相关空态按语义替换原静态图。原静态图仍用于用户选择
+“减少动态效果”或动画加载失败时的回退，分享卡的静态导出路径没有改动。
+
+原 ZIP 约 577 MB，不直接放进 APP；22 段均转为透明多帧 WebP，合计 19,162,224
+字节，单段最大约 2.3 MB，按实际页面使用才加载。`npm run verify` 32 阶段、
+`npm run interaction:test` 11 组、六模块总览四视口、首页四视口与减少动态效果回退、
+`npm run auth:verify:production` 均通过；22/22 文件确认是多帧动画。关键帧审看与
+转换脚本证据在 `Q:\NAVA-Workspace\Build\TestRuns\mascot-gif-review`，首页实测证据在
+`Q:\NAVA-Workspace\Build\TestRuns\nava-mascot-gif-20260913`。
+
+功能源码 `73e0b72f80ff31a0e3057bca319bd25437941d87` 已 push，并从该提交生成
+Sites v133 与 GitHub Pages v133。Sites version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_c1182c384d088191bce70b5f33e4aa58`，
+deployment ID 为 `appgdep_6aa69fd7e6e48191bc77f54aa4c99005`，状态 succeeded；
+Pages 镜像 commit 为 `37f71f783ea63a1472aa885bec0b6128d0e62ee1`，在线
+`source.json` 指向同一源码提交。两个公开站点的真实浏览器均通过登录门、公开 demo
+隔离，并对首页待机、情绪、睡眠三份线上动画与本地构建逐文件核对 SHA-256 一致。
+本轮没有修改 Supabase、Edge Function、migration、secret 或生产用户记录。
