@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ComponentType, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import homeSceneBackground from "../assets/figma/home-option2/home-scene-v3.png";
+import homeMascotStill from "../assets/figma/home-option2/home-mascot-v5.png";
+import pullRefreshMascot from "../assets/mascot/animated/loading-pull-refresh.webp";
 import healthDietIcon from "../assets/figma/option-two-icons/diet.svg";
 import healthExerciseIcon from "../assets/figma/option-two-icons/exercise.svg";
 import healthFaceIcon from "../assets/figma/option-two-icons/face.svg";
@@ -25,6 +27,7 @@ import AnimatedNumber from "../components/AnimatedNumber";
 import ModuleProgressRing from "../components/ModuleProgressRing";
 import { SkeletonBlock } from "../components/PageSkeleton";
 import InteractiveMascot from "../components/InteractiveMascot";
+import MascotImage from "../components/MascotImage";
 import {
   EnergyStatusIcon,
   HeartMetricIcon,
@@ -172,6 +175,7 @@ export default function OptionTwoHome({
   const [widgetAnnouncement, setWidgetAnnouncement] = useState("");
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
   const [localHour, setLocalHour] = useState(() => new Date().getHours());
   const [guidanceVariantSeed] = useState(() => Math.floor(Math.random() * 1_000_000));
   const [guidanceDismissed, setGuidanceDismissed] = useState(false);
@@ -218,6 +222,16 @@ export default function OptionTwoHome({
     }
     setLoading(false);
   }, [deviceDate, guidanceEligible, locale, user.id]);
+
+  const refreshFromPull = async () => {
+    if (loading || pullRefreshing) return;
+    setPullRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setPullRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -453,7 +467,13 @@ export default function OptionTwoHome({
       setHealthMenuOpen(true);
       return;
     }
-    if (isVerticalHomeSwipe(gesture.startX, gesture.startY, endX, endY, window.innerHeight, "down")) setHealthMenuOpen(false);
+    if (isVerticalHomeSwipe(gesture.startX, gesture.startY, endX, endY, window.innerHeight, "down")) {
+      if (healthMenuOpen) setHealthMenuOpen(false);
+      else if (!widgetArrangeMode && gesture.startY < Math.max(140, window.innerHeight * .25)) {
+        ignoreClickUntilRef.current = Date.now() + 450;
+        void refreshFromPull();
+      }
+    }
   };
 
   const dismissHealthMenuOutside = (event: ReactMouseEvent<HTMLElement>) => {
@@ -505,6 +525,9 @@ export default function OptionTwoHome({
         draggable={false}
         decoding="async"
       />
+      {pullRefreshing && <div className="option-two-pull-refresh" role="status" aria-label={locale === "zh" ? "正在刷新今日状态" : "Refreshing today's status"}>
+        <MascotImage animatedSrc={pullRefreshMascot} staticSrc={homeMascotStill} alt="" aria-hidden="true" />
+      </div>}
       <div className="option-two-scores" aria-label={t("today.overview")} aria-live="polite" aria-busy={loading}>
         <div aria-label={`${t("today.rhythm")} ${rhythmScore}`}><EnergyStatusIcon className="option-two-score-icon option-two-score-icon--energy" size={17} /><strong>{loading && snapshot === null ? <SkeletonBlock className="option-two-score-skeleton" /> : <>{typeof rhythmScore === "number" ? <AnimatedNumber value={rhythmScore} /> : rhythmScore}<small>/100</small></>}</strong></div>
         <div aria-label={`${t("today.myPoints")} ${points}`}><PointsStatusIcon className="option-two-score-icon option-two-score-icon--points" size={18} /><strong>{loading && totalPoints === null ? <SkeletonBlock className="option-two-score-skeleton" /> : typeof points === "number" ? <AnimatedNumber value={points} duration={760} /> : points}</strong></div>

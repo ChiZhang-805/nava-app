@@ -616,6 +616,7 @@ async function verifyRecordModules(page, results) {
   await assertAnimation(page.locator('[data-record-detail="mood"] .diet-history-line'), "trend-line-draw", "mood report line");
   await expect(page.locator('[data-record-detail="mood"] .module-ai-report li')).toHaveCount(4);
   await expect(page.locator('[data-record-detail="mood"] .module-ai-mascot')).toBeVisible();
+  await expect(page.locator('[data-record-detail="mood"] .module-ai-mascot')).toHaveAttribute("src", /module-mood.*\.webp/);
   await page.waitForTimeout(2_250);
   await page.screenshot({ path: path.join(outputDir, "record-mood-trend.png") });
   await returnFromSubview();
@@ -643,6 +644,7 @@ async function verifyRecordModules(page, results) {
   await assertAnimation(page.locator('[data-record-detail="sleep"] .diet-history-line'), "trend-line-draw", "sleep report line");
   await expect(page.locator('[data-record-detail="sleep"] .module-ai-report li')).toHaveCount(4);
   await expect(page.locator('[data-record-detail="sleep"] .module-ai-mascot')).toBeVisible();
+  await expect(page.locator('[data-record-detail="sleep"] .module-ai-mascot')).toHaveAttribute("src", /module-sleep.*\.webp/);
   await page.waitForTimeout(2_150);
   await page.screenshot({ path: path.join(outputDir, "record-sleep-trend.png") });
   await returnFromSubview();
@@ -706,6 +708,7 @@ async function verifyRecordModules(page, results) {
   await expect(page.locator('[data-record-detail="exercise"] .report-history-trend-chart')).toBeVisible();
   await expect(page.locator('[data-record-detail="exercise"] .module-ai-report li')).toHaveCount(4);
   await expect(page.locator('[data-record-detail="exercise"] .module-ai-mascot')).toBeVisible();
+  await expect(page.locator('[data-record-detail="exercise"] .module-ai-mascot')).toHaveAttribute("src", /module-exercise.*\.webp/);
   await page.waitForTimeout(1_100);
   await page.screenshot({ path: path.join(outputDir, "record-exercise-trend.png") });
   await returnFromSubview();
@@ -776,6 +779,7 @@ async function verifyRecordModules(page, results) {
   await assertAnimation(page.locator('[data-record-detail="diet"] .diet-history-line'), "trend-line-draw", "diet history line");
   await expect(page.locator('[data-record-detail="diet"] .diet-ai-report li')).toHaveCount(4);
   await expect(page.locator('[data-record-detail="diet"] .diet-ai-mascot')).toBeVisible();
+  await expect(page.locator('[data-record-detail="diet"] .diet-ai-mascot')).toHaveAttribute("src", /module-diet.*\.webp/);
   const dietHistoryGeometry = await page.locator('[data-record-detail="diet"] .diet-history-trend-chart svg').evaluate((svg) => ({
     dateY: [...svg.querySelectorAll(".diet-history-date")].map((node) => Number(node.getAttribute("y"))),
     pointY: [...svg.querySelectorAll(".diet-history-dot")].map((node) => Number(node.getAttribute("cy"))),
@@ -855,6 +859,7 @@ async function verifyRecordModules(page, results) {
   await expect(page.locator('[data-record-detail="face"] .report-history-trend-chart')).toBeVisible();
   await expect(page.locator('[data-record-detail="face"] .module-ai-report li')).toHaveCount(4);
   await expect(page.locator('[data-record-detail="face"] .module-ai-mascot')).toBeVisible();
+  await expect(page.locator('[data-record-detail="face"] .module-ai-mascot')).toHaveAttribute("src", /module-face.*\.webp/);
   await page.waitForTimeout(1_050);
   await page.screenshot({ path: path.join(outputDir, "record-face-trend.png") });
   await assertNoBottomNavClipping(page, "face-history", '[data-record-detail="face"] .module-history-list p, [data-record-detail="face"] .module-history-share');
@@ -891,20 +896,18 @@ async function verifyHomeShortcuts(page, results) {
   await expect(mascot).toHaveAttribute("data-next-motion", "wave");
   await mascot.click();
   await expect(mascot).toHaveAttribute("data-mascot-motion", "wave");
-  await expect(mascot).toHaveAttribute("data-motion-visual", "figma-reference-mascot");
+  await expect(mascot).toHaveAttribute("data-motion-visual", "supplied-animated-mascot");
   const mascotImage = page.locator(".nava-mascot-pose--idle");
-  await expect(mascotImage).toHaveAttribute("src", /home-mascot-v5/);
-  const initialTransform = await mascotImage.evaluate((node) => getComputedStyle(node).transform);
-  await page.waitForTimeout(420);
-  const movedTransform = await mascotImage.evaluate((node) => getComputedStyle(node).transform);
-  if (movedTransform === initialTransform) throw new Error("home reference mascot did not respond to the tap");
+  await expect(mascotImage).toHaveAttribute("src", /home-stretch/);
+  await expect(mascotImage).toHaveAttribute("data-mascot-media", "animated");
+  await expect(mascotImage).toHaveJSProperty("complete", true);
   await page.screenshot({ path: path.join(outputDir, "today-mascot-wave.png") });
-  await page.waitForTimeout(3_650);
-  await expect(mascot).toHaveAttribute("data-mascot-motion", "idle");
+  await expect(mascot).toHaveAttribute("data-mascot-motion", "idle", { timeout: 10_000 });
+  await expect(mascotImage).toHaveAttribute("src", /home-idle/);
   await expect(mascot).toHaveAttribute("data-context-motion", "wave");
-  await expect(mascot).toHaveAttribute("data-next-motion", "wave");
+  await expect(mascot).toHaveAttribute("data-next-motion", "butterfly");
   await mascot.click();
-  await expect(mascot).toHaveAttribute("data-mascot-motion", "wave");
+  await expect(mascot).toHaveAttribute("data-mascot-motion", "butterfly");
 
   const sideActions = page.locator(".option-two-side-actions button");
   await expect(sideActions).toHaveCount(6);

@@ -40,6 +40,7 @@ import AnimatedNumber from "../components/AnimatedNumber";
 import BarLineTrendChart, { type BarLineTrendPoint } from "../components/BarLineTrendChart";
 import LineTrendChart from "../components/LineTrendChart";
 import { SkeletonBars, SkeletonLines } from "../components/PageSkeleton";
+import MascotImage from "../components/MascotImage";
 import { useLocale } from "../i18n";
 import dietInsightMascot from "../assets/mascot/nava-eat-v5.webp";
 import sleepInsightMascot from "../assets/mascot/nava-sleep-v1.webp";
@@ -48,6 +49,13 @@ import moodInsightMascot from "../assets/mascot/nava-journal-v1.webp";
 import focusInsightMascot from "../assets/mascot/nava-read-v1.webp";
 import faceInsightMascot from "../assets/mascot/nava-mirror-v1.webp";
 import emptyTodayMascot from "../assets/mascot/nava-empty-cry-v1.webp";
+import animatedDietMascot from "../assets/mascot/animated/module-diet.webp";
+import animatedSleepMascot from "../assets/mascot/animated/module-sleep.webp";
+import animatedExerciseMascot from "../assets/mascot/animated/module-exercise.webp";
+import animatedMoodMascot from "../assets/mascot/animated/module-mood.webp";
+import animatedFocusMascot from "../assets/mascot/animated/module-focus.webp";
+import animatedFaceMascot from "../assets/mascot/animated/module-face.webp";
+import animatedEmptyMascot from "../assets/mascot/animated/home-fluff-2.webp";
 import type { FocusRecord, FoodItem, MoodRecord, TodaySnapshot, TrendBundle } from "../types";
 import { enableNavaNotifications, loadNotificationPreference } from "../services/notifications";
 import { loadDietAiReport, type DietAiReport } from "../services/dietReport";
@@ -201,6 +209,15 @@ const reportMascotByModule: Record<RecordModule, string> = {
   diet: dietInsightMascot,
   focus: focusInsightMascot,
   face: faceInsightMascot,
+};
+
+const animatedReportMascotByModule: Record<RecordModule, string> = {
+  mood: animatedMoodMascot,
+  sleep: animatedSleepMascot,
+  exercise: animatedExerciseMascot,
+  diet: animatedDietMascot,
+  focus: animatedFocusMascot,
+  face: animatedFaceMascot,
 };
 
 function shortDate(date: string, locale: "zh" | "en") {
@@ -497,14 +514,16 @@ function HistoryView({
                   : <ul>{reportInsights.map((bullet, index) => <li key={`${index}-${bullet}`}>{bullet}</li>)}</ul>}
                 {reportError && <div className="module-ai-error"><small className="module-ai-fallback-note">{reportError}</small><button type="button" onClick={() => setReportRefreshKey((key) => key + 1)}>{locale === "zh" ? "重新生成" : "Generate again"}</button></div>}
               </div>
-              <img
+              <MascotImage
                 className="diet-ai-mascot module-ai-mascot"
-                src={reportMascotByModule[module]}
+                animatedSrc={animatedReportMascotByModule[module]}
+                staticSrc={reportMascotByModule[module]}
                 alt={locale === "zh" ? `NAVA 小猫展示${moduleNames[module].zh}主题动作` : `NAVA cat illustrating the ${moduleNames[module].en.toLowerCase()} report`}
+                loading="lazy"
               />
             </section>
           : <section className="module-today-empty-state" aria-live="polite" data-report-today-state="missing">
-              <img className="module-today-empty-mascot" src={emptyTodayMascot} alt={locale === "zh" ? "NAVA 小猫趴着哭泣" : "NAVA cat lying down with two little tears"} />
+              <MascotImage className="module-today-empty-mascot" animatedSrc={animatedEmptyMascot} staticSrc={emptyTodayMascot} alt={locale === "zh" ? "NAVA 小猫等待今日记录" : "NAVA cat waiting for today's entry"} loading="lazy" />
               <p>{missingCurrentDayCopy(module, locale)}</p>
             </section>}
         <button
@@ -1919,7 +1938,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           </div>}
         </div>
         {focusNote && <p className="focus-immersive-note">{focusNote}</p>}
-        <img className="focus-immersive-mascot" src={focusInsightMascot} alt="" aria-hidden="true" />
+        <MascotImage className="focus-immersive-mascot" animatedSrc={animatedFocusMascot} staticSrc={focusInsightMascot} alt="" aria-hidden="true" />
         <div className="focus-timer-ring" style={{ "--timer-progress": `${progress}%` } as CSSProperties}>
           <div>
             <div className="focus-timer-edit" role="group" aria-label={locale === "zh" ? "触摸修改计时时间" : "Tap to edit timer"}>

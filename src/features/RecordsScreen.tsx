@@ -8,8 +8,11 @@ import PageSkeleton, { SkeletonBlock, SkeletonLines } from "../components/PageSk
 import LineTrendChart from "../components/LineTrendChart";
 import SectionCard from "../components/SectionCard";
 import WeeklyRadarChart from "../components/WeeklyRadarChart";
+import MascotImage from "../components/MascotImage";
 import weeklyRunMascot from "../assets/mascot/nava-run-v1.webp";
 import faceInsightMascot from "../assets/mascot/nava-face-insight-v2.webp";
+import weeklyCuriousMascot from "../assets/mascot/animated/home-curious.webp";
+import animatedFaceMascot from "../assets/mascot/animated/module-face.webp";
 import { useLocale, type TranslationKey } from "../i18n";
 import {
   saveExerciseRecord,
@@ -1500,7 +1503,7 @@ export default function RecordsScreen({
                         })}</ul>
                       </div>}
                 {weeklyAiUnavailable && <small>{locale === "zh" ? "真实 AI 洞察暂不可用，请稍后重试。" : "Real AI insights are temporarily unavailable."}</small>}
-                <img className="weekly-insight-mascot" src={weeklyRunMascot} alt={locale === "zh" ? "NAVA 小猫在跑步机上跑步" : "NAVA cat running on a treadmill"} />
+                <MascotImage className="weekly-insight-mascot" animatedSrc={weeklyCuriousMascot} staticSrc={weeklyRunMascot} alt={locale === "zh" ? "NAVA 小猫好奇地查看本周节律" : "NAVA cat looking curiously at this week's rhythm"} loading="lazy" />
               </div>
             </section>
             {weeklyDetailSection && <div className="weekly-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="weekly-detail-title" onClick={(event) => { if (event.target === event.currentTarget) setWeeklyDetailSection(null); }}>
@@ -2112,7 +2115,7 @@ export default function RecordsScreen({
                 ? <ul>{visibleFaceInsights.map((insight) => <li key={insight}>{insight}</li>)}</ul>
                 : <p>{locale === "zh" ? "等待本次面部状态分析" : "Waiting for this face-state analysis"}</p>}
             </div>
-            <img src={faceInsightMascot} alt="" aria-hidden="true" />
+            <MascotImage animatedSrc={animatedFaceMascot} staticSrc={faceInsightMascot} alt="" aria-hidden="true" />
           </section>
           {faceDraftFile && !faceResult && !faceAnalyzing && <button className="face-resume-analysis" type="button" onClick={() => void handleFacePhoto(faceDraftFile)}><RefreshCw size={16} />{locale === "zh" ? "继续分析已恢复的照片" : "Analyze the restored photo"}</button>}
           {pendingFaceAnalysis && <div className="face-makeup-check" role="alert">

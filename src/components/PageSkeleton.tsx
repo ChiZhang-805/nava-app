@@ -1,6 +1,9 @@
 import type { CSSProperties } from "react";
 import { useLocale } from "../i18n";
 import homeMascot from "../assets/figma/home-option2/home-mascot-v5.png";
+import idleMascot from "../assets/mascot/animated/home-idle.webp";
+import loadingMascot from "../assets/mascot/animated/loading-spin.webp";
+import MascotImage from "./MascotImage";
 import homeSceneBackground from "../assets/figma/home-option2/home-scene-v3.png";
 
 export type PageSkeletonVariant =
@@ -209,13 +212,13 @@ function TodaySkeleton() {
       {Array.from({ length: 4 }, (_, index) => <SkeletonBlock className={`home-widget-skeleton home-widget-skeleton--position-${index + 1}`} key={index} />)}
     </section>
     <SkeletonBlock className="page-skeleton-home-guidance" />
-    <div className="page-skeleton-home-life-stage"><img src={homeMascot} alt="" aria-hidden="true" /></div>
+    <div className="page-skeleton-home-life-stage"><MascotImage animatedSrc={idleMascot} staticSrc={homeMascot} alt="" aria-hidden="true" /></div>
   </>;
 }
 
 function AuthSkeleton() {
   return <>
-    <section className="page-skeleton-auth-hero"><SkeletonBlock className="is-wordmark" /><SkeletonLines count={2} compact /></section>
+    <section className="page-skeleton-auth-hero"><MascotImage className="page-skeleton-auth-loading-cat" animatedSrc={loadingMascot} staticSrc={homeMascot} alt="" aria-hidden="true" /><SkeletonBlock className="is-wordmark" /><SkeletonLines count={2} compact /></section>
     <section className="page-skeleton-auth-form"><SkeletonBlock className="is-heading" /><SkeletonBlock className="is-field" /><SkeletonBlock className="is-field" /><SkeletonBlock className="is-button" /><SkeletonBlock className="is-consent" /></section>
   </>;
 }

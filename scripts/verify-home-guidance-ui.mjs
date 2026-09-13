@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-guidance-figma-parity-v111-20260906";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-mascot-gif-20260913";
 const port = 5202;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -73,6 +73,10 @@ try {
     await expect(guidance).toBeVisible();
     await expect(guidance.locator("p")).toHaveCount(1);
     await expect(mascot).toHaveAttribute("data-context-motion", /^(wave|tail|read|sleep|lift)$/);
+    const mascotImage = mascot.locator("img");
+    await expect(mascotImage).toHaveAttribute("src", /home-idle.*\.webp/);
+    await expect(mascotImage).toHaveAttribute("data-mascot-media", "animated");
+    await expect.poll(() => mascotImage.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
 
     const geometry = await page.evaluate(() => {
       const rect = (selector) => {
@@ -175,6 +179,8 @@ try {
     if (!mascotBox) throw new Error(`${viewport.name}: mascot has no interaction geometry`);
     await mascot.click({ position: { x: mascotBox.width * .5, y: mascotBox.height * .65 } });
     await expect(mascot).toHaveAttribute("data-mascot-motion", preferredMotion);
+    await expect(mascotImage).toHaveAttribute("src", /(?:home-|module-exercise).*\.webp/);
+    await expect.poll(() => mascotImage.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-context-motion.png`) });
 
     if (viewport.name === "360x740") {
@@ -197,6 +203,18 @@ try {
     results.push({ viewport, preferredMotion, geometry, expandedGeometry });
     await context.close();
   }
+  const reducedContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
+  const reducedPage = await reducedContext.newPage();
+  await login(reducedPage);
+  await dismissRewardIfPresent(reducedPage);
+  const reducedMascot = reducedPage.locator(".nava-mascot");
+  await expect(reducedMascot.locator("img")).toHaveAttribute("data-mascot-media", "still");
+  await expect(reducedMascot.locator("img")).toHaveAttribute("src", /home-mascot-v5/);
+  await reducedMascot.click();
+  await expect(reducedMascot.locator("img")).toHaveAttribute("data-mascot-media", "still");
+  await reducedPage.screenshot({ path: path.join(outputDir, "390x844-reduced-motion.png") });
+  results.push({ reducedMotion: "static fallback verified" });
+  await reducedContext.close();
 } finally {
   await browser.close();
   await server.close();
