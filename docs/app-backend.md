@@ -6,7 +6,7 @@ App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负�
 
 | Function | 作用 | 主要写入 |
 | --- | --- | --- |
-| `ai-extract-data` | 使用正式模型提取睡眠、运动、情绪、专注、饮食和资料更新；本地规则只形成候选，用户确认后保存 | App 确认后写对应业务表 |
+| `ai-extract-data` | 使用正式模型提取睡眠、运动、情绪、专注、饮食、资料更新和待办；本地规则只形成候选，用户确认后保存 | App 确认后写对应业务表 |
 | `ai-chat-reply` | 基于当前 JWT、授权画像与真实记录流式生成 NAVA AI 回复 | App 写 `ai_conversations` |
 | `ai-diet-report` | 根据最近七日真实饮食和授权画像生成普通与紧凑摘要 | 当前日 `nutrition_records.ai_feedback` |
 | `ai-health-report` | 为情绪、睡眠、运动、专注、面部和周报生成带证据、行动与置信度的结构化报告 | `ai_health_reports` |
@@ -30,7 +30,7 @@ App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负�
 
 这一步没有擅自接入 FatSecret、Passio、Gemini 或 Edamam。现有 USDA FoodData Central 知识工具用于 AI 文本证据，不代表饮食照片链路已经用 USDA 逐项核准。供应商数据库授权、匹配质量、地区覆盖和缓存条款需要另行验证后才能把项目标记为 `usda_fdc`；在此之前 UI 明示 AI 估算或待核对，不宣传“拍照精确测热量”。
 
-截至 2026-09-14，canonical 项目的 `diet-extract` version 25、`ai-diet-report` version 23、`ai-health-report` version 23、`ai-chat-reply` version 33 和 `ai-extract-data` version 26 均为 ACTIVE，且均启用 JWT 验证；这是本轮部署后的状态。饮食摘要模型合同现为 `deepseek-v4-flash-15-18-plus-compact-seven-v11-single-item-repair`，健康报告模型合同现为 `deepseek-v4-flash-health-report-v9-grounded-evidence-repair`。2026-08-28 至 09-13 的授权账号安全审计确认十类记录表各覆盖 17/17 天、四餐逐项和每日聚合一致、饮食 AI 摘要 17/17 有真实 DeepSeek v11 结果、六种健康报告作用域在每个日期均有真实 DeepSeek 结果。登录后的两处公开 APP 均能读到 09-07 至 09-13 的结构化 AI 周洞察；Sites 饮食页还能看到 09-13 四餐、AI 即时反馈和逐项份量/热量编辑器。浏览器页面读取不等同于对每个历史日期重新调用模型；安全审计分别校验了持久化模型版本与来源。
+截至 2026-09-14，canonical 项目的 `diet-extract` version 25、`ai-diet-report` version 23、`ai-health-report` version 23、`ai-chat-reply` version 33 和 `ai-extract-data` version 27 均为 ACTIVE，且均启用 JWT 验证；这是本轮部署后的状态。`ai-extract-data` v27 新增待办意图及设备本地日期、时间的模型结构化抽取；已用授权账号验证“下周三上午九点要准备小组汇报”得到事项、日期和 09:00，否定句未生成待办，两次抽取均未写入任务。饮食摘要模型合同现为 `deepseek-v4-flash-15-18-plus-compact-seven-v11-single-item-repair`，健康报告模型合同现为 `deepseek-v4-flash-health-report-v9-grounded-evidence-repair`。2026-08-28 至 09-13 的授权账号安全审计确认十类记录表各覆盖 17/17 天、四餐逐项和每日聚合一致、饮食 AI 摘要 17/17 有真实 DeepSeek v11 结果、六种健康报告作用域在每个日期均有真实 DeepSeek 结果。登录后的两处公开 APP 均能读到 09-07 至 09-13 的结构化 AI 周洞察；Sites 饮食页还能看到 09-13 四餐、AI 即时反馈和逐项份量/热量编辑器。浏览器页面读取不等同于对每个历史日期重新调用模型；安全审计分别校验了持久化模型版本与来源。
 
 以下 2026-09-10 至 09-13 的版本号和验收段落保留为历史快照，不代表上述当前部署版本。
 截至 2026-09-10，当轮涉及的 `ai-chat-reply`、`ai-diet-report`、`ai-health-report`、

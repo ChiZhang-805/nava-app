@@ -339,6 +339,9 @@ export default function AIScreen({
     const photoEntry = pendingEntry?.type === "nutrition" && pendingEntry.payload.source === "vision"
       ? applyPhotoNutritionCorrection(pendingEntry, typedMessage)
       : null;
+    setPendingEntry(null);
+    setPendingEntryMessageId(null);
+    setEditingEntry(false);
     let userCommitted = false;
     setStreamingPreview({ status: null, content: "", startedAt: new Date().toISOString() });
     try {

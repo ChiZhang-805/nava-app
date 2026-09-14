@@ -199,6 +199,17 @@ function cleanTodoTitle(text: string, matchedDateText: string, matchedTimeText: 
     .trim();
 }
 
+function todoEntry(todoTitle: string, scheduledDate: string, scheduledTime: string | undefined, locale: "zh" | "en", confidence = 0.86) {
+  const focusPlan = suggestedFocusPlan(todoTitle);
+  return entry("todo", locale, todoTitle, [
+    { label: locale === "zh" ? "事项" : "Task", value: todoTitle, path: "title" },
+    { label: locale === "zh" ? "日期" : "Date", value: scheduledDate, path: "scheduledDate" },
+    ...(scheduledTime ? [{ label: locale === "zh" ? "时间" : "Time", value: scheduledTime, path: "scheduledTime" }] : []),
+    { label: locale === "zh" ? "建议专注时长" : "Suggested focus", value: String(focusPlan.focusMinutes), unit: locale === "zh" ? "分钟" : "min", valueType: "number" as const, path: "focusMinutes" },
+    { label: locale === "zh" ? "建议次数" : "Suggested sessions", value: String(focusPlan.focusSessions), unit: locale === "zh" ? "次" : "sessions", valueType: "number" as const, path: "focusSessions" },
+  ], { title: todoTitle, scheduledDate, scheduledTime, ...focusPlan }, confidence);
+}
+
 function title(type: Exclude<StructuredEntryType, "multi">, locale: "zh" | "en") {
   const labels = locale === "zh"
     ? { mood: "情绪记录", sleep: "睡眠记录", exercise: "运动记录", nutrition: "饮食记录", focus: "专注记录", todo: "待办事项" }
@@ -396,6 +407,18 @@ function extractionConfidence(value: unknown, fallback = 0.76) {
 }
 
 function modelEntry(dataType: string, data: Record<string, unknown>, text: string, locale: "zh" | "en", confidence: number, allowLocalEstimates = true): StructuredEntry | null {
+  if (dataType === "todo") {
+    const title = stringValue(data.title) ?? stringValue(data.taskTitle) ?? stringValue(data.task_title);
+    const dateText = stringValue(data.scheduledDate) ?? stringValue(data.scheduled_date);
+    if (!title || title.length > 100 || !dateText || !/^\d{4}-\d{2}-\d{2}$/.test(dateText)) return null;
+    const [year, month, day] = dateText.split("-").map(Number);
+    if (!validCalendarDate(year, month, day) || dateText < localDateISO(new Date())) return null;
+    const statedTime = stringValue(data.scheduledTime) ?? stringValue(data.scheduled_time);
+    const time = statedTime && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(statedTime)
+      && /(?:点|时|:|：|\b(?:am|pm)\b|\bat\s*\d{1,2}\b|morning|afternoon|evening|凌晨|早上|上午|中午|下午|傍晚|晚上)/i.test(text)
+      ? statedTime : undefined;
+    return todoEntry(title, dateText, time, locale, confidence);
+  }
   if (dataType === "mood") {
     const score = numberValue(data.moodScore) ?? numberValue(data.mood_score) ?? numberValue(data.score);
     if (score == null) return null;
@@ -558,21 +581,17 @@ export function parseStructuredEntry(
   const intentText = schedule ? value.replace(schedule.matchedDateText, " ").replace(schedule.matchedTimeText, " ").trim() : value;
   const commitment = /^(?:我|我们)?(?:要|得|需要|计划|准备|打算|必须|将会?)\s*(?:去)?[^，,。；;]{1,40}/.test(intentText);
   const negated = /(?:不要|不需要|不打算|不准备|可能|也许|大概)/.test(value);
+  const allowLocalHealthFallback = options.allowLocalHealthFallback !== false;
+  const extracted = entryFromExtraction(extraction, value, locale, allowLocalHealthFallback);
+  const modelEntries = flattenedEntries(extracted).filter((item) => !negated || item.type !== "todo");
+  const model = modelEntries.length === 0 ? null : modelEntries.length === 1 ? modelEntries[0] : multiEntry(modelEntries, locale, value);
   if (explicitTodo || futureDate && commitment && !negated) {
+    if (model?.type === "todo" || model?.type === "multi" && model.entries?.some((item) => item.type === "todo")) return model;
     if (!schedule) return null;
     const todoTitle = cleanTodoTitle(value, schedule.matchedDateText, schedule.matchedTimeText) || value;
-    const focusPlan = suggestedFocusPlan(todoTitle);
-    return entry("todo", locale, todoTitle, [
-      { label: locale === "zh" ? "事项" : "Task", value: todoTitle, path: "title" },
-      { label: locale === "zh" ? "日期" : "Date", value: schedule.scheduledDate, path: "scheduledDate" },
-      ...(schedule.scheduledTime ? [{ label: locale === "zh" ? "时间" : "Time", value: schedule.scheduledTime, path: "scheduledTime" }] : []),
-      { label: locale === "zh" ? "建议专注时长" : "Suggested focus", value: String(focusPlan.focusMinutes), unit: locale === "zh" ? "分钟" : "min", valueType: "number", path: "focusMinutes" },
-      { label: locale === "zh" ? "建议次数" : "Suggested sessions", value: String(focusPlan.focusSessions), unit: locale === "zh" ? "次" : "sessions", valueType: "number", path: "focusSessions" },
-    ], { title: todoTitle, scheduledDate: schedule.scheduledDate, scheduledTime: schedule.scheduledTime, ...focusPlan });
+    return todoEntry(todoTitle, schedule.scheduledDate, schedule.scheduledTime, locale);
   }
 
-  const allowLocalHealthFallback = options.allowLocalHealthFallback !== false;
-  const model = entryFromExtraction(extraction, value, locale, allowLocalHealthFallback);
   const local = allowLocalHealthFallback ? localStructuredEntry(value, locale) : null;
   const entries = [...flattenedEntries(model)];
   for (const candidate of flattenedEntries(local)) {

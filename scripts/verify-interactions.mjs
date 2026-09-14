@@ -171,7 +171,7 @@ async function createReviewPage(browser, baseUrl, consoleErrors) {
 
       start() {
         this.transcriptTimer = window.setTimeout(() => {
-          const result = [{ transcript: "今天感觉很平稳" }];
+          const result = [{ transcript: window.__navaMockSpeechTranscript || "今天感觉很平稳" }];
           result.isFinal = false;
           this.onresult?.({ resultIndex: 0, results: [result] });
         }, 80);
@@ -1244,7 +1244,60 @@ async function verifyAi(page, results, diagnostics) {
   await page.mouse.up();
   await expect(page.locator(".chat-composer.voice-active")).toBeHidden();
   await expect(page.locator(".chat-input-shell input")).toHaveValue(inputBeforeCancelledVoice);
-  results.push("AI 对话、完整短答与模型侧字数契约、附件菜单、照片/文件/摄像头入口、视觉餐食确认保存、按住录音与上滑取消");
+  await page.evaluate(() => { window.__navaMockSpeechTranscript = "明天下午三点要交论文"; });
+  await page.locator('[data-tab="today"]').click();
+  const taskVoiceBox = await aiButton.boundingBox();
+  if (!taskVoiceBox) throw new Error("AI button has no bounds before spoken todo test");
+  await page.mouse.move(taskVoiceBox.x + taskVoiceBox.width / 2, taskVoiceBox.y + taskVoiceBox.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(650);
+  await expect(page.locator(".chat-composer.voice-active")).toBeVisible();
+  await page.mouse.up();
+  await expect(page.locator(".chat-input-shell input")).toHaveValue("明天下午三点要交论文");
+  await page.locator(".chat-send-button").click();
+  const todoCard = page.locator('[data-structured-confirmation="todo"]');
+  await expect(todoCard).toBeVisible({ timeout: 30_000 });
+  await expect(todoCard).toContainText("15:00");
+  await expect(todoCard).toContainText("交论文");
+  for (const [width, height] of [[360, 740], [375, 812], [390, 844], [430, 932]]) {
+    await page.setViewportSize({ width, height });
+    await todoCard.scrollIntoViewIfNeeded();
+    const geometry = await todoCard.evaluate((node) => {
+      const card = node.getBoundingClientRect();
+      const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
+      return { cardLeft: card.left, cardRight: card.right, frameLeft: frame?.left, frameRight: frame?.right, overflow: node.scrollWidth - node.clientWidth };
+    });
+    if (geometry.frameLeft == null || geometry.frameRight == null
+      || geometry.cardLeft < geometry.frameLeft - 1 || geometry.cardRight > geometry.frameRight + 1
+      || geometry.overflow > 1) {
+      throw new Error(`Todo confirmation clipped at ${width}x${height}: ${JSON.stringify(geometry)}`);
+    }
+    await page.screenshot({ path: path.join(outputDir, `ai-todo-${width}x${height}.png`) });
+  }
+  await page.setViewportSize({ width: viewportWidth, height: viewportHeight });
+  await todoCard.getByRole("button", { name: "逐项编辑" }).click();
+  await expect(todoCard.getByRole("textbox", { name: "事项数值" })).toHaveValue("交论文");
+  await todoCard.locator("[data-confirm-structured]").click();
+  await expect(todoCard).toBeHidden();
+  const focusUrl = new URL(page.url());
+  focusUrl.hash = "tab=record&module=focus";
+  await page.goto(focusUrl.href, { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".focus-todo-list")).toBeVisible();
+  const savedVoiceTodo = await page.evaluate(() => {
+    for (const key of Object.keys(window.localStorage).filter((item) => item.startsWith("nava-todos:"))) {
+      const item = JSON.parse(window.localStorage.getItem(key) || "[]").find((candidate) => candidate.title === "交论文");
+      if (item) return item;
+    }
+    return null;
+  });
+  if (!savedVoiceTodo || savedVoiceTodo.source !== "ai" || savedVoiceTodo.scheduledTime !== "15:00") {
+    throw new Error("Confirmed spoken todo was not persisted with its AI source and afternoon time.");
+  }
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const expectedTomorrow = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+  if (savedVoiceTodo.scheduledDate !== expectedTomorrow) throw new Error("Confirmed spoken todo date was not tomorrow.");
+  results.push("AI 对话、附件、照片确认、语音录入/取消，以及模拟语音待办的日期时间识别、编辑确认与保存");
 }
 
 async function verifyProfile(page, results) {

@@ -70,6 +70,37 @@ test("spoken Chinese clock and day-after-tomorrow are parsed without overwriting
   assert.equal(parseStructuredEntry("明天我不打算开会", "zh", undefined, { allowLocalHealthFallback: false }), null);
 });
 
+test("formal AI todo extraction produces an editable confirmation card for dates beyond local rules", () => {
+  const target = new Date();
+  target.setDate(target.getDate() + 9 - (target.getDay() + 6) % 7);
+  const scheduledDate = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}-${String(target.getDate()).padStart(2, "0")}`;
+  const candidate = parseStructuredEntry("下周三上午九点准备小组汇报", "zh", {
+    dataType: "todo",
+    extractedData: { title: "准备小组汇报", scheduledDate, scheduledTime: "09:00" },
+    confidence: 0.92,
+  }, { allowLocalHealthFallback: false });
+  assert.equal(candidate?.type, "todo");
+  assert.equal(candidate?.payload.scheduledDate, scheduledDate);
+  assert.equal(candidate?.payload.scheduledTime, "09:00");
+  assert.equal(candidate?.fields.find((item) => item.path === "title")?.value, "准备小组汇报");
+  assert.equal(candidate?.confidence, 0.92);
+  const dateField = candidate?.fields.find((item) => item.path === "scheduledDate");
+  assert.ok(candidate && dateField);
+  assert.equal(updateStructuredEntryField(candidate, dateField.id, scheduledDate).payload.scheduledDate, scheduledDate);
+});
+
+test("formal AI todo output cannot invent a clock or turn a negated plan into a task", () => {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  const scheduledDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const extraction = { dataType: "todo", extractedData: { title: "开会", scheduledDate, scheduledTime: "15:00" } };
+  const noClock = parseStructuredEntry("明天我要开会", "zh", extraction, { allowLocalHealthFallback: false });
+  assert.equal(noClock?.type, "todo");
+  assert.equal(noClock?.payload.scheduledTime, undefined);
+  assert.equal(parseStructuredEntry("明天我不打算开会", "zh", extraction, { allowLocalHealthFallback: false }), null);
+  assert.equal(parseStructuredEntry("明天我要开会", "zh", { dataType: "todo", extractedData: { title: "开会", scheduledDate: "2026-02-30" } }, { allowLocalHealthFallback: false })?.payload.scheduledDate, scheduledDate);
+});
+
 test("invalid calendar dates cannot silently roll into another month", () => {
   assert.equal(parseStructuredEntry("2026-02-30提醒我交论文", "zh"), null);
   assert.equal(parseStructuredEntry("2月30日提醒我交论文", "zh"), null);
