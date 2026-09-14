@@ -93,11 +93,13 @@ import { generateFocusDifficulty, generateFocusInSessionEncouragement, generateF
 import { exitFocusFullscreen, focusFullscreenActive, focusFullscreenSupported, requestFocusFullscreen, requestScreenWakeLock, screenWakeLockSupported, type ScreenWakeLockSentinel } from "../services/focusImmersion.ts";
 import { focusNoiseSupported, startFocusNoise, type FocusNoiseKind, type FocusNoiseSession } from "../services/focusAudio.ts";
 import { abandonExerciseSession, exerciseSessionElapsedSeconds, finishExerciseSession, hydrateExerciseSession, pauseExerciseSession, resumeExerciseSession, startExerciseSession, type ExerciseSession } from "../services/exerciseSession.ts";
-import { FOCUS_PREVIEW_INTERRUPT_EVENT, publishFocusPreviewState, type FocusPreviewReason } from "../services/previewFocusEvents";
+import { usePreviewActivity } from "../hooks/usePreviewActivity";
+import PreviewInterruptionNotice from "../components/PreviewInterruptionNotice";
+import type { PreviewReason } from "../services/previewEnvironment";
 
 type MoodFactor = { value: string; label: string };
 
-type FocusInterruptionReason = FocusPreviewReason;
+type FocusInterruptionReason = PreviewReason;
 type FocusInterruptionReasons = Record<FocusInterruptionReason, number>;
 
 const emptyFocusInterruptionReasons = (): FocusInterruptionReasons => ({ message: 0, call: 0, distraction: 0, other: 0 });
@@ -633,6 +635,9 @@ function ExerciseDashboard({
   const [exerciseSession, setExerciseSession] = useState<ExerciseSession | null>(null);
   const [exerciseSessionNow, setExerciseSessionNow] = useState(() => Date.now());
   const [exerciseSessionMessage, setExerciseSessionMessage] = useState<string | null>(null);
+  const [exerciseInterruption, setExerciseInterruption] = useState<PreviewReason | null>(null);
+  const exerciseMutationRef = useRef(0);
+  useEffect(() => () => { exerciseMutationRef.current++; }, []);
   const selectedExercise = todaySnapshot?.exercise ?? null;
   const displayedSteps = selectedExercise?.steps ?? null;
   const displayedCalories = selectedExercise?.calories ?? null;
@@ -741,6 +746,20 @@ function ExerciseDashboard({
   }, [exerciseSession?.runningSince]);
 
   const exerciseElapsedSeconds = exerciseSession ? exerciseSessionElapsedSeconds(exerciseSession, new Date(exerciseSessionNow)) : 0;
+  usePreviewActivity("exercise", view !== "sports" ? null : exerciseSession?.runningSince ? "running" : exerciseSession ? "paused" : "ready", (reason) => {
+    if (!exerciseSession?.runningSince) return;
+    const now = new Date();
+    const mutation = ++exerciseMutationRef.current;
+    // Stop the visible timer immediately, even while the active draft syncs.
+    setExerciseSession({ ...exerciseSession, elapsedSeconds: exerciseSessionElapsedSeconds(exerciseSession, now), runningSince: null });
+    setExerciseSessionNow(now.getTime());
+    setExerciseInterruption(reason);
+    setExerciseSessionMessage(null);
+    void pauseExerciseSession(userId, exerciseSession, now).catch(() => {
+      if (exerciseMutationRef.current !== mutation) return;
+      setExerciseSessionMessage(locale === "zh" ? "计时已在本机暂停，云端同步失败，请联网后重试。" : "Paused on this device; cloud sync failed. Reconnect and retry.");
+    });
+  });
   const exerciseElapsedMinutes = Math.floor(exerciseElapsedSeconds / 60);
   const exerciseTimerText = `${String(Math.floor(exerciseElapsedSeconds / 60)).padStart(2, "0")}:${String(exerciseElapsedSeconds % 60).padStart(2, "0")}`;
   const exerciseProgress = exerciseSession ? Math.min(100, Math.round(exerciseElapsedSeconds / Math.max(60, exerciseSession.plannedMinutes * 60) * 100)) : 0;
@@ -753,6 +772,7 @@ function ExerciseDashboard({
       setExerciseSessionMessage(locale === "zh" ? "运动计时只能从今天开始；历史日期仍可手动补录。" : "A live workout can only start today; past dates can still be logged manually.");
       return;
     }
+    exerciseMutationRef.current++;
     const session = startExerciseSession(userId, { title: activeSportsPlan.title, minutes: activeSportsPlan.minutes, steps: activeSportsPlan.steps });
     setExerciseSession(session);
     setExerciseSessionNow(Date.now());
@@ -761,12 +781,15 @@ function ExerciseDashboard({
 
   const toggleExercisePause = async () => {
     if (!exerciseSession) return;
+    exerciseMutationRef.current++;
     try {
       const next = exerciseSession.runningSince
         ? await pauseExerciseSession(userId, exerciseSession)
         : await resumeExerciseSession(userId, exerciseSession);
       setExerciseSession(next);
       setExerciseSessionNow(Date.now());
+      setExerciseInterruption(null);
+      setExerciseSessionMessage(null);
     } catch (error) {
       setExerciseSessionMessage(error instanceof Error ? error.message : String(error));
     }
@@ -774,6 +797,7 @@ function ExerciseDashboard({
 
   const completeExercise = async () => {
     if (!exerciseSession) return;
+    exerciseMutationRef.current++;
     try {
       const completed = await finishExerciseSession(userId, exerciseSession);
       setExerciseMinutes(completed.minutes);
@@ -783,6 +807,7 @@ function ExerciseDashboard({
       setExerciseNote([exerciseNote.trim(), sessionNote].filter(Boolean).join("\n"));
       setExerciseSession(null);
       setExerciseSessionMessage(null);
+      setExerciseInterruption(null);
       onOpenEditor();
     } catch (error) {
       setExerciseSessionMessage(error instanceof Error ? error.message : String(error));
@@ -791,9 +816,11 @@ function ExerciseDashboard({
 
   const discardExercise = () => {
     if (!exerciseSession || !window.confirm(locale === "zh" ? "放弃这次尚未保存的运动计时吗？" : "Discard this unsaved workout timer?")) return;
+    exerciseMutationRef.current++;
     abandonExerciseSession(userId);
     setExerciseSession(null);
     setExerciseSessionMessage(null);
+    setExerciseInterruption(null);
   };
 
   useEffect(() => {
@@ -887,6 +914,10 @@ function ExerciseDashboard({
   if (view === "heatmap") return <ModuleDetailView compact className="heatmap-subview-card" title={locale === "zh" ? "节律热力图" : "Rhythm heatmap"}><div className="heatmap-detail-content"><div className="detail-heatmap">{heatmap.cells.map((cell, index) => <i key={cell.id} title={`${shortDate(cell.date, locale)} · ${String(cell.period * 2).padStart(2, "0")}:00 · ${Math.round(cell.value)}`} style={{ opacity: cell.intensity, "--heat-index": index } as CSSProperties} />)}</div><div className="heatmap-legend"><span>{locale === "zh" ? "低活跃" : "Low"}</span><i /><i /><i /><i /><span>{locale === "zh" ? "高活跃" : "High"}</span></div><div className="heatmap-summary-grid"><span><small>{locale === "zh" ? "数据格" : "Data bins"}</small><strong>{heatmap.cells.length}</strong></span><span><small>{locale === "zh" ? "高峰窗口" : "Peak window"}</small><strong>{heatmap.cells.length > 0 ? peakWindow : "--"}</strong></span></div><p>{heatmap.cells.length > 0 ? (locale === "zh" ? `${peakWindow} 是近七日真实活动记录中相对集中的窗口；这里只描述分布，不评价运动质量。` : `${peakWindow} is the most concentrated window in the recorded seven-day activity data; this describes distribution, not workout quality.`) : (locale === "zh" ? "同步活动数据后生成热力图。" : "Sync activity data to build the heatmap.")}</p></div></ModuleDetailView>;
   if (view === "clock") return <ModuleDetailView compact className="clock-subview-card" title={locale === "zh" ? "生物钟同步" : "Clock alignment"}><div className="clock-alignment"><div className="clock-alignment-gauge" style={{ "--progress": `${alignment ?? 0}%` } as CSSProperties}><Gauge /></div><strong>{alignment == null ? "--" : <><AnimatedNumber value={alignment} />%</>}</strong><p>{alignment == null ? (locale === "zh" ? "同步睡眠或节律数据后，才能计算近七日生物钟同步分。" : "Sync sleep or rhythm data to calculate the seven-day clock-alignment score.") : (locale === "zh" ? "该分数由近七日入睡时间、睡眠时长稳定性与节律评分共同计算。" : "Calculated from seven-day bedtime, sleep-duration regularity, and rhythm scores.")}</p></div></ModuleDetailView>;
   if (view === "sports") return <ModuleDetailView compact className="sports-subview-card" title="NAVA Sports">
+    {exerciseInterruption && exerciseSession && <PreviewInterruptionNotice reason={exerciseInterruption} locale={locale}>
+      <p>{locale === "zh" ? "运动计时已暂停，暂停期间不计入运动时长。准备好后点“继续”，或结束并核对记录。" : "Your workout is paused. Paused time is excluded. Resume when ready, or finish and review."}</p>
+      <small>{locale === "zh" ? "模拟事件不会添加步数、热量或奖励。" : "No steps, calories or rewards are added by this simulation."}</small>
+    </PreviewInterruptionNotice>}
     {exerciseSession ? <div className="exercise-live-session" data-exercise-session data-running={Boolean(exerciseSession.runningSince)}>
       <div className="exercise-live-progress" style={{ "--progress": `${exerciseProgress}%` } as CSSProperties}><Activity size={28} /><strong>{exerciseTimerText}</strong><small>{locale === "zh" ? `计划 ${exerciseSession.plannedMinutes} 分钟` : `${exerciseSession.plannedMinutes}-minute plan`}</small></div>
       <div className="exercise-live-copy"><strong>{exerciseSession.title}</strong><p>{exerciseSession.steps[exerciseStepIndex] ?? (locale === "zh" ? "按身体感受继续" : "Continue by feel")}</p><span>{locale === "zh" ? `已进行 ${exerciseElapsedMinutes} 分钟 · ${exerciseProgress}%` : `${exerciseElapsedMinutes} minutes · ${exerciseProgress}%`}</span></div>
@@ -1393,10 +1424,6 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const lastCloudTimerWriteRef = useRef(0);
   const cloudTimerExistsRef = useRef(false);
   const lastTimerTickRef = useRef<number | null>(null);
-  useEffect(() => {
-    publishFocusPreviewState(!immersive ? "unavailable" : running ? "running" : hasStarted ? "paused" : "ready");
-  }, [hasStarted, immersive, running]);
-  useEffect(() => () => publishFocusPreviewState("unavailable"), []);
   const releaseWakeLock = useCallback(async () => {
     wakeRequestIdRef.current += 1;
     wakeRequestPendingRef.current = false;
@@ -1408,7 +1435,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     if (sentinel && sentinel.released !== true) await sentinel.release().catch(() => undefined);
   }, []);
   const acquireWakeLock = useCallback(async () => {
-    if (!immersive || !keepAwakeEnabled || document.visibilityState !== "visible" || wakeLockRef.current || wakeRequestPendingRef.current) return;
+    if (!immersive || view === "interruption" || !keepAwakeEnabled || document.visibilityState !== "visible" || wakeLockRef.current || wakeRequestPendingRef.current) return;
     if (!wakeLockAvailable) {
       setWakeLockFailed(true);
       setCapabilityMessage(locale === "zh" ? "当前浏览器不支持系统级屏幕常亮；计时仍会继续。" : "This browser does not support system wake lock; the timer will keep running.");
@@ -1453,7 +1480,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
         setWakeLockPending(false);
       }
     }
-  }, [immersive, keepAwakeEnabled, locale, wakeLockAvailable]);
+  }, [immersive, view, keepAwakeEnabled, locale, wakeLockAvailable]);
   const stopFocusNoise = useCallback(async () => {
     noiseRequestRef.current += 1;
     const activeNoise = noiseSessionRef.current;
@@ -2056,7 +2083,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const recordInterruption = useCallback((reason?: FocusInterruptionReason, simulated = false) => {
     if (!running) return;
     const now = Date.now();
-    if (now - interruptionGuardRef.current < 1_500) return;
+    if (!simulated && now - interruptionGuardRef.current < 1_500) return;
     interruptionGuardRef.current = now;
     setRunning(false);
     if (!simulated) setInterruptions((value) => value + 1);
@@ -2064,8 +2091,10 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setPreviewInterruption(simulated);
     setGuideOpen(false);
     setNoisePanelOpen(false);
+    void stopFocusNoise();
+    void releaseWakeLock();
     openView("interruption");
-  }, [openView, running]);
+  }, [openView, running, stopFocusNoise, releaseWakeLock]);
 
   const chooseInterruptionReason = (reason: FocusInterruptionReason) => {
     if (previewInterruption) {
@@ -2081,15 +2110,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setCurrentInterruptionReason(reason);
   };
 
-  useEffect(() => {
-    if (!immersive) return;
-    const onPreviewInterruption = (event: Event) => {
-      const reason = (event as CustomEvent<{ reason?: FocusPreviewReason }>).detail?.reason;
-      if (reason === "call" || reason === "message" || reason === "distraction" || reason === "other") recordInterruption(reason, true);
-    };
-    window.addEventListener(FOCUS_PREVIEW_INTERRUPT_EVENT, onPreviewInterruption);
-    return () => window.removeEventListener(FOCUS_PREVIEW_INTERRUPT_EVENT, onPreviewInterruption);
-  }, [immersive, recordInterruption]);
+  usePreviewActivity("focus", !immersive ? null : running ? "running" : hasStarted ? "paused" : "ready", (reason) => recordInterruption(reason, true));
 
   useEffect(() => {
     let listener: { remove: () => Promise<void> } | undefined;

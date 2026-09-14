@@ -40,6 +40,8 @@
     "device-preview:visual": "node --experimental-strip-types scripts/verify-device-preview-ui.mjs",
     "device-preview:test": "node --experimental-strip-types --test tests/iphone-preview-devices.test.ts",
     "focus-preview:visual": "node scripts/verify-focus-preview-events.mjs",
+    "external-preview:test": "node --experimental-strip-types --test tests/preview-environment.test.ts",
+    "external-preview:visual": "node scripts/verify-external-preview-events.mjs",
     "home-widgets:test": "node --experimental-strip-types --test tests/home-widgets.test.ts tests/session-maintenance.test.ts",
     "home-widgets:visual": "node scripts/verify-home-widgets-ui.mjs",
     "calendar:visual": "node scripts/verify-calendar-year-ui.mjs",

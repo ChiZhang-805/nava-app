@@ -32,7 +32,21 @@ async function openFocus(viewport, extraInitScript) {
 }
 
 try {
-  const { context, page } = await openFocus({ width: 1365, height: 1000 });
+  const { context, page } = await openFocus({ width: 1365, height: 1000 }, () => {
+    const Original = window.AudioContext;
+    window.__focusAudioContexts = [];
+    window.AudioContext = class extends Original {
+      constructor(...args) { super(...args); window.__focusAudioContexts.push(this); }
+    };
+    window.__previewWake = { requests: 0, releases: 0 };
+    Object.defineProperty(navigator, "wakeLock", { configurable: true, value: { request: async () => {
+      window.__previewWake.requests++;
+      const sentinel = new EventTarget();
+      sentinel.released = false;
+      sentinel.release = async () => { sentinel.released = true; window.__previewWake.releases++; sentinel.dispatchEvent(new Event("release")); };
+      return sentinel;
+    } } });
+  });
   await expect(page.locator('[data-preview-only="focus-event-simulator"]')).toHaveCount(0);
   await page.locator('.focus-summary-start[aria-label="开始专注"]').click();
   await expect(page.locator('[data-module-view="focus-immersive"]')).toBeVisible();
@@ -57,6 +71,12 @@ try {
   await expect(page.getByRole("button", { name: "获取计时中的 AI 鼓励" })).toBeDisabled();
 
   for (const reason of ["call", "message", "distraction", "other"]) {
+    if (reason === "call") {
+      await page.getByRole("button", { name: "背景音", exact: true }).click();
+      await page.getByRole("button", { name: "白噪音", exact: true }).click();
+      await expect.poll(() => page.evaluate(() => window.__focusAudioContexts.length)).toBe(1);
+      await expect.poll(() => page.evaluate(() => window.__focusAudioContexts[0].state)).toBe("running");
+    }
     await expect(simulator.locator(`[data-preview-event="${reason}"]`)).toBeEnabled();
     await simulator.locator(`[data-preview-event="${reason}"]`).click();
     const interruption = page.locator('.focus-interruption[data-preview-interruption="true"]');
@@ -70,11 +90,14 @@ try {
     assert.equal(draft?.interruptions, 0, `${reason}: simulated event must not count as a real interruption`);
     assert.deepEqual(draft?.interruptionReasons, { message: 0, call: 0, distraction: 0, other: 0 });
     if (reason === "call") {
+      await expect.poll(() => page.evaluate(() => window.__focusAudioContexts[0].state)).toBe("closed");
+      await expect.poll(() => page.evaluate(() => window.__previewWake.releases)).toBe(1);
       await page.waitForTimeout(350);
       await page.screenshot({ path: path.join(outputDir, "focus-preview-call.png") });
     }
     await interruption.getByRole("button", { name: "继续专注" }).click();
     await expect(page.locator('[data-module-view="focus-immersive"]')).toHaveAttribute("data-focus-state", "running");
+    await expect.poll(() => page.evaluate(() => window.__previewWake.requests)).toBe(["call", "message", "distraction", "other"].indexOf(reason) + 2);
     await page.waitForTimeout(1_550);
   }
   await context.close();

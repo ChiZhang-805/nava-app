@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Bell, Ellipsis, MousePointerClick, PhoneIncoming, RotateCcw, Smartphone } from "lucide-react";
 import {
@@ -6,12 +6,7 @@ import {
   findIPhonePreviewDevice,
   IPHONE_PREVIEW_DEVICES,
 } from "../constants/iphonePreviewDevices";
-import {
-  FOCUS_PREVIEW_INTERRUPT_EVENT,
-  FOCUS_PREVIEW_STATE_EVENT,
-  type FocusPreviewReason,
-  type FocusPreviewState,
-} from "../services/previewFocusEvents";
+import { getPreviewActivity, simulatePreviewInterruption, subscribePreviewActivity } from "../services/previewEnvironment";
 
 const DEVICE_PREFERENCE_KEY = "nava.desktop-preview-device.v1";
 const GRID_PREFERENCE_KEY = "nava.desktop-preview-grid.v1";
@@ -43,7 +38,9 @@ export default function DesktopDevicePreviewChrome() {
   });
   const [showSpecifications, setShowSpecifications] = useState(false);
   const [selectorHeight, setSelectorHeight] = useState(132);
-  const [focusPreviewState, setFocusPreviewState] = useState<FocusPreviewState>("unavailable");
+  const previewActivity = useSyncExternalStore(subscribePreviewActivity, getPreviewActivity, () => null);
+  const previewState = previewActivity?.state;
+  const previewModuleName = previewActivity ? { focus: "专注", exercise: "运动", sleep: "睡眠" }[previewActivity.module] : "";
   const previewRef = useRef<HTMLDivElement>(null);
   const selectorFrontRef = useRef<HTMLElement>(null);
   const selectorBackRef = useRef<HTMLElement>(null);
@@ -58,17 +55,6 @@ export default function DesktopDevicePreviewChrome() {
       window.clearInterval(interval);
       window.removeEventListener("focus", update);
     };
-  }, []);
-
-  useEffect(() => {
-    const update = (event: Event) => {
-      const state = (event as CustomEvent<{ state?: FocusPreviewState }>).detail?.state;
-      if (state === "unavailable" || state === "ready" || state === "running" || state === "paused") setFocusPreviewState(state);
-    };
-    window.addEventListener(FOCUS_PREVIEW_STATE_EVENT, update);
-    const current = document.querySelector<HTMLElement>('[data-module-view="focus-immersive"]')?.dataset.focusState;
-    if (current === "ready" || current === "running" || current === "paused") setFocusPreviewState(current);
-    return () => window.removeEventListener(FOCUS_PREVIEW_STATE_EVENT, update);
   }, []);
 
   useLayoutEffect(() => {
@@ -109,7 +95,10 @@ export default function DesktopDevicePreviewChrome() {
         return;
       }
       const availableHeight = Math.max(1, window.innerHeight - 52);
-      const availableWidth = Math.max(1, window.innerWidth - 48);
+      const panelWidth = window.innerWidth <= 900 ? 132 : window.innerWidth <= 1090 ? 180 : 262;
+      const panelRight = window.innerWidth <= 900 ? 12 : 20;
+      // Reserve the right-side controls even on a narrow desktop window.
+      const availableWidth = Math.max(1, window.innerWidth - 2 * (panelWidth + panelRight + 16));
       const scale = Math.min(1, availableHeight / device.logicalHeight, availableWidth / device.logicalWidth);
       stage.style.setProperty("--nava-preview-scale", scale.toFixed(6));
     };
@@ -180,10 +169,6 @@ export default function DesktopDevicePreviewChrome() {
   };
 
   const cutoutLeft = (device.logicalWidth - calibration.cutout.width) / 2;
-  const simulateFocusEvent = (reason: FocusPreviewReason) => {
-    if (focusPreviewState !== "running") return;
-    window.dispatchEvent(new CustomEvent<{ reason: FocusPreviewReason }>(FOCUS_PREVIEW_INTERRUPT_EVENT, { detail: { reason } }));
-  };
 
   return (
     <>
@@ -238,31 +223,32 @@ export default function DesktopDevicePreviewChrome() {
           </section>
         </div>
       </aside>
-      {focusPreviewState !== "unavailable" && createPortal(<aside
+      {previewActivity && createPortal(<aside
         className="nava-focus-event-simulator"
         data-preview-only="focus-event-simulator"
+        data-preview-module={previewActivity.module}
         style={{ "--nava-preview-panel-top": `${selectorHeight + 32}px` } as CSSProperties}
-        aria-label="专注外部事件模拟"
+        aria-label={`${previewModuleName}外部事件模拟`}
       >
-        <header><strong>外部事件模拟</strong><small>网页预览</small></header>
-        <p>{focusPreviewState === "running" ? "专注进行中，选择一种打断事件" : focusPreviewState === "paused" ? "先继续专注，再触发下一次事件" : "开始计时后可测试中断与恢复"}</p>
+        <header><strong>外部事件模拟</strong><small>{previewModuleName} · 预览</small></header>
+        <p>{previewState === "running" ? `正在${previewModuleName}，选择一种外部事件` : previewState === "paused" ? "先返回或继续，再测试下一次事件" : "开始计时后可测试中断与恢复"}</p>
         <div className="nava-focus-event-actions">
           {([
             { reason: "call", label: "来电", icon: PhoneIncoming },
             { reason: "message", label: "消息通知", icon: Bell },
             { reason: "distraction", label: "主动分心", icon: MousePointerClick },
-            { reason: "other", label: "其他事件", icon: Ellipsis },
-          ] as const).map(({ reason, label, icon: Icon }) => <button
+            { reason: "other", label: previewActivity.module === "focus" ? "其他事件" : "切到后台", icon: Ellipsis },
+          ] as const).filter(({ reason }) => previewActivity.module === "focus" || reason !== "distraction").map(({ reason, label, icon: Icon }) => <button
             key={reason}
             type="button"
             data-preview-event={reason}
-            onClick={() => simulateFocusEvent(reason)}
-            disabled={focusPreviewState !== "running"}
+            onClick={() => simulatePreviewInterruption(reason)}
+            disabled={previewState !== "running"}
             title={`模拟${label}`}
             aria-label={`模拟${label}`}
           ><Icon size={17} /><span>{label}</span></button>)}
         </div>
-        <small className="nava-focus-event-disclaimer">不会真实拨号或发通知；模拟中断不计入账号统计。</small>
+        <small className="nava-focus-event-disclaimer">仅测试当前页面的恢复流程，不会真实拨号、发通知或生成健康记录。</small>
       </aside>, document.body)}
       <div
         ref={previewRef}

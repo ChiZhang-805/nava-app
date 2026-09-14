@@ -10402,6 +10402,40 @@ body::before {
 /* Desktop-only device preview. Apple-published display resolutions are mapped
    to @3x logical canvases by the preview catalog. Coarse pointers and mobile
    viewports never render the selector, shell, status bar, or home indicator. */
+.preview-interruption-notice {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  margin-block: 0 14px;
+  border: 1px solid rgba(57, 151, 178, .24);
+  border-radius: 20px;
+  background: #edfaff;
+  color: #17485c;
+  text-align: left;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.preview-interruption-notice > header { display: flex; align-items: center; gap: 10px; }
+.preview-interruption-notice > header svg { flex: none; }
+.preview-interruption-notice > header strong { font-size: 17px; line-height: 1.4; }
+.preview-interruption-notice p { margin: 0; font-size: 15px; line-height: 1.65; }
+.preview-interruption-notice small { font-size: 13px; line-height: 1.5; color: #496b7b; }
+.preview-interruption-notice > button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 14px;
+  background: #157c9e;
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.preview-interruption-notice > button:focus-visible { outline: 3px solid #143e54; outline-offset: 3px; }
+.record-detail .record-editor-stack .section-card > .preview-interruption-notice { animation: none; }
+.record-detail[data-record-detail="sleep"] .section-card:has(.preview-interruption-notice) { overflow-y: auto; }
+.record-detail[data-record-detail="sleep"] .section-card:has(.preview-interruption-notice) > * { flex-shrink: 0; }
+
 .nava-device-preview,
 .nava-device-selector,
 .nava-focus-event-simulator { display: none; }
@@ -10529,6 +10563,8 @@ body::before {
     z-index: 520;
     box-sizing: border-box;
     width: 262px;
+    max-height: calc(100dvh - var(--nava-preview-panel-top, 164px) - 18px);
+    overflow-y: auto;
     display: grid;
     gap: 11px;
     padding: 14px;
@@ -10547,7 +10583,7 @@ body::before {
   .nava-focus-event-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .nava-focus-event-actions button {
     min-width: 0;
-    min-height: 42px;
+    min-height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -13365,7 +13401,7 @@ body::before {
 .exercise-live-actions { grid-column: 1 / -1; display: grid; grid-template-columns: .8fr 1.2fr; gap: 7px; }
 .exercise-live-actions button,
 .sports-plan-actions button {
-  min-height: 39px;
+  min-height: 44px;
   border: 1px solid rgba(33, 139, 177, .2);
   border-radius: 12px;
   display: flex;
@@ -13375,12 +13411,12 @@ body::before {
   padding: 0 10px;
   color: #14769c;
   background: rgba(247,253,255,.82);
-  font-size: 9.5px;
+  font-size: 14px;
   font-weight: 800;
 }
 .exercise-live-actions button.primary,
 .sports-plan-actions button:first-child { border-color: transparent; color: white; background: linear-gradient(145deg,#2baed7,#0f7fae); }
-.exercise-live-discard { grid-column: 1 / -1; border: 0; padding: 2px; color: #8298a1; background: transparent; font-size: 8.5px; text-decoration: underline; }
+.exercise-live-discard { grid-column: 1 / -1; min-height: 44px; border: 0; padding: 8px; color: #526e7b; background: transparent; font-size: 13px; text-decoration: underline; }
 .sports-plan-actions { width: min(100%, 330px); display: grid; grid-template-columns: 1.15fr .85fr; gap: 7px; }
 
 @media (max-width: 370px), (max-height: 844px) {

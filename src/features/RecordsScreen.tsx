@@ -2,6 +2,9 @@ import type { User } from "@supabase/supabase-js";
 import { AlarmClock, Apple, BedDouble, Bot, Brain, Brush, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Egg, Hourglass, Loader2, Milk, MoonStar, Play, RefreshCw, ScanFace, Share2, SmilePlus, Soup, Sunset, Timer, Upload, X, type LucideIcon } from "lucide-react";
 import { FormEvent, lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import ActionButton from "../components/ActionButton";
+import PreviewInterruptionNotice from "../components/PreviewInterruptionNotice";
+import { usePreviewActivity } from "../hooks/usePreviewActivity";
+import type { PreviewReason } from "../services/previewEnvironment";
 import AnimatedNumber from "../components/AnimatedNumber";
 import ModuleProgressRing from "../components/ModuleProgressRing";
 import PageSkeleton, { SkeletonBlock, SkeletonLines } from "../components/PageSkeleton";
@@ -316,6 +319,9 @@ export default function RecordsScreen({
   const [sleepNote, setSleepNote] = useState("");
   const [sleepMaintenance, setSleepMaintenance] = useState<SleepMaintenanceSession | null>(() => loadSleepMaintenance(user.id));
   const [sleepMaintenanceNow, setSleepMaintenanceNow] = useState(() => Date.now());
+  const [sleepInterruption, setSleepInterruption] = useState<PreviewReason | null>(null);
+  usePreviewActivity("sleep", activeModule !== "sleep" || !showEditor ? null : sleepInterruption ? "paused" : sleepMaintenance ? "running" : "ready", setSleepInterruption);
+  useEffect(() => { setSleepInterruption(null); }, [activeModule, showEditor]);
 
   const [steps, setSteps] = useState<number | null>(null);
   const [calories, setCalories] = useState<number | null>(null);
@@ -1000,10 +1006,12 @@ export default function RecordsScreen({
     if (saved) {
       clearSleepMaintenance(user.id);
       setSleepMaintenance(null);
+      setSleepInterruption(null);
     }
   }
 
   function beginSleepMaintenance() {
+    setSleepInterruption(null);
     if (recordDate !== deviceDate) {
       setNotice(locale === "zh" ? "睡眠维持只记录当前设备日期；请先返回今天。" : "Sleep tracking can only start for the current device date.");
       return;
@@ -1016,6 +1024,7 @@ export default function RecordsScreen({
 
   function finishSleepMaintenance() {
     if (!sleepMaintenance) return;
+    setSleepInterruption(null);
     const fields = sleepMaintenanceFields(sleepMaintenance);
     setSleepStart(fields.start);
     setSleepEnd(fields.end);
@@ -1033,6 +1042,7 @@ export default function RecordsScreen({
     if (!window.confirm(locale === "zh" ? "放弃这次尚未保存的睡眠维持记录吗？" : "Discard this unsaved sleep tracking session?")) return;
     clearSleepMaintenance(user.id);
     setSleepMaintenance(null);
+    setSleepInterruption(null);
   }
 
   async function saveExercise(event: FormEvent) {
@@ -1736,6 +1746,10 @@ export default function RecordsScreen({
             </div>
           )}
         >
+          {sleepInterruption && sleepMaintenance && <PreviewInterruptionNotice reason={sleepInterruption} locale={locale}>
+            <p>{locale === "zh" ? "开始时间已保留，睡眠计时仍在继续。模拟来电或切后台不代表你已醒来，也不会生成夜醒次数或睡眠阶段。" : "Your start time is preserved and tracking continues. A simulated interruption does not infer waking or create sleep stages."}</p>
+            <button type="button" onClick={() => setSleepInterruption(null)}>{locale === "zh" ? "返回睡眠记录" : "Return to sleep tracking"}</button>
+          </PreviewInterruptionNotice>}
           <section className={sleepMaintenance ? "sleep-maintenance is-active" : "sleep-maintenance"} aria-live="polite">
             <div>
               <span><Timer size={17} />{locale === "zh" ? "睡眠维持" : "Sleep tracking"}</span>
