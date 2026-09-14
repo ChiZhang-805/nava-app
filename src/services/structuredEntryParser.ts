@@ -1,4 +1,6 @@
 import { suggestedFocusPlan } from "./focusPlanning.ts";
+import { correctFoodItemCalories, resizeFoodItemPortion, sumFoodItemNutrition } from "./dietPortion.ts";
+import type { FoodItem } from "../types.ts";
 
 export type StructuredEntryType = "mood" | "sleep" | "exercise" | "nutrition" | "focus" | "todo" | "multi";
 
@@ -9,6 +11,7 @@ export type StructuredField = {
   unit?: string;
   path?: string;
   valueType?: "text" | "number";
+  readOnly?: boolean;
 };
 
 export type StructuredEntry = {
@@ -563,36 +566,47 @@ function updateSingleEntry(candidate: StructuredEntry, fieldId: string, value: s
   const fieldToUpdate = candidate.fields.find((item) => item.id === fieldId);
   if (!fieldToUpdate) return candidate;
   const payload = structuredClone(candidate.payload);
-  if (fieldToUpdate.path) setByPath(payload, fieldToUpdate.path, value, fieldToUpdate.valueType);
+  if (fieldToUpdate.readOnly) return candidate;
+  if (fieldToUpdate.path && !(candidate.type === "nutrition" && payload.source === "vision")) {
+    setByPath(payload, fieldToUpdate.path, value, fieldToUpdate.valueType);
+  }
   let fields = candidate.fields.map((item) => item.id === fieldId ? { ...item, value } : item);
 
   if (candidate.type === "nutrition") {
     if (payload.source === "vision") {
-      const items = Array.isArray(payload.items) ? payload.items as Array<Record<string, unknown>> : [];
-      if (fieldToUpdate.path?.startsWith("items.") && fieldToUpdate.path.endsWith(".calories")) {
-        const totalCalories = items.reduce((sum, item) => sum + Math.max(0, Number(item.calories) || 0), 0);
-        payload.totalCalories = Math.round(totalCalories);
-        payload.calories = Math.round(totalCalories);
-        fields = fields.map((item) => item.path === "totalCalories" ? { ...item, value: String(Math.round(totalCalories)) } : item);
+      const items = Array.isArray(payload.items) ? payload.items as FoodItem[] : [];
+      const match = fieldToUpdate.path?.match(/^items\.(\d+)\.(weight_grams|calories)$/);
+      if (match && Number.isFinite(Number(value)) && Number(value) > 0) {
+        const index = Number(match[1]);
+        const current = items[index];
+        if (current) items[index] = match[2] === "weight_grams"
+          ? resizeFoodItemPortion(current, Number(value))
+          : correctFoodItemCalories(current, Number(value));
       }
-      if (fieldToUpdate.path === "totalCalories") {
-        const nextTotal = Math.max(0, Math.round(Number(value) || 0));
-        const previousTotal = items.reduce((sum, item) => sum + Math.max(0, Number(item.calories) || 0), 0) || 1;
+      if (fieldToUpdate.path === "totalCalories" && Number.isFinite(Number(value)) && Number(value) >= 0) {
+        const target = Math.round(Number(value));
+        const previous = items.reduce((sum, item) => sum + Math.max(0, Number(item.calories) || 0), 0);
         let assigned = 0;
         items.forEach((item, index) => {
           const calories = index === items.length - 1
-            ? Math.max(0, nextTotal - assigned)
-            : Math.max(0, Math.round(nextTotal * (Math.max(0, Number(item.calories) || 0) / previousTotal)));
-          item.calories = calories;
+            ? Math.max(0, target - assigned)
+            : Math.max(0, Math.round(target * (Math.max(0, Number(item.calories) || 0) / (previous || items.length))));
+          items[index] = correctFoodItemCalories(item, calories);
           assigned += calories;
         });
-        payload.totalCalories = nextTotal;
-        payload.calories = nextTotal;
-        fields = fields.map((item) => {
-          const match = item.path?.match(/^items\.(\d+)\.calories$/);
-          return match ? { ...item, value: String(items[Number(match[1])]?.calories ?? 0) } : item;
-        });
       }
+      const totals = sumFoodItemNutrition(items);
+      payload.totalCalories = totals.calories;
+      payload.calories = totals.calories;
+      payload.proteinGrams = totals.proteinGrams;
+      payload.carbohydrateGrams = totals.carbohydrateGrams;
+      payload.fatGrams = totals.fatGrams;
+      fields = fields.map((item) => {
+        const itemMatch = item.path?.match(/^items\.(\d+)\.(weight_grams|calories)$/);
+        if (itemMatch) return { ...item, value: String(items[Number(itemMatch[1])]?.[itemMatch[2] as "weight_grams" | "calories"] ?? "") };
+        const total = ({ totalCalories: totals.calories, proteinGrams: totals.proteinGrams, carbohydrateGrams: totals.carbohydrateGrams, fatGrams: totals.fatGrams } as Record<string, number>)[item.path ?? ""];
+        return total == null ? item : { ...item, value: String(total) };
+      });
       return { ...candidate, fields, payload };
     }
     const items = Array.isArray(payload.items) ? payload.items as FoodItemDraft[] : [];
@@ -630,4 +644,25 @@ export function updateStructuredEntryField(candidate: StructuredEntry, fieldId: 
   if (!candidate.entries) return updateSingleEntry(candidate, fieldId, value);
   const entries = candidate.entries.map((item) => updateSingleEntry(item, fieldId, value));
   return { ...candidate, entries, fields: entries.flatMap((item) => item.fields) };
+}
+
+/** Apply only explicit, item-named portion corrections; vague replies stay for human review. */
+export function applyPhotoNutritionCorrection(candidate: StructuredEntry, reply: string): StructuredEntry {
+  if (candidate.type !== "nutrition" || candidate.payload.source !== "vision") return candidate;
+  const items = Array.isArray(candidate.payload.items) ? candidate.payload.items as FoodItem[] : [];
+  let next = candidate;
+  for (const [index, item] of items.entries()) {
+    const name = item.name?.trim();
+    if (!name) continue;
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    for (const [path, unit] of [["weight_grams", "(?:克|公克|g)"], ["calories", "(?:千卡|大卡|kcal)"]] as const) {
+      const forward = reply.match(new RegExp(`${escaped}[^。；,，]{0,14}?(\\d+(?:\\.\\d+)?)\\s*${unit}`, "i"));
+      const backward = reply.match(new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${unit}[^。；,，]{0,8}?${escaped}`, "i"));
+      const value = Number(forward?.[1] ?? backward?.[1]);
+      if (!Number.isFinite(value) || value <= 0) continue;
+      const field = next.fields.find((entry) => entry.path === `items.${index}.${path}`);
+      if (field) next = updateStructuredEntryField(next, field.id, String(value));
+    }
+  }
+  return next;
 }

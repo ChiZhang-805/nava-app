@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseStructuredEntry, updateStructuredEntryField } from "../src/services/structuredEntryParser.ts";
+import { applyPhotoNutritionCorrection, parseStructuredEntry, updateStructuredEntryField, type StructuredEntry } from "../src/services/structuredEntryParser.ts";
 import { focusDurationChoice, resolveTodoFocusPlan, suggestedFocusPlan } from "../src/services/focusPlanning.ts";
 
 test("todo focus planning preserves user values and estimates missing plans", () => {
@@ -168,6 +168,38 @@ test("production model mode preserves a duration-only sleep record without inven
   assert.equal(entry?.payload.durationMinutes, 180);
   assert.equal(entry?.payload.start, undefined);
   assert.equal(entry?.payload.end, undefined);
+});
+
+test("photo-meal follow-up adjusts named actual portions and keeps item totals consistent", () => {
+  const candidate: StructuredEntry = {
+    id: "photo-1", type: "nutrition", title: "饮食记录", summary: "米饭、鸡胸肉", confidence: 0.7,
+    fields: [
+      { id: "rice-weight", label: "米饭份量", value: "180", path: "items.0.weight_grams", valueType: "number" },
+      { id: "rice-calories", label: "米饭热量", value: "234", path: "items.0.calories", valueType: "number" },
+      { id: "chicken-weight", label: "鸡胸肉份量", value: "100", path: "items.1.weight_grams", valueType: "number" },
+      { id: "chicken-calories", label: "鸡胸肉热量", value: "165", path: "items.1.calories", valueType: "number" },
+      { id: "total", label: "总热量", value: "399", path: "totalCalories", readOnly: true },
+      { id: "protein", label: "蛋白质", value: "34", path: "proteinGrams", readOnly: true },
+    ],
+    payload: {
+      source: "vision", meal: "lunch", totalCalories: 399, proteinGrams: 34,
+      items: [
+        { name: "米饭", weight_grams: 180, calories: 234, protein_grams: 4, carbohydrate_grams: 50, fat_grams: 0.5, nutrition_source: "vision_estimate" },
+        { name: "鸡胸肉", weight_grams: 100, calories: 165, protein_grams: 30, carbohydrate_grams: 0, fat_grams: 4, nutrition_source: "vision_estimate" },
+      ],
+    },
+  };
+  const corrected = applyPhotoNutritionCorrection(candidate, "米饭其实是150克，鸡胸肉大约120克。");
+  const items = corrected.payload.items as Array<Record<string, unknown>>;
+  assert.equal(items[0].weight_grams, 150);
+  assert.equal(items[1].weight_grams, 120);
+  assert.equal(items[0].nutrition_source, "user_corrected");
+  assert.equal(corrected.payload.totalCalories, Number(items[0].calories) + Number(items[1].calories));
+  assert.equal(corrected.fields.find((field) => field.path === "totalCalories")?.value, String(corrected.payload.totalCalories));
+  assert.equal(applyPhotoNutritionCorrection(corrected, "少油一些").payload.totalCalories, corrected.payload.totalCalories);
+  assert.equal(updateStructuredEntryField(corrected, "total", "999").payload.totalCalories, corrected.payload.totalCalories);
+  const kcalCorrected = applyPhotoNutritionCorrection(corrected, "米饭200千卡");
+  assert.equal((kcalCorrected.payload.items as Array<Record<string, unknown>>)[0].calories, 200);
 });
 
 test("AI multi extraction becomes one multi-record confirmation card", () => {

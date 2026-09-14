@@ -5047,6 +5047,7 @@ body::before {
 .structured-field-editor input { width: min(110px, 100%); height: 27px; box-sizing: border-box; border: 1px solid rgba(22,130,174,.24); border-radius: 8px; padding: 3px 7px; color: #0a3144; background: rgba(255,255,255,.78); font: inherit; font-size: 11px; text-align: right; outline: none; }
 .structured-field-editor input:focus { border-color: #1698cb; box-shadow: 0 0 0 2px rgba(22,152,203,.12); }
 .structured-field-editor em { color: #557782; font-size: 10px; font-style: normal; white-space: nowrap; }
+.structured-confirmation-note { margin: 10px 0 0; color: #526f7b; font-size: 12px; line-height: 1.5; }
 .structured-confirmation footer { display: flex; justify-content: flex-end; gap: 7px; margin-top: 8px; }
 .structured-confirmation footer button { min-width: 34px; height: 34px; border: 0; border-radius: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; color: #226680; background: #e3f3f8; }
 .structured-confirmation footer button.active { color: white; background: #2f91b7; }

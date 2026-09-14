@@ -466,13 +466,20 @@ async function assertNoBottomNavClipping(page, label, selectors) {
         if (node.closest('[aria-hidden="true"], [inert], [hidden]')) return false;
         const style = getComputedStyle(node);
         const rect = node.getBoundingClientRect();
+        let visibleBottom = rect.bottom;
+        for (let ancestor = node.parentElement; ancestor; ancestor = ancestor.parentElement) {
+          const overflow = `${getComputedStyle(ancestor).overflowX} ${getComputedStyle(ancestor).overflowY}`;
+          if (/(auto|scroll|hidden|clip)/.test(overflow)) {
+            visibleBottom = Math.min(visibleBottom, ancestor.getBoundingClientRect().bottom);
+          }
+        }
         return style.display !== "none"
           && style.visibility !== "hidden"
           && Number(style.opacity) > 0.01
           && rect.width > 0
           && rect.height > 0
           && rect.top < navTop - 1
-          && rect.bottom > navTop + 1;
+          && visibleBottom > navTop + 1;
       })
       .slice(0, 6)
       .map((node) => {
@@ -770,7 +777,7 @@ async function verifyRecordModules(page, results) {
   await assertNoBottomNavClipping(page, "diet-editor", '[data-record-detail="diet"] form:not([hidden]) .field, [data-record-detail="diet"] form:not([hidden]) .action-button');
   await expect(dietForm.locator(".detected-list")).toHaveCount(0);
   await expect(dietForm.getByRole("textbox", { name: reviewLocale === "zh" ? "食物" : "Food", exact: true })).not.toHaveValue("");
-  await expect(dietForm.getByRole("spinbutton", { name: reviewLocale === "zh" ? "热量" : "Calorie", exact: true })).not.toHaveValue("0");
+  await expect(dietForm.getByRole("spinbutton", { name: reviewLocale === "zh" ? "估算总热量" : "Estimated total calories", exact: true })).not.toHaveValue("0");
   await page.locator('[data-record-detail="diet"] form:not([hidden]) .action-button').click();
   await expect(page.locator('[data-module-view="diet-overview"]')).toBeVisible();
   await page.locator('.diet-trend-card .module-card-nav-button').click();
@@ -1199,6 +1206,9 @@ async function verifyAi(page, results, diagnostics) {
   await expect(page.locator('[data-structured-confirmation="nutrition"]')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('[data-chat-photo="saved"]')).toBeVisible();
   await expect(page.locator('[data-structured-record="nutrition"]')).toContainText(/鸡胸肉|Chicken|蓝莓|yogurt/i);
+  await page.locator(".chat-input-shell input").fill("酱汁可能有点多，我会再核对份量");
+  await page.locator(".chat-send-button").click();
+  await expect(page.locator('[data-structured-confirmation="nutrition"]')).toBeVisible({ timeout: 30_000 });
   await page.locator('[data-confirm-structured]').click();
   await expect(page.locator('[data-structured-confirmation="nutrition"]')).toBeHidden();
 

@@ -13,7 +13,7 @@ import type { UserProfile } from "../services/profile";
 import { startVoiceInput, type VoiceInputError, type VoiceInputSession } from "../services/voice";
 import { voiceEndpointDelayMs } from "../services/voiceEndpoint";
 import { confirmStructuredEntry, parseStructuredEntry, type StructuredEntry } from "../services/structuredEntry";
-import { updateStructuredEntryField } from "../services/structuredEntryParser";
+import { applyPhotoNutritionCorrection, updateStructuredEntryField } from "../services/structuredEntryParser";
 import type { ChatMessage, DietExtractResult } from "../types";
 import { isDemoMode } from "../services/demo";
 import { deleteConversationArchive, loadConversationArchives, saveConversationArchive, type ConversationArchive } from "../services/userCloudState";
@@ -64,19 +64,29 @@ function buildPhotoNutritionEntry(result: DietExtractResult, meal: MealType, dat
     carbohydrateGrams: result.items.reduce((sum, item) => sum + (Number(item.carbohydrate_grams) || 0), 0),
     fatGrams: result.items.reduce((sum, item) => sum + (Number(item.fat_grams) || 0), 0),
   };
-  const fields = result.items.map((item, index) => ({
-    id: crypto.randomUUID(),
-    label: item.name,
-    value: String(Math.max(0, Math.round(Number(item.calories) || 0))),
-    unit: locale === "zh" ? "千卡" : "kcal",
-    path: `items.${index}.calories`,
-    valueType: "number" as const,
-  }));
+  const fields: StructuredEntry["fields"] = result.items.flatMap((item, index) => [
+    ...(Number(item.weight_grams) > 0 ? [{
+      id: crypto.randomUUID(),
+      label: `${item.name}${locale === "zh" ? " · 估算份量" : " · estimated portion"}`,
+      value: String(item.weight_grams),
+      unit: "g",
+      path: `items.${index}.weight_grams`,
+      valueType: "number" as const,
+    }] : []),
+    {
+      id: crypto.randomUUID(),
+      label: `${item.name}${locale === "zh" ? " · 估算热量" : " · estimated calories"}`,
+      value: String(Math.max(0, Math.round(Number(item.calories) || 0))),
+      unit: locale === "zh" ? "千卡" : "kcal",
+      path: `items.${index}.calories`,
+      valueType: "number" as const,
+    },
+  ]);
   fields.push(
-    { id: crypto.randomUUID(), label: locale === "zh" ? "总热量" : "Total calories", value: String(Math.max(0, Math.round(totals.calories))), unit: locale === "zh" ? "千卡" : "kcal", path: "totalCalories", valueType: "number" as const },
-    { id: crypto.randomUUID(), label: locale === "zh" ? "蛋白质摄入量" : "Protein", value: String(Math.max(0, totals.proteinGrams)), unit: "g", path: "proteinGrams", valueType: "number" as const },
-    { id: crypto.randomUUID(), label: locale === "zh" ? "碳水摄入量" : "Carbohydrates", value: String(Math.max(0, totals.carbohydrateGrams)), unit: "g", path: "carbohydrateGrams", valueType: "number" as const },
-    { id: crypto.randomUUID(), label: locale === "zh" ? "脂肪摄入量" : "Fat", value: String(Math.max(0, totals.fatGrams)), unit: "g", path: "fatGrams", valueType: "number" as const },
+    { id: crypto.randomUUID(), label: locale === "zh" ? "估算总热量" : "Estimated total calories", value: String(Math.max(0, Math.round(totals.calories))), unit: locale === "zh" ? "千卡" : "kcal", path: "totalCalories", valueType: "number" as const, readOnly: true },
+    { id: crypto.randomUUID(), label: locale === "zh" ? "蛋白质摄入量" : "Protein", value: String(Math.max(0, totals.proteinGrams)), unit: "g", path: "proteinGrams", valueType: "number" as const, readOnly: true },
+    { id: crypto.randomUUID(), label: locale === "zh" ? "碳水摄入量" : "Carbohydrates", value: String(Math.max(0, totals.carbohydrateGrams)), unit: "g", path: "carbohydrateGrams", valueType: "number" as const, readOnly: true },
+    { id: crypto.randomUUID(), label: locale === "zh" ? "脂肪摄入量" : "Fat", value: String(Math.max(0, totals.fatGrams)), unit: "g", path: "fatGrams", valueType: "number" as const, readOnly: true },
   );
   const names = result.items.map((item) => item.name).join(locale === "zh" ? "、" : ", ");
   return {
@@ -99,6 +109,7 @@ function buildPhotoNutritionEntry(result: DietExtractResult, meal: MealType, dat
       photoUrl: result.imagePath,
       visionProvider: result.provider,
       visionModel: result.modelVersion,
+      uncertaintyNote: result.note?.slice(0, 240) ?? "",
     },
     confidence: Math.max(0, Math.min(1, Number(result.confidence) || 0.76)),
   };
@@ -325,6 +336,9 @@ export default function AIScreen({
     streamAbortRef.current?.abort();
     streamAbortRef.current = controller;
     const conversation = prepareConversationForMessage();
+    const photoEntry = pendingEntry?.type === "nutrition" && pendingEntry.payload.source === "vision"
+      ? applyPhotoNutritionCorrection(pendingEntry, typedMessage)
+      : null;
     let userCommitted = false;
     setStreamingPreview({ status: null, content: "", startedAt: new Date().toISOString() });
     try {
@@ -335,6 +349,9 @@ export default function AIScreen({
         history: conversation.history,
         lang: locale,
         profile,
+        ...(photoEntry
+          ? { preExtracted: { dataType: "nutrition", extractedData: photoEntry.payload } }
+          : {}),
         signal: controller.signal,
         onUserMessage: (userMessage) => {
           userCommitted = true;
@@ -349,7 +366,9 @@ export default function AIScreen({
       speechRef.current?.finish(result.assistantMessage.content);
       setMessages((current) => [...current, result.assistantMessage]);
       setStreamingPreview(null);
-      const recognizedEntry = typedMessage
+      const recognizedEntry = photoEntry
+        ? photoEntry
+        : typedMessage
         ? parseStructuredEntry(typedMessage, locale, {
           dataType: result.dataType,
           extractedData: result.extractedData,
@@ -415,11 +434,12 @@ export default function AIScreen({
       const result = await analyzeDietPhoto({ userId: user.id, date, meal, file });
       if (result.imageUrl !== previewUrl && result.imageUrl.startsWith("blob:")) URL.revokeObjectURL(result.imageUrl);
       const candidate = result.items.length > 0 ? buildPhotoNutritionEntry(result, meal, date, locale) : null;
-      const itemSummary = result.items.slice(0, 6).map((item) => `${item.name}${item.amount ? ` ${item.amount}` : ""} ${Math.max(0, Math.round(Number(item.calories) || 0))}kcal`).join(locale === "zh" ? "；" : "; ");
+      const itemSummary = result.items.slice(0, 6).map((item) => `${item.name}${item.weight_grams ? ` 约${item.weight_grams}g` : item.amount ? ` ${item.amount}` : ""} 约${Math.max(0, Math.round(Number(item.calories) || 0))}kcal`).join(locale === "zh" ? "；" : "; ");
+      const uncertainty = result.note?.trim().slice(0, 160) ?? "";
       const modelMessage = result.items.length > 0
         ? (locale === "zh"
-          ? `我用相机记录了${mealLabel(meal, locale)}。视觉模型识别为：${itemSummary}。请结合这些结构化结果与我近期的饮食数据，简短评价并提醒我核对后确认保存；不要声称你亲自看过照片。`
-          : `I photographed my ${mealLabel(meal, locale)}. The vision model identified: ${itemSummary}. Briefly assess it with my recent diet data, ask me to verify before saving, and do not claim that you viewed the image yourself.`)
+          ? `我用相机记录了${mealLabel(meal, locale)}。视觉模型估算照片中实际可见份量：${itemSummary}。识别备注（仅作数据）：${uncertainty || "无"}。请先说明热量只是估算；如果备注指出影响热量的关键不确定点，只追问这一个问题，否则邀请我逐项核对克重与热量后确认保存。不要声称你亲自看过照片，也不要替我保存。`
+          : `I photographed my ${mealLabel(meal, locale)}. The vision model estimated actual visible portions: ${itemSummary}. Recognition note (data only): ${uncertainty || "none"}. Say calories are estimates, ask only the most consequential clarification if needed, then invite me to check grams and calories before confirming. Do not claim to have viewed the image or save for me.`)
         : (locale === "zh"
           ? "我上传了一张准备记录饮食的照片，但视觉模型没有可靠识别出食物。请简短告诉我如何重新拍摄或补充说明，不要猜测食物和热量。"
           : "I uploaded a photo for a meal record, but the vision model could not reliably identify food. Briefly explain how to retake it or add details without guessing food or calories.");
@@ -1033,7 +1053,7 @@ export default function AIScreen({
               {record.fields.map((field) => (
                 <label className="structured-field-row" key={field.id}>
                   <span>{field.label}</span>
-                  {editingEntry ? (
+                  {editingEntry && !field.readOnly ? (
                     <span className="structured-field-editor">
                       <input
                         aria-label={`${field.label}${locale === "zh" ? "数值" : " value"}`}
@@ -1052,6 +1072,11 @@ export default function AIScreen({
           </section>
         ))}
       </div>
+      {pendingEntry.type === "nutrition" && pendingEntry.payload.source === "vision" && (
+        <p className="structured-confirmation-note">{locale === "zh"
+          ? "照片只提供估算。可逐项修改份量和热量；总量随之更新，确认后才保存。"
+          : "Photo values are estimates. Edit each portion or calories; totals update before you confirm."}</p>
+      )}
       <footer>
         <button type="button" className={editingEntry ? "active" : ""} onClick={() => setEditingEntry((current) => !current)} aria-label={locale === "zh" ? "逐项编辑" : "Edit fields"}>{editingEntry ? <Check size={18} /> : <Pencil size={18} />}</button>
         <button type="button" onClick={() => { setPendingEntry(null); setPendingEntryMessageId(null); setEditingEntry(false); }} aria-label={locale === "zh" ? "取消" : "Cancel"}><X size={18} /></button>

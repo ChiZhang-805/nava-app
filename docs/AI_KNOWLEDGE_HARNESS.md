@@ -245,3 +245,12 @@ causes the active conversation to be deleted before that archive succeeds.
   visible portions and high-uncertainty ingredients. User-edited grams/kcal
   become `user_corrected`; neither label claims an authoritative nutrition
   database match. App confirmation is still required before saving.
+- In AI chat, a photographed meal now carries each visible item's estimated
+  grams and calories into an editable confirmation card. The model receives
+  the vision note as untrusted data and is asked to raise at most one material
+  uncertainty. An explicit, item-named gram/kcal reply updates that same
+  unsaved card; vague replies leave estimates unchanged for manual review.
+  The card survives subsequent conversation turns and only confirmation writes
+  the meal. Per-item source, weight and confidence are retained on save, and
+  totals are recomputed from the edited items. No nutrition-database match is
+  inferred from the photo or from a user's vague answer.

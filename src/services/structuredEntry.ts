@@ -66,10 +66,15 @@ export async function confirmStructuredEntry(userId: string, candidate: Structur
           name: String(item.name ?? "饮食记录"),
           source_id: `${candidate.id}:${index}`,
           amount: item.amount ? String(item.amount) : undefined,
+          weight_grams: finiteNumber(item.weight_grams),
           calories: Math.max(0, Math.round(Number(item.calories ?? 0))),
           protein_grams: finiteNumber(item.protein_grams),
           carbohydrate_grams: finiteNumber(item.carbohydrate_grams),
           fat_grams: finiteNumber(item.fat_grams),
+          confidence: finiteNumber(item.confidence),
+          nutrition_source: item.nutrition_source === "user_corrected" ? "user_corrected" as const
+            : item.nutrition_source === "vision_estimate" ? "vision_estimate" as const
+            : undefined,
         }))
       : [];
     if (items.length > 0) {
@@ -83,6 +88,7 @@ export async function confirmStructuredEntry(userId: string, candidate: Structur
         proteinGrams: finiteNumber(data.proteinGrams),
         carbohydrateGrams: finiteNumber(data.carbohydrateGrams),
         fatGrams: finiteNumber(data.fatGrams),
+        mealTime: new Date().toTimeString().slice(0, 5),
       });
     } else {
       await saveNutritionRecord({
