@@ -60,7 +60,7 @@
     "shop:visual": "node scripts/verify-shop-ui.mjs",
     "ai:prompt:test": "node --experimental-strip-types --test tests/ai-chat-prompt.test.ts tests/ai-context-router.test.ts tests/ai-review-access.test.ts tests/chat-attachments.test.ts",
     "ai:compact:test": "node --experimental-strip-types --test tests/ai-compact-summary.test.ts",
-    "structured:test": "node --experimental-strip-types --test tests/structured-entry.test.ts",
+    "structured:test": "node --experimental-strip-types --test tests/structured-entry.test.ts tests/focus-contract.test.ts",
     "algorithm:test": "node --experimental-strip-types --test tests/rhythm-core.test.ts",
     "health:contract:test": "node --experimental-strip-types --test tests/health-native-contract.test.ts tests/watch-action-time.test.ts",
     "consent:contract:test": "node --experimental-strip-types --test tests/consent-data-boundary.test.ts",

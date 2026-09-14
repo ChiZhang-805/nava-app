@@ -34,6 +34,8 @@ import {
   routeSystemPrompt,
   type AiRoute,
 } from "./router.ts";
+import { generateValidatedFocus, validateFocusRequest, type FocusRequest } from "../_shared/focus-contract.ts";
+import { loadFocusEvidence } from "./focus.ts";
 
 type ReplyLanguage = "zh" | "en";
 type ReplyMode = "text" | "voice";
@@ -74,8 +76,9 @@ Deno.serve(async (req) => {
 
   try {
     const body = await readJson(req);
-    const message = stringValue(body.message);
-    if (!message) throw new Error("请先输入要发送的内容。");
+    const focusRequest = body.focusRequest == null ? null : validateFocusRequest(body.focusRequest);
+    const message = stringValue(body.message) ?? "";
+    if (!focusRequest && !message) throw new Error("请先输入要发送的内容。");
     if (Array.from(message).length > 600) throw new Error("单次消息不能超过 600 个字符。");
 
     const address = clientAddress(req);
@@ -90,6 +93,7 @@ Deno.serve(async (req) => {
     enforceRateLimit(`${user.id}:${address}`, authenticatedRequestsPerWindow);
 
     const lang: ReplyLanguage = stringValue(body.lang) === "en" || stringValue(body.language) === "en" ? "en" : "zh";
+    if (focusRequest) return jsonResponse(await buildFocusReply(userClient, user.id, focusRequest, lang, body.deviceDate, req.signal));
     const baseInput: Pick<ReplyInput, "message" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode"> = {
       message,
       deviceDate: stringValue(body.deviceDate) ?? stringValue(body.device_date),
@@ -109,6 +113,32 @@ Deno.serve(async (req) => {
     return errorResponse(error);
   }
 });
+
+async function buildFocusReply(client: SupabaseClient, userId: string, request: FocusRequest, lang: ReplyLanguage, deviceDate: unknown, requestSignal: AbortSignal) {
+  const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
+  if (!apiKey) throw new Error("真实 AI 模型尚未配置，请联系管理员检查模型服务密钥。");
+  const controller = new AbortController();
+  const cancel = () => controller.abort(requestSignal.reason);
+  requestSignal.addEventListener("abort", cancel, { once: true });
+  if (requestSignal.aborted) cancel();
+  const timeout = setTimeout(() => controller.abort(), deepSeekTimeoutMs);
+  try {
+    controller.signal.throwIfAborted();
+    const evidence = request.kind === "encouragement" ? await loadFocusEvidence(client, userId, deviceDate, controller.signal) : [];
+    const providerUserId = await anonymizeUserId(userId);
+    const result = await generateValidatedFocus(request, lang, evidence, async (messages) => {
+      controller.signal.throwIfAborted();
+      const response = await fetchDeepSeek(apiKey, {
+        model: deepSeekModel, thinking: { type: "disabled" }, temperature: 0.2, max_tokens: 900,
+        response_format: { type: "json_object" }, user_id: providerUserId, messages,
+      }, controller.signal, 1);
+      if (!response.ok) throw await deepSeekHttpError(response);
+      const data = await response.json();
+      return String(data?.choices?.[0]?.message?.content ?? "").trim();
+    });
+    return { ...result, provider: "deepseek", modelVersion: `${deepSeekModel}-focus-v1`, actions: [], knowledgeTrace: [] };
+  } finally { clearTimeout(timeout); requestSignal.removeEventListener("abort", cancel); }
+}
 
 async function prepareReplyInput(
   client: SupabaseClient,

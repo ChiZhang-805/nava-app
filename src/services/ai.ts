@@ -5,7 +5,8 @@ import { demoMessagesFor, isDemoMode } from "./demo";
 import { AI_PROCESSING_STEP_MIN_MS, buildAiProcessingSteps, type AiProcessingStep } from "./aiProcessing";
 import type { UserProfile } from "./profile";
 import { buildConversationGreeting } from "./aiConversationSessions";
-import { focusDifficultyPrompt, focusInSessionEncouragementPrompt, focusPriorityPrompt, focusStartingCuePrompt, parseFocusPriorityAdvice, type PriorityTask } from "./focusPlanning";
+import type { PriorityTask } from "./focusPlanning";
+import { validateFocusRequest, validateFocusOutput, type FocusRequest, type FocusResult } from "../../supabase/functions/_shared/focus-contract.ts";
 
 function assertNoError(error: unknown) {
   if (!error) return;
@@ -93,70 +94,30 @@ export async function generateConversationTitle(messages: ChatMessage[], lang: "
 }
 
 export async function generateFocusStartingCue(title: string, minutes: number, lang: "zh" | "en", signal?: AbortSignal) {
-  if (isDemoMode()) throw new Error(lang === "zh" ? "演示模式不调用真实 AI。" : "The demo does not call a real AI model.");
-  const response = await supabase.functions.invoke<{ reply?: string }>("ai-chat-reply", {
-    headers: await authenticatedFunctionHeaders(),
-    body: {
-      message: focusStartingCuePrompt(title, minutes, lang),
-      lang,
-      responseMode: "text",
-      deviceDate: todayISO(),
-      stream: false,
-    },
-    signal,
-  });
-  if (response.error) throw await authenticatedFunctionError(response.error);
-  const cue = typeof response.data?.reply === "string" ? response.data.reply.trim() : "";
-  if (!cue) throw new Error(lang === "zh" ? "AI 暂未给出提示，请重试。" : "AI did not return a cue. Please retry.");
-  return cue;
+  return (await requestFocusAi({ kind: "starting_cue", title, minutes }, lang, signal)).reply;
 }
 
 export async function generateFocusDifficulty(title: string, minutes: number, sessions: number | undefined, lang: "zh" | "en", signal?: AbortSignal) {
-  if (isDemoMode()) throw new Error(lang === "zh" ? "演示模式不调用真实 AI。" : "The demo does not call a real AI model.");
-  const response = await supabase.functions.invoke<{ reply?: string }>("ai-chat-reply", {
-    headers: await authenticatedFunctionHeaders(),
-    body: {
-      message: focusDifficultyPrompt(title, minutes, sessions, lang),
-      lang,
-      responseMode: "text",
-      deviceDate: todayISO(),
-      stream: false,
-    },
-    signal,
-  });
-  if (response.error) throw await authenticatedFunctionError(response.error);
-  const assessment = typeof response.data?.reply === "string" ? response.data.reply.trim() : "";
-  if (!assessment) throw new Error(lang === "zh" ? "AI 暂未给出评估，请重试。" : "AI did not return an assessment. Please retry.");
-  return assessment;
+  return (await requestFocusAi({ kind: "difficulty", title, minutes, sessions }, lang, signal)).reply;
 }
 
 export async function generateFocusPriority(tasks: PriorityTask[], lang: "zh" | "en", signal?: AbortSignal) {
-  if (isDemoMode()) throw new Error(lang === "zh" ? "演示模式不调用真实 AI。" : "The demo does not call a real AI model.");
-  if (tasks.length < 2) throw new Error(lang === "zh" ? "至少需要两项待办。" : "At least two tasks are needed.");
-  const response = await supabase.functions.invoke<{ reply?: string }>("ai-chat-reply", {
-    headers: await authenticatedFunctionHeaders(),
-    body: {
-      message: focusPriorityPrompt(tasks, lang),
-      lang,
-      responseMode: "text",
-      deviceDate: todayISO(),
-      stream: false,
-    },
-    signal,
-  });
-  if (response.error) throw await authenticatedFunctionError(response.error);
-  const reply = typeof response.data?.reply === "string" ? response.data.reply.trim() : "";
-  if (!reply) throw new Error(lang === "zh" ? "AI 暂未给出排序建议，请重试。" : "AI did not return a priority suggestion. Please retry.");
-  return parseFocusPriorityAdvice(reply, tasks.length);
+  return (await requestFocusAi({ kind: "priority", tasks }, lang, signal)).advice!;
 }
 
-export async function generateFocusInSessionEncouragement(title: string, elapsedMinutes: number, lang: "zh" | "en", evidence: string[] = [], signal?: AbortSignal) {
+export async function generateFocusInSessionEncouragement(title: string, elapsedMinutes: number, lang: "zh" | "en", signal?: AbortSignal) {
+  return requestFocusAi({ kind: "encouragement", title, elapsedMinutes }, lang, signal);
+}
+
+async function requestFocusAi(input: FocusRequest, lang: "zh" | "en", signal?: AbortSignal): Promise<FocusResult> {
   if (isDemoMode()) throw new Error(lang === "zh" ? "演示模式不调用真实 AI。" : "The demo does not call a real AI model.");
-  if (!title.trim()) throw new Error(lang === "zh" ? "请先填写专注事项。" : "Add a focus task first.");
-  const response = await supabase.functions.invoke<{ reply?: string }>("ai-chat-reply", {
+  let focusRequest: FocusRequest;
+  try { focusRequest = validateFocusRequest(input); }
+  catch { throw new Error(lang === "zh" ? "请检查专注信息：任务名最多300字，排序需2至12项。" : "Check focus details: titles allow up to 300 characters; priority needs 2–12 tasks."); }
+  const response = await supabase.functions.invoke<FocusResult>("ai-chat-reply", {
     headers: await authenticatedFunctionHeaders(),
     body: {
-      message: focusInSessionEncouragementPrompt(title, elapsedMinutes, lang, evidence),
+      focusRequest,
       lang,
       responseMode: "text",
       deviceDate: todayISO(),
@@ -165,9 +126,9 @@ export async function generateFocusInSessionEncouragement(title: string, elapsed
     signal,
   });
   if (response.error) throw await authenticatedFunctionError(response.error);
-  const reply = typeof response.data?.reply === "string" ? response.data.reply.trim() : "";
-  if (!reply) throw new Error(lang === "zh" ? "AI 暂未给出提示，请重试。" : "AI did not return a cue. Please retry.");
-  return reply;
+  try {
+    return validateFocusOutput(JSON.stringify(response.data?.output), focusRequest, lang, response.data?.evidence ?? []);
+  } catch { throw new Error(lang === "zh" ? "AI 回复格式或字数不符合要求，请重试。" : "AI response format or length is invalid. Please retry."); }
 }
 
 export async function sendAiMessage(input: {

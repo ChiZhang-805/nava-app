@@ -253,4 +253,32 @@ causes the active conversation to be deleted before that archive succeeds.
   The card survives subsequent conversation turns and only confirmation writes
   the meal. Per-item source, weight and confidence are retained on save, and
   totals are recomputed from the edited items. No nutrition-database match is
-  inferred from the photo or from a user's vague answer.
+inferred from the photo or from a user's vague answer.
+
+## Dedicated focus AI contract (2026-09-15)
+
+- `ai-chat-reply` accepts an authenticated `focusRequest` for priority, difficulty,
+  starting cue and in-session encouragement. Ordinary chat retains its 600-character
+  limit. Task input is bounded to 2–12 tasks and 300 Unicode characters per title;
+  titles are not silently truncated or interpreted as instructions.
+- The model must return a strict JSON schema. Priority is an exact permutation;
+  starting cues are one sentence, at most 24 Chinese characters or 18 English words;
+  encouragement is at most two sentences and 80 Chinese characters or 55 English
+  words. Chinese counts include punctuation and spaces. Invalid output gets at most
+  two repair attempts inside a 60-second deadline; malformed output is never shown
+  or salvaged by extracting arbitrary numbers from prose.
+- Encouragement evidence is read on the server using the authenticated owner,
+  explicit AI consent and the device-local seven-day window. Declined consent
+  prevents health-table reads. Each citation binds domain, actual numeric value
+  and original unit; the model receives server-formatted citation strings to copy.
+  Cross-domain observations require two saved domains and do not imply causation.
+- Frontend validates the same contract, presents errors and retry, and cancels
+  requests on pause/close/navigation. Backend cancellation is linked to the incoming
+  request and the deadline also covers evidence reads. No focus/health save or reward
+  occurs from these advice calls. Priority still requires explicit confirmation.
+- Real authenticated model tests passed Chinese/English 2/5/12-task sorting, long-title
+  difficulty and starting cues. Real account APP clicks passed all four entry points.
+  Separate accelerated-clock tests cover opt-in intervals, pause/reset and the
+  four-cue limit. Four viewport bounds passed. Temporary tasks were removed by exact
+  IDs; browser `active_user_sessions` calls were isolated and the original cloud
+  session was read back unchanged. No private model reply or credentials are logged.

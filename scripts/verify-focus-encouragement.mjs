@@ -1,7 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
+import assert from "node:assert/strict";
+import { mkdir } from "node:fs/promises";
 import { chromium, expect } from "@playwright/test";
-import { focusInSessionEncouragementPrompt } from "../src/services/focusPlanning.ts";
-import { formatFocusHealthEvidence, selectFocusHealthEvidence } from "../src/services/focusEncouragement.ts";
+import { validateFocusOutput } from "../supabase/functions/_shared/focus-contract.ts";
+import { selectFocusHealthEvidence } from "../src/services/focusEncouragement.ts";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const email = process.env.NAVA_ACCOUNT_EMAIL;
@@ -15,6 +17,7 @@ if (!url || !key || new URL(url).hostname.split(".")[0] !== "wxteapvwagvhhtrjrbi
 }
 
 const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+const temporaryTaskIds = [];
 try {
   const login = await client.auth.signInWithPassword({ email, password });
   if (login.error || !login.data.user) throw new Error("NAVA account login failed.");
@@ -31,22 +34,32 @@ try {
   ]);
   for (const result of [profileResult, sleepResult, moodResult, exerciseResult]) if (result.error) throw new Error(`Owned focus evidence read failed: ${result.error.message}`);
   const evidence = selectFocusHealthEvidence({ sleeps: sleepResult.data, moods: moodResult.data, exercises: exerciseResult.data }, profileResult.data, deviceDate);
-  const formattedEvidence = evidence.map((item) => formatFocusHealthEvidence(item, "zh"));
+  const focusRequest = { kind: "encouragement", title: "整理研究笔记", elapsedMinutes: 12 };
   const response = await client.functions.invoke("ai-chat-reply", {
     body: {
-      message: focusInSessionEncouragementPrompt("整理研究笔记", 12, "zh", formattedEvidence),
+      focusRequest,
       lang: "zh", responseMode: "text", deviceDate, stream: false,
     },
   });
-  if (response.error) throw new Error(`Authenticated in-session cue failed: ${response.error.message}`);
+  if (response.error) {
+    const detail = await response.error.context?.json().catch(() => null);
+    throw new Error(`Authenticated in-session cue failed: ${response.error.context?.status ?? "unknown"}; ${detail?.error ?? detail?.message ?? response.error.message}`);
+  }
   const reply = typeof response.data?.reply === "string" ? response.data.reply.trim() : "";
-  if (reply.length < 6 || reply.length > 400 || /AI\s*暂不可用|请先登录/.test(reply)) {
+  validateFocusOutput(JSON.stringify(response.data?.output), focusRequest, "zh", evidence);
+  if (reply.length < 6 || Array.from(reply).length > 80 || /AI\s*暂不可用|请先登录/.test(reply)) {
     throw new Error("Authenticated in-session cue did not pass the safe reply check.");
   }
   const citedDomains = evidence.filter((item) => reply.includes(String(item.value)));
   if (evidence.length >= 2 && citedDomains.length < 2) throw new Error("The model did not cite two actual saved domain values for the requested cross-domain observation.");
   console.log(`Authenticated real-model in-session focus cue received (${reply.length} characters; content omitted); ${evidence.length} consented domains, ${citedDomains.length} observed values cited; no focus or health record saved.`);
   if (process.env.NAVA_FOCUS_UI_URL) {
+    const tasks = Array.from({ length: 2 }, (_, index) => ({ id: crypto.randomUUID(), user_id: userId,
+      title: `专注契约验收${index + 1}：${"整理研究笔记，核验引用并列出待确认问题。".repeat(7)}`,
+      scheduled_date: deviceDate, category: "todo", source: "manual", completed: false, estimated_minutes: 25, focus_sessions: 1 }));
+    const inserted = await client.from("tasks").insert(tasks).select("id");
+    if (inserted.error || inserted.data?.length !== 2) throw new Error("Could not create isolated, temporary focus acceptance tasks.");
+    temporaryTaskIds.push(...inserted.data.map((row) => row.id));
     const previous = await client.from("active_user_sessions").select("payload").eq("user_id", userId).eq("session_type", "focus").maybeSingle();
     if (previous.error) throw new Error(`Could not inspect the existing focus session: ${previous.error.message}`);
     const browser = await chromium.launch({ headless: true });
@@ -54,6 +67,18 @@ try {
     try {
       context = await browser.newContext({ viewport: { width: 390, height: 844 } });
       const page = await context.newPage();
+      const realUiCall = async (kind, click) => {
+        const pending = page.waitForResponse((res) => res.url().includes("/functions/v1/ai-chat-reply") && res.request().postDataJSON()?.focusRequest?.kind === kind, { timeout: 75_000 });
+        await click();
+        const res = await pending;
+        assert.equal(res.status(), 200, `Actual APP ${kind} HTTP status`);
+        const data = await res.json();
+        assert.match(data.modelVersion, /focus-v1$/);
+        const request = res.request().postDataJSON().focusRequest;
+        validateFocusOutput(JSON.stringify(data.output), request, "zh", kind === "encouragement" ? evidence : []);
+        console.log(`Actual logged-in APP: ${kind} returned a validated real-model response.`);
+        return data;
+      };
       let sandboxedSessionCalls = 0;
       await page.route("**/rest/v1/active_user_sessions*", async (route) => {
         sandboxedSessionCalls += 1;
@@ -71,23 +96,40 @@ try {
       await expect(page.locator(".bottom-nav")).toBeVisible({ timeout: 30_000 });
       await page.goto(`${process.env.NAVA_FOCUS_UI_URL}#tab=record&module=focus`, { waitUntil: "domcontentloaded" });
       await expect(page.locator('[data-module-view="focus-overview"]')).toBeVisible({ timeout: 20_000 });
-      await page.locator(".focus-task-field input").fill("整理研究笔记");
+      await expect(page.locator(".focus-todo-list")).toContainText(tasks[0].title, { timeout: 20_000 });
+      const priority = await realUiCall("priority", () => page.locator(".focus-ai-priority-button").click());
+      await expect(page.locator(".focus-ai-priority-result")).toContainText(priority.advice.basis);
+      await page.locator(".focus-task-field input").fill(tasks[0].title);
+      const difficulty = await realUiCall("difficulty", () => page.getByRole("button", { name: "询问 AI 难度", exact: true }).click());
+      await expect(page.locator(".focus-ai-assessment p")).toHaveText(difficulty.reply);
       await page.locator(".focus-summary-start").click();
       await expect(page.locator('[data-module-view="focus-immersive"]')).toBeVisible();
+      const cue = await realUiCall("starting_cue", () => page.getByRole("button", { name: "AI 进入状态", exact: true }).click());
+      await expect(page.locator(".focus-guide-ai-cue")).toHaveText(cue.reply);
+      await page.locator(".focus-guide-close").click();
+      await page.getByRole("button", { name: "开始", exact: true }).click();
+      const live = await realUiCall("encouragement", () => page.getByRole("button", { name: "获取计时中的 AI 鼓励" }).click());
+      await expect(page.locator(".focus-encouragement-panel")).toContainText(live.reply);
+      const evidenceDir = process.env.NAVA_FOCUS_EVIDENCE_DIR;
+      if (evidenceDir) {
+        await mkdir(evidenceDir, { recursive: true });
+        await page.screenshot({ path: `${evidenceDir}/focus-real-model-390.png` });
+      }
+      await page.getByRole("button", { name: "重置" }).click();
       await page.clock.install({ time: new Date() });
       let modelUiCalls = 0;
       const uiPrompts = [];
       await page.route("**/functions/v1/ai-chat-reply", async (route) => {
         modelUiCalls += 1;
-        uiPrompts.push(route.request().postDataJSON()?.message ?? "");
-        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ reply: "测试鼓励：先整理下一段笔记。" }) });
+        uiPrompts.push(route.request().postDataJSON()?.focusRequest);
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(response.data) });
       });
       await page.getByRole("button", { name: "开始" }).click();
       await expect(page.locator('[data-focus-state="running"]')).toBeVisible();
       await page.getByRole("button", { name: "获取计时中的 AI 鼓励" }).click();
       const panel = page.getByRole("region", { name: "计时中的 AI 鼓励" });
       await expect(panel).toBeVisible();
-      await expect(panel.getByText("测试鼓励：先整理下一段笔记。")).toBeVisible();
+      await expect(panel.getByText(reply, { exact: true })).toBeVisible();
       await expect(panel.locator(".focus-encouragement-sources span")).toHaveCount(evidence.length);
       await page.evaluate(async () => { if (document.fullscreenElement) await document.exitFullscreen(); });
       for (const viewport of [{ width: 360, height: 740 }, { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
@@ -103,7 +145,7 @@ try {
       if (modelUiCalls !== 1) throw new Error("Automatic encouragement fired immediately instead of after the interval.");
       await page.clock.fastForward(15 * 60 * 1000 + 1_000);
       await expect.poll(() => modelUiCalls, { timeout: 10_000 }).toBe(2);
-      if (!/已进行约 15 分钟/.test(uiPrompts[1])) throw new Error("Countdown focus time was not passed to the automatic AI cue.");
+      if (uiPrompts[1]?.elapsedMinutes !== 15) throw new Error("Countdown focus time was not passed to the automatic AI cue.");
       await page.getByRole("button", { name: "暂停", exact: true }).click();
       await page.clock.fastForward(15 * 60 * 1000 + 1_000);
       if (modelUiCalls !== 2) throw new Error("A paused timer requested an automatic AI cue.");
@@ -131,7 +173,16 @@ try {
       await context?.close();
       await browser.close();
     }
+    const after = await client.from("active_user_sessions").select("payload").eq("user_id", userId).eq("session_type", "focus").maybeSingle();
+    if (after.error) throw new Error("Could not verify preservation of the pre-existing focus session.");
+    assert.deepEqual(after.data, previous.data);
   }
 } finally {
-  await client.auth.signOut({ scope: "local" });
+  try {
+    if (temporaryTaskIds.length) {
+      const cleanup = await client.from("tasks").delete().in("id", temporaryTaskIds).select("id");
+      if (cleanup.error || cleanup.data?.length !== temporaryTaskIds.length) throw new Error("Exact temporary focus test tasks require cleanup.");
+      console.log(`Removed ${temporaryTaskIds.length} exact temporary acceptance tasks; existing tasks and focus records untouched.`);
+    }
+  } finally { await client.auth.signOut({ scope: "local" }); }
 }

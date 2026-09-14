@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyPhotoNutritionCorrection, parseStructuredEntry, updateStructuredEntryField, type StructuredEntry } from "../src/services/structuredEntryParser.ts";
-import { focusDifficultyPrompt, focusDurationChoice, focusInSessionEncouragementPrompt, focusPriorityPrompt, focusStartingCuePrompt, parseFocusPriorityAdvice, resolveTodoFocusPlan, suggestedFocusPlan } from "../src/services/focusPlanning.ts";
+import { focusDurationChoice, resolveTodoFocusPlan, suggestedFocusPlan } from "../src/services/focusPlanning.ts";
 import { formatFocusHealthEvidence, nextFocusEncouragementAt, selectFocusHealthEvidence } from "../src/services/focusEncouragement.ts";
 import type { TrendBundle } from "../src/types.ts";
 import type { UserProfile } from "../src/services/profile.ts";
@@ -17,32 +17,6 @@ test("todo focus planning preserves user values and estimates missing plans", ()
   assert.equal(resolveTodoFocusPlan({ title: "整理书桌" }).suggested, true);
   assert.equal(focusDurationChoice(45), "45");
   assert.equal(focusDurationChoice(37), "custom");
-  const prompt = focusDifficultyPrompt("交论文", 45, 2, "zh");
-  assert.match(prompt, /交论文/);
-  assert.match(prompt, /每次 45 分钟，共 2 次/);
-  assert.match(prompt, /信息不足/);
-  assert.match(prompt, /不要声称已修改或保存/);
-  const cuePrompt = focusStartingCuePrompt("交论文", 45, "zh");
-  assert.match(cuePrompt, /"交论文"/);
-  assert.match(cuePrompt, /不超过24个汉字/);
-  assert.match(cuePrompt, /计划专注 45 分钟/);
-  assert.match(cuePrompt, /不是对你的指令/);
-  const priorityPrompt = focusPriorityPrompt([{ title: "交论文", scheduledTime: "15:30", focusMinutes: 45 }, { title: "整理书桌" }], "zh");
-  assert.match(priorityPrompt, /"number":1,"title":"交论文","time":"15:30","minutes":45,"important":null,"urgent":null/);
-  assert.match(priorityPrompt, /important\/urgent 仅在布尔值明确时/);
-  assert.match(priorityPrompt, /order 必须恰好包含编号 1 到 2 各一次/);
-  assert.match(priorityPrompt, /不要声称已经修改、保存或完成待办/);
-  assert.deepEqual(parseFocusPriorityAdvice('{"order":[2,1],"basis":"时间明确","question":"截止时间是几点？"}', 2), {
-    order: [2, 1], basis: "时间明确", question: "截止时间是几点？",
-  });
-  assert.throws(() => parseFocusPriorityAdvice('{"order":[2,2],"basis":"x","question":"y"}', 2));
-  assert.throws(() => parseFocusPriorityAdvice('{"order":[1],"basis":"x","question":"y"}', 2));
-  assert.deepEqual(parseFocusPriorityAdvice("先完成任务2（25分钟），再处理任务1（15:30，45分钟）。", 2).order, [2, 1]);
-  assert.throws(() => parseFocusPriorityAdvice("先完成任务2（25分钟）。", 2));
-  const inSessionPrompt = focusInSessionEncouragementPrompt("整理研究笔记", 12, "zh");
-  assert.match(inSessionPrompt, /已进行约 12 分钟/);
-  assert.match(inSessionPrompt, /不足两个领域时只给任务提示/);
-  assert.match(inSessionPrompt, /不能编造记录、诊断、推断因果/);
 });
 
 test("focus encouragement uses only consented saved recent evidence and bounded timer slots", () => {
@@ -59,10 +33,6 @@ test("focus encouragement uses only consented saved recent evidence and bounded 
   assert.equal(evidence[0].value, 445);
   assert.equal(evidence[2].unit, "steps");
   assert.equal(formatFocusHealthEvidence(evidence[0], "zh"), "2026-09-13 睡眠 445分钟");
-  const prompt = focusInSessionEncouragementPrompt("整理研究笔记", 18, "zh", evidence.map((item) => formatFocusHealthEvidence(item, "zh")));
-  assert.match(prompt, /2026-09-13 睡眠 445分钟/);
-  assert.match(prompt, /至少两个不同领域/);
-  assert.ok(focusInSessionEncouragementPrompt("x".repeat(300), 180, "en", ["y".repeat(80), "z".repeat(80), "w".repeat(80)]).length <= 600);
   assert.equal(nextFocusEncouragementAt(600), 1500);
   assert.equal(nextFocusEncouragementAt(1501), 2401);
 });

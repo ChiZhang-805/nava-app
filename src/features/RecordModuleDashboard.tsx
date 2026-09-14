@@ -87,7 +87,7 @@ import { currentDayRequiredShareCopy, hasCurrentDayRecord, missingCurrentDayCopy
 import { isDemoMode } from "../services/demo";
 import { clearActiveUserSession, loadActiveUserSession, saveActiveUserSession } from "../services/userCloudState";
 import { resolveTodoFocusPlan } from "../services/focusPlanning.ts";
-import { formatFocusHealthEvidence, nextFocusEncouragementAt, selectFocusHealthEvidence, type FocusHealthEvidence } from "../services/focusEncouragement";
+import { formatFocusHealthEvidence, nextFocusEncouragementAt, type FocusHealthEvidence } from "../services/focusEncouragement";
 import { generateFocusDifficulty, generateFocusInSessionEncouragement, generateFocusPriority, generateFocusStartingCue } from "../services/ai";
 import { exitFocusFullscreen, focusFullscreenActive, focusFullscreenSupported, requestFocusFullscreen, requestScreenWakeLock, screenWakeLockSupported, type ScreenWakeLockSentinel } from "../services/focusImmersion.ts";
 import { focusNoiseSupported, startFocusNoise, type FocusNoiseKind, type FocusNoiseSession } from "../services/focusAudio.ts";
@@ -1301,7 +1301,7 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
 }
 
 function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinutes" | "focusNote" | "setFocusTitle" | "setFocusMinutes" | "setFocusNote" | "focusLaunch" | "onFocusLaunchConsumed" | "onSaveFocusMinutes" | "todaySnapshot" | "trendBundle" | "deviceDate" | "profile" | "onOpenAi"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
-  const { userId, locale, focusTitle, focusMinutes, focusNote, setFocusTitle, setFocusMinutes, setFocusNote, focusLaunch, onFocusLaunchConsumed, onSaveFocusMinutes, todaySnapshot, trendBundle, deviceDate, profile, view, openView, onOpenAi } = props;
+  const { userId, locale, focusTitle, focusMinutes, focusNote, setFocusTitle, setFocusMinutes, setFocusNote, focusLaunch, onFocusLaunchConsumed, onSaveFocusMinutes, todaySnapshot, trendBundle, deviceDate, view, openView, onOpenAi } = props;
   const restoredTimer = useMemo(() => readFocusTimerDraft(userId), [userId]);
   const launchedFromEditorRef = useRef(Boolean(focusLaunch));
   const displayedFocusTitle = focusTitle === "产品原型" || focusTitle === "Product prototype" || focusTitle === "Prototype"
@@ -1343,7 +1343,6 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [autoEncouragement, setAutoEncouragement] = useState(false);
   const nextAutoEncouragementAtRef = useRef(0);
   const autoEncouragementCountRef = useRef(0);
-  const focusEvidence = useMemo(() => selectFocusHealthEvidence(trendBundle, profile, deviceDate), [trendBundle, profile, deviceDate]);
   const priorityAbortRef = useRef<AbortController | null>(null);
   const [priorityAdvice, setPriorityAdvice] = useState<{ key: string; orderIds: string[]; basis: string; question: string } | null>(null);
   const [priorityError, setPriorityError] = useState<string | null>(null);
@@ -1825,7 +1824,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setGuideAiError(null);
     setGuideAiLoading(true);
     let timedOut = false;
-    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 45_000);
+    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 70_000);
     try {
       const cue = await generateFocusStartingCue(displayedFocusTitle, focusMinutes, locale, controller.signal);
       if (!controller.signal.aborted) setGuideAiCue(cue);
@@ -1850,15 +1849,20 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setDifficultyAssessment(null);
     setDifficultyError(null);
     setDifficultyLoading(true);
+    let timedOut = false;
+    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 70_000);
     try {
       const assessment = await generateFocusDifficulty(displayedFocusTitle, focusMinutes, selectedTodo?.focusSessions, locale, controller.signal);
       if (!controller.signal.aborted) setDifficultyAssessment(assessment);
     } catch (error) {
-      if (!controller.signal.aborted) setDifficultyError(error instanceof Error ? error.message : (locale === "zh" ? "AI 暂不可用，请重试。" : "AI is unavailable. Please retry."));
+      if (difficultyAbortRef.current === controller && (timedOut || !controller.signal.aborted)) {
+        setDifficultyError(timedOut ? (locale === "zh" ? "AI 响应超时，请重试。" : "The AI response timed out. Please retry.") : error instanceof Error ? error.message : (locale === "zh" ? "AI 暂不可用，请重试。" : "AI is unavailable. Please retry."));
+      }
     } finally {
+      window.clearTimeout(timeout);
       if (difficultyAbortRef.current === controller) {
         difficultyAbortRef.current = null;
-        if (!controller.signal.aborted) setDifficultyLoading(false);
+        setDifficultyLoading(false);
       }
     }
   };
@@ -1874,7 +1878,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setPriorityError(null);
     setPriorityLoading(true);
     let timedOut = false;
-    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 45_000);
+    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 70_000);
     try {
       const advice = await generateFocusPriority(tasks, locale, controller.signal);
       if (!controller.signal.aborted) setPriorityAdvice({ key, orderIds: advice.order.map((number) => tasks[number - 1].id), basis: advice.basis, question: advice.question });
@@ -1899,15 +1903,14 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setEncouragementOpen(true);
     setEncouragementText(null);
     setEncouragementError(null);
-    setEncouragementSources(focusEvidence);
+    setEncouragementSources([]);
     setEncouragementLoading(true);
     let timedOut = false;
-    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 45_000);
+    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 70_000);
     try {
       const actualFocusedSeconds = timerMode === "countup" ? elapsedSeconds : Math.max(0, countdownDurationSeconds - remaining);
-      const evidence = focusEvidence.map((item) => formatFocusHealthEvidence(item, locale));
-      const reply = await generateFocusInSessionEncouragement(displayedFocusTitle, Math.floor(actualFocusedSeconds / 60), locale, evidence, controller.signal);
-      if (!controller.signal.aborted) setEncouragementText(reply);
+      const result = await generateFocusInSessionEncouragement(displayedFocusTitle, Math.floor(actualFocusedSeconds / 60), locale, controller.signal);
+      if (!controller.signal.aborted) { setEncouragementText(result.reply); setEncouragementSources(result.evidence); }
     } catch (error) {
       if (encouragementAbortRef.current === controller && (timedOut || !controller.signal.aborted)) {
         setEncouragementError(timedOut ? (locale === "zh" ? "AI 提示超时，请重试。" : "The AI cue timed out. Please retry.") : error instanceof Error ? error.message : (locale === "zh" ? "AI 暂不可用，请重试。" : "AI is unavailable. Please retry."));
@@ -1919,7 +1922,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
         setEncouragementLoading(false);
       }
     }
-  }, [countdownDurationSeconds, displayedFocusTitle, elapsedSeconds, focusEvidence, locale, remaining, running, timerMode]);
+  }, [countdownDurationSeconds, displayedFocusTitle, elapsedSeconds, locale, remaining, running, timerMode]);
 
   const closeEncouragement = () => {
     encouragementAbortRef.current?.abort();
