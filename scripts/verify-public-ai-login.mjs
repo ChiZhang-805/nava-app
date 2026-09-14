@@ -50,7 +50,7 @@ try {
         }
         console.log(`sites: authenticated AI reply received (${reply.length} characters; content omitted)`);
 
-        await page.goto(`${url}#tab=record&module=focus`, { waitUntil: "networkidle", timeout: 30_000 });
+        await page.goto(`${url}#tab=record&module=focus`, { waitUntil: "domcontentloaded", timeout: 30_000 });
         await expect(page.locator('[data-module-view="focus-overview"]')).toBeVisible({ timeout: 20_000 });
         await page.locator(".focus-task-field input").fill("交论文");
         await page.locator('.focus-summary-start[aria-label="开始专注"]').click();
