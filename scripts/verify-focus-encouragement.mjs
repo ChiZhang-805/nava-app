@@ -126,7 +126,7 @@ try {
       await page.getByRole("button", { name: "重置" }).click();
       await expect(page.locator('[data-focus-state="ready"]')).toBeVisible();
       if (sandboxedSessionCalls < 1) throw new Error("Focus session REST sandbox was not exercised.");
-      console.log(`Authenticated local UI: manual cue, consented evidence labels, opt-in 15-minute cue, pause/reset boundaries, four-cue cap, and four mobile viewports passed; ${sandboxedSessionCalls} cloud-session calls sandboxed, pre-existing focus session preserved; no focus record saved.`);
+      console.log(`Authenticated browser UI: manual cue, consented evidence labels, opt-in 15-minute cue, pause/reset boundaries, four-cue cap, and four mobile viewports passed; ${sandboxedSessionCalls} cloud-session calls sandboxed, pre-existing focus session preserved; no focus record saved.`);
     } finally {
       await context?.close();
       await browser.close();
