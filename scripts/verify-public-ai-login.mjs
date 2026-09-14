@@ -69,9 +69,9 @@ try {
         if (assessmentLength < 10 || assessmentLength > 800) throw new Error("Authenticated focus difficulty assessment failed the safe length check.");
         console.log(`sites: authenticated focus difficulty assessment received (${assessmentLength} characters; content omitted)`);
         await page.locator(".focus-summary-start").click();
-        await page.getByRole("button", { name: "进入状态" }).click();
+        await page.getByRole("button", { name: "AI 进入状态" }).click();
         const guide = page.getByRole("dialog", { name: "进入专注状态" });
-        await guide.getByRole("button", { name: "AI 给一句开始提示" }).click();
+        await expect(guide).toBeVisible();
         await expect(guide.locator(".focus-guide-ai-cue")).toBeVisible({ timeout: 90_000 });
         const cueLength = (await guide.locator(".focus-guide-ai-cue").innerText()).trim().length;
         if (cueLength < 2 || cueLength > 120) throw new Error("Authenticated focus AI cue failed the safe length check.");

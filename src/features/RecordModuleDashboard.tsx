@@ -2029,8 +2029,8 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
             type="button"
             className={guideOpen ? "active" : ""}
             aria-pressed={guideOpen}
-            onClick={() => { setNoisePanelOpen(false); if (guideOpen) closeGuide(); else { setGuideAiCue(null); setGuideAiError(null); setGuideOpen(true); } }}
-          ><MousePointerClick size={15} /><span>{locale === "zh" ? "进入状态" : "Settle in"}</span></button>
+            onClick={() => { setNoisePanelOpen(false); if (guideOpen) closeGuide(); else { setGuideAiCue(null); setGuideAiError(null); setGuideOpen(true); if (displayedFocusTitle.trim() && !isDemoMode()) void requestGuideAiCue(); } }}
+          ><MousePointerClick size={15} /><span>{locale === "zh" ? (displayedFocusTitle.trim() && !isDemoMode() ? "AI 进入状态" : "进入状态") : (displayedFocusTitle.trim() && !isDemoMode() ? "AI settle in" : "Settle in")}</span></button>
         </div>
         {noisePanelOpen && <section className="focus-noise-panel" aria-label={locale === "zh" ? "背景声音" : "Background sound"}>
           <header><span><Volume2 size={15} />{locale === "zh" ? "背景声音" : "Background sound"}</span><button type="button" onClick={() => setNoisePanelOpen(false)} aria-label={locale === "zh" ? "关闭背景声音面板" : "Close background sound panel"}><X size={15} /></button></header>
@@ -2090,7 +2090,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           <strong>{locale === "zh" ? "用十秒进入状态" : "Settle in for ten seconds"}</strong>
           <ol><li>{locale === "zh" ? "坐稳，放松肩膀" : "Settle your posture"}</li><li>{locale === "zh" ? "缓慢呼吸两次" : "Take two slow breaths"}</li><li>{locale === "zh" ? "只看眼前这一件事" : "Keep only this task in view"}</li></ol>
           <div className="focus-guide-ai-zone">
-            <button className="focus-guide-ai-button" type="button" disabled={!displayedFocusTitle.trim() || isDemoMode() || guideAiLoading} onClick={() => void requestGuideAiCue()}><Bot size={16} />{guideAiLoading ? (locale === "zh" ? "正在获取 AI 提示" : "Getting an AI cue") : (locale === "zh" ? "AI 给一句开始提示" : "Get one AI starting cue")}</button>
+            <button className="focus-guide-ai-button" type="button" disabled={!displayedFocusTitle.trim() || isDemoMode() || guideAiLoading} onClick={() => void requestGuideAiCue()}><Bot size={16} />{guideAiLoading ? (locale === "zh" ? "正在获取 AI 提示" : "Getting an AI cue") : guideAiCue || guideAiError ? (locale === "zh" ? "重新生成 AI 提示" : "Regenerate AI cue") : (locale === "zh" ? "AI 给一句开始提示" : "Get one AI starting cue")}</button>
             {isDemoMode() && <small>{locale === "zh" ? "演示模式不调用真实 AI" : "Demo mode does not call a real AI model"}</small>}
             {!isDemoMode() && !displayedFocusTitle.trim() && <small>{locale === "zh" ? "先填写专注事项" : "Enter a focus task first"}</small>}
             {guideAiCue && <p className="focus-guide-ai-cue" role="status">{guideAiCue}</p>}

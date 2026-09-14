@@ -2360,3 +2360,24 @@ Pages 构建逐项 SHA-256 相同，20 个过期哈希资源已移除且可从 G
 弹层安全区/溢出；截图保存在 `Q:\NAVA-Workspace\Build\TestRuns\nava-prd-batch-20260902`。
 这是网页模拟账号测试，不是正式账号中新增了测试待办，也不是 iPhone 真机
 屏幕阅读器验收。独立的晨间规划历史尚无数据库合同，不能声称已实现。
+
+该四步流程的源码提交 `2d37de3353d3221b3325064ce78ae26e33d71a4f` 已推送
+GitHub 和 Sites 源码远端；Sites v142 version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_d342f8a45ed08191b880c355cd36ccaa`，
+deployment ID 为 `appgdep_6aa7cad501348191b82334ac1ffeaf36`，状态 succeeded。
+Pages 镜像提交 `2e512d2`，在线 `source.json` 返回 v142 与上述同一源码；
+两个站点均 HTTP 200，Pages 新入口 `index-fJ8Awco9.js`，77 个生成文件本地
+SHA-256 逐项一致，24 个旧哈希资源从镜像移除、可在 Git 历史恢复。
+
+## 67. 2026-09-14 PDF 原序第 3 项：进入状态 AI 即时引导
+
+正式账号已有专注事项时，沉浸页入口明确显示“AI 进入状态”；用户点击这一个
+入口就同时打开十秒引导浮层并向已认证 `ai-chat-reply` 请求任务相关的一句开始
+提示。模型回复、加载、可重试错误均在浮层原位显示；关闭会中止待完成请求。
+无事项或演示模式仅显示无需网络的规则引导，绝不伪称已调用模型。不自动让
+AI 在整段计时中反复发言，也不保存未确认的任务/健康数据。
+
+`scripts/verify-public-ai-login.mjs` 的正式账号验收已改为只点击一次入口就
+等待模型提示，不再手动点击浮层里的请求按钮；发布后必须运行这项线上测试。
+完整 `npm run verify` 33 阶段与 `npm run auth:verify:production` 在本轮源码上
+通过。真机语音播报或后台推送不属于此网页流程的已验收能力。
