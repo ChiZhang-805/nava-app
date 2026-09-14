@@ -136,7 +136,8 @@ The auxiliary AI paths are separate and remain wired as follows: AI chat uses
 `ai-extract-data` followed by streamed `ai-chat-reply`; meal-photo recognition
 uses private `diet-photos` storage followed by `diet-extract`; face-photo
 feedback uses private `face-photos` storage followed by `face-analyze`; and the
-two focus AI actions open AI chat with the authenticated task context. The
+four focus AI actions use authenticated, dedicated `focusRequest` contracts and
+display validated results in place rather than opening ordinary AI chat. The
 daily `NAVA 当日洞察` value is intentionally not labeled AI: it is a persisted
 `rhythm-score` action or a deterministic local fallback, not model-generated
 prose.
@@ -265,8 +266,24 @@ inferred from the photo or from a user's vague answer.
   starting cues are one sentence, at most 24 Chinese characters or 18 English words;
   encouragement is at most two sentences and 80 Chinese characters or 55 English
   words. Chinese counts include punctuation and spaces. Invalid output gets at most
-  two repair attempts inside a 60-second deadline; malformed output is never shown
+  two repair attempts inside a 60-second **post-authentication/quota** generation
+  deadline; malformed output is never shown
   or salvaged by extracting arbitrary numbers from prose.
+- Each action has its own initial and repair rules. Only encouragement receives
+  citation metadata; only priority receives permutation instructions. A previous
+  unconditional “one task action, no numbers” rule contradicted priority/difficulty.
+- Focus transport prefers `deepseek-v4-pro`, following measured flash body stalls
+  with the same authenticated account/provider. The primary phase has a fixed
+  30-second budget across repairs, then at most one **sequential**, cancelled-before-
+  switching same-provider alternate. The entire run allows at most four HTTP calls,
+  one transient transport retry, and no more than 60 seconds including evidence,
+  headers, body and repair. Ordinary chat/report model selection is unchanged.
+  `modelVersion` names the selected request model; no static fallback is called AI.
+  A bounded UTF-8 reader rejects bodies above 64 KiB. Diagnostics contain only a
+  random request ID, action/model names, phases, timings, status/counts, validation
+  booleans and byte/whitespace flags—not tasks, evidence dates/values, provider text,
+  user IDs, prompts or credentials. Authentication/quota latency is outside this
+  generation timer; do not describe it as a 60-second end-to-end HTTP guarantee.
 - Encouragement evidence is read on the server using the authenticated owner,
   explicit AI consent and the device-local seven-day window. Declined consent
   prevents health-table reads. Each citation binds domain, actual numeric value
@@ -287,7 +304,7 @@ inferred from the photo or from a user's vague answer.
   Above 12 unfinished tasks the UI explains the limit and disables ordering; it
   does not silently submit only the first 12. Sorting an arbitrary larger list is
   not implemented by this limit fix.
-- Real authenticated model tests passed Chinese/English 2/5/12-task sorting, long-title
+- Earlier real authenticated model tests passed Chinese/English 2/5/12-task sorting, long-title
   difficulty and starting cues. Real account APP clicks passed all four entry points.
   Separate accelerated-clock tests cover opt-in intervals, pause/reset and the
   four-cue limit. Four viewport bounds passed. Temporary tasks were removed by exact
@@ -301,6 +318,29 @@ starting cue, encouragement and legacy response checks. Later encouragement call
 hit the 60-second deadline. Final APP priority clicks on BOTH v149 public sites
 returned HTTP 504; subsequent UI actions were not reached. Both sites did pass real
 form login and the expected bundle hash. Therefore the four-action end-to-end focus
-acceptance remains OPEN. ACTIVE v39 returns a localized timeout without invented
-advice or record writes; root cause is not yet established. Do not reuse v148's UI
-success as evidence that current live-model availability is stable.
+acceptance was reopened at v149. Then-ACTIVE v39 returned a localized timeout
+without invented advice or record writes. That historical success was not used as
+evidence of current live-model availability.
+
+### Focus provider recovery (2026-09-15)
+
+v40 measured BOTH public APP priority calls: HTTP 200 headers at 327/478 ms, then
+no complete body by 60 seconds; no schema validation ran. v41 byte-level checks
+showed flash returned zero body bytes within its 30-second attempt. The sequential
+pro alternate completed the same contracts in roughly 0.7–1.6 seconds of provider
+work. Both sites then passed all four real form-login/click/display flows, with
+original cloud focus sessions unchanged and exact temporary tasks removed.
+Evidence: `Q:/NAVA-Workspace/Build/TestRuns/focus-ai-v40` and `focus-ai-v41`.
+This isolates the observed stall to the flash response path, not missing login,
+missing health records or the response-length validator. It does not establish the
+provider's internal cause. [Provider documentation](https://api-docs.deepseek.com/quick_start/rate_limit/)
+describes accepted connections waiting for inference, so HTTP 200 alone must not
+be treated as a completed model reply.
+
+Final **ACTIVE v42**, source `f908bf3c6bc151c9860d45e3706ee3392bc4aa25`, prefers
+pro immediately. BOTH public sites passed all four real form-login/click/display
+flows again: eight HTTP 200 replies, one model call each, client elapsed time
+2,070–3,338 ms. Current Chinese/English 2/5/12-task API contract checks and the full
+`npm run verify` also passed. Evidence is in `focus-ai-v42`; exact timings and
+unchanged v150 frontend hashes are recorded in current handoff §77. These focus
+results are not acceptance of ordinary chat, health/diet reports or photo models.
