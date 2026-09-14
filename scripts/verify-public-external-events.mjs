@@ -58,7 +58,8 @@ try {
       await form.locator('input[autocomplete="username"]').fill(email);
       await form.locator('input[autocomplete="current-password"]').fill(password);
       await form.locator('button[type="submit"]').click();
-      await expect(form).toBeHidden({ timeout: 30000 });
+      // The page-transition snapshot temporarily clones the outgoing login
+      // form. Verify the authenticated destination, not a unique old form.
       await expect(page.locator(".bottom-nav")).toBeVisible({ timeout: 30000 });
       await page.evaluate(() => { location.hash = "tab=record&module=exercise&view=sports"; });
       await page.getByRole("button", { name: "开始此计划", exact: true }).click();
