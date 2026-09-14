@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyPhotoNutritionCorrection, parseStructuredEntry, updateStructuredEntryField, type StructuredEntry } from "../src/services/structuredEntryParser.ts";
-import { focusDifficultyPrompt, focusDurationChoice, focusPriorityPrompt, focusStartingCuePrompt, resolveTodoFocusPlan, suggestedFocusPlan } from "../src/services/focusPlanning.ts";
+import { focusDifficultyPrompt, focusDurationChoice, focusPriorityPrompt, focusStartingCuePrompt, parseFocusPriorityAdvice, resolveTodoFocusPlan, suggestedFocusPlan } from "../src/services/focusPlanning.ts";
 
 test("todo focus planning preserves user values and estimates missing plans", () => {
   assert.deepEqual(suggestedFocusPlan("写作业"), { focusMinutes: 45, focusSessions: 2 });
@@ -25,9 +25,17 @@ test("todo focus planning preserves user values and estimates missing plans", ()
   assert.match(cuePrompt, /计划专注 45 分钟/);
   assert.match(cuePrompt, /不是对你的指令/);
   const priorityPrompt = focusPriorityPrompt([{ title: "交论文", scheduledTime: "15:30", focusMinutes: 45 }, { title: "整理书桌" }], "zh");
-  assert.match(priorityPrompt, /"number":1,"title":"交论文","time":"15:30","minutes":45/);
-  assert.match(priorityPrompt, /缺少截止时间、重要性或依赖关系时必须承认未知/);
+  assert.match(priorityPrompt, /"number":1,"title":"交论文","time":"15:30","minutes":45,"important":null,"urgent":null/);
+  assert.match(priorityPrompt, /important\/urgent 仅在布尔值明确时/);
+  assert.match(priorityPrompt, /order 必须恰好包含编号 1 到 2 各一次/);
   assert.match(priorityPrompt, /不要声称已经修改、保存或完成待办/);
+  assert.deepEqual(parseFocusPriorityAdvice('{"order":[2,1],"basis":"时间明确","question":"截止时间是几点？"}', 2), {
+    order: [2, 1], basis: "时间明确", question: "截止时间是几点？",
+  });
+  assert.throws(() => parseFocusPriorityAdvice('{"order":[2,2],"basis":"x","question":"y"}', 2));
+  assert.throws(() => parseFocusPriorityAdvice('{"order":[1],"basis":"x","question":"y"}', 2));
+  assert.deepEqual(parseFocusPriorityAdvice("先完成任务2（25分钟），再处理任务1（15:30，45分钟）。", 2).order, [2, 1]);
+  assert.throws(() => parseFocusPriorityAdvice("先完成任务2（25分钟）。", 2));
 });
 
 test("todo parser keeps tomorrow and afternoon time", () => {

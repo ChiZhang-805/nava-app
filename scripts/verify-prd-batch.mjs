@@ -121,6 +121,26 @@ async function main() {
     }
     await expect(page.locator(".focus-ai-priority-button")).toBeDisabled();
     await expect(page.locator(".focus-ai-priority-note")).toContainText("演示模式不调用真实 AI");
+    await page.locator(".focus-quadrant-toggle").click();
+    await expect(page.locator(".focus-quadrant-section")).toBeVisible();
+    await page.getByRole("combobox", { name: `回归待办 ${suffix}的四象限` }).selectOption("do");
+    await page.getByRole("combobox", { name: `晨间新增 ${suffix}的四象限` }).selectOption("plan");
+    await expect(page.locator(".focus-quadrant-cell.is-do")).toContainText(`回归待办 ${suffix}`);
+    await expect(page.locator(".focus-quadrant-cell.is-plan")).toContainText(`晨间新增 ${suffix}`);
+    const quadrantFit = await page.locator(".focus-quadrant-section").evaluate((element) => ({ overflow: element.scrollWidth - element.clientWidth, width: element.getBoundingClientRect().width }));
+    if (quadrantFit.overflow > 1 || quadrantFit.width < 200) throw new Error(`Quadrant view clipped at ${suffix}: ${JSON.stringify(quadrantFit)}`);
+    await page.locator(".focus-quadrant-cell.is-later").scrollIntoViewIfNeeded();
+    const lowerCellFit = await page.locator(".focus-quadrant-cell.is-later").evaluate((element) => ({
+      bottom: element.getBoundingClientRect().bottom,
+      navigationTop: document.querySelector('.figma-bottom-nav, .bottom-navigation, nav[aria-label="主导航"]')?.getBoundingClientRect().top ?? window.innerHeight,
+    }));
+    if (lowerCellFit.bottom > lowerCellFit.navigationTop - 4) throw new Error(`Lower quadrant hidden by navigation at ${suffix}: ${JSON.stringify(lowerCellFit)}`);
+    await page.screenshot({ path: path.join(outputDir, `focus-quadrants-${suffix}.png`) });
+    await openRoute(page, "tab=record&module=sleep", '[data-module-view="sleep-overview"]');
+    await openRoute(page, "tab=record&module=focus", '[data-module-view="focus-overview"]');
+    await page.locator(".focus-quadrant-toggle").click();
+    await expect(page.getByRole("combobox", { name: `回归待办 ${suffix}的四象限` })).toHaveValue("do");
+    await expect(page.getByRole("combobox", { name: `晨间新增 ${suffix}的四象限` })).toHaveValue("plan");
     await page.locator(".focus-todo-tabs button").last().click();
     await expect(page.locator(".focus-todo-calendar button")).toHaveCount(7);
     await page.locator(".focus-chart-tabs button").nth(1).click();

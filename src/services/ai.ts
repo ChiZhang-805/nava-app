@@ -5,7 +5,7 @@ import { demoMessagesFor, isDemoMode } from "./demo";
 import { AI_PROCESSING_STEP_MIN_MS, buildAiProcessingSteps, type AiProcessingStep } from "./aiProcessing";
 import type { UserProfile } from "./profile";
 import { buildConversationGreeting } from "./aiConversationSessions";
-import { focusDifficultyPrompt, focusPriorityPrompt, focusStartingCuePrompt, type PriorityTask } from "./focusPlanning";
+import { focusDifficultyPrompt, focusPriorityPrompt, focusStartingCuePrompt, parseFocusPriorityAdvice, type PriorityTask } from "./focusPlanning";
 
 function assertNoError(error: unknown) {
   if (!error) return;
@@ -145,9 +145,9 @@ export async function generateFocusPriority(tasks: PriorityTask[], lang: "zh" | 
     signal,
   });
   if (response.error) throw await authenticatedFunctionError(response.error);
-  const advice = typeof response.data?.reply === "string" ? response.data.reply.trim() : "";
-  if (!advice) throw new Error(lang === "zh" ? "AI 暂未给出排序建议，请重试。" : "AI did not return a priority suggestion. Please retry.");
-  return advice;
+  const reply = typeof response.data?.reply === "string" ? response.data.reply.trim() : "";
+  if (!reply) throw new Error(lang === "zh" ? "AI 暂未给出排序建议，请重试。" : "AI did not return a priority suggestion. Please retry.");
+  return parseFocusPriorityAdvice(reply, tasks.length);
 }
 
 export async function sendAiMessage(input: {

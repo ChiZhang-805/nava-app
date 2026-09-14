@@ -10190,6 +10190,25 @@ body::before {
 .focus-ai-priority-result { min-width: 0; border: 1px solid rgba(38, 143, 182, .22); border-radius: 13px; padding: 10px 12px; color: #17485d; background: rgba(235, 249, 254, .9); overflow-wrap: anywhere; }
 .focus-ai-priority-result strong { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 1.4; }
 .focus-ai-priority-result p { margin: 6px 0 0; white-space: pre-wrap; font-size: 11px; line-height: 1.55; }
+.focus-ai-priority-result ol { margin: 8px 0 0; padding-left: 22px; font-size: 11px; line-height: 1.65; }
+.focus-ai-priority-result li { overflow-wrap: anywhere; }
+.focus-ai-priority-result > button { width: 100%; min-height: 44px; margin-top: 10px; border: 0; border-radius: 10px; color: #fff; background: #177fa5; font: inherit; font-size: 11px; font-weight: 750; }
+.focus-ai-priority-result > button:disabled { opacity: .55; }
+.focus-quadrant-toggle { width: 100%; min-height: 44px; border: 1px solid rgba(52,157,194,.2); border-radius: 11px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; color: #17485d; background: rgba(238,249,253,.82); font: inherit; font-size: 11px; font-weight: 750; }
+.focus-quadrant-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+.focus-quadrant-section { min-width: 0; display: grid; gap: 10px; }
+.focus-quadrant-section > p, .focus-quadrant-section > small { margin: 0; color: #607d8a; font-size: 10px; line-height: 1.5; }
+.focus-quadrant-edit-list { display: grid; gap: 6px; }
+.focus-quadrant-edit-list label { min-width: 0; min-height: 44px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(132px, 44%); align-items: center; gap: 8px; border: 1px solid rgba(64,151,184,.14); border-radius: 11px; padding: 3px 4px 3px 10px; background: rgba(249,253,255,.8); }
+.focus-quadrant-edit-list span { min-width: 0; overflow-wrap: anywhere; color: #193f52; font-size: 11px; line-height: 1.45; }
+.focus-quadrant-edit-list select { min-width: 0; min-height: 36px; border: 1px solid rgba(67,149,180,.2); border-radius: 9px; padding: 3px 6px; color: #17485d; background: #eaf7fc; font: inherit; font-size: 10px; }
+.focus-quadrant-grid { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.focus-quadrant-cell { min-width: 0; min-height: 74px; display: grid; align-content: start; gap: 4px; border: 1px solid rgba(69,153,185,.2); border-radius: 12px; padding: 9px; background: rgba(238,249,253,.85); }
+.focus-quadrant-cell.is-do { background: rgba(223,243,248,.95); }
+.focus-quadrant-cell.is-plan { background: rgba(232,246,251,.95); }
+.focus-quadrant-cell strong { color: #17485d; font-size: 10px; line-height: 1.35; }
+.focus-quadrant-cell small { color: #648493; font-size: 9px; }
+.focus-quadrant-cell ul { min-width: 0; margin: 2px 0 0; padding-left: 14px; color: #315b6d; font-size: 9px; line-height: 1.5; overflow-wrap: anywhere; }
 
 .focus-noise-panel {
   position: fixed;

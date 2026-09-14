@@ -70,12 +70,18 @@ canonical query + 空请求体，并部署为 production version 17（ACTIVE，�
 
 ## 已实现数据库/Storage
 
-当前源码共有 27 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单
+当前源码共有 28 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单
 来源。它们按顺序覆盖：移动端业务表和 Edge 后端、Rhythm/Fusion/ChronoState、
 密码复用保护、手机号 OTP、Watch action 幂等、头像、账号状态、onboarding、FDNB、
 AI 会话隔离、成长奖励、健康报告、专注待办、Health Realtime，以及跨设备账号状态和
-删除/导出完整性、运动恢复闭环与远程推送设备路由。2026-09-07 已在 canonical
-production 应用全部 26 项，本地与远端 migration 历史完全一致。
+删除/导出完整性、运动恢复闭环、远程推送设备路由与待办四象限排序。2026-09-14 已在 canonical
+production 应用全部 28 项，本地与远端 migration 历史完全一致。
+
+`202609140001_task_quadrants_priority.sql` 给 `tasks` 增加可空的重要、紧急布尔字段和
+用户确认后才保存的排序位次；数据库检查两项分类必须同时有值或同时为空，旧任务不会被
+推断为重要/紧急。`nava_set_task_priority_order` 用当前认证用户权限在一笔事务中验证
+2–12 条未完成待办并写入排序；RLS 仍限制账号隔离。正式账号用两条临时任务完成分类、
+原子排序和重新登录读取验收，随后按精确 ID 删除临时任务。
 
 查看精确清单：
 

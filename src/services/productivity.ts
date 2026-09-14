@@ -8,6 +8,9 @@ export type TodoItem = {
   createdAt: string;
   focusMinutes?: number;
   focusSessions?: number;
+  important?: boolean | null;
+  urgent?: boolean | null;
+  priorityRank?: number | null;
 };
 
 export type GrowthTask = {
@@ -112,7 +115,7 @@ export async function syncTodos(userId: string): Promise<TodoItem[]> {
 
   const result = await supabase
     .from("tasks")
-    .select("id,title,scheduled_date,completed,created_at,estimated_minutes,focus_sessions,reminder_at,source")
+    .select("id,title,scheduled_date,completed,created_at,estimated_minutes,focus_sessions,reminder_at,source,important,urgent,priority_rank")
     .eq("user_id", userId)
     .eq("category", "todo")
     .order("created_at", { ascending: false })
@@ -132,6 +135,9 @@ export async function syncTodos(userId: string): Promise<TodoItem[]> {
       createdAt: String(row.created_at ?? new Date().toISOString()),
       focusMinutes: Number(row.estimated_minutes) > 0 ? Number(row.estimated_minutes) : previous?.focusMinutes,
       focusSessions: Number(row.focus_sessions) > 0 ? Number(row.focus_sessions) : previous?.focusSessions,
+      important: typeof row.important === "boolean" ? row.important : null,
+      urgent: typeof row.urgent === "boolean" ? row.urgent : null,
+      priorityRank: Number(row.priority_rank) >= 1 && Number(row.priority_rank) <= 12 ? Number(row.priority_rank) : null,
     };
   }));
 }
@@ -157,6 +163,9 @@ export async function addTodo(
     createdAt: new Date().toISOString(),
     focusMinutes: focusPlan?.focusMinutes,
     focusSessions: focusPlan?.focusSessions,
+    important: null,
+    urgent: null,
+    priorityRank: null,
   };
   if (isDemoMode()) {
     writeTodos(userId, [nextItem, ...loadTodos(userId)]);
@@ -227,6 +236,50 @@ export async function saveTodoFocusPlan(userId: string, id: string, plan: FocusP
   return writeTodos(userId, current.map((candidate) => candidate.id === id
     ? { ...candidate, focusMinutes, focusSessions }
     : candidate));
+}
+
+export type TodoQuadrant = "unclassified" | "do" | "plan" | "delegate" | "later";
+
+export function todoQuadrant(item: Pick<TodoItem, "important" | "urgent">): TodoQuadrant {
+  if (item.important == null || item.urgent == null) return "unclassified";
+  if (item.important && item.urgent) return "do";
+  if (item.important) return "plan";
+  if (item.urgent) return "delegate";
+  return "later";
+}
+
+export async function saveTodoQuadrant(userId: string, id: string, quadrant: TodoQuadrant) {
+  const current = loadTodos(userId);
+  const item = current.find((candidate) => candidate.id === id);
+  if (!item) throw new Error("待办不存在，请刷新后重试。");
+  const flags = quadrant === "unclassified" ? { important: null, urgent: null }
+    : { important: quadrant === "do" || quadrant === "plan", urgent: quadrant === "do" || quadrant === "delegate" };
+  if (item.important === flags.important && item.urgent === flags.urgent) return current;
+  if (!isDemoMode()) {
+    const updated = await supabase.from("tasks").update(flags)
+      .eq("id", id).eq("user_id", userId).eq("category", "todo")
+      .select("id,important,urgent").maybeSingle();
+    if (updated.error) throw updated.error;
+    if (!updated.data || updated.data.important !== flags.important || updated.data.urgent !== flags.urgent) {
+      throw new Error("四象限分类没有写入共享数据库，请刷新后重试。");
+    }
+  }
+  return writeTodos(userId, current.map((candidate) => candidate.id === id ? { ...candidate, ...flags } : candidate));
+}
+
+export async function saveTodoPriorityOrder(userId: string, ids: string[]) {
+  const current = loadTodos(userId);
+  if (ids.length < 2 || ids.length > 12 || new Set(ids).size !== ids.length
+    || ids.some((id) => !current.some((task) => task.id === id && !task.completed))) {
+    throw new Error("排序包含无效待办，请刷新后重新生成建议。");
+  }
+  if (!isDemoMode()) {
+    const { data, error } = await supabase.rpc("nava_set_task_priority_order", { task_ids: ids });
+    if (error) throw error;
+    if (Number(data) !== ids.length) throw new Error("待办顺序没有完整写入共享数据库，请刷新后重试。");
+  }
+  const ranks = new Map(ids.map((id, index) => [id, index + 1]));
+  return writeTodos(userId, current.map((task) => ({ ...task, priorityRank: ranks.get(task.id) ?? task.priorityRank ?? null })));
 }
 
 const defaultGrowthTasks: Omit<GrowthTask, "completed">[] = [

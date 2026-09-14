@@ -70,7 +70,7 @@ import {
 } from "../services/health";
 import { getWatchReachability } from "../services/watch";
 import { shareReportImage } from "../services/reportShareCard";
-import { addTodo, saveTodoFocusPlan, subscribeProductivity, syncTodos, toggleTodo, type GrowthActivityKind, type TodoItem } from "../services/productivity";
+import { addTodo, saveTodoFocusPlan, saveTodoPriorityOrder, saveTodoQuadrant, subscribeProductivity, syncTodos, todoQuadrant, toggleTodo, type GrowthActivityKind, type TodoItem, type TodoQuadrant } from "../services/productivity";
 import { isCompleteMoodRecord, moodBandForScore, moodBands, moodDateWindow } from "../services/mood";
 import {
   activityHeatmap,
@@ -1330,9 +1330,14 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [guideAiError, setGuideAiError] = useState<string | null>(null);
   const [guideAiLoading, setGuideAiLoading] = useState(false);
   const priorityAbortRef = useRef<AbortController | null>(null);
-  const [priorityAdvice, setPriorityAdvice] = useState<{ key: string; text: string } | null>(null);
+  const [priorityAdvice, setPriorityAdvice] = useState<{ key: string; orderIds: string[]; basis: string; question: string } | null>(null);
   const [priorityError, setPriorityError] = useState<string | null>(null);
   const [priorityLoading, setPriorityLoading] = useState(false);
+  const [prioritySaving, setPrioritySaving] = useState(false);
+  const [priorityNotice, setPriorityNotice] = useState<string | null>(null);
+  const [quadrantSavingId, setQuadrantSavingId] = useState<string | null>(null);
+  const [quadrantError, setQuadrantError] = useState<string | null>(null);
+  const [quadrantsOpen, setQuadrantsOpen] = useState(false);
   const difficultyAbortRef = useRef<AbortController | null>(null);
   const [difficultyAssessment, setDifficultyAssessment] = useState<string | null>(null);
   const [difficultyError, setDifficultyError] = useState<string | null>(null);
@@ -1613,9 +1618,14 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
         .catch((error) => console.warn("Focus session cloud sync deferred", error));
     }
   }, [cloudTimerReady, countdownDurationSeconds, displayedFocusTitle, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptionReasons, interruptions, remaining, running, saved, selectedTodoId, sessionId, startedAt, timerMode, userId]);
-  const todayTodos = todos.filter((item) => item.scheduledDate === deviceDate);
+  const rankTasks = (items: TodoItem[]) => [...items].sort((left, right) => {
+    const leftRank = left.priorityRank ?? Number.MAX_SAFE_INTEGER;
+    const rightRank = right.priorityRank ?? Number.MAX_SAFE_INTEGER;
+    return leftRank - rightRank;
+  });
+  const todayTodos = rankTasks(todos.filter((item) => item.scheduledDate === deviceDate));
   const incompleteTodayTodos = todayTodos.filter((item) => !item.completed);
-  const priorityKey = JSON.stringify(incompleteTodayTodos.slice(0, 12).map((item) => [item.id, item.title, item.scheduledTime, item.focusMinutes]));
+  const priorityKey = JSON.stringify(incompleteTodayTodos.slice(0, 12).map((item) => [item.id, item.title, item.scheduledTime, item.focusMinutes, item.important, item.urgent]));
   const calendarDays = rollingDateWindow(deviceDate);
   const visibleTodos = todoView === "list" ? todayTodos : todos.filter((item) => item.scheduledDate === calendarDate);
   const selectedTodo = todos.find((item) => item.id === selectedTodoId) ?? null;
@@ -1805,7 +1815,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 45_000);
     try {
       const advice = await generateFocusPriority(tasks, locale, controller.signal);
-      if (!controller.signal.aborted) setPriorityAdvice({ key, text: advice });
+      if (!controller.signal.aborted) setPriorityAdvice({ key, orderIds: advice.order.map((number) => tasks[number - 1].id), basis: advice.basis, question: advice.question });
     } catch (error) {
       if (priorityAbortRef.current === controller && (timedOut || !controller.signal.aborted)) {
         setPriorityError(timedOut ? (locale === "zh" ? "AI 排序超时，请重试。" : "AI prioritization timed out. Please retry.") : error instanceof Error ? error.message : (locale === "zh" ? "AI 暂不可用，请重试。" : "AI is unavailable. Please retry."));
@@ -1817,6 +1827,28 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
         setPriorityLoading(false);
       }
     }
+  };
+
+  const changeQuadrant = async (id: string, quadrant: TodoQuadrant) => {
+    setQuadrantSavingId(id);
+    setQuadrantError(null);
+    setPriorityNotice(null);
+    try { setTodos(await saveTodoQuadrant(userId, id, quadrant)); }
+    catch (error) { setQuadrantError(error instanceof Error ? error.message : (locale === "zh" ? "分类保存失败，请重试。" : "Could not save the quadrant. Please retry.")); }
+    finally { setQuadrantSavingId(null); }
+  };
+
+  const acceptPriorityAdvice = async () => {
+    if (!priorityAdvice || priorityAdvice.key !== priorityKey) return;
+    setPrioritySaving(true);
+    setPriorityError(null);
+    try {
+      setTodos(await saveTodoPriorityOrder(userId, priorityAdvice.orderIds));
+      setPriorityNotice(locale === "zh" ? "已按你确认的顺序保存到账号。" : "Your confirmed order was saved to your account.");
+      setPriorityAdvice(null);
+    } catch (error) {
+      setPriorityError(error instanceof Error ? error.message : (locale === "zh" ? "排序保存失败，请重试。" : "Could not save the order. Please retry."));
+    } finally { setPrioritySaving(false); }
   };
 
   const leaveImmersive = () => {
@@ -2199,9 +2231,18 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
         {incompleteTodayTodos.length >= 2 && <>
           <button className="focus-ai-priority-button" type="button" disabled={isDemoMode() || priorityLoading} onClick={() => void requestPriorityAdvice()}><Bot size={15} />{priorityLoading ? (locale === "zh" ? "AI 排序中" : "Prioritizing") : (locale === "zh" ? `AI 排优先级 · ${incompleteTodayTodos.length} 项` : `AI prioritize · ${incompleteTodayTodos.length}`)}</button>
           {isDemoMode() && <p className="focus-ai-priority-note">{locale === "zh" ? "演示模式不调用真实 AI。" : "Demo mode does not call a real AI model."}</p>}
-          {priorityAdvice?.key === priorityKey && <div className="focus-ai-priority-result" role="status"><strong><Bot size={15} />{locale === "zh" ? "AI 排序建议 · 未修改待办" : "AI suggestion · tasks unchanged"}</strong><p>{priorityAdvice.text}</p></div>}
+          {priorityAdvice?.key === priorityKey && <div className="focus-ai-priority-result" role="status"><strong><Bot size={15} />{locale === "zh" ? "AI 排序草稿 · 请核对" : "AI order draft · please review"}</strong><ol>{priorityAdvice.orderIds.map((id) => <li key={id}>{incompleteTodayTodos.find((item) => item.id === id)?.title ?? "?"}</li>)}</ol><p>{priorityAdvice.basis}</p>{priorityAdvice.question && <p>{locale === "zh" ? "待确认：" : "Clarify: "}{priorityAdvice.question}</p>}<button type="button" disabled={prioritySaving} onClick={() => void acceptPriorityAdvice()}>{prioritySaving ? (locale === "zh" ? "保存中…" : "Saving…") : (locale === "zh" ? "确认并保存顺序" : "Confirm and save order")}</button></div>}
           {priorityError && <p className="focus-ai-priority-error" role="alert">{priorityError}</p>}
         </>}
+        {priorityNotice && <p className="focus-ai-priority-note" role="status">{priorityNotice}</p>}
+        <button className="focus-quadrant-toggle" type="button" aria-expanded={quadrantsOpen} onClick={() => setQuadrantsOpen((open) => !open)}>{locale === "zh" ? "四象限分类" : "Four quadrants"}<ChevronRight size={16} /></button>
+        {quadrantsOpen && <section className="focus-quadrant-section" aria-label={locale === "zh" ? "今日待办四象限" : "Today's task quadrants"}>
+          <p>{locale === "zh" ? "重要和紧急由你判断；AI 不会替你猜测。" : "You decide importance and urgency; AI will not guess."}</p>
+          <div className="focus-quadrant-edit-list">{incompleteTodayTodos.map((item) => <label key={item.id}><span>{item.title}</span><select aria-label={`${item.title}${locale === "zh" ? "的四象限" : " quadrant"}`} value={todoQuadrant(item)} disabled={quadrantSavingId === item.id} onChange={(event) => void changeQuadrant(item.id, event.target.value as TodoQuadrant)}><option value="unclassified">{locale === "zh" ? "未分类" : "Unclassified"}</option><option value="do">{locale === "zh" ? "重要且紧急" : "Important + urgent"}</option><option value="plan">{locale === "zh" ? "重要不紧急" : "Important, not urgent"}</option><option value="delegate">{locale === "zh" ? "不重要但紧急" : "Urgent, not important"}</option><option value="later">{locale === "zh" ? "不重要不紧急" : "Neither"}</option></select></label>)}</div>
+          {quadrantError && <p className="focus-ai-priority-error" role="alert">{quadrantError}</p>}
+          <div className="focus-quadrant-grid">{(["do", "plan", "delegate", "later"] as const).map((quadrant) => <div className={`focus-quadrant-cell is-${quadrant}`} key={quadrant}><strong>{locale === "zh" ? ({ do: "① 先处理", plan: "② 安排时间", delegate: "③ 尽快处理", later: "④ 稍后处理" }[quadrant]) : ({ do: "① Do first", plan: "② Schedule", delegate: "③ Handle soon", later: "④ Later" }[quadrant])}</strong><small>{incompleteTodayTodos.filter((item) => todoQuadrant(item) === quadrant).length} {locale === "zh" ? "项" : "tasks"}</small><ul>{incompleteTodayTodos.filter((item) => todoQuadrant(item) === quadrant).map((item) => <li key={item.id}>{item.title}</li>)}</ul></div>)}</div>
+          {incompleteTodayTodos.some((item) => todoQuadrant(item) === "unclassified") && <small>{locale === "zh" ? `另有 ${incompleteTodayTodos.filter((item) => todoQuadrant(item) === "unclassified").length} 项待分类。` : `${incompleteTodayTodos.filter((item) => todoQuadrant(item) === "unclassified").length} tasks unclassified.`}</small>}
+        </section>}
         {todoView === "calendar" && <div className="focus-todo-calendar">{calendarDays.map((date) => {
           const dayTodos = todos.filter((item) => item.scheduledDate === date);
           const completed = dayTodos.filter((item) => item.completed).length;
@@ -2210,7 +2251,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
         <div className={["focus-todo-list", `is-${todoView}`].join(" ")}>
           {visibleTodos.map((item) => <div className={[item.completed ? "completed" : "", selectedTodoId === item.id ? "selected" : ""].filter(Boolean).join(" ")} key={item.id}>
             <button className="focus-todo-check" type="button" onClick={() => void toggleTodo(userId, item.id)} aria-label={item.completed ? (locale === "zh" ? "标记未完成" : "Mark incomplete") : (locale === "zh" ? "标记完成" : "Mark complete")}>{item.completed && <Check size={14} />}</button>
-            <button className="focus-todo-copy" type="button" onClick={() => chooseTodo(item)}><strong>{item.title}</strong><small>{todoView === "calendar" ? `${shortDate(item.scheduledDate, locale)} · ` : ""}{item.scheduledTime ? `${item.scheduledTime} · ` : ""}{item.focusMinutes ? `${item.focusMinutes} ${locale === "zh" ? "分钟" : "min"}` : (locale === "zh" ? "未设置时长" : "No duration")}{item.focusSessions ? ` × ${item.focusSessions} · ${Math.min(item.focusSessions, todoSessionProgress.get(item.id) ?? 0)}/${item.focusSessions}` : ""}</small></button>
+            <button className="focus-todo-copy" type="button" onClick={() => chooseTodo(item)}><strong>{item.priorityRank ? `${item.priorityRank}. ` : ""}{item.title}</strong><small>{todoView === "calendar" ? `${shortDate(item.scheduledDate, locale)} · ` : ""}{item.scheduledTime ? `${item.scheduledTime} · ` : ""}{item.focusMinutes ? `${item.focusMinutes} ${locale === "zh" ? "分钟" : "min"}` : (locale === "zh" ? "未设置时长" : "No duration")}{item.focusSessions ? ` × ${item.focusSessions} · ${Math.min(item.focusSessions, todoSessionProgress.get(item.id) ?? 0)}/${item.focusSessions}` : ""}</small></button>
             <button className="focus-todo-start" type="button" onClick={() => { chooseTodo(item); setHasStarted(false); enterImmersive(); }} disabled={item.completed}><Play size={14} /></button>
           </div>)}
           {visibleTodos.length === 0 && <p>{locale === "zh" ? "这一天还没有待办。" : "No tasks on this day."}</p>}

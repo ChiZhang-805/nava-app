@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { focusPriorityPrompt } from "../src/services/focusPlanning.ts";
+import { focusPriorityPrompt, parseFocusPriorityAdvice } from "../src/services/focusPlanning.ts";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const email = process.env.NAVA_ACCOUNT_EMAIL;
@@ -32,7 +32,8 @@ try {
   if (response.error) throw new Error(`AI priority call failed: ${response.error.message}`);
   const reply = typeof response.data?.reply === "string" ? response.data.reply.trim() : "";
   if (reply.length < 10 || reply.length > 800) throw new Error("Authenticated priority advice failed the safe length check.");
-  console.log(`Authenticated real-model priority advice received (${reply.length} characters; content omitted); no task saved or reordered.`);
+  const advice = parseFocusPriorityAdvice(reply, 2);
+  console.log(`Authenticated real-model priority advice received (${reply.length} characters; ${advice.order.length} valid ordered tasks; content omitted); no task saved or reordered.`);
 } finally {
   await client.auth.signOut();
 }
