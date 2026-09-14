@@ -60,13 +60,15 @@ try {
           const button = page.locator(".focus-ai-actions button").first();
           throw new Error(`Focus difficulty did not settle; route=${new URL(page.url()).hash}; overview=${await page.locator('[data-module-view="focus-overview"]').count()}; button=${(await button.innerText()).trim()}; disabled=${await button.isDisabled()}`);
         }
-        const assessmentError = await page.locator(".focus-ai-assessment-error").textContent();
+        const assessmentError = await page.locator(".focus-ai-assessment-error").count()
+          ? await page.locator(".focus-ai-assessment-error").textContent()
+          : null;
         if (assessmentError) throw new Error(`Focus difficulty returned an error: ${assessmentError.slice(0, 160)}`);
         await expect(page.locator(".focus-ai-assessment")).toBeVisible();
         const assessmentLength = (await page.locator(".focus-ai-assessment p").innerText()).trim().length;
         if (assessmentLength < 10 || assessmentLength > 800) throw new Error("Authenticated focus difficulty assessment failed the safe length check.");
         console.log(`sites: authenticated focus difficulty assessment received (${assessmentLength} characters; content omitted)`);
-        await page.locator('.focus-summary-start[aria-label="开始专注"]').click();
+        await page.locator(".focus-summary-start").click();
         await page.getByRole("button", { name: "进入状态" }).click();
         const guide = page.getByRole("dialog", { name: "进入专注状态" });
         await guide.getByRole("button", { name: "AI 给一句开始提示" }).click();
