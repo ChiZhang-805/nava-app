@@ -34,4 +34,4 @@ try {
   persistedBullets = [];
 }
 console.log(JSON.stringify({ date, modelVersion: result.data?.modelVersion, bullets: result.data?.bullets, persisted: persistedBullets.length === 4 }, null, 2));
-await client.auth.signOut();
+await client.auth.signOut({ scope: "local" });

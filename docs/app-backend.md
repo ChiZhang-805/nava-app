@@ -24,6 +24,12 @@ App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负�
 | `auth-account-status` | 以不暴露账号是否存在的公共响应执行注册/登录资格检查 | 只读 |
 | `push-dispatch` | 以内部 secret 调度当前用户已有通知到 APNs、FCM v1 或 HMS，并记录幂等送达结果 | `push_delivery_receipts`、失效时更新 `push_device_tokens`（production 已部署；provider 凭据与真机送达待验收） |
 
+### 饮食照片热量估算与修正
+
+`diet-extract` 的视觉模型只根据照片中**实际可见的份量**估算菜品、克重、热量和三大营养素，不能把标准一份直接当作照片份量；遮挡、油脂、酱汁和封闭馅料的不确定性要降低置信度并提示核对。输出的每项营养来源标记为 `vision_estimate`，不是数据库核准值；每日总热量和三大营养素以各食物项目之和为准，避免模型另报的 totals 与项目值矛盾。用户在 APP 逐项修改克重时，当前项目的热量与三大营养素按新旧克重比例复算；直接修改项目热量则仅替换该热量。修改后标记 `user_corrected`，但仍不声称另外三项已由营养数据库重新核准。保存依旧需要用户确认，并由现有四餐聚合流程写入 `nutrition_records`。
+
+这一步没有擅自接入 FatSecret、Passio、Gemini 或 Edamam。现有 USDA FoodData Central 知识工具用于 AI 文本证据，不代表饮食照片链路已经用 USDA 逐项核准。供应商数据库授权、匹配质量、地区覆盖和缓存条款需要另行验证后才能把项目标记为 `usda_fdc`；在此之前 UI 明示 AI 估算或待核对，不宣传“拍照精确测热量”。
+
 截至 2026-09-10，本轮涉及的 `ai-chat-reply`、`ai-diet-report`、`ai-health-report`、
 `diet-extract`、`delete-account`、`export-user-data`、`health-sync-ingest` 和 `watch-sync`
 最新源码均已部署到 canonical 项目，状态 ACTIVE 且启用 JWT 验证。真实账号的模型输出、

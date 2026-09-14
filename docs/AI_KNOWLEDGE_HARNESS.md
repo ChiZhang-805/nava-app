@@ -28,6 +28,11 @@ claim that hidden model causality can be observed.
   a production reliability strategy.
 - `nava_common_food_reference`: bounded common-serving fallback for a small set
   of common foods, kept editable and explicitly estimated.
+- The diet-photo vision function is a separate entry route: it estimates the
+  *visible* portion rather than a standard serving, marks its nutrition as
+  `vision_estimate`, and exposes low-confidence items for user correction.
+  USDA evidence in text extraction must not be misrepresented as a verified
+  database match for a photographed mixed dish.
 - `nava_mood_intensity_rubric`: NAVA-authored 0–100 intensity mapping. The NRC
   lexicon site is linked as methodology background; no licensed NRC lexicon rows
   are bundled.

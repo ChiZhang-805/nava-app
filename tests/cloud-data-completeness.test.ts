@@ -21,6 +21,20 @@ const recordsScreen = readFileSync(new URL("../src/features/RecordsScreen.tsx", 
 const drafts = readFileSync(new URL("../src/services/drafts.ts", import.meta.url), "utf8");
 const profile = readFileSync(new URL("../src/services/profile.ts", import.meta.url), "utf8");
 
+test("secure account scripts close only their own session", () => {
+  for (const name of [
+    "backfill-account-mood-week", "backfill-account-auxiliary", "audit-account-history",
+    "complete-account-manual-fields", "complete-account-nutrition-dimensions", "audit-account-completeness",
+    "generate-account-ai-secure", "import-account-meal-photos", "import-account-face-test-photos",
+    "recompute-account-derived", "seed-account-history", "verify-account-health-report-cache",
+    "verify-ai-diet-report",
+  ]) {
+    const source = readFileSync(new URL(`../scripts/${name}.mjs`, import.meta.url), "utf8");
+    assert.match(source, /auth\.signOut\(\{ scope: "local" \}\)/, `${name} must not revoke the user's APP session`);
+    assert.doesNotMatch(source, /auth\.signOut\(\)/);
+  }
+});
+
 const accountOwnedTables = [
   "profiles", "mood_records", "sleep_records", "exercise_records", "nutrition_records",
   "focus_records", "focus_session_events", "focus_time_distribution", "tasks", "ai_conversations", "ai_health_reports",

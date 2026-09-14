@@ -70,7 +70,7 @@ try {
   }
   console.log(JSON.stringify({ startDate, endDate, outcomes }, null, 2));
 } finally {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: "local" });
 }
 
 function argument(name) { return process.argv.slice(2).find((item) => item.startsWith(`--${name}=`))?.slice(name.length + 3); }

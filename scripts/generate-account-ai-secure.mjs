@@ -89,7 +89,7 @@ try {
 
   console.log(JSON.stringify({ endDate, meal, photoOnly, dietOnly, healthOnly, scopeOnly, refresh, dietExtract, healthReports: reports, dietReport }, null, 2));
 } finally {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: "local" });
 }
 
 function argument(name) {

@@ -1,6 +1,7 @@
 param(
   [Parameter(Mandatory = $true)][string]$Start,
-  [Parameter(Mandatory = $true)][string]$End
+  [Parameter(Mandatory = $true)][string]$End,
+  [switch]$Compact
 )
 
 $secureEmail = Read-Host "NAVA account email" -AsSecureString
@@ -11,7 +12,7 @@ $passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure
 try {
   $env:NAVA_ACCOUNT_EMAIL = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($emailPointer)
   $env:NAVA_ACCOUNT_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
-  & node scripts/audit-account-completeness.mjs "--start=$Start" "--end=$End"
+  & node scripts/audit-account-completeness.mjs "--start=$Start" "--end=$End" "--compact=$($Compact.IsPresent.ToString().ToLowerInvariant())"
   if ($LASTEXITCODE -ne 0) { throw "Account completeness audit failed." }
 } finally {
   Remove-Item Env:NAVA_ACCOUNT_EMAIL -ErrorAction SilentlyContinue

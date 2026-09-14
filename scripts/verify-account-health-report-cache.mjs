@@ -33,7 +33,7 @@ try {
     allPassed: Object.values(results).every((result) => result.passed),
   }, null, 2));
 } finally {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: "local" });
 }
 
 async function verifyScope(scope) {

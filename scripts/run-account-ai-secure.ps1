@@ -6,6 +6,8 @@ param(
   [switch]$DietOnly,
   [switch]$HealthOnly,
   [string]$Scope = "",
+  [switch]$NoRefresh,
+  [switch]$SummaryOnly,
   [bool]$Refresh = $true
 )
 
@@ -22,8 +24,16 @@ try {
   if ($firstDate -gt $lastDate) { throw "Start must be on or before End." }
   for ($day = $firstDate; $day -le $lastDate; $day = $day.AddDays(1)) {
     $date = $day.ToString("yyyy-MM-dd")
-    & node scripts/generate-account-ai-secure.mjs "--end=$date" "--meal=$Meal" "--photo-only=$($PhotoOnly.IsPresent.ToString().ToLowerInvariant())" "--diet-only=$($DietOnly.IsPresent.ToString().ToLowerInvariant())" "--health-only=$($HealthOnly.IsPresent.ToString().ToLowerInvariant())" "--scope=$Scope" "--refresh=$($Refresh.ToString().ToLowerInvariant())"
+    $refreshValue = $Refresh -and -not $NoRefresh.IsPresent
+    $result = & node scripts/generate-account-ai-secure.mjs "--end=$date" "--meal=$Meal" "--photo-only=$($PhotoOnly.IsPresent.ToString().ToLowerInvariant())" "--diet-only=$($DietOnly.IsPresent.ToString().ToLowerInvariant())" "--health-only=$($HealthOnly.IsPresent.ToString().ToLowerInvariant())" "--scope=$Scope" "--refresh=$($refreshValue.ToString().ToLowerInvariant())"
     if ($LASTEXITCODE -ne 0) { throw "Account AI generation failed." }
+    if ($SummaryOnly.IsPresent) {
+      $parsed = ($result | Out-String | ConvertFrom-Json)
+      $failedScopes = @($parsed.healthReports.PSObject.Properties | Where-Object { -not $_.Value.succeeded } | ForEach-Object { $_.Name })
+      Write-Output ("{0} health={1}/{2} failed={3} diet={4}" -f $date, @($parsed.healthReports.PSObject.Properties | Where-Object { $_.Value.succeeded }).Count, @($parsed.healthReports.PSObject.Properties).Count, ($failedScopes -join ","), $(if ($null -eq $parsed.dietReport) { "skipped" } elseif ($parsed.dietReport.succeeded) { "ok" } else { "failed" }))
+    } else {
+      $result
+    }
   }
 } finally {
   Remove-Item Env:NAVA_ACCOUNT_EMAIL -ErrorAction SilentlyContinue

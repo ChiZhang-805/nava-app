@@ -46,6 +46,7 @@ export async function requireUser(req: Request): Promise<FunctionContext> {
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const authorization = req.headers.get("Authorization") ?? "";
+  const userToken = /^Bearer\s+(.+)$/i.exec(authorization)?.[1]?.trim();
 
   if (!supabaseUrl || !anonKey) {
     throw new Error("Supabase Edge Function 环境缺少 SUPABASE_URL 或 SUPABASE_ANON_KEY。");
@@ -56,13 +57,20 @@ export async function requireUser(req: Request): Promise<FunctionContext> {
     auth: { persistSession: false },
   });
 
-  const { data, error } = await userClient.auth.getUser();
+  // This client has no persisted auth session. Pass the request JWT explicitly;
+  // relying on the global Authorization header alone is not reliable across
+  // supabase-js / GoTrue versions used by the browser and Edge runtime.
+  const { data, error } = userToken
+    ? await userClient.auth.getUser(userToken)
+    : { data: { user: null }, error: null };
   if (error || !data.user) {
     console.error("requireUser failed", JSON.stringify({
-      authorizationPresent: authorization.startsWith("Bearer "),
+      authorizationPresent: Boolean(userToken),
       authError: error?.message ?? "No authenticated user",
     }));
-    throw new Error("请先登录后再调用 App 后端。");
+    throw new Error(userToken
+      ? "登录状态已失效，请重新登录后重试。"
+      : "登录凭证未随请求送达，请重新登录后重试。");
   }
 
   const adminClient = serviceRoleKey

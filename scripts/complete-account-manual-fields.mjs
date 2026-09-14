@@ -116,7 +116,7 @@ try {
 
   console.log(JSON.stringify({ startDate, endDate, patched: counters }, null, 2));
 } finally {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: "local" });
 }
 
 async function range(table, select) {

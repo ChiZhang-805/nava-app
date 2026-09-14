@@ -130,7 +130,7 @@ try {
     cleanedWrongDatePhotos,
   }, null, 2));
 } finally {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: "local" });
 }
 
 function argument(name) {

@@ -45,7 +45,7 @@ try {
 
   if (rhythmFailures.length > 0) process.exitCode = 2;
 } finally {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: "local" });
 }
 
 function argument(name) {

@@ -63,7 +63,7 @@ try {
     inserted: missing.map(({ record_date, mood_score }) => ({ record_date, mood_score })),
   }, null, 2));
 } finally {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: "local" });
 }
 
 function mood(offset, mood_score, factors, diary_content) {

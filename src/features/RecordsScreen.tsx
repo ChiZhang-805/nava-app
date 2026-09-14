@@ -40,6 +40,7 @@ import { allHealthModulesComplete, buildHealthModulePresentations, compareRecord
 import { clearSecureFaceDraft, loadSecureFaceDraft, saveSecureFaceDraft } from "../services/secureFaceDraft";
 import { loadSingleKey, type SingleRequestSlot } from "../services/singleRequestCache";
 import { estimatedFoodLabel, formatDetectedDishList } from "../services/dietEntryPresentation";
+import { correctFoodItemCalories, resizeFoodItemPortion, sumFoodItemNutrition } from "../services/dietPortion";
 import { readMealNutritionSummary, summaryFromItems } from "../services/nutritionIntegrity";
 import { recordSkeletonVariant } from "../services/loadingRoute";
 import { clearSleepMaintenance, hydrateSleepMaintenance, loadSleepMaintenance, sleepMaintenanceElapsedMinutes, sleepMaintenanceFields, startSleepMaintenance, type SleepMaintenanceSession } from "../services/sessionMaintenance";
@@ -1120,6 +1121,15 @@ export default function RecordsScreen({
     });
   }
 
+  function applyCorrectedDietItems(items: FoodItem[]) {
+    const totals = sumFoodItemNutrition(items);
+    setDietItems(items);
+    setMealCalories(totals.calories);
+    setProteinGrams(totals.proteinGrams);
+    setCarbohydrateGrams(totals.carbohydrateGrams);
+    setFatGrams(totals.fatGrams);
+  }
+
   async function handleDietPhoto(file: File | null) {
     if (!file) return;
     setDietAnalyzing(true);
@@ -1930,6 +1940,41 @@ export default function RecordsScreen({
               />
             </label>
           </div>
+          {dietItems.length > 0 && (
+            <div className="diet-estimate-editor" aria-label={locale === "zh" ? "逐项核对餐食估算" : "Review meal estimates item by item"}>
+              <strong>{locale === "zh" ? "逐项核对份量" : "Review portions"}</strong>
+              <small>{locale === "zh" ? "热量是估算值；可逐项修改份量或热量。" : "Calories are estimates; adjust each portion or calorie value."}</small>
+              {dietItems.map((item, index) => (
+                <div className="diet-estimate-item" key={`${item.source_id ?? item.name}-${index}`}>
+                  <div className="diet-estimate-item-heading">
+                    <b>{item.name}</b>
+                    <span>{item.nutrition_source === "user_corrected" ? (locale === "zh" ? "已修正" : "Adjusted") : item.nutrition_source === "vision_estimate" ? (locale === "zh" ? "AI 估算" : "AI estimate") : item.nutrition_source === "usda_fdc" ? "USDA" : (locale === "zh" ? "待核对" : "Review")}</span>
+                  </div>
+                  <div className="diet-estimate-item-fields">
+                    <label>
+                      <span>{locale === "zh" ? "份量 g" : "Portion g"}</span>
+                      <input type="number" inputMode="decimal" min="1" step="1" defaultValue={item.weight_grams ?? ""} key={`weight-${index}-${item.weight_grams ?? ""}`} disabled={!item.weight_grams} aria-label={`${item.name} ${locale === "zh" ? "份量（克）" : "portion in grams"}`} onBlur={(event) => {
+                        const weight = Number(event.currentTarget.value);
+                        if (Number.isFinite(weight) && weight > 0 && item.weight_grams && weight !== item.weight_grams) {
+                          applyCorrectedDietItems(dietItems.map((entry, entryIndex) => entryIndex === index ? resizeFoodItemPortion(entry, weight) : entry));
+                        }
+                      }} />
+                    </label>
+                    <label>
+                      <span>{locale === "zh" ? "热量 kcal" : "Calories kcal"}</span>
+                      <input type="number" inputMode="numeric" min="0" step="1" defaultValue={item.calories ?? 0} key={`calories-${index}-${item.calories ?? 0}`} aria-label={`${item.name} ${locale === "zh" ? "估算热量" : "estimated calories"}`} onBlur={(event) => {
+                        const calories = Number(event.currentTarget.value);
+                        if (event.currentTarget.value !== "" && Number.isFinite(calories) && calories >= 0 && calories !== item.calories) {
+                          applyCorrectedDietItems(dietItems.map((entry, entryIndex) => entryIndex === index ? correctFoodItemCalories(entry, calories) : entry));
+                        }
+                      }} />
+                    </label>
+                  </div>
+                  {item.confidence != null && item.confidence < 0.7 && <small>{locale === "zh" ? "识别不确定，请重点核对" : "Low confidence; please review"}</small>}
+                </div>
+              ))}
+            </div>
+          )}
           <div className="two-col">
             <label className="field">
               <span>{t("records.meal")}</span>
@@ -1941,9 +1986,9 @@ export default function RecordsScreen({
               </select>
             </label>
             <label className="field nutrition-unit-field">
-              <span>{t("records.calorie")}</span>
+              <span>{dietItems.length > 0 ? (locale === "zh" ? "估算总热量" : "Estimated total") : t("records.calorie")}</span>
               <div className="nutrition-unit-input">
-                <input inputMode="numeric" type="number" value={mealCalories} onChange={(e) => setMealCalories(Number(e.target.value))} />
+                <input inputMode="numeric" type="number" value={mealCalories} readOnly={dietItems.length > 0} onChange={(e) => setMealCalories(Number(e.target.value))} />
                 <b aria-hidden="true">kcal</b>
               </div>
             </label>

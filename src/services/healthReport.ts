@@ -216,6 +216,8 @@ export async function loadHealthAiReport(input: {
   }
 
   const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) throw new Error(input.locale === "zh" ? "登录会话不可用，请重新登录后生成 AI 报告。" : "Your session is unavailable. Sign in again to generate an AI report.");
   const userKey = sessionData.session?.user.id ?? "anonymous";
   const baseKey = `${userKey}:${input.scope}:${input.endDate}:${input.locale}`;
   if (input.refresh) resolved.delete(baseKey);
@@ -229,6 +231,7 @@ export async function loadHealthAiReport(input: {
   const request = (async () => {
     const response = await supabase.functions.invoke<HealthAiReport>("ai-health-report", {
       body: { scope: input.scope, endDate: input.endDate, lang: input.locale, refresh: input.refresh === true },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (response.error) throw await healthReportError(response.error, input.locale);
     const report = response.data;

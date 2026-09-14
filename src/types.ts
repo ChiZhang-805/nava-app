@@ -103,6 +103,8 @@ export interface NutritionRecord {
 export interface FoodItem {
   name: string;
   source_id?: string;
+  nutrition_source?: "vision_estimate" | "usda_fdc" | "user_corrected";
+  nutrition_source_id?: string;
   calories?: number;
   amount?: string;
   weight_grams?: number;

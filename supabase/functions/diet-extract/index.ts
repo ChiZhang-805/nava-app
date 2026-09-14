@@ -18,6 +18,7 @@ type FoodItem = {
   carbohydrate_g?: number;
   fat_g?: number;
   confidence?: number;
+  nutrition_source: "vision_estimate";
 };
 
 Deno.serve(async (req) => {
@@ -161,10 +162,10 @@ function normalizeProviderResult(data: Record<string, unknown>, provider: string
       carbohydrate_g: nonNegative(value.carbohydrate_g),
       fat_g: nonNegative(value.fat_g),
       confidence: boundedConfidence(value.confidence),
+      nutrition_source: "vision_estimate" as const,
     };
   }).filter((item) => item.name && !/^(?:待确认餐食|meal item to confirm)$/i.test(item.name));
 
-  const rawTotals = data.totals && typeof data.totals === "object" ? data.totals as Record<string, unknown> : {};
   const sum = (field: keyof FoodItem) => items.reduce((total, item) => total + (Number(item[field]) || 0), 0);
 
   return {
@@ -175,10 +176,10 @@ function normalizeProviderResult(data: Record<string, unknown>, provider: string
     confidence: boundedConfidence(data.confidence) ?? Math.max(...items.map((item) => item.confidence ?? 0), 0),
     items,
     totals: {
-      calories: nonNegative(rawTotals.calories) ?? sum("calories"),
-      protein_g: nonNegative(rawTotals.protein_g) ?? sum("protein_g"),
-      carbohydrate_g: nonNegative(rawTotals.carbohydrate_g) ?? sum("carbohydrate_g"),
-      fat_g: nonNegative(rawTotals.fat_g) ?? sum("fat_g"),
+      calories: sum("calories"),
+      protein_g: sum("protein_g"),
+      carbohydrate_g: sum("carbohydrate_g"),
+      fat_g: sum("fat_g"),
     },
     note: typeof data.note === "string" ? data.note : undefined,
   };

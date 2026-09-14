@@ -28,6 +28,26 @@ test("Chinese compact AI summaries accept exactly seven Han characters only", ()
   assert.equal(validCompactReportBullet("近周节律较平一", "zh"), true);
 });
 
+test("diet report prompt repeats per-item length gates and uses accurately counted conditional examples", () => {
+  assert.match(dietFunction, /逐条字数硬性门槛/);
+  assert.match(dietFunction, /14 字或 19 字都不合格/);
+  assert.match(dietFunction, /6 字或 8 字都不合格/);
+  assert.match(dietFunction, /再次强调：四条正文逐条满足 15–18 个汉字/);
+  assert.match(dietFunction, /撰写时优先写成 16–17 个汉字/);
+  assert.match(dietFunction, /上一稿未通过逐项字数与格式校验/);
+  assert.match(dietFunction, /14 字正文不能原样保留/);
+  assert.match(dietFunction, /示例仅说明长度，不能代替数据分析/);
+  for (const [example, expectedCount] of [
+    ["近七日有记录的能量摄入整体较为平稳", 17],
+    ["近周能量较平稳", 7],
+    ["目前仅有少量饮食记录趋势仍需更多观察", 18],
+    ["饮食记录尚不足", 7],
+  ] as const) {
+    assert.ok(dietFunction.includes(example));
+    assert.equal(example.match(/\p{Script=Han}/gu)?.length, expectedCount);
+  }
+});
+
 test("both AI functions keep a valid model report when only its compact labels need normalization", () => {
   for (const source of [healthFunction, dietFunction]) {
     assert.match(source, /compactBullets/);
@@ -42,14 +62,21 @@ test("both AI functions keep a valid model report when only its compact labels n
   assert.match(dietFunction, /ai_feedback: JSON\.stringify\(stored\)/);
   assert.match(dietFunction, /max_tokens: 500/);
   assert.match(dietFunction, /previousDraft\.slice\(0, 3000\)/);
-  assert.match(dietFunction, /attempt < 3/);
-  assert.match(dietFunction, /formatIssues\(rawBullets, rawCompactBullets, input\.lang\)/);
+  assert.match(dietFunction, /attempt < 5/);
+  assert.match(dietFunction, /acceptedBullets\.every\(Boolean\) && acceptedCompactBullets\.every\(Boolean\)/);
+  assert.match(dietFunction, /acceptedBullets\[index\] \|\| rawBullets\[index\]/);
+  assert.match(dietFunction, /非空项已经被系统锁定/);
+  assert.match(dietFunction, /repairSingleBullet\(\{/);
+  assert.match(dietFunction, /目标恰好 16 个汉字，验收范围 15–18 个汉字/);
+  assert.match(dietFunction, /attempt < 2 && !acceptedBullets\[index\]/);
   assert.match(dietFunction, /bullets\[\$\{index\}\] has \$\{count\}/);
 });
 
 test("all module overview failures surface the server message and remain retryable", () => {
   assert.match(healthService, /context\.clone\(\)\.json\(\)/);
   assert.match(dietService, /context\.clone\(\)\.json\(\)/);
+  assert.match(healthService, /headers: \{ Authorization: `Bearer \$\{accessToken\}` \}/);
+  assert.match(dietService, /headers: \{ Authorization: `Bearer \$\{accessToken\}` \}/);
   assert.match(dashboard, /data-ai-state=\{overviewInsightLoading \? "loading" : overviewInsight \? "ready" : overviewInsightError \? "error" : "idle"\}/);
   assert.match(dashboard, /overviewInsight \?\? overviewInsightError/);
   assert.match(dashboard, /重新生成/);

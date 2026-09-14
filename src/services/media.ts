@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient";
+import { authenticatedFunctionHeaders, supabase } from "./supabaseClient";
 import { isDemoMode } from "./demo";
 import type { DietExtractResult, FaceAnalysisResult, FoodItem } from "../types";
 
@@ -57,6 +57,8 @@ export async function analyzeDietPhoto(input: {
       carbohydrate_g?: number;
       fat_g?: number;
       confidence?: number;
+      nutrition_source?: "vision_estimate" | "usda_fdc";
+      nutrition_source_id?: string;
     }>;
     modelVersion?: string;
     model_version?: string;
@@ -71,6 +73,7 @@ export async function analyzeDietPhoto(input: {
       fat_g?: number;
     };
   }>("diet-extract", {
+    headers: await authenticatedFunctionHeaders(),
     body: { imagePath, meal: input.meal, date: input.date, lang: "zh" },
   });
   if (extracted.error) throw extracted.error;
@@ -84,6 +87,8 @@ export async function analyzeDietPhoto(input: {
     carbohydrate_grams: Number(item.carbohydrate_g) || undefined,
     fat_grams: Number(item.fat_g) || undefined,
     confidence: Number(item.confidence) || undefined,
+    nutrition_source: item.nutrition_source ?? "vision_estimate",
+    nutrition_source_id: item.nutrition_source_id,
   }));
 
   const sum = (field: "calories" | "protein_grams" | "carbohydrate_grams" | "fat_grams") =>
@@ -158,6 +163,7 @@ export async function analyzeFacePhoto(input: {
   const imagePath = path;
 
   const response = await supabase.functions.invoke<FaceAnalysisResult>("face-analyze", {
+    headers: await authenticatedFunctionHeaders(),
     body: { imagePath, captureMode: input.captureMode, lang: input.locale ?? "zh", selfRatings: null },
   });
   if (response.error) throw response.error;

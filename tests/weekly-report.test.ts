@@ -44,7 +44,7 @@ test("one real weekly rhythm point replaces the no-data placeholder", () => {
 test("weekly AI report is persisted and rejects non-model providers", () => {
   assert.match(reportFunction, /from\("ai_health_reports"\)\.upsert/);
   assert.match(reportFunction, /row\.provider !== "deepseek"/);
-  assert.match(reportFunction, /deepseek-v4-flash-health-report-v8-derived-evidence-normalization/);
+  assert.match(reportFunction, /deepseek-v4-flash-health-report-v9-grounded-evidence-repair/);
   assert.match(reportFunction, /expectedIds = \["trend", "variation", "association", "action"\]/);
   assert.match(reportFunction, /bullets: report/);
   assert.match(recordsScreen, /weekly-detail-dialog/);
@@ -60,7 +60,9 @@ test("invalid model JSON gets bounded targeted repairs without weakening evidenc
   assert.match(reportFunction, /section_\$\{index \+ 1\}_association_boundary/);
   assert.match(reportValidation, /collectDerivedEvidenceNumbers/);
   assert.match(reportValidation, /normalizeModelHeadline/);
-  assert.match(reportFunction, /for \(let attempt = 0; attempt < 3; attempt \+= 1\)/);
+  assert.match(reportFunction, /for \(let attempt = 0; attempt < 4; attempt \+= 1\)/);
+  assert.match(reportFunction, /evidence 中除原样复制的输入日期外不得出现阿拉伯数字/);
+  assert.match(reportFunction, /如果失败项含 evidence_grounding，必须删除相关无依据的数值与断言/);
   assert.match(reportFunction, /response\.status === 408 \|\| response\.status === 429 \|\| response\.status >= 500/);
   assert.match(reportFunction, /AI 模型账户余额不足/);
 });

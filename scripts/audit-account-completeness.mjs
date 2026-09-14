@@ -7,6 +7,7 @@ const email = process.env.NAVA_ACCOUNT_EMAIL;
 const password = process.env.NAVA_ACCOUNT_PASSWORD;
 const startDate = argument("start");
 const endDate = argument("end");
+const compact = argument("compact") === "true";
 
 if (!email || !password) throw new Error("请通过安全启动脚本提供目标 NAVA 账号。");
 if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate ?? "") || !/^\d{4}-\d{2}-\d{2}$/.test(endDate ?? "")) {
@@ -117,15 +118,31 @@ try {
     nextDateBaseRows[table] = nextResult.count ?? 0;
   }
 
-  console.log(JSON.stringify({
+  const result = {
     range: { startDate, endDate, expectedDays },
     tables: Object.fromEntries(tableEntries),
     nutritionDimensions,
     aiReports: { byScope: aiByScope, dietRowsWithAiFeedback: (dietResult.data ?? []).filter((row) => hasValue(row.ai_feedback)).length },
     untouchedNextDate: { date: nextDate, tableRows: nextDateBaseRows, totalRows: Object.values(nextDateBaseRows).reduce((sum, value) => sum + value, 0) },
-  }, null, 2));
+  };
+  if (!compact) console.log(JSON.stringify(result, null, 2));
+  else {
+    const expectedDates = dateRange(startDate, endDate);
+    const aiMissingByScope = Object.fromEntries(["mood", "sleep", "exercise", "focus", "face", "weekly"].map((scope) => [scope,
+      expectedDates.filter((date) => !(aiResult.data ?? []).some((row) => row.scope === scope && row.period_end === date && row.provider === "deepseek" && hasStructuredReport(row.bullets))),
+    ]));
+    console.log(JSON.stringify({
+      range: result.range,
+      tables: Object.fromEntries(tableEntries.map(([table, status]) => [table, { rows: status.rows, distinctDays: status.distinctDays, missingDays: status.missingDays, incompleteRows: status.incompleteRows, missingFields: Object.fromEntries(Object.entries(status.missingFields).filter(([, count]) => count > 0)) }])),
+      nutritionBadDays: nutritionDimensions.filter((row) => !row.allMealFieldsComplete || !row.dailyTotalsMatchMeals || !row.aiReport.validFormat).map((row) => ({ date: row.date, allMealFieldsComplete: row.allMealFieldsComplete, dailyTotalsMatchMeals: row.dailyTotalsMatchMeals, aiReportValid: row.aiReport.validFormat })),
+      nutritionAiModelVersions: [...new Set(nutritionDimensions.map((row) => row.aiReport.modelVersion))],
+      aiMissingByScope,
+      aiModelVersionsByScope: Object.fromEntries(Object.entries(aiByScope).map(([scope, status]) => [scope, status.structuredModelVersions])),
+      untouchedNextDate: result.untouchedNextDate,
+    }, null, 2));
+  }
 } finally {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: "local" });
 }
 
 function hasValue(value) {
