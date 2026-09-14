@@ -54,7 +54,15 @@ try {
         await expect(page.locator('[data-module-view="focus-overview"]')).toBeVisible({ timeout: 20_000 });
         await page.locator(".focus-task-field input").fill("交论文");
         await page.getByRole("button", { name: "询问 AI 难度" }).click();
-        await expect(page.locator(".focus-ai-assessment")).toBeVisible({ timeout: 90_000 });
+        try {
+          await page.waitForFunction(() => Boolean(document.querySelector(".focus-ai-assessment, .focus-ai-assessment-error")), null, { timeout: 90_000 });
+        } catch {
+          const button = page.locator(".focus-ai-actions button").first();
+          throw new Error(`Focus difficulty did not settle; route=${new URL(page.url()).hash}; overview=${await page.locator('[data-module-view="focus-overview"]').count()}; button=${(await button.innerText()).trim()}; disabled=${await button.isDisabled()}`);
+        }
+        const assessmentError = await page.locator(".focus-ai-assessment-error").textContent();
+        if (assessmentError) throw new Error(`Focus difficulty returned an error: ${assessmentError.slice(0, 160)}`);
+        await expect(page.locator(".focus-ai-assessment")).toBeVisible();
         const assessmentLength = (await page.locator(".focus-ai-assessment p").innerText()).trim().length;
         if (assessmentLength < 10 || assessmentLength > 800) throw new Error("Authenticated focus difficulty assessment failed the safe length check.");
         console.log(`sites: authenticated focus difficulty assessment received (${assessmentLength} characters; content omitted)`);

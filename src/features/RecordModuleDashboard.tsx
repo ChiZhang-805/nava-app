@@ -1610,13 +1610,13 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const calendarDays = rollingDateWindow(deviceDate);
   const visibleTodos = todoView === "list" ? todayTodos : todos.filter((item) => item.scheduledDate === calendarDate);
   const selectedTodo = todos.find((item) => item.id === selectedTodoId) ?? null;
-  useEffect(() => {
+  const clearDifficultyAssessment = () => {
     difficultyAbortRef.current?.abort();
     difficultyAbortRef.current = null;
     setDifficultyAssessment(null);
     setDifficultyError(null);
     setDifficultyLoading(false);
-  }, [displayedFocusTitle, focusMinutes, selectedTodo?.focusSessions]);
+  };
   useEffect(() => () => difficultyAbortRef.current?.abort(), []);
   const todoSessionProgress = useMemo(() => {
     const totals = new Map<string, number>();
@@ -1680,6 +1680,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   };
 
   const chooseTodo = (item: TodoItem) => {
+    clearDifficultyAssessment();
     const plan = resolveTodoFocusPlan(item);
     setSelectedTodoId(item.id);
     setFocusTitle(item.title);
@@ -1787,6 +1788,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   };
 
   const updateDuration = (nextValue: number) => {
+    clearDifficultyAssessment();
     const nextMinutes = Math.min(180, Math.max(1, Math.round(nextValue || 1)));
     const nextSeconds = nextMinutes * 60;
     setFocusMinutes(nextMinutes);
@@ -2152,7 +2154,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       <section className="figma-module-card focus-quick-card">
         <header><strong>{locale === "zh" ? "开启专注时刻" : "Start a focus moment"}</strong></header>
         <div className="focus-quick-controls">
-          <label className="focus-task-field"><Clock3 size={19} /><input aria-label={locale === "zh" ? "专注事项" : "Focus activity"} placeholder={locale === "zh" ? "请填写要专注的事项" : "What do you want to focus on?"} value={displayedFocusTitle} onChange={(event) => setFocusTitle(event.target.value)} /></label>
+          <label className="focus-task-field"><Clock3 size={19} /><input aria-label={locale === "zh" ? "专注事项" : "Focus activity"} placeholder={locale === "zh" ? "请填写要专注的事项" : "What do you want to focus on?"} value={displayedFocusTitle} onChange={(event) => { clearDifficultyAssessment(); setFocusTitle(event.target.value); }} /></label>
           <div className="focus-duration-controls"><button type="button" onClick={() => updateDuration(focusMinutes - 1)} aria-label={locale === "zh" ? "减少一分钟" : "Decrease one minute"}>-</button><label className="focus-duration-field compact"><input aria-label={locale === "zh" ? "专注分钟数" : "Focus duration in minutes"} inputMode="numeric" min={1} max={180} type="number" value={focusMinutes} onChange={(event) => updateDuration(Number(event.target.value))} /><span>{locale === "zh" ? "分钟" : "min"}</span></label><button type="button" onClick={() => updateDuration(focusMinutes + 1)} aria-label={locale === "zh" ? "增加一分钟" : "Increase one minute"}>+</button></div>
         </div>
         <div className="focus-settings-row">
