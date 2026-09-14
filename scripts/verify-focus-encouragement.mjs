@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { chromium, expect } from "@playwright/test";
 import { validateFocusOutput } from "../supabase/functions/_shared/focus-contract.ts";
 import { selectFocusHealthEvidence } from "../src/services/focusEncouragement.ts";
@@ -71,6 +72,7 @@ try {
         const pending = page.waitForResponse((res) => res.url().includes("/functions/v1/ai-chat-reply") && res.request().postDataJSON()?.focusRequest?.kind === kind, { timeout: 75_000 });
         await click();
         const res = await pending;
+        assert.equal(new URL(res.url()).origin, new URL(url).origin, "APP must use the canonical Supabase project");
         assert.equal(res.status(), 200, `Actual APP ${kind} HTTP status`);
         const data = await res.json();
         assert.match(data.modelVersion, /focus-v1$/);
@@ -86,6 +88,13 @@ try {
         await route.fulfill({ status: read ? 200 : 204, contentType: "application/json", body: read ? "[]" : "" });
       });
       await page.goto(process.env.NAVA_FOCUS_UI_URL, { waitUntil: "domcontentloaded" });
+      if (process.env.NAVA_EXPECTED_MAIN_SHA) {
+        const assetUrl = await page.locator('script[type="module"][src]').first().getAttribute("src");
+        const asset = await page.request.get(new URL(assetUrl, process.env.NAVA_FOCUS_UI_URL).href);
+        assert.equal(asset.status(), 200);
+        assert.equal(createHash("sha256").update(await asset.body()).digest("hex"), process.env.NAVA_EXPECTED_MAIN_SHA.toLowerCase());
+        console.log("Public main bundle matches the verified source artifact by SHA-256.");
+      }
       const launch = page.locator(".launch-sequence");
       if (await launch.isVisible().catch(() => false)) await launch.click();
       const form = page.locator(".auth-form--signIn");
