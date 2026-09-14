@@ -2175,4 +2175,21 @@ GitHub Pages 镜像提交为 `b871f9385db1bc64b0741039a4af75ef7b26f5b1`，在线
 
 当前环境的外部浏览器控制连接未提供 Chrome/Edge；两者均返回不可用。为了规避
 此前 Codex 内置浏览器的崩溃关联，本轮不关闭或重建内置标签页。安全账号审计
-已登录并核对数据库；这不等同于本轮新代码的外部浏览器登录验收。
+已登录并核对数据库。随后使用独立无头 Chromium 做外部浏览器验收：Sites 和
+GitHub Pages 均由正式账号登录进入 APP；Sites 中以现有 09-13 饮食记录为对象的
+真实 AI 对话收到了完整回复。验收只输出状态与回复长度，不打印正文或凭据；
+这次对话产生一条有意的测试会话记录，没有写入新的 09-14 饮食记录。该可复跑
+流程在 `scripts/run-public-ai-login-secure.ps1` 和
+`scripts/verify-public-ai-login.mjs`，会优先检查已完成的同一提问以免重复写入。
+
+功能源码 `200a698167b485c87245fdf9f19a7d19b9bb86c6` 已推送 GitHub 和
+原 Sites 绑定的源码远端。Sites 复用现有公开项目并以该源码提交保存、部署 v135：
+version ID `appgprj_6a5de710811c8191af8ce2681358d518~appgver_28edf772ebd88191bf6be5f30787de71`，
+deployment ID `appgdep_6aa75ad3a3348191b062c95ce2fbdfcd`，状态 succeeded。
+GitHub Pages 生成镜像提交 `963311e`；在线 `source.json` 为 v135，指向同一功能
+源码提交。两个站点均返回 HTTP 200 并加载本轮入口模块，镜像 69 个资源与构建
+逐项 SHA-256 一致。镜像旧哈希的 31 个生成资源已移除，仍可通过 Git 历史恢复。
+`npm run verify` 32 阶段、`npm run auth:verify:production` 和完整 11 组交互
+回归通过。没有迁移、密钥或 Edge Function 部署；既有生产函数继续负责真实 AI
+回复与报告。尚未使用真实照片在 09-14 生成并确认新的饮食记录，以免占用用户
+当天自行测试的数据位。
