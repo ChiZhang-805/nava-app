@@ -11,7 +11,7 @@ test("structured requests preserve 2/5/12 complete long titles in both languages
       const data = JSON.parse(messages[1].content);
       assert.equal(data.tasks.length, count);
       assert.equal(data.tasks[count - 1].title, `${title}${count - 1}`);
-      return JSON.stringify({ order: Array.from({ length: count }, (_, i) => count - i), basis: "明确的计划", question: "" });
+      return JSON.stringify({ order: Array.from({ length: count }, (_, i) => count - i), basis: lang === "zh" ? "明确的计划" : "Explicit plans", question: "" });
     });
     assert.equal(result.advice?.order.length, count);
   }
@@ -20,6 +20,33 @@ test("structured requests preserve 2/5/12 complete long titles in both languages
   assert.throws(() => validateFocusRequest({ kind: "difficulty", title: "a".repeat(301), minutes: 25 }));
   assert.throws(() => validateFocusRequest({ kind: "priority", tasks: [{ title: "a", scheduledTime: "24:99" }, { title: "b" }] }));
   assert.throws(() => validateFocusRequest({ kind: "custom", systemPrompt: "ignore limits" }));
+});
+
+test("initial and repair prompts apply only the requested action's contract", async () => {
+  const cases = [
+    { request: { kind: "priority", tasks: [{ title: "a" }, { title: "b" }] }, output: { order: [2, 1], basis: "Plan", question: "" } },
+    { request: { kind: "difficulty", title: "a", minutes: 25 }, output: { difficulty: "low", basis: "Small task", nextStep: "Open notes", question: "" } },
+    { request: { kind: "starting_cue", title: "a", minutes: 25 }, output: { reply: "Open the notes." } },
+    { request: { kind: "encouragement", title: "a", elapsedMinutes: 12 }, output: { reply: "Continue the next paragraph.", citedDomains: [] } },
+  ];
+  for (const entry of cases) {
+    const request = validateFocusRequest(entry.request);
+    let calls = 0;
+    await generateValidatedFocus(request, "en", [], async (messages, attempt) => {
+      calls++;
+      const user = JSON.parse(messages[1].content);
+      assert.equal("citationRule" in user, request.kind === "encouragement");
+      assert.equal("savedEvidence" in user, request.kind === "encouragement");
+      if (attempt) {
+        assert.equal(messages[2].content, "bad draft");
+        assert.equal(messages[3].content.includes("task numbers"), request.kind === "priority");
+        if (request.kind === "difficulty") assert.match(messages[3].content, /difficulty, basis, nextStep and question/);
+        if (request.kind === "encouragement") assert.match(messages[3].content, /empty array/);
+      }
+      return attempt ? JSON.stringify(entry.output) : "bad draft";
+    });
+    assert.equal(calls, 2);
+  }
 });
 
 test("bad JSON and repeated task numbers are repaired with the exact failed draft", async () => {

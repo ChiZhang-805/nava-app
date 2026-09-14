@@ -36,6 +36,7 @@ import {
 } from "./router.ts";
 import { generateValidatedFocus, validateFocusRequest, type FocusRequest } from "../_shared/focus-contract.ts";
 import { loadFocusEvidence } from "./focus.ts";
+import { createFocusRun } from "./focus-provider.ts";
 
 type ReplyLanguage = "zh" | "en";
 type ReplyMode = "text" | "voice";
@@ -119,6 +120,9 @@ Deno.serve(async (req) => {
     const reply = await buildReply(await prepareInput());
     return jsonResponse(reply);
   } catch (error) {
+    if (error instanceof Error && "focusDiagnostics" in error) {
+      return jsonResponse({ error: error.message, diagnostics: error.focusDiagnostics }, { status: error.name === "FocusTimeoutError" ? 504 : 400 });
+    }
     return errorResponse(error, error instanceof Error && error.name === "FocusTimeoutError" ? 504 : 400);
   }
 });
@@ -126,34 +130,25 @@ Deno.serve(async (req) => {
 async function buildFocusReply(client: SupabaseClient, userId: string, request: FocusRequest, lang: ReplyLanguage, deviceDate: unknown, requestSignal: AbortSignal) {
   const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
   if (!apiKey) throw new Error("真实 AI 模型尚未配置，请联系管理员检查模型服务密钥。");
-  const controller = new AbortController();
-  const cancel = () => controller.abort(requestSignal.reason);
-  requestSignal.addEventListener("abort", cancel, { once: true });
-  if (requestSignal.aborted) cancel();
-  const timeout = setTimeout(() => controller.abort(), deepSeekTimeoutMs);
+  const run = createFocusRun(request.kind, lang, requestSignal);
   try {
-    controller.signal.throwIfAborted();
-    const evidence = request.kind === "encouragement" ? await loadFocusEvidence(client, userId, deviceDate, controller.signal) : [];
-    const providerUserId = await anonymizeUserId(userId);
+    const evidence = request.kind === "encouragement" ? await run.bounded(() => loadFocusEvidence(client, userId, deviceDate, run.signal)) : [];
+    const providerUserId = await run.bounded(() => anonymizeUserId(userId));
     const result = await generateValidatedFocus(request, lang, evidence, async (messages) => {
-      controller.signal.throwIfAborted();
-      const response = await fetchDeepSeek(apiKey, {
+      return await run.complete(apiKey, {
         model: deepSeekModel, thinking: { type: "disabled" }, temperature: 0.2, max_tokens: 900,
         response_format: { type: "json_object" }, user_id: providerUserId, messages,
-      }, controller.signal, 1);
-      if (!response.ok) throw await deepSeekHttpError(response);
-      const data = await response.json();
-      return String(data?.choices?.[0]?.message?.content ?? "").trim();
-    });
-    return { ...result, provider: "deepseek", modelVersion: `${deepSeekModel}-focus-v2`, actions: [], knowledgeTrace: [] };
+      });
+    }, (_attempt, valid) => run.mark("validation", { valid }));
+    run.signal.throwIfAborted();
+    run.finish(true);
+    return { ...result, provider: "deepseek", modelVersion: `${run.model()}-focus-v2`, actions: [], knowledgeTrace: [], diagnostics: run.diagnostics() };
   } catch (error) {
-    if (controller.signal.aborted && !requestSignal.aborted) {
-      const deadlineError = new Error(lang === "zh" ? "AI 响应超时，请稍后重试。你的记录没有被修改。" : "AI response timed out. Please retry; your records have not been changed.");
-      deadlineError.name = "FocusTimeoutError";
-      throw deadlineError;
-    }
+    run.finish(false);
+    // Carry only allowlisted metadata to the authenticated caller and server logs.
+    if (error instanceof Error) Object.assign(error, { focusDiagnostics: run.diagnostics() });
     throw error;
-  } finally { clearTimeout(timeout); requestSignal.removeEventListener("abort", cancel); }
+  } finally { console.info("NAVA focus timing", JSON.stringify(run.diagnostics())); run.dispose(); }
 }
 
 async function prepareReplyInput(

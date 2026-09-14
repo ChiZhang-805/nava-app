@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import assert from "node:assert/strict";
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { chromium, expect } from "@playwright/test";
 import { validateFocusOutput } from "../supabase/functions/_shared/focus-contract.ts";
@@ -82,12 +82,24 @@ try {
       context = await browser.newContext({ viewport: { width: 390, height: 844 } });
       const page = await context.newPage();
       const realUiCall = async (kind, click) => {
+        const startedAt = Date.now();
         const pending = page.waitForResponse((res) => res.url().includes("/functions/v1/ai-chat-reply") && res.request().postDataJSON()?.focusRequest?.kind === kind, { timeout: 75_000 });
         await click();
         const res = await pending;
         assert.equal(new URL(res.url()).origin, new URL(url).origin, "APP must use the canonical Supabase project");
-        assert.equal(res.status(), 200, `Actual APP ${kind} HTTP status`);
         const data = await res.json();
+        const safeTiming = { kind, status: res.status(), clientElapsedMs: Date.now() - startedAt,
+          outcome: data.diagnostics?.outcome, phase: data.diagnostics?.phase, elapsedMs: data.diagnostics?.elapsedMs,
+          calls: data.diagnostics?.calls, retryUsed: data.diagnostics?.retryUsed,
+          model: data.diagnostics?.model, transfers: data.diagnostics?.transfers?.map(({ model, bytes, nonWhitespace }) => ({ model, bytes, nonWhitespace })),
+          events: data.diagnostics?.events?.map(({ phase, elapsedMs, attempt, status, valid, finish }) => ({ phase, elapsedMs, attempt, status, valid, finish })) };
+        console.log(`Actual APP timing: ${JSON.stringify(safeTiming)}`);
+        if (process.env.NAVA_FOCUS_EVIDENCE_DIR) {
+          const site = new URL(process.env.NAVA_FOCUS_UI_URL).hostname.includes("github.io") ? "pages" : "sites";
+          await mkdir(process.env.NAVA_FOCUS_EVIDENCE_DIR, { recursive: true });
+          await writeFile(`${process.env.NAVA_FOCUS_EVIDENCE_DIR}/${site}-${kind}.json`, JSON.stringify(safeTiming, null, 2));
+        }
+        assert.equal(res.status(), 200, `Actual APP ${kind} HTTP status`);
         assert.match(data.modelVersion, /focus-v2$/);
         const request = res.request().postDataJSON().focusRequest;
         validateFocusOutput(JSON.stringify(data.output), request, "zh", kind === "encouragement" ? evidence : []);
@@ -136,7 +148,8 @@ try {
       const evidenceDir = process.env.NAVA_FOCUS_EVIDENCE_DIR;
       if (evidenceDir) {
         await mkdir(evidenceDir, { recursive: true });
-        await page.screenshot({ path: `${evidenceDir}/focus-real-model-390.png` });
+        const site = new URL(process.env.NAVA_FOCUS_UI_URL).hostname.includes("github.io") ? "pages" : "sites";
+        await page.screenshot({ path: `${evidenceDir}/${site}-focus-real-model-390.png` });
       }
       await page.getByRole("button", { name: "重置" }).click();
       await page.clock.install({ time: new Date() });

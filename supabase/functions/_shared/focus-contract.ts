@@ -116,22 +116,30 @@ export function focusSystemPrompt(request: FocusRequest, lang: FocusLanguage) {
 export async function generateValidatedFocus(
   request: FocusRequest, lang: FocusLanguage, evidence: FocusEvidence[],
   complete: (messages: { role: "system" | "user" | "assistant"; content: string }[], attempt: number) => Promise<string>,
+  onValidation?: (attempt: number, valid: boolean) => void,
 ): Promise<FocusResult> {
   const input = request.kind === "priority" ? { ...request, tasks: request.tasks.map((task, i) => ({ number: i + 1, ...task })) } : request;
   const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
     { role: "system", content: focusSystemPrompt(request, lang) },
-    { role: "user", content: JSON.stringify({ ...input, savedEvidence: request.kind === "encouragement" ? evidence.map(({ domain }) => ({ domain })) : [],
-      citationRule: "Select exactly two available domains when >=2 are available, otherwise select none. Reply must contain ONLY one task action, no health facts, numbers, dates or interpretation. The server will append dated facts itself." }) },
+    { role: "user", content: JSON.stringify({ ...input, ...(request.kind === "encouragement" ? {
+      savedEvidence: evidence.map(({ domain }) => ({ domain })),
+      citationRule: "Select exactly two available domains when >=2 are available, otherwise select none. Reply must contain ONLY one task action, no health facts, numbers, dates or interpretation. The server will append dated facts itself.",
+    } : {}) }) },
   ];
   for (let attempt = 0; attempt < 3; attempt++) {
     const raw = await complete(messages, attempt);
-    try { return validateFocusOutput(raw, request, lang, evidence); }
+    try {
+      const result = validateFocusOutput(raw, request, lang, evidence);
+      onValidation?.(attempt, true);
+      return result;
+    }
     catch (error) {
+      onValidation?.(attempt, false);
       const issue = error instanceof Error ? error.message : "invalid_output";
       if (attempt === 2) throw new Error((lang === "zh" ? "AI 回复仍未符合格式或字数要求，请重试。" : "AI could not meet the response format or length. Please retry.") + ` [${issue}]`);
       // Send the failed model draft back for correction; never truncate and present it as success.
       messages.splice(2, messages.length - 2, { role: "assistant", content: raw.slice(0, 8000) },
-        { role: "user", content: `Validation failed: ${issue}. Regenerate the ENTIRE JSON object. All original task numbers and data must be preserved. Obey the schema, exact permutation, sentence and length limits in the system message. ${request.kind === "encouragement" && evidence.length >= 2 ? `Select exactly TWO available domains: ${JSON.stringify(evidence.map((item) => item.domain))}. Reply contains only a task action; the server appends facts.` : ""} Count before returning; do not explain the repair.` });
+        { role: "user", content: `Validation failed: ${issue}. Regenerate the ENTIRE JSON object using the original task data. Obey this action's schema and text limits in the system message. ${request.kind === "priority" ? "Preserve ALL task numbers, each exactly once in order; include basis and question." : request.kind === "difficulty" ? "Include difficulty, basis, nextStep and question. If difficulty is insufficient, ask a nonempty clarification." : "Reply must be exactly one short sentence within the action's length limit."} ${request.kind === "encouragement" ? `Select ${evidence.length >= 2 ? `exactly TWO available domains: ${JSON.stringify(evidence.map((item) => item.domain))}` : "no domains (an empty array)"}. Reply contains only a task action; the server appends facts.` : ""} Count before returning; do not explain the repair.` });
     }
   }
   throw new Error("unreachable");
