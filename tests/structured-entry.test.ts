@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { applyPhotoNutritionCorrection, parseStructuredEntry, updateStructuredEntryField, type StructuredEntry } from "../src/services/structuredEntryParser.ts";
 import { focusDifficultyPrompt, focusDurationChoice, focusInSessionEncouragementPrompt, focusPriorityPrompt, focusStartingCuePrompt, parseFocusPriorityAdvice, resolveTodoFocusPlan, suggestedFocusPlan } from "../src/services/focusPlanning.ts";
+import { formatFocusHealthEvidence, nextFocusEncouragementAt, selectFocusHealthEvidence } from "../src/services/focusEncouragement.ts";
+import type { TrendBundle } from "../src/types.ts";
+import type { UserProfile } from "../src/services/profile.ts";
 
 test("todo focus planning preserves user values and estimates missing plans", () => {
   assert.deepEqual(suggestedFocusPlan("写作业"), { focusMinutes: 45, focusSessions: 2 });
@@ -38,8 +41,30 @@ test("todo focus planning preserves user values and estimates missing plans", ()
   assert.throws(() => parseFocusPriorityAdvice("先完成任务2（25分钟）。", 2));
   const inSessionPrompt = focusInSessionEncouragementPrompt("整理研究笔记", 12, "zh");
   assert.match(inSessionPrompt, /已进行约 12 分钟/);
-  assert.match(inSessionPrompt, /授权的近期睡眠、情绪或运动记录确实可用/);
-  assert.match(inSessionPrompt, /没有记录或没有授权就不要提及或编造/);
+  assert.match(inSessionPrompt, /不足两个领域时只给任务提示/);
+  assert.match(inSessionPrompt, /不能编造记录、诊断、推断因果/);
+});
+
+test("focus encouragement uses only consented saved recent evidence and bounded timer slots", () => {
+  const bundle = {
+    sleeps: [{ record_date: "2026-09-13", sleep_duration_minutes: 445 }, { record_date: "2026-09-06", sleep_duration_minutes: 600 }],
+    moods: [{ record_date: "2026-09-13", mood_score: 72 }],
+    exercises: [{ record_date: "2026-09-14", exercise_minutes: null, steps: 7800 }],
+  } as TrendBundle;
+  const profile = { ai_personalization_consent: true } as UserProfile;
+  assert.deepEqual(selectFocusHealthEvidence(bundle, { ...profile, ai_personalization_consent: false }, "2026-09-14"), []);
+  const evidence = selectFocusHealthEvidence(bundle, profile, "2026-09-14");
+  assert.equal(evidence.length, 3);
+  assert.equal(evidence[0].date, "2026-09-13");
+  assert.equal(evidence[0].value, 445);
+  assert.equal(evidence[2].unit, "steps");
+  assert.equal(formatFocusHealthEvidence(evidence[0], "zh"), "2026-09-13 睡眠 445分钟");
+  const prompt = focusInSessionEncouragementPrompt("整理研究笔记", 18, "zh", evidence.map((item) => formatFocusHealthEvidence(item, "zh")));
+  assert.match(prompt, /2026-09-13 睡眠 445分钟/);
+  assert.match(prompt, /至少两个不同领域/);
+  assert.ok(focusInSessionEncouragementPrompt("x".repeat(300), 180, "en", ["y".repeat(80), "z".repeat(80), "w".repeat(80)]).length <= 600);
+  assert.equal(nextFocusEncouragementAt(600), 1500);
+  assert.equal(nextFocusEncouragementAt(1501), 2401);
 });
 
 test("todo parser keeps tomorrow and afternoon time", () => {

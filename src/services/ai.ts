@@ -150,13 +150,13 @@ export async function generateFocusPriority(tasks: PriorityTask[], lang: "zh" | 
   return parseFocusPriorityAdvice(reply, tasks.length);
 }
 
-export async function generateFocusInSessionEncouragement(title: string, elapsedMinutes: number, lang: "zh" | "en", signal?: AbortSignal) {
+export async function generateFocusInSessionEncouragement(title: string, elapsedMinutes: number, lang: "zh" | "en", evidence: string[] = [], signal?: AbortSignal) {
   if (isDemoMode()) throw new Error(lang === "zh" ? "演示模式不调用真实 AI。" : "The demo does not call a real AI model.");
   if (!title.trim()) throw new Error(lang === "zh" ? "请先填写专注事项。" : "Add a focus task first.");
   const response = await supabase.functions.invoke<{ reply?: string }>("ai-chat-reply", {
     headers: await authenticatedFunctionHeaders(),
     body: {
-      message: focusInSessionEncouragementPrompt(title, elapsedMinutes, lang),
+      message: focusInSessionEncouragementPrompt(title, elapsedMinutes, lang, evidence),
       lang,
       responseMode: "text",
       deviceDate: todayISO(),

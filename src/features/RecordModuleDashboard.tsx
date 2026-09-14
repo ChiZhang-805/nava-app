@@ -87,6 +87,7 @@ import { currentDayRequiredShareCopy, hasCurrentDayRecord, missingCurrentDayCopy
 import { isDemoMode } from "../services/demo";
 import { clearActiveUserSession, loadActiveUserSession, saveActiveUserSession } from "../services/userCloudState";
 import { resolveTodoFocusPlan } from "../services/focusPlanning.ts";
+import { formatFocusHealthEvidence, nextFocusEncouragementAt, selectFocusHealthEvidence, type FocusHealthEvidence } from "../services/focusEncouragement";
 import { generateFocusDifficulty, generateFocusInSessionEncouragement, generateFocusPriority, generateFocusStartingCue } from "../services/ai";
 import { exitFocusFullscreen, focusFullscreenActive, focusFullscreenSupported, requestFocusFullscreen, requestScreenWakeLock, screenWakeLockSupported, type ScreenWakeLockSentinel } from "../services/focusImmersion.ts";
 import { focusNoiseSupported, startFocusNoise, type FocusNoiseKind, type FocusNoiseSession } from "../services/focusAudio.ts";
@@ -1300,7 +1301,7 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
 }
 
 function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinutes" | "focusNote" | "setFocusTitle" | "setFocusMinutes" | "setFocusNote" | "focusLaunch" | "onFocusLaunchConsumed" | "onSaveFocusMinutes" | "todaySnapshot" | "trendBundle" | "deviceDate" | "profile" | "onOpenAi"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
-  const { userId, locale, focusTitle, focusMinutes, focusNote, setFocusTitle, setFocusMinutes, setFocusNote, focusLaunch, onFocusLaunchConsumed, onSaveFocusMinutes, todaySnapshot, trendBundle, deviceDate, view, openView, onOpenAi } = props;
+  const { userId, locale, focusTitle, focusMinutes, focusNote, setFocusTitle, setFocusMinutes, setFocusNote, focusLaunch, onFocusLaunchConsumed, onSaveFocusMinutes, todaySnapshot, trendBundle, deviceDate, profile, view, openView, onOpenAi } = props;
   const restoredTimer = useMemo(() => readFocusTimerDraft(userId), [userId]);
   const launchedFromEditorRef = useRef(Boolean(focusLaunch));
   const displayedFocusTitle = focusTitle === "产品原型" || focusTitle === "Product prototype" || focusTitle === "Prototype"
@@ -1338,6 +1339,11 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [encouragementLoading, setEncouragementLoading] = useState(false);
   const [encouragementText, setEncouragementText] = useState<string | null>(null);
   const [encouragementError, setEncouragementError] = useState<string | null>(null);
+  const [encouragementSources, setEncouragementSources] = useState<FocusHealthEvidence[]>([]);
+  const [autoEncouragement, setAutoEncouragement] = useState(false);
+  const nextAutoEncouragementAtRef = useRef(0);
+  const autoEncouragementCountRef = useRef(0);
+  const focusEvidence = useMemo(() => selectFocusHealthEvidence(trendBundle, profile, deviceDate), [trendBundle, profile, deviceDate]);
   const priorityAbortRef = useRef<AbortController | null>(null);
   const [priorityAdvice, setPriorityAdvice] = useState<{ key: string; orderIds: string[]; basis: string; question: string } | null>(null);
   const [priorityError, setPriorityError] = useState<string | null>(null);
@@ -1504,6 +1510,17 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   // request started by the same click before the overlay has rendered.
   useEffect(() => () => { guideAiAbortRef.current?.abort(); }, []);
   useEffect(() => () => { encouragementAbortRef.current?.abort(); }, []);
+  useEffect(() => {
+    setAutoEncouragement(false);
+    nextAutoEncouragementAtRef.current = 0;
+    autoEncouragementCountRef.current = 0;
+  }, [sessionId]);
+  useEffect(() => {
+    if (hasStarted) return;
+    setAutoEncouragement(false);
+    nextAutoEncouragementAtRef.current = 0;
+    autoEncouragementCountRef.current = 0;
+  }, [hasStarted]);
   useEffect(() => {
     if (immersive && running) return;
     encouragementAbortRef.current?.abort();
@@ -1874,7 +1891,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     }
   };
 
-  const requestInSessionEncouragement = async () => {
+  const requestInSessionEncouragement = useCallback(async () => {
     if (!running || !displayedFocusTitle.trim() || isDemoMode()) return;
     encouragementAbortRef.current?.abort();
     const controller = new AbortController();
@@ -1882,11 +1899,14 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setEncouragementOpen(true);
     setEncouragementText(null);
     setEncouragementError(null);
+    setEncouragementSources(focusEvidence);
     setEncouragementLoading(true);
     let timedOut = false;
     const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 45_000);
     try {
-      const reply = await generateFocusInSessionEncouragement(displayedFocusTitle, Math.floor(elapsedSeconds / 60), locale, controller.signal);
+      const actualFocusedSeconds = timerMode === "countup" ? elapsedSeconds : Math.max(0, countdownDurationSeconds - remaining);
+      const evidence = focusEvidence.map((item) => formatFocusHealthEvidence(item, locale));
+      const reply = await generateFocusInSessionEncouragement(displayedFocusTitle, Math.floor(actualFocusedSeconds / 60), locale, evidence, controller.signal);
       if (!controller.signal.aborted) setEncouragementText(reply);
     } catch (error) {
       if (encouragementAbortRef.current === controller && (timedOut || !controller.signal.aborted)) {
@@ -1899,7 +1919,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
         setEncouragementLoading(false);
       }
     }
-  };
+  }, [countdownDurationSeconds, displayedFocusTitle, elapsedSeconds, focusEvidence, locale, remaining, running, timerMode]);
 
   const closeEncouragement = () => {
     encouragementAbortRef.current?.abort();
@@ -2100,6 +2120,15 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const focusedSeconds = timerMode === "countup" ? elapsedSeconds : Math.max(0, countdownDurationSeconds - remaining);
 
   useEffect(() => {
+    if (!immersive || !running || !autoEncouragement || document.visibilityState !== "visible" || !displayedFocusTitle.trim() || isDemoMode()) return;
+    if (focusedSeconds < nextAutoEncouragementAtRef.current) return;
+    nextAutoEncouragementAtRef.current = nextFocusEncouragementAt(focusedSeconds);
+    autoEncouragementCountRef.current += 1;
+    if (autoEncouragementCountRef.current >= 4) setAutoEncouragement(false);
+    void requestInSessionEncouragement();
+  }, [autoEncouragement, displayedFocusTitle, focusedSeconds, immersive, requestInSessionEncouragement, running]);
+
+  useEffect(() => {
     if (!immersive || !running || breakIntervalMinutes <= 0) return;
     const slot = Math.floor(focusedSeconds / (breakIntervalMinutes * 60));
     if (slot <= 0 || slot <= breakCueSlotRef.current) return;
@@ -2194,6 +2223,13 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           {encouragementLoading && <p role="status">{locale === "zh" ? "正在请求 NAVA…" : "Asking NAVA…"}</p>}
           {encouragementText && <p role="status">{encouragementText}</p>}
           {encouragementError && <p className="is-error" role="alert">{encouragementError}</p>}
+          {encouragementSources.length > 0 && <div className="focus-encouragement-sources"><small>{locale === "zh" ? "已保存记录依据（仅同期，不代表因果）" : "Saved records (same period, not causality)"}</small>{encouragementSources.map((item) => <span key={item.domain}>{formatFocusHealthEvidence(item, locale)}</span>)}</div>}
+          <button className="focus-encouragement-auto" type="button" role="switch" aria-checked={autoEncouragement} onClick={() => {
+            setAutoEncouragement((current) => {
+              if (!current) { nextAutoEncouragementAtRef.current = nextFocusEncouragementAt(timerMode === "countup" ? elapsedSeconds : Math.max(0, countdownDurationSeconds - remaining)); autoEncouragementCountRef.current = 0; }
+              return !current;
+            });
+          }}>{locale === "zh" ? `每 15 分钟自动鼓励：${autoEncouragement ? "开" : "关"}` : `Every 15 min: ${autoEncouragement ? "on" : "off"}`}</button>
           {(encouragementText || encouragementError) && <button className="focus-encouragement-retry" type="button" onClick={() => void requestInSessionEncouragement()}>{locale === "zh" ? "再给一句" : "Another cue"}</button>}
         </section>}
         {noisePanelOpen && <section className="focus-noise-panel" aria-label={locale === "zh" ? "背景声音" : "Background sound"}>

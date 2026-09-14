@@ -10200,6 +10200,11 @@ body::before {
 .focus-encouragement-panel header button { width: 36px; height: 36px; border: 0; border-radius: 50%; display: grid; place-items: center; color: #315f73; background: rgba(255,255,255,.85); }
 .focus-encouragement-panel p { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; font-size: 12px; line-height: 1.55; }
 .focus-encouragement-panel p.is-error { color: #a23540; }
+.focus-encouragement-sources { display: flex; flex-wrap: wrap; gap: 5px; }
+.focus-encouragement-sources small { width: 100%; font-size: 10px; color: #4e7080; }
+.focus-encouragement-sources span { max-width: 100%; padding: 4px 7px; border: 1px solid rgba(52,157,194,.2); border-radius: 8px; overflow-wrap: anywhere; background: rgba(255,255,255,.72); font-size: 10px; }
+.focus-encouragement-auto { min-height: 40px; border: 1px solid rgba(52,157,194,.28); border-radius: 10px; color: #126f92; background: rgba(225,246,252,.85); font: inherit; font-size: 11px; font-weight: 740; }
+.focus-encouragement-auto[aria-checked="true"] { color: #fff; background: #178bb1; }
 .focus-encouragement-retry { min-height: 40px; border: 1px solid rgba(52,157,194,.28); border-radius: 10px; color: #126f92; background: rgba(225,246,252,.85); font: inherit; font-size: 11px; font-weight: 740; }
 .focus-quadrant-toggle { width: 100%; min-height: 44px; border: 1px solid rgba(52,157,194,.2); border-radius: 11px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; color: #17485d; background: rgba(238,249,253,.82); font: inherit; font-size: 11px; font-weight: 750; }
 .focus-quadrant-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }

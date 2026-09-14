@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
+import { chromium, expect } from "@playwright/test";
 import { focusInSessionEncouragementPrompt } from "../src/services/focusPlanning.ts";
+import { formatFocusHealthEvidence, selectFocusHealthEvidence } from "../src/services/focusEncouragement.ts";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const email = process.env.NAVA_ACCOUNT_EMAIL;
@@ -17,9 +19,22 @@ try {
   const login = await client.auth.signInWithPassword({ email, password });
   if (login.error || !login.data.user) throw new Error("NAVA account login failed.");
   const deviceDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const startDay = new Date(`${deviceDate}T00:00:00Z`);
+  startDay.setUTCDate(startDay.getUTCDate() - 6);
+  const startDate = startDay.toISOString().slice(0, 10);
+  const userId = login.data.user.id;
+  const [profileResult, sleepResult, moodResult, exerciseResult] = await Promise.all([
+    client.from("profiles").select("ai_personalization_consent,onboarding_answers").eq("id", userId).single(),
+    client.from("sleep_records").select("record_date,sleep_duration_minutes").eq("user_id", userId).gte("record_date", startDate).lte("record_date", deviceDate).order("record_date", { ascending: false }).limit(7),
+    client.from("mood_records").select("record_date,mood_score").eq("user_id", userId).gte("record_date", startDate).lte("record_date", deviceDate).order("record_date", { ascending: false }).limit(7),
+    client.from("exercise_records").select("record_date,exercise_minutes,steps").eq("user_id", userId).gte("record_date", startDate).lte("record_date", deviceDate).order("record_date", { ascending: false }).limit(7),
+  ]);
+  for (const result of [profileResult, sleepResult, moodResult, exerciseResult]) if (result.error) throw new Error(`Owned focus evidence read failed: ${result.error.message}`);
+  const evidence = selectFocusHealthEvidence({ sleeps: sleepResult.data, moods: moodResult.data, exercises: exerciseResult.data }, profileResult.data, deviceDate);
+  const formattedEvidence = evidence.map((item) => formatFocusHealthEvidence(item, "zh"));
   const response = await client.functions.invoke("ai-chat-reply", {
     body: {
-      message: focusInSessionEncouragementPrompt("整理研究笔记", 12, "zh"),
+      message: focusInSessionEncouragementPrompt("整理研究笔记", 12, "zh", formattedEvidence),
       lang: "zh", responseMode: "text", deviceDate, stream: false,
     },
   });
@@ -28,7 +43,95 @@ try {
   if (reply.length < 6 || reply.length > 400 || /AI\s*暂不可用|请先登录/.test(reply)) {
     throw new Error("Authenticated in-session cue did not pass the safe reply check.");
   }
-  console.log(`Authenticated real-model in-session focus cue received (${reply.length} characters; content omitted); no focus or health record saved.`);
+  const citedDomains = evidence.filter((item) => reply.includes(String(item.value)));
+  if (evidence.length >= 2 && citedDomains.length < 2) throw new Error("The model did not cite two actual saved domain values for the requested cross-domain observation.");
+  console.log(`Authenticated real-model in-session focus cue received (${reply.length} characters; content omitted); ${evidence.length} consented domains, ${citedDomains.length} observed values cited; no focus or health record saved.`);
+  if (process.env.NAVA_FOCUS_UI_URL) {
+    const previous = await client.from("active_user_sessions").select("payload").eq("user_id", userId).eq("session_type", "focus").maybeSingle();
+    if (previous.error) throw new Error(`Could not inspect the existing focus session: ${previous.error.message}`);
+    const browser = await chromium.launch({ headless: true });
+    let context;
+    try {
+      context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+      const page = await context.newPage();
+      let sandboxedSessionCalls = 0;
+      await page.route("**/rest/v1/active_user_sessions*", async (route) => {
+        sandboxedSessionCalls += 1;
+        const read = route.request().method() === "GET";
+        await route.fulfill({ status: read ? 200 : 204, contentType: "application/json", body: read ? "[]" : "" });
+      });
+      await page.goto(process.env.NAVA_FOCUS_UI_URL, { waitUntil: "domcontentloaded" });
+      const launch = page.locator(".launch-sequence");
+      if (await launch.isVisible().catch(() => false)) await launch.click();
+      const form = page.locator(".auth-form--signIn");
+      await expect(form).toBeVisible({ timeout: 20_000 });
+      await form.locator('input[autocomplete="username"]').fill(email);
+      await form.locator('input[autocomplete="current-password"]').fill(password);
+      await form.locator('button[type="submit"]').click();
+      await expect(page.locator(".bottom-nav")).toBeVisible({ timeout: 30_000 });
+      await page.goto(`${process.env.NAVA_FOCUS_UI_URL}#tab=record&module=focus`, { waitUntil: "domcontentloaded" });
+      await expect(page.locator('[data-module-view="focus-overview"]')).toBeVisible({ timeout: 20_000 });
+      await page.locator(".focus-task-field input").fill("整理研究笔记");
+      await page.locator(".focus-summary-start").click();
+      await expect(page.locator('[data-module-view="focus-immersive"]')).toBeVisible();
+      await page.clock.install({ time: new Date() });
+      let modelUiCalls = 0;
+      const uiPrompts = [];
+      await page.route("**/functions/v1/ai-chat-reply", async (route) => {
+        modelUiCalls += 1;
+        uiPrompts.push(route.request().postDataJSON()?.message ?? "");
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ reply: "测试鼓励：先整理下一段笔记。" }) });
+      });
+      await page.getByRole("button", { name: "开始" }).click();
+      await expect(page.locator('[data-focus-state="running"]')).toBeVisible();
+      await page.getByRole("button", { name: "获取计时中的 AI 鼓励" }).click();
+      const panel = page.getByRole("region", { name: "计时中的 AI 鼓励" });
+      await expect(panel).toBeVisible();
+      await expect(panel.getByText("测试鼓励：先整理下一段笔记。")).toBeVisible();
+      await expect(panel.locator(".focus-encouragement-sources span")).toHaveCount(evidence.length);
+      await page.evaluate(async () => { if (document.fullscreenElement) await document.exitFullscreen(); });
+      for (const viewport of [{ width: 360, height: 740 }, { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
+        await page.setViewportSize(viewport);
+        const bounds = await panel.boundingBox();
+        if (!bounds || bounds.x < 0 || bounds.y < 0 || bounds.x + bounds.width > viewport.width + 1 || bounds.y + bounds.height > viewport.height + 1) {
+          throw new Error(`AI cue panel exceeded the ${viewport.width}x${viewport.height} viewport.`);
+        }
+      }
+      const auto = panel.getByRole("switch");
+      await auto.click();
+      await expect(auto).toHaveAttribute("aria-checked", "true");
+      if (modelUiCalls !== 1) throw new Error("Automatic encouragement fired immediately instead of after the interval.");
+      await page.clock.fastForward(15 * 60 * 1000 + 1_000);
+      await expect.poll(() => modelUiCalls, { timeout: 10_000 }).toBe(2);
+      if (!/已进行约 15 分钟/.test(uiPrompts[1])) throw new Error("Countdown focus time was not passed to the automatic AI cue.");
+      await page.getByRole("button", { name: "暂停", exact: true }).click();
+      await page.clock.fastForward(15 * 60 * 1000 + 1_000);
+      if (modelUiCalls !== 2) throw new Error("A paused timer requested an automatic AI cue.");
+      await page.getByRole("button", { name: "重置" }).click();
+      await expect(page.locator('[data-focus-state="ready"]')).toBeVisible();
+      await page.getByRole("button", { name: "正计时" }).click();
+      await page.getByRole("button", { name: "开始", exact: true }).click();
+      await page.getByRole("button", { name: "获取计时中的 AI 鼓励" }).click();
+      await expect.poll(() => modelUiCalls, { timeout: 10_000 }).toBe(3);
+      const secondAuto = page.getByRole("region", { name: "计时中的 AI 鼓励" }).getByRole("switch");
+      await expect(secondAuto).toHaveAttribute("aria-checked", "false");
+      await secondAuto.click();
+      for (let index = 0; index < 4; index += 1) {
+        await page.clock.fastForward(15 * 60 * 1000 + 1_000);
+        await expect.poll(() => modelUiCalls, { timeout: 10_000 }).toBe(4 + index);
+      }
+      await expect(secondAuto).toHaveAttribute("aria-checked", "false");
+      await page.clock.fastForward(15 * 60 * 1000 + 1_000);
+      if (modelUiCalls !== 7) throw new Error("The four-cue per-session cap did not stop later automatic requests.");
+      await page.getByRole("button", { name: "重置" }).click();
+      await expect(page.locator('[data-focus-state="ready"]')).toBeVisible();
+      if (sandboxedSessionCalls < 1) throw new Error("Focus session REST sandbox was not exercised.");
+      console.log(`Authenticated local UI: manual cue, consented evidence labels, opt-in 15-minute cue, pause/reset boundaries, four-cue cap, and four mobile viewports passed; ${sandboxedSessionCalls} cloud-session calls sandboxed, pre-existing focus session preserved; no focus record saved.`);
+    } finally {
+      await context?.close();
+      await browser.close();
+    }
+  }
 } finally {
   await client.auth.signOut({ scope: "local" });
 }
