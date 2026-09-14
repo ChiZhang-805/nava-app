@@ -13409,3 +13409,103 @@ body::before {
   height: 66px;
   object-fit: contain;
 }
+
+/* Focus: an optional, bounded morning plan. Its data writes are the real daily tasks. */
+.morning-plan-entry {
+  width: 100%;
+  min-height: 66px;
+  border: 1px solid rgba(255, 255, 255, .9);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 15px;
+  color: #163d51;
+  background: linear-gradient(110deg, rgba(236, 250, 255, .98), rgba(211, 241, 252, .94));
+  box-shadow: 0 9px 24px rgba(33, 104, 137, .11);
+  text-align: left;
+  font: inherit;
+}
+.morning-plan-entry > span:first-child { width: 38px; height: 38px; flex: none; border-radius: 13px; display: grid; place-items: center; color: #1679a1; background: #fff; }
+.morning-plan-entry > span:nth-child(2) { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.morning-plan-entry strong { font-size: 14px; line-height: 1.3; }
+.morning-plan-entry small { color: #5c8092; font-size: 11px; line-height: 1.35; }
+.morning-plan-notice { margin: -2px 3px 3px; color: #155d77; font-size: 11px; line-height: 1.5; }
+.phone-frame.morning-plan-host { position: relative; }
+.morning-plan-overlay {
+  position: absolute;
+  z-index: 190;
+  inset: 0;
+  display: grid;
+  align-items: center;
+  padding: max(88px, calc(env(safe-area-inset-top) + 62px)) 12px max(28px, calc(env(safe-area-inset-bottom) + 18px));
+  background: rgba(18, 64, 85, .45);
+  backdrop-filter: blur(9px);
+}
+.morning-plan-sheet {
+  width: 100%;
+  max-height: 100%;
+  min-height: 0;
+  border: 1px solid rgba(255, 255, 255, .9);
+  border-radius: 29px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  color: #15394e;
+  background: #f6fcff;
+  box-shadow: 0 24px 58px rgba(8, 51, 71, .22);
+}
+.morning-plan-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 20px 20px 11px; background: linear-gradient(145deg, #e3f7ff, #f8fdff); }
+.morning-plan-header > div { min-width: 0; }
+.morning-plan-kicker { display: inline-flex; align-items: center; gap: 5px; color: #1681a9; font-size: 11px; font-weight: 750; }
+.morning-plan-header h2 { margin: 5px 0 3px; font-size: 23px; line-height: 1.2; letter-spacing: .02em; }
+.morning-plan-header p { margin: 0; color: #688a9a; font-size: 11px; line-height: 1.4; }
+.morning-plan-close { width: 44px; height: 44px; flex: none; border: 0; border-radius: 50%; display: grid; place-items: center; color: #315e73; background: rgba(255, 255, 255, .9); }
+.morning-plan-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 10px 14px 12px; border-bottom: 1px solid #dceef5; background: #f4fbfe; }
+.morning-plan-steps > span { min-width: 0; display: grid; justify-items: center; gap: 4px; color: #8aa5b2; }
+.morning-plan-steps i { width: 22px; height: 22px; border: 1px solid #c9dfe9; border-radius: 50%; display: grid; place-items: center; background: #fff; font-size: 11px; font-style: normal; font-weight: 750; }
+.morning-plan-steps small { max-width: 100%; font-size: 10px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.morning-plan-steps .current { color: #126f96; }
+.morning-plan-steps .current i, .morning-plan-steps .done i { border-color: #178fbd; color: #fff; background: #178fbd; }
+.morning-plan-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 18px 20px; }
+.morning-plan-panel { display: grid; gap: 12px; align-content: start; }
+.morning-plan-panel h3 { margin: 0; font-size: 17px; line-height: 1.38; }
+.morning-plan-panel > p { margin: -4px 0 0; color: #678595; font-size: 12px; line-height: 1.5; }
+.morning-plan-add { display: flex; gap: 8px; }
+.morning-plan-add input { min-width: 0; min-height: 46px; flex: 1; border: 1px solid #cce5f1; border-radius: 13px; padding: 0 12px; color: #15394e; background: #fff; font: inherit; font-size: 13px; }
+.morning-plan-add button { width: 46px; height: 46px; flex: none; border: 0; border-radius: 13px; display: grid; place-items: center; color: #fff; background: #168bb5; }
+.morning-plan-add button:disabled { opacity: .5; }
+.morning-plan-task-list, .morning-plan-choices, .morning-plan-timeboxes, .morning-plan-review { display: grid; gap: 8px; }
+.morning-plan-task, .morning-plan-choices > button, .morning-plan-timebox, .morning-plan-review-row { min-width: 0; border: 1px solid #d6eaf2; border-radius: 15px; background: #fff; }
+.morning-plan-task { min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; }
+.morning-plan-task span, .morning-plan-choices > button span, .morning-plan-review-row strong, .morning-plan-timebox strong { min-width: 0; overflow-wrap: anywhere; font-size: 13px; line-height: 1.4; }
+.morning-plan-task small, .morning-plan-choices > button small, .morning-plan-review-row small { color: #708e9d; font-size: 11px; white-space: nowrap; }
+.morning-plan-empty { margin: 0; border: 1px dashed #bedce9; border-radius: 15px; padding: 18px; color: #6b8b9a; font-size: 12px; text-align: center; }
+.morning-plan-choices > button { min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 8px 12px; color: #15394e; text-align: left; font: inherit; }
+.morning-plan-choices > button i, .morning-plan-rank { width: 28px; height: 28px; flex: none; border-radius: 50%; display: grid; place-items: center; color: #197ea4; background: #e3f6fc; font-size: 13px; font-style: normal; font-weight: 800; }
+.morning-plan-choices > button span { flex: 1; }
+.morning-plan-choices > button.selected { border-color: #1996be; background: #edfaff; }
+.morning-plan-choices > button.selected i { color: #fff; background: #168bb5; }
+.morning-plan-choices > button:disabled { opacity: .5; }
+.morning-plan-hint { color: #5d8292; font-size: 11px; }
+.morning-plan-timebox { display: grid; gap: 10px; padding: 12px; }
+.morning-plan-timebox > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.morning-plan-timebox label { min-width: 0; display: grid; gap: 5px; color: #6a8998; font-size: 11px; }
+.morning-plan-timebox input { width: 100%; min-height: 42px; border: 1px solid #cce5f1; border-radius: 10px; padding: 0 9px; color: #163c51; background: #f8fdff; font: inherit; font-size: 14px; }
+.morning-plan-review-row { min-height: 60px; display: flex; align-items: center; gap: 9px; padding: 8px 10px; }
+.morning-plan-review-row > div { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.morning-plan-move { flex: none; display: flex; gap: 2px; }
+.morning-plan-move button { width: 34px; height: 40px; border: 0; border-radius: 9px; display: grid; place-items: center; color: #286b88; background: #eef9fd; }
+.morning-plan-move button:disabled { opacity: .35; }
+.morning-plan-panel .morning-plan-advice { margin: 0; border-radius: 11px; padding: 8px 10px; color: #8b611b; background: #fff4da; }
+.morning-plan-error { margin: 12px 0 0; border-radius: 11px; padding: 9px 11px; color: #a32835; background: #fff0f2; font-size: 12px; overflow-wrap: anywhere; }
+.morning-plan-footer { display: flex; justify-content: space-between; gap: 10px; padding: 12px 20px max(16px, env(safe-area-inset-bottom)); border-top: 1px solid #dceef5; background: #f8fdff; }
+.morning-plan-footer button { min-height: 44px; border: 0; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; padding: 8px 12px; font: inherit; font-size: 12px; font-weight: 760; }
+.morning-plan-footer .secondary { color: #33677d; background: #e8f4f9; }
+.morning-plan-footer .primary { flex: 1; color: #fff; background: #1289b2; }
+.morning-plan-footer button:disabled { opacity: .45; }
+@media (max-height: 760px) {
+  .morning-plan-overlay { padding-top: max(80px, calc(env(safe-area-inset-top) + 54px)); padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+  .morning-plan-header { padding-top: 15px; }
+  .morning-plan-content { padding-block: 12px; }
+}

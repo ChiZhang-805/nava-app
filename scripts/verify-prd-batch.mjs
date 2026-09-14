@@ -78,6 +78,47 @@ async function main() {
     await page.locator('.focus-todo-plan-form input[aria-label="计划专注次数"]').fill("3");
     await page.locator(".focus-todo-add button").click();
     await expect(page.locator(".focus-todo-list")).toContainText(`回归待办 ${suffix}`);
+    await page.locator(".morning-plan-entry").click();
+    const morningPlan = page.getByRole("dialog", { name: "晨间规划" });
+    await expect(morningPlan).toHaveAttribute("data-morning-plan-step", "0");
+    await morningPlan.getByRole("textbox", { name: "新待办事项" }).fill(`晨间新增 ${suffix}`);
+    await morningPlan.getByRole("button", { name: "添加今日待办" }).click();
+    await expect(morningPlan).toContainText(`晨间新增 ${suffix}`);
+    await page.screenshot({ path: path.join(outputDir, `morning-gather-${suffix}.png`) });
+    await morningPlan.getByRole("button", { name: "下一步" }).click();
+    await morningPlan.locator(".morning-plan-choices > button").filter({ hasText: `晨间新增 ${suffix}` }).click();
+    await expect(morningPlan.locator(".morning-plan-hint")).toContainText("1/3");
+    await morningPlan.getByRole("button", { name: "下一步" }).click();
+    await expect(morningPlan).toHaveAttribute("data-morning-plan-step", "2");
+    await morningPlan.locator(".morning-plan-timebox input").first().fill("50");
+    await morningPlan.locator(".morning-plan-timebox input").last().fill("2");
+    await morningPlan.getByRole("button", { name: "下一步" }).click();
+    await expect(morningPlan).toContainText("共安排 100 分钟专注");
+    const morningFit = await morningPlan.evaluate((dialog) => {
+      const sheet = dialog.querySelector(".morning-plan-sheet");
+      const frame = dialog.closest(".phone-frame");
+      if (!sheet || !frame) return null;
+      const card = sheet.getBoundingClientRect();
+      const phone = frame.getBoundingClientRect();
+      return { left: card.left - phone.left, right: phone.right - card.right, top: card.top - phone.top, bottom: phone.bottom - card.bottom, overflow: sheet.scrollWidth - sheet.clientWidth };
+    });
+    if (!morningFit || morningFit.left < 4 || morningFit.right < 4 || morningFit.top < 60 || morningFit.bottom < 16 || morningFit.overflow > 1) {
+      throw new Error(`Morning plan clipped at ${suffix}: ${JSON.stringify(morningFit)}`);
+    }
+    await page.screenshot({ path: path.join(outputDir, `morning-review-${suffix}.png`) });
+    await morningPlan.getByRole("button", { name: "确认计划并选中第一项" }).click();
+    await expect(morningPlan).toBeHidden();
+    await expect(page.locator(".focus-task-field input")).toHaveValue(`晨间新增 ${suffix}`);
+    const savedMorningTask = await page.evaluate((title) => {
+      for (const key of Object.keys(window.localStorage).filter((item) => item.startsWith("nava-todos:"))) {
+        const task = JSON.parse(window.localStorage.getItem(key) || "[]").find((item) => item.title === title);
+        if (task) return task;
+      }
+      return null;
+    }, `晨间新增 ${suffix}`);
+    if (!savedMorningTask || savedMorningTask.focusMinutes !== 50 || savedMorningTask.focusSessions !== 2) {
+      throw new Error(`Morning task plan did not persist at ${suffix}.`);
+    }
     await page.locator(".focus-todo-tabs button").last().click();
     await expect(page.locator(".focus-todo-calendar button")).toHaveCount(7);
     await page.locator(".focus-chart-tabs button").nth(1).click();

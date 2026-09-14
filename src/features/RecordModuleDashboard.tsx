@@ -41,6 +41,7 @@ import BarLineTrendChart, { type BarLineTrendPoint } from "../components/BarLine
 import LineTrendChart from "../components/LineTrendChart";
 import { SkeletonBars, SkeletonLines } from "../components/PageSkeleton";
 import MascotImage from "../components/MascotImage";
+import MorningPlanningRitual, { type MorningTaskPlan } from "../components/MorningPlanningRitual";
 import { useLocale } from "../i18n";
 import dietInsightMascot from "../assets/mascot/nava-eat-v5.webp";
 import sleepInsightMascot from "../assets/mascot/nava-sleep-v1.webp";
@@ -1352,6 +1353,8 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [morningPlanOpen, setMorningPlanOpen] = useState(false);
+  const [morningPlanNotice, setMorningPlanNotice] = useState<string | null>(null);
   const [todoTitle, setTodoTitle] = useState("");
   const [todoTime, setTodoTime] = useState("");
   const [todoMinutes, setTodoMinutes] = useState(Math.max(1, focusMinutes));
@@ -1690,6 +1693,20 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
         .then(setTodos)
         .catch((error) => console.warn("Todo focus estimate sync deferred", error));
     }
+  };
+
+  const createMorningTask = async (title: string) => {
+    const created = await addTodo(userId, title, "manual", deviceDate, undefined, { focusMinutes: 25, focusSessions: 1 });
+    setTodos((items) => [created, ...items.filter((item) => item.id !== created.id)]);
+    return created;
+  };
+  const saveMorningTaskPlan = async (task: TodoItem, plan: MorningTaskPlan) => {
+    setTodos(await saveTodoFocusPlan(userId, task.id, plan));
+  };
+  const finishMorningPlan = (task: TodoItem, plan: MorningTaskPlan, count: number) => {
+    chooseTodo({ ...task, ...plan });
+    setMorningPlanNotice(locale === "zh" ? `已更新 ${count} 项待办的专注计划，第一项已选中。` : `Updated ${count} task plans and selected the first priority.`);
+    setMorningPlanOpen(false);
   };
 
   const enterImmersive = (replace = false) => {
@@ -2095,6 +2112,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
 
   return (
     <div className="module-dashboard focus-dashboard" data-module-view="focus-overview">
+      {morningPlanOpen && <MorningPlanningRitual date={deviceDate} locale={locale} todos={todos} onCreateTask={createMorningTask} onSavePlan={saveMorningTaskPlan} onFinish={finishMorningPlan} onClose={() => setMorningPlanOpen(false)} />}
       <section className="figma-module-card focus-summary-card">
         <div className="focus-summary-content">
           <div className="focus-summary-copy">
@@ -2110,6 +2128,8 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           <button className={["focus-summary-start", saved ? "success" : ""].filter(Boolean).join(" ")} type="button" onClick={() => { if (saved) { setSaved(false); setHasStarted(false); } enterImmersive(); }} aria-label={saved ? (locale === "zh" ? "专注已记录" : "Focus saved") : hasStarted ? (locale === "zh" ? "恢复已暂停的专注" : "Resume paused focus") : (locale === "zh" ? "开始专注" : "Start focus")}>{saved ? <Check size={23} /> : <><CirclePlay size={23} /><span>{hasStarted ? (locale === "zh" ? "恢复" : "Resume") : (locale === "zh" ? "开始" : "Start")}</span></>}</button>
         </div>
       </section>
+      <button className="morning-plan-entry" type="button" aria-haspopup="dialog" onClick={() => { setMorningPlanNotice(null); setMorningPlanOpen(true); }}><span><Clock3 size={20} /></span><span><strong>{locale === "zh" ? "开始晨间规划" : "Plan your morning"}</strong><small>{locale === "zh" ? "收集待办 · 选重点 · 安排专注" : "Gather · Prioritize · Timebox"}</small></span><ChevronRight size={20} /></button>
+      {morningPlanNotice && <p className="morning-plan-notice" role="status">{morningPlanNotice}</p>}
       <div className="focus-capability-row" aria-label={locale === "zh" ? "专注维持功能" : "Focus support features"}>
         <span><Maximize2 size={14} />{locale === "zh" ? "沉浸全屏" : "Immersive"}</span>
         <span className={wakeLockAvailable ? "" : "limited"}><Lightbulb size={14} />{locale === "zh" ? "屏幕常亮" : "Wake lock"}</span>
