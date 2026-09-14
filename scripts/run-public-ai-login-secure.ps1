@@ -9,12 +9,14 @@ try {
   $env:NAVA_ACCOUNT_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
   $scriptPath = if ($Check -eq "TodoExtraction") { "scripts/verify-todo-extraction.mjs" } elseif ($Check -eq "PriorityAdvice") { "scripts/verify-priority-advice.mjs" } elseif ($Check -eq "TaskQuadrants") { "scripts/verify-task-quadrants.mjs" } elseif ($Check -eq "PublicQuadrants") { "scripts/verify-public-task-quadrants.mjs" } elseif ($Check -eq "FocusEncouragement") { "scripts/verify-focus-encouragement.mjs" } else { "scripts/verify-public-ai-login.mjs" }
   if ($Check -eq "FocusRelease") {
+    $failedSites = 0
     foreach ($siteUrl in @("https://nava-app-preview-cz.chizhang1031.chatgpt.site/", "https://chizhang-805.github.io/nava-app-preview/")) {
       $env:NAVA_FOCUS_UI_URL = $siteUrl
       Write-Host "Focus release acceptance: $siteUrl"
       & node scripts/verify-focus-encouragement.mjs
-      if ($LASTEXITCODE -ne 0) { throw "Authenticated focus release acceptance failed." }
+      if ($LASTEXITCODE -ne 0) { $failedSites += 1; Write-Warning "This site's authenticated AI acceptance failed; continuing to inspect the other site." }
     }
+    if ($failedSites -gt 0) { throw "Authenticated focus release acceptance failed on $failedSites site(s)." }
   } else {
     & node $scriptPath
     if ($LASTEXITCODE -ne 0) { throw "Authenticated AI acceptance failed." }

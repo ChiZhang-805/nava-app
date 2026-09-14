@@ -293,3 +293,14 @@ inferred from the photo or from a user's vague answer.
   four-cue limit. Four viewport bounds passed. Temporary tasks were removed by exact
   IDs; browser `active_user_sessions` calls were isolated and the original cloud
   session was read back unchanged. No private model reply or credentials are logged.
+
+### v149 final runtime qualification
+
+Earlier in this turn the v2 API passed real Chinese/English priority, difficulty,
+starting cue, encouragement and legacy response checks. Later encouragement calls
+hit the 60-second deadline. Final APP priority clicks on BOTH v149 public sites
+returned HTTP 504; subsequent UI actions were not reached. Both sites did pass real
+form login and the expected bundle hash. Therefore the four-action end-to-end focus
+acceptance remains OPEN. ACTIVE v39 returns a localized timeout without invented
+advice or record writes; root cause is not yet established. Do not reuse v148's UI
+success as evidence that current live-model availability is stable.

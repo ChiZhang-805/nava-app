@@ -116,6 +116,7 @@ try {
       await form.locator('input[autocomplete="current-password"]').fill(password);
       await form.locator('button[type="submit"]').click();
       await expect(page.locator(".bottom-nav")).toBeVisible({ timeout: 30_000 });
+      console.log("Real account login completed through the APP form; authenticated navigation visible.");
       await page.goto(`${process.env.NAVA_FOCUS_UI_URL}#tab=record&module=focus`, { waitUntil: "domcontentloaded" });
       await expect(page.locator('[data-module-view="focus-overview"]')).toBeVisible({ timeout: 20_000 });
       await expect(page.locator(".focus-todo-list")).toContainText(tasks[0].title, { timeout: 20_000 });
@@ -194,10 +195,11 @@ try {
     } finally {
       await context?.close();
       await browser.close();
+      const after = await client.from("active_user_sessions").select("payload").eq("user_id", userId).eq("session_type", "focus").maybeSingle();
+      if (after.error) throw new Error("Could not verify preservation of the pre-existing focus session.");
+      assert.deepEqual(after.data, previous.data);
+      console.log("Original cloud focus session is unchanged, including on failed AI acceptance.");
     }
-    const after = await client.from("active_user_sessions").select("payload").eq("user_id", userId).eq("session_type", "focus").maybeSingle();
-    if (after.error) throw new Error("Could not verify preservation of the pre-existing focus session.");
-    assert.deepEqual(after.data, previous.data);
   }
 } finally {
   try {
