@@ -87,7 +87,7 @@ import { currentDayRequiredShareCopy, hasCurrentDayRecord, missingCurrentDayCopy
 import { isDemoMode } from "../services/demo";
 import { clearActiveUserSession, loadActiveUserSession, saveActiveUserSession } from "../services/userCloudState";
 import { resolveTodoFocusPlan } from "../services/focusPlanning.ts";
-import { generateFocusDifficulty, generateFocusPriority, generateFocusStartingCue } from "../services/ai";
+import { generateFocusDifficulty, generateFocusInSessionEncouragement, generateFocusPriority, generateFocusStartingCue } from "../services/ai";
 import { exitFocusFullscreen, focusFullscreenActive, focusFullscreenSupported, requestFocusFullscreen, requestScreenWakeLock, screenWakeLockSupported, type ScreenWakeLockSentinel } from "../services/focusImmersion.ts";
 import { focusNoiseSupported, startFocusNoise, type FocusNoiseKind, type FocusNoiseSession } from "../services/focusAudio.ts";
 import { abandonExerciseSession, exerciseSessionElapsedSeconds, finishExerciseSession, hydrateExerciseSession, pauseExerciseSession, resumeExerciseSession, startExerciseSession, type ExerciseSession } from "../services/exerciseSession.ts";
@@ -1313,12 +1313,16 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const fullscreenAvailable = focusFullscreenSupported();
   const focusSoundAvailable = focusNoiseSupported();
   const wakeLockRef = useRef<ScreenWakeLockSentinel | null>(null);
+  const wakeRequestIdRef = useRef(0);
+  const wakeRequestPendingRef = useRef(false);
   const noiseSessionRef = useRef<FocusNoiseSession | null>(null);
   const noiseRequestRef = useRef(0);
   const interruptionGuardRef = useRef(0);
   const breakCueSlotRef = useRef(0);
   const [keepAwakeEnabled, setKeepAwakeEnabled] = useState(() => window.sessionStorage.getItem(wakePreferenceKey) !== "false");
   const [wakeLockActive, setWakeLockActive] = useState(false);
+  const [wakeLockPending, setWakeLockPending] = useState(false);
+  const [wakeLockFailed, setWakeLockFailed] = useState(false);
   const [fullscreenActive, setFullscreenActive] = useState(focusFullscreenActive);
   const [capabilityMessage, setCapabilityMessage] = useState<string | null>(null);
   const [noiseKind, setNoiseKind] = useState<FocusNoiseKind>("off");
@@ -1329,6 +1333,11 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [guideAiCue, setGuideAiCue] = useState<string | null>(null);
   const [guideAiError, setGuideAiError] = useState<string | null>(null);
   const [guideAiLoading, setGuideAiLoading] = useState(false);
+  const encouragementAbortRef = useRef<AbortController | null>(null);
+  const [encouragementOpen, setEncouragementOpen] = useState(false);
+  const [encouragementLoading, setEncouragementLoading] = useState(false);
+  const [encouragementText, setEncouragementText] = useState<string | null>(null);
+  const [encouragementError, setEncouragementError] = useState<string | null>(null);
   const priorityAbortRef = useRef<AbortController | null>(null);
   const [priorityAdvice, setPriorityAdvice] = useState<{ key: string; orderIds: string[]; basis: string; question: string } | null>(null);
   const [priorityError, setPriorityError] = useState<string | null>(null);
@@ -1382,33 +1391,60 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   }, [hasStarted, immersive, running]);
   useEffect(() => () => publishFocusPreviewState("unavailable"), []);
   const releaseWakeLock = useCallback(async () => {
+    wakeRequestIdRef.current += 1;
+    wakeRequestPendingRef.current = false;
     const sentinel = wakeLockRef.current;
     wakeLockRef.current = null;
     setWakeLockActive(false);
+    setWakeLockPending(false);
+    setWakeLockFailed(false);
     if (sentinel && sentinel.released !== true) await sentinel.release().catch(() => undefined);
   }, []);
   const acquireWakeLock = useCallback(async () => {
-    if (!immersive || !keepAwakeEnabled || document.visibilityState !== "visible" || wakeLockRef.current) return;
+    if (!immersive || !keepAwakeEnabled || document.visibilityState !== "visible" || wakeLockRef.current || wakeRequestPendingRef.current) return;
     if (!wakeLockAvailable) {
+      setWakeLockFailed(true);
       setCapabilityMessage(locale === "zh" ? "当前浏览器不支持系统级屏幕常亮；计时仍会继续。" : "This browser does not support system wake lock; the timer will keep running.");
       return;
     }
+    const requestId = ++wakeRequestIdRef.current;
+    wakeRequestPendingRef.current = true;
+    setWakeLockPending(true);
+    setWakeLockFailed(false);
     try {
       const sentinel = await requestScreenWakeLock();
+      if (requestId !== wakeRequestIdRef.current || document.visibilityState !== "visible") {
+        if (sentinel && sentinel.released !== true) await sentinel.release().catch(() => undefined);
+        return;
+      }
       if (!sentinel) {
+        setWakeLockFailed(true);
         setCapabilityMessage(locale === "zh" ? "系统没有授予屏幕常亮；请检查浏览器权限。" : "Screen wake lock was not granted. Check browser permissions.");
         return;
       }
       wakeLockRef.current = sentinel;
       setWakeLockActive(true);
+      setWakeLockFailed(false);
       setCapabilityMessage(null);
       sentinel.addEventListener("release", () => {
-        if (wakeLockRef.current === sentinel) wakeLockRef.current = null;
-        setWakeLockActive(false);
+        if (wakeLockRef.current === sentinel) {
+          wakeLockRef.current = null;
+          setWakeLockActive(false);
+          setWakeLockFailed(true);
+          setCapabilityMessage(locale === "zh" ? "屏幕常亮已中断，请点按重试。" : "Screen wake lock was interrupted. Tap to retry.");
+        }
       }, { once: true });
     } catch {
-      setWakeLockActive(false);
-      setCapabilityMessage(locale === "zh" ? "屏幕常亮申请失败；请保持页面在前台或检查省电设置。" : "Wake lock failed. Keep this page visible or check battery-saving settings.");
+      if (requestId === wakeRequestIdRef.current) {
+        setWakeLockActive(false);
+        setWakeLockFailed(true);
+        setCapabilityMessage(locale === "zh" ? "屏幕常亮申请失败；请保持页面在前台或检查省电设置。" : "Wake lock failed. Keep this page visible or check battery-saving settings.");
+      }
+    } finally {
+      if (requestId === wakeRequestIdRef.current) {
+        wakeRequestPendingRef.current = false;
+        setWakeLockPending(false);
+      }
     }
   }, [immersive, keepAwakeEnabled, locale, wakeLockAvailable]);
   const stopFocusNoise = useCallback(async () => {
@@ -1467,6 +1503,13 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   // Closing the guide aborts explicitly; changing guideOpen must not abort the
   // request started by the same click before the overlay has rendered.
   useEffect(() => () => { guideAiAbortRef.current?.abort(); }, []);
+  useEffect(() => () => { encouragementAbortRef.current?.abort(); }, []);
+  useEffect(() => {
+    if (immersive && running) return;
+    encouragementAbortRef.current?.abort();
+    setEncouragementOpen(false);
+    setEncouragementLoading(false);
+  }, [immersive, running]);
   useEffect(() => {
     if (!immersive || !keepAwakeEnabled) {
       void releaseWakeLock();
@@ -1494,6 +1537,8 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     void exitFocusFullscreen().then(() => setFullscreenActive(false));
   }, [immersive, releaseWakeLock]);
   useEffect(() => () => {
+    wakeRequestIdRef.current += 1;
+    wakeRequestPendingRef.current = false;
     const sentinel = wakeLockRef.current;
     wakeLockRef.current = null;
     if (sentinel && sentinel.released !== true) void sentinel.release().catch(() => undefined);
@@ -1829,6 +1874,40 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     }
   };
 
+  const requestInSessionEncouragement = async () => {
+    if (!running || !displayedFocusTitle.trim() || isDemoMode()) return;
+    encouragementAbortRef.current?.abort();
+    const controller = new AbortController();
+    encouragementAbortRef.current = controller;
+    setEncouragementOpen(true);
+    setEncouragementText(null);
+    setEncouragementError(null);
+    setEncouragementLoading(true);
+    let timedOut = false;
+    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 45_000);
+    try {
+      const reply = await generateFocusInSessionEncouragement(displayedFocusTitle, Math.floor(elapsedSeconds / 60), locale, controller.signal);
+      if (!controller.signal.aborted) setEncouragementText(reply);
+    } catch (error) {
+      if (encouragementAbortRef.current === controller && (timedOut || !controller.signal.aborted)) {
+        setEncouragementError(timedOut ? (locale === "zh" ? "AI 提示超时，请重试。" : "The AI cue timed out. Please retry.") : error instanceof Error ? error.message : (locale === "zh" ? "AI 暂不可用，请重试。" : "AI is unavailable. Please retry."));
+      }
+    } finally {
+      window.clearTimeout(timeout);
+      if (encouragementAbortRef.current === controller) {
+        encouragementAbortRef.current = null;
+        setEncouragementLoading(false);
+      }
+    }
+  };
+
+  const closeEncouragement = () => {
+    encouragementAbortRef.current?.abort();
+    encouragementAbortRef.current = null;
+    setEncouragementOpen(false);
+    setEncouragementLoading(false);
+  };
+
   const changeQuadrant = async (id: string, quadrant: TodoQuadrant) => {
     setQuadrantSavingId(id);
     setQuadrantError(null);
@@ -1854,6 +1933,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const leaveImmersive = () => {
     setRunning(false);
     closeGuide();
+    closeEncouragement();
     void releaseWakeLock();
     void exitFocusFullscreen().then(() => setFullscreenActive(false));
     openView("overview");
@@ -2065,7 +2145,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
         className={["module-dashboard", "focus-immersive", running ? "is-running" : hasStarted ? "is-paused" : "is-ready"].join(" ")}
         data-module-view="focus-immersive"
         data-focus-state={running ? "running" : hasStarted ? "paused" : "ready"}
-        data-wake-lock={!wakeLockAvailable ? "unsupported" : wakeLockActive ? "active" : keepAwakeEnabled ? "requesting" : "off"}
+        data-wake-lock={!wakeLockAvailable ? "unsupported" : wakeLockActive ? "active" : !keepAwakeEnabled ? "off" : wakeLockPending ? "requesting" : wakeLockFailed ? "failed" : "off"}
         data-fullscreen={fullscreenActive ? "active" : "viewport"}
       >
         <button className="focus-immersive-exit" type="button" onClick={leaveImmersive} aria-label={locale === "zh" ? "退出并暂停沉浸专注" : "Exit and pause immersive focus"}><X size={19} /></button>
@@ -2074,15 +2154,16 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
             type="button"
             className={keepAwakeEnabled ? "active" : ""}
             aria-pressed={keepAwakeEnabled}
-            aria-label={locale === "zh" ? "切换屏幕常亮" : "Toggle screen wake lock"}
+            aria-label={wakeLockFailed && keepAwakeEnabled ? (locale === "zh" ? "重试屏幕常亮" : "Retry screen wake lock") : (locale === "zh" ? "切换屏幕常亮" : "Toggle screen wake lock")}
             onClick={() => {
               if (!wakeLockAvailable) {
                 setCapabilityMessage(locale === "zh" ? "当前浏览器不支持系统级屏幕常亮；计时仍会继续。" : "System wake lock is unavailable; the timer will keep running.");
                 return;
               }
-              setKeepAwakeEnabled((value) => !value);
+              if (wakeLockFailed && keepAwakeEnabled) void acquireWakeLock();
+              else setKeepAwakeEnabled((value) => !value);
             }}
-          ><Lightbulb size={15} /><span>{locale === "zh" ? (wakeLockActive ? "已常亮" : "常亮") : (wakeLockActive ? "Awake" : "Stay awake")}</span></button>
+          ><Lightbulb size={15} /><span>{locale === "zh" ? (wakeLockActive ? "已常亮" : wakeLockFailed ? "重试常亮" : "常亮") : (wakeLockActive ? "Awake" : wakeLockFailed ? "Retry" : "Stay awake")}</span></button>
           <button
             type="button"
             className={fullscreenActive ? "active" : ""}
@@ -2103,7 +2184,18 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
             aria-pressed={guideOpen}
             onClick={() => { setNoisePanelOpen(false); if (guideOpen) closeGuide(); else { setGuideAiCue(null); setGuideAiError(null); setGuideOpen(true); if (displayedFocusTitle.trim() && !isDemoMode()) void requestGuideAiCue(); } }}
           ><MousePointerClick size={15} /><span>{locale === "zh" ? (displayedFocusTitle.trim() && !isDemoMode() ? "AI 进入状态" : "进入状态") : (displayedFocusTitle.trim() && !isDemoMode() ? "AI settle in" : "Settle in")}</span></button>
+          <button type="button" className={encouragementOpen ? "active" : ""} disabled={!running || !displayedFocusTitle.trim() || isDemoMode()}
+            aria-label={locale === "zh" ? "获取计时中的 AI 鼓励" : "Get an AI cue while focusing"}
+            onClick={() => { setNoisePanelOpen(false); closeGuide(); void requestInSessionEncouragement(); }}
+          ><Bot size={15} /><span>{locale === "zh" ? "AI 鼓励" : "AI cue"}</span></button>
         </div>
+        {encouragementOpen && <section className="focus-encouragement-panel" aria-label={locale === "zh" ? "计时中的 AI 鼓励" : "In-session AI encouragement"}>
+          <header><strong><Bot size={16} />{locale === "zh" ? "NAVA 陪你专注" : "NAVA focus cue"}</strong><button type="button" onClick={closeEncouragement} aria-label={locale === "zh" ? "关闭 AI 鼓励" : "Close AI cue"}><X size={16} /></button></header>
+          {encouragementLoading && <p role="status">{locale === "zh" ? "正在请求 NAVA…" : "Asking NAVA…"}</p>}
+          {encouragementText && <p role="status">{encouragementText}</p>}
+          {encouragementError && <p className="is-error" role="alert">{encouragementError}</p>}
+          {(encouragementText || encouragementError) && <button className="focus-encouragement-retry" type="button" onClick={() => void requestInSessionEncouragement()}>{locale === "zh" ? "再给一句" : "Another cue"}</button>}
+        </section>}
         {noisePanelOpen && <section className="focus-noise-panel" aria-label={locale === "zh" ? "背景声音" : "Background sound"}>
           <header><span><Volume2 size={15} />{locale === "zh" ? "背景声音" : "Background sound"}</span><button type="button" onClick={() => setNoisePanelOpen(false)} aria-label={locale === "zh" ? "关闭背景声音面板" : "Close background sound panel"}><X size={15} /></button></header>
           <div className="focus-noise-options" role="group" aria-label={locale === "zh" ? "选择声音" : "Choose sound"}>

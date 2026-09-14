@@ -5,7 +5,7 @@ import { demoMessagesFor, isDemoMode } from "./demo";
 import { AI_PROCESSING_STEP_MIN_MS, buildAiProcessingSteps, type AiProcessingStep } from "./aiProcessing";
 import type { UserProfile } from "./profile";
 import { buildConversationGreeting } from "./aiConversationSessions";
-import { focusDifficultyPrompt, focusPriorityPrompt, focusStartingCuePrompt, parseFocusPriorityAdvice, type PriorityTask } from "./focusPlanning";
+import { focusDifficultyPrompt, focusInSessionEncouragementPrompt, focusPriorityPrompt, focusStartingCuePrompt, parseFocusPriorityAdvice, type PriorityTask } from "./focusPlanning";
 
 function assertNoError(error: unknown) {
   if (!error) return;
@@ -148,6 +148,26 @@ export async function generateFocusPriority(tasks: PriorityTask[], lang: "zh" | 
   const reply = typeof response.data?.reply === "string" ? response.data.reply.trim() : "";
   if (!reply) throw new Error(lang === "zh" ? "AI 暂未给出排序建议，请重试。" : "AI did not return a priority suggestion. Please retry.");
   return parseFocusPriorityAdvice(reply, tasks.length);
+}
+
+export async function generateFocusInSessionEncouragement(title: string, elapsedMinutes: number, lang: "zh" | "en", signal?: AbortSignal) {
+  if (isDemoMode()) throw new Error(lang === "zh" ? "演示模式不调用真实 AI。" : "The demo does not call a real AI model.");
+  if (!title.trim()) throw new Error(lang === "zh" ? "请先填写专注事项。" : "Add a focus task first.");
+  const response = await supabase.functions.invoke<{ reply?: string }>("ai-chat-reply", {
+    headers: await authenticatedFunctionHeaders(),
+    body: {
+      message: focusInSessionEncouragementPrompt(title, elapsedMinutes, lang),
+      lang,
+      responseMode: "text",
+      deviceDate: todayISO(),
+      stream: false,
+    },
+    signal,
+  });
+  if (response.error) throw await authenticatedFunctionError(response.error);
+  const reply = typeof response.data?.reply === "string" ? response.data.reply.trim() : "";
+  if (!reply) throw new Error(lang === "zh" ? "AI 暂未给出提示，请重试。" : "AI did not return a cue. Please retry.");
+  return reply;
 }
 
 export async function sendAiMessage(input: {

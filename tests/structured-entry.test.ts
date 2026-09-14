@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyPhotoNutritionCorrection, parseStructuredEntry, updateStructuredEntryField, type StructuredEntry } from "../src/services/structuredEntryParser.ts";
-import { focusDifficultyPrompt, focusDurationChoice, focusPriorityPrompt, focusStartingCuePrompt, parseFocusPriorityAdvice, resolveTodoFocusPlan, suggestedFocusPlan } from "../src/services/focusPlanning.ts";
+import { focusDifficultyPrompt, focusDurationChoice, focusInSessionEncouragementPrompt, focusPriorityPrompt, focusStartingCuePrompt, parseFocusPriorityAdvice, resolveTodoFocusPlan, suggestedFocusPlan } from "../src/services/focusPlanning.ts";
 
 test("todo focus planning preserves user values and estimates missing plans", () => {
   assert.deepEqual(suggestedFocusPlan("写作业"), { focusMinutes: 45, focusSessions: 2 });
@@ -36,6 +36,10 @@ test("todo focus planning preserves user values and estimates missing plans", ()
   assert.throws(() => parseFocusPriorityAdvice('{"order":[1],"basis":"x","question":"y"}', 2));
   assert.deepEqual(parseFocusPriorityAdvice("先完成任务2（25分钟），再处理任务1（15:30，45分钟）。", 2).order, [2, 1]);
   assert.throws(() => parseFocusPriorityAdvice("先完成任务2（25分钟）。", 2));
+  const inSessionPrompt = focusInSessionEncouragementPrompt("整理研究笔记", 12, "zh");
+  assert.match(inSessionPrompt, /已进行约 12 分钟/);
+  assert.match(inSessionPrompt, /授权的近期睡眠、情绪或运动记录确实可用/);
+  assert.match(inSessionPrompt, /没有记录或没有授权就不要提及或编造/);
 });
 
 test("todo parser keeps tomorrow and afternoon time", () => {

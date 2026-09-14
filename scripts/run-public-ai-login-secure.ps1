@@ -1,4 +1,4 @@
-param([ValidateSet("PublicAiLogin", "TodoExtraction", "PriorityAdvice", "TaskQuadrants", "PublicQuadrants")][string]$Check = "PublicAiLogin")
+param([ValidateSet("PublicAiLogin", "TodoExtraction", "PriorityAdvice", "TaskQuadrants", "PublicQuadrants", "FocusEncouragement")][string]$Check = "PublicAiLogin")
 
 $secureEmail = Read-Host "NAVA account email" -AsSecureString
 $securePassword = Read-Host "NAVA account password" -AsSecureString
@@ -7,7 +7,7 @@ $passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure
 try {
   $env:NAVA_ACCOUNT_EMAIL = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($emailPointer)
   $env:NAVA_ACCOUNT_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
-  $scriptPath = if ($Check -eq "TodoExtraction") { "scripts/verify-todo-extraction.mjs" } elseif ($Check -eq "PriorityAdvice") { "scripts/verify-priority-advice.mjs" } elseif ($Check -eq "TaskQuadrants") { "scripts/verify-task-quadrants.mjs" } elseif ($Check -eq "PublicQuadrants") { "scripts/verify-public-task-quadrants.mjs" } else { "scripts/verify-public-ai-login.mjs" }
+  $scriptPath = if ($Check -eq "TodoExtraction") { "scripts/verify-todo-extraction.mjs" } elseif ($Check -eq "PriorityAdvice") { "scripts/verify-priority-advice.mjs" } elseif ($Check -eq "TaskQuadrants") { "scripts/verify-task-quadrants.mjs" } elseif ($Check -eq "PublicQuadrants") { "scripts/verify-public-task-quadrants.mjs" } elseif ($Check -eq "FocusEncouragement") { "scripts/verify-focus-encouragement.mjs" } else { "scripts/verify-public-ai-login.mjs" }
   & node $scriptPath
   if ($LASTEXITCODE -ne 0) { throw "Authenticated AI acceptance failed." }
 } finally {

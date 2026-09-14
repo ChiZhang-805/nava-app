@@ -10194,6 +10194,13 @@ body::before {
 .focus-ai-priority-result li { overflow-wrap: anywhere; }
 .focus-ai-priority-result > button { width: 100%; min-height: 44px; margin-top: 10px; border: 0; border-radius: 10px; color: #fff; background: #177fa5; font: inherit; font-size: 11px; font-weight: 750; }
 .focus-ai-priority-result > button:disabled { opacity: .55; }
+.focus-encouragement-panel { position: fixed; z-index: 12; top: max(68px, calc(env(safe-area-inset-top) + 62px)); right: max(16px, env(safe-area-inset-right)); width: min(330px, calc(100vw - 32px)); max-height: min(230px, 34vh); display: grid; gap: 8px; overflow: auto; border: 1px solid rgba(255,255,255,.88); border-radius: 18px; padding: 12px; color: #17485d; background: rgba(239,250,254,.94); box-shadow: 0 16px 38px rgba(17,68,93,.2); backdrop-filter: blur(20px); }
+.focus-encouragement-panel header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.focus-encouragement-panel strong { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.focus-encouragement-panel header button { width: 36px; height: 36px; border: 0; border-radius: 50%; display: grid; place-items: center; color: #315f73; background: rgba(255,255,255,.85); }
+.focus-encouragement-panel p { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; font-size: 12px; line-height: 1.55; }
+.focus-encouragement-panel p.is-error { color: #a23540; }
+.focus-encouragement-retry { min-height: 40px; border: 1px solid rgba(52,157,194,.28); border-radius: 10px; color: #126f92; background: rgba(225,246,252,.85); font: inherit; font-size: 11px; font-weight: 740; }
 .focus-quadrant-toggle { width: 100%; min-height: 44px; border: 1px solid rgba(52,157,194,.2); border-radius: 11px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; color: #17485d; background: rgba(238,249,253,.82); font: inherit; font-size: 11px; font-weight: 750; }
 .focus-quadrant-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
 .focus-quadrant-section { min-width: 0; display: grid; gap: 10px; }

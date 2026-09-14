@@ -402,10 +402,14 @@ async function main() {
       const immersive = page.locator('[data-module-view="focus-immersive"]');
       await expect(immersive).toHaveAttribute("data-focus-state", "running");
       await expect(immersive).toHaveAttribute("data-fullscreen", /active|viewport/);
-      await expect(immersive).toHaveAttribute("data-wake-lock", /active|requesting|off|unsupported/);
+      await expect(immersive).toHaveAttribute("data-wake-lock", /^(active|requesting|off|unsupported|failed)$/);
+      if (await immersive.getAttribute("data-wake-lock") === "failed") {
+        await expect(immersive.locator(".focus-capability-message")).toBeVisible();
+      }
       const supportTools = immersive.locator(".focus-immersive-tools > button");
-      await expect(supportTools).toHaveCount(4);
-      await expect(supportTools).toContainText([/常亮/, /全屏/, /背景音/, /进入状态/]);
+      await expect(supportTools).toHaveCount(5);
+      await expect(supportTools).toContainText([/常亮/, /全屏/, /背景音/, /进入状态/, /AI 鼓励/]);
+      await expect(supportTools.nth(4)).toBeDisabled();
       await supportTools.nth(2).click();
       await expect(immersive.locator(".focus-noise-panel")).toBeVisible();
       await expect(immersive.locator(".focus-noise-options button")).toHaveCount(4);
