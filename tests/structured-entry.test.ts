@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyPhotoNutritionCorrection, parseStructuredEntry, updateStructuredEntryField, type StructuredEntry } from "../src/services/structuredEntryParser.ts";
-import { focusDurationChoice, resolveTodoFocusPlan, suggestedFocusPlan } from "../src/services/focusPlanning.ts";
+import { focusDifficultyPrompt, focusDurationChoice, resolveTodoFocusPlan, suggestedFocusPlan } from "../src/services/focusPlanning.ts";
 
 test("todo focus planning preserves user values and estimates missing plans", () => {
   assert.deepEqual(suggestedFocusPlan("写作业"), { focusMinutes: 45, focusSessions: 2 });
@@ -14,6 +14,11 @@ test("todo focus planning preserves user values and estimates missing plans", ()
   assert.equal(resolveTodoFocusPlan({ title: "整理书桌" }).suggested, true);
   assert.equal(focusDurationChoice(45), "45");
   assert.equal(focusDurationChoice(37), "custom");
+  const prompt = focusDifficultyPrompt("交论文", 45, 2, "zh");
+  assert.match(prompt, /交论文/);
+  assert.match(prompt, /每次 45 分钟，共 2 次/);
+  assert.match(prompt, /信息不足/);
+  assert.match(prompt, /不要声称已修改或保存/);
 });
 
 test("todo parser keeps tomorrow and afternoon time", () => {
@@ -35,6 +40,37 @@ test("todo parser adds editable focus suggestions for deep work", () => {
   assert.ok(minutes);
   const updated = updateStructuredEntryField(entry!, minutes!.id, "60");
   assert.equal(updated.payload.focusMinutes, 60);
+});
+
+test("natural future commitment opens an editable to-do card without a reminder keyword", () => {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const expectedDate = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+  const candidate = parseStructuredEntry("明天下午3点要交论文", "zh", { dataType: "unknown" }, { allowLocalHealthFallback: false });
+  assert.equal(candidate?.type, "todo");
+  assert.equal(candidate.payload.scheduledDate, expectedDate);
+  assert.equal(candidate.payload.scheduledTime, "15:00");
+  assert.equal(candidate.payload.title, "交论文");
+  assert.ok(candidate.fields.find((item) => item.path === "scheduledDate"));
+  assert.ok(candidate.fields.find((item) => item.path === "scheduledTime"));
+});
+
+test("spoken Chinese clock and day-after-tomorrow are parsed without overwriting health chat", () => {
+  const candidate = parseStructuredEntry("后天上午九点半我要开会", "zh", undefined, { allowLocalHealthFallback: false });
+  assert.equal(candidate?.type, "todo");
+  assert.equal(candidate?.payload.scheduledTime, "09:30");
+  assert.equal(candidate?.payload.title, "开会");
+  assert.equal(parseStructuredEntry("明天可能要开心一点", "zh", undefined, { allowLocalHealthFallback: false }), null);
+  assert.equal(parseStructuredEntry("明天我不打算开会", "zh", undefined, { allowLocalHealthFallback: false }), null);
+});
+
+test("invalid calendar dates cannot silently roll into another month", () => {
+  assert.equal(parseStructuredEntry("2026-02-30提醒我交论文", "zh"), null);
+  assert.equal(parseStructuredEntry("2月30日提醒我交论文", "zh"), null);
+  const leapDay = parseStructuredEntry("2月29日提醒我交论文", "zh");
+  assert.equal(leapDay?.type, "todo");
+  assert.equal(String(leapDay?.payload.scheduledDate).slice(5), "02-29");
 });
 
 test("sleep parser understands Chinese evening and morning periods", () => {

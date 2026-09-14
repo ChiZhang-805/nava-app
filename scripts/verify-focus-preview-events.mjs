@@ -65,8 +65,29 @@ try {
   }
   await context.close();
 
+  const { context: aiContext, page: aiPage } = await openFocus({ width: 390, height: 844 });
+  const difficultyButton = aiPage.getByRole("button", { name: "询问 AI 难度" });
+  await expect(difficultyButton).toBeDisabled();
+  await aiPage.locator(".focus-task-field input").fill("交论文");
+  await expect(difficultyButton).toBeEnabled();
+  await difficultyButton.click();
+  await expect(aiPage.locator(".chat-input-shell input")).toHaveValue(/交论文/);
+  await expect(aiPage.locator(".chat-input-shell input")).toHaveValue(/信息不足/);
+  await aiContext.close();
+
   for (const viewport of [{ width: 360, height: 740 }, { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
     const { context: mobileContext, page: mobilePage } = await openFocus(viewport);
+    const actionMetrics = await mobilePage.locator(".focus-ai-actions").evaluate((row) => {
+      const bounds = row.getBoundingClientRect();
+      return [...row.querySelectorAll("button")].map((button) => {
+        const rect = button.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, height: rect.height, rowLeft: bounds.left, rowRight: bounds.right };
+      });
+    });
+    assert.equal(actionMetrics.length, 2);
+    assert.ok(actionMetrics.every((item) => item.left >= item.rowLeft - 1 && item.right <= item.rowRight + 1 && item.height >= 43.5), `${viewport.width}x${viewport.height}: AI actions overflow or have short targets ${JSON.stringify(actionMetrics)}`);
+    const overviewOverflow = await mobilePage.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    assert.ok(overviewOverflow <= 1, `${viewport.width}x${viewport.height}: focus overview horizontal overflow ${overviewOverflow}px`);
     await mobilePage.locator('.focus-summary-start[aria-label="开始专注"]').click();
     await expect(mobilePage.locator('[data-preview-only="focus-event-simulator"]')).toBeHidden();
     const overflow = await mobilePage.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

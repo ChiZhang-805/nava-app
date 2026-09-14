@@ -134,36 +134,65 @@ function addDays(date: Date, days: number) {
   return next;
 }
 
+const todoClockPattern = /(?:(凌晨|清晨|早上|上午|中午|下午|傍晚|晚上|夜里)\s*)?([0-9]{1,2}|[一二两三四五六七八九十]{1,3})\s*[点时]\s*(?:(半|一刻|三刻)|([0-9]{1,2}|[一二两三四五六七八九十]{1,3})\s*分?)?|(?<!\d)([01]?\d|2[0-3])[:：]([0-5]\d)/;
+
+function todoClock(text: string) {
+  const match = text.match(todoClockPattern);
+  if (!match) return { time: undefined, matchedTimeText: "" };
+  const hour = parseLocalizedNumber(match[2] ?? match[5]);
+  const minute = match[3] === "半" ? 30 : match[3] === "一刻" ? 15 : match[3] === "三刻" ? 45 : parseLocalizedNumber(match[4] ?? match[6]) ?? 0;
+  if (hour == null || hour > 23 || minute > 59) return { time: undefined, matchedTimeText: "" };
+  const period = match[1];
+  const resolvedHour = (period === "下午" || period === "傍晚" || period === "晚上" || period === "夜里") && hour < 12
+    ? hour + 12
+    : period === "中午" && hour < 11 ? hour + 12 : period === "凌晨" && hour === 12 ? 0 : hour;
+  return { time: `${String(resolvedHour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`, matchedTimeText: match[0] };
+}
+
+function validCalendarDate(year: number, month: number, day: number) {
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
+}
+
 function todoSchedule(text: string) {
   const now = new Date();
   let scheduledDate = localDateISO(now);
   let matchedDateText = "";
-  if (/明天|tomorrow/i.test(text)) {
-    scheduledDate = localDateISO(addDays(now, 1));
-    matchedDateText = /明天/i.test(text) ? "明天" : "tomorrow";
+  const relative = text.match(/大后天|后天|明天|今天|今日|day after tomorrow|tomorrow|today/i);
+  if (relative) {
+    const days = /大后天/.test(relative[0]) ? 3 : /后天|day after tomorrow/i.test(relative[0]) ? 2 : /明天|tomorrow/i.test(relative[0]) ? 1 : 0;
+    scheduledDate = localDateISO(addDays(now, days));
+    matchedDateText = relative[0];
   } else {
     const iso = text.match(/\b(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\b/);
     const zh = text.match(/(?<!\d)(\d{1,2})月(\d{1,2})日?/);
     if (iso) {
-      scheduledDate = `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+      const date = validCalendarDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+      if (!date) return null;
+      scheduledDate = localDateISO(date);
       matchedDateText = iso[0];
     } else if (zh) {
-      let date = new Date(now.getFullYear(), Number(zh[1]) - 1, Number(zh[2]));
-      if (localDateISO(date) < localDateISO(now)) date = new Date(now.getFullYear() + 1, Number(zh[1]) - 1, Number(zh[2]));
+      let date: Date | null = null;
+      for (let year = now.getFullYear(); year <= now.getFullYear() + 8; year += 1) {
+        const candidate = validCalendarDate(year, Number(zh[1]), Number(zh[2]));
+        if (candidate && localDateISO(candidate) >= localDateISO(now)) { date = candidate; break; }
+      }
+      if (!date) return null;
       scheduledDate = localDateISO(date);
       matchedDateText = zh[0];
     }
   }
-  return { scheduledDate, scheduledTime: timeMatches(text)[0], matchedDateText };
+  const clock = todoClock(text);
+  return { scheduledDate, scheduledTime: clock.time, matchedDateText, matchedTimeText: clock.matchedTimeText };
 }
 
-function cleanTodoTitle(text: string, matchedDateText: string) {
+function cleanTodoTitle(text: string, matchedDateText: string, matchedTimeText: string) {
   return text
     .replace(/^(请)?(帮我)?(添加|记录|新建)?(一个)?/i, "")
     .replace(/待办事项|待办|提醒我|remind me|todo/gi, " ")
-    .replace(/今天|今日|明天|today|tomorrow/gi, " ")
     .replace(matchedDateText, " ")
-    .replace(/(?:凌晨|早上|上午|中午|下午|晚上)\s*\d{1,2}(?:[:：点时]\s*\d{1,2})?|(?<!\d)\d{1,2}[:：]\d{1,2}/g, " ")
+    .replace(matchedTimeText, " ")
+    .replace(/^\s*(?:我|我们)?(?:要|得|需要|计划|准备|打算|必须|将会?)\s*(?:去)?/, "")
     .replace(/^\s*(?:at|to)\s+/i, "")
     .replace(/[：:,，]\s*/g, " ")
     .replace(/\s+/g, " ")
@@ -523,9 +552,15 @@ export function parseStructuredEntry(
   const value = text.trim();
   if (!value) return null;
 
-  if (/待办|提醒我|记得要|todo|remind me/i.test(value)) {
-    const schedule = todoSchedule(value);
-    const todoTitle = cleanTodoTitle(value, schedule.matchedDateText) || value;
+  const explicitTodo = /待办|提醒我|记得要|todo|remind me/i.test(value);
+  const futureDate = /大后天|后天|明天|day after tomorrow|tomorrow|\b\d{4}[-/.]\d{1,2}[-/.]\d{1,2}\b|(?<!\d)\d{1,2}月\d{1,2}日?/i.test(value);
+  const schedule = explicitTodo || futureDate ? todoSchedule(value) : null;
+  const intentText = schedule ? value.replace(schedule.matchedDateText, " ").replace(schedule.matchedTimeText, " ").trim() : value;
+  const commitment = /^(?:我|我们)?(?:要|得|需要|计划|准备|打算|必须|将会?)\s*(?:去)?[^，,。；;]{1,40}/.test(intentText);
+  const negated = /(?:不要|不需要|不打算|不准备|可能|也许|大概)/.test(value);
+  if (explicitTodo || futureDate && commitment && !negated) {
+    if (!schedule) return null;
+    const todoTitle = cleanTodoTitle(value, schedule.matchedDateText, schedule.matchedTimeText) || value;
     const focusPlan = suggestedFocusPlan(todoTitle);
     return entry("todo", locale, todoTitle, [
       { label: locale === "zh" ? "事项" : "Task", value: todoTitle, path: "title" },
