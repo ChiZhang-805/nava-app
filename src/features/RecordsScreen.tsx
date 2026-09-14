@@ -41,11 +41,12 @@ import { clearSecureFaceDraft, loadSecureFaceDraft, saveSecureFaceDraft } from "
 import { loadSingleKey, type SingleRequestSlot } from "../services/singleRequestCache";
 import { estimatedFoodLabel, formatDetectedDishList } from "../services/dietEntryPresentation";
 import { correctFoodItemCalories, resizeFoodItemPortion, sumFoodItemNutrition } from "../services/dietPortion";
-import { readMealNutritionSummary, summaryFromItems } from "../services/nutritionIntegrity";
+import { estimatedExistingMealSummary, foodItemCalories } from "../services/nutritionIntegrity";
 import { recordSkeletonVariant } from "../services/loadingRoute";
 import { clearSleepMaintenance, hydrateSleepMaintenance, loadSleepMaintenance, sleepMaintenanceElapsedMinutes, sleepMaintenanceFields, startSleepMaintenance, type SleepMaintenanceSession } from "../services/sessionMaintenance";
 import { focusDurationChoice as focusDurationChoiceForMinutes } from "../services/focusPlanning.ts";
 import { requestFocusFullscreen } from "../services/focusImmersion.ts";
+import { optionalNonNegative } from "../services/recordNumbers";
 import { estimateExerciseRecovery, type ExerciseRecoveryStatus } from "../services/exerciseRecovery.ts";
 import type { FaceAnalysisResult, FoodItem, TodaySnapshot, TrendBundle } from "../types";
 
@@ -316,9 +317,9 @@ export default function RecordsScreen({
   const [sleepMaintenance, setSleepMaintenance] = useState<SleepMaintenanceSession | null>(() => loadSleepMaintenance(user.id));
   const [sleepMaintenanceNow, setSleepMaintenanceNow] = useState(() => Date.now());
 
-  const [steps, setSteps] = useState(0);
-  const [calories, setCalories] = useState(0);
-  const [exerciseMinutes, setExerciseMinutes] = useState(0);
+  const [steps, setSteps] = useState<number | null>(null);
+  const [calories, setCalories] = useState<number | null>(null);
+  const [exerciseMinutes, setExerciseMinutes] = useState<number | null>(null);
   const [heartRate, setHeartRate] = useState("");
   const [spo2, setSpo2] = useState("");
   const [exerciseRating, setExerciseRating] = useState(3);
@@ -332,11 +333,11 @@ export default function RecordsScreen({
   const [meal, setMeal] = useState<"breakfast" | "lunch" | "dinner" | "pantry">("lunch");
   const [mealTime, setMealTime] = useState(currentLocalTimeInput);
   const [mealName, setMealName] = useState("");
-  const [mealCalories, setMealCalories] = useState(0);
-  const [proteinGrams, setProteinGrams] = useState(0);
-  const [carbohydrateGrams, setCarbohydrateGrams] = useState(0);
-  const [fatGrams, setFatGrams] = useState(0);
-  const [hydrationMl, setHydrationMl] = useState(0);
+  const [mealCalories, setMealCalories] = useState<number | null>(null);
+  const [proteinGrams, setProteinGrams] = useState<number | null>(null);
+  const [carbohydrateGrams, setCarbohydrateGrams] = useState<number | null>(null);
+  const [fatGrams, setFatGrams] = useState<number | null>(null);
+  const [hydrationMl, setHydrationMl] = useState<number | null>(null);
   const [dietRating, setDietRating] = useState(3);
   const [dietPhotoUrl, setDietPhotoUrl] = useState<string | null>(null);
   const [dietPhotoPath, setDietPhotoPath] = useState<string | null>(null);
@@ -458,9 +459,9 @@ export default function RecordsScreen({
       setRemSleep(snapshot.sleep?.rem_minutes ?? 0);
       setSleepRating(snapshot.sleep?.self_rating ?? 4);
       setSleepNote(snapshot.sleep?.self_note ?? "");
-      setSteps(snapshot.exercise?.steps ?? 0);
-      setCalories(snapshot.exercise?.calories ?? 0);
-      setExerciseMinutes(snapshot.exercise?.exercise_minutes ?? 0);
+      setSteps(snapshot.exercise?.steps ?? null);
+      setCalories(snapshot.exercise?.calories ?? null);
+      setExerciseMinutes(snapshot.exercise?.exercise_minutes ?? null);
       setHeartRate(snapshot.exercise?.heart_rate ?? "");
       setSpo2(snapshot.exercise?.spo2 ?? "");
       setExerciseRating(snapshot.exercise?.self_rating ?? 3);
@@ -495,17 +496,16 @@ export default function RecordsScreen({
       const loadedItems = Array.isArray(mealItems) ? mealItems as FoodItem[] : [];
       const photoField = meal === "pantry" ? null : `${meal}_photo_url` as keyof NonNullable<typeof nutrition>;
       const photoPath = photoField && nutrition ? nutrition[photoField] : null;
-      const selectedMealCalories = loadedItems.reduce((sum, item) => sum + (Number(item.calories) || 0), 0);
-      const storedMealSummary = readMealNutritionSummary(loadedItems);
-      const itemMealSummary = summaryFromItems(loadedItems);
+      const selectedMealCalories = loadedItems.length ? foodItemCalories(loadedItems) : null;
+      const storedMealSummary = nutrition && loadedItems.length ? estimatedExistingMealSummary(nutrition, meal) : null;
       setDietItems(loadedItems);
       setMealName(formatDetectedDishList(loadedItems));
       setMealCalories(selectedMealCalories);
       setMealTime(typeof savedMealTime === "string" ? savedMealTime.slice(0, 5) : currentLocalTimeInput());
-      setProteinGrams(storedMealSummary?.protein_grams ?? itemMealSummary.protein_grams);
-      setCarbohydrateGrams(storedMealSummary?.carbohydrate_grams ?? itemMealSummary.carbohydrate_grams);
-      setFatGrams(storedMealSummary?.fat_grams ?? itemMealSummary.fat_grams);
-      setHydrationMl(storedMealSummary?.hydration_ml ?? 0);
+      setProteinGrams(storedMealSummary?.protein_grams ?? null);
+      setCarbohydrateGrams(storedMealSummary?.carbohydrate_grams ?? null);
+      setFatGrams(storedMealSummary?.fat_grams ?? null);
+      setHydrationMl(storedMealSummary?.hydration_ml ?? null);
       setDietRating(storedMealSummary?.health_rating ?? 3);
       setDietPhotoPath(typeof photoPath === "string" ? photoPath : null);
       const resolvedDietPhotoUrl = typeof photoPath === "string" ? await resolveDietPhotoUrl(photoPath).catch(() => null) : null;
@@ -530,9 +530,9 @@ export default function RecordsScreen({
         if (typeof draft.note === "string") setSleepNote(draft.note);
       }
       if (draft && activeModule === "exercise") {
-        if (typeof draft.steps === "number") setSteps(draft.steps);
-        if (typeof draft.calories === "number") setCalories(draft.calories);
-        if (typeof draft.minutes === "number") setExerciseMinutes(draft.minutes);
+        if ((typeof draft.steps === "number" || draft.steps === null)) setSteps(draft.steps);
+        if ((typeof draft.calories === "number" || draft.calories === null)) setCalories(draft.calories);
+        if ((typeof draft.minutes === "number" || draft.minutes === null)) setExerciseMinutes(draft.minutes);
         if (typeof draft.heartRate === "string") setHeartRate(draft.heartRate);
         if (typeof draft.spo2 === "string") setSpo2(draft.spo2);
         if (typeof draft.rating === "number") setExerciseRating(draft.rating);
@@ -557,12 +557,12 @@ export default function RecordsScreen({
           if (typeof draft.meal === "string" && ["breakfast", "lunch", "dinner", "pantry"].includes(draft.meal)) setMeal(draft.meal as typeof meal);
           if (typeof draft.mealTime === "string") setMealTime(draft.mealTime);
           if (typeof draft.name === "string") setMealName(draft.name);
-          if (typeof draft.calories === "number") setMealCalories(draft.calories);
+          if ((typeof draft.calories === "number" || draft.calories === null)) setMealCalories(draft.calories);
           if (Array.isArray(draft.items)) setDietItems(draftItems);
-          if (typeof draft.proteinGrams === "number") setProteinGrams(draft.proteinGrams);
-          if (typeof draft.carbohydrateGrams === "number") setCarbohydrateGrams(draft.carbohydrateGrams);
-          if (typeof draft.fatGrams === "number") setFatGrams(draft.fatGrams);
-          if (typeof draft.hydrationMl === "number") setHydrationMl(draft.hydrationMl);
+          if ((typeof draft.proteinGrams === "number" || draft.proteinGrams === null)) setProteinGrams(draft.proteinGrams);
+          if ((typeof draft.carbohydrateGrams === "number" || draft.carbohydrateGrams === null)) setCarbohydrateGrams(draft.carbohydrateGrams);
+          if ((typeof draft.fatGrams === "number" || draft.fatGrams === null)) setFatGrams(draft.fatGrams);
+          if ((typeof draft.hydrationMl === "number" || draft.hydrationMl === null)) setHydrationMl(draft.hydrationMl);
           if (typeof draft.rating === "number") setDietRating(draft.rating);
         }
         if (!nutrition && typeof draft.photoPath === "string") {
@@ -1037,7 +1037,7 @@ export default function RecordsScreen({
 
   async function saveExercise(event: FormEvent) {
     event.preventDefault();
-    const estimate = estimateExerciseRecovery({
+    const estimate = exerciseMinutes == null ? null : estimateExerciseRecovery({
       minutes: exerciseMinutes,
       heartRate,
       sorenessLevel,
@@ -1059,10 +1059,10 @@ export default function RecordsScreen({
         fatigueLevel,
         hasInjury,
         injuryNote: hasInjury ? injuryNote : "",
-        recoveryEstimateMinHours: estimate.minHours,
-        recoveryEstimateMaxHours: estimate.maxHours,
-        recoveryEstimateConfidence: estimate.confidence,
-        recoveryEstimateBasis: { version: "nava-rule-v1", inputs: estimate.basis },
+        recoveryEstimateMinHours: estimate?.minHours ?? null,
+        recoveryEstimateMaxHours: estimate?.maxHours ?? null,
+        recoveryEstimateConfidence: estimate?.confidence ?? null,
+        recoveryEstimateBasis: estimate ? { version: "nava-rule-v1", inputs: estimate.basis } : null,
         ...(recoveryStatus ? { recoveryStatus } : {}),
         note: exerciseNote,
         source: "manual",
@@ -1142,10 +1142,11 @@ export default function RecordsScreen({
       setDietItems(result.items);
       if (result.items.length > 0) {
         setMealName(formatDetectedDishList(result.items));
-        setMealCalories(result.totals?.calories ?? result.items.reduce((sum, item) => sum + (Number(item.calories) || 0), 0));
-        setProteinGrams(result.totals?.proteinGrams ?? 0);
-        setCarbohydrateGrams(result.totals?.carbohydrateGrams ?? 0);
-        setFatGrams(result.totals?.fatGrams ?? 0);
+        const itemTotals = sumFoodItemNutrition(result.items);
+        setMealCalories(result.totals?.calories ?? itemTotals.calories);
+        setProteinGrams(result.totals?.proteinGrams ?? itemTotals.proteinGrams);
+        setCarbohydrateGrams(result.totals?.carbohydrateGrams ?? itemTotals.carbohydrateGrams);
+        setFatGrams(result.totals?.fatGrams ?? itemTotals.fatGrams);
         setNotice(locale === "zh"
           ? `图片已上传，AI 已识别 ${result.items.length} 项餐食`
           : `Uploaded · AI identified ${result.items.length} item${result.items.length === 1 ? "" : "s"}`);
@@ -1798,16 +1799,16 @@ export default function RecordsScreen({
           <div className="two-col">
             <label className="field">
               <span>{t("records.steps")}</span>
-              <input inputMode="numeric" type="number" value={steps} onChange={(e) => setSteps(Number(e.target.value))} />
+              <input inputMode="numeric" type="number" value={steps ?? ""} onChange={(e) => setSteps(optionalNonNegative(e.target.value))} />
             </label>
             <label className="field">
               <span>{t("records.calories")}</span>
-              <input inputMode="numeric" type="number" value={calories} onChange={(e) => setCalories(Number(e.target.value))} />
+              <input inputMode="numeric" type="number" value={calories ?? ""} onChange={(e) => setCalories(optionalNonNegative(e.target.value))} />
             </label>
           </div>
           <label className="field">
             <span>{t("records.exerciseMinutes")}</span>
-            <input inputMode="numeric" type="number" value={exerciseMinutes} onChange={(e) => setExerciseMinutes(Number(e.target.value))} />
+            <input inputMode="numeric" type="number" value={exerciseMinutes ?? ""} onChange={(e) => setExerciseMinutes(optionalNonNegative(e.target.value))} />
           </label>
           <div className="two-col">
             <label className="field">
@@ -1842,7 +1843,8 @@ export default function RecordsScreen({
             <input value={injuryNote} onChange={(event) => setInjuryNote(event.target.value)} placeholder={locale === "zh" ? "位置、感受和对活动的影响" : "Location, feeling, and impact on movement"} />
           </label>}
           {(() => {
-            const estimate = estimateExerciseRecovery({ minutes: exerciseMinutes, heartRate, sorenessLevel, fatigueLevel, hasInjury, sleepMinutes: todaySnapshot?.sleep?.sleep_duration_minutes });
+            const estimate = exerciseMinutes == null ? null : estimateExerciseRecovery({ minutes: exerciseMinutes, heartRate, sorenessLevel, fatigueLevel, hasInjury, sleepMinutes: todaySnapshot?.sleep?.sleep_duration_minutes });
+            if (!estimate) return null;
             return <section className={estimate.caution ? "exercise-recovery-estimate is-caution" : "exercise-recovery-estimate"} aria-live="polite">
               <div><strong>{locale === "zh" ? `预计恢复 ${estimate.minHours}–${estimate.maxHours} 小时` : `Estimated recovery ${estimate.minHours}–${estimate.maxHours} hours`}</strong><small>{locale === "zh" ? `置信度 ${Math.round(estimate.confidence * 100)}% · 规则估算` : `${Math.round(estimate.confidence * 100)}% confidence · rule estimate`}</small></div>
               <p>{estimate.caution ? (locale === "zh" ? "先停止加量；持续疼痛、明显肿胀或活动受限时请寻求专业评估。" : "Avoid adding load; seek professional assessment for persistent pain, swelling, or limited movement.") : (locale === "zh" ? "保存后可在运动页回来确认恢复情况，反馈会跟随账号。" : "After saving, return to the activity page to confirm recovery; the check-in follows your account.")}</p>
@@ -1962,10 +1964,12 @@ export default function RecordsScreen({
                     </label>
                     <label>
                       <span>{locale === "zh" ? "热量 kcal" : "Calories kcal"}</span>
-                      <input type="number" inputMode="numeric" min="0" step="1" defaultValue={item.calories ?? 0} key={`calories-${index}-${item.calories ?? 0}`} aria-label={`${item.name} ${locale === "zh" ? "估算热量" : "estimated calories"}`} onBlur={(event) => {
-                        const calories = Number(event.currentTarget.value);
-                        if (event.currentTarget.value !== "" && Number.isFinite(calories) && calories >= 0 && calories !== item.calories) {
-                          applyCorrectedDietItems(dietItems.map((entry, entryIndex) => entryIndex === index ? correctFoodItemCalories(entry, calories) : entry));
+                      <input type="number" inputMode="numeric" min="0" step="1" defaultValue={item.calories ?? ""} key={`calories-${index}-${item.calories ?? "unknown"}`} aria-label={`${item.name} ${locale === "zh" ? "估算热量" : "estimated calories"}`} onBlur={(event) => {
+                        const calories = optionalNonNegative(event.currentTarget.value);
+                        if (calories !== item.calories) {
+                          const corrected = dietItems.map((entry, entryIndex) => entryIndex === index ? correctFoodItemCalories(entry, calories) : entry);
+                          setDietItems(corrected);
+                          setMealCalories(foodItemCalories(corrected));
                         }
                       }} />
                     </label>
@@ -1988,7 +1992,7 @@ export default function RecordsScreen({
             <label className="field nutrition-unit-field">
               <span>{dietItems.length > 0 ? (locale === "zh" ? "估算总热量" : "Estimated total") : t("records.calorie")}</span>
               <div className="nutrition-unit-input">
-                <input inputMode="numeric" type="number" value={mealCalories} readOnly={dietItems.length > 0} onChange={(e) => setMealCalories(Number(e.target.value))} />
+                <input inputMode="numeric" type="number" value={mealCalories ?? ""} readOnly={dietItems.length > 0} onChange={(e) => setMealCalories(optionalNonNegative(e.target.value))} />
                 <b aria-hidden="true">kcal</b>
               </div>
             </label>
@@ -2013,19 +2017,19 @@ export default function RecordsScreen({
           <div className="two-col nutrition-macro-fields">
             <label className="field nutrition-unit-field">
               <span>{locale === "zh" ? "蛋白质摄入量" : "Protein intake"}</span>
-              <div className="nutrition-unit-input"><input inputMode="decimal" type="number" min="0" value={proteinGrams} onChange={(e) => setProteinGrams(Number(e.target.value))} /><b aria-hidden="true">g</b></div>
+              <div className="nutrition-unit-input"><input inputMode="decimal" type="number" min="0" value={proteinGrams ?? ""} onChange={(e) => setProteinGrams(optionalNonNegative(e.target.value))} /><b aria-hidden="true">g</b></div>
             </label>
             <label className="field nutrition-unit-field">
               <span>{locale === "zh" ? "碳水摄入量" : "Carbohydrate intake"}</span>
-              <div className="nutrition-unit-input"><input inputMode="decimal" type="number" min="0" value={carbohydrateGrams} onChange={(e) => setCarbohydrateGrams(Number(e.target.value))} /><b aria-hidden="true">g</b></div>
+              <div className="nutrition-unit-input"><input inputMode="decimal" type="number" min="0" value={carbohydrateGrams ?? ""} onChange={(e) => setCarbohydrateGrams(optionalNonNegative(e.target.value))} /><b aria-hidden="true">g</b></div>
             </label>
             <label className="field nutrition-unit-field">
               <span>{locale === "zh" ? "脂肪摄入量" : "Fat intake"}</span>
-              <div className="nutrition-unit-input"><input inputMode="decimal" type="number" min="0" value={fatGrams} onChange={(e) => setFatGrams(Number(e.target.value))} /><b aria-hidden="true">g</b></div>
+              <div className="nutrition-unit-input"><input inputMode="decimal" type="number" min="0" value={fatGrams ?? ""} onChange={(e) => setFatGrams(optionalNonNegative(e.target.value))} /><b aria-hidden="true">g</b></div>
             </label>
             <label className="field nutrition-unit-field">
               <span>{locale === "zh" ? "饮水摄入量" : "Water intake"}</span>
-              <div className="nutrition-unit-input"><input inputMode="numeric" type="number" min="0" value={hydrationMl} onChange={(e) => setHydrationMl(Number(e.target.value))} /><b aria-hidden="true">ml</b></div>
+              <div className="nutrition-unit-input"><input inputMode="numeric" type="number" min="0" value={hydrationMl ?? ""} onChange={(e) => setHydrationMl(optionalNonNegative(e.target.value))} /><b aria-hidden="true">ml</b></div>
             </label>
           </div>
           <label className="field diet-rating-field"><span>{locale === "zh" ? `饮食自评 ${dietRating}/5` : `Diet rating ${dietRating}/5`}</span><input className="range" type="range" min="1" max="5" value={dietRating} onChange={(e) => setDietRating(Number(e.target.value))} /></label>

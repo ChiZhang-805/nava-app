@@ -107,8 +107,8 @@ export function buildHealthModulePresentations(snapshot: TodaySnapshot | null, l
     diet: nutrition ? {
       ...progress.diet,
       points: locale === "zh"
-        ? [`${Math.round(nutrition.total_calories)} kcal`, `已记 ${mealCount(nutrition)} 餐`, `蛋白质 ${roundOrPlaceholder(nutrition.protein_grams)} g`, `饮水 ${roundOrPlaceholder(nutrition.hydration_ml)} ml`]
-        : [`${Math.round(nutrition.total_calories)} kcal`, `${mealCount(nutrition)} meals logged`, `Protein ${roundOrPlaceholder(nutrition.protein_grams)} g`, `Water ${roundOrPlaceholder(nutrition.hydration_ml)} ml`],
+        ? [`${roundOrPlaceholder(nutrition.total_calories)} kcal`, `已记 ${mealCount(nutrition)} 餐`, `蛋白质 ${roundOrPlaceholder(nutrition.protein_grams)} g`, `饮水 ${roundOrPlaceholder(nutrition.hydration_ml)} ml`]
+        : [`${roundOrPlaceholder(nutrition.total_calories)} kcal`, `${mealCount(nutrition)} meals logged`, `Protein ${roundOrPlaceholder(nutrition.protein_grams)} g`, `Water ${roundOrPlaceholder(nutrition.hydration_ml)} ml`],
     } : missingFor("diet"),
     focus: focusRecorded ? {
       ...progress.focus,

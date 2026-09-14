@@ -1,5 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { todayISO } from "./date";
+import { buildNutritionMutation, summaryFromItems, type MealNutritionSummary } from "./nutritionIntegrity";
 import type { ChatMessage, DailyRhythmScore, ExerciseRecord, FaceRecord, FocusRecord, FocusTimeDistribution, FoodItem, HealthMetricSnapshot, MoodRecord, NutritionRecord, SleepRecord, TodaySnapshot, TrendBundle } from "../types";
 import type { UserProfile } from "./profile";
 
@@ -229,27 +230,28 @@ export function saveDemoSleep(input: {
 
 export function saveDemoExercise(input: {
   date?: string;
-  steps: number;
-  calories: number;
-  minutes: number;
+  steps?: number | null;
+  calories?: number | null;
+  minutes?: number | null;
   heartRate?: string;
   spo2?: string;
   rating?: number;
   source?: "manual" | "apple_health";
 }) {
   const date = input.date ?? todayISO();
+  const records = readDemoRecordOverrides();
+  const previous = records.exercises[date];
   const record: ExerciseRecord = {
     ...demoExercise,
     id: `demo-exercise-${date}`,
     record_date: date,
-    steps: input.steps,
-    calories: input.calories,
-    exercise_minutes: input.minutes,
-    heart_rate: input.heartRate ?? demoExercise.heart_rate,
-    spo2: input.spo2 ?? demoExercise.spo2,
+    steps: input.steps === undefined ? previous?.steps ?? null : input.steps,
+    calories: input.calories === undefined ? previous?.calories ?? null : input.calories,
+    exercise_minutes: input.minutes === undefined ? previous?.exercise_minutes ?? null : input.minutes,
+    heart_rate: input.heartRate === undefined ? previous?.heart_rate ?? null : input.heartRate || null,
+    spo2: input.spo2 === undefined ? previous?.spo2 ?? null : input.spo2 || null,
     self_rating: input.rating ?? demoExercise.self_rating,
   };
-  const records = readDemoRecordOverrides();
   records.exercises[date] = record;
   writeDemoRecordOverrides(records);
   return record;
@@ -259,18 +261,16 @@ export function saveDemoNutrition(input: {
   date?: string;
   meal: "breakfast" | "lunch" | "dinner" | "pantry";
   items: FoodItem[];
-  totalCalories?: number;
+  totalCalories?: number | null;
+  summary?: MealNutritionSummary;
   append?: boolean;
 }) {
   const date = input.date ?? todayISO();
   const records = readDemoRecordOverrides();
   const current = records.nutritions[date] ?? { ...demoNutrition, id: `demo-nutrition-${date}`, record_date: date };
-  const key = `${input.meal}_items` as "breakfast_items" | "lunch_items" | "dinner_items" | "pantry_items";
-  const mealItems = input.append ? [...(current[key] ?? []), ...input.items] : input.items;
-  const record = { ...current, [key]: mealItems } as NutritionRecord;
-  const allItems = [record.breakfast_items, record.lunch_items, record.dinner_items, record.pantry_items]
-    .flatMap((items) => items ?? []);
-  record.total_calories = input.totalCalories ?? allItems.reduce((sum, item) => sum + (Number(item.calories) || 0), 0);
+  const { selectedItems: _items, selectedSummary: _summary, unchanged: _unchanged, ...mutation } = buildNutritionMutation({ current, meal: input.meal, items: input.items, append: input.append === true, summary: input.summary ?? summaryFromItems(input.items) });
+  void _items; void _summary; void _unchanged;
+  const record = { ...current, ...mutation } as NutritionRecord;
   records.nutritions[date] = record;
   writeDemoRecordOverrides(records);
   return record;

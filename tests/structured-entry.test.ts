@@ -285,6 +285,34 @@ test("photo-meal follow-up adjusts named actual portions and keeps item totals c
   assert.equal((kcalCorrected.payload.items as Array<Record<string, unknown>>)[0].calories, 200);
 });
 
+test("AI confirmation clears explicit numbers without fabricating zero", () => {
+  const candidate = parseStructuredEntry("步数4000", "zh", { dataType: "exercise", extractedData: { steps: 4000 } }, { allowLocalHealthFallback: false })!;
+  const field = candidate.fields.find((item) => item.path === "steps")!;
+  const cleared = updateStructuredEntryField(candidate, field.id, "");
+  assert.equal(cleared.payload.steps, null);
+  assert.equal(updateStructuredEntryField(cleared, field.id, "0").payload.steps, 0);
+});
+
+test("text nutrition preserves unknown item energy and known zero macros with consistent totals", () => {
+  const candidate = parseStructuredEntry("米饭和炖菜", "zh", { dataType: "nutrition", extractedData: {
+    totalCalories: 500, proteinGrams: 12, fatGrams: 0,
+    items: [{ name: "米饭", calories: 200, protein_grams: 12 }, { name: "炖菜" }],
+  } }, { allowLocalHealthFallback: false })!;
+  assert.equal(candidate.payload.totalCalories, null);
+  assert.equal(candidate.payload.proteinGrams, 12);
+  assert.equal(candidate.payload.fatGrams, 0);
+  const items = candidate.payload.items as Array<Record<string, unknown>>;
+  assert.equal(items[1].calories, null);
+  assert.equal(items[0].protein_grams, 12);
+  const calorieField = candidate.fields.find((item) => item.path === "items.1.calories")!;
+  const corrected = updateStructuredEntryField(candidate, calorieField.id, "300");
+  assert.equal(corrected.payload.totalCalories, 500);
+  assert.equal(corrected.payload.proteinGrams, 12);
+  assert.equal(updateStructuredEntryField(corrected, calorieField.id, "").payload.totalCalories, null);
+  const quantityField = candidate.fields.find((item) => item.path === "items.1.quantity")!;
+  assert.equal(updateStructuredEntryField(candidate, quantityField.id, "2").payload.totalCalories, null);
+});
+
 test("AI multi extraction becomes one multi-record confirmation card", () => {
   const entry = parseStructuredEntry("今天心情很好，还吃了披萨", "zh", {
     dataType: "multi",

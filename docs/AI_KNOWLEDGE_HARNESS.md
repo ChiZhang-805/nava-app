@@ -270,12 +270,23 @@ inferred from the photo or from a user's vague answer.
 - Encouragement evidence is read on the server using the authenticated owner,
   explicit AI consent and the device-local seven-day window. Declined consent
   prevents health-table reads. Each citation binds domain, actual numeric value
-  and original unit; the model receives server-formatted citation strings to copy.
-  Cross-domain observations require two saved domains and do not imply causation.
+  and original unit. The v2 contract gives the model domain names only and asks for
+  one task action. The server appends two exact, original-date facts; this is task
+  encouragement plus saved-record context, NOT model analysis of those values or
+  a causal/cross-domain interpretation. No evidence means no personal health claim.
+  The model action is limited to 24 Chinese characters / 18 English words, and the
+  composed display to 80 characters / 55 words. Numeric/causal health claims are
+  rejected with bounded repair. An exact task-title fragment may be quoted in 「」
+  to distinguish a research subject from a claim about the user's health.
+  Tests cover injected extra facts, original dates, no-evidence claims and ordinary
+  English task steps. These guardrails are not proof of unrestricted semantic safety.
 - Frontend validates the same contract, presents errors and retry, and cancels
   requests on pause/close/navigation. Backend cancellation is linked to the incoming
   request and the deadline also covers evidence reads. No focus/health save or reward
   occurs from these advice calls. Priority still requires explicit confirmation.
+  Above 12 unfinished tasks the UI explains the limit and disables ordering; it
+  does not silently submit only the first 12. Sorting an arbitrary larger list is
+  not implemented by this limit fix.
 - Real authenticated model tests passed Chinese/English 2/5/12-task sorting, long-title
   difficulty and starting cues. Real account APP clicks passed all four entry points.
   Separate accelerated-clock tests cover opt-in intervals, pause/reset and the

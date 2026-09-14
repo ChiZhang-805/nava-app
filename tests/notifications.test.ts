@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { replaceNotificationSchedules } from "../src/services/notificationSchedule.ts";
 import { buildContextualNotificationDrafts } from "../src/services/notificationPlanner.ts";
 import type { TodaySnapshot } from "../src/types.ts";
 
@@ -98,4 +99,42 @@ test("hydration, recovery, and cross-module reminders require saved evidence", (
   assert.ok(ids.includes(`context:${snapshot.date}:exercise-recovery`));
   assert.ok(ids.includes(`context:${snapshot.date}:cross-state`));
   assert.ok(ids.includes(`context:${snapshot.date}:hydration`));
+});
+
+test("missing activity and nutrition numbers do not become low or zero evidence", () => {
+  const snapshot = emptySnapshot();
+  snapshot.nutrition = { id: "n", record_date: snapshot.date, total_calories: null, lunch_time: "12:10", hydration_ml: null, ai_feedback: null };
+  const drafts = buildContextualNotificationDrafts(snapshot, 21);
+  assert.equal(drafts.some((item) => item.id.endsWith(":hydration")), false);
+  assert.match(drafts.find((item) => item.id.endsWith(":exercise"))?.body ?? "", /缺失记录不代表没有活动/);
+});
+
+test("mixed face modes cannot trigger a three-record comparison reminder", () => {
+  const snapshot = emptySnapshot();
+  const base = { id: "f", record_date: snapshot.date, image_path: null, overall_score: 40, skin_age: null, annotations: [], feedback: null, model_version: null, capture_mode: "bare_face" as const };
+  snapshot.face = base;
+  const trends = { moods: [], sleeps: [], exercises: [], nutritions: [], faces: [
+    { ...base, id: "f1", record_date: "2026-09-03" },
+    { ...base, id: "f2", record_date: "2026-09-04", capture_mode: "makeup" as const },
+    base,
+  ] };
+  assert.equal(buildContextualNotificationDrafts(snapshot, 21, "zh", trends).some((item) => item.id.endsWith(":face-trend")), false);
+  trends.faces[1] = { ...base, id: "f2", record_date: "2026-09-04" };
+  assert.equal(buildContextualNotificationDrafts(snapshot, 21, "zh", trends).some((item) => item.id.endsWith(":face-trend")), true);
+});
+
+test("updating sleep/weekly schedules leaves four other modules and unrelated apps intact", async () => {
+  const pending = new Map([41001,41002,41003,41004,41005,41006,99999].map((id) => [id, "original"]));
+  const adapter = {
+    async cancel({ notifications }: { notifications: { id: number }[] }) { for (const item of notifications) pending.delete(item.id); },
+    async schedule({ notifications }: { notifications: { id: number; time: string }[] }) { for (const item of notifications) pending.set(item.id, item.time); },
+  };
+  await replaceNotificationSchedules(adapter, [{ id: 41001, time: "23:00" }, { id: 41002, time: "08:00" }]);
+  assert.equal(pending.get(41001), "23:00");
+  for (const id of [41003,41004,41005,41006,99999]) assert.equal(pending.get(id), "original");
+  await replaceNotificationSchedules(adapter, []);
+  assert.equal(pending.size, 7);
+  await assert.rejects(() => replaceNotificationSchedules(adapter, [{ id: 1, time: "x" }, { id: 1, time: "y" }]), /Duplicate/);
+  await assert.rejects(() => replaceNotificationSchedules({ ...adapter, schedule: async () => { throw new Error("Device refused schedule"); } }, [{ id: 41001, time: "22:00" }]), /Device refused/);
+  for (const id of [41003,41004,41005,41006,99999]) assert.equal(pending.get(id), "original");
 });

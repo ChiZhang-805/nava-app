@@ -78,7 +78,7 @@ export interface NutritionRecord {
   id: string;
   user_id?: string;
   record_date: string;
-  total_calories: number;
+  total_calories: number | null;
   breakfast_photo_url?: string | null;
   lunch_photo_url?: string | null;
   dinner_photo_url?: string | null;
@@ -105,18 +105,18 @@ export interface FoodItem {
   source_id?: string;
   nutrition_source?: "vision_estimate" | "usda_fdc" | "user_corrected";
   nutrition_source_id?: string;
-  calories?: number;
+  calories?: number | null;
   amount?: string;
   weight_grams?: number;
-  protein_grams?: number;
-  carbohydrate_grams?: number;
-  fat_grams?: number;
+  protein_grams?: number | null;
+  carbohydrate_grams?: number | null;
+  fat_grams?: number | null;
   confidence?: number;
   meal_summary?: {
-    protein_grams: number;
-    carbohydrate_grams: number;
-    fat_grams: number;
-    hydration_ml: number;
+    protein_grams: number | null;
+    carbohydrate_grams: number | null;
+    fat_grams: number | null;
+    hydration_ml: number | null;
     health_rating?: number;
   };
 }
@@ -260,10 +260,10 @@ export interface DietExtractResult {
   note?: string;
   analysisAvailable?: boolean;
   totals?: {
-    calories: number;
-    proteinGrams: number;
-    carbohydrateGrams: number;
-    fatGrams: number;
+    calories: number | null;
+    proteinGrams: number | null;
+    carbohydrateGrams: number | null;
+    fatGrams: number | null;
   };
 }
 

@@ -31,6 +31,7 @@ import {
   buildNutritionMutation,
   type MealNutritionSummary,
   type NutritionMeal,
+  summaryFromItems,
 } from "./nutritionIntegrity";
 
 function asArray<T>(value: unknown): T[] {
@@ -368,9 +369,9 @@ async function dedupeExerciseRecords(userId: string, date: string, keepId: strin
 export async function saveExerciseRecord(input: {
   userId: string;
   date?: string;
-  steps?: number;
-  calories?: number;
-  minutes?: number;
+  steps?: number | null;
+  calories?: number | null;
+  minutes?: number | null;
   heartRate?: string;
   spo2?: string;
   rating?: number;
@@ -379,24 +380,19 @@ export async function saveExerciseRecord(input: {
   fatigueLevel?: number;
   hasInjury?: boolean;
   injuryNote?: string;
-  recoveryEstimateMinHours?: number;
-  recoveryEstimateMaxHours?: number;
-  recoveryEstimateConfidence?: number;
-  recoveryEstimateBasis?: Record<string, unknown>;
+  recoveryEstimateMinHours?: number | null;
+  recoveryEstimateMaxHours?: number | null;
+  recoveryEstimateConfidence?: number | null;
+  recoveryEstimateBasis?: Record<string, unknown> | null;
   recoveryStatus?: "recovered" | "improving" | "not_recovered";
   source?: "manual" | "apple_health";
 }) {
-  if (input.steps == null && input.calories == null && input.minutes == null
+  if (input.steps === undefined && input.calories === undefined && input.minutes === undefined
     && input.heartRate == null && input.spo2 == null && input.rating == null && input.note == null
     && input.sorenessLevel == null && input.fatigueLevel == null && input.hasInjury == null) {
     throw new Error("没有可保存的运动数据。");
   }
-  if (isDemoMode()) return saveDemoExercise({
-    ...input,
-    steps: input.steps ?? 0,
-    calories: input.calories ?? 0,
-    minutes: input.minutes ?? 0,
-  });
+  if (isDemoMode()) return saveDemoExercise(input);
 
   const recordDate = normalizeRecordDate(input.date);
   const rating = ratingValue(input.rating, "运动自评分");
@@ -415,9 +411,9 @@ export async function saveExerciseRecord(input: {
   const payload: Record<string, unknown> = {
     user_id: input.userId,
     record_date: recordDate,
-    ...(input.steps != null ? { steps: nonNegativeInt(input.steps, "步数") } : {}),
-    ...(input.calories != null ? { calories: nonNegativeInt(input.calories, "消耗热量") } : {}),
-    ...(input.minutes != null ? { exercise_minutes: nonNegativeInt(input.minutes, "运动分钟") } : {}),
+    ...(input.steps !== undefined ? { steps: input.steps === null ? null : nonNegativeInt(input.steps, "步数") } : {}),
+    ...(input.calories !== undefined ? { calories: input.calories === null ? null : nonNegativeInt(input.calories, "消耗热量") } : {}),
+    ...(input.minutes !== undefined ? { exercise_minutes: input.minutes === null ? null : nonNegativeInt(input.minutes, "运动分钟") } : {}),
     ...(input.heartRate != null ? { heart_rate: input.heartRate.trim() || null } : {}),
     ...(input.spo2 != null ? { spo2: input.spo2.trim() || null } : {}),
     ...(rating != null ? { self_rating: rating } : {}),
@@ -426,18 +422,18 @@ export async function saveExerciseRecord(input: {
     ...(fatigueLevel != null ? { fatigue_level: fatigueLevel } : {}),
     ...(input.hasInjury != null ? { has_injury: input.hasInjury } : {}),
     ...(input.injuryNote != null ? { injury_note: input.injuryNote.trim() || null } : {}),
-    ...(input.recoveryEstimateMinHours != null ? { recovery_estimate_min_hours: nonNegativeInt(input.recoveryEstimateMinHours, "恢复估算下限") } : {}),
-    ...(input.recoveryEstimateMaxHours != null ? { recovery_estimate_max_hours: nonNegativeInt(input.recoveryEstimateMaxHours, "恢复估算上限") } : {}),
-    ...(input.recoveryEstimateConfidence != null ? { recovery_estimate_confidence: Math.min(1, Math.max(0, input.recoveryEstimateConfidence)) } : {}),
-    ...(input.recoveryEstimateBasis != null ? { recovery_estimate_basis: input.recoveryEstimateBasis } : {}),
+    ...(input.recoveryEstimateMinHours !== undefined ? { recovery_estimate_min_hours: input.recoveryEstimateMinHours === null ? null : nonNegativeInt(input.recoveryEstimateMinHours, "恢复估算下限") } : {}),
+    ...(input.recoveryEstimateMaxHours !== undefined ? { recovery_estimate_max_hours: input.recoveryEstimateMaxHours === null ? null : nonNegativeInt(input.recoveryEstimateMaxHours, "恢复估算上限") } : {}),
+    ...(input.recoveryEstimateConfidence !== undefined ? { recovery_estimate_confidence: input.recoveryEstimateConfidence === null ? null : Math.min(1, Math.max(0, input.recoveryEstimateConfidence)) } : {}),
+    ...(input.recoveryEstimateBasis !== undefined ? { recovery_estimate_basis: input.recoveryEstimateBasis } : {}),
     ...(input.recoveryStatus != null ? { recovery_status: input.recoveryStatus, recovery_checked_at: new Date().toISOString() } : {}),
     ...(!existing || hasAllActivityMetrics ? { device_type: input.source ?? "manual" } : {}),
   };
 
   if (!existing) {
-    payload.steps ??= 0;
-    payload.calories ??= 0;
-    payload.exercise_minutes ??= 0;
+    payload.steps ??= null;
+    payload.calories ??= null;
+    payload.exercise_minutes ??= null;
   }
 
   const response = existing
@@ -454,30 +450,32 @@ export async function saveNutritionRecord(input: {
   date?: string;
   meal: "breakfast" | "lunch" | "dinner" | "pantry";
   item: FoodItem;
-  totalCalories: number;
-  proteinGrams?: number;
-  carbohydrateGrams?: number;
-  fatGrams?: number;
-  hydrationMl?: number;
+  totalCalories: number | null;
+  proteinGrams?: number | null;
+  carbohydrateGrams?: number | null;
+  fatGrams?: number | null;
+  hydrationMl?: number | null;
   healthRating?: number;
   photoUrl?: string;
   mealTime?: string;
 }) {
   const [validatedItem] = validatedFoodItems([input.item]);
-  if (isDemoMode()) return saveDemoNutrition({ date: input.date, meal: input.meal, items: [validatedItem], totalCalories: input.totalCalories, append: true });
-  const itemCalories = nonNegativeInt(validatedItem.calories ?? input.totalCalories, "食物热量");
+  const rawCalories = validatedItem.calories === undefined ? input.totalCalories : validatedItem.calories;
+  const itemCalories = rawCalories == null ? null : nonNegativeInt(rawCalories, "食物热量");
   const item: FoodItem = {
     ...validatedItem,
     calories: itemCalories,
-    ...(input.proteinGrams != null ? { protein_grams: input.proteinGrams } : {}),
-    ...(input.carbohydrateGrams != null ? { carbohydrate_grams: input.carbohydrateGrams } : {}),
-    ...(input.fatGrams != null ? { fat_grams: input.fatGrams } : {}),
+    ...(input.proteinGrams !== undefined ? { protein_grams: input.proteinGrams } : {}),
+    ...(input.carbohydrateGrams !== undefined ? { carbohydrate_grams: input.carbohydrateGrams } : {}),
+    ...(input.fatGrams !== undefined ? { fat_grams: input.fatGrams } : {}),
   };
+  const summary = nutritionInputSummary({ ...input, items: [item] });
+  if (isDemoMode()) return saveDemoNutrition({ ...input, items: [item], summary, append: true });
   return mutateNutritionMeal({
     ...input,
     items: [item],
     append: true,
-    summary: nutritionInputSummary(input),
+    summary,
   });
 }
 
@@ -487,17 +485,17 @@ export async function saveNutritionItems(input: {
   meal: "breakfast" | "lunch" | "dinner" | "pantry";
   items: FoodItem[];
   photoUrl?: string;
-  proteinGrams?: number;
-  carbohydrateGrams?: number;
-  fatGrams?: number;
-  hydrationMl?: number;
+  proteinGrams?: number | null;
+  carbohydrateGrams?: number | null;
+  fatGrams?: number | null;
+  hydrationMl?: number | null;
   healthRating?: number;
   mealTime?: string;
   append?: boolean;
 }) {
   if (input.items.length === 0) throw new Error("没有可保存的食物条目。");
   const items = validatedFoodItems(input.items);
-  if (isDemoMode()) return saveDemoNutrition({ date: input.date, meal: input.meal, items });
+  if (isDemoMode()) return saveDemoNutrition({ ...input, items, summary: nutritionInputSummary({ ...input, items }) });
 
   return mutateNutritionMeal({
     ...input,
@@ -509,23 +507,21 @@ export async function saveNutritionItems(input: {
 
 function nutritionInputSummary(input: {
   items?: FoodItem[];
-  proteinGrams?: number;
-  carbohydrateGrams?: number;
-  fatGrams?: number;
-  hydrationMl?: number;
+  proteinGrams?: number | null;
+  carbohydrateGrams?: number | null;
+  fatGrams?: number | null;
+  hydrationMl?: number | null;
   healthRating?: number;
 }): MealNutritionSummary {
-  const sum = (key: "protein_grams" | "carbohydrate_grams" | "fat_grams") =>
-    (input.items ?? []).reduce((total, item) => total + (Number(item[key]) || 0), 0);
-  const normalize = (value: number | undefined, fallback: number, fieldName: string) => value == null
-    ? Math.max(0, fallback)
-    : nonNegativeNumber(value, fieldName);
+  const fallback = summaryFromItems(input.items ?? []);
+  const normalize = (value: number | null | undefined, derived: number | null, fieldName: string) =>
+    value === undefined ? derived : value === null ? null : nonNegativeNumber(value, fieldName);
   const healthRating = ratingValue(input.healthRating, "饮食自评分");
   return {
-    protein_grams: normalize(input.proteinGrams, sum("protein_grams"), "蛋白质"),
-    carbohydrate_grams: normalize(input.carbohydrateGrams, sum("carbohydrate_grams"), "碳水化合物"),
-    fat_grams: normalize(input.fatGrams, sum("fat_grams"), "脂肪"),
-    hydration_ml: normalize(input.hydrationMl, 0, "饮水量"),
+    protein_grams: normalize(input.proteinGrams, fallback.protein_grams, "蛋白质"),
+    carbohydrate_grams: normalize(input.carbohydrateGrams, fallback.carbohydrate_grams, "碳水化合物"),
+    fat_grams: normalize(input.fatGrams, fallback.fat_grams, "脂肪"),
+    hydration_ml: normalize(input.hydrationMl, null, "饮水量"),
     ...(healthRating == null ? {} : { health_rating: healthRating }),
   };
 }
@@ -575,9 +571,10 @@ async function mutateNutritionMeal(input: {
       append: input.append,
     });
     const photoKey = `${input.meal}_photo_url`;
+    if (mutation.unchanged) return current as NutritionRecord;
     const timeKey = `${input.meal}_time`;
     const dailyPayload = Object.fromEntries(Object.entries(mutation)
-      .filter(([key]) => key !== "selectedItems" && key !== "selectedSummary"));
+      .filter(([key]) => key !== "selectedItems" && key !== "selectedSummary" && key !== "unchanged"));
     const payload: Record<string, unknown> = {
       user_id: input.userId,
       record_date: recordDate,

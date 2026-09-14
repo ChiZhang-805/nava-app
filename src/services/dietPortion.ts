@@ -1,4 +1,5 @@
 import type { FoodItem } from "../types";
+import { scaleKnown, sumKnown } from "./recordNumbers.ts";
 
 function nonNegative(value: number) {
   return Number.isFinite(value) ? Math.max(0, value) : 0;
@@ -18,23 +19,24 @@ export function resizeFoodItemPortion(item: FoodItem, nextWeightGrams: number): 
     ...item,
     weight_grams: weight,
     amount: `${weight}g`,
-    calories: Math.round(nonNegative(Number(item.calories)) * ratio),
-    protein_grams: oneDecimal(Number(item.protein_grams) * ratio),
-    carbohydrate_grams: oneDecimal(Number(item.carbohydrate_grams) * ratio),
-    fat_grams: oneDecimal(Number(item.fat_grams) * ratio),
+    calories: scaleKnown(item.calories, ratio, 0),
+    protein_grams: scaleKnown(item.protein_grams, ratio),
+    carbohydrate_grams: scaleKnown(item.carbohydrate_grams, ratio),
+    fat_grams: scaleKnown(item.fat_grams, ratio),
     nutrition_source: "user_corrected",
   };
 }
 
-export function correctFoodItemCalories(item: FoodItem, nextCalories: number): FoodItem {
-  return { ...item, calories: Math.round(nonNegative(nextCalories)), nutrition_source: "user_corrected" };
+export function correctFoodItemCalories(item: FoodItem, nextCalories: number | null): FoodItem {
+  if (nextCalories !== null && (!Number.isFinite(nextCalories) || nextCalories < 0)) return item;
+  return { ...item, calories: scaleKnown(nextCalories, 1, 0), nutrition_source: "user_corrected" };
 }
 
 export function sumFoodItemNutrition(items: FoodItem[]) {
   return {
-    calories: Math.round(items.reduce((sum, item) => sum + nonNegative(Number(item.calories)), 0)),
-    proteinGrams: oneDecimal(items.reduce((sum, item) => sum + nonNegative(Number(item.protein_grams)), 0)),
-    carbohydrateGrams: oneDecimal(items.reduce((sum, item) => sum + nonNegative(Number(item.carbohydrate_grams)), 0)),
-    fatGrams: oneDecimal(items.reduce((sum, item) => sum + nonNegative(Number(item.fat_grams)), 0)),
+    calories: scaleKnown(sumKnown(items.map((item) => item.calories)), 1, 0),
+    proteinGrams: sumKnown(items.map((item) => item.protein_grams)),
+    carbohydrateGrams: sumKnown(items.map((item) => item.carbohydrate_grams)),
+    fatGrams: sumKnown(items.map((item) => item.fat_grams)),
   };
 }

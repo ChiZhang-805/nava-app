@@ -1,3 +1,4 @@
+import { sumFoodItemNutrition } from "../services/dietPortion";
 import type { User } from "@supabase/supabase-js";
 import { Camera, Check, FileText, Image as ImageIcon, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, Plus, SendHorizontal, Sparkles, Trash2, X } from "lucide-react";
 import { Fragment, FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
@@ -58,12 +59,8 @@ function mealLabel(meal: MealType, locale: "zh" | "en") {
 }
 
 function buildPhotoNutritionEntry(result: DietExtractResult, meal: MealType, date: string, locale: "zh" | "en"): StructuredEntry {
-  const totals = result.totals ?? {
-    calories: result.items.reduce((sum, item) => sum + (Number(item.calories) || 0), 0),
-    proteinGrams: result.items.reduce((sum, item) => sum + (Number(item.protein_grams) || 0), 0),
-    carbohydrateGrams: result.items.reduce((sum, item) => sum + (Number(item.carbohydrate_grams) || 0), 0),
-    fatGrams: result.items.reduce((sum, item) => sum + (Number(item.fat_grams) || 0), 0),
-  };
+  const totals = result.totals ?? sumFoodItemNutrition(result.items);
+  const amountText = (value: number | null | undefined) => value == null ? "" : String(value);
   const fields: StructuredEntry["fields"] = result.items.flatMap((item, index) => [
     ...(Number(item.weight_grams) > 0 ? [{
       id: crypto.randomUUID(),
@@ -76,17 +73,17 @@ function buildPhotoNutritionEntry(result: DietExtractResult, meal: MealType, dat
     {
       id: crypto.randomUUID(),
       label: `${item.name}${locale === "zh" ? " · 估算热量" : " · estimated calories"}`,
-      value: String(Math.max(0, Math.round(Number(item.calories) || 0))),
+      value: amountText(item.calories),
       unit: locale === "zh" ? "千卡" : "kcal",
       path: `items.${index}.calories`,
       valueType: "number" as const,
     },
   ]);
   fields.push(
-    { id: crypto.randomUUID(), label: locale === "zh" ? "估算总热量" : "Estimated total calories", value: String(Math.max(0, Math.round(totals.calories))), unit: locale === "zh" ? "千卡" : "kcal", path: "totalCalories", valueType: "number" as const, readOnly: true },
-    { id: crypto.randomUUID(), label: locale === "zh" ? "蛋白质摄入量" : "Protein", value: String(Math.max(0, totals.proteinGrams)), unit: "g", path: "proteinGrams", valueType: "number" as const, readOnly: true },
-    { id: crypto.randomUUID(), label: locale === "zh" ? "碳水摄入量" : "Carbohydrates", value: String(Math.max(0, totals.carbohydrateGrams)), unit: "g", path: "carbohydrateGrams", valueType: "number" as const, readOnly: true },
-    { id: crypto.randomUUID(), label: locale === "zh" ? "脂肪摄入量" : "Fat", value: String(Math.max(0, totals.fatGrams)), unit: "g", path: "fatGrams", valueType: "number" as const, readOnly: true },
+    { id: crypto.randomUUID(), label: locale === "zh" ? "估算总热量" : "Estimated total calories", value: amountText(totals.calories), unit: locale === "zh" ? "千卡" : "kcal", path: "totalCalories", valueType: "number" as const, readOnly: true },
+    { id: crypto.randomUUID(), label: locale === "zh" ? "蛋白质摄入量" : "Protein", value: amountText(totals.proteinGrams), unit: "g", path: "proteinGrams", valueType: "number" as const, readOnly: true },
+    { id: crypto.randomUUID(), label: locale === "zh" ? "碳水摄入量" : "Carbohydrates", value: amountText(totals.carbohydrateGrams), unit: "g", path: "carbohydrateGrams", valueType: "number" as const, readOnly: true },
+    { id: crypto.randomUUID(), label: locale === "zh" ? "脂肪摄入量" : "Fat", value: amountText(totals.fatGrams), unit: "g", path: "fatGrams", valueType: "number" as const, readOnly: true },
   );
   const names = result.items.map((item) => item.name).join(locale === "zh" ? "、" : ", ");
   return {
@@ -101,11 +98,11 @@ function buildPhotoNutritionEntry(result: DietExtractResult, meal: MealType, dat
       meal,
       name: names,
       items: result.items,
-      totalCalories: Math.max(0, Math.round(totals.calories)),
-      calories: Math.max(0, Math.round(totals.calories)),
-      proteinGrams: Math.max(0, totals.proteinGrams),
-      carbohydrateGrams: Math.max(0, totals.carbohydrateGrams),
-      fatGrams: Math.max(0, totals.fatGrams),
+      totalCalories: totals.calories,
+      calories: totals.calories,
+      proteinGrams: totals.proteinGrams,
+      carbohydrateGrams: totals.carbohydrateGrams,
+      fatGrams: totals.fatGrams,
       photoUrl: result.imagePath,
       visionProvider: result.provider,
       visionModel: result.modelVersion,

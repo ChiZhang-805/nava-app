@@ -93,7 +93,16 @@ Deno.serve(async (req) => {
     enforceRateLimit(`${user.id}:${address}`, authenticatedRequestsPerWindow);
 
     const lang: ReplyLanguage = stringValue(body.lang) === "en" || stringValue(body.language) === "en" ? "en" : "zh";
-    if (focusRequest) return jsonResponse(await buildFocusReply(userClient, user.id, focusRequest, lang, body.deviceDate, req.signal));
+    if (focusRequest) {
+      const result = await buildFocusReply(userClient, user.id, focusRequest, lang, body.deviceDate, req.signal);
+      // Keep already-open v148 tabs functional during and after a dual-site rollout.
+      // Legacy clients validate the composed, factual reply; v2 clients validate
+      // the action separately and compose it from the same typed server evidence.
+      if (focusRequest.kind === "encouragement" && body.focusContractVersion !== 2) {
+        return jsonResponse({ ...result, output: { ...result.output, reply: result.reply } });
+      }
+      return jsonResponse(result);
+    }
     const baseInput: Pick<ReplyInput, "message" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode"> = {
       message,
       deviceDate: stringValue(body.deviceDate) ?? stringValue(body.device_date),
@@ -110,7 +119,7 @@ Deno.serve(async (req) => {
     const reply = await buildReply(await prepareInput());
     return jsonResponse(reply);
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, error instanceof Error && error.name === "FocusTimeoutError" ? 504 : 400);
   }
 });
 
@@ -136,7 +145,14 @@ async function buildFocusReply(client: SupabaseClient, userId: string, request: 
       const data = await response.json();
       return String(data?.choices?.[0]?.message?.content ?? "").trim();
     });
-    return { ...result, provider: "deepseek", modelVersion: `${deepSeekModel}-focus-v1`, actions: [], knowledgeTrace: [] };
+    return { ...result, provider: "deepseek", modelVersion: `${deepSeekModel}-focus-v2`, actions: [], knowledgeTrace: [] };
+  } catch (error) {
+    if (controller.signal.aborted && !requestSignal.aborted) {
+      const deadlineError = new Error(lang === "zh" ? "AI 响应超时，请稍后重试。你的记录没有被修改。" : "AI response timed out. Please retry; your records have not been changed.");
+      deadlineError.name = "FocusTimeoutError";
+      throw deadlineError;
+    }
+    throw error;
   } finally { clearTimeout(timeout); requestSignal.removeEventListener("abort", cancel); }
 }
 

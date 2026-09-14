@@ -44,18 +44,37 @@ test("cue and encouragement enforce their real lengths, sentence count and saved
   assert.throws(() => validateFocusOutput(JSON.stringify({ reply: "word ".repeat(19) }), cue, "en"), /too_long/);
   assert.throws(() => validateFocusOutput('{"reply":"。"}', cue, "zh"), /empty_sentence/);
   const request = validateFocusRequest({ kind: "encouragement", title: "notes", elapsedMinutes: 15 });
-  assert.throws(() => validateFocusOutput(JSON.stringify({ reply: "写".repeat(81), citedDomains: [] }), request, "zh"), /too_long/);
+  assert.throws(() => validateFocusOutput(JSON.stringify({ reply: "写".repeat(25), citedDomains: [] }), request, "zh"), /too_long/);
   assert.throws(() => validateFocusOutput(JSON.stringify({ reply: "写一句。再写一句。还有一句。", citedDomains: [] }), request, "zh"), /too_many/);
   const evidence: FocusEvidence[] = [{ domain: "sleep", date: "2026-09-13", value: 420, unit: "minutes" }, { domain: "mood", date: "2026-09-13", value: 70, unit: "score" }];
-  const raw = JSON.stringify({ reply: "先整理下一段笔记。记录中睡眠420分钟、情绪70分，可留意此刻感受。", citedDomains: ["sleep", "mood"] });
+  const raw = JSON.stringify({ reply: "先整理下一段笔记。", citedDomains: ["sleep", "mood"] });
   assert.equal(validateFocusOutput(raw, request, "zh", evidence).evidence.length, 2);
   assert.throws(() => validateFocusOutput(raw, request, "zh", []), /invalid_evidence/);
-  assert.throws(() => validateFocusOutput(raw.replace("420", "500"), request, "zh", evidence), /actual_domain_value/);
-  assert.throws(() => validateFocusOutput(raw.replace("睡眠420分钟、情绪70分", "睡眠70分钟、情绪420分"), request, "zh", evidence), /actual_domain_value/);
-  assert.throws(() => validateFocusOutput(raw.replace("420分钟", "420小时"), request, "zh", evidence), /actual_domain_value/);
-  assert.equal(validateFocusOutput(JSON.stringify({ reply: "Organize the next paragraph. Saved sleep 420 minutes and mood 70 points may help you reflect.", citedDomains: ["sleep", "mood"] }), request, "en", evidence).evidence.length, 2);
+  assert.match(validateFocusOutput(raw, request, "zh", evidence).reply, /2026-09-13 睡眠420分钟；2026-09-13 情绪70分/);
+  for (const reply of ["今天睡眠420分钟、情绪70分。", "先开始，运动900分钟。", "先开始，但其实睡眠800分钟。", "你昨晚睡眠不足，应减少运动。"])
+    assert.throws(() => validateFocusOutput(JSON.stringify({ reply, citedDomains: ["sleep", "mood"] }), request, "zh", evidence));
+  assert.throws(() => validateFocusOutput(JSON.stringify({ reply: "你昨晚睡眠不足，应减少运动。", citedDomains: [] }), request, "zh", []), /health_facts/);
+  assert.equal(validateFocusOutput(JSON.stringify({ reply: "Organize the next paragraph.", citedDomains: ["sleep", "mood"] }), request, "en", evidence).evidence.length, 2);
+  for (const reply of ["先根据你38℃的体温调整安排。", "Start slowly because your temperature is 39 degrees."])
+    assert.throws(() => validateFocusOutput(JSON.stringify({ reply, citedDomains: [] }), request, reply.startsWith("先") ? "zh" : "en", []));
+  assert.equal(validateFocusOutput(JSON.stringify({ reply: "Break the task into smaller steps.", citedDomains: [] }), request, "en", []).evidence.length, 0);
+  assert.match(validateFocusOutput(JSON.stringify({ reply: "先整理「睡眠研究」的下一段笔记。", citedDomains: [] }), { ...request, title: "整理睡眠研究" }, "zh", []).reply, /睡眠研究/);
   assert.throws(() => validateFocusOutput(JSON.stringify({ reply: "先整理下一段笔记。", citedDomains: [] }), request, "zh", evidence), /cite_two/);
   assert.equal(validateFocusOutput(JSON.stringify({ reply: "先整理下一段笔记。", citedDomains: [] }), request, "zh", []).evidence.length, 0);
+});
+
+test("encouragement keeps original evidence dates and sends no health values to the model", async () => {
+  const evidence: FocusEvidence[] = [
+    { domain: "sleep", date: "2026-09-11", value: 420, unit: "minutes" },
+    { domain: "mood", date: "2026-09-13", value: 70, unit: "score" },
+  ];
+  const result = await generateValidatedFocus({ kind: "encouragement", title: "整理笔记", elapsedMinutes: 12 }, "zh", evidence, async (messages) => {
+    assert.deepEqual(JSON.parse(messages[1].content).savedEvidence, [{ domain: "sleep" }, { domain: "mood" }]);
+    return JSON.stringify({ reply: "先整理下一段笔记。", citedDomains: ["sleep", "mood"] });
+  });
+  assert.match(result.reply, /2026-09-11 睡眠420分钟/);
+  assert.match(result.reply, /2026-09-13 情绪70分/);
+  assert.doesNotMatch(result.reply, /今天|今日/);
 });
 
 test("difficulty requires structured assessment and clarification when information is missing", () => {

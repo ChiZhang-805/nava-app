@@ -118,6 +118,7 @@ async function requestFocusAi(input: FocusRequest, lang: "zh" | "en", signal?: A
     headers: await authenticatedFunctionHeaders(),
     body: {
       focusRequest,
+      focusContractVersion: 2,
       lang,
       responseMode: "text",
       deviceDate: todayISO(),

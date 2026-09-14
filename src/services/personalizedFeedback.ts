@@ -83,7 +83,7 @@ export function buildModuleFeedback({
     return locale === "zh" ? `昨晚睡眠 ${Math.floor(current / 60)} 小时 ${current % 60} 分，较近七日平均${delta >= 0 ? "多" : "少"} ${Math.abs(delta)} 分钟。${sleepSchedule ? `你的画像作息为“${sleepSchedule}”，建议优先稳定入睡时间。` : suffix}` : `Last night was ${Math.floor(current / 60)}h ${current % 60}m, ${Math.abs(delta)} minutes ${delta >= 0 ? "above" : "below"} your seven-day average. ${sleepSchedule ? `Your profile rhythm is ${sleepSchedule}; keep bedtime consistent.` : suffix}`;
   }
   if (module === "exercise") {
-    const values = trends?.exercises.map((item) => item.steps ?? 0).filter(Boolean) ?? [];
+    const values = trends?.exercises.flatMap((item) => item.steps == null ? [] : [item.steps]) ?? [];
     const current = snapshot?.exercise?.steps;
     if (current == null) return locale === "zh" ? "同步步数或记录一次运动后，NAVA 会评估活动量与恢复节奏。" : "Sync steps or log a workout to assess activity and recovery rhythm.";
     const avg = Math.round(average(values.length > 0 ? values : [current]));
@@ -94,10 +94,11 @@ export function buildModuleFeedback({
     const records = trends?.nutritions ?? [];
     const current = snapshot?.nutrition;
     if (!current) return locale === "zh" ? "拍摄或手动记录一餐后，NAVA 会汇总餐次完整度与近七日能量变化。" : "Photograph or log a meal to track meal coverage and seven-day energy changes.";
-    const avg = Math.round(average(records.map((item) => item.total_calories).filter(Boolean)) || current.total_calories);
+    const knownCalories = records.flatMap((item) => item.total_calories == null ? [] : [item.total_calories]);
+    const avg = knownCalories.length ? Math.round(average(knownCalories)) : current.total_calories ?? "--";
     const meals = [current.breakfast_items, current.lunch_items, current.dinner_items].filter((items) => (items?.length ?? 0) > 0).length;
     const dietPreference = localizedProfileValue(profile?.diet_preference, locale);
-    return locale === "zh" ? `今天已记录 ${meals}/3 餐，共 ${current.total_calories} kcal；近七日平均 ${avg} kcal。${dietPreference ? `按“${dietPreference}”偏好补齐尚未记录的餐次。` : suffix}` : `${meals}/3 meals logged today, ${current.total_calories} kcal; seven-day average ${avg} kcal. ${dietPreference ? `Complete missing meals with ${dietPreference} in mind.` : suffix}`;
+    return locale === "zh" ? `今天已记录 ${meals}/3 餐，共 ${current.total_calories ?? "--"} kcal；近七日平均 ${avg} kcal。${dietPreference ? `按“${dietPreference}”偏好补齐尚未记录的餐次。` : suffix}` : `${meals}/3 meals logged today, ${current.total_calories ?? "--"} kcal; seven-day average ${avg} kcal. ${dietPreference ? `Complete missing meals with ${dietPreference} in mind.` : suffix}`;
   }
   if (module === "focus") {
     const values = trends?.focus.map((item) => item.total_minutes) ?? [];

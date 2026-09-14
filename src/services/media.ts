@@ -1,5 +1,6 @@
 import { authenticatedFunctionHeaders, supabase } from "./supabaseClient";
 import { isDemoMode } from "./demo";
+import { optionalNonNegative, scaleKnown, sumKnown } from "./recordNumbers";
 import type { DietExtractResult, FaceAnalysisResult, FoodItem } from "../types";
 
 export function fileToDataUrl(file: File) {
@@ -80,19 +81,19 @@ export async function analyzeDietPhoto(input: {
 
   const items: FoodItem[] = (extracted.data?.items ?? []).map((item) => ({
     name: item.name,
-    calories: Math.round(Number(item.calories) || 0),
+    calories: scaleKnown(item.calories, 1, 0),
     amount: item.amount ?? (item.weight_g ? `${Math.round(Number(item.weight_g))}g` : undefined),
     weight_grams: Number(item.weight_g) || undefined,
-    protein_grams: Number(item.protein_g) || undefined,
-    carbohydrate_grams: Number(item.carbohydrate_g) || undefined,
-    fat_grams: Number(item.fat_g) || undefined,
+    protein_grams: optionalNonNegative(item.protein_g),
+    carbohydrate_grams: optionalNonNegative(item.carbohydrate_g),
+    fat_grams: optionalNonNegative(item.fat_g),
     confidence: Number(item.confidence) || undefined,
     nutrition_source: item.nutrition_source ?? "vision_estimate",
     nutrition_source_id: item.nutrition_source_id,
   }));
 
   const sum = (field: "calories" | "protein_grams" | "carbohydrate_grams" | "fat_grams") =>
-    items.reduce((total, item) => total + (Number(item[field]) || 0), 0);
+    sumKnown(items.map((item) => item[field]));
   const totals = extracted.data?.totals;
 
   return {
@@ -105,10 +106,10 @@ export async function analyzeDietPhoto(input: {
     note: extracted.data?.note,
     analysisAvailable: extracted.data?.analysisAvailable ?? items.length > 0,
     totals: {
-      calories: Math.round(Number(totals?.calories) || sum("calories")),
-      proteinGrams: Math.round((Number(totals?.protein_g) || sum("protein_grams")) * 10) / 10,
-      carbohydrateGrams: Math.round((Number(totals?.carbohydrate_g) || sum("carbohydrate_grams")) * 10) / 10,
-      fatGrams: Math.round((Number(totals?.fat_g) || sum("fat_grams")) * 10) / 10,
+      calories: scaleKnown(optionalNonNegative(totals?.calories) ?? sum("calories"), 1, 0),
+      proteinGrams: optionalNonNegative(totals?.protein_g) ?? sum("protein_grams"),
+      carbohydrateGrams: optionalNonNegative(totals?.carbohydrate_g) ?? sum("carbohydrate_grams"),
+      fatGrams: optionalNonNegative(totals?.fat_g) ?? sum("fat_grams"),
     },
   };
 }

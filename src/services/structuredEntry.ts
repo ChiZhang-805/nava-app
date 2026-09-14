@@ -9,6 +9,7 @@ import {
   saveSleepSummaryRecord,
 } from "./records";
 import { addTodo } from "./productivity";
+import { optionalNonNegative, scaleKnown } from "./recordNumbers";
 import { todayISO } from "./date";
 import { refreshFdnbHealth } from "./dnb";
 import { trackAnalyticsEvent } from "./analytics";
@@ -24,6 +25,8 @@ export async function confirmStructuredEntry(userId: string, candidate: Structur
     return { ...candidate, saved };
   }
   const data = candidate.payload;
+  const requiredMetric = candidate.type === "mood" ? "moodScore" : candidate.type === "sleep" ? "durationMinutes" : candidate.type === "focus" ? "minutes" : null;
+  if (requiredMetric && optionalNonNegative(data[requiredMetric]) == null) throw new Error("请填写必需的记录数值后再确认 / Fill the required record value before confirming.");
   if (candidate.type === "todo") {
     return addTodo(
       userId,
@@ -53,9 +56,9 @@ export async function confirmStructuredEntry(userId: string, candidate: Structur
   }
   if (candidate.type === "exercise") await saveExerciseRecord({
     userId,
-    steps: finiteNumber(data.steps),
-    calories: finiteNumber(data.calories),
-    minutes: finiteNumber(data.minutes),
+    steps: data.steps === undefined ? undefined : optionalNonNegative(data.steps),
+    calories: data.calories === undefined ? undefined : optionalNonNegative(data.calories),
+    minutes: data.minutes === undefined ? undefined : optionalNonNegative(data.minutes),
     source: "manual",
   });
   if (candidate.type === "nutrition") {
@@ -67,7 +70,7 @@ export async function confirmStructuredEntry(userId: string, candidate: Structur
           source_id: `${candidate.id}:${index}`,
           amount: item.amount ? String(item.amount) : undefined,
           weight_grams: finiteNumber(item.weight_grams),
-          calories: Math.max(0, Math.round(Number(item.calories ?? 0))),
+          calories: scaleKnown(item.calories, 1, 0),
           protein_grams: finiteNumber(item.protein_grams),
           carbohydrate_grams: finiteNumber(item.carbohydrate_grams),
           fat_grams: finiteNumber(item.fat_grams),
@@ -85,17 +88,17 @@ export async function confirmStructuredEntry(userId: string, candidate: Structur
         items,
         append: true,
         photoUrl: data.photoUrl ? String(data.photoUrl) : undefined,
-        proteinGrams: finiteNumber(data.proteinGrams),
-        carbohydrateGrams: finiteNumber(data.carbohydrateGrams),
-        fatGrams: finiteNumber(data.fatGrams),
+        proteinGrams: data.proteinGrams === undefined ? undefined : optionalNonNegative(data.proteinGrams),
+        carbohydrateGrams: data.carbohydrateGrams === undefined ? undefined : optionalNonNegative(data.carbohydrateGrams),
+        fatGrams: data.fatGrams === undefined ? undefined : optionalNonNegative(data.fatGrams),
         mealTime: new Date().toTimeString().slice(0, 5),
       });
     } else {
       await saveNutritionRecord({
         userId,
         meal: data.meal as "breakfast" | "lunch" | "dinner" | "pantry",
-        item: { name: String(data.name), calories: Number(data.calories ?? 0), source_id: candidate.id },
-        totalCalories: Number(data.calories ?? 0),
+        item: { name: String(data.name), calories: scaleKnown(data.calories, 1, 0), source_id: candidate.id },
+        totalCalories: scaleKnown(data.calories, 1, 0),
       });
     }
   }

@@ -3,6 +3,7 @@ import { LocalNotifications, type LocalNotificationSchema } from "@capacitor/loc
 import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
 import { buildContextualNotificationDrafts } from "./notificationPlanner";
+import { replaceNotificationSchedules } from "./notificationSchedule";
 
 const SLEEP_ID = 41001;
 const WEEKLY_ID = 41002;
@@ -554,8 +555,6 @@ async function requestDisplayPermission() {
 async function scheduleNativeSuite(sleepTime: string, comprehensive: boolean) {
   if (!Capacitor.isNativePlatform()) return;
   const sleep = parseTime(sleepTime);
-  const ids = [SLEEP_ID, WEEKLY_ID, NUTRITION_ID, FOCUS_ID, MOOD_ID, HEALTH_ID];
-  await LocalNotifications.cancel({ notifications: ids.map((id) => ({ id })) });
   const notifications: LocalNotificationSchema[] = [
     { id: SLEEP_ID, title: "NAVA · 睡眠提醒", body: "该准备入睡了，给今天一个安静的收尾。", schedule: { on: { hour: sleep.hour, minute: sleep.minute }, allowWhileIdle: true }, extra: { notificationId: "native:sleep", category: "sleep", destination: "record/sleep/editor" } },
     { id: WEEKLY_ID, title: "NAVA · 本周健康报告", body: "小猫已经整理好你的跨模块周报。", schedule: { on: { weekday: 2, hour: 8, minute: 0 }, allowWhileIdle: true }, extra: { notificationId: "native:weekly", category: "weekly", destination: "record" } },
@@ -566,7 +565,7 @@ async function scheduleNativeSuite(sleepTime: string, comprehensive: boolean) {
     { id: MOOD_ID, title: "NAVA · 情绪提醒", body: "给今天的心情留一句真实记录。", schedule: { on: { hour: 20, minute: 30 }, allowWhileIdle: true }, extra: { notificationId: "native:mood", category: "mood", destination: "record/mood/editor" } },
     { id: HEALTH_ID, title: "NAVA · 今日状态", body: "看看今天的活动与恢复，按身体感受安排下一步。", schedule: { on: { hour: 18, minute: 30 }, allowWhileIdle: true }, extra: { notificationId: "native:health", category: "exercise", destination: "record/exercise" } },
   );
-  await LocalNotifications.schedule({ notifications });
+  await replaceNotificationSchedules(LocalNotifications, notifications);
 }
 
 export async function enableNavaNotifications(userId: string, sleepTime = "22:30") {

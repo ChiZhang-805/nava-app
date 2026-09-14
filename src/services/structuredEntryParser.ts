@@ -1,6 +1,7 @@
 import { suggestedFocusPlan } from "./focusPlanning.ts";
 import { correctFoodItemCalories, resizeFoodItemPortion, sumFoodItemNutrition } from "./dietPortion.ts";
 import type { FoodItem } from "../types.ts";
+import { optionalNonNegative, scaleKnown, sumKnown } from "./recordNumbers.ts";
 
 export type StructuredEntryType = "mood" | "sleep" | "exercise" | "nutrition" | "focus" | "todo" | "multi";
 
@@ -33,11 +34,14 @@ export type StructuredExtraction = {
 
 type FoodItemDraft = {
   name: string;
-  quantity: number;
+  quantity: number | null;
   unit: string;
   amount: string;
-  calories: number;
-  caloriesPerUnit: number;
+  calories: number | null;
+  caloriesPerUnit: number | null;
+  protein_grams?: number | null;
+  carbohydrate_grams?: number | null;
+  fat_grams?: number | null;
   estimated?: boolean;
   estimationBasis?: string;
 };
@@ -344,16 +348,16 @@ function extractNutritionEntry(value: string, locale: "zh" | "en") {
   const items = extractFoodItems(value, locale);
   if (items.length === 0 && explicitCalories == null) return null;
   const meal = /早餐|breakfast/i.test(value) ? "breakfast" : /午餐|lunch/i.test(value) ? "lunch" : /晚餐|dinner/i.test(value) ? "dinner" : "pantry";
-  const totalCalories = Math.max(0, Math.round(explicitCalories ?? items.reduce((sum, item) => sum + item.calories, 0)));
+  const totalCalories = Math.max(0, Math.round(explicitCalories ?? sumKnown(items.map((item) => item.calories)) ?? 0));
   if (explicitCalories != null && items.length > 0) {
-    const estimatedTotal = items.reduce((sum, item) => sum + item.calories, 0) || 1;
+    const estimatedTotal = sumKnown(items.map((item) => item.calories)) || 1;
     let assigned = 0;
     items.forEach((item, index) => {
       item.calories = index === items.length - 1
         ? Math.max(0, totalCalories - assigned)
-        : Math.max(0, Math.round(totalCalories * item.calories / estimatedTotal));
+        : Math.max(0, Math.round(totalCalories * (item.calories ?? 0) / estimatedTotal));
       assigned += item.calories;
-      item.caloriesPerUnit = item.quantity > 0 ? item.calories / item.quantity : 0;
+      item.caloriesPerUnit = item.quantity != null && item.quantity > 0 ? item.calories / item.quantity : null;
     });
   }
   const fields: Array<Omit<StructuredField, "id">> = items.map((item, index) => ({
@@ -483,7 +487,7 @@ function modelEntry(dataType: string, data: Record<string, unknown>, text: strin
   }
 
   if (dataType === "nutrition") {
-    const totalCalories = Math.max(0, Math.round(numberValue(data.totalCalories) ?? numberValue(data.total_calories) ?? numberValue(data.calories) ?? numberValue(data.kcal) ?? 0));
+    const totalCalories = scaleKnown(numberValue(data.totalCalories) ?? numberValue(data.total_calories) ?? numberValue(data.calories) ?? numberValue(data.kcal), 1, 0);
     const rawItems = Array.isArray(data.items) ? data.items.map(recordValue).filter((item): item is Record<string, unknown> => item != null) : [];
     if (rawItems.length === 0) {
       const name = stringValue(data.name) ?? stringValue(data.food) ?? stringValue(data.title);
@@ -495,22 +499,27 @@ function modelEntry(dataType: string, data: Record<string, unknown>, text: strin
       const quantity = numberValue(item.quantity) ?? numberValue(amount.match(/[\d.]+/)?.[0]) ?? 1;
       const unit = stringValue(item.unit) ?? (amount.replace(/[\d.\s]/g, "") || (locale === "zh" ? "份" : "serving"));
       const itemName = stringValue(item.name) ?? (locale === "zh" ? "饮食记录" : "Meal item");
-      const statedCalories = numberValue(item.calories);
-      const ruleCalories = allowLocalEstimates ? calorieRule(itemName, unit) : 0;
-      const calories = Math.max(0, Math.round(statedCalories != null && statedCalories > 0 ? statedCalories : ruleCalories));
+      const statedCalories = optionalNonNegative(item.calories);
+      const ruleCalories = allowLocalEstimates ? calorieRule(itemName, unit) : null;
+      const calories = scaleKnown(statedCalories ?? ruleCalories, 1, 0);
       return {
         name: itemName,
         quantity,
         unit,
         amount: amount || `${quantity}${unit}`,
         calories,
-        caloriesPerUnit: quantity > 0 ? calories / quantity : 0,
+        caloriesPerUnit: quantity > 0 ? scaleKnown(calories, 1 / quantity) : null,
+        protein_grams: optionalNonNegative(item.protein_grams ?? item.proteinGrams),
+        carbohydrate_grams: optionalNonNegative(item.carbohydrate_grams ?? item.carbohydrateGrams),
+        fat_grams: optionalNonNegative(item.fat_grams ?? item.fatGrams),
         estimated: typeof item.estimated === "boolean" ? item.estimated : numberValue(item.calories) == null,
         estimationBasis: stringValue(item.estimationBasis) ?? stringValue(item.estimation_basis),
       };
     });
-    const resolvedTotal = totalCalories || items.reduce((sum, item) => sum + item.calories, 0);
-    if (resolvedTotal <= 0 && !items.every((item) => /水|白开水|无糖茶|water|unsweetened tea/i.test(item.name))) return null;
+    // The confirmation and persisted total use the same item-based calculation.
+    // A separately reported AI total cannot turn missing item values into zero.
+    const resolvedTotal = scaleKnown(sumKnown(items.map((item) => item.calories)), 1, 0);
+    if (items.every((item) => item.calories == null)) return null;
     const fields: Array<Omit<StructuredField, "id">> = items.map((item, index) => ({
       label: item.name,
       value: String(item.quantity),
@@ -518,12 +527,23 @@ function modelEntry(dataType: string, data: Record<string, unknown>, text: strin
       path: `items.${index}.quantity`,
       valueType: "number",
     }));
-    fields.push({ label: locale === "zh" ? "预估热量" : "Estimated calories", value: String(resolvedTotal), unit: locale === "zh" ? "千卡" : "kcal", path: "totalCalories", valueType: "number" });
+    items.forEach((item, index) => fields.push({ label: `${item.name} · kcal`, value: String(item.calories ?? ""), path: `items.${index}.calories`, valueType: "number" }));
+    fields.push({ label: locale === "zh" ? "预估热量" : "Estimated calories", value: resolvedTotal == null ? "" : String(resolvedTotal), unit: locale === "zh" ? "千卡" : "kcal", path: "totalCalories", valueType: "number", readOnly: true });
+    const nutrients = {
+      proteinGrams: optionalNonNegative(data.proteinGrams ?? data.protein_grams) ?? sumKnown(items.map((item) => item.protein_grams)),
+      carbohydrateGrams: optionalNonNegative(data.carbohydrateGrams ?? data.carbohydrate_grams) ?? sumKnown(items.map((item) => item.carbohydrate_grams)),
+      fatGrams: optionalNonNegative(data.fatGrams ?? data.fat_grams) ?? sumKnown(items.map((item) => item.fat_grams)),
+    };
+    for (const [path, value] of Object.entries(nutrients)) {
+      const labels: Record<string, string> = locale === "zh" ? { proteinGrams: "蛋白质", carbohydrateGrams: "碳水", fatGrams: "脂肪" } : { proteinGrams: "Protein", carbohydrateGrams: "Carbs", fatGrams: "Fat" };
+      fields.push({ label: labels[path], value: String(value ?? ""), unit: "g", path, valueType: "number" });
+    }
     const meal = stringValue(data.meal) ?? "pantry";
     return entry("nutrition", locale, text, fields, {
       meal,
       items,
       totalCalories: resolvedTotal,
+      ...nutrients,
       calories: resolvedTotal,
       name: items.map((item) => `${item.amount}${item.name}`).join("、"),
       estimated: data.estimated === true || items.some((item) => item.estimated === true),
@@ -610,8 +630,7 @@ function setByPath(payload: Record<string, unknown>, path: string, nextValue: st
     if (!target || typeof target !== "object") return;
   }
   const key = parts[parts.length - 1];
-  const parsed = valueType === "number" ? Number(nextValue) : nextValue;
-  if (valueType === "number" && !Number.isFinite(parsed)) return;
+  const parsed = valueType === "number" ? optionalNonNegative(nextValue) : nextValue;
   if (Array.isArray(target)) target[Number(key)] = parsed;
   else (target as Record<string, unknown>)[key] = parsed;
 }
@@ -630,12 +649,12 @@ function updateSingleEntry(candidate: StructuredEntry, fieldId: string, value: s
     if (payload.source === "vision") {
       const items = Array.isArray(payload.items) ? payload.items as FoodItem[] : [];
       const match = fieldToUpdate.path?.match(/^items\.(\d+)\.(weight_grams|calories)$/);
-      if (match && Number.isFinite(Number(value)) && Number(value) > 0) {
+      if (match) {
         const index = Number(match[1]);
         const current = items[index];
         if (current) items[index] = match[2] === "weight_grams"
           ? resizeFoodItemPortion(current, Number(value))
-          : correctFoodItemCalories(current, Number(value));
+          : correctFoodItemCalories(current, optionalNonNegative(value));
       }
       if (fieldToUpdate.path === "totalCalories" && Number.isFinite(Number(value)) && Number(value) >= 0) {
         const target = Math.round(Number(value));
@@ -652,42 +671,67 @@ function updateSingleEntry(candidate: StructuredEntry, fieldId: string, value: s
       const totals = sumFoodItemNutrition(items);
       payload.totalCalories = totals.calories;
       payload.calories = totals.calories;
-      payload.proteinGrams = totals.proteinGrams;
-      payload.carbohydrateGrams = totals.carbohydrateGrams;
-      payload.fatGrams = totals.fatGrams;
+      // Editing energy alone cannot invalidate independently known meal macros.
+      if (fieldToUpdate.path?.endsWith("weight_grams")) {
+        payload.proteinGrams = totals.proteinGrams;
+        payload.carbohydrateGrams = totals.carbohydrateGrams;
+        payload.fatGrams = totals.fatGrams;
+      }
       fields = fields.map((item) => {
         const itemMatch = item.path?.match(/^items\.(\d+)\.(weight_grams|calories)$/);
         if (itemMatch) return { ...item, value: String(items[Number(itemMatch[1])]?.[itemMatch[2] as "weight_grams" | "calories"] ?? "") };
-        const total = ({ totalCalories: totals.calories, proteinGrams: totals.proteinGrams, carbohydrateGrams: totals.carbohydrateGrams, fatGrams: totals.fatGrams } as Record<string, number>)[item.path ?? ""];
-        return total == null ? item : { ...item, value: String(total) };
+        const path = item.path ?? "";
+        if (["totalCalories", "proteinGrams", "carbohydrateGrams", "fatGrams"].includes(path)) return { ...item, value: payload[path] == null ? "" : String(payload[path]) };
+        return item;
       });
       return { ...candidate, fields, payload };
     }
     const items = Array.isArray(payload.items) ? payload.items as FoodItemDraft[] : [];
-    for (const item of items) {
-      item.quantity = Math.max(0, Number(item.quantity) || 0);
-      item.amount = `${item.quantity}${item.unit}`;
-      item.calories = Math.max(0, Math.round(item.quantity * (Number(item.caloriesPerUnit) || 0)));
+    const quantityMatch = fieldToUpdate.path?.match(/^items\.(\d+)\.quantity$/);
+    const calorieMatch = fieldToUpdate.path?.match(/^items\.(\d+)\.calories$/);
+    if (quantityMatch) {
+      const index = Number(quantityMatch[1]);
+      const item = items[index];
+      const previous = (candidate.payload.items as FoodItemDraft[])[index];
+      const quantity = optionalNonNegative(value);
+      const ratio = quantity != null && previous.quantity != null && previous.quantity > 0 ? quantity / previous.quantity : NaN;
+      item.quantity = quantity;
+      item.amount = quantity == null ? "" : `${quantity}${item.unit}`;
+      item.calories = scaleKnown(previous.calories, ratio, 0);
+      for (const key of ["protein_grams", "carbohydrate_grams", "fat_grams"] as const) item[key] = scaleKnown(previous[key], ratio);
+      const totals = sumFoodItemNutrition(items);
+      payload.proteinGrams = totals.proteinGrams;
+      payload.carbohydrateGrams = totals.carbohydrateGrams;
+      payload.fatGrams = totals.fatGrams;
     }
-    if (fieldToUpdate.path?.endsWith(".quantity")) {
-      payload.totalCalories = items.reduce((sum, item) => sum + item.calories, 0);
-      payload.calories = payload.totalCalories;
-      payload.name = items.map((item) => `${item.amount}${item.name}`).join("、");
-      fields = fields.map((item) => item.path === "totalCalories" ? { ...item, value: String(payload.totalCalories) } : item);
+    if (calorieMatch) {
+      const item = items[Number(calorieMatch[1])];
+      item.calories = scaleKnown(value, 1, 0);
+      item.caloriesPerUnit = item.quantity != null && item.quantity > 0 ? scaleKnown(item.calories, 1 / item.quantity) : null;
     }
     if (fieldToUpdate.path === "totalCalories") {
-      const nextTotal = Math.max(0, Math.round(Number(value) || 0));
-      const previousTotal = items.reduce((sum, item) => sum + item.calories, 0) || 1;
+      const nextTotal = scaleKnown(value, 1, 0);
+      const previousTotal = sumKnown(items.map((item) => item.calories));
+      if (nextTotal != null && items.length > 1 && (previousTotal == null || previousTotal <= 0)) return candidate;
       let assigned = 0;
       items.forEach((item, index) => {
-        item.calories = index === items.length - 1
+        item.calories = nextTotal == null ? null : index === items.length - 1
           ? Math.max(0, nextTotal - assigned)
-          : Math.max(0, Math.round(nextTotal * item.calories / previousTotal));
-        assigned += item.calories;
-        item.caloriesPerUnit = item.quantity > 0 ? item.calories / item.quantity : 0;
+          : scaleKnown(item.calories, nextTotal / previousTotal!, 0);
+        assigned += item.calories ?? 0;
+        item.caloriesPerUnit = item.quantity != null && item.quantity > 0 ? scaleKnown(item.calories, 1 / item.quantity) : null;
       });
-      payload.totalCalories = nextTotal;
-      payload.calories = nextTotal;
+    }
+    if (quantityMatch || calorieMatch || fieldToUpdate.path === "totalCalories") {
+      payload.totalCalories = scaleKnown(sumKnown(items.map((item) => item.calories)), 1, 0);
+      payload.calories = payload.totalCalories;
+      payload.name = items.map((item) => `${item.amount}${item.name}`).join("、");
+      fields = fields.map((item) => {
+        const match = item.path?.match(/^items\.(\d+)\.calories$/);
+        if (match) return { ...item, value: String(items[Number(match[1])]?.calories ?? "") };
+        if (["totalCalories", "proteinGrams", "carbohydrateGrams", "fatGrams"].includes(item.path ?? "")) return { ...item, value: String(payload[item.path!] ?? "") };
+        return item;
+      });
     }
   }
 

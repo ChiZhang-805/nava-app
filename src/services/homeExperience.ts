@@ -346,6 +346,8 @@ export function rhythmScoresByDate(trends: TrendBundle) {
   return Object.fromEntries(trends.rhythms.map((record) => [record.record_date, Math.round(record.score)]));
 }
 
+const metricNumber = (value: number | null | undefined) => value == null ? "--" : String(Math.round(value));
+
 export function dailyMetrics(snapshot: TodaySnapshot, locale: "zh" | "en" = "zh"): DailyMetric[] {
   const copy = <T,>(zh: T, en: T) => locale === "zh" ? zh : en;
   const sleepScore = snapshot.sleep?.rhythm_score != null
@@ -355,7 +357,7 @@ export function dailyMetrics(snapshot: TodaySnapshot, locale: "zh" | "en" = "zh"
       : snapshot.sleep?.sleep_duration_minutes != null
         ? Math.round(clamp(100 - Math.abs(snapshot.sleep.sleep_duration_minutes - 480) / 4.8, 0, 100))
         : null;
-  const exerciseScore = snapshot.exercise
+  const exerciseScore = snapshot.exercise?.steps != null && snapshot.exercise.exercise_minutes != null
     ? Math.round(clamp(((snapshot.exercise.steps ?? 0) / 8_000) * 65 + ((snapshot.exercise.exercise_minutes ?? 0) / 30) * 35, 0, 100))
     : null;
   const dietScore = snapshot.nutrition
@@ -387,14 +389,14 @@ export function dailyMetrics(snapshot: TodaySnapshot, locale: "zh" | "en" = "zh"
       recorded: Boolean(snapshot.exercise),
       score: exerciseScore,
       primary: snapshot.exercise?.steps != null ? `${Math.round(snapshot.exercise.steps).toLocaleString()}${copy(" 步", " steps")}` : "--",
-      secondary: snapshot.exercise ? `${Math.round(snapshot.exercise.exercise_minutes ?? 0)}${copy(" 分钟", " min")} · ${Math.round(snapshot.exercise.calories ?? 0)} kcal` : copy("暂无运动记录", "No activity record"),
+      secondary: snapshot.exercise ? `${metricNumber(snapshot.exercise.exercise_minutes)}${copy(" 分钟", " min")} · ${metricNumber(snapshot.exercise.calories)} kcal` : copy("暂无运动记录", "No activity record"),
     },
     {
       key: "diet",
       recorded: Boolean(snapshot.nutrition),
       score: dietScore,
-      primary: snapshot.nutrition ? `${Math.round(snapshot.nutrition.total_calories)} kcal` : "--",
-      secondary: snapshot.nutrition ? `${copy("蛋白", "Protein")} ${Math.round(snapshot.nutrition.protein_grams ?? 0)}g · ${copy("饮水", "Water")} ${Math.round(snapshot.nutrition.hydration_ml ?? 0)}ml` : copy("暂无饮食记录", "No diet record"),
+      primary: snapshot.nutrition ? `${metricNumber(snapshot.nutrition.total_calories)} kcal` : "--",
+      secondary: snapshot.nutrition ? `${copy("蛋白", "Protein")} ${metricNumber(snapshot.nutrition.protein_grams)}g · ${copy("饮水", "Water")} ${metricNumber(snapshot.nutrition.hydration_ml)}ml` : copy("暂无饮食记录", "No diet record"),
     },
     {
       key: "focus",

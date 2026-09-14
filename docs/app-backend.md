@@ -30,7 +30,7 @@ App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负�
 
 这一步没有擅自接入 FatSecret、Passio、Gemini 或 Edamam。现有 USDA FoodData Central 知识工具用于 AI 文本证据，不代表饮食照片链路已经用 USDA 逐项核准。供应商数据库授权、匹配质量、地区覆盖和缓存条款需要另行验证后才能把项目标记为 `usda_fdc`；在此之前 UI 明示 AI 估算或待核对，不宣传“拍照精确测热量”。
 
-截至 2026-09-14，canonical 项目的 `diet-extract` version 25、`ai-diet-report` version 23、`ai-health-report` version 23、`ai-chat-reply` version 33 和 `ai-extract-data` version 27 均为 ACTIVE，且均启用 JWT 验证；这是本轮部署后的状态。`ai-extract-data` v27 新增待办意图及设备本地日期、时间的模型结构化抽取；已用授权账号验证“下周三上午九点要准备小组汇报”得到事项、日期和 09:00，否定句未生成待办，两次抽取均未写入任务。饮食摘要模型合同现为 `deepseek-v4-flash-15-18-plus-compact-seven-v11-single-item-repair`，健康报告模型合同现为 `deepseek-v4-flash-health-report-v9-grounded-evidence-repair`。2026-08-28 至 09-13 的授权账号安全审计确认十类记录表各覆盖 17/17 天、四餐逐项和每日聚合一致、饮食 AI 摘要 17/17 有真实 DeepSeek v11 结果、六种健康报告作用域在每个日期均有真实 DeepSeek 结果。登录后的两处公开 APP 均能读到 09-07 至 09-13 的结构化 AI 周洞察；Sites 饮食页还能看到 09-13 四餐、AI 即时反馈和逐项份量/热量编辑器。浏览器页面读取不等同于对每个历史日期重新调用模型；安全审计分别校验了持久化模型版本与来源。
+截至 2026-09-15，canonical 项目的 `diet-extract` version 25、`ai-diet-report` version 23、`ai-health-report` version 23、`ai-chat-reply` version 39 和 `ai-extract-data` version 27 均为 ACTIVE，且均启用 JWT 验证；这是本轮部署后的状态。`ai-extract-data` v27 新增待办意图及设备本地日期、时间的模型结构化抽取；已用授权账号验证“下周三上午九点要准备小组汇报”得到事项、日期和 09:00，否定句未生成待办，两次抽取均未写入任务。饮食摘要模型合同现为 `deepseek-v4-flash-15-18-plus-compact-seven-v11-single-item-repair`，健康报告模型合同现为 `deepseek-v4-flash-health-report-v9-grounded-evidence-repair`。2026-08-28 至 09-13 的授权账号安全审计确认十类记录表各覆盖 17/17 天、四餐逐项和每日聚合一致、饮食 AI 摘要 17/17 有真实 DeepSeek v11 结果、六种健康报告作用域在每个日期均有真实 DeepSeek 结果。登录后的两处公开 APP 均能读到 09-07 至 09-13 的结构化 AI 周洞察；Sites 饮食页还能看到 09-13 四餐、AI 即时反馈和逐项份量/热量编辑器。浏览器页面读取不等同于对每个历史日期重新调用模型；安全审计分别校验了持久化模型版本与来源。
 
 以下 2026-09-10 至 09-13 的版本号和验收段落保留为历史快照，不代表上述当前部署版本。
 截至 2026-09-10，当轮涉及的 `ai-chat-reply`、`ai-diet-report`、`ai-health-report`、
@@ -70,12 +70,24 @@ canonical query + 空请求体，并部署为 production version 17（ACTIVE，�
 
 ## 已实现数据库/Storage
 
-当前源码共有 28 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单
+当前源码共有 29 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单
 来源。它们按顺序覆盖：移动端业务表和 Edge 后端、Rhythm/Fusion/ChronoState、
 密码复用保护、手机号 OTP、Watch action 幂等、头像、账号状态、onboarding、FDNB、
 AI 会话隔离、成长奖励、健康报告、专注待办、Health Realtime，以及跨设备账号状态和
 删除/导出完整性、运动恢复闭环、远程推送设备路由与待办四象限排序。2026-09-14 已在 canonical
-production 应用全部 28 项，本地与远端 migration 历史完全一致。
+production 应用前 28 项；2026-09-15 追加应用 `202609150001_unknown_nutrition_calories.sql`。
+
+该迁移仅移除 `nutrition_records.total_calories` 的 NOT NULL 和默认零，不改写历史
+数据。饮食/运动缺失数值以 null 表示；用户明确填写的零保留零。新运动行显式写入
+null，避免旧 DEFAULT 0 自动补值；更新时 undefined 表示未更改、null 表示清空。
+非空餐食中任一项目热量未知，总热量保持未知；不能按每日热量比例猜测每餐三大
+营养素。修改单项热量不覆盖独立填写的蛋白质/碳水/脂肪。同批 source_id 去重，全部
+重放不写库，不抹掉现有聚合。恢复时长未知时不生成估算。
+
+`verify-record-null-storage.mjs` 在 canonical 数据库以指定账号的 authenticated RLS
+身份做 null→0→null 往返，始终事务回滚；不输出账号记录/密钥，不改变历史数据。
+四档独立浏览器本地表单覆盖空值、真实零、保存回读、摘要和不伪造恢复估算；本地
+表单证据不能冒充正式账号的健康记录写入验收。
 
 `202609140001_task_quadrants_priority.sql` 给 `tasks` 增加可空的重要、紧急布尔字段和
 用户确认后才保存的排序位次；数据库检查两项分类必须同时有值或同时为空，旧任务不会被

@@ -5,7 +5,9 @@ import {
   buildNutritionMutation,
   estimatedExistingMealSummary,
   readMealNutritionSummary,
+  summaryFromItems,
 } from "../src/services/nutritionIntegrity.ts";
+import { optionalNonNegative, scaleKnown, sumKnown } from "../src/services/recordNumbers.ts";
 import type { NutritionRecord } from "../src/types.ts";
 
 const meal = (name: string, calories: number, protein: number, carbs: number, fat: number, hydration = 0) =>
@@ -81,7 +83,7 @@ test("replayed AI meal items are idempotent by source id", () => {
   assert.equal(result.carbohydrate_grams, 27);
 });
 
-test("legacy daily macros are apportioned instead of copied into every meal", () => {
+test("multiple unknown legacy meals cannot be invented from daily totals or calories", () => {
   const current: Partial<NutritionRecord> = {
     breakfast_items: [{ name: "早餐", calories: 400 }],
     lunch_items: [{ name: "午餐", calories: 600 }],
@@ -95,15 +97,68 @@ test("legacy daily macros are apportioned instead of copied into every meal", ()
   };
 
   assert.deepEqual(estimatedExistingMealSummary(current, "breakfast"), {
-    protein_grams: 20,
-    carbohydrate_grams: 40,
-    fat_grams: 12,
-    hydration_ml: 400,
+    protein_grams: null,
+    carbohydrate_grams: null,
+    fat_grams: null,
+    hydration_ml: null,
   });
   assert.deepEqual(estimatedExistingMealSummary(current, "lunch"), {
-    protein_grams: 30,
-    carbohydrate_grams: 60,
-    fat_grams: 18,
-    hydration_ml: 600,
+    protein_grams: null,
+    carbohydrate_grams: null,
+    fat_grams: null,
+    hydration_ml: null,
   });
+});
+
+test("unknown values survive parsing and scaling while known zero remains zero", () => {
+  for (const value of [null, undefined, "", " ", NaN, Infinity, -1, true]) assert.equal(optionalNonNegative(value), null);
+  assert.equal(optionalNonNegative("0"), 0);
+  assert.equal(sumKnown([0, 0]), 0);
+  assert.equal(sumKnown([10, null]), null);
+  assert.equal(sumKnown([Number.MAX_VALUE, Number.MAX_VALUE]), null);
+  assert.equal(scaleKnown(10, -1), null);
+  assert.equal(scaleKnown(Number.MAX_VALUE, 100), null);
+});
+
+test("one unknown meal metric can use an exact known daily remainder", () => {
+  const current = { breakfast_items: meal("早餐", 300, 10, 30, 5, 200), lunch_items: [{ name: "午餐" }], protein_grams: 35 };
+  assert.equal(estimatedExistingMealSummary(current, "lunch").protein_grams, 25);
+  assert.equal(estimatedExistingMealSummary(current, "lunch").fat_grams, null);
+});
+
+test("unknown item makes meal/day totals unknown; other fields and explicit zero are preserved", () => {
+  const items = [{ name: "白开水", calories: 0, protein_grams: 0 }, { name: "餐食", calories: null, protein_grams: 12 }];
+  const result = buildNutritionMutation({ current: {}, meal: "lunch", items, summary: summaryFromItems(items), append: false });
+  assert.equal(result.total_calories, null);
+  assert.equal(result.protein_grams, 12);
+  assert.equal(result.fat_grams, null);
+  assert.equal(result.hydration_ml, null);
+  assert.equal(readMealNutritionSummary(result.lunch_items)?.fat_grams, null);
+});
+
+test("full replay preserves legacy known totals and explicit unknown meal summaries", () => {
+  const items = attachMealNutritionSummary([{ name: "旧餐食", source_id: "old" }], { protein_grams: null, fat_grams: null, carbohydrate_grams: null, hydration_ml: null });
+  const result = buildNutritionMutation({ current: { lunch_items: items, total_calories: 300, protein_grams: 20 }, meal: "lunch", items, summary: summaryFromItems(items), append: true });
+  assert.equal(result.unchanged, true);
+  assert.equal(result.total_calories, 300);
+  assert.equal(result.protein_grams, 20);
+  assert.deepEqual(result.lunch_items, items);
+  assert.equal(result.selectedSummary.protein_grams, null);
+});
+
+test("a known legacy daily calorie total survives an exact known addition", () => {
+  const current = { total_calories: 300, breakfast_items: [{ name: "旧餐", calories: null }] };
+  const items = [{ name: "新餐", calories: 100 }];
+  const result = buildNutritionMutation({ current, meal: "lunch", items, summary: summaryFromItems(items), append: true });
+  assert.equal(result.total_calories, 400);
+  assert.equal(result.breakfast_items[0].calories, null);
+});
+
+test("same-batch source ids and partial replays use only new per-item nutrition", () => {
+  const items = [{ name: "甲", source_id: "a", calories: 100, protein_grams: 5 }, { name: "乙", source_id: "b", calories: 400, protein_grams: 40 }];
+  const result = buildNutritionMutation({ current: { lunch_items: [items[0]] }, meal: "lunch", items: [...items, items[1]], summary: { protein_grams: 85, fat_grams: 0, carbohydrate_grams: 0, hydration_ml: 0 }, append: true });
+  assert.equal(result.lunch_items.length, 2);
+  assert.equal(result.total_calories, 500);
+  assert.equal(result.protein_grams, 45);
+  assert.equal(result.fat_grams, null);
 });

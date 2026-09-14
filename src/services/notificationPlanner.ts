@@ -1,3 +1,4 @@
+import { latestKnownFaceMode, sameModeFaces } from "./faceComparison.ts";
 import type { ExerciseRecord, MoodRecord, SleepRecord, TodaySnapshot, TrendBundle } from "../types";
 import type { NavaNotificationItem } from "./notifications";
 
@@ -38,7 +39,8 @@ function isLowMood(record: MoodRecord) {
 }
 
 function activityLoad(record: ExerciseRecord) {
-  return Math.max(0, Number(record.exercise_minutes) || 0) + Math.max(0, Number(record.steps) || 0) / 500;
+  if (record.exercise_minutes == null || record.steps == null) return null;
+  return Math.max(0, record.exercise_minutes) + Math.max(0, record.steps) / 500;
 }
 
 function dateDistanceDays(later: string, earlier: string) {
@@ -62,32 +64,34 @@ export function buildContextualNotificationDrafts(
   const recentSleeps = recentThroughDate(trends?.sleeps, snapshot.date, 3);
   const recentExercises = recentThroughDate(trends?.exercises, snapshot.date, 8);
   const recentNutritions = recentThroughDate(trends?.nutritions, snapshot.date, 8);
-  const recentFaces = recentThroughDate(trends?.faces, snapshot.date, 3);
-  const previousExerciseLoads = recentExercises.filter((record) => record.record_date !== snapshot.date).map(activityLoad).filter((value) => value > 0);
-  const currentExerciseLoad = snapshot.exercise ? activityLoad(snapshot.exercise) : 0;
+  const rawFaces = recentThroughDate(trends?.faces, snapshot.date, 3);
+  const mode = snapshot.face ? snapshot.face.capture_mode : latestKnownFaceMode(trends?.faces ?? [], snapshot.date);
+  const byFaceDate = new Map(sameModeFaces([...(trends?.faces ?? []), ...(snapshot.face ? [snapshot.face] : [])], mode, snapshot.date).map((record) => [record.record_date, record]));
+  const recentFaces = [...byFaceDate.values()].slice(-3);
+  const previousExerciseLoads = recentExercises.filter((record) => record.record_date !== snapshot.date).map(activityLoad).filter((value): value is number => value != null);
+  const currentExerciseLoad = snapshot.exercise ? activityLoad(snapshot.exercise) : null;
   const priorActivityAverage = average(previousExerciseLoads);
   const mealCount = snapshot.nutrition
     ? [snapshot.nutrition.breakfast_time, snapshot.nutrition.lunch_time, snapshot.nutrition.dinner_time, snapshot.nutrition.pantry_time].filter(Boolean).length
     : 0;
   const previousCalorieValues = recentNutritions
     .filter((record) => record.record_date !== snapshot.date)
-    .map((record) => Number(record.total_calories))
-    .filter((value) => value > 0);
+    .flatMap((record) => record.total_calories == null ? [] : [record.total_calories]);
   const priorCalorieAverage = average(previousCalorieValues);
 
   if (hour >= 9 && !snapshot.sleep) add({ id: `context:${snapshot.date}:sleep`, category: "sleep", hour: 9, priority: 62, title: zh ? "补充昨晚睡眠" : "Add last night's sleep", body: zh ? "补充一条睡眠记录，今天的节律建议会更准确。" : "Add one sleep record to improve today's rhythm guidance.", target: { tab: "record", module: "sleep", view: "editor" } });
   if (hour >= 12 && !snapshot.nutrition) add({ id: `context:${snapshot.date}:nutrition`, category: "nutrition", hour: 12, priority: 58, title: zh ? "别忘了记录一餐" : "Remember a meal", body: zh ? "拍照或手动补充饮食，之后还能和活动消耗一起查看。" : "Capture or add a meal to compare it with activity.", target: { tab: "record", module: "diet", view: "editor" } });
   if (hour >= 20 && snapshot.nutrition && mealCount > 0 && mealCount < 2) add({ id: `context:${snapshot.date}:nutrition-gap`, category: "nutrition", hour: 20, priority: 54, title: zh ? "今天的饮食记录还不完整" : "Today's meal log is incomplete", body: zh ? "如果还有一餐未记，现在补上就能形成更完整的今日记录。" : "Add any missing meal to complete today's record.", target: { tab: "record", module: "diet", view: "editor" } });
-  if (hour >= 15 && snapshot.nutrition && mealCount > 0 && (snapshot.nutrition.hydration_ml ?? 0) < 500) add({ id: `context:${snapshot.date}:hydration`, category: "nutrition", hour: 15, priority: 66, title: zh ? "今天的饮水记录还很少" : "Today's water log is still low", body: zh ? "如果已经喝水，补充记录；如果还没有，可以按当前身体感受少量补充。这里不设统一饮水目标。" : "If you have had water, add it to the log; otherwise, consider a small amount based on how you feel. No universal target is assumed.", target: { tab: "record", module: "diet", view: "editor" } });
+  if (hour >= 15 && snapshot.nutrition && mealCount > 0 && snapshot.nutrition.hydration_ml != null && snapshot.nutrition.hydration_ml < 500) add({ id: `context:${snapshot.date}:hydration`, category: "nutrition", hour: 15, priority: 66, title: zh ? "今天的饮水记录还很少" : "Today's water log is still low", body: zh ? "如果已经喝水，补充记录；如果还没有，可以按当前身体感受少量补充。这里不设统一饮水目标。" : "If you have had water, add it to the log; otherwise, consider a small amount based on how you feel. No universal target is assumed.", target: { tab: "record", module: "diet", view: "editor" } });
 
   const sleptShort = snapshot.sleep?.sleep_duration_minutes != null && snapshot.sleep.sleep_duration_minutes < 360;
   const moodLow = snapshot.mood != null && isLowMood(snapshot.mood);
-  if (hour >= 17 && (!snapshot.exercise || (snapshot.exercise.steps ?? 0) < 3_000)) {
+  if (hour >= 17 && (snapshot.exercise?.steps == null || snapshot.exercise.steps < 3_000)) {
     const recoveryDay = sleptShort || moodLow;
     add({
       id: `context:${snapshot.date}:exercise`, category: "exercise", hour: 17, priority: recoveryDay ? 75 : 52,
-      title: recoveryDay ? (zh ? "今天更适合轻量活动" : "Keep movement gentle today") : (zh ? "今天动得有点少" : "A little more movement"),
-      body: recoveryDay ? (zh ? "结合今天已记录的状态，先舒展或慢走 10 分钟，不必追求强度。" : "Based on today's recorded state, start with 10 minutes of mobility or an easy walk.") : (zh ? "如果身体感觉合适，可以安排 10 分钟轻步行。" : "If it feels right, consider a gentle 10-minute walk."),
+      title: recoveryDay ? (zh ? "今天更适合轻量活动" : "Keep movement gentle today") : snapshot.exercise?.steps == null ? (zh ? "补充今天的活动记录" : "Add today's activity log") : (zh ? "今天动得有点少" : "A little more movement"),
+      body: snapshot.exercise?.steps == null ? (zh ? "今天的步数尚未记录，可以同步或手动补充；缺失记录不代表没有活动。" : "Today's steps are not recorded. Sync or add them; a missing log does not mean no activity.") : recoveryDay ? (zh ? "结合今天已记录的状态，先舒展或慢走 10 分钟，不必追求强度。" : "Based on today's recorded state, start with 10 minutes of mobility or an easy walk.") : (zh ? "如果身体感觉合适，可以安排 10 分钟轻步行。" : "If it feels right, consider a gentle 10-minute walk."),
       target: { tab: "record", module: "exercise", view: "sports" },
     });
   }
@@ -101,13 +105,13 @@ export function buildContextualNotificationDrafts(
   if (hour >= 18 && recentMoods.length === 3 && recentMoods.every(isLowMood)) add({ id: `context:${snapshot.date}:mood-trend`, category: "mood", hour: 18, priority: 96, title: zh ? "最近的情绪记录持续偏低" : "Recent mood records remain low", body: zh ? "先降低任务负荷；如果这种状态持续或影响安全，请联系可信任的人或专业支持。" : "Reduce today's load, and seek trusted or professional support if this persists or affects safety.", target: { tab: "record", module: "mood", view: "history" } });
   if (hour >= 18 && recentMoods.length >= 2 && Math.abs(recentMoods[recentMoods.length - 1].mood_score - recentMoods[recentMoods.length - 2].mood_score) >= 35) add({ id: `context:${snapshot.date}:mood-change`, category: "mood", hour: 18, priority: 78, title: zh ? "最近两次情绪记录变化较大" : "Your last two mood entries changed notably", body: zh ? "可以补充主要事件或身体感受，帮助后续回看变化背景。" : "Add the main event or body feeling so the change has useful context.", target: { tab: "record", module: "mood", view: "editor" } });
   if (hour >= 20 && recentSleeps.length === 3 && recentSleeps.every(isLateSleep)) add({ id: `context:${snapshot.date}:sleep-late-trend`, category: "sleep", hour: 20, priority: 84, title: zh ? "最近的入睡节律有连续变化" : "Your recent sleep timing has shifted", body: zh ? "今晚可以先提前 20 分钟进入放松阶段，再观察几天变化。" : "Try starting wind-down 20 minutes earlier tonight and watch the next few days.", target: { tab: "record", module: "sleep", view: "history" } });
-  if (hour >= 18 && snapshot.exercise && priorActivityAverage != null && previousExerciseLoads.length >= 3 && currentExerciseLoad > priorActivityAverage * 1.6 && currentExerciseLoad - priorActivityAverage >= 20) add({ id: `context:${snapshot.date}:exercise-load`, category: "exercise", hour: 18, priority: 90, title: zh ? "今天的活动量明显高于个人近期水平" : "Today's activity is above your recent level", body: zh ? "接下来优先补水、放松与恢复；如果出现不适，请停止运动。" : "Prioritize hydration, mobility, and recovery; stop if you feel unwell.", target: { tab: "record", module: "exercise", view: "sports" } });
-  if (hour >= 21 && snapshot.nutrition && mealCount >= 2 && priorCalorieAverage != null && previousCalorieValues.length >= 3 && (snapshot.nutrition.total_calories > priorCalorieAverage * 1.45 + 200 || snapshot.nutrition.total_calories < priorCalorieAverage * .55 - 150)) add({ id: `context:${snapshot.date}:nutrition-change`, category: "nutrition", hour: 21, priority: 70, title: zh ? "今天的饮食记录与个人近期差异较大" : "Today's meal log differs from your recent entries", body: zh ? "先核对餐次、份量和是否漏记；确认无误后再结合身体感受回看。" : "First check meals, portions, and omissions; then review alongside how you feel.", target: { tab: "record", module: "diet", view: "editor" } });
+  if (hour >= 18 && currentExerciseLoad != null && priorActivityAverage != null && previousExerciseLoads.length >= 3 && currentExerciseLoad > priorActivityAverage * 1.6 && currentExerciseLoad - priorActivityAverage >= 20) add({ id: `context:${snapshot.date}:exercise-load`, category: "exercise", hour: 18, priority: 90, title: zh ? "今天的活动量明显高于个人近期水平" : "Today's activity is above your recent level", body: zh ? "接下来优先补水、放松与恢复；如果出现不适，请停止运动。" : "Prioritize hydration, mobility, and recovery; stop if you feel unwell.", target: { tab: "record", module: "exercise", view: "sports" } });
+  if (hour >= 21 && snapshot.nutrition?.total_calories != null && mealCount >= 2 && priorCalorieAverage != null && previousCalorieValues.length >= 3 && (snapshot.nutrition.total_calories > priorCalorieAverage * 1.45 + 200 || snapshot.nutrition.total_calories < priorCalorieAverage * .55 - 150)) add({ id: `context:${snapshot.date}:nutrition-change`, category: "nutrition", hour: 21, priority: 70, title: zh ? "今天的饮食记录与个人近期差异较大" : "Today's meal log differs from your recent entries", body: zh ? "先核对餐次、份量和是否漏记；确认无误后再结合身体感受回看。" : "First check meals, portions, and omissions; then review alongside how you feel.", target: { tab: "record", module: "diet", view: "editor" } });
   if (hour >= 20 && recentFaces.length === 3) {
     const scores = recentFaces.map((record) => record.overall_score).filter((value): value is number => value != null);
     if (scores.length === 3 && (scores.every((score) => score <= 50) || scores[2] <= scores[0] - 12)) add({ id: `context:${snapshot.date}:face-trend`, category: "face", hour: 20, priority: 68, title: zh ? "最近的面部状态记录有连续变化" : "Recent face-state entries show a change", body: zh ? "先核对拍摄条件，再结合睡眠与情绪记录查看趋势；这不是诊断。" : "Check capture conditions, then compare sleep and mood trends. This is not a diagnosis.", target: { tab: "record", module: "face", view: "history" } });
   }
-  const latestFace = recentFaces[recentFaces.length - 1];
+  const latestFace = rawFaces[rawFaces.length - 1];
   const faceMissingDays = latestFace ? dateDistanceDays(snapshot.date, latestFace.record_date) : null;
   if (hour >= 20 && !snapshot.face && (faceMissingDays == null || faceMissingDays >= 3)) add({ id: `context:${snapshot.date}:face-gap`, category: "face", hour: 20, priority: 50, title: zh ? "面部趋势已有连续空档" : "Your face-state trend has a gap", body: zh ? "如果你仍希望跟踪趋势，可以在相近拍摄条件下补一条记录；这不是诊断，也不是必须完成的任务。" : "If you still want to follow the trend, add a capture under similar conditions. This is non-diagnostic and optional.", target: { tab: "record", module: "face", view: "editor" } });
   const latestFaceScore = latestFace?.overall_score;

@@ -153,8 +153,12 @@ $podfile = Get-Content -LiteralPath (Join-Path $xcodeProjectRoot "Podfile") -Raw
 if (!$podfile.Contains("CapacitorLocalNotifications")) { throw "iOS Podfile is missing CapacitorLocalNotifications." }
 if (!$podfile.Contains("CapacitorPushNotifications")) { throw "iOS Podfile is missing CapacitorPushNotifications." }
 $notificationService = Get-Content -LiteralPath (Join-Path $root "src\services\notifications.ts") -Raw -Encoding UTF8
-foreach ($expected in @("LocalNotifications.schedule", "localNotificationReceived", "localNotificationActionPerformed")) {
+foreach ($expected in @("replaceNotificationSchedules(LocalNotifications, notifications)", "localNotificationReceived", "localNotificationActionPerformed")) {
   if (!$notificationService.Contains($expected)) { throw "Notification service is missing: $expected" }
+}
+$scheduleAdapter = Get-Content -LiteralPath (Join-Path $root "src\services\notificationSchedule.ts") -Raw -Encoding UTF8
+foreach ($expected in @("await adapter.cancel", "await adapter.schedule", "notifications.map(({ id }) => ({ id }))")) {
+  if (!$scheduleAdapter.Contains($expected)) { throw "Notification schedule adapter is missing: $expected" }
 }
 foreach ($relativeSource in @("..\..\native\watch\NavaWatchApp.swift", "..\..\native\watch\WatchHomeView.swift", "..\..\native\watch\WatchSessionManager.swift", "..\..\native\watch\Assets.xcassets")) {
   if (!(Test-Path -LiteralPath (Join-Path $xcodeProjectRoot $relativeSource))) { throw "Broken Watch target source reference: $relativeSource" }

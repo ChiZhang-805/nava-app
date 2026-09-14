@@ -39,8 +39,12 @@ test("portion correction scales calories and macros from the original estimated 
   assert.equal(corrected.carbohydrate_grams, 33.3);
   assert.equal(corrected.nutrition_source, "user_corrected");
   assert.deepEqual(sumFoodItemNutrition([corrected, { name: "鸡蛋", calories: 78, protein_grams: 6 }]), {
-    calories: 234, proteinGrams: 9, carbohydrateGrams: 33.3, fatGrams: 0.3,
+    calories: 234, proteinGrams: 9, carbohydrateGrams: null, fatGrams: null,
   });
   assert.equal(correctFoodItemCalories(corrected, 150).calories, 150);
   assert.equal(resizeFoodItemPortion({ name: "未知", calories: 100 }, 100).calories, 100);
+  assert.equal(correctFoodItemCalories(original, NaN).calories, 234);
+  assert.equal(correctFoodItemCalories(original, null).calories, null);
+  assert.equal(correctFoodItemCalories(original, 0).calories, 0);
+  assert.equal(resizeFoodItemPortion({ name: "未知", weight_grams: 100 }, 50).calories, null);
 });

@@ -11,7 +11,8 @@ import {
   placeHomeWidgetInSlot,
   shiftHomeWidget,
 } from "../src/services/homeWidgets.ts";
-import type { TodaySnapshot, TrendBundle } from "../src/types.ts";
+import type { FaceRecord, HealthMetricSnapshot, TodaySnapshot, TrendBundle } from "../src/types.ts";
+import { previousComparableFace, sameModeFaces } from "../src/services/faceComparison.ts";
 
 const snapshot: TodaySnapshot = {
   date: "2026-09-05",
@@ -63,6 +64,23 @@ test("widget presentation exposes only a core result and one real-data support l
   assert.equal(buildHomeWidgetPresentation("heart", snapshot, "zh").state, "missing");
 });
 
+test("historical heart rate is dated, sorted and never taken from a future or empty row", () => {
+  const metrics = [
+    { record_date: "2026-09-03", latest_heart_rate: 65 },
+    { record_date: "2026-09-06", latest_heart_rate: 99 },
+    { record_date: "2026-09-04", latest_heart_rate: 72 },
+    { record_date: "2026-09-05", latest_heart_rate: null, resting_heart_rate: null },
+  ] as HealthMetricSnapshot[];
+  const trends = { healthMetrics: metrics } as TrendBundle;
+  assert.equal(buildHomeWidgetPresentation("heart", snapshot, "zh", trends).core, "72");
+  assert.equal(buildHomeWidgetPresentation("heart", snapshot, "zh", trends).support, "9/4 · 次/分");
+  assert.equal(buildHomeWidgetPresentation("heart", snapshot, "en", trends).support, "9/4 · bpm");
+  const today = { ...snapshot, exercise: { ...snapshot.exercise!, heart_rate: "81" } };
+  assert.equal(buildHomeWidgetPresentation("heart", today, "zh", trends).core, "81");
+  assert.equal(buildHomeWidgetPresentation("heart", today, "zh", trends).support, "次/分");
+  assert.equal(buildHomeWidgetPresentation("heart", snapshot, "en", { healthMetrics: [{ record_date: "2025-12-31", resting_heart_rate: 60 }] } as TrendBundle).support, "2025-12-31 · bpm");
+});
+
 test("the four visual-reference metrics keep compact unit labels", () => {
   const trendSnapshot: TodaySnapshot = { ...snapshot, exercise: { ...snapshot.exercise!, steps: 6_000 } };
   const trends: TrendBundle = {
@@ -88,4 +106,18 @@ test("focus comparison sums multiple sessions within each recorded day", () => {
     ],
   };
   assert.equal(buildHomeWidgetPresentation("focus", trendSnapshot, "zh", trends).support, "较近7日 +50%");
+});
+
+test("face comparison and home delta use earlier same-mode scores, never future or unknown mode", () => {
+  const faces = [
+    { id: "old-bare", record_date: "2026-09-01", capture_mode: "bare_face", overall_score: 60 },
+    { id: "prior-bare", record_date: "2026-09-02", capture_mode: "bare_face", overall_score: 60 },
+    { id: "recent-makeup", record_date: "2026-09-04", capture_mode: "makeup", overall_score: 100 },
+    { id: "future-bare", record_date: "2026-09-06", capture_mode: "bare_face", overall_score: 99 },
+  ] as FaceRecord[];
+  const current = { id: "current", record_date: snapshot.date, capture_mode: "bare_face", overall_score: 72 } as FaceRecord;
+  assert.equal(previousComparableFace(faces, current)?.id, "prior-bare");
+  assert.equal(previousComparableFace(faces, { ...current, capture_mode: undefined }), null);
+  assert.equal(sameModeFaces(faces, undefined, snapshot.date).length, 0);
+  assert.equal(buildHomeWidgetPresentation("face", { ...snapshot, face: current }, "zh", { faces } as TrendBundle).support, "较近7日 +20%");
 });

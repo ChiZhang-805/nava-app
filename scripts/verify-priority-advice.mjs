@@ -26,7 +26,7 @@ try {
       })) };
       const response = await client.functions.invoke("ai-chat-reply", { body: { focusRequest: request, lang, deviceDate } });
       if (response.error) throw new Error(`Priority ${lang}/${count} failed: ${response.error.message}`);
-      assert.match(response.data.modelVersion, /focus-v1$/);
+      assert.match(response.data.modelVersion, /focus-v2$/);
       const result = validateFocusOutput(JSON.stringify(response.data.output), request, lang);
       assert.equal(result.advice.order.length, count);
       console.log(`Real model: ${lang}, ${count} tasks, complete valid permutation and bounded copy; no task written.`);

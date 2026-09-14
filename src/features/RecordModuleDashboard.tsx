@@ -83,6 +83,7 @@ import {
 import type { UserProfile } from "../services/profile";
 import type { FocusLaunchConfig, RecordModule } from "./RecordsScreen";
 import { rollingDateWindow } from "../services/date";
+import { knownFaceMode, latestKnownFaceMode, previousComparableFace, sameModeFaces } from "../services/faceComparison";
 import { currentDayRequiredShareCopy, hasCurrentDayRecord, missingCurrentDayCopy } from "../services/historyReportState";
 import { isDemoMode } from "../services/demo";
 import { clearActiveUserSession, loadActiveUserSession, saveActiveUserSession } from "../services/userCloudState";
@@ -173,9 +174,9 @@ type Props = {
   lightSleep: number;
   remSleep: number;
   sleepRating: number;
-  steps: number;
-  calories: number;
-  exerciseMinutes: number;
+  steps: number | null;
+  calories: number | null;
+  exerciseMinutes: number | null;
   exerciseNote: string;
   setExerciseMinutes: (value: number) => void;
   setExerciseNote: (value: string) => void;
@@ -373,9 +374,9 @@ function HistoryView({
             ? trendBundle.nutritions.map((record) => ({ id: record.id, date: record.record_date, value: record.total_calories }))
             : module === "focus"
               ? aggregateFocusByDate(trendBundle.focus).map((record) => ({ id: record.id, date: record.record_date, value: record.total_minutes }))
-              : trendBundle.faces.flatMap((record) => record.overall_score == null ? [] : [{ id: record.id, date: record.record_date, value: record.overall_score }]);
+              : sameModeFaces(trendBundle.faces, latestKnownFaceMode(trendBundle.faces, deviceDate), deviceDate).map((record) => ({ id: record.id, date: record.record_date, value: record.overall_score }));
     return records.sort((left, right) => left.date.localeCompare(right.date));
-  }, [module, trendBundle]);
+  }, [deviceDate, module, trendBundle]);
   const displayEntries = useMemo(() => {
     const byDate = new Map(entries.map((entry) => [entry.date, entry]));
     return rollingDateWindow(deviceDate).map((date) => byDate.get(date) ?? ({ id: `missing-${module}-${date}`, date, value: null }));
@@ -633,12 +634,12 @@ function ExerciseDashboard({
   const [exerciseSessionNow, setExerciseSessionNow] = useState(() => Date.now());
   const [exerciseSessionMessage, setExerciseSessionMessage] = useState<string | null>(null);
   const selectedExercise = todaySnapshot?.exercise ?? null;
-  const displayedSteps = selectedExercise?.steps ?? 0;
-  const displayedCalories = selectedExercise?.calories ?? 0;
-  const displayedExerciseMinutes = selectedExercise?.exercise_minutes ?? 0;
+  const displayedSteps = selectedExercise?.steps ?? null;
+  const displayedCalories = selectedExercise?.calories ?? null;
+  const displayedExerciseMinutes = selectedExercise?.exercise_minutes ?? null;
   const selectedDateText = selectedExercise ? shortDate(selectedExercise.record_date, locale) : null;
   const stepValues = useMemo(() => {
-    const records = new Map((trendBundle?.exercises ?? []).map((record) => [record.record_date, record.steps ?? 0]));
+    const records = new Map((trendBundle?.exercises ?? []).map((record) => [record.record_date, record.steps ?? null]));
     if (todaySnapshot?.exercise) records.set(recordDate, todaySnapshot.exercise.steps ?? steps);
     return rollingDateWindow(deviceDate).map((date) => [date, records.get(date) ?? null] as const);
   }, [deviceDate, recordDate, steps, todaySnapshot?.exercise, trendBundle]);
@@ -683,19 +684,19 @@ function ExerciseDashboard({
   }), [locale, maxSteps, stepValues]);
   const hasExerciseTrend = stepValues.some(([, value]) => value != null);
   const recordedCalorieValues = useMemo(() => (trendBundle?.exercises ?? [])
-    .filter((record) => record.record_date <= deviceDate && Number(record.calories) > 0)
+    .filter((record) => record.record_date <= deviceDate && record.calories != null && record.calories >= 0)
     .map((record) => Number(record.calories)), [deviceDate, trendBundle]);
   const calorieReference = recordedCalorieValues.length > 0
     ? Math.round(recordedCalorieValues.reduce((sum, value) => sum + value, 0) / recordedCalorieValues.length)
     : null;
-  const calorieProgress = selectedExercise && calorieReference
+  const calorieProgress = displayedCalories != null && calorieReference
     ? Math.min(100, Math.round(displayedCalories / calorieReference * 100))
     : null;
   const sportsPlan = useMemo(() => {
-    if (!selectedExercise) return {
+    if (!selectedExercise || displayedSteps == null || displayedExerciseMinutes == null) return {
       minutes: 20,
       title: locale === "zh" ? "从轻量活动开始" : "Start with light movement",
-      reason: locale === "zh" ? "所选日期尚无运动记录，以下是保守的入门规则建议。" : "There is no activity record for this date, so this is a conservative starter rule.",
+      reason: locale === "zh" ? "所选日期的步数或时长未记录，以下是通用轻量活动建议。" : "Steps or duration are missing for this date; this is a general light-activity suggestion.",
       steps: locale === "zh" ? ["舒展与热身 5 分钟", "轻松步行 10 分钟", "放松拉伸 5 分钟"] : ["Mobility warm-up · 5 min", "Easy walk · 10 min", "Cool-down stretch · 5 min"],
     };
     if (displayedExerciseMinutes >= 30 || displayedSteps >= 8000) return {
@@ -846,11 +847,11 @@ function ExerciseDashboard({
     return (
       <div className="module-dashboard exercise-detail-dashboard" data-module-view="exercise-detail">
         <section className="figma-module-card energy-card">
-          <div><span>{locale === "zh" ? "所选日期能量消耗" : "Selected-day energy"}</span><strong>{selectedExercise ? <AnimatedNumber value={displayedCalories} /> : "--"}<small>{calorieReference ? (locale === "zh" ? ` / 有记录日均 ${calorieReference} kcal` : ` / recorded-day avg ${calorieReference} kcal`) : (locale === "zh" ? " / 暂无历史参考" : " / no history yet")}</small></strong><p>{selectedExercise ? (locale === "zh" ? `${selectedDateText} 的真实记录；圆环仅与个人有记录日均值比较` : `Recorded ${selectedDateText}; the ring compares only with your recorded-day average`) : (locale === "zh" ? "该日期尚无运动记录" : "No activity recorded for this date")}</p></div>
+          <div><span>{locale === "zh" ? "所选日期能量消耗" : "Selected-day energy"}</span><strong>{displayedCalories != null ? <AnimatedNumber value={displayedCalories} /> : "--"}<small>{calorieReference != null ? (locale === "zh" ? ` / 有记录日均 ${calorieReference} kcal` : ` / recorded-day avg ${calorieReference} kcal`) : (locale === "zh" ? " / 暂无历史参考" : " / no history yet")}</small></strong><p>{selectedExercise ? (locale === "zh" ? `${selectedDateText} 的真实记录；圆环仅与个人有记录日均值比较` : `Recorded ${selectedDateText}; the ring compares only with your recorded-day average`) : (locale === "zh" ? "该日期尚无运动记录" : "No activity recorded for this date")}</p></div>
           <div className="progress-ring exercise-ring" style={{ "--progress": `${calorieProgress ?? 0}%` } as CSSProperties}><span>{calorieProgress == null ? "--" : <><AnimatedNumber value={calorieProgress} />%</>}</span></div>
         </section>
         <section className="figma-module-card steps-card">
-          <header><span>{locale === "zh" ? "所选日期步数" : "Selected-day steps"}</span><strong><AnimatedNumber value={displayedSteps} formatter={(value) => Math.round(value).toLocaleString()} /><small>{locale === "zh" ? "步" : "steps"}</small></strong></header>
+          <header><span>{locale === "zh" ? "所选日期步数" : "Selected-day steps"}</span><strong>{displayedSteps == null ? "--" : <AnimatedNumber value={displayedSteps} formatter={(value) => Math.round(value).toLocaleString()} />}<small>{locale === "zh" ? "步" : "steps"}</small></strong></header>
           <div className="steps-bars" aria-label={locale === "zh" ? "近七日步数" : "Seven-day steps"}>
             {stepValues.map(([date, value]) => <span className={value == null ? "is-missing" : undefined} key={date} title={`${shortDate(date, locale)} · ${value == null ? (locale === "zh" ? "暂无记录" : "No entry") : value.toLocaleString()}`} style={{ height: `${value == null ? 0 : Math.max(8, (value / maxSteps) * 100)}%` }} />)}
           </div>
@@ -858,9 +859,9 @@ function ExerciseDashboard({
         <section className="figma-module-card activity-card">
           <header><strong>{locale === "zh" ? "运动" : "Activities"}</strong><button type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "添加运动" : "Add activity"}><Plus size={18} /></button></header>
           <div className="activity-chips">
-            <span>{locale === "zh" ? "活动时长" : "Active time"}<strong><AnimatedNumber value={displayedExerciseMinutes} /> min</strong></span>
-            <span>{locale === "zh" ? "活动消耗" : "Active energy"}<strong><AnimatedNumber value={displayedCalories} /> kcal</strong></span>
-            <span>{locale === "zh" ? "步行折算" : "Walking est."}<strong><AnimatedNumber value={Math.round(displayedSteps / 110)} /> min</strong></span>
+            <span>{locale === "zh" ? "活动时长" : "Active time"}<strong>{displayedExerciseMinutes == null ? "--" : <AnimatedNumber value={displayedExerciseMinutes} />} min</strong></span>
+            <span>{locale === "zh" ? "活动消耗" : "Active energy"}<strong>{displayedCalories == null ? "--" : <AnimatedNumber value={displayedCalories} />} kcal</strong></span>
+            <span>{locale === "zh" ? "步行折算" : "Walking est."}<strong>{displayedSteps == null ? "--" : <AnimatedNumber value={Math.round(displayedSteps / 110)} />} min</strong></span>
           </div>
           <div className="day-distribution">
             {periods.map((period) => <span key={period.label} className={period.active ? "active" : ""}><i title={`${period.label} · ${period.value}`} style={{ height: `${period.heightPercent}%` }} />{period.label}</span>)}
@@ -900,9 +901,9 @@ function ExerciseDashboard({
       <section className="figma-module-card exercise-summary-card">
         <header><strong>{locale === "zh" ? "今日运动" : "Today's activity"}</strong><button className="module-card-icon-action" type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "记录今日运动" : "Log today's activity"}><Activity size={18} /><span>{locale === "zh" ? "添加" : "Add"}</span></button></header>
         <div className="exercise-summary-metrics">
-          <span><small>{locale === "zh" ? "步数" : "Steps"}</small><strong>{selectedExercise ? <AnimatedNumber value={displayedSteps} formatter={(value) => Math.round(value).toLocaleString()} /> : "--"}<em>STEP</em></strong></span>
-          <span><small>{locale === "zh" ? "活动消耗" : "Energy"}</small><strong>{selectedExercise ? <AnimatedNumber value={displayedCalories} /> : "--"}<em>kcal</em></strong></span>
-          <span><small>{locale === "zh" ? "运动时长" : "Duration"}</small><strong>{selectedExercise ? <AnimatedNumber value={displayedExerciseMinutes} /> : "--"}<em>min</em></strong></span>
+          <span><small>{locale === "zh" ? "步数" : "Steps"}</small><strong>{displayedSteps != null ? <AnimatedNumber value={displayedSteps} formatter={(value) => Math.round(value).toLocaleString()} /> : "--"}<em>STEP</em></strong></span>
+          <span><small>{locale === "zh" ? "活动消耗" : "Energy"}</small><strong>{displayedCalories != null ? <AnimatedNumber value={displayedCalories} /> : "--"}<em>kcal</em></strong></span>
+          <span><small>{locale === "zh" ? "运动时长" : "Duration"}</small><strong>{displayedExerciseMinutes != null ? <AnimatedNumber value={displayedExerciseMinutes} /> : "--"}<em>min</em></strong></span>
         </div>
       </section>
       <section className="figma-module-card exercise-health-card">
@@ -1185,10 +1186,10 @@ function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
     id: record?.id ?? `missing-diet-${date}`,
     label: shortDate(date, locale),
     value: Math.round(record?.total_calories ?? 0),
-    missing: !record,
+    missing: record?.total_calories == null,
   }));
-  const hasTrend = records.some(({ record }) => Boolean(record));
-  const recordedCalories = records.flatMap(({ record }) => record && record.total_calories > 0 ? [record.total_calories] : []);
+  const hasTrend = records.some(({ record }) => record?.total_calories != null);
+  const recordedCalories = records.flatMap(({ record }) => record?.total_calories != null ? [record.total_calories] : []);
   const calorieAverage = recordedCalories.length > 0 ? recordedCalories.reduce((sum, value) => sum + value, 0) / recordedCalories.length : null;
   const calorieRange = calorieAverage == null ? null : { low: Math.round(calorieAverage * .85), high: Math.round(calorieAverage * 1.15) };
   const macroEnergy = {
@@ -1196,6 +1197,7 @@ function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
     carbs: Math.max(0, nutrition?.carbohydrate_grams ?? 0) * 4,
     fat: Math.max(0, nutrition?.fat_grams ?? 0) * 9,
   };
+  const hasMacroAmounts = nutrition?.protein_grams != null && nutrition.carbohydrate_grams != null && nutrition.fat_grams != null && macroEnergy.protein + macroEnergy.carbs + macroEnergy.fat > 0;
   const macroTotal = Math.max(1, macroEnergy.protein + macroEnergy.carbs + macroEnergy.fat);
   const proteinEnd = macroEnergy.protein / macroTotal * 100;
   const carbsEnd = proteinEnd + macroEnergy.carbs / macroTotal * 100;
@@ -1214,13 +1216,13 @@ function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
           <button type="button" onClick={onOpenDietCamera} aria-label={locale === "zh" ? "直接拍照识别饮食" : "Photograph a meal for AI recognition"}><Camera size={20} /></button>
         </header>
         <div className="diet-nutrition-summary">
-          <span><small>{locale === "zh" ? "蛋白质" : "Protein"}</small><strong>{nutrition ? <AnimatedNumber value={Math.round(nutrition.protein_grams ?? 0)} /> : "--"}<em>g</em></strong></span>
-          <span><small>{locale === "zh" ? "碳水化合物" : "Carbohydrates"}</small><strong>{nutrition ? <AnimatedNumber value={Math.round(nutrition.carbohydrate_grams ?? 0)} /> : "--"}<em>g</em></strong></span>
-          <span><small>{locale === "zh" ? "脂肪" : "Fat"}</small><strong>{nutrition ? <AnimatedNumber value={Math.round(nutrition.fat_grams ?? 0)} /> : "--"}<em>g</em></strong></span>
-          <span><small>{locale === "zh" ? "饮水量" : "Water"}</small><strong>{nutrition ? <AnimatedNumber value={Math.round(nutrition.hydration_ml ?? 0)} /> : "--"}<em>ml</em></strong></span>
+          <span><small>{locale === "zh" ? "蛋白质" : "Protein"}</small><strong>{nutrition?.protein_grams != null ? <AnimatedNumber value={Math.round(nutrition.protein_grams)} /> : "--"}<em>g</em></strong></span>
+          <span><small>{locale === "zh" ? "碳水化合物" : "Carbohydrates"}</small><strong>{nutrition?.carbohydrate_grams != null ? <AnimatedNumber value={Math.round(nutrition.carbohydrate_grams)} /> : "--"}<em>g</em></strong></span>
+          <span><small>{locale === "zh" ? "脂肪" : "Fat"}</small><strong>{nutrition?.fat_grams != null ? <AnimatedNumber value={Math.round(nutrition.fat_grams)} /> : "--"}<em>g</em></strong></span>
+          <span><small>{locale === "zh" ? "饮水量" : "Water"}</small><strong>{nutrition?.hydration_ml != null ? <AnimatedNumber value={Math.round(nutrition.hydration_ml)} /> : "--"}<em>ml</em></strong></span>
         </div>
         <div className="diet-energy-context">
-          <div className={["diet-macro-ring", nutrition ? "" : "is-missing"].filter(Boolean).join(" ")} style={nutrition ? { background: `conic-gradient(#218fba 0 ${proteinEnd}%, #69c3d9 ${proteinEnd}% ${carbsEnd}%, #f3ba70 ${carbsEnd}% 100%)` } : undefined}><span>{nutrition ? Math.round(nutrition.total_calories) : "--"}<small>kcal</small></span></div>
+          <div className={["diet-macro-ring", hasMacroAmounts ? "" : "is-missing"].filter(Boolean).join(" ")} style={hasMacroAmounts ? { background: `conic-gradient(#218fba 0 ${proteinEnd}%, #69c3d9 ${proteinEnd}% ${carbsEnd}%, #f3ba70 ${carbsEnd}% 100%)` } : undefined}><span>{nutrition?.total_calories != null ? Math.round(nutrition.total_calories) : "--"}<small>kcal</small></span></div>
           <p>{calorieRange ? (locale === "zh" ? `你近 7 日有记录日的日均参考范围为 ${calorieRange.low}–${calorieRange.high} kcal；缺失日未按 0 计算。` : `Your recorded-day 7-day reference range is ${calorieRange.low}–${calorieRange.high} kcal; missing days are excluded.`) : (locale === "zh" ? "累积更多真实记录后生成个人历史参考范围。" : "Log more days to build your recorded-history reference range.")}</p>
         </div>
       </section>
@@ -1249,8 +1251,9 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
   const { locale, todaySnapshot, trendBundle, deviceDate, onOpenEditor, view, openView } = props;
   const face = todaySnapshot?.face;
   const records = useMemo(() => {
-    const byDate = new Map((trendBundle?.faces ?? []).map((record) => [record.record_date, record]));
-    if (face) byDate.set(face.record_date, face);
+    const source = [...(trendBundle?.faces ?? []), ...(face ? [face] : [])];
+    const mode = face ? face.capture_mode : latestKnownFaceMode(source, deviceDate);
+    const byDate = new Map(sameModeFaces(source, mode, face?.record_date ?? deviceDate).map((record) => [record.record_date, record]));
     return rollingDateWindow(deviceDate).map((date) => ({ date, record: byDate.get(date) ?? null }));
   }, [deviceDate, face, trendBundle]);
   const points = records.map(({ date, record }) => {
@@ -1266,8 +1269,7 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
       };
     });
   const hasTrend = points.some((point) => !point.missing);
-  const priorFaces = records.map(({ record }) => record).filter((record): record is NonNullable<typeof record> => Boolean(record && record.record_date !== face?.record_date));
-  const previousFace = priorFaces[priorFaces.length - 1] ?? null;
+  const previousFace = previousComparableFace(trendBundle?.faces ?? [], face);
   const scoreDelta = face?.overall_score != null && previousFace?.overall_score != null ? Math.round(face.overall_score - previousFace.overall_score) : null;
   const feedbackSentence = face?.feedback?.split(/(?<=[。！？.!?])/)[0]?.trim() || (locale === "zh" ? "完成一次拍摄后，这里会显示基于真实分析结果的今日一句话。" : "Complete a capture to see today's result-based note.");
   const recentScoredFaces = records.flatMap(({ record }) => record?.overall_score == null ? [] : [record]).slice(-3);
@@ -1276,7 +1278,7 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
     {face && previousFace ? <div className="face-comparison">
       {[previousFace, face].map((record, index) => <section key={record.id}><small>{index === 0 ? (locale === "zh" ? "上次" : "Previous") : (locale === "zh" ? "本次" : "Current")} · {shortDate(record.record_date, locale)}</small><strong>{record.overall_score == null ? "--" : Math.round(record.overall_score)}<em>{locale === "zh" ? "分" : "pts"}</em></strong><span>{locale === "zh" ? "肤龄参考" : "Skin-age ref."} {record.skin_age == null ? "--" : Math.round(record.skin_age)}</span></section>)}
       <div className={scoreDelta != null && scoreDelta >= 0 ? "positive" : "negative"}><RefreshCw size={18} /><strong>{scoreDelta == null ? "--" : `${scoreDelta >= 0 ? "+" : ""}${scoreDelta}`}</strong><p>{locale === "zh" ? "仅比较两次真实分析结果；拍摄光线、角度与妆容可能影响分数。" : "Compares two real analyses only; lighting, angle, and makeup can affect scores."}</p></div>
-    </div> : <p className="module-empty-copy">{locale === "zh" ? "至少完成两次拍摄后才能比较。" : "Complete at least two captures to compare them."}</p>}
+    </div> : <p className="module-empty-copy">{locale === "zh" ? "暂无更早的同模式记录，暂不能对比。" : "No earlier same-mode record is available for comparison."}</p>}
   </ModuleDetailView>;
   return (
     <div className="module-dashboard face-dashboard" data-module-view="face-overview">
@@ -1287,13 +1289,13 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
         <header><strong>{locale === "zh" ? "今日面部状态" : "Today's face state"}</strong><div className="face-summary-actions"><button type="button" onClick={() => openView("compare")} disabled={!previousFace}><RefreshCw size={16} /><span>{locale === "zh" ? "对比" : "Compare"}</span></button><button className="module-card-icon-action" type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "使用前置摄像头拍照" : "Take a front-camera photo"}><Camera size={18} /><span>{locale === "zh" ? "拍照" : "Capture"}</span></button></div></header>
         <div className="face-score-row">
           <div className="face-score-ring" style={{ "--face-score": `${face?.overall_score ?? 0}%` } as CSSProperties}><ScanFace size={28} /><strong>{face?.overall_score == null ? "--" : <AnimatedNumber value={face.overall_score} />}</strong></div>
-          <div><span>{locale === "zh" ? "肤龄参考" : "Skin-age reference"}<strong>{face?.skin_age == null ? "--" : <AnimatedNumber value={face.skin_age} />}</strong></span><span>{locale === "zh" ? "拍摄模式" : "Capture mode"}<strong>{!face ? "--" : face.capture_mode === "makeup" ? (locale === "zh" ? "带妆" : "Makeup") : (locale === "zh" ? "素颜" : "Bare")}</strong></span><span>{locale === "zh" ? "分析置信度" : "Confidence"}<strong>{face?.analysis_confidence != null ? <><AnimatedNumber value={face.analysis_confidence * 100} />%</> : "--"}</strong></span></div>
+          <div><span>{locale === "zh" ? "肤龄参考" : "Skin-age reference"}<strong>{face?.skin_age == null ? "--" : <AnimatedNumber value={face.skin_age} />}</strong></span><span>{locale === "zh" ? "拍摄模式" : "Capture mode"}<strong>{!face || !knownFaceMode(face.capture_mode) ? "--" : face.capture_mode === "makeup" ? (locale === "zh" ? "带妆" : "Makeup") : (locale === "zh" ? "素颜" : "Bare")}</strong></span><span>{locale === "zh" ? "分析置信度" : "Confidence"}<strong>{face?.analysis_confidence != null ? <><AnimatedNumber value={face.analysis_confidence * 100} />%</> : "--"}</strong></span></div>
         </div>
         <div className="face-daily-note"><Bot size={17} /><p>{feedbackSentence}</p>{scoreDelta != null && <strong className={scoreDelta >= 0 ? "positive" : "negative"}>{scoreDelta >= 0 ? "+" : ""}{scoreDelta}</strong>}</div>
       </section>
       {repeatedLowFace && <section className="face-pattern-alert" role="status"><ScanFace size={18} /><p>{locale === "zh" ? "最近 3 次面部状态评分都偏低。拍摄条件也会影响结果；可以结合睡眠、情绪和运动记录问 NAVA 查看可能关联，本提示不构成医疗诊断。" : "Your last 3 face-state scores were low. Capture conditions can affect results; ask NAVA to review possible links with sleep, mood, and activity. This is not a diagnosis."}</p></section>}
       <section className="figma-module-card face-trend-card">
-        <header><strong>{locale === "zh" ? "近 7 日状态" : "7-day state"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("history")} aria-label={locale === "zh" ? "查看面部趋势报告" : "View face trend report"}><ChevronRight size={18} /></button></header>
+        <header><strong>{locale === "zh" ? "近 7 日同模式状态" : "7-day same-mode state"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("history")} aria-label={locale === "zh" ? "查看面部趋势报告" : "View face trend report"}><ChevronRight size={18} /></button></header>
         {hasTrend ? <BarLineTrendChart points={points} scoreScale curve="monotone" ariaLabel={locale === "zh" ? "按设备日期滚动的近七日面部状态趋势；未记录日期保留为空位" : "Device-date rolling seven-day face-state trend with empty slots for missing dates"} /> : <p className="module-empty-copy">{locale === "zh" ? "完成第一次拍照后显示趋势" : "Take the first photo to begin the trend"}</p>}
       </section>
     </div>
@@ -1686,7 +1688,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   });
   const todayTodos = rankTasks(todos.filter((item) => item.scheduledDate === deviceDate));
   const incompleteTodayTodos = todayTodos.filter((item) => !item.completed);
-  const priorityKey = JSON.stringify(incompleteTodayTodos.slice(0, 12).map((item) => [item.id, item.title, item.scheduledTime, item.focusMinutes, item.important, item.urgent]));
+  const priorityKey = JSON.stringify(incompleteTodayTodos.map((item) => [item.id, item.title, item.scheduledTime, item.focusMinutes, item.important, item.urgent]));
   const calendarDays = rollingDateWindow(deviceDate);
   const visibleTodos = todoView === "list" ? todayTodos : todos.filter((item) => item.scheduledDate === calendarDate);
   const selectedTodo = todos.find((item) => item.id === selectedTodoId) ?? null;
@@ -1868,10 +1870,10 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   };
 
   const requestPriorityAdvice = async () => {
-    if (incompleteTodayTodos.length < 2 || isDemoMode()) return;
+    if (incompleteTodayTodos.length < 2 || incompleteTodayTodos.length > 12 || isDemoMode()) return;
     priorityAbortRef.current?.abort();
     const controller = new AbortController();
-    const tasks = incompleteTodayTodos.slice(0, 12);
+    const tasks = incompleteTodayTodos;
     const key = priorityKey;
     priorityAbortRef.current = controller;
     setPriorityAdvice(null);
@@ -2360,7 +2362,8 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           <button type="submit" aria-label={locale === "zh" ? "添加待办" : "Add task"}><Plus size={17} /></button>
         </form>
         {incompleteTodayTodos.length >= 2 && <>
-          <button className="focus-ai-priority-button" type="button" disabled={isDemoMode() || priorityLoading} onClick={() => void requestPriorityAdvice()}><Bot size={15} />{priorityLoading ? (locale === "zh" ? "AI 排序中" : "Prioritizing") : (locale === "zh" ? `AI 排优先级 · ${incompleteTodayTodos.length} 项` : `AI prioritize · ${incompleteTodayTodos.length}`)}</button>
+          <button className="focus-ai-priority-button" type="button" disabled={isDemoMode() || priorityLoading || incompleteTodayTodos.length > 12} onClick={() => void requestPriorityAdvice()}><Bot size={15} />{priorityLoading ? (locale === "zh" ? "AI 排序中" : "Prioritizing") : (locale === "zh" ? `AI 排优先级 · ${incompleteTodayTodos.length} 项` : `AI prioritize · ${incompleteTodayTodos.length}`)}</button>
+          {incompleteTodayTodos.length > 12 && <p className="focus-ai-priority-note" role="status">{locale === "zh" ? "一次可排序 2–12 项。请先调整今日待办；不会遗漏后面的任务。" : "Sort 2–12 tasks at a time. Adjust today’s list first; later tasks will not be silently skipped."}</p>}
           {isDemoMode() && <p className="focus-ai-priority-note">{locale === "zh" ? "演示模式不调用真实 AI。" : "Demo mode does not call a real AI model."}</p>}
           {priorityAdvice?.key === priorityKey && <div className="focus-ai-priority-result" role="status"><strong><Bot size={15} />{locale === "zh" ? "AI 排序草稿 · 请核对" : "AI order draft · please review"}</strong><ol>{priorityAdvice.orderIds.map((id) => <li key={id}>{incompleteTodayTodos.find((item) => item.id === id)?.title ?? "?"}</li>)}</ol><p>{priorityAdvice.basis}</p>{priorityAdvice.question && <p>{locale === "zh" ? "待确认：" : "Clarify: "}{priorityAdvice.question}</p>}<button type="button" disabled={prioritySaving} onClick={() => void acceptPriorityAdvice()}>{prioritySaving ? (locale === "zh" ? "保存中…" : "Saving…") : (locale === "zh" ? "确认并保存顺序" : "Confirm and save order")}</button></div>}
           {priorityError && <p className="focus-ai-priority-error" role="alert">{priorityError}</p>}

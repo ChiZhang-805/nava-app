@@ -35,25 +35,38 @@ try {
   ]);
   for (const result of [profileResult, sleepResult, moodResult, exerciseResult]) if (result.error) throw new Error(`Owned focus evidence read failed: ${result.error.message}`);
   const evidence = selectFocusHealthEvidence({ sleeps: sleepResult.data, moods: moodResult.data, exercises: exerciseResult.data }, profileResult.data, deviceDate);
-  const focusRequest = { kind: "encouragement", title: "整理研究笔记", elapsedMinutes: 12 };
-  const response = await client.functions.invoke("ai-chat-reply", {
-    body: {
-      focusRequest,
-      lang: "zh", responseMode: "text", deviceDate, stream: false,
-    },
-  });
-  if (response.error) {
-    const detail = await response.error.context?.json().catch(() => null);
-    throw new Error(`Authenticated in-session cue failed: ${response.error.context?.status ?? "unknown"}; ${detail?.error ?? detail?.message ?? response.error.message}`);
+  if (!process.env.NAVA_FOCUS_UI_URL) {
+    const focusRequest = { kind: "encouragement", title: "整理研究笔记", elapsedMinutes: 12 };
+    const response = await client.functions.invoke("ai-chat-reply", {
+      body: {
+        focusRequest,
+        focusContractVersion: 2,
+        lang: "zh", responseMode: "text", deviceDate, stream: false,
+      },
+    });
+    if (response.error) {
+      const detail = await response.error.context?.json().catch(() => null);
+      throw new Error(`Authenticated in-session cue failed: ${response.error.context?.status ?? "unknown"}; ${detail?.error ?? detail?.message ?? response.error.message}`);
+    }
+    const reply = typeof response.data?.reply === "string" ? response.data.reply.trim() : "";
+    validateFocusOutput(JSON.stringify(response.data?.output), focusRequest, "zh", evidence);
+    if (reply.length < 6 || Array.from(reply).length > 80 || /AI\s*暂不可用|请先登录/.test(reply)) {
+      throw new Error("Authenticated in-session cue did not pass the safe reply check.");
+    }
+    const citedDomains = evidence.filter((item) => reply.includes(String(item.value)));
+    if (evidence.length >= 2 && citedDomains.length < 2) throw new Error("The model did not cite two actual saved domain values for the requested cross-domain observation.");
+    console.log(`Authenticated real-model in-session focus cue received (${reply.length} characters; content omitted); ${evidence.length} consented domains, ${citedDomains.length} observed values cited; no focus or health record saved.`);
+    const legacy = await client.functions.invoke("ai-chat-reply", { body: { focusRequest, lang: "zh", deviceDate } });
+    assert.equal(legacy.error, null, "Already-open legacy clients must retain an accepted response");
+    assert.equal(legacy.data.output.reply, legacy.data.reply);
+    assert.ok(Array.from(legacy.data.reply).length <= 80);
+    for (const domain of legacy.data.output.citedDomains) {
+      const item = evidence.find((entry) => entry.domain === domain);
+      assert.ok(legacy.data.reply.includes(item.date) && legacy.data.reply.includes(String(item.value)));
+    }
+    console.log("Legacy response compatibility preserved with original dated facts; content omitted.");
+
   }
-  const reply = typeof response.data?.reply === "string" ? response.data.reply.trim() : "";
-  validateFocusOutput(JSON.stringify(response.data?.output), focusRequest, "zh", evidence);
-  if (reply.length < 6 || Array.from(reply).length > 80 || /AI\s*暂不可用|请先登录/.test(reply)) {
-    throw new Error("Authenticated in-session cue did not pass the safe reply check.");
-  }
-  const citedDomains = evidence.filter((item) => reply.includes(String(item.value)));
-  if (evidence.length >= 2 && citedDomains.length < 2) throw new Error("The model did not cite two actual saved domain values for the requested cross-domain observation.");
-  console.log(`Authenticated real-model in-session focus cue received (${reply.length} characters; content omitted); ${evidence.length} consented domains, ${citedDomains.length} observed values cited; no focus or health record saved.`);
   if (process.env.NAVA_FOCUS_UI_URL) {
     const tasks = Array.from({ length: 2 }, (_, index) => ({ id: crypto.randomUUID(), user_id: userId,
       title: `专注契约验收${index + 1}：${"整理研究笔记，核验引用并列出待确认问题。".repeat(7)}`,
@@ -75,7 +88,7 @@ try {
         assert.equal(new URL(res.url()).origin, new URL(url).origin, "APP must use the canonical Supabase project");
         assert.equal(res.status(), 200, `Actual APP ${kind} HTTP status`);
         const data = await res.json();
-        assert.match(data.modelVersion, /focus-v1$/);
+        assert.match(data.modelVersion, /focus-v2$/);
         const request = res.request().postDataJSON().focusRequest;
         validateFocusOutput(JSON.stringify(data.output), request, "zh", kind === "encouragement" ? evidence : []);
         console.log(`Actual logged-in APP: ${kind} returned a validated real-model response.`);
@@ -131,14 +144,14 @@ try {
       await page.route("**/functions/v1/ai-chat-reply", async (route) => {
         modelUiCalls += 1;
         uiPrompts.push(route.request().postDataJSON()?.focusRequest);
-        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(response.data) });
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(live) });
       });
       await page.getByRole("button", { name: "开始" }).click();
       await expect(page.locator('[data-focus-state="running"]')).toBeVisible();
       await page.getByRole("button", { name: "获取计时中的 AI 鼓励" }).click();
       const panel = page.getByRole("region", { name: "计时中的 AI 鼓励" });
       await expect(panel).toBeVisible();
-      await expect(panel.getByText(reply, { exact: true })).toBeVisible();
+      await expect(panel.getByText(live.reply, { exact: true })).toBeVisible();
       await expect(panel.locator(".focus-encouragement-sources span")).toHaveCount(evidence.length);
       await page.evaluate(async () => { if (document.fullscreenElement) await document.exitFullscreen(); });
       for (const viewport of [{ width: 360, height: 740 }, { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {

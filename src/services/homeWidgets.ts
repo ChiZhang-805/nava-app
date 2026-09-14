@@ -1,3 +1,4 @@
+import { sameModeFaces } from "./faceComparison.ts";
 import type { TodaySnapshot, TrendBundle } from "../types";
 
 export const HOME_WIDGET_LIMIT = 6;
@@ -212,15 +213,20 @@ export function buildHomeWidgetPresentation(id: HomeWidgetId, snapshot: TodaySna
   const zh = locale === "zh";
   if (id === "heart") {
     const direct = Number.parseFloat(snapshot.exercise?.heart_rate ?? "");
-    const healthMetrics = trends?.healthMetrics ?? [];
-    const metric = healthMetrics.find((item) => item.record_date === snapshot.date)
-      ?? healthMetrics[healthMetrics.length - 1];
-    const value = Number.isFinite(direct)
-      ? direct
-      : Number(metric?.latest_heart_rate ?? metric?.resting_heart_rate);
-    return !Number.isFinite(value) || value <= 0
+    const directValid = snapshot.exercise?.record_date === snapshot.date && Number.isFinite(direct) && direct > 0;
+    const historical = [...(trends?.healthMetrics ?? [])]
+      .filter((item) => item.record_date <= snapshot.date)
+      .sort((a, b) => b.record_date.localeCompare(a.record_date))
+      .map((item) => ({ date: item.record_date, value: [item.latest_heart_rate, item.resting_heart_rate].find((value) => value != null && Number.isFinite(value) && value > 0) }))
+      .find((item) => item.value != null);
+    const value = directValid ? direct : historical?.value;
+    const date = directValid ? snapshot.date : historical?.date;
+    const datedUnit = date && date !== snapshot.date
+      ? `${date.slice(0, 4) === snapshot.date.slice(0, 4) ? `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}` : date} · ${zh ? "次/分" : "bpm"}`
+      : zh ? "次/分" : "bpm";
+    return value == null || !Number.isFinite(value) || value <= 0
       ? { id, core: "--", support: zh ? "尚未同步" : "Not synced", state: "missing" }
-      : { id, core: `${Math.round(value)}`, support: zh ? "次/分" : "bpm", state: value > 100 || value < 50 ? "attention" : "ready" };
+      : { id, core: `${Math.round(value)}`, support: datedUnit, state: value > 100 || value < 50 ? "attention" : "ready" };
   }
   if (id === "sleep") {
     const minutes = snapshot.sleep?.sleep_duration_minutes;
@@ -241,9 +247,9 @@ export function buildHomeWidgetPresentation(id: HomeWidgetId, snapshot: TodaySna
   }
   if (id === "exercise") {
     const exercise = snapshot.exercise;
-    return !exercise
+    return exercise?.exercise_minutes == null
       ? { id, core: "--", support: zh ? "尚未记录" : "Not logged", state: "missing" }
-      : { id, core: `${Math.round(exercise.exercise_minutes ?? 0)}`, support: zh ? "分钟" : "min", state: (exercise.exercise_minutes ?? 0) < 20 ? "attention" : "ready" };
+      : { id, core: `${Math.round(exercise.exercise_minutes)}`, support: zh ? "分钟" : "min", state: exercise.exercise_minutes < 20 ? "attention" : "ready" };
   }
   if (id === "steps") {
     const exercise = snapshot.exercise;
@@ -261,12 +267,12 @@ export function buildHomeWidgetPresentation(id: HomeWidgetId, snapshot: TodaySna
   if (id === "diet") {
     const nutrition = snapshot.nutrition;
     const trend = trendSupport(nutrition?.total_calories, previousRecordedDayValues(trends?.nutritions ?? [], snapshot.date, (record) => record.total_calories), locale);
-    return !nutrition
+    return nutrition?.total_calories == null
       ? { id, core: "--", support: zh ? "尚未记录" : "Not logged", state: "missing" }
       : { id, core: `${Math.round(nutrition.total_calories)}k`, support: trend ?? (zh ? `${mealCount(snapshot)} 餐已记` : `${mealCount(snapshot)} meals`), state: "ready" };
   }
   const face = snapshot.face;
-  const trend = trendSupport(face?.overall_score, previousRecordedDayValues(trends?.faces ?? [], snapshot.date, (record) => record.overall_score), locale);
+  const trend = trendSupport(face?.overall_score, previousRecordedDayValues(sameModeFaces(trends?.faces ?? [], face?.capture_mode, snapshot.date), snapshot.date, (record) => record.overall_score), locale);
   return face?.overall_score == null
     ? { id, core: "--", support: zh ? "尚未记录" : "Not logged", state: "missing" }
     : { id, core: `${Math.round(face.overall_score)}`, support: trend ?? (zh ? "今日状态" : "Today"), state: face.overall_score < 55 ? "attention" : "ready" };

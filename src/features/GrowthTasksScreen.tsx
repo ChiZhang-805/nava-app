@@ -137,7 +137,7 @@ export default function GrowthTasksScreen({
       <section className={["growth-summary-card", settling ? "is-settling" : ""].filter(Boolean).join(" ")}>
         <div className="growth-level-orb"><Award size={26} /><strong>Lv.{level}</strong></div>
         <div className="growth-progress-copy">
-          <span>{locale === "zh" ? "本周成长" : "Weekly growth"}</span>
+          <span>{locale === "zh" ? "累计成长" : "Total growth"}</span>
           <strong aria-live="polite">{displayedXp} XP</strong>
           <div className="growth-progress-track" aria-label={`${progress}%`}><span style={{ width: `${progress}%` }} /></div>
           {badges.length > 0 && <small>{locale === "zh" ? `已获得 ${badges.length} 枚徽章` : `${badges.length} badge${badges.length === 1 ? "" : "s"} earned`}</small>}
