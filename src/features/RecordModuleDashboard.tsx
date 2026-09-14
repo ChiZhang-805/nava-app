@@ -87,7 +87,7 @@ import { currentDayRequiredShareCopy, hasCurrentDayRecord, missingCurrentDayCopy
 import { isDemoMode } from "../services/demo";
 import { clearActiveUserSession, loadActiveUserSession, saveActiveUserSession } from "../services/userCloudState";
 import { resolveTodoFocusPlan } from "../services/focusPlanning.ts";
-import { generateFocusDifficulty, generateFocusStartingCue } from "../services/ai";
+import { generateFocusDifficulty, generateFocusPriority, generateFocusStartingCue } from "../services/ai";
 import { exitFocusFullscreen, focusFullscreenActive, focusFullscreenSupported, requestFocusFullscreen, requestScreenWakeLock, screenWakeLockSupported, type ScreenWakeLockSentinel } from "../services/focusImmersion.ts";
 import { focusNoiseSupported, startFocusNoise, type FocusNoiseKind, type FocusNoiseSession } from "../services/focusAudio.ts";
 import { abandonExerciseSession, exerciseSessionElapsedSeconds, finishExerciseSession, hydrateExerciseSession, pauseExerciseSession, resumeExerciseSession, startExerciseSession, type ExerciseSession } from "../services/exerciseSession.ts";
@@ -1329,6 +1329,10 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [guideAiCue, setGuideAiCue] = useState<string | null>(null);
   const [guideAiError, setGuideAiError] = useState<string | null>(null);
   const [guideAiLoading, setGuideAiLoading] = useState(false);
+  const priorityAbortRef = useRef<AbortController | null>(null);
+  const [priorityAdvice, setPriorityAdvice] = useState<{ key: string; text: string } | null>(null);
+  const [priorityError, setPriorityError] = useState<string | null>(null);
+  const [priorityLoading, setPriorityLoading] = useState(false);
   const difficultyAbortRef = useRef<AbortController | null>(null);
   const [difficultyAssessment, setDifficultyAssessment] = useState<string | null>(null);
   const [difficultyError, setDifficultyError] = useState<string | null>(null);
@@ -1611,7 +1615,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   }, [cloudTimerReady, countdownDurationSeconds, displayedFocusTitle, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptionReasons, interruptions, remaining, running, saved, selectedTodoId, sessionId, startedAt, timerMode, userId]);
   const todayTodos = todos.filter((item) => item.scheduledDate === deviceDate);
   const incompleteTodayTodos = todayTodos.filter((item) => !item.completed);
-  const priorityTodoPrompt = incompleteTodayTodos.slice(0, 12).map((item, index) => `${index + 1}. ${item.title}${item.scheduledTime ? ` · ${item.scheduledTime}` : ""}${item.focusMinutes ? ` · ${item.focusMinutes}${locale === "zh" ? "分钟" : " min"}` : ""}`).join("\n");
+  const priorityKey = JSON.stringify(incompleteTodayTodos.slice(0, 12).map((item) => [item.id, item.title, item.scheduledTime, item.focusMinutes]));
   const calendarDays = rollingDateWindow(deviceDate);
   const visibleTodos = todoView === "list" ? todayTodos : todos.filter((item) => item.scheduledDate === calendarDate);
   const selectedTodo = todos.find((item) => item.id === selectedTodoId) ?? null;
@@ -1623,6 +1627,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setDifficultyLoading(false);
   };
   useEffect(() => () => difficultyAbortRef.current?.abort(), []);
+  useEffect(() => () => priorityAbortRef.current?.abort(), []);
   const todoSessionProgress = useMemo(() => {
     const totals = new Map<string, number>();
     (trendBundle?.focus ?? []).forEach((record) => {
@@ -1782,6 +1787,34 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       if (difficultyAbortRef.current === controller) {
         difficultyAbortRef.current = null;
         if (!controller.signal.aborted) setDifficultyLoading(false);
+      }
+    }
+  };
+
+  const requestPriorityAdvice = async () => {
+    if (incompleteTodayTodos.length < 2 || isDemoMode()) return;
+    priorityAbortRef.current?.abort();
+    const controller = new AbortController();
+    const tasks = incompleteTodayTodos.slice(0, 12);
+    const key = priorityKey;
+    priorityAbortRef.current = controller;
+    setPriorityAdvice(null);
+    setPriorityError(null);
+    setPriorityLoading(true);
+    let timedOut = false;
+    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 45_000);
+    try {
+      const advice = await generateFocusPriority(tasks, locale, controller.signal);
+      if (!controller.signal.aborted) setPriorityAdvice({ key, text: advice });
+    } catch (error) {
+      if (priorityAbortRef.current === controller && (timedOut || !controller.signal.aborted)) {
+        setPriorityError(timedOut ? (locale === "zh" ? "AI 排序超时，请重试。" : "AI prioritization timed out. Please retry.") : error instanceof Error ? error.message : (locale === "zh" ? "AI 暂不可用，请重试。" : "AI is unavailable. Please retry."));
+      }
+    } finally {
+      window.clearTimeout(timeout);
+      if (priorityAbortRef.current === controller) {
+        priorityAbortRef.current = null;
+        setPriorityLoading(false);
       }
     }
   };
@@ -2163,7 +2196,12 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           <label><span>{locale === "zh" ? "次数" : "Sessions"}</span><input aria-label={locale === "zh" ? "计划专注次数" : "Planned sessions"} type="number" inputMode="numeric" min={1} max={12} value={todoSessions} onChange={(event) => setTodoSessions(Math.min(12, Math.max(1, Number(event.target.value) || 1)))} /><b>{locale === "zh" ? "次" : "x"}</b></label>
           <button type="submit" aria-label={locale === "zh" ? "添加待办" : "Add task"}><Plus size={17} /></button>
         </form>
-        {incompleteTodayTodos.length > 5 && <button className="focus-ai-priority-button" type="button" onClick={() => onOpenAi?.(locale === "zh" ? `以下是我今天尚未完成的真实待办。请结合截止时间、预计专注时长和任务依赖，给出优先顺序；先说明排序依据，再推荐我现在只做哪一项。不要虚构未提供的信息。\n${priorityTodoPrompt}` : `These are my real unfinished tasks for today. Rank them using timing, estimated focus duration, and dependencies. Explain the criteria, then recommend exactly one task to start now. Do not invent missing facts.\n${priorityTodoPrompt}`)}><Bot size={15} />{locale === "zh" ? `AI 排优先级 · ${incompleteTodayTodos.length} 项` : `AI prioritize · ${incompleteTodayTodos.length}`}</button>}
+        {incompleteTodayTodos.length >= 2 && <>
+          <button className="focus-ai-priority-button" type="button" disabled={isDemoMode() || priorityLoading} onClick={() => void requestPriorityAdvice()}><Bot size={15} />{priorityLoading ? (locale === "zh" ? "AI 排序中" : "Prioritizing") : (locale === "zh" ? `AI 排优先级 · ${incompleteTodayTodos.length} 项` : `AI prioritize · ${incompleteTodayTodos.length}`)}</button>
+          {isDemoMode() && <p className="focus-ai-priority-note">{locale === "zh" ? "演示模式不调用真实 AI。" : "Demo mode does not call a real AI model."}</p>}
+          {priorityAdvice?.key === priorityKey && <div className="focus-ai-priority-result" role="status"><strong><Bot size={15} />{locale === "zh" ? "AI 排序建议 · 未修改待办" : "AI suggestion · tasks unchanged"}</strong><p>{priorityAdvice.text}</p></div>}
+          {priorityError && <p className="focus-ai-priority-error" role="alert">{priorityError}</p>}
+        </>}
         {todoView === "calendar" && <div className="focus-todo-calendar">{calendarDays.map((date) => {
           const dayTodos = todos.filter((item) => item.scheduledDate === date);
           const completed = dayTodos.filter((item) => item.completed).length;

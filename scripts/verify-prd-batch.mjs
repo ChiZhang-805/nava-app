@@ -119,6 +119,8 @@ async function main() {
     if (!savedMorningTask || savedMorningTask.focusMinutes !== 50 || savedMorningTask.focusSessions !== 2) {
       throw new Error(`Morning task plan did not persist at ${suffix}.`);
     }
+    await expect(page.locator(".focus-ai-priority-button")).toBeDisabled();
+    await expect(page.locator(".focus-ai-priority-note")).toContainText("演示模式不调用真实 AI");
     await page.locator(".focus-todo-tabs button").last().click();
     await expect(page.locator(".focus-todo-calendar button")).toHaveCount(7);
     await page.locator(".focus-chart-tabs button").nth(1).click();

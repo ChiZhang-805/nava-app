@@ -10172,7 +10172,7 @@ body::before {
 
 .focus-ai-priority-button {
   width: 100%;
-  min-height: 34px;
+  min-height: 44px;
   border: 1px solid rgba(52, 157, 194, .2);
   border-radius: 11px;
   display: flex;
@@ -10184,6 +10184,12 @@ body::before {
   font-size: 10px;
   font-weight: 740;
 }
+.focus-ai-priority-button:disabled { opacity: .55; }
+.focus-ai-priority-note, .focus-ai-priority-error { margin: 0; color: #667f8d; font-size: 11px; line-height: 1.5; }
+.focus-ai-priority-error { color: #a23540; }
+.focus-ai-priority-result { min-width: 0; border: 1px solid rgba(38, 143, 182, .22); border-radius: 13px; padding: 10px 12px; color: #17485d; background: rgba(235, 249, 254, .9); overflow-wrap: anywhere; }
+.focus-ai-priority-result strong { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 1.4; }
+.focus-ai-priority-result p { margin: 6px 0 0; white-space: pre-wrap; font-size: 11px; line-height: 1.55; }
 
 .focus-noise-panel {
   position: fixed;

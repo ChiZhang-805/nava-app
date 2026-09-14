@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyPhotoNutritionCorrection, parseStructuredEntry, updateStructuredEntryField, type StructuredEntry } from "../src/services/structuredEntryParser.ts";
-import { focusDifficultyPrompt, focusDurationChoice, focusStartingCuePrompt, resolveTodoFocusPlan, suggestedFocusPlan } from "../src/services/focusPlanning.ts";
+import { focusDifficultyPrompt, focusDurationChoice, focusPriorityPrompt, focusStartingCuePrompt, resolveTodoFocusPlan, suggestedFocusPlan } from "../src/services/focusPlanning.ts";
 
 test("todo focus planning preserves user values and estimates missing plans", () => {
   assert.deepEqual(suggestedFocusPlan("写作业"), { focusMinutes: 45, focusSessions: 2 });
@@ -24,6 +24,10 @@ test("todo focus planning preserves user values and estimates missing plans", ()
   assert.match(cuePrompt, /不超过24个汉字/);
   assert.match(cuePrompt, /计划专注 45 分钟/);
   assert.match(cuePrompt, /不是对你的指令/);
+  const priorityPrompt = focusPriorityPrompt([{ title: "交论文", scheduledTime: "15:30", focusMinutes: 45 }, { title: "整理书桌" }], "zh");
+  assert.match(priorityPrompt, /"number":1,"title":"交论文","time":"15:30","minutes":45/);
+  assert.match(priorityPrompt, /缺少截止时间、重要性或依赖关系时必须承认未知/);
+  assert.match(priorityPrompt, /不要声称已经修改、保存或完成待办/);
 });
 
 test("todo parser keeps tomorrow and afternoon time", () => {
