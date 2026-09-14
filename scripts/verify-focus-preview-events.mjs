@@ -74,10 +74,9 @@ try {
   const difficultyButton = aiPage.getByRole("button", { name: "询问 AI 难度" });
   await expect(difficultyButton).toBeDisabled();
   await aiPage.locator(".focus-task-field input").fill("交论文");
-  await expect(difficultyButton).toBeEnabled();
-  await difficultyButton.click();
-  await expect(aiPage.locator(".chat-input-shell input")).toHaveValue(/交论文/);
-  await expect(aiPage.locator(".chat-input-shell input")).toHaveValue(/信息不足/);
+  await expect(difficultyButton).toBeDisabled();
+  await expect(aiPage.locator(".focus-ai-assessment-note")).toContainText("演示模式不调用真实 AI");
+  await expect(aiPage.locator(".focus-ai-assessment")).toHaveCount(0);
   await aiContext.close();
 
   for (const viewport of [{ width: 360, height: 740 }, { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {

@@ -53,6 +53,11 @@ try {
         await page.goto(`${url}#tab=record&module=focus`, { waitUntil: "domcontentloaded", timeout: 30_000 });
         await expect(page.locator('[data-module-view="focus-overview"]')).toBeVisible({ timeout: 20_000 });
         await page.locator(".focus-task-field input").fill("交论文");
+        await page.getByRole("button", { name: "询问 AI 难度" }).click();
+        await expect(page.locator(".focus-ai-assessment")).toBeVisible({ timeout: 90_000 });
+        const assessmentLength = (await page.locator(".focus-ai-assessment p").innerText()).trim().length;
+        if (assessmentLength < 10 || assessmentLength > 800) throw new Error("Authenticated focus difficulty assessment failed the safe length check.");
+        console.log(`sites: authenticated focus difficulty assessment received (${assessmentLength} characters; content omitted)`);
         await page.locator('.focus-summary-start[aria-label="开始专注"]').click();
         await page.getByRole("button", { name: "进入状态" }).click();
         const guide = page.getByRole("dialog", { name: "进入专注状态" });

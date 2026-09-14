@@ -10298,6 +10298,12 @@ body::before {
 .focus-guide-ai-zone small { color: rgba(255,255,255,.72); font-size: 10px; }
 .focus-guide-ai-cue, .focus-guide-ai-error { max-width: 100%; margin: 0; border-radius: 12px; padding: 9px 12px; overflow-wrap: anywhere; color: #17485d; background: rgba(244,251,254,.95); font-size: 12px; line-height: 1.45; }
 .focus-guide-ai-error { color: #fff; background: rgba(129,32,39,.68); }
+.focus-ai-assessment, .focus-ai-assessment-error, .focus-ai-assessment-note { min-width: 0; margin: 0; border-radius: 12px; padding: 10px 12px; overflow-wrap: anywhere; font-size: 11px; line-height: 1.55; }
+.focus-ai-assessment { border: 1px solid rgba(36,145,187,.22); color: #17485d; background: rgba(235,249,254,.92); }
+.focus-ai-assessment strong { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.focus-ai-assessment p { margin: 6px 0 0; white-space: pre-wrap; }
+.focus-ai-assessment-error { color: #842e38; background: rgba(255,235,238,.92); }
+.focus-ai-assessment-note { padding-block: 5px; color: #5b7785; }
 .focus-guide-start { min-width: 170px; min-height: 46px; border: 1px solid rgba(255,255,255,.7); border-radius: 999px; color: #17485d; background: #fff; box-shadow: 0 10px 30px rgba(3,35,50,.2); font-size: 12px; font-weight: 780; }
 
 .focus-interruption { position: fixed; inset: 0; z-index: 25; }

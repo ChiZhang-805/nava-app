@@ -85,8 +85,8 @@ import { rollingDateWindow } from "../services/date";
 import { currentDayRequiredShareCopy, hasCurrentDayRecord, missingCurrentDayCopy } from "../services/historyReportState";
 import { isDemoMode } from "../services/demo";
 import { clearActiveUserSession, loadActiveUserSession, saveActiveUserSession } from "../services/userCloudState";
-import { focusDifficultyPrompt, resolveTodoFocusPlan } from "../services/focusPlanning.ts";
-import { generateFocusStartingCue } from "../services/ai";
+import { resolveTodoFocusPlan } from "../services/focusPlanning.ts";
+import { generateFocusDifficulty, generateFocusStartingCue } from "../services/ai";
 import { exitFocusFullscreen, focusFullscreenActive, focusFullscreenSupported, requestFocusFullscreen, requestScreenWakeLock, screenWakeLockSupported, type ScreenWakeLockSentinel } from "../services/focusImmersion.ts";
 import { focusNoiseSupported, startFocusNoise, type FocusNoiseKind, type FocusNoiseSession } from "../services/focusAudio.ts";
 import { abandonExerciseSession, exerciseSessionElapsedSeconds, finishExerciseSession, hydrateExerciseSession, pauseExerciseSession, resumeExerciseSession, startExerciseSession, type ExerciseSession } from "../services/exerciseSession.ts";
@@ -1328,6 +1328,10 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [guideAiCue, setGuideAiCue] = useState<string | null>(null);
   const [guideAiError, setGuideAiError] = useState<string | null>(null);
   const [guideAiLoading, setGuideAiLoading] = useState(false);
+  const difficultyAbortRef = useRef<AbortController | null>(null);
+  const [difficultyAssessment, setDifficultyAssessment] = useState<string | null>(null);
+  const [difficultyError, setDifficultyError] = useState<string | null>(null);
+  const [difficultyLoading, setDifficultyLoading] = useState(false);
   const [breakCue, setBreakCue] = useState(false);
   const [breakIntervalMinutes, setBreakIntervalMinutes] = useState(() => {
     const stored = Number(window.sessionStorage.getItem(breakPreferenceKey));
@@ -1606,6 +1610,14 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const calendarDays = rollingDateWindow(deviceDate);
   const visibleTodos = todoView === "list" ? todayTodos : todos.filter((item) => item.scheduledDate === calendarDate);
   const selectedTodo = todos.find((item) => item.id === selectedTodoId) ?? null;
+  useEffect(() => {
+    difficultyAbortRef.current?.abort();
+    difficultyAbortRef.current = null;
+    setDifficultyAssessment(null);
+    setDifficultyError(null);
+    setDifficultyLoading(false);
+  }, [displayedFocusTitle, focusMinutes, selectedTodo?.focusSessions]);
+  useEffect(() => () => difficultyAbortRef.current?.abort(), []);
   const todoSessionProgress = useMemo(() => {
     const totals = new Map<string, number>();
     (trendBundle?.focus ?? []).forEach((record) => {
@@ -1724,6 +1736,27 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       if (guideAiAbortRef.current === controller) {
         guideAiAbortRef.current = null;
         if (!controller.signal.aborted) setGuideAiLoading(false);
+      }
+    }
+  };
+
+  const requestDifficultyAssessment = async () => {
+    if (!displayedFocusTitle.trim() || isDemoMode()) return;
+    difficultyAbortRef.current?.abort();
+    const controller = new AbortController();
+    difficultyAbortRef.current = controller;
+    setDifficultyAssessment(null);
+    setDifficultyError(null);
+    setDifficultyLoading(true);
+    try {
+      const assessment = await generateFocusDifficulty(displayedFocusTitle, focusMinutes, selectedTodo?.focusSessions, locale, controller.signal);
+      if (!controller.signal.aborted) setDifficultyAssessment(assessment);
+    } catch (error) {
+      if (!controller.signal.aborted) setDifficultyError(error instanceof Error ? error.message : (locale === "zh" ? "AI 暂不可用，请重试。" : "AI is unavailable. Please retry."));
+    } finally {
+      if (difficultyAbortRef.current === controller) {
+        difficultyAbortRef.current = null;
+        if (!controller.signal.aborted) setDifficultyLoading(false);
       }
     }
   };
@@ -2127,9 +2160,12 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           <label className="focus-category-field"><span>{locale === "zh" ? "休息提示" : "Break cue"}</span><select value={breakIntervalMinutes} onChange={(event) => setBreakIntervalMinutes(Number(event.target.value))}><option value={25}>{locale === "zh" ? "每 25 分钟" : "Every 25 min"}</option><option value={45}>{locale === "zh" ? "每 45 分钟" : "Every 45 min"}</option><option value={60}>{locale === "zh" ? "每 60 分钟" : "Every 60 min"}</option><option value={0}>{locale === "zh" ? "关闭" : "Off"}</option></select></label>
         </div>
         <div className="focus-ai-actions">
-          <button className="focus-ai-plan-button" type="button" disabled={!displayedFocusTitle.trim()} onClick={() => onOpenAi?.(focusDifficultyPrompt(displayedFocusTitle, focusMinutes, selectedTodo?.focusSessions, locale))}><Gauge size={16} />{locale === "zh" ? "询问 AI 难度" : "Ask AI difficulty"}</button>
+          <button className="focus-ai-plan-button" type="button" disabled={!displayedFocusTitle.trim() || isDemoMode() || difficultyLoading} onClick={() => void requestDifficultyAssessment()}><Gauge size={16} />{difficultyLoading ? (locale === "zh" ? "AI 评估中" : "Assessing") : (locale === "zh" ? "询问 AI 难度" : "Ask AI difficulty")}</button>
           <button className="focus-ai-plan-button" type="button" onClick={() => onOpenAi?.(locale === "zh" ? `我准备专注“${displayedFocusTitle || "尚未命名的任务"}”${focusMinutes}分钟。请先用一句话帮我进入状态，再把任务拆成3个明确小步骤；如果目标太模糊，请先问我一个澄清问题。` : `I plan to focus on “${displayedFocusTitle || "an unnamed task"}” for ${focusMinutes} minutes. Give me one short starting cue and split it into 3 concrete steps; ask one clarifying question first if the goal is vague.`)}><Bot size={16} />{locale === "zh" ? "AI 进入状态与任务拆解" : "AI starting cue & task plan"}</button>
         </div>
+        {isDemoMode() && displayedFocusTitle.trim() && <p className="focus-ai-assessment-note">{locale === "zh" ? "演示模式不调用真实 AI。" : "The demo does not call a real AI model."}</p>}
+        {difficultyAssessment && <div className="focus-ai-assessment" role="status"><strong><Gauge size={15} />{locale === "zh" ? "AI 难度建议" : "AI difficulty advice"}</strong><p>{difficultyAssessment}</p></div>}
+        {difficultyError && <p className="focus-ai-assessment-error" role="alert">{difficultyError}</p>}
         <div className="focus-recent-list">
           <strong>{locale === "zh" ? "最近完成" : "Recently completed"}</strong>
           {recentFocus.length > 0 ? recentFocus.map((record) => <div key={record.id}><span><Clock3 size={14} /></span><p><b>{shortDate(record.record_date, locale)}</b><i aria-hidden="true">·</i>{record.completed_sessions}{locale === "zh" ? " 次" : " sessions"}<i aria-hidden="true">·</i>{record.total_minutes}{locale === "zh" ? " 分钟" : " min"}</p></div>) : <p className="focus-empty-history">{locale === "zh" ? "还没有完成记录" : "No completed sessions yet"}</p>}
