@@ -1455,7 +1455,9 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setGuideOpen(false);
     void stopFocusNoise();
   }, [immersive, stopFocusNoise]);
-  useEffect(() => () => { guideAiAbortRef.current?.abort(); }, [guideOpen]);
+  // Closing the guide aborts explicitly; changing guideOpen must not abort the
+  // request started by the same click before the overlay has rendered.
+  useEffect(() => () => { guideAiAbortRef.current?.abort(); }, []);
   useEffect(() => {
     if (!immersive || !keepAwakeEnabled) {
       void releaseWakeLock();
@@ -1745,15 +1747,20 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setGuideAiCue(null);
     setGuideAiError(null);
     setGuideAiLoading(true);
+    let timedOut = false;
+    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 45_000);
     try {
       const cue = await generateFocusStartingCue(displayedFocusTitle, focusMinutes, locale, controller.signal);
       if (!controller.signal.aborted) setGuideAiCue(cue);
     } catch (error) {
-      if (!controller.signal.aborted) setGuideAiError(error instanceof Error ? error.message : (locale === "zh" ? "AI 暂不可用，请重试。" : "AI is unavailable. Please retry."));
+      if (guideAiAbortRef.current === controller && (timedOut || !controller.signal.aborted)) {
+        setGuideAiError(timedOut ? (locale === "zh" ? "AI 响应超时，请重试。" : "The AI response timed out. Please retry.") : error instanceof Error ? error.message : (locale === "zh" ? "AI 暂不可用，请重试。" : "AI is unavailable. Please retry."));
+      }
     } finally {
+      window.clearTimeout(timeout);
       if (guideAiAbortRef.current === controller) {
         guideAiAbortRef.current = null;
-        if (!controller.signal.aborted) setGuideAiLoading(false);
+        setGuideAiLoading(false);
       }
     }
   };

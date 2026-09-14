@@ -4,10 +4,12 @@ const email = process.env.NAVA_ACCOUNT_EMAIL;
 const password = process.env.NAVA_ACCOUNT_PASSWORD;
 if (!email || !password) throw new Error("Run through the secure NAVA account launcher.");
 
-const targets = [
-  ["sites", "https://nava-app-preview-cz.chizhang1031.chatgpt.site/"],
-  ["pages", "https://chizhang-805.github.io/nava-app-preview/"],
-];
+const targets = process.env.NAVA_AI_ACCEPTANCE_URL
+  ? [["sites", process.env.NAVA_AI_ACCEPTANCE_URL]]
+  : [
+    ["sites", "https://nava-app-preview-cz.chizhang1031.chatgpt.site/"],
+    ["pages", "https://chizhang-805.github.io/nava-app-preview/"],
+  ];
 
 const browser = await chromium.launch({ headless: true });
 try {
