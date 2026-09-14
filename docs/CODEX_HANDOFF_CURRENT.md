@@ -2420,5 +2420,16 @@ canonical 项目迁移历史确认 28/28 一致。授权正式账号用两条精
 实测分类写入、非法成对分类被数据库拒绝、无效排序不落库、一次性确认排序、换
 登录会话读取与匿名隔离；两条临时任务已按精确 ID 删除。真实模型对两条未写库
 事项返回可解析的顺序草稿，不输出私人回复。四档 iPhone CSS 视口的分类、重进
-页面保留、底部导航遮挡与横向溢出检查通过。完整回归和双站发布需以下轮结果
-为准；定时通知尚不会根据排序自动改送达时间，也未做 iPhone 真机通知验收。
+页面保留、底部导航遮挡与横向溢出检查通过。`npm run verify` 全部 33 阶段及
+`npm run auth:verify:production` 通过。功能源码
+`848cb750ef23d425233c0df22b4fa1279827957b` 已推送 GitHub 与 Sites 源码远端；
+Sites v145 version ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_bb9c5f4b5e788191af9cc86478131609`，
+deployment ID `appgdep_6aa7f06190bc8191a4d2385d3fa362c1`，状态 succeeded。
+Pages 镜像提交 `839f99673f3055958d5fa7bd77ec26d080297713`，GitHub Pages workflow
+成功；在线 `source.json` 指向同一功能源码和 Sites 版本。两站首页 HTTP 200 并加载
+相同 `index-BDZD6MCx.js`；77 个生成文件 SHA-256 相同。镜像移除 22 个旧哈希资源，
+可由 Git 历史恢复。独立无头 Chromium 在两站用授权正式账号实际登录、查看并
+保存四象限、刷新后读取；两条临时验收待办再次按精确 ID 删除。Sites 真实 AI
+对话、难度评估与进入状态提示成功返回，Pages 登录成功；未操作 Codex 内置浏览器。
+定时通知尚不会根据排序自动改送达时间，也未做 iPhone 真机通知验收。
