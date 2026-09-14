@@ -89,10 +89,11 @@ import { resolveTodoFocusPlan } from "../services/focusPlanning.ts";
 import { exitFocusFullscreen, focusFullscreenActive, focusFullscreenSupported, requestFocusFullscreen, requestScreenWakeLock, screenWakeLockSupported, type ScreenWakeLockSentinel } from "../services/focusImmersion.ts";
 import { focusNoiseSupported, startFocusNoise, type FocusNoiseKind, type FocusNoiseSession } from "../services/focusAudio.ts";
 import { abandonExerciseSession, exerciseSessionElapsedSeconds, finishExerciseSession, hydrateExerciseSession, pauseExerciseSession, resumeExerciseSession, startExerciseSession, type ExerciseSession } from "../services/exerciseSession.ts";
+import { FOCUS_PREVIEW_INTERRUPT_EVENT, publishFocusPreviewState, type FocusPreviewReason } from "../services/previewFocusEvents";
 
 type MoodFactor = { value: string; label: string };
 
-type FocusInterruptionReason = "message" | "call" | "distraction" | "other";
+type FocusInterruptionReason = FocusPreviewReason;
 type FocusInterruptionReasons = Record<FocusInterruptionReason, number>;
 
 const emptyFocusInterruptionReasons = (): FocusInterruptionReasons => ({ message: 0, call: 0, distraction: 0, other: 0 });
@@ -1336,6 +1337,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [interruptions, setInterruptions] = useState(focusLaunch ? 0 : restoredTimer?.interruptions ?? 0);
   const [interruptionReasons, setInterruptionReasons] = useState<FocusInterruptionReasons>(() => focusLaunch ? emptyFocusInterruptionReasons() : restoredTimer?.interruptionReasons ?? emptyFocusInterruptionReasons());
   const [currentInterruptionReason, setCurrentInterruptionReason] = useState<FocusInterruptionReason | null>(null);
+  const [previewInterruption, setPreviewInterruption] = useState(false);
   const [startedAt, setStartedAt] = useState<string | undefined>(focusLaunch?.startedAt ?? restoredTimer?.startedAt);
   const [sessionId, setSessionId] = useState(focusLaunch?.id ?? restoredTimer?.sessionId ?? crypto.randomUUID());
   const [saving, setSaving] = useState(false);
@@ -1354,6 +1356,10 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const lastCloudTimerWriteRef = useRef(0);
   const cloudTimerExistsRef = useRef(false);
   const lastTimerTickRef = useRef<number | null>(null);
+  useEffect(() => {
+    publishFocusPreviewState(!immersive ? "unavailable" : running ? "running" : hasStarted ? "paused" : "ready");
+  }, [hasStarted, immersive, running]);
+  useEffect(() => () => publishFocusPreviewState("unavailable"), []);
   const releaseWakeLock = useCallback(async () => {
     const sentinel = wakeLockRef.current;
     wakeLockRef.current = null;
@@ -1491,6 +1497,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       setInterruptions(0);
       setInterruptionReasons(emptyFocusInterruptionReasons());
       setCurrentInterruptionReason(null);
+      setPreviewInterruption(false);
       breakCueSlotRef.current = 0;
       setBreakCue(false);
       setStartedAt(focusLaunch.startedAt);
@@ -1668,6 +1675,13 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
 
   const enterImmersive = (replace = false) => {
     openView("immersive", replace);
+    // Desktop device preview keeps its external QA controls beside the phone.
+    // The viewport layer is still immersive; system fullscreen remains opt-in.
+    if (window.matchMedia("(hover: hover) and (pointer: fine) and (min-width: 700px) and (min-height: 700px)").matches) {
+      setFullscreenActive(false);
+      setCapabilityMessage(null);
+      return;
+    }
     if (!fullscreenAvailable) {
       setFullscreenActive(false);
       setCapabilityMessage(locale === "zh" ? "已进入沉浸界面；当前浏览器不支持系统全屏。" : "Immersive view is active; system full screen is unavailable in this browser.");
@@ -1776,20 +1790,25 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     if (timerMode === "countdown" && running && remaining === 0) setRunning(false);
   }, [remaining, running, timerMode]);
 
-  const recordInterruption = useCallback(() => {
+  const recordInterruption = useCallback((reason?: FocusInterruptionReason, simulated = false) => {
     if (!running) return;
     const now = Date.now();
     if (now - interruptionGuardRef.current < 1_500) return;
     interruptionGuardRef.current = now;
     setRunning(false);
-    setInterruptions((value) => value + 1);
-    setCurrentInterruptionReason(null);
+    if (!simulated) setInterruptions((value) => value + 1);
+    setCurrentInterruptionReason(simulated ? reason ?? null : null);
+    setPreviewInterruption(simulated);
     setGuideOpen(false);
     setNoisePanelOpen(false);
     openView("interruption");
   }, [openView, running]);
 
   const chooseInterruptionReason = (reason: FocusInterruptionReason) => {
+    if (previewInterruption) {
+      setCurrentInterruptionReason(reason);
+      return;
+    }
     setInterruptionReasons((current) => {
       const next = { ...current };
       if (currentInterruptionReason) next[currentInterruptionReason] = Math.max(0, next[currentInterruptionReason] - 1);
@@ -1798,6 +1817,16 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     });
     setCurrentInterruptionReason(reason);
   };
+
+  useEffect(() => {
+    if (!immersive) return;
+    const onPreviewInterruption = (event: Event) => {
+      const reason = (event as CustomEvent<{ reason?: FocusPreviewReason }>).detail?.reason;
+      if (reason === "call" || reason === "message" || reason === "distraction" || reason === "other") recordInterruption(reason, true);
+    };
+    window.addEventListener(FOCUS_PREVIEW_INTERRUPT_EVENT, onPreviewInterruption);
+    return () => window.removeEventListener(FOCUS_PREVIEW_INTERRUPT_EVENT, onPreviewInterruption);
+  }, [immersive, recordInterruption]);
 
   useEffect(() => {
     let listener: { remove: () => Promise<void> } | undefined;
@@ -1964,7 +1993,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           </div>
         </div>
         <div className="focus-controls">
-          <button type="button" onClick={() => { setRemaining(countdownDurationSeconds); setElapsedSeconds(0); setRunning(false); setHasStarted(false); setInterruptions(0); setInterruptionReasons(emptyFocusInterruptionReasons()); setCurrentInterruptionReason(null); breakCueSlotRef.current = 0; setBreakCue(false); setSaved(false); }} aria-label={locale === "zh" ? "重置" : "Reset"}><TimerReset /></button>
+          <button type="button" onClick={() => { setRemaining(countdownDurationSeconds); setElapsedSeconds(0); setRunning(false); setHasStarted(false); setInterruptions(0); setInterruptionReasons(emptyFocusInterruptionReasons()); setCurrentInterruptionReason(null); setPreviewInterruption(false); breakCueSlotRef.current = 0; setBreakCue(false); setSaved(false); }} aria-label={locale === "zh" ? "重置" : "Reset"}><TimerReset /></button>
           <button className="primary" type="button" onClick={() => { setHasStarted(true); if (!startedAt) setStartedAt(new Date().toISOString()); setRunning((value) => !value); }} aria-label={running ? (locale === "zh" ? "暂停" : "Pause") : (locale === "zh" ? "开始" : "Start")}>{running ? <Pause /> : <Play />}</button>
           <button type="button" onClick={() => void finish()} disabled={saving} aria-label={locale === "zh" ? "结束" : "Finish"}><Square /></button>
         </div>
@@ -1976,8 +2005,14 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           <ol><li>{locale === "zh" ? "坐稳，放松肩膀" : "Settle your posture"}</li><li>{locale === "zh" ? "缓慢呼吸两次" : "Take two slow breaths"}</li><li>{locale === "zh" ? "只看眼前这一件事" : "Keep only this task in view"}</li></ol>
           <button className="focus-guide-start" type="button" onClick={() => { setGuideOpen(false); setHasStarted(true); if (!startedAt) setStartedAt(new Date().toISOString()); setRunning(true); }}>{locale === "zh" ? "开始专注" : "Start focusing"}</button>
         </div>}
-        {import.meta.env.DEV && <button className="focus-interruption-trigger" type="button" onClick={recordInterruption}><PhoneIncoming size={17} />{locale === "zh" ? "模拟中断" : "Simulate interruption"}</button>}
-        {view === "interruption" && <div className="focus-interruption" role="dialog" aria-modal="true"><PhoneIncoming size={38} /><strong>{locale === "zh" ? "专注被打断" : "Focus interrupted"}</strong><p>{locale === "zh" ? "计时已暂停。可以记录原因，再决定继续或结束。" : "The timer is paused. Record a reason, then continue or finish."}</p><div className="focus-interruption-reasons" role="group" aria-label={locale === "zh" ? "中断原因" : "Interruption reason"}>{(["message", "call", "distraction", "other"] as FocusInterruptionReason[]).map((reason) => <button type="button" className={currentInterruptionReason === reason ? "selected" : ""} key={reason} onClick={() => chooseInterruptionReason(reason)}>{locale === "zh" ? ({ message: "消息", call: "来电", distraction: "分心", other: "其他" } as const)[reason] : ({ message: "Message", call: "Call", distraction: "Distraction", other: "Other" } as const)[reason]}</button>)}</div><div className="focus-interruption-actions"><button type="button" onClick={() => { setRunning(true); setHasStarted(true); enterImmersive(true); }}>{locale === "zh" ? "继续专注" : "Keep focusing"}</button><button type="button" onClick={() => void finish()}>{locale === "zh" ? "结束并保存" : "Finish & save"}</button></div></div>}
+        {import.meta.env.DEV && <button className="focus-interruption-trigger" type="button" onClick={() => recordInterruption()}><PhoneIncoming size={17} />{locale === "zh" ? "模拟中断" : "Simulate interruption"}</button>}
+        {view === "interruption" && <div className="focus-interruption" role="dialog" aria-modal="true" data-preview-interruption={previewInterruption ? "true" : "false"}>
+          {currentInterruptionReason === "message" ? <Bell size={38} /> : currentInterruptionReason === "distraction" ? <MousePointerClick size={38} /> : currentInterruptionReason === "other" ? <Pause size={38} /> : <PhoneIncoming size={38} />}
+          <strong>{previewInterruption ? (locale === "zh" ? ({ call: "模拟来电", message: "模拟消息通知", distraction: "模拟主动分心", other: "模拟其他事件" } as const)[currentInterruptionReason ?? "other"] : ({ call: "Simulated call", message: "Simulated message", distraction: "Simulated distraction", other: "Simulated event" } as const)[currentInterruptionReason ?? "other"]) : (locale === "zh" ? "专注被打断" : "Focus interrupted")}</strong>
+          <p>{previewInterruption ? (locale === "zh" ? "计时已暂停。这是网页预览事件，不会真实拨号、发送通知或写入账号中断统计。" : "The timer is paused. This preview neither places a call nor sends a notification or saves an interruption to your account.") : (locale === "zh" ? "计时已暂停。可以记录原因，再决定继续或结束。" : "The timer is paused. Record a reason, then continue or finish.")}</p>
+          <div className="focus-interruption-reasons" role="group" aria-label={locale === "zh" ? "中断原因" : "Interruption reason"}>{(["message", "call", "distraction", "other"] as FocusInterruptionReason[]).map((reason) => <button type="button" className={currentInterruptionReason === reason ? "selected" : ""} key={reason} onClick={() => chooseInterruptionReason(reason)}>{locale === "zh" ? ({ message: "消息", call: "来电", distraction: "分心", other: "其他" } as const)[reason] : ({ message: "Message", call: "Call", distraction: "Distraction", other: "Other" } as const)[reason]}</button>)}</div>
+          <div className="focus-interruption-actions"><button type="button" onClick={() => { setPreviewInterruption(false); setRunning(true); setHasStarted(true); enterImmersive(true); }}>{locale === "zh" ? "继续专注" : "Keep focusing"}</button><button type="button" onClick={() => void finish()}>{locale === "zh" ? "结束并保存" : "Finish & save"}</button></div>
+        </div>}
       </div>
     ), document.body);
   }

@@ -147,4 +147,8 @@ Write-Host "32. Points shop and daily AI conversation contracts"
 Invoke-Npm -Arguments @("run", "shop:test")
 
 Write-Host ""
+Write-Host "33. Desktop focus-event preview and mobile isolation"
+Invoke-Npm -Arguments @("run", "focus-preview:visual")
+
+Write-Host ""
 Write-Host "Verification completed."
