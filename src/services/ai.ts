@@ -5,6 +5,7 @@ import { demoMessagesFor, isDemoMode } from "./demo";
 import { AI_PROCESSING_STEP_MIN_MS, buildAiProcessingSteps, type AiProcessingStep } from "./aiProcessing";
 import type { UserProfile } from "./profile";
 import { buildConversationGreeting } from "./aiConversationSessions";
+import { focusStartingCuePrompt } from "./focusPlanning";
 
 function assertNoError(error: unknown) {
   if (!error) return;
@@ -89,6 +90,25 @@ export async function generateConversationTitle(messages: ChatMessage[], lang: "
   });
   if (response.error) throw await authenticatedFunctionError(response.error);
   return typeof response.data?.reply === "string" ? response.data.reply.trim() : null;
+}
+
+export async function generateFocusStartingCue(title: string, minutes: number, lang: "zh" | "en", signal?: AbortSignal) {
+  if (isDemoMode()) throw new Error(lang === "zh" ? "演示模式不调用真实 AI。" : "The demo does not call a real AI model.");
+  const response = await supabase.functions.invoke<{ reply?: string }>("ai-chat-reply", {
+    headers: await authenticatedFunctionHeaders(),
+    body: {
+      message: focusStartingCuePrompt(title, minutes, lang),
+      lang,
+      responseMode: "text",
+      deviceDate: todayISO(),
+      stream: false,
+    },
+    signal,
+  });
+  if (response.error) throw await authenticatedFunctionError(response.error);
+  const cue = typeof response.data?.reply === "string" ? response.data.reply.trim() : "";
+  if (!cue) throw new Error(lang === "zh" ? "AI 暂未给出提示，请重试。" : "AI did not return a cue. Please retry.");
+  return cue;
 }
 
 export async function sendAiMessage(input: {

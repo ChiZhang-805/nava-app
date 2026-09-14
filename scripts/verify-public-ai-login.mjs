@@ -49,6 +49,18 @@ try {
           throw new Error("Authenticated AI reply did not pass the safe acceptance check.");
         }
         console.log(`sites: authenticated AI reply received (${reply.length} characters; content omitted)`);
+
+        await page.goto(`${url}#tab=record&module=focus`, { waitUntil: "networkidle", timeout: 30_000 });
+        await expect(page.locator('[data-module-view="focus-overview"]')).toBeVisible({ timeout: 20_000 });
+        await page.locator(".focus-task-field input").fill("交论文");
+        await page.locator('.focus-summary-start[aria-label="开始专注"]').click();
+        await page.getByRole("button", { name: "进入状态" }).click();
+        const guide = page.getByRole("dialog", { name: "进入专注状态" });
+        await guide.getByRole("button", { name: "AI 给一句开始提示" }).click();
+        await expect(guide.locator(".focus-guide-ai-cue")).toBeVisible({ timeout: 90_000 });
+        const cueLength = (await guide.locator(".focus-guide-ai-cue").innerText()).trim().length;
+        if (cueLength < 2 || cueLength > 120) throw new Error("Authenticated focus AI cue failed the safe length check.");
+        console.log(`sites: authenticated focus AI cue received (${cueLength} characters; content omitted)`);
       }
     } finally {
       await context.close();

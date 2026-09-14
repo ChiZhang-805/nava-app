@@ -86,6 +86,7 @@ import { currentDayRequiredShareCopy, hasCurrentDayRecord, missingCurrentDayCopy
 import { isDemoMode } from "../services/demo";
 import { clearActiveUserSession, loadActiveUserSession, saveActiveUserSession } from "../services/userCloudState";
 import { focusDifficultyPrompt, resolveTodoFocusPlan } from "../services/focusPlanning.ts";
+import { generateFocusStartingCue } from "../services/ai";
 import { exitFocusFullscreen, focusFullscreenActive, focusFullscreenSupported, requestFocusFullscreen, requestScreenWakeLock, screenWakeLockSupported, type ScreenWakeLockSentinel } from "../services/focusImmersion.ts";
 import { focusNoiseSupported, startFocusNoise, type FocusNoiseKind, type FocusNoiseSession } from "../services/focusAudio.ts";
 import { abandonExerciseSession, exerciseSessionElapsedSeconds, finishExerciseSession, hydrateExerciseSession, pauseExerciseSession, resumeExerciseSession, startExerciseSession, type ExerciseSession } from "../services/exerciseSession.ts";
@@ -1323,6 +1324,10 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [noiseVolume, setNoiseVolume] = useState(0.16);
   const [noisePanelOpen, setNoisePanelOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
+  const guideAiAbortRef = useRef<AbortController | null>(null);
+  const [guideAiCue, setGuideAiCue] = useState<string | null>(null);
+  const [guideAiError, setGuideAiError] = useState<string | null>(null);
+  const [guideAiLoading, setGuideAiLoading] = useState(false);
   const [breakCue, setBreakCue] = useState(false);
   const [breakIntervalMinutes, setBreakIntervalMinutes] = useState(() => {
     const stored = Number(window.sessionStorage.getItem(breakPreferenceKey));
@@ -1443,6 +1448,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setGuideOpen(false);
     void stopFocusNoise();
   }, [immersive, stopFocusNoise]);
+  useEffect(() => () => { guideAiAbortRef.current?.abort(); }, [guideOpen]);
   useEffect(() => {
     if (!immersive || !keepAwakeEnabled) {
       void releaseWakeLock();
@@ -1695,8 +1701,36 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       .catch(() => setCapabilityMessage(locale === "zh" ? "系统全屏申请失败，已保留沉浸界面。" : "System full screen failed; immersive view remains active."));
   };
 
+  const closeGuide = () => {
+    guideAiAbortRef.current?.abort();
+    setGuideAiLoading(false);
+    setGuideOpen(false);
+  };
+
+  const requestGuideAiCue = async () => {
+    if (!displayedFocusTitle.trim() || isDemoMode()) return;
+    guideAiAbortRef.current?.abort();
+    const controller = new AbortController();
+    guideAiAbortRef.current = controller;
+    setGuideAiCue(null);
+    setGuideAiError(null);
+    setGuideAiLoading(true);
+    try {
+      const cue = await generateFocusStartingCue(displayedFocusTitle, focusMinutes, locale, controller.signal);
+      if (!controller.signal.aborted) setGuideAiCue(cue);
+    } catch (error) {
+      if (!controller.signal.aborted) setGuideAiError(error instanceof Error ? error.message : (locale === "zh" ? "AI 暂不可用，请重试。" : "AI is unavailable. Please retry."));
+    } finally {
+      if (guideAiAbortRef.current === controller) {
+        guideAiAbortRef.current = null;
+        if (!controller.signal.aborted) setGuideAiLoading(false);
+      }
+    }
+  };
+
   const leaveImmersive = () => {
     setRunning(false);
+    closeGuide();
     void releaseWakeLock();
     void exitFocusFullscreen().then(() => setFullscreenActive(false));
     openView("overview");
@@ -1943,7 +1977,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
             type="button"
             className={guideOpen ? "active" : ""}
             aria-pressed={guideOpen}
-            onClick={() => { setNoisePanelOpen(false); setGuideOpen((value) => !value); }}
+            onClick={() => { setNoisePanelOpen(false); if (guideOpen) closeGuide(); else { setGuideAiCue(null); setGuideAiError(null); setGuideOpen(true); } }}
           ><MousePointerClick size={15} /><span>{locale === "zh" ? "进入状态" : "Settle in"}</span></button>
         </div>
         {noisePanelOpen && <section className="focus-noise-panel" aria-label={locale === "zh" ? "背景声音" : "Background sound"}>
@@ -1999,11 +2033,18 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
         </div>
         {breakCue && <section className="focus-break-cue" role="status"><span aria-hidden="true" /><div><strong>{locale === "zh" ? "轻轻活动一下" : "Take a brief reset"}</strong><p>{locale === "zh" ? "放松肩颈，眨眨眼，再决定是否继续。" : "Relax your shoulders, blink, then decide whether to continue."}</p></div><button type="button" onClick={() => setBreakCue(false)} aria-label={locale === "zh" ? "关闭休息提示" : "Dismiss break cue"}><X size={16} /></button></section>}
         {guideOpen && <div className="focus-guide-overlay" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "进入专注状态" : "Settle into focus"}>
-          <button className="focus-guide-close" type="button" onClick={() => setGuideOpen(false)} aria-label={locale === "zh" ? "关闭" : "Close"}><X size={18} /></button>
+          <button className="focus-guide-close" type="button" onClick={closeGuide} aria-label={locale === "zh" ? "关闭" : "Close"}><X size={18} /></button>
           <span className="focus-guide-orb" aria-hidden="true"><i /><i /><i /></span>
           <strong>{locale === "zh" ? "用十秒进入状态" : "Settle in for ten seconds"}</strong>
           <ol><li>{locale === "zh" ? "坐稳，放松肩膀" : "Settle your posture"}</li><li>{locale === "zh" ? "缓慢呼吸两次" : "Take two slow breaths"}</li><li>{locale === "zh" ? "只看眼前这一件事" : "Keep only this task in view"}</li></ol>
-          <button className="focus-guide-start" type="button" onClick={() => { setGuideOpen(false); setHasStarted(true); if (!startedAt) setStartedAt(new Date().toISOString()); setRunning(true); }}>{locale === "zh" ? "开始专注" : "Start focusing"}</button>
+          <div className="focus-guide-ai-zone">
+            <button className="focus-guide-ai-button" type="button" disabled={!displayedFocusTitle.trim() || isDemoMode() || guideAiLoading} onClick={() => void requestGuideAiCue()}><Bot size={16} />{guideAiLoading ? (locale === "zh" ? "正在获取 AI 提示" : "Getting an AI cue") : (locale === "zh" ? "AI 给一句开始提示" : "Get one AI starting cue")}</button>
+            {isDemoMode() && <small>{locale === "zh" ? "演示模式不调用真实 AI" : "Demo mode does not call a real AI model"}</small>}
+            {!isDemoMode() && !displayedFocusTitle.trim() && <small>{locale === "zh" ? "先填写专注事项" : "Enter a focus task first"}</small>}
+            {guideAiCue && <p className="focus-guide-ai-cue" role="status">{guideAiCue}</p>}
+            {guideAiError && <p className="focus-guide-ai-error" role="alert">{guideAiError}</p>}
+          </div>
+          <button className="focus-guide-start" type="button" onClick={() => { closeGuide(); setHasStarted(true); if (!startedAt) setStartedAt(new Date().toISOString()); setRunning(true); }}>{locale === "zh" ? "开始专注" : "Start focusing"}</button>
         </div>}
         {import.meta.env.DEV && <button className="focus-interruption-trigger" type="button" onClick={() => recordInterruption()}><PhoneIncoming size={17} />{locale === "zh" ? "模拟中断" : "Simulate interruption"}</button>}
         {view === "interruption" && <div className="focus-interruption" role="dialog" aria-modal="true" data-preview-interruption={previewInterruption ? "true" : "false"}>

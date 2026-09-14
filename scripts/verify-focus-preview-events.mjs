@@ -35,6 +35,11 @@ try {
   await expect(page.locator('[data-preview-only="focus-event-simulator"]')).toHaveCount(0);
   await page.locator('.focus-summary-start[aria-label="开始专注"]').click();
   await expect(page.locator('[data-module-view="focus-immersive"]')).toBeVisible();
+  await page.getByRole("button", { name: "进入状态" }).click();
+  await expect(page.getByRole("dialog", { name: "进入专注状态" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "AI 给一句开始提示" })).toBeDisabled();
+  await expect(page.getByRole("dialog", { name: "进入专注状态" })).toContainText("演示模式不调用真实 AI");
+  await page.getByRole("dialog", { name: "进入专注状态" }).getByRole("button", { name: "关闭" }).click();
   const simulator = page.locator('[data-preview-only="focus-event-simulator"]');
   await expect(simulator).toBeVisible();
   await expect(simulator.locator("button:enabled")).toHaveCount(0);
@@ -89,6 +94,17 @@ try {
     const overviewOverflow = await mobilePage.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert.ok(overviewOverflow <= 1, `${viewport.width}x${viewport.height}: focus overview horizontal overflow ${overviewOverflow}px`);
     await mobilePage.locator('.focus-summary-start[aria-label="开始专注"]').click();
+    await mobilePage.getByRole("button", { name: "进入状态" }).click();
+    const guide = mobilePage.getByRole("dialog", { name: "进入专注状态" });
+    await expect(guide).toBeVisible();
+    const guideButton = guide.getByRole("button", { name: "AI 给一句开始提示" });
+    await expect(guideButton).toBeDisabled();
+    const guideBounds = await guideButton.evaluate((button) => {
+      const rect = button.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height, width: innerWidth, viewportHeight: innerHeight };
+    });
+    assert.ok(guideBounds.left >= 0 && guideBounds.right <= guideBounds.width && guideBounds.top >= 0 && guideBounds.bottom <= guideBounds.viewportHeight && guideBounds.height >= 43.5, `${viewport.width}x${viewport.height}: focus guide AI action is clipped ${JSON.stringify(guideBounds)}`);
+    await guide.getByRole("button", { name: "关闭" }).click();
     await expect(mobilePage.locator('[data-preview-only="focus-event-simulator"]')).toBeHidden();
     const overflow = await mobilePage.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert.ok(overflow <= 1, `${viewport.width}x${viewport.height}: horizontal overflow ${overflow}px`);

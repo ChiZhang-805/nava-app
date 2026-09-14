@@ -10274,8 +10274,9 @@ body::before {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
   gap: 20px;
+  overflow-y: auto;
   padding: max(70px, calc(env(safe-area-inset-top) + 54px)) 28px max(32px, env(safe-area-inset-bottom));
   color: #fff;
   background: linear-gradient(160deg, rgba(15, 57, 77, .92), rgba(26, 112, 144, .86));
@@ -10291,6 +10292,12 @@ body::before {
 .focus-guide-orb i:nth-child(3) { inset: -7px; animation-delay: 1.6s; }
 .focus-guide-overlay > strong { font-size: 22px; }
 .focus-guide-overlay > ol { display: grid; gap: 9px; margin: 0; padding-left: 24px; color: rgba(255,255,255,.78); font-size: 12px; line-height: 1.45; }
+.focus-guide-ai-zone { width: min(100%, 300px); display: grid; justify-items: center; gap: 7px; text-align: center; }
+.focus-guide-ai-button { min-height: 44px; border: 1px solid rgba(255,255,255,.55); border-radius: 999px; padding: 8px 16px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; color: #fff; background: rgba(255,255,255,.12); font: inherit; font-size: 11px; font-weight: 730; }
+.focus-guide-ai-button:disabled { opacity: .55; cursor: not-allowed; }
+.focus-guide-ai-zone small { color: rgba(255,255,255,.72); font-size: 10px; }
+.focus-guide-ai-cue, .focus-guide-ai-error { max-width: 100%; margin: 0; border-radius: 12px; padding: 9px 12px; overflow-wrap: anywhere; color: #17485d; background: rgba(244,251,254,.95); font-size: 12px; line-height: 1.45; }
+.focus-guide-ai-error { color: #fff; background: rgba(129,32,39,.68); }
 .focus-guide-start { min-width: 170px; min-height: 46px; border: 1px solid rgba(255,255,255,.7); border-radius: 999px; color: #17485d; background: #fff; box-shadow: 0 10px 30px rgba(3,35,50,.2); font-size: 12px; font-weight: 780; }
 
 .focus-interruption { position: fixed; inset: 0; z-index: 25; }
