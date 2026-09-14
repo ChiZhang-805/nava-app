@@ -2143,3 +2143,17 @@ Edge Functions，后端 `requireUser` 使用请求 JWT 验证，失效时显示�
 无数据库已核准来源时 UI 不冒充 USDA/FatSecret，现阶段也没有引入厂商授权或
 数据库迁移。下一阶段若做可追溯营养库匹配，必须先验证供应商商业许可、中文复合菜
 匹配和实测误差，再为成功匹配的每项保存来源 ID 与份量基准。
+
+本轮功能源码 `8ba7372235707a9953cb91bad835eeb6a9fed68f` 已推送 GitHub，并由同一
+提交构建、发布两个公开站点 v134。ChatGPT Sites 复用原项目，版本 ID 为
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_faf459fc57fc81919c29a97fc41c2b3e`，
+deployment ID 为 `appgdep_6aa7474b97908191a0c24cbe8cfd1252`，状态 succeeded。
+GitHub Pages 镜像提交为 `b871f9385db1bc64b0741039a4af75ef7b26f5b1`，在线
+`source.json` 的源码 SHA、Sites 版本与 v134 一致。两站在真实浏览器中均通过
+正式 `cz91…` 账号登录并显示 09-07 至 09-13 的真实 AI 周报告；Sites 的 09-13
+饮食页显示四餐、AI 即时反馈和逐项估算编辑器。浏览器只读取已生成的历史报告，
+不能把这次页面浏览冒称为全部日期重新生成 AI。`npm run verify` 32 阶段与
+`npm run auth:verify:production` 通过；本轮 `diet-extract` 生产函数再次使用
+`qwen3-vl-plus` 成功处理一张已授权测试餐食图片。五个 Edge Functions 均为 ACTIVE
+且启用 JWT：`diet-extract` v25、`ai-diet-report` v23、`ai-health-report` v23、
+`ai-chat-reply` v33、`ai-extract-data` v26。没有数据库 migration 或 secret 变更。

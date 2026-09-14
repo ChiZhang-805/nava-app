@@ -30,12 +30,15 @@ App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负�
 
 这一步没有擅自接入 FatSecret、Passio、Gemini 或 Edamam。现有 USDA FoodData Central 知识工具用于 AI 文本证据，不代表饮食照片链路已经用 USDA 逐项核准。供应商数据库授权、匹配质量、地区覆盖和缓存条款需要另行验证后才能把项目标记为 `usda_fdc`；在此之前 UI 明示 AI 估算或待核对，不宣传“拍照精确测热量”。
 
-截至 2026-09-10，本轮涉及的 `ai-chat-reply`、`ai-diet-report`、`ai-health-report`、
+截至 2026-09-14，canonical 项目的 `diet-extract` version 25、`ai-diet-report` version 23、`ai-health-report` version 23、`ai-chat-reply` version 33 和 `ai-extract-data` version 26 均为 ACTIVE，且均启用 JWT 验证；这是本轮部署后的状态。饮食摘要模型合同现为 `deepseek-v4-flash-15-18-plus-compact-seven-v11-single-item-repair`，健康报告模型合同现为 `deepseek-v4-flash-health-report-v9-grounded-evidence-repair`。2026-08-28 至 09-13 的授权账号安全审计确认十类记录表各覆盖 17/17 天、四餐逐项和每日聚合一致、饮食 AI 摘要 17/17 有真实 DeepSeek v11 结果、六种健康报告作用域在每个日期均有真实 DeepSeek 结果。登录后的两处公开 APP 均能读到 09-07 至 09-13 的结构化 AI 周洞察；Sites 饮食页还能看到 09-13 四餐、AI 即时反馈和逐项份量/热量编辑器。浏览器页面读取不等同于对每个历史日期重新调用模型；安全审计分别校验了持久化模型版本与来源。
+
+以下 2026-09-10 至 09-13 的版本号和验收段落保留为历史快照，不代表上述当前部署版本。
+截至 2026-09-10，当轮涉及的 `ai-chat-reply`、`ai-diet-report`、`ai-health-report`、
 `diet-extract`、`delete-account`、`export-user-data`、`health-sync-ingest` 和 `watch-sync`
 最新源码均已部署到 canonical 项目，状态 ACTIVE 且启用 JWT 验证。真实账号的模型输出、
 Apple 真机和破坏性账号删除仍按各专项文档明确为人工验收，不因部署完成而自动视为通过。
 
-`ai-health-report` 当前生产模型合同为
+`ai-health-report` 当时的生产模型合同为
 `deepseek-v4-flash-health-report-v8-derived-evidence-normalization`，canonical Supabase
 上为 ACTIVE version 21、`verify_jwt=true`。它在 65 秒总预算内最多执行三次有界生成/结构
 修复，并对网络、408、429 与 provider 5xx 做短退避重试；模型使用的派生统计值只有在后端

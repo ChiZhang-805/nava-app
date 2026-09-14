@@ -220,3 +220,28 @@ causes the active conversation to be deleted before that archive succeeds.
   evidence of the production key's numeric balance. The production error class
   above is the stronger evidence that the observed failures were validation
   failures rather than provider HTTP quota failures.
+
+## 2026-09-14 current production acceptance
+
+- The earlier numbered versions above are historical acceptance snapshots. The
+  canonical project now has ACTIVE, JWT-verified `ai-health-report` function
+  version 23 with model contract
+  `deepseek-v4-flash-health-report-v9-grounded-evidence-repair`, and ACTIVE,
+  JWT-verified `ai-diet-report` function version 23 with model contract
+  `deepseek-v4-flash-15-18-plus-compact-seven-v11-single-item-repair`.
+- The authorized account audit covers 2026-08-28 through 2026-09-13 inclusive:
+  six report scopes have persisted DeepSeek reports on each date, while the
+  diet report has a current-source DeepSeek v11 result on all 17 dates. A real
+  login to each public site displayed the 2026-09-07–09-13 model-authored
+  weekly report. The Sites diet page also displayed four meals and live AI
+  feedback for 2026-09-13. These checks do not claim that merely viewing a
+  cached historical report reran the model.
+- Account audit/backfill scripts must end only their own auth session with
+  `signOut({ scope: "local" })`; global sign-out had revoked valid browser
+  sessions. The frontend passes the current session JWT to Edge Functions, and
+  `requireUser` validates that request JWT. A revoked or expired session asks
+  for a fresh login rather than claiming that AI itself is unavailable.
+- Diet vision emits `vision_estimate` provenance and asks for verification of
+  visible portions and high-uncertainty ingredients. User-edited grams/kcal
+  become `user_corrected`; neither label claims an authoritative nutrition
+  database match. App confirmation is still required before saving.
