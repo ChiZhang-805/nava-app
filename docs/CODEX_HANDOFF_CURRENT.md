@@ -2845,6 +2845,12 @@ Chromium、重型检查串行，测试浏览器/自身服务正常关闭；可�
 全程单个外部 Chromium、无内置浏览器操作；测试 finally 关闭自身浏览器/服务，不动
 其他任务的进程或用户标签页。
 
+源码检查点 `a0ae936` 已成功推送 `ChiZhang-805/nava-app` 的 main；含§78提醒与本节
+实现/测试共45文件。公开前端仍为v150，没有更新Sites版本或Pages镜像。下一步需要
+用户明确允许应用 `202609150002_independent_reminders.sql`（仅扩展提醒类型CHECK），
+随后用已有安全脚本验四项真实保存/刷新并恢复原设置，再从同一clean/pushed提交构建
+并发布双站；不得把本节本地成功收据作为该迁移或两站上线收据。
+
 呼吸的通用舒缓原则参考 NHS 的温和、自选舒适节奏指导；一分钟为产品短入口，不
 宣称治疗效果或 NHS 疗程。原文：
 https://www.nhs.uk/mental-health/self-help/guides-tools-and-activities/breathing-exercises-for-stress/
