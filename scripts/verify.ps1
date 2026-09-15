@@ -37,6 +37,7 @@ Invoke-Npm -Arguments @("audit")
 Write-Host ""
 Write-Host "5. Motion response tests"
 Invoke-Npm -Arguments @("run", "motion:test")
+Invoke-Npm -Arguments @("run", "mascot:visual")
 
 Write-Host ""
 Write-Host "6. Daily module completion and routing"

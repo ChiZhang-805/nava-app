@@ -73,10 +73,9 @@ try {
     await expect(guidance).toBeVisible();
     await expect(guidance.locator("p")).toHaveCount(1);
     await expect(mascot).toHaveAttribute("data-context-motion", /^(wave|tail|read|sleep|lift)$/);
-    const mascotImage = mascot.locator("img");
-    await expect(mascotImage).toHaveAttribute("src", /home-idle.*\.webp/);
-    await expect(mascotImage).toHaveAttribute("data-mascot-media", "animated");
-    await expect.poll(() => mascotImage.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
+    const mascotImage = mascot.locator("canvas");
+    await expect(mascotImage).toHaveAttribute("data-clip", /home-idle.*\.webp/);
+    await expect(mascotImage).toHaveAttribute("data-ready", "true");
 
     const geometry = await page.evaluate(() => {
       const rect = (selector) => {
@@ -125,6 +124,17 @@ try {
 
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-guidance.png`) });
 
+    // Exercise the ephemeral bubble before its real ten-second dismissal, not after
+    // screenshots, swipes and animation loading have consumed that lifetime.
+    if (viewport.name === "375x812" || viewport.name === "430x932") {
+      await guidance.click();
+      await expect.poll(() => new URL(page.url()).hash).not.toBe("#tab=today");
+      if (viewport.name === "430x932") await expect.poll(() => new URL(page.url()).hash).toContain("tab=record");
+      await page.locator('.nav-button[data-tab="today"]').click();
+      await expect.poll(() => new URL(page.url()).hash).toContain("tab=today");
+      await expect(guidance).toHaveCount(0);
+    }
+
     const homeBox = await home.boundingBox();
     if (!homeBox) throw new Error(`${viewport.name}: home has no swipe geometry`);
     const swipeX = homeBox.x + homeBox.width * .5;
@@ -142,7 +152,7 @@ try {
       const disc = document.querySelector(".option-two-health-disc")?.getBoundingClientRect();
       const mascotStage = document.querySelector(".option-two-life-stage");
       const mascot = document.querySelector(".nava-mascot");
-      const mascotImage = document.querySelector(".nava-mascot > img");
+      const mascotImage = document.querySelector(".nava-mascot > canvas");
       const geometryFor = (element) => {
         if (!element) return null;
         const box = element.getBoundingClientRect();
@@ -179,25 +189,19 @@ try {
     if (!mascotBox) throw new Error(`${viewport.name}: mascot has no interaction geometry`);
     await mascot.click({ position: { x: mascotBox.width * .5, y: mascotBox.height * .65 } });
     await expect(mascot).toHaveAttribute("data-mascot-motion", preferredMotion);
-    await expect(mascotImage).toHaveAttribute("src", /(?:home-|module-exercise).*\.webp/);
-    await expect.poll(() => mascotImage.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
+    await expect(mascotImage).toHaveAttribute("data-clip", /(?:home-|module-exercise).*\.webp/);
+    await expect(mascotImage).toHaveAttribute("data-ready", "true");
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-context-motion.png`) });
 
     if (viewport.name === "360x740") {
       await page.waitForTimeout(10_100);
       await expect(guidance).toBeHidden();
-    } else if (viewport.name === "375x812") {
-      await guidance.click();
-      await expect.poll(() => new URL(page.url()).hash).not.toBe("#tab=today");
     } else if (viewport.name === "390x844") {
       await page.locator('.nav-button[data-tab="record"]').click();
       await expect.poll(() => new URL(page.url()).hash).toContain("tab=record");
       await page.locator('.nav-button[data-tab="today"]').click();
       await expect.poll(() => new URL(page.url()).hash).toContain("tab=today");
       await expect(guidance).toHaveCount(0);
-    } else {
-      await guidance.click();
-      await expect.poll(() => new URL(page.url()).hash).toContain("tab=record");
     }
     if (errors.length) throw new Error(`${viewport.name}: browser errors ${JSON.stringify(errors)}`);
     results.push({ viewport, preferredMotion, geometry, expandedGeometry });
@@ -208,10 +212,12 @@ try {
   await login(reducedPage);
   await dismissRewardIfPresent(reducedPage);
   const reducedMascot = reducedPage.locator(".nava-mascot");
-  await expect(reducedMascot.locator("img")).toHaveAttribute("data-mascot-media", "still");
+  await expect(reducedMascot).toHaveAttribute("data-player-phase", "static");
   await expect(reducedMascot.locator("img")).toHaveAttribute("src", /home-mascot-v5/);
   await reducedMascot.click();
-  await expect(reducedMascot.locator("img")).toHaveAttribute("data-mascot-media", "still");
+  await expect(reducedMascot.locator("img")).toBeVisible();
+  await expect(reducedMascot.locator("canvas")).toBeHidden();
+  await expect(reducedMascot).toHaveAttribute("data-motion-run", "0");
   await reducedPage.screenshot({ path: path.join(outputDir, "390x844-reduced-motion.png") });
   results.push({ reducedMotion: "static fallback verified" });
   await reducedContext.close();

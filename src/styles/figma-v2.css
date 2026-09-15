@@ -13485,6 +13485,13 @@ body::before {
   animation: none;
 }
 
+/* Keep one display surface; the static fallback never decodes a second animation. */
+.option-two-life-stage .nava-mascot > .nava-mascot-canvas { position: absolute; }
+.option-two-life-stage .nava-mascot > .nava-mascot-fallback { position: absolute; }
+.option-two-life-stage .nava-mascot > .nava-mascot-canvas:not([data-ready="true"]) { visibility: hidden; }
+.option-two-life-stage .nava-mascot > .nava-mascot-canvas[data-ready="true"] + .nava-mascot-fallback { visibility: hidden; }
+.option-two-life-stage .nava-mascot:active { filter: drop-shadow(0 8px 18px rgba(9, 65, 94, .22)); }
+
 .option-two-pull-refresh {
   position: absolute;
   z-index: 24;

@@ -1,4 +1,4 @@
-param([ValidateSet("PublicAiLogin", "TodoExtraction", "PriorityAdvice", "TaskQuadrants", "PublicQuadrants", "FocusEncouragement", "FocusRelease", "ExternalPreview", "Reminders", "RemindersRelease", "Wellbeing", "HistoryAi", "MealChain", "CameraLayout", "SimulatorLayout")][string]$Check = "PublicAiLogin")
+param([ValidateSet("PublicAiLogin", "TodoExtraction", "PriorityAdvice", "TaskQuadrants", "PublicQuadrants", "FocusEncouragement", "FocusRelease", "ExternalPreview", "Reminders", "RemindersRelease", "Wellbeing", "HistoryAi", "MealChain", "CameraLayout", "SimulatorLayout", "MascotPlayer")][string]$Check = "PublicAiLogin")
 
 $secureEmail = Read-Host "NAVA account email" -AsSecureString
 $securePassword = Read-Host "NAVA account password" -AsSecureString
@@ -7,6 +7,11 @@ $passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure
 try {
   $env:NAVA_ACCOUNT_EMAIL = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($emailPointer)
   $env:NAVA_ACCOUNT_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
+  if ($Check -eq "MascotPlayer") {
+    & node scripts/verify-public-mascot-player.mjs
+    if ($LASTEXITCODE -ne 0) { throw "Public mascot acceptance failed." }
+    return
+  }
   if ($Check -eq "CameraLayout" -or $Check -eq "SimulatorLayout") {
     if ($Check -eq "SimulatorLayout") { $env:NAVA_CAMERA_QA_DESKTOP = "1" }
     & node scripts/verify-public-camera-layout.mjs

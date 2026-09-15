@@ -903,14 +903,13 @@ async function verifyHomeShortcuts(page, results) {
   await expect(mascot).toHaveAttribute("data-next-motion", "wave");
   await mascot.click();
   await expect(mascot).toHaveAttribute("data-mascot-motion", "wave");
-  await expect(mascot).toHaveAttribute("data-motion-visual", "supplied-animated-mascot");
+  await expect(mascot).toHaveAttribute("data-motion-visual", "persistent-mascot-player");
   const mascotImage = page.locator(".nava-mascot-pose--idle");
-  await expect(mascotImage).toHaveAttribute("src", /home-stretch/);
-  await expect(mascotImage).toHaveAttribute("data-mascot-media", "animated");
-  await expect(mascotImage).toHaveJSProperty("complete", true);
+  await expect(mascotImage).toHaveAttribute("data-clip", /home-stretch/);
+  await expect(mascotImage).toHaveAttribute("data-ready", "true");
   await page.screenshot({ path: path.join(outputDir, "today-mascot-wave.png") });
-  await expect(mascot).toHaveAttribute("data-mascot-motion", "idle", { timeout: 10_000 });
-  await expect(mascotImage).toHaveAttribute("src", /home-idle/);
+  await expect(mascot).toHaveAttribute("data-mascot-motion", "idle", { timeout: 12_000 });
+  await expect(mascotImage).toHaveAttribute("data-clip", /home-idle/);
   await expect(mascot).toHaveAttribute("data-context-motion", "wave");
   await expect(mascot).toHaveAttribute("data-next-motion", "butterfly");
   await mascot.click();
@@ -1837,6 +1836,7 @@ async function verifyModuleCompletionRouting(browser, baseUrl, results, consoleE
 }
 
 async function main() {
+  const homeOnly = process.argv.includes("--home-only");
   await mkdir(outputDir, { recursive: true });
   const results = [];
   const consoleErrors = [];
@@ -1847,16 +1847,23 @@ async function main() {
   const baseUrl = reviewBaseUrl ?? server?.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? `http://127.0.0.1:${port}`;
   const browser = await chromium.launch();
   try {
-    if (!skipAuthAudit) {
+    if (!homeOnly && !skipAuthAudit) {
       await verifyAuthControls(browser, baseUrl, results, consoleErrors);
       await verifyOtpLogin(browser, baseUrl, results, consoleErrors);
       await verifyRegistration(browser, baseUrl, results, consoleErrors);
     }
-    if (!reviewBaseUrl) await verifyPageSkeletons(browser, baseUrl, results, consoleErrors);
-    if (!reviewBaseUrl) await verifyModuleCompletionRouting(browser, baseUrl, results, consoleErrors);
+    if (!homeOnly && !reviewBaseUrl) await verifyPageSkeletons(browser, baseUrl, results, consoleErrors);
+    if (!homeOnly && !reviewBaseUrl) await verifyModuleCompletionRouting(browser, baseUrl, results, consoleErrors);
     const { context, page } = await createReviewPage(browser, baseUrl, consoleErrors);
     await verifyNavigationAndMotion(page, results);
     await verifyHomeShortcuts(page, results);
+    if (homeOnly) {
+      await context.close();
+      if (consoleErrors.length) throw new Error(`Browser errors:\n${consoleErrors.join("\n")}`);
+      await writeFile(path.join(outputDir, "home-report.json"), JSON.stringify({ passed: results, consoleErrors }, null, 2));
+      console.log(`Home interaction checks passed (${results.length} groups).`);
+      return;
+    }
     await verifyRecordModules(page, results);
     await verifyAi(page, results, consoleErrors);
     await verifyProfile(page, results);
