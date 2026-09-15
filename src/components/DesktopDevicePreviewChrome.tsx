@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { createPortal } from "react-dom";
 import { Bell, Ellipsis, MousePointerClick, PhoneIncoming, RotateCcw, Smartphone } from "lucide-react";
 import {
   DEFAULT_IPHONE_PREVIEW_DEVICE_ID,
@@ -26,6 +25,7 @@ export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminde
   const [reminderResult, setReminderResult] = useState("");
   const [reminderBusy, setReminderBusy] = useState(false);
   const simulateReminder = async (kind: ReminderKind) => {
+    if (!reminderUserId || reminderBusy) return;
     setReminderBusy(true);
     const message = await new Promise<string>((resolve) => {
       const timer = window.setTimeout(() => resolve("尚未就绪或网络未响应，请稍后重试。"), 15_000);
@@ -184,6 +184,7 @@ export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminde
 
   return (
     <>
+      <div className="nava-preview-controls" data-preview-only="desktop-controls">
       <aside className="nava-device-selector" data-preview-only="desktop-device-selector">
         <div
           className={["nava-device-selector-turn", showSpecifications ? "is-flipped" : ""].filter(Boolean).join(" ")}
@@ -218,12 +219,6 @@ export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminde
               />
               <span>1 pt 校准网格（10 pt 加粗）</span>
             </label>
-            {reminderUserId && <section className="nava-reminder-preview" data-reminder-preview>
-              <strong>模拟到点提醒</strong>
-              <div>{reminderKinds.map((kind) => <button key={kind} type="button" disabled={reminderBusy} aria-label={`模拟${reminderLabels[kind][0]}到点提醒`} onClick={() => void simulateReminder(kind)}><Bell size={16} />{reminderLabels[kind][0]}</button>)}</div>
-              <p>按已保存的开关和今日记录判断，不写入通知或健康记录。</p>
-              {reminderResult && <p role="status">{reminderResult}</p>}
-            </section>}
           </section>
           <section ref={selectorBackRef} className="nava-device-selector-face nava-device-selector-back" aria-hidden={!showSpecifications} {...(!showSpecifications ? { inert: "" } : {})}>
             <header>
@@ -241,33 +236,40 @@ export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminde
           </section>
         </div>
       </aside>
-      {previewActivity && createPortal(<aside
+      <aside
         className="nava-focus-event-simulator"
         data-preview-only="focus-event-simulator"
-        data-preview-module={previewActivity.module}
-        style={{ "--nava-preview-panel-top": `${selectorHeight + 32}px` } as CSSProperties}
-        aria-label={`${previewModuleName}外部事件模拟`}
+        data-preview-module={previewActivity?.module ?? "idle"}
+        data-preview-state={previewState ?? "idle"}
+        aria-label="外部环境模拟"
       >
-        <header><strong>外部事件模拟</strong><small>{previewModuleName} · 预览</small></header>
-        <p>{previewState === "running" ? `正在${previewModuleName}，选择一种外部事件` : previewState === "paused" ? "先返回或继续，再测试下一次事件" : "开始操作后可测试中断与恢复"}</p>
+        <header><strong>外部环境模拟</strong><small>{!reminderUserId ? "未登录" : previewState === "running" ? previewModuleName : previewState === "paused" ? "已暂停" : "待用"}</small></header>
+        <p>{!reminderUserId ? "登录并开始一项活动后可用" : previewState === "running" ? `正在${previewModuleName}，点击下方模拟中断` : previewState === "paused" ? "继续或重新开启后，可再次模拟" : "开始计时、录音或拍摄后可用"}</p>
         <div className="nava-focus-event-actions">
           {([
             { reason: "call", label: "来电", icon: PhoneIncoming },
             { reason: "message", label: "消息通知", icon: Bell },
             { reason: "distraction", label: "主动分心", icon: MousePointerClick },
-            { reason: "other", label: previewActivity.module === "focus" ? "其他事件" : "切到后台", icon: Ellipsis },
-          ] as const).filter(({ reason }) => previewActivity.module === "focus" || reason !== "distraction").map(({ reason, label, icon: Icon }) => <button
+            { reason: "other", label: previewActivity?.module === "focus" ? "其他事件" : "切到后台", icon: Ellipsis },
+          ] as const).map(({ reason, label, icon: Icon }) => <button
             key={reason}
             type="button"
             data-preview-event={reason}
             onClick={() => simulatePreviewInterruption(reason)}
-            disabled={previewState !== "running"}
-            title={`模拟${label}`}
+            disabled={!reminderUserId || previewState !== "running" || (reason === "distraction" && previewActivity?.module !== "focus")}
+            title={reason === "distraction" && previewActivity?.module !== "focus" ? "开始专注后可模拟主动分心" : `模拟${label}`}
             aria-label={`模拟${label}`}
           ><Icon size={17} /><span>{label}</span></button>)}
         </div>
-        <small className="nava-focus-event-disclaimer">仅测试当前页面的恢复流程，不会真实拨号、发通知或生成健康记录。</small>
-      </aside>, document.body)}
+        <section className="nava-reminder-preview" data-reminder-preview>
+          <strong>到点提醒</strong>
+          <div>{reminderKinds.map((kind) => <button key={kind} type="button" disabled={!reminderUserId || reminderBusy} aria-label={`模拟${reminderLabels[kind][0]}到点提醒`} onClick={() => void simulateReminder(kind)}><Bell size={16} /><span>{reminderLabels[kind][0]}</span></button>)}</div>
+          {reminderUserId && <p>按已保存的提醒设置预览</p>}
+          {reminderResult && <p role="status">{reminderResult}</p>}
+        </section>
+        <small className="nava-focus-event-disclaimer">仅模拟，不会拨打真实电话。</small>
+      </aside>
+      </div>
       <div
         ref={previewRef}
         className="nava-device-preview"

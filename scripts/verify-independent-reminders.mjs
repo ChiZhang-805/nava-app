@@ -109,7 +109,7 @@ try {
       expect(await page.evaluate(() => Object.fromEntries(Object.entries(localStorage).filter(([key]) => key.startsWith("nava-notification-"))))).toEqual(before);
       await page.locator(".nava-notification-banner-main").click();
       await expect(page.locator('.record-editor-stack select').filter({ has: page.locator('option[value="pantry"]') })).toHaveValue("breakfast");
-      await expect.poll(() => page.locator(".nava-device-selector").evaluate((node) => {
+      await expect.poll(() => page.locator(".nava-focus-event-simulator").evaluate((node) => {
         const panel = node.getBoundingClientRect();
         const last = node.querySelector("[data-reminder-preview] p:last-child").getBoundingClientRect();
         return panel.bottom - last.bottom;

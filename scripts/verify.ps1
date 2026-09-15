@@ -16,6 +16,7 @@ Invoke-Npm -Arguments @("run", "media-feedback:test")
 Invoke-Npm -Arguments @("run", "media-feedback:visual")
 Invoke-Npm -Arguments @("run", "camera:visual")
 Invoke-Npm -Arguments @("run", "external-preview:visual")
+Invoke-Npm -Arguments @("run", "desktop-simulator:visual")
 
 Write-Host ""
 Write-Host "1. Build"

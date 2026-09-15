@@ -42,6 +42,7 @@
     "focus-preview:visual": "node scripts/verify-focus-preview-events.mjs",
     "external-preview:test": "node --experimental-strip-types --test tests/preview-environment.test.ts",
     "external-preview:visual": "node scripts/verify-external-preview-events.mjs",
+    "desktop-simulator:visual": "node scripts/verify-desktop-simulator-ui.mjs",
     "media-feedback:test": "node --experimental-strip-types --test tests/media-feedback.test.ts",
     "media-feedback:visual": "node scripts/verify-media-feedback-ui.mjs",
     "camera:visual": "node scripts/verify-camera-layout.mjs",

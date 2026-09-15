@@ -47,7 +47,8 @@ try {
       return sentinel;
     } } });
   });
-  await expect(page.locator('[data-preview-only="focus-event-simulator"]')).toHaveCount(0);
+  await expect(page.locator('[data-preview-only="focus-event-simulator"]')).toBeVisible();
+  await expect(page.locator('[data-preview-event]:enabled')).toHaveCount(0);
   await page.locator('.focus-summary-start[aria-label="开始专注"]').click();
   await expect(page.locator('[data-module-view="focus-immersive"]')).toBeVisible();
   const mascotInteraction = await page.locator(".focus-immersive-mascot").evaluate((mascot) => ({
@@ -64,7 +65,7 @@ try {
   await page.getByRole("dialog", { name: "进入专注状态" }).getByRole("button", { name: "关闭" }).click();
   const simulator = page.locator('[data-preview-only="focus-event-simulator"]');
   await expect(simulator).toBeVisible();
-  await expect(simulator.locator("button:enabled")).toHaveCount(0);
+  await expect(simulator.locator("[data-preview-event]:enabled")).toHaveCount(0);
   await page.screenshot({ path: path.join(outputDir, "focus-preview-ready.png") });
   await page.locator('[data-module-view="focus-immersive"] [aria-label="开始"]').click();
   await expect(page.locator('[data-module-view="focus-immersive"]')).toHaveAttribute("data-focus-state", "running");

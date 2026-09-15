@@ -44,7 +44,7 @@ try {
       if (!desktop) await expect(page.locator(".nava-device-preview")).toBeHidden();
       await expect(page.locator(".sports-plan-actions")).toBeVisible();
       const panel = page.locator('[data-preview-only="focus-event-simulator"]');
-      if (desktop) { await expect(panel).toHaveAttribute("data-preview-module", "exercise"); await expect(panel.locator("button:enabled")).toHaveCount(0); }
+      if (desktop) { await expect(panel).toHaveAttribute("data-preview-module", "exercise"); await expect(panel.locator("[data-preview-event]:enabled")).toHaveCount(0); }
       await page.getByRole("button", { name: "开始此计划", exact: true }).click();
       await expect(page.locator("[data-exercise-session]")).toHaveAttribute("data-running", "true");
       const savedHealthBefore = await page.evaluate(() => localStorage.getItem("nava.review.demo.records.v1"));
@@ -73,7 +73,8 @@ try {
       assert.equal(await page.evaluate(() => localStorage.getItem("nava.review.demo.records.v1")), savedHealthBefore, "interruptions never save a health record");
       await page.getByRole("button", { name: "结束并填写感受", exact: true }).click();
       await expect(page.locator('[data-record-detail="exercise"] form:not([hidden])')).toBeVisible();
-      await expect(panel).toHaveCount(0);
+      await expect(panel).toHaveAttribute("data-preview-module", "idle");
+      await expect(panel.locator("[data-preview-event]:enabled")).toHaveCount(0);
 
       await open("tab=record&module=sleep&view=editor");
       await page.locator(".sleep-maintenance").getByRole("button", { name: "开始记录", exact: true }).click();
@@ -91,7 +92,8 @@ try {
         await page.getByRole("button", { name: "返回睡眠记录", exact: true }).click();
       }
       await open("tab=today");
-      await expect(panel).toHaveCount(0);
+      await expect(panel).toHaveAttribute("data-preview-module", "idle");
+      await expect(panel.locator("[data-preview-event]:enabled")).toHaveCount(0);
       await open("tab=record&module=sleep&view=editor");
       assert.equal(await page.evaluate((key) => localStorage.getItem(key), sleepKey), sleepStart);
       await expect(page.locator(".sleep-maintenance.is-active")).toBeVisible();
