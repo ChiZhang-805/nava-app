@@ -699,12 +699,23 @@ export default function RecordsScreen({
     const fitToContent = () => {
       textarea.style.height = "auto";
       const borderHeight = textarea.offsetHeight - textarea.clientHeight;
-      textarea.style.height = `${Math.max(46, textarea.scrollHeight + borderHeight)}px`;
+      const contentHeight = textarea.scrollHeight + borderHeight;
+      textarea.style.height = `${Math.min(160, Math.max(46, contentHeight))}px`;
+      textarea.style.overflowY = contentHeight > 160 ? "auto" : "hidden";
     };
-    const frame = window.requestAnimationFrame(fitToContent);
+    let frame = window.requestAnimationFrame(fitToContent);
+    let width = textarea.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (textarea.clientWidth === width) return;
+      width = textarea.clientWidth;
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(fitToContent);
+    });
+    observer.observe(textarea);
     window.addEventListener("resize", fitToContent);
     return () => {
       window.cancelAnimationFrame(frame);
+      observer.disconnect();
       window.removeEventListener("resize", fitToContent);
     };
   }, [activeModule, mealName, showEditor]);
@@ -1365,7 +1376,7 @@ export default function RecordsScreen({
       && hubAssociation.confidence !== "low"
       && !/(记录不足|无法判断|insufficient|cannot determine)/i.test(`${hubAssociation.headline} ${hubAssociation.explanation}`));
     return (
-      <div className="record-hub" ref={rootRef}>
+      <div className={`record-hub${reportMode === "modules" ? " record-hub--modules" : ""}`} ref={rootRef}>
         {weeklyShare && <WeeklySharePreview report={weeklyShare.report} locale={locale} startDate={weeklyShare.startDate} endDate={weeklyShare.endDate} onClose={() => setWeeklyShare(null)} onComplete={() => {
           const sharedOffset = weeklyShare.weekOffset;
           setWeeklyShare(null);

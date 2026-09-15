@@ -89,8 +89,8 @@ export function buildHealthModulePresentations(snapshot: TodaySnapshot | null, l
     mood: mood ? {
       ...progress.mood,
       points: locale === "zh"
-        ? [`情绪 ${Math.round(mood.mood_score)}/100`, `原因 ${mood.factors.slice(0, 2).join("、") || "未选择"}`, mood.diary_content ? "已写情绪日记" : "未写情绪日记", "记录已保存到当前账号"]
-        : [`Mood ${Math.round(mood.mood_score)}/100`, `Factors: ${mood.factors.slice(0, 2).join(", ") || "none"}`, mood.diary_content ? "Journal added" : "No journal yet", "Saved to this account"],
+        ? [`情绪 ${Math.round(mood.mood_score)}/100`, `原因 ${mood.factors.slice(0, 2).join("、") || "未选择"}`, mood.diary_content ? "已写情绪日记" : "未写情绪日记", "已保存至当前账号"]
+        : [`Mood ${Math.round(mood.mood_score)}/100`, `Factors: ${mood.factors.slice(0, 2).join(", ") || "none"}`, mood.diary_content ? "Journal added" : "No journal yet", "Saved to account"],
     } : missingFor("mood"),
     sleep: sleep ? {
       ...progress.sleep,

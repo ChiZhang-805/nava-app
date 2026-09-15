@@ -33,7 +33,7 @@
     "mascot:visual": "node scripts/verify-mascot-player.mjs",
     "module-progress:test": "node --experimental-strip-types --test tests/health-report-presentation.test.ts",
     "performance:test": "node --experimental-strip-types --test tests/single-request-cache.test.ts",
-    "module-progress:visual": "node scripts/verify-module-progress-ui.mjs",
+    "module-progress:visual": "node --experimental-strip-types scripts/verify-module-progress-ui.mjs",
     "module-overviews:visual": "node scripts/verify-module-overviews-ui.mjs",
     "record-editor:visual": "node scripts/verify-mood-editor-layout.mjs",
     "home-guidance:test": "node --experimental-strip-types --test tests/home-guidance.test.ts",

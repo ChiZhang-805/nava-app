@@ -3,15 +3,18 @@ import path from "node:path";
 import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
+import { inspectRingPaint } from "./module-ring-paint.mjs";
+import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-module-progress-v128-20260908";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\module-responsive-rings";
 const port = 5198;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
   { name: "375x812", width: 375, height: 812 },
   { name: "390x844", width: 390, height: 844 },
   { name: "430x932", width: 430, height: 932 },
+  ...IPHONE_PREVIEW_DEVICES.map((device) => ({ name: device.id, width: 1365, height: 1050, device })),
 ];
 
 applyProjectPublicEnv(root);
@@ -63,6 +66,7 @@ async function inspectRecordHub(page, viewportName, stateName) {
           clientHeight: line.clientHeight,
           scrollHeight: line.scrollHeight,
           visible: style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) !== 0,
+          singleLine: style.whiteSpace === 'nowrap',
         };
       });
       return {
@@ -123,13 +127,14 @@ async function inspectRecordHub(page, viewportName, stateName) {
       }
     }
     for (const line of card.lines) {
+      if (!line.singleLine) fail(`card ${card.module} must preserve a single line per summary`, { card, line });
       if (!line.visible || line.rect.height < 1 || line.textRect.height < 1) fail(`card ${card.module} has a hidden summary line`, { card, line });
       if (line.scrollWidth > line.clientWidth + 1 || line.scrollHeight > line.clientHeight + 1) fail(`card ${card.module} truncates summary text`, { card, line });
       if (line.rect.left < card.points.rect.left - 1 || line.rect.right > card.points.rect.right + 1 || line.rect.top < card.points.rect.top - 1 || line.rect.bottom > card.points.rect.bottom + 1) {
         fail(`card ${card.module} summary line escapes its list`, { card, line });
       }
       if (rectanglesOverlap(line.textRect, card.arrow, 4)) fail(`card ${card.module} summary text intersects its arrow`, { card, line });
-      if (/^[\p{Script=Han}]+$/u.test(line.text) && [...line.text].length !== 7) fail(`card ${card.module} compact Chinese line is not exactly seven characters`, { card, line });
+      if (card.summarySource === 'ai-compact' && /^[\p{Script=Han}]+$/u.test(line.text) && [...line.text].length !== 7) fail(`card ${card.module} compact Chinese line is not exactly seven characters`, { card, line });
     }
     for (let otherIndex = index + 1; otherIndex < geometry.cards.length; otherIndex += 1) {
       if (rectanglesOverlap(card.rect, geometry.cards[otherIndex].rect, 3)) {
@@ -148,8 +153,8 @@ try {
     const context = await browser.newContext({
       viewport: { width: viewport.width, height: viewport.height },
       deviceScaleFactor: 1,
-      isMobile: true,
-      hasTouch: true,
+      isMobile: !viewport.device,
+      hasTouch: !viewport.device,
       timezoneId: "Asia/Shanghai",
       userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Version/17.5 Mobile/15E148 Safari/604.1",
     });
@@ -196,6 +201,7 @@ try {
     await expect(page.locator(".option-two-home")).toBeVisible();
     const reward = page.locator(".reward-celebration-layer");
     if (await reward.isVisible().catch(() => false)) await reward.locator("button").click();
+    if (viewport.device) await page.locator('.nava-device-selector select').selectOption(viewport.device.id);
 
     const home = page.locator(".option-two-home");
     const homeBox = await home.boundingBox();
@@ -212,6 +218,21 @@ try {
     const diet = page.locator(".option-two-health-entry--diet");
     await expect(diet).toHaveAttribute("data-module-progress", "0.25");
     await expect(diet).toHaveAttribute("data-module-state", "partial");
+    const homePaint = await inspectRingPaint(page, '.option-two-health-entry:not([data-module-state="missing"]) .module-progress-ring');
+    if (process.argv.includes('--ring-baseline')) {
+      await page.screenshot({ path: path.join(outputDir, 'ring-before.png') });
+      await page.addStyleTag({ content: '.module-progress-ring circle { vector-effect: none !important; }' });
+      const correctedPaint = await inspectRingPaint(page, '.option-two-health-entry:not([data-module-state="missing"]) .module-progress-ring');
+      await page.screenshot({ path: path.join(outputDir, 'ring-after-diagnostic.png') });
+      console.log(JSON.stringify({ before: homePaint, after: correctedPaint }));
+      report.push({ viewport, baseline:homePaint, correctedPaint });
+      await context.close();
+      break;
+    }
+    for (const ring of homePaint) {
+      if (ring.progress === 1 && ring.coverage < .99) throw new Error(`${viewport.name}: completed ring is not closed: ${JSON.stringify(ring)}`);
+      if (ring.progress > 0 && ring.progress < 1 && Math.abs(ring.coverage - ring.progress) > .07) throw new Error(`${viewport.name}: partial ring paint does not match progress: ${JSON.stringify(ring)}`);
+    }
     const homeGeometry = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
       const entries = [...document.querySelectorAll(".option-two-health-entry")].map((entry) => {
@@ -269,14 +290,51 @@ try {
     }
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-today-progress.png`) });
 
+    // Render the actual component at all progress boundaries. Isolate green
+    // stroke pixels from the completed button's green fill for arc measurement.
+    const paintStyle = await page.addStyleTag({ content: '.option-two-health-entry::after { opacity: 0 !important; animation: none !important; } .option-two-health-entry .module-progress-ring { opacity: 1 !important; } .option-two-health-entry .module-progress-ring__value { animation: none !important; transition: none !important; }' });
+    await page.locator('.option-two-health-entry .module-progress-ring').evaluateAll((rings) => rings.forEach((ring, index) => {
+      const progress = [0, .25, .5, .75, 1, 1][index];
+      ring.dataset.progress = String(progress);
+      ring.style.setProperty('--module-progress-offset', String(2 * Math.PI * 21.5 * (1 - progress)));
+      ring.querySelector('.module-progress-ring__value').style.strokeDashoffset = String(2 * Math.PI * 21.5 * (1 - progress));
+    }));
+    const boundaryPaint = await inspectRingPaint(page, '.option-two-health-entry .module-progress-ring');
+    for (const ring of boundaryPaint) {
+      if (ring.progress === 1 ? ring.coverage < .99 : Math.abs(ring.coverage - ring.progress) > .07) throw new Error(`${viewport.name}: rendered arc boundary mismatch ${JSON.stringify(ring)}`);
+    }
+    await paintStyle.evaluate((node) => node.remove());
+
     await page.locator('[data-tab="record"]').click();
     const hubDiet = page.locator('[data-record-module="diet"]');
     await expect(hubDiet).toHaveAttribute("data-record-state", "partial");
     await expect(hubDiet).toHaveAttribute("data-module-progress", "0.25");
     await expect(page.locator(".record-module-entry .module-progress-ring")).toHaveCount(6);
     await page.waitForTimeout(620);
+    const reportPaint = await inspectRingPaint(page, '.record-module-entry .module-progress-ring');
+    for (const ring of reportPaint) {
+      if (ring.progress === 1 && ring.coverage < .99) throw new Error(`${viewport.name}: report ring is not closed ${JSON.stringify(ring)}`);
+    }
     const populatedHubGeometry = await inspectRecordHub(page, viewport.name, "populated record hub");
-    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-record-progress.png`) });
+    const gridOverflow = await page.locator('.record-module-grid').evaluate((grid) => grid.scrollHeight - grid.clientHeight);
+    if (gridOverflow > 1) throw new Error(`${viewport.name}: normal four-line cards should fit together, overflow ${gridOverflow}px`);
+    await page.locator('.phone-frame').screenshot({ path: path.join(outputDir, `${viewport.name}-record-progress.png`) });
+
+    // Explicit local typography fixture: long saved-record facts must work even
+    // before compact AI summaries arrive. It does not seed or claim AI output.
+    await page.locator('.record-module-entry').evaluateAll((cards) => {
+      for (const card of cards) {
+        card.dataset.summarySource = 'record-facts';
+        const facts = ['情绪 70/100', '原因 社交、天气', '已写情绪日记', '已保存至当前账号'];
+        card.querySelectorAll('.record-module-points > span').forEach((line, index) => { line.textContent = facts[index]; });
+      }
+    });
+    const factsGeometry = await inspectRecordHub(page, viewport.name, 'long saved-record facts');
+    await page.locator('.record-module-entry').last().scrollIntoViewIfNeeded();
+    await expect(page.locator('.record-module-entry').last()).toBeInViewport({ ratio: .99 });
+    await expect(page.locator('.record-module-entry').last().locator('.record-module-points')).toBeInViewport({ ratio: .99 });
+    await page.locator('.record-module-grid').evaluate((grid) => { grid.scrollTop = 0; });
+    await page.locator('.phone-frame').screenshot({ path: path.join(outputDir, `${viewport.name}-record-facts.png`) });
 
     const dateInput = page.locator(".record-hub-date input[type=date]");
     await page.evaluate(() => localStorage.setItem("nava.review.demo.empty-snapshot-date.v1", "2020-01-01"));
@@ -285,7 +343,24 @@ try {
     await expect(page.locator('.record-module-entry[data-summary-source="module-dictionary"]')).toHaveCount(6);
     await page.waitForTimeout(220);
     const emptyHubGeometry = await inspectRecordHub(page, viewport.name, "empty record hub");
-    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-record-empty.png`) });
+    await page.locator('.phone-frame').screenshot({ path: path.join(outputDir, `${viewport.name}-record-empty.png`) });
+
+    // A loading/error notice consumes real space above the grid. Keep every
+    // card's four lines intact and reachable rather than shrinking them away.
+    await page.locator('.record-module-grid').evaluate((grid) => {
+      const notice = document.createElement('section');
+      notice.className = 'record-hub-ai-summary';
+      notice.dataset.layoutFixture = 'notice';
+      const copy = document.createElement('div');
+      const heading = document.createElement('strong'); heading.textContent = '报告状态';
+      const paragraph = document.createElement('p'); paragraph.textContent = '报告准备中';
+      copy.append(heading, paragraph); notice.append(copy); grid.before(notice);
+    });
+    const noticeGeometry = await inspectRecordHub(page, viewport.name, 'notice reduces available height');
+    await page.locator('.record-module-entry').last().scrollIntoViewIfNeeded();
+    await expect(page.locator('.record-module-entry').last().locator('.record-module-points')).toBeInViewport({ ratio:.99 });
+    await page.locator('[data-layout-fixture="notice"]').evaluate((node) => node.remove());
+    await page.locator('.record-module-grid').evaluate((grid) => { grid.scrollTop=0; });
 
     const browserLocalDate = await page.evaluate(() => {
       const now = new Date();
@@ -302,9 +377,25 @@ try {
     const detailOverflow = await page.locator(".phone-frame").evaluate((frame) => frame.scrollWidth - frame.clientWidth);
     if (detailOverflow > 1) throw new Error(`${viewport.name}: partial diet editor has ${detailOverflow}px horizontal overflow.`);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-partial-diet-editor.png`) });
+    const food = page.locator('.diet-food-field textarea');
+    await food.fill('燕麦、鸡蛋、全麦面包、牛奶和新鲜蔬菜，分量按实际记录。'.repeat(4));
+    for (const deviceId of viewport.device ? [viewport.device.logicalWidth > 400 ? 'iphone-14' : 'iphone-17-pro-max', viewport.device.id] : [null]) {
+      if (deviceId) await page.locator('.nava-device-selector select').selectOption(deviceId);
+      await page.waitForTimeout(120);
+      const textBounds = await food.evaluate((node) => ({ height: node.offsetHeight, clipped: node.scrollHeight > node.clientHeight + 1, overflow: getComputedStyle(node).overflowY }));
+      if (textBounds.height > 161 || (textBounds.clipped && textBounds.overflow !== 'auto')) throw new Error(`Diet text cannot be reached after width change ${JSON.stringify(textBounds)}`);
+    }
+    const save = page.locator('.record-editor-stack > form:not([hidden]) > .section-card > .action-button');
+    await save.scrollIntoViewIfNeeded();
+    const saveBounds = await save.evaluate((node) => {
+      const b = node.getBoundingClientRect(), c = node.closest('.section-card').getBoundingClientRect();
+      return { inside: b.left >= c.left && b.right <= c.right && b.top >= c.top && b.bottom <= c.bottom };
+    });
+    if (!saveBounds.inside) throw new Error(`${viewport.name}: diet action escaped its card`);
 
     if (errors.length) throw new Error(`${viewport.name}: browser errors ${JSON.stringify(errors)}`);
-    report.push({ viewport, homeGeometry, populatedHubGeometry, emptyHubGeometry, detailOverflow });
+    report.push({ viewport, homePaint, boundaryPaint, reportPaint, homeGeometry, populatedHubGeometry, factsGeometry, emptyHubGeometry, noticeGeometry, detailOverflow });
+    console.log(`${viewport.name}: rings, compact/facts/empty cards passed`);
     await context.close();
   }
 } finally {
@@ -312,5 +403,6 @@ try {
   await server.close();
 }
 
-await writeFile(path.join(outputDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
-console.log(`Module progress visual verification passed at ${viewports.length} portrait viewports.`);
+const diagnostic = process.argv.includes('--ring-baseline');
+await writeFile(path.join(outputDir, diagnostic ? 'baseline.json' : 'report.json'), `${JSON.stringify(report, null, 2)}\n`, "utf8");
+console.log(diagnostic ? 'Single-viewport ring diagnostic only; not a release acceptance.' : `Module progress visual verification passed at ${viewports.length} portrait viewports.`);

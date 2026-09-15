@@ -194,6 +194,35 @@ async function assertEditorHeader(page, module, expectedShortcutCount) {
   if (header.shortcuts !== expectedShortcutCount) throw new Error(`${module}: expected ${expectedShortcutCount} shortcuts before date action ${JSON.stringify(header)}`);
 }
 
+async function assertContainedAction(page, module, state) {
+  const card = page.locator(`.record-detail[data-record-detail="${module}"] .record-editor-stack > :is(form,div):not([hidden]) > .section-card`).first();
+  const action = card.locator(':scope > .action-button').last();
+  await action.scrollIntoViewIfNeeded();
+  const states = [];
+  for (const end of [false, true]) {
+    await card.evaluate((node, end) => { node.scrollTop = end ? node.scrollHeight : 0; }, end);
+    const geometry = await action.evaluate((node) => {
+      const card = node.closest('.section-card');
+      const box = node.getBoundingClientRect();
+      const bounds = card.getBoundingClientRect();
+      const nav = node.closest('.phone-frame').querySelector('.bottom-nav').getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return { top: box.top, bottom: box.bottom, left: box.left, right: box.right,
+        cardTop: bounds.top, cardBottom: bounds.bottom, cardLeft: bounds.left, cardRight: bounds.right,
+        navTop: nav.top, hit: hit === node || node.contains(hit),
+        overflowX: card.scrollWidth - card.clientWidth, scrollTop: card.scrollTop,
+        escapes: [...card.querySelectorAll('*')].filter((child) => child.getBoundingClientRect().right > bounds.right).map((child) => ({ class:child.className, width:child.getBoundingClientRect().width, right:child.getBoundingClientRect().right })) };
+    });
+    if (geometry.top < geometry.cardTop || geometry.bottom > geometry.cardBottom
+      || geometry.left < geometry.cardLeft || geometry.right > geometry.cardRight
+      || geometry.bottom > geometry.navTop - 4 || !geometry.hit || geometry.overflowX > 1) {
+      throw new Error(`${module}/${state}: action escapes card or is obscured ${JSON.stringify(geometry)}`);
+    }
+    states.push(geometry);
+  }
+  return states;
+}
+
 async function main() {
   await mkdir(outputDir, { recursive: true });
   const server = await createServer({ root, server: { host: "127.0.0.1", port }, logLevel: "silent" });
@@ -213,6 +242,15 @@ async function main() {
   page.on("pageerror", (error) => errors.push(error.message));
   try {
     await signIn(page, baseUrl);
+    if (process.argv.includes('--keyboard-only')) {
+      await page.setViewportSize({ width:390,height:480 });
+      await page.goto(`${baseUrl}?demo=1#tab=record&module=mood&view=journal`, { waitUntil:'networkidle' });
+      const dialog = page.locator('.module-modal--journal');
+      await expect(dialog.getByRole('button',{name:'取消',exact:true})).toBeInViewport({ratio:1});
+      await page.waitForTimeout(600);
+      await page.screenshot({path:path.join(outputDir,'journal-keyboard-diagnostic.png')});
+      return;
+    }
     const moodResults = [];
     for (const viewport of viewports) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -296,6 +334,15 @@ async function main() {
       if (action.navTop == null || action.bottom > action.navTop - 8) throw new Error(`exercise/${viewport.name}: save action is clipped ${JSON.stringify(action)}`);
       exerciseResults.push({ name: viewport.name, ...geometry, action });
       await page.screenshot({ path: path.join(outputDir, `exercise-${viewport.name}.png`) });
+      await detail.locator('.exercise-injury-toggle input').check();
+      await detail.locator('.exercise-injury-note input').fill('膝部不适，需要减少负荷并观察恢复情况。'.repeat(8));
+      await detail.locator('.exercise-note-field textarea').fill('训练记录和恢复观察。'.repeat(200));
+      await page.waitForTimeout(700);
+      await expect(detail.locator('.exercise-recovery-estimate.is-caution')).toBeVisible();
+      const ratingsFit = await detail.locator('.exercise-rating-field > span').evaluateAll((labels) => labels.every((node) => node.scrollWidth <= node.clientWidth + 1 && getComputedStyle(node).whiteSpace === 'nowrap'));
+      if (!ratingsFit) throw new Error(`${viewport.name}: exercise rating label/value is truncated`);
+      exerciseResults.at(-1).expanded = await assertContainedAction(page, 'exercise', viewport.name);
+      await page.screenshot({ path: path.join(outputDir, `exercise-expanded-${viewport.name}.png`) });
     }
 
     const dietResults = [];
@@ -631,9 +678,36 @@ async function main() {
     await page.locator(".mood-diary-field + .action-button").scrollIntoViewIfNeeded();
     await expect(page.locator(".mood-diary-field + .action-button")).toBeInViewport();
     await page.screenshot({ path: path.join(outputDir, "390x600-keyboard-proxy.png") });
+    await assertContainedAction(page, 'mood', 'keyboard-height proxy');
+
+    const journalResults = [];
+    for (const viewport of [{ width: 360, height: 740 }, { width: 390, height: 480 }]) {
+      await page.setViewportSize(viewport);
+      await page.goto(`${baseUrl}?demo=1#tab=record&module=mood&view=journal`, { waitUntil: 'networkidle' });
+      const dialog = page.locator('.module-modal-card:has(.module-modal-body)');
+      await expect(dialog).toBeVisible();
+      await page.waitForTimeout(600);
+      await dialog.locator('textarea').fill('日记长文字测试。'.repeat(200));
+      const bounds = await dialog.evaluate((node) => {
+        const card = node.getBoundingClientRect();
+        const overlay = node.closest('.module-modal').getBoundingClientRect();
+        const footer = node.querySelector('.module-modal-actions').getBoundingClientRect();
+        return { cardTop: card.top, cardBottom: card.bottom, overlayTop: overlay.top, overlayBottom: overlay.bottom, footerBottom: footer.bottom };
+      });
+      if (bounds.cardTop < bounds.overlayTop || bounds.cardBottom > bounds.overlayBottom || bounds.footerBottom > bounds.cardBottom) throw new Error(`Journal footer escaped: ${JSON.stringify(bounds)}`);
+      await expect(dialog.getByRole('button', { name: '取消', exact: true })).toBeInViewport({ ratio: 1 });
+      journalResults.push({ viewport, bounds });
+      await page.screenshot({ path: path.join(outputDir, `journal-${viewport.height}.png`) });
+      const save = dialog.getByRole('button', { name:'保存', exact:true });
+      await expect(save).toBeEnabled();
+      expect(await save.evaluate((node) => node.form?.id)).toBe('mood-record-form');
+      await save.click();
+      await expect(dialog).toBeHidden();
+      await dismissReward(page);
+    }
 
     if (errors.length) throw new Error(`Browser errors:\n${errors.join("\n")}`);
-    await writeFile(path.join(outputDir, "report.json"), `${JSON.stringify({ moodResults, sleepResults, exerciseResults, dietResults, focusResults, faceResults, profileResults, skeletonResults, errors }, null, 2)}\n`, "utf8");
+    await writeFile(path.join(outputDir, "report.json"), `${JSON.stringify({ moodResults, sleepResults, exerciseResults, dietResults, focusResults, faceResults, profileResults, skeletonResults, journalResults, errors }, null, 2)}\n`, "utf8");
     console.log(`Mood, sleep, exercise, diet, focus, face, profile, and target-state skeleton layouts passed ${viewports.length} required phone sizes plus a keyboard-height proxy.`);
   } finally {
     await context.close();

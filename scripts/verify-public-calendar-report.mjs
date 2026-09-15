@@ -2,15 +2,18 @@
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { chromium, expect } from "@playwright/test";
+import { inspectRingPaint } from './module-ring-paint.mjs';
+import { IPHONE_PREVIEW_DEVICES } from '../src/constants/iphonePreviewDevices.ts';
+const responsive = process.argv.includes('--responsive');
 const email = process.env.NAVA_ACCOUNT_EMAIL, password = process.env.NAVA_ACCOUNT_PASSWORD;
 if (!email || !password) throw new Error("Use the secure launcher.");
-const output = "Q:/NAVA-Workspace/Build/TestRuns/calendar-report-release";
+const output = responsive ? 'Q:/NAVA-Workspace/Build/TestRuns/responsive-release' : "Q:/NAVA-Workspace/Build/TestRuns/calendar-report-release";
 await mkdir(output, { recursive: true });
 const receipt = { passed: false, aiTested: false, results: [] };
 const browser = await chromium.launch({ headless: true });
 try {
   for (const base of ["https://nava-app-preview-cz.chizhang1031.chatgpt.site/", "https://chizhang-805.github.io/nava-app-preview/"]) {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: !responsive, hasTouch: !responsive, reducedMotion: "reduce" });
     try {
       const page = await context.newPage(); page.setDefaultTimeout(30000);
       let healthWrites = 0;
@@ -41,6 +44,47 @@ try {
       assert.equal(authenticated.user?.email?.toLowerCase(), email.toLowerCase());
       await expect(page.locator(".bottom-nav")).toBeVisible();
       const geometry = [];
+      if (responsive) {
+        for (const size of [
+          ...[[360,740],[375,812],[390,844],[430,932]].map(([width,height]) => ({ width,height,name:`${width}x${height}` })),
+          ...IPHONE_PREVIEW_DEVICES.map((device) => ({ width:1365,height:1050,name:device.id,device })),
+        ]) {
+          await page.setViewportSize({ width:size.width, height:size.height });
+          if (size.device) await page.locator('.nava-device-selector select').selectOption(size.device.id);
+          await page.evaluate(() => { location.hash = 'tab=record'; });
+          await expect(page.locator('.record-module-entry')).toHaveCount(6);
+          await page.locator('.record-hub-date input').fill('2026-09-13');
+          await expect(page.locator('.record-module-entry.is-complete')).toHaveCount(6);
+          await page.waitForTimeout(800);
+          const paint = await inspectRingPaint(page, '.record-module-entry .module-progress-ring');
+          // Pixel sampling of off-screen scrolled cards is intentionally skipped;
+          // each card is brought into the viewport before its closure is checked.
+          const cards = page.locator('.record-module-entry');
+          for (let index = 0; index < 6; index++) {
+            const card = cards.nth(index);
+            await card.scrollIntoViewIfNeeded();
+            const ring = await inspectRingPaint(page, `.record-module-entry:nth-child(${index + 1}) .module-progress-ring`);
+            assert(ring[0].coverage >= .99, `Public completed ring is open: ${size.name}`);
+            const contained = await card.evaluate((node) => {
+              const bounds = node.getBoundingClientRect();
+              return [...node.querySelectorAll('.record-module-header,.record-module-points > span')].every((child) => {
+                const b = child.getBoundingClientRect();
+                return b.left >= bounds.left && b.right <= bounds.right && b.top >= bounds.top && b.bottom <= bounds.bottom && child.scrollWidth <= child.clientWidth + 1
+                  && (!child.matches('.record-module-points > span') || getComputedStyle(child).whiteSpace === 'nowrap');
+              });
+            });
+            assert(contained, `Public card clips content: ${size.name}`);
+          }
+          await page.locator('.record-module-grid').evaluate((node) => { node.scrollTop=0; });
+          assert.equal(await page.locator('.phone-frame').evaluate((node) => node.scrollWidth > node.clientWidth + 1),false);
+          await page.screenshot({ path:`${output}/${new URL(base).hostname}-${size.name}.png` });
+          geometry.push({ name:size.name, allSixContained:true, allSixClosed:true, initialPaint:paint });
+        }
+        assert.equal(healthWrites,0);
+        receipt.results.push({ base, realLogin:true, canonicalProject:true, demoBypassRejected:true, healthWrites, geometry });
+        console.log(`PASS public responsive rings/cards: ${new URL(base).hostname}`);
+        continue;
+      }
       for (const [width, height] of [[360, 740], [375, 812], [390, 844], [430, 932]]) {
         await page.setViewportSize({ width, height });
         await page.evaluate(() => { location.hash = "tab=today&view=calendar"; });

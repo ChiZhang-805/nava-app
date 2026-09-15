@@ -1067,7 +1067,7 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
   if (view === "trend") return <HistoryView userId={props.userId} module="mood" locale={locale} trendBundle={trendBundle} profile={props.profile} deviceDate={deviceDate} />;
 
   return (
-    <form className="module-dashboard mood-dashboard" onSubmit={(event) => void submitMood(event)} data-module-view="mood-overview" data-ui-revision="mood-summary-live-v4">
+    <form id="mood-record-form" className="module-dashboard mood-dashboard" onSubmit={(event) => void submitMood(event)} data-module-view="mood-overview" data-ui-revision="mood-summary-live-v4">
       <section
         className="figma-module-card mood-summary-card"
         style={{ "--mood-score": `${hasVisibleMood ? moodScore : 0}%` } as CSSProperties}
@@ -1154,17 +1154,19 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
         </div>
       </section>
       <MonthlyWellbeing userId={props.userId} module="mood" locale={locale} deviceDate={deviceDate} revision={trendBundle} factorLabels={Object.fromEntries(moodFactors.map((factor) => [factor.value, factor.label]))} />
-      {view === "journal" && (
-        <div className="module-modal" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "情绪日记" : "Mood journal"}>
+      {view === "journal" && createPortal((
+        <div className="module-modal module-modal--journal" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "情绪日记" : "Mood journal"}>
           <div className="module-modal-card">
             <header><strong>{locale === "zh" ? "情绪日记" : "Mood journal"}</strong><button type="button" onClick={() => openView("overview")}><X size={20} /></button></header>
+            <div className="module-modal-body">
             <p className="wellbeing-reflection">{locale === "zh" ? "如果想复盘，可以写：今天什么帮助了我？下次想尝试什么？也可以只写此刻的感受。" : "If helpful, reflect: What supported me today? What might I try next time? Or simply write how you feel."}</p>
             <textarea autoFocus value={diary} onChange={(event) => setDiary(event.target.value)} placeholder={locale === "zh" ? "写下此刻发生的事……" : "What happened just now?"} />
             {!canComplete && <p className="mood-completion-hint">{locale === "zh" ? "请先调整情绪强度、选择主要原因，并写下今天的情绪。" : "Adjust the intensity, choose a cause, and write today's mood before saving."}</p>}
-            <div><button type="button" onClick={() => openView("overview")}>{locale === "zh" ? "取消" : "Cancel"}</button><button type="submit" disabled={busy !== null || !canComplete}>{locale === "zh" ? "保存" : "Save"}</button></div>
+            </div>
+            <div className="module-modal-actions"><button type="button" onClick={() => openView("overview")}>{locale === "zh" ? "取消" : "Cancel"}</button><button type="submit" form="mood-record-form" disabled={busy !== null || !canComplete}>{locale === "zh" ? "保存" : "Save"}</button></div>
           </div>
         </div>
-      )}
+      ), document.querySelector('.phone-frame') ?? document.body)}
     </form>
   );
 }

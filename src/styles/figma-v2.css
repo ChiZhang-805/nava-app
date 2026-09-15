@@ -1407,7 +1407,8 @@ body::before {
 .module-progress-ring circle {
   fill: none;
   stroke-width: 2.8;
-  vector-effect: non-scaling-stroke;
+  /* Dash lengths and circumference must share SVG units at every rendered size. */
+  vector-effect: none;
 }
 
 .module-progress-ring__track {
@@ -3244,10 +3245,13 @@ body::before {
 .module-modal-card header button { width: 34px; height: 34px; border: 0; border-radius: 50%; background: #e5f3f8; }
 .module-modal-card textarea { width: 100%; min-height: 230px; margin-top: 14px; padding: 14px; resize: none; border: 1px solid #d6e8ef; border-radius: 16px; color: #16384a; background: #edf6f9; }
 .module-modal-card .mood-completion-hint { margin: 8px 2px 0; color: #6d8793; font-size: 11px; line-height: 1.4; }
-.module-modal-card > div { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
-.module-modal-card > div button { min-height: 42px; border: 0; border-radius: 12px; color: #315b6e; background: #e6f1f5; }
-.module-modal-card > div button:last-child { color: white; background: #1d7296; }
-.module-modal-card > div button:disabled { cursor: not-allowed; opacity: .46; }
+.module-modal-card:has(.module-modal-body) { max-height: 100%; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.module-modal--journal { position: absolute; inset: 0; z-index: 245; max-width: none; padding: max(24px, calc(var(--nava-system-safe-top, 0px) + 12px), env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom)); }
+.module-modal-body { min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.module-modal-card > div:not(.module-modal-body) { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.module-modal-actions button { min-height: 44px; border: 0; border-radius: 12px; color: #315b6e; background: #e6f1f5; }
+.module-modal-actions button:last-child { color: white; background: #1d7296; }
+.module-modal-actions button:disabled { cursor: not-allowed; opacity: .46; }
 
 .sleep-alert {
   min-height: 76px;
@@ -13667,4 +13671,123 @@ body::before {
   .morning-plan-overlay { padding-top: max(80px, calc(env(safe-area-inset-top) + 54px)); padding-bottom: max(20px, env(safe-area-inset-bottom)); }
   .morning-plan-header { padding-top: 15px; }
   .morning-plan-content { padding-block: 12px; }
+}
+
+/* Layout follows the actual report slot, including desktop phone previews.
+   Typography and spacing scale together. Four summaries stay four single lines;
+   the grid can scroll on exceptionally short viewports, never crop a card. */
+.record-hub--modules { container-type: inline-size; }
+.phone-frame:not(.phone-frame--option2) .record-hub--modules .record-hub-date {
+  min-height: clamp(48px, 15cqw, 58px);
+  flex-basis: clamp(48px, 15cqw, 58px);
+}
+.phone-frame:not(.phone-frame--option2) .record-module-grid {
+  container-type: size;
+  grid-template-rows: repeat(3, minmax(min-content, 1fr));
+  gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.phone-frame:not(.phone-frame--option2) .record-module-grid > .record-module-entry {
+  container-type: inline-size;
+  min-height: min-content;
+  overflow: visible;
+  justify-content: space-between;
+  gap: clamp(5px, 1.25cqh, 10px);
+  padding: clamp(8px, 2cqh, 13px) clamp(10px, 3.2cqw, 14px);
+}
+.phone-frame:not(.phone-frame--option2) .record-module-entry .record-module-header {
+  flex: 0 0 auto;
+  gap: 8px;
+}
+.phone-frame:not(.phone-frame--option2) .record-module-entry strong {
+  font-size: clamp(17px, min(13cqw, 4.6cqh), 20px);
+  line-height: 1.2;
+}
+.phone-frame:not(.phone-frame--option2) .record-module-entry .record-module-icon {
+  --report-icon-size: clamp(28px, min(24cqw, 7.6cqh), 40px);
+  width: var(--report-icon-size);
+  height: var(--report-icon-size);
+  flex: 0 0 var(--report-icon-size);
+}
+.phone-frame:not(.phone-frame--option2) .record-module-icon > svg:not(.module-progress-ring) {
+  width: 60%;
+  height: 60%;
+}
+.phone-frame:not(.phone-frame--option2) .record-module-entry .record-module-points {
+  flex: 0 0 auto;
+  gap: clamp(3px, 1.05cqh, 6px);
+  padding: 0;
+}
+.phone-frame:not(.phone-frame--option2) .record-module-points span {
+  align-items: flex-start;
+  gap: 6px;
+  font-size: clamp(11.5px, min(9cqw, 3.1cqh), 14.25px);
+  line-height: 1.22;
+  text-align: left;
+  white-space: nowrap;
+  overflow: visible;
+}
+.phone-frame:not(.phone-frame--option2) .record-module-points span:last-child {
+  padding-right: 23px;
+}
+.phone-frame:not(.phone-frame--option2) .record-module-points span::before {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 5px;
+  margin-top: .43em;
+  box-shadow: 0 0 0 2px rgba(192, 234, 251, .58);
+}
+.phone-frame:not(.phone-frame--option2) .record-module-entry .record-module-arrow {
+  width: 18px;
+  height: 18px;
+  right: clamp(10px, 3.2cqw, 14px);
+  bottom: clamp(8px, 2cqh, 13px);
+}
+
+/* Bounded editor cards own overflow. Conditional fields and validation can
+   grow without pushing the primary action outside the card or under the nav. */
+.record-detail:has(.record-editor-stack) { height: 100%; min-height: 0; }
+.record-detail .record-editor-stack,
+.record-detail .record-editor-stack > :is(form, div):not([hidden]) {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+}
+.record-detail .record-editor-stack > :is(form, div):not([hidden]) > .section-card {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scroll-padding-block: 12px 64px;
+}
+.record-detail .record-editor-stack > :is(form, div):not([hidden]) > .section-card > * {
+  flex-shrink: 0;
+  min-width: 0;
+}
+.record-editor-stack input[type="range"] {
+  /* Native range margins otherwise add 4px to its 100% width. */
+  margin-inline: 0;
+}
+.phone-frame:not(.phone-frame--option2) .record-detail .exercise-rating-field {
+  container-type: inline-size;
+}
+.phone-frame:not(.phone-frame--option2) .record-detail .exercise-rating-field > span {
+  font-size: clamp(9px, 13cqw, 11px);
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+.record-detail .record-editor-stack > :is(form, div):not([hidden]) > .section-card > .action-button {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  min-height: 44px;
+  max-width: 100%;
+  white-space: normal;
 }
