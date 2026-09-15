@@ -15,7 +15,10 @@ let browser, server;
 let stage = "account-authentication";
 const results = [];
 const output = "Q:/NAVA-Workspace/Build/TestRuns/wellbeing-tools";
+const target = process.env.NAVA_WELLBEING_UI_URL ? new URL(process.env.NAVA_WELLBEING_UI_URL).hostname : "local-source";
+const startedAt = new Date().toISOString();
 await mkdir(output, { recursive: true });
+await writeFile(`${output}/account-${target}.json`, JSON.stringify({ startedAt, passed: false, app: target }, null, 2));
 try {
   const auth = await client.auth.signInWithPassword({ email, password });
   if (auth.error || auth.data.user?.email?.toLowerCase() !== email.toLowerCase()) throw new Error("Account identity mismatch");
@@ -25,9 +28,12 @@ try {
   const activeBefore = await client.from("active_user_sessions").select("*").eq("user_id", userId).order("session_type");
   if (activeBefore.error) throw activeBefore.error;
   stage = "local-server";
-  server = await createServer({ server: { host: "127.0.0.1", port: 5222 }, logLevel: "silent" });
-  await server.listen();
-  const base = server.resolvedUrls.local[0];
+  let base = process.env.NAVA_WELLBEING_UI_URL;
+  if (!base) {
+    server = await createServer({ server: { host: "127.0.0.1", port: 5222 }, logLevel: "silent" });
+    await server.listen();
+    base = server.resolvedUrls.local[0];
+  }
   browser = await chromium.launch({ headless: true });
   stage = "app-login-form";
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, reducedMotion: "reduce" });
@@ -64,6 +70,20 @@ try {
     const records = await client.from(`${module}_records`).select("*").eq("user_id", userId).gte("record_date", "2026-08-01").lte("record_date", "2026-09-30");
     if (records.error) throw records.error;
     await page.goto(`${base}#tab=record&module=${module}`, { waitUntil: "domcontentloaded" });
+    if (module === "mood") {
+      stage = "breathing-start-pause";
+      const breath = page.locator("[data-breathing]");
+      await breath.getByRole("button", { name: "和 NAVA 缓一缓" }).click();
+      await breath.getByRole("button", { name: "开始一分钟" }).click();
+      await expect(breath.locator(".breathing-orbit > span")).not.toHaveText("0 / 60 秒");
+      await breath.getByRole("button", { name: "暂停", exact: true }).click();
+      const paused = await breath.locator(".breathing-orbit > span").textContent();
+      await page.waitForTimeout(1200);
+      await expect(breath.locator(".breathing-orbit > span")).toHaveText(paused);
+      await expect(breath.getByRole("button", { name: "继续", exact: true })).toBeVisible();
+      await breath.getByRole("button", { name: "和 NAVA 缓一缓" }).click();
+      results.push({ breathing: "actual-clock-start-and-pause" });
+    }
     const card = page.locator(`[data-monthly-wellbeing="${module}"]`);
     await card.getByRole("button", { name: "月度回顾" }).click();
     for (const month of ["2026-08", "2026-09"]) {
@@ -86,7 +106,7 @@ try {
   }
   const activeAfter = await client.from("active_user_sessions").select("*").eq("user_id", userId).order("session_type");
   if (activeAfter.error || JSON.stringify(activeBefore.data) !== JSON.stringify(activeAfter.data) || healthWrites) throw new Error("Read-only boundary failed");
-  await writeFile(`${output}/account-results.json`, JSON.stringify({ results, healthWrites, existingActiveSessionsPreserved: true, app: "local-source-with-real-auth", deployed: false }, null, 2));
+  await writeFile(`${output}/account-${target}.json`, JSON.stringify({ startedAt, passed: true, results, healthWrites, existingActiveSessionsPreserved: true, app: target, deployed: Boolean(process.env.NAVA_WELLBEING_UI_URL) }, null, 2));
 } catch (error) {
   await writeFile(`${output}/account-failure.json`, JSON.stringify({ stage, type: error?.constructor?.name, results, timestamp: new Date().toISOString() }, null, 2));
   const status = Number.isInteger(error?.status) ? ` HTTP ${error.status}` : "";

@@ -1,4 +1,4 @@
-param([ValidateSet("PublicAiLogin", "TodoExtraction", "PriorityAdvice", "TaskQuadrants", "PublicQuadrants", "FocusEncouragement", "FocusRelease", "ExternalPreview", "Reminders", "Wellbeing")][string]$Check = "PublicAiLogin")
+param([ValidateSet("PublicAiLogin", "TodoExtraction", "PriorityAdvice", "TaskQuadrants", "PublicQuadrants", "FocusEncouragement", "FocusRelease", "ExternalPreview", "Reminders", "RemindersRelease", "Wellbeing")][string]$Check = "PublicAiLogin")
 
 $secureEmail = Read-Host "NAVA account email" -AsSecureString
 $securePassword = Read-Host "NAVA account password" -AsSecureString
@@ -7,6 +7,17 @@ $passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure
 try {
   $env:NAVA_ACCOUNT_EMAIL = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($emailPointer)
   $env:NAVA_ACCOUNT_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
+  if ($Check -eq "RemindersRelease") {
+    foreach ($siteUrl in @("https://nava-app-preview-cz.chizhang1031.chatgpt.site/", "https://chizhang-805.github.io/nava-app-preview/")) {
+      $env:NAVA_REMINDER_UI_URL = $siteUrl
+      & node scripts/verify-reminder-account.mjs
+      if ($LASTEXITCODE -ne 0) { throw "Public reminder acceptance failed; stop before making further preference changes." }
+      $env:NAVA_WELLBEING_UI_URL = $siteUrl
+      & node --experimental-strip-types scripts/verify-wellbeing-account.mjs
+      if ($LASTEXITCODE -ne 0) { throw "Public wellbeing acceptance failed." }
+    }
+    return
+  }
   if ($Check -eq "Wellbeing") {
     & node --experimental-strip-types scripts/verify-wellbeing-account.mjs
     if ($LASTEXITCODE -ne 0) { throw "Authenticated wellbeing acceptance failed." }
@@ -37,6 +48,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Authenticated AI acceptance failed." }
   }
 } finally {
+  if ($Check -eq "RemindersRelease") {
+    Remove-Item Env:NAVA_REMINDER_UI_URL -ErrorAction SilentlyContinue
+    Remove-Item Env:NAVA_WELLBEING_UI_URL -ErrorAction SilentlyContinue
+  }
   if ($Check -eq "FocusRelease") { Remove-Item Env:NAVA_FOCUS_UI_URL -ErrorAction SilentlyContinue }
   Remove-Item Env:NAVA_ACCOUNT_EMAIL -ErrorAction SilentlyContinue
   Remove-Item Env:NAVA_ACCOUNT_PASSWORD -ErrorAction SilentlyContinue

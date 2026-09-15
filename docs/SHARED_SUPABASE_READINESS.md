@@ -17,6 +17,13 @@ must never be copied into that repository.
 
 ## Compatibility tiers
 
+2026-09-15: user explicitly authorized `202609150002_independent_reminders.sql`.
+Dry run selected only that CHECK expansion; push succeeded, and all 30 local/remote
+migrations match. The shared read-only contract check passed. The real account's
+APP reminder settings saved/read back independently and were restored; health
+writes were blocked and the existing active session remained unchanged. This is
+not evidence of native lock-screen delivery or all AI-provider routes.
+
 - Core shared data: `profiles`, mood, sleep, exercise, nutrition, focus, tasks, and AI conversations.
 - APP extensions: face records, rhythm scores, HealthKit snapshots, Watch snapshots, sync jobs,
   cloud preferences, notification inbox, AI archives, active focus/sleep sessions, and immutable
