@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`c322362e7c6fcd7dbb424d1055f9953f91ce79d6`
+- 源码发布 commit：`e10163b87562c56134a881a43b4bc25921de0776`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v152，public
+- ChatGPT Sites 版本：v153，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_5c79b4d15e448191b53d51483c8177f3`
-- Sites deployment ID：`appgdep_6aa916a40f708191b0da30f68b8e9ed9`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_4d4e26b079488191b20970108f5dbc2c`
+- Sites deployment ID：`appgdep_6aa923d1c7a88191bb0b6d7908f5203b`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `2751fc69b7ec0ca0ef9c2e9d880aa1d4ecd85b55`，工作流`34955524792`成功
+  `ca3dd099e0dd05c3c7d2c31433151de296a2f41c`，工作流`34960527548`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v152 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-media-feedback-20260915.tar.gz`
+- v153 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-camera-layout-20260915.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v152 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v153 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -3049,5 +3049,23 @@ Sites v152公开账号运行完成，102个历史日期均三方哈希通过；�
 
 整体verify前置检查及33阶段全部通过（camera-layout/full-verify.log，exit0），新增取景
 28状态与原媒体/中断/分享回归均通过。auth:verify:production通过；SMTP/实际OTP仍未验。
-公开版QA脚本单独lint通过。双站发布结果待本节补记。未解决的旧事项仍包括§81四模块总览主句哈希不符、
+公开版QA脚本单独lint通过。未解决的旧事项仍包括§81四模块总览主句哈希不符、
 其余AI入口覆盖、iPhone真实相机/录音/锁屏、自动面部定位设备验收；不得随视觉修复划掉。
+
+### v153 双站发布及实际登录收据
+
+源码`e10163b87562c56134a881a43b4bc25921de0776`已干净推送GitHub与原Sites源码仓库，
+随后构建两站。Sites v153原生发布succeeded，版本与部署ID见§2.2；Pages镜像提交
+`ca3dd099e0dd05c3c7d2c31433151de296a2f41c`工作流`34960527548`成功。线上source.json
+匹配上述sourceCommit及v153版本ID，两个公开HTML均引用`index-Bh4skblV.js`。
+两站主入口与本地均424290字节，SHA256：
+`0587a68f7abdf7a4128b2008892d5846544c403a8434540ef7bbaef06ff8846c`。
+79个生成文件逐文件一致；只清理21个被新版替换的旧JS/CSS，均可从镜像Git历史恢复。
+无用户数据删除，没有修改secret、后端函数或访问策略；保留原public可见性。
+
+`camera-layout/public.json`本轮passed:true，安全启动器exit0。两个站点逐站使用授权
+账号真实表单登录，校验email与canonical认证域名、公开demo不能绕过登录。编译后的
+取景页已确认18px纯关闭图标、原始照片比例、16px操作间距与无多余说明。使用显式模拟
+摄像头；确认页只关闭，不点击使用照片。健康写入0、模型请求与其它账号写入被QA隔离，
+没有声称真实AI或真机功能通过。两个浏览器context及唯一Chromium均已关闭，未操作
+内置浏览器；最后仅交接文档收据提交，不重新发布相同APP内容。
