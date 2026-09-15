@@ -3,6 +3,7 @@ import {
   Activity,
   ArrowLeft,
   Brain,
+  CalendarCheck2,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -10,11 +11,12 @@ import {
   Dumbbell,
   Frown,
   MoonStar,
+  MoreHorizontal,
   ScanFace,
   Target,
   Utensils,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import AnimatedNumber from "../components/AnimatedNumber";
 import PageSkeleton from "../components/PageSkeleton";
 import { useLocale } from "../i18n";
@@ -85,11 +87,33 @@ function CalendarScreen({
   const [yearCoverage, setYearCoverage] = useState<RecordCoverage>({});
   const [yearLoading, setYearLoading] = useState(true);
   const [yearError, setYearError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const cells = useMemo(() => buildMonthCells(displayMonth), [displayMonth]);
   const coverage = useMemo(() => trends ? buildDailyCoverage(trends) : {}, [trends]);
   const rhythms = useMemo(() => trends ? rhythmScoresByDate(trends) : {}, [trends]);
   const weekdays = locale === "zh" ? ["一", "二", "三", "四", "五", "六", "日"] : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const yearHeatmap = useMemo(() => buildYearHeatmap(displayYear), [displayYear]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) setMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMenuOpen(false);
+      menuButtonRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     let active = true;
@@ -132,12 +156,25 @@ function CalendarScreen({
       <header className="home-experience-header">
         <button className="home-experience-back" type="button" onClick={onBack} aria-label={locale === "zh" ? "返回首页" : "Back home"}><ArrowLeft size={22} /></button>
         <div><h1>{locale === "zh" ? "我的月历" : "My calendar"}</h1></div>
-        <button className="home-calendar-today" type="button" onClick={() => setDisplayMonth(deviceDate.slice(0, 7))}>{locale === "zh" ? "本月" : "Today"}</button>
+        <div className="home-calendar-menu-wrap" ref={menuRef} onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) setMenuOpen(false);
+        }}>
+          <button ref={menuButtonRef} className="home-calendar-more" type="button" aria-label={locale === "zh" ? "更多月历操作" : "More calendar actions"} aria-haspopup="menu" aria-expanded={menuOpen} aria-controls={menuOpen ? "home-calendar-menu" : undefined} onClick={() => setMenuOpen((open) => !open)} onKeyDown={(event) => {
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); setMenuOpen(true); }
+          }}><MoreHorizontal size={23} aria-hidden="true" /></button>
+          {menuOpen && <div className="app-utility-popover home-calendar-menu" id="home-calendar-menu" role="menu" aria-label={locale === "zh" ? "月历操作" : "Calendar actions"}>
+            <button className="home-calendar-today" type="button" role="menuitem" onClick={() => {
+              setDisplayMonth(deviceDate.slice(0, 7));
+              setMenuOpen(false);
+              menuButtonRef.current?.focus();
+            }}><CalendarDays size={18} aria-hidden="true" />{locale === "zh" ? "回到本月" : "Back to this month"}</button>
+          </div>}
+        </div>
       </header>
 
       {loading ? <PageSkeleton variant="calendar" /> : <><section className="home-calendar-overview">
-        <div><CalendarDays size={20} /><span>{locale === "zh" ? "本月记录" : "Recorded days"}</span><strong><AnimatedNumber value={monthDates.length} /><small>{locale === "zh" ? " 天" : " days"}</small></strong></div>
-        <div><CircleGauge size={20} /><span>{locale === "zh" ? "平均节律" : "Avg. rhythm"}</span><strong>{averageRhythm == null ? "--" : <AnimatedNumber value={averageRhythm} />}<small>{averageRhythm == null ? "" : (locale === "zh" ? " 分" : " pts")}</small></strong></div>
+        <div><CalendarDays size={22} aria-hidden="true" /><span>{locale === "zh" ? "本月记录" : "Recorded"}</span><strong><AnimatedNumber value={monthDates.length} /><small>{locale === "zh" ? " 天" : " days"}</small></strong></div>
+        <div><CircleGauge size={22} aria-hidden="true" /><span>{locale === "zh" ? "平均节律" : "Avg. rhythm"}</span><strong>{averageRhythm == null ? "--" : <AnimatedNumber value={averageRhythm} />}<small>{averageRhythm == null ? "" : (locale === "zh" ? " 分" : " pts")}</small></strong></div>
       </section>
 
       <section className="home-calendar-card">
@@ -175,7 +212,7 @@ function CalendarScreen({
 
       <section className="home-year-card" aria-label={locale === "zh" ? `${displayYear} 年年度打卡` : `${displayYear} annual check-ins`} data-year={displayYear} data-week-count={yearHeatmap.weeks.length}>
         <header className="home-year-header">
-          <div><strong>{locale === "zh" ? "年度打卡" : "Year in review"}</strong><small>{yearLoading ? (locale === "zh" ? "读取中" : "Loading") : `${yearRecordedDays}${locale === "zh" ? " 天有记录" : " recorded days"}`}</small></div>
+          <div><strong><CalendarCheck2 size={18} aria-hidden="true" />{locale === "zh" ? "年度打卡" : "Year in review"}</strong><small>{yearLoading ? (locale === "zh" ? "读取中" : "Loading") : `${yearRecordedDays}${locale === "zh" ? " 天有记录" : " recorded days"}`}</small></div>
           <nav aria-label={locale === "zh" ? "切换年份" : "Change year"}>
             <button type="button" onClick={() => setDisplayYear((year) => year - 1)} aria-label={locale === "zh" ? "上一年" : "Previous year"}><ChevronLeft size={15} /></button>
             <b>{displayYear}</b>

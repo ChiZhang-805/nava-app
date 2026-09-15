@@ -32,7 +32,7 @@ test("weekly report periods follow the local Monday-to-Sunday natural week", () 
 test("weekly insight UI loads the authenticated cloud AI report", () => {
   assert.match(recordsScreen, /loadHealthAiReport\(\{ scope: "weekly"/);
   assert.doesNotMatch(recordsScreen, /buildWeeklyInsights/);
-  assert.match(recordsScreen, /日节律均值：/);
+  assert.match(recordsScreen, /日节律均值/);
   assert.doesNotMatch(recordsScreen, /有记录日节律均值/);
 });
 

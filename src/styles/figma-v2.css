@@ -9610,6 +9610,42 @@ body::before {
   }
 }
 
+/* Weekly reading sizes: grow content instead of shrinking or clipping real reports. */
+.record-hub:has(.weekly-health-report) { height: auto; min-height: 100%; }
+.record-hub:has(.weekly-health-report) > .health-report-tabs button { font-size: 15px; min-height: 38px; }
+.record-hub .weekly-health-report { flex: 0 0 auto; grid-template-rows: auto auto 230px auto; gap: 9px; min-height: 0; }
+.weekly-health-report .weekly-period-controls { grid-template-columns: 36px minmax(0, 1fr) 36px; }
+.weekly-health-report .weekly-period-controls > strong { font-size: 13px; line-height: 1.35; }
+.weekly-health-report .weekly-period-controls > button { min-height: 44px; }
+.weekly-health-report .weekly-score-card { min-height: 56px; }
+.weekly-health-report .weekly-score-card > div { flex-direction: row; gap: 4px; padding: 10px 3px; white-space: nowrap; text-align: center; }
+.weekly-health-report .weekly-score-card > div > span { font-size: 12px; line-height: 1.3; }
+.weekly-health-report .weekly-score-card strong { font-size: 13px; line-height: 1.3; }
+.weekly-health-report .weekly-score-card strong span { font: inherit; }
+.weekly-health-report:lang(en) .weekly-score-card > div > span { font-size: 11px; }
+.weekly-health-report .line-trend-chart.has-readable-labels .trend-date,
+.weekly-health-report .line-trend-chart.has-readable-labels .trend-value { font-size: 26px; font-weight: 700; }
+.weekly-health-report .weekly-trajectory-placeholder-day b { font-size: 11px; }
+.weekly-health-report .weekly-trajectory-placeholder-bars::after { bottom: 17px; }
+.weekly-health-report .weekly-radar-caption,
+.weekly-health-report .weekly-radar-score { font-size: 21px; }
+.weekly-health-report .weekly-insight-card { min-height: 0; grid-template-rows: auto auto; overflow: visible; }
+.weekly-health-report .weekly-insight-header > strong { height: auto; min-height: 30px; font-size: 15px; line-height: 1.35; white-space: normal; }
+.weekly-health-report .weekly-share-button { font-size: 12px; }
+.weekly-health-report .weekly-insight-body { grid-template-columns: minmax(0, 1fr) minmax(80px, 28%); align-items: start; gap: 10px; }
+.weekly-health-report .weekly-ai-summary-list { display: contents; }
+.weekly-health-report .weekly-ai-overview,
+.weekly-health-report .weekly-insight-body > p,
+.weekly-health-report .weekly-insight-body > small { grid-column: 1 / -1; display: block; margin: 0; font-size: 14px; line-height: 1.55; white-space: normal; overflow: visible; -webkit-line-clamp: unset; }
+.weekly-health-report .weekly-ai-summary-list ul { grid-column: 1; grid-row: 2; gap: 6px; }
+.weekly-health-report .weekly-insight-body li { font-size: 14px; white-space: normal; }
+.weekly-health-report .weekly-ai-summary-list li button { min-height: 44px; line-height: 1.45; padding-block: 6px; }
+.weekly-health-report .weekly-ai-summary-list li button span { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.weekly-health-report .weekly-insight-mascot { grid-column: 2; grid-row: 2; height: auto; max-height: 120px; align-self: end; --weekly-mascot-y: 0px; }
+.weekly-health-report .weekly-insight-body:not(:has(.weekly-ai-summary-list)) > p { grid-column: 1; }
+.weekly-health-report .weekly-insight-body:not(:has(.weekly-ai-summary-list)) .weekly-insight-mascot { grid-row: 1; align-self: center; }
+.weekly-health-report .weekly-trend-card:has(.weekly-radar-chart) > header > strong { font-size: 17px; }
+
 /* Keep the approved focus composition authoritative after the legacy compact
    phone rules above. */
 .focus-dashboard {
@@ -11047,7 +11083,6 @@ body::before {
 .advanced-profile-header-menu-wrap { position: relative; display: grid; place-items: center; }
 .advanced-profile-menu { top: calc(100% + 7px); right: 0; min-width: 166px; }
 .home-experience-back,
-.home-calendar-today,
 .home-report-date-icon,
 .advanced-profile-header-icon {
   min-width: 42px;
@@ -11061,7 +11096,12 @@ body::before {
   background: rgba(248,253,255,.82);
   box-shadow: 0 7px 18px rgba(18,117,159,.1), inset 0 1px 0 rgba(255,255,255,.9);
 }
-.home-calendar-today { min-width: 48px; padding-inline: 8px; border-radius: 16px; font-size: 10px; font-weight: 760; }
+.home-calendar-screen .home-experience-header { grid-template-columns: 44px minmax(0,1fr) 44px; }
+.home-calendar-menu-wrap { position: relative; z-index: 5; }
+.home-calendar-more { width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; color: #0b7199; background: transparent; cursor: pointer; }
+.home-calendar-more:focus-visible { outline: 2px solid #14799f; outline-offset: 2px; border-radius: 12px; }
+.home-calendar-menu { top: calc(100% + 7px); right: 0; min-width: 190px; text-align: left; }
+.home-calendar-menu > button { min-height: 44px; font-size: 14px; }
 .home-report-date-icon,
 .advanced-profile-header-icon {
   border-color: transparent;
@@ -11080,20 +11120,26 @@ body::before {
 }
 .home-calendar-overview > div {
   min-height: 70px;
-  padding: 11px 13px;
+  padding: 11px 10px;
   border: 1px solid rgba(255,255,255,.75);
   border-radius: 19px;
   display: grid;
-  grid-template-columns: auto minmax(0,1fr) auto;
+  grid-template-columns: 22px minmax(0,1fr) auto;
   align-items: center;
-  gap: 8px;
+  align-content: center;
+  gap: 6px;
   background: rgba(247,253,255,.78);
   box-shadow: 0 9px 22px rgba(24,110,146,.09), inset 0 1px 0 rgba(255,255,255,.95);
 }
-.home-calendar-overview > div > svg { flex: 0 0 auto; color: #52788b; }
-.home-calendar-overview span { min-width: 0; color: #52788b; font-size: 11.5px; font-weight: 720; white-space: nowrap; }
-.home-calendar-overview strong { color: #12364a; font-size: 19px; line-height: 1; text-align: right; white-space: nowrap; }
-.home-calendar-overview strong small { display: inline; margin-left: 2px; color: #7593a1; font-size: 10.5px; letter-spacing: 0; }
+.home-calendar-overview > div > svg { width: 22px; height: 22px; color: #52788b; }
+.home-calendar-overview > div > span { min-width: 0; color: #52788b; font-size: 14px; line-height: 1.25; font-weight: 720; white-space: nowrap; }
+.home-calendar-overview strong { color: #12364a; font-size: 16px; line-height: 1.25; text-align: right; white-space: nowrap; }
+.home-calendar-overview strong [data-animated-number] { font: inherit; color: inherit; }
+.home-calendar-overview strong small { display: inline; margin-left: 2px; color: #7593a1; font-size: 12px; letter-spacing: 0; }
+.home-calendar-overview:lang(en) > div { gap: 4px; padding-inline: 8px; }
+.home-calendar-overview:lang(en) > div > span { font-size: 11px; }
+.home-calendar-overview:lang(en) strong { font-size: 14px; }
+.home-calendar-overview:lang(en) strong small { font-size: 10px; }
 
 .home-calendar-card {
   padding: 14px 13px 12px;
@@ -11149,8 +11195,9 @@ body::before {
   backdrop-filter: blur(18px);
 }
 .home-year-header { min-height: 31px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.home-year-header > div { min-width: 0; display: flex; align-items: baseline; gap: 7px; }
-.home-year-header strong { color: #163f53; font-size: 12px; line-height: 1.2; }
+.home-year-header > div { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; }
+.home-year-header strong { display: inline-flex; align-items: center; gap: 6px; color: #163f53; font-size: 12px; line-height: 1.2; white-space: nowrap; }
+.home-year-header strong > svg { flex: 0 0 18px; color: #52788b; }
 .home-year-header small { color: #72909d; font-size: 8px; font-weight: 650; white-space: nowrap; }
 .home-year-header nav { flex: 0 0 auto; display: grid; grid-template-columns: 26px auto 26px; align-items: center; gap: 3px; }
 .home-year-header nav button { width: 26px; height: 26px; border: 0; border-radius: 9px; display: grid; place-items: center; padding: 0; color: #14799f; background: rgba(221,243,251,.84); }
@@ -11292,7 +11339,7 @@ body::before {
   .home-calendar-screen { padding-top: 8px; }
   .home-calendar-screen .home-experience-header { min-height: 48px; margin-bottom: 7px; }
   .home-calendar-screen .home-calendar-overview { margin-bottom: 7px; }
-  .home-calendar-screen .home-calendar-overview > div { min-height: 55px; padding-block: 7px; }
+  .home-calendar-screen .home-calendar-overview > div { min-height: 70px; padding-block: 9px; }
   .home-calendar-screen .home-calendar-card { padding-block: 8px 7px; }
   .home-calendar-screen .home-calendar-month-switcher { min-height: 34px; }
   .home-calendar-screen .home-calendar-month-switcher button { width: 32px; height: 32px; }

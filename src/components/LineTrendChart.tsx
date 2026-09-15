@@ -28,6 +28,7 @@ export default function LineTrendChart({
   rangeFloorRatio = 0,
   showArea = true,
   showConfidenceBand = true,
+  readableLabels = false,
   valueFormatter = (value) => Math.round(value).toString(),
 }: {
   points: LineTrendPoint[];
@@ -43,6 +44,7 @@ export default function LineTrendChart({
   rangeFloorRatio?: number;
   showArea?: boolean;
   showConfidenceBand?: boolean;
+  readableLabels?: boolean;
   valueFormatter?: (value: number) => string;
 }) {
   const rawId = useId();
@@ -56,12 +58,12 @@ export default function LineTrendChart({
   // a narrow 320px plot and leave large unused gutters on both sides.
   const width = compact ? 600 : 360;
   const height = compact ? (verticalEmphasis ? 320 : 148) : 184;
-  const horizontalInset = compact ? 22 : 20;
+  const horizontalInset = readableLabels ? 36 : compact ? 22 : 20;
   const left = horizontalInset;
   const right = width - horizontalInset;
-  const top = compact ? (verticalEmphasis ? 24 : 18) : 22;
+  const top = readableLabels ? 40 : compact ? (verticalEmphasis ? 24 : 18) : 22;
   const bottom = compact ? (verticalEmphasis ? 258 : 108) : 142;
-  const dateY = compact ? (verticalEmphasis ? height - 5 : 136) : 169;
+  const dateY = readableLabels ? height - 12 : compact ? (verticalEmphasis ? height - 5 : 136) : 169;
   const spanX = right - left;
   const spanY = bottom - top;
   const valueBottom = scale === "range"
@@ -145,7 +147,7 @@ export default function LineTrendChart({
   const signature = points.map((point) => `${point.id}:${point.value}:${point.lower ?? ""}:${point.upper ?? ""}:${point.missing ? "missing" : "recorded"}`).join("|");
 
   return (
-    <div className={["line-trend-chart", tone, verticalEmphasis ? "is-vertically-emphasized" : ""].filter(Boolean).join(" ")}>
+    <div className={["line-trend-chart", tone, verticalEmphasis ? "is-vertically-emphasized" : "", readableLabels ? "has-readable-labels" : ""].filter(Boolean).join(" ")}>
       <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio={verticalEmphasis ? "xMidYMax meet" : undefined} role="img" aria-label={ariaLabel}>
         <title>{ariaLabel}</title>
         <defs>

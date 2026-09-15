@@ -86,6 +86,7 @@ Invoke-Npm -Arguments @("run", "structured:test")
 Write-Host ""
 Write-Host "16. Weekly report and focus-flow contracts"
 Invoke-Npm -Arguments @("run", "weekly-report:test")
+Invoke-Npm -Arguments @("run", "weekly-report:visual")
 
 Write-Host ""
 Write-Host "17. Backend contract"

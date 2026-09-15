@@ -1480,9 +1480,9 @@ export default function RecordsScreen({
               <button type="button" disabled={weekOffset === 0} onClick={() => setWeekOffset((value) => Math.max(0, value - 1))} aria-label={locale === "zh" ? "下一周" : "Next week"}><ChevronRight size={18} /></button>
             </div>
             <section className="weekly-score-card">
-              <div><span>{dnbReport?.status === "ready" ? (locale === "zh" ? "DNB 稳定度：" : "DNB stability: ") : (locale === "zh" ? "日节律均值：" : "Rhythm average: ")}</span><strong>{dnbReport === null ? <SkeletonBlock className="weekly-score-skeleton" /> : overallScore == null ? "--" : <AnimatedNumber value={overallScore} />}</strong></div>
-              <div><span>{locale === "zh" ? "数据完整度：" : "Complete: "}</span><strong><AnimatedNumber value={completedModules} duration={520} />/6</strong></div>
-              <div><span>{locale === "zh" ? "较上周：" : "Previous week: "}</span><strong>{periodComparison.change == null ? (periodComparison.currentAverage == null ? "--" : (locale === "zh" ? "首次记录" : "First week")) : <>{periodComparison.change >= 0 ? "+" : ""}<AnimatedNumber value={periodComparison.change} duration={640} /></>}</strong></div>
+              <div><span>{dnbReport?.status === "ready" ? (locale === "zh" ? "DNB 稳定度" : "DNB stability") : (locale === "zh" ? "日节律均值" : "Avg. rhythm")}</span><strong>{dnbReport === null ? <SkeletonBlock className="weekly-score-skeleton" /> : overallScore == null ? "--" : <AnimatedNumber value={overallScore} />}</strong></div>
+              <div><span>{locale === "zh" ? "数据完整度" : "Complete"}</span><strong><AnimatedNumber value={completedModules} duration={520} />/6</strong></div>
+              <div><span>{locale === "zh" ? "较上周" : "vs last wk"}</span><strong>{periodComparison.change == null ? (periodComparison.currentAverage == null ? "--" : (locale === "zh" ? "首次记录" : "New")) : <>{periodComparison.change >= 0 ? "+" : ""}<AnimatedNumber value={periodComparison.change} duration={640} /></>}</strong></div>
             </section>
             <section className={["weekly-trend-card", recordedReportPointCount === 0 && weeklyChartMode === "trend" ? "is-sparse" : ""].filter(Boolean).join(" ")}>
               <header>
@@ -1502,7 +1502,7 @@ export default function RecordsScreen({
               </header>
               {weeklyChartMode === "trend"
                 ? (recordedReportPointCount > 0
-                    ? <LineTrendChart points={reportPoints} tone="rhythm" compact scale="range" verticalEmphasis curve="monotone" showAllDates rangeFloorRatio={0.3} showArea showConfidenceBand={false} ariaLabel={locale === "zh" ? "近七天节律单调平滑趋势曲线与下方渐变面积，最低值保留三成基础高度，最高值对应顶部" : "Seven-day monotone rhythm curve with a gradient area, a thirty-percent floor, and proportional scaling"} />
+                    ? <LineTrendChart points={reportPoints} tone="rhythm" compact scale="range" verticalEmphasis readableLabels curve="monotone" showAllDates rangeFloorRatio={0.3} showArea showConfidenceBand={false} ariaLabel={locale === "zh" ? "近七天节律单调平滑趋势曲线与下方渐变面积，最低值保留三成基础高度，最高值对应顶部" : "Seven-day monotone rhythm curve with a gradient area, a thirty-percent floor, and proportional scaling"} />
                     : <div
                         className="weekly-trajectory-placeholder"
                         role="img"

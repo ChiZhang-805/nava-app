@@ -987,6 +987,7 @@ async function verifyHomeShortcuts(page, results) {
   await page.getByRole("button", { name: /健康月历|Health calendar/ }).click();
   await expect(page.locator('[data-home-view="calendar"]')).toBeVisible();
   await page.locator('.home-calendar-month-switcher button').first().click();
+  await page.locator('.home-calendar-more').click();
   await page.locator('.home-calendar-today').click();
   await page.locator('.home-calendar-day.is-today').click();
   await expect(page.locator('[data-home-view="daily"]')).toBeVisible();
@@ -1487,13 +1488,14 @@ async function verifyNavigationAndMotion(page, results) {
     const labelRect = label?.getBoundingClientRect();
     const valueRect = value?.getBoundingClientRect();
     return {
-      labelSize: label ? getComputedStyle(label).fontSize : "",
-      valueSize: value ? getComputedStyle(value).fontSize : "",
-      centerDelta: labelRect && valueRect ? Math.abs((labelRect.top + labelRect.bottom) / 2 - (valueRect.top + valueRect.bottom) / 2) : 99,
+      labelSize: label ? parseFloat(getComputedStyle(label).fontSize) : 0,
+      valueSize: value ? parseFloat(getComputedStyle(value).fontSize) : 0,
+      gap: labelRect && valueRect ? valueRect.left - labelRect.right : -1,
+      centerDelta: labelRect && valueRect ? Math.abs((labelRect.top + labelRect.bottom - valueRect.top - valueRect.bottom) / 2) : 99,
     };
   }));
-  if (scoreLayout.some(({ labelSize, valueSize, centerDelta }) => labelSize !== valueSize || centerDelta > 1.5)) {
-    throw new Error(`Weekly score labels and values are not aligned at one size: ${JSON.stringify(scoreLayout)}`);
+  if (scoreLayout.some(({ labelSize, valueSize, gap, centerDelta }) => labelSize < 11 || valueSize < 13 || gap < 3 || centerDelta > 1)) {
+    throw new Error(`Weekly score labels and values must remain on one readable row: ${JSON.stringify(scoreLayout)}`);
   }
   const weeklyChartLayout = await page.locator(".weekly-trend-card").evaluate((card) => {
     const dates = [...card.querySelectorAll(".trend-date")];
