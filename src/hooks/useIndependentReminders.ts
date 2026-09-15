@@ -25,7 +25,7 @@ export default function useIndependentReminders(userId: string | null, date: str
         if (!current()) { preview?.resolve("设置或记录已变化，请重新模拟。"); return; }
         if (preview) {
           const state = reminderEligibility(preview.kind, preferences, evidence, reminderAt(now, preferences[preview.kind].localTime));
-          if (state === "due") presentRef.current({ ...reminderMessage(preview.kind, day, locale, true), id: `preview:${reminderOccurrenceId(preview.kind, day)}` });
+          if (state === "due") presentRef.current({ ...reminderMessage(preview.kind, day, locale), id: `preview:${reminderOccurrenceId(preview.kind, day)}` });
           preview.resolve(state === "due" ? "模拟提醒已显示；点击可进入对应记录。" : state === "disabled" ? "该提醒已关闭，不会触发。" : state === "recorded" ? "今天这一项已有记录，不重复提醒。" : "暂时无法核对，请重试。");
           return;
         }
@@ -40,7 +40,7 @@ export default function useIndependentReminders(userId: string | null, date: str
       }).catch((error: unknown) => {
         const message = error instanceof Error ? error.message : "提醒核对失败，请重试。";
         preview?.resolve(message);
-        if (alive) window.dispatchEvent(new CustomEvent("nava:reminder-status", { detail: { userId, message } }));
+        if (alive && !preview) window.dispatchEvent(new CustomEvent("nava:reminder-status", { detail: { userId, message } }));
       });
     };
     const refresh = () => {

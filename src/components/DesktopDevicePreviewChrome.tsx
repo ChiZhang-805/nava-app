@@ -5,7 +5,7 @@ import {
   findIPhonePreviewDevice,
   IPHONE_PREVIEW_DEVICES,
 } from "../constants/iphonePreviewDevices";
-import { getPreviewActivity, simulatePreviewInterruption, subscribePreviewActivity } from "../services/previewEnvironment";
+import { getPreviewActivity, simulatePreviewInterruption, subscribePreviewActivity, type PreviewReason } from "../services/previewEnvironment";
 import { reminderKinds, reminderLabels, reminderPreviewEvent, type ReminderKind } from "../services/independentReminders";
 import "../styles/reminders.css";
 
@@ -24,6 +24,22 @@ function formatMetric(value: number) {
 export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminderUserId?: string } = {}) {
   const [reminderResult, setReminderResult] = useState("");
   const [reminderBusy, setReminderBusy] = useState(false);
+  const [eventResult, setEventResult] = useState("");
+  const simulateEvent = (reason: PreviewReason) => {
+    const activity = getPreviewActivity();
+    if (!reminderUserId || !activity) return;
+    const label = { call: "来电", message: "消息通知", distraction: "主动分心", other: "外部事件" }[reason];
+    const result = {
+      focus: "专注已暂停，音频与常亮已停止；不计入真实中断统计。",
+      exercise: "运动计时已在本机暂停，暂停时间不计入运动时长。",
+      sleep: "睡眠计时继续，未添加夜醒或睡眠阶段。",
+      recording: "录音已停止，已识别文字保留，不会自动发送。",
+      playback: "播放已停止，不会自动恢复。",
+      camera: "相机已暂停，可在手机内重新开启。",
+    }[activity.module];
+    setEventResult(simulatePreviewInterruption(reason) ? `${label}模拟：${result}` : "模拟未执行，请确认活动状态后重试。");
+  };
+  useEffect(() => { setEventResult(""); setReminderResult(""); }, [reminderUserId]);
   const simulateReminder = async (kind: ReminderKind) => {
     if (!reminderUserId || reminderBusy) return;
     setReminderBusy(true);
@@ -255,12 +271,13 @@ export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminde
             key={reason}
             type="button"
             data-preview-event={reason}
-            onClick={() => simulatePreviewInterruption(reason)}
+            onClick={() => simulateEvent(reason)}
             disabled={!reminderUserId || previewState !== "running" || (reason === "distraction" && previewActivity?.module !== "focus")}
             title={reason === "distraction" && previewActivity?.module !== "focus" ? "开始专注后可模拟主动分心" : `模拟${label}`}
             aria-label={`模拟${label}`}
           ><Icon size={17} /><span>{label}</span></button>)}
         </div>
+        {eventResult && <p role="status" data-preview-event-result>{eventResult}</p>}
         <section className="nava-reminder-preview" data-reminder-preview>
           <strong>到点提醒</strong>
           <div>{reminderKinds.map((kind) => <button key={kind} type="button" disabled={!reminderUserId || reminderBusy} aria-label={`模拟${reminderLabels[kind][0]}到点提醒`} onClick={() => void simulateReminder(kind)}><Bell size={16} /><span>{reminderLabels[kind][0]}</span></button>)}</div>

@@ -80,10 +80,10 @@ try {
     }
     await expect(simulator.locator(`[data-preview-event="${reason}"]`)).toBeEnabled();
     await simulator.locator(`[data-preview-event="${reason}"]`).click();
-    const interruption = page.locator('.focus-interruption[data-preview-interruption="true"]');
-    await expect(interruption).toBeVisible();
+    await expect(page.locator('.focus-interruption')).toHaveCount(0);
     await expect(page.locator('[data-module-view="focus-immersive"]')).toHaveAttribute("data-focus-state", "paused");
-    await expect(interruption.locator("p")).toContainText("不会真实拨号");
+    await expect(page.locator('.focus-immersive')).not.toContainText(/模拟|网页预览事件/);
+    await expect(simulator.locator('[data-preview-event-result]')).toContainText("专注已暂停");
     const draft = await page.evaluate(() => {
       const key = Object.keys(sessionStorage).find((entry) => entry.startsWith("nava-focus-timer:"));
       return key ? JSON.parse(sessionStorage.getItem(key) ?? "null") : null;
@@ -96,7 +96,7 @@ try {
       await page.waitForTimeout(350);
       await page.screenshot({ path: path.join(outputDir, "focus-preview-call.png") });
     }
-    await interruption.getByRole("button", { name: "继续专注" }).click();
+    await page.locator('[data-module-view="focus-immersive"] [aria-label="开始"]').click();
     await expect(page.locator('[data-module-view="focus-immersive"]')).toHaveAttribute("data-focus-state", "running");
     await expect.poll(() => page.evaluate(() => window.__previewWake.requests)).toBe(["call", "message", "distraction", "other"].indexOf(reason) + 2);
     await page.waitForTimeout(1_550);

@@ -32,12 +32,12 @@ export default function CameraCapture({ locale, facing, onCapture, onClose, onFa
     owned?.getTracks().forEach((track) => { track.onended = null; track.stop(); });
     if (video.current) video.current.srcObject = null;
   }, []);
-  const interrupt = useCallback((simulated = false) => {
+  const interrupt = useCallback(() => {
     stop();
     setPhase((current) => current === "review" ? current : "paused");
-    setNotice(zh ? `${simulated ? "模拟中断：" : ""}拍摄已暂停，可重新开启。` : `${simulated ? "Simulated interruption: " : ""}Camera paused. Restart when ready.`);
+    setNotice(zh ? "拍摄已暂停" : "Camera paused");
   }, [stop, zh]);
-  usePreviewActivity("camera", phase === "starting" || phase === "live" ? "running" : "paused", () => interrupt(true));
+  usePreviewActivity("camera", phase === "starting" || phase === "live" ? "running" : "paused", interrupt);
   const start = useCallback(async () => {
     stop();
     if (document.hidden) { setPhase("paused"); return; }

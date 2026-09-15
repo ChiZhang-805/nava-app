@@ -28,3 +28,21 @@ test("ready/paused states do nothing, leaving screen revokes controls", () => {
   stop();
   assert.equal(simulatePreviewInterruption("other"), false);
 });
+
+test("sleep continues through consecutive external events without inventing a wake-up", () => {
+  const received: string[] = [];
+  const unregister = registerPreviewActivity({ module: "sleep", state: "running" }, (reason) => { received.push(reason); });
+  for (const reason of ["call", "message", "other"] as const) {
+    assert.equal(simulatePreviewInterruption(reason), true);
+    assert.equal(getPreviewActivity()?.state, "running");
+  }
+  assert.deepEqual(received, ["call", "message", "other"]);
+  unregister();
+});
+
+test("failed simulation returns failure and permits a retry", () => {
+  const unregister = registerPreviewActivity({ module: "recording", state: "running" }, () => { throw new Error("fixture failure"); });
+  assert.equal(simulatePreviewInterruption("call"), false);
+  assert.equal(getPreviewActivity()?.state, "running");
+  unregister();
+});

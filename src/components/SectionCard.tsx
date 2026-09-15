@@ -6,12 +6,16 @@ export default function SectionCard({
   children,
   action,
   className,
+  bodyClassName,
+  footer,
 }: {
   title: ReactNode;
   subtitle?: string;
   children: ReactNode;
   action?: ReactNode;
   className?: string;
+  bodyClassName?: string;
+  footer?: ReactNode;
 }) {
   return (
     <section className={["section-card", className].filter(Boolean).join(" ")}>
@@ -22,7 +26,8 @@ export default function SectionCard({
         </div>
         {action}
       </div>
-      {children}
+      {bodyClassName ? <div className={bodyClassName}>{children}</div> : children}
+      {footer}
     </section>
   );
 }

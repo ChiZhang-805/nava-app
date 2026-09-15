@@ -6,16 +6,17 @@ import { chromium, expect } from "@playwright/test";
 import { inspectRingPaint } from './module-ring-paint.mjs';
 import { IPHONE_PREVIEW_DEVICES } from '../src/constants/iphonePreviewDevices.ts';
 const responsive = process.argv.includes('--responsive');
+const allPages = process.argv.includes('--all-pages');
 const email = process.env.NAVA_ACCOUNT_EMAIL, password = process.env.NAVA_ACCOUNT_PASSWORD;
 if (!email || !password) throw new Error("Use the secure launcher.");
-const output = responsive ? 'Q:/NAVA-Workspace/Build/TestRuns/responsive-release' : "Q:/NAVA-Workspace/Build/TestRuns/calendar-report-release";
+const output = allPages ? 'Q:/NAVA-Workspace/Build/TestRuns/all-pages-responsive/public' : responsive ? 'Q:/NAVA-Workspace/Build/TestRuns/responsive-release' : "Q:/NAVA-Workspace/Build/TestRuns/calendar-report-release";
 await mkdir(output, { recursive: true });
 const receipt = { passed: false, aiTested: false, results: [] };
 const browser = await chromium.launch({ headless: true });
 try {
   for (const base of ["https://nava-app-preview-cz.chizhang1031.chatgpt.site/", "https://chizhang-805.github.io/nava-app-preview/"]) {
     const parity = [];
-    if (responsive) {
+    if (responsive || allPages) {
       const assets = new URL('../dist/assets/', import.meta.url);
       const names = (await readdir(assets)).filter((name) => /^(index|App|RecordsScreen|RecordModuleDashboard)-.*\.(js|css)$/.test(name));
       const html = await (await fetch(base, { cache:'no-store' })).text();
@@ -33,8 +34,16 @@ try {
         parity.push({ name, bytes:remote.length, sha256:hash(remote) });
       }
     }
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: !responsive, hasTouch: !responsive, reducedMotion: "reduce" });
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: !(responsive || allPages), hasTouch: !(responsive || allPages), reducedMotion: "reduce", serviceWorkers: "block" });
     try {
+      if (allPages) await context.addInitScript(() => {
+        // Explicit speech hardware fixture, never a model or health-record fixture.
+        window.SpeechRecognition = class {
+          start() { window.__layoutRecognition = this; }
+          stop() { this.onend?.(); }
+          abort() { this.onend?.(); }
+        };
+      });
       const page = await context.newPage(); page.setDefaultTimeout(30000);
       let healthWrites = 0;
       await page.route("**/rest/v1/**", (route) => {
@@ -64,6 +73,80 @@ try {
       assert.equal(authenticated.user?.email?.toLowerCase(), email.toLowerCase());
       await expect(page.locator(".bottom-nav")).toBeVisible();
       const geometry = [];
+      if (allPages) {
+        await page.addStyleTag({content:'*,*::before,*::after { transition-duration:0s !important; animation-duration:0s !important; }'});
+        const sizes = [
+          ...[[360,740],[375,812],[390,844],[430,932]].map(([width,height])=>({width,height,name:`${width}x${height}`})),
+          {width:1365,height:1050,name:'iphone-17',device:IPHONE_PREVIEW_DEVICES.find(device=>device.id==='iphone-17')},
+        ];
+        const routes = [
+          ['home','tab=today','.option-two-home'],
+          ['calendar','tab=today&view=calendar','.home-calendar-overview'],
+          ['report-hub','tab=record','.record-module-grid'],
+          ['sleep','tab=record&module=sleep','[data-module-view="sleep-overview"]'],
+          ['focus','tab=record&module=focus','[data-module-view="focus-overview"]'],
+          ...['mood','sleep','exercise','diet','focus','face'].map(module=>[`${module}-editor`,`tab=record&module=${module}&view=editor`,`.record-detail[data-record-detail="${module}"] .record-editor-stack`]),
+          ['chat','tab=ai','.chat-layout'],
+        ];
+        for (const size of sizes) {
+          await page.setViewportSize({width:size.width,height:size.height});
+          if(size.device) await page.locator('.nava-device-selector select').selectOption(size.device.id);
+          for(const [name,hash,selector] of routes) {
+            await page.evaluate(hash=>{ location.hash=hash; },hash);
+            await expect(page.locator(selector)).toBeVisible();
+            await page.waitForTimeout(250);
+            const fields = page.locator('form:not([hidden]) .record-editor-fields');
+            if(name.endsWith('-editor') && name!=='face-editor') {
+              await expect(fields).toHaveCount(1);
+              await expect(page.locator('.record-editor-stack > form:not([hidden]) > .section-card > .action-button')).toHaveCount(1);
+              const text = fields.locator('textarea').first();
+              if(await text.count()) await text.fill('仅用于布局验收的长输入，不提交记录。'.repeat(12));
+              await fields.evaluate(node=>{node.scrollTop=node.scrollHeight;});
+            }
+            if(name==='face-editor') {
+              const actions=page.locator('.record-editor-stack .face-photo-actions button');
+              await expect(actions).toHaveCount(2);
+              for(const action of await actions.all()) {
+                await action.scrollIntoViewIfNeeded();
+                assert(await action.evaluate(node=>{
+                  const a=node.getBoundingClientRect(), c=node.closest('.section-card').getBoundingClientRect();
+                  return a.left>=c.left && a.right<=c.right && a.top>=c.top && a.bottom<=c.bottom && node.contains(document.elementFromPoint(a.x+a.width/2,a.y+a.height/2));
+                }),`${size.name}/face-editor photo action clipped`);
+              }
+            }
+            if(name==='chat' && size.device) {
+              const mic=page.locator('.chat-voice-button');
+              await mic.focus(); await page.keyboard.press('Enter');
+              await expect(mic).toHaveAttribute('aria-pressed','true');
+              await page.evaluate(()=>window.__layoutRecognition.onresult({results:[{0:{transcript:'中断后保留的测试文字'},isFinal:false}]}));
+              await page.locator('[data-preview-event="call"]').click();
+              await expect(mic).toHaveAttribute('aria-pressed','false');
+              await expect(page.locator('.chat-input-shell input')).toHaveValue('中断后保留的测试文字');
+              await expect(page.locator('.chat-media-notice')).toHaveCount(0);
+              await expect(page.locator('[data-preview-event-result]')).toContainText('录音已停止');
+              await expect(page.locator('.phone-frame')).not.toContainText(/模拟中断|模拟来电|网页预览事件/);
+              await page.screenshot({path:`${output}/${new URL(base).hostname}-simulation-boundary.png`});
+              await page.locator('.chat-input-shell input').fill('');
+            }
+            const box = await page.locator('.phone-frame').evaluate(frame=> {
+              const editor = frame.querySelector('.record-editor-stack > form:not([hidden]) > .section-card');
+              const action = editor?.querySelector(':scope > .action-button');
+              const a=action?.getBoundingClientRect(), c=editor?.getBoundingClientRect();
+              return {width:frame.clientWidth,height:frame.clientHeight,overflow:frame.scrollWidth-frame.clientWidth,
+                actionInside:a&&c ? a.left>=c.left && a.right<=c.right && a.top>=c.top && a.bottom<=c.bottom : null,
+                actionHit:a ? action.contains(document.elementFromPoint(a.x+a.width/2,a.y+a.height/2)) : null};
+            });
+            assert(box.overflow<=1,`${size.name}/${name} escapes phone width`);
+            if(box.actionInside!==null) assert(box.actionInside && box.actionHit,`${size.name}/${name} save action clipped or covered`);
+            await page.locator('.phone-frame').screenshot({path:`${output}/${new URL(base).hostname}-${size.name}-${name}.png`});
+            geometry.push({size:size.name,screen:name,...box});
+          }
+        }
+        assert.equal(healthWrites,0);
+        receipt.results.push({base,realLogin:true,canonicalProject:true,demoBypassRejected:true,healthWrites,simulationBoundary:'real APP with speech hardware fixture; no message sent',parity,geometry});
+        console.log(`PASS public multi-page smoke: ${new URL(base).hostname}, ${geometry.length} states`);
+        continue;
+      }
       if (responsive) {
         for (const size of [
           ...[[360,740],[375,812],[390,844],[430,932]].map(([width,height]) => ({ width,height,name:`${width}x${height}` })),

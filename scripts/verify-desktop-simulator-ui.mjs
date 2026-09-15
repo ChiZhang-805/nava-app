@@ -68,7 +68,9 @@ try {
         await expect(immersive).toHaveAttribute("data-focus-state", "running");
         await rail.locator('[data-preview-event="call"]').click();
         await expect(immersive).toHaveAttribute("data-focus-state", "paused");
-        await expect(page.locator('.focus-interruption[data-preview-interruption="true"]')).toBeVisible();
+        await expect(page.locator('.focus-interruption')).toHaveCount(0);
+        await expect(rail.locator('[data-preview-event-result]')).toContainText("专注已暂停");
+        await inspect("simulated-result-outside-phone");
         receipt.results.push({ viewport, state: "immersive-call-clickable", toolsRight, railLeft });
       } else {
         await expect(page.locator(".nava-preview-controls")).toBeHidden();

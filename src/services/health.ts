@@ -89,7 +89,7 @@ export async function requestHealthAuthorization() {
   if (isDemoMode()) return { granted: true };
 
   if (!isNativeHealthAvailable()) {
-    return { granted: false, reason: "当前是在浏览器预览，HealthKit 只能在 iPhone 真机或模拟器中使用。" };
+    return { granted: false, reason: "当前浏览器无法读取 Apple 健康数据，请在 iPhone 客户端连接。" };
   }
   return NavaHealth.requestAuthorization();
 }

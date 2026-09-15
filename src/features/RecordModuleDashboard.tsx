@@ -102,7 +102,6 @@ import { exitFocusFullscreen, focusFullscreenActive, focusFullscreenSupported, r
 import { focusNoiseSupported, startFocusNoise, type FocusNoiseKind, type FocusNoiseSession } from "../services/focusAudio.ts";
 import { abandonExerciseSession, exerciseSessionElapsedSeconds, finishExerciseSession, hydrateExerciseSession, pauseExerciseSession, resumeExerciseSession, startExerciseSession, type ExerciseSession } from "../services/exerciseSession.ts";
 import { usePreviewActivity } from "../hooks/usePreviewActivity";
-import PreviewInterruptionNotice from "../components/PreviewInterruptionNotice";
 import type { PreviewReason } from "../services/previewEnvironment";
 
 type MoodFactor = { value: string; label: string };
@@ -674,7 +673,6 @@ function ExerciseDashboard({
     document.addEventListener("visibilitychange", update);
     return () => document.removeEventListener("visibilitychange", update);
   }, []);
-  const [exerciseInterruption, setExerciseInterruption] = useState<PreviewReason | null>(null);
   const exerciseMutationRef = useRef(0);
   useEffect(() => () => { exerciseMutationRef.current++; }, []);
   const selectedExercise = todaySnapshot?.exercise ?? null;
@@ -790,14 +788,13 @@ function ExerciseDashboard({
   }, [exerciseSession?.runningSince]);
 
   const exerciseElapsedSeconds = exerciseSession ? exerciseSessionElapsedSeconds(exerciseSession, new Date(exerciseSessionNow)) : 0;
-  usePreviewActivity("exercise", view !== "sports" ? null : exerciseSession?.runningSince ? "running" : exerciseSession ? "paused" : "ready", (reason) => {
+  usePreviewActivity("exercise", view !== "sports" ? null : exerciseSession?.runningSince ? "running" : exerciseSession ? "paused" : "ready", () => {
     if (!exerciseSession?.runningSince) return;
     const now = new Date();
     const mutation = ++exerciseMutationRef.current;
     // Stop the visible timer immediately, even while the active draft syncs.
     setExerciseSession({ ...exerciseSession, elapsedSeconds: exerciseSessionElapsedSeconds(exerciseSession, now), runningSince: null });
     setExerciseSessionNow(now.getTime());
-    setExerciseInterruption(reason);
     setExerciseSessionMessage(null);
     void pauseExerciseSession(userId, exerciseSession, now).catch(() => {
       if (exerciseMutationRef.current !== mutation) return;
@@ -841,7 +838,6 @@ function ExerciseDashboard({
       if (document.hidden && next.runningSince) { const paused = await pauseExerciseSession(userId, next); if (exerciseMutationRef.current === mutation) setExerciseSession(paused); return; }
       setExerciseSession(next);
       setExerciseSessionNow(Date.now());
-      setExerciseInterruption(null);
       setExerciseSessionMessage(null);
     } catch (error) {
       if (exerciseMutationRef.current === mutation) setExerciseSessionMessage(locale === "zh" ? "计时保持暂停，云端同步失败。请联网后重试。" : "Timer remains paused. Cloud sync failed; reconnect and retry.");
@@ -863,7 +859,6 @@ function ExerciseDashboard({
       setExerciseNote([exerciseNote.trim(), sessionNote].filter(Boolean).join("\n"));
       setExerciseSession(null);
       setExerciseSessionMessage(null);
-      setExerciseInterruption(null);
       onOpenEditor();
     } catch (error) {
       setExerciseSessionMessage(error instanceof Error ? error.message : String(error));
@@ -877,7 +872,6 @@ function ExerciseDashboard({
     abandonExerciseSession(userId);
     setExerciseSession(null);
     setExerciseSessionMessage(null);
-    setExerciseInterruption(null);
   };
 
   useEffect(() => {
@@ -961,20 +955,16 @@ function ExerciseDashboard({
       <button type="button" onClick={() => void sync()} disabled={syncing}><Bluetooth />{locale === "zh" ? "授权并同步 Apple 健康" : "Authorize & sync Apple Health"}<Plus /></button>
     </div>
     <div className="device-facts" aria-label={locale === "zh" ? "设备连接状态" : "Device connection status"}>
-      <span><small>{locale === "zh" ? "运行环境" : "Runtime"}</small><strong>{isNativeHealthAvailable() ? (locale === "zh" ? "iPhone App" : "iPhone app") : (locale === "zh" ? "网页预览" : "Web preview")}</strong></span>
+      <span><small>{locale === "zh" ? "当前设备" : "Current device"}</small><strong>{isNativeHealthAvailable() ? (locale === "zh" ? "iPhone App" : "iPhone app") : (locale === "zh" ? "浏览器" : "Browser")}</strong></span>
       <span><small>Apple Watch</small><strong>{watchState?.paired ? (watchState.reachable ? (locale === "zh" ? "已连接" : "Reachable") : (locale === "zh" ? "已配对" : "Paired")) : (locale === "zh" ? "未配对" : "Not paired")}</strong></span>
       <span><small>{locale === "zh" ? "健康授权" : "Health access"}</small><strong>{healthAuthorization?.available ? (healthAuthorization.requested ? (locale === "zh" ? "已请求" : "Requested") : (locale === "zh" ? "待授权" : "Not requested")) : (locale === "zh" ? "当前不可用" : "Unavailable")}</strong></span>
     </div>
-    <div className="detail-status-strip"><RefreshCw className={syncing ? "spin" : undefined} size={17} /><span>{deviceMessage ?? (isNativeHealthAvailable() ? (locale === "zh" ? "HealthKit 数据同步后保存到云端" : "HealthKit data is saved to the cloud after sync") : (locale === "zh" ? "网页预览无法直接读取 HealthKit" : "The web preview cannot read HealthKit directly"))}</span><strong>{syncLabel}</strong></div>
+    <div className="detail-status-strip"><RefreshCw className={syncing ? "spin" : undefined} size={17} /><span>{deviceMessage ?? (isNativeHealthAvailable() ? (locale === "zh" ? "健康数据同步后保存到你的账号" : "Synced health data is saved to your account") : (locale === "zh" ? "请在 iPhone 客户端连接 Apple 健康" : "Connect Apple Health in the iPhone app"))}</span><strong>{syncLabel}</strong></div>
   </ModuleDetailView>;
   if (view === "vitals") return <ModuleDetailView compact className="vitals-subview-card" title={locale === "zh" ? "健康指标" : "Health metrics"}><div className="metric-detail-grid"><span><HeartPulse /><small>{locale === "zh" ? "静息心率" : "Resting HR"}</small><strong>{vitals.heartRate == null ? "--" : <><AnimatedNumber value={vitals.heartRate} /> bpm</>}</strong></span><span><Activity /><small>{locale === "zh" ? "血氧" : "SpO2"}</small><strong>{vitals.bloodOxygen == null ? "--" : <><AnimatedNumber value={vitals.bloodOxygen} formatter={(value) => value.toFixed(1)} />%</>}</strong></span><span><Gauge /><small>{locale === "zh" ? "恢复度" : "Recovery"}</small><strong>{vitals.recovery == null ? "--" : <AnimatedNumber value={vitals.recovery} />}</strong></span></div><div className="detail-status-strip"><ShieldCheck size={17} /><span>{locale === "zh" ? "指标来自最近一次健康快照与节律评分" : "Based on the latest health snapshot and rhythm score"}</span><strong>{vitals.date ? shortDate(vitals.date, locale) : "--"}</strong></div></ModuleDetailView>;
   if (view === "heatmap") return <ModuleDetailView compact className="heatmap-subview-card" title={locale === "zh" ? "节律热力图" : "Rhythm heatmap"}><div className="heatmap-detail-content"><div className="detail-heatmap">{heatmap.cells.map((cell, index) => <i key={cell.id} title={`${shortDate(cell.date, locale)} · ${String(cell.period * 2).padStart(2, "0")}:00 · ${Math.round(cell.value)}`} style={{ opacity: cell.intensity, "--heat-index": index } as CSSProperties} />)}</div><div className="heatmap-legend"><span>{locale === "zh" ? "低活跃" : "Low"}</span><i /><i /><i /><i /><span>{locale === "zh" ? "高活跃" : "High"}</span></div><div className="heatmap-summary-grid"><span><small>{locale === "zh" ? "数据格" : "Data bins"}</small><strong>{heatmap.cells.length}</strong></span><span><small>{locale === "zh" ? "高峰窗口" : "Peak window"}</small><strong>{heatmap.cells.length > 0 ? peakWindow : "--"}</strong></span></div><p>{heatmap.cells.length > 0 ? (locale === "zh" ? `${peakWindow} 是近七日真实活动记录中相对集中的窗口；这里只描述分布，不评价运动质量。` : `${peakWindow} is the most concentrated window in the recorded seven-day activity data; this describes distribution, not workout quality.`) : (locale === "zh" ? "同步活动数据后生成热力图。" : "Sync activity data to build the heatmap.")}</p></div></ModuleDetailView>;
   if (view === "clock") return <ModuleDetailView compact className="clock-subview-card" title={locale === "zh" ? "生物钟同步" : "Clock alignment"}><div className="clock-alignment"><div className="clock-alignment-gauge" style={{ "--progress": `${alignment ?? 0}%` } as CSSProperties}><Gauge /></div><strong>{alignment == null ? "--" : <><AnimatedNumber value={alignment} />%</>}</strong><p>{alignment == null ? (locale === "zh" ? "同步睡眠或节律数据后，才能计算近七日生物钟同步分。" : "Sync sleep or rhythm data to calculate the seven-day clock-alignment score.") : (locale === "zh" ? "该分数由近七日入睡时间、睡眠时长稳定性与节律评分共同计算。" : "Calculated from seven-day bedtime, sleep-duration regularity, and rhythm scores.")}</p></div></ModuleDetailView>;
   if (view === "sports") return <ModuleDetailView compact className="sports-subview-card" title="NAVA Sports">
-    {exerciseInterruption && exerciseSession && <PreviewInterruptionNotice reason={exerciseInterruption} locale={locale}>
-      <p>{locale === "zh" ? "运动计时已暂停，暂停期间不计入运动时长。准备好后点“继续”，或结束并核对记录。" : "Your workout is paused. Paused time is excluded. Resume when ready, or finish and review."}</p>
-      <small>{locale === "zh" ? "模拟事件不会添加步数、热量或奖励。" : "No steps, calories or rewards are added by this simulation."}</small>
-    </PreviewInterruptionNotice>}
     {exerciseSession ? <div className="exercise-live-session" data-exercise-session data-running={Boolean(exerciseSession.runningSince)}>
       <div className="exercise-live-progress" style={{ "--progress": `${exerciseProgress}%` } as CSSProperties}><Activity size={28} /><strong>{exerciseTimerText}</strong><small>{locale === "zh" ? `计划 ${exerciseSession.plannedMinutes} 分钟` : `${exerciseSession.plannedMinutes}-minute plan`}</small></div>
       <div className="exercise-live-copy"><strong>{exerciseSession.title}</strong><p data-exercise-stage>{exerciseStage?.complete ? (locale === "zh" ? "计划时长已到，可以结束并核对感受。" : "Planned time reached. Finish when ready and review how you feel.") : exerciseStage ? exerciseSession.steps[exerciseStage.index] : (locale === "zh" ? "按身体感受继续；旧计划没有可确认的分段时长。" : "Continue by feel; this older plan has no verified stage durations.")}</p><span>{locale === "zh" ? `已进行 ${exerciseElapsedMinutes} 分钟 · ${exerciseProgress}%` : `${exerciseElapsedMinutes} minutes · ${exerciseProgress}%`}</span>{exerciseStage && !exerciseStage.complete && <small>{locale === "zh" ? "本阶段剩余 " : "Stage remaining "}{Math.floor(exerciseStage.remaining / 60)}:{String(exerciseStage.remaining % 60).padStart(2, "0")}</small>}</div>
@@ -1467,7 +1457,6 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [interruptions, setInterruptions] = useState(focusLaunch ? 0 : restoredTimer?.interruptions ?? 0);
   const [interruptionReasons, setInterruptionReasons] = useState<FocusInterruptionReasons>(() => focusLaunch ? emptyFocusInterruptionReasons() : restoredTimer?.interruptionReasons ?? emptyFocusInterruptionReasons());
   const [currentInterruptionReason, setCurrentInterruptionReason] = useState<FocusInterruptionReason | null>(null);
-  const [previewInterruption, setPreviewInterruption] = useState(false);
   const [startedAt, setStartedAt] = useState<string | undefined>(focusLaunch?.startedAt ?? restoredTimer?.startedAt);
   const [sessionId, setSessionId] = useState(focusLaunch?.id ?? restoredTimer?.sessionId ?? crypto.randomUUID());
   const currentFocusSessionRef = useRef(sessionId);
@@ -1624,7 +1613,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setEncouragementLoading(false);
   }, [immersive, running]);
   useEffect(() => {
-    if (!immersive || !keepAwakeEnabled) {
+    if (!immersive || !keepAwakeEnabled || (hasStarted && !running)) {
       void releaseWakeLock();
       return;
     }
@@ -1634,7 +1623,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     };
     document.addEventListener("visibilitychange", restoreAfterVisibility);
     return () => document.removeEventListener("visibilitychange", restoreAfterVisibility);
-  }, [acquireWakeLock, immersive, keepAwakeEnabled, releaseWakeLock]);
+  }, [acquireWakeLock, hasStarted, immersive, keepAwakeEnabled, releaseWakeLock, running]);
   useEffect(() => {
     const syncFullscreenState = () => setFullscreenActive(focusFullscreenActive());
     document.addEventListener("fullscreenchange", syncFullscreenState);
@@ -1679,7 +1668,6 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       setInterruptions(0);
       setInterruptionReasons(emptyFocusInterruptionReasons());
       setCurrentInterruptionReason(null);
-      setPreviewInterruption(false);
       breakCueSlotRef.current = 0;
       setBreakCue(false);
       setStartedAt(focusLaunch.startedAt);
@@ -2087,7 +2075,6 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setInterruptions(0);
     setInterruptionReasons(emptyFocusInterruptionReasons());
     setCurrentInterruptionReason(null);
-    setPreviewInterruption(false);
     breakCueSlotRef.current = 0;
     setBreakCue(false);
     setSaved(false);
@@ -2172,19 +2159,14 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     setRunning(false);
     if (!simulated) setInterruptions((value) => value + 1);
     setCurrentInterruptionReason(simulated ? reason ?? null : null);
-    setPreviewInterruption(simulated);
     setGuideOpen(false);
     setNoisePanelOpen(false);
     void stopFocusNoise();
     void releaseWakeLock();
-    openView("interruption");
+    if (!simulated) openView("interruption");
   }, [openView, running, stopFocusNoise, releaseWakeLock]);
 
   const chooseInterruptionReason = (reason: FocusInterruptionReason) => {
-    if (previewInterruption) {
-      setCurrentInterruptionReason(reason);
-      return;
-    }
     setInterruptionReasons((current) => {
       const next = { ...current };
       if (currentInterruptionReason) next[currentInterruptionReason] = Math.max(0, next[currentInterruptionReason] - 1);
@@ -2419,13 +2401,12 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           </div>
           <button className="focus-guide-start" type="button" onClick={() => { closeGuide(); setHasStarted(true); if (!startedAt) setStartedAt(new Date().toISOString()); setRunning(true); }}>{locale === "zh" ? "开始专注" : "Start focusing"}</button>
         </div>}
-        {import.meta.env.DEV && <button className="focus-interruption-trigger" type="button" onClick={() => recordInterruption()}><PhoneIncoming size={17} />{locale === "zh" ? "模拟中断" : "Simulate interruption"}</button>}
-        {view === "interruption" && <div className="focus-interruption" role="dialog" aria-modal="true" data-preview-interruption={previewInterruption ? "true" : "false"}>
+        {view === "interruption" && <div className="focus-interruption" role="dialog" aria-modal="true">
           {currentInterruptionReason === "message" ? <Bell size={38} /> : currentInterruptionReason === "distraction" ? <MousePointerClick size={38} /> : currentInterruptionReason === "other" ? <Pause size={38} /> : <PhoneIncoming size={38} />}
-          <strong>{previewInterruption ? (locale === "zh" ? ({ call: "模拟来电", message: "模拟消息通知", distraction: "模拟主动分心", other: "模拟其他事件" } as const)[currentInterruptionReason ?? "other"] : ({ call: "Simulated call", message: "Simulated message", distraction: "Simulated distraction", other: "Simulated event" } as const)[currentInterruptionReason ?? "other"]) : (locale === "zh" ? "专注被打断" : "Focus interrupted")}</strong>
-          <p>{previewInterruption ? (locale === "zh" ? "计时已暂停。这是网页预览事件，不会真实拨号、发送通知或写入账号中断统计。" : "The timer is paused. This preview neither places a call nor sends a notification or saves an interruption to your account.") : (locale === "zh" ? "计时已暂停。可以记录原因，再决定继续或结束。" : "The timer is paused. Record a reason, then continue or finish.")}</p>
+          <strong>{locale === "zh" ? "专注被打断" : "Focus interrupted"}</strong>
+          <p>{locale === "zh" ? "计时已暂停。可以记录原因，再决定继续或结束。" : "The timer is paused. Record a reason, then continue or finish."}</p>
           <div className="focus-interruption-reasons" role="group" aria-label={locale === "zh" ? "中断原因" : "Interruption reason"}>{(["message", "call", "distraction", "other"] as FocusInterruptionReason[]).map((reason) => <button type="button" className={currentInterruptionReason === reason ? "selected" : ""} key={reason} onClick={() => chooseInterruptionReason(reason)}>{locale === "zh" ? ({ message: "消息", call: "来电", distraction: "分心", other: "其他" } as const)[reason] : ({ message: "Message", call: "Call", distraction: "Distraction", other: "Other" } as const)[reason]}</button>)}</div>
-          <div className="focus-interruption-actions"><button type="button" onClick={() => { setPreviewInterruption(false); setRunning(true); setHasStarted(true); enterImmersive(true); }}>{locale === "zh" ? "继续专注" : "Keep focusing"}</button><button type="button" onClick={() => void finish()}>{locale === "zh" ? "结束并保存" : "Finish & save"}</button></div>
+          <div className="focus-interruption-actions"><button type="button" onClick={() => { setRunning(true); setHasStarted(true); enterImmersive(true); }}>{locale === "zh" ? "继续专注" : "Keep focusing"}</button><button type="button" onClick={() => void finish()}>{locale === "zh" ? "结束并保存" : "Finish & save"}</button></div>
         </div>}
       </fieldset>
     ), document.body);

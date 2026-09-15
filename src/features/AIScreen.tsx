@@ -1047,7 +1047,8 @@ export default function AIScreen({
       endVoiceCall();
     }
     setVoiceState("idle"); setVoiceCancelArmed(false); setAudioPlaying(false);
-    if (wasActive) setMediaNotice(locale === "zh" ? `${simulated ? "模拟中断：" : ""}录音与播放已停止，已识别文字保留；不会自动发送或重启麦克风。` : `${simulated ? "Simulated interruption: " : ""}Recording and playback stopped. Recognized text is kept; nothing is sent or restarted automatically.`);
+    if (simulated) setMediaNotice("");
+    else if (wasActive) setMediaNotice(locale === "zh" ? "录音与播放已停止，文字已保留。" : "Recording and playback stopped. Your text is kept.");
   }, [endVoiceCall, locale]);
   usePreviewActivity(voiceState !== "idle" || (voiceCallOpen && voiceCallPhase !== "speaking") ? "recording" : "playback", active && !cameraOpen && (voiceState !== "idle" || voiceCallOpen || audioPlaying) ? "running" : null, () => interruptMedia(true));
   useEffect(() => {

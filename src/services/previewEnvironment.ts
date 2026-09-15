@@ -33,6 +33,19 @@ export function simulatePreviewInterruption(reason: PreviewReason) {
   const target = current;
   target.activity = { ...target.activity, state: "paused" };
   notify();
-  target.interrupt(reason);
-  return true;
+  try {
+    target.interrupt(reason);
+    // A phone event is not evidence of waking: sleep tracking continues.
+    if (current === target && target.activity.module === "sleep") {
+      target.activity = { ...target.activity, state: "running" };
+      notify();
+    }
+    return true;
+  } catch {
+    if (current === target) {
+      target.activity = { ...target.activity, state: "running" };
+      notify();
+    }
+    return false;
+  }
 }

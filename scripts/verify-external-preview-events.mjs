@@ -52,15 +52,16 @@ try {
         await page.waitForTimeout(1100);
         await trigger(reason);
         await expect(page.locator("[data-exercise-session]")).toHaveAttribute("data-running", "false");
-        await expect(page.locator(`[data-preview-interruption="${reason}"]`)).toBeVisible();
-        await expect(page.locator(".preview-interruption-notice")).toHaveCSS("opacity", "1");
+        await expect(page.locator(".preview-interruption-notice")).toHaveCount(0);
+        await expect(page.locator('.phone-frame')).not.toContainText(/模拟|网页预览事件/);
+        if (desktop) await expect(page.locator('[data-preview-event-result]')).toContainText("运动计时已在本机暂停");
         const paused = await page.locator(".exercise-live-progress strong").textContent();
         await page.waitForTimeout(1250);
         assert.equal(await page.locator(".exercise-live-progress strong").textContent(), paused);
         const duplicate = await page.evaluate(async () => (await import("/src/services/previewEnvironment.ts")).simulatePreviewInterruption("call"));
         assert.equal(duplicate, false);
         if (reason === "call") {
-          await page.locator(".preview-interruption-notice").scrollIntoViewIfNeeded();
+          await page.locator(".exercise-live-session").scrollIntoViewIfNeeded();
           await page.screenshot({ path: path.join(output, `exercise-${viewport.width}.png`) });
         }
         await page.locator(".exercise-live-actions").getByRole("button", { name: "继续", exact: true }).click();
@@ -83,13 +84,13 @@ try {
       assert.ok(sleepStart);
       for (const reason of ["call", "message", "other"]) {
         await trigger(reason);
-        await expect(page.locator(`[data-preview-interruption="${reason}"]`)).toBeVisible();
+        await expect(page.locator(".preview-interruption-notice")).toHaveCount(0);
         assert.equal(await page.evaluate((key) => localStorage.getItem(key), sleepKey), sleepStart);
-        await expect(page.locator(".preview-interruption-notice")).toContainText("不会生成夜醒次数");
-        await expect(page.locator(".preview-interruption-notice")).toHaveCSS("opacity", "1");
-        await page.getByRole("button", { name: "返回睡眠记录", exact: true }).scrollIntoViewIfNeeded();
+        await expect(panel).toHaveAttribute("data-preview-state", "running");
+        await expect(page.locator('.phone-frame')).not.toContainText(/模拟|网页预览事件/);
+        if (desktop) await expect(page.locator('[data-preview-event-result]')).toContainText("睡眠计时继续");
+        await page.locator('.sleep-maintenance').scrollIntoViewIfNeeded();
         if (reason === "call") await page.screenshot({ path: path.join(output, `sleep-${viewport.width}.png`) });
-        await page.getByRole("button", { name: "返回睡眠记录", exact: true }).click();
       }
       await open("tab=today");
       await expect(panel).toHaveAttribute("data-preview-module", "idle");

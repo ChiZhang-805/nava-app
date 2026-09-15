@@ -89,7 +89,8 @@ try {
         localStorage.setItem("nava.review.demo.empty-snapshot-date.v1", date);
         await new Promise((resolve) => window.dispatchEvent(new CustomEvent("nava:preview-reminder", { detail: { kind: "breakfast", resolve } })));
       });
-      await expect(page.locator(".nava-notification-banner")).toContainText("模拟 · 早餐记录提醒");
+      await expect(page.locator(".nava-notification-banner")).toContainText("早餐记录提醒");
+      await expect(page.locator(".nava-notification-banner")).not.toContainText(/模拟|Preview/);
       await page.locator(".nava-notification-banner-main").tap();
       await expect(page.locator('.record-editor-stack select').filter({ has: page.locator('option[value="pantry"]') })).toHaveValue("breakfast");
     }
@@ -105,7 +106,8 @@ try {
         localStorage.setItem("nava.review.demo.empty-snapshot-date.v1", date);
       });
       await page.getByRole("button", { name: "模拟早餐到点提醒" }).click();
-      await expect(page.locator(".nava-notification-banner")).toContainText("模拟 · 早餐记录提醒");
+      await expect(page.locator(".nava-notification-banner")).toContainText("早餐记录提醒");
+      await expect(page.locator(".nava-notification-banner")).not.toContainText(/模拟|Preview/);
       expect(await page.evaluate(() => Object.fromEntries(Object.entries(localStorage).filter(([key]) => key.startsWith("nava-notification-"))))).toEqual(before);
       await page.locator(".nava-notification-banner-main").click();
       await expect(page.locator('.record-editor-stack select').filter({ has: page.locator('option[value="pantry"]') })).toHaveValue("breakfast");
@@ -118,6 +120,22 @@ try {
       // for its screenshot avoids capturing a transient loading transition.
       await page.locator(".record-editor-stack").screenshot({ path: `${output}/breakfast-target.png` });
       await page.screenshot({ path: `${output}/desktop.png` });
+      // Preview-only failure must not broadcast a product-settings error.
+      const preferenceKey = 'nava-demo-reminders:00000000-0000-4000-8000-000000000001';
+      const preferences = await page.evaluate((key) => {
+        window.__previewSettingsErrors = [];
+        window.addEventListener('nava:reminder-status', (event) => window.__previewSettingsErrors.push(event.detail.message));
+        const previous = localStorage.getItem(key); localStorage.setItem(key, '{'); return previous;
+      }, preferenceKey);
+      try {
+        await page.getByRole('button', { name: '模拟早餐到点提醒' }).click();
+        await expect(page.locator('[data-reminder-preview] [role="status"]')).not.toContainText('模拟提醒已显示');
+        await expect(page.getByRole('button', { name: '模拟早餐到点提醒' })).toBeEnabled();
+        expect(await page.evaluate(() => window.__previewSettingsErrors)).toEqual([]);
+        await expect(page.locator('.reminder-error')).toHaveCount(0);
+      } finally {
+        await page.evaluate(({key,value}) => { if(value===null) localStorage.removeItem(key); else localStorage.setItem(key,value); }, {key:preferenceKey,value:preferences});
+      }
     }
     if (errors.length) throw new Error(errors.join("\n"));
     results.push({ width, height, settings: "pass", independentPersistence: "demo-only pass", exactMealLinks: "pass", simulatedBannerTap: "pass", geometry: "pass" });

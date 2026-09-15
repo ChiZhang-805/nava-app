@@ -2,9 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import { AlarmClock, Apple, BedDouble, Bot, Brain, Brush, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Egg, Hourglass, Loader2, Milk, MoonStar, Play, RefreshCw, ScanFace, Share2, SmilePlus, Soup, Sunset, Timer, Upload, X, type LucideIcon } from "lucide-react";
 import { FormEvent, lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import ActionButton from "../components/ActionButton";
-import PreviewInterruptionNotice from "../components/PreviewInterruptionNotice";
 import { usePreviewActivity } from "../hooks/usePreviewActivity";
-import type { PreviewReason } from "../services/previewEnvironment";
 import AnimatedNumber from "../components/AnimatedNumber";
 import ModuleProgressRing from "../components/ModuleProgressRing";
 import PageSkeleton, { SkeletonBlock, SkeletonLines } from "../components/PageSkeleton";
@@ -325,9 +323,8 @@ export default function RecordsScreen({
   const [sleepNote, setSleepNote] = useState("");
   const [sleepMaintenance, setSleepMaintenance] = useState<SleepMaintenanceSession | null>(() => loadSleepMaintenance(user.id));
   const [sleepMaintenanceNow, setSleepMaintenanceNow] = useState(() => Date.now());
-  const [sleepInterruption, setSleepInterruption] = useState<PreviewReason | null>(null);
-  usePreviewActivity("sleep", activeModule !== "sleep" || !showEditor ? null : sleepInterruption ? "paused" : sleepMaintenance ? "running" : "ready", setSleepInterruption);
-  useEffect(() => { setSleepInterruption(null); }, [activeModule, showEditor]);
+  // External events do not establish a wake-up or change the sleep draft.
+  usePreviewActivity("sleep", activeModule !== "sleep" || !showEditor ? null : sleepMaintenance ? "running" : "ready", () => {});
 
   const [steps, setSteps] = useState<number | null>(null);
   const [calories, setCalories] = useState<number | null>(null);
@@ -1024,12 +1021,10 @@ export default function RecordsScreen({
     if (saved) {
       clearSleepMaintenance(user.id);
       setSleepMaintenance(null);
-      setSleepInterruption(null);
     }
   }
 
   function beginSleepMaintenance() {
-    setSleepInterruption(null);
     if (recordDate !== deviceDate) {
       setNotice(locale === "zh" ? "睡眠维持只记录当前设备日期；请先返回今天。" : "Sleep tracking can only start for the current device date.");
       return;
@@ -1042,7 +1037,6 @@ export default function RecordsScreen({
 
   function finishSleepMaintenance() {
     if (!sleepMaintenance) return;
-    setSleepInterruption(null);
     const fields = sleepMaintenanceFields(sleepMaintenance);
     setSleepStart(fields.start);
     setSleepEnd(fields.end);
@@ -1060,7 +1054,6 @@ export default function RecordsScreen({
     if (!window.confirm(locale === "zh" ? "放弃这次尚未保存的睡眠维持记录吗？" : "Discard this unsaved sleep tracking session?")) return;
     clearSleepMaintenance(user.id);
     setSleepMaintenance(null);
-    setSleepInterruption(null);
   }
 
   async function saveExercise(event: FormEvent) {
@@ -1679,7 +1672,11 @@ export default function RecordsScreen({
             onViewChange?.("editor");
           }}
           onOpenDietCamera={() => setCameraTarget("diet")}
-          onOpenFaceCamera={() => { setShowEditor(true); setCameraTarget("face"); }}
+          onOpenFaceCamera={() => {
+            setShowEditor(true);
+            onViewChange?.("editor");
+            setCameraTarget("face");
+          }}
           onOpenDietMeal={(nextMeal) => {
             setMeal(nextMeal);
             setShowEditor(true);
@@ -1710,6 +1707,8 @@ export default function RecordsScreen({
       <form hidden={activeModule !== "mood"} onSubmit={saveMood}>
         <SectionCard
           title={<RecordEditorTitle icon={SmilePlus} label={t("records.mood")} />}
+          bodyClassName="record-editor-fields"
+          footer={<ActionButton type="submit" icon={<Check size={18} />} disabled={busy === "records.mood"}>{t("records.saveMood")}</ActionButton>}
           action={<RecordDateAction label={t("records.date")} value={recordDate} max={deviceDate} onChange={setRecordDate} />}
         >
           <div className="module-title">
@@ -1733,15 +1732,14 @@ export default function RecordsScreen({
             <span>{t("records.diary")}</span>
             <textarea value={diary} onChange={(e) => updateMoodDiary(e.target.value)} placeholder={t("records.diaryPlaceholder")} rows={3} />
           </label>
-          <ActionButton type="submit" icon={<Check size={18} />} disabled={busy === "records.mood"}>
-            {t("records.saveMood")}
-          </ActionButton>
         </SectionCard>
       </form>
 
       <form hidden={activeModule !== "sleep"} onSubmit={saveSleep}>
         <SectionCard
           title={<RecordEditorTitle icon={BedDouble} label={t("records.sleep")} />}
+          bodyClassName="record-editor-fields"
+          footer={<ActionButton type="submit" icon={<BedDouble size={18} />} variant="secondary" disabled={busy === "records.sleep"}>{t("records.saveSleep")}</ActionButton>}
           action={(
             <div className="record-editor-heading-actions">
               <div className="sleep-preset-icons" role="group" aria-label={locale === "zh" ? "常用作息预设" : "Common sleep presets"}>
@@ -1773,10 +1771,6 @@ export default function RecordsScreen({
             </div>
           )}
         >
-          {sleepInterruption && sleepMaintenance && <PreviewInterruptionNotice reason={sleepInterruption} locale={locale}>
-            <p>{locale === "zh" ? "开始时间已保留，睡眠计时仍在继续。模拟来电或切后台不代表你已醒来，也不会生成夜醒次数或睡眠阶段。" : "Your start time is preserved and tracking continues. A simulated interruption does not infer waking or create sleep stages."}</p>
-            <button type="button" onClick={() => setSleepInterruption(null)}>{locale === "zh" ? "返回睡眠记录" : "Return to sleep tracking"}</button>
-          </PreviewInterruptionNotice>}
           <section className={sleepMaintenance ? "sleep-maintenance is-active" : "sleep-maintenance"} aria-live="polite">
             <div>
               <span><Timer size={17} />{locale === "zh" ? "睡眠维持" : "Sleep tracking"}</span>
@@ -1826,15 +1820,14 @@ export default function RecordsScreen({
             <span>{t("records.note")}</span>
             <textarea rows={2} value={sleepNote} onChange={(e) => setSleepNote(e.target.value)} placeholder={t("records.sleepNotePlaceholder")} />
           </label>
-          <ActionButton type="submit" icon={<BedDouble size={18} />} variant="secondary" disabled={busy === "records.sleep"}>
-            {t("records.saveSleep")}
-          </ActionButton>
         </SectionCard>
       </form>
 
       <form hidden={activeModule !== "exercise"} onSubmit={saveExercise}>
         <SectionCard
           title={<RecordEditorTitle icon={Dumbbell} label={t("records.exercise")} />}
+          bodyClassName="record-editor-fields"
+          footer={<ActionButton type="submit" icon={<Dumbbell size={18} />} variant="secondary" disabled={busy === "records.exercise"}>{t("records.saveExercise")}</ActionButton>}
           action={<RecordDateAction label={t("records.date")} value={recordDate} max={deviceDate} onChange={setRecordDate} />}
         >
           <div className="two-col">
@@ -1901,15 +1894,14 @@ export default function RecordsScreen({
             <span>{t("records.note")}</span>
             <textarea rows={2} value={exerciseNote} onChange={(e) => setExerciseNote(e.target.value)} placeholder={t("records.exerciseNotePlaceholder")} />
           </label>
-          <ActionButton type="submit" icon={<Dumbbell size={18} />} variant="secondary" disabled={busy === "records.exercise"}>
-            {t("records.saveExercise")}
-          </ActionButton>
         </SectionCard>
       </form>
 
       <form hidden={activeModule !== "diet"} onSubmit={saveDiet}>
         <SectionCard
           title={<RecordEditorTitle icon={Drumstick} label={t("records.diet")} />}
+          bodyClassName="record-editor-fields"
+          footer={<ActionButton type="submit" icon={<Drumstick size={18} />} variant="secondary" disabled={busy === "records.diet" || dietAnalyzing}>{dietItems.length > 0 ? t("records.saveDetected") : t("records.saveDiet")}</ActionButton>}
           action={(
             <div className="record-editor-heading-actions">
               <div className="diet-quick-food-icons" role="group" aria-label={locale === "zh" ? "常见食物估算快捷填入" : "Quick estimated foods"}>
@@ -2062,15 +2054,14 @@ export default function RecordsScreen({
             </label>
           </div>
           <label className="field diet-rating-field"><span>{locale === "zh" ? `饮食自评 ${dietRating}/5` : `Diet rating ${dietRating}/5`}</span><input className="range" type="range" min="1" max="5" value={dietRating} onChange={(e) => setDietRating(Number(e.target.value))} /></label>
-          <ActionButton type="submit" icon={<Drumstick size={18} />} variant="secondary" disabled={busy === "records.diet" || dietAnalyzing}>
-            {dietItems.length > 0 ? t("records.saveDetected") : t("records.saveDiet")}
-          </ActionButton>
         </SectionCard>
       </form>
 
       <form hidden={activeModule !== "focus"} onSubmit={startFocus}>
         <SectionCard
           title={<RecordEditorTitle icon={Brain} label={t("records.focus")} />}
+          bodyClassName="record-editor-fields"
+          footer={<ActionButton type="submit" icon={<Play size={18} />} variant="secondary" disabled={!focusTitle.trim()}>{locale === "zh" ? "开始专注" : "Start focus"}</ActionButton>}
           action={(
             <div className="record-editor-heading-actions">
               <div className="focus-entry-mode-icons" role="group" aria-label={locale === "zh" ? "专注计时模式" : "Focus timer mode"}>
@@ -2133,9 +2124,6 @@ export default function RecordsScreen({
             <span>{t("records.note")}</span>
             <textarea rows={3} value={focusNote} onChange={(event) => setFocusNote(event.target.value)} placeholder={locale === "zh" ? "写下步骤、资料或需要提醒自己的要点" : "Add steps, references, or a reminder to yourself"} />
           </label>
-          <ActionButton type="submit" icon={<Play size={18} />} variant="secondary" disabled={!focusTitle.trim()}>
-            {locale === "zh" ? "开始专注" : "Start focus"}
-          </ActionButton>
         </SectionCard>
       </form>
 

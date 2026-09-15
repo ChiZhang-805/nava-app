@@ -78,8 +78,8 @@ try {
       await page.locator(".sleep-maintenance").getByRole("button", { name: "开始记录", exact: true }).click();
       const started = await page.evaluate((id) => localStorage.getItem(`nava.sleep-maintenance.v1:${id}`), userId);
       await panel.locator('[data-preview-event="message"]').click();
-      await expect(page.locator(".preview-interruption-notice")).toContainText("不会生成夜醒次数");
-      await page.getByRole("button", { name: "返回睡眠记录", exact: true }).click();
+      await expect(page.locator(".preview-interruption-notice")).toHaveCount(0);
+      await expect(panel.locator('[data-preview-event-result]')).toContainText("睡眠计时继续");
       assert.equal(await page.evaluate((id) => localStorage.getItem(`nava.sleep-maintenance.v1:${id}`), userId), started);
       page.once("dialog", (dialog) => dialog.accept());
       await page.locator(".sleep-maintenance").getByRole("button", { name: "放弃", exact: true }).click();

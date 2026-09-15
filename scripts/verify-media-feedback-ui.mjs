@@ -42,6 +42,8 @@ try {
       const interrupt = async () => {
         if (viewport.width > 700) await page.locator('[data-preview-event="call"]').click();
         else await page.evaluate(async () => (await import("/src/services/previewEnvironment.ts")).simulatePreviewInterruption("call"));
+        await expect(page.locator('.phone-frame')).not.toContainText(/模拟中断|模拟来电|网页预览事件|Simulated interruption/);
+        if (viewport.width > 700) await expect(page.locator('[data-preview-event-result]')).toBeVisible();
       };
       await open("tab=record&module=face");
       await page.getByRole("button", { name: /^(使用前置摄像头拍照|前置拍摄|重新拍摄)$/ }).click();
@@ -75,7 +77,27 @@ try {
       await interrupt(); await expect(mic).toHaveAttribute("aria-pressed", "false");
       await expect(page.locator(".chat-input-shell input")).toHaveValue("保留这一句");
       assert.equal(await page.evaluate(() => window.__voiceAborted), true);
-      await expect(page.locator(".chat-media-notice")).toBeVisible();
+      await expect(page.locator(".chat-media-notice")).toHaveCount(0);
+      // Await the actual surface entrance, not merely a present input node.
+      const composer = page.locator('.chat-composer');
+      await expect(composer).toHaveCSS('opacity', '1');
+      await expect(composer).toBeInViewport({ ratio: 1 });
+      assert.equal(await composer.evaluate((node) => {
+        const box = node.getBoundingClientRect();
+        return node.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+      }), true, 'composer must remain painted and hittable after interruption');
+      await page.screenshot({ path: `${output}/chat-interrupted-${viewport.width}.png` });
+      await page.getByRole('button', { name: 'More', exact: true }).click();
+      await page.locator('.app-utility-popover button').filter({ hasText: /^语音聊天$|^Voice chat$/ }).click();
+      await expect(page.locator('.ai-voice-call')).toHaveAttribute('data-voice-call-phase', 'listening');
+      const beforeCall = await page.locator('.chat-message-row').count();
+      await page.evaluate(() => window.__recognition.onresult({ results: [{ 0: { transcript: '通话中保留的文字' }, isFinal: false }] }));
+      await interrupt();
+      await expect(page.locator('.ai-voice-call')).toHaveCount(0);
+      await expect(page.locator('.chat-input-shell input')).toHaveValue(/通话中保留的文字/);
+      await expect(page.locator('.chat-media-notice')).toHaveCount(0);
+      await page.waitForTimeout(1800);
+      assert.equal(await page.locator('.chat-message-row').count(), beforeCall, 'interrupted call must not submit a message');
       await page.locator(".chat-input-shell input").fill("今天状态不错，想聊聊休息。");
       await page.locator(".chat-input-shell input").press("Enter");
       await expect.poll(() => page.evaluate(() => window.__speechQueue.length), { timeout: 30000 }).toBeGreaterThan(0);

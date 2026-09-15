@@ -49,12 +49,12 @@ export async function loadReminderEvidence(userId: string, date: string) {
   if (mood.error || diet.error) throw new Error("未能核对今天的记录，提醒暂缓，联网后重试。");
   return reminderEvidence(date, mood.data, diet.data);
 }
-export function reminderMessage(kind: ReminderKind, date: string, locale: "zh" | "en", preview = false) {
+export function reminderMessage(kind: ReminderKind, date: string, locale: "zh" | "en") {
   const label = reminderLabels[kind][locale === "zh" ? 0 : 1];
   return {
     id: reminderOccurrenceId(kind, date), category: kind === "mood" ? "mood" as const : "nutrition" as const,
     source: "system" as const, createdAt: new Date().toISOString(),
-    title: `${preview ? (locale === "zh" ? "模拟 · " : "Preview · ") : ""}${label}${locale === "zh" ? "记录提醒" : " reminder"}`,
+    title: `${label}${locale === "zh" ? "记录提醒" : " reminder"}`,
     body: locale === "zh" ? `今天的${label}还未记录，方便时给自己留一条记录吧。` : `Today's ${label.toLowerCase()} is not logged yet. Add it when convenient.`,
     target: reminderTarget(kind),
   };

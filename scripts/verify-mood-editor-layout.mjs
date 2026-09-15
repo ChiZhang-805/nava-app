@@ -122,7 +122,7 @@ async function readGeometry(page, module, fieldSelector) {
     const card = detail.querySelector(".record-editor-stack > form:not([hidden]) > .section-card");
     const field = detail.querySelector(selector);
     const textarea = field?.querySelector("textarea");
-    const save = field?.nextElementSibling;
+    const save = card?.querySelector(':scope > .action-button');
     const nav = frame?.querySelector(".bottom-nav");
     const rect = (node) => {
       const value = node?.getBoundingClientRect();
@@ -200,7 +200,7 @@ async function assertContainedAction(page, module, state) {
   await action.scrollIntoViewIfNeeded();
   const states = [];
   for (const end of [false, true]) {
-    await card.evaluate((node, end) => { node.scrollTop = end ? node.scrollHeight : 0; }, end);
+    await card.evaluate((card, end) => { const node = card.querySelector('.record-editor-fields') ?? card; node.scrollTop = end ? node.scrollHeight : 0; }, end);
     const geometry = await action.evaluate((node) => {
       const card = node.closest('.section-card');
       const box = node.getBoundingClientRect();
@@ -381,6 +381,7 @@ async function main() {
       if (textareaGeometry.height < 78 || textareaGeometry.scrollHeight > textareaGeometry.clientHeight + 1) throw new Error(`diet/${viewport.name}: recognized dishes do not auto-fit ${JSON.stringify(textareaGeometry)}`);
       dietResults.push({ name: viewport.name, shortcutGeometry, textareaGeometry });
       const saveAction = detail.locator("form:not([hidden]) .action-button");
+      await detail.locator('form:not([hidden]) .record-editor-fields').evaluate((node) => { node.scrollTop = node.scrollHeight; });
       await saveAction.scrollIntoViewIfNeeded();
       const bottomGeometry = await detail.evaluate((node) => {
         const action = node.querySelector("form:not([hidden]) .action-button")?.getBoundingClientRect();
@@ -675,8 +676,8 @@ async function main() {
     await page.locator(".mood-diary-field textarea").scrollIntoViewIfNeeded();
     await expect(page.locator(".mood-diary-field textarea")).toBeInViewport();
     await page.locator(".mood-diary-field textarea").fill("键盘出现时，日记仍可编辑并可通过页面滚动访问保存按钮。");
-    await page.locator(".mood-diary-field + .action-button").scrollIntoViewIfNeeded();
-    await expect(page.locator(".mood-diary-field + .action-button")).toBeInViewport();
+    await page.locator('[data-record-detail="mood"] form:not([hidden]) > .section-card > .action-button').scrollIntoViewIfNeeded();
+    await expect(page.locator('[data-record-detail="mood"] form:not([hidden]) > .section-card > .action-button')).toBeInViewport();
     await page.screenshot({ path: path.join(outputDir, "390x600-keyboard-proxy.png") });
     await assertContainedAction(page, 'mood', 'keyboard-height proxy');
 

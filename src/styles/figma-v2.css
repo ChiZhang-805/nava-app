@@ -391,6 +391,10 @@ body::before {
 }
 
 /* Figma mobile v2 application shell. Authentication intentionally keeps the blue texture. */
+/* The home artwork already contains its own backdrop. The legacy wordmark
+   pseudo-element uses desktop vw and otherwise widens narrow phone canvases. */
+.phone-frame--option2::before { content: none; }
+
 .phone-frame:not(.phone-frame--option2) {
   --nava-ink: #08283b;
   --nava-muted: #5f8498;
@@ -860,9 +864,6 @@ body::before {
   box-shadow: 0 8px 20px rgba(21, 127, 174, 0.2);
 }
 
-.phone-frame:not(.phone-frame--option2) .record-detail form:not([hidden]) .diet-rating-field + .action-button {
-  margin-top: 12px;
-}
 
 .phone-frame:not(.phone-frame--option2) .record-detail .section-icon-action {
   color: #0e86bb;
@@ -5047,10 +5048,10 @@ body::before {
 .structured-field-list { display: grid; }
 .structured-field-row { min-width: 0; min-height: 31px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(61,125,151,.1); }
 .structured-field-row:last-child { border-bottom: 0; }
-.structured-field-row > span:first-child { min-width: 0; color: #526f7b; font-size: 11px; line-height: 1.3; }
+.structured-field-row > span:first-child { min-width: 0; flex: 0 0 auto; max-width: 46%; color: #526f7b; font-size: 11px; line-height: 1.3; }
 .structured-field-row > strong { min-width: 0; color: #0a3144; font-size: 12px; line-height: 1.3; text-align: right; overflow-wrap: anywhere; }
-.structured-field-editor { min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
-.structured-field-editor input { width: min(110px, 100%); height: 27px; box-sizing: border-box; border: 1px solid rgba(22,130,174,.24); border-radius: 8px; padding: 3px 7px; color: #0a3144; background: rgba(255,255,255,.78); font: inherit; font-size: 11px; text-align: right; outline: none; }
+.structured-field-editor { min-width: 0; flex: 1 1 0; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.structured-field-editor input { width: 0; min-width: 0; flex: 1 1 0; height: 27px; box-sizing: border-box; border: 1px solid rgba(22,130,174,.24); border-radius: 8px; padding: 3px 7px; color: #0a3144; background: rgba(255,255,255,.78); font: inherit; font-size: 11px; text-align: right; outline: none; }
 .structured-field-editor input:focus { border-color: #1698cb; box-shadow: 0 0 0 2px rgba(22,152,203,.12); }
 .structured-field-editor em { color: #557782; font-size: 10px; font-style: normal; white-space: nowrap; }
 .structured-confirmation-note { margin: 10px 0 0; color: #526f7b; font-size: 12px; line-height: 1.5; }
@@ -5290,11 +5291,6 @@ body::before {
   }
 }
 
-@media (max-width: 430px) and (min-height: 601px) and (max-height: 700px) {
-  .sleep-note-field + .action-button {
-    margin-top: 44px;
-  }
-}
 
 @media (max-height: 760px) {
   .diet-dashboard { grid-template-rows: auto auto minmax(108px, 1fr) auto; gap: 6px; }
@@ -8738,7 +8734,7 @@ body::before {
   flex: 1 1 auto;
   resize: none;
 }
-.record-detail[data-record-detail="sleep"] .sleep-note-field + .action-button {
+.record-detail[data-record-detail="sleep"] .section-card > .action-button {
   flex: 0 0 auto;
   margin-top: 0;
 }
@@ -8774,7 +8770,7 @@ body::before {
   flex: 1 1 auto;
   resize: none;
 }
-.record-detail[data-record-detail="mood"] .mood-diary-field + .action-button {
+.record-detail[data-record-detail="mood"] .section-card > .action-button {
   flex: 0 0 auto;
 }
 
@@ -10443,40 +10439,6 @@ body::before {
 /* Desktop-only device preview. Apple-published display resolutions are mapped
    to @3x logical canvases by the preview catalog. Coarse pointers and mobile
    viewports never render the selector, shell, status bar, or home indicator. */
-.preview-interruption-notice {
-  display: grid;
-  gap: 10px;
-  padding: 16px;
-  margin-block: 0 14px;
-  border: 1px solid rgba(57, 151, 178, .24);
-  border-radius: 20px;
-  background: #edfaff;
-  color: #17485c;
-  text-align: left;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.preview-interruption-notice > header { display: flex; align-items: center; gap: 10px; }
-.preview-interruption-notice > header svg { flex: none; }
-.preview-interruption-notice > header strong { font-size: 17px; line-height: 1.4; }
-.preview-interruption-notice p { margin: 0; font-size: 15px; line-height: 1.65; }
-.preview-interruption-notice small { font-size: 13px; line-height: 1.5; color: #496b7b; }
-.preview-interruption-notice > button {
-  min-height: 44px;
-  border: 0;
-  border-radius: 14px;
-  padding: 10px 14px;
-  background: #157c9e;
-  color: white;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-.preview-interruption-notice > button:focus-visible { outline: 3px solid #143e54; outline-offset: 3px; }
-.record-detail .record-editor-stack .section-card > .preview-interruption-notice { animation: none; }
-.record-detail[data-record-detail="sleep"] .section-card:has(.preview-interruption-notice) { overflow-y: auto; }
-.record-detail[data-record-detail="sleep"] .section-card:has(.preview-interruption-notice) > * { flex-shrink: 0; }
-
 .nava-device-preview,
 .nava-preview-controls,
 .nava-device-selector,
@@ -11522,7 +11484,7 @@ body::before {
 .focus-entry-minutes-field.is-custom .focus-duration-controls { grid-template-columns: minmax(0,1fr) minmax(0,.72fr); }
 .focus-duration-controls select,
 .focus-duration-controls input { min-width: 0; }
-.focus-entry-note-field + .action-button { flex: 0 0 auto; }
+.record-detail[data-record-detail="focus"] .section-card > .action-button { flex: 0 0 auto; }
 .focus-immersive-note {
   z-index: 2;
   width: min(82%, 340px);
@@ -13314,7 +13276,8 @@ body::before {
 
 /* Keep the focus support rules above the final release cascade. */
 .record-detail[data-record-detail="focus"] .focus-dashboard {
-  grid-template-rows: auto auto minmax(210px, auto) auto auto;
+  grid-template-rows: none;
+  grid-auto-rows: max-content;
   gap: 8px;
 }
 
@@ -13784,10 +13747,64 @@ body::before {
   text-overflow: clip;
 }
 .record-detail .record-editor-stack > :is(form, div):not([hidden]) > .section-card > .action-button {
-  position: sticky;
-  bottom: 0;
-  z-index: 4;
+  /* Keep the action in the card's scroll flow: sticky would paint it over
+     editable fields whenever a conditional section grows. */
+  position: static;
   min-height: 44px;
   max-width: 100%;
   white-space: normal;
+}
+.record-detail .record-editor-stack > form:not([hidden]) > .section-card:has(> .record-editor-fields) {
+  overflow: hidden;
+  gap: 8px;
+}
+.record-detail .record-editor-stack > form:not([hidden]) > .section-card > .record-editor-fields {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scroll-padding-block: 8px;
+  padding: 2px 2px 4px;
+}
+.record-editor-fields > * { flex-shrink: 0; min-width: 0; }
+.record-editor-fields > .mood-diary-field { flex: 1 0 110px; }
+
+/* Header, chart (including date labels), and padding all contribute to height. */
+.sleep-dashboard .sleep-trend-card { flex: 0 0 auto; min-height: 0; grid-template-rows: auto auto; }
+.sleep-dashboard .sleep-trend-card .bar-line-trend-chart {
+  height: clamp(112px, 35cqw, 142px);
+  min-height: 112px;
+}
+
+/* Registration's agreement belongs below the form, never on a fixed screen
+   coordinate that can cover the return action in a scaled device preview. */
+.auth-screen.auth-screen--signUp {
+  grid-template-rows: minmax(120px, 1fr) auto;
+  overflow-y: auto;
+}
+.auth-screen--signUp .auth-form-region {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+.auth-screen--signUp .auth-consent.auth-consent--screen {
+  position: static;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  width: min(100%, 380px);
+  margin: 0;
+  min-height: 32px;
+  line-height: 1.4;
+}
+.auth-screen--signUp .auth-consent.auth-consent--screen span {
+  white-space: normal;
+  line-height: 1.4;
 }

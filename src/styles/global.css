@@ -766,13 +766,21 @@ textarea {
 .chat-layout {
   height: 100%;
   min-height: 0;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
 }
 
+/* Notices and errors are optional siblings. Only the conversation absorbs
+   remaining space, irrespective of the number/order of those siblings. */
+.chat-layout > * { flex-shrink: 0; }
+.chat-layout > :is(.chat-media-notice, .error-text) {
+  max-height: 25%;
+  overflow-y: auto;
+}
+
 .chat-list {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   max-height: none;
   overflow: auto;

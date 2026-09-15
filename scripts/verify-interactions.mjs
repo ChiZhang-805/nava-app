@@ -763,7 +763,7 @@ async function verifyRecordModules(page, results) {
   const dietForm = page.locator('[data-record-detail="diet"] form:not([hidden])');
   await expect(page.locator('[data-record-detail="diet"] .record-upload-toast')).toBeVisible();
   await expect(dietForm.locator(".diet-photo-action")).toHaveCount(2);
-  await expect(dietForm.locator('input[type="file"][capture="environment"]')).toHaveCount(1);
+  await expect(page.locator('[data-record-detail="diet"] input[data-diet-quick-camera][capture="environment"]')).toHaveCount(1);
   await expect(dietForm.locator('input[type="file"]:not([capture])')).toHaveCount(1);
   await expect(dietForm.locator(".nutrition-unit-input b")).toHaveText(["kcal", "g", "g", "g", "ml"]);
   const unitOffsets = await dietForm.locator(".nutrition-unit-input").evaluateAll((nodes) => nodes.map((node) => {
@@ -833,7 +833,12 @@ async function verifyRecordModules(page, results) {
   await page.waitForTimeout(750);
   await page.screenshot({ path: path.join(outputDir, "record-focus-immersive.png") });
   await page.waitForTimeout(900);
-  await page.locator(".focus-interruption-trigger").click();
+  // Local visibility fixture exercises the real interruption path (not preview statistics).
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+    delete document.visibilityState;
+  });
   await expect(page.locator(".focus-interruption")).toBeVisible();
   await expect(page.locator(".focus-interruption-reasons button")).toHaveCount(4);
   await page.getByRole("button", { name: /消息|Message/ }).click();
@@ -872,6 +877,10 @@ async function verifyRecordModules(page, results) {
   await assertNoBottomNavClipping(page, "face-history", '[data-record-detail="face"] .module-history-list p, [data-record-detail="face"] .module-history-share');
   await returnFromSubview();
   await page.locator('[aria-label="使用前置摄像头拍照"], [aria-label="Take a front-camera photo"]').click();
+  await expect(page.locator('.camera-capture-overlay')).toBeVisible();
+  await page.locator('.camera-capture-overlay').getByRole('button', { name: /关闭相机|Close camera/ }).click();
+  await expect(page.locator('.camera-capture-overlay')).toHaveCount(0);
+  await expect.poll(() => new URL(page.url()).hash).toContain("view=editor");
   await expect(page.locator('[data-record-detail="face"] .face-consent, [data-record-detail="face"] .face-bare-guidance')).toHaveCount(0);
   await expect(page.locator('[data-record-detail="face"] .face-ai-evaluation')).toBeVisible();
   await page.waitForTimeout(450);
@@ -1190,16 +1199,19 @@ async function verifyAi(page, results, diagnostics) {
   await expect(page.locator(".chat-pending-document")).toHaveCount(0);
 
   await attachmentTrigger.click();
-  const fileChooserPromise = page.waitForEvent("filechooser", { timeout: 1500 }).catch(() => null);
   await attachmentMenu.locator('[role="menuitem"]').nth(2).click();
+  const capture = page.locator('.camera-capture-overlay');
+  await expect(capture).toBeVisible();
+  const fileChooserPromise = page.waitForEvent("filechooser", { timeout: 4000 }).catch(() => null);
+  await capture.getByRole('button', { name: /系统相机 \/ 相册|System camera \/ library/ }).click();
+  await expect(capture).toHaveCount(0);
   const fileChooser = await fileChooserPromise;
   await expect(attachmentMenu).toBeHidden();
   if (fileChooser) {
     await fileChooser.setFiles(sampleChatPhoto);
   } else {
-    // Chromium may route capture="environment" through its camera surface
-    // without exposing a desktop file chooser. Inject the captured file into
-    // the same input so the remainder of the recognition flow is still tested.
+    // The system camera fallback can omit a filechooser event. Its sheet must
+    // already be closed before injecting a fixture into the fallback input.
     await page.locator(".chat-camera-input").setInputFiles(sampleChatPhoto);
   }
   await expect(page.locator('[data-chat-photo="analyzing"], [data-chat-photo="saved"]')).toBeVisible();
@@ -1244,6 +1256,8 @@ async function verifyAi(page, results, diagnostics) {
   await page.mouse.up();
   await expect(page.locator(".chat-composer.voice-active")).toBeHidden();
   await expect(page.locator(".chat-input-shell input")).toHaveValue(inputBeforeCancelledVoice);
+  // Keep the cancellation retention assertion above, then start an independent todo draft.
+  await page.locator(".chat-input-shell input").fill("");
   await page.evaluate(() => { window.__navaMockSpeechTranscript = "明天下午三点要交论文"; });
   await page.locator('[data-tab="today"]').click();
   const taskVoiceBox = await aiButton.boundingBox();
@@ -1275,8 +1289,8 @@ async function verifyAi(page, results, diagnostics) {
     await page.screenshot({ path: path.join(outputDir, `ai-todo-${width}x${height}.png`) });
   }
   await page.setViewportSize({ width: viewportWidth, height: viewportHeight });
-  await todoCard.getByRole("button", { name: "逐项编辑" }).click();
-  await expect(todoCard.getByRole("textbox", { name: "事项数值" })).toHaveValue("交论文");
+  await todoCard.getByRole("button", { name: reviewLocale === "zh" ? "逐项编辑" : "Edit fields" }).click();
+  await expect(todoCard.getByRole("textbox", { name: reviewLocale === "zh" ? "事项数值" : "Task value" })).toHaveValue("交论文");
   await todoCard.locator("[data-confirm-structured]").click();
   await expect(todoCard).toBeHidden();
   const focusUrl = new URL(page.url());
