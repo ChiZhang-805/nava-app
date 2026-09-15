@@ -30,6 +30,7 @@ import { loadOnboardingStatus } from "./services/onboarding";
 import { recordGrowthActivity, reconcileGrowthRewards, resolveGrowthTasks, saveTodoFocusPlan, type GrowthActivityKind, type GrowthRewardGrant, type GrowthSummary, type TodoItem } from "./services/productivity";
 import { resolveTodoFocusPlan } from "./services/focusPlanning.ts";
 import useDeviceDate from "./hooks/useDeviceDate";
+import useIndependentReminders from "./hooks/useIndependentReminders";
 import useNativeHealthAutoSync from "./hooks/useNativeHealthAutoSync";
 import { subscribeHealthSyncCompletion } from "./services/health";
 import { isAiSpeechSupported } from "./services/aiSpeech";
@@ -150,6 +151,7 @@ function MobileShell({
   const [notificationItems, setNotificationItems] = useState<NavaNotificationItem[]>(() => user ? listNavaNotifications(user.id) : []);
   const [notificationBanner, setNotificationBanner] = useState<NavaNotificationItem | null>(null);
   const [cloudBootstrapReady, setCloudBootstrapReady] = useState(() => isDemoMode());
+  useIndependentReminders(cloudBootstrapReady ? user?.id ?? null : null, deviceDate, refreshKey, locale, setNotificationBanner);
   const contentRef = useRef<HTMLElement | null>(null);
   const utilityButtonRef = useRef<HTMLButtonElement | null>(null);
   const utilityPopoverRef = useRef<HTMLDivElement | null>(null);
@@ -313,7 +315,7 @@ function MobileShell({
   }, []);
 
   const openNotificationItem = useCallback((item: NavaNotificationItem) => {
-    if (user) markNavaNotification(user.id, item.id, true);
+    if (user && !item.id.startsWith("preview:")) markNavaNotification(user.id, item.id, true);
     setNotificationBanner(null);
     openNotificationTarget(item.target);
   }, [openNotificationTarget, user]);
@@ -921,7 +923,7 @@ function AppContent({
   return (
     <div className="nava-app-stage">
       {screen}
-      <DesktopDevicePreviewChrome />
+      <DesktopDevicePreviewChrome reminderUserId={user?.id} />
       {user && <DevSeedPanel user={user} />}
     </div>
   );

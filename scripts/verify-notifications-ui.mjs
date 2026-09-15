@@ -59,11 +59,13 @@ const results = [];
 try {
   for (const viewport of viewports) {
     const context = await browser.newContext({ viewport, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    context.setDefaultTimeout(15000);
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
     await login(page);
+    console.log(`${viewport.name}: notification QA logged in`);
     await page.evaluate(() => {
       for (const key of Object.keys(localStorage)) if (key.startsWith("nava-notification-inbox:")) localStorage.removeItem(key);
     });
@@ -97,8 +99,9 @@ try {
     if (!bannerGeometry
       || bannerGeometry.main.height < 88
       || bannerGeometry.main.height > 96
-      || bannerGeometry.icon.width < 42
-      || bannerGeometry.icon.height < 42
+      // Transformed DOMRects can report 41.999996 for an exact 42px icon.
+      || bannerGeometry.icon.width + 0.001 < 42
+      || bannerGeometry.icon.height + 0.001 < 42
       || bannerGeometry.centerDelta > 1
       || bannerGeometry.iconCenterDelta > 1
       || Math.abs(bannerGeometry.topInset - bannerGeometry.bottomInset) > 1.5
@@ -110,6 +113,7 @@ try {
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-banner.png`) });
     await swipe(page, banner, "up");
     await expect(banner).toBeHidden();
+    console.log(`${viewport.name}: banner geometry and swipe passed`);
 
     const menuToggle = page.locator(".option-two-menu-toggle");
     await expect(menuToggle).toBeVisible();

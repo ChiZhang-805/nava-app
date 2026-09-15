@@ -1,4 +1,4 @@
-import { sevenDayDateRange, todayISO } from "./date";
+import { sevenDayDateRange, todayISO } from "./date.ts";
 
 export type ReportModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
 
@@ -7,7 +7,7 @@ export type ReportCardEntry = {
   value: number;
 };
 
-type ReportCardOptions = {
+export type ReportCardOptions = {
   module: ReportModule;
   moduleLabel: string;
   entries: ReportCardEntry[];
@@ -15,6 +15,10 @@ type ReportCardOptions = {
   mascotUrl?: string;
   locale: "zh" | "en";
   valueFormatter: (value: number) => string;
+  endDate: string;
+  includeDates?: boolean;
+  includeInsights?: boolean;
+  insightsAreDemo?: boolean;
 };
 
 function roundedRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
@@ -110,40 +114,52 @@ function moduleAccent(module: ReportModule) {
   return ["#0879a7", "#43b8dc"] as const;
 }
 
-function writeWrappedLine(context: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number) {
+function wrappedLines(context: CanvasRenderingContext2D, text: string, maxWidth: number) {
   const glyphs = Array.from(text);
   let line = "";
-  let cursorY = y;
+  const lines: string[] = [];
   glyphs.forEach((glyph) => {
     const candidate = line + glyph;
     if (line && context.measureText(candidate).width > maxWidth) {
-      context.fillText(line, x, cursorY);
-      cursorY += lineHeight;
+      lines.push(line);
       line = glyph;
     } else {
       line = candidate;
     }
   });
-  if (line) context.fillText(line, x, cursorY);
-  return cursorY;
+  if (line) lines.push(line);
+  return lines;
+}
+
+function writeWrappedLine(context: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number) {
+  const lines = wrappedLines(context, text, maxWidth);
+  lines.forEach((line, index) => context.fillText(line, x, y + index * lineHeight));
+  return y + Math.max(0, lines.length - 1) * lineHeight;
 }
 
 export async function createReportShareImage(options: ReportCardOptions) {
   const { module, moduleLabel, entries, insights, mascotUrl, locale, valueFormatter } = options;
   if (entries.length === 0) throw new Error("Cannot create a report card without entries");
 
-  const { startDate, endDate } = currentReportDateRange();
-  const currentEntries = entries.filter((entry) => entry.date >= startDate && entry.date <= endDate).slice(-7);
-  const chartEntries = currentEntries.length > 0 ? currentEntries : entries.slice(-7);
+  const { startDate, endDate } = sevenDayDateRange(options.endDate);
+  const chartEntries = entries.filter((entry) => entry.date >= startDate && entry.date <= endDate && Number.isFinite(entry.value))
+    .slice().sort((left, right) => left.date.localeCompare(right.date)).slice(-7);
+  if (!chartEntries.length) throw new Error("No recorded values in the selected report period");
   const mascot = mascotUrl ? await loadImage(mascotUrl).catch(() => null) : null;
 
   const width = 1080;
-  const height = 1440;
   const canvas = document.createElement("canvas");
   canvas.width = width;
-  canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas is unavailable");
+  // Provider prose can itself contain calendar dates. Never promise date removal
+  // while preserving that prose; the UI explains this coupled privacy choice.
+  const sharedInsights = options.includeInsights && options.includeDates ? insights.slice(0, 4) : [];
+  context.font = "500 28px system-ui, -apple-system, 'Microsoft YaHei', sans-serif";
+  const textHeight = sharedInsights.reduce((sum, insight) => sum + Math.max(0, wrappedLines(context, insight, mascot ? 540 : 790).length - 1) * 34 + 46, 0);
+  const height = sharedInsights.length ? Math.max(1280, 878 + textHeight + 150) : 1120;
+  if (height > 4096) throw new Error("Report text exceeds the supported image height");
+  canvas.height = height;
 
   const [accent, accentSoft] = moduleAccent(module);
   const background = context.createLinearGradient(0, 0, width, height);
@@ -164,7 +180,7 @@ export async function createReportShareImage(options: ReportCardOptions) {
   }
   context.globalAlpha = 1;
 
-  roundedRect(context, 54, 56, 972, 1328, 48);
+  roundedRect(context, 54, 56, 972, height - 112, 48);
   context.fillStyle = "rgba(248, 253, 255, 0.94)";
   context.fill();
 
@@ -174,7 +190,7 @@ export async function createReportShareImage(options: ReportCardOptions) {
   context.fillStyle = "#78919d";
   context.font = "500 27px system-ui, -apple-system, 'Microsoft YaHei', sans-serif";
   context.textAlign = "right";
-  context.fillText(`${shortDate(startDate)} — ${shortDate(endDate)}`, 976, 158);
+  if (options.includeDates) context.fillText(`${shortDate(startDate)} — ${shortDate(endDate)}`, 976, 196);
   context.textAlign = "start";
 
   const average = chartEntries.reduce((sum, entry) => sum + entry.value, 0) / chartEntries.length;
@@ -228,7 +244,7 @@ export async function createReportShareImage(options: ReportCardOptions) {
     context.fillStyle = "#355d70";
     context.font = "650 19px system-ui, -apple-system, 'Microsoft YaHei', sans-serif";
     context.textAlign = "center";
-    context.fillText(shortDate(entry.date), x, plotBottom + 36);
+    context.fillText(options.includeDates ? shortDate(entry.date) : `${index + 1}`, x, plotBottom + 36);
   });
 
   context.strokeStyle = accent;
@@ -258,34 +274,39 @@ export async function createReportShareImage(options: ReportCardOptions) {
 
   context.fillStyle = "#173d51";
   context.font = "750 36px system-ui, -apple-system, 'Microsoft YaHei', sans-serif";
-  context.fillText(locale === "zh" ? "AI 状态洞察" : "AI status insights", 108, 806);
+  context.fillText(sharedInsights.length ? (options.insightsAreDemo ? (locale === "zh" ? "演示洞察" : "Demo insights") : (locale === "zh" ? "AI 状态洞察" : "AI status insights")) : (locale === "zh" ? "我的记录足迹" : "My check-ins"), 108, 806);
   context.font = "500 28px system-ui, -apple-system, 'Microsoft YaHei', sans-serif";
-  insights.slice(0, 4).forEach((insight, index) => {
-    const y = 894 + index * 70;
+  let insightY = 878;
+  sharedInsights.forEach((insight) => {
+    const y = insightY;
     context.beginPath();
     context.arc(123, y - 8, 7, 0, Math.PI * 2);
     context.fillStyle = accent;
     context.fill();
     context.fillStyle = "#31566a";
-    writeWrappedLine(context, insight, 151, y, mascot ? 540 : 790, 34);
+    insightY = writeWrappedLine(context, insight, 151, y, mascot ? 540 : 790, 34) + 46;
   });
+  if (!sharedInsights.length) {
+    context.fillStyle = "#31566a";
+    writeWrappedLine(context, locale === "zh" ? `这一周期有 ${chartEntries.length} 天真实记录。` : `${chartEntries.length} recorded days in this period.`, 108, 894, 540, 36);
+  }
 
-  if (mascot) drawContainedImage(context, mascot, 706, 818, 270, 312);
+  if (mascot) drawContainedImage(context, mascot, 706, 818, 270, sharedInsights.length ? 312 : 180);
 
   context.fillStyle = "#78919d";
   context.font = "500 24px system-ui, -apple-system, 'Microsoft YaHei', sans-serif";
-  context.fillText(locale === "zh" ? "每一次真实记录，都让个人节律更清晰。" : "Every real check-in makes your rhythm clearer.", 108, 1326);
+  context.fillText(locale === "zh" ? "每一次真实记录，都让个人节律更清晰。" : "Every real check-in makes your rhythm clearer.", 108, height - 114);
   context.fillStyle = accent;
-  context.fillRect(108, 1352, 180, 8);
+  context.fillRect(108, height - 88, 180, 8);
 
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Failed to encode report card")), "image/png", 0.95);
   });
 }
 
-export async function shareReportImage(options: ReportCardOptions) {
-  const blob = await createReportShareImage(options);
-  const fileName = `NAVA-${options.module}-${currentReportDateRange().endDate}.png`;
+// The exact previewed bytes are exported on a fresh user click; do not regenerate here.
+export async function sharePreparedReportImage(blob: Blob, options: ReportCardOptions) {
+  const fileName = `NAVA-${options.module}${options.includeDates ? `-${options.endDate}` : ""}.png`;
   const file = new File([blob], fileName, { type: "image/png" });
   if (navigator.share && navigator.canShare?.({ files: [file] })) {
     await navigator.share({

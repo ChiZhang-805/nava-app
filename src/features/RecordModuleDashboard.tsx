@@ -33,6 +33,11 @@ import {
   Utensils,
   X,
 } from "lucide-react";
+import ReminderSettings from "../components/ReminderSettings";
+import MoodBreathing from "../components/MoodBreathing";
+import MonthlyWellbeing from "../components/MonthlyWellbeing";
+import { exerciseStageAt } from "../services/exerciseStages";
+import { setTodoCompleted } from "../services/productivity";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { App as CapacitorApp } from "@capacitor/app";
 import { createPortal } from "react-dom";
@@ -69,7 +74,8 @@ import {
   syncNativeHealthNow,
 } from "../services/health";
 import { getWatchReachability } from "../services/watch";
-import { shareReportImage } from "../services/reportShareCard";
+import type { ReportCardOptions } from "../services/reportShareCard";
+import ReportSharePreview from "../components/ReportSharePreview";
 import { addTodo, saveTodoFocusPlan, saveTodoPriorityOrder, saveTodoQuadrant, subscribeProductivity, syncTodos, todoQuadrant, toggleTodo, type GrowthActivityKind, type TodoItem, type TodoQuadrant } from "../services/productivity";
 import { isCompleteMoodRecord, moodBandForScore, moodBands, moodDateWindow } from "../services/mood";
 import {
@@ -193,7 +199,7 @@ type Props = {
   onOpenEditor: () => void;
   onOpenDietCamera: () => void;
   onOpenDietMeal: (meal: "breakfast" | "lunch" | "dinner" | "pantry") => void;
-  onSaveFocusMinutes: (minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string; category?: string; note?: string; sourceActionId?: string }) => Promise<void>;
+  onSaveFocusMinutes: (minutes: number, details?: { taskId?: string; interruptions?: number; startedAt?: string; endedAt?: string; category?: string; note?: string; sourceActionId?: string }) => Promise<boolean>;
   busy: string | null;
   recordDate: string;
   deviceDate: string;
@@ -399,7 +405,7 @@ function HistoryView({
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportRefreshKey, setReportRefreshKey] = useState(0);
   const reportRefreshHandledRef = useRef(0);
-  const [sharing, setSharing] = useState(false);
+  const [sharePreview, setSharePreview] = useState<ReportCardOptions | null>(null);
   const [shareComplete, setShareComplete] = useState(false);
   const shareCompleteTimerRef = useRef<number | null>(null);
   const healthSourceRevision = module === "diet" ? undefined : healthReportSourceRevision({ scope: module, endDate: deviceDate, trendBundle, profile });
@@ -470,33 +476,30 @@ function HistoryView({
   }, [deviceDate, hasTodayRecord, healthSourceRevision, locale, module, reportRefreshKey]);
   const reportInsights = hasTodayRecord ? (module === "diet" ? (dietReport?.bullets ?? []) : (healthReport?.bullets ?? [])) : [];
   const reportIsDemo = module === "diet" ? dietReport?.modelVersion === "demo-only" : healthReport?.provider === "demo";
-  const shareSummary = async () => {
+  const shareSummary = () => {
     if (!hasTodayRecord) return;
-    const label = moduleNames[module][locale];
-    setSharing(true);
     setShareComplete(false);
-    try {
-      await shareReportImage({
+    setSharePreview({
         module,
-        moduleLabel: label,
-        entries: recordedEntries,
-        insights: reportInsights,
+        moduleLabel: moduleNames[module][locale],
+        entries: recordedEntries.map(({ date, value }) => ({ date, value })),
+        insights: [...reportInsights],
+        insightsAreDemo: reportIsDemo,
         mascotUrl: reportMascotByModule[module],
         locale,
+        endDate: deviceDate,
         valueFormatter: (value) => historyValueText(module, value, locale),
       });
-      await onGrowthActivity?.("share");
+  };
+  const shareFinished = () => {
+      setSharePreview(null);
+      void Promise.resolve().then(() => onGrowthActivity?.("share")).catch(() => console.warn("Share reward not confirmed"));
       setShareComplete(true);
       if (shareCompleteTimerRef.current !== null) window.clearTimeout(shareCompleteTimerRef.current);
       shareCompleteTimerRef.current = window.setTimeout(() => {
         shareCompleteTimerRef.current = null;
         setShareComplete(false);
       }, 2400);
-    } catch (error) {
-      if ((error as DOMException)?.name !== "AbortError") console.warn("report image share failed", error);
-    } finally {
-      setSharing(false);
-    }
   };
   return (
     <ModuleDetailView
@@ -536,9 +539,10 @@ function HistoryView({
         <button
           className={`module-history-share${hasTodayRecord ? "" : " is-today-missing"}`}
           type="button"
-          disabled={sharing || !hasTodayRecord}
-          onClick={() => void shareSummary()}
-        ><Share2 size={16} />{!hasTodayRecord ? currentDayRequiredShareCopy(module, locale) : sharing ? (locale === "zh" ? "正在生成图片…" : "Creating image…") : shareComplete ? (locale === "zh" ? "图片已生成" : "Image ready") : (locale === "zh" ? "生成图片并分享" : "Create image & share")}</button>
+          disabled={!hasTodayRecord}
+          onClick={shareSummary}
+        ><Share2 size={16} />{!hasTodayRecord ? currentDayRequiredShareCopy(module, locale) : shareComplete ? (locale === "zh" ? "图片已生成" : "Image ready") : (locale === "zh" ? "预览并分享" : "Preview & share")}</button>
+        {sharePreview?.module === module && sharePreview.endDate === deviceDate && <ReportSharePreview options={sharePreview} onClose={() => setSharePreview(null)} onComplete={shareFinished} />}
       </> : <div className="module-history-loading"><SkeletonBars /><SkeletonLines count={3} compact /></div>}
     </ModuleDetailView>
   );
@@ -700,18 +704,21 @@ function ExerciseDashboard({
   const sportsPlan = useMemo(() => {
     if (!selectedExercise || displayedSteps == null || displayedExerciseMinutes == null) return {
       minutes: 20,
+      stepSeconds: [300, 600, 300],
       title: locale === "zh" ? "从轻量活动开始" : "Start with light movement",
       reason: locale === "zh" ? "所选日期的步数或时长未记录，以下是通用轻量活动建议。" : "Steps or duration are missing for this date; this is a general light-activity suggestion.",
       steps: locale === "zh" ? ["舒展与热身 5 分钟", "轻松步行 10 分钟", "放松拉伸 5 分钟"] : ["Mobility warm-up · 5 min", "Easy walk · 10 min", "Cool-down stretch · 5 min"],
     };
     if (displayedExerciseMinutes >= 30 || displayedSteps >= 8000) return {
       minutes: 15,
+      stepSeconds: [180, 480, 240],
       title: locale === "zh" ? "恢复与放松计划" : "Recovery & mobility plan",
       reason: locale === "zh" ? `根据 ${selectedDateText} 已记录的 ${displayedSteps.toLocaleString()} 步和 ${displayedExerciseMinutes} 分钟活动生成。` : `Based on ${displayedSteps.toLocaleString()} steps and ${displayedExerciseMinutes} active minutes recorded ${selectedDateText}.`,
       steps: locale === "zh" ? ["关节活动 3 分钟", "低强度拉伸 8 分钟", "呼吸放松 4 分钟"] : ["Joint mobility · 3 min", "Easy stretching · 8 min", "Breathing reset · 4 min"],
     };
     return {
       minutes: 25,
+      stepSeconds: [300, 900, 300],
       title: locale === "zh" ? "补充今日活动" : "Build today's activity",
       reason: locale === "zh" ? `根据 ${selectedDateText} 已记录的 ${displayedSteps.toLocaleString()} 步和 ${displayedExerciseMinutes} 分钟活动生成。` : `Based on ${displayedSteps.toLocaleString()} steps and ${displayedExerciseMinutes} active minutes recorded ${selectedDateText}.`,
       steps: locale === "zh" ? ["动态热身 5 分钟", "轻快步行 15 分钟", "小腿与髋部拉伸 5 分钟"] : ["Dynamic warm-up · 5 min", "Brisk walk · 15 min", "Calf and hip stretch · 5 min"],
@@ -763,9 +770,7 @@ function ExerciseDashboard({
   const exerciseElapsedMinutes = Math.floor(exerciseElapsedSeconds / 60);
   const exerciseTimerText = `${String(Math.floor(exerciseElapsedSeconds / 60)).padStart(2, "0")}:${String(exerciseElapsedSeconds % 60).padStart(2, "0")}`;
   const exerciseProgress = exerciseSession ? Math.min(100, Math.round(exerciseElapsedSeconds / Math.max(60, exerciseSession.plannedMinutes * 60) * 100)) : 0;
-  const exerciseStepIndex = exerciseSession && exerciseSession.steps.length > 0
-    ? Math.min(exerciseSession.steps.length - 1, Math.floor(exerciseProgress / Math.max(1, 100 / exerciseSession.steps.length)))
-    : 0;
+  const exerciseStage = exerciseSession ? exerciseStageAt(exerciseSession, exerciseElapsedSeconds) : null;
 
   const beginExercise = () => {
     if (recordDate !== deviceDate) {
@@ -773,7 +778,7 @@ function ExerciseDashboard({
       return;
     }
     exerciseMutationRef.current++;
-    const session = startExerciseSession(userId, { title: activeSportsPlan.title, minutes: activeSportsPlan.minutes, steps: activeSportsPlan.steps });
+    const session = startExerciseSession(userId, { title: activeSportsPlan.title, minutes: activeSportsPlan.minutes, steps: activeSportsPlan.steps, stepSeconds: "stepSeconds" in activeSportsPlan ? activeSportsPlan.stepSeconds : undefined });
     setExerciseSession(session);
     setExerciseSessionNow(Date.now());
     setExerciseSessionMessage(locale === "zh" ? "运动已开始，离开页面或换设备后仍可恢复。" : "Workout started and can resume after leaving or switching devices.");
@@ -920,7 +925,7 @@ function ExerciseDashboard({
     </PreviewInterruptionNotice>}
     {exerciseSession ? <div className="exercise-live-session" data-exercise-session data-running={Boolean(exerciseSession.runningSince)}>
       <div className="exercise-live-progress" style={{ "--progress": `${exerciseProgress}%` } as CSSProperties}><Activity size={28} /><strong>{exerciseTimerText}</strong><small>{locale === "zh" ? `计划 ${exerciseSession.plannedMinutes} 分钟` : `${exerciseSession.plannedMinutes}-minute plan`}</small></div>
-      <div className="exercise-live-copy"><strong>{exerciseSession.title}</strong><p>{exerciseSession.steps[exerciseStepIndex] ?? (locale === "zh" ? "按身体感受继续" : "Continue by feel")}</p><span>{locale === "zh" ? `已进行 ${exerciseElapsedMinutes} 分钟 · ${exerciseProgress}%` : `${exerciseElapsedMinutes} minutes · ${exerciseProgress}%`}</span></div>
+      <div className="exercise-live-copy"><strong>{exerciseSession.title}</strong><p data-exercise-stage>{exerciseStage?.complete ? (locale === "zh" ? "计划时长已到，可以结束并核对感受。" : "Planned time reached. Finish when ready and review how you feel.") : exerciseStage ? exerciseSession.steps[exerciseStage.index] : (locale === "zh" ? "按身体感受继续；旧计划没有可确认的分段时长。" : "Continue by feel; this older plan has no verified stage durations.")}</p><span>{locale === "zh" ? `已进行 ${exerciseElapsedMinutes} 分钟 · ${exerciseProgress}%` : `${exerciseElapsedMinutes} minutes · ${exerciseProgress}%`}</span>{exerciseStage && !exerciseStage.complete && <small>{locale === "zh" ? "本阶段剩余 " : "Stage remaining "}{Math.floor(exerciseStage.remaining / 60)}:{String(exerciseStage.remaining % 60).padStart(2, "0")}</small>}</div>
       <div className="exercise-live-actions"><button type="button" onClick={() => void toggleExercisePause()}>{exerciseSession.runningSince ? <Pause size={18} /> : <Play size={18} />}{exerciseSession.runningSince ? (locale === "zh" ? "暂停" : "Pause") : (locale === "zh" ? "继续" : "Resume")}</button><button type="button" className="primary" onClick={() => void completeExercise()}><Square size={17} />{locale === "zh" ? "结束并填写感受" : "Finish & check in"}</button></div>
       <button className="exercise-live-discard" type="button" onClick={discardExercise}>{locale === "zh" ? "放弃本次计时" : "Discard timer"}</button>
     </div> : <div className="sports-plan"><Activity /><div className="sports-preset-picker" role="group" aria-label={locale === "zh" ? "选择运动计划" : "Choose a movement plan"}><button type="button" className={sportsPresetId === "recommended" ? "selected" : ""} onClick={() => setSportsPresetId("recommended")}>{locale === "zh" ? "今日建议" : "Suggested"}</button>{sportsPresets.map((preset) => <button type="button" className={sportsPresetId === preset.id ? "selected" : ""} key={preset.id} onClick={() => setSportsPresetId(preset.id)}>{preset.minutes} min</button>)}</div><strong>{activeSportsPlan.title}</strong><p>{activeSportsPlan.reason}</p><div className="sports-plan-steps">{activeSportsPlan.steps.map((step, index) => <span key={step}><b>{index + 1}</b>{step}</span>)}</div><small className="sports-plan-disclaimer">{locale === "zh" ? "规则建议，不是医疗或训练处方；如有不适请停止。" : "Rule-based guidance, not a medical or training prescription. Stop if you feel unwell."}</small><div className="sports-plan-actions"><button type="button" onClick={beginExercise}><CirclePlay size={17} />{locale === "zh" ? "开始此计划" : "Start this plan"}</button><button type="button" onClick={useSportsPlan}>{locale === "zh" ? "直接填写记录" : "Log without timer"}</button></div></div>}
@@ -1067,6 +1072,7 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
           : (locale === "zh" ? "写下今天的情绪日志" : "Write today's mood journal")}</button>
       </section>
       {repeatedLowMood && <section className="mood-pattern-alert" role="status"><HeartPulse size={18} /><p>{locale === "zh" ? "最近 3 次记录都处于低位。可以先降低今天的任务负荷；如果这种状态持续或影响安全，请联系可信任的人或专业支持。" : "Your last 3 entries were low. Reduce today's load, and seek trusted or professional support if this persists or affects safety."}</p></section>}
+      <MoodBreathing locale={locale} active={view === "overview"} savedScore={todaySnapshot?.mood?.record_date === deviceDate ? todaySnapshot.mood.mood_score : null} onOpenAi={props.onOpenAi} />
       <section className="figma-module-card mood-trend-card">
         <header><strong>{locale === "zh" ? "近 7 天情绪趋势" : "7-day mood"}</strong><button className="module-card-nav-button" type="button" onClick={() => openView("history")} aria-label={locale === "zh" ? "查看情绪趋势报告" : "View mood trend report"}><ChevronRight size={18} /></button></header>
         <div className="mood-chart"><BarLineTrendChart points={trendPoints} scoreScale interactive curve="monotone" lineAnchor="bar-center" ariaLabel={locale === "zh" ? `近七日情绪强度柱状图与平滑趋势曲线，日期从${trendPoints[0]?.label}至${trendPoints[trendPoints.length - 1]?.label}，当天为${trendPoints[trendPoints.length - 1]?.label}，纵轴范围零到一百` : `Seven-day mood intensity bars and smooth trend line, ${trendPoints[0]?.label} to ${trendPoints[trendPoints.length - 1]?.label}; the final point is today, on a zero to one hundred scale`} /></div>
@@ -1094,10 +1100,12 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
           <small>{distribution.dominant.label}</small>
         </div>
       </section>
+      <MonthlyWellbeing userId={props.userId} module="mood" locale={locale} deviceDate={deviceDate} revision={trendBundle} factorLabels={Object.fromEntries(moodFactors.map((factor) => [factor.value, factor.label]))} />
       {view === "journal" && (
         <div className="module-modal" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "情绪日记" : "Mood journal"}>
           <div className="module-modal-card">
             <header><strong>{locale === "zh" ? "情绪日记" : "Mood journal"}</strong><button type="button" onClick={() => openView("overview")}><X size={20} /></button></header>
+            <p className="wellbeing-reflection">{locale === "zh" ? "如果想复盘，可以写：今天什么帮助了我？下次想尝试什么？也可以只写此刻的感受。" : "If helpful, reflect: What supported me today? What might I try next time? Or simply write how you feel."}</p>
             <textarea autoFocus value={diary} onChange={(event) => setDiary(event.target.value)} placeholder={locale === "zh" ? "写下此刻发生的事……" : "What happened just now?"} />
             {!canComplete && <p className="mood-completion-hint">{locale === "zh" ? "请先调整情绪强度、选择主要原因，并写下今天的情绪。" : "Adjust the intensity, choose a cause, and write today's mood before saving."}</p>}
             <div><button type="button" onClick={() => openView("overview")}>{locale === "zh" ? "取消" : "Cancel"}</button><button type="submit" disabled={busy !== null || !canComplete}>{locale === "zh" ? "保存" : "Save"}</button></div>
@@ -1200,6 +1208,7 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
           ? <BarLineTrendChart points={sleepTrend} scoreScale lineAnchor="bar-center" ariaLabel={locale === "zh" ? "近七日睡眠时长柱状图与同源趋势折线图，每个点对应同日柱子的几何中心" : "Seven-day sleep-duration bars with a linked line whose points match each bar's geometric center"} />
           : <p className="module-empty-copy">{locale === "zh" ? "完成睡眠记录后显示趋势" : "Log sleep to begin the trend"}</p>}
       </section>
+      <MonthlyWellbeing userId={userId} module="sleep" locale={locale} deviceDate={deviceDate} revision={trendBundle} />
       {view === "alert" && <div className="module-modal" role="dialog" aria-modal="true"><div className="module-modal-card sleep-alert-modal"><header><strong>{locale === "zh" ? "睡眠提醒" : "Sleep reminder"}</strong><button type="button" onClick={() => openView("overview")}><X size={20} /></button></header><div className="lock-screen-preview"><Bell size={24} /><strong>NAVA</strong><p>{locale === "zh" ? "该准备入睡了，给今天一个安静的收尾。" : "Time to wind down and close the day quietly."}</p></div><label className="sleep-reminder-time"><span>{locale === "zh" ? "每天提醒时间" : "Daily reminder"}</span><input type="time" value={reminderTime} onChange={(event) => setReminderTime(event.target.value)} /></label><button type="button" onClick={() => void enableNotification()}>{notificationEnabled ? <BellOff size={18} /> : <Bell size={18} />}{notificationEnabled ? (locale === "zh" ? `已设为 ${reminderTime}` : `Set for ${reminderTime}`) : (locale === "zh" ? "开启锁屏提醒" : "Enable lock-screen reminder")}</button><button type="button" onClick={() => { window.sessionStorage.setItem(todayKey, "1"); setAlertVisible(false); openView("overview"); }}>{locale === "zh" ? "今天不再提醒" : "Not again today"}</button></div></div>}
     </div>
   );
@@ -1406,7 +1415,11 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const [previewInterruption, setPreviewInterruption] = useState(false);
   const [startedAt, setStartedAt] = useState<string | undefined>(focusLaunch?.startedAt ?? restoredTimer?.startedAt);
   const [sessionId, setSessionId] = useState(focusLaunch?.id ?? restoredTimer?.sessionId ?? crypto.randomUUID());
+  const currentFocusSessionRef = useRef(sessionId);
+  currentFocusSessionRef.current = sessionId;
   const [saving, setSaving] = useState(false);
+  const [focusSaveError, setFocusSaveError] = useState<string | null>(null);
+  useEffect(() => setFocusSaveError(null), [sessionId]);
   const [saved, setSaved] = useState(false);
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [morningPlanOpen, setMorningPlanOpen] = useState(false);
@@ -2008,20 +2021,36 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       .catch(() => setCapabilityMessage(locale === "zh" ? "系统全屏申请失败。" : "System full screen request failed."));
   };
 
+  const resetForNewFocus = (duration = countdownDurationSeconds) => {
+    if (saving) return;
+    setSessionId(crypto.randomUUID());
+    setStartedAt(undefined);
+    setRemaining(duration);
+    setElapsedSeconds(0);
+    setRunning(false);
+    setHasStarted(false);
+    setInterruptions(0);
+    setInterruptionReasons(emptyFocusInterruptionReasons());
+    setCurrentInterruptionReason(null);
+    setPreviewInterruption(false);
+    breakCueSlotRef.current = 0;
+    setBreakCue(false);
+    setSaved(false);
+    setFocusSaveError(null);
+  };
+
   const updateDuration = (nextValue: number) => {
+    if (saving) return;
     clearDifficultyAssessment();
     const nextMinutes = Math.min(180, Math.max(1, Math.round(nextValue || 1)));
     const nextSeconds = nextMinutes * 60;
     setFocusMinutes(nextMinutes);
     setCountdownDurationSeconds(nextSeconds);
-    setRemaining(nextSeconds);
-    setElapsedSeconds(0);
-    setRunning(false);
-    setHasStarted(false);
-    setSaved(false);
+    resetForNewFocus(nextSeconds);
   };
 
   const updateTimerPart = (part: "minutes" | "seconds", rawValue: string) => {
+    if (saving) return;
     const parsed = Number.parseInt(rawValue.replace(/\D/g, ""), 10);
     const value = Number.isFinite(parsed) ? parsed : 0;
     const currentTotal = timerMode === "countup" ? elapsedSeconds : countdownDurationSeconds;
@@ -2168,6 +2197,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
     if (saving || !hasStarted) return;
     setRunning(false);
     setSaving(true);
+    setFocusSaveError(null);
     const seconds = timerMode === "countup" ? elapsedSeconds : countdownDurationSeconds - remaining;
     const elapsed = Math.max(1, Math.ceil(seconds / 60));
     const reasonLabels: Record<FocusInterruptionReason, string> = locale === "zh"
@@ -2179,24 +2209,32 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
       .join(locale === "zh" ? "、" : ", ");
     const savedNote = [focusNote.trim(), reasonSummary ? (locale === "zh" ? `中断原因：${reasonSummary}` : `Interruption reasons: ${reasonSummary}`) : ""].filter(Boolean).join("\n");
     try {
-      await onSaveFocusMinutes(elapsed, { interruptions, startedAt, endedAt: new Date().toISOString(), category: focusCategory, note: savedNote, sourceActionId: sessionId });
-      if (selectedTodo && !selectedTodo.completed && selectedTodoCompletedSessions + 1 >= (selectedTodo.focusSessions ?? 1)) await toggleTodo(userId, selectedTodo.id);
+      const didSave = await onSaveFocusMinutes(elapsed, { taskId: selectedTodoId ?? undefined, interruptions, startedAt, endedAt: new Date().toISOString(), category: focusCategory, note: savedNote, sourceActionId: sessionId });
+      if (currentFocusSessionRef.current !== sessionId) return;
+      if (!didSave) {
+        setFocusSaveError(locale === "zh" ? "保存尚未确认，计时已保留。请检查网络和所选待办，再点击结束重试。" : "Save is unconfirmed; your timer is preserved. Check the connection and selected task, then tap Finish to retry.");
+        return;
+      }
+      if (selectedTodo && !selectedTodo.completed && selectedTodoCompletedSessions + 1 >= (selectedTodo.focusSessions ?? 1)) await setTodoCompleted(userId, selectedTodo.id, true);
+      if (currentFocusSessionRef.current !== sessionId) return;
       refreshTodos();
       setSaved(true);
       openView("overview");
+    } catch {
+      setFocusSaveError(locale === "zh" ? "保存或待办更新尚未确认，计时已保留，请重试。" : "Save or task update is unconfirmed. Your timer is preserved; please retry.");
     } finally {
       setSaving(false);
     }
-  }, [countdownDurationSeconds, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptionReasons, interruptions, locale, onSaveFocusMinutes, openView, refreshTodos, remaining, saving, selectedTodo, selectedTodoCompletedSessions, sessionId, startedAt, timerMode, userId]);
+  }, [countdownDurationSeconds, elapsedSeconds, focusCategory, focusNote, hasStarted, interruptionReasons, interruptions, locale, onSaveFocusMinutes, openView, refreshTodos, remaining, saving, selectedTodo, selectedTodoId, selectedTodoCompletedSessions, sessionId, startedAt, timerMode, userId]);
 
   useEffect(() => {
-    if (!immersive || timerMode !== "countdown" || remaining !== 0 || !hasStarted || saving || saved) return;
+    if (!immersive || timerMode !== "countdown" || remaining !== 0 || !hasStarted || saving || saved || focusSaveError) return;
     void finish();
-  }, [finish, hasStarted, immersive, remaining, saved, saving, timerMode]);
+  }, [finish, focusSaveError, hasStarted, immersive, remaining, saved, saving, timerMode]);
 
   if (immersive) {
     return createPortal((
-      <div
+      <fieldset disabled={saving} aria-busy={saving}
         className={["module-dashboard", "focus-immersive", running ? "is-running" : hasStarted ? "is-paused" : "is-ready"].join(" ")}
         data-module-view="focus-immersive"
         data-focus-state={running ? "running" : hasStarted ? "paused" : "ready"}
@@ -2304,8 +2342,10 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
             <span className="focus-timer-status">{running ? (locale === "zh" ? "专注中" : "Focusing") : hasStarted ? (locale === "zh" ? "已暂停" : "Paused") : (locale === "zh" ? "轻触数字可修改" : "Tap the time to edit")}</span>
           </div>
         </div>
+        {saving && <p className="focus-guide-ai-error" role="status">{locale === "zh" ? "正在确认保存，请稍候…" : "Confirming save, please wait…"}</p>}
+        {focusSaveError && <p className="focus-guide-ai-error" role="alert" data-focus-save-error>{focusSaveError}</p>}
         <div className="focus-controls">
-          <button type="button" onClick={() => { setRemaining(countdownDurationSeconds); setElapsedSeconds(0); setRunning(false); setHasStarted(false); setInterruptions(0); setInterruptionReasons(emptyFocusInterruptionReasons()); setCurrentInterruptionReason(null); setPreviewInterruption(false); breakCueSlotRef.current = 0; setBreakCue(false); setSaved(false); }} aria-label={locale === "zh" ? "重置" : "Reset"}><TimerReset /></button>
+          <button type="button" onClick={() => resetForNewFocus()} aria-label={locale === "zh" ? "重置" : "Reset"}><TimerReset /></button>
           <button className="primary" type="button" onClick={() => { setHasStarted(true); if (!startedAt) setStartedAt(new Date().toISOString()); setRunning((value) => !value); }} aria-label={running ? (locale === "zh" ? "暂停" : "Pause") : (locale === "zh" ? "开始" : "Start")}>{running ? <Pause /> : <Play />}</button>
           <button type="button" onClick={() => void finish()} disabled={saving} aria-label={locale === "zh" ? "结束" : "Finish"}><Square /></button>
         </div>
@@ -2332,7 +2372,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
           <div className="focus-interruption-reasons" role="group" aria-label={locale === "zh" ? "中断原因" : "Interruption reason"}>{(["message", "call", "distraction", "other"] as FocusInterruptionReason[]).map((reason) => <button type="button" className={currentInterruptionReason === reason ? "selected" : ""} key={reason} onClick={() => chooseInterruptionReason(reason)}>{locale === "zh" ? ({ message: "消息", call: "来电", distraction: "分心", other: "其他" } as const)[reason] : ({ message: "Message", call: "Call", distraction: "Distraction", other: "Other" } as const)[reason]}</button>)}</div>
           <div className="focus-interruption-actions"><button type="button" onClick={() => { setPreviewInterruption(false); setRunning(true); setHasStarted(true); enterImmersive(true); }}>{locale === "zh" ? "继续专注" : "Keep focusing"}</button><button type="button" onClick={() => void finish()}>{locale === "zh" ? "结束并保存" : "Finish & save"}</button></div>
         </div>}
-      </div>
+      </fieldset>
     ), document.body);
   }
 
@@ -2351,7 +2391,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
               </>}
             </p>
           </div>
-          <button className={["focus-summary-start", saved ? "success" : ""].filter(Boolean).join(" ")} type="button" onClick={() => { if (saved) { setSaved(false); setHasStarted(false); } enterImmersive(); }} aria-label={saved ? (locale === "zh" ? "专注已记录" : "Focus saved") : hasStarted ? (locale === "zh" ? "恢复已暂停的专注" : "Resume paused focus") : (locale === "zh" ? "开始专注" : "Start focus")}>{saved ? <Check size={23} /> : <><CirclePlay size={23} /><span>{hasStarted ? (locale === "zh" ? "恢复" : "Resume") : (locale === "zh" ? "开始" : "Start")}</span></>}</button>
+          <button className={["focus-summary-start", saved ? "success" : ""].filter(Boolean).join(" ")} type="button" disabled={saving} onClick={() => { if (saved) resetForNewFocus(); enterImmersive(); }} aria-label={saved ? (locale === "zh" ? "专注已记录" : "Focus saved") : hasStarted ? (locale === "zh" ? "恢复已暂停的专注" : "Resume paused focus") : (locale === "zh" ? "开始专注" : "Start focus")}>{saved ? <Check size={23} /> : <><CirclePlay size={23} /><span>{hasStarted ? (locale === "zh" ? "恢复" : "Resume") : (locale === "zh" ? "开始" : "Start")}</span></>}</button>
         </div>
       </section>
       <button className="morning-plan-entry" type="button" aria-haspopup="dialog" onClick={() => { setMorningPlanNotice(null); setMorningPlanOpen(true); }}><span><Clock3 size={20} /></span><span><strong>{locale === "zh" ? "开始晨间规划" : "Plan your morning"}</strong><small>{locale === "zh" ? "收集待办 · 选重点 · 安排专注" : "Gather · Prioritize · Timebox"}</small></span><ChevronRight size={20} /></button>
@@ -2525,6 +2565,7 @@ export default function RecordModuleDashboard(props: Props) {
   };
   const moduleLabel = locale === "zh" ? moduleLabels[props.module].zh : moduleLabels[props.module].en;
   return <div className={["record-module-dashboard-shell", focusImmersive ? "record-module-dashboard-shell--focus-immersive" : ""].filter(Boolean).join(" ")}>
+    {view === "overview" && (props.module === "mood" || props.module === "diet") && <ReminderSettings userId={props.userId} locale={locale} scope={props.module} />}
     {dashboard}
     {!focusImmersive && view === "overview" && hasCurrentRecord && <section className="figma-module-card module-assistant-card module-overview-ai" aria-live="polite" data-ai-state={overviewInsightLoading ? "loading" : overviewInsight ? "ready" : overviewInsightError ? "error" : "idle"}>
       <span className="module-assistant-icon"><Bot size={18} /></span>

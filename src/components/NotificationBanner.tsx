@@ -25,16 +25,16 @@ export default function NotificationBanner({
   const begin = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
     gestureRef.current = { pointerId: event.pointerId, startY: event.clientY };
-    try {
-      event.currentTarget.setPointerCapture?.(event.pointerId);
-    } catch {
-      // Synthetic accessibility/QA pointer events do not always own capture.
-    }
   };
 
   const move = (event: ReactPointerEvent<HTMLDivElement>) => {
     const gesture = gestureRef.current;
     if (!gesture || gesture.pointerId !== event.pointerId) return;
+    // Capturing on pointerdown retargets the eventual click to this container,
+    // away from its navigation button. Capture only a deliberate upward swipe.
+    if (event.clientY - gesture.startY < -6) {
+      try { event.currentTarget.setPointerCapture?.(event.pointerId); } catch { /* Synthetic QA events may not own capture. */ }
+    }
     setOffsetY(Math.min(0, Math.max(-96, event.clientY - gesture.startY)));
   };
 

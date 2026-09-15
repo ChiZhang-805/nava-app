@@ -1,4 +1,4 @@
-param([ValidateSet("PublicAiLogin", "TodoExtraction", "PriorityAdvice", "TaskQuadrants", "PublicQuadrants", "FocusEncouragement", "FocusRelease", "ExternalPreview")][string]$Check = "PublicAiLogin")
+param([ValidateSet("PublicAiLogin", "TodoExtraction", "PriorityAdvice", "TaskQuadrants", "PublicQuadrants", "FocusEncouragement", "FocusRelease", "ExternalPreview", "Reminders", "Wellbeing")][string]$Check = "PublicAiLogin")
 
 $secureEmail = Read-Host "NAVA account email" -AsSecureString
 $securePassword = Read-Host "NAVA account password" -AsSecureString
@@ -7,6 +7,16 @@ $passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure
 try {
   $env:NAVA_ACCOUNT_EMAIL = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($emailPointer)
   $env:NAVA_ACCOUNT_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
+  if ($Check -eq "Wellbeing") {
+    & node --experimental-strip-types scripts/verify-wellbeing-account.mjs
+    if ($LASTEXITCODE -ne 0) { throw "Authenticated wellbeing acceptance failed." }
+    return
+  }
+  if ($Check -eq "Reminders") {
+    & node scripts/verify-reminder-account.mjs
+    if ($LASTEXITCODE -ne 0) { throw "Authenticated reminder acceptance failed." }
+    return
+  }
   if ($Check -eq "ExternalPreview") {
     & node scripts/verify-public-external-events.mjs
     if ($LASTEXITCODE -ne 0) { throw "Authenticated external-event acceptance failed." }

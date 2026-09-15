@@ -1,0 +1,25 @@
+.reminder-settings { flex: 0 0 auto; width: 100%; box-sizing: border-box; border: 1px solid rgba(127, 202, 224, .45); border-radius: 22px; background: rgba(244, 252, 255, .91); color: #173f53; overflow: hidden; }
+.reminder-settings-heading { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 12px 16px; border: 0; background: transparent; color: inherit; text-align: left; font-size: 16px; }
+.reminder-settings-heading strong { flex: 1; }
+.reminder-settings-heading .is-open { transform: rotate(180deg); }
+.reminder-settings-body { padding: 0 16px 16px; }
+.reminder-settings-body p { margin: 0 0 12px; font-size: 14px; line-height: 1.6; }
+.reminder-setting-row { display: grid; grid-template-columns: minmax(0, 1fr) 108px 48px; gap: 12px; align-items: center; min-height: 64px; border-top: 1px solid #d9ecf3; font-size: 16px; font-weight: 650; }
+.reminder-setting-row input { box-sizing: border-box; min-width: 0; width: 108px; min-height: 44px; border: 1px solid #b8dce8; border-radius: 12px; padding: 6px; color: #174d65; background: #f9fdff; font: inherit; }
+.reminder-switch { position: relative; width: 48px; height: 44px; padding: 0; border: 0; background: transparent; }
+.reminder-switch::before { content: ""; position: absolute; inset: 8px 0; border-radius: 18px; background: #bdd2dc; }
+.reminder-switch span { position: absolute; left: 3px; top: 11px; width: 22px; height: 22px; background: white; border-radius: 50%; box-shadow: 0 1px 4px #4568; transition: transform .18s ease; }
+.reminder-switch[aria-checked="true"]::before { background: #158eae; }
+.reminder-switch[aria-checked="true"] span { transform: translateX(20px); }
+.reminder-setting-row button:disabled, .reminder-setting-row input:disabled { opacity: .6; }
+.reminder-settings .reminder-delivery-note { margin-top: 12px; color: #527382; }
+.reminder-settings .reminder-error { color: #9e3333; margin-bottom: 0; }
+.reminder-settings .reminder-saved { color: #067559; margin-bottom: 0; }
+.nava-reminder-preview { display: none; }
+@media (hover: hover) and (pointer: fine) and (min-width: 700px) and (min-height: 700px) {
+  .nava-reminder-preview { display: block; margin-top: 14px; padding-top: 14px; border-top: 1px solid #52616a; font-size: 13px; line-height: 1.6; }
+  .nava-reminder-preview strong { display: block; margin-bottom: 8px; }
+  .nava-reminder-preview > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .nava-reminder-preview button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; background: #eaf7fc; color: #184254; border: 0; border-radius: 10px; }
+  .nava-reminder-preview p { margin: 8px 0 0; color: #c7d9e3; }
+}

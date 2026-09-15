@@ -195,10 +195,16 @@ export async function addTodo(
 }
 
 export async function toggleTodo(userId: string, id: string) {
+  const item = loadTodos(userId).find((candidate) => candidate.id === id);
+  if (!item) return loadTodos(userId);
+  return setTodoCompleted(userId, id, !item.completed);
+}
+
+/** Explicit desired state is safe to retry after a lost acknowledgement. */
+export async function setTodoCompleted(userId: string, id: string, completed: boolean) {
   const current = loadTodos(userId);
   const item = current.find((candidate) => candidate.id === id);
   if (!item) return current;
-  const completed = !item.completed;
   if (!isDemoMode()) {
     const updated = await supabase
       .from("tasks")

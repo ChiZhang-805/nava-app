@@ -23,6 +23,8 @@ export default function LineTrendChart({
   verticalEmphasis = false,
   curve = "bump",
   showAllDates = false,
+  showValues = true,
+  dateLabelEvery = 2,
   rangeFloorRatio = 0,
   showArea = true,
   showConfidenceBand = true,
@@ -36,6 +38,8 @@ export default function LineTrendChart({
   verticalEmphasis?: boolean;
   curve?: ChartCurveMode;
   showAllDates?: boolean;
+  showValues?: boolean;
+  dateLabelEvery?: number;
   rangeFloorRatio?: number;
   showArea?: boolean;
   showConfidenceBand?: boolean;
@@ -178,7 +182,7 @@ export default function LineTrendChart({
         {points.map((point, index) => {
           const x = xAt(index);
           const y = point.missing ? null : yAt(point.value);
-          const showDate = showAllDates || points.length <= 4 || index % 2 === 0 || index === points.length - 1;
+          const showDate = showAllDates || points.length <= 4 || index % Math.max(1, dateLabelEvery) === 0 || index === points.length - 1;
           return (
             <g
               className="trend-point"
@@ -190,7 +194,7 @@ export default function LineTrendChart({
               {!point.missing && y != null && <><circle cx={x} cy={y} r="4.5">
                 <title>{`${point.label}: ${valueFormatter(point.value)}`}</title>
               </circle>
-              <text className="trend-value" x={x} y={Math.max(12, y - 9)} textAnchor="middle">{valueFormatter(point.value)}</text>
+              {showValues && <text className="trend-value" x={x} y={Math.max(12, y - 9)} textAnchor="middle">{valueFormatter(point.value)}</text>}
               </>}
               {showDate && <text className="trend-date" x={x} y={dateY} textAnchor="middle">{point.label}</text>}
             </g>

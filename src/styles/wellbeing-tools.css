@@ -1,0 +1,32 @@
+.wellbeing-tool.figma-module-card { flex: 0 0 auto; height: auto; min-height: 0; overflow: visible; padding: 14px; }
+fieldset.focus-immersive { border: 0; margin: 0; min-width: 0; }
+fieldset.focus-immersive:disabled button, fieldset.focus-immersive:disabled input { cursor: wait; opacity: .6; }
+.wellbeing-heading { width: 100%; min-height: 44px; display: flex; align-items: center; gap: 10px; border: 0; background: none; color: inherit; text-align: left; padding: 0; }
+.wellbeing-heading strong { flex: 1; font-size: 16px; line-height: 1.4; }
+.wellbeing-heading > span { font-size: 23px; }
+.wellbeing-body { display: grid; gap: 16px; margin-top: 12px; min-width: 0; }
+.wellbeing-body p { margin: 0; line-height: 1.65; font-size: 16px; overflow-wrap: anywhere; }
+.wellbeing-body .wellbeing-note, .wellbeing-source { font-size: 13px; line-height: 1.6; color: #426b7d; }
+.wellbeing-month, .wellbeing-entry label { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 14px; }
+.wellbeing-month input, .wellbeing-entry select { min-height: 44px; min-width: 0; max-width: 100%; border: 1px solid #acd9e8; border-radius: 12px; background: #f2fbff; color: #174458; padding: 8px; font: inherit; }
+.phone-frame:not(.phone-frame--option2) .record-detail .wellbeing-tool .wellbeing-month input[type="month"] { min-height: 44px; height: 44px; padding: 8px; font-size: 16px; }
+.wellbeing-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.wellbeing-summary span { display: grid; gap: 8px; font-size: 13px; }
+.wellbeing-summary strong { font-size: 19px; }
+.wellbeing-factors { display: grid; gap: 12px; }
+.wellbeing-factor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(40px, 1.3fr) auto; align-items: center; gap: 8px; font-size: 14px; }
+.wellbeing-factor span { overflow-wrap: anywhere; }
+.wellbeing-factor meter { width: 100%; accent-color: #1a96af; }
+.wellbeing-entry { display: grid; gap: 12px; border-top: 1px solid #cce7ee; padding-top: 16px; }
+.wellbeing-entry p { white-space: pre-wrap; }
+.wellbeing-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.wellbeing-actions button, .wellbeing-retry { display: inline-flex; flex: 1; align-items: center; justify-content: center; gap: 7px; min-height: 44px; border: 1px solid #acd9e8; background: #e0f5fc; color: #174458; padding: 10px 12px; border-radius: 14px; font-size: 14px; }
+.breathing-orbit { width: 100%; display: grid; place-items: center; gap: 10px; padding: 18px 0; text-align: center; }
+.breathing-orbit img { width: 100px; height: 100px; object-fit: contain; border-radius: 50%; box-shadow: 0 0 0 10px #a9dfe34a; transition: box-shadow 5s linear; }
+.breathing-orbit.inhale img { box-shadow: 0 0 0 23px #a9dfe37a; }
+.breathing-orbit.exhale img { box-shadow: 0 0 0 6px #a9dfe34a; }
+.breathing-orbit strong { padding-top: 14px; font-size: 18px; }
+.breathing-orbit span { font-size: 14px; color: #426b7d; }
+.wellbeing-source { justify-self: start; min-height: 44px; display: inline-flex; align-items: center; }
+.wellbeing-reflection { background: #e9f8fc; border-radius: 12px; padding: 12px; font-size: 14px; line-height: 1.6; }
+@media (prefers-reduced-motion: reduce) { .breathing-orbit img { transition: none; box-shadow: 0 0 0 10px #a9dfe34a; } }

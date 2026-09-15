@@ -1,6 +1,7 @@
 import { supabase } from "./supabaseClient";
 import { shiftDateISO, todayISO } from "./date";
 import { isCompleteMoodRecord } from "./mood";
+import { emitReminderRecordSaved } from "./independentReminders";
 import type {
   ExerciseRecord,
   DailyRhythmScore,
@@ -222,7 +223,11 @@ export async function saveMoodRecord(input: {
   factors: string[];
   diary?: string;
 }) {
-  if (isDemoMode()) return saveDemoMood(input);
+  if (isDemoMode()) {
+    const saved = saveDemoMood(input);
+    emitReminderRecordSaved(input.userId, normalizeRecordDate(input.date), "mood");
+    return saved;
+  }
 
   if (!Number.isFinite(input.moodScore) || input.moodScore < 0 || input.moodScore > 100) {
     throw new Error("情绪分数必须在 0 到 100 之间。");
@@ -243,6 +248,7 @@ export async function saveMoodRecord(input: {
     .single();
 
   assertNoError(error);
+  emitReminderRecordSaved(input.userId, data.record_date, "mood");
   return data as MoodRecord;
 }
 
@@ -470,13 +476,14 @@ export async function saveNutritionRecord(input: {
     ...(input.fatGrams !== undefined ? { fat_grams: input.fatGrams } : {}),
   };
   const summary = nutritionInputSummary({ ...input, items: [item] });
-  if (isDemoMode()) return saveDemoNutrition({ ...input, items: [item], summary, append: true });
-  return mutateNutritionMeal({
+  const saved = isDemoMode() ? saveDemoNutrition({ ...input, items: [item], summary, append: true }) : await mutateNutritionMeal({
     ...input,
     items: [item],
     append: true,
     summary,
   });
+  if (input.meal !== "pantry") emitReminderRecordSaved(input.userId, saved.record_date, input.meal);
+  return saved;
 }
 
 export async function saveNutritionItems(input: {
@@ -495,14 +502,14 @@ export async function saveNutritionItems(input: {
 }) {
   if (input.items.length === 0) throw new Error("没有可保存的食物条目。");
   const items = validatedFoodItems(input.items);
-  if (isDemoMode()) return saveDemoNutrition({ ...input, items, summary: nutritionInputSummary({ ...input, items }) });
-
-  return mutateNutritionMeal({
+  const saved = isDemoMode() ? saveDemoNutrition({ ...input, items, summary: nutritionInputSummary({ ...input, items }) }) : await mutateNutritionMeal({
     ...input,
     items,
     append: input.append === true,
     summary: nutritionInputSummary(input),
   });
+  if (input.meal !== "pantry") emitReminderRecordSaved(input.userId, saved.record_date, input.meal);
+  return saved;
 }
 
 function nutritionInputSummary(input: {
@@ -698,6 +705,7 @@ async function ensureTask(userId: string, title: string, date: string) {
 
 export async function saveFocusSession(input: {
   userId: string;
+  taskId?: string;
   date?: string;
   taskTitle: string;
   minutes: number;
@@ -714,7 +722,16 @@ export async function saveFocusSession(input: {
   const recordDate = normalizeRecordDate(input.date);
   const minutes = nonNegativeInt(input.minutes, "专注分钟");
   if (minutes === 0) throw new Error("专注分钟必须大于 0。");
-  const task = await ensureTask(input.userId, input.taskTitle.trim() || "NAVA 专注", recordDate);
+  // A selected task is an identity, not a title search: same-name todos can coexist.
+  let task: { id: string; title: string };
+  if (input.taskId) {
+    const selected = await supabase.from("tasks").select("id,title").eq("user_id", input.userId).eq("id", input.taskId).maybeSingle();
+    assertNoError(selected.error);
+    if (!selected.data) throw new Error("所选待办已不可用，本次计时尚未保存。请保留计时并重新确认任务。");
+    task = selected.data;
+  } else {
+    task = await ensureTask(input.userId, input.taskTitle.trim() || "NAVA 专注", recordDate);
+  }
   const endedAt = input.endedAt ?? new Date().toISOString();
   const localHour = new Date(input.startedAt ?? endedAt).getHours();
   const response = await supabase.rpc("record_focus_session", {

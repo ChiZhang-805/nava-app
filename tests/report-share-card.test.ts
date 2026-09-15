@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { sevenDayDateRange, todayISO } from "../src/services/date.ts";
-
-function currentReportDateRange(date: Date) {
-  return sevenDayDateRange(todayISO(date));
-}
+import { currentReportDateRange } from "../src/services/reportShareCard.ts";
 
 test("share-card range follows the device-local day", () => {
   const range = currentReportDateRange(new Date(2026, 7, 29, 23, 59, 0));

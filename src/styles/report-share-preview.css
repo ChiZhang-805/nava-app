@@ -1,0 +1,13 @@
+.report-share-overlay { position: absolute; inset: 0; z-index: 240; background: #244e6270; padding: max(70px, calc(var(--nava-system-safe-top, 0px) + 10px), calc(env(safe-area-inset-top) + 12px)) 14px max(28px, calc(env(safe-area-inset-bottom) + 12px)); display: flex; color: #14394d; }
+.report-share-sheet { display: flex; flex-direction: column; width: 100%; min-width: 0; min-height: 0; background: #effaff; border: 1px solid #fff; border-radius: 24px; overflow: hidden; box-shadow: 0 16px 44px #164a6433; }
+.report-share-sheet header { display: flex; align-items: center; gap: 12px; padding: 12px 14px 6px; flex-shrink: 0; }
+.report-share-sheet h2 { flex: 1; font-size: 18px; margin: 0; line-height: 1.4; }
+.report-share-sheet button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-width: 44px; min-height: 44px; border: 1px solid #b7dfe9; border-radius: 13px; background: #def3fa; color: #174458; font-size: 15px; padding: 9px 12px; }
+.report-share-sheet button:disabled { opacity: .5; }
+.report-share-content { overflow-y: auto; overscroll-behavior: contain; min-height: 0; padding: 0 14px 14px; display: flex; flex-direction: column; gap: 12px; }
+.report-share-content p { margin: 0; font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
+.report-share-content label { display: flex; align-items: center; gap: 10px; min-height: 44px; flex-shrink: 0; font-size: 15px; }
+.report-share-content input { width: 20px; height: 20px; accent-color: #178aa7; }
+.report-share-content img { width: 100%; height: auto; flex-shrink: 0; border-radius: 14px; }
+.report-share-sheet footer { padding: 12px 14px; border-top: 1px solid #c4e4ec; flex-shrink: 0; margin-top: auto; }
+.report-share-sheet footer button { width: 100%; background: #147d98; color: white; }

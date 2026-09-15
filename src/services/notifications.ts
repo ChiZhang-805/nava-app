@@ -4,6 +4,7 @@ import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
 import { buildContextualNotificationDrafts } from "./notificationPlanner";
 import { replaceNotificationSchedules } from "./notificationSchedule";
+import { localReminderDate } from "./independentReminders";
 
 const SLEEP_ID = 41001;
 const WEEKLY_ID = 41002;
@@ -273,8 +274,9 @@ export async function hydrateNavaNotifications(userId: string, migrateLocal = tr
   return listNavaNotifications(userId);
 }
 
-export function listNavaNotifications(userId: string) {
-  return visibleItems(compactItems(readStoredItems(userId)));
+export function listNavaNotifications(userId: string, includeDeleted = false) {
+  const items = compactItems(readStoredItems(userId));
+  return includeDeleted ? items : visibleItems(items);
 }
 
 export function unreadNavaNotificationCount(userId: string) {
@@ -440,7 +442,10 @@ export function syncContextualNotifications(
   options: { present?: boolean } = { present: true },
   trends?: Pick<import("../types").TrendBundle, "moods" | "sleeps" | "exercises" | "nutritions" | "faces">,
 ) {
-  const drafts = buildContextualNotificationDrafts(snapshot, now.getHours(), locale, trends);
+  // Missing mood/meal reminders now belong to the independent, minute-aware
+  // scheduler. Keep evidence-based trend and hydration advisories unchanged.
+  const drafts = buildContextualNotificationDrafts(snapshot, now.getHours(), locale, trends)
+    .filter((draft) => ![`context:${snapshot.date}:mood`, `context:${snapshot.date}:nutrition`, `context:${snapshot.date}:nutrition-gap`].includes(draft.id));
   let presented = false;
   for (const draft of drafts) {
     const item = {
@@ -560,9 +565,7 @@ async function scheduleNativeSuite(sleepTime: string, comprehensive: boolean) {
     { id: WEEKLY_ID, title: "NAVA · 本周健康报告", body: "小猫已经整理好你的跨模块周报。", schedule: { on: { weekday: 2, hour: 8, minute: 0 }, allowWhileIdle: true }, extra: { notificationId: "native:weekly", category: "weekly", destination: "record" } },
   ];
   if (comprehensive) notifications.push(
-    { id: NUTRITION_ID, title: "NAVA · 饮食提醒", body: "记录一餐，让今天的能量和营养更清楚。", schedule: { on: { hour: 12, minute: 30 }, allowWhileIdle: true }, extra: { notificationId: "native:nutrition", category: "nutrition", destination: "record/diet/editor" } },
     { id: FOCUS_ID, title: "NAVA · 专注提醒", body: "从一个 25 分钟专注块开始今天的重点。", schedule: { on: { hour: 10, minute: 0 }, allowWhileIdle: true }, extra: { notificationId: "native:focus", category: "focus", destination: "record/focus" } },
-    { id: MOOD_ID, title: "NAVA · 情绪提醒", body: "给今天的心情留一句真实记录。", schedule: { on: { hour: 20, minute: 30 }, allowWhileIdle: true }, extra: { notificationId: "native:mood", category: "mood", destination: "record/mood/editor" } },
     { id: HEALTH_ID, title: "NAVA · 今日状态", body: "看看今天的活动与恢复，按身体感受安排下一步。", schedule: { on: { hour: 18, minute: 30 }, allowWhileIdle: true }, extra: { notificationId: "native:health", category: "exercise", destination: "record/exercise" } },
   );
   await replaceNotificationSchedules(LocalNotifications, notifications);
@@ -584,8 +587,8 @@ export async function enableNavaNotificationSuite(userId: string, sleepTime = "2
   await scheduleNativeSuite(sleepTime, true);
   await Promise.all([
     savePreference(userId, "sleep", `${sleep.hour.toString().padStart(2, "0")}:${sleep.minute.toString().padStart(2, "0")}`),
-    savePreference(userId, "nutrition", "12:30"), savePreference(userId, "focus", "10:00"),
-    savePreference(userId, "mood", "20:30"), savePreference(userId, "fdnb_signal", "18:30"),
+    savePreference(userId, "focus", "10:00"),
+    savePreference(userId, "fdnb_signal", "18:30"),
     savePreference(userId, "weekly_report", "08:00"),
   ]);
   const { registerRemotePush } = await import("./remotePush");
@@ -594,7 +597,7 @@ export async function enableNavaNotificationSuite(userId: string, sleepTime = "2
     id: "system:notifications-enabled", category: "system", source: "system",
     title: locale === "zh" ? "系统提醒已开启" : "System reminders enabled",
     body: Capacitor.isNativePlatform()
-      ? (locale === "zh" ? "睡眠、饮食、专注、情绪、状态和周报提醒已安排。" : "Sleep, diet, focus, mood, status, and weekly reminders are scheduled.")
+      ? (locale === "zh" ? "系统通知已授权；情绪和三餐按各自的提醒设置安排。" : "System alerts are authorized; mood and meals follow their individual settings.")
       : (locale === "zh" ? "浏览器通知已授权；应用内提醒会继续使用真实记录判断。" : "Browser alerts are enabled; in-app reminders still use your real records."),
     target: { tab: "today", view: "notifications" },
   }, { present: true, replace: true });
@@ -628,7 +631,7 @@ function inboxItemFromNative(notification: LocalNotificationSchema): NavaNotific
   const notificationId = typeof extra?.notificationId === "string" ? extra.notificationId : `native:${notification.id}`;
   const category = typeof extra?.category === "string" ? extra.category as NavaNotificationCategory : "system";
   return {
-    id: `${notificationId}:${new Date().toISOString().slice(0, 10)}`, category, source: "native",
+    id: extra?.independentReminder ? notificationId : `${notificationId}:${localReminderDate(new Date())}`, category, source: "native",
     title: notification.title ?? "NAVA", body: notification.body ?? "", createdAt: new Date().toISOString(),
     target: targetFromDestination(extra?.destination),
   };
@@ -638,10 +641,12 @@ export async function subscribeNativeNotificationActions(userId: string, onOpen:
   if (!Capacitor.isNativePlatform()) return null;
   const handles: PluginListenerHandle[] = [];
   handles.push(await LocalNotifications.addListener("localNotificationReceived", (notification) => {
+    if (notification.extra?.independentReminder && (notification.extra.userId !== userId || notification.extra.scheduledDate !== localReminderDate(new Date()))) return;
     const item = inboxItemFromNative(notification);
     publishNavaNotification(userId, item, { present: true, replace: true });
   }));
   handles.push(await LocalNotifications.addListener("localNotificationActionPerformed", (action) => {
+    if (action.notification.extra?.independentReminder && (action.notification.extra.userId !== userId || action.notification.extra.scheduledDate !== localReminderDate(new Date()))) return;
     const item = inboxItemFromNative(action.notification);
     publishNavaNotification(userId, { ...item, readAt: new Date().toISOString() }, { replace: true });
     onOpen(item);

@@ -7,6 +7,8 @@ import {
   IPHONE_PREVIEW_DEVICES,
 } from "../constants/iphonePreviewDevices";
 import { getPreviewActivity, simulatePreviewInterruption, subscribePreviewActivity } from "../services/previewEnvironment";
+import { reminderKinds, reminderLabels, reminderPreviewEvent, type ReminderKind } from "../services/independentReminders";
+import "../styles/reminders.css";
 
 const DEVICE_PREFERENCE_KEY = "nava.desktop-preview-device.v1";
 const GRID_PREFERENCE_KEY = "nava.desktop-preview-grid.v1";
@@ -20,7 +22,17 @@ function formatMetric(value: number) {
   return value.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
 }
 
-export default function DesktopDevicePreviewChrome() {
+export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminderUserId?: string } = {}) {
+  const [reminderResult, setReminderResult] = useState("");
+  const [reminderBusy, setReminderBusy] = useState(false);
+  const simulateReminder = async (kind: ReminderKind) => {
+    setReminderBusy(true);
+    const message = await new Promise<string>((resolve) => {
+      const timer = window.setTimeout(() => resolve("尚未就绪或网络未响应，请稍后重试。"), 15_000);
+      window.dispatchEvent(new CustomEvent(reminderPreviewEvent, { detail: { kind, resolve: (value: string) => { window.clearTimeout(timer); resolve(value); } } }));
+    });
+    setReminderResult(message); setReminderBusy(false);
+  };
   const [clock, setClock] = useState(currentClock);
   const [deviceId, setDeviceId] = useState(() => {
     try {
@@ -147,7 +159,7 @@ export default function DesktopDevicePreviewChrome() {
     const observer = new ResizeObserver(updateHeight);
     observer.observe(face);
     return () => observer.disconnect();
-  }, [device.id, showSpecifications]);
+  }, [device.id, showSpecifications, reminderResult, reminderUserId]);
 
   const chooseDevice = (nextDeviceId: string) => {
     const nextDevice = findIPhonePreviewDevice(nextDeviceId);
@@ -206,6 +218,12 @@ export default function DesktopDevicePreviewChrome() {
               />
               <span>1 pt 校准网格（10 pt 加粗）</span>
             </label>
+            {reminderUserId && <section className="nava-reminder-preview" data-reminder-preview>
+              <strong>模拟到点提醒</strong>
+              <div>{reminderKinds.map((kind) => <button key={kind} type="button" disabled={reminderBusy} aria-label={`模拟${reminderLabels[kind][0]}到点提醒`} onClick={() => void simulateReminder(kind)}><Bell size={16} />{reminderLabels[kind][0]}</button>)}</div>
+              <p>按已保存的开关和今日记录判断，不写入通知或健康记录。</p>
+              {reminderResult && <p role="status">{reminderResult}</p>}
+            </section>}
           </section>
           <section ref={selectorBackRef} className="nava-device-selector-face nava-device-selector-back" aria-hidden={!showSpecifications} {...(!showSpecifications ? { inert: "" } : {})}>
             <header>

@@ -4,7 +4,7 @@ const recordModules = new Set(["mood", "sleep", "exercise", "diet", "focus", "fa
 
 export function recordSkeletonVariant(module: string | null, editor: boolean | string | null): PageSkeletonVariant {
   if (!module || !recordModules.has(module)) return "records";
-  if (editor === true || editor === "editor" || editor === "conditions") return `record-editor-${module}` as PageSkeletonVariant;
+  if (editor === true || editor === "editor" || editor === "conditions" || (typeof editor === "string" && /^editor-(breakfast|lunch|dinner)$/.test(editor))) return `record-editor-${module}` as PageSkeletonVariant;
   return `record-detail-${module}` as PageSkeletonVariant;
 }
 

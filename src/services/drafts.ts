@@ -1,5 +1,6 @@
 import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
+import { mergeMealDraft, removeMealDraft } from "./mealDrafts";
 
 export type RecordDraftModule = "sleep" | "exercise" | "mood" | "nutrition" | "focus" | "face";
 
@@ -7,6 +8,10 @@ function storageKey(userId: string, module: RecordDraftModule, date: string) {
   return `nava-record-draft:${userId}:${module}:${date}`;
 }
 const draftWrites = new Map<string, Promise<void>>();
+const draftRevisions = new Map<string, number>();
+function readLocalDraft(userId: string, module: RecordDraftModule, date: string) {
+  try { return JSON.parse(window.localStorage.getItem(storageKey(userId, module, date)) ?? "null") as Record<string, unknown> | null; } catch { return null; }
+}
 function pendingKey(userId: string, module: RecordDraftModule, date: string) {
   return `nava-record-draft-pending:${userId}:${module}:${date}`;
 }
@@ -18,6 +23,8 @@ function readPendingDraft(userId: string, module: RecordDraftModule, date: strin
 }
 
 export async function loadRecordDraft(userId: string, module: RecordDraftModule, date: string) {
+  const key = storageKey(userId, module, date);
+  const revision = draftRevisions.get(key) ?? 0;
   let local: Record<string, unknown> | null = null;
   try {
     const raw = window.localStorage.getItem(storageKey(userId, module, date));
@@ -36,10 +43,16 @@ export async function loadRecordDraft(userId: string, module: RecordDraftModule,
     .eq("status", "editing")
     .maybeSingle();
   if (error) throw error;
-  return data?.payload && typeof data.payload === "object" ? data.payload as Record<string, unknown> : local;
+  // A late cloud read must never roll back a local edit or saved-meal cleanup.
+  if (revision !== (draftRevisions.get(key) ?? 0)) return readLocalDraft(userId, module, date);
+  const resolved = data?.payload && typeof data.payload === "object" ? data.payload as Record<string, unknown> : local;
+  if (resolved) window.localStorage.setItem(key, JSON.stringify(resolved));
+  return resolved;
 }
 
 export async function saveRecordDraft(userId: string, module: RecordDraftModule, date: string, payload: Record<string, unknown>) {
+  const key = storageKey(userId, module, date);
+  draftRevisions.set(key, (draftRevisions.get(key) ?? 0) + 1);
   window.localStorage.setItem(storageKey(userId, module, date), JSON.stringify(payload));
   if (isDemoMode()) return;
   window.localStorage.setItem(pendingKey(userId, module, date), JSON.stringify({ operation: "save", payload } satisfies PendingDraft));
@@ -47,10 +60,22 @@ export async function saveRecordDraft(userId: string, module: RecordDraftModule,
 }
 
 export async function clearRecordDraft(userId: string, module: RecordDraftModule, date: string) {
+  const key = storageKey(userId, module, date);
+  draftRevisions.set(key, (draftRevisions.get(key) ?? 0) + 1);
   window.localStorage.removeItem(storageKey(userId, module, date));
   if (isDemoMode()) return;
   window.localStorage.setItem(pendingKey(userId, module, date), JSON.stringify({ operation: "clear" } satisfies PendingDraft));
   return flushRecordDraft(userId, module, date);
+}
+
+// The merge/clear and local outbox update happen synchronously, before any
+// network await. Existing per-account/date flushRecordDraft serializes uploads.
+export function saveMealRecordDraft(userId: string, date: string, payload: Record<string, unknown>) {
+  return saveRecordDraft(userId, "nutrition", date, mergeMealDraft(readLocalDraft(userId, "nutrition", date), payload));
+}
+export function clearMealRecordDraft(userId: string, date: string, meal: string) {
+  const remaining = removeMealDraft(readLocalDraft(userId, "nutrition", date), meal);
+  return remaining ? saveRecordDraft(userId, "nutrition", date, remaining) : clearRecordDraft(userId, "nutrition", date);
 }
 
 async function flushRecordDraft(userId: string, module: RecordDraftModule, date: string) {

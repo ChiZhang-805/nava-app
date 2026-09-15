@@ -30,11 +30,13 @@ import {
   getTrends,
 } from "../services/records";
 import { shiftDateISO, todayISO } from "../services/date";
+import { reminderMealFromView } from "../services/independentReminders";
+import { selectMealDraft } from "../services/mealDrafts";
 import { analyzeDietPhoto, analyzeFacePhoto, resolveDietPhotoUrl } from "../services/media";
 import { currentSevenDayPeriod, loadDnbWeeklyReport, refreshFdnbHealth, shareDnbWeeklyPoster, type DnbWeeklyReport } from "../services/dnb";
 import { trackAnalyticsEvent } from "../services/analytics";
 import type { GrowthActivityKind } from "../services/productivity";
-import { clearRecordDraft, loadRecordDraft, saveRecordDraft, type RecordDraftModule } from "../services/drafts";
+import { clearMealRecordDraft, clearRecordDraft, loadRecordDraft, saveMealRecordDraft, saveRecordDraft, type RecordDraftModule } from "../services/drafts";
 import { loadProfile, type UserProfile } from "../services/profile";
 import { loadDietAiReport } from "../services/dietReport";
 import { healthReportSourceRevision, loadHealthAiReport, type HealthAiReport, type HealthReportSection } from "../services/healthReport";
@@ -267,6 +269,7 @@ export default function RecordsScreen({
   onViewChange?: (view: string | null, replace?: boolean) => void;
 }) {
   const { locale, t } = useLocale();
+  const requestedMeal = reminderMealFromView(initialView);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -336,7 +339,7 @@ export default function RecordsScreen({
   const [recoveryStatus, setRecoveryStatus] = useState<ExerciseRecoveryStatus | null>(null);
   const [exerciseNote, setExerciseNote] = useState("");
 
-  const [meal, setMeal] = useState<"breakfast" | "lunch" | "dinner" | "pantry">("lunch");
+  const [meal, setMeal] = useState<"breakfast" | "lunch" | "dinner" | "pantry">(requestedMeal ?? "lunch");
   const [mealTime, setMealTime] = useState(currentLocalTimeInput);
   const [mealName, setMealName] = useState("");
   const [mealCalories, setMealCalories] = useState<number | null>(null);
@@ -518,7 +521,8 @@ export default function RecordsScreen({
       if (requestId !== recordLoadRequestRef.current) return;
       setDietPhotoUrl(resolvedDietPhotoUrl);
       const draftModule = activeModule === "diet" ? "nutrition" : activeModule;
-      const draft = draftModule ? await loadRecordDraft(user.id, draftModule, recordDate) : null;
+      const storedDraft = draftModule ? await loadRecordDraft(user.id, draftModule, recordDate) : null;
+      const draft = activeModule === "diet" ? selectMealDraft(storedDraft, meal) : storedDraft;
       if (requestId !== recordLoadRequestRef.current) return;
       if (draft && activeModule === "mood") {
         if (typeof draft.moodScore === "number") setMoodScore(draft.moodScore);
@@ -558,7 +562,11 @@ export default function RecordsScreen({
         // A saved nutrition record is the source of truth for its date. Old
         // placeholder drafts must never replace real Supabase data when the
         // user moves between historical dates.
-        const canRestoreDraftValues = !nutrition && !hasLegacyPlaceholder;
+        const selectedMealRecorded = Boolean(nutrition && (
+          (Array.isArray(nutrition[`${meal}_items`]) && nutrition[`${meal}_items`]!.length > 0)
+          || nutrition[`${meal}_time`]
+        ));
+        const canRestoreDraftValues = !selectedMealRecorded && !hasLegacyPlaceholder;
         if (canRestoreDraftValues) {
           if (typeof draft.meal === "string" && ["breakfast", "lunch", "dinner", "pantry"].includes(draft.meal)) setMeal(draft.meal as typeof meal);
           if (typeof draft.mealTime === "string") setMealTime(draft.mealTime);
@@ -571,7 +579,7 @@ export default function RecordsScreen({
           if ((typeof draft.hydrationMl === "number" || draft.hydrationMl === null)) setHydrationMl(draft.hydrationMl);
           if (typeof draft.rating === "number") setDietRating(draft.rating);
         }
-        if (!nutrition && typeof draft.photoPath === "string") {
+        if (canRestoreDraftValues && typeof draft.photoPath === "string") {
           setDietPhotoPath(draft.photoPath);
           const draftPhotoUrl = await resolveDietPhotoUrl(draft.photoPath).catch(() => null);
           if (requestId !== recordLoadRequestRef.current) return;
@@ -656,7 +664,7 @@ export default function RecordsScreen({
   }, [loadRecordData]);
 
   useEffect(() => {
-    if (!draftReady || !activeModule || activeModule === "face" || (!showEditor && activeModule !== "mood" && activeModule !== "focus")) return;
+    if (busy || !draftReady || !activeModule || activeModule === "face" || (!showEditor && activeModule !== "mood" && activeModule !== "focus")) return;
     const module: RecordDraftModule = activeModule === "diet" ? "nutrition" : activeModule;
     const payload: Record<string, unknown> = activeModule === "mood"
       ? { moodScore, selectedFactors, diary }
@@ -668,10 +676,11 @@ export default function RecordsScreen({
             ? { meal, mealTime, name: mealName, calories: mealCalories, items: dietItems, photoPath: dietPhotoPath, proteinGrams, carbohydrateGrams, fatGrams, hydrationMl, rating: dietRating }
             : { title: focusTitle, minutes: focusMinutes, mode: focusMode, note: focusNote, todoId: focusTodoId };
     const timer = window.setTimeout(() => {
-      void saveRecordDraft(user.id, module, recordDate, payload).catch((draftError) => console.warn("Record draft sync deferred", draftError));
+      void (module === "nutrition" ? saveMealRecordDraft(user.id, recordDate, payload) : saveRecordDraft(user.id, module, recordDate, payload))
+        .catch((draftError) => console.warn("Record draft sync deferred", draftError));
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [activeModule, calories, carbohydrateGrams, deepSleep, diary, dietItems, dietPhotoPath, dietRating, draftReady, exerciseMinutes, exerciseNote, exerciseRating, fatGrams, fatigueLevel, focusMinutes, focusMode, focusNote, focusTitle, focusTodoId, hasInjury, heartRate, hydrationMl, injuryNote, lightSleep, meal, mealCalories, mealName, mealTime, moodScore, proteinGrams, recordDate, recoveryStatus, remSleep, selectedFactors, showEditor, sleepDuration, sleepEnd, sleepNote, sleepRating, sleepStart, sorenessLevel, spo2, steps, user.id]);
+  }, [activeModule, busy, calories, carbohydrateGrams, deepSleep, diary, dietItems, dietPhotoPath, dietRating, draftReady, exerciseMinutes, exerciseNote, exerciseRating, fatGrams, fatigueLevel, focusMinutes, focusMode, focusNote, focusTitle, focusTodoId, hasInjury, heartRate, hydrationMl, injuryNote, lightSleep, meal, mealCalories, mealName, mealTime, moodScore, proteinGrams, recordDate, recoveryStatus, remSleep, selectedFactors, showEditor, sleepDuration, sleepEnd, sleepNote, sleepRating, sleepStart, sorenessLevel, spo2, steps, user.id]);
 
   useEffect(() => {
     const estimated = estimateMinutes(sleepStart, sleepEnd);
@@ -704,8 +713,9 @@ export default function RecordsScreen({
   }, [initialModule]);
 
   useEffect(() => {
-    setShowEditor(initialView === "editor" || initialView === "conditions");
-  }, [initialView]);
+    setShowEditor(initialView === "editor" || initialView === "conditions" || !!requestedMeal);
+    if (requestedMeal) { setMeal(requestedMeal); setRecordDate(deviceDate); }
+  }, [initialView, requestedMeal, deviceDate]);
 
   useEffect(() => {
     if (activeModule !== "mood") return;
@@ -906,7 +916,8 @@ export default function RecordsScreen({
       const refreshedSnapshot = await loadRecordData({ refreshBase: true });
       if (activeModule) {
         const module: RecordDraftModule = activeModule === "diet" ? "nutrition" : activeModule;
-        await clearRecordDraft(user.id, module, recordDate).catch((draftError) => console.warn("Record draft cleanup deferred", draftError));
+        await (module === "nutrition" ? clearMealRecordDraft(user.id, recordDate, meal) : clearRecordDraft(user.id, module, recordDate))
+          .catch((draftError) => console.warn("Record draft cleanup deferred", draftError));
         const wasEditor = showEditor || initialView === "editor";
         const completed = refreshedSnapshot
           ? buildHealthModulePresentations(refreshedSnapshot, locale)[activeModule].completed
@@ -1277,12 +1288,13 @@ export default function RecordsScreen({
     void requestFocusFullscreen();
   }
 
-  async function saveFocusMinutes(minutes: number, details?: { interruptions?: number; startedAt?: string; endedAt?: string; category?: string; note?: string; sourceActionId?: string }) {
-    await run("records.focus", () =>
+  async function saveFocusMinutes(minutes: number, details?: { taskId?: string; interruptions?: number; startedAt?: string; endedAt?: string; category?: string; note?: string; sourceActionId?: string }) {
+    return run("records.focus", () =>
       saveFocusSession({
         userId: user.id,
         date: recordDate,
         taskTitle: focusTitle,
+        taskId: details?.taskId,
         minutes,
         interruptions: details?.interruptions,
         startedAt: details?.startedAt,
@@ -1298,7 +1310,7 @@ export default function RecordsScreen({
   const currentRecordKey = `${recordDate}:${activeModule ?? "hub"}:${activeModule === "diet" ? meal : ""}`;
   const visibleFaceInsights = faceInsightPoints(faceResult, locale);
   if (dataLoading && loadedRecordKey !== currentRecordKey) {
-    return <PageSkeleton variant={recordSkeletonVariant(activeModule, showEditor || initialView === "editor" || initialView === "conditions")} />;
+    return <PageSkeleton variant={recordSkeletonVariant(activeModule, showEditor || initialView === "editor" || initialView === "conditions" || !!requestedMeal)} />;
   }
 
   if (!activeModule) {
@@ -1672,7 +1684,7 @@ export default function RecordsScreen({
             setReportMode("weekly");
             onModuleChange?.(null);
           }}
-          initialView={initialView === "editor" ? null : initialView}
+          initialView={initialView === "editor" || requestedMeal ? null : initialView}
           onViewChange={onViewChange}
           />
         </Suspense>

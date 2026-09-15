@@ -1,10 +1,12 @@
 import { clearActiveUserSession, loadActiveUserSession, saveActiveUserSession } from "./userCloudState.ts";
+import { exerciseStageDurations } from "./exerciseStages.ts";
 
 export type ExerciseSession = {
   version: 1;
   title: string;
   plannedMinutes: number;
   steps: string[];
+  stepSeconds?: number[];
   startedAt: string;
   runningSince: string | null;
   elapsedSeconds: number;
@@ -25,6 +27,7 @@ function normalizedSession(value: Partial<ExerciseSession> | null, now = new Dat
     title: value.title.trim().slice(0, 120) || "运动",
     plannedMinutes: Math.min(240, Math.max(1, Math.round(Number(value.plannedMinutes) || 1))),
     steps: Array.isArray(value.steps) ? value.steps.filter((item): item is string => typeof item === "string").slice(0, 8) : [],
+    stepSeconds: Array.isArray(value.stepSeconds) ? value.stepSeconds.slice(0, 8) : undefined,
     startedAt: value.startedAt,
     runningSince,
     elapsedSeconds: Math.min(12 * 60 * 60, Math.max(0, Math.round(Number(value.elapsedSeconds) || 0))),
@@ -75,12 +78,13 @@ async function persist(userId: string, session: ExerciseSession) {
   return session;
 }
 
-export function startExerciseSession(userId: string, plan: { title: string; minutes: number; steps: string[] }, now = new Date()) {
+export function startExerciseSession(userId: string, plan: { title: string; minutes: number; steps: string[]; stepSeconds?: number[] }, now = new Date()) {
   const session: ExerciseSession = {
     version: 1,
     title: plan.title,
     plannedMinutes: plan.minutes,
     steps: plan.steps,
+    stepSeconds: exerciseStageDurations({ ...plan, plannedMinutes: plan.minutes }) ?? undefined,
     startedAt: now.toISOString(),
     runningSince: now.toISOString(),
     elapsedSeconds: 0,
@@ -111,4 +115,3 @@ export function abandonExerciseSession(userId: string) {
   writeLocal(userId, null);
   void clearActiveUserSession(userId, "exercise").catch((error) => console.warn("Exercise session cloud cleanup deferred", error));
 }
-

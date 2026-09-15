@@ -20,6 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import ReminderSettings from "../components/ReminderSettings";
 import {
   deleteNavaNotification,
   deleteNavaNotifications,
@@ -363,9 +364,10 @@ export default function NotificationCenter({
         )}
       </header>
 
+      <ReminderSettings userId={userId} locale={locale} />
       {permission !== "granted" && permission !== "checking" && <section className="notification-permission-card" data-permission={permission}>
         <span><BellRing size={21} /></span>
-        <div><strong>{locale === "zh" ? "系统通知" : "System notifications"}</strong><p>{permission === "unsupported" ? (locale === "zh" ? "当前浏览器不支持；应用内提醒仍可正常使用。" : "Unavailable here; in-app reminders still work.") : (locale === "zh" ? "开启后安排睡眠、饮食、专注、情绪、状态和周报提醒。" : "Enable sleep, diet, focus, mood, status, and weekly reminders.")}</p></div>
+        <div><strong>{locale === "zh" ? "系统通知" : "System notifications"}</strong><p>{permission === "unsupported" ? (locale === "zh" ? "当前浏览器不支持；应用内提醒仍可正常使用。" : "Unavailable here; in-app reminders still work.") : (locale === "zh" ? "允许系统通知；情绪和三餐的开关、时间仍由上方独立设置决定。" : "Allow system alerts; mood and meal times remain controlled by their individual settings above.")}</p></div>
         {permission !== "unsupported" && <button type="button" onClick={() => void enableSystem()} disabled={permissionBusy}>{permissionBusy ? (locale === "zh" ? "开启中" : "Enabling") : (locale === "zh" ? "开启" : "Enable")}</button>}
       </section>}
       {permissionError && <p className="notification-permission-error" role="alert">{permissionError}</p>}
