@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`1d22b75fc515156c115dd60d0f14833809568d8c`
+- 源码发布 commit：`90ca4f2352790ca3f9521c8db29af6055b29750c`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v156，public
+- ChatGPT Sites 版本：v157，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_21b83e83f9388191988b330d40e3d512`
-- Sites deployment ID：`appgdep_6aa95c6467908191af14ac452d772d6f`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_3cfea04bfea48191b94d44e9c70a848f`
+- Sites deployment ID：`appgdep_6aa9707c179c81918091a40f81d774c3`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `06d696f859f9b437a590cb2c936c17354e9a8ab2`，工作流`34985050157`成功
+  `5a12b3206376239f549999577a9633aff668b6e8`，工作流`34994568852`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v156 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-calendar-weekly-readability-20260915.tar.gz`
+- v157 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-responsive-rings-20260916.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v156 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v157 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -3261,4 +3261,31 @@ build、lint及完整四尺寸编辑器复验。日记弹窗在360×740和390×4
 单行、AI compact/事实/空状态、提示条占用空间后的可达性、饮食同窗口切机型重算。
 主代理已逐张查看18个机型常规报告截图，另查小屏事实、首页圆环、伤病展开和日记代理。
 此处不等于全部APP页面/真实iPhone键盘已验收。仅一个独立Chromium串行测试，不操作
-Codex内置浏览器。双站发布与公开真实登录收据待补，不冒称AI验收完成。
+Codex内置浏览器。不冒称AI验收完成。
+
+### §86 v157发布与公开真实登录收据
+
+- 功能源`90ca4f2352790ca3f9521c8db29af6055b29750c`干净推送GitHub/Sites后构建，
+  双站发布成功，版本和部署ID见§2.2。Windows插件build/package入口仍有npm-cli和
+  Bash路径兼容错误，使用仓库build、官方prepare-site-build及原生tar按同合同完成。
+- 79个生成文件单向复制、73个assets逐一同hash；21个过期JS/CSS仅从生成镜像移除，
+  可从镜像Git恢复。未删除原始素材、账号数据或外部文件。
+- 两站入口`index-Bm8oNfUk.js`，424420字节，SHA256
+  `d28fb1896749a77c921e60307aa015fd1c42f1d28b86e2f1eedd2f2136b34d12`；
+  `RecordsScreen-CqTBzyTH.js`，79810字节，SHA256
+  `5331760ff6b1e9d808b212def771349b7983495a30487e02e9cc48f31e460f46`；
+  `index-kgGt4npr.css`，490641字节，SHA256
+  `5407e7cc586687ee4f36edd5766f52f1194bcf65cd8d83d458bc7e1a4668bca2`。
+  其它关键APP/dashboard脚本和样式同样在`responsive-release/public.json`记录同hash。
+  Pages公开source.json匹配v157与功能SHA。
+- 安全启动器ResponsiveLayout退出0，最新public.json为passed:true：两站真实表单登录
+  授权账号、验证身份及canonical认证域、公开demo不能绕过登录。每站4手机视口+18预览
+  机型，共44个尺寸/机型状态，历史真实记录的六环闭合、摘要完整单行、内容约束通过。
+  每站healthWrites:0；非认证AI函数被QA隔离，aiTested:false。全部context和唯一测试
+  浏览器已关闭，启动器环境凭据已清理。
+- 首轮公开检查把header的scrollWidth（含故意外扩4px圆环）错当文字溢出；失败截图与
+  几何文件保留。核对真实画面后仅修正测试：文字按文本区域、圆环按卡片边界验收；
+  未为测试误报更改APP，也未重复发布相同产物。更正后的两站全矩阵通过。
+- 尚未覆盖真实iPhone系统键盘/辅助文字缩放，以及其余APP页面所有异常组合；本轮
+  不等于全产品或AI遗留清单完成。§81 AI/研究入口/真机门槛仍保留。最后只提交本收据
+  与只读验收脚本改进，不为相同APP产物再次发布。

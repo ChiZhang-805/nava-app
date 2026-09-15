@@ -1,6 +1,7 @@
 // Real public form authentication, read-only account layout checks. AI is out of scope.
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { createHash } from 'node:crypto';
 import { chromium, expect } from "@playwright/test";
 import { inspectRingPaint } from './module-ring-paint.mjs';
 import { IPHONE_PREVIEW_DEVICES } from '../src/constants/iphonePreviewDevices.ts';
@@ -13,6 +14,25 @@ const receipt = { passed: false, aiTested: false, results: [] };
 const browser = await chromium.launch({ headless: true });
 try {
   for (const base of ["https://nava-app-preview-cz.chizhang1031.chatgpt.site/", "https://chizhang-805.github.io/nava-app-preview/"]) {
+    const parity = [];
+    if (responsive) {
+      const assets = new URL('../dist/assets/', import.meta.url);
+      const names = (await readdir(assets)).filter((name) => /^(index|App|RecordsScreen|RecordModuleDashboard)-.*\.(js|css)$/.test(name));
+      const html = await (await fetch(base, { cache:'no-store' })).text();
+      const entry = html.match(/<script[^>]+src="([^"]+)"/)?.[1];
+      assert(entry, 'Public entry script missing');
+      const entryUrl = new URL(entry, base);
+      assert(names.includes(entryUrl.pathname.split('/').pop()), 'Public entry is stale');
+      for (const name of names) {
+        const response = await fetch(new URL(name, entryUrl), { cache:'no-store' });
+        assert(response.ok, `Missing public asset: ${name}`);
+        const remote = Buffer.from(await response.arrayBuffer());
+        const local = await readFile(new URL(name, assets));
+        const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
+        assert.equal(hash(remote), hash(local), `Public asset differs: ${name}`);
+        parity.push({ name, bytes:remote.length, sha256:hash(remote) });
+      }
+    }
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: !responsive, hasTouch: !responsive, reducedMotion: "reduce" });
     try {
       const page = await context.newPage(); page.setDefaultTimeout(30000);
@@ -67,13 +87,23 @@ try {
             assert(ring[0].coverage >= .99, `Public completed ring is open: ${size.name}`);
             const contained = await card.evaluate((node) => {
               const bounds = node.getBoundingClientRect();
-              return [...node.querySelectorAll('.record-module-header,.record-module-points > span')].every((child) => {
+              return [...node.querySelectorAll('.record-module-header,.record-module-points > span,.module-progress-ring')].every((child) => {
                 const b = child.getBoundingClientRect();
-                return b.left >= bounds.left && b.right <= bounds.right && b.top >= bounds.top && b.bottom <= bounds.bottom && child.scrollWidth <= child.clientWidth + 1
-                  && (!child.matches('.record-module-points > span') || getComputedStyle(child).whiteSpace === 'nowrap');
+                // Header scrollWidth deliberately includes the ring's 4px
+                // overhang. Check that against the card, not the text lane.
+                return b.left >= bounds.left && b.right <= bounds.right && b.top >= bounds.top && b.bottom <= bounds.bottom
+                  && (!child.matches('.record-module-points > span') || (child.scrollWidth <= child.clientWidth + 1 && getComputedStyle(child).whiteSpace === 'nowrap'));
               });
             });
-            assert(contained, `Public card clips content: ${size.name}`);
+            if (!contained) {
+              await page.locator('.phone-frame').screenshot({ path:`${output}/failed-${new URL(base).hostname}-${size.name}-${index}.png` });
+              const detail = await card.evaluate((node) => ({ module:node.dataset.recordModule, source:node.dataset.summarySource,
+                box:node.getBoundingClientRect().toJSON(), children:[...node.querySelectorAll('.record-module-header,.record-module-points > span')].map((child) => ({
+                  box:child.getBoundingClientRect().toJSON(), scrollWidth:child.scrollWidth, clientWidth:child.clientWidth, whiteSpace:getComputedStyle(child).whiteSpace, characters:child.textContent.length,
+                })) }));
+              await writeFile(`${output}/failed-geometry.json`,JSON.stringify(detail,null,2));
+              assert.fail(`Public card clips content: ${size.name}/${detail.module}; inspect private screenshot`);
+            }
           }
           await page.locator('.record-module-grid').evaluate((node) => { node.scrollTop=0; });
           assert.equal(await page.locator('.phone-frame').evaluate((node) => node.scrollWidth > node.clientWidth + 1),false);
@@ -81,7 +111,7 @@ try {
           geometry.push({ name:size.name, allSixContained:true, allSixClosed:true, initialPaint:paint });
         }
         assert.equal(healthWrites,0);
-        receipt.results.push({ base, realLogin:true, canonicalProject:true, demoBypassRejected:true, healthWrites, geometry });
+        receipt.results.push({ base, realLogin:true, canonicalProject:true, demoBypassRejected:true, healthWrites, parity, geometry });
         console.log(`PASS public responsive rings/cards: ${new URL(base).hostname}`);
         continue;
       }
