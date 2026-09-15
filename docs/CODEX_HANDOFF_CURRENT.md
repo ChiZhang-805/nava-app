@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`90ca4f2352790ca3f9521c8db29af6055b29750c`
+- 源码发布 commit：`2ae926b0eeeebcb9c2f5e64fd1353dc8347b92a7`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v157，public
+- ChatGPT Sites 版本：v158，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_3cfea04bfea48191b94d44e9c70a848f`
-- Sites deployment ID：`appgdep_6aa9707c179c81918091a40f81d774c3`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_546f7ea55980819192f225ee863a9703`
+- Sites deployment ID：`appgdep_6aa99c785dcc819186009a2495ea4319`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `5a12b3206376239f549999577a9633aff668b6e8`，工作流`34994568852`成功
+  `1d2c301039d13166da849e7f012592fd1f5e8100`，工作流`35014135921`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v157 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-responsive-rings-20260916.tar.gz`
+- v158 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-simulation-2ae926b.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v157 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v158 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -3293,8 +3293,8 @@ Codex内置浏览器。不冒称AI验收完成。
 ## 87. 跨页面 × 机型布局验收
 
 用户指出§86的18张人工截图集中在分项报告，不能证明整个APP已适配。本轮限定为
-前端约束及布局验收，不更改Supabase、AI生成、算法或生产记录。现有公开版本仍为v157，
-以下未发布修改不能说已在线上生效。
+前端约束及布局验收，不更改Supabase、AI生成、算法或生产记录。已随v158发布，最终
+源码矩阵及双站收据见§88；不能据此宣称所有历史产品待办已完成。
 
 - 五个记录编辑表单把正文与操作行真正分开：正文独立滚动，保存/开始按钮仍在原form
   内并保留原提交逻辑，不再作为sticky覆盖末尾字段。面部沿用其原操作结构。
@@ -3314,7 +3314,7 @@ Codex内置浏览器。不冒称AI验收完成。
 - 已人工复核注册/重置、360睡眠/专注等修复；其余多页抽查发现的问题仍以最终矩阵为准。
   测试使用明确本地demo/长输入，不能当作真实账户、AI或物理iPhone/Safari/系统键盘证明。
 
-### 完整矩阵收据
+### 追加模拟边界要求前的矩阵基线
 
 - `release-matrix/report.json`为`passed:true,incomplete:false`：99内容状态+22加载状态，
   每组121项，22组共2662项，错误0。`index.html`为按页面/机型排列的懒加载图库。
@@ -3336,7 +3336,7 @@ Codex内置浏览器。不冒称AI验收完成。
    分享等有专项脚本，但不能把它们当作已完成18机型矩阵。
 6. 真实iPhone/Safari、系统键盘、辅助文字缩放及任意输入组合。
 
-编辑器及标准回归已通过；待最终源码矩阵、双站发布/公开检查与最终收据。
+编辑器及标准回归已通过；最终源码矩阵与发布收据见§88。
 
 ## 88. 模拟反馈与手机产品界面分离
 
@@ -3372,4 +3372,39 @@ Codex内置浏览器。不冒称AI验收完成。
 没有删除健康数据授权失败或更改同步逻辑。上述末尾改动晚于完整verify。
 `interaction-final.log`完整11组通过，包括相机关闭/分析结果返回、语音取消保留、
 附件确认和退出。此前语音待办测试未清空上一例草稿，把正常追加转写误报成错误；
-仅在验证取消保留之后清空测试输入，未修改APP转写行为。最终源码矩阵/发布仍待收据。
+仅在验证取消保留之后清空测试输入，未修改APP转写行为。
+
+### §87–88 v158最终矩阵与发布收据
+
+- 功能源码`2ae926b0eeeebcb9c2f5e64fd1353dc8347b92a7`干净推送GitHub及Sites；最终
+  `release-final/report.json`为passed:true、incomplete:false、errors:[]，22组各121项，
+  共2662项（99内容状态+22加载状态）。运行期APP diff为空，未拼接旧版本截图。
+  证据根目录为`Q:\NAVA-Workspace\Build\TestRuns\all-pages-responsive`。
+- 人工复核最终聊天、饮食、专注等跨尺寸截图；未声称人工逐张看完2662图。375饮食
+  长输入原截图在异步增高后不是实际滚动末尾，故不作为末尾字段可达证明。补充
+  `diet-scroll-end/report.json`在最终代码的22组尺寸逐一点击/填写四个营养字段和自评，
+  验证真实滚到底、保存按钮在卡片内且可命中，全部通过。全部Supabase请求被此本地
+  补证脚本拦截，未提交记录。主代理已查看375的纠正截图；没有为截图时机改APP。
+- 最终lint、11组interaction、完整2662矩阵、两个干净源码构建及生产认证合同通过；
+  完整verify先前已通过，末尾面部路由/设备文案修改另由上述最终测试覆盖。
+- Sites v158发布succeeded；Pages工作流成功，IDs见§2.2。Windows插件build/package
+  入口仍有npm-cli/Bash路径兼容错误，使用仓库build、官方prepare-site-build和原生tar。
+  79个生成文件单向复制，73个assets与Sites逐文件hash一致。
+- 清理旧生成资源的复合命令被环境策略拒绝，命令未执行。之后仅复制新版文件，
+  **未绕过策略删除**；镜像保留21个旧hash资源（94个assets中73个为当前版），不再由
+  当前入口引用。原始素材、用户数据均未删除，旧资源清理仍待后续处理。
+- 安全启动器AllPageLayout退出0，最终`public/public.json`为passed:true：授权cz91账号
+  两站实际表单登录、身份及canonical域名核对、公开demo不能绕过登录。每站4基础视口
+  加iPhone17桌面画布，12个页面状态共60项，两站120项；关键JS/CSS逐一与本地hash一致。
+  Pages公开source.json同时匹配v158和功能SHA。每站healthWrites:0，未提交测试对话。
+- 桌面录音使用明确的SpeechRecognition设备fixture，实际点击外侧来电按钮，检查
+  录音停止、文字保留、手机无模拟横幅、右侧有执行结果。主代理已实际看过两站最终
+  全屏截图；全部浏览器context、浏览器和启动器临时凭据均已清理。
+- 首轮结构检查虽通过，人工发现测试把greeting的single-row POST响应错误地模拟成
+  空数组，导致空消息/Invalid Date。`public-first-pass`保留这份不足证据。随后只改
+  QA隔离响应为APP请求的规则问候语+合法时间，增加非空正文/有效时间断言，两站完整
+  重跑通过；不改APP、不写真实聊天、不冒称这是模型生成。此次只提交QA/交接收据，
+  不为未改变的APP产物再部署。
+- 真实AI调用被此次视觉QA明确隔离（aiTested:false）；§81四模块公开总览主句与其余
+  AI遗留问题没有因此解决。物理iPhone/Safari、系统键盘/文字缩放和来电/锁屏仍待实测；
+  §87列出的矩阵外状态、专注8–9px/饮食约10px辅助标签可读性及21个旧部署资源仍待处理。

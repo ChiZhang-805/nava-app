@@ -49,7 +49,15 @@ try {
       await page.route("**/rest/v1/**", (route) => {
         const request = route.request(), table = new URL(request.url()).pathname.split("/").pop();
         if (["active_user_sessions", "record_drafts"].includes(table)) return route.fulfill({ status: 200, contentType: "application/json", body: request.method() === "GET" ? "null" : "[]" });
-        if (["ai_conversations", "ai_conversation_archives"].includes(table)) return route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+        if (table === "ai_conversations") {
+          // Preserve the real .insert().select().single() response shape without
+          // writing the APP's rule-based greeting to the authenticated account.
+          const body = request.method() === "POST"
+            ? { ...request.postDataJSON(), id: "qa-local-greeting", created_at: new Date().toISOString() }
+            : [];
+          return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+        }
+        if (table === "ai_conversation_archives") return route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
         if (!["GET", "HEAD", "OPTIONS"].includes(request.method())) {
           if (/^(mood|sleep|exercise|nutrition|focus|face)_records$/.test(table)) healthWrites++;
           return route.fulfill({ status: 403, contentType: "application/json", body: '{"message":"Read-only visual acceptance"}' });
@@ -95,6 +103,10 @@ try {
             await page.evaluate(hash=>{ location.hash=hash; },hash);
             await expect(page.locator(selector)).toBeVisible();
             await page.waitForTimeout(250);
+            if (name === 'chat') {
+              await expect(page.locator('.chat-message-row.assistant .chat-bubble p').first()).toHaveText(/\S/);
+              await expect(page.locator('.chat-layout')).not.toContainText('Invalid Date');
+            }
             const fields = page.locator('form:not([hidden]) .record-editor-fields');
             if(name.endsWith('-editor') && name!=='face-editor') {
               await expect(fields).toHaveCount(1);
@@ -143,7 +155,7 @@ try {
           }
         }
         assert.equal(healthWrites,0);
-        receipt.results.push({base,realLogin:true,canonicalProject:true,demoBypassRejected:true,healthWrites,simulationBoundary:'real APP with speech hardware fixture; no message sent',parity,geometry});
+        receipt.results.push({base,realLogin:true,canonicalProject:true,demoBypassRejected:true,healthWrites,greetingWrite:'APP rule-based greeting reflected by a local single-row response; no database write',simulationBoundary:'real APP with speech hardware fixture; no message sent',parity,geometry});
         console.log(`PASS public multi-page smoke: ${new URL(base).hostname}, ${geometry.length} states`);
         continue;
       }
