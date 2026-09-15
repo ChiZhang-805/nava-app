@@ -37,6 +37,8 @@ import ReminderSettings from "../components/ReminderSettings";
 import MoodBreathing from "../components/MoodBreathing";
 import MonthlyWellbeing from "../components/MonthlyWellbeing";
 import { exerciseStageAt } from "../services/exerciseStages";
+import { exerciseMascotFeedback } from "../services/exerciseMascotFeedback";
+import { getTrends } from "../services/records";
 import { setTodoCompleted } from "../services/productivity";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { App as CapacitorApp } from "@capacitor/app";
@@ -198,6 +200,7 @@ type Props = {
   onFocusLaunchConsumed: () => void;
   onOpenEditor: () => void;
   onOpenDietCamera: () => void;
+  onOpenFaceCamera: () => void;
   onOpenDietMeal: (meal: "breakfast" | "lunch" | "dinner" | "pantry") => void;
   onSaveFocusMinutes: (minutes: number, details?: { taskId?: string; interruptions?: number; startedAt?: string; endedAt?: string; category?: string; note?: string; sourceActionId?: string }) => Promise<boolean>;
   busy: string | null;
@@ -350,7 +353,8 @@ function ModuleDetailView({
 function HistoryView({
   module,
   locale,
-  trendBundle,
+  trendBundle: initialTrendBundle,
+  userId,
   profile,
   deviceDate,
   onGrowthActivity,
@@ -360,8 +364,27 @@ function HistoryView({
   trendBundle: TrendBundle | null;
   profile: UserProfile | null;
   deviceDate: string;
+  userId: string;
   onGrowthActivity?: (activity: GrowthActivityKind) => void | Promise<unknown>;
 }) {
+  const [reportDate, setReportDate] = useState(deviceDate);
+  const previousDeviceDate = useRef(deviceDate);
+  const [loadedHistory, setLoadedHistory] = useState<{ date: string; userId: string; data: TrendBundle } | null>(null);
+  const [historyError, setHistoryError] = useState(false);
+  const [historyRetry, setHistoryRetry] = useState(0);
+  const trendBundle = reportDate === deviceDate ? initialTrendBundle : loadedHistory?.date === reportDate && loadedHistory.userId === userId ? loadedHistory.data : null;
+  useEffect(() => {
+    const previous = previousDeviceDate.current;
+    previousDeviceDate.current = deviceDate;
+    setReportDate((date) => date === previous ? deviceDate : date);
+  }, [deviceDate]);
+  useEffect(() => {
+    if (reportDate === deviceDate) return;
+    let active = true;
+    setHistoryError(false);
+    void getTrends(userId, reportDate).then((data) => { if (active) setLoadedHistory({ date: reportDate, userId, data }); }).catch(() => { if (active) setHistoryError(true); });
+    return () => { active = false; };
+  }, [deviceDate, reportDate, userId, historyRetry, initialTrendBundle]);
   const moduleNames: Record<RecordModule, { zh: string; en: string }> = {
     mood: { zh: "情绪", en: "Mood" },
     sleep: { zh: "睡眠", en: "Sleep" },
@@ -382,33 +405,35 @@ function HistoryView({
             ? trendBundle.nutritions.map((record) => ({ id: record.id, date: record.record_date, value: record.total_calories }))
             : module === "focus"
               ? aggregateFocusByDate(trendBundle.focus).map((record) => ({ id: record.id, date: record.record_date, value: record.total_minutes }))
-              : sameModeFaces(trendBundle.faces, latestKnownFaceMode(trendBundle.faces, deviceDate), deviceDate).map((record) => ({ id: record.id, date: record.record_date, value: record.overall_score }));
+              : sameModeFaces(trendBundle.faces, latestKnownFaceMode(trendBundle.faces, reportDate), reportDate).map((record) => ({ id: record.id, date: record.record_date, value: record.overall_score }));
     return records.sort((left, right) => left.date.localeCompare(right.date));
-  }, [deviceDate, module, trendBundle]);
+  }, [reportDate, module, trendBundle]);
   const displayEntries = useMemo(() => {
     const byDate = new Map(entries.map((entry) => [entry.date, entry]));
-    return rollingDateWindow(deviceDate).map((date) => byDate.get(date) ?? ({ id: `missing-${module}-${date}`, date, value: null }));
-  }, [deviceDate, entries, module]);
+    return rollingDateWindow(reportDate).map((date) => byDate.get(date) ?? ({ id: `missing-${module}-${date}`, date, value: null }));
+  }, [reportDate, entries, module]);
   const recordedEntries = useMemo(
     () => displayEntries.filter((entry): entry is { id: string; date: string; value: number } => entry.value != null),
     [displayEntries],
   );
-  const recordedToday = useMemo(() => hasCurrentDayRecord(displayEntries, deviceDate), [deviceDate, displayEntries]);
+  const recordedToday = useMemo(() => hasCurrentDayRecord(displayEntries, reportDate), [reportDate, displayEntries]);
   // Development-only visual fixture for the missing-today report state.
   const forceMissingToday = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "today-missing";
   const hasTodayRecord = recordedToday && !forceMissingToday;
-  const sortedNutrition = useMemo(() => trendBundle?.nutritions.filter((item) => item.record_date <= deviceDate).slice().sort((a, b) => a.record_date.localeCompare(b.record_date)) ?? [], [deviceDate, trendBundle]);
-  const todayNutrition = sortedNutrition.find((item) => item.record_date === deviceDate) ?? null;
+  const sortedNutrition = useMemo(() => trendBundle?.nutritions.filter((item) => item.record_date <= reportDate).slice().sort((a, b) => a.record_date.localeCompare(b.record_date)) ?? [], [reportDate, trendBundle]);
+  const todayNutrition = sortedNutrition.find((item) => item.record_date === reportDate) ?? null;
   const [dietReport, setDietReport] = useState<DietAiReport | null>(null);
   const [healthReport, setHealthReport] = useState<HealthAiReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportRefreshKey, setReportRefreshKey] = useState(0);
+  const reportKey = `${userId}:${module}:${reportDate}:${locale}`;
+  const [reportResultKey, setReportResultKey] = useState("");
   const reportRefreshHandledRef = useRef(0);
   const [sharePreview, setSharePreview] = useState<ReportCardOptions | null>(null);
   const [shareComplete, setShareComplete] = useState(false);
   const shareCompleteTimerRef = useRef<number | null>(null);
-  const healthSourceRevision = module === "diet" ? undefined : healthReportSourceRevision({ scope: module, endDate: deviceDate, trendBundle, profile });
+  const healthSourceRevision = module === "diet" ? undefined : healthReportSourceRevision({ scope: module, endDate: reportDate, trendBundle, profile });
   useEffect(() => () => {
     if (shareCompleteTimerRef.current !== null) window.clearTimeout(shareCompleteTimerRef.current);
   }, []);
@@ -428,7 +453,7 @@ function HistoryView({
     setReportError(null);
     void loadDietAiReport({ date: todayNutrition.record_date, locale, refresh })
       .then((report) => {
-        if (active) setDietReport(report);
+        if (active) { setDietReport(report); setReportResultKey(reportKey); }
       })
       .catch((error) => {
         console.warn("AI diet report generation deferred", error);
@@ -442,7 +467,7 @@ function HistoryView({
     return () => {
       active = false;
     };
-  }, [hasTodayRecord, locale, module, reportRefreshKey, todayNutrition]);
+  }, [hasTodayRecord, locale, module, reportRefreshKey, todayNutrition, reportKey]);
   useEffect(() => {
     if (module === "diet") return;
     if (!hasTodayRecord) {
@@ -457,9 +482,9 @@ function HistoryView({
     setHealthReport(null);
     setReportLoading(true);
     setReportError(null);
-    void loadHealthAiReport({ scope: module, endDate: deviceDate, locale, refresh, sourceRevision: healthSourceRevision })
+    void loadHealthAiReport({ scope: module, endDate: reportDate, locale, refresh, sourceRevision: healthSourceRevision })
       .then((report) => {
-        if (active) setHealthReport(report);
+        if (active) { setHealthReport(report); setReportResultKey(reportKey); }
       })
       .catch((error) => {
         console.warn("AI health report generation deferred", error);
@@ -473,8 +498,8 @@ function HistoryView({
     return () => {
       active = false;
     };
-  }, [deviceDate, hasTodayRecord, healthSourceRevision, locale, module, reportRefreshKey]);
-  const reportInsights = hasTodayRecord ? (module === "diet" ? (dietReport?.bullets ?? []) : (healthReport?.bullets ?? [])) : [];
+  }, [reportDate, hasTodayRecord, healthSourceRevision, locale, module, reportRefreshKey, reportKey]);
+  const reportInsights = hasTodayRecord && reportResultKey === reportKey ? (module === "diet" ? (dietReport?.bullets ?? []) : (healthReport?.bullets ?? [])) : [];
   const reportIsDemo = module === "diet" ? dietReport?.modelVersion === "demo-only" : healthReport?.provider === "demo";
   const shareSummary = () => {
     if (!hasTodayRecord) return;
@@ -487,7 +512,7 @@ function HistoryView({
         insightsAreDemo: reportIsDemo,
         mascotUrl: reportMascotByModule[module],
         locale,
-        endDate: deviceDate,
+        endDate: reportDate,
         valueFormatter: (value) => historyValueText(module, value, locale),
       });
   };
@@ -506,7 +531,8 @@ function HistoryView({
       className="module-history-report-card"
       title={`${moduleNames[module][locale]}${locale === "zh" ? "趋势报告" : " trend report"}`}
     >
-      {trendBundle ? <>
+      <div className="history-report-date"><label>{locale === "zh" ? "报告日期" : "Report date"}<input type="date" aria-label={locale === "zh" ? "报告日期" : "Report date"} value={reportDate} max={deviceDate} onChange={(event) => { const date = event.target.value; if (/^\d{4}-\d{2}-\d{2}$/.test(date) && date <= deviceDate && date !== reportDate) { setLoadedHistory(null); setReportDate(date); setDietReport(null); setHealthReport(null); setReportError(null); setSharePreview(null); } }} /></label><button type="button" onClick={() => { if (reportDate === deviceDate) return; setReportDate(deviceDate); setDietReport(null); setHealthReport(null); setReportError(null); setSharePreview(null); }}>{locale === "zh" ? "今天" : "Today"}</button></div>
+      {historyError && reportDate !== deviceDate ? <div role="alert"><p>{locale === "zh" ? "历史记录加载失败，请重试。" : "History could not be loaded. Retry."}</p><button type="button" onClick={() => setHistoryRetry((value) => value + 1)}>{locale === "zh" ? "重试" : "Retry"}</button></div> : trendBundle ? <>
         {recordedEntries.length > 0
           ? <ReportTrendChart entries={displayEntries} module={module} locale={locale} />
           : <div className="module-history-chart-empty"><CalendarDays size={22} /><span>{locale === "zh" ? "近七日暂无记录" : "No entries in the last seven days"}</span></div>}
@@ -514,7 +540,7 @@ function HistoryView({
           {displayEntries.slice(-3).reverse().map((entry) => <p key={entry.id}><CalendarDays size={16} /><span>{shortDate(entry.date, locale)}</span><strong>{entry.value == null ? (locale === "zh" ? "暂无记录" : "No entry") : historyValueText(module, entry.value, locale)}</strong></p>)}
         </div>
         {hasTodayRecord
-          ? <section className="diet-ai-report module-ai-report" aria-live="polite" data-report-today-state="ready">
+          ? <section className="diet-ai-report module-ai-report" aria-live="polite" data-report-today-state="ready" data-ai-state={reportLoading ? "loading" : reportError ? "error" : reportInsights.length ? "ready" : "idle"} data-report-date={reportDate}>
               <div className="diet-ai-report-copy">
                 <header><span><Bot size={16} /></span><strong>{reportIsDemo
                   ? (locale === "zh" ? `演示${moduleNames[module].zh}洞察` : `Demo ${moduleNames[module].en.toLowerCase()} insights`)
@@ -522,7 +548,7 @@ function HistoryView({
                 {reportLoading
                   ? <SkeletonLines count={3} compact />
                   : <ul>{reportInsights.map((bullet, index) => <li key={`${index}-${bullet}`}>{bullet}</li>)}</ul>}
-                {reportError && <div className="module-ai-error"><small className="module-ai-fallback-note">{reportError}</small><button type="button" onClick={() => setReportRefreshKey((key) => key + 1)}>{locale === "zh" ? "重新生成" : "Generate again"}</button></div>}
+                {reportError && <div className="module-ai-error"><small className="module-ai-fallback-note">{reportError}</small></div>}<button className="ai-report-refresh" type="button" disabled={reportLoading} onClick={() => setReportRefreshKey((key) => key + 1)}><RefreshCw size={16} />{locale === "zh" ? "重新生成" : "Generate again"}</button>
               </div>
               <MascotImage
                 className="diet-ai-mascot module-ai-mascot"
@@ -534,15 +560,15 @@ function HistoryView({
             </section>
           : <section className="module-today-empty-state" aria-live="polite" data-report-today-state="missing">
               <MascotImage className="module-today-empty-mascot" animatedSrc={animatedEmptyMascot} staticSrc={emptyTodayMascot} alt={locale === "zh" ? "NAVA 小猫等待今日记录" : "NAVA cat waiting for today's entry"} loading="lazy" />
-              <p>{missingCurrentDayCopy(module, locale)}</p>
+              <p>{reportDate === deviceDate ? missingCurrentDayCopy(module, locale) : (locale === "zh" ? "所选日期没有该项记录，无法生成当天的 AI 洞察。" : "No entry for this date; AI insights cannot be generated.")}</p>
             </section>}
         <button
           className={`module-history-share${hasTodayRecord ? "" : " is-today-missing"}`}
           type="button"
           disabled={!hasTodayRecord}
           onClick={shareSummary}
-        ><Share2 size={16} />{!hasTodayRecord ? currentDayRequiredShareCopy(module, locale) : shareComplete ? (locale === "zh" ? "图片已生成" : "Image ready") : (locale === "zh" ? "预览并分享" : "Preview & share")}</button>
-        {sharePreview?.module === module && sharePreview.endDate === deviceDate && <ReportSharePreview options={sharePreview} onClose={() => setSharePreview(null)} onComplete={shareFinished} />}
+        ><Share2 size={16} />{!hasTodayRecord ? (reportDate === deviceDate ? currentDayRequiredShareCopy(module, locale) : (locale === "zh" ? "所选日期未记录" : "No entry on this date")) : shareComplete ? (locale === "zh" ? "图片已生成" : "Image ready") : (locale === "zh" ? "预览并分享" : "Preview & share")}</button>
+        {sharePreview?.module === module && sharePreview.endDate === reportDate && <ReportSharePreview options={sharePreview} onClose={() => setSharePreview(null)} onComplete={shareFinished} />}
       </> : <div className="module-history-loading"><SkeletonBars /><SkeletonLines count={3} compact /></div>}
     </ModuleDetailView>
   );
@@ -639,6 +665,15 @@ function ExerciseDashboard({
   const [exerciseSession, setExerciseSession] = useState<ExerciseSession | null>(null);
   const [exerciseSessionNow, setExerciseSessionNow] = useState(() => Date.now());
   const [exerciseSessionMessage, setExerciseSessionMessage] = useState<string | null>(null);
+  const [exerciseSyncBusy, setExerciseSyncBusy] = useState(false);
+  const [exerciseHydrating, setExerciseHydrating] = useState(true);
+  const exerciseSyncLock = useRef(false);
+  const [exerciseVisible, setExerciseVisible] = useState(() => !document.hidden);
+  useEffect(() => {
+    const update = () => setExerciseVisible(!document.hidden);
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
   const [exerciseInterruption, setExerciseInterruption] = useState<PreviewReason | null>(null);
   const exerciseMutationRef = useRef(0);
   useEffect(() => () => { exerciseMutationRef.current++; }, []);
@@ -739,9 +774,11 @@ function ExerciseDashboard({
 
   useEffect(() => {
     let active = true;
+    setExerciseHydrating(true);
     void hydrateExerciseSession(userId)
       .then((session) => { if (active) setExerciseSession(session); })
-      .catch((error) => { if (active) setExerciseSessionMessage(error instanceof Error ? error.message : String(error)); });
+      .catch((error) => { if (active) setExerciseSessionMessage(error instanceof Error ? error.message : String(error)); })
+      .finally(() => { if (active) setExerciseHydrating(false); });
     return () => { active = false; };
   }, [userId]);
 
@@ -771,8 +808,10 @@ function ExerciseDashboard({
   const exerciseTimerText = `${String(Math.floor(exerciseElapsedSeconds / 60)).padStart(2, "0")}:${String(exerciseElapsedSeconds % 60).padStart(2, "0")}`;
   const exerciseProgress = exerciseSession ? Math.min(100, Math.round(exerciseElapsedSeconds / Math.max(60, exerciseSession.plannedMinutes * 60) * 100)) : 0;
   const exerciseStage = exerciseSession ? exerciseStageAt(exerciseSession, exerciseElapsedSeconds) : null;
+  const exerciseFeedback = exerciseSession ? exerciseMascotFeedback(exerciseSession, exerciseElapsedSeconds, todaySnapshot, deviceDate, locale) : null;
 
   const beginExercise = () => {
+    if (exerciseSyncLock.current || exerciseHydrating) return;
     if (recordDate !== deviceDate) {
       setExerciseSessionMessage(locale === "zh" ? "运动计时只能从今天开始；历史日期仍可手动补录。" : "A live workout can only start today; past dates can still be logged manually.");
       return;
@@ -785,26 +824,38 @@ function ExerciseDashboard({
   };
 
   const toggleExercisePause = async () => {
-    if (!exerciseSession) return;
-    exerciseMutationRef.current++;
+    if (!exerciseSession || exerciseSyncLock.current) return;
+    exerciseSyncLock.current = true;
+    const mutation = ++exerciseMutationRef.current;
+    const now = new Date();
+    setExerciseSyncBusy(true);
+    if (exerciseSession.runningSince) {
+      setExerciseSession({ ...exerciseSession, runningSince: null, elapsedSeconds: exerciseSessionElapsedSeconds(exerciseSession, now) });
+      setExerciseSessionNow(now.getTime());
+    }
     try {
       const next = exerciseSession.runningSince
-        ? await pauseExerciseSession(userId, exerciseSession)
+        ? await pauseExerciseSession(userId, exerciseSession, now)
         : await resumeExerciseSession(userId, exerciseSession);
+      if (exerciseMutationRef.current !== mutation) return;
+      if (document.hidden && next.runningSince) { const paused = await pauseExerciseSession(userId, next); if (exerciseMutationRef.current === mutation) setExerciseSession(paused); return; }
       setExerciseSession(next);
       setExerciseSessionNow(Date.now());
       setExerciseInterruption(null);
       setExerciseSessionMessage(null);
     } catch (error) {
-      setExerciseSessionMessage(error instanceof Error ? error.message : String(error));
-    }
+      if (exerciseMutationRef.current === mutation) setExerciseSessionMessage(locale === "zh" ? "计时保持暂停，云端同步失败。请联网后重试。" : "Timer remains paused. Cloud sync failed; reconnect and retry.");
+      console.warn("Exercise pause/resume sync deferred", error);
+    } finally { exerciseSyncLock.current = false; setExerciseSyncBusy(false); }
   };
 
   const completeExercise = async () => {
-    if (!exerciseSession) return;
-    exerciseMutationRef.current++;
+    if (!exerciseSession || exerciseSyncLock.current) return;
+    exerciseSyncLock.current = true; setExerciseSyncBusy(true);
+    const mutation = ++exerciseMutationRef.current;
     try {
       const completed = await finishExerciseSession(userId, exerciseSession);
+      if (exerciseMutationRef.current !== mutation) return;
       setExerciseMinutes(completed.minutes);
       const sessionNote = locale === "zh"
         ? `NAVA Sports 完成：${exerciseSession.title}（实际 ${completed.minutes} 分钟）`
@@ -816,10 +867,11 @@ function ExerciseDashboard({
       onOpenEditor();
     } catch (error) {
       setExerciseSessionMessage(error instanceof Error ? error.message : String(error));
-    }
+    } finally { exerciseSyncLock.current = false; setExerciseSyncBusy(false); }
   };
 
   const discardExercise = () => {
+    if (exerciseSyncLock.current) return;
     if (!exerciseSession || !window.confirm(locale === "zh" ? "放弃这次尚未保存的运动计时吗？" : "Discard this unsaved workout timer?")) return;
     exerciseMutationRef.current++;
     abandonExerciseSession(userId);
@@ -926,9 +978,10 @@ function ExerciseDashboard({
     {exerciseSession ? <div className="exercise-live-session" data-exercise-session data-running={Boolean(exerciseSession.runningSince)}>
       <div className="exercise-live-progress" style={{ "--progress": `${exerciseProgress}%` } as CSSProperties}><Activity size={28} /><strong>{exerciseTimerText}</strong><small>{locale === "zh" ? `计划 ${exerciseSession.plannedMinutes} 分钟` : `${exerciseSession.plannedMinutes}-minute plan`}</small></div>
       <div className="exercise-live-copy"><strong>{exerciseSession.title}</strong><p data-exercise-stage>{exerciseStage?.complete ? (locale === "zh" ? "计划时长已到，可以结束并核对感受。" : "Planned time reached. Finish when ready and review how you feel.") : exerciseStage ? exerciseSession.steps[exerciseStage.index] : (locale === "zh" ? "按身体感受继续；旧计划没有可确认的分段时长。" : "Continue by feel; this older plan has no verified stage durations.")}</p><span>{locale === "zh" ? `已进行 ${exerciseElapsedMinutes} 分钟 · ${exerciseProgress}%` : `${exerciseElapsedMinutes} minutes · ${exerciseProgress}%`}</span>{exerciseStage && !exerciseStage.complete && <small>{locale === "zh" ? "本阶段剩余 " : "Stage remaining "}{Math.floor(exerciseStage.remaining / 60)}:{String(exerciseStage.remaining % 60).padStart(2, "0")}</small>}</div>
-      <div className="exercise-live-actions"><button type="button" onClick={() => void toggleExercisePause()}>{exerciseSession.runningSince ? <Pause size={18} /> : <Play size={18} />}{exerciseSession.runningSince ? (locale === "zh" ? "暂停" : "Pause") : (locale === "zh" ? "继续" : "Resume")}</button><button type="button" className="primary" onClick={() => void completeExercise()}><Square size={17} />{locale === "zh" ? "结束并填写感受" : "Finish & check in"}</button></div>
-      <button className="exercise-live-discard" type="button" onClick={discardExercise}>{locale === "zh" ? "放弃本次计时" : "Discard timer"}</button>
-    </div> : <div className="sports-plan"><Activity /><div className="sports-preset-picker" role="group" aria-label={locale === "zh" ? "选择运动计划" : "Choose a movement plan"}><button type="button" className={sportsPresetId === "recommended" ? "selected" : ""} onClick={() => setSportsPresetId("recommended")}>{locale === "zh" ? "今日建议" : "Suggested"}</button>{sportsPresets.map((preset) => <button type="button" className={sportsPresetId === preset.id ? "selected" : ""} key={preset.id} onClick={() => setSportsPresetId(preset.id)}>{preset.minutes} min</button>)}</div><strong>{activeSportsPlan.title}</strong><p>{activeSportsPlan.reason}</p><div className="sports-plan-steps">{activeSportsPlan.steps.map((step, index) => <span key={step}><b>{index + 1}</b>{step}</span>)}</div><small className="sports-plan-disclaimer">{locale === "zh" ? "规则建议，不是医疗或训练处方；如有不适请停止。" : "Rule-based guidance, not a medical or training prescription. Stop if you feel unwell."}</small><div className="sports-plan-actions"><button type="button" onClick={beginExercise}><CirclePlay size={17} />{locale === "zh" ? "开始此计划" : "Start this plan"}</button><button type="button" onClick={useSportsPlan}>{locale === "zh" ? "直接填写记录" : "Log without timer"}</button></div></div>}
+      {exerciseFeedback && <div className="exercise-mascot-feedback" data-exercise-feedback={exerciseFeedback.state}><MascotImage animatedSrc={exerciseSession.runningSince && exerciseVisible ? animatedExerciseMascot : exerciseInsightMascot} staticSrc={exerciseInsightMascot} alt="" aria-hidden="true" /><div><p aria-live={exerciseVisible ? "polite" : "off"}>{exerciseFeedback.message}</p><small>{exerciseFeedback.evidence}</small></div></div>}
+<div className="exercise-live-actions"><button type="button" disabled={exerciseSyncBusy} onClick={() => void toggleExercisePause()}>{exerciseSession.runningSince ? <Pause size={18} /> : <Play size={18} />}{exerciseSession.runningSince ? (locale === "zh" ? "暂停" : "Pause") : (locale === "zh" ? "继续" : "Resume")}</button><button type="button" disabled={exerciseSyncBusy} className="primary" onClick={() => void completeExercise()}><Square size={17} />{locale === "zh" ? "结束并填写感受" : "Finish & check in"}</button></div>
+      <button className="exercise-live-discard" type="button" disabled={exerciseSyncBusy} onClick={discardExercise}>{locale === "zh" ? "放弃本次计时" : "Discard timer"}</button>
+    </div> : <div className="sports-plan"><Activity /><div className="sports-preset-picker" role="group" aria-label={locale === "zh" ? "选择运动计划" : "Choose a movement plan"}><button type="button" className={sportsPresetId === "recommended" ? "selected" : ""} onClick={() => setSportsPresetId("recommended")}>{locale === "zh" ? "今日建议" : "Suggested"}</button>{sportsPresets.map((preset) => <button type="button" className={sportsPresetId === preset.id ? "selected" : ""} key={preset.id} onClick={() => setSportsPresetId(preset.id)}>{preset.minutes} min</button>)}</div><strong>{activeSportsPlan.title}</strong><p>{activeSportsPlan.reason}</p><div className="sports-plan-steps">{activeSportsPlan.steps.map((step, index) => <span key={step}><b>{index + 1}</b>{step}</span>)}</div><small className="sports-plan-disclaimer">{locale === "zh" ? "规则建议，不是医疗或训练处方；如有不适请停止。" : "Rule-based guidance, not a medical or training prescription. Stop if you feel unwell."}</small><div className="sports-plan-actions"><button type="button" disabled={exerciseHydrating} onClick={beginExercise}><CirclePlay size={17} />{locale === "zh" ? "开始此计划" : "Start this plan"}</button><button type="button" onClick={useSportsPlan}>{locale === "zh" ? "直接填写记录" : "Log without timer"}</button></div></div>}
     {exerciseSessionMessage && <p className="module-device-message" role="status">{exerciseSessionMessage}</p>}
   </ModuleDetailView>;
 
@@ -1011,7 +1064,7 @@ function MoodDashboard(props: Props & { locale: "zh" | "en"; view: string; openV
     openView("overview");
   };
 
-  if (view === "trend") return <HistoryView module="mood" locale={locale} trendBundle={trendBundle} profile={props.profile} deviceDate={deviceDate} />;
+  if (view === "trend") return <HistoryView userId={props.userId} module="mood" locale={locale} trendBundle={trendBundle} profile={props.profile} deviceDate={deviceDate} />;
 
   return (
     <form className="module-dashboard mood-dashboard" onSubmit={(event) => void submitMood(event)} data-module-view="mood-overview" data-ui-revision="mood-summary-live-v4">
@@ -1186,7 +1239,7 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
     setNotificationEnabled(true);
   };
 
-  if (view === "trend") return <HistoryView module="sleep" locale={locale} trendBundle={trendBundle} profile={props.profile} deviceDate={deviceDate} />;
+  if (view === "trend") return <HistoryView userId={props.userId} module="sleep" locale={locale} trendBundle={trendBundle} profile={props.profile} deviceDate={deviceDate} />;
 
   return (
     <div className="module-dashboard sleep-dashboard" data-module-view="sleep-overview">
@@ -1287,8 +1340,8 @@ function DietDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
   );
 }
 
-function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "deviceDate" | "profile" | "onOpenEditor"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
-  const { locale, todaySnapshot, trendBundle, deviceDate, onOpenEditor, view, openView } = props;
+function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "deviceDate" | "profile" | "onOpenFaceCamera"> & { locale: "zh" | "en"; view: string; openView: OpenModuleView }) {
+  const { locale, todaySnapshot, trendBundle, deviceDate, onOpenFaceCamera, view, openView } = props;
   const face = todaySnapshot?.face;
   const records = useMemo(() => {
     const source = [...(trendBundle?.faces ?? []), ...(face ? [face] : [])];
@@ -1326,7 +1379,7 @@ function FaceDashboard(props: Pick<Props, "todaySnapshot" | "trendBundle" | "dev
         <ShieldCheck size={18} /><p>{locale === "zh" ? "照片经明确同意后通过加密连接进入账号隔离的 Supabase 私有存储；受控服务端只使用短时签名链接分析，结果不构成医疗诊断。" : "With consent, photos are encrypted in transit to account-isolated private Supabase storage; the controlled server analyzes only through a short-lived signed link, and results are not medical diagnoses."}</p>
       </section>
       <section className="figma-module-card face-summary-card">
-        <header><strong>{locale === "zh" ? "今日面部状态" : "Today's face state"}</strong><div className="face-summary-actions"><button type="button" onClick={() => openView("compare")} disabled={!previousFace}><RefreshCw size={16} /><span>{locale === "zh" ? "对比" : "Compare"}</span></button><button className="module-card-icon-action" type="button" onClick={onOpenEditor} aria-label={locale === "zh" ? "使用前置摄像头拍照" : "Take a front-camera photo"}><Camera size={18} /><span>{locale === "zh" ? "拍照" : "Capture"}</span></button></div></header>
+        <header><strong>{locale === "zh" ? "今日面部状态" : "Today's face state"}</strong><div className="face-summary-actions"><button type="button" onClick={() => openView("compare")} disabled={!previousFace}><RefreshCw size={16} /><span>{locale === "zh" ? "对比" : "Compare"}</span></button><button className="module-card-icon-action" type="button" onClick={onOpenFaceCamera} aria-label={locale === "zh" ? "使用前置摄像头拍照" : "Take a front-camera photo"}><Camera size={18} /><span>{locale === "zh" ? "拍照" : "Capture"}</span></button></div></header>
         <div className="face-score-row">
           <div className="face-score-ring" style={{ "--face-score": `${face?.overall_score ?? 0}%` } as CSSProperties}><ScanFace size={28} /><strong>{face?.overall_score == null ? "--" : <AnimatedNumber value={face.overall_score} />}</strong></div>
           <div><span>{locale === "zh" ? "肤龄参考" : "Skin-age reference"}<strong>{face?.skin_age == null ? "--" : <AnimatedNumber value={face.skin_age} />}</strong></span><span>{locale === "zh" ? "拍摄模式" : "Capture mode"}<strong>{!face || !knownFaceMode(face.capture_mode) ? "--" : face.capture_mode === "makeup" ? (locale === "zh" ? "带妆" : "Makeup") : (locale === "zh" ? "素颜" : "Bare")}</strong></span><span>{locale === "zh" ? "分析置信度" : "Confidence"}<strong>{face?.analysis_confidence != null ? <><AnimatedNumber value={face.analysis_confidence * 100} />%</> : "--"}</strong></span></div>
@@ -2500,20 +2553,22 @@ export default function RecordModuleDashboard(props: Props) {
   const hasCurrentRecord = props.module === "focus"
     ? (props.todaySnapshot?.focusMinutes ?? 0) > 0 || (props.todaySnapshot?.focusSessions ?? 0) > 0
     : Boolean(props.todaySnapshot?.[props.module === "diet" ? "nutrition" : props.module]);
-  const loadOverviewInsight = useCallback(async () => {
+  const loadOverviewInsight = useCallback(async (refresh = false) => {
     if (!hasCurrentRecord) return;
     const requestId = ++overviewInsightRequestRef.current;
     setOverviewInsightLoading(true);
+    setOverviewInsight(null);
     setOverviewInsightError(null);
     try {
       if (props.module === "diet") {
-        const report = await loadDietAiReport({ date: props.recordDate, locale });
+        const report = await loadDietAiReport({ date: props.recordDate, locale, refresh });
         if (requestId === overviewInsightRequestRef.current) setOverviewInsight(report.bullets[0] ?? null);
       } else {
         const report = await loadHealthAiReport({
           scope: props.module,
           endDate: props.recordDate,
           locale,
+          refresh,
           sourceRevision: healthReportSourceRevision({
             scope: props.module,
             endDate: props.recordDate,
@@ -2549,14 +2604,14 @@ export default function RecordModuleDashboard(props: Props) {
       overviewInsightRequestRef.current += 1;
     };
   }, [hasCurrentRecord, loadOverviewInsight, view]);
-  if (view === "history") return <HistoryView module={props.module} locale={locale} trendBundle={props.trendBundle} profile={props.profile} deviceDate={props.deviceDate} onGrowthActivity={props.onGrowthActivity} />;
+  if (view === "history") return <HistoryView userId={props.userId} module={props.module} locale={locale} trendBundle={props.trendBundle} profile={props.profile} deviceDate={props.deviceDate} onGrowthActivity={props.onGrowthActivity} />;
   const common = { ...props, locale };
   let dashboard: ReactNode = null;
   if (props.module === "exercise") dashboard = <ExerciseDashboard userId={props.userId} locale={locale} steps={props.steps} calories={props.calories} exerciseMinutes={props.exerciseMinutes} exerciseNote={props.exerciseNote} setExerciseMinutes={props.setExerciseMinutes} setExerciseNote={props.setExerciseNote} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} deviceDate={props.deviceDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
   if (props.module === "mood") dashboard = <MoodDashboard {...common} view={view} openView={openView} />;
   if (props.module === "sleep") dashboard = <SleepDashboard userId={props.userId} locale={locale} sleepStart={props.sleepStart} sleepEnd={props.sleepEnd} deepSleep={props.deepSleep} lightSleep={props.lightSleep} remSleep={props.remSleep} sleepRating={props.sleepRating} onOpenEditor={props.onOpenEditor} recordDate={props.recordDate} deviceDate={props.deviceDate} trendBundle={props.trendBundle} todaySnapshot={props.todaySnapshot} profile={props.profile} view={view} openView={openView} />;
   if (props.module === "diet") dashboard = <DietDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} onOpenEditor={props.onOpenEditor} onOpenDietCamera={props.onOpenDietCamera} onOpenDietMeal={props.onOpenDietMeal} view={view} openView={openView} />;
-  if (props.module === "face") dashboard = <FaceDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} onOpenEditor={props.onOpenEditor} view={view} openView={openView} />;
+  if (props.module === "face") dashboard = <FaceDashboard locale={locale} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} onOpenFaceCamera={props.onOpenFaceCamera} view={view} openView={openView} />;
   if (props.module === "focus") dashboard = <FocusDashboard userId={props.userId} locale={locale} focusTitle={props.focusTitle} focusMinutes={props.focusMinutes} focusNote={props.focusNote} setFocusTitle={props.setFocusTitle} setFocusMinutes={props.setFocusMinutes} setFocusNote={props.setFocusNote} focusLaunch={props.focusLaunch} onFocusLaunchConsumed={props.onFocusLaunchConsumed} onSaveFocusMinutes={props.onSaveFocusMinutes} todaySnapshot={props.todaySnapshot} trendBundle={props.trendBundle} deviceDate={props.deviceDate} profile={props.profile} onOpenAi={props.onOpenAi} view={view} openView={openView} />;
   const focusImmersive = props.module === "focus" && (view === "immersive" || view === "interruption");
   const moduleLabels: Record<RecordModule, { zh: string; en: string }> = {
@@ -2571,7 +2626,7 @@ export default function RecordModuleDashboard(props: Props) {
       <span className="module-assistant-icon"><Bot size={18} /></span>
       <div><strong>{isDemoMode() ? (locale === "zh" ? "演示 AI 即时反馈" : "Demo AI feedback") : (locale === "zh" ? "基于真实记录的 AI 即时反馈" : "AI feedback from your real records")}</strong>{overviewInsightLoading
         ? <SkeletonLines count={2} compact />
-        : <p>{overviewInsight ?? overviewInsightError ?? (locale === "zh" ? "正在准备基于真实记录的反馈。" : "Preparing feedback from your real records.")}</p>}{overviewInsightError && <button type="button" onClick={() => void loadOverviewInsight()}>{locale === "zh" ? "重新生成" : "Generate again"}</button>}</div>
+        : <p>{overviewInsight ?? overviewInsightError ?? (locale === "zh" ? "正在准备基于真实记录的反馈。" : "Preparing feedback from your real records.")}</p>}{<button className="ai-report-refresh" type="button" disabled={overviewInsightLoading} onClick={() => void loadOverviewInsight(true)}><RefreshCw size={16} />{locale === "zh" ? "重新生成" : "Generate again"}</button>}</div>
     </section>}
     {!focusImmersive && view === "overview" && <nav className="module-cross-actions" aria-label={locale === "zh" ? "模块快捷入口" : "Module shortcuts"}>
       <button type="button" onClick={() => props.onOpenAi?.(locale === "zh" ? `请结合我已授权的真实${moduleLabel}记录，分析近期变化，并给出一条今天可执行的建议。` : `Analyze my consent-authorized ${moduleLabel} records and suggest one practical action for today.`)}><Bot size={16} /><span>{locale === "zh" ? "问 NAVA" : "Ask NAVA"}</span></button>

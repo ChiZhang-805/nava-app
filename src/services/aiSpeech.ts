@@ -149,6 +149,7 @@ export function isAiSpeechSupported() {
 export function createStreamingAiSpeaker(
   profile: SpeechProfile | null | undefined,
   locale: "zh" | "en",
+  onActivity?: (playing: boolean) => void,
 ): StreamingAiSpeaker {
   if (!isAiSpeechSupported()) {
     return { start() {}, update() {}, finish() {}, cancel() {}, whenDone: async () => {} };
@@ -160,16 +161,19 @@ export function createStreamingAiSpeaker(
   let pending = "";
   let generation = 0;
   let pendingUtterances = 0;
+  let cancelled = false;
   let idleResolvers: Array<() => void> = [];
 
   const resolveIdle = () => {
     if (pendingUtterances > 0) return;
+    onActivity?.(false);
     const resolvers = idleResolvers;
     idleResolvers = [];
     resolvers.forEach((resolve) => resolve());
   };
 
   const speakChunks = (chunks: string[]) => {
+    if (cancelled) return;
     for (const chunk of chunks) {
       const utteranceGeneration = generation;
       const utterance = new SpeechSynthesisUtterance(chunk);
@@ -180,8 +184,11 @@ export function createStreamingAiSpeaker(
       const voice = chooseVoice(synthesis.getVoices(), style.lang);
       if (voice) utterance.voice = voice;
       pendingUtterances += 1;
+      onActivity?.(true);
+      let settled = false;
       const settle = () => {
-        if (utteranceGeneration !== generation) return;
+        if (settled || utteranceGeneration !== generation) return;
+        settled = true;
         pendingUtterances = Math.max(0, pendingUtterances - 1);
         resolveIdle();
       };
@@ -192,6 +199,7 @@ export function createStreamingAiSpeaker(
   };
 
   const start = () => {
+    cancelled = false;
     generation += 1;
     synthesis.cancel();
     pendingUtterances = 0;
@@ -201,6 +209,7 @@ export function createStreamingAiSpeaker(
   };
 
   const update = (content: string) => {
+    if (cancelled) return;
     if (!content) return;
     if (lastContent && !content.startsWith(lastContent)) {
       if (lastContent.trim() === content.trim()) return;
@@ -215,6 +224,7 @@ export function createStreamingAiSpeaker(
   };
 
   const finish = (content?: string) => {
+    if (cancelled) return;
     if (content) update(content);
     const final = takeSpeakableChunks(pending, true);
     pending = "";
@@ -222,6 +232,7 @@ export function createStreamingAiSpeaker(
   };
 
   const cancel = () => {
+    cancelled = true;
     generation += 1;
     synthesis.cancel();
     pendingUtterances = 0;

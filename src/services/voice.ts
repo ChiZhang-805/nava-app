@@ -8,6 +8,7 @@ export interface VoiceInputSession {
 }
 
 interface VoiceInputOptions {
+  signal?: AbortSignal;
   locale: "zh" | "en";
   onTranscript: VoiceTranscriptHandler;
   onEnd: () => void;
@@ -101,7 +102,8 @@ async function startNativeVoiceInput(options: VoiceInputOptions): Promise<VoiceI
   let finished = false;
 
   const cleanup = async () => {
-    await Promise.all(listeners.splice(0).map((listener) => listener.remove()));
+    options.signal?.removeEventListener("abort", abort);
+    await Promise.allSettled(listeners.splice(0).map((listener) => listener.remove()));
   };
   const finish = async () => {
     if (finished) return;
@@ -109,21 +111,25 @@ async function startNativeVoiceInput(options: VoiceInputOptions): Promise<VoiceI
     await cleanup();
     options.onEnd();
   };
-
-  listeners.push(await NavaSpeech.addListener("speechResult", (result) => {
-    options.onTranscript(result.transcript, result.isFinal);
-  }));
-  listeners.push(await NavaSpeech.addListener("speechError", (error) => {
-    options.onError(normalizeVoiceError(error.code, error.message));
-  }));
-  listeners.push(await NavaSpeech.addListener("speechState", (state) => {
-    if (!state.listening) void finish();
-  }));
+  const abort = () => { void NavaSpeech.cancelListening().catch(() => undefined); void finish(); };
+  if (options.signal?.aborted) throw new VoiceInputError("Recording cancelled.", "voice_interrupted");
 
   try {
+    listeners.push(await NavaSpeech.addListener("speechResult", (result) => {
+      if (!finished) options.onTranscript(result.transcript, result.isFinal);
+    }));
+    listeners.push(await NavaSpeech.addListener("speechError", (error) => {
+      if (!finished) options.onError(normalizeVoiceError(error.code, error.message));
+    }));
+    listeners.push(await NavaSpeech.addListener("speechState", (state) => {
+      if (!state.listening) void finish();
+    }));
+
+    options.signal?.addEventListener("abort", abort, { once: true });
+    if (options.signal?.aborted) { await finish(); throw new VoiceInputError("Recording cancelled.", "voice_interrupted"); }
     await NavaSpeech.startListening({ locale: options.locale === "zh" ? "zh-CN" : "en-US" });
   } catch (error) {
-    await cleanup();
+    await finish();
     throw normalizeVoiceError(
       typeof error === "object" && error && "code" in error ? String(error.code) : undefined,
       error instanceof Error ? error.message : String(error),
@@ -138,13 +144,14 @@ async function startNativeVoiceInput(options: VoiceInputOptions): Promise<VoiceI
     },
     cancel: async () => {
       if (finished) return;
-      await NavaSpeech.cancelListening();
-      await finish();
+      const stopping = NavaSpeech.cancelListening();
+      try { await finish(); } finally { await stopping; }
     },
   };
 }
 
 function startBrowserVoiceInput(options: VoiceInputOptions): VoiceInputSession {
+  if (options.signal?.aborted) throw new VoiceInputError("Recording cancelled.", "voice_interrupted");
   const speechWindow = window as SpeechWindow;
   const Recognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
   if (!Recognition) {
@@ -160,10 +167,16 @@ function startBrowserVoiceInput(options: VoiceInputOptions): VoiceInputSession {
   const finish = () => {
     if (finished) return;
     finished = true;
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = null;
+    options.signal?.removeEventListener("abort", abort);
     options.onEnd();
   };
+  const abort = () => { if (!finished) { finish(); recognition.abort(); } };
 
   recognition.onresult = (event) => {
+    if (finished) return;
     let transcript = "";
     let isFinal = true;
     for (let index = 0; index < event.results.length; index += 1) {
@@ -174,6 +187,7 @@ function startBrowserVoiceInput(options: VoiceInputOptions): VoiceInputSession {
     if (transcript.trim()) options.onTranscript(transcript.trim(), isFinal);
   };
   recognition.onerror = (event) => {
+    if (finished) return;
     if (event.error !== "aborted" && event.error !== "no-speech") {
       options.onError(normalizeVoiceError(event.error, event.message));
     }
@@ -181,13 +195,14 @@ function startBrowserVoiceInput(options: VoiceInputOptions): VoiceInputSession {
   };
   recognition.onend = finish;
 
-  recognition.start();
+  options.signal?.addEventListener("abort", abort, { once: true });
+  try { recognition.start(); } catch (error) { finish(); throw error; }
   return {
     stop: async () => {
       if (!finished) recognition.stop();
     },
     cancel: async () => {
-      if (!finished) recognition.abort();
+      if (!finished) { finish(); recognition.abort(); }
     },
   };
 }

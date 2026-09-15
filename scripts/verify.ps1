@@ -12,6 +12,8 @@ Write-Host "== NAVA App verification =="
 
 Invoke-Npm -Arguments @("run", "external-preview:test")
 Invoke-Npm -Arguments @("run", "wellbeing:test")
+Invoke-Npm -Arguments @("run", "media-feedback:test")
+Invoke-Npm -Arguments @("run", "media-feedback:visual")
 Invoke-Npm -Arguments @("run", "external-preview:visual")
 
 Write-Host ""

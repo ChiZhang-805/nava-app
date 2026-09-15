@@ -52,7 +52,7 @@ export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminde
   const [selectorHeight, setSelectorHeight] = useState(132);
   const previewActivity = useSyncExternalStore(subscribePreviewActivity, getPreviewActivity, () => null);
   const previewState = previewActivity?.state;
-  const previewModuleName = previewActivity ? { focus: "专注", exercise: "运动", sleep: "睡眠" }[previewActivity.module] : "";
+  const previewModuleName = previewActivity ? { focus: "专注", exercise: "运动", sleep: "睡眠", recording: "录音", playback: "播放", camera: "拍摄" }[previewActivity.module] : "";
   const previewRef = useRef<HTMLDivElement>(null);
   const selectorFrontRef = useRef<HTMLElement>(null);
   const selectorBackRef = useRef<HTMLElement>(null);
@@ -249,7 +249,7 @@ export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminde
         aria-label={`${previewModuleName}外部事件模拟`}
       >
         <header><strong>外部事件模拟</strong><small>{previewModuleName} · 预览</small></header>
-        <p>{previewState === "running" ? `正在${previewModuleName}，选择一种外部事件` : previewState === "paused" ? "先返回或继续，再测试下一次事件" : "开始计时后可测试中断与恢复"}</p>
+        <p>{previewState === "running" ? `正在${previewModuleName}，选择一种外部事件` : previewState === "paused" ? "先返回或继续，再测试下一次事件" : "开始操作后可测试中断与恢复"}</p>
         <div className="nava-focus-event-actions">
           {([
             { reason: "call", label: "来电", icon: PhoneIncoming },

@@ -344,3 +344,39 @@ flows again: eight HTTP 200 replies, one model call each, client elapsed time
 `npm run verify` also passed. Evidence is in `focus-ai-v42`; exact timings and
 unchanged v150 frontend hashes are recorded in current handoff §77. These focus
 results are not acceptance of ordinary chat, health/diet reports or photo models.
+
+### Historical report and media acceptance (2026-09-15, current source)
+
+The authenticated APP now has an independent as-of date selector for six-module
+history, and a real regenerate action on history/overview insights. Client cache
+keys include user/date/language/refresh; late results cannot label a different
+day. Original records remain the source of truth. The secure account test passed
+102 module/date combinations (2026-08-28 through 2026-09-13) and six overview
+entries. Each latest-date scope was explicitly regenerated through the APP; valid
+older provider caches are identified as caches, not new generations. Raw health
+fields and existing activity sessions were unchanged. Evidence is metadata-only
+in `Build/TestRuns/history-ai-acceptance/local-source.json`; this initial receipt
+predates the stricter UI/response/database content-hash assertions added to the
+script, and must not be described as that stronger assertion's result.
+
+Real meal-photo testing exposed HTML number-step validation rejecting decimal
+protein/carbohydrate/fat estimates before a submit request could occur. Decimal
+nutrition and portion inputs now accept non-negative finite decimals (positive
+portions); integer calorie/rating contracts are unchanged. Photo analysis never
+means saved: the user must confirm a valid form. Uploaded names use random UUIDs
+with no overwrite. The reversible account test encrypts its write-ahead snapshot
+with Windows CurrentUser DPAPI; exact row/version ownership prevents recovery
+from overwriting another device's edits. Account credentials are not journaled.
+
+Observed `fdnb-recompute` 56-day calls returned HTTP 546 during verification.
+That route ignores a supplied analysisDays parameter. The existing APP weekly
+route supports an explicit 14-day analysis window; success there is not proof
+that 56-day computation is repaired or all earlier dates were recomputed.
+No new backend deployment or statistical-algorithm change is included here.
+### 2026-09-15 餐照恢复复验
+
+`meal-chain-acceptance/result.json` 保留首次原餐恢复后AI断言失败，不覆盖成通过。
+随后 `recovery-result.json` 的09:40 UTC运行只做恢复核验，未再次改餐：真实APP表单
+登录后，9/13饮食摘要的页面/HTTP响应/Supabase哈希一致，周报端点返回HTTP200和
+9/7–9/13四段结构。原始早餐、14天派生数据及受保护其它账户状态均通过检查，DPAPI
+恢复日志已标完成。没有手写AI文本，也没有用这次14天结果宣称56天研究入口已修好。

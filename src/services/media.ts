@@ -40,8 +40,8 @@ export async function analyzeDietPhoto(input: {
   }
 
   const ext = input.file.name.split(".").pop() || "jpg";
-  const path = `${input.userId}/${input.date}/${input.meal}-${Date.now()}.${ext}`;
-  const upload = await supabase.storage.from("diet-photos").upload(path, input.file, { upsert: true });
+  const path = `${input.userId}/${input.date}/${input.meal}-${crypto.randomUUID()}.${ext}`;
+  const upload = await supabase.storage.from("diet-photos").upload(path, input.file, { upsert: false });
   if (upload.error) {
     if (isMissingStorageBucket(upload.error)) throw new Error("共享后端尚未启用私有饮食照片存储，照片不会绕过私有存储直接发送给模型。");
     throw upload.error;

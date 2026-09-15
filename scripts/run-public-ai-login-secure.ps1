@@ -1,4 +1,4 @@
-param([ValidateSet("PublicAiLogin", "TodoExtraction", "PriorityAdvice", "TaskQuadrants", "PublicQuadrants", "FocusEncouragement", "FocusRelease", "ExternalPreview", "Reminders", "RemindersRelease", "Wellbeing")][string]$Check = "PublicAiLogin")
+param([ValidateSet("PublicAiLogin", "TodoExtraction", "PriorityAdvice", "TaskQuadrants", "PublicQuadrants", "FocusEncouragement", "FocusRelease", "ExternalPreview", "Reminders", "RemindersRelease", "Wellbeing", "HistoryAi", "MealChain")][string]$Check = "PublicAiLogin")
 
 $secureEmail = Read-Host "NAVA account email" -AsSecureString
 $securePassword = Read-Host "NAVA account password" -AsSecureString
@@ -7,6 +7,16 @@ $passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure
 try {
   $env:NAVA_ACCOUNT_EMAIL = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($emailPointer)
   $env:NAVA_ACCOUNT_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
+  if ($Check -eq "MealChain") {
+    & node scripts/verify-meal-chain-account.mjs
+    if ($LASTEXITCODE -ne 0) { throw "Authenticated meal-chain acceptance failed; inspect recovery receipt." }
+    return
+  }
+  if ($Check -eq "HistoryAi") {
+    & node scripts/verify-history-ai-account.mjs
+    if ($LASTEXITCODE -ne 0) { throw "Authenticated historical AI acceptance failed." }
+    return
+  }
   if ($Check -eq "RemindersRelease") {
     foreach ($siteUrl in @("https://nava-app-preview-cz.chizhang1031.chatgpt.site/", "https://chizhang-805.github.io/nava-app-preview/")) {
       $env:NAVA_REMINDER_UI_URL = $siteUrl

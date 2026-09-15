@@ -68,14 +68,15 @@ export async function loadDietAiReport(input: { date: string; locale: "zh" | "en
     } satisfies DietAiReport;
   }
 
-  const cacheKey = `${input.date}:${input.locale}:${input.refresh ? "refresh" : "load"}`;
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  const accessToken = sessionData.session?.access_token;
+  const userId = sessionData.session?.user.id;
+  if (!accessToken || !userId) throw new Error(input.locale === "zh" ? "登录会话不可用，请重新登录后生成 AI 反馈。" : "Your session is unavailable. Sign in again to generate AI feedback.");
+  const cacheKey = `${userId}:${input.date}:${input.locale}:${input.refresh ? "refresh" : "load"}`;
   const existing = pendingReports.get(cacheKey);
   if (existing) return existing;
   const request = (async () => {
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) throw sessionError;
-    const accessToken = sessionData.session?.access_token;
-    if (!accessToken) throw new Error(input.locale === "zh" ? "登录会话不可用，请重新登录后生成 AI 反馈。" : "Your session is unavailable. Sign in again to generate AI feedback.");
     const response = await supabase.functions.invoke<DietAiReport>("ai-diet-report", {
       body: { date: input.date, lang: input.locale, refresh: input.refresh === true },
       headers: { Authorization: `Bearer ${accessToken}` },

@@ -11,3 +11,7 @@
 .report-share-content img { width: 100%; height: auto; flex-shrink: 0; border-radius: 14px; }
 .report-share-sheet footer { padding: 12px 14px; border-top: 1px solid #c4e4ec; flex-shrink: 0; margin-top: auto; }
 .report-share-sheet footer button { width: 100%; background: #147d98; color: white; }
+.link-share-overlay { align-items: center; }
+.link-share-overlay .report-share-sheet { max-height: 100%; }
+.link-share-url { display: flex; align-items: flex-start; gap: 8px; padding: 12px; border-radius: 12px; background: #dff3fa; }
+.link-share-url svg { flex-shrink: 0; margin-top: 3px; }

@@ -1,6 +1,6 @@
 import { sevenDayDateRange, todayISO } from "./date.ts";
 
-export type ReportModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face";
+export type ReportModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face" | "weekly";
 
 export type ReportCardEntry = {
   date: string;
@@ -311,7 +311,7 @@ export async function sharePreparedReportImage(blob: Blob, options: ReportCardOp
   if (navigator.share && navigator.canShare?.({ files: [file] })) {
     await navigator.share({
       title: `NAVA · ${options.moduleLabel}`,
-      text: options.locale === "zh" ? "我的近 7 日 NAVA 状态报告" : "My NAVA 7-day status report",
+      text: options.module === "weekly" ? (options.locale === "zh" ? "我的 NAVA 节律周报" : "My NAVA weekly rhythm report") : (options.locale === "zh" ? "我的近 7 日 NAVA 状态报告" : "My NAVA 7-day status report"),
       files: [file],
     });
     return "shared" as const;

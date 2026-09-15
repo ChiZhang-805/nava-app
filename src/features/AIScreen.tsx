@@ -4,9 +4,11 @@ import { Camera, Check, FileText, Image as ImageIcon, LoaderCircle, Mic, Pencil,
 import { Fragment, FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocale } from "../i18n";
 import PageSkeleton from "../components/PageSkeleton";
+import CameraCapture from "../components/CameraCapture";
+import { usePreviewActivity } from "../hooks/usePreviewActivity";
 import { createConversationGreeting, deleteConversationMessages, generateConversationTitle, loadConversation, sendAiMessage } from "../services/ai";
 import type { AiProcessingStep } from "../services/aiProcessing";
-import { createStreamingAiSpeaker, isAiSpeechSupported, type StreamingAiSpeaker } from "../services/aiSpeech";
+import { createStreamingAiSpeaker, isAiSpeechSupported, resolveAiSpeechStyle, type StreamingAiSpeaker } from "../services/aiSpeech";
 import { todayISO } from "../services/date";
 import { analyzeDietPhoto } from "../services/media";
 import { loadProfileWithOnboarding } from "../services/onboarding";
@@ -146,6 +148,15 @@ export default function AIScreen({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [voiceState, setVoiceState] = useState<"idle" | "starting" | "listening">("idle");
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const [mediaNotice, setMediaNotice] = useState<string | null>(null);
+  const voiceGeneration = useRef(0);
+  const voiceInputAbort = useRef<AbortController | null>(null);
+  const voiceCallAbort = useRef<AbortController | null>(null);
+  const voiceStarting = useRef(false);
+  const mediaActive = useRef(false);
+  mediaActive.current = voiceState !== "idle" || audioPlaying;
   const [voiceCancelArmed, setVoiceCancelArmed] = useState(false);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [pendingDocument, setPendingDocument] = useState<PendingChatDocument | null>(null);
@@ -319,6 +330,7 @@ export default function AIScreen({
     const typedMessage = input.trim();
     const document = pendingDocument;
     if (!typedMessage && !document) return;
+    interruptMedia();
     const message = document ? buildChatDocumentMessage(document, typedMessage, locale) : typedMessage;
     const displayMessage = document
       ? [typedMessage, `📎 ${document.name}`].filter(Boolean).join("\n")
@@ -574,16 +586,18 @@ export default function AIScreen({
     setError(null);
   }, [active, initialPromptRequest]);
 
+  const speechProfileRef = useRef(profile); speechProfileRef.current = profile;
+  const speechStyleKey = JSON.stringify(resolveAiSpeechStyle(profile, locale));
   useEffect(() => {
     speechRef.current?.cancel();
     speechRef.current = speechEnabled && active
-      ? createStreamingAiSpeaker(profile, locale)
+      ? createStreamingAiSpeaker(speechProfileRef.current, locale, setAudioPlaying)
       : null;
     return () => {
       speechRef.current?.cancel();
       speechRef.current = null;
     };
-  }, [active, locale, profile, speechEnabled]);
+  }, [active, locale, speechStyleKey, speechEnabled]);
 
   useEffect(() => {
     if (!command || command.id === handledCommandRef.current) return;
@@ -698,8 +712,9 @@ export default function AIScreen({
     if (voiceError.code === "permission_denied") return t("ai.voicePermissionDenied");
     if (voiceError.code === "audio_unavailable") return t("ai.voiceAudioUnavailable");
     if (voiceError.code === "voice_unavailable") return t("ai.voiceUnavailable");
+    if (voiceError.code === "voice_interrupted") return locale === "zh" ? "录音已中断，文字保留，请手动重新开启。" : "Recording interrupted. Text kept; restart manually.";
     return t("ai.voiceFailed");
-  }, [t]);
+  }, [t, locale]);
 
   const clearVoiceCallSilenceTimer = useCallback(() => {
     if (voiceCallSilenceTimerRef.current === null) return;
@@ -709,6 +724,7 @@ export default function AIScreen({
 
   const endVoiceCall = useCallback(() => {
     voiceCallOpenRef.current = false;
+    voiceCallAbort.current?.abort(); voiceCallAbort.current = null;
     voiceCallSubmittingRef.current = false;
     clearVoiceCallSilenceTimer();
     streamAbortRef.current?.abort();
@@ -731,11 +747,16 @@ export default function AIScreen({
     setVoiceCallTranscript("");
     setVoiceCallError(null);
     setVoiceCallPhase("listening");
+    const controller = new AbortController();
+    const previousController = voiceCallAbort.current;
+    voiceCallAbort.current = controller;
+    previousController?.abort();
     try {
       const session = await startVoiceInput({
         locale,
+        signal: controller.signal,
         onTranscript: (transcript, isFinal) => {
-          if (!voiceCallOpenRef.current || voiceCallSubmittingRef.current) return;
+          if (controller.signal.aborted || !voiceCallOpenRef.current || voiceCallSubmittingRef.current) return;
           const normalized = transcript.trim();
           if (!normalized) return;
           voiceCallTranscriptRef.current = normalized;
@@ -747,6 +768,7 @@ export default function AIScreen({
           );
         },
         onEnd: () => {
+          if (controller.signal.aborted) return;
           voiceCallSessionRef.current = null;
           if (!voiceCallOpenRef.current || voiceCallSubmittingRef.current) return;
           clearVoiceCallSilenceTimer();
@@ -760,19 +782,19 @@ export default function AIScreen({
           );
         },
         onError: (voiceError) => {
-          if (!voiceCallOpenRef.current) return;
+          if (controller.signal.aborted || !voiceCallOpenRef.current) return;
           voiceCallSubmittingRef.current = true;
           setVoiceCallError(voiceErrorText(voiceError));
           setVoiceCallPhase("error");
         },
       });
-      if (!voiceCallOpenRef.current || voiceCallSubmittingRef.current) {
+      if (controller.signal.aborted || !voiceCallOpenRef.current || voiceCallSubmittingRef.current) {
         await session.cancel();
         return;
       }
       voiceCallSessionRef.current = session;
     } catch (voiceError) {
-      if (!voiceCallOpenRef.current) return;
+      if (controller.signal.aborted || !voiceCallOpenRef.current) return;
       voiceCallSubmittingRef.current = true;
       setVoiceCallError(voiceErrorText(voiceError as VoiceInputError));
       setVoiceCallPhase("error");
@@ -875,9 +897,18 @@ export default function AIScreen({
   }, [voiceCallOpen, voiceCallPhase]);
 
   const stopVoiceInput = useCallback(async (cancel = false) => {
+    voiceStopIntentRef.current = cancel ? "cancel" : "stop";
     const session = voiceSessionRef.current;
     voiceSessionRef.current = null;
-    if (!session) return;
+    if (!session) {
+      if (voiceStarting.current) {
+        voiceGeneration.current++;
+        voiceInputAbort.current?.abort();
+        setVoiceState("idle");
+        if (cancel) setInput(voiceInitialInputRef.current);
+      }
+      return;
+    }
     try {
       await (cancel ? session.cancel() : session.stop());
     } finally {
@@ -887,22 +918,32 @@ export default function AIScreen({
   }, []);
 
   const beginVoiceInput = useCallback(async () => {
-    if (sending || voiceState !== "idle") return;
+    if (!active || sending || voiceState !== "idle" || voiceStarting.current) return;
+    voiceStarting.current = true;
+    const generation = ++voiceGeneration.current;
+    voiceInputAbort.current?.abort();
+    const controller = new AbortController(); voiceInputAbort.current = controller;
+    let ended = false;
     speechRef.current?.cancel();
     voiceInitialInputRef.current = input;
     voiceStopIntentRef.current = null;
     setError(null);
+    setMediaNotice(null);
     setVoiceState("starting");
     try {
       const session = await startVoiceInput({
         locale,
-        onTranscript: (transcript) => setInput(transcript),
+        signal: controller.signal,
+        onTranscript: (transcript) => { if (generation === voiceGeneration.current) setInput([voiceInitialInputRef.current.trim(), transcript].filter(Boolean).join(" ")); },
         onEnd: () => {
+          ended = true;
+          if (generation !== voiceGeneration.current) return;
           voiceSessionRef.current = null;
           setVoiceState("idle");
         },
-        onError: (voiceError) => setError(voiceErrorText(voiceError)),
+        onError: (voiceError) => { if (generation === voiceGeneration.current) setError(voiceErrorText(voiceError)); },
       });
+      if (generation !== voiceGeneration.current || ended) { await session.cancel(); return; }
       const stopIntent = voiceStopIntentRef.current;
       if (stopIntent) {
         await (stopIntent === "cancel" ? session.cancel() : session.stop());
@@ -913,10 +954,11 @@ export default function AIScreen({
       voiceSessionRef.current = session;
       setVoiceState("listening");
     } catch (voiceError) {
+      if (generation !== voiceGeneration.current) return;
       setVoiceState("idle");
       setError(voiceErrorText(voiceError as VoiceInputError));
-    }
-  }, [input, locale, sending, voiceErrorText, voiceState]);
+    } finally { voiceStarting.current = false; }
+  }, [active, input, locale, sending, voiceErrorText, voiceState]);
 
   useEffect(() => {
     if (voiceRequestId <= 0 || voiceRequestId === handledVoiceRequestRef.current) return;
@@ -927,13 +969,13 @@ export default function AIScreen({
   useEffect(() => {
     if (voiceReleaseId <= 0 || voiceReleaseId === handledVoiceReleaseRef.current) return;
     handledVoiceReleaseRef.current = voiceReleaseId;
-    voiceStopIntentRef.current = voiceReleaseCancelled ? "cancel" : "stop";
-    if (voiceSessionRef.current) void stopVoiceInput(voiceReleaseCancelled);
+    void stopVoiceInput(voiceReleaseCancelled);
   }, [stopVoiceInput, voiceReleaseCancelled, voiceReleaseId]);
 
   const openComposerCamera = () => {
     setAttachmentMenuOpen(false);
-    cameraInputRef.current?.click();
+    interruptMedia();
+    setCameraOpen(true);
   };
 
   const openComposerPhotoLibrary = () => {
@@ -986,14 +1028,35 @@ export default function AIScreen({
     if (!voicePointerActiveRef.current) return;
     voicePointerActiveRef.current = false;
     const cancel = forceCancel || voicePointerStartYRef.current - event.clientY >= 58;
-    voiceStopIntentRef.current = cancel ? "cancel" : "stop";
-    if (voiceSessionRef.current) void stopVoiceInput(cancel);
+    void stopVoiceInput(cancel);
     setVoiceCancelArmed(false);
   };
 
+  const interruptMedia = useCallback((simulated = false) => {
+    const wasActive = mediaActive.current || voiceCallOpenRef.current;
+    voiceGeneration.current++;
+    voiceInputAbort.current?.abort(); voiceInputAbort.current = null;
+    voiceStopIntentRef.current = "cancel";
+    voicePointerActiveRef.current = false;
+    const session = voiceSessionRef.current; voiceSessionRef.current = null;
+    void session?.cancel().catch(() => undefined);
+    speechRef.current?.cancel();
+    if (voiceCallOpenRef.current) {
+      const transcript = voiceCallTranscriptRef.current.trim();
+      if (transcript && !voiceCallSubmittingRef.current) setInput((current) => [current.trim(), transcript].filter(Boolean).join(" "));
+      endVoiceCall();
+    }
+    setVoiceState("idle"); setVoiceCancelArmed(false); setAudioPlaying(false);
+    if (wasActive) setMediaNotice(locale === "zh" ? `${simulated ? "模拟中断：" : ""}录音与播放已停止，已识别文字保留；不会自动发送或重启麦克风。` : `${simulated ? "Simulated interruption: " : ""}Recording and playback stopped. Recognized text is kept; nothing is sent or restarted automatically.`);
+  }, [endVoiceCall, locale]);
+  usePreviewActivity(voiceState !== "idle" || (voiceCallOpen && voiceCallPhase !== "speaking") ? "recording" : "playback", active && !cameraOpen && (voiceState !== "idle" || voiceCallOpen || audioPlaying) ? "running" : null, () => interruptMedia(true));
   useEffect(() => {
-    if (!active && voiceCallOpen) endVoiceCall();
-  }, [active, endVoiceCall, voiceCallOpen]);
+    if (!active) { interruptMedia(); setCameraOpen(false); }
+    const hide = () => { if (document.hidden) interruptMedia(); };
+    const leave = () => interruptMedia();
+    document.addEventListener("visibilitychange", hide); window.addEventListener("pagehide", leave);
+    return () => { document.removeEventListener("visibilitychange", hide); window.removeEventListener("pagehide", leave); };
+  }, [active, interruptMedia]);
 
   useEffect(() => {
     if (!attachmentMenuOpen) return undefined;
@@ -1013,6 +1076,8 @@ export default function AIScreen({
   }, [attachmentMenuOpen]);
 
   useEffect(() => () => {
+    voiceGeneration.current++;
+    voiceInputAbort.current?.abort(); voiceCallAbort.current?.abort();
     photoObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     photoObjectUrlsRef.current.clear();
     voiceCallOpenRef.current = false;
@@ -1090,6 +1155,8 @@ export default function AIScreen({
 
   return (
     <div className="chat-layout">
+      {cameraOpen && <CameraCapture locale={locale} facing="environment" onClose={() => setCameraOpen(false)} onFallback={() => { setCameraOpen(false); cameraInputRef.current?.click(); }} onCapture={(file) => { setCameraOpen(false); void handleComposerPhoto(file); }} />}
+      {mediaNotice && <p className="chat-media-notice" role="status">{mediaNotice}<button type="button" onClick={() => setMediaNotice(null)} aria-label={locale === "zh" ? "关闭中断提示" : "Dismiss interruption notice"}><X size={16} /></button></p>}
       <div className="chat-list" ref={listRef}>
         {messages.map((message) => {
           const isUser = message.role === "user";
@@ -1246,7 +1313,7 @@ export default function AIScreen({
         <div className="chat-input-shell">
           <input
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => { if (voiceState !== "idle") interruptMedia(); setInput(e.target.value); }}
             placeholder={(voiceCancelArmed || externalVoiceCancelArmed)
               ? t("ai.voiceCancelHint")
               : voiceState === "starting"
@@ -1266,6 +1333,12 @@ export default function AIScreen({
             onPointerUp={(event) => finishComposerVoice(event)}
             onPointerCancel={(event) => finishComposerVoice(event, true)}
             onContextMenu={(event) => event.preventDefault()}
+            onClick={(event) => {
+              if (event.detail !== 0) return;
+              if (voiceState === "idle") void beginVoiceInput();
+              else void stopVoiceInput();
+            }}
+            aria-pressed={voiceState !== "idle"}
             aria-label={t("ai.voiceReleaseHint")}
             title={locale === "zh" ? "按住说话，上滑取消" : "Hold to speak, slide up to cancel"}
           >

@@ -4,12 +4,14 @@ import { Share2, X } from "lucide-react";
 import { createReportShareImage, sharePreparedReportImage, type ReportCardOptions } from "../services/reportShareCard";
 import "../styles/report-share-preview.css";
 
-export default function ReportSharePreview({ options, onClose, onComplete }: {
+export default function ReportSharePreview({ options, onClose, onComplete, createImage }: {
   options: ReportCardOptions; onClose: () => void; onComplete: () => void;
+  createImage?: (privacy: { includeDates: boolean; includeInsights: boolean }) => Promise<Blob>;
 }) {
   const [includeDates, setDates] = useState(false);
   const [includeInsights, setInsights] = useState(false);
-  const [preview, setPreview] = useState<{ key: string; url: string; blob: Blob } | null>(null);
+  const [preview, setPreview] = useState<{ generation: number; key: string; url: string; blob: Blob; options: ReportCardOptions; createImage: typeof createImage } | null>(null);
+  const imageGeneration = useRef(0);
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -18,7 +20,7 @@ export default function ReportSharePreview({ options, onClose, onComplete }: {
   const mounted = useRef(true);
   const zh = options.locale === "zh";
   const key = `${includeDates}:${includeInsights}:${retry}`;
-  const current = preview?.key === key ? preview : null;
+  const current = preview?.generation === imageGeneration.current && preview.key === key && preview.options === options && preview.createImage === createImage ? preview : null;
   const host = document.querySelector(".phone-frame") ?? document.body;
   useEffect(() => {
     mounted.current = true;
@@ -50,16 +52,18 @@ export default function ReportSharePreview({ options, onClose, onComplete }: {
   useEffect(() => {
     let active = true;
     let url: string | undefined;
+    const generation = ++imageGeneration.current;
+    setPreview(null);
     setError(false);
-    void createReportShareImage({ ...options, includeDates, includeInsights }).then((blob) => {
+    void (createImage ? createImage({ includeDates, includeInsights }) : createReportShareImage({ ...options, includeDates, includeInsights })).then((blob) => {
       if (!active) return;
       url = URL.createObjectURL(blob);
-      setPreview({ key, blob, url });
+      setPreview({ generation, key, blob, url, options, createImage });
     }).catch(() => { if (active) setError(true); });
     return () => { active = false; if (url) URL.revokeObjectURL(url); };
-  }, [options, includeDates, includeInsights, key]);
+  }, [options, includeDates, includeInsights, key, createImage]);
   const confirm = async () => {
-    if (!current || busy) return;
+    if (!current || current.generation !== imageGeneration.current || busy) return;
     setBusy(true);
     setError(false);
     try {

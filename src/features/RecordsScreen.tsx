@@ -8,6 +8,7 @@ import type { PreviewReason } from "../services/previewEnvironment";
 import AnimatedNumber from "../components/AnimatedNumber";
 import ModuleProgressRing from "../components/ModuleProgressRing";
 import PageSkeleton, { SkeletonBlock, SkeletonLines } from "../components/PageSkeleton";
+import CameraCapture from "../components/CameraCapture";
 import LineTrendChart from "../components/LineTrendChart";
 import SectionCard from "../components/SectionCard";
 import WeeklyRadarChart from "../components/WeeklyRadarChart";
@@ -33,7 +34,8 @@ import { shiftDateISO, todayISO } from "../services/date";
 import { reminderMealFromView } from "../services/independentReminders";
 import { selectMealDraft } from "../services/mealDrafts";
 import { analyzeDietPhoto, analyzeFacePhoto, resolveDietPhotoUrl } from "../services/media";
-import { currentSevenDayPeriod, loadDnbWeeklyReport, refreshFdnbHealth, shareDnbWeeklyPoster, type DnbWeeklyReport } from "../services/dnb";
+import { currentSevenDayPeriod, loadDnbWeeklyReport, refreshFdnbHealth, type DnbWeeklyReport } from "../services/dnb";
+import WeeklySharePreview from "../components/WeeklySharePreview";
 import { trackAnalyticsEvent } from "../services/analytics";
 import type { GrowthActivityKind } from "../services/productivity";
 import { clearMealRecordDraft, clearRecordDraft, loadRecordDraft, saveMealRecordDraft, saveRecordDraft, type RecordDraftModule } from "../services/drafts";
@@ -281,6 +283,7 @@ export default function RecordsScreen({
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [reportMode, setReportMode] = useState<"modules" | "weekly">("modules");
   const [dnbReport, setDnbReport] = useState<DnbWeeklyReport | null>(null);
+  const [weeklyShare, setWeeklyShare] = useState<{ report: DnbWeeklyReport; startDate: string; endDate: string; weekOffset: number } | null>(null);
   const [weeklyAiReport, setWeeklyAiReport] = useState<HealthAiReport | null>(null);
   const [weeklyAiLoading, setWeeklyAiLoading] = useState(false);
   const [weeklyAiUnavailable, setWeeklyAiUnavailable] = useState(false);
@@ -352,6 +355,8 @@ export default function RecordsScreen({
   const [dietPhotoPath, setDietPhotoPath] = useState<string | null>(null);
   const [dietItems, setDietItems] = useState<FoodItem[]>([]);
   const [dietAnalyzing, setDietAnalyzing] = useState(false);
+  const [cameraTarget, setCameraTarget] = useState<"face" | "diet" | null>(null);
+  useEffect(() => { setCameraTarget(null); }, [activeModule]);
 
   const [focusTitle, setFocusTitle] = useState("");
   const [focusMinutes, setFocusMinutes] = useState(25);
@@ -718,10 +723,8 @@ export default function RecordsScreen({
   }, [initialView, requestedMeal, deviceDate]);
 
   useEffect(() => {
-    if (activeModule !== "mood") return;
-    const today = todayISO();
-    if (recordDate !== today) setRecordDate(today);
-  }, [activeModule, recordDate]);
+    if (activeModule === "mood" && showEditor && recordDate !== deviceDate) setRecordDate(deviceDate);
+  }, [activeModule, showEditor, recordDate, deviceDate]);
 
   useEffect(() => {
     if (reportMode !== "weekly") return;
@@ -841,20 +844,13 @@ export default function RecordsScreen({
 
   useEffect(() => clearWeeklyLongPress, [clearWeeklyLongPress]);
 
-  const shareWeeklyReport = useCallback(async () => {
+  const shareWeeklyReport = useCallback(() => {
     if (!dnbReport || dnbReport.status !== "ready") return;
     const reference = new Date(`${deviceDate}T12:00:00`);
     reference.setDate(reference.getDate() - weekOffset * 7);
     const period = currentSevenDayPeriod(reference);
-    try {
-      await shareDnbWeeklyPoster(dnbReport, locale, `${period.startDate}-${period.endDate}`);
-      await trackAnalyticsEvent(user.id, "weekly_report_shared", { weekOffset });
-      await onGrowthActivity?.("share");
-    } catch (shareError) {
-      if ((shareError as DOMException)?.name === "AbortError") return;
-      setError(shareError instanceof Error ? shareError.message : String(shareError));
-    }
-  }, [deviceDate, dnbReport, locale, onGrowthActivity, user.id, weekOffset]);
+    setWeeklyShare({ report: structuredClone(dnbReport), ...period, endDate: period.endDate > deviceDate ? deviceDate : period.endDate, weekOffset });
+  }, [deviceDate, dnbReport, weekOffset]);
 
   const beginWeeklyLongPress = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (!dnbReport || dnbReport.status !== "ready") return;
@@ -1370,6 +1366,12 @@ export default function RecordsScreen({
       && !/(记录不足|无法判断|insufficient|cannot determine)/i.test(`${hubAssociation.headline} ${hubAssociation.explanation}`));
     return (
       <div className="record-hub" ref={rootRef}>
+        {weeklyShare && <WeeklySharePreview report={weeklyShare.report} locale={locale} startDate={weeklyShare.startDate} endDate={weeklyShare.endDate} onClose={() => setWeeklyShare(null)} onComplete={() => {
+          const sharedOffset = weeklyShare.weekOffset;
+          setWeeklyShare(null);
+          void trackAnalyticsEvent(user.id, "weekly_report_shared", { weekOffset: sharedOffset });
+          void onGrowthActivity?.("share");
+        }} />}
         <div className="health-report-tabs" role="tablist" aria-label={locale === "zh" ? "健康报告视图" : "Health report view"}>
           <button type="button" role="tab" aria-selected={reportMode === "modules"} onClick={() => setReportMode("modules")}>{locale === "zh" ? "分项报告" : "Modules"}</button>
           <button type="button" role="tab" aria-selected={reportMode === "weekly"} onClick={() => { setReportMode("weekly"); void trackAnalyticsEvent(user.id, "weekly_report_opened", { weekOffset }); }}>{locale === "zh" ? "本周报告" : "Weekly"}</button>
@@ -1594,6 +1596,7 @@ export default function RecordsScreen({
       aria-busy={Boolean(busy)}
       ref={rootRef}
     >
+      {cameraTarget && <CameraCapture locale={locale} facing={cameraTarget === "face" ? "user" : "environment"} onClose={() => setCameraTarget(null)} onFallback={() => { const target = cameraTarget; setCameraTarget(null); if (target === "face") facePhotoInputRef.current?.click(); else dietQuickCameraInputRef.current?.click(); }} onCapture={(file) => { const target = cameraTarget; setCameraTarget(null); if (target === "face") void handleFacePhoto(file); else { setShowEditor(true); onViewChange?.("editor"); void handleDietPhoto(file); } }} />}
       <input
         ref={dietQuickCameraInputRef}
         className="visually-hidden"
@@ -1664,7 +1667,8 @@ export default function RecordsScreen({
             setShowEditor(true);
             onViewChange?.("editor");
           }}
-          onOpenDietCamera={() => dietQuickCameraInputRef.current?.click()}
+          onOpenDietCamera={() => setCameraTarget("diet")}
+          onOpenFaceCamera={() => { setShowEditor(true); setCameraTarget("face"); }}
           onOpenDietMeal={(nextMeal) => {
             setMeal(nextMeal);
             setShowEditor(true);
@@ -1936,22 +1940,10 @@ export default function RecordsScreen({
             {dietAnalyzing && <Loader2 className="spin" size={18} />}
           </div>
           <div className="diet-photo-actions" role="group" aria-label={locale === "zh" ? "选择饮食照片来源" : "Choose meal photo source"}>
-            <label className="diet-photo-action">
+            <button type="button" className="diet-photo-action" disabled={dietAnalyzing} onClick={() => setCameraTarget("diet")}>
               <Camera size={18} />
               <span>{locale === "zh" ? "打开摄像头" : "Open camera"}</span>
-              <input
-                aria-label={locale === "zh" ? "打开摄像头拍摄饮食" : "Open camera to photograph meal"}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                disabled={dietAnalyzing}
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0] ?? null;
-                  event.currentTarget.value = "";
-                  void handleDietPhoto(file);
-                }}
-              />
-            </label>
+            </button>
             <label className="diet-photo-action">
               <Upload size={18} />
               <span>{locale === "zh" ? "上传照片" : "Upload photo"}</span>
@@ -1981,7 +1973,7 @@ export default function RecordsScreen({
                   <div className="diet-estimate-item-fields">
                     <label>
                       <span>{locale === "zh" ? "份量 g" : "Portion g"}</span>
-                      <input type="number" inputMode="decimal" min="1" step="1" defaultValue={item.weight_grams ?? ""} key={`weight-${index}-${item.weight_grams ?? ""}`} disabled={!item.weight_grams} aria-label={`${item.name} ${locale === "zh" ? "份量（克）" : "portion in grams"}`} onBlur={(event) => {
+                      <input type="number" inputMode="decimal" min="1" step="any" defaultValue={item.weight_grams ?? ""} key={`weight-${index}-${item.weight_grams ?? ""}`} disabled={!item.weight_grams} aria-label={`${item.name} ${locale === "zh" ? "份量（克）" : "portion in grams"}`} onBlur={(event) => {
                         const weight = Number(event.currentTarget.value);
                         if (Number.isFinite(weight) && weight > 0 && item.weight_grams && weight !== item.weight_grams) {
                           applyCorrectedDietItems(dietItems.map((entry, entryIndex) => entryIndex === index ? resizeFoodItemPortion(entry, weight) : entry));
@@ -2043,23 +2035,23 @@ export default function RecordsScreen({
           <div className="two-col nutrition-macro-fields">
             <label className="field nutrition-unit-field">
               <span>{locale === "zh" ? "蛋白质摄入量" : "Protein intake"}</span>
-              <div className="nutrition-unit-input"><input inputMode="decimal" type="number" min="0" value={proteinGrams ?? ""} onChange={(e) => setProteinGrams(optionalNonNegative(e.target.value))} /><b aria-hidden="true">g</b></div>
+              <div className="nutrition-unit-input"><input inputMode="decimal" type="number" min="0" step="any" value={proteinGrams ?? ""} onChange={(e) => setProteinGrams(optionalNonNegative(e.target.value))} /><b aria-hidden="true">g</b></div>
             </label>
             <label className="field nutrition-unit-field">
               <span>{locale === "zh" ? "碳水摄入量" : "Carbohydrate intake"}</span>
-              <div className="nutrition-unit-input"><input inputMode="decimal" type="number" min="0" value={carbohydrateGrams ?? ""} onChange={(e) => setCarbohydrateGrams(optionalNonNegative(e.target.value))} /><b aria-hidden="true">g</b></div>
+              <div className="nutrition-unit-input"><input inputMode="decimal" type="number" min="0" step="any" value={carbohydrateGrams ?? ""} onChange={(e) => setCarbohydrateGrams(optionalNonNegative(e.target.value))} /><b aria-hidden="true">g</b></div>
             </label>
             <label className="field nutrition-unit-field">
               <span>{locale === "zh" ? "脂肪摄入量" : "Fat intake"}</span>
-              <div className="nutrition-unit-input"><input inputMode="decimal" type="number" min="0" value={fatGrams ?? ""} onChange={(e) => setFatGrams(optionalNonNegative(e.target.value))} /><b aria-hidden="true">g</b></div>
+              <div className="nutrition-unit-input"><input inputMode="decimal" type="number" min="0" step="any" value={fatGrams ?? ""} onChange={(e) => setFatGrams(optionalNonNegative(e.target.value))} /><b aria-hidden="true">g</b></div>
             </label>
             <label className="field nutrition-unit-field">
               <span>{locale === "zh" ? "饮水摄入量" : "Water intake"}</span>
-              <div className="nutrition-unit-input"><input inputMode="numeric" type="number" min="0" value={hydrationMl ?? ""} onChange={(e) => setHydrationMl(optionalNonNegative(e.target.value))} /><b aria-hidden="true">ml</b></div>
+              <div className="nutrition-unit-input"><input inputMode="numeric" type="number" min="0" step="any" value={hydrationMl ?? ""} onChange={(e) => setHydrationMl(optionalNonNegative(e.target.value))} /><b aria-hidden="true">ml</b></div>
             </label>
           </div>
           <label className="field diet-rating-field"><span>{locale === "zh" ? `饮食自评 ${dietRating}/5` : `Diet rating ${dietRating}/5`}</span><input className="range" type="range" min="1" max="5" value={dietRating} onChange={(e) => setDietRating(Number(e.target.value))} /></label>
-          <ActionButton type="submit" icon={<Drumstick size={18} />} variant="secondary" disabled={busy === "records.diet"}>
+          <ActionButton type="submit" icon={<Drumstick size={18} />} variant="secondary" disabled={busy === "records.diet" || dietAnalyzing}>
             {dietItems.length > 0 ? t("records.saveDetected") : t("records.saveDiet")}
           </ActionButton>
         </SectionCard>
@@ -2179,7 +2171,7 @@ export default function RecordsScreen({
             {faceAnalyzing && <Loader2 className="spin" size={18} />}
           </label>
           <div className="face-photo-actions">
-            <button type="button" disabled={faceAnalyzing} onClick={() => facePhotoInputRef.current?.click()}><Camera size={17} />{faceImage ? (locale === "zh" ? "重新拍摄" : "Retake") : (locale === "zh" ? "前置拍摄" : "Front camera")}</button>
+            <button type="button" disabled={faceAnalyzing} onClick={() => setCameraTarget("face")}><Camera size={17} />{faceImage ? (locale === "zh" ? "重新拍摄" : "Retake") : (locale === "zh" ? "前置拍摄" : "Front camera")}</button>
             <button type="button" disabled={faceAnalyzing} onClick={() => faceLibraryInputRef.current?.click()}><Upload size={17} />{locale === "zh" ? "从相册重选" : "Choose from library"}</button>
             <input ref={faceLibraryInputRef} hidden aria-label={locale === "zh" ? "从相册选择面部照片" : "Choose face photo from library"} type="file" accept="image/*" disabled={faceAnalyzing} onChange={(e) => { const file = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ""; void handleFacePhoto(file); }} />
           </div>

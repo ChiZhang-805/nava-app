@@ -1,5 +1,5 @@
 /** Ephemeral desktop test controls. No telemetry, health records or OS events. */
-export type PreviewModule = "focus" | "exercise" | "sleep";
+export type PreviewModule = "focus" | "exercise" | "sleep" | "recording" | "playback" | "camera";
 export type PreviewReason = "call" | "message" | "distraction" | "other";
 export type PreviewState = "ready" | "running" | "paused";
 export type PreviewActivity = { module: PreviewModule; state: PreviewState };

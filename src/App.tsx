@@ -19,6 +19,7 @@ import UtilityDrawer from "./components/UtilityDrawer";
 import DevSeedPanel from "./components/DevSeedPanel";
 import RewardCelebration from "./components/RewardCelebration";
 import NotificationBanner from "./components/NotificationBanner";
+import LinkSharePreview from "./components/LinkSharePreview";
 import DesktopDevicePreviewChrome from "./components/DesktopDevicePreviewChrome";
 import PageSkeleton, { SkeletonBlock } from "./components/PageSkeleton";
 import LoadingShell from "./components/LoadingShell";
@@ -127,6 +128,7 @@ function MobileShell({
   const [recordModule, setRecordModule] = useState<RecordModule | null>(initialRouteRef.current.module);
   const [recordView, setRecordView] = useState<string | null>(initialRouteRef.current.view);
   const [utilityOpen, setUtilityOpen] = useState(false);
+  const [linkShareOpen, setLinkShareOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [focusTodoPrefill, setFocusTodoPrefill] = useState<FocusTodoPrefill | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -428,14 +430,8 @@ function MobileShell({
   };
 
   const shareCurrentPage = async () => {
-    const shareData = { title: `NAVA · ${currentTitle}`, url: window.location.href };
-    try {
-      if (navigator.share) await navigator.share(shareData);
-      else await navigator.clipboard.writeText(shareData.url);
-    } catch (shareError) {
-      if ((shareError as DOMException)?.name !== "AbortError") console.warn("share failed", shareError);
-    }
     setUtilityOpen(false);
+    setLinkShareOpen(true);
   };
 
   const clearAiLongPressTimer = () => {
@@ -606,6 +602,7 @@ function MobileShell({
   return (
     <div className={["phone-frame", activeTab === "today" ? "phone-frame--option2" : "", focusImmersive ? "phone-frame--focus-immersive" : "", profileDetailsSubpage ? "phone-frame--subpage-no-nav" : ""].filter(Boolean).join(" ")}>
       <div className="safe-top" />
+      {linkShareOpen && <LinkSharePreview locale={locale} onClose={() => setLinkShareOpen(false)} />}
       {notificationBanner && <NotificationBanner item={notificationBanner} locale={locale} onOpen={() => openNotificationItem(notificationBanner)} onDismiss={dismissNotificationBanner} />}
       {activeTab !== "today" && !focusImmersive && (
         <header className="app-header figma-app-header">

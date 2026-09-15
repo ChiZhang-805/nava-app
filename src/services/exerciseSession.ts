@@ -101,7 +101,8 @@ export async function pauseExerciseSession(userId: string, session: ExerciseSess
 
 export async function resumeExerciseSession(userId: string, session: ExerciseSession, now = new Date()) {
   if (session.runningSince) return session;
-  return persist(userId, { ...session, runningSince: now.toISOString() });
+  try { return await persist(userId, { ...session, runningSince: now.toISOString() }); }
+  catch (error) { writeLocal(userId, session); throw error; }
 }
 
 export async function finishExerciseSession(userId: string, session: ExerciseSession, now = new Date()) {

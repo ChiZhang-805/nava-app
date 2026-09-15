@@ -96,32 +96,43 @@ export async function loadDnbWeeklyReport(reference = new Date(), locale: "zh" |
   return normalizeDnbWeeklyReport(response.data);
 }
 
-export async function shareDnbWeeklyPoster(report: DnbWeeklyReport, locale: "zh" | "en", periodLabel: string) {
+export async function createDnbWeeklyPoster(report: DnbWeeklyReport, locale: "zh" | "en", periodLabel: string, privacy: { includeDates: boolean; includeInsights: boolean }) {
+  const score = report.stabilityScore ?? report.score;
+  if (privacy.includeInsights && privacy.includeDates && (report.summary?.length ?? 0) > 4000) throw new Error(locale === "zh" ? "摘要过长，请关闭摘要后生成。" : "Insights are too long. Hide them and retry.");
+  if (report.status !== "ready" || score == null || !Number.isFinite(score) || score < 0 || score > 100) throw new Error("No valid weekly score to share.");
   const canvas = document.createElement("canvas");
   canvas.width = 1080;
-  canvas.height = 1440;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("当前设备无法生成周报海报。");
-  const gradient = context.createLinearGradient(0, 0, 1080, 1440);
+  context.font = "500 28px system-ui, sans-serif";
+  const summaryLines = privacy.includeInsights && privacy.includeDates ? canvasTextLines(context, report.summary ?? "", 770) : [];
+  const height = Math.max(1060, summaryLines.length ? 1100 + summaryLines.length * 44 : 1060);
+  if (height > 4096) throw new Error(locale === "zh" ? "摘要过长，请关闭摘要后生成。" : "Insights are too long. Hide them and retry.");
+  canvas.height = height;
+  const gradient = context.createLinearGradient(0, 0, 1080, canvas.height);
   gradient.addColorStop(0, "#effbff");
   gradient.addColorStop(1, "#b8e8f6");
   context.fillStyle = gradient;
-  context.fillRect(0, 0, 1080, 1440);
+  context.fillRect(0, 0, 1080, canvas.height);
   context.fillStyle = "rgba(255,255,255,.78)";
-  roundRect(context, 90, 100, 900, 1210, 48);
+  roundRect(context, 90, 100, 900, canvas.height - 230, 48);
   context.fill();
   context.fillStyle = "#0a5778";
   context.font = "700 38px system-ui, sans-serif";
   context.fillText("NAVA · WEEKLY RHYTHM", 150, 190);
+  if (report.modelVersion?.includes("demo")) {
+    context.font = "700 26px system-ui, sans-serif";
+    context.fillText("演示数据 / Demo", 150, 295);
+  }
   context.fillStyle = "#6b8793";
   context.font = "500 28px system-ui, sans-serif";
-  context.fillText(periodLabel, 150, 245);
+  if (privacy.includeDates) context.fillText(periodLabel, 150, 245);
   context.fillStyle = "#0b3347";
-  context.font = "800 76px system-ui, sans-serif";
-  context.fillText(locale === "zh" ? "我在慢慢变好" : "I am finding my rhythm", 150, 385);
+  context.font = `${locale === "zh" ? 76 : 68}px system-ui, sans-serif`;
+  context.fillText(locale === "zh" ? "我的节律周记" : "My rhythm journal", 150, 385);
   context.fillStyle = "#1780a9";
   context.font = "800 190px system-ui, sans-serif";
-  context.fillText(String(Math.round(report.stabilityScore ?? report.score ?? 0)), 145, 650);
+  context.fillText(String(Math.round(score)), 145, 650);
   context.font = "700 32px system-ui, sans-serif";
   context.fillText(locale === "zh" ? "本周稳定度" : "WEEKLY STABILITY", 155, 710);
   context.fillStyle = "#244e60";
@@ -130,26 +141,16 @@ export async function shareDnbWeeklyPoster(report: DnbWeeklyReport, locale: "zh"
     ? (locale === "zh" ? "关键词：值得关注的转变" : "Keyword: supported change")
     : report.evidenceLevel === "candidate"
       ? (locale === "zh" ? "关键词：继续观察" : "Keyword: keep observing")
-      : (locale === "zh" ? "关键词：平稳积累" : "Keyword: steady progress");
-  context.fillText(keyword, 150, 820);
+      : (locale === "zh" ? "关键词：证据有限" : "Keyword: limited evidence");
+  if (privacy.includeInsights && privacy.includeDates) context.fillText(keyword, 150, 820);
   context.fillStyle = "#537381";
   context.font = "500 28px system-ui, sans-serif";
-  wrapCanvasText(context, report.summary ?? (locale === "zh" ? "每一次记录都在帮助你建立更可靠的个人基线。" : "Every check-in builds a more reliable personal baseline."), 150, 900, 770, 44, 5);
+  summaryLines.forEach((line, index) => context.fillText(line, 150, 900 + index * 44));
   context.fillStyle = "#78909a";
   context.font = "500 21px system-ui, sans-serif";
-  wrapCanvasText(context, report.disclaimer ?? (locale === "zh" ? "研究性健康状态提示，不构成医疗诊断。" : "Research health-state signal; not a medical diagnosis."), 150, 1190, 770, 32, 3);
+  canvasTextLines(context, locale === "zh" ? "研究性健康状态提示，不构成医疗诊断。" : "Research health-state signal; not a medical diagnosis.", 770).forEach((line, index) => context.fillText(line, 150, canvas.height - 210 + index * 32));
   const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error("海报生成失败。")), "image/png"));
-  const file = new File([blob], `nava-weekly-${periodLabel.replace(/[^0-9-]/g, "") || "report"}.png`, { type: "image/png" });
-  if (navigator.share && navigator.canShare?.({ files: [file] })) {
-    await navigator.share({ files: [file], title: "NAVA Weekly Rhythm" });
-    return;
-  }
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = file.name;
-  link.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return blob;
 }
 
 function roundRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
@@ -157,20 +158,19 @@ function roundRect(context: CanvasRenderingContext2D, x: number, y: number, widt
   context.roundRect(x, y, width, height, radius);
 }
 
-function wrapCanvasText(context: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number, maxLines: number) {
+function canvasTextLines(context: CanvasRenderingContext2D, text: string, maxWidth: number) {
   const characters = [...text];
   let line = "";
-  let lines = 0;
+  const lines: string[] = [];
   for (const character of characters) {
     const next = line + character;
-    if (context.measureText(next).width > maxWidth && line) {
-      context.fillText(line, x, y + lines * lineHeight);
-      line = character;
-      lines += 1;
-      if (lines >= maxLines) return;
+    if (character === "\n" || (context.measureText(next).width > maxWidth && line)) {
+      lines.push(line);
+      line = character === "\n" ? "" : character;
     } else line = next;
   }
-  if (line && lines < maxLines) context.fillText(line, x, y + lines * lineHeight);
+  if (line) lines.push(line);
+  return lines;
 }
 
 export async function refreshFdnbHealth(endDate = todayISO()) {
