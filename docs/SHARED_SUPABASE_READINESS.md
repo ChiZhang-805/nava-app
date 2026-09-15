@@ -22,7 +22,9 @@ Dry run selected only that CHECK expansion; push succeeded, and all 30 local/rem
 migrations match. The shared read-only contract check passed. The real account's
 APP reminder settings saved/read back independently and were restored; health
 writes were blocked and the existing active session remained unchanged. This is
-not evidence of native lock-screen delivery or all AI-provider routes.
+not evidence of native lock-screen delivery or all AI-provider routes. Subsequent
+Sites v151 and GitHub Pages real-account tests both passed, with original reminder
+settings restored and the same read-only health/activity boundary preserved.
 
 - Core shared data: `profiles`, mood, sleep, exercise, nutrition, focus, tasks, and AI conversations.
 - APP extensions: face records, rhythm scores, HealthKit snapshots, Watch snapshots, sync jobs,
