@@ -44,6 +44,7 @@
     "external-preview:visual": "node scripts/verify-external-preview-events.mjs",
     "media-feedback:test": "node --experimental-strip-types --test tests/media-feedback.test.ts",
     "media-feedback:visual": "node scripts/verify-media-feedback-ui.mjs",
+    "camera:visual": "node scripts/verify-camera-layout.mjs",
     "home-widgets:test": "node --experimental-strip-types --test tests/home-widgets.test.ts tests/session-maintenance.test.ts",
     "home-widgets:visual": "node scripts/verify-home-widgets-ui.mjs",
     "calendar:visual": "node scripts/verify-calendar-year-ui.mjs",

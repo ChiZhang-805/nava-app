@@ -1,17 +1,25 @@
-.camera-capture-overlay { position:absolute; inset:0; z-index:245; display:flex; padding:max(70px,calc(var(--nava-system-safe-top,0px) + 10px),calc(env(safe-area-inset-top) + 12px)) 14px max(28px,calc(env(safe-area-inset-bottom) + 12px)); background:#14394d80; color:#14394d; }
-.camera-capture-sheet { display:flex; flex-direction:column; min-width:0; min-height:0; width:100%; background:#effaff; border:1px solid white; border-radius:24px; overflow:hidden; }
-.camera-capture-sheet header { display:flex; align-items:center; gap:12px; padding:10px 14px; }
-.camera-capture-sheet h2 { flex:1; margin:0; font-size:18px; }
-.camera-capture-sheet button { min-height:44px; min-width:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid #b7dfe9; border-radius:12px; padding:8px 12px; background:#def3fa; color:#174458; font-size:15px; }
+.camera-capture-overlay { position:absolute; inset:0; z-index:245; display:flex; align-items:center; justify-content:center; container-type:size; padding:max(70px,calc(var(--nava-system-safe-top,0px) + 10px),calc(env(safe-area-inset-top) + 12px)) 14px max(28px,calc(env(safe-area-inset-bottom) + 12px)); background:#14394d80; color:#14394d; }
+.camera-capture-sheet { display:flex; flex-direction:column; min-width:0; min-height:0; width:100%; max-height:100%; background:#effaff; border:1px solid white; border-radius:24px; overflow:hidden; }
+.camera-capture-sheet header { flex-shrink:0; display:flex; align-items:center; gap:12px; padding:8px 14px; }
+.camera-capture-sheet h2 { flex:1; margin:0; font-size:1.125rem; line-height:1.4; }
+.camera-capture-sheet button { min-height:44px; min-width:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid #b7dfe9; border-radius:12px; padding:8px 12px; background:#def3fa; color:#174458; font-size:1rem; line-height:1.4; }
+.camera-capture-sheet button svg { flex-shrink:0; }
+.camera-capture-sheet .camera-close { flex:0 0 44px; width:44px; height:44px; padding:0; margin-right:-8px; border:0; background:transparent; }
+.camera-close svg { width:1.125rem; height:1.125rem; }
+.camera-capture-sheet button:focus-visible { outline:2px solid #1585a4; outline-offset:2px; }
 .camera-capture-sheet button:disabled { opacity:.5; }
-.camera-capture-body { min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:0 14px 14px; }
-.camera-capture-body p { font-size:14px; line-height:1.6; margin:12px 0 0; }
-.camera-viewfinder { position:relative; aspect-ratio:3/4; background:#183645; overflow:hidden; border-radius:16px; }
-.camera-viewfinder video,.camera-viewfinder img { width:100%; height:100%; object-fit:contain; }
-.camera-viewfinder video[hidden] { display:none; }
+.camera-capture-body { min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:0 14px; }
+.camera-capture-body p { font-size:.875rem; line-height:1.5; margin:10px 0 0; text-align:center; }
+.camera-viewfinder { position:relative; width:fit-content; max-width:100%; margin-inline:auto; overflow:hidden; border-radius:16px; }
+/* Intrinsic media proportions keep the entire photo, without a painted letterbox. */
+.camera-viewfinder video,.camera-viewfinder img { display:block; width:auto; height:auto; max-width:100%; max-height:max(80px,calc(100cqh - 10rem)); }
+.camera-capture-overlay[data-camera-phase="live"] .camera-viewfinder video { max-height:max(80px,calc(100cqh - 12rem)); }
+.camera-viewfinder[hidden],.camera-viewfinder video[hidden] { display:none; }
 .camera-viewfinder.is-front video { transform:scaleX(-1); }
 .camera-face-guide { position:absolute; inset:19% 22%; border:2px dashed #ddf8ff; border-radius:48%; pointer-events:none; }
-.camera-capture-sheet footer { margin-top:auto; padding:12px 14px; display:flex; gap:10px; border-top:1px solid #c4e4ec; }
-.camera-capture-sheet footer button { flex:1; }
+.camera-status-icon { display:block; margin:10px auto 0; color:#42768a; }
+.camera-capture-sheet footer { flex-shrink:0; padding:16px 14px; display:flex; gap:10px; }
+.camera-capture-sheet footer button { flex:1; min-width:0; }
+.camera-capture-sheet footer button:last-child { border-color:#1585a4; background:#1585a4; color:white; }
 .chat-media-notice { flex-shrink:0; margin:8px 14px; padding:10px 12px; border-radius:14px; background:#effaff; color:#174458; font-size:14px; line-height:1.6; display:flex; gap:8px; align-items:center; }
 .chat-media-notice button { flex-shrink:0; width:44px; height:44px; border:0; border-radius:12px; color:inherit; background:#def3fa; }

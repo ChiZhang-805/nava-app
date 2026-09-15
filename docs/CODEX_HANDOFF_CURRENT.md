@@ -1,6 +1,6 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
-更新时间：**2026-09-15**（当前修复与发布状态见末尾 §81；早期版本段落为历史记录）
+更新时间：**2026-09-15**（当前修复与发布状态见末尾 §82；早期版本段落为历史记录）
 
 这份文件是新 Codex 任务接手 NAVA 时的第一入口，也是当前项目状态的
 **独立、可直接使用的交接文档**。它不依赖这段很长、曾多次出现界面回退的
@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`73e0b72f80ff31a0e3057bca319bd25437941d87`
+- 源码发布 commit：`c322362e7c6fcd7dbb424d1055f9953f91ce79d6`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v133，public
+- ChatGPT Sites 版本：v152，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_c1182c384d088191bce70b5f33e4aa58`
-- Sites deployment ID：`appgdep_6aa69fd7e6e48191bc77f54aa4c99005`
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_5c79b4d15e448191b53d51483c8177f3`
+- Sites deployment ID：`appgdep_6aa916a40f708191b0da30f68b8e9ed9`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `37f71f783ea63a1472aa885bec0b6128d0e62ee1`
+  `2751fc69b7ec0ca0ef9c2e9d880aa1d4ecd85b55`，工作流`34955524792`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v133 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-sites-v133.tar.gz`
+- v152 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-media-feedback-20260915.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v133 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v152 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -2903,7 +2903,7 @@ https://www.nhs.uk/mental-health/self-help/guides-tools-and-activities/breathing
 - 两站均健康写入0、活动会话前后完全相同；浏览器关闭成功，启动器exit0。
   收据有本轮startedAt与passed:true，不依赖旧成功文件。
 
-### 重新编号的剩余28项
+### v151时点的剩余28项（历史，当前见§81）
 
 原§79第7（网页呼吸/小猫安抚）及第11（网页独立提醒）已交付，移出清单；
 原生送达、全AI可用性分别仍保留在下列24及18，不宣称一并完成。
@@ -3000,3 +3000,54 @@ https://www.nhs.uk/mental-health/self-help/guides-tools-and-activities/breathing
 
 发布后可移出原16（过程小猫反馈）和原19（网页媒体中断模拟/释放）；原17保留未实测
 的自动定位部分，其余完整剩余清单在交付确认时重新编号。
+
+### v152 双站发布收据
+
+源码`c322362e7c6fcd7dbb424d1055f9953f91ce79d6`已推送GitHub main及原Sites源仓库，
+同一clean/pushed提交构建两站。Sites v152与部署信息见§2.2，原生工具确认succeeded。
+Pages镜像`2751fc69b7ec0ca0ef9c2e9d880aa1d4ecd85b55`、工作流`34955524792`成功，
+线上source.json匹配源码/版本。主入口`index-Da-Zifcj.js`两站与本地424290字节相同，
+SHA256 `04fa1f7fe3ea754542ce2f71830d52d6a93d4f412fa9726740abea9548da66b9`。
+79个生成文件逐文件哈希一致；清理23个旧生成JS/CSS，可从Git恢复。无静态账号数据
+或secret打包；沿用Windows原生构建+插件prepare-site-build+tar，不改插件/访问策略。
+公开账号的逐日三方哈希、总览及编译后中断控件验收收据独立保存在history-ai-acceptance。
+
+### 当前未收尾：公开总览比对与用户指出的取景布局
+
+Sites v152公开账号运行完成，102个历史日期均三方哈希通过；饮食/面部总览通过，
+情绪/睡眠/运动/专注总览的主句比对AssertionError，原因尚未确认，不能据此声称整组
+总览内容均正确，也不能未经诊断直接归因为模型不可用。编译后相机/录音右侧中断通过
+显式测试设备验收，原始健康/草稿/积分通知/聊天状态未变，健康写入0。总体收据passed:false，
+浏览器已由finally关闭。Pages实际账号复验尚未开始；其发布与字节一致性已验证。
+
+用户新截图指出取景弹层视觉不合格，先按要求解释，随后用户明确授权修复（见§82）：标题18px而关闭
+图标22px，且共用带底色的44px按钮；弹层flex默认拉伸、footer margin-top:auto制造大块
+空白；3:4固定取景框配contain造成横图上下留边；常驻“仅本机处理”技术说明不是必要
+操作提示。几何/点击测试通过不能替代视觉层级和空白比例验收。
+当前不得将§80的原16/17/19/20批量从清单删除，等相应完整边界收尾后再重新编号。
+
+## 82. 取景弹层视觉修复（当前）
+
+范围仅限面部/餐食/AI聊天共用的 CameraCapture 弹层。保留真实相机、显式确认后提交、
+取消/后台释放、迟到授权回收及照片URL释放；未修改AI、数据库或账号记录。
+
+- 弹层按内容自然收拢，在系统安全区内居中；取消footer自动撑开的空白。
+- 标题与纯关闭图标均为18px视觉尺寸，关闭触区仍44×44，无常驻色块。
+- 去掉“取景只在本机处理”等常驻技术说明；保留简短、必要的权限/中断/对齐提示。
+  确认照片时不叠说明或定位框，只有照片、重拍和使用照片。
+- 视频/照片使用原始宽高比，不用固定3:4框套横图；高图同时按可用高宽等比例收缩。
+  媒体盒与图像边界一致，没有填色黑边；不裁切实际提交照片。
+- 待授权/权限失败不显示巨大空取景框；提示与按钮自然排列。复审额外发现竖屏实时
+  对齐提示底部被挤9px，已增加实时取景的文字预算，补充纵向溢出断言。
+
+本地 `camera-layout/result.json` 四尺寸28状态通过：横/竖实时取景与确认、200%字号、
+权限错误/等待、系统中断保留确认照片、关闭后迟到流释放。检查媒体与照片比例、四角
+像素保留、44px触区、安全边界、无横/纵溢出、按钮距照片16px、确认页无额外段落。
+主代理查看四尺寸横/竖确认及小屏失败截图。使用明确的合成测试画面，不等同于真机。
+`camera:visual` 已加入标准verify；公开版验收使用安全启动器CameraLayout，真实登录但
+禁止健康写入/模型请求，测试照片只拍下并关闭、不提交。
+
+整体verify前置检查及33阶段全部通过（camera-layout/full-verify.log，exit0），新增取景
+28状态与原媒体/中断/分享回归均通过。auth:verify:production通过；SMTP/实际OTP仍未验。
+公开版QA脚本单独lint通过。双站发布结果待本节补记。未解决的旧事项仍包括§81四模块总览主句哈希不符、
+其余AI入口覆盖、iPhone真实相机/录音/锁屏、自动面部定位设备验收；不得随视觉修复划掉。

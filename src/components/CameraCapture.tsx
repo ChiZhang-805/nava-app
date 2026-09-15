@@ -35,7 +35,7 @@ export default function CameraCapture({ locale, facing, onCapture, onClose, onFa
   const interrupt = useCallback((simulated = false) => {
     stop();
     setPhase((current) => current === "review" ? current : "paused");
-    setNotice(zh ? `${simulated ? "模拟中断：" : ""}摄像头已关闭。确认页中的照片会保留，尚未完成的拍摄不提交。请手动重新开启。` : `${simulated ? "Simulated interruption: " : ""}Camera stopped. Photos already in review are kept; incomplete captures are not submitted. Restart manually.`);
+    setNotice(zh ? `${simulated ? "模拟中断：" : ""}拍摄已暂停，可重新开启。` : `${simulated ? "Simulated interruption: " : ""}Camera paused. Restart when ready.`);
   }, [stop, zh]);
   usePreviewActivity("camera", phase === "starting" || phase === "live" ? "running" : "paused", () => interrupt(true));
   const start = useCallback(async () => {
@@ -56,7 +56,7 @@ export default function CameraCapture({ locale, facing, onCapture, onClose, onFa
     } catch {
       if (request !== generation.current || !mounted.current) return;
       stop(); setPhase("error");
-      setNotice(zh ? "摄像头未能开启。请检查权限，或使用系统相机 / 相册。" : "Camera unavailable. Check permission, or use the system camera / library.");
+      setNotice(zh ? "无法开启相机，请检查权限或选择照片。" : "Allow camera access or choose a photo from your library.");
     }
   }, [facing, interrupt, stop, zh]);
   useEffect(() => {
@@ -88,10 +88,10 @@ export default function CameraCapture({ locale, facing, onCapture, onClose, onFa
     if (phase !== "live" || facing !== "user") return;
     let alive = true, busy = false;
     const NativeDetector = (window as DetectorWindow).FaceDetector;
-    if (!NativeDetector) { setGuidance(zh ? "手动对齐：当前设备不支持实时面部检测" : "Align manually: live face detection is unavailable"); return; }
+    if (!NativeDetector) { setGuidance(zh ? "请手动对齐面部" : "Align your face manually"); return; }
     let detector: Detector;
     try { detector = new NativeDetector({ fastMode: true, maxDetectedFaces: 2 }); }
-    catch { setGuidance(zh ? "检测暂不可用，请手动对齐" : "Detection unavailable. Align manually"); return; }
+    catch { setGuidance(zh ? "请手动对齐面部" : "Align your face manually"); return; }
     const timer = window.setInterval(() => {
       if (busy || !video.current || video.current.readyState < 2) return;
       busy = true;
@@ -100,8 +100,8 @@ export default function CameraCapture({ locale, facing, onCapture, onClose, onFa
         if (!alive) return;
         const box = faces[0]?.boundingBox;
         const centered = box && Math.abs((box.x + box.width / 2) / source.videoWidth - .5) < .18 && Math.abs((box.y + box.height / 2) / source.videoHeight - .5) < .2;
-        setGuidance(faces.length !== 1 ? (zh ? "请让画面中只有一张面部" : "Keep one face in view") : centered ? (zh ? "检测到面部居中，可自行确认拍摄" : "Face centered. Capture when ready") : (zh ? "请将面部移向画面中间" : "Move your face toward the center"));
-      }).catch(() => { window.clearInterval(timer); if (alive) setGuidance(zh ? "检测暂不可用，请手动对齐" : "Detection unavailable. Align manually"); }).finally(() => { busy = false; });
+        setGuidance(faces.length !== 1 ? (zh ? "请保持单人入镜" : "Keep one face in view") : centered ? (zh ? "面部已居中，可以拍摄" : "Face centered. Ready to capture") : (zh ? "请将面部移向画面中间" : "Move your face toward the center"));
+      }).catch(() => { window.clearInterval(timer); if (alive) setGuidance(zh ? "请手动对齐面部" : "Align your face manually"); }).finally(() => { busy = false; });
     }, 800);
     return () => { alive = false; window.clearInterval(timer); };
   }, [facing, phase, zh]);
@@ -120,15 +120,15 @@ export default function CameraCapture({ locale, facing, onCapture, onClose, onFa
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", .9));
     if (!mounted.current || request !== generation.current) return;
     if (!blob) throw new Error("capture unavailable");
-    stop(); setStill({ file: new File([blob], `nava-${facing === "user" ? "face" : "meal"}.jpg`, { type: "image/jpeg" }), url: URL.createObjectURL(blob) }); setPhase("review");
-    } catch { if (mounted.current && request === generation.current) setNotice(zh ? "照片未能拍下，请重试；没有提交分析。" : "Capture failed. Retry; nothing was sent for analysis."); }
+    stop(); setNotice(""); setStill({ file: new File([blob], `nava-${facing === "user" ? "face" : "meal"}.jpg`, { type: "image/jpeg" }), url: URL.createObjectURL(blob) }); setPhase("review");
+    } catch { if (mounted.current && request === generation.current) setNotice(zh ? "拍摄失败，请重试。" : "Capture failed. Please retry."); }
     finally { capturing.current = false; }
   };
   return createPortal(<div className="camera-capture-overlay" ref={root} role="dialog" aria-modal="true" aria-label={zh ? "相机取景" : "Camera preview"} data-camera-phase={phase}>
-    <section className="camera-capture-sheet"><header><h2>{zh ? (facing === "user" ? "面部取景" : "餐食取景") : "Camera"}</h2><button type="button" onClick={onClose} aria-label={zh ? "关闭相机" : "Close camera"}><X size={22} /></button></header>
-      <div className="camera-capture-body"><div className={`camera-viewfinder ${facing === "user" ? "is-front" : ""}`}><video ref={video} autoPlay muted playsInline hidden={phase !== "live"} />{still && <img src={still.url} alt={zh ? "待确认照片" : "Photo to confirm"} />}{phase === "live" && facing === "user" && <i className="camera-face-guide" aria-hidden="true" />}</div>
-        <p>{zh ? "取景画面只在本机处理；点击使用照片后才进入分析流程。" : "Live frames stay on this device. Analysis starts only after you confirm the photo."}</p>
-        {phase === "starting" && <p role="status">{zh ? "正在开启摄像头…" : "Opening camera…"}</p>}{notice && <p role="status">{notice}</p>}{phase === "live" && guidance && <p role="status">{guidance}</p>}
+    <section className="camera-capture-sheet"><header><h2>{zh ? (facing === "user" ? "面部取景" : "餐食取景") : "Camera"}</h2><button className="camera-close" type="button" onClick={onClose} aria-label={zh ? "关闭相机" : "Close camera"}><X size={18} /></button></header>
+      <div className="camera-capture-body"><div className={`camera-viewfinder ${facing === "user" ? "is-front" : ""}`} hidden={phase !== "live" && !still}><video ref={video} autoPlay muted playsInline hidden={phase !== "live"} />{still && <img src={still.url} alt={zh ? "待确认照片" : "Photo to confirm"} />}{phase === "live" && facing === "user" && <i className="camera-face-guide" aria-hidden="true" />}</div>
+        {!still && phase !== "live" && <Camera className="camera-status-icon" size={28} aria-hidden="true" />}
+        {phase === "starting" && <p role="status">{zh ? "正在开启摄像头…" : "Opening camera…"}</p>}{notice && !still && <p role="status">{notice}</p>}{phase === "live" && !notice && guidance && <p role="status">{guidance}</p>}
       </div><footer>{phase === "live" ? <button type="button" onClick={() => void capture()}><Camera size={20} />{zh ? "拍摄" : "Capture"}</button> : phase === "review" && still ? <><button type="button" onClick={() => void start()}><RotateCcw size={18} />{zh ? "重拍" : "Retake"}</button><button type="button" onClick={() => { stop(); onCapture(still.file); }}>{zh ? "使用照片" : "Use photo"}</button></> : <><button type="button" disabled={phase === "starting"} onClick={() => void start()}>{zh ? "重新开启" : "Restart"}</button><button type="button" onClick={() => { stop(); onFallback(); }}>{zh ? "系统相机 / 相册" : "System camera / library"}</button></>}</footer>
     </section></div>, host);
 }
