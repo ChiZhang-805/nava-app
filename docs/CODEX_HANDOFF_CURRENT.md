@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`dd5765e120864051bd40e9a38a629d3a8966a375`
+- 源码发布 commit：`3be7a3607bff8db14a3e3e1cac95374ddb0b2b15`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v154，public
+- ChatGPT Sites 版本：v155，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_cc97634b566c8191a80e90cd96e4388e`
-- Sites deployment ID：`appgdep_6aa92ddd6bac819187f08d2c8298a921`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_3a63eb076c148191a17fe89af43ebf73`
+- Sites deployment ID：`appgdep_6aa94f7d2b1c819192a2ed73d1eb1bf0`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `b333597932c29bb2473b91649f7e3d5e4e40c64c`，工作流`34964355300`成功
+  `f42931ccbaf0867a290cce801acda93397634394`，工作流`34978874807`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v154 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-simulator-rail-20260915.tar.gz`
+- v155 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-mascot-continuity-20260915.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v154 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v155 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -3159,5 +3159,26 @@ form内capture input，而当前产品已使用CameraCapture及外部fallback in
 默认全流程仍保持严格，未伪称通过，其余过期相机断言需后续同步。
 `--home-only`本轮两组首页导航/快捷入口/动作切换独立复验通过。
 
-双站发布进行中，§2.2仍是上一公开版本；本段不预先声称发布完成。
+双站v155已经发布，实际边界收据如下。
 §81四模块AI总览主句、旧产品待办与真实iPhone性能/系统能力验收仍未因本轮而完成。
+
+### §84 双站发布与真实登录收据
+
+- 功能源码`3be7a3607bff8db14a3e3e1cac95374ddb0b2b15`干净推送GitHub/Sites后重新构建。
+  Windows插件build helper仍有npm-cli路径问题，采用仓库build；Git Bash packager缺少
+  Node路径，使用官方prepare-site-build及原生tar按同合同打包，未调用内置浏览器或WSL。
+- Sites v155原生发布succeeded，Pages工作流`34978874807`成功。79个生成文件单向复制
+  并校验，73个assets在两个构建中逐一同hash；替换21个旧版JS/CSS，可从镜像Git恢复。
+  无原始图像/账号数据删除，无后端或secret配置修改；保留public访问策略。
+- 两站线上主入口均`index-Dv65RAmk.js`（424420字节），SHA256：
+  `721b97a09fd61ba20da8fa3c265acb531bea4afced1c7753945c235ea6b9f11f`。
+  APP chunk均`App-CdPl3Z-5.js`（191306字节），SHA256：
+  `1cffdc14580d2c92011390cc081e7d88f302187b316db942e497d20af3a1ae66`。
+  两站均与本地构建匹配，Pages线上source.json也匹配功能commit和v155。
+- `mascot-continuity/public.json`passed:true，安全启动器MascotPlayer exit0。逐站真实
+  表单登录授权账号、核对账号email及canonical认证域、确认公开demo不能绕过登录。
+  线上动作下载人为延迟1200ms，连续点击仅排队一个；180/188次像素采样均空白0、
+  Canvas替换0。主代理查看公开加载与动作截图。健康写入0，AI调用被QA隔离，未冒称AI
+  或真实iPhone硬件验收。唯一Chromium及全部context关闭，环境凭据已清理。
+- 最后仅提交本交接收据，不为相同APP内容重复发布。剩余门槛包括真实iPhone长时流畅度、
+  原画间进一步细腻的姿态过渡需补帧，以及默认旧interaction:test的相机断言同步。
