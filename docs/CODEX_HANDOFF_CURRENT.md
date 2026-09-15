@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`3be7a3607bff8db14a3e3e1cac95374ddb0b2b15`
+- 源码发布 commit：`1d22b75fc515156c115dd60d0f14833809568d8c`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v155，public
+- ChatGPT Sites 版本：v156，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_3a63eb076c148191a17fe89af43ebf73`
-- Sites deployment ID：`appgdep_6aa94f7d2b1c819192a2ed73d1eb1bf0`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_21b83e83f9388191988b330d40e3d512`
+- Sites deployment ID：`appgdep_6aa95c6467908191af14ac452d772d6f`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `f42931ccbaf0867a290cce801acda93397634394`，工作流`34978874807`成功
+  `06d696f859f9b437a590cb2c936c17354e9a8ab2`，工作流`34985050157`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v155 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-mascot-continuity-20260915.tar.gz`
+- v156 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-calendar-weekly-readability-20260915.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v155 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v156 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -3201,7 +3201,29 @@ form内capture input，而当前产品已使用CameraCapture及外部fallback in
   两脚本证据分别在`Build/TestRuns/calendar-readability`及`weekly-readability`，主代理
   已查看小屏月历和周报截图。`npm run verify`完整通过（含新的周报四尺寸检查），
   `auth:verify:production`通过，未检验SMTP。完整日志在
-  `Build/TestRuns/calendar-report-verify.log`；双站发布及公开真实登录收据待本节补入。
+  `Build/TestRuns/calendar-report-verify.log`；双站发布及公开真实登录收据见下。
 
 本轮不宣称AI线上可用性或手机硬件验收；§81四个模块总览哈希、56天研究入口及真机
 门槛没有因排版修改而解决。只运行独立串行Chromium，不操作Codex内置浏览器。
+
+### §85 双站发布与真实登录收据
+
+- 功能源提交`1d22b75fc515156c115dd60d0f14833809568d8c`已推送GitHub和Sites源仓库，
+  同一干净提交构建两站。插件Windows build/package入口仍分别遇npm-cli路径和bash
+  路径兼容错误；复用仓库构建命令、官方prepare-site-build及Windows tar完成真实打包。
+- Sites v156及Pages工作流均成功，锚点见§2.2。79个生成文件逐一复制/核对hash，
+  21个过期JS/CSS仅从生成镜像移除，可通过Git恢复。两次构建assets逐文件一致。
+- 两站公开入口均为`index-Cf9wKl0p.js`，424420字节，SHA256
+  `d004f20875368d6c3953d66f3b49bcc78d7271d329e7642fd6c9c2342ab228fa`。
+  APP chunk为`App-AYjfFgn9.js`，192935字节，SHA256
+  `28644660eca564b24f36f948055355372c26ca096bcb83ed9f1070ab6dfb92e3`。
+  周报chunk为`RecordsScreen-ChXJnWYF.js`，79536字节，SHA256
+  `1f1d90eed029f8c63218b40a832878aa0cf34940a8283c7d5f53449527823a58`。
+  三者在两站均与本地构建一致，Pages公开source.json也匹配v156及功能commit。
+- 安全启动器CalendarReport退出0，`Build/TestRuns/calendar-report-release/public.json`
+  为passed:true：授权账号两站真实表单登录、账号身份与canonical认证域一致、公开
+  demo不能绕过登录；四尺寸的月历/周报名称数值均单行，更多菜单/回本月和年度图标
+  正常，两项指定标题不改字号，横溢出0。主代理已查看两站公开截图。
+- 每站健康写入0；非认证Edge Function被QA隔离，**aiTested:false**，不能把这次排版
+  验收当作AI可用性证明。唯一浏览器、context和临时环境凭据均已关闭/清理。
+- 最后仅提交交接收据，不为相同APP产物重复发布。
