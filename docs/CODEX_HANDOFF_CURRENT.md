@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`e10163b87562c56134a881a43b4bc25921de0776`
+- 源码发布 commit：`dd5765e120864051bd40e9a38a629d3a8966a375`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v153，public
+- ChatGPT Sites 版本：v154，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_4d4e26b079488191b20970108f5dbc2c`
-- Sites deployment ID：`appgdep_6aa923d1c7a88191bb0b6d7908f5203b`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_cc97634b566c8191a80e90cd96e4388e`
+- Sites deployment ID：`appgdep_6aa92ddd6bac819187f08d2c8298a921`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `ca3dd099e0dd05c3c7d2c31433151de296a2f41c`，工作流`34960527548`成功
+  `b333597932c29bb2473b91649f7e3d5e4e40c64c`，工作流`34964355300`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v153 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-camera-layout-20260915.tar.gz`
+- v154 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-simulator-rail-20260915.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v153 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v154 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -3100,6 +3100,25 @@ z-index规则把常驻列压在body沉浸portal下面。仅桌面预览解除sta
 
 第二轮`npm run verify`完整通过，独立提醒桌面点击复验通过；本轮
 `npm run auth:verify:production`通过。截图/日志位于`Build/TestRuns/desktop-simulator`；
-所有浏览器串行运行并关闭，不调用内置浏览器。双站发布/实际登录点击待收据补齐。
+所有浏览器串行运行并关闭，不调用内置浏览器。
+
+### §83 双站发布与真实登录收据
+
+- 功能源码`dd5765e120864051bd40e9a38a629d3a8966a375`干净并推送GitHub/Sites后构建。
+  插件Windows build helper仍遇既有npm-cli路径错误，使用仓库`npm run build`和官方
+  prepare-site-build helper完成同提交打包。不是跳过构建或沿用旧包。
+- Sites v154，version/deployment和Pages镜像/成功工作流见§2.2；79个生成文件复制后
+  逐文件hash一致，21个过期JS/CSS仅从镜像移除，可由Git恢复。未动账号数据。
+- 两站公开入口均为`index-DYZsmBJD.js`，424420字节；与本地构建SHA256一致：
+  `0ce39170c7190ff0bcce9edc96f070405f8e67487cef987e8a3c4379d1342366`。
+  Pages线上source.json核对v154和源码commit成功。
+- `desktop-simulator/public.json`为passed:true，安全启动器SimulatorLayout exit0。
+  授权账号逐站真实表单登录、canonical认证域校验、公开demo禁用验证成功；登录页
+  和登录后仅一个可见控制列。线上相机实际点击右侧来电→暂停→tracks ended→重新
+  开启→再次可用。测试使用模拟摄像头，只关闭照片确认，不提交AI，不保存健康数据。
+  两站均健康写入0；无多余说明、18px关闭图标、原图比例和16px操作间距保持通过。
+- 主代理已查看公开登录右侧面板截图。公共真实账号UI结果不等于硬件通话、系统推送
+  或AI验收；最后只提交交接文档收据，不再发布相同APP产物。
+
 §81未解决的4个AI总览主句核验、其它
 产品待办和真机边界没有因本轮常驻控件而自动完成。
