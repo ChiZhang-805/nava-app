@@ -266,7 +266,7 @@ try {
         const months = [];
         for (const state of ["current", "previous"]) {
           if (state === "previous") await page.getByRole("button", { name: "上个月", exact: true }).click();
-          await expect(page.locator(".home-calendar-card")).toBeVisible();
+          await expect(page.locator(".home-calendar-card")).toBeVisible({ timeout: 30000 });
           const month = await page.evaluate(() => {
             const grid = document.querySelector(".home-calendar-grid");
             const dates = [...grid.querySelectorAll("[data-date]")];
@@ -286,7 +286,7 @@ try {
         }
         await page.getByRole("button", { name: "更多月历操作" }).click();
         await page.getByRole("menuitem", { name: "回到本月" }).click();
-        await expect(page.locator(".home-calendar-card")).toBeVisible();
+        await expect(page.locator(".home-calendar-card")).toBeVisible({ timeout: 30000 });
         await page.screenshot({ path: `${output}/${new URL(base).hostname}-${width}-calendar.png` });
         await page.locator('[data-tab="record"]').click();
         await page.getByRole("tab", { name: "本周报告", exact: true }).click();

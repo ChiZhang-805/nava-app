@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`34011f188e643924781843b70fd03c956bb4f731`
+- 源码发布 commit：`e5bcd27419f174dd83199bd35e0790ddb40ff695`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v161，public
+- ChatGPT Sites 版本：v162，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_66036273f54c819180b19fa63102a941`
-- Sites deployment ID：`appgdep_6aaa29de6f1481919d98f210f1ca40f8`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_5f4f6b00d47c81918b539cb42eff2887`
+- Sites deployment ID：`appgdep_6aaa51f815e48191b18af2c9cf074446`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `20004b3fcfe362435624f5eb1f51ed4fef141c94`，工作流`35059915727`成功
+  `c424c92967ca2155403346239470b07b2d46e3f8`，工作流`35073509004`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v161 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-icons-34011f1.tar.gz`
+- v162 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-calendar-e5bcd27.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v161 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v162 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -3223,6 +3223,18 @@ form内capture input，而当前产品已使用CameraCapture及外部fallback in
 日志为`Build/TestRuns/calendar-autoheight`下的verify.log、verify-continuation.log、
 calendar.log和auth.log。全程串行外部Chromium，未操作内置浏览器，未改账号健康数据。
 
+v162已双站发布成功，功能源码、Sites与Pages锚点见§2.2。同一干净已push功能提交
+构建的80个assets逐文件一致，86个公开文件单向复制至镜像，未删除旧hash资产。
+发布前对最终源码再次lint/build通过。安全CalendarReport线上复核退出0：两站真实
+表单登录、canonical身份、公开demo拒绝通过；每站四尺寸均检查本月/上月实际周数、
+末行/图例/年度卡间距与导航避让，月历/周报单行统计回归通过；每站6个关键JS/CSS
+与本地产物hash一致。主代理查看两站四尺寸代表截图，Pages公开source.json也匹配。
+收据`Build/TestRuns/calendar-autoheight/public.json`为passed:true、healthWrites:0、
+aiTested:false。首次线上检查在回到本月时仍显示加载骨架而超过expect默认5秒，失败
+收据保留为public-first-attempt.json；只将真实网络月切换等待设为30秒后完整复核通过，
+未放宽任何布局断言、未改APP数据请求逻辑。该等待调整属于QA脚本，不改变v162产物。
+浏览器/临时凭据已由finally清理；本次不构成AI可用性或真机Safari验收。
+
 以下v156为先前单行统计改动的历史收据；当前公开版本以§2.2为准。
 
 - 功能源提交`1d22b75fc515156c115dd60d0f14833809568d8c`已推送GitHub和Sites源仓库，
@@ -3510,7 +3522,7 @@ healthWrites均0、aiTested:false；包含搜索点击后三段文字缺席断�
 中的verify.log、mascot-retry.log、verify-continuation.log、auth.log、native.log。
 图标矩阵仍在phone-system-preview/report.json；全过程串行外部浏览器，未操作内置
 浏览器，检查时可用内存13GB以上。
-v161双站发布成功，源码与部署锚点见§2.2；同一干净已push源码构建的80个assets
+v161双站发布成功，图标功能源码为`34011f1`；同一干净已push源码构建的80个assets
 逐文件一致，86个生成文件单向复制至Pages，仍未删除旧资源（现保留86个旧hash）。
 安全PhoneSystem线上验收退出0，两站各61项、共122项通过；真实登录、canonical项目、
 公开demo拒绝、每站14个关键JS/CSS/PNG的hash与本地产物一致，内联图标由JS覆盖。
