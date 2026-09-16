@@ -105,11 +105,15 @@ try {
         const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
         localStorage.setItem("nava.review.demo.empty-snapshot-date.v1", date);
       });
+      // Authentication temporarily overlaps two chrome instances. Outgoing
+      // cleanup must not remove the newly authenticated shell's marker.
+      await expect(page.locator("html")).toHaveAttribute("data-phone-preview", "app");
       await page.getByRole("button", { name: "模拟早餐到点提醒" }).click();
-      await expect(page.locator(".nava-notification-banner")).toContainText("早餐记录提醒");
-      await expect(page.locator(".nava-notification-banner")).not.toContainText(/模拟|Preview/);
+      await expect(page.locator(".ios-notice-banner")).toContainText("早餐记录提醒");
+      await expect(page.locator(".nava-notification-banner")).toHaveCount(0);
+      await expect(page.locator(".ios-notice-banner")).not.toContainText(/模拟|Preview/);
       expect(await page.evaluate(() => Object.fromEntries(Object.entries(localStorage).filter(([key]) => key.startsWith("nava-notification-"))))).toEqual(before);
-      await page.locator(".nava-notification-banner-main").click();
+      await page.locator(".ios-notice-banner .ios-notice").click();
       await expect(page.locator('.record-editor-stack select').filter({ has: page.locator('option[value="pantry"]') })).toHaveValue("breakfast");
       await expect.poll(() => page.locator(".nava-focus-event-simulator").evaluate((node) => {
         const panel = node.getBoundingClientRect();

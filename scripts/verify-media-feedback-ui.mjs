@@ -44,6 +44,9 @@ try {
         else await page.evaluate(async () => (await import("/src/services/previewEnvironment.ts")).simulatePreviewInterruption("call"));
         await expect(page.locator('.phone-frame')).not.toContainText(/模拟中断|模拟来电|网页预览事件|Simulated interruption/);
         if (viewport.width > 700) await expect(page.locator('[data-preview-event-result]')).toBeVisible();
+        // The phone harness now presents a real-layout call banner above the
+        // camera. End that simulated call before operating the paused camera.
+        if (viewport.width > 700) await page.locator('[data-phone-action="end-call"]').click();
       };
       await open("tab=record&module=face");
       await page.getByRole("button", { name: /^(使用前置摄像头拍照|前置拍摄|重新拍摄)$/ }).click();

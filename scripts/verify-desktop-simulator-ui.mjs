@@ -40,8 +40,9 @@ try {
           await rail.evaluate((node) => { node.scrollTop = 0; });
           receipt.results.push({ viewport, state, geometry });
         };
-        await expect(rail.locator("[data-preview-event]:enabled, [data-reminder-preview] button:enabled")).toHaveCount(0);
-        await expect(rail).toContainText("登录并开始一项活动后可用");
+        await expect(rail.locator("[data-preview-event]:enabled")).toHaveCount(3);
+        await expect(rail.locator("[data-reminder-preview] button:enabled")).toHaveCount(0);
+        await expect(rail).toContainText("系统事件随时可用");
         await inspect("signed-out"); await page.screenshot({ path: `${output}/login-${viewport.width}.png` });
         await rail.getByRole("button", { name: "查看机型规格参数" }).click();
         await expect(rail.locator(".nava-device-selector-turn")).toHaveClass(/is-flipped/);
@@ -52,7 +53,7 @@ try {
           localStorage.setItem("nava.onboarding.v2.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, version: 2, answers: {}, completedAt: new Date().toISOString() }));
         });
         await open("?demo=1#tab=today"); await expect(page.locator(".bottom-nav")).toBeVisible();
-        await expect(rail.locator("[data-preview-event]:enabled")).toHaveCount(0);
+        await expect(rail.locator("[data-preview-event]:enabled")).toHaveCount(3);
         await expect(rail.locator("[data-reminder-preview] button:enabled")).toHaveCount(4);
         await inspect("signed-in-idle");
         await open("?demo=1#tab=record&module=focus");

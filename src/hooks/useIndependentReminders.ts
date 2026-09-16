@@ -70,7 +70,7 @@ export default function useIndependentReminders(userId: string | null, date: str
     document.addEventListener("visibilitychange", visibility);
     window.addEventListener(reminderChangeEvent, changed);
     window.addEventListener(reminderSavedEvent, changed);
-    window.addEventListener(reminderPreviewEvent, preview);
+    if (import.meta.env.MODE !== "native") window.addEventListener(reminderPreviewEvent, preview);
     return () => {
       alive = false;
       window.clearInterval(timer);
@@ -79,7 +79,7 @@ export default function useIndependentReminders(userId: string | null, date: str
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener(reminderChangeEvent, changed);
       window.removeEventListener(reminderSavedEvent, changed);
-      window.removeEventListener(reminderPreviewEvent, preview);
+      if (import.meta.env.MODE !== "native") window.removeEventListener(reminderPreviewEvent, preview);
     };
   }, [userId, date, refreshKey, locale]);
   useEffect(() => () => {

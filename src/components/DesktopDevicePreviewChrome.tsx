@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { Bell, Ellipsis, MousePointerClick, PhoneIncoming, RotateCcw, Smartphone } from "lucide-react";
+import { Bell, Ellipsis, LockKeyhole, MousePointerClick, PhoneIncoming, RotateCcw, Smartphone, Sun, Home } from "lucide-react";
+import PhoneSystemPreview from "./PhoneSystemPreview";
+import { commandPhonePreview } from "../services/previewPhoneSystem";
 import {
   DEFAULT_IPHONE_PREVIEW_DEVICE_ID,
   findIPhonePreviewDevice,
@@ -27,8 +29,11 @@ export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminde
   const [eventResult, setEventResult] = useState("");
   const simulateEvent = (reason: PreviewReason) => {
     const activity = getPreviewActivity();
-    if (!reminderUserId || !activity) return;
+    if (reason === "call") commandPhonePreview("call");
+    if (reason === "message") commandPhonePreview("message");
+    if (reason === "other") commandPhonePreview("home");
     const label = { call: "来电", message: "消息通知", distraction: "主动分心", other: "外部事件" }[reason];
+    if (!activity || activity.state !== "running") { setEventResult(`${label}已触发；当前没有运行中的活动需要暂停。`); return; }
     const result = {
       focus: "专注已暂停，音频与常亮已停止；不计入真实中断统计。",
       exercise: "运动计时已在本机暂停，暂停时间不计入运动时长。",
@@ -260,22 +265,29 @@ export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminde
         aria-label="外部环境模拟"
       >
         <header><strong>外部环境模拟</strong><small>{!reminderUserId ? "未登录" : previewState === "running" ? previewModuleName : previewState === "paused" ? "已暂停" : "待用"}</small></header>
-        <p>{!reminderUserId ? "登录并开始一项活动后可用" : previewState === "running" ? `正在${previewModuleName}，点击下方模拟中断` : previewState === "paused" ? "继续或重新开启后，可再次模拟" : "开始计时、录音或拍摄后可用"}</p>
+        <p>系统事件随时可用；底部上滑返回桌面。来电界面以 iOS 18 为参照。</p>
         <div className="nava-focus-event-actions">
           {([
             { reason: "call", label: "来电", icon: PhoneIncoming },
             { reason: "message", label: "消息通知", icon: Bell },
             { reason: "distraction", label: "主动分心", icon: MousePointerClick },
-            { reason: "other", label: previewActivity?.module === "focus" ? "其他事件" : "切到后台", icon: Ellipsis },
+            { reason: "other", label: "切到后台", icon: Ellipsis },
           ] as const).map(({ reason, label, icon: Icon }) => <button
             key={reason}
             type="button"
             data-preview-event={reason}
             onClick={() => simulateEvent(reason)}
-            disabled={!reminderUserId || previewState !== "running" || (reason === "distraction" && previewActivity?.module !== "focus")}
+            disabled={reason === "distraction" && (previewState !== "running" || previewActivity?.module !== "focus")}
             title={reason === "distraction" && previewActivity?.module !== "focus" ? "开始专注后可模拟主动分心" : `模拟${label}`}
             aria-label={`模拟${label}`}
           ><Icon size={17} /><span>{label}</span></button>)}
+        </div>
+        <div className="nava-focus-event-actions">
+          <button type="button" data-phone-action="lock" onClick={() => { simulatePreviewInterruption("other"); commandPhonePreview("lock"); setEventResult("已锁屏熄屏；应用仍保留在原页面。"); }}><LockKeyhole size={17} /><span>锁屏／熄屏</span></button>
+          <button type="button" data-phone-action="wake" onClick={() => commandPhonePreview("wake")}><Sun size={17} /><span>唤醒屏幕</span></button>
+          <button type="button" data-phone-action="unlock" onClick={() => commandPhonePreview("unlock")}><Smartphone size={17} /><span>解锁</span></button>
+          <button type="button" data-phone-action="app" onClick={() => { commandPhonePreview("unlock"); commandPhonePreview("app"); }}><Home size={17} /><span>返回 NAVA</span></button>
+          <button type="button" data-phone-action="end-call" onClick={() => commandPhonePreview("end-call")}><PhoneIncoming size={17} /><span>结束来电</span></button>
         </div>
         {eventResult && <p role="status" data-preview-event-result>{eventResult}</p>}
         <section className="nava-reminder-preview" data-reminder-preview>
@@ -284,9 +296,10 @@ export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminde
           {reminderUserId && <p>按已保存的提醒设置预览</p>}
           {reminderResult && <p role="status">{reminderResult}</p>}
         </section>
-        <small className="nava-focus-event-disclaimer">仅模拟，不会拨打真实电话。</small>
+        <small className="nava-focus-event-disclaimer">仅网页测试，不会拨打电话、发短信或进行面容认证。原生安装包不包含此模拟层。</small>
       </aside>
       </div>
+      <PhoneSystemPreview userId={reminderUserId} report={setEventResult} />
       <div
         ref={previewRef}
         className="nava-device-preview"

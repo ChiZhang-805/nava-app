@@ -6,10 +6,11 @@ import { chromium, expect } from "@playwright/test";
 import { inspectRingPaint } from './module-ring-paint.mjs';
 import { IPHONE_PREVIEW_DEVICES } from '../src/constants/iphonePreviewDevices.ts';
 const responsive = process.argv.includes('--responsive');
-const allPages = process.argv.includes('--all-pages');
+const phoneSystem = process.argv.includes('--phone-system');
+const allPages = process.argv.includes('--all-pages') || phoneSystem;
 const email = process.env.NAVA_ACCOUNT_EMAIL, password = process.env.NAVA_ACCOUNT_PASSWORD;
 if (!email || !password) throw new Error("Use the secure launcher.");
-const output = allPages ? 'Q:/NAVA-Workspace/Build/TestRuns/all-pages-responsive/public' : responsive ? 'Q:/NAVA-Workspace/Build/TestRuns/responsive-release' : "Q:/NAVA-Workspace/Build/TestRuns/calendar-report-release";
+const output = phoneSystem ? 'Q:/NAVA-Workspace/Build/TestRuns/phone-system-preview/public' : allPages ? 'Q:/NAVA-Workspace/Build/TestRuns/all-pages-responsive/public' : responsive ? 'Q:/NAVA-Workspace/Build/TestRuns/responsive-release' : "Q:/NAVA-Workspace/Build/TestRuns/calendar-report-release";
 await mkdir(output, { recursive: true });
 const receipt = { passed: false, aiTested: false, results: [] };
 const browser = await chromium.launch({ headless: true });
@@ -153,6 +154,35 @@ try {
             await page.locator('.phone-frame').screenshot({path:`${output}/${new URL(base).hostname}-${size.name}-${name}.png`});
             geometry.push({size:size.name,screen:name,...box});
           }
+        }
+        if (phoneSystem) {
+          const system = page.locator('.ios-system-layer');
+          const action = (name) => page.locator(`[data-phone-action="${name}"]`).click();
+          const trigger = (name) => page.locator(`[data-preview-event="${name}"]`).click();
+          await action('end-call');
+          const draft = await page.locator('.chat-input-shell input').inputValue();
+          await trigger('other'); await expect(system).toHaveAttribute('data-surface','home');
+          await system.getByRole('button',{name:'天气',exact:true}).click();
+          await expect(system).toHaveAttribute('data-surface','home');
+          await trigger('call'); await expect(system).toHaveAttribute('data-call','banner');
+          await page.screenshot({path:`${output}/${new URL(base).hostname}-home-call.png`});
+          await system.getByRole('button',{name:'接听',exact:true}).click();
+          await expect(system).toHaveAttribute('data-call','active');
+          await system.getByRole('button',{name:'挂断',exact:true}).click();
+          await action('lock'); await expect(system).toHaveAttribute('data-surface','off');
+          await trigger('call'); await expect(system).toHaveAttribute('data-call','full');
+          await expect(system.locator('.ios-answer-slider')).toBeVisible();
+          await page.screenshot({path:`${output}/${new URL(base).hostname}-locked-call.png`});
+          await action('end-call'); await action('unlock');
+          await system.getByRole('button',{name:'打开 NAVA',exact:true}).click();
+          await expect(page.locator('.chat-input-shell input')).toHaveValue(draft);
+          await action('lock'); await trigger('message');
+          await expect(system.locator('.ios-lock-notices')).toContainText('NAVA');
+          await page.screenshot({path:`${output}/${new URL(base).hostname}-locked-notification.png`});
+          await system.locator('.ios-lock-notices .ios-notice').first().click();
+          await expect(system).toHaveAttribute('data-surface','locked');
+          await action('unlock'); await expect(page).toHaveURL(/view=notifications/);
+          geometry.push({screen:'system-harness',realLogin:true,draftPreserved:true,lockedCall:true,notificationDeepLink:true});
         }
         assert.equal(healthWrites,0);
         receipt.results.push({base,realLogin:true,canonicalProject:true,demoBypassRejected:true,healthWrites,greetingWrite:'APP rule-based greeting reflected by a local single-row response; no database write',simulationBoundary:'real APP with speech hardware fixture; no message sent',parity,geometry});

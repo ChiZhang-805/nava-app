@@ -41,8 +41,9 @@ try {
         await expect(rail).toHaveCount(1);
         await expect(rail.locator("[data-preview-event]")).toHaveCount(4);
         await expect(rail.locator("[data-reminder-preview] button")).toHaveCount(4);
-        await expect(rail.locator("[data-preview-event]:enabled, [data-reminder-preview] button:enabled")).toHaveCount(0);
-        await expect(rail).toContainText("登录并开始一项活动后可用");
+        await expect(rail.locator("[data-preview-event]:enabled")).toHaveCount(3);
+        await expect(rail.locator("[data-reminder-preview] button:enabled")).toHaveCount(0);
+        await expect(rail).toContainText("系统事件随时可用");
         await page.screenshot({ path: `${output}/public-login-${new URL(base).hostname}.png` });
         await rail.screenshot({ path: `${output}/public-controls-${new URL(base).hostname}.png` });
       }
@@ -66,7 +67,8 @@ try {
         await rail.locator("[data-preview-event=call]").click();
         await expect(modal).toHaveAttribute("data-camera-phase", "paused");
         assert.equal(await page.evaluate(() => window.__publicCameraTracks.every((track) => track.readyState === "ended")), true);
-        await expect(rail.locator("[data-preview-event]:enabled")).toHaveCount(0);
+        await expect(rail.locator("[data-preview-event]:enabled")).toHaveCount(3);
+        await page.locator('[data-phone-action="end-call"]').click();
         await modal.getByRole("button", { name: "重新开启", exact: true }).click();
         await expect(modal).toHaveAttribute("data-camera-phase", "live");
         await expect(rail.locator("[data-preview-event=call]")).toBeEnabled();

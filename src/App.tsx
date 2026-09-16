@@ -21,6 +21,7 @@ import RewardCelebration from "./components/RewardCelebration";
 import NotificationBanner from "./components/NotificationBanner";
 import LinkSharePreview from "./components/LinkSharePreview";
 import DesktopDevicePreviewChrome from "./components/DesktopDevicePreviewChrome";
+import { presentPhonePreviewNotification, phoneNotificationOpenEvent } from "./services/previewPhoneSystem";
 import PageSkeleton, { SkeletonBlock } from "./components/PageSkeleton";
 import LoadingShell from "./components/LoadingShell";
 import { currentSkeletonVariant, recordSkeletonVariant } from "./services/loadingRoute";
@@ -153,7 +154,6 @@ function MobileShell({
   const [notificationItems, setNotificationItems] = useState<NavaNotificationItem[]>(() => user ? listNavaNotifications(user.id) : []);
   const [notificationBanner, setNotificationBanner] = useState<NavaNotificationItem | null>(null);
   const [cloudBootstrapReady, setCloudBootstrapReady] = useState(() => isDemoMode());
-  useIndependentReminders(cloudBootstrapReady ? user?.id ?? null : null, deviceDate, refreshKey, locale, setNotificationBanner);
   const contentRef = useRef<HTMLElement | null>(null);
   const utilityButtonRef = useRef<HTMLButtonElement | null>(null);
   const utilityPopoverRef = useRef<HTMLDivElement | null>(null);
@@ -323,6 +323,16 @@ function MobileShell({
   }, [openNotificationTarget, user]);
 
   const dismissNotificationBanner = useCallback(() => setNotificationBanner(null), []);
+  const presentNotification = useCallback((item: NavaNotificationItem) => {
+    if (!presentPhonePreviewNotification(item, () => openNotificationItem(item))) setNotificationBanner(item);
+  }, [openNotificationItem]);
+  useIndependentReminders(cloudBootstrapReady ? user?.id ?? null : null, deviceDate, refreshKey, locale, presentNotification);
+  useEffect(() => {
+    if (import.meta.env.MODE === "native") return;
+    const open = (event: Event) => openNotificationTarget((event as CustomEvent<NavaNotificationTarget>).detail);
+    window.addEventListener(phoneNotificationOpenEvent, open);
+    return () => window.removeEventListener(phoneNotificationOpenEvent, open);
+  }, [openNotificationTarget]);
 
   useEffect(() => {
     const userId = user?.id;
@@ -365,7 +375,7 @@ function MobileShell({
     if (!user || !cloudBootstrapReady) return;
     const unsubscribe = subscribeNavaNotifications(user.id, (change) => {
       setNotificationItems(change.items);
-      if (change.presented) setNotificationBanner(change.presented);
+      if (change.presented) presentNotification(change.presented);
       if (change.opened) openNotificationItem(change.opened);
     });
     const refreshFromCloud = () => {
@@ -378,7 +388,7 @@ function MobileShell({
       unsubscribe();
       window.removeEventListener("focus", refreshFromCloud);
     };
-  }, [cloudBootstrapReady, openNotificationItem, user]);
+  }, [cloudBootstrapReady, openNotificationItem, presentNotification, user]);
 
   useEffect(() => {
     if (!user || preferencesHydratedUserRef.current !== user.id) return;

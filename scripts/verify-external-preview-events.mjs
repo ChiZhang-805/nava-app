@@ -33,7 +33,11 @@ try {
       };
       const desktop = viewport.width > 700;
       const trigger = async (reason) => {
-        if (desktop) await page.locator(`[data-preview-event="${reason}"]`).click();
+        if (desktop) {
+          await page.locator(`[data-preview-event="${reason}"]`).click();
+          await page.locator('[data-phone-action="end-call"]').click();
+          await page.locator('[data-phone-action="app"]').click();
+        }
         else {
           // Test the same consumer at phone sizes without exposing desktop controls.
           await expect(page.locator('[data-preview-only="focus-event-simulator"]')).toBeHidden();
@@ -44,7 +48,7 @@ try {
       if (!desktop) await expect(page.locator(".nava-device-preview")).toBeHidden();
       await expect(page.locator(".sports-plan-actions")).toBeVisible();
       const panel = page.locator('[data-preview-only="focus-event-simulator"]');
-      if (desktop) { await expect(panel).toHaveAttribute("data-preview-module", "exercise"); await expect(panel.locator("[data-preview-event]:enabled")).toHaveCount(0); }
+      if (desktop) { await expect(panel).toHaveAttribute("data-preview-module", "exercise"); await expect(panel.locator("[data-preview-event]:enabled")).toHaveCount(3); }
       await page.getByRole("button", { name: "开始此计划", exact: true }).click();
       await expect(page.locator("[data-exercise-session]")).toHaveAttribute("data-running", "true");
       const savedHealthBefore = await page.evaluate(() => localStorage.getItem("nava.review.demo.records.v1"));
@@ -75,7 +79,7 @@ try {
       await page.getByRole("button", { name: "结束并填写感受", exact: true }).click();
       await expect(page.locator('[data-record-detail="exercise"] form:not([hidden])')).toBeVisible();
       await expect(panel).toHaveAttribute("data-preview-module", "idle");
-      await expect(panel.locator("[data-preview-event]:enabled")).toHaveCount(0);
+      await expect(panel.locator("[data-preview-event]:enabled")).toHaveCount(3);
 
       await open("tab=record&module=sleep&view=editor");
       await page.locator(".sleep-maintenance").getByRole("button", { name: "开始记录", exact: true }).click();
@@ -94,7 +98,7 @@ try {
       }
       await open("tab=today");
       await expect(panel).toHaveAttribute("data-preview-module", "idle");
-      await expect(panel.locator("[data-preview-event]:enabled")).toHaveCount(0);
+      await expect(panel.locator("[data-preview-event]:enabled")).toHaveCount(3);
       await open("tab=record&module=sleep&view=editor");
       assert.equal(await page.evaluate((key) => localStorage.getItem(key), sleepKey), sleepStart);
       await expect(page.locator(".sleep-maintenance.is-active")).toBeVisible();
