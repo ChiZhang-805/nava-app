@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`88e2e29ef844cd8a0d9edc0fee092912f8e879f9`
+- 源码发布 commit：`34011f188e643924781843b70fd03c956bb4f731`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v160，public
+- ChatGPT Sites 版本：v161，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_fd0080c182788191b8ab8a55749a71b1`
-- Sites deployment ID：`appgdep_6aaa1b127ff08191b0c0c862d3a231c4`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_66036273f54c819180b19fa63102a941`
+- Sites deployment ID：`appgdep_6aaa29de6f1481919d98f210f1ca40f8`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `77853ec325ac8a19ad707b1607424ad1d7143f78`，工作流`35055832121`成功
+  `20004b3fcfe362435624f5eb1f51ed4fef141c94`，工作流`35059915727`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v160 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-copy-88e2e29.tar.gz`
+- v161 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-icons-34011f1.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v160 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v161 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -3493,4 +3493,13 @@ healthWrites均0、aiTested:false；包含搜索点击后三段文字缺席断�
 37个JS/CSS产物通过。日志为`Q:\NAVA-Workspace\Build\TestRuns\phone-icon-refresh`
 中的verify.log、mascot-retry.log、verify-continuation.log、auth.log、native.log。
 图标矩阵仍在phone-system-preview/report.json；全过程串行外部浏览器，未操作内置
-浏览器，检查时可用内存13GB以上。新双站发布及线上核验收据待补。
+浏览器，检查时可用内存13GB以上。
+v161双站发布成功，源码与部署锚点见§2.2；同一干净已push源码构建的80个assets
+逐文件一致，86个生成文件单向复制至Pages，仍未删除旧资源（现保留86个旧hash）。
+安全PhoneSystem线上验收退出0，两站各61项、共122项通过；真实登录、canonical项目、
+公开demo拒绝、每站14个关键JS/CSS/PNG的hash与本地产物一致，内联图标由JS覆盖。
+healthWrites:0、aiTested:false；线上图标均成功解码且自然宽度≥128，日历短星期、
+两处邮件矢量及非日历透明底断言通过。已人工查看两站home-icons.png，白圈消失，
+日历内距和图标边界一致。收据仍为phone-system-preview/public/public.json。
+账号临时凭据、浏览器由finally清理；未操作内置浏览器。此轮视觉范围已完成，不代表
+逐像素原生iOS实现；静态时钟图标、既有AI与真机待办、旧部署资源清理边界未改变。
