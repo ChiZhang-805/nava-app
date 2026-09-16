@@ -19,7 +19,7 @@ try {
     const parity = [];
     if (responsive || allPages) {
       const assets = new URL('../dist/assets/', import.meta.url);
-      const names = (await readdir(assets)).filter((name) => /^(index|App|RecordsScreen|RecordModuleDashboard)-.*\.(js|css)$/.test(name));
+      const names = (await readdir(assets)).filter((name) => /^(index|App|RecordsScreen|RecordModuleDashboard)-.*\.(js|css)$/.test(name) || (phoneSystem && /^(AppIcon-512@2x|settings)-.*\.png$/.test(name)));
       const html = await (await fetch(base, { cache:'no-store' })).text();
       const entry = html.match(/<script[^>]+src="([^"]+)"/)?.[1];
       assert(entry, 'Public entry script missing');
@@ -162,6 +162,7 @@ try {
           await action('end-call');
           const draft = await page.locator('.chat-input-shell input').inputValue();
           await trigger('other'); await expect(system).toHaveAttribute('data-surface','home');
+          await expect.poll(() => system.locator('.ios-app-icon img').evaluateAll(images => images.length > 0 && images.every(image => image.complete && image.naturalWidth > 0)), { message:'All external system icons must decode before acceptance', timeout:15000 }).toBe(true);
           await system.getByRole('button',{name:'天气',exact:true}).click();
           await expect(system).toHaveAttribute('data-surface','home');
           await trigger('call'); await expect(system).toHaveAttribute('data-call','banner');
@@ -178,11 +179,12 @@ try {
           await expect(page.locator('.chat-input-shell input')).toHaveValue(draft);
           await action('lock'); await trigger('message');
           await expect(system.locator('.ios-lock-notices')).toContainText('NAVA');
+          await expect.poll(() => system.locator('.ios-lock-notices img').evaluateAll(images => images.length > 0 && images.every(image => image.complete && image.naturalWidth > 0))).toBe(true);
           await page.screenshot({path:`${output}/${new URL(base).hostname}-locked-notification.png`});
           await system.locator('.ios-lock-notices .ios-notice').first().click();
           await expect(system).toHaveAttribute('data-surface','locked');
           await action('unlock'); await expect(page).toHaveURL(/view=notifications/);
-          geometry.push({screen:'system-harness',realLogin:true,draftPreserved:true,lockedCall:true,notificationDeepLink:true});
+          geometry.push({screen:'system-harness',realLogin:true,draftPreserved:true,lockedCall:true,notificationDeepLink:true,iconsDecoded:true});
         }
         assert.equal(healthWrites,0);
         receipt.results.push({base,realLogin:true,canonicalProject:true,demoBypassRejected:true,healthWrites,greetingWrite:'APP rule-based greeting reflected by a local single-row response; no database write',simulationBoundary:'real APP with speech hardware fixture; no message sent',parity,geometry});

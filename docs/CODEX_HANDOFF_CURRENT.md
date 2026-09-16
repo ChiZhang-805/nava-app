@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`2ae926b0eeeebcb9c2f5e64fd1353dc8347b92a7`
+- 源码发布 commit：`001604530bdd46f4d5b7fe40b40511d0abe7c173`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v158，public
+- ChatGPT Sites 版本：v159，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_546f7ea55980819192f225ee863a9703`
-- Sites deployment ID：`appgdep_6aa99c785dcc819186009a2495ea4319`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_047491d120b48191b0344290034cab0f`
+- Sites deployment ID：`appgdep_6aaa12fc7a54819180f9a1a6d6ace9d3`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `1d2c301039d13166da849e7f012592fd1f5e8100`，工作流`35014135921`成功
+  `3f35a83999c796efd059dd74d8f877f42763ea66`，工作流`35053655870`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v158 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-simulation-2ae926b.tar.gz`
+- v159 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-phone-system-0016045.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v158 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v159 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -3444,5 +3444,16 @@ src起止指纹一致，errors为空；包含鼠标实际拖动接听/上滑及�
 最终lint、生产认证合同、原生构建与37个JS/CSS产物排除检查通过。实际人工查看
 横幅、锁屏来电、接通及锁屏通知等最终截图，不声称逐张人工看完132图。
 证据为上述根目录的report.json、native-exclusion.json及独立提醒目录收据。
-双站发布与登录收据待补；§2.2的v158仍是当前已确认线上版本。
+v159已发布两站，原生Sites回执succeeded、Pages工作流success；锚点见§2.2。
+构建来自同一干净且已推送的功能源码；74个assets逐文件hash一致；80个生成文件
+单向复制至Pages镜像，没有删除旧资源；当前镜像有44个不由本版入口引用的旧hash
+资源，清理仍是单独待办（未绕过此前删除限制）。
+安全启动器PhoneSystem已退出0，`phone-system-preview/public/public.json`为passed:true：
+授权cz91账号两站实际表单登录、身份及canonical项目核验、公开demo绕过被拒绝；
+每站61项（12页面×5尺寸+系统层专项），healthWrites均0，aiTested:false。
+线上验证横幅/锁屏来电、接听挂断、主屏幕占位应用、通知解锁跳转及原草稿保留。
+人工首轮发现主屏幕截图早于外链图标加载，补充PNG逐文件hash校验与浏览器成功解码
+断言；未修改APP，双站完整重跑122项成功，两站最终截图均确认图标完整。
+主代理已查看两站最终来电/主屏幕截图；浏览器context、进程及安全启动器凭据均由
+finally清理。这次只提交QA/交接收据，不为未改变的APP产物重复发布。
 历史AI总览、56日FDNB、真机系统送达和§87矩阵外分支没有被本次工作“顺带完成”。
