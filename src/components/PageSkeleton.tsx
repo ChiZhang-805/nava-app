@@ -223,10 +223,10 @@ function AuthSkeleton() {
   </>;
 }
 
-function CalendarSkeleton() {
+function CalendarSkeleton({ weekCount }: { weekCount: number }) {
   return <>
     <section className="page-skeleton-calendar-overview"><SkeletonBlock /><SkeletonBlock /></section>
-    <section className="page-skeleton-card page-skeleton-calendar-card"><div className="page-skeleton-calendar-title"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-title" /><SkeletonBlock className="is-circle" /></div><div className="page-skeleton-calendar-grid">{Array.from({ length: 35 }, (_, index) => <SkeletonBlock key={index} />)}</div></section>
+    <section className="page-skeleton-card page-skeleton-calendar-card"><div className="page-skeleton-calendar-title"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-title" /><SkeletonBlock className="is-circle" /></div><div className="page-skeleton-calendar-grid">{Array.from({ length: weekCount * 7 }, (_, index) => <SkeletonBlock key={index} />)}</div></section>
     <section className="page-skeleton-card page-skeleton-calendar-year"><div><SkeletonBlock className="is-title" /><SkeletonBlock className="is-value" /></div><div className="page-skeleton-calendar-year-grid">{Array.from({ length: 91 }, (_, index) => <SkeletonBlock key={index} />)}</div></section>
   </>;
 }
@@ -246,7 +246,7 @@ function AdvancedProfileSkeleton() {
   </>;
 }
 
-export default function PageSkeleton({ variant, className = "" }: { variant: PageSkeletonVariant; className?: string }) {
+export default function PageSkeleton({ variant, className = "", calendarWeekCount = 5 }: { variant: PageSkeletonVariant; className?: string; calendarWeekCount?: number }) {
   const { locale } = useLocale();
   const editorModule = variant.startsWith("record-editor-") ? variant.slice("record-editor-".length) as RecordEditorSkeletonModule : null;
   const detailModule = variant.startsWith("record-detail-") ? variant.slice("record-detail-".length) as RecordSkeletonModule : null;
@@ -257,7 +257,7 @@ export default function PageSkeleton({ variant, className = "" }: { variant: Pag
       : variant === "ai" ? <AiSkeleton />
         : variant === "growth" ? <GrowthSkeleton />
           : variant === "profile" ? <ProfileSkeleton />
-            : variant === "calendar" ? <CalendarSkeleton />
+            : variant === "calendar" ? <CalendarSkeleton weekCount={calendarWeekCount} />
               : variant === "daily-report" ? <DailyReportSkeleton />
                 : variant === "advanced-profile" ? <AdvancedProfileSkeleton />
                   : <TodaySkeleton />;

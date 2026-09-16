@@ -285,7 +285,9 @@ export function buildMonthCells(month: string, weekStartsMonday = true): Calenda
   const daysInMonth = new Date(year, monthNumber, 0).getDate();
   const weekday = new Date(year, monthNumber - 1, 1).getDay();
   const leading = weekStartsMonday ? (weekday + 6) % 7 : weekday;
-  return Array.from({ length: 42 }, (_, index) => {
+  // Keep complete weeks, but never reserve an entirely empty trailing week.
+  const cellCount = Math.ceil((leading + daysInMonth) / 7) * 7;
+  return Array.from({ length: cellCount }, (_, index) => {
     const day = index - leading + 1;
     if (day < 1 || day > daysInMonth) return { date: null, day: null };
     return { date: `${month}-${pad(day)}`, day };

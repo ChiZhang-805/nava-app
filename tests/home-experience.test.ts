@@ -27,7 +27,7 @@ test("uses a one-sixth screen swipe with practical minimum and maximum distances
   assert.equal(isVerticalHomeSwipe(180, 400, 170, 550, 844, "down"), true);
 });
 
-test("builds a stable six-week month grid and crosses year boundaries", () => {
+test("builds only the required whole weeks and crosses year boundaries", () => {
   assert.equal(shiftMonth("2026-12", 1), "2027-01");
   assert.equal(shiftMonth("2026-01", -1), "2025-12");
   assert.equal(monthEndISO("2028-02"), "2028-02-29");
@@ -35,6 +35,31 @@ test("builds a stable six-week month grid and crosses year boundaries", () => {
   assert.equal(august.length, 42);
   assert.equal(august.find((cell) => cell.day === 1)?.date, "2026-08-01");
   assert.equal(august.find((cell) => cell.day === 31)?.date, "2026-08-31");
+  assert.equal(buildMonthCells("2026-09").length, 35);
+  assert.equal(buildMonthCells("2027-02").length, 28);
+  assert.equal(buildMonthCells("2028-02").filter((cell) => cell.date).length, 29);
+});
+
+test("variable month grids preserve every date and weekday without empty trailing weeks", () => {
+  for (let year = 2020; year <= 2040; year += 1) {
+    for (let month = 1; month <= 12; month += 1) {
+      const monthKey = `${year}-${String(month).padStart(2, "0")}`;
+      const days = new Date(year, month, 0).getDate();
+      for (const mondayFirst of [true, false]) {
+        const cells = buildMonthCells(monthKey, mondayFirst);
+        assert.ok([28, 35, 42].includes(cells.length));
+        assert.equal(cells.filter((cell) => cell.date).length, days);
+        assert.ok(cells.slice(-7).some((cell) => cell.date));
+        cells.forEach((cell, index) => {
+          if (!cell.day) return;
+          const weekday = new Date(year, month - 1, cell.day).getDay();
+          assert.equal(index % 7, mondayFirst ? (weekday + 6) % 7 : weekday);
+          assert.equal(cell.date, `${monthKey}-${String(cell.day).padStart(2, "0")}`);
+        });
+        assert.deepEqual(cells.filter((cell) => cell.day).map((cell) => cell.day), Array.from({ length: days }, (_, i) => i + 1));
+      }
+    }
+  }
 });
 
 test("annual heatmap contains every day once in Monday-first week columns", () => {

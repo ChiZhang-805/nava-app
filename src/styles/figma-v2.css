@@ -11122,7 +11122,7 @@ body::before {
 .home-calendar-grid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 5px; }
 .home-calendar-weekdays { margin: 9px 0 6px; }
 .home-calendar-weekdays span { color: #7894a1; font-size: 9px; font-weight: 750; text-align: center; }
-.home-calendar-grid { min-height: 300px; transition: opacity 160ms ease; }
+.home-calendar-grid { grid-auto-rows: 1fr; transition: opacity 160ms ease; }
 .home-calendar-grid.is-loading { opacity: .46; }
 .home-calendar-spacer,
 .home-calendar-day { min-width: 0; min-height: 46px; }
@@ -11290,7 +11290,9 @@ body::before {
 
 @media (max-width: 370px) {
   .home-experience { padding-inline: 12px; }
-  .home-calendar-day { min-height: 42px; padding-inline: 4px; }
+  .home-calendar-spacer,
+  .home-calendar-day { min-height: 42px; }
+  .home-calendar-day { padding-inline: 4px; }
   .home-calendar-day i { width: 14px; height: 14px; box-shadow: inset 0 0 0 3px #eefaff; }
   .home-year-card { padding-inline: 9px; }
   .home-year-heatmap { grid-template-columns: 15px minmax(0, 1fr); column-gap: 4px; }
@@ -11310,7 +11312,6 @@ body::before {
   .home-calendar-screen .home-calendar-month-switcher { min-height: 34px; }
   .home-calendar-screen .home-calendar-month-switcher button { width: 32px; height: 32px; }
   .home-calendar-screen .home-calendar-weekdays { margin: 5px 0 4px; }
-  .home-calendar-screen .home-calendar-grid { min-height: 204px; }
   .home-calendar-screen .home-calendar-spacer,
   .home-calendar-screen .home-calendar-day { min-height: 31px; }
   .home-calendar-screen .home-calendar-day { border-radius: 10px; padding-block: 3px; }
@@ -11319,7 +11320,6 @@ body::before {
   .home-calendar-screen .home-year-card { margin-top: 7px; padding-block: 7px 6px; }
   .home-calendar-screen .home-year-header { min-height: 27px; }
   .home-calendar-screen .home-year-header nav button { width: 24px; height: 24px; }
-  .home-calendar-screen .page-skeleton-calendar-card { min-height: 282px; }
   .home-calendar-screen .page-skeleton-calendar-grid > span { min-height: 29px; border-radius: 9px; }
   .home-calendar-screen .page-skeleton-calendar-year { min-height: 108px; margin-top: 7px; }
 }
@@ -11327,7 +11327,6 @@ body::before {
 @media (max-height: 700px) {
   .home-experience { padding-top: 8px; }
   .home-experience-header { min-height: 52px; margin-bottom: 8px; }
-  .home-calendar-grid { min-height: 252px; }
   .home-calendar-day { min-height: 39px; }
   .home-report-hero { min-height: 136px; }
   .home-report-metric { min-height: 112px; }
@@ -12171,7 +12170,7 @@ body::before {
 
 .page-skeleton-calendar-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .page-skeleton-calendar-overview > span { min-height: 70px; border-radius: 19px; }
-.page-skeleton-calendar-card { min-height: 410px; }
+.page-skeleton-calendar-card { min-height: 0; align-content: start; }
 .page-skeleton-calendar-title { display: grid; grid-template-columns: 36px minmax(0, 1fr) 36px; align-items: center; gap: 12px; }
 .page-skeleton-calendar-title .is-circle { width: 36px; min-height: 36px; }
 .page-skeleton-calendar-title .is-title { width: 44%; justify-self: center; }

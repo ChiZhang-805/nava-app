@@ -17,9 +17,9 @@ const browser = await chromium.launch({ headless: true });
 try {
   for (const base of ["https://nava-app-preview-cz.chizhang1031.chatgpt.site/", "https://chizhang-805.github.io/nava-app-preview/"]) {
     const parity = [];
-    if (responsive || allPages) {
+    {
       const assets = new URL('../dist/assets/', import.meta.url);
-      const names = (await readdir(assets)).filter((name) => /^(index|App|RecordsScreen|RecordModuleDashboard)-.*\.(js|css)$/.test(name) || (phoneSystem && /^(AppIcon-512@2x|camera|messages|clock|contacts|notes|phone|settings|weather)-.*\.png$/.test(name)));
+      const names = (await readdir(assets)).filter((name) => /^(index|App|HomeCalendarExperience|RecordsScreen|RecordModuleDashboard)-.*\.(js|css)$/.test(name) || (phoneSystem && /^(AppIcon-512@2x|camera|messages|clock|contacts|notes|phone|settings|weather)-.*\.png$/.test(name)));
       const html = await (await fetch(base, { cache:'no-store' })).text();
       const entry = html.match(/<script[^>]+src="([^"]+)"/)?.[1];
       assert(entry, 'Public entry script missing');
@@ -263,6 +263,30 @@ try {
         }));
         const calendar = await checkRows(".home-calendar-overview > div");
         assert(calendar.every((row) => row.centerDelta <= 1 && row.gap >= 3 && row.contained));
+        const months = [];
+        for (const state of ["current", "previous"]) {
+          if (state === "previous") await page.getByRole("button", { name: "上个月", exact: true }).click();
+          await expect(page.locator(".home-calendar-card")).toBeVisible();
+          const month = await page.evaluate(() => {
+            const grid = document.querySelector(".home-calendar-grid");
+            const dates = [...grid.querySelectorAll("[data-date]")];
+            const [year, month] = dates[0].getAttribute("data-date").split("-").map(Number);
+            const expectedRows = Math.ceil(((new Date(year, month - 1, 1).getDay() + 6) % 7 + new Date(year, month, 0).getDate()) / 7);
+            const rect = (selector) => document.querySelector(selector).getBoundingClientRect();
+            return { expectedRows, actualRows: grid.children.length / 7, height: rect(".home-calendar-card").height,
+              trailingBlank: grid.getBoundingClientRect().bottom - dates.at(-1).getBoundingClientRect().bottom,
+              legendGap: rect(".home-calendar-legend").top - grid.getBoundingClientRect().bottom,
+              annualGap: rect(".home-year-card").top - rect(".home-calendar-card").bottom,
+              navClearance: rect(".bottom-nav").top - rect(".home-year-card").bottom };
+          });
+          assert.equal(month.actualRows, month.expectedRows);
+          assert(Math.abs(month.trailingBlank) <= 1 && month.legendGap >= 5 && month.legendGap <= 12);
+          assert(month.annualGap >= 6 && month.annualGap <= 11 && month.navClearance >= 5);
+          months.push({ state, ...month });
+        }
+        await page.getByRole("button", { name: "更多月历操作" }).click();
+        await page.getByRole("menuitem", { name: "回到本月" }).click();
+        await expect(page.locator(".home-calendar-card")).toBeVisible();
         await page.screenshot({ path: `${output}/${new URL(base).hostname}-${width}-calendar.png` });
         await page.locator('[data-tab="record"]').click();
         await page.getByRole("tab", { name: "本周报告", exact: true }).click();
@@ -272,10 +296,10 @@ try {
         await expect(page.locator(".weekly-trend-card > header strong")).toHaveCSS("font-size", "16px");
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
         await page.screenshot({ path: `${output}/${new URL(base).hostname}-${width}-weekly.png` });
-        geometry.push({ width, height, calendar, weekly });
+        geometry.push({ width, height, calendar, months, weekly });
       }
       assert.equal(healthWrites, 0);
-      receipt.results.push({ base, realLogin: true, canonicalProject: true, demoBypassRejected: true, healthWrites, geometry });
+      receipt.results.push({ base, realLogin: true, canonicalProject: true, demoBypassRejected: true, healthWrites, parity, geometry });
       console.log(`PASS public calendar/report: ${new URL(base).hostname}`);
     } finally { await context.close(); }
   }
