@@ -83,21 +83,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`001604530bdd46f4d5b7fe40b40511d0abe7c173`
+- 源码发布 commit：`88e2e29ef844cd8a0d9edc0fee092912f8e879f9`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v159，public
+- ChatGPT Sites 版本：v160，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_047491d120b48191b0344290034cab0f`
-- Sites deployment ID：`appgdep_6aaa12fc7a54819180f9a1a6d6ace9d3`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_fd0080c182788191b8ab8a55749a71b1`
+- Sites deployment ID：`appgdep_6aaa1b127ff08191b0c0c862d3a231c4`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `3f35a83999c796efd059dd74d8f877f42763ea66`，工作流`35053655870`成功
+  `77853ec325ac8a19ad707b1607424ad1d7143f78`，工作流`35055832121`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v159 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-phone-system-0016045.tar.gz`
+- v160 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-copy-88e2e29.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v159 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v160 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
@@ -3462,5 +3462,15 @@ finally清理。这次只提交QA/交接收据，不为未改变的APP产物重�
 两段常驻说明，删除搜索/系统占位图标点击后的“只有图标按压反馈…”输出；保留
 按钮、CSS按压反馈、系统模拟逻辑及其他实际事件结果。专项测试增加三段文字缺席
 与搜索/天气/设置点击不产生新说明的断言。desktop-simulator:visual的24个状态已通过，
-覆盖4种桌面宽度和4种移动视口隐藏边界；1920桌面最终截图已人工查看。完整回归与
-双站新发布收据待补；本轮只清理文案，不改账号数据、AI或后台接口。
+覆盖4种桌面宽度和4种移动视口隐藏边界；1920与700桌面最终截图已人工查看。
+完整`npm run verify`及`npm run auth:verify:production`退出0，日志在
+`Q:\NAVA-Workspace\Build\TestRuns\preview-copy-cleanup`；本轮只清理文案，
+不改账号数据、AI或后台接口。
+v160双站发布成功，IDs与同一干净已推送源码见§2.2。两个产物的74个assets逐文件
+hash一致，80个文件单向复制至Pages；未删除旧资源，镜像现保留64个非当前版hash资源。
+安全启动器PhoneSystem最终退出0，`phone-system-preview/public/public.json`
+为passed:true：两站真实登录、canonical项目及禁止公开demo核验，61项/站共122项，
+healthWrites均0、aiTested:false；包含搜索点击后三段文字缺席断言。主代理已查看
+两站最终主屏幕来电截图，侧栏没有三段说明；按钮、实际事件结果及按压反馈保留。
+浏览器及凭据由finally清理；全程串行外部Chromium，未操作Codex内置浏览器。
+本次三处文案已全部处理，既有AI、真机及旧部署资源清理待办未变。
