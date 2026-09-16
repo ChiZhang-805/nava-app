@@ -42,8 +42,17 @@ try {
         };
         await expect(rail.locator("[data-preview-event]:enabled")).toHaveCount(3);
         await expect(rail.locator("[data-reminder-preview] button:enabled")).toHaveCount(0);
-        await expect(rail).toContainText("系统事件随时可用");
+        await expect(rail).not.toContainText(/系统事件随时可用|只有图标按压反馈|仅网页测试/);
         await inspect("signed-out"); await page.screenshot({ path: `${output}/login-${viewport.width}.png` });
+        await rail.locator('[data-preview-event="other"]').click();
+        const system = page.locator('.ios-system-layer');
+        await expect(system).toHaveAttribute('data-surface', 'home');
+        const beforePress = await rail.locator('[data-preview-event-result]').textContent();
+        for (const name of ['搜索', '天气', '设置']) await system.getByRole('button', { name, exact: true }).click();
+        await expect(system).toHaveAttribute('data-surface', 'home');
+        await expect(rail.locator('[data-preview-event-result]')).toHaveText(beforePress);
+        await expect(rail).not.toContainText(/系统事件随时可用|只有图标按压反馈|仅网页测试/);
+        await system.getByRole('button', { name: '打开 NAVA', exact: true }).click();
         await rail.getByRole("button", { name: "查看机型规格参数" }).click();
         await expect(rail.locator(".nava-device-selector-turn")).toHaveClass(/is-flipped/);
         await expect.poll(() => rail.locator(".nava-device-selector").evaluate((node) => Math.abs(node.getBoundingClientRect().height - node.querySelector(".nava-device-selector-back").scrollHeight - 2))).toBeLessThan(2);

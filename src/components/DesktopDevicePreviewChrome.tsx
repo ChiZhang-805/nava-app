@@ -265,7 +265,6 @@ export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminde
         aria-label="外部环境模拟"
       >
         <header><strong>外部环境模拟</strong><small>{!reminderUserId ? "未登录" : previewState === "running" ? previewModuleName : previewState === "paused" ? "已暂停" : "待用"}</small></header>
-        <p>系统事件随时可用；底部上滑返回桌面。来电界面以 iOS 18 为参照。</p>
         <div className="nava-focus-event-actions">
           {([
             { reason: "call", label: "来电", icon: PhoneIncoming },
@@ -296,7 +295,6 @@ export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminde
           {reminderUserId && <p>按已保存的提醒设置预览</p>}
           {reminderResult && <p role="status">{reminderResult}</p>}
         </section>
-        <small className="nava-focus-event-disclaimer">仅网页测试，不会拨打电话、发短信或进行面容认证。原生安装包不包含此模拟层。</small>
       </aside>
       </div>
       <PhoneSystemPreview userId={reminderUserId} report={setEventResult} />

@@ -159,7 +159,6 @@ export default function PhoneSystemPreview({ userId, report }: { userId?: string
   const endCall = () => { dispatch("end-call"); reportRef.current("通话已结束；原页面与草稿保留，活动不会自动恢复。"); };
   const currentNotice = notices.find((notice) => notice.item.id === bannerId);
   if (!desktop) return null;
-  const placeholder = (name: string) => reportRef.current(`${name}只有图标按压反馈，不打开应用。`);
   const noticeCard = (notice: PhoneNotice) => <button key={notice.item.id} type="button" className="ios-notice" onClick={() => { if (!noticeSwiped.current) openNotice(notice); }} onPointerDown={(event) => { noticeSwiped.current = false; gesture.current = { x: event.clientX, y: event.clientY, scale: 1 }; }} onPointerUp={(event) => {
     if (gesture.current && gesture.current.y - event.clientY > 35) { noticeSwiped.current = true; setBannerId(null); event.preventDefault(); gesture.current = null; }
   }}><img src={navaIcon} alt="" /><span><span className="ios-notice-meta"><b>NAVA</b><time>现在</time></span><strong>{notice.item.title}</strong><span>{notice.item.body}</span></span></button>;
@@ -170,16 +169,16 @@ export default function PhoneSystemPreview({ userId, report }: { userId?: string
       {(state.surface === "home" || state.surface === "locked") && <div className={`ios-wallpaper ios-${state.surface}`} aria-hidden={state.call === "full" || state.call === "active"} {...(state.call === "full" || state.call === "active" ? { inert: "" } : {})}>
         {state.surface === "home" ? <>
           <div className="ios-app-grid">
-            <button className="ios-app" onClick={() => placeholder("日历")}><span className="ios-app-icon ios-calendar"><small>{new Date().toLocaleDateString("zh-CN", { weekday: "long" })}</small><b>{new Date().getDate()}</b></span><span>日历</span></button>
-            {[["时钟", clockIcon], ["备忘录", notesIcon], ["天气", weatherIcon], ["邮件", mailIcon], ["通讯录", contactsIcon], ["设置", settingsIcon]].map(([name, icon]) => <button key={name} className="ios-app" onClick={() => placeholder(name)}><span className="ios-app-icon"><img src={icon} alt="" /></span><span>{name}</span></button>)}
+            <button className="ios-app"><span className="ios-app-icon ios-calendar"><small>{new Date().toLocaleDateString("zh-CN", { weekday: "long" })}</small><b>{new Date().getDate()}</b></span><span>日历</span></button>
+            {[["时钟", clockIcon], ["备忘录", notesIcon], ["天气", weatherIcon], ["邮件", mailIcon], ["通讯录", contactsIcon], ["设置", settingsIcon]].map(([name, icon]) => <button key={name} className="ios-app"><span className="ios-app-icon"><img src={icon} alt="" /></span><span>{name}</span></button>)}
             <button className="ios-app" aria-label="打开 NAVA" onClick={() => dispatch("app")}><span className="ios-app-icon"><img src={navaIcon} alt="" />{notices.length > 0 && <i className="ios-app-badge">{notices.length}</i>}</span><span>NAVA</span></button>
           </div>
-          <button className="ios-search" onClick={() => placeholder("搜索")}><Search size={14} />搜索</button>
-          <div className="ios-dock">{[["电话", phoneIcon], ["信息", messagesIcon], ["相机", cameraIcon], ["邮件", mailIcon]].map(([name, icon]) => <button key={name} className="ios-app-icon" aria-label={name} onClick={() => placeholder(name)}><img src={icon} alt="" /></button>)}</div>
+          <button className="ios-search"><Search size={14} />搜索</button>
+          <div className="ios-dock">{[["电话", phoneIcon], ["信息", messagesIcon], ["相机", cameraIcon], ["邮件", mailIcon]].map(([name, icon]) => <button key={name} className="ios-app-icon" aria-label={name}><img src={icon} alt="" /></button>)}</div>
         </> : <>
           <div className="ios-lock-clock"><LockKeyhole size={22} /><p>{dateText()}</p><time>{clock}</time></div>
           <div className="ios-lock-notices">{notices.slice(0, 3).map(noticeCard)}</div>
-          <div className="ios-lock-tools"><button aria-label="手电筒" onClick={() => placeholder("手电筒")}><Flashlight /></button><button aria-label="锁屏相机" onClick={() => placeholder("锁屏相机")}><Camera /></button></div>
+          <div className="ios-lock-tools"><button aria-label="手电筒"><Flashlight /></button><button aria-label="锁屏相机"><Camera /></button></div>
           <p className="ios-unlock-label">向上轻扫以解锁</p>
         </>}
       </div>}
@@ -193,7 +192,7 @@ export default function PhoneSystemPreview({ userId, report }: { userId?: string
         {state.call === "active" ? <>
           {keypad ? <div className="ios-keypad"><output>{digits || "\u00a0"}</output><div>{["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"].map((digit) => <button key={digit} onClick={() => setDigits((value) => (value + digit).slice(-18))}>{digit}</button>)}</div><button className="ios-hide-keypad" onClick={() => setKeypad(false)}>隐藏</button></div> : <div className="ios-call-options">
             <button aria-pressed={microphoneMuted} onClick={() => setMicrophoneMuted(!microphoneMuted)}><span><MicOff /></span>静音</button><button onClick={() => setKeypad(true)}><span><Grid3X3 /></span>拨号键盘</button><button aria-pressed={speaker} onClick={() => setSpeaker(!speaker)}><span><Volume2 /></span>扬声器</button>
-            <button onClick={() => placeholder("添加通话")}><span><Plus /></span>添加通话</button><button onClick={() => placeholder("FaceTime")}><span><Camera /></span>FaceTime</button><button onClick={() => placeholder("通讯录")}><span><ContactRound /></span>通讯录</button>
+            <button><span><Plus /></span>添加通话</button><button><span><Camera /></span>FaceTime</button><button><span><ContactRound /></span>通讯录</button>
           </div>}
           <button className="ios-call-round ios-decline ios-hangup" aria-label="挂断" onClick={endCall}><Phone /></button>
         </> : <div className="ios-incoming-actions"><div className="ios-call-secondary"><button onClick={() => setSheet("reminder")}><AlarmClock />提醒我</button><button onClick={() => setSheet("message")}><MessageCircle />信息</button></div>

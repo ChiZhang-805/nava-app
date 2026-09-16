@@ -164,6 +164,8 @@ try {
           await trigger('other'); await expect(system).toHaveAttribute('data-surface','home');
           await expect.poll(() => system.locator('.ios-app-icon img').evaluateAll(images => images.length > 0 && images.every(image => image.complete && image.naturalWidth > 0)), { message:'All external system icons must decode before acceptance', timeout:15000 }).toBe(true);
           await system.getByRole('button',{name:'天气',exact:true}).click();
+          await system.getByRole('button',{name:'搜索',exact:true}).click();
+          await expect(page.locator('.nava-preview-controls')).not.toContainText(/系统事件随时可用|只有图标按压反馈|仅网页测试/);
           await expect(system).toHaveAttribute('data-surface','home');
           await trigger('call'); await expect(system).toHaveAttribute('data-call','banner');
           await page.screenshot({path:`${output}/${new URL(base).hostname}-home-call.png`});

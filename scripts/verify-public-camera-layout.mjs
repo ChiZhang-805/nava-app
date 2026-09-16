@@ -43,7 +43,7 @@ try {
         await expect(rail.locator("[data-reminder-preview] button")).toHaveCount(4);
         await expect(rail.locator("[data-preview-event]:enabled")).toHaveCount(3);
         await expect(rail.locator("[data-reminder-preview] button:enabled")).toHaveCount(0);
-        await expect(rail).toContainText("系统事件随时可用");
+        await expect(rail).not.toContainText(/系统事件随时可用|只有图标按压反馈|仅网页测试/);
         await page.screenshot({ path: `${output}/public-login-${new URL(base).hostname}.png` });
         await rail.screenshot({ path: `${output}/public-controls-${new URL(base).hostname}.png` });
       }
