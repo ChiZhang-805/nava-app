@@ -19,7 +19,7 @@ try {
     const parity = [];
     if (responsive || allPages) {
       const assets = new URL('../dist/assets/', import.meta.url);
-      const names = (await readdir(assets)).filter((name) => /^(index|App|RecordsScreen|RecordModuleDashboard)-.*\.(js|css)$/.test(name) || (phoneSystem && /^(AppIcon-512@2x|settings)-.*\.png$/.test(name)));
+      const names = (await readdir(assets)).filter((name) => /^(index|App|RecordsScreen|RecordModuleDashboard)-.*\.(js|css)$/.test(name) || (phoneSystem && /^(AppIcon-512@2x|camera|messages|clock|contacts|notes|phone|settings|weather)-.*\.png$/.test(name)));
       const html = await (await fetch(base, { cache:'no-store' })).text();
       const entry = html.match(/<script[^>]+src="([^"]+)"/)?.[1];
       assert(entry, 'Public entry script missing');
@@ -162,7 +162,11 @@ try {
           await action('end-call');
           const draft = await page.locator('.chat-input-shell input').inputValue();
           await trigger('other'); await expect(system).toHaveAttribute('data-surface','home');
-          await expect.poll(() => system.locator('.ios-app-icon img').evaluateAll(images => images.length > 0 && images.every(image => image.complete && image.naturalWidth > 0)), { message:'All external system icons must decode before acceptance', timeout:15000 }).toBe(true);
+          await expect.poll(() => system.locator('.ios-app-icon img').evaluateAll(images => images.length > 0 && images.every(image => image.complete && image.naturalWidth >= 128)), { message:'All current system icons must decode before acceptance', timeout:15000 }).toBe(true);
+          await expect(system.locator('.ios-calendar small')).toHaveText(/^周[一二三四五六日]$/);
+          await expect(system.locator('.ios-mail-art')).toHaveCount(2);
+          assert.ok(await system.locator('.ios-app-icon:not(.ios-calendar)').evaluateAll(icons => icons.every(icon => getComputedStyle(icon).backgroundColor === 'rgba(0, 0, 0, 0)')));
+          await page.screenshot({path:`${output}/${new URL(base).hostname}-home-icons.png`});
           await system.getByRole('button',{name:'天气',exact:true}).click();
           await system.getByRole('button',{name:'搜索',exact:true}).click();
           await expect(page.locator('.nava-preview-controls')).not.toContainText(/系统事件随时可用|只有图标按压反馈|仅网页测试/);

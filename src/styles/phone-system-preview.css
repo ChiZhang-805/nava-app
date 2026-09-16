@@ -20,19 +20,15 @@
   .ios-home, .ios-locked { color: #17270c; }
   .ios-app-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 25px 18px; }
   .ios-app { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 6px; font-size: 12px !important; color: #15210d !important; text-shadow: 0 1px 2px #e3f1b655; }
-  .ios-app-icon { position: relative; display: grid; place-items: center; width: clamp(56px, 15.5cqw, 64px); height: clamp(56px, 15.5cqw, 64px); border-radius: 23%; background: #fff; box-shadow: 0 2px 3px #18260822; }
+  .ios-app-icon { --ios-icon-size: clamp(56px, 15.5cqw, 64px); position: relative; display: grid; place-items: center; flex: none; width: var(--ios-icon-size); height: var(--ios-icon-size); border-radius: 23%; background: transparent; box-shadow: 0 2px 3px #18260818; }
   .ios-app-icon > img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
-  .ios-app-icon > svg { width: 65%; height: 65%; stroke-width: 1.8; }
-  .ios-app-icon.ios-calendar { display: flex; flex-direction: column; gap: 0; }
-  .ios-calendar small { color: #f04449; font-size: 10px; line-height: 1.6; }
-  .ios-calendar b { font-size: 35px; color: #111; line-height: 1; font-weight: 300; }
-  .ios-clock { background: #111; color: #fff; }
-  .ios-notes { background: linear-gradient(#ffda47 0 28%, #fff 28%); color: #bbb; }
-  .ios-weather, .ios-mail { background: linear-gradient(#1386ed, #72c8fe); color: #fff; }
-  .ios-maps { color: #219af1; background: linear-gradient(35deg,#d3e5be 35%,#fff 35% 45%,#cbdceb 45%); }
-  .ios-app-icon.ios-settings { color: #555a64; background: linear-gradient(#dddfe5, #a3a7b0); }
-  .ios-phone { background: linear-gradient(#54e76a, #06b531) !important; color: white !important; }
-  .ios-contacts { background: #dad8ce !important; color: #6d695e !important; }
+  .ios-app-art { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+  .ios-app-art img { position: absolute; display: block; max-width: none; width: 144%; height: 144%; left: -22%; top: -22%; }
+  .ios-app-art--compact img { width: 128%; height: 128%; left: -14%; top: -13%; }
+  .ios-app-icon > .ios-mail-art { display: block; width: 100%; height: 100%; border-radius: inherit; }
+  .ios-app-icon.ios-calendar { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding-top: calc(var(--ios-icon-size) * .02); background: #fff; text-shadow: none; }
+  .ios-calendar small { color: #ff3b30; font-size: calc(var(--ios-icon-size) * .18); font-weight: 500; line-height: 1.15; }
+  .ios-calendar b { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Arial, sans-serif; font-size: calc(var(--ios-icon-size) * .72); color: #111; line-height: 1; font-weight: 300; letter-spacing: -.065em; padding-right: .065em; }
   .ios-app-badge { position: absolute; right: -7px; top: -7px; min-width: 24px; padding: 2px 6px; border-radius: 50px; background: #ff3b30; color: #fff; font-size: 16px; font-style: normal; text-shadow: none; }
   .ios-search { align-self: center; margin: auto auto 24px; display: flex; align-items: center; gap: 4px; border-radius: 20px; padding: 7px 13px !important; background: #ffffff26 !important; font-size: 13px !important; }
   .ios-dock { display: flex; justify-content: space-between; gap: 16px; padding: 17px 16px; margin-inline: -15px; border-radius: 36px; background: #ffffff38; backdrop-filter: blur(16px); }

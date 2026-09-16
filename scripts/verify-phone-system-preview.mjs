@@ -29,6 +29,31 @@ try {
   const phone = page.locator(".ios-system-layer"), rail = page.locator(".nava-preview-controls");
   const command = (name) => rail.locator(`[data-phone-action="${name}"]`).click();
   const event = (name) => rail.locator(`[data-preview-event="${name}"]`).click();
+  const checkHomeIcons = async () => {
+    await expect.poll(() => phone.locator('.ios-home img').evaluateAll((images) => images.every((img) => img.complete && img.naturalWidth >= 128))).toBe(true);
+    const layout = await phone.evaluate((root) => {
+      const icons = [...root.querySelectorAll('.ios-home .ios-app-icon')];
+      const bounds = (node) => { const b = node.getBoundingClientRect(); return { x: b.x, y: b.y, width: b.width, height: b.height, bottom: b.bottom }; };
+      const calendar = root.querySelector('.ios-calendar');
+      return {
+        icons: icons.map((node) => ({ ...bounds(node), background: getComputedStyle(node).backgroundColor, calendar: node === calendar })),
+        calendar: bounds(calendar), weekday: bounds(calendar.querySelector('small')), date: bounds(calendar.querySelector('b')),
+        weekdayText: calendar.querySelector('small').textContent,
+        mailCount: root.querySelectorAll('.ios-mail-art').length,
+        art: [...root.querySelectorAll('.ios-app-art')].map((node) => ({ clip: getComputedStyle(node).overflow, imageWidth: node.querySelector('img').naturalWidth })),
+      };
+    });
+    assert.equal(layout.icons.length, 12);
+    assert.equal(layout.mailCount, 2);
+    assert.ok(layout.art.every((art) => art.clip === 'hidden' && art.imageWidth >= 128));
+    assert.ok(layout.icons.every((icon) => Math.abs(icon.width - icon.height) < .1 && Math.abs(icon.width - layout.icons[0].width) < .2));
+    assert.ok(layout.icons.filter((icon) => !icon.calendar).every((icon) => icon.background === 'rgba(0, 0, 0, 0)'), 'No white backing behind icon pixels');
+    assert.match(layout.weekdayText, /^周[一二三四五六日]$/);
+    assert.ok(layout.weekday.y - layout.calendar.y >= layout.calendar.height * .035, 'Calendar weekday needs breathing room above');
+    assert.ok(layout.date.bottom <= layout.calendar.bottom - 1, 'Calendar date must stay inset');
+    assert.ok(Math.abs(layout.weekday.x + layout.weekday.width / 2 - layout.calendar.x - layout.calendar.width / 2) < .5);
+    return layout;
+  };
   const shot = async (model, state) => {
     await expect(phone).toBeVisible();
     const errors = await phone.evaluate((root) => {
@@ -56,8 +81,10 @@ try {
     console.log(`Checking ${device.id}`);
     await page.getByTestId("nava-preview-device-select").selectOption(device.id);
     await event("other"); await expect(phone).toHaveAttribute("data-surface", "home");
+    const iconLayout = await checkHomeIcons();
     await phone.getByRole("button", { name: "天气", exact: true }).click();
     await expect(phone).toHaveAttribute("data-surface", "home"); await shot(device.id, "home");
+    result.states.at(-1).iconLayout = iconLayout;
     await event("call"); await shot(device.id, "home-call");
     await phone.getByRole("button", { name: "展开 NAVA 来电" }).click(); await shot(device.id, "expanded-call");
     await phone.getByRole("button", { name: "接听", exact: true }).click();

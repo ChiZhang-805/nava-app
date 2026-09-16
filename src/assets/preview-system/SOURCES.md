@@ -1,10 +1,45 @@
 # Preview-only system app icons
 
-Apple iPhone User Guide, iOS 18, retrieved 2026-09-16. These small reference icons
-are used only for the nonfunctional system-app buttons in the desktop test shell.
-They are not NAVA branding and are excluded by the native build dependency graph.
-No user screenshot or private notification content is included. NAVA itself uses
-the existing NAVA AppIcon from the native project's asset catalog.
+Refreshed 2026-09-16. Used only for the nonfunctional system-app buttons in the
+desktop test shell, not NAVA branding; excluded by the native dependency graph.
+NAVA uses its existing native AppIcon. No user screenshot or notification is used.
+
+## Current artwork
+
+Source page: [Apps by Apple](https://www.apple.com/apps/). These are Apple's
+classic marketing assets, not a claim of pixel-identical iOS 18 OS resources.
+Files are downloaded unchanged, not screenshot crops or generated/upscaled art.
+144px originals contain a 100px icon at (22,22); 128px originals contain a 100px
+icon at (14,13). `SystemIconArt` frames those margins in CSS without a white
+backing, preserving aspect ratio and shared visible bounds across grid/Dock.
+
+| File | Original Apple asset (under https://www.apple.com/v/apps/f/images/overview/apps/) | Native PNG |
+| --- | --- | --- |
+| camera.png | tier1/chiclets/camera_chiclet__durqmihra2s2_xlarge_2x.png | 144×144 |
+| messages.png | tier1/chiclets/messages_chiclet__f8bzind6fdqy_xlarge_2x.png | 144×144 |
+| notes.png | tier1/chiclets/notes_chiclet__clow1nl1x7bm_xlarge_2x.png | 144×144 |
+| weather.png | tier1/chiclets/weather_chiclet__85gxx6e7lnmm_xlarge_2x.png | 144×144 |
+| contacts.png | tier1/chiclets/contacts_chiclet__bfsq7qs1ptjm_xlarge_2x.png | 144×144 |
+| phone.png | tier1/chiclets/phone_chiclet__f1brppw3aqy6_xlarge_2x.png | 144×144 |
+| settings.png | tier2/settings_chiclet__dr80i4otdb6u_large_2x.png | 128×128 |
+| clock.png | tier2/clock_chiclet__rmcv0em78d6e_large_2x.png | 128×128 |
+
+Calendar is live UI text (local weekday/date, not a static image). Its short
+Chinese weekday and inset proportions, and the flat vector Mail UI icon, follow
+the [official iOS 18 Home Screen](https://support.apple.com/zh-cn/guide/iphone/iphca3d8b4e3/18.0/ios/18.0).
+The shaded cross-platform marketing Mail icon is deliberately not used.
+Clock is a static reference icon; it is not an OS clock implementation.
+
+Apple artwork remains Apple's copyrighted material, not an open-license pack or
+NAVA intellectual property. Public availability is not a redistribution license;
+review reuse permission before distributing this test shell as a separate product.
+See [Apple terms](https://www.apple.com/legal/internet-services/terms/site.html).
+
+## Superseded guide thumbnails (provenance)
+
+Original 60px guide illustrations had presentation outlines and were too small
+for this use. The eight files above replace them. `mail.png` is retained for
+provenance but is no longer imported or shipped by this component.
 
 Asset origin: `https://help.apple.com/assets/683A54F5227CBBDB98051B96/683A54FB41CF56AD7E0D23DC/zh_CN/`
 

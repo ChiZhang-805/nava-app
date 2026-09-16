@@ -7,7 +7,6 @@ import cameraIcon from "../assets/preview-system/camera.png";
 import messagesIcon from "../assets/preview-system/messages.png";
 import clockIcon from "../assets/preview-system/clock.png";
 import contactsIcon from "../assets/preview-system/contacts.png";
-import mailIcon from "../assets/preview-system/mail.png";
 import notesIcon from "../assets/preview-system/notes.png";
 import phoneIcon from "../assets/preview-system/phone.png";
 import settingsIcon from "../assets/preview-system/settings.png";
@@ -19,6 +18,22 @@ const dateText = () => new Date().toLocaleDateString("zh-CN", { month: "long", d
 // Auth bootstrap briefly mounts the incoming and outgoing shells together.
 // An outgoing shell must never erase the incoming shell's document markers.
 let activePreviewOwner: symbol | null = null;
+
+// Apple's marketing assets include transparent presentation margins. Frame the
+// original pixels in CSS instead of stretching those margins into a white rim.
+function SystemIconArt({ src, compact = false }: { src: string; compact?: boolean }) {
+  return <span className={`ios-app-art${compact ? " ios-app-art--compact" : ""}`}><img src={src} alt="" draggable={false} /></span>;
+}
+
+function MailIconArt() {
+  // The iPhone guide uses a flat white envelope, unlike the shaded Mac-style
+  // envelope on Apple's cross-platform marketing page. Keep this UI icon vector.
+  return <svg className="ios-mail-art" viewBox="0 0 100 100" aria-hidden="true">
+    <defs><linearGradient id="ios-mail-blue" x2="0" y2="1"><stop stopColor="#1879f6" /><stop offset="1" stopColor="#08c5f2" /></linearGradient></defs>
+    <rect width="100" height="100" fill="url(#ios-mail-blue)" />
+    <path fill="#fff" d="M17 27h66L54 53a6 6 0 0 1-8 0L17 27Zm-3 3 24 21-24 22V30Zm72 0v43L62 51l24-21ZM40.5 53.5l4 3.5a8.5 8.5 0 0 0 11 0l4-3.5L83 76H17l23.5-22.5Z" />
+  </svg>;
+}
 
 /** An isolated web test shell; never navigates/unmounts NAVA or impersonates OS APIs. */
 export default function PhoneSystemPreview({ userId, report }: { userId?: string; report: (text: string) => void }) {
@@ -169,12 +184,12 @@ export default function PhoneSystemPreview({ userId, report }: { userId?: string
       {(state.surface === "home" || state.surface === "locked") && <div className={`ios-wallpaper ios-${state.surface}`} aria-hidden={state.call === "full" || state.call === "active"} {...(state.call === "full" || state.call === "active" ? { inert: "" } : {})}>
         {state.surface === "home" ? <>
           <div className="ios-app-grid">
-            <button className="ios-app"><span className="ios-app-icon ios-calendar"><small>{new Date().toLocaleDateString("zh-CN", { weekday: "long" })}</small><b>{new Date().getDate()}</b></span><span>日历</span></button>
-            {[["时钟", clockIcon], ["备忘录", notesIcon], ["天气", weatherIcon], ["邮件", mailIcon], ["通讯录", contactsIcon], ["设置", settingsIcon]].map(([name, icon]) => <button key={name} className="ios-app"><span className="ios-app-icon"><img src={icon} alt="" /></span><span>{name}</span></button>)}
+            <button className="ios-app"><span className="ios-app-icon ios-calendar"><small>{new Date().toLocaleDateString("zh-CN", { weekday: "short" })}</small><b>{new Date().getDate()}</b></span><span>日历</span></button>
+            {[["时钟", clockIcon], ["备忘录", notesIcon], ["天气", weatherIcon], ["邮件", ""], ["通讯录", contactsIcon], ["设置", settingsIcon]].map(([name, icon]) => <button key={name} className="ios-app"><span className="ios-app-icon">{name === "邮件" ? <MailIconArt /> : <SystemIconArt src={icon} compact={name === "时钟" || name === "设置"} />}</span><span>{name}</span></button>)}
             <button className="ios-app" aria-label="打开 NAVA" onClick={() => dispatch("app")}><span className="ios-app-icon"><img src={navaIcon} alt="" />{notices.length > 0 && <i className="ios-app-badge">{notices.length}</i>}</span><span>NAVA</span></button>
           </div>
           <button className="ios-search"><Search size={14} />搜索</button>
-          <div className="ios-dock">{[["电话", phoneIcon], ["信息", messagesIcon], ["相机", cameraIcon], ["邮件", mailIcon]].map(([name, icon]) => <button key={name} className="ios-app-icon" aria-label={name}><img src={icon} alt="" /></button>)}</div>
+          <div className="ios-dock">{[["电话", phoneIcon], ["信息", messagesIcon], ["相机", cameraIcon], ["邮件", ""]].map(([name, icon]) => <button key={name} className="ios-app-icon" aria-label={name}>{name === "邮件" ? <MailIconArt /> : <SystemIconArt src={icon} />}</button>)}</div>
         </> : <>
           <div className="ios-lock-clock"><LockKeyhole size={22} /><p>{dateText()}</p><time>{clock}</time></div>
           <div className="ios-lock-notices">{notices.slice(0, 3).map(noticeCard)}</div>

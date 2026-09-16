@@ -3474,3 +3474,23 @@ healthWrites均0、aiTested:false；包含搜索点击后三段文字缺席断�
 两站最终主屏幕来电截图，侧栏没有三段说明；按钮、实际事件结果及按压反馈保留。
 浏览器及凭据由finally清理；全程串行外部Chromium，未操作Codex内置浏览器。
 本次三处文案已全部处理，既有AI、真机及旧部署资源清理待办未变。
+
+### 系统桌面图标视觉修正
+
+旧版使用约60px的Apple指南说明图，部分自带浅色轮廓，叠加统一白底后产生白圈。
+现改用Apple官方Apps页面经典素材原文件（128/144px，实际图标100px），CSS只框定
+透明展示边距，不做截图放大或伪造高清；素材来源和限制见preview-system/SOURCES.md。
+邮件参照官方iOS18主屏幕用扁平矢量信封，未采用营销页的阴影信封；NAVA图标不改。
+统一透明底、可见尺寸、圆角与弱投影，角标在裁切层外保留。日历使用“周三”等本地
+短星期名与本地日期，按图标大小约束字号/内距，不再贴顶。只改预览视觉，不改系统
+事件行为、账号、AI或数据库；仍不宣称逐像素iOS还原，时钟仍是静态参考图标。
+专项新增18机型图标解码/尺寸/透明底/日历内距检查，双站验收增加全部图标hash核验。
+`phone-system:visual`132状态通过，18机型均包含新版图标解码、等宽高、透明底及
+日历内距断言；已人工查看17、16 Pro、14机型的最终截图，并逐个查看替换素材。
+`npm run verify`首轮在mascot:visual的networkidle导航30秒超时，非断言失败；原样
+单独复跑通过（4尺寸、15片段），未改APP或放宽测试。保持源码不变，从原verify.ps1
+第6阶段继续到最后，全部通过；不能把首轮命令记为退出0。生产认证合同与原生排除
+37个JS/CSS产物通过。日志为`Q:\NAVA-Workspace\Build\TestRuns\phone-icon-refresh`
+中的verify.log、mascot-retry.log、verify-continuation.log、auth.log、native.log。
+图标矩阵仍在phone-system-preview/report.json；全过程串行外部浏览器，未操作内置
+浏览器，检查时可用内存13GB以上。新双站发布及线上核验收据待补。
