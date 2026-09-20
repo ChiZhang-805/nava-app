@@ -57,7 +57,9 @@ try {
   page.on('request', (request) => {
     const target = new URL(request.url());
     if (target.hostname.endsWith('.supabase.co')) projects.add(target.hostname);
-    if (process.env.NAVA_REMINDER_UI_URL && target.origin === new URL(base).origin && /\/[^/]+\.(js|css)$/.test(target.pathname)) loadedAssets.add(target.href);
+    // Cloudflare injects its own challenge scripts under /cdn-cgi/; those are
+    // hosting infrastructure, not assets produced by this source revision.
+    if (process.env.NAVA_REMINDER_UI_URL && target.origin === new URL(base).origin && !target.pathname.startsWith('/cdn-cgi/') && /\/[^/]+\.(js|css)$/.test(target.pathname)) loadedAssets.add(target.href);
   });
   await page.route("**/rest/v1/*", async (route) => {
     const request = route.request();

@@ -25,7 +25,21 @@
 通过，原生排除39个JS/CSS产物通过。首轮真实账号末尾关闭/刷新检查因测试未等待
 切回fixed完成而失败，精确恢复原设置后补足等待，第二轮真实APP登录八项开关、
 固定时间、smart/fixed模式、午餐独立关闭与刷新/云回读全部通过。原设置精确恢复，
-healthWrites=0、原活动会话保留。当前待双站发布后的同源码/真实账号核验。
+healthWrites=0、原活动会话保留。
+
+正式源码`233ee3e87baa5a3d889fba7ada476608b8c61973`已推送GitHub与Sites来源，
+两个站点发布成功：Sites **v163**，版本
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_ac47bd6256b481918b80fc9fa9fbe0b3`，
+部署`appgdep_6aafafaa3e74819189272f4fcc07f18d`；Pages镜像
+`ca97174557c2e5c015f6c1d22119a26a8e2b335e`，workflow `35504094702`成功，
+公开`source.json`匹配。两构建81个资源逐字节一致，旧hash资源保留未删除。
+Sites首轮线上表单/云回读通过，但资源验收误收平台`/cdn-cgi/`防护脚本而失败；
+账号已恢复。仅修正验收脚本明确排除平台脚本，NAVA资产仍逐个SHA-256严格比对。
+Sites完整重跑及Pages真实账号验收均通过，各实际加载23个NAVA JS/CSS匹配；
+两站均确认真实登录、公共demo不绕过认证、同一canonical项目，八项保存/方式切换/
+单独关闭午餐/刷新一致。两站回执均passed、settingsRestored、activeSessionsPreserved
+为true且healthWrites=0。发布后仅补验收脚本与文档，不改变v163产品产物。
+Sites初次归档因缺少外层dist被拒，按官方结构重新打包后保存/发布成功，无源码改动。
 本轮日志根：`Q:\NAVA-Workspace\Build\TestRuns\reminder-settings-page`；设置截图及账号
 安全恢复回执沿用`independent-reminders`目录。未操作Codex内置浏览器，外部浏览器串行。
 

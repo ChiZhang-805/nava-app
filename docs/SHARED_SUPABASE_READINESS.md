@@ -26,6 +26,10 @@ and iPhone wake-lock behavior remain separate device acceptance gates.
 Actual APP form login and Supabase RLS acceptance passed for all eight types,
 fixed/smart mode, independent off and reload. All original preferences were
 restored exactly; health writes were zero and existing activity was preserved.
+Post-release acceptance also passed on Sites v163 and GitHub Pages, both using
+source `233ee3e87baa5a3d889fba7ada476608b8c61973`. Each loaded 23 matching product
+JS/CSS assets; both receipts confirm real login, canonical project, exact
+preference restoration, no health writes, and preserved existing activity.
 
 2026-09-15: user explicitly authorized `202609150002_independent_reminders.sql`.
 Dry run selected only that CHECK expansion; push succeeded, and all 30 local/remote

@@ -43,6 +43,11 @@ Apple User Notifications 框架文档及 iPhone 用户指南为准：应用在�
 参考：[Apple idle timer](https://developer.apple.com/documentation/uikit/uiapplication/isidletimerdisabled)、
 [WebKit Screen Wake Lock](https://webkit.org/blog/13966/webkit-features-in-safari-16-4/)。
 
+本轮已随Sites v163及Pages同源码发布，四档手机设置/收件箱交互、完整verify、
+生产认证合同与原生排除模拟层均通过。双站真实账号八项保存、模式切换、午餐独立
+关闭与刷新通过，各23个实际加载JS/CSS与产物匹配。账号原设置已恢复，健康写入0，
+原活动会话保留；完整版本/回执位置见总交接§90。原生常亮/锁屏送达仍待真机。
+
 以下2026-09-15四项提醒段落为旧交付记录；新路由、八项与方式选择以上述合同为准。
 
 ### 桌面手机系统预览层（2026-09-16）
