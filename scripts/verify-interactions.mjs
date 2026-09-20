@@ -152,7 +152,7 @@ async function loginWithPassword(page, baseUrl) {
 }
 
 async function createReviewPage(browser, baseUrl, consoleErrors) {
-  const context = await browser.newContext({
+  const context = await browser.newContext({ locale: "zh-CN",
     viewport: { width: viewportWidth, height: viewportHeight },
     deviceScaleFactor: 2,
     isMobile: true,
@@ -1010,13 +1010,13 @@ async function verifyHomeShortcuts(page, results) {
   await expect(page.locator(".bottom-nav")).toHaveCount(0);
   const profileMenuButton = page.locator('.advanced-profile-header-icon[aria-label="更多资料操作"], .advanced-profile-header-icon[aria-label="More profile actions"]');
   await profileMenuButton.click();
-  await expect(page.locator(".advanced-profile-menu")).toBeVisible();
-  await expect(page.locator(".advanced-profile-menu button")).toHaveCount(3);
-  await page.locator(".advanced-profile-menu button").first().click();
-  await expect(page.locator(".advanced-profile-screen .avatar-sheet")).toBeVisible();
-  await page.locator(".advanced-profile-screen .avatar-sheet-overlay").click({ position: { x: 2, y: 2 } });
+  await expect(page.locator(".advanced-profile-screen .app-utility-popover")).toBeVisible();
+  await expect(page.locator(".advanced-profile-screen .app-utility-popover button")).toHaveCount(4);
+  await page.locator(".advanced-profile-screen .app-utility-popover button").first().click();
+  await expect(page.locator(".phone-frame > .avatar-picker-overlay .avatar-sheet")).toBeVisible();
+  await page.locator(".phone-frame > .avatar-picker-overlay").click({ position: { x: 2, y: 2 } });
   await page.locator("[data-profile-details-avatar]").click();
-  await expect(page.locator(".advanced-profile-screen .avatar-sheet")).toBeVisible();
+  await expect(page.locator(".phone-frame > .avatar-picker-overlay .avatar-sheet")).toBeVisible();
   await page.locator('[data-profile-avatar-input="gallery"]').setInputFiles(samplePhoto);
   await expect(page.locator("[data-profile-details-avatar] img")).toBeVisible();
   await expect(page.locator(".advanced-profile-screen .advanced-profile-saved")).toContainText(/头像已更新|Avatar updated/);
@@ -1159,14 +1159,21 @@ async function verifyAi(page, results, diagnostics) {
   const speechToggle = utilityPopover.locator("button").filter({ hasText: /朗读|voice/i });
   if (await speechToggle.isEnabled()) {
     await speechToggle.click();
-    await expect(utilityPopover).toBeVisible();
+    await expect(utilityPopover).toBeHidden();
+    await headerMenuButton.click();
     await speechToggle.click();
-    await expect(utilityPopover).toBeVisible();
+    await expect(utilityPopover).toBeHidden();
+    await headerMenuButton.click();
   }
-  const languageToggle = utilityPopover.locator(".language-toggle");
+  const languageToggle = utilityPopover.locator(".more-menu-language");
   await languageToggle.click();
   await expect(utilityPopover).toBeVisible();
+  await page.getByRole("menuitemradio", { name: reviewLocale === "en" ? "简体中文" : "English" }).click();
+  await expect(utilityPopover).toBeHidden();
+  await headerMenuButton.click();
   await languageToggle.click();
+  await page.getByRole("menuitemradio", { name: reviewLocale === "en" ? "English" : "简体中文" }).click();
+  await headerMenuButton.click();
   await expect(utilityPopover).toBeVisible();
   await page.locator(".chat-input-shell input").click();
   await expect(utilityPopover).toBeHidden();
@@ -1632,8 +1639,8 @@ async function verifyNavigationAndMotion(page, results) {
   await page.waitForTimeout(280);
   await page.screenshot({ path: path.join(outputDir, "header-utility-menu.png") });
   const utilityAlignment = await utilityPopover.evaluate((popover) => {
-    const regularIcon = popover.querySelector("button:not(.language-toggle) svg");
-    const languageIcon = popover.querySelector(".language-toggle svg");
+    const regularIcon = popover.querySelector("button:not(.more-menu-language) svg");
+    const languageIcon = popover.querySelector(".more-menu-language svg");
     if (!regularIcon || !languageIcon) throw new Error("Utility menu icons are missing.");
     const regularRect = regularIcon.getBoundingClientRect();
     const languageRect = languageIcon.getBoundingClientRect();
@@ -1655,7 +1662,7 @@ async function verifyNavigationAndMotion(page, results) {
 }
 
 async function verifyPageSkeletons(browser, baseUrl, results, consoleErrors) {
-  const context = await browser.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 430, height: 932 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   await context.addInitScript(() => {
     sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
     localStorage.setItem("nava.onboarding.v2.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 2, answers: {}, source: "local" }));
@@ -1713,7 +1720,7 @@ async function verifyPageSkeletons(browser, baseUrl, results, consoleErrors) {
 }
 
 async function verifyModuleCompletionRouting(browser, baseUrl, results, consoleErrors) {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   await context.addInitScript(() => {
     const now = new Date();
     const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;

@@ -78,7 +78,7 @@ async function readDesktopGeometry(page) {
 }
 
 try {
-  const signedOutDesktopContext = await browser.newContext({ viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
+  const signedOutDesktopContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
   const signedOutDesktop = await signedOutDesktopContext.newPage();
   await signedOutDesktop.goto(baseUrl, { waitUntil: "networkidle" });
   const signedOutLaunch = signedOutDesktop.locator(".launch-sequence");
@@ -106,7 +106,7 @@ try {
   report.push({ mode: "desktop-auth-preview", geometry: signedOutDesktopGeometry });
   await signedOutDesktopContext.close();
 
-  const onboardingDesktopContext = await browser.newContext({ viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
+  const onboardingDesktopContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
   await onboardingDesktopContext.addInitScript(({ userId }) => {
     sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
     localStorage.setItem(`nava.onboarding.v2.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 2, answers: {}, source: "local" }));
@@ -170,7 +170,7 @@ try {
   report.push({ mode: "desktop-onboarding-preview", geometry: onboardingDesktopGeometry });
   await onboardingDesktopContext.close();
 
-  const desktopContext = await browser.newContext({ viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
+  const desktopContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
   const desktop = await prepare(desktopContext);
   const desktopGeometry = await readDesktopGeometry(desktop);
   if (!desktopGeometry.frame || !desktopGeometry.chrome || !desktopGeometry.selector || desktopGeometry.chrome.display === "none" || desktopGeometry.selector.display === "none") throw new Error(`Desktop device shell or selector is missing ${JSON.stringify(desktopGeometry)}`);
@@ -189,7 +189,7 @@ try {
   report.push({ mode: "desktop-preview", geometry: desktopGeometry });
   await desktopContext.close();
 
-  const catalogContext = await browser.newContext({ viewport: { width: 1440, height: 1080 }, deviceScaleFactor: 1 });
+  const catalogContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 1440, height: 1080 }, deviceScaleFactor: 1 });
   const catalogPage = await prepare(catalogContext);
   const deviceSelector = catalogPage.getByTestId("nava-preview-device-select");
   await expect(deviceSelector).toBeVisible();
@@ -321,7 +321,7 @@ try {
   }
   await catalogContext.close();
 
-  const notificationContext = await browser.newContext({ viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
+  const notificationContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
   const notificationDesktop = await prepare(notificationContext, "&qa=notifications", "#tab=today", false);
   const banner = notificationDesktop.locator(".nava-notification-banner-layer");
   await expect(banner).toBeVisible();
@@ -371,7 +371,7 @@ try {
   report.push({ mode: "desktop-notification", geometry: notificationGeometry });
   await notificationContext.close();
 
-  const compactDesktopContext = await browser.newContext({ viewport: { width: 1365, height: 768 }, deviceScaleFactor: 1 });
+  const compactDesktopContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 1365, height: 768 }, deviceScaleFactor: 1 });
   const compactDesktop = await prepare(compactDesktopContext);
   const compactGeometry = await readDesktopGeometry(compactDesktop);
   const expectedScale = (768 - 52) / 932;
@@ -392,7 +392,7 @@ try {
   report.push({ mode: "compact-desktop-preview", geometry: compactGeometry });
   await compactDesktopContext.close();
 
-  const subpageDesktopContext = await browser.newContext({ viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
+  const subpageDesktopContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
   const subpageDesktop = await prepare(subpageDesktopContext, "", "#tab=today&view=profile-details");
   await expect(subpageDesktop.locator('[data-home-view="profile-details"]')).toBeVisible();
   const subpageHeaderGeometry = await subpageDesktop.evaluate(() => {
@@ -443,7 +443,7 @@ try {
     { width: 430, height: 932 },
     { width: 440, height: 956 },
   ]) {
-    const context = await browser.newContext({ viewport, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+    const context = await browser.newContext({ locale: "zh-CN", viewport, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
     for (const route of headerRoutes) {
       const page = await prepare(context, "", `#tab=today&view=${route.view}`);
       const header = page.locator(route.selector);
@@ -470,7 +470,7 @@ try {
     await context.close();
   }
 
-  const mobileContext = await browser.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  const mobileContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 430, height: 932 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   const mobile = await prepare(mobileContext);
   const mobileGeometry = await mobile.evaluate(() => {
     const frameElement = document.querySelector(".phone-frame");
@@ -492,7 +492,7 @@ try {
   report.push({ mode: "mobile-product", geometry: mobileGeometry });
   await mobileContext.close();
 
-  const signedOutMobileContext = await browser.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  const signedOutMobileContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 430, height: 932 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   const signedOutMobile = await signedOutMobileContext.newPage();
   await signedOutMobile.goto(baseUrl, { waitUntil: "networkidle" });
   const signedOutMobileLaunch = signedOutMobile.locator(".launch-sequence");

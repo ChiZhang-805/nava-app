@@ -11,12 +11,12 @@ import {
   Dumbbell,
   Frown,
   MoonStar,
-  MoreHorizontal,
   ScanFace,
   Target,
   Utensils,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import MoreMenu from "../components/MoreMenu";
 import AnimatedNumber from "../components/AnimatedNumber";
 import PageSkeleton from "../components/PageSkeleton";
 import { useLocale } from "../i18n";
@@ -88,32 +88,11 @@ function CalendarScreen({
   const [yearLoading, setYearLoading] = useState(true);
   const [yearError, setYearError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const cells = useMemo(() => buildMonthCells(displayMonth), [displayMonth]);
   const coverage = useMemo(() => trends ? buildDailyCoverage(trends) : {}, [trends]);
   const rhythms = useMemo(() => trends ? rhythmScoresByDate(trends) : {}, [trends]);
   const weekdays = locale === "zh" ? ["一", "二", "三", "四", "五", "六", "日"] : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const yearHeatmap = useMemo(() => buildYearHeatmap(displayYear), [displayYear]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
-    const closeOutside = (event: PointerEvent) => {
-      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) setMenuOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setMenuOpen(false);
-      menuButtonRef.current?.focus();
-    };
-    document.addEventListener("pointerdown", closeOutside);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOutside);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [menuOpen]);
 
   useEffect(() => {
     let active = true;
@@ -156,20 +135,12 @@ function CalendarScreen({
       <header className="home-experience-header">
         <button className="home-experience-back" type="button" onClick={onBack} aria-label={locale === "zh" ? "返回首页" : "Back home"}><ArrowLeft size={22} /></button>
         <div><h1>{locale === "zh" ? "我的月历" : "My calendar"}</h1></div>
-        <div className="home-calendar-menu-wrap" ref={menuRef} onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) setMenuOpen(false);
-        }}>
-          <button ref={menuButtonRef} className="home-calendar-more" type="button" aria-label={locale === "zh" ? "更多月历操作" : "More calendar actions"} aria-haspopup="menu" aria-expanded={menuOpen} aria-controls={menuOpen ? "home-calendar-menu" : undefined} onClick={() => setMenuOpen((open) => !open)} onKeyDown={(event) => {
-            if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); setMenuOpen(true); }
-          }}><MoreHorizontal size={23} aria-hidden="true" /></button>
-          {menuOpen && <div className="app-utility-popover home-calendar-menu" id="home-calendar-menu" role="menu" aria-label={locale === "zh" ? "月历操作" : "Calendar actions"}>
+        <MoreMenu open={menuOpen} onOpenChange={setMenuOpen} label={locale === "zh" ? "更多月历操作" : "More calendar actions"} buttonClassName="home-calendar-more">
             <button className="home-calendar-today" type="button" role="menuitem" onClick={() => {
               setDisplayMonth(deviceDate.slice(0, 7));
               setMenuOpen(false);
-              menuButtonRef.current?.focus();
             }}><CalendarDays size={18} aria-hidden="true" />{locale === "zh" ? "回到本月" : "Back to this month"}</button>
-          </div>}
-        </div>
+        </MoreMenu>
       </header>
 
       {loading ? <PageSkeleton variant="calendar" calendarWeekCount={cells.length / 7} /> : <><section className="home-calendar-overview">

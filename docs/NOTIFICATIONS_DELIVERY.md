@@ -10,6 +10,30 @@ Apple User Notifications 框架文档及 iPhone 用户指南为准：应用在�
 
 ## 当前已实现源码
 
+### 统一权限入口（2026-09-20）
+
+- 提醒设置不再显示“系统通知／已开启／未开启”常驻卡片。新账号八项默认关闭，
+  既有偏好不重置；系统授权和APP内每项开关是两层独立状态。
+- 每个启用动作（包括情绪、饮食快捷设置和睡眠提醒）先检查系统权限再保存。
+  iOS安装版注册`NavaNotificationPermission`桥：`UNUserNotificationCenter`
+  `getNotificationSettings`；authorized直接通过，notDetermined才请求alert/sound/badge。
+  不在登录或页面加载时自动索权，不用网页弹框冒充苹果系统框。
+- 已拒绝/仅安静授权时，原生`UIAlertController`提供“暂不／前往设置”；
+  iOS16+使用`UIApplication.openNotificationSettingsURLString`，旧版回退APP设置。
+  返回前台重查，允许后只保存刚才申请的那一项；取消、拒绝、页面离开或账号改变
+  不会偷偷开启。已有授权无额外弹窗。Apple专注模式、通知摘要、声音/横幅/锁屏
+  子设置仍由用户和系统控制，APP不能保证每条立即弹横幅。
+- 网页使用浏览器真实Notification权限，不声称能跳进iPhone原生APP设置；浏览器
+  不支持或拒绝时保留关闭并给短状态。APNs注册不再次索权，也不自动开启别的项目。
+- 22项通知/权限合同测试包括默认关闭、取消、拒绝不重弹、已授权不弹及SwiftAPI
+  静态合同。设置返回状态另用明确桥接测试夹具检验，不代表真机弹窗或推送送达。
+  Mac上需执行既有原生准备/编译流程，并在iPhone验收首次授权、拒绝跳设置、返回
+  后单项启用及真实锁屏通知；Windows不能完成这些真机边界。
+
+官方依据：[Apple申请通知授权](https://developer.apple.com/documentation/usernotifications/asking-permission-to-use-notifications)、
+[APP通知设置链接](https://developer.apple.com/documentation/uikit/uiapplication/opennotificationsettingsurlstring)、
+[Capacitor 7 Local Notifications](https://capacitorjs.com/docs/v7/apis/local-notifications)。
+
 ### 独立提醒设置页与专注生命周期（2026-09-20）
 
 - 通知中心不再内嵌设置/权限说明。右上三点菜单的“提醒设置”进入独立路由

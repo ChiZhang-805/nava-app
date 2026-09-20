@@ -57,7 +57,7 @@ function assertNear(actual, expected, tolerance, label) {
 
 try {
   for (const viewport of viewports) {
-    const context = await browser.newContext({ viewport, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    const context = await browser.newContext({ locale: "zh-CN", viewport, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -207,7 +207,7 @@ try {
     results.push({ viewport, preferredMotion, geometry, expandedGeometry });
     await context.close();
   }
-  const reducedContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
+  const reducedContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
   const reducedPage = await reducedContext.newPage();
   await login(reducedPage);
   await dismissRewardIfPresent(reducedPage);

@@ -8,7 +8,6 @@ import {
   ListPlus,
   Mail,
   MailOpen,
-  MoreHorizontal,
   MoonStar,
   ScanFace,
   SmilePlus,
@@ -20,6 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import MoreMenu from "../components/MoreMenu";
 import {
   deleteNavaNotification,
   deleteNavaNotifications,
@@ -237,7 +237,6 @@ export default function NotificationCenter({
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [detailId, setDetailId] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
   const unreadCount = items.filter((item) => !item.readAt).length;
   const shownItems = useMemo(() => filter === "unread" ? items.filter((item) => !item.readAt) : items, [filter, items]);
   const detailItem = items.find((item) => item.id === detailId) ?? null;
@@ -262,9 +261,6 @@ export default function NotificationCenter({
     markNavaNotification(userId, detailItem.id, true);
   }, [detailItem, userId]);
   useEffect(() => {
-    const closeMenu = (event: PointerEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
-    };
     const closeOverlay = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (detailId) setDetailId(null);
@@ -273,10 +269,8 @@ export default function NotificationCenter({
         setSelectedIds(new Set());
       } else setMenuOpen(false);
     };
-    document.addEventListener("pointerdown", closeMenu);
     document.addEventListener("keydown", closeOverlay);
     return () => {
-      document.removeEventListener("pointerdown", closeMenu);
       document.removeEventListener("keydown", closeOverlay);
     };
   }, [detailId, selectionMode]);
@@ -334,15 +328,12 @@ export default function NotificationCenter({
             <button type="button" onClick={() => { markNavaNotifications(userId, [...selectedIds], true); leaveSelection(); }} disabled={selectedIds.size === 0} aria-label={locale === "zh" ? "标记所选通知为已读" : "Mark selected notifications read"}><MailOpen size={20} /></button>
           </div>
         ) : (
-          <div className="notification-header-menu-wrap" ref={menuRef}>
-            <button type="button" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)} aria-label={locale === "zh" ? "通知操作" : "Notification actions"}><MoreHorizontal size={22} /></button>
-            {menuOpen && <div className="notification-header-menu" role="menu">
+          <MoreMenu open={menuOpen} onOpenChange={setMenuOpen} label={locale === "zh" ? "通知操作" : "Notification actions"}>
               <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onOpenSettings(); }}><BellRing size={17} />{locale === "zh" ? "提醒设置" : "Reminder settings"}</button>
               <button type="button" role="menuitem" disabled={unreadCount === 0} onClick={() => { markAllNavaNotificationsRead(userId); setMenuOpen(false); }}><MailOpen size={17} />{locale === "zh" ? "全部已读" : "Mark all read"}</button>
               <button type="button" role="menuitem" disabled={items.length === 0} onClick={deleteAll}><Trash2 size={17} />{locale === "zh" ? "全部删除" : "Delete all"}</button>
               <button type="button" role="menuitem" disabled={items.length === 0} onClick={() => enterSelection()}><ListPlus size={17} />{locale === "zh" ? "多选" : "Select"}</button>
-            </div>}
-          </div>
+          </MoreMenu>
         )}
       </header>
 

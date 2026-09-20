@@ -31,7 +31,7 @@ async function prepare(context, hash) {
 }
 
 try {
-  const desktopContext = await browser.newContext({ viewport: { width: 1440, height: 1080 }, deviceScaleFactor: 1 });
+  const desktopContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 1440, height: 1080 }, deviceScaleFactor: 1 });
   const desktop = await prepare(desktopContext, "#tab=today");
   const selector = desktop.locator(".nava-device-selector");
   const frontHeight = (await selector.boundingBox())?.height ?? 0;
@@ -75,7 +75,7 @@ try {
     { width: 390, height: 844 },
     { width: 430, height: 932 },
   ]) {
-    const context = await browser.newContext({ viewport, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+    const context = await browser.newContext({ locale: "zh-CN", viewport, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
     const page = await prepare(context, "#tab=today&view=points-shop");
     await expect(page.locator(".points-shop-screen")).toBeVisible();
     await expect(page.locator(".points-shop-product-row")).toHaveCount(4);

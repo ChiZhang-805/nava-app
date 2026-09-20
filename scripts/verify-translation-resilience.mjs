@@ -103,7 +103,7 @@ const errors = [];
 
 try {
   await server.listen();
-  const authPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const authPage = await browser.newPage({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
   attachRuntimeAudit(authPage, errors);
   await authPage.goto(`http://127.0.0.1:${port}/?demo=1`, { waitUntil: "domcontentloaded" });
   await dismissLaunch(authPage);
@@ -114,13 +114,13 @@ try {
   await expect(authPage.locator(".auth-form--signUp")).toBeVisible();
   await expect(authPage.locator(".centered-screen h1")).toHaveCount(0);
 
-  const extensionPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const extensionPage = await browser.newPage({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
   attachRuntimeAudit(extensionPage, errors);
   await extensionPage.goto(`http://127.0.0.1:${port}/?demo=1`, { waitUntil: "domcontentloaded" });
   await dismissLaunch(extensionPage);
   await exerciseReactTranslationCanary(extensionPage, { markDocument: false });
 
-  const todayContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const todayContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
   await todayContext.addInitScript(() => {
     const nativeAllSettled = Promise.allSettled.bind(Promise);
     Promise.allSettled = async (values) => {

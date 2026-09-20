@@ -27,7 +27,7 @@ async function main() {
     await server.listen();
     const baseUrl = server.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? `http://127.0.0.1:${port}`;
     const browser = await chromium.launch();
-    const context = await browser.newContext({
+    const context = await browser.newContext({ locale: "zh-CN",
       viewport: { width: 390, height: 844 },
       deviceScaleFactor: 3,
       isMobile: true,
@@ -521,7 +521,7 @@ async function main() {
         if (
           metrics.profile.avatarSheet.closeActions !== 1
           || metrics.profile.avatarSheet.actionLabels.length !== 2
-          || !metrics.profile.avatarSheet.actionLabels.some((label) => /相册|Choose photo/.test(label))
+          || !metrics.profile.avatarSheet.actionLabels.some((label) => /相册|Photo library/.test(label))
           || !metrics.profile.avatarSheet.actionLabels.some((label) => /拍照|Take photo/.test(label))
         ) {
           throw new Error(`Profile avatar sheet is incomplete: ${JSON.stringify(metrics.profile.avatarSheet)}`);
@@ -598,7 +598,9 @@ async function main() {
       throw new Error(`Profile did not preserve its saved data cleanly after navigation: ${JSON.stringify(metrics.profile.afterReturn)}`);
     }
 
-    await page.locator(".language-toggle").tap();
+    await page.locator(".nava-more-trigger").tap();
+    await page.locator(".more-menu-language").tap();
+    await page.getByRole("menuitemradio", { name: "English" }).tap();
     await page.waitForTimeout(200);
     await page.locator('[data-tab="today"]').tap();
     await page.waitForTimeout(400);
@@ -628,7 +630,7 @@ async function main() {
     ];
 
     for (const viewport of viewportChecks) {
-      const viewportContext = await browser.newContext({
+      const viewportContext = await browser.newContext({ locale: "zh-CN",
         viewport: { width: viewport.width, height: viewport.height },
         deviceScaleFactor: 3,
         isMobile: true,

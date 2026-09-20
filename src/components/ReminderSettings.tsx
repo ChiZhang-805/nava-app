@@ -1,12 +1,15 @@
 import { Bell, ChevronDown, Loader2, Smile, Sunrise, Sun, Sunset, MoonStar, Footprints, Timer, ScanFace, Clock3, Sparkles, RotateCcw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { App as NativeApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
+import { ensureReminderPermission, reminderPermissionGranted } from "../services/reminderPermission";
 import { loadEffectiveReminderPreferences, loadReminderPreferences, saveReminderPreference } from "../services/reminderDelivery";
 import { localReminderDate, reminderKinds, reminderLabels, type ReminderKind, type ReminderPreferences } from "../services/independentReminders";
 import "../styles/reminders.css";
 import useDeviceDate from "../hooks/useDeviceDate";
 
 const icons = { mood: Smile, breakfast: Sunrise, lunch: Sun, dinner: Sunset, sleep: MoonStar, exercise: Footprints, focus: Timer, face: ScanFace };
-export default function ReminderSettings({ userId, locale, scope = "all", standalone = false }: { userId: string; locale: "zh" | "en"; scope?: "all" | "mood" | "diet"; standalone?: boolean }) {
+export default function ReminderSettings({ userId, locale, scope = "all", standalone = false }: { userId: string; locale: "zh" | "en"; scope?: "all" | "mood" | "diet" | "sleep"; standalone?: boolean }) {
   const [open, setOpen] = useState(standalone);
   const [preferences, setPreferences] = useState<ReminderPreferences | null>(null);
   const [effective, setEffective] = useState<ReminderPreferences | null>(null);
@@ -14,9 +17,29 @@ export default function ReminderSettings({ userId, locale, scope = "all", standa
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
   const [reload, setReload] = useState(0);
+  const pending = useRef<ReminderKind | null>(null);
+  const alive = useRef(true);
+  const generation = useRef(0);
+  const savingRef = useRef(false);
+  const saveRef = useRef<(kind: ReminderKind) => Promise<void>>(async () => {});
   const zh = locale === "zh";
   const deviceDate = useDeviceDate();
-  const kinds: readonly ReminderKind[] = scope === "mood" ? ["mood"] : scope === "diet" ? ["breakfast", "lunch", "dinner"] : reminderKinds;
+  const kinds: readonly ReminderKind[] = scope === "mood" || scope === "sleep" ? [scope] : scope === "diet" ? ["breakfast", "lunch", "dinner"] : reminderKinds;
+  useEffect(() => {
+    alive.current = true;
+    generation.current += 1;
+    const resume = async () => {
+      if (!alive.current || !pending.current || savingRef.current) return;
+      const kind = pending.current; pending.current = null;
+      const version = generation.current;
+      try { if (await reminderPermissionGranted() && alive.current && version === generation.current) await saveRef.current(kind); }
+      catch { if (alive.current && version === generation.current) { setFailed(true); setMessage(locale === "zh" ? "未能核对通知权限，请重试" : "Couldn't check notification access. Retry."); } }
+    };
+    const visible = () => { if (document.visibilityState === "visible") void resume(); };
+    document.addEventListener("visibilitychange", visible);
+    const native = Capacitor.isNativePlatform() ? NativeApp.addListener("appStateChange", ({ isActive }) => { if (isActive) void resume(); }) : null;
+    return () => { alive.current = false; generation.current += 1; pending.current = null; document.removeEventListener("visibilitychange", visible); void native?.then((listener) => listener.remove()); };
+  }, [userId, locale]);
   useEffect(() => {
     if (!open) return;
     let alive = true;
@@ -43,18 +66,41 @@ export default function ReminderSettings({ userId, locale, scope = "all", standa
     const timeout = window.setTimeout(() => setMessage(""), 2500);
     return () => window.clearTimeout(timeout);
   }, [message, failed]);
-  const save = async (kind: ReminderKind, change: Partial<ReminderPreferences[ReminderKind]>) => {
-    if (!preferences || busy) return;
+  const save = async (kind: ReminderKind, change: Partial<ReminderPreferences[ReminderKind]>, authorized = false) => {
+    if (!preferences || busy || savingRef.current) return;
+    savingRef.current = true; pending.current = null;
+    const version = generation.current;
+    const current = () => alive.current && generation.current === version;
     setBusy(kind); setMessage(""); setFailed(false);
     try {
+      if (change.enabled === true && !authorized) {
+        const permission = await ensureReminderPermission(locale);
+        if (!current()) return;
+        if (permission !== "granted") {
+          if (permission === "settings") pending.current = kind;
+          else if (permission === "denied" || permission === "unsupported") {
+            setMessage(zh ? (permission === "denied" ? "请在设置中允许通知后重试" : "此浏览器不支持系统通知") : (permission === "denied" ? "Allow notifications in Settings, then retry" : "System notifications aren't supported in this browser"));
+          }
+          return;
+        }
+      }
+      if (!current()) return;
       const saved = await saveReminderPreference(userId, kind, { ...preferences[kind], ...change });
+      if (!current()) return;
+      if (change.enabled === true && Capacitor.isNativePlatform()) {
+        // Registration is independent of local scheduling and never prompts or opts in other reminders.
+        void import("../services/remotePush").then(({ registerRemotePush }) => registerRemotePush(userId, false)).catch(() => undefined);
+      }
       const next = { ...preferences, [kind]: saved };
       setPreferences(next);
-      setEffective(await loadEffectiveReminderPreferences(userId, next, localReminderDate(new Date())));
+      const schedule = await loadEffectiveReminderPreferences(userId, next, localReminderDate(new Date()));
+      if (!current()) return;
+      setEffective(schedule);
       setMessage(zh ? "已保存" : "Saved");
-    } catch { setFailed(true); setMessage(zh ? "请重新读取，核对设置" : "Reload to check your settings"); }
-    finally { setBusy(null); }
+    } catch { if (current()) { setFailed(true); setMessage(zh ? "请重新读取，核对设置" : "Reload to check your settings"); } }
+    finally { savingRef.current = false; if (current()) setBusy(null); }
   };
+  saveRef.current = (kind) => save(kind, { enabled: true }, true);
   return <section className={`reminder-settings${standalone ? " is-standalone" : ""}`} data-reminder-settings={scope}>
     {!standalone && <button className="reminder-settings-heading" type="button" aria-expanded={open} onClick={() => setOpen(!open)}>
       <Bell size={20} /><strong>{zh ? "提醒设置" : "Reminder settings"}</strong><ChevronDown size={18} className={open ? "is-open" : ""} />

@@ -18,10 +18,11 @@ for (const entitlement of ["com.apple.developer.healthkit", "com.apple.developer
 }
 includes("ios/App/App/App.entitlements", ["aps-environment"]);
 includes("ios/App/App/Base.lproj/Main.storyboard", ['customClass="NavaBridgeViewController"']);
-for (const name of ["NavaHealthPlugin", "NavaSecureStoragePlugin", "NavaSpeechPlugin", "NavaWatchBridgePlugin", "NavaWakeLockPlugin"]) {
+for (const name of ["NavaHealthPlugin", "NavaSecureStoragePlugin", "NavaSpeechPlugin", "NavaWatchBridgePlugin", "NavaWakeLockPlugin", "NavaNotificationPermissionPlugin"]) {
   includes("ios/App/App/NavaBridgeViewController.swift", [`registerPluginInstance(${name}())`]);
 }
 includes("ios/App/App/NavaBridgeViewController.swift", ["isIdleTimerDisabled = true", "willResignActiveNotification", "leases.removeAll()", "isIdleTimerDisabled = false", "applicationState == .active"]);
+includes("ios/App/App/NavaBridgeViewController.swift", ["getNotificationSettings", "requestAuthorization(options: [.alert, .sound, .badge])", "UIAlertController", "#available(iOS 16.0, *)", "UIApplication.openNotificationSettingsURLString", "UIApplication.openSettingsURLString"]);
 includes("ios/App/App/AppDelegate.swift", ["NavaHealthBackgroundObserver.shared.start()", "didRegisterForRemoteNotificationsWithDeviceToken", "didFailToRegisterForRemoteNotificationsWithError", ".capacitorDidRegisterForRemoteNotifications", ".capacitorDidFailToRegisterForRemoteNotifications"]);
 includes("native/ios/NavaHealthPlugin.swift", ["getAuthorizationStatus", "getRequestStatusForAuthorization", "startBackgroundDelivery", "readPendingBackgroundUpdate", "acknowledgePendingBackgroundUpdate", "healthDataChanged"]);
 includes("native/ios/NavaHealthBackgroundObserver.swift", ["HKObserverQuery", "enableBackgroundDelivery", "finish()", "recordPendingChange"]);

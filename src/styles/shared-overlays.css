@@ -1,0 +1,55 @@
+/* One contract for all page-header menus, independent of page typography. */
+.phone-frame .nava-more-menu { position: relative; z-index: 40; width: 44px; height: 44px; display: block; }
+.phone-frame .nava-more-menu > .nava-more-trigger {
+  width: 44px; height: 44px; min-width: 44px; padding: 0; border: 0; border-radius: 50%;
+  display: grid; place-items: center; color: #0b7199; background: transparent; box-shadow: none;
+}
+.phone-frame .nava-more-menu > .app-utility-popover {
+  top: calc(100% + 8px); right: 0; width: 228px; min-width: 0; max-width: calc(100vw - 32px);
+  max-height: min(560px, calc(100dvh - 180px)); overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 2px; padding: 8px;
+  border: 1px solid rgba(255,255,255,.94); border-radius: 18px;
+  background: rgba(245,252,255,.98); color: #173f53;
+  box-shadow: 0 12px 30px rgba(24,84,110,.18); text-align: left;
+}
+.phone-frame .nava-more-menu .app-utility-popover > button {
+  flex: 0 0 auto; width: 100%; min-height: 44px; height: auto; padding: 10px 12px; margin: 0;
+  display: flex; align-items: center; justify-content: flex-start; gap: 10px;
+  border: 0; border-radius: 11px; background: transparent; box-shadow: none;
+  color: inherit; font: inherit; font-size: 14px; font-weight: 600; line-height: 1.4;
+  white-space: normal; overflow-wrap: anywhere; text-align: left;
+}
+.phone-frame .nava-more-menu .app-utility-popover > button > svg { width: 18px; height: 18px; flex: 0 0 18px; }
+.phone-frame .nava-more-menu .app-utility-popover > button:hover,
+.phone-frame .nava-more-menu .app-utility-popover > button:focus-visible { background: #e0f2fa; }
+.phone-frame .nava-more-menu .app-utility-popover > button:disabled { opacity: .45; }
+.nava-more-menu .more-menu-divider { height: 1px; flex: 0 0 1px; margin: 4px 10px; background: #dcebf1; }
+.nava-more-menu .more-menu-language small { margin-left: auto; color: #5e7e8d; font-size: 12px; font-weight: 500; }
+.nava-more-menu .more-menu-check { margin-left: auto; color: #0b809f; }
+.nava-more-menu .more-menu-choice { padding-left: 28px; }
+.nava-more-menu button:focus-visible { outline: 2px solid #167da4; outline-offset: -2px; }
+
+/* Portal at the phone root: a scrolled/animated page can never crop the picker. */
+.phone-frame > .avatar-picker-overlay {
+  position: absolute; inset: 0; z-index: 250; display: flex; align-items: flex-end; justify-content: center;
+  padding: 16px 16px max(28px, calc(env(safe-area-inset-bottom, 0px) + 12px));
+  animation: none; transform: none;
+}
+.phone-frame .avatar-picker {
+  width: 100%; max-width: 430px; min-width: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain;
+  padding: 18px; border-radius: 24px; margin: 0; box-sizing: border-box;
+}
+.avatar-picker > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; }
+.avatar-picker > header h2 { margin: 0; min-width: 0; font-size: 18px; line-height: 1.4; font-weight: 750; color: #163d51; }
+.avatar-picker > header button {
+  width: 44px; height: 44px; flex: 0 0 44px; padding: 0; border: 0; border-radius: 50%;
+  display: grid; place-items: center; color: #436b7d; background: #e0f2f9;
+}
+.phone-frame .avatar-picker .avatar-sheet-actions { gap: 12px; }
+.phone-frame .avatar-picker .avatar-sheet-actions > button {
+  min-width: 0; min-height: 96px; height: auto; padding: 16px 8px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  font-size: 14px; font-weight: 650; line-height: 1.4; animation: none;
+}
+.avatar-picker .avatar-sheet-actions span { text-align: center; overflow-wrap: anywhere; }
+.avatar-picker .avatar-sheet-actions svg { flex-shrink: 0; }

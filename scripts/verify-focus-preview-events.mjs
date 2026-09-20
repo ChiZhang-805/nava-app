@@ -17,7 +17,7 @@ const baseUrl = server.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? "http://127
 const browser = await chromium.launch({ headless: true });
 
 async function openFocus(viewport, extraInitScript) {
-  const context = await browser.newContext({ viewport, deviceScaleFactor: 1 });
+  const context = await browser.newContext({ locale: "zh-CN", viewport, deviceScaleFactor: 1 });
   if (extraInitScript) await context.addInitScript(extraInitScript);
   await context.addInitScript(({ userId }) => {
     sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");

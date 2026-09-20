@@ -67,7 +67,7 @@ try {
   let base = process.env.NAVA_HISTORY_AI_URL;
   if (!base) { server = await createServer({ server: { host: "127.0.0.1", port: 5226, strictPort: true }, logLevel: "silent" }); await server.listen(); base = server.resolvedUrls.local[0]; }
   stage = "browser-launch"; browser = await chromium.launch({ headless: true, args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"] });
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", permissions: ["camera"] });
+  const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, reducedMotion: "reduce", permissions: ["camera"] });
   await context.addInitScript(() => {
     // Explicit media fixtures: real account/AI, but no claim of physical microphone/camera testing.
     window.SpeechRecognition = class { start() { window.__qaRecognition = this; } stop() { this.onend?.(); } abort() { this.onend?.(); } };

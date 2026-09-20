@@ -59,7 +59,7 @@ async function assertPortraitFit(page, label) {
 async function main() {
   await mkdir(outputDir, { recursive: true });
   const browser = await chromium.launch();
-  const context = await browser.newContext({ viewport: viewports[3], isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  const context = await browser.newContext({ locale: "zh-CN", viewport: viewports[3], isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   const page = await context.newPage();
   const runtimeErrors = [];
   page.on("pageerror", (error) => runtimeErrors.push(error.message));

@@ -15,7 +15,7 @@ const browser = await chromium.launch({ headless: true });
 const results = [];
 try {
   for (const [width, height] of [[360, 740], [375, 812], [390, 844], [430, 932]]) {
-    const context = await browser.newContext({ viewport: { width, height }, reducedMotion: "reduce", timezoneId: "Asia/Shanghai" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width, height }, reducedMotion: "reduce", timezoneId: "Asia/Shanghai" });
     try {
       await context.addInitScript(() => {
         sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");

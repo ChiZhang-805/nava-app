@@ -9,6 +9,7 @@ function Invoke-Npm {
 }
 
 Write-Host "== NAVA App verification =="
+Invoke-Npm -Arguments @("run", "locale:test")
 
 Invoke-Npm -Arguments @("run", "external-preview:test")
 Invoke-Npm -Arguments @("run", "phone-system:test")

@@ -35,6 +35,9 @@ Windows 负责实现和源码/浏览器验证；Mac 负责 Xcode 编译、签名
 ### 提醒及其他设备能力
 
 真实本地通知使用LocalNotifications→UNUserNotificationCenter，授权后排入系统，
+启用入口共用`NavaNotificationPermission`原生桥：首次授权用苹果系统框，已拒绝时
+使用原生UIAlertController引导到本APP通知设置（iOS16+精确链接，旧版APP设置），
+返回重新检查并只开启指定项。页面不显示常驻权限卡；新账号八项全关，老偏好保留。
 不是网页定时器。最多56个未来计划并扣除其他槽位，打开APP续排；跨时区、禁用通知、
 专注模式及长时间不打开的边界见`NOTIFICATIONS_DELIVERY.md`。不能承诺系统永不延迟。
 远程APNs、HealthKit、Watch、录音和常亮已有原生桥，但开发者证书、推送环境、
@@ -51,7 +54,8 @@ Windows 负责实现和源码/浏览器验证；Mac 负责 Xcode 编译、签名
 3. Xcode打开`ios/App/App.xcworkspace`；选开发者Team，确认iPhone与Watch Bundle ID、
    HealthKit/Push能力及profile。设置`NAVA_ARCHIVE=1`、`NAVA_APPLE_TEAM_ID`、
    `NAVA_IOS_BUNDLE_ID`可生成archive；不会自动上传App Store或替用户签协议。
-4. 必测：前后摄像头/拒绝权限/取消/重拍、HEIC和iCloud照片、文件选择、来电打断
+4. 必测：通知首次允许/拒绝/取消、拒绝后跳本APP通知设置、返回仅开启请求项、
+   已允许时无额外弹窗、系统静音/专注/摘要设置；前后摄像头/拒绝权限/取消/重拍、HEIC和iCloud照片、文件选择、来电打断
    录音、后台暂停专注、前台常亮及手动锁屏、八项提醒锁屏到达/点开/关闭、账号隔离、
    HealthKit/Watch真实读写。用Instruments检查动画内存/掉帧/耗电。Mac验证未执行。
 

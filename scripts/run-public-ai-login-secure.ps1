@@ -1,4 +1,4 @@
-param([ValidateSet("PublicAiLogin", "TodoExtraction", "PriorityAdvice", "TaskQuadrants", "PublicQuadrants", "FocusEncouragement", "FocusRelease", "ExternalPreview", "Reminders", "RemindersRelease", "Wellbeing", "HistoryAi", "MealChain", "CameraLayout", "SimulatorLayout", "MascotPlayer", "CalendarReport", "ResponsiveLayout", "AllPageLayout", "PhoneSystem")][string]$Check = "PublicAiLogin")
+param([ValidateSet("PublicAiLogin", "TodoExtraction", "PriorityAdvice", "TaskQuadrants", "PublicQuadrants", "FocusEncouragement", "FocusRelease", "ExternalPreview", "Reminders", "RemindersRelease", "Wellbeing", "HistoryAi", "MealChain", "CameraLayout", "SimulatorLayout", "MascotPlayer", "CalendarReport", "ResponsiveLayout", "AllPageLayout", "PhoneSystem", "Menus")][string]$Check = "PublicAiLogin")
 
 $secureEmail = Read-Host "NAVA account email" -AsSecureString
 $securePassword = Read-Host "NAVA account password" -AsSecureString
@@ -7,6 +7,11 @@ $passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure
 try {
   $env:NAVA_ACCOUNT_EMAIL = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($emailPointer)
   $env:NAVA_ACCOUNT_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
+  if ($Check -eq "Menus") {
+    & node scripts/verify-public-menus.mjs
+    if ($LASTEXITCODE -ne 0) { throw "Public menu/language/avatar acceptance failed." }
+    return
+  }
   if ($Check -in @("CalendarReport", "ResponsiveLayout", "AllPageLayout", "PhoneSystem")) {
     if ($Check -eq "PhoneSystem") { & node --experimental-strip-types scripts/verify-public-calendar-report.mjs --phone-system }
     elseif ($Check -eq "AllPageLayout") { & node --experimental-strip-types scripts/verify-public-calendar-report.mjs --all-pages }

@@ -9,7 +9,7 @@ const port = Number(process.env.AUTH_SCREENSHOT_PORT || 5175);
 const baseUrl = `http://127.0.0.1:${port}`;
 
 async function makeContext(browser, viewport = { width: 430, height: 932 }) {
-  const context = await browser.newContext({
+  const context = await browser.newContext({ locale: "zh-CN",
     viewport,
     deviceScaleFactor: 2,
     isMobile: true,

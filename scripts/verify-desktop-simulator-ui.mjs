@@ -13,7 +13,7 @@ await server.listen();
 const browser = await chromium.launch({ headless: true });
 try {
   for (const viewport of [{ width: 1920, height: 1080 }, { width: 1365, height: 1000 }, { width: 901, height: 740 }, { width: 700, height: 700 }, { width: 360, height: 740 }, { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
-    const context = await browser.newContext({ viewport, reducedMotion: "reduce" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport, reducedMotion: "reduce" });
     try {
       const page = await context.newPage(), errors = [];
       page.on("pageerror", (error) => errors.push(error.message));

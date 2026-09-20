@@ -54,7 +54,7 @@ await mkdir(outputDir, { recursive: true });
 const browser = await chromium.launch();
 
 try {
-  const context = await browser.newContext({
+  const context = await browser.newContext({ locale: "zh-CN",
     viewport: { width: 430, height: 932 },
     deviceScaleFactor: 1,
     isMobile: true,

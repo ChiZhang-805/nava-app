@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, Download, History, ListTodo, MessageSquarePlus, MoreHorizontal, PhoneCall, ScanFace, Share2, Trash2, Volume2, VolumeX } from "lucide-react";
+import { Activity, ArrowLeft, Download, History, ListTodo, MessageSquarePlus, PhoneCall, ScanFace, Share2, Trash2, Volume2, VolumeX } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import navChatIcon from "./assets/figma/option-two-icons/chat.svg";
 import navHomeIcon from "./assets/figma/option-two-icons/home-glyph.svg";
@@ -14,7 +14,7 @@ import PasswordRecoveryScreen from "./features/PasswordRecoveryScreen";
 import OnboardingScreen from "./features/OnboardingScreen";
 import { useAuth } from "./state/authContext";
 import { flushPendingWatchActions, subscribeWatchActions } from "./services/watch";
-import LanguageToggle from "./components/LanguageToggle";
+import MoreMenu from "./components/MoreMenu";
 import UtilityDrawer from "./components/UtilityDrawer";
 import DevSeedPanel from "./components/DevSeedPanel";
 import RewardCelebration from "./components/RewardCelebration";
@@ -155,8 +155,6 @@ function MobileShell({
   const [notificationBanner, setNotificationBanner] = useState<NavaNotificationItem | null>(null);
   const [cloudBootstrapReady, setCloudBootstrapReady] = useState(() => isDemoMode());
   const contentRef = useRef<HTMLElement | null>(null);
-  const utilityButtonRef = useRef<HTMLButtonElement | null>(null);
-  const utilityPopoverRef = useRef<HTMLDivElement | null>(null);
   const aiLongPressTimerRef = useRef<number | null>(null);
   const aiLongPressTriggeredRef = useRef(false);
   const aiGesturePointerActiveRef = useRef(false);
@@ -579,25 +577,6 @@ function MobileShell({
     setDrawerOpen(false);
   }, [activeTab, recordModule, recordView]);
 
-  useEffect(() => {
-    if (!utilityOpen) return;
-    const closeOnOutsidePointer = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (utilityButtonRef.current?.contains(target) || utilityPopoverRef.current?.contains(target)) return;
-      setUtilityOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setUtilityOpen(false);
-    };
-    document.addEventListener("pointerdown", closeOnOutsidePointer);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutsidePointer);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [utilityOpen]);
-
   useEffect(() => () => {
     if (aiLongPressTimerRef.current !== null) window.clearTimeout(aiLongPressTimerRef.current);
   }, []);
@@ -626,18 +605,7 @@ function MobileShell({
             <ArrowLeft size={21} />
           </button>
           <h1>{currentTitle}</h1>
-          <button
-            ref={utilityButtonRef}
-            className="figma-header-action"
-            type="button"
-            onClick={() => setUtilityOpen((open) => !open)}
-            aria-label="More"
-            aria-expanded={utilityOpen}
-          >
-            <MoreHorizontal size={23} />
-          </button>
-          {utilityOpen && (
-            <div className="app-utility-popover" ref={utilityPopoverRef}>
+          <MoreMenu open={utilityOpen} onOpenChange={setUtilityOpen} label={locale === "zh" ? "更多操作" : "More"} buttonClassName="figma-header-action">
               {activeTab === "ai" && <>
                 <button type="button" onClick={() => runAiCommand("new")}><MessageSquarePlus size={17} />{locale === "zh" ? "新会话" : "New chat"}</button>
                 <button type="button" onClick={() => runAiCommand("history")}><History size={17} />{locale === "zh" ? "历史" : "History"}</button>
@@ -665,9 +633,7 @@ function MobileShell({
                 {recordModule === "face" && <button type="button" onClick={() => { setRecordView("conditions"); navigate("record", "face", "conditions"); setUtilityOpen(false); }}><ScanFace size={17} />{locale === "zh" ? "条件检验" : "Condition check"}</button>}
               </>}
               <button type="button" onClick={() => { setUtilityOpen(false); setDrawerOpen(true); }}><ListTodo size={17} />{locale === "zh" ? "功能导航" : "Utilities"}</button>
-              <LanguageToggle />
-            </div>
-          )}
+          </MoreMenu>
         </header>
       )}
 

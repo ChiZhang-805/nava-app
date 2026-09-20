@@ -16,7 +16,7 @@ const browser = await chromium.launch({ headless: true });
 const report = [];
 
 for (const viewport of viewports) {
-  const context = await browser.newContext({
+  const context = await browser.newContext({ locale: "zh-CN",
     viewport: { width: viewport.width, height: viewport.height },
     isMobile: true,
     hasTouch: true,

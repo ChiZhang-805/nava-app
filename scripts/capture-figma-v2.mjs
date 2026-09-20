@@ -8,7 +8,7 @@ const baseUrl = "http://127.0.0.1:5173/?demo=1";
 const edgePath = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
 
 async function context(browser, viewport = { width: 430, height: 932 }) {
-  return browser.newContext({
+  return browser.newContext({ locale: "zh-CN",
     viewport,
     deviceScaleFactor: 1,
     isMobile: true,

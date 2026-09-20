@@ -21,7 +21,7 @@ const before = await snapshot();
 const browser = await chromium.launch({ headless: true });
 try {
   for (const site of ["https://nava-app-preview-cz.chizhang1031.chatgpt.site/", "https://chizhang-805.github.io/nava-app-preview/"]) {
-    const context = await browser.newContext({ viewport: { width: 1365, height: 1000 } });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 1365, height: 1000 } });
     try {
       const page = await context.newPage();
       const shadow = new Map();

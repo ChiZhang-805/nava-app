@@ -11,7 +11,7 @@ const cards = await Promise.all(files.map(async (file) => {
 }));
 
 const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
+const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 900, height: 600 } });
 await page.setContent(`
   <style>
     body { margin: 0; padding: 24px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; background: #d5eef8; font-family: sans-serif; }

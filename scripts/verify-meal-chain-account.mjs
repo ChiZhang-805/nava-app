@@ -74,7 +74,7 @@ const restore = async (finalize = false) => {
 const verifyRestoredAi = async () => {
   if (!page) {
     server = await createServer({ server: { host: "127.0.0.1", port: 5227, strictPort: true }, logLevel: "silent" }); await server.listen();
-    browser = await chromium.launch({ headless: true }); page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    browser = await chromium.launch({ headless: true }); page = await browser.newPage({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
     await page.route("**/rest/v1/**", (route) => {
       const request = route.request(), table = new URL(request.url()).pathname.split("/").at(-1), method = request.method();
       if (table === "active_user_sessions" || table === "record_drafts") return route.fulfill({ status: 200, contentType: "application/json", body: method === "GET" ? "null" : "[]" });
@@ -131,7 +131,7 @@ try {
     journal = { userId, date, original, uploads: [], expectedPayload: null, restored: false, startedAt: receipt.startedAt }; await persist();
     server = await createServer({ server: { host: "127.0.0.1", port: 5227, strictPort: true }, logLevel: "silent" }); await server.listen();
     const base = server.resolvedUrls.local[0]; browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" }); page = await context.newPage(); page.setDefaultTimeout(30000);
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, reducedMotion: "reduce" }); page = await context.newPage(); page.setDefaultTimeout(30000);
     const inFlight = new Set(); const analysis = [];
     page.on("request", (request) => { if (request.url().includes("/functions/v1/")) inFlight.add(request); });
     page.on("requestfinished", (request) => inFlight.delete(request)); page.on("requestfailed", (request) => inFlight.delete(request));

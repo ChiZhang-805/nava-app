@@ -1,5 +1,6 @@
 import Capacitor
 import UIKit
+import UserNotifications
 
 final class NavaBridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
@@ -9,6 +10,72 @@ final class NavaBridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(NavaWatchBridgePlugin())
         bridge?.registerPluginInstance(NavaSpeechPlugin())
         bridge?.registerPluginInstance(NavaWakeLockPlugin())
+        bridge?.registerPluginInstance(NavaNotificationPermissionPlugin())
+    }
+}
+
+/// Authorization is requested only after a person enables an individual reminder.
+@objc(NavaNotificationPermissionPlugin)
+final class NavaNotificationPermissionPlugin: CAPPlugin, CAPBridgedPlugin {
+    let identifier = "NavaNotificationPermissionPlugin"
+    let jsName = "NavaNotificationPermission"
+    let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "ensurePermission", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func status(_ call: CAPPluginCall) {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            // Provisional permission delivers quietly, not the requested lock-screen/banner experience.
+            call.resolve(["granted": settings.authorizationStatus == .authorized])
+        }
+    }
+
+    @objc func ensurePermission(_ call: CAPPluginCall) {
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            switch settings.authorizationStatus {
+            case .authorized:
+                call.resolve(["status": "granted"])
+            case .notDetermined:
+                center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                    if error != nil { call.reject("Notification authorization failed"); return }
+                    call.resolve(["status": granted ? "granted" : "denied"])
+                }
+            default:
+                self.offerSettings(call)
+            }
+        }
+    }
+
+    private func offerSettings(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard UIApplication.shared.applicationState == .active,
+                  let controller = self.bridge?.viewController,
+                  controller.presentedViewController == nil else {
+                call.resolve(["status": "cancelled"]); return
+            }
+            let zh = call.getString("locale") == "zh"
+            let alert = UIAlertController(
+                title: zh ? "允许 NAVA 通知" : "Allow NAVA notifications",
+                message: zh ? "请在设置中允许通知，以接收提醒。" : "Allow notifications in Settings to receive reminders.",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: zh ? "暂不" : "Not now", style: .cancel) { _ in
+                call.resolve(["status": "cancelled"])
+            })
+            alert.addAction(UIAlertAction(title: zh ? "前往设置" : "Open Settings", style: .default) { _ in
+                let address: String
+                if #available(iOS 16.0, *) { address = UIApplication.openNotificationSettingsURLString }
+                else { address = UIApplication.openSettingsURLString }
+                guard let url = URL(string: address) else { call.reject("Settings unavailable"); return }
+                UIApplication.shared.open(url, options: [:]) { opened in
+                    if opened { call.resolve(["status": "settings"] ) }
+                    else { call.reject("Unable to open Settings") }
+                }
+            })
+            controller.present(alert, animated: true)
+        }
     }
 }
 

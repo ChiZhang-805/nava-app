@@ -14,7 +14,7 @@ const browser = await chromium.launch({ headless: true, args: ["--use-fake-devic
 const results = [];
 try {
   for (const viewport of [{ width: 1365, height: 1000 }, { width: 360, height: 740 }, { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
-    const context = await browser.newContext({ viewport, permissions: ["camera"], reducedMotion: "reduce" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport, permissions: ["camera"], reducedMotion: "reduce" });
     try {
       await context.addInitScript(() => {
         sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
@@ -90,7 +90,7 @@ try {
         return node.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
       }), true, 'composer must remain painted and hittable after interruption');
       await page.screenshot({ path: `${output}/chat-interrupted-${viewport.width}.png` });
-      await page.getByRole('button', { name: 'More', exact: true }).click();
+      await page.locator('.nava-more-trigger').click();
       await page.locator('.app-utility-popover button').filter({ hasText: /^语音聊天$|^Voice chat$/ }).click();
       await expect(page.locator('.ai-voice-call')).toHaveAttribute('data-voice-call-phase', 'listening');
       const beforeCall = await page.locator('.chat-message-row').count();
@@ -125,8 +125,8 @@ try {
       await page.getByRole("button", { name: "预览并分享", exact: true }).click();
       await expect(page.locator(".report-share-content img")).toBeVisible(); await expect(page.getByLabel("包含具体日期")).not.toBeChecked();
       await page.getByRole("button", { name: "关闭分享预览" }).click();
-      await page.getByRole("button", { name: "More", exact: true }).click();
-      await page.getByRole("button", { name: "分享页面", exact: true }).click();
+      await page.locator('.nava-more-trigger').click();
+      await page.getByRole("menuitem", { name: "分享页面", exact: true }).click();
       const link = page.locator(".link-share-overlay");
       await expect(link).toContainText("不包含当前页面");
       assert.equal(await page.evaluate(() => window.__shares.length), 0);

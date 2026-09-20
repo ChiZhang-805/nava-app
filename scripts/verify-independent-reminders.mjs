@@ -37,7 +37,10 @@ const go = async (page, hash) => { await page.goto(`${base}?demo=1#${hash}`, { w
 try {
   for (const [width, height] of (process.env.NAVA_REMINDER_DESKTOP_ONLY ? [[1440, 1080]] : [[360, 740], [375, 812], [390, 844], [430, 932], [1440, 1080]])) {
     const desktop = width > 700;
-    const context = await browser.newContext({ viewport: { width, height }, isMobile: !desktop, hasTouch: !desktop, reducedMotion: "reduce" });
+    const context = await browser.newContext({ locale: "zh-CN", permissions: ["notifications"], viewport: { width, height }, isMobile: !desktop, hasTouch: !desktop, reducedMotion: "reduce" });
+    // Mobile Chromium permission emulation may still report denied. This suite tests
+    // scheduling/settings, not OS delivery; authorization branches have their own suite.
+    await context.addInitScript(() => Object.defineProperty(Notification, "permission", { configurable: true, value: "granted" }));
     context.setDefaultTimeout(15000);
     const page = await context.newPage();
     const errors = [];
@@ -56,6 +59,11 @@ try {
     const breakfast = settings.locator('[data-reminder-kind="breakfast"]');
     const lunch = settings.locator('[data-reminder-kind="lunch"]');
     await lunch.getByRole('switch').click();
+    try { await expect(lunch.getByRole('switch')).toHaveAttribute('aria-checked', 'true'); }
+    catch (error) {
+      console.error('Reminder authorization diagnostic:', await page.evaluate(() => ({ permission: typeof Notification === 'undefined' ? 'unsupported' : Notification.permission, secure: isSecureContext, status: document.querySelector('.reminder-feedback')?.textContent })));
+      throw error;
+    }
     const originalLunch = await lunch.locator('input[type="time"]').inputValue();
     await breakfast.getByRole("switch").click();
     await expect(breakfast.getByRole("switch")).toHaveAttribute("aria-checked", "true");
@@ -85,8 +93,9 @@ try {
     await page.locator('[data-reminder-page]').evaluate((node) => { node.scrollTop = 0; });
     await page.screenshot({ path: `${output}/${width}-settings-top.png` });
     await page.locator('[data-reminder-page]').evaluate((node) => { node.scrollTop = node.scrollHeight; });
-    await expect(page.locator('.reminder-system-permission')).toBeInViewport();
-    const bottomFit = await page.locator('.reminder-system-permission').evaluate((node) => ({ bottom: node.getBoundingClientRect().bottom, navTop: document.querySelector('.bottom-nav').getBoundingClientRect().top }));
+    await expect(page.locator('.reminder-system-permission')).toHaveCount(0);
+    await expect(page.locator('[data-reminder-kind="face"]')).toBeInViewport();
+    const bottomFit = await page.locator('[data-reminder-kind="face"]').evaluate((node) => ({ bottom: node.getBoundingClientRect().bottom, navTop: document.querySelector('.bottom-nav').getBoundingClientRect().top }));
     expect(bottomFit.bottom).toBeLessThanOrEqual(bottomFit.navTop + 1);
     await page.screenshot({ path: `${output}/${width}-settings-bottom.png` });
     await page.reload({ waitUntil: "networkidle" });

@@ -49,7 +49,9 @@ try {
     await server.listen(); base = server.resolvedUrls.local[0];
   }
   browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const context = await browser.newContext({ locale: "zh-CN", permissions: ["notifications"], viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  // Explicit permission fixture: verifies persisted settings, not native permission or delivery.
+  await context.addInitScript(() => Object.defineProperty(Notification, "permission", { configurable: true, value: "granted" }));
   context.setDefaultTimeout(20000);
   const page = await context.newPage();
   const loadedAssets = new Set();

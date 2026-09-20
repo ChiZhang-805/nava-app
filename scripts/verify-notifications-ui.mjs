@@ -58,7 +58,7 @@ const results = [];
 
 try {
   for (const viewport of viewports) {
-    const context = await browser.newContext({ viewport, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    const context = await browser.newContext({ locale: "zh-CN", viewport, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
     context.setDefaultTimeout(15000);
     const page = await context.newPage();
     const errors = [];
@@ -190,10 +190,10 @@ try {
     await page.evaluate(() => Object.defineProperty(Notification, "permission", { configurable: true, value: "granted" }));
     const grantedState = await page.evaluate(() => Notification.permission);
     if (grantedState !== "granted") throw new Error(`${viewport.name}: browser notification permission fixture is ${grantedState}`);
-    await page.locator('.reminder-system-permission button').click();
-    await expect(page.locator('.reminder-system-permission button')).toHaveText('已开启');
+    await expect(page.locator('.reminder-system-permission')).toHaveCount(0);
+    await expect(page.locator('[data-reminder-settings="all"] [role="switch"]')).toHaveCount(8);
     await page.getByRole('button', { name: '返回通知中心' }).click();
-    await expect(page.locator(".notification-row-shell")).toHaveCount(6);
+    await expect(page.locator(".notification-row-shell")).toHaveCount(5);
 
     let row = page.locator(".notification-row-shell").first();
     await swipe(page, row.locator(".notification-row-card"), "right");
@@ -201,9 +201,9 @@ try {
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-swipe-delete.png`) });
     await row.locator(".notification-swipe-delete").click();
     await expect(page.locator(".notification-undo")).toBeVisible();
-    await expect(page.locator(".notification-row-shell")).toHaveCount(5);
+    await expect(page.locator(".notification-row-shell")).toHaveCount(4);
     await page.locator(".notification-undo button").click();
-    await expect(page.locator(".notification-row-shell")).toHaveCount(6);
+    await expect(page.locator(".notification-row-shell")).toHaveCount(5);
 
     row = page.locator(".notification-row-shell").first();
     const readBeforeSwipe = await row.getAttribute("data-read");
@@ -213,7 +213,7 @@ try {
     await row.locator(".notification-swipe-read").click();
     await expect(row).toHaveAttribute("data-read", readBeforeSwipe === "true" ? "false" : "true");
 
-    const menuButton = page.locator(".notification-header-menu-wrap > button");
+    const menuButton = page.locator(".notification-center .nava-more-trigger");
     await expect(menuButton).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
     await expect(menuButton).toHaveCSS("box-shadow", "none");
     await menuButton.click();
@@ -224,7 +224,7 @@ try {
     await expect(page.locator(".notification-center-header")).toHaveClass(/is-selecting/);
     await expect(page.locator(".notification-selection-actions > button")).toHaveCount(2);
     await page.locator(".notification-selection-bar button").click();
-    await expect(page.locator(".notification-row-shell.is-selected")).toHaveCount(6);
+    await expect(page.locator(".notification-row-shell.is-selected")).toHaveCount(5);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-multi-select.png`) });
     await page.locator(".notification-selection-actions > button").nth(1).click();
     await expect(page.locator(".notification-center-header")).not.toHaveClass(/is-selecting/);
@@ -250,7 +250,7 @@ try {
     await expect(page.locator(".notification-empty-state")).toBeVisible();
     await expect(page.locator(".notification-undo")).toBeVisible();
     await page.locator(".notification-undo button").click();
-    await expect(page.locator(".notification-row-shell")).toHaveCount(6);
+    await expect(page.locator(".notification-row-shell")).toHaveCount(5);
 
     const geometry = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame");

@@ -79,7 +79,7 @@ try {
     const browser = await chromium.launch({ headless: true });
     let context;
     try {
-      context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+      context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
       const page = await context.newPage();
       const realUiCall = async (kind, click) => {
         const startedAt = Date.now();

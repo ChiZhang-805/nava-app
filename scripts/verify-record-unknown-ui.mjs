@@ -8,7 +8,7 @@ const output = "Q:/NAVA-Workspace/Build/TestRuns/record-integrity-v149";
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch();
 try {
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
   await page.goto(`${base}?demo=1`, { waitUntil: "networkidle" });
   if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
   await page.locator('input[autocomplete="username"]').fill("13800138000");

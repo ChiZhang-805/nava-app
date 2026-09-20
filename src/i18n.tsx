@@ -1,9 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { deviceLocale, localePreference, LOCALE_STORAGE_KEY, type LocalePreference } from "./services/localePreference";
 
 export type Locale = "zh" | "en";
-
-const STORAGE_KEY = "nava.locale";
 
 export const translations = {
   zh: {
@@ -610,6 +609,8 @@ export type TranslationKey = keyof typeof translations.zh;
 
 interface LocaleContextValue {
   locale: Locale;
+  preference: LocalePreference;
+  setPreference: (preference: LocalePreference) => void;
   setLocale: (locale: Locale) => void;
   toggleLocale: () => void;
   t: (key: TranslationKey, values?: Record<string, string | number>) => string;
@@ -617,10 +618,13 @@ interface LocaleContextValue {
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
-function readLocale(): Locale {
-  if (typeof window === "undefined") return "zh";
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  return stored === "en" ? "en" : "zh";
+function readPreference(): LocalePreference {
+  try { return localePreference(window.localStorage.getItem(LOCALE_STORAGE_KEY)); }
+  catch { return "system"; }
+}
+
+function readDeviceLocale(): Locale {
+  return deviceLocale(typeof navigator === "undefined" ? [] : [...(navigator.languages ?? []), navigator.language]);
 }
 
 function format(template: string, values?: Record<string, string | number>) {
@@ -629,15 +633,27 @@ function format(template: string, values?: Record<string, string | number>) {
 }
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(readLocale);
+  const [preference, setPreferenceState] = useState<LocalePreference>(readPreference);
+  const [systemLocale, setSystemLocale] = useState<Locale>(readDeviceLocale);
+  const locale = preference === "system" ? systemLocale : preference;
+
+  useEffect(() => {
+    const update = () => setSystemLocale(readDeviceLocale());
+    window.addEventListener("languagechange", update);
+    return () => window.removeEventListener("languagechange", update);
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
-    window.localStorage.setItem(STORAGE_KEY, locale);
   }, [locale]);
 
-  const setLocale = useCallback((next: Locale) => setLocaleState(next), []);
-  const toggleLocale = useCallback(() => setLocaleState((current) => (current === "zh" ? "en" : "zh")), []);
+  const setPreference = useCallback((next: LocalePreference) => {
+    setPreferenceState(next);
+    // A blocked browser storage must not prevent an in-session language switch.
+    try { window.localStorage.setItem(LOCALE_STORAGE_KEY, next); } catch { /* session-only choice */ }
+  }, []);
+  const setLocale = useCallback((next: Locale) => setPreference(next), [setPreference]);
+  const toggleLocale = useCallback(() => setLocale(locale === "zh" ? "en" : "zh"), [locale, setLocale]);
   const t = useCallback(
     (key: TranslationKey, values?: Record<string, string | number>) => {
       const template = translations[locale][key] ?? translations.zh[key] ?? key;
@@ -646,7 +662,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     [locale],
   );
 
-  const value = useMemo(() => ({ locale, setLocale, toggleLocale, t }), [locale, setLocale, t, toggleLocale]);
+  const value = useMemo(() => ({ locale, preference, setPreference, setLocale, toggleLocale, t }), [locale, preference, setPreference, setLocale, t, toggleLocale]);
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }

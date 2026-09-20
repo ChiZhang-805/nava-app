@@ -20,7 +20,7 @@ const server = await createServer({ server: { host: "127.0.0.1", port: 5232, str
 await server.listen();
 const browser = await chromium.launch({ headless: true });
 try {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1080 }, reducedMotion: "reduce", deviceScaleFactor: 1 });
+  const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 1440, height: 1080 }, reducedMotion: "reduce", deviceScaleFactor: 1 });
   const page = await context.newPage();
   page.on("pageerror", (error) => result.errors.push(error.message));
   await page.route("**/*.supabase.co/**", (route) => route.fulfill({ json: [] }));

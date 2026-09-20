@@ -1,5 +1,6 @@
 import type { User } from "@supabase/supabase-js";
-import { Apple, Camera, Check, ChevronDown, Download, Images, Link2, LogOut, RefreshCw, Save, ShieldCheck, Trash2, Watch, X } from "lucide-react";
+import { Apple, Check, ChevronDown, Download, Link2, LogOut, RefreshCw, Save, ShieldCheck, Trash2, Watch, X } from "lucide-react";
+import AvatarPicker from "../components/AvatarPicker";
 import { useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import PageSkeleton, { SkeletonLines } from "../components/PageSkeleton";
@@ -487,30 +488,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged }: { user: U
       {message && <p className="success-text">{message}</p>}
       {error && <p className="error-text">{error}</p>}
 
-      {avatarSheetOpen && (
-        <div className="avatar-sheet-overlay" role="presentation" onClick={() => setAvatarSheetOpen(false)}>
-          <section className="avatar-sheet" role="dialog" aria-modal="true" aria-label={t("profile.changeAvatar")} onClick={(event) => event.stopPropagation()}>
-            <div className="section-heading">
-              <div>
-                <h2>{t("profile.changeAvatar")}</h2>
-              </div>
-              <button className="section-icon-action" type="button" aria-label={t("common.close")} title={t("common.close")} onClick={() => setAvatarSheetOpen(false)}>
-                <X size={21} />
-              </button>
-            </div>
-            <div className="avatar-sheet-actions">
-              <button type="button" onClick={() => galleryInputRef.current?.click()}>
-                <Images size={22} />
-                <span>{t("profile.choosePhoto")}</span>
-              </button>
-              <button type="button" onClick={() => cameraInputRef.current?.click()}>
-                <Camera size={22} />
-                <span>{t("profile.takePhoto")}</span>
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
+      {avatarSheetOpen && <AvatarPicker onClose={() => setAvatarSheetOpen(false)} onCamera={() => cameraInputRef.current?.click()} onLibrary={() => galleryInputRef.current?.click()} />}
 
       <ActionButton icon={<LogOut size={18} />} variant="ghost" onClick={signOut}>
         {t("profile.signOut")}

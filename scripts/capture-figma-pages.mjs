@@ -721,11 +721,11 @@ async function captureAdditionalStates(page, viewport, report) {
   });
   await scenario('ai-history-and-voice', async () => {
     await navigateRoute(page,'#tab=ai','.chat-layout');
-    await page.getByRole('button',{name:'More',exact:true}).click();
+    await page.locator('.nava-more-trigger').click();
     await page.locator('.app-utility-popover button').filter({hasText:/^历史$|^History$/}).click();
     await capture(page,viewport,'ai-history','.ai-history-sheet',report);
     await page.locator('.ai-history-sheet > header button').click();
-    await page.getByRole('button',{name:'More',exact:true}).click();
+    await page.locator('.nava-more-trigger').click();
     await page.locator('.app-utility-popover button').filter({hasText:/^语音聊天$|^Voice chat$/}).click();
     await capture(page,viewport,'ai-voice','.ai-voice-call',report);
     await page.locator('.voice-call-end').click();
@@ -761,7 +761,7 @@ async function captureAdditionalStates(page, viewport, report) {
     await navigateRoute(page,'#tab=profile','.profile-stack');
     await page.locator('.avatar-button').click();
     await capture(page,viewport,'profile-avatar','.avatar-sheet',report);
-    await page.locator('.avatar-sheet .section-icon-action').click();
+    await page.locator('.avatar-picker > header button').click();
     await page.getByRole('button',{name:'删除账号与全部数据',exact:true}).click();
     await capture(page,viewport,'profile-delete-confirmation','.account-delete-sheet',report);
     await page.locator('.account-delete-sheet > header button').click();

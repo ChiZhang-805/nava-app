@@ -13,7 +13,7 @@ const base = server.resolvedUrls.local[0];
 const results = [];
 try {
   for (const [width, height] of [[360, 740], [375, 812], [390, 844], [430, 932], [1280, 900]]) {
-    const context = await browser.newContext({ viewport: { width, height }, hasTouch: true, isMobile: true, reducedMotion: "reduce" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width, height }, hasTouch: true, isMobile: true, reducedMotion: "reduce" });
     context.setDefaultTimeout(15000);
     const page = await context.newPage();
     await page.addInitScript(() => {

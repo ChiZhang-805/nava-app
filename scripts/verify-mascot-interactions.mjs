@@ -11,7 +11,7 @@ const server = await createServer({ server: { host: "127.0.0.1", port: 5241, str
 await server.listen();
 const browser = await chromium.launch({ headless: true });
 try {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   await context.addInitScript(() => {
     sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");

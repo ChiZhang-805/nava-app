@@ -21,7 +21,7 @@ const browser = await chromium.launch({ headless: true });
 
 try {
   for (const viewport of viewports) {
-    const context = await browser.newContext({
+    const context = await browser.newContext({ locale: "zh-CN",
       viewport: { width: viewport.width, height: viewport.height },
       deviceScaleFactor: 2,
       hasTouch: true,

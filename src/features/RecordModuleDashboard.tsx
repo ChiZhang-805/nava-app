@@ -2,7 +2,6 @@ import {
   Activity,
   AudioLines,
   Bell,
-  BellOff,
   Bluetooth,
   Bot,
   Camera,
@@ -65,7 +64,6 @@ import animatedFocusMascot from "../assets/mascot/animated/module-focus.webp";
 import animatedFaceMascot from "../assets/mascot/animated/module-face.webp";
 import animatedEmptyMascot from "../assets/mascot/animated/home-fluff-2.webp";
 import type { FocusRecord, FoodItem, MoodRecord, TodaySnapshot, TrendBundle } from "../types";
-import { enableNavaNotifications, loadNotificationPreference } from "../services/notifications";
 import { loadDietAiReport, type DietAiReport } from "../services/dietReport";
 import { healthReportSourceRevision, loadHealthAiReport, type HealthAiReport } from "../services/healthReport";
 import {
@@ -1165,24 +1163,7 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
   const { userId, locale, onOpenEditor, recordDate, deviceDate, trendBundle, todaySnapshot, view, openView } = props;
   const todayKey = `nava-sleep-alert-dismissed:${deviceDate}`;
   const [alertVisible, setAlertVisible] = useState(() => window.sessionStorage.getItem(todayKey) !== "1");
-  const [notificationEnabled, setNotificationEnabled] = useState(false);
-  const notificationTimeKey = `nava-sleep-reminder-time:${userId}`;
-  const [reminderTime, setReminderTime] = useState(() => window.localStorage.getItem(notificationTimeKey) ?? "22:30");
   const [sleepChartMode, setSleepChartMode] = useState<"duration" | "rating">("duration");
-  useEffect(() => {
-    let active = true;
-    void loadNotificationPreference(userId, "sleep")
-      .then((preference) => {
-        if (!active || !preference) return;
-        setNotificationEnabled(preference.enabled);
-        if (preference.localTime) {
-          setReminderTime(preference.localTime);
-          window.localStorage.setItem(notificationTimeKey, preference.localTime);
-        }
-      })
-      .catch((error) => console.warn("Sleep reminder preference restore deferred", error));
-    return () => { active = false; };
-  }, [notificationTimeKey, userId]);
   const selectedSleep = todaySnapshot?.sleep ?? null;
   const latestRecordedSleep = useMemo(() => {
     if (selectedSleep) return selectedSleep;
@@ -1225,11 +1206,6 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
   }, [deviceDate, locale, recordDate, sleepChartMode, todaySnapshot?.sleep, trendBundle]);
   const hasSleepTrend = sleepTrend.some((point) => !point.missing);
 
-  const enableNotification = async () => {
-    await enableNavaNotifications(userId, reminderTime);
-    window.localStorage.setItem(notificationTimeKey, reminderTime);
-    setNotificationEnabled(true);
-  };
 
   if (view === "trend") return <HistoryView userId={props.userId} module="sleep" locale={locale} trendBundle={trendBundle} profile={props.profile} deviceDate={deviceDate} />;
 
@@ -1254,7 +1230,7 @@ function SleepDashboard(props: Pick<Props, "userId" | "sleepStart" | "sleepEnd" 
           : <p className="module-empty-copy">{locale === "zh" ? "完成睡眠记录后显示趋势" : "Log sleep to begin the trend"}</p>}
       </section>
       <MonthlyWellbeing userId={userId} module="sleep" locale={locale} deviceDate={deviceDate} revision={trendBundle} />
-      {view === "alert" && <div className="module-modal" role="dialog" aria-modal="true"><div className="module-modal-card sleep-alert-modal"><header><strong>{locale === "zh" ? "睡眠提醒" : "Sleep reminder"}</strong><button type="button" onClick={() => openView("overview")}><X size={20} /></button></header><div className="lock-screen-preview"><Bell size={24} /><strong>NAVA</strong><p>{locale === "zh" ? "该准备入睡了，给今天一个安静的收尾。" : "Time to wind down and close the day quietly."}</p></div><label className="sleep-reminder-time"><span>{locale === "zh" ? "每天提醒时间" : "Daily reminder"}</span><input type="time" value={reminderTime} onChange={(event) => setReminderTime(event.target.value)} /></label><button type="button" onClick={() => void enableNotification()}>{notificationEnabled ? <BellOff size={18} /> : <Bell size={18} />}{notificationEnabled ? (locale === "zh" ? `已设为 ${reminderTime}` : `Set for ${reminderTime}`) : (locale === "zh" ? "开启锁屏提醒" : "Enable lock-screen reminder")}</button><button type="button" onClick={() => { window.sessionStorage.setItem(todayKey, "1"); setAlertVisible(false); openView("overview"); }}>{locale === "zh" ? "今天不再提醒" : "Not again today"}</button></div></div>}
+      {view === "alert" && <div className="module-modal" role="dialog" aria-modal="true"><div className="module-modal-card sleep-alert-modal"><header><strong>{locale === "zh" ? "睡眠提醒" : "Sleep reminder"}</strong><button type="button" aria-label={locale === "zh" ? "关闭" : "Close"} onClick={() => openView("overview")}><X size={20} /></button></header><ReminderSettings userId={userId} locale={locale} scope="sleep" standalone /><button type="button" onClick={() => { window.sessionStorage.setItem(todayKey, "1"); setAlertVisible(false); openView("overview"); }}>{locale === "zh" ? "今天不再提醒" : "Not again today"}</button></div></div>}
     </div>
   );
 }

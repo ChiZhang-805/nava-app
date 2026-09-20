@@ -14,7 +14,7 @@ const targets = process.env.NAVA_AI_ACCEPTANCE_URL
 const browser = await chromium.launch({ headless: true });
 try {
   for (const [label, url] of targets) {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 } });
     try {
       const page = await context.newPage();
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });

@@ -1,5 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 import PhotoInput from "../components/PhotoInput";
+import AvatarPicker from "../components/AvatarPicker";
+import MoreMenu from "../components/MoreMenu";
 import {
   ArrowLeft,
   Brain,
@@ -7,15 +9,12 @@ import {
   Camera,
   Check,
   HeartPulse,
-  Images,
   Loader2,
-  MoreHorizontal,
   MoonStar,
   Save,
   ShieldCheck,
   Target,
   Utensils,
-  X,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "../i18n";
@@ -82,7 +81,6 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
   const [error, setError] = useState<string | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const preferencesRef = useRef<HTMLElement | null>(null);
   const copy = <T,>(zh: T, en: T) => locale === "zh" ? zh : en;
@@ -131,20 +129,6 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
   }, [user.id]);
 
   useEffect(() => setAvatarLoadFailed(false), [profile?.avatar_url]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const closeOnOutside = (event: PointerEvent) => {
-      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) setMenuOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setMenuOpen(false); };
-    document.addEventListener("pointerdown", closeOnOutside);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutside);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [menuOpen]);
 
   const completeness = useMemo(() => {
     const values = [draft.username, draft.ageGroup, draft.occupation, draft.mbti, draft.goal, draft.sleepSchedule, draft.exerciseFrequency, draft.dietPreference, draft.stressFactors];
@@ -226,14 +210,11 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
       <header className="home-experience-header">
         <button className="home-experience-back" type="button" onClick={onBack} aria-label={copy("返回首页", "Back home")}><ArrowLeft size={22} /></button>
         <div><h1>{copy("详细资料设置", "Detailed profile")}</h1></div>
-        <div className="advanced-profile-header-menu-wrap" ref={menuRef}>
-          <button className="advanced-profile-header-icon" type="button" aria-label={copy("更多资料操作", "More profile actions")} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><MoreHorizontal size={23} /></button>
-          {menuOpen && <div className="app-utility-popover advanced-profile-menu" role="menu">
+        <MoreMenu open={menuOpen} onOpenChange={setMenuOpen} label={copy("更多资料操作", "More profile actions")} buttonClassName="advanced-profile-header-icon">
             <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setAvatarSheetOpen(true); }}><Camera size={17} />{copy("更换头像", "Change avatar")}</button>
             <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); preferencesRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }}><ShieldCheck size={17} />{copy("数据与 AI 偏好", "Data & AI preferences")}</button>
             <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); formRef.current?.requestSubmit(); }}><Save size={17} />{copy("保存详细资料", "Save profile")}</button>
-          </div>}
-        </div>
+        </MoreMenu>
       </header>
 
       {loading ? <PageSkeleton variant="advanced-profile" /> : (
@@ -285,15 +266,7 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
 
           <PhotoInput locale={locale} onError={setError} ref={galleryInputRef} data-profile-avatar-input="gallery" className="visually-hidden" type="file" accept="image/*" onFile={(file) => { void handleAvatarFile(file); }} />
           <PhotoInput locale={locale} onError={setError} ref={cameraInputRef} data-profile-avatar-input="camera" className="visually-hidden" type="file" accept="image/*" capture="user" onFile={(file) => { void handleAvatarFile(file); }} />
-          {avatarSheetOpen && <div className="avatar-sheet-overlay" role="presentation" onClick={() => setAvatarSheetOpen(false)}>
-            <section className="avatar-sheet" role="dialog" aria-modal="true" aria-label={copy("更换头像", "Change avatar")} onClick={(event) => event.stopPropagation()}>
-              <div className="section-heading"><h2>{copy("更换头像", "Change avatar")}</h2><button className="section-icon-action" type="button" aria-label={copy("关闭", "Close")} onClick={() => setAvatarSheetOpen(false)}><X size={21} /></button></div>
-              <div className="avatar-sheet-actions">
-                <button type="button" onClick={() => cameraInputRef.current?.click()}><Camera size={22} /><span>{copy("调用摄像头拍摄", "Take a photo")}</span></button>
-                <button type="button" onClick={() => galleryInputRef.current?.click()}><Images size={22} /><span>{copy("从相册选择", "Choose from library")}</span></button>
-              </div>
-            </section>
-          </div>}
+          {avatarSheetOpen && <AvatarPicker onClose={() => setAvatarSheetOpen(false)} onCamera={() => cameraInputRef.current?.click()} onLibrary={() => galleryInputRef.current?.click()} />}
         </>
       )}
     </section>

@@ -12,7 +12,7 @@ await writeFile(`${output}/public.json`, JSON.stringify(receipt));
 const browser = await chromium.launch({ headless: true, args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"] });
 try {
   for (const base of ["https://nava-app-preview-cz.chizhang1031.chatgpt.site/", "https://chizhang-805.github.io/nava-app-preview/"]) {
-    const context = await browser.newContext({ viewport: desktop ? { width: 1365, height: 1000 } : { width: 390, height: 844 }, permissions: ["camera"], reducedMotion: "reduce" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: desktop ? { width: 1365, height: 1000 } : { width: 390, height: 844 }, permissions: ["camera"], reducedMotion: "reduce" });
     try {
       await context.addInitScript(() => { window.FaceDetector = undefined; });
       const page = await context.newPage(); page.setDefaultTimeout(30000);

@@ -36,7 +36,7 @@ try {
   }
   browser = await chromium.launch({ headless: true });
   stage = "app-login-form";
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, reducedMotion: "reduce" });
+  const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, reducedMotion: "reduce" });
   context.setDefaultTimeout(20000);
   const page = await context.newPage();
   let healthWrites = 0;

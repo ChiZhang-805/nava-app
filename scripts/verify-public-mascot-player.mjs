@@ -12,7 +12,7 @@ const receipt = { passed: false, aiTested: false, results: [] };
 const browser = await chromium.launch({ headless: true });
 try {
   for (const base of ["https://nava-app-preview-cz.chizhang1031.chatgpt.site/", "https://chizhang-805.github.io/nava-app-preview/"]) {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     try {
       const page = await context.newPage(); page.setDefaultTimeout(30000);
       const loadedAssets = new Set();

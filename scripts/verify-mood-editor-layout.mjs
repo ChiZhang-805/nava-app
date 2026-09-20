@@ -230,7 +230,7 @@ async function main() {
   const baseUrl = server.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? `http://127.0.0.1:${port}`;
   const browser = await chromium.launch({ headless: true });
   const errors = [];
-  const context = await browser.newContext({
+  const context = await browser.newContext({ locale: "zh-CN",
     viewport: { width: 430, height: 932 },
     deviceScaleFactor: 1,
     isMobile: true,
@@ -550,7 +550,7 @@ async function main() {
       await expect(detail.locator('[data-face-mode="makeup"]')).toHaveAttribute("aria-pressed", "true");
       await page.screenshot({ path: path.join(outputDir, `face-${viewport.name}.png`) });
       await page.locator('.figma-app-header .figma-header-action').last().click();
-      await page.getByRole('button', { name: '条件检验' }).click();
+    await page.getByRole('menuitem', { name: '条件检验' }).click();
       await expect(page).toHaveURL(/view=conditions/);
       const readinessButtons = detail.locator(".face-capture-readiness > div button");
       await expect(readinessButtons).toHaveCount(3);
@@ -611,9 +611,9 @@ async function main() {
       if ((geometry.frameOverflowX ?? 0) > 1 || !geometry.header || !geometry.identity || !geometry.avatar || !geometry.menuButton) throw new Error(`profile/${viewport.name}: incomplete or overflowing profile layout ${JSON.stringify(geometry)}`);
       if (Math.abs(geometry.avatar.width - geometry.avatar.height) > .5 || geometry.avatar.left < geometry.identity.left || geometry.avatar.right > geometry.identity.right) throw new Error(`profile/${viewport.name}: avatar escapes identity card ${JSON.stringify(geometry)}`);
       await profile.locator('.advanced-profile-header-icon').click();
-      const menu = profile.locator('.advanced-profile-menu');
+      const menu = profile.locator('.app-utility-popover');
       await expect(menu).toBeVisible();
-      await expect(menu.locator('button')).toHaveCount(3);
+      await expect(menu.locator('button')).toHaveCount(4);
       const menuGeometry = await menu.evaluate((node) => {
         const rect = node.getBoundingClientRect();
         return { top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight };
@@ -622,7 +622,7 @@ async function main() {
       await page.screenshot({ path: path.join(outputDir, `profile-menu-${viewport.name}.png`) });
       await profile.locator('.advanced-profile-header-icon').click();
       await profile.locator('[data-profile-details-avatar]').click();
-      const sheet = profile.locator('.avatar-sheet');
+      const sheet = page.locator('.phone-frame > .avatar-picker-overlay .avatar-sheet');
       await expect(sheet).toBeVisible();
       await expect(sheet.locator('.avatar-sheet-actions button')).toHaveCount(2);
       await page.waitForTimeout(260);

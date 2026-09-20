@@ -35,7 +35,7 @@ try {
         parity.push({ name, bytes:remote.length, sha256:hash(remote) });
       }
     }
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: !(responsive || allPages), hasTouch: !(responsive || allPages), reducedMotion: "reduce", serviceWorkers: "block" });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, isMobile: !(responsive || allPages), hasTouch: !(responsive || allPages), reducedMotion: "reduce", serviceWorkers: "block" });
     try {
       if (allPages) await context.addInitScript(() => {
         // Explicit speech hardware fixture, never a model or health-record fixture.

@@ -17,7 +17,7 @@ const browser = await chromium.launch({ headless: true });
 const results = [];
 try {
   for (const viewport of [{ width: 1365, height: 1000 }, ...viewports]) {
-    const context = await browser.newContext({ viewport, deviceScaleFactor: 1 });
+    const context = await browser.newContext({ locale: "zh-CN", viewport, deviceScaleFactor: 1 });
     try {
       await context.addInitScript(({ userId }) => {
         sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");

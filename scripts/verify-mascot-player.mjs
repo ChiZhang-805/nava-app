@@ -13,7 +13,7 @@ const results = [];
 try {
   // UI checks are serial; one Chromium, one context, no account writes or in-app browser.
   for (const [width, height] of [[360,740],[375,812],[390,844],[430,932]]) {
-    const context = await browser.newContext({ viewport: { width, height }, isMobile: true, hasTouch: true });
+    const context = await browser.newContext({ locale: "zh-CN", viewport: { width, height }, isMobile: true, hasTouch: true });
     try {
       await context.addInitScript(() => {
         sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
@@ -58,7 +58,7 @@ try {
 
   // Inspect every composited frame of the unchanged artwork. Drive the production renderer
   // without wall-clock waits here; the UI above checks real request/RAF integration.
-  const context = await browser.newContext({ viewport: { width: 800, height: 600 } });
+  const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 800, height: 600 } });
   try {
     const page = await context.newPage();
     await page.goto("http://127.0.0.1:5232/", { waitUntil: "domcontentloaded" });
