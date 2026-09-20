@@ -17,6 +17,16 @@ must never be copied into that repository.
 
 ## Compatibility tiers
 
+2026-09-20: user explicitly approved the reminder-settings schema migration.
+`202609200001_reminder_timing_modes.sql` was the only dry-run candidate and was
+applied successfully. It adds fixed/smart timing and exercise/face reminder types,
+preserving existing enabled/time values and all health records. The expanded
+read-only shared contract probe including `timing_mode` passed. Native delivery
+and iPhone wake-lock behavior remain separate device acceptance gates.
+Actual APP form login and Supabase RLS acceptance passed for all eight types,
+fixed/smart mode, independent off and reload. All original preferences were
+restored exactly; health writes were zero and existing activity was preserved.
+
 2026-09-15: user explicitly authorized `202609150002_independent_reminders.sql`.
 Dry run selected only that CHECK expansion; push succeeded, and all 30 local/remote
 migrations match. The shared read-only contract check passed. The real account's

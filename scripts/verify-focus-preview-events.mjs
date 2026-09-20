@@ -71,7 +71,8 @@ try {
   await expect(page.locator('[data-module-view="focus-immersive"]')).toHaveAttribute("data-focus-state", "running");
   await expect(page.getByRole("button", { name: "获取计时中的 AI 鼓励" })).toBeDisabled();
 
-  for (const reason of ["call", "message", "distraction", "other"]) {
+  await expect(simulator.locator('[data-preview-event="distraction"]')).toHaveCount(0);
+  for (const reason of ["call", "message", "other"]) {
     if (reason === "call") {
       await page.getByRole("button", { name: "背景音", exact: true }).click();
       await page.getByRole("button", { name: "白噪音", exact: true }).click();
@@ -90,6 +91,10 @@ try {
     });
     assert.equal(draft?.interruptions, 0, `${reason}: simulated event must not count as a real interruption`);
     assert.deepEqual(draft?.interruptionReasons, { message: 0, call: 0, distraction: 0, other: 0 });
+    await page.waitForTimeout(2200);
+    const paused = await page.evaluate((userId) => JSON.parse(sessionStorage.getItem(`nava-focus-timer:${userId}`)), demoUserId);
+    assert.equal(paused.remaining, draft.remaining, `${reason}: background time must not accumulate`);
+    assert.equal(paused.elapsedSeconds, draft.elapsedSeconds);
     if (reason === "call") {
       await expect.poll(() => page.evaluate(() => window.__focusAudioContexts[0].state)).toBe("closed");
       await expect.poll(() => page.evaluate(() => window.__previewWake.releases)).toBe(1);
@@ -100,9 +105,22 @@ try {
     await page.locator('[data-phone-action="app"]').click();
     await page.locator('[data-module-view="focus-immersive"] [aria-label="开始"]').click();
     await expect(page.locator('[data-module-view="focus-immersive"]')).toHaveAttribute("data-focus-state", "running");
-    await expect.poll(() => page.evaluate(() => window.__previewWake.requests)).toBe(["call", "message", "distraction", "other"].indexOf(reason) + 2);
+    await expect.poll(() => page.evaluate(() => window.__previewWake.requests)).toBe(["call", "message", "other"].indexOf(reason) + 2);
     await page.waitForTimeout(1_550);
   }
+  const beforeHide = await page.evaluate((userId) => JSON.parse(sessionStorage.getItem(`nava-focus-timer:${userId}`)).remaining, demoUserId);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    // Simulate a delayed React flush after the lifecycle event without allocating memory.
+    const until = performance.now() + 2100;
+    while (performance.now() < until) { /* bounded test delay */ }
+  });
+  await expect(page.locator('.focus-interruption')).toBeVisible();
+  const afterHide = await page.evaluate((userId) => JSON.parse(sessionStorage.getItem(`nava-focus-timer:${userId}`)), demoUserId);
+  assert.ok(beforeHide - afterHide.remaining <= 1, 'lifecycle event must freeze time before delayed cleanup');
+  await page.waitForTimeout(2200);
+  assert.equal(await page.evaluate((userId) => JSON.parse(sessionStorage.getItem(`nava-focus-timer:${userId}`)).remaining, demoUserId), afterHide.remaining);
   await context.close();
 
   const { context: aiContext, page: aiPage } = await openFocus({ width: 390, height: 844 });
@@ -205,7 +223,7 @@ try {
     assert.ok(overflow <= 1, `${viewport.width}x${viewport.height}: horizontal overflow ${overflow}px`);
     await mobileContext.close();
   }
-  console.log("focus preview events: 4 desktop simulations, wake-lock delayed/denied/retry/release boundaries, and 4 mobile viewport boundaries passed");
+  console.log("focus preview events: 3 desktop simulations, real visibility pause, wake-lock delayed/denied/retry/release boundaries, and 4 mobile viewport boundaries passed");
 } finally {
   await browser.close();
   await server.close();

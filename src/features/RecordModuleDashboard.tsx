@@ -1405,7 +1405,6 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const wakeRequestPendingRef = useRef(false);
   const noiseSessionRef = useRef<FocusNoiseSession | null>(null);
   const noiseRequestRef = useRef(0);
-  const interruptionGuardRef = useRef(0);
   const breakCueSlotRef = useRef(0);
   const [keepAwakeEnabled, setKeepAwakeEnabled] = useState(() => window.sessionStorage.getItem(wakePreferenceKey) !== "false");
   const [wakeLockActive, setWakeLockActive] = useState(false);
@@ -1481,6 +1480,7 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   const lastCloudTimerWriteRef = useRef(0);
   const cloudTimerExistsRef = useRef(false);
   const lastTimerTickRef = useRef<number | null>(null);
+  const timerPauseBoundaryRef = useRef<number | null>(null);
   const releaseWakeLock = useCallback(async () => {
     wakeRequestIdRef.current += 1;
     wakeRequestPendingRef.current = false;
@@ -2121,8 +2121,9 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   useEffect(() => {
     if (!immersive || !running) return;
     lastTimerTickRef.current = Date.now();
+    timerPauseBoundaryRef.current = null;
     const applyElapsedWallTime = () => {
-      const now = Date.now();
+      const now = timerPauseBoundaryRef.current ?? Date.now();
       const previous = lastTimerTickRef.current ?? now;
       const elapsed = Math.floor((now - previous) / 1000);
       if (elapsed <= 0) return;
@@ -2152,10 +2153,10 @@ function FocusDashboard(props: Pick<Props, "userId" | "focusTitle" | "focusMinut
   }, [remaining, running, timerMode]);
 
   const recordInterruption = useCallback((reason?: FocusInterruptionReason, simulated = false) => {
-    if (!running) return;
+    if (!running || timerPauseBoundaryRef.current !== null) return;
     const now = Date.now();
-    if (!simulated && now - interruptionGuardRef.current < 1_500) return;
-    interruptionGuardRef.current = now;
+    // Freeze at the lifecycle event, not at React's potentially delayed cleanup.
+    timerPauseBoundaryRef.current = now;
     setRunning(false);
     if (!simulated) setInterruptions((value) => value + 1);
     setCurrentInterruptionReason(simulated ? reason ?? null : null);

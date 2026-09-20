@@ -1,10 +1,12 @@
 // Run only after the independent-reminder migration has been authorized/applied.
-// Uses the actual APP form and Supabase RLS; restores only the four tested rows.
+// Uses the actual APP form and Supabase RLS; precisely restores the eight tested types.
 import { createClient } from "@supabase/supabase-js";
 import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import path from "node:path";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 applyProjectPublicEnv(process.cwd());
@@ -21,7 +23,7 @@ const client = createClient(url, process.env.VITE_SUPABASE_PUBLISHABLE_KEY, { au
 const login = await client.auth.signInWithPassword({ email, password });
 if (login.error || login.data.user?.email?.toLowerCase() !== email.toLowerCase()) throw new Error("Target account authentication failed.");
 const userId = login.data.user.id;
-const types = ["mood", "nutrition_breakfast", "nutrition_lunch", "nutrition_dinner"];
+const types = ["mood", "nutrition_breakfast", "nutrition_lunch", "nutrition_dinner", "sleep", "exercise", "focus", "face"];
 const read = async () => {
   const result = await client.from("notification_preferences").select("*").eq("user_id", userId).in("notification_type", types).order("notification_type");
   if (result.error) throw new Error("Owned reminder preferences read failed.");
@@ -50,6 +52,13 @@ try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   context.setDefaultTimeout(20000);
   const page = await context.newPage();
+  const loadedAssets = new Set();
+  const projects = new Set();
+  page.on('request', (request) => {
+    const target = new URL(request.url());
+    if (target.hostname.endsWith('.supabase.co')) projects.add(target.hostname);
+    if (process.env.NAVA_REMINDER_UI_URL && target.origin === new URL(base).origin && /\/[^/]+\.(js|css)$/.test(target.pathname)) loadedAssets.add(target.href);
+  });
   await page.route("**/rest/v1/*", async (route) => {
     const request = route.request();
     const table = new URL(request.url()).pathname.split("/").pop();
@@ -83,19 +92,23 @@ try {
   await expect(page.locator(".bottom-nav")).toBeVisible({ timeout: 30000 });
   console.log("Approved target account logged in through the actual APP form; identity matched (credentials omitted).");
   await page.goto(`${base}#tab=today&view=notifications`, { waitUntil: "domcontentloaded" });
+  await page.getByRole('button', { name: '通知操作' }).click();
+  await page.getByRole('menuitem', { name: '提醒设置' }).click();
   const settings = page.locator('[data-reminder-settings="all"]');
-  await settings.locator(".reminder-settings-heading").click();
-  await expect(settings.locator(".reminder-setting-row")).toHaveCount(4);
-  for (const [index, kind] of ["mood", "breakfast", "lunch", "dinner"].entries()) {
+  await expect(settings.locator(".reminder-setting-row")).toHaveCount(8);
+  for (const [index, kind] of ["mood", "breakfast", "lunch", "dinner", "sleep", "exercise", "focus", "face"].entries()) {
     stage = `save-${kind}`;
     const row = settings.locator(`[data-reminder-kind="${kind}"]`);
+    changed = true;
+    if (await row.getByRole("switch").getAttribute("aria-checked") !== "true") await row.getByRole('switch').click();
+    await row.getByRole('button', { name: '固定时间', exact: true }).click();
     // Far outside the current one-hour catch-up window, including around midnight.
     const hour = (new Date().getHours() + 3 + index) % 24;
     let time = `${String(hour).padStart(2, "0")}:47`;
     if (await row.locator("input").inputValue() === time) time = `${String(hour).padStart(2, "0")}:49`;
     changed = true;
     await row.locator("input").fill(time);
-    await expect(settings.getByRole("status")).toHaveText("已保存到账号");
+    await expect(settings.getByRole("status")).toHaveText("已保存");
     if (await row.getByRole("switch").getAttribute("aria-checked") !== "true") {
       await row.getByRole("switch").click();
     }
@@ -103,6 +116,14 @@ try {
     const saved = (await read()).find((value) => value.notification_type === types[index]);
     assert.equal(saved?.local_time.slice(0, 5), time);
     assert.equal(saved?.enabled, true);
+    assert.equal(saved?.timing_mode, 'fixed');
+    await row.getByRole('button', { name: '智能', exact: true }).click();
+    await expect(row.getByRole('button', { name: '智能', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    const smart = (await read()).find((value) => value.notification_type === types[index]);
+    assert.equal(smart?.timing_mode, 'smart');
+    assert.equal(smart?.local_time.slice(0,5), time);
+    await row.getByRole('button', { name: '固定时间', exact: true }).click();
+    await expect(row.getByRole('button', { name: '固定时间', exact: true })).toHaveAttribute('aria-pressed', 'true');
     console.log(`Actual APP + Supabase: ${kind} enabled/time confirmed.`);
   }
   const beforeOff = await read();
@@ -110,15 +131,31 @@ try {
   await settings.locator('[data-reminder-kind="lunch"] [role="switch"]').click();
   await expect(settings.locator('[data-reminder-kind="lunch"] [role="switch"]')).toHaveAttribute("aria-checked", "false");
   const afterOff = await read();
+  stage = 'off-isolation-cloud';
   for (const row of afterOff) {
     if (row.notification_type === "nutrition_lunch") assert.equal(row.enabled, false);
     else assert.equal(JSON.stringify(row), JSON.stringify(beforeOff.find((previous) => previous.notification_type === row.notification_type)), "Another reminder changed unexpectedly.");
   }
   await page.reload({ waitUntil: "domcontentloaded" });
-  await settings.locator(".reminder-settings-heading").click();
+  stage = 'off-reload-ui';
   await expect(settings.locator('[data-reminder-kind="lunch"] [role="switch"]')).toHaveAttribute("aria-checked", "false");
   await expect(settings.locator('[data-reminder-kind="breakfast"] [role="switch"]')).toHaveAttribute("aria-checked", "true");
-  console.log("APP reload and cloud read agree; changing lunch left the other three rows unchanged.");
+  console.log("APP reload and cloud read agree; changing lunch left the other seven rows unchanged.");
+  assert.deepEqual([...projects], ['wxteapvwagvhhtrjrbim.supabase.co']);
+  receipt.canonicalProjectVerified = true;
+  receipt.realLoginVerified = true;
+  if (process.env.NAVA_REMINDER_UI_URL) {
+    stage = 'public-asset-parity';
+    assert.ok(loadedAssets.size >= 2);
+    for (const asset of loadedAssets) {
+      const response = await fetch(asset);
+      assert.ok(response.ok);
+      const local = await readFile(path.join(process.cwd(), 'dist/assets', path.basename(new URL(asset).pathname)));
+      const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
+      assert.equal(hash(Buffer.from(await response.arrayBuffer())), hash(local), 'Published asset differs from verified build');
+    }
+    receipt.assetsMatched = loadedAssets.size;
+  }
   passed = true;
 } catch {
   throw new Error(`Authenticated APP reminder acceptance failed at ${stage}; account and credential details omitted.`);
@@ -143,7 +180,7 @@ try {
     const restored = await read();
     const stable = (rows) => rows.map((row) => Object.fromEntries(Object.entries(row).filter(([key]) => key !== "updated_at")));
     assert.ok(JSON.stringify(stable(restored)) === JSON.stringify(stable(original)), "Original reminder restoration mismatch; account details omitted.");
-    console.log("Original four reminder settings restored; test-created rows removed.");
+    console.log("Original eight reminder settings restored; test-created rows removed.");
   }
   receipt.settingsRestored = true;
   const activeAfter = await client.from("active_user_sessions").select("*").eq("user_id", userId).order("session_type");

@@ -45,16 +45,33 @@ try {
     await login(page);
     console.log(`${width}: local demo login complete`);
     await go(page, "tab=today&view=notifications");
+    await expect(page.locator('[data-reminder-settings]')).toHaveCount(0);
+    await page.getByRole('button', { name: '通知操作' }).click();
+    await page.getByRole('menuitem', { name: '提醒设置' }).click();
+    await expect(page).toHaveURL(/view=reminder-settings/);
     const settings = page.locator('[data-reminder-settings="all"]');
-    await settings.getByRole("button", { name: "提醒设置" }).click();
-    await expect(settings.locator(".reminder-setting-row")).toHaveCount(4);
+    await expect(settings.locator(".reminder-setting-row")).toHaveCount(8);
+    await expect(settings).not.toContainText(/每天独立|网页关闭后|设备所在地|锁屏提醒/);
+    await page.screenshot({ path: `${output}/${width}-all-off.png` });
     const breakfast = settings.locator('[data-reminder-kind="breakfast"]');
     const lunch = settings.locator('[data-reminder-kind="lunch"]');
-    const originalLunch = await lunch.getByRole("textbox").count().then(() => lunch.locator('input[type="time"]').inputValue());
-    await breakfast.locator('input[type="time"]').fill("09:17");
-    await expect(settings.getByRole("status")).toHaveText("已保存到账号");
+    await lunch.getByRole('switch').click();
+    const originalLunch = await lunch.locator('input[type="time"]').inputValue();
     await breakfast.getByRole("switch").click();
     await expect(breakfast.getByRole("switch")).toHaveAttribute("aria-checked", "true");
+    await breakfast.locator('input[type="time"]').fill("09:17");
+    await expect(settings.getByRole("status")).toHaveText("已保存");
+    await breakfast.getByRole('button', { name: '智能', exact: true }).click();
+    await expect(breakfast.locator('input')).toHaveCount(0);
+    await expect(breakfast.locator('time')).toHaveText('08:30');
+    await breakfast.getByRole('button', { name: '固定时间', exact: true }).click();
+    await expect(breakfast.locator('input')).toHaveValue('09:17');
+    for (const kind of ['mood','dinner','sleep','exercise','focus','face']) {
+      const row = settings.locator(`[data-reminder-kind="${kind}"]`);
+      await row.getByRole('switch').click();
+      await row.getByRole('button', { name: '智能', exact: true }).click();
+      await expect(row.getByRole('button', { name: '智能', exact: true })).toHaveAttribute('aria-pressed','true');
+    }
     await expect(lunch.locator('input[type="time"]')).toHaveValue(originalLunch);
     const geometry = await settings.evaluate((node) => {
       const box = node.getBoundingClientRect();
@@ -65,11 +82,21 @@ try {
     });
     if (geometry.some((item) => !item.fits || item.height < 43)) throw new Error(`Control geometry failed: ${width}`);
     if (!desktop && await page.locator("[data-reminder-preview]").isVisible()) throw new Error("Desktop simulator leaked onto mobile");
-    await settings.screenshot({ path: `${output}/${width}-settings.png` });
+    await page.locator('[data-reminder-page]').evaluate((node) => { node.scrollTop = 0; });
+    await page.screenshot({ path: `${output}/${width}-settings-top.png` });
+    await page.locator('[data-reminder-page]').evaluate((node) => { node.scrollTop = node.scrollHeight; });
+    await expect(page.locator('.reminder-system-permission')).toBeInViewport();
+    const bottomFit = await page.locator('.reminder-system-permission').evaluate((node) => ({ bottom: node.getBoundingClientRect().bottom, navTop: document.querySelector('.bottom-nav').getBoundingClientRect().top }));
+    expect(bottomFit.bottom).toBeLessThanOrEqual(bottomFit.navTop + 1);
+    await page.screenshot({ path: `${output}/${width}-settings-bottom.png` });
     await page.reload({ waitUntil: "networkidle" });
-    await page.locator('[data-reminder-settings="all"] .reminder-settings-heading').click();
     await expect(page.locator('[data-reminder-kind="breakfast"] input')).toHaveValue("09:17");
     await expect(page.locator('[data-reminder-kind="breakfast"] [role="switch"]')).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator('[data-reminder-kind="sleep"] .reminder-mode button').first()).toHaveAttribute('aria-pressed','true');
+    await settings.locator('[data-reminder-kind="dinner"] [role="switch"]').click();
+    await expect(settings.locator('[data-reminder-kind="dinner"] .reminder-item-controls')).toHaveCount(0);
+    await page.getByRole('button', { name: '返回通知中心' }).click();
+    await expect(page.locator('[data-notification-center]')).toBeVisible();
     for (const module of ["mood", "diet"]) {
       await go(page, `tab=record&module=${module}`);
       const entry = page.locator(`[data-reminder-settings="${module}"]`);

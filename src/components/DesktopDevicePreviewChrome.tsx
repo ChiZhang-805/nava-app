@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { Bell, Ellipsis, LockKeyhole, MousePointerClick, PhoneIncoming, RotateCcw, Smartphone, Sun, Home } from "lucide-react";
+import { Bell, Ellipsis, LockKeyhole, PhoneIncoming, RotateCcw, Smartphone, Sun, Home } from "lucide-react";
 import PhoneSystemPreview from "./PhoneSystemPreview";
 import { commandPhonePreview } from "../services/previewPhoneSystem";
 import {
@@ -269,15 +269,13 @@ export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminde
           {([
             { reason: "call", label: "来电", icon: PhoneIncoming },
             { reason: "message", label: "消息通知", icon: Bell },
-            { reason: "distraction", label: "主动分心", icon: MousePointerClick },
             { reason: "other", label: "切到后台", icon: Ellipsis },
           ] as const).map(({ reason, label, icon: Icon }) => <button
             key={reason}
             type="button"
             data-preview-event={reason}
             onClick={() => simulateEvent(reason)}
-            disabled={reason === "distraction" && (previewState !== "running" || previewActivity?.module !== "focus")}
-            title={reason === "distraction" && previewActivity?.module !== "focus" ? "开始专注后可模拟主动分心" : `模拟${label}`}
+            title={`模拟${label}`}
             aria-label={`模拟${label}`}
           ><Icon size={17} /><span>{label}</span></button>)}
         </div>

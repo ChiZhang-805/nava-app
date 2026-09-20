@@ -20,15 +20,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import ReminderSettings from "../components/ReminderSettings";
 import {
   deleteNavaNotification,
   deleteNavaNotifications,
-  enableNavaNotificationSuite,
   markAllNavaNotificationsRead,
   markNavaNotification,
   markNavaNotifications,
-  notificationPermissionState,
   restoreNavaNotification,
   restoreNavaNotifications,
   respondToNavaNotification,
@@ -224,19 +221,18 @@ export default function NotificationCenter({
   items,
   locale,
   onBack,
+  onOpenSettings,
   onOpenTarget,
 }: {
   userId: string;
   items: NavaNotificationItem[];
   locale: "zh" | "en";
   onBack: () => void;
+  onOpenSettings: () => void;
   onOpenTarget: (target?: NavaNotificationTarget) => void;
 }) {
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [deleted, setDeleted] = useState<NavaNotificationItem[]>([]);
-  const [permission, setPermission] = useState<Awaited<ReturnType<typeof notificationPermissionState>> | "checking">("checking");
-  const [permissionBusy, setPermissionBusy] = useState(false);
-  const [permissionError, setPermissionError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
@@ -248,7 +244,6 @@ export default function NotificationCenter({
   const detailFeedbackOptions = detailItem ? feedbackOptions(detailItem, locale) : [];
   const allShownSelected = shownItems.length > 0 && shownItems.every((item) => selectedIds.has(item.id));
 
-  useEffect(() => { void notificationPermissionState().then(setPermission); }, []);
   useEffect(() => {
     if (deleted.length === 0) return;
     const timeout = window.setTimeout(() => setDeleted([]), 5_500);
@@ -285,20 +280,6 @@ export default function NotificationCenter({
       document.removeEventListener("keydown", closeOverlay);
     };
   }, [detailId, selectionMode]);
-
-  const enableSystem = async () => {
-    setPermissionBusy(true);
-    setPermissionError(null);
-    try {
-      await enableNavaNotificationSuite(userId, "22:30", locale);
-      setPermission(await notificationPermissionState());
-    } catch (error) {
-      setPermissionError(error instanceof Error ? error.message : String(error));
-      setPermission(await notificationPermissionState());
-    } finally {
-      setPermissionBusy(false);
-    }
-  };
 
   const openDetails = (item: NavaNotificationItem) => {
     setDetailId(item.id);
@@ -356,6 +337,7 @@ export default function NotificationCenter({
           <div className="notification-header-menu-wrap" ref={menuRef}>
             <button type="button" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)} aria-label={locale === "zh" ? "通知操作" : "Notification actions"}><MoreHorizontal size={22} /></button>
             {menuOpen && <div className="notification-header-menu" role="menu">
+              <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onOpenSettings(); }}><BellRing size={17} />{locale === "zh" ? "提醒设置" : "Reminder settings"}</button>
               <button type="button" role="menuitem" disabled={unreadCount === 0} onClick={() => { markAllNavaNotificationsRead(userId); setMenuOpen(false); }}><MailOpen size={17} />{locale === "zh" ? "全部已读" : "Mark all read"}</button>
               <button type="button" role="menuitem" disabled={items.length === 0} onClick={deleteAll}><Trash2 size={17} />{locale === "zh" ? "全部删除" : "Delete all"}</button>
               <button type="button" role="menuitem" disabled={items.length === 0} onClick={() => enterSelection()}><ListPlus size={17} />{locale === "zh" ? "多选" : "Select"}</button>
@@ -364,13 +346,6 @@ export default function NotificationCenter({
         )}
       </header>
 
-      <ReminderSettings userId={userId} locale={locale} />
-      {permission !== "granted" && permission !== "checking" && <section className="notification-permission-card" data-permission={permission}>
-        <span><BellRing size={21} /></span>
-        <div><strong>{locale === "zh" ? "系统通知" : "System notifications"}</strong><p>{permission === "unsupported" ? (locale === "zh" ? "当前浏览器不支持；应用内提醒仍可正常使用。" : "Unavailable here; in-app reminders still work.") : (locale === "zh" ? "允许系统通知；情绪和三餐的开关、时间仍由上方独立设置决定。" : "Allow system alerts; mood and meal times remain controlled by their individual settings above.")}</p></div>
-        {permission !== "unsupported" && <button type="button" onClick={() => void enableSystem()} disabled={permissionBusy}>{permissionBusy ? (locale === "zh" ? "开启中" : "Enabling") : (locale === "zh" ? "开启" : "Enable")}</button>}
-      </section>}
-      {permissionError && <p className="notification-permission-error" role="alert">{permissionError}</p>}
 
       {selectionMode ? (
         <div className="notification-selection-bar">

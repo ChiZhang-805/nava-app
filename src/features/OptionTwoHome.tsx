@@ -63,6 +63,7 @@ import type { RecordModule } from "./RecordsScreen";
 import HomeCalendarExperience from "./HomeCalendarExperience";
 import AdvancedProfileScreen from "./AdvancedProfileScreen";
 import NotificationCenter from "./NotificationCenter";
+import ReminderSettingsPage from "./ReminderSettingsPage";
 import HomeWidgetEditor from "./HomeWidgetEditor";
 import PointsShopExperience from "./PointsShopExperience";
 
@@ -300,8 +301,9 @@ export default function OptionTwoHome({
   }
 
   if (view === "notifications") {
-    return <NotificationCenter userId={user.id} items={notifications} locale={locale} onBack={() => onBack(null)} onOpenTarget={onOpenNotificationTarget} />;
+    return <NotificationCenter userId={user.id} items={notifications} locale={locale} onBack={() => onBack(null)} onOpenSettings={() => onViewChange("reminder-settings")} onOpenTarget={onOpenNotificationTarget} />;
   }
+  if (view === "reminder-settings") return <ReminderSettingsPage userId={user.id} locale={locale} onBack={() => onBack("notifications")} />;
 
   if (view === "home-widgets") {
     return <HomeWidgetEditor

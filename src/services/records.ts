@@ -398,7 +398,11 @@ export async function saveExerciseRecord(input: {
     && input.sorenessLevel == null && input.fatigueLevel == null && input.hasInjury == null) {
     throw new Error("没有可保存的运动数据。");
   }
-  if (isDemoMode()) return saveDemoExercise(input);
+  if (isDemoMode()) {
+    const saved = saveDemoExercise(input);
+    emitReminderRecordSaved(input.userId, normalizeRecordDate(input.date), "exercise");
+    return saved;
+  }
 
   const recordDate = normalizeRecordDate(input.date);
   const rating = ratingValue(input.rating, "运动自评分");
@@ -448,6 +452,7 @@ export async function saveExerciseRecord(input: {
 
   assertNoError(response.error);
   if (response.data?.id) await dedupeExerciseRecords(input.userId, recordDate, response.data.id);
+  emitReminderRecordSaved(input.userId, recordDate, "exercise");
   return response.data as ExerciseRecord;
 }
 
@@ -662,6 +667,7 @@ export async function saveFaceAnalysisRecord(input: {
     .single();
 
   assertNoError(error);
+  emitReminderRecordSaved(input.userId, normalizeRecordDate(input.date), "face");
   return { ...(data as FaceRecord), persisted: true } as FaceRecord & { persisted: true };
 }
 
@@ -717,7 +723,11 @@ export async function saveFocusSession(input: {
   source?: "manual" | "ai" | "watch";
   sourceActionId?: string;
 }) {
-  if (isDemoMode()) return saveDemoFocus(input);
+  if (isDemoMode()) {
+    const saved = saveDemoFocus(input);
+    emitReminderRecordSaved(input.userId, normalizeRecordDate(input.date), "focus");
+    return saved;
+  }
 
   const recordDate = normalizeRecordDate(input.date);
   const minutes = nonNegativeInt(input.minutes, "专注分钟");
@@ -750,6 +760,7 @@ export async function saveFocusSession(input: {
   assertNoError(response.error);
   const result = response.data as { applied?: boolean; record?: FocusRecord } | null;
   if (!result?.record) throw new Error("专注会话没有返回可用的保存结果，请刷新后重试。");
+  emitReminderRecordSaved(input.userId, recordDate, "focus");
   return result.record;
 }
 

@@ -70,8 +70,9 @@ canonical query + 空请求体，并部署为 production version 17（ACTIVE，�
 
 ## 已实现数据库/Storage
 
-当前源码共有 30 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单
-来源。它们按顺序覆盖：移动端业务表和 Edge 后端、Rhythm/Fusion/ChronoState、
+当前源码共有 31 个 append-only migration，目录 `supabase/migrations` 是唯一文件清单
+来源。2026-09-20经用户明确批准追加提醒方式和类型扩展，既有开关/时间和健康记录不变。
+它们按顺序覆盖：移动端业务表和 Edge 后端、Rhythm/Fusion/ChronoState、
 密码复用保护、手机号 OTP、Watch action 幂等、头像、账号状态、onboarding、FDNB、
 AI 会话隔离、成长奖励、健康报告、专注待办、Health Realtime，以及跨设备账号状态和
 删除/导出完整性、运动恢复闭环、远程推送设备路由与待办四象限排序。2026-09-14 已在 canonical
@@ -178,7 +179,7 @@ Get-ChildItem -LiteralPath supabase/migrations -File | Sort-Object Name
 
 - 应用内通知由当天真实 `TodaySnapshot`、ChronoState 已持久化 action 或成功保存的
   记录事件生成；生产构建不注入演示通知。
-- `notification_preferences` 只保存当前用户的提醒类型、是否启用、本地时间、时区和
+- `notification_preferences` 只保存当前用户的提醒类型、是否启用、智能/固定方式、本地时间、时区和
   最近调度时间，并由 RLS 隔离。它不是通知消息表。
 - 通知收件箱、已读/删除和撤销状态以 `user_notifications` 为云端事实源；设备
   `localStorage` 是启动与离线缓存。只同步实际变更的通知行，避免一台设备用陈旧全量列表

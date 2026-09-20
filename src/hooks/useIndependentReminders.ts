@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
 import { listNavaNotifications, notificationPermissionState, publishNavaNotification, type NavaNotificationItem } from "../services/notifications";
 import { localReminderDate, reminderAt, reminderChangeEvent, reminderEligibility, reminderKinds, reminderOccurrenceId, reminderPreviewEvent, reminderSavedEvent, type ReminderKind } from "../services/independentReminders";
-import { cancelSavedReminder, loadReminderEvidence, loadReminderPreferences, reconcileNativeReminders, reminderMessage } from "../services/reminderDelivery";
+import { cancelSavedReminder, loadEffectiveReminderPreferences, loadReminderEvidence, loadReminderPreferences, reconcileNativeReminders, reminderMessage } from "../services/reminderDelivery";
 
 export default function useIndependentReminders(userId: string | null, date: string, refreshKey: number, locale: "zh" | "en", present: (item: NavaNotificationItem) => void) {
   const presentRef = useRef(present);
@@ -18,9 +18,10 @@ export default function useIndependentReminders(userId: string | null, date: str
       const current = () => alive && version === generation;
       tail = tail.catch(() => undefined).then(async () => {
         if (!current()) { preview?.resolve("设置或记录已变化，请重新模拟。"); return; }
-        const preferences = await loadReminderPreferences(userId);
+        const saved = await loadReminderPreferences(userId);
         const now = new Date();
         const day = localReminderDate(now);
+        const preferences = await loadEffectiveReminderPreferences(userId, saved, day);
         const evidence = await loadReminderEvidence(userId, day);
         if (!current()) { preview?.resolve("设置或记录已变化，请重新模拟。"); return; }
         if (preview) {

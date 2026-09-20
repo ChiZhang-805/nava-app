@@ -184,12 +184,15 @@ try {
     await expect(detail).toBeHidden();
 
     const permissionCard = page.locator(".notification-permission-card");
-    await expect(permissionCard).toBeVisible();
+    await expect(permissionCard).toHaveCount(0);
+    await page.getByRole('button', { name: '通知操作' }).click();
+    await page.getByRole('menuitem', { name: '提醒设置' }).click();
     await page.evaluate(() => Object.defineProperty(Notification, "permission", { configurable: true, value: "granted" }));
     const grantedState = await page.evaluate(() => Notification.permission);
     if (grantedState !== "granted") throw new Error(`${viewport.name}: browser notification permission fixture is ${grantedState}`);
-    await permissionCard.locator(":scope > button").click();
-    await expect(permissionCard).toHaveCount(0, { timeout: 10_000 });
+    await page.locator('.reminder-system-permission button').click();
+    await expect(page.locator('.reminder-system-permission button')).toHaveText('已开启');
+    await page.getByRole('button', { name: '返回通知中心' }).click();
     await expect(page.locator(".notification-row-shell")).toHaveCount(6);
 
     let row = page.locator(".notification-row-shell").first();

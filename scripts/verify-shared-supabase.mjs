@@ -33,7 +33,7 @@ const extensionTables = {
   weekly_health_reports: "id,user_id,week_start,week_end,status,score,confidence,evidence_level,summary,recommendations,algorithm_payload,model_version,generated_at",
   ai_health_reports: "id,user_id,scope,period_start,period_end,language,bullets,provider,model_version,source_count,generated_at,created_at,updated_at",
   record_drafts: "id,user_id,module,record_date,payload,status,created_at,updated_at",
-  notification_preferences: "id,user_id,notification_type,enabled,local_time,timezone,last_scheduled_at,created_at,updated_at",
+  notification_preferences: "id,user_id,notification_type,enabled,local_time,timing_mode,timezone,last_scheduled_at,created_at,updated_at",
   growth_reward_ledger: "id,user_id,event_key,points,source,metadata,created_at",
   reward_products: "id,slug,name,description,point_price,image_urls,sold_out,published,created_at,updated_at",
   reward_cart_items: "user_id,product_id,quantity,created_at,updated_at",

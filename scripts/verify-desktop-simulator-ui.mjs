@@ -23,8 +23,8 @@ try {
       if (viewport.width >= 700) {
         const inspect = async (state) => {
           await expect(rail).toHaveCount(1);
-          await expect(rail.locator("[data-preview-event]")).toHaveCount(4);
-          await expect(rail.locator("[data-reminder-preview] button")).toHaveCount(4);
+          await expect(rail.locator("[data-preview-event]")).toHaveCount(3);
+          await expect(rail.locator("[data-reminder-preview] button")).toHaveCount(8);
           const geometry = await rail.evaluate((node) => {
             const box = node.getBoundingClientRect(), phone = document.querySelector(".nava-app-stage > .phone-frame, .nava-app-stage > .auth-screen").getBoundingClientRect();
             const selector = node.querySelector(".nava-device-selector").getBoundingClientRect(), events = node.querySelector(".nava-focus-event-simulator").getBoundingClientRect();
@@ -63,7 +63,7 @@ try {
         });
         await open("?demo=1#tab=today"); await expect(page.locator(".bottom-nav")).toBeVisible();
         await expect(rail.locator("[data-preview-event]:enabled")).toHaveCount(3);
-        await expect(rail.locator("[data-reminder-preview] button:enabled")).toHaveCount(4);
+        await expect(rail.locator("[data-reminder-preview] button:enabled")).toHaveCount(8);
         await inspect("signed-in-idle");
         await open("?demo=1#tab=record&module=focus");
         await page.locator('.focus-summary-start[aria-label="开始专注"]').click();

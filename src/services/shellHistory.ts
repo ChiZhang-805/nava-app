@@ -46,6 +46,7 @@ export function nextShellHistoryState(currentState: unknown, route: ShellRoute, 
 }
 
 export function fallbackShellRoute(route: ShellRoute): ShellRoute {
+  if (route.tab === "today" && route.view === "reminder-settings") return normalizeShellRoute("today", null, "notifications");
   if (route.tab === "today" && route.view?.startsWith("day-")) return normalizeShellRoute("today", null, "calendar");
   if (route.tab === "today" && route.view) return normalizeShellRoute("today");
   if (route.tab === "record" && route.module && route.view) return normalizeShellRoute("record", route.module);

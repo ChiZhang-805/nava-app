@@ -445,7 +445,7 @@ export function syncContextualNotifications(
   // Missing mood/meal reminders now belong to the independent, minute-aware
   // scheduler. Keep evidence-based trend and hydration advisories unchanged.
   const drafts = buildContextualNotificationDrafts(snapshot, now.getHours(), locale, trends)
-    .filter((draft) => ![`context:${snapshot.date}:mood`, `context:${snapshot.date}:nutrition`, `context:${snapshot.date}:nutrition-gap`].includes(draft.id));
+    .filter((draft) => !["mood", "nutrition", "nutrition-gap", "sleep", "focus", "sleep-focus", "exercise", "face", "face-gap"].some((kind) => draft.id === `context:${snapshot.date}:${kind}`));
   let presented = false;
   for (const draft of drafts) {
     const item = {
@@ -579,18 +579,15 @@ export async function enableNavaNotifications(userId: string, sleepTime = "22:30
     savePreference(userId, "sleep", `${sleep.hour.toString().padStart(2, "0")}:${sleep.minute.toString().padStart(2, "0")}`),
     savePreference(userId, "weekly_report", "08:00"),
   ]);
+  const { loadReminderPreferences, saveReminderPreference } = await import("./reminderDelivery");
+  const current = await loadReminderPreferences(userId);
+  await saveReminderPreference(userId, "sleep", { ...current.sleep, enabled: true, mode: "fixed", localTime: `${String(sleep.hour).padStart(2, "0")}:${String(sleep.minute).padStart(2, "0")}` });
 }
 
 export async function enableNavaNotificationSuite(userId: string, sleepTime = "22:30", locale: "zh" | "en" = "zh") {
-  const sleep = parseTime(sleepTime);
+  void sleepTime; // Kept for existing callers; permission never changes reminder choices.
   await requestDisplayPermission();
-  await scheduleNativeSuite(sleepTime, true);
-  await Promise.all([
-    savePreference(userId, "sleep", `${sleep.hour.toString().padStart(2, "0")}:${sleep.minute.toString().padStart(2, "0")}`),
-    savePreference(userId, "focus", "10:00"),
-    savePreference(userId, "fdnb_signal", "18:30"),
-    savePreference(userId, "weekly_report", "08:00"),
-  ]);
+  window.dispatchEvent(new CustomEvent("nava:independent-reminders-changed", { detail: { userId } }));
   const { registerRemotePush } = await import("./remotePush");
   await registerRemotePush(userId, true);
   publishNavaNotification(userId, {

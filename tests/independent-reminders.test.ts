@@ -1,11 +1,32 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildReminderOccurrences, localReminderDate, reminderAt, reminderEligibility, reminderEvidence, reminderKinds, reminderMealFromView, reminderNativeId, reminderOccurrenceId, reminderTarget, resolveReminderPreferences, validReminderTime } from "../src/services/independentReminders.ts";
+import { buildReminderOccurrences, localReminderDate, reminderAt, reminderEligibility, reminderEvidence, reminderKinds, reminderMealFromView, reminderNativeId, reminderOccurrenceId, reminderTarget, resolveReminderPreferences, resolveReminderSchedule, validReminderTime } from "../src/services/independentReminders.ts";
 import { mergeMealDraft, removeMealDraft, selectMealDraft } from "../src/services/mealDrafts.ts";
 
 const now = () => new Date(2026, 8, 15, 12, 30);
 const empty = () => reminderEvidence("2026-09-15", null, null);
 const allOn = () => resolveReminderPreferences(["mood", "nutrition_breakfast", "nutrition_lunch", "nutrition_dinner"].map((notification_type) => ({ notification_type, enabled: true, local_time: "12:30:00", timezone: "Asia/Shanghai" })), "Asia/Shanghai");
+test("smart schedule uses dated median, keeps fixed choices, requires three days", () => {
+  const prefs = allOn(); prefs.breakfast.mode = "smart"; prefs.sleep.mode = "smart";
+  const samples = ["08:00", "08:10", "11:00"].map((time, i) => ({ date: `2026-09-${12 + i}`, time }));
+  const schedule = resolveReminderSchedule(prefs, { breakfast: samples, sleep: samples.map((row, i) => ({ ...row, time: ["23:50", "00:10", "00:20"][i] })) }, "2026-09-15");
+  assert.equal(schedule.breakfast.localTime, "08:25");
+  assert.equal(schedule.sleep.localTime, "23:40");
+  assert.equal(schedule.lunch.localTime, "12:30");
+  assert.equal(prefs.breakfast.localTime, "12:30", "personal schedule cannot overwrite fixed-time setting");
+  assert.equal(resolveReminderSchedule(prefs, { breakfast: samples.slice(0, 2) }, "2026-09-15").breakfast.localTime, "08:30");
+  assert.equal(resolveReminderSchedule(prefs, { breakfast: samples }, "2026-10-15").breakfast.localTime, "08:30");
+});
+test("eight-kind schedule stays within iOS capacity and preserves bedtime after a sleep log", () => {
+  const prefs = allOn(); for (const kind of reminderKinds) prefs[kind].enabled = true;
+  const plan = buildReminderOccurrences(prefs, empty(), new Date(2026, 8, 15, 0));
+  assert.equal(plan.length, 56);
+  assert.equal(new Set(plan.map((item) => item.kind)).size, 8);
+  assert.equal(new Set(plan.map((item) => item.id)).size, 56);
+  assert.ok(plan.every((row, i) => i === 0 || row.at >= plan[i - 1].at));
+  assert.equal(reminderTarget("sleep").module, "sleep");
+  assert.equal(reminderTarget("focus").module, "focus");
+});
 test("fresh preferences never silently opt in", () => {
   const values = resolveReminderPreferences([], "Asia/Shanghai");
   assert.ok(reminderKinds.every((kind) => !values[kind].enabled));

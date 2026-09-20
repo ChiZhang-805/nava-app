@@ -96,8 +96,11 @@ if (!$storyboard.SelectSingleNode("//viewController[@customClass='NavaBridgeView
 }
 
 $bridge = Get-Content -LiteralPath (Join-Path $appRoot "NavaBridgeViewController.swift") -Raw -Encoding UTF8
-foreach ($plugin in @("NavaHealthPlugin", "NavaSecureStoragePlugin", "NavaSpeechPlugin", "NavaWatchBridgePlugin")) {
+foreach ($plugin in @("NavaHealthPlugin", "NavaSecureStoragePlugin", "NavaSpeechPlugin", "NavaWatchBridgePlugin", "NavaWakeLockPlugin")) {
   if (!$bridge.Contains("registerPluginInstance($plugin())")) { throw "Bridge does not register $plugin." }
+}
+foreach ($expected in @("isIdleTimerDisabled = true", "willResignActiveNotification", "leases.removeAll()", "isIdleTimerDisabled = false", "applicationState == .active")) {
+  if (!$bridge.Contains($expected)) { throw "Native wake-lock safety contract is missing: $expected" }
 }
 
 $appDelegate = Get-Content -LiteralPath (Join-Path $appRoot "AppDelegate.swift") -Raw -Encoding UTF8
