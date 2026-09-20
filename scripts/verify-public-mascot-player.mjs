@@ -1,6 +1,8 @@
 // Compiled production player, real authentication, read-only account context.
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import path from "node:path";
 import { chromium, expect } from "@playwright/test";
 const email = process.env.NAVA_ACCOUNT_EMAIL, password = process.env.NAVA_ACCOUNT_PASSWORD;
 if (!email || !password) throw new Error("Use the secure launcher.");
@@ -13,6 +15,11 @@ try {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     try {
       const page = await context.newPage(); page.setDefaultTimeout(30000);
+      const loadedAssets = new Set();
+      page.on("response", (response) => {
+        const url = new URL(response.url());
+        if (url.origin === new URL(base).origin && !url.pathname.startsWith("/cdn-cgi/") && /\.(js|css)$/.test(url.pathname)) loadedAssets.add(url.href);
+      });
       let healthWrites = 0;
       await page.route("**/rest/v1/**", (route) => {
         const request = route.request(), table = new URL(request.url()).pathname.split("/").pop();
@@ -42,6 +49,8 @@ try {
       const cat = page.locator(".option-two-life-stage .nava-mascot"), canvas = cat.locator("canvas");
       await expect(canvas).toHaveAttribute("data-ready", "true", { timeout: 45000 });
       await expect(cat).toHaveAttribute("data-motion-visual", "persistent-mascot-player");
+      await expect(cat).toHaveAttribute("data-time-phase", /morning|day|night/);
+      await expect(cat).toHaveAttribute("data-interaction", "tap");
       await canvas.evaluate((node) => {
         window.originalCat = node;
         const probe = document.createElement("canvas"); probe.width = 80; probe.height = 60;
@@ -71,7 +80,14 @@ try {
       assert.ok(samples.total > 80); assert.equal(samples.blank, 0); assert.equal(samples.replaced, 0);
       await page.screenshot({ path: `${output}/public-action-${new URL(base).hostname}.png` });
       assert.equal(healthWrites, 0);
-      receipt.results.push({ base, realLogin: true, canonicalProject: true, demoBypassRejected: true, samples, queuedClickLimit: true, healthWrites });
+      assert.ok(loadedAssets.size > 5);
+      for (const url of loadedAssets) {
+        const response = await page.request.get(url); assert.ok(response.ok());
+        const expected = await readFile(path.join("dist/assets", decodeURIComponent(new URL(url).pathname.split("/").pop())));
+        const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+        assert.equal(hash(await response.body()), hash(expected), `Stale asset: ${url}`);
+      }
+      receipt.results.push({ base, realLogin: true, canonicalProject: true, demoBypassRejected: true, samples, queuedClickLimit: true, healthWrites, matchingAssets: loadedAssets.size });
       console.log(`PASS public mascot: ${new URL(base).hostname}`);
     } finally { await context.close(); }
   }

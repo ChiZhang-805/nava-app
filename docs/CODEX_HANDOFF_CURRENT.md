@@ -25,7 +25,11 @@
 指针三次滑动及摸鱼点击收尾测试通过（只加速帧时长，不代替全帧连续性检查）。
 生产认证合同、lint/TypeScript、Bash语法检查通过，原生排除40个JS/CSS产物通过。
 证据在TestRuns/mascot-continuity、mascot-interactions、camera-layout、phone-system-preview。
-双站发布核验正在进行；没有新增后端部署或账号健康记录。
+双站发布已完成：功能源码`cdd04bc5b279c37ade9817a94d4bfb59dee02086`（包含Camera
+依赖的Deno锁文件同步），Sites v164；Pages镜像`0e5c968288b5a4b106f53141df70e2c6d17abb8c`，
+workflow `35506347196`成功。82个资源逐字节相同，旧hash资源未删除。双站真实账号
+只读登录、canonical项目、公开demo拒绝、持续canvas/排队/弱网与所加载JS/CSS hash
+校验通过，healthWrites=0；无后端部署，未生成AI或修改用户健康数据。
 仍待Mac/Xcode编译签名、真实iPhone/Watch权限/通知/来电/相机/文件/常亮及性能验收。
 
 ## 90. 提醒独立页面与专注中断/常亮
@@ -143,21 +147,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`e5bcd27419f174dd83199bd35e0790ddb40ff695`
+- 源码发布 commit：`cdd04bc5b279c37ade9817a94d4bfb59dee02086`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v162，public
+- ChatGPT Sites 版本：v164，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_5f4f6b00d47c81918b539cb42eff2887`
-- Sites deployment ID：`appgdep_6aaa51f815e48191b18af2c9cf074446`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_7804a804fbc48191b73aaefcc3587a1e`
+- Sites deployment ID：`appgdep_6aafbb25d0d081919c5128720cb8c3c7`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `c424c92967ca2155403346239470b07b2d46e3f8`，工作流`35073509004`成功
+  `0e5c968288b5a4b106f53141df70e2c6d17abb8c`，工作流`35506347196`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v162 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-calendar-e5bcd27.tar.gz`
+- v164 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-native-mascot-cdd04bc\site.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v162 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v164 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
