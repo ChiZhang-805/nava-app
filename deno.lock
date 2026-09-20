@@ -32,6 +32,7 @@
       "dependencies": [
         "npm:@capacitor/android@^7.6.9",
         "npm:@capacitor/app@^7.0.2",
+        "npm:@capacitor/camera@^7.0.5",
         "npm:@capacitor/cli@^7.4.2",
         "npm:@capacitor/core@^7.4.2",
         "npm:@capacitor/ios@^7.4.2",
