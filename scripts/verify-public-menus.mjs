@@ -52,6 +52,8 @@ try {
       for (const [width, height] of [[360,740], [375,812], [390,844], [430,932]]) {
         await page.setViewportSize({ width, height });
         await page.evaluate(() => { location.hash = "tab=today&view=calendar"; });
+        await expect(page.locator('.home-calendar-grid')).toBeVisible();
+        await expect(page.locator('[data-page-skeleton="calendar"]')).toHaveCount(0);
         const trigger = page.locator(".nava-more-trigger"); await trigger.click();
         await expect(page.locator(".more-menu-language")).toBeVisible();
         assert.equal(Math.round((await page.locator(".app-utility-popover").boundingBox()).width), 228);

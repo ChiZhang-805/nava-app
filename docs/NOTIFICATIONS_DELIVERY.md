@@ -34,6 +34,11 @@ Apple User Notifications 框架文档及 iPhone 用户指南为准：应用在�
 [APP通知设置链接](https://developer.apple.com/documentation/uikit/uiapplication/opennotificationsettingsurlstring)、
 [Capacitor 7 Local Notifications](https://capacitorjs.com/docs/v7/apis/local-notifications)。
 
+随Sites v165与Pages同源发布（总交接§92）：菜单/头像156项几何、四尺寸中英文、
+五尺寸提醒设置/四尺寸收件箱交互及权限分支通过。双站真实账号只读登录确认8项
+入口和系统卡移除，加载资源匹配，健康写入0；未更改旧账号开关，不把浏览器夹具
+当作原生授权/送达证据。
+
 ### 独立提醒设置页与专注生命周期（2026-09-20）
 
 - 通知中心不再内嵌设置/权限说明。右上三点菜单的“提醒设置”进入独立路由

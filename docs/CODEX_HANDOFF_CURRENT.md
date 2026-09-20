@@ -30,7 +30,15 @@
 各阶段通过（旧菜单选择器失败后修正，第9阶段起按原脚本续跑，见两份verify日志）；
 随后独立重跑菜单、提醒、收件箱、编辑页、lint、原生构建全部退出0，原生37个JS/CSS
 产物无网页模拟层。生产认证合同通过。无内置浏览器，外部Chromium串行。
-双站发布将在下面补充实际版本/线上验收结果，目前勿将源码验证当作已部署。
+已发布功能源码`a2df70e0acd08fca423673a6aa3838dcc9a6d0a3`（GitHub与Sites来源已推送）；
+Sites v165发布succeeded，Pages镜像`7515e69ff0f1276cd189cc7d416beffeb2b5b0cb`，
+工作流`35510902982`成功，公开source.json一致。80个构建资源逐字节相同，旧hash
+资源保留。Windows插件build/package包装器仍分别有npm-cli/Bash路径问题，沿既有
+流程用仓库review构建、官方prepare-site-build与原生tar打包，未修改部署架构。
+两站真实账号只读登录、公共demo拒绝、canonical项目、英文系统首选、中文/系统
+切换、四尺寸菜单/头像和移除系统权限卡通过；各22个实际加载JS/CSS匹配，健康
+写入0，未改头像/提醒偏好，也未调用AI生成。验收脚本后补等待月历数据加载完成，
+与发布后文档一起单独提交，不改变v165产品源码锚点。
 证据：`Q:\NAVA-Workspace\Build\TestRuns\menus-locale`。
 尚未证明：Swift/Xcode编译、真机首次授权/设置跳转/系统通知送达，不能用静态合同
 或浏览器夹具当作这些验收。未重新验收旧AI与历史数据任务。
@@ -175,21 +183,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`cdd04bc5b279c37ade9817a94d4bfb59dee02086`
+- 源码发布 commit：`a2df70e0acd08fca423673a6aa3838dcc9a6d0a3`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v164，public
+- ChatGPT Sites 版本：v165，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_7804a804fbc48191b73aaefcc3587a1e`
-- Sites deployment ID：`appgdep_6aafbb25d0d081919c5128720cb8c3c7`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_f9847c04b4cc81919a9c0d9faa3bcc61`
+- Sites deployment ID：`appgdep_6aafd20cda6c81918c32bba873004b3d`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `0e5c968288b5a4b106f53141df70e2c6d17abb8c`，工作流`35506347196`成功
+  `7515e69ff0f1276cd189cc7d416beffeb2b5b0cb`，工作流`35510902982`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v164 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-native-mascot-cdd04bc\site.tar.gz`
+- v165 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-menus-a2df70e\site.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v164 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v165 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
