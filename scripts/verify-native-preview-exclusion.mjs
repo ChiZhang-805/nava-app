@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readdir, readFile, mkdir, writeFile } from "node:fs/promises";
-const output = "Q:/NAVA-Workspace/Build/TestRuns/phone-system-preview/native-exclusion.json";
+import path from "node:path";
+const directory = process.env.NAVA_TEST_OUTPUT || (process.platform === "win32" ? "Q:/NAVA-Workspace/Build/TestRuns/phone-system-preview" : "artifacts/ios/preview-exclusion");
+const output = path.join(directory, "native-exclusion.json");
 const forbidden = /ios-system-layer|nava:preview-phone-command|nava:preview-system|nava-device-preview|外部环境模拟|nava:preview-reminder/;
 const files = await readdir("dist/assets");
 let checked = 0;
@@ -11,6 +13,6 @@ for (const file of files) {
   checked++;
 }
 assert.ok(checked > 15);
-await mkdir("Q:/NAVA-Workspace/Build/TestRuns/phone-system-preview", { recursive: true });
+await mkdir(directory, { recursive: true });
 await writeFile(output, JSON.stringify({ passed: true, checked, realDeviceTested: false, at: new Date().toISOString() }, null, 2));
 console.log(`Native preview exclusion passed: ${checked} JS/CSS artifacts.`);

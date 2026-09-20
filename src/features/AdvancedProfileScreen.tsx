@@ -1,4 +1,5 @@
 import type { User } from "@supabase/supabase-js";
+import PhotoInput from "../components/PhotoInput";
 import {
   ArrowLeft,
   Brain,
@@ -282,8 +283,8 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
           <button className="advanced-profile-save" type="submit" disabled={saving}>{saved ? <Check size={20} /> : <Save size={20} />}{saving ? copy("正在保存…", "Saving…") : copy("保存详细资料", "Save detailed profile")}</button>
           </form>
 
-          <input ref={galleryInputRef} data-profile-avatar-input="gallery" className="visually-hidden" type="file" accept="image/*" onChange={(event) => { const file = event.currentTarget.files?.[0] ?? null; event.currentTarget.value = ""; void handleAvatarFile(file); }} />
-          <input ref={cameraInputRef} data-profile-avatar-input="camera" className="visually-hidden" type="file" accept="image/*" capture="user" onChange={(event) => { const file = event.currentTarget.files?.[0] ?? null; event.currentTarget.value = ""; void handleAvatarFile(file); }} />
+          <PhotoInput locale={locale} onError={setError} ref={galleryInputRef} data-profile-avatar-input="gallery" className="visually-hidden" type="file" accept="image/*" onFile={(file) => { void handleAvatarFile(file); }} />
+          <PhotoInput locale={locale} onError={setError} ref={cameraInputRef} data-profile-avatar-input="camera" className="visually-hidden" type="file" accept="image/*" capture="user" onFile={(file) => { void handleAvatarFile(file); }} />
           {avatarSheetOpen && <div className="avatar-sheet-overlay" role="presentation" onClick={() => setAvatarSheetOpen(false)}>
             <section className="avatar-sheet" role="dialog" aria-modal="true" aria-label={copy("更换头像", "Change avatar")} onClick={(event) => event.stopPropagation()}>
               <div className="section-heading"><h2>{copy("更换头像", "Change avatar")}</h2><button className="section-icon-action" type="button" aria-label={copy("关闭", "Close")} onClick={() => setAvatarSheetOpen(false)}><X size={21} /></button></div>

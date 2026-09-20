@@ -607,7 +607,7 @@ export default function OptionTwoHome({
 
       <div className="option-two-life-stage">
         <span className="option-two-aura" aria-hidden="true" />
-        <InteractiveMascot locale={locale} preferredMotion={homeGuidance?.motion} />
+        <InteractiveMascot locale={locale} preferredMotion={homeGuidance?.motion} positiveMood={(snapshot?.mood?.mood_score ?? 0) >= 75} />
       </div>
 
       <div className="option-two-health-menu" aria-hidden={!healthMenuOpen}>

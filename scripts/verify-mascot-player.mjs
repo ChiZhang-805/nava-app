@@ -117,6 +117,22 @@ try {
       player.play({ id: "split", clips: [{ src: "valid" }, { src: "broken" }] });
       await wait(700);
       if (player.track?.src !== src || player.phase !== "idle") throw new Error("Failed segment did not recover idle");
+      player.play({ id: "fish", interaction: "fish", clips: [{ src: "fish1" }, { src: "fish2" }, { src: "fish3" }] });
+      await wait(600);
+      if (player.segment !== 1 || player.action?.id !== "fish") throw new Error("Fish did not loop waiting for interaction");
+      if (!player.interact()) throw new Error("Fish tap rejected");
+      await wait(450);
+      if (player.action) throw new Error("Fish did not finish after a tap");
+      player.play({ id: "fluff", interaction: "groom", clips: [{ src: "fur1" }, { src: "fur2" }, { src: "fur3" }] });
+      await wait(230);
+      for (let stroke = 0; stroke < 3; stroke++) {
+        if (player.phase !== "waiting") throw new Error(`Groom checkpoint ${stroke} missing`);
+        const held = canvas.dataset.frame; await wait(70);
+        if (canvas.dataset.frame !== held || player.raf) throw new Error("Groom waiting consumed animation frames");
+        if (!player.interact()) throw new Error(`Groom stroke ${stroke} rejected`);
+        await wait(230);
+      }
+      if (player.action) throw new Error("Three grooming strokes did not settle");
       player.visible = false; player.updatePause();
       const pausedFrame = canvas.dataset.frame;
       await wait(160);
@@ -158,7 +174,7 @@ try {
       const noResurrection = events.length === afterDispose && player.requests.size === 0;
       canvas.remove();
       if (!first || !queued || !rejected || !offscreenPaused || !backgroundPaused || !resumed || !imageFallback || !noResurrection) throw new Error("Mascot lifecycle regression");
-      return { first, queued, rejected, offscreenPaused, backgroundPaused, resumed, imageFallback, preservedAction, noResurrection };
+      return { first, queued, rejected, fishLoopAndTap: true, threeGroomingStrokes: true, offscreenPaused, backgroundPaused, resumed, imageFallback, preservedAction, noResurrection };
     });
     results.push({ lifecycle });
   } finally { await context.close(); }

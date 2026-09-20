@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Camera, RotateCcw, X } from "lucide-react";
 import { usePreviewActivity } from "../hooks/usePreviewActivity";
+import { pickNativePhoto, usesNativePhotos } from "../services/nativePhotos";
 import "../styles/camera-capture.css";
 
 type Detector = { detect: (source: HTMLVideoElement) => Promise<Array<{ boundingBox: { x: number; y: number; width: number; height: number } }>> };
@@ -20,6 +21,7 @@ export default function CameraCapture({ locale, facing, onCapture, onClose, onFa
   const video = useRef<HTMLVideoElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const stream = useRef<MediaStream | null>(null);
+  const nativeRequest = useRef<AbortController | null>(null);
   const generation = useRef(0);
   const mounted = useRef(true);
   const capturing = useRef(false);
@@ -27,6 +29,7 @@ export default function CameraCapture({ locale, facing, onCapture, onClose, onFa
   closeAction.current = onClose;
   const host = document.querySelector(".phone-frame") ?? document.body;
   const stop = useCallback(() => {
+    nativeRequest.current?.abort(); nativeRequest.current = null;
     generation.current++;
     const owned = stream.current; stream.current = null;
     owned?.getTracks().forEach((track) => { track.onended = null; track.stop(); });
@@ -38,12 +41,21 @@ export default function CameraCapture({ locale, facing, onCapture, onClose, onFa
     setNotice(zh ? "拍摄已暂停" : "Camera paused");
   }, [stop, zh]);
   usePreviewActivity("camera", phase === "starting" || phase === "live" ? "running" : "paused", interrupt);
-  const start = useCallback(async () => {
+  const start = useCallback(async (source: "camera" | "library" = "camera") => {
     stop();
     if (document.hidden) { setPhase("paused"); return; }
     const request = generation.current;
     setPhase("starting"); setNotice(""); setGuidance(""); setStill(null);
     try {
+      if (usesNativePhotos()) {
+        const controller = new AbortController(); nativeRequest.current = controller;
+        const file = await pickNativePhoto(source, facing, controller.signal);
+        if (!mounted.current || request !== generation.current) return;
+        nativeRequest.current = null;
+        if (!file) { closeAction.current(); return; }
+        setStill({ file, url: URL.createObjectURL(file) }); setPhase("review");
+        return;
+      }
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("unavailable");
       const media = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 960 } } });
       if (!mounted.current || request !== generation.current) { media.getTracks().forEach((track) => track.stop()); return; }
@@ -61,12 +73,13 @@ export default function CameraCapture({ locale, facing, onCapture, onClose, onFa
   }, [facing, interrupt, stop, zh]);
   useEffect(() => {
     mounted.current = true;
-    void start();
-    const hide = () => { if (document.hidden) interrupt(); };
-    const leave = () => interrupt();
+    const begin = window.setTimeout(() => void start(), 0);
+    // The system camera owns its lifecycle. Its presentation may background the web view.
+    const hide = () => { if (document.hidden && !nativeRequest.current) interrupt(); };
+    const leave = () => { if (!nativeRequest.current) interrupt(); };
     document.addEventListener("visibilitychange", hide);
     window.addEventListener("pagehide", leave);
-    return () => { mounted.current = false; stop(); document.removeEventListener("visibilitychange", hide); window.removeEventListener("pagehide", leave); };
+    return () => { window.clearTimeout(begin); mounted.current = false; stop(); document.removeEventListener("visibilitychange", hide); window.removeEventListener("pagehide", leave); };
   }, [interrupt, start, stop]);
   useEffect(() => () => { if (still) URL.revokeObjectURL(still.url); }, [still]);
   useEffect(() => {
@@ -129,6 +142,6 @@ export default function CameraCapture({ locale, facing, onCapture, onClose, onFa
       <div className="camera-capture-body"><div className={`camera-viewfinder ${facing === "user" ? "is-front" : ""}`} hidden={phase !== "live" && !still}><video ref={video} autoPlay muted playsInline hidden={phase !== "live"} />{still && <img src={still.url} alt={zh ? "待确认照片" : "Photo to confirm"} />}{phase === "live" && facing === "user" && <i className="camera-face-guide" aria-hidden="true" />}</div>
         {!still && phase !== "live" && <Camera className="camera-status-icon" size={28} aria-hidden="true" />}
         {phase === "starting" && <p role="status">{zh ? "正在开启摄像头…" : "Opening camera…"}</p>}{notice && !still && <p role="status">{notice}</p>}{phase === "live" && !notice && guidance && <p role="status">{guidance}</p>}
-      </div><footer>{phase === "live" ? <button type="button" onClick={() => void capture()}><Camera size={20} />{zh ? "拍摄" : "Capture"}</button> : phase === "review" && still ? <><button type="button" onClick={() => void start()}><RotateCcw size={18} />{zh ? "重拍" : "Retake"}</button><button type="button" onClick={() => { stop(); onCapture(still.file); }}>{zh ? "使用照片" : "Use photo"}</button></> : <><button type="button" disabled={phase === "starting"} onClick={() => void start()}>{zh ? "重新开启" : "Restart"}</button><button type="button" onClick={() => { stop(); onFallback(); }}>{zh ? "系统相机 / 相册" : "System camera / library"}</button></>}</footer>
+      </div><footer>{phase === "live" ? <button type="button" onClick={() => void capture()}><Camera size={20} />{zh ? "拍摄" : "Capture"}</button> : phase === "review" && still ? <><button type="button" onClick={() => void start()}><RotateCcw size={18} />{zh ? "重拍" : "Retake"}</button><button type="button" onClick={() => { stop(); onCapture(still.file); }}>{zh ? "使用照片" : "Use photo"}</button></> : <><button type="button" disabled={phase === "starting"} onClick={() => void start()}>{zh ? "重新开启" : "Restart"}</button><button type="button" disabled={usesNativePhotos() && phase === "starting"} onClick={() => { if (usesNativePhotos()) void start("library"); else { stop(); onFallback(); } }}>{usesNativePhotos() ? (zh ? "选择照片" : "Choose photo") : (zh ? "系统相机 / 相册" : "System camera / library")}</button></>}</footer>
     </section></div>, host);
 }

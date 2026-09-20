@@ -14,6 +14,8 @@ Invoke-Npm -Arguments @("run", "external-preview:test")
 Invoke-Npm -Arguments @("run", "phone-system:test")
 Invoke-Npm -Arguments @("run", "wellbeing:test")
 Invoke-Npm -Arguments @("run", "media-feedback:test")
+Invoke-Npm -Arguments @("run", "native-photos:test")
+Invoke-Npm -Arguments @("run", "ios:verify:portable")
 Invoke-Npm -Arguments @("run", "media-feedback:visual")
 Invoke-Npm -Arguments @("run", "camera:visual")
 Invoke-Npm -Arguments @("run", "external-preview:visual")
@@ -39,6 +41,7 @@ Write-Host ""
 Write-Host "5. Motion response tests"
 Invoke-Npm -Arguments @("run", "motion:test")
 Invoke-Npm -Arguments @("run", "mascot:visual")
+Invoke-Npm -Arguments @("run", "mascot:interaction:visual")
 
 Write-Host ""
 Write-Host "6. Daily module completion and routing"

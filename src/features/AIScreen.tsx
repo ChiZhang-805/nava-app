@@ -5,6 +5,7 @@ import { Fragment, FormEvent, useCallback, useEffect, useRef, useState, type Poi
 import { useLocale } from "../i18n";
 import PageSkeleton from "../components/PageSkeleton";
 import CameraCapture from "../components/CameraCapture";
+import PhotoInput from "../components/PhotoInput";
 import { usePreviewActivity } from "../hooks/usePreviewActivity";
 import { createConversationGreeting, deleteConversationMessages, generateConversationTitle, loadConversation, sendAiMessage } from "../services/ai";
 import type { AiProcessingStep } from "../services/aiProcessing";
@@ -1276,16 +1277,12 @@ export default function AIScreen({
               </button>
             </div>
           )}
-          <input
+          <PhotoInput locale={locale} onError={setError}
             ref={photoInputRef}
             className="chat-attachment-input chat-photo-input"
             type="file"
             accept={chatAttachmentAccept.images}
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0] ?? null;
-              event.currentTarget.value = "";
-              void handleComposerPhoto(file);
-            }}
+            onFile={(file) => { void handleComposerPhoto(file); }}
           />
           <input
             ref={documentInputRef}
@@ -1298,17 +1295,13 @@ export default function AIScreen({
               void handleComposerDocument(file);
             }}
           />
-          <input
+          <PhotoInput locale={locale} onError={setError}
             ref={cameraInputRef}
             className="chat-attachment-input chat-camera-input"
             type="file"
             accept={chatAttachmentAccept.images}
             capture="environment"
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0] ?? null;
-              event.currentTarget.value = "";
-              void handleComposerPhoto(file);
-            }}
+            onFile={(file) => { void handleComposerPhoto(file); }}
           />
         </div>
         <div className="chat-input-shell">

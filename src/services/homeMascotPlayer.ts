@@ -1,7 +1,7 @@
 import { mascotFrameBlob, parseMascotWebp, type MascotClip, type MascotFrame } from "./mascotWebp";
 
-type Action = { id: string; clips: Array<{ src: string }> };
-type State = { action: string; phase: "idle" | "loading" | "playing" | "static"; queued: boolean };
+type Action = { id: string; clips: Array<{ src: string }>; interaction?: "groom" | "fish" };
+type State = { action: string; phase: "idle" | "loading" | "playing" | "static" | "waiting"; queued: boolean };
 type Decoded = { image: CanvasImageSource; close: () => void };
 type Track = { clip: MascotClip; src: string; index: number; previous?: MascotFrame; scale: number; x: number; y: number; aligned: boolean; minimumAlpha?: number };
 
@@ -47,6 +47,8 @@ export class HomeMascotPlayer {
   private action: Action | null = null;
   private queued: Action | null = null;
   private segment = 0;
+  private interactionReleased = false;
+  private waiting = false;
   private switchTo: { clip: MascotClip; src: string } | null = null;
   private generation = 0;
   private stopped = false;
@@ -82,7 +84,7 @@ export class HomeMascotPlayer {
   private motionChanged = () => {
     this.reduced = this.media.matches;
     if (this.reduced) {
-      this.generation++; this.queued = null; this.action = null; this.busy = false;
+      this.generation++; this.queued = null; this.action = null; this.busy = false; this.waiting = false;
       this.switchTo = null; this.track = null; this.phase = "static";
       this.requests.forEach(({ controller }) => controller.abort()); this.requests.clear(); this.cache.clear();
       this.canvas.dataset.ready = "false"; this.ready = false;
@@ -143,15 +145,38 @@ export class HomeMascotPlayer {
   play(action: Action): boolean {
     if (this.stopped || this.reduced) return false;
     if (this.busy) {
+      if (this.action?.interaction) return false;
       if (this.queued) return false;
       this.queued = action; this.emit(); return true;
     }
-    this.busy = true; this.action = action; this.segment = 0;
+    this.busy = true; this.action = action; this.segment = 0; this.waiting = false; this.interactionReleased = false;
     void this.prepare(action.clips[0].src);
     return true;
   }
+  /** A stroke advances exactly one grooming checkpoint; a tap ends the fish loop. */
+  interact(): boolean {
+    if (this.paused || !this.action?.interaction) return false;
+    if (this.action.interaction === "fish") { this.interactionReleased = true; return true; }
+    if (!this.waiting || !this.track) return false;
+    this.waiting = false; this.phase = "playing"; this.emit();
+    this.finishTrack(this.track); this.due = performance.now(); this.schedule(); return true;
+  }
+  private finishTrack(track: Track) {
+    if (track.index !== track.clip.frames.length) return;
+    track.index = 0; track.previous = undefined;
+    this.ctx.clearRect(0, 0, this.stage.width, this.stage.height);
+    if (!this.action || track.src !== this.action.clips[this.segment].src) return;
+    if (this.action.interaction === "fish" && this.segment === 1 && !this.interactionReleased) return;
+    this.track = null;
+    if (++this.segment < this.action.clips.length) void this.prepare(this.action.clips[this.segment].src);
+    else {
+      const queued = this.queued;
+      this.action = null; this.queued = null; this.busy = false;
+      if (queued) this.play(queued); else void this.prepare(this.idle);
+    }
+  }
   private schedule() {
-    if (!this.paused && !this.raf && !this.decoding) this.raf = requestAnimationFrame(this.tick);
+    if (!this.paused && !this.waiting && !this.raf && !this.decoding) this.raf = requestAnimationFrame(this.tick);
   }
   private tick = (now: number) => {
     this.raf = 0;
@@ -218,20 +243,11 @@ export class HomeMascotPlayer {
       // Preserve encoded timing across normal decode/RAF jitter, with no catch-up burst after a stall.
       this.due = Math.max(this.due + frame.duration, performance.now() + 1);
       track.index++;
-      if (track.index === track.clip.frames.length) {
-        track.index = 0;
-        // ANIM loops start with a fresh internal canvas; the display remains untouched.
-        track.previous = undefined; this.ctx.clearRect(0, 0, this.stage.width, this.stage.height);
-        if (this.action && track.src === this.action.clips[this.segment].src) {
-          this.track = null; // Hold the last displayed pose while the next segment becomes ready.
-          if (++this.segment < this.action.clips.length) void this.prepare(this.action.clips[this.segment].src);
-          else {
-            const queued = this.queued;
-            this.action = null; this.queued = null; this.busy = false;
-            if (queued) this.play(queued); else void this.prepare(this.idle);
-          }
-        }
-      }
+      const grooming = this.action?.interaction === "groom" && track.src === this.action.clips[this.segment].src;
+      if (grooming && ((this.segment === 0 && track.index === track.clip.frames.length)
+        || (this.segment === 1 && (track.index === Math.ceil(track.clip.frames.length / 2) || track.index === track.clip.frames.length)))) {
+        this.waiting = true; this.phase = "waiting"; this.emit();
+      } else this.finishTrack(track);
     } catch {
       if (this.stopped || this.reduced || track !== this.track || generation !== this.generation) return;
       const pendingSrc = this.switchTo?.src ?? (this.phase === "loading" ? this.action?.clips[this.segment]?.src ?? this.idle : null);

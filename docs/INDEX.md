@@ -21,7 +21,7 @@
 | [`algorithm-research.md`](./algorithm-research.md) | ChronoState 方法选择、演进和后续研究方向 |
 | [`chrono-v4.27-fixed-dataset-benchmark.md`](./chrono-v4.27-fixed-dataset-benchmark.md) | 当前 ChronoState V4.27 固定数据集基准证据 |
 | [`fdnb-health-integration.md`](./fdnb-health-integration.md) | FDNB 研究层数据合同和门槛 |
-| [`ios-motion-background.md`](./ios-motion-background.md) | iOS 动态背景与权限合同 |
+| [`ios-motion-background.md`](./ios-motion-background.md) | 动画追加需求映射、iOS相机/照片/文件能力、Mac交接与真机门槛 |
 | [`local-workspace.md`](./local-workspace.md) | 本地工作区路径和环境说明 |
 | [`web-upstream-contract.md`](./web-upstream-contract.md) | 与 Web 上游仓库的协作边界 |
 

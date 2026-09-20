@@ -7,6 +7,7 @@ import AnimatedNumber from "../components/AnimatedNumber";
 import ModuleProgressRing from "../components/ModuleProgressRing";
 import PageSkeleton, { SkeletonBlock, SkeletonLines } from "../components/PageSkeleton";
 import CameraCapture from "../components/CameraCapture";
+import PhotoInput from "../components/PhotoInput";
 import LineTrendChart from "../components/LineTrendChart";
 import SectionCard from "../components/SectionCard";
 import WeeklyRadarChart from "../components/WeeklyRadarChart";
@@ -1601,7 +1602,7 @@ export default function RecordsScreen({
       ref={rootRef}
     >
       {cameraTarget && <CameraCapture locale={locale} facing={cameraTarget === "face" ? "user" : "environment"} onClose={() => setCameraTarget(null)} onFallback={() => { const target = cameraTarget; setCameraTarget(null); if (target === "face") facePhotoInputRef.current?.click(); else dietQuickCameraInputRef.current?.click(); }} onCapture={(file) => { const target = cameraTarget; setCameraTarget(null); if (target === "face") void handleFacePhoto(file); else { setShowEditor(true); onViewChange?.("editor"); void handleDietPhoto(file); } }} />}
-      <input
+      <PhotoInput locale={locale} onError={setError}
         ref={dietQuickCameraInputRef}
         className="visually-hidden"
         data-diet-quick-camera
@@ -1610,9 +1611,7 @@ export default function RecordsScreen({
         accept="image/*"
         capture="environment"
         disabled={dietAnalyzing}
-        onChange={(event) => {
-          const file = event.currentTarget.files?.[0] ?? null;
-          event.currentTarget.value = "";
+        onFile={(file) => {
           if (!file) return;
           setShowEditor(true);
           onViewChange?.("editor");
@@ -1950,16 +1949,12 @@ export default function RecordsScreen({
             <label className="diet-photo-action">
               <Upload size={18} />
               <span>{locale === "zh" ? "上传照片" : "Upload photo"}</span>
-              <input
+              <PhotoInput locale={locale} onError={setError}
                 aria-label={locale === "zh" ? "从相册上传饮食照片" : "Upload meal photo from library"}
                 type="file"
                 accept="image/*"
                 disabled={dietAnalyzing}
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0] ?? null;
-                  event.currentTarget.value = "";
-                  void handleDietPhoto(file);
-                }}
+                onFile={(file) => { void handleDietPhoto(file); }}
               />
             </label>
           </div>
@@ -2158,21 +2153,21 @@ export default function RecordsScreen({
           <label className={["photo-picker", "face", faceAnalyzing ? "is-analyzing" : "", faceImage ? "has-image" : ""].filter(Boolean).join(" ")}>
             {faceImage ? <img src={faceImage} alt={locale === "zh" ? "面部照片" : "Face photo"} /> : <ScanFace size={30} />}
             <span>{faceAnalyzing ? t("records.faceScanning") : t("records.scanFace")}</span>
-            <input
+            <PhotoInput locale={locale} onError={setError}
               aria-label={t("records.frontCamera")}
               ref={facePhotoInputRef}
               type="file"
               accept="image/*"
               capture="user"
               disabled={faceAnalyzing}
-              onChange={(e) => { const file = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ""; void handleFacePhoto(file); }}
+              onFile={(file) => { void handleFacePhoto(file); }}
             />
             {faceAnalyzing && <Loader2 className="spin" size={18} />}
           </label>
           <div className="face-photo-actions">
             <button type="button" disabled={faceAnalyzing} onClick={() => setCameraTarget("face")}><Camera size={17} />{faceImage ? (locale === "zh" ? "重新拍摄" : "Retake") : (locale === "zh" ? "前置拍摄" : "Front camera")}</button>
             <button type="button" disabled={faceAnalyzing} onClick={() => faceLibraryInputRef.current?.click()}><Upload size={17} />{locale === "zh" ? "从相册重选" : "Choose from library"}</button>
-            <input ref={faceLibraryInputRef} hidden aria-label={locale === "zh" ? "从相册选择面部照片" : "Choose face photo from library"} type="file" accept="image/*" disabled={faceAnalyzing} onChange={(e) => { const file = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ""; void handleFacePhoto(file); }} />
+            <PhotoInput locale={locale} onError={setError} ref={faceLibraryInputRef} hidden aria-label={locale === "zh" ? "从相册选择面部照片" : "Choose face photo from library"} type="file" accept="image/*" disabled={faceAnalyzing} onFile={(file) => { void handleFacePhoto(file); }} />
           </div>
           <section className={["face-ai-evaluation", faceAnalyzing ? "is-loading" : faceResult ? "has-result" : "is-empty"].join(" ")} aria-live="polite">
             <header><span><Bot size={17} />{locale === "zh" ? "AI 状态评价" : "AI state notes"}</span>{faceResult?.confidence != null && <small>{Math.round(faceResult.confidence * 100)}%</small>}</header>

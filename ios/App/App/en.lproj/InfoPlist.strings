@@ -1,4 +1,7 @@
 "NSHealthShareUsageDescription" = "NAVA reads your Apple Health activity, sleep, heart rate, HRV, and oxygen data to calculate personal rhythm insights.";
 "NSMotionUsageDescription" = "NAVA uses device motion locally so the living background can respond gently when you move your iPhone.";
+"NSCameraUsageDescription" = "NAVA uses the camera to take meal, face, or profile photos you choose to submit.";
+"NSPhotoLibraryUsageDescription" = "NAVA reads photos you select for records, chat attachments, or your profile.";
+"NSPhotoLibraryAddUsageDescription" = "NAVA saves an image to Photos only when you choose to save it.";
 "NSMicrophoneUsageDescription" = "NAVA uses the microphone to turn your voice into chat text in real time.";
 "NSSpeechRecognitionUsageDescription" = "NAVA uses on-device speech recognition to turn your spoken status into text.";

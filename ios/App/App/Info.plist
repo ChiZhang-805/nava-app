@@ -28,6 +28,12 @@
 	<string>NAVA 仅在本机使用设备动作数据，让动态背景响应您的 iPhone 移动。</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>NAVA 使用麦克风将您的语音实时转换为对话文字。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>NAVA 使用相机拍摄您选择提交的餐食、面部照片或头像。</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>NAVA 读取您选择的照片，用于记录、对话附件或头像。</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>仅当您选择保存图片时，NAVA 才会将图片存入相册。</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>NAVA 使用设备语音识别，将您的口述状态转换为文字。</string>
 	<key>UILaunchStoryboardName</key>

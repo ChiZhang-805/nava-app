@@ -18,6 +18,7 @@ export type HomeMascotAction = {
   id: string;
   label: { zh: string; en: string };
   clips: Array<{ src: string; durationMs: number }>;
+  interaction?: "groom" | "fish";
 };
 
 export const homeMascotActions: HomeMascotAction[] = [
@@ -29,10 +30,10 @@ export const homeMascotActions: HomeMascotAction[] = [
   { id: "nap", label: { zh: "闭眼打个盹", en: "take a little nap" }, clips: [{ src: drowsy, durationMs: 9540 }] },
   { id: "lift", label: { zh: "举起小哑铃", en: "lift a tiny weight" }, clips: [{ src: lift, durationMs: 1800 }] },
   { id: "roll", label: { zh: "翻个跟头", en: "do a playful roll" }, clips: [{ src: roll, durationMs: 4680 }] },
-  { id: "fluff", label: { zh: "鼓起脸撒娇", en: "puff up playfully" }, clips: [
+  { id: "fluff", interaction: "groom", label: { zh: "等你捋一捋毛", en: "wait for a grooming stroke" }, clips: [
     { src: fluffOne, durationMs: 1890 }, { src: fluffTwo, durationMs: 2430 }, { src: fluffThree, durationMs: 2670 },
   ] },
-  { id: "fish", label: { zh: "追着小鱼玩", en: "play with a little fish" }, clips: [
+  { id: "fish", interaction: "fish", label: { zh: "抱着小鱼摸鱼", en: "knead a fish pillow" }, clips: [
     { src: fishOne, durationMs: 3540 }, { src: fishTwo, durationMs: 2340 }, { src: fishThree, durationMs: 3270 },
   ] },
 ];

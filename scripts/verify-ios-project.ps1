@@ -70,7 +70,7 @@ function Get-PlistValueNode {
 }
 
 [xml]$info = Get-Content -LiteralPath (Join-Path $appRoot "Info.plist") -Raw -Encoding UTF8
-foreach ($privacyKey in @("NSHealthShareUsageDescription", "NSMotionUsageDescription", "NSMicrophoneUsageDescription", "NSSpeechRecognitionUsageDescription")) {
+foreach ($privacyKey in @("NSHealthShareUsageDescription", "NSMotionUsageDescription", "NSMicrophoneUsageDescription", "NSSpeechRecognitionUsageDescription", "NSCameraUsageDescription", "NSPhotoLibraryUsageDescription", "NSPhotoLibraryAddUsageDescription")) {
   $value = Get-PlistValueNode -Document $info -Key $privacyKey
   if (!$value -or !$value.InnerText.Trim()) { throw "Missing iOS privacy description: $privacyKey" }
 }
@@ -155,6 +155,7 @@ $xcodeProjectRoot = Join-Path $root "ios\App"
 $podfile = Get-Content -LiteralPath (Join-Path $xcodeProjectRoot "Podfile") -Raw -Encoding UTF8
 if (!$podfile.Contains("CapacitorLocalNotifications")) { throw "iOS Podfile is missing CapacitorLocalNotifications." }
 if (!$podfile.Contains("CapacitorPushNotifications")) { throw "iOS Podfile is missing CapacitorPushNotifications." }
+if (!$podfile.Contains("CapacitorCamera")) { throw "iOS Podfile is missing CapacitorCamera." }
 $notificationService = Get-Content -LiteralPath (Join-Path $root "src\services\notifications.ts") -Raw -Encoding UTF8
 foreach ($expected in @("replaceNotificationSchedules(LocalNotifications, notifications)", "localNotificationReceived", "localNotificationActionPerformed")) {
   if (!$notificationService.Contains($expected)) { throw "Notification service is missing: $expected" }

@@ -25,8 +25,19 @@ echo "CocoaPods: $(pod --version)"
 if [[ "${NAVA_SKIP_NPM_CI:-0}" != "1" ]]; then
   npm ci
 fi
-npm run verify
+# The full release gate runs in the source workspace. This Mac handoff must not invoke
+# Windows-only PowerShell or Q-drive screenshot paths, and must fail on any native gate.
+npm run lint
+npm run ios:verify:portable
+npm run native-photos:test
+npm run motion:test
+npm run notification:test
+npm run health:contract:test
+npm run ai:speech:test
+npm run push:contract:test
 npm run cap:sync
+node scripts/verify-native-preview-exclusion.mjs
+plutil -lint ios/App/App/Info.plist ios/App/App/App.entitlements
 
 DERIVED_DATA="${REPO_ROOT}/artifacts/ios/DerivedData"
 mkdir -p "${DERIVED_DATA}"
