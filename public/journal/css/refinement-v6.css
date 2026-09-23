@@ -1,0 +1,34 @@
+/* v6：局部排版校准，保留原画、色彩、卡片与动画坐标。 */
+/* 阶段一：三项短表单占满卡片，不再因统一的备注最小高度而被裁掉。 */
+#entry-form:is([data-category="sport"],[data-category="sleep"],[data-category="focus"],[data-category="mood"]) { height:100%; }
+#entry-form:is([data-category="sport"],[data-category="sleep"],[data-category="focus"],[data-category="mood"]) > .field-long { flex:1 0 95px; min-height:95px; }
+#entry-form:is([data-category="sport"],[data-category="sleep"],[data-category="focus"],[data-category="mood"]) > .field-long textarea { flex:1 1 0; min-height:70px; height:0; }
+#entry-form[data-category="focus"] .ai-draft-note { display:none; }
+#entry-form[data-category="food"] .photo-tool { min-height:38px; height:38px; }
+#entry-form[data-category="face"] .photo-tool { min-height:40px; height:40px; }
+#entry-form[data-category="food"] .photo-preview:not(.has-image) { height:96px; }
+#entry-form[data-category="face"] .photo-preview:not(.has-image) { height:165px; }
+#entry-form[data-category="face"] > .field-long { flex:none; min-height:0; }
+#entry-form[data-category="face"] > .field-long textarea { flex:none; height:120px; }
+.photo-preview { transition:height .26s cubic-bezier(.22,.68,.24,1); }
+/* 阶段二：双时刻共用一行输入；菜单另置于screen中，不被entry-panel裁切。 */
+.time-range-line { height:44px; display:flex; align-items:center; justify-content:space-evenly; gap:4px; padding:0 9px; border:1px solid #e6eeee; border-radius:12px; background:#f5f8f7; }
+.time-endpoint { display:flex; align-items:center; justify-content:center; flex:1; min-width:0; }
+.time-part { appearance:none; border:0; background:none; color:#315974; font:500 18px/1.3 ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-variant-numeric:tabular-nums; min-width:36px; height:42px; padding:0 3px; border-radius:9px; touch-action:manipulation; }
+.time-part.empty { color:#a3b8c4; }
+.time-part:hover,.time-part[aria-expanded="true"] { background:#e5f0f0; color:#26586b; }
+.time-part:focus-visible { outline:2px solid #8bbcc8; outline-offset:-2px; }
+.time-colon { padding:0 1px; color:#7b97a7; font-size:17px; }
+.time-range-dash { color:#9cb4be; font-size:15px; padding:0 3px; }
+.time-range-field.invalid .time-range-line { border-color:#d89b8d; background:#fff9f6; }
+.time-options { position:absolute; z-index:19; width:88px; height:184px; overflow-y:auto; overscroll-behavior:contain; padding:5px; border:1px solid #dcebee; border-radius:17px; background:#f6faf8f7; box-shadow:0 10px 26px #476c7f2b; backdrop-filter:blur(16px); scroll-behavior:auto; touch-action:pan-y; }
+.time-option { display:flex; justify-content:center; align-items:center; min-height:34px; color:#587789; font:500 16px/1.4 ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-variant-numeric:tabular-nums; border-radius:11px; cursor:pointer; user-select:none; }
+.time-option.active { background:#e0f0ef; color:#245b71; }
+.time-option[aria-selected="true"] { font-weight:650; color:#328471; }
+/* 阶段三：气泡仍是原来的对白形状，而不是九宫格的第九张卡片。 */
+.entry-bubble,.home-bubble,.focus-footer { font-family:ui-rounded,"Hiragino Maru Gothic ProN","Yuanti SC","YouYuan","幼圆","PingFang SC","Microsoft YaHei",sans-serif; font-weight:500; letter-spacing:.03em; -webkit-font-smoothing:antialiased; }
+.entry-bubble,.home-bubble { white-space:pre; font-size:12px; line-height:1.75; width:fit-content; min-width:0; max-width:116px; padding:11px; }
+.entry-bubble { left:auto; right:22px; top:174px; }
+.home-bubble { left:auto; right:20px; top:448px; margin:0; z-index:6; max-width:112px; padding:10px 11px; }
+.home-slot-guide[data-slot="8"] { display:none !important; }
+@media(prefers-reduced-motion:reduce) { .photo-preview { transition:none; } }

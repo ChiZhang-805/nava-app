@@ -1,6 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { supabase } from "./supabaseClient";
+import { getJournalRecords } from './journal';
 import { demoTodaySnapshot, isDemoMode } from "./demo";
 import { flushPendingNotificationPreferences, notificationPermissionState } from "./notifications";
 import { buildReminderOccurrences, localReminderDate, reminderChangeEvent, reminderEvidence, reminderKinds, reminderLabels, reminderOccurrenceId, reminderTarget, reminderTypes, resolveReminderPreferences, resolveReminderSchedule, validReminderTime, type ReminderKind, type ReminderPreference, type ReminderPreferences, type ReminderEvidence, type ReminderHistory } from "./independentReminders";
@@ -46,15 +47,22 @@ export async function loadReminderEvidence(userId: string, date: string) {
     const snapshot = demoTodaySnapshot(date);
     return { ...reminderEvidence(date, snapshot.mood, snapshot.nutrition as unknown as Record<string, unknown> | null), exercise: snapshot.exercise != null, focus: snapshot.focusMinutes > 0, face: snapshot.face != null };
   }
-  const [mood, diet, exercise, focus, face] = await Promise.all([
+  const [mood, diet, exercise, focus, face, journal] = await Promise.all([
     supabase.from("mood_records").select("record_date,mood_score").eq("user_id", userId).eq("record_date", date).maybeSingle(),
     supabase.from("nutrition_records").select("record_date,breakfast_items,breakfast_time,lunch_items,lunch_time,dinner_items,dinner_time").eq("user_id", userId).eq("record_date", date).maybeSingle(),
     supabase.from("exercise_records").select("steps,exercise_minutes,self_rating").eq("user_id", userId).eq("record_date", date).maybeSingle(),
     supabase.from("focus_records").select("total_minutes").eq("user_id", userId).eq("record_date", date),
     supabase.from("face_records").select("overall_score").eq("user_id", userId).eq("record_date", date),
+    getJournalRecords(userId,date,date),
   ]);
   if ([mood, diet, exercise, focus, face].some((result) => result.error)) throw new Error("未能核对今天的记录，提醒暂缓，联网后重试。");
-  return { ...reminderEvidence(date, mood.data, diet.data), exercise: exercise.data != null && [exercise.data.steps, exercise.data.exercise_minutes, exercise.data.self_rating].some((v) => v != null), focus: (focus.data ?? []).some((row) => row.total_minutes > 0), face: (face.data ?? []).some((row) => row.overall_score != null) };
+  const evidence={ ...reminderEvidence(date, mood.data, diet.data), exercise: exercise.data != null && [exercise.data.steps, exercise.data.exercise_minutes, exercise.data.self_rating].some((v) => v != null), focus: (focus.data ?? []).some((row) => row.total_minutes > 0), face: (face.data ?? []).some((row) => row.overall_score != null) };
+  for(const r of journal){
+    if(r.category==='food'){
+      const meal=({早餐:'breakfast',午餐:'lunch',晚餐:'dinner'} as const)[String(r.data.meal) as '早餐'|'午餐'|'晚餐'];if(meal)evidence[meal]=true;
+    }else if(r.category!=='sleep')evidence[r.category==='sport'?'exercise':r.category]=true;
+  }
+  return evidence;
 }
 
 let historyCache: { key: string; expires: number; value: Promise<ReminderHistory> } | null = null;

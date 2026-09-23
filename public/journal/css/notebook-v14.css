@@ -1,0 +1,5 @@
+/* 只有书写归位后才出现的透明原生滚动层；纸面仍由同一Canvas笔路渲染，不交换图片。 */
+.record-notebook{position:absolute;left:42px;top:417px;width:310px;height:290px;z-index:5;background:transparent;overflow-x:hidden;overflow-y:auto;overscroll-behavior:none;touch-action:pan-y;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;overflow-anchor:none;scroll-behavior:auto;border-radius:12px}
+.record-notebook::-webkit-scrollbar{display:none;width:0;height:0}
+.record-notebook:focus-visible{outline:2px solid #b8d4dc;outline-offset:-2px}
+#notebook-spacer{width:100%;pointer-events:none;min-height:100%}

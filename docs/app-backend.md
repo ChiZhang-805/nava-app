@@ -1,3 +1,35 @@
+# 当前四页记录合同（2026-09-23）
+
+六模块的新流程使用 `journal_entries`，按 `user_id / record_date / category / id`
+保存每次用户确认的记录；类别为 mood、food、focus、sport、sleep、face。字段保留
+文字、每餐独立营养和跨日睡眠时间，不把情绪文字/面部观察映射成旧数值评分。
+`save_journal_entry` 由服务器确定账号和时间戳，创建幂等，修改要求版本匹配；普通
+账号不可绕过 RPC 直接写表。RLS 限定读取/删除当前账号的数据。`journal_preferences`
+保存目标与暂停专注恢复信息；`journal_ai_runs` 由后端保存模型来源与实际输出。
+
+已应用迁移：202609230001_journal_workflow、202609230002_journal_mutation_grants、
+202609230003_account_delete_recompute_guard（账号级联删除时不再重建引用该账号的计算队列）。
+已部署 `journal-assistant`：真实 JWT 与个性化 AI 授权校验、共享原子限流、大小限制，
+服务端固定提供方与安全约束。所有文字使用 DeepSeek Chat 非思考模式（当前官方模型
+ID `deepseek-flash`），只有饮食/面部照片调用百炼 `qwen3-vl-plus`。沿用 Supabase
+现有服务端 secrets，不向前端传 Key，不支持任意上游 URL。返回只含正文，不含推理。
+照片经现有本机编码去除 EXIF 后用于本次视觉请求，不在记录表/AI审计表保存原图。
+JSON 字段校验和有限修复继续使用 v16 的可编辑确认合同；AI 成功不等于保存成功。
+
+新表参与首页卡片、六模块完成状态、月历/年度记录覆盖；旧 ChronoState/健康报告
+仍是旧评分数据合同，不能据新文字条目生成假分数。剩余页面的算法与展示改版按用户
+下一阶段需求处理。原生照片、听写和常亮经父页面已有 Capacitor 桥；Windows 验收
+不等于 Xcode 编译、签名或真实 iPhone 权限验收。
+
+官方接口依据：[DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)。
+四页来源/边界见 `web-upstream-contract.md`；执行证据在
+`Q:\NAVA-Workspace\Build\TestRuns\journal-integration`。
+
+用户批准的开发库清理已执行：5个既有登录账号、48张账号关联表中的对应数据、23个
+私有文件均已清除；完成后账号/新记录/AI运行表为0，验收临时账号均已删除。原登录账号
+已失效，需要重新注册。恢复证据为同一Windows用户DPAPI加密的逐表/私有文件备份，位于
+上述TestRuns的`account-reset`，不要删除该目录，也不要把解密数据放入仓库。
+
 # NAVA App 后端说明
 
 App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负责 App 专属的表、RLS、Storage、Edge Functions 和部署脚本；Web 端完成迁移后也应连接该项目，三端才会共享同一账号与数据源。

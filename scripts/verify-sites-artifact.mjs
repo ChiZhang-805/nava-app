@@ -20,5 +20,7 @@ assert.ok(
   "The external Sites entry must correspond to a generated Vite asset",
 );
 assert.doesNotMatch(html, /(?:src|href)="(?:\.\/)?assets\//, "Sites HTML must not retain nested asset URLs");
+assert.ok(existsSync(join(root,"dist","assets","journal","index.html")),"Journal must be served from the Sites asset root");
+assert.equal(readFileSync(join(root,"dist","assets","journal","js","nava-layout.js"),"utf8"),readFileSync(join(root,"public","journal","js","nava-layout.js"),"utf8"));
 
 console.log("Sites artifact keeps one external entry-module identity.");

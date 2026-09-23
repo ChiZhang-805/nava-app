@@ -211,6 +211,19 @@ function trendSupport(current: number | null | undefined, previous: number[], lo
 
 export function buildHomeWidgetPresentation(id: HomeWidgetId, snapshot: TodaySnapshot, locale: "zh" | "en" = "zh", trends?: TrendBundle | null): HomeWidgetPresentation {
   const zh = locale === "zh";
+  const category=id==='exercise'?'sport':id==='diet'?'food':id;
+  const entries=snapshot.journal?.filter(r=>r.category===category)??[];
+  if(entries.length){
+    const latest=entries[0].data;
+    let core='';
+    if(id==='mood')core=String(latest.mood??'');
+    if(id==='face')core=String(latest.feeling??'');
+    if(id==='sleep')core=`${latest.hours??'--'}h`;
+    if(id==='exercise')core=`${entries.reduce((n,r)=>n+Number(r.data.durationMinutes??0),0)}m`;
+    if(id==='focus')core=`${Math.round(entries.reduce((n,r)=>n+Number(r.focus?.elapsedMs??0)/60000,0))}m`;
+    if(id==='diet')core=String(latest.foods??'');
+    if(core)return {id,core,support:zh?`${entries.length} 条记录`:`${entries.length} entries`,state:'ready'};
+  }
   if (id === "heart") {
     const direct = Number.parseFloat(snapshot.exercise?.heart_rate ?? "");
     const directValid = snapshot.exercise?.record_date === snapshot.date && Number.isFinite(direct) && direct > 0;

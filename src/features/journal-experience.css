@@ -1,0 +1,13 @@
+.journal-experience{--journal-safe-top:env(safe-area-inset-top,0px);--journal-safe-bottom:env(safe-area-inset-bottom,0px);position:relative;width:100%;height:100%;min-height:0;background:#fffcf5;overflow:hidden}
+.journal-experience iframe{display:block;border:0;width:100%;height:100%;min-height:0}
+.journal-loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#fffcf5;color:#24496b}
+.journal-loading button{min-height:44px;border:1px solid #b9d8e3;border-radius:18px;padding:8px 28px;background:#f1fbff;color:#24496b}
+/* Journal pages own the entire screen, including the former navigation reserve. */
+.phone-frame.phone-frame--journal{background:#fffcf5;box-shadow:none}
+.phone-frame--journal::before,.phone-frame--journal::after{content:none}
+.phone-frame--journal .app-content{margin:0!important;padding:0!important;overflow:hidden;flex:1;min-height:0}
+.phone-frame--journal .screen-panel{height:100%;min-height:0}
+.phone-frame--journal .safe-top{display:none}
+@media(hover:hover) and (pointer:fine) and (min-width:700px) and (min-height:700px){
+ .journal-experience{--journal-safe-top:var(--nava-system-safe-top,0px);--journal-safe-bottom:34px}
+}

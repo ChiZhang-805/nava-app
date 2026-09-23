@@ -1,0 +1,12 @@
+/* v12 只改变反馈出口：保留原布局、原小猫与记录/回顾两种不同的波形区域。 */
+#phone-toast,.review-status,#draft-note {display:none!important}
+.entry-bubble[data-feedback],.home-bubble[data-feedback]{color:#64829a;background:#fffefb;border-color:#e0eaee}
+.entry-bubble[data-retry="true"]{cursor:pointer;box-shadow:0 5px 18px #689b8b0d}
+.entry-bubble:focus-visible{outline:2px solid #88b5b1;outline-offset:4px}
+.entry-bubble,.home-bubble{white-space:pre;overflow-wrap:normal}
+.review-bubble[data-feedback="help"]{color:#64829a;background:#fffefb;border-color:#e0eaee}
+/* 只有无小猫的内页才显示一个同款的临时对白；不占按钮上方空间，不用报错条。 */
+.page-cat-notice{position:absolute;right:22px;top:146px;z-index:18;width:145px;padding:13px 12px;border:1px solid #e2ecee;border-radius:20px 20px 20px 5px;background:#fffefb;color:#64829a;white-space:pre;font:500 12px/1.8 ui-rounded,"YouYuan","Microsoft YaHei",sans-serif;pointer-events:none}
+
+.entry-bubble[data-retry="true"]{pointer-events:auto}
+#entry-form [aria-invalid="true"]{background:#f4f8f8;border-color:#b9cdc9}

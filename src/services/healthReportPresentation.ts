@@ -32,6 +32,11 @@ export function buildHealthModuleProgress(snapshot: TodaySnapshot | null) {
   }
 
   const completedMeals = snapshot.nutrition ? mealCount(snapshot.nutrition) : 0;
+  const journalProgress:Partial<Record<HealthModuleKey,HealthModuleProgress>>={};
+  for(const record of snapshot.journal??[]){
+    const key=record.category==='food'?'diet':record.category==='sport'?'exercise':record.category;
+    journalProgress[key]=oneStepProgress(true,true);
+  }
   const focusRecorded = snapshot.focusMinutes > 0 || snapshot.focusSessions > 0;
   const focusCompleted = snapshot.focusMinutes > 0 && snapshot.focusSessions > 0;
 
@@ -42,6 +47,7 @@ export function buildHealthModuleProgress(snapshot: TodaySnapshot | null) {
     diet: progressFromUnits(completedMeals, 4, Boolean(snapshot.nutrition)),
     focus: oneStepProgress(focusRecorded, focusCompleted),
     face: oneStepProgress(Boolean(snapshot.face), isCompleteFaceRecord(snapshot.face)),
+    ...journalProgress,
   } satisfies Record<HealthModuleKey, HealthModuleProgress>;
 }
 
@@ -84,7 +90,13 @@ export function buildHealthModulePresentations(snapshot: TodaySnapshot | null, l
   const nutrition = snapshot.nutrition;
   const face = snapshot.face;
   const focusRecorded = snapshot.focusMinutes > 0 || snapshot.focusSessions > 0;
-
+  const journalCards:Partial<Record<HealthModuleKey,HealthModulePresentation>>={};
+  for(const r of [...(snapshot.journal??[])].reverse()){
+    const key=r.category==='food'?'diet':r.category==='sport'?'exercise':r.category;
+    const d=r.data,zh=locale==='zh';
+    const values=key==='mood'?[d.mood,d.reason,d.notes]:key==='sleep'?[`${d.bedtime} — ${d.wakeTime}`,`${d.hours} h`,d.quality]:key==='exercise'?[d.activity,`${d.durationMinutes} min`,d.notes]:key==='diet'?[d.meal,d.foods,d.portion]:key==='face'?[d.feeling,d.eyeArea,d.skinAppearance]:[d.task,`${Math.round(Number(r.focus?.elapsedMs??0)/60000)} min`,d.notes];
+    journalCards[key]={...progress[key],points:[String(values[0]??'—'),String(values[1]||'—'),String(values[2]||'—'),zh?'查看记录回顾':'View journal recap']};
+  }
   return {
     mood: mood ? {
       ...progress.mood,
@@ -122,6 +134,7 @@ export function buildHealthModulePresentations(snapshot: TodaySnapshot | null, l
         ? [`状态 ${roundOrPlaceholder(face.overall_score)}/100`, `肤龄 ${roundOrPlaceholder(face.skin_age)}`, face.capture_mode === "makeup" ? "带妆模式" : "素颜模式", `置信度 ${percentageOrPlaceholder(face.analysis_confidence)}`]
         : [`State ${roundOrPlaceholder(face.overall_score)}/100`, `Skin age ${roundOrPlaceholder(face.skin_age)}`, face.capture_mode === "makeup" ? "Makeup mode" : "Bare-face mode", `Confidence ${percentageOrPlaceholder(face.analysis_confidence)}`],
     } : missingFor("face"),
+    ...journalCards,
   } satisfies Record<HealthModuleKey, HealthModulePresentation>;
 }
 

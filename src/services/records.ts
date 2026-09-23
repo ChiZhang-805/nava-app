@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient";
+import { getJournalRecords } from './journal';
 import { shiftDateISO, todayISO } from "./date";
 import { isCompleteMoodRecord } from "./mood";
 import { emitReminderRecordSaved } from "./independentReminders";
@@ -151,7 +152,7 @@ function nextAction(snapshot: Omit<TodaySnapshot, "rhythmScore" | "nextAction">)
 export async function getTodaySnapshot(userId: string, date = todayISO()): Promise<TodaySnapshot> {
   if (isDemoMode()) return demoTodaySnapshot(date);
 
-  const [moodRes, sleepRes, exerciseRes, nutritionRes, focusRes, faceRes, rhythmRes] = await Promise.all([
+  const [moodRes, sleepRes, exerciseRes, nutritionRes, focusRes, faceRes, rhythmRes, journal] = await Promise.all([
     supabase.from("mood_records").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
     supabase.from("sleep_records").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
     supabase
@@ -166,6 +167,7 @@ export async function getTodaySnapshot(userId: string, date = todayISO()): Promi
     supabase.from("focus_records").select("*").eq("user_id", userId).eq("record_date", date),
     supabase.from("face_records").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
     supabase.from("daily_rhythm_scores").select("*").eq("user_id", userId).eq("record_date", date).maybeSingle(),
+    getJournalRecords(userId,date,date),
   ]);
 
   assertNoError(moodRes.error);
@@ -179,6 +181,7 @@ export async function getTodaySnapshot(userId: string, date = todayISO()): Promi
   const focus = asArray<FocusRecord>(focusRes.data);
   const base = {
     date,
+    journal,
     mood: moodRes.data as MoodRecord | null,
     sleep: sleepRes.data as SleepRecord | null,
     exercise: exerciseRes.data as ExerciseRecord | null,
@@ -844,6 +847,8 @@ export async function getRecordCoverageRange(userId: string, startDate: string, 
     ] as const;
     const results = await Promise.all(sources.map(async ([table, domain]) => ({ domain, rows: await recordDates(table, userId, startDate, endDate) })));
     results.forEach(({ domain, rows }) => rows.forEach((row) => add(row.record_date, domain)));
+    const journal=await getJournalRecords(userId,startDate,endDate);
+    for(const record of journal)add(record.recordDate,record.category==='food'?'diet':record.category==='sport'?'exercise':record.category);
   }
 
   return Object.fromEntries([...coverage].map(([date, domains]) => [date, [...domains]]));

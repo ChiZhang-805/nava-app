@@ -1,0 +1,1 @@
+window.FLuffyArt = {"hero": {"box": [58.5, 369.0, 316.5, 620.5], "file": "hero-body.png"}, "head": {"box": [48.5, 193.0, 323.5, 390.0], "file": "record-head.png"}, "title": {"box": [70.0, 153.0, 327.5, 219.5], "file": "great-job.png"}};

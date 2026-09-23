@@ -63,6 +63,7 @@ import {
 const aiLongPressDelayMs = 450;
 
 const RecordsScreen = lazy(() => import("./features/RecordsScreen"));
+const JournalExperience = lazy(() => import("./features/JournalExperience"));
 const AIScreen = lazy(() => import("./features/AIScreen"));
 const GrowthTasksScreen = lazy(() => import("./features/GrowthTasksScreen"));
 const ProfileScreen = lazy(() => import("./features/ProfileScreen"));
@@ -586,14 +587,15 @@ function MobileShell({
   const focusImmersive = activeTab === "record" && recordModule === "focus" && (recordView === "immersive" || recordView === "interruption");
   const profileDetailsSubpage = activeTab === "today" && recordView === "profile-details";
   const todayFullSubpage = activeTab === "today" && (profileDetailsSubpage || recordView === "home-widgets");
-  const hideBottomNavigation = focusImmersive || todayFullSubpage;
+  const journalOpen = activeTab === "record" && Boolean(recordModule);
+  const hideBottomNavigation = focusImmersive || todayFullSubpage || journalOpen;
 
   return (
-    <div className={["phone-frame", activeTab === "today" ? "phone-frame--option2" : "", focusImmersive ? "phone-frame--focus-immersive" : "", profileDetailsSubpage ? "phone-frame--subpage-no-nav" : ""].filter(Boolean).join(" ")}>
+    <div className={["phone-frame", journalOpen ? "phone-frame--journal" : "", activeTab === "today" ? "phone-frame--option2" : "", focusImmersive ? "phone-frame--focus-immersive" : "", profileDetailsSubpage ? "phone-frame--subpage-no-nav" : ""].filter(Boolean).join(" ")}>
       <div className="safe-top" />
       {linkShareOpen && <LinkSharePreview locale={locale} onClose={() => setLinkShareOpen(false)} />}
       {notificationBanner && <NotificationBanner item={notificationBanner} locale={locale} onOpen={() => openNotificationItem(notificationBanner)} onDismiss={dismissNotificationBanner} />}
-      {activeTab !== "today" && !focusImmersive && (
+      {activeTab !== "today" && !focusImmersive && !journalOpen && (
         <header className="app-header figma-app-header">
           <button
             className="figma-header-action"
@@ -674,7 +676,7 @@ function MobileShell({
           )}
           {activeTab === "record" && (
             <Suspense fallback={<PageSkeleton variant={recordSkeletonVariant(recordModule, recordView)} />}>
-              <RecordsScreen
+              {recordModule ? <JournalExperience user={user} module={recordModule} locale={locale} onSaved={markChanged} onExit={() => navigate("today")} /> : <RecordsScreen
                 user={user}
                 deviceDate={deviceDate}
                 onSaved={markChanged}
@@ -695,7 +697,7 @@ function MobileShell({
                   }
                   navigate("record", recordModule, view, replace);
                 }}
-              />
+              />}
             </Suspense>
           )}
           {aiHasMounted && (

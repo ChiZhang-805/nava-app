@@ -1,0 +1,48 @@
+/* v5：保持原猫/空间/卡片不变，只优化表单、九位置拖拽和外置AI设置。 */
+/* 阶段一：可以触摸/滚轮滚动，不显示滚动条、箭头或横向溢出。 */
+*, *::before, *::after { scrollbar-width:none !important; -ms-overflow-style:none; }
+*::-webkit-scrollbar { width:0 !important; height:0 !important; display:none !important; }
+.entry-panel,.inner-page,#sheet-body,.sheet,.speech-transcript { overflow-x:hidden; overscroll-behavior:contain; }
+.entry-panel { -webkit-mask-image:none; mask-image:none; padding-bottom:8px; }
+#entry-form { min-height:100%; gap:13px; width:100%; min-width:0; }
+#entry-form > * { flex-shrink:0; min-width:0; }
+.field { min-width:0; width:100%; }
+.field input,.field textarea { box-sizing:border-box; min-width:0; max-width:100%; }
+.field textarea { resize:none; line-height:1.65; padding:11px 12px; height:auto; min-height:70px; overflow:auto; font-size:14px; }
+.field textarea::placeholder { color:#afbfca; }
+.field input[type="time"] { min-height:44px; -webkit-appearance:none; appearance:none; font-variant-numeric:tabular-nums; }
+.field input[type="time"]::-webkit-date-and-time-value { text-align:left; }
+#entry-form > .field-long { flex:1 0 auto; min-height:93px; }
+#entry-form > .field-long textarea { flex:1 0 70px; }
+#entry-form[data-category="focus"] > .field-long { min-height:112px; }
+.field textarea[aria-invalid="true"] { border-color:#d89b8d; background:#fff9f6; }
+.form-secondary { margin:0; flex-shrink:0; }
+.nutrition-fields { display:flex; flex-direction:column; gap:13px; }
+.nutrition-fields .field { width:100%; }
+.nutrition-fields input { padding-right:45px; }
+.nutrition-fields .unit { right:12px; }
+/* 阶段二：相框优先，完整照片按宽度等比自适应；不使用 cover 或固定图像高度。 */
+.photo-preview { display:block; width:100%; height:148px; margin:0; padding:0; border:1px solid #dfedef; border-radius:16px; background:linear-gradient(135deg,#f1f8f9,#f8fbfa); overflow:hidden; position:relative; transition:height .32s cubic-bezier(.22,.68,.24,1); }
+.photo-preview img { width:100%; height:auto; max-width:none; display:block; object-fit:contain; border-radius:0; margin:0; position:absolute; top:0; left:0; }
+.photo-empty { width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:9px; color:#8daeba; }
+.photo-empty .icon { width:31px; height:31px; stroke-width:1.2; }
+.photo-preview .photo-empty span { font-size:11px; color:#9aafb8; }
+.photo-preview .photo-remove { position:absolute; right:9px; top:9px; padding:6px 10px; border:1px solid #ffffff80; border-radius:20px; background:#fffffff2; color:#3d697c; backdrop-filter:blur(10px); font-size:11px; }
+.photo-tools { margin:0; gap:8px; }
+.photo-tool { min-height:44px; }
+.analyze-photo { margin:0; flex-shrink:0; }
+.ai-draft-note { margin:0; }
+/* 阶段三：九位置仅在拖动时显示槽位；平时只看见六张真实卡片。 */
+.home-slot-guide { position:absolute; width:112px; height:110px; border:1.2px dashed #5d9caf80; background:#ffffff14; border-radius:17px; opacity:0; pointer-events:none; transition:opacity .16s,background .16s; }
+.home-board.arranging .home-slot-guide { opacity:1; }
+.home-slot-guide.drop-target { border-style:solid; border-color:#417f96; background:#ffffff77; box-shadow:inset 0 0 0 2px #ffffff80; }
+.home-widget { touch-action:none; user-select:none; -webkit-touch-callout:none; }
+.home-widget.dragging { transition:none !important; pointer-events:auto; z-index:15; }
+.home-widget:not(.dragging) { transition:left .28s cubic-bezier(.22,.68,.24,1),top .28s cubic-bezier(.22,.68,.24,1),transform .18s,box-shadow .18s; }
+/* 阶段四：两个独立Key下拉菜单在手机外，页面内不出现连接教程。 */
+.provider-toolbar { position:fixed; z-index:30; top:max(22px,env(safe-area-inset-top)); right:max(24px,env(safe-area-inset-right)); display:flex; gap:8px; align-items:center; }
+.provider-toolbar .settings-launcher { position:static; flex:none; }
+.api-popover { max-height:calc(100dvh - 90px); overflow:auto; }
+@media(max-width:650px) { .provider-toolbar {top:max(10px,env(safe-area-inset-top));right:12px;gap:6px;} .provider-toolbar .settings-launcher{height:33px;padding:0 10px;font-size:11px;} .stage{padding-top:59px;} }
+@media(prefers-reduced-motion:reduce) { .photo-preview,.home-widget {transition:none;} }
+body.reduce-motion .photo-preview, body.reduce-motion .home-widget {transition:none;}

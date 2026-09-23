@@ -180,6 +180,7 @@ export interface HealthMetricSnapshot {
 }
 
 export interface TodaySnapshot {
+  journal?: import('./services/journal').JournalRecord[];
   date: string;
   mood: MoodRecord | null;
   sleep: SleepRecord | null;

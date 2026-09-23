@@ -1,0 +1,23 @@
+/* v8：日期与语言入口只占导航角落，不改变猫、表单或主按钮的坐标。 */
+.entry-more{position:absolute;right:12px;top:62px;width:40px;height:40px;border:0;border-radius:14px;background:transparent;color:#153e70;z-index:21;display:grid;place-items:center;cursor:pointer;touch-action:manipulation}
+.entry-more svg{width:23px;height:23px}.entry-more[aria-expanded="true"]{background:#edf4f6a8}
+.entry-menu{position:absolute;right:18px;top:103px;width:151px;padding:7px;background:#ffffffed;border:1px solid #e3ecef;border-radius:18px;box-shadow:0 12px 30px #38597020;backdrop-filter:blur(16px);z-index:22}
+.entry-menu button{display:flex;align-items:center;gap:11px;width:100%;min-height:43px;border:0;border-radius:11px;padding:8px 12px;background:transparent;color:#245175;font-size:13px;text-align:left;cursor:pointer}
+.entry-menu svg{width:19px;height:19px;flex:none}.entry-menu button:hover,.entry-menu button:focus-visible{background:#edf5f6;outline:none}
+.entry-options{position:absolute;right:18px;top:104px;width:285px;padding:14px;background:#fffffff5;border:1px solid #e1ecee;border-radius:22px;box-shadow:0 14px 40px #33546922;backdrop-filter:blur(18px);z-index:23;color:#345e77}
+.entry-options h3{font-size:14px;font-weight:650;margin:0}.language-options{width:175px;padding:16px}.language-option{display:block;width:100%;min-height:44px;margin-top:9px;padding:9px 13px;border:1px solid #e7eff1;border-radius:13px;background:#f6f9f8;text-align:left;color:#38617a;font-size:14px}.language-option[aria-pressed="true"]{background:#e1f2ea;border-color:#93caa9;color:#2c7754}
+.date-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}.date-head button{width:32px;height:32px;border:0;border-radius:11px;background:#f0f6f6;color:#577f90;font-size:25px;line-height:1;cursor:pointer}.date-head button:disabled{opacity:.25;cursor:default}
+.date-weekdays,.date-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}.date-weekdays span{font-size:10px;text-align:center;color:#90a7b4;padding:6px 0}.date-day{border:0;border-radius:10px;background:none;color:#345c76;aspect-ratio:1;min-height:31px;font-size:12px;font-variant-numeric:tabular-nums;cursor:pointer}.date-day.outside{color:#b9c6cd}.date-day:disabled{opacity:.3;cursor:default}.date-day.selected{color:white;background:#49ac63;font-weight:650}.date-day[aria-current="date"]:not(.selected){box-shadow:inset 0 0 0 1px #a5cfc0}.date-day:focus-visible{outline:2px solid #70aabd;outline-offset:0}.date-day:not(:disabled):hover:not(.selected){background:#eaf4f3}
+.date-actions{display:flex;gap:6px;align-items:center;margin-top:11px;padding-top:11px;border-top:1px solid #edf1f2}.date-actions button{font-size:12px;min-height:34px;border:0;border-radius:11px;padding:6px 9px;cursor:pointer;white-space:nowrap}.date-today{margin-right:auto;background:none;color:#618ca0}.date-cancel{color:#6d8593;background:#f2f6f6}.date-save{color:white;background:#48aa60}
+.entry-date-badge{position:absolute;pointer-events:auto;top:-4px;left:50%;transform:translateX(-50%);padding:3px 9px;border:1px solid #deebec;border-radius:12px;color:#7093a2;background:#f6faf8;font-size:10px;line-height:1.3;white-space:nowrap;cursor:pointer}.entry-heading:has(.entry-date-badge:not([hidden])) .entry-kicker{visibility:hidden}
+.past-focus-copy{font-size:19px;color:#214e72;line-height:1.6;overflow-wrap:anywhere}.past-focus-detail{font-size:14px;color:#6e899b;line-height:1.7}.date-confirm-focus{width:100%;min-height:46px;background:#45aa50;color:white;border:0;border-radius:23px;font-size:16px;margin:12px 0 6px}
+/* 空位仍然禁放；气泡不占据格子，只在猫的右上方靠近一点。 */
+.home-bubble{top:485px;right:20px;max-width:112px;z-index:6}
+/* 英文字体按词排布，字段内容不被翻译；标题避免在固定的手机宽度上被裁切。 */
+#screen[data-language="en"] .entry-heading h1{font-size:22px;letter-spacing:-.55px}
+#screen[data-language="en"] .entry-bubble,#screen[data-language="en"] .home-bubble{font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:11px;line-height:1.65;letter-spacing:0;max-width:123px}
+#screen[data-language="en"] .entry-bubble{right:20px}
+#screen[data-language="en"] .choice-pill{font-size:11px;padding:4px 2px}
+#screen[data-language="en"] .primary{font-size:19px;letter-spacing:0}
+#screen[data-language="en"] .field input::placeholder,#screen[data-language="en"] .field textarea::placeholder{font-size:12px}
+.entry-options button:focus-visible,.entry-more:focus-visible{outline:2px solid #87b4c4;outline-offset:2px}

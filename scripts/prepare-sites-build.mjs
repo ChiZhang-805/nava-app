@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,6 +8,9 @@ const dist = join(root, "dist");
 mkdirSync(join(dist, "server"), { recursive: true });
 mkdirSync(join(dist, ".openai"), { recursive: true });
 copyFileSync(join(root, ".openai", "hosting.json"), join(dist, ".openai", "hosting.json"));
+// Sites exposes dist/assets at the deployment root. Keep the journal's nested
+// relative imports intact there; the Pages build continues to use dist/journal.
+if (existsSync(join(dist, "journal"))) cpSync(join(dist, "journal"), join(dist, "assets", "journal"), { recursive: true });
 
 const indexHtmlPath = join(dist, "index.html");
 let html = readFileSync(indexHtmlPath, "utf8");

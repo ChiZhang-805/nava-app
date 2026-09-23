@@ -73,7 +73,7 @@ export function homeDayPhase(hour: number): HomeDayPhase {
 }
 
 function completeMood(snapshot: TodaySnapshot) {
-  return Boolean(snapshot.mood?.factors.length && snapshot.mood.diary_content?.trim());
+  return Boolean(snapshot.journal?.some(r=>r.category==='mood') || snapshot.mood?.factors.length && snapshot.mood.diary_content?.trim());
 }
 
 function homeGuidanceActions(snapshot: TodaySnapshot, hour: number, locale: "zh" | "en") {
@@ -92,7 +92,7 @@ function homeGuidanceActions(snapshot: TodaySnapshot, hour: number, locale: "zh"
 
   add({ id: "report", label: zh ? "看报告" : "View report", target: { tab: "record" } });
   add({ id: "ai", label: zh ? "问 NAVA" : "Ask NAVA", target: { tab: "ai" } });
-  return actions.slice(0, 3);
+  return actions.filter(action=>!snapshot.journal?.some(r=>(r.category==='food'?'diet':r.category==='sport'?'exercise':r.category)===action.id)).slice(0, 3);
 }
 
 function pickGuidanceVariant(variants: LocalizedGuidanceVariants, locale: "zh" | "en", variantSeed: number) {

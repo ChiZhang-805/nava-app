@@ -1,0 +1,91 @@
+/* v9：仅调整记录按钮和回顾页的文字输入弹层，不移动猫咪/表单或更改录音波形所在区域。 */
+#confirm-entry .entry-action-content {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    max-width:calc(100% - 40px);
+    pointer-events:none;
+    white-space:nowrap;
+}
+#confirm-entry[data-action="invite"] { font-size:21px; }
+#confirm-entry[data-action="invite"] .mic-icon {
+    position:static;
+    width:22px;
+    height:24px;
+    margin:0;
+    transform:none;
+    flex:none;
+    opacity:1;
+}
+#confirm-entry[data-action="invite"] .chevron,
+#confirm-entry[data-action="busy"] .chevron { display:none; }
+#confirm-entry[data-action="confirm"] .entry-action-content { max-width:calc(100% - 100px); }
+#screen[data-language="en"] #confirm-entry[data-action="invite"] { font-size:18px;letter-spacing:0; }
+
+/* 文字聊聊：标题有图标，输入和发送分为两个清楚的区域，其余菜单面板不受影响。 */
+.sheet[data-variant="review-text"] .sheet-head h2 {
+    display:flex;
+    align-items:center;
+    gap:9px;
+    line-height:1.4;
+}
+.sheet-title-icon { display:inline-flex;align-items:center;justify-content:center;flex:none; }
+.sheet-title-icon .icon { width:22px;height:22px; }
+.review-text-compose { display:flex;flex-direction:column;gap:14px;margin:0; }
+.review-text-compose .review-text-field {
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin:0;
+    color:#5f8197;
+    font-size:13px;
+    font-weight:600;
+}
+.review-text-input {
+    display:block;
+    box-sizing:border-box;
+    width:100%;
+    min-height:116px;
+    height:116px;
+    padding:12px 13px;
+    border:1px solid #dfe9ec;
+    border-radius:16px;
+    background:#f5f9f8;
+    color:#345a77;
+    font:400 14px/1.65 ui-rounded,-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    resize:none;
+    overflow-x:hidden;
+    overflow-y:auto;
+    transition:border-color .16s,box-shadow .16s;
+}
+.review-text-input:focus { border-color:#9fc9c2;outline:none;box-shadow:0 0 0 3px #91c4be16; }
+.review-text-input[aria-invalid="true"] { border-color:#d3a398; }
+.review-text-compose .review-text-submit {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:9px;
+    width:100%;
+    min-height:48px;
+    margin:0;
+    padding:11px 16px;
+    border:1px solid #dfece9;
+    border-radius:16px;
+    background:#fff;
+    color:#396678;
+    font-size:17px;
+    line-height:24px;
+    font-weight:650;
+    text-align:center;
+    cursor:pointer;
+    box-shadow:0 3px 10px #4c777606;
+    transition:background .15s,transform .15s;
+}
+.review-text-submit .icon { width:21px;height:21px;flex:none; }
+.review-text-submit:hover { background:#f1f8f5; }
+.review-text-submit:active { transform:translateY(1px); }
+.review-text-submit:focus-visible { outline:2px solid #8fbeb4;outline-offset:2px; }
+@media(prefers-reduced-motion:reduce) {
+    .review-text-input,.review-text-submit { transition:none; }
+}
