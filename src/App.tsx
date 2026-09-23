@@ -28,7 +28,7 @@ import { currentSkeletonVariant, recordSkeletonVariant } from "./services/loadin
 import { useLocale, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
-import { loadOnboardingStatus } from "./services/onboarding";
+import { loadOnboardingStatus, type OnboardingStatus } from "./services/onboarding";
 import { recordGrowthActivity, reconcileGrowthRewards, resolveGrowthTasks, saveTodoFocusPlan, type GrowthActivityKind, type GrowthRewardGrant, type GrowthSummary, type TodoItem } from "./services/productivity";
 import { resolveTodoFocusPlan } from "./services/focusPlanning.ts";
 import useDeviceDate from "./hooks/useDeviceDate";
@@ -117,8 +117,10 @@ function ConfigErrorScreen({ message }: { message: string }) {
 
 function MobileShell({
   showInitialHomeGuidance,
+  onOpenOnboarding,
 }: {
   showInitialHomeGuidance: boolean;
+  onOpenOnboarding: () => void;
 }) {
   const { user } = useAuth();
   const t = useT();
@@ -751,7 +753,7 @@ function MobileShell({
               />
             </Suspense>
           )}
-          {activeTab === "profile" && <Suspense fallback={<PageSkeleton variant="profile" />}><ProfileScreen user={user} refreshKey={refreshKey} onChanged={markChanged} /></Suspense>}
+          {activeTab === "profile" && <Suspense fallback={<PageSkeleton variant="profile" />}><ProfileScreen user={user} refreshKey={refreshKey} onChanged={markChanged} onOpenOnboarding={onOpenOnboarding} /></Suspense>}
           </>}
         </div>
       </main>
@@ -836,7 +838,7 @@ function AppContent({
   const signedOutScreenSeen = useRef(initialSignedOutScreenSeen);
   const userId = user?.id ?? null;
   const forceOnboarding = new URLSearchParams(window.location.search).get("onboarding") === "1";
-  const [onboardingRoute, setOnboardingRoute] = useState<{ userId: string; required: boolean } | null>(null);
+  const [onboardingRoute, setOnboardingRoute] = useState<{ userId: string; required: boolean; status?: OnboardingStatus | null; mode?: "first" | "review" } | null>(null);
   const [onboardingError, setOnboardingError] = useState<string | null>(null);
   const [onboardingRetryKey, setOnboardingRetryKey] = useState(0);
 
@@ -853,7 +855,12 @@ function AppContent({
     setOnboardingError(null);
     loadOnboardingStatus(userId)
       .then((status) => {
-        if (alive) setOnboardingRoute({ userId, required: forceOnboarding || !status.completed });
+        if (alive) setOnboardingRoute({
+          userId,
+          required: forceOnboarding || !status.completed,
+          status,
+          mode: forceOnboarding && status.completed ? "review" : "first",
+        });
       })
       .catch((error) => {
         console.warn("Unable to determine onboarding state", error);
@@ -877,6 +884,19 @@ function AppContent({
     if (!loading && userId && (passwordRecovery || Boolean(onboardingError) || !checkingOnboarding)) onReady?.(userId);
   }, [checkingOnboarding, loading, onReady, onboardingError, passwordRecovery, userId]);
 
+  const openOnboarding = useCallback(() => {
+    if (!user) return;
+    setOnboardingError(null);
+    loadOnboardingStatus(user.id)
+      .then((status) => {
+        setOnboardingRoute({ userId: user.id, required: true, status, mode: "review" });
+      })
+      .catch((error) => {
+        console.warn("Unable to load onboarding for review", error);
+        setOnboardingRoute({ userId: user.id, required: true, status: onboardingRoute?.status ?? null, mode: "review" });
+      });
+  }, [onboardingRoute?.status, user]);
+
   let screen;
   if (configError && !isDemoMode()) screen = <ConfigErrorScreen message={configError} />;
   else if (loading) screen = <LoadingScreen />;
@@ -887,13 +907,13 @@ function AppContent({
   } else if (checkingOnboarding) {
     screen = signedOutScreenSeen.current ? <AuthScreen transitionPending /> : <LoadingScreen />;
   } else if (onboardingRoute?.required) {
-    screen = <OnboardingScreen user={user} onComplete={() => {
+    screen = <OnboardingScreen user={user} status={onboardingRoute.status} mode={onboardingRoute.mode} onComplete={(status) => {
       const url = new URL(window.location.href);
       url.searchParams.delete("onboarding");
       window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-      setOnboardingRoute({ userId: user.id, required: false });
+      setOnboardingRoute({ userId: user.id, required: false, status, mode: "first" });
     }} />;
-  } else screen = <MobileShell showInitialHomeGuidance={showInitialHomeGuidance} />;
+  } else screen = <MobileShell showInitialHomeGuidance={showInitialHomeGuidance} onOpenOnboarding={openOnboarding} />;
 
   return (
     <div className="nava-app-stage">

@@ -5782,6 +5782,85 @@ body::before {
   }
 }
 
+.onboarding-screen--first-notes {
+  width: min(100%, 480px);
+  min-height: 100dvh;
+  padding: 0 !important;
+  display: block !important;
+  background: #eaf5fb;
+}
+
+.onboarding-screen--first-notes::before {
+  display: none;
+}
+
+.onboarding-screen--first-notes iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  display: block;
+  border: 0;
+  background: #eaf5fb;
+}
+
+.onboarding-frame-status {
+  position: absolute;
+  left: 50%;
+  bottom: max(22px, calc(env(safe-area-inset-bottom, 0px) + 16px));
+  z-index: 8;
+  width: min(84%, 320px);
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, .72);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #174b65;
+  background: rgba(249, 253, 255, .88);
+  box-shadow: 0 10px 24px rgba(39, 102, 128, .14);
+  transform: translateX(-50%);
+  backdrop-filter: blur(14px);
+}
+
+.onboarding-frame-status p {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.35;
+}
+
+.onboarding-frame-status button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px;
+  color: white;
+  background: #158ab7;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.onboarding-frame-status.is-error {
+  color: #7b302d;
+}
+
+.onboarding-frame-status.is-saved {
+  color: #14715f;
+}
+
+.nava-app-stage > .onboarding-screen--first-notes {
+  overflow: hidden;
+}
+
+.nava-app-stage > .onboarding-screen--first-notes iframe {
+  min-height: 0;
+}
+
 /* Data-backed nutrition and face-state dashboards */
 .diet-dashboard,
 .face-dashboard {
@@ -6204,6 +6283,48 @@ body::before {
 .profile-stack > :nth-child(4) { animation-delay: 135ms; }
 .record-module-entry:nth-child(5),
 .profile-stack > :nth-child(5) { animation-delay: 180ms; }
+
+.profile-first-notes-card {
+  padding: 14px;
+}
+
+.profile-first-notes-card .section-heading {
+  margin-bottom: 8px;
+}
+
+.profile-first-notes-button {
+  width: 100%;
+  min-height: 50px;
+  border: 0;
+  border-radius: 16px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 11px;
+  color: #16475d;
+  background: rgba(229, 247, 253, .82);
+  text-align: left;
+}
+
+.profile-first-notes-button > span {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: #087fa9;
+  background: rgba(255, 255, 255, .72);
+}
+
+.profile-first-notes-button strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .record-module-entry:nth-child(6) { animation-delay: 225ms; }
 
 .record-module-entry .record-module-arrow,

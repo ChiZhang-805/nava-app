@@ -1,13 +1,38 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
-更新时间：**2026-09-23**（四页替换与新数据合同见§93；早期段落为历史记录）
+更新时间：**2026-09-23**（v17初见手记见§94；四页替换与新数据合同见§93；早期段落为历史记录）
 
 这份文件是新 Codex 任务接手 NAVA 时的第一入口，也是当前项目状态的
 **独立、可直接使用的交接文档**。它不依赖这段很长、曾多次出现界面回退的
 聊天记录。新任务必须以代码、数据库边界和本文件为准，不要根据旧聊天画面
 推断进度。
 
-## 93. 六模块四页替换（当前）
+## 94. v17 初见手记首次引导（当前）
+
+本轮范围：把 `ChiZhang-805/fluffy-cat-journal` v17 的首次使用流程接入正式 NAVA
+双站，不替换六模块四页运行时、不改 journal 表、不部署新 Edge Function、不新增迁移。
+固定来源 `3487d9ffb9785fa852ced94a818d2667bef45af8`，导入
+`public/journal/onboarding.html`。`OnboardingScreen` 现在作为同源 iframe 宿主：
+随机 `nava-first-run-*` 频道、来源和窗口校验通过后才接收 `ready/draft/complete`；
+完成时父页再次按白名单校验七项资料并调用 `completeOnboarding` 写入 `profiles`。
+子页不接收 JWT、模型 Key、service role、照片或音频，也不会生成每日记录、评分或AI内容。
+
+视觉边界：v17 子页在宿主模式隐藏自带手机外壳、状态栏、灵动岛和 home indicator，
+由 NAVA 外层预览框统一负责设备壳和状态栏，避免双层手机框。首次进入显示纸条与小猫；
+七个问题完成后汇总页即最终确认页。个人页增加“初见手记”入口，可回看/修改同一资料。
+语言在 v17 内选择后同步到 NAVA 语言设置。现有完成用户不会因版本变化强制重答；
+`?onboarding=1` 可用于本地/验收强制打开 review 流程。
+
+本地验收：`npm run build:review`、`npm run lint` 退出0。专门脚本
+`Q:\NAVA-Workspace\Build\TestRuns\journal-integration\verify-onboarding-v17.mjs`
+在 Vite dev demo 模式检查18个预览机型全部通过：iframe 尺寸匹配各逻辑画布、宿主
+嵌入类存在、子页手机壳/状态栏/底部指示器隐藏、无内外溢出；并实际点完
+欢迎→七题→汇总→保存，确认写入 `nava.onboarding.v3` 本地demo状态后回到APP。
+代表截图：`onboarding-v17-17-pro-max.png`、`onboarding-v17-17e.png`、
+`onboarding-v17-14.png`。这些是 Windows Chromium 桌面预览与本地 demo 验收，
+不是 iPhone/Safari 真机或 Supabase 生产账号验收。
+
+## 93. 六模块四页替换
 
 用户只要求替换记录、小猫书写、Great Job、数据回顾四页与对应后端，不更换原
 NAVA 双站、首页或其他页面。固定参考 Fluffy Cat v16，来源与集成合同见

@@ -2,7 +2,7 @@ import { isDemoMode } from "./demo";
 import { loadProfile, saveProfile, type UserProfile } from "./profile";
 import { supabase } from "./supabaseClient";
 
-export const ONBOARDING_VERSION = 2;
+export const ONBOARDING_VERSION = 3;
 
 export type OnboardingAnswers = {
   gender: string;
@@ -15,6 +15,7 @@ export type OnboardingAnswers = {
   essentialConsent: boolean;
   healthDataConsent: boolean;
   aiPersonalizationConsent: boolean;
+  firstNotesProfile?: unknown;
 };
 
 export type OnboardingStatus = {

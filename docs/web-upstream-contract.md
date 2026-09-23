@@ -1,5 +1,19 @@
 # Web 上游协作契约
 
+## 当前首次引导参考：Fluffy Cat v17
+
+2026-09-23 追加接入 `ChiZhang-805/fluffy-cat-journal` 的 v17 首次使用流程，
+固定来源 `3487d9ffb9785fa852ced94a818d2667bef45af8`。NAVA 只导入
+`onboarding.html` 作为正式账号首次登录/个人页回看的“初见手记”子页面：
+欢迎纸条、七个受控问题、最终汇总页。父 React 应用仍负责真实登录、Supabase
+profile 保存、完成状态和语言同步；子页面不接收 JWT、模型 Key 或 service key，
+也不生成每日记录、评分、报告或 AI 输出。
+
+嵌入到 NAVA 正式手机预览时，v17 自带的手机外壳、状态栏、灵动岛和 home indicator
+被宿主模式隐藏，只保留纸条、小猫、问答和汇总内容，避免双层手机框。iframe 消息
+必须同源、匹配创建它的 `nava-first-run-*` 随机频道，并在父页再次通过白名单校验
+后才写入 `profiles.onboarding_answers.firstNotesProfile`。
+
 ## 当前四页参考：Fluffy Cat v16
 
 用户于 2026-09-23 确认 `ChiZhang-805/fluffy-cat-journal` 仅作为六模块的四个核心页面

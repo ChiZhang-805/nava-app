@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { Apple, Check, ChevronDown, Download, Link2, LogOut, RefreshCw, Save, ShieldCheck, Trash2, Watch, X } from "lucide-react";
+import { Apple, BookOpen, Check, ChevronDown, Download, Link2, LogOut, RefreshCw, Save, ShieldCheck, Trash2, Watch, X } from "lucide-react";
 import AvatarPicker from "../components/AvatarPicker";
 import { useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
@@ -37,7 +37,7 @@ function daysSinceSignup(createdAt?: string) {
   return Math.max(1, Math.floor((Date.now() - created) / 86_400_000) + 1);
 }
 
-export default function ProfileScreen({ user, refreshKey, onChanged }: { user: User; refreshKey?: number; onChanged: () => void }) {
+export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboarding }: { user: User; refreshKey?: number; onChanged: () => void; onOpenOnboarding?: () => void }) {
   const { signOut } = useAuth();
   const { locale, t } = useLocale();
   const [busy, setBusy] = useState<string | null>(null);
@@ -331,6 +331,29 @@ export default function ProfileScreen({ user, refreshKey, onChanged }: { user: U
           }}
         />
       </SectionCard>
+
+      {onOpenOnboarding && (
+        <SectionCard
+          className="profile-first-notes-card"
+          title={locale === "zh" ? "初见手记" : "First notes"}
+          action={(
+            <button
+              className="section-icon-action"
+              type="button"
+              aria-label={locale === "zh" ? "查看初见手记" : "Open first notes"}
+              title={locale === "zh" ? "查看初见手记" : "Open first notes"}
+              onClick={onOpenOnboarding}
+            >
+              <BookOpen size={20} />
+            </button>
+          )}
+        >
+          <button className="profile-first-notes-button" type="button" onClick={onOpenOnboarding}>
+            <span aria-hidden="true"><BookOpen size={22} /></span>
+            <strong>{locale === "zh" ? "回看 / 修改七项初见资料" : "Review / edit the seven first notes"}</strong>
+          </button>
+        </SectionCard>
+      )}
 
       <SectionCard
         className={["profile-personal-card", profileDetailsExpanded ? "is-expanded" : ""].filter(Boolean).join(" ")}

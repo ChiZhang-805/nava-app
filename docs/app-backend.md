@@ -25,6 +25,14 @@ JSON 字段校验和有限修复继续使用 v16 的可编辑确认合同；AI �
 四页来源/边界见 `web-upstream-contract.md`；执行证据在
 `Q:\NAVA-Workspace\Build\TestRuns\journal-integration`。
 
+2026-09-23 追加接入 v17 首次使用“初见手记”，没有新增数据库迁移或 Edge Function。
+正式账号首次登录和个人页回看均由 React 父页托管 `public/journal/onboarding.html`；
+父页将七项受控选项映射回既有 `profiles` 字段（occupation、age_group、
+exercise_frequency、sleep_schedule、diet_preference 等），并把完整 v17 语义资料保存到
+`profiles.onboarding_answers.firstNotesProfile`。该资料仅包含语言、性别/角色/年龄段、
+兴趣、睡眠、运动、饮食偏好和完成时间，不包含照片、音频、API Key、每日记录、评分或
+AI 摘要。保存失败不会伪造完成标记；本地草稿只用于同浏览器恢复。
+
 用户批准的开发库清理已执行：5个既有登录账号、48张账号关联表中的对应数据、23个
 私有文件均已清除；完成后账号/新记录/AI运行表为0，验收临时账号均已删除。原登录账号
 已失效，需要重新注册。恢复证据为同一Windows用户DPAPI加密的逐表/私有文件备份，位于

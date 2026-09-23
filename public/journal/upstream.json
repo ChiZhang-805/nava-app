@@ -2,5 +2,11 @@
   "repository": "https://github.com/ChiZhang-805/fluffy-cat-journal",
   "commit": "fb7045d611dc0eab40818b3d6d494f6dfa12a9c6",
   "version": 16,
-  "integration": "NAVA authenticated four-page workflow"
+  "integration": "NAVA authenticated four-page workflow",
+  "onboarding": {
+    "commit": "3487d9ffb9785fa852ced94a818d2667bef45af8",
+    "version": 17,
+    "entry": "onboarding.html",
+    "integration": "NAVA hosted first-login first-notes flow"
+  }
 }
