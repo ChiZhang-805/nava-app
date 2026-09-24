@@ -1,11 +1,39 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
-更新时间：**2026-09-23**（v17初见手记见§94；四页替换与新数据合同见§93；早期段落为历史记录）
+更新时间：**2026-09-24**（首次登录外部模拟入口见§95；v17初见手记见§94；四页替换与新数据合同见§93；早期段落为历史记录）
 
 这份文件是新 Codex 任务接手 NAVA 时的第一入口，也是当前项目状态的
 **独立、可直接使用的交接文档**。它不依赖这段很长、曾多次出现界面回退的
 聊天记录。新任务必须以代码、数据库边界和本文件为准，不要根据旧聊天画面
 推断进度。
+
+## 95. 外部环境模拟“首次登录”入口（当前）
+
+本轮范围：在桌面右侧“外部环境模拟”面板第一排空位增加“首次登录”按钮。该按钮只作为
+网页/桌面预览 QA 入口：点击后把手机预览切回 NAVA，并在手机内打开 v17“初见手记”
+首次登录流程（欢迎纸条、七题、汇总确认）。它不注册账号、不清空账号、不写入 Supabase，
+也不把演示说明塞进手机屏幕。
+
+实现边界：`DesktopDevicePreviewChrome` 新增 `onFirstLoginPreview` 回调；未登录壳
+`AppBootstrap` 和已登录壳 `AppContent` 都能打开同一首次登录预览。`OnboardingScreen`
+新增 `previewOnly` 模式：从空白手记开始，不读取/写入本地草稿，不调用
+`completeOnboarding`，完成后仅关闭预览；真实首次登录和个人页“初见手记”仍走原来的远端
+保存逻辑。自动验收脚本 `verify-desktop-simulator-ui.mjs` 现在检查右侧按钮存在、44px触达、
+点击后出现“初见手记”iframe；旧专注入口缺失时改为当前页面可用的模拟器链路检查。
+
+本地验收：`npm run lint`、`npm run build:review`、`npm run build:hosting`、
+`npm run build:pages`、`npm run desktop-simulator:visual` 均退出0；桌面模拟器覆盖8个视口、
+24个状态。线上验收用外部 Chromium 分别打开 ChatGPT Sites 与 GitHub Pages，确认
+`[data-preview-action="first-login"]` 可见且点击后 `.onboarding-screen--first-notes`
+与“初见手记”iframe可见；Pages `/source.json` 指向本轮源码。
+
+部署：功能源码 `f0105c9966b0d8ba6b707c99d67482805cc6e704` 已推送主仓库。ChatGPT Sites
+保存并发布 **v168**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_e96974e00c34819195fa0856e3ff983b`，
+部署 `appgdep_6ab4eaed67048191b52e0335119a1dcf` 成功，生产 URL
+`https://nava-app-preview-cz.chizhang1031.chatgpt.site`。GitHub Pages 镜像提交
+`8cc14c1`，workflow `35980644841` 成功，公开 URL
+`https://chizhang-805.github.io/nava-app-preview/`。
 
 ## 94. v17 初见手记首次引导（当前）
 
