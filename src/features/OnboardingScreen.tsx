@@ -1,6 +1,5 @@
 import { CheckCircle2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { User } from "@supabase/supabase-js";
 import { useLocale } from "../i18n";
 import { completeOnboarding, type OnboardingStatus } from "../services/onboarding";
 import {
@@ -21,9 +20,10 @@ import {
 type OnboardingMode = "first" | "review";
 
 type Props = {
-  user: User;
+  user: { id: string };
   status?: OnboardingStatus | null;
   mode?: OnboardingMode;
+  previewOnly?: boolean;
   onComplete: (status: OnboardingStatus) => void;
 };
 
@@ -63,7 +63,7 @@ function initialDraftFor(
   return { version: 1, profile: blankFirstNotesProfile(locale), step: "welcome" };
 }
 
-export default function OnboardingScreen({ user, status = null, mode = "first", onComplete }: Props) {
+export default function OnboardingScreen({ user, status = null, mode = "first", previewOnly = false, onComplete }: Props) {
   const { locale, setLocale } = useLocale();
   const normalizedLocale: FirstNotesLanguage = locale === "en" ? "en" : "zh";
   const frameRef = useRef<HTMLIFrameElement | null>(null);
@@ -75,8 +75,10 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
   const [error, setError] = useState<string | null>(null);
   const channel = useMemo(createChannel, [attempt]);
   const initialDraft = useMemo(
-    () => initialDraftFor(user.id, status, normalizedLocale, mode),
-    [mode, normalizedLocale, status, user.id],
+    () => previewOnly
+      ? { version: 1, profile: blankFirstNotesProfile(normalizedLocale), step: "welcome" } satisfies FirstNotesDraft
+      : initialDraftFor(user.id, status, normalizedLocale, mode),
+    [mode, normalizedLocale, previewOnly, status, user.id],
   );
   const latestStatusRef = useRef(status);
   latestStatusRef.current = status;
@@ -106,8 +108,10 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
     setError(null);
     try {
       const answers = answersFromFirstNotesProfile(profile, latestStatusRef.current?.answers);
-      await completeOnboarding(user.id, answers);
-      clearFirstNotesDraft(user.id);
+      if (!previewOnly) {
+        await completeOnboarding(user.id, answers);
+        clearFirstNotesDraft(user.id);
+      }
       if (!mountedRef.current) return;
       if (profile.language !== locale) setLocale(profile.language);
       postToFrame({ type: "saved" });
@@ -121,7 +125,7 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
             : new Date().toISOString(),
           version: 3,
           answers,
-          source: "remote",
+          source: previewOnly ? "none" : "remote",
         });
       }, 420);
     } catch (saveError) {
@@ -131,7 +135,7 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
     } finally {
       if (mountedRef.current) setSaving(false);
     }
-  }, [locale, normalizedLocale, onComplete, postToFrame, saving, setLocale, user.id]);
+  }, [locale, normalizedLocale, onComplete, postToFrame, previewOnly, saving, setLocale, user.id]);
 
   useEffect(() => {
     setReady(false);
@@ -154,7 +158,7 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
         });
       } else if (event.data.type === "draft") {
         const draft = normalizeFirstNotesDraft(event.data.draft, normalizedLocale);
-        if (draft) writeFirstNotesDraft(user.id, draft);
+        if (draft && !previewOnly) writeFirstNotesDraft(user.id, draft);
       } else if (event.data.type === "complete") {
         const profile = normalizeFirstNotesProfile(event.data.profile, { fallbackLanguage: normalizedLocale });
         if (profile) void handleSave(profile);
@@ -166,7 +170,7 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [channel, handleSave, initialDraft.profile, initialDraft.step, locale, normalizedLocale, postToFrame, user.id]);
+  }, [channel, handleSave, initialDraft.profile, initialDraft.step, locale, normalizedLocale, postToFrame, previewOnly, user.id]);
 
   return (
     <main className="onboarding-screen onboarding-screen--first-notes" data-mode={mode}>
@@ -204,4 +208,3 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
     </main>
   );
 }
-

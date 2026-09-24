@@ -3,8 +3,10 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import ErrorBoundary from "./components/ErrorBoundary";
 import { assertConfig } from "./config";
 import AuthScreen from "./features/AuthScreen";
+import OnboardingScreen from "./features/OnboardingScreen";
 import { LocaleProvider, useT } from "./i18n";
 import { isDemoMode } from "./services/demo";
+import type { OnboardingStatus } from "./services/onboarding";
 import { AuthProvider } from "./state/AuthProvider";
 import { useAuth } from "./state/authContext";
 import LoadingShell from "./components/LoadingShell";
@@ -13,6 +15,13 @@ import DesktopDevicePreviewChrome from "./components/DesktopDevicePreviewChrome"
 
 const loadAuthenticatedApp = () => import("./App");
 const AuthenticatedApp = lazy(loadAuthenticatedApp);
+const firstLoginPreviewStatus: OnboardingStatus = {
+  completed: false,
+  completedAt: null,
+  version: 3,
+  answers: {},
+  source: "none",
+};
 
 function LoadingScreen() {
   return <LoadingShell />;
@@ -43,6 +52,8 @@ function BootstrapContent() {
   const signedOutScreenSeen = useRef(false);
   const [readyUserId, setReadyUserId] = useState<string | null>(null);
   const [freshAuthentication, setFreshAuthentication] = useState(false);
+  const [firstLoginPreviewOpen, setFirstLoginPreviewOpen] = useState(false);
+  const [firstLoginPreviewKey, setFirstLoginPreviewKey] = useState(0);
   const forceAuthSkeleton = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "auth-skeleton";
 
   if (!loading && !user) signedOutScreenSeen.current = true;
@@ -57,15 +68,31 @@ function BootstrapContent() {
 
   useEffect(() => {
     if (!user) setReadyUserId(null);
+    else setFirstLoginPreviewOpen(false);
   }, [user]);
 
   const markAuthenticatedAppReady = useCallback((userId: string) => {
     setReadyUserId((current) => current === userId ? current : userId);
   }, []);
 
-  if (forceAuthSkeleton) return <div className="nava-app-stage"><AuthLoadingScreen /><DesktopDevicePreviewChrome /></div>;
-  if (configError && !isDemoMode()) return <div className="nava-app-stage"><ConfigErrorScreen message={configError} /><DesktopDevicePreviewChrome /></div>;
-  if (loading) return <div className="nava-app-stage"><AuthLoadingScreen /><DesktopDevicePreviewChrome /></div>;
+  const openFirstLoginPreview = useCallback(() => {
+    setFirstLoginPreviewKey((value) => value + 1);
+    setFirstLoginPreviewOpen(true);
+  }, []);
+  const firstLoginPreview = firstLoginPreviewOpen ? (
+    <OnboardingScreen
+      key={`signed-out-first-login-preview-${firstLoginPreviewKey}`}
+      user={{ id: "desktop-first-login-preview" }}
+      status={firstLoginPreviewStatus}
+      mode="first"
+      previewOnly
+      onComplete={() => setFirstLoginPreviewOpen(false)}
+    />
+  ) : null;
+
+  if (forceAuthSkeleton) return <div className="nava-app-stage">{firstLoginPreview ?? <AuthLoadingScreen />}<DesktopDevicePreviewChrome onFirstLoginPreview={openFirstLoginPreview} /></div>;
+  if (configError && !isDemoMode()) return <div className="nava-app-stage">{firstLoginPreview ?? <ConfigErrorScreen message={configError} />}<DesktopDevicePreviewChrome onFirstLoginPreview={openFirstLoginPreview} /></div>;
+  if (loading) return <div className="nava-app-stage">{firstLoginPreview ?? <AuthLoadingScreen />}<DesktopDevicePreviewChrome onFirstLoginPreview={openFirstLoginPreview} /></div>;
 
   const authenticatedAppReady = Boolean(user && readyUserId === user.id);
   const preserveSubmittedAuthScreen = Boolean(user && !authenticatedAppReady && signedOutScreenSeen.current);
@@ -75,14 +102,14 @@ function BootstrapContent() {
     <>
       {(!user || preserveSubmittedAuthScreen) && (
         <div className="nava-app-stage">
-          <AuthScreen transitionPending={preserveSubmittedAuthScreen} onAuthenticated={() => setFreshAuthentication(true)} />
-          <DesktopDevicePreviewChrome />
+          {firstLoginPreview ?? <AuthScreen transitionPending={preserveSubmittedAuthScreen} onAuthenticated={() => setFreshAuthentication(true)} />}
+          <DesktopDevicePreviewChrome onFirstLoginPreview={openFirstLoginPreview} />
         </div>
       )}
       {showSessionRestoreLoading && (
         <div className="nava-app-stage">
           <LoadingScreen />
-          <DesktopDevicePreviewChrome />
+          <DesktopDevicePreviewChrome onFirstLoginPreview={openFirstLoginPreview} />
         </div>
       )}
       {user && (

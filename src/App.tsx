@@ -61,6 +61,13 @@ import {
 } from "./services/shellHistory";
 
 const aiLongPressDelayMs = 450;
+const firstLoginPreviewStatus: OnboardingStatus = {
+  completed: false,
+  completedAt: null,
+  version: 3,
+  answers: {},
+  source: "none",
+};
 
 const RecordsScreen = lazy(() => import("./features/RecordsScreen"));
 const JournalExperience = lazy(() => import("./features/JournalExperience"));
@@ -841,6 +848,8 @@ function AppContent({
   const [onboardingRoute, setOnboardingRoute] = useState<{ userId: string; required: boolean; status?: OnboardingStatus | null; mode?: "first" | "review" } | null>(null);
   const [onboardingError, setOnboardingError] = useState<string | null>(null);
   const [onboardingRetryKey, setOnboardingRetryKey] = useState(0);
+  const [firstLoginPreviewOpen, setFirstLoginPreviewOpen] = useState(false);
+  const [firstLoginPreviewKey, setFirstLoginPreviewKey] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -896,12 +905,29 @@ function AppContent({
         setOnboardingRoute({ userId: user.id, required: true, status: onboardingRoute?.status ?? null, mode: "review" });
       });
   }, [onboardingRoute?.status, user]);
+  const openFirstLoginPreview = useCallback(() => {
+    setFirstLoginPreviewKey((value) => value + 1);
+    setFirstLoginPreviewOpen(true);
+  }, []);
+  const closeFirstLoginPreview = useCallback(() => setFirstLoginPreviewOpen(false), []);
 
   let screen;
   if (configError && !isDemoMode()) screen = <ConfigErrorScreen message={configError} />;
   else if (loading) screen = <LoadingScreen />;
   else if (user && passwordRecovery) screen = <PasswordRecoveryScreen />;
   else if (!user) screen = <AuthScreen />;
+  else if (firstLoginPreviewOpen) {
+    screen = (
+      <OnboardingScreen
+        key={`authenticated-first-login-preview-${firstLoginPreviewKey}`}
+        user={{ id: `desktop-first-login-preview-${user.id}` }}
+        status={firstLoginPreviewStatus}
+        mode="first"
+        previewOnly
+        onComplete={closeFirstLoginPreview}
+      />
+    );
+  }
   else if (onboardingError) {
     screen = <main className="app-screen centered-screen"><div className="brand-mark warn"><Activity size={28} /></div><h1>{locale === "zh" ? "暂时无法进入" : "Unable to continue"}</h1><p className="muted">{onboardingError}</p><button className="primary" type="button" onClick={() => setOnboardingRetryKey((value) => value + 1)}>{locale === "zh" ? "重新检查" : "Retry"}</button></main>;
   } else if (checkingOnboarding) {
@@ -918,7 +944,7 @@ function AppContent({
   return (
     <div className="nava-app-stage">
       {screen}
-      <DesktopDevicePreviewChrome reminderUserId={user?.id} />
+      <DesktopDevicePreviewChrome reminderUserId={user?.id} onFirstLoginPreview={openFirstLoginPreview} />
       {user && <DevSeedPanel user={user} />}
     </div>
   );

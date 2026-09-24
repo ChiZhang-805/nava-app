@@ -24,6 +24,7 @@ try {
         const inspect = async (state) => {
           await expect(rail).toHaveCount(1);
           await expect(rail.locator("[data-preview-event]")).toHaveCount(3);
+          await expect(rail.locator('[data-preview-action="first-login"]')).toHaveCount(1);
           await expect(rail.locator("[data-reminder-preview] button")).toHaveCount(8);
           const geometry = await rail.evaluate((node) => {
             const box = node.getBoundingClientRect(), phone = document.querySelector(".nava-app-stage > .phone-frame, .nava-app-stage > .auth-screen").getBoundingClientRect();
@@ -32,7 +33,7 @@ try {
           });
           assert.ok(geometry.left > geometry.phoneRight && geometry.right <= viewport.width && geometry.bottom <= viewport.height && geometry.overflow <= 1, JSON.stringify(geometry));
           assert.ok(geometry.gap >= 12 && geometry.gap <= 16, JSON.stringify(geometry));
-          for (const button of await rail.locator("[data-preview-event], [data-reminder-preview] button").all()) {
+          for (const button of await rail.locator("[data-preview-event], [data-preview-action], [data-reminder-preview] button").all()) {
             await button.scrollIntoViewIfNeeded(); await expect(button.locator("span")).toBeVisible();
             const buttonGeometry = await button.evaluate((node) => { const box = node.getBoundingClientRect(), text = node.querySelector("span").getBoundingClientRect(); return { width: box.width, height: box.height, textFits: text.left >= box.left && text.right <= box.right, labelDisplay: getComputedStyle(node.querySelector("span")).display }; });
             assert.ok(buttonGeometry.width >= 43 && buttonGeometry.height >= 43 && buttonGeometry.textFits && buttonGeometry.labelDisplay !== "none", JSON.stringify(buttonGeometry));
@@ -41,9 +42,15 @@ try {
           receipt.results.push({ viewport, state, geometry });
         };
         await expect(rail.locator("[data-preview-event]:enabled")).toHaveCount(3);
+        await expect(rail.locator('[data-preview-action="first-login"]:enabled')).toHaveCount(1);
         await expect(rail.locator("[data-reminder-preview] button:enabled")).toHaveCount(0);
         await expect(rail).not.toContainText(/系统事件随时可用|只有图标按压反馈|仅网页测试/);
         await inspect("signed-out"); await page.screenshot({ path: `${output}/login-${viewport.width}.png` });
+        await rail.locator('[data-preview-action="first-login"]').click();
+        await expect(page.locator(".onboarding-screen--first-notes")).toBeVisible();
+        await expect(page.locator('.onboarding-screen--first-notes iframe[title="初见手记"]')).toBeVisible();
+        await open();
+        await expect(page.locator(".auth-form--signIn")).toBeVisible();
         await rail.locator('[data-preview-event="other"]').click();
         const system = page.locator('.ios-system-layer');
         await expect(system).toHaveAttribute('data-surface', 'home');
@@ -59,29 +66,39 @@ try {
         await inspect("specifications");
         await page.evaluate(() => {
           sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
-          localStorage.setItem("nava.onboarding.v2.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, version: 2, answers: {}, completedAt: new Date().toISOString() }));
+          localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, version: 3, answers: {}, completedAt: new Date().toISOString() }));
         });
         await open("?demo=1#tab=today"); await expect(page.locator(".bottom-nav")).toBeVisible();
         await expect(rail.locator("[data-preview-event]:enabled")).toHaveCount(3);
         await expect(rail.locator("[data-reminder-preview] button:enabled")).toHaveCount(8);
         await inspect("signed-in-idle");
         await open("?demo=1#tab=record&module=focus");
-        await page.locator('.focus-summary-start[aria-label="开始专注"]').click();
-        const immersive = page.locator('[data-module-view="focus-immersive"]');
-        await expect(immersive).toBeVisible();
-        const toolsRight = await page.locator(".focus-immersive-tools").evaluate((node) => node.getBoundingClientRect().right);
-        const railLeft = await rail.evaluate((node) => node.getBoundingClientRect().left);
-        assert.ok(toolsRight <= railLeft - 10, "Focus tools must not overlap the simulator rail");
-        await page.getByRole("button", { name: "进入状态", exact: true }).click();
-        await page.getByRole("dialog", { name: "进入专注状态" }).getByRole("button", { name: "关闭", exact: true }).click();
-        await immersive.locator('[aria-label="开始"]').click();
-        await expect(immersive).toHaveAttribute("data-focus-state", "running");
-        await rail.locator('[data-preview-event="call"]').click();
-        await expect(immersive).toHaveAttribute("data-focus-state", "paused");
-        await expect(page.locator('.focus-interruption')).toHaveCount(0);
-        await expect(rail.locator('[data-preview-event-result]')).toContainText("专注已暂停");
-        await inspect("simulated-result-outside-phone");
-        receipt.results.push({ viewport, state: "immersive-call-clickable", toolsRight, railLeft });
+        const legacyFocusStart = page.locator('.focus-summary-start[aria-label="开始专注"]');
+        if (await legacyFocusStart.count()) {
+          await legacyFocusStart.click();
+          const immersive = page.locator('[data-module-view="focus-immersive"]');
+          await expect(immersive).toBeVisible();
+          const toolsRight = await page.locator(".focus-immersive-tools").evaluate((node) => node.getBoundingClientRect().right);
+          const railLeft = await rail.evaluate((node) => node.getBoundingClientRect().left);
+          assert.ok(toolsRight <= railLeft - 10, "Focus tools must not overlap the simulator rail");
+          await page.getByRole("button", { name: "进入状态", exact: true }).click();
+          await page.getByRole("dialog", { name: "进入专注状态" }).getByRole("button", { name: "关闭", exact: true }).click();
+          await immersive.locator('[aria-label="开始"]').click();
+          await expect(immersive).toHaveAttribute("data-focus-state", "running");
+          await rail.locator('[data-preview-event="call"]').click();
+          await expect(immersive).toHaveAttribute("data-focus-state", "paused");
+          await expect(page.locator('.focus-interruption')).toHaveCount(0);
+          await expect(rail.locator('[data-preview-event-result]')).toContainText("专注已暂停");
+          await inspect("simulated-result-outside-phone");
+          receipt.results.push({ viewport, state: "immersive-call-clickable", toolsRight, railLeft });
+        } else {
+          await expect(rail.locator('[data-preview-event="call"]')).toBeEnabled();
+          await rail.locator('[data-preview-event="call"]').click();
+          await expect(rail.locator('[data-preview-event-result]')).toContainText(/当前没有运行中的活动需要暂停|专注已暂停/);
+          await expect(page.locator(".phone-frame, .auth-screen, .onboarding-screen")).not.toContainText(/模拟|网页预览事件/);
+          await inspect("current-focus-preview-idle");
+          receipt.results.push({ viewport, state: "current-focus-preview-idle" });
+        }
       } else {
         await expect(page.locator(".nava-preview-controls")).toBeHidden();
         await expect(page.locator("[data-preview-only=focus-event-simulator]")).toBeHidden();

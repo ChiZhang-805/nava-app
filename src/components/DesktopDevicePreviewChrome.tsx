@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { Bell, Ellipsis, LockKeyhole, PhoneIncoming, RotateCcw, Smartphone, Sun, Home } from "lucide-react";
+import { Bell, BookOpenText, Ellipsis, LockKeyhole, PhoneIncoming, RotateCcw, Smartphone, Sun, Home } from "lucide-react";
 import PhoneSystemPreview from "./PhoneSystemPreview";
 import { commandPhonePreview } from "../services/previewPhoneSystem";
 import {
@@ -23,7 +23,12 @@ function formatMetric(value: number) {
   return value.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
 }
 
-export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminderUserId?: string } = {}) {
+type DesktopDevicePreviewChromeProps = {
+  reminderUserId?: string;
+  onFirstLoginPreview?: () => void;
+};
+
+export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLoginPreview }: DesktopDevicePreviewChromeProps = {}) {
   const [reminderResult, setReminderResult] = useState("");
   const [reminderBusy, setReminderBusy] = useState(false);
   const [eventResult, setEventResult] = useState("");
@@ -278,6 +283,17 @@ export default function DesktopDevicePreviewChrome({ reminderUserId }: { reminde
             title={`模拟${label}`}
             aria-label={`模拟${label}`}
           ><Icon size={17} /><span>{label}</span></button>)}
+          <button
+            type="button"
+            data-preview-action="first-login"
+            onClick={() => {
+              commandPhonePreview("app");
+              onFirstLoginPreview?.();
+              setEventResult("已进入首次登录展示流程。");
+            }}
+            title="展示首次登录流程"
+            aria-label="展示首次登录流程"
+          ><BookOpenText size={17} /><span>首次登录</span></button>
         </div>
         <div className="nava-focus-event-actions">
           <button type="button" data-phone-action="lock" onClick={() => { simulatePreviewInterruption("other"); commandPhonePreview("lock"); setEventResult("已锁屏熄屏；应用仍保留在原页面。"); }}><LockKeyhole size={17} /><span>锁屏／熄屏</span></button>
