@@ -1,8 +1,9 @@
 import type { User } from "@supabase/supabase-js";
-import { ArrowLeft, Cat, CheckCircle2, ChevronRight, Coins, CupSoda, Gift, Image, LoaderCircle, Minus, NotebookPen, PackageOpen, Plus, Search, ShoppingCart, Trash2, X } from "lucide-react";
+import { ArrowLeft, Cat, ChevronRight, Coins, CupSoda, Gift, Image, LoaderCircle, Minus, NotebookPen, PackageOpen, Plus, Search, ShoppingCart, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "../i18n";
 import MascotImage from "../components/MascotImage";
+import ShopCheckoutExperience from "../components/ShopCheckoutExperience";
 import shopCat from "../assets/mascot/animated/home-drowsy.webp";
 import shopCatStill from "../assets/figma/home-option2/home-mascot-v5.png";
 import { filterShopProducts, SHOP_CATEGORIES, shopCategory } from "../services/rewardShopCatalog";
@@ -14,11 +15,24 @@ import {
   placeholderRewardProducts,
   setRewardCartItem,
   type RewardCartLine,
+  type RewardCheckoutResult,
   type RewardProduct,
 } from "../services/rewardShop";
 
 type ShopRoute = "catalog" | "category" | "cart" | "product";
 const categoryIcons = { gift: Gift, cat: Cat, notebook: NotebookPen, cup: CupSoda };
+
+function shopVisualFixture(locale: "zh" | "en"): RewardProduct {
+  return {
+    id: "qa-nava-journal",
+    slug: "qa-nava-journal",
+    name: locale === "zh" ? "NAVA 测试手账（仅本地）" : "NAVA test journal (local only)",
+    description: locale === "zh" ? "仅用于本地验证积分兑换动画，不代表线上真实商品。" : "A local-only fixture for checkout animation review.",
+    pointPrice: 120,
+    imageUrls: [],
+    soldOut: false,
+  };
+}
 
 function parseShopRoute(view: string | null) {
   if (view === "points-shop-cart") return { route: "cart" as ShopRoute, productId: null };
@@ -52,19 +66,29 @@ export default function PointsShopExperience({
   const [catalogView, setCatalogView] = useState("points-shop");
   const screenRef = useRef<HTMLElement>(null);
   const mutationRef = useRef(false);
+  const checkoutRequestRef = useRef<string | null>(null);
+  const visualFixture = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "shop-checkout";
   const [products, setProducts] = useState<RewardProduct[]>([]);
   const [cart, setCart] = useState<RewardCartLine[]>([]);
   const [points, setPoints] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [orderConfirmation, setOrderConfirmation] = useState<string | null>(null);
+  const [checkoutSession, setCheckoutSession] = useState<{ lines: RewardCartLine[]; expectedTotal: number; result: RewardCheckoutResult | null } | null>(null);
   const [slide, setSlide] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
+    if (visualFixture) {
+      const fixture = shopVisualFixture(locale);
+      setProducts([fixture]);
+      setCart([{ product: fixture, quantity: 1 }]);
+      setPoints(460);
+      setLoading(false);
+      return;
+    }
     try {
       const loadedProducts = await loadRewardProducts();
       const visibleProducts = loadedProducts.length > 0 ? loadedProducts : placeholderRewardProducts(locale);
@@ -80,10 +104,15 @@ export default function PointsShopExperience({
     } finally {
       setLoading(false);
     }
-  }, [locale, user.id]);
+  }, [locale, user.id, visualFixture]);
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => { screenRef.current?.scrollTo({ top: 0 }); setSlide(0); }, [view]);
+  useEffect(() => {
+    const frame = screenRef.current?.closest(".phone-frame");
+    frame?.classList.toggle("has-shop-checkout", Boolean(checkoutSession));
+    return () => frame?.classList.remove("has-shop-checkout");
+  }, [checkoutSession]);
 
   const product = useMemo(() => products.find((candidate) => candidate.id === activeProductId) ?? null, [activeProductId, products]);
   const cartCount = cart.reduce((sum, line) => sum + line.quantity, 0);
@@ -97,18 +126,25 @@ export default function PointsShopExperience({
     onViewChange(nextView);
   }
 
-  async function updateCart(target: RewardProduct, quantity: number) {
+  async function updateCart(target: RewardProduct, quantity: number, nextView?: string) {
     // Zero removes even a sold-out item through the existing server contract.
     if (mutationRef.current || target.placeholder || quantity > 5 || (quantity > 0 && (target.soldOut || target.pointPrice === null))) return;
     mutationRef.current = true;
     setBusyId(target.id);
     setError(null);
-    setOrderConfirmation(null);
     try {
+      if (visualFixture) {
+        setCart(quantity > 0 ? [{ product: target, quantity }] : []);
+        checkoutRequestRef.current = null;
+        if (nextView) onViewChange(nextView);
+        return;
+      }
       await setRewardCartItem(target.id, quantity);
       const freshProducts = await loadRewardProducts();
       setProducts(freshProducts.length > 0 ? freshProducts : placeholderRewardProducts(locale));
       setCart(await loadRewardCart(user.id, freshProducts));
+      checkoutRequestRef.current = null;
+      if (nextView) onViewChange(nextView);
     } catch (cartError) {
       setError(readableShopError(cartError, locale));
     } finally {
@@ -122,15 +158,26 @@ export default function PointsShopExperience({
     mutationRef.current = true;
     setBusyId("checkout");
     setError(null);
-    setOrderConfirmation(null);
+    const lines = cart.map((line) => ({ ...line, product: { ...line.product, imageUrls: [...line.product.imageUrls] } }));
+    const expectedTotal = lines.reduce((sum, line) => sum + (line.product.pointPrice ?? 0) * line.quantity, 0);
+    setCheckoutSession({ lines, expectedTotal, result: null });
+    screenRef.current?.scrollTo({ top: 0 });
     try {
-      const result = await checkoutRewardCart();
+      const requestKey = checkoutRequestRef.current ?? crypto.randomUUID();
+      checkoutRequestRef.current = requestKey;
+      const result = visualFixture
+        ? await new Promise<RewardCheckoutResult>((resolve) => window.setTimeout(() => resolve({ orderId: "qa-order-20260927", totalPoints: expectedTotal, balance: Math.max(0, (points ?? 0) - expectedTotal), replayed: false }), 520))
+        : await checkoutRewardCart(requestKey);
       setCart([]);
       setPoints(result.balance);
-      setOrderConfirmation(locale === "zh" ? `兑换成功，订单 ${result.orderId.slice(0, 8)} 已确认。` : `Order ${result.orderId.slice(0, 8)} is confirmed.`);
-      const freshProducts = await loadRewardProducts();
-      setProducts(freshProducts.length > 0 ? freshProducts : placeholderRewardProducts(locale));
+      setCheckoutSession((current) => current ? { ...current, result } : current);
+      checkoutRequestRef.current = null;
+      if (!visualFixture) {
+        const freshProducts = await loadRewardProducts();
+        setProducts(freshProducts.length > 0 ? freshProducts : placeholderRewardProducts(locale));
+      }
     } catch (checkoutError) {
+      setCheckoutSession(null);
       await refresh();
       setError(readableShopError(checkoutError, locale));
     } finally {
@@ -145,6 +192,21 @@ export default function PointsShopExperience({
       ? (locale === "zh" ? "商品详情" : "Product")
       : activeRoute === "category" ? selectedCategory[locale] : (locale === "zh" ? "积分商城" : "Points shop");
   const back = activeRoute === "catalog" ? onBack : () => onViewChange(activeRoute === "category" ? "points-shop" : catalogView);
+
+  if (checkoutSession) return (
+    <section ref={screenRef} className="home-experience points-shop-screen points-shop-screen--checkout">
+      <ShopCheckoutExperience
+        locale={locale}
+        lines={checkoutSession.lines}
+        expectedTotal={checkoutSession.expectedTotal}
+        result={checkoutSession.result}
+        onDone={() => {
+          setCheckoutSession(null);
+          onViewChange("points-shop");
+        }}
+      />
+    </section>
+  );
 
   return (
     <section ref={screenRef} className="home-experience points-shop-screen" data-shop-route={activeRoute}>
@@ -172,8 +234,6 @@ export default function PointsShopExperience({
         {activeRoute === "catalog" && <div className="points-shop-section-heading"><h2>{locale === "zh" ? "逛逛好物" : "Find a little favourite"}</h2><button type="button" onClick={() => onViewChange("points-shop-category-all")}>{locale === "zh" ? "全部" : "View all"}<ChevronRight size={16} /></button></div>}
       </>}
       {error && <div className="points-shop-error" role="alert"><p>{error}</p><button type="button" onClick={() => void refresh()}>{locale === "zh" ? "重试" : "Retry"}</button></div>}
-      {orderConfirmation && <p className="points-shop-success" role="status"><CheckCircle2 size={17} />{orderConfirmation}</p>}
-
       {loading ? (
         <div className="points-shop-loading" aria-label={locale === "zh" ? "正在加载积分商城" : "Loading points shop"}><LoaderCircle size={26} /></div>
       ) : activeRoute === "catalog" || activeRoute === "category" ? (
@@ -204,7 +264,7 @@ export default function PointsShopExperience({
             {product.imageUrls.map((_, index) => <button type="button" aria-current={index === slide ? "true" : undefined} key={index} onClick={() => carouselRef.current?.scrollTo({ left: index * carouselRef.current.clientWidth, behavior: "smooth" })} aria-label={`${index + 1}`}><span /></button>)}
           </div>}
           <div className="points-shop-detail-copy"><h2>{product.name}</h2><strong>{locale === "zh" ? "定价：" : "Price: "}{product.pointPrice === null ? (locale === "zh" ? "待填写" : "TBD") : `${product.pointPrice} XP`}</strong>{!product.placeholder && product.description && <p>{product.description}</p>}</div>
-          <footer><button type="button" disabled={cannotAdd(product)} onClick={() => void updateCart(product, (cart.find((line) => line.product.id === product.id)?.quantity ?? 0) + 1)}><ShoppingCart size={18} />{locale === "zh" ? "加入购物车" : "Add to cart"}</button><button type="button" onClick={() => onViewChange("points-shop-cart")}>{locale === "zh" ? "去购物车" : "View cart"}</button></footer>
+          <footer><button type="button" disabled={cannotAdd(product)} onClick={() => void updateCart(product, (cart.find((line) => line.product.id === product.id)?.quantity ?? 0) + 1)}><ShoppingCart size={18} />{locale === "zh" ? "加入购物车" : "Add to cart"}</button><button type="button" disabled={cannotAdd(product)} onClick={() => void updateCart(product, (cart.find((line) => line.product.id === product.id)?.quantity ?? 0) + 1, "points-shop-cart")}>{locale === "zh" ? "立即兑换" : "Redeem now"}</button></footer>
         </article> : <div className="points-shop-empty"><PackageOpen size={36} /><p>{locale === "zh" ? "没有找到这个商品。" : "Product not found."}</p></div>
       ) : (
         <div className="points-shop-cart">

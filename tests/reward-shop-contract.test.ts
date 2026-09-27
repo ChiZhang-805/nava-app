@@ -7,6 +7,8 @@ const shop = readFileSync(new URL("../src/features/PointsShopExperience.tsx", im
 const home = readFileSync(new URL("../src/features/OptionTwoHome.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../src/styles/figma-v2.css", import.meta.url), "utf8");
 const service = readFileSync(new URL("../src/services/rewardShop.ts", import.meta.url), "utf8");
+const checkout = readFileSync(new URL("../src/components/ShopCheckoutExperience.tsx", import.meta.url), "utf8");
+const checkoutStyles = readFileSync(new URL("../src/components/shop-checkout-experience.css", import.meta.url), "utf8");
 
 test("empty catalog presents explicit non-purchasable placeholders", () => {
   assert.match(service, /Array\.from\(\{ length: 4 \}/);
@@ -43,4 +45,28 @@ test("inventory quantity is not granted to authenticated clients", () => {
   assert.match(grant, /sold_out/);
   assert.match(migration, /Users can view own reward cart/);
   assert.match(migration, /Users can view own reward orders/);
+});
+
+test("checkout reuses one request key and only celebrates a confirmed server result", () => {
+  assert.match(service, /checkoutRewardCart\(requestKey: string = crypto\.randomUUID\(\)\)/);
+  assert.match(service, /request_key: requestKey/);
+  assert.match(shop, /checkoutRequestRef/);
+  assert.match(shop, /setCheckoutSession\(\{ lines, expectedTotal, result: null \}\)/);
+  assert.match(shop, /setCheckoutSession\(\(current\) => current \? \{ \.\.\.current, result \}/);
+  assert.match(shop, /classList\.toggle\("has-shop-checkout", Boolean\(checkoutSession\)\)/);
+  assert.doesNotMatch(styles, /:has\(\.shop-checkout-experience\)/);
+  assert.doesNotMatch(shop, /points-shop-success/);
+});
+
+test("receipt leads into one persistent animated mascot completion scene", () => {
+  assert.match(checkout, /"checking" \| "card" \| "printing" \| "receipt" \| "complete"/);
+  assert.match(checkout, /className="shop-receipt"/);
+  assert.match(checkout, /className="shop-payment-terminal"/);
+  assert.match(checkout, /className="shop-receipt-printer"/);
+  assert.match(checkout, /className="shop-checkout-cat"/);
+  assert.match(checkout, /setPhase\("complete"\)/);
+  assert.match(checkout, /查看兑换凭证/);
+  assert.match(checkoutStyles, /\[data-checkout-phase="receipt"\] \.shop-checkout-cat/);
+  assert.match(checkoutStyles, /\[data-checkout-phase="complete"\] \.shop-checkout-cat/);
+  assert.match(checkoutStyles, /@media \(prefers-reduced-motion: reduce\)/);
 });

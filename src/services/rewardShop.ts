@@ -107,9 +107,9 @@ export async function setRewardCartItem(productId: string, quantity: number) {
   assertNoError(result.error);
 }
 
-export async function checkoutRewardCart(): Promise<RewardCheckoutResult> {
+export async function checkoutRewardCart(requestKey: string = crypto.randomUUID()): Promise<RewardCheckoutResult> {
   if (isDemoMode()) throw new Error("公开演示不会创建真实订单。");
-  const result = await supabase.rpc("nava_checkout_reward_cart", { request_key: crypto.randomUUID() });
+  const result = await supabase.rpc("nava_checkout_reward_cart", { request_key: requestKey });
   assertNoError(result.error);
   const value = result.data && typeof result.data === "object" ? result.data as Record<string, unknown> : {};
   const orderId = typeof value.orderId === "string" ? value.orderId : "";
