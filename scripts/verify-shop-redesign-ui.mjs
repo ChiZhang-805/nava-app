@@ -12,7 +12,7 @@ const html = `<!doctype html><html><head><meta name="viewport" content="width=de
 import React from 'react';import ReactDOM from 'react-dom/client';
 import {LocaleProvider} from '/src/i18n.tsx';import Shop from '/src/features/PointsShopExperience.tsx';
 import '/src/styles/global.css';import '/src/styles/figma-v2.css';
-function Fixture(){const [view,setView]=React.useState('points-shop');return React.createElement('main',{style:{height:'100dvh',width:'100%',overflow:'hidden'}},React.createElement(Shop,{user:{id:'10000000-0000-4000-8000-000000000001'},view,onViewChange:setView,onBack:()=>setView('points-shop')}));}
+function Fixture(){const [view,setView]=React.useState('points-shop');return React.createElement('main',{style:{height:'100dvh',width:'100%',overflow:'hidden'}},React.createElement(Shop,{user:{id:'10000000-0000-4000-8000-000000000001'},view,onViewChange:setView,onHome:()=>setView(null)}));}
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(LocaleProvider,null,React.createElement(Fixture)));
 </script></body></html>`;
 const server = await createServer({ logLevel: 'silent', server: { host: '127.0.0.1', port: 5251, strictPort: true }, plugins: [{ name: 'shop-test-only', configureServer(s) { s.middlewares.use(async (req,res,next) => { if(req.url !== '/__shop-fixture.html') return next();res.setHeader('Content-Type','text/html');res.end(await s.transformIndexHtml(req.url,html)); }); } }] });
@@ -62,7 +62,7 @@ try {
     await page.locator('.points-shop-product-open').first().click();await bounds('detail');
     await page.locator('.points-shop-dots button').nth(1).click();await expect(page.locator('.points-shop-dots button').nth(1)).toHaveAttribute('aria-current','true');
     await page.locator('.points-shop-detail footer button').first().click();await expect(page.locator('.points-shop-cart-shortcut > span')).toHaveText('1');
-    await page.locator('.home-experience-back').click();await expect(page.locator('.points-shop-header h1')).toHaveText(locale==='zh'?'专注文具':'Stationery');
+    await page.locator('.home-experience-back').click();await expect(page.locator('.points-shop-header h1')).toHaveText(locale==='zh'?'积分商城':'Points shop');
    }
    await page.locator('.points-shop-cart-shortcut').click();await bounds('cart');
    if(populated){

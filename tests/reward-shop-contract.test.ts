@@ -29,6 +29,15 @@ test("shop navigation exposes catalog, product detail, carousel, and cart routes
   assert.match(styles, /scroll-snap-type:\s*x mandatory/);
 });
 
+test("shop navigation returns home explicitly and replaces internal shop history", () => {
+  assert.match(home, /onHome=\{\(\) => onViewChange\(null, true\)\}/);
+  assert.match(shop, /<Home size=\{21\}/);
+  assert.match(shop, /返回首页/);
+  assert.match(shop, /onViewChange\(nextView, true\)/);
+  assert.doesNotMatch(shop, /const back = activeRoute/);
+  assert.doesNotMatch(shop, /<ArrowLeft/);
+});
+
 test("checkout serializes users and locks products before decrementing inventory", () => {
   assert.match(migration, /pg_advisory_xact_lock/);
   assert.match(migration, /FOR UPDATE OF p/);

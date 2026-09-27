@@ -321,7 +321,7 @@ export default function OptionTwoHome({
   }
 
   if (view === "points-shop" || view === "points-shop-cart" || view?.startsWith("points-shop-product-") || view?.startsWith("points-shop-category-")) {
-    return <PointsShopExperience user={user} view={view} onViewChange={(nextView) => onViewChange(nextView)} onBack={() => onBack(null)} />;
+    return <PointsShopExperience user={user} view={view} onViewChange={onViewChange} onHome={() => onViewChange(null, true)} />;
   }
 
   if (view === "admin-console") return <AdminConsole user={user} onBack={() => onBack(null)} />;

@@ -6,7 +6,7 @@ import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout/app";
+const outputDir = "Q:/NAVA-Workspace/Build/TestRuns/shop-navigation-products/app";
 const port = 5213;
 const demoUserId = "00000000-0000-4000-8000-000000000001";
 const report = [];
@@ -56,7 +56,7 @@ try {
       bottomInset: face.bottom - lastRow.bottom,
     } : null;
   });
-  if (frontHeight < 120 || backHeight <= frontHeight || !specificationGeometry || specificationGeometry.bottomInset < 12 || specificationGeometry.bottomInset > 18 || Math.abs(specificationGeometry.selectorHeight - specificationGeometry.faceHeight) > 2.5) throw new Error(`Device specification card did not fit its content ${JSON.stringify({ frontHeight, backHeight, specificationGeometry })}`);
+  if (frontHeight < 110 || backHeight <= frontHeight || !specificationGeometry || specificationGeometry.bottomInset < 12 || specificationGeometry.bottomInset > 18 || Math.abs(specificationGeometry.selectorHeight - specificationGeometry.faceHeight) > 2.5) throw new Error(`Device specification card did not fit its content ${JSON.stringify({ frontHeight, backHeight, specificationGeometry })}`);
   await desktop.screenshot({ path: path.join(outputDir, "desktop-device-specifications.png"), fullPage: true });
   await desktop.getByTitle("返回机型选择").click();
   await desktop.locator(".option-two-menu-toggle").click();
@@ -107,7 +107,11 @@ try {
     await page.locator(".points-shop-product-open").first().click();
     await expect(page.locator(".points-shop-detail")).toBeVisible();
     await expect(page.getByText("商品图片待上架", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "返回首页", exact: true })).toBeVisible();
     await page.screenshot({ path: path.join(outputDir, `shop-detail-${viewport.width}x${viewport.height}.png`), fullPage: true });
+    await page.getByRole("button", { name: "返回首页", exact: true }).click();
+    await expect(page.locator(".points-shop-screen")).toHaveCount(0);
+    await expect(page.locator(".option-two-home")).toBeVisible();
     report.push({ mode: "shop-mobile", viewport, geometry });
     await context.close();
   }

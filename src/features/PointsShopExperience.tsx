@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { ArrowLeft, Cat, ChevronRight, Coins, CupSoda, Gift, Image, LoaderCircle, Minus, NotebookPen, PackageOpen, Plus, Search, ShoppingCart, Trash2, X } from "lucide-react";
+import { Cat, ChevronRight, Coins, CupSoda, Gift, Home, Image, LoaderCircle, Minus, NotebookPen, PackageOpen, Plus, Search, ShoppingCart, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "../i18n";
 import MascotImage from "../components/MascotImage";
@@ -52,18 +52,17 @@ export default function PointsShopExperience({
   user,
   view,
   onViewChange,
-  onBack,
+  onHome,
 }: {
   user: User;
   view: string | null;
-  onViewChange: (view: string | null) => void;
-  onBack: () => void;
+  onViewChange: (view: string | null, replace?: boolean) => void;
+  onHome: () => void;
 }) {
   const { locale } = useLocale();
   const { route: activeRoute, productId: activeProductId } = parseShopRoute(view);
   const category = shopCategory(view?.replace("points-shop-category-", "") ?? "all");
   const [query, setQuery] = useState("");
-  const [catalogView, setCatalogView] = useState("points-shop");
   const screenRef = useRef<HTMLElement>(null);
   const mutationRef = useRef(false);
   const checkoutRequestRef = useRef<string | null>(null);
@@ -122,8 +121,7 @@ export default function PointsShopExperience({
   const quantityOf = (item: RewardProduct) => cart.find((line) => line.product.id === item.id)?.quantity ?? 0;
   const cannotAdd = (item: RewardProduct) => !!item.placeholder || item.soldOut || item.pointPrice === null || busyId !== null || quantityOf(item) >= 5;
   function openItem(nextView: string) {
-    if (activeRoute === "catalog" || activeRoute === "category") setCatalogView(view ?? "points-shop");
-    onViewChange(nextView);
+    onViewChange(nextView, true);
   }
 
   async function updateCart(target: RewardProduct, quantity: number, nextView?: string) {
@@ -136,7 +134,7 @@ export default function PointsShopExperience({
       if (visualFixture) {
         setCart(quantity > 0 ? [{ product: target, quantity }] : []);
         checkoutRequestRef.current = null;
-        if (nextView) onViewChange(nextView);
+        if (nextView) onViewChange(nextView, true);
         return;
       }
       await setRewardCartItem(target.id, quantity);
@@ -144,7 +142,7 @@ export default function PointsShopExperience({
       setProducts(freshProducts.length > 0 ? freshProducts : placeholderRewardProducts(locale));
       setCart(await loadRewardCart(user.id, freshProducts));
       checkoutRequestRef.current = null;
-      if (nextView) onViewChange(nextView);
+      if (nextView) onViewChange(nextView, true);
     } catch (cartError) {
       setError(readableShopError(cartError, locale));
     } finally {
@@ -191,8 +189,6 @@ export default function PointsShopExperience({
     : activeRoute === "product"
       ? (locale === "zh" ? "商品详情" : "Product")
       : activeRoute === "category" ? selectedCategory[locale] : (locale === "zh" ? "积分商城" : "Points shop");
-  const back = activeRoute === "catalog" ? onBack : () => onViewChange(activeRoute === "category" ? "points-shop" : catalogView);
-
   if (checkoutSession) return (
     <section ref={screenRef} className="home-experience points-shop-screen points-shop-screen--checkout">
       <ShopCheckoutExperience
@@ -202,7 +198,7 @@ export default function PointsShopExperience({
         result={checkoutSession.result}
         onDone={() => {
           setCheckoutSession(null);
-          onViewChange("points-shop");
+          onViewChange("points-shop", true);
         }}
       />
     </section>
@@ -211,7 +207,7 @@ export default function PointsShopExperience({
   return (
     <section ref={screenRef} className="home-experience points-shop-screen" data-shop-route={activeRoute}>
       <header className="home-experience-header points-shop-header">
-        <button className="home-experience-back" type="button" onClick={back} aria-label={locale === "zh" ? "返回" : "Back"}><ArrowLeft size={21} /></button>
+        <button className="home-experience-back" type="button" onClick={onHome} aria-label={locale === "zh" ? "返回首页" : "Back home"}><Home size={21} /></button>
         <div><h1>{title}</h1></div>
         <button className="points-shop-cart-shortcut" type="button" onClick={() => openItem("points-shop-cart")} aria-label={locale === "zh" ? `购物车，共 ${cartCount} 件` : `Cart, ${cartCount} items`}>
           <ShoppingCart size={22} />{cartCount > 0 && <span>{cartCount}</span>}
@@ -225,13 +221,13 @@ export default function PointsShopExperience({
           <div className="points-shop-balance"><Coins size={20} /><span>{locale === "zh" ? "我的积分" : "My points"}</span><strong>{points?.toLocaleString() ?? "—"}<small> XP</small></strong></div>
         </section>
         <nav className="points-shop-categories" aria-label={locale === "zh" ? "商品分类" : "Product categories"}>
-          {SHOP_CATEGORIES.map((item) => { const Icon = categoryIcons[item.icon]; return <button key={item.id} type="button" data-category={item.id} onClick={() => { setQuery(""); onViewChange(`points-shop-category-${item.id}`); }}><span><Icon size={25} strokeWidth={1.7} /></span><b>{item[locale]}</b></button>; })}
+          {SHOP_CATEGORIES.map((item) => { const Icon = categoryIcons[item.icon]; return <button key={item.id} type="button" data-category={item.id} onClick={() => { setQuery(""); onViewChange(`points-shop-category-${item.id}`, true); }}><span><Icon size={25} strokeWidth={1.7} /></span><b>{item[locale]}</b></button>; })}
         </nav>
       </>}
       {(activeRoute === "catalog" || activeRoute === "category") && <>
         <div className="points-shop-search"><Search size={19} aria-hidden="true" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={locale === "zh" ? "找一份小喜欢" : "Find a little joy"} aria-label={locale === "zh" ? "搜索商品" : "Search products"} />{query && <button type="button" onClick={() => setQuery("")} aria-label={locale === "zh" ? "清除搜索" : "Clear search"}><X size={17} /></button>}</div>
-        {activeRoute === "category" && <nav className="points-shop-category-tabs" aria-label={locale === "zh" ? "商品分类" : "Product categories"}>{SHOP_CATEGORIES.map((item) => <button key={item.id} type="button" aria-current={item.id === category ? "page" : undefined} onClick={() => onViewChange(`points-shop-category-${item.id}`)}>{item[locale]}</button>)}</nav>}
-        {activeRoute === "catalog" && <div className="points-shop-section-heading"><h2>{locale === "zh" ? "逛逛好物" : "Find a little favourite"}</h2><button type="button" onClick={() => onViewChange("points-shop-category-all")}>{locale === "zh" ? "全部" : "View all"}<ChevronRight size={16} /></button></div>}
+        {activeRoute === "category" && <nav className="points-shop-category-tabs" aria-label={locale === "zh" ? "商品分类" : "Product categories"}>{SHOP_CATEGORIES.map((item) => <button key={item.id} type="button" aria-current={item.id === category ? "page" : undefined} onClick={() => onViewChange(`points-shop-category-${item.id}`, true)}>{item[locale]}</button>)}</nav>}
+        {activeRoute === "catalog" && <div className="points-shop-section-heading"><h2>{locale === "zh" ? "逛逛好物" : "Find a little favourite"}</h2><button type="button" onClick={() => onViewChange("points-shop-category-all", true)}>{locale === "zh" ? "全部" : "View all"}<ChevronRight size={16} /></button></div>}
       </>}
       {error && <div className="points-shop-error" role="alert"><p>{error}</p><button type="button" onClick={() => void refresh()}>{locale === "zh" ? "重试" : "Retry"}</button></div>}
       {loading ? (
@@ -268,7 +264,7 @@ export default function PointsShopExperience({
         </article> : <div className="points-shop-empty"><PackageOpen size={36} /><p>{locale === "zh" ? "没有找到这个商品。" : "Product not found."}</p></div>
       ) : (
         <div className="points-shop-cart">
-          {cart.length === 0 ? <div className="points-shop-empty"><ShoppingCart size={38} /><p>{locale === "zh" ? "购物车还是空的" : "Your cart is empty"}</p><button type="button" onClick={() => onViewChange("points-shop")}>{locale === "zh" ? "返回商城" : "Browse shop"}</button></div> : <>
+          {cart.length === 0 ? <div className="points-shop-empty"><ShoppingCart size={38} /><p>{locale === "zh" ? "购物车还是空的" : "Your cart is empty"}</p><button type="button" onClick={() => onViewChange("points-shop", true)}>{locale === "zh" ? "返回商城" : "Browse shop"}</button></div> : <>
             <div className="points-shop-cart-list">{cart.map((line) => <article key={line.product.id}>
               <span className="points-shop-cart-thumb">{line.product.imageUrls[0] ? <img src={line.product.imageUrls[0]} alt="" /> : <Image size={22} />}</span>
               <div><strong>{line.product.name}</strong><small>{line.product.pointPrice} XP</small></div>
