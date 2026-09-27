@@ -100,6 +100,7 @@ try {
       || geometry.cards.some((card, index) => index > 1 && card.top <= geometry.cards[index - 2].bottom)) {
       throw new Error(`${viewport.width}x${viewport.height}: points shop layout failed ${JSON.stringify(geometry)}`);
     }
+    await page.screenshot({ path: path.join(outputDir, `shop-catalog-${viewport.width}x${viewport.height}.png`), fullPage: true });
     await page.locator(".points-shop-product-open").first().click();
     await expect(page.locator(".points-shop-detail")).toBeVisible();
     await expect(page.getByText("商品图片待上架", { exact: true })).toBeVisible();
