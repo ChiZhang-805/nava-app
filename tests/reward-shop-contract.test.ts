@@ -15,7 +15,9 @@ test("empty catalog presents explicit non-purchasable placeholders", () => {
   assert.match(service, /placeholder: true/);
   assert.match(shop, /定价：/);
   assert.match(shop, /待填写/);
-  assert.match(shop, /disabled=\{disabled/);
+  assert.match(shop, /disabled=\{cannotAdd\(item\)\}/);
+  assert.match(shop, /points-shop-category-/);
+  assert.match(styles, /\.points-shop-list \{[^}]*grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/);
 });
 
 test("shop navigation exposes catalog, product detail, carousel, and cart routes", () => {

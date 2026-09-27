@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-shop-v126-20260908";
+const outputDir = "Q:/NAVA-Workspace/Build/TestRuns/shop-redesign/app";
 const port = 5213;
 const demoUserId = "00000000-0000-4000-8000-000000000001";
 const report = [];
@@ -20,9 +20,12 @@ const browser = await chromium.launch({ headless: true });
 async function prepare(context, hash) {
   await context.addInitScript(({ userId }) => {
     sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
-    localStorage.setItem(`nava.onboarding.v2.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 2, answers: {}, source: "local" }));
+    localStorage.setItem(`nava.onboarding.v3.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 3, answers: {}, source: "local" }));
   }, { userId: demoUserId });
   const page = await context.newPage();
+  await page.addLocatorHandler(page.locator('.completion-celebration-layer'), async () => {
+    await page.frameLocator('.completion-celebration-layer iframe').getByRole('button', { name: /Continue|继续/ }).click();
+  });
   await page.goto(`${baseUrl}?demo=1${hash}`, { waitUntil: "networkidle" });
   const launch = page.locator(".launch-sequence");
   if (await launch.isVisible().catch(() => false)) await launch.click();
@@ -93,7 +96,8 @@ try {
     });
     if (!geometry.screen || !geometry.header || geometry.horizontalOverflow > 1 || geometry.selectorDisplay !== "none"
       || geometry.cards.some((card) => card.left < geometry.screen.left - 1 || card.right > geometry.screen.right + 1)
-      || geometry.cards.some((card, index) => index > 0 && card.top <= geometry.cards[index - 1].bottom)) {
+      || geometry.cards.some((card, index) => index % 2 === 1 && Math.abs(card.top - geometry.cards[index - 1].top) > 1)
+      || geometry.cards.some((card, index) => index > 1 && card.top <= geometry.cards[index - 2].bottom)) {
       throw new Error(`${viewport.width}x${viewport.height}: points shop layout failed ${JSON.stringify(geometry)}`);
     }
     await page.locator(".points-shop-product-open").first().click();

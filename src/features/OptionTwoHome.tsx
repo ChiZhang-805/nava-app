@@ -317,7 +317,7 @@ export default function OptionTwoHome({
     />;
   }
 
-  if (view === "points-shop" || view === "points-shop-cart" || view?.startsWith("points-shop-product-")) {
+  if (view === "points-shop" || view === "points-shop-cart" || view?.startsWith("points-shop-product-") || view?.startsWith("points-shop-category-")) {
     return <PointsShopExperience user={user} view={view} onViewChange={(nextView) => onViewChange(nextView)} onBack={() => onBack(null)} />;
   }
 
