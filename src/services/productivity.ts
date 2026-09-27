@@ -34,6 +34,9 @@ import { todayISO } from "./date";
 import { isCompleteFaceRecord, isCompleteNutritionRecord, isCompleteSleepRecord } from "./healthReportPresentation";
 import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
+import { growthRewardRpc } from "./growthRewardRpc";
+import { journalGrowthTargets } from "./growthRewardContract";
+import { getJournalRecords } from "./journal";
 import type { GrowthProgressVisit } from "./growthProgressPresentation";
 import type { FocusPlan } from "./focusPlanning.ts";
 
@@ -487,8 +490,10 @@ function taskCompleted(
 }
 
 export async function resolveGrowthTasks(userId: string): Promise<GrowthTask[]> {
-  const [profile, snapshot, activities] = await Promise.all([loadProfile(userId), getTodaySnapshot(userId), loadGrowthActivities(userId)]);
-  const tasks = defaultGrowthTasks.map((task) => ({ ...task, completed: taskCompleted(task, profile, snapshot, activities) }));
+  const date = todayISO();
+  const [profile, snapshot, activities, journal] = await Promise.all([loadProfile(userId), getTodaySnapshot(userId), loadGrowthActivities(userId), isDemoMode() ? [] : getJournalRecords(userId, date, date)]);
+  const journalTargets = journalGrowthTargets(journal, snapshot.focusMinutes);
+  const tasks = defaultGrowthTasks.map((task) => ({ ...task, completed: journalTargets.has(task.target) || taskCompleted(task, profile, snapshot, activities) }));
   window.localStorage.setItem(`nava-growth-state:${userId}`, JSON.stringify({ date: todayISO(), tasks } satisfies GrowthCache));
   emitChange();
   return tasks;
@@ -503,7 +508,7 @@ export async function recordGrowthActivity(userId: string, activity: GrowthActiv
     return null;
   }
 
-  const { data, error } = await supabase.rpc("nava_record_growth_activity", { activity_kind: activity });
+  const { data, error } = await growthRewardRpc("nava_record_growth_activity", { activity_kind: activity });
   if (error) {
     throw error;
   }
@@ -632,7 +637,7 @@ function readLocalGrowthProgress(userId: string, tasks: GrowthTask[], currentPoi
 
 export async function reconcileGrowthRewards(tasks: GrowthTask[]): Promise<GrowthSummary> {
   if (isDemoMode()) return reconcileDemoGrowthRewards(tasks);
-  const { data, error } = await supabase.rpc("nava_reconcile_growth_rewards");
+  const { data, error } = await growthRewardRpc("nava_reconcile_growth_rewards");
   if (error) {
     throw error;
   }

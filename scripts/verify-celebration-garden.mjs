@@ -45,18 +45,18 @@ async function open(category,locale='zh'){
 try{
  const frame=await open('mood');
  await page.waitForTimeout(400);
- const ink1=await frame.locator('#garden-title canvas').evaluate(c=>c.toDataURL());
+ const ink1=await frame.locator('#garden-title').evaluate(c=>[...c.querySelectorAll('path')].map(p=>getComputedStyle(p).strokeDashoffset));
  await page.screenshot({path:`${out}/writing-start.png`});
  await page.waitForTimeout(1200);
- const ink2=await frame.locator('#garden-title canvas').evaluate(c=>c.toDataURL());assert.notEqual(ink1,ink2,'Title must be written progressively');
+ const ink2=await frame.locator('#garden-title').evaluate(c=>[...c.querySelectorAll('path')].map(p=>getComputedStyle(p).strokeDashoffset));assert.notDeepEqual(ink1,ink2,'Title must be written progressively');
  await frame.waitForSelector('[data-ink="finished"]');
- const finalInk=await frame.locator('#garden-title canvas').evaluate(c=>c.toDataURL());
+ const finalInk=await frame.locator('#garden-title').evaluate(c=>[...c.querySelectorAll('path')].map(p=>getComputedStyle(p).strokeDashoffset));
  await frame.locator('.garden-actor img').evaluate(e=>e.style.backgroundColor='#fff');
  const cat1=hash(await frame.locator('.garden-actor img').screenshot());
  await page.waitForTimeout(1700);
  assert.notEqual(cat1,hash(await frame.locator('.garden-actor img').screenshot()),'Cat must continue animating after handwriting finishes');
  await frame.locator('.garden-actor img').evaluate(e=>e.style.backgroundColor='');
- assert.equal(finalInk,await frame.locator('#garden-title canvas').evaluate(c=>c.toDataURL()),'Finished title must not loop');
+ assert.deepEqual(finalInk,await frame.locator('#garden-title').evaluate(c=>[...c.querySelectorAll('path')].map(p=>getComputedStyle(p).strokeDashoffset)),'Finished title must not loop');
  for(const d of dimensions){
    await page.setViewportSize({width:d.width,height:d.height});await page.evaluate(d=>window.viewport(d),d);await page.waitForTimeout(90);
    const geo=await frame.evaluate(()=>{
@@ -65,7 +65,7 @@ try{
      return {root:rect('.celebration-garden'),bg:rect('.garden-backdrop'),button:rect('#primary'),title:rect('#garden-title'),text:rect('.garden-message'),cat:rect('.garden-actor'),overflow:document.documentElement.scrollWidth>innerWidth,hit:btn.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)),art:[...document.querySelectorAll('.celebration-garden img')].every(i=>i.complete&&i.naturalWidth>0),buttons:document.querySelectorAll('#primary').length};
    });
    assert.deepEqual(geo.root,{x:0,y:0,width:d.width,height:d.height,bottom:d.height,right:d.width});
-   assert.deepEqual(geo.bg,geo.root);assert.equal(geo.overflow,false);assert.ok(geo.art&&geo.hit);assert.equal(geo.buttons,1);
+   assert.ok(geo.bg.x<=.5&&geo.bg.y<=.5&&geo.bg.right>=d.width-.5&&geo.bg.bottom>=d.height-.5);assert.equal(geo.overflow,false);assert.ok(geo.art&&geo.hit);assert.equal(geo.buttons,1);
    assert.ok(geo.button.height>=44&&geo.button.bottom<=d.height-d.bottom-10);assert.ok(geo.title.y>=d.top);
    assert.ok(geo.title.bottom<=geo.text.y+1&&geo.text.bottom<=geo.cat.y+8&&geo.cat.bottom<=geo.button.y+1,JSON.stringify({d,geo}));
    await page.screenshot({path:`${out}/${d.id}.png`});results.push({id:d.id,...geo});

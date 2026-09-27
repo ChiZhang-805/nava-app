@@ -1,6 +1,7 @@
 import { supabase, authenticatedFunctionHeaders } from './supabaseClient';
 import { appConfig } from '../config';
 import { emitReminderRecordSaved } from './independentReminders';
+import { growthRewardRpc } from './growthRewardRpc';
 
 export type JournalCategory = 'mood' | 'food' | 'focus' | 'sport' | 'sleep' | 'face';
 export type JournalRecord = { id: string; category: JournalCategory; recordDate: string; data: Record<string, unknown>; createdAt: string; updatedAt?: string; version?: number; expectedUpdatedAt?: string; source?: string; estimated?: boolean; focus?: Record<string, unknown> | null; mediaPath?: string | null };
@@ -30,7 +31,7 @@ export async function getJournalRecords(userId:string,startDate?:string,endDate?
 
 /** The server owns timestamps, account identity and optimistic concurrency. */
 export async function saveJournal(record: JournalRecord, expectedVersion: number | null) {
-  const {data,error}=await supabase.rpc('save_journal_entry',{p_record:record,p_expected_version:expectedVersion});
+  const {data,error}=await growthRewardRpc('save_journal_entry',{p_record:record,p_expected_version:expectedVersion});
   if(error) throw error;
   const saved=fromRow(data as Row);
   const meal=saved.category==='food'?({早餐:'breakfast',午餐:'lunch',晚餐:'dinner'} as const)[String(saved.data.meal) as '早餐'|'午餐'|'晚餐']:null;

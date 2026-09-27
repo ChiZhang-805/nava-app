@@ -1,3 +1,24 @@
+# 六模块静默积分增补（2026-09-27，尚未应用）
+
+本轮新迁移 `202609270001_journal_growth_rewards.sql` 待用户批准后才部署；既有账本、
+账号、记录、历史积分都保留。新增 v2 RPC，避免滚动发布改变旧 RPC 的参数合同：
+
+- `nava_growth_local_date` 是不对客户端授权的内部帮助函数，校验 IANA 时区，用服务端
+  now() 算当天，不信任客户端任意日期；其他RPC只用 auth.uid() 确定账号。
+- `nava_reconcile_growth_rewards_v2` 将旧表和 journal_entries 映射到同一成长奖励键。
+  保持所有原分值、运动单条20分钟/3000步及专注累计25分钟门槛；文字面部记录不冒认素颜加成。
+- `nava_save_journal_entry_v2` 包装原版本检查/幂等保存并在同一事务核对积分；先取账号级
+  advisory锁再保存，避免并发专注累计遗漏。唯一账本约束确保重复保存、更新、删除重录都不会
+  重复奖励。积分写失败会回滚该次记录，不返回假成功。
+- `nava_record_growth_activity_v2` 保持登录/分享/AI对话的旧分值，同样按设备时区日期幂等。
+- 完成画面、刷新和 Continue 均不能产生奖励。前端 Journal 不再排队第二层积分庆祝。
+  `growthRewardRpc.ts` 仅对 PGRST202 缺少新RPC作旧版本兼容，不隐藏权限/网络/数据库错误。
+  迁移应用前仍然是旧积分合同，不能保证新六模块已参与线上奖励。
+
+`node scripts/verify-journal-rewards.mjs` 在独立、内存中的 PGlite PostgreSQL 实际执行旧
+Journal迁移和新RPC，23项检查通过；旧表为精简测试schema，未测试生产数据或多连接并发。
+工具默认位于 `Q:/NAVA-Workspace/Tools/reward-db-check`，不写生产项目。
+
 # 当前四页记录合同（2026-09-23）
 
 六模块的新流程使用 `journal_entries`，按 `user_id / record_date / category / id`

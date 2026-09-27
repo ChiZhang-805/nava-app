@@ -161,6 +161,9 @@ function MobileShell({
     }
   });
   const [rewardQueue, setRewardQueue] = useState<GrowthRewardGrant[][]>([]);
+  const rewardUserRef = useRef(user?.id);
+  rewardUserRef.current = user?.id;
+  useEffect(() => setRewardQueue([]), [user?.id]);
   const [notificationItems, setNotificationItems] = useState<NavaNotificationItem[]>(() => user ? listNavaNotifications(user.id) : []);
   const [notificationBanner, setNotificationBanner] = useState<NavaNotificationItem | null>(null);
   const [cloudBootstrapReady, setCloudBootstrapReady] = useState(() => isDemoMode());
@@ -198,14 +201,14 @@ function MobileShell({
       ? t(currentTab.labelKey)
       : "";
 
-  const claimGrowthAfterChange = useCallback(() => {
+  const claimGrowthAfterChange = useCallback((present = true) => {
     if (!user) return Promise.resolve(null);
     const next = rewardClaimTailRef.current
       .catch(() => null)
       .then(async () => {
         const tasks = await resolveGrowthTasks(user.id);
         const summary = await reconcileGrowthRewards(tasks);
-        if (summary.awarded.length > 0) setRewardQueue((queue) => [...queue, summary.awarded]);
+        if (rewardUserRef.current === user.id && present && summary.awarded.length > 0) setRewardQueue((queue) => [...queue, summary.awarded]);
         return summary;
       })
       .catch((rewardError) => {
@@ -227,6 +230,13 @@ function MobileShell({
     return claimGrowthAfterChange();
   }, [claimGrowthAfterChange]);
 
+  // A journal save already leads to the category's full-screen completion scene.
+  // Reconcile silently so it cannot be covered by a second celebration.
+  const markJournalChanged = useCallback(() => {
+    setRefreshKey((value) => value + 1);
+    void claimGrowthAfterChange(false);
+  }, [claimGrowthAfterChange]);
+
   const refreshHealthViews = useCallback(() => {
     setRefreshKey((value) => value + 1);
   }, []);
@@ -242,9 +252,11 @@ function MobileShell({
     if (!user) return null;
     try {
       const reward = await recordGrowthActivity(user.id, activity);
-      if (reward) setRewardQueue((queue) => [...queue, [reward]]);
+      if (rewardUserRef.current !== user.id) return null;
       setRefreshKey((value) => value + 1);
-      await claimGrowthAfterChange();
+      const summary = await claimGrowthAfterChange(false);
+      const grants = [...(reward ? [reward] : []), ...(summary?.awarded ?? [])];
+      if (rewardUserRef.current === user.id && grants.length) setRewardQueue((queue) => [...queue, grants]);
       return reward;
     } catch (rewardError) {
       console.warn("Growth activity could not be recorded", rewardError);
@@ -265,10 +277,10 @@ function MobileShell({
   }, [activeTab]);
 
   useEffect(() => {
-    if (!user || checkinUserRef.current === user.id) return;
-    checkinUserRef.current = user.id;
+    if (!user || checkinUserRef.current === `${user.id}:${deviceDate}`) return;
+    checkinUserRef.current = `${user.id}:${deviceDate}`;
     void completeGrowthActivity("checkin");
-  }, [completeGrowthActivity, user]);
+  }, [completeGrowthActivity, user, deviceDate]);
 
   const navigate = (tab: AppTab, module: RecordModule | null = null, view: string | null = null, replace = false) => {
     const next = normalizeShellRoute(tab, module, view);
@@ -685,7 +697,7 @@ function MobileShell({
           )}
           {activeTab === "record" && (
             <Suspense fallback={<PageSkeleton variant={recordSkeletonVariant(recordModule, recordView)} />}>
-              {recordModule ? <JournalExperience user={user} module={recordModule} locale={locale} onSaved={markChanged} onExit={() => navigate("today")} /> : <RecordsScreen
+              {recordModule ? <JournalExperience user={user} module={recordModule} locale={locale} onSaved={markJournalChanged} onExit={() => navigate("today")} /> : <RecordsScreen
                 user={user}
                 deviceDate={deviceDate}
                 onSaved={markChanged}

@@ -24,3 +24,9 @@ export function rewardLabel(eventKey: string, locale: "zh" | "en") {
 export function rewardPoints(rewards: GrowthRewardGrant[]) {
   return rewards.reduce((sum, reward) => sum + Math.max(0, Math.round(reward.points)), 0);
 }
+/** Only maps already-awarded events to artwork; never changes the ledger. */
+export function completionSceneForReward(eventKey: string, hour = new Date().getHours()): string {
+  const kind = eventKey.split(":").pop() ?? "";
+  const scenes: Record<string, string> = { mood: "08", nutrition: "05", exercise: "06", sleep: "07", face: "04", "bare-face-bonus": "04", focus: "02", task: "03", ai: "03" };
+  return scenes[kind] ?? (hour >= 19 || hour < 6 ? "09" : "01");
+}

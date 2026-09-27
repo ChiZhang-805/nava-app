@@ -1,39 +1,54 @@
 # iOS 动态背景、角色动画与原生媒体
 
-## 完成页场景 01：薄荷花园·早晨（2026-09-27）
+## 九套全屏完成场景与静默积分（2026-09-27）
 
-九张新参考按顺序实现，本轮只交付第 1 张，作为六模块保存后的共用完成页。
-`public/journal/js/celebration-garden.js` 独立管理全屏场景；记录确认、保存失败、幂等和
-Continue 进入回顾仍由既有 `app.js` 控制，不触碰后台或真实记录。
+所有 `RewardCelebration` 奖杯/积分增量弹窗已替换；六模块记录保存后的场景使用同一套
+`public/journal/js/completion-scene.js`、CSS 与素材。完成页不显示积分或奖励规则文字，
+Continue 使用本地 Nunito 圆润字体（随附 SIL OFL），没有箭头；没有强制定时关闭。
 
-- 背景是内置 imagegen 生成的独立水彩花园原画 `assets/mint-garden-morning.png`，
-  全屏 cover，图像连续延伸到按钮下和底部安全区。生成原稿与完整提示词在
-  `Q:\NAVA-Workspace\Build\TestRuns\celebration-garden\asset-staging`。
-  当前采用 `mint-garden-morning-v2.png` / `mint-garden-morning-v2.prompt.txt`：用户指出
-  首稿的建筑、远山和湖景偏离参考后，以第一张设计图左侧手机为编辑参考，重建近景浅薄荷
-  天空、左上绿叶、近处草地与小白花；不采用首稿，也不将 AI 重绘称为像素级复刻。
-- `assets/garden-cat.webp` 与现有 `src/assets/mascot/animated/home-idle.webp` 逐字节相同，
-  是原 GIF 转出的 640×480 / 90 帧 / 5.4 秒透明动画；原生图片循环播放，未替换成静态晃动。
-  显示时水平镜像，让尾巴朝左、身体落在草地中央；保持原始帧和纵横比。
-  仅使用一张原生动图，不在 JS 中预解码缓存全部帧；庆祝时不再绘制旧 WebGL 小猫。
-- 原 `HandTitle` 逐笔遮罩保留，用透明度染色为深蓝字。标题与下划线写一次后停止重绘，
-  猫和稀疏花瓣继续循环；没有给猫添加发光描边或模糊光晕。减少动态效果时直接展示完成标题，
-  关闭花瓣。标题已有可访问名称，Continue 保留原按钮和真实处理器。
-- 新场景使用独立 Grid、可收缩列和设备安全区，不受旧固定画布高度缩放；最小 320×568
-  也有完整标题、正文、小猫和可点击按钮。英文版有对应正文。
+| 场景 | 入口/匹配 | 原动画 |
+| --- | --- | --- |
+| 01 薄荷花园 | 白天通用、画像、打卡等 | home-idle |
+| 02 温室书房 | 阅读/学习专注 | home-read |
+| 03 微风桌面 | 电脑/编程专注、待办、AI交流 | module-focus |
+| 04 薰衣草角落 | 面部 | module-face |
+| 05 晴暖餐桌 | 饮食 | module-diet |
+| 06 活力庭院 | 运动 | module-exercise |
+| 07 草地午后 | 睡眠 | module-sleep |
+| 08 暖风花径 | 情绪 | home-butterfly |
+| 09 夜色星窗 | 夜间通用奖励 | home-idle |
 
-专项入口：`node --experimental-strip-types scripts/verify-celebration-garden.mjs`。
-`NAVA_GARDEN_ENGINE=webkit` 可切换 WebKit；当前 Windows 缓存在
-`PLAYWRIGHT_BROWSERS_PATH=Q:/NAVA-Workspace/Caches/playwright`。两种引擎各通过 24 组尺寸、
-六模块实际点击流程、保存一次、回顾返回、标题停笔/小猫继续播放及减少动态效果检查。
-此为本地桥接夹具，不是生产账号写入、AI 调用或物理 iPhone 验收。
-另在真实 React 手机预览壳中检查全部 18 个机型配置的全屏边界与底部按钮安全区，
-使用显式 Supabase 响应夹具（不写生产数据）；桌面缩放壳的测试用键盘进入书写并保存，
-点击 Continue 返回回顾。18 张截图及结果保存在同一测试目录的 `shell-*` 文件中。
+- 01 保留经用户纠正后的花园原画；02–09 是内置 imagegen 按三张参考板生成的独立
+  887×1774 水彩/彩铅场景，位于 `public/journal/assets/completion/scene-02.png` 至 09。
+  完整提示词与来源保存在 `Q:/NAVA-Workspace/Build/TestRuns/celebration-scenes/assets`。
+  背景没有烘焙猫、标题或按钮，不将重绘称作像素级复制。现有猫动作与参考手绘姿势并非完全一致。
+- 动画源文件未改帧，仍为原 GIF 转出的透明 WebP。每个场景根据真实透明边界、地面位置、
+  桌面/草垫透视放置；艺术平面与猫同步 cover，文案和按钮另按视口/安全区约束。
+  没有给猫增加光晕。前景边缘、轻微叶影/日光、花瓣/浮尘/星光持续运动；
+  这是一幅分层场景，不是整张画面的视频或逐帧生成背景。
+- 英文标题是可访问 SVG 逐笔路径书写，最终下划线完成后停止，不重复打字。
+  减少动态效果时直接展示标题并关闭环境动效。保留猫的原始连续动作。
+- 仅准备当前场景的背景与一只原生动图；记录书写时预取对应资源，无九场景整批解码、
+  JS 帧缓存或多浏览器并行截图。退出释放场景 DOM，保留原 Continue 的保存门槛和回顾处理器。
+- 其他奖励使用轻量 `completion.html`，仅通过同源 MessageChannel 传场景、语言、安全区
+  和退出动作，不传 JWT、真实记录或积分数据。背景交互 inert；关闭恢复原焦点。
+- 积分由真实账本处理，画面和 Continue 不调用奖励接口。Journal 自己显示完成页，
+  父页面只静默核对，避免两层庆祝。同一动作得到的多个奖励合并为一个场景。
+  账号切换后忽略前账号迟到的奖励结果；跨本地日期重新核对登录奖励。
 
-后续尚未实现：02 温室书房、03 微风桌面、04 薰衣草角落、05 晴暖餐桌、
-06 活力庭院、07 草坡午后、08 暖风花径、09 夜色星窗，以及九场景的模块/时间匹配。
-不要将第 1 张共用场景描述为九张全部完成。
+验证入口：
+`node --experimental-strip-types scripts/verify-completion-scenes.mjs`（九场景×24组尺寸）、
+`scripts/verify-celebration-garden.mjs`（六条实际记录→保存→回顾 UI 流程）、
+`scripts/verify-journal-rewards.mjs`（本地 PostgreSQL 合同）及 `tests/completion-scenes.test.ts`。
+WebKit 分别设置 NAVA_SCENES_ENGINE / NAVA_GARDEN_ENGINE=webkit 和
+PLAYWRIGHT_BROWSERS_PATH=Q:/NAVA-Workspace/Caches/playwright。证据在上述 TestRuns 目录，
+React 外壳另外检查18个机型。全部是明确的本地数据夹具，不是生产账号或物理 iPhone 实测。
+
+**数据库门槛未完成：** `202609270001_journal_growth_rewards.sql` 已编写并在本地 PostgreSQL
+通过23项检查，仍待本轮明确批准后应用。远端迁移列表确认尚无此项。发布前端使用仅在
+PGRST202（缺少新 RPC）时启用的旧合同兼容分支，其他错误直接报告；不能把兼容分支
+描述为已上线新六模块积分。真实设备验收和整套旧回归仍未完成；整套 verify 目前在旧
+media-feedback:visual 的相机入口选择器超时，与本轮场景专项测试分开报告。
 
 ## 安装版能力交付（2026-09-20）
 

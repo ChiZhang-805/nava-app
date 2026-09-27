@@ -82,7 +82,7 @@ export default function JournalExperience({user,module,locale,onSaved,onExit}:Pr
     return()=>{alive=false;interrupt();unregister();observer.disconnect();void voice?.cancel();void wake?.release();void native?.then(handle=>handle.remove());document.removeEventListener('visibilitychange',visibility);window.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('scroll',resize);element?.removeEventListener('load',start);for(const c of controllers.values())c.abort();channel?.port1.close();};
   },[user.id,module,locale,attempt]);
   return <section className="journal-experience" aria-label={locale==='zh'?'生活记录':'Journal'}>
-    <iframe key={`${module}-${locale}-${attempt}`} ref={frame} src={`${import.meta.env.BASE_URL}journal/index.html`} title={locale==='zh'?'记录与回顾':'Journal and recap'} allow="camera; microphone"/>
+    <iframe key={`${module}-${locale}-${attempt}`} ref={frame} src={`${import.meta.env.BASE_URL}journal/index.html?v=20260927-scenes9`} title={locale==='zh'?'记录与回顾':'Journal and recap'} allow="camera; microphone"/>
     {(!ready||error)&&<div className="journal-loading" role="status">{error||(locale==='zh'?'正在准备记录…':'Preparing your journal…')}{error&&<button onClick={()=>{setError('');setReady(false);setAttempt(x=>x+1);}}>{locale==='zh'?'重试':'Retry'}</button>}</div>}
   </section>;
 }

@@ -109,6 +109,7 @@ __fluffyModules["animation.js"] = (() => {
          */
         setRecord(record) {
             this.record = record;
+            this.celebration?.prepare(record);
             this.rows = record.displayRows || displayRows(record);
             // 阶段一：采用自然纸长，不用字号收缩换取“全部塞在三行里”。
             this.lines = this.rows.map(row => makeHandwriting(String(row.value ?? "—"), PAPER.inkWidth, Infinity));
