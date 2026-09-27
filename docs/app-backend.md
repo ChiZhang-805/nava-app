@@ -6,20 +6,27 @@
 `member`，不会自动获得管理权限。`nava_is_admin()`、商品写 RPC 和通知发布 RPC 均为
 锁定 `search_path` 的 `SECURITY DEFINER`，普通账号即使直接调用接口也会被拒绝。
 
-管理员端当前有两项服务端能力：
+管理员端当前有三项服务端能力：
 
 - `nava_admin_save_reward_product` 校验 slug、名称、积分价格、库存、最多6张 HTTPS 图片及
   上架状态；普通商城读取仍只能看到 `published=true`。商品图片上传到公开只读的
   `reward-products` bucket，写入/修改/删除策略只允许管理员。
 - `nava_admin_publish_notification` 为每个当前 Auth 账号创建同一批次的 `user_notifications`
-  收件箱记录，并写 `admin_notification_batches` 和 `admin_audit_log`。管理员 Edge Function
-  再决定是否调用内部 `push-dispatch`；浏览器不能获得 service-role、派发 secret 或 APNs key。
+  收件箱记录，并写 `admin_notification_batches` 和 `admin_audit_log`。`admin-notification-publish`
+  v2 不接受前端选择派发方式，而是根据服务端远程推送能力自动决定是否继续调用内部
+  `push-dispatch`；浏览器不能获得 service-role、派发 secret 或 APNs key。
+- `nava_admin_list_accounts` 按邮箱或内部手机号别名返回最小化账号摘要，
+  `nava_admin_set_account_role` 负责 member/admin 升降级并写审计。迁移
+  `202609270002_admin_role_management.sql` 至 `202609270004_admin_role_lint_cleanup.sql`
+  已应用；调用者必须是管理员，禁止自降级、禁止移除最后一名管理员，并用事务锁阻止两个
+  管理员并发互降导致系统失去管理员。
 
-生产只读核验确认2个注册账号对应2条管理员角色，商城图片 bucket、管理表和未认证 Edge
-拒绝边界均正常。商品/群发尚未向真实账号写测试内容，避免用生产通知做演示数据。
-管理员前端已由同一源码提交 `aaff1829286350ac3331645191b05b9abbe74ed7`
-发布到 ChatGPT Sites v173 与 GitHub Pages；Pages `source.json` 和两个公开站点的
-管理员编译产物均已在线核对。
+生产只读核验确认2个注册账号对应2条管理员角色，商城图片 bucket、管理表、账号权限 RPC
+和未认证 Edge 拒绝边界均正常；本轮未修改真实账号角色，也未群发测试通知。canonical 项目
+当前没有远程派发或 APNs provider secret，所以管理员发送会真实写应用内通知，但不会伪称
+iPhone 系统推送。管理员前端已由同一源码提交
+`a0776643bfce7cf85ba7383f3a5ab13f61c21712` 发布到 ChatGPT Sites v176 与 GitHub Pages；
+Pages `source.json` 和两个公开站点的管理员编译产物均已在线核对。
 
 # 开发数据重置与积分重设计（2026-09-27）
 

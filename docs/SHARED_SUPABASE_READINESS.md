@@ -17,6 +17,20 @@ must never be copied into that repository.
 
 ## Compatibility tiers
 
+2026-09-27: migrations `202609270002_admin_role_management.sql`,
+`202609270003_admin_role_concurrency_guard.sql`, and
+`202609270004_admin_role_lint_cleanup.sql` were explicitly authorized and applied
+without applying pending reward migration `202609270001_journal_growth_rewards.sql`.
+They add admin-only account lookup and audited role changes, reject self-demotion and
+last-admin removal, and serialize concurrent demotions. Remote schema lint reports no
+warnings. Production currently has two registered accounts and two administrators;
+verification did not mutate either role. `admin-notification-publish` v2 chooses delivery
+server-side: in-app inbox is always persisted, while remote push is added only when the
+dispatch capability is configured. The current canonical project has no NAVA dispatch
+secret or APNs provider configuration, so the honest deployed capability is in-app only.
+The same clean source `a0776643bfce7cf85ba7383f3a5ab13f61c21712` is deployed to
+Sites v176 and GitHub Pages, with public provenance and authentication gates verified.
+
 2026-09-27: migration `202609260001_admin_console.sql` was explicitly authorized and
 applied without applying the still-pending `202609270001` reward migration. It adds
 server-owned member/admin roles, audited reward-product publishing, admin notification
