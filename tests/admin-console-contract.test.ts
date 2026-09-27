@@ -4,8 +4,12 @@ import test from "node:test";
 
 const root = new URL("../", import.meta.url);
 const migration = readFileSync(new URL("supabase/migrations/202609260001_admin_console.sql", root), "utf8");
+const roleMigration = readFileSync(new URL("supabase/migrations/202609270002_admin_role_management.sql", root), "utf8");
+const roleGuardMigration = readFileSync(new URL("supabase/migrations/202609270003_admin_role_concurrency_guard.sql", root), "utf8");
+const roleLintMigration = readFileSync(new URL("supabase/migrations/202609270004_admin_role_lint_cleanup.sql", root), "utf8");
 const edge = readFileSync(new URL("supabase/functions/admin-notification-publish/index.ts", root), "utf8");
 const service = readFileSync(new URL("src/services/adminConsole.ts", root), "utf8");
+const consoleUi = readFileSync(new URL("src/features/AdminConsole.tsx", root), "utf8");
 const drawer = readFileSync(new URL("src/components/UtilityDrawer.tsx", root), "utf8");
 
 test("administrator identity is server-controlled and future accounts default to member", () => {
@@ -37,5 +41,38 @@ test("broadcasts always persist in-app rows and only request push through the pr
   assert.match(edge, /NAVA_PUSH_DISPATCH_SECRET/);
   assert.match(edge, /functions\/v1\/push-dispatch/);
   assert.match(edge, /admin_notification_batches/);
+  assert.match(edge, /capability\.remotePush \? "in_app_and_push" : "in_app"/);
+  assert.doesNotMatch(edge, /input\.deliveryMode/);
+  assert.doesNotMatch(consoleUi, /APP 内通知|同时系统推送|通知内容会显示在这里/);
   assert.doesNotMatch(service, /NAVA_PUSH_DISPATCH_SECRET|APNS_PRIVATE_KEY|SUPABASE_SERVICE_ROLE_KEY/);
+});
+
+test("administrator role changes are searchable, audited, and cannot remove the acting or final admin", () => {
+  assert.match(roleMigration, /nava_admin_list_accounts/);
+  assert.match(roleMigration, /users\.email::text/);
+  assert.match(roleMigration, /users\.phone::text/);
+  assert.match(roleMigration, /nava_admin_set_account_role/);
+  assert.match(roleMigration, /administrators cannot remove their own access/);
+  assert.match(roleMigration, /the final administrator cannot be removed/);
+  assert.match(roleMigration, /LOCK TABLE public\.nava_user_roles/);
+  assert.match(roleMigration, /admin_audit_log/);
+  assert.match(roleMigration, /REVOKE ALL ON FUNCTION public\.nava_admin_set_account_role/);
+  assert.match(roleGuardMigration, /pg_advisory_xact_lock/);
+  assert.match(roleGuardMigration, /Re-check after taking/);
+  assert.match(roleGuardMigration, /role_row_exists/);
+  assert.match(roleGuardMigration, /the final administrator cannot be removed/);
+  assert.match(roleLintMigration, /existing_role/);
+  assert.doesNotMatch(roleLintMigration, /current_role/);
+  assert.match(service, /rpc\("nava_admin_list_accounts"/);
+  assert.match(service, /rpc\("nava_admin_set_account_role"/);
+});
+
+test("administrator UI starts with a function chooser and uses home/back/ellipsis page navigation", () => {
+  assert.match(consoleUi, /type AdminPage = "overview" \| "products" \| "notifications" \| "roles" \| "recent"/);
+  assert.match(consoleUi, /选择管理功能/);
+  assert.match(consoleUi, /商品管理/);
+  assert.match(consoleUi, /发布通知/);
+  assert.match(consoleUi, /管理员权限/);
+  assert.match(consoleUi, /page === "overview" \? <Home/);
+  assert.match(consoleUi, /<MoreMenu/);
 });

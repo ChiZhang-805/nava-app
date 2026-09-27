@@ -38,12 +38,20 @@ export type AdminNotificationBatch = {
   createdAt: string;
 };
 
+export type AdminAccount = {
+  userId: string;
+  email: string | null;
+  phone: string | null;
+  role: "member" | "admin";
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type AdminPublishNotificationInput = {
   title: string;
   body: string;
   category: NavaNotificationCategory;
   target: NavaNotificationTarget;
-  deliveryMode: "in_app" | "in_app_and_push";
 };
 
 export type AdminPublishNotificationResult = {
@@ -61,6 +69,7 @@ export type AdminPublishNotificationResult = {
 
 type ProductRow = Record<string, unknown>;
 type BatchRow = Record<string, unknown>;
+type AccountRow = Record<string, unknown>;
 
 function assertNoError(error: unknown) {
   if (!error) return;
@@ -97,6 +106,18 @@ function normalizeBatch(row: BatchRow): AdminNotificationBatch | null {
     skippedCount: Number(row.skipped_count ?? 0),
     pushStatus: String(row.push_status ?? "not_requested") as AdminNotificationBatch["pushStatus"],
     createdAt: row.created_at,
+  };
+}
+
+function normalizeAccount(row: AccountRow): AdminAccount | null {
+  if (typeof row.user_id !== "string") return null;
+  return {
+    userId: row.user_id,
+    email: typeof row.email === "string" && row.email.trim() ? row.email : null,
+    phone: typeof row.phone === "string" && row.phone.trim() ? row.phone : null,
+    role: row.role === "admin" ? "admin" : "member",
+    createdAt: typeof row.created_at === "string" ? row.created_at : new Date(0).toISOString(),
+    updatedAt: typeof row.updated_at === "string" ? row.updated_at : new Date(0).toISOString(),
   };
 }
 
@@ -169,4 +190,25 @@ export async function loadAdminNotificationBatches(limit = 20) {
     const batch = normalizeBatch(row as BatchRow);
     return batch ? [batch] : [];
   });
+}
+
+export async function loadAdminAccounts(query = "") {
+  const result = await supabase.rpc("nava_admin_list_accounts", {
+    account_query: query.trim() || null,
+    account_limit: 50,
+  });
+  assertNoError(result.error);
+  return (Array.isArray(result.data) ? result.data : []).flatMap((row) => {
+    const account = normalizeAccount(row as AccountRow);
+    return account ? [account] : [];
+  });
+}
+
+export async function setAdminAccountRole(userId: string, role: "member" | "admin") {
+  const result = await supabase.rpc("nava_admin_set_account_role", {
+    target_user_id: userId,
+    target_role: role,
+  });
+  assertNoError(result.error);
+  return result.data;
 }

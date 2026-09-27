@@ -7,7 +7,6 @@ type RequestBody = {
   body?: string;
   category?: string;
   target?: Record<string, unknown>;
-  deliveryMode?: DeliveryMode;
 };
 
 type PublishResult = {
@@ -93,14 +92,13 @@ Deno.serve(async (req) => {
     const title = input.title?.trim() ?? "";
     const body = input.body?.trim() ?? "";
     const category = input.category?.trim() ?? "system";
-    const deliveryMode: DeliveryMode = input.deliveryMode === "in_app_and_push" ? "in_app_and_push" : "in_app";
+    // Delivery is a server capability, not an administrator-facing choice.
+    // In-app delivery always succeeds first; configured native providers are
+    // then used automatically without exposing provider credentials or modes.
+    const deliveryMode: DeliveryMode = capability.remotePush ? "in_app_and_push" : "in_app";
     if (!title || title.length > 160) return errorResponse("通知标题须为 1–160 个字符。", 400);
     if (!body || body.length > 1000) return errorResponse("通知内容须为 1–1000 个字符。", 400);
     if (!categories.has(category)) return errorResponse("通知分类无效。", 400);
-    if (deliveryMode === "in_app_and_push" && !capability.remotePush) {
-      return errorResponse("系统推送尚未完成服务端凭据配置，请先使用 APP 内通知。", 409);
-    }
-
     const published = await userClient.rpc("nava_admin_publish_notification", {
       notice_title: title,
       notice_body: body,

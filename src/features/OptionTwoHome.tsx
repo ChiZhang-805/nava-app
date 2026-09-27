@@ -324,7 +324,7 @@ export default function OptionTwoHome({
     return <PointsShopExperience user={user} view={view} onViewChange={onViewChange} onHome={() => onViewChange(null, true)} />;
   }
 
-  if (view === "admin-console") return <AdminConsole user={user} onBack={() => onBack(null)} />;
+  if (view === "admin-console") return <AdminConsole user={user} onHome={() => onViewChange(null, true)} />;
 
   const beginHomeGesture = (event: ReactPointerEvent<HTMLElement>) => {
     if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;

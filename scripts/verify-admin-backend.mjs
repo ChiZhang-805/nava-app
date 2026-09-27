@@ -24,9 +24,11 @@ const usersPayload = await json(`${baseUrl}/auth/v1/admin/users?page=1&per_page=
 const users = Array.isArray(usersPayload?.users) ? usersPayload.users : [];
 if (users.length < 1) throw new Error("No registered development account exists to verify as administrator.");
 const roles = await json(`${baseUrl}/rest/v1/nava_user_roles?select=user_id,role`);
-if (!Array.isArray(roles) || roles.length !== users.length || roles.some((row) => row.role !== "admin")) {
-  throw new Error("Registered account count and administrator-role count do not match.");
+if (!Array.isArray(roles) || roles.length !== users.length || roles.some((row) => !["member", "admin"].includes(row.role))) {
+  throw new Error("Registered account count and server-owned role count do not match.");
 }
+const administratorRoles = roles.filter((row) => row.role === "admin").length;
+if (administratorRoles < 1) throw new Error("No administrator remains in the canonical project.");
 const bucket = await json(`${baseUrl}/storage/v1/bucket/reward-products`);
 if (bucket?.id !== "reward-products" || bucket?.public !== true) throw new Error("Reward product image bucket is unavailable.");
 const products = await json(`${baseUrl}/rest/v1/reward_products?select=id&limit=1`);
@@ -40,11 +42,28 @@ const unauthenticated = await fetch(`${baseUrl}/functions/v1/admin-notification-
 });
 if (unauthenticated.ok) throw new Error("Admin notification function accepted a request without a user JWT.");
 
+for (const [rpc, body] of [
+  ["nava_admin_list_accounts", { account_query: null, account_limit: 1 }],
+  ["nava_admin_set_account_role", { target_user_id: "00000000-0000-0000-0000-000000000000", target_role: "member" }],
+]) {
+  const response = await fetch(`${baseUrl}/rest/v1/rpc/${rpc}`, {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (response.ok || payload?.code === "PGRST202" || response.status === 404) {
+    throw new Error(`${rpc} is missing or accepted a service request without an authenticated administrator.`);
+  }
+}
+
 console.log(JSON.stringify({
   projectRef,
   registeredAccounts: users.length,
-  administratorRoles: roles.length,
+  administratorRoles,
+  memberRoles: roles.length - administratorRoles,
   rewardProductBucket: "ready",
   adminTables: "ready",
+  roleManagementBoundary: "rejected_without_authenticated_admin",
   unauthenticatedFunctionBoundary: "rejected",
 }));
