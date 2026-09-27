@@ -1,17 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  addHomeWidgetToSlot,
   buildHomeWidgetPresentation,
   defaultHomeWidgetIds,
   defaultHomeWidgetLayout,
+  homeWidgetIds,
   homeWidgetIdsFromLayout,
   moveHomeWidget,
   moveHomeWidgetByDirection,
   normalizeHomeWidgetLayout,
   placeHomeWidgetInSlot,
+  removeHomeWidgetFromSlot,
   shiftHomeWidget,
 } from "../src/services/homeWidgets.ts";
-import type { FaceRecord, HealthMetricSnapshot, TodaySnapshot, TrendBundle } from "../src/types.ts";
+import type { FaceRecord, TodaySnapshot, TrendBundle } from "../src/types.ts";
 import { previousComparableFace, sameModeFaces } from "../src/services/faceComparison.ts";
 
 const snapshot: TodaySnapshot = {
@@ -27,8 +30,9 @@ const snapshot: TodaySnapshot = {
   nextAction: "今晚早点休息。",
 };
 
-test("the default home follows the four-card Figma metric order", () => {
-  const expected = ["heart", "sleep", "exercise", "steps"];
+test("the home exposes exactly the six health modules and no duplicate steps card", () => {
+  const expected = ["mood", "sleep", "exercise", "diet", "face", "focus"];
+  assert.deepEqual(homeWidgetIds, expected);
   assert.deepEqual(defaultHomeWidgetIds(), expected);
 });
 
@@ -37,51 +41,35 @@ test("widget order supports direct drag moves and accessible single-step moves",
   assert.deepEqual(shiftHomeWidget(["sleep", "focus", "mood"], "focus", -1), ["focus", "sleep", "mood"]);
 });
 
-test("the home exposes six persistent slots while keeping the four-card reference layout", () => {
-  assert.deepEqual(defaultHomeWidgetLayout(), ["heart", "sleep", "exercise", "steps", null, null]);
-  assert.deepEqual(normalizeHomeWidgetLayout(["heart", null, "sleep", "sleep", "bogus"]), ["heart", null, "sleep", null, null, null]);
-  assert.deepEqual(homeWidgetIdsFromLayout(["heart", null, "sleep", null, null, null]), ["heart", "sleep"]);
+test("the home exposes six persistent slots and rejects retired heart and steps widgets", () => {
+  assert.deepEqual(defaultHomeWidgetLayout(), ["mood", "sleep", "exercise", "diet", "face", "focus"]);
+  assert.deepEqual(normalizeHomeWidgetLayout(["heart", null, "sleep", "sleep", "steps"]), [null, null, "sleep", null, null, null]);
+  assert.deepEqual(homeWidgetIdsFromLayout(["mood", null, "sleep", null, null, null]), ["mood", "sleep"]);
 });
 
-test("placing a widget uses empty slots and swaps occupied slots without losing data", () => {
+test("inline editing removes and restores modules without creating duplicates", () => {
   const initial = defaultHomeWidgetLayout();
-  assert.deepEqual(placeHomeWidgetInSlot(initial, "heart", 4), [null, "sleep", "exercise", "steps", "heart", null]);
-  assert.deepEqual(placeHomeWidgetInSlot(initial, "heart", 2), ["exercise", "sleep", "heart", "steps", null, null]);
-  assert.deepEqual(homeWidgetIdsFromLayout(placeHomeWidgetInSlot(initial, "heart", 2)).sort(), defaultHomeWidgetIds().sort());
+  const removed = removeHomeWidgetFromSlot(initial, 3);
+  assert.deepEqual(removed, ["mood", "sleep", "exercise", null, "face", "focus"]);
+  assert.deepEqual(addHomeWidgetToSlot(removed, "diet", 3), initial);
+  assert.deepEqual(addHomeWidgetToSlot(removed, "mood", 3), removed);
+  assert.deepEqual(placeHomeWidgetInSlot(initial, "mood", 4), ["face", "sleep", "exercise", "diet", "mood", "focus"]);
 });
 
 test("keyboard movement follows the visual two-by-three slot grid", () => {
   const initial = defaultHomeWidgetLayout();
-  assert.deepEqual(moveHomeWidgetByDirection(initial, "heart", "right"), [null, "sleep", "exercise", "steps", "heart", null]);
-  assert.deepEqual(moveHomeWidgetByDirection(initial, "sleep", "up"), ["sleep", "heart", "exercise", "steps", null, null]);
-  assert.deepEqual(moveHomeWidgetByDirection(initial, "heart", "up"), initial);
+  assert.deepEqual(moveHomeWidgetByDirection(initial, "mood", "right"), ["face", "sleep", "exercise", "diet", "mood", "focus"]);
+  assert.deepEqual(moveHomeWidgetByDirection(initial, "sleep", "up"), ["sleep", "mood", "exercise", "diet", "face", "focus"]);
+  assert.deepEqual(moveHomeWidgetByDirection(initial, "mood", "up"), initial);
 });
 
 test("widget presentation exposes only a core result and one real-data support line", () => {
   assert.deepEqual(buildHomeWidgetPresentation("focus", snapshot, "zh"), { id: "focus", core: "42m", support: "2 次完成", state: "ready" });
   assert.equal(buildHomeWidgetPresentation("sleep", snapshot, "zh").state, "attention");
   assert.equal(buildHomeWidgetPresentation("mood", snapshot, "zh").state, "missing");
-  assert.equal(buildHomeWidgetPresentation("heart", snapshot, "zh").state, "missing");
 });
 
-test("historical heart rate is dated, sorted and never taken from a future or empty row", () => {
-  const metrics = [
-    { record_date: "2026-09-03", latest_heart_rate: 65 },
-    { record_date: "2026-09-06", latest_heart_rate: 99 },
-    { record_date: "2026-09-04", latest_heart_rate: 72 },
-    { record_date: "2026-09-05", latest_heart_rate: null, resting_heart_rate: null },
-  ] as HealthMetricSnapshot[];
-  const trends = { healthMetrics: metrics } as TrendBundle;
-  assert.equal(buildHomeWidgetPresentation("heart", snapshot, "zh", trends).core, "72");
-  assert.equal(buildHomeWidgetPresentation("heart", snapshot, "zh", trends).support, "9/4 · 次/分");
-  assert.equal(buildHomeWidgetPresentation("heart", snapshot, "en", trends).support, "9/4 · bpm");
-  const today = { ...snapshot, exercise: { ...snapshot.exercise!, heart_rate: "81" } };
-  assert.equal(buildHomeWidgetPresentation("heart", today, "zh", trends).core, "81");
-  assert.equal(buildHomeWidgetPresentation("heart", today, "zh", trends).support, "次/分");
-  assert.equal(buildHomeWidgetPresentation("heart", snapshot, "en", { healthMetrics: [{ record_date: "2025-12-31", resting_heart_rate: 60 }] } as TrendBundle).support, "2025-12-31 · bpm");
-});
-
-test("the four visual-reference metrics keep compact unit labels", () => {
+test("sleep and exercise widgets keep compact unit labels", () => {
   const trendSnapshot: TodaySnapshot = { ...snapshot, exercise: { ...snapshot.exercise!, steps: 6_000 } };
   const trends: TrendBundle = {
     moods: [], sleeps: [], nutritions: [], faces: [], focus: [], focusDistributions: [], healthMetrics: [], rhythms: [],
@@ -92,7 +80,6 @@ test("the four visual-reference metrics keep compact unit labels", () => {
   };
   assert.equal(buildHomeWidgetPresentation("sleep", trendSnapshot, "zh", trends).support, "小时 30 分");
   assert.equal(buildHomeWidgetPresentation("exercise", trendSnapshot, "zh", trends).support, "分钟");
-  assert.equal(buildHomeWidgetPresentation("steps", trendSnapshot, "zh", trends).support, "步");
 });
 
 test("focus comparison sums multiple sessions within each recorded day", () => {

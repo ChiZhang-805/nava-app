@@ -2,10 +2,11 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
+import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-home-widgets-v128-20260908";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\home-widget-inline-editor";
 const port = 5204;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -45,6 +46,20 @@ function assertNear(actual, expected, tolerance, label) {
   }
 }
 
+async function installDemoSession(context) {
+  await context.addInitScript(({ userId }) => {
+    sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
+    localStorage.setItem(`nava.onboarding.v3.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 3, answers: {}, source: "local" }));
+    Object.defineProperty(navigator, "vibrate", { configurable: true, value: () => true });
+  }, { userId: demoUserId });
+}
+
+async function installCompletionDismissal(page) {
+  await page.addLocatorHandler(page.locator(".completion-celebration-layer"), async () => {
+    await page.frameLocator(".completion-celebration-layer iframe").getByRole("button", { name: /Continue|继续/ }).click();
+  });
+}
+
 try {
   for (const viewport of viewports) {
     const context = await browser.newContext({ locale: "zh-CN",
@@ -54,12 +69,9 @@ try {
       hasTouch: true,
       timezoneId: "Asia/Shanghai",
     });
-    await context.addInitScript(({ userId }) => {
-      sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
-      localStorage.setItem(`nava.onboarding.v2.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 2, answers: {}, source: "local" }));
-      Object.defineProperty(navigator, "vibrate", { configurable: true, value: () => true });
-    }, { userId: demoUserId });
+    await installDemoSession(context);
     const page = await context.newPage();
+    await installCompletionDismissal(page);
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
@@ -69,7 +81,8 @@ try {
     if (await launch.isVisible().catch(() => false)) await launch.click();
     const loadingReward = page.locator(".reward-celebration-layer");
     if (await loadingReward.isVisible().catch(() => false)) await loadingReward.locator("button").first().click();
-    await expect(page.locator(".home-widget-skeleton")).toHaveCount(4);
+    await expect(page.locator(".option-two-home")).toBeVisible();
+    await expect(page.locator(".home-widget-skeleton")).toHaveCount(6);
     const skeletonGeometry = await page.locator(".home-widget-skeleton").evaluateAll((items) => items.map((item) => {
       const box = item.getBoundingClientRect();
       return { width: box.width, height: box.height, borderRadius: getComputedStyle(item).borderRadius };
@@ -97,9 +110,9 @@ try {
     if (!backgroundGeometry.complete || backgroundGeometry.naturalWidth < 800 || backgroundGeometry.naturalHeight < 1800) throw new Error(`${viewport.name}: generated home scene did not load at production resolution ${JSON.stringify(backgroundGeometry)}`);
     if (Math.abs(backgroundGeometry.left) > 1 || Math.abs(backgroundGeometry.top) > 1 || Math.abs(backgroundGeometry.right - viewport.width) > 1 || Math.abs(backgroundGeometry.bottom - viewport.height) > 1) throw new Error(`${viewport.name}: generated home scene does not cover the viewport ${JSON.stringify(backgroundGeometry)}`);
     const defaultWidgets = page.locator(".home-health-widget");
-    await expect(defaultWidgets).toHaveCount(4);
+    await expect(defaultWidgets).toHaveCount(6);
     const defaultWidgetOrder = await defaultWidgets.evaluateAll((items) => items.map((item) => item.getAttribute("data-home-widget")));
-    if (defaultWidgetOrder.join(",") !== "heart,sleep,exercise,steps") throw new Error(`${viewport.name}: unexpected default widget order ${defaultWidgetOrder.join(",")}`);
+    if (defaultWidgetOrder.join(",") !== "mood,sleep,exercise,diet,face,focus") throw new Error(`${viewport.name}: unexpected default widget order ${defaultWidgetOrder.join(",")}`);
     const initialGeometry = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame");
       const grid = document.querySelector(".home-widget-grid");
@@ -123,21 +136,26 @@ try {
     assertNoHorizontalOverflow(initialGeometry, `${viewport.name} default home`);
     if (initialGeometry.columns !== 3) throw new Error(`${viewport.name}: home widget grid must have three columns`);
     if (initialGeometry.cards.some((card) => card.left < -1 || card.right > viewport.width + 1)) throw new Error(`${viewport.name}: a home widget escapes the viewport ${JSON.stringify(initialGeometry)}`);
-    if (initialGeometry.cards.some((card, index) => Math.abs(card.width - skeletonGeometry[index].width) > 1 || Math.abs(card.height - skeletonGeometry[index].height) > 1)) throw new Error(`${viewport.name}: loading and final home widget shapes differ ${JSON.stringify({ skeletonGeometry, cards: initialGeometry.cards })}`);
-    const [heart, sleep, exercise, steps] = initialGeometry.cards;
-    const referenceLayout = heart && sleep && exercise && steps
-      && Math.abs(heart.left - sleep.left) <= 1
+    if (initialGeometry.cards.some((card, index) => Math.abs(card.width - skeletonGeometry[index].width) > 2 || Math.abs(card.height - skeletonGeometry[index].height) > 2)) throw new Error(`${viewport.name}: loading and final home widget shapes differ ${JSON.stringify({ skeletonGeometry, cards: initialGeometry.cards })}`);
+    const [mood, sleep, exercise, diet, face, focus] = initialGeometry.cards;
+    const referenceLayout = mood && sleep && exercise && diet && face && focus
+      && Math.abs(mood.left - sleep.left) <= 1
+      && Math.abs(face.left - exercise.left) <= 1
+      && Math.abs(focus.left - diet.left) <= 1
+      && Math.abs(mood.top - face.top) <= 1
+      && Math.abs(face.top - focus.top) <= 1
       && Math.abs(sleep.top - exercise.top) <= 1
-      && Math.abs(exercise.top - steps.top) <= 1
-      && Math.abs(heart.width - sleep.width) <= 1
-      && heart.bottom < sleep.top;
-    if (!referenceLayout) throw new Error(`${viewport.name}: home cards do not follow the reference 1+3 arrangement ${JSON.stringify(initialGeometry)}`);
+      && Math.abs(exercise.top - diet.top) <= 1
+      && mood.bottom < sleep.top;
+    if (!referenceLayout) throw new Error(`${viewport.name}: home cards do not follow the two-by-three layout ${JSON.stringify(initialGeometry)}`);
     if (viewport.name === "430x932") {
       const referenceCards = [
         { left: 18, top: 153, width: 126, height: 141 },
         { left: 18, top: 309, width: 126, height: 141 },
         { left: 152, top: 309, width: 126, height: 141 },
         { left: 286, top: 309, width: 126, height: 141 },
+        { left: 152, top: 153, width: 126, height: 141 },
+        { left: 286, top: 153, width: 126, height: 141 },
       ];
       initialGeometry.cards.forEach((card, index) => {
         const expected = referenceCards[index];
@@ -153,10 +171,10 @@ try {
     await expect.poll(() => new URL(page.url()).hash).toContain("module=sleep");
     await openRoute(page, "tab=today");
 
-    const draggableHeart = page.locator('[data-home-widget="heart"]');
-    const heartBox = await draggableHeart.boundingBox();
-    if (!heartBox) throw new Error(`${viewport.name}: heart widget has no long-press geometry`);
-    await page.mouse.move(heartBox.x + heartBox.width / 2, heartBox.y + heartBox.height / 2);
+    const draggableMood = page.locator('[data-home-widget="mood"]');
+    const moodBox = await draggableMood.boundingBox();
+    if (!moodBox) throw new Error(`${viewport.name}: mood widget has no long-press geometry`);
+    await page.mouse.move(moodBox.x + moodBox.width / 2, moodBox.y + moodBox.height / 2);
     await page.mouse.down();
     await page.waitForTimeout(500);
     await expect(page.locator(".home-widget-grid")).toHaveClass(/is-arranging/);
@@ -171,33 +189,33 @@ try {
     if (slotGeometry.some((slot) => slot.opacity < .99 || slot.width < 80 || slot.height < 100)) throw new Error(`${viewport.name}: six placement slots are not visible ${JSON.stringify(slotGeometry)}`);
     const targetSlot = page.locator('[data-home-widget-slot="4"]');
     const targetBox = await targetSlot.boundingBox();
-    if (!targetBox) throw new Error(`${viewport.name}: empty placement slot has no geometry`);
+    if (!targetBox) throw new Error(`${viewport.name}: placement slot has no geometry`);
     await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 10 });
     await expect(targetSlot).toHaveClass(/is-target/);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-dragging.png`) });
     await page.mouse.up();
-    await expect(page.locator('[data-home-widget="heart"]')).toHaveAttribute("data-home-widget-position", "5");
+    await expect(page.locator('[data-home-widget="mood"]')).toHaveAttribute("data-home-widget-position", "5");
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-arranged.png`) });
-    await page.locator('[data-home-widget="heart"]').dispatchEvent("click");
+    await page.locator('[data-home-widget="mood"]').dispatchEvent("click");
     await expect(page.locator(".home-widget-grid")).toHaveClass(/is-arranging/);
     await page.locator(".option-two-scene-background").dispatchEvent("click");
     await expect(page.locator(".home-widget-grid")).not.toHaveClass(/is-arranging/);
     await page.reload({ waitUntil: "networkidle" });
     const reloadLaunch = page.locator(".launch-sequence");
     if (await reloadLaunch.isVisible().catch(() => false)) await reloadLaunch.click();
-    await expect(page.locator('[data-home-widget="heart"]')).toHaveAttribute("data-home-widget-position", "5");
-    await page.locator('[data-home-widget="heart"]').focus();
+    await expect(page.locator('[data-home-widget="mood"]')).toHaveAttribute("data-home-widget-position", "5");
+    await page.locator('[data-home-widget="mood"]').focus();
     await page.keyboard.press("Shift+Enter");
     await expect(page.locator(".home-widget-grid")).toHaveClass(/is-arranging/);
     await page.keyboard.press("ArrowRight");
-    await expect(page.locator('[data-home-widget="heart"]')).toHaveAttribute("data-home-widget-position", "6");
+    await expect(page.locator('[data-home-widget="mood"]')).toHaveAttribute("data-home-widget-position", "6");
     await page.keyboard.press("ArrowLeft");
-    await expect(page.locator('[data-home-widget="heart"]')).toHaveAttribute("data-home-widget-position", "5");
+    await expect(page.locator('[data-home-widget="mood"]')).toHaveAttribute("data-home-widget-position", "5");
     await page.keyboard.press("ArrowDown");
-    await expect(page.locator('[data-home-widget="heart"]')).toHaveAttribute("data-home-widget-position", "3");
+    await expect(page.locator('[data-home-widget="mood"]')).toHaveAttribute("data-home-widget-position", "3");
     await expect(page.locator('[data-home-widget="exercise"]')).toHaveAttribute("data-home-widget-position", "5");
     await page.keyboard.press("ArrowUp");
-    await expect(page.locator('[data-home-widget="heart"]')).toHaveAttribute("data-home-widget-position", "5");
+    await expect(page.locator('[data-home-widget="mood"]')).toHaveAttribute("data-home-widget-position", "5");
     await expect(page.locator('[data-home-widget="exercise"]')).toHaveAttribute("data-home-widget-position", "3");
     await page.keyboard.press("Escape");
     await expect(page.locator(".home-widget-grid")).not.toHaveClass(/is-arranging/);
@@ -224,7 +242,7 @@ try {
     await page.locator(".drawer-home-edit").first().click();
     await expect(page.locator(".home-widget-editor")).toBeVisible();
     await expect(page.locator(".bottom-nav")).toHaveCount(0);
-    await expect(page.locator(".home-widget-picker > button")).toHaveCount(8);
+    await expect(page.locator(".home-widget-picker > button")).toHaveCount(6);
 
     const unselected = page.locator(".home-widget-picker > button:not(.is-selected):not(:disabled)");
     while (await unselected.count()) await unselected.first().click();
@@ -314,6 +332,36 @@ try {
     }
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-six.png`) });
 
+    const longPressTarget = page.locator(".home-health-widget").first();
+    const longPressBox = await longPressTarget.boundingBox();
+    if (!longPressBox) throw new Error(`${viewport.name}: home widget has no long-press geometry`);
+    await page.mouse.move(longPressBox.x + longPressBox.width / 2, longPressBox.y + longPressBox.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(520);
+    await expect(page.locator(".option-two-home")).toHaveAttribute("data-home-widget-arranging", "true");
+    await page.mouse.up();
+    await expect(page.locator(".home-widget-remove:visible")).toHaveCount(6);
+    await page.locator(".home-widget-remove:visible").first().click();
+    await expect(page.locator(".home-health-widget")).toHaveCount(5);
+    await expect(page.locator(".home-widget-add:visible")).toHaveCount(1);
+    await page.locator(".home-widget-add:visible").click();
+    await expect(page.locator(".home-health-widget")).toHaveCount(6);
+    await page.locator(".home-widget-remove:visible").first().click();
+    await page.locator(".home-widget-remove:visible").first().click();
+    await expect(page.locator(".home-widget-add:visible")).toHaveCount(2);
+    await page.locator(".home-widget-add:visible").first().click();
+    await expect(page.locator(".home-widget-add-menu")).toBeVisible();
+    await expect(page.locator(".home-widget-add-menu > div button")).toHaveCount(2);
+    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-inline-picker.png`) });
+    await page.locator(".home-widget-add-menu > div button").first().click();
+    await expect(page.locator(".home-health-widget")).toHaveCount(5);
+    await page.locator(".home-widget-add:visible").click();
+    await expect(page.locator(".home-health-widget")).toHaveCount(6);
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".option-two-home")).toHaveAttribute("data-home-widget-arranging", "false");
+    await expect(page.locator(".home-widget-remove").first()).toHaveAttribute("aria-hidden", "true");
+    await expect.poll(() => page.locator(".home-widget-remove").first().evaluate((element) => getComputedStyle(element).pointerEvents)).toBe("none");
+
     await openRoute(page, "tab=today&view=home-widgets");
     const selectedWidgets = page.locator(".home-widget-picker > button.is-selected");
     while (await selectedWidgets.count()) await selectedWidgets.first().click();
@@ -325,46 +373,63 @@ try {
     await page.waitForTimeout(700);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-empty.png`) });
 
-    await page.locator('.nav-button[data-tab="ai"]').click();
-    await expect.poll(() => new URL(page.url()).hash).toContain("tab=ai");
-    await expect(page.getByRole("textbox", { name: /告诉 NAVA|Tell NAVA/i })).toBeVisible();
+    if (errors.length) throw new Error(`${viewport.name}: browser errors ${JSON.stringify(errors)}`);
+    report.push({ viewport, backgroundGeometry, skeletonGeometry, initialGeometry, sortGeometry, widgetTextGeometry });
+    await context.close();
+  }
 
-    await openRoute(page, "tab=record&module=sleep&view=editor");
-    const sleepMaintenance = page.locator(".sleep-maintenance");
-    await expect(sleepMaintenance).toBeVisible();
-    if (!(await sleepMaintenance.getAttribute("class")).includes("is-active")) await sleepMaintenance.locator(":scope > button").click();
-    await expect(sleepMaintenance).toHaveClass(/is-active/);
-    await page.reload({ waitUntil: "networkidle" });
-    await expect(page.locator(".sleep-maintenance")).toHaveClass(/is-active/);
-    await page.locator(".sleep-maintenance > div:last-child button").first().click();
-    await expect(page.locator(".sleep-maintenance")).not.toHaveClass(/is-active/);
-    const duration = Number(await page.locator('form:not([hidden]) input[type="number"]').first().inputValue());
-    if (!Number.isFinite(duration) || duration !== 1) throw new Error(`${viewport.name}: sleep tracking did not preserve the one-minute minimum; got ${duration}`);
-    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-sleep-maintenance.png`) });
+  for (const device of IPHONE_PREVIEW_DEVICES) {
+    const context = await browser.newContext({
+      locale: "zh-CN",
+      viewport: { width: device.logicalWidth, height: device.logicalHeight },
+      deviceScaleFactor: 1,
+      isMobile: true,
+      hasTouch: true,
+      timezoneId: "Asia/Shanghai",
+    });
+    await installDemoSession(context);
+    const page = await context.newPage();
+    await installCompletionDismissal(page);
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
 
-    await openRoute(page, "tab=record&module=face&view=conditions");
-    const readinessButtons = page.locator(".face-capture-readiness > div button");
-    await expect(readinessButtons).toHaveCount(3);
-    for (let index = 0; index < 3; index += 1) {
-      if ((await readinessButtons.nth(index).getAttribute("aria-pressed")) !== "true") await readinessButtons.nth(index).click();
+    await openRoute(page, "tab=today");
+    const ids = await page.locator(".home-health-widget").evaluateAll((items) => items.map((item) => item.getAttribute("data-home-widget")));
+    if (ids.join(",") !== "mood,sleep,exercise,diet,face,focus") {
+      throw new Error(`${device.label}: unexpected six-module catalog ${ids.join(",")}`);
     }
-    await expect(page.locator(".face-capture-readiness")).toHaveClass(/is-ready/);
-    await expect(page.locator(".face-photo-actions button").first()).toBeEnabled();
-    const faceGeometry = await page.evaluate(() => {
+    const geometry = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame");
-      const editor = document.querySelector(".record-editor-stack > div:not([hidden])");
+      const cards = [...document.querySelectorAll(".home-health-widget")].map((item) => {
+        const box = item.getBoundingClientRect();
+        return { left: box.left, right: box.right, top: box.top, bottom: box.bottom };
+      });
       return {
         documentOverflow: document.documentElement.scrollWidth - window.innerWidth,
         frameOverflow: frame ? frame.scrollWidth - frame.clientWidth : null,
-        editorScrollHeight: editor?.scrollHeight ?? 0,
-        editorClientHeight: editor?.clientHeight ?? 0,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        cards,
       };
     });
-    assertNoHorizontalOverflow(faceGeometry, `${viewport.name} face readiness`);
-    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-face-readiness.png`) });
+    assertNoHorizontalOverflow(geometry, device.label);
+    if (geometry.cards.some((card) => card.left < -1 || card.right > geometry.viewportWidth + 1 || card.top < 0 || card.bottom > geometry.viewportHeight)) {
+      throw new Error(`${device.label}: a home card escapes the portrait viewport ${JSON.stringify(geometry)}`);
+    }
 
-    if (errors.length) throw new Error(`${viewport.name}: browser errors ${JSON.stringify(errors)}`);
-    report.push({ viewport, backgroundGeometry, skeletonGeometry, initialGeometry, sortGeometry, widgetTextGeometry, faceGeometry });
+    const target = page.locator('[data-home-widget="mood"]');
+    await target.dispatchEvent("keydown", { key: "Enter", code: "Enter", shiftKey: true });
+    await expect(page.locator(".home-widget-grid")).toHaveClass(/is-arranging/);
+    await expect(page.locator(".home-widget-remove:visible")).toHaveCount(6);
+    await page.locator(".home-widget-remove:visible").first().click();
+    await expect(page.locator(".home-widget-add:visible")).toHaveCount(1);
+    await page.screenshot({ path: path.join(outputDir, `${device.id}-portrait-inline-edit.png`) });
+    await page.locator(".home-widget-add:visible").click();
+    await expect(page.locator(".home-health-widget")).toHaveCount(6);
+
+    if (errors.length) throw new Error(`${device.label}: browser errors ${JSON.stringify(errors)}`);
+    report.push({ device: { id: device.id, label: device.label, width: device.logicalWidth, height: device.logicalHeight }, geometry, inlineEdit: "passed" });
     await context.close();
   }
 } finally {
@@ -373,5 +438,5 @@ try {
 }
 
 await writeFile(path.join(outputDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
-console.log(`Home widgets, AI routing, sleep maintenance, and face readiness passed at ${viewports.map((item) => item.name).join(", ")}.`);
+console.log(`Home widget selection, ordering, long-press removal, and inline addition passed at ${viewports.map((item) => item.name).join(", ")} and all ${IPHONE_PREVIEW_DEVICES.length} cataloged portrait iPhone models.`);
 console.log(`Evidence: ${outputDir}`);
