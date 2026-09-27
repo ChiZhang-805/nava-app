@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
@@ -9,7 +9,14 @@ const project = 'wxteapvwagvhhtrjrbim';
 const apply = process.argv.includes(`--delete-all-accounts=${project}`);
 const resume=process.argv.includes(`--resume-backup=${project}`);
 const finish=process.argv.includes(`--finish-reset=${project}`);
-const root = path.resolve('Q:/NAVA-Workspace/Build/TestRuns/journal-integration/account-reset');
+const backupArg=process.argv.find(a=>a.startsWith('--backup-dir='))?.slice('--backup-dir='.length);
+const evidenceRoot=realpathSync('Q:/NAVA-Workspace/Build/TestRuns');
+const root = path.resolve(backupArg||'Q:/NAVA-Workspace/Build/TestRuns/journal-integration/account-reset');
+const relativeBackup=path.relative(evidenceRoot,root);
+if(!relativeBackup||relativeBackup.startsWith('..')||path.isAbsolute(relativeBackup))throw Error('Backup must be a child of the NAVA TestRuns directory');
+let existingParent=path.dirname(root);while(!existsSync(existingParent))existingParent=path.dirname(existingParent);
+const relativeParent=path.relative(evidenceRoot,realpathSync(existingParent));
+if(relativeParent.startsWith('..')||path.isAbsolute(relativeParent))throw Error('Backup parent resolves outside the approved evidence directory');
 if(apply&&existsSync(root)&&!resume&&!finish)throw Error('Backup path already exists; refuse to overwrite recovery evidence');
 function unseal(name){
  const code='Add-Type -AssemblyName System.Security; $bytes=[Security.Cryptography.ProtectedData]::Unprotect([IO.File]::ReadAllBytes($env:NAVA_RESET_BACKUP),$null,[Security.Cryptography.DataProtectionScope]::CurrentUser); [Console]::Write([Convert]::ToBase64String($bytes))';
@@ -60,20 +67,41 @@ for(const table of owned) if(!/^[a-z0-9_]+$/.test(table))throw Error('Invalid ta
 const objects=query("select bucket_id,name,metadata->>'size' as size from storage.objects order by bucket_id,name").filter(o=>ids.includes(o.name.split('/')[0]));
 const countAll=()=>Object.fromEntries(query(owned.map(table=>`select '${table}' as name,count(*)::integer as n from public.${table}`).join(' union all ')).map(r=>[r.name,Number(r.n)]));
 const counts=countAll();
+// Only schema/configuration hashes are returned: this must not print secrets or records.
+function preservedState(){return query(`select
+ md5(coalesce((select jsonb_agg(to_jsonb(c) order by table_schema,table_name,ordinal_position)::text from information_schema.columns c where table_schema in ('public','auth','storage')),'')) as columns,
+ md5(coalesce((select jsonb_agg(jsonb_build_array(c.oid,pg_get_constraintdef(c.oid)) order by c.oid)::text from pg_constraint c join pg_namespace n on n.oid=c.connamespace where n.nspname in ('public','auth','storage')),'')) as constraints,
+ md5(coalesce((select jsonb_agg(to_jsonb(p) order by schemaname,tablename,policyname)::text from pg_policies p where schemaname in ('public','storage')),'')) as policies,
+ md5(coalesce((select jsonb_agg(jsonb_build_array(p.oid,pg_get_functiondef(p.oid)) order by p.oid)::text from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.prokind='f'),'')) as functions,
+ md5(coalesce((select jsonb_agg(to_jsonb(b) order by id)::text from storage.buckets b),'')) as buckets,
+ md5(coalesce((select jsonb_agg(to_jsonb(p) order by id)::text from public.reward_products p),'')) as products,
+ md5(coalesce((select jsonb_agg(to_jsonb(m) order by version)::text from supabase_migrations.schema_migrations m),'')) as migrations`)[0];}
+const preservedBefore=preservedState();
+const unownedTables=query("select c.relname as name from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r'").map(r=>r.name).filter(n=>!owned.includes(n));
+const securityTables=['nava_auth_account_checks','nava_phone_otp_challenges','phone_verification_codes'].filter(n=>unownedTables.includes(n));
+const tableSnapshotSql=`select jsonb_object_agg(name,rows) from (${[...owned,...securityTables].map(t=>`select '${t}' as name,(select coalesce(jsonb_agg(to_jsonb(r)),'[]') from public.${t} r) as rows`).join(' union all ')}) account_tables`;
+if(unownedTables.some(n=>!securityTables.includes(n)&&n!=='reward_products'))throw Error('Unclassified public table; review ownership before resetting');
+const allStorage=query('select bucket_id,name from storage.objects');
+if(allStorage.some(o=>!ids.includes(o.name.split('/')[0])||!['diet-photos','face-photos','profile-avatars'].includes(o.bucket_id)))throw Error('Unclassified storage object; no deletion allowed');
 const summary={project,accounts:ids.length,ownedTables:owned.length,rows:counts,privateObjects:objects.length,privateBytes:objects.reduce((s,o)=>s+Number(o.size||0),0),applied:false};
 console.log(JSON.stringify(summary));
 if(!apply)process.exit(0);
 if(!ids.length)throw Error('No accounts to delete; no destructive operation performed');
 mkdirSync(root,{recursive:true});
 seal('accounts',JSON.stringify({users,ids,createdAt:new Date().toISOString()}));
-seal('auth-users',JSON.stringify(query('select * from auth.users')));
+seal('preserved-state',JSON.stringify(preservedBefore));
+// One statement gives the account tables and Auth identities a consistent snapshot.
+const snapshot=query(`select jsonb_build_object('authUsers',(select coalesce(jsonb_agg(to_jsonb(u) order by id),'[]') from auth.users u),'authIdentities',(select coalesce(jsonb_agg(to_jsonb(i) order by id),'[]') from auth.identities i),'tables',(${tableSnapshotSql})) as data`)[0].data;
+if(JSON.stringify(snapshot.authUsers.map(u=>u.id).sort())!==JSON.stringify(ids))throw Error('Account snapshot changed before backup');
+seal('auth-users',JSON.stringify(snapshot.authUsers));
+seal('auth-identities',JSON.stringify(snapshot.authIdentities));
 let tablesBackedUp=0;
 for(const table of owned){
  if(resume&&existsSync(path.join(root,`table-${table}.dpapi`))){if(JSON.parse(unseal(`table-${table}`)).length!==counts[table])throw Error('Row counts changed; stopped before deletion');}
- else{const rows=query(`select * from public.${table}`);seal(`table-${table}`,JSON.stringify(rows));}
+ else{const rows=snapshot.tables[table];if(rows.length!==counts[table])throw Error('Rows changed before backup; stopped');seal(`table-${table}`,JSON.stringify(rows));}
  tablesBackedUp++;if(tablesBackedUp%8===0)console.log(`Encrypted ${tablesBackedUp}/${owned.length} account tables; no deletion yet.`);
 }
-for(const table of ['nava_auth_account_checks','nava_phone_otp_challenges'])seal(`table-${table}`,JSON.stringify(query(`select * from public.${table}`)));
+for(const table of securityTables)seal(`table-${table}`,JSON.stringify(snapshot.tables[table]));
 seal('storage-manifest',JSON.stringify(objects));
 const unavailable=[];
 for(const o of objects){
@@ -91,14 +119,20 @@ seal('unavailable-storage-objects',JSON.stringify(unavailable));
 // Freeze exact targets. A new signup since the snapshot is not silently deleted.
 const current=[];for(let page=1;;page++){const r=await admin.auth.admin.listUsers({page,perPage:100});if(r.error)throw Error('Recheck failed');current.push(...r.data.users.map(u=>u.id));if(r.data.users.length<100)break;}
 if(JSON.stringify(current.sort())!==JSON.stringify(ids))throw Error('Accounts changed during backup; stopped before deletion');
+const stableRows=rows=>createHash('sha256').update(rows.map(r=>JSON.stringify(r)).sort().join('\n')).digest('hex');
+const currentTables=query(`select (${tableSnapshotSql}) as data`)[0].data;
+for(const table of [...owned,...securityTables])if(stableRows(currentTables[table])!==stableRows(snapshot.tables[table]))throw Error('Data changed during backup; stopped before deletion');
+if(JSON.stringify(preservedState())!==JSON.stringify(preservedBefore))throw Error('Schema/configuration changed; stopped before deletion');
 for(const bucket of new Set(objects.map(o=>o.bucket_id))){const names=objects.filter(o=>o.bucket_id===bucket).map(o=>o.name);for(let i=0;i<names.length;i+=100){const r=await admin.storage.from(bucket).remove(names.slice(i,i+100));if(r.error)throw Error('Private-file deletion failed; backup retained');}}
 let deleted=0;
 for(const id of ids){const r=await admin.auth.admin.deleteUser(id);if(r.error)throw Error('Account deletion failed; encrypted backup retained');deleted++;}
-query('begin; delete from public.nava_auth_account_checks; delete from public.nava_phone_otp_challenges; commit;');
+query(`begin; ${securityTables.map(t=>`delete from public.${t};`).join(' ')} commit;`);
 const remaining=Number(query('select count(*)::integer as n from auth.users')[0].n);
 const residual=Object.fromEntries(Object.entries(countAll()).filter(([,n])=>n));
 const remainingObjects=query('select bucket_id,name from storage.objects').filter(o=>ids.includes(o.name.split('/')[0])).length;
-const receipt={...summary,applied:true,deleted,remainingAccounts:remaining,residualRows:residual,remainingObjects,alreadyMissingObjects:unavailable.length,backup:'CurrentUser DPAPI; verified decryptable, manual administrative restoration required; already missing blobs have metadata only',finishedAt:new Date().toISOString()};
+const configurationPreserved=JSON.stringify(preservedState())===JSON.stringify(preservedBefore);
+const securityResidual=query(securityTables.map(t=>`select '${t}' as name,count(*)::integer as n from public.${t}`).join(' union all ')).filter(r=>Number(r.n)>0);
+const receipt={...summary,applied:true,deleted,remainingAccounts:remaining,residualRows:residual,remainingObjects,securityResidual,configurationPreserved,alreadyMissingObjects:unavailable.length,backupPath:root,backup:'CurrentUser DPAPI; verified decryptable, manual administrative restoration required; already missing blobs have metadata only',finishedAt:new Date().toISOString()};
 writeFileSync(path.join(root,'receipt.json'),JSON.stringify(receipt,null,2));
 console.log(JSON.stringify(receipt));
-if(remaining||remainingObjects||Object.keys(residual).length)throw Error('Reset incomplete; inspect residual counts without deleting unrelated schema');
+if(remaining||remainingObjects||Object.keys(residual).length||securityResidual.length||!configurationPreserved)throw Error('Reset incomplete; inspect residual counts without deleting unrelated schema');

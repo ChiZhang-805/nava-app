@@ -17,6 +17,16 @@ must never be copied into that repository.
 
 ## Compatibility tiers
 
+2026-09-27: explicitly authorized development-account reset completed. One Auth
+account and four reward-ledger rows were removed along with all associated data;
+48 account-owned public tables are empty. Schema/constraints/RLS/functions,
+bucket configuration, public catalog and migration-history fingerprints were
+unchanged. Recovery evidence is DPAPI-encrypted under
+`Q:/NAVA-Workspace/Build/TestRuns/account-reset-20260927`; do not remove it.
+New reward rules remain a proposal pending the user's rule choice. Migration
+`202609270001_journal_growth_rewards.sql` has NOT been applied; do not infer new
+reward behavior from the frontend v170 deployment or this data reset.
+
 2026-09-20: user explicitly approved the reminder-settings schema migration.
 `202609200001_reminder_timing_modes.sql` was the only dry-run candidate and was
 applied successfully. It adds fixed/smart timing and exercise/face reminder types,
