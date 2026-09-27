@@ -17,6 +17,15 @@ must never be copied into that repository.
 
 ## Compatibility tiers
 
+2026-09-27: migration `202609260001_admin_console.sql` was explicitly authorized and
+applied without applying the still-pending `202609270001` reward migration. It adds
+server-owned member/admin roles, audited reward-product publishing, admin notification
+batches, and an admin-only product image bucket. The two accounts present at migration
+time were bootstrapped as administrators; later registrations default to member. The
+authenticated `admin-notification-publish` function is deployed. No APNs/FCM/HMS or
+internal dispatch secrets are configured, so remote system push stays unavailable while
+in-app broadcast remains the implemented path.
+
 2026-09-27: explicitly authorized development-account reset completed. One Auth
 account and four reward-ledger rows were removed along with all associated data;
 48 account-owned public tables are empty. Schema/constraints/RLS/functions,

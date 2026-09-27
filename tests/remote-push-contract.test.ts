@@ -37,6 +37,8 @@ test("remote dispatcher supports APNs, FCM, and HMS without exposing provider cr
   for (const secret of ["APNS_PRIVATE_KEY", "FIREBASE_SERVICE_ACCOUNT_JSON", "HMS_CLIENT_SECRET", "NAVA_PUSH_DISPATCH_SECRET"]) assert.match(dispatch, new RegExp(secret));
   assert.match(dispatch, /push_delivery_receipts/);
   assert.match(dispatch, /secureEquals/);
+  assert.match(dispatch, /APNS_TOKEN_REUSE_MS = 50 \* 60 \* 1000/);
+  assert.match(dispatch, /cachedApnsToken/);
   assert.doesNotMatch(dispatch, /console\.(?:log|info)/);
   assert.match(migration, /push_device_tokens[\s\S]*ON DELETE CASCADE/);
   assert.match(migration, /FOREIGN KEY \(user_id, notification_id\)[\s\S]*user_notifications\(user_id, id\)/);

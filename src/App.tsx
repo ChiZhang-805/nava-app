@@ -49,6 +49,7 @@ import {
 } from "./services/notifications";
 import { loadUserAppPreferences, saveUserAppPreferences } from "./services/userCloudState";
 import { registerRemotePush, subscribeRemoteNotificationActions } from "./services/remotePush";
+import { loadAdminAccess } from "./services/adminConsole";
 import {
   fallbackShellRoute,
   hasPreviousShellRoute,
@@ -141,6 +142,7 @@ function MobileShell({
   const [utilityOpen, setUtilityOpen] = useState(false);
   const [linkShareOpen, setLinkShareOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [focusTodoPrefill, setFocusTodoPrefill] = useState<FocusTodoPrefill | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const deviceDate = useDeviceDate();
@@ -164,6 +166,26 @@ function MobileShell({
   const rewardUserRef = useRef(user?.id);
   rewardUserRef.current = user?.id;
   useEffect(() => setRewardQueue([]), [user?.id]);
+
+  useEffect(() => {
+    let active = true;
+    if (!user) {
+      setIsAdmin(false);
+      return () => { active = false; };
+    }
+    const qaAdmin = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "admin-console";
+    if (qaAdmin) {
+      setIsAdmin(true);
+      return () => { active = false; };
+    }
+    void loadAdminAccess()
+      .then((allowed) => { if (active) setIsAdmin(allowed); })
+      .catch((roleError) => {
+        console.warn("Admin role check deferred", roleError);
+        if (active) setIsAdmin(false);
+      });
+    return () => { active = false; };
+  }, [user]);
   const [notificationItems, setNotificationItems] = useState<NavaNotificationItem[]>(() => user ? listNavaNotifications(user.id) : []);
   const [notificationBanner, setNotificationBanner] = useState<NavaNotificationItem | null>(null);
   const [cloudBootstrapReady, setCloudBootstrapReady] = useState(() => isDemoMode());
@@ -607,7 +629,7 @@ function MobileShell({
 
   const focusImmersive = activeTab === "record" && recordModule === "focus" && (recordView === "immersive" || recordView === "interruption");
   const profileDetailsSubpage = activeTab === "today" && recordView === "profile-details";
-  const todayFullSubpage = activeTab === "today" && (profileDetailsSubpage || recordView === "home-widgets");
+  const todayFullSubpage = activeTab === "today" && (profileDetailsSubpage || recordView === "home-widgets" || recordView === "admin-console");
   const journalOpen = activeTab === "record" && Boolean(recordModule);
   const hideBottomNavigation = focusImmersive || todayFullSubpage || journalOpen;
 
@@ -835,6 +857,11 @@ function MobileShell({
         onOpenShop={() => {
           setDrawerOpen(false);
           navigate("today", null, "points-shop");
+        }}
+        isAdmin={isAdmin}
+        onOpenAdmin={() => {
+          setDrawerOpen(false);
+          navigate("today", null, "admin-console");
         }}
       />
       {rewardQueue[0] && <RewardCelebration rewards={rewardQueue[0]} locale={locale} onDismiss={dismissReward} />}

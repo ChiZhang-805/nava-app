@@ -4999,6 +4999,8 @@ body::before {
 .drawer-placeholder-card strong { color: #11394b; font-size: 14px; }
 .drawer-home-edit { font: inherit; cursor: pointer; }
 .drawer-home-edit:active { transform: scale(.985); background: rgba(225,246,253,.88); }
+.drawer-admin-entry { border-color: rgba(111,190,191,.36); background: linear-gradient(135deg,rgba(239,251,250,.9),rgba(222,244,246,.86)); }
+.drawer-admin-entry > svg { color: #1f8a8e; }
 .drawer-placeholder-card:disabled { opacity: .72; }
 
 .drawer-todo-section,

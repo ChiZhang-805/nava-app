@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { Check, ChevronRight, CircleDollarSign, LockKeyhole, ShoppingBag, SlidersHorizontal, UsersRound, X } from "lucide-react";
+import { Check, ChevronRight, CircleDollarSign, LockKeyhole, ShieldCheck, ShoppingBag, SlidersHorizontal, UsersRound, X } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { useLocale } from "../i18n";
 import { addTodo, growthXp, loadGrowthTasks, loadGrowthTotalPoints, loadTodos, reconcileGrowthRewards, resolveGrowthTasks, subscribeProductivity, syncTodos, toggleTodo, type GrowthSummary, type TodoItem } from "../services/productivity";
@@ -12,6 +12,8 @@ export default function UtilityDrawer({
   onTaskCompleted,
   onEditHome,
   onOpenShop,
+  isAdmin,
+  onOpenAdmin,
   onStartFocus,
 }: {
   user: User;
@@ -20,6 +22,8 @@ export default function UtilityDrawer({
   onTaskCompleted?: () => Promise<GrowthSummary | null>;
   onEditHome: () => void;
   onOpenShop: () => void;
+  isAdmin: boolean;
+  onOpenAdmin: () => void;
   onStartFocus: (todo: TodoItem) => void;
 }) {
   const { locale } = useLocale();
@@ -128,6 +132,7 @@ export default function UtilityDrawer({
         <button className="drawer-home-edit" type="button" onClick={onEditHome}><SlidersHorizontal size={22} /><span><strong>{locale === "zh" ? "编辑首页" : "Edit home"}</strong><small>{locale === "zh" ? "选择与排列健康小组件" : "Choose and arrange health widgets"}</small></span><ChevronRight size={18} /></button>
 
         <button className="drawer-home-edit" type="button" onClick={onOpenShop}><ShoppingBag size={22} /><span><strong>{locale === "zh" ? "积分商城" : "Points shop"}</strong><small>{locale === "zh" ? "查看商品与购物车" : "Browse products and cart"}</small></span><ChevronRight size={18} /></button>
+        {isAdmin && <button className="drawer-home-edit drawer-admin-entry" type="button" onClick={onOpenAdmin}><ShieldCheck size={22} /><span><strong>{locale === "zh" ? "管理员端" : "Admin console"}</strong><small>{locale === "zh" ? "商品与通知发布" : "Products and notifications"}</small></span><ChevronRight size={18} /></button>}
         <button className="drawer-placeholder-card" type="button" disabled><UsersRound size={22} /><span><strong>{locale === "zh" ? "节律社区" : "Rhythm community"}</strong><small>{locale === "zh" ? "功能预留" : "Reserved"}</small></span><LockKeyhole size={16} /></button>
       </aside>
     </div>

@@ -66,6 +66,7 @@ import NotificationCenter from "./NotificationCenter";
 import ReminderSettingsPage from "./ReminderSettingsPage";
 import HomeWidgetEditor from "./HomeWidgetEditor";
 import PointsShopExperience from "./PointsShopExperience";
+import AdminConsole from "./AdminConsole";
 
 const healthEntries: Array<{
   id: RecordModule;
@@ -320,6 +321,8 @@ export default function OptionTwoHome({
   if (view === "points-shop" || view === "points-shop-cart" || view?.startsWith("points-shop-product-") || view?.startsWith("points-shop-category-")) {
     return <PointsShopExperience user={user} view={view} onViewChange={(nextView) => onViewChange(nextView)} onBack={() => onBack(null)} />;
   }
+
+  if (view === "admin-console") return <AdminConsole user={user} onBack={() => onBack(null)} />;
 
   const beginHomeGesture = (event: ReactPointerEvent<HTMLElement>) => {
     if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;

@@ -10,6 +10,27 @@ Apple User Notifications 框架文档及 iPhone 用户指南为准：应用在�
 
 ## 当前已实现源码
 
+### 管理员发布（2026-09-27）
+
+- 首页功能导航只在服务端 `nava_is_admin()` 返回 true 时显示“管理员端”；直达 URL 仍由
+  页面和数据库/Edge Function 双重校验，不把隐藏入口当成授权。
+- 管理员可编辑标题、正文、分类及点击目标，一次发布为所有当前账号写入真实
+  `user_notifications`。批次记录收件人数、站内/系统模式和远程送达摘要，管理操作另写
+  审计表。通知中心原有 RLS、已读、删除、Realtime 与跨设备合同不变。
+- “APP内通知”当前可真实使用；“同时系统推送”只有 Edge 检测到内部派发 secret 与至少
+  一套 APNs/FCM/HMS 凭据时才可选择。当前 canonical 项目没有这些推送 secret，所以线上
+  按钮禁用，不冒充锁屏横幅已经送达。
+- 已有 `push-dispatch` 继续从服务端事实源取通知、按账号设备 token 发送并写幂等回执。
+  APNs provider JWT 在同一 Edge isolate 内复用50分钟，避免每条消息重复签发；`.p8`、
+  Team ID、Key ID 和 bundle id 只能配置为 Supabase server secrets。
+
+Apple 边界仍以[注册 APNs](https://developer.apple.com/documentation/usernotifications/registering-your-app-with-apns)、
+[远程通知服务器](https://developer.apple.com/documentation/usernotifications/setting-up-a-remote-notification-server)、
+[token 认证](https://developer.apple.com/documentation/usernotifications/establishing-a-token-based-connection-to-apns)
+和[通知授权](https://developer.apple.com/documentation/usernotifications/asking-permission-to-use-notifications)
+为准：需要 Xcode Push Notifications capability、每台设备 token、provider server 与用户授权。
+Windows 与网页验收不能替代签名安装包和真实 iPhone 前台/后台/锁屏送达测试。
+
 ### 统一权限入口（2026-09-20）
 
 - 提醒设置不再显示“系统通知／已开启／未开启”常驻卡片。新账号八项默认关闭，

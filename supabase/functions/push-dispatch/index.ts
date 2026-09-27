@@ -9,6 +9,8 @@ type DeviceRow = { id: string; provider: Provider; token: string };
 type DeliveryResult = { ok: boolean; messageId?: string; errorCode?: string; invalidate?: boolean };
 
 const textEncoder = new TextEncoder();
+const APNS_TOKEN_REUSE_MS = 50 * 60 * 1000;
+let cachedApnsToken: { value: string; createdAt: number } | null = null;
 
 function secureEquals(left: string, right: string) {
   const a = textEncoder.encode(left);
@@ -26,14 +28,18 @@ function requiredEnv(name: string) {
 }
 
 async function apnsToken() {
+  const now = Date.now();
+  if (cachedApnsToken && now - cachedApnsToken.createdAt < APNS_TOKEN_REUSE_MS) return cachedApnsToken.value;
   const keyId = requiredEnv("APNS_KEY_ID");
   const teamId = requiredEnv("APNS_TEAM_ID");
   const key = await importPKCS8(requiredEnv("APNS_PRIVATE_KEY").replace(/\\n/g, "\n"), "ES256");
-  return new SignJWT({})
+  const value = await new SignJWT({})
     .setProtectedHeader({ alg: "ES256", kid: keyId })
     .setIssuer(teamId)
     .setIssuedAt()
     .sign(key);
+  cachedApnsToken = { value, createdAt: now };
+  return value;
 }
 
 async function sendApns(device: DeviceRow, notification: NotificationRow): Promise<DeliveryResult> {

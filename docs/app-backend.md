@@ -1,4 +1,24 @@
-# 开发数据重置与积分重设计（2026-09-27，当前）
+# 管理员权限、商品发布与通知群发（2026-09-27，当前）
+
+管理员身份现在由 canonical Supabase 的 `nava_user_roles` 服务端表决定，不读取前端参数、
+邮箱白名单或可由用户修改的 profile 字段。迁移 `202609260001_admin_console.sql` 已应用：
+迁移当时现有的2个开发账号均设为 `admin`；之后新注册账号由 `auth.users` 触发器默认写入
+`member`，不会自动获得管理权限。`nava_is_admin()`、商品写 RPC 和通知发布 RPC 均为
+锁定 `search_path` 的 `SECURITY DEFINER`，普通账号即使直接调用接口也会被拒绝。
+
+管理员端当前有两项服务端能力：
+
+- `nava_admin_save_reward_product` 校验 slug、名称、积分价格、库存、最多6张 HTTPS 图片及
+  上架状态；普通商城读取仍只能看到 `published=true`。商品图片上传到公开只读的
+  `reward-products` bucket，写入/修改/删除策略只允许管理员。
+- `nava_admin_publish_notification` 为每个当前 Auth 账号创建同一批次的 `user_notifications`
+  收件箱记录，并写 `admin_notification_batches` 和 `admin_audit_log`。管理员 Edge Function
+  再决定是否调用内部 `push-dispatch`；浏览器不能获得 service-role、派发 secret 或 APNs key。
+
+生产只读核验确认2个注册账号对应2条管理员角色，商城图片 bucket、管理表和未认证 Edge
+拒绝边界均正常。商品/群发尚未向真实账号写测试内容，避免用生产通知做演示数据。
+
+# 开发数据重置与积分重设计（2026-09-27）
 
 用户在九场景发布后明确要求清除 canonical Supabase 的全部注册账号、积分和关联数据，
 保留必要变量。这里的“保留变量”落实为保留表/字段/类型、约束、RLS、函数、迁移历史、
