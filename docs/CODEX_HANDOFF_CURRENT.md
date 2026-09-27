@@ -20,11 +20,23 @@
 重复保存/更新/删除重录不重复发奖。23项本地 PGlite PostgreSQL 检查通过，非生产证明。
 新前端只有遇到新 RPC 不存在（PGRST202）才兼容旧接口，不能声称线上新记录积分已修好。
 
-九场景×24尺寸的浏览器专项、六模块流程、18机型 React 外壳证据在
+九场景×24尺寸×Chromium/WebKit 的432组浏览器专项、六模块流程、18机型 React 外壳证据在
 `Q:/NAVA-Workspace/Build/TestRuns/celebration-scenes`（六模块流程仍存 celebration-garden）。
 未创建生产账号/记录、未部署后端函数。真实账号保存/积分核验与物理 iPhone 验收未做。
 整套 `npm run verify` 仍停在旧 media-feedback:visual 的过时相机选择器，不等于全回归通过。
-本轮双站发布回执将在发布完成后写入本节；下面§96的版本为上一轮，不代表本轮已上线。
+双站从同一干净、已推送源码 `82f93b7a69f1cdeeab4dd727747454bdef724baf` 构建并发布。
+ChatGPT Sites **v170**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_b8d4425e592c8191bced4f5bcdd23509`，
+部署 `appgdep_6ab8f5d41ac48191bfa92b0262f7725a` succeeded。
+GitHub Pages 镜像提交 `b197ea2d31b09fb7900467368ebf689b4da65d6d`，workflow
+`36314142874` success；复制后199个生成资源哈希与同次源码构建一致。旧编译块由镜像更新替换，
+此前版本仍在镜像 Git 历史，不涉及账号、健康记录或源素材清理。
+公开地址仍为 `https://nava-app-preview-cz.chizhang1031.chatgpt.site/` 与
+`https://chizhang-805.github.io/nava-app-preview/`。本轮没有生产账号真实登录或写入验收。
+`celebration-scenes/public-release.json` 已核验每站25项完成页资源哈希、共享完成页入口、
+旧积分弹窗代码不存在、真实登录表单、公开域名 `?demo=1` 不绕过登录、统一 Supabase 项目
+及 Pages v170/sourceCommit 回执。HTML 核对只移除 Sites 自动附加的 Cloudflare 防护脚本，
+其他应用代码仍按完整哈希比对。九套实际浏览器效果汇总为同目录 `nine-scenes.png`。
 
 ## 96. 完成页场景 01：薄荷花园·早晨（历史）
 
