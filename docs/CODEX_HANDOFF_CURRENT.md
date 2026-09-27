@@ -24,6 +24,22 @@
 前置相机选择器，完整历史回归仍未通过，不能把专项结果当作整套APP回归或真机证明。
 没有创建生产账号、改写健康数据、调用付费 AI、迁移数据库或部署后端。
 
+双站已从同一干净、已推送源码 `cd3d53685f12ddb6e8e4a8b4f1a6d1bdbcd4eef4` 发布。
+ChatGPT Sites **v169**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_b594b91abb1481918b0fad47e6055404`；
+部署 `appgdep_6ab8e5ad556c8191ae4a29400d685da8` succeeded，URL
+`https://nava-app-preview-cz.chizhang1031.chatgpt.site`。
+GitHub Pages 镜像提交 `d8643d0bc8800f89375674c5b1586b22d127c645`，workflow
+`36310452109` success，URL `https://chizhang-805.github.io/nava-app-preview/`。
+`public-release.json` 核验双站6个受影响资源的源码/素材哈希、真实登录表单、公开域名
+`?demo=1` 不绕过认证、统一 Supabase 引用及 Pages source.json。没有可用生产账号进行
+本轮真实登录/真实写入验证，不把登录页可见描述成已登录验收。
+
+Windows 发布注意：新版 Sites build-site helper 的 npm 路径解析失败时，已有
+`npm run build:hosting` 成功产物可复用，workflow 的 commands 留空。打包运行的 PATH
+前置 `C:\Program Files\Git\bin`，TMPDIR 指向 `Q:/CodexData/Temp`，TAR_OPTIONS 设
+`--force-local`，避免 Git Bash tar 把 Q: 当远程主机。不要修改插件或创建新 Sites 项目。
+
 ## 95. 外部环境模拟“首次登录”入口
 
 本轮范围：在桌面右侧“外部环境模拟”面板第一排空位增加“首次登录”按钮。该按钮只作为
