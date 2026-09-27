@@ -1,5 +1,40 @@
 # iOS 动态背景、角色动画与原生媒体
 
+## 完成页场景 01：薄荷花园·早晨（2026-09-27）
+
+九张新参考按顺序实现，本轮只交付第 1 张，作为六模块保存后的共用完成页。
+`public/journal/js/celebration-garden.js` 独立管理全屏场景；记录确认、保存失败、幂等和
+Continue 进入回顾仍由既有 `app.js` 控制，不触碰后台或真实记录。
+
+- 背景是内置 imagegen 生成的独立水彩花园原画 `assets/mint-garden-morning.png`，
+  全屏 cover，图像连续延伸到按钮下和底部安全区。生成原稿与完整提示词在
+  `Q:\NAVA-Workspace\Build\TestRuns\celebration-garden\asset-staging`。
+  当前采用 `mint-garden-morning-v2.png` / `mint-garden-morning-v2.prompt.txt`：用户指出
+  首稿的建筑、远山和湖景偏离参考后，以第一张设计图左侧手机为编辑参考，重建近景浅薄荷
+  天空、左上绿叶、近处草地与小白花；不采用首稿，也不将 AI 重绘称为像素级复刻。
+- `assets/garden-cat.webp` 与现有 `src/assets/mascot/animated/home-idle.webp` 逐字节相同，
+  是原 GIF 转出的 640×480 / 90 帧 / 5.4 秒透明动画；原生图片循环播放，未替换成静态晃动。
+  显示时水平镜像，让尾巴朝左、身体落在草地中央；保持原始帧和纵横比。
+  仅使用一张原生动图，不在 JS 中预解码缓存全部帧；庆祝时不再绘制旧 WebGL 小猫。
+- 原 `HandTitle` 逐笔遮罩保留，用透明度染色为深蓝字。标题与下划线写一次后停止重绘，
+  猫和稀疏花瓣继续循环；没有给猫添加发光描边或模糊光晕。减少动态效果时直接展示完成标题，
+  关闭花瓣。标题已有可访问名称，Continue 保留原按钮和真实处理器。
+- 新场景使用独立 Grid、可收缩列和设备安全区，不受旧固定画布高度缩放；最小 320×568
+  也有完整标题、正文、小猫和可点击按钮。英文版有对应正文。
+
+专项入口：`node --experimental-strip-types scripts/verify-celebration-garden.mjs`。
+`NAVA_GARDEN_ENGINE=webkit` 可切换 WebKit；当前 Windows 缓存在
+`PLAYWRIGHT_BROWSERS_PATH=Q:/NAVA-Workspace/Caches/playwright`。两种引擎各通过 24 组尺寸、
+六模块实际点击流程、保存一次、回顾返回、标题停笔/小猫继续播放及减少动态效果检查。
+此为本地桥接夹具，不是生产账号写入、AI 调用或物理 iPhone 验收。
+另在真实 React 手机预览壳中检查全部 18 个机型配置的全屏边界与底部按钮安全区，
+使用显式 Supabase 响应夹具（不写生产数据）；桌面缩放壳的测试用键盘进入书写并保存，
+点击 Continue 返回回顾。18 张截图及结果保存在同一测试目录的 `shell-*` 文件中。
+
+后续尚未实现：02 温室书房、03 微风桌面、04 薰衣草角落、05 晴暖餐桌、
+06 活力庭院、07 草坡午后、08 暖风花径、09 夜色星窗，以及九场景的模块/时间匹配。
+不要将第 1 张共用场景描述为九张全部完成。
+
 ## 安装版能力交付（2026-09-20）
 
 Windows 负责实现和源码/浏览器验证；Mac 负责 Xcode 编译、签名和真机验收。当前不能

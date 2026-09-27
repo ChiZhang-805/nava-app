@@ -1,0 +1,29 @@
+/* Full viewport composition uses available height and safe areas, not the old 393×852 canvas. */
+.celebration-garden{position:fixed;inset:0;z-index:10;overflow:hidden;background:#d4eed5;color:#14364b;isolation:isolate}
+.garden-backdrop{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;z-index:-2;pointer-events:none}
+.has-garden-celebration{overflow:hidden}
+.has-garden-celebration>.phone-wrap{visibility:hidden;pointer-events:none}
+.garden-composition{height:100%;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,.4fr) auto auto minmax(120px,2fr) minmax(12px,.7fr) auto;row-gap:clamp(10px,2vh,20px);padding: max(20px,var(--journal-safe-top,env(safe-area-inset-top))) 24px calc(max(18px,var(--journal-safe-bottom,env(safe-area-inset-bottom))) + 18px);text-align:center}
+.garden-sky-space{min-height:0}
+#garden-title{margin:8px 0;line-height:0;justify-self:center;width:min(87%,310px);transform:rotate(-4deg) skewX(-4deg)}
+#garden-title canvas{display:block;width:100%;height:auto;aspect-ratio:300/105}
+.garden-message{margin:0;white-space:pre-line;font-family:"Kaiti SC",KaiTi,STKaiti,ui-rounded,"PingFang SC",sans-serif;font-size:clamp(17px,4.8vw,21px);font-weight:500;line-height:1.7;letter-spacing:.035em;text-shadow:0 1px 1px #ffffff8a}
+.garden-ground{display:flex;align-items:flex-end;justify-content:center;min-height:0;padding-bottom:clamp(5px,2vh,18px)}
+.garden-actor{position:relative;flex:none;width:min(107vw,464px);aspect-ratio:2;max-height:100%;transform:translateX(-17%);pointer-events:none}
+.garden-actor img{position:absolute;left:0;top:-25%;width:100%;height:150%;object-fit:contain;transform:scaleX(-1)}
+.garden-contact{position:absolute;left:47%;right:13%;bottom:-1%;height:8%;border-radius:50%;background:radial-gradient(ellipse,#24482c48 0%,#24482c25 40%,#24482c00 72%);transform:rotate(-2deg)}
+.garden-action{width:100%;max-width:368px;justify-self:center;z-index:1}
+.celebration-garden #primary{position:relative;inset:auto;width:100%;height:58px;min-height:48px;border-radius:32px;border:1.5px solid #ffffffb8;background:linear-gradient(110deg,#7dc4b4f2,#83cab8ea);box-shadow:0 0 0 9px #fffff5e6,0 9px 18px #325f4915;color:#fff;font-family:"Segoe Print","Bradley Hand","Kaiti SC",cursive;font-style:italic;font-size:26px;font-weight:600;letter-spacing:.02em;touch-action:manipulation}
+.celebration-garden #primary:disabled{cursor:default}
+.celebration-garden #primary{display:flex;align-items:center;justify-content:center;gap:20px}
+.celebration-garden #primary .chevron{display:none}
+.celebration-garden #primary::after{content:'→';display:block;font-family:ui-rounded,sans-serif;font-style:normal;font-weight:400}
+.garden-breeze{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:-1}
+.garden-breeze i{position:absolute;top:-20px;left:12%;width:9px;height:15px;background:#eaa8bcb5;border-radius:90% 15% 80% 20%;animation:garden-petal 17s linear infinite;animation-delay:-4s}
+.garden-breeze i:nth-child(2){left:76%;width:8px;height:12px;animation-duration:21s;animation-delay:-12s;background:#f3c4d0bd}
+.garden-breeze i:nth-child(3){left:45%;width:6px;height:11px;animation-duration:24s;animation-delay:-19s;background:#f9e4e5e0}
+.garden-breeze i:nth-child(4){left:88%;width:7px;height:13px;animation-duration:19s;animation-delay:-1s}
+.garden-breeze i:nth-child(5){left:3%;width:6px;height:10px;animation-duration:23s;animation-delay:-15s;background:#f3c4d0bd}
+@keyframes garden-petal{0%{transform:translate3d(-15px,-2vh,0) rotate(-20deg);opacity:0}8%{opacity:.8}40%{transform:translate3d(22px,40vh,0) rotate(130deg)}75%{transform:translate3d(-6px,77vh,0) rotate(235deg);opacity:.8}100%{transform:translate3d(34px,104vh,0) rotate(345deg);opacity:0}}
+@media(max-height:680px){.garden-composition{row-gap:8px;padding-inline:20px;padding-bottom:calc(max(12px,var(--journal-safe-bottom,env(safe-area-inset-bottom))) + 14px);grid-template-rows:minmax(0,.4fr) auto auto minmax(108px,2fr) minmax(8px,.7fr) auto}#garden-title{width:min(85%,290px)}.garden-message{font-size:16px;line-height:1.5}.garden-ground{padding-bottom:2px}.garden-actor{width:min(100vw,360px)}.celebration-garden #primary{height:50px;font-size:24px}}
+@media(prefers-reduced-motion:reduce){.garden-breeze{display:none}}

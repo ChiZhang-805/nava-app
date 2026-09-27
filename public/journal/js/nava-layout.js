@@ -17,6 +17,8 @@ export function installJournalLayout(api){
   root.style.setProperty('--journal-safe-offset',`${layout.top}px`);
   root.style.setProperty('--journal-safe-tail',`${layout.bottom}px`);
   root.style.setProperty('--journal-visible-height',`${height}px`);
+  root.style.setProperty('--journal-safe-top',`${Math.max(0,viewport.safeTop||0)}px`);
+  root.style.setProperty('--journal-safe-bottom',`${Math.max(0,viewport.safeBottom||0)}px`);
   root.dataset.journalScroll=String(layout.scroll);
   return layout;
  };

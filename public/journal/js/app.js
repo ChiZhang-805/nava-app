@@ -2108,7 +2108,8 @@ __fluffyModules["app.js"] = (() => {
         }
         $("primary").disabled = !a.ready || (hero ? a.time < 4.93 : false);
         $("primary").setAttribute("aria-disabled", String(!a.ready || (record ? !continueGate.ready() : hero && a.time < 4.93)));
-        $("primary-label").textContent = Locale.t(hero ? "完成" : "继续");
+        const primaryLabel = hero ? "Continue" : Locale.t("继续");
+        if ($("primary-label").textContent !== primaryLabel) $("primary-label").textContent = primaryLabel;
         synchronizeEntryAction(a);
         entryMenu?.sync();
         $("hero-quote").style.opacity = M.range(a.time, 1.5, 2.5);

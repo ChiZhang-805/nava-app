@@ -94,6 +94,7 @@ __fluffyModules["animation.js"] = (() => {
             const images = Object.fromEntries(entries);
             this.actor = new window.CatActor(images, window.FLuffyArt);
             this.title = new window.HandTitle(images.title, window.FLuffyArt.title);
+            this.celebration = new window.NavaGardenCelebration(this.title);
             this.ready = true;
             this.metrics.renderer = this.actor.mesh ? "WebGL + Canvas2D" : "Canvas2D CPU mesh";
             $("loading").hidden = true;
@@ -464,10 +465,14 @@ __fluffyModules["animation.js"] = (() => {
                 return;
             const ctx = this.ctx, start = performance.now();
             this.metrics.renderer = this.actor.mesh ? "WebGL + Canvas2D" : "Canvas2D CPU mesh";
-            ctx.setTransform(2, 0, 0, 2, 0, 0);
-            ctx.clearRect(0, 0, 393, 852);
             this.synchronize();
             this.synchronizeNotebook();
+            this.celebration.update(this.scene, this.time * HERO_SPEED, this.record);
+            // The completion scene owns its original animated artwork and one-shot ink.
+            // Do not render a second WebGL cat behind it on every animation frame.
+            if (this.scene === "celebrate") return;
+            ctx.setTransform(2, 0, 0, 2, 0, 0);
+            ctx.clearRect(0, 0, 393, 852);
             // 阶段一：输入、聆听和整理共用记录猫；只改变头部倾斜、耳朵与呼吸。
             if (this.scene === "home") {
                 // 首页沿用庆祝页的同一原画，只使用待机参数，不循环播放撒花。
