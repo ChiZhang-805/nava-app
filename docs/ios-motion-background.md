@@ -19,6 +19,10 @@
 `Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout/app`。这些是本地显式测试商品与
 浏览器画布，不是生产订单、真实账号或物理 iPhone 证明；未部署数据库迁移或 Edge Function。
 
+双站已从同一干净源码 `e128dcbdd1a6e05dbb6e9d96f900eb0de38302f8` 发布为 Sites v172
+和 Pages 镜像 `cdccb4368ad264234bea5a812f57cd5cf13a8a7e`。公开站点登录门、canonical
+Supabase、Pages来源回执和两站各自关键资源哈希通过；账号当前为空，未做真实订单写入。
+
 ## 九套全屏完成场景与静默积分（2026-09-27）
 
 所有 `RewardCelebration` 奖杯/积分增量弹窗已替换；六模块记录保存后的场景使用同一套
