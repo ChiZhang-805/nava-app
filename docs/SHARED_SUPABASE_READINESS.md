@@ -25,6 +25,9 @@ time were bootstrapped as administrators; later registrations default to member.
 authenticated `admin-notification-publish` function is deployed. No APNs/FCM/HMS or
 internal dispatch secrets are configured, so remote system push stays unavailable while
 in-app broadcast remains the implemented path.
+The same clean source commit `aaff1829286350ac3331645191b05b9abbe74ed7`
+was released to Sites v173 and the GitHub Pages mirror; public provenance and
+the compiled administrator entry were fetched successfully from both origins.
 
 2026-09-27: explicitly authorized development-account reset completed. One Auth
 account and four reward-ledger rows were removed along with all associated data;
