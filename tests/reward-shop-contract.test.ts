@@ -74,8 +74,18 @@ test("receipt leads into one persistent animated mascot completion scene", () =>
   assert.match(checkout, /className="shop-receipt-printer"/);
   assert.match(checkout, /className="shop-checkout-cat"/);
   assert.match(checkout, /setPhase\("complete"\)/);
+  assert.match(checkout, /complete:\s*14500/);
+  assert.match(checkout, /printing:\s*3300/);
+  assert.match(checkout, /receipt:\s*8100/);
+  assert.match(checkout, /phase === "receipt" && settled/);
   assert.match(checkout, /查看兑换凭证/);
+  assert.doesNotMatch(checkout, /phase === "receipt" && \(\s*<button[^>]*>\s*\{locale === "zh" \? "继续"/);
+  assert.match(checkoutStyles, /\[data-checkout-phase="checking"\] \.shop-checkout-cat/);
+  assert.match(checkoutStyles, /\[data-checkout-phase="card"\] \.shop-checkout-cat/);
+  assert.match(checkoutStyles, /\[data-checkout-phase="printing"\] \.shop-checkout-cat/);
   assert.match(checkoutStyles, /\[data-checkout-phase="receipt"\] \.shop-checkout-cat/);
   assert.match(checkoutStyles, /\[data-checkout-phase="complete"\] \.shop-checkout-cat/);
+  assert.match(checkoutStyles, /\.shop-checkout-copy h1[^}]*clamp\(28px/);
+  assert.match(checkoutStyles, /\.shop-receipt dl div[^}]*font-size:\s*14px/);
   assert.match(checkoutStyles, /@media \(prefers-reduced-motion: reduce\)/);
 });

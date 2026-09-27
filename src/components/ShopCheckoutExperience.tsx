@@ -8,6 +8,21 @@ import "./shop-checkout-experience.css";
 
 type CheckoutPhase = "checking" | "card" | "printing" | "receipt" | "complete";
 
+// The reference clip contains two passes. One complete redemption story should
+// settle in roughly fifteen seconds, including the local fixture's 520ms server
+// confirmation. Production never reads a query string to shorten this timing.
+const CHECKOUT_TIMELINE_MS = {
+  printing: 3300,
+  receipt: 8100,
+  complete: 14500,
+} as const;
+
+const CHECKOUT_TEST_TIMELINE_MS = {
+  printing: 900,
+  receipt: 2400,
+  complete: 4800,
+} as const;
+
 export default function ShopCheckoutExperience({
   locale,
   lines,
@@ -22,9 +37,12 @@ export default function ShopCheckoutExperience({
   onDone: () => void;
 }) {
   const [phase, setPhase] = useState<CheckoutPhase>("checking");
+  const [settled, setSettled] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(() =>
     typeof window !== "undefined" && (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false));
   const actionRef = useRef<HTMLButtonElement>(null);
+  const acceleratedTimeline = import.meta.env.DEV
+    && new URLSearchParams(window.location.search).get("qaCheckoutTiming") === "fast";
 
   useEffect(() => {
     const query = window.matchMedia?.("(prefers-reduced-motion: reduce)");
@@ -37,28 +55,35 @@ export default function ShopCheckoutExperience({
 
   useEffect(() => {
     if (!result) {
+      setSettled(false);
       setPhase("checking");
       return;
     }
     if (reducedMotion) {
-      setPhase("receipt");
+      setSettled(true);
+      setPhase("complete");
       return;
     }
+    const timeline = acceleratedTimeline ? CHECKOUT_TEST_TIMELINE_MS : CHECKOUT_TIMELINE_MS;
     setPhase("card");
-    const printing = window.setTimeout(() => setPhase("printing"), 760);
-    const receipt = window.setTimeout(() => setPhase("receipt"), 2050);
+    const printing = window.setTimeout(() => setPhase("printing"), timeline.printing);
+    const receipt = window.setTimeout(() => setPhase("receipt"), timeline.receipt);
+    const complete = window.setTimeout(() => {
+      setSettled(true);
+      setPhase("complete");
+    }, timeline.complete);
     return () => {
       window.clearTimeout(printing);
       window.clearTimeout(receipt);
+      window.clearTimeout(complete);
     };
-  }, [reducedMotion, result]);
+  }, [acceleratedTimeline, reducedMotion, result]);
 
   useEffect(() => {
-    if (phase === "receipt") actionRef.current?.focus({ preventScroll: true });
-    if (phase !== "complete") return;
-    const focus = window.setTimeout(() => actionRef.current?.focus({ preventScroll: true }), reducedMotion ? 0 : 620);
+    if (phase !== "complete" && !(phase === "receipt" && settled)) return;
+    const focus = window.setTimeout(() => actionRef.current?.focus({ preventScroll: true }), reducedMotion ? 0 : acceleratedTimeline ? 80 : 900);
     return () => window.clearTimeout(focus);
-  }, [phase, reducedMotion]);
+  }, [acceleratedTimeline, phase, reducedMotion, settled]);
 
   const quantity = lines.reduce((sum, line) => sum + line.quantity, 0);
   const totalPoints = result?.totalPoints ?? expectedTotal;
@@ -79,6 +104,7 @@ export default function ShopCheckoutExperience({
       className="shop-checkout-experience"
       data-checkout-phase={phase}
       data-reduced-motion={reducedMotion ? "true" : "false"}
+      data-checkout-timeline={acceleratedTimeline ? "test" : "production"}
       role="dialog"
       aria-modal="true"
       aria-labelledby="shop-checkout-title"
@@ -96,14 +122,14 @@ export default function ShopCheckoutExperience({
         </h1>
         <p>
           {phase === "checking"
-            ? (locale === "zh" ? "正在核验积分与库存…" : "Checking points and availability…")
+            ? (locale === "zh" ? "小猫正在核对积分和库存…" : "NAVA is checking your points and availability…")
             : phase === "complete"
               ? (locale === "zh" ? "这份小礼物，是你一点点努力换来的。" : "A little gift earned one step at a time.")
               : phase === "card"
-                ? (locale === "zh" ? "积分已经确认" : "Your points are confirmed")
+                ? (locale === "zh" ? "和小猫一起刷下积分卡" : "Tap the points card with NAVA")
                 : phase === "printing"
-                  ? (locale === "zh" ? "正在生成兑换凭证…" : "Preparing your receipt…")
-                  : (locale === "zh" ? "小猫替你收好这张凭证" : "NAVA kept this receipt safe for you")}
+                  ? (locale === "zh" ? "机器正在慢慢打印兑换凭证…" : "The machine is printing your receipt…")
+                  : (locale === "zh" ? "凭证出来啦，小猫正在接住它" : "Here it comes — NAVA is catching it")}
         </p>
       </div>
 
@@ -180,12 +206,12 @@ export default function ShopCheckoutExperience({
 
         <div className="shop-checkout-gift"><Gift size={46} strokeWidth={1.7} /><i /></div>
         <MascotImage className="shop-checkout-cat" animatedSrc={curiousCat} staticSrc={catStill} alt="" />
-        <div className="shop-cat-receipt"><ReceiptText size={18} /><PawPrint size={13} /></div>
+        <div className="shop-cat-receipt"><ReceiptText size={21} /><span>NAVA</span><PawPrint size={14} /></div>
       </div>
 
-      {phase === "receipt" && (
+      {phase === "receipt" && settled && (
         <button ref={actionRef} className="shop-checkout-primary" type="button" onClick={() => setPhase("complete")}>
-          {locale === "zh" ? "继续" : "Continue"}
+          {locale === "zh" ? "返回完成页" : "Back to completion"}
         </button>
       )}
       {phase === "complete" && (

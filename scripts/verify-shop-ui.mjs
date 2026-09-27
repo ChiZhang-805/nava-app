@@ -6,7 +6,7 @@ import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:/NAVA-Workspace/Build/TestRuns/shop-navigation-products/app";
+const outputDir = "Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v2/app";
 const port = 5213;
 const demoUserId = "00000000-0000-4000-8000-000000000001";
 const report = [];
@@ -117,7 +117,7 @@ try {
   }
 
   const directRedeemContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
-  const directRedeem = await prepare(directRedeemContext, "&qa=shop-checkout#tab=today&view=points-shop-product-qa-nava-journal");
+  const directRedeem = await prepare(directRedeemContext, "&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-product-qa-nava-journal");
   await directRedeem.getByRole("button", { name: "立即兑换", exact: true }).click();
   await expect(directRedeem.locator(".points-shop-screen")).toHaveAttribute("data-shop-route", "cart");
   await expect(directRedeem.locator(".points-shop-cart-list article")).toHaveCount(1);
@@ -131,13 +131,34 @@ try {
     { width: 430, height: 932 },
   ]) {
     const context = await browser.newContext({ locale: "zh-CN", viewport, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
-    const page = await prepare(context, "&qa=shop-checkout#tab=today&view=points-shop-cart");
+    const page = await prepare(context, "&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-cart");
     await expect(page.locator(".points-shop-cart-list article")).toHaveCount(1);
     await page.getByRole("button", { name: "确认兑换", exact: true }).click();
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "checking");
     await page.screenshot({ path: path.join(outputDir, `checkout-checking-${viewport.width}x${viewport.height}.png`), fullPage: true });
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "card", { timeout: 2500 });
     await page.waitForTimeout(120);
+    const cardGeometry = await page.evaluate(() => {
+      const screen = document.querySelector(".points-shop-screen--checkout")?.getBoundingClientRect();
+      const flow = document.querySelector(".shop-checkout-experience")?.getBoundingClientRect();
+      const cat = document.querySelector(".shop-checkout-cat")?.getBoundingClientRect();
+      const card = document.querySelector(".shop-points-card")?.getBoundingClientRect();
+      const title = document.querySelector(".shop-checkout-copy h1");
+      const copy = document.querySelector(".shop-checkout-copy p");
+      if (!screen || !flow || !cat || !card || !title || !copy) return null;
+      const overlapWidth = Math.max(0, Math.min(cat.right, card.right) - Math.max(cat.left, card.left));
+      const overlapHeight = Math.max(0, Math.min(cat.bottom, card.bottom) - Math.max(cat.top, card.top));
+      return {
+        screen: screen.toJSON(), flow: flow.toJSON(), cat: cat.toJSON(), card: card.toJSON(),
+        catCardOverlap: overlapWidth * overlapHeight,
+        titleFont: Number.parseFloat(getComputedStyle(title).fontSize),
+        copyFont: Number.parseFloat(getComputedStyle(copy).fontSize),
+      };
+    });
+    if (!cardGeometry || Math.abs(cardGeometry.screen.width - cardGeometry.flow.width) > 1 || Math.abs(cardGeometry.screen.height - cardGeometry.flow.height) > 1
+      || cardGeometry.catCardOverlap < 1 || cardGeometry.titleFont < 27 || cardGeometry.copyFont < 14) {
+      throw new Error(`${viewport.width}x${viewport.height}: checkout card is not full-screen, legible, or integrated with the cat ${JSON.stringify(cardGeometry)}`);
+    }
     await page.screenshot({ path: path.join(outputDir, `checkout-card-${viewport.width}x${viewport.height}.png`), fullPage: true });
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "receipt", { timeout: 5000 });
     await expect(page.getByText("NAVA 测试手账（仅本地）", { exact: true })).toBeVisible();
@@ -147,24 +168,35 @@ try {
       const flow = document.querySelector(".shop-checkout-experience")?.getBoundingClientRect();
       const receipt = document.querySelector(".shop-receipt")?.getBoundingClientRect();
       const cat = document.querySelector(".shop-checkout-cat");
-      const button = document.querySelector(".shop-checkout-primary")?.getBoundingClientRect();
-      return frame && flow && receipt && button && cat instanceof HTMLImageElement ? {
-        frame: frame.toJSON(), flow: flow.toJSON(), receipt: receipt.toJSON(), button: button.toJSON(),
+      const heldReceipt = document.querySelector(".shop-cat-receipt")?.getBoundingClientRect();
+      const title = document.querySelector(".shop-checkout-copy h1");
+      const copy = document.querySelector(".shop-checkout-copy p");
+      const receiptRow = document.querySelector(".shop-receipt dl div");
+      if (!frame || !flow || !receipt || !heldReceipt || !(cat instanceof HTMLImageElement) || !title || !copy || !receiptRow) return null;
+      const catRect = cat.getBoundingClientRect();
+      const overlapWidth = Math.max(0, Math.min(catRect.right, heldReceipt.right) - Math.max(catRect.left, heldReceipt.left));
+      const overlapHeight = Math.max(0, Math.min(catRect.bottom, heldReceipt.bottom) - Math.max(catRect.top, heldReceipt.top));
+      return {
+        frame: frame.toJSON(), flow: flow.toJSON(), receipt: receipt.toJSON(), heldReceipt: heldReceipt.toJSON(),
+        cat: catRect.toJSON(), catReceiptOverlap: overlapWidth * overlapHeight,
+        titleFont: Number.parseFloat(getComputedStyle(title).fontSize),
+        copyFont: Number.parseFloat(getComputedStyle(copy).fontSize),
+        receiptFont: Number.parseFloat(getComputedStyle(receiptRow).fontSize),
         catLoaded: cat.complete && cat.naturalWidth > 0,
         catSrc: cat.currentSrc,
         overflow: flow.scrollWidth - flow.clientWidth,
-      } : null;
+      };
     });
     if (!receiptGeometry || !receiptGeometry.catLoaded || receiptGeometry.overflow > 1
+      || receiptGeometry.catReceiptOverlap < 1 || receiptGeometry.titleFont < 21 || receiptGeometry.copyFont < 13 || receiptGeometry.receiptFont < 13
       || receiptGeometry.receipt.left < receiptGeometry.frame.left - 1 || receiptGeometry.receipt.right > receiptGeometry.frame.right + 1
       || receiptGeometry.receipt.bottom > receiptGeometry.frame.bottom + 1
-      || receiptGeometry.button.left < receiptGeometry.frame.left - 1 || receiptGeometry.button.right > receiptGeometry.frame.right + 1
-      || receiptGeometry.button.bottom > receiptGeometry.frame.bottom + 1) {
+      || receiptGeometry.heldReceipt.left < receiptGeometry.frame.left - 1 || receiptGeometry.heldReceipt.right > receiptGeometry.frame.right + 1
+      || receiptGeometry.heldReceipt.bottom > receiptGeometry.frame.bottom + 1) {
       throw new Error(`${viewport.width}x${viewport.height}: checkout receipt escaped the phone ${JSON.stringify(receiptGeometry)}`);
     }
     await page.screenshot({ path: path.join(outputDir, `checkout-receipt-${viewport.width}x${viewport.height}.png`), fullPage: true });
-    await page.getByRole("button", { name: "继续", exact: true }).click();
-    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete");
+    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete", { timeout: 4000 });
     await expect(page.getByRole("button", { name: "完成", exact: true })).toBeVisible();
     await page.waitForTimeout(850);
     const completionGeometry = await page.evaluate(() => {
@@ -186,18 +218,31 @@ try {
     await page.screenshot({ path: path.join(outputDir, `checkout-complete-${viewport.width}x${viewport.height}.png`), fullPage: true });
     await page.getByRole("button", { name: "查看兑换凭证", exact: true }).click();
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "receipt");
-    report.push({ mode: "checkout-animation", viewport, receiptGeometry, completionGeometry });
+    await expect(page.getByRole("button", { name: "返回完成页", exact: true })).toBeVisible();
+    report.push({ mode: "checkout-animation", viewport, cardGeometry, receiptGeometry, completionGeometry });
     await context.close();
   }
 
   const reducedContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, reducedMotion: "reduce", isMobile: true, hasTouch: true });
-  const reduced = await prepare(reducedContext, "&qa=shop-checkout#tab=today&view=points-shop-cart");
+  const reduced = await prepare(reducedContext, "&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-cart");
   await reduced.getByRole("button", { name: "确认兑换", exact: true }).click();
-  await expect(reduced.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "receipt", { timeout: 2500 });
+  await expect(reduced.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete", { timeout: 2500 });
   await expect(reduced.locator(".shop-checkout-experience")).toHaveAttribute("data-reduced-motion", "true");
   await reduced.screenshot({ path: path.join(outputDir, "checkout-reduced-motion-390x844.png"), fullPage: true });
   report.push({ mode: "checkout-reduced-motion", viewport: { width: 390, height: 844 } });
   await reducedContext.close();
+
+  const timingContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  const timingPage = await prepare(timingContext, "&qa=shop-checkout#tab=today&view=points-shop-cart");
+  const startedAt = Date.now();
+  await timingPage.getByRole("button", { name: "确认兑换", exact: true }).click();
+  await expect(timingPage.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-timeline", "production");
+  await expect(timingPage.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete", { timeout: 18000 });
+  const elapsedMs = Date.now() - startedAt;
+  if (elapsedMs < 14600 || elapsedMs > 16800) throw new Error(`Production checkout story did not settle near 15 seconds: ${elapsedMs}ms`);
+  await timingPage.screenshot({ path: path.join(outputDir, "checkout-production-timing-390x844.png"), fullPage: true });
+  report.push({ mode: "checkout-production-timing", viewport: { width: 390, height: 844 }, elapsedMs });
+  await timingContext.close();
 
   // Every supported portrait iPhone is exercised by model, even when multiple
   // models share the same logical canvas. Reduced motion keeps this full matrix
@@ -213,9 +258,11 @@ try {
       isMobile: true,
       hasTouch: true,
     });
-    const page = await prepare(context, "&qa=shop-checkout#tab=today&view=points-shop-cart");
+    const page = await prepare(context, "&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-cart");
     await page.getByRole("button", { name: "确认兑换", exact: true }).click();
-    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "receipt", { timeout: 2500 });
+    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete", { timeout: 2500 });
+    await page.getByRole("button", { name: "查看兑换凭证", exact: true }).click();
+    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "receipt");
     await page.waitForTimeout(80);
     const receipt = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
@@ -238,7 +285,7 @@ try {
       throw new Error(`${device.label}: receipt layout failed ${JSON.stringify(receipt)}`);
     }
     await page.screenshot({ path: path.join(deviceMatrixDir, `${device.id}-receipt.png`), fullPage: true });
-    await page.getByRole("button", { name: "继续", exact: true }).click();
+    await page.getByRole("button", { name: "返回完成页", exact: true }).click();
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete");
     const completion = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
