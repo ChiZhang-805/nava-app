@@ -7,7 +7,7 @@
 聊天记录。新任务必须以代码、数据库边界和本文件为准，不要根据旧聊天画面
 推断进度。
 
-## 112. 独立滑动加卡页（本轮实现，发布回执待补）
+## 112. 独立滑动加卡页（双站 v183，当前版本）
 
 卡包的“添加卡片”导航到 `points-shop-add-card`，不再在卡包底部展开卡面网格或确认弹窗。
 新页标题为“添加卡片 / Add card”，只展示尚未拥有的设计，原生横向触摸滚动和scroll-snap
@@ -30,6 +30,18 @@
 TypeScript、全仓ESLint、11项商城合同、PostgreSQL积分卡合同、生产认证合同和Sites产物
 检查通过。整套 `npm run verify` 已执行，但仍在历史 `media-feedback:visual` 的旧相机按钮
 选择器处超时退出1；未放宽或跳过该断言，也不将整套回归记为通过。日志见上述证据目录。
+
+最终版 `shop:visual` 通过：四基础视口完整商城/加卡/结算流程、18款目录机型结算回归，
+另增桌面加卡页顶部安全区、隐藏导航与价格紧邻按钮检查；13组加卡专项中英五尺寸均通过。
+已人工查看最终中英文画廊、短屏与桌面外壳截图。真实账号加卡/扣分没有代替用户执行。
+
+功能源码 `d4e9ecbb818c1fc8a7afd2168665d3c9e1c6ce34` 干净提交、推送后分别构建两站。
+Sites v183：`appgprj_6a5de710811c8191af8ce2681358d518~appgver_cb4f238930d88191afc2df97354a28c6`；
+部署 `appgdep_6aba435a22688191bdfd1d93b6dc5ffd` succeeded。官方脚本打包阶段仍受Windows
+反斜杠/Bash兼容问题影响，改用同包官方prepare helper与Windows tar；307文件验证接收。
+Pages镜像 `5aea45c85f6796d24d04668a55f1ca041c25776c`，workflow `36410887498` success。
+207个生成文件单向复制且哈希一致，未删除旧产物。两站公开登录门、公开demo拒绝、canonical
+Supabase和各6项关键资源哈希通过；来源同一功能提交，收据在 `card-gallery/public-release.json`。
 
 ## 111. 结算视觉纠偏（双站 v182，上一版本）
 
