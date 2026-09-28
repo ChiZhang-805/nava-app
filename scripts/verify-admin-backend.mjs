@@ -31,7 +31,7 @@ const administratorRoles = roles.filter((row) => row.role === "admin").length;
 if (administratorRoles < 1) throw new Error("No administrator remains in the canonical project.");
 const bucket = await json(`${baseUrl}/storage/v1/bucket/reward-products`);
 if (bucket?.id !== "reward-products" || bucket?.public !== true) throw new Error("Reward product image bucket is unavailable.");
-const products = await json(`${baseUrl}/rest/v1/reward_products?select=id&limit=1`);
+const products = await json(`${baseUrl}/rest/v1/reward_products?select=id,name_en,brand,brand_en,description_en,listing_status&limit=1`);
 const batches = await json(`${baseUrl}/rest/v1/admin_notification_batches?select=id&limit=1`);
 if (!Array.isArray(products) || !Array.isArray(batches)) throw new Error("Admin catalog or notification tables are unavailable.");
 
@@ -43,6 +43,9 @@ const unauthenticated = await fetch(`${baseUrl}/functions/v1/admin-notification-
 if (unauthenticated.ok) throw new Error("Admin notification function accepted a request without a user JWT.");
 
 for (const [rpc, body] of [
+  ["nava_admin_list_reward_products_v2", {}],
+  ["nava_admin_save_reward_product_v2", { product_data: {} }],
+  ["nava_admin_archive_reward_product", { product_id: "00000000-0000-0000-0000-000000000000" }],
   ["nava_admin_list_accounts", { account_query: null, account_limit: 1 }],
   ["nava_admin_set_account_role", { target_user_id: "00000000-0000-0000-0000-000000000000", target_role: "member" }],
 ]) {

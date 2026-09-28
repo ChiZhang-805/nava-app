@@ -29,7 +29,8 @@ test("catalog writes are validated admin RPCs and normal catalog reads remain pu
   assert.match(migration, /product_image_urls/);
   assert.match(migration, /image_url !~ '\^https:\/\/'/);
   assert.match(migration, /admin_audit_log/);
-  assert.match(service, /rpc\("nava_admin_save_reward_product"/);
+  assert.match(service, /rpc\("nava_admin_save_reward_product_v2"/);
+  assert.match(service, /rpc\("nava_admin_archive_reward_product"/);
   assert.match(service, /storage\.from\("reward-products"\)\.upload/);
 });
 
@@ -69,7 +70,9 @@ test("administrator role changes are searchable, audited, and cannot remove the 
 
 test("administrator UI starts with a function chooser and uses home/back/ellipsis page navigation", () => {
   assert.match(consoleUi, /type AdminPage = "overview" \| "products" \| "notifications" \| "roles" \| "recent"/);
-  assert.match(consoleUi, /选择管理功能/);
+  assert.doesNotMatch(consoleUi, /选择管理功能/);
+  assert.doesNotMatch(consoleUi, /admin-editor-layer/);
+  assert.match(consoleUi, /page === "editor" && <AdminProductEditor/);
   assert.match(consoleUi, /商品管理/);
   assert.match(consoleUi, /发布通知/);
   assert.match(consoleUi, /管理员权限/);

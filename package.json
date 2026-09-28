@@ -68,6 +68,8 @@
     "push:contract:test": "node --experimental-strip-types --test tests/remote-push-contract.test.ts",
     "admin:test": "node --experimental-strip-types --test tests/admin-console-contract.test.ts",
     "admin:visual": "node scripts/verify-admin-console-ui.mjs",
+    "admin:db:test": "node scripts/verify-admin-catalog.mjs",
+    "admin:catalog:visual": "node scripts/verify-admin-catalog-ui.mjs",
     "admin:verify:production": "node scripts/verify-admin-backend.mjs",
     "notification:visual": "node scripts/verify-notifications-ui.mjs",
     "chart-motion:test": "node --experimental-strip-types --test tests/chart-motion.test.ts tests/chart-curves.test.ts",

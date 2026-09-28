@@ -6,6 +6,8 @@ export type RewardProduct = {
   slug: string;
   name: string;
   description: string;
+  brand?: string;
+  listingStatus?: "published" | "upcoming";
   pointPrice: number | null;
   imageUrls: string[];
   soldOut: boolean;
@@ -24,15 +26,7 @@ export type RewardCheckoutResult = {
   replayed: boolean;
 };
 
-type ProductRow = {
-  id?: unknown;
-  slug?: unknown;
-  name?: unknown;
-  description?: unknown;
-  point_price?: unknown;
-  image_urls?: unknown;
-  sold_out?: unknown;
-};
+type ProductRow = Record<string, unknown>;
 
 function assertNoError(error: unknown) {
   if (!error) return;
@@ -40,14 +34,16 @@ function assertNoError(error: unknown) {
   throw new Error(message);
 }
 
-function normalizeProduct(row: ProductRow): RewardProduct | null {
+function normalizeProduct(row: ProductRow, locale: "zh" | "en"): RewardProduct | null {
   if (typeof row.id !== "string" || typeof row.slug !== "string" || typeof row.name !== "string") return null;
   const pointPrice = Number(row.point_price);
   return {
     id: row.id,
     slug: row.slug,
-    name: row.name,
-    description: typeof row.description === "string" ? row.description : "",
+    name: locale === "en" && typeof row.name_en === "string" && row.name_en.trim() ? row.name_en : row.name,
+    description: String(locale === "en" && row.description_en ? row.description_en : row.description ?? ""),
+    brand: String(locale === "en" && row.brand_en ? row.brand_en : row.brand ?? ""),
+    listingStatus: row.listing_status === "upcoming" ? "upcoming" : "published",
     pointPrice: Number.isFinite(pointPrice) && pointPrice > 0 ? Math.round(pointPrice) : null,
     imageUrls: Array.isArray(row.image_urls) ? row.image_urls.filter((url): url is string => typeof url === "string" && /^https:\/\//i.test(url)) : [],
     soldOut: row.sold_out === true,
@@ -67,21 +63,21 @@ export function placeholderRewardProducts(locale: "zh" | "en"): RewardProduct[] 
   }));
 }
 
-export async function loadRewardProducts(): Promise<RewardProduct[]> {
+export async function loadRewardProducts(locale: "zh" | "en" = "zh"): Promise<RewardProduct[]> {
   if (isDemoMode()) return [];
   const result = await supabase
     .from("reward_products")
-    .select("id,slug,name,description,point_price,image_urls,sold_out")
+    .select("id,slug,name,name_en,brand,brand_en,description,description_en,listing_status,point_price,image_urls,sold_out")
     .eq("published", true)
     .order("created_at", { ascending: false });
   assertNoError(result.error);
   return (result.data ?? []).flatMap((row) => {
-    const product = normalizeProduct(row as ProductRow);
+    const product = normalizeProduct(row as ProductRow, locale);
     return product ? [product] : [];
   });
 }
 
-export async function loadRewardCart(userId: string, products?: RewardProduct[]): Promise<RewardCartLine[]> {
+export async function loadRewardCart(userId: string, products?: RewardProduct[], locale: "zh" | "en" = "zh"): Promise<RewardCartLine[]> {
   if (isDemoMode()) return [];
   const cartResult = await supabase
     .from("reward_cart_items")
@@ -89,12 +85,18 @@ export async function loadRewardCart(userId: string, products?: RewardProduct[])
     .eq("user_id", userId)
     .order("created_at", { ascending: true });
   assertNoError(cartResult.error);
-  const productList = products ?? await loadRewardProducts();
+  const productList = products ?? await loadRewardProducts(locale);
   const byId = new Map(productList.map((product) => [product.id, product]));
   return (cartResult.data ?? []).flatMap((row) => {
-    const product = byId.get(String(row.product_id ?? ""));
+    const productId = String(row.product_id ?? "");
+    // Keep unavailable cart rows removable; silently dropping them would leave an invisible
+    // archived item blocking server checkout. Do not expose private/delisted catalog details.
+    const product: RewardProduct = byId.get(productId) ?? {
+      id: productId, slug: "unavailable", name: locale === "zh" ? "商品已下架或移除" : "Item unlisted or removed",
+      description: "", pointPrice: null, imageUrls: [], soldOut: true,
+    };
     const quantity = Number(row.quantity);
-    return product && Number.isInteger(quantity) && quantity > 0 ? [{ product, quantity }] : [];
+    return productId && Number.isInteger(quantity) && quantity > 0 ? [{ product, quantity }] : [];
   });
 }
 

@@ -1,24 +1,26 @@
 import type { User } from "@supabase/supabase-js";
 import {
-  ArrowLeft, BellRing, Boxes, Check, ChevronRight, CloudUpload, History, Home,
+  ArrowLeft, BellRing, Boxes, Check, ChevronRight, History, Home,
   ImagePlus, LoaderCircle, PackageCheck, Pencil, Search, Send, ShieldCheck, Store,
-  UsersRound, X,
+  Trash2, UsersRound, X,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import AdminProductEditor from "./AdminProductEditor";
 import MoreMenu from "../components/MoreMenu";
 import { useLocale } from "../i18n";
 import {
   loadAdminAccess, loadAdminAccounts, loadAdminNotificationBatches, loadAdminProducts,
-  publishAdminNotification, saveAdminProduct, setAdminAccountRole, uploadAdminProductImage,
+  archiveAdminProduct, publishAdminNotification, saveAdminProduct, setAdminAccountRole, uploadAdminProductImage,
   type AdminAccount, type AdminNotificationBatch, type AdminProduct, type AdminProductDraft,
 } from "../services/adminConsole";
 import type { NavaNotificationCategory, NavaNotificationTarget } from "../services/notifications";
 import "./admin-console.css";
 
-type AdminPage = "overview" | "products" | "notifications" | "roles" | "recent";
+type AdminPage = "overview" | "products" | "notifications" | "roles" | "recent" | "editor";
 
 const emptyProduct = (): AdminProductDraft => ({
-  slug: "", name: "", description: "", pointPrice: 100, imageUrls: [], inventory: 10, published: false,
+  slug: "", name: "", nameEn: "", brand: "", brandEn: "", description: "", descriptionEn: "",
+  listingStatus: "unpublished", pointPrice: 100, imageUrls: [], inventory: 10, published: false,
 });
 
 const categoryOptions: Array<{ id: NavaNotificationCategory; zh: string; en: string }> = [
@@ -66,7 +68,13 @@ export default function AdminConsole({ user, onHome }: { user: User; onHome: () 
   const [batches, setBatches] = useState<AdminNotificationBatch[]>([]);
   const [accounts, setAccounts] = useState<AdminAccount[]>([]);
   const [product, setProduct] = useState<AdminProductDraft>(emptyProduct);
-  const [editorOpen, setEditorOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<AdminProduct | null>(null);
+  const [discardTo, setDiscardTo] = useState<AdminPage | null>(null);
+  const screen = useRef<HTMLElement>(null);
+  const confirmDialog = useRef<HTMLDialogElement>(null);
+  const productLock = useRef(false);
+  const originalDraft = useRef("");
+  const objectUrls = useRef<string[]>([]);
   const [roleQuery, setRoleQuery] = useState("");
   const [pendingRole, setPendingRole] = useState<{ account: AdminAccount; nextRole: "member" | "admin" } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -82,7 +90,16 @@ export default function AdminConsole({ user, onHome }: { user: User; onHome: () 
     overview: zh ? "管理员端" : "Admin console", products: zh ? "商品管理" : "Products",
     notifications: zh ? "发布通知" : "Publish notice", roles: zh ? "管理员权限" : "Administrator access",
     recent: zh ? "最近发布" : "Recent releases",
+    editor: product.id ? (zh ? "编辑商品" : "Edit product") : (zh ? "发布商品" : "New product"),
   }[page];
+
+  useEffect(() => { screen.current?.scrollTo({ top: 0 }); }, [page]);
+  useEffect(() => () => { objectUrls.current.forEach((url) => URL.revokeObjectURL(url)); }, []);
+  useEffect(() => {
+    const dialog = confirmDialog.current;
+    if (pendingDelete || discardTo) dialog?.showModal();
+    return () => dialog?.close();
+  }, [pendingDelete, discardTo]);
 
   useEffect(() => {
     let active = true;
@@ -112,36 +129,62 @@ export default function AdminConsole({ user, onHome }: { user: User; onHome: () 
   }, [qa, user.email, user.id, user.phone]);
 
   function openPage(nextPage: AdminPage) {
+    if (productLock.current) return;
+    if (page === "editor" && JSON.stringify(product) !== originalDraft.current) { setDiscardTo(nextPage); setMenuOpen(false); return; }
     setError(null); setSuccess(null); setMenuOpen(false); setPage(nextPage);
   }
 
   function editProduct(item?: AdminProduct) {
     setError(null); setSuccess(null);
-    setProduct(item ? {
+    const draft = item ? {
       id: item.id, slug: item.slug, name: item.name, description: item.description,
+      nameEn: item.nameEn, brand: item.brand, brandEn: item.brandEn, descriptionEn: item.descriptionEn, listingStatus: item.listingStatus,
       pointPrice: item.pointPrice, imageUrls: item.imageUrls, inventory: item.inventory, published: item.published,
-    } : emptyProduct());
-    setEditorOpen(true);
+    } : emptyProduct();
+    setProduct(draft); originalDraft.current = JSON.stringify(draft); setPage("editor");
   }
 
   async function uploadImages(files: FileList | null) {
-    if (!files?.length) return;
-    setBusy("image"); setError(null);
+    if (!files?.length || productLock.current) return;
+    productLock.current = true; setBusy("image"); setError(null);
     try {
-      const selected = [...files].slice(0, Math.max(0, 6 - product.imageUrls.length));
-      const urls = qa ? selected.map((file) => URL.createObjectURL(file)) : await Promise.all(selected.map(uploadAdminProductImage));
-      setProduct((current) => ({ ...current, imageUrls: [...current.imageUrls, ...urls] }));
-    } catch (uploadError) { setError(messageFrom(uploadError)); } finally { setBusy(null); }
+      const selected = [...files];
+      if (selected.length + product.imageUrls.length > 6) throw new Error(zh ? "最多添加 6 张图片。" : "A product can have up to 6 images.");
+      if (selected.some((file) => !["image/jpeg", "image/png", "image/webp", "image/avif"].includes(file.type) || file.size > 8 * 1024 * 1024)) throw new Error(zh ? "请选择不超过 8 MB 的 JPG、PNG、WebP 或 AVIF 图片。" : "Choose JPG, PNG, WebP or AVIF images up to 8 MB each.");
+      // Preserve completed uploads even if a later file fails.
+      for (const file of selected) {
+        const url = qa ? URL.createObjectURL(file) : await uploadAdminProductImage(file);
+        if (qa) objectUrls.current.push(url);
+        setProduct((current) => ({ ...current, imageUrls: [...current.imageUrls, url] }));
+      }
+    } catch (uploadError) { setError(messageFrom(uploadError)); } finally { productLock.current = false; setBusy(null); }
   }
 
   async function submitProduct(event: FormEvent) {
-    event.preventDefault(); setBusy("product"); setError(null); setSuccess(null);
+    event.preventDefault(); if (productLock.current) return;
+    productLock.current = true; setBusy("product"); setError(null); setSuccess(null);
     try {
       if (qa) {
-        setProducts((current) => [{ id: product.id ?? crypto.randomUUID(), ...product, soldOut: product.inventory === 0, updatedAt: new Date().toISOString() } as AdminProduct, ...current.filter((item) => item.id !== product.id)]);
-      } else { await saveAdminProduct(product); setProducts(await loadAdminProducts()); }
-      setEditorOpen(false); setSuccess(zh ? "商品已保存" : "Product saved");
-    } catch (saveError) { setError(messageFrom(saveError)); } finally { setBusy(null); }
+        setProducts((current) => [{ ...product, id: product.id ?? crypto.randomUUID(), published: product.listingStatus !== "unpublished", soldOut: product.inventory === 0, updatedAt: new Date().toISOString() }, ...current.filter((item) => item.id !== product.id)]);
+      } else {
+        const id = await saveAdminProduct(product);
+        // If refreshing fails, retry updates this saved product rather than creating a duplicate.
+        setProduct((current) => ({ ...current, id }));
+        setProducts(await loadAdminProducts());
+      }
+      setPage("products"); setSuccess(zh ? "商品已保存" : "Product saved");
+    } catch (saveError) { setError(messageFrom(saveError)); } finally { productLock.current = false; setBusy(null); }
+  }
+
+  async function deleteProduct() {
+    if (!pendingDelete || productLock.current) return;
+    productLock.current = true; setBusy("delete"); setError(null);
+    try {
+      if (!qa) await archiveAdminProduct(pendingDelete.id);
+      setProducts((current) => current.filter((item) => item.id !== pendingDelete.id));
+      setPendingDelete(null); setSuccess(zh ? "商品已删除，历史订单已保留" : "Product removed. Previous orders are preserved.");
+    } catch (deleteError) { setError(messageFrom(deleteError)); setPendingDelete(null); }
+    finally { productLock.current = false; setBusy(null); }
   }
 
   async function submitNotification(event: FormEvent) {
@@ -180,9 +223,9 @@ export default function AdminConsole({ user, onHome }: { user: User; onHome: () 
   if (access === "loading") return <section className="admin-console-screen"><div className="admin-console-centered"><LoaderCircle className="admin-spin" size={28} /></div></section>;
   if (access === "denied") return <section className="admin-console-screen"><header className="home-experience-header admin-console-header"><button type="button" className="home-experience-back" onClick={onHome} aria-label={zh ? "返回首页" : "Back home"}><Home size={21} /></button><div><h1>{zh ? "管理员端" : "Admin"}</h1></div><span /></header><div className="admin-console-centered"><ShieldCheck size={42} /><strong>{zh ? "此账号没有管理员权限" : "This account is not an administrator"}</strong>{error && <small>{error}</small>}<button type="button" onClick={onHome}>{zh ? "返回首页" : "Back home"}</button></div></section>;
 
-  return <section className="admin-console-screen" data-admin-page={page}>
+  return <section ref={screen} className="admin-console-screen" data-admin-page={page}>
     <header className="home-experience-header admin-console-header">
-      <button type="button" className="home-experience-back" onClick={page === "overview" ? onHome : () => openPage("overview")} aria-label={page === "overview" ? (zh ? "返回首页" : "Back home") : (zh ? "返回管理员首页" : "Back to admin home")}>{page === "overview" ? <Home size={21} /> : <ArrowLeft size={21} />}</button>
+      <button type="button" className="home-experience-back" disabled={!!busy} onClick={page === "overview" ? onHome : () => openPage(page === "editor" ? "products" : "overview")} aria-label={page === "overview" ? (zh ? "返回首页" : "Back home") : page === "editor" ? (zh ? "返回商品管理" : "Back to products") : (zh ? "返回管理员首页" : "Back to admin home")}>{page === "overview" ? <Home size={26} /> : <ArrowLeft size={26} />}</button>
       <div><span>NAVA CONTROL</span><h1>{pageTitle}</h1></div>
       <MoreMenu open={menuOpen} onOpenChange={setMenuOpen} label={zh ? "更多管理员操作" : "More admin actions"} className="admin-console-menu" buttonClassName="admin-console-more">
         {page !== "recent" && <button type="button" onClick={() => openPage("recent")}><History /><span>{zh ? "最近发布" : "Recent releases"}</span></button>}
@@ -193,7 +236,6 @@ export default function AdminConsole({ user, onHome }: { user: User; onHome: () 
     {(error || success) && <div className={["admin-console-toast", error ? "is-error" : "is-success"].join(" ")} role={error ? "alert" : "status"}>{error ? <X size={17} /> : <Check size={17} />}<span>{error ?? success}</span><button type="button" onClick={() => { setError(null); setSuccess(null); }} aria-label={zh ? "关闭" : "Close"}><X size={15} /></button></div>}
 
     {page === "overview" && <div className="admin-console-overview">
-      <div className="admin-console-overview-title"><span><ShieldCheck size={22} /></span><div><strong>{zh ? "选择管理功能" : "Choose a tool"}</strong><small>{zh ? "商品、通知与账户权限" : "Products, notices and account access"}</small></div></div>
       <div className="admin-console-actions">
         <button type="button" aria-label={zh ? "商品管理" : "Product management"} onClick={() => openPage("products")}><span className="is-products"><Store /></span><div><strong>{zh ? "商品管理" : "Product management"}</strong><small>{zh ? "发布和维护积分商城商品" : "Publish and maintain shop products"}</small></div><ChevronRight /></button>
         <button type="button" aria-label={zh ? "发布通知" : "Publish notices"} onClick={() => openPage("notifications")}><span className="is-notices"><BellRing /></span><div><strong>{zh ? "发布通知" : "Publish notices"}</strong><small>{zh ? "发送通知并自动启用可用推送" : "Send notices with available push delivery"}</small></div><ChevronRight /></button>
@@ -203,13 +245,16 @@ export default function AdminConsole({ user, onHome }: { user: User; onHome: () 
 
     {page === "products" && <div className="admin-console-content">
       <div className="admin-console-intro"><span><Boxes size={21} /></span><div><strong>{zh ? "积分商城商品" : "Points shop products"}</strong><small>{zh ? `${products.length} 件商品` : `${products.length} products`}</small></div><button type="button" onClick={() => editProduct()}><ImagePlus size={17} />{zh ? "发布商品" : "New product"}</button></div>
-      <div className="admin-product-list">{products.length === 0 && <div className="admin-empty"><PackageCheck size={34} /><strong>{zh ? "还没有商品" : "No products yet"}</strong></div>}{products.map((item) => <article key={item.id}><div className="admin-product-thumb">{item.imageUrls[0] ? <img src={item.imageUrls[0]} alt="" /> : <Store size={26} />}</div><div><strong>{item.name}</strong><small>{item.pointPrice} XP · {zh ? `库存 ${item.inventory}` : `${item.inventory} in stock`}</small><span className={item.published ? "is-published" : "is-draft"}>{item.published ? (zh ? "已上架" : "Published") : (zh ? "草稿" : "Draft")}</span></div><button type="button" onClick={() => editProduct(item)} aria-label={zh ? `编辑${item.name}` : `Edit ${item.name}`}><Pencil size={17} /></button></article>)}</div>
+      <div className="admin-product-list">{products.length === 0 && <div className="admin-empty"><PackageCheck size={34} /><strong>{zh ? "还没有商品" : "No products yet"}</strong></div>}{products.map((item) => {
+        const name = zh ? item.name : item.nameEn || item.name;
+        return <article key={item.id}><div className="admin-product-thumb">{item.imageUrls[0] ? <img src={item.imageUrls[0]} alt="" /> : <Store size={26} />}</div><div><strong>{name}</strong><small>{item.pointPrice} XP · {zh ? `库存 ${item.inventory}` : `${item.inventory} in stock`}</small><span className={`is-${item.listingStatus}`}>{item.listingStatus === "upcoming" ? (zh ? "待上架" : "Coming soon") : item.listingStatus === "published" ? (zh ? "已上架" : "Published") : (zh ? "已下架" : "Unpublished")}</span></div><div className="admin-product-actions"><button type="button" onClick={() => editProduct(item)} aria-label={zh ? `编辑${name}` : `Edit ${name}`}><Pencil size={21} /></button><button type="button" className="is-delete" onClick={() => setPendingDelete(item)} aria-label={zh ? `删除${name}` : `Delete ${name}`}><Trash2 size={21} /></button></div></article>;
+      })}</div>
     </div>}
 
     {page === "notifications" && <div className="admin-console-content admin-notice-layout"><form className="admin-form-card" onSubmit={submitNotification}>
       <div className="admin-card-heading"><span><BellRing size={20} /></span><div><strong>{zh ? "发布通知" : "Publish notice"}</strong><small>{zh ? "发送到用户通知中心" : "Send to user inboxes"}</small></div></div>
       <label><span>{zh ? "标题" : "Title"}</span><input value={noticeTitle} maxLength={160} placeholder={zh ? "填写通知标题" : "Notice title"} onChange={(event) => setNoticeTitle(event.target.value)} required /></label>
-      <label><span>{zh ? "内容" : "Message"}</span><textarea value={noticeBody} maxLength={1000} rows={5} placeholder={zh ? "填写通知内容" : "Write the message"} onChange={(event) => setNoticeBody(event.target.value)} required /></label>
+      <label className="admin-notice-message"><span>{zh ? "内容" : "Message"}</span><textarea value={noticeBody} maxLength={1000} rows={1} placeholder={zh ? "填写通知内容" : "Write the message"} onChange={(event) => setNoticeBody(event.target.value)} required /></label>
       <label><span>{zh ? "分类" : "Category"}</span><select value={noticeCategory} onChange={(event) => setNoticeCategory(event.target.value as NavaNotificationCategory)}>{categoryOptions.map((item) => <option key={item.id} value={item.id}>{zh ? item.zh : item.en}</option>)}</select></label>
       <label><span>{zh ? "点击后打开" : "Open on tap"}</span><select value={targetId} onChange={(event) => setTargetId(event.target.value)}>{targets.map((item) => <option key={item.id} value={item.id}>{zh ? item.zh : item.en}</option>)}</select></label>
       <button className="admin-primary-action" type="submit" disabled={busy === "notification"}>{busy === "notification" ? <LoaderCircle className="admin-spin" size={18} /> : <Send size={18} />}{zh ? "发送通知" : "Send notice"}</button>
@@ -222,7 +267,13 @@ export default function AdminConsole({ user, onHome }: { user: User; onHome: () 
 
     {page === "recent" && <div className="admin-console-content"><div className="admin-batch-list"><h2>{zh ? "最近发布" : "Recent releases"}</h2>{batches.length === 0 && <div className="admin-empty is-compact"><BellRing size={27} /><span>{zh ? "暂无通知" : "No notices"}</span></div>}{batches.map((batch) => <article key={batch.id}><span className={`admin-category-dot is-${batch.category}`} /><div><strong>{batch.title}</strong><small>{new Date(batch.createdAt).toLocaleString(locale === "zh" ? "zh-CN" : "en-US", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} · {zh ? `${batch.recipientCount} 个账号` : `${batch.recipientCount} accounts`}</small></div><em>{batchStatus(batch, zh)}</em></article>)}</div></div>}
 
-    {editorOpen && <div className="admin-editor-layer" role="presentation" onClick={() => setEditorOpen(false)}><form className="admin-product-editor" onSubmit={submitProduct} onClick={(event) => event.stopPropagation()}><header><div><span>{product.id ? (zh ? "编辑商品" : "Edit product") : (zh ? "新商品" : "New product")}</span><strong>{product.name || (zh ? "积分商城" : "Points shop")}</strong></div><button type="button" onClick={() => setEditorOpen(false)} aria-label={zh ? "关闭" : "Close"}><X size={20} /></button></header><div className="admin-image-strip">{product.imageUrls.map((url) => <div key={url}><img src={url} alt="" /><button type="button" onClick={() => setProduct((current) => ({ ...current, imageUrls: current.imageUrls.filter((item) => item !== url) }))}><X size={13} /></button></div>)}{product.imageUrls.length < 6 && <label className="admin-image-upload"><input type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple onChange={(event) => void uploadImages(event.target.files)} /><>{busy === "image" ? <LoaderCircle className="admin-spin" /> : <CloudUpload />}<small>{zh ? "添加图片" : "Add image"}</small></></label>}</div><label><span>{zh ? "商品名称" : "Product name"}</span><input value={product.name} maxLength={120} onChange={(event) => setProduct((current) => ({ ...current, name: event.target.value }))} required /></label><label><span>{zh ? "商品标识" : "Slug"}</span><input value={product.slug} maxLength={80} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="cat-notebook" onChange={(event) => setProduct((current) => ({ ...current, slug: event.target.value.toLowerCase() }))} required /></label><label><span>{zh ? "说明" : "Description"}</span><textarea value={product.description} maxLength={2000} rows={3} onChange={(event) => setProduct((current) => ({ ...current, description: event.target.value }))} /></label><div className="admin-form-grid"><label><span>{zh ? "积分价格" : "Price"}</span><input type="number" min={1} max={1000000} value={product.pointPrice} onChange={(event) => setProduct((current) => ({ ...current, pointPrice: Number(event.target.value) }))} required /></label><label><span>{zh ? "库存" : "Inventory"}</span><input type="number" min={0} max={1000000} value={product.inventory} onChange={(event) => setProduct((current) => ({ ...current, inventory: Number(event.target.value) }))} required /></label></div><label className="admin-publish-toggle"><span><strong>{zh ? "上架商品" : "Publish"}</strong><small>{zh ? "保存后在商城显示" : "Show in the shop"}</small></span><input type="checkbox" checked={product.published} onChange={(event) => setProduct((current) => ({ ...current, published: event.target.checked }))} /><i /></label><button className="admin-primary-action" type="submit" disabled={busy === "product"}>{busy === "product" ? <LoaderCircle className="admin-spin" size={18} /> : <Check size={18} />}{zh ? "保存商品" : "Save product"}</button></form></div>}
+    {page === "editor" && <AdminProductEditor product={product} onChange={setProduct} onUpload={uploadImages} onSubmit={submitProduct} busy={!!busy} zh={zh} />}
+    {(pendingDelete || discardTo) && <dialog ref={confirmDialog} className="admin-confirm-dialog" aria-labelledby="admin-product-confirm-title" onCancel={(event) => { event.preventDefault(); if (!busy) { setPendingDelete(null); setDiscardTo(null); } }}>
+      <h2 id="admin-product-confirm-title">{pendingDelete ? (zh ? "删除这个商品？" : "Remove this product?") : (zh ? "放弃未保存的修改？" : "Discard unsaved changes?")}</h2>
+      <p>{pendingDelete ? (zh ? "商品将从商城移除，历史订单会保留。" : "The item will leave the shop. Previous orders are preserved.") : (zh ? "离开后，本次未保存的内容将丢失。" : "Your unsaved changes will be lost.")}</p>
+      <div><button type="button" disabled={!!busy} autoFocus onClick={() => { setPendingDelete(null); setDiscardTo(null); }}>{zh ? "取消" : "Cancel"}</button>
+      <button type="button" disabled={!!busy} onClick={() => { if (pendingDelete) void deleteProduct(); else if (discardTo) { setPage(discardTo); setDiscardTo(null); setError(null); setSuccess(null); } }}>{busy ? <LoaderCircle className="admin-spin" /> : pendingDelete ? (zh ? "删除商品" : "Remove product") : (zh ? "放弃修改" : "Discard")}</button></div>
+    </dialog>}
 
     {pendingRole && <div className="admin-role-confirm-layer" role="presentation" onClick={() => setPendingRole(null)}><div className="admin-role-confirm" role="dialog" aria-modal="true" aria-labelledby="admin-role-confirm-title" onClick={(event) => event.stopPropagation()}><span className={pendingRole.nextRole === "admin" ? "is-admin" : "is-member"}><ShieldCheck size={24} /></span><h2 id="admin-role-confirm-title">{pendingRole.nextRole === "admin" ? (zh ? "升级为管理员？" : "Promote to administrator?") : (zh ? "取消管理员权限？" : "Remove administrator access?")}</h2><p>{accountIdentity(pendingRole.account, zh)}</p><div><button type="button" onClick={() => setPendingRole(null)}>{zh ? "取消" : "Cancel"}</button><button type="button" onClick={() => void applyRoleChange()}>{zh ? "确认" : "Confirm"}</button></div></div></div>}
   </section>;

@@ -33,7 +33,8 @@ async function prepare(context) {
     await expect(completion).toBeHidden();
   }
   await expect(page.locator(".admin-console-screen")).toBeVisible();
-  await expect(page.getByText("选择管理功能", { exact: true })).toBeVisible();
+  await expect(page.locator(".admin-console-actions > button")).toHaveCount(3);
+  await expect(page.getByText("选择管理功能", { exact: true })).toHaveCount(0);
   return page;
 }
 
@@ -86,8 +87,10 @@ try {
       const sheet = document.querySelector(".admin-product-editor")?.getBoundingClientRect();
       return frame && sheet ? { frame: frame.toJSON(), sheet: sheet.toJSON() } : null;
     });
-    if (!editor || editor.sheet.left < editor.frame.left - 1 || editor.sheet.right > editor.frame.right + 1 || editor.sheet.bottom > editor.frame.bottom + 1) throw new Error(`${viewport.width}x${viewport.height}: editor escaped ${JSON.stringify(editor)}`);
-    await page.locator(".admin-product-editor header button").click();
+    if (!editor || editor.sheet.left < editor.frame.left - 1 || editor.sheet.right > editor.frame.right + 1) throw new Error(`${viewport.width}x${viewport.height}: editor escaped ${JSON.stringify(editor)}`);
+    await expect(page.locator(".admin-console-screen")).toHaveAttribute("data-admin-page", "editor");
+    await expect(page.locator(".admin-editor-layer")).toHaveCount(0);
+    await page.getByRole("button", { name: "返回商品管理", exact: true }).click();
     await backToOverview(page);
 
     await openFromOverview(page, "发布通知");

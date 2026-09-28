@@ -6,7 +6,12 @@ export type AdminProduct = {
   id: string;
   slug: string;
   name: string;
+  nameEn: string;
+  brand: string;
+  brandEn: string;
   description: string;
+  descriptionEn: string;
+  listingStatus: "published" | "unpublished" | "upcoming";
   pointPrice: number;
   imageUrls: string[];
   inventory: number;
@@ -82,7 +87,12 @@ function normalizeProduct(row: ProductRow): AdminProduct | null {
     id: row.id,
     slug: row.slug,
     name: row.name,
+    nameEn: typeof row.name_en === "string" ? row.name_en : "",
+    brand: typeof row.brand === "string" ? row.brand : "",
+    brandEn: typeof row.brand_en === "string" ? row.brand_en : "",
     description: typeof row.description === "string" ? row.description : "",
+    descriptionEn: typeof row.description_en === "string" ? row.description_en : "",
+    listingStatus: row.listing_status === "upcoming" ? "upcoming" : row.published === true ? "published" : "unpublished",
     pointPrice: Math.max(0, Number(row.point_price ?? 0)),
     imageUrls: Array.isArray(row.image_urls) ? row.image_urls.filter((value): value is string => typeof value === "string") : [],
     inventory: Math.max(0, Number(row.inventory_remaining ?? 0)),
@@ -129,7 +139,7 @@ export async function loadAdminAccess() {
 }
 
 export async function loadAdminProducts() {
-  const result = await supabase.rpc("nava_admin_list_reward_products");
+  const result = await supabase.rpc("nava_admin_list_reward_products_v2");
   assertNoError(result.error);
   return (Array.isArray(result.data) ? result.data : []).flatMap((row) => {
     const product = normalizeProduct(row as ProductRow);
@@ -138,18 +148,21 @@ export async function loadAdminProducts() {
 }
 
 export async function saveAdminProduct(draft: AdminProductDraft) {
-  const result = await supabase.rpc("nava_admin_save_reward_product", {
-    product_id: draft.id ?? null,
-    product_slug: draft.slug,
-    product_name: draft.name,
-    product_description: draft.description,
-    product_point_price: Math.trunc(draft.pointPrice),
-    product_image_urls: draft.imageUrls,
-    product_inventory: Math.trunc(draft.inventory),
-    product_published: draft.published,
+  const result = await supabase.rpc("nava_admin_save_reward_product_v2", {
+    product_data: {
+      id: draft.id ?? null, slug: draft.slug, name: draft.name, name_en: draft.nameEn,
+      brand: draft.brand, brand_en: draft.brandEn, description: draft.description,
+      description_en: draft.descriptionEn, point_price: draft.pointPrice,
+      image_urls: draft.imageUrls, inventory: draft.inventory, listing_status: draft.listingStatus,
+    },
   });
   assertNoError(result.error);
   return String(result.data);
+}
+
+export async function archiveAdminProduct(productId: string) {
+  const result = await supabase.rpc("nava_admin_archive_reward_product", { product_id: productId });
+  assertNoError(result.error);
 }
 
 export async function uploadAdminProductImage(file: File) {

@@ -17,6 +17,14 @@ must never be copied into that repository.
 
 ## Compatibility tiers
 
+2026-09-28: the user explicitly authorized only `202609280002_admin_product_catalog.sql`.
+It and its migration-history receipt were committed in one database transaction. Bilingual
+catalog fields, three listing states and reversible administrator-only archival are active.
+Purchase guards reject upcoming/archived items at cart and order-item boundaries, including
+legacy clients; failures roll back checkout writes. Accounts, ledger rows, orders and catalog
+counts remained 2/5/4/4 respectively; no product was archived by the migration. Schema lint
+reported no errors. `202609270001` remains unapplied. No new Edge deployment or role change.
+
 2026-09-27: migrations `202609270002_admin_role_management.sql`,
 `202609270003_admin_role_concurrency_guard.sql`, and
 `202609270004_admin_role_lint_cleanup.sql` were explicitly authorized and applied
