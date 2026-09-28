@@ -85,7 +85,10 @@ test("checkout requires a card choice and uses an animated printer cat", () => {
   assert.match(checkout, /role="radiogroup"/);
   assert.match(checkout, /横向滑动选择积分卡卡面/);
   assert.match(checkout, /onScroll=\{syncCardFromScroll\}/);
-  assert.match(checkout, /使用这张卡/);
+  assert.match(checkout, /今天，想让哪张卡陪你？/);
+  assert.match(checkout, /使用这张卡片/);
+  assert.doesNotMatch(checkout, /可用总积分|挑一张今天想带上的卡面|第 \$\{chosenCardIndex \+ 1\} 张/);
+  assert.doesNotMatch(checkout, /shop-card-picker-pages|shop-card-picker-current|shop-card-picker-balance/);
   assert.match(checkout, /onConfirmCard\(chosenCard\.id\)/);
   assert.match(checkout, /className="shop-receipt"/);
   assert.match(checkout, /className="shop-payment-terminal"/);
@@ -106,7 +109,10 @@ test("checkout requires a card choice and uses an animated printer cat", () => {
   assert.match(checkoutStyles, /@keyframes shop-machine-button/);
   assert.match(checkoutStyles, /\.shop-card-picker-list \{[^}]*overflow-x:\s*auto/);
   assert.match(checkoutStyles, /\.shop-card-picker-list \{[^}]*scroll-snap-type:\s*x mandatory/);
-  assert.match(checkoutStyles, /\.shop-card-picker-list button \{[^}]*border-radius:\s*22px/);
+  assert.match(checkoutStyles, /\.shop-card-picker-list button \{[^}]*aspect-ratio:\s*\.64/);
+  assert.match(checkoutStyles, /\.shop-card-picker-list button \{[^}]*border-radius:\s*25px/);
+  assert.match(checkoutStyles, /\.shop-card-chip/);
+  assert.match(checkoutStyles, /\.shop-card-contactless/);
   assert.match(checkoutStyles, /\.shop-complete-card/);
   assert.match(checkoutStyles, /\.shop-checkout-copy h1[^}]*clamp\(28px/);
   assert.match(checkoutStyles, /\.shop-receipt dl div[^}]*font-size:\s*14px/);

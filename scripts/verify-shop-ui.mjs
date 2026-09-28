@@ -253,6 +253,9 @@ try {
         selected: node.getAttribute("aria-checked") === "true",
       }));
       const actions = document.querySelector(".shop-card-picker-actions")?.getBoundingClientRect();
+      const actionCount = document.querySelectorAll(".shop-card-picker-actions button").length;
+      const removedCopyVisible = [...document.querySelectorAll(".shop-checkout-experience *")]
+        .some((node) => ["可用总积分", "挑一张今天想带上的卡面"].includes(node.textContent?.trim() ?? ""));
       const imagesLoaded = [...document.querySelectorAll(".shop-card-picker-list img")].every((node) => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0);
       const trackStyle = track ? getComputedStyle(track) : null;
       return frame && flow && trackRect && trackStyle && actions ? {
@@ -261,6 +264,8 @@ try {
         trackHorizontalOverflow: track.scrollWidth - track.clientWidth,
         overflowX: trackStyle.overflowX,
         scrollSnapType: trackStyle.scrollSnapType,
+        actionCount,
+        removedCopyVisible,
       } : null;
     });
     const selectedCard = pickerGeometry?.cards.find((card) => card.selected);
@@ -270,12 +275,14 @@ try {
     if (!pickerGeometry || !pickerGeometry.imagesLoaded || pickerGeometry.cards.length !== 3 || pickerGeometry.flowHorizontalOverflow > 1
       || pickerGeometry.trackHorizontalOverflow < 100 || pickerGeometry.overflowX !== "auto" || !pickerGeometry.scrollSnapType.includes("x")
       || !selectedCard || Math.abs((selectedCard.left + selectedCard.right) / 2 - (pickerGeometry.track.left + pickerGeometry.track.right) / 2) > 5
+      || selectedCard.width / selectedCard.height < .6 || selectedCard.width / selectedCard.height > .68
       || !hasPeekingCard
+      || pickerGeometry.actionCount !== 1 || pickerGeometry.removedCopyVisible
       || pickerGeometry.actions.bottom > pickerGeometry.frame.bottom + 1) {
       throw new Error(`${viewport.width}x${viewport.height}: points-card picker failed ${JSON.stringify(pickerGeometry)}`);
     }
     await page.screenshot({ path: path.join(outputDir, `checkout-select-${viewport.width}x${viewport.height}.png`), fullPage: true });
-    await page.getByRole("button", { name: "使用这张卡", exact: true }).click();
+    await page.getByRole("button", { name: "使用这张卡片", exact: true }).click();
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "checking");
     await page.screenshot({ path: path.join(outputDir, `checkout-checking-${viewport.width}x${viewport.height}.png`), fullPage: true });
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "card", { timeout: 2500 });
@@ -385,7 +392,7 @@ try {
   const reducedContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, reducedMotion: "reduce", isMobile: true, hasTouch: true });
   const reduced = await prepare(reducedContext, "&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-cart");
   await reduced.getByRole("button", { name: "确认兑换", exact: true }).click();
-  await reduced.getByRole("button", { name: "使用这张卡", exact: true }).click();
+  await reduced.getByRole("button", { name: "使用这张卡片", exact: true }).click();
   await expect(reduced.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete", { timeout: 2500 });
   await expect(reduced.locator(".shop-checkout-experience")).toHaveAttribute("data-reduced-motion", "true");
   await reduced.screenshot({ path: path.join(outputDir, "checkout-reduced-motion-390x844.png"), fullPage: true });
@@ -396,7 +403,7 @@ try {
   const timingPage = await prepare(timingContext, "&qa=shop-checkout#tab=today&view=points-shop-cart");
   await timingPage.getByRole("button", { name: "确认兑换", exact: true }).click();
   const startedAt = Date.now();
-  await timingPage.getByRole("button", { name: "使用这张卡", exact: true }).click();
+  await timingPage.getByRole("button", { name: "使用这张卡片", exact: true }).click();
   await expect(timingPage.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-timeline", "production");
   await expect(timingPage.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete", { timeout: 18000 });
   const elapsedMs = Date.now() - startedAt;
@@ -439,7 +446,7 @@ try {
     await page.screenshot({ path: path.join(deviceMatrixDir, `${device.id}-cards.png`), fullPage: true });
     await page.goto(`${baseUrl}?demo=1&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-cart`, { waitUntil: "networkidle" });
     await page.getByRole("button", { name: "确认兑换", exact: true }).click();
-    await page.getByRole("button", { name: "使用这张卡", exact: true }).click();
+    await page.getByRole("button", { name: "使用这张卡片", exact: true }).click();
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete", { timeout: 2500 });
     await page.getByRole("button", { name: "查看兑换凭证", exact: true }).click();
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "receipt");

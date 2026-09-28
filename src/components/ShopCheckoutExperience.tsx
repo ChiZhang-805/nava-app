@@ -1,4 +1,4 @@
-import { Gift, PawPrint } from "lucide-react";
+import { Gift, PawPrint, Wifi } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import printerCat from "../assets/shop/points-cards/printer-cat.webp";
 import { POINTS_CARD_SKINS, type PointsCardSkin, type PointsCardSkinId } from "../services/rewardCards";
@@ -27,13 +27,11 @@ export default function ShopCheckoutExperience({
   locale,
   lines,
   expectedTotal,
-  availablePoints,
   result,
   checkoutStarted,
   selectedCardId,
   availableCards,
   onConfirmCard,
-  onCancel,
   onDone,
 }: {
   locale: "zh" | "en";
@@ -182,17 +180,15 @@ export default function ShopCheckoutExperience({
         <span>{phase === "select" ? "NAVA POINTS CARDS" : phase === "complete" ? "NAVA LITTLE SHOP" : locale === "zh" ? "积分兑换" : "POINTS REDEMPTION"}</span>
         <h1 id="shop-checkout-title">
           {phase === "select"
-            ? (locale === "zh" ? "选择积分卡" : "Choose a points card")
+            ? (locale === "zh" ? "今天，想让哪张卡陪你？" : "Which card should join you today?")
             : phase === "checking"
             ? (locale === "zh" ? "正在确认兑换" : "Confirming your order")
             : phase === "complete"
               ? (locale === "zh" ? "兑换完成" : "All yours")
               : (locale === "zh" ? "兑换成功" : "Redemption confirmed")}
         </h1>
-        <p>
-          {phase === "select"
-            ? (locale === "zh" ? "挑一张今天想带上的卡面" : "Pick the card you want to use today")
-            : phase === "checking"
+        {phase !== "select" && <p>
+          {phase === "checking"
             ? (locale === "zh" ? "小猫正在核对积分和库存…" : "NAVA is checking your points and availability…")
             : phase === "complete"
               ? (locale === "zh" ? "这份小礼物，是你一点点努力换来的。" : "A little gift earned one step at a time.")
@@ -201,19 +197,11 @@ export default function ShopCheckoutExperience({
                 : phase === "printing"
                   ? (locale === "zh" ? "小猫按下按钮，机器开始出票…" : "NAVA pressed the button — printing begins…")
                   : (locale === "zh" ? "凭证出来啦，小猫正在守着它" : "Here it comes — NAVA is watching over it")}
-        </p>
+        </p>}
       </div>
 
       <div className="shop-exchange-illustration">
         <div className="shop-card-picker" aria-hidden="false">
-          <div className="shop-card-picker-balance">
-            <span>{locale === "zh" ? "可用总积分" : "Total points"}</span>
-            <strong>{availablePoints?.toLocaleString() ?? "—"}<small> XP</small></strong>
-          </div>
-          <div className="shop-card-picker-current" aria-live="polite">
-            <strong>{chosenCard[locale]}</strong>
-            <span>{locale === "zh" ? `第 ${chosenCardIndex + 1} 张，共 ${availableCards.length} 张` : `${chosenCardIndex + 1} of ${availableCards.length}`}</span>
-          </div>
           <div className="shop-card-picker-carousel">
             <div
               ref={cardTrackRef}
@@ -228,10 +216,11 @@ export default function ShopCheckoutExperience({
                 type="button"
                 role="radio"
                 aria-checked={chosenCardId === card.id}
-                aria-label={`${card[locale]}，${locale === "zh" ? `第 ${index + 1} 张，共 ${availableCards.length} 张` : `${index + 1} of ${availableCards.length}`}`}
+                aria-label={card[locale]}
                 data-selected={chosenCardId === card.id ? "true" : "false"}
                 data-card-index={index}
                 data-card-offset={Math.max(-2, Math.min(2, index - chosenCardIndex))}
+                data-card-skin={card.id}
                 tabIndex={chosenCardId === card.id ? 0 : -1}
                 onClick={() => centerCard(index)}
                 onKeyDown={(event) => {
@@ -242,13 +231,16 @@ export default function ShopCheckoutExperience({
                 }}
               >
                 <img src={card.art} alt="" />
-                <span><small>NAVA POINTS</small><strong>{card[locale]}</strong><em>•• {card.lastFour}</em></span>
+                <span className="shop-card-face">
+                  <small>NAVA POINTS</small>
+                  <i className="shop-card-chip" aria-hidden="true"><b /><b /><b /></i>
+                  <strong>{card[locale]}</strong>
+                  <em>•• {card.lastFour}</em>
+                  <Wifi className="shop-card-contactless" size={32} strokeWidth={2.1} aria-hidden="true" />
+                </span>
               </button>
             ))}
             </div>
-          </div>
-          <div className="shop-card-picker-pages" aria-label={locale === "zh" ? "积分卡位置" : "Points card position"}>
-            {availableCards.map((card, index) => <button key={card.id} type="button" aria-label={locale === "zh" ? `滑到${card.zh}` : `Go to ${card.en}`} aria-current={index === chosenCardIndex ? "true" : undefined} onClick={() => centerCard(index)} />)}
           </div>
         </div>
 
@@ -332,8 +324,7 @@ export default function ShopCheckoutExperience({
 
       {phase === "select" && (
         <div className="shop-card-picker-actions">
-          <button type="button" onClick={onCancel}>{locale === "zh" ? "返回" : "Back"}</button>
-          <button ref={actionRef} type="button" onClick={() => onConfirmCard(chosenCard.id)}>{locale === "zh" ? "使用这张卡" : "Use this card"}</button>
+          <button ref={actionRef} type="button" onClick={() => onConfirmCard(chosenCard.id)}>{locale === "zh" ? "使用这张卡片" : "Use this card"}</button>
         </div>
       )}
       {phase === "receipt" && settled && (
