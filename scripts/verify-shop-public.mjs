@@ -16,7 +16,12 @@ const browser=await chromium.launch({headless:true});const result=[];
 try {
  for(const site of sources){
   const response=await fetch(site.url,{signal:AbortSignal.timeout(30000)});assert.ok(response.ok);const html=await response.text();assert.match(html,/NAVA App/);
-  const names=(await readdir(path.join(site.build,'assets'))).filter(n=>/^(App-|index-|home-drowsy-|supabaseClient-)/.test(n));
+  const allNames=await readdir(path.join(site.build,'assets'));
+  // Chunk names are not a stable contract: Vite may group the client with demo helpers.
+  const identities=[];
+  for(const name of allNames.filter(n=>n.endsWith('.js'))){if((await readFile(path.join(site.build,'assets',name),'utf8')).includes('wxteapvwagvhhtrjrbim'))identities.push(name);}
+  assert.ok(identities.length,'Canonical Supabase identity missing from build');
+  const names=[...new Set([...allNames.filter(n=>/^(App-|index-|home-drowsy-|supabaseClient-)/.test(n)),...identities])];
   const checked=[];
   for(const name of names){const r=await fetch(new URL(site.assets+name,site.url),{signal:AbortSignal.timeout(30000)});assert.ok(r.ok,name+' missing');const expected=hash(await readFile(path.join(site.build,'assets',name)));assert.equal(hash(Buffer.from(await r.arrayBuffer())),expected,site.id+' '+name);checked.push(name);}
   if(site.id==='pages'){const r=await fetch(new URL('source.json',site.url),{signal:AbortSignal.timeout(30000)});const provenance=await r.json();assert.equal(provenance.sourceCommit,process.env.NAVA_RELEASE_COMMIT);}
@@ -25,7 +30,7 @@ try {
    await page.goto(site.url+'?demo=1#tab=today&view=points-shop',{waitUntil:'domcontentloaded'});
    await expect(page.locator('input[autocomplete="username"]')).toBeVisible({timeout:40000});
    assert.equal(await page.locator('.points-shop-screen').count(),0,'Public demo must not bypass login');
-   const identity=await readFile(path.join(site.build,'assets',names.find(n=>n.startsWith('supabaseClient-'))),'utf8');assert.match(identity,/wxteapvwagvhhtrjrbim/);
+   assert.ok(identities.every(name=>checked.includes(name)),'Identity chunks must match the live site');
    assert.deepEqual(errors,[]);await page.screenshot({path:out+'/public-'+site.id+'-auth.png'});
    result.push({site:site.id,assetHashesMatched:checked,publicLoginRequired:true,supabaseProject:'wxteapvwagvhhtrjrbim'});
   }finally {await context.close();}

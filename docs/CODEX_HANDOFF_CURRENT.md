@@ -7,7 +7,7 @@
 聊天记录。新任务必须以代码、数据库边界和本文件为准，不要根据旧聊天画面
 推断进度。
 
-## 114. 冷启动分步新手引导（发布准备）
+## 114. 冷启动分步新手引导（双站 v185，当前版本）
 
 用户要求第一次记录必须是新手引导，并保留合适页面右上角三点菜单。本轮不重做六模块
 记录链路：在原journal表单上叠加小猫引导、字段高亮、逐步提示、跳过和三点菜单重开。
@@ -35,7 +35,18 @@ profiles.onboarding_answers.coldStart，目标同步profiles.goal；草稿账号
 390额外覆盖六模块指引、专注时长、缩小键盘视口、保存失败重试、问卷只最终写入一次。
 构建、TypeScript、ESLint、导航、隐私合同与生产认证合同通过；全仓verify仍在
 旧media-feedback:visual相机按钮选择器超时，日志完整保留，不记全仓通过。
-真实账号最终保存、真实AI/设备授权和物理iPhone未由隔离测试替代。发布收据待补。
+真实账号最终保存、真实AI/设备授权和物理iPhone未由隔离测试替代。
+
+功能源码 `65c6dcdd7828c1f2795151da48e66a90e5d4d60f` 干净提交推送后构建双站。
+Sites v185：`appgprj_6a5de710811c8191af8ce2681358d518~appgver_35b82793056c8191b2780cc83dc02dcf`；
+部署 `appgdep_6aba6230638081919b4b8785c579d029` succeeded。官方workflow Node命令完成
+构建、产物检查与源码推送；Windows打包反斜杠问题沿用官方prepare helper+Windows tar
+恢复，303文件归档被Sites接收。Pages镜像 `fb1b2453949079278fbebf726599b90dcffd52c2`，
+workflow `36424311757` success；201生成文件单向复制且逐文件哈希一致，旧产物未删除。
+两站各6项主资源哈希、公开登录门、demo拒绝和canonical Supabase身份通过，另核对
+两站共8项journal引导源码资源。`verify-shop-public.mjs`改为发现包含Supabase身份的
+实际chunk并核对线上哈希，不依赖构建器恰好输出supabaseClient文件名；没有放宽断言。
+发布证据：`cold-start/public-release.json`、`cold-start/public-guide-assets.json`。
 
 ## 113. 管理员全页商品编辑与双语目录（双站 v184，上轮版本）
 
