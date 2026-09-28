@@ -83,6 +83,8 @@ test("checkout requires a card choice and uses an animated printer cat", () => {
   assert.match(cards, /sunset-garden\.webp/);
   assert.match(checkout, /printer-cat\.webp/);
   assert.match(checkout, /role="radiogroup"/);
+  assert.match(checkout, /横向滑动选择积分卡卡面/);
+  assert.match(checkout, /onScroll=\{syncCardFromScroll\}/);
   assert.match(checkout, /使用这张卡/);
   assert.match(checkout, /onConfirmCard\(chosenCard\.id\)/);
   assert.match(checkout, /className="shop-receipt"/);
@@ -102,7 +104,9 @@ test("checkout requires a card choice and uses an animated printer cat", () => {
   assert.match(checkoutStyles, /@keyframes shop-cat-press/);
   assert.match(checkoutStyles, /@keyframes shop-cat-rest/);
   assert.match(checkoutStyles, /@keyframes shop-machine-button/);
-  assert.match(checkoutStyles, /\.shop-card-picker-list button \{[^}]*border-radius:\s*20px/);
+  assert.match(checkoutStyles, /\.shop-card-picker-list \{[^}]*overflow-x:\s*auto/);
+  assert.match(checkoutStyles, /\.shop-card-picker-list \{[^}]*scroll-snap-type:\s*x mandatory/);
+  assert.match(checkoutStyles, /\.shop-card-picker-list button \{[^}]*border-radius:\s*22px/);
   assert.match(checkoutStyles, /\.shop-complete-card/);
   assert.match(checkoutStyles, /\.shop-checkout-copy h1[^}]*clamp\(28px/);
   assert.match(checkoutStyles, /\.shop-receipt dl div[^}]*font-size:\s*14px/);

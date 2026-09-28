@@ -13029,6 +13029,10 @@ body::before {
 .points-shop-screen { display: block; background: linear-gradient(160deg,#e6f6f7 0%,#f3fafc 45%,#e3f3f8 100%); }
 .points-shop-screen--checkout { overflow: hidden; display: block; padding: 0; background: #dff3f2; }
 .points-shop-screen--checkout > .shop-checkout-experience { height: 100%; }
+.nava-app-stage > .phone-frame--option2.has-shop-checkout .points-shop-screen--checkout { padding: 0; }
+.nava-app-stage > .phone-frame--option2.has-shop-checkout .shop-checkout-experience {
+  padding-top: max(24px, calc(var(--nava-system-safe-top, 0px) + 15px), env(safe-area-inset-top));
+}
 .phone-frame.has-shop-checkout .bottom-nav { visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; transform: translateY(28px); }
 .points-shop-header { grid-template-columns: 44px minmax(0,1fr) auto; }
 .points-shop-screen button { cursor: pointer; }

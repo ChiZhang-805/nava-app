@@ -75,6 +75,33 @@ try {
   report.push({ mode: "desktop-controls", frontHeight, backHeight, drawerSafe });
   await desktopContext.close();
 
+  const desktopCheckoutContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 1440, height: 1080 }, deviceScaleFactor: 1 });
+  const desktopCheckout = await prepare(desktopCheckoutContext, "&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-cart");
+  await desktopCheckout.getByRole("button", { name: "确认兑换", exact: true }).click();
+  await expect(desktopCheckout.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "select");
+  const desktopCheckoutGeometry = await desktopCheckout.evaluate(() => {
+    const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
+    const screen = document.querySelector(".points-shop-screen--checkout")?.getBoundingClientRect();
+    const flow = document.querySelector(".shop-checkout-experience")?.getBoundingClientRect();
+    const cutout = document.querySelector(".nava-device-cutout")?.getBoundingClientRect();
+    const title = document.querySelector(".shop-checkout-copy")?.getBoundingClientRect();
+    return frame && screen && flow && cutout && title ? {
+      frame: frame.toJSON(), screen: screen.toJSON(), flow: flow.toJSON(), cutout: cutout.toJSON(), title: title.toJSON(),
+      screenPaddingTop: Number.parseFloat(getComputedStyle(document.querySelector(".points-shop-screen--checkout")).paddingTop),
+    } : null;
+  });
+  if (!desktopCheckoutGeometry
+    || Math.abs(desktopCheckoutGeometry.screen.top - desktopCheckoutGeometry.frame.top) > 1
+    || Math.abs(desktopCheckoutGeometry.flow.top - desktopCheckoutGeometry.frame.top) > 1
+    || Math.abs(desktopCheckoutGeometry.flow.height - desktopCheckoutGeometry.frame.height) > 1
+    || desktopCheckoutGeometry.screenPaddingTop !== 0
+    || desktopCheckoutGeometry.title.top < desktopCheckoutGeometry.cutout.bottom + 16) {
+    throw new Error(`Desktop checkout status lane is not covered by one continuous background ${JSON.stringify(desktopCheckoutGeometry)}`);
+  }
+  await desktopCheckout.screenshot({ path: path.join(outputDir, "checkout-select-desktop-seam.png"), fullPage: true });
+  report.push({ mode: "checkout-desktop-status-background", desktopCheckoutGeometry });
+  await desktopCheckoutContext.close();
+
   for (const viewport of [
     { width: 360, height: 740 },
     { width: 375, height: 812 },
@@ -209,17 +236,41 @@ try {
     await page.getByRole("button", { name: "确认兑换", exact: true }).click();
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "select");
     await expect(page.getByRole("radio")).toHaveCount(3);
-    await page.getByRole("radio", { name: /暖光陪伴卡/ }).click();
+    const cardTrack = page.locator(".shop-card-picker-list");
+    await cardTrack.evaluate((track) => {
+      const card = track.querySelector('[data-card-index="1"]');
+      if (!(card instanceof HTMLElement)) throw new Error("Second points card is missing");
+      track.scrollTo({ left: card.offsetLeft - (track.clientWidth - card.offsetWidth) / 2, behavior: "auto" });
+    });
+    await expect(page.getByRole("radio", { name: /暖光陪伴卡/ })).toHaveAttribute("aria-checked", "true");
     const pickerGeometry = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
       const flow = document.querySelector(".shop-checkout-experience")?.getBoundingClientRect();
-      const cards = [...document.querySelectorAll(".shop-card-picker-list button")].map((node) => node.getBoundingClientRect().toJSON());
+      const track = document.querySelector(".shop-card-picker-list");
+      const trackRect = track?.getBoundingClientRect();
+      const cards = [...document.querySelectorAll(".shop-card-picker-list button")].map((node) => ({
+        ...node.getBoundingClientRect().toJSON(),
+        selected: node.getAttribute("aria-checked") === "true",
+      }));
       const actions = document.querySelector(".shop-card-picker-actions")?.getBoundingClientRect();
       const imagesLoaded = [...document.querySelectorAll(".shop-card-picker-list img")].every((node) => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0);
-      return frame && flow && actions ? { frame: frame.toJSON(), flow: flow.toJSON(), cards, actions: actions.toJSON(), imagesLoaded, horizontalOverflow: flow.scrollWidth - flow.clientWidth } : null;
+      const trackStyle = track ? getComputedStyle(track) : null;
+      return frame && flow && trackRect && trackStyle && actions ? {
+        frame: frame.toJSON(), flow: flow.toJSON(), track: trackRect.toJSON(), cards, actions: actions.toJSON(), imagesLoaded,
+        flowHorizontalOverflow: flow.scrollWidth - flow.clientWidth,
+        trackHorizontalOverflow: track.scrollWidth - track.clientWidth,
+        overflowX: trackStyle.overflowX,
+        scrollSnapType: trackStyle.scrollSnapType,
+      } : null;
     });
-    if (!pickerGeometry || !pickerGeometry.imagesLoaded || pickerGeometry.cards.length !== 3 || pickerGeometry.horizontalOverflow > 1
-      || pickerGeometry.cards.some((card) => card.left < pickerGeometry.frame.left - 1 || card.right > pickerGeometry.frame.right + 1)
+    const selectedCard = pickerGeometry?.cards.find((card) => card.selected);
+    const hasPeekingCard = pickerGeometry?.cards.some((card) => !card.selected
+      && card.right > pickerGeometry.track.left && card.left < pickerGeometry.track.right
+      && (card.left < pickerGeometry.track.left || card.right > pickerGeometry.track.right));
+    if (!pickerGeometry || !pickerGeometry.imagesLoaded || pickerGeometry.cards.length !== 3 || pickerGeometry.flowHorizontalOverflow > 1
+      || pickerGeometry.trackHorizontalOverflow < 100 || pickerGeometry.overflowX !== "auto" || !pickerGeometry.scrollSnapType.includes("x")
+      || !selectedCard || Math.abs((selectedCard.left + selectedCard.right) / 2 - (pickerGeometry.track.left + pickerGeometry.track.right) / 2) > 5
+      || !hasPeekingCard
       || pickerGeometry.actions.bottom > pickerGeometry.frame.bottom + 1) {
       throw new Error(`${viewport.width}x${viewport.height}: points-card picker failed ${JSON.stringify(pickerGeometry)}`);
     }

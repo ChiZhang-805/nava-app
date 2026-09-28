@@ -1,4 +1,4 @@
-import { Check, Gift, PawPrint } from "lucide-react";
+import { Gift, PawPrint } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import printerCat from "../assets/shop/points-cards/printer-cat.webp";
 import { POINTS_CARD_SKINS, type PointsCardSkin, type PointsCardSkinId } from "../services/rewardCards";
@@ -54,6 +54,8 @@ export default function ShopCheckoutExperience({
   const [reducedMotion, setReducedMotion] = useState(() =>
     typeof window !== "undefined" && (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false));
   const actionRef = useRef<HTMLButtonElement>(null);
+  const cardTrackRef = useRef<HTMLDivElement>(null);
+  const cardScrollFrameRef = useRef<number | null>(null);
   const acceleratedTimeline = import.meta.env.DEV
     && new URLSearchParams(window.location.search).get("qaCheckoutTiming") === "fast";
 
@@ -101,6 +103,22 @@ export default function ShopCheckoutExperience({
   }, [availableCards, chosenCardId]);
 
   useEffect(() => {
+    if (phase !== "select") return;
+    const frame = window.requestAnimationFrame(() => {
+      const track = cardTrackRef.current;
+      const index = Math.max(0, availableCards.findIndex((card) => card.id === (selectedCardId ?? availableCards[0]?.id)));
+      const card = track?.querySelector<HTMLElement>(`[data-card-index="${index}"]`);
+      if (!track || !card) return;
+      track.scrollTo({ left: card.offsetLeft - (track.clientWidth - card.offsetWidth) / 2, behavior: "auto" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [availableCards, phase, selectedCardId]);
+
+  useEffect(() => () => {
+    if (cardScrollFrameRef.current !== null) window.cancelAnimationFrame(cardScrollFrameRef.current);
+  }, []);
+
+  useEffect(() => {
     if (phase !== "complete" && !(phase === "receipt" && settled)) return;
     const focus = window.setTimeout(() => actionRef.current?.focus({ preventScroll: true }), reducedMotion ? 0 : acceleratedTimeline ? 80 : 900);
     return () => window.clearTimeout(focus);
@@ -109,6 +127,7 @@ export default function ShopCheckoutExperience({
   const quantity = lines.reduce((sum, line) => sum + line.quantity, 0);
   const totalPoints = result?.totalPoints ?? expectedTotal;
   const chosenCard = availableCards.find((card) => card.id === chosenCardId) ?? availableCards[0] ?? POINTS_CARD_SKINS[0];
+  const chosenCardIndex = Math.max(0, availableCards.findIndex((card) => card.id === chosenCard.id));
   const orderCode = result?.orderId.slice(0, 8).toUpperCase() ?? "";
   const productLabel = lines.length === 1 && lines[0].quantity === 1
     ? lines[0].product.name
@@ -120,6 +139,31 @@ export default function ShopCheckoutExperience({
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date());
+
+  const centerCard = (index: number, behavior: ScrollBehavior = "smooth") => {
+    const track = cardTrackRef.current;
+    const card = track?.querySelector<HTMLElement>(`[data-card-index="${index}"]`);
+    if (!track || !card) return;
+    track.scrollTo({ left: card.offsetLeft - (track.clientWidth - card.offsetWidth) / 2, behavior });
+  };
+
+  const syncCardFromScroll = () => {
+    if (cardScrollFrameRef.current !== null) return;
+    cardScrollFrameRef.current = window.requestAnimationFrame(() => {
+      cardScrollFrameRef.current = null;
+      const track = cardTrackRef.current;
+      if (!track) return;
+      const center = track.getBoundingClientRect().left + track.clientWidth / 2;
+      const cards = [...track.querySelectorAll<HTMLElement>("[data-card-index]")];
+      const nearest = cards.reduce<{ index: number; distance: number }>((best, card, index) => {
+        const rect = card.getBoundingClientRect();
+        const distance = Math.abs(rect.left + rect.width / 2 - center);
+        return distance < best.distance ? { index, distance } : best;
+      }, { index: 0, distance: Number.POSITIVE_INFINITY });
+      const nextCard = availableCards[nearest.index];
+      if (nextCard && nextCard.id !== chosenCardId) setChosenCardId(nextCard.id);
+    });
+  };
 
   return (
     <section
@@ -166,21 +210,45 @@ export default function ShopCheckoutExperience({
             <span>{locale === "zh" ? "可用总积分" : "Total points"}</span>
             <strong>{availablePoints?.toLocaleString() ?? "—"}<small> XP</small></strong>
           </div>
-          <div className="shop-card-picker-list" role="radiogroup" aria-label={locale === "zh" ? "选择积分卡卡面" : "Choose a points card design"}>
-            {availableCards.map((card) => (
+          <div className="shop-card-picker-current" aria-live="polite">
+            <strong>{chosenCard[locale]}</strong>
+            <span>{locale === "zh" ? `第 ${chosenCardIndex + 1} 张，共 ${availableCards.length} 张` : `${chosenCardIndex + 1} of ${availableCards.length}`}</span>
+          </div>
+          <div className="shop-card-picker-carousel">
+            <div
+              ref={cardTrackRef}
+              className="shop-card-picker-list"
+              role="radiogroup"
+              aria-label={locale === "zh" ? "横向滑动选择积分卡卡面" : "Swipe horizontally to choose a points card design"}
+              onScroll={syncCardFromScroll}
+            >
+            {availableCards.map((card, index) => (
               <button
                 key={card.id}
                 type="button"
                 role="radio"
                 aria-checked={chosenCardId === card.id}
+                aria-label={`${card[locale]}，${locale === "zh" ? `第 ${index + 1} 张，共 ${availableCards.length} 张` : `${index + 1} of ${availableCards.length}`}`}
                 data-selected={chosenCardId === card.id ? "true" : "false"}
-                onClick={() => setChosenCardId(card.id)}
+                data-card-index={index}
+                data-card-offset={Math.max(-2, Math.min(2, index - chosenCardIndex))}
+                tabIndex={chosenCardId === card.id ? 0 : -1}
+                onClick={() => centerCard(index)}
+                onKeyDown={(event) => {
+                  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                  event.preventDefault();
+                  const next = Math.max(0, Math.min(availableCards.length - 1, index + (event.key === "ArrowRight" ? 1 : -1)));
+                  centerCard(next);
+                }}
               >
                 <img src={card.art} alt="" />
                 <span><small>NAVA POINTS</small><strong>{card[locale]}</strong><em>•• {card.lastFour}</em></span>
-                <i><Check size={15} strokeWidth={3} /></i>
               </button>
             ))}
+            </div>
+          </div>
+          <div className="shop-card-picker-pages" aria-label={locale === "zh" ? "积分卡位置" : "Points card position"}>
+            {availableCards.map((card, index) => <button key={card.id} type="button" aria-label={locale === "zh" ? `滑到${card.zh}` : `Go to ${card.en}`} aria-current={index === chosenCardIndex ? "true" : undefined} onClick={() => centerCard(index)} />)}
           </div>
         </div>
 
