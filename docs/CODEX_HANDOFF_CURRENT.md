@@ -7,7 +7,7 @@
 聊天记录。新任务必须以代码、数据库边界和本文件为准，不要根据旧聊天画面
 推断进度。
 
-## 107. 积分卡共享额度、卡片管理与新增卡面（后端已上线/前端待发布）
+## 107. 积分卡共享额度、卡片管理与新增卡面（双站 v178）
 
 卡片不再被解释为独立钱包。一个账号只有一份积分余额；无论使用哪张卡兑换商品，均从
 `nava_reward_points_balance()` 的同一余额扣除。三张默认卡为薄荷成长、暖光陪伴和星夜灵感，
@@ -29,7 +29,7 @@
 2026-09-28 获得明确授权后，仅把本迁移作为独立事务应用到 canonical Supabase，并单独登记
 `202609280001`。生产中另一条未授权的 `202609270001_journal_growth_rewards.sql` 仍保持未应用，
 没有被普通 `db push` 夹带。三个积分卡 RPC 与表的远端存在性已读回确认；`export-user-data`
-已单独部署为 ACTIVE v26，并纳入卡片解锁和偏好。此段记录时双站前端尚待从同一源码提交发布。
+已单独部署为 ACTIVE v26，并纳入卡片解锁和偏好。
 
 验证：10项商城合同、5项云端完整性、TypeScript、专项 ESLint、生产认证、Pages生产构建通过；
 本地 PostgreSQL合同通过。360×740、375×812、390×844、430×932走通默认卡、加卡确认、
@@ -37,6 +37,13 @@
 溢出。生产时序实测15229ms。证据位于
 `Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v2/app`。完整 `npm run verify` 仍停在
 历史 `media-feedback:visual` 对已移除“前置拍摄”入口的等待，与本轮代码无关。
+
+功能源码 `5b582b3c8cd066f99b63313cb12ff33c751bbc09` 已发布到 ChatGPT Sites v178；version ID
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_c8d9f3c2d1d48191b62178e6c8b52f02`，
+deployment `appgdep_6aba05d48e7c81919ca1f491fff06a58` succeeded。GitHub Pages 镜像提交
+`a1bfea70467367a538af8e7822d83cb38df7631f`，workflow `36385853017` success，`source.json`
+指向同一源码与 v178。两站公开入口、登录门、canonical Supabase 身份和各自6个关键资源哈希
+均通过；发布核验未登录账号、未创建订单、未消耗真实积分或解锁卡面。
 
 ## 106. 积分商城约15秒全屏结算故事（双站 v177）
 

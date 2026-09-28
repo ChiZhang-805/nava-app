@@ -12,6 +12,10 @@
 事务应用到 canonical Supabase；另一条未授权的 `202609270001` 未被夹带。远端表和 RPC 已
 读回确认，`export-user-data` 已单独部署为 ACTIVE v26。
 
+依赖这些 RPC 的前端已由同一源码 `5b582b3c8cd066f99b63313cb12ff33c751bbc09` 发布为
+ChatGPT Sites v178 和 GitHub Pages v178；公开核验只读取入口、来源回执与构建资源，未替
+用户创建真实解锁、订单或积分消费。
+
 # 管理员权限、商品发布与通知群发（2026-09-27，当前）
 
 管理员身份现在由 canonical Supabase 的 `nava_user_roles` 服务端表决定，不读取前端参数、
