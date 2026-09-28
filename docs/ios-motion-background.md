@@ -12,6 +12,9 @@
 390×844、430×932 及桌面模拟器已实跑；证据在
 `Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v2/app`。
 
+本轮功能源码 `32a95018eda97fa166de7a68b2cbc95603eb73c2` 已作为双站 v180 发布；Pages
+`source.json`、Sites保存版本及两站关键资源哈希均指向这次同一份构建。
+
 ## 积分卡页面响应式排版（2026-09-28）
 
 双站 v179 把商城标题栏的积分卡与购物车入口固定为横向透明图标，房屋入口同样无底；积分卡

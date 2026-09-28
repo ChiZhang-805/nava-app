@@ -28,6 +28,13 @@
 历史 `media-feedback:visual` 等待已移除的“前置拍摄”入口，与本轮商城代码无关。本轮没有修改
 数据库、Edge Function、账号、积分余额或真实订单。
 
+功能源码 `32a95018eda97fa166de7a68b2cbc95603eb73c2` 已发布为 ChatGPT Sites v180；version ID
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_f487c9a800948191966bcbfcc7dd87d0`，
+deployment `appgdep_6aba1cdefe8c8191a0854afab9155618` succeeded。GitHub Pages 镜像提交
+`90eb8fd1d46c99bc30e293daeaa26ebc9ecff1b4`，workflow `36394336380` success；
+`source.json` 指向同一源码和 v180。两站公开入口、真实登录门、canonical Supabase 身份及
+各自6个关键资源哈希均通过。
+
 ## 108. 积分卡页无底图标与一屏三卡排版（双站 v179）
 
 商城目录及其子页的右上角“积分卡／购物车”改为同一行横向排列；房屋、积分卡、购物车均为
