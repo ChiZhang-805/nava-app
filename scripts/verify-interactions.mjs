@@ -1670,9 +1670,10 @@ async function verifyPageSkeletons(browser, baseUrl, results, consoleErrors) {
   const page = await context.newPage();
   page.on("pageerror", (error) => consoleErrors.push(`skeleton page: ${error.message}`));
   await page.goto(`${baseUrl}?demo=1&qa=auth-skeleton`, { waitUntil: "networkidle" });
-  const authSkeleton = page.locator('[data-page-skeleton="auth"]');
-  await expect(authSkeleton).toBeVisible();
-  await expect(authSkeleton.locator(".nava-skeleton-block")).toHaveCount(8);
+  const authLoader = page.locator(".nava-loading-scene");
+  await expect(authLoader).toBeVisible();
+  await expect(authLoader.locator(".nava-loading-string")).toHaveCount(3);
+  await expect(authLoader.locator(".nava-loading-cat")).toBeVisible();
   const routes = [
     ["today", "#tab=today"],
     ["records", "#tab=record"],
@@ -1716,7 +1717,7 @@ async function verifyPageSkeletons(browser, baseUrl, results, consoleErrors) {
     }
   }
   await context.close();
-  results.push("登录、首页、六类记录详情、六个记录表单及其他主要应用页面的目标态加载骨架、扫光动画及无横向溢出");
+  results.push("登录页中央小猫摆锤加载动效，以及首页、六类记录详情、六个记录表单和其他主要应用页面的目标态加载骨架与无横向溢出");
 }
 
 async function verifyModuleCompletionRouting(browser, baseUrl, results, consoleErrors) {

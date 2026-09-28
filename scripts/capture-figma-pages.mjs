@@ -442,12 +442,12 @@ async function captureSkeletonViewport(browser, baseUrl, viewport, report, error
   await mkdir(path.join(outputDir, viewport.name), { recursive: true });
 
   await page.goto(`${baseUrl}?demo=1&qa=auth-skeleton`, { waitUntil: "networkidle" });
-  await expect(page.locator('[data-page-skeleton="auth"]')).toBeVisible();
-  const authVisual = await auditVisualGeometry(page, '[data-page-skeleton="auth"]');
+  await expect(page.locator('.nava-loading-scene')).toBeVisible();
+  const authVisual = await auditVisualGeometry(page, '.nava-loading-scene');
   if (authVisual.issues.length) throw new Error(`${viewport.name}/loading-auth failed visual geometry: ${JSON.stringify(authVisual.issues)}`);
   const authLayout = await page.locator(".auth-screen").evaluate((node) => ({ frameWidth: node.clientWidth, frameScrollWidth: node.scrollWidth, contentHeight: node.clientHeight, contentScrollHeight: node.scrollHeight }));
-  const authBlocks = await page.locator('[data-page-skeleton="auth"] .nava-skeleton-block').count();
-  report.push({ viewport: viewport.name, screen: "loading-auth", state: "loading", blocks: authBlocks, ...authLayout, ...authVisual.diagnostics });
+  const authElements = await page.locator('.nava-loading-string').count();
+  report.push({ viewport: viewport.name, screen: "loading-auth", state: "loading", animatedElements: authElements, ...authLayout, ...authVisual.diagnostics });
   await page.screenshot({ path: path.join(outputDir, viewport.name, "loading-auth.png") });
 
   for (const [variant, hash] of skeletonRoutes) {

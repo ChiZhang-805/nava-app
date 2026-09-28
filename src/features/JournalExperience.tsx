@@ -8,6 +8,7 @@ import { registerPreviewActivity } from '../services/previewEnvironment';
 import { startVoiceInput, type VoiceInputSession } from '../services/voice';
 import { requestScreenWakeLock, type ScreenWakeLockSentinel } from '../services/focusImmersion';
 import type { RecordModule } from './RecordsScreen';
+import NavaLoadingScene from '../components/NavaLoadingScene';
 import './journal-experience.css';
 
 const categoryMap:Record<RecordModule,JournalCategory>={mood:'mood',diet:'food',exercise:'sport',focus:'focus',sleep:'sleep',face:'face'};
@@ -92,6 +93,7 @@ export default function JournalExperience({user,module,locale,forceGuide=false,o
   return <section className="journal-experience" aria-label={locale==='zh'?'生活记录':'Journal'}>
     <iframe key={`${module}-${locale}-${attempt}-${forceGuide}`} ref={frame} aria-hidden={Boolean(firstFeedback)} tabIndex={firstFeedback?-1:undefined} src={`${import.meta.env.BASE_URL}journal/index.html?v=20260928-cold-start`} title={locale==='zh'?'记录与回顾':'Journal and recap'} allow="camera; microphone"/>
     {firstFeedback&&<div className="cold-feedback-layer"><FirstRecordFeedback record={firstFeedback} onClose={()=>setFirstFeedback(null)}/></div>}
-    {(!ready||error)&&<div className="journal-loading" role="status">{error||(locale==='zh'?'正在准备记录…':'Preparing your journal…')}{error&&<button onClick={()=>{setError('');setReady(false);setAttempt(x=>x+1);}}>{locale==='zh'?'重试':'Retry'}</button>}</div>}
+    {!ready&&!error&&<div className="journal-loading"><NavaLoadingScene /></div>}
+    {error&&<div className="journal-loading is-error" role="alert"><strong>{error}</strong><button onClick={()=>{setError('');setReady(false);setAttempt(x=>x+1);}}>{locale==='zh'?'重试':'Retry'}</button></div>}
   </section>;
 }

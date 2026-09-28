@@ -237,9 +237,12 @@ try {
     await expect(sideButtons.nth(1)).toBeHidden();
     await menuToggle.click();
     await expect(sideButtons.nth(1)).toBeVisible();
+    await expect(page.locator('[data-home-shortcut="shop"]')).toHaveCount(1);
+    await expect(page.locator('[data-home-shortcut="today-todos"]')).toHaveCount(1);
     await sideButtons.nth(4).click();
-    await expect(page.locator(".utility-drawer")).toBeVisible();
-    await page.locator(".drawer-home-edit").first().click();
+    await expect(page.locator("[data-today-todo-page]")).toBeVisible();
+    await expect(page.locator(".utility-drawer")).toHaveCount(0);
+    await openRoute(page, "tab=today&view=home-widgets");
     await expect(page.locator(".home-widget-editor")).toBeVisible();
     await expect(page.locator(".bottom-nav")).toHaveCount(0);
     await expect(page.locator(".home-widget-picker > button")).toHaveCount(6);

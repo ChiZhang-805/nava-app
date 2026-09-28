@@ -10,7 +10,7 @@ import type { OnboardingStatus } from "./services/onboarding";
 import { AuthProvider } from "./state/AuthProvider";
 import { useAuth } from "./state/authContext";
 import LoadingShell from "./components/LoadingShell";
-import PageSkeleton from "./components/PageSkeleton";
+import NavaLoadingScene from "./components/NavaLoadingScene";
 import DesktopDevicePreviewChrome from "./components/DesktopDevicePreviewChrome";
 
 const loadAuthenticatedApp = () => import("./App");
@@ -28,7 +28,7 @@ function LoadingScreen() {
 }
 
 function AuthLoadingScreen() {
-  return <main className="auth-screen auth-loading-screen"><PageSkeleton variant="auth" /></main>;
+  return <main className="auth-screen auth-loading-screen"><NavaLoadingScene /></main>;
 }
 
 function ConfigErrorScreen({ message }: { message: string }) {

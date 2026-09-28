@@ -630,7 +630,7 @@ function MobileShell({
 
   const focusImmersive = activeTab === "record" && recordModule === "focus" && (recordView === "immersive" || recordView === "interruption");
   const profileDetailsSubpage = activeTab === "today" && recordView === "profile-details";
-  const todayFullSubpage = activeTab === "today" && (profileDetailsSubpage || recordView === "home-widgets" || recordView === "admin-console" || recordView === "getting-started");
+  const todayFullSubpage = activeTab === "today" && (profileDetailsSubpage || recordView === "home-widgets" || recordView === "admin-console" || recordView === "getting-started" || recordView === "today-todos");
   const journalOpen = activeTab === "record" && Boolean(recordModule);
   const hideBottomNavigation = focusImmersive || todayFullSubpage || journalOpen;
 
@@ -708,7 +708,7 @@ function MobileShell({
               onOpenRecord={(module, view = null) => {
                 navigate("record", module ?? null, view);
               }}
-              onOpenUtility={() => setDrawerOpen(true)}
+              onStartTodoFocus={openTodoFocus}
               onViewChange={(view, replace = false) => navigate("today", null, view, replace)}
               onBack={(fallbackView) => navigateBack(normalizeShellRoute("today", null, fallbackView))}
               onChanged={markChanged}

@@ -3,6 +3,7 @@ import {
   Bell,
   CalendarDays,
   Check,
+  ListTodo,
   Plus,
   ScanFace,
   ShoppingCart,
@@ -10,7 +11,6 @@ import {
   TimerReset,
   Utensils,
   UsersRound,
-  Wrench,
   X,
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef, useState, type ComponentType, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
@@ -37,7 +37,7 @@ import {
   SleepMetricIcon,
   type HomeReferenceIconProps,
 } from "../components/HomeReferenceIcons";
-import { loadGrowthTotalPoints } from "../services/productivity";
+import { loadGrowthTotalPoints, type TodoItem } from "../services/productivity";
 import { getTodaySnapshot, getTrends } from "../services/records";
 import { buildHealthModuleProgress, healthModuleEntryView, healthModuleProgressLabel } from "../services/healthReportPresentation";
 import { buildHomeGuidance, homeDayPhase, isVerticalHomeSwipe } from "../services/homeExperience";
@@ -69,6 +69,7 @@ import ReminderSettingsPage from "./ReminderSettingsPage";
 import HomeWidgetEditor from "./HomeWidgetEditor";
 import PointsShopExperience from "./PointsShopExperience";
 import AdminConsole from "./AdminConsole";
+import TodayTodoPage from "./TodayTodoPage";
 
 const healthEntries: Array<{
   id: RecordModule;
@@ -138,7 +139,7 @@ export default function OptionTwoHome({
   deviceDate,
   view,
   onOpenRecord,
-  onOpenUtility,
+  onStartTodoFocus,
   onViewChange,
   onBack,
   onChanged,
@@ -152,7 +153,7 @@ export default function OptionTwoHome({
   deviceDate: string;
   view: string | null;
   onOpenRecord: (module?: RecordModule, view?: "editor" | null) => void;
-  onOpenUtility: () => void;
+  onStartTodoFocus: (todo: TodoItem) => void;
   onViewChange: (view: string | null, replace?: boolean) => void;
   onBack: (fallbackView: string | null) => void;
   onChanged: () => void;
@@ -317,6 +318,16 @@ export default function OptionTwoHome({
         setWidgetLayout(saveHomeWidgetLayout(user.id, homeWidgetLayoutFromIds(ids)));
         onBack(null);
       }}
+    />;
+  }
+
+  if (view === "today-todos") {
+    return <TodayTodoPage
+      user={user}
+      deviceDate={deviceDate}
+      onBack={() => onBack(null)}
+      onChanged={onChanged}
+      onStartFocus={onStartTodoFocus}
     />;
   }
 
@@ -582,8 +593,8 @@ export default function OptionTwoHome({
         </button>
         <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("calendar"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "健康月历" : "Health calendar"} title={locale === "zh" ? "健康月历" : "Health calendar"}><CalendarDays size={23} /></button>
         <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("profile-details"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "详细资料设置" : "Detailed profile"} title={locale === "zh" ? "详细资料设置" : "Detailed profile"}><UsersRound size={24} /></button>
-        <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("points-shop"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "积分商城" : "Points store"} title={locale === "zh" ? "积分商城" : "Points store"}><ShoppingCart size={22} /></button>
-        <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onOpenUtility(); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "功能导航" : "Utilities"} title={locale === "zh" ? "功能导航" : "Utilities"}><Wrench size={22} /></button>
+        <button className="option-two-side-shortcut" data-home-shortcut="shop" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("points-shop"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "积分商城" : "Points store"} title={locale === "zh" ? "积分商城" : "Points store"}><ShoppingCart size={22} /></button>
+        <button className="option-two-side-shortcut" data-home-shortcut="today-todos" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("today-todos"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "今日待办" : "Today's to-do"} title={locale === "zh" ? "今日待办" : "Today's to-do"}><ListTodo size={23} /></button>
         <button className="option-two-side-shortcut option-two-side-notifications" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("notifications"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "消息通知" : "Notifications"} title={locale === "zh" ? "消息通知" : "Notifications"}>
           <Bell size={22} />
           {notifications.some((item) => !item.readAt) && <span className="option-two-menu-unread" aria-hidden="true" />}

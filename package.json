@@ -58,6 +58,7 @@
     "camera:visual": "node scripts/verify-camera-layout.mjs",
     "home-widgets:test": "node --experimental-strip-types --test tests/home-widgets.test.ts tests/session-maintenance.test.ts",
     "home-widgets:visual": "node --experimental-strip-types scripts/verify-home-widgets-ui.mjs",
+    "today-todos:visual": "node scripts/verify-todos-loading-ui.mjs",
     "calendar:visual": "node scripts/verify-calendar-year-ui.mjs",
     "weekly-report:visual": "node scripts/verify-weekly-readability-ui.mjs",
     "notification:test": "node --experimental-strip-types --test tests/notifications.test.ts tests/independent-reminders.test.ts tests/reminder-permission.test.ts",
