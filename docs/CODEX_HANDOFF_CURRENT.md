@@ -7,7 +7,7 @@
 聊天记录。新任务必须以代码、数据库边界和本文件为准，不要根据旧聊天画面
 推断进度。
 
-## 113. 管理员全页商品编辑与双语目录（本轮实现，发布收据待补）
+## 113. 管理员全页商品编辑与双语目录（双站 v184，当前版本）
 
 管理员首页删除重复的“选择管理功能”介绍卡，首页图标无底，三项入口图标32px、标题20px，
 菜单与表单输入16px。通知表单随可用屏幕伸展，内容区填充余下空间；短屏和键盘缩小视口时
@@ -30,6 +30,15 @@
 生产认证和共享后端合同通过。证据在 `Q:/NAVA-Workspace/Build/TestRuns/admin-catalog`、
 `admin-console-navigation` 与 `points-shop-checkout-v3/app`；物理iPhone及真实账号写入未替代用户验收。
 全仓verify已实际执行，仍在旧 `media-feedback:visual` 相机按钮选择器超时，不能记作全通过。
+
+功能源码 `4073842eb29d225167f06908a2f5b2570aa036fe` 干净提交并推送后构建两站。
+Sites v184：`appgprj_6a5de710811c8191af8ce2681358d518~appgver_cfd85b3ca87481918ce3d7b391515a6d`；
+部署 `appgdep_6aba546c7f9c8191a8cf4a28ba5da250` succeeded。官方workflow构建/产物检查/源码推送
+成功，打包仍受Windows反斜杠交给Bash影响；使用同包官方prepare helper与Windows tar完成，
+307文件经Sites接收。Pages镜像 `4a90b33c57462d6b1b5683d097db7c3a0188af41`，workflow
+`36418112011` success；207文件单向复制且逐文件哈希一致，旧产物保留。
+两站公开登录门、公开demo拒绝、canonical Supabase身份和各6项关键资源哈希均通过，
+Pages来源收据为同一功能提交。线上回执复制到 `admin-catalog/public-release.json`。
 
 ## 112. 独立滑动加卡页（双站 v183，上轮版本）
 
