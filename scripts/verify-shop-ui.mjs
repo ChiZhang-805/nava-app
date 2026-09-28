@@ -254,6 +254,8 @@ try {
       }));
       const actions = document.querySelector(".shop-card-picker-actions")?.getBoundingClientRect();
       const actionCount = document.querySelectorAll(".shop-card-picker-actions button").length;
+      const pagerCount = document.querySelectorAll(".shop-card-picker-pages button").length;
+      const activePagerCount = document.querySelectorAll('.shop-card-picker-pages button[aria-current="true"]').length;
       const removedCopyVisible = [...document.querySelectorAll(".shop-checkout-experience *")]
         .some((node) => ["可用总积分", "挑一张今天想带上的卡面"].includes(node.textContent?.trim() ?? ""));
       const imagesLoaded = [...document.querySelectorAll(".shop-card-picker-list img")].every((node) => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0);
@@ -265,6 +267,8 @@ try {
         overflowX: trackStyle.overflowX,
         scrollSnapType: trackStyle.scrollSnapType,
         actionCount,
+        pagerCount,
+        activePagerCount,
         removedCopyVisible,
       } : null;
     });
@@ -275,14 +279,42 @@ try {
     if (!pickerGeometry || !pickerGeometry.imagesLoaded || pickerGeometry.cards.length !== 3 || pickerGeometry.flowHorizontalOverflow > 1
       || pickerGeometry.trackHorizontalOverflow < 100 || pickerGeometry.overflowX !== "auto" || !pickerGeometry.scrollSnapType.includes("x")
       || !selectedCard || Math.abs((selectedCard.left + selectedCard.right) / 2 - (pickerGeometry.track.left + pickerGeometry.track.right) / 2) > 5
-      || selectedCard.width / selectedCard.height < .6 || selectedCard.width / selectedCard.height > .68
+      || selectedCard.width / selectedCard.height < .56 || selectedCard.width / selectedCard.height > .64
       || !hasPeekingCard
-      || pickerGeometry.actionCount !== 1 || pickerGeometry.removedCopyVisible
+      || pickerGeometry.actionCount !== 1 || pickerGeometry.pagerCount !== 3 || pickerGeometry.activePagerCount !== 1 || pickerGeometry.removedCopyVisible
       || pickerGeometry.actions.bottom > pickerGeometry.frame.bottom + 1) {
       throw new Error(`${viewport.width}x${viewport.height}: points-card picker failed ${JSON.stringify(pickerGeometry)}`);
     }
     await page.screenshot({ path: path.join(outputDir, `checkout-select-${viewport.width}x${viewport.height}.png`), fullPage: true });
     await page.getByRole("button", { name: "使用这张卡片", exact: true }).click();
+    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "confirm");
+    await expect(page.getByRole("heading", { name: "确认订单", exact: true })).toBeVisible();
+    await page.waitForTimeout(700);
+    const confirmGeometry = await page.evaluate(() => {
+      const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
+      const panel = document.querySelector(".shop-order-confirmation")?.getBoundingClientRect();
+      const card = document.querySelector(".shop-order-card")?.getBoundingClientRect();
+      const details = document.querySelector(".shop-order-details")?.getBoundingClientRect();
+      const action = document.querySelector(".shop-checkout-primary")?.getBoundingClientRect();
+      const cardImage = document.querySelector(".shop-order-card img");
+      const copy = document.querySelector(".shop-order-details")?.textContent ?? "";
+      return frame && panel && card && details && action && cardImage instanceof HTMLImageElement ? {
+        frame: frame.toJSON(), panel: panel.toJSON(), card: card.toJSON(), details: details.toJSON(), action: action.toJSON(),
+        ratio: card.width / card.height,
+        cardLoaded: cardImage.complete && cardImage.naturalWidth > 0,
+        hasProduct: copy.includes("NAVA 测试手账（仅本地）"),
+        hasPoints: copy.includes("XP"),
+        hasCard: copy.includes("暖光陪伴卡"),
+      } : null;
+    });
+    if (!confirmGeometry || !confirmGeometry.cardLoaded || !confirmGeometry.hasProduct || !confirmGeometry.hasPoints || !confirmGeometry.hasCard
+      || confirmGeometry.ratio < 1.55 || confirmGeometry.ratio > 1.7
+      || confirmGeometry.panel.left < confirmGeometry.frame.left - 1 || confirmGeometry.panel.right > confirmGeometry.frame.right + 1
+      || confirmGeometry.action.bottom > confirmGeometry.frame.bottom + 1) {
+      throw new Error(`${viewport.width}x${viewport.height}: confirm-order scene failed ${JSON.stringify(confirmGeometry)}`);
+    }
+    await page.screenshot({ path: path.join(outputDir, `checkout-confirm-${viewport.width}x${viewport.height}.png`), fullPage: true });
+    await page.getByRole("button", { name: "继续", exact: true }).click();
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "checking");
     await page.screenshot({ path: path.join(outputDir, `checkout-checking-${viewport.width}x${viewport.height}.png`), fullPage: true });
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "card", { timeout: 2500 });
@@ -307,8 +339,32 @@ try {
       throw new Error(`${viewport.width}x${viewport.height}: checkout card is not full-screen or legible ${JSON.stringify(cardGeometry)}`);
     }
     await page.screenshot({ path: path.join(outputDir, `checkout-card-${viewport.width}x${viewport.height}.png`), fullPage: true });
-    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "printing", { timeout: 3000 });
-    await page.waitForTimeout(1050);
+    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "placed", { timeout: 3000 });
+    await expect(page.getByRole("heading", { name: "订单已完成", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "继续", exact: true })).toBeVisible();
+    await page.waitForTimeout(700);
+    const placedGeometry = await page.evaluate(() => {
+      const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
+      const terminal = document.querySelector(".shop-payment-terminal")?.getBoundingClientRect();
+      const summary = document.querySelector(".shop-terminal-summary")?.getBoundingClientRect();
+      const action = document.querySelector(".shop-checkout-primary")?.getBoundingClientRect();
+      const copy = document.querySelector(".shop-terminal-summary")?.textContent ?? "";
+      return frame && terminal && summary && action ? {
+        frame: frame.toJSON(), terminal: terminal.toJSON(), summary: summary.toJSON(), action: action.toJSON(),
+        hasProduct: copy.includes("NAVA 测试手账（仅本地）"),
+        hasPoints: copy.includes("XP"),
+      } : null;
+    });
+    if (!placedGeometry || !placedGeometry.hasProduct || !placedGeometry.hasPoints
+      || placedGeometry.terminal.left < placedGeometry.frame.left - 1 || placedGeometry.terminal.right > placedGeometry.frame.right + 1
+      || placedGeometry.summary.left < placedGeometry.frame.left - 1 || placedGeometry.summary.right > placedGeometry.frame.right + 1
+      || placedGeometry.action.bottom > placedGeometry.frame.bottom + 1) {
+      throw new Error(`${viewport.width}x${viewport.height}: order-placed scene failed ${JSON.stringify(placedGeometry)}`);
+    }
+    await page.screenshot({ path: path.join(outputDir, `checkout-placed-${viewport.width}x${viewport.height}.png`), fullPage: true });
+    await page.getByRole("button", { name: "继续", exact: true }).click();
+    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "printing");
+    await page.waitForTimeout(400);
     const pressAnimation = await page.evaluate(() => {
       const cat = document.querySelector(".shop-checkout-cat");
       const button = document.querySelector(".shop-printer-button");
@@ -324,7 +380,7 @@ try {
     }
     await page.screenshot({ path: path.join(outputDir, `checkout-printing-${viewport.width}x${viewport.height}.png`), fullPage: true });
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "receipt", { timeout: 5000 });
-    await expect(page.getByText("NAVA 测试手账（仅本地）", { exact: true })).toBeVisible();
+    await expect(page.locator(".shop-receipt").getByText("NAVA 测试手账（仅本地）", { exact: true })).toBeVisible();
     await page.waitForTimeout(800);
     const receiptGeometry = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
@@ -361,31 +417,8 @@ try {
       throw new Error(`${viewport.width}x${viewport.height}: checkout receipt escaped the phone ${JSON.stringify(receiptGeometry)}`);
     }
     await page.screenshot({ path: path.join(outputDir, `checkout-receipt-${viewport.width}x${viewport.height}.png`), fullPage: true });
-    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete", { timeout: 4000 });
     await expect(page.getByRole("button", { name: "完成", exact: true })).toBeVisible();
-    await page.waitForTimeout(850);
-    const completionGeometry = await page.evaluate(() => {
-      const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
-      const card = document.querySelector(".shop-complete-card")?.getBoundingClientRect();
-      const cardImage = document.querySelector(".shop-complete-card img");
-      const gift = document.querySelector(".shop-checkout-gift")?.getBoundingClientRect();
-      const actions = document.querySelector(".shop-checkout-actions")?.getBoundingClientRect();
-      return frame && card && gift && actions && cardImage instanceof HTMLImageElement ? {
-        frame: frame.toJSON(), card: card.toJSON(), gift: gift.toJSON(), actions: actions.toJSON(),
-        cardLoaded: cardImage.complete && cardImage.naturalWidth > 0,
-      } : null;
-    });
-    if (!completionGeometry || !completionGeometry.cardLoaded
-      || completionGeometry.card.left < completionGeometry.frame.left - 1 || completionGeometry.card.right > completionGeometry.frame.right + 1
-      || completionGeometry.actions.left < completionGeometry.frame.left - 1 || completionGeometry.actions.right > completionGeometry.frame.right + 1
-      || completionGeometry.actions.bottom > completionGeometry.frame.bottom + 1) {
-      throw new Error(`${viewport.width}x${viewport.height}: completion scene escaped or reloaded its cat ${JSON.stringify(completionGeometry)}`);
-    }
-    await page.screenshot({ path: path.join(outputDir, `checkout-complete-${viewport.width}x${viewport.height}.png`), fullPage: true });
-    await page.getByRole("button", { name: "查看兑换凭证", exact: true }).click();
-    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "receipt");
-    await expect(page.getByRole("button", { name: "返回完成页", exact: true })).toBeVisible();
-    report.push({ mode: "checkout-animation", viewport, pickerGeometry, cardGeometry, pressAnimation, receiptGeometry, completionGeometry });
+    report.push({ mode: "checkout-animation", viewport, pickerGeometry, confirmGeometry, cardGeometry, placedGeometry, pressAnimation, receiptGeometry });
     await context.close();
   }
 
@@ -393,7 +426,9 @@ try {
   const reduced = await prepare(reducedContext, "&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-cart");
   await reduced.getByRole("button", { name: "确认兑换", exact: true }).click();
   await reduced.getByRole("button", { name: "使用这张卡片", exact: true }).click();
-  await expect(reduced.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete", { timeout: 2500 });
+  await expect(reduced.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "confirm");
+  await reduced.getByRole("button", { name: "继续", exact: true }).click();
+  await expect(reduced.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "placed", { timeout: 2500 });
   await expect(reduced.locator(".shop-checkout-experience")).toHaveAttribute("data-reduced-motion", "true");
   await reduced.screenshot({ path: path.join(outputDir, "checkout-reduced-motion-390x844.png"), fullPage: true });
   report.push({ mode: "checkout-reduced-motion", viewport: { width: 390, height: 844 } });
@@ -402,12 +437,16 @@ try {
   const timingContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   const timingPage = await prepare(timingContext, "&qa=shop-checkout#tab=today&view=points-shop-cart");
   await timingPage.getByRole("button", { name: "确认兑换", exact: true }).click();
-  const startedAt = Date.now();
   await timingPage.getByRole("button", { name: "使用这张卡片", exact: true }).click();
+  await expect(timingPage.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "confirm");
+  const startedAt = Date.now();
+  await timingPage.getByRole("button", { name: "继续", exact: true }).click();
   await expect(timingPage.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-timeline", "production");
-  await expect(timingPage.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete", { timeout: 18000 });
+  await expect(timingPage.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "placed", { timeout: 6000 });
+  await timingPage.getByRole("button", { name: "继续", exact: true }).click();
+  await expect(timingPage.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "receipt", { timeout: 6500 });
   const elapsedMs = Date.now() - startedAt;
-  if (elapsedMs < 14600 || elapsedMs > 16800) throw new Error(`Production checkout story did not settle near 15 seconds: ${elapsedMs}ms`);
+  if (elapsedMs < 7800 || elapsedMs > 10500) throw new Error(`Production checkout animations did not preserve the reference pace: ${elapsedMs}ms`);
   await timingPage.screenshot({ path: path.join(outputDir, "checkout-production-timing-390x844.png"), fullPage: true });
   report.push({ mode: "checkout-production-timing", viewport: { width: 390, height: 844 }, elapsedMs });
   await timingContext.close();
@@ -447,8 +486,10 @@ try {
     await page.goto(`${baseUrl}?demo=1&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-cart`, { waitUntil: "networkidle" });
     await page.getByRole("button", { name: "确认兑换", exact: true }).click();
     await page.getByRole("button", { name: "使用这张卡片", exact: true }).click();
-    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete", { timeout: 2500 });
-    await page.getByRole("button", { name: "查看兑换凭证", exact: true }).click();
+    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "confirm");
+    await page.getByRole("button", { name: "继续", exact: true }).click();
+    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "placed", { timeout: 2500 });
+    await page.getByRole("button", { name: "继续", exact: true }).click();
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "receipt");
     await page.waitForTimeout(80);
     const receipt = await page.evaluate(() => {
@@ -472,29 +513,7 @@ try {
       throw new Error(`${device.label}: receipt layout failed ${JSON.stringify(receipt)}`);
     }
     await page.screenshot({ path: path.join(deviceMatrixDir, `${device.id}-receipt.png`), fullPage: true });
-    await page.getByRole("button", { name: "返回完成页", exact: true }).click();
-    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete");
-    const completion = await page.evaluate(() => {
-      const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
-      const flow = document.querySelector(".shop-checkout-experience")?.getBoundingClientRect();
-      const card = document.querySelector(".shop-complete-card")?.getBoundingClientRect();
-      const gift = document.querySelector(".shop-checkout-gift")?.getBoundingClientRect();
-      const actions = document.querySelector(".shop-checkout-actions")?.getBoundingClientRect();
-      return frame && flow && card && gift && actions ? {
-        frame: frame.toJSON(), card: card.toJSON(), gift: gift.toJSON(), actions: actions.toJSON(),
-        horizontalOverflow: flow.scrollWidth - flow.clientWidth,
-        giftOpacity: Number.parseFloat(getComputedStyle(document.querySelector(".shop-checkout-gift")).opacity),
-        actionsOpacity: Number.parseFloat(getComputedStyle(document.querySelector(".shop-checkout-actions")).opacity),
-      } : null;
-    });
-    if (!completion || completion.horizontalOverflow > 1 || completion.giftOpacity < .99 || completion.actionsOpacity < .99
-      || completion.card.left < completion.frame.left - 1 || completion.card.right > completion.frame.right + 1
-      || completion.actions.left < completion.frame.left - 1 || completion.actions.right > completion.frame.right + 1
-      || completion.actions.bottom > completion.frame.bottom + 1) {
-      throw new Error(`${device.label}: completion layout failed ${JSON.stringify(completion)}`);
-    }
-    await page.screenshot({ path: path.join(deviceMatrixDir, `${device.id}-complete.png`), fullPage: true });
-    report.push({ mode: "checkout-device-matrix", device: device.label, deviceId: device.id, viewport, cardManager, receipt, completion });
+    report.push({ mode: "checkout-device-matrix", device: device.label, deviceId: device.id, viewport, cardManager, receipt });
     await context.close();
   }
   await writeFile(path.join(outputDir, "report.json"), JSON.stringify(report, null, 2));
