@@ -8,6 +8,7 @@ const home = readFileSync(new URL("../src/features/OptionTwoHome.tsx", import.me
 const styles = readFileSync(new URL("../src/styles/figma-v2.css", import.meta.url), "utf8");
 const service = readFileSync(new URL("../src/services/rewardShop.ts", import.meta.url), "utf8");
 const checkout = readFileSync(new URL("../src/components/ShopCheckoutExperience.tsx", import.meta.url), "utf8");
+const terminal = readFileSync(new URL("../src/components/ShopPaymentTerminal.tsx", import.meta.url), "utf8");
 const checkoutStyles = readFileSync(new URL("../src/components/shop-checkout-experience.css", import.meta.url), "utf8");
 const cardMigration = readFileSync(new URL("../supabase/migrations/202609280001_reward_card_skins.sql", import.meta.url), "utf8");
 const cards = readFileSync(new URL("../src/services/rewardCards.ts", import.meta.url), "utf8");
@@ -100,7 +101,7 @@ test("checkout requires a card choice and uses an animated printer cat", () => {
   assert.match(checkout, /setPhase\("checking"\);\s*onConfirmCard\(chosenCard\.id\)/);
   assert.match(checkout, /onConfirmCard\(chosenCard\.id\)/);
   assert.match(checkout, /className="shop-receipt"/);
-  assert.match(checkout, /className="shop-payment-terminal"/);
+  assert.match(terminal, /className="shop-payment-terminal"/);
   assert.match(checkout, /className="shop-receipt-printer"/);
   assert.match(checkout, /className="shop-checkout-cat"/);
   assert.doesNotMatch(checkout, /animatedSrc=/);
@@ -125,7 +126,7 @@ test("checkout requires a card choice and uses an animated printer cat", () => {
   assert.match(checkoutStyles, /\.shop-card-contactless/);
   assert.doesNotMatch(checkoutStyles, /\.shop-complete-card/);
   assert.match(checkoutStyles, /\.shop-checkout-copy h1[^}]*clamp\(28px/);
-  assert.match(checkoutStyles, /\.shop-receipt dl div[^}]*font-size:\s*14px/);
+  assert.match(checkoutStyles, /\.shop-receipt dl div[^}]*font-size:\s*16px/);
   assert.match(checkoutStyles, /@media \(prefers-reduced-motion: reduce\)/);
 });
 
@@ -144,4 +145,17 @@ test("points-card skins share one balance and additional cards cost ten points a
   assert.match(shop, /共享总额度/);
   assert.match(shop, /所有卡片共用这一份积分/);
   assert.match(shop, /10 XP 添加/);
+});
+
+test("confirmation and receipt are aligned, legible and free of explanatory subtitles", () => {
+  assert.doesNotMatch(checkout, /确认卡片、商品和需要使用的积分|兑换已经确认，接下来打印凭证|凭证出来啦/);
+  assert.match(checkout, /<time dateTime=\{checkoutTime.toISOString\(\)\}/);
+  assert.match(checkoutStyles, /\.shop-order-card \{[^}]*width: min\(100%, 356px\)[^}]*transform: none/);
+  assert.match(checkoutStyles, /\.shop-order-details \{[^}]*width: min\(100%, 356px\)/);
+  assert.match(checkoutStyles, /\.shop-order-details div \{[^}]*font-size: 16px/);
+  assert.doesNotMatch(checkoutStyles, /rotate\(-1\.[25]deg\)/);
+  assert.match(checkoutStyles, /@keyframes shop-paper-feed/);
+  assert.match(checkout, /className="shop-receipt-feed"/);
+  assert.match(terminal, /matrix\(\.9 \.38 -\.70 \.43/);
+  assert.match(checkoutStyles, /shop-terminal-approve .55s ease 2.2s/);
 });

@@ -86,6 +86,7 @@
     "shop:test": "node --experimental-strip-types --test tests/reward-shop-contract.test.ts tests/ai-conversation-greeting.test.ts",
     "shop:db:test": "node scripts/verify-reward-cards.mjs",
     "shop:visual": "node scripts/verify-shop-ui.mjs",
+    "shop:motion": "node scripts/verify-checkout-motion.mjs",
     "ai:prompt:test": "node --experimental-strip-types --test tests/ai-chat-prompt.test.ts tests/ai-context-router.test.ts tests/ai-review-access.test.ts tests/chat-attachments.test.ts",
     "ai:compact:test": "node --experimental-strip-types --test tests/ai-compact-summary.test.ts",
     "structured:test": "node --experimental-strip-types --test tests/structured-entry.test.ts tests/focus-contract.test.ts tests/focus-provider.test.ts",

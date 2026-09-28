@@ -1,0 +1,23 @@
+<!doctype html>
+<html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Local checkout test fixture</title>
+<style>html,body,#root{height:100%;margin:0}*{box-sizing:border-box}body{font-family:system-ui,sans-serif}</style></head>
+<body><div id="root"></div><script type="module">
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import Checkout from '/src/components/ShopCheckoutExperience.tsx';
+import {POINTS_CARD_SKINS} from '/src/services/rewardCards.ts';
+const params = new URLSearchParams(location.search);
+const locale = params.get('locale') === 'en' ? 'en' : 'zh';
+const multiple = params.has('multiple');
+const lines = multiple ? [
+  {product:{id:'a',name:'Botanical notebook and matching stationery collection',pointPrice:20},quantity:2},
+  {product:{id:'b',name:'NAVA 温暖陪伴陶瓷杯与手写卡片套装',pointPrice:40},quantity:1},
+] : [{product:{id:'a',name:locale==='zh'?'薄荷专注文具组':'Mint stationery set',pointPrice:10},quantity:1}];
+function Fixture(){
+  const [started,start]=React.useState(false);
+  const [result,done]=React.useState(null);
+  return React.createElement(Checkout, {locale,lines,expectedTotal:multiple?80:10,availablePoints:340,result,checkoutStarted:started,selectedCardId:'mint-growth',availableCards:POINTS_CARD_SKINS.slice(0,3),
+    onConfirmCard:()=>{start(true);setTimeout(()=>done({orderId:'local-order',totalPoints:multiple?80:10,balance:multiple?260:330,replayed:false}),520)},onCancel:()=>{},onDone:()=>{window.fixtureFinished=true}});
+}
+createRoot(document.getElementById('root')).render(React.createElement(Fixture));
+</script></body></html>

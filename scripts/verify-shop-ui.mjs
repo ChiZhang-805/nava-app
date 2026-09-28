@@ -6,7 +6,7 @@ import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v2/app";
+const outputDir = "Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v3/app";
 const port = 5213;
 const demoUserId = "00000000-0000-4000-8000-000000000001";
 const report = [];
@@ -243,6 +243,7 @@ try {
       track.scrollTo({ left: card.offsetLeft - (track.clientWidth - card.offsetWidth) / 2, behavior: "auto" });
     });
     await expect(page.getByRole("radio", { name: /暖光陪伴卡/ })).toHaveAttribute("aria-checked", "true");
+    await page.waitForTimeout(450);
     const pickerGeometry = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
       const flow = document.querySelector(".shop-checkout-experience")?.getBoundingClientRect();
@@ -301,13 +302,20 @@ try {
       return frame && panel && card && details && action && cardImage instanceof HTMLImageElement ? {
         frame: frame.toJSON(), panel: panel.toJSON(), card: card.toJSON(), details: details.toJSON(), action: action.toJSON(),
         ratio: card.width / card.height,
+        cardTransform: getComputedStyle(document.querySelector(".shop-order-card")).transform,
+        fontSize: parseFloat(getComputedStyle(document.querySelector(".shop-order-details div")).fontSize),
+        timestamp: document.querySelector(".shop-order-details time")?.getAttribute("datetime"),
+        copyCount: document.querySelectorAll(".shop-checkout-copy p").length,
         cardLoaded: cardImage.complete && cardImage.naturalWidth > 0,
         hasProduct: copy.includes("NAVA 测试手账（仅本地）"),
-        hasPoints: copy.includes("XP"),
+        hasPoints: copy.includes("120 XP"),
         hasCard: copy.includes("暖光陪伴卡"),
       } : null;
     });
     if (!confirmGeometry || !confirmGeometry.cardLoaded || !confirmGeometry.hasProduct || !confirmGeometry.hasPoints || !confirmGeometry.hasCard
+      || Math.abs(confirmGeometry.card.width - confirmGeometry.details.width) > 1 || confirmGeometry.cardTransform !== "none"
+      || confirmGeometry.fontSize < 16 || !confirmGeometry.timestamp || confirmGeometry.copyCount !== 0
+      || confirmGeometry.details.bottom > confirmGeometry.action.top - 10
       || confirmGeometry.ratio < 1.55 || confirmGeometry.ratio > 1.7
       || confirmGeometry.panel.left < confirmGeometry.frame.left - 1 || confirmGeometry.panel.right > confirmGeometry.frame.right + 1
       || confirmGeometry.action.bottom > confirmGeometry.frame.bottom + 1) {
@@ -323,19 +331,19 @@ try {
       const screen = document.querySelector(".points-shop-screen--checkout")?.getBoundingClientRect();
       const flow = document.querySelector(".shop-checkout-experience")?.getBoundingClientRect();
       const card = document.querySelector(".shop-points-card")?.getBoundingClientRect();
-      const cardImage = document.querySelector(".shop-points-card img");
+      const cardImage = document.querySelector(".shop-points-card image");
       const title = document.querySelector(".shop-checkout-copy h1");
       const copy = document.querySelector(".shop-checkout-copy p");
-      if (!screen || !flow || !card || !(cardImage instanceof HTMLImageElement) || !title || !copy) return null;
+      if (!screen || !flow || !card || !(cardImage instanceof SVGImageElement) || !title) return null;
       return {
         screen: screen.toJSON(), flow: flow.toJSON(), card: card.toJSON(),
-        cardLoaded: cardImage.complete && cardImage.naturalWidth > 0,
+        cardLoaded: Boolean(cardImage.href.baseVal),
         titleFont: Number.parseFloat(getComputedStyle(title).fontSize),
-        copyFont: Number.parseFloat(getComputedStyle(copy).fontSize),
+        copyCount: copy ? 1 : 0,
       };
     });
     if (!cardGeometry || Math.abs(cardGeometry.screen.width - cardGeometry.flow.width) > 1 || Math.abs(cardGeometry.screen.height - cardGeometry.flow.height) > 1
-      || !cardGeometry.cardLoaded || cardGeometry.titleFont < 27 || cardGeometry.copyFont < 14) {
+      || !cardGeometry.cardLoaded || cardGeometry.titleFont < 27 || cardGeometry.copyCount !== 0) {
       throw new Error(`${viewport.width}x${viewport.height}: checkout card is not full-screen or legible ${JSON.stringify(cardGeometry)}`);
     }
     await page.screenshot({ path: path.join(outputDir, `checkout-card-${viewport.width}x${viewport.height}.png`), fullPage: true });
@@ -392,7 +400,7 @@ try {
       const title = document.querySelector(".shop-checkout-copy h1");
       const copy = document.querySelector(".shop-checkout-copy p");
       const receiptRow = document.querySelector(".shop-receipt dl div");
-      if (!frame || !flow || !receipt || !printer || !button || !(cat instanceof HTMLImageElement) || !title || !copy || !receiptRow) return null;
+      if (!frame || !flow || !receipt || !printer || !button || !(cat instanceof HTMLImageElement) || !title || !receiptRow) return null;
       const catRect = cat.getBoundingClientRect();
       const overlapWidth = Math.max(0, Math.min(catRect.right, printer.right) - Math.max(catRect.left, printer.left));
       const overlapHeight = Math.max(0, Math.min(catRect.bottom, printer.bottom) - Math.max(catRect.top, printer.top));
@@ -402,15 +410,18 @@ try {
         frame: frame.toJSON(), flow: flow.toJSON(), receipt: receipt.toJSON(), printer: printer.toJSON(), button: button.toJSON(),
         cat: catRect.toJSON(), catPrinterOverlap: overlapWidth * overlapHeight, catButtonOverlap: buttonOverlapWidth * buttonOverlapHeight,
         titleFont: Number.parseFloat(getComputedStyle(title).fontSize),
-        copyFont: Number.parseFloat(getComputedStyle(copy).fontSize),
+        copyCount: copy ? 1 : 0,
         receiptFont: Number.parseFloat(getComputedStyle(receiptRow).fontSize),
         catLoaded: cat.complete && cat.naturalWidth > 0,
         catSrc: cat.currentSrc,
         overflow: flow.scrollWidth - flow.clientWidth,
+        transform: getComputedStyle(document.querySelector(".shop-receipt")).transform,
+        paperCenterOffset: Math.abs((receipt.left + receipt.right) / 2 - (printer.left + printer.right) / 2),
       };
     });
     if (!receiptGeometry || !receiptGeometry.catLoaded || receiptGeometry.overflow > 1
-      || receiptGeometry.catPrinterOverlap < 1 || receiptGeometry.catButtonOverlap < 1 || receiptGeometry.titleFont < 21 || receiptGeometry.copyFont < 13 || receiptGeometry.receiptFont < 13
+      || receiptGeometry.transform !== "none" || receiptGeometry.paperCenterOffset > 1
+      || receiptGeometry.catPrinterOverlap < 1 || receiptGeometry.catButtonOverlap < 1 || receiptGeometry.titleFont < 21 || receiptGeometry.copyCount !== 0 || receiptGeometry.receiptFont < 16
       || receiptGeometry.receipt.left < receiptGeometry.frame.left - 1 || receiptGeometry.receipt.right > receiptGeometry.frame.right + 1
       || receiptGeometry.receipt.bottom > receiptGeometry.frame.bottom + 1
       || receiptGeometry.cat.left < receiptGeometry.frame.left - 1 || receiptGeometry.cat.right > receiptGeometry.frame.right + 1) {
