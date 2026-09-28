@@ -5,16 +5,16 @@ import "./PointsCardGallery.css";
 
 const stories: Partial<Record<PointsCardSkinId, { zh: string[]; en: string[] }>> = {
   "lavender-reading": {
-    zh: ["月光绕过圆窗，落进柔软的紫色。", "小猫捧起一页故事，让夜晚慢下来。", "热茶的雾气与薰衣草的香轻轻相遇，", "把世界的喧闹，留在书页以外。", "愿每一次翻页，都留一点安静给自己。"],
-    en: ["Moonlight rests in a violet window.", "A little cat opens a quieter chapter.", "Tea and lavender soften the evening,", "while the world waits beyond the page.", "Keep a little of this quiet for yourself."],
+    zh: ["月光绕过圆窗，落进柔软的紫色。", "小猫捧起一页故事，让夜晚慢下来。", "热茶的雾气与薰衣草的香轻轻相遇，", "把世界的喧闹，留在书页以外。", "风翻过旧纸，也翻过白日的匆忙。", "灯火守住一角，替心事留一把椅子。", "当最后一个句点落下，星光正好。", "愿每一次翻页，都留一点安静给自己。"],
+    en: ["Moonlight rests in a violet window.", "A little cat opens a quiet chapter.", "Tea and lavender soften the evening.", "The world waits beyond the page.", "A breeze turns the old paper slowly.", "Lamplight saves a chair for every thought.", "The final full stop meets the stars.", "Keep a little of this quiet for yourself."],
   },
   "seaside-studio": {
-    zh: ["海风掀起白帘，也掀开新的一页。", "小猫蘸一笔蔚蓝，把浪花留在纸上。", "贝壳收藏远方，阳光停在笔尖，", "平凡的午后，也有奔向大海的颜色。", "让心里的远方，在这一刻靠岸。"],
-    en: ["Sea air lifts the linen curtain.", "A little cat paints a wave in blue.", "Shells hold the shore; brushes hold light.", "An ordinary afternoon becomes an ocean.", "Let a faraway dream find its shore here."],
+    zh: ["海风掀起白帘，也掀开新的一页。", "小猫蘸一笔蔚蓝，把浪花留在纸上。", "贝壳收藏远方，阳光停在笔尖。", "平凡的午后，也有奔向大海的颜色。", "潮声在画布背后，一遍遍轻轻呼吸。", "未寄出的愿望，被海鸥带向天际。", "等蓝色晾干，心也变得辽阔。", "让心里的远方，在这一刻靠岸。"],
+    en: ["Sea air lifts the linen curtain.", "A little cat paints a wave in blue.", "Shells hold the shore; brushes hold light.", "An afternoon becomes a small ocean.", "The tide breathes behind the canvas.", "A gull carries one wish to the horizon.", "As the blue dries, the heart opens wide.", "Let a faraway dream find its shore here."],
   },
   "sunset-garden": {
-    zh: ["晚霞把屋顶花园染成温柔的金。", "小猫提起水壶，浇灌一株小小期待。", "花瓣与水珠，在余晖里闪闪发亮，", "认真照料的日常，终会悄悄开花。", "把今天的温柔，种进明天的风里。"],
-    en: ["Gold settles on a rooftop garden.", "A little cat waters tomorrow’s hopes.", "Petals and droplets catch the last light.", "Small, tender days quietly come into bloom.", "Plant today’s kindness in tomorrow’s breeze."],
+    zh: ["晚霞把屋顶花园染成温柔的金。", "小猫提起水壶，浇灌一株小小期待。", "花瓣与水珠，在余晖里闪闪发亮。", "认真照料的日常，终会悄悄开花。", "晚风经过叶尖，带走一天的疲惫。", "泥土记得每一次俯身与等待。", "等清晨再来，新芽会回答时光。", "把今天的温柔，种进明天的风里。"],
+    en: ["Gold settles on a rooftop garden.", "A little cat waters tomorrow’s hopes.", "Petals catch the last warm light.", "Tender days quietly come into bloom.", "Evening wind lifts the day’s fatigue.", "The soil remembers each patient visit.", "New leaves will answer in the morning.", "Plant today’s kindness in tomorrow’s breeze."],
   },
 };
 

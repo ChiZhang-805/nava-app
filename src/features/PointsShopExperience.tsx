@@ -69,6 +69,22 @@ function readableShopError(error: unknown, locale: "zh" | "en") {
   return locale === "zh" ? "暂时无法完成，请稍后重试。" : "Something went wrong. Please try again.";
 }
 
+function productEditorial(product: RewardProduct, locale: "zh" | "en") {
+  const key = `${product.slug} ${product.name}`.toLowerCase();
+  const lines = key.includes("bag") || key.includes("帆布")
+    ? locale === "zh"
+      ? ["把手账、钥匙和随身的小欢喜一起装好。", "轻轻挎上肩，也把今天的从容带在身边。", "让每一次出门，都留下一点属于自己的颜色。"]
+      : ["Carry your journal, keys, and a few everyday joys.", "Slip it over your shoulder and take the day at your pace.", "A little colour for every ordinary trip."]
+    : key.includes("cat") || key.includes("小猫") || key.includes("玩具")
+      ? locale === "zh"
+        ? ["把一小段玩耍时间，留给好奇的爪爪。", "追逐、停顿，再扑向下一次轻轻晃动。", "让陪伴变成家里会跳动的一点快乐。"]
+        : ["Save a playful moment for curious paws.", "Chase, pause, then pounce once more.", "A small spark of joy to share at home."]
+      : locale === "zh"
+        ? ["在桌边留一处安静的位置，慢慢整理今天。", "写下灵感，也收好那些不愿匆匆忘记的小事。", "愿每一次使用，都让日常多一点认真与喜欢。"]
+        : ["Make a quiet corner for the thoughts of the day.", "Keep ideas close and small moments from slipping away.", "Made to bring a little more care to the everyday."];
+  return [product.description.trim(), ...lines].filter(Boolean).join("\n");
+}
+
 export default function PointsShopExperience({
   user,
   view,
@@ -382,7 +398,7 @@ export default function PointsShopExperience({
           {product.imageUrls.length > 1 && <div className="points-shop-dots" aria-label={locale === "zh" ? `第 ${slide + 1} 张图片` : `Image ${slide + 1}`}>
             {product.imageUrls.map((_, index) => <button type="button" aria-current={index === slide ? "true" : undefined} key={index} onClick={() => carouselRef.current?.scrollTo({ left: index * carouselRef.current.clientWidth, behavior: "smooth" })} aria-label={`${index + 1}`}><span /></button>)}
           </div>}
-          <div className="points-shop-detail-copy"><h2>{product.name}</h2>{product.brand && <p className="points-shop-brand">{product.brand}</p>}<strong>{locale === "zh" ? "定价：" : "Price: "}{product.pointPrice === null ? (locale === "zh" ? "待填写" : "TBD") : `${product.pointPrice} XP`}</strong>{!product.placeholder && product.description && <p>{product.description}</p>}</div>
+          <div className="points-shop-detail-copy"><h2>{product.name}</h2>{product.brand && <p className="points-shop-brand">{product.brand}</p>}<strong>{locale === "zh" ? "定价：" : "Price: "}{product.pointPrice === null ? (locale === "zh" ? "待填写" : "TBD") : `${product.pointPrice} XP`}</strong>{!product.placeholder && <p>{productEditorial(product, locale)}</p>}</div>
           <footer><button type="button" disabled={cannotAdd(product)} onClick={() => void updateCart(product, (cart.find((line) => line.product.id === product.id)?.quantity ?? 0) + 1)}><ShoppingCart size={18} />{locale === "zh" ? "加入购物车" : "Add to cart"}</button><button type="button" disabled={cannotAdd(product)} onClick={() => void updateCart(product, (cart.find((line) => line.product.id === product.id)?.quantity ?? 0) + 1, "points-shop-cart")}>{locale === "zh" ? "立即兑换" : "Redeem now"}</button></footer>
         </article> : <div className="points-shop-empty"><PackageOpen size={36} /><p>{locale === "zh" ? "没有找到这个商品。" : "Product not found."}</p></div>
       ) : (

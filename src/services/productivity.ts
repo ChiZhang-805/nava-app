@@ -208,6 +208,31 @@ export async function toggleTodo(userId: string, id: string) {
   return setTodoCompleted(userId, id, !item.completed);
 }
 
+/** Deletes only the authenticated user's explicit to-do selection in one database statement. */
+export async function deleteTodos(userId: string, ids: string[]) {
+  const requested = [...new Set(ids.filter((id) => typeof id === "string" && id.length > 0))];
+  const current = loadTodos(userId);
+  if (requested.length === 0) return current;
+  const existing = new Set(current.map((item) => item.id));
+  if (requested.some((id) => !existing.has(id))) throw new Error("待办选择已变化，请刷新后重试。");
+  if (!isDemoMode()) {
+    const removed = await supabase
+      .from("tasks")
+      .delete()
+      .eq("user_id", userId)
+      .eq("category", "todo")
+      .in("id", requested)
+      .select("id");
+    if (removed.error) throw removed.error;
+    const removedIds = new Set((removed.data ?? []).map((row) => String(row.id)));
+    if (requested.some((id) => !removedIds.has(id))) {
+      throw new Error("部分待办没有从共享数据库删除，请刷新后重试。");
+    }
+  }
+  const requestedIds = new Set(requested);
+  return writeTodos(userId, current.filter((item) => !requestedIds.has(item.id)));
+}
+
 /** Explicit desired state is safe to retry after a lost acknowledgement. */
 export async function setTodoCompleted(userId: string, id: string, completed: boolean) {
   const current = loadTodos(userId);

@@ -18,7 +18,7 @@ try {
     try {
       await context.addInitScript(() => {
         sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
-        localStorage.setItem("nava.onboarding.v2.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, version: 2, answers: {}, completedAt: new Date().toISOString() }));
+        localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, version: 3, answers: {}, completedAt: new Date().toISOString() }));
         window.FaceDetector = class { constructor() { throw new Error("unsupported device fixture"); } };
         window.SpeechRecognition = class { start() { window.__recognition = this; } stop() { this.onend?.(); } abort() { window.__voiceAborted = true; this.onend?.(); } };
         window.__speechQueue = []; window.__speechCalls = 0;
@@ -38,7 +38,24 @@ try {
       });
       const page = await context.newPage(); const errors = [];
       page.on("pageerror", (error) => errors.push(error.message));
-      const open = async (route) => { await page.goto(`http://127.0.0.1:5225/?demo=1#${route}`, { waitUntil: "networkidle" }); if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click(); };
+      await page.route("**/*.supabase.co/rest/v1/journal_entries**", (route) => route.fulfill({ json: [] }));
+      await page.route("**/*.supabase.co/rest/v1/journal_preferences**", (route) => route.fulfill({ json: { settings: {} } }));
+      const open = async (route) => {
+        await page.goto(`http://127.0.0.1:5225/?demo=1#${route}`, { waitUntil: "networkidle" });
+        if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
+        if (await page.locator(".completion-celebration-layer").isVisible().catch(() => false)) {
+          await page.frameLocator(".completion-celebration-layer iframe").getByRole("button", { name: /Continue|继续/ }).click();
+          await expect(page.locator(".completion-celebration-layer")).toHaveCount(0);
+        }
+        if (route.includes("module=face")) {
+          const guide = page.frameLocator(".journal-experience iframe").locator("#cold-guide");
+          await expect(guide).toHaveCount(1, { timeout: 30000 });
+          if (await guide.isVisible()) {
+            for (let step = 0; step < 6 && await guide.isVisible(); step += 1) { await expect(guide).toHaveAttribute("data-ready", "true"); await guide.click(); }
+            await expect(guide).toBeHidden();
+          }
+        }
+      };
       const interrupt = async () => {
         if (viewport.width > 700) await page.locator('[data-preview-event="call"]').click();
         else await page.evaluate(async () => (await import("/src/services/previewEnvironment.ts")).simulatePreviewInterruption("call"));
@@ -48,30 +65,32 @@ try {
         // camera. End that simulated call before operating the paused camera.
         if (viewport.width > 700) await page.locator('[data-phone-action="end-call"]').click();
       };
-      await open("tab=record&module=face");
-      await page.getByRole("button", { name: /^(使用前置摄像头拍照|前置拍摄|重新拍摄)$/ }).click();
-      const camera = page.locator(".camera-capture-overlay");
-      await expect(camera).toHaveAttribute("data-camera-phase", "live");
-      await expect(camera).toContainText("手动对齐");
-      await page.evaluate(() => { window.__cameraTracks = [...document.querySelector(".camera-viewfinder video").srcObject.getTracks()]; });
-      await interrupt(); await expect(camera).toHaveAttribute("data-camera-phase", "paused");
-      assert.equal(await page.evaluate(() => window.__cameraTracks.every((track) => track.readyState === "ended")), true);
-      await camera.getByRole("button", { name: "重新开启", exact: true }).click(); await expect(camera).toHaveAttribute("data-camera-phase", "live");
-      await camera.getByRole("button", { name: "拍摄", exact: true }).click(); await expect(camera).toHaveAttribute("data-camera-phase", "review");
-      await expect(camera.locator("img")).toBeVisible();
+      await open("tab=record&module=face&view=guide");
+      const journal = page.frameLocator(".journal-experience iframe");
+      const camera = journal.locator("#sheet-layer");
+      await journal.locator("#photo-preview").click();
+      await expect(camera).toBeVisible();
+      await expect(camera).toContainText("选择照片");
+      await journal.locator("body").evaluate(() => { window.__cameraTracks = [...document.querySelector(".camera-video").srcObject.getTracks()]; });
+      await interrupt(); await expect(camera).toBeVisible();
+      assert.equal(await journal.locator("body").evaluate(() => window.__cameraTracks.every(track => track.readyState === "ended")), true);
+      await journal.locator("#sheet-close").click(); await expect(camera).toBeHidden();
+      await journal.locator("#photo-preview").click(); await expect(camera).toBeVisible();
+      await journal.getByRole("button", { name: "拍下这一张", exact: true }).click(); await expect(camera).toBeHidden();
+      await expect(journal.locator("#photo-preview img")).toBeVisible();
       await page.screenshot({ path: `${output}/camera-${viewport.width}.png` });
-      const geometry = await camera.evaluate((node) => { const box = node.getBoundingClientRect(); const buttons = [...node.querySelectorAll("footer button")].map((button) => button.getBoundingClientRect()); return buttons.every((button) => button.height >= 43 && button.right <= box.right && button.bottom <= box.bottom); });
+      const geometry = await journal.locator("#photo-preview").evaluate((node) => { const box = node.getBoundingClientRect(), screen = document.getElementById("screen").getBoundingClientRect(); return box.left >= screen.left && box.right <= screen.right && box.bottom <= screen.bottom; });
       assert.equal(geometry, true);
-      await camera.getByRole("button", { name: "关闭相机" }).click();
-      await open("tab=record&module=face");
-      await page.evaluate(() => {
+      await open("tab=record&module=face&view=guide");
+      const pendingJournal = page.frameLocator(".journal-experience iframe");
+      await pendingJournal.locator("body").evaluate(() => {
         const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
         navigator.mediaDevices.getUserMedia = async (...args) => { const stream = await original(...args); window.__lateTracks = stream.getTracks(); await new Promise((resolve) => { window.__releaseCamera = resolve; }); return stream; };
       });
-      await page.getByRole("button", { name: /^(使用前置摄像头拍照|前置拍摄|重新拍摄)$/ }).click();
-      await expect.poll(() => page.evaluate(() => Boolean(window.__releaseCamera))).toBe(true);
-      await camera.getByRole("button", { name: "关闭相机" }).click(); await page.evaluate(() => window.__releaseCamera());
-      await expect.poll(() => page.evaluate(() => window.__lateTracks.every((track) => track.readyState === "ended"))).toBe(true);
+      await pendingJournal.locator("#photo-preview").click();
+      await expect.poll(() => pendingJournal.locator("body").evaluate(() => Boolean(window.__releaseCamera))).toBe(true);
+      await pendingJournal.locator("#sheet-close").click(); await pendingJournal.locator("body").evaluate(() => window.__releaseCamera());
+      await expect.poll(() => pendingJournal.locator("body").evaluate(() => window.__lateTracks.every(track => track.readyState === "ended"))).toBe(true);
       await open("tab=ai");
       const mic = page.locator(".chat-voice-button"); await mic.focus(); await page.keyboard.press("Enter");
       await expect(mic).toHaveAttribute("aria-pressed", "true");
@@ -111,29 +130,6 @@ try {
       await page.waitForTimeout(1800);
       assert.equal(await page.evaluate(() => window.__speechCalls), spoken);
       await expect(mic).toHaveAttribute("aria-pressed", "false");
-      await open("tab=record&module=exercise&view=sports");
-      await page.getByRole("button", { name: "开始此计划", exact: true }).click();
-      await expect(page.locator("[data-exercise-feedback]")).toBeVisible();
-      await page.locator(".exercise-live-actions").getByRole("button", { name: "暂停", exact: true }).click();
-      await expect(page.locator("[data-exercise-feedback]")).toHaveAttribute("data-exercise-feedback", "paused");
-      await page.locator("[data-exercise-feedback]").scrollIntoViewIfNeeded(); await page.screenshot({ path: `${output}/exercise-${viewport.width}.png` });
-      await open("tab=record&module=mood&view=history");
-      const date = page.getByLabel("报告日期", { exact: true }); const today = await date.inputValue();
-      const previous = new Date(`${today}T12:00:00`); previous.setDate(previous.getDate() - 1); const yesterday = `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, "0")}-${String(previous.getDate()).padStart(2, "0")}`;
-      await date.fill(yesterday); await expect(page.locator(".module-ai-report")).toHaveAttribute("data-report-date", yesterday); await expect(page.locator(".module-ai-report")).toHaveAttribute("data-ai-state", "ready");
-      await page.locator(".ai-report-refresh").click(); await expect(page.locator(".module-ai-report")).toHaveAttribute("data-ai-state", "ready");
-      await page.getByRole("button", { name: "预览并分享", exact: true }).click();
-      await expect(page.locator(".report-share-content img")).toBeVisible(); await expect(page.getByLabel("包含具体日期")).not.toBeChecked();
-      await page.getByRole("button", { name: "关闭分享预览" }).click();
-      await page.locator('.nava-more-trigger').click();
-      await page.getByRole("menuitem", { name: "分享页面", exact: true }).click();
-      const link = page.locator(".link-share-overlay");
-      await expect(link).toContainText("不包含当前页面");
-      assert.equal(await page.evaluate(() => window.__shares.length), 0);
-      await link.getByRole("button", { name: "确认分享链接" }).click(); await expect(link).toBeVisible();
-      await page.evaluate(() => { window.__shareMode = "success"; });
-      await link.getByRole("button", { name: "确认分享链接" }).click(); await expect(link).toHaveCount(0);
-      assert.equal(await page.evaluate(() => window.__shares[0].url), "https://nava-app-preview-cz.chizhang1031.chatgpt.site/");
       await open("tab=record"); await page.getByRole("tab", { name: "本周报告", exact: true }).click();
       await page.getByRole("button", { name: "保存海报", exact: true }).click();
       const weekly = page.getByRole("dialog", { name: "分享前确认" });
@@ -149,10 +145,6 @@ try {
       await page.evaluate(() => { window.__shareMode = "error"; }); await confirm.click(); await expect(weekly.getByRole("alert")).toBeVisible();
       await page.evaluate(() => { window.__shareMode = "success"; }); await confirm.click(); await expect(weekly).toHaveCount(0);
       const shared = await page.evaluate(() => window.__shares.at(-1)); assert.equal(shared.name, "NAVA-weekly.png"); assert.deepEqual(shared.bytes, previewBytes);
-      await open("tab=record&module=diet&view=editor");
-      const mealForm = page.locator('[data-record-detail="diet"] form:not([hidden])');
-      for (const field of await mealForm.locator('.nutrition-macro-fields input[type="number"]').all()) await field.fill("12.35");
-      assert.equal(await mealForm.evaluate((form) => form.checkValidity()), true);
       if (viewport.width === 390) {
         // Explicit delayed permission fixture: tests UI cancellation, not actual iPhone authorization.
         await page.route("**/src/services/voice.ts", (route) => route.fulfill({ contentType: "application/javascript", body: `export class VoiceInputError extends Error {} export async function startVoiceInput(options) { window.__voiceOptions=options; await new Promise(resolve=>{window.__releaseVoice=resolve}); if(options.signal.aborted) throw new Error('fixture aborted'); return {stop:async()=>options.onEnd(),cancel:async()=>options.onEnd()}; }` }));

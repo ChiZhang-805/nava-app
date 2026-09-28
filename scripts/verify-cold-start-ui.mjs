@@ -16,6 +16,11 @@ createRoot(document.getElementById('root')).render(React.createElement(LocalePro
 </script></body></html>`;
 const server=await createServer({logLevel:'silent',server:{host:'127.0.0.1',port:5268,strictPort:true},plugins:[{name:'cold-fixture',configureServer(s){s.middlewares.use(async(req,res,next)=>{if(!req.url?.startsWith('/__cold.html'))return next();res.setHeader('Content-Type','text/html');res.end(await s.transformIndexHtml(req.url,html));});}}]});await server.listen();
 const browser=await chromium.launch();const report=[];
+async function finishGuide(frame){
+ const guide=frame.locator('#cold-guide');
+ for(let count=0;count<8&&await guide.isVisible();count+=1){await expect(guide).toHaveAttribute('data-ready','true');await guide.click();}
+ await expect(guide).toBeHidden();
+}
 try{
  for(const [width,height] of [[360,740],[375,812],[390,844],[430,932]].filter(([w])=>!process.env.NAVA_TEST_WIDTH||w===Number(process.env.NAVA_TEST_WIDTH)))for(const lang of ['zh','en']){
   const en=lang==='en', context=await browser.newContext({viewport:{width,height},locale:en?'en-US':'zh-CN',hasTouch:true,isMobile:true,reducedMotion:'reduce'});
@@ -65,17 +70,20 @@ try{
   await page.getByRole('button',{name:en?'See an example weekly report':'看看未来的周报',exact:true}).click();
   await expect(page.locator('.cold-example')).toBeVisible();await page.screenshot({path:`${out}/sample-${lang}-${width}.png`});assert.equal(saves,0);
   await page.goto(url+'?module=sleep');const frame=page.frameLocator('iframe');
-  await expect(frame.locator('#cold-guide')).toBeVisible({timeout:30000});await frame.locator('#cold-guide-next').click();
+  await expect(frame.locator('#cold-guide')).toBeVisible({timeout:30000});
   await expect(frame.locator('.cold-guide-target')).toBeVisible();
+  await expect(frame.locator('#cold-guide-backdrop')).toBeVisible();
+  await expect(frame.locator('#actor-canvas')).toHaveClass(/cold-guide-cat/);
+  await expect(frame.locator('#entry-bubble')).toHaveClass(/cold-guide-speaker/);
+  await expect(frame.locator('#cold-guide-skip')).toHaveCount(0);
+  await page.screenshot({path:`${out}/guide-${lang}-${width}.png`});
+  await finishGuide(frame);
   for(const key of ['bedtime','wakeTime']){
    for(const [part,number] of (key==='bedtime'?['23','30']:['07','00']).entries()){
     await frame.locator('.time-part[data-key="'+key+'"][data-part="'+part+'"]').click();await frame.locator('#sleep-time-option-'+Number(number)).click();
    }
-   await frame.locator('#cold-guide-next').click();
   }
   await frame.locator('#field-quality').fill(en?'A little tired':'有一点困');
-  await page.screenshot({path:`${out}/guide-${lang}-${width}.png`});
-  await frame.locator('#cold-guide-next').click();await frame.locator('#cold-guide-next').click();
   assert.equal(saves,0);await frame.locator('#confirm-entry').click();
   await expect(frame.locator('#screen')).toHaveAttribute('data-scene','record');await expect(frame.locator('#primary')).toBeEnabled({timeout:30000});
   if(width===390){failSave=true;await frame.locator('#primary').click();await page.waitForTimeout(700);assert.equal(saves,0);await expect(frame.locator('#screen')).toHaveAttribute('data-scene','record');failSave=false;}
@@ -97,18 +105,19 @@ try{
     if(key==='interests'){await page.screenshot({path:`${out}/original-interests-${lang}.png`});}
     if(['interests','diet'].includes(key))await notes.locator('#next').click();
    }
-   await expect(notes.locator('#screen')).toHaveAttribute('data-step','goal');await notes.locator('[data-option=sleep]').click();await notes.locator('#next').click();await notes.locator('[data-option=routine]').click();
+   await expect(notes.locator('#screen')).toHaveAttribute('data-step','goal');await notes.locator('[data-option=sleep]').click();await notes.locator('#next').click();await notes.locator('[data-option=routine]').click();await expect(notes.locator('[data-option=routine]')).toHaveAttribute('aria-checked','true');await expect.poll(()=>page.evaluate(()=>JSON.parse(localStorage.getItem('nava.first-notes.draft.v1.10000000-0000-4000-8000-000000000001')||'null')?.profile?.coldStart?.challenge||JSON.parse(localStorage.getItem('nava.cold-start.draft.v1.10000000-0000-4000-8000-000000000001')||'null')?.challenge||'')).toBe('routine');
    await page.reload();await expect(notes.locator('#screen')).toHaveAttribute('data-step','challenge',{timeout:30000});await expect(notes.locator('[data-option=routine]')).toHaveAttribute('aria-checked','true');
    await notes.locator('#language').click();await notes.getByRole('menuitem',{name:en?'Previous page':'上一页'}).click();await notes.locator('[data-option=mood]').click();await notes.locator('#next').click();await expect(notes.locator('#next')).toBeDisabled();await expect(notes.locator('[data-option=routine]')).toHaveCount(0);
    await notes.locator('#language').click();await notes.getByRole('menuitem',{name:en?'Previous page':'上一页'}).click();await notes.locator('[data-option=sleep]').click();await notes.locator('#next').click();await notes.locator('[data-option=routine]').click();await notes.locator('#next').click();
    await notes.locator('[data-consent=healthConsent]').click();await notes.locator('[data-consent=healthConsent]').click();await notes.locator('#next').click();
    failProfile=true;await notes.locator('#next').click();await expect(page.getByRole('alert')).toBeVisible();assert.equal(profileWrites,1);failProfile=false;
    await page.getByRole('button',{name:en?'Retry':'重试',exact:true}).click();await expect(notes.locator('#screen')).toHaveAttribute('data-step','summary',{timeout:30000});await notes.locator('#next').click();await expect(page.locator('main').first()).toContainText('SAVED');assert.equal(profileWrites,2);
-   for(const [module,key] of [['mood','mood'],['diet','meal'],['exercise','activity'],['face','feeling'],['focus','task']]){
-    rows=[];await page.goto(url+'?module='+module+'&force=1');const guided=page.frameLocator('iframe');await expect(guided.locator('#cold-guide')).toBeVisible({timeout:30000});await guided.locator('#cold-guide-next').click();await expect(guided.locator('#field-'+key).locator('..')).toHaveClass(/cold-guide-target/);await page.screenshot({path:`${out}/guide-${module}-${lang}.png`});
-    if(module==='focus'){await guided.locator('#field-task').fill('Read a page');await guided.locator('#cold-guide-next').click();await guided.locator('.cold-focus-presets button').filter({hasText:/^15$/}).click();await expect(guided.locator('#field-durationMinutes')).toHaveValue('15');}
+   for(const [module,key] of [['mood','mood'],['diet','photo'],['exercise','activity'],['face','photo'],['focus','task']]){
+   rows=[];await page.goto(url+'?module='+module+'&force=1');const guided=page.frameLocator('iframe');await expect(guided.locator('#cold-guide')).toBeVisible({timeout:30000});const target=key==='photo'?guided.locator('#photo-preview'):guided.locator('#field-'+key).locator('..');await expect(target).toHaveClass(/cold-guide-target/);await page.screenshot({path:`${out}/guide-${module}-${lang}.png`});
+    await expect(guided.locator('#cold-guide-skip')).toHaveCount(0);await finishGuide(guided);
+    if(module==='focus'){await guided.locator('#field-task').fill('Read a page');await guided.locator('#field-durationMinutes').fill('15');await expect(guided.locator('#field-durationMinutes')).toHaveValue('15');}
     if(module==='mood'){await page.setViewportSize({width,height:480});await guided.locator('#field-mood').fill(en?'Calm':'平静');await expect(guided.locator('#field-mood')).toBeInViewport();await page.screenshot({path:`${out}/keyboard-${lang}.png`});await page.setViewportSize({width,height});}
-    await guided.locator('#cold-guide-skip').click();await expect(guided.locator('#cold-guide')).toBeHidden();assert.equal(saves,1);
+    await expect(guided.locator('#cold-guide')).toBeHidden();assert.equal(saves,1);
    }
   }
   assert.deepEqual(errors,[]);report.push({width,height,lang,saves,profileWrites});await context.close();console.log('Passed',width,lang);

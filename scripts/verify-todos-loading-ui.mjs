@@ -118,7 +118,7 @@ try {
       await page.locator('[data-home-shortcut="today-todos"]').click();
       const todoPage = page.locator("[data-today-todo-page]");
       await expect(todoPage).toBeVisible();
-      await expect(page.locator(".bottom-nav")).toHaveCount(0);
+      await expect(page.locator(".bottom-nav")).toBeVisible();
       await expect(page.locator(".today-todo-intro p")).toHaveCount(0);
       const estimateButton = page.locator(".today-todo-compose-heading button");
       await expect(estimateButton).toBeDisabled();
@@ -142,9 +142,12 @@ try {
       const title = `${locale === "zh" ? "整理明天资料" : "Prepare tomorrow's notes"} ${viewport.name}`;
       await page.locator(".today-todo-draft textarea").fill(title);
       await expect(estimateButton).toBeEnabled();
-      await page.locator('.today-todo-duration input[aria-label="' + (locale === "zh" ? "小时" : "hours") + '"]').fill("1");
-      await page.locator('.today-todo-duration input[aria-label="' + (locale === "zh" ? "分钟" : "minutes") + '"]').fill("2");
-      await page.locator('.today-todo-duration input[aria-label="' + (locale === "zh" ? "秒钟" : "seconds") + '"]').fill("3");
+      await page.locator(".today-todo-duration-trigger").click();
+      const wheels = page.locator(".duration-wheel-column");
+      await wheels.nth(0).getByRole("option", { name: "01", exact: true }).click();
+      await wheels.nth(1).getByRole("option", { name: "02", exact: true }).click();
+      await wheels.nth(2).getByRole("option", { name: "03", exact: true }).click();
+      await page.locator(".duration-wheel-confirm").click();
       await page.locator('.today-todo-submit').click();
       const row = page.locator(".today-todo-items article", { hasText: title });
       await expect(row).toBeVisible();

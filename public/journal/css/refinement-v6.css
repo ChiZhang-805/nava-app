@@ -6,8 +6,8 @@
 #entry-form[data-category="focus"] .ai-draft-note { display:none; }
 #entry-form[data-category="food"] .photo-tool { min-height:38px; height:38px; }
 #entry-form[data-category="face"] .photo-tool { min-height:40px; height:40px; }
-#entry-form[data-category="food"] .photo-preview:not(.has-image) { height:96px; }
-#entry-form[data-category="face"] .photo-preview:not(.has-image) { height:165px; }
+#entry-form[data-category="food"] .photo-preview:not(.has-image) { height:150px; }
+#entry-form[data-category="face"] .photo-preview:not(.has-image) { height:210px; }
 #entry-form[data-category="face"] > .field-long { flex:none; min-height:0; }
 #entry-form[data-category="face"] > .field-long textarea { flex:none; height:120px; }
 .photo-preview { transition:height .26s cubic-bezier(.22,.68,.24,1); }

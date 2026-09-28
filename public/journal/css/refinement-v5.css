@@ -22,7 +22,8 @@
 .nutrition-fields input { padding-right:45px; }
 .nutrition-fields .unit { right:12px; }
 /* 阶段二：相框优先，完整照片按宽度等比自适应；不使用 cover 或固定图像高度。 */
-.photo-preview { display:block; width:100%; height:148px; margin:0; padding:0; border:1px solid #dfedef; border-radius:16px; background:linear-gradient(135deg,#f1f8f9,#f8fbfa); overflow:hidden; position:relative; transition:height .32s cubic-bezier(.22,.68,.24,1); }
+.photo-preview { display:block; width:100%; height:148px; margin:0; padding:0; border:1px solid #dfedef; border-radius:16px; background:linear-gradient(135deg,#f1f8f9,#f8fbfa); overflow:hidden; position:relative; transition:height .32s cubic-bezier(.22,.68,.24,1); cursor:pointer; }
+.photo-preview:focus-visible { outline:3px solid rgba(64,168,197,.28); outline-offset:3px; }
 .photo-preview img { width:100%; height:auto; max-width:none; display:block; object-fit:contain; border-radius:0; margin:0; position:absolute; top:0; left:0; }
 .photo-empty { width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:9px; color:#8daeba; }
 .photo-empty .icon { width:31px; height:31px; stroke-width:1.2; }

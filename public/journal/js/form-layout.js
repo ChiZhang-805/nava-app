@@ -60,14 +60,13 @@ __fluffyModules["form-layout.js"] = (() => {
             if (!available) return;
             // 阶段一：只调整等待状态。已上传照片继续由自然长宽比决定高度。
             if (preview && !preview.classList.contains("has-image")) {
-                const tools = this.height(this.form.querySelector(".photo-tools"));
                 if (id === "food") {
                     const meal = this.height(this.form.querySelector('[data-field="meal"]'));
                     const foods = this.height(this.form.querySelector('[data-field="foods"]'));
-                    this.setPixels(preview, "height", Math.max(64, available - tools - meal - foods - 3 * gap - 2));
+                    this.setPixels(preview, "height", Math.max(132, available - meal - foods - 2 * gap - 2));
                 } else if (id === "face") {
                     const feeling = this.height(this.form.querySelector('[data-field="feeling"]'));
-                    this.setPixels(preview, "height", Math.max(120, available - tools - feeling - 2 * gap - 2));
+                    this.setPixels(preview, "height", Math.max(176, available - feeling - gap - 2));
                 }
             }
             // 阶段二：面部页最后三项刚好占满一个视口，因此滚到底时眼周标题自然落在上沿。

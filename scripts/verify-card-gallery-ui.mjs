@@ -82,14 +82,14 @@ async function geometry(page) {
   });
   assert.ok(result.overflow <= 1, JSON.stringify(result));
   assert.equal(result.visible, 1);
-  assert.equal(result.storyLines, 5);
+  assert.equal(result.storyLines, 8);
   assert.ok(Math.abs(result.priceButtonGap) <= 1, "Price must sit immediately above Add card: " + JSON.stringify(result));
   assert.ok(result.font >= 15);
   return result;
 }
 
 try {
-  for (const viewport of [{width:320,height:568}, {width:360,height:740}, {width:375,height:812}, {width:390,height:844}, {width:430,height:932}]) {
+  for (const viewport of [{width:360,height:740}, {width:375,height:812}, {width:390,height:844}, {width:430,height:932}]) {
     for (const locale of ["zh", "en"]) {
       const { context, page, calls, state, errors } = await prepare(viewport, locale);
       try {

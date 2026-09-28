@@ -443,7 +443,7 @@ __fluffyModules["app.js"] = (() => {
         $("entry-form").querySelectorAll(".photo-tool span").forEach((n, i) => n.textContent = Locale.t(i === 0 ? "拍照" : "选择照片"));
         const placeholder = $("photo-preview")?.querySelector(".photo-empty span");
         if (placeholder)
-            placeholder.textContent = Locale.t("等待照片");
+            placeholder.textContent = Locale.t("选择照片");
         const analyze = $("analyze-photo")?.querySelector("span");
         if (analyze)
             analyze.textContent = Locale.t("让小猫看看");
@@ -772,17 +772,18 @@ __fluffyModules["app.js"] = (() => {
             const preview = el("div", "photo-preview");
             preview.id = "photo-preview";
             preview.setAttribute("aria-label", "照片预览框");
+            preview.setAttribute("role", "button");
+            preview.tabIndex = 0;
+            preview.onclick = event => {
+                if (event.target.closest(".photo-remove")) return;
+                openCamera();
+            };
+            preview.onkeydown = event => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                openCamera();
+            };
             form.append(preview);
-            const tools = el("div", "photo-tools");
-            for (const [title, name, action] of [["拍照", "camera", openCamera], ["选择照片", "photo", selectLibrary]]) {
-                const b = el("button", "photo-tool");
-                b.type = "button";
-                b.innerHTML = icon(name);
-                b.append(el("span", "", title));
-                b.onclick = action;
-                tools.append(b);
-            }
-            form.append(tools);
             if (state.category !== "food") {
                 const analyze = el("button", "analyze-photo");
                 analyze.type = "button";
@@ -1304,11 +1305,11 @@ __fluffyModules["app.js"] = (() => {
         preview.classList.toggle("has-image", Boolean(image));
         if ($("analyze-photo")) $("analyze-photo").hidden = !image;
         if (!image) {
-            preview.style.height = state.category === "face" ? "165px" : "96px";
+            preview.style.height = state.category === "face" ? "210px" : "150px";
             formLayout?.schedule();
             const placeholder = el("span", "photo-empty");
             placeholder.innerHTML = icon("photo");
-            placeholder.append(el("span", "", Locale.t("等待照片")));
+            placeholder.append(el("span", "", Locale.t("选择照片")));
             preview.append(placeholder);
             return;
         }
@@ -2207,7 +2208,7 @@ __fluffyModules["app.js"] = (() => {
         window.NavaJournal.notify=toast;
         window.NavaJournal.interrupt=()=>{timer.pause();cancelWork(false);photo.stopCamera();persistFocus();renderFocus();};
         window.NavaJournal.call('ready').catch(()=>{});
-        import('./cold-start-guide.js').then(({installColdStartGuide}) => installColdStartGuide(window.NavaJournal)).catch(() => {});
+        import('./cold-start-guide.js?v=20260928-guide-v2').then(({installColdStartGuide}) => installColdStartGuide(window.NavaJournal)).catch(() => {});
         $("confirm-entry").disabled = false;
     }
     /**

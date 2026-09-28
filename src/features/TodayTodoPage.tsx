@@ -1,8 +1,10 @@
 import type { User } from "@supabase/supabase-js";
-import { ArrowLeft, Check, ChevronRight, Clock3, ListTodo, LoaderCircle, TimerReset } from "lucide-react";
+import { CalendarDays, Check, ChevronRight, Clock3, Home, ListChecks, ListTodo, LoaderCircle, Trash2, X } from "lucide-react";
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "../i18n";
-import { addTodo, loadTodos, subscribeProductivity, syncTodos, toggleTodo, type TodoItem } from "../services/productivity";
+import DurationWheelPicker from "../components/DurationWheelPicker";
+import MoreMenu from "../components/MoreMenu";
+import { addTodo, deleteTodos, loadTodos, subscribeProductivity, syncTodos, toggleTodo, type TodoItem } from "../services/productivity";
 import { resolveTodoFocusPlan, suggestedFocusPlan } from "../services/focusPlanning.ts";
 import { estimateTodoDuration } from "../services/todoDurationEstimate";
 
@@ -43,6 +45,12 @@ function dayLabel(deviceDate: string, locale: "zh" | "en") {
   }).format(parsed);
 }
 
+function offsetDate(deviceDate: string, days: number) {
+  const value = new Date(`${deviceDate}T12:00:00`);
+  value.setDate(value.getDate() + days);
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+}
+
 export default function TodayTodoPage({
   user,
   deviceDate,
@@ -58,15 +66,28 @@ export default function TodayTodoPage({
 }) {
   const { locale } = useLocale();
   const editor = useRef<HTMLTextAreaElement>(null);
+  const previousDeviceDate = useRef(deviceDate);
   const [todos, setTodos] = useState<TodoItem[]>(() => loadTodos(user.id));
   const [draft, setDraft] = useState("");
   const [duration, setDuration] = useState<DurationDraft>(emptyDuration);
+  const [durationPickerOpen, setDurationPickerOpen] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(deviceDate);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [estimateNote, setEstimateNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => subscribeProductivity(() => setTodos(loadTodos(user.id))), [user.id]);
+
+  useEffect(() => {
+    const previous = previousDeviceDate.current;
+    previousDeviceDate.current = deviceDate;
+    setSelectedDate((current) => current === previous ? deviceDate : current);
+  }, [deviceDate]);
 
   useEffect(() => {
     let active = true;
@@ -81,12 +102,13 @@ export default function TodayTodoPage({
     return () => { active = false; };
   }, [user.id]);
 
-  const todayTodos = useMemo(() => todos
-    .filter((todo) => todo.scheduledDate === deviceDate)
+  const dayTodos = useMemo(() => todos
+    .filter((todo) => todo.scheduledDate === selectedDate)
     .sort((a, b) => Number(a.completed) - Number(b.completed)
       || (a.scheduledTime ?? "99:99").localeCompare(b.scheduledTime ?? "99:99")
-      || b.createdAt.localeCompare(a.createdAt)), [deviceDate, todos]);
-  const completedCount = todayTodos.filter((todo) => todo.completed).length;
+      || b.createdAt.localeCompare(a.createdAt)), [selectedDate, todos]);
+  const isToday = selectedDate === deviceDate;
+  const isTomorrow = selectedDate === offsetDate(deviceDate, 1);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -96,7 +118,7 @@ export default function TodayTodoPage({
     try {
       const seconds = durationSeconds(duration);
       const suggestion = suggestedFocusPlan(draft);
-      await addTodo(user.id, draft, "manual", deviceDate, undefined, {
+      await addTodo(user.id, draft, "manual", selectedDate, undefined, {
         ...suggestion,
         ...(seconds > 0 ? { focusMinutes: Math.min(180, Math.max(1, Math.ceil(seconds / 60))), estimatedSeconds: seconds } : {}),
       });
@@ -111,13 +133,6 @@ export default function TodayTodoPage({
     } finally {
       setBusy(null);
     }
-  }
-
-  function changeDuration(field: keyof DurationDraft, value: string) {
-    if (!/^\d{0,2}$/u.test(value)) return;
-    const maximum = field === "hours" ? 99 : 59;
-    setDuration((current) => ({ ...current, [field]: value === "" ? "" : String(Math.min(maximum, Number(value))) }));
-    setEstimateNote(null);
   }
 
   async function estimateDuration() {
@@ -156,18 +171,55 @@ export default function TodayTodoPage({
     }
   }
 
+  function toggleSelected(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function closeSelection() {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }
+
+  async function removeSelected() {
+    if (selectedIds.size === 0 || busy) return;
+    setBusy("delete");
+    setError(null);
+    try {
+      setTodos(await deleteTodos(user.id, [...selectedIds]));
+      closeSelection();
+      onChanged();
+    } catch (todoError) {
+      setError(todoError instanceof Error ? todoError.message : String(todoError));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const pageTitle = locale === "zh"
+    ? isToday ? "今日待办" : isTomorrow ? "明日待办" : "日期待办"
+    : isToday ? "Today's to-do" : isTomorrow ? "Tomorrow's to-do" : "Dated to-do";
+  const planTitle = locale === "zh"
+    ? isToday ? "今天的安排" : isTomorrow ? "明天的安排" : `${dayLabel(selectedDate, locale)}的安排`
+    : isToday ? "Today's plan" : isTomorrow ? "Tomorrow's plan" : `Plan for ${dayLabel(selectedDate, locale)}`;
+
   return <section className="home-experience today-todo-page" data-today-todo-page>
     <header className="home-experience-header today-todo-header">
       <button className="home-experience-back" type="button" onClick={onBack} aria-label={locale === "zh" ? "返回首页" : "Back home"}>
-        <ArrowLeft size={25} />
+        <Home size={23} />
       </button>
-      <div><span>NAVA TODAY</span><h1>{locale === "zh" ? "今日待办" : "Today's to-do"}</h1></div>
-      <span aria-hidden="true" />
+      <div><h1>{pageTitle}</h1></div>
+      <MoreMenu open={menuOpen} onOpenChange={setMenuOpen} label={locale === "zh" ? "待办菜单" : "To-do menu"} className="today-todo-more">
+        <button type="button" onClick={() => setDatePickerOpen(true)}><CalendarDays size={19} />{locale === "zh" ? "切换日期" : "Switch date"}</button>
+      </MoreMenu>
     </header>
 
     <div className="today-todo-intro">
-      <span>{dayLabel(deviceDate, locale)}</span>
-      <h2>{locale === "zh" ? "写下今天要做的事。" : "Plan what matters today."}</h2>
+      <span>{dayLabel(selectedDate, locale)}</span>
+      <h2>{locale === "zh" ? (isToday ? "写下今天要做的事。" : isTomorrow ? "写下明天要做的事。" : "写下这一天要做的事。") : (isToday ? "Plan what matters today." : isTomorrow ? "Plan what matters tomorrow." : "Plan what matters that day.")}</h2>
     </div>
 
     <form className="today-todo-compose" onSubmit={submit}>
@@ -184,12 +236,9 @@ export default function TodayTodoPage({
       </label>
       <div className="today-todo-duration">
         <span>{locale === "zh" ? "时间" : "Time"}</span>
-        <div>
-          {(["hours", "minutes", "seconds"] as const).map((field) => <label key={field}>
-            <input inputMode="numeric" pattern="[0-9]*" value={duration[field]} onChange={(event) => changeDuration(field, event.target.value)} aria-label={locale === "zh" ? { hours: "小时", minutes: "分钟", seconds: "秒钟" }[field] : field} placeholder="00" />
-            <span>{locale === "zh" ? { hours: "小时", minutes: "分钟", seconds: "秒" }[field] : { hours: "hr", minutes: "min", seconds: "sec" }[field]}</span>
-          </label>)}
-        </div>
+        <button className="today-todo-duration-trigger" type="button" onClick={() => setDurationPickerOpen(true)} aria-label={locale === "zh" ? "打开时长滚轮" : "Open duration wheels"}>
+          {(["hours", "minutes", "seconds"] as const).map((field) => <span key={field}><strong>{String(Number(duration[field]) || 0).padStart(2, "0")}</strong><small>{locale === "zh" ? { hours: "小时", minutes: "分钟", seconds: "秒" }[field] : { hours: "hr", minutes: "min", seconds: "sec" }[field]}</small></span>)}
+        </button>
         {estimateNote && <small aria-live="polite">{estimateNote}</small>}
       </div>
       <button className="today-todo-submit" type="submit" disabled={!draft.trim() || busy != null}>{busy === "add" ? (locale === "zh" ? "正在写入…" : "Adding…") : (locale === "zh" ? "写进今日待办" : "Add to today")}</button>
@@ -197,21 +246,25 @@ export default function TodayTodoPage({
     </form>
 
     <section className="today-todo-list-section" aria-busy={loading}>
-      <header><div><strong>{locale === "zh" ? "今天的安排" : "Today's plan"}</strong><span>{todayTodos.length ? `${completedCount}/${todayTodos.length}` : "0"}</span></div>{todayTodos.length > 0 && <small>{locale === "zh" ? "点圆圈完成，点事项开始专注" : "Check it off, or open it to focus"}</small>}</header>
-      {loading && todayTodos.length === 0 ? <div className="today-todo-loading" role="status"><LoaderCircle className="today-todo-spinner" size={24} /><span>{locale === "zh" ? "正在读取今日待办" : "Loading today's to-dos"}</span></div>
-        : todayTodos.length === 0 ? <div className="today-todo-empty"><span><Check size={25} /></span><strong>{locale === "zh" ? "今天还没有待办" : "Nothing here yet"}</strong><p>{locale === "zh" ? "从上面写下第一件事，今天就有了清晰的起点。" : "Write your first task above and give today a clear starting point."}</p></div>
-          : <div className="today-todo-items">{todayTodos.map((todo) => {
+      <header><div><span className="today-todo-plan-title"><ListTodo size={21} /><strong>{planTitle}</strong></span><button type="button" className={selectionMode ? "is-active" : ""} onClick={() => selectionMode ? closeSelection() : setSelectionMode(true)} aria-label={selectionMode ? (locale === "zh" ? "退出多选" : "Exit selection") : (locale === "zh" ? "多选安排" : "Select multiple tasks")}>{selectionMode ? <X size={20} /> : <ListChecks size={21} />}</button></div></header>
+      {loading && dayTodos.length === 0 ? <div className="today-todo-loading" role="status"><LoaderCircle className="today-todo-spinner" size={24} /><span>{locale === "zh" ? "正在读取待办" : "Loading to-dos"}</span></div>
+        : dayTodos.length === 0 ? <div className="today-todo-empty"><span><Check size={25} /></span><strong>{locale === "zh" ? "这一天还没有待办" : "Nothing here yet"}</strong><p>{locale === "zh" ? "从上面写下第一件事，让这一天有一个清晰的起点。" : "Write the first task above and give the day a clear starting point."}</p></div>
+          : <div className="today-todo-items">{dayTodos.map((todo) => {
             const plan = resolveTodoFocusPlan(todo);
-            return <article className={todo.completed ? "is-completed" : ""} key={todo.id}>
-              <button className="today-todo-check" type="button" disabled={busy === todo.id} onClick={() => void changeTodo(todo)} aria-label={todo.completed ? (locale === "zh" ? `将“${todo.title}”标记为未完成` : `Mark ${todo.title} incomplete`) : (locale === "zh" ? `完成“${todo.title}”` : `Complete ${todo.title}`)}>
-                {busy === todo.id ? <LoaderCircle className="today-todo-spinner" size={17} /> : todo.completed ? <Check size={17} /> : null}
+            const selected = selectedIds.has(todo.id);
+            return <article className={[todo.completed ? "is-completed" : "", selectionMode ? "is-selecting" : "", selected ? "is-selected" : ""].filter(Boolean).join(" ")} key={todo.id}>
+              <button className="today-todo-check" type="button" disabled={busy === todo.id || busy === "delete"} onClick={() => selectionMode ? toggleSelected(todo.id) : void changeTodo(todo)} aria-label={selectionMode ? (selected ? (locale === "zh" ? `取消选择“${todo.title}”` : `Deselect ${todo.title}`) : (locale === "zh" ? `选择“${todo.title}”` : `Select ${todo.title}`)) : todo.completed ? (locale === "zh" ? `将“${todo.title}”标记为未完成` : `Mark ${todo.title} incomplete`) : (locale === "zh" ? `完成“${todo.title}”` : `Complete ${todo.title}`)}>
+                {busy === todo.id ? <LoaderCircle className="today-todo-spinner" size={17} /> : selected || (!selectionMode && todo.completed) ? <Check size={17} /> : null}
               </button>
-              <button className="today-todo-open" type="button" onClick={() => onStartFocus(todo)}>
+              <button className="today-todo-open" type="button" onClick={() => selectionMode ? toggleSelected(todo.id) : onStartFocus(todo)}>
                 <span><strong>{todo.title}</strong><small>{todo.estimatedSeconds ? (locale === "zh" ? `预计 ${durationLabel(todo.estimatedSeconds, locale)}` : `Est. ${durationLabel(todo.estimatedSeconds, locale)}`) : todo.scheduledTime ? `${todo.scheduledTime} · ${locale === "zh" ? `专注 ${plan.focusMinutes} 分钟` : `${plan.focusMinutes} min focus`}` : (locale === "zh" ? `专注 ${plan.focusMinutes} 分钟` : `${plan.focusMinutes} min focus`)}</small></span>
-                <TimerReset size={19} aria-hidden="true" /><ChevronRight size={18} aria-hidden="true" />
+                <ChevronRight size={19} aria-hidden="true" />
               </button>
             </article>;
           })}</div>}
+      {selectionMode && dayTodos.length > 0 && <div className="today-todo-selection-actions"><button type="button" onClick={() => setSelectedIds(selectedIds.size === dayTodos.length ? new Set() : new Set(dayTodos.map((todo) => todo.id)))}>{selectedIds.size === dayTodos.length ? (locale === "zh" ? "取消全选" : "Clear all") : (locale === "zh" ? "全选" : "Select all")}</button><button type="button" className="is-delete" disabled={selectedIds.size === 0 || busy === "delete"} onClick={() => void removeSelected()}>{busy === "delete" ? <LoaderCircle className="today-todo-spinner" size={18} /> : <Trash2 size={18} />}{locale === "zh" ? `删除已选${selectedIds.size ? `（${selectedIds.size}）` : ""}` : `Delete selected${selectedIds.size ? ` (${selectedIds.size})` : ""}`}</button></div>}
     </section>
+    {durationPickerOpen && <DurationWheelPicker locale={locale} value={{ hours: Number(duration.hours) || 0, minutes: Number(duration.minutes) || 0, seconds: Number(duration.seconds) || 0 }} onCancel={() => setDurationPickerOpen(false)} onConfirm={(value) => { setDuration({ hours: String(value.hours), minutes: String(value.minutes), seconds: String(value.seconds) }); setEstimateNote(null); setDurationPickerOpen(false); }} />}
+    {datePickerOpen && <div className="today-todo-date-overlay" role="presentation" onClick={() => setDatePickerOpen(false)}><section role="dialog" aria-modal="true" aria-label={locale === "zh" ? "切换待办日期" : "Switch to-do date"} onClick={(event) => event.stopPropagation()}><header><strong>{locale === "zh" ? "切换日期" : "Switch date"}</strong><button type="button" onClick={() => setDatePickerOpen(false)} aria-label={locale === "zh" ? "关闭" : "Close"}><X size={20} /></button></header><div><button type="button" onClick={() => { setSelectedDate(deviceDate); setDatePickerOpen(false); }}>{locale === "zh" ? "今天" : "Today"}<small>{dayLabel(deviceDate, locale)}</small></button><button type="button" onClick={() => { setSelectedDate(offsetDate(deviceDate, 1)); setDatePickerOpen(false); }}>{locale === "zh" ? "明天" : "Tomorrow"}<small>{dayLabel(offsetDate(deviceDate, 1), locale)}</small></button></div><label><span>{locale === "zh" ? "选择其他日期" : "Choose another date"}</span><input type="date" value={selectedDate} onChange={(event) => { if (/^\d{4}-\d{2}-\d{2}$/u.test(event.target.value)) { setSelectedDate(event.target.value); setDatePickerOpen(false); } }} /></label></section></div>}
   </section>;
 }

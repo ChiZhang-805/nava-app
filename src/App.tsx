@@ -630,7 +630,7 @@ function MobileShell({
 
   const focusImmersive = activeTab === "record" && recordModule === "focus" && (recordView === "immersive" || recordView === "interruption");
   const profileDetailsSubpage = activeTab === "today" && recordView === "profile-details";
-  const todayFullSubpage = activeTab === "today" && (profileDetailsSubpage || recordView === "home-widgets" || recordView === "admin-console" || recordView === "getting-started" || recordView === "today-todos");
+  const todayFullSubpage = activeTab === "today" && (profileDetailsSubpage || recordView === "home-widgets" || recordView === "admin-console" || recordView === "getting-started");
   const journalOpen = activeTab === "record" && Boolean(recordModule);
   const hideBottomNavigation = focusImmersive || todayFullSubpage || journalOpen;
 

@@ -325,7 +325,7 @@ export default function OptionTwoHome({
     return <TodayTodoPage
       user={user}
       deviceDate={deviceDate}
-      onBack={() => onBack(null)}
+      onBack={() => onViewChange(null, true)}
       onChanged={onChanged}
       onStartFocus={onStartTodoFocus}
     />;

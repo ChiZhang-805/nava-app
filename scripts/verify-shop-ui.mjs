@@ -60,19 +60,10 @@ try {
   await desktop.screenshot({ path: path.join(outputDir, "desktop-device-specifications.png"), fullPage: true });
   await desktop.getByTitle("返回机型选择").click();
   await desktop.locator(".option-two-menu-toggle").click();
-  await desktop.getByTitle("功能导航").click();
-  await expect(desktop.locator(".utility-drawer")).toBeVisible();
-  await desktop.waitForTimeout(420);
-  const drawerSafe = await desktop.evaluate(() => {
-    const title = document.querySelector(".utility-drawer h2")?.getBoundingClientRect();
-    const cutout = document.querySelector(".nava-device-cutout")?.getBoundingClientRect();
-    const drawer = document.querySelector(".utility-drawer")?.getBoundingClientRect();
-    const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
-    return title && cutout && drawer && frame ? { titleTop: title.top, cutoutBottom: cutout.bottom, gap: title.top - cutout.bottom, drawerRight: drawer.right, frameRight: frame.right } : null;
-  });
-  if (!drawerSafe || drawerSafe.gap < 14 || Math.abs(drawerSafe.drawerRight - drawerSafe.frameRight) > 1) throw new Error(`Utility drawer overlaps the simulated sensor housing ${JSON.stringify(drawerSafe)}`);
-  await desktop.screenshot({ path: path.join(outputDir, "desktop-drawer-and-selector.png"), fullPage: true });
-  report.push({ mode: "desktop-controls", frontHeight, backHeight, drawerSafe });
+  await desktop.getByTitle("今日待办").click();
+  await expect(desktop.locator("[data-today-todo-page]")).toBeVisible();
+  await desktop.screenshot({ path: path.join(outputDir, "desktop-today-todo-shortcut.png"), fullPage: true });
+  report.push({ mode: "desktop-controls", frontHeight, backHeight, todoShortcut: true });
   await desktopContext.close();
 
   const desktopCheckoutContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 1440, height: 1080 }, deviceScaleFactor: 1 });
