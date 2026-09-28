@@ -2,6 +2,17 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeColdStart, normalizeColdStartDraft, recordedDays, firstRecordObservation } from '../src/services/coldStart.ts';
 import type { JournalRecord } from '../src/services/journal.ts';
+import { blankFirstNotesProfile, normalizeFirstNotesDraft, isFirstNotesComplete } from '../src/services/onboardingFirstNotes.ts';
+
+test('original notebook restores the added pages without completing an unfinished profile', () => {
+  for (const step of ['goal', 'challenge', 'permissions', 'summary']) {
+    const draft = normalizeFirstNotesDraft({ profile: blankFirstNotesProfile('en'), step }, 'zh');
+    assert.equal(draft?.step, step);
+    assert.equal(draft?.profile.language, 'en');
+    assert.equal(isFirstNotesComplete(draft?.profile), false);
+  }
+  assert.equal(normalizeFirstNotesDraft({ profile: blankFirstNotesProfile('zh'), step: 'unknown' }, 'zh')?.step, 'welcome');
+});
 test('goal-specific answers are validated and permissions require explicit true', () => {
   assert.equal(normalizeColdStart({goal:'sleep',challenge:'stress'}),null);
   assert.equal(normalizeColdStart({goal:'admin',challenge:'unsure'}),null);

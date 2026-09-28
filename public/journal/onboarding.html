@@ -39,6 +39,10 @@ header{position:absolute;left:0;right:0;top:72px;height:59px;z-index:25}.brand{p
 .hosted-inline #device{width:393px;height:852px;padding:0;border-radius:0;background:transparent;box-shadow:none}
 .hosted-inline #device:before,.hosted-inline #device:after,.hosted-inline .status-bar,.hosted-inline .island,.hosted-inline .home-indicator{display:none!important}
 .hosted-inline #screen{border-radius:0}
+.question-mode .language-button{width:44px;height:44px;right:17px;top:0;border:0;background:none;box-shadow:none}.question-mode .language-button svg{width:24px;height:24px}
+.goal .options{grid-template-columns:1fr;gap:16px}.goal .option{min-height:76px;padding:12px 32px 12px 20px}.goal .option-label{font-size:23px}.challenge .option{min-height:84px}.challenge .option:last-child{grid-column:1/-1;min-height:56px;justify-content:center}.challenge .sheet-caption{font-size:17px;bottom:0}.permissions .options{gap:18px}.permissions .option{min-height:112px;align-items:flex-start;padding:16px 30px 16px 15px}.permission-copy{display:flex;flex-direction:column;gap:8px}.permission-detail{font:14px/1.55 var(--ui);color:#648496}.permissions .sheet-caption{font-size:15px;bottom:0}.en .permissions .sheet-caption{font-size:16px}.en .permissions .option-label{font-size:21px}.goal .sheet-caption{font-size:18px}
+.goal .sheet-caption,.challenge .sheet-caption,.permissions .sheet-caption{max-width:235px;right:0}.en .goal .sheet-caption,.en .challenge .sheet-caption,.en .permissions .sheet-caption{max-width:220px}
+.challenge .option-label{text-wrap:balance}
 </style></head><body>
 <div id="stage"><div id="device-space"><main id="device" aria-label="NAVA"><div id="screen">
 <div class="atmosphere"></div><div class="grain" id="sky-grain"></div><div id="star-field" aria-hidden="true"></div>
@@ -684,7 +688,9 @@ Original cat layers and the existing attributed SVG icon set are reused. -->
     let finishPending=false, hostInitResolve=null, hostInitReceived=false;
     const expectedHostOrigin = globalThis.NAVA_HOST_ORIGIN || location.origin;
     const hostOrigin = expectedHostOrigin === 'null' ? '*' : expectedHostOrigin;
-    const STEPS = ['welcome','gender','role','age','interests','sleep','exercise','diet','summary'];
+    const STEPS = ['welcome','gender','role','age','interests','sleep','exercise','diet',...(hosted?['goal','challenge','permissions']:[]),'summary'];
+    const LAST = STEPS.length-1;
+    let coldConfig={goals:[],challenges:{}},cold={version:1,goal:null,challenge:'',healthConsent:false,aiConsent:false};
     const LABELS = {
         gender: [["男", "Male"], ["女", "Female"], ["暂不透露", "Prefer not to say"]],
         role: [["学生", "Student"], ["职场人士", "Professional"], ["自由职业", "Freelancer"], ["居家照护", "Caregiver"], ["退休人士", "Retired"], ["其他", "Other"]],
@@ -702,7 +708,9 @@ Original cat layers and the existing attributed SVG icon set are reused. -->
         exercise: ["rarely", "under1", "1to2", "2to4", "4to7", "7plus"],
         diet: ["none", "light", "protein", "lowcarb", "plant", "restrictions"]
     };
+    const PROFILE_KEYS = Object.keys(KEYS);
     const EXTRA_PATHS = {
+        more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
         globe: '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 7h14M5 17h14"/>',
         arrowRight: '<path d="M4 12h15m-6-6 6 6-6 6"/>',
         arrowLeft: '<path d="M20 12H5m6-6-6 6 6 6"/>',
@@ -742,10 +750,13 @@ Original cat layers and the existing attributed SVG icon set are reused. -->
         sleep:{title:['平时一晚，大概睡多久？',"How long do you usually sleep?"],bubble:['夜晚的小习惯\n我也想记下来','Your quiet nights,\na little note of rest.'],caption:['愿你每晚，都有柔软的梦。','A softer place to dream.']},
         exercise:{title:['一周里，大概运动多久？','How much do you move each week?'],bubble:['你自己的节奏\n也值得被记住','Your own rhythm,\nworth remembering.'],caption:['每一点认真，都算数。','Every little effort counts.']},
         diet:{title:['吃东西时，有哪些偏好？','What feels right on your plate?'],bubble:['把喜欢的味道\n留在这一页里','A note of your tastes.\nA little more of you.'],caption:['认真吃饭，也认真生活。','A little care in every meal.']},
+        goal:{title:['最近，想先照顾好什么？','Where shall we begin?'],bubble:['一个小小心愿\n我陪你慢慢来','One little wish.\nWe can start here.'],caption:['从在意的小事，慢慢开始。','A little care, one day at a time.']},
+        challenge:{title:['哪件小事，让你有点困扰？','What feels a little harder?'],bubble:['不用急着改变\n先轻轻告诉我','No need to rush.\nI am listening.'],caption:['不确定，也是一种答案。','Not sure is an answer, too.']},
+        permissions:{title:['这些小事，由你来决定。','Your story, your choice.'],bubble:['你愿意的部分\n我才轻轻记下','Only what you choose.\nAlways your story.'],caption:['不勾选，也能开始；随时可更改。','Optional. You can change this later.']},
         summary:{title:['从今天起，慢慢认识你。',"Here's to getting to know you."],bubble:['你的习惯记好啦\n以后一起接着写','Little details,\nkept with care.'],action:['开启 NAVA 之旅','Begin with NAVA']},
     };
     const SUMMARY_LABELS = {gender:['性别','Gender'],role:['身份','Role'],age:['年龄段','Age'],interests:['喜欢','Likes'],sleep:['睡眠','Sleep'],exercise:['运动','Movement'],diet:['饮食偏好','Food']};
-    const FLORA = {welcome:'daisy',gender:'forgetmenot',role:'lavender',age:'anemone',interests:'buttercup',sleep:'bluebell',exercise:'eucalyptus',diet:'blossom',summary:'daisy'};
+    const FLORA = {welcome:'daisy',gender:'forgetmenot',role:'lavender',age:'anemone',interests:'buttercup',sleep:'bluebell',exercise:'eucalyptus',diet:'blossom',goal:'buttercup',challenge:'bluebell',permissions:'forgetmenot',summary:'daisy'};
     const state = {page:0,lang:read(LANG_KEY)==='en'?'en':'zh',answers:{gender:null,role:null,age:null,interests:[],sleep:null,exercise:null,diet:[]},transition:false,completed:false,revision:0,ready:false};
     const reduce = matchMedia('(prefers-reduced-motion: reduce)');
     let currentFace=null,flip=null,drag=null,snap=null,autoNext=null,actor=null,elapsed=0,last=0,frame=0,suppressUntil=0,bubbleUntil=0,writeAt=-10,petAt=-10,floraSerial=0,textureURL='',storageOK=true;
@@ -768,7 +779,7 @@ Original cat layers and the existing attributed SVG icon set are reused. -->
     /** 输入：无。输出：无。功能：时间来自设备；其他状态栏图标仅为设计模拟。 */
     function clock(){const d=new Date();$('system-clock').textContent=`${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;$('system-clock').dateTime=d.toISOString();}
     /** 输入：页键。输出：共享几何。功能：猫爪、纸顶和气泡使用同一坐标基准。 */
-    function geometry(key){const base={scale:.7,catX:30,paperY:350,paperH:431,bubbleX:233,bubbleY:213};if(key==='welcome')return {...base,paperY:373,paperH:365,bubbleY:234};if(['interests','diet'].includes(key))return {...base,paperH:388};if(key==='summary')return {...base,paperH:405};return base;}
+    function geometry(key){const base={scale:.7,catX:30,paperY:350,paperH:431,bubbleX:233,bubbleY:213};if(key==='welcome')return {...base,paperY:373,paperH:365,bubbleY:234};if(['interests','diet','goal','challenge','permissions'].includes(key))return {...base,paperH:388};if(key==='summary')return {...base,paperH:405};return base;}
     /** 输入：无。输出：无。功能：纸张、角色命中区及后景花纹同步更新，不设置滚动条。 */
     function place(){const s=$('paper-stack');s.style.top=scene.paperY+'px';s.style.height=scene.paperH+'px';$('bubble').style.top=scene.bubbleY+'px';$('bubble').style.left=scene.bubbleX+'px';$('pet-hit').style.top=(scene.paperY-126)+'px';$('flowers-back').style.top=(scene.paperY-89)+'px';$('accents').querySelector('.left').style.top=(scene.paperY-123)+'px';$('accents').querySelector('.right').style.top=(scene.paperY-29)+'px';}
     /**
@@ -795,13 +806,20 @@ Original cat layers and the existing attributed SVG icon set are reused. -->
     /** 输入：消息类型、白名单数据。输出：无。功能：仅向创建本引导的宿主发送资料，永不发送给第三方。 */
     function hostPost(type,payload={}){if(hosted)parent.postMessage({channel:window.name,type,...payload},hostOrigin);}
     /** 输入：无。输出：无。功能：中途刷新可恢复选择，但草稿没有 completedAt，不能使首次引导提前完成。 */
-    function saveDraft(){if(hosted&&!state.completed&&!finishPending)hostPost('draft',{draft:{version:1,profile:profile(),step:STEPS[state.page]}});}
+    function saveDraft(){if(hosted&&!state.completed&&!finishPending)hostPost('draft',{draft:{version:1,profile:profile(),step:STEPS[state.page]},coldStart:{...cold}});}
+    function refreshColdOptions(){
+        LABELS.goal=coldConfig.goals.map(g=>[g.zh,g.en]);KEYS.goal=coldConfig.goals.map(g=>g.id);ICONS.goal=['sleep','clock','heart'];
+        const choices=[...(coldConfig.challenges[cold.goal]||[]),['unsure','还不确定','Not sure yet']];
+        LABELS.challenge=choices.map(c=>c.slice(1));KEYS.challenge=choices.map(c=>c[0]);ICONS.challenge=['leaf','clock','heart','book','sparkle'];
+        state.answers.goal=KEYS.goal.indexOf(cold.goal);state.answers.challenge=KEYS.challenge.indexOf(cold.challenge);
+    }
     /** 输入：宿主提供的已校验资料与步骤。输出：无。功能：恢复旧选择和显示语言，仍按七题完成条件控制前进。 */
     function restoreHost(data){
         const source=Profile.normalize(data.profile,true);if(!source)return;
         state.lang=source.language;
-        for(const k of Object.keys(KEYS)){const a=source[k];state.answers[k]=Array.isArray(a)?a.map(v=>KEYS[k].indexOf(v)):a===null?null:KEYS[k].indexOf(a);}
-        const safe=Profile.draft({profile:source,step:data.step||'welcome'});state.page=safe?STEPS.indexOf(safe.step):0;
+        for(const k of PROFILE_KEYS){const a=source[k];state.answers[k]=Array.isArray(a)?a.map(v=>KEYS[k].indexOf(v)):a===null?null:KEYS[k].indexOf(a);}
+        if(data.coldConfig){coldConfig=data.coldConfig;const c=data.coldStart;if(c&&coldConfig.goals.some(g=>g.id===c.goal))cold={version:1,goal:c.goal,challenge:c.challenge||'',healthConsent:c.healthConsent===true,aiConsent:c.aiConsent===true};refreshColdOptions();}
+        state.page=STEPS.includes(data.step)?STEPS.indexOf(data.step):0;
     }
     /**
      * 输入：无。
@@ -881,14 +899,14 @@ Original cat layers and the existing attributed SVG icon set are reused. -->
     function decorate(face,key){
         const grain=el('div','paper-grain');grain.style.backgroundImage=textureURL;face.append(grain);
         const binding=el('div','binding');binding.setAttribute('aria-hidden','true');for(let i=0;i<4;i++)binding.append(el('i'));face.append(binding);
-        if(['interests','diet','role'].includes(key))face.append(el('i','washi'));
+        if(['interests','diet','role','goal','challenge','permissions'].includes(key))face.append(el('i','washi'));
         const content=el('section','paper-content');content.setAttribute('aria-label',t(COPY[key].title).replace(/\n/g,' '));face.append(content);
         const flora=el('div','bouquet on-paper');flora.setAttribute('aria-hidden','true');flora.innerHTML=flowers(FLORA[key]);face.append(flora);return content;
     }
     /** 输入：页索引。输出：便签节点。功能：只创建此页文字与按钮；猫咪与页眉始终复用。 */
     function makeFace(index){
         const key=STEPS[index],face=el('article','paper-face '+key);face.dataset.key=key;const content=decorate(face,key);
-        if(index===0)welcome(content);else if(index>=1&&index<=7)question(content,key);else if(index===8)summary(content);
+        if(index===0)welcome(content);else if(index>=1&&index<LAST)(key==='permissions'?permissions(content):question(content,key));else if(index===LAST)summary(content);
         return face;
     }
     /** 输入：欢迎页容器。输出：无。功能：七条书写线对应六行半正文，不以空白装饰代替欢迎信。 */
@@ -900,7 +918,7 @@ Original cat layers and the existing attributed SVG icon set are reused. -->
     /** 输入：字段和选项下标。输出：是否选中。功能：语义状态与字体和语言解耦。 */
     function selected(key,i){const a=state.answers[key];return Array.isArray(a)?a.includes(i):a===i;}
     /** 输入：问题键。输出：是否已填写。功能：未选择的页面禁止向后翻，不把空数组当已完成。 */
-    function answered(key){const a=state.answers[key];return Array.isArray(a)?a.length>0:Number.isInteger(a)&&a>=0&&a<LABELS[key].length;}
+    function answered(key){if(key==='permissions')return true;const a=state.answers[key];return Array.isArray(a)?a.length>0:Number.isInteger(a)&&a>=0&&a<LABELS[key].length;}
     /** 输入：容器、问题键。输出：无。功能：绘制手写选项、无底图标、右侧垂直居中勾选，不插入忌口补充框。 */
     function question(content,key){
         const multi=Array.isArray(state.answers[key]),list=el('div','options '+(key==='gender'?'gender':key==='age'?'age':'columns'));
@@ -910,54 +928,61 @@ Original cat layers and the existing attributed SVG icon set are reused. -->
         content.append(list,el('p','sheet-caption',t(COPY[key].caption)));
     }
     /** 输入：字段。输出：当前语言答案。功能：汇总来自真实选择，不预填人口资料。 */
-    function answerText(key){const a=state.answers[key];if(!answered(key))return t(['还未填写','Not filled in']);return(Array.isArray(a)?a:[a]).map(i=>t(LABELS[key][i])).join(state.lang==='en'?', ':'、');}
+    function answerText(key){if(key==='permissions')return [cold.healthConsent?t(['健康记录','Health records']):'',cold.aiConsent?t(['AI 个性化','AI personalization']):''].filter(Boolean).join(' / ')||t(['暂不启用','Not enabled']);const a=state.answers[key];if(!answered(key))return t(['还未填写','Not filled in']);return(Array.isArray(a)?a:[a]).map(i=>t(LABELS[key][i])).join(state.lang==='en'?', ':'、');}
+    function permissions(content){
+        const list=el('div','options');
+        for(const [key,title,detail] of [['healthConsent',['健康记录','Health records'],['允许保存与分析你提交的健康相关记录。','Allow storage and analysis of the health records you submit.']],['aiConsent',['AI 个性化','AI personalization'],['允许 AI 使用已授权的记录，提供个性化回应。','Allow AI to use your consented records for personalized responses.']]]){
+            const b=el('button','option');b.type='button';b.role='checkbox';b.dataset.consent=key;b.setAttribute('aria-checked',String(cold[key]));b.classList.toggle('selected',cold[key]);b.innerHTML=icon('shield');const copy=el('span','permission-copy');copy.append(el('span','option-label',t(title)),el('span','permission-detail',t(detail)));const check=el('span','check-mark');check.innerHTML=icon('check');b.append(copy,check);b.onclick=()=>{if(state.transition||finishPending)return;cold[key]=!cold[key];b.classList.toggle('selected',cold[key]);b.setAttribute('aria-checked',String(cold[key]));writeAt=elapsed;saveDraft();};list.append(b);
+        }content.append(list,el('p','sheet-caption',t(COPY.permissions.caption)));
+    }
     /** 输入：容器。输出：无。功能：七项手记可有限滚动并点选修改，不生成每日记录。 */
     function summary(content){
         const title=el('h2','notebook-title',t(['我的初见手记','Our first notes'])),sun=el('span');sun.innerHTML=icon('sun');title.append(sun);content.append(title);const scroller=el('div','summary-scroll'),list=el('div','summary-list');scroller.tabIndex=0;scroller.setAttribute('aria-label',t(['初见手记内容','First notes content']));
-        for(const[k,p]of Object.entries(SUMMARY_LABELS)){const row=el('button','summary-row');row.type='button';row.dataset.edit=k;row.innerHTML=icon({gender:'profile',role:'briefcase',age:'clock',interests:'heart',sleep:'sleep',exercise:'sport',diet:'food'}[k]);row.append(el('span','summary-label',t(p)),el('span','summary-value',answerText(k)));row.setAttribute('aria-label',t([`修改${p[0]}`,`Edit ${p[1]}`]));row.onclick=()=>turnTo(STEPS.indexOf(k));list.append(row);}scroller.append(list,el('p','summary-sign',t(['很高兴认识这样的你。\n— NAVA','So lovely to know you.\n— NAVA'])));content.append(scroller);
+        for(const[k,p]of Object.entries({...SUMMARY_LABELS,...(hosted?{goal:['心愿','Wish'],challenge:['困扰','Challenge'],permissions:['授权','Permissions']}:{})})){const row=el('button','summary-row');row.type='button';row.dataset.edit=k;row.innerHTML=icon({gender:'profile',role:'briefcase',age:'clock',interests:'heart',sleep:'sleep',exercise:'sport',diet:'food',goal:'heart',challenge:'book',permissions:'shield'}[k]);row.append(el('span','summary-label',t(p)),el('span','summary-value',answerText(k)));row.setAttribute('aria-label',t([`修改${p[0]}`,`Edit ${p[1]}`]));row.onclick=()=>turnTo(STEPS.indexOf(k));list.append(row);}scroller.append(list,el('p','summary-sign',t(['很高兴认识这样的你。\n— NAVA','So lovely to know you.\n— NAVA'])));content.append(scroller);
     }
 
     /** 输入：纯文本、是否短暂回应。输出：无。功能：保持一至两行短气泡，不显示说明横幅。 */
     function say(value,temporary=false){const span=$('bubble-text');span.textContent=value;span.style.fontSize='';$('bubble').setAttribute('aria-label',value.replace(/\n/g,' '));const cs=getComputedStyle(span),ctx=document.createElement('canvas').getContext('2d');ctx.font=`${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;const max=114,w=Math.max(...value.split('\n').map(s=>ctx.measureText(s).width));if(w>max)span.style.fontSize=(parseFloat(cs.fontSize)*Math.max(.88,max/w))+'px';bubbleUntil=temporary?elapsed+2.1:0;}
     /** 输入：是否打开。输出：无。功能：语言菜单只在欢迎页出现，选择后的页面完全隐藏两个角按钮。 */
-    function languageMenu(open){open=Boolean(open&&state.page===0&&!state.transition);$('language-menu').hidden=!open;$('language').setAttribute('aria-expanded',String(open));if(open)$('language-menu').querySelector('[aria-checked="true"]')?.focus();}
+    function languageMenu(open){open=Boolean(open&&(state.page===0||state.page>=8&&state.page<LAST)&&!state.transition);$('language-menu').hidden=!open;$('language').setAttribute('aria-expanded',String(open));if(open)$('language-menu').querySelector('[aria-checked="true"]')?.focus();}
     /** 输入：无。输出：无。功能：紧凑品牌行与标题，不重新建立猫咪图层。 */
     function header(){
-        const key=STEPS[state.page],q=state.page>0&&state.page<8;document.documentElement.lang=state.lang==='en'?'en':'zh-CN';document.documentElement.classList.toggle('en',state.lang==='en');document.title=t(['NAVA · 小猫的初见手记','NAVA · Our first notes']);
-        $('screen').classList.toggle('welcome-mode',state.page===0);$('screen').classList.toggle('question-mode',q);$('screen').classList.toggle('summary-mode',state.page>=8);$('screen').dataset.step=key;
-        $('eyebrow').textContent=state.page===0?'FROM THIS PAGE ON':state.page<8?'A LITTLE ABOUT YOU':'OUR FIRST CHAPTER';$('headline').textContent=t(COPY[key].title);$('heading-sub').hidden=!COPY[key].sub;if(COPY[key].sub)$('heading-sub').textContent=t(COPY[key].sub);
-        $('language').hidden=state.page!==0;$('language').innerHTML=icon('globe')+`<span>${state.lang==='en'?'EN':'中'}</span>`;$('language').setAttribute('aria-label',t(['切换语言','Change language']));$('language-menu').replaceChildren();for(const lang of ['zh','en']){const b=el('button','',lang==='en'?'English':t(['中文','Chinese']));b.type='button';b.role='menuitemradio';b.dataset.language=lang;b.setAttribute('aria-checked',String(lang===state.lang));if(lang===state.lang){const check=el('span');check.innerHTML=icon('check');b.append(check);}b.onclick=()=>setLanguage(lang);$('language-menu').append(b);}languageMenu(false);say(t(COPY[key].bubble));footer();
+        const key=STEPS[state.page],q=state.page>0&&state.page<LAST;document.documentElement.lang=state.lang==='en'?'en':'zh-CN';document.documentElement.classList.toggle('en',state.lang==='en');document.title=t(['NAVA · 小猫的初见手记','NAVA · Our first notes']);
+        $('screen').classList.toggle('welcome-mode',state.page===0);$('screen').classList.toggle('question-mode',q);$('screen').classList.toggle('summary-mode',state.page>=LAST);$('screen').dataset.step=key;
+        $('eyebrow').textContent=state.page===0?'FROM THIS PAGE ON':state.page<LAST?'A LITTLE ABOUT YOU':'OUR FIRST CHAPTER';$('headline').textContent=t(COPY[key].title);$('heading-sub').hidden=!COPY[key].sub;if(COPY[key].sub)$('heading-sub').textContent=t(COPY[key].sub);
+        $('language').hidden=state.page!==0&&state.page<8||state.page===LAST;$('language').innerHTML=state.page===0?icon('globe')+`<span>${state.lang==='en'?'EN':'中'}</span>`:icon('more');$('language').setAttribute('aria-label',t(state.page===0?['切换语言','Change language']:['更多选项','More options']));$('language-menu').replaceChildren();for(const lang of ['zh','en']){const b=el('button','',lang==='en'?'English':t(['中文','Chinese']));b.type='button';b.role='menuitemradio';b.dataset.language=lang;b.setAttribute('aria-checked',String(lang===state.lang));if(lang===state.lang){const check=el('span');check.innerHTML=icon('check');b.append(check);}b.onclick=()=>setLanguage(lang);$('language-menu').append(b);}if(state.page>0){const back=el('button','',t(['上一页','Previous page']));back.type='button';back.role='menuitem';back.onclick=()=>{languageMenu(false);navigateDirection(-1);};$('language-menu').prepend(back);}languageMenu(false);say(t(COPY[key].bubble));footer();
         $('pet-hit').setAttribute('aria-label',t(['摸摸小猫','Pet the cat']));$('screen').setAttribute('aria-label',t(['初见手记。左右滑动翻阅便签。','First notes. Swipe left or right to turn pages.']));
     }
     /** 输入：无。输出：无。功能：选完才开放前进；单选页仅留进度，无返回、跳过或说明文字。 */
-    function footer(){const key=STEPS[state.page],q=state.page>=1&&state.page<=7,multi=['interests','diet'].includes(key),show=!q||multi;$('footer').classList.toggle('no-next',!show);$('next').hidden=!show;$('next').disabled=finishPending||state.transition||!state.ready||q&&!answered(key);$('next-text').textContent=t(COPY[key].action||['下一步','Next']);$('progress').replaceChildren();if(q){for(let i=1;i<=7;i++){const dot=el('span','dot '+(i===state.page?'current':answered(STEPS[i])?'done':''));dot.setAttribute('aria-hidden','true');$('progress').append(dot);}$('progress').setAttribute('aria-label',t([`第${state.page}题，共7题`,`Question ${state.page} of 7`]));}}
+    function footer(){const key=STEPS[state.page],q=state.page>=1&&state.page<LAST,multi=['interests','diet','goal','challenge','permissions'].includes(key),show=!q||multi;$('footer').classList.toggle('no-next',!show);$('next').hidden=!show;$('next').disabled=finishPending||state.transition||!state.ready||q&&!answered(key);$('next-text').textContent=t(COPY[key].action||['下一步','Next']);$('progress').replaceChildren();if(q){for(let i=1;i<LAST;i++){const dot=el('span','dot '+(i===state.page?'current':(STEPS[i]==='permissions'?state.page>i:answered(STEPS[i]))?'done':''));dot.setAttribute('aria-hidden','true');$('progress').append(dot);}$('progress').setAttribute('aria-label',t([`第${state.page}题，共${LAST-1}题`,`Question ${state.page} of ${LAST-1}`]));}}
     /** 输入：zh/en。输出：无。功能：只在第一页允许换语言，保留所有回答、信件进度和角色姿势。 */
-    function setLanguage(lang){if(state.page!==0||state.transition||!['zh','en'].includes(lang))return;state.lang=lang;write(LANG_KEY,lang);autoNext=null;state.revision++;languageMenu(false);currentFace?.remove();currentFace=makeFace(0);$('paper-stack').append(currentFace);header();saveDraft();$('language').focus();}
+    function setLanguage(lang){if((state.page!==0&&state.page<8||state.page===LAST)||state.transition||!['zh','en'].includes(lang))return;state.lang=lang;write(LANG_KEY,lang);autoNext=null;state.revision++;languageMenu(false);currentFace?.remove();currentFace=makeFace(state.page);$('paper-stack').append(currentFace);header();saveDraft();$('language').focus();}
     /** 输入：问题、选项序号。输出：无。功能：更新选择的中点勾选，多选互斥，单选等待轻柔记写后翻一页。 */
     function choose(key,i){
         if(finishPending||state.completed||state.transition||STEPS[state.page]!==key||performance.now()<suppressUntil)return;autoNext=null;state.revision++;const a=state.answers[key];
         if(Array.isArray(a)){let n=a.includes(i)?a.filter(x=>x!==i):[...a,i];if(key==='diet'){if(i===0&&!a.includes(0))n=[0];else if(i!==0&&!a.includes(i))n=n.filter(x=>x!==0);}state.answers[key]=n.sort((a,b)=>a-b);}else state.answers[key]=i;
+        if(key==='goal'){const goal=KEYS.goal[i];if(cold.goal!==goal)cold.challenge='';cold.goal=goal;refreshColdOptions();}if(key==='challenge')cold.challenge=KEYS.challenge[i];
         for(const b of currentFace.querySelectorAll('[data-option]')){const yes=selected(key,Number(b.dataset.index));b.classList.toggle('selected',yes);b.setAttribute('aria-checked',String(yes));}
         saveDraft();writeAt=elapsed;say(t(Array.isArray(a)?['喜欢的轻轻圈好\n我都记住啦','A few little joys,\nall noted down.']:['好的，轻轻记下\n我们再翻一页','A little note.\nLet us turn the page.']),true);footer();
-        if(!Array.isArray(a))autoNext={at:elapsed+.8,page:state.page,revision:state.revision};
+        if(!Array.isArray(a)&&!['goal','challenge'].includes(key))autoNext={at:elapsed+.8,page:state.page,revision:state.revision};
     }
     /** 输入：目标索引。输出：是否允许。功能：前进不可绕过未完成页，回看不会丢掉原选择。 */
-    function canGo(index){if(index<0||index>=STEPS.length)return false;if(index<=state.page)return true;if(state.page===0)return index===1;for(let i=1;i<Math.min(index,8);i++)if(!answered(STEPS[i]))return false;return true;}
+    function canGo(index){if(index<0||index>=STEPS.length)return false;if(index<=state.page)return true;if(state.page===0)return index===1;for(let i=1;i<Math.min(index,LAST);i++)if(!answered(STEPS[i]))return false;return true;}
     /** 输入：相对方向。输出：无。功能：右滑回看、左滑前进，未完成时只回弹纸张。 */
-    function navigateDirection(dir){const to=state.page+dir;if(dir>0&&state.page>=8)return;if(canGo(to))turnTo(to);else if(dir>0&&state.page<8)say(t(['把这一页先记好\n再陪你翻下一页','A little choice first,\nthen the next page.']),true);}
+    function navigateDirection(dir){const to=state.page+dir;if(dir>0&&state.page>=LAST)return;if(canGo(to))turnTo(to);else if(dir>0&&state.page<LAST)say(t(['把这一页先记好\n再陪你翻下一页','A little choice first,\nthen the next page.']),true);}
     /** 输入：无。输出：无。功能：主按钮可立即开始，最后一步必须显式完成才保存。 */
-    function next(){if(state.transition||!state.ready||$('next').disabled)return;if(state.page===8){finish();return;}navigateDirection(1);}
+    function next(){if(state.transition||!state.ready||$('next').disabled)return;if(state.page===LAST){finish();return;}navigateDirection(1);}
     /** 输入：无。输出：规范的引导资料。功能：按语义键输出，不包含视觉动画或健康分数。 */
-    function profile(){const p={version:4,language:state.lang};for(const k of Object.keys(KEYS)){const a=state.answers[k];p[k]=Array.isArray(a)?a.map(i=>KEYS[k][i]):Number.isInteger(a)?KEYS[k][a]:null;}return p;}
+    function profile(){const p={version:4,language:state.lang};for(const k of PROFILE_KEYS){const a=state.answers[k];p[k]=Array.isArray(a)?a.map(i=>KEYS[k][i]):Number.isInteger(a)?KEYS[k][a]:null;}return p;}
     /**
      * 输入：无，读取已完成的七项选择。
      * 输出：无；成功后交给宿主进入首页，失败时停在汇总。
      * 功能：汇总是最后一页，不创建“第一页收好啦”确认页，不重复保存。
      */
     function finish(){
-        if(finishPending || !Object.keys(KEYS).every(answered))return;
+        if(finishPending)return;const missing=STEPS.slice(1,LAST).find(k=>!answered(k));if(missing){turnTo(STEPS.indexOf(missing));return;}
         finishPending=true;footer();
-        if(hosted){hostPost('complete',{profile:profile()});return;}
+        if(hosted){hostPost('complete',{profile:profile(),coldStart:{...cold}});return;}
         let storage;try{storage=localStorage;}catch{}
         const result=Profile.save(storage,profile(),Profile.read(storage));
         if(!result.ok){finishPending=false;footer();say(t(['这页还留在这里\n本机暂时存不了','Your page is still here.\nSaving is unavailable.']),true);return;}
@@ -993,9 +1018,9 @@ Original cat layers and the existing attributed SVG icon set are reused. -->
     /** 输入：指针按下事件。输出：无。功能：准备方向锁定，选项短点仍保持原来的选择功能。 */
     function pointerDown(e){if(!e.isPrimary||e.button!==0||state.transition||!state.ready||e.target.closest('header,#footer'))return;const r=$('screen').getBoundingClientRect(),s=r.width/393;autoNext=null;if(snap){snap=null;currentFace.style.transform='';currentFace.style.opacity='';}drag={id:e.pointerId,x:e.clientX,y:e.clientY,scale:s,at:performance.now(),axis:null,dx:0,last:e.clientX,lastAt:performance.now(),velocity:0};}
     /** 输入：指针移动。输出：无。功能：水平拖动翻签；垂直移动交给长手记原生滚动。 */
-    function pointerMove(e){if(!drag||e.pointerId!==drag.id)return;const x=(e.clientX-drag.x)/drag.scale,y=(e.clientY-drag.y)/drag.scale;if(!drag.axis){if(Math.abs(y)>10&&Math.abs(y)>Math.abs(x)*1.15){drag.axis='y';return;}if(Math.abs(x)>10&&Math.abs(x)>Math.abs(y)*1.3){drag.axis='x';try{$('screen').setPointerCapture(e.pointerId);}catch{}}else return;}if(drag.axis!=='x')return;e.preventDefault();const now=performance.now();drag.velocity=(e.clientX-drag.last)/drag.scale/Math.max(1,now-drag.lastAt);drag.last=e.clientX;drag.lastAt=now;drag.dx=x;const dir=x<0?1:-1,allowed=canGo(state.page+dir)&&!(dir>0&&state.page>=8);const amount=Math.max(-96,Math.min(96,x*(allowed?.45:.15)));drag.visual=amount;dragTransform(currentFace,amount);}
+    function pointerMove(e){if(!drag||e.pointerId!==drag.id)return;const x=(e.clientX-drag.x)/drag.scale,y=(e.clientY-drag.y)/drag.scale;if(!drag.axis){if(Math.abs(y)>10&&Math.abs(y)>Math.abs(x)*1.15){drag.axis='y';return;}if(Math.abs(x)>10&&Math.abs(x)>Math.abs(y)*1.3){drag.axis='x';try{$('screen').setPointerCapture(e.pointerId);}catch{}}else return;}if(drag.axis!=='x')return;e.preventDefault();const now=performance.now();drag.velocity=(e.clientX-drag.last)/drag.scale/Math.max(1,now-drag.lastAt);drag.last=e.clientX;drag.lastAt=now;drag.dx=x;const dir=x<0?1:-1,allowed=canGo(state.page+dir)&&!(dir>0&&state.page>=LAST);const amount=Math.max(-96,Math.min(96,x*(allowed?.45:.15)));drag.visual=amount;dragTransform(currentFace,amount);}
     /** 输入：指针结束或取消。输出：无。功能：只有足够的水平滑动翻页，拖动后的 click 不误选。 */
-    function pointerEnd(e,cancelled=false){if(!drag||e.pointerId!==drag.id)return;const d=drag;drag=null;try{if($('screen').hasPointerCapture(e.pointerId))$('screen').releasePointerCapture(e.pointerId);}catch{}if(d.axis!=='x')return;suppressUntil=performance.now()+400;const dir=d.dx<0?1:-1,far=Math.abs(d.dx)>60||(Math.abs(d.dx)>32&&Math.abs(d.velocity)>.42);if(!cancelled&&far&&canGo(state.page+dir)&&!(dir>0&&state.page>=8)){turnTo(state.page+dir,d.visual||0);}else{snapBack(d.visual||0);if(!cancelled&&far&&dir>0&&state.page<8)say(t(['把这一页先记好\n再陪你翻下一页','A little choice first,\nthen the next page.']),true);}}
+    function pointerEnd(e,cancelled=false){if(!drag||e.pointerId!==drag.id)return;const d=drag;drag=null;try{if($('screen').hasPointerCapture(e.pointerId))$('screen').releasePointerCapture(e.pointerId);}catch{}if(d.axis!=='x')return;suppressUntil=performance.now()+400;const dir=d.dx<0?1:-1,far=Math.abs(d.dx)>60||(Math.abs(d.dx)>32&&Math.abs(d.velocity)>.42);if(!cancelled&&far&&canGo(state.page+dir)&&!(dir>0&&state.page>=LAST)){turnTo(state.page+dir,d.visual||0);}else{snapBack(d.visual||0);if(!cancelled&&far&&dir>0&&state.page<LAST)say(t(['把这一页先记好\n再陪你翻下一页','A little choice first,\nthen the next page.']),true);}}
     /** 输入：捕获丢失事件。输出：无。功能：忽略选项向屏幕移交隐式触摸捕获；只有屏幕真正失去捕获才取消手势。 */
     function captureLost(e){const screen=$('screen');if(e.target!==screen||!drag||drag.id!==e.pointerId||screen.hasPointerCapture(e.pointerId))return;pointerEnd(e,true);}
     /** 输入：无。输出：无。功能：点击小猫仅产生轻柔回应，不改变资料或翻页。 */

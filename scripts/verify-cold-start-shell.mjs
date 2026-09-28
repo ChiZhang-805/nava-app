@@ -27,6 +27,22 @@ try{
   await page.locator('.cold-start-header').getByRole('button',{name:'更多选项'}).click();await expect(page.getByRole('menu')).toBeVisible();await page.keyboard.press('Escape');
   await page.getByRole('button',{name:'带我记录一次',exact:true}).click();await expect(page.frameLocator('.journal-experience iframe').locator('#cold-guide')).toBeVisible({timeout:30000});
   await page.screenshot({path:`${out}/shell-guide-${width}.png`});
+  if(width===1440){
+   await page.locator('[data-preview-action="first-login"]').click();const notes=page.frameLocator('.onboarding-screen iframe');
+   await expect(notes.locator('#screen')).toHaveAttribute('data-step','welcome',{timeout:30000});await expect(notes.locator('#next')).toBeEnabled();await notes.locator('#next').click();
+   for(const key of ['gender','role','age','interests','sleep','exercise','diet']){
+    await expect(notes.locator('#screen')).toHaveAttribute('data-step',key);await expect(notes.locator('#paper-stack .paper-face')).toHaveCount(1);await notes.locator('[data-question='+key+']').first().click();
+    if(['interests','diet'].includes(key))await notes.locator('#next').click();
+   }
+   for(const stage of ['goal','challenge','permissions']){
+    await expect(notes.locator('#screen')).toHaveAttribute('data-step',stage);await expect(notes.locator('#paper-stack .paper-face')).toHaveCount(1);
+    await page.waitForTimeout(1000);await page.locator('.onboarding-screen').screenshot({path:`${out}/shell-original-${stage}.png`});
+    if(stage==='goal')await notes.locator('[data-option=sleep]').click();
+    if(stage==='challenge')await notes.locator('[data-option=routine]').click();
+    await notes.locator('#next').click();
+   }
+   await expect(notes.locator('#screen')).toHaveAttribute('data-step','summary');
+  }
   results.push({width,height,geometry});await context.close();
  }
  await writeFile(out+'/shell-report.json',JSON.stringify(results,null,2));console.log('Cold-start shell: five viewports passed.');

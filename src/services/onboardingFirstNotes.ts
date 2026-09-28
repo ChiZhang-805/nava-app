@@ -10,6 +10,9 @@ export type FirstNotesStep =
   | "sleep"
   | "exercise"
   | "diet"
+  | "goal"
+  | "challenge"
+  | "permissions"
   | "summary";
 
 export type FirstNotesProfile = {
@@ -32,7 +35,7 @@ export type FirstNotesDraft = {
   step: FirstNotesStep;
 };
 
-const steps: FirstNotesStep[] = ["welcome", "gender", "role", "age", "interests", "sleep", "exercise", "diet", "summary"];
+const steps: FirstNotesStep[] = ["welcome", "gender", "role", "age", "interests", "sleep", "exercise", "diet", "goal", "challenge", "permissions", "summary"];
 const enums = {
   gender: ["male", "female", "private"],
   role: ["student", "professional", "freelancer", "caregiver", "retired", "other"],

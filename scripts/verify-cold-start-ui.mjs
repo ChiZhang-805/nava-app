@@ -7,25 +7,25 @@ applyProjectPublicEnv(process.cwd());
 const out='Q:/NAVA-Workspace/Build/TestRuns/cold-start';await mkdir(out,{recursive:true});
 const html=`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div><script type="module">
 import React from 'react';import {createRoot} from 'react-dom/client';import {LocaleProvider,useLocale} from '/src/i18n.tsx';
-import {ColdStartSetup,ColdStartHub} from '/src/features/ColdStartExperience.tsx';import Journal from '/src/features/JournalExperience.tsx';import Onboarding from '/src/features/OnboardingScreen.tsx';
+import {ColdStartHub} from '/src/features/ColdStartExperience.tsx';import Journal from '/src/features/JournalExperience.tsx';import Onboarding from '/src/features/OnboardingScreen.tsx';
 import '/src/styles/global.css';import '/src/styles/figma-v2.css';
 const user={id:'10000000-0000-4000-8000-000000000001'};
 const answers={gender:'male',ageGroup:'25_34',occupation:'employee',hobbies:['reading'],sleepDuration:'7_8h',exerciseDuration:'1_2h',dietPreferences:['none'],essentialConsent:true,healthDataConsent:false,aiPersonalizationConsent:false};
-function Fixture(){const{locale}=useLocale();const q=new URLSearchParams(location.search);const [done,setDone]=React.useState(false);return React.createElement('main',{style:{height:'100dvh',width:'100%',overflow:'hidden'}},done?'SAVED':q.get('mode')==='setup'?React.createElement(ColdStartSetup,{busy:false,error:null,onBack:()=>{},onDraft:()=>{},onSave:v=>{window.setupSaved=v;setDone(true)}}):q.get('mode')==='onboarding'?React.createElement(Onboarding,{user,mode:'review',status:{completed:true,answers,source:'remote',version:3,completedAt:'2026-09-27T00:00:00Z'},onComplete:v=>{window.onboardingSaved=v;setDone(true)}}):q.get('mode')==='hub'?React.createElement(ColdStartHub,{userId:user.id,onHome:()=>{},onStart:()=>{},onHealth:()=>{}}):React.createElement(Journal,{user,module:q.get('module')||'sleep',locale,forceGuide:q.get('force')==='1',onSaved:()=>{window.saves=(window.saves||0)+1},onExit:()=>{window.exited=true}}));}
+function Fixture(){const{locale}=useLocale();const q=new URLSearchParams(location.search);const [done,setDone]=React.useState(false);return React.createElement('main',{style:{height:'100dvh',width:'100%',overflow:'hidden'}},done?'SAVED':q.get('mode')==='onboarding'?React.createElement(Onboarding,{user,mode:q.get('first')==='1'?'first':'review',status:{completed:q.get('first')!=='1',answers:q.get('first')==='1'?{}:answers,source:'remote',version:3,completedAt:'2026-09-27T00:00:00Z'},onComplete:v=>{window.onboardingSaved=v;setDone(true)}}):q.get('mode')==='hub'?React.createElement(ColdStartHub,{userId:user.id,onHome:()=>{},onStart:()=>{},onHealth:()=>{}}):React.createElement(Journal,{user,module:q.get('module')||'sleep',locale,forceGuide:q.get('force')==='1',onSaved:()=>{window.saves=(window.saves||0)+1},onExit:()=>{window.exited=true}}));}
 createRoot(document.getElementById('root')).render(React.createElement(LocaleProvider,null,React.createElement(Fixture)));
 </script></body></html>`;
 const server=await createServer({logLevel:'silent',server:{host:'127.0.0.1',port:5268,strictPort:true},plugins:[{name:'cold-fixture',configureServer(s){s.middlewares.use(async(req,res,next)=>{if(!req.url?.startsWith('/__cold.html'))return next();res.setHeader('Content-Type','text/html');res.end(await s.transformIndexHtml(req.url,html));});}}]});await server.listen();
 const browser=await chromium.launch();const report=[];
 try{
- for(const [width,height] of [[360,740],[375,812],[390,844],[430,932]])for(const lang of ['zh','en']){
+ for(const [width,height] of [[360,740],[375,812],[390,844],[430,932]].filter(([w])=>!process.env.NAVA_TEST_WIDTH||w===Number(process.env.NAVA_TEST_WIDTH)))for(const lang of ['zh','en']){
   const en=lang==='en', context=await browser.newContext({viewport:{width,height},locale:en?'en-US':'zh-CN',hasTouch:true,isMobile:true,reducedMotion:'reduce'});
   await context.addInitScript(lang=>localStorage.setItem('nava.locale',lang),lang);
-  let rows=[],prefs={},saves=0,profileWrites=0,failSave=false;const errors=[];
+  let rows=[],prefs={},saves=0,profileWrites=0,failSave=false,failProfile=false;const errors=[];
   await context.route('**/*.supabase.co/**',async route=>{
    const req=route.request(),url=new URL(req.url()),name=url.pathname.split('/').pop();let result;
    if(name==='journal_entries')result=rows;
    else if(name==='journal_preferences'){if(req.method()==='POST')prefs=req.postDataJSON().settings;result={settings:prefs};}
-   else if(name==='profiles'){if(req.method()==='POST'){profileWrites++;result=req.postDataJSON();assert.equal(result.onboarding_answers.coldStart.goal,'sleep');assert.equal(result.health_data_consent,false);assert.equal(result.ai_personalization_consent,false);}else result={id:'10000000-0000-4000-8000-000000000001',onboarding_answers:{coldStart:{goal:'sleep',challenge:'routine'}}};}
+   else if(name==='profiles'){if(req.method()==='POST'){if(failProfile){await route.fulfill({status:400,json:{message:'Isolated profile failure'}});return;}profileWrites++;result=req.postDataJSON();assert.equal(result.onboarding_answers.coldStart.goal,'sleep');assert.equal(result.health_data_consent,false);assert.equal(result.ai_personalization_consent,false);}else result={id:'10000000-0000-4000-8000-000000000001',onboarding_answers:{coldStart:{goal:'sleep',challenge:'routine'}}};}
    else if(name==='nava_save_journal_entry_v2'){
     if(failSave){await route.fulfill({status:400,json:{message:'Isolated save failure'}});return;}
     const r=req.postDataJSON().p_record;saves++;result={id:r.id,user_id:'10000000-0000-4000-8000-000000000001',category:r.category,record_date:r.recordDate,fields:r.data,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),version:1,source:'manual',estimated:false,focus:r.focus};rows=[result];
@@ -34,18 +34,26 @@ try{
   });
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   const url='http://127.0.0.1:5268/__cold.html';
-  await page.goto(url+'?mode=setup');
-  await page.getByRole('button',{name:en?'Sleep better':'睡得更好',exact:true}).click();
-  await page.screenshot({path:`${out}/goals-${lang}-${width}.png`});
-  await page.getByRole('button',{name:en?'Continue':'继续',exact:true}).click();
-  await page.getByRole('button',{name:en?'An irregular routine':'作息不太规律',exact:true}).click();
-  await page.screenshot({path:`${out}/question-${lang}-${width}.png`});
-  await page.getByRole('button',{name:en?'Continue':'继续',exact:true}).click();
-  assert.equal(await page.getByRole('checkbox').first().isChecked(),false);
-  await expect(page.locator('.cold-primary')).toBeInViewport();
-  await page.getByRole('button',{name:en?'More options':'更多选项'}).click();await expect(page.getByRole('menu')).toBeVisible();await page.keyboard.press('Escape');
-  await page.screenshot({path:`${out}/consent-${lang}-${width}.png`});
-  await page.locator('.cold-primary').click();assert.equal(await page.evaluate(()=>window.setupSaved.goal),'sleep');
+  await page.goto(url+'?mode=onboarding');const onboard=page.frameLocator('iframe');
+  await expect(onboard.locator('#screen')).toHaveAttribute('data-step','summary',{timeout:30000});
+  await onboard.locator('#next').click();await expect(onboard.locator('#screen')).toHaveAttribute('data-step','goal');
+  await expect(page.locator('.cold-start-screen')).toHaveCount(0);
+  await expect(onboard.locator('#next')).toBeDisabled();
+  for(const stage of ['goal','challenge','permissions']){
+    await expect(onboard.locator('#screen')).toHaveAttribute('data-step',stage);
+    await onboard.locator('#language').click();await expect(onboard.locator('#language-menu')).toBeVisible();await onboard.locator('#language').press('Escape');
+    if(stage==='goal')await onboard.locator('[data-option=sleep]').click();
+    if(stage==='challenge')await onboard.locator('[data-option=routine]').click();
+    if(stage==='permissions')assert.equal(await onboard.getByRole('checkbox').first().getAttribute('aria-checked'),'false');
+    await page.screenshot({path:`${out}/original-${stage}-${lang}-${width}.png`});
+    await expect(onboard.locator('#next')).toBeInViewport();
+    const overlap=await onboard.locator('.paper-content').evaluate(c=>{const caption=c.querySelector('.sheet-caption').getBoundingClientRect(),opts=c.querySelector('.options').getBoundingClientRect();return opts.bottom>caption.top;});assert.equal(overlap,false,stage+' caption overlap');
+    if(stage==='challenge'){const draft=await page.evaluate(()=>JSON.parse(localStorage.getItem('nava.first-notes.draft.v1.10000000-0000-4000-8000-000000000001')));assert.equal(draft.step,'challenge');}
+    await onboard.locator('#next').click();
+  }
+  await expect(onboard.locator('#screen')).toHaveAttribute('data-step','summary');assert.equal(profileWrites,0);
+  await onboard.locator('#next').click();await expect(page.locator('main').first()).toContainText('SAVED');assert.equal(profileWrites,1);
+  if(process.env.NAVA_NOTEBOOK_ONLY==='1'){assert.deepEqual(errors,[]);report.push({width,height,lang,profileWrites});await context.close();console.log('Notebook passed',width,lang);continue;}
   await page.goto(url+'?mode=hub');await expect(page.locator('.cold-progress')).toContainText(en?'0 days':'0 天');
   await page.getByRole('button',{name:en?'See an example weekly report':'看看未来的周报',exact:true}).click();
   await expect(page.locator('.cold-example')).toBeVisible();await page.screenshot({path:`${out}/sample-${lang}-${width}.png`});assert.equal(saves,0);
@@ -74,16 +82,29 @@ try{
   await page.goto(url+'?module=sleep');await expect(page.locator('.journal-loading')).toHaveCount(0,{timeout:30000});await expect(page.frameLocator('iframe').locator('#cold-guide')).toBeHidden();
   await page.frameLocator('iframe').locator('#entry-more').click();await page.frameLocator('iframe').locator('[data-action=guide]').click();await expect(page.frameLocator('iframe').locator('#cold-guide')).toBeVisible();
   if(width===390){
+   await page.evaluate(()=>{localStorage.removeItem('nava.first-notes.draft.v1.10000000-0000-4000-8000-000000000001');localStorage.removeItem('nava.cold-start.draft.v1.10000000-0000-4000-8000-000000000001');});
+   await page.goto(url+'?mode=onboarding&first=1');const notes=page.frameLocator('iframe');
+   await expect(notes.locator('#screen')).toHaveAttribute('data-step','welcome',{timeout:30000});await notes.locator('#next').click();
+   for(const key of ['gender','role','age','interests','sleep','exercise','diet']){
+    await expect(notes.locator('#screen')).toHaveAttribute('data-step',key);await notes.locator('[data-question='+key+']').first().click();
+    if(key==='interests'){await page.screenshot({path:`${out}/original-interests-${lang}.png`});}
+    if(['interests','diet'].includes(key))await notes.locator('#next').click();
+   }
+   await expect(notes.locator('#screen')).toHaveAttribute('data-step','goal');await notes.locator('[data-option=sleep]').click();await notes.locator('#next').click();await notes.locator('[data-option=routine]').click();
+   await page.reload();await expect(notes.locator('#screen')).toHaveAttribute('data-step','challenge',{timeout:30000});await expect(notes.locator('[data-option=routine]')).toHaveAttribute('aria-checked','true');
+   await notes.locator('#language').click();await notes.getByRole('menuitem',{name:en?'Previous page':'上一页'}).click();await notes.locator('[data-option=mood]').click();await notes.locator('#next').click();await expect(notes.locator('#next')).toBeDisabled();await expect(notes.locator('[data-option=routine]')).toHaveCount(0);
+   await notes.locator('#language').click();await notes.getByRole('menuitem',{name:en?'Previous page':'上一页'}).click();await notes.locator('[data-option=sleep]').click();await notes.locator('#next').click();await notes.locator('[data-option=routine]').click();await notes.locator('#next').click();
+   await notes.locator('[data-consent=healthConsent]').click();await notes.locator('[data-consent=healthConsent]').click();await notes.locator('#next').click();
+   failProfile=true;await notes.locator('#next').click();await expect(page.getByRole('alert')).toBeVisible();assert.equal(profileWrites,1);failProfile=false;
+   await page.getByRole('button',{name:en?'Retry':'重试',exact:true}).click();await expect(notes.locator('#screen')).toHaveAttribute('data-step','summary',{timeout:30000});await notes.locator('#next').click();await expect(page.locator('main').first()).toContainText('SAVED');assert.equal(profileWrites,2);
    for(const [module,key] of [['mood','mood'],['diet','meal'],['exercise','activity'],['face','feeling'],['focus','task']]){
     rows=[];await page.goto(url+'?module='+module+'&force=1');const guided=page.frameLocator('iframe');await expect(guided.locator('#cold-guide')).toBeVisible({timeout:30000});await guided.locator('#cold-guide-next').click();await expect(guided.locator('#field-'+key).locator('..')).toHaveClass(/cold-guide-target/);await page.screenshot({path:`${out}/guide-${module}-${lang}.png`});
     if(module==='focus'){await guided.locator('#field-task').fill('Read a page');await guided.locator('#cold-guide-next').click();await guided.locator('.cold-focus-presets button').filter({hasText:/^15$/}).click();await expect(guided.locator('#field-durationMinutes')).toHaveValue('15');}
     if(module==='mood'){await page.setViewportSize({width,height:480});await guided.locator('#field-mood').fill(en?'Calm':'平静');await expect(guided.locator('#field-mood')).toBeInViewport();await page.screenshot({path:`${out}/keyboard-${lang}.png`});await page.setViewportSize({width,height});}
     await guided.locator('#cold-guide-skip').click();await expect(guided.locator('#cold-guide')).toBeHidden();assert.equal(saves,1);
    }
-   await page.goto(url+'?mode=onboarding');const onboard=page.frameLocator('iframe');await expect(onboard.locator('#screen')).toHaveAttribute('data-step','summary',{timeout:30000});await expect(onboard.locator('#next')).toBeEnabled();await onboard.locator('#next').click();await expect(page.locator('.cold-start-screen')).toBeVisible();assert.equal(profileWrites,0);
-   await page.getByRole('button',{name:en?'Sleep better':'睡得更好',exact:true}).click();await page.locator('.cold-primary').click();await page.getByRole('button',{name:en?'An irregular routine':'作息不太规律',exact:true}).click();await page.locator('.cold-primary').click();await page.locator('.cold-primary').click();await expect(page.locator('main').first()).toContainText('SAVED');assert.equal(profileWrites,1);
   }
   assert.deepEqual(errors,[]);report.push({width,height,lang,saves,profileWrites});await context.close();console.log('Passed',width,lang);
  }
- await writeFile(out+'/report.json',JSON.stringify(report,null,2));
+ await writeFile(out+(process.env.NAVA_NOTEBOOK_ONLY==='1'?'/notebook-report.json':process.env.NAVA_TEST_WIDTH?'/report-'+process.env.NAVA_TEST_WIDTH+'.json':'/report.json'),JSON.stringify(report,null,2));
 }finally{await browser.close();await server.close();}

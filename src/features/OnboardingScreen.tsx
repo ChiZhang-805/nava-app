@@ -2,8 +2,7 @@ import { CheckCircle2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "../i18n";
 import { completeOnboarding, type OnboardingStatus } from "../services/onboarding";
-import { ColdStartSetup } from './ColdStartExperience';
-import { normalizeColdStart, normalizeColdStartDraft, type ColdStartAnswers } from '../services/coldStart';
+import { firstGoals, firstChallenges, normalizeColdStart, normalizeColdStartDraft, type ColdStartAnswers } from '../services/coldStart';
 import {
   answersFromFirstNotesProfile,
   blankFirstNotesProfile,
@@ -31,10 +30,10 @@ type Props = {
 
 type HostMessage =
   | { channel?: unknown; type?: "ready" }
-  | { channel?: unknown; type?: "draft"; draft?: unknown }
-  | { channel?: unknown; type?: "complete"; profile?: unknown };
+  | { channel?: unknown; type?: "draft"; draft?: unknown; coldStart?: unknown }
+  | { channel?: unknown; type?: "complete"; profile?: unknown; coldStart?: unknown };
 
-const iframePath = `${import.meta.env.BASE_URL}journal/onboarding.html?v=nava-first-run-20260923-v17`;
+const iframePath = `${import.meta.env.BASE_URL}journal/onboarding.html?v=nava-first-run-20260928-v186`;
 
 function createChannel() {
   if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
@@ -75,7 +74,6 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pendingProfile, setPendingProfile] = useState<FirstNotesProfile | null>(null);
   const coldKey = `nava.cold-start.draft.v1.${user.id}`;
   const [coldDraft, setColdDraft] = useState<ColdStartAnswers | null>(() => {
     if (previewOnly) return null;
@@ -94,11 +92,12 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
     () => previewOnly
       ? { version: 1, profile: blankFirstNotesProfile(normalizedLocale), step: "welcome" } satisfies FirstNotesDraft
       : initialDraftFor(user.id, status, normalizedLocale, mode),
-    [mode, normalizedLocale, previewOnly, status, user.id],
+    // A retry reloads the latest account-scoped draft rather than the entry-time snapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [attempt, mode, normalizedLocale, previewOnly, status, user.id],
   );
   const latestStatusRef = useRef(status);
   latestStatusRef.current = status;
-  useEffect(() => { if (frameRef.current) frameRef.current.inert = Boolean(pendingProfile); }, [pendingProfile]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -117,7 +116,7 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
     if (saveLock.current) return;
     const coldStart = normalizeColdStart(coldCandidate);
     if (!coldStart) return;
-    const profile = normalizeFirstNotesProfile({ ...profileCandidate, language: normalizedLocale }, { fallbackLanguage: normalizedLocale });
+    const profile = normalizeFirstNotesProfile(profileCandidate, { fallbackLanguage: normalizedLocale });
     if (!profile) {
       postToFrame({ type: "save-error" });
       setError(locale === "zh" ? "这份初见手记还没写完整。" : "These first notes are not complete yet.");
@@ -180,13 +179,18 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
           type: "init",
           profile: initialDraft.profile,
           step: initialDraft.step,
+          coldStart: coldDraft,
+          coldConfig: { goals: firstGoals, challenges: firstChallenges },
         });
       } else if (event.data.type === "draft") {
         const draft = normalizeFirstNotesDraft(event.data.draft, normalizedLocale);
         if (draft && !previewOnly) writeFirstNotesDraft(user.id, draft);
+        const cold = normalizeColdStartDraft(event.data.coldStart);
+        if (cold) saveColdDraft(cold);
       } else if (event.data.type === "complete") {
         const profile = normalizeFirstNotesProfile(event.data.profile, { fallbackLanguage: normalizedLocale });
-        if (profile) { if (profile.language !== locale) setLocale(profile.language); setPendingProfile(profile); }
+        const cold = normalizeColdStart(event.data.coldStart);
+        if (profile && cold) void handleSave(profile, cold);
         else {
           postToFrame({ type: "save-error" });
           setError(locale === "zh" ? "这份初见手记还没写完整。" : "These first notes are not complete yet.");
@@ -195,11 +199,10 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [channel, initialDraft.profile, initialDraft.step, locale, normalizedLocale, postToFrame, previewOnly, setLocale, user.id]);
+  }, [channel, coldDraft, handleSave, initialDraft.profile, initialDraft.step, locale, normalizedLocale, postToFrame, previewOnly, saveColdDraft, user.id]);
 
   return (
     <main className="onboarding-screen onboarding-screen--first-notes" data-mode={mode}>
-      {pendingProfile && <div className="cold-feedback-layer"><ColdStartSetup initial={coldDraft} onDraft={saveColdDraft} busy={saving || saved} error={error} onBack={() => { setPendingProfile(null); postToFrame({ type: 'save-error' }); }} onSave={value => void handleSave(pendingProfile, value)} /></div>}
       <iframe
         key={`${channel}-${attempt}`}
         ref={frameRef}
@@ -207,10 +210,8 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
         src={iframePath}
         title={locale === "zh" ? "初见手记" : "First notes"}
         sandbox="allow-scripts allow-same-origin"
-        aria-hidden={Boolean(pendingProfile)}
-        tabIndex={pendingProfile ? -1 : undefined}
       />
-      {!pendingProfile && (!ready || saving || saved || error) && (
+      {(!ready || saving || saved || error) && (
         <div className={["onboarding-frame-status", error ? "is-error" : "", saved ? "is-saved" : ""].filter(Boolean).join(" ")} role={error ? "alert" : "status"}>
           {error ? (
             <>

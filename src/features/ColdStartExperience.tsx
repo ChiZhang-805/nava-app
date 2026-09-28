@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, BookOpen, Check, Heart, Home, Moon, Timer, Sparkles } from 'lucide-react';
 import MoreMenu from '../components/MoreMenu';
 import { useLocale } from '../i18n';
-import { firstGoals, firstChallenges, normalizeColdStart, normalizeColdStartDraft, recordedDays, firstRecordObservation, firstRecordNextStep, type ColdStartAnswers, type FirstGoal } from '../services/coldStart';
+import { firstGoals, normalizeColdStart, recordedDays, firstRecordObservation, firstRecordNextStep, type FirstGoal } from '../services/coldStart';
 import { loadProfile } from '../services/profile';
 import { getJournalRecords, type JournalRecord } from '../services/journal';
 import useDeviceDate from '../hooks/useDeviceDate';
@@ -21,22 +21,6 @@ function Frame({ title, onBack, children, footer, home = false, menu }: { title:
 }
 function CatNote({ children }: { children: ReactNode }) { return <div className="cold-cat-note"><img src={cat} alt="" className="cold-cat" /><div className="cold-paper">{children}</div></div>; }
 
-export function ColdStartSetup({ initial, busy, error, onBack, onSave, onDraft }: { initial?: unknown; busy: boolean; error: string | null; onBack: () => void; onSave: (answers: ColdStartAnswers) => void; onDraft: (answers: ColdStartAnswers) => void }) {
-  const { locale } = useLocale(), en = locale === 'en';
-  const saved = normalizeColdStartDraft(initial);
-  const [goal, setGoal] = useState<FirstGoal | null>(saved?.goal ?? null), [challenge, setChallenge] = useState(saved?.challenge ?? '');
-  const [health, setHealth] = useState(saved?.healthConsent ?? false), [ai, setAI] = useState(saved?.aiConsent ?? false);
-  const [step, setStep] = useState(0);
-  useEffect(() => { if (goal) onDraft({ version: 1, goal, challenge, healthConsent: health, aiConsent: ai }); }, [goal, challenge, health, ai, onDraft]);
-  const titles = en ? ['What would you like to care for?', 'What feels familiar lately?', 'Our first little plan'] : ['最近，最想照顾好哪一部分？', goal === 'sleep' ? '最近的夜晚，更像哪一种？' : goal === 'focus' ? '专注时，什么最困扰你？' : '最近的心情，更像哪一种？', '从这一件小事开始。'];
-  return <Frame title={en ? 'First notes' : '初见手记'} onBack={() => { if (!busy) { if (step) setStep(step - 1); else onBack(); } }} footer={<><div className="cold-dots" aria-label={`${step + 1}/3`}>{[0, 1, 2].map(i => <i key={i} className={i === step ? 'active' : ''} />)}</div>{error && <p role="alert">{error}</p>}<button className="cold-primary" disabled={busy || !goal || (step > 0 && !challenge)} onClick={() => step < 2 ? setStep(step + 1) : onSave({ version: 1, goal: goal!, challenge, healthConsent: health, aiConsent: ai })}>{busy ? (en ? 'Saving…' : '正在保存…') : step === 2 ? (en ? 'Start together' : '一起开始') : (en ? 'Continue' : '继续')}</button></>}>
-    <h1>{titles[step]}</h1><CatNote>
-      {step === 0 && <div className="cold-options">{firstGoals.map(g => { const Icon = goalIcons[g.id]; return <button key={g.id} aria-pressed={goal === g.id} onClick={() => { setGoal(g.id); setChallenge(''); }}><Icon /><span>{en ? g.en : g.zh}</span>{goal === g.id && <Check />}</button>; })}<p>{en ? 'We can start with one small wish.' : '一个小小的心愿，就很好。'}</p></div>}
-      {step === 1 && goal && <div className="cold-options">{[...firstChallenges[goal], ['unsure', '还不确定', 'Not sure yet']].map(c => <button key={c[0]} aria-pressed={challenge === c[0]} onClick={() => setChallenge(c[0])}><span>{c[en ? 2 : 1]}</span>{challenge === c[0] && <Check />}</button>)}</div>}
-      {step === 2 && <><h2>{firstGoals.find(g => g.id === goal)?.[en ? 'en' : 'zh']}</h2><p>{en ? 'The cat will show you around your first record, one step at a time. You can pause or skip the guide whenever you like.' : '小猫会带你完成第一次记录，一步一步认识页面。随时都可以暂停或跳过引导。'}</p><div className="cold-consents"><label><input type="checkbox" checked={health} onChange={e => setHealth(e.target.checked)} /><span>{en ? 'Allow connected health data to inform my experience' : '允许结合已连接的健康数据'}<small>{en ? 'Optional. Device access is requested separately.' : '可选；连接设备时另行请求系统授权。'}</small></span></label><label><input type="checkbox" checked={ai} onChange={e => setAI(e.target.checked)} /><span>{en ? 'Personalize AI feedback using my saved records' : '允许 AI 结合历史记录提供个性化反馈'}<small>{en ? 'Optional. You can change this in your profile.' : '可选；之后可在个人资料中修改。'}</small></span></label></div></>}
-    </CatNote>
-  </Frame>;
-}
 
 export function SampleWeeklyReport({ onBack }: { onBack: () => void }) {
   const { locale } = useLocale(), en = locale === 'en';
