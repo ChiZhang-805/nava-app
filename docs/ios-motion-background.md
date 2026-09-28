@@ -14,6 +14,9 @@
 已实跑；关键帧参考位于 `Q:/NAVA-Workspace/Build/TestRuns/points-shop-reference`，应用证据在
 `Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v2/app`。
 
+本轮功能源码 `c2dd6a0358b645f35c4f79d16ba324ed882b9aac` 已作为双站 v181 发布；Pages
+`source.json`、Sites保存版本和两站关键资源哈希均指向本次同一功能源码。
+
 ## 结算卡片滑动环与系统栏连续背景（2026-09-28）
 
 结算卡面选择已按参考视频改为横向手势轨道：当前卡吸附在中心，两侧卡保留露出并带轻微透视，

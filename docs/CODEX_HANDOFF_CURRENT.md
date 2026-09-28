@@ -29,6 +29,13 @@ Order Placed、票据和安全区。自动验收还检查分页点数量与选�
 `Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v2/app`。本轮没有修改数据库、Edge
 Function、账号、积分余额或订单合同。
 
+功能源码 `c2dd6a0358b645f35c4f79d16ba324ed882b9aac` 已发布为 ChatGPT Sites v181；version ID
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_fad9876715d48191a69e10aa74ebcfdd`，
+deployment `appgdep_6aba2c5701e48191a3c2c3c264676906` succeeded。GitHub Pages 镜像提交
+`e8a5a8611c5ec71a339e388ccd44c0f75de22155`，workflow `36400822806` success；`source.json`
+指向同一源码和 v181。公开验证器确认两个入口均保留真实登录门、canonical Supabase 项目，且
+每站6个关键资源哈希与对应本地构建一致。
+
 ## 109. 结算卡片滑动环与状态栏连续背景
 
 结算前的积分卡不再纵向堆叠，也不依赖逐张点击。卡片现在位于原生横向滚动轨道中，手指拖动后
