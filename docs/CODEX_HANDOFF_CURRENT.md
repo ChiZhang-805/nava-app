@@ -7,7 +7,7 @@
 聊天记录。新任务必须以代码、数据库边界和本文件为准，不要根据旧聊天画面
 推断进度。
 
-## 114. 冷启动分步新手引导与原版问卷复用
+## 114. 冷启动分步新手引导与原版问卷复用（双站 v186，当前版本）
 
 2026-09-28视觉纠偏：用户指定原“闲下来，你喜欢什么？”页为唯一模板。新增目标、
 困扰、授权三页已改为直接扩展 `public/journal/onboarding.html`，不是另画相似组件。
@@ -26,7 +26,15 @@
 授权4项、ESLint、TypeScript、构建、Sites产物与生产认证合同通过。全仓verify仍在
 旧相机media-feedback:visual按钮选择器超时，见 `cold-start/verify-v186.log`。
 未使用真实账号写入代替隔离HTTP测试，也未完成物理iPhone验收。
-发布收据将在下方追加；以下v185信息是上一版历史收据，不代表本轮已部署。
+v186双站已发布：功能源码 `add490bdeae4f43b0b2d35527bbd464a6adfc991` 干净推送后构建。
+Sites版本 `appgprj_6a5de710811c8191af8ce2681358d518~appgver_05b1ba7c132c8191b0c13d6a2105b3ea`，
+部署 `appgdep_6aba6c1576f88191b0fd27bdbdfe513e` succeeded。官方workflow完成构建/源码推送，
+Windows打包仍用官方prepare helper+Windows tar恢复；归档311文件。Pages镜像
+`a424117430b2202f31639a4c795f9e5cd253a874`，workflow `36429229057` success。
+209个生成文件单向复制哈希一致，未删除旧部署产物。两站各6项主资源哈希、公开登录门、
+demo拒绝与canonical Supabase项目检查通过；两站onboarding.html经换行/Cloudflare
+已知注入归一化后与源码完全一致。收据 `cold-start/public-release-v186.json`、
+`cold-start/public-notebook-v186.json`。以下为v185首轮实现背景及历史发布收据。
 
 用户要求第一次记录必须是新手引导，并保留合适页面右上角三点菜单。本轮不重做六模块
 记录链路：在原journal表单上叠加小猫引导、字段高亮、逐步提示、跳过和三点菜单重开。
