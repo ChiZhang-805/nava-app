@@ -40,6 +40,7 @@ export const POINTS_CARD_SKINS: readonly PointsCardSkin[] = [
 ] as const;
 
 export const DEFAULT_POINTS_CARD_IDS = POINTS_CARD_SKINS.filter((card) => card.free).map((card) => card.id);
+export const EXTRA_POINTS_CARD_COST = 10;
 
 const skinIds = new Set<PointsCardSkinId>(POINTS_CARD_SKINS.map((card) => card.id));
 

@@ -1,0 +1,43 @@
+.phone-frame.has-card-gallery .bottom-nav { visibility: hidden !important; pointer-events: none !important; }
+.points-shop-screen[data-shop-route="add-card"] { display: flex; flex-direction: column; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+.points-shop-screen[data-shop-route="add-card"]:lang(en) { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
+.points-card-gallery:lang(en) { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
+.points-card-gallery { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 0; padding-top: clamp(8px, 3dvh, 28px); }
+.points-card-gallery-track { display: flex; flex: none; width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; touch-action: pan-x pan-y; cursor: grab; border-radius: 22px; }
+.points-card-gallery-track::-webkit-scrollbar { display: none; }
+.points-card-gallery-track[data-dragging] { scroll-snap-type: none; cursor: grabbing; user-select: none; }
+.points-card-gallery-track[data-busy] { overflow-x: hidden; pointer-events: none; }
+.points-card-gallery-slide { flex: 0 0 100%; min-width: 0; padding: 6px; scroll-snap-align: center; scroll-snap-stop: always; }
+.points-card-gallery-art { position: relative; overflow: hidden; width: 100%; aspect-ratio: 1.6; border: 1px solid rgba(255,255,255,.95); border-radius: 21px; background: #d7e9ed; isolation: isolate; }
+.points-card-gallery-art::after { content: ""; position: absolute; inset: 5px; border: 1px solid rgba(255,255,255,.45); border-radius: 16px; pointer-events: none; }
+.points-card-gallery-art img { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.points-card-gallery-brand, .points-card-gallery-number { position: absolute; left: 18px; color: white; text-shadow: 0 1px 5px #20304d; font-weight: 800; pointer-events: none; }
+.points-card-gallery-brand { top: 15px; font-size: 15px; letter-spacing: .12em; }
+.points-card-gallery-brand small { font-size: 9px; }
+.points-card-gallery-number { bottom: 16px; font-size: 12px; letter-spacing: .12em; }
+.points-card-gallery-dots { display: flex; justify-content: center; flex: none; }
+.points-card-gallery-dots button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; }
+.points-card-gallery-dots span { width: 6px; height: 6px; border-radius: 9px; background: #a4c6ce; transition: width .2s ease, background .2s ease; }
+.points-card-gallery-dots [aria-current="true"] span { width: 22px; background: #268e91; }
+.points-card-gallery-details { padding: 2px 8px 0; }
+.points-card-gallery-details h2 { margin: 0; color: #194454; font-size: clamp(24px, 6.3vw, 29px); line-height: 1.25; letter-spacing: .015em; overflow-wrap: anywhere; }
+.points-card-gallery-creator { margin: 10px 0 0; color: #60848e; font-size: 14px; }
+.points-card-gallery-story { display: grid; gap: 3px; margin: 22px 0; color: #476c79; font-size: 15px; line-height: 1.85; overflow-wrap: anywhere; }
+.points-card-gallery-price { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-top: 1px solid rgba(115,164,177,.22); padding: 17px 8px; color: #507480; font-size: 15px; }
+.points-card-gallery-price strong { color: #197b83; font-size: 28px; line-height: 1.2; }
+.points-card-gallery-price small { font-size: 14px; }
+.points-card-gallery-footer { margin-top: auto; padding-top: 20px; }
+.points-card-gallery-footer p { margin: 0 0 12px; color: #657f88; font-size: 14px; text-align: center; }
+.points-card-gallery-footer button { width: 100%; min-height: 54px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 19px; background: linear-gradient(115deg,#27a4ac,#228f7e); box-shadow: 0 12px 25px rgba(31,126,125,.16); color: white; font: inherit; font-size: 18px; font-weight: 750; }
+.points-card-gallery-footer button:disabled { box-shadow: none; background: #d6e5e8; color: #597780; }
+.points-card-gallery-footer .lucide-loader-circle { animation: record-loader-spin 1s linear infinite; }
+@media (max-height: 740px) {
+  .points-card-gallery { padding-top: 0; }
+  .points-card-gallery-story { margin-block: 14px; line-height: 1.7; }
+  .points-card-gallery-price { padding-block: 12px; }
+  .points-card-gallery-footer { padding-top: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .points-card-gallery-dots span { transition: none; }
+  .points-card-gallery-footer .lucide-loader-circle { animation: none; }
+}

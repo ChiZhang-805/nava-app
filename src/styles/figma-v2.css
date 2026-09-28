@@ -13177,30 +13177,7 @@ body::before {
 .points-card-wallet-list button em { font-size: 10px; font-style: normal; font-weight: 720; letter-spacing: .15em; opacity: .9; }
 .points-card-wallet-list button > i { position: absolute; right: 12px; top: 12px; width: 30px; height: 30px; border: 2px solid rgba(255,255,255,.8); border-radius: 50%; display: grid; place-items: center; color: white; background: rgba(20,60,68,.45); }
 .points-card-wallet-list button[data-selected="true"] > i { color: #237f72; background: white; }
-.points-card-wallet-list .lucide-loader-circle,
-.points-card-unlock-confirm .lucide-loader-circle { animation: record-loader-spin 1s linear infinite; }
-.points-card-add-panel { border: 1px solid rgba(255,255,255,.9); border-radius: 23px; display: grid; gap: 12px; padding: 14px; background: rgba(255,255,255,.78); box-shadow: 0 12px 25px rgba(38,91,99,.08); }
-.points-card-add-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #235364; }
-.points-card-add-panel > header > div { display: flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 780; }
-.points-card-add-panel > header svg { color: #a98136; }
-.points-card-add-panel > header > strong { border-radius: 99px; padding: 6px 9px; color: #8c6727; background: #fff3d8; font-size: 12px; }
-.points-card-add-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
-.points-card-add-grid > button { min-width: 0; overflow: hidden; border: 2px solid transparent; border-radius: 16px; padding: 0; color: #244f60; background: #edf5f6; font: inherit; text-align: left; }
-.points-card-add-grid > button[aria-pressed="true"] { border-color: #269488; box-shadow: 0 0 0 2px rgba(38,148,136,.13); }
-.points-card-add-grid img { width: 100%; aspect-ratio: 1.6; display: block; object-fit: cover; }
-.points-card-add-grid span { min-width: 0; display: grid; gap: 4px; padding: 9px 10px 10px; }
-.points-card-add-grid strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.points-card-add-grid small { display: inline-flex; align-items: center; gap: 4px; color: #8a6c34; font-size: 10px; font-weight: 750; }
-.points-card-unlock-confirm { position: sticky; z-index: 20; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); overflow: hidden; border: 1px solid rgba(255,255,255,.95); border-radius: 25px; display: grid; grid-template-columns: 86px minmax(0,1fr); align-items: center; gap: 11px; padding: 11px; background: rgba(247,253,253,.97); box-shadow: 0 20px 42px rgba(23,76,84,.24); backdrop-filter: blur(18px); }
-.points-card-unlock-confirm > img { width: 86px; aspect-ratio: 1.6; border-radius: 12px; object-fit: cover; }
-.points-card-unlock-confirm > div { min-width: 0; display: grid; gap: 3px; }
-.points-card-unlock-confirm > div span { color: #6d8992; font-size: 10px; font-weight: 700; }
-.points-card-unlock-confirm > div strong { overflow: hidden; color: #224f60; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.points-card-unlock-confirm > div small { color: #6b8790; font-size: 10px; }
-.points-card-unlock-confirm > footer { grid-column: 1 / -1; display: grid; grid-template-columns: .8fr 1.2fr; gap: 8px; }
-.points-card-unlock-confirm button { min-height: 46px; border: 0; border-radius: 15px; display: flex; align-items: center; justify-content: center; gap: 5px; color: #4a747e; background: #eaf3f4; font: inherit; font-size: 13px; font-weight: 760; }
-.points-card-unlock-confirm button:last-child { color: white; background: linear-gradient(135deg,#2da6aa,#258b7d); }
-.points-card-unlock-confirm button:disabled { color: #91a6ad; background: #e6edef; }
+.points-card-wallet-list .lucide-loader-circle { animation: record-loader-spin 1s linear infinite; }
 @media (max-width: 359px) {
   .points-shop-screen { padding-inline: 12px; }
   .points-shop-header > .points-shop-header-actions { gap: 4px; }
@@ -13225,8 +13202,7 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   .points-shop-loading svg,
   .points-shop-add .lucide-loader-circle,
-  .points-card-wallet-list .lucide-loader-circle,
-  .points-card-unlock-confirm .lucide-loader-circle { animation: none; }
+  .points-card-wallet-list .lucide-loader-circle { animation: none; }
 }
 
 .option-two-health-disc {

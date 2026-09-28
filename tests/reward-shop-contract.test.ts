@@ -12,6 +12,7 @@ const terminal = readFileSync(new URL("../src/components/ShopPaymentTerminal.tsx
 const checkoutStyles = readFileSync(new URL("../src/components/shop-checkout-experience.css", import.meta.url), "utf8");
 const cardMigration = readFileSync(new URL("../supabase/migrations/202609280001_reward_card_skins.sql", import.meta.url), "utf8");
 const cards = readFileSync(new URL("../src/services/rewardCards.ts", import.meta.url), "utf8");
+const gallery = readFileSync(new URL("../src/components/PointsCardGallery.tsx", import.meta.url), "utf8");
 
 test("empty catalog presents explicit non-purchasable placeholders", () => {
   assert.match(service, /Array\.from\(\{ length: 4 \}/);
@@ -40,7 +41,7 @@ test("shop navigation returns home explicitly and replaces internal shop history
   assert.match(shop, /返回首页/);
   assert.match(shop, /onViewChange\(nextView, true\)/);
   assert.doesNotMatch(shop, /const back = activeRoute/);
-  assert.doesNotMatch(shop, /<ArrowLeft/);
+  assert.match(shop, /activeRoute === "add-card" \? <button[^\n]+onClick=\{\(\) => openItem\("points-shop-cards"\)\}/);
 });
 
 test("checkout serializes users and locks products before decrementing inventory", () => {
@@ -144,7 +145,13 @@ test("points-card skins share one balance and additional cards cost ten points a
   assert.match(cards, /nava_unlock_reward_card_skin/);
   assert.match(shop, /共享总额度/);
   assert.match(shop, /所有卡片共用这一份积分/);
-  assert.match(shop, /10 XP 添加/);
+  assert.match(cards, /EXTRA_POINTS_CARD_COST = 10/);
+  assert.match(shop, /cardState.balance < EXTRA_POINTS_CARD_COST/);
+  assert.match(shop, /points-shop-add-card/);
+  assert.match(home, /points-shop-add-card/);
+  assert.doesNotMatch(shop, /points-card-add-grid|points-card-unlock-confirm/);
+  assert.match(gallery, /主题创作 · 张驰/);
+  assert.match(gallery, /onAdd\(card.id\)/);
 });
 
 test("confirmation and receipt are aligned, legible and free of explanatory subtitles", () => {

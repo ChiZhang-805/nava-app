@@ -100,6 +100,20 @@ try {
   }
   await desktopCheckout.screenshot({ path: path.join(outputDir, "checkout-select-desktop-seam.png"), fullPage: true });
   report.push({ mode: "checkout-desktop-status-background", desktopCheckoutGeometry });
+  await desktopCheckout.goto(`${baseUrl}?demo=1&qa=shop-checkout#tab=today&view=points-shop-add-card`, { waitUntil: "networkidle" });
+  await expect(desktopCheckout.locator(".points-card-gallery")).toBeVisible();
+  const desktopGallery = await desktopCheckout.evaluate(() => {
+    const frame = document.querySelector(".phone-frame").getBoundingClientRect();
+    const cutout = document.querySelector(".nava-device-cutout").getBoundingClientRect();
+    const title = document.querySelector(".points-shop-header h1").getBoundingClientRect();
+    const price = document.querySelector(".points-card-gallery-price").getBoundingClientRect();
+    const button = document.querySelector(".points-card-gallery-footer button").getBoundingClientRect();
+    return { titleClear: title.top >= cutout.bottom, priceButtonGap: button.top - price.bottom,
+      bottomGap: frame.bottom - button.bottom, navHidden: getComputedStyle(document.querySelector(".bottom-nav")).visibility === "hidden" };
+  });
+  if (!desktopGallery.titleClear || !desktopGallery.navHidden || desktopGallery.bottomGap < 8 || Math.abs(desktopGallery.priceButtonGap) > 1) throw new Error("Desktop gallery safe areas: " + JSON.stringify(desktopGallery));
+  await desktopCheckout.screenshot({ path: path.join(outputDir, "card-gallery-desktop-safe-area.png"), fullPage: true });
+  report.push({mode:"card-gallery-desktop", desktopGallery});
   await desktopCheckoutContext.close();
 
   for (const viewport of [
@@ -186,28 +200,20 @@ try {
     }
     await page.screenshot({ path: path.join(outputDir, `points-card-manager-${viewport.width}x${viewport.height}.png`), fullPage: true });
     await page.getByRole("button", { name: "添加卡片", exact: true }).click();
-    await expect(page.locator(".points-card-add-grid > button")).toHaveCount(3);
-    await page.getByRole("button", { name: /薰衣草阅读卡/ }).click();
-    await expect(page.getByRole("dialog", { name: "确认添加积分卡" })).toBeVisible();
+    await expect(page.locator(".points-shop-screen")).toHaveAttribute("data-shop-route", "add-card");
+    await expect(page.locator(".points-card-gallery-details h2")).toHaveText("薰衣草阅读卡");
     const managerGeometry = await page.evaluate(() => {
-      const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
-      const screen = document.querySelector(".points-shop-screen")?.getBoundingClientRect();
-      const header = document.querySelector(".points-shop-header")?.getBoundingClientRect();
-      const walletCards = [...document.querySelectorAll(".points-card-wallet-list > button")].map((node) => node.getBoundingClientRect().toJSON());
-      const addCards = [...document.querySelectorAll(".points-card-add-grid > button")].map((node) => node.getBoundingClientRect().toJSON());
-      const imagesLoaded = [...document.querySelectorAll(".points-card-manager img")].every((node) => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0);
-      return frame && screen && header ? {
-        frame: frame.toJSON(), screen: screen.toJSON(), header: header.toJSON(), walletCards, addCards, imagesLoaded,
-        horizontalOverflow: screen.scrollWidth - screen.clientWidth,
-      } : null;
+      const screen = document.querySelector(".points-shop-screen");
+      const track = document.querySelector(".points-card-gallery-track");
+      const action = document.querySelector(".points-card-gallery-footer button").getBoundingClientRect();
+      return { overflow: screen.scrollWidth - screen.clientWidth, trackWidth: track.clientWidth, actionBottom: action.bottom,
+        navHidden: getComputedStyle(document.querySelector(".bottom-nav")).visibility === "hidden" };
     });
-    if (!managerGeometry || !managerGeometry.imagesLoaded || managerGeometry.horizontalOverflow > 1
-      || managerGeometry.header.left < managerGeometry.frame.left - 1 || managerGeometry.header.right > managerGeometry.frame.right + 1
-      || [...managerGeometry.walletCards, ...managerGeometry.addCards].some((card) => card.left < managerGeometry.frame.left - 1 || card.right > managerGeometry.frame.right + 1)) {
-      throw new Error(`${viewport.width}x${viewport.height}: points-card manager failed ${JSON.stringify(managerGeometry)}`);
+    if (managerGeometry.overflow > 1 || !managerGeometry.navHidden || managerGeometry.actionBottom > viewport.height) {
+      throw new Error("Card gallery composition failed " + JSON.stringify(managerGeometry));
     }
-    await page.screenshot({ path: path.join(outputDir, `points-card-manager-add-dialog-${viewport.width}x${viewport.height}.png`), fullPage: true });
-    await page.getByRole("button", { name: "10 XP 添加", exact: true }).click();
+    await page.screenshot({ path: path.join(outputDir, `points-card-gallery-${viewport.width}x${viewport.height}.png`), fullPage: true });
+    await page.getByRole("button", { name: "添加卡片", exact: true }).click();
     await expect(page.locator(".points-card-wallet-list [role=radio]")).toHaveCount(4);
     await expect(page.locator(".points-card-manager-summary strong")).toContainText("450");
     await expect(page.getByRole("radio", { name: /薰衣草阅读卡/ })).toHaveAttribute("aria-checked", "true");
