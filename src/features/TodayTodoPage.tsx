@@ -1,9 +1,37 @@
 import type { User } from "@supabase/supabase-js";
-import { ArrowLeft, Check, ChevronRight, ListTodo, LoaderCircle, Plus, TimerReset } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, Clock3, ListTodo, LoaderCircle, TimerReset } from "lucide-react";
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "../i18n";
 import { addTodo, loadTodos, subscribeProductivity, syncTodos, toggleTodo, type TodoItem } from "../services/productivity";
 import { resolveTodoFocusPlan, suggestedFocusPlan } from "../services/focusPlanning.ts";
+import { estimateTodoDuration } from "../services/todoDurationEstimate";
+
+type DurationDraft = { hours: string; minutes: string; seconds: string };
+const emptyDuration: DurationDraft = { hours: "", minutes: "", seconds: "" };
+
+function durationSeconds(value: DurationDraft) {
+  const hours = Math.min(99, Math.max(0, Number(value.hours) || 0));
+  const minutes = Math.min(59, Math.max(0, Number(value.minutes) || 0));
+  const seconds = Math.min(59, Math.max(0, Number(value.seconds) || 0));
+  return Math.round(hours) * 3600 + Math.round(minutes) * 60 + Math.round(seconds);
+}
+
+function splitDuration(totalSeconds: number): DurationDraft {
+  const safe = Math.min(359_999, Math.max(1, Math.round(totalSeconds)));
+  return {
+    hours: String(Math.floor(safe / 3600)),
+    minutes: String(Math.floor((safe % 3600) / 60)),
+    seconds: String(safe % 60),
+  };
+}
+
+function durationLabel(totalSeconds: number, locale: "zh" | "en") {
+  const value = splitDuration(totalSeconds);
+  const parts = locale === "zh"
+    ? [[value.hours, "小时"], [value.minutes, "分钟"], [value.seconds, "秒"]]
+    : [[value.hours, "h"], [value.minutes, "m"], [value.seconds, "s"]];
+  return parts.filter(([amount], index) => Number(amount) > 0 || index === 2).map(([amount, unit]) => `${amount}${locale === "zh" ? unit : ` ${unit}`}`).join(locale === "zh" ? " " : " ");
+}
 
 function dayLabel(deviceDate: string, locale: "zh" | "en") {
   const parsed = new Date(`${deviceDate}T12:00:00`);
@@ -32,7 +60,8 @@ export default function TodayTodoPage({
   const editor = useRef<HTMLTextAreaElement>(null);
   const [todos, setTodos] = useState<TodoItem[]>(() => loadTodos(user.id));
   const [draft, setDraft] = useState("");
-  const [scheduledTime, setScheduledTime] = useState("");
+  const [duration, setDuration] = useState<DurationDraft>(emptyDuration);
+  const [estimateNote, setEstimateNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,14 +94,43 @@ export default function TodayTodoPage({
     setBusy("add");
     setError(null);
     try {
-      await addTodo(user.id, draft, "manual", deviceDate, scheduledTime || undefined, suggestedFocusPlan(draft));
+      const seconds = durationSeconds(duration);
+      const suggestion = suggestedFocusPlan(draft);
+      await addTodo(user.id, draft, "manual", deviceDate, undefined, {
+        ...suggestion,
+        ...(seconds > 0 ? { focusMinutes: Math.min(180, Math.max(1, Math.ceil(seconds / 60))), estimatedSeconds: seconds } : {}),
+      });
       setDraft("");
-      setScheduledTime("");
+      setDuration(emptyDuration);
+      setEstimateNote(null);
       setTodos(loadTodos(user.id));
       onChanged();
       editor.current?.focus();
     } catch (todoError) {
       setError(todoError instanceof Error ? todoError.message : String(todoError));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function changeDuration(field: keyof DurationDraft, value: string) {
+    if (!/^\d{0,2}$/u.test(value)) return;
+    const maximum = field === "hours" ? 99 : 59;
+    setDuration((current) => ({ ...current, [field]: value === "" ? "" : String(Math.min(maximum, Number(value))) }));
+    setEstimateNote(null);
+  }
+
+  async function estimateDuration() {
+    if (!draft.trim() || busy) return;
+    setBusy("estimate");
+    setError(null);
+    setEstimateNote(null);
+    try {
+      const estimate = await estimateTodoDuration(draft, locale);
+      setDuration(splitDuration(estimate.seconds));
+      setEstimateNote(locale === "zh" ? `DeepSeek 预估 · ${durationLabel(estimate.seconds, locale)}` : `DeepSeek estimate · ${durationLabel(estimate.seconds, locale)}`);
+    } catch (estimateError) {
+      setError(estimateError instanceof Error ? estimateError.message : String(estimateError));
     } finally {
       setBusy(null);
     }
@@ -109,24 +167,32 @@ export default function TodayTodoPage({
 
     <div className="today-todo-intro">
       <span>{dayLabel(deviceDate, locale)}</span>
-      <h2>{locale === "zh" ? "把今天想做的事，认真写下来。" : "Write down what matters today."}</h2>
-      <p>{locale === "zh" ? "先写一件最想完成的事，再慢慢把今天安排好。" : "Start with one thing you most want to finish, then shape the rest of your day."}</p>
+      <h2>{locale === "zh" ? "写下今天要做的事。" : "Plan what matters today."}</h2>
     </div>
 
     <form className="today-todo-compose" onSubmit={submit}>
-      <div className="today-todo-compose-heading"><ListTodo size={23} /><strong>{locale === "zh" ? "写下待办" : "Write a to-do"}</strong></div>
+      <div className="today-todo-compose-heading">
+        <span><ListTodo size={23} /><strong>{locale === "zh" ? "待办事项" : "To-do"}</strong></span>
+        <button type="button" disabled={!draft.trim() || busy != null} onClick={() => void estimateDuration()} aria-label={locale === "zh" ? "让 DeepSeek 预估所需时间" : "Ask DeepSeek to estimate the time needed"} title={locale === "zh" ? "AI 时间预估" : "AI time estimate"}>
+          {busy === "estimate" ? <LoaderCircle className="today-todo-spinner" size={21} /> : <Clock3 size={21} />}
+        </button>
+      </div>
       <label className="today-todo-draft">
-        <span>{locale === "zh" ? "今天要做什么？" : "What would you like to do today?"}</span>
+        <span>{locale === "zh" ? "今天要做什么" : "What do you need to do today?"}</span>
         <textarea ref={editor} value={draft} maxLength={180} rows={3} onChange={(event) => setDraft(event.target.value)} onKeyDown={submitWithShortcut} placeholder={locale === "zh" ? "例如：整理明天要用的资料" : "For example: Prepare tomorrow's notes"} />
         <small>{draft.length}/180</small>
       </label>
-      <div className="today-todo-compose-actions">
-        <label><span>{locale === "zh" ? "时间（可选）" : "Time (optional)"}</span><input type="time" value={scheduledTime} onChange={(event) => setScheduledTime(event.target.value)} /></label>
-        <button type="submit" disabled={!draft.trim() || busy === "add"}>
-          {busy === "add" ? <LoaderCircle className="today-todo-spinner" size={20} /> : <Plus size={21} />}
-          {locale === "zh" ? "写进今日待办" : "Add to today"}
-        </button>
+      <div className="today-todo-duration">
+        <span>{locale === "zh" ? "时间" : "Time"}</span>
+        <div>
+          {(["hours", "minutes", "seconds"] as const).map((field) => <label key={field}>
+            <input inputMode="numeric" pattern="[0-9]*" value={duration[field]} onChange={(event) => changeDuration(field, event.target.value)} aria-label={locale === "zh" ? { hours: "小时", minutes: "分钟", seconds: "秒钟" }[field] : field} placeholder="00" />
+            <span>{locale === "zh" ? { hours: "小时", minutes: "分钟", seconds: "秒" }[field] : { hours: "hr", minutes: "min", seconds: "sec" }[field]}</span>
+          </label>)}
+        </div>
+        {estimateNote && <small aria-live="polite">{estimateNote}</small>}
       </div>
+      <button className="today-todo-submit" type="submit" disabled={!draft.trim() || busy != null}>{busy === "add" ? (locale === "zh" ? "正在写入…" : "Adding…") : (locale === "zh" ? "写进今日待办" : "Add to today")}</button>
       {error && <p className="today-todo-error" role="alert">{error}</p>}
     </form>
 
@@ -141,7 +207,7 @@ export default function TodayTodoPage({
                 {busy === todo.id ? <LoaderCircle className="today-todo-spinner" size={17} /> : todo.completed ? <Check size={17} /> : null}
               </button>
               <button className="today-todo-open" type="button" onClick={() => onStartFocus(todo)}>
-                <span><strong>{todo.title}</strong><small>{todo.scheduledTime ? `${todo.scheduledTime} · ` : ""}{locale === "zh" ? `专注 ${plan.focusMinutes} 分钟` : `${plan.focusMinutes} min focus`}</small></span>
+                <span><strong>{todo.title}</strong><small>{todo.estimatedSeconds ? (locale === "zh" ? `预计 ${durationLabel(todo.estimatedSeconds, locale)}` : `Est. ${durationLabel(todo.estimatedSeconds, locale)}`) : todo.scheduledTime ? `${todo.scheduledTime} · ${locale === "zh" ? `专注 ${plan.focusMinutes} 分钟` : `${plan.focusMinutes} min focus`}` : (locale === "zh" ? `专注 ${plan.focusMinutes} 分钟` : `${plan.focusMinutes} min focus`)}</small></span>
                 <TimerReset size={19} aria-hidden="true" /><ChevronRight size={18} aria-hidden="true" />
               </button>
             </article>;

@@ -119,6 +119,9 @@ try {
       const todoPage = page.locator("[data-today-todo-page]");
       await expect(todoPage).toBeVisible();
       await expect(page.locator(".bottom-nav")).toHaveCount(0);
+      await expect(page.locator(".today-todo-intro p")).toHaveCount(0);
+      const estimateButton = page.locator(".today-todo-compose-heading button");
+      await expect(estimateButton).toBeDisabled();
 
       const geometry = await todoPage.evaluate((element) => {
         const box = element.getBoundingClientRect();
@@ -134,14 +137,18 @@ try {
         };
       });
       assertContained(`${locale}-${viewport.name}`, geometry);
+      if (geometry.scrollHeight > geometry.clientHeight + 1) throw new Error(`${locale}-${viewport.name}: empty to-do page is not one screen ${JSON.stringify(geometry)}`);
 
       const title = `${locale === "zh" ? "整理明天资料" : "Prepare tomorrow's notes"} ${viewport.name}`;
       await page.locator(".today-todo-draft textarea").fill(title);
-      await page.locator('.today-todo-compose-actions input[type="time"]').fill("09:30");
-      await page.locator('.today-todo-compose-actions button[type="submit"]').click();
+      await expect(estimateButton).toBeEnabled();
+      await page.locator('.today-todo-duration input[aria-label="' + (locale === "zh" ? "小时" : "hours") + '"]').fill("1");
+      await page.locator('.today-todo-duration input[aria-label="' + (locale === "zh" ? "分钟" : "minutes") + '"]').fill("2");
+      await page.locator('.today-todo-duration input[aria-label="' + (locale === "zh" ? "秒钟" : "seconds") + '"]').fill("3");
+      await page.locator('.today-todo-submit').click();
       const row = page.locator(".today-todo-items article", { hasText: title });
       await expect(row).toBeVisible();
-      await expect(row).toContainText("09:30");
+      await expect(row).toContainText(locale === "zh" ? "1小时 2分钟 3秒" : "1 h 2 m 3 s");
       await row.locator(".today-todo-check").click();
       await expect(row).toHaveClass(/is-completed/);
       await page.screenshot({ path: path.join(outputDir, `${locale}-${viewport.name}-today-todos.png`), fullPage: true });

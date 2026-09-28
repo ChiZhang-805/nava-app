@@ -8,6 +8,7 @@ export type TodoItem = {
   createdAt: string;
   focusMinutes?: number;
   focusSessions?: number;
+  estimatedSeconds?: number;
   important?: boolean | null;
   urgent?: boolean | null;
   priorityRank?: number | null;
@@ -138,6 +139,9 @@ export async function syncTodos(userId: string): Promise<TodoItem[]> {
       createdAt: String(row.created_at ?? new Date().toISOString()),
       focusMinutes: Number(row.estimated_minutes) > 0 ? Number(row.estimated_minutes) : previous?.focusMinutes,
       focusSessions: Number(row.focus_sessions) > 0 ? Number(row.focus_sessions) : previous?.focusSessions,
+      estimatedSeconds: Number(previous?.estimatedSeconds) > 0
+        ? Number(previous?.estimatedSeconds)
+        : Number(row.estimated_minutes) > 0 ? Number(row.estimated_minutes) * 60 : undefined,
       important: typeof row.important === "boolean" ? row.important : null,
       urgent: typeof row.urgent === "boolean" ? row.urgent : null,
       priorityRank: Number(row.priority_rank) >= 1 && Number(row.priority_rank) <= 12 ? Number(row.priority_rank) : null,
@@ -151,7 +155,7 @@ export async function addTodo(
   source: TodoItem["source"] = "manual",
   scheduledDate = todayISO(),
   scheduledTime?: string,
-  focusPlan?: { focusMinutes?: number; focusSessions?: number },
+  focusPlan?: { focusMinutes?: number; focusSessions?: number; estimatedSeconds?: number },
   sourceActionId?: string,
 ) {
   const normalized = title.trim();
@@ -166,6 +170,7 @@ export async function addTodo(
     createdAt: new Date().toISOString(),
     focusMinutes: focusPlan?.focusMinutes,
     focusSessions: focusPlan?.focusSessions,
+    estimatedSeconds: focusPlan?.estimatedSeconds,
     important: null,
     urgent: null,
     priorityRank: null,
