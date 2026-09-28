@@ -9,6 +9,7 @@ import { assertConfig } from "./config";
 import AuthScreen from "./features/AuthScreen";
 import type { FocusTodoPrefill, RecordModule } from "./features/RecordsScreen";
 import OptionTwoHome from "./features/OptionTwoHome";
+import { ColdStartHub } from './features/ColdStartExperience';
 import type { AiCommand } from "./features/AIScreen";
 import PasswordRecoveryScreen from "./features/PasswordRecoveryScreen";
 import OnboardingScreen from "./features/OnboardingScreen";
@@ -629,7 +630,7 @@ function MobileShell({
 
   const focusImmersive = activeTab === "record" && recordModule === "focus" && (recordView === "immersive" || recordView === "interruption");
   const profileDetailsSubpage = activeTab === "today" && recordView === "profile-details";
-  const todayFullSubpage = activeTab === "today" && (profileDetailsSubpage || recordView === "home-widgets" || recordView === "admin-console");
+  const todayFullSubpage = activeTab === "today" && (profileDetailsSubpage || recordView === "home-widgets" || recordView === "admin-console" || recordView === "getting-started");
   const journalOpen = activeTab === "record" && Boolean(recordModule);
   const hideBottomNavigation = focusImmersive || todayFullSubpage || journalOpen;
 
@@ -699,7 +700,7 @@ function MobileShell({
               : <PageSkeleton variant={forcedSkeletonVariant} />
             : <>
           {activeTab === "today" && (
-            <OptionTwoHome
+            recordView === 'getting-started' ? <ColdStartHub userId={user.id} onHome={() => navigate('today', null, null, true)} onStart={goal => navigate('record', goal, 'guide')} onHealth={() => navigate('profile')} /> : <OptionTwoHome
               user={user}
               refreshKey={refreshKey}
               deviceDate={deviceDate}
@@ -719,7 +720,7 @@ function MobileShell({
           )}
           {activeTab === "record" && (
             <Suspense fallback={<PageSkeleton variant={recordSkeletonVariant(recordModule, recordView)} />}>
-              {recordModule ? <JournalExperience user={user} module={recordModule} locale={locale} onSaved={markJournalChanged} onExit={() => navigate("today")} /> : <RecordsScreen
+              {recordModule ? <JournalExperience user={user} module={recordModule} locale={locale} forceGuide={recordView === 'guide'} onSaved={markJournalChanged} onExit={() => navigate("today")} /> : <RecordsScreen
                 user={user}
                 deviceDate={deviceDate}
                 onSaved={markChanged}
@@ -859,6 +860,7 @@ function MobileShell({
           navigate("today", null, "points-shop");
         }}
         isAdmin={isAdmin}
+        onOpenGuide={() => { setDrawerOpen(false); navigate('today', null, 'getting-started'); }}
         onOpenAdmin={() => {
           setDrawerOpen(false);
           navigate("today", null, "admin-console");
@@ -975,6 +977,7 @@ function AppContent({
     screen = <OnboardingScreen user={user} status={onboardingRoute.status} mode={onboardingRoute.mode} onComplete={(status) => {
       const url = new URL(window.location.href);
       url.searchParams.delete("onboarding");
+      if (onboardingRoute.mode !== 'review') url.hash = 'tab=today&view=getting-started';
       window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
       setOnboardingRoute({ userId: user.id, required: false, status, mode: "first" });
     }} />;

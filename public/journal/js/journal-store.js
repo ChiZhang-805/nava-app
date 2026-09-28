@@ -72,6 +72,7 @@ __fluffyModules["journal-store.js"] = (() => {
         };
         try {
             const saved=await window.NavaJournal.call('save',{record:{...safe,expectedUpdatedAt:record.expectedUpdatedAt},expectedVersion:record.expectedUpdatedAt!==undefined ? prior?.version : null});
+            if (!window.NavaJournal.initial.records.some(r => r.category === saved.category)) window.NavaJournal.firstSaved = saved;
             window.NavaJournal.initial.records=sortRecords([saved,...records().filter(item=>item.id!==saved.id)]);
             Object.assign(record,saved);
             return true;

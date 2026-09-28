@@ -12,6 +12,7 @@ export default function UtilityDrawer({
   onTaskCompleted,
   onEditHome,
   onOpenShop,
+  onOpenGuide,
   isAdmin,
   onOpenAdmin,
   onStartFocus,
@@ -22,6 +23,7 @@ export default function UtilityDrawer({
   onTaskCompleted?: () => Promise<GrowthSummary | null>;
   onEditHome: () => void;
   onOpenShop: () => void;
+  onOpenGuide: () => void;
   isAdmin: boolean;
   onOpenAdmin: () => void;
   onStartFocus: (todo: TodoItem) => void;
@@ -132,6 +134,7 @@ export default function UtilityDrawer({
         <button className="drawer-home-edit" type="button" onClick={onEditHome}><SlidersHorizontal size={22} /><span><strong>{locale === "zh" ? "编辑首页" : "Edit home"}</strong><small>{locale === "zh" ? "选择与排列健康小组件" : "Choose and arrange health widgets"}</small></span><ChevronRight size={18} /></button>
 
         <button className="drawer-home-edit" type="button" onClick={onOpenShop}><ShoppingBag size={22} /><span><strong>{locale === "zh" ? "积分商城" : "Points shop"}</strong><small>{locale === "zh" ? "查看商品与购物车" : "Browse products and cart"}</small></span><ChevronRight size={18} /></button>
+        <button className="drawer-home-edit" type="button" onClick={onOpenGuide}><UsersRound size={22} /><span><strong>{locale === 'zh' ? '新手引导' : 'Getting started'}</strong><small>{locale === 'zh' ? '和小猫一起认识记录与周报' : 'Explore records and weekly reports'}</small></span><ChevronRight size={18} /></button>
         {isAdmin && <button className="drawer-home-edit drawer-admin-entry" type="button" onClick={onOpenAdmin}><ShieldCheck size={22} /><span><strong>{locale === "zh" ? "管理员端" : "Admin console"}</strong><small>{locale === "zh" ? "商品与通知发布" : "Products and notifications"}</small></span><ChevronRight size={18} /></button>}
         <button className="drawer-placeholder-card" type="button" disabled><UsersRound size={22} /><span><strong>{locale === "zh" ? "节律社区" : "Rhythm community"}</strong><small>{locale === "zh" ? "功能预留" : "Reserved"}</small></span><LockKeyhole size={16} /></button>
       </aside>

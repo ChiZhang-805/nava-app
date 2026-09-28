@@ -2,6 +2,8 @@ import { CheckCircle2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "../i18n";
 import { completeOnboarding, type OnboardingStatus } from "../services/onboarding";
+import { ColdStartSetup } from './ColdStartExperience';
+import { normalizeColdStart, normalizeColdStartDraft, type ColdStartAnswers } from '../services/coldStart';
 import {
   answersFromFirstNotesProfile,
   blankFirstNotesProfile,
@@ -73,6 +75,20 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingProfile, setPendingProfile] = useState<FirstNotesProfile | null>(null);
+  const coldKey = `nava.cold-start.draft.v1.${user.id}`;
+  const [coldDraft, setColdDraft] = useState<ColdStartAnswers | null>(() => {
+    if (previewOnly) return null;
+    let draft = normalizeColdStartDraft(status?.answers.coldStart);
+    if (mode !== 'review') { try { draft = normalizeColdStartDraft(JSON.parse(localStorage.getItem(coldKey) ?? 'null')) ?? draft; } catch { /* Keep server answers. */ } }
+    if (draft && mode === 'review') return { ...draft, healthConsent: status?.answers.healthDataConsent === true, aiConsent: status?.answers.aiPersonalizationConsent === true };
+    return draft;
+  });
+  const saveLock = useRef(false);
+  const saveColdDraft = useCallback((value: ColdStartAnswers) => {
+    setColdDraft(value);
+    if (!previewOnly) { try { localStorage.setItem(coldKey, JSON.stringify(value)); } catch { /* Draft storage is best effort. */ } }
+  }, [coldKey, previewOnly]);
   const channel = useMemo(createChannel, [attempt]);
   const initialDraft = useMemo(
     () => previewOnly
@@ -82,6 +98,7 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
   );
   const latestStatusRef = useRef(status);
   latestStatusRef.current = status;
+  useEffect(() => { if (frameRef.current) frameRef.current.inert = Boolean(pendingProfile); }, [pendingProfile]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -96,21 +113,28 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
     target.postMessage({ channel, ...message }, window.location.origin);
   }, [channel]);
 
-  const handleSave = useCallback(async (profileCandidate: FirstNotesProfile) => {
-    if (saving) return;
-    const profile = normalizeFirstNotesProfile(profileCandidate, { fallbackLanguage: normalizedLocale });
+  const handleSave = useCallback(async (profileCandidate: FirstNotesProfile, coldCandidate: ColdStartAnswers) => {
+    if (saveLock.current) return;
+    const coldStart = normalizeColdStart(coldCandidate);
+    if (!coldStart) return;
+    const profile = normalizeFirstNotesProfile({ ...profileCandidate, language: normalizedLocale }, { fallbackLanguage: normalizedLocale });
     if (!profile) {
       postToFrame({ type: "save-error" });
       setError(locale === "zh" ? "这份初见手记还没写完整。" : "These first notes are not complete yet.");
       return;
     }
+    saveLock.current = true;
     setSaving(true);
     setError(null);
     try {
       const answers = answersFromFirstNotesProfile(profile, latestStatusRef.current?.answers);
+      answers.coldStart = coldStart;
+      answers.healthDataConsent = coldStart.healthConsent;
+      answers.aiPersonalizationConsent = coldStart.aiConsent;
       if (!previewOnly) {
         await completeOnboarding(user.id, answers);
         clearFirstNotesDraft(user.id);
+        try { localStorage.removeItem(coldKey); } catch { /* Remote save is authoritative. */ }
       }
       if (!mountedRef.current) return;
       if (profile.language !== locale) setLocale(profile.language);
@@ -133,9 +157,10 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
       postToFrame({ type: "save-error" });
       setError(saveError instanceof Error ? saveError.message : String(saveError));
     } finally {
+      saveLock.current = false;
       if (mountedRef.current) setSaving(false);
     }
-  }, [locale, normalizedLocale, onComplete, postToFrame, previewOnly, saving, setLocale, user.id]);
+  }, [coldKey, locale, normalizedLocale, onComplete, postToFrame, previewOnly, setLocale, user.id]);
 
   useEffect(() => {
     setReady(false);
@@ -161,7 +186,7 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
         if (draft && !previewOnly) writeFirstNotesDraft(user.id, draft);
       } else if (event.data.type === "complete") {
         const profile = normalizeFirstNotesProfile(event.data.profile, { fallbackLanguage: normalizedLocale });
-        if (profile) void handleSave(profile);
+        if (profile) { if (profile.language !== locale) setLocale(profile.language); setPendingProfile(profile); }
         else {
           postToFrame({ type: "save-error" });
           setError(locale === "zh" ? "这份初见手记还没写完整。" : "These first notes are not complete yet.");
@@ -170,10 +195,11 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [channel, handleSave, initialDraft.profile, initialDraft.step, locale, normalizedLocale, postToFrame, previewOnly, user.id]);
+  }, [channel, initialDraft.profile, initialDraft.step, locale, normalizedLocale, postToFrame, previewOnly, setLocale, user.id]);
 
   return (
     <main className="onboarding-screen onboarding-screen--first-notes" data-mode={mode}>
+      {pendingProfile && <div className="cold-feedback-layer"><ColdStartSetup initial={coldDraft} onDraft={saveColdDraft} busy={saving || saved} error={error} onBack={() => { setPendingProfile(null); postToFrame({ type: 'save-error' }); }} onSave={value => void handleSave(pendingProfile, value)} /></div>}
       <iframe
         key={`${channel}-${attempt}`}
         ref={frameRef}
@@ -181,8 +207,10 @@ export default function OnboardingScreen({ user, status = null, mode = "first", 
         src={iframePath}
         title={locale === "zh" ? "初见手记" : "First notes"}
         sandbox="allow-scripts allow-same-origin"
+        aria-hidden={Boolean(pendingProfile)}
+        tabIndex={pendingProfile ? -1 : undefined}
       />
-      {(!ready || saving || saved || error) && (
+      {!pendingProfile && (!ready || saving || saved || error) && (
         <div className={["onboarding-frame-status", error ? "is-error" : "", saved ? "is-saved" : ""].filter(Boolean).join(" ")} role={error ? "alert" : "status"}>
           {error ? (
             <>

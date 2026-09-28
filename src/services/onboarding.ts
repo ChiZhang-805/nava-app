@@ -1,6 +1,8 @@
 import { isDemoMode } from "./demo";
 import { loadProfile, saveProfile, type UserProfile } from "./profile";
 import { supabase } from "./supabaseClient";
+import { resolveConsentFlag } from './consent';
+import { normalizeColdStart, firstGoals, type ColdStartAnswers } from './coldStart';
 
 export const ONBOARDING_VERSION = 3;
 
@@ -16,6 +18,7 @@ export type OnboardingAnswers = {
   healthDataConsent: boolean;
   aiPersonalizationConsent: boolean;
   firstNotesProfile?: unknown;
+  coldStart?: ColdStartAnswers;
 };
 
 export type OnboardingStatus = {
@@ -76,7 +79,7 @@ export async function loadOnboardingStatus(userId: string): Promise<OnboardingSt
 
   const result = await supabase
     .from("profiles")
-    .select("onboarding_completed_at,onboarding_version,onboarding_answers")
+    .select("onboarding_completed_at,onboarding_version,onboarding_answers,health_data_consent,ai_personalization_consent")
     .eq("id", userId)
     .maybeSingle();
 
@@ -88,12 +91,15 @@ export async function loadOnboardingStatus(userId: string): Promise<OnboardingSt
   }
 
   const completedAt = result.data?.onboarding_completed_at ?? null;
+  // Dedicated consent columns remain authoritative after a later privacy change.
+  const oldAnswers = (result.data?.onboarding_answers ?? {}) as Partial<OnboardingAnswers>;
+  const answers = { ...oldAnswers, healthDataConsent: resolveConsentFlag(result.data?.health_data_consent, oldAnswers.healthDataConsent), aiPersonalizationConsent: resolveConsentFlag(result.data?.ai_personalization_consent, oldAnswers.aiPersonalizationConsent) };
   if (!completedAt) {
     return {
       completed: false,
       completedAt: null,
       version: Number(result.data?.onboarding_version ?? ONBOARDING_VERSION),
-      answers: (result.data?.onboarding_answers ?? {}) as Partial<OnboardingAnswers>,
+      answers,
       source: "remote",
     };
   }
@@ -101,7 +107,7 @@ export async function loadOnboardingStatus(userId: string): Promise<OnboardingSt
     completed: true,
     completedAt,
     version: Number(result.data?.onboarding_version ?? ONBOARDING_VERSION),
-    answers: (result.data?.onboarding_answers ?? {}) as Partial<OnboardingAnswers>,
+    answers,
     source: "remote",
   };
 }
@@ -116,6 +122,7 @@ export async function completeOnboarding(userId: string, answers: OnboardingAnsw
     exercise_frequency: answers.exerciseDuration,
     sleep_schedule: answers.sleepDuration,
     diet_preference: answers.dietPreferences.join("、"),
+    ...(normalizeColdStart(answers.coldStart) ? { goal: firstGoals.find(g => g.id === answers.coldStart?.goal)?.zh } : {}),
   };
 
   if (isDemoMode()) {

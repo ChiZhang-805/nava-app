@@ -2203,9 +2203,11 @@ __fluffyModules["app.js"] = (() => {
             openCategory(window.NavaJournal.initial.category);
         }
         if(state.focusRecord && window.NavaJournal.initial.category!=='focus')openCategory(window.NavaJournal.initial.category);
+        if(window.NavaJournal.initial.forceGuide && !state.focusRecord)newEntry(window.NavaJournal.initial.category);
         window.NavaJournal.notify=toast;
         window.NavaJournal.interrupt=()=>{timer.pause();cancelWork(false);photo.stopCamera();persistFocus();renderFocus();};
         window.NavaJournal.call('ready').catch(()=>{});
+        import('./cold-start-guide.js').then(({installColdStartGuide}) => installColdStartGuide(window.NavaJournal)).catch(() => {});
         $("confirm-entry").disabled = false;
     }
     /**
