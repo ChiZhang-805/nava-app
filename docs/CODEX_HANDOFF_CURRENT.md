@@ -7,7 +7,7 @@
 聊天记录。新任务必须以代码、数据库边界和本文件为准，不要根据旧聊天画面
 推断进度。
 
-## 115. 首页独立今日待办与中央小猫加载动效（当前实现）
+## 115. 首页独立今日待办与中央小猫加载动效（双站 v187，当前版本）
 
 首页右侧展开列原扳手“功能导航”入口改为清单图标“今日待办”，直接进入独立全屏书写页；
 积分商城继续使用同列独立购物车入口，不与待办复用按钮。待办页固定返回首页，底部主导航
@@ -24,6 +24,16 @@
 430×932中英文待办写入/时间/完成/刷新恢复/返回/无横向溢出；首页专项继续覆盖四基础视口与
 18款目录iPhone。证据在 `Q:/NAVA-Workspace/Build/TestRuns/today-todos-loading` 与
 `home-widget-inline-editor`。物理iPhone、真实账号云端写入及系统减少动态效果仍需人工边界验收。
+
+功能源码 `e76e0bacea9920cc2c2044e7924ea082d161ae8d` 已干净推送并发布双站。Sites v187：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_73bd8587cac48191b910fe9c48eee243`；部署
+`appgdep_6aba7e670c388191b7efbda45c0b591e` succeeded。官方workflow完成源码校验与推送；
+其Windows打包仍把反斜杠交给Bash，沿用已验证的Windows tar恢复，归档312文件并由Sites接收。
+Pages镜像 `2c26f0ba682b72a69b93d0afc12b776055fff9cd`，workflow `36439283206` success；210个
+生成文件单向复制且逐文件SHA-256一致，旧hash产物未删除。两站各6项关键资源哈希、公开登录门、
+`?demo=1`拒绝、canonical Supabase项目和Pages `source.json` 同源检查通过。全仓verify仍在旧
+`media-feedback:visual` 相机按钮选择器超时；旧总交互脚本还停在已被v186 iframe替换的gender选择器，
+两项均未虚报通过，也未扩大本轮功能范围。
 
 ## 114. 冷启动分步新手引导与原版问卷复用（双站 v186，当前版本）
 
