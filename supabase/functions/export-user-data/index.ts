@@ -40,6 +40,8 @@ const tableContracts = [
   { name: "reward_cart_items", column: "user_id" },
   { name: "reward_orders", column: "user_id" },
   { name: "reward_order_items", column: "user_id" },
+  { name: "user_reward_card_unlocks", column: "user_id" },
+  { name: "user_reward_card_preferences", column: "user_id" },
   { name: "xp_awards", column: "user_id" },
   { name: "analytics_events", column: "user_id" },
   { name: "watch_action_receipts", column: "user_id" },

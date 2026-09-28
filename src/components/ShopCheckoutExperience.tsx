@@ -1,12 +1,12 @@
-import { Gift, PawPrint, ReceiptText } from "lucide-react";
+import { Check, Gift, PawPrint } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import curiousCat from "../assets/mascot/animated/home-curious.webp";
-import catStill from "../assets/figma/home-option2/home-mascot-v5.png";
+import printerCat from "../assets/shop/points-cards/printer-cat.webp";
+import { POINTS_CARD_SKINS, type PointsCardSkin, type PointsCardSkinId } from "../services/rewardCards";
 import type { RewardCartLine, RewardCheckoutResult } from "../services/rewardShop";
-import MascotImage from "./MascotImage";
 import "./shop-checkout-experience.css";
 
-type CheckoutPhase = "checking" | "card" | "printing" | "receipt" | "complete";
+type CheckoutPhase = "select" | "checking" | "card" | "printing" | "receipt" | "complete";
+export type { PointsCardSkinId } from "../services/rewardCards";
 
 // The reference clip contains two passes. One complete redemption story should
 // settle in roughly fifteen seconds, including the local fixture's 520ms server
@@ -27,16 +27,29 @@ export default function ShopCheckoutExperience({
   locale,
   lines,
   expectedTotal,
+  availablePoints,
   result,
+  checkoutStarted,
+  selectedCardId,
+  availableCards,
+  onConfirmCard,
+  onCancel,
   onDone,
 }: {
   locale: "zh" | "en";
   lines: RewardCartLine[];
   expectedTotal: number;
+  availablePoints: number | null;
   result: RewardCheckoutResult | null;
+  checkoutStarted: boolean;
+  selectedCardId: PointsCardSkinId | null;
+  availableCards: PointsCardSkin[];
+  onConfirmCard: (cardId: PointsCardSkinId) => void;
+  onCancel: () => void;
   onDone: () => void;
 }) {
-  const [phase, setPhase] = useState<CheckoutPhase>("checking");
+  const [phase, setPhase] = useState<CheckoutPhase>(checkoutStarted ? "checking" : "select");
+  const [chosenCardId, setChosenCardId] = useState<PointsCardSkinId>(selectedCardId ?? availableCards[0]?.id ?? "mint-growth");
   const [settled, setSettled] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(() =>
     typeof window !== "undefined" && (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false));
@@ -56,7 +69,7 @@ export default function ShopCheckoutExperience({
   useEffect(() => {
     if (!result) {
       setSettled(false);
-      setPhase("checking");
+      setPhase(checkoutStarted ? "checking" : "select");
       return;
     }
     if (reducedMotion) {
@@ -77,7 +90,15 @@ export default function ShopCheckoutExperience({
       window.clearTimeout(receipt);
       window.clearTimeout(complete);
     };
-  }, [acceleratedTimeline, reducedMotion, result]);
+  }, [acceleratedTimeline, checkoutStarted, reducedMotion, result]);
+
+  useEffect(() => {
+    if (selectedCardId) setChosenCardId(selectedCardId);
+  }, [selectedCardId]);
+
+  useEffect(() => {
+    if (!availableCards.some((card) => card.id === chosenCardId)) setChosenCardId(availableCards[0]?.id ?? "mint-growth");
+  }, [availableCards, chosenCardId]);
 
   useEffect(() => {
     if (phase !== "complete" && !(phase === "receipt" && settled)) return;
@@ -87,6 +108,7 @@ export default function ShopCheckoutExperience({
 
   const quantity = lines.reduce((sum, line) => sum + line.quantity, 0);
   const totalPoints = result?.totalPoints ?? expectedTotal;
+  const chosenCard = availableCards.find((card) => card.id === chosenCardId) ?? availableCards[0] ?? POINTS_CARD_SKINS[0];
   const orderCode = result?.orderId.slice(0, 8).toUpperCase() ?? "";
   const productLabel = lines.length === 1 && lines[0].quantity === 1
     ? lines[0].product.name
@@ -103,6 +125,7 @@ export default function ShopCheckoutExperience({
     <section
       className="shop-checkout-experience"
       data-checkout-phase={phase}
+      data-selected-card={chosenCard.id}
       data-reduced-motion={reducedMotion ? "true" : "false"}
       data-checkout-timeline={acceleratedTimeline ? "test" : "production"}
       role="dialog"
@@ -112,29 +135,56 @@ export default function ShopCheckoutExperience({
       <div className="shop-checkout-ambient" aria-hidden="true"><i /><i /><i /><i /><i /></div>
 
       <div className="shop-checkout-copy" aria-live="polite">
-        <span>{phase === "complete" ? "NAVA LITTLE SHOP" : locale === "zh" ? "积分兑换" : "POINTS REDEMPTION"}</span>
+        <span>{phase === "select" ? "NAVA POINTS CARDS" : phase === "complete" ? "NAVA LITTLE SHOP" : locale === "zh" ? "积分兑换" : "POINTS REDEMPTION"}</span>
         <h1 id="shop-checkout-title">
-          {phase === "checking"
+          {phase === "select"
+            ? (locale === "zh" ? "选择积分卡" : "Choose a points card")
+            : phase === "checking"
             ? (locale === "zh" ? "正在确认兑换" : "Confirming your order")
             : phase === "complete"
               ? (locale === "zh" ? "兑换完成" : "All yours")
               : (locale === "zh" ? "兑换成功" : "Redemption confirmed")}
         </h1>
         <p>
-          {phase === "checking"
+          {phase === "select"
+            ? (locale === "zh" ? "挑一张今天想带上的卡面" : "Pick the card you want to use today")
+            : phase === "checking"
             ? (locale === "zh" ? "小猫正在核对积分和库存…" : "NAVA is checking your points and availability…")
             : phase === "complete"
               ? (locale === "zh" ? "这份小礼物，是你一点点努力换来的。" : "A little gift earned one step at a time.")
               : phase === "card"
                 ? (locale === "zh" ? "和小猫一起刷下积分卡" : "Tap the points card with NAVA")
                 : phase === "printing"
-                  ? (locale === "zh" ? "机器正在慢慢打印兑换凭证…" : "The machine is printing your receipt…")
-                  : (locale === "zh" ? "凭证出来啦，小猫正在接住它" : "Here it comes — NAVA is catching it")}
+                  ? (locale === "zh" ? "小猫按下按钮，机器开始出票…" : "NAVA pressed the button — printing begins…")
+                  : (locale === "zh" ? "凭证出来啦，小猫正在守着它" : "Here it comes — NAVA is watching over it")}
         </p>
       </div>
 
-      <div className="shop-exchange-illustration" aria-hidden="true">
-        <div className="shop-terminal-scene">
+      <div className="shop-exchange-illustration">
+        <div className="shop-card-picker" aria-hidden="false">
+          <div className="shop-card-picker-balance">
+            <span>{locale === "zh" ? "可用总积分" : "Total points"}</span>
+            <strong>{availablePoints?.toLocaleString() ?? "—"}<small> XP</small></strong>
+          </div>
+          <div className="shop-card-picker-list" role="radiogroup" aria-label={locale === "zh" ? "选择积分卡卡面" : "Choose a points card design"}>
+            {availableCards.map((card) => (
+              <button
+                key={card.id}
+                type="button"
+                role="radio"
+                aria-checked={chosenCardId === card.id}
+                data-selected={chosenCardId === card.id ? "true" : "false"}
+                onClick={() => setChosenCardId(card.id)}
+              >
+                <img src={card.art} alt="" />
+                <span><small>NAVA POINTS</small><strong>{card[locale]}</strong><em>•• {card.lastFour}</em></span>
+                <i><Check size={15} strokeWidth={3} /></i>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="shop-terminal-scene" aria-hidden="true">
           <svg className="shop-payment-terminal" viewBox="0 0 280 230" role="presentation">
             <defs>
               <linearGradient id="terminal-top" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#527c86" /><stop offset=".5" stopColor="#234b58" /><stop offset="1" stopColor="#102f3c" /></linearGradient>
@@ -171,9 +221,8 @@ export default function ShopCheckoutExperience({
           </svg>
 
           <div className="shop-points-card">
-            <span><PawPrint size={19} /></span>
-            <b>NAVA</b>
-            <strong>{totalPoints.toLocaleString()} XP</strong>
+            <img src={chosenCard.art} alt="" />
+            <span><b>NAVA POINTS</b><strong>{totalPoints.toLocaleString()} XP</strong></span>
           </div>
           <div className="shop-terminal-summary">
             <div><span>{locale === "zh" ? "已使用" : "Redeemed"}</span><strong>{totalPoints.toLocaleString()} XP</strong></div>
@@ -182,12 +231,14 @@ export default function ShopCheckoutExperience({
           </div>
         </div>
 
-        <div className="shop-printer-scene">
+        <div className="shop-printer-scene" aria-hidden="true">
           <div className="shop-receipt-printer">
             <span className="shop-printer-highlight" />
             <span className="shop-printer-slot" />
-            <i />
+            <span className="shop-printer-status" />
+            <span className="shop-printer-button"><i /></span>
           </div>
+          <img className="shop-checkout-cat" src={printerCat} alt="" />
           <article className="shop-receipt">
             <div className="shop-receipt-teeth" />
             <header><PawPrint size={18} /><strong>NAVA</strong><small>{locale === "zh" ? "积分兑换凭证" : "POINTS RECEIPT"}</small></header>
@@ -204,11 +255,19 @@ export default function ShopCheckoutExperience({
           </article>
         </div>
 
-        <div className="shop-checkout-gift"><Gift size={46} strokeWidth={1.7} /><i /></div>
-        <MascotImage className="shop-checkout-cat" animatedSrc={curiousCat} staticSrc={catStill} alt="" />
-        <div className="shop-cat-receipt"><ReceiptText size={21} /><span>NAVA</span><PawPrint size={14} /></div>
+        <div className="shop-complete-card" aria-hidden="true">
+          <img src={chosenCard.art} alt="" />
+          <span><small>NAVA POINTS</small><strong>{chosenCard[locale]}</strong></span>
+        </div>
+        <div className="shop-checkout-gift" aria-hidden="true"><Gift size={46} strokeWidth={1.7} /><i /></div>
       </div>
 
+      {phase === "select" && (
+        <div className="shop-card-picker-actions">
+          <button type="button" onClick={onCancel}>{locale === "zh" ? "返回" : "Back"}</button>
+          <button ref={actionRef} type="button" onClick={() => onConfirmCard(chosenCard.id)}>{locale === "zh" ? "使用这张卡" : "Use this card"}</button>
+        </div>
+      )}
       {phase === "receipt" && settled && (
         <button ref={actionRef} className="shop-checkout-primary" type="button" onClick={() => setPhase("complete")}>
           {locale === "zh" ? "返回完成页" : "Back to completion"}

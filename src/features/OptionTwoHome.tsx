@@ -320,7 +320,7 @@ export default function OptionTwoHome({
     />;
   }
 
-  if (view === "points-shop" || view === "points-shop-cart" || view?.startsWith("points-shop-product-") || view?.startsWith("points-shop-category-")) {
+  if (view === "points-shop" || view === "points-shop-cart" || view === "points-shop-cards" || view?.startsWith("points-shop-product-") || view?.startsWith("points-shop-category-")) {
     return <PointsShopExperience user={user} view={view} onViewChange={onViewChange} onHome={() => onViewChange(null, true)} />;
   }
 

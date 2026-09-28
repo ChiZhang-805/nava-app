@@ -1,3 +1,17 @@
+# 积分卡共享额度与卡面解锁（2026-09-28，已上线）
+
+卡片只是账号积分的视觉入口，不是多个钱包。三张默认卡免费；额外卡面通过
+`nava_unlock_reward_card_skin` 原子解锁，每张固定10 XP，并复用账号总积分余额。迁移
+`202609280001_reward_card_skins.sql` 新增服务端卡面目录、账号解锁账本和当前卡偏好；
+`nava_reward_points_balance` 统一计算“成长账本收入 - 已确认商品订单 - 卡片解锁消费”。
+账号级事务锁、`user_id + skin_id` 与 `user_id + idempotency_key` 两个唯一约束防止重复扣分。
+`nava_select_reward_card_skin` 只保存已免费或已解锁卡面，切卡不改变积分。
+
+账号数据导出已把 `user_reward_card_unlocks` 与 `user_reward_card_preferences` 纳入完整性合同。
+本地 PGlite PostgreSQL 实际执行通过。2026-09-28 获明确授权后，`202609280001` 已作为独立
+事务应用到 canonical Supabase；另一条未授权的 `202609270001` 未被夹带。远端表和 RPC 已
+读回确认，`export-user-data` 已单独部署为 ACTIVE v26。
+
 # 管理员权限、商品发布与通知群发（2026-09-27，当前）
 
 管理员身份现在由 canonical Supabase 的 `nava_user_roles` 服务端表决定，不读取前端参数、

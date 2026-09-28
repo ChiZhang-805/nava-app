@@ -82,6 +82,8 @@ export async function exportUserData(userId: string) {
     "reward_cart_items",
     "reward_orders",
     "reward_order_items",
+    "user_reward_card_unlocks",
+    "user_reward_card_preferences",
     "xp_awards",
     "analytics_events",
     "watch_action_receipts",

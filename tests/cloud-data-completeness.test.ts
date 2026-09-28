@@ -45,6 +45,7 @@ const accountOwnedTables = [
   "user_notifications", "push_device_tokens", "push_delivery_receipts", "user_app_preferences", "active_user_sessions", "growth_reward_ledger",
   "growth_badges", "growth_progress_views", "xp_awards", "analytics_events", "watch_action_receipts",
   "reward_cart_items", "reward_orders", "reward_order_items",
+  "user_reward_card_unlocks", "user_reward_card_preferences",
   "community_posts", "community_comments", "community_likes", "community_bookmarks",
 ] as const;
 

@@ -116,6 +116,53 @@ try {
     await context.close();
   }
 
+  for (const viewport of [
+    { width: 360, height: 740 },
+    { width: 375, height: 812 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+  ]) {
+    const context = await browser.newContext({ locale: "zh-CN", viewport, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+    const page = await prepare(context, "&qa=shop-checkout#tab=today&view=points-shop-cards");
+    await expect(page.locator(".points-card-manager")).toBeVisible();
+    await expect(page.locator(".points-card-wallet-list [role=radio]")).toHaveCount(3);
+    await expect(page.getByText("所有卡片共用这一份积分。换卡不会改变额度。", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "添加卡片", exact: true }).click();
+    await expect(page.locator(".points-card-add-grid > button")).toHaveCount(3);
+    await page.getByRole("button", { name: /薰衣草阅读卡/ }).click();
+    await expect(page.getByRole("dialog", { name: "确认添加积分卡" })).toBeVisible();
+    const managerGeometry = await page.evaluate(() => {
+      const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
+      const screen = document.querySelector(".points-shop-screen")?.getBoundingClientRect();
+      const header = document.querySelector(".points-shop-header")?.getBoundingClientRect();
+      const walletCards = [...document.querySelectorAll(".points-card-wallet-list > button")].map((node) => node.getBoundingClientRect().toJSON());
+      const addCards = [...document.querySelectorAll(".points-card-add-grid > button")].map((node) => node.getBoundingClientRect().toJSON());
+      const imagesLoaded = [...document.querySelectorAll(".points-card-manager img")].every((node) => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0);
+      return frame && screen && header ? {
+        frame: frame.toJSON(), screen: screen.toJSON(), header: header.toJSON(), walletCards, addCards, imagesLoaded,
+        horizontalOverflow: screen.scrollWidth - screen.clientWidth,
+      } : null;
+    });
+    if (!managerGeometry || !managerGeometry.imagesLoaded || managerGeometry.horizontalOverflow > 1
+      || managerGeometry.header.left < managerGeometry.frame.left - 1 || managerGeometry.header.right > managerGeometry.frame.right + 1
+      || [...managerGeometry.walletCards, ...managerGeometry.addCards].some((card) => card.left < managerGeometry.frame.left - 1 || card.right > managerGeometry.frame.right + 1)) {
+      throw new Error(`${viewport.width}x${viewport.height}: points-card manager failed ${JSON.stringify(managerGeometry)}`);
+    }
+    await page.screenshot({ path: path.join(outputDir, `points-card-manager-${viewport.width}x${viewport.height}.png`), fullPage: true });
+    await page.getByRole("button", { name: "10 XP 添加", exact: true }).click();
+    await expect(page.locator(".points-card-wallet-list [role=radio]")).toHaveCount(4);
+    await expect(page.locator(".points-card-manager-summary strong")).toContainText("450");
+    await expect(page.getByRole("radio", { name: /薰衣草阅读卡/ })).toHaveAttribute("aria-checked", "true");
+    await page.screenshot({ path: path.join(outputDir, `points-card-manager-added-${viewport.width}x${viewport.height}.png`), fullPage: true });
+    await page.getByRole("button", { name: /购物车，共 1 件/ }).click();
+    await page.getByRole("button", { name: "确认兑换", exact: true }).click();
+    await expect(page.locator(".shop-card-picker-list [role=radio]")).toHaveCount(4);
+    await expect(page.getByRole("radio", { name: /薰衣草阅读卡/ })).toHaveAttribute("aria-checked", "true");
+    await page.getByRole("button", { name: "返回", exact: true }).click();
+    report.push({ mode: "points-card-manager", viewport, managerGeometry });
+    await context.close();
+  }
+
   const directRedeemContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   const directRedeem = await prepare(directRedeemContext, "&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-product-qa-nava-journal");
   await directRedeem.getByRole("button", { name: "立即兑换", exact: true }).click();
@@ -134,6 +181,24 @@ try {
     const page = await prepare(context, "&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-cart");
     await expect(page.locator(".points-shop-cart-list article")).toHaveCount(1);
     await page.getByRole("button", { name: "确认兑换", exact: true }).click();
+    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "select");
+    await expect(page.getByRole("radio")).toHaveCount(3);
+    await page.getByRole("radio", { name: /暖光陪伴卡/ }).click();
+    const pickerGeometry = await page.evaluate(() => {
+      const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
+      const flow = document.querySelector(".shop-checkout-experience")?.getBoundingClientRect();
+      const cards = [...document.querySelectorAll(".shop-card-picker-list button")].map((node) => node.getBoundingClientRect().toJSON());
+      const actions = document.querySelector(".shop-card-picker-actions")?.getBoundingClientRect();
+      const imagesLoaded = [...document.querySelectorAll(".shop-card-picker-list img")].every((node) => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0);
+      return frame && flow && actions ? { frame: frame.toJSON(), flow: flow.toJSON(), cards, actions: actions.toJSON(), imagesLoaded, horizontalOverflow: flow.scrollWidth - flow.clientWidth } : null;
+    });
+    if (!pickerGeometry || !pickerGeometry.imagesLoaded || pickerGeometry.cards.length !== 3 || pickerGeometry.horizontalOverflow > 1
+      || pickerGeometry.cards.some((card) => card.left < pickerGeometry.frame.left - 1 || card.right > pickerGeometry.frame.right + 1)
+      || pickerGeometry.actions.bottom > pickerGeometry.frame.bottom + 1) {
+      throw new Error(`${viewport.width}x${viewport.height}: points-card picker failed ${JSON.stringify(pickerGeometry)}`);
+    }
+    await page.screenshot({ path: path.join(outputDir, `checkout-select-${viewport.width}x${viewport.height}.png`), fullPage: true });
+    await page.getByRole("button", { name: "使用这张卡", exact: true }).click();
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "checking");
     await page.screenshot({ path: path.join(outputDir, `checkout-checking-${viewport.width}x${viewport.height}.png`), fullPage: true });
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "card", { timeout: 2500 });
@@ -141,25 +206,39 @@ try {
     const cardGeometry = await page.evaluate(() => {
       const screen = document.querySelector(".points-shop-screen--checkout")?.getBoundingClientRect();
       const flow = document.querySelector(".shop-checkout-experience")?.getBoundingClientRect();
-      const cat = document.querySelector(".shop-checkout-cat")?.getBoundingClientRect();
       const card = document.querySelector(".shop-points-card")?.getBoundingClientRect();
+      const cardImage = document.querySelector(".shop-points-card img");
       const title = document.querySelector(".shop-checkout-copy h1");
       const copy = document.querySelector(".shop-checkout-copy p");
-      if (!screen || !flow || !cat || !card || !title || !copy) return null;
-      const overlapWidth = Math.max(0, Math.min(cat.right, card.right) - Math.max(cat.left, card.left));
-      const overlapHeight = Math.max(0, Math.min(cat.bottom, card.bottom) - Math.max(cat.top, card.top));
+      if (!screen || !flow || !card || !(cardImage instanceof HTMLImageElement) || !title || !copy) return null;
       return {
-        screen: screen.toJSON(), flow: flow.toJSON(), cat: cat.toJSON(), card: card.toJSON(),
-        catCardOverlap: overlapWidth * overlapHeight,
+        screen: screen.toJSON(), flow: flow.toJSON(), card: card.toJSON(),
+        cardLoaded: cardImage.complete && cardImage.naturalWidth > 0,
         titleFont: Number.parseFloat(getComputedStyle(title).fontSize),
         copyFont: Number.parseFloat(getComputedStyle(copy).fontSize),
       };
     });
     if (!cardGeometry || Math.abs(cardGeometry.screen.width - cardGeometry.flow.width) > 1 || Math.abs(cardGeometry.screen.height - cardGeometry.flow.height) > 1
-      || cardGeometry.catCardOverlap < 1 || cardGeometry.titleFont < 27 || cardGeometry.copyFont < 14) {
-      throw new Error(`${viewport.width}x${viewport.height}: checkout card is not full-screen, legible, or integrated with the cat ${JSON.stringify(cardGeometry)}`);
+      || !cardGeometry.cardLoaded || cardGeometry.titleFont < 27 || cardGeometry.copyFont < 14) {
+      throw new Error(`${viewport.width}x${viewport.height}: checkout card is not full-screen or legible ${JSON.stringify(cardGeometry)}`);
     }
     await page.screenshot({ path: path.join(outputDir, `checkout-card-${viewport.width}x${viewport.height}.png`), fullPage: true });
+    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "printing", { timeout: 3000 });
+    await page.waitForTimeout(1050);
+    const pressAnimation = await page.evaluate(() => {
+      const cat = document.querySelector(".shop-checkout-cat");
+      const button = document.querySelector(".shop-printer-button");
+      if (!(cat instanceof HTMLImageElement) || !button) return null;
+      return {
+        catAnimation: getComputedStyle(cat).animationName,
+        buttonAnimation: getComputedStyle(button).animationName,
+        catLoaded: cat.complete && cat.naturalWidth > 0,
+      };
+    });
+    if (!pressAnimation?.catLoaded || pressAnimation.catAnimation !== "shop-cat-press" || pressAnimation.buttonAnimation !== "shop-machine-button") {
+      throw new Error(`${viewport.width}x${viewport.height}: printer cat/button animation is not active ${JSON.stringify(pressAnimation)}`);
+    }
+    await page.screenshot({ path: path.join(outputDir, `checkout-printing-${viewport.width}x${viewport.height}.png`), fullPage: true });
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "receipt", { timeout: 5000 });
     await expect(page.getByText("NAVA 测试手账（仅本地）", { exact: true })).toBeVisible();
     await page.waitForTimeout(800);
@@ -168,17 +247,20 @@ try {
       const flow = document.querySelector(".shop-checkout-experience")?.getBoundingClientRect();
       const receipt = document.querySelector(".shop-receipt")?.getBoundingClientRect();
       const cat = document.querySelector(".shop-checkout-cat");
-      const heldReceipt = document.querySelector(".shop-cat-receipt")?.getBoundingClientRect();
+      const printer = document.querySelector(".shop-receipt-printer")?.getBoundingClientRect();
+      const button = document.querySelector(".shop-printer-button")?.getBoundingClientRect();
       const title = document.querySelector(".shop-checkout-copy h1");
       const copy = document.querySelector(".shop-checkout-copy p");
       const receiptRow = document.querySelector(".shop-receipt dl div");
-      if (!frame || !flow || !receipt || !heldReceipt || !(cat instanceof HTMLImageElement) || !title || !copy || !receiptRow) return null;
+      if (!frame || !flow || !receipt || !printer || !button || !(cat instanceof HTMLImageElement) || !title || !copy || !receiptRow) return null;
       const catRect = cat.getBoundingClientRect();
-      const overlapWidth = Math.max(0, Math.min(catRect.right, heldReceipt.right) - Math.max(catRect.left, heldReceipt.left));
-      const overlapHeight = Math.max(0, Math.min(catRect.bottom, heldReceipt.bottom) - Math.max(catRect.top, heldReceipt.top));
+      const overlapWidth = Math.max(0, Math.min(catRect.right, printer.right) - Math.max(catRect.left, printer.left));
+      const overlapHeight = Math.max(0, Math.min(catRect.bottom, printer.bottom) - Math.max(catRect.top, printer.top));
+      const buttonOverlapWidth = Math.max(0, Math.min(catRect.right, button.right) - Math.max(catRect.left, button.left));
+      const buttonOverlapHeight = Math.max(0, Math.min(catRect.bottom, button.bottom) - Math.max(catRect.top, button.top));
       return {
-        frame: frame.toJSON(), flow: flow.toJSON(), receipt: receipt.toJSON(), heldReceipt: heldReceipt.toJSON(),
-        cat: catRect.toJSON(), catReceiptOverlap: overlapWidth * overlapHeight,
+        frame: frame.toJSON(), flow: flow.toJSON(), receipt: receipt.toJSON(), printer: printer.toJSON(), button: button.toJSON(),
+        cat: catRect.toJSON(), catPrinterOverlap: overlapWidth * overlapHeight, catButtonOverlap: buttonOverlapWidth * buttonOverlapHeight,
         titleFont: Number.parseFloat(getComputedStyle(title).fontSize),
         copyFont: Number.parseFloat(getComputedStyle(copy).fontSize),
         receiptFont: Number.parseFloat(getComputedStyle(receiptRow).fontSize),
@@ -188,11 +270,10 @@ try {
       };
     });
     if (!receiptGeometry || !receiptGeometry.catLoaded || receiptGeometry.overflow > 1
-      || receiptGeometry.catReceiptOverlap < 1 || receiptGeometry.titleFont < 21 || receiptGeometry.copyFont < 13 || receiptGeometry.receiptFont < 13
+      || receiptGeometry.catPrinterOverlap < 1 || receiptGeometry.catButtonOverlap < 1 || receiptGeometry.titleFont < 21 || receiptGeometry.copyFont < 13 || receiptGeometry.receiptFont < 13
       || receiptGeometry.receipt.left < receiptGeometry.frame.left - 1 || receiptGeometry.receipt.right > receiptGeometry.frame.right + 1
       || receiptGeometry.receipt.bottom > receiptGeometry.frame.bottom + 1
-      || receiptGeometry.heldReceipt.left < receiptGeometry.frame.left - 1 || receiptGeometry.heldReceipt.right > receiptGeometry.frame.right + 1
-      || receiptGeometry.heldReceipt.bottom > receiptGeometry.frame.bottom + 1) {
+      || receiptGeometry.cat.left < receiptGeometry.frame.left - 1 || receiptGeometry.cat.right > receiptGeometry.frame.right + 1) {
       throw new Error(`${viewport.width}x${viewport.height}: checkout receipt escaped the phone ${JSON.stringify(receiptGeometry)}`);
     }
     await page.screenshot({ path: path.join(outputDir, `checkout-receipt-${viewport.width}x${viewport.height}.png`), fullPage: true });
@@ -201,16 +282,17 @@ try {
     await page.waitForTimeout(850);
     const completionGeometry = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
-      const cat = document.querySelector(".shop-checkout-cat");
+      const card = document.querySelector(".shop-complete-card")?.getBoundingClientRect();
+      const cardImage = document.querySelector(".shop-complete-card img");
       const gift = document.querySelector(".shop-checkout-gift")?.getBoundingClientRect();
       const actions = document.querySelector(".shop-checkout-actions")?.getBoundingClientRect();
-      return frame && gift && actions && cat instanceof HTMLImageElement ? {
-        frame: frame.toJSON(), gift: gift.toJSON(), actions: actions.toJSON(), catSrc: cat.currentSrc,
-        cat: cat.getBoundingClientRect().toJSON(), catLoaded: cat.complete && cat.naturalWidth > 0,
+      return frame && card && gift && actions && cardImage instanceof HTMLImageElement ? {
+        frame: frame.toJSON(), card: card.toJSON(), gift: gift.toJSON(), actions: actions.toJSON(),
+        cardLoaded: cardImage.complete && cardImage.naturalWidth > 0,
       } : null;
     });
-    if (!completionGeometry || !completionGeometry.catLoaded || completionGeometry.catSrc !== receiptGeometry.catSrc
-      || completionGeometry.cat.left < completionGeometry.frame.left - 1 || completionGeometry.cat.right > completionGeometry.frame.right + 1
+    if (!completionGeometry || !completionGeometry.cardLoaded
+      || completionGeometry.card.left < completionGeometry.frame.left - 1 || completionGeometry.card.right > completionGeometry.frame.right + 1
       || completionGeometry.actions.left < completionGeometry.frame.left - 1 || completionGeometry.actions.right > completionGeometry.frame.right + 1
       || completionGeometry.actions.bottom > completionGeometry.frame.bottom + 1) {
       throw new Error(`${viewport.width}x${viewport.height}: completion scene escaped or reloaded its cat ${JSON.stringify(completionGeometry)}`);
@@ -219,13 +301,14 @@ try {
     await page.getByRole("button", { name: "查看兑换凭证", exact: true }).click();
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "receipt");
     await expect(page.getByRole("button", { name: "返回完成页", exact: true })).toBeVisible();
-    report.push({ mode: "checkout-animation", viewport, cardGeometry, receiptGeometry, completionGeometry });
+    report.push({ mode: "checkout-animation", viewport, pickerGeometry, cardGeometry, pressAnimation, receiptGeometry, completionGeometry });
     await context.close();
   }
 
   const reducedContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, reducedMotion: "reduce", isMobile: true, hasTouch: true });
   const reduced = await prepare(reducedContext, "&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-cart");
   await reduced.getByRole("button", { name: "确认兑换", exact: true }).click();
+  await reduced.getByRole("button", { name: "使用这张卡", exact: true }).click();
   await expect(reduced.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete", { timeout: 2500 });
   await expect(reduced.locator(".shop-checkout-experience")).toHaveAttribute("data-reduced-motion", "true");
   await reduced.screenshot({ path: path.join(outputDir, "checkout-reduced-motion-390x844.png"), fullPage: true });
@@ -234,8 +317,9 @@ try {
 
   const timingContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   const timingPage = await prepare(timingContext, "&qa=shop-checkout#tab=today&view=points-shop-cart");
-  const startedAt = Date.now();
   await timingPage.getByRole("button", { name: "确认兑换", exact: true }).click();
+  const startedAt = Date.now();
+  await timingPage.getByRole("button", { name: "使用这张卡", exact: true }).click();
   await expect(timingPage.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-timeline", "production");
   await expect(timingPage.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete", { timeout: 18000 });
   const elapsedMs = Date.now() - startedAt;
@@ -258,8 +342,27 @@ try {
       isMobile: true,
       hasTouch: true,
     });
-    const page = await prepare(context, "&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-cart");
+    const page = await prepare(context, "&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-cards");
+    await expect(page.locator(".points-card-wallet-list [role=radio]")).toHaveCount(3);
+    const cardManager = await page.evaluate(() => {
+      const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
+      const screen = document.querySelector(".points-shop-screen")?.getBoundingClientRect();
+      const header = document.querySelector(".points-shop-header")?.getBoundingClientRect();
+      const card = document.querySelector(".points-card-wallet-list > button")?.getBoundingClientRect();
+      return frame && screen && header && card ? {
+        frame: frame.toJSON(), screen: screen.toJSON(), header: header.toJSON(), card: card.toJSON(),
+        horizontalOverflow: screen.scrollWidth - screen.clientWidth,
+      } : null;
+    });
+    if (!cardManager || cardManager.horizontalOverflow > 1
+      || cardManager.header.left < cardManager.frame.left - 1 || cardManager.header.right > cardManager.frame.right + 1
+      || cardManager.card.left < cardManager.frame.left - 1 || cardManager.card.right > cardManager.frame.right + 1) {
+      throw new Error(`${device.label}: points-card manager layout failed ${JSON.stringify(cardManager)}`);
+    }
+    await page.screenshot({ path: path.join(deviceMatrixDir, `${device.id}-cards.png`), fullPage: true });
+    await page.goto(`${baseUrl}?demo=1&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-cart`, { waitUntil: "networkidle" });
     await page.getByRole("button", { name: "确认兑换", exact: true }).click();
+    await page.getByRole("button", { name: "使用这张卡", exact: true }).click();
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "complete", { timeout: 2500 });
     await page.getByRole("button", { name: "查看兑换凭证", exact: true }).click();
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "receipt");
@@ -290,24 +393,24 @@ try {
     const completion = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
       const flow = document.querySelector(".shop-checkout-experience")?.getBoundingClientRect();
-      const cat = document.querySelector(".shop-checkout-cat")?.getBoundingClientRect();
+      const card = document.querySelector(".shop-complete-card")?.getBoundingClientRect();
       const gift = document.querySelector(".shop-checkout-gift")?.getBoundingClientRect();
       const actions = document.querySelector(".shop-checkout-actions")?.getBoundingClientRect();
-      return frame && flow && cat && gift && actions ? {
-        frame: frame.toJSON(), cat: cat.toJSON(), gift: gift.toJSON(), actions: actions.toJSON(),
+      return frame && flow && card && gift && actions ? {
+        frame: frame.toJSON(), card: card.toJSON(), gift: gift.toJSON(), actions: actions.toJSON(),
         horizontalOverflow: flow.scrollWidth - flow.clientWidth,
         giftOpacity: Number.parseFloat(getComputedStyle(document.querySelector(".shop-checkout-gift")).opacity),
         actionsOpacity: Number.parseFloat(getComputedStyle(document.querySelector(".shop-checkout-actions")).opacity),
       } : null;
     });
     if (!completion || completion.horizontalOverflow > 1 || completion.giftOpacity < .99 || completion.actionsOpacity < .99
-      || completion.cat.left < completion.frame.left - 1 || completion.cat.right > completion.frame.right + 1
+      || completion.card.left < completion.frame.left - 1 || completion.card.right > completion.frame.right + 1
       || completion.actions.left < completion.frame.left - 1 || completion.actions.right > completion.frame.right + 1
       || completion.actions.bottom > completion.frame.bottom + 1) {
       throw new Error(`${device.label}: completion layout failed ${JSON.stringify(completion)}`);
     }
     await page.screenshot({ path: path.join(deviceMatrixDir, `${device.id}-complete.png`), fullPage: true });
-    report.push({ mode: "checkout-device-matrix", device: device.label, deviceId: device.id, viewport, receipt, completion });
+    report.push({ mode: "checkout-device-matrix", device: device.label, deviceId: device.id, viewport, cardManager, receipt, completion });
     await context.close();
   }
   await writeFile(path.join(outputDir, "report.json"), JSON.stringify(report, null, 2));
