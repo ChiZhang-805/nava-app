@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { Cat, Check, ChevronRight, Coins, CreditCard, CupSoda, Gift, Home, Image, LoaderCircle, LockKeyhole, Minus, NotebookPen, PackageOpen, Plus, Search, ShoppingCart, Sparkles, Trash2, X } from "lucide-react";
+import { Cat, Check, ChevronRight, Coins, CreditCard, CupSoda, Gift, Home, Image, LoaderCircle, LockKeyhole, Minus, MoreHorizontal, NotebookPen, PackageOpen, Plus, Search, ShoppingCart, Sparkles, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "../i18n";
 import MascotImage from "../components/MascotImage";
@@ -299,10 +299,14 @@ export default function PointsShopExperience({
         <button className="home-experience-back" type="button" onClick={onHome} aria-label={locale === "zh" ? "返回首页" : "Back home"}><Home size={21} /></button>
         <div><h1>{title}</h1></div>
         <div className="points-shop-header-actions">
-          <button className="points-shop-card-shortcut" type="button" onClick={() => openItem("points-shop-cards")} aria-label={locale === "zh" ? "管理我的积分卡" : "Manage my points cards"} aria-current={activeRoute === "cards" ? "page" : undefined}><CreditCard size={21} /></button>
-          <button className="points-shop-cart-shortcut" type="button" onClick={() => openItem("points-shop-cart")} aria-label={locale === "zh" ? `购物车，共 ${cartCount} 件` : `Cart, ${cartCount} items`}>
-            <ShoppingCart size={22} />{cartCount > 0 && <span>{cartCount}</span>}
-          </button>
+          {activeRoute === "cards" ? (
+            <button className="points-shop-more-shortcut" type="button" aria-label={locale === "zh" ? "更多" : "More options"}><MoreHorizontal size={23} /></button>
+          ) : <>
+            <button className="points-shop-card-shortcut" type="button" onClick={() => openItem("points-shop-cards")} aria-label={locale === "zh" ? "管理我的积分卡" : "Manage my points cards"}><CreditCard size={21} /></button>
+            <button className="points-shop-cart-shortcut" type="button" onClick={() => openItem("points-shop-cart")} aria-label={locale === "zh" ? `购物车，共 ${cartCount} 件` : `Cart, ${cartCount} items`}>
+              <ShoppingCart size={22} />{cartCount > 0 && <span>{cartCount}</span>}
+            </button>
+          </>}
         </div>
       </header>
 

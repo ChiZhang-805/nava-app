@@ -13035,10 +13035,15 @@ body::before {
 .points-shop-screen button:disabled { cursor: default; }
 .points-shop-screen button:focus-visible,
 .points-shop-search:focus-within { outline: 2px solid #127b9c; outline-offset: 3px; }
-.points-shop-header-actions { display: flex; align-items: center; gap: 5px; }
+.points-shop-header > .home-experience-back { border: 0; background: transparent; box-shadow: none; }
+.points-shop-header > .points-shop-header-actions { width: max-content; display: flex; flex-flow: row nowrap; align-items: center; justify-content: flex-end; gap: 9px; }
 .points-shop-cart-shortcut,
-.points-shop-card-shortcut { position: relative; width: 44px; height: 44px; border: 0; border-radius: 50%; display: grid; place-items: center; padding: 0; color: #17647c; background: rgba(255,255,255,.7); }
-.points-shop-card-shortcut[aria-current="page"] { color: #fff; background: linear-gradient(145deg,#2fa7a5,#278879); box-shadow: 0 8px 16px rgba(38,132,126,.2); }
+.points-shop-card-shortcut,
+.points-shop-more-shortcut { position: relative; width: 42px; height: 44px; border: 0; border-radius: 12px; display: grid; place-items: center; padding: 0; color: #17647c; background: transparent; box-shadow: none; }
+.points-shop-header > .home-experience-back:active,
+.points-shop-cart-shortcut:active,
+.points-shop-card-shortcut:active,
+.points-shop-more-shortcut:active { color: #0d8192; transform: scale(.94); }
 .points-shop-cart-shortcut > span { position: absolute; top: 0; right: -2px; min-width: 19px; height: 19px; border: 2px solid #edf8fa; border-radius: 99px; padding: 0 3px; color: white; background: #1788a2; font-size: 11px; line-height: 15px; font-weight: 800; }
 .points-shop-hero { position: relative; display: grid; grid-template-columns: minmax(0,1fr) 46%; align-items: end; margin: 4px 0 16px; padding: 0 14px 14px; border: 1px solid #fff; border-radius: 26px; background: linear-gradient(125deg,#d8eeed,#ebf7f2 70%,#d9ece9); }
 .points-shop-hero-copy { z-index: 1; padding: 24px 0 20px 4px; }
@@ -13145,20 +13150,20 @@ body::before {
 .points-shop-checkout strong { color: #167995; font-size: 22px; overflow-wrap: anywhere; }
 .points-shop-checkout button { margin-top: 4px; }
 
-.points-card-manager { display: grid; gap: 15px; padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
-.points-card-manager-summary { overflow: hidden; border: 1px solid rgba(255,255,255,.92); border-radius: 24px; padding: 17px 18px; color: #255361; background: linear-gradient(135deg,rgba(255,255,255,.92),rgba(221,244,241,.88)); box-shadow: 0 13px 28px rgba(37,93,101,.08); }
+.points-card-manager { display: grid; gap: 10px; padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+.points-card-manager-summary { overflow: hidden; border: 1px solid rgba(255,255,255,.92); border-radius: 24px; padding: 15px 18px; color: #255361; background: linear-gradient(135deg,rgba(255,255,255,.92),rgba(221,244,241,.88)); box-shadow: 0 13px 28px rgba(37,93,101,.08); }
 .points-card-manager-summary > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.points-card-manager-summary span { color: #567c85; font-size: 13px; font-weight: 700; }
-.points-card-manager-summary strong { color: #176d78; font-size: 26px; font-variant-numeric: tabular-nums; }
-.points-card-manager-summary strong small { font-size: 12px; }
-.points-card-manager-summary p { margin: 7px 0 0; color: #66848d; font-size: 12px; line-height: 1.5; }
+.points-card-manager-summary span { color: #456f79; font-size: 16px; font-weight: 760; }
+.points-card-manager-summary strong { color: #176d78; font-size: 31px; line-height: 1; font-variant-numeric: tabular-nums; }
+.points-card-manager-summary strong small { font-size: 14px; }
+.points-card-manager-summary p { margin: 8px 0 0; color: #66848d; font-size: 13px; line-height: 1.45; }
 .points-card-manager-heading { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .points-card-manager-heading > div { min-width: 0; display: flex; align-items: baseline; gap: 8px; }
 .points-card-manager-heading span { color: #244f60; font-size: 18px; font-weight: 780; }
 .points-card-manager-heading small { color: #78939d; font-size: 12px; }
 .points-card-manager-heading > button { min-height: 44px; border: 0; border-radius: 15px; display: inline-flex; align-items: center; gap: 5px; padding: 0 13px; color: #196f7d; background: rgba(255,255,255,.78); font: inherit; font-size: 13px; font-weight: 750; }
-.points-card-wallet-list { display: grid; gap: 13px; }
-.points-card-wallet-list > button { position: relative; min-height: 132px; overflow: hidden; border: 3px solid transparent; border-radius: 23px; padding: 0; color: white; background: #d5ebe9; box-shadow: 0 14px 27px rgba(35,78,86,.15); transform: scale(.985); transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.points-card-wallet-list { display: grid; gap: 10px; }
+.points-card-wallet-list > button { position: relative; height: clamp(136px,calc(42dvh - 208.5px),180px); overflow: hidden; border: 3px solid transparent; border-radius: 23px; padding: 0; color: white; background: #d5ebe9; box-shadow: 0 14px 27px rgba(35,78,86,.15); transform: scale(.985); transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
 .points-card-wallet-list > button[data-selected="true"] { border-color: #fff; box-shadow: 0 0 0 3px #29998c,0 17px 32px rgba(35,111,105,.22); transform: scale(1); }
 .points-card-wallet-list > button:disabled { opacity: 1; }
 .points-card-wallet-list img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
@@ -13194,13 +13199,24 @@ body::before {
 .points-card-unlock-confirm button:disabled { color: #91a6ad; background: #e6edef; }
 @media (max-width: 359px) {
   .points-shop-screen { padding-inline: 12px; }
-  .points-shop-header-actions { gap: 2px; }
+  .points-shop-header > .points-shop-header-actions { gap: 4px; }
   .points-shop-cart-shortcut,
-  .points-shop-card-shortcut { width: 42px; height: 42px; }
+  .points-shop-card-shortcut,
+  .points-shop-more-shortcut { width: 40px; height: 42px; }
   .points-shop-hero h2 { font-size: 21px; }
   .points-shop-categories b { font-size: 12px; }
   .points-shop-list { gap: 10px; }
   .points-shop-product-copy { padding-inline: 10px; }
+}
+@media (max-height: 760px) {
+  .points-shop-screen[data-shop-route="cards"] { padding-top: 8px; }
+  .points-shop-screen[data-shop-route="cards"] .points-shop-header { min-height: 48px; margin-bottom: 6px; }
+  .points-shop-screen[data-shop-route="cards"] .points-card-manager { gap: 8px; padding-bottom: 0; }
+  .points-shop-screen[data-shop-route="cards"] .points-card-manager-summary { padding-block: 11px; }
+  .points-shop-screen[data-shop-route="cards"] .points-card-manager-summary p { display: none; }
+  .points-shop-screen[data-shop-route="cards"] .points-card-manager-heading { min-height: 38px; }
+  .points-shop-screen[data-shop-route="cards"] .points-card-manager-heading > button { min-height: 38px; }
+  .points-shop-screen[data-shop-route="cards"] .points-card-wallet-list { gap: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .points-shop-loading svg,

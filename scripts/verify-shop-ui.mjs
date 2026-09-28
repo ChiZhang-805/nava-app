@@ -88,16 +88,23 @@ try {
     const geometry = await page.evaluate(() => {
       const screen = document.querySelector(".phone-frame")?.getBoundingClientRect();
       const header = document.querySelector(".points-shop-header")?.getBoundingClientRect();
+      const home = document.querySelector(".points-shop-header > .home-experience-back");
+      const actions = [...document.querySelectorAll(".points-shop-header-actions > button")];
       const cards = [...document.querySelectorAll(".points-shop-product-row")].map((element) => element.getBoundingClientRect().toJSON());
       return {
         screen: screen?.toJSON() ?? null,
         header: header?.toJSON() ?? null,
+        actionRects: actions.map((element) => element.getBoundingClientRect().toJSON()),
+        actionBackgrounds: actions.map((element) => getComputedStyle(element).backgroundColor),
+        homeBackground: home ? getComputedStyle(home).backgroundColor : null,
         cards,
         horizontalOverflow: document.querySelector(".points-shop-screen")?.scrollWidth - document.querySelector(".points-shop-screen")?.clientWidth,
         selectorDisplay: getComputedStyle(document.querySelector(".nava-device-selector")).display,
       };
     });
     if (!geometry.screen || !geometry.header || geometry.horizontalOverflow > 1 || geometry.selectorDisplay !== "none"
+      || geometry.actionRects.length !== 2 || Math.abs(geometry.actionRects[0].top - geometry.actionRects[1].top) > 1
+      || geometry.actionBackgrounds.some((value) => value !== "rgba(0, 0, 0, 0)") || geometry.homeBackground !== "rgba(0, 0, 0, 0)"
       || geometry.cards.some((card) => card.left < geometry.screen.left - 1 || card.right > geometry.screen.right + 1)
       || geometry.cards.some((card, index) => index % 2 === 1 && Math.abs(card.top - geometry.cards[index - 1].top) > 1)
       || geometry.cards.some((card, index) => index > 1 && card.top <= geometry.cards[index - 2].bottom)) {
@@ -126,7 +133,31 @@ try {
     const page = await prepare(context, "&qa=shop-checkout#tab=today&view=points-shop-cards");
     await expect(page.locator(".points-card-manager")).toBeVisible();
     await expect(page.locator(".points-card-wallet-list [role=radio]")).toHaveCount(3);
-    await expect(page.getByText("所有卡片共用这一份积分。换卡不会改变额度。", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "更多", exact: true })).toBeVisible();
+    await expect(page.locator(".points-shop-header-actions > button")).toHaveCount(1);
+    await expect(page.getByText("所有卡片共用这一份积分。换卡不会改变额度。", { exact: true })).toHaveCount(1);
+    const initialManagerGeometry = await page.evaluate(() => {
+      const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
+      const screen = document.querySelector(".points-shop-screen")?.getBoundingClientRect();
+      const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();
+      const home = document.querySelector(".points-shop-header > .home-experience-back");
+      const more = document.querySelector(".points-shop-more-shortcut");
+      const cards = [...document.querySelectorAll(".points-card-wallet-list > button")].map((node) => node.getBoundingClientRect().toJSON());
+      return frame && screen && nav && home && more ? {
+        frame: frame.toJSON(), screen: screen.toJSON(), nav: nav.toJSON(), cards,
+        homeBackground: getComputedStyle(home).backgroundColor,
+        moreBackground: getComputedStyle(more).backgroundColor,
+        moreRect: more.getBoundingClientRect().toJSON(),
+        horizontalOverflow: screen.scrollWidth - screen.clientWidth,
+      } : null;
+    });
+    if (!initialManagerGeometry || initialManagerGeometry.cards.length !== 3 || initialManagerGeometry.horizontalOverflow > 1
+      || initialManagerGeometry.homeBackground !== "rgba(0, 0, 0, 0)" || initialManagerGeometry.moreBackground !== "rgba(0, 0, 0, 0)"
+      || initialManagerGeometry.cards.some((card) => card.left < initialManagerGeometry.frame.left - 1 || card.right > initialManagerGeometry.frame.right + 1)
+      || initialManagerGeometry.cards.at(-1).bottom > initialManagerGeometry.nav.top - 8) {
+      throw new Error(`${viewport.width}x${viewport.height}: initial points-card composition failed ${JSON.stringify(initialManagerGeometry)}`);
+    }
+    await page.screenshot({ path: path.join(outputDir, `points-card-manager-${viewport.width}x${viewport.height}.png`), fullPage: true });
     await page.getByRole("button", { name: "添加卡片", exact: true }).click();
     await expect(page.locator(".points-card-add-grid > button")).toHaveCount(3);
     await page.getByRole("button", { name: /薰衣草阅读卡/ }).click();
@@ -148,18 +179,13 @@ try {
       || [...managerGeometry.walletCards, ...managerGeometry.addCards].some((card) => card.left < managerGeometry.frame.left - 1 || card.right > managerGeometry.frame.right + 1)) {
       throw new Error(`${viewport.width}x${viewport.height}: points-card manager failed ${JSON.stringify(managerGeometry)}`);
     }
-    await page.screenshot({ path: path.join(outputDir, `points-card-manager-${viewport.width}x${viewport.height}.png`), fullPage: true });
+    await page.screenshot({ path: path.join(outputDir, `points-card-manager-add-dialog-${viewport.width}x${viewport.height}.png`), fullPage: true });
     await page.getByRole("button", { name: "10 XP 添加", exact: true }).click();
     await expect(page.locator(".points-card-wallet-list [role=radio]")).toHaveCount(4);
     await expect(page.locator(".points-card-manager-summary strong")).toContainText("450");
     await expect(page.getByRole("radio", { name: /薰衣草阅读卡/ })).toHaveAttribute("aria-checked", "true");
     await page.screenshot({ path: path.join(outputDir, `points-card-manager-added-${viewport.width}x${viewport.height}.png`), fullPage: true });
-    await page.getByRole("button", { name: /购物车，共 1 件/ }).click();
-    await page.getByRole("button", { name: "确认兑换", exact: true }).click();
-    await expect(page.locator(".shop-card-picker-list [role=radio]")).toHaveCount(4);
-    await expect(page.getByRole("radio", { name: /薰衣草阅读卡/ })).toHaveAttribute("aria-checked", "true");
-    await page.getByRole("button", { name: "返回", exact: true }).click();
-    report.push({ mode: "points-card-manager", viewport, managerGeometry });
+    report.push({ mode: "points-card-manager", viewport, initialManagerGeometry, managerGeometry });
     await context.close();
   }
 
