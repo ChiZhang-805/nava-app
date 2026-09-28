@@ -34,7 +34,7 @@ try{
   });
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   const url='http://127.0.0.1:5268/__cold.html';
-  await page.goto(url+'?mode=onboarding');const onboard=page.frameLocator('iframe');
+  await page.goto(url+'?mode=onboarding',{waitUntil:'domcontentloaded',timeout:60000});const onboard=page.frameLocator('iframe');
   await expect(onboard.locator('#screen')).toHaveAttribute('data-step','summary',{timeout:30000});
   await onboard.locator('#next').click();await expect(onboard.locator('#screen')).toHaveAttribute('data-step','goal');
   await expect(page.locator('.cold-start-screen')).toHaveCount(0);
@@ -48,7 +48,14 @@ try{
     await page.screenshot({path:`${out}/original-${stage}-${lang}-${width}.png`});
     await expect(onboard.locator('#next')).toBeInViewport();
     const overlap=await onboard.locator('.paper-content').evaluate(c=>{const caption=c.querySelector('.sheet-caption').getBoundingClientRect(),opts=c.querySelector('.options').getBoundingClientRect();return opts.bottom>caption.top;});assert.equal(overlap,false,stage+' caption overlap');
-    if(stage==='challenge'){const draft=await page.evaluate(()=>JSON.parse(localStorage.getItem('nava.first-notes.draft.v1.10000000-0000-4000-8000-000000000001')));assert.equal(draft.step,'challenge');}
+    if(stage==='challenge'){
+      const optionRows=await onboard.locator('.challenge .option').evaluateAll(nodes=>nodes.map(node=>{const r=node.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};}));
+      assert.equal(optionRows.length,5,'challenge must show five choices');
+      assert.equal(new Set(optionRows.map(row=>Math.round(row.x))).size,1,'challenge choices must share one column');
+      assert.equal(new Set(optionRows.map(row=>Math.round(row.width))).size,1,'challenge choices must share one width');
+      assert.ok(optionRows.every((row,index)=>index===0||row.y>optionRows[index-1].y+optionRows[index-1].height),'challenge choices must occupy separate rows');
+      const draft=await page.evaluate(()=>JSON.parse(localStorage.getItem('nava.first-notes.draft.v1.10000000-0000-4000-8000-000000000001')));assert.equal(draft.step,'challenge');
+    }
     await onboard.locator('#next').click();
   }
   await expect(onboard.locator('#screen')).toHaveAttribute('data-step','summary');assert.equal(profileWrites,0);
