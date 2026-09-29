@@ -294,6 +294,17 @@ export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLogi
             title={`模拟${label}`}
             aria-label={`模拟${label}`}
           ><Icon size={17} /><span>{label}</span></button>)}
+          <button
+            type="button"
+            data-preview-action="first-login"
+            onClick={() => {
+              commandPhonePreview("app");
+              onFirstLoginPreview?.();
+              setEventResult("已从第一步重播首次登录体验。");
+            }}
+            title="从第一步重播首次登录体验"
+            aria-label="重播首次登录体验"
+          ><BookOpenText size={17} /><span>首次登录</span></button>
         </div>
         <div className="nava-focus-event-actions">
           <button type="button" data-phone-action="lock" onClick={() => { simulatePreviewInterruption("other"); commandPhonePreview("lock"); setEventResult("已锁屏熄屏；应用仍保留在原页面。"); }}><LockKeyhole size={17} /><span>锁屏／熄屏</span></button>
@@ -306,17 +317,6 @@ export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLogi
         <section className="nava-guide-preview" data-preview-only="guide-shortcuts" aria-label="新手引导快捷入口">
           <header><strong>新手引导</strong><small>{onJournalGuidePreview ? "可反复重播" : "记录引导需登录"}</small></header>
           <div className="nava-guide-preview-actions">
-            <button
-              type="button"
-              data-preview-action="first-login"
-              onClick={() => {
-                commandPhonePreview("app");
-                onFirstLoginPreview?.();
-                setEventResult("已从第一步重播首次登录体验。");
-              }}
-              title="从第一步重播首次登录体验"
-              aria-label="重播首次登录体验"
-            ><BookOpenText size={17} /><span>首次登录</span></button>
             {journalGuideShortcuts.map(({ module, label, icon: Icon }) => (
               <button
                 key={module}

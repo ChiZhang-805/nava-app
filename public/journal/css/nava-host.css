@@ -20,13 +20,11 @@
 #cold-guide{position:absolute;inset:0;z-index:40;border:0;background:transparent;cursor:pointer;touch-action:manipulation}
 #cold-guide[hidden],#cold-guide-backdrop[hidden]{display:none}
 #cold-guide:focus-visible{outline:none}
-#cold-guide-backdrop{position:absolute;inset:0;z-index:32;pointer-events:none;--guide-x:0px;--guide-y:0px;--guide-width:0px;--guide-height:0px}
-#cold-guide-backdrop i{position:absolute;display:block;background:#102a3bb3;backdrop-filter:grayscale(.42) saturate(.58) brightness(.74)}
-#cold-guide-backdrop i:nth-child(1){inset:0 0 auto;height:var(--guide-y)}
-#cold-guide-backdrop i:nth-child(2){left:0;top:var(--guide-y);width:var(--guide-x);height:var(--guide-height)}
-#cold-guide-backdrop i:nth-child(3){left:calc(var(--guide-x) + var(--guide-width));right:0;top:var(--guide-y);height:var(--guide-height)}
-#cold-guide-backdrop i:nth-child(4){inset:calc(var(--guide-y) + var(--guide-height)) 0 0}
-.cold-guide-target{outline:3px solid #7ee5ff!important;outline-offset:4px;border-radius:13px;box-shadow:0 0 0 8px #dffaff52,0 0 32px #bdefffba!important}
+#cold-guide-backdrop{position:absolute;inset:0;z-index:32;pointer-events:none}
+#cold-guide-backdrop svg{display:block;width:100%;height:100%;overflow:visible}
+.cold-guide-target{outline:2px solid #7ee5ff!important;outline-offset:3px;box-shadow:0 0 0 6px #dffaff45,0 0 26px #bdefffad!important}
+.field-name.cold-guide-target,.field-header.cold-guide-target{border-radius:5px;color:#164d69;text-shadow:0 0 12px #e9fcff;box-shadow:none!important}
+.time-endpoint.cold-guide-target,.choice-group.cold-guide-target,.input-wrap.cold-guide-target{border-radius:13px}
 #screen.cold-guiding #actor-canvas.cold-guide-cat{z-index:34;filter:drop-shadow(0 0 13px #effdff)}
 #screen.cold-guiding #entry-bubble.cold-guide-speaker{z-index:36;right:17px;left:auto;top:167px;box-sizing:border-box;width:164px;min-width:164px;max-width:164px;padding:13px 14px;border-color:#c7edf7;background:#fffffff7;color:#174c68;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13.5px;font-weight:650;line-height:1.55;white-space:normal;overflow-wrap:anywhere;box-shadow:0 0 0 5px #dff9ff45,0 12px 28px #092f4652;opacity:1}
 #screen.cold-guiding #entry-bubble.cold-guide-speaker small{display:block;margin-top:7px;color:#5391a9;font-size:10px;font-weight:650;letter-spacing:.04em}

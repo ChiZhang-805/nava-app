@@ -34,20 +34,29 @@ try {
           await expect(rail).toHaveCount(1);
           await expect(rail.locator("[data-preview-event]")).toHaveCount(3);
           await expect(rail.locator('[data-preview-action="first-login"]')).toHaveCount(1);
+          await expect(rail.locator(".nava-focus-event-actions").first().locator("button")).toHaveCount(4);
           await expect(rail.locator('[data-preview-only="guide-shortcuts"]')).toHaveCount(1);
+          await expect(rail.locator('[data-preview-only="guide-shortcuts"] [data-preview-action]')).toHaveCount(0);
           await expect(rail.locator("[data-preview-guide]")).toHaveCount(6);
           await expect(rail.locator("[data-reminder-preview] button")).toHaveCount(8);
           const geometry = await rail.evaluate((node) => {
             const box = node.getBoundingClientRect(), phone = document.querySelector(".nava-app-stage > .phone-frame, .nava-app-stage > .auth-screen").getBoundingClientRect();
             const selector = node.querySelector(".nava-device-selector").getBoundingClientRect(), events = node.querySelector(".nava-focus-event-simulator").getBoundingClientRect();
-            return { left: box.left, right: box.right, bottom: box.bottom, phoneRight: phone.right, gap: events.top - selector.bottom, overflow: node.scrollWidth - node.clientWidth };
+            return { left: box.left, right: box.right, bottom: box.bottom, phoneRight: phone.right, gap: events.top - selector.bottom, overflow: node.scrollWidth - node.clientWidth, scrollbarWidth: getComputedStyle(node).scrollbarWidth, scrollable: node.scrollHeight > node.clientHeight + 1 };
           });
           assert.ok(geometry.left > geometry.phoneRight && geometry.right <= viewport.width && geometry.bottom <= viewport.height && geometry.overflow <= 1, JSON.stringify(geometry));
-          assert.ok(geometry.gap >= 12 && geometry.gap <= 16, JSON.stringify(geometry));
+          assert.ok(geometry.gap >= 8 && geometry.gap <= 12, JSON.stringify(geometry));
+          assert.equal(geometry.scrollbarWidth, "none", JSON.stringify(geometry));
           for (const button of await rail.locator("[data-preview-event], [data-preview-action], [data-preview-guide], [data-reminder-preview] button").all()) {
             await button.scrollIntoViewIfNeeded(); await expect(button.locator("span")).toBeVisible();
             const buttonGeometry = await button.evaluate((node) => { const box = node.getBoundingClientRect(), text = node.querySelector("span").getBoundingClientRect(); return { width: box.width, height: box.height, textFits: text.left >= box.left && text.right <= box.right, labelDisplay: getComputedStyle(node.querySelector("span")).display }; });
             assert.ok(buttonGeometry.width >= 43 && buttonGeometry.height >= 43 && buttonGeometry.textFits && buttonGeometry.labelDisplay !== "none", JSON.stringify(buttonGeometry));
+          }
+          if (geometry.scrollable && state === "signed-out") {
+            await rail.evaluate((node) => { node.scrollTop = 0; });
+            await rail.hover();
+            await page.mouse.wheel(0, 320);
+            await expect.poll(() => rail.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
           }
           await rail.evaluate((node) => { node.scrollTop = 0; });
           receipt.results.push({ viewport, state, geometry });
@@ -92,7 +101,7 @@ try {
           await expect(page).toHaveURL(new RegExp(`[#&]module=${module}(?:&|$)`));
           const journalFrame = page.frameLocator(".journal-experience iframe");
           await expect(journalFrame.locator("#cold-guide")).toBeVisible({ timeout: 30_000 });
-          await expect(journalFrame.locator(".cold-guide-target")).toHaveCount(1);
+          await expect(journalFrame.locator(".cold-guide-target")).toHaveCount(["diet", "face"].includes(module) ? 1 : 2);
           receipt.results.push({ viewport, state: `guide-${module}` });
         }
         const replayFrame = page.frameLocator(".journal-experience iframe");

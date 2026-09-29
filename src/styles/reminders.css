@@ -38,11 +38,11 @@
 @media (prefers-reduced-motion: reduce) { .reminder-switch span { transition: none; } }
 .nava-reminder-preview { display: none; }
 @media (hover: hover) and (pointer: fine) and (min-width: 700px) and (min-height: 700px) {
-  .nava-reminder-preview { display: block; padding-top: 12px; border-top: 1px solid #52616a; font-size: 14px; line-height: 1.5; }
-  .nava-reminder-preview strong { display: block; margin-bottom: 8px; }
-  .nava-reminder-preview > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .nava-reminder-preview { display: block; padding-top: 9px; border-top: 1px solid #52616a; font-size: 14px; line-height: 1.4; }
+  .nava-reminder-preview strong { display: block; margin-bottom: 6px; }
+  .nava-reminder-preview > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
   .nava-reminder-preview button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; background: #eaf7fc; color: #184254; border: 0; border-radius: 10px; font: inherit; cursor: pointer; }
   .nava-reminder-preview button:disabled { background: #293f4a; color: #a9c1cc; cursor: not-allowed; }
   .nava-reminder-preview button svg { flex-shrink: 0; }
-  .nava-reminder-preview p { margin: 8px 0 0; color: #c7d9e3; }
+  .nava-reminder-preview p { margin: 6px 0 0; color: #c7d9e3; }
 }

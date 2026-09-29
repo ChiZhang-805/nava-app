@@ -71,8 +71,11 @@ try{
   await expect(page.locator('.cold-example')).toBeVisible();await page.screenshot({path:`${out}/sample-${lang}-${width}.png`});assert.equal(saves,0);
   await page.goto(url+'?module=sleep');const frame=page.frameLocator('iframe');
   await expect(frame.locator('#cold-guide')).toBeVisible({timeout:30000});
-  await expect(frame.locator('.cold-guide-target')).toBeVisible();
+  await expect(frame.locator('.cold-guide-target')).toHaveCount(2);
+  await expect(frame.locator('.time-range-field .field-header')).toHaveClass(/cold-guide-target/);
+  await expect(frame.locator('.time-endpoint').first()).toHaveClass(/cold-guide-target/);
   await expect(frame.locator('#cold-guide-backdrop')).toBeVisible();
+  await expect(frame.locator('#cold-guide-backdrop')).toHaveAttribute('data-guide-holes','2');
   await expect(frame.locator('#actor-canvas')).toHaveClass(/cold-guide-cat/);
   await expect(frame.locator('#entry-bubble')).toHaveClass(/cold-guide-speaker/);
   await expect(frame.locator('#cold-guide-skip')).toHaveCount(0);
@@ -127,7 +130,17 @@ try{
    failProfile=true;await notes.locator('#next').click();await expect(page.getByRole('alert')).toBeVisible();assert.equal(profileWrites,1);failProfile=false;
    await page.getByRole('button',{name:en?'Retry':'重试',exact:true}).click();await expect(notes.locator('#screen')).toHaveAttribute('data-step','summary',{timeout:30000});await notes.locator('#next').click();await expect(page.locator('main').first()).toContainText('SAVED');assert.equal(profileWrites,2);
    for(const [module,key] of [['mood','mood'],['diet','photo'],['exercise','activity'],['face','photo'],['focus','task']]){
-   rows=[];await page.goto(url+'?module='+module+'&force=1');const guided=page.frameLocator('iframe');await expect(guided.locator('#cold-guide')).toBeVisible({timeout:30000});const target=key==='photo'?guided.locator('#photo-preview'):guided.locator('#field-'+key).locator('..');await expect(target).toHaveClass(/cold-guide-target/);await page.screenshot({path:`${out}/guide-${module}-${lang}.png`});
+   rows=[];await page.goto(url+'?module='+module+'&force=1');const guided=page.frameLocator('iframe');await expect(guided.locator('#cold-guide')).toBeVisible({timeout:30000});
+   if(key==='photo'){
+    await expect(guided.locator('#photo-preview')).toHaveClass(/cold-guide-target/);await expect(guided.locator('#cold-guide-backdrop')).toHaveAttribute('data-guide-holes','1');
+   }else{
+    await expect(guided.locator('#field-'+key)).toHaveClass(/cold-guide-target/);await expect(guided.locator(`[data-field="${key}"] .field-name`)).toHaveClass(/cold-guide-target/);await expect(guided.locator(`[data-field="${key}"]`)).not.toHaveClass(/cold-guide-target/);await expect(guided.locator('#cold-guide-backdrop')).toHaveAttribute('data-guide-holes','2');
+   }
+   if(module==='focus'){
+    const geometry=await guided.locator('#screen').evaluate(screen=>{const scale=screen.getBoundingClientRect().width/screen.clientWidth;const root=screen.getBoundingClientRect();const targets=[screen.querySelector('[data-field="task"] .field-name'),screen.querySelector('#field-task')].map(node=>{const r=node.getBoundingClientRect();return{x:(r.left-root.left)/scale,y:(r.top-root.top)/scale,width:r.width/scale,height:r.height/scale};});const holes=[...screen.querySelectorAll('[data-guide-hole]')].map(node=>({x:Number(node.getAttribute('x')),y:Number(node.getAttribute('y')),width:Number(node.getAttribute('width')),height:Number(node.getAttribute('height'))}));return{targets,holes};});
+    assert.equal(geometry.holes.length,2,'focus guide must cut out the real label and input only');assert.ok(Math.abs((geometry.holes[0].x+4)-geometry.targets[0].x)<1.5,'label cutout must follow the real label');assert.ok(Math.abs((geometry.holes[1].x+6)-geometry.targets[1].x)<1.5,'input cutout must follow the real input');
+   }
+   await page.screenshot({path:`${out}/guide-${module}-${lang}.png`});
     await expect(guided.locator('#cold-guide-skip')).toHaveCount(0);await finishGuide(guided);
     if(module==='focus'){await guided.locator('#field-task').fill('Read a page');await guided.locator('#field-durationMinutes').fill('15');await expect(guided.locator('#field-durationMinutes')).toHaveValue('15');}
     if(module==='mood'){await page.setViewportSize({width,height:480});await guided.locator('#field-mood').fill(en?'Calm':'平静');await expect(guided.locator('#field-mood')).toBeInViewport();await page.screenshot({path:`${out}/keyboard-${lang}.png`});await page.setViewportSize({width,height});}

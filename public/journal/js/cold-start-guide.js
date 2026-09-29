@@ -18,7 +18,7 @@ export function installColdStartGuide(api) {
   if (!steps) return;
 
   let active = Boolean(api.initial.forceGuide || (!prior && !api.initial.settings[preferenceKey]));
-  let index = 0, highlight = null, feedbackShown = false, typingTimer = 0, speechWatchdog = 0, speechReady = false, finishSpeech = null, speechEpoch = 0;
+  let index = 0, highlights = [], feedbackShown = false, typingTimer = 0, speechWatchdog = 0, speechReady = false, finishSpeech = null, speechEpoch = 0;
   const entryBubble = document.getElementById('entry-bubble');
   const actor = document.getElementById('actor-canvas');
   let previousBubble = entryBubble.innerHTML;
@@ -27,7 +27,29 @@ export function installColdStartGuide(api) {
   backdrop.id = 'cold-guide-backdrop';
   backdrop.hidden = true;
   backdrop.setAttribute('aria-hidden', 'true');
-  for (let part = 0; part < 4; part += 1) backdrop.append(document.createElement('i'));
+  const svgNamespace = 'http://www.w3.org/2000/svg';
+  const maskId = `cold-guide-cutouts-${category}`;
+  const spotlightSvg = document.createElementNS(svgNamespace, 'svg');
+  const definitions = document.createElementNS(svgNamespace, 'defs');
+  const spotlightMask = document.createElementNS(svgNamespace, 'mask');
+  const maskBase = document.createElementNS(svgNamespace, 'rect');
+  const maskHoles = document.createElementNS(svgNamespace, 'g');
+  const shade = document.createElementNS(svgNamespace, 'rect');
+  spotlightMask.id = maskId;
+  spotlightMask.setAttribute('maskUnits', 'userSpaceOnUse');
+  spotlightMask.setAttribute('maskContentUnits', 'userSpaceOnUse');
+  maskBase.setAttribute('x', '0');
+  maskBase.setAttribute('y', '0');
+  maskBase.setAttribute('fill', '#fff');
+  spotlightMask.append(maskBase, maskHoles);
+  definitions.append(spotlightMask);
+  shade.setAttribute('x', '0');
+  shade.setAttribute('y', '0');
+  shade.setAttribute('fill', '#102a3b');
+  shade.setAttribute('fill-opacity', '.72');
+  shade.setAttribute('mask', `url(#${maskId})`);
+  spotlightSvg.append(definitions, shade);
+  backdrop.append(spotlightSvg);
 
   const coach = document.createElement('section');
   coach.id = 'cold-guide';
@@ -47,7 +69,12 @@ export function installColdStartGuide(api) {
     typingTimer = 0;
     speechWatchdog = 0;
   };
-  const clearHighlight = () => { highlight?.classList.remove('cold-guide-target'); highlight = null; };
+  const clearHighlight = () => {
+    highlights.forEach(target => target.classList.remove('cold-guide-target'));
+    highlights = [];
+    maskHoles.replaceChildren();
+    backdrop.dataset.guideHoles = '0';
+  };
   const remember = async () => {
     try { await api.call('settings', { key: preferenceKey, value: true }); api.initial.settings[preferenceKey] = true; }
     catch { api.notify?.(t('引导进度暂时没有同步。', 'Guide progress could not be synced yet.')); }
@@ -81,24 +108,58 @@ export function installColdStartGuide(api) {
     void remember();
   };
 
-  function targetForStep(step) {
-    const input = step && (step[0] === 'photo' ? document.getElementById('photo-preview') : document.getElementById(`field-${step[0]}`));
-    return input?.closest('.time-point, .field') || input || (index >= steps.length ? document.getElementById('confirm-entry') : null);
+  function targetsForStep(step) {
+    if (!step) return index >= steps.length ? [document.getElementById('confirm-entry')].filter(Boolean) : [];
+    if (step[0] === 'photo') return [document.getElementById('photo-preview')].filter(Boolean);
+    const input = document.getElementById(`field-${step[0]}`);
+    if (!input) return [];
+    const endpoint = input.closest('.time-endpoint');
+    if (endpoint) {
+      const title = endpoint.closest('.time-range-field')?.querySelector('.field-header');
+      return [title, endpoint].filter(Boolean);
+    }
+    const field = input.closest('.field');
+    const title = field?.querySelector('.field-name');
+    const control = input.closest('.input-wrap') || (input.type === 'hidden' ? field?.querySelector('.choice-group') : input);
+    return [...new Set([title, control].filter(Boolean))];
   }
 
   function positionSpotlight() {
-    if (!active || coach.hidden || !highlight) return;
+    if (!active || coach.hidden || !highlights.length) return;
     const root = screen.getBoundingClientRect();
-    const box = highlight.getBoundingClientRect();
-    const padding = 8;
-    const x = Math.max(0, box.left - root.left - padding);
-    const y = Math.max(0, box.top - root.top - padding);
-    const width = Math.min(root.width - x, box.width + padding * 2);
-    const height = Math.min(root.height - y, box.height + padding * 2);
-    backdrop.style.setProperty('--guide-x', `${x}px`);
-    backdrop.style.setProperty('--guide-y', `${y}px`);
-    backdrop.style.setProperty('--guide-width', `${width}px`);
-    backdrop.style.setProperty('--guide-height', `${height}px`);
+    const designWidth = screen.clientWidth || 393;
+    const designHeight = screen.clientHeight || 812;
+    const scaleX = root.width / designWidth || 1;
+    const scaleY = root.height / designHeight || scaleX;
+    spotlightSvg.setAttribute('viewBox', `0 0 ${designWidth} ${designHeight}`);
+    maskBase.setAttribute('width', String(designWidth));
+    maskBase.setAttribute('height', String(designHeight));
+    shade.setAttribute('width', String(designWidth));
+    shade.setAttribute('height', String(designHeight));
+    const holes = highlights.flatMap(target => {
+      const box = target.getBoundingClientRect();
+      if (!box.width || !box.height) return [];
+      const isTitle = target.matches('.field-name, .field-header');
+      const paddingX = isTitle ? 4 : 6;
+      const paddingY = isTitle ? 3 : 5;
+      const left = (box.left - root.left) / scaleX;
+      const top = (box.top - root.top) / scaleY;
+      const x = Math.max(0, left - paddingX);
+      const y = Math.max(0, top - paddingY);
+      const width = Math.min(designWidth - x, box.width / scaleX + paddingX * 2);
+      const height = Math.min(designHeight - y, box.height / scaleY + paddingY * 2);
+      const hole = document.createElementNS(svgNamespace, 'rect');
+      hole.dataset.guideHole = target.matches('.field-name, .field-header') ? 'label' : 'control';
+      hole.setAttribute('x', x.toFixed(2));
+      hole.setAttribute('y', y.toFixed(2));
+      hole.setAttribute('width', Math.max(0, width).toFixed(2));
+      hole.setAttribute('height', Math.max(0, height).toFixed(2));
+      hole.setAttribute('rx', String(Math.min(isTitle ? 7 : 15, height / 2)));
+      hole.setAttribute('fill', '#000');
+      return [hole];
+    });
+    maskHoles.replaceChildren(...holes);
+    backdrop.dataset.guideHoles = String(holes.length);
   }
 
   function speak(message) {
@@ -162,15 +223,15 @@ export function installColdStartGuide(api) {
       return;
     }
     const step = steps[index];
-    highlight = targetForStep(step);
-    highlight?.classList.add('cold-guide-target');
+    highlights = targetsForStep(step);
+    highlights.forEach(target => target.classList.add('cold-guide-target'));
     const message = step
       ? t(step[1], step[2])
       : category === 'focus'
         ? t('最后从这里开始专注。计时结束后，我会替你记下真实时长。', 'Begin focus here. When time is up, I will save the actual duration.')
         : t('最后从这里检查记录。等我写好，再由你亲自确认保存。', 'Review your entry here. After I write it up, you will confirm before anything is saved.');
     speak(message);
-    highlight?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    highlights.at(-1)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     requestAnimationFrame(() => requestAnimationFrame(positionSpotlight));
   }
 
