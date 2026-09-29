@@ -119,6 +119,10 @@ try {
       const todoPage = page.locator("[data-today-todo-page]");
       await expect(todoPage).toBeVisible();
       await expect(page.locator(".bottom-nav")).toBeVisible();
+      await expect(page.locator(".bottom-nav .nav-button")).toHaveCount(5);
+      await expect(page.locator(".today-todo-header h1")).toHaveText(locale === "zh" ? "今日待办" : "Today's to-do");
+      await expect(page.locator(".today-todo-header")).not.toContainText(/NAVA TODAY/i);
+      await expect(page.locator(".today-todo-header .home-experience-back")).toBeVisible();
       await expect(page.locator(".today-todo-intro p")).toHaveCount(0);
       const estimateButton = page.locator(".today-todo-compose-heading button");
       await expect(estimateButton).toBeDisabled();
@@ -142,7 +146,10 @@ try {
       const title = `${locale === "zh" ? "整理明天资料" : "Prepare tomorrow's notes"} ${viewport.name}`;
       await page.locator(".today-todo-draft textarea").fill(title);
       await expect(estimateButton).toBeEnabled();
-      await page.locator(".today-todo-duration-trigger").click();
+      await expect(page.locator(".today-todo-duration-trigger")).toHaveCount(3);
+      await page.locator('[data-duration-field="minutes"]').click();
+      await expect(page.locator('[data-duration-initial="true"]')).toHaveAttribute("aria-label", locale === "zh" ? "分钟" : "Minutes");
+      if (locale === "zh" && viewport.name === "390x844") await page.screenshot({ path: path.join(outputDir, "zh-390x844-duration-wheel.png") });
       const wheels = page.locator(".duration-wheel-column");
       await wheels.nth(0).getByRole("option", { name: "01", exact: true }).click();
       await wheels.nth(1).getByRole("option", { name: "02", exact: true }).click();

@@ -10987,6 +10987,9 @@ body::before {
 .today-todo-header > .home-experience-back { border: 0; background: transparent; box-shadow: none; }
 .today-todo-header > div { gap: 0; }
 .today-todo-header h1 { font-size: 21px; font-weight: 820; }
+.today-todo-header::before,
+.today-todo-header > div::before,
+.today-todo-header .eyebrow { display: none !important; content: none !important; }
 .today-todo-more { position: relative; display: grid; place-items: center; }
 .today-todo-more > .nava-more-trigger { color: #0b7199; background: transparent; }
 .today-todo-more > .app-utility-popover { top: calc(100% + 7px); right: 0; }
@@ -11011,11 +11014,12 @@ body::before {
 .today-todo-draft textarea:focus { border-color: #3ca3b6; box-shadow: 0 0 0 3px rgba(49,158,179,.13); }
 .today-todo-draft > small { position: absolute; right: 12px; bottom: 9px; color: #91a9b0; font-size: 11px; }
 .today-todo-duration { min-width: 0; display: grid; gap: 6px; }
-.today-todo-duration-trigger { width: 100%; min-height: 48px; border: 1px solid #cae4ea; border-radius: 15px; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; padding: 0; color: #214f60; background: #f8fcfd; font: inherit; }
-.today-todo-duration-trigger > span { min-width: 0; display: flex; align-items: baseline; justify-content: center; gap: 5px; }
-.today-todo-duration-trigger > span + span { border-left: 1px solid #dcebee; }
+.today-todo-duration-fields { width: 100%; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; }
+.today-todo-duration-trigger { min-width: 0; min-height: 48px; border: 1px solid #cae4ea; border-radius: 15px; display: grid; grid-template-columns: auto auto 15px; align-items: center; justify-content: center; gap: 4px; padding: 0 8px; color: #214f60; background: #f8fcfd; font: inherit; }
 .today-todo-duration-trigger strong { font-size: 16px; font-variant-numeric: tabular-nums; }
 .today-todo-duration-trigger small { color: #557b88; font-size: 11px; font-weight: 700; }
+.today-todo-duration-trigger svg { color: #6f99a5; }
+.today-todo-duration-trigger:active { border-color: #52aabd; background: #eef9fa; }
 .today-todo-duration-trigger:focus-visible { outline: 3px solid rgba(49,158,179,.18); outline-offset: 2px; }
 .today-todo-duration > small { color: #258497; font-size: 11px; line-height: 1.35; }
 .today-todo-submit { width: 100%; min-height: 50px; border: 0; border-radius: 17px; display: grid; place-items: center; padding: 8px 12px; color: #fff; background: linear-gradient(135deg,#30aabd,#228e82); box-shadow: 0 9px 20px rgba(35,143,154,.2); font: inherit; font-size: 15px; font-weight: 760; }
@@ -11078,12 +11082,21 @@ body::before {
   .today-todo-empty > span,.today-todo-empty p { display: none; }
 }
 
+.phone-frame:has([data-today-todo-page]) .bottom-nav {
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: none !important;
+}
+
 .duration-wheel-overlay,
 .today-todo-date-overlay { position: absolute; inset: 0; z-index: 260; display: flex; align-items: flex-end; padding: 18px 16px max(26px,calc(env(safe-area-inset-bottom) + 14px)); background: rgba(21,54,66,.26); backdrop-filter: blur(12px); }
 .duration-wheel-sheet,
 .today-todo-date-overlay > section { width: 100%; border: 1px solid rgba(255,255,255,.95); border-radius: 27px; padding: 17px; background: rgba(245,252,253,.98); box-shadow: 0 24px 60px rgba(21,78,94,.25); }
 .duration-wheel-sheet > header,
-.today-todo-date-overlay header { display: grid; grid-template-columns: minmax(0,1fr) 42px; align-items: center; gap: 8px; }
+.today-todo-date-overlay header { display: grid; align-items: center; gap: 8px; }
+.duration-wheel-sheet > header { grid-template-columns: 42px minmax(0,1fr) 42px; }
+.today-todo-date-overlay header { grid-template-columns: minmax(0,1fr) 42px; }
 .duration-wheel-sheet > header h2 { margin: 0; color: #17485b; font-size: 19px; text-align: center; }
 .duration-wheel-close,
 .today-todo-date-overlay header button { width: 42px; height: 42px; border: 0; border-radius: 50%; display: grid; place-items: center; padding: 0; color: #27778a; background: #e2f2f5; }
