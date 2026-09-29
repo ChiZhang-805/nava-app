@@ -14,16 +14,6 @@ const server = await createServer({ server: { host: "127.0.0.1", port: 5227, str
 await server.listen();
 const browser = await chromium.launch({ headless: true });
 
-async function finishGuide(frame) {
-  const guide = frame.locator("#cold-guide");
-  await expect(guide).toBeVisible({ timeout: 30000 });
-  for (let step = 0; step < 6 && await guide.isVisible(); step += 1) {
-    await expect(guide).toHaveAttribute("data-ready", "true");
-    await guide.click();
-  }
-  await expect(guide).toBeHidden();
-}
-
 try {
   for (const viewport of [{ width: 360, height: 740 }, { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
     const context = await browser.newContext({ locale: "zh-CN", viewport, reducedMotion: "reduce" });
@@ -55,8 +45,8 @@ try {
       const errors = [];
       page.on("pageerror", error => errors.push(error.message));
       await page.route("**/*.supabase.co/rest/v1/journal_entries**", route => route.fulfill({ json: [] }));
-      await page.route("**/*.supabase.co/rest/v1/journal_preferences**", route => route.fulfill({ json: { settings: {} } }));
-      await page.goto("http://127.0.0.1:5227/?demo=1#tab=record&module=face&view=guide", { waitUntil: "networkidle" });
+      await page.route("**/*.supabase.co/rest/v1/journal_preferences**", route => route.fulfill({ json: { settings: { "fluffy-first-guide-face": true } } }));
+      await page.goto("http://127.0.0.1:5227/?demo=1#tab=record&module=face", { waitUntil: "networkidle" });
       if (await page.locator(".launch-sequence").isVisible().catch(() => false)) await page.locator(".launch-sequence").click();
       await page.waitForTimeout(500);
       if (await page.locator(".completion-celebration-layer").isVisible().catch(() => false)) {
@@ -64,7 +54,7 @@ try {
         await expect(page.locator(".completion-celebration-layer")).toHaveCount(0);
       }
       const frame = page.frameLocator(".journal-experience iframe");
-      await finishGuide(frame);
+      await expect(frame.locator("#cold-guide")).toBeHidden({ timeout: 30000 });
       const preview = frame.locator("#photo-preview");
       const sheet = frame.locator("#sheet-layer");
 

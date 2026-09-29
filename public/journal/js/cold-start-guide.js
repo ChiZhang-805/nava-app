@@ -1,4 +1,4 @@
-/** Coach the existing, authenticated form. A guide never submits or invents a record. */
+/** Coach the existing authenticated form without submitting or inventing a record. */
 export function installColdStartGuide(api) {
   const screen = document.getElementById('screen');
   const category = api.initial.category;
@@ -7,18 +7,49 @@ export function installColdStartGuide(api) {
   const preferenceKey = `fluffy-first-guide-${category}`;
   const prior = api.initial.records.some(record => record.category === category);
   const fieldSteps = {
-    sleep: [['bedtime', '先看这里，记下昨晚的入睡时间。', 'Start here with the time you fell asleep.'], ['wakeTime', '再看醒来的时间，跨夜也会自动算好。', 'Next is your wake-up time. Overnight sleep is handled.'], ['quality', '最后，把醒来时的感受留给我。', 'Finally, tell me how you felt when you woke up.']],
-    mood: [['mood', '先在这里写下此刻的心情，几个字就很好。', 'Start here with a few words about how you feel.'], ['reason', '如果愿意，也可以告诉我发生了什么。', 'If you feel like it, tell me what happened.']],
-    food: [['photo', '先点亮这里，拍下或选择今天的食物。', 'Start here to capture or choose today’s food photo.'], ['meal', '然后告诉我，这是今天的哪一餐。', 'Then tell me which meal this was.'], ['foods', '也可以在这里写下吃了什么。', 'You can also write down what you ate here.'], ['portion', '最后记下大概的分量，不确定也没关系。', 'Lastly, add an approximate portion. It is okay not to be exact.']],
-    sport: [['activity', '先从这里开始，走路也算认真运动。', 'Start here. A walk absolutely counts as movement.'], ['durationMinutes', '再记下真正运动了多少分钟。', 'Then add the minutes you actually spent moving.'], ['notes', '最后留一句感受、距离或训练内容。', 'Finish with how it felt, the distance, or what you did.']],
-    face: [['photo', '先点亮这里，选择一张光线均匀的照片。', 'Start here with a clear, evenly lit photo.'], ['feeling', '再告诉我，你现在感觉怎么样。', 'Then tell me how you feel right now.'], ['eyeArea', '这里记录自己的观察，照片不会用于诊断。', 'Keep your own observation here. A photo is never a diagnosis.']],
-    focus: [['task', '先选一件小事，比如安静读完一页。', 'Choose one small task, such as quietly reading one page.'], ['durationMinutes', '再选一段适合你的时间，我会安静陪着。', 'Choose a duration that feels right. I will stay quietly with you.']],
+    sleep: [
+      { key: 'sleepRange', kind: 'time-range', fields: ['bedtime', 'wakeTime'], zh: '填好睡眠起止时间。\n跨夜也会自动算好。', en: 'Add your sleep and wake times.\nOvernight sleep is handled.' },
+      { key: 'quality', field: 'quality', zh: '再写下醒来时的感受。', en: 'Now add how you felt on waking.' },
+    ],
+    mood: [
+      { key: 'mood', field: 'mood', zh: '先写下此刻的心情。\n几个字就很好。', en: 'Start with how you feel now.\nA few words are enough.' },
+      { key: 'reason', field: 'reason', zh: '再写下发生了什么。', en: 'Now add what happened.' },
+    ],
+    food: [
+      { key: 'photo', kind: 'photo', zh: '先选择今天的食物照片。', en: 'Choose today’s food photo first.' },
+      { key: 'meal', field: 'meal', zh: '选一选，这是今天的哪一餐。', en: 'Choose which meal this was.' },
+      { key: 'foods', field: 'foods', zh: '再写下吃了什么。', en: 'Now add what you ate.' },
+      { key: 'portion', field: 'portion', zh: '最后写下大概份量。\n不确定也没关系。', en: 'Finally, add an approximate portion.\nIt is okay to be unsure.' },
+    ],
+    sport: [
+      { key: 'activity', field: 'activity', zh: '先写下运动项目。\n走路也算认真运动。', en: 'Start with the activity.\nA walk absolutely counts.' },
+      { key: 'durationMinutes', field: 'durationMinutes', zh: '再填写实际运动时间。', en: 'Now add the actual duration.' },
+      { key: 'notes', field: 'notes', zh: '最后留一句感受或训练内容。', en: 'Finish with how it felt or what you did.' },
+    ],
+    face: [
+      { key: 'photo', kind: 'photo', zh: '先选择一张光线均匀的照片。', en: 'Choose a clearly lit photo first.' },
+      { key: 'feeling', field: 'feeling', zh: '再写下现在的感受。', en: 'Now add how you feel.' },
+      { key: 'eyeArea', field: 'eyeArea', zh: '记录自己的眼周观察。\n照片不会用于诊断。', en: 'Add your own eye-area observation.\nThe photo is not a diagnosis.' },
+    ],
+    focus: [
+      { key: 'task', field: 'task', zh: '先写下一件想专注的小事。', en: 'Write one small thing to focus on.' },
+      { key: 'durationMinutes', field: 'durationMinutes', zh: '再选一段适合你的时间。', en: 'Now choose a duration that suits you.' },
+    ],
   };
   const steps = fieldSteps[category];
   if (!steps) return;
 
   let active = Boolean(api.initial.forceGuide || (!prior && !api.initial.settings[preferenceKey]));
-  let index = 0, highlights = [], feedbackShown = false, typingTimer = 0, speechWatchdog = 0, speechReady = false, finishSpeech = null, speechEpoch = 0;
+  let index = 0;
+  let highlights = [];
+  let feedbackShown = false;
+  let typingTimer = 0;
+  let speechWatchdog = 0;
+  let speechReady = false;
+  let finishSpeech = null;
+  let speechEpoch = 0;
+  let spokenMessage = '';
+  let finishing = false;
   const entryBubble = document.getElementById('entry-bubble');
   const actor = document.getElementById('actor-canvas');
   let previousBubble = entryBubble.innerHTML;
@@ -46,7 +77,7 @@ export function installColdStartGuide(api) {
   shade.setAttribute('x', '0');
   shade.setAttribute('y', '0');
   shade.setAttribute('fill', '#102a3b');
-  shade.setAttribute('fill-opacity', '.72');
+  shade.setAttribute('fill-opacity', '.74');
   shade.setAttribute('mask', `url(#${maskId})`);
   spotlightSvg.append(definitions, shade);
   backdrop.append(spotlightSvg);
@@ -54,14 +85,23 @@ export function installColdStartGuide(api) {
   const coach = document.createElement('section');
   coach.id = 'cold-guide';
   coach.hidden = true;
-  coach.tabIndex = 0;
-  coach.setAttribute('role', 'button');
+  coach.tabIndex = -1;
+  coach.setAttribute('role', 'status');
   coach.setAttribute('aria-label', t('小猫的新手引导', 'Cat’s getting-started guide'));
   const live = document.createElement('span');
   live.className = 'sr-only';
   live.setAttribute('aria-live', 'polite');
   coach.append(live);
   screen.append(backdrop, coach);
+
+  const finalStep = () => ({
+    key: 'confirm',
+    kind: 'confirm',
+    zh: category === 'focus' ? '都准备好了。\n轻触下方按钮开始专注。' : '都准备好了。\n轻触下方按钮检查记录。',
+    en: category === 'focus' ? 'You are ready.\nTap the button below to begin.' : 'You are ready.\nTap the button below to review.'
+  });
+  const currentStep = () => steps[index] || finalStep();
+  const isFinalStep = () => index >= steps.length;
 
   const clearTyping = () => {
     if (typingTimer) window.clearTimeout(typingTimer);
@@ -76,17 +116,33 @@ export function installColdStartGuide(api) {
     backdrop.dataset.guideHoles = '0';
   };
   const remember = async () => {
-    try { await api.call('settings', { key: preferenceKey, value: true }); api.initial.settings[preferenceKey] = true; }
-    catch { api.notify?.(t('引导进度暂时没有同步。', 'Guide progress could not be synced yet.')); }
+    if (api.initial.forceGuide) return;
+    try {
+      await api.call('settings', { key: preferenceKey, value: true });
+      api.initial.settings[preferenceKey] = true;
+    } catch {
+      api.notify?.(t('引导进度暂时没有同步。', 'Guide progress could not be synced yet.'));
+    }
+  };
+  const clearGuideState = () => {
+    delete screen.dataset.guideMotion;
+    delete screen.dataset.guideStep;
+    delete screen.dataset.guideComplete;
   };
   const restoreBubble = () => {
     clearTyping();
     speechEpoch += 1;
     finishSpeech = null;
     speechReady = false;
+    spokenMessage = '';
     coach.dataset.ready = 'false';
+    coach.dataset.speechReady = 'false';
+    coach.dataset.complete = 'false';
+    coach.tabIndex = -1;
+    coach.setAttribute('role', 'status');
     entryBubble.classList.remove('cold-guide-speech');
     entryBubble.innerHTML = previousBubble;
+    clearGuideState();
   };
   const failOpen = error => {
     if (error) console.error('Cold-start guide recovered from an error.', error);
@@ -99,36 +155,79 @@ export function installColdStartGuide(api) {
     entryBubble.classList.remove('cold-guide-speaker');
     actor.classList.remove('cold-guide-cat');
   };
-  const end = () => {
+  const end = async activationTarget => {
+    if (finishing) return;
+    finishing = true;
     active = false;
     clearHighlight();
     restoreBubble();
     safeRender();
-    document.getElementById('confirm-entry')?.focus();
-    void remember();
+    await remember();
+    finishing = false;
+    activationTarget?.click();
   };
 
   function targetsForStep(step) {
-    if (!step) return index >= steps.length ? [document.getElementById('confirm-entry')].filter(Boolean) : [];
-    if (step[0] === 'photo') return [document.getElementById('photo-preview')].filter(Boolean);
-    const input = document.getElementById(`field-${step[0]}`);
+    if (!step) return [];
+    if (step.kind === 'confirm') return [document.getElementById('confirm-entry')].filter(Boolean);
+    if (step.kind === 'photo') return [document.getElementById('photo-preview')].filter(Boolean);
+    if (step.kind === 'time-range') return [document.querySelector('.time-range-field')].filter(Boolean);
+    const input = document.getElementById(`field-${step.field}`);
     if (!input) return [];
-    const endpoint = input.closest('.time-endpoint');
-    if (endpoint) {
-      const title = endpoint.closest('.time-range-field')?.querySelector('.field-header');
-      return [title, endpoint].filter(Boolean);
-    }
     const field = input.closest('.field');
     const title = field?.querySelector('.field-name');
     const control = input.closest('.input-wrap') || (input.type === 'hidden' ? field?.querySelector('.choice-group') : input);
     return [...new Set([title, control].filter(Boolean))];
   }
 
+  function stepComplete(step = currentStep()) {
+    if (!step) return false;
+    if (step.kind === 'confirm') return true;
+    if (step.kind === 'photo') return Boolean(document.getElementById('photo-preview')?.classList.contains('has-image'));
+    if (step.kind === 'time-range') return step.fields.every(key => /^\d{2}:\d{2}$/.test(document.getElementById(`field-${key}`)?.value || ''));
+    const input = document.getElementById(`field-${step.field}`);
+    if (!input) return false;
+    const value = String(input.value || '').trim();
+    if (!value) return false;
+    if (step.field === 'durationMinutes') return Number.isFinite(Number(value)) && Number(value) > 0;
+    return input.getAttribute('aria-invalid') !== 'true';
+  }
+
+  function paintFinishedSpeech() {
+    if (!speechReady) return;
+    entryBubble.textContent = spokenMessage;
+    const complete = stepComplete();
+    if (complete) {
+      const hint = document.createElement('small');
+      hint.textContent = isFinalStep()
+        ? t('轻触下方按钮继续', 'Tap the button below to continue')
+        : t('轻触屏幕继续', 'Tap anywhere to continue');
+      entryBubble.append(hint);
+    }
+    coach.setAttribute('aria-label', `${spokenMessage}${complete ? ` ${entryBubble.querySelector('small')?.textContent || ''}` : ''}`);
+  }
+
+  function updateGuideState() {
+    if (!active || coach.hidden) return;
+    const complete = stepComplete();
+    const ready = speechReady && complete;
+    coach.dataset.complete = String(complete);
+    coach.dataset.speechReady = String(speechReady);
+    coach.dataset.ready = String(ready);
+    coach.dataset.step = currentStep().key;
+    coach.tabIndex = ready ? 0 : -1;
+    coach.setAttribute('role', ready ? 'button' : 'status');
+    screen.dataset.guideStep = currentStep().key;
+    screen.dataset.guideComplete = String(complete);
+    screen.dataset.guideMotion = !speechReady ? 'speaking' : ready ? 'ready' : 'waiting';
+    if (speechReady) paintFinishedSpeech();
+  }
+
   function positionSpotlight() {
     if (!active || coach.hidden || !highlights.length) return;
     const root = screen.getBoundingClientRect();
     const designWidth = screen.clientWidth || 393;
-    const designHeight = screen.clientHeight || 812;
+    const designHeight = screen.clientHeight || 852;
     const scaleX = root.width / designWidth || 1;
     const scaleY = root.height / designHeight || scaleX;
     spotlightSvg.setAttribute('viewBox', `0 0 ${designWidth} ${designHeight}`);
@@ -139,22 +238,19 @@ export function installColdStartGuide(api) {
     const holes = highlights.flatMap(target => {
       const box = target.getBoundingClientRect();
       if (!box.width || !box.height) return [];
-      const isTitle = target.matches('.field-name, .field-header');
-      const paddingX = isTitle ? 4 : 6;
-      const paddingY = isTitle ? 3 : 5;
       const left = (box.left - root.left) / scaleX;
       const top = (box.top - root.top) / scaleY;
-      const x = Math.max(0, left - paddingX);
-      const y = Math.max(0, top - paddingY);
-      const width = Math.min(designWidth - x, box.width / scaleX + paddingX * 2);
-      const height = Math.min(designHeight - y, box.height / scaleY + paddingY * 2);
+      const x = Math.max(0, left);
+      const y = Math.max(0, top);
+      const width = Math.min(designWidth - x, box.width / scaleX);
+      const height = Math.min(designHeight - y, box.height / scaleY);
       const hole = document.createElementNS(svgNamespace, 'rect');
-      hole.dataset.guideHole = target.matches('.field-name, .field-header') ? 'label' : 'control';
+      hole.dataset.guideHole = target.matches('.field-name, .field-header') ? 'label' : target.matches('.time-range-field') ? 'group' : 'control';
       hole.setAttribute('x', x.toFixed(2));
       hole.setAttribute('y', y.toFixed(2));
       hole.setAttribute('width', Math.max(0, width).toFixed(2));
       hole.setAttribute('height', Math.max(0, height).toFixed(2));
-      hole.setAttribute('rx', String(Math.min(isTitle ? 7 : 15, height / 2)));
+      hole.setAttribute('rx', String(Math.min(target.matches('.field-name, .field-header') ? 5 : 15, height / 2)));
       hole.setAttribute('fill', '#000');
       return [hole];
     });
@@ -166,10 +262,10 @@ export function installColdStartGuide(api) {
     clearTyping();
     const epoch = ++speechEpoch;
     speechReady = false;
+    spokenMessage = message;
     coach.dataset.ready = 'false';
-    const prefix = `${index + 1}/${steps.length + 1} · `;
-    const sentence = prefix + message;
-    live.textContent = sentence;
+    coach.dataset.speechReady = 'false';
+    live.textContent = message;
     entryBubble.replaceChildren();
     entryBubble.classList.add('cold-guide-speech');
     let offset = 0;
@@ -178,33 +274,29 @@ export function installColdStartGuide(api) {
       if (epoch !== speechEpoch || speechReady) return;
       try {
         clearTyping();
-        entryBubble.textContent = sentence;
-        const hint = document.createElement('small');
-        hint.textContent = t('轻触屏幕继续', 'Tap anywhere to continue');
-        entryBubble.append(hint);
         speechReady = true;
         finishSpeech = null;
-        coach.dataset.ready = 'true';
-        coach.setAttribute('aria-label', `${sentence} ${hint.textContent}`);
+        updateGuideState();
       } catch (error) {
         failOpen(error);
       }
     };
     finishSpeech = finish;
+    updateGuideState();
     if (reduced) { finish(); return; }
     const type = () => {
       if (epoch !== speechEpoch) return;
       try {
         offset += 1;
-        entryBubble.textContent = sentence.slice(0, offset);
-        if (offset >= sentence.length) { finish(); return; }
+        entryBubble.textContent = message.slice(0, offset);
+        if (offset >= message.length) { finish(); return; }
         typingTimer = window.setTimeout(type, 34);
       } catch (error) {
         failOpen(error);
       }
     };
     type();
-    speechWatchdog = window.setTimeout(finish, Math.max(1800, sentence.length * 50 + 600));
+    speechWatchdog = window.setTimeout(finish, Math.max(1800, message.length * 50 + 600));
   }
 
   function render() {
@@ -220,29 +312,20 @@ export function installColdStartGuide(api) {
       finishSpeech = null;
       speechReady = false;
       coach.dataset.ready = 'false';
+      coach.dataset.speechReady = 'false';
+      clearGuideState();
       return;
     }
-    const step = steps[index];
+    const step = currentStep();
     highlights = targetsForStep(step);
     highlights.forEach(target => target.classList.add('cold-guide-target'));
-    const message = step
-      ? t(step[1], step[2])
-      : category === 'focus'
-        ? t('最后从这里开始专注。计时结束后，我会替你记下真实时长。', 'Begin focus here. When time is up, I will save the actual duration.')
-        : t('最后从这里检查记录。等我写好，再由你亲自确认保存。', 'Review your entry here. After I write it up, you will confirm before anything is saved.');
-    speak(message);
+    speak(t(step.zh, step.en));
     highlights.at(-1)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     requestAnimationFrame(() => requestAnimationFrame(positionSpotlight));
   }
 
   function advance() {
-    if (!active) return;
-    if (!speechReady) {
-      if (finishSpeech) finishSpeech();
-      else failOpen(new Error('Guide speech had no completion path.'));
-      return;
-    }
-    if (index >= steps.length) { end(); return; }
+    if (!active || !speechReady || !stepComplete() || isFinalStep()) return;
     index += 1;
     safeRender();
   }
@@ -252,14 +335,64 @@ export function installColdStartGuide(api) {
     catch (error) { failOpen(error); }
   }
 
-  coach.addEventListener('click', advance);
+  function isAllowedInteraction(target, step = currentStep()) {
+    if (!(target instanceof Element)) return false;
+    if (step.kind === 'time-range' && target.closest('.time-range-field,.time-options')) return true;
+    if (step.kind === 'photo' && target.closest('#photo-preview,#sheet-layer')) return true;
+    return highlights.some(node => node === target || node.contains(target));
+  }
+
+  function blockEvent(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+  }
+
+  function captureGuideActivation(event) {
+    if (!active || coach.hidden || screen.dataset.scene !== 'entry') return;
+    const step = currentStep();
+    if (isAllowedInteraction(event.target, step)) {
+      if (step.kind !== 'confirm') return;
+      if (!speechReady) { blockEvent(event); return; }
+      const activationTarget = event.target.closest('#confirm-entry');
+      blockEvent(event);
+      void end(activationTarget);
+      return;
+    }
+    blockEvent(event);
+    if (speechReady && stepComplete() && !isFinalStep()) advance();
+  }
+
+  function captureGuidePress(event) {
+    if (!active || coach.hidden || screen.dataset.scene !== 'entry' || !isFinalStep()) return;
+    const step = currentStep();
+    if (!isAllowedInteraction(event.target, step)) return;
+    blockEvent(event);
+    if (!speechReady) return;
+    const activationTarget = event.target.closest('#confirm-entry');
+    void end(activationTarget);
+  }
+
+  coach.addEventListener('click', event => {
+    event.preventDefault();
+    advance();
+  });
   coach.addEventListener('keydown', event => {
     if (!['Enter', ' '].includes(event.key)) return;
     event.preventDefault();
     advance();
   });
+  screen.addEventListener('pointerdown', captureGuidePress, true);
+  screen.addEventListener('click', captureGuideActivation, true);
+  screen.addEventListener('input', updateGuideState, true);
+  screen.addEventListener('change', updateGuideState, true);
   screen.addEventListener('scroll', positionSpotlight, true);
   window.addEventListener('resize', positionSpotlight);
+
+  const photoPreview = document.getElementById('photo-preview');
+  const photoObserver = photoPreview ? new MutationObserver(() => updateGuideState()) : null;
+  photoObserver?.observe(photoPreview, { attributes: true, attributeFilter: ['class'], childList: true });
+
   screen.addEventListener('click', event => {
     if (event.target.closest('#entry-more')) queueMicrotask(() => {
       const menu = document.getElementById('entry-menu');
@@ -276,7 +409,6 @@ export function installColdStartGuide(api) {
         active = true;
         index = 0;
         safeRender();
-        coach.focus({ preventScroll: true });
       };
       menu.append(button);
     });
@@ -288,21 +420,25 @@ export function installColdStartGuide(api) {
       observedScene = scene;
       safeRender();
     }
-    if (!feedbackShown && scene === 'review' && api.firstSaved) { feedbackShown = true; api.call('first-feedback').catch(() => {}); }
+    if (!feedbackShown && scene === 'review' && api.firstSaved) {
+      feedbackShown = true;
+      api.call('first-feedback').catch(() => {});
+    }
   });
   observer.observe(screen, { attributes: true, attributeFilter: ['data-scene'] });
   safeRender();
-  if (active) coach.focus({ preventScroll: true });
   window.addEventListener('pagehide', event => {
     clearTyping();
     if (!event.persisted) {
       observer.disconnect();
+      photoObserver?.disconnect();
       window.removeEventListener('resize', positionSpotlight);
     }
   });
   window.addEventListener('pageshow', event => {
     if (!event.persisted || !active || screen.dataset.scene !== 'entry') return;
     if (!speechReady && finishSpeech) finishSpeech();
+    updateGuideState();
     positionSpotlight();
   });
   document.addEventListener('visibilitychange', () => {

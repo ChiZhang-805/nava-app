@@ -17,14 +17,16 @@
 #screen .review-summary,#screen .review-week{overflow-y:auto;overscroll-behavior:contain}
 #screen .review-summary p,#screen .review-week>h3{font-size:max(14px,calc(14px / var(--design-scale)))}
 #screen .review-summary strong{font-size:max(18px,calc(18px / var(--design-scale)))}
-#cold-guide{position:absolute;inset:0;z-index:40;border:0;background:transparent;cursor:pointer;touch-action:manipulation}
+#cold-guide{position:absolute;inset:0;z-index:40;border:0;background:transparent;pointer-events:none;touch-action:manipulation}
 #cold-guide[hidden],#cold-guide-backdrop[hidden]{display:none}
 #cold-guide:focus-visible{outline:none}
-#cold-guide-backdrop{position:absolute;inset:0;z-index:32;pointer-events:none}
-#cold-guide-backdrop svg{display:block;width:100%;height:100%;overflow:visible}
-.cold-guide-target{outline:2px solid #7ee5ff!important;outline-offset:3px;box-shadow:0 0 0 6px #dffaff45,0 0 26px #bdefffad!important}
-.field-name.cold-guide-target,.field-header.cold-guide-target{border-radius:5px;color:#164d69;text-shadow:0 0 12px #e9fcff;box-shadow:none!important}
+#cold-guide-backdrop{position:absolute;inset:0;z-index:32;overflow:hidden;pointer-events:none}
+#cold-guide-backdrop svg{display:block;width:100%;height:100%;overflow:hidden}
+.cold-guide-target{outline:0!important;outline-offset:0;box-shadow:none!important}
+.field-name.cold-guide-target,.field-header.cold-guide-target{border-radius:5px;color:#164d69;text-shadow:none;box-shadow:none!important}
 .time-endpoint.cold-guide-target,.choice-group.cold-guide-target,.input-wrap.cold-guide-target{border-radius:13px}
-#screen.cold-guiding #actor-canvas.cold-guide-cat{z-index:34;filter:drop-shadow(0 0 13px #effdff)}
-#screen.cold-guiding #entry-bubble.cold-guide-speaker{z-index:36;right:17px;left:auto;top:167px;box-sizing:border-box;width:164px;min-width:164px;max-width:164px;padding:13px 14px;border-color:#c7edf7;background:#fffffff7;color:#174c68;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13.5px;font-weight:650;line-height:1.55;white-space:normal;overflow-wrap:anywhere;box-shadow:0 0 0 5px #dff9ff45,0 12px 28px #092f4652;opacity:1}
-#screen.cold-guiding #entry-bubble.cold-guide-speaker small{display:block;margin-top:7px;color:#5391a9;font-size:10px;font-weight:650;letter-spacing:.04em}
+#screen.cold-guiding #actor-canvas.cold-guide-cat{z-index:34;filter:none}
+#screen.cold-guiding #entry-bubble.cold-guide-speaker{z-index:36;right:24px;left:auto;top:167px;box-sizing:border-box;width:158px;min-width:158px;max-width:158px;padding:12px 13px;border-color:#c7edf7;background:#fffffff7;color:#174c68;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;font-weight:650;line-height:1.5;white-space:pre-line;overflow-wrap:normal;box-shadow:0 10px 24px #092f4638;opacity:1}
+#screen.cold-guiding #entry-bubble.cold-guide-speaker small{display:block;margin-top:7px;color:#5391a9;font-size:10px;font-weight:650;line-height:1.35;letter-spacing:.02em;text-align:left}
+#screen.cold-guiding .time-options:not([hidden]){z-index:38}
+#screen.cold-guiding .sheet-layer:not([hidden]){z-index:45}

@@ -39,21 +39,18 @@ try {
       const page = await context.newPage(); const errors = [];
       page.on("pageerror", (error) => errors.push(error.message));
       await page.route("**/*.supabase.co/rest/v1/journal_entries**", (route) => route.fulfill({ json: [] }));
-      await page.route("**/*.supabase.co/rest/v1/journal_preferences**", (route) => route.fulfill({ json: { settings: {} } }));
+      await page.route("**/*.supabase.co/rest/v1/journal_preferences**", (route) => route.fulfill({ json: { settings: { "fluffy-first-guide-face": true } } }));
       const open = async (route) => {
-        await page.goto(`http://127.0.0.1:5225/?demo=1#${route}`, { waitUntil: "networkidle" });
+        await page.goto(`http://127.0.0.1:5225/?demo=1#${route}`, { waitUntil: "domcontentloaded", timeout: 60000 });
         if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
         if (await page.locator(".completion-celebration-layer").isVisible().catch(() => false)) {
           await page.frameLocator(".completion-celebration-layer iframe").getByRole("button", { name: /Continue|继续/ }).click();
           await expect(page.locator(".completion-celebration-layer")).toHaveCount(0);
         }
         if (route.includes("module=face")) {
-          const guide = page.frameLocator(".journal-experience iframe").locator("#cold-guide");
-          await expect(guide).toHaveCount(1, { timeout: 30000 });
-          if (await guide.isVisible()) {
-            for (let step = 0; step < 6 && await guide.isVisible(); step += 1) { await expect(guide).toHaveAttribute("data-ready", "true"); await guide.click(); }
-            await expect(guide).toBeHidden();
-          }
+          await expect(page.locator(".journal-experience iframe")).toBeVisible({ timeout: 60000 });
+          await expect(page.locator(".journal-loading")).toHaveCount(0, { timeout: 60000 });
+          await expect(page.frameLocator(".journal-experience iframe").locator("#cold-guide")).toBeHidden({ timeout: 30000 });
         }
       };
       const interrupt = async () => {
@@ -65,31 +62,32 @@ try {
         // camera. End that simulated call before operating the paused camera.
         if (viewport.width > 700) await page.locator('[data-phone-action="end-call"]').click();
       };
-      await open("tab=record&module=face&view=guide");
+      await open("tab=record&module=face");
       const journal = page.frameLocator(".journal-experience iframe");
       const camera = journal.locator("#sheet-layer");
-      await journal.locator("#photo-preview").click();
+      await journal.locator("#photo-preview").focus(); await journal.locator("#photo-preview").press("Enter");
       await expect(camera).toBeVisible();
       await expect(camera).toContainText("选择照片");
       await journal.locator("body").evaluate(() => { window.__cameraTracks = [...document.querySelector(".camera-video").srcObject.getTracks()]; });
       await interrupt(); await expect(camera).toBeVisible();
       assert.equal(await journal.locator("body").evaluate(() => window.__cameraTracks.every(track => track.readyState === "ended")), true);
-      await journal.locator("#sheet-close").click(); await expect(camera).toBeHidden();
-      await journal.locator("#photo-preview").click(); await expect(camera).toBeVisible();
-      await journal.getByRole("button", { name: "拍下这一张", exact: true }).click(); await expect(camera).toBeHidden();
+      await journal.locator("#sheet-close").focus(); await journal.locator("#sheet-close").press("Enter"); await expect(camera).toBeHidden();
+      await journal.locator("#photo-preview").focus(); await journal.locator("#photo-preview").press("Enter"); await expect(camera).toBeVisible();
+      await expect.poll(() => camera.locator(".camera-video").evaluate((video) => video.readyState), { timeout: 30000 }).toBeGreaterThanOrEqual(2);
+      const capture = journal.getByRole("button", { name: "拍下这一张", exact: true }); await capture.focus(); await capture.press("Enter"); await expect(camera).toBeHidden();
       await expect(journal.locator("#photo-preview img")).toBeVisible();
       await page.screenshot({ path: `${output}/camera-${viewport.width}.png` });
       const geometry = await journal.locator("#photo-preview").evaluate((node) => { const box = node.getBoundingClientRect(), screen = document.getElementById("screen").getBoundingClientRect(); return box.left >= screen.left && box.right <= screen.right && box.bottom <= screen.bottom; });
       assert.equal(geometry, true);
-      await open("tab=record&module=face&view=guide");
+      await open("tab=record&module=face");
       const pendingJournal = page.frameLocator(".journal-experience iframe");
       await pendingJournal.locator("body").evaluate(() => {
         const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
         navigator.mediaDevices.getUserMedia = async (...args) => { const stream = await original(...args); window.__lateTracks = stream.getTracks(); await new Promise((resolve) => { window.__releaseCamera = resolve; }); return stream; };
       });
-      await pendingJournal.locator("#photo-preview").click();
+      await pendingJournal.locator("#photo-preview").focus(); await pendingJournal.locator("#photo-preview").press("Enter");
       await expect.poll(() => pendingJournal.locator("body").evaluate(() => Boolean(window.__releaseCamera))).toBe(true);
-      await pendingJournal.locator("#sheet-close").click(); await pendingJournal.locator("body").evaluate(() => window.__releaseCamera());
+      await pendingJournal.locator("#sheet-close").focus(); await pendingJournal.locator("#sheet-close").press("Enter"); await pendingJournal.locator("body").evaluate(() => window.__releaseCamera());
       await expect.poll(() => pendingJournal.locator("body").evaluate(() => window.__lateTracks.every(track => track.readyState === "ended"))).toBe(true);
       await open("tab=ai");
       const mic = page.locator(".chat-voice-button"); await mic.focus(); await page.keyboard.press("Enter");

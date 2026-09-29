@@ -103,7 +103,7 @@ try {
           await expect(page).toHaveURL(new RegExp(`[#&]module=${module}(?:&|$)`));
           const journalFrame = page.frameLocator(".journal-experience iframe");
           await expect(journalFrame.locator("#cold-guide")).toBeVisible({ timeout: 30_000 });
-          await expect(journalFrame.locator(".cold-guide-target")).toHaveCount(["diet", "face"].includes(module) ? 1 : 2);
+          await expect(journalFrame.locator(".cold-guide-target")).toHaveCount(["sleep", "diet", "face"].includes(module) ? 1 : 2);
           receipt.results.push({ viewport, state: `guide-${module}` });
         }
         const replayFrame = page.frameLocator(".journal-experience iframe");
@@ -115,10 +115,16 @@ try {
         const replayCoach = replayFrame.locator("#cold-guide");
         await expect(replayCoach).toBeVisible({ timeout: 30_000 });
         await page.screenshot({ path: `${output}/guide-shortcuts-${viewport.width}.png` });
-        for (let step = 0; step < 8 && await replayCoach.isVisible(); step += 1) {
-          await expect(replayCoach).toHaveAttribute("data-ready", "true");
-          await replayCoach.click();
-        }
+        await expect(replayCoach).toHaveAttribute("data-speech-ready", "true");
+        await replayFrame.locator("#field-task").fill("Read one page");
+        await expect(replayCoach).toHaveAttribute("data-ready", "true");
+        await replayCoach.evaluate(node => node.click());
+        await expect(replayCoach).toHaveAttribute("data-step", "durationMinutes");
+        await replayFrame.locator("#field-durationMinutes").fill("15");
+        await expect(replayCoach).toHaveAttribute("data-ready", "true");
+        await replayCoach.evaluate(node => node.click());
+        await expect(replayCoach).toHaveAttribute("data-step", "confirm");
+        await replayFrame.locator("#confirm-entry").click();
         await expect(replayCoach).toBeHidden();
         await page.waitForTimeout(100);
         assert.deepEqual(journalWrites, [], "Guide shortcuts must not write journal records or guide preferences");

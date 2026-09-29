@@ -518,11 +518,28 @@ __fluffyModules["animation.js"] = (() => {
                 ctx.restore();
             }
             else if (this.scene === "entry") {
+                // 首次记录引导里的小猫不是静态贴图：说话、举爪和点头错峰发生，
+                // 呼吸与轻摆尾保持连续。减少动态效果时只保留原有静态姿态。
+                const guideState = $("screen").dataset.guideMotion || "";
+                const guideMotion = Boolean(guideState) && !this.reducedMotion;
+                const guideCycle = this.idle % 8.4;
+                const guideWave = guideMotion && guideState === "ready"
+                    ? M.range(guideCycle, .35, .85) * (1 - M.range(guideCycle, 2.05, 2.55)) * (.72 + .18 * Math.sin(this.idle * 4.2))
+                    : 0;
+                const guideNod = guideMotion && guideState === "ready"
+                    ? M.range(guideCycle, 3.2, 3.65) * (1 - M.range(guideCycle, 4.45, 4.95)) * Math.sin((guideCycle - 3.2) * 3.6)
+                    : guideMotion && guideState === "waiting"
+                        ? M.range(guideCycle, 5.4, 5.9) * (1 - M.range(guideCycle, 6.55, 7.05)) * .45
+                        : 0;
+                const guideTalk = guideMotion && guideState === "speaking"
+                    ? .35 + .65 * (.5 + .5 * Math.sin(this.idle * 5.2))
+                    : 0;
                 const idlePose = {
                     t: 0, idle: this.idle, sleep: 0, headSleep: 0, tailSleep: 0,
                     pen: null, grip: [177, 405], release: 1, lookOverride: .08 + this.attention * .22,
-                    headTilt: -.072 * this.attention + .023 * this.thinking,
-                    attention: this.attention, thought: this.thinking, level: this.level
+                    headTilt: -.072 * this.attention + .023 * this.thinking + guideNod * .025,
+                    attention: this.attention, thought: this.thinking, level: this.level,
+                    chatMotion: guideMotion, pawLift: guideWave, mouthTalk: guideTalk
                 };
                 ctx.save();
                 ctx.translate(43, 35);

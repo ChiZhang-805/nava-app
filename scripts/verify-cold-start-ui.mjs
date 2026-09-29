@@ -16,9 +16,30 @@ createRoot(document.getElementById('root')).render(React.createElement(LocalePro
 </script></body></html>`;
 const server=await createServer({logLevel:'silent',server:{host:'127.0.0.1',port:5268,strictPort:true},plugins:[{name:'cold-fixture',configureServer(s){s.middlewares.use(async(req,res,next)=>{if(!req.url?.startsWith('/__cold.html'))return next();res.setHeader('Content-Type','text/html');res.end(await s.transformIndexHtml(req.url,html));});}}]});await server.listen();
 const browser=await chromium.launch();const report=[];
-async function finishGuide(frame){
+async function chooseSleepTime(frame,key,hour,minute){
+ for(const [part,number] of [hour,minute].entries()){
+  await frame.locator(`.time-part[data-key="${key}"][data-part="${part}"]`).click();
+  await frame.locator(`#sleep-time-option-${Number(number)}`).click();
+ }
+}
+async function fillGuideStep(frame,module,key,en){
+ if(key==='sleepRange'){await chooseSleepTime(frame,'bedtime','23','30');await chooseSleepTime(frame,'wakeTime','07','00');return;}
+ if(key==='photo'){await frame.locator('#photo-preview').evaluate(node=>node.classList.add('has-image'));return;}
+ if(key==='meal'){await frame.locator('.choice-pill').first().click();return;}
+ const values={quality:en?'A little tired':'有一点困',mood:en?'Calm':'平静',reason:en?'Finished one task':'完成了一件事',foods:en?'Rice and vegetables':'米饭和蔬菜',portion:en?'One bowl':'一碗',activity:en?'Walking':'散步',durationMinutes:'15',notes:en?'Felt steady':'状态平稳',feeling:en?'A little tired':'有一点困',eyeArea:en?'Looks rested':'看起来较放松',task:en?'Read one page':'读完一页'};
+ const input=frame.locator(`#field-${key}`);await input.fill(values[key]||'Test');
+}
+async function finishGuide(frame,module,en){
  const guide=frame.locator('#cold-guide');
- for(let count=0;count<8&&await guide.isVisible();count+=1){await expect(guide).toHaveAttribute('data-ready','true');await guide.click();}
+ for(let count=0;count<8&&await guide.isVisible();count+=1){
+  await expect(guide).toHaveAttribute('data-speech-ready','true');
+  const key=await guide.getAttribute('data-step');
+  if(key==='confirm'){await frame.locator('#confirm-entry').click();break;}
+  await expect(guide).toHaveAttribute('data-ready','false');
+  await fillGuideStep(frame,module,key,en);
+  await expect(guide).toHaveAttribute('data-ready','true');
+  await guide.evaluate(node=>node.click());
+ }
  await expect(guide).toBeHidden();
 }
 try{
@@ -71,23 +92,21 @@ try{
   await expect(page.locator('.cold-example')).toBeVisible();await page.screenshot({path:`${out}/sample-${lang}-${width}.png`});assert.equal(saves,0);
   await page.goto(url+'?module=sleep');const frame=page.frameLocator('iframe');
   await expect(frame.locator('#cold-guide')).toBeVisible({timeout:30000});
-  await expect(frame.locator('.cold-guide-target')).toHaveCount(2);
-  await expect(frame.locator('.time-range-field .field-header')).toHaveClass(/cold-guide-target/);
-  await expect(frame.locator('.time-endpoint').first()).toHaveClass(/cold-guide-target/);
+  await expect(frame.locator('.cold-guide-target')).toHaveCount(1);
+  await expect(frame.locator('.time-range-field')).toHaveClass(/cold-guide-target/);
+  await expect(frame.locator('.time-endpoint').first()).not.toHaveClass(/cold-guide-target/);
   await expect(frame.locator('#cold-guide-backdrop')).toBeVisible();
-  await expect(frame.locator('#cold-guide-backdrop')).toHaveAttribute('data-guide-holes','2');
+  await expect(frame.locator('#cold-guide-backdrop')).toHaveAttribute('data-guide-holes','1');
   await expect(frame.locator('#actor-canvas')).toHaveClass(/cold-guide-cat/);
   await expect(frame.locator('#entry-bubble')).toHaveClass(/cold-guide-speaker/);
   await expect(frame.locator('#cold-guide-skip')).toHaveCount(0);
+  await expect(frame.locator('#entry-bubble')).not.toContainText(/\d+\/\d+/);
+  await expect(frame.locator('#cold-guide')).toHaveAttribute('data-ready','false');
+  await frame.locator('#cold-guide').evaluate(node=>node.click());
+  await expect(frame.locator('#cold-guide')).toHaveAttribute('data-step','sleepRange');
   await page.screenshot({path:`${out}/guide-${lang}-${width}.png`});
-  await finishGuide(frame);
-  for(const key of ['bedtime','wakeTime']){
-   for(const [part,number] of (key==='bedtime'?['23','30']:['07','00']).entries()){
-    await frame.locator('.time-part[data-key="'+key+'"][data-part="'+part+'"]').click();await frame.locator('#sleep-time-option-'+Number(number)).click();
-   }
-  }
-  await frame.locator('#field-quality').fill(en?'A little tired':'有一点困');
-  assert.equal(saves,0);await frame.locator('#confirm-entry').click();
+  await finishGuide(frame,'sleep',en);
+  assert.equal(saves,0);
   await expect(frame.locator('#screen')).toHaveAttribute('data-scene','record');await expect(frame.locator('#primary')).toBeEnabled({timeout:30000});
   if(width===390){failSave=true;await frame.locator('#primary').click();await page.waitForTimeout(700);assert.equal(saves,0);await expect(frame.locator('#screen')).toHaveAttribute('data-scene','record');failSave=false;}
   await frame.locator('#primary').click();await expect(frame.locator('#screen')).toHaveAttribute('data-scene','celebrate');assert.equal(saves,1);
@@ -103,14 +122,15 @@ try{
   await page.frameLocator('iframe').locator('[data-action=guide]').click();await expect(page.frameLocator('iframe').locator('#cold-guide')).toBeVisible();
   if(width===390&&lang==='zh'){
    const regression=page.frameLocator('iframe'),guide=regression.locator('#cold-guide');
-   const tapGuide=async()=>{const box=await guide.boundingBox();assert.ok(box,'guide must expose a touchable box');await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2);};
-   await expect(guide).toHaveAttribute('data-ready','false');
+   const tapGuide=async()=>{const box=await guide.boundingBox();assert.ok(box,'guide must expose a touchable box');await page.touchscreen.tap(box.x+24,box.y+112);};
+   await expect(guide).toHaveAttribute('data-speech-ready','false');
    await regression.locator('#screen').evaluate(screen=>{for(let frame=0;frame<24;frame+=1)screen.dataset.scene='entry';});
-   await page.waitForTimeout(120);await expect(guide).toHaveAttribute('data-ready','false');assert.ok((await regression.locator('#entry-bubble').innerText()).length>1,'typewriter must progress while animation repeats the same scene');
+   await page.waitForTimeout(120);await expect(guide).toHaveAttribute('data-speech-ready','false');assert.ok((await regression.locator('#entry-bubble').innerText()).length>1,'typewriter must progress while animation repeats the same scene');
    await regression.locator('#screen').evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true})));
-   await tapGuide();await expect(guide).toHaveAttribute('data-ready','true');await expect(regression.locator('#entry-bubble')).toContainText('轻触屏幕继续');
+   await tapGuide();await expect(guide).toHaveAttribute('data-step','sleepRange');await expect(guide).toHaveAttribute('data-ready','false');
    await regression.locator('#screen').evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));
-   await tapGuide();await expect(guide).toHaveAttribute('data-ready','false');await expect(regression.locator('#entry-bubble')).toContainText('2/4');
+   await expect(guide).toHaveAttribute('data-speech-ready','true');await chooseSleepTime(regression,'bedtime','23','30');await chooseSleepTime(regression,'wakeTime','07','00');await expect(guide).toHaveAttribute('data-ready','true');await expect(regression.locator('#entry-bubble')).toContainText('轻触屏幕继续');
+   await tapGuide();await expect(guide).toHaveAttribute('data-step','quality');await expect(guide).toHaveAttribute('data-ready','false');await expect(regression.locator('#entry-bubble')).not.toContainText(/\d+\/\d+/);
    await page.emulateMedia({reducedMotion:'reduce'});
   }
   if(width===390){
@@ -138,12 +158,12 @@ try{
    }
    if(module==='focus'){
     const geometry=await guided.locator('#screen').evaluate(screen=>{const scale=screen.getBoundingClientRect().width/screen.clientWidth;const root=screen.getBoundingClientRect();const targets=[screen.querySelector('[data-field="task"] .field-name'),screen.querySelector('#field-task')].map(node=>{const r=node.getBoundingClientRect();return{x:(r.left-root.left)/scale,y:(r.top-root.top)/scale,width:r.width/scale,height:r.height/scale};});const holes=[...screen.querySelectorAll('[data-guide-hole]')].map(node=>({x:Number(node.getAttribute('x')),y:Number(node.getAttribute('y')),width:Number(node.getAttribute('width')),height:Number(node.getAttribute('height'))}));return{targets,holes};});
-    assert.equal(geometry.holes.length,2,'focus guide must cut out the real label and input only');assert.ok(Math.abs((geometry.holes[0].x+4)-geometry.targets[0].x)<1.5,'label cutout must follow the real label');assert.ok(Math.abs((geometry.holes[1].x+6)-geometry.targets[1].x)<1.5,'input cutout must follow the real input');
+    assert.equal(geometry.holes.length,2,'focus guide must cut out the real label and input only');assert.ok(Math.abs(geometry.holes[0].x-geometry.targets[0].x)<1.5,'label cutout must follow the real label');assert.ok(Math.abs(geometry.holes[1].x-geometry.targets[1].x)<1.5,'input cutout must follow the real input');
    }
    await page.screenshot({path:`${out}/guide-${module}-${lang}.png`});
-    await expect(guided.locator('#cold-guide-skip')).toHaveCount(0);await finishGuide(guided);
-    if(module==='focus'){await guided.locator('#field-task').fill('Read a page');await guided.locator('#field-durationMinutes').fill('15');await expect(guided.locator('#field-durationMinutes')).toHaveValue('15');}
-    if(module==='mood'){await page.setViewportSize({width,height:480});await guided.locator('#field-mood').fill(en?'Calm':'平静');await expect(guided.locator('#field-mood')).toBeInViewport();await page.screenshot({path:`${out}/keyboard-${lang}.png`});await page.setViewportSize({width,height});}
+    if(module==='mood'){await guided.locator('#field-mood').focus();await page.setViewportSize({width,height:480});await expect(guided.locator('#field-mood')).toBeInViewport();await page.screenshot({path:`${out}/keyboard-${lang}.png`});await page.setViewportSize({width,height});}
+    await expect(guided.locator('#cold-guide-skip')).toHaveCount(0);await finishGuide(guided,module,en);
+    if(module==='focus')await expect(guided.locator('#field-durationMinutes')).toHaveValue('15');
     await expect(guided.locator('#cold-guide')).toBeHidden();assert.equal(saves,1);
    }
   }
