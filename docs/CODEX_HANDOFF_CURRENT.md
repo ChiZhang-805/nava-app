@@ -31,6 +31,17 @@
 已由初见手记iframe替代的旧gender宿主属性，两项均未虚报通过。本轮无数据库迁移、
 Edge部署、生产记录写入或账号清理。
 
+功能源码 `0def9603462693a2a0bba570b753def4fe177ac8` 已干净推送，并从同一提交生成双站。
+ChatGPT Sites **v193**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_11addcec22f88191a94c6a77e318f29c`；
+部署 `appgdep_6abb7351f8f88191ba2b5e9d0a513d53` succeeded。Windows 官方打包入口仍会把
+Q盘反斜杠传给WSL Bash而失败；保持同一构建，使用插件自带 `prepare-site-build.cjs`
+校验/暂存及Windows tar生成等价Worker归档，Sites接收313个文件。GitHub Pages镜像提交
+`9ca3057322542d403af45bec77c08545110ce176`，workflow `36541731454` success；211个当前
+生成文件复制前后SHA-256一致。线上逐站核验真实登录门、公开 `?demo=1` 不绕过登录、
+“新手引导”快捷区可见、首次登录按钮可用、六个记录按钮在未登录时正确禁用，以及390×844
+手机宽度下整个开发控制列隐藏；Pages `source.json` 指向v193和上述功能源码。
+
 ## 120. 首次记录引导逐字动画死锁修复（当前版本）
 
 首次记录引导此前监听 `#screen[data-scene]` 的全部属性写入，而主动画会在每一帧重复写入
