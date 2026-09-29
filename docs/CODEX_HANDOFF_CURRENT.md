@@ -26,6 +26,15 @@
 `Q:/NAVA-Workspace/Build/TestRuns/today-todos-loading`。本轮不改数据库、Edge Functions、AI
 时长估算合同或账号数据。
 
+功能源码 `f0da47b297e7b3d63d9baa11fd5a97bff299a3d2` 已干净推送并从同一提交生成双站。
+ChatGPT Sites **v198**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_f851f01d7fc88191a3766ada9f37aa3c`；
+部署 `appgdep_6abc19c1f0008191821735935ff438e9` succeeded。GitHub Pages镜像提交
+`386923df43bbaf1830f2c477943cbffa5930f189`，workflow `36623965292` success；211个当前
+生成文件复制前后SHA-256一致。两站线上已核验公开`?demo=1`不能绕过真实登录、canonical
+Supabase项目一致，6项主入口/样式/身份资源逐字节等于本轮制品，Pages `source.json`指向v198、
+上述功能提交和Sites版本。
+
 ## 124. 待办内联单列时长与商城页头左右边界校准（当前版本）
 
 今日待办的小时、分钟和秒仍是三个独立入口，但不再打开遮住全屏的三列底部弹层。每次只在
