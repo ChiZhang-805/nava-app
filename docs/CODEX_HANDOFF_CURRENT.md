@@ -36,6 +36,16 @@
 停在本轮代码之前已存在的`external-preview:visual`旧`.sports-plan-actions`选择器；当前页面已
 迁移到Journal iframe，该旧脚本未同步，所以没有把整套verify虚报为通过。
 
+功能源码 `1f0f742655b13364e762f9e6bc8c2ee041961cb8` 已干净推送，并从该同一提交生成双站。
+ChatGPT Sites **v196**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_04dfc451d3a081918dbb67cc43b23c33`；
+部署 `appgdep_6abc0181d16481919f256ae0fe28b9d6` succeeded。GitHub Pages镜像提交
+`2014cdcec772d0d4feee0801d8ce319c1fc8abd2`，workflow `36611697174` success；211个当前
+生成文件复制前后SHA-256一致。两站线上已核验公开`?demo=1`不绕过登录、canonical Supabase
+项目一致，主入口、新手引导脚本、记录猫动画和聚光样式与本地发布制品的归一化SHA-256一致；
+Pages `source.json` 指向v196、上述功能源码和Sites版本。本轮未执行数据库迁移、Edge部署、
+生产记录写入或账号数据变更。
+
 ## 122. 桌面校准网格入口移除（双站 v195）
 
 桌面预览机型卡已删除“1 pt 校准网格（10 pt 加粗）”开关，同时清理其本地偏好状态、
