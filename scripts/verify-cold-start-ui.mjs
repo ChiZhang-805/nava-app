@@ -29,11 +29,51 @@ async function fillGuideStep(frame,module,key,en){
  const values={quality:en?'A little tired':'有一点困',mood:en?'Calm':'平静',reason:en?'Finished one task':'完成了一件事',foods:en?'Rice and vegetables':'米饭和蔬菜',portion:en?'One bowl':'一碗',activity:en?'Walking':'散步',durationMinutes:'15',notes:en?'Felt steady':'状态平稳',feeling:en?'A little tired':'有一点困',eyeArea:en?'Looks rested':'看起来较放松',task:en?'Read one page':'读完一页'};
  const input=frame.locator(`#field-${key}`);await input.fill(values[key]||'Test');
 }
+async function assertGuideSpotlight(frame,key){
+ const backdrop=frame.locator('#cold-guide-backdrop');
+ await expect(backdrop).toHaveAttribute('data-guide-holes','1');
+ await expect(frame.locator('[data-guide-hole]')).toHaveCount(1);
+ if(key==='sleepRange'){
+  await expect(frame.locator('.time-range-field')).toHaveClass(/cold-guide-target/);
+  await expect(frame.locator('[data-guide-hole]')).toHaveAttribute('data-guide-hole','time-group');
+  return;
+ }
+ if(key==='photo'){
+  await expect(frame.locator('#photo-preview')).toHaveClass(/cold-guide-target/);
+  await expect(frame.locator('[data-guide-hole]')).toHaveAttribute('data-guide-hole','control');
+  return;
+ }
+ if(key==='confirm'){
+  await expect(frame.locator('#confirm-entry')).toHaveClass(/cold-guide-target/);
+  await expect(frame.locator('[data-guide-hole]')).toHaveAttribute('data-guide-hole','control');
+  return;
+ }
+ const field=frame.locator(`[data-field="${key}"]`);
+ await expect(field).toHaveClass(/cold-guide-target/);
+ await expect(field).toHaveClass(/cold-guide-field-group/);
+ await expect(frame.locator(`#field-${key}`)).not.toHaveClass(/cold-guide-target/);
+ await expect(field.locator('.field-name')).not.toHaveClass(/cold-guide-target/);
+ await expect(frame.locator('[data-guide-hole]')).toHaveAttribute('data-guide-hole','field-group');
+ const geometry=await frame.locator('#screen').evaluate((screen,fieldKey)=>{
+  const root=screen.getBoundingClientRect(),scaleX=root.width/screen.clientWidth,scaleY=root.height/screen.clientHeight,field=screen.querySelector(`[data-field="${fieldKey}"]`),input=screen.querySelector(`#field-${fieldKey}`);
+  const control=input.closest('.input-wrap')||(input.type==='hidden'?field.querySelector('.choice-group'):input),parts=[field.querySelector('.field-header'),control].map(node=>node.getBoundingClientRect());
+  const expected={x:(Math.min(...parts.map(r=>r.left))-root.left)/scaleX,y:(Math.min(...parts.map(r=>r.top))-root.top)/scaleY,right:(Math.max(...parts.map(r=>r.right))-root.left)/scaleX,bottom:(Math.max(...parts.map(r=>r.bottom))-root.top)/scaleY};
+  const hole=screen.querySelector('[data-guide-hole]').getBBox(),panel=screen.querySelector('.entry-panel').getBoundingClientRect();
+  return{expected,hole:{x:hole.x,y:hole.y,width:hole.width,height:hole.height},fieldWidth:field.getBoundingClientRect().width/scaleX,panelWidth:panel.width/scaleX};
+ },key);
+ assert.ok(Math.abs(geometry.hole.x-geometry.expected.x)<1.5,`${key} spotlight must share the real field left edge`);
+ assert.ok(Math.abs(geometry.hole.y-geometry.expected.y)<1.5,`${key} spotlight must start at the real title`);
+ assert.ok(Math.abs(geometry.hole.width-(geometry.expected.right-geometry.expected.x))<1.5,`${key} spotlight must enclose the title and control once`);
+ assert.ok(Math.abs(geometry.hole.height-(geometry.expected.bottom-geometry.expected.y))<1.5,`${key} spotlight must end at the real control`);
+ assert.ok(geometry.fieldWidth<=253,`${key} guided field must use the compact width`);
+ assert.ok(geometry.fieldWidth<geometry.panelWidth-35,`${key} guided field must not span the whole form`);
+}
 async function finishGuide(frame,module,en){
  const guide=frame.locator('#cold-guide');
  for(let count=0;count<8&&await guide.isVisible();count+=1){
   await expect(guide).toHaveAttribute('data-speech-ready','true');
   const key=await guide.getAttribute('data-step');
+  await assertGuideSpotlight(frame,key);
   if(key==='confirm'){await frame.locator('#confirm-entry').click();break;}
   await expect(guide).toHaveAttribute('data-ready','false');
   await fillGuideStep(frame,module,key,en);
@@ -154,11 +194,7 @@ try{
    if(key==='photo'){
     await expect(guided.locator('#photo-preview')).toHaveClass(/cold-guide-target/);await expect(guided.locator('#cold-guide-backdrop')).toHaveAttribute('data-guide-holes','1');
    }else{
-    await expect(guided.locator('#field-'+key)).toHaveClass(/cold-guide-target/);await expect(guided.locator(`[data-field="${key}"] .field-name`)).toHaveClass(/cold-guide-target/);await expect(guided.locator(`[data-field="${key}"]`)).not.toHaveClass(/cold-guide-target/);await expect(guided.locator('#cold-guide-backdrop')).toHaveAttribute('data-guide-holes','2');
-   }
-   if(module==='focus'){
-    const geometry=await guided.locator('#screen').evaluate(screen=>{const scale=screen.getBoundingClientRect().width/screen.clientWidth;const root=screen.getBoundingClientRect();const targets=[screen.querySelector('[data-field="task"] .field-name'),screen.querySelector('#field-task')].map(node=>{const r=node.getBoundingClientRect();return{x:(r.left-root.left)/scale,y:(r.top-root.top)/scale,width:r.width/scale,height:r.height/scale};});const holes=[...screen.querySelectorAll('[data-guide-hole]')].map(node=>({x:Number(node.getAttribute('x')),y:Number(node.getAttribute('y')),width:Number(node.getAttribute('width')),height:Number(node.getAttribute('height'))}));return{targets,holes};});
-    assert.equal(geometry.holes.length,2,'focus guide must cut out the real label and input only');assert.ok(Math.abs(geometry.holes[0].x-geometry.targets[0].x)<1.5,'label cutout must follow the real label');assert.ok(Math.abs(geometry.holes[1].x-geometry.targets[1].x)<1.5,'input cutout must follow the real input');
+    await expect(guided.locator(`[data-field="${key}"]`)).toHaveClass(/cold-guide-target/);await expect(guided.locator('#field-'+key)).not.toHaveClass(/cold-guide-target/);await expect(guided.locator(`[data-field="${key}"] .field-name`)).not.toHaveClass(/cold-guide-target/);await expect(guided.locator('#cold-guide-backdrop')).toHaveAttribute('data-guide-holes','1');
    }
    await page.screenshot({path:`${out}/guide-${module}-${lang}.png`});
     if(module==='mood'){await guided.locator('#field-mood').focus();await page.setViewportSize({width,height:480});await expect(guided.locator('#field-mood')).toBeInViewport();await page.screenshot({path:`${out}/keyboard-${lang}.png`});await page.setViewportSize({width,height});}

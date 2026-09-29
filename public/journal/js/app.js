@@ -2208,7 +2208,7 @@ __fluffyModules["app.js"] = (() => {
         window.NavaJournal.notify=toast;
         window.NavaJournal.interrupt=()=>{timer.pause();cancelWork(false);photo.stopCamera();persistFocus();renderFocus();};
         window.NavaJournal.call('ready').catch(()=>{});
-        import('./cold-start-guide.js?v=20260929-guide-v6').then(({installColdStartGuide}) => installColdStartGuide(window.NavaJournal)).catch(() => {});
+        import('./cold-start-guide.js?v=20260929-guide-v7').then(({installColdStartGuide}) => installColdStartGuide(window.NavaJournal)).catch(() => {});
         $("confirm-entry").disabled = false;
     }
     /**

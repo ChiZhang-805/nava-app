@@ -50,9 +50,11 @@ export function installColdStartGuide(api) {
   let speechEpoch = 0;
   let spokenMessage = '';
   let finishing = false;
+  let spotlightFrame = 0;
   const entryBubble = document.getElementById('entry-bubble');
   const actor = document.getElementById('actor-canvas');
   let previousBubble = entryBubble.innerHTML;
+  const highlightObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => scheduleSpotlight()) : null;
 
   const backdrop = document.createElement('div');
   backdrop.id = 'cold-guide-backdrop';
@@ -110,7 +112,8 @@ export function installColdStartGuide(api) {
     speechWatchdog = 0;
   };
   const clearHighlight = () => {
-    highlights.forEach(target => target.classList.remove('cold-guide-target'));
+    highlightObserver?.disconnect();
+    highlights.forEach(target => target.classList.remove('cold-guide-target', 'cold-guide-field-group'));
     highlights = [];
     maskHoles.replaceChildren();
     backdrop.dataset.guideHoles = '0';
@@ -175,9 +178,25 @@ export function installColdStartGuide(api) {
     const input = document.getElementById(`field-${step.field}`);
     if (!input) return [];
     const field = input.closest('.field');
-    const title = field?.querySelector('.field-name');
-    const control = input.closest('.input-wrap') || (input.type === 'hidden' ? field?.querySelector('.choice-group') : input);
-    return [...new Set([title, control].filter(Boolean))];
+    return [field].filter(Boolean);
+  }
+
+  function spotlightBounds(target) {
+    const nodes = target.matches('.cold-guide-field-group')
+      ? (() => {
+          const input = target.querySelector('input, textarea, select');
+          const control = input?.closest('.input-wrap') || (input?.type === 'hidden' ? target.querySelector('.choice-group') : input);
+          return [target.querySelector('.field-header'), control].filter(Boolean);
+        })()
+      : [target];
+    const boxes = nodes.map(node => node.getBoundingClientRect()).filter(box => box.width && box.height);
+    if (!boxes.length) return null;
+    return {
+      left: Math.min(...boxes.map(box => box.left)),
+      top: Math.min(...boxes.map(box => box.top)),
+      right: Math.max(...boxes.map(box => box.right)),
+      bottom: Math.max(...boxes.map(box => box.bottom)),
+    };
   }
 
   function stepComplete(step = currentStep()) {
@@ -236,26 +255,35 @@ export function installColdStartGuide(api) {
     shade.setAttribute('width', String(designWidth));
     shade.setAttribute('height', String(designHeight));
     const holes = highlights.flatMap(target => {
-      const box = target.getBoundingClientRect();
-      if (!box.width || !box.height) return [];
+      const box = spotlightBounds(target);
+      if (!box) return [];
       const left = (box.left - root.left) / scaleX;
       const top = (box.top - root.top) / scaleY;
       const x = Math.max(0, left);
       const y = Math.max(0, top);
-      const width = Math.min(designWidth - x, box.width / scaleX);
-      const height = Math.min(designHeight - y, box.height / scaleY);
+      const width = Math.min(designWidth - x, (box.right - box.left) / scaleX);
+      const height = Math.min(designHeight - y, (box.bottom - box.top) / scaleY);
       const hole = document.createElementNS(svgNamespace, 'rect');
-      hole.dataset.guideHole = target.matches('.field-name, .field-header') ? 'label' : target.matches('.time-range-field') ? 'group' : 'control';
+      hole.dataset.guideHole = target.matches('.cold-guide-field-group') ? 'field-group' : target.matches('.time-range-field') ? 'time-group' : 'control';
       hole.setAttribute('x', x.toFixed(2));
       hole.setAttribute('y', y.toFixed(2));
       hole.setAttribute('width', Math.max(0, width).toFixed(2));
       hole.setAttribute('height', Math.max(0, height).toFixed(2));
-      hole.setAttribute('rx', String(Math.min(target.matches('.field-name, .field-header') ? 5 : 15, height / 2)));
+      hole.setAttribute('rx', String(Math.min(target.matches('.cold-guide-field-group') ? 13 : 15, height / 2)));
       hole.setAttribute('fill', '#000');
       return [hole];
     });
     maskHoles.replaceChildren(...holes);
     backdrop.dataset.guideHoles = String(holes.length);
+  }
+
+  function scheduleSpotlight() {
+    positionSpotlight();
+    if (spotlightFrame) cancelAnimationFrame(spotlightFrame);
+    spotlightFrame = requestAnimationFrame(() => {
+      spotlightFrame = 0;
+      requestAnimationFrame(positionSpotlight);
+    });
   }
 
   function speak(message) {
@@ -318,10 +346,15 @@ export function installColdStartGuide(api) {
     }
     const step = currentStep();
     highlights = targetsForStep(step);
-    highlights.forEach(target => target.classList.add('cold-guide-target'));
+    highlights.forEach(target => {
+      target.classList.add('cold-guide-target');
+      if (!step.kind) target.classList.add('cold-guide-field-group');
+    });
+    highlightObserver?.observe(screen);
+    highlights.forEach(target => highlightObserver?.observe(target));
     speak(t(step.zh, step.en));
     highlights.at(-1)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    requestAnimationFrame(() => requestAnimationFrame(positionSpotlight));
+    scheduleSpotlight();
   }
 
   function advance() {
@@ -386,8 +419,8 @@ export function installColdStartGuide(api) {
   screen.addEventListener('click', captureGuideActivation, true);
   screen.addEventListener('input', updateGuideState, true);
   screen.addEventListener('change', updateGuideState, true);
-  screen.addEventListener('scroll', positionSpotlight, true);
-  window.addEventListener('resize', positionSpotlight);
+  screen.addEventListener('scroll', scheduleSpotlight, true);
+  window.addEventListener('resize', scheduleSpotlight);
 
   const photoPreview = document.getElementById('photo-preview');
   const photoObserver = photoPreview ? new MutationObserver(() => updateGuideState()) : null;
@@ -432,14 +465,15 @@ export function installColdStartGuide(api) {
     if (!event.persisted) {
       observer.disconnect();
       photoObserver?.disconnect();
-      window.removeEventListener('resize', positionSpotlight);
+      highlightObserver?.disconnect();
+      window.removeEventListener('resize', scheduleSpotlight);
     }
   });
   window.addEventListener('pageshow', event => {
     if (!event.persisted || !active || screen.dataset.scene !== 'entry') return;
     if (!speechReady && finishSpeech) finishSpeech();
     updateGuideState();
-    positionSpotlight();
+    scheduleSpotlight();
   });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && active && !speechReady && finishSpeech) finishSpeech();

@@ -23,8 +23,8 @@
 #cold-guide-backdrop{position:absolute;inset:0;z-index:32;overflow:hidden;pointer-events:none}
 #cold-guide-backdrop svg{display:block;width:100%;height:100%;overflow:hidden}
 .cold-guide-target{outline:0!important;outline-offset:0;box-shadow:none!important}
-.field-name.cold-guide-target,.field-header.cold-guide-target{border-radius:5px;color:#164d69;text-shadow:none;box-shadow:none!important}
-.time-endpoint.cold-guide-target,.choice-group.cold-guide-target,.input-wrap.cold-guide-target{border-radius:13px}
+.field.cold-guide-field-group{width:min(252px,100%);align-self:flex-start}
+.field.cold-guide-field-group>.field-header,.field.cold-guide-field-group>.input-wrap,.field.cold-guide-field-group>.choice-group,.field.cold-guide-field-group>input,.field.cold-guide-field-group>textarea,.field.cold-guide-field-group>select{width:100%}
 #screen.cold-guiding #actor-canvas.cold-guide-cat{z-index:34;filter:none}
 #screen.cold-guiding #entry-bubble.cold-guide-speaker{z-index:36;right:24px;left:auto;top:167px;box-sizing:border-box;width:158px;min-width:158px;max-width:158px;padding:12px 13px;border-color:#c7edf7;background:#fffffff7;color:#174c68;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;font-weight:650;line-height:1.5;white-space:pre-line;overflow-wrap:normal;box-shadow:0 10px 24px #092f4638;opacity:1}
 #screen.cold-guiding #entry-bubble.cold-guide-speaker small{display:block;margin-top:7px;color:#5391a9;font-size:10px;font-weight:650;line-height:1.35;letter-spacing:.02em;text-align:left}

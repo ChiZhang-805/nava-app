@@ -103,7 +103,7 @@ try {
           await expect(page).toHaveURL(new RegExp(`[#&]module=${module}(?:&|$)`));
           const journalFrame = page.frameLocator(".journal-experience iframe");
           await expect(journalFrame.locator("#cold-guide")).toBeVisible({ timeout: 30_000 });
-          await expect(journalFrame.locator(".cold-guide-target")).toHaveCount(["sleep", "diet", "face"].includes(module) ? 1 : 2);
+          await expect(journalFrame.locator(".cold-guide-target")).toHaveCount(1);
           receipt.results.push({ viewport, state: `guide-${module}` });
         }
         const replayFrame = page.frameLocator(".journal-experience iframe");
