@@ -24,6 +24,15 @@
 生产构建、Sites制品与生产认证合同通过。证据仍写入
 `Q:/NAVA-Workspace/Build/TestRuns/cold-start`。本轮不改数据库、Edge Functions、账号或记录数据。
 
+功能源码 `37f7c3ee07f6e47343b7405c9c925f99c540aeb9` 已干净推送并从同一提交构建双站。
+ChatGPT Sites v192：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_fea663f85eb8819184074208c8135b71`；
+部署 `appgdep_6abb63ff9d4c8191a04acb6e9b683435` succeeded。GitHub Pages 镜像提交
+`695e6ca2879bc337afdbfb22da0515286002f856`，workflow `36535156338` success；211个当前
+生成文件复制前后SHA-256一致。两站公开入口HTTP 200、真实登录门、`?demo=1`拒绝、canonical
+Supabase项目、v3静态模块缓存版本及死锁恢复代码均通过线上核验；Pages `source.json` 指向
+v192和上述功能源码。
+
 ## 119. 今日待办页头、五项底栏与时间滚轮纠偏（双站 v191，当前版本）
 
 今日待办页头现在只显示居中的“今日待办”/“Today's to-do”，左侧为无底首页图标，右侧保留
@@ -998,21 +1007,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`a2df70e0acd08fca423673a6aa3838dcc9a6d0a3`
+- 源码发布 commit：`37f7c3ee07f6e47343b7405c9c925f99c540aeb9`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v165，public
+- ChatGPT Sites 版本：v192，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_f9847c04b4cc81919a9c0d9faa3bcc61`
-- Sites deployment ID：`appgdep_6aafd20cda6c81918c32bba873004b3d`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_fea663f85eb8819184074208c8135b71`
+- Sites deployment ID：`appgdep_6abb63ff9d4c8191a04acb6e9b683435`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `7515e69ff0f1276cd189cc7d416beffeb2b5b0cb`，工作流`35510902982`成功
+  `695e6ca2879bc337afdbfb22da0515286002f856`，工作流`36535156338`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v165 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-menus-a2df70e\site.tar.gz`
+- v192 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v192-guide-deadlock-fix.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v165 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v192 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
