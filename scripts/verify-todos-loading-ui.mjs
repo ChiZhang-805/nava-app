@@ -149,12 +149,23 @@ try {
       await expect(page.locator(".today-todo-duration-trigger")).toHaveCount(3);
       await page.locator('[data-duration-field="minutes"]').click();
       await expect(page.locator('[data-duration-initial="true"]')).toHaveAttribute("aria-label", locale === "zh" ? "分钟" : "Minutes");
-      if (locale === "zh" && viewport.name === "390x844") await page.screenshot({ path: path.join(outputDir, "zh-390x844-duration-wheel.png") });
-      const wheels = page.locator(".duration-wheel-column");
-      await wheels.nth(0).getByRole("option", { name: "01", exact: true }).click();
-      await wheels.nth(1).getByRole("option", { name: "02", exact: true }).click();
-      await wheels.nth(2).getByRole("option", { name: "03", exact: true }).click();
-      await page.locator(".duration-wheel-confirm").click();
+      await expect(page.locator(".duration-wheel-overlay")).toHaveCount(0);
+      const inlineGeometry = await page.evaluate(() => {
+        const trigger = document.querySelector('[data-duration-field="minutes"]')?.getBoundingClientRect();
+        const popup = document.querySelector('.duration-unit-popover')?.getBoundingClientRect();
+        const frame = document.querySelector('.phone-frame')?.getBoundingClientRect();
+        return trigger && popup && frame ? { trigger: trigger.toJSON(), popup: popup.toJSON(), frame: frame.toJSON() } : null;
+      });
+      if (!inlineGeometry || Math.abs((inlineGeometry.trigger.left + inlineGeometry.trigger.right) / 2 - (inlineGeometry.popup.left + inlineGeometry.popup.right) / 2) > 1
+        || inlineGeometry.popup.top < inlineGeometry.trigger.bottom || inlineGeometry.popup.left < inlineGeometry.frame.left || inlineGeometry.popup.right > inlineGeometry.frame.right) {
+        throw new Error(`${locale}-${viewport.name}: duration menu is not anchored to the selected field ${JSON.stringify(inlineGeometry)}`);
+      }
+      if (locale === "zh" && viewport.name === "390x844") await page.screenshot({ path: path.join(outputDir, "zh-390x844-duration-inline.png") });
+      await page.getByRole("listbox", { name: locale === "zh" ? "分钟" : "Minutes" }).getByRole("option", { name: "02", exact: true }).click();
+      await page.locator('[data-duration-field="hours"]').click();
+      await page.getByRole("listbox", { name: locale === "zh" ? "小时" : "Hours" }).getByRole("option", { name: "01", exact: true }).click();
+      await page.locator('[data-duration-field="seconds"]').click();
+      await page.getByRole("listbox", { name: locale === "zh" ? "秒钟" : "Seconds" }).getByRole("option", { name: "03", exact: true }).click();
       await page.locator('.today-todo-submit').click();
       const row = page.locator(".today-todo-items article", { hasText: title });
       await expect(row).toBeVisible();

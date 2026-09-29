@@ -56,7 +56,9 @@ try {
       bottomInset: face.bottom - lastRow.bottom,
     } : null;
   });
-  if (frontHeight < 110 || backHeight <= frontHeight || !specificationGeometry || specificationGeometry.bottomInset < 12 || specificationGeometry.bottomInset > 18 || Math.abs(specificationGeometry.selectorHeight - specificationGeometry.faceHeight) > 2.5) throw new Error(`Device specification card did not fit its content ${JSON.stringify({ frontHeight, backHeight, specificationGeometry })}`);
+  // The compact developer selector deliberately became shorter when its rows were tightened.
+  // Keep guarding content fit without restoring the obsolete 110px minimum.
+  if (frontHeight < 88 || backHeight <= frontHeight || !specificationGeometry || specificationGeometry.bottomInset < 10 || specificationGeometry.bottomInset > 18 || Math.abs(specificationGeometry.selectorHeight - specificationGeometry.faceHeight) > 2.5) throw new Error(`Device specification card did not fit its content ${JSON.stringify({ frontHeight, backHeight, specificationGeometry })}`);
   await desktop.screenshot({ path: path.join(outputDir, "desktop-device-specifications.png"), fullPage: true });
   await desktop.getByTitle("返回机型选择").click();
   await desktop.locator(".option-two-menu-toggle").click();
@@ -126,6 +128,7 @@ try {
       return {
         screen: screen?.toJSON() ?? null,
         header: header?.toJSON() ?? null,
+        homeRect: home?.getBoundingClientRect().toJSON() ?? null,
         actionRects: actions.map((element) => element.getBoundingClientRect().toJSON()),
         actionBackgrounds: actions.map((element) => getComputedStyle(element).backgroundColor),
         homeBackground: home ? getComputedStyle(home).backgroundColor : null,
@@ -134,7 +137,8 @@ try {
         selectorDisplay: getComputedStyle(document.querySelector(".nava-device-selector")).display,
       };
     });
-    if (!geometry.screen || !geometry.header || geometry.horizontalOverflow > 1 || geometry.selectorDisplay !== "none"
+    if (!geometry.screen || !geometry.header || !geometry.homeRect || geometry.horizontalOverflow > 1 || geometry.selectorDisplay !== "none"
+      || Math.abs(geometry.homeRect.left - geometry.header.left) > 1 || geometry.homeRect.width > 43
       || geometry.actionRects.length !== 2 || Math.abs(geometry.actionRects[0].top - geometry.actionRects[1].top) > 1
       || geometry.actionBackgrounds.some((value) => value !== "rgba(0, 0, 0, 0)") || geometry.homeBackground !== "rgba(0, 0, 0, 0)"
       || geometry.cards.some((card) => card.left < geometry.screen.left - 1 || card.right > geometry.screen.right + 1)
@@ -171,12 +175,14 @@ try {
     const initialManagerGeometry = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
       const screen = document.querySelector(".points-shop-screen")?.getBoundingClientRect();
+      const header = document.querySelector(".points-shop-header")?.getBoundingClientRect();
       const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();
       const home = document.querySelector(".points-shop-header > .home-experience-back");
       const more = document.querySelector(".points-shop-more-shortcut");
       const cards = [...document.querySelectorAll(".points-card-wallet-list > button")].map((node) => node.getBoundingClientRect().toJSON());
-      return frame && screen && nav && home && more ? {
-        frame: frame.toJSON(), screen: screen.toJSON(), nav: nav.toJSON(), cards,
+      return frame && screen && header && nav && home && more ? {
+        frame: frame.toJSON(), screen: screen.toJSON(), header: header.toJSON(), nav: nav.toJSON(), cards,
+        homeRect: home.getBoundingClientRect().toJSON(),
         homeBackground: getComputedStyle(home).backgroundColor,
         moreBackground: getComputedStyle(more).backgroundColor,
         moreRect: more.getBoundingClientRect().toJSON(),
@@ -184,6 +190,7 @@ try {
       } : null;
     });
     if (!initialManagerGeometry || initialManagerGeometry.cards.length !== 3 || initialManagerGeometry.horizontalOverflow > 1
+      || Math.abs(initialManagerGeometry.homeRect.left - initialManagerGeometry.header.left) > 1 || initialManagerGeometry.homeRect.width > 43
       || initialManagerGeometry.homeBackground !== "rgba(0, 0, 0, 0)" || initialManagerGeometry.moreBackground !== "rgba(0, 0, 0, 0)"
       || initialManagerGeometry.cards.some((card) => card.left < initialManagerGeometry.frame.left - 1 || card.right > initialManagerGeometry.frame.right + 1)
       || initialManagerGeometry.cards.at(-1).bottom > initialManagerGeometry.nav.top - 8) {

@@ -71,8 +71,7 @@ export default function TodayTodoPage({
   const [todos, setTodos] = useState<TodoItem[]>(() => loadTodos(user.id));
   const [draft, setDraft] = useState("");
   const [duration, setDuration] = useState<DurationDraft>(emptyDuration);
-  const [durationPickerOpen, setDurationPickerOpen] = useState(false);
-  const [durationPickerField, setDurationPickerField] = useState<DurationField>("hours");
+  const [durationPickerField, setDurationPickerField] = useState<DurationField | null>(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(deviceDate);
@@ -160,8 +159,7 @@ export default function TodayTodoPage({
   }
 
   function openDurationPicker(field: DurationField) {
-    setDurationPickerField(field);
-    setDurationPickerOpen(true);
+    setDurationPickerField((current) => current === field ? null : field);
   }
 
   async function changeTodo(todo: TodoItem) {
@@ -246,9 +244,17 @@ export default function TodayTodoPage({
         <div className="today-todo-duration-fields" role="group" aria-label={locale === "zh" ? "选择小时、分钟和秒钟" : "Choose hours, minutes and seconds"}>
           {(["hours", "minutes", "seconds"] as const).map((field) => {
             const unit = locale === "zh" ? { hours: "小时", minutes: "分钟", seconds: "秒" }[field] : { hours: "hr", minutes: "min", seconds: "sec" }[field];
-            return <button className="today-todo-duration-trigger" data-duration-field={field} key={field} type="button" onClick={() => openDurationPicker(field)} aria-label={locale === "zh" ? `打开${unit}滚轮` : `Open ${unit} wheel`}>
-              <strong>{String(Number(duration[field]) || 0).padStart(2, "0")}</strong><small>{unit}</small><ChevronDown size={15} aria-hidden="true" />
-            </button>;
+            const open = durationPickerField === field;
+            return <div className="today-todo-duration-slot" key={field}>
+              <button className="today-todo-duration-trigger" data-duration-field={field} type="button" onClick={() => openDurationPicker(field)} aria-label={locale === "zh" ? `打开${unit}滚轮` : `Open ${unit} wheel`} aria-haspopup="listbox" aria-expanded={open} aria-controls={`todo-duration-options-${field}`}>
+                <strong>{String(Number(duration[field]) || 0).padStart(2, "0")}</strong><small>{unit}</small><ChevronDown size={15} aria-hidden="true" />
+              </button>
+              {open && <DurationWheelPicker key={field} locale={locale} field={field} value={Number(duration[field]) || 0} onCancel={() => setDurationPickerField(null)} onSelect={(value) => {
+                setDuration((current) => ({ ...current, [field]: String(value) }));
+                setEstimateNote(null);
+                setDurationPickerField(null);
+              }} />}
+            </div>;
           })}
         </div>
         {estimateNote && <small aria-live="polite">{estimateNote}</small>}
@@ -276,7 +282,6 @@ export default function TodayTodoPage({
           })}</div>}
       {selectionMode && dayTodos.length > 0 && <div className="today-todo-selection-actions"><button type="button" onClick={() => setSelectedIds(selectedIds.size === dayTodos.length ? new Set() : new Set(dayTodos.map((todo) => todo.id)))}>{selectedIds.size === dayTodos.length ? (locale === "zh" ? "取消全选" : "Clear all") : (locale === "zh" ? "全选" : "Select all")}</button><button type="button" className="is-delete" disabled={selectedIds.size === 0 || busy === "delete"} onClick={() => void removeSelected()}>{busy === "delete" ? <LoaderCircle className="today-todo-spinner" size={18} /> : <Trash2 size={18} />}{locale === "zh" ? `删除已选${selectedIds.size ? `（${selectedIds.size}）` : ""}` : `Delete selected${selectedIds.size ? ` (${selectedIds.size})` : ""}`}</button></div>}
     </section>
-    {durationPickerOpen && <DurationWheelPicker locale={locale} initialColumn={durationPickerField} value={{ hours: Number(duration.hours) || 0, minutes: Number(duration.minutes) || 0, seconds: Number(duration.seconds) || 0 }} onCancel={() => setDurationPickerOpen(false)} onConfirm={(value) => { setDuration({ hours: String(value.hours), minutes: String(value.minutes), seconds: String(value.seconds) }); setEstimateNote(null); setDurationPickerOpen(false); }} />}
     {datePickerOpen && <div className="today-todo-date-overlay" role="presentation" onClick={() => setDatePickerOpen(false)}><section role="dialog" aria-modal="true" aria-label={locale === "zh" ? "切换待办日期" : "Switch to-do date"} onClick={(event) => event.stopPropagation()}><header><strong>{locale === "zh" ? "切换日期" : "Switch date"}</strong><button type="button" onClick={() => setDatePickerOpen(false)} aria-label={locale === "zh" ? "关闭" : "Close"}><X size={20} /></button></header><div><button type="button" onClick={() => { setSelectedDate(deviceDate); setDatePickerOpen(false); }}>{locale === "zh" ? "今天" : "Today"}<small>{dayLabel(deviceDate, locale)}</small></button><button type="button" onClick={() => { setSelectedDate(offsetDate(deviceDate, 1)); setDatePickerOpen(false); }}>{locale === "zh" ? "明天" : "Tomorrow"}<small>{dayLabel(offsetDate(deviceDate, 1), locale)}</small></button></div><label><span>{locale === "zh" ? "选择其他日期" : "Choose another date"}</span><input type="date" value={selectedDate} onChange={(event) => { if (/^\d{4}-\d{2}-\d{2}$/u.test(event.target.value)) { setSelectedDate(event.target.value); setDatePickerOpen(false); } }} /></label></section></div>}
   </section>;
 }
