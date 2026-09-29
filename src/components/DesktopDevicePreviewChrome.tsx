@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { Bell, BookOpenText, Ellipsis, LockKeyhole, PhoneIncoming, RotateCcw, Smartphone, Sun, Home } from "lucide-react";
+import { Bell, BookOpenText, Brain, Dumbbell, Ellipsis, Home, LockKeyhole, MoonStar, PhoneIncoming, RotateCcw, ScanFace, SmilePlus, Smartphone, Sun, Utensils } from "lucide-react";
+import type { RecordModule } from "../features/RecordsScreen";
 import PhoneSystemPreview from "./PhoneSystemPreview";
 import { commandPhonePreview } from "../services/previewPhoneSystem";
 import {
@@ -26,9 +27,19 @@ function formatMetric(value: number) {
 type DesktopDevicePreviewChromeProps = {
   reminderUserId?: string;
   onFirstLoginPreview?: () => void;
+  onJournalGuidePreview?: (module: RecordModule) => void;
 };
 
-export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLoginPreview }: DesktopDevicePreviewChromeProps = {}) {
+const journalGuideShortcuts = [
+  { module: "sleep", label: "睡眠", icon: MoonStar },
+  { module: "mood", label: "情绪", icon: SmilePlus },
+  { module: "diet", label: "饮食", icon: Utensils },
+  { module: "exercise", label: "运动", icon: Dumbbell },
+  { module: "face", label: "面部", icon: ScanFace },
+  { module: "focus", label: "专注", icon: Brain },
+] satisfies Array<{ module: RecordModule; label: string; icon: typeof MoonStar }>;
+
+export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLoginPreview, onJournalGuidePreview }: DesktopDevicePreviewChromeProps = {}) {
   const [reminderResult, setReminderResult] = useState("");
   const [reminderBusy, setReminderBusy] = useState(false);
   const [eventResult, setEventResult] = useState("");
@@ -283,17 +294,6 @@ export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLogi
             title={`模拟${label}`}
             aria-label={`模拟${label}`}
           ><Icon size={17} /><span>{label}</span></button>)}
-          <button
-            type="button"
-            data-preview-action="first-login"
-            onClick={() => {
-              commandPhonePreview("app");
-              onFirstLoginPreview?.();
-              setEventResult("已进入首次登录展示流程。");
-            }}
-            title="展示首次登录流程"
-            aria-label="展示首次登录流程"
-          ><BookOpenText size={17} /><span>首次登录</span></button>
         </div>
         <div className="nava-focus-event-actions">
           <button type="button" data-phone-action="lock" onClick={() => { simulatePreviewInterruption("other"); commandPhonePreview("lock"); setEventResult("已锁屏熄屏；应用仍保留在原页面。"); }}><LockKeyhole size={17} /><span>锁屏／熄屏</span></button>
@@ -303,6 +303,37 @@ export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLogi
           <button type="button" data-phone-action="end-call" onClick={() => commandPhonePreview("end-call")}><PhoneIncoming size={17} /><span>结束来电</span></button>
         </div>
         {eventResult && <p role="status" data-preview-event-result>{eventResult}</p>}
+        <section className="nava-guide-preview" data-preview-only="guide-shortcuts" aria-label="新手引导快捷入口">
+          <header><strong>新手引导</strong><small>{onJournalGuidePreview ? "可反复重播" : "记录引导需登录"}</small></header>
+          <div className="nava-guide-preview-actions">
+            <button
+              type="button"
+              data-preview-action="first-login"
+              onClick={() => {
+                commandPhonePreview("app");
+                onFirstLoginPreview?.();
+                setEventResult("已从第一步重播首次登录体验。");
+              }}
+              title="从第一步重播首次登录体验"
+              aria-label="重播首次登录体验"
+            ><BookOpenText size={17} /><span>首次登录</span></button>
+            {journalGuideShortcuts.map(({ module, label, icon: Icon }) => (
+              <button
+                key={module}
+                type="button"
+                data-preview-guide={module}
+                disabled={!onJournalGuidePreview}
+                onClick={() => {
+                  commandPhonePreview("app");
+                  onJournalGuidePreview?.(module);
+                  setEventResult(`已从第一步重播${label}记录引导；预览不会写入记录或引导进度。`);
+                }}
+                title={onJournalGuidePreview ? `从第一步重播${label}记录引导` : "登录后可重播记录引导"}
+                aria-label={`重播${label}记录引导`}
+              ><Icon size={17} /><span>{label}</span></button>
+            ))}
+          </div>
+        </section>
         <section className="nava-reminder-preview" data-reminder-preview>
           <strong>到点提醒</strong>
           <div>{reminderKinds.map((kind) => <button key={kind} type="button" disabled={!reminderUserId || reminderBusy} aria-label={`模拟${reminderLabels[kind][0]}到点提醒`} onClick={() => void simulateReminder(kind)}><Bell size={16} /><span>{reminderLabels[kind][0]}</span></button>)}</div>

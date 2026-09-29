@@ -17,7 +17,7 @@ try {
     try {
       await context.addInitScript(() => {
         sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
-        localStorage.setItem("nava.onboarding.v2.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, version: 2, answers: {}, completedAt: new Date().toISOString() }));
+        localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, version: 3, answers: {}, completedAt: new Date().toISOString() }));
       });
       const page = await context.newPage();
       await page.route("**/*.supabase.co/**", (route) => route.abort());

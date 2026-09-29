@@ -12,10 +12,10 @@ import NavaLoadingScene from '../components/NavaLoadingScene';
 import './journal-experience.css';
 
 const categoryMap:Record<RecordModule,JournalCategory>={mood:'mood',diet:'food',exercise:'sport',focus:'focus',sleep:'sleep',face:'face'};
-type Props={user:User;module:RecordModule;locale:'zh'|'en';forceGuide?:boolean;onSaved:()=>void;onExit:()=>void};
+type Props={user:User;module:RecordModule;locale:'zh'|'en';forceGuide?:boolean;guidePreview?:boolean;onSaved:()=>void;onExit:()=>void};
 
 /** Exactly one iframe, scoped to the authenticated parent. It never receives the JWT. */
-export default function JournalExperience({user,module,locale,forceGuide=false,onSaved,onExit}:Props){
+export default function JournalExperience({user,module,locale,forceGuide=false,guidePreview=false,onSaved,onExit}:Props){
   const frame=useRef<HTMLIFrameElement>(null), callbacks=useRef({onSaved,onExit});
   callbacks.current={onSaved,onExit};
   const [error,setError]=useState(''),[ready,setReady]=useState(false),[attempt,setAttempt]=useState(0);
@@ -53,14 +53,16 @@ export default function JournalExperience({user,module,locale,forceGuide=false,o
           try{
             let result:unknown=null;
             if(method==='save'){
+              if(guidePreview)throw Error(locale==='zh'?'新手引导预览不会保存真实记录。':'The guide preview does not save real records.');
               result=await saveJournal(payload.record,payload.expectedVersion??null);callbacks.current.onSaved();
               if(!initial.records.some(r=>r.category===categoryMap[module])){firstSaved=result as JournalRecord;initial.records.push(firstSaved);}
             }else if(method==='delete'){
+              if(guidePreview)throw Error(locale==='zh'?'新手引导预览不会删除真实记录。':'The guide preview does not delete real records.');
               await deleteJournal(user.id,payload.id);callbacks.current.onSaved();
             }else if(method==='settings'){
               if(!/^fluffy-[a-z0-9-]+$/.test(payload.key)||/key|token|secret/.test(payload.key))throw Error('Invalid preference');
-              settings={...settings,[payload.key]:payload.value};const snapshot=settings;
-              queue=queue.catch(()=>{}).then(()=>saveJournalSettings(user.id,snapshot));await queue;
+              settings={...settings,[payload.key]:payload.value};
+              if(!guidePreview){const snapshot=settings;queue=queue.catch(()=>{}).then(()=>saveJournalSettings(user.id,snapshot));await queue;}
             }else if(method==='first-feedback'){
               if(firstSaved)setFirstFeedback(firstSaved);
             }else if(method==='ai'){
@@ -89,7 +91,7 @@ export default function JournalExperience({user,module,locale,forceGuide=false,o
     const element=frame.current; element?.addEventListener('load',start);
     const observer=new ResizeObserver(resize);if(element)observer.observe(element);
     return()=>{alive=false;interrupt();unregister();observer.disconnect();void voice?.cancel();void wake?.release();void native?.then(handle=>handle.remove());document.removeEventListener('visibilitychange',visibility);window.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('scroll',resize);element?.removeEventListener('load',start);for(const c of controllers.values())c.abort();channel?.port1.close();};
-  },[user.id,module,locale,attempt,forceGuide]);
+  },[user.id,module,locale,attempt,forceGuide,guidePreview]);
   return <section className="journal-experience" aria-label={locale==='zh'?'生活记录':'Journal'}>
     <iframe key={`${module}-${locale}-${attempt}-${forceGuide}`} ref={frame} aria-hidden={Boolean(firstFeedback)} tabIndex={firstFeedback?-1:undefined} src={`${import.meta.env.BASE_URL}journal/index.html?v=20260928-spotlight-guide-v2`} title={locale==='zh'?'记录与回顾':'Journal and recap'} allow="camera; microphone"/>
     {firstFeedback&&<div className="cold-feedback-layer"><FirstRecordFeedback record={firstFeedback} onClose={()=>setFirstFeedback(null)}/></div>}

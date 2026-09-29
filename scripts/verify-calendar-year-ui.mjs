@@ -37,7 +37,7 @@ try {
     });
     await context.addInitScript(() => {
       sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
-      localStorage.setItem("nava.onboarding.v2.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, version: 2, answers: {} }));
+      localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, version: 3, answers: {} }));
       Object.defineProperty(navigator, "vibrate", { configurable: true, value: () => true });
     });
     const page = await context.newPage();

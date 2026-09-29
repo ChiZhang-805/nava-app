@@ -129,10 +129,10 @@ try {
       return result;
     };
     window.sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
-    window.localStorage.setItem("nava.onboarding.v2.00000000-0000-4000-8000-000000000001", JSON.stringify({
+    window.localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({
       completed: true,
       completedAt: new Date().toISOString(),
-      version: 2,
+      version: 3,
       answers: {},
     }));
 

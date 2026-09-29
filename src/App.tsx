@@ -127,9 +127,13 @@ function ConfigErrorScreen({ message }: { message: string }) {
 function MobileShell({
   showInitialHomeGuidance,
   onOpenOnboarding,
+  guidePreviewRequest,
+  onGuidePreviewConsumed,
 }: {
   showInitialHomeGuidance: boolean;
   onOpenOnboarding: () => void;
+  guidePreviewRequest: { id: number; module: RecordModule } | null;
+  onGuidePreviewConsumed: () => void;
 }) {
   const { user } = useAuth();
   const t = useT();
@@ -140,6 +144,7 @@ function MobileShell({
   const [activeTab, setActiveTab] = useState<AppTab>(initialRouteRef.current.tab);
   const [recordModule, setRecordModule] = useState<RecordModule | null>(initialRouteRef.current.module);
   const [recordView, setRecordView] = useState<string | null>(initialRouteRef.current.view);
+  const [activeGuidePreview, setActiveGuidePreview] = useState<{ id: number; module: RecordModule } | null>(null);
   const [utilityOpen, setUtilityOpen] = useState(false);
   const [linkShareOpen, setLinkShareOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -305,7 +310,7 @@ function MobileShell({
     void completeGrowthActivity("checkin");
   }, [completeGrowthActivity, user, deviceDate]);
 
-  const navigate = (tab: AppTab, module: RecordModule | null = null, view: string | null = null, replace = false) => {
+  const navigate = useCallback((tab: AppTab, module: RecordModule | null = null, view: string | null = null, replace = false) => {
     const next = normalizeShellRoute(tab, module, view);
     setActiveTab(next.tab);
     setRecordModule(next.module);
@@ -321,7 +326,19 @@ function MobileShell({
     }
     const nextState = nextShellHistoryState(currentState, next, replace);
     window.history[replace ? "replaceState" : "pushState"](nextState, "", url);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!guidePreviewRequest) return;
+    setActiveGuidePreview(guidePreviewRequest);
+    onGuidePreviewConsumed();
+    navigate("record", guidePreviewRequest.module, "guide");
+  }, [guidePreviewRequest, navigate, onGuidePreviewConsumed]);
+
+  useEffect(() => {
+    if (!activeGuidePreview) return;
+    if (activeTab !== "record" || recordView !== "guide" || recordModule !== activeGuidePreview.module) setActiveGuidePreview(null);
+  }, [activeGuidePreview, activeTab, recordModule, recordView]);
 
   const openTodoFocus = (todo: TodoItem) => {
     if (!user) return;
@@ -357,7 +374,7 @@ function MobileShell({
       return;
     }
     navigate(target.tab, target.module ?? null, target.view ?? null);
-  }, []);
+  }, [navigate]);
 
   const openNotificationItem = useCallback((item: NavaNotificationItem) => {
     if (user && !item.id.startsWith("preview:")) markNavaNotification(user.id, item.id, true);
@@ -594,7 +611,7 @@ function MobileShell({
       window.removeEventListener("popstate", restoreRoute);
       window.removeEventListener("hashchange", restoreRoute);
     };
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (!user) return;
@@ -720,7 +737,16 @@ function MobileShell({
           )}
           {activeTab === "record" && (
             <Suspense fallback={<PageSkeleton variant={recordSkeletonVariant(recordModule, recordView)} />}>
-              {recordModule ? <JournalExperience user={user} module={recordModule} locale={locale} forceGuide={recordView === 'guide'} onSaved={markJournalChanged} onExit={() => navigate("today")} /> : <RecordsScreen
+              {recordModule ? <JournalExperience
+                key={recordView === "guide" && activeGuidePreview?.module === recordModule ? `journal-guide-preview-${activeGuidePreview.id}` : `journal-${recordModule}-${recordView ?? "default"}`}
+                user={user}
+                module={recordModule}
+                locale={locale}
+                forceGuide={recordView === 'guide'}
+                guidePreview={recordView === "guide" && activeGuidePreview?.module === recordModule}
+                onSaved={markJournalChanged}
+                onExit={() => { setActiveGuidePreview(null); navigate("today"); }}
+              /> : <RecordsScreen
                 user={user}
                 deviceDate={deviceDate}
                 onSaved={markChanged}
@@ -891,6 +917,8 @@ function AppContent({
   const [onboardingRetryKey, setOnboardingRetryKey] = useState(0);
   const [firstLoginPreviewOpen, setFirstLoginPreviewOpen] = useState(false);
   const [firstLoginPreviewKey, setFirstLoginPreviewKey] = useState(0);
+  const [journalGuidePreview, setJournalGuidePreview] = useState<{ id: number; module: RecordModule } | null>(null);
+  const journalGuidePreviewIdRef = useRef(0);
 
   useEffect(() => {
     let alive = true;
@@ -947,10 +975,17 @@ function AppContent({
       });
   }, [onboardingRoute?.status, user]);
   const openFirstLoginPreview = useCallback(() => {
+    setJournalGuidePreview(null);
     setFirstLoginPreviewKey((value) => value + 1);
     setFirstLoginPreviewOpen(true);
   }, []);
   const closeFirstLoginPreview = useCallback(() => setFirstLoginPreviewOpen(false), []);
+  const openJournalGuidePreview = useCallback((module: RecordModule) => {
+    setFirstLoginPreviewOpen(false);
+    journalGuidePreviewIdRef.current += 1;
+    setJournalGuidePreview({ id: journalGuidePreviewIdRef.current, module });
+  }, []);
+  const consumeJournalGuidePreview = useCallback(() => setJournalGuidePreview(null), []);
 
   let screen;
   if (configError && !isDemoMode()) screen = <ConfigErrorScreen message={configError} />;
@@ -981,12 +1016,23 @@ function AppContent({
       window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
       setOnboardingRoute({ userId: user.id, required: false, status, mode: "first" });
     }} />;
-  } else screen = <MobileShell showInitialHomeGuidance={showInitialHomeGuidance} onOpenOnboarding={openOnboarding} />;
+  } else screen = <MobileShell
+    showInitialHomeGuidance={showInitialHomeGuidance}
+    onOpenOnboarding={openOnboarding}
+    guidePreviewRequest={journalGuidePreview}
+    onGuidePreviewConsumed={consumeJournalGuidePreview}
+  />;
+
+  const journalGuidePreviewAvailable = Boolean(user && !checkingOnboarding && !onboardingError && !onboardingRoute?.required && !passwordRecovery);
 
   return (
     <div className="nava-app-stage">
       {screen}
-      <DesktopDevicePreviewChrome reminderUserId={user?.id} onFirstLoginPreview={openFirstLoginPreview} />
+      <DesktopDevicePreviewChrome
+        reminderUserId={user?.id}
+        onFirstLoginPreview={openFirstLoginPreview}
+        onJournalGuidePreview={journalGuidePreviewAvailable ? openJournalGuidePreview : undefined}
+      />
       {user && <DevSeedPanel user={user} />}
     </div>
   );

@@ -10515,8 +10515,10 @@ body::before {
   .nava-focus-event-simulator > header strong { font-size: 15px; }
   .nava-focus-event-simulator > header small { flex: none; color: #9acbdb; font-size: 12px; }
   .nava-focus-event-simulator > p { margin: 0; color: #c4d8e2; font-size: 14px; line-height: 1.5; }
-  .nava-focus-event-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .nava-focus-event-actions button {
+  .nava-focus-event-actions,
+  .nava-guide-preview-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .nava-focus-event-actions button,
+  .nava-guide-preview-actions button {
     min-width: 0;
     min-height: 44px;
     display: flex;
@@ -10534,10 +10536,18 @@ body::before {
     cursor: pointer;
   }
   .nava-focus-event-actions button:hover:not(:disabled),
-  .nava-focus-event-actions button:focus-visible { border-color: rgba(181,238,255,.9); background: rgba(122,191,213,.27); }
-  .nava-focus-event-actions button:disabled { color: #a9c1cc; background: #293f4a; cursor: not-allowed; }
-  .nava-focus-event-actions button svg { flex-shrink: 0; }
+  .nava-focus-event-actions button:focus-visible,
+  .nava-guide-preview-actions button:hover:not(:disabled),
+  .nava-guide-preview-actions button:focus-visible { border-color: rgba(181,238,255,.9); background: rgba(122,191,213,.27); }
+  .nava-focus-event-actions button:disabled,
+  .nava-guide-preview-actions button:disabled { color: #a9c1cc; background: #293f4a; cursor: not-allowed; }
+  .nava-focus-event-actions button svg,
+  .nava-guide-preview-actions button svg { flex-shrink: 0; }
   .nava-focus-event-disclaimer { color: #9db8c5; font-size: 12px; line-height: 1.4; }
+  .nava-guide-preview { display: grid; gap: 9px; padding-top: 11px; border-top: 1px solid rgba(169,220,237,.2); }
+  .nava-guide-preview > header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .nava-guide-preview > header strong { font-size: 14px; }
+  .nava-guide-preview > header small { color: #9acbdb; font-size: 11px; text-align: right; }
 
   .nava-device-selector-turn {
     position: relative;
@@ -10857,6 +10867,7 @@ body::before {
   .nava-focus-event-simulator > header { display: block; }
   .nava-focus-event-simulator > header small { display: block; margin-top: 4px; }
   .nava-focus-event-actions { grid-template-columns: minmax(0, 1fr); }
+  .nava-guide-preview-actions { grid-template-columns: minmax(0, 1fr); }
   .nava-focus-event-simulator .nava-reminder-preview > div { grid-template-columns: minmax(0, 1fr); }
   .nava-device-selector dl > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
@@ -10866,6 +10877,7 @@ body::before {
   .nava-app-stage > .nava-preview-controls { width: 180px; }
   .nava-focus-event-simulator > header { flex-wrap: wrap; }
   .nava-focus-event-actions button { flex-direction: column; gap: 3px; }
+  .nava-guide-preview-actions button { flex-direction: column; gap: 3px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

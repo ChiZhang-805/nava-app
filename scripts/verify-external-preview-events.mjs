@@ -21,7 +21,7 @@ try {
     try {
       await context.addInitScript(({ userId }) => {
         sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
-        localStorage.setItem(`nava.onboarding.v2.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 2, answers: {}, source: "local" }));
+        localStorage.setItem(`nava.onboarding.v3.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 3, answers: {}, source: "local" }));
       }, { userId });
       const page = await context.newPage();
       const errors = [];

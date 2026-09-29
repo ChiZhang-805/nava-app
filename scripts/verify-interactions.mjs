@@ -1665,7 +1665,7 @@ async function verifyPageSkeletons(browser, baseUrl, results, consoleErrors) {
   const context = await browser.newContext({ locale: "zh-CN", viewport: { width: 430, height: 932 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   await context.addInitScript(() => {
     sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
-    localStorage.setItem("nava.onboarding.v2.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 2, answers: {}, source: "local" }));
+    localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 3, answers: {}, source: "local" }));
   });
   const page = await context.newPage();
   page.on("pageerror", (error) => consoleErrors.push(`skeleton page: ${error.message}`));
@@ -1726,7 +1726,7 @@ async function verifyModuleCompletionRouting(browser, baseUrl, results, consoleE
     const now = new Date();
     const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
-    localStorage.setItem("nava.onboarding.v2.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 2, answers: {}, source: "local" }));
+    localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 3, answers: {}, source: "local" }));
     localStorage.setItem("nava.review.demo.records.v1", JSON.stringify({
       sleeps: {},
       exercises: {},

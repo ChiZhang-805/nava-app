@@ -16,7 +16,16 @@ try {
     const context = await browser.newContext({ locale: "zh-CN", viewport, reducedMotion: "reduce" });
     try {
       const page = await context.newPage(), errors = [];
+      const journalWrites = [];
       page.on("pageerror", (error) => errors.push(error.message));
+      page.on("request", (request) => {
+        if (/journal_(entries|preferences)/.test(request.url()) && !["GET", "HEAD", "OPTIONS"].includes(request.method())) journalWrites.push({ method: request.method(), url: request.url() });
+      });
+      await page.addLocatorHandler(page.locator(".completion-celebration-layer"), async () => {
+        await page.frameLocator(".completion-celebration-layer iframe").getByRole("button", { name: /Continue|继续/ }).click();
+      });
+      await context.route("**/rest/v1/journal_entries*", (route) => route.fulfill({ json: [] }));
+      await context.route("**/rest/v1/journal_preferences*", (route) => route.fulfill({ json: { settings: {} } }));
       const open = async (suffix = "") => { await page.goto(`http://127.0.0.1:5228/${suffix}`, { waitUntil: "networkidle" }); if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click(); };
       await open(); await expect(page.locator(".auth-form--signIn")).toBeVisible();
       const rail = page.locator(".nava-preview-controls:visible");
@@ -25,6 +34,8 @@ try {
           await expect(rail).toHaveCount(1);
           await expect(rail.locator("[data-preview-event]")).toHaveCount(3);
           await expect(rail.locator('[data-preview-action="first-login"]')).toHaveCount(1);
+          await expect(rail.locator('[data-preview-only="guide-shortcuts"]')).toHaveCount(1);
+          await expect(rail.locator("[data-preview-guide]")).toHaveCount(6);
           await expect(rail.locator("[data-reminder-preview] button")).toHaveCount(8);
           const geometry = await rail.evaluate((node) => {
             const box = node.getBoundingClientRect(), phone = document.querySelector(".nava-app-stage > .phone-frame, .nava-app-stage > .auth-screen").getBoundingClientRect();
@@ -33,7 +44,7 @@ try {
           });
           assert.ok(geometry.left > geometry.phoneRight && geometry.right <= viewport.width && geometry.bottom <= viewport.height && geometry.overflow <= 1, JSON.stringify(geometry));
           assert.ok(geometry.gap >= 12 && geometry.gap <= 16, JSON.stringify(geometry));
-          for (const button of await rail.locator("[data-preview-event], [data-preview-action], [data-reminder-preview] button").all()) {
+          for (const button of await rail.locator("[data-preview-event], [data-preview-action], [data-preview-guide], [data-reminder-preview] button").all()) {
             await button.scrollIntoViewIfNeeded(); await expect(button.locator("span")).toBeVisible();
             const buttonGeometry = await button.evaluate((node) => { const box = node.getBoundingClientRect(), text = node.querySelector("span").getBoundingClientRect(); return { width: box.width, height: box.height, textFits: text.left >= box.left && text.right <= box.right, labelDisplay: getComputedStyle(node.querySelector("span")).display }; });
             assert.ok(buttonGeometry.width >= 43 && buttonGeometry.height >= 43 && buttonGeometry.textFits && buttonGeometry.labelDisplay !== "none", JSON.stringify(buttonGeometry));
@@ -43,6 +54,7 @@ try {
         };
         await expect(rail.locator("[data-preview-event]:enabled")).toHaveCount(3);
         await expect(rail.locator('[data-preview-action="first-login"]:enabled')).toHaveCount(1);
+        await expect(rail.locator("[data-preview-guide]:enabled")).toHaveCount(0);
         await expect(rail.locator("[data-reminder-preview] button:enabled")).toHaveCount(0);
         await expect(rail).not.toContainText(/系统事件随时可用|只有图标按压反馈|仅网页测试/);
         await inspect("signed-out"); await page.screenshot({ path: `${output}/login-${viewport.width}.png` });
@@ -70,8 +82,35 @@ try {
         });
         await open("?demo=1#tab=today"); await expect(page.locator(".bottom-nav")).toBeVisible();
         await expect(rail.locator("[data-preview-event]:enabled")).toHaveCount(3);
+        await expect(rail.locator("[data-preview-guide]:enabled")).toHaveCount(6);
         await expect(rail.locator("[data-reminder-preview] button:enabled")).toHaveCount(8);
         await inspect("signed-in-idle");
+        for (const module of ["sleep", "mood", "diet", "exercise", "face", "focus"]) {
+          const shortcut = rail.locator(`[data-preview-guide="${module}"]`);
+          await shortcut.scrollIntoViewIfNeeded();
+          await shortcut.click();
+          await expect(page).toHaveURL(new RegExp(`[#&]module=${module}(?:&|$)`));
+          const journalFrame = page.frameLocator(".journal-experience iframe");
+          await expect(journalFrame.locator("#cold-guide")).toBeVisible({ timeout: 30_000 });
+          await expect(journalFrame.locator(".cold-guide-target")).toHaveCount(1);
+          receipt.results.push({ viewport, state: `guide-${module}` });
+        }
+        const replayFrame = page.frameLocator(".journal-experience iframe");
+        await replayFrame.locator("body").evaluate((node) => { node.dataset.replayMarker = "old"; });
+        const focusShortcut = rail.locator('[data-preview-guide="focus"]');
+        await focusShortcut.scrollIntoViewIfNeeded();
+        await focusShortcut.click();
+        await expect(replayFrame.locator("body")).not.toHaveAttribute("data-replay-marker", "old");
+        const replayCoach = replayFrame.locator("#cold-guide");
+        await expect(replayCoach).toBeVisible({ timeout: 30_000 });
+        await page.screenshot({ path: `${output}/guide-shortcuts-${viewport.width}.png` });
+        for (let step = 0; step < 8 && await replayCoach.isVisible(); step += 1) {
+          await expect(replayCoach).toHaveAttribute("data-ready", "true");
+          await replayCoach.click();
+        }
+        await expect(replayCoach).toBeHidden();
+        await page.waitForTimeout(100);
+        assert.deepEqual(journalWrites, [], "Guide shortcuts must not write journal records or guide preferences");
         await open("?demo=1#tab=record&module=focus");
         const legacyFocusStart = page.locator('.focus-summary-start[aria-label="开始专注"]');
         if (await legacyFocusStart.count()) {

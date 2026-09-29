@@ -433,7 +433,7 @@ async function captureSkeletonViewport(browser, baseUrl, viewport, report, error
   await context.addInitScript(() => {
     Object.defineProperty(navigator, "vibrate", { configurable: true, value: () => false });
     sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
-    localStorage.setItem("nava.onboarding.v2.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 2, answers: {}, source: "local" }));
+    localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 3, answers: {}, source: "local" }));
   });
   const page = await context.newPage();
   if (viewport.device) await context.addInitScript((id) => localStorage.setItem('nava.desktop-preview-device.v1', id), viewport.device.id);

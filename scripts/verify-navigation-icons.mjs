@@ -28,10 +28,10 @@ try {
       isMobile: true,
     });
     await context.addInitScript(() => {
-      window.localStorage.setItem("nava.onboarding.v2.00000000-0000-4000-8000-000000000001", JSON.stringify({
+      window.localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({
         completed: true,
         completedAt: "2026-08-28T00:00:00.000Z",
-        version: 2,
+        version: 3,
         answers: {},
         source: "local",
       }));

@@ -3,7 +3,7 @@ import { readdir, readFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 const directory = process.env.NAVA_TEST_OUTPUT || (process.platform === "win32" ? "Q:/NAVA-Workspace/Build/TestRuns/phone-system-preview" : "artifacts/ios/preview-exclusion");
 const output = path.join(directory, "native-exclusion.json");
-const forbidden = /ios-system-layer|nava:preview-phone-command|nava:preview-system|nava-device-preview|外部环境模拟|nava:preview-reminder/;
+const forbidden = /ios-system-layer|nava:preview-phone-command|nava:preview-system|nava-device-preview|外部环境模拟|nava:preview-reminder|guide-shortcuts|data-preview-guide|新手引导快捷入口/;
 const files = await readdir("dist/assets");
 let checked = 0;
 for (const file of files) {

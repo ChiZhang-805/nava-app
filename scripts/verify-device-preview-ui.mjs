@@ -21,7 +21,7 @@ const report = [];
 async function prepare(context, search = "", hash = "#tab=today", dismissReward = true) {
   await context.addInitScript(({ userId }) => {
     sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
-    localStorage.setItem(`nava.onboarding.v2.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 2, answers: {}, source: "local" }));
+    localStorage.setItem(`nava.onboarding.v3.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 3, answers: {}, source: "local" }));
   }, { userId: demoUserId });
   const page = await context.newPage();
   await page.goto(`${baseUrl}?demo=1${search}${hash}`, { waitUntil: "networkidle" });
@@ -109,7 +109,7 @@ try {
   const onboardingDesktopContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 1365, height: 1000 }, deviceScaleFactor: 1 });
   await onboardingDesktopContext.addInitScript(({ userId }) => {
     sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
-    localStorage.setItem(`nava.onboarding.v2.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 2, answers: {}, source: "local" }));
+    localStorage.setItem(`nava.onboarding.v3.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 3, answers: {}, source: "local" }));
   }, { userId: demoUserId });
   const onboardingDesktop = await onboardingDesktopContext.newPage();
   await onboardingDesktop.goto(`${baseUrl}?demo=1&onboarding=1`, { waitUntil: "networkidle" });
