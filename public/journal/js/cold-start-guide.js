@@ -18,7 +18,7 @@ export function installColdStartGuide(api) {
   if (!steps) return;
 
   let active = Boolean(api.initial.forceGuide || (!prior && !api.initial.settings[preferenceKey]));
-  let index = 0, highlight = null, feedbackShown = false, typingTimer = 0, speechReady = false;
+  let index = 0, highlight = null, feedbackShown = false, typingTimer = 0, speechWatchdog = 0, speechReady = false, finishSpeech = null, speechEpoch = 0;
   const entryBubble = document.getElementById('entry-bubble');
   const actor = document.getElementById('actor-canvas');
   let previousBubble = entryBubble.innerHTML;
@@ -41,7 +41,12 @@ export function installColdStartGuide(api) {
   coach.append(live);
   screen.append(backdrop, coach);
 
-  const clearTyping = () => { if (typingTimer) window.clearTimeout(typingTimer); typingTimer = 0; };
+  const clearTyping = () => {
+    if (typingTimer) window.clearTimeout(typingTimer);
+    if (speechWatchdog) window.clearTimeout(speechWatchdog);
+    typingTimer = 0;
+    speechWatchdog = 0;
+  };
   const clearHighlight = () => { highlight?.classList.remove('cold-guide-target'); highlight = null; };
   const remember = async () => {
     try { await api.call('settings', { key: preferenceKey, value: true }); api.initial.settings[preferenceKey] = true; }
@@ -49,14 +54,29 @@ export function installColdStartGuide(api) {
   };
   const restoreBubble = () => {
     clearTyping();
+    speechEpoch += 1;
+    finishSpeech = null;
+    speechReady = false;
+    coach.dataset.ready = 'false';
     entryBubble.classList.remove('cold-guide-speech');
     entryBubble.innerHTML = previousBubble;
+  };
+  const failOpen = error => {
+    if (error) console.error('Cold-start guide recovered from an error.', error);
+    active = false;
+    clearHighlight();
+    restoreBubble();
+    coach.hidden = true;
+    backdrop.hidden = true;
+    screen.classList.remove('cold-guiding');
+    entryBubble.classList.remove('cold-guide-speaker');
+    actor.classList.remove('cold-guide-cat');
   };
   const end = () => {
     active = false;
     clearHighlight();
     restoreBubble();
-    render();
+    safeRender();
     document.getElementById('confirm-entry')?.focus();
     void remember();
   };
@@ -83,6 +103,7 @@ export function installColdStartGuide(api) {
 
   function speak(message) {
     clearTyping();
+    const epoch = ++speechEpoch;
     speechReady = false;
     coach.dataset.ready = 'false';
     const prefix = `${index + 1}/${steps.length + 1} · `;
@@ -93,22 +114,36 @@ export function installColdStartGuide(api) {
     let offset = 0;
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const finish = () => {
-      entryBubble.textContent = sentence;
-      const hint = document.createElement('small');
-      hint.textContent = t('轻触屏幕继续', 'Tap anywhere to continue');
-      entryBubble.append(hint);
-      speechReady = true;
-      coach.dataset.ready = 'true';
-      coach.setAttribute('aria-label', `${sentence} ${hint.textContent}`);
+      if (epoch !== speechEpoch || speechReady) return;
+      try {
+        clearTyping();
+        entryBubble.textContent = sentence;
+        const hint = document.createElement('small');
+        hint.textContent = t('轻触屏幕继续', 'Tap anywhere to continue');
+        entryBubble.append(hint);
+        speechReady = true;
+        finishSpeech = null;
+        coach.dataset.ready = 'true';
+        coach.setAttribute('aria-label', `${sentence} ${hint.textContent}`);
+      } catch (error) {
+        failOpen(error);
+      }
     };
+    finishSpeech = finish;
     if (reduced) { finish(); return; }
     const type = () => {
-      offset += 1;
-      entryBubble.textContent = sentence.slice(0, offset);
-      if (offset >= sentence.length) { finish(); return; }
-      typingTimer = window.setTimeout(type, 34);
+      if (epoch !== speechEpoch) return;
+      try {
+        offset += 1;
+        entryBubble.textContent = sentence.slice(0, offset);
+        if (offset >= sentence.length) { finish(); return; }
+        typingTimer = window.setTimeout(type, 34);
+      } catch (error) {
+        failOpen(error);
+      }
     };
     type();
+    speechWatchdog = window.setTimeout(finish, Math.max(1800, sentence.length * 50 + 600));
   }
 
   function render() {
@@ -119,7 +154,13 @@ export function installColdStartGuide(api) {
     entryBubble.classList.toggle('cold-guide-speaker', visible);
     actor.classList.toggle('cold-guide-cat', visible);
     clearHighlight();
-    if (!visible) return;
+    if (!visible) {
+      clearTyping();
+      finishSpeech = null;
+      speechReady = false;
+      coach.dataset.ready = 'false';
+      return;
+    }
     const step = steps[index];
     highlight = targetForStep(step);
     highlight?.classList.add('cold-guide-target');
@@ -134,10 +175,20 @@ export function installColdStartGuide(api) {
   }
 
   function advance() {
-    if (!active || !speechReady) return;
+    if (!active) return;
+    if (!speechReady) {
+      if (finishSpeech) finishSpeech();
+      else failOpen(new Error('Guide speech had no completion path.'));
+      return;
+    }
     if (index >= steps.length) { end(); return; }
     index += 1;
-    render();
+    safeRender();
+  }
+
+  function safeRender() {
+    try { render(); }
+    catch (error) { failOpen(error); }
   }
 
   coach.addEventListener('click', advance);
@@ -163,22 +214,37 @@ export function installColdStartGuide(api) {
         previousBubble = entryBubble.innerHTML;
         active = true;
         index = 0;
-        render();
+        safeRender();
         coach.focus({ preventScroll: true });
       };
       menu.append(button);
     });
   });
+  let observedScene = screen.dataset.scene;
   const observer = new MutationObserver(() => {
-    if (screen.dataset.scene === 'entry') render();
-    if (!feedbackShown && screen.dataset.scene === 'review' && api.firstSaved) { feedbackShown = true; api.call('first-feedback').catch(() => {}); }
+    const scene = screen.dataset.scene;
+    if (scene !== observedScene) {
+      observedScene = scene;
+      safeRender();
+    }
+    if (!feedbackShown && scene === 'review' && api.firstSaved) { feedbackShown = true; api.call('first-feedback').catch(() => {}); }
   });
   observer.observe(screen, { attributes: true, attributeFilter: ['data-scene'] });
-  render();
+  safeRender();
   if (active) coach.focus({ preventScroll: true });
-  window.addEventListener('pagehide', () => {
+  window.addEventListener('pagehide', event => {
     clearTyping();
-    observer.disconnect();
-    window.removeEventListener('resize', positionSpotlight);
-  }, { once: true });
+    if (!event.persisted) {
+      observer.disconnect();
+      window.removeEventListener('resize', positionSpotlight);
+    }
+  });
+  window.addEventListener('pageshow', event => {
+    if (!event.persisted || !active || screen.dataset.scene !== 'entry') return;
+    if (!speechReady && finishSpeech) finishSpeech();
+    positionSpotlight();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && active && !speechReady && finishSpeech) finishSpeech();
+  });
 }

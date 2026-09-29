@@ -95,7 +95,21 @@ try{
   await page.goto(url+'?module=sleep');await expect(page.locator('.journal-loading')).toHaveCount(0,{timeout:30000});await expect(page.frameLocator('iframe').locator('#cold-guide')).toBeHidden();
   rows=[];
   await page.goto(url+'?module=sleep');await expect(page.locator('.journal-loading')).toHaveCount(0,{timeout:30000});await expect(page.frameLocator('iframe').locator('#cold-guide')).toBeHidden();
-  await page.frameLocator('iframe').locator('#entry-more').click();await page.frameLocator('iframe').locator('[data-action=guide]').click();await expect(page.frameLocator('iframe').locator('#cold-guide')).toBeVisible();
+  await page.frameLocator('iframe').locator('#entry-more').click();
+  if(width===390&&lang==='zh')await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.frameLocator('iframe').locator('[data-action=guide]').click();await expect(page.frameLocator('iframe').locator('#cold-guide')).toBeVisible();
+  if(width===390&&lang==='zh'){
+   const regression=page.frameLocator('iframe'),guide=regression.locator('#cold-guide');
+   const tapGuide=async()=>{const box=await guide.boundingBox();assert.ok(box,'guide must expose a touchable box');await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2);};
+   await expect(guide).toHaveAttribute('data-ready','false');
+   await regression.locator('#screen').evaluate(screen=>{for(let frame=0;frame<24;frame+=1)screen.dataset.scene='entry';});
+   await page.waitForTimeout(120);await expect(guide).toHaveAttribute('data-ready','false');assert.ok((await regression.locator('#entry-bubble').innerText()).length>1,'typewriter must progress while animation repeats the same scene');
+   await regression.locator('#screen').evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true})));
+   await tapGuide();await expect(guide).toHaveAttribute('data-ready','true');await expect(regression.locator('#entry-bubble')).toContainText('轻触屏幕继续');
+   await regression.locator('#screen').evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));
+   await tapGuide();await expect(guide).toHaveAttribute('data-ready','false');await expect(regression.locator('#entry-bubble')).toContainText('2/4');
+   await page.emulateMedia({reducedMotion:'reduce'});
+  }
   if(width===390){
    await page.evaluate(()=>{localStorage.removeItem('nava.first-notes.draft.v1.10000000-0000-4000-8000-000000000001');localStorage.removeItem('nava.cold-start.draft.v1.10000000-0000-4000-8000-000000000001');});
    await page.goto(url+'?mode=onboarding&first=1');const notes=page.frameLocator('iframe');
