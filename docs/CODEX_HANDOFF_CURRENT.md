@@ -27,6 +27,15 @@
 `Q:/NAVA-Workspace/Build/TestRuns/today-todos-loading/zh-390x844-duration-inline.png`等证据。
 本轮没有数据库迁移、Edge Functions部署、账号数据或AI合同变更。
 
+功能源码 `75970f595b79a09d60028b3e1e4bae9b8fb44b10` 已干净推送并从同一提交生成双站。
+ChatGPT Sites **v197**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_12e45b76afec8191b84c76816bed88da`；
+部署 `appgdep_6abc0ce2fbf481918038532d10854b4b` succeeded。GitHub Pages镜像提交
+`bc9b9b7bdbc636d8dea493aa4d7e126755a0d047`，workflow `36617397683` success；211个当前
+生成文件复制前后SHA-256一致。两站线上已核验公开`?demo=1`不能绕过真实登录、canonical
+Supabase项目一致，主入口与样式资源逐字节等于本轮发布制品，Pages `source.json`指向v197、
+上述功能提交和Sites版本。
+
 ## 123. 真实填写式首次记录引导与错峰小猫动作（当前版本）
 
 六类首次记录引导已从“只介绍控件、整层点一下就前进”改成真实填写流程。睡眠第一步把真实
