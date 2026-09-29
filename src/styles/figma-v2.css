@@ -10638,25 +10638,6 @@ body::before {
   .nava-device-selector dt { color: rgba(236, 248, 255, .56); }
   .nava-device-selector dd { margin: 0; color: rgba(246, 252, 255, .9); overflow-wrap: anywhere; }
 
-  .nava-device-grid-toggle {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    min-height: 22px;
-    color: rgba(236, 248, 255, .84);
-    font-size: 10px;
-    font-weight: 680;
-    letter-spacing: 0;
-    cursor: pointer;
-  }
-
-  .nava-device-grid-toggle input {
-    width: 15px;
-    height: 15px;
-    margin: 0;
-    accent-color: #4db4e2;
-  }
-
   .nava-device-status-bar {
     position: absolute;
     inset: 0 0 auto;
@@ -10811,24 +10792,6 @@ body::before {
     background: #050607;
     box-shadow: 0 1px rgba(255,255,255,.13);
   }
-
-  .nava-device-calibration-grid {
-    position: absolute;
-    inset: 0;
-    z-index: 410;
-    display: none;
-    overflow: hidden;
-    border-radius: var(--nava-device-radius);
-    background-image:
-      linear-gradient(rgba(238, 69, 110, .34) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(238, 69, 110, .34) 1px, transparent 1px),
-      linear-gradient(rgba(31, 126, 180, .14) .5px, transparent .5px),
-      linear-gradient(90deg, rgba(31, 126, 180, .14) .5px, transparent .5px);
-    background-size: 10px 10px, 10px 10px, 1px 1px, 1px 1px;
-    pointer-events: none;
-  }
-
-  .nava-device-preview[data-calibration-grid="true"] .nava-device-calibration-grid { display: block; }
 
   .nava-app-stage > .phone-frame .nava-notification-banner-layer { top: calc(var(--nava-system-safe-top) + 2px); }
 

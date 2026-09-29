@@ -64,7 +64,6 @@ async function readDesktopGeometry(page) {
       battery: geometry(".nava-device-battery"),
       selector: geometry(".nava-device-selector"),
       homeIndicator: geometry(".nava-device-home-indicator"),
-      calibrationGrid: geometry(".nava-device-calibration-grid"),
       scores: geometry(".option-two-scores"),
       navMain: geometry('.bottom-nav [data-tab="ai"]'),
       navItems: [...document.querySelectorAll('.bottom-nav .nav-button:not(.ai-nav-button)')].map((element) => {
@@ -218,7 +217,7 @@ try {
         }).slice(0, 12),
       };
     });
-    if (!geometry.frame || !geometry.chrome || !geometry.cutout || !geometry.selector || !geometry.clock || !geometry.statusIcons || !geometry.signal || !geometry.wifi || !geometry.battery || !geometry.homeIndicator || !geometry.calibrationGrid || !geometry.scores || !geometry.navMain) {
+    if (!geometry.frame || !geometry.chrome || !geometry.cutout || !geometry.selector || !geometry.clock || !geometry.statusIcons || !geometry.signal || !geometry.wifi || !geometry.battery || !geometry.homeIndicator || !geometry.scores || !geometry.navMain) {
       throw new Error(`${device.label}: desktop preview is incomplete ${JSON.stringify(geometry)}`);
     }
     assertVerticallyCentered(`${device.label} frame`, geometry.frame, 1080);
@@ -260,13 +259,8 @@ try {
     report.push({ mode: "device-catalog", device: device.id, geometry, frameOverflow });
   }
 
-  const gridToggle = catalogPage.getByTestId("nava-preview-grid-toggle");
-  await gridToggle.check();
-  await expect(catalogPage.locator(".nava-device-preview")).toHaveAttribute("data-calibration-grid", "true");
-  await expect(catalogPage.locator(".nava-device-calibration-grid")).toHaveCSS("display", "block");
-  await catalogPage.screenshot({ path: path.join(outputDir, "desktop-1pt-calibration-grid-1440x1080.png"), fullPage: true });
-  report.push({ mode: "calibration-grid", device: "iphone-14-pro-max" });
-  await gridToggle.uncheck();
+  await expect(catalogPage.getByTestId("nava-preview-grid-toggle")).toHaveCount(0);
+  await expect(catalogPage.locator(".nava-device-calibration-grid, [data-calibration-grid]")).toHaveCount(0);
 
   await catalogPage.goto(`${baseUrl}?demo=1#tab=ai`, { waitUntil: "networkidle" });
   await expect(catalogPage.locator(".chat-layout")).toBeVisible();

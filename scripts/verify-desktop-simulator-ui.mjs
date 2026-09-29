@@ -39,6 +39,8 @@ try {
           await expect(rail.locator('[data-preview-only="guide-shortcuts"] [data-preview-action]')).toHaveCount(0);
           await expect(rail.locator("[data-preview-guide]")).toHaveCount(6);
           await expect(rail.locator("[data-reminder-preview] button")).toHaveCount(8);
+          await expect(rail.getByTestId("nava-preview-grid-toggle")).toHaveCount(0);
+          await expect(page.locator(".nava-device-calibration-grid, [data-calibration-grid]")).toHaveCount(0);
           const geometry = await rail.evaluate((node) => {
             const box = node.getBoundingClientRect(), phone = document.querySelector(".nava-app-stage > .phone-frame, .nava-app-stage > .auth-screen").getBoundingClientRect();
             const selector = node.querySelector(".nava-device-selector").getBoundingClientRect(), events = node.querySelector(".nava-focus-event-simulator").getBoundingClientRect();

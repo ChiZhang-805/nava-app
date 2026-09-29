@@ -13,7 +13,6 @@ import { reminderKinds, reminderLabels, reminderPreviewEvent, type ReminderKind 
 import "../styles/reminders.css";
 
 const DEVICE_PREFERENCE_KEY = "nava.desktop-preview-device.v1";
-const GRID_PREFERENCE_KEY = "nava.desktop-preview-grid.v1";
 
 function currentClock() {
   const now = new Date();
@@ -76,13 +75,6 @@ export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLogi
       return findIPhonePreviewDevice(window.localStorage.getItem(DEVICE_PREFERENCE_KEY)).id;
     } catch {
       return DEFAULT_IPHONE_PREVIEW_DEVICE_ID;
-    }
-  });
-  const [showCalibrationGrid, setShowCalibrationGrid] = useState(() => {
-    try {
-      return window.localStorage.getItem(GRID_PREFERENCE_KEY) === "true";
-    } catch {
-      return false;
     }
   });
   const [showSpecifications, setShowSpecifications] = useState(false);
@@ -208,15 +200,6 @@ export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLogi
     }
   };
 
-  const toggleCalibrationGrid = (visible: boolean) => {
-    setShowCalibrationGrid(visible);
-    try {
-      window.localStorage.setItem(GRID_PREFERENCE_KEY, String(visible));
-    } catch {
-      // The preview remains usable when storage is disabled.
-    }
-  };
-
   const cutoutLeft = (device.logicalWidth - calibration.cutout.width) / 2;
 
   return (
@@ -247,15 +230,6 @@ export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLogi
                 </optgroup>
               ))}
             </select>
-            <label className="nava-device-grid-toggle">
-              <input
-                type="checkbox"
-                data-testid="nava-preview-grid-toggle"
-                checked={showCalibrationGrid}
-                onChange={(event) => toggleCalibrationGrid(event.target.checked)}
-              />
-              <span>1 pt 校准网格（10 pt 加粗）</span>
-            </label>
           </section>
           <section ref={selectorBackRef} className="nava-device-selector-face nava-device-selector-back" aria-hidden={!showSpecifications} {...(!showSpecifications ? { inert: "" } : {})}>
             <header>
@@ -348,7 +322,6 @@ export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLogi
         className="nava-device-preview"
         aria-hidden="true"
         data-preview-only="desktop-device-chrome"
-        data-calibration-grid={showCalibrationGrid ? "true" : "false"}
       >
         <span className={`nava-device-side-button nava-device-side-button--${device.upperControl}`} />
         <span className="nava-device-side-button nava-device-side-button--volume-up" />
@@ -377,7 +350,6 @@ export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLogi
           </span>
         </div>
         <span className="nava-device-home-indicator" />
-        <span className="nava-device-calibration-grid" />
       </div>
     </>
   );
