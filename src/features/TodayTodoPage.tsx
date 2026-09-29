@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { CalendarDays, Check, ChevronDown, ChevronRight, Clock3, Home, ListChecks, ListTodo, LoaderCircle, Trash2, X } from "lucide-react";
+import { CalendarDays, Check, ChevronRight, ClipboardList, Clock3, CopyCheck, Home, ListTodo, LoaderCircle, Trash2, X } from "lucide-react";
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "../i18n";
 import DurationWheelPicker from "../components/DurationWheelPicker";
@@ -247,7 +247,7 @@ export default function TodayTodoPage({
             const open = durationPickerField === field;
             return <div className="today-todo-duration-slot" key={field}>
               <button className="today-todo-duration-trigger" data-duration-field={field} type="button" onClick={() => openDurationPicker(field)} aria-label={locale === "zh" ? `打开${unit}滚轮` : `Open ${unit} wheel`} aria-haspopup="listbox" aria-expanded={open} aria-controls={`todo-duration-options-${field}`}>
-                <strong>{String(Number(duration[field]) || 0).padStart(2, "0")}</strong><small>{unit}</small><ChevronDown size={15} aria-hidden="true" />
+                <strong>{String(Number(duration[field]) || 0).padStart(2, "0")}</strong><small>{unit}</small>
               </button>
               {open && <DurationWheelPicker key={field} locale={locale} field={field} value={Number(duration[field]) || 0} onCancel={() => setDurationPickerField(null)} onSelect={(value) => {
                 setDuration((current) => ({ ...current, [field]: String(value) }));
@@ -264,9 +264,9 @@ export default function TodayTodoPage({
     </form>
 
     <section className="today-todo-list-section" aria-busy={loading}>
-      <header><div><span className="today-todo-plan-title"><ListTodo size={21} /><strong>{planTitle}</strong></span><button type="button" className={selectionMode ? "is-active" : ""} onClick={() => selectionMode ? closeSelection() : setSelectionMode(true)} aria-label={selectionMode ? (locale === "zh" ? "退出多选" : "Exit selection") : (locale === "zh" ? "多选安排" : "Select multiple tasks")}>{selectionMode ? <X size={20} /> : <ListChecks size={21} />}</button></div></header>
+      <header><div><span className="today-todo-plan-title"><ListTodo size={21} /><strong>{planTitle}</strong></span><button type="button" className={selectionMode ? "is-active" : ""} onClick={() => selectionMode ? closeSelection() : setSelectionMode(true)} aria-label={selectionMode ? (locale === "zh" ? "退出多选" : "Exit selection") : (locale === "zh" ? "多选安排" : "Select multiple tasks")}>{selectionMode ? <X size={20} /> : <CopyCheck size={21} />}</button></div></header>
       {loading && dayTodos.length === 0 ? <div className="today-todo-loading" role="status"><LoaderCircle className="today-todo-spinner" size={24} /><span>{locale === "zh" ? "正在读取待办" : "Loading to-dos"}</span></div>
-        : dayTodos.length === 0 ? <div className="today-todo-empty"><span><Check size={25} /></span><strong>{locale === "zh" ? "这一天还没有待办" : "Nothing here yet"}</strong><p>{locale === "zh" ? "从上面写下第一件事，让这一天有一个清晰的起点。" : "Write the first task above and give the day a clear starting point."}</p></div>
+        : dayTodos.length === 0 ? <div className="today-todo-empty"><ClipboardList size={31} strokeWidth={1.8} /><strong>{locale === "zh" ? "这一天还没有待办" : "Nothing here yet"}</strong><p>{locale === "zh" ? "写下第一件事，让今天有个清晰起点。" : "Add one task to give today a clear start."}</p></div>
           : <div className="today-todo-items">{dayTodos.map((todo) => {
             const plan = resolveTodoFocusPlan(todo);
             const selected = selectedIds.has(todo.id);

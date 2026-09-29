@@ -124,6 +124,7 @@ try {
       await expect(page.locator(".today-todo-header")).not.toContainText(/NAVA TODAY/i);
       await expect(page.locator(".today-todo-header .home-experience-back")).toBeVisible();
       await expect(page.locator(".today-todo-intro p")).toHaveCount(0);
+      await expect(page.locator(".today-todo-empty p")).toBeVisible();
       const estimateButton = page.locator(".today-todo-compose-heading button");
       await expect(estimateButton).toBeDisabled();
 
@@ -142,11 +143,34 @@ try {
       });
       assertContained(`${locale}-${viewport.name}`, geometry);
       if (geometry.scrollHeight > geometry.clientHeight + 1) throw new Error(`${locale}-${viewport.name}: empty to-do page is not one screen ${JSON.stringify(geometry)}`);
+      const emptyGeometry = await page.evaluate(() => {
+        const copy = document.querySelector(".today-todo-empty p");
+        const selection = document.querySelector(".today-todo-list-section > header button");
+        if (!copy || !selection) return null;
+        const copyRect = copy.getBoundingClientRect();
+        const copyStyle = getComputedStyle(copy);
+        return {
+          copyHeight: copyRect.height,
+          copyLineHeight: Number.parseFloat(copyStyle.lineHeight),
+          selectionBackground: getComputedStyle(selection).backgroundColor,
+        };
+      });
+      if (!emptyGeometry || emptyGeometry.copyHeight > emptyGeometry.copyLineHeight * 1.25 || emptyGeometry.selectionBackground !== "rgba(0, 0, 0, 0)") {
+        throw new Error(`${locale}-${viewport.name}: empty state copy or selection action is not compact ${JSON.stringify(emptyGeometry)}`);
+      }
 
       const title = `${locale === "zh" ? "整理明天资料" : "Prepare tomorrow's notes"} ${viewport.name}`;
       await page.locator(".today-todo-draft textarea").fill(title);
       await expect(estimateButton).toBeEnabled();
       await expect(page.locator(".today-todo-duration-trigger")).toHaveCount(3);
+      const durationGeometry = await page.locator(".today-todo-duration-trigger").evaluateAll((triggers) => triggers.map((trigger) => {
+        const number = trigger.querySelector("strong")?.getBoundingClientRect();
+        const unit = trigger.querySelector("small")?.getBoundingClientRect();
+        return { number: number?.toJSON() ?? null, unit: unit?.toJSON() ?? null, svgCount: trigger.querySelectorAll("svg").length };
+      }));
+      if (durationGeometry.some(({ number, unit, svgCount }) => !number || !unit || svgCount !== 0 || number.left >= unit.left)) {
+        throw new Error(`${locale}-${viewport.name}: duration fields did not keep number left and unit right ${JSON.stringify(durationGeometry)}`);
+      }
       await page.locator('[data-duration-field="minutes"]').click();
       await expect(page.locator('[data-duration-initial="true"]')).toHaveAttribute("aria-label", locale === "zh" ? "分钟" : "Minutes");
       await expect(page.locator(".duration-wheel-overlay")).toHaveCount(0);
@@ -172,6 +196,14 @@ try {
       await expect(row).toContainText(locale === "zh" ? "1小时 2分钟 3秒" : "1 h 2 m 3 s");
       await row.locator(".today-todo-check").click();
       await expect(row).toHaveClass(/is-completed/);
+      const populatedGeometry = await todoPage.evaluate((element) => {
+        const list = element.querySelector(".today-todo-list-section")?.getBoundingClientRect();
+        const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();
+        return { scrollHeight: element.scrollHeight, clientHeight: element.clientHeight, list: list?.toJSON() ?? null, nav: nav?.toJSON() ?? null };
+      });
+      if (populatedGeometry.scrollHeight > populatedGeometry.clientHeight + 1 || !populatedGeometry.list || !populatedGeometry.nav || populatedGeometry.list.bottom > populatedGeometry.nav.top + 1) {
+        throw new Error(`${locale}-${viewport.name}: populated to-do page must remain one screen above navigation ${JSON.stringify(populatedGeometry)}`);
+      }
       await page.screenshot({ path: path.join(outputDir, `${locale}-${viewport.name}-today-todos.png`), fullPage: true });
 
       await page.reload({ waitUntil: "networkidle" });
