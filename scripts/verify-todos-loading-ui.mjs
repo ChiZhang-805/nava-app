@@ -101,6 +101,14 @@ try {
         sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
         localStorage.setItem("nava.locale", language);
         localStorage.setItem(`nava.onboarding.v3.${demoUserId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 3, answers: {}, source: "local" }));
+        class MockSpeechRecognition {
+          continuous = false; interimResults = false; lang = ""; onresult = null; onerror = null; onend = null;
+          start() { window.setTimeout(() => this.onresult?.({ results: [{ 0: { transcript: language === "zh" ? "完成一次48分钟的有氧跑" : "run for 48 minutes" }, isFinal: true, length: 1 }], resultIndex: 0 }), 20); }
+          stop() { this.onend?.(); }
+          abort() { this.onend?.(); }
+        }
+        Object.defineProperty(window, "SpeechRecognition", { configurable: true, value: MockSpeechRecognition });
+        Object.defineProperty(window, "webkitSpeechRecognition", { configurable: true, value: MockSpeechRecognition });
       }, { userId, language: locale });
       const page = await context.newPage();
       await page.addLocatorHandler(page.locator(".completion-celebration-layer"), async () => {
@@ -124,7 +132,8 @@ try {
       await expect(page.locator(".today-todo-header")).not.toContainText(/NAVA TODAY/i);
       await expect(page.locator(".today-todo-header .home-experience-back")).toBeVisible();
       await expect(page.locator(".today-todo-intro p")).toHaveCount(0);
-      await expect(page.locator(".today-todo-empty p")).toBeVisible();
+      await expect(page.locator(".today-todo-empty p")).toHaveCount(0);
+      await expect(page.locator(".today-todo-empty")).toContainText(locale === "zh" ? "这一天还没有待办" : "Nothing here yet");
       const estimateButton = page.locator(".today-todo-compose-heading button");
       await expect(estimateButton).toBeDisabled();
 
@@ -144,20 +153,35 @@ try {
       assertContained(`${locale}-${viewport.name}`, geometry);
       if (geometry.scrollHeight > geometry.clientHeight + 1) throw new Error(`${locale}-${viewport.name}: empty to-do page is not one screen ${JSON.stringify(geometry)}`);
       const emptyGeometry = await page.evaluate(() => {
-        const copy = document.querySelector(".today-todo-empty p");
+        const empty = document.querySelector(".today-todo-empty");
+        const emptyTitle = document.querySelector(".today-todo-empty strong");
+        const emptyIcon = document.querySelector(".today-todo-empty svg");
+        const list = document.querySelector(".today-todo-list-section");
         const selection = document.querySelector(".today-todo-list-section > header button");
-        if (!copy || !selection) return null;
-        const copyRect = copy.getBoundingClientRect();
-        const copyStyle = getComputedStyle(copy);
+        if (!empty || !emptyTitle || !emptyIcon || !list || !selection) return null;
+        const emptyRect = empty.getBoundingClientRect();
+        const listRect = list.getBoundingClientRect();
+        const contentCenter = (emptyIcon.getBoundingClientRect().top + emptyTitle.getBoundingClientRect().bottom) / 2;
         return {
-          copyHeight: copyRect.height,
-          copyLineHeight: Number.parseFloat(copyStyle.lineHeight),
+          centeredDelta: Math.abs(contentCenter - (emptyRect.top + emptyRect.bottom) / 2),
+          listHeight: listRect.height,
           selectionBackground: getComputedStyle(selection).backgroundColor,
         };
       });
-      if (!emptyGeometry || emptyGeometry.copyHeight > emptyGeometry.copyLineHeight * 1.25 || emptyGeometry.selectionBackground !== "rgba(0, 0, 0, 0)") {
-        throw new Error(`${locale}-${viewport.name}: empty state copy or selection action is not compact ${JSON.stringify(emptyGeometry)}`);
+      if (!emptyGeometry || emptyGeometry.centeredDelta > 10 || emptyGeometry.selectionBackground !== "rgba(0, 0, 0, 0)") {
+        throw new Error(`${locale}-${viewport.name}: empty state is not centered or selection action is not bare ${JSON.stringify(emptyGeometry)}`);
       }
+
+      const voiceButton = page.locator(".today-todo-submit.is-voice");
+      await expect(voiceButton).toContainText(locale === "zh" ? "和小猫说说今天想做的事" : "Tell the cat what you want to do");
+      await voiceButton.click();
+      await expect(page.locator(".today-todo-draft textarea")).toHaveValue(locale === "zh" ? "完成一次48分钟的有氧跑" : "run for 48 minutes");
+      await expect(page.locator('[data-duration-field="minutes"] strong')).toHaveText("48");
+      await expect(page.locator(".today-todo-duration > small")).toContainText(locale === "zh" ? "已识别句中时长" : "Duration found in task");
+      await page.locator(".today-todo-draft textarea").fill("");
+      await page.locator('[data-duration-field="minutes"]').click();
+      await page.getByRole("listbox", { name: locale === "zh" ? "分钟" : "Minutes" }).getByRole("option", { name: "00", exact: true }).click();
+      await expect(voiceButton).toBeVisible();
 
       const title = `${locale === "zh" ? "整理明天资料" : "Prepare tomorrow's notes"} ${viewport.name}`;
       await page.locator(".today-todo-draft textarea").fill(title);

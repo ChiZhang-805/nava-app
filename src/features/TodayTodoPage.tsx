@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { CalendarDays, Check, ChevronRight, ClipboardList, Clock3, CopyCheck, Home, ListTodo, LoaderCircle, Trash2, X } from "lucide-react";
+import { CalendarDays, Check, ChevronRight, ClipboardList, Clock3, CopyCheck, Home, ListTodo, LoaderCircle, Mic, Trash2, X } from "lucide-react";
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "../i18n";
 import DurationWheelPicker from "../components/DurationWheelPicker";
@@ -7,6 +7,7 @@ import MoreMenu from "../components/MoreMenu";
 import { addTodo, deleteTodos, loadTodos, subscribeProductivity, syncTodos, toggleTodo, type TodoItem } from "../services/productivity";
 import { resolveTodoFocusPlan, suggestedFocusPlan } from "../services/focusPlanning.ts";
 import { estimateTodoDuration } from "../services/todoDurationEstimate";
+import { startVoiceInput, type VoiceInputError, type VoiceInputSession } from "../services/voice";
 
 type DurationDraft = { hours: string; minutes: string; seconds: string };
 type DurationField = keyof DurationDraft;
@@ -68,6 +69,9 @@ export default function TodayTodoPage({
   const { locale } = useLocale();
   const editor = useRef<HTMLTextAreaElement>(null);
   const previousDeviceDate = useRef(deviceDate);
+  const voiceSessionRef = useRef<VoiceInputSession | null>(null);
+  const voiceTranscriptRef = useRef("");
+  const voiceHandledRef = useRef(false);
   const [todos, setTodos] = useState<TodoItem[]>(() => loadTodos(user.id));
   const [draft, setDraft] = useState("");
   const [duration, setDuration] = useState<DurationDraft>(emptyDuration);
@@ -102,6 +106,8 @@ export default function TodayTodoPage({
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [user.id]);
+
+  useEffect(() => () => { void voiceSessionRef.current?.cancel(); }, []);
 
   const dayTodos = useMemo(() => todos
     .filter((todo) => todo.scheduledDate === selectedDate)
@@ -144,11 +150,85 @@ export default function TodayTodoPage({
     try {
       const estimate = await estimateTodoDuration(draft, locale);
       setDuration(splitDuration(estimate.seconds));
-      setEstimateNote(locale === "zh" ? `DeepSeek 预估 · ${durationLabel(estimate.seconds, locale)}` : `DeepSeek estimate · ${durationLabel(estimate.seconds, locale)}`);
+      const source = estimate.provider === "deepseek"
+        ? (locale === "zh" ? "DeepSeek 预估" : "DeepSeek estimate")
+        : estimate.provider === "explicit"
+          ? (locale === "zh" ? "已识别句中时长" : "Duration found in task")
+          : (locale === "zh" ? "智能兜底估算" : "Smart fallback estimate");
+      setEstimateNote(`${source} · ${durationLabel(estimate.seconds, locale)}`);
     } catch (estimateError) {
       setError(estimateError instanceof Error ? estimateError.message : String(estimateError));
     } finally {
       setBusy(null);
+    }
+  }
+
+  function voiceErrorText(voiceError: VoiceInputError) {
+    if (voiceError.code === "permission_denied") return locale === "zh" ? "请允许麦克风与语音识别权限。" : "Allow microphone and speech recognition access.";
+    if (voiceError.code === "audio_unavailable") return locale === "zh" ? "没有检测到可用麦克风。" : "No microphone is available.";
+    if (voiceError.code === "voice_unavailable") return locale === "zh" ? "当前浏览器不支持语音输入。" : "Voice input is unavailable in this browser.";
+    return locale === "zh" ? "没有听清，请再说一次。" : "I couldn't hear that. Please try again.";
+  }
+
+  async function applyVoiceTranscript(transcript: string) {
+    const task = transcript.trim();
+    if (!task || voiceHandledRef.current) return;
+    voiceHandledRef.current = true;
+    setDraft(task);
+    setBusy("estimate");
+    setError(null);
+    setEstimateNote(null);
+    try {
+      const estimate = await estimateTodoDuration(task, locale);
+      setDuration(splitDuration(estimate.seconds));
+      const source = estimate.provider === "deepseek"
+        ? (locale === "zh" ? "DeepSeek 预估" : "DeepSeek estimate")
+        : estimate.provider === "explicit"
+          ? (locale === "zh" ? "已识别句中时长" : "Duration found in task")
+          : (locale === "zh" ? "智能兜底估算" : "Smart fallback estimate");
+      setEstimateNote(`${source} · ${durationLabel(estimate.seconds, locale)}`);
+    } catch (voiceError) {
+      setError(voiceError instanceof Error ? voiceError.message : String(voiceError));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function beginVoiceDraft() {
+    if (busy) return;
+    setError(null);
+    setEstimateNote(null);
+    setBusy("voice");
+    voiceTranscriptRef.current = "";
+    voiceHandledRef.current = false;
+    try {
+      const session = await startVoiceInput({
+        locale,
+        onTranscript: (transcript, final) => {
+          voiceTranscriptRef.current = transcript.trim();
+          setDraft(voiceTranscriptRef.current);
+          if (final) {
+            void voiceSessionRef.current?.stop();
+            void applyVoiceTranscript(voiceTranscriptRef.current);
+          }
+        },
+        onEnd: () => {
+          voiceSessionRef.current = null;
+          if (!voiceHandledRef.current && voiceTranscriptRef.current) void applyVoiceTranscript(voiceTranscriptRef.current);
+          else if (!voiceHandledRef.current) {
+            setBusy(null);
+            setError(locale === "zh" ? "没有听清，请再说一次。" : "I couldn't hear that. Please try again.");
+          }
+        },
+        onError: (voiceError) => {
+          setBusy(null);
+          setError(voiceErrorText(voiceError));
+        },
+      });
+      voiceSessionRef.current = session;
+    } catch (voiceError) {
+      setBusy(null);
+      setError(voiceErrorText(voiceError as VoiceInputError));
     }
   }
 
@@ -259,14 +339,16 @@ export default function TodayTodoPage({
         </div>
         {estimateNote && <small aria-live="polite">{estimateNote}</small>}
       </div>
-      <button className="today-todo-submit" type="submit" disabled={!draft.trim() || busy != null}>{busy === "add" ? (locale === "zh" ? "正在写入…" : "Adding…") : (locale === "zh" ? "写进今日待办" : "Add to today")}</button>
+      {!draft.trim() && durationSeconds(duration) === 0 || busy === "voice"
+        ? <button className="today-todo-submit is-voice" type="button" onClick={() => void beginVoiceDraft()} disabled={busy != null && busy !== "voice"}><Mic size={19} />{busy === "voice" ? (locale === "zh" ? "正在聆听…" : "Listening…") : (locale === "zh" ? "和小猫说说今天想做的事" : "Tell the cat what you want to do")}</button>
+        : <button className="today-todo-submit" type="submit" disabled={!draft.trim() || busy != null}>{busy === "add" ? (locale === "zh" ? "正在写入…" : "Adding…") : (locale === "zh" ? "写进今日待办" : "Add to today")}</button>}
       {error && <p className="today-todo-error" role="alert">{error}</p>}
     </form>
 
     <section className="today-todo-list-section" aria-busy={loading}>
       <header><div><span className="today-todo-plan-title"><ListTodo size={21} /><strong>{planTitle}</strong></span><button type="button" className={selectionMode ? "is-active" : ""} onClick={() => selectionMode ? closeSelection() : setSelectionMode(true)} aria-label={selectionMode ? (locale === "zh" ? "退出多选" : "Exit selection") : (locale === "zh" ? "多选安排" : "Select multiple tasks")}>{selectionMode ? <X size={20} /> : <CopyCheck size={21} />}</button></div></header>
       {loading && dayTodos.length === 0 ? <div className="today-todo-loading" role="status"><LoaderCircle className="today-todo-spinner" size={24} /><span>{locale === "zh" ? "正在读取待办" : "Loading to-dos"}</span></div>
-        : dayTodos.length === 0 ? <div className="today-todo-empty"><ClipboardList size={31} strokeWidth={1.8} /><strong>{locale === "zh" ? "这一天还没有待办" : "Nothing here yet"}</strong><p>{locale === "zh" ? "写下第一件事，让今天有个清晰起点。" : "Add one task to give today a clear start."}</p></div>
+        : dayTodos.length === 0 ? <div className="today-todo-empty"><ClipboardList size={31} strokeWidth={1.8} /><strong>{locale === "zh" ? "这一天还没有待办" : "Nothing here yet"}</strong></div>
           : <div className="today-todo-items">{dayTodos.map((todo) => {
             const plan = resolveTodoFocusPlan(todo);
             const selected = selectedIds.has(todo.id);

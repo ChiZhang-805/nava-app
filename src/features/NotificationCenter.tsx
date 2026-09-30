@@ -1,9 +1,9 @@
 import {
-  ArrowLeft,
   BellRing,
   ChartNoAxesCombined,
   Check,
   Footprints,
+  Home,
   Inbox,
   ListPlus,
   Mail,
@@ -320,7 +320,7 @@ export default function NotificationCenter({
   return (
     <section className="home-experience notification-center" data-notification-center>
       <header className={`home-experience-header notification-center-header${selectionMode ? " is-selecting" : ""}`}>
-        <button type="button" onClick={selectionMode ? leaveSelection : onBack} aria-label={selectionMode ? (locale === "zh" ? "退出多选" : "Exit selection") : (locale === "zh" ? "返回首页" : "Back home")}>{selectionMode ? <X size={21} /> : <ArrowLeft size={21} />}</button>
+        <button type="button" onClick={selectionMode ? leaveSelection : onBack} aria-label={selectionMode ? (locale === "zh" ? "退出多选" : "Exit selection") : (locale === "zh" ? "返回首页" : "Back home")}>{selectionMode ? <X size={21} /> : <Home size={21} />}</button>
         <div className="notification-center-title"><h1>{selectionMode ? (locale === "zh" ? `已选择 ${selectedIds.size} 项` : `${selectedIds.size} selected`) : (locale === "zh" ? "通知中心" : "Notifications")}</h1></div>
         {selectionMode ? (
           <div className="notification-selection-actions">
@@ -365,7 +365,7 @@ export default function NotificationCenter({
             onLongPress={() => enterSelection(item.id)}
           />
         ))}
-        {shownItems.length === 0 && <div className="notification-empty-state"><span><Inbox size={30} /></span><strong>{filter === "unread" ? (locale === "zh" ? "没有未读通知" : "No unread notifications") : (locale === "zh" ? "通知箱很安静" : "Your inbox is quiet")}</strong><p>{locale === "zh" ? "NAVA 会根据真实记录和已授权的提醒设置，把重要事项放在这里。" : "NAVA places reminders here based on real records and your permissions."}</p></div>}
+        {shownItems.length === 0 && <div className="notification-empty-state"><span><Inbox size={34} /></span><strong>{filter === "unread" ? (locale === "zh" ? "没有未读通知" : "No unread notifications") : (locale === "zh" ? "通知箱很安静" : "Your inbox is quiet")}</strong></div>}
       </div>
 
       {detailItem && <div className="notification-detail-layer" role="presentation" onClick={() => setDetailId(null)}>

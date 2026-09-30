@@ -41,6 +41,9 @@ try {
       Object.defineProperty(navigator, "vibrate", { configurable: true, value: () => true });
     });
     const page = await context.newPage();
+    await page.addLocatorHandler(page.locator(".completion-celebration-layer"), async () => {
+      await page.frameLocator(".completion-celebration-layer iframe").getByRole("button", { name: /Continue|继续/ }).click();
+    });
     // A four-week February followed by five- and six-week months; test clock only.
     await page.clock.setFixedTime(new Date("2027-02-15T12:00:00+08:00"));
     const errors = [];
@@ -65,7 +68,10 @@ try {
     const annual = page.locator(".home-year-card");
     await expect(annual).toBeVisible();
     const currentYear = Number(await annual.getAttribute("data-year"));
-    const yearDays = (year) => (Date.UTC(year + 1, 0, 1) - Date.UTC(year, 0, 1)) / 86400000;
+    const quarterDays = (year, quarter) => {
+      const startMonth = (quarter - 1) * 3;
+      return (Date.UTC(year, startMonth + 3, 1) - Date.UTC(year, startMonth, 1)) / 86400000;
+    };
     const more = page.getByRole("button", { name: "更多月历操作" });
     const originalMonth = await page.locator(".home-calendar-month-switcher h2").textContent();
     await expect(more.locator("svg.lucide-ellipsis")).toHaveCount(1);
@@ -84,10 +90,12 @@ try {
     await more.click();
     await page.locator(".home-experience-header h1").click();
     await expect(more).toHaveAttribute("aria-expanded", "false");
-    await expect(page.locator(".home-year-months > span")).toHaveCount(12);
+    await expect(page.locator(".home-year-header strong")).toContainText("季度打卡");
+    await expect(page.locator(".home-year-months > span")).toHaveCount(3);
     await expect(page.locator(".home-year-weekdays > span")).toHaveCount(7);
-    await expect(page.locator(`.home-year-day[data-date^="${currentYear}-"]`)).toHaveCount(yearDays(currentYear));
-    await expect(annual).toHaveAttribute("data-week-count", /^(53|54)$/);
+    await expect(annual).toHaveAttribute("data-quarter", "1");
+    await expect(page.locator(`.home-year-day[data-date^="${currentYear}-"]`)).toHaveCount(quarterDays(currentYear, 1));
+    await expect(annual).toHaveAttribute("data-week-count", /^(13|14)$/);
 
     const geometry = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame");
@@ -130,11 +138,11 @@ try {
     if (geometry.documentOverflow > 1 || geometry.frameOverflow > 1 || geometry.screenOverflow > 1) throw new Error(`${viewport.name}: annual calendar overflows horizontally ${JSON.stringify(geometry)}`);
     if (!geometry.card || !geometry.heatmap || !geometry.dock || geometry.card.left < -1 || geometry.card.right > viewport.width + 1) throw new Error(`${viewport.name}: annual card escaped the phone ${JSON.stringify(geometry)}`);
     if (geometry.card.bottom > geometry.dock.top - 5) throw new Error(`${viewport.name}: annual card is hidden behind the bottom navigation ${JSON.stringify(geometry)}`);
-    if (geometry.cellRects.some((cell) => !cell || cell.width < 3.5 || Math.abs(cell.width - cell.height) > 1)) throw new Error(`${viewport.name}: annual cells are not readable squares ${JSON.stringify(geometry.cellRects)}`);
+    if (geometry.cellRects.some((cell) => !cell || cell.width < 11 || Math.abs(cell.width - cell.height) > 1)) throw new Error(`${viewport.name}: quarter cells are not readable squares ${JSON.stringify(geometry.cellRects)}`);
     if (geometry.monthRects.some((month) => !month || month.left < geometry.heatmap.left - 1 || month.right > geometry.heatmap.right + 22)) throw new Error(`${viewport.name}: month labels escaped the annual grid ${JSON.stringify(geometry.monthRects)}`);
     if (geometry.weekdayRects.some((weekday) => !weekday || weekday.top < geometry.heatmap.top - 1 || weekday.bottom > geometry.heatmap.bottom + 1)) throw new Error(`${viewport.name}: weekday labels do not align with all seven rows ${JSON.stringify(geometry.weekdayRects)}`);
 
-    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-calendar-year.png`) });
+    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-calendar-quarter.png`) });
     // Run destructive DOM-only fixtures after the real UI interactions/screenshots.
     // Never create or persist user records.
     const checkSummaryBoundaries = async () => {
@@ -157,11 +165,13 @@ try {
       }
       await page.evaluate(() => { document.documentElement.lang = "zh-CN"; });
     };
-    await page.getByRole("button", { name: "上一年" }).click();
+    await page.getByRole("button", { name: "上一季度" }).click();
     await expect(annual).toHaveAttribute("data-year", String(currentYear - 1));
-    await expect(page.locator(`.home-year-day[data-date^="${currentYear - 1}-"]`)).toHaveCount(yearDays(currentYear - 1));
-    await page.getByRole("button", { name: "下一年" }).click();
+    await expect(annual).toHaveAttribute("data-quarter", "4");
+    await expect(page.locator(`.home-year-day[data-date^="${currentYear - 1}-"]`)).toHaveCount(quarterDays(currentYear - 1, 4));
+    await page.getByRole("button", { name: "下一季度" }).click();
     await expect(annual).toHaveAttribute("data-year", String(currentYear));
+    await expect(annual).toHaveAttribute("data-quarter", "1");
     const monthLayouts = [];
     for (const fixture of [
       { month: "2027-02", title: "2027 年 2 月", rows: 4, next: 0 },
@@ -211,7 +221,7 @@ try {
     await context.close();
   }
   await writeFile(path.join(outputDir, "report.json"), JSON.stringify(report, null, 2));
-  console.log(`Calendar annual heatmap visual verification passed at ${viewports.length} phone viewports.`);
+  console.log(`Calendar quarter heatmap visual verification passed at ${viewports.length} phone viewports.`);
 } finally {
   await browser.close();
   await server.close();

@@ -384,7 +384,7 @@ async function capture(page, viewport, name, selector, report) {
   }
   if (name === "00h-profile-details") {
     const profilePresentation = await page.locator(".advanced-profile-section").nth(1).evaluate((section) => ({
-      selectedOptions: [...section.querySelectorAll("select")].map((select) => select.selectedOptions[0]?.textContent?.trim() ?? ""),
+      selectedOptions: [...section.querySelectorAll(".advanced-profile-wheel > button")].map((button) => button.textContent?.trim() ?? ""),
       selectedDiet: [...section.querySelectorAll(".advanced-profile-diet-chips .is-selected")].map((button) => button.textContent?.trim() ?? ""),
     }));
     const rawCodes = new Set(["under_5h", "5_6h", "6_7h", "7_8h", "8_9h", "over_9h", "almost_none", "under_1h", "1_2h", "2_4h", "4_7h", "over_7h", "none"]);

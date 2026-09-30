@@ -1,7 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import {
   Activity,
-  ArrowLeft,
   Brain,
   CalendarCheck2,
   CalendarDays,
@@ -10,6 +9,7 @@ import {
   CircleGauge,
   Dumbbell,
   Frown,
+  Home,
   MoonStar,
   ScanFace,
   Target,
@@ -84,6 +84,7 @@ function CalendarScreen({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [displayYear, setDisplayYear] = useState(Number(deviceDate.slice(0, 4)));
+  const [displayQuarter, setDisplayQuarter] = useState(Math.floor((Number(deviceDate.slice(5, 7)) - 1) / 3) + 1);
   const [yearCoverage, setYearCoverage] = useState<RecordCoverage>({});
   const [yearLoading, setYearLoading] = useState(true);
   const [yearError, setYearError] = useState<string | null>(null);
@@ -93,6 +94,13 @@ function CalendarScreen({
   const rhythms = useMemo(() => trends ? rhythmScoresByDate(trends) : {}, [trends]);
   const weekdays = locale === "zh" ? ["一", "二", "三", "四", "五", "六", "日"] : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const yearHeatmap = useMemo(() => buildYearHeatmap(displayYear), [displayYear]);
+  const quarterStartMonth = (displayQuarter - 1) * 3 + 1;
+  const quarterMonths = [quarterStartMonth, quarterStartMonth + 1, quarterStartMonth + 2];
+  const quarterWeeks = useMemo(() => yearHeatmap.weeks.filter((week) => week.some((cell) => {
+    if (!cell.inYear) return false;
+    const month = Number(cell.date.slice(5, 7));
+    return month >= quarterStartMonth && month <= quarterStartMonth + 2;
+  })), [quarterStartMonth, yearHeatmap.weeks]);
 
   useEffect(() => {
     let active = true;
@@ -115,25 +123,36 @@ function CalendarScreen({
     let active = true;
     setYearLoading(true);
     setYearError(null);
-    getRecordCoverageRange(user.id, `${displayYear}-01-01`, `${displayYear}-12-31`)
+    const start = `${displayYear}-${String(quarterStartMonth).padStart(2, "0")}-01`;
+    const endMonth = quarterStartMonth + 2;
+    const endDay = new Date(displayYear, endMonth, 0).getDate();
+    const end = `${displayYear}-${String(endMonth).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`;
+    getRecordCoverageRange(user.id, start, end)
       .then((result) => { if (active) setYearCoverage(result); })
       .catch((reason) => {
         if (active) setYearError(reason instanceof Error ? reason.message : String(reason));
       })
       .finally(() => { if (active) setYearLoading(false); });
     return () => { active = false; };
-  }, [displayYear, user.id]);
+  }, [displayQuarter, displayYear, quarterStartMonth, user.id]);
 
   const monthDates = Object.keys(coverage).filter((date) => date.startsWith(`${displayMonth}-`) && coverage[date].length > 0);
   const monthScores = Object.entries(rhythms).filter(([date]) => date.startsWith(`${displayMonth}-`)).map(([, score]) => score);
   const averageRhythm = monthScores.length > 0 ? Math.round(monthScores.reduce((sum, score) => sum + score, 0) / monthScores.length) : null;
-  const yearRecordedDays = Object.values(yearCoverage).filter((domains) => domains.length > 0).length;
+  const quarterRecordedDays = Object.values(yearCoverage).filter((domains) => domains.length > 0).length;
   const currentYear = Number(deviceDate.slice(0, 4));
+  const currentQuarter = Math.floor((Number(deviceDate.slice(5, 7)) - 1) / 3) + 1;
+  const shiftQuarter = (offset: number) => {
+    const absolute = displayYear * 4 + displayQuarter - 1 + offset;
+    setDisplayYear(Math.floor(absolute / 4));
+    setDisplayQuarter(absolute % 4 + 1);
+  };
+  const atCurrentQuarter = displayYear > currentYear || (displayYear === currentYear && displayQuarter >= currentQuarter);
 
   return (
     <section className="home-experience home-calendar-screen" data-home-view="calendar">
       <header className="home-experience-header">
-        <button className="home-experience-back" type="button" onClick={onBack} aria-label={locale === "zh" ? "返回首页" : "Back home"}><ArrowLeft size={22} /></button>
+        <button className="home-experience-back" type="button" onClick={onBack} aria-label={locale === "zh" ? "返回首页" : "Back home"}><Home size={22} /></button>
         <div><h1>{locale === "zh" ? "我的月历" : "My calendar"}</h1></div>
         <MoreMenu open={menuOpen} onOpenChange={setMenuOpen} label={locale === "zh" ? "更多月历操作" : "More calendar actions"} buttonClassName="home-calendar-more">
             <button className="home-calendar-today" type="button" role="menuitem" onClick={() => {
@@ -181,28 +200,33 @@ function CalendarScreen({
         <footer className="home-calendar-legend"><span><i />{locale === "zh" ? "已有记录" : "Recorded"}</span><span>{locale === "zh" ? "点击日期查看当日综合报告" : "Tap a date for its daily report"}</span></footer>
       </section>
 
-      <section className="home-year-card" aria-label={locale === "zh" ? `${displayYear} 年年度打卡` : `${displayYear} annual check-ins`} data-year={displayYear} data-week-count={yearHeatmap.weeks.length}>
+      <section className="home-year-card" aria-label={locale === "zh" ? `${displayYear} 年第 ${displayQuarter} 季度打卡` : `${displayYear} Q${displayQuarter} check-ins`} data-year={displayYear} data-quarter={displayQuarter} data-week-count={quarterWeeks.length}>
         <header className="home-year-header">
-          <div><strong><CalendarCheck2 size={18} aria-hidden="true" />{locale === "zh" ? "年度打卡" : "Year in review"}</strong><small>{yearLoading ? (locale === "zh" ? "读取中" : "Loading") : `${yearRecordedDays}${locale === "zh" ? " 天有记录" : " recorded days"}`}</small></div>
-          <nav aria-label={locale === "zh" ? "切换年份" : "Change year"}>
-            <button type="button" onClick={() => setDisplayYear((year) => year - 1)} aria-label={locale === "zh" ? "上一年" : "Previous year"}><ChevronLeft size={15} /></button>
-            <b>{displayYear}</b>
-            <button type="button" disabled={displayYear >= currentYear} onClick={() => setDisplayYear((year) => Math.min(currentYear, year + 1))} aria-label={locale === "zh" ? "下一年" : "Next year"}><ChevronRight size={15} /></button>
+          <div><strong><CalendarCheck2 size={18} aria-hidden="true" />{locale === "zh" ? "季度打卡" : "Quarter check-ins"}</strong><small>{yearLoading ? (locale === "zh" ? "读取中" : "Loading") : `${quarterRecordedDays}${locale === "zh" ? " 天有记录" : " recorded days"}`}</small></div>
+          <nav aria-label={locale === "zh" ? "切换季度" : "Change quarter"}>
+            <button type="button" onClick={() => shiftQuarter(-1)} aria-label={locale === "zh" ? "上一季度" : "Previous quarter"}><ChevronLeft size={15} /></button>
+            <b>{displayYear} Q{displayQuarter}</b>
+            <button type="button" disabled={atCurrentQuarter} onClick={() => shiftQuarter(1)} aria-label={locale === "zh" ? "下一季度" : "Next quarter"}><ChevronRight size={15} /></button>
           </nav>
         </header>
         {yearError
           ? <p className="home-year-error" role="alert">{yearError}</p>
-          : <div className={yearLoading ? "home-year-heatmap is-loading" : "home-year-heatmap"} style={{ "--year-week-count": yearHeatmap.weeks.length } as CSSProperties}>
+          : <div className={yearLoading ? "home-year-heatmap is-loading" : "home-year-heatmap"} style={{ "--year-week-count": quarterWeeks.length } as CSSProperties}>
               <div className="home-year-months" aria-hidden="true">
-                {yearHeatmap.monthLabels.map(({ month, weekIndex }) => <span key={month} style={{ gridColumn: `${weekIndex + 1} / span 4` }}>{locale === "zh" ? `${month}月` : new Date(2024, month - 1, 1).toLocaleDateString("en-US", { month: "short" })}</span>)}
+                {quarterMonths.map((month) => {
+                  const weekIndex = Math.max(0, quarterWeeks.findIndex((week) => week.some((cell) => cell.inYear && Number(cell.date.slice(5, 7)) === month)));
+                  return <span key={month} style={{ gridColumn: `${weekIndex + 1} / span 4` }}>{locale === "zh" ? `${month}月` : new Date(2024, month - 1, 1).toLocaleDateString("en-US", { month: "short" })}</span>;
+                })}
               </div>
               <div className="home-year-weekdays" aria-hidden="true">{weekdays.map((weekday) => <span key={weekday}>{weekday}</span>)}</div>
-              <div className="home-year-weeks" role="img" aria-label={locale === "zh" ? `${displayYear} 年共 ${yearRecordedDays} 天有记录` : `${yearRecordedDays} recorded days in ${displayYear}`}>
-                {yearHeatmap.weeks.map((week, weekIndex) => <div className="home-year-week" key={weekIndex}>
+              <div className="home-year-weeks" role="img" aria-label={locale === "zh" ? `${displayYear} 年第 ${displayQuarter} 季度共 ${quarterRecordedDays} 天有记录` : `${quarterRecordedDays} recorded days in ${displayYear} Q${displayQuarter}`}>
+                {quarterWeeks.map((week, weekIndex) => <div className="home-year-week" key={weekIndex}>
                   {week.map((cell) => {
-                    const count = cell.inYear ? (yearCoverage[cell.date]?.length ?? 0) : 0;
+                    const month = Number(cell.date.slice(5, 7));
+                    const inQuarter = cell.inYear && month >= quarterStartMonth && month <= quarterStartMonth + 2;
+                    const count = inQuarter ? (yearCoverage[cell.date]?.length ?? 0) : 0;
                     const level = count === 0 ? 0 : count === 1 ? 1 : count <= 3 ? 2 : count <= 5 ? 3 : 4;
-                    return <span className={cell.inYear ? "home-year-day" : "home-year-day is-outside"} data-date={cell.inYear ? cell.date : undefined} data-level={level} title={cell.inYear ? `${cell.date} · ${count}${locale === "zh" ? " 项记录" : " records"}` : undefined} aria-hidden="true" key={cell.date} />;
+                    return <span className={inQuarter ? "home-year-day" : "home-year-day is-outside"} data-date={inQuarter ? cell.date : undefined} data-level={level} title={inQuarter ? `${cell.date} · ${count}${locale === "zh" ? " 项记录" : " records"}` : undefined} aria-hidden="true" key={cell.date} />;
                   })}
                 </div>)}
               </div>
@@ -240,7 +264,7 @@ function DailyReportScreen({ user, date, onBack }: { user: User; date: string; o
   return (
     <section className="home-experience home-daily-report" data-home-view="daily" data-report-date={date}>
       <header className="home-experience-header">
-        <button className="home-experience-back" type="button" onClick={onBack} aria-label={locale === "zh" ? "返回月历" : "Back to calendar"}><ArrowLeft size={22} /></button>
+        <button className="home-experience-back" type="button" onClick={onBack} aria-label={locale === "zh" ? "返回月历" : "Back to calendar"}><ChevronLeft size={22} /></button>
         <div><h1>{locale === "zh" ? "当日综合报告" : "Daily health report"}</h1></div>
         <span className="home-report-date-icon"><CalendarDays size={21} /></span>
       </header>

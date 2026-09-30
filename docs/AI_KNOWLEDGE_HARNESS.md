@@ -142,6 +142,19 @@ daily `NAVA 当日洞察` value is intentionally not labeled AI: it is a persist
 `rhythm-score` action or a deterministic local fallback, not model-generated
 prose.
 
+Today's to-do duration estimation is another bounded auxiliary path. The client
+first extracts an explicit duration from the user's task text (for example,
+`48分钟` or `1小时20分`) so a clear user instruction is never discarded by a
+model-format failure. Tasks without an explicit duration call the authenticated
+`ai-chat-reply` boundary with the task as untrusted JSON data and require one
+bounded `DURATION_SECONDS` value. The prompt asks DeepSeek for task-specific
+minutes rather than mechanically rounding every result to five or ten minutes.
+The parser accepts the named token when the provider wraps it in Markdown or a
+small JSON object, but rejects decimals, zero and out-of-range values. If the
+authenticated model boundary is unavailable, the UI labels and uses a stable,
+bounded local fallback; it does not present that fallback as a DeepSeek result.
+No health history or hidden reasoning is attached to this estimate.
+
 AI conversation titles reuse the authenticated `ai-chat-reply` boundary only
 after the user's AI-personalization consent is true. The title request contains
 at most the latest 12 messages and 2,800 characters, marks the transcript as

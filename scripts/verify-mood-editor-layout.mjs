@@ -237,11 +237,49 @@ async function main() {
     hasTouch: true,
     userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Version/17.5 Mobile/15E148 Safari/604.1",
   });
+  await context.addInitScript(() => {
+    localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 3, answers: {}, source: "local" }));
+  });
   const page = await context.newPage();
+  await page.addLocatorHandler(page.locator(".completion-celebration-layer"), async () => {
+    await page.frameLocator(".completion-celebration-layer iframe").getByRole("button", { name: /Continue|继续/ }).click();
+  });
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
   page.on("pageerror", (error) => errors.push(error.message));
   try {
     await signIn(page, baseUrl);
+    if (process.argv.includes('--profile-only')) {
+      const profileResults = [];
+      for (const viewport of viewports) {
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        await page.goto(`${baseUrl}?demo=1#tab=today&view=profile-details`, { waitUntil: "domcontentloaded" });
+        const profile = page.locator('[data-home-view="profile-details"]');
+        await expect(profile).toBeVisible();
+        await expect(profile.locator('.advanced-profile-completeness')).toHaveCount(0);
+        await expect(profile.locator('.advanced-profile-wheel')).toHaveCount(4);
+        await expect(profile.locator('select')).toHaveCount(0);
+        await expect(profile.locator('.home-experience-back svg')).toHaveClass(/lucide-house/);
+        const identityTypography = await profile.locator('.advanced-profile-identity > div:nth-child(2)').evaluate((node) => ({
+          title: Number.parseFloat(getComputedStyle(node.querySelector('strong')).fontSize),
+          account: Number.parseFloat(getComputedStyle(node.querySelector('small')).fontSize),
+        }));
+        if (identityTypography.title < 16 || identityTypography.account < 10) throw new Error(`profile/${viewport.name}: identity typography is too small ${JSON.stringify(identityTypography)}`);
+        const firstWheel = profile.locator('.advanced-profile-wheel').first();
+        await firstWheel.locator(':scope > button').click();
+        const wheelList = firstWheel.locator('.advanced-profile-wheel-list');
+        await expect(wheelList).toBeVisible();
+        const wheelGeometry = await wheelList.evaluate((node) => ({ height: node.getBoundingClientRect().height, overflow: node.scrollHeight - node.clientHeight, right: node.getBoundingClientRect().right, viewportWidth: window.innerWidth }));
+        if (wheelGeometry.height < 160 || wheelGeometry.height > 184 || wheelGeometry.overflow <= 0 || wheelGeometry.right > wheelGeometry.viewportWidth + 1) throw new Error(`profile/${viewport.name}: wheel geometry is invalid ${JSON.stringify(wheelGeometry)}`);
+        await firstWheel.getByRole('option').nth(2).click();
+        const overflow = await profile.evaluate((node) => node.scrollWidth - node.clientWidth);
+        if (overflow > 1) throw new Error(`profile/${viewport.name}: profile overflows horizontally by ${overflow}px`);
+        await page.screenshot({ path: path.join(outputDir, `profile-wheel-${viewport.name}.png`) });
+        profileResults.push({ viewport: viewport.name, identityTypography, wheelGeometry });
+      }
+      await writeFile(path.join(outputDir, 'profile-report.json'), JSON.stringify(profileResults, null, 2));
+      console.log(`Advanced profile visual verification passed at ${viewports.length} phone viewports.`);
+      return;
+    }
     if (process.argv.includes('--keyboard-only')) {
       await page.setViewportSize({ width:390,height:480 });
       await page.goto(`${baseUrl}?demo=1#tab=record&module=mood&view=journal`, { waitUntil:'networkidle' });
@@ -592,6 +630,17 @@ async function main() {
       const profile = page.locator('[data-home-view="profile-details"]');
       await expect(profile).toBeVisible();
       await expect(profile.locator('[data-profile-details-avatar]')).toBeVisible();
+      await expect(profile.locator('.advanced-profile-completeness')).toHaveCount(0);
+      await expect(profile.locator('.advanced-profile-wheel')).toHaveCount(4);
+      await expect(profile.locator('select')).toHaveCount(0);
+      await expect(profile.locator('.home-experience-back svg')).toHaveClass(/lucide-house/);
+      const firstWheel = profile.locator('.advanced-profile-wheel').first();
+      await firstWheel.locator(':scope > button').click();
+      const wheelList = firstWheel.locator('.advanced-profile-wheel-list');
+      await expect(wheelList).toBeVisible();
+      const wheelGeometry = await wheelList.evaluate((node) => ({ height: node.getBoundingClientRect().height, overflow: node.scrollHeight - node.clientHeight }));
+      if (wheelGeometry.height < 160 || wheelGeometry.height > 184 || wheelGeometry.overflow <= 0) throw new Error(`profile/${viewport.name}: wheel does not keep a fixed visible row count ${JSON.stringify(wheelGeometry)}`);
+      await firstWheel.getByRole('option').nth(2).click();
       await expect(profile.locator('.advanced-profile-header-icon')).toHaveAttribute('aria-label', /更多资料操作|More profile actions/);
       await expect(page.locator('.bottom-nav')).toHaveCount(0);
       const geometry = await profile.evaluate((node) => {

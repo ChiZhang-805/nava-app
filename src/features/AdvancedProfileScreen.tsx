@@ -3,20 +3,18 @@ import PhotoInput from "../components/PhotoInput";
 import AvatarPicker from "../components/AvatarPicker";
 import MoreMenu from "../components/MoreMenu";
 import {
-  ArrowLeft,
   Brain,
   BriefcaseBusiness,
   Camera,
   Check,
   HeartPulse,
+  Home,
   Loader2,
-  MoonStar,
   Save,
   ShieldCheck,
-  Target,
   Utensils,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useLocale } from "../i18n";
 import PageSkeleton from "../components/PageSkeleton";
 import { loadProfile, saveProfile, saveProfileAvatar, type UserProfile } from "../services/profile";
@@ -48,6 +46,30 @@ const emptyDraft: Draft = {
   healthDataConsent: false,
   aiPersonalizationConsent: false,
 };
+
+type WheelOption = { value: string; label: string };
+
+function ProfileWheelSelect({ label, value, options, onChange }: { label: string; value: string; options: WheelOption[]; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? options[0]?.label ?? "";
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: PointerEvent) => { if (!rootRef.current?.contains(event.target as Node)) setOpen(false); };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    requestAnimationFrame(() => rootRef.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({ block: "center" }));
+  }, [open]);
+  return <label><span>{label}</span><div className="advanced-profile-wheel" ref={rootRef}>
+    <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)}>{selectedLabel}</button>
+    {open && <div className="advanced-profile-wheel-list" role="listbox" aria-label={label} tabIndex={-1}>
+      {options.map((option) => <button type="button" role="option" aria-selected={option.value === value} className={option.value === value ? "is-selected" : ""} key={option.value || "empty"} onClick={() => { onChange(option.value); setOpen(false); }}>{option.label}</button>)}
+    </div>}
+  </div></label>;
+}
 
 function draftFromProfile(profile: UserProfile | null): Draft {
   if (!profile) return emptyDraft;
@@ -130,11 +152,6 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
 
   useEffect(() => setAvatarLoadFailed(false), [profile?.avatar_url]);
 
-  const completeness = useMemo(() => {
-    const values = [draft.username, draft.ageGroup, draft.occupation, draft.mbti, draft.goal, draft.sleepSchedule, draft.exerciseFrequency, draft.dietPreference, draft.stressFactors];
-    return Math.round(values.filter((value) => value.trim()).length / values.length * 100);
-  }, [draft]);
-
   const update = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     setSaved(false);
     setAvatarSaved(false);
@@ -208,7 +225,7 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
   return (
     <section className="home-experience advanced-profile-screen" data-home-view="profile-details">
       <header className="home-experience-header">
-        <button className="home-experience-back" type="button" onClick={onBack} aria-label={copy("返回首页", "Back home")}><ArrowLeft size={22} /></button>
+        <button className="home-experience-back" type="button" onClick={onBack} aria-label={copy("返回首页", "Back home")}><Home size={22} /></button>
         <div><h1>{copy("详细资料设置", "Detailed profile")}</h1></div>
         <MoreMenu open={menuOpen} onOpenChange={setMenuOpen} label={copy("更多资料操作", "More profile actions")} buttonClassName="advanced-profile-header-icon">
             <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setAvatarSheetOpen(true); }}><Camera size={17} />{copy("更换头像", "Change avatar")}</button>
@@ -223,8 +240,7 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
             <button className="advanced-profile-avatar" data-profile-details-avatar type="button" aria-label={copy("更换头像", "Change avatar")} title={copy("更换头像", "Change avatar")} onClick={() => setAvatarSheetOpen(true)} disabled={avatarSaving}>
               {avatarSaving ? <Loader2 className="spin" size={21} /> : profile?.avatar_url && !avatarLoadFailed ? <img src={profile.avatar_url} alt="" onError={() => setAvatarLoadFailed(true)} /> : <span>{(profile?.username || user.email || "N").slice(0, 1).toUpperCase()}</span>}
             </button>
-            <div><strong>{profile?.username || copy("NAVA 用户", "NAVA user")}</strong><small>{user.email || user.phone || copy("已登录账号", "Signed-in account")}</small></div>
-            <div className="advanced-profile-completeness"><b>{completeness}%</b><span>{copy("资料完整度", "Complete")}</span></div>
+            <div><strong>{profile?.username || (user.email?.endsWith("@phone.nava.app") ? user.email.slice(0, -"@phone.nava.app".length) : user.email) || user.phone || copy("NAVA 用户", "NAVA user")}</strong><small>{user.email?.endsWith("@phone.nava.app") ? user.email.slice(0, -"@phone.nava.app".length) : user.email || user.phone || copy("已登录账号", "Signed-in account")}</small></div>
           </section>
 
           <form className="advanced-profile-form" ref={formRef} onSubmit={submit}>
@@ -232,16 +248,16 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
             <header><span><BriefcaseBusiness size={20} /></span><div><strong>{copy("身份与阶段", "Identity & stage")}</strong><small>{copy("帮助 NAVA 调整表达方式与建议强度", "Shapes NAVA's tone and recommendations")}</small></div></header>
             <label><span>{copy("昵称", "Nickname")}</span><input value={draft.username} onChange={(event) => update("username", event.target.value)} placeholder={copy("你希望 NAVA 如何称呼你", "How should NAVA address you?")} /></label>
             <div className="advanced-profile-two-col">
-              <label><span>{copy("年龄阶段", "Age group")}</span><select value={draft.ageGroup} onChange={(event) => update("ageGroup", event.target.value)}><option value="">{copy("请选择", "Choose")}</option><option value="under_18">{copy("18 岁以下", "Under 18")}</option><option value="18_24">18–24</option><option value="25_34">25–34</option><option value="35_44">35–44</option><option value="45_plus">45+</option></select></label>
-              <label><span>{copy("主要身份", "Primary role")}</span><select value={draft.occupation} onChange={(event) => update("occupation", event.target.value)}><option value="">{copy("请选择", "Choose")}</option><option value="student">{copy("学生", "Student")}</option><option value="employee">{copy("职场人士", "Employee")}</option><option value="freelance">{copy("自由职业", "Freelance")}</option><option value="caregiver">{copy("居家照护", "Home carer")}</option><option value="retired">{copy("退休人士", "Retired")}</option><option value="other">{copy("其他", "Other")}</option></select></label>
+              <ProfileWheelSelect label={copy("年龄阶段", "Age group")} value={draft.ageGroup} onChange={(value) => update("ageGroup", value)} options={[{ value: "", label: copy("请选择", "Choose") }, { value: "under_18", label: copy("18 岁以下", "Under 18") }, { value: "18_24", label: "18–24" }, { value: "25_34", label: "25–34" }, { value: "35_44", label: "35–44" }, { value: "45_plus", label: "45+" }]} />
+              <ProfileWheelSelect label={copy("主要身份", "Primary role")} value={draft.occupation} onChange={(value) => update("occupation", value)} options={[{ value: "", label: copy("请选择", "Choose") }, { value: "student", label: copy("学生", "Student") }, { value: "employee", label: copy("职场人士", "Employee") }, { value: "freelance", label: copy("自由职业", "Freelance") }, { value: "caregiver", label: copy("居家照护", "Home carer") }, { value: "retired", label: copy("退休人士", "Retired") }, { value: "other", label: copy("其他", "Other") }]} />
             </div>
             <label><span>MBTI</span><input value={draft.mbti} maxLength={4} onChange={(event) => update("mbti", event.target.value.toUpperCase())} placeholder="INFJ / ENTP" /></label>
           </section>
 
           <section className="advanced-profile-section">
             <header><span><HeartPulse size={20} /></span><div><strong>{copy("节律与生活方式", "Rhythm & lifestyle")}</strong><small>{copy("这些资料会参与个性化分析", "Used for personalized analysis")}</small></div></header>
-            <label><span><MoonStar size={15} />{copy("每日睡眠时长", "Usual sleep duration")}</span><select value={draft.sleepSchedule} onChange={(event) => update("sleepSchedule", event.target.value)}><option value="">{copy("请选择", "Choose")}</option><option value="under_5h">{copy("少于 5 小时", "Under 5h")}</option><option value="5_6h">{copy("5–6 小时", "5–6h")}</option><option value="6_7h">{copy("6–7 小时", "6–7h")}</option><option value="7_8h">{copy("7–8 小时", "7–8h")}</option><option value="8_9h">{copy("8–9 小时", "8–9h")}</option><option value="over_9h">{copy("9 小时以上", "Over 9h")}</option>{draft.sleepSchedule && !["under_5h", "5_6h", "6_7h", "7_8h", "8_9h", "over_9h"].includes(draft.sleepSchedule) && <option value={draft.sleepSchedule}>{draft.sleepSchedule}</option>}</select></label>
-            <label><span><Target size={15} />{copy("每周运动", "Weekly exercise")}</span><select value={draft.exerciseFrequency} onChange={(event) => update("exerciseFrequency", event.target.value)}><option value="">{copy("请选择", "Choose")}</option><optgroup label={copy("按每周总时长", "By weekly duration")}><option value="almost_none">{copy("几乎不运动", "Almost none")}</option><option value="under_1h">{copy("少于 1 小时", "Under 1h")}</option><option value="1_2h">{copy("1–2 小时", "1–2h")}</option><option value="2_4h">{copy("2–4 小时", "2–4h")}</option><option value="4_7h">{copy("4–7 小时", "4–7h")}</option><option value="over_7h">{copy("7 小时以上", "Over 7h")}</option></optgroup><optgroup label={copy("按每周频率（旧资料）", "By weekly frequency (legacy)")}><option value="rare">{copy("很少运动", "Rarely")}</option><option value="1_2_week">{copy("每周 1–2 次", "1–2 times/week")}</option><option value="3_4_week">{copy("每周 3–4 次", "3–4 times/week")}</option><option value="5_plus_week">{copy("每周 5 次以上", "5+ times/week")}</option></optgroup></select></label>
+            <ProfileWheelSelect label={copy("每日睡眠时长", "Usual sleep duration")} value={draft.sleepSchedule} onChange={(value) => update("sleepSchedule", value)} options={[{ value: "", label: copy("请选择", "Choose") }, { value: "under_5h", label: copy("少于 5 小时", "Under 5h") }, { value: "5_6h", label: copy("5–6 小时", "5–6h") }, { value: "6_7h", label: copy("6–7 小时", "6–7h") }, { value: "7_8h", label: copy("7–8 小时", "7–8h") }, { value: "8_9h", label: copy("8–9 小时", "8–9h") }, { value: "over_9h", label: copy("9 小时以上", "Over 9h") }, ...draft.sleepSchedule && !["under_5h", "5_6h", "6_7h", "7_8h", "8_9h", "over_9h"].includes(draft.sleepSchedule) ? [{ value: draft.sleepSchedule, label: draft.sleepSchedule }] : []]} />
+            <ProfileWheelSelect label={copy("每周运动", "Weekly exercise")} value={draft.exerciseFrequency} onChange={(value) => update("exerciseFrequency", value)} options={[{ value: "", label: copy("请选择", "Choose") }, { value: "almost_none", label: copy("几乎不运动", "Almost none") }, { value: "under_1h", label: copy("少于 1 小时", "Under 1h") }, { value: "1_2h", label: copy("1–2 小时", "1–2h") }, { value: "2_4h", label: copy("2–4 小时", "2–4h") }, { value: "4_7h", label: copy("4–7 小时", "4–7h") }, { value: "over_7h", label: copy("7 小时以上", "Over 7h") }, { value: "rare", label: copy("很少运动", "Rarely") }, { value: "1_2_week", label: copy("每周 1–2 次", "1–2 times/week") }, { value: "3_4_week", label: copy("每周 3–4 次", "3–4 times/week") }, { value: "5_plus_week", label: copy("每周 5 次以上", "5+ times/week") }]} />
             <fieldset className="advanced-profile-diet-field"><legend><Utensils size={15} />{copy("饮食偏好", "Diet preferences")}</legend><div className="advanced-profile-diet-chips">{dietOptions.map((option) => <button type="button" className={selectedDietCodes.includes(option.value) ? "is-selected" : ""} key={option.value} aria-pressed={selectedDietCodes.includes(option.value)} onClick={() => toggleDietPreference(option.value)}>{option.label}</button>)}</div></fieldset>
             <label><span>{copy("补充过敏、忌口或其他习惯", "Allergies, restrictions, or other notes")}</span><textarea rows={2} value={customDietPreference} onChange={(event) => updateCustomDietPreference(event.target.value)} placeholder={copy("没有可留空", "Leave blank if none")} /></label>
           </section>

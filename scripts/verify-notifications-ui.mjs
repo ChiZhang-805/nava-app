@@ -59,6 +59,9 @@ const results = [];
 try {
   for (const viewport of viewports) {
     const context = await browser.newContext({ locale: "zh-CN", viewport, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    await context.addInitScript(() => {
+      localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 3, answers: {}, source: "local" }));
+    });
     context.setDefaultTimeout(15000);
     const page = await context.newPage();
     const errors = [];
@@ -140,6 +143,8 @@ try {
     await expect(page.locator(".notification-row-shell")).toHaveCount(5);
     await expect(page.locator(".notification-center-title")).toHaveText("通知中心");
     await expect(page.locator(".notification-center-title small")).toHaveCount(0);
+    await expect(page.locator(".notification-center-header > button svg")).toHaveClass(/lucide-house/);
+    await expect(page.locator(".notification-center-header > button")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
     await expect(page.locator(".notification-swipe-hint")).toHaveCount(0);
     const categoryIcons = await page.locator(".notification-row-icon").evaluateAll((icons) => icons.map((icon) => ({ category: icon.getAttribute("data-category"), svg: icon.innerHTML })));
     if (new Set(categoryIcons.map((item) => item.svg)).size !== categoryIcons.length) throw new Error(`${viewport.name}: category icons are not distinct ${JSON.stringify(categoryIcons)}`);
@@ -248,6 +253,21 @@ try {
     await menuButton.click();
     await page.getByRole("menuitem", { name: "全部删除" }).click();
     await expect(page.locator(".notification-empty-state")).toBeVisible();
+    await expect(page.locator(".notification-empty-state p")).toHaveCount(0);
+    await expect(page.locator(".notification-empty-state > span")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    const emptyGeometry = await page.evaluate(() => {
+      const empty = document.querySelector(".notification-empty-state")?.getBoundingClientRect();
+      const list = document.querySelector(".notification-list")?.getBoundingClientRect();
+      const icon = document.querySelector(".notification-empty-state svg")?.getBoundingClientRect();
+      const title = document.querySelector(".notification-empty-state strong")?.getBoundingClientRect();
+      return empty && list && icon && title ? {
+        emptyCenter: (icon.top + title.bottom) / 2,
+        listCenter: (list.top + list.bottom) / 2,
+        listHeight: list.height,
+      } : null;
+    });
+    if (!emptyGeometry || emptyGeometry.listHeight < 200 || Math.abs(emptyGeometry.emptyCenter - emptyGeometry.listCenter) > emptyGeometry.listHeight * .18) throw new Error(`${viewport.name}: empty inbox is not centered in the available area ${JSON.stringify(emptyGeometry)}`);
+    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-center-empty.png`) });
     await expect(page.locator(".notification-undo")).toBeVisible();
     await page.locator(".notification-undo button").click();
     await expect(page.locator(".notification-row-shell")).toHaveCount(5);
