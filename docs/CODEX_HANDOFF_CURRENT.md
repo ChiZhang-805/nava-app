@@ -31,6 +31,17 @@ Notes全部落在卡内，不再在底边露出半个标签。
 `Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v3`、`cold-start`、`card-gallery`与待办专项目录。
 本轮没有数据库迁移、Edge Function部署、生产账号写入或真实积分兑换。
 
+功能源码`d44bd492e63ba037d1037d2d95ca578806d190ad`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v207**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_0a8fe3d099ac81919ff68b691b3fd557`；
+部署`appgdep_6abd8280271081919795384fc3312ffa` succeeded。GitHub Pages镜像提交
+`78b82949058738e19b373812a072a4be6ffb2e84`，workflow `36781398486` success；212个当前生成
+文件复制前后SHA-256一致。两站公开只读验收通过：入口HTTP 200、每站6项入口/身份关键资源与各自
+本地产物一致、公开`?demo=1`仍停在真实登录页、canonical Supabase为`wxteapvwagvhhtrjrbim`，
+Pages `source.json`指向v207和上述功能提交。Sites官方工作流已完成源码校验和源推送；Windows Bash
+打包器仍不能解析`Q:`路径，因此继续使用官方`prepare-site-build.cjs`和系统`tar.exe`生成并由Sites
+原生版本接口接收的314文件制品，没有改变站点的public访问策略。
+
 ## 132. 购物车一屏商品行与固定结算条（当前版本）
 
 购物车非空状态不再让CSS Grid把商品区与结算区平分并拉满剩余高度。正文明确分成“可用剩余空间
