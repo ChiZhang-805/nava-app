@@ -43,7 +43,7 @@ function shopVisualFixture(locale: "zh" | "en"): RewardProduct {
   return {
     id: "qa-nava-journal",
     slug: "qa-nava-journal",
-    name: locale === "zh" ? "NAVA 测试手账（仅本地）" : "NAVA test journal (local only)",
+    name: locale === "zh" ? "小猫陪伴手账本" : "Cat companion journal",
     description: locale === "zh" ? "仅用于本地验证积分兑换动画，不代表线上真实商品。" : "A local-only fixture for checkout animation review.",
     pointPrice: 120,
     imageUrls: [],

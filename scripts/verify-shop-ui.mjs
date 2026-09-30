@@ -237,6 +237,20 @@ try {
     const context = await browser.newContext({ locale: "zh-CN", viewport, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
     const page = await prepare(context, "&qa=shop-checkout&qaCheckoutTiming=fast#tab=today&view=points-shop-cart");
     await expect(page.locator(".points-shop-cart-list article")).toHaveCount(1);
+    await expect(page.locator(".bottom-nav")).toBeVisible();
+    await expect(page.locator(".bottom-nav .nav-button")).toHaveCount(5);
+    const cartShellGeometry = await page.evaluate(() => {
+      const checkout = document.querySelector(".points-shop-checkout")?.getBoundingClientRect();
+      const navigation = document.querySelector(".bottom-nav")?.getBoundingClientRect();
+      return checkout && navigation ? {
+        checkout: checkout.toJSON(),
+        navigation: navigation.toJSON(),
+        gap: navigation.top - checkout.bottom,
+      } : null;
+    });
+    if (!cartShellGeometry || cartShellGeometry.gap < 0 || cartShellGeometry.gap > 28) throw new Error(`Cart checkout is not anchored immediately above the five-item navigation ${JSON.stringify(cartShellGeometry)}`);
+    await page.screenshot({ path: path.join(outputDir, `shop-cart-${viewport.width}x${viewport.height}.png`), fullPage: true });
+    report.push({ mode: "cart-with-bottom-navigation", viewport, cartShellGeometry });
     await page.getByRole("button", { name: "确认兑换", exact: true }).click();
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "select");
     await expect(page.getByRole("radio")).toHaveCount(3);
@@ -311,7 +325,7 @@ try {
         timestamp: document.querySelector(".shop-order-details time")?.getAttribute("datetime"),
         copyCount: document.querySelectorAll(".shop-checkout-copy p").length,
         cardLoaded: cardImage.complete && cardImage.naturalWidth > 0,
-        hasProduct: copy.includes("NAVA 测试手账（仅本地）"),
+        hasProduct: copy.includes("小猫陪伴手账本"),
         hasPoints: copy.includes("120 XP"),
         hasCard: copy.includes("暖光陪伴卡"),
       } : null;
@@ -363,7 +377,7 @@ try {
       const copy = document.querySelector(".shop-terminal-summary")?.textContent ?? "";
       return frame && terminal && summary && action ? {
         frame: frame.toJSON(), terminal: terminal.toJSON(), summary: summary.toJSON(), action: action.toJSON(),
-        hasProduct: copy.includes("NAVA 测试手账（仅本地）"),
+        hasProduct: copy.includes("小猫陪伴手账本"),
         hasPoints: copy.includes("XP"),
       } : null;
     });
@@ -392,7 +406,7 @@ try {
     }
     await page.screenshot({ path: path.join(outputDir, `checkout-printing-${viewport.width}x${viewport.height}.png`), fullPage: true });
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "receipt", { timeout: 5000 });
-    await expect(page.locator(".shop-receipt").getByText("NAVA 测试手账（仅本地）", { exact: true })).toBeVisible();
+    await expect(page.locator(".shop-receipt").getByText("小猫陪伴手账本", { exact: true })).toBeVisible();
     await page.waitForTimeout(800);
     const receiptGeometry = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();

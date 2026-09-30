@@ -220,6 +220,37 @@ try {
       await expect(row).toContainText(locale === "zh" ? "1小时 2分钟 3秒" : "1 h 2 m 3 s");
       await row.locator(".today-todo-check").click();
       await expect(row).toHaveClass(/is-completed/);
+      for (const extraTitle of [
+        `${locale === "zh" ? "确认明天会议资料" : "Review tomorrow's meeting notes"} ${viewport.name}`,
+        `${locale === "zh" ? "完成晚间拉伸" : "Finish evening stretches"} ${viewport.name}`,
+      ]) {
+        await page.locator(".today-todo-draft textarea").fill(extraTitle);
+        await page.locator(".today-todo-submit").click();
+        await expect(page.locator(".today-todo-items article", { hasText: extraTitle })).toBeAttached();
+      }
+      const itemHeightsBeforeSelection = await page.locator(".today-todo-items article").evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height));
+      await page.locator(".today-todo-list-section > header button").click();
+      await expect(page.locator(".today-todo-selection-actions")).toBeVisible();
+      const selectionGeometry = await page.evaluate(() => {
+        const list = document.querySelector(".today-todo-items");
+        const rows = [...document.querySelectorAll(".today-todo-items article")].map((item) => item.getBoundingClientRect().height);
+        return list ? {
+          rows,
+          overflowY: getComputedStyle(list).overflowY,
+          scrollable: list.scrollHeight > list.clientHeight,
+          scrollbarWidth: list.offsetWidth - list.clientWidth,
+        } : null;
+      });
+      if (!selectionGeometry || selectionGeometry.overflowY !== "auto" || selectionGeometry.rows.length !== 3
+        || selectionGeometry.rows.some((height, index) => height < 72 || Math.abs(height - itemHeightsBeforeSelection[index]) > 1)
+        || (viewport.height <= 812 && !selectionGeometry.scrollable)) {
+        throw new Error(`${locale}-${viewport.name}: selection mode changed row height or failed to keep an internal scroll region ${JSON.stringify({ itemHeightsBeforeSelection, selectionGeometry })}`);
+      }
+      if (locale === "zh" && viewport.name === "390x844") {
+        await page.screenshot({ path: path.join(outputDir, "zh-390x844-selection-mode.png") });
+      }
+      await page.locator(".today-todo-list-section > header button").click();
+      await expect(page.locator(".today-todo-selection-actions")).toHaveCount(0);
       const populatedGeometry = await todoPage.evaluate((element) => {
         const list = element.querySelector(".today-todo-list-section")?.getBoundingClientRect();
         const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();

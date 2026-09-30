@@ -11025,13 +11025,13 @@ body::before {
 .today-todo-plan-title { min-width: 0; display: inline-flex; align-items: center; gap: 8px; color: #23758a; }
 .today-todo-list-section > header button { width: 40px; height: 40px; border: 0; border-radius: 0; display: grid; place-items: center; padding: 0; color: #257c8d; background: transparent; }
 .today-todo-list-section > header button.is-active { color: #168b89; background: transparent; }
-.today-todo-items { min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: grid; align-content: start; gap: 8px; scrollbar-width: none; }
+.today-todo-items { min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: grid; grid-auto-rows: minmax(72px,auto); align-content: start; gap: 8px; scrollbar-width: none; }
 .today-todo-items::-webkit-scrollbar { display: none; }
-.today-todo-items article { min-width: 0; display: grid; grid-template-columns: 44px minmax(0,1fr); align-items: stretch; border: 1px solid #d9ebee; border-radius: 19px; background: rgba(250,253,254,.92); overflow: hidden; }
-.today-todo-check { width: 44px; min-height: 64px; border: 0; display: grid; place-items: center; padding: 0; color: white; background: transparent; }
+.today-todo-items article { min-width: 0; min-height: 72px; display: grid; grid-template-columns: 44px minmax(0,1fr); align-items: stretch; border: 1px solid #d9ebee; border-radius: 19px; background: rgba(250,253,254,.92); overflow: hidden; }
+.today-todo-check { width: 44px; min-height: 72px; border: 0; display: grid; place-items: center; padding: 0; color: white; background: transparent; }
 .today-todo-check::before { content: ""; grid-area: 1/1; width: 22px; height: 22px; border: 2px solid #7eb1bd; border-radius: 50%; }
 .today-todo-check > svg { z-index: 1; grid-area: 1/1; }
-.today-todo-open { min-width: 0; min-height: 64px; border: 0; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 7px; padding: 9px 12px 9px 2px; color: #3b7080; background: transparent; text-align: left; }
+.today-todo-open { min-width: 0; min-height: 72px; border: 0; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 7px; padding: 9px 12px 9px 2px; color: #3b7080; background: transparent; text-align: left; }
 .today-todo-open > span { min-width: 0; display: grid; gap: 4px; }
 .today-todo-open strong { overflow-wrap: anywhere; color: #204b5b; font-size: 15px; line-height: 1.35; }
 .today-todo-open small { color: #7b99a3; font-size: 12px; }
@@ -11071,7 +11071,7 @@ body::before {
   .today-todo-list-section > header { padding-bottom: 4px; }
   .today-todo-list-section > header button { width: 36px; height: 36px; }
   .today-todo-items { gap: 6px; }
-  .today-todo-check,.today-todo-open { min-height: 60px; }
+  .today-todo-check,.today-todo-open { min-height: 72px; }
   .today-todo-empty,.today-todo-loading { min-height: 0; padding-block: 3px; gap: 3px; }
   .today-todo-empty > svg { width: 24px; height: 24px; }
   .today-todo-empty strong { font-size: 14px; }
@@ -13232,7 +13232,7 @@ body::before {
 
 /* Points shop: airy two-column catalog; no invented prices or popularity. */
 .points-shop-screen { display: block; background: linear-gradient(160deg,#e6f6f7 0%,#f3fafc 45%,#e3f3f8 100%); }
-.points-shop-screen[data-shop-route="cart"] { display: grid; grid-template-rows: auto minmax(0,1fr); overflow-y: hidden; }
+.points-shop-screen[data-shop-route="cart"] { display: grid; grid-template-rows: auto minmax(0,1fr); padding-bottom: max(126px,calc(105px + env(safe-area-inset-bottom,0px))); overflow-y: hidden; }
 .points-shop-screen--checkout { overflow: hidden; display: block; padding: 0; background: #dff3f2; }
 .points-shop-screen--checkout > .shop-checkout-experience { height: 100%; }
 .nava-app-stage > .phone-frame--option2.has-shop-checkout .points-shop-screen--checkout { padding: 0; }
