@@ -32,6 +32,18 @@ Edge Function、目录生产数据或真实订单修改。
 测试在四档支持尺寸、中英文各创建三条事项，逐条比较进入多选前后的真实行高，并验证短屏确实形成
 内部滚动区。该规则也作为后续等高横向分页卡的内容区约束。
 
+功能源码`9c9c395cad7641f4e3143462731e9211afea38a7`已干净推送，并与前一笔购物车主体提交共同生成
+双站。ChatGPT Sites **v206**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_b8560a32efc48191a5e6ada2c7543d6b`；
+部署`appgdep_6abd66d052fc8191b16f66412832be0e` succeeded。GitHub Pages镜像提交
+`a96d517385a85c106e5b6e077ac19ace03a22515`，workflow `36768126727` success；211个当前
+生成文件复制前后SHA-256一致。两站只读公开验收通过：入口HTTP 200、每站6项入口/身份关键
+资源与本地产物逐字节一致、公开`?demo=1`仍停在真实登录页、canonical Supabase为
+`wxteapvwagvhhtrjrbim`，Pages `source.json`指向v206与上述功能提交。Sites官方工作流已完成
+源码校验和源推送；Windows Bash打包器仍不能解析`Q:`路径，因此继续使用官方
+`prepare-site-build.cjs`与系统`tar.exe`生成并由Sites原生版本接口接收的313文件制品。
+本轮没有数据库迁移、Edge Function部署、生产目录写入或真实兑换操作。
+
 ## 131. 睡眠聚光中线、月历净空与购物车空态居中（当前版本）
 
 睡眠首次记录不再把整块`.time-range-field`的外沿直接当作聚光孔。它与六模块普通字段统一读取
