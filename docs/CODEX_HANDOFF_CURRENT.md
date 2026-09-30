@@ -36,6 +36,18 @@ verify`在本轮相关前置单测、媒体反馈与相机检查通过后，仍�
 Edge Function/可能的迁移；当前站点发布授权不包含这些后端操作，且本轮没有新增文件、迁移、
 Edge部署或生产账号改写。
 
+功能源码`2eb1df776e57dec5f8390b7d8a4e69e4367ccfb2`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v200**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_146597daaf448191b830f7ebda789280`；
+部署`appgdep_6abcbbaddfd88191861bdb7afc436bcd` succeeded。GitHub Pages镜像提交
+`1363ebcfa1d637bfb2dc036bbc4a69921e51398d`，workflow `36684815651` success；212个
+当前生成文件复制前后SHA-256一致。两站只读公开验收通过：入口HTTP 200、6项入口/身份资源逐站
+与本地产物一致、公开`?demo=1`仍停在真实登录页、canonical Supabase为
+`wxteapvwagvhhtrjrbim`，Pages `source.json`指向v200及上述功能提交。官方Sites工作流在Windows
+能完成源码校验、直接Node构建和源推送，但Bash打包器仍不能解析`Q:`路径；本轮沿用官方
+`prepare-site-build.cjs`与系统`tar.exe`生成已由Sites原生版本接口接收的同一制品，没有绕过
+Sites保存/部署合同。
+
 ## 126. 首次记录标题与输入合并为真实单框聚光（当前版本）
 
 睡眠、情绪、饮食、运动、面部、专注六类首次记录引导继续复用§123的真实填写和完成门槛，
@@ -1210,21 +1222,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`2f179c121473586fbb5f56c137d17e4edd5112d9`
+- 源码发布 commit：`2eb1df776e57dec5f8390b7d8a4e69e4367ccfb2`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v199，public
+- ChatGPT Sites 版本：v200，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_cd0460341e7c8191aae4b5a4ac1a04b2`
-- Sites deployment ID：`appgdep_6abc2aa51f308191ab5b85766e6c7c6c`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_146597daaf448191b830f7ebda789280`
+- Sites deployment ID：`appgdep_6abcbbaddfd88191861bdb7afc436bcd`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `9370e7a125dab98437474cdeaf7efa81f854ed87`，工作流`36632385962`成功
+  `1363ebcfa1d637bfb2dc036bbc4a69921e51398d`，工作流`36684815651`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v199 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v199-guide-field-groups.tar.gz`
+- v200 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v200-planning-profile.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v199 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v200 和上述功能源码 commit。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
