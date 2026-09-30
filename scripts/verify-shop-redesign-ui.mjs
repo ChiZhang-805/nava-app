@@ -23,7 +23,7 @@ try {
   const context=await browser.newContext({viewport,locale:locale==='zh'?'zh-CN':'en-US',reducedMotion:'reduce',isMobile:true,hasTouch:true});
   try {
    const products=populated?[
-    {id:'p1',slug:'notebook',name:locale==='zh'?'小猫陪伴手账本 · 每一个认真生活的小日常': 'NAVA notebook for all your everyday little discoveries',description:'Test catalog only.\nLong product description '.repeat(12),point_price:120,image_urls:['https://shop-fixture.invalid/one','https://shop-fixture.invalid/two'],sold_out:false},
+     {id:'p1',slug:'notebook',name:locale==='zh'?'小猫陪伴手账本': 'Cat companion journal',description:'Test catalog only.\nLong product description '.repeat(12),point_price:120,image_urls:['https://shop-fixture.invalid/one','https://shop-fixture.invalid/two'],sold_out:false},
     {id:'p2',slug:'cat-charm',name:locale==='zh'?'NAVA 小猫挂件':'NAVA cat charm',description:'Test catalog only',point_price:200,image_urls:[],sold_out:true},
     {id:'p3',slug:'mug',name:locale==='zh'?'陶瓷杯':'Ceramic mug',description:'Test catalog only',point_price:90,image_urls:[],sold_out:false},
     {id:'p4',slug:'other',name:locale==='zh'?'测试长价格商品':'Test large points price',description:'Test catalog only',point_price:2147483647,image_urls:[],sold_out:false},
@@ -64,6 +64,7 @@ try {
     await page.locator('.points-shop-dots button').nth(1).click();await expect(page.locator('.points-shop-dots button').nth(1)).toHaveAttribute('aria-current','true');
     await page.locator('.points-shop-detail footer button').first().click();await expect(page.locator('.points-shop-cart-shortcut > span')).toHaveText('1');
     await page.locator('.home-experience-back').click();await expect(page.locator('.points-shop-header h1')).toHaveText(locale==='zh'?'积分商城':'Points shop');
+    await page.locator('.points-shop-add').nth(2).click();await expect(page.locator('.points-shop-cart-shortcut > span')).toHaveText('2');
    }
    await page.locator('.points-shop-cart-shortcut').click();await bounds('cart');
    if(!populated){
@@ -71,12 +72,21 @@ try {
     assert.ok(centered.cartTop>=centered.headerBottom&&centered.cartBottom<=centered.contentBottom+1&&Math.abs(centered.emptyCenter-centered.availableCenter)<2,`empty cart group must be centered in the usable content area ${JSON.stringify(centered)}`);
    }
    if(populated){
+    const cartLayout=await page.locator('.points-shop-screen').evaluate(screen=>{const cart=screen.querySelector('.points-shop-cart').getBoundingClientRect(),list=screen.querySelector('.points-shop-cart-list'),items=[...list.querySelectorAll('article')].map(itemElement=>{const item=itemElement.getBoundingClientRect(),thumb=itemElement.querySelector('.points-shop-cart-thumb').getBoundingClientRect(),copy=itemElement.querySelector('.points-shop-cart-copy').getBoundingClientRect(),quantity=itemElement.querySelector('.points-shop-quantity').getBoundingClientRect();return{item,thumb,copy,quantity};}),checkout=screen.querySelector('.points-shop-checkout').getBoundingClientRect(),button=screen.querySelector('.points-shop-checkout button').getBoundingClientRect(),style=getComputedStyle(screen),contentBottom=screen.getBoundingClientRect().bottom-parseFloat(style.paddingBottom);return{cart,items,checkout,button,contentBottom,listOverflow:getComputedStyle(list).overflowY};});
+    assert.equal(cartLayout.items.length,2);
+    await expect(page.locator('.points-shop-cart-copy').first().locator('strong')).toHaveText(locale==='zh'?'小猫陪伴手账本':'Cat companion journal');
+    assert.ok(cartLayout.items.every(({item})=>item.height<=104),`cart items must stay compact ${JSON.stringify(cartLayout)}`);
+    assert.ok(cartLayout.items.every(({thumb,copy,quantity})=>thumb.right<=copy.left&&copy.right<=quantity.left),`cart content and quantity must share one horizontal row ${JSON.stringify(cartLayout)}`);
+    assert.ok(cartLayout.items.every(({item,quantity})=>Math.abs((item.top+item.bottom-quantity.top-quantity.bottom)/2)<=2),`quantity controls must be vertically centered with their products ${JSON.stringify(cartLayout)}`);
+    assert.ok(cartLayout.checkout.height<=76&&cartLayout.button.height<=50,`checkout bar must stay compact ${JSON.stringify(cartLayout)}`);
+    assert.ok(Math.abs(cartLayout.checkout.bottom-cartLayout.cart.bottom)<=1&&cartLayout.checkout.bottom<=cartLayout.contentBottom+1,`checkout bar must remain at the bottom of the usable cart area ${JSON.stringify(cartLayout)}`);
+    assert.equal(cartLayout.listOverflow,'auto');
     const submitCheckout=async()=>{await page.getByRole('button',{name:locale==='zh'?'使用这张卡片':'Choose Card',exact:true}).click();await page.getByRole('button',{name:locale==='zh'?'继续':'Continue',exact:true}).click();};
-    checkoutFail=true;await page.locator('.points-shop-checkout button').click();await submitCheckout();await expect(page.getByRole('alert')).toContainText(locale==='zh'?'积分不足':'enough points');await expect(page.locator('.points-shop-cart-list article')).toHaveCount(1);
+    checkoutFail=true;await page.locator('.points-shop-checkout button').click();await submitCheckout();await expect(page.getByRole('alert')).toContainText(locale==='zh'?'积分不足':'enough points');await expect(page.locator('.points-shop-cart-list article')).toHaveCount(2);
     checkoutFail=false;await page.locator('.points-shop-checkout button').click();await submitCheckout();await expect(page.getByRole('dialog',{name:locale==='zh'?'订单已完成':'Order placed'})).toBeVisible({timeout:20000});await page.getByRole('button',{name:locale==='zh'?'继续':'Continue',exact:true}).click();await expect(page.locator('.points-shop-cart-list article')).toHaveCount(0);
     // A stock change after adding must not strand a sold-out cart line.
     cart=[{product_id:'p2',quantity:2}];await page.reload();await expect(page.locator('.points-shop-product-row')).toHaveCount(4);await page.locator('.points-shop-cart-shortcut').click();await expect(page.locator('.points-shop-checkout button')).toBeDisabled();await page.getByRole('button',{name:locale==='zh'?'移除不可购买商品':'Remove unavailable item'}).click();await expect(page.locator('.points-shop-cart-list article')).toHaveCount(0);
-    assert.equal(writes,2);
+    assert.equal(writes,3);
    }else assert.equal(writes,0);
    assert.deepEqual(errors,[]);results.push({viewport,locale,populated,passed:true});
   }finally{await context.close();}
