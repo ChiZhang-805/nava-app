@@ -92,6 +92,7 @@ try {
     await expect(more).toHaveAttribute("aria-expanded", "false");
     await expect(page.locator(".home-year-header strong")).toContainText("季度打卡");
     await expect(page.locator(".home-year-header small")).toHaveCount(0);
+    await expect(page.locator(".home-calendar-legend")).toHaveCount(0);
     await expect(page.locator(".home-year-months > span")).toHaveCount(3);
     await expect(page.locator(".home-year-weekdays > span")).toHaveCount(7);
     await expect(annual).toHaveAttribute("data-quarter", "1");
@@ -209,7 +210,7 @@ try {
         const screen = document.querySelector(".home-calendar-screen");
         return {
           card: rect(".home-calendar-card"), grid: rect(".home-calendar-grid"),
-          legend: rect(".home-calendar-legend"), annual: rect(".home-year-card"), dock: rect(".bottom-nav"),
+          annual: rect(".home-year-card"), dock: rect(".bottom-nav"),
           annualHeader: rect(".home-year-header"), annualMonths: rect(".home-year-months"),
           annualGrid: rect(".home-year-weeks"), annualLegend: rect(".home-year-legend"),
           summaryHeights: [...document.querySelectorAll(".home-calendar-overview > div")].map((card) => card.getBoundingClientRect().height),
@@ -221,9 +222,10 @@ try {
         };
       });
       if (layout.rowHeights.length !== fixture.rows || Math.max(...layout.rowHeights) - Math.min(...layout.rowHeights) > 1) throw new Error(`${viewport.name}/${fixture.month}: wrong or uneven week rows`);
-      if (Math.abs(layout.grid.bottom - layout.lastDayBottom) > 1 || layout.legend.top - layout.grid.bottom > 12 || layout.legend.top < layout.grid.bottom + 5) throw new Error(`${viewport.name}/${fixture.month}: empty trailing week or detached legend`);
-      if (layout.card.bottom < layout.legend.bottom + 5 || layout.card.bottom - layout.legend.bottom > 14 || layout.annual.top - layout.card.bottom < 6 || layout.annual.top - layout.card.bottom > 11) throw new Error(`${viewport.name}/${fixture.month}: card padding or annual spacing is incorrect ${JSON.stringify(layout)}`);
-      if (layout.annualMonths.top - layout.annualHeader.bottom < 5 || layout.annualGrid.top - layout.annualMonths.bottom < 5) throw new Error(`${viewport.name}/${fixture.month}: quarter heading or month axis lacks breathing room ${JSON.stringify(layout)}`);
+      if (Math.abs(layout.grid.bottom - layout.lastDayBottom) > 1) throw new Error(`${viewport.name}/${fixture.month}: empty trailing week remains below the calendar grid`);
+      if (layout.card.bottom - layout.grid.bottom < 5 || layout.card.bottom - layout.grid.bottom > 14 || layout.annual.top - layout.card.bottom < 6 || layout.annual.top - layout.card.bottom > 11) throw new Error(`${viewport.name}/${fixture.month}: card padding or annual spacing is incorrect ${JSON.stringify(layout)}`);
+      const quarterTitleGap=layout.annualMonths.top-layout.annualHeader.bottom;
+      if (quarterTitleGap < 3 || quarterTitleGap > 6 || layout.annualGrid.top - layout.annualMonths.bottom < 5) throw new Error(`${viewport.name}/${fixture.month}: quarter heading/month spacing is not compact and breathable ${JSON.stringify(layout)}`);
       if (layout.annualLegend.top - layout.annualGrid.bottom < 6 || layout.annual.bottom - layout.annualLegend.bottom < 5) throw new Error(`${viewport.name}/${fixture.month}: quarter legend overlaps the grid ${JSON.stringify(layout)}`);
       if (layout.clippedText || layout.card.left < 0 || layout.card.right > viewport.width) throw new Error(`${viewport.name}/${fixture.month}: clipping or horizontal overflow`);
       if (fixture.rows < 6 && (layout.screen.overflowY !== "hidden" || layout.annual.bottom > layout.dock.top - 5)) throw new Error(`${viewport.name}/${fixture.month}: four/five-week month must remain one-screen ${JSON.stringify(layout)}`);

@@ -275,12 +275,12 @@ try {
             const rect = (selector) => document.querySelector(selector).getBoundingClientRect();
             return { expectedRows, actualRows: grid.children.length / 7, height: rect(".home-calendar-card").height,
               trailingBlank: grid.getBoundingClientRect().bottom - dates.at(-1).getBoundingClientRect().bottom,
-              legendGap: rect(".home-calendar-legend").top - grid.getBoundingClientRect().bottom,
+              calendarBottomGap: rect(".home-calendar-card").bottom - grid.getBoundingClientRect().bottom,
               annualGap: rect(".home-year-card").top - rect(".home-calendar-card").bottom,
               navClearance: rect(".bottom-nav").top - rect(".home-year-card").bottom };
           });
           assert.equal(month.actualRows, month.expectedRows);
-          assert(Math.abs(month.trailingBlank) <= 1 && month.legendGap >= 5 && month.legendGap <= 12);
+          assert(Math.abs(month.trailingBlank) <= 1 && month.calendarBottomGap >= 5 && month.calendarBottomGap <= 14);
           assert(month.annualGap >= 6 && month.annualGap <= 11 && month.navClearance >= 5);
           months.push({ state, ...month });
         }

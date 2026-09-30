@@ -206,7 +206,6 @@ function CalendarScreen({
             );
           })}
         </div>
-        <footer className="home-calendar-legend"><span><i />{locale === "zh" ? "已有记录" : "Recorded"}</span><span>{locale === "zh" ? "点击日期查看当日综合报告" : "Tap a date for its daily report"}</span></footer>
       </section>
 
       <section className="home-year-card" aria-label={locale === "zh" ? `${displayYear} 年第 ${displayQuarter} 季度打卡` : `${displayYear} Q${displayQuarter} check-ins`} data-year={displayYear} data-quarter={displayQuarter} data-week-count={quarterWeeks.length}>

@@ -36,6 +36,16 @@ async function assertGuideSpotlight(frame,key){
  if(key==='sleepRange'){
   await expect(frame.locator('.time-range-field')).toHaveClass(/cold-guide-target/);
   await expect(frame.locator('[data-guide-hole]')).toHaveAttribute('data-guide-hole','time-group');
+  const geometry=await frame.locator('#screen').evaluate(screen=>{
+   const root=screen.getBoundingClientRect(),scaleX=root.width/screen.clientWidth,scaleY=root.height/screen.clientHeight,field=screen.querySelector('.time-range-field'),control=field.querySelector('.time-range-line'),title=field.querySelector('.field-header'),next=field.nextElementSibling?.querySelector('.field-header'),card=screen.querySelector('#record-card').getBoundingClientRect(),hole=screen.querySelector('[data-guide-hole]').getBBox();
+   const content={left:Math.min(title.getBoundingClientRect().left,control.getBoundingClientRect().left),top:title.getBoundingClientRect().top,right:Math.max(title.getBoundingClientRect().right,control.getBoundingClientRect().right),bottom:control.getBoundingClientRect().bottom};
+   return{content:{left:(content.left-root.left)/scaleX,top:(content.top-root.top)/scaleY,right:(content.right-root.left)/scaleX,bottom:(content.bottom-root.top)/scaleY},card:{left:(card.left-root.left)/scaleX,right:(card.right-root.left)/scaleX},nextTop:next?(next.getBoundingClientRect().top-root.top)/scaleY:null,hole:{x:hole.x,y:hole.y,width:hole.width,height:hole.height}};
+  });
+  assert.ok(Math.abs(geometry.hole.x-(geometry.card.left+geometry.content.left)/2)<1.5,'sleep spotlight left edge must bisect the card-to-control gap');
+  assert.ok(Math.abs(geometry.hole.x+geometry.hole.width-(geometry.content.right+geometry.card.right)/2)<1.5,'sleep spotlight right edge must bisect the control-to-card gap');
+  const topPadding=geometry.content.top-geometry.hole.y,bottomPadding=geometry.hole.y+geometry.hole.height-geometry.content.bottom;
+  assert.ok(topPadding>=4&&Math.abs(topPadding-bottomPadding)<1.5,'sleep spotlight must keep equal title/control breathing room');
+  assert.ok(geometry.nextTop!=null&&Math.abs((geometry.hole.y+geometry.hole.height)-(geometry.content.bottom+geometry.nextTop)/2)<1.5,'sleep spotlight bottom must bisect the gap before the next title');
   return;
  }
  if(key==='photo'){

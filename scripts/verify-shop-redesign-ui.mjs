@@ -36,6 +36,7 @@ try {
     if(name==='reward_products')body=products;
     else if(name==='reward_cart_items')body=cart;
     else if(name==='nava_reward_points_balance')body=balance;
+    else if(name==='nava_reward_card_state')body={balance,selectedCardId:'mint-growth',unlockedCardIds:['mint-growth','warm-companion','starlit-ideas']};
     else if(name==='nava_set_reward_cart_item') {writes++;const p=r.request().postDataJSON();cart=cart.filter(x=>x.product_id!==p.target_product);if(p.target_quantity)cart.push({product_id:p.target_product,quantity:p.target_quantity});body={};}
     else if(name==='nava_checkout_reward_cart') {if(checkoutFail){await r.fulfill({status:400,contentType:'application/json',body:JSON.stringify({message:'insufficient points'})});return;}balance-=cart.reduce((n,l)=>n+products.find(p=>p.id===l.product_id).point_price*l.quantity,0);cart=[];body={orderId:'order-fixture-001',totalPoints:120,balance,replayed:false};}
     else throw new Error('Unexpected request: '+name);
@@ -65,11 +66,16 @@ try {
     await page.locator('.home-experience-back').click();await expect(page.locator('.points-shop-header h1')).toHaveText(locale==='zh'?'积分商城':'Points shop');
    }
    await page.locator('.points-shop-cart-shortcut').click();await bounds('cart');
+   if(!populated){
+    const centered=await page.locator('.points-shop-screen').evaluate(screen=>{const header=screen.querySelector('.points-shop-header').getBoundingClientRect(),cart=screen.querySelector('.points-shop-cart').getBoundingClientRect(),empty=screen.querySelector('.points-shop-cart > .points-shop-empty').getBoundingClientRect(),style=getComputedStyle(screen),contentBottom=screen.getBoundingClientRect().bottom-parseFloat(style.paddingBottom);return{headerBottom:header.bottom,cartTop:cart.top,cartBottom:cart.bottom,contentBottom,emptyCenter:(empty.top+empty.bottom)/2,availableCenter:(cart.top+cart.bottom)/2};});
+    assert.ok(centered.cartTop>=centered.headerBottom&&centered.cartBottom<=centered.contentBottom+1&&Math.abs(centered.emptyCenter-centered.availableCenter)<2,`empty cart group must be centered in the usable content area ${JSON.stringify(centered)}`);
+   }
    if(populated){
-    checkoutFail=true;await page.locator('.points-shop-checkout button').click();await expect(page.getByRole('alert')).toContainText(locale==='zh'?'积分不足':'enough points');await expect(page.locator('.points-shop-cart-list article')).toHaveCount(1);
-    checkoutFail=false;await page.locator('.points-shop-checkout button').click();await expect(page.locator('.points-shop-success')).toBeVisible();await expect(page.locator('.points-shop-cart-list article')).toHaveCount(0);
+    const submitCheckout=async()=>{await page.getByRole('button',{name:locale==='zh'?'使用这张卡片':'Choose Card',exact:true}).click();await page.getByRole('button',{name:locale==='zh'?'继续':'Continue',exact:true}).click();};
+    checkoutFail=true;await page.locator('.points-shop-checkout button').click();await submitCheckout();await expect(page.getByRole('alert')).toContainText(locale==='zh'?'积分不足':'enough points');await expect(page.locator('.points-shop-cart-list article')).toHaveCount(1);
+    checkoutFail=false;await page.locator('.points-shop-checkout button').click();await submitCheckout();await expect(page.getByRole('dialog',{name:locale==='zh'?'订单已完成':'Order placed'})).toBeVisible({timeout:20000});await page.getByRole('button',{name:locale==='zh'?'继续':'Continue',exact:true}).click();await expect(page.locator('.points-shop-cart-list article')).toHaveCount(0);
     // A stock change after adding must not strand a sold-out cart line.
-    cart=[{product_id:'p2',quantity:2}];await page.reload();await expect(page.locator('.points-shop-product-row')).toHaveCount(4);await page.locator('.points-shop-cart-shortcut').click();await expect(page.locator('.points-shop-checkout button')).toBeDisabled();await page.getByRole('button',{name:locale==='zh'?'移除售罄商品':'Remove sold out item'}).click();await expect(page.locator('.points-shop-cart-list article')).toHaveCount(0);
+    cart=[{product_id:'p2',quantity:2}];await page.reload();await expect(page.locator('.points-shop-product-row')).toHaveCount(4);await page.locator('.points-shop-cart-shortcut').click();await expect(page.locator('.points-shop-checkout button')).toBeDisabled();await page.getByRole('button',{name:locale==='zh'?'移除不可购买商品':'Remove unavailable item'}).click();await expect(page.locator('.points-shop-cart-list article')).toHaveCount(0);
     assert.equal(writes,2);
    }else assert.equal(writes,0);
    assert.deepEqual(errors,[]);results.push({viewport,locale,populated,passed:true});

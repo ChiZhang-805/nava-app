@@ -183,7 +183,7 @@ export function installColdStartGuide(api) {
 
   function fieldSpotlightParts(field) {
     const input = field?.querySelector('input, textarea, select');
-    const control = input?.closest('.input-wrap') || (input?.type === 'hidden' ? field.querySelector('.choice-group') : input);
+    const control = field?.querySelector('.time-range-line') || input?.closest('.input-wrap') || (input?.type === 'hidden' ? field.querySelector('.choice-group') : input);
     return [field?.querySelector('.field-header'), control].filter(Boolean);
   }
 
@@ -199,7 +199,8 @@ export function installColdStartGuide(api) {
   }
 
   function spotlightBounds(target) {
-    if (!target.matches('.cold-guide-field-group')) return unionBounds([target]);
+    const isFieldGroup = target.matches('.cold-guide-field-group,.time-range-field');
+    if (!isFieldGroup) return unionBounds([target]);
     const content = unionBounds(fieldSpotlightParts(target));
     const card = document.getElementById('record-card')?.getBoundingClientRect();
     if (!content || !card) return content;
@@ -296,7 +297,7 @@ export function installColdStartGuide(api) {
       hole.setAttribute('y', y.toFixed(2));
       hole.setAttribute('width', Math.max(0, width).toFixed(2));
       hole.setAttribute('height', Math.max(0, height).toFixed(2));
-      hole.setAttribute('rx', String(Math.min(target.matches('.cold-guide-field-group') ? 13 : 15, height / 2)));
+      hole.setAttribute('rx', String(Math.min(target.matches('.cold-guide-field-group,.time-range-field') ? 13 : 15, height / 2)));
       hole.setAttribute('fill', '#000');
       return [hole];
     });
