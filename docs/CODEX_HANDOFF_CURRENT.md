@@ -26,7 +26,17 @@
 native构建和生产认证合同。证据继续保存在`Q:/NAVA-Workspace/Build/TestRuns/calendar-readability`、
 `cold-start`与`shop-redesign`。本轮没有数据库、Edge Function、账号数据或AI合同修改。
 
-双站发布回执将在本节功能源码推送并完成部署后补入。
+功能源码`cdf04b3a41572ea7955f58381b4c3f358ca40c13`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v204**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_06ee4bec966081918946554cd23c9e91`；
+部署`appgdep_6abd55a5eb988191ae027d30b3b83a23` succeeded。GitHub Pages镜像提交
+`137905852084ecee9a1592750b1368abc5deaa9b`，workflow `36759500925` success；211个当前
+生成文件复制前后SHA-256一致。两站公开验收通过：入口可访问，每站6项入口/身份关键资源与
+本地产物一致，三项Journal引导脚本逐站一致（Pages的`app.js`仅CRLF差异，标准化后相同），
+公开`?demo=1`仍停在真实登录页，canonical Supabase为`wxteapvwagvhhtrjrbim`，Pages
+`source.json`指向v204与上述功能提交。Sites官方工作流已完成源码校验、构建和源推送；其
+Windows Bash打包器仍不能解析`Q:`路径，故继续使用同一官方`prepare-site-build.cjs`与系统
+`tar.exe`生成并由Sites原生版本接口接收的313文件制品，没有绕过版本保存/部署合同。
 
 ## 130. 首次记录全宽字段与等距聚光（当前版本）
 
