@@ -10,6 +10,6 @@
     __fluffyModules['entry-i18n.js'].setLanguage(window.NavaJournal.initial.locale);
     const client=document.createElement('script');client.src='js/nava-clients.js';
     await new Promise((resolve,reject)=>{client.onload=resolve;client.onerror=reject;document.head.append(client);});
-    const app=document.createElement('script');app.src='js/app.js?v=20260929-guide-v7';document.head.append(app);
+    const app=document.createElement('script');app.src='js/app.js?v=20260930-guide-v8';document.head.append(app);
   }catch{document.getElementById('loading').textContent='记录加载失败，请返回后重试。';}
 })();

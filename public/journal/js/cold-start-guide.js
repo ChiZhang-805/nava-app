@@ -181,14 +181,13 @@ export function installColdStartGuide(api) {
     return [field].filter(Boolean);
   }
 
-  function spotlightBounds(target) {
-    const nodes = target.matches('.cold-guide-field-group')
-      ? (() => {
-          const input = target.querySelector('input, textarea, select');
-          const control = input?.closest('.input-wrap') || (input?.type === 'hidden' ? target.querySelector('.choice-group') : input);
-          return [target.querySelector('.field-header'), control].filter(Boolean);
-        })()
-      : [target];
+  function fieldSpotlightParts(field) {
+    const input = field?.querySelector('input, textarea, select');
+    const control = input?.closest('.input-wrap') || (input?.type === 'hidden' ? field.querySelector('.choice-group') : input);
+    return [field?.querySelector('.field-header'), control].filter(Boolean);
+  }
+
+  function unionBounds(nodes) {
     const boxes = nodes.map(node => node.getBoundingClientRect()).filter(box => box.width && box.height);
     if (!boxes.length) return null;
     return {
@@ -196,6 +195,34 @@ export function installColdStartGuide(api) {
       top: Math.min(...boxes.map(box => box.top)),
       right: Math.max(...boxes.map(box => box.right)),
       bottom: Math.max(...boxes.map(box => box.bottom)),
+    };
+  }
+
+  function spotlightBounds(target) {
+    if (!target.matches('.cold-guide-field-group')) return unionBounds([target]);
+    const content = unionBounds(fieldSpotlightParts(target));
+    const card = document.getElementById('record-card')?.getBoundingClientRect();
+    if (!content || !card) return content;
+
+    const fields = [...document.querySelectorAll('#entry-form .field')]
+      .filter(field => field.getClientRects().length && unionBounds(fieldSpotlightParts(field)));
+    const fieldIndex = fields.indexOf(target);
+    const previous = fieldIndex > 0 ? unionBounds(fieldSpotlightParts(fields[fieldIndex - 1])) : null;
+    const next = fieldIndex >= 0 && fieldIndex < fields.length - 1 ? unionBounds(fieldSpotlightParts(fields[fieldIndex + 1])) : null;
+    const adjacentGap = next && next.top > content.bottom
+      ? next.top - content.bottom
+      : previous && content.top > previous.bottom
+        ? content.top - previous.bottom
+        : 13;
+    const verticalPadding = Math.max(4, Math.min(10, adjacentGap / 2));
+    const leftGap = Math.max(0, content.left - card.left);
+    const rightGap = Math.max(0, card.right - content.right);
+
+    return {
+      left: content.left - leftGap / 2,
+      top: content.top - verticalPadding,
+      right: content.right + rightGap / 2,
+      bottom: content.bottom + verticalPadding,
     };
   }
 

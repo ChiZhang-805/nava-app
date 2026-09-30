@@ -56,17 +56,21 @@ async function assertGuideSpotlight(frame,key){
  await expect(frame.locator('[data-guide-hole]')).toHaveAttribute('data-guide-hole','field-group');
  const geometry=await frame.locator('#screen').evaluate((screen,fieldKey)=>{
   const root=screen.getBoundingClientRect(),scaleX=root.width/screen.clientWidth,scaleY=root.height/screen.clientHeight,field=screen.querySelector(`[data-field="${fieldKey}"]`),input=screen.querySelector(`#field-${fieldKey}`);
-  const control=input.closest('.input-wrap')||(input.type==='hidden'?field.querySelector('.choice-group'):input),parts=[field.querySelector('.field-header'),control].map(node=>node.getBoundingClientRect());
-  const expected={x:(Math.min(...parts.map(r=>r.left))-root.left)/scaleX,y:(Math.min(...parts.map(r=>r.top))-root.top)/scaleY,right:(Math.max(...parts.map(r=>r.right))-root.left)/scaleX,bottom:(Math.max(...parts.map(r=>r.bottom))-root.top)/scaleY};
-  const hole=screen.querySelector('[data-guide-hole]').getBBox(),panel=screen.querySelector('.entry-panel').getBoundingClientRect();
-  return{expected,hole:{x:hole.x,y:hole.y,width:hole.width,height:hole.height},fieldWidth:field.getBoundingClientRect().width/scaleX,panelWidth:panel.width/scaleX};
+  const partsFor=node=>{const ownInput=node.querySelector('input, textarea, select'),control=ownInput.closest('.input-wrap')||(ownInput.type==='hidden'?node.querySelector('.choice-group'):ownInput);return{control,boxes:[node.querySelector('.field-header'),control].map(part=>part.getBoundingClientRect())};};
+  const current=partsFor(field),content={left:Math.min(...current.boxes.map(r=>r.left)),top:Math.min(...current.boxes.map(r=>r.top)),right:Math.max(...current.boxes.map(r=>r.right)),bottom:Math.max(...current.boxes.map(r=>r.bottom))};
+  const fields=[...screen.querySelectorAll('#entry-form .field')].filter(node=>node.getClientRects().length),index=fields.indexOf(field),neighbor=index<fields.length-1?partsFor(fields[index+1]).boxes:null;
+  const nextTop=neighbor?Math.min(...neighbor.map(r=>r.top)):null,card=screen.querySelector('#record-card').getBoundingClientRect(),hole=screen.querySelector('[data-guide-hole]').getBBox(),panel=screen.querySelector('.entry-panel').getBoundingClientRect();
+  const expected={x:((card.left+content.left)/2-root.left)/scaleX,right:((content.right+card.right)/2-root.left)/scaleX};
+  return{content:{x:(content.left-root.left)/scaleX,y:(content.top-root.top)/scaleY,right:(content.right-root.left)/scaleX,bottom:(content.bottom-root.top)/scaleY},expected,nextTop:nextTop==null?null:(nextTop-root.top)/scaleY,hole:{x:hole.x,y:hole.y,width:hole.width,height:hole.height},fieldWidth:field.getBoundingClientRect().width/scaleX,controlWidth:current.control.getBoundingClientRect().width/scaleX,panelWidth:panel.width/scaleX};
  },key);
- assert.ok(Math.abs(geometry.hole.x-geometry.expected.x)<1.5,`${key} spotlight must share the real field left edge`);
- assert.ok(Math.abs(geometry.hole.y-geometry.expected.y)<1.5,`${key} spotlight must start at the real title`);
- assert.ok(Math.abs(geometry.hole.width-(geometry.expected.right-geometry.expected.x))<1.5,`${key} spotlight must enclose the title and control once`);
- assert.ok(Math.abs(geometry.hole.height-(geometry.expected.bottom-geometry.expected.y))<1.5,`${key} spotlight must end at the real control`);
- assert.ok(geometry.fieldWidth<=253,`${key} guided field must use the compact width`);
- assert.ok(geometry.fieldWidth<geometry.panelWidth-35,`${key} guided field must not span the whole form`);
+ assert.ok(Math.abs(geometry.hole.x-geometry.expected.x)<1.5,`${key} spotlight left edge must bisect the card-to-control gap`);
+ assert.ok(Math.abs(geometry.hole.x+geometry.hole.width-geometry.expected.right)<1.5,`${key} spotlight right edge must bisect the control-to-card gap`);
+ const topPadding=geometry.content.y-geometry.hole.y,bottomPadding=geometry.hole.y+geometry.hole.height-geometry.content.bottom;
+ assert.ok(topPadding>=4,`${key} spotlight must leave visible space above the title`);
+ assert.ok(Math.abs(topPadding-bottomPadding)<1.5,`${key} spotlight must use equal top and bottom breathing room`);
+ if(geometry.nextTop!=null)assert.ok(Math.abs((geometry.hole.y+geometry.hole.height)-(geometry.content.bottom+geometry.nextTop)/2)<1.5,`${key} spotlight bottom must bisect the gap before the next title`);
+ assert.ok(Math.abs(geometry.fieldWidth-geometry.panelWidth)<3,`${key} guide must preserve the normal full-width field ${JSON.stringify(geometry)}`);
+ assert.ok(Math.abs(geometry.controlWidth-geometry.panelWidth)<3,`${key} guide must preserve the normal full-width control ${JSON.stringify(geometry)}`);
 }
 async function finishGuide(frame,module,en){
  const guide=frame.locator('#cold-guide');
