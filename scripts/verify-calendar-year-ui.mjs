@@ -91,6 +91,7 @@ try {
     await page.locator(".home-experience-header h1").click();
     await expect(more).toHaveAttribute("aria-expanded", "false");
     await expect(page.locator(".home-year-header strong")).toContainText("季度打卡");
+    await expect(page.locator(".home-year-header small")).toHaveCount(0);
     await expect(page.locator(".home-year-months > span")).toHaveCount(3);
     await expect(page.locator(".home-year-weekdays > span")).toHaveCount(7);
     await expect(annual).toHaveAttribute("data-quarter", "1");
@@ -105,7 +106,7 @@ try {
       const dock = document.querySelector(".bottom-nav");
       const months = [...document.querySelectorAll(".home-year-months > span")];
       const weekdays = [...document.querySelectorAll(".home-year-weekdays > span")];
-      const cells = [...document.querySelectorAll(".home-year-day:not(.is-outside)")];
+      const cells = [...document.querySelectorAll(".home-year-day")];
       const rect = (element) => {
         const box = element?.getBoundingClientRect();
         return box ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height } : null;
@@ -119,7 +120,9 @@ try {
         dock: rect(dock),
         monthRects: months.map(rect),
         weekdayRects: weekdays.map(rect),
-        cellRects: cells.slice(0, 16).map(rect),
+        cellRects: cells.map(rect),
+        monthFonts: months.map((month) => parseFloat(getComputedStyle(month).fontSize)),
+        weekdayFonts: weekdays.map((weekday) => parseFloat(getComputedStyle(weekday).fontSize)),
         summary: [...document.querySelectorAll('.home-calendar-overview > div')].map((card) => ({
           card: rect(card),
           label: rect(card.querySelector(':scope > span')),
@@ -138,7 +141,17 @@ try {
     if (geometry.documentOverflow > 1 || geometry.frameOverflow > 1 || geometry.screenOverflow > 1) throw new Error(`${viewport.name}: annual calendar overflows horizontally ${JSON.stringify(geometry)}`);
     if (!geometry.card || !geometry.heatmap || !geometry.dock || geometry.card.left < -1 || geometry.card.right > viewport.width + 1) throw new Error(`${viewport.name}: annual card escaped the phone ${JSON.stringify(geometry)}`);
     if (geometry.card.bottom > geometry.dock.top - 5) throw new Error(`${viewport.name}: annual card is hidden behind the bottom navigation ${JSON.stringify(geometry)}`);
-    if (geometry.cellRects.some((cell) => !cell || cell.width < 11 || Math.abs(cell.width - cell.height) > 1)) throw new Error(`${viewport.name}: quarter cells are not readable squares ${JSON.stringify(geometry.cellRects)}`);
+    if (geometry.cellRects.some((cell) => !cell || cell.width < 11 || Math.abs(cell.width - cell.height) > 1.1)) throw new Error(`${viewport.name}: quarter cells are not readable squares ${JSON.stringify(geometry.cellRects)}`);
+    const rowTopSpread = Array.from({ length: 7 }, (_, day) => {
+      const tops = geometry.cellRects.filter((_, index) => index % 7 === day).map((cell) => cell.top);
+      return Math.max(...tops) - Math.min(...tops);
+    });
+    const rowHeightSpread = Array.from({ length: 7 }, (_, day) => {
+      const heights = geometry.cellRects.filter((_, index) => index % 7 === day).map((cell) => cell.height);
+      return Math.max(...heights) - Math.min(...heights);
+    });
+    if (rowTopSpread.some((spread) => spread > .6) || rowHeightSpread.some((spread) => spread > .6)) throw new Error(`${viewport.name}: quarter grid rows are not globally aligned ${JSON.stringify({ rowTopSpread, rowHeightSpread })}`);
+    if (geometry.monthFonts.some((font) => font < 9) || geometry.weekdayFonts.some((font) => font < 9)) throw new Error(`${viewport.name}: quarter axis labels are too small ${JSON.stringify({ monthFonts: geometry.monthFonts, weekdayFonts: geometry.weekdayFonts })}`);
     if (geometry.monthRects.some((month) => !month || month.left < geometry.heatmap.left - 1 || month.right > geometry.heatmap.right + 22)) throw new Error(`${viewport.name}: month labels escaped the annual grid ${JSON.stringify(geometry.monthRects)}`);
     if (geometry.weekdayRects.some((weekday) => !weekday || weekday.top < geometry.heatmap.top - 1 || weekday.bottom > geometry.heatmap.bottom + 1)) throw new Error(`${viewport.name}: weekday labels do not align with all seven rows ${JSON.stringify(geometry.weekdayRects)}`);
 

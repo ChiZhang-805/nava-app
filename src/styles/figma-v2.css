@@ -11198,42 +11198,42 @@ body::before {
   grid-template-rows: auto minmax(0,1fr) auto;
 }
 .home-year-header { min-height: 31px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.home-year-header > div { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; }
+.home-year-header > div { min-width: 0; display: flex; align-items: center; }
 .home-year-header strong { display: inline-flex; align-items: center; gap: 6px; color: #163f53; font-size: 12px; line-height: 1.2; white-space: nowrap; }
 .home-year-header strong > svg { flex: 0 0 18px; color: #52788b; }
-.home-year-header small { color: #72909d; font-size: 8px; font-weight: 650; white-space: nowrap; }
 .home-year-header nav { flex: 0 0 auto; display: grid; grid-template-columns: 26px auto 26px; align-items: center; gap: 3px; }
 .home-year-header nav button { width: 26px; height: 26px; border: 0; border-radius: 9px; display: grid; place-items: center; padding: 0; color: #14799f; background: rgba(221,243,251,.84); }
 .home-year-header nav button:disabled { opacity: .32; }
 .home-year-header nav b { min-width: 62px; color: #325d70; font-size: 10px; text-align: center; }
 .home-year-heatmap {
   --year-week-count: 53;
-  --year-grid-gap: clamp(.7px, .22cqw, 1.15px);
+  --year-grid-gap: 2px;
   position: relative;
   display: grid;
-  grid-template-columns: 17px minmax(0, 1fr);
-  grid-template-rows: 15px auto;
-  gap: 3px 5px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-rows: 18px auto;
+  column-gap: 8px;
+  row-gap: 7px;
   align-self: center;
   width: 100%;
-  margin-top: 5px;
+  margin-top: 7px;
   transition: opacity 160ms ease;
 }
 .home-year-heatmap.is-loading { opacity: .48; }
 .home-year-months { grid-column: 2; display: grid; grid-template-columns: repeat(var(--year-week-count), minmax(0, 1fr)); gap: var(--year-grid-gap); align-items: end; overflow: hidden; }
-.home-year-months span { min-width: 0; overflow: visible; color: #728f9c; font-size: clamp(5.8px, 1.55cqw, 7px); font-weight: 680; line-height: 1; white-space: nowrap; }
+.home-year-months span { min-width: 0; overflow: hidden; color: #658593; font-size: 9px; font-weight: 760; line-height: 1; text-align: center; white-space: nowrap; }
 .home-year-weekdays { grid-row: 2; display: grid; grid-template-rows: repeat(7, minmax(0, 1fr)); gap: var(--year-grid-gap); }
-.home-year-weekdays span { display: grid; place-items: center end; color: #7b98a4; font-size: 6.5px; font-weight: 680; line-height: 1; }
-.home-year-weeks { grid-column: 2; grid-row: 2; display: grid; grid-template-columns: repeat(var(--year-week-count), minmax(0, 1fr)); gap: var(--year-grid-gap); min-width: 0; }
-.home-year-week { min-width: 0; display: grid; grid-template-rows: repeat(7, minmax(0, 1fr)); gap: var(--year-grid-gap); }
-.home-year-day { width: 100%; aspect-ratio: 1; border: 1px solid rgba(71,139,164,.08); border-radius: clamp(2px, .7cqw, 4px); background: rgba(198,226,236,.55); }
+.home-year-weekdays span { display: grid; place-items: center end; color: #658593; font-size: 9px; font-weight: 760; line-height: 1; }
+.home-year-weeks { grid-column: 2; grid-row: 2; min-width: 0; display: grid; grid-auto-flow: column; grid-template-columns: repeat(var(--year-week-count), minmax(0, 1fr)); grid-template-rows: repeat(7, minmax(0, 1fr)); gap: var(--year-grid-gap); align-items: stretch; }
+.home-year-week { display: contents; }
+.home-year-day { width: 100%; height: 100%; min-width: 0; aspect-ratio: 1; border: 1px solid rgba(71,139,164,.08); border-radius: clamp(2px, .7cqw, 4px); background: rgba(198,226,236,.55); }
 .home-year-day[data-level="1"], .home-year-legend i[data-level="1"] { background: #b9e4f0; }
 .home-year-day[data-level="2"], .home-year-legend i[data-level="2"] { background: #78d1e6; }
 .home-year-day[data-level="3"], .home-year-legend i[data-level="3"] { background: #2fafd1; }
 .home-year-day[data-level="4"], .home-year-legend i[data-level="4"] { background: #087da9; }
 .home-year-day.is-outside { border-color: transparent; background: transparent; }
-.home-year-legend { min-height: 13px; display: flex; align-items: center; justify-content: flex-end; gap: 3px; margin-top: 5px; color: #7894a0; font-size: 6.5px; }
-.home-year-legend i { width: 7px; height: 7px; border: 1px solid rgba(71,139,164,.08); border-radius: 1.5px; background: rgba(198,226,236,.55); }
+.home-year-legend { min-height: 15px; display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 7px; color: #6d8c99; font-size: 8px; }
+.home-year-legend i { width: 8px; height: 8px; border: 1px solid rgba(71,139,164,.08); border-radius: 2px; background: rgba(198,226,236,.55); }
 .home-year-error { min-height: 56px; margin: 4px 0 0; display: grid; place-items: center; color: #8c3f45; font-size: 9px; text-align: center; }
 
 .home-report-hero {
@@ -11337,7 +11337,7 @@ body::before {
   .home-calendar-day { padding-inline: 4px; }
   .home-calendar-day i { width: 14px; height: 14px; box-shadow: inset 0 0 0 3px #eefaff; }
   .home-year-card { padding-inline: 9px; }
-  .home-year-heatmap { grid-template-columns: 15px minmax(0, 1fr); column-gap: 4px; }
+  .home-year-heatmap { grid-template-columns: 20px minmax(0, 1fr); column-gap: 7px; }
   .home-report-hero { grid-template-columns: 96px minmax(0,1fr); gap: 10px; }
   .home-report-rhythm { width: 94px; }
   .home-report-metrics { gap: 7px; }
@@ -11349,7 +11349,15 @@ body::before {
   .home-calendar-screen { padding-top: 8px; }
   .home-calendar-screen .home-experience-header { min-height: 48px; margin-bottom: 7px; }
   .home-calendar-screen .home-calendar-overview { margin-bottom: 7px; }
-  .home-calendar-screen .home-calendar-overview > div { min-height: 70px; padding-block: 9px; }
+  .home-calendar-screen .home-calendar-overview > div { min-height: 52px; padding-block: 5px; }
+  .home-calendar-screen .home-year-card { margin-top: 7px; padding-block: 7px 6px; }
+  .home-calendar-screen .home-year-header { min-height: 27px; }
+  .home-calendar-screen .home-year-header nav button { width: 24px; height: 24px; }
+  .home-calendar-screen .page-skeleton-calendar-grid > span { min-height: 29px; border-radius: 9px; }
+  .home-calendar-screen .page-skeleton-calendar-year { min-height: 108px; margin-top: 7px; }
+}
+
+@media (max-height: 760px) {
   .home-calendar-screen .home-calendar-card { padding-block: 8px 7px; }
   .home-calendar-screen .home-calendar-month-switcher { min-height: 34px; }
   .home-calendar-screen .home-calendar-month-switcher button { width: 32px; height: 32px; }
@@ -11359,11 +11367,6 @@ body::before {
   .home-calendar-screen .home-calendar-day { border-radius: 10px; padding-block: 3px; }
   .home-calendar-screen .home-calendar-day i { width: 13px; height: 13px; box-shadow: inset 0 0 0 3px #eefaff; }
   .home-calendar-screen .home-calendar-legend { margin-top: 6px; }
-  .home-calendar-screen .home-year-card { margin-top: 7px; padding-block: 7px 6px; }
-  .home-calendar-screen .home-year-header { min-height: 27px; }
-  .home-calendar-screen .home-year-header nav button { width: 24px; height: 24px; }
-  .home-calendar-screen .page-skeleton-calendar-grid > span { min-height: 29px; border-radius: 9px; }
-  .home-calendar-screen .page-skeleton-calendar-year { min-height: 108px; margin-top: 7px; }
 }
 
 @media (max-height: 700px) {

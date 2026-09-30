@@ -95,12 +95,20 @@ function CalendarScreen({
   const weekdays = locale === "zh" ? ["一", "二", "三", "四", "五", "六", "日"] : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const yearHeatmap = useMemo(() => buildYearHeatmap(displayYear), [displayYear]);
   const quarterStartMonth = (displayQuarter - 1) * 3 + 1;
-  const quarterMonths = [quarterStartMonth, quarterStartMonth + 1, quarterStartMonth + 2];
+  const quarterMonths = useMemo(() => [quarterStartMonth, quarterStartMonth + 1, quarterStartMonth + 2], [quarterStartMonth]);
   const quarterWeeks = useMemo(() => yearHeatmap.weeks.filter((week) => week.some((cell) => {
     if (!cell.inYear) return false;
     const month = Number(cell.date.slice(5, 7));
     return month >= quarterStartMonth && month <= quarterStartMonth + 2;
   })), [quarterStartMonth, yearHeatmap.weeks]);
+  const quarterMonthColumns = useMemo(() => {
+    const starts = quarterMonths.map((month) => Math.max(0, quarterWeeks.findIndex((week) => week.some((cell) => cell.inYear && Number(cell.date.slice(5, 7)) === month))));
+    return quarterMonths.map((month, index) => ({
+      month,
+      start: starts[index],
+      span: Math.max(1, (starts[index + 1] ?? quarterWeeks.length) - starts[index]),
+    }));
+  }, [quarterMonths, quarterWeeks]);
 
   useEffect(() => {
     let active = true;
@@ -202,7 +210,7 @@ function CalendarScreen({
 
       <section className="home-year-card" aria-label={locale === "zh" ? `${displayYear} 年第 ${displayQuarter} 季度打卡` : `${displayYear} Q${displayQuarter} check-ins`} data-year={displayYear} data-quarter={displayQuarter} data-week-count={quarterWeeks.length}>
         <header className="home-year-header">
-          <div><strong><CalendarCheck2 size={18} aria-hidden="true" />{locale === "zh" ? "季度打卡" : "Quarter check-ins"}</strong><small>{yearLoading ? (locale === "zh" ? "读取中" : "Loading") : `${quarterRecordedDays}${locale === "zh" ? " 天有记录" : " recorded days"}`}</small></div>
+          <div><strong><CalendarCheck2 size={18} aria-hidden="true" />{locale === "zh" ? "季度打卡" : "Quarter check-ins"}</strong></div>
           <nav aria-label={locale === "zh" ? "切换季度" : "Change quarter"}>
             <button type="button" onClick={() => shiftQuarter(-1)} aria-label={locale === "zh" ? "上一季度" : "Previous quarter"}><ChevronLeft size={15} /></button>
             <b>{displayYear} Q{displayQuarter}</b>
@@ -213,10 +221,7 @@ function CalendarScreen({
           ? <p className="home-year-error" role="alert">{yearError}</p>
           : <div className={yearLoading ? "home-year-heatmap is-loading" : "home-year-heatmap"} style={{ "--year-week-count": quarterWeeks.length } as CSSProperties}>
               <div className="home-year-months" aria-hidden="true">
-                {quarterMonths.map((month) => {
-                  const weekIndex = Math.max(0, quarterWeeks.findIndex((week) => week.some((cell) => cell.inYear && Number(cell.date.slice(5, 7)) === month)));
-                  return <span key={month} style={{ gridColumn: `${weekIndex + 1} / span 4` }}>{locale === "zh" ? `${month}月` : new Date(2024, month - 1, 1).toLocaleDateString("en-US", { month: "short" })}</span>;
-                })}
+                {quarterMonthColumns.map(({ month, start, span }) => <span key={month} style={{ gridColumn: `${start + 1} / span ${span}` }}>{locale === "zh" ? `${month}月` : new Date(2024, month - 1, 1).toLocaleDateString("en-US", { month: "short" })}</span>)}
               </div>
               <div className="home-year-weekdays" aria-hidden="true">{weekdays.map((weekday) => <span key={weekday}>{weekday}</span>)}</div>
               <div className="home-year-weeks" role="img" aria-label={locale === "zh" ? `${displayYear} 年第 ${displayQuarter} 季度共 ${quarterRecordedDays} 天有记录` : `${quarterRecordedDays} recorded days in ${displayYear} Q${displayQuarter}`}>
