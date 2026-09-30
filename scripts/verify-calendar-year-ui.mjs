@@ -197,6 +197,8 @@ try {
       }
       await expect(page.locator(".home-calendar-month-switcher h2")).toHaveText(fixture.title);
       await expect(page.locator(".home-calendar-grid > *")).toHaveCount(fixture.rows * 7);
+      await expect(page.locator(".home-calendar-screen")).toHaveAttribute("data-month-week-count", String(fixture.rows));
+      await page.locator(".home-calendar-screen").evaluate((screen) => { screen.scrollTop = 0; });
       const layout = await page.evaluate(() => {
         const rect = (selector) => {
           const r = document.querySelector(selector).getBoundingClientRect();
@@ -204,9 +206,14 @@ try {
         };
         const grid = document.querySelector(".home-calendar-grid");
         const days = [...grid.querySelectorAll(".home-calendar-day")];
+        const screen = document.querySelector(".home-calendar-screen");
         return {
           card: rect(".home-calendar-card"), grid: rect(".home-calendar-grid"),
           legend: rect(".home-calendar-legend"), annual: rect(".home-year-card"), dock: rect(".bottom-nav"),
+          annualHeader: rect(".home-year-header"), annualMonths: rect(".home-year-months"),
+          annualGrid: rect(".home-year-weeks"), annualLegend: rect(".home-year-legend"),
+          summaryHeights: [...document.querySelectorAll(".home-calendar-overview > div")].map((card) => card.getBoundingClientRect().height),
+          screen: { clientHeight: screen.clientHeight, scrollHeight: screen.scrollHeight, overflowY: getComputedStyle(screen).overflowY },
           rowHeights: getComputedStyle(grid).gridTemplateRows.split(" ").map(parseFloat),
           gap: parseFloat(getComputedStyle(grid).rowGap),
           lastDayBottom: days.at(-1).getBoundingClientRect().bottom,
@@ -215,14 +222,30 @@ try {
       });
       if (layout.rowHeights.length !== fixture.rows || Math.max(...layout.rowHeights) - Math.min(...layout.rowHeights) > 1) throw new Error(`${viewport.name}/${fixture.month}: wrong or uneven week rows`);
       if (Math.abs(layout.grid.bottom - layout.lastDayBottom) > 1 || layout.legend.top - layout.grid.bottom > 12 || layout.legend.top < layout.grid.bottom + 5) throw new Error(`${viewport.name}/${fixture.month}: empty trailing week or detached legend`);
-      if (layout.card.bottom < layout.legend.bottom + 5 || layout.card.bottom - layout.legend.bottom > 14 || layout.annual.top - layout.card.bottom < 6 || layout.annual.top - layout.card.bottom > 11) throw new Error(`${viewport.name}/${fixture.month}: card padding or annual spacing is incorrect`);
-      if (layout.clippedText || layout.card.left < 0 || layout.card.right > viewport.width || layout.annual.bottom > layout.dock.top - 5) throw new Error(`${viewport.name}/${fixture.month}: clipping or navigation overlap`);
+      if (layout.card.bottom < layout.legend.bottom + 5 || layout.card.bottom - layout.legend.bottom > 14 || layout.annual.top - layout.card.bottom < 6 || layout.annual.top - layout.card.bottom > 11) throw new Error(`${viewport.name}/${fixture.month}: card padding or annual spacing is incorrect ${JSON.stringify(layout)}`);
+      if (layout.annualMonths.top - layout.annualHeader.bottom < 5 || layout.annualGrid.top - layout.annualMonths.bottom < 5) throw new Error(`${viewport.name}/${fixture.month}: quarter heading or month axis lacks breathing room ${JSON.stringify(layout)}`);
+      if (layout.annualLegend.top - layout.annualGrid.bottom < 6 || layout.annual.bottom - layout.annualLegend.bottom < 5) throw new Error(`${viewport.name}/${fixture.month}: quarter legend overlaps the grid ${JSON.stringify(layout)}`);
+      if (layout.clippedText || layout.card.left < 0 || layout.card.right > viewport.width) throw new Error(`${viewport.name}/${fixture.month}: clipping or horizontal overflow`);
+      if (fixture.rows < 6 && (layout.screen.overflowY !== "hidden" || layout.annual.bottom > layout.dock.top - 5)) throw new Error(`${viewport.name}/${fixture.month}: four/five-week month must remain one-screen ${JSON.stringify(layout)}`);
+      if (fixture.rows === 5 && layout.summaryHeights.some((height) => height > 62)) throw new Error(`${viewport.name}/${fixture.month}: summary cards were not compressed before the calendar`);
+      if (fixture.rows === 6 && (layout.screen.scrollHeight <= layout.screen.clientHeight + 1 || layout.screen.overflowY !== "auto")) throw new Error(`${viewport.name}/${fixture.month}: six-week month must enable page scrolling ${JSON.stringify(layout.screen)}`);
       monthLayouts.push({ ...fixture, ...layout });
       await page.screenshot({ path: path.join(outputDir, `${viewport.name}-${fixture.rows}-weeks.png`) });
+      if (fixture.rows === 6) {
+        await page.locator(".home-calendar-screen").evaluate((screen) => { screen.scrollTop = screen.scrollHeight; });
+        await page.waitForTimeout(50);
+        const scrolled = await page.evaluate(() => {
+          const annual = document.querySelector(".home-year-card").getBoundingClientRect();
+          const dock = document.querySelector(".bottom-nav").getBoundingClientRect();
+          return { annualBottom: annual.bottom, dockTop: dock.top };
+        });
+        if (scrolled.annualBottom > scrolled.dockTop - 5) throw new Error(`${viewport.name}/${fixture.month}: scrolled quarter card remains hidden behind navigation ${JSON.stringify(scrolled)}`);
+        await page.screenshot({ path: path.join(outputDir, `${viewport.name}-${fixture.rows}-weeks-scrolled.png`) });
+        await page.locator(".home-calendar-screen").evaluate((screen) => { screen.scrollTop = 0; });
+      }
     }
     const [four, five, six] = monthLayouts;
-    const rowStep = four.rowHeights[0] + four.gap;
-    if (Math.abs(five.card.height - four.card.height - rowStep) > 1 || Math.abs(six.card.height - five.card.height - rowStep) > 1) throw new Error(`${viewport.name}: card height does not grow by exactly one week`);
+    if (five.card.height <= four.card.height + 20 || six.card.height <= five.card.height + 20) throw new Error(`${viewport.name}: month card did not grow with its real week count`);
     await more.click();
     await page.getByRole("menuitem", { name: "回到本月" }).click();
     await expect(page.locator(".home-calendar-grid > *")).toHaveCount(28);

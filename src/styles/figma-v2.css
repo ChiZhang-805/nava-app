@@ -10951,6 +10951,8 @@ body::before {
   box-shadow: 0 7px 18px rgba(18,117,159,.1), inset 0 1px 0 rgba(255,255,255,.9);
 }
 .home-calendar-screen { height: 100%; min-height: 0; display: flex; flex-direction: column; padding-bottom: calc(132px + env(safe-area-inset-bottom)); overflow: hidden; }
+.home-calendar-screen[data-month-week-count="6"] { overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: none; }
+.home-calendar-screen[data-month-week-count="6"]::-webkit-scrollbar { display: none; }
 .home-calendar-screen .home-experience-header { flex: 0 0 auto; grid-template-columns: 44px minmax(0,1fr) 44px; }
 
 /* Today's to-do is a writing surface, not the former utility drawer. */
@@ -11129,6 +11131,7 @@ body::before {
   background: rgba(247,253,255,.78);
   box-shadow: 0 9px 22px rgba(24,110,146,.09), inset 0 1px 0 rgba(255,255,255,.95);
 }
+.home-calendar-screen[data-month-week-count="5"] .home-calendar-overview > div { min-height: 62px; padding-block: 8px; }
 .home-calendar-overview > div > svg { width: 22px; height: 22px; color: #52788b; }
 .home-calendar-overview > div > span { min-width: 0; color: #52788b; font-size: 14px; line-height: 1.25; font-weight: 720; white-space: nowrap; }
 .home-calendar-overview strong { color: #12364a; font-size: 16px; line-height: 1.25; text-align: right; white-space: nowrap; }
@@ -11185,8 +11188,7 @@ body::before {
 .home-calendar-legend i { width: 7px; height: 7px; border-radius: 50%; background: #1995c1; }
 
 .home-year-card {
-  flex: 1 1 auto;
-  min-height: 128px;
+  flex: 0 0 auto;
   margin: 10px 0 6px;
   padding: 10px 12px 9px;
   border: 1px solid rgba(255,255,255,.78);
@@ -11195,7 +11197,7 @@ body::before {
   box-shadow: 0 10px 24px rgba(19,105,143,.1), inset 0 1px 0 rgba(255,255,255,.95);
   backdrop-filter: blur(18px);
   display: grid;
-  grid-template-rows: auto minmax(0,1fr) auto;
+  grid-template-rows: auto auto auto;
 }
 .home-year-header { min-height: 31px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .home-year-header > div { min-width: 0; display: flex; align-items: center; }
@@ -11224,7 +11226,7 @@ body::before {
 .home-year-months span { min-width: 0; overflow: hidden; color: #658593; font-size: 9px; font-weight: 760; line-height: 1; text-align: center; white-space: nowrap; }
 .home-year-weekdays { grid-row: 2; display: grid; grid-template-rows: repeat(7, minmax(0, 1fr)); gap: var(--year-grid-gap); }
 .home-year-weekdays span { display: grid; place-items: center end; color: #658593; font-size: 9px; font-weight: 760; line-height: 1; }
-.home-year-weeks { grid-column: 2; grid-row: 2; min-width: 0; display: grid; grid-auto-flow: column; grid-template-columns: repeat(var(--year-week-count), minmax(0, 1fr)); grid-template-rows: repeat(7, minmax(0, 1fr)); gap: var(--year-grid-gap); align-items: stretch; }
+.home-year-weeks { grid-column: 2; grid-row: 2; min-width: 0; display: grid; grid-auto-flow: column; grid-template-columns: repeat(var(--year-week-count), minmax(0, 1fr)); grid-template-rows: repeat(7, minmax(0, 1fr)); gap: var(--year-grid-gap); align-items: stretch; aspect-ratio: var(--year-week-count) / 7; }
 .home-year-week { display: contents; }
 .home-year-day { width: 100%; height: 100%; min-width: 0; aspect-ratio: 1; border: 1px solid rgba(71,139,164,.08); border-radius: clamp(2px, .7cqw, 4px); background: rgba(198,226,236,.55); }
 .home-year-day[data-level="1"], .home-year-legend i[data-level="1"] { background: #b9e4f0; }
@@ -11350,6 +11352,7 @@ body::before {
   .home-calendar-screen .home-experience-header { min-height: 48px; margin-bottom: 7px; }
   .home-calendar-screen .home-calendar-overview { margin-bottom: 7px; }
   .home-calendar-screen .home-calendar-overview > div { min-height: 52px; padding-block: 5px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-calendar-overview > div { min-height: 36px; padding-block: 3px; }
   .home-calendar-screen .home-year-card { margin-top: 7px; padding-block: 7px 6px; }
   .home-calendar-screen .home-year-header { min-height: 27px; }
   .home-calendar-screen .home-year-header nav button { width: 24px; height: 24px; }
@@ -11357,16 +11360,38 @@ body::before {
   .home-calendar-screen .page-skeleton-calendar-year { min-height: 108px; margin-top: 7px; }
 }
 
+@media (max-height: 820px) {
+  .home-calendar-screen[data-month-week-count="5"] .home-experience-header { min-height: 44px; margin-bottom: 5px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-calendar-overview { margin-bottom: 5px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-calendar-overview > div { min-height: 36px; padding-block: 3px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-calendar-card { padding-block: 11px 9px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-calendar-weekdays { margin-block: 7px 5px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-year-card { margin-top: 6px; }
+}
+
 @media (max-height: 760px) {
-  .home-calendar-screen .home-calendar-card { padding-block: 8px 7px; }
-  .home-calendar-screen .home-calendar-month-switcher { min-height: 34px; }
-  .home-calendar-screen .home-calendar-month-switcher button { width: 32px; height: 32px; }
-  .home-calendar-screen .home-calendar-weekdays { margin: 5px 0 4px; }
-  .home-calendar-screen .home-calendar-spacer,
-  .home-calendar-screen .home-calendar-day { min-height: 31px; }
-  .home-calendar-screen .home-calendar-day { border-radius: 10px; padding-block: 3px; }
-  .home-calendar-screen .home-calendar-day i { width: 13px; height: 13px; box-shadow: inset 0 0 0 3px #eefaff; }
-  .home-calendar-screen .home-calendar-legend { margin-top: 6px; }
+  .home-calendar-screen:is([data-month-week-count="4"], [data-month-week-count="5"]) .home-experience-header { min-height: 42px; }
+  .home-calendar-screen:is([data-month-week-count="4"], [data-month-week-count="5"]) .home-calendar-overview { margin-bottom: 5px; }
+  .home-calendar-screen:is([data-month-week-count="4"], [data-month-week-count="5"]) .home-calendar-overview > div { min-height: 36px; padding-block: 2px; }
+  .home-calendar-screen:is([data-month-week-count="4"], [data-month-week-count="5"]) .home-calendar-card { padding-block: 8px 7px; }
+  .home-calendar-screen:is([data-month-week-count="4"], [data-month-week-count="5"]) .home-calendar-month-switcher { min-height: 38px; }
+  .home-calendar-screen:is([data-month-week-count="4"], [data-month-week-count="5"]) .home-calendar-month-switcher button { width: 34px; height: 34px; }
+  .home-calendar-screen:is([data-month-week-count="4"], [data-month-week-count="5"]) .home-calendar-weekdays { margin-block: 5px 4px; }
+  .home-calendar-screen[data-month-week-count="4"] .home-calendar-spacer,
+  .home-calendar-screen[data-month-week-count="4"] .home-calendar-day { min-height: 38px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-calendar-spacer,
+  .home-calendar-screen[data-month-week-count="5"] .home-calendar-day { min-height: 40px; }
+  .home-calendar-screen:is([data-month-week-count="4"], [data-month-week-count="5"]) .home-calendar-legend { margin-top: 6px; }
+  .home-calendar-screen[data-month-week-count="5"] { padding-top: 2px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-experience-header { min-height: 39px; margin-bottom: 3px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-calendar-overview { margin-bottom: 3px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-calendar-overview > div { min-height: 32px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-calendar-card { padding-block: 5px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-calendar-month-switcher { min-height: 32px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-calendar-month-switcher button { width: 32px; height: 32px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-calendar-weekdays { margin-block: 4px 3px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-calendar-legend { margin-top: 5px; }
+  .home-calendar-screen[data-month-week-count="5"] .home-year-card { margin-top: 6px; }
 }
 
 @media (max-height: 700px) {

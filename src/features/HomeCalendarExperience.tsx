@@ -90,6 +90,7 @@ function CalendarScreen({
   const [yearError, setYearError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const cells = useMemo(() => buildMonthCells(displayMonth), [displayMonth]);
+  const monthWeekCount = cells.length / 7;
   const coverage = useMemo(() => trends ? buildDailyCoverage(trends) : {}, [trends]);
   const rhythms = useMemo(() => trends ? rhythmScoresByDate(trends) : {}, [trends]);
   const weekdays = locale === "zh" ? ["一", "二", "三", "四", "五", "六", "日"] : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -158,7 +159,7 @@ function CalendarScreen({
   const atCurrentQuarter = displayYear > currentYear || (displayYear === currentYear && displayQuarter >= currentQuarter);
 
   return (
-    <section className="home-experience home-calendar-screen" data-home-view="calendar">
+    <section className="home-experience home-calendar-screen" data-home-view="calendar" data-month-week-count={monthWeekCount}>
       <header className="home-experience-header">
         <button className="home-experience-back" type="button" onClick={onBack} aria-label={locale === "zh" ? "返回首页" : "Back home"}><Home size={22} /></button>
         <div><h1>{locale === "zh" ? "我的月历" : "My calendar"}</h1></div>
