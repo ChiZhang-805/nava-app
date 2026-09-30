@@ -20,6 +20,7 @@ export default function JournalExperience({user,module,locale,forceGuide=false,g
   callbacks.current={onSaved,onExit};
   const [error,setError]=useState(''),[ready,setReady]=useState(false),[attempt,setAttempt]=useState(0);
   const [firstFeedback,setFirstFeedback]=useState<JournalRecord|null>(null);
+  const [guideActive,setGuideActive]=useState(false);
   useEffect(()=>{if(frame.current)frame.current.inert=Boolean(firstFeedback);},[firstFeedback]);
   useEffect(()=>{
     let alive=true,channel:MessageChannel|null=null,settings:Record<string,unknown>={};
@@ -78,7 +79,8 @@ export default function JournalExperience({user,module,locale,forceGuide=false,g
             }else if(method==='wake'){
               if(payload.enabled){wake=await requestScreenWakeLock();if(!alive)await wake?.release();result=Boolean(wake);}
               else{await wake?.release();wake=null;result=false;}
-            }else if(method==='ready')setReady(true);
+            }else if(method==='guide-state')setGuideActive(Boolean(payload?.active));
+            else if(method==='ready')setReady(true);
             else if(method==='exit')callbacks.current.onExit();
             else if(method!=='locale')throw Error('Unknown journal action');
             if(alive&&!controller.signal.aborted)channel?.port1.postMessage({id,result});
@@ -90,9 +92,9 @@ export default function JournalExperience({user,module,locale,forceGuide=false,g
     };
     const element=frame.current; element?.addEventListener('load',start);
     const observer=new ResizeObserver(resize);if(element)observer.observe(element);
-    return()=>{alive=false;interrupt();unregister();observer.disconnect();void voice?.cancel();void wake?.release();void native?.then(handle=>handle.remove());document.removeEventListener('visibilitychange',visibility);window.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('scroll',resize);element?.removeEventListener('load',start);for(const c of controllers.values())c.abort();channel?.port1.close();};
+    return()=>{alive=false;setGuideActive(false);interrupt();unregister();observer.disconnect();void voice?.cancel();void wake?.release();void native?.then(handle=>handle.remove());document.removeEventListener('visibilitychange',visibility);window.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('scroll',resize);element?.removeEventListener('load',start);for(const c of controllers.values())c.abort();channel?.port1.close();};
   },[user.id,module,locale,attempt,forceGuide,guidePreview]);
-  return <section className="journal-experience" aria-label={locale==='zh'?'生活记录':'Journal'}>
+  return <section className={`journal-experience${guideActive?' is-guiding':''}`} aria-label={locale==='zh'?'生活记录':'Journal'}>
     <iframe key={`${module}-${locale}-${attempt}-${forceGuide}`} ref={frame} aria-hidden={Boolean(firstFeedback)} tabIndex={firstFeedback?-1:undefined} src={`${import.meta.env.BASE_URL}journal/index.html?v=20260930-guided-input-v6`} title={locale==='zh'?'记录与回顾':'Journal and recap'} allow="camera; microphone"/>
     {firstFeedback&&<div className="cold-feedback-layer"><FirstRecordFeedback record={firstFeedback} onClose={()=>setFirstFeedback(null)}/></div>}
     {!ready&&!error&&<div className="journal-loading"><NavaLoadingScene /></div>}

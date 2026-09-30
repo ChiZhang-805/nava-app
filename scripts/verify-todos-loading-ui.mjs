@@ -29,6 +29,27 @@ function assertContained(label, geometry) {
   }
 }
 
+async function swipeTodoCards(page, forward = true) {
+  const rect = await page.locator(".today-todo-card-carousel").boundingBox();
+  if (!rect) throw new Error("Today to-do card carousel has no swipe geometry");
+  const session = await page.context().newCDPSession(page);
+  // Keep the reverse gesture away from the viewport edge so mobile browsers
+  // do not interpret it as history navigation instead of carousel panning.
+  const start = rect.x + rect.width * (forward ? .9 : .24);
+  const end = rect.x + rect.width * (forward ? .1 : .92);
+  const y = rect.y + Math.min(rect.height * .52, 220);
+  try {
+    await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: start, y }] });
+    for (let step = 1; step <= 12; step += 1) {
+      await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: start + (end - start) * step / 12, y }] });
+      await new Promise((resolve) => setTimeout(resolve, 18));
+    }
+    await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  } finally {
+    await session.detach();
+  }
+}
+
 async function dismissLaunchAndReward(page) {
   const launch = page.locator(".launch-sequence");
   if (await launch.isVisible().catch(() => false)) await launch.click();
@@ -137,6 +158,26 @@ try {
       const estimateButton = page.locator(".today-todo-compose-heading button");
       await expect(estimateButton).toBeDisabled();
 
+      const carouselGeometry = await page.evaluate(() => {
+        const carousel = document.querySelector(".today-todo-card-carousel");
+        const cards = [...document.querySelectorAll(".today-todo-card-carousel > .today-todo-compose, .today-todo-card-carousel > .today-todo-list-section")];
+        return carousel ? {
+          overflowX: getComputedStyle(carousel).overflowX,
+          snap: getComputedStyle(carousel).scrollSnapType,
+          width: carousel.getBoundingClientRect().width,
+          height: carousel.getBoundingClientRect().height,
+          cardHeights: cards.map((card) => card.getBoundingClientRect().height),
+          cardWidths: cards.map((card) => card.getBoundingClientRect().width),
+        } : null;
+      });
+      if (!carouselGeometry || carouselGeometry.overflowX !== "auto" || !carouselGeometry.snap.includes("x")
+        || carouselGeometry.cardHeights.length !== 2 || carouselGeometry.cardHeights.some((height) => Math.abs(height - carouselGeometry.height) > 1)
+        || carouselGeometry.cardWidths.some((width) => Math.abs(width - carouselGeometry.width) > 1)) {
+        throw new Error(`${locale}-${viewport.name}: to-do panels are not equal-height horizontal pages ${JSON.stringify(carouselGeometry)}`);
+      }
+      await swipeTodoCards(page, true);
+      await expect.poll(() => page.locator(".today-todo-card-carousel").evaluate((element) => element.scrollLeft / element.clientWidth)).toBeGreaterThan(.8);
+
       const geometry = await todoPage.evaluate((element) => {
         const box = element.getBoundingClientRect();
         const frame = document.querySelector(".phone-frame");
@@ -171,6 +212,9 @@ try {
       if (!emptyGeometry || emptyGeometry.centeredDelta > 10 || emptyGeometry.selectionBackground !== "rgba(0, 0, 0, 0)") {
         throw new Error(`${locale}-${viewport.name}: empty state is not centered or selection action is not bare ${JSON.stringify(emptyGeometry)}`);
       }
+
+      await swipeTodoCards(page, false);
+      await expect.poll(() => page.locator(".today-todo-card-carousel").evaluate((element) => element.scrollLeft / element.clientWidth)).toBeLessThan(.2);
 
       const voiceButton = page.locator(".today-todo-submit.is-voice");
       await expect(voiceButton).toContainText(locale === "zh" ? "和小猫说说今天想做的事" : "Tell the cat what you want to do");
@@ -215,6 +259,8 @@ try {
       await page.locator('[data-duration-field="seconds"]').click();
       await page.getByRole("listbox", { name: locale === "zh" ? "秒钟" : "Seconds" }).getByRole("option", { name: "03", exact: true }).click();
       await page.locator('.today-todo-submit').click();
+      await swipeTodoCards(page, true);
+      await expect.poll(() => page.locator(".today-todo-card-carousel").evaluate((element) => element.scrollLeft / element.clientWidth)).toBeGreaterThan(.8);
       const row = page.locator(".today-todo-items article", { hasText: title });
       await expect(row).toBeVisible();
       await expect(row).toContainText(locale === "zh" ? "1小时 2分钟 3秒" : "1 h 2 m 3 s");
@@ -223,11 +269,18 @@ try {
       for (const extraTitle of [
         `${locale === "zh" ? "确认明天会议资料" : "Review tomorrow's meeting notes"} ${viewport.name}`,
         `${locale === "zh" ? "完成晚间拉伸" : "Finish evening stretches"} ${viewport.name}`,
+        `${locale === "zh" ? "整理书桌和文件" : "Tidy the desk and files"} ${viewport.name}`,
+        `${locale === "zh" ? "准备明早的早餐" : "Prepare tomorrow's breakfast"} ${viewport.name}`,
+        `${locale === "zh" ? "给家人回个电话" : "Call the family back"} ${viewport.name}`,
       ]) {
+        await swipeTodoCards(page, false);
+        await expect.poll(() => page.locator(".today-todo-card-carousel").evaluate((element) => element.scrollLeft / element.clientWidth)).toBeLessThan(.2);
         await page.locator(".today-todo-draft textarea").fill(extraTitle);
         await page.locator(".today-todo-submit").click();
         await expect(page.locator(".today-todo-items article", { hasText: extraTitle })).toBeAttached();
       }
+      await swipeTodoCards(page, true);
+      await expect.poll(() => page.locator(".today-todo-card-carousel").evaluate((element) => element.scrollLeft / element.clientWidth)).toBeGreaterThan(.8);
       const itemHeightsBeforeSelection = await page.locator(".today-todo-items article").evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height));
       await page.locator(".today-todo-list-section > header button").click();
       await expect(page.locator(".today-todo-selection-actions")).toBeVisible();
@@ -241,9 +294,8 @@ try {
           scrollbarWidth: list.offsetWidth - list.clientWidth,
         } : null;
       });
-      if (!selectionGeometry || selectionGeometry.overflowY !== "auto" || selectionGeometry.rows.length !== 3
-        || selectionGeometry.rows.some((height, index) => height < 72 || Math.abs(height - itemHeightsBeforeSelection[index]) > 1)
-        || (viewport.height <= 812 && !selectionGeometry.scrollable)) {
+      if (!selectionGeometry || selectionGeometry.overflowY !== "auto" || selectionGeometry.rows.length !== itemHeightsBeforeSelection.length
+        || selectionGeometry.rows.some((height, index) => height < 64 || Math.abs(height - itemHeightsBeforeSelection[index]) > 1)) {
         throw new Error(`${locale}-${viewport.name}: selection mode changed row height or failed to keep an internal scroll region ${JSON.stringify({ itemHeightsBeforeSelection, selectionGeometry })}`);
       }
       if (locale === "zh" && viewport.name === "390x844") {

@@ -56,6 +56,13 @@ async function assertGuideSpotlight(frame,key){
  if(key==='confirm'){
   await expect(frame.locator('#confirm-entry')).toHaveClass(/cold-guide-target/);
   await expect(frame.locator('[data-guide-hole]')).toHaveAttribute('data-guide-hole','control');
+  const geometry=await frame.locator('#screen').evaluate(screen=>{
+   const root=screen.getBoundingClientRect(),scaleX=root.width/screen.clientWidth,scaleY=root.height/screen.clientHeight,button=screen.querySelector('#confirm-entry').getBoundingClientRect(),hole=screen.querySelector('[data-guide-hole]').getBBox();
+   const holeNode=screen.querySelector('[data-guide-hole]');
+   return{button:{x:(button.left-root.left)/scaleX,y:(button.top-root.top)/scaleY,width:button.width/scaleX,height:button.height/scaleY},hole:{x:hole.x,y:hole.y,width:hole.width,height:hole.height,rx:Number(holeNode.getAttribute('rx'))}};
+  });
+  for(const edge of ['x','y','width','height'])assert.ok(Math.abs(geometry.button[edge]-geometry.hole[edge])<1.5,`confirm spotlight must match button ${edge} ${JSON.stringify(geometry)}`);
+  assert.ok(Math.abs(geometry.hole.rx-geometry.button.height/2)<1.5,`confirm spotlight must match the pill radius ${JSON.stringify(geometry)}`);
   return;
  }
  const field=frame.locator(`[data-field="${key}"]`);
@@ -82,12 +89,17 @@ async function assertGuideSpotlight(frame,key){
  assert.ok(Math.abs(geometry.fieldWidth-geometry.panelWidth)<3,`${key} guide must preserve the normal full-width field ${JSON.stringify(geometry)}`);
  assert.ok(Math.abs(geometry.controlWidth-geometry.panelWidth)<3,`${key} guide must preserve the normal full-width control ${JSON.stringify(geometry)}`);
 }
-async function finishGuide(frame,module,en){
+async function finishGuide(frame,module,en,page,width){
  const guide=frame.locator('#cold-guide');
  for(let count=0;count<8&&await guide.isVisible();count+=1){
   await expect(guide).toHaveAttribute('data-speech-ready','true');
   const key=await guide.getAttribute('data-step');
+  const speechLines=await frame.locator('#entry-bubble').evaluate(node=>{
+   const text=node.firstChild;if(!text||text.nodeType!==Node.TEXT_NODE)return 0;const range=document.createRange();range.selectNodeContents(text);return new Set([...range.getClientRects()].map(rect=>Math.round(rect.top))).size;
+  });
+  assert.ok(speechLines<=2,`${module}-${key}: guide speech must stay within two lines, got ${speechLines}`);
   await assertGuideSpotlight(frame,key);
+  if(module==='sleep'&&key==='confirm'&&!en&&width===360)await page.screenshot({path:`${out}/guide-sleep-confirm-zh-360.png`});
   if(key==='confirm'){await frame.locator('#confirm-entry').click();break;}
   await expect(guide).toHaveAttribute('data-ready','false');
   await fillGuideStep(frame,module,key,en);
@@ -146,6 +158,13 @@ try{
   await expect(page.locator('.cold-example')).toBeVisible();await page.screenshot({path:`${out}/sample-${lang}-${width}.png`});assert.equal(saves,0);
   await page.goto(url+'?module=sleep');const frame=page.frameLocator('iframe');
   await expect(frame.locator('#cold-guide')).toBeVisible({timeout:30000});
+  const guideSurround=await frame.locator('body').evaluate(body=>({bodyClass:body.className,htmlClass:document.documentElement.className,bodyBackground:getComputedStyle(body).backgroundColor,stageBackground:getComputedStyle(document.querySelector('.stage')).backgroundColor,bodyRect:body.getBoundingClientRect().toJSON(),htmlRect:document.documentElement.getBoundingClientRect().toJSON(),stageRect:document.querySelector('.stage').getBoundingClientRect().toJSON()}));
+  assert.equal(guideSurround.bodyBackground,'rgb(32, 55, 71)',`guide must darken the outer document edge ${JSON.stringify(guideSurround)}`);
+  assert.equal(guideSurround.stageBackground,'rgb(32, 55, 71)',`guide must darken the full screen edge ${JSON.stringify(guideSurround)}`);
+  assert.ok(guideSurround.stageRect.left<=.5&&guideSurround.stageRect.right>=width-.5,`guide stage must cover the viewport edge ${JSON.stringify(guideSurround)}`);
+  const journalBox=await page.locator('.journal-experience').evaluate(node=>({section:node.getBoundingClientRect().toJSON(),frame:node.querySelector('iframe').getBoundingClientRect().toJSON(),main:node.parentElement.getBoundingClientRect().toJSON()}));
+  await expect(page.locator('.journal-experience')).toHaveClass(/is-guiding/);
+  assert.ok(journalBox.frame.left<=.5&&journalBox.frame.right>=width-.5,`journal iframe must cover the viewport edge ${JSON.stringify(journalBox)}`);
   await expect(frame.locator('.cold-guide-target')).toHaveCount(1);
   await expect(frame.locator('.time-range-field')).toHaveClass(/cold-guide-target/);
   await expect(frame.locator('.time-endpoint').first()).not.toHaveClass(/cold-guide-target/);
@@ -159,9 +178,11 @@ try{
   await frame.locator('#cold-guide').evaluate(node=>node.click());
   await expect(frame.locator('#cold-guide')).toHaveAttribute('data-step','sleepRange');
   await page.screenshot({path:`${out}/guide-${lang}-${width}.png`});
-  await finishGuide(frame,'sleep',en);
+  await finishGuide(frame,'sleep',en,page,width);
   assert.equal(saves,0);
   await expect(frame.locator('#screen')).toHaveAttribute('data-scene','record');await expect(frame.locator('#primary')).toBeEnabled({timeout:30000});
+  await expect(frame.locator('#record-notebook')).toBeVisible({timeout:30000});
+  if(width===360&&!en)await page.screenshot({path:`${out}/record-complete-zh-360.png`});
   if(width===390){failSave=true;await frame.locator('#primary').click();await page.waitForTimeout(700);assert.equal(saves,0);await expect(frame.locator('#screen')).toHaveAttribute('data-scene','record');failSave=false;}
   await frame.locator('#primary').click();await expect(frame.locator('#screen')).toHaveAttribute('data-scene','celebrate');assert.equal(saves,1);
   await expect(frame.locator('#primary')).toBeEnabled({timeout:20000});await frame.locator('#primary').click();
@@ -212,7 +233,7 @@ try{
    }
    await page.screenshot({path:`${out}/guide-${module}-${lang}.png`});
     if(module==='mood'){await guided.locator('#field-mood').focus();await page.setViewportSize({width,height:480});await expect(guided.locator('#field-mood')).toBeInViewport();await page.screenshot({path:`${out}/keyboard-${lang}.png`});await page.setViewportSize({width,height});}
-    await expect(guided.locator('#cold-guide-skip')).toHaveCount(0);await finishGuide(guided,module,en);
+    await expect(guided.locator('#cold-guide-skip')).toHaveCount(0);await finishGuide(guided,module,en,page,width);
     if(module==='focus')await expect(guided.locator('#field-durationMinutes')).toHaveValue('15');
     await expect(guided.locator('#cold-guide')).toBeHidden();assert.equal(saves,1);
    }

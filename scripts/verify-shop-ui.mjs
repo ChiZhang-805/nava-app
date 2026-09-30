@@ -393,15 +393,17 @@ try {
     await page.waitForTimeout(400);
     const pressAnimation = await page.evaluate(() => {
       const cat = document.querySelector(".shop-checkout-cat");
+      const actor = document.querySelector(".shop-checkout-cat > span");
       const button = document.querySelector(".shop-printer-button");
-      if (!(cat instanceof HTMLImageElement) || !button) return null;
+      if (!cat || !actor || !button) return null;
       return {
         catAnimation: getComputedStyle(cat).animationName,
+        actorAnimation: getComputedStyle(actor).animationName,
         buttonAnimation: getComputedStyle(button).animationName,
-        catLoaded: cat.complete && cat.naturalWidth > 0,
+        catLoaded: getComputedStyle(actor).backgroundImage !== "none",
       };
     });
-    if (!pressAnimation?.catLoaded || pressAnimation.catAnimation !== "shop-cat-press" || pressAnimation.buttonAnimation !== "shop-machine-button") {
+    if (!pressAnimation?.catLoaded || pressAnimation.catAnimation !== "none" || pressAnimation.actorAnimation !== "shop-cat-paw-press" || pressAnimation.buttonAnimation !== "shop-machine-button") {
       throw new Error(`${viewport.width}x${viewport.height}: printer cat/button animation is not active ${JSON.stringify(pressAnimation)}`);
     }
     await page.screenshot({ path: path.join(outputDir, `checkout-printing-${viewport.width}x${viewport.height}.png`), fullPage: true });
@@ -418,7 +420,8 @@ try {
       const title = document.querySelector(".shop-checkout-copy h1");
       const copy = document.querySelector(".shop-checkout-copy p");
       const receiptRow = document.querySelector(".shop-receipt dl div");
-      if (!frame || !flow || !receipt || !printer || !button || !(cat instanceof HTMLImageElement) || !title || !receiptRow) return null;
+      const actor = document.querySelector(".shop-checkout-cat > span");
+      if (!frame || !flow || !receipt || !printer || !button || !cat || !actor || !title || !receiptRow) return null;
       const catRect = cat.getBoundingClientRect();
       const overlapWidth = Math.max(0, Math.min(catRect.right, printer.right) - Math.max(catRect.left, printer.left));
       const overlapHeight = Math.max(0, Math.min(catRect.bottom, printer.bottom) - Math.max(catRect.top, printer.top));
@@ -427,11 +430,16 @@ try {
       return {
         frame: frame.toJSON(), flow: flow.toJSON(), receipt: receipt.toJSON(), printer: printer.toJSON(), button: button.toJSON(),
         cat: catRect.toJSON(), catPrinterOverlap: overlapWidth * overlapHeight, catButtonOverlap: buttonOverlapWidth * buttonOverlapHeight,
+        catPrinterSeam: Math.abs(catRect.top + catRect.height * .83 - printer.top),
+        catPrinterWidthRatio: catRect.width / printer.width,
         titleFont: Number.parseFloat(getComputedStyle(title).fontSize),
         copyCount: copy ? 1 : 0,
         receiptFont: Number.parseFloat(getComputedStyle(receiptRow).fontSize),
-        catLoaded: cat.complete && cat.naturalWidth > 0,
-        catSrc: cat.currentSrc,
+        catLoaded: getComputedStyle(actor).backgroundImage !== "none",
+        receiptMinHeight: getComputedStyle(document.querySelector(".shop-receipt")).minHeight,
+        hasUnitPrice: [...document.querySelectorAll(".shop-receipt dt")].some(node => node.textContent === "单价"),
+        hasTotal: [...document.querySelectorAll(".shop-receipt dt")].some(node => node.textContent === "总计"),
+        hasRedeemed: [...document.querySelectorAll(".shop-receipt dt")].some(node => node.textContent === "已使用"),
         overflow: flow.scrollWidth - flow.clientWidth,
         transform: getComputedStyle(document.querySelector(".shop-receipt")).transform,
         paperCenterOffset: Math.abs((receipt.left + receipt.right) / 2 - (printer.left + printer.right) / 2),
@@ -439,7 +447,9 @@ try {
     });
     if (!receiptGeometry || !receiptGeometry.catLoaded || receiptGeometry.overflow > 1
       || receiptGeometry.transform !== "none" || receiptGeometry.paperCenterOffset > 1
-      || receiptGeometry.catPrinterOverlap < 1 || receiptGeometry.catButtonOverlap < 1 || receiptGeometry.titleFont < 21 || receiptGeometry.copyCount !== 0 || receiptGeometry.receiptFont < 16
+      || receiptGeometry.receiptMinHeight !== "0px" || !receiptGeometry.hasUnitPrice || !receiptGeometry.hasTotal || receiptGeometry.hasRedeemed
+      || receiptGeometry.catPrinterSeam > 1.5 || receiptGeometry.catPrinterWidthRatio < .5 || receiptGeometry.catPrinterWidthRatio > .67
+      || receiptGeometry.catButtonOverlap < 1 || receiptGeometry.titleFont < 21 || receiptGeometry.copyCount !== 0 || receiptGeometry.receiptFont < 16
       || receiptGeometry.receipt.left < receiptGeometry.frame.left - 1 || receiptGeometry.receipt.right > receiptGeometry.frame.right + 1
       || receiptGeometry.receipt.bottom > receiptGeometry.frame.bottom + 1
       || receiptGeometry.cat.left < receiptGeometry.frame.left - 1 || receiptGeometry.cat.right > receiptGeometry.frame.right + 1) {

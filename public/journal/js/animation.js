@@ -331,7 +331,7 @@ __fluffyModules["animation.js"] = (() => {
                     const labelY = sticky ?? y + PAPER.labelOffset;
                     if (y + field.lastRule + 2 < PAPER.clipTop || Math.min(labelY - PAPER.labelAscent, y) > PAPER.clipBottom) continue;
                     ctx.fillStyle = "#748caf";
-                    ctx.font = '600 17px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+                    ctx.font = '600 15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
                     ctx.fillText(this.rows[i].label, PAPER.inkX, labelY);
                     ctx.save();
                     // 多行续写时，上方已写的行离开可视区，不穿过仍在笔尖上方的字段标题。

@@ -83,7 +83,7 @@ test("checkout requires a card choice and uses an animated printer cat", () => {
   assert.match(cards, /lavender-reading\.webp/);
   assert.match(cards, /seaside-studio\.webp/);
   assert.match(cards, /sunset-garden\.webp/);
-  assert.match(checkout, /printer-cat\.webp/);
+  assert.match(checkout, /printer-cat-press-sprite\.png/);
   assert.match(checkout, /role="radiogroup"/);
   assert.match(checkout, /横向滑动选择积分卡卡面/);
   assert.match(checkout, /onScroll=\{syncCardFromScroll\}/);
@@ -113,8 +113,8 @@ test("checkout requires a card choice and uses an animated printer cat", () => {
   assert.match(checkout, /phase === "receipt"/);
   assert.match(checkoutStyles, /\[data-checkout-phase="printing"\] \.shop-checkout-cat/);
   assert.match(checkoutStyles, /\[data-checkout-phase="receipt"\] \.shop-checkout-cat/);
-  assert.match(checkoutStyles, /@keyframes shop-cat-press/);
-  assert.match(checkoutStyles, /@keyframes shop-cat-rest/);
+  assert.match(checkoutStyles, /@keyframes shop-cat-paw-press/);
+  assert.match(checkoutStyles, /@keyframes shop-cat-breathe/);
   assert.match(checkoutStyles, /@keyframes shop-machine-button/);
   assert.match(checkoutStyles, /\.shop-card-picker-list \{[^}]*overflow-x:\s*auto/);
   assert.match(checkoutStyles, /\.shop-card-picker-list \{[^}]*scroll-snap-type:\s*x mandatory/);

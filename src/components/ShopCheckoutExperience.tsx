@@ -1,6 +1,6 @@
 import { PawPrint, Wifi } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import printerCat from "../assets/shop/points-cards/printer-cat.webp";
+import printerCatPressSprite from "../assets/shop/points-cards/printer-cat-press-sprite.png";
 import { POINTS_CARD_SKINS, type PointsCardSkin, type PointsCardSkinId } from "../services/rewardCards";
 import type { RewardCartLine, RewardCheckoutResult } from "../services/rewardShop";
 import ShopPaymentTerminal from "./ShopPaymentTerminal";
@@ -255,7 +255,7 @@ export default function ShopCheckoutExperience({
             <div><dt>{locale === "zh" ? "商品" : "Item"}</dt><dd>{lines.map((line) => <span className="shop-order-item" key={line.product.id}>{line.product.name}{lines.length > 1 && ` × ${line.quantity}`}</span>)}</dd></div>
             <div><dt>{locale === "zh" ? "数量" : "Quantity"}</dt><dd>{quantity}</dd></div>
             <div><dt>{locale === "zh" ? "时间" : "Time"}</dt><dd><time dateTime={checkoutTime.toISOString()}>{timestamp}</time></dd></div>
-            <div className="shop-order-total"><dt>{locale === "zh" ? "使用积分" : "Points total"}</dt><dd>{totalPoints.toLocaleString()} XP</dd></div>
+            <div className="shop-order-total"><dt>{locale === "zh" ? "总计" : "Total"}</dt><dd>{totalPoints.toLocaleString()} XP</dd></div>
           </dl>
         </article>
 
@@ -264,7 +264,7 @@ export default function ShopCheckoutExperience({
           <div className="shop-terminal-summary">
             <div><span>{locale === "zh" ? "商品" : "Item"}</span><strong>{productLabel}</strong></div>
             <i />
-            <div><span>{locale === "zh" ? "已使用" : "Paid"}</span><strong>{totalPoints.toLocaleString()} XP</strong></div>
+            <div><span>{locale === "zh" ? "总计" : "Total"}</span><strong>{totalPoints.toLocaleString()} XP</strong></div>
           </div>
         </div>
 
@@ -275,16 +275,25 @@ export default function ShopCheckoutExperience({
             <span className="shop-printer-status" />
             <span className="shop-printer-button"><i /></span>
           </div>
-          <img className="shop-checkout-cat" src={printerCat} alt="" />
+          <div className="shop-checkout-cat" aria-hidden="true">
+            <span style={{ backgroundImage: `url(${printerCatPressSprite})` }} />
+          </div>
           <div className="shop-receipt-feed" role="region" aria-label={locale === "zh" ? "兑换凭证明细" : "Receipt details"} tabIndex={phase === "receipt" ? 0 : -1}>
           <article className="shop-receipt">
             <div className="shop-receipt-teeth" />
             <header><PawPrint size={18} /><strong>NAVA</strong><small>{locale === "zh" ? "积分兑换凭证" : "POINTS RECEIPT"}</small></header>
             <div className="shop-receipt-rule" />
-            <dl>
-              <div><dt>{locale === "zh" ? "商品" : "Item"}</dt><dd>{productLabel}</dd></div>
-              <div><dt>{locale === "zh" ? "数量" : "Quantity"}</dt><dd>{quantity}</dd></div>
-              <div><dt>{locale === "zh" ? "已使用" : "Redeemed"}</dt><dd>{totalPoints.toLocaleString()} XP</dd></div>
+            <div className="shop-receipt-items">
+              {lines.map((line) => (
+                <dl key={line.product.id} className="shop-receipt-item">
+                  <div><dt>{locale === "zh" ? "商品" : "Item"}</dt><dd>{line.product.name}</dd></div>
+                  <div><dt>{locale === "zh" ? "单价" : "Unit price"}</dt><dd>{line.product.pointPrice == null ? "—" : `${line.product.pointPrice.toLocaleString()} ${locale === "zh" ? "积分/个" : "XP each"}`}</dd></div>
+                  <div><dt>{locale === "zh" ? "数量" : "Quantity"}</dt><dd>{line.quantity}</dd></div>
+                </dl>
+              ))}
+            </div>
+            <dl className="shop-receipt-totals">
+              <div><dt>{locale === "zh" ? "总计" : "Total"}</dt><dd>{totalPoints.toLocaleString()} XP</dd></div>
               <div><dt>{locale === "zh" ? "剩余" : "Balance"}</dt><dd>{result ? `${result.balance.toLocaleString()} XP` : "—"}</dd></div>
             </dl>
             <div className="shop-receipt-rule" />

@@ -3,9 +3,9 @@ __fluffyModules["notebook-layout.js"] = (() => {
     "use strict";
     const PAPER = Object.freeze({
         originY: 470, writingOffset: -22, clipTop: 417, clipBottom: 707,
-        labelOffset: -12, labelAscent: 14, fieldGap: 30, bottomPadding: 20,
+        labelOffset: -10, labelAscent: 13, fieldGap: 15, bottomPadding: 14,
         left: 42, width: 310, inkX: 56, ruleLeft: 53, ruleRight: 340,
-        fontSize: 25, inkWidth: 270
+        fontSize: 23, inkWidth: 274
     });
     /**
      * 输入：value、low、high（数值及上下限）。

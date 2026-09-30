@@ -8,32 +8,33 @@ export function installColdStartGuide(api) {
   const prior = api.initial.records.some(record => record.category === category);
   const fieldSteps = {
     sleep: [
-      { key: 'sleepRange', kind: 'time-range', fields: ['bedtime', 'wakeTime'], zh: '填好睡眠起止时间。\n跨夜也会自动算好。', en: 'Add your sleep and wake times.\nOvernight sleep is handled.' },
-      { key: 'quality', field: 'quality', zh: '再写下醒来时的感受。', en: 'Now add how you felt on waking.' },
+      { key: 'sleepRange', kind: 'time-range', fields: ['bedtime', 'wakeTime'], zh: '填好睡眠起止时间。\n跨夜也会自动算好。', en: 'Set sleep and wake.\nOvernight is okay.' },
+      { key: 'quality', field: 'quality', zh: '再写下醒来时的感受。', en: 'How did you wake up?' },
+      { key: 'notes', field: 'notes', zh: '最后留一句话备注。', en: 'Add one short note.' },
     ],
     mood: [
-      { key: 'mood', field: 'mood', zh: '先写下此刻的心情。\n几个字就很好。', en: 'Start with how you feel now.\nA few words are enough.' },
-      { key: 'reason', field: 'reason', zh: '再写下发生了什么。', en: 'Now add what happened.' },
+      { key: 'mood', field: 'mood', zh: '先写下此刻的心情。\n几个字就很好。', en: 'How do you feel now?' },
+      { key: 'reason', field: 'reason', zh: '再写下发生了什么。', en: 'What happened?' },
     ],
     food: [
-      { key: 'photo', kind: 'photo', zh: '先选择今天的食物照片。', en: 'Choose today’s food photo first.' },
-      { key: 'meal', field: 'meal', zh: '选一选，这是今天的哪一餐。', en: 'Choose which meal this was.' },
-      { key: 'foods', field: 'foods', zh: '再写下吃了什么。', en: 'Now add what you ate.' },
-      { key: 'portion', field: 'portion', zh: '最后写下大概份量。\n不确定也没关系。', en: 'Finally, add an approximate portion.\nIt is okay to be unsure.' },
+      { key: 'photo', kind: 'photo', zh: '先选择今天的食物照片。', en: 'Choose a food photo.' },
+      { key: 'meal', field: 'meal', zh: '选一选，这是今天的哪一餐。', en: 'Which meal was it?' },
+      { key: 'foods', field: 'foods', zh: '再写下吃了什么。', en: 'What did you eat?' },
+      { key: 'portion', field: 'portion', zh: '最后写下大概份量。\n不确定也没关系。', en: 'About how much?' },
     ],
     sport: [
-      { key: 'activity', field: 'activity', zh: '先写下运动项目。\n走路也算认真运动。', en: 'Start with the activity.\nA walk absolutely counts.' },
-      { key: 'durationMinutes', field: 'durationMinutes', zh: '再填写实际运动时间。', en: 'Now add the actual duration.' },
-      { key: 'notes', field: 'notes', zh: '最后留一句感受或训练内容。', en: 'Finish with how it felt or what you did.' },
+      { key: 'activity', field: 'activity', zh: '先写下运动项目。\n走路也算认真运动。', en: 'What was the activity?' },
+      { key: 'durationMinutes', field: 'durationMinutes', zh: '再填写实际运动时间。', en: 'How long did you move?' },
+      { key: 'notes', field: 'notes', zh: '最后留一句感受或训练内容。', en: 'Add one short note.' },
     ],
     face: [
-      { key: 'photo', kind: 'photo', zh: '先选择一张光线均匀的照片。', en: 'Choose a clearly lit photo first.' },
-      { key: 'feeling', field: 'feeling', zh: '再写下现在的感受。', en: 'Now add how you feel.' },
-      { key: 'eyeArea', field: 'eyeArea', zh: '记录自己的眼周观察。\n照片不会用于诊断。', en: 'Add your own eye-area observation.\nThe photo is not a diagnosis.' },
+      { key: 'photo', kind: 'photo', zh: '先选择一张光线均匀的照片。', en: 'Choose a clear photo.' },
+      { key: 'feeling', field: 'feeling', zh: '再写下现在的感受。', en: 'How do you feel?' },
+      { key: 'eyeArea', field: 'eyeArea', zh: '记录自己的眼周观察。\n照片不会用于诊断。', en: 'Observe your eye area.\nNot a diagnosis.' },
     ],
     focus: [
-      { key: 'task', field: 'task', zh: '先写下一件想专注的小事。', en: 'Write one small thing to focus on.' },
-      { key: 'durationMinutes', field: 'durationMinutes', zh: '再选一段适合你的时间。', en: 'Now choose a duration that suits you.' },
+      { key: 'task', field: 'task', zh: '先写下一件想专注的小事。', en: 'What will you focus on?' },
+      { key: 'durationMinutes', field: 'durationMinutes', zh: '再选一段适合你的时间。', en: 'Choose a duration.' },
     ],
   };
   const steps = fieldSteps[category];
@@ -51,10 +52,16 @@ export function installColdStartGuide(api) {
   let spokenMessage = '';
   let finishing = false;
   let spotlightFrame = 0;
+  let hostGuideState = null;
   const entryBubble = document.getElementById('entry-bubble');
   const actor = document.getElementById('actor-canvas');
   let previousBubble = entryBubble.innerHTML;
   const highlightObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => scheduleSpotlight()) : null;
+  const syncHostGuideState = visible => {
+    if (hostGuideState === visible) return;
+    hostGuideState = visible;
+    api.call('guide-state', { active: visible }).catch(() => {});
+  };
 
   const backdrop = document.createElement('div');
   backdrop.id = 'cold-guide-backdrop';
@@ -99,8 +106,8 @@ export function installColdStartGuide(api) {
   const finalStep = () => ({
     key: 'confirm',
     kind: 'confirm',
-    zh: category === 'focus' ? '都准备好了。\n轻触下方按钮开始专注。' : '都准备好了。\n轻触下方按钮检查记录。',
-    en: category === 'focus' ? 'You are ready.\nTap the button below to begin.' : 'You are ready.\nTap the button below to review.'
+    zh: category === 'focus' ? '准备好了。' : '都填好了。',
+    en: category === 'focus' ? 'Ready to focus.' : 'Everything is filled in.'
   });
   const currentStep = () => steps[index] || finalStep();
   const isFinalStep = () => index >= steps.length;
@@ -155,8 +162,13 @@ export function installColdStartGuide(api) {
     coach.hidden = true;
     backdrop.hidden = true;
     screen.classList.remove('cold-guiding');
+    document.documentElement.classList.remove('cold-guiding-root');
+    document.body.classList.remove('cold-guiding-root');
+    document.documentElement.style.removeProperty('background-color');
+    document.body.style.removeProperty('background-color');
     entryBubble.classList.remove('cold-guide-speaker');
     actor.classList.remove('cold-guide-cat');
+    syncHostGuideState(false);
   };
   const end = async activationTarget => {
     if (finishing) return;
@@ -242,12 +254,14 @@ export function installColdStartGuide(api) {
 
   function paintFinishedSpeech() {
     if (!speechReady) return;
-    entryBubble.textContent = spokenMessage;
     const complete = stepComplete();
+    entryBubble.textContent = complete && !isFinalStep() ? t('写好了。', 'Done.') : spokenMessage;
     if (complete) {
       const hint = document.createElement('small');
       hint.textContent = isFinalStep()
-        ? t('轻触下方按钮继续', 'Tap the button below to continue')
+        ? category === 'focus'
+          ? t('轻触“开始专注”', 'Tap “Start focus”')
+          : t('轻触“完成并继续”', 'Tap “Complete and continue”')
         : t('轻触屏幕继续', 'Tap anywhere to continue');
       entryBubble.append(hint);
     }
@@ -277,11 +291,15 @@ export function installColdStartGuide(api) {
     const designHeight = screen.clientHeight || 852;
     const scaleX = root.width / designWidth || 1;
     const scaleY = root.height / designHeight || scaleX;
-    spotlightSvg.setAttribute('viewBox', `0 0 ${designWidth} ${designHeight}`);
-    maskBase.setAttribute('width', String(designWidth));
-    maskBase.setAttribute('height', String(designHeight));
-    shade.setAttribute('width', String(designWidth));
-    shade.setAttribute('height', String(designHeight));
+    spotlightSvg.setAttribute('viewBox', `-2 -2 ${designWidth + 4} ${designHeight + 4}`);
+    maskBase.setAttribute('x', '-2');
+    maskBase.setAttribute('y', '-2');
+    maskBase.setAttribute('width', String(designWidth + 4));
+    maskBase.setAttribute('height', String(designHeight + 4));
+    shade.setAttribute('x', '-2');
+    shade.setAttribute('y', '-2');
+    shade.setAttribute('width', String(designWidth + 4));
+    shade.setAttribute('height', String(designHeight + 4));
     const holes = highlights.flatMap(target => {
       const box = spotlightBounds(target);
       if (!box) return [];
@@ -297,7 +315,11 @@ export function installColdStartGuide(api) {
       hole.setAttribute('y', y.toFixed(2));
       hole.setAttribute('width', Math.max(0, width).toFixed(2));
       hole.setAttribute('height', Math.max(0, height).toFixed(2));
-      hole.setAttribute('rx', String(Math.min(target.matches('.cold-guide-field-group,.time-range-field') ? 13 : 15, height / 2)));
+      const computedRadius = Number.parseFloat(getComputedStyle(target).borderTopLeftRadius) || 0;
+      const radius = target.id === 'confirm-entry'
+        ? Math.min(height / 2, computedRadius || height / 2)
+        : Math.min(target.matches('.cold-guide-field-group,.time-range-field') ? 13 : computedRadius || 15, height / 2);
+      hole.setAttribute('rx', String(radius));
       hole.setAttribute('fill', '#000');
       return [hole];
     });
@@ -360,8 +382,18 @@ export function installColdStartGuide(api) {
     coach.hidden = !visible;
     backdrop.hidden = !visible;
     screen.classList.toggle('cold-guiding', visible);
+    document.documentElement.classList.toggle('cold-guiding-root', visible);
+    document.body.classList.toggle('cold-guiding-root', visible);
+    if (visible) {
+      document.documentElement.style.setProperty('background-color', '#203747', 'important');
+      document.body.style.setProperty('background-color', '#203747', 'important');
+    } else {
+      document.documentElement.style.removeProperty('background-color');
+      document.body.style.removeProperty('background-color');
+    }
     entryBubble.classList.toggle('cold-guide-speaker', visible);
     actor.classList.toggle('cold-guide-cat', visible);
+    syncHostGuideState(visible);
     clearHighlight();
     if (!visible) {
       clearTyping();
