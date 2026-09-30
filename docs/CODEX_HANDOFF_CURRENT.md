@@ -25,7 +25,16 @@
 `.sports-plan-actions`选择器；当前记录页已迁入Journal iframe，本轮没有把这项既有测试债务
 误报为季度/月历回归，也没有虚报总套件通过。
 
-本节发布回执将在双站部署完成后补记。
+功能源码`bc1c4989f069962a9c198adf02afb1f912a8d66b`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v201**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_c9c33465813c8191bd06a6cbc1c2edce`；
+部署`appgdep_6abcc878644c819196ed576382d48976` succeeded。GitHub Pages镜像提交
+`8b9259d93d130fffb53c5f83ad52823c69bf9c91`，workflow `36690471278` success；212个
+当前生成文件复制前后SHA-256一致。两站只读公开验收通过：入口可访问、每站6项关键资源与
+各自本地制品一致、公开`?demo=1`仍停在真实登录页、canonical Supabase为
+`wxteapvwagvhhtrjrbim`，Pages `source.json`指向v201及上述功能提交。官方Sites工作流完成
+源码校验、review构建和源推送；Windows Bash打包仍不能解析`Q:`路径，因此继续使用官方
+`prepare-site-build.cjs`与系统`tar.exe`生成由Sites原生版本接口接收的同一313文件制品。
 
 ## 127. 待办时长容错、季度打卡、通知空态与资料滚轮（当前版本）
 
