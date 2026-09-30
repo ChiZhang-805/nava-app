@@ -26,7 +26,16 @@
 verify`的基础单测、媒体反馈五档和相机八状态通过后，仍停在既有
 `external-preview:visual`旧`.sports-plan-actions`选择器，本轮未将其误报为引导回归或总套件通过。
 
-本节发布回执将在双站部署完成后补记。
+功能源码`c4558232d3b532ca8261371e8467f2938e5cb74d`已干净推送，并从同一提交生成双站。
+ChatGPT Sites **v203**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_2462f19c76a48191b01274caf01d0874`；
+部署`appgdep_6abd051c86b481918f09cee29d97adcd` succeeded。GitHub Pages镜像提交
+`63e3d9c42745afb63f266606295678496c1cc1b1`，workflow `36717422209` success；212个
+当前生成文件复制前后SHA-256一致。两站只读公开验收通过：入口可访问、每站6项关键资源与
+各自本地制品一致、公开`?demo=1`仍停在真实登录页、canonical Supabase为
+`wxteapvwagvhhtrjrbim`，Pages `source.json`指向v203及上述功能提交。官方Sites工作流完成
+源码校验、review构建和源推送；Windows Bash打包仍不能解析`Q:`路径，因此继续使用官方
+`prepare-site-build.cjs`与系统`tar.exe`生成由Sites原生版本接口接收的同一313文件制品。
 
 ## 129. 月历四/五/六行自适应与季度卡防重叠（当前版本）
 
