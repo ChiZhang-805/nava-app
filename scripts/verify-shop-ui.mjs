@@ -462,6 +462,7 @@ try {
       return {
         frame: frame.toJSON(), flow: flow.toJSON(), receipt: receipt.toJSON(), printer: printer.toJSON(), button: button.toJSON(),
         cat: catRect.toJSON(), catPrinterOverlap: overlapWidth * overlapHeight, catButtonOverlap: buttonOverlapWidth * buttonOverlapHeight,
+        buttonRightInset: printer.right - button.right,
         catPrinterSeam: Math.abs(catRect.top + catRect.height * .9 - printer.top),
         catPrinterWidthRatio: catRect.width / printer.width,
         titleFont: Number.parseFloat(getComputedStyle(title).fontSize),
@@ -481,7 +482,8 @@ try {
       || receiptGeometry.transform !== "none" || receiptGeometry.paperCenterOffset > 1
       || receiptGeometry.receiptMinHeight !== "0px" || !receiptGeometry.hasUnitPrice || !receiptGeometry.hasTotal || receiptGeometry.hasRedeemed
       || receiptGeometry.catPrinterSeam > 1.5 || receiptGeometry.catPrinterWidthRatio < .5 || receiptGeometry.catPrinterWidthRatio > .67
-      || receiptGeometry.catButtonOverlap < 1 || receiptGeometry.titleFont < 21 || receiptGeometry.copyCount !== 0 || receiptGeometry.receiptFont < 16
+      || receiptGeometry.buttonRightInset < 14 || receiptGeometry.buttonRightInset > 17
+      || receiptGeometry.titleFont < 21 || receiptGeometry.copyCount !== 0 || receiptGeometry.receiptFont < 16
       || receiptGeometry.receipt.left < receiptGeometry.frame.left - 1 || receiptGeometry.receipt.right > receiptGeometry.frame.right + 1
       || receiptGeometry.receipt.bottom > receiptGeometry.frame.bottom + 1
       || receiptGeometry.cat.left < receiptGeometry.frame.left - 1 || receiptGeometry.cat.right > receiptGeometry.frame.right + 1) {
