@@ -50,6 +50,22 @@ async function swipeTodoCards(page, forward = true) {
   }
 }
 
+async function assertDurationPopoverContained(page, field, label) {
+  const geometry = await page.evaluate((durationField) => {
+    const trigger = document.querySelector(`[data-duration-field="${durationField}"]`)?.getBoundingClientRect();
+    const popup = document.querySelector(".duration-unit-popover")?.getBoundingClientRect();
+    const card = document.querySelector(".today-todo-compose")?.getBoundingClientRect();
+    const submit = document.querySelector(".today-todo-submit")?.getBoundingClientRect();
+    return trigger && popup && card && submit ? { trigger: trigger.toJSON(), popup: popup.toJSON(), card: card.toJSON(), submit: submit.toJSON() } : null;
+  }, field);
+  if (!geometry || geometry.popup.bottom > geometry.trigger.top - 5 || geometry.popup.top < geometry.card.top - 1
+    || geometry.popup.left < geometry.card.left - 1 || geometry.popup.right > geometry.card.right + 1
+    || geometry.popup.bottom > geometry.submit.top) {
+    throw new Error(`${label}: duration popover must open upward inside the entry card ${JSON.stringify(geometry)}`);
+  }
+  return geometry;
+}
+
 async function dismissLaunchAndReward(page) {
   const launch = page.locator(".launch-sequence");
   if (await launch.isVisible().catch(() => false)) await launch.click();
@@ -189,7 +205,10 @@ try {
           text: text.toJSON(), duration: duration.toJSON(), voice: voice.toJSON(), card: card.toJSON(), pagination: pagination.toJSON(), nav: nav.toJSON(),
         } : null;
       });
-      if (!entryGeometry || entryGeometry.text.height < 121 || entryGeometry.card.bottom - entryGeometry.voice.bottom > 20
+      if (!entryGeometry || entryGeometry.text.height < Math.max(121, entryGeometry.card.height * .38)
+        || entryGeometry.duration.top - entryGeometry.text.bottom > 14 || entryGeometry.duration.top < entryGeometry.text.bottom
+        || entryGeometry.voice.top - entryGeometry.duration.bottom > 14 || entryGeometry.voice.top < entryGeometry.duration.bottom
+        || entryGeometry.card.bottom - entryGeometry.voice.bottom > 20
         || entryGeometry.card.bottom > entryGeometry.pagination.top + 1 || entryGeometry.pagination.bottom > entryGeometry.nav.top) {
         throw new Error(`${locale}-${viewport.name}: entry card height or carousel pagination spacing is incorrect ${JSON.stringify(entryGeometry)}`);
       }
@@ -263,21 +282,15 @@ try {
       await page.locator('[data-duration-field="minutes"]').click();
       await expect(page.locator('[data-duration-initial="true"]')).toHaveAttribute("aria-label", locale === "zh" ? "分钟" : "Minutes");
       await expect(page.locator(".duration-wheel-overlay")).toHaveCount(0);
-      const inlineGeometry = await page.evaluate(() => {
-        const trigger = document.querySelector('[data-duration-field="minutes"]')?.getBoundingClientRect();
-        const popup = document.querySelector('.duration-unit-popover')?.getBoundingClientRect();
-        const frame = document.querySelector('.phone-frame')?.getBoundingClientRect();
-        return trigger && popup && frame ? { trigger: trigger.toJSON(), popup: popup.toJSON(), frame: frame.toJSON() } : null;
-      });
-      if (!inlineGeometry || Math.abs((inlineGeometry.trigger.left + inlineGeometry.trigger.right) / 2 - (inlineGeometry.popup.left + inlineGeometry.popup.right) / 2) > 1
-        || inlineGeometry.popup.top < inlineGeometry.trigger.bottom || inlineGeometry.popup.left < inlineGeometry.frame.left || inlineGeometry.popup.right > inlineGeometry.frame.right) {
-        throw new Error(`${locale}-${viewport.name}: duration menu is not anchored to the selected field ${JSON.stringify(inlineGeometry)}`);
-      }
+      const inlineGeometry = await assertDurationPopoverContained(page, "minutes", `${locale}-${viewport.name}:minutes`);
+      if (Math.abs((inlineGeometry.trigger.left + inlineGeometry.trigger.right) / 2 - (inlineGeometry.popup.left + inlineGeometry.popup.right) / 2) > 1) throw new Error(`${locale}-${viewport.name}: duration menu is not centered to the selected field ${JSON.stringify(inlineGeometry)}`);
       if (locale === "zh" && viewport.name === "390x844") await page.screenshot({ path: path.join(outputDir, "zh-390x844-duration-inline.png") });
       await page.getByRole("listbox", { name: locale === "zh" ? "分钟" : "Minutes" }).getByRole("option", { name: "02", exact: true }).click();
       await page.locator('[data-duration-field="hours"]').click();
+      await assertDurationPopoverContained(page, "hours", `${locale}-${viewport.name}:hours`);
       await page.getByRole("listbox", { name: locale === "zh" ? "小时" : "Hours" }).getByRole("option", { name: "01", exact: true }).click();
       await page.locator('[data-duration-field="seconds"]').click();
+      await assertDurationPopoverContained(page, "seconds", `${locale}-${viewport.name}:seconds`);
       await page.getByRole("listbox", { name: locale === "zh" ? "秒钟" : "Seconds" }).getByRole("option", { name: "03", exact: true }).click();
       await page.locator('.today-todo-submit').click();
       await swipeTodoCards(page, true);
