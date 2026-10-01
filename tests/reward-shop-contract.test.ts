@@ -169,6 +169,9 @@ test("confirmation and receipt are aligned, legible and free of explanatory subt
   assert.match(terminal, /matrix\(\.9 \.38 -\.70 \.43/);
   assert.match(checkout, /className="shop-terminal-summary-row"/);
   assert.match(checkout, /已使用/);
+  assert.match(checkoutStyles, /shop-terminal-summary-row \{[^}]*min-height: 54px;[^}]*column-gap: clamp\(7px, 2\.3vw, 11px\)/);
+  assert.match(checkoutStyles, /shop-terminal-summary-row strong \{[^}]*overflow-wrap: anywhere;[^}]*white-space: normal;/);
+  assert.doesNotMatch(checkoutStyles, /shop-terminal-summary-row strong \{[^}]*text-overflow: ellipsis/);
   assert.match(checkoutStyles, /shop-terminal-approve .28s ease 1.75s/);
   assert.match(checkoutStyles, /shop-terminal-approve .42s ease 2.03s/);
   assert.match(terminal, /shop-terminal-check-stem/);

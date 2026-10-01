@@ -46,17 +46,34 @@ try {
     const summaryRows = page.locator('.shop-terminal-summary-row');
     await expect(summaryRows).toHaveCount(2);
     await expect(summaryRows.nth(0)).toContainText(locale === 'zh' ? '商品1' : 'Item 1');
+    await expect(summaryRows.nth(0)).toContainText(locale === 'zh' ? '小猫陪伴手账本' : 'Cat journal');
     await expect(summaryRows.nth(0)).toContainText(locale === 'zh' ? '已使用' : 'Used');
     await expect(summaryRows.nth(0)).toContainText('40 XP');
     await expect(summaryRows.nth(1)).toContainText(locale === 'zh' ? '商品2' : 'Item 2');
+    await expect(summaryRows.nth(1)).toContainText(locale === 'zh' ? '暖光陪伴陶瓷杯' : 'Cozy mug');
     await expect(summaryRows.nth(1)).toContainText('40 XP');
     const placedFit = await page.evaluate(() => {
       const summary = document.querySelector('.shop-terminal-summary').getBoundingClientRect();
       const action = document.querySelector('.shop-checkout-primary').getBoundingClientRect();
-      const rows = [...document.querySelectorAll('.shop-terminal-summary-row')].map(row => row.getBoundingClientRect().height);
+      const rows = [...document.querySelectorAll('.shop-terminal-summary-row')].map(row => {
+        const cells = [...row.children].map(cell => cell.getBoundingClientRect());
+        const name = row.querySelector('strong');
+        const nameStyle = getComputedStyle(name);
+        return {
+          height: row.getBoundingClientRect().height,
+          nameHeight: name.getBoundingClientRect().height,
+          nameLineHeight: parseFloat(nameStyle.lineHeight),
+          textOverflow: nameStyle.textOverflow,
+          horizontalGaps: cells.slice(1).map((cell, index) => cell.left - cells[index].right),
+        };
+      });
       return { summaryBottom: summary.bottom, actionTop: action.top, rows };
     });
-    assert.ok(placedFit.summaryBottom <= placedFit.actionTop - 8 && placedFit.rows.every(height => height <= 46), JSON.stringify(placedFit));
+    assert.ok(placedFit.summaryBottom <= placedFit.actionTop - 8
+      && placedFit.rows.every(row => row.height >= 50 && row.height <= 60
+        && row.nameHeight <= row.nameLineHeight * 1.25
+        && row.textOverflow !== 'ellipsis'
+        && row.horizontalGaps.every(gap => gap >= 5)), JSON.stringify(placedFit));
     await page.screenshot({ path:`${output}/placed-long-${locale}-${viewport.width}.png` });
     await page.getByRole('button', {name:locale === 'zh' ? '继续' : 'Continue',exact:true}).click();
     await expect(page.locator('.shop-checkout-experience')).toHaveAttribute('data-checkout-phase','receipt');

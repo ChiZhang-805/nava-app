@@ -10,8 +10,8 @@ const params = new URLSearchParams(location.search);
 const locale = params.get('locale') === 'en' ? 'en' : 'zh';
 const multiple = params.has('multiple');
 const lines = multiple ? [
-  {product:{id:'a',name:'Botanical notebook and matching stationery collection',pointPrice:20},quantity:2},
-  {product:{id:'b',name:'NAVA 温暖陪伴陶瓷杯与手写卡片套装',pointPrice:40},quantity:1},
+  {product:{id:'a',name:locale==='zh'?'小猫陪伴手账本':'Cat journal',pointPrice:20},quantity:2},
+  {product:{id:'b',name:locale==='zh'?'暖光陪伴陶瓷杯':'Cozy mug',pointPrice:40},quantity:1},
 ] : [{product:{id:'a',name:locale==='zh'?'薄荷专注文具组':'Mint stationery set',pointPrice:10},quantity:1}];
 function Fixture(){
   const [started,start]=React.useState(false);
