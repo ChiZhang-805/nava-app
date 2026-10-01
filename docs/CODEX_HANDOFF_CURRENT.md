@@ -24,6 +24,17 @@
 “接触后读取”、“短笔先画”、“长笔后画”和“完成前两笔收口”。本轮不修改数据库、
 Edge Function、真实积分扣减规则或商品目录。
 
+功能源码`be73346731daa1ee811b0c03077aa1366487495a`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v209**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_edc949b666788191af2d15f64f131b46`；
+部署`appgdep_6abe55a928c4819182e0a9b456b4f393` succeeded。GitHub Pages镜像提交
+`a24c608415b90a128df0ef285111053586c3c31a`，workflow `36863956048` success；212个当前生成
+文件复制前后SHA-256一致。两站公开只读验收通过：每站6项入口/身份关键资源与各自
+本地制品一致，公开`?demo=1`仍要求真实登录，canonical Supabase为
+`wxteapvwagvhhtrjrbim`。lint、Web/native构建、生产认证、商城合同、商城视觉与动画时序
+全部通过；完整`npm run verify`仍只停在仓库既有`external-preview:visual`旧用例寻找不存在的
+`.sports-plan-actions`，本轮没有修改该外部预览路径。
+
 ## 134. 结算选卡全屏左右手势（当前版本）
 
 “今天，想让哪张卡陪你？”不再只依赖点卡片或分页点。选卡阶段把完整结算屏登记为手势区域：记录
