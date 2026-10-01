@@ -26,11 +26,14 @@
 本轮未修改积分扣减、订单幂等、数据库、Edge Function或生产账号数据。完整`npm run verify`仍只
 停在既有`external-preview:visual`旧用例寻找不存在的`.sports-plan-actions`，本轮没有修改该路径。
 
-功能源码`f83a5e69f6efba052e79e5105bbb9d955be33eb9`已干净推送并从同一提交生成双站。
-ChatGPT Sites **v214**：
-`appgprj_6a5de710811c8191af8ce2681358d518~appgver_ddc4e76def2c8191ab136f841a8e5022`；
-部署`appgdep_6abec76408108191af641a8c857e42d2` succeeded。GitHub Pages镜像提交
-`46cfee1038bf648e5d9b9cd04d0f237da3af9e77`，workflow `36924775540` success。两站公开只读验收
+按钮结构位纠偏未重新生成图片：根因是上一实现为追随猫爪，把按钮从右侧15px误改成88px；现已
+恢复右侧15px，并在商城视觉测试中加入14–17px硬性区间，防止动作素材再次带偏机器结构。
+
+功能源码`4e3c4283a68952367c0ed9071460ec89f7f9c79a`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v215**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_2a1e827343dc8191bd088a844a6e92be`；
+部署`appgdep_6abece38c06881918da5e79f70091464` succeeded。GitHub Pages镜像提交
+`7101705ec1b6cb9745fa91f549571ec41ceffc06`，workflow `36928046850` success。两站公开只读验收
 通过：每站6项入口/身份关键资源与各自本地制品一致，公开`?demo=1`仍要求真实登录，canonical
 Supabase为`wxteapvwagvhhtrjrbim`；Sites继续保持public访问策略。
 
