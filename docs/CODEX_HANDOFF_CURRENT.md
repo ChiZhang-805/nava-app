@@ -21,11 +21,11 @@
 认证合同均通过。完整`npm run verify`仍停在既有`external-preview:visual`旧用例寻找不存在的
 `.sports-plan-actions`，本轮没有修改该外部预览路径，也没有数据库或Edge Function变更。
 
-最终功能源码`71e0f6a70435579ae9de58da1e9e9561d22d41eb`已干净推送并从同一提交生成双站。
-ChatGPT Sites **v212**：
-`appgprj_6a5de710811c8191af8ce2681358d518~appgver_e87b9ff059448191881627b5062d82a9`；
-部署`appgdep_6abeaf1091b4819198e17d6e46fbf432` succeeded。GitHub Pages镜像提交
-`49ace42d6ff465359b326cdcf04959caae8d4fa5`，workflow `36911963397` success；212个生成文件
+最终功能源码`5af02182aaa44f730f87ab7f114b709c9e27b3f7`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v213**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_8149eaabf6d88191bc1d704645132510`；
+部署`appgdep_6abeb414eec081919e439253b52c8a35` succeeded。GitHub Pages镜像提交
+`0e93ec67e0ece5b2abb1b00476c2552b239f39dd`，workflow `36914579951` success；212个生成文件
 SHA-256一致。两站公开验收通过：每站6项关键入口/身份资源与各自本地制品一致，公开`?demo=1`
 仍要求真实登录，canonical Supabase为`wxteapvwagvhhtrjrbim`。Sites仍保持public访问策略。
 
