@@ -21,6 +21,14 @@
 认证合同均通过。完整`npm run verify`仍停在既有`external-preview:visual`旧用例寻找不存在的
 `.sports-plan-actions`，本轮没有修改该外部预览路径，也没有数据库或Edge Function变更。
 
+最终功能源码`71e0f6a70435579ae9de58da1e9e9561d22d41eb`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v212**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_e87b9ff059448191881627b5062d82a9`；
+部署`appgdep_6abeaf1091b4819198e17d6e46fbf432` succeeded。GitHub Pages镜像提交
+`49ace42d6ff465359b326cdcf04959caae8d4fa5`，workflow `36911963397` success；212个生成文件
+SHA-256一致。两站公开验收通过：每站6项关键入口/身份资源与各自本地制品一致，公开`?demo=1`
+仍要求真实登录，canonical Supabase为`wxteapvwagvhhtrjrbim`。Sites仍保持public访问策略。
+
 ## 137. 今日待办双卡手势分页与管理员快捷入口
 
 “待办事项”和“今天的安排”继续使用两张等宽、等高卡片，但现在具有明确的当前页状态：整张卡片
