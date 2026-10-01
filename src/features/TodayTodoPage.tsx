@@ -67,7 +67,7 @@ export default function TodayTodoPage({
   onStartFocus: (todo: TodoItem) => void;
 }) {
   const { locale } = useLocale();
-  const editor = useRef<HTMLTextAreaElement>(null);
+  const editor = useRef<HTMLInputElement>(null);
   const cardCarouselRef = useRef<HTMLDivElement>(null);
   const cardTouchStart = useRef<{ x: number; y: number } | null>(null);
   const previousDeviceDate = useRef(deviceDate);
@@ -76,6 +76,7 @@ export default function TodayTodoPage({
   const voiceHandledRef = useRef(false);
   const [todos, setTodos] = useState<TodoItem[]>(() => loadTodos(user.id));
   const [draft, setDraft] = useState("");
+  const [details, setDetails] = useState("");
   const [duration, setDuration] = useState<DurationDraft>(emptyDuration);
   const [durationPickerField, setDurationPickerField] = useState<DurationField | null>(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -119,6 +120,7 @@ export default function TodayTodoPage({
       || b.createdAt.localeCompare(a.createdAt)), [selectedDate, todos]);
   const isToday = selectedDate === deviceDate;
   const isTomorrow = selectedDate === offsetDate(deviceDate, 1);
+  const composedDraft = details.trim() ? `${draft.trim()}\n${details.trim()}` : draft.trim();
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -127,12 +129,13 @@ export default function TodayTodoPage({
     setError(null);
     try {
       const seconds = durationSeconds(duration);
-      const suggestion = suggestedFocusPlan(draft);
-      await addTodo(user.id, draft, "manual", selectedDate, undefined, {
+      const suggestion = suggestedFocusPlan(composedDraft);
+      await addTodo(user.id, composedDraft, "manual", selectedDate, undefined, {
         ...suggestion,
         ...(seconds > 0 ? { focusMinutes: Math.min(180, Math.max(1, Math.ceil(seconds / 60))), estimatedSeconds: seconds } : {}),
       });
       setDraft("");
+      setDetails("");
       setDuration(emptyDuration);
       setEstimateNote(null);
       setTodos(loadTodos(user.id));
@@ -151,7 +154,7 @@ export default function TodayTodoPage({
     setError(null);
     setEstimateNote(null);
     try {
-      const estimate = await estimateTodoDuration(draft, locale);
+      const estimate = await estimateTodoDuration(composedDraft, locale);
       setDuration(splitDuration(estimate.seconds));
       const source = estimate.provider === "deepseek"
         ? (locale === "zh" ? "DeepSeek 预估" : "DeepSeek estimate")
@@ -235,7 +238,7 @@ export default function TodayTodoPage({
     }
   }
 
-  function submitWithShortcut(event: KeyboardEvent<HTMLTextAreaElement>) {
+  function submitWithShortcut(event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) {
     if (event.key !== "Enter" || (!event.metaKey && !event.ctrlKey)) return;
     event.preventDefault();
     event.currentTarget.form?.requestSubmit();
@@ -356,8 +359,7 @@ export default function TodayTodoPage({
       </div>
       <label className="today-todo-draft">
         <span>{locale === "zh" ? "今天要做什么" : "What do you need to do today?"}</span>
-        <textarea ref={editor} value={draft} maxLength={180} rows={3} onChange={(event) => setDraft(event.target.value)} onKeyDown={submitWithShortcut} placeholder={locale === "zh" ? "例如：整理明天要用的资料" : "For example: Prepare tomorrow's notes"} />
-        <small>{draft.length}/180</small>
+        <input ref={editor} value={draft} maxLength={60} onChange={(event) => setDraft(event.target.value)} onKeyDown={submitWithShortcut} placeholder={locale === "zh" ? "例如：整理明天要用的资料" : "For example: Prepare tomorrow's notes"} />
       </label>
       <div className="today-todo-duration">
         <span>{locale === "zh" ? "时间" : "Time"}</span>
@@ -379,6 +381,11 @@ export default function TodayTodoPage({
         </div>
         {estimateNote && <small aria-live="polite">{estimateNote}</small>}
       </div>
+      <label className="today-todo-steps">
+        <span>{locale === "zh" ? "详尽的步骤" : "Detailed steps"}</span>
+        <textarea value={details} maxLength={300} onChange={(event) => setDetails(event.target.value)} onKeyDown={submitWithShortcut} placeholder={locale === "zh" ? "写下具体步骤、需要准备的资料或提醒" : "Add concrete steps, materials, or reminders"} />
+        <small>{details.length}/300</small>
+      </label>
       {!draft.trim() && durationSeconds(duration) === 0 || busy === "voice"
         ? <button className="today-todo-submit is-voice" type="button" onClick={() => void beginVoiceDraft()} disabled={busy != null && busy !== "voice"}><Mic size={19} />{busy === "voice" ? (locale === "zh" ? "正在聆听…" : "Listening…") : (locale === "zh" ? "和小猫说说今天想做的事" : "Tell the cat what you want to do")}</button>
         : <button className="today-todo-submit" type="submit" disabled={!draft.trim() || busy != null}>{busy === "add" ? (locale === "zh" ? "正在写入…" : "Adding…") : (locale === "zh" ? "写进今日待办" : "Add to today")}</button>}
@@ -392,12 +399,13 @@ export default function TodayTodoPage({
           : <div className="today-todo-items">{dayTodos.map((todo) => {
             const plan = resolveTodoFocusPlan(todo);
             const selected = selectedIds.has(todo.id);
+            const todoHeading = todo.title.split("\n", 1)[0] || todo.title;
             return <article className={[todo.completed ? "is-completed" : "", selectionMode ? "is-selecting" : "", selected ? "is-selected" : ""].filter(Boolean).join(" ")} key={todo.id}>
-              <button className="today-todo-check" type="button" disabled={busy === todo.id || busy === "delete"} onClick={() => selectionMode ? toggleSelected(todo.id) : void changeTodo(todo)} aria-label={selectionMode ? (selected ? (locale === "zh" ? `取消选择“${todo.title}”` : `Deselect ${todo.title}`) : (locale === "zh" ? `选择“${todo.title}”` : `Select ${todo.title}`)) : todo.completed ? (locale === "zh" ? `将“${todo.title}”标记为未完成` : `Mark ${todo.title} incomplete`) : (locale === "zh" ? `完成“${todo.title}”` : `Complete ${todo.title}`)}>
+              <button className="today-todo-check" type="button" disabled={busy === todo.id || busy === "delete"} onClick={() => selectionMode ? toggleSelected(todo.id) : void changeTodo(todo)} aria-label={selectionMode ? (selected ? (locale === "zh" ? `取消选择“${todoHeading}”` : `Deselect ${todoHeading}`) : (locale === "zh" ? `选择“${todoHeading}”` : `Select ${todoHeading}`)) : todo.completed ? (locale === "zh" ? `将“${todoHeading}”标记为未完成` : `Mark ${todoHeading} incomplete`) : (locale === "zh" ? `完成“${todoHeading}”` : `Complete ${todoHeading}`)}>
                 {busy === todo.id ? <LoaderCircle className="today-todo-spinner" size={17} /> : selected || (!selectionMode && todo.completed) ? <Check size={17} /> : null}
               </button>
               <button className="today-todo-open" type="button" onClick={() => selectionMode ? toggleSelected(todo.id) : onStartFocus(todo)}>
-                <span><strong>{todo.title}</strong><small>{todo.estimatedSeconds ? (locale === "zh" ? `预计 ${durationLabel(todo.estimatedSeconds, locale)}` : `Est. ${durationLabel(todo.estimatedSeconds, locale)}`) : todo.scheduledTime ? `${todo.scheduledTime} · ${locale === "zh" ? `专注 ${plan.focusMinutes} 分钟` : `${plan.focusMinutes} min focus`}` : (locale === "zh" ? `专注 ${plan.focusMinutes} 分钟` : `${plan.focusMinutes} min focus`)}</small></span>
+                <span><strong>{todoHeading}</strong><small>{todo.estimatedSeconds ? (locale === "zh" ? `预计 ${durationLabel(todo.estimatedSeconds, locale)}` : `Est. ${durationLabel(todo.estimatedSeconds, locale)}`) : todo.scheduledTime ? `${todo.scheduledTime} · ${locale === "zh" ? `专注 ${plan.focusMinutes} 分钟` : `${plan.focusMinutes} min focus`}` : (locale === "zh" ? `专注 ${plan.focusMinutes} 分钟` : `${plan.focusMinutes} min focus`)}</small></span>
                 <ChevronRight size={19} aria-hidden="true" />
               </button>
             </article>;

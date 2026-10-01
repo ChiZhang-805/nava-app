@@ -58,10 +58,10 @@ async function assertDurationPopoverContained(page, field, label) {
     const submit = document.querySelector(".today-todo-submit")?.getBoundingClientRect();
     return trigger && popup && card && submit ? { trigger: trigger.toJSON(), popup: popup.toJSON(), card: card.toJSON(), submit: submit.toJSON() } : null;
   }, field);
-  if (!geometry || geometry.popup.bottom > geometry.trigger.top - 5 || geometry.popup.top < geometry.card.top - 1
+  if (!geometry || geometry.popup.top < geometry.trigger.bottom + 5 || geometry.popup.top < geometry.card.top - 1
     || geometry.popup.left < geometry.card.left - 1 || geometry.popup.right > geometry.card.right + 1
     || geometry.popup.bottom > geometry.submit.top) {
-    throw new Error(`${label}: duration popover must open upward inside the entry card ${JSON.stringify(geometry)}`);
+    throw new Error(`${label}: duration popover must open below its trigger inside the entry card ${JSON.stringify(geometry)}`);
   }
   return geometry;
 }
@@ -195,19 +195,22 @@ try {
       await expect(page.locator(".today-todo-card-pagination button")).toHaveCount(2);
       await expect(page.locator(".today-todo-card-pagination button").nth(0)).toHaveAttribute("aria-selected", "true");
       const entryGeometry = await page.evaluate(() => {
-        const text = document.querySelector(".today-todo-draft textarea")?.getBoundingClientRect();
+        const title = document.querySelector(".today-todo-draft input")?.getBoundingClientRect();
         const duration = document.querySelector(".today-todo-duration")?.getBoundingClientRect();
+        const steps = document.querySelector(".today-todo-steps textarea")?.getBoundingClientRect();
         const voice = document.querySelector(".today-todo-submit.is-voice")?.getBoundingClientRect();
         const card = document.querySelector(".today-todo-compose")?.getBoundingClientRect();
         const pagination = document.querySelector(".today-todo-card-pagination")?.getBoundingClientRect();
         const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();
-        return text && duration && voice && card && pagination && nav ? {
-          text: text.toJSON(), duration: duration.toJSON(), voice: voice.toJSON(), card: card.toJSON(), pagination: pagination.toJSON(), nav: nav.toJSON(),
+        return title && duration && steps && voice && card && pagination && nav ? {
+          title: title.toJSON(), duration: duration.toJSON(), steps: steps.toJSON(), voice: voice.toJSON(), card: card.toJSON(), pagination: pagination.toJSON(), nav: nav.toJSON(),
         } : null;
       });
-      if (!entryGeometry || entryGeometry.text.height < Math.max(121, entryGeometry.card.height * .38)
-        || entryGeometry.duration.top - entryGeometry.text.bottom > 14 || entryGeometry.duration.top < entryGeometry.text.bottom
-        || entryGeometry.voice.top - entryGeometry.duration.bottom > 14 || entryGeometry.voice.top < entryGeometry.duration.bottom
+      if (!entryGeometry || entryGeometry.title.height < 41 || entryGeometry.title.height > 50
+        || entryGeometry.duration.top - entryGeometry.title.bottom > 14 || entryGeometry.duration.top < entryGeometry.title.bottom
+        || entryGeometry.steps.top - entryGeometry.duration.bottom > 36 || entryGeometry.steps.top < entryGeometry.duration.bottom
+        || entryGeometry.steps.height < 67
+        || entryGeometry.voice.top - entryGeometry.steps.bottom > 14 || entryGeometry.voice.top < entryGeometry.steps.bottom
         || entryGeometry.card.bottom - entryGeometry.voice.bottom > 20
         || entryGeometry.card.bottom > entryGeometry.pagination.top + 1 || entryGeometry.pagination.bottom > entryGeometry.nav.top) {
         throw new Error(`${locale}-${viewport.name}: entry card height or carousel pagination spacing is incorrect ${JSON.stringify(entryGeometry)}`);
@@ -259,16 +262,17 @@ try {
       const voiceButton = page.locator(".today-todo-submit.is-voice");
       await expect(voiceButton).toContainText(locale === "zh" ? "和小猫说说今天想做的事" : "Tell the cat what you want to do");
       await voiceButton.click();
-      await expect(page.locator(".today-todo-draft textarea")).toHaveValue(locale === "zh" ? "完成一次48分钟的有氧跑" : "run for 48 minutes");
+      await expect(page.locator(".today-todo-draft input")).toHaveValue(locale === "zh" ? "完成一次48分钟的有氧跑" : "run for 48 minutes");
       await expect(page.locator('[data-duration-field="minutes"] strong')).toHaveText("48");
       await expect(page.locator(".today-todo-duration > small")).toContainText(locale === "zh" ? "已识别句中时长" : "Duration found in task");
-      await page.locator(".today-todo-draft textarea").fill("");
+      await page.locator(".today-todo-draft input").fill("");
       await page.locator('[data-duration-field="minutes"]').click();
       await page.getByRole("listbox", { name: locale === "zh" ? "分钟" : "Minutes" }).getByRole("option", { name: "00", exact: true }).click();
       await expect(voiceButton).toBeVisible();
 
       const title = `${locale === "zh" ? "整理明天资料" : "Prepare tomorrow's notes"} ${viewport.name}`;
-      await page.locator(".today-todo-draft textarea").fill(title);
+      await page.locator(".today-todo-draft input").fill(title);
+      await page.locator(".today-todo-steps textarea").fill(locale === "zh" ? "先整理资料，再列出明天要确认的三项内容。" : "Gather the notes, then list the three items to confirm tomorrow.");
       await expect(estimateButton).toBeEnabled();
       await expect(page.locator(".today-todo-duration-trigger")).toHaveCount(3);
       const durationGeometry = await page.locator(".today-todo-duration-trigger").evaluateAll((triggers) => triggers.map((trigger) => {
@@ -309,7 +313,7 @@ try {
       ]) {
         await swipeTodoCards(page, false);
         await expect.poll(() => page.locator(".today-todo-card-carousel").evaluate((element) => element.scrollLeft / element.clientWidth)).toBeLessThan(.2);
-        await page.locator(".today-todo-draft textarea").fill(extraTitle);
+        await page.locator(".today-todo-draft input").fill(extraTitle);
         await page.locator(".today-todo-submit").click();
         await expect(page.locator(".today-todo-items article", { hasText: extraTitle })).toBeAttached();
       }
