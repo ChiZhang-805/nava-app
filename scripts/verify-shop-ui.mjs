@@ -435,7 +435,7 @@ try {
     });
     if (!pressAnimation?.catLoaded || pressAnimation.catAnimation !== "none" || pressAnimation.actorAnimation !== "shop-cat-paw-press"
       || pressAnimation.buttonAnimation !== "shop-machine-button" || pressAnimation.statusAnimation !== "shop-machine-status"
-      || pressAnimation.spriteGrid !== "400% 200%") {
+      || pressAnimation.spriteGrid !== "600% 200%") {
       throw new Error(`${viewport.width}x${viewport.height}: printer cat/button animation is not active ${JSON.stringify(pressAnimation)}`);
     }
     await page.screenshot({ path: path.join(outputDir, `checkout-printing-${viewport.width}x${viewport.height}.png`), fullPage: true });
@@ -463,6 +463,8 @@ try {
         frame: frame.toJSON(), flow: flow.toJSON(), receipt: receipt.toJSON(), printer: printer.toJSON(), button: button.toJSON(),
         cat: catRect.toJSON(), catPrinterOverlap: overlapWidth * overlapHeight, catButtonOverlap: buttonOverlapWidth * buttonOverlapHeight,
         buttonRightInset: printer.right - button.right,
+        buttonProtrusion: printer.top - button.top,
+        buttonEmbeddedDepth: button.bottom - printer.top,
         catPrinterSeam: Math.abs(catRect.top + catRect.height * .9 - printer.top),
         catPrinterWidthRatio: catRect.width / printer.width,
         titleFont: Number.parseFloat(getComputedStyle(title).fontSize),
@@ -482,7 +484,9 @@ try {
       || receiptGeometry.transform !== "none" || receiptGeometry.paperCenterOffset > 1
       || receiptGeometry.receiptMinHeight !== "0px" || !receiptGeometry.hasUnitPrice || !receiptGeometry.hasTotal || receiptGeometry.hasRedeemed
       || receiptGeometry.catPrinterSeam > 1.5 || receiptGeometry.catPrinterWidthRatio < .64 || receiptGeometry.catPrinterWidthRatio > .7
-      || receiptGeometry.buttonRightInset < 49 || receiptGeometry.buttonRightInset > 52 || receiptGeometry.catButtonOverlap < 1
+      || receiptGeometry.buttonRightInset < 67 || receiptGeometry.buttonRightInset > 70 || receiptGeometry.catButtonOverlap < 1
+      || receiptGeometry.buttonProtrusion < 8 || receiptGeometry.buttonProtrusion > 11
+      || receiptGeometry.buttonEmbeddedDepth < 15 || receiptGeometry.buttonEmbeddedDepth > 18
       || receiptGeometry.titleFont < 21 || receiptGeometry.copyCount !== 0 || receiptGeometry.receiptFont < 16
       || receiptGeometry.receipt.left < receiptGeometry.frame.left - 1 || receiptGeometry.receipt.right > receiptGeometry.frame.right + 1
       || receiptGeometry.receipt.bottom > receiptGeometry.frame.bottom + 1

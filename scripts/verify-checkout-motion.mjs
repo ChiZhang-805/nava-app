@@ -98,7 +98,7 @@ try {
   await expect(page.locator('.shop-checkout-experience')).toHaveAttribute('data-checkout-phase','card');
   let previous=0;
   const samples=[];
-  for (const milliseconds of [100,900,1400,1700,1850,2000,2200,2400,2700,3100]) {
+  for (const milliseconds of [100,900,1400,1700,1850,2000,2075,2150,2200,2400,2700,3100]) {
     await page.waitForTimeout(milliseconds-previous); previous=milliseconds;
     samples.push(await page.evaluate(() => ({
       cardOffset:(() => { const transform = new DOMMatrix(getComputedStyle(document.querySelector('.shop-terminal-card-motion')).transform); return Math.hypot(transform.e, transform.f); })(),
@@ -111,18 +111,19 @@ try {
   assert.ok(samples[0].stem > .99 && samples[0].arm > .99,'approval must remain hidden at the beginning of the reader phase');
   const contactProcessing = samples.find(sample => sample.cardOffset < 1 && sample.reading > .2 && sample.stem > .98 && sample.arm > .98);
   assert.ok(contactProcessing,'the reader must show processing after contact and before drawing approval');
-  const shortStroke = samples.find(sample => sample.stem > .02 && sample.stem < .98);
-  assert.ok(shortStroke && shortStroke.arm > .98,'the short check stroke must draw first');
-  const longStroke = samples.find(sample => sample.arm > .02 && sample.arm < .98);
-  assert.ok(longStroke && longStroke.stem < .08,'the long check stroke must follow the completed short stroke');
-  assert.ok(samples[8].stem < .02 && samples[8].arm < .02,'both check strokes must finish before the placed state');
+  const shortStrokeIndex = samples.findIndex(sample => sample.stem < .98);
+  const longStrokeIndex = samples.findIndex(sample => sample.arm < .98);
+  assert.ok(shortStrokeIndex >= 0 && longStrokeIndex > shortStrokeIndex
+    && samples[shortStrokeIndex].arm > .98,'the short check stroke must draw first');
+  assert.ok(samples[longStrokeIndex].stem < .08,'the long check stroke must follow the completed short stroke');
+  assert.ok(samples.at(-2).stem < .02 && samples.at(-2).arm < .02,'both check strokes must finish before the placed state');
   await expect(page.locator('.shop-checkout-experience')).toHaveAttribute('data-checkout-phase','placed');
   await page.screenshot({path:`${output}/03-placed.png`});
   await page.waitForTimeout(700);
   await expect(page.locator('.shop-checkout-experience')).toHaveAttribute('data-checkout-phase','placed');
   await page.getByRole('button',{name:'继续',exact:true}).click();
   const paper=[]; previous=0;
-  for (const milliseconds of [400,1200,2000,3000,4200]) {
+  for (const milliseconds of [400,1200,1450,1600,2000,2400,3000,4200]) {
     await page.waitForTimeout(milliseconds-previous); previous=milliseconds;
     paper.push(await page.evaluate(() => ({
       paper:document.querySelector('.shop-receipt').getBoundingClientRect().top,
@@ -136,15 +137,17 @@ try {
     await page.screenshot({path:`${output}/04-print-${milliseconds}.png`});
   }
   assert.equal(paper[0].status,'rgb(239, 182, 94)','printer light must begin orange');
-  assert.equal(paper[1].status,'rgb(239, 182, 94)','printer light must remain orange before paw contact');
-  assert.equal(paper[2].status,'rgb(79, 208, 150)','printer light must turn green on the pressed frame');
-  const preGreenPaperDrift = Math.abs((paper[1].paper-paper[1].printer)-(paper[0].paper-paper[0].printer));
+  const firstGreenIndex = paper.findIndex(sample => sample.status === 'rgb(79, 208, 150)');
+  assert.ok(firstGreenIndex > 0,'printer light must turn green after the orange resting frame');
+  assert.ok(paper[firstGreenIndex].buttonY > 2,'the machine button must visibly depress on the paw-contact frame');
+  assert.ok(Math.abs(paper[firstGreenIndex - 1].buttonY) < .1,'the machine button must stay raised before paw contact');
+  const preGreenPaperDrift = Math.abs((paper[firstGreenIndex - 1].paper-paper[firstGreenIndex - 1].printer)-(paper[0].paper-paper[0].printer));
   assert.ok(preGreenPaperDrift<2,`receipt must stay behind the slot before the light turns green: ${JSON.stringify({preGreenPaperDrift,paper})}`);
-  assert.ok(new Set(paper.slice(0,4).map(sample => sample.catFrame)).size >= 4,'the eight-frame cat action must visibly advance');
+  assert.ok(new Set(paper.slice(0,6).map(sample => sample.catFrame)).size >= 5,'the twelve-frame cat action must visibly advance');
   const clipBottom = (value) => Number.parseFloat(value.match(/([\d.]+)%\)?$/)?.[1] ?? 'NaN');
   assert.ok(clipBottom(paper[1].clip) > 99,'the full receipt must remain inside the slot before printing');
-  assert.ok(clipBottom(paper[2].clip) < 99 && clipBottom(paper[2].clip) > clipBottom(paper[3].clip),'the receipt must feed from its heading downward after approval');
-  assert.ok(clipBottom(paper[3].clip) < 70,'the printed receipt length must visibly grow');
+  assert.ok(clipBottom(paper[4].clip) < 99 && clipBottom(paper[4].clip) > clipBottom(paper[5].clip),'the receipt must feed from its heading downward after approval');
+  assert.ok(clipBottom(paper[5].clip) < 70,'the printed receipt length must visibly grow');
   await expect(page.locator('.shop-checkout-experience')).toHaveAttribute('data-checkout-phase','receipt');
   await page.waitForTimeout(1500);
   await page.screenshot({path:`${output}/05-receipt.png`});

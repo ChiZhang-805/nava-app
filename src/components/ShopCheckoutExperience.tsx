@@ -1,6 +1,6 @@
 import { PawPrint, Wifi } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import printerCatPressSprite from "../assets/shop/points-cards/printer-cat-press-sprite.png";
+import printerCatPressSprite from "../assets/shop/points-cards/printer-cat-press-sprite-v2.png";
 import { POINTS_CARD_SKINS, type PointsCardSkin, type PointsCardSkinId } from "../services/rewardCards";
 import type { RewardCartLine, RewardCheckoutResult } from "../services/rewardShop";
 import ShopPaymentTerminal from "./ShopPaymentTerminal";

@@ -83,7 +83,7 @@ test("checkout requires a card choice and uses an animated printer cat", () => {
   assert.match(cards, /lavender-reading\.webp/);
   assert.match(cards, /seaside-studio\.webp/);
   assert.match(cards, /sunset-garden\.webp/);
-  assert.match(checkout, /printer-cat-press-sprite\.png/);
+  assert.match(checkout, /printer-cat-press-sprite-v2\.png/);
   assert.match(checkout, /role="radiogroup"/);
   assert.match(checkout, /横向滑动选择积分卡卡面/);
   assert.match(checkout, /onScroll=\{syncCardFromScroll\}/);

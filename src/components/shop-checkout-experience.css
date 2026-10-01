@@ -164,7 +164,7 @@
 .shop-printer-highlight { position: absolute; left: 12px; right: 12px; top: 8px; height: 11px; border-radius: 9px; background: linear-gradient(90deg, rgba(255, 255, 255, .9), rgba(255, 255, 255, .18), rgba(255, 255, 255, .75)); }
 .shop-printer-slot { position: absolute; left: 14px; right: 14px; bottom: 10px; height: 10px; border-radius: 99px; background: linear-gradient(180deg, #202629, #080b0c); box-shadow: inset 0 2px 4px #000, 0 1px 0 rgba(255, 255, 255, .52); }
 .shop-printer-status { position: absolute; right: 11px; top: 27px; width: 7px; height: 7px; border-radius: 50%; background: #efb65e; box-shadow: 0 0 7px rgba(239, 182, 94, .62); }
-.shop-printer-button { position: absolute; z-index: 10; right: 50px; top: -18px; width: 35px; height: 26px; border: 1px solid #71878b; border-radius: 9px 9px 6px 6px; display: grid; place-items: center; background: linear-gradient(#f4f7f7, #aab6b8); box-shadow: 0 5px 9px rgba(30, 54, 59, .24); }
+.shop-printer-button { position: absolute; z-index: 8; right: 68px; top: -9px; width: 35px; height: 25px; border: 1px solid #9aa9ac; border-bottom-color: #879598; border-radius: 9px 9px 4px 4px; display: grid; place-items: center; background: linear-gradient(180deg, #f8fafa 0%, #d7dfe0 52%, #aab5b7 100%); box-shadow: 0 1px 2px rgba(30, 54, 59, .16), inset 0 1px 0 rgba(255,255,255,.92); }
 .shop-printer-button i { width: 13px; height: 8px; border-radius: 5px; background: #efb65e; box-shadow: inset 0 -2px 1px rgba(115, 71, 16, .2); }
 [data-checkout-phase="printing"] .shop-printer-button { animation: shop-machine-button 2.4s steps(1,end) .28s both; }
 [data-checkout-phase="printing"] .shop-printer-status { animation: shop-machine-status 2.4s steps(1,end) .28s both; }
@@ -197,7 +197,7 @@
 [data-checkout-phase="receipt"] .shop-receipt-stamp { animation: shop-stamp .68s cubic-bezier(.18, .9, .32, 1.25) .7s both; }
 
 .shop-checkout-cat { position: absolute; z-index: 9; left: 50%; bottom: 80%; width: min(61vw, 232px); aspect-ratio: 1; overflow: hidden; opacity: 1; filter: drop-shadow(0 9px 9px rgba(34,78,84,.16)); transform: translate(-60%,10%); }
-.shop-checkout-cat > span { display: block; width: 100%; height: 100%; background-repeat: no-repeat; background-position: 0 0; background-size: 400% 200%; clip-path: inset(15% 1.5% 0); }
+.shop-checkout-cat > span { display: block; width: 100%; height: 100%; background-repeat: no-repeat; background-position: 0 0; background-size: 600% 200%; clip-path: inset(7% 1.5% 0); }
 [data-checkout-phase="printing"] .shop-checkout-cat > span { animation: shop-cat-paw-press 2.4s steps(1,end) .28s both; }
 [data-checkout-phase="receipt"] .shop-checkout-cat > span { background-position: 100% 100%; transform-origin: center bottom; animation: shop-cat-breathe 3.1s ease-in-out infinite; }
 
@@ -233,18 +233,22 @@
 @keyframes shop-terminal-approve { to { stroke-dashoffset: 0; } }
 @keyframes shop-paper-feed { from { clip-path: inset(0 0 100%); transform: translateY(-8px); } to { clip-path: inset(0); transform: translateY(0); } }
 @keyframes shop-cat-paw-press {
-  0%, 12.49% { background-position: 0 0; }
-  12.5%, 24.99% { background-position: 33.333% 0; }
-  25%, 37.49% { background-position: 66.666% 0; }
-  37.5%, 49.99% { background-position: 100% 0; }
-  50%, 62.49% { background-position: 0 100%; }
-  62.5%, 74.99% { background-position: 33.333% 100%; }
-  75%, 87.49% { background-position: 66.666% 100%; }
-  87.5%, 100% { background-position: 100% 100%; }
+  0%, 8.32% { background-position: 0 0; }
+  8.33%, 16.65% { background-position: 20% 0; }
+  16.66%, 24.99% { background-position: 40% 0; }
+  25%, 33.32% { background-position: 60% 0; }
+  33.33%, 41.65% { background-position: 80% 0; }
+  41.66%, 49.99% { background-position: 100% 0; }
+  50%, 58.32% { background-position: 0 100%; }
+  58.33%, 66.65% { background-position: 20% 100%; }
+  66.66%, 74.99% { background-position: 40% 100%; }
+  75%, 83.32% { background-position: 60% 100%; }
+  83.33%, 91.65% { background-position: 80% 100%; }
+  91.66%, 100% { background-position: 100% 100%; }
 }
 @keyframes shop-cat-breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(.988); } }
-@keyframes shop-machine-button { 0%, 49.99%, 75%, 100% { transform: translateY(0); } 50%, 74.99% { transform: translateY(5px); box-shadow: 0 1px 3px rgba(30, 54, 59, .22); } }
-@keyframes shop-machine-status { 0%, 62.49% { background: #efb65e; box-shadow: 0 0 7px rgba(239, 182, 94, .62); } 62.5%, 100% { background: #4fd096; box-shadow: 0 0 8px rgba(79, 208, 150, .8); } }
+@keyframes shop-machine-button { 0%, 41.65%, 58.33%, 100% { transform: translateY(0); } 41.66%, 58.32% { transform: translateY(3px); box-shadow: 0 1px 2px rgba(30, 54, 59, .2), inset 0 1px 0 rgba(255,255,255,.7); } }
+@keyframes shop-machine-status { 0%, 41.65% { background: #efb65e; box-shadow: 0 0 7px rgba(239, 182, 94, .62); } 41.66%, 100% { background: #4fd096; box-shadow: 0 0 8px rgba(79, 208, 150, .8); } }
 @keyframes shop-stamp { from { opacity: 0; transform: scale(1.55); } to { opacity: .88; transform: scale(1); } }
 @keyframes shop-confetti { 0%, 100% { opacity: 0; translate: 0 -7px; } 28%, 72% { opacity: .78; } 60% { translate: 5px 9px; } }
 @keyframes shop-actions-in { from { opacity: 0; transform: translateY(13px); } to { opacity: 1; transform: translateY(0); } }
