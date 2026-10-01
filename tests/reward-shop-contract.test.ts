@@ -167,5 +167,10 @@ test("confirmation and receipt are aligned, legible and free of explanatory subt
   assert.match(checkoutStyles, /@keyframes shop-paper-feed/);
   assert.match(checkout, /className="shop-receipt-feed"/);
   assert.match(terminal, /matrix\(\.9 \.38 -\.70 \.43/);
-  assert.match(checkoutStyles, /shop-terminal-approve .55s ease 2.2s/);
+  assert.match(checkout, /className="shop-terminal-summary-row"/);
+  assert.match(checkout, /已使用/);
+  assert.match(checkoutStyles, /shop-terminal-approve .28s ease 1.75s/);
+  assert.match(checkoutStyles, /shop-terminal-approve .42s ease 2.03s/);
+  assert.match(terminal, /shop-terminal-check-stem/);
+  assert.match(terminal, /shop-terminal-check-arm/);
 });

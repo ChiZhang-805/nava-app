@@ -127,7 +127,6 @@ export default function ShopCheckoutExperience({
   const chosenCard = availableCards.find((card) => card.id === chosenCardId) ?? availableCards[0] ?? POINTS_CARD_SKINS[0];
   const chosenCardIndex = Math.max(0, availableCards.findIndex((card) => card.id === chosenCard.id));
   const orderCode = result?.orderId.slice(0, 8).toUpperCase() ?? "";
-  const productLabel = lines.map((line) => line.product.name).join(" · ");
   const timestamp = new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", {
     year: "numeric",
     month: "2-digit",
@@ -284,9 +283,17 @@ export default function ShopCheckoutExperience({
         <div className="shop-terminal-scene" aria-hidden={phase !== "card" && phase !== "placed"}>
           <ShopPaymentTerminal card={chosenCard} approved={Boolean(result)} />
           <div className="shop-terminal-summary">
-            <div><span>{locale === "zh" ? "商品" : "Item"}</span><strong>{productLabel}</strong></div>
-            <i />
-            <div><span>{locale === "zh" ? "总计" : "Total"}</span><strong>{totalPoints.toLocaleString()} XP</strong></div>
+            <div className="shop-terminal-summary-list">
+              {lines.map((line, index) => {
+                const linePoints = line.product.pointPrice == null ? null : line.product.pointPrice * line.quantity;
+                return <div className="shop-terminal-summary-row" key={line.product.id}>
+                  <span>{locale === "zh" ? `商品${lines.length > 1 ? index + 1 : ""}` : `Item${lines.length > 1 ? ` ${index + 1}` : ""}`}</span>
+                  <strong>{line.product.name}{line.quantity > 1 ? ` × ${line.quantity}` : ""}</strong>
+                  <span>{locale === "zh" ? "已使用" : "Used"}</span>
+                  <b>{linePoints == null ? "—" : `${linePoints.toLocaleString()} XP`}</b>
+                </div>;
+              })}
+            </div>
           </div>
         </div>
 

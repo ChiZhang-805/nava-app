@@ -43,6 +43,21 @@ try {
     await page.getByRole('button', {name:locale === 'zh' ? '继续' : 'Continue',exact:true}).click();
     await expect(page.locator('.shop-checkout-pending')).toBeVisible();
     await expect(page.locator('.shop-checkout-experience')).toHaveAttribute('data-checkout-phase','placed');
+    const summaryRows = page.locator('.shop-terminal-summary-row');
+    await expect(summaryRows).toHaveCount(2);
+    await expect(summaryRows.nth(0)).toContainText(locale === 'zh' ? '商品1' : 'Item 1');
+    await expect(summaryRows.nth(0)).toContainText(locale === 'zh' ? '已使用' : 'Used');
+    await expect(summaryRows.nth(0)).toContainText('40 XP');
+    await expect(summaryRows.nth(1)).toContainText(locale === 'zh' ? '商品2' : 'Item 2');
+    await expect(summaryRows.nth(1)).toContainText('40 XP');
+    const placedFit = await page.evaluate(() => {
+      const summary = document.querySelector('.shop-terminal-summary').getBoundingClientRect();
+      const action = document.querySelector('.shop-checkout-primary').getBoundingClientRect();
+      const rows = [...document.querySelectorAll('.shop-terminal-summary-row')].map(row => row.getBoundingClientRect().height);
+      return { summaryBottom: summary.bottom, actionTop: action.top, rows };
+    });
+    assert.ok(placedFit.summaryBottom <= placedFit.actionTop - 8 && placedFit.rows.every(height => height <= 46), JSON.stringify(placedFit));
+    await page.screenshot({ path:`${output}/placed-long-${locale}-${viewport.width}.png` });
     await page.getByRole('button', {name:locale === 'zh' ? '继续' : 'Continue',exact:true}).click();
     await expect(page.locator('.shop-checkout-experience')).toHaveAttribute('data-checkout-phase','receipt');
     await page.locator('.shop-receipt footer').scrollIntoViewIfNeeded();
@@ -66,12 +81,24 @@ try {
   await expect(page.locator('.shop-checkout-experience')).toHaveAttribute('data-checkout-phase','card');
   let previous=0;
   const samples=[];
-  for (const milliseconds of [100,600,1400,2150,2800]) {
+  for (const milliseconds of [100,900,1400,1700,1850,2000,2200,2400,2700,3100]) {
     await page.waitForTimeout(milliseconds-previous); previous=milliseconds;
-    samples.push(await page.evaluate(() => ({card:getComputedStyle(document.querySelector('.shop-terminal-card-motion')).transform,check:parseFloat(getComputedStyle(document.querySelector('.shop-terminal-check')).strokeDashoffset)})));
+    samples.push(await page.evaluate(() => ({
+      cardOffset:(() => { const transform = new DOMMatrix(getComputedStyle(document.querySelector('.shop-terminal-card-motion')).transform); return Math.hypot(transform.e, transform.f); })(),
+      reading:parseFloat(getComputedStyle(document.querySelector('.shop-terminal-reading')).opacity),
+      stem:parseFloat(getComputedStyle(document.querySelector('.shop-terminal-check-stem')).strokeDashoffset),
+      arm:parseFloat(getComputedStyle(document.querySelector('.shop-terminal-check-arm')).strokeDashoffset),
+    })));
     await page.screenshot({path:`${output}/02-reader-${milliseconds}.png`});
   }
-  assert.ok(samples[0].check > .99 && samples[1].check > .99,'approval must not precede the contactless approach');
+  assert.ok(samples[0].stem > .99 && samples[0].arm > .99,'approval must remain hidden at the beginning of the reader phase');
+  const contactProcessing = samples.find(sample => sample.cardOffset < 1 && sample.reading > .2 && sample.stem > .98 && sample.arm > .98);
+  assert.ok(contactProcessing,'the reader must show processing after contact and before drawing approval');
+  const shortStroke = samples.find(sample => sample.stem > .02 && sample.stem < .98);
+  assert.ok(shortStroke && shortStroke.arm > .98,'the short check stroke must draw first');
+  const longStroke = samples.find(sample => sample.arm > .02 && sample.arm < .98);
+  assert.ok(longStroke && longStroke.stem < .08,'the long check stroke must follow the completed short stroke');
+  assert.ok(samples[8].stem < .02 && samples[8].arm < .02,'both check strokes must finish before the placed state');
   await expect(page.locator('.shop-checkout-experience')).toHaveAttribute('data-checkout-phase','placed');
   await page.screenshot({path:`${output}/03-placed.png`});
   await page.waitForTimeout(700);

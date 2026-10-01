@@ -396,13 +396,19 @@ try {
       const summary = document.querySelector(".shop-terminal-summary")?.getBoundingClientRect();
       const action = document.querySelector(".shop-checkout-primary")?.getBoundingClientRect();
       const copy = document.querySelector(".shop-terminal-summary")?.textContent ?? "";
+      const rows = [...document.querySelectorAll(".shop-terminal-summary-row")];
+      const columns = rows[0] ? getComputedStyle(rows[0]).gridTemplateColumns.split(" ").length : 0;
       return frame && terminal && summary && action ? {
         frame: frame.toJSON(), terminal: terminal.toJSON(), summary: summary.toJSON(), action: action.toJSON(),
         hasProduct: copy.includes("小猫陪伴手账本"),
         hasPoints: copy.includes("XP"),
+        hasUsedLabel: copy.includes("已使用"),
+        rowCount: rows.length,
+        columns,
       } : null;
     });
-    if (!placedGeometry || !placedGeometry.hasProduct || !placedGeometry.hasPoints
+    if (!placedGeometry || !placedGeometry.hasProduct || !placedGeometry.hasPoints || !placedGeometry.hasUsedLabel
+      || placedGeometry.rowCount !== 1 || placedGeometry.columns !== 4
       || placedGeometry.terminal.left < placedGeometry.frame.left - 1 || placedGeometry.terminal.right > placedGeometry.frame.right + 1
       || placedGeometry.summary.left < placedGeometry.frame.left - 1 || placedGeometry.summary.right > placedGeometry.frame.right + 1
       || placedGeometry.action.bottom > placedGeometry.frame.bottom + 1) {

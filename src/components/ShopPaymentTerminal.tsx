@@ -2,7 +2,7 @@ import type { PointsCardSkin } from "../services/rewardCards";
 
 /** One shared isometric plane keeps the card, screen, keys and casing aligned. */
 export default function ShopPaymentTerminal({ card, approved }: { card: PointsCardSkin; approved: boolean }) {
-  return <svg className="shop-payment-terminal" viewBox="0 0 360 270" role="presentation" aria-hidden="true">
+  return <svg className="shop-payment-terminal" data-approved={approved ? "true" : "false"} viewBox="0 0 360 270" role="presentation" aria-hidden="true">
     <defs>
       <linearGradient id="terminal-case" x2=".8" y2="1"><stop stopColor="#ffffff" /><stop offset=".55" stopColor="#e3eeeb" /><stop offset="1" stopColor="#bacdca" /></linearGradient>
       <linearGradient id="terminal-face" x2=".3" y2="1"><stop stopColor="#31565c" /><stop offset="1" stopColor="#163b43" /></linearGradient>
@@ -25,8 +25,13 @@ export default function ShopPaymentTerminal({ card, approved }: { card: PointsCa
         <rect x="9" y="21" width="106" height="83" rx="7" fill="#102e35" />
         <rect x="15" y="27" width="94" height="71" rx="3" fill="#f7fcf7" />
         <g className="shop-terminal-screen-mark">
-          {!approved && [43, 61, 79].map((x) => <circle key={x} cx={x} cy="63" r="4" fill="#379c8e" />)}
-          {approved && <path className="shop-terminal-check" d="m36 63 17 18 37-40" pathLength="1" fill="none" stroke="#31af86" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />}
+          <g className="shop-terminal-reading">
+            {[43, 61, 79].map((x) => <circle key={x} cx={x} cy="63" r="4" fill="#379c8e" />)}
+          </g>
+          <g className="shop-terminal-check">
+            <path className="shop-terminal-check-stem" d="m36 63 17 18" pathLength="1" fill="none" stroke="#31af86" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+            <path className="shop-terminal-check-arm" d="m53 81 37-40" pathLength="1" fill="none" stroke="#31af86" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+          </g>
         </g>
         {Array.from({ length: 12 }, (_, i) => {
           const x = 15 + (i % 3) * 33;
