@@ -11026,7 +11026,6 @@ body::before {
 .today-todo-steps { position: relative; min-height: 86px; flex: 1 1 auto; display: grid; grid-template-rows: auto minmax(68px,1fr); gap: 6px; }
 .today-todo-steps textarea { width: 100%; height: 100%; min-height: 68px; resize: none; border: 1px solid #cae4ea; border-radius: 18px; padding: 13px 14px 28px; outline: 0; color: #153d50; background: rgba(248,253,254,.88); font: inherit; font-size: 14px; line-height: 1.5; box-shadow: inset 0 2px 6px rgba(41,109,129,.035); }
 .today-todo-steps > small { position: absolute; right: 12px; bottom: 9px; color: #91a9b0; font-size: 11px; }
-.today-todo-compose:has(.duration-unit-popover) .today-todo-steps { visibility: hidden; pointer-events: none; }
 .today-todo-submit { width: 100%; min-height: 50px; flex: 0 0 auto; border: 0; border-radius: 17px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px; color: #fff; background: linear-gradient(135deg,#30aabd,#228e82); box-shadow: 0 9px 20px rgba(35,143,154,.2); font: inherit; font-size: 15px; font-weight: 760; }
 .today-todo-submit.is-voice { background: linear-gradient(135deg,#32a9bc,#238f84); }
 .today-todo-submit:disabled { color: #8aa7ae; background: #e1ecee; box-shadow: none; }

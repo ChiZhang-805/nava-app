@@ -56,12 +56,16 @@ async function assertDurationPopoverContained(page, field, label) {
     const popup = document.querySelector(".duration-unit-popover")?.getBoundingClientRect();
     const card = document.querySelector(".today-todo-compose")?.getBoundingClientRect();
     const submit = document.querySelector(".today-todo-submit")?.getBoundingClientRect();
-    return trigger && popup && card && submit ? { trigger: trigger.toJSON(), popup: popup.toJSON(), card: card.toJSON(), submit: submit.toJSON() } : null;
+    const steps = document.querySelector(".today-todo-steps");
+    return trigger && popup && card && submit && steps ? {
+      trigger: trigger.toJSON(), popup: popup.toJSON(), card: card.toJSON(), submit: submit.toJSON(),
+      stepsVisibility: getComputedStyle(steps).visibility, stepsOpacity: getComputedStyle(steps).opacity,
+    } : null;
   }, field);
   if (!geometry || geometry.popup.top < geometry.trigger.bottom + 5 || geometry.popup.top < geometry.card.top - 1
     || geometry.popup.left < geometry.card.left - 1 || geometry.popup.right > geometry.card.right + 1
-    || geometry.popup.bottom > geometry.submit.top) {
-    throw new Error(`${label}: duration popover must open below its trigger inside the entry card ${JSON.stringify(geometry)}`);
+    || geometry.popup.bottom > geometry.submit.top || geometry.stepsVisibility !== "visible" || geometry.stepsOpacity !== "1") {
+    throw new Error(`${label}: duration popover must remain contained without hiding the detailed steps ${JSON.stringify(geometry)}`);
   }
   return geometry;
 }
