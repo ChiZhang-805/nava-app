@@ -124,11 +124,27 @@ try {
   const paper=[]; previous=0;
   for (const milliseconds of [400,1200,2000,3000,4200]) {
     await page.waitForTimeout(milliseconds-previous); previous=milliseconds;
-    paper.push(await page.evaluate(() => ({paper:document.querySelector('.shop-receipt').getBoundingClientRect().top,text:document.querySelector('.shop-receipt header').getBoundingClientRect().top})));
+    paper.push(await page.evaluate(() => ({
+      paper:document.querySelector('.shop-receipt').getBoundingClientRect().top,
+      text:document.querySelector('.shop-receipt header').getBoundingClientRect().top,
+      printer:document.querySelector('.shop-receipt-printer').getBoundingClientRect().top,
+      clip:getComputedStyle(document.querySelector('.shop-receipt')).clipPath,
+      status:getComputedStyle(document.querySelector('.shop-printer-status')).backgroundColor,
+      catFrame:getComputedStyle(document.querySelector('.shop-checkout-cat > span')).backgroundPosition,
+      buttonY:new DOMMatrix(getComputedStyle(document.querySelector('.shop-printer-button')).transform).f,
+    })));
     await page.screenshot({path:`${output}/04-print-${milliseconds}.png`});
   }
-  assert.ok(paper[3].paper > paper[1].paper + 30,'paper must physically advance');
-  assert.ok(Math.abs((paper[3].text-paper[1].text)-(paper[3].paper-paper[1].paper))<1,'ink must move with the paper, not be revealed in place');
+  assert.equal(paper[0].status,'rgb(239, 182, 94)','printer light must begin orange');
+  assert.equal(paper[1].status,'rgb(239, 182, 94)','printer light must remain orange before paw contact');
+  assert.equal(paper[2].status,'rgb(79, 208, 150)','printer light must turn green on the pressed frame');
+  const preGreenPaperDrift = Math.abs((paper[1].paper-paper[1].printer)-(paper[0].paper-paper[0].printer));
+  assert.ok(preGreenPaperDrift<2,`receipt must stay behind the slot before the light turns green: ${JSON.stringify({preGreenPaperDrift,paper})}`);
+  assert.ok(new Set(paper.slice(0,4).map(sample => sample.catFrame)).size >= 4,'the eight-frame cat action must visibly advance');
+  const clipBottom = (value) => Number.parseFloat(value.match(/([\d.]+)%\)?$/)?.[1] ?? 'NaN');
+  assert.ok(clipBottom(paper[1].clip) > 99,'the full receipt must remain inside the slot before printing');
+  assert.ok(clipBottom(paper[2].clip) < 99 && clipBottom(paper[2].clip) > clipBottom(paper[3].clip),'the receipt must feed from its heading downward after approval');
+  assert.ok(clipBottom(paper[3].clip) < 70,'the printed receipt length must visibly grow');
   await expect(page.locator('.shop-checkout-experience')).toHaveAttribute('data-checkout-phase','receipt');
   await page.waitForTimeout(1500);
   await page.screenshot({path:`${output}/05-receipt.png`});

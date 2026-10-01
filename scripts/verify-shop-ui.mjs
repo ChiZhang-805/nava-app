@@ -422,15 +422,20 @@ try {
       const cat = document.querySelector(".shop-checkout-cat");
       const actor = document.querySelector(".shop-checkout-cat > span");
       const button = document.querySelector(".shop-printer-button");
-      if (!cat || !actor || !button) return null;
+      const status = document.querySelector(".shop-printer-status");
+      if (!cat || !actor || !button || !status) return null;
       return {
         catAnimation: getComputedStyle(cat).animationName,
         actorAnimation: getComputedStyle(actor).animationName,
         buttonAnimation: getComputedStyle(button).animationName,
+        statusAnimation: getComputedStyle(status).animationName,
+        spriteGrid: getComputedStyle(actor).backgroundSize,
         catLoaded: getComputedStyle(actor).backgroundImage !== "none",
       };
     });
-    if (!pressAnimation?.catLoaded || pressAnimation.catAnimation !== "none" || pressAnimation.actorAnimation !== "shop-cat-paw-press" || pressAnimation.buttonAnimation !== "shop-machine-button") {
+    if (!pressAnimation?.catLoaded || pressAnimation.catAnimation !== "none" || pressAnimation.actorAnimation !== "shop-cat-paw-press"
+      || pressAnimation.buttonAnimation !== "shop-machine-button" || pressAnimation.statusAnimation !== "shop-machine-status"
+      || pressAnimation.spriteGrid !== "400% 200%") {
       throw new Error(`${viewport.width}x${viewport.height}: printer cat/button animation is not active ${JSON.stringify(pressAnimation)}`);
     }
     await page.screenshot({ path: path.join(outputDir, `checkout-printing-${viewport.width}x${viewport.height}.png`), fullPage: true });
@@ -457,7 +462,7 @@ try {
       return {
         frame: frame.toJSON(), flow: flow.toJSON(), receipt: receipt.toJSON(), printer: printer.toJSON(), button: button.toJSON(),
         cat: catRect.toJSON(), catPrinterOverlap: overlapWidth * overlapHeight, catButtonOverlap: buttonOverlapWidth * buttonOverlapHeight,
-        catPrinterSeam: Math.abs(catRect.top + catRect.height * .83 - printer.top),
+        catPrinterSeam: Math.abs(catRect.top + catRect.height * .9 - printer.top),
         catPrinterWidthRatio: catRect.width / printer.width,
         titleFont: Number.parseFloat(getComputedStyle(title).fontSize),
         copyCount: copy ? 1 : 0,
