@@ -27,14 +27,16 @@
 本轮未修改积分扣减、订单幂等、数据库、Edge Function或生产账号数据。完整`npm run verify`仍只
 停在既有`external-preview:visual`旧用例寻找不存在的`.sports-plan-actions`，本轮没有修改该路径。
 
-本轮构图调整未重新生成图片。商城视觉测试同时锁定猫/机器比例、猫身与机器顶线接缝，以及按钮
-右侧49–52px区间，避免只移动按钮或角色导致新的失衡。
+本轮用内置图像生成生成透明动作姿势，再由`compose-printer-cat-sprite.mjs`确定性清除离散杂点、
+归一化高度/落座基线并组合正反动作，不直接把生成原图当成可发布精灵图。商城视觉测试同时锁定
+猫/机器比例、猫身与机器顶线接缝、按钮68px右侧内距、9px外露和16px左右嵌入深度，避免只移动
+按钮或角色导致新的失衡。
 
-功能源码`45c4e04bed6e79d1c602f402bfebae1220ee1670`已干净推送并从同一提交生成双站。
-ChatGPT Sites **v216**：
-`appgprj_6a5de710811c8191af8ce2681358d518~appgver_64ae9ed88b10819185748ceaa9f78257`；
-部署`appgdep_6abed2fdccc48191af4e977ca009659e` succeeded。GitHub Pages镜像提交
-`086bc938115d6305921320102e47421295316e49`，workflow `36930247771` success。两站公开只读验收
+功能源码`44dd62431fc6bcae4bbf21a5b62f097aa6bf8443`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v217**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_fddaefacf3f081918bf60b076d4397e6`；
+部署`appgdep_6abeddbfb8b881919c1da9f94c7db59d` succeeded。GitHub Pages镜像提交
+`a70a01392324bafb7780667883a5b4d95608c1a5`，workflow `36935089654` success。两站公开只读验收
 通过：每站6项入口/身份关键资源与各自本地制品一致，公开`?demo=1`仍要求真实登录，canonical
 Supabase为`wxteapvwagvhhtrjrbim`；Sites继续保持public访问策略。
 
