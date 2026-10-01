@@ -19,6 +19,16 @@
 320px窄屏单独收窄水平间距和字号，但仍保留至少5px真实列间隔、至少50px行高和完整名称；
 360px及以上恢复更宽的列空气感。本轮不改变商品数据、结算、积分或后端合同。
 
+功能源码`f43b7bfd9906c4af50a21f64774d6e76c0ef833f`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v210**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_f9daacff0aa881919ae6aa4dc04ccede`；
+部署`appgdep_6abe5c0df8188191ac31a8d73d2d39e5` succeeded。GitHub Pages镜像提交
+`51287ff8321dfaad2a76c64c5101de191376bbda`，workflow `36867113366` success；212个生成文件
+SHA-256一致。两站公开只读验收通过：每站6项关键资源与各自本地制品一致，公开
+`?demo=1`仍要求真实登录，canonical Supabase为`wxteapvwagvhhtrjrbim`。lint、Web/native构建、
+生产认证、商城合同、商城视觉与动画多尺寸验收通过；完整`npm run verify`仍只停在既有
+`external-preview:visual`旧用例寻找不存在的`.sports-plan-actions`。
+
 ## 135. 订单完成逐行摘要与终端笔画反馈（当前版本）
 
 “订单已完成”的白色摘要卡不再将商品和已使用积分排成两个竖向栏。单商品使用
