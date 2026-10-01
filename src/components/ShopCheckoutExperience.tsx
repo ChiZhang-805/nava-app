@@ -53,6 +53,7 @@ export default function ShopCheckoutExperience({
   const actionRef = useRef<HTMLButtonElement>(null);
   const cardTrackRef = useRef<HTMLDivElement>(null);
   const cardScrollFrameRef = useRef<number | null>(null);
+  const cardTouchRef = useRef<{ x: number; y: number; index: number } | null>(null);
   const acceleratedTimeline = import.meta.env.DEV
     && new URLSearchParams(window.location.search).get("qaCheckoutTiming") === "fast";
 
@@ -142,6 +143,16 @@ export default function ShopCheckoutExperience({
     track.scrollTo({ left: card.offsetLeft - (track.clientWidth - card.offsetWidth) / 2, behavior });
   };
 
+  const finishCardSwipe = (clientX: number, clientY: number) => {
+    const start = cardTouchRef.current;
+    cardTouchRef.current = null;
+    if (!start || phase !== "select") return;
+    const deltaX = clientX - start.x;
+    const deltaY = clientY - start.y;
+    if (Math.abs(deltaX) < 38 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.15) return;
+    centerCard(start.index + (deltaX < 0 ? 1 : -1));
+  };
+
   const syncCardFromScroll = () => {
     if (cardScrollFrameRef.current !== null) return;
     cardScrollFrameRef.current = window.requestAnimationFrame(() => {
@@ -168,9 +179,20 @@ export default function ShopCheckoutExperience({
       data-selected-card={chosenCard.id}
       data-reduced-motion={reducedMotion ? "true" : "false"}
       data-checkout-timeline={acceleratedTimeline ? "test" : "production"}
+      data-card-swipe-zone={phase === "select" ? "active" : undefined}
       role="dialog"
       aria-modal="true"
       aria-labelledby="shop-checkout-title"
+      onTouchStart={(event) => {
+        if (phase !== "select" || event.touches.length !== 1) return;
+        const touch = event.touches[0];
+        cardTouchRef.current = { x: touch.clientX, y: touch.clientY, index: chosenCardIndex };
+      }}
+      onTouchEnd={(event) => {
+        const touch = event.changedTouches[0];
+        if (touch) finishCardSwipe(touch.clientX, touch.clientY);
+      }}
+      onTouchCancel={() => { cardTouchRef.current = null; }}
     >
       <div className="shop-checkout-ambient" aria-hidden="true"><i /><i /><i /><i /><i /></div>
 

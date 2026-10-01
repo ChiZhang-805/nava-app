@@ -36,6 +36,26 @@ async function prepare(context, hash) {
   return page;
 }
 
+async function swipeCheckoutCards(page, forward = true) {
+  const target = page.locator('.shop-checkout-experience[data-card-swipe-zone="active"]');
+  const rect = await target.boundingBox();
+  if (!rect) throw new Error("Checkout card swipe zone is missing");
+  const session = await page.context().newCDPSession(page);
+  const startX = rect.x + rect.width * (forward ? .82 : .18);
+  const endX = rect.x + rect.width * (forward ? .18 : .82);
+  const y = rect.y + rect.height * .48;
+  try {
+    await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: startX, y }] });
+    for (let step = 1; step <= 12; step += 1) {
+      await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: startX + (endX - startX) * step / 12, y }] });
+      await new Promise((resolve) => setTimeout(resolve, 18));
+    }
+    await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  } finally {
+    await session.detach();
+  }
+}
+
 try {
   const desktopContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 1440, height: 1080 }, deviceScaleFactor: 1 });
   const desktop = await prepare(desktopContext, "#tab=today");
@@ -253,13 +273,14 @@ try {
     report.push({ mode: "cart-with-bottom-navigation", viewport, cartShellGeometry });
     await page.getByRole("button", { name: "确认兑换", exact: true }).click();
     await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "select");
+    await expect(page.locator(".shop-checkout-experience")).toHaveAttribute("data-card-swipe-zone", "active");
     await expect(page.getByRole("radio")).toHaveCount(3);
-    const cardTrack = page.locator(".shop-card-picker-list");
-    await cardTrack.evaluate((track) => {
-      const card = track.querySelector('[data-card-index="1"]');
-      if (!(card instanceof HTMLElement)) throw new Error("Second points card is missing");
-      track.scrollTo({ left: card.offsetLeft - (track.clientWidth - card.offsetWidth) / 2, behavior: "auto" });
-    });
+    await expect(page.getByRole("radio", { name: /薄荷成长卡/ })).toHaveAttribute("aria-checked", "true");
+    await swipeCheckoutCards(page, true);
+    await expect(page.getByRole("radio", { name: /暖光陪伴卡/ })).toHaveAttribute("aria-checked", "true");
+    await swipeCheckoutCards(page, false);
+    await expect(page.getByRole("radio", { name: /薄荷成长卡/ })).toHaveAttribute("aria-checked", "true");
+    await swipeCheckoutCards(page, true);
     await expect(page.getByRole("radio", { name: /暖光陪伴卡/ })).toHaveAttribute("aria-checked", "true");
     await page.waitForTimeout(450);
     const pickerGeometry = await page.evaluate(() => {

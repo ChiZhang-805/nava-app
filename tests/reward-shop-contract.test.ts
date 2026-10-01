@@ -87,6 +87,9 @@ test("checkout requires a card choice and uses an animated printer cat", () => {
   assert.match(checkout, /role="radiogroup"/);
   assert.match(checkout, /横向滑动选择积分卡卡面/);
   assert.match(checkout, /onScroll=\{syncCardFromScroll\}/);
+  assert.match(checkout, /data-card-swipe-zone=\{phase === "select" \? "active" : undefined\}/);
+  assert.match(checkout, /onTouchStart=\{\(event\) =>/);
+  assert.match(checkout, /finishCardSwipe\(touch\.clientX, touch\.clientY\)/);
   assert.match(checkout, /今天，想让哪张卡陪你？/);
   assert.match(checkout, /使用这张卡片/);
   assert.match(checkout, /"Choose Card"/);
