@@ -20,6 +20,16 @@
 并进入确认/出票完整流程；不使用直接写`scrollLeft`代替手势。商城合同11项、lint和生产构建同步通过。
 本轮没有数据合同、数据库、Edge Function、积分扣除规则或商品目录修改。
 
+功能源码`e009d3c9e1fe6c5635609d8ae095e43f62d7f422`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v208**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_df9f109dc75c8191b2d01f33a0904726`；
+部署`appgdep_6abe3d3a9e9081919f5d29be9d39c661` succeeded。GitHub Pages镜像提交
+`3503ff1d3683a8323a42cd313621386f789634b3`，workflow `36852759011` success；212个当前生成
+文件复制前后SHA-256一致。两站只读公开验收通过：入口HTTP 200、每站6项入口/身份关键资源与本地
+制品一致、公开`?demo=1`仍要求真实登录、canonical Supabase为`wxteapvwagvhhtrjrbim`，Pages
+`source.json`指向v208和上述功能提交。Sites官方工作流完成源码校验/推送；Windows Bash打包器的
+`Q:`路径限制仍由官方prepare helper与系统tar的既有方式处理，站点public访问策略未改变。
+
 ## 133. 结算小猫、自适应小票、待办横滑双卡与首次引导收口（当前版本）
 
 兑换凭证页不再把整张静态小猫图左右晃动。新四帧透明精灵图表现“胸前收爪、抬爪、伸爪按键、
