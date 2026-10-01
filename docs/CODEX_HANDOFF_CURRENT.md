@@ -30,6 +30,16 @@ lint、Web/native构建和生产认证合同通过。完整`npm run verify`仍�
 `external-preview:visual`旧用例寻找不存在的`.sports-plan-actions`；本轮没有修改该外部预览路径。
 本轮没有数据库迁移、Edge Function部署、管理员角色写入或生产账号数据修改。
 
+功能源码`59eb9b5e89bdfeaca442c7aba17691f32c38e16f`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v211**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_2d3234cf14ac81919b65a250e634d67a`；
+部署`appgdep_6abe64a47e6481918b8f4f0fe79e459a` succeeded。GitHub Pages镜像提交
+`cbdc0cd575dc91dec128253929c761afa49c7561`，workflow `36871714577` success；212个生成文件
+SHA-256一致。两站公开只读验收通过：每站6项入口/身份关键资源与各自本地制品一致，公开
+`?demo=1`仍要求真实登录，canonical Supabase为`wxteapvwagvhhtrjrbim`。Sites官方工作流完成
+源码校验和推送；Windows Bash打包器仍不能解析`Q:`路径，因此继续使用官方prepare helper和
+系统tar生成314文件制品，没有改变站点public访问策略。
+
 ## 136. 订单商品名完整显示与响应式留白（当前版本）
 
 订单完成摘要不再对商品名使用省略号。当前商品命名约定为约6–8个中文字，因此双商品验收
