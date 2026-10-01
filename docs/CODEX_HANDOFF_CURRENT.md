@@ -23,8 +23,16 @@
 
 本地已通过`npm run shop:motion`和`npm run shop:visual`。前者逐时点检查橙灯、按压、绿灯、
 出票延迟、八帧切换和票头先出；后者覆盖四档支持视口、完整中英文长票据、目录iPhone及桌面壳。
-本轮未修改积分扣减、订单幂等、数据库、Edge Function或生产账号数据。双站发布回执将在发布完成
-后补入本节。
+本轮未修改积分扣减、订单幂等、数据库、Edge Function或生产账号数据。完整`npm run verify`仍只
+停在既有`external-preview:visual`旧用例寻找不存在的`.sports-plan-actions`，本轮没有修改该路径。
+
+功能源码`f83a5e69f6efba052e79e5105bbb9d955be33eb9`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v214**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_ddc4e76def2c8191ab136f841a8e5022`；
+部署`appgdep_6abec76408108191af641a8c857e42d2` succeeded。GitHub Pages镜像提交
+`46cfee1038bf648e5d9b9cd04d0f237da3af9e77`，workflow `36924775540` success。两站公开只读验收
+通过：每站6项入口/身份关键资源与各自本地制品一致，公开`?demo=1`仍要求真实登录，canonical
+Supabase为`wxteapvwagvhhtrjrbim`；Sites继续保持public访问策略。
 
 ## 138. 今日待办填写区留白与时长滚轮方向（当前版本）
 
