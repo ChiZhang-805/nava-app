@@ -29,11 +29,11 @@
 本轮构图调整未重新生成图片。商城视觉测试同时锁定猫/机器比例、猫身与机器顶线接缝，以及按钮
 右侧49–52px区间，避免只移动按钮或角色导致新的失衡。
 
-功能源码`4e3c4283a68952367c0ed9071460ec89f7f9c79a`已干净推送并从同一提交生成双站。
-ChatGPT Sites **v215**：
-`appgprj_6a5de710811c8191af8ce2681358d518~appgver_2a1e827343dc8191bd088a844a6e92be`；
-部署`appgdep_6abece38c06881918da5e79f70091464` succeeded。GitHub Pages镜像提交
-`7101705ec1b6cb9745fa91f549571ec41ceffc06`，workflow `36928046850` success。两站公开只读验收
+功能源码`45c4e04bed6e79d1c602f402bfebae1220ee1670`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v216**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_64ae9ed88b10819185748ceaa9f78257`；
+部署`appgdep_6abed2fdccc48191af4e977ca009659e` succeeded。GitHub Pages镜像提交
+`086bc938115d6305921320102e47421295316e49`，workflow `36930247771` success。两站公开只读验收
 通过：每站6项入口/身份关键资源与各自本地制品一致，公开`?demo=1`仍要求真实登录，canonical
 Supabase为`wxteapvwagvhhtrjrbim`；Sites继续保持public访问策略。
 
