@@ -733,6 +733,7 @@ function MobileShell({
               onOpenNotificationTarget={openNotificationTarget}
               showInitialGuidance={showInitialHomeGuidance && !initialHomeGuidanceShownRef.current}
               onInitialGuidanceShown={() => { initialHomeGuidanceShownRef.current = true; }}
+              isAdmin={isAdmin}
             />
           )}
           {activeTab === "record" && (

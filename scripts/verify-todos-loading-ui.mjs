@@ -144,6 +144,7 @@ try {
       await page.locator(".option-two-menu-toggle").click();
       await expect(page.locator('[data-home-shortcut="shop"]')).toBeVisible();
       await expect(page.locator('[data-home-shortcut="today-todos"]')).toBeVisible();
+      await expect(page.locator('[data-home-shortcut="admin"]')).toHaveCount(0);
       await page.locator('[data-home-shortcut="today-todos"]').click();
       const todoPage = page.locator("[data-today-todo-page]");
       await expect(todoPage).toBeVisible();
@@ -175,8 +176,27 @@ try {
         || carouselGeometry.cardWidths.some((width) => Math.abs(width - carouselGeometry.width) > 1)) {
         throw new Error(`${locale}-${viewport.name}: to-do panels are not equal-height horizontal pages ${JSON.stringify(carouselGeometry)}`);
       }
+      await expect(page.locator(".today-todo-card-pagination button")).toHaveCount(2);
+      await expect(page.locator(".today-todo-card-pagination button").nth(0)).toHaveAttribute("aria-selected", "true");
+      const entryGeometry = await page.evaluate(() => {
+        const text = document.querySelector(".today-todo-draft textarea")?.getBoundingClientRect();
+        const duration = document.querySelector(".today-todo-duration")?.getBoundingClientRect();
+        const voice = document.querySelector(".today-todo-submit.is-voice")?.getBoundingClientRect();
+        const card = document.querySelector(".today-todo-compose")?.getBoundingClientRect();
+        const pagination = document.querySelector(".today-todo-card-pagination")?.getBoundingClientRect();
+        const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();
+        return text && duration && voice && card && pagination && nav ? {
+          text: text.toJSON(), duration: duration.toJSON(), voice: voice.toJSON(), card: card.toJSON(), pagination: pagination.toJSON(), nav: nav.toJSON(),
+        } : null;
+      });
+      if (!entryGeometry || entryGeometry.text.height < 121 || entryGeometry.card.bottom - entryGeometry.voice.bottom > 20
+        || entryGeometry.card.bottom > entryGeometry.pagination.top + 1 || entryGeometry.pagination.bottom > entryGeometry.nav.top) {
+        throw new Error(`${locale}-${viewport.name}: entry card height or carousel pagination spacing is incorrect ${JSON.stringify(entryGeometry)}`);
+      }
+      if (locale === "zh" && viewport.name === "390x844") await page.screenshot({ path: path.join(outputDir, "zh-390x844-entry-carousel.png") });
       await swipeTodoCards(page, true);
       await expect.poll(() => page.locator(".today-todo-card-carousel").evaluate((element) => element.scrollLeft / element.clientWidth)).toBeGreaterThan(.8);
+      await expect(page.locator(".today-todo-card-pagination button").nth(1)).toHaveAttribute("aria-selected", "true");
 
       const geometry = await todoPage.evaluate((element) => {
         const box = element.getBoundingClientRect();
@@ -215,6 +235,7 @@ try {
 
       await swipeTodoCards(page, false);
       await expect.poll(() => page.locator(".today-todo-card-carousel").evaluate((element) => element.scrollLeft / element.clientWidth)).toBeLessThan(.2);
+      await expect(page.locator(".today-todo-card-pagination button").nth(0)).toHaveAttribute("aria-selected", "true");
 
       const voiceButton = page.locator(".today-todo-submit.is-voice");
       await expect(voiceButton).toContainText(locale === "zh" ? "和小猫说说今天想做的事" : "Tell the cat what you want to do");

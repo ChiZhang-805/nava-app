@@ -24,7 +24,7 @@ async function prepare(context) {
     localStorage.setItem(`nava.onboarding.v3.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 3, answers: {}, source: "local" }));
   }, { userId: demoUserId });
   const page = await context.newPage();
-  await page.goto(`${baseUrl}?demo=1&qa=admin-console#tab=today&view=admin-console`, { waitUntil: "networkidle" });
+  await page.goto(`${baseUrl}?demo=1&qa=admin-console#tab=today`, { waitUntil: "networkidle" });
   const launch = page.locator(".launch-sequence");
   if (await launch.isVisible().catch(() => false)) await launch.click();
   const completion = page.locator(".completion-celebration-layer");
@@ -32,6 +32,17 @@ async function prepare(context) {
     await page.frameLocator(".completion-celebration-layer iframe").getByRole("button", { name: /Continue|继续/ }).click();
     await expect(completion).toBeHidden();
   }
+  await expect(page.locator(".option-two-home")).toBeVisible();
+  await page.locator(".option-two-menu-toggle").click();
+  await expect(page.locator(".option-two-side-actions > button")).toHaveCount(7);
+  const adminShortcut = page.locator('[data-home-shortcut="admin"]');
+  await expect(adminShortcut).toBeVisible();
+  await expect(adminShortcut).toHaveAttribute("aria-label", "管理员端");
+  await page.waitForTimeout(700);
+  const shortcutTops = await page.locator(".option-two-side-actions > button").evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().top));
+  if (shortcutTops.some((top, index) => index > 0 && top - shortcutTops[index - 1] < 48)) throw new Error(`Admin shortcuts overlap: ${JSON.stringify(shortcutTops)}`);
+  if (page.viewportSize()?.width === 390 && page.viewportSize()?.height === 844) await page.screenshot({ path: path.join(outputDir, "admin-home-shortcut-390x844.png") });
+  await adminShortcut.click();
   await expect(page.locator(".admin-console-screen")).toBeVisible();
   await expect(page.locator(".admin-console-actions > button")).toHaveCount(3);
   await expect(page.getByText("选择管理功能", { exact: true })).toHaveCount(0);

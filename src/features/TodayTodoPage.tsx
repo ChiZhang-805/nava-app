@@ -69,7 +69,7 @@ export default function TodayTodoPage({
   const { locale } = useLocale();
   const editor = useRef<HTMLTextAreaElement>(null);
   const cardCarouselRef = useRef<HTMLDivElement>(null);
-  const cardTouchStartX = useRef<number | null>(null);
+  const cardTouchStart = useRef<{ x: number; y: number } | null>(null);
   const previousDeviceDate = useRef(deviceDate);
   const voiceSessionRef = useRef<VoiceInputSession | null>(null);
   const voiceTranscriptRef = useRef("");
@@ -87,6 +87,7 @@ export default function TodayTodoPage({
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeCard, setActiveCard] = useState<0 | 1>(0);
 
   useEffect(() => subscribeProductivity(() => setTodos(loadTodos(user.id))), [user.id]);
 
@@ -293,6 +294,13 @@ export default function TodayTodoPage({
     ? isToday ? "今天的安排" : isTomorrow ? "明天的安排" : `${dayLabel(selectedDate, locale)}的安排`
     : isToday ? "Today's plan" : isTomorrow ? "Tomorrow's plan" : `Plan for ${dayLabel(selectedDate, locale)}`;
 
+  function showCard(index: 0 | 1) {
+    const carousel = cardCarouselRef.current;
+    if (!carousel) return;
+    setActiveCard(index);
+    carousel.scrollTo({ left: index === 0 ? 0 : carousel.scrollWidth - carousel.clientWidth, behavior: "smooth" });
+  }
+
   return <section className="home-experience today-todo-page" data-today-todo-page>
     <header className="home-experience-header today-todo-header">
       <button className="home-experience-back" type="button" onClick={onBack} aria-label={locale === "zh" ? "返回首页" : "Back home"}>
@@ -309,23 +317,37 @@ export default function TodayTodoPage({
       <h2>{locale === "zh" ? (isToday ? "写下今天要做的事。" : isTomorrow ? "写下明天要做的事。" : "写下这一天要做的事。") : (isToday ? "Plan what matters today." : isTomorrow ? "Plan what matters tomorrow." : "Plan what matters that day.")}</h2>
     </div>
 
-    <div
-      ref={cardCarouselRef}
-      className="today-todo-card-carousel"
-      role="region"
-      aria-roledescription={locale === "zh" ? "卡片轮播" : "carousel"}
-      aria-label={locale === "zh" ? "待办填写与今天的安排" : "To-do entry and daily plan"}
-      onTouchStart={(event) => { cardTouchStartX.current = event.touches[0]?.clientX ?? null; }}
-      onTouchEnd={(event) => {
-        const start = cardTouchStartX.current;
-        cardTouchStartX.current = null;
-        const end = event.changedTouches[0]?.clientX;
-        const carousel = cardCarouselRef.current;
-        if (start == null || end == null || !carousel || Math.abs(end - start) < 36) return;
-        carousel.scrollTo({ left: end < start ? carousel.scrollWidth - carousel.clientWidth : 0, behavior: "smooth" });
-      }}
-    >
-    <form className="today-todo-compose" onSubmit={submit} aria-label={locale === "zh" ? "填写待办" : "Add a to-do"}>
+    <div className="today-todo-carousel-shell">
+      <div
+        ref={cardCarouselRef}
+        className="today-todo-card-carousel"
+        data-active-card={activeCard}
+        role="region"
+        aria-roledescription={locale === "zh" ? "卡片轮播" : "carousel"}
+        aria-label={locale === "zh" ? "待办填写与今天的安排，可左右滑动切换" : "To-do entry and daily plan. Swipe left or right to switch."}
+        onScroll={(event) => {
+          const carousel = event.currentTarget;
+          const maxScroll = carousel.scrollWidth - carousel.clientWidth;
+          const next = maxScroll > 0 && carousel.scrollLeft > maxScroll / 2 ? 1 : 0;
+          setActiveCard((current) => current === next ? current : next);
+        }}
+        onTouchStart={(event) => {
+          const touch = event.touches[0];
+          cardTouchStart.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+        }}
+        onTouchEnd={(event) => {
+          const start = cardTouchStart.current;
+          cardTouchStart.current = null;
+          const end = event.changedTouches[0];
+          if (!start || !end) return;
+          const deltaX = end.clientX - start.x;
+          const deltaY = end.clientY - start.y;
+          if (Math.abs(deltaX) < 36 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+          showCard(deltaX < 0 ? 1 : 0);
+        }}
+        onTouchCancel={() => { cardTouchStart.current = null; }}
+      >
+    <form id="today-todo-compose-card" className="today-todo-compose" onSubmit={submit} aria-label={locale === "zh" ? "填写待办" : "Add a to-do"}>
       <div className="today-todo-compose-heading">
         <span><ListTodo size={23} /><strong>{locale === "zh" ? "待办事项" : "To-do"}</strong></span>
         <button type="button" disabled={!draft.trim() || busy != null} onClick={() => void estimateDuration()} aria-label={locale === "zh" ? "让 DeepSeek 预估所需时间" : "Ask DeepSeek to estimate the time needed"} title={locale === "zh" ? "AI 时间预估" : "AI time estimate"}>
@@ -363,7 +385,7 @@ export default function TodayTodoPage({
       {error && <p className="today-todo-error" role="alert">{error}</p>}
     </form>
 
-    <section className="today-todo-list-section" aria-busy={loading} aria-label={planTitle}>
+    <section id="today-todo-plan-card" className="today-todo-list-section" aria-busy={loading} aria-label={planTitle}>
       <header><div><span className="today-todo-plan-title"><ListTodo size={21} /><strong>{planTitle}</strong></span><button type="button" className={selectionMode ? "is-active" : ""} onClick={() => selectionMode ? closeSelection() : setSelectionMode(true)} aria-label={selectionMode ? (locale === "zh" ? "退出多选" : "Exit selection") : (locale === "zh" ? "多选安排" : "Select multiple tasks")}>{selectionMode ? <X size={20} /> : <CopyCheck size={21} />}</button></div></header>
       {loading && dayTodos.length === 0 ? <div className="today-todo-loading" role="status"><LoaderCircle className="today-todo-spinner" size={24} /><span>{locale === "zh" ? "正在读取待办" : "Loading to-dos"}</span></div>
         : dayTodos.length === 0 ? <div className="today-todo-empty"><ClipboardList size={31} strokeWidth={1.8} /><strong>{locale === "zh" ? "这一天还没有待办" : "Nothing here yet"}</strong></div>
@@ -382,6 +404,11 @@ export default function TodayTodoPage({
           })}</div>}
       {selectionMode && dayTodos.length > 0 && <div className="today-todo-selection-actions"><button type="button" onClick={() => setSelectedIds(selectedIds.size === dayTodos.length ? new Set() : new Set(dayTodos.map((todo) => todo.id)))}>{selectedIds.size === dayTodos.length ? (locale === "zh" ? "取消全选" : "Clear all") : (locale === "zh" ? "全选" : "Select all")}</button><button type="button" className="is-delete" disabled={selectedIds.size === 0 || busy === "delete"} onClick={() => void removeSelected()}>{busy === "delete" ? <LoaderCircle className="today-todo-spinner" size={18} /> : <Trash2 size={18} />}{locale === "zh" ? `删除已选${selectedIds.size ? `（${selectedIds.size}）` : ""}` : `Delete selected${selectedIds.size ? ` (${selectedIds.size})` : ""}`}</button></div>}
     </section>
+      </div>
+      <div className="today-todo-card-pagination" role="tablist" aria-label={locale === "zh" ? "切换待办卡片" : "Switch to-do cards"}>
+        <button type="button" role="tab" aria-selected={activeCard === 0} aria-controls="today-todo-compose-card" aria-label={locale === "zh" ? "待办事项" : "To-do entry"} onClick={() => showCard(0)} />
+        <button type="button" role="tab" aria-selected={activeCard === 1} aria-controls="today-todo-plan-card" aria-label={planTitle} onClick={() => showCard(1)} />
+      </div>
     </div>
     {datePickerOpen && <div className="today-todo-date-overlay" role="presentation" onClick={() => setDatePickerOpen(false)}><section role="dialog" aria-modal="true" aria-label={locale === "zh" ? "切换待办日期" : "Switch to-do date"} onClick={(event) => event.stopPropagation()}><header><strong>{locale === "zh" ? "切换日期" : "Switch date"}</strong><button type="button" onClick={() => setDatePickerOpen(false)} aria-label={locale === "zh" ? "关闭" : "Close"}><X size={20} /></button></header><div><button type="button" onClick={() => { setSelectedDate(deviceDate); setDatePickerOpen(false); }}>{locale === "zh" ? "今天" : "Today"}<small>{dayLabel(deviceDate, locale)}</small></button><button type="button" onClick={() => { setSelectedDate(offsetDate(deviceDate, 1)); setDatePickerOpen(false); }}>{locale === "zh" ? "明天" : "Tomorrow"}<small>{dayLabel(offsetDate(deviceDate, 1), locale)}</small></button></div><label><span>{locale === "zh" ? "选择其他日期" : "Choose another date"}</span><input type="date" value={selectedDate} onChange={(event) => { if (/^\d{4}-\d{2}-\d{2}$/u.test(event.target.value)) { setSelectedDate(event.target.value); setDatePickerOpen(false); } }} /></label></section></div>}
   </section>;

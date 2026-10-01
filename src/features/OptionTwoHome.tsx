@@ -7,6 +7,7 @@ import {
   Plus,
   ScanFace,
   ShoppingCart,
+  ShieldCheck,
   SmilePlus,
   TimerReset,
   Utensils,
@@ -147,6 +148,7 @@ export default function OptionTwoHome({
   onOpenNotificationTarget,
   showInitialGuidance,
   onInitialGuidanceShown,
+  isAdmin,
 }: {
   user: User;
   refreshKey: number;
@@ -161,6 +163,7 @@ export default function OptionTwoHome({
   onOpenNotificationTarget: (target?: NavaNotificationTarget) => void;
   showInitialGuidance: boolean;
   onInitialGuidanceShown: () => void;
+  isAdmin: boolean;
 }) {
   const { locale, t } = useLocale();
   const forceHomeWidgetSkeleton = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "home-widgets-loading";
@@ -599,6 +602,7 @@ export default function OptionTwoHome({
           <Bell size={22} />
           {notifications.some((item) => !item.readAt) && <span className="option-two-menu-unread" aria-hidden="true" />}
         </button>
+        {isAdmin && <button className="option-two-side-shortcut option-two-side-admin" data-home-shortcut="admin" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("admin-console"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "管理员端" : "Admin console"} title={locale === "zh" ? "管理员端" : "Admin console"}><ShieldCheck size={22} /></button>}
       </div>
 
       <section className={["home-widget-grid", widgetIds.length === 0 ? "is-empty" : "", widgetArrangeMode ? "is-arranging" : ""].join(" ")} aria-label={locale === "zh" ? "我的健康小组件" : "My health widgets"} aria-describedby="home-widget-arrange-help" data-widget-count={widgetIds.length}>
