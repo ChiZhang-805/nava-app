@@ -481,8 +481,8 @@ try {
     if (!receiptGeometry || !receiptGeometry.catLoaded || receiptGeometry.overflow > 1
       || receiptGeometry.transform !== "none" || receiptGeometry.paperCenterOffset > 1
       || receiptGeometry.receiptMinHeight !== "0px" || !receiptGeometry.hasUnitPrice || !receiptGeometry.hasTotal || receiptGeometry.hasRedeemed
-      || receiptGeometry.catPrinterSeam > 1.5 || receiptGeometry.catPrinterWidthRatio < .5 || receiptGeometry.catPrinterWidthRatio > .67
-      || receiptGeometry.buttonRightInset < 14 || receiptGeometry.buttonRightInset > 17
+      || receiptGeometry.catPrinterSeam > 1.5 || receiptGeometry.catPrinterWidthRatio < .64 || receiptGeometry.catPrinterWidthRatio > .7
+      || receiptGeometry.buttonRightInset < 49 || receiptGeometry.buttonRightInset > 52 || receiptGeometry.catButtonOverlap < 1
       || receiptGeometry.titleFont < 21 || receiptGeometry.copyCount !== 0 || receiptGeometry.receiptFont < 16
       || receiptGeometry.receipt.left < receiptGeometry.frame.left - 1 || receiptGeometry.receipt.right > receiptGeometry.frame.right + 1
       || receiptGeometry.receipt.bottom > receiptGeometry.frame.bottom + 1
