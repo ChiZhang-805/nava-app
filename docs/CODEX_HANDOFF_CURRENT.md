@@ -33,6 +33,18 @@ DeepSeek JSON请求，但按六类字段量将输出上限限制在420–720 tok
 元素已经切为`data-scene="celebrate"`但处于隐藏状态时等待可见并超时；它与本轮入口表单改动无关，
 未把该脚本失败记为通过。
 
+功能源码`f3486a4399a2b5d34fc9cb9fcef5611041f4cbf8`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v218**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_c0f08e296f30819180d32e249b3d1e02`；
+部署`appgdep_6abfa31c2e548191a3e75c5f3f4882e3` succeeded。GitHub Pages镜像提交
+`5f8c82967b8e48b2db057d4214d714c01aed5b69`，workflow `37007029977` success；212个生成文件复制前后
+SHA-256一致。两站公开只读验收通过：每站6项入口/身份关键资源哈希一致，12项本轮记录页资源在
+规范化换行并移除Sites宿主HTML注入后均与同一制品一致，公开`?demo=1`仍要求真实登录，canonical
+Supabase为`wxteapvwagvhhtrjrbim`；Pages `source.json`指向v218、上述功能提交与Sites版本。
+Sites官方工作流完成源码校验，但Windows Bash打包器仍不能解析`Q:`路径，因此沿用官方
+`prepare-site-build.cjs`和系统`tar.exe`生成314文件制品；没有改变站点public访问策略，也没有执行
+数据库迁移或Edge Function部署。
+
 ## 139. 兑换机十二帧按键小猫与顺序出票（当前版本）
 
 打印阶段继续复用现有真实兑换凭证，不把商品或积分文字画进图片。凭证仍逐件显示商品名、单价、
