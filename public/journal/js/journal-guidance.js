@@ -91,14 +91,92 @@ __fluffyModules["journal-guidance.js"] = (() => {
             quality:/醒来.{0,4}感受|\bquality\b/i, portion:/份量|分量|\bportion\b/i};
         return fields(id).filter(f => value.includes(f.label) || value.includes(f.key) || aliases[f.key]?.test(value)).map(f => f.key);
     }
-    /** 输入：id、原文、options。输出：可以先展示的确定性时间草稿及日期。功能：仅在无歧义时快速填时间，不用情绪/感觉猜字段。 */
+    /** 输入：口述数字。输出：有限数字或NaN。功能：只做明确单位换算，不从运动/任务类型猜时长。 */
+    function spokenNumber(value) {
+        const text = String(value || "").trim();
+        if (/^\d+(?:\.\d+)?$/.test(text)) return Number(text);
+        return S.spokenNumber(text);
+    }
+    /** 输入：原话。输出：明确说出的分钟数或null。功能：小时准确换算为分钟，未说单位时绝不补数。 */
+    function durationMinutes(text) {
+        const match = /([零〇一二两三四五六七八九十百\d]+(?:\.\d+)?)\s*(个?小时|钟头|hours?|hrs?|h|分(?:钟)?|mins?|minutes?)/i.exec(String(text || ""));
+        if (!match) return null;
+        const amount = spokenNumber(match[1]);
+        if (!Number.isFinite(amount) || amount <= 0) return null;
+        const minutes = /小时|钟头|hours?|hrs?|^h$/i.test(match[2]) ? amount * 60 : amount;
+        return Math.round(minutes * 100) / 100;
+    }
+    /** 输入：候选文字及长度。输出：清理后的短字段。功能：去掉口头起句和尾部标点，不改写用户事实。 */
+    function phrase(value, max = 60) {
+        return String(value || "").replace(/^[\s，。；、,:：]+|[\s，。；、,:：]+$/g, "").replace(/^(?:我(?:今天|刚才|现在)?|今天|刚才)\s*/u, "").trim().slice(0, max);
+    }
+    /** 输入：原话、起始锚点、结束锚点。输出：锚点后的原话片段。功能：只提取用户明确分段，不做同义改写。 */
+    function after(text, start, stop = /[。；]/) {
+        const match = start.exec(String(text || ""));
+        if (!match) return "";
+        const tail = String(text).slice(match.index + match[0].length), end = tail.search(stop);
+        return phrase(end < 0 ? tail : tail.slice(0, end));
+    }
+    /** 输入：原话。输出：明确的运动名称。功能：高频名称用于即时反馈；开放词汇仍由模型整理。 */
+    function sportActivity(text) {
+        const match = /(跑步|慢跑|散步|走路|健走|游泳|骑车|骑行|瑜伽|跳绳|深蹲|力量训练|健身|爬山|篮球|足球|羽毛球|网球|普拉提|舞蹈|太极|划船|椭圆机)/.exec(String(text || ""));
+        return match?.[1] || "";
+    }
+    /** 输入：id、原文、options。输出：可以先展示的高置信草稿及日期。功能：六类口述先即时回填明确事实，模型随后补全歧义。 */
     function early(id, text, options = {}) {
+        const input = String(text || "").trim(), fields = {};
+        if (!input) return {fields, dates:{}};
         if (id === "sleep") {
             const p = S.fromSpeech(text, {recordDate:options.recordDate});
             if (!p.warnings.length && p.fields.bedtime && p.fields.wakeTime && (!p.dates?.wakeDate || p.dates.wakeDate === options.recordDate))
-                return {fields:p.fields, dates:p.dates};
+                Object.assign(fields, p.fields);
+            const quality = /醒来(?:后|以后)?[，,\s]*(?:我)?(?:觉得|感觉)\s*([^，。；]{1,60})/.exec(input)?.[1];
+            if (quality) fields.quality = phrase(quality, 60);
+            const notes = /(中途[^。；]{1,28}|做梦[^。；]{1,28}|午睡[^。；]{1,28})/.exec(input)?.[1];
+            if (notes) fields.notes = phrase(notes, 32);
+            return {fields, dates:p.dates || {}};
         }
-        return {fields:{}, dates:{}};
+        if (id === "sport") {
+            const activity = sportActivity(input), minutes = durationMinutes(input);
+            if (activity) fields.activity = activity;
+            if (minutes != null) fields.durationMinutes = minutes;
+            const detail = /(\d+(?:\.\d+)?\s*(?:公里|千米|km|米|m|组|次|个)(?:[^。；]{0,28})?)/i.exec(input)?.[1];
+            if (detail) fields.notes = phrase(detail, 60);
+        }
+        else if (id === "focus") {
+            const minutes = durationMinutes(input);
+            if (minutes != null) fields.durationMinutes = minutes;
+            const taskMatch = /(?:我)?(?:想|准备|打算|要)(?:专注|集中精力)?\s*([^，。；]{1,60}?)(?=\s*[零〇一二两三四五六七八九十百\d]+(?:\.\d+)?\s*(?:个?小时|钟头|h|分钟|分|mins?|minutes?)|[，。；]|$)/i.exec(input);
+            if (taskMatch) fields.task = phrase(taskMatch[1].replace(/^(?:做|完成)/, ""), 60);
+            const notes = after(input, /(?:希望|目标是|做到)\s*/, /[。；]/);
+            if (notes) fields.notes = phrase(notes, 60);
+        }
+        else if (id === "food") {
+            const meal = ["早餐","午餐","晚餐","加餐"].find(value => input.includes(value));
+            if (meal) fields.meal = meal;
+            const foods = /(?:吃了|吃的是|喝了|喝的是)\s*([^。；]{1,60})/.exec(input)?.[1];
+            if (foods) fields.foods = phrase(foods.split(/，(?:大概|份量|分量|一共)/)[0], 60);
+            const portion = /(?:大概|份量|分量|吃了)\s*((?:半|一|二|两|三|四|五|六|七|八|九|十|\d)+(?:碗|盘|份|个|片|块|克|g|毫升|ml)[^，。；]{0,20})/i.exec(input)?.[1];
+            if (portion) fields.portion = phrase(portion, 50);
+        }
+        else if (id === "mood") {
+            const explicit = /(?:我)?(?:现在|今天)?(?:觉得|感觉|心情是|心情)\s*([^，。；]{1,60}?)(?=\s*(?:，?因为|，?原因是)|[。；]|$)/.exec(input)?.[1];
+            const named = /(不开心|开心|高兴|平静|放松|轻松|难过|失落|生气|烦躁|焦虑|紧张|疲惫|释然|委屈|孤独|兴奋|满足)/.exec(input)?.[1];
+            if (explicit || named) fields.mood = phrase(explicit || named, 60);
+            const reason = after(input, /(?:因为|原因是)\s*/, /[。；]/);
+            if (reason) fields.reason = phrase(reason, 60);
+            const notes = after(input, /(?:想对自己说|留给自己)\s*/, /[。；]/);
+            if (notes) fields.notes = phrase(notes, 32);
+        }
+        else if (id === "face") {
+            const feeling = /(?:我)?(?:今天|现在)?(?:自己)?(?:觉得|感觉)\s*([^，。；]{1,40})/.exec(input)?.[1];
+            const eye = /眼周(?:看起来|是)?\s*([^，。；]{1,50})/.exec(input)?.[1];
+            const skin = /皮肤(?:看起来|是)?\s*([^，。；]{1,60})/.exec(input)?.[1];
+            if (feeling) fields.feeling = phrase(feeling, 40);
+            if (eye) fields.eyeArea = phrase(eye, 50);
+            if (skin) fields.skinAppearance = phrase(skin, 60);
+        }
+        return {fields, dates:{}};
     }
     /** 输入：id、模型建议、合并草稿、语言和操作类型。输出：可信的单字段追问或null。功能：只允许已知字段，缺项只追问必填项，内容由本地模板生成。 */
     function question(id, suggestion, current = {}, language = "zh", operation = "new") {

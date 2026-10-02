@@ -212,7 +212,9 @@ class SpeechSession {
         this.active = false;
         clearTimeout(this.limitTimer); clearTimeout(this.restartTimer);
         this.releaseAudio();
-        this.stopTimer = setTimeout(() => this.finishResult(), this.env.stopWaitMs ?? 2200);
+        // 已有文字时只给浏览器一个短尾句窗口；完全没收到文字时多等一会，兼顾完整性与松手后的响应速度。
+        const tailWait = this.text() ? (this.env.stopWaitMs ?? 900) : (this.env.emptyStopWaitMs ?? 1600);
+        this.stopTimer = setTimeout(() => this.finishResult(), tailWait);
         try { this.recognition?.stop(); } catch { this.finishResult(); }
         if (this.stopping) this.scheduleStableFinish();
         return this.resultPromise;

@@ -155,6 +155,24 @@ authenticated model boundary is unavailable, the UI labels and uses a stable,
 bounded local fallback; it does not present that fallback as a DeepSeek result.
 No health history or hidden reasoning is attached to this estimate.
 
+The six journal voice-entry pages use one shared progressive draft contract.
+Browser speech recognition remains the source of the transcript; raw audio is
+not sent to DeepSeek. On release, a deterministic high-confidence pass may fill
+only explicitly anchored values such as named meals/foods, named common
+activities with stated units, two unambiguous sleep times, or an explicitly
+phrased feeling/task. It does not estimate nutrition, diagnose health, infer an
+unstated emotion, or invent a duration. The same authenticated
+`journal-assistant` request then resolves open vocabulary and ambiguity. The
+late result is merged through per-field version checks so edits made while the
+request is pending win. When explicit local values already satisfy the required
+schema, the form becomes editable/submittable while that single request remains
+in the background; submission or another recording aborts the stale request.
+Neither stage saves without confirmation. Text-only
+responses have category-sized output caps of 420–720 tokens; photo analysis
+keeps its independent 1,800-token budget. Sanitized in-memory timing traces may
+contain category, stage, relative milliseconds, and bounded error codes, but no
+transcript, field values, image, user identity, prompt, provider body, or key.
+
 AI conversation titles reuse the authenticated `ai-chat-reply` boundary only
 after the user's AI-personalization consent is true. The title request contains
 at most the latest 12 messages and 2,800 characters, marks the transcript as

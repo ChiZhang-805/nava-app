@@ -87,6 +87,7 @@ Invoke-Npm -Arguments @("run", "ai:compact:test")
 Write-Host ""
 Write-Host "15. Structured entry parser"
 Invoke-Npm -Arguments @("run", "structured:test")
+Invoke-Npm -Arguments @("run", "journal:voice:test")
 
 Write-Host ""
 Write-Host "16. Weekly report and focus-flow contracts"

@@ -85,6 +85,8 @@
     "navigation:test": "node --experimental-strip-types --test tests/shell-history.test.ts tests/home-experience.test.ts",
     "ai:speech:test": "node --experimental-strip-types --test tests/ai-speech.test.ts",
     "voice:endpoint:test": "node --experimental-strip-types --test tests/voice-endpoint.test.ts",
+    "journal:voice:test": "node --experimental-strip-types --test tests/journal-entry-speed.test.ts",
+    "journal:voice:visual": "node scripts/verify-journal-voice-prefill.mjs",
     "reward:test": "node --experimental-strip-types --test tests/growth-reward-presentation.test.ts tests/growth-progress-presentation.test.ts",
     "completion:test": "node --experimental-strip-types --test tests/completion-scenes.test.ts",
     "completion:visual": "node --experimental-strip-types scripts/verify-completion-scenes.mjs",

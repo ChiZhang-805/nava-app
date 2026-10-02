@@ -1123,6 +1123,9 @@ __fluffyModules["app.js"] = (() => {
         setPhase("thinking");
         bubble("dictation-tail");
         try {
+            // 浏览器尾句仍在结算时，先把已识别的明确事实填入表单；不等待网络，也不自动保存。
+            const preview = speech.text().trim();
+            if (preview) applyEarlyDraft(pending, preview, state.workflowTrace);
             const result = await speech.stop();
             animation.level = 0;
             if (serial !== state.serial || result.canceled) return;
@@ -1134,6 +1137,18 @@ __fluffyModules["app.js"] = (() => {
         } catch (error) {
             if (serial === state.serial && error.name !== "AbortError") voiceFailed(error);
         }
+    }
+    /** 输入：待处理口述、文字与追踪器。输出：是否存在高置信字段。功能：六类明确事实即时预填，歧义仍交给模型。 */
+    function applyEarlyDraft(pending, text, trace) {
+        const intent = Intent.classify(text, {category:pending.category,date:pending.date,editingId:pending.editingId});
+        if (intent.scopeChanged || ["ask","edit"].includes(intent.operation)) return false;
+        const local = Guidance.early(pending.category,text,{recordDate:pending.date}), signature = JSON.stringify(local.fields || {});
+        if (signature === "{}") return false;
+        if (signature === pending.earlySignature) return true;
+        pending.earlySignature = signature;
+        fillForm(local.fields,pending.versions);
+        trace?.mark("local");
+        return true;
     }
     /**
      * 输入：pending（转写文字、字段版本、记录上下文）、serial（本次请求代次）。
@@ -1153,9 +1168,15 @@ __fluffyModules["app.js"] = (() => {
             state.stage="extract";
             setPhase("thinking");
             bubble("entry-organizing");
-            if (!before.scopeChanged && !["ask","edit"].includes(before.operation)) {
-                const local=Guidance.early(pending.category,pending.text,{recordDate:pending.date});
-                if (Object.keys(local.fields).length) { fillForm(local.fields,pending.versions); trace.mark("local"); }
+            const localReady = applyEarlyDraft(pending,pending.text,trace) && Catalog.validate(pending.category,rawForm(),true,{recordDate:pending.date}).ok;
+            if (localReady) {
+                // 必填事实已经明确时不锁住表单等待网络；用户可核对/提交，后台结果仍受字段版本与代次保护。
+                pending.localReady = true;
+                state.source = pending.source || "voice";
+                state.stage = "background";
+                setPhase("idle");
+                bubble("ready");
+                trace.mark("background");
             }
             trace.mark("extract");
             const draft = await AI.extract(api, pending.category, pending.text, null, controller.signal, {
@@ -1209,7 +1230,8 @@ __fluffyModules["app.js"] = (() => {
             state.pendingUtterance=pending; state.speechRetry=true;
             const fault=expired ? new Policy.AIError("ai-timeout","Entry processing deadline reached") : error;
             trace.mark("failed",fault.code);
-            bubble(fault,true,{followup:"retry"});
+            if (pending.localReady) bubble("已先填入明确内容；AI 校对暂时没完成，请核对或重试。",true,{followup:"retry"});
+            else bubble(fault,true,{followup:"retry"});
         } finally {
             clearTimeout(timeout);
             if (state.task===controller) state.task=null;

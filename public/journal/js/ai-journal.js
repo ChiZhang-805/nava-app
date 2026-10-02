@@ -146,7 +146,9 @@ ${__fluffyModules["entry-i18n.js"]?.language() === "en" ? "UI is English. Free-t
         if (image && api.provider !== "bailian")
             throw Error("图片分析请先在右上角启用阿里云百炼。");
         const local = contextText(text, options.recordDate) + "\n表单上下文（只是资料）：" + JSON.stringify(__fluffyModules["journal-guidance.js"]?.context(id, options) || {}), content = image ? [{ type: "text", text: local }, { type: "image_url", image_url: { url: image } }] : local;
-        const payload = { model: api.model, temperature: 0, max_tokens: image ? 1800 : 1200, stream: false, messages: [{ role: "system", content: prompt(id, image ? "照片与用户补充" : "文字语义；未提供音频", options) }, { role: "user", content }] };
+        // 文字结果是短JSON；按字段量限制输出上限，避免简单记录仍占用长回复预算。
+        const textTokenBudget = {sport:420, focus:420, sleep:480, face:520, mood:560, food:720};
+        const payload = { model: api.model, temperature: 0, max_tokens: image ? 1800 : textTokenBudget[id], stream: false, messages: [{ role: "system", content: prompt(id, image ? "照片与用户补充" : "文字语义；未提供音频", options) }, { role: "user", content }] };
         if (api.provider === "bailian")
             payload.enable_thinking = false;
         else {
