@@ -31,6 +31,17 @@ Figma的多层晴空径向光、`#548dcc → #70ceca`操作渐变和蓝绿紫玻
 本地站点通过9场景×24尺寸共216张图的动画、书写、按钮和布局验收。本轮没有数据库迁移、Edge
 Function部署、真实账号数据写入或访问策略变更。
 
+功能源码`53d37d2fe48a71c8e82a62ef2a3a2184fc7f1c1e`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v219**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_b365e8fbe7cc819193308fcd2a923b8f`；
+部署`appgdep_6ac3e06ffc988191a2f9fc32cd8e6781` succeeded。GitHub Pages镜像提交
+`54e0fcbaa571da0f6875ad2a8b61abd3a75ae6c2`，workflow `37350381810` success；214个生成文件
+复制前后SHA-256一致。两站公开入口、三款皮肤名称资源与记录iframe皮肤样式均返回HTTP 200，
+Pages `source.json`指向v219、上述功能提交与Sites版本。Sites官方工作流完成源码校验和构建；其
+Windows Bash打包器仍不能解析`Q:`路径，故沿用官方`prepare-site-build.cjs`与系统`tar.exe`
+生成319文件制品。站点继续保持public；本轮没有数据库迁移、Edge Function部署、生产账号写入或
+访问策略变更。
+
 ## 140. 六类记录语音即时预填与尾句提速（当前版本）
 
 情绪、饮食、运动、睡眠、面部、专注仍共用浏览器听写→本地意图→认证后的
