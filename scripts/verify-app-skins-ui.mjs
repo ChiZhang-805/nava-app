@@ -14,8 +14,11 @@ const base = server.resolvedUrls.local[0];
 const browser = await chromium.launch({ headless: true });
 const sizes = [[360, 740], [375, 812], [390, 844], [430, 932]];
 const skins = ["glacier-mist", "violet-dusk", "sky-ripple"];
+const recordModules = ["sleep", "exercise", "mood", "focus", "diet", "face"];
 
 async function initialize(context) {
+  await context.route("**/*.supabase.co/rest/v1/journal_entries**", (route) => route.fulfill({ json: [] }));
+  await context.route("**/*.supabase.co/rest/v1/journal_preferences**", (route) => route.fulfill({ json: { settings: { "fluffy-first-guide-sleep": true, "fluffy-first-guide-sport": true, "fluffy-first-guide-mood": true, "fluffy-first-guide-focus": true, "fluffy-first-guide-food": true, "fluffy-first-guide-face": true } } }));
   await context.addInitScript(() => {
     sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
     localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, version: 3, answers: {} }));
@@ -54,6 +57,17 @@ try {
     await expect(page.locator('.app-utility-popover [role="radiogroup"]')).toBeVisible();
     await page.locator(".app-utility-popover .app-skin-option--violet-dusk").click();
     await expect(page.locator(".phone-frame")).toHaveAttribute("data-app-skin", "violet-dusk");
+    const journalModules = width === 390 ? recordModules : ["sleep"];
+    for (const module of journalModules) {
+      await page.evaluate((nextModule) => { location.hash = `tab=record&module=${nextModule}&view=editor`; }, module);
+      await expect(page.locator(".journal-experience iframe")).toBeVisible({ timeout: 20000 });
+      await expect(page.locator(".journal-loading")).toHaveCount(0, { timeout: 30000 });
+      const journal = page.frameLocator(".journal-experience iframe");
+      const expectedCategory = module === "exercise" ? "sport" : module === "diet" ? "food" : module;
+      await expect(journal.locator("html")).toHaveAttribute("data-app-skin", "violet-dusk", { timeout: 20000 });
+      await expect(journal.locator("html")).toHaveAttribute("data-record-module", expectedCategory, { timeout: 20000 });
+      if (width === 390) await page.screenshot({ path: `${output}/violet-dusk-${module}-${width}x${height}.png` });
+    }
     await page.evaluate(() => { location.hash = "tab=record"; });
     await expect(page.locator('.record-hub')).toBeVisible({ timeout: 20000 });
     await expect(page.locator(".phone-frame")).toHaveAttribute("data-app-skin", "violet-dusk");
@@ -62,6 +76,21 @@ try {
     await expect(page.locator(".option-two-home")).toBeVisible({ timeout: 20000 });
     await expect(page.locator(".phone-frame")).toHaveAttribute("data-app-skin", "violet-dusk");
     if (width === 390) await page.screenshot({ path: `${output}/violet-dusk-home-${width}x${height}.png` });
+    if (width === 390) {
+      await page.evaluate(() => { location.hash = "tab=profile"; });
+      await expect(page.locator(".profile-skin-card")).toBeVisible({ timeout: 20000 });
+      await page.locator(".profile-skin-card .app-skin-option--sky-ripple").click({ force: true });
+      for (const module of recordModules) {
+        await page.evaluate((nextModule) => { location.hash = `tab=record&module=${nextModule}&view=editor`; }, module);
+        await expect(page.locator(".journal-experience iframe")).toBeVisible({ timeout: 20000 });
+        await expect(page.locator(".journal-loading")).toHaveCount(0, { timeout: 30000 });
+        const journal = page.frameLocator(".journal-experience iframe");
+        const expectedCategory = module === "exercise" ? "sport" : module === "diet" ? "food" : module;
+        await expect(journal.locator("html")).toHaveAttribute("data-app-skin", "sky-ripple", { timeout: 20000 });
+        await expect(journal.locator("html")).toHaveAttribute("data-record-module", expectedCategory, { timeout: 20000 });
+        await page.screenshot({ path: `${output}/sky-ripple-${module}-${width}x${height}.png` });
+      }
+    }
     await context.close();
   }
   assert.deepEqual(report.errors, []);

@@ -229,6 +229,7 @@ __fluffyModules["app.js"] = (() => {
             timer.pause();persistFocus();cancelWork(false);photo.stopCamera();
             window.NavaJournal.call('exit',{destination:scene}).catch(()=>{});return;
         }
+        document.documentElement.dataset.recordModule = state.category;
         window.NavaJournal.context={category:state.category,recordDate:state.recordDate};
         document.querySelector('.stage').scrollTop=0;
         state.lastQuestion = null;

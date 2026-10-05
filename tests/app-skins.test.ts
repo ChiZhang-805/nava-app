@@ -34,14 +34,31 @@ test("skin storage is scoped to the authenticated user", () => {
 });
 
 test("journal iframe receives and applies the selected skin without receiving credentials", async () => {
-  const [host, bridge, html] = await Promise.all([
+  const [host, bridge, html, journalApp] = await Promise.all([
     readFile(new URL("../src/features/JournalExperience.tsx", import.meta.url), "utf8"),
     readFile(new URL("../public/journal/js/nava-bridge.js", import.meta.url), "utf8"),
     readFile(new URL("../public/journal/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../public/journal/js/app.js", import.meta.url), "utf8"),
   ]);
   assert.match(host, /skin=\$\{encodeURIComponent\(skin\)\}/);
+  assert.match(host, /category=\$\{encodeURIComponent\(categoryMap\[module\]\)\}/);
   assert.match(host, /locale,skin,forceGuide/);
   assert.match(bridge, /document\.documentElement\.dataset\.appSkin/);
+  assert.match(bridge, /document\.documentElement\.dataset\.recordModule/);
   assert.match(html, /css\/app-skins\.css/);
+  assert.match(journalApp, /document\.documentElement\.dataset\.recordModule = state\.category/);
   assert.doesNotMatch(host, /access_token|service_role/);
+});
+
+test("alternate skins preserve the Figma gradient distributions without hard-edged decoration discs", async () => {
+  const [hostStyles, journalStyles] = await Promise.all([
+    readFile(new URL("../src/styles/app-skins.css", import.meta.url), "utf8"),
+    readFile(new URL("../public/journal/css/app-skins.css", import.meta.url), "utf8"),
+  ]);
+  for (const css of [hostStyles, journalStyles]) {
+    assert.match(css, /linear-gradient\(138\.82deg, #f8fbff 8\.57%, #f4f9fd 51\.66%, #fffdfb 91\.43%\)/);
+    assert.match(css, /rgba\(124,180,235,\.30\).*rgba\(124,180,235,0\) 27%/s);
+    assert.match(css, /linear-gradient\(142\.76deg, #787cfe 8\.63%, #d670c9 91\.37%\)/);
+    assert.doesNotMatch(css, /0 20%, transparent 20\.5%|0 18%, transparent 18\.5%|0 24%, transparent 24\.5%/);
+  }
 });

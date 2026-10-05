@@ -53,7 +53,10 @@
   overflow: hidden;
   display: block;
   border-radius: 12px;
-  background: linear-gradient(150deg, #effbff, #8fd9ed 57%, #2c8dc3);
+  background:
+    radial-gradient(ellipse 120% 95% at 92% 4%, rgba(116, 197, 232, .58), transparent 58%),
+    radial-gradient(ellipse 110% 85% at 0% 100%, rgba(183, 234, 239, .5), transparent 64%),
+    linear-gradient(150deg, #f4fcff, #bee8f2 57%, #69b5d5);
 }
 
 .app-skin-swatch::before,
@@ -64,21 +67,23 @@
   display: block;
   border-radius: 999px;
 }
-.app-skin-swatch::before { width: 46px; height: 46px; left: -13px; top: -14px; background: rgba(255,255,255,.6); }
-.app-skin-swatch::after { width: 36px; height: 36px; right: -8px; bottom: -12px; background: rgba(215,244,250,.45); }
+.app-skin-swatch::before { width: 74px; height: 54px; left: -28px; top: -18px; background: rgba(255,255,255,.46); filter: blur(10px); }
+.app-skin-swatch::after { width: 68px; height: 48px; right: -24px; bottom: -18px; background: rgba(215,244,250,.38); filter: blur(11px); }
 .app-skin-swatch i:nth-child(1) { width: 29px; height: 19px; left: 9px; bottom: 8px; background: rgba(255,255,255,.74); border-radius: 8px; }
 .app-skin-swatch i:nth-child(2) { width: 18px; height: 7px; right: 8px; top: 10px; background: rgba(255,255,255,.65); }
 .app-skin-swatch i:nth-child(3) { width: 28px; height: 5px; right: 7px; bottom: 10px; background: rgba(8,75,112,.26); }
 
 .app-skin-option--violet-dusk .app-skin-swatch {
   background:
-    radial-gradient(circle at 76% 22%, rgba(255,255,255,.45), transparent 24%),
-    linear-gradient(140deg, #787cfe 10%, #735cff 46%, #00e2e0 100%);
+    radial-gradient(ellipse 150% 105% at 94% 2%, rgba(0,226,224,.5), transparent 58%),
+    radial-gradient(ellipse 130% 100% at 0% 100%, rgba(236,223,250,.86), transparent 67%),
+    linear-gradient(140deg, #787cfe 10%, #735cff 46%, #d670c9 100%);
 }
 .app-skin-option--sky-ripple .app-skin-swatch {
   background:
-    radial-gradient(circle at 78% 18%, rgba(124,180,235,.55), transparent 30%),
-    linear-gradient(145deg, #dcedff, #e8f8fb 58%, #f7f4ff);
+    radial-gradient(ellipse 160% 110% at 92% 3%, rgba(124,180,235,.48), transparent 60%),
+    radial-gradient(ellipse 135% 100% at 0% 100%, rgba(109,207,208,.28), transparent 66%),
+    linear-gradient(138.82deg, #f8fbff 8.57%, #f4f9fd 51.66%, #fffdfb 91.43%);
 }
 .app-skin-option--sky-ripple .app-skin-swatch i:nth-child(3) { background: linear-gradient(90deg, #548dcc, #70ceca); }
 
@@ -127,13 +132,13 @@
   content: "";
   inset: 0;
   z-index: -2;
-  background: var(--skin-page-decoration);
+  background: var(--skin-page-atmosphere);
   opacity: 1;
 }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"])::after {
   z-index: -1;
   background: var(--skin-page-texture);
-  opacity: .9;
+  opacity: var(--skin-texture-opacity, 0);
 }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .app-header h1,
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .section-heading h2,
@@ -222,22 +227,18 @@
   --skin-muted: #667493;
   --skin-accent: #735cff;
   --skin-accent-2: #00cfd0;
-  --skin-surface: rgba(247, 249, 252, .86);
+  --skin-surface: linear-gradient(153deg, rgba(247,252,255,.98) 8.49%, rgba(226,243,252,.86) 91.51%);
   --skin-surface-strong: rgba(247, 249, 252, .97);
   --skin-line: rgba(255, 255, 255, .78);
   --skin-field: rgba(229, 246, 255, .76);
   --skin-field-line: rgba(120, 124, 254, .24);
-  --skin-page-background:
-    radial-gradient(circle at 86% 8%, rgba(0,226,224,.30), transparent 31%),
-    radial-gradient(circle at 5% 64%, rgba(236,223,250,.88), transparent 38%),
-    linear-gradient(145deg, #edf4ff 0%, #e5f6ff 43%, #f1e6fb 100%);
-  --skin-page-decoration:
-    radial-gradient(circle at -8% 18%, rgba(120,124,254,.36) 0 18%, transparent 18.5%),
-    radial-gradient(circle at 108% 77%, rgba(0,226,224,.22) 0 24%, transparent 24.5%);
-  --skin-page-texture: repeating-linear-gradient(128deg, rgba(255,255,255,.16) 0 1px, transparent 1px 15px);
+  --skin-page-background: #f7f9fc;
+  --skin-page-atmosphere: linear-gradient(rgba(247,249,252,.001), rgba(247,249,252,.001));
+  --skin-page-texture: none;
+  --skin-texture-opacity: 0;
   --skin-shadow: 0 24px 60px rgba(45,48,145,.18);
   --skin-card-shadow: 0 12px 30px rgba(45,48,145,.13), inset 0 1px 0 rgba(255,255,255,.9);
-  --skin-button: linear-gradient(140deg, #787cfe 13%, #00e2e0 87%);
+  --skin-button: linear-gradient(138.42deg, #787cfe 12.99%, #00e2e0 87.02%);
   --skin-button-shadow: 0 10px 23px rgba(77,88,211,.25);
   --skin-dock: linear-gradient(135deg, rgba(117,98,224,.83), rgba(61,84,184,.88) 52%, rgba(0,196,203,.78));
   --skin-dock-shadow: 0 11px 28px rgba(45,48,145,.25), inset 0 1px 0 rgba(255,255,255,.45);
@@ -254,10 +255,26 @@
   --skin-health-disc: radial-gradient(circle at 50% 3%, rgba(0,226,224,.52), transparent 35%), linear-gradient(180deg, rgba(120,124,254,.88), rgba(45,48,145,.94));
 }
 .phone-frame[data-app-skin="violet-dusk"] .profile-skin-icon { color: #735cff; background: #ece9ff; }
-.phone-frame[data-app-skin="violet-dusk"] .record-module-entry:nth-child(3n + 1),
+.phone-frame[data-app-skin="violet-dusk"] .record-module-entry[data-record-module="sleep"],
 .phone-frame[data-app-skin="violet-dusk"] .growth-summary-card { background: linear-gradient(145deg, rgba(120,124,254,.93), rgba(0,226,224,.78)); color: #fff; }
-.phone-frame[data-app-skin="violet-dusk"] .record-module-entry:nth-child(3n + 1) :is(strong, span, svg),
+.phone-frame[data-app-skin="violet-dusk"] .record-module-entry[data-record-module="sleep"] :is(strong, span, svg),
 .phone-frame[data-app-skin="violet-dusk"] .growth-summary-card :is(strong, span, svg) { color: #fff; }
+
+/* Figma Style F does not use one decorative backdrop for every screen. The page
+   stays quiet while each module carries its own approved color direction. */
+.phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="mood"]) {
+  --skin-page-background: #ecdffa;
+  --skin-surface: linear-gradient(153.81deg, rgba(247,252,255,.98) 8.49%, rgba(226,243,252,.86) 91.51%);
+  --skin-button: linear-gradient(142.76deg, #787cfe 8.63%, #d670c9 91.37%);
+}
+.phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="sleep"]) { --skin-button: linear-gradient(138.42deg, #787cfe 12.99%, #00e2e0 87.02%); }
+.phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="exercise"]) { --skin-button: linear-gradient(143.91deg, #787cfe 12.99%, #00e2e0 87.02%); }
+.phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="focus"]) { --skin-button: linear-gradient(141.59deg, #787cfe 12.99%, #00e2e0 87.02%); }
+.phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="diet"]) {
+  --skin-button: linear-gradient(136.3deg, #787cfe 10.79%, #172d9d 86.84%);
+  --skin-surface: linear-gradient(140deg, #e5f6ff 3.67%, #f6f7f9 96.33%);
+}
+.phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="face"]) { --skin-button: linear-gradient(116.12deg, #787cfe 13.24%, #00e2e0 100%); }
 
 /* Figma group 2: Key Screens V1.8. */
 .phone-frame[data-app-skin="sky-ripple"] {
@@ -265,23 +282,22 @@
   --skin-muted: #65788c;
   --skin-accent: #548dcc;
   --skin-accent-2: #70ceca;
-  --skin-surface: linear-gradient(146deg, rgba(220,237,255,.94), rgba(232,248,251,.86) 58%, rgba(247,244,255,.84));
+  --skin-surface: linear-gradient(146.38deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%);
   --skin-surface-strong: rgba(248, 251, 255, .96);
   --skin-line: rgba(255,255,255,.88);
   --skin-field: rgba(248,252,255,.72);
   --skin-field-line: rgba(79,138,202,.22);
   --skin-page-background:
-    radial-gradient(circle at 88% 8%, rgba(124,180,235,.30), transparent 33%),
-    radial-gradient(circle at 8% 70%, rgba(109,207,208,.17), transparent 35%),
-    radial-gradient(circle at 92% 82%, rgba(167,151,221,.12), transparent 34%),
-    linear-gradient(139deg, #f8fbff 9%, #f4f9fd 52%, #fffdfb 91%);
-  --skin-page-decoration:
-    radial-gradient(circle at -8% 22%, rgba(112,206,202,.22) 0 20%, transparent 20.5%),
-    radial-gradient(circle at 107% 72%, rgba(155,143,218,.15) 0 22%, transparent 22.5%);
-  --skin-page-texture: repeating-linear-gradient(126deg, rgba(79,138,202,.025) 0 1px, transparent 1px 14px);
+    radial-gradient(ellipse 214% 100% at 92.31% 6.73%, rgba(124,180,235,.30) 0%, rgba(124,180,235,0) 27%),
+    radial-gradient(ellipse 176% 82% at -7.69% 65.42%, rgba(109,207,208,.17) 0%, rgba(109,207,208,0) 33%),
+    radial-gradient(ellipse 210% 98% at 76.92% 90.44%, rgba(167,151,221,.12) 0%, rgba(167,151,221,0) 25%),
+    linear-gradient(138.82deg, #f8fbff 8.57%, #f4f9fd 51.66%, #fffdfb 91.43%);
+  --skin-page-atmosphere: linear-gradient(rgba(248,251,255,.001), rgba(248,251,255,.001));
+  --skin-page-texture: none;
+  --skin-texture-opacity: 0;
   --skin-shadow: 0 22px 54px rgba(55,111,159,.15);
   --skin-card-shadow: 0 12px 28px rgba(55,111,159,.11), inset 0 1px 0 rgba(255,255,255,.95);
-  --skin-button: linear-gradient(135deg, #548dcc, #70ceca);
+  --skin-button: linear-gradient(159.55deg, #4f82c4 8.49%, #61a6d0 50%, #65c4bd 91.51%);
   --skin-button-shadow: 0 10px 22px rgba(79,138,202,.22);
   --skin-dock: linear-gradient(135deg, rgba(213,231,247,.88), rgba(214,242,242,.86) 55%, rgba(231,225,248,.82));
   --skin-dock-shadow: 0 10px 25px rgba(55,111,159,.18), inset 0 1px 0 rgba(255,255,255,.9);
@@ -297,6 +313,14 @@
   --skin-scene-blend: multiply;
   --skin-health-disc: radial-gradient(circle at 50% 4%, rgba(255,255,255,.78), transparent 36%), linear-gradient(180deg, rgba(112,206,202,.72), rgba(84,141,204,.84));
 }
+
+/* Key Screens V1.8 changes the glass-card gradient angle by module. */
+.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="sleep"]) { --skin-surface: linear-gradient(146.38deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
+.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="exercise"]) { --skin-surface: linear-gradient(147.78deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
+.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="mood"]) { --skin-surface: linear-gradient(148.31deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
+.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="focus"]) { --skin-surface: linear-gradient(149.14deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
+.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="diet"]) { --skin-surface: linear-gradient(156.91deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
+.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="face"]) { --skin-surface: linear-gradient(141.54deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
 
 @media (max-width: 374px) {
   .app-skin-picker { gap: 6px; }

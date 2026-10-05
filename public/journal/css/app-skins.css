@@ -4,31 +4,33 @@
   --muted: #667493;
   --green: #787cfe;
   color: #25345a;
-  background: #e5f6ff;
+  --module-surface: linear-gradient(153deg, rgba(247,252,255,.98) 8.49%, rgba(226,243,252,.86) 91.51%);
+  --module-accent: linear-gradient(138.42deg, #787cfe 12.99%, #00e2e0 87.02%);
+  background: #f7f9fc;
 }
 :root[data-app-skin="sky-ripple"] {
   --navy: #314155;
   --muted: #65788c;
   --green: #548dcc;
   color: #314155;
+  --module-surface: linear-gradient(146.38deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%);
+  --module-accent: linear-gradient(159.55deg, #4f82c4 8.49%, #61a6d0 50%, #65c4bd 91.51%);
   background: #f4f9fd;
 }
 
 :root[data-app-skin="violet-dusk"] body {
-  background:
-    radial-gradient(circle at 84% 9%, rgba(0,226,224,.28), transparent 31%),
-    radial-gradient(circle at 4% 72%, rgba(236,223,250,.88), transparent 38%),
-    linear-gradient(145deg, #edf4ff, #e5f6ff 44%, #f1e6fb);
+  background: #f7f9fc;
 }
+:root[data-app-skin="violet-dusk"][data-record-module="mood"] body { background: #ecdffa; }
 :root[data-app-skin="sky-ripple"] body {
   background:
-    radial-gradient(circle at 88% 8%, rgba(124,180,235,.30), transparent 33%),
-    radial-gradient(circle at 8% 70%, rgba(109,207,208,.17), transparent 35%),
-    radial-gradient(circle at 92% 82%, rgba(167,151,221,.12), transparent 34%),
-    linear-gradient(139deg, #f8fbff 9%, #f4f9fd 52%, #fffdfb 91%);
+    radial-gradient(ellipse 214% 100% at 92.31% 6.73%, rgba(124,180,235,.30) 0%, rgba(124,180,235,0) 27%),
+    radial-gradient(ellipse 176% 82% at -7.69% 65.42%, rgba(109,207,208,.17) 0%, rgba(109,207,208,0) 33%),
+    radial-gradient(ellipse 210% 98% at 76.92% 90.44%, rgba(167,151,221,.12) 0%, rgba(167,151,221,0) 25%),
+    linear-gradient(138.82deg, #f8fbff 8.57%, #f4f9fd 51.66%, #fffdfb 91.43%);
 }
 
-:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .phone { background: rgba(246,250,255,.92); }
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .phone { background: transparent; }
 :root[data-app-skin]:not([data-app-skin="glacier-mist"]) .screen { color: var(--navy); background: transparent; }
 :root[data-app-skin]:not([data-app-skin="glacier-mist"]) .cream-bg { background: transparent; }
 :root[data-app-skin]:not([data-app-skin="glacier-mist"]) .entry-heading h1,
@@ -40,7 +42,7 @@
 :root[data-app-skin]:not([data-app-skin="glacier-mist"]) .entry-bubble,
 :root[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-notebook {
   border-color: rgba(255,255,255,.86);
-  background: rgba(248,251,255,.88);
+  background: var(--module-surface);
   box-shadow: 0 13px 31px color-mix(in srgb, var(--navy) 13%, transparent);
   backdrop-filter: blur(17px);
 }
@@ -54,19 +56,20 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 15%, transparent);
 }
 :root[data-app-skin="violet-dusk"] .green-bg {
-  opacity: 1 !important;
-  background: linear-gradient(142deg, #787cfe 8%, #735cff 50%, #00e2e0 96%);
+  opacity: 0 !important;
+  background: transparent;
 }
 :root[data-app-skin="sky-ripple"] .green-bg {
-  opacity: 1 !important;
-  background: linear-gradient(142deg, #548dcc 8%, #70ceca 58%, #9b8fda 110%);
+  opacity: 0 !important;
+  background: transparent;
 }
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .green-bg i { display: none; }
 :root[data-app-skin="violet-dusk"] .primary {
-  background: linear-gradient(140deg, #787cfe 13%, #00e2e0 87%);
+  background: var(--module-accent);
   box-shadow: 0 12px 24px rgba(77,88,211,.24);
 }
 :root[data-app-skin="sky-ripple"] .primary {
-  background: linear-gradient(135deg, #548dcc, #70ceca);
+  background: var(--module-accent);
   box-shadow: 0 12px 24px rgba(79,138,202,.21);
 }
 :root[data-app-skin]:not([data-app-skin="glacier-mist"]) .primary.white { color: var(--navy); background: rgba(250,252,255,.96); }
@@ -82,3 +85,22 @@
 :root[data-app-skin="violet-dusk"] .nav-chat { color: #fff; background: linear-gradient(145deg,#2d3091,#172d9d 65%,#0fa5ba); }
 :root[data-app-skin="sky-ripple"] .nav-item.active,
 :root[data-app-skin="sky-ripple"] .nav-chat { color: #fff; background: linear-gradient(145deg,#426f9e,#5a9fc1 54%,#64c2b9); }
+
+/* Module-specific gradients sampled from the paired Figma mobile boards. */
+:root[data-app-skin="violet-dusk"][data-record-module="sport"] { --module-accent: linear-gradient(143.91deg, #787cfe 12.99%, #00e2e0 87.02%); }
+:root[data-app-skin="violet-dusk"][data-record-module="mood"] {
+  --module-accent: linear-gradient(142.76deg, #787cfe 8.63%, #d670c9 91.37%);
+  --module-surface: linear-gradient(153.81deg, rgba(247,252,255,.98) 8.49%, rgba(226,243,252,.86) 91.51%);
+}
+:root[data-app-skin="violet-dusk"][data-record-module="focus"] { --module-accent: linear-gradient(141.59deg, #787cfe 12.99%, #00e2e0 87.02%); }
+:root[data-app-skin="violet-dusk"][data-record-module="food"] {
+  --module-accent: linear-gradient(136.3deg, #787cfe 10.79%, #172d9d 86.84%);
+  --module-surface: linear-gradient(140deg, #e5f6ff 3.67%, #f6f7f9 96.33%);
+}
+:root[data-app-skin="violet-dusk"][data-record-module="face"] { --module-accent: linear-gradient(116.12deg, #787cfe 13.24%, #00e2e0 100%); }
+
+:root[data-app-skin="sky-ripple"][data-record-module="sport"] { --module-surface: linear-gradient(147.78deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
+:root[data-app-skin="sky-ripple"][data-record-module="mood"] { --module-surface: linear-gradient(148.31deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
+:root[data-app-skin="sky-ripple"][data-record-module="focus"] { --module-surface: linear-gradient(149.14deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
+:root[data-app-skin="sky-ripple"][data-record-module="food"] { --module-surface: linear-gradient(156.91deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
+:root[data-app-skin="sky-ripple"][data-record-module="face"] { --module-surface: linear-gradient(141.54deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }

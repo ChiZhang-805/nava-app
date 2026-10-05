@@ -1,7 +1,9 @@
 /* Same-origin, parent-owned authenticated boundary. No tokens or health storage here. */
 window.NavaJournal = (() => {
   const requestedSkin=new URLSearchParams(location.search).get('skin');
+  const requestedCategory=new URLSearchParams(location.search).get('category');
   document.documentElement.dataset.appSkin=['glacier-mist','violet-dusk','sky-ripple'].includes(requestedSkin)?requestedSkin:'glacier-mist';
+  document.documentElement.dataset.recordModule=['sleep','sport','mood','focus','food','face'].includes(requestedCategory)?requestedCategory:'sleep';
   let port, next=0;
   const pending=new Map();
   const api={initial:{settings:{},records:[],locale:'zh'}, context:{}, interrupt:null, notify:null};
@@ -19,6 +21,7 @@ window.NavaJournal = (() => {
       if(event.source!==parent || event.origin!==location.origin || event.data?.type!=='nava-journal-connect' || !event.ports[0] || port) return;
       port=event.ports[0];api.initial=event.data.initial;
       document.documentElement.dataset.appSkin=api.initial.skin||'glacier-mist';
+      document.documentElement.dataset.recordModule=api.initial.category||'sleep';
       port.onmessage=({data})=>{
         if(data.type==='interrupt'){api.interrupt?.();return;}
         if(data.type==='viewport'){api.initial.viewport=data;api.viewport?.(data);return;}
