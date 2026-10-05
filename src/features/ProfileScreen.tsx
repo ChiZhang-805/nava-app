@@ -1,6 +1,7 @@
 import type { User } from "@supabase/supabase-js";
-import { Apple, BookOpen, Check, ChevronDown, Download, Link2, LogOut, RefreshCw, Save, ShieldCheck, Trash2, Watch, X } from "lucide-react";
+import { Apple, BookOpen, Check, ChevronDown, Download, Link2, LogOut, Palette, RefreshCw, Save, ShieldCheck, Trash2, Watch, X } from "lucide-react";
 import AvatarPicker from "../components/AvatarPicker";
+import AppSkinPicker from "../components/AppSkinPicker";
 import { useEffect, useRef, useState } from "react";
 import ActionButton from "../components/ActionButton";
 import PageSkeleton, { SkeletonLines } from "../components/PageSkeleton";
@@ -21,6 +22,7 @@ import { flushPendingWatchActions, getWatchReachability, publishWatchSnapshot, r
 import { useAuth } from "../state/authContext";
 import type { WatchUserSnapshot } from "../types";
 import { deleteCurrentAccount } from "../services/account";
+import type { AppSkin } from "../services/appSkin";
 
 const occupationOptions = [
   { value: "student", zh: "学生", en: "Student" },
@@ -37,7 +39,7 @@ function daysSinceSignup(createdAt?: string) {
   return Math.max(1, Math.floor((Date.now() - created) / 86_400_000) + 1);
 }
 
-export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboarding }: { user: User; refreshKey?: number; onChanged: () => void; onOpenOnboarding?: () => void }) {
+export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboarding, skin, onSkinChange }: { user: User; refreshKey?: number; onChanged: () => void; onOpenOnboarding?: () => void; skin: AppSkin; onSkinChange: (skin: AppSkin) => void }) {
   const { signOut } = useAuth();
   const { locale, t } = useLocale();
   const [busy, setBusy] = useState<string | null>(null);
@@ -330,6 +332,15 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
             event.currentTarget.value = "";
           }}
         />
+      </SectionCard>
+
+      <SectionCard
+        className="profile-skin-card"
+        title={locale === "zh" ? "界面皮肤" : "Interface skin"}
+        subtitle={locale === "zh" ? "三种氛围，共用同一套功能与数据" : "Three moods, one shared set of features and data"}
+        action={<span className="profile-skin-icon" aria-hidden="true"><Palette size={20} /></span>}
+      >
+        <AppSkinPicker value={skin} onChange={onSkinChange} />
       </SectionCard>
 
       {onOpenOnboarding && (

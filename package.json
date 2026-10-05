@@ -64,6 +64,8 @@
     "weekly-report:visual": "node scripts/verify-weekly-readability-ui.mjs",
     "notification:test": "node --experimental-strip-types --test tests/notifications.test.ts tests/independent-reminders.test.ts tests/reminder-permission.test.ts",
     "locale:test": "node --experimental-strip-types --test tests/locale-preference.test.ts",
+    "skins:test": "node --experimental-strip-types --test tests/app-skins.test.ts",
+    "skins:visual": "node scripts/verify-app-skins-ui.mjs",
     "menus:visual": "node scripts/verify-menus-locale-ui.mjs",
     "reminders:visual": "node scripts/verify-independent-reminders.mjs",
     "wellbeing:test": "node --experimental-strip-types --test tests/wellbeing-tools.test.ts",

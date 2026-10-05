@@ -10,12 +10,13 @@ import { requestScreenWakeLock, type ScreenWakeLockSentinel } from '../services/
 import type { RecordModule } from './RecordsScreen';
 import NavaLoadingScene from '../components/NavaLoadingScene';
 import './journal-experience.css';
+import type { AppSkin } from '../services/appSkin';
 
 const categoryMap:Record<RecordModule,JournalCategory>={mood:'mood',diet:'food',exercise:'sport',focus:'focus',sleep:'sleep',face:'face'};
-type Props={user:User;module:RecordModule;locale:'zh'|'en';forceGuide?:boolean;guidePreview?:boolean;onSaved:()=>void;onExit:()=>void};
+type Props={user:User;module:RecordModule;locale:'zh'|'en';skin:AppSkin;forceGuide?:boolean;guidePreview?:boolean;onSaved:()=>void;onExit:()=>void};
 
 /** Exactly one iframe, scoped to the authenticated parent. It never receives the JWT. */
-export default function JournalExperience({user,module,locale,forceGuide=false,guidePreview=false,onSaved,onExit}:Props){
+export default function JournalExperience({user,module,locale,skin,forceGuide=false,guidePreview=false,onSaved,onExit}:Props){
   const frame=useRef<HTMLIFrameElement>(null), callbacks=useRef({onSaved,onExit});
   callbacks.current={onSaved,onExit};
   const [error,setError]=useState(''),[ready,setReady]=useState(false),[attempt,setAttempt]=useState(0);
@@ -87,15 +88,15 @@ export default function JournalExperience({user,module,locale,forceGuide=false,g
           }catch(cause){if(alive)channel?.port1.postMessage({id,error:cause instanceof Error?cause.message:'操作失败，请重试。'});}
           finally{controllers.delete(id);}
         };
-        frame.current.contentWindow.postMessage({type:'nava-journal-connect',initial:{...initial,category:categoryMap[module],locale,forceGuide,nativePhotos:usesNativePhotos(),viewport:viewport()}},location.origin,[channel.port2]);
+        frame.current.contentWindow.postMessage({type:'nava-journal-connect',initial:{...initial,category:categoryMap[module],locale,skin,forceGuide,nativePhotos:usesNativePhotos(),viewport:viewport()}},location.origin,[channel.port2]);
       }catch{if(alive)setError(locale==='zh'?'记录未能加载，请重试。':'Could not load your journal. Please retry.');}
     };
     const element=frame.current; element?.addEventListener('load',start);
     const observer=new ResizeObserver(resize);if(element)observer.observe(element);
     return()=>{alive=false;setGuideActive(false);interrupt();unregister();observer.disconnect();void voice?.cancel();void wake?.release();void native?.then(handle=>handle.remove());document.removeEventListener('visibilitychange',visibility);window.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('scroll',resize);element?.removeEventListener('load',start);for(const c of controllers.values())c.abort();channel?.port1.close();};
-  },[user.id,module,locale,attempt,forceGuide,guidePreview]);
+  },[user.id,module,locale,skin,attempt,forceGuide,guidePreview]);
   return <section className={`journal-experience${guideActive?' is-guiding':''}`} aria-label={locale==='zh'?'生活记录':'Journal'}>
-    <iframe key={`${module}-${locale}-${attempt}-${forceGuide}`} ref={frame} aria-hidden={Boolean(firstFeedback)} tabIndex={firstFeedback?-1:undefined} src={`${import.meta.env.BASE_URL}journal/index.html?v=20261002-voice-v17`} title={locale==='zh'?'记录与回顾':'Journal and recap'} allow="camera; microphone"/>
+    <iframe key={`${module}-${locale}-${skin}-${attempt}-${forceGuide}`} ref={frame} aria-hidden={Boolean(firstFeedback)} tabIndex={firstFeedback?-1:undefined} src={`${import.meta.env.BASE_URL}journal/index.html?v=20261006-skins-v1&skin=${encodeURIComponent(skin)}`} title={locale==='zh'?'记录与回顾':'Journal and recap'} allow="camera; microphone"/>
     {firstFeedback&&<div className="cold-feedback-layer"><FirstRecordFeedback record={firstFeedback} onClose={()=>setFirstFeedback(null)}/></div>}
     {!ready&&!error&&<div className="journal-loading"><NavaLoadingScene /></div>}
     {error&&<div className="journal-loading is-error" role="alert"><strong>{error}</strong><button onClick={()=>{setError('');setReady(false);setAttempt(x=>x+1);}}>{locale==='zh'?'重试':'Retry'}</button></div>}

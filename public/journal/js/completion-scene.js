@@ -4,7 +4,7 @@
   const scenes = {
     '01': { title:'Great job!', cat:'../garden-cat.webp', box:[640,480,61,94,503,395], mirror:true, color:'#79bda4', motion:'petals', zh:'又完成了一项任务！\n继续保持这份美好～', en:'Another little step, complete.\nKeep this lovely feeling going.' },
     '02': { title:'Excellent!', cat:'home-read.webp', box:[640,480,42,71,540,412], color:'#e9bd73', motion:'light', zh:'专注的你，\n真的很棒！', en:'A little time, fully yours.\nYou did wonderfully.' },
-    '03': { title:'Brilliant!', cat:'module-focus.webp', box:[480,399,38,36,444,397], color:'#7bb9e3', motion:'leaves', zh:'干得漂亮！\n每一份努力都在发光', en:'Beautifully done!\nEvery little effort shines.' },
+    '03': { title:'Brilliant!', cat:'scene-03-cat-laptop.png', box:[1536,1024,0,0,1536,1024], color:'#5baceb', motion:'leaves', inkDuration:10, actorMotion:'typing', zh:'干得漂亮！\n每一份努力都在发光 ✧', en:'Beautifully done!\nEvery little effort shines. ✧' },
     '04': { title:'Amazing!', cat:'module-face.webp', box:[480,440,34,36,437,433], color:'#ad9bd9', motion:'lavender', zh:'照顾好自己，\n真的很了不起～', en:'Making room for yourself.\nThat is something to celebrate.' },
     '05': { title:'You did it!', cat:'module-diet.webp', box:[480,356,14,18,452,352], color:'#efbd77', motion:'light', zh:'吃得认真，\n也是在好好爱自己', en:'A nourishing little moment.\nA little kindness to yourself.' },
     '06': { title:'Well done!', cat:'module-exercise.webp', box:[480,381,28,31,452,380], color:'#ef9d9a', motion:'leaves', zh:'动起来的你，\n每一步都超棒！', en:'Look at you moving forward.\nEvery step is worth it!' },
@@ -42,24 +42,26 @@
     ' ':[14,[]],
   };
   const ns='http://www.w3.org/2000/svg';
-  function inkTitle(title) {
+  function inkTitle(title,targetDuration=3.2) {
     const svg=document.createElementNS(ns,'svg');svg.setAttribute('aria-hidden','true');
-    let x=15,delay=.15;
+    let x=15;const strokes=[];
     for(const char of title){
       const [width,paths]=glyphs[char];
-      for(const d of paths){
-        const path=document.createElementNS(ns,'path');
-        path.setAttribute('d',d);path.setAttribute('transform',`translate(${x} 2) skewX(-8)`);
-        path.setAttribute('pathLength','1');path.style.setProperty('--ink-delay',`${delay}s`);
-        const duration=d.length<22?.10:.22;
-        path.style.setProperty('--ink-duration',`${duration}s`);svg.append(path);delay+=duration;
-      }
+      for(const d of paths)strokes.push({d,x,duration:d.length<22?.10:.22});
       x+=width+3;
+    }
+    const baseDuration=strokes.reduce((sum,stroke)=>sum+stroke.duration,0)+.45;
+    const scale=Math.max(.25,targetDuration/baseDuration);let delay=.15;
+    for(const stroke of strokes){
+      const path=document.createElementNS(ns,'path'),duration=stroke.duration*scale;
+      path.setAttribute('d',stroke.d);path.setAttribute('transform',`translate(${stroke.x} 2) skewX(-8)`);
+      path.setAttribute('pathLength','1');path.style.setProperty('--ink-delay',`${delay}s`);
+      path.style.setProperty('--ink-duration',`${duration}s`);svg.append(path);delay+=duration;
     }
     svg.setAttribute('viewBox',`0 0 ${x+10} 74`);
     const underline=document.createElementNS(ns,'path');
     underline.setAttribute('d',`M12 68Q${x/2} 54 ${x-6} 63`);underline.setAttribute('pathLength','1');
-    underline.classList.add('completion-underline');underline.style.setProperty('--ink-delay',`${delay}s`);underline.style.setProperty('--ink-duration','.45s');svg.append(underline);
+    underline.classList.add('completion-underline');underline.style.setProperty('--ink-delay',`${delay}s`);underline.style.setProperty('--ink-duration',`${.45*scale}s`);svg.append(underline);
     return svg;
   }
   function choose(record={},hour=new Date().getHours()){
@@ -76,21 +78,22 @@
     }
     show({scene='01',locale='zh'}={}){
       if(!Object.hasOwn(scenes,scene))scene='01';
-      const spec=scenes[scene];this.root.hidden=false;this.root.dataset.scene=scene;this.root.dataset.motion=spec.motion;this.root.dataset.ink='writing';
-      this.root.style.setProperty('--scene-color',spec.color);
-      this.root.innerHTML='<div class="scene-plane" aria-hidden="true"><img class="garden-backdrop" alt=""><div class="scene-canopy"></div><div class="scene-light"></div><div class="garden-breeze"><i></i><i></i><i></i><i></i><i></i></div><div class="garden-actor"><span class="garden-contact"></span><img alt=""></div><div class="scene-foreground"></div></div><div class="scene-copy"><h1 id="garden-title"></h1><p class="garden-message"></p></div><div class="garden-action"></div>';
+      const spec=scenes[scene],inkDuration=spec.inkDuration||3.2;this.root.hidden=false;this.root.dataset.scene=scene;this.root.dataset.motion=spec.motion;this.root.dataset.ink='writing';
+      this.root.style.setProperty('--scene-color',spec.color);this.root.style.setProperty('--scene-copy-delay',`${inkDuration+.2}s`);this.root.style.setProperty('--scene-copy-duration',`${Math.max(.65,inkDuration/5)}s`);
+      this.root.innerHTML='<div class="scene-plane" aria-hidden="true"><img class="garden-backdrop" alt=""><div class="scene-canopy"></div><div class="scene-light"></div><div class="garden-breeze"><i></i><i></i><i></i><i></i><i></i></div><div class="garden-actor"><span class="garden-contact"></span><img class="garden-actor-base" alt=""><span class="garden-actor-motion"></span></div><div class="scene-foreground"></div></div><div class="scene-copy"><h1 id="garden-title"></h1><p class="garden-message"></p></div><div class="garden-action"></div>';
       this.root.setAttribute('aria-labelledby','garden-title');
       const bg=scene==='01'?'assets/mint-garden-morning.png':`assets/completion/scene-${scene}.png`;
       this.root.querySelector('.garden-backdrop').src=bg;
       this.root.querySelector('.scene-plane').style.setProperty('--scene-art',`url("${new URL(bg,document.baseURI).href}")`);
-      const actor=this.root.querySelector('.garden-actor'),cat=actor.querySelector('img');
+      const actor=this.root.querySelector('.garden-actor'),cat=actor.querySelector('.garden-actor-base');
       const [w,h,left,top,right,bottom]=spec.box,bw=right-left,bh=bottom-top;
-      actor.style.aspectRatio=`${bw}/${bh}`;actor.style.setProperty('--actor-mirror',spec.mirror?-1:1);
+      actor.style.aspectRatio=`${bw}/${bh}`;actor.style.setProperty('--actor-mirror',spec.mirror?-1:1);if(spec.actorMotion)actor.dataset.motion=spec.actorMotion;
       cat.style.cssText=`width:${w/bw*100}%;height:${h/bh*100}%;left:${-left/bw*100}%;top:${-top/bh*100}%`;
       cat.src=`assets/completion/${spec.cat}`;cat.decoding='async';
-      const title=this.root.querySelector('h1');title.setAttribute('aria-label',spec.title);title.append(inkTitle(spec.title));
+      if(spec.actorMotion==='typing')for(const part of ['ear-left','ear-right','paw','fur']){const image=cat.cloneNode();image.className=`garden-actor-part garden-actor-${part}`;image.alt='';image.setAttribute('aria-hidden','true');actor.querySelector('.garden-actor-motion').append(image);}
+      const title=this.root.querySelector('h1');title.setAttribute('aria-label',spec.title);title.append(inkTitle(spec.title,inkDuration));
       this.root.querySelector('.completion-underline').addEventListener('animationend',()=>{this.root.dataset.ink='finished';},{once:true});
-      if(matchMedia('(prefers-reduced-motion: reduce)').matches)this.root.dataset.ink='finished';
+      if(matchMedia('(prefers-reduced-motion: reduce)').matches){this.root.dataset.ink='finished';this.root.style.setProperty('--scene-copy-delay','0s');}
       this.root.querySelector('.garden-message').textContent=spec[locale==='en'?'en':'zh'];
       this.root.querySelector('.garden-action').append(this.button);this.button.classList.add('scene-continue');
       this.button.setAttribute('aria-label',locale==='en'?'Continue':'继续');

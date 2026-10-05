@@ -5,6 +5,7 @@ import AppBootstrap from "./AppBootstrap";
 import "./styles/global.css";
 import "./styles/figma-v2.css";
 import "./styles/shared-overlays.css";
+import "./styles/app-skins.css";
 
 try {
   installTranslationResilience();

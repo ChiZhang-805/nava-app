@@ -5,14 +5,14 @@ import "./reward-celebration.css";
 
 /** A celebration presents a committed ledger grant. Rendering or dismissing it
  * never awards points; the journal's own completion scene is not queued twice. */
-export default function RewardCelebration({ rewards, locale, onDismiss }: {
-  rewards: GrowthRewardGrant[]; locale: "zh" | "en"; onDismiss: () => void;
+export default function RewardCelebration({ rewards = [], sceneOverride, locale, onDismiss }: {
+  rewards?: GrowthRewardGrant[]; sceneOverride?: string; locale: "zh" | "en"; onDismiss: () => void;
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const callback = useRef(onDismiss);
   callback.current = onDismiss;
   const eventKey = (rewards.find(r => !r.eventKey.endsWith(":bare-face-bonus")) ?? rewards[0])?.eventKey ?? "";
-  const scene = completionSceneForReward(eventKey);
+  const scene = sceneOverride ?? completionSceneForReward(eventKey);
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;

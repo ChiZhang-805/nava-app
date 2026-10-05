@@ -1,0 +1,84 @@
+/* Host-selected NAVA skin. The editor structure and all save/AI behavior stay shared. */
+:root[data-app-skin="violet-dusk"] {
+  --navy: #25345a;
+  --muted: #667493;
+  --green: #787cfe;
+  color: #25345a;
+  background: #e5f6ff;
+}
+:root[data-app-skin="sky-ripple"] {
+  --navy: #314155;
+  --muted: #65788c;
+  --green: #548dcc;
+  color: #314155;
+  background: #f4f9fd;
+}
+
+:root[data-app-skin="violet-dusk"] body {
+  background:
+    radial-gradient(circle at 84% 9%, rgba(0,226,224,.28), transparent 31%),
+    radial-gradient(circle at 4% 72%, rgba(236,223,250,.88), transparent 38%),
+    linear-gradient(145deg, #edf4ff, #e5f6ff 44%, #f1e6fb);
+}
+:root[data-app-skin="sky-ripple"] body {
+  background:
+    radial-gradient(circle at 88% 8%, rgba(124,180,235,.30), transparent 33%),
+    radial-gradient(circle at 8% 70%, rgba(109,207,208,.17), transparent 35%),
+    radial-gradient(circle at 92% 82%, rgba(167,151,221,.12), transparent 34%),
+    linear-gradient(139deg, #f8fbff 9%, #f4f9fd 52%, #fffdfb 91%);
+}
+
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .phone { background: rgba(246,250,255,.92); }
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .screen { color: var(--navy); background: transparent; }
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .cream-bg { background: transparent; }
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .entry-heading h1,
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-heading h2 { color: var(--navy); }
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .entry-kicker,
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .field,
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-heading p { color: var(--muted); }
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-card,
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .entry-bubble,
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-notebook {
+  border-color: rgba(255,255,255,.86);
+  background: rgba(248,251,255,.88);
+  box-shadow: 0 13px 31px color-mix(in srgb, var(--navy) 13%, transparent);
+  backdrop-filter: blur(17px);
+}
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.field input, .field textarea, .field select) {
+  border-color: color-mix(in srgb, var(--green) 24%, white);
+  color: var(--navy);
+  background: rgba(247,251,255,.78);
+}
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.field input, .field textarea, .field select):focus {
+  border-color: var(--green) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 15%, transparent);
+}
+:root[data-app-skin="violet-dusk"] .green-bg {
+  opacity: 1 !important;
+  background: linear-gradient(142deg, #787cfe 8%, #735cff 50%, #00e2e0 96%);
+}
+:root[data-app-skin="sky-ripple"] .green-bg {
+  opacity: 1 !important;
+  background: linear-gradient(142deg, #548dcc 8%, #70ceca 58%, #9b8fda 110%);
+}
+:root[data-app-skin="violet-dusk"] .primary {
+  background: linear-gradient(140deg, #787cfe 13%, #00e2e0 87%);
+  box-shadow: 0 12px 24px rgba(77,88,211,.24);
+}
+:root[data-app-skin="sky-ripple"] .primary {
+  background: linear-gradient(135deg, #548dcc, #70ceca);
+  box-shadow: 0 12px 24px rgba(79,138,202,.21);
+}
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .primary.white { color: var(--navy); background: rgba(250,252,255,.96); }
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .loading { color: var(--muted); background: rgba(247,250,255,.96); }
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .loading span { border-color: color-mix(in srgb, var(--green) 18%, white); border-top-color: var(--green); }
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .bottom-nav {
+  border-color: rgba(255,255,255,.82);
+  background: rgba(240,247,252,.76);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--navy) 15%, transparent);
+  backdrop-filter: blur(20px);
+}
+:root[data-app-skin="violet-dusk"] .nav-item.active,
+:root[data-app-skin="violet-dusk"] .nav-chat { color: #fff; background: linear-gradient(145deg,#2d3091,#172d9d 65%,#0fa5ba); }
+:root[data-app-skin="sky-ripple"] .nav-item.active,
+:root[data-app-skin="sky-ripple"] .nav-chat { color: #fff; background: linear-gradient(145deg,#426f9e,#5a9fc1 54%,#64c2b9); }

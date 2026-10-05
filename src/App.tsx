@@ -61,6 +61,7 @@ import {
   type ShellHistoryState,
   type ShellRoute,
 } from "./services/shellHistory";
+import { readAppSkin, writeAppSkin, type AppSkin } from "./services/appSkin";
 
 const aiLongPressDelayMs = 450;
 const firstLoginPreviewStatus: OnboardingStatus = {
@@ -129,11 +130,15 @@ function MobileShell({
   onOpenOnboarding,
   guidePreviewRequest,
   onGuidePreviewConsumed,
+  completionPreviewScene,
+  onCompletionPreviewDismiss,
 }: {
   showInitialHomeGuidance: boolean;
   onOpenOnboarding: () => void;
   guidePreviewRequest: { id: number; module: RecordModule } | null;
   onGuidePreviewConsumed: () => void;
+  completionPreviewScene: string | null;
+  onCompletionPreviewDismiss: () => void;
 }) {
   const { user } = useAuth();
   const t = useT();
@@ -146,6 +151,7 @@ function MobileShell({
   const [recordView, setRecordView] = useState<string | null>(initialRouteRef.current.view);
   const [activeGuidePreview, setActiveGuidePreview] = useState<{ id: number; module: RecordModule } | null>(null);
   const [utilityOpen, setUtilityOpen] = useState(false);
+  const [appSkin, setAppSkin] = useState<AppSkin>(() => readAppSkin(user?.id));
   const [linkShareOpen, setLinkShareOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -172,6 +178,12 @@ function MobileShell({
   const rewardUserRef = useRef(user?.id);
   rewardUserRef.current = user?.id;
   useEffect(() => setRewardQueue([]), [user?.id]);
+  useEffect(() => setAppSkin(readAppSkin(user?.id)), [user?.id]);
+
+  const changeAppSkin = useCallback((skin: AppSkin) => {
+    setAppSkin(skin);
+    writeAppSkin(skin, user?.id);
+  }, [user?.id]);
 
   useEffect(() => {
     let active = true;
@@ -652,7 +664,7 @@ function MobileShell({
   const hideBottomNavigation = focusImmersive || todayFullSubpage || journalOpen;
 
   return (
-    <div className={["phone-frame", journalOpen ? "phone-frame--journal" : "", activeTab === "today" ? "phone-frame--option2" : "", focusImmersive ? "phone-frame--focus-immersive" : "", profileDetailsSubpage ? "phone-frame--subpage-no-nav" : ""].filter(Boolean).join(" ")}>
+    <div data-app-skin={appSkin} className={["phone-frame", journalOpen ? "phone-frame--journal" : "", activeTab === "today" ? "phone-frame--option2" : "", focusImmersive ? "phone-frame--focus-immersive" : "", profileDetailsSubpage ? "phone-frame--subpage-no-nav" : ""].filter(Boolean).join(" ")}>
       <div className="safe-top" />
       {linkShareOpen && <LinkSharePreview locale={locale} onClose={() => setLinkShareOpen(false)} />}
       {notificationBanner && <NotificationBanner item={notificationBanner} locale={locale} onOpen={() => openNotificationItem(notificationBanner)} onDismiss={dismissNotificationBanner} />}
@@ -668,7 +680,7 @@ function MobileShell({
             <ArrowLeft size={21} />
           </button>
           <h1>{currentTitle}</h1>
-          <MoreMenu open={utilityOpen} onOpenChange={setUtilityOpen} label={locale === "zh" ? "更多操作" : "More"} buttonClassName="figma-header-action">
+          <MoreMenu open={utilityOpen} onOpenChange={setUtilityOpen} label={locale === "zh" ? "更多操作" : "More"} buttonClassName="figma-header-action" skin={appSkin} onSkinChange={changeAppSkin}>
               {activeTab === "ai" && <>
                 <button type="button" onClick={() => runAiCommand("new")}><MessageSquarePlus size={17} />{locale === "zh" ? "新会话" : "New chat"}</button>
                 <button type="button" onClick={() => runAiCommand("history")}><History size={17} />{locale === "zh" ? "历史" : "History"}</button>
@@ -743,6 +755,7 @@ function MobileShell({
                 user={user}
                 module={recordModule}
                 locale={locale}
+                skin={appSkin}
                 forceGuide={recordView === 'guide'}
                 guidePreview={recordView === "guide" && activeGuidePreview?.module === recordModule}
                 onSaved={markJournalChanged}
@@ -822,7 +835,7 @@ function MobileShell({
               />
             </Suspense>
           )}
-          {activeTab === "profile" && <Suspense fallback={<PageSkeleton variant="profile" />}><ProfileScreen user={user} refreshKey={refreshKey} onChanged={markChanged} onOpenOnboarding={onOpenOnboarding} /></Suspense>}
+          {activeTab === "profile" && <Suspense fallback={<PageSkeleton variant="profile" />}><ProfileScreen user={user} refreshKey={refreshKey} onChanged={markChanged} onOpenOnboarding={onOpenOnboarding} skin={appSkin} onSkinChange={changeAppSkin} /></Suspense>}
           </>}
         </div>
       </main>
@@ -894,6 +907,7 @@ function MobileShell({
         }}
       />
       {rewardQueue[0] && <RewardCelebration rewards={rewardQueue[0]} locale={locale} onDismiss={dismissReward} />}
+      {completionPreviewScene && <RewardCelebration sceneOverride={completionPreviewScene} locale={locale} onDismiss={onCompletionPreviewDismiss} />}
     </div>
   );
 }
@@ -919,6 +933,7 @@ function AppContent({
   const [firstLoginPreviewOpen, setFirstLoginPreviewOpen] = useState(false);
   const [firstLoginPreviewKey, setFirstLoginPreviewKey] = useState(0);
   const [journalGuidePreview, setJournalGuidePreview] = useState<{ id: number; module: RecordModule } | null>(null);
+  const [completionPreviewScene, setCompletionPreviewScene] = useState<string | null>(null);
   const journalGuidePreviewIdRef = useRef(0);
 
   useEffect(() => {
@@ -977,16 +992,24 @@ function AppContent({
   }, [onboardingRoute?.status, user]);
   const openFirstLoginPreview = useCallback(() => {
     setJournalGuidePreview(null);
+    setCompletionPreviewScene(null);
     setFirstLoginPreviewKey((value) => value + 1);
     setFirstLoginPreviewOpen(true);
   }, []);
   const closeFirstLoginPreview = useCallback(() => setFirstLoginPreviewOpen(false), []);
   const openJournalGuidePreview = useCallback((module: RecordModule) => {
     setFirstLoginPreviewOpen(false);
+    setCompletionPreviewScene(null);
     journalGuidePreviewIdRef.current += 1;
     setJournalGuidePreview({ id: journalGuidePreviewIdRef.current, module });
   }, []);
   const consumeJournalGuidePreview = useCallback(() => setJournalGuidePreview(null), []);
+  const openCompletionPreview = useCallback((scene: string) => {
+    setFirstLoginPreviewOpen(false);
+    setJournalGuidePreview(null);
+    setCompletionPreviewScene(scene);
+  }, []);
+  const closeCompletionPreview = useCallback(() => setCompletionPreviewScene(null), []);
 
   let screen;
   if (configError && !isDemoMode()) screen = <ConfigErrorScreen message={configError} />;
@@ -1022,6 +1045,8 @@ function AppContent({
     onOpenOnboarding={openOnboarding}
     guidePreviewRequest={journalGuidePreview}
     onGuidePreviewConsumed={consumeJournalGuidePreview}
+    completionPreviewScene={completionPreviewScene}
+    onCompletionPreviewDismiss={closeCompletionPreview}
   />;
 
   const journalGuidePreviewAvailable = Boolean(user && !checkingOnboarding && !onboardingError && !onboardingRoute?.required && !passwordRecovery);
@@ -1033,6 +1058,7 @@ function AppContent({
         reminderUserId={user?.id}
         onFirstLoginPreview={openFirstLoginPreview}
         onJournalGuidePreview={journalGuidePreviewAvailable ? openJournalGuidePreview : undefined}
+        onCompletionPreview={journalGuidePreviewAvailable ? openCompletionPreview : undefined}
       />
       {user && <DevSeedPanel user={user} />}
     </div>

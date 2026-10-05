@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { Bell, BookOpenText, Brain, Dumbbell, Ellipsis, Home, LockKeyhole, MoonStar, PhoneIncoming, RotateCcw, ScanFace, SmilePlus, Smartphone, Sun, Utensils } from "lucide-react";
+import { Bell, BookOpenText, Brain, Dumbbell, Ellipsis, Home, LockKeyhole, MoonStar, PhoneIncoming, RotateCcw, ScanFace, SmilePlus, Sparkles, Smartphone, Sun, Utensils } from "lucide-react";
 import type { RecordModule } from "../features/RecordsScreen";
 import PhoneSystemPreview from "./PhoneSystemPreview";
 import { commandPhonePreview } from "../services/previewPhoneSystem";
@@ -27,6 +27,7 @@ type DesktopDevicePreviewChromeProps = {
   reminderUserId?: string;
   onFirstLoginPreview?: () => void;
   onJournalGuidePreview?: (module: RecordModule) => void;
+  onCompletionPreview?: (scene: string) => void;
 };
 
 const journalGuideShortcuts = [
@@ -38,7 +39,7 @@ const journalGuideShortcuts = [
   { module: "focus", label: "专注", icon: Brain },
 ] satisfies Array<{ module: RecordModule; label: string; icon: typeof MoonStar }>;
 
-export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLoginPreview, onJournalGuidePreview }: DesktopDevicePreviewChromeProps = {}) {
+export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLoginPreview, onJournalGuidePreview, onCompletionPreview }: DesktopDevicePreviewChromeProps = {}) {
   const [reminderResult, setReminderResult] = useState("");
   const [reminderBusy, setReminderBusy] = useState(false);
   const [eventResult, setEventResult] = useState("");
@@ -306,6 +307,23 @@ export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLogi
                 aria-label={`重播${label}记录引导`}
               ><Icon size={17} /><span>{label}</span></button>
             ))}
+          </div>
+        </section>
+        <section className="nava-guide-preview nava-completion-preview" data-preview-only="completion-shortcuts" aria-label="完成页快捷入口">
+          <header><strong>完成页</strong><small>动画预览</small></header>
+          <div className="nava-guide-preview-actions">
+            <button
+              type="button"
+              data-preview-completion="03"
+              disabled={!onCompletionPreview}
+              onClick={() => {
+                commandPhonePreview("app");
+                onCompletionPreview?.("03");
+                setEventResult("已打开微风桌面完成页；Continue 只关闭预览，不写入记录或积分。");
+              }}
+              title="预览微风桌面完成页"
+              aria-label="预览微风桌面完成页"
+            ><Sparkles size={17} /><span>微风桌面</span></button>
           </div>
         </section>
         <section className="nava-reminder-preview" data-reminder-preview>

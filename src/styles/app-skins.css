@@ -1,0 +1,311 @@
+/* Three application skins share one DOM, data model and interaction contract.
+   The two alternate palettes are derived from the approved Figma mobile boards:
+   Style F Bold Violet and Key Screens V1.8. */
+.phone-frame {
+  --skin-ink: #071827;
+  --skin-muted: #5e7e8d;
+  --skin-accent: #0b809f;
+  --skin-accent-2: #2aa9a0;
+  --skin-surface: rgba(248, 253, 255, .76);
+  --skin-surface-strong: rgba(248, 253, 255, .94);
+  --skin-line: rgba(219, 242, 255, .58);
+  --skin-field: rgba(241, 249, 251, .82);
+  --skin-shadow: 0 14px 34px rgba(13, 54, 83, .15);
+  --skin-button: linear-gradient(135deg, #2fb0e5, #178f97);
+  --skin-dock: rgba(210, 231, 240, .72);
+  --skin-dock-orb: linear-gradient(145deg, #315d6d, #173d4d 72%);
+}
+
+.app-skin-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.app-skin-option {
+  min-width: 0;
+  min-height: 116px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(142, 181, 199, .32);
+  border-radius: 17px;
+  color: #244c60;
+  background: rgba(244, 251, 253, .72);
+  box-shadow: none;
+  text-align: left;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.app-skin-option:active { transform: scale(.98); }
+.app-skin-option:focus-visible { outline: 3px solid color-mix(in srgb, var(--skin-accent) 28%, transparent); outline-offset: 2px; }
+.app-skin-option.is-selected {
+  border-color: var(--skin-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--skin-accent) 16%, transparent), 0 8px 20px rgba(30, 88, 112, .10);
+}
+
+.app-skin-swatch {
+  height: 54px;
+  position: relative;
+  overflow: hidden;
+  display: block;
+  border-radius: 12px;
+  background: linear-gradient(150deg, #effbff, #8fd9ed 57%, #2c8dc3);
+}
+
+.app-skin-swatch::before,
+.app-skin-swatch::after,
+.app-skin-swatch i {
+  content: "";
+  position: absolute;
+  display: block;
+  border-radius: 999px;
+}
+.app-skin-swatch::before { width: 46px; height: 46px; left: -13px; top: -14px; background: rgba(255,255,255,.6); }
+.app-skin-swatch::after { width: 36px; height: 36px; right: -8px; bottom: -12px; background: rgba(215,244,250,.45); }
+.app-skin-swatch i:nth-child(1) { width: 29px; height: 19px; left: 9px; bottom: 8px; background: rgba(255,255,255,.74); border-radius: 8px; }
+.app-skin-swatch i:nth-child(2) { width: 18px; height: 7px; right: 8px; top: 10px; background: rgba(255,255,255,.65); }
+.app-skin-swatch i:nth-child(3) { width: 28px; height: 5px; right: 7px; bottom: 10px; background: rgba(8,75,112,.26); }
+
+.app-skin-option--violet-dusk .app-skin-swatch {
+  background:
+    radial-gradient(circle at 76% 22%, rgba(255,255,255,.45), transparent 24%),
+    linear-gradient(140deg, #787cfe 10%, #735cff 46%, #00e2e0 100%);
+}
+.app-skin-option--sky-ripple .app-skin-swatch {
+  background:
+    radial-gradient(circle at 78% 18%, rgba(124,180,235,.55), transparent 30%),
+    linear-gradient(145deg, #dcedff, #e8f8fb 58%, #f7f4ff);
+}
+.app-skin-option--sky-ripple .app-skin-swatch i:nth-child(3) { background: linear-gradient(90deg, #548dcc, #70ceca); }
+
+.app-skin-copy { min-width: 0; display: grid; gap: 2px; }
+.app-skin-copy strong { font-size: 13px; line-height: 1.25; white-space: nowrap; }
+.app-skin-copy small { color: #6d8997; font-size: 9px; line-height: 1.35; }
+.app-skin-selected {
+  width: 20px;
+  height: 20px;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 4px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--skin-accent);
+  box-shadow: 0 3px 8px rgba(16, 70, 92, .18);
+}
+
+.profile-skin-card { padding: 14px; }
+.profile-skin-card .section-heading { align-items: center; margin-bottom: 10px; }
+.profile-skin-card .section-heading h2 { font-size: 17px; }
+.profile-skin-card .section-heading p { margin-top: 2px; font-size: 10px; }
+.profile-skin-icon { width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center; border-radius: 13px; color: var(--skin-accent); background: color-mix(in srgb, var(--skin-accent) 11%, white); }
+
+.phone-frame .nava-more-menu .app-utility-popover > button.more-menu-skin small,
+.phone-frame .nava-more-menu .app-utility-popover > button.more-menu-language small { margin-left: auto; color: var(--skin-muted); font-size: 12px; font-weight: 500; }
+.nava-more-menu .app-skin-picker.is-compact { display: grid; grid-template-columns: 1fr; gap: 2px; }
+.nava-more-menu .app-skin-picker.is-compact .app-skin-option {
+  width: 100%; min-height: 48px; display: grid; grid-template-columns: 46px minmax(0, 1fr) 22px; align-items: center; gap: 10px;
+  padding: 5px 8px; border: 0; border-radius: 11px; background: transparent;
+}
+.nava-more-menu .app-skin-picker.is-compact .app-skin-option:hover,
+.nava-more-menu .app-skin-picker.is-compact .app-skin-option:focus-visible { background: color-mix(in srgb, var(--skin-accent) 10%, white); }
+.nava-more-menu .app-skin-picker.is-compact .app-skin-swatch { width: 46px; height: 36px; border-radius: 9px; }
+.nava-more-menu .app-skin-picker.is-compact .app-skin-copy strong { font-size: 14px; }
+.nava-more-menu .app-skin-picker.is-compact .app-skin-selected { position: static; width: 20px; height: 20px; }
+
+/* Shared alternate-skin surface contract. */
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) {
+  color: var(--skin-ink);
+  background: var(--skin-page-background);
+  box-shadow: 0 0 0 1px var(--skin-line), var(--skin-shadow);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"])::before {
+  content: "";
+  inset: 0;
+  z-index: -2;
+  background: var(--skin-page-decoration);
+  opacity: 1;
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"])::after {
+  z-index: -1;
+  background: var(--skin-page-texture);
+  opacity: .9;
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .app-header h1,
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .section-heading h2,
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) h1,
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) h2,
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) h3,
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) strong { color: var(--skin-ink); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .muted,
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .section-heading p { color: var(--skin-muted); }
+
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.section-card, .metric-card, .record-module-entry, .weekly-score-card, .weekly-trend-card, .weekly-insight-card, .weekly-module-status, .growth-summary-card, .growth-task-card, .chat-archive-return) {
+  border-color: var(--skin-line);
+  background: var(--skin-surface);
+  box-shadow: var(--skin-card-shadow);
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(input:not([type="range"]):not([type="checkbox"]), textarea, select, .chip, .photo-picker) {
+  border-color: var(--skin-field-line);
+  color: var(--skin-ink);
+  background: var(--skin-field);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(input, textarea)::placeholder { color: color-mix(in srgb, var(--skin-muted) 55%, white); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(input:not([type="range"]):not([type="checkbox"]), textarea, select):focus {
+  border-color: var(--skin-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--skin-accent) 16%, transparent);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.action-button, .primary-button, .chat-send-button, .points-shop-primary-action) {
+  border-color: transparent;
+  color: #fff;
+  background: var(--skin-button);
+  box-shadow: var(--skin-button-shadow);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.section-icon-action, .record-back-button, .figma-header-action, .nava-more-trigger) { color: var(--skin-accent); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-first-notes-button, .device-connection-icon) {
+  color: var(--skin-accent);
+  background: color-mix(in srgb, var(--skin-accent) 10%, white);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .app-utility-popover {
+  border-color: var(--skin-line);
+  color: var(--skin-ink);
+  background: var(--skin-surface-strong);
+  box-shadow: var(--skin-shadow);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .more-menu-divider { background: var(--skin-line); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .more-menu-check { color: var(--skin-accent); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .nava-more-menu .app-utility-popover > button:hover,
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .nava-more-menu .app-utility-popover > button:focus-visible { background: color-mix(in srgb, var(--skin-accent) 10%, white); }
+
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .bottom-nav::before {
+  border-color: var(--skin-line);
+  background: var(--skin-dock);
+  box-shadow: var(--skin-dock-shadow);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .bottom-nav .nav-button {
+  border-color: var(--skin-line);
+  color: var(--skin-nav-ink);
+  background: var(--skin-nav-button);
+  box-shadow: var(--skin-nav-shadow);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .bottom-nav .nav-button.selected { background: var(--skin-nav-selected); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .ai-nav-orb { background: var(--skin-dock-orb); box-shadow: var(--skin-orb-shadow); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .figma-nav-icon { filter: var(--skin-nav-filter); }
+
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .option-two-home { color: var(--skin-ink); background: transparent; }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .option-two-scene-background {
+  opacity: var(--skin-scene-opacity);
+  filter: var(--skin-scene-filter);
+  mix-blend-mode: var(--skin-scene-blend);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.option-two-scores > div, .option-two-side-actions button, .option-two-health-entry, .home-health-widget, .home-widget-empty, .home-widget-add) {
+  border-color: var(--skin-line);
+  color: var(--skin-nav-ink);
+  background: var(--skin-surface);
+  box-shadow: var(--skin-card-shadow);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .option-two-scores strong { color: var(--skin-nav-ink); background: var(--skin-surface-strong); box-shadow: var(--skin-card-shadow); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .option-two-health-disc { border-color: var(--skin-line); background: var(--skin-health-disc); box-shadow: var(--skin-shadow); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-detail .chip.selected,
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-detail .face-mode-picker button.selected { color: #fff; background: var(--skin-button); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .growth-progress-track { background: color-mix(in srgb, var(--skin-accent) 15%, white); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .growth-progress-track span { background: var(--skin-button); }
+
+/* Figma group 1: Style F Bold Violet. */
+.phone-frame[data-app-skin="violet-dusk"] {
+  --skin-ink: #25345a;
+  --skin-muted: #667493;
+  --skin-accent: #735cff;
+  --skin-accent-2: #00cfd0;
+  --skin-surface: rgba(247, 249, 252, .86);
+  --skin-surface-strong: rgba(247, 249, 252, .97);
+  --skin-line: rgba(255, 255, 255, .78);
+  --skin-field: rgba(229, 246, 255, .76);
+  --skin-field-line: rgba(120, 124, 254, .24);
+  --skin-page-background:
+    radial-gradient(circle at 86% 8%, rgba(0,226,224,.30), transparent 31%),
+    radial-gradient(circle at 5% 64%, rgba(236,223,250,.88), transparent 38%),
+    linear-gradient(145deg, #edf4ff 0%, #e5f6ff 43%, #f1e6fb 100%);
+  --skin-page-decoration:
+    radial-gradient(circle at -8% 18%, rgba(120,124,254,.36) 0 18%, transparent 18.5%),
+    radial-gradient(circle at 108% 77%, rgba(0,226,224,.22) 0 24%, transparent 24.5%);
+  --skin-page-texture: repeating-linear-gradient(128deg, rgba(255,255,255,.16) 0 1px, transparent 1px 15px);
+  --skin-shadow: 0 24px 60px rgba(45,48,145,.18);
+  --skin-card-shadow: 0 12px 30px rgba(45,48,145,.13), inset 0 1px 0 rgba(255,255,255,.9);
+  --skin-button: linear-gradient(140deg, #787cfe 13%, #00e2e0 87%);
+  --skin-button-shadow: 0 10px 23px rgba(77,88,211,.25);
+  --skin-dock: linear-gradient(135deg, rgba(117,98,224,.83), rgba(61,84,184,.88) 52%, rgba(0,196,203,.78));
+  --skin-dock-shadow: 0 11px 28px rgba(45,48,145,.25), inset 0 1px 0 rgba(255,255,255,.45);
+  --skin-dock-orb: linear-gradient(145deg, #2d3091, #172d9d 64%, #0fa5ba);
+  --skin-orb-shadow: 0 10px 24px rgba(23,45,157,.35), inset 0 1px 0 rgba(255,255,255,.22);
+  --skin-nav-ink: #25345a;
+  --skin-nav-button: rgba(247,249,252,.86);
+  --skin-nav-selected: rgba(255,255,255,.98);
+  --skin-nav-shadow: 0 6px 15px rgba(45,48,145,.22), inset 0 1px 0 rgba(255,255,255,.9);
+  --skin-nav-filter: brightness(0) saturate(100%) invert(22%) sepia(26%) saturate(1257%) hue-rotate(192deg) brightness(88%) contrast(89%);
+  --skin-scene-opacity: .26;
+  --skin-scene-filter: hue-rotate(45deg) saturate(.95) brightness(1.16);
+  --skin-scene-blend: multiply;
+  --skin-health-disc: radial-gradient(circle at 50% 3%, rgba(0,226,224,.52), transparent 35%), linear-gradient(180deg, rgba(120,124,254,.88), rgba(45,48,145,.94));
+}
+.phone-frame[data-app-skin="violet-dusk"] .profile-skin-icon { color: #735cff; background: #ece9ff; }
+.phone-frame[data-app-skin="violet-dusk"] .record-module-entry:nth-child(3n + 1),
+.phone-frame[data-app-skin="violet-dusk"] .growth-summary-card { background: linear-gradient(145deg, rgba(120,124,254,.93), rgba(0,226,224,.78)); color: #fff; }
+.phone-frame[data-app-skin="violet-dusk"] .record-module-entry:nth-child(3n + 1) :is(strong, span, svg),
+.phone-frame[data-app-skin="violet-dusk"] .growth-summary-card :is(strong, span, svg) { color: #fff; }
+
+/* Figma group 2: Key Screens V1.8. */
+.phone-frame[data-app-skin="sky-ripple"] {
+  --skin-ink: #314155;
+  --skin-muted: #65788c;
+  --skin-accent: #548dcc;
+  --skin-accent-2: #70ceca;
+  --skin-surface: linear-gradient(146deg, rgba(220,237,255,.94), rgba(232,248,251,.86) 58%, rgba(247,244,255,.84));
+  --skin-surface-strong: rgba(248, 251, 255, .96);
+  --skin-line: rgba(255,255,255,.88);
+  --skin-field: rgba(248,252,255,.72);
+  --skin-field-line: rgba(79,138,202,.22);
+  --skin-page-background:
+    radial-gradient(circle at 88% 8%, rgba(124,180,235,.30), transparent 33%),
+    radial-gradient(circle at 8% 70%, rgba(109,207,208,.17), transparent 35%),
+    radial-gradient(circle at 92% 82%, rgba(167,151,221,.12), transparent 34%),
+    linear-gradient(139deg, #f8fbff 9%, #f4f9fd 52%, #fffdfb 91%);
+  --skin-page-decoration:
+    radial-gradient(circle at -8% 22%, rgba(112,206,202,.22) 0 20%, transparent 20.5%),
+    radial-gradient(circle at 107% 72%, rgba(155,143,218,.15) 0 22%, transparent 22.5%);
+  --skin-page-texture: repeating-linear-gradient(126deg, rgba(79,138,202,.025) 0 1px, transparent 1px 14px);
+  --skin-shadow: 0 22px 54px rgba(55,111,159,.15);
+  --skin-card-shadow: 0 12px 28px rgba(55,111,159,.11), inset 0 1px 0 rgba(255,255,255,.95);
+  --skin-button: linear-gradient(135deg, #548dcc, #70ceca);
+  --skin-button-shadow: 0 10px 22px rgba(79,138,202,.22);
+  --skin-dock: linear-gradient(135deg, rgba(213,231,247,.88), rgba(214,242,242,.86) 55%, rgba(231,225,248,.82));
+  --skin-dock-shadow: 0 10px 25px rgba(55,111,159,.18), inset 0 1px 0 rgba(255,255,255,.9);
+  --skin-dock-orb: linear-gradient(145deg, #426f9e, #5a9fc1 54%, #64c2b9);
+  --skin-orb-shadow: 0 9px 21px rgba(55,111,159,.27), inset 0 1px 0 rgba(255,255,255,.22);
+  --skin-nav-ink: #376f9f;
+  --skin-nav-button: rgba(248,252,255,.8);
+  --skin-nav-selected: rgba(255,255,255,.98);
+  --skin-nav-shadow: 0 5px 13px rgba(55,111,159,.16), inset 0 1px 0 rgba(255,255,255,.94);
+  --skin-nav-filter: brightness(0) saturate(100%) invert(41%) sepia(35%) saturate(991%) hue-rotate(164deg) brightness(91%) contrast(87%);
+  --skin-scene-opacity: .19;
+  --skin-scene-filter: saturate(.58) brightness(1.3);
+  --skin-scene-blend: multiply;
+  --skin-health-disc: radial-gradient(circle at 50% 4%, rgba(255,255,255,.78), transparent 36%), linear-gradient(180deg, rgba(112,206,202,.72), rgba(84,141,204,.84));
+}
+
+@media (max-width: 374px) {
+  .app-skin-picker { gap: 6px; }
+  .app-skin-option { min-height: 108px; padding: 6px; }
+  .app-skin-swatch { height: 48px; }
+  .app-skin-copy strong { font-size: 12px; }
+  .app-skin-copy small { font-size: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-skin-option { transition: none; }
+}
