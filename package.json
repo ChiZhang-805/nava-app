@@ -66,7 +66,7 @@
     "locale:test": "node --experimental-strip-types --test tests/locale-preference.test.ts",
     "skins:test": "node --experimental-strip-types --test tests/app-skins.test.ts",
     "skins:visual": "node scripts/verify-app-skins-ui.mjs",
-    "skins:deployment:audit": "node scripts/verify-skin-deployment-regression.mjs",
+    "skins:deployment:audit": "npm run build && npm run auth:verify:production && node scripts/verify-skin-deployment-regression.mjs",
     "menus:visual": "node scripts/verify-menus-locale-ui.mjs",
     "reminders:visual": "node scripts/verify-independent-reminders.mjs",
     "wellbeing:test": "node --experimental-strip-types --test tests/wellbeing-tools.test.ts",
