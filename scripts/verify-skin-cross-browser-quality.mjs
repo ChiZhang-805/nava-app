@@ -24,6 +24,11 @@ const publicSites = [
   { id: "pages", base: "https://chizhang-805.github.io/nava-app-preview/" },
 ];
 const messageFor = (error) => error instanceof Error ? error.message : String(error);
+const isIsolatedFirefoxRealtimeDiagnostic = (entry, engine) => engine === "firefox"
+  && entry.type === "console"
+  && /wxteapvwagvhhtrjrbim\.supabase\.co\/realtime\/v1\/websocket/u.test(entry.message)
+  && (/Cookie .__cf_bm. has been rejected for invalid domain/u.test(entry.message)
+    || /connection to wss:\/\/.* was interrupted while the page was loading/u.test(entry.message));
 const report = {
   schemaVersion: 1,
   audit: "skin-cross-browser-quality",
@@ -335,9 +340,11 @@ try {
                   return { before, after, visibleIndicator };
                 });
                 await step(result, "console-and-page-errors", async () => {
-                  const errors = runtimeErrors.slice(runtimeOffset);
+                  const diagnostics = runtimeErrors.slice(runtimeOffset);
+                  const ignoredExternalDiagnostics = diagnostics.filter((entry) => isIsolatedFirefoxRealtimeDiagnostic(entry, engineName));
+                  const errors = diagnostics.filter((entry) => !isIsolatedFirefoxRealtimeDiagnostic(entry, engineName));
                   if (errors.length) throw new Error(JSON.stringify(errors));
-                  return { count: 0 };
+                  return { count: 0, ignoredExternalDiagnostics };
                 });
                 await step(result, "text-contrast", async () => {
                   if (accessibility.contrastSamples.length === 0) throw new Error("no essential text contrast samples");
@@ -419,6 +426,7 @@ try {
           }
         }
       }
+      console.log(`${engineName}: completed ${sizes.length * skins.length * modules.length} local and ${publicSites.length * sizes.length} public states.`);
     } finally {
       await browser.close();
     }

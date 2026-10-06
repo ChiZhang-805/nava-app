@@ -22,6 +22,7 @@ const publicSites = [
   { id: "sites", base: "https://nava-app-preview-cz.chizhang1031.chatgpt.site/", journal: "journal/" },
   { id: "pages", base: "https://chizhang-805.github.io/nava-app-preview/", journal: "journal/" },
 ];
+const skinAssetVersion = "20261006-skins-a11y-v3";
 const forbiddenHardStops = [
   /0 18%,\s*transparent 18\.5%/u,
   /0 20%,\s*transparent 20\.5%/u,
@@ -32,6 +33,8 @@ const requiredJournalFragments = [
   "linear-gradient(138.82deg, #f8fbff 8.57%, #f4f9fd 51.66%, #fffdfb 91.43%)",
   "linear-gradient(142.76deg, #787cfe 8.63%, #d670c9 91.37%)",
   ".green-bg i { display: none; }",
+  "--muted: #53617d;",
+  "--muted: #52657a;",
 ];
 const requiredHostSkinPatterns = [
   /linear-gradient\(138\.82deg,\s*#f8fbff 8\.57%,\s*#f4f9fd 51\.66%,\s*#fffdfb 91\.43%\)/u,
@@ -291,15 +294,15 @@ try {
         return { required: requiredHostSkinPatterns.length, forbidden: forbiddenHardStops.length };
       });
       await step(assets, "journal-entry-version", async () => {
-        const response = await fetch(new URL(`${site.journal}index.html?v=20261006-skins-v2`, site.base), { cache: "no-store", signal: AbortSignal.timeout(30000) });
+        const response = await fetch(new URL(`${site.journal}index.html?v=${skinAssetVersion}`, site.base), { cache: "no-store", signal: AbortSignal.timeout(30000) });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const journalHtml = await response.text();
-        if (!/css\/app-skins\.css\?v=20261006-skins-v2/u.test(journalHtml)) throw new Error("journal does not reference the v2 skin stylesheet");
+        if (!journalHtml.includes(`css/app-skins.css?v=${skinAssetVersion}`)) throw new Error("journal does not reference the current skin stylesheet");
         if (/skins-v1/u.test(journalHtml)) throw new Error("journal still references skins-v1");
         return { status: response.status, v2Reference: true };
       });
       await step(assets, "journal-css-hash", async () => {
-        const response = await fetch(new URL(`${site.journal}css/app-skins.css?v=20261006-skins-v2`, site.base), { cache: "no-store", signal: AbortSignal.timeout(30000) });
+        const response = await fetch(new URL(`${site.journal}css/app-skins.css?v=${skinAssetVersion}`, site.base), { cache: "no-store", signal: AbortSignal.timeout(30000) });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const deployed = await response.text();
         const deployedHash = sha256(Buffer.from(deployed));

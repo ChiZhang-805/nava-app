@@ -224,7 +224,7 @@
 /* Figma group 1: Style F Bold Violet. */
 .phone-frame[data-app-skin="violet-dusk"] {
   --skin-ink: #25345a;
-  --skin-muted: #667493;
+  --skin-muted: #53617d;
   --skin-accent: #735cff;
   --skin-accent-2: #00cfd0;
   --skin-surface: linear-gradient(153deg, rgba(247,252,255,.98) 8.49%, rgba(226,243,252,.86) 91.51%);
@@ -279,7 +279,7 @@
 /* Figma group 2: Key Screens V1.8. */
 .phone-frame[data-app-skin="sky-ripple"] {
   --skin-ink: #314155;
-  --skin-muted: #65788c;
+  --skin-muted: #52657a;
   --skin-accent: #548dcc;
   --skin-accent-2: #70ceca;
   --skin-surface: linear-gradient(146.38deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%);

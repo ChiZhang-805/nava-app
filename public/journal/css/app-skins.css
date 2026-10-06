@@ -1,7 +1,7 @@
 /* Host-selected NAVA skin. The editor structure and all save/AI behavior stay shared. */
 :root[data-app-skin="violet-dusk"] {
   --navy: #25345a;
-  --muted: #667493;
+  --muted: #53617d;
   --green: #787cfe;
   color: #25345a;
   --module-surface: linear-gradient(153deg, rgba(247,252,255,.98) 8.49%, rgba(226,243,252,.86) 91.51%);
@@ -10,7 +10,7 @@
 }
 :root[data-app-skin="sky-ripple"] {
   --navy: #314155;
-  --muted: #65788c;
+  --muted: #52657a;
   --green: #548dcc;
   color: #314155;
   --module-surface: linear-gradient(146.38deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%);

@@ -3,6 +3,21 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { APP_SKINS, appSkinStorageKey, defaultAppSkin, normalizeAppSkin, readAppSkin, writeAppSkin } from "../src/services/appSkin.ts";
 
+function relativeLuminance(hex: string) {
+  const channels = hex.match(/[a-f\d]{2}/giu)?.map((value) => {
+    const channel = Number.parseInt(value, 16) / 255;
+    return channel <= .03928 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+  });
+  assert.ok(channels && channels.length === 3);
+  return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2];
+}
+
+function contrastRatio(foreground: string, background: string) {
+  const foregroundLuminance = relativeLuminance(foreground);
+  const backgroundLuminance = relativeLuminance(background);
+  return (Math.max(foregroundLuminance, backgroundLuminance) + .05) / (Math.min(foregroundLuminance, backgroundLuminance) + .05);
+}
+
 test("the application exposes exactly three uniquely named skins", () => {
   assert.deepEqual(APP_SKINS.map((skin) => skin.id), ["glacier-mist", "violet-dusk", "sky-ripple"]);
   assert.equal(new Set(APP_SKINS.map((skin) => skin.name)).size, 3);
@@ -61,4 +76,21 @@ test("alternate skins preserve the Figma gradient distributions without hard-edg
     assert.match(css, /linear-gradient\(142\.76deg, #787cfe 8\.63%, #d670c9 91\.37%\)/);
     assert.doesNotMatch(css, /0 20%, transparent 20\.5%|0 18%, transparent 18\.5%|0 24%, transparent 24\.5%/);
   }
+});
+
+test("alternate skin field labels retain WCAG AA contrast on their lightest and darkest surfaces", async () => {
+  const [hostStyles, journalStyles, journalHtml] = await Promise.all([
+    readFile(new URL("../src/styles/app-skins.css", import.meta.url), "utf8"),
+    readFile(new URL("../public/journal/css/app-skins.css", import.meta.url), "utf8"),
+    readFile(new URL("../public/journal/index.html", import.meta.url), "utf8"),
+  ]);
+  assert.match(hostStyles, /--skin-muted: #53617d/);
+  assert.match(hostStyles, /--skin-muted: #52657a/);
+  assert.match(journalStyles, /--muted: #53617d/);
+  assert.match(journalStyles, /--muted: #52657a/);
+  assert.ok(contrastRatio("53617d", "ecdffa") >= 4.5);
+  assert.ok(contrastRatio("53617d", "e2f3fc") >= 4.5);
+  assert.ok(contrastRatio("52657a", "dcedff") >= 4.5);
+  assert.ok(contrastRatio("52657a", "f7f4ff") >= 4.5);
+  assert.match(journalHtml, /css\/app-skins\.css\?v=20261006-skins-a11y-v3/);
 });
