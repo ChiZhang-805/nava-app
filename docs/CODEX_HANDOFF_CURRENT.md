@@ -26,20 +26,21 @@ APP现在保留原版`冰川晨雾`，并加入按Figma两组移动端状态板�
 记录编辑器虽运行在同源iframe内，也通过既有父子连接只接收无敏感信息的皮肤ID，并在连接前用URL
 参数先渲染正确加载背景；认证令牌、服务密钥和保存合同均未进入iframe。
 
-专项验收`npm run skins:test`覆盖三款唯一四字中文名、坏值回退、用户隔离和记录iframe合同；
-`npm run skins:visual`在360×740、375×812、390×844、430×932四档验证“我的”选择器、右上角菜单、
-刷新持久化、记录中心、首页、底栏和零横向溢出，并为两套新皮肤各生成睡眠、运动、情绪、专注、
-饮食、面部六张稳定内容截图；测试等待iframe真实加载完成，不把加载页当结果。证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/app-skins`。主代理已查看情绪/饮食/睡眠等最终图，确认旧硬边
-圆块消失。`npm run skins:test`、lint、生产构建和生产认证合同通过；未运行与本轮无关的完整verify。
-本轮没有数据库迁移、Edge Function部署、真实账号数据写入或访问策略变更。
+专项验收`npm run skins:test`覆盖三款唯一四字中文名、坏值回退、用户隔离、记录iframe合同及两套
+新皮肤最不利表面的WCAG AA对比度；`npm run skins:visual`在360×740、375×812、390×844、430×932
+四档验证“我的”选择器、右上角菜单、刷新持久化、记录中心、首页、底栏和零横向溢出，并为两套
+新皮肤各生成睡眠、运动、情绪、专注、饮食、面部六张稳定内容截图；测试等待iframe真实加载完成，
+不把加载页当结果。证据位于`Q:/NAVA-Workspace/Build/TestRuns/app-skins`。主代理已对比调整前后的
+暮紫情绪页与晴空饮食页，确认仅把次要文字令牌加深为暮紫`#53617d`、晴空`#52657a`，没有改变
+渐变、模块组合、留白和布局。`npm run skins:test`、lint、生产构建和生产认证合同通过；未运行与本轮
+无关的完整verify。本轮没有数据库迁移、Edge Function部署、真实账号数据写入或访问策略变更。
 
-功能源码`0e62db98843af9c6f4f0dd219d5e2b568dc987a3`已干净推送并从同一提交生成双站。
-ChatGPT Sites **v220**：
-`appgprj_6a5de710811c8191af8ce2681358d518~appgver_965b2c06db9881919622f688dcda4392`；
-部署`appgdep_6ac3ed9a84188191ba9a40abf915893c` succeeded。GitHub Pages镜像提交
-`7507c3de574f3c91c205977697a878e640629b43`，workflow `37357231423` success。关键入口、主样式、
-记录皮肤CSS/JS复制前后SHA-256一致；Pages `source.json`指向v220、上述功能提交与Sites版本。
+功能源码`22d1ec5cc9b7454728cddfe48dfb394bfe5dc3a2`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v221**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_bdcc335c89b08191a03aac7483b96e13`；
+部署`appgdep_6ac4638996dc8191a2f6f38e4d1d8b06` succeeded。GitHub Pages镜像提交
+`97d20964e65e0fac74d7f6234f1013e48ebac947`，workflow `37406792555` success。关键入口、主样式、
+记录皮肤CSS/JS复制前后SHA-256一致；Pages `source.json`指向v221、上述功能提交与Sites版本。
 两站入口均HTTP 200，390×844无会话浏览器实际显示登录页且未暴露APP壳；canonical Supabase仍为
 `wxteapvwagvhhtrjrbim`，公开demo绕过仍禁用。Sites官方源码工作流验证了同一提交；Windows下其
 npm启动和Bash打包器仍不能解析`Q:`路径，因此使用已通过的仓库构建、`prepare-sites-build.mjs`与
@@ -55,10 +56,10 @@ npm启动和Bash打包器仍不能解析`Q:`路径，因此使用已通过的仓
 JS/CSS/图片也逐项验证HTTP成功。报告模式升级为schema v2：每个结果记录命名检查、通过/失败、
 实际值、错误、截图路径、资源URL、HTTP状态与CSS哈希，单项失败会尽量继续采集其余结果并以非零
 退出码结束；可用`--output=<绝对路径>`重定向证据。最终完整门禁为58/58结果、381/381检查、56张
-截图、`errors:[]`，报告位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v220-regression/report.json`；
+截图、`errors:[]`，报告位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v221-regression/report.json`；
 主代理抽查两皮肤四类页面和两站登录页截图。此审计没有取得公网测试账号，因此
 “已登录六页”结论只来自本地认证壳，不冒充公网真实登录；未执行数据写入、AI调用或后台变更。
-审计只新增可重复QA脚本和交接证据，没有改变APP产物，故没有重复发布v220。
+审计与对比度修复已随v221同步发布到两站。
 
 在上述381项部署检查之外，新增`npm run skins:cross-browser:gate`及组合入口
 `npm run skins:quality:gate`。新门禁把Playwright三引擎放在
@@ -69,14 +70,13 @@ iframe导航耗时、路由/皮肤/模块、横向溢出、可访问名称、键
 纳入原生Tab序列且已有2px轮廓，门禁按真实焦点接受；标签句内“让小猫估时”按WCAG inline target
 例外记录尺寸而不误判。脚本缺少任一浏览器时会明确记录引擎不可用并返回非零，不伪装成产品失败。
 
-最终组合门禁中，原部署门禁仍为58/58结果、381/381检查通过。跨浏览器报告为168个结果、1080项
-检查和168张截图：24个公网状态全部通过；本地144个状态的路由、性能、响应式、名称/目标、键盘
-焦点、控制台检查全部通过，最慢首屏852.5ms、最慢iframe导航362ms（预算分别8s/5s）。144个本地
-状态均在`text-contrast`失败，唯一失败类别是两套皮肤字段标签未达到普通文字4.5:1：最低为暮紫
-情绪页3.68:1，其余抽样约4.29–4.44:1。证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/skin-cross-browser-quality/report.json`。因为本任务明确限定不改变已
-部署APP产物，本轮没有擅自改色或发布；该AA对比度问题保留为明确未解决项，不能把936/1080写成
-全通过。调整线上色值需要后续显式允许产品视觉变化后再修复、双站发布并复跑两个门禁。
+最终组合门禁中，原部署门禁为58/58结果、381/381检查通过。v221发布后的跨浏览器报告为168个
+结果、1080项检查和168张截图，全部通过：24个公网状态均通过；本地144个状态的路由、性能、
+响应式、名称/目标、键盘焦点、控制台和`text-contrast`均通过，最低实际对比度由修复前3.68提升为
+4.89，最慢首屏618.5ms、最慢iframe导航237ms（预算分别8s/5s），`errors:[]`。当前证据位于
+`Q:/NAVA-Workspace/Build/TestRuns/skin-cross-browser-quality/report.json`；修复前169文件、19,278,731
+字节的完整失败证据保存在`Q:/NAVA-Workspace/Build/TestRuns/skin-cross-browser-quality-before-contrast-fix`，
+避免覆盖基线。两站均保持真实Supabase登录边界、公开demo禁用和相同功能提交，AA问题已关闭。
 
 ## 140. 六类记录语音即时预填与尾句提速（当前版本）
 
