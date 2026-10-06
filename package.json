@@ -67,6 +67,8 @@
     "skins:test": "node --experimental-strip-types --test tests/app-skins.test.ts",
     "skins:visual": "node scripts/verify-app-skins-ui.mjs",
     "skins:deployment:audit": "npm run build && npm run auth:verify:production && node scripts/verify-skin-deployment-regression.mjs",
+    "skins:cross-browser:gate": "node scripts/verify-skin-cross-browser-quality.mjs",
+    "skins:quality:gate": "npm run skins:deployment:audit && npm run skins:cross-browser:gate",
     "menus:visual": "node scripts/verify-menus-locale-ui.mjs",
     "reminders:visual": "node scripts/verify-independent-reminders.mjs",
     "wellbeing:test": "node --experimental-strip-types --test tests/wellbeing-tools.test.ts",
