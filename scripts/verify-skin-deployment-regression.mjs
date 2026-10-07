@@ -11,7 +11,7 @@ import { applyProjectPublicEnv } from "./project-env.mjs";
 applyProjectPublicEnv(process.cwd());
 
 const outputArgument = process.argv.find((argument) => argument.startsWith("--output="));
-const output = outputArgument?.slice("--output=".length) || "Q:/NAVA-Workspace/Build/TestRuns/skin-v222-regression";
+const output = outputArgument?.slice("--output=".length) || "Q:/NAVA-Workspace/Build/TestRuns/skin-v223-regression";
 await mkdir(output, { recursive: true });
 
 const sizes = [[360, 740], [375, 812], [390, 844], [430, 932]];
@@ -333,8 +333,8 @@ try {
           const response = await fetch(new URL("source.json", site.base), { cache: "no-store", signal: AbortSignal.timeout(30000) });
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const source = await response.json();
-          if (source.release !== "v222") throw new Error(`release=${source.release}`);
-          if (source.sourceCommit !== "ba7c7a37a0b63c7fb2da800c677d83c48e2520d4") throw new Error(`sourceCommit=${source.sourceCommit}`);
+          if (source.release !== "v223") throw new Error(`release=${source.release}`);
+          if (source.sourceCommit !== "adecb7867448d1f93677f98c590ad340da343e7c") throw new Error(`sourceCommit=${source.sourceCommit}`);
           return { release: source.release, sourceCommit: source.sourceCommit };
         });
       }

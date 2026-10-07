@@ -33,6 +33,18 @@
 在最终按钮之前。证据位于`Q:/NAVA-Workspace/Build/TestRuns/profile-hub`与
 `Q:/NAVA-Workspace/Build/TestRuns/cold-start`。
 
+功能源码`adecb7867448d1f93677f98c590ad340da343e7c`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v223**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_193192ced92c819180d96adb225fa4a9`；
+部署`appgdep_6ac6cff866d481918e687ce75feff02e` succeeded。GitHub Pages镜像提交
+`72deecbf08250d6f84aaf042b3f0c025b5dc4585`，workflow `37700407525` success；镜像214个生成文件
+与本地Pages产物逐文件SHA-256一致，`source.json`指向v223、上述功能提交与Sites版本。两站继续
+使用canonical Supabase项目`wxteapvwagvhhtrjrbim`，公开demo绕过禁用，访问策略未改变。
+
+部署后`npm run skins:deployment:audit`通过：58/58结果、381/381检查、56张截图，覆盖两套新皮肤、
+六类记录、四档尺寸、两站无会话登录边界、活动资源HTTP状态、主样式/记录皮肤CSS哈希及Pages
+发布凭据；证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v223-regression`。
+
 ## 142. “我的”导航式总览与季度足迹（当前版本）
 
 “我的”根页改为入口型总览，不再把皮肤选择、个人资料表单、设备连接、隐私说明和账号操作纵向
