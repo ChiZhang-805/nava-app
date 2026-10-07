@@ -81,9 +81,37 @@ try {
       const routeGeometry = await page.locator(".phone-frame").evaluate((frame) => ({
         horizontalOverflow: frame.scrollWidth - frame.clientWidth,
         contentOverflow: Math.max(0, (frame.querySelector(".app-content")?.scrollWidth ?? 0) - (frame.querySelector(".app-content")?.clientWidth ?? 0)),
+        verticalOverflow: Math.max(0, (frame.querySelector(".app-content")?.scrollHeight ?? 0) - (frame.querySelector(".app-content")?.clientHeight ?? 0)),
       }));
       assert.ok(routeGeometry.horizontalOverflow <= 1, `${width}x${height} ${subpage} frame overflow`);
       assert.ok(routeGeometry.contentOverflow <= 1, `${width}x${height} ${subpage} content overflow`);
+      if (["personal", "skin"].includes(subpage)) {
+        assert.ok(routeGeometry.verticalOverflow <= 1, `${width}x${height} ${subpage} must fit one screen, overflow ${routeGeometry.verticalOverflow}`);
+      }
+      if (subpage === "personal") {
+        await expect(page.locator(".profile-bmi-summary")).toBeVisible();
+        const saveGeometry = await page.locator(".profile-personal-save").evaluate((button) => {
+          const card = button.closest(".profile-personal-card");
+          return { buttonWidth: button.getBoundingClientRect().width, cardInnerWidth: card ? card.clientWidth - parseFloat(getComputedStyle(card).paddingLeft) - parseFloat(getComputedStyle(card).paddingRight) : 0 };
+        });
+        assert.ok(Math.abs(saveGeometry.buttonWidth - saveGeometry.cardInnerWidth) <= 2, `${width}x${height} personal save must span the card`);
+      }
+      if (subpage === "skin") {
+        await expect(page.locator(".profile-skin-card .app-skin-option")).toHaveCount(3);
+        await expect(page.locator(".profile-skin-card .app-skin-poetry small")).toHaveCount(18);
+        const cards = await page.locator(".profile-skin-card .app-skin-option").evaluateAll((nodes) => nodes.map((node) => {
+          const rect = node.getBoundingClientRect();
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+        }));
+        assert.ok(cards.every((card) => card.width >= width - 80), `${width}x${height} skin cards must be full-width rows`);
+        assert.ok(cards.every((card, index) => index === 0 || card.y > cards[index - 1].y + cards[index - 1].height), `${width}x${height} skin cards must stack vertically`);
+        assert.ok(cards.every((card) => card.height >= 100), `${width}x${height} skin cards must be tall enough`);
+        const poemLines = await page.locator(".profile-skin-card .app-skin-poetry small").evaluateAll((nodes) => nodes.map((node) => ({
+          horizontalOverflow: node.scrollWidth - node.clientWidth,
+          rows: Math.round(node.getBoundingClientRect().height / parseFloat(getComputedStyle(node).lineHeight)),
+        })));
+        assert.ok(poemLines.every((line) => line.horizontalOverflow <= 1 && line.rows === 1), `${width}x${height} every skin poem line must remain a single line`);
+      }
       if (width === 390 && ["personal", "skin", "account"].includes(subpage)) {
         await page.screenshot({ path: `${output}/profile-${subpage}-${width}x${height}.png`, fullPage: true });
       }

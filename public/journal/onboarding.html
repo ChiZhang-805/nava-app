@@ -819,7 +819,12 @@ Original cat layers and the existing attributed SVG icon set are reused. -->
         state.lang=source.language;
         for(const k of PROFILE_KEYS){const a=source[k];state.answers[k]=Array.isArray(a)?a.map(v=>KEYS[k].indexOf(v)):a===null?null:KEYS[k].indexOf(a);}
         if(data.coldConfig){coldConfig=data.coldConfig;const c=data.coldStart;if(c&&coldConfig.goals.some(g=>g.id===c.goal))cold={version:1,goal:c.goal,challenge:c.challenge||'',healthConsent:c.healthConsent===true,aiConsent:c.aiConsent===true};refreshColdOptions();}
-        state.page=STEPS.includes(data.step)?STEPS.indexOf(data.step):0;
+        const requested=STEPS.includes(data.step)?STEPS.indexOf(data.step):0;
+        const goalPage=STEPS.indexOf('goal'),challengePage=STEPS.indexOf('challenge');
+        // Older drafts could already point at the summary before the goal and
+        // challenge pages existed. Clamp them to the first unfinished page so
+        // “开启 NAVA 之旅” remains the one and only final page.
+        state.page=requested>=goalPage&&!cold.goal?goalPage:requested>=challengePage&&!cold.challenge?challengePage:requested;
     }
     /**
      * 输入：无。

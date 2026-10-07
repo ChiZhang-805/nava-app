@@ -90,6 +90,8 @@
 .app-skin-copy { min-width: 0; display: grid; gap: 2px; }
 .app-skin-copy strong { font-size: 13px; line-height: 1.25; white-space: nowrap; }
 .app-skin-copy small { color: #6d8997; font-size: 9px; line-height: 1.35; }
+.app-skin-poetry { min-width: 0; display: grid; gap: 1px; }
+.app-skin-poetry small { display: block; overflow: hidden; text-overflow: clip; white-space: nowrap; }
 .app-skin-selected {
   width: 20px;
   height: 20px;

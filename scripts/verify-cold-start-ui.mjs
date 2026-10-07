@@ -127,8 +127,8 @@ try{
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   const url='http://127.0.0.1:5268/__cold.html';
   await page.goto(url+'?mode=onboarding',{waitUntil:'domcontentloaded',timeout:60000});const onboard=page.frameLocator('iframe');
-  await expect(onboard.locator('#screen')).toHaveAttribute('data-step','summary',{timeout:30000});
-  await onboard.locator('#next').click();await expect(onboard.locator('#screen')).toHaveAttribute('data-step','goal');
+  await expect(onboard.locator('#screen')).toHaveAttribute('data-step','goal',{timeout:30000});
+  await expect(onboard.locator('#next-text')).not.toHaveText(en?'Begin with NAVA':'开启 NAVA 之旅');
   await expect(page.locator('.cold-start-screen')).toHaveCount(0);
   await expect(onboard.locator('#next')).toBeDisabled();
   for(const stage of ['goal','challenge','permissions']){
@@ -150,7 +150,7 @@ try{
     }
     await onboard.locator('#next').click();
   }
-  await expect(onboard.locator('#screen')).toHaveAttribute('data-step','summary');assert.equal(profileWrites,0);
+  await expect(onboard.locator('#screen')).toHaveAttribute('data-step','summary');await expect(onboard.locator('#next-text')).toHaveText(en?'Begin with NAVA':'开启 NAVA 之旅');assert.equal(profileWrites,0);
   await onboard.locator('#next').click();await expect(page.locator('main').first()).toContainText('SAVED');assert.equal(profileWrites,1);
   if(process.env.NAVA_NOTEBOOK_ONLY==='1'){assert.deepEqual(errors,[]);report.push({width,height,lang,profileWrites});await context.close();console.log('Notebook passed',width,lang);continue;}
   await page.goto(url+'?mode=hub');await expect(page.locator('.cold-progress')).toContainText(en?'0 days':'0 天');

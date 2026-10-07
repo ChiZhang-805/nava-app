@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { Apple, CalendarDays, Check, ChevronLeft, ChevronRight, Download, LayoutGrid, Link2, LogOut, RefreshCw, Save, ShieldCheck, Trash2, UserRound, Watch, X } from "lucide-react";
+import { Activity, Apple, CalendarDays, Check, ChevronLeft, ChevronRight, Download, LayoutGrid, Link2, LogOut, Palette, RefreshCw, Save, ShieldCheck, Trash2, UserRound, Watch, X } from "lucide-react";
 import AvatarPicker from "../components/AvatarPicker";
 import AppSkinPicker from "../components/AppSkinPicker";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -373,6 +373,16 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
       : healthAuthorization.requested
         ? t("profile.healthAuthorizationRequested")
         : t("profile.healthNeedsAuthorization");
+  const heightCm = Number(profileDraft.height);
+  const weightKg = Number(profileDraft.weight);
+  const bmi = Number.isFinite(heightCm) && heightCm > 0 && Number.isFinite(weightKg) && weightKg > 0
+    ? weightKg / ((heightCm / 100) ** 2)
+    : null;
+  const bmiLabel = bmi == null
+    ? (locale === "zh" ? "填写身高与体重后自动计算" : "Add height and weight to calculate")
+    : locale === "zh"
+      ? bmi < 18.5 ? "偏轻参考" : bmi < 24 ? "常见范围" : bmi < 28 ? "偏高参考" : "较高参考"
+      : bmi < 18.5 ? "Lower range" : bmi < 25 ? "Common range" : bmi < 30 ? "Higher range" : "High range";
 
   if (profileLoading) return <PageSkeleton variant="profile" />;
 
@@ -380,15 +390,15 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
 
   if (activeView === "skin") return (
     <div className="stack profile-stack profile-subpage" data-profile-view="skin">
-      <SectionCard className="profile-skin-card profile-subpage-card" title={locale === "zh" ? "界面皮肤" : "Interface skin"}>
-        <AppSkinPicker value={skin} onChange={onSkinChange} compact />
+      <SectionCard className="profile-skin-card profile-subpage-card profile-one-screen-card" title={<span className="profile-section-title"><Palette size={19} aria-hidden="true" />{locale === "zh" ? "界面皮肤" : "Interface skin"}</span>}>
+        <AppSkinPicker value={skin} onChange={onSkinChange} compact detailed />
       </SectionCard>
     </div>
   );
 
   if (activeView === "personal") return (
     <div className="stack profile-stack profile-subpage" data-profile-view="personal">
-      <SectionCard className="profile-personal-card profile-subpage-card" title={t("profile.personal")}>
+      <SectionCard className="profile-personal-card profile-subpage-card profile-one-screen-card" title={<span className="profile-section-title"><UserRound size={19} aria-hidden="true" />{t("profile.personal")}</span>}>
         <div className="profile-form">
           <label className="field">
             <span>{t("profile.nickname")}</span>
@@ -397,12 +407,17 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
           <div className="two-col">
             <label className="field">
               <span>{t("profile.height")}</span>
-              <div className="profile-measure-input"><input inputMode="decimal" value={profileDraft.height} onChange={(event) => updateDraft("height", event.target.value)} /><span className="profile-input-unit">cm</span></div>
+              <div className="profile-measure-input"><input inputMode="decimal" value={profileDraft.height} onChange={(event) => updateDraft("height", event.target.value)} placeholder={locale === "zh" ? "例如：172" : "e.g. 172"} /><span className="profile-input-unit">cm</span></div>
             </label>
             <label className="field">
               <span>{t("profile.weight")}</span>
-              <div className="profile-measure-input"><input inputMode="decimal" value={profileDraft.weight} onChange={(event) => updateDraft("weight", event.target.value)} /><span className="profile-input-unit">kg</span></div>
+              <div className="profile-measure-input"><input inputMode="decimal" value={profileDraft.weight} onChange={(event) => updateDraft("weight", event.target.value)} placeholder={locale === "zh" ? "例如：64" : "e.g. 64"} /><span className="profile-input-unit">kg</span></div>
             </label>
+          </div>
+          <div className="profile-bmi-summary" data-bmi-ready={bmi == null ? "false" : "true"} aria-live="polite">
+            <span className="profile-bmi-label"><Activity size={18} aria-hidden="true" />{locale === "zh" ? "BMI 参考" : "BMI reference"}</span>
+            <strong>{bmi == null ? "—" : bmi.toFixed(1)}</strong>
+            <small>{bmiLabel}</small>
           </div>
           <label className="field"><span>{t("profile.goal")}</span><input value={profileDraft.goal} onChange={(event) => updateDraft("goal", event.target.value)} placeholder={t("profile.goalPlaceholder")} /></label>
           <label className="field">
@@ -414,7 +429,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
             </select>
           </label>
         </div>
-        <ActionButton icon={profileSaved ? <Check size={18} /> : <Save size={18} />} onClick={submitProfile} disabled={busy === "profile"}>{profileSaved ? (locale === "zh" ? "已保存" : "Saved") : t("profile.save")}</ActionButton>
+        <ActionButton className="profile-personal-save" icon={profileSaved ? <Check size={18} /> : <Save size={18} />} onClick={submitProfile} disabled={busy === "profile"}>{profileSaved ? (locale === "zh" ? "已保存" : "Saved") : t("profile.save")}</ActionButton>
       </SectionCard>
       {message && <p className="success-text">{message}</p>}
       {error && <p className="error-text">{error}</p>}
