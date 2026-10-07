@@ -112,7 +112,7 @@ async function prepareLocalContext(browser, width, height) {
 
 async function selectSkin(page, skin) {
   await page.evaluate(() => { location.hash = "tab=profile"; });
-  await page.locator(".profile-skin-card").waitFor({ state: "visible", timeout: 30000 });
+  await page.locator('.profile-overview[data-profile-view="overview"]').waitFor({ state: "visible", timeout: 30000 });
   // The one-time completion scene can mount after route readiness. Dismiss it at
   // stable intervals before interacting with the skin selector.
   for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -122,6 +122,8 @@ async function selectSkin(page, skin) {
       await page.locator(".completion-celebration-layer").waitFor({ state: "detached", timeout: 10000 });
     }
   }
+  await page.locator('.profile-nav-row[data-profile-target="skin"]').click();
+  await page.locator(".profile-skin-card").waitFor({ state: "visible", timeout: 30000 });
   await page.locator(`.profile-skin-card .app-skin-option--${skin}`).click({ force: true });
   await page.waitForFunction((expected) => document.querySelector(".phone-frame")?.getAttribute("data-app-skin") === expected, skin, { timeout: 10000 });
   return { selected: await page.locator(".phone-frame").getAttribute("data-app-skin") };

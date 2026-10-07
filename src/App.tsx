@@ -95,7 +95,7 @@ function readShellRoute(): ShellRoute {
   const tab = candidateTab && appTabs.has(candidateTab) ? candidateTab : "today";
   const candidateModule = query.get("module") as RecordModule | null;
   const module = tab === "record" && candidateModule && recordModules.has(candidateModule) ? candidateModule : null;
-  return normalizeShellRoute(tab, module, tab === "today" || module ? query.get("view") : null);
+  return normalizeShellRoute(tab, module, tab === "today" || tab === "profile" || module ? query.get("view") : null);
 }
 
 function shellRouteHash(route: ShellRoute) {
@@ -103,6 +103,7 @@ function shellRouteHash(route: ShellRoute) {
   if (route.tab === "record" && route.module) query.set("module", route.module);
   if (route.tab === "record" && route.module && route.view) query.set("view", route.view);
   if (route.tab === "today" && route.view) query.set("view", route.view);
+  if (route.tab === "profile" && route.view) query.set("view", route.view);
   return `#${query.toString()}`;
 }
 
@@ -235,8 +236,18 @@ function MobileShell({
     focus: { zh: "专注记录", en: "Focus Record" },
     face: { zh: "面部分析", en: "Face Analysis" },
   };
+  const profileTitles: Record<string, { zh: string; en: string }> = {
+    account: { zh: "账号与安全", en: "Account & security" },
+    personal: { zh: "个人资料", en: "Personal profile" },
+    skin: { zh: "界面皮肤", en: "Interface skin" },
+    health: { zh: "Apple 健康", en: "Apple Health" },
+    watch: { zh: "Apple Watch", en: "Apple Watch" },
+    privacy: { zh: "隐私与数据", en: "Privacy & data" },
+  };
   const currentTitle = activeTab === "record" && recordModule
     ? recordTitles[recordModule][locale]
+    : activeTab === "profile" && recordView && profileTitles[recordView]
+      ? profileTitles[recordView][locale]
     : currentTab
       ? t(currentTab.labelKey)
       : "";
@@ -658,13 +669,14 @@ function MobileShell({
   if (!user) return null;
 
   const focusImmersive = activeTab === "record" && recordModule === "focus" && (recordView === "immersive" || recordView === "interruption");
+  const profileSubpage = activeTab === "profile" && Boolean(recordView);
   const profileDetailsSubpage = activeTab === "today" && recordView === "profile-details";
   const todayFullSubpage = activeTab === "today" && (profileDetailsSubpage || recordView === "home-widgets" || recordView === "admin-console" || recordView === "getting-started");
   const journalOpen = activeTab === "record" && Boolean(recordModule);
-  const hideBottomNavigation = focusImmersive || todayFullSubpage || journalOpen;
+  const hideBottomNavigation = focusImmersive || todayFullSubpage || journalOpen || profileSubpage;
 
   return (
-    <div data-app-skin={appSkin} className={["phone-frame", journalOpen ? "phone-frame--journal" : "", activeTab === "today" ? "phone-frame--option2" : "", focusImmersive ? "phone-frame--focus-immersive" : "", profileDetailsSubpage ? "phone-frame--subpage-no-nav" : ""].filter(Boolean).join(" ")}>
+    <div data-app-skin={appSkin} className={["phone-frame", journalOpen ? "phone-frame--journal" : "", activeTab === "today" ? "phone-frame--option2" : "", focusImmersive ? "phone-frame--focus-immersive" : "", profileDetailsSubpage || profileSubpage ? "phone-frame--subpage-no-nav" : ""].filter(Boolean).join(" ")}>
       <div className="safe-top" />
       {linkShareOpen && <LinkSharePreview locale={locale} onClose={() => setLinkShareOpen(false)} />}
       {notificationBanner && <NotificationBanner item={notificationBanner} locale={locale} onOpen={() => openNotificationItem(notificationBanner)} onDismiss={dismissNotificationBanner} />}
@@ -835,7 +847,7 @@ function MobileShell({
               />
             </Suspense>
           )}
-          {activeTab === "profile" && <Suspense fallback={<PageSkeleton variant="profile" />}><ProfileScreen user={user} refreshKey={refreshKey} onChanged={markChanged} onOpenOnboarding={onOpenOnboarding} skin={appSkin} onSkinChange={changeAppSkin} /></Suspense>}
+          {activeTab === "profile" && <Suspense fallback={<PageSkeleton variant="profile" />}><ProfileScreen user={user} refreshKey={refreshKey} onChanged={markChanged} onOpenOnboarding={onOpenOnboarding} skin={appSkin} onSkinChange={changeAppSkin} deviceDate={deviceDate} view={recordView} onViewChange={(view) => navigate("profile", null, view)} /></Suspense>}
           </>}
         </div>
       </main>

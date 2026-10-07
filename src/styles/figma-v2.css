@@ -14109,3 +14109,182 @@ body::before {
   white-space: normal;
   line-height: 1.4;
 }
+
+/* Profile hub: the overview is navigation-first; editing lives on route-backed
+   subpages. Header and row affordances stay visually bare across all skins. */
+.figma-header-action:active { background: transparent; }
+.phone-frame--subpage-no-nav:not(.phone-frame--option2) .app-content {
+  margin-bottom: 0;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+.profile-overview { gap: 14px; padding-bottom: 2px; }
+.profile-overview > .section-card { margin: 0; }
+.profile-overview-account { padding: 14px 16px 15px; }
+.profile-overview-account .section-heading { margin-bottom: 8px; }
+.profile-overview-account .section-heading h2,
+.profile-quarter-header h2 { margin: 0; font-size: 18px; line-height: 1.25; }
+.profile-account-entry {
+  width: 100%;
+  min-height: 62px;
+  border: 0;
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  color: #173f53;
+  background: transparent;
+  text-align: left;
+}
+.profile-account-entry:active,
+.profile-nav-row:active { transform: scale(.992); }
+.profile-account-entry:focus-visible,
+.profile-nav-row:focus-visible,
+.profile-quarter-header nav button:focus-visible {
+  border-radius: 10px;
+  outline: 3px solid rgba(34, 158, 202, .26);
+  outline-offset: 2px;
+}
+.profile-account-entry > .avatar { width: 54px; height: 54px; }
+.profile-account-entry > svg { justify-self: end; color: #245d78; }
+.profile-account-copy { min-width: 0; display: grid; gap: 5px; }
+.profile-account-copy strong { overflow: hidden; font-size: 17px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.profile-account-copy small { color: #6c8a99; font-size: 12px; font-weight: 600; line-height: 1.2; }
+
+.profile-quarter-card {
+  --profile-quarter-gap: 3px;
+  padding: 14px 16px 15px;
+  container-type: inline-size;
+}
+.profile-quarter-header { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.profile-quarter-header nav { flex: 0 0 auto; display: grid; grid-template-columns: 44px auto 44px; align-items: center; gap: 1px; }
+.profile-quarter-header nav button {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #166f95;
+  background: transparent;
+}
+.profile-quarter-header nav button:active { transform: scale(.9); }
+.profile-quarter-header nav button:disabled { opacity: .28; }
+.profile-quarter-header nav b { min-width: 66px; color: #2f5a6e; font-size: 12px; text-align: center; white-space: nowrap; }
+.profile-quarter-heatmap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  grid-template-rows: 20px auto;
+  column-gap: 8px;
+  row-gap: 7px;
+  margin-top: 7px;
+  transition: opacity 160ms ease;
+}
+.profile-quarter-heatmap.is-loading { opacity: .46; }
+.profile-quarter-months {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--profile-quarter-week-count), minmax(0, 1fr));
+  gap: var(--profile-quarter-gap);
+  overflow: hidden;
+}
+.profile-quarter-months span { min-width: 0; overflow: hidden; color: #5d7e8e; font-size: 10px; font-weight: 720; line-height: 20px; text-align: center; white-space: nowrap; }
+.profile-quarter-weekdays { grid-row: 2; display: grid; grid-template-rows: repeat(7, minmax(0, 1fr)); gap: var(--profile-quarter-gap); }
+.profile-quarter-weekdays span { display: grid; place-items: center end; color: #5d7e8e; font-size: 9px; font-weight: 700; line-height: 1; }
+.profile-quarter-weeks {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(var(--profile-quarter-week-count), minmax(0, 1fr));
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  gap: var(--profile-quarter-gap);
+  aspect-ratio: var(--profile-quarter-week-count) / 7;
+}
+.profile-quarter-week { display: contents; }
+.profile-quarter-day { width: 100%; height: 100%; min-width: 0; aspect-ratio: 1; border: 1px solid rgba(71,139,164,.08); border-radius: clamp(3px, 1.4cqw, 6px); background: rgba(198,226,236,.55); }
+.profile-quarter-day[data-level="1"] { background: #b9e4f0; }
+.profile-quarter-day[data-level="2"] { background: #78d1e6; }
+.profile-quarter-day[data-level="3"] { background: #2fafd1; }
+.profile-quarter-day[data-level="4"] { background: #087da9; }
+.profile-quarter-day.is-outside { border-color: transparent; background: transparent; }
+.profile-quarter-error { min-height: 106px; margin: 8px 0 0; display: grid; place-items: center; color: #8c3f45; font-size: 12px; text-align: center; }
+
+.profile-entry-card { overflow: hidden; padding: 0 16px; }
+.profile-nav-row {
+  width: 100%;
+  min-height: 54px;
+  border: 0;
+  border-bottom: 1px solid rgba(100, 160, 184, .17);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px;
+  color: #173f53;
+  background: transparent;
+  text-align: left;
+}
+.profile-nav-row:last-child { border-bottom: 0; }
+.profile-nav-row > strong { min-width: 0; font-size: 16px; font-weight: 680; }
+.profile-nav-row > span { min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 8px; color: #245d78; }
+.profile-nav-row small { max-width: 104px; overflow: hidden; color: #6d8b99; font-size: 12px; font-weight: 560; text-overflow: ellipsis; white-space: nowrap; }
+
+.profile-subpage { min-height: 100%; align-content: start; gap: 14px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+.profile-subpage-card { margin: 0; padding: 18px; }
+.profile-subpage-card .section-heading { margin-bottom: 16px; }
+.profile-subpage-card .section-heading h2 { font-size: 19px; }
+.profile-subpage .profile-skin-card .app-skin-option { min-height: 98px; }
+.profile-subpage .profile-skin-card .app-skin-copy { min-height: 24px; align-content: center; }
+.profile-subpage .profile-skin-card .app-skin-copy strong { font-size: 14px; }
+.profile-subpage-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+.profile-subpage-actions .action-button,
+.profile-subpage-card > .action-button { min-height: 48px; margin-top: 16px; }
+.profile-subpage .profile-device-card { min-height: 0; }
+.profile-subpage .device-connection-row { min-height: 72px; }
+.profile-account-actions-card { display: grid; gap: 10px; padding: 16px; }
+.profile-account-actions-card .section-heading { margin-bottom: 2px; }
+.profile-account-actions-card .action-button { margin-top: 0; }
+
+@media (max-width: 374px) {
+  .profile-overview { gap: 10px; }
+  .profile-overview-account,
+  .profile-quarter-card { padding-inline: 13px; }
+  .profile-quarter-card { --profile-quarter-gap: 2px; }
+  .profile-quarter-header h2 { font-size: 16px; }
+  .profile-quarter-header nav { grid-template-columns: 40px auto 40px; }
+  .profile-quarter-header nav button { width: 40px; height: 40px; }
+  .profile-quarter-header nav b { min-width: 60px; font-size: 11px; }
+  .profile-quarter-heatmap { grid-template-columns: 21px minmax(0, 1fr); column-gap: 6px; }
+  .profile-entry-card { padding-inline: 13px; }
+  .profile-nav-row { min-height: 50px; }
+  .profile-nav-row > strong { font-size: 15px; }
+  .profile-subpage-card { padding: 14px; }
+  .profile-subpage-actions { grid-template-columns: 1fr; }
+}
+
+@media (max-height: 820px) and (max-width: 600px) {
+  .profile-overview { gap: 9px; }
+  .profile-overview-account { padding-block: 10px 11px; }
+  .profile-overview-account .section-heading { margin-bottom: 4px; }
+  .profile-account-entry { min-height: 56px; }
+  .profile-account-entry > .avatar { width: 48px; height: 48px; }
+  .profile-account-entry { grid-template-columns: 48px minmax(0, 1fr) 26px; gap: 10px; }
+  .profile-quarter-card { padding-block: 9px 11px; }
+  .profile-quarter-header { min-height: 38px; }
+  .profile-quarter-header nav { grid-template-columns: 38px auto 38px; }
+  .profile-quarter-header nav button { width: 38px; height: 38px; }
+  .profile-quarter-heatmap { margin-top: 3px; row-gap: 4px; }
+  .profile-nav-row { min-height: 48px; }
+}
+
+@media (min-height: 900px) and (max-width: 600px) {
+  .profile-overview { gap: 16px; }
+  .profile-overview-account { padding-block: 16px 17px; }
+  .profile-quarter-card { padding-block: 16px 18px; }
+  .profile-nav-row { min-height: 58px; }
+}

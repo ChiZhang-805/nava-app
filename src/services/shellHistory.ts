@@ -16,7 +16,7 @@ export type ShellHistoryState = {
 
 export function normalizeShellRoute(tab: AppTab, module: ShellRecordModule | null = null, view: string | null = null): ShellRoute {
   const normalizedModule = tab === "record" ? module : null;
-  const normalizedView = tab === "today"
+  const normalizedView = tab === "today" || tab === "profile"
     ? view || null
     : normalizedModule && view && view !== "overview"
       ? view
@@ -49,6 +49,7 @@ export function fallbackShellRoute(route: ShellRoute): ShellRoute {
   if (route.tab === "today" && route.view === "reminder-settings") return normalizeShellRoute("today", null, "notifications");
   if (route.tab === "today" && route.view?.startsWith("day-")) return normalizeShellRoute("today", null, "calendar");
   if (route.tab === "today" && route.view) return normalizeShellRoute("today");
+  if (route.tab === "profile" && route.view) return normalizeShellRoute("profile");
   if (route.tab === "record" && route.module && route.view) return normalizeShellRoute("record", route.module);
   if (route.tab === "record" && route.module) return normalizeShellRoute("record");
   return normalizeShellRoute("today");

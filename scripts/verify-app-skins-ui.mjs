@@ -33,6 +33,11 @@ try {
     page.on("pageerror", (error) => report.errors.push(`${width}x${height}: ${error.message}`));
     await page.goto(`${base}?demo=1#tab=profile`, { waitUntil: "networkidle" });
     if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
+    await expect(page.locator('.profile-overview[data-profile-view="overview"]')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator(".profile-quarter-card")).toBeVisible();
+    await expect(page.locator(".profile-nav-row")).toHaveCount(7);
+    if (await page.locator(".completion-celebration-layer").count()) await page.keyboard.press("Escape");
+    await page.locator('.profile-nav-row[data-profile-target="skin"]').click();
     await expect(page.locator(".profile-skin-card")).toBeVisible({ timeout: 20000 });
     await expect(page.locator(".app-skin-option")).toHaveCount(3);
     for (const skin of skins) {
@@ -46,10 +51,14 @@ try {
         navVisible: Boolean(frame.querySelector(".bottom-nav")),
       }));
       assert.ok(geometry.horizontalOverflow <= 1, `${width} ${skin} horizontal overflow ${geometry.horizontalOverflow}`);
-      assert.ok(geometry.navVisible, `${width} ${skin} navigation missing`);
+      assert.equal(geometry.navVisible, false, `${width} ${skin} subpage navigation should be hidden`);
       report.results.push({ viewport: `${width}x${height}`, ...geometry });
       if (width === 390) await page.screenshot({ path: `${output}/${skin}-profile-${width}x${height}.png` });
     }
+    await page.locator(".figma-app-header > .figma-header-action").first().click();
+    await expect(page.locator('.profile-overview[data-profile-view="overview"]')).toBeVisible();
+    await expect(page.locator(".bottom-nav")).toBeVisible();
+    if (width === 390) await page.screenshot({ path: `${output}/sky-ripple-profile-overview-${width}x${height}.png` });
     await page.reload({ waitUntil: "networkidle" });
     await expect(page.locator(".phone-frame")).toHaveAttribute("data-app-skin", "sky-ripple");
     await page.locator(".nava-more-trigger").first().click();
@@ -78,6 +87,9 @@ try {
     if (width === 390) await page.screenshot({ path: `${output}/violet-dusk-home-${width}x${height}.png` });
     if (width === 390) {
       await page.evaluate(() => { location.hash = "tab=profile"; });
+      await expect(page.locator('.profile-overview[data-profile-view="overview"]')).toBeVisible({ timeout: 20000 });
+      if (await page.locator(".completion-celebration-layer").count()) await page.keyboard.press("Escape");
+      await page.locator('.profile-nav-row[data-profile-target="skin"]').click();
       await expect(page.locator(".profile-skin-card")).toBeVisible({ timeout: 20000 });
       await page.locator(".profile-skin-card .app-skin-option--sky-ripple").click({ force: true });
       for (const module of recordModules) {
