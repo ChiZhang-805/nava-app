@@ -33,7 +33,19 @@ Apple健康、Apple Watch、隐私与数据、账号与安全。每行仅保留�
 三皮肤、双入口、持久化和四档矩阵通过。导航单元测试、lint、生产构建和生产认证合同通过。
 完整`npm run verify`在与本轮无关的旧`external-preview:visual`运动页用例停止：该脚本未能加载记录
 iframe并找不到`.sports-plan-actions`，单独复跑结果相同；没有把这项失败记为通过。没有数据库迁移、
-Edge Function部署、真实账号数据写入或访问策略变更。双站发布信息在本轮发布完成后补入本节。
+Edge Function部署、真实账号数据写入或访问策略变更。
+
+功能源码`ba7c7a37a0b63c7fb2da800c677d83c48e2520d4`已干净推送并从同一提交生成双站。
+ChatGPT Sites **v222**：
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_6f536480a16881919616cd68e1e9e124`；
+部署`appgdep_6ac630246c1481918c5e99feca032bf7` succeeded。GitHub Pages镜像提交
+`ed760091f70a073ba2e77b182306e9f9af32cf19`，workflow `37616631427` success；镜像214个生成文件
+与本地Pages产物逐文件SHA-256一致，`source.json`指向v222、上述功能提交与Sites版本。两站继续
+使用canonical Supabase项目`wxteapvwagvhhtrjrbim`，公开demo绕过禁用，访问策略未改变。
+
+部署后`npm run skins:deployment:audit`通过：58/58结果、381/381检查、56张截图，覆盖两套新皮肤、
+六类记录、四档尺寸、两站无会话登录边界、活动资源HTTP状态、主样式/记录皮肤CSS哈希及Pages
+发布凭据；证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v222-regression`。
 
 ## 141. 三套APP皮肤与双入口切换（当前版本）
 
