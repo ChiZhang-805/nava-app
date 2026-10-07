@@ -36,6 +36,8 @@ try {
     if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
     await expect(page.locator('.profile-overview[data-profile-view="overview"]')).toBeVisible({ timeout: 20000 });
     if (await page.locator(".completion-celebration-layer").count()) await page.keyboard.press("Escape");
+    await expect(page.locator(".profile-overview .profile-section-title svg, .profile-overview .profile-quarter-header h2 svg, .profile-overview .profile-entry-header svg")).toHaveCount(3);
+    await expect(page.locator(".profile-entry-header h2")).toHaveText("快捷入口");
     const quarterCellCount = await page.locator(".profile-quarter-day").count();
     assert.ok(quarterCellCount >= 91 && quarterCellCount <= 98, `${width}x${height} unexpected quarter cell count ${quarterCellCount}`);
     await expect(page.locator(".profile-nav-row")).toHaveCount(7);

@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { Apple, Check, ChevronLeft, ChevronRight, Download, Link2, LogOut, RefreshCw, Save, ShieldCheck, Trash2, Watch, X } from "lucide-react";
+import { Apple, CalendarDays, Check, ChevronLeft, ChevronRight, Download, LayoutGrid, Link2, LogOut, RefreshCw, Save, ShieldCheck, Trash2, UserRound, Watch, X } from "lucide-react";
 import AvatarPicker from "../components/AvatarPicker";
 import AppSkinPicker from "../components/AppSkinPicker";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -97,7 +97,7 @@ function ProfileQuarterCard({ userId, deviceDate }: { userId: string; deviceDate
   return (
     <section className="section-card profile-quarter-card" aria-label={locale === "zh" ? `${displayYear} 年第 ${displayQuarter} 季度足迹` : `${displayYear} Q${displayQuarter} activity`} data-profile-quarter={`${displayYear}-Q${displayQuarter}`}>
       <header className="profile-quarter-header">
-        <h2>{locale === "zh" ? "季度足迹" : "Quarterly activity"}</h2>
+        <h2><CalendarDays size={19} aria-hidden="true" />{locale === "zh" ? "记录足迹" : "Activity history"}</h2>
         <nav aria-label={locale === "zh" ? "切换季度" : "Change quarter"}>
           <button type="button" onClick={() => shiftQuarter(-1)} aria-label={locale === "zh" ? "上一季度" : "Previous quarter"}><ChevronLeft size={19} /></button>
           <b>{displayYear} Q{displayQuarter}</b>
@@ -506,7 +506,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
 
   return (
     <div className="stack profile-stack profile-overview" data-profile-view="overview">
-      <SectionCard className="profile-account-card profile-overview-account" title={t("profile.account")}>
+      <SectionCard className="profile-account-card profile-overview-account" title={<span className="profile-section-title"><UserRound size={19} aria-hidden="true" />{t("profile.account")}</span>}>
         <button className="profile-account-entry" type="button" onClick={() => onViewChange("account")}>
           <span className="avatar large" aria-hidden="true">
             {profile?.avatar_url && !avatarLoadFailed
@@ -521,6 +521,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
       <ProfileQuarterCard userId={user.id} deviceDate={deviceDate} />
 
       <section className="section-card profile-entry-card" aria-label={locale === "zh" ? "我的设置入口" : "Profile settings"}>
+        <header className="profile-entry-header"><LayoutGrid size={19} aria-hidden="true" /><h2>{locale === "zh" ? "快捷入口" : "Quick access"}</h2></header>
         {overviewRows.map((row) => {
           if (row.id === "onboarding" && !onOpenOnboarding) return null;
           return (
