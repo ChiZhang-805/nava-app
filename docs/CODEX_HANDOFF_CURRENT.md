@@ -21,6 +21,16 @@
 390×844、430×932四档视口的中英文共8个授权页状态通过；证据位于
 `Q:/NAVA-Workspace/Build/TestRuns/cold-start/original-permissions-*.png`。
 
+功能源码提交`4b2ba52b140dbb35116246cb83843765395dee67`已推送，并由同一提交生成双站。
+ChatGPT Sites **v228**版本
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_67cf00c964c88191b6ed89f00bab2609`，部署
+`appgdep_6ac73eb5efe88191b5807ccb12422397` succeeded；Sites制品含310文件。GitHub Pages镜像提交
+`b5b3a575f8e69d8d27c81679bdb8da5bea1fab87`，workflow `37740941885` success；204个当前生成文件
+复制前后SHA-256一致，`source.json`指向v228及上述功能提交。双站公开`journal/onboarding.html`
+均返回200并包含均衡换行、可见未选中圆和三列标题布局；生产认证合同继续使用canonical Supabase
+`wxteapvwagvhhtrjrbim`且公开demo绕过关闭。Sites官方工作流完成源码校验与推送；其Windows Bash
+打包器仍无法解析盘符反斜杠，沿用已验证的Windows tar归档恢复，没有修改源文件或跳过制品检查。
+
 ## 146. 月历与“我的”加载骨架逐模块同构及季度星期对齐（当前版本）
 
 “我的月历”加载页不再使用只有一条标题与矮小方格带的旧季度占位。骨架现在与真实页面共享同一组
