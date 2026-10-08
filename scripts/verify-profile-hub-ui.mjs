@@ -82,14 +82,27 @@ try {
         horizontalOverflow: frame.scrollWidth - frame.clientWidth,
         contentOverflow: Math.max(0, (frame.querySelector(".app-content")?.scrollWidth ?? 0) - (frame.querySelector(".app-content")?.clientWidth ?? 0)),
         verticalOverflow: Math.max(0, (frame.querySelector(".app-content")?.scrollHeight ?? 0) - (frame.querySelector(".app-content")?.clientHeight ?? 0)),
+        scrollbarWidth: frame.querySelector(".app-content") ? getComputedStyle(frame.querySelector(".app-content")).scrollbarWidth : "",
       }));
       assert.ok(routeGeometry.horizontalOverflow <= 1, `${width}x${height} ${subpage} frame overflow`);
       assert.ok(routeGeometry.contentOverflow <= 1, `${width}x${height} ${subpage} content overflow`);
-      if (["personal", "skin", "health", "watch", "privacy", "account"].includes(subpage)) {
+      assert.equal(routeGeometry.scrollbarWidth, "none", `${width}x${height} ${subpage} must hide scrollbar chrome`);
+      if (["skin", "health", "watch", "privacy", "account"].includes(subpage) || (subpage === "personal" && height >= 844)) {
         assert.ok(routeGeometry.verticalOverflow <= 1, `${width}x${height} ${subpage} must fit one screen, overflow ${routeGeometry.verticalOverflow}`);
       }
       if (subpage === "personal") {
         await expect(page.locator(".profile-bmi-summary")).toBeVisible();
+        await expect(page.locator(".profile-personal-field")).toHaveCount(7);
+        const fields = await page.locator(".profile-personal-field").evaluateAll((nodes) => nodes.map((node) => {
+          const rect = node.getBoundingClientRect();
+          const control = node.querySelector("input, select, .profile-bmi-summary");
+          const controlRect = control?.getBoundingClientRect();
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, controlX: controlRect?.x ?? 0, controlWidth: controlRect?.width ?? 0, controlHeight: controlRect?.height ?? 0 };
+        }));
+        assert.ok(fields.every((field) => Math.abs(field.x - fields[0].x) <= 1 && Math.abs(field.width - fields[0].width) <= 1), `${width}x${height} personal fields must be one full-width row each`);
+        assert.ok(fields.every((field, index) => index === 0 || field.y >= fields[index - 1].y + fields[index - 1].height), `${width}x${height} personal fields must stack vertically`);
+        assert.ok(fields.every((field) => Math.abs(field.controlX - fields[0].controlX) <= 1 && Math.abs(field.controlWidth - fields[0].controlWidth) <= 1), `${width}x${height} personal controls must share one width`);
+        assert.ok(fields.every((field) => Math.abs(field.controlHeight - fields[0].controlHeight) <= 2), `${width}x${height} BMI and personal controls must share one height: ${JSON.stringify(fields)}`);
         const saveGeometry = await page.locator(".profile-personal-save").evaluate((button) => {
           const card = button.closest(".profile-personal-card");
           return { buttonWidth: button.getBoundingClientRect().width, cardInnerWidth: card ? card.clientWidth - parseFloat(getComputedStyle(card).paddingLeft) - parseFloat(getComputedStyle(card).paddingRight) : 0 };
@@ -171,7 +184,7 @@ try {
         }
         await expect(page.locator(".profile-security-note")).not.toContainText("不一致");
       }
-      if (width === 390 && ["personal", "skin", "health", "watch", "privacy", "account"].includes(subpage)) {
+      if (subpage === "personal" || (width === 390 && ["skin", "health", "watch", "privacy", "account"].includes(subpage))) {
         await page.screenshot({ path: `${output}/profile-${subpage}-${width}x${height}.png`, fullPage: true });
       }
     }

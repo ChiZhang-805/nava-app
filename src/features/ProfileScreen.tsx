@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { Activity, Apple, CalendarDays, Check, ChevronLeft, ChevronRight, CircleUserRound, Database, Eye, Grid3X3, KeyRound, LayoutGrid, LockKeyhole, LogOut, Mail, MessageCircle, Palette, Phone, RotateCcw, Save, ShieldCheck, UserRound, Watch, X } from "lucide-react";
+import { Apple, CalendarDays, Check, ChevronLeft, ChevronRight, CircleUserRound, Database, Eye, Grid3X3, KeyRound, LayoutGrid, LockKeyhole, LogOut, Mail, MessageCircle, Palette, Phone, RotateCcw, Save, ShieldCheck, UserRound, Watch, X } from "lucide-react";
 import AvatarPicker from "../components/AvatarPicker";
 import AppSkinPicker from "../components/AppSkinPicker";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -34,6 +34,14 @@ const occupationOptions = [
   { value: "caregiver", zh: "居家照护", en: "Home carer" },
   { value: "retired", zh: "退休人士", en: "Retired" },
   { value: "other", zh: "其他", en: "Other" },
+] as const;
+
+const ageGroupOptions = [
+  { value: "under_18", zh: "18 岁以下", en: "Under 18" },
+  { value: "18_24", zh: "18–24 岁", en: "18–24" },
+  { value: "25_34", zh: "25–34 岁", en: "25–34" },
+  { value: "35_44", zh: "35–44 岁", en: "35–44" },
+  { value: "45_plus", zh: "45 岁及以上", en: "45+" },
 ] as const;
 
 function daysSinceSignup(createdAt?: string) {
@@ -164,6 +172,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
     username: "",
     height: "",
     weight: "",
+    ageGroup: "",
     goal: "",
     occupation: "",
   });
@@ -217,6 +226,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
           username: data?.username ?? "",
           height: data?.height != null ? String(data.height) : "",
           weight: data?.weight != null ? String(data.weight) : "",
+          ageGroup: data?.age_group ?? "",
           goal: data?.goal ?? "",
           occupation: data?.occupation ?? "",
         });
@@ -248,6 +258,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
       // users can remove a previously saved goal or occupation.
       updates.goal = profileDraft.goal.trim() || null;
       updates.occupation = profileDraft.occupation.trim() || null;
+      updates.age_group = profileDraft.ageGroup.trim() || null;
 
       const saved = Object.keys(updates).length > 1 ? await saveProfile(updates) : profile;
       if (!saved) return;
@@ -256,6 +267,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
         username: saved.username ?? "",
         height: saved.height != null ? String(saved.height) : "",
         weight: saved.weight != null ? String(saved.weight) : "",
+        ageGroup: saved.age_group ?? "",
         goal: saved.goal ?? "",
         occupation: saved.occupation ?? "",
       });
@@ -501,27 +513,35 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
     <div className="stack profile-stack profile-subpage" data-profile-view="personal">
       <SectionCard className="profile-personal-card profile-subpage-card profile-one-screen-card" title={<span className="profile-section-title"><UserRound size={19} aria-hidden="true" />{t("profile.personal")}</span>}>
         <div className="profile-form">
-          <label className="field">
+          <label className="field profile-personal-field">
             <span>{t("profile.nickname")}</span>
             <input value={profileDraft.username} onChange={(event) => updateDraft("username", event.target.value)} placeholder={profile?.username ?? t("profile.defaultName")} />
           </label>
-          <div className="two-col">
-            <label className="field">
-              <span>{t("profile.height")}</span>
-              <div className="profile-measure-input"><input inputMode="decimal" value={profileDraft.height} onChange={(event) => updateDraft("height", event.target.value)} placeholder={locale === "zh" ? "例如：172" : "e.g. 172"} /><span className="profile-input-unit">cm</span></div>
-            </label>
-            <label className="field">
-              <span>{t("profile.weight")}</span>
-              <div className="profile-measure-input"><input inputMode="decimal" value={profileDraft.weight} onChange={(event) => updateDraft("weight", event.target.value)} placeholder={locale === "zh" ? "例如：64" : "e.g. 64"} /><span className="profile-input-unit">kg</span></div>
-            </label>
-          </div>
-          <div className="profile-bmi-summary" data-bmi-ready={bmi == null ? "false" : "true"} aria-live="polite">
-            <span className="profile-bmi-label"><Activity size={18} aria-hidden="true" />{locale === "zh" ? "BMI 参考" : "BMI reference"}</span>
+          <label className="field profile-personal-field">
+            <span>{t("profile.height")}</span>
+            <div className="profile-measure-input"><input inputMode="decimal" value={profileDraft.height} onChange={(event) => updateDraft("height", event.target.value)} placeholder={locale === "zh" ? "例如：172" : "e.g. 172"} /><span className="profile-input-unit">cm</span></div>
+          </label>
+          <label className="field profile-personal-field">
+            <span>{t("profile.weight")}</span>
+            <div className="profile-measure-input"><input inputMode="decimal" value={profileDraft.weight} onChange={(event) => updateDraft("weight", event.target.value)} placeholder={locale === "zh" ? "例如：64" : "e.g. 64"} /><span className="profile-input-unit">kg</span></div>
+          </label>
+          <div className="field profile-personal-field">
+            <span id="profile-bmi-label">{locale === "zh" ? "BMI 参考" : "BMI reference"}</span>
+            <div className="profile-bmi-summary" data-bmi-ready={bmi == null ? "false" : "true"} aria-labelledby="profile-bmi-label" aria-live="polite">
             <strong>{bmi == null ? "—" : bmi.toFixed(1)}</strong>
             <small>{bmiLabel}</small>
+            </div>
           </div>
-          <label className="field"><span>{t("profile.goal")}</span><input value={profileDraft.goal} onChange={(event) => updateDraft("goal", event.target.value)} placeholder={t("profile.goalPlaceholder")} /></label>
-          <label className="field">
+          <label className="field profile-personal-field">
+            <span>{locale === "zh" ? "年龄阶段" : "Age group"}</span>
+            <select value={profileDraft.ageGroup} onChange={(event) => updateDraft("ageGroup", event.target.value)}>
+              <option value="">{locale === "zh" ? "请选择" : "Choose"}</option>
+              {!ageGroupOptions.some((option) => option.value === profileDraft.ageGroup) && profileDraft.ageGroup && <option value={profileDraft.ageGroup}>{profileDraft.ageGroup}</option>}
+              {ageGroupOptions.map((option) => <option key={option.value} value={option.value}>{locale === "zh" ? option.zh : option.en}</option>)}
+            </select>
+          </label>
+          <label className="field profile-personal-field"><span>{t("profile.goal")}</span><input value={profileDraft.goal} onChange={(event) => updateDraft("goal", event.target.value)} placeholder={t("profile.goalPlaceholder")} /></label>
+          <label className="field profile-personal-field">
             <span>{t("profile.occupation")}</span>
             <select value={profileDraft.occupation} onChange={(event) => updateDraft("occupation", event.target.value)}>
               <option value="">{locale === "zh" ? "请选择" : "Choose"}</option>
