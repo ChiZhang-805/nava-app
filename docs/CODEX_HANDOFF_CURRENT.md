@@ -31,7 +31,20 @@
 记录页返回了加载失败提示，脚本继续从父页面查找`.sports-plan-actions`。本轮未修改该业务边界，也未
 把完整验证记为通过。
 
-发布信息在本节后续提交补齐。
+功能源码提交`d27fc7df6191002243f08d6164193e6987ba5609`已推送，并由同一提交生成双站。
+ChatGPT Sites **v227**版本
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_34b03a2d21dc8191a08b89ebba3b10e2`，部署
+`appgdep_6ac73320b5348191a138a49c7995b518` succeeded；Sites制品含310文件。GitHub Pages镜像提交
+`de071bc4b179100325e763b3ecd77ee404a6e884`，workflow `37736133055` success；`source.json`指向
+v227、上述功能提交和Sites版本。Sites官方工作流完成源码推送；Windows Bash打包器仍不能解析
+`Q:`路径，因此使用项目规定的`Q:/NAVA-Workspace/Build/Sites/Packages`独立暂存目录与系统
+`tar.exe`打包同一构建产物。没有数据库迁移、Edge Function部署、生产数据写入或访问策略变更。
+
+发布后以`NAVA_RELEASE=v227`和`NAVA_RELEASE_COMMIT=d27fc7df6191002243f08d6164193e6987ba5609`
+运行皮肤部署门禁通过：58/58结果、381/381检查、56张截图，覆盖双站公开登录边界、公开demo拒绝、
+三套皮肤、六类记录模块、四档尺寸、活动资源状态、关键资源哈希和Pages发布凭据；证据位于
+`Q:/NAVA-Workspace/Build/TestRuns/skin-v227-regression`。首次运行误用了未被脚本读取的
+`NAVA_SOURCE_COMMIT`，因此仅发布凭据检查拿默认旧SHA失败；以正确变量完整重跑后全部通过。
 
 ## 145. 个人资料单列紧凑布局与全APP隐藏滚动条（当前版本）
 
