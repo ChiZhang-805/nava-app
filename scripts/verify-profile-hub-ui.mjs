@@ -134,6 +134,12 @@ try {
       }
       if (subpage === "account") {
         await expect(page.locator(".profile-security-entries > button")).toHaveCount(7);
+        const securityRows = await page.locator(".profile-security-entries > button").evaluateAll((nodes) => nodes.map((node) => {
+          const rect = node.getBoundingClientRect();
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+        }));
+        assert.ok(securityRows.every((row) => Math.abs(row.x - securityRows[0].x) <= 1 && Math.abs(row.width - securityRows[0].width) <= 1), `${width}x${height} account entries must be one full-width row each`);
+        assert.ok(securityRows.every((row, index) => index === 0 || row.y >= securityRows[index - 1].y + securityRows[index - 1].height), `${width}x${height} account entries must stack vertically`);
         await expect(page.locator(".profile-account-danger-actions .action-button")).toHaveCount(2);
         await expect(page.locator(".profile-account-actions-card")).toHaveCount(0);
         await page.locator(".profile-security-entries > button").first().click();

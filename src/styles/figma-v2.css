@@ -14456,25 +14456,24 @@ body::before {
 .profile-subpage[data-profile-view="account"] { display: flex; flex-direction: column; }
 .profile-account-security-card { min-height: 0; display: flex; flex: 1 1 auto; flex-direction: column; }
 .profile-account-security-card .profile-row { flex: 0 0 auto; }
-.profile-security-entries { min-height: 0; flex: 1 1 auto; overflow: hidden; margin-top: 14px; border: 1px solid var(--skin-line); border-radius: 18px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(60px, 1fr)); gap: 1px; background: var(--skin-line); }
+.profile-security-entries { min-height: 0; flex: 1 1 auto; overflow: hidden; margin-top: 14px; border: 1px solid var(--skin-line); border-radius: 18px; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(7, minmax(48px, 1fr)); gap: 1px; background: var(--skin-line); }
 .profile-security-entries > button {
   width: 100%;
-  min-height: 66px;
+  min-height: 48px;
   border: 0;
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-columns: 30px minmax(0, 1fr) 20px;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 7px 12px;
   color: var(--skin-ink);
   background: color-mix(in srgb, var(--skin-surface-strong) 88%, transparent);
   text-align: left;
 }
-.profile-security-entries > button:last-child { grid-column: 1 / -1; }
 .profile-security-entries > button:active { background: color-mix(in srgb, var(--skin-accent) 8%, transparent); }
 .profile-security-entries > button:focus-visible { outline: 3px solid color-mix(in srgb, var(--skin-accent) 22%, transparent); outline-offset: -3px; }
 .profile-security-entries > button > svg:first-child { color: var(--skin-accent); }
-.profile-security-entries > button > svg:last-child { display: none; }
+.profile-security-entries > button > svg:last-child { color: var(--skin-muted); }
 .profile-security-entries > button > span { min-width: 0; display: grid; gap: 4px; }
 .profile-security-entries strong,
 .profile-security-entries small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -14571,7 +14570,7 @@ body::before {
   .profile-policy-list { gap: 6px; }
   .profile-policy-list article { padding-block: 8px; }
   .profile-policy-list p { line-height: 1.36; }
-  .profile-security-entries > button { min-height: 56px; padding-block: 7px; }
+  .profile-security-entries > button { min-height: 45px; padding-block: 5px; }
   .profile-security-note { margin-top: 8px; }
   .profile-account-danger-actions .action-button { min-height: 44px; }
 }
