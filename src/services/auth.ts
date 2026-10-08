@@ -305,6 +305,34 @@ export async function updateCurrentPassword(password: string, requireDifferent =
   await applyPassword(supabase, password, requireDifferent);
 }
 
+export interface BackupContactInput {
+  email?: string | null;
+  phone?: string | null;
+}
+
+/**
+ * Stores optional security contacts in authenticated user metadata. These
+ * contacts do not replace the primary sign-in identity and are intentionally
+ * kept separate from the phone-alias authentication contract.
+ */
+export async function updateBackupContacts(input: BackupContactInput) {
+  const email = input.email?.trim() || null;
+  const phone = input.phone?.trim() || null;
+  if (email && !isEmail(email)) throw new Error("请输入有效的备用邮箱。");
+  if (phone && !isPhone(phone)) throw new Error("请输入有效的中国大陆备用手机号。");
+  const { data, error } = await supabase.auth.updateUser({
+    data: {
+      backup_email: email,
+      backup_phone: phone,
+    },
+  });
+  if (error) throw error;
+  return {
+    email: typeof data.user.user_metadata.backup_email === "string" ? data.user.user_metadata.backup_email : null,
+    phone: typeof data.user.user_metadata.backup_phone === "string" ? data.user.user_metadata.backup_phone : null,
+  };
+}
+
 export function formatAuthError(error: unknown, translate?: (key: AuthErrorTranslationKey) => string) {
   const message = errorMessage(error);
   if (!message) return "未知错误";

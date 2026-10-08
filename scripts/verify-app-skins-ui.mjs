@@ -54,6 +54,15 @@ try {
       assert.equal(geometry.navVisible, false, `${width} ${skin} subpage navigation should be hidden`);
       report.results.push({ viewport: `${width}x${height}`, ...geometry });
       if (width === 390) await page.screenshot({ path: `${output}/${skin}-profile-${width}x${height}.png` });
+      if (width === 390) {
+        await page.evaluate(() => { location.hash = "tab=profile&view=health"; });
+        await expect(page.locator('.profile-device-experience[data-profile-view="health"]')).toBeVisible({ timeout: 20000 });
+        await expect(page.locator(".phone-frame")).toHaveAttribute("data-app-skin", skin);
+        await expect(page.locator(".profile-device-orb")).toBeVisible();
+        await page.screenshot({ path: `${output}/${skin}-health-${width}x${height}.png` });
+        await page.evaluate(() => { location.hash = "tab=profile&view=skin"; });
+        await expect(page.locator(".profile-skin-card")).toBeVisible({ timeout: 20000 });
+      }
     }
     await page.locator(".figma-app-header > .figma-header-action").first().click();
     await expect(page.locator('.profile-overview[data-profile-view="overview"]')).toBeVisible();

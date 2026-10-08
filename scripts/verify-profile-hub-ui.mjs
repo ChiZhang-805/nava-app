@@ -85,7 +85,7 @@ try {
       }));
       assert.ok(routeGeometry.horizontalOverflow <= 1, `${width}x${height} ${subpage} frame overflow`);
       assert.ok(routeGeometry.contentOverflow <= 1, `${width}x${height} ${subpage} content overflow`);
-      if (["personal", "skin"].includes(subpage)) {
+      if (["personal", "skin", "health", "watch", "privacy", "account"].includes(subpage)) {
         assert.ok(routeGeometry.verticalOverflow <= 1, `${width}x${height} ${subpage} must fit one screen, overflow ${routeGeometry.verticalOverflow}`);
       }
       if (subpage === "personal") {
@@ -112,7 +112,55 @@ try {
         })));
         assert.ok(poemLines.every((line) => line.horizontalOverflow <= 1 && line.rows === 1), `${width}x${height} every skin poem line must remain a single line`);
       }
-      if (width === 390 && ["personal", "skin", "account"].includes(subpage)) {
+      if (["health", "watch"].includes(subpage)) {
+        await expect(page.locator(".profile-device-orb")).toHaveCount(1);
+        await expect(page.locator(".profile-subpage-actions")).toHaveCount(0);
+        await expect(page.locator(".profile-device-facts > div")).toHaveCount(3);
+        const statusLine = await page.locator(".profile-device-status").evaluate((node) => ({
+          overflow: node.scrollWidth - node.clientWidth,
+          whiteSpace: getComputedStyle(node).whiteSpace,
+        }));
+        assert.ok(statusLine.overflow <= 1 && statusLine.whiteSpace === "nowrap", `${width}x${height} ${subpage} status must stay on one line`);
+        await page.locator(".profile-device-orb").click();
+        await expect(page.locator(".profile-device-status")).toContainText(subpage === "health" ? "同步完成" : "手表快照已更新", { timeout: 5000 });
+        if (await page.locator(".completion-celebration-layer").count()) await page.keyboard.press("Escape");
+      }
+      if (subpage === "privacy") {
+        await expect(page.locator(".profile-policy-list article")).toHaveCount(4);
+        await expect(page.locator('.profile-privacy-card .action-button')).toHaveCount(0);
+        await page.locator(".nava-more-trigger").click();
+        await expect(page.locator('.app-utility-popover button').filter({ hasText: "导出我的数据" })).toHaveCount(1);
+        await page.keyboard.press("Escape");
+      }
+      if (subpage === "account") {
+        await expect(page.locator(".profile-security-entries > button")).toHaveCount(7);
+        await expect(page.locator(".profile-account-danger-actions .action-button")).toHaveCount(2);
+        await expect(page.locator(".profile-account-actions-card")).toHaveCount(0);
+        await page.locator(".profile-security-entries > button").first().click();
+        await expect(page.locator(".profile-security-sheet")).toBeVisible();
+        await expect(page.locator('.profile-security-sheet input[type="password"]')).toHaveCount(2);
+        await page.locator('.profile-security-sheet input[type="password"]').nth(0).fill("123456");
+        await page.locator('.profile-security-sheet input[type="password"]').nth(1).fill("654321");
+        await page.locator(".profile-security-save").click();
+        await expect(page.locator(".profile-security-sheet .error-text")).toContainText("不一致");
+        await page.locator(".profile-security-sheet header button").click();
+        await expect(page.locator(".profile-security-sheet")).toHaveCount(0);
+        await page.locator(".profile-security-entries > button").nth(1).click();
+        await expect(page.locator(".profile-security-sheet")).toContainText("使用现有验证码流程");
+        await expect(page.locator(".profile-security-save")).toContainText("退出并进入找回流程");
+        await page.locator(".profile-security-sheet header button").click();
+        if (width === 390) {
+          for (const [index, expected] of [[4, "尚未配置平台授权"], [5, "尚未配置平台授权"], [6, "需正式 iPhone 客户端"]]) {
+            await page.locator(".profile-security-entries > button").nth(index).click();
+            await expect(page.locator(".profile-security-save")).toBeDisabled();
+            await expect(page.locator(".profile-security-save")).toContainText(expected);
+            if (index === 6) await expect(page.locator(".profile-security-info")).toContainText("Keychain");
+            await page.locator(".profile-security-sheet header button").click();
+          }
+        }
+        await expect(page.locator(".profile-security-note")).not.toContainText("不一致");
+      }
+      if (width === 390 && ["personal", "skin", "health", "watch", "privacy", "account"].includes(subpage)) {
         await page.screenshot({ path: `${output}/profile-${subpage}-${width}x${height}.png`, fullPage: true });
       }
     }

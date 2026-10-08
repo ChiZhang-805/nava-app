@@ -39,7 +39,11 @@ export default function AuthScreen({
     clearError,
   } = useAuth();
   const { locale, t } = useLocale();
-  const [mode, setMode] = useState<AuthMode>("signIn");
+  const [mode, setMode] = useState<AuthMode>(() => {
+    const recoveryRequested = window.sessionStorage.getItem("nava.auth.open-recovery.v1") === "1";
+    if (recoveryRequested) window.sessionStorage.removeItem("nava.auth.open-recovery.v1");
+    return recoveryRequested ? "recoveryChoice" : "signIn";
+  });
   const [signInMethod, setSignInMethod] = useState<SignInMethod>("password");
   const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");

@@ -13,6 +13,7 @@ import { ColdStartHub } from './features/ColdStartExperience';
 import type { AiCommand } from "./features/AIScreen";
 import PasswordRecoveryScreen from "./features/PasswordRecoveryScreen";
 import OnboardingScreen from "./features/OnboardingScreen";
+import ProfileScreen from "./features/ProfileScreen";
 import { useAuth } from "./state/authContext";
 import { flushPendingWatchActions, subscribeWatchActions } from "./services/watch";
 import MoreMenu from "./components/MoreMenu";
@@ -76,7 +77,6 @@ const RecordsScreen = lazy(() => import("./features/RecordsScreen"));
 const JournalExperience = lazy(() => import("./features/JournalExperience"));
 const AIScreen = lazy(() => import("./features/AIScreen"));
 const GrowthTasksScreen = lazy(() => import("./features/GrowthTasksScreen"));
-const ProfileScreen = lazy(() => import("./features/ProfileScreen"));
 
 const tabs: Array<{ id: AppTab; labelKey: TranslationKey; icon: string }> = [
   { id: "today", labelKey: "tabs.today", icon: navHomeIcon },
@@ -109,6 +109,15 @@ function shellRouteHash(route: ShellRoute) {
 
 function LoadingScreen() {
   return <LoadingShell />;
+}
+
+function DelayedLoadingScreen({ delay = 180 }: { delay?: number }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setVisible(true), delay);
+    return () => window.clearTimeout(timer);
+  }, [delay]);
+  return visible ? <LoadingScreen /> : null;
 }
 
 function ConfigErrorScreen({ message }: { message: string }) {
@@ -208,6 +217,7 @@ function MobileShell({
   const [notificationItems, setNotificationItems] = useState<NavaNotificationItem[]>(() => user ? listNavaNotifications(user.id) : []);
   const [notificationBanner, setNotificationBanner] = useState<NavaNotificationItem | null>(null);
   const [cloudBootstrapReady, setCloudBootstrapReady] = useState(() => isDemoMode());
+  const [profileExportRequestId, setProfileExportRequestId] = useState(0);
   const contentRef = useRef<HTMLElement | null>(null);
   const aiLongPressTimerRef = useRef<number | null>(null);
   const aiLongPressTriggeredRef = useRef(false);
@@ -719,6 +729,7 @@ function MobileShell({
                 <button type="button" onClick={() => void shareCurrentPage()}><Share2 size={17} />{locale === "zh" ? "分享页面" : "Share"}</button>
                 {recordModule === "face" && <button type="button" onClick={() => { setRecordView("conditions"); navigate("record", "face", "conditions"); setUtilityOpen(false); }}><ScanFace size={17} />{locale === "zh" ? "条件检验" : "Condition check"}</button>}
               </>}
+              {activeTab === "profile" && recordView === "privacy" && <button type="button" onClick={() => setProfileExportRequestId((current) => current + 1)}><Download size={17} />{locale === "zh" ? "导出我的数据" : "Export my data"}</button>}
               <button type="button" onClick={() => { setUtilityOpen(false); setDrawerOpen(true); }}><ListTodo size={17} />{locale === "zh" ? "功能导航" : "Utilities"}</button>
           </MoreMenu>
         </header>
@@ -735,7 +746,7 @@ function MobileShell({
         ref={contentRef}
       >
         <div className="screen-panel">
-          {!cloudBootstrapReady || forcePageSkeleton
+          {forcePageSkeleton
             ? activeTab === "today" && forcedSkeletonVariant !== "today"
               ? <section className={["home-experience", "page-loading-home-experience", forcedSkeletonVariant === "advanced-profile" ? "advanced-profile-screen" : ""].filter(Boolean).join(" ")}><header className="home-experience-header page-loading-subheader" aria-hidden="true"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-title" /><SkeletonBlock className="is-circle" /></header><PageSkeleton variant={forcedSkeletonVariant} /></section>
               : <PageSkeleton variant={forcedSkeletonVariant} />
@@ -847,7 +858,7 @@ function MobileShell({
               />
             </Suspense>
           )}
-          {activeTab === "profile" && <Suspense fallback={<PageSkeleton variant="profile" />}><ProfileScreen user={user} refreshKey={refreshKey} onChanged={markChanged} onOpenOnboarding={onOpenOnboarding} skin={appSkin} onSkinChange={changeAppSkin} deviceDate={deviceDate} view={recordView} onViewChange={(view) => navigate("profile", null, view)} /></Suspense>}
+          {activeTab === "profile" && <ProfileScreen user={user} refreshKey={refreshKey} onChanged={markChanged} onOpenOnboarding={onOpenOnboarding} skin={appSkin} onSkinChange={changeAppSkin} deviceDate={deviceDate} view={recordView} onViewChange={(view) => navigate("profile", null, view)} exportRequestId={profileExportRequestId} />}
           </>}
         </div>
       </main>
@@ -1025,7 +1036,7 @@ function AppContent({
 
   let screen;
   if (configError && !isDemoMode()) screen = <ConfigErrorScreen message={configError} />;
-  else if (loading) screen = <LoadingScreen />;
+  else if (loading) screen = <DelayedLoadingScreen />;
   else if (user && passwordRecovery) screen = <PasswordRecoveryScreen />;
   else if (!user) screen = <AuthScreen />;
   else if (firstLoginPreviewOpen) {
@@ -1043,7 +1054,7 @@ function AppContent({
   else if (onboardingError) {
     screen = <main className="app-screen centered-screen"><div className="brand-mark warn"><Activity size={28} /></div><h1>{locale === "zh" ? "暂时无法进入" : "Unable to continue"}</h1><p className="muted">{onboardingError}</p><button className="primary" type="button" onClick={() => setOnboardingRetryKey((value) => value + 1)}>{locale === "zh" ? "重新检查" : "Retry"}</button></main>;
   } else if (checkingOnboarding) {
-    screen = signedOutScreenSeen.current ? <AuthScreen transitionPending /> : <LoadingScreen />;
+    screen = signedOutScreenSeen.current ? <AuthScreen transitionPending /> : <DelayedLoadingScreen />;
   } else if (onboardingRoute?.required) {
     screen = <OnboardingScreen user={user} status={onboardingRoute.status} mode={onboardingRoute.mode} onComplete={(status) => {
       const url = new URL(window.location.href);

@@ -173,6 +173,17 @@
   background: var(--skin-button);
   box-shadow: var(--skin-button-shadow);
 }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .profile-account-danger-actions .action-button {
+  border-color: color-mix(in srgb, #9f3740 16%, transparent);
+  color: #9f3740;
+  background: color-mix(in srgb, #fff1f2 90%, var(--skin-surface-strong));
+  box-shadow: none;
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .profile-account-danger-actions .action-button:last-child {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(135deg, #c45861, #96333d);
+}
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.section-icon-action, .record-back-button, .figma-header-action, .nava-more-trigger) { color: var(--skin-accent); }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-first-notes-button, .device-connection-icon) {
   color: var(--skin-accent);
