@@ -254,7 +254,40 @@ try {
     const returnedHeight = (await page.locator(".home-calendar-card").boundingBox()).height;
     if (Math.abs(returnedHeight - four.card.height) > 1) throw new Error(`${viewport.name}: card failed to shrink after returning to a shorter month`);
     await checkSummaryBoundaries();
-    report.push({ viewport: viewport.name, ...geometry, monthLayouts, consoleErrors: errors });
+    await page.goto(`${baseUrl}?demo=1&qa=skeleton#tab=today&view=calendar`, { waitUntil: "networkidle" });
+    const calendarSkeleton = page.locator('[data-page-skeleton="calendar"]');
+    await expect(calendarSkeleton).toBeVisible();
+    const skeletonLayout = await page.evaluate(() => {
+      const rect = (selector) => {
+        const node = document.querySelector(selector);
+        const box = node?.getBoundingClientRect();
+        return box ? { top: box.top, bottom: box.bottom, left: box.left, right: box.right, width: box.width, height: box.height } : null;
+      };
+      const screen = document.querySelector(".home-calendar-screen");
+      return {
+        overviewHeights: [...document.querySelectorAll(".page-skeleton-calendar-overview > span")].map((node) => node.getBoundingClientRect().height),
+        card: rect(".page-skeleton-calendar-card"),
+        monthGrid: rect(".page-skeleton-calendar-grid"),
+        monthWeekdays: rect(".page-skeleton-calendar-weekdays"),
+        monthTitle: rect(".page-skeleton-calendar-title"),
+        annual: rect(".page-skeleton-calendar-year"),
+        annualGrid: rect(".page-skeleton-calendar-year-grid"),
+        dock: rect(".bottom-nav"),
+        screen: screen ? { clientHeight: screen.clientHeight, scrollHeight: screen.scrollHeight, overflowY: getComputedStyle(screen).overflowY } : null,
+        monthCells: document.querySelectorAll(".page-skeleton-calendar-day").length,
+        monthRowHeights: getComputedStyle(document.querySelector(".page-skeleton-calendar-grid")).gridTemplateRows.split(" ").map(parseFloat),
+        monthDayHeights: [...document.querySelectorAll(".page-skeleton-calendar-day")].slice(0, 7).map((node) => node.getBoundingClientRect().height),
+        quarterCells: document.querySelectorAll(".page-skeleton-calendar-year-day").length,
+      };
+    });
+    const closeTo = (left, right, tolerance = 1.5) => Math.abs(left - right) <= tolerance;
+    if (!skeletonLayout.card || !skeletonLayout.annual || !skeletonLayout.annualGrid || !skeletonLayout.dock || !skeletonLayout.screen) throw new Error(`${viewport.name}: calendar skeleton is missing a destination module ${JSON.stringify(skeletonLayout)}`);
+    if (skeletonLayout.monthCells !== 35 || skeletonLayout.quarterCells !== 98) throw new Error(`${viewport.name}: calendar skeleton cell topology does not match a five-week month and fourteen-week quarter ${JSON.stringify(skeletonLayout)}`);
+    if (skeletonLayout.overviewHeights.some((height, index) => !closeTo(height, five.summaryHeights[index]))) throw new Error(`${viewport.name}: calendar skeleton overview height differs from the loaded five-week page ${JSON.stringify({ skeleton: skeletonLayout.overviewHeights, loaded: five.summaryHeights })}`);
+    if (!closeTo(skeletonLayout.card.height, five.card.height, 2) || !closeTo(skeletonLayout.annual.height, five.annual.height, 2)) throw new Error(`${viewport.name}: calendar skeleton cards do not match the loaded page ${JSON.stringify({ skeleton: skeletonLayout, loaded: { card: five.card, annual: five.annual } })}`);
+    if (skeletonLayout.annual.bottom > skeletonLayout.dock.top - 5 || skeletonLayout.screen.overflowY !== "hidden") throw new Error(`${viewport.name}: five-week calendar skeleton must remain a complete one-screen composition ${JSON.stringify(skeletonLayout)}`);
+    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-calendar-skeleton.png`) });
+    report.push({ viewport: viewport.name, ...geometry, monthLayouts, skeletonLayout, consoleErrors: errors });
     if (errors.length) throw new Error(`${viewport.name}: browser errors ${errors.join(" | ")}`);
     await context.close();
   }

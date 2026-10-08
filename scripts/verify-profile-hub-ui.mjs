@@ -55,6 +55,7 @@ try {
         rowBackground: rowStyle?.backgroundColor,
         heatmapWidth: heatmap?.getBoundingClientRect().width ?? 0,
         viewportWidth: frame.getBoundingClientRect().width,
+        moduleHeights: Array.from(frame.querySelectorAll(".profile-overview > .section-card"), (node) => node.getBoundingClientRect().height),
       };
     });
     assert.ok(overview.horizontalOverflow <= 1, `${width}x${height} horizontal overflow ${overview.horizontalOverflow}`);
@@ -72,6 +73,31 @@ try {
     });
     assert.ok(bottomClearance >= -1, `${width}x${height} final profile entry is blocked by bottom navigation (${bottomClearance}px)`);
     if (width === 360) await page.screenshot({ path: `${output}/profile-overview-bottom-${width}x${height}.png` });
+
+    const skeletonPage = await context.newPage();
+    skeletonPage.on("pageerror", (error) => report.errors.push(`${width}x${height} skeleton: ${error.message}`));
+    await skeletonPage.goto(`${base}?demo=1&qa=skeleton#tab=profile`, { waitUntil: "networkidle" });
+    if (await skeletonPage.locator(".launch-sequence").isVisible()) await skeletonPage.locator(".launch-sequence").click();
+    await expect(skeletonPage.locator(".page-skeleton--profile")).toBeVisible({ timeout: 20000 });
+    if (await skeletonPage.locator(".completion-celebration-layer").count()) await skeletonPage.keyboard.press("Escape");
+    await expect(skeletonPage.locator(".page-skeleton-profile-quarter-day")).toHaveCount(98);
+    await expect(skeletonPage.locator(".page-skeleton-profile-entry-row")).toHaveCount(7);
+    const skeletonGeometry = await skeletonPage.locator(".phone-frame").evaluate((frame) => {
+      const content = frame.querySelector(".app-content");
+      return {
+        horizontalOverflow: frame.scrollWidth - frame.clientWidth,
+        moduleHeights: Array.from(frame.querySelectorAll(".page-skeleton--profile > .section-card"), (node) => node.getBoundingClientRect().height),
+        scrollbarWidth: content ? getComputedStyle(content).scrollbarWidth : "",
+      };
+    });
+    assert.ok(skeletonGeometry.horizontalOverflow <= 1, `${width}x${height} profile skeleton horizontal overflow`);
+    assert.equal(skeletonGeometry.scrollbarWidth, "none", `${width}x${height} profile skeleton must hide scrollbar chrome`);
+    assert.equal(skeletonGeometry.moduleHeights.length, overview.moduleHeights.length, `${width}x${height} profile skeleton module count mismatch`);
+    skeletonGeometry.moduleHeights.forEach((height, index) => {
+      assert.ok(Math.abs(height - overview.moduleHeights[index]) <= 3, `${width}x${height} profile skeleton module ${index + 1} height mismatch: ${height} vs ${overview.moduleHeights[index]}`);
+    });
+    await skeletonPage.screenshot({ path: `${output}/profile-skeleton-${width}x${height}.png`, fullPage: true });
+    await skeletonPage.close();
 
     for (const subpage of subpages) {
       await page.evaluate((next) => { location.hash = `tab=profile&view=${next}`; }, subpage);

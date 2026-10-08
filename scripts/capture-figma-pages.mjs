@@ -456,6 +456,7 @@ async function captureSkeletonViewport(browser, baseUrl, viewport, report, error
     if (await reward.isVisible().catch(() => false)) await reward.click();
     const selector = `[data-page-skeleton="${variant}"]`;
     await expect(page.locator(selector)).toBeVisible();
+    if (await page.locator(".completion-celebration-layer").count()) await page.keyboard.press("Escape");
     await page.waitForTimeout(160);
     const layout = await page.locator(".phone-frame").evaluate((node) => {
       const content = node.querySelector(".app-content");
@@ -474,6 +475,7 @@ async function captureSkeletonViewport(browser, baseUrl, viewport, report, error
   const reward = page.locator(".reward-celebration-card > button");
   if (await reward.isVisible().catch(() => false)) await reward.click();
   await expect(page.locator(".home-widget-skeleton").first()).toBeVisible();
+  if (await page.locator(".completion-celebration-layer").count()) await page.keyboard.press("Escape");
   const homeWidgetVisual = await auditVisualGeometry(page, ".option-two-home");
   if (homeWidgetVisual.issues.length) throw new Error(`${viewport.name}/loading-home-widgets failed visual geometry: ${JSON.stringify(homeWidgetVisual.issues)}`);
   const homeWidgetLayout = await page.locator(".phone-frame").evaluate((node) => ({ frameWidth: node.clientWidth, frameScrollWidth: node.scrollWidth, contentHeight: node.clientHeight, contentScrollHeight: node.scrollHeight }));
@@ -800,7 +802,7 @@ async function main() {
             throw new Error('Layout capture paused: less than 4 GiB available memory or memory check unavailable');
           }
         }
-        await captureViewport(browser, baseUrl, viewport, report, errors);
+        if (!process.argv.includes("--skeleton-only")) await captureViewport(browser, baseUrl, viewport, report, errors);
         if (!process.argv.includes("--content-only")) await captureSkeletonViewport(browser, baseUrl, viewport, report, errors);
       } catch (error) {
         errors.push(`${viewport.name}: ${error.message}`);
@@ -810,7 +812,7 @@ async function main() {
       }
     }
     const expectedContent = `auth-login auth-register auth-recovery auth-otp-login auth-reset 00-onboarding-welcome 00-onboarding-1-gender 00-onboarding-2-occupation 00-onboarding-3-ageGroup 00-onboarding-4-hobbies 00-onboarding-5-sleepDuration 00-onboarding-6-exerciseDuration 00-onboarding-7-dietPreferences 00-onboarding-privacy 00-home 00a-home-health-wheel 00b-home-shortcuts home-utilities 00c-home-calendar 00d-home-daily-report 00e-notifications 00f-home-widgets-select 00g-home-widgets-sort 00h-profile-details 00i-ai 00j-ai-attachment-menu 00k-ai-interrupted-long 01-record-hub 02-mood 03-mood-journal 04-sleep 05-exercise 06-exercise-device 07-focus 08-focus-immersive 09-diet 09b-diet-editor 10-face 10b-face-editor 10c-camera-permission-error 11-weekly-dnb 12-growth-tasks 13-profile 13-profile-devices mood-editor-top mood-editor-long-bottom mood-history mood-history-bottom mood-share sleep-editor-top sleep-editor-long-bottom sleep-history sleep-history-bottom sleep-share exercise-editor-top exercise-editor-long-bottom exercise-history exercise-history-bottom exercise-share diet-editor-top diet-editor-long-bottom diet-history diet-history-bottom diet-share focus-editor-top focus-editor-long-bottom focus-history focus-history-bottom focus-share face-editor-top face-editor-bottom face-history face-history-bottom face-share exercise-detail exercise-vitals exercise-heatmap exercise-clock exercise-sports sleep-alert face-compare face-conditions mood-reminders diet-reminders shop-catalog shop-product shop-empty-cart ai-history ai-voice ai-confirmation ai-confirmation-edit-long morning-collect morning-priorities morning-timeboxes morning-review-long profile-avatar profile-delete-confirmation mood-monthly-empty sleep-monthly-empty`.split(' ');
-    const expected = [...expectedContent, ...(process.argv.includes('--content-only') ? [] : ['loading-auth', ...skeletonRoutes.map(([variant])=>`loading-${variant}`), 'loading-home-widgets'])];
+    const expected = [...(process.argv.includes('--skeleton-only') ? [] : expectedContent), ...(process.argv.includes('--content-only') ? [] : ['loading-auth', ...skeletonRoutes.map(([variant])=>`loading-${variant}`), 'loading-home-widgets'])];
     for (const viewport of viewports) for (const screen of expected) {
       if (!report.some(row=>row.viewport===viewport.name && row.screen===screen)) report.push({viewport:viewport.name,screen,state:'not-reached',issues:[{kind:'required-state-not-reached'}]});
     }

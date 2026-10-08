@@ -748,7 +748,7 @@ function MobileShell({
         <div className="screen-panel">
           {forcePageSkeleton
             ? activeTab === "today" && forcedSkeletonVariant !== "today"
-              ? <section className={["home-experience", "page-loading-home-experience", forcedSkeletonVariant === "advanced-profile" ? "advanced-profile-screen" : ""].filter(Boolean).join(" ")}><header className="home-experience-header page-loading-subheader" aria-hidden="true"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-title" /><SkeletonBlock className="is-circle" /></header><PageSkeleton variant={forcedSkeletonVariant} /></section>
+              ? <section className={["home-experience", "page-loading-home-experience", forcedSkeletonVariant === "advanced-profile" ? "advanced-profile-screen" : "", forcedSkeletonVariant === "calendar" ? "home-calendar-screen" : ""].filter(Boolean).join(" ")} data-month-week-count={forcedSkeletonVariant === "calendar" ? 5 : undefined}><header className="home-experience-header page-loading-subheader" aria-hidden="true"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-title" /><SkeletonBlock className="is-circle" /></header><PageSkeleton variant={forcedSkeletonVariant} calendarWeekCount={forcedSkeletonVariant === "calendar" ? 5 : undefined} /></section>
               : <PageSkeleton variant={forcedSkeletonVariant} />
             : <>
           {activeTab === "today" && (

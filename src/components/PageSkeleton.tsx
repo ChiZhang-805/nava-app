@@ -196,10 +196,31 @@ function GrowthSkeleton() {
 }
 
 function ProfileSkeleton() {
+  const quarterWeekCount = 14;
   return <>
-    <section className="page-skeleton-card page-skeleton-profile-account"><SkeletonBlock className="is-section-title" /><div><SkeletonBlock className="is-avatar" /><SkeletonLines count={2} compact /></div></section>
-    <section className="page-skeleton-card page-skeleton-profile-form"><div><SkeletonBlock className="is-section-title" /><SkeletonBlock className="is-circle" /></div><SkeletonBlock className="is-field" /><div className="page-skeleton-two-col"><SkeletonBlock className="is-field" /><SkeletonBlock className="is-field" /></div><SkeletonBlock className="is-button" /></section>
-    {Array.from({ length: 2 }, (_, index) => <section className="page-skeleton-card page-skeleton-device" key={index}><SkeletonBlock className="is-section-title" /><div><SkeletonBlock className="is-device-icon" /><SkeletonLines count={2} compact /></div></section>)}
+    <section className="section-card profile-overview-account page-skeleton-profile-account">
+      <div className="section-heading page-skeleton-profile-heading"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-section-title" /></div>
+      <div className="profile-account-entry page-skeleton-profile-account-entry"><SkeletonBlock className="is-avatar" /><SkeletonLines count={2} compact /><SkeletonBlock className="is-circle" /></div>
+    </section>
+    <section className="section-card profile-quarter-card page-skeleton-profile-quarter">
+      <header className="profile-quarter-header page-skeleton-profile-quarter-header">
+        <h2><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-section-title" /></h2>
+        <nav aria-hidden="true"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-value" /><SkeletonBlock className="is-circle" /></nav>
+      </header>
+      <div className="profile-quarter-heatmap page-skeleton-profile-quarter-heatmap" style={{ "--profile-quarter-week-count": quarterWeekCount } as CSSProperties}>
+        <div className="profile-quarter-months page-skeleton-profile-quarter-months" aria-hidden="true">
+          {[1, 2, 3].map((month, index) => <SkeletonBlock key={month} style={{ gridColumn: `${index * 5 + 1} / span ${index === 2 ? 4 : 5}` }} />)}
+        </div>
+        <div className="profile-quarter-weekdays page-skeleton-profile-quarter-weekdays" aria-hidden="true">{Array.from({ length: 7 }, (_, index) => <SkeletonBlock key={index} />)}</div>
+        <div className="profile-quarter-weeks page-skeleton-profile-quarter-grid" aria-hidden="true">
+          {Array.from({ length: quarterWeekCount * 7 }, (_, index) => <SkeletonBlock className="profile-quarter-day page-skeleton-profile-quarter-day" key={index} />)}
+        </div>
+      </div>
+    </section>
+    <section className="section-card profile-entry-card page-skeleton-profile-entries">
+      <header className="profile-entry-header page-skeleton-profile-entry-header"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-section-title" /></header>
+      {Array.from({ length: 7 }, (_, index) => <div className="profile-nav-row page-skeleton-profile-entry-row" key={index}><SkeletonBlock className="is-title" /><span><SkeletonBlock className="is-value" /><SkeletonBlock className="is-circle" /></span></div>)}
+    </section>
   </>;
 }
 
@@ -224,10 +245,30 @@ function AuthSkeleton() {
 }
 
 function CalendarSkeleton({ weekCount }: { weekCount: number }) {
+  const quarterWeekCount = 14;
   return <>
     <section className="page-skeleton-calendar-overview"><SkeletonBlock /><SkeletonBlock /></section>
-    <section className="page-skeleton-card page-skeleton-calendar-card"><div className="page-skeleton-calendar-title"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-title" /><SkeletonBlock className="is-circle" /></div><div className="page-skeleton-calendar-grid">{Array.from({ length: weekCount * 7 }, (_, index) => <SkeletonBlock key={index} />)}</div></section>
-    <section className="page-skeleton-card page-skeleton-calendar-year"><div><SkeletonBlock className="is-title" /><SkeletonBlock className="is-value" /></div><div className="page-skeleton-calendar-year-grid">{Array.from({ length: 91 }, (_, index) => <SkeletonBlock key={index} />)}</div></section>
+    <section className="home-calendar-card page-skeleton-calendar-card">
+      <div className="home-calendar-month-switcher page-skeleton-calendar-title"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-title" /><SkeletonBlock className="is-circle" /></div>
+      <div className="home-calendar-weekdays page-skeleton-calendar-weekdays">{Array.from({ length: 7 }, (_, index) => <SkeletonBlock key={index} />)}</div>
+      <div className="home-calendar-grid page-skeleton-calendar-grid">{Array.from({ length: weekCount * 7 }, (_, index) => <SkeletonBlock className="home-calendar-day page-skeleton-calendar-day" key={index} />)}</div>
+    </section>
+    <section className="home-year-card page-skeleton-calendar-year">
+      <header className="home-year-header page-skeleton-calendar-year-header">
+        <div><SkeletonBlock className="is-title" /></div>
+        <nav aria-hidden="true"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-value" /><SkeletonBlock className="is-circle" /></nav>
+      </header>
+      <div className="home-year-heatmap page-skeleton-calendar-year-heatmap" style={{ "--year-week-count": quarterWeekCount } as CSSProperties}>
+        <div className="home-year-months page-skeleton-calendar-year-months" aria-hidden="true">
+          {[1, 2, 3].map((month, index) => <SkeletonBlock key={month} style={{ gridColumn: `${index * 5 + 1} / span ${index === 2 ? 4 : 5}` }} />)}
+        </div>
+        <div className="home-year-weekdays page-skeleton-calendar-year-weekdays" aria-hidden="true">{Array.from({ length: 7 }, (_, index) => <SkeletonBlock key={index} />)}</div>
+        <div className="home-year-weeks page-skeleton-calendar-year-grid" aria-hidden="true">
+          {Array.from({ length: quarterWeekCount * 7 }, (_, index) => <SkeletonBlock className="home-year-day page-skeleton-calendar-year-day" key={index} />)}
+        </div>
+      </div>
+      <footer className="home-year-legend page-skeleton-calendar-year-legend"><SkeletonBlock />{Array.from({ length: 5 }, (_, index) => <SkeletonBlock key={index} />)}<SkeletonBlock /></footer>
+    </section>
   </>;
 }
 
