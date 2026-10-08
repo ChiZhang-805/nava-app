@@ -762,7 +762,7 @@ async function captureAdditionalStates(page, viewport, report) {
     await page.locator('.avatar-button').click();
     await capture(page,viewport,'profile-avatar','.avatar-sheet',report);
     await page.locator('.avatar-picker > header button').click();
-    await page.getByRole('button',{name:'删除账号与全部数据',exact:true}).click();
+    await page.getByRole('button',{name:'注销账号',exact:true}).click();
     await capture(page,viewport,'profile-delete-confirmation','.account-delete-sheet',report);
     await page.locator('.account-delete-sheet > header button').click();
   });

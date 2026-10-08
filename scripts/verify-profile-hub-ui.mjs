@@ -141,6 +141,8 @@ try {
         assert.ok(securityRows.every((row) => Math.abs(row.x - securityRows[0].x) <= 1 && Math.abs(row.width - securityRows[0].width) <= 1), `${width}x${height} account entries must be one full-width row each`);
         assert.ok(securityRows.every((row, index) => index === 0 || row.y >= securityRows[index - 1].y + securityRows[index - 1].height), `${width}x${height} account entries must stack vertically`);
         await expect(page.locator(".profile-account-danger-actions .action-button")).toHaveCount(2);
+        await expect(page.locator(".profile-account-danger-actions .action-button").last()).toHaveText("注销账号");
+        await expect(page.locator(".profile-account-danger-actions .action-button").last().locator("svg")).toHaveCount(0);
         await expect(page.locator(".profile-account-actions-card")).toHaveCount(0);
         await page.locator(".profile-security-entries > button").first().click();
         await expect(page.locator(".profile-security-sheet")).toBeVisible();
@@ -160,7 +162,10 @@ try {
             await page.locator(".profile-security-entries > button").nth(index).click();
             await expect(page.locator(".profile-security-save")).toBeDisabled();
             await expect(page.locator(".profile-security-save")).toContainText(expected);
-            if (index === 6) await expect(page.locator(".profile-security-info")).toContainText("Keychain");
+            if (index === 6) {
+              await expect(page.locator(".profile-security-info p")).toHaveCount(0);
+              await page.screenshot({ path: `${output}/profile-account-gesture-${width}x${height}.png`, fullPage: true });
+            }
             await page.locator(".profile-security-sheet header button").click();
           }
         }

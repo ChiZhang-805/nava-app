@@ -1362,7 +1362,7 @@ async function verifyProfile(page, results) {
   const download = await downloadPromise;
   await download.cancel();
 
-  const deleteButton = page.getByRole("button", { name: /删除账号与全部数据|Delete account and all data/ });
+  const deleteButton = page.getByRole("button", { name: /注销账号|Delete account/ });
   await deleteButton.scrollIntoViewIfNeeded();
   await page.waitForTimeout(700);
   await assertStaticLayout(page, "profile-bottom");

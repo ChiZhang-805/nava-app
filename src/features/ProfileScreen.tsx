@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { Activity, Apple, CalendarDays, Check, ChevronLeft, ChevronRight, CircleUserRound, Database, Eye, Grid3X3, KeyRound, LayoutGrid, LockKeyhole, LogOut, Mail, MessageCircle, Palette, Phone, RotateCcw, Save, ShieldCheck, Trash2, UserRound, Watch, X } from "lucide-react";
+import { Activity, Apple, CalendarDays, Check, ChevronLeft, ChevronRight, CircleUserRound, Database, Eye, Grid3X3, KeyRound, LayoutGrid, LockKeyhole, LogOut, Mail, MessageCircle, Palette, Phone, RotateCcw, Save, ShieldCheck, UserRound, Watch, X } from "lucide-react";
 import AvatarPicker from "../components/AvatarPicker";
 import AppSkinPicker from "../components/AppSkinPicker";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -615,7 +615,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
       </SectionCard>
       <div className="profile-account-danger-actions" aria-label={locale === "zh" ? "账号操作" : "Account actions"}>
         <ActionButton icon={<LogOut size={18} />} variant="ghost" onClick={signOut}>{t("profile.signOut")}</ActionButton>
-        <ActionButton icon={<Trash2 size={18} />} variant="ghost" onClick={() => setDeleteDialogOpen(true)}>{locale === "zh" ? "删除账号与全部数据" : "Delete account and all data"}</ActionButton>
+        <ActionButton variant="ghost" onClick={() => setDeleteDialogOpen(true)}>{locale === "zh" ? "注销账号" : "Delete account"}</ActionButton>
       </div>
       {avatarSheetOpen && <AvatarPicker onClose={() => setAvatarSheetOpen(false)} onCamera={() => cameraInputRef.current?.click()} onLibrary={() => galleryInputRef.current?.click()} />}
       {securityEditor && <div className="avatar-sheet-overlay" role="presentation" onClick={() => setSecurityEditor(null)}>
@@ -629,11 +629,9 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
               : <div className="profile-security-info" data-security-info={securityEditor}>
                   {securityEditor === "recovery" ? <RotateCcw size={30} /> : securityEditor === "wechat" ? <MessageCircle size={30} /> : securityEditor === "qq" ? <CircleUserRound size={30} /> : <Grid3X3 size={30} />}
                   <strong>{securityEditor === "recovery" ? (locale === "zh" ? "使用现有验证码流程" : "Use the existing verification flow") : (locale === "zh" ? "当前尚未启用" : "Not enabled yet")}</strong>
-                  <p>{securityEditor === "recovery"
+                  {securityEditor !== "gesture" && <p>{securityEditor === "recovery"
                     ? (locale === "zh" ? "继续后会退出当前账号，直接打开登录页的邮箱／手机验证码找回流程。" : "Continuing signs out this session and opens the existing email or phone verification recovery flow.")
-                    : securityEditor === "gesture"
-                      ? (locale === "zh" ? "网页无法安全保存手势图案。正式 iPhone App 接入 Keychain 与本地身份验证后才能启用；这里不会伪造一个不安全的本地密码。" : "A web page cannot safely store a gesture pattern. This can be enabled after the iPhone app integrates Keychain and local authentication; no insecure local credential is fabricated here.")
-                      : (locale === "zh" ? "当前 Supabase 项目尚未配置该平台 OAuth，因此保持“未关联”真实状态，不会伪造绑定成功。" : "This platform OAuth is not configured in the current Supabase project, so the truthful status remains not connected.")}</p>
+                    : (locale === "zh" ? "当前 Supabase 项目尚未配置该平台 OAuth，因此保持“未关联”真实状态，不会伪造绑定成功。" : "This platform OAuth is not configured in the current Supabase project, so the truthful status remains not connected.")}</p>}
                 </div>}
           {(securityEditor === "password" || securityEditor === "email" || securityEditor === "phone") && <>
             <p className={error ? "error-text" : undefined}>{error ?? (locale === "zh" ? "保存后会写入受登录身份保护的账号元数据。" : "This is saved to your authenticated account metadata.")}</p>
