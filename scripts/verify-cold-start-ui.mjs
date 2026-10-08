@@ -136,7 +136,18 @@ try{
     await onboard.locator('#language').click();await expect(onboard.locator('#language-menu')).toBeVisible();await onboard.locator('#language').press('Escape');
     if(stage==='goal')await onboard.locator('[data-option=sleep]').click();
     if(stage==='challenge')await onboard.locator('[data-option=routine]').click();
-    if(stage==='permissions')assert.equal(await onboard.getByRole('checkbox').first().getAttribute('aria-checked'),'false');
+    if(stage==='permissions'){
+      assert.equal(await onboard.getByRole('checkbox').first().getAttribute('aria-checked'),'false');
+      const permissionMetrics=await onboard.locator('.permissions .option').evaluateAll(nodes=>nodes.map(node=>{
+        const marker=node.querySelector('.check-mark'),detail=node.querySelector('.permission-detail'),markerStyle=getComputedStyle(marker),detailStyle=getComputedStyle(detail),range=document.createRange();
+        range.selectNodeContents(detail);
+        const lines=[...range.getClientRects()].filter(rect=>rect.width>1&&rect.height>1);
+        return{markerOpacity:Number(markerStyle.opacity),markerBorder:parseFloat(markerStyle.borderTopWidth),markerWidth:marker.getBoundingClientRect().width,textWrap:detailStyle.textWrap,lineWidths:lines.map(rect=>rect.width)};
+      }));
+      assert.ok(permissionMetrics.every(item=>item.markerOpacity===1&&item.markerBorder>=1.5&&item.markerWidth>=18),`unchecked consent controls must remain visible: ${JSON.stringify(permissionMetrics)}`);
+      assert.ok(permissionMetrics.every(item=>item.textWrap==='balance'),'consent explanations must use balanced wrapping');
+      assert.ok(permissionMetrics.every(item=>item.lineWidths.length<2||Math.min(...item.lineWidths)/Math.max(...item.lineWidths)>.45),'consent explanations must not leave an orphaned second line');
+    }
     await page.screenshot({path:`${out}/original-${stage}-${lang}-${width}.png`});
     await expect(onboard.locator('#next')).toBeInViewport();
     const overlap=await onboard.locator('.paper-content').evaluate(c=>{const caption=c.querySelector('.sheet-caption').getBoundingClientRect(),opts=c.querySelector('.options').getBoundingClientRect();return opts.bottom>caption.top;});assert.equal(overlap,false,stage+' caption overlap');
