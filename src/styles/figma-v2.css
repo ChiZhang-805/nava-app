@@ -14575,6 +14575,8 @@ body::before {
 }
 .profile-security-entries > button:active { color: var(--skin-accent); background: transparent; }
 .profile-security-entries > button:focus-visible { outline: 3px solid color-mix(in srgb, var(--skin-accent) 22%, transparent); outline-offset: -3px; }
+.profile-security-entries > button:disabled { cursor: default; opacity: .58; }
+.profile-security-entries > button:disabled:active { color: var(--skin-ink); }
 .profile-security-entries > button > svg:first-child { color: var(--skin-accent); }
 .profile-security-entries > button > svg:last-child { color: var(--skin-muted); }
 .profile-security-entries > button > span { min-width: 0; display: grid; gap: 4px; }
@@ -14594,7 +14596,49 @@ body::before {
 .profile-account-danger-actions .action-button { min-height: 48px; margin: 0; justify-content: center; color: #9f3740; background: rgba(255, 241, 242, .88); box-shadow: none; }
 .profile-account-danger-actions .action-button:last-child { color: #fff; background: linear-gradient(135deg, #c45861, #96333d); }
 
-.profile-security-sheet { display: grid; gap: 13px; }
+.phone-frame .avatar-sheet-overlay.profile-security-overlay {
+  place-items: center;
+  padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+}
+.profile-security-sheet {
+  width: min(100%, 360px);
+  max-height: calc(100dvh - 40px);
+  display: grid;
+  gap: 15px;
+  overflow-y: auto;
+}
+.profile-security-sheet > header {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  align-items: center;
+  gap: 12px;
+}
+.profile-security-sheet-title {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--skin-ink);
+  font-size: 18px;
+  line-height: 1.25;
+}
+.profile-security-sheet-title > svg { flex: 0 0 auto; color: var(--skin-accent); }
+.profile-security-sheet > header > button {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 0;
+  display: grid;
+  place-items: center;
+  justify-self: end;
+  padding: 0;
+  color: var(--skin-ink);
+  background: transparent;
+  box-shadow: none;
+  appearance: none;
+}
+.profile-security-sheet > header > button:active { color: var(--skin-accent); background: transparent; }
 .profile-security-sheet label { display: grid; gap: 7px; color: #244f63; font-size: 12px; font-weight: 700; }
 .profile-security-sheet input { width: 100%; min-height: 48px; }
 .profile-security-sheet > p { margin: 0; color: #6b8795; font-size: 11px; line-height: 1.45; }

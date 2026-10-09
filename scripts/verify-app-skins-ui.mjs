@@ -144,6 +144,23 @@ try {
           };
         });
         assert.ok(Object.values(accountFlattening).every(Boolean), `${skin} account list must not restore nested cards, row backgrounds, or dividers`);
+        if (width === 390) {
+          await page.locator(".profile-security-entries > button").first().click();
+          await expect(page.locator(".profile-security-sheet")).toBeVisible();
+          const skinSheet = await page.evaluate(() => {
+            const frame = document.querySelector(".phone-frame").getBoundingClientRect();
+            const sheet = document.querySelector(".profile-security-sheet").getBoundingClientRect();
+            const closeStyle = getComputedStyle(document.querySelector(".profile-security-sheet > header > button"));
+            return {
+              centerX: Math.abs((sheet.left + sheet.width / 2) - (frame.left + frame.width / 2)),
+              centerY: Math.abs((sheet.top + sheet.height / 2) - (frame.top + frame.height / 2)),
+              closeTransparent: ["transparent", "rgba(0, 0, 0, 0)"].includes(closeStyle.backgroundColor) && closeStyle.backgroundImage === "none",
+            };
+          });
+          assert.ok(skinSheet.centerX <= 1 && skinSheet.centerY <= 2 && skinSheet.closeTransparent, `${skin} security sheet must stay centered with a backgroundless close action`);
+          await page.screenshot({ path: `${output}/${skin}-account-password-${width}x${height}.png` });
+          await page.locator(".profile-security-sheet > header > button").click();
+        }
         await page.screenshot({ path: `${output}/${skin}-account-${width}x${height}.png` });
         await page.evaluate(() => { location.hash = "tab=profile&view=skin"; });
         await expect(page.locator(".profile-skin-card")).toBeVisible({ timeout: 20000 });

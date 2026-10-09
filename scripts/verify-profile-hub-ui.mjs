@@ -251,31 +251,50 @@ try {
         await expect(page.locator(".profile-account-danger-actions .action-button").last()).toHaveText("注销账号");
         await expect(page.locator(".profile-account-danger-actions .action-button").last().locator("svg")).toHaveCount(0);
         await expect(page.locator(".profile-account-actions-card")).toHaveCount(0);
+        for (const index of [1, 4, 5, 6]) {
+          const unavailable = page.locator(".profile-security-entries > button").nth(index);
+          await expect(unavailable).toBeDisabled();
+          await unavailable.evaluate((button) => button.click());
+          await expect(page.locator(".profile-security-sheet")).toHaveCount(0);
+        }
         await page.locator(".profile-security-entries > button").first().click();
         await expect(page.locator(".profile-security-sheet")).toBeVisible();
+        await expect(page.locator(".profile-security-sheet-title svg")).toHaveCount(1);
+        await expect(page.locator(".profile-security-sheet > p")).toHaveCount(0);
+        await expect(page.locator(".profile-security-sheet")).not.toContainText("保存后会");
+        const sheetGeometry = await page.evaluate(() => {
+          const frame = document.querySelector(".phone-frame").getBoundingClientRect();
+          const sheet = document.querySelector(".profile-security-sheet").getBoundingClientRect();
+          const title = document.querySelector(".profile-security-sheet-title").getBoundingClientRect();
+          const close = document.querySelector(".profile-security-sheet > header > button");
+          const closeRect = close.getBoundingClientRect();
+          const closeStyle = getComputedStyle(close);
+          return {
+            centerX: Math.abs((sheet.left + sheet.width / 2) - (frame.left + frame.width / 2)),
+            centerY: Math.abs((sheet.top + sheet.height / 2) - (frame.top + frame.height / 2)),
+            headerAlignment: Math.abs((title.top + title.height / 2) - (closeRect.top + closeRect.height / 2)),
+            closeTransparent: ["transparent", "rgba(0, 0, 0, 0)"].includes(closeStyle.backgroundColor) && closeStyle.backgroundImage === "none",
+            closeBorderless: [closeStyle.borderTopWidth, closeStyle.borderRightWidth, closeStyle.borderBottomWidth, closeStyle.borderLeftWidth].every((value) => parseFloat(value) === 0),
+            closeSize: Math.min(closeRect.width, closeRect.height),
+          };
+        });
+        assert.ok(sheetGeometry.centerX <= 1 && sheetGeometry.centerY <= 2, `${width}x${height} security sheet must be centered in the phone canvas`);
+        assert.ok(sheetGeometry.headerAlignment <= 1, `${width}x${height} security sheet title and close action must share one horizontal centerline`);
+        assert.ok(sheetGeometry.closeTransparent && sheetGeometry.closeBorderless && sheetGeometry.closeSize >= 38, `${width}x${height} security sheet close action must be a backgroundless touch target`);
         await expect(page.locator('.profile-security-sheet input[type="password"]')).toHaveCount(2);
+        if (width === 390) await page.screenshot({ path: `${output}/profile-account-password-${width}x${height}.png`, fullPage: true });
         await page.locator('.profile-security-sheet input[type="password"]').nth(0).fill("123456");
         await page.locator('.profile-security-sheet input[type="password"]').nth(1).fill("654321");
         await page.locator(".profile-security-save").click();
         await expect(page.locator(".profile-security-sheet .error-text")).toContainText("不一致");
         await page.locator(".profile-security-sheet header button").click();
         await expect(page.locator(".profile-security-sheet")).toHaveCount(0);
-        await page.locator(".profile-security-entries > button").nth(1).click();
-        await expect(page.locator(".profile-security-sheet")).toContainText("使用现有验证码流程");
-        await expect(page.locator(".profile-security-save")).toContainText("退出并进入找回流程");
+        await page.locator(".profile-security-entries > button").nth(3).click();
+        await expect(page.locator(".profile-security-sheet-title")).toContainText("备用手机号");
+        await expect(page.locator('.profile-security-sheet input[inputmode="tel"]')).toHaveCount(1);
+        await expect(page.locator(".profile-security-sheet > p")).toHaveCount(0);
+        if (width === 390) await page.screenshot({ path: `${output}/profile-account-phone-${width}x${height}.png`, fullPage: true });
         await page.locator(".profile-security-sheet header button").click();
-        if (width === 390) {
-          for (const [index, expected] of [[4, "尚未配置平台授权"], [5, "尚未配置平台授权"], [6, "需正式 iPhone 客户端"]]) {
-            await page.locator(".profile-security-entries > button").nth(index).click();
-            await expect(page.locator(".profile-security-save")).toBeDisabled();
-            await expect(page.locator(".profile-security-save")).toContainText(expected);
-            if (index === 6) {
-              await expect(page.locator(".profile-security-info p")).toHaveCount(0);
-              await page.screenshot({ path: `${output}/profile-account-gesture-${width}x${height}.png`, fullPage: true });
-            }
-            await page.locator(".profile-security-sheet header button").click();
-          }
-        }
         await expect(page.locator(".profile-security-note")).toHaveCount(0);
       }
       if (subpage === "personal" || (width === 390 && ["skin", "health", "watch", "privacy", "account"].includes(subpage))) {

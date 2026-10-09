@@ -52,7 +52,7 @@ function daysSinceSignup(createdAt?: string) {
 
 type ProfileView = "account" | "personal" | "skin" | "health" | "watch" | "privacy";
 type DevicePhase = "idle" | "authorizing" | "checking" | "syncing" | "complete" | "error";
-type SecurityEditor = "password" | "recovery" | "email" | "phone" | "wechat" | "qq" | "gesture";
+type SecurityEditor = "password" | "email" | "phone";
 
 const profileViews = new Set<ProfileView>(["account", "personal", "skin", "health", "watch", "privacy"]);
 
@@ -322,9 +322,15 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
     if (completed) setSecurityEditor(null);
   }
 
-  async function beginPasswordRecovery() {
-    window.sessionStorage.setItem("nava.auth.open-recovery.v1", "1");
-    await signOut();
+  function openSecurityEditor(editor: SecurityEditor) {
+    setError(null);
+    setMessage(null);
+    setSecurityEditor(editor);
+  }
+
+  function closeSecurityEditor() {
+    setError(null);
+    setSecurityEditor(null);
   }
 
   async function deleteAccount() {
@@ -490,12 +496,11 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
       ? bmi < 18.5 ? "偏轻参考" : bmi < 24 ? "常见范围" : bmi < 28 ? "偏高参考" : "较高参考"
       : bmi < 18.5 ? "Lower range" : bmi < 25 ? "Common range" : bmi < 30 ? "Higher range" : "High range";
   const securityEditorTitle = securityEditor === "password" ? (locale === "zh" ? "修改密码" : "Change password")
-    : securityEditor === "recovery" ? (locale === "zh" ? "找回密码" : "Recover password")
-      : securityEditor === "email" ? (locale === "zh" ? "备用邮箱" : "Backup email")
-        : securityEditor === "phone" ? (locale === "zh" ? "备用手机号" : "Backup phone")
-          : securityEditor === "wechat" ? (locale === "zh" ? "关联微信" : "Connect WeChat")
-            : securityEditor === "qq" ? (locale === "zh" ? "关联 QQ" : "Connect QQ")
-              : (locale === "zh" ? "APP 手势密码" : "App gesture lock");
+    : securityEditor === "email" ? (locale === "zh" ? "备用邮箱" : "Backup email")
+      : (locale === "zh" ? "备用手机号" : "Backup phone");
+  const securityEditorIcon = securityEditor === "password" ? <KeyRound size={21} aria-hidden="true" />
+    : securityEditor === "email" ? <Mail size={21} aria-hidden="true" />
+      : <Phone size={21} aria-hidden="true" />;
 
   const activeView = view && profileViews.has(view as ProfileView) ? view as ProfileView : null;
 
@@ -623,13 +628,13 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
         <input ref={galleryInputRef} className="visually-hidden" type="file" accept="image/*" onChange={(event) => { void handleAvatarFile(event.target.files?.[0] ?? null); event.currentTarget.value = ""; }} />
         <input ref={cameraInputRef} className="visually-hidden" type="file" accept="image/*" capture="user" onChange={(event) => { void handleAvatarFile(event.target.files?.[0] ?? null); event.currentTarget.value = ""; }} />
         <div className="profile-security-entries">
-          <button type="button" onClick={() => { setError(null); setSecurityEditor("password"); }}><KeyRound size={19} /><span><strong>{locale === "zh" ? "修改密码" : "Change password"}</strong><small>{locale === "zh" ? "更新当前登录密码" : "Update the current sign-in password"}</small></span><ChevronRight size={21} /></button>
-          <button type="button" onClick={() => { setError(null); setSecurityEditor("recovery"); }}><RotateCcw size={19} /><span><strong>{locale === "zh" ? "找回密码" : "Recover password"}</strong><small>{locale === "zh" ? "验证码重设" : "Reset with a verification code"}</small></span><ChevronRight size={21} /></button>
-          <button type="button" onClick={() => { setError(null); setSecurityEditor("email"); }}><Mail size={19} /><span><strong>{locale === "zh" ? "备用邮箱" : "Backup email"}</strong><small>{securityDraft.email || (locale === "zh" ? "未设置" : "Not set")}</small></span><ChevronRight size={21} /></button>
-          <button type="button" onClick={() => { setError(null); setSecurityEditor("phone"); }}><Phone size={19} /><span><strong>{locale === "zh" ? "备用手机号" : "Backup phone"}</strong><small>{securityDraft.phone || (locale === "zh" ? "未设置" : "Not set")}</small></span><ChevronRight size={21} /></button>
-          <button type="button" onClick={() => { setError(null); setSecurityEditor("wechat"); }}><MessageCircle size={19} /><span><strong>{locale === "zh" ? "关联微信" : "Connect WeChat"}</strong><small>{locale === "zh" ? "未关联" : "Not connected"}</small></span><ChevronRight size={21} /></button>
-          <button type="button" onClick={() => { setError(null); setSecurityEditor("qq"); }}><CircleUserRound size={19} /><span><strong>{locale === "zh" ? "关联 QQ" : "Connect QQ"}</strong><small>{locale === "zh" ? "未关联" : "Not connected"}</small></span><ChevronRight size={21} /></button>
-          <button type="button" onClick={() => { setError(null); setSecurityEditor("gesture"); }}><Grid3X3 size={19} /><span><strong>{locale === "zh" ? "APP 手势密码" : "App gesture lock"}</strong><small>{locale === "zh" ? "待接入系统安全存储" : "Requires secure device storage"}</small></span><ChevronRight size={21} /></button>
+          <button type="button" onClick={() => openSecurityEditor("password")}><KeyRound size={19} /><span><strong>{locale === "zh" ? "修改密码" : "Change password"}</strong><small>{locale === "zh" ? "更新当前登录密码" : "Update the current sign-in password"}</small></span><ChevronRight size={21} /></button>
+          <button type="button" disabled aria-disabled="true"><RotateCcw size={19} /><span><strong>{locale === "zh" ? "找回密码" : "Recover password"}</strong><small>{locale === "zh" ? "验证码重设" : "Reset with a verification code"}</small></span></button>
+          <button type="button" onClick={() => openSecurityEditor("email")}><Mail size={19} /><span><strong>{locale === "zh" ? "备用邮箱" : "Backup email"}</strong><small>{securityDraft.email || (locale === "zh" ? "未设置" : "Not set")}</small></span><ChevronRight size={21} /></button>
+          <button type="button" onClick={() => openSecurityEditor("phone")}><Phone size={19} /><span><strong>{locale === "zh" ? "备用手机号" : "Backup phone"}</strong><small>{securityDraft.phone || (locale === "zh" ? "未设置" : "Not set")}</small></span><ChevronRight size={21} /></button>
+          <button type="button" disabled aria-disabled="true"><MessageCircle size={19} /><span><strong>{locale === "zh" ? "关联微信" : "Connect WeChat"}</strong><small>{locale === "zh" ? "未关联" : "Not connected"}</small></span></button>
+          <button type="button" disabled aria-disabled="true"><CircleUserRound size={19} /><span><strong>{locale === "zh" ? "关联 QQ" : "Connect QQ"}</strong><small>{locale === "zh" ? "未关联" : "Not connected"}</small></span></button>
+          <button type="button" disabled aria-disabled="true"><Grid3X3 size={19} /><span><strong>{locale === "zh" ? "APP 手势密码" : "App gesture lock"}</strong><small>{locale === "zh" ? "待接入系统安全存储" : "Requires secure device storage"}</small></span></button>
         </div>
         {(error || message) && <p className="profile-security-note" data-kind={error ? "error" : "success"} aria-live="polite">{error ?? message}</p>}
       </SectionCard>
@@ -638,27 +643,16 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
         <ActionButton variant="ghost" onClick={() => setDeleteDialogOpen(true)}>{locale === "zh" ? "注销账号" : "Delete account"}</ActionButton>
       </div>
       {avatarSheetOpen && <AvatarPicker onClose={() => setAvatarSheetOpen(false)} onCamera={() => cameraInputRef.current?.click()} onLibrary={() => galleryInputRef.current?.click()} />}
-      {securityEditor && <div className="avatar-sheet-overlay" role="presentation" onClick={() => setSecurityEditor(null)}>
+      {securityEditor && <div className="avatar-sheet-overlay profile-security-overlay" role="presentation" onClick={closeSecurityEditor}>
         <section className="avatar-sheet profile-security-sheet" role="dialog" aria-modal="true" aria-label={securityEditorTitle} onClick={(event) => event.stopPropagation()}>
-          <header><strong>{securityEditorTitle}</strong><button type="button" onClick={() => setSecurityEditor(null)} aria-label={t("common.close")}><X size={20} /></button></header>
+          <header><span className="profile-security-sheet-title">{securityEditorIcon}<strong>{securityEditorTitle}</strong></span><button type="button" onClick={closeSecurityEditor} aria-label={t("common.close")}><X size={21} /></button></header>
           {securityEditor === "password" ? <>
             <label><span>{locale === "zh" ? "新密码" : "New password"}</span><input type="password" autoComplete="new-password" value={securityDraft.password} onChange={(event) => setSecurityDraft((draft) => ({ ...draft, password: event.target.value }))} /></label>
             <label><span>{locale === "zh" ? "再次输入" : "Confirm password"}</span><input type="password" autoComplete="new-password" value={securityDraft.confirmPassword} onChange={(event) => setSecurityDraft((draft) => ({ ...draft, confirmPassword: event.target.value }))} /></label>
           </> : securityEditor === "email" ? <label><span>{locale === "zh" ? "邮箱地址" : "Email address"}</span><input type="email" autoComplete="email" value={securityDraft.email} onChange={(event) => setSecurityDraft((draft) => ({ ...draft, email: event.target.value }))} placeholder="name@example.com" /></label>
-            : securityEditor === "phone" ? <label><span>{locale === "zh" ? "中国大陆手机号" : "Mainland China phone"}</span><input inputMode="tel" autoComplete="tel" value={securityDraft.phone} onChange={(event) => setSecurityDraft((draft) => ({ ...draft, phone: event.target.value }))} placeholder="13800000000" /></label>
-              : <div className="profile-security-info" data-security-info={securityEditor}>
-                  {securityEditor === "recovery" ? <RotateCcw size={30} /> : securityEditor === "wechat" ? <MessageCircle size={30} /> : securityEditor === "qq" ? <CircleUserRound size={30} /> : <Grid3X3 size={30} />}
-                  <strong>{securityEditor === "recovery" ? (locale === "zh" ? "使用现有验证码流程" : "Use the existing verification flow") : (locale === "zh" ? "当前尚未启用" : "Not enabled yet")}</strong>
-                  {securityEditor !== "gesture" && <p>{securityEditor === "recovery"
-                    ? (locale === "zh" ? "继续后会退出当前账号，直接打开登录页的邮箱／手机验证码找回流程。" : "Continuing signs out this session and opens the existing email or phone verification recovery flow.")
-                    : (locale === "zh" ? "当前 Supabase 项目尚未配置该平台 OAuth，因此保持“未关联”真实状态，不会伪造绑定成功。" : "This platform OAuth is not configured in the current Supabase project, so the truthful status remains not connected.")}</p>}
-                </div>}
-          {(securityEditor === "password" || securityEditor === "email" || securityEditor === "phone") && <>
-            <p className={error ? "error-text" : undefined}>{error ?? (locale === "zh" ? "保存后会写入受登录身份保护的账号元数据。" : "This is saved to your authenticated account metadata.")}</p>
-            <button className="profile-security-save" type="button" disabled={Boolean(busy?.startsWith("security-"))} onClick={() => void saveSecurityEditor()}>{busy?.startsWith("security-") ? (locale === "zh" ? "正在保存…" : "Saving…") : (locale === "zh" ? "保存" : "Save")}</button>
-          </>}
-          {securityEditor === "recovery" && <button className="profile-security-save" type="button" onClick={() => void beginPasswordRecovery()}>{locale === "zh" ? "退出并进入找回流程" : "Sign out and recover password"}</button>}
-          {(securityEditor === "wechat" || securityEditor === "qq" || securityEditor === "gesture") && <button className="profile-security-save" type="button" disabled>{securityEditor === "gesture" ? (locale === "zh" ? "需正式 iPhone 客户端" : "Requires the iPhone app") : (locale === "zh" ? "尚未配置平台授权" : "Platform authorization not configured")}</button>}
+            : <label><span>{locale === "zh" ? "中国大陆手机号" : "Mainland China phone"}</span><input inputMode="tel" autoComplete="tel" value={securityDraft.phone} onChange={(event) => setSecurityDraft((draft) => ({ ...draft, phone: event.target.value }))} placeholder="13800000000" /></label>}
+          {error && <p className="error-text">{error}</p>}
+          <button className="profile-security-save" type="button" disabled={Boolean(busy?.startsWith("security-"))} onClick={() => void saveSecurityEditor()}>{busy?.startsWith("security-") ? (locale === "zh" ? "正在保存…" : "Saving…") : (locale === "zh" ? "保存" : "Save")}</button>
         </section>
       </div>}
       {deleteDialogOpen && <div className="avatar-sheet-overlay" role="presentation" onClick={() => setDeleteDialogOpen(false)}><section className="avatar-sheet account-delete-sheet" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "删除账号" : "Delete account"} onClick={(event) => event.stopPropagation()}><header><strong>{locale === "zh" ? "永久删除账号" : "Permanently delete account"}</strong><button type="button" onClick={() => setDeleteDialogOpen(false)} aria-label={t("common.close")}><X size={20} /></button></header><p>{locale === "zh" ? "这会删除账号、健康记录、AI 对话、周报和私密照片，无法恢复。请输入 DELETE 确认。" : "This removes the account, health records, AI chats, reports, and private photos. Type DELETE to confirm."}</p><input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} placeholder="DELETE" autoCapitalize="characters" /><button type="button" disabled={deleteConfirmation !== "DELETE" || busy === "delete-account"} onClick={() => void deleteAccount()}>{busy === "delete-account" ? (locale === "zh" ? "正在删除…" : "Deleting…") : (locale === "zh" ? "永久删除" : "Delete permanently")}</button></section></div>}
