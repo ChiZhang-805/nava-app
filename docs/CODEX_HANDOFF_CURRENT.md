@@ -35,6 +35,17 @@
 边缘净距、胶囊中心线、连续滚动画布和透明外层。后端源码由`backend:verify`、`backend:typecheck`与
 `backend:test`检查；生产迁移、函数ACTIVE/JWT状态和未登录401边界已验证，真实送达仍待人工验收。
 
+发布：功能与后端源码提交`d3d5d7a`、部署记录提交`d7ac2f23f76e63fb0462ddeb80f943b86eee0cba`
+均已推送。ChatGPT Sites **v238**
+（`appgprj_6a5de710811c8191af8ce2681358d518~appgver_7e4efd1d9ccc81919ed07c1ce65caa6b`，
+部署`appgdep_6ac8e7846bb481919cb1b5df5d25eea9`）与GitHub Pages镜像提交
+`db63f2d751a8bb74987557473624ff3ec7c27508`、工作流`37935284095`均已成功发布。Pages的205个生成
+文件共66,441,157字节，复制前后逐文件SHA-256一致；`source.json`指向v238和`d7ac2f2`。发布后门禁
+通过58项结果、381项检查与56张截图，证据位于
+`Q:/NAVA-Workspace/Build/TestRuns/skin-v238-regression`。Sites官方工作流完成源码校验、构建和源
+推送；其Windows Bash打包器仍无法解析盘符路径，按既有恢复方案用系统tar归档同一构建产物并由
+Sites验证为309文件。
+
 ## 153. 常规页面紧凑顶栏与“我的”模块标题节奏（当前版本）
 
 25个连续画布页面共享新的紧凑顶部合同：外层导航高度使用`clamp(48px, 6dvh, 52px)`，40px返回与
