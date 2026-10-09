@@ -14196,8 +14196,8 @@ body::before {
   --profile-module-inline-inset: clamp(13px, 4.1cqw, 16px);
   --profile-module-top-inset: clamp(9px, 2.6cqw, 11px);
   --profile-module-bottom-inset: clamp(11px, 3.1cqw, 14px);
-  --profile-module-title-size: clamp(19px, 5.1cqw, 21px);
-  --profile-module-title-icon-size: clamp(20px, 5.4cqw, 22px);
+  --profile-module-title-size: clamp(19px, 2.35dvh, 21px);
+  --profile-module-title-icon-size: clamp(20px, 2.45dvh, 22px);
   --profile-module-title-row: clamp(42px, 11.4cqw, 46px);
 }
 .profile-overview {
@@ -14206,10 +14206,13 @@ body::before {
 }
 .profile-overview > .section-card { margin: 0; }
 .profile-overview-account { padding: var(--profile-module-top-inset) var(--profile-module-inline-inset) var(--profile-module-bottom-inset); }
-.profile-overview-account .section-heading { margin-bottom: 6px; }
+.profile-overview-account .section-heading { margin-bottom: 10px; }
 .profile-overview-account .section-heading h2,
 .profile-quarter-header h2 { margin: 0; font-size: var(--profile-module-title-size); line-height: 1.2; }
 .profile-entry-header h2 { margin: 0; font-size: var(--profile-module-title-size); line-height: 1.2; }
+.profile-overview-account .section-heading h2,
+.profile-quarter-header h2,
+.profile-entry-header h2 { font-weight: 760; letter-spacing: 0; }
 .profile-section-title,
 .profile-quarter-header h2,
 .profile-entry-header { display: flex; align-items: center; gap: 8px; }
@@ -14340,11 +14343,13 @@ body::before {
 .profile-subpage-card .section-heading h2 { font-size: 19px; }
 .profile-one-screen-card { min-height: 0; flex: 1 1 auto; }
 
-/* Personal profile is a balanced one-screen form. BMI is derived locally from
-   the two visible measurements and is informational, never a diagnosis. */
+/* Personal profile keeps derived metrics such as BMI out of the editing UI.
+   Height and weight remain source facts; downstream services derive BMI only
+   when a report needs it. */
 .profile-subpage[data-profile-view="personal"] .profile-personal-card {
   display: flex;
   flex-direction: column;
+  overflow: visible;
 }
 .profile-subpage[data-profile-view="personal"] .profile-form {
   min-height: 0;
@@ -14359,27 +14364,81 @@ body::before {
   gap: 4px;
   margin-bottom: 0;
 }
-.profile-subpage[data-profile-view="personal"] .profile-form :is(input, select, .profile-bmi-summary) {
+.profile-subpage[data-profile-view="personal"] .profile-form :is(input, .profile-choice-trigger) {
   height: 47px;
   min-height: 47px;
   border-radius: 14px;
 }
-.profile-bmi-summary {
+.profile-choice-field { position: relative; }
+.profile-choice-field.is-open { z-index: 30; }
+.profile-choice { position: relative; min-width: 0; }
+.profile-choice-trigger {
   width: 100%;
-  height: 47px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 12px;
+  padding: 0 16px;
   border: 1px solid var(--skin-line);
   color: var(--skin-ink);
   background: color-mix(in srgb, var(--skin-surface-strong) 76%, transparent);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .84);
+  font: inherit;
+  text-align: left;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
-.profile-bmi-summary strong { min-width: 34px; color: var(--skin-accent); font-size: 17px; line-height: 1; }
-.profile-bmi-summary small { min-width: 0; overflow: hidden; color: var(--skin-muted); font-size: 12px; font-weight: 580; line-height: 1.25; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
-.profile-bmi-summary[data-bmi-ready="false"] strong { color: #8aa5b1; }
+.profile-choice-trigger > span { min-width: 0; overflow: hidden; color: inherit; font-size: 16px; font-weight: 560; text-overflow: ellipsis; white-space: nowrap; }
+.profile-choice-trigger > svg { flex: 0 0 auto; margin-right: 1px; color: var(--skin-muted); transition: transform 160ms ease, color 160ms ease; }
+.profile-choice-trigger:focus { outline: 0; }
+.profile-choice-trigger:focus-visible { outline: 3px solid color-mix(in srgb, var(--skin-accent) 22%, transparent); outline-offset: 2px; }
+.profile-choice-field.is-open .profile-choice-trigger { border-color: color-mix(in srgb, var(--skin-accent) 58%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--skin-accent) 13%, transparent), inset 0 1px 0 rgba(255, 255, 255, .84); }
+.profile-choice-field.is-open .profile-choice-trigger > svg { color: var(--skin-accent); transform: rotate(180deg); }
+.profile-choice-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  inset-inline: 0;
+  z-index: 40;
+  max-height: min(238px, 38dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--skin-line) 86%, white);
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--skin-surface-strong) 96%, white);
+  box-shadow: var(--skin-shadow), inset 0 1px 0 rgba(255, 255, 255, .9);
+  backdrop-filter: blur(20px) saturate(1.08);
+  scrollbar-width: none;
+  animation: profile-choice-menu-in 150ms ease-out both;
+}
+.profile-choice[data-placement="top"] .profile-choice-menu { top: auto; bottom: calc(100% + 7px); transform-origin: bottom center; }
+.profile-choice-menu::-webkit-scrollbar { display: none; }
+.profile-choice-menu > button {
+  width: 100%;
+  min-height: 39px;
+  border: 0;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 11px;
+  color: var(--skin-muted);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 620;
+  line-height: 1.25;
+  text-align: left;
+}
+.profile-choice-menu > button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-choice-menu > button > svg { flex: 0 0 auto; color: var(--skin-accent); }
+.profile-choice-menu > button:is(:hover, :focus-visible) { outline: 0; color: var(--skin-ink); background: color-mix(in srgb, var(--skin-accent) 10%, var(--skin-surface-strong)); }
+.profile-choice-menu > button.is-selected { color: var(--skin-ink); background: color-mix(in srgb, var(--skin-accent) 16%, var(--skin-surface-strong)); }
+@keyframes profile-choice-menu-in { from { opacity: 0; transform: translateY(-5px) scale(.985); } to { opacity: 1; transform: none; } }
+.profile-choice[data-placement="top"] .profile-choice-menu { animation-name: profile-choice-menu-in-up; }
+@keyframes profile-choice-menu-in-up { from { opacity: 0; transform: translateY(5px) scale(.985); } to { opacity: 1; transform: none; } }
 .profile-subpage-card > .profile-personal-save {
   width: 100%;
   flex: 0 0 auto;
@@ -14715,7 +14774,7 @@ body::before {
 @media (max-height: 820px) and (max-width: 600px) {
   .profile-overview { gap: 9px; }
   .profile-overview-account { padding-block: 10px 11px; }
-  .profile-overview-account .section-heading { margin-bottom: 4px; }
+  .profile-overview-account .section-heading { margin-bottom: 8px; }
   .profile-account-entry { min-height: 56px; }
   .profile-account-entry > .avatar { width: 48px; height: 48px; }
   .profile-account-entry { grid-template-columns: 48px minmax(0, 1fr) 26px; gap: 10px; }
@@ -14729,8 +14788,7 @@ body::before {
   .profile-subpage { gap: 9px; padding-bottom: 4px; }
   .profile-subpage-card .section-heading { margin-bottom: 10px; }
   .profile-subpage[data-profile-view="personal"] .profile-form { flex: 0 0 auto; gap: 7px; }
-  .profile-subpage[data-profile-view="personal"] .profile-form :is(input, select, .profile-bmi-summary) { height: 45px; min-height: 45px; }
-  .profile-bmi-summary { height: 45px; padding-block: 7px; }
+  .profile-subpage[data-profile-view="personal"] .profile-form :is(input, .profile-choice-trigger) { height: 45px; min-height: 45px; }
   .profile-subpage-card > .profile-personal-save { min-height: 46px; margin-top: 9px; }
   .profile-subpage .profile-skin-card .app-skin-picker.is-compact { gap: 9px; }
   .profile-subpage .profile-skin-card .app-skin-swatch { min-height: 76px; }
@@ -14748,9 +14806,12 @@ body::before {
 }
 
 @media (min-height: 780px) and (max-height: 899px) and (max-width: 600px) {
-  .profile-subpage[data-profile-view="personal"] .profile-form { gap: 9px; }
-  .profile-subpage[data-profile-view="personal"] .profile-form :is(input, select, .profile-bmi-summary) { height: 50px; min-height: 50px; }
-  .profile-subpage-card > .profile-personal-save { min-height: 48px; margin-top: 12px; }
+  .profile-subpage[data-profile-view="personal"] .profile-personal-card { padding: 14px 16px; }
+  .profile-subpage[data-profile-view="personal"] .profile-personal-card .section-heading { margin-bottom: 7px; }
+  .profile-subpage[data-profile-view="personal"] .profile-form { gap: 5px; }
+  .profile-subpage[data-profile-view="personal"] .profile-form .field { gap: 3px; }
+  .profile-subpage[data-profile-view="personal"] .profile-form :is(input, .profile-choice-trigger) { height: 44px; min-height: 44px; }
+  .profile-subpage-card > .profile-personal-save { min-height: 44px; margin-top: 8px; }
 }
 
 @media (min-height: 900px) and (max-width: 600px) {
@@ -14758,16 +14819,19 @@ body::before {
   .profile-overview-account { padding-block: 11px 14px; }
   .profile-quarter-card { padding-block: 8px 16px; }
   .profile-nav-row { min-height: 58px; }
-  .profile-subpage[data-profile-view="personal"] .profile-form { gap: 12px; }
-  .profile-subpage[data-profile-view="personal"] .profile-form .field { gap: 5px; }
-  .profile-subpage[data-profile-view="personal"] .profile-form :is(input, select, .profile-bmi-summary) { height: 54px; min-height: 54px; }
-  .profile-subpage-card > .profile-personal-save { min-height: 52px; margin-top: 18px; }
+  .profile-subpage[data-profile-view="personal"] .profile-personal-card { padding: 16px 18px; }
+  .profile-subpage[data-profile-view="personal"] .profile-personal-card .section-heading { margin-bottom: 9px; }
+  .profile-subpage[data-profile-view="personal"] .profile-form { gap: 7px; }
+  .profile-subpage[data-profile-view="personal"] .profile-form .field { gap: 4px; }
+  .profile-subpage[data-profile-view="personal"] .profile-form :is(input, .profile-choice-trigger) { height: 47px; min-height: 47px; }
+  .profile-subpage-card > .profile-personal-save { min-height: 48px; margin-top: 10px; }
   .profile-device-stage { min-height: 292px; }
   .profile-policy-list { gap: 13px; }
   .profile-policy-list article { padding: 15px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .profile-choice-menu { animation: none !important; }
   .profile-device-stage .profile-device-orbit,
   .profile-device-stage .profile-device-orb > svg { animation: none !important; }
 }

@@ -89,9 +89,15 @@ try {
           return {
             topInset: Number.isFinite(visualTop) && cardRect ? visualTop - cardRect.top : -1,
             fontSize: text ? parseFloat(getComputedStyle(text).fontSize) : 0,
+            fontWeight: text ? Number.parseFloat(getComputedStyle(text).fontWeight) : 0,
             iconSize: icon?.getBoundingClientRect().width ?? 0,
           };
         }),
+        accountTitleBodyGap: (() => {
+          const heading = frame.querySelector(".profile-overview-account .section-heading")?.getBoundingClientRect();
+          const entry = frame.querySelector(".profile-account-entry")?.getBoundingClientRect();
+          return heading && entry ? entry.top - heading.bottom : -1;
+        })(),
         quickHeaderBorderBottom: getComputedStyle(frame.querySelector(".profile-entry-header")).borderBottomWidth,
         firstEntryBorderBottom: getComputedStyle(firstRow).borderBottomWidth,
         contentBottomGap: Math.abs(frame.getBoundingClientRect().bottom - content.getBoundingClientRect().bottom),
@@ -124,8 +130,12 @@ try {
     overview.titleMetrics.forEach((metric, index) => {
       assert.ok(metric.topInset >= 8 && metric.topInset <= 18, `${width}x${height} profile module ${index + 1} title top inset ${metric.topInset}px is outside the recorded contract`);
       assert.ok(metric.fontSize >= 19, `${width}x${height} profile module ${index + 1} title is too small`);
+      assert.ok(metric.fontWeight >= 750, `${width}x${height} profile module ${index + 1} title weight is too light`);
       assert.ok(metric.iconSize >= 20, `${width}x${height} profile module ${index + 1} icon is too small`);
     });
+    assert.ok(Math.max(...overview.titleMetrics.map((metric) => metric.fontSize)) - Math.min(...overview.titleMetrics.map((metric) => metric.fontSize)) <= .25, `${width}x${height} profile module title sizes must match exactly`);
+    assert.ok(Math.max(...overview.titleMetrics.map((metric) => metric.iconSize)) - Math.min(...overview.titleMetrics.map((metric) => metric.iconSize)) <= .25, `${width}x${height} profile module icon sizes must match exactly`);
+    assert.ok(overview.accountTitleBodyGap >= 8 && overview.accountTitleBodyGap <= 14, `${width}x${height} account title needs a deliberate breathing gap before identity content`);
     assert.equal(parseFloat(overview.quickHeaderBorderBottom), 0, `${width}x${height} quick-access title divider must be removed`);
     assert.ok(parseFloat(overview.firstEntryBorderBottom) > 0, `${width}x${height} quick-access row dividers must remain`);
     assert.ok(overview.contentBottomGap <= 1, `${width}x${height} content must continue behind the floating dock`);
@@ -191,23 +201,73 @@ try {
         assert.ok(routeGeometry.verticalOverflow <= 1, `${width}x${height} ${subpage} must fit one screen, overflow ${routeGeometry.verticalOverflow}`);
       }
       if (subpage === "personal") {
-        await expect(page.locator(".profile-bmi-summary")).toBeVisible();
-        await expect(page.locator(".profile-personal-field")).toHaveCount(7);
+        await expect(page.locator(".profile-bmi-summary")).toHaveCount(0);
+        await expect(page.getByText("BMI 参考", { exact: true })).toHaveCount(0);
+        await expect(page.locator(".profile-personal-field")).toHaveCount(9);
+        await expect(page.locator(".profile-personal-card select")).toHaveCount(0);
+        await expect(page.locator(".profile-choice-trigger")).toHaveCount(5);
+        const choiceArrowInsets = await page.locator(".profile-choice-trigger").evaluateAll((triggers) => triggers.map((trigger) => {
+          const triggerRect = trigger.getBoundingClientRect();
+          const arrowRect = trigger.querySelector("svg").getBoundingClientRect();
+          return triggerRect.right - arrowRect.right;
+        }));
+        assert.ok(choiceArrowInsets.every((inset) => inset >= 14 && inset <= 22), `${width}x${height} every choice arrow needs the same right breathing room: ${choiceArrowInsets.join(", ")}`);
         const fields = await page.locator(".profile-personal-field").evaluateAll((nodes) => nodes.map((node) => {
           const rect = node.getBoundingClientRect();
-          const control = node.querySelector("input, select, .profile-bmi-summary");
+          const control = node.querySelector("input, .profile-choice-trigger");
           const controlRect = control?.getBoundingClientRect();
           return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, controlX: controlRect?.x ?? 0, controlWidth: controlRect?.width ?? 0, controlHeight: controlRect?.height ?? 0 };
         }));
         assert.ok(fields.every((field) => Math.abs(field.x - fields[0].x) <= 1 && Math.abs(field.width - fields[0].width) <= 1), `${width}x${height} personal fields must be one full-width row each`);
         assert.ok(fields.every((field, index) => index === 0 || field.y >= fields[index - 1].y + fields[index - 1].height), `${width}x${height} personal fields must stack vertically`);
         assert.ok(fields.every((field) => Math.abs(field.controlX - fields[0].controlX) <= 1 && Math.abs(field.controlWidth - fields[0].controlWidth) <= 1), `${width}x${height} personal controls must share one width`);
-        assert.ok(fields.every((field) => Math.abs(field.controlHeight - fields[0].controlHeight) <= 2), `${width}x${height} BMI and personal controls must share one height: ${JSON.stringify(fields)}`);
+        assert.ok(fields.every((field) => Math.abs(field.controlHeight - fields[0].controlHeight) <= 2), `${width}x${height} personal inputs and custom choices must share one height: ${JSON.stringify(fields)}`);
+        const mbtiField = page.locator(".profile-choice-field").filter({ hasText: "MBTI" });
+        await mbtiField.locator(".profile-choice-trigger").click();
+        await expect(mbtiField.locator(".profile-choice-menu")).toBeVisible();
+        await expect(mbtiField.locator('.profile-choice-menu [role="option"]')).toHaveCount(17);
+        const choiceGeometry = await mbtiField.evaluate((field) => {
+          const trigger = field.querySelector(".profile-choice-trigger").getBoundingClientRect();
+          const arrow = field.querySelector(".profile-choice-trigger > svg").getBoundingClientRect();
+          const menu = field.querySelector(".profile-choice-menu").getBoundingClientRect();
+          const style = getComputedStyle(field.querySelector(".profile-choice-menu"));
+          return {
+            widthDifference: Math.abs(trigger.width - menu.width),
+            arrowRightInset: trigger.right - arrow.right,
+            horizontalOverflow: Math.max(0, -menu.left) + Math.max(0, menu.right - window.innerWidth),
+            painted: style.backgroundColor !== "rgba(0, 0, 0, 0)" || style.backgroundImage !== "none",
+            radius: parseFloat(style.borderRadius),
+          };
+        });
+        assert.ok(choiceGeometry.widthDifference <= 1, `${width}x${height} choice menu must match its field width`);
+        assert.ok(choiceGeometry.arrowRightInset >= 14 && choiceGeometry.arrowRightInset <= 22, `${width}x${height} choice arrow needs right breathing room: ${choiceGeometry.arrowRightInset}`);
+        assert.ok(choiceGeometry.horizontalOverflow <= 1 && choiceGeometry.painted && choiceGeometry.radius >= 14, `${width}x${height} choice menu must stay inside and match the glass-card style`);
+        if (width === 390) await page.screenshot({ path: `${output}/profile-personal-mbti-menu-${width}x${height}.png`, fullPage: true });
+        await mbtiField.getByRole("option", { name: /ENFP/ }).click();
+        await expect(mbtiField.locator(".profile-choice-trigger")).toContainText("ENFP");
+        const exerciseField = page.locator(".profile-choice-field").filter({ hasText: "每周运动" });
+        await exerciseField.locator(".profile-choice-trigger").click();
+        const upwardGeometry = await exerciseField.evaluate((field) => {
+          const trigger = field.querySelector(".profile-choice-trigger").getBoundingClientRect();
+          const menu = field.querySelector(".profile-choice-menu").getBoundingClientRect();
+          return { menuBottom: menu.bottom, triggerTop: trigger.top };
+        });
+        assert.ok(upwardGeometry.menuBottom <= upwardGeometry.triggerTop - 5, `${width}x${height} lower choice menu must open upward inside the profile card`);
+        await exerciseField.getByRole("option", { name: /2–4 小时/ }).click();
         const saveGeometry = await page.locator(".profile-personal-save").evaluate((button) => {
           const card = button.closest(".profile-personal-card");
           return { buttonWidth: button.getBoundingClientRect().width, cardInnerWidth: card ? card.clientWidth - parseFloat(getComputedStyle(card).paddingLeft) - parseFloat(getComputedStyle(card).paddingRight) : 0 };
         });
         assert.ok(Math.abs(saveGeometry.buttonWidth - saveGeometry.cardInnerWidth) <= 2, `${width}x${height} personal save must span the card`);
+        await page.locator(".profile-personal-save").click();
+        await expect(page.locator(".profile-personal-save")).toContainText("已保存");
+        await page.evaluate(() => { location.hash = "tab=profile"; });
+        await expect(page.locator('.profile-overview[data-profile-view="overview"]')).toBeVisible();
+        await page.evaluate(() => { location.hash = "tab=profile&view=personal"; });
+        await expect(page.locator('.profile-subpage[data-profile-view="personal"]')).toBeVisible();
+        await expect(page.locator(".profile-choice-field").filter({ hasText: "MBTI" }).locator(".profile-choice-trigger")).toContainText("ENFP");
+        await expect(page.locator(".profile-choice-field").filter({ hasText: "每周运动" }).locator(".profile-choice-trigger")).toContainText("2–4 小时");
+        if (await page.locator(".completion-celebration-layer").count()) await page.keyboard.press("Escape");
       }
       if (subpage === "skin") {
         await expect(page.locator(".profile-skin-card .app-skin-option")).toHaveCount(3);

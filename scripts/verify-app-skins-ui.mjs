@@ -100,7 +100,30 @@ try {
         profileLayerSamples.push({ skin, layers });
         report.results.push({ viewport: `${width}x${height}`, skin, profileLayers: layers });
         await page.screenshot({ path: `${output}/${skin}-profile-overview-${width}x${height}.png` });
-        await page.locator('.profile-nav-row[data-profile-target="skin"]').click();
+        await page.evaluate(() => { location.hash = "tab=profile&view=personal"; });
+        await expect(page.locator('.profile-subpage[data-profile-view="personal"]')).toBeVisible({ timeout: 20000 });
+        await expect(page.locator(".profile-choice-trigger")).toHaveCount(5);
+        await expect(page.locator(".profile-bmi-summary")).toHaveCount(0);
+        const mbtiChoice = page.locator(".profile-choice-field").filter({ hasText: "MBTI" });
+        await mbtiChoice.locator(".profile-choice-trigger").click();
+        await expect(mbtiChoice.locator(".profile-choice-menu")).toBeVisible();
+        const choicePaint = await mbtiChoice.evaluate((field) => {
+          const trigger = field.querySelector(".profile-choice-trigger");
+          const menu = field.querySelector(".profile-choice-menu");
+          const triggerStyle = getComputedStyle(trigger);
+          const menuStyle = getComputedStyle(menu);
+          return {
+            trigger: `${triggerStyle.backgroundColor}|${triggerStyle.backgroundImage}|${triggerStyle.borderColor}`,
+            menu: `${menuStyle.backgroundColor}|${menuStyle.backgroundImage}|${menuStyle.borderColor}`,
+            widthDifference: Math.abs(trigger.getBoundingClientRect().width - menu.getBoundingClientRect().width),
+          };
+        });
+        assert.ok(choicePaint.widthDifference <= 1, `${skin} personal choice menu must match its trigger width`);
+        assert.notEqual(choicePaint.trigger, choicePaint.menu, `${skin} personal choice menu needs a readable elevated surface`);
+        report.results.push({ viewport: `${width}x${height}`, skin, personalChoice: choicePaint });
+        await page.screenshot({ path: `${output}/${skin}-personal-menu-${width}x${height}.png` });
+        await page.keyboard.press("Escape");
+        await page.evaluate(() => { location.hash = "tab=profile&view=skin"; });
         await expect(page.locator(".profile-skin-card")).toBeVisible({ timeout: 20000 });
         await page.evaluate(() => { location.hash = "tab=profile&view=health"; });
         await expect(page.locator('.profile-device-experience[data-profile-view="health"]')).toBeVisible({ timeout: 20000 });

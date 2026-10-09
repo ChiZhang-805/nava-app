@@ -1,8 +1,8 @@
 import type { User } from "@supabase/supabase-js";
-import { Apple, CalendarDays, Check, ChevronLeft, ChevronRight, CircleUserRound, Database, Eye, Grid3X3, KeyRound, LayoutGrid, LockKeyhole, LogOut, Mail, MessageCircle, Palette, Phone, RotateCcw, Save, ShieldCheck, UserRound, Watch, X } from "lucide-react";
+import { Apple, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleUserRound, Database, Eye, Grid3X3, KeyRound, LayoutGrid, LockKeyhole, LogOut, Mail, MessageCircle, Palette, Phone, RotateCcw, Save, ShieldCheck, UserRound, Watch, X } from "lucide-react";
 import AvatarPicker from "../components/AvatarPicker";
 import AppSkinPicker from "../components/AppSkinPicker";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
 import ActionButton from "../components/ActionButton";
 import PageSkeleton from "../components/PageSkeleton";
 import SectionCard from "../components/SectionCard";
@@ -43,6 +43,100 @@ const ageGroupOptions = [
   { value: "35_44", zh: "35–44 岁", en: "35–44" },
   { value: "45_plus", zh: "45 岁及以上", en: "45+" },
 ] as const;
+
+const mbtiOptions = [
+  { value: "INTJ", zh: "INTJ · 建筑师", en: "INTJ · Architect" },
+  { value: "INTP", zh: "INTP · 逻辑学家", en: "INTP · Logician" },
+  { value: "ENTJ", zh: "ENTJ · 指挥官", en: "ENTJ · Commander" },
+  { value: "ENTP", zh: "ENTP · 辩论家", en: "ENTP · Debater" },
+  { value: "INFJ", zh: "INFJ · 提倡者", en: "INFJ · Advocate" },
+  { value: "INFP", zh: "INFP · 调停者", en: "INFP · Mediator" },
+  { value: "ENFJ", zh: "ENFJ · 主人公", en: "ENFJ · Protagonist" },
+  { value: "ENFP", zh: "ENFP · 竞选者", en: "ENFP · Campaigner" },
+  { value: "ISTJ", zh: "ISTJ · 物流师", en: "ISTJ · Logistician" },
+  { value: "ISFJ", zh: "ISFJ · 守卫者", en: "ISFJ · Defender" },
+  { value: "ESTJ", zh: "ESTJ · 总经理", en: "ESTJ · Executive" },
+  { value: "ESFJ", zh: "ESFJ · 执政官", en: "ESFJ · Consul" },
+  { value: "ISTP", zh: "ISTP · 鉴赏家", en: "ISTP · Virtuoso" },
+  { value: "ISFP", zh: "ISFP · 探险家", en: "ISFP · Adventurer" },
+  { value: "ESTP", zh: "ESTP · 企业家", en: "ESTP · Entrepreneur" },
+  { value: "ESFP", zh: "ESFP · 表演者", en: "ESFP · Entertainer" },
+] as const;
+
+const sleepScheduleOptions = [
+  { value: "under_5h", zh: "少于 5 小时", en: "Under 5 hours" },
+  { value: "5_6h", zh: "5–6 小时", en: "5–6 hours" },
+  { value: "6_7h", zh: "6–7 小时", en: "6–7 hours" },
+  { value: "7_8h", zh: "7–8 小时", en: "7–8 hours" },
+  { value: "8_9h", zh: "8–9 小时", en: "8–9 hours" },
+  { value: "over_9h", zh: "9 小时以上", en: "Over 9 hours" },
+] as const;
+
+const exerciseFrequencyOptions = [
+  { value: "almost_none", zh: "几乎不运动", en: "Almost none" },
+  { value: "under_1h", zh: "每周少于 1 小时", en: "Under 1 hour weekly" },
+  { value: "1_2h", zh: "每周 1–2 小时", en: "1–2 hours weekly" },
+  { value: "2_4h", zh: "每周 2–4 小时", en: "2–4 hours weekly" },
+  { value: "4_7h", zh: "每周 4–7 小时", en: "4–7 hours weekly" },
+  { value: "over_7h", zh: "每周 7 小时以上", en: "Over 7 hours weekly" },
+] as const;
+
+type ProfileChoice = { value: string; zh: string; en: string };
+
+function ProfileSelectField({ label, value, options, locale, onChange, preferUp = false }: {
+  label: string;
+  value: string;
+  options: readonly ProfileChoice[];
+  locale: "zh" | "en";
+  onChange: (value: string) => void;
+  preferUp?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const listId = useId();
+  const selected = options.find((option) => option.value === value);
+  const selectedLabel = selected ? (locale === "zh" ? selected.zh : selected.en) : (locale === "zh" ? "请选择" : "Choose");
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePress);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePress);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    requestAnimationFrame(() => rootRef.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" }));
+  }, [open]);
+
+  return (
+    <div className={`field profile-personal-field profile-choice-field${open ? " is-open" : ""}`}>
+      <span>{label}</span>
+      <div className="profile-choice" data-placement={preferUp ? "top" : "bottom"} ref={rootRef}>
+        <button type="button" className="profile-choice-trigger" aria-haspopup="listbox" aria-expanded={open} aria-controls={listId} onClick={() => setOpen((current) => !current)}>
+          <span>{selectedLabel}</span><ChevronDown size={19} aria-hidden="true" />
+        </button>
+        {open && <div className="profile-choice-menu" id={listId} role="listbox" aria-label={label}>
+          <button type="button" role="option" aria-selected={!value} className={!value ? "is-selected" : ""} onClick={() => { onChange(""); setOpen(false); }}><span>{locale === "zh" ? "暂不填写" : "Prefer not to say"}</span>{!value && <Check size={17} />}</button>
+          {options.map((option) => {
+            const optionLabel = locale === "zh" ? option.zh : option.en;
+            const selectedOption = option.value === value;
+            return <button type="button" role="option" aria-selected={selectedOption} className={selectedOption ? "is-selected" : ""} key={option.value} onClick={() => { onChange(option.value); setOpen(false); }}><span>{optionLabel}</span>{selectedOption && <Check size={17} />}</button>;
+          })}
+        </div>}
+      </div>
+    </div>
+  );
+}
 
 function daysSinceSignup(createdAt?: string) {
   const created = Date.parse(createdAt ?? "");
@@ -177,6 +271,9 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
     ageGroup: "",
     goal: "",
     occupation: "",
+    mbti: "",
+    sleepSchedule: "",
+    exerciseFrequency: "",
   });
 
   async function run(action: string, successMessage: string | null, fn: () => Promise<unknown>) {
@@ -231,6 +328,9 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
           ageGroup: data?.age_group ?? "",
           goal: data?.goal ?? "",
           occupation: data?.occupation ?? "",
+          mbti: data?.mbti ?? "",
+          sleepSchedule: data?.sleep_schedule ?? "",
+          exerciseFrequency: data?.exercise_frequency ?? "",
         });
       })
       .catch((e) => {
@@ -261,6 +361,9 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
       updates.goal = profileDraft.goal.trim() || null;
       updates.occupation = profileDraft.occupation.trim() || null;
       updates.age_group = profileDraft.ageGroup.trim() || null;
+      updates.mbti = profileDraft.mbti.trim() || null;
+      updates.sleep_schedule = profileDraft.sleepSchedule.trim() || null;
+      updates.exercise_frequency = profileDraft.exerciseFrequency.trim() || null;
 
       const saved = Object.keys(updates).length > 1 ? await saveProfile(updates) : profile;
       if (!saved) return;
@@ -272,6 +375,9 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
         ageGroup: saved.age_group ?? "",
         goal: saved.goal ?? "",
         occupation: saved.occupation ?? "",
+        mbti: saved.mbti ?? "",
+        sleepSchedule: saved.sleep_schedule ?? "",
+        exerciseFrequency: saved.exercise_frequency ?? "",
       });
     });
     setProfileSaved(savedSuccessfully);
@@ -408,9 +514,9 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
         weight: profileDraft.weight ? Number(profileDraft.weight) : null,
         occupation: profileDraft.occupation || null,
         goal: profileDraft.goal || null,
-        mbti: null,
-        exercise_frequency: null,
-        sleep_schedule: null,
+        mbti: profileDraft.mbti || null,
+        exercise_frequency: profileDraft.exerciseFrequency || null,
+        sleep_schedule: profileDraft.sleepSchedule || null,
         diet_preference: null,
         stress_factors: null,
         avatar_url: avatarUrl,
@@ -535,16 +641,6 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
         : watchPhase === "complete" ? (locale === "zh" ? "手表快照已更新" : "Watch snapshot updated")
           : watchPhase === "error" ? (locale === "zh" ? "本次操作未完成，请查看下方提示" : "Not completed; see the message below")
             : watchConnected ? (locale === "zh" ? "轻点同步 Apple Watch" : "Tap to sync Apple Watch") : (locale === "zh" ? "轻点检查 Apple Watch" : "Tap to check Apple Watch");
-  const heightCm = Number(profileDraft.height);
-  const weightKg = Number(profileDraft.weight);
-  const bmi = Number.isFinite(heightCm) && heightCm > 0 && Number.isFinite(weightKg) && weightKg > 0
-    ? weightKg / ((heightCm / 100) ** 2)
-    : null;
-  const bmiLabel = bmi == null
-    ? (locale === "zh" ? "填写身高与体重后自动计算" : "Add height and weight to calculate")
-    : locale === "zh"
-      ? bmi < 18.5 ? "偏轻参考" : bmi < 24 ? "常见范围" : bmi < 28 ? "偏高参考" : "较高参考"
-      : bmi < 18.5 ? "Lower range" : bmi < 25 ? "Common range" : bmi < 30 ? "Higher range" : "High range";
   const securityEditorTitle = securityEditor === "password" ? (locale === "zh" ? "修改密码" : "Change password")
     : securityEditor === "email" ? (locale === "zh" ? "备用邮箱" : "Backup email")
       : (locale === "zh" ? "备用手机号" : "Backup phone");
@@ -585,30 +681,12 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
             <span>{t("profile.weight")}</span>
             <div className="profile-measure-input"><input inputMode="decimal" value={profileDraft.weight} onChange={(event) => updateDraft("weight", event.target.value)} placeholder={locale === "zh" ? "例如：64" : "e.g. 64"} /><span className="profile-input-unit">kg</span></div>
           </label>
-          <div className="field profile-personal-field">
-            <span id="profile-bmi-label">{locale === "zh" ? "BMI 参考" : "BMI reference"}</span>
-            <div className="profile-bmi-summary" data-bmi-ready={bmi == null ? "false" : "true"} aria-labelledby="profile-bmi-label" aria-live="polite">
-            <strong>{bmi == null ? "—" : bmi.toFixed(1)}</strong>
-            <small>{bmiLabel}</small>
-            </div>
-          </div>
-          <label className="field profile-personal-field">
-            <span>{locale === "zh" ? "年龄阶段" : "Age group"}</span>
-            <select value={profileDraft.ageGroup} onChange={(event) => updateDraft("ageGroup", event.target.value)}>
-              <option value="">{locale === "zh" ? "请选择" : "Choose"}</option>
-              {!ageGroupOptions.some((option) => option.value === profileDraft.ageGroup) && profileDraft.ageGroup && <option value={profileDraft.ageGroup}>{profileDraft.ageGroup}</option>}
-              {ageGroupOptions.map((option) => <option key={option.value} value={option.value}>{locale === "zh" ? option.zh : option.en}</option>)}
-            </select>
-          </label>
+          <ProfileSelectField label={locale === "zh" ? "年龄阶段" : "Age group"} value={profileDraft.ageGroup} options={ageGroupOptions} locale={locale} onChange={(value) => updateDraft("ageGroup", value)} />
+          <ProfileSelectField label={t("profile.occupation")} value={profileDraft.occupation} options={occupationOptions} locale={locale} onChange={(value) => updateDraft("occupation", value)} />
+          <ProfileSelectField label="MBTI" value={profileDraft.mbti} options={mbtiOptions} locale={locale} onChange={(value) => updateDraft("mbti", value)} />
+          <ProfileSelectField label={locale === "zh" ? "每日睡眠时长" : "Usual sleep duration"} value={profileDraft.sleepSchedule} options={sleepScheduleOptions} locale={locale} onChange={(value) => updateDraft("sleepSchedule", value)} preferUp />
+          <ProfileSelectField label={locale === "zh" ? "每周运动" : "Weekly exercise"} value={profileDraft.exerciseFrequency} options={exerciseFrequencyOptions} locale={locale} onChange={(value) => updateDraft("exerciseFrequency", value)} preferUp />
           <label className="field profile-personal-field"><span>{t("profile.goal")}</span><input value={profileDraft.goal} onChange={(event) => updateDraft("goal", event.target.value)} placeholder={t("profile.goalPlaceholder")} /></label>
-          <label className="field profile-personal-field">
-            <span>{t("profile.occupation")}</span>
-            <select value={profileDraft.occupation} onChange={(event) => updateDraft("occupation", event.target.value)}>
-              <option value="">{locale === "zh" ? "请选择" : "Choose"}</option>
-              {!occupationOptions.some((option) => option.value === profileDraft.occupation) && profileDraft.occupation && <option value={profileDraft.occupation}>{profileDraft.occupation}</option>}
-              {occupationOptions.map((option) => <option key={option.value} value={option.value}>{locale === "zh" ? option.zh : option.en}</option>)}
-            </select>
-          </label>
         </div>
         <ActionButton className="profile-personal-save" icon={profileSaved ? <Check size={18} /> : <Save size={18} />} onClick={submitProfile} disabled={busy === "profile"}>{profileSaved ? (locale === "zh" ? "已保存" : "Saved") : t("profile.save")}</ActionButton>
       </SectionCard>
