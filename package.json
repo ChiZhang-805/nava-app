@@ -66,6 +66,7 @@
     "locale:test": "node --experimental-strip-types --test tests/locale-preference.test.ts",
     "skins:test": "node --experimental-strip-types --test tests/app-skins.test.ts",
     "skins:visual": "node scripts/verify-app-skins-ui.mjs",
+    "integrated-shell:visual": "node scripts/verify-integrated-shell-ui.mjs",
     "profile:visual": "node scripts/verify-profile-hub-ui.mjs",
     "skins:deployment:audit": "npm run build && npm run auth:verify:production && node scripts/verify-skin-deployment-regression.mjs",
     "skins:cross-browser:gate": "node scripts/verify-skin-cross-browser-quality.mjs",

@@ -535,3 +535,131 @@
 @media (prefers-reduced-motion: reduce) {
   .app-skin-option { transition: none; }
 }
+
+/* Continuous-canvas contract for the 25 route-level application pages.
+   The page background now owns the entire safe-area-to-home-indicator canvas;
+   headers and navigation no longer introduce opaque horizontal bands. */
+.phone-frame[data-shell-integrated="true"] {
+  isolation: isolate;
+}
+
+.phone-frame[data-app-skin][data-shell-integrated="true"] > .safe-top,
+.phone-frame[data-app-skin][data-shell-integrated="true"] > .figma-app-header {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.phone-frame[data-app-skin][data-shell-integrated="true"] > .figma-app-header::before,
+.phone-frame[data-app-skin][data-shell-integrated="true"] > .figma-app-header::after {
+  content: none;
+}
+
+.phone-frame[data-shell-integrated="true"] > .app-content,
+.phone-frame[data-shell-integrated="true"] > .app-content > .screen-panel,
+.phone-frame[data-shell-integrated="true"] .profile-stack {
+  background: transparent;
+}
+
+/* Home-owned subpages already contain their own full-height atmospheric
+   canvas. Keep every header inside that canvas visually bare. */
+.phone-frame[data-shell-integrated="true"] :is(
+  .home-experience-header,
+  .home-widget-editor-header,
+  .notification-center-header,
+  .admin-console-header,
+  .points-shop-header
+) {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.phone-frame[data-shell-integrated="true"] :is(
+  .home-experience-header,
+  .home-widget-editor-header,
+  .notification-center-header,
+  .admin-console-header,
+  .points-shop-header
+)::before,
+.phone-frame[data-shell-integrated="true"] :is(
+  .home-experience-header,
+  .home-widget-editor-header,
+  .notification-center-header,
+  .admin-console-header,
+  .points-shop-header
+)::after {
+  content: none;
+}
+
+.phone-frame[data-shell-integrated="true"] :is(
+  .home-experience-back,
+  .home-calendar-more,
+  .advanced-profile-header-icon,
+  .notification-center-header > button,
+  .home-widget-editor-header > button,
+  .admin-console-header .home-experience-back,
+  .points-shop-header .home-experience-back,
+  .points-shop-more-shortcut,
+  .points-shop-card-shortcut
+) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The dock remains easy to reach, but the old hard-edged horizontal plate is
+   gone. Each action keeps its own soft glass hit target on the shared canvas. */
+.phone-frame[data-app-skin][data-shell-integrated="true"]:not(.phone-frame--journal) > .bottom-nav {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.phone-frame[data-app-skin][data-shell-integrated="true"]:not(.phone-frame--journal) > .bottom-nav::before {
+  border: 0;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--skin-accent) 10%, transparent) 0%, transparent 72%);
+  box-shadow: none;
+  backdrop-filter: none;
+  opacity: .72;
+}
+
+.phone-frame[data-shell-integrated="true"]:not(.phone-frame--option2) > .bottom-nav .nav-button {
+  border: 1px solid color-mix(in srgb, var(--skin-line) 82%, transparent);
+  border-radius: 50%;
+  color: var(--skin-nav-ink, #28566c);
+  background: color-mix(in srgb, var(--skin-nav-button, rgba(248,253,255,.82)) 88%, transparent);
+  box-shadow: var(--skin-nav-shadow, 0 6px 16px rgba(20,70,92,.14));
+  backdrop-filter: blur(16px) saturate(1.06);
+}
+
+.phone-frame[data-shell-integrated="true"]:not(.phone-frame--option2) > .bottom-nav .nav-button.selected {
+  background: var(--skin-nav-selected, rgba(255,255,255,.96));
+}
+
+.phone-frame[data-shell-integrated="true"]:not(.phone-frame--option2) > .bottom-nav .ai-nav-button {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+/* The original glacier skin uses the same spatial contract even though its
+   palette predates the tokenised alternate skins. */
+.phone-frame[data-app-skin="glacier-mist"][data-shell-integrated="true"] {
+  --skin-line: rgba(255,255,255,.72);
+  --skin-dock: rgba(205,235,245,.76);
+  --skin-nav-button: rgba(242,251,254,.82);
+  --skin-nav-selected: rgba(255,255,255,.97);
+  --skin-nav-ink: #28566c;
+  --skin-nav-shadow: 0 6px 16px rgba(20,70,92,.14), inset 0 1px 0 rgba(255,255,255,.86);
+}
+
+/* Skin selection used to special-case an opaque header gradient. The selected
+   palette now remains visible through the shared page canvas instead. */
+.phone-frame[data-app-skin][data-shell-integrated="true"]:has(.profile-subpage[data-profile-view="skin"]) > :is(.safe-top, .figma-app-header) {
+  background: transparent;
+}

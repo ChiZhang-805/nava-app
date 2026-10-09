@@ -63,6 +63,7 @@ import {
   type ShellRoute,
 } from "./services/shellHistory";
 import { readAppSkin, writeAppSkin, type AppSkin } from "./services/appSkin";
+import { integratedShellPage } from "./services/integratedShell";
 
 const aiLongPressDelayMs = 450;
 const firstLoginPreviewStatus: OnboardingStatus = {
@@ -684,9 +685,17 @@ function MobileShell({
   const todayFullSubpage = activeTab === "today" && (profileDetailsSubpage || recordView === "home-widgets" || recordView === "admin-console" || recordView === "getting-started");
   const journalOpen = activeTab === "record" && Boolean(recordModule);
   const hideBottomNavigation = focusImmersive || todayFullSubpage || journalOpen || profileSubpage;
+  const integratedPage = integratedShellPage(activeTab, recordModule, recordView);
 
   return (
-    <div data-app-skin={appSkin} className={["phone-frame", journalOpen ? "phone-frame--journal" : "", activeTab === "today" ? "phone-frame--option2" : "", focusImmersive ? "phone-frame--focus-immersive" : "", profileDetailsSubpage || profileSubpage ? "phone-frame--subpage-no-nav" : ""].filter(Boolean).join(" ")}>
+    <div
+      data-app-skin={appSkin}
+      data-app-tab={activeTab}
+      data-app-view={recordView ?? "root"}
+      data-shell-integrated={integratedPage ? "true" : undefined}
+      data-shell-page={integratedPage ?? undefined}
+      className={["phone-frame", journalOpen ? "phone-frame--journal" : "", activeTab === "today" ? "phone-frame--option2" : "", focusImmersive ? "phone-frame--focus-immersive" : "", profileDetailsSubpage || profileSubpage ? "phone-frame--subpage-no-nav" : ""].filter(Boolean).join(" ")}
+    >
       <div className="safe-top" />
       {linkShareOpen && <LinkSharePreview locale={locale} onClose={() => setLinkShareOpen(false)} />}
       {notificationBanner && <NotificationBanner item={notificationBanner} locale={locale} onOpen={() => openNotificationItem(notificationBanner)} onDismiss={dismissNotificationBanner} />}
