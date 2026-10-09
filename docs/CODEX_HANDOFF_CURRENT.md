@@ -33,6 +33,18 @@ WebKit完成168个状态、1080项检查与168张截图，覆盖两套新增皮�
 `我的`首页寻找`.profile-skin-card`而全量超时，脚本改为当前真实`tab=profile&view=skin`子页后完整
 重跑通过。专项截图位于`Q:/NAVA-Workspace/Build/TestRuns/app-skins`。
 
+功能源码提交`9b34aab1a02f9b254b7de5d89a6007898349aafd`已推送，并由同一提交生成双站。
+ChatGPT Sites **v229**版本
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_339f0112a29c8191b2fe7cc449056359`，部署
+`appgdep_6ac868af00e08191b39de1edb032aa46` succeeded；Sites制品含309文件。GitHub Pages镜像提交
+`a06ef6813d7e24f917aa7ee8ed784a1629ea6a9d`，workflow `37882738199` success；204个生成文件
+复制前后SHA-256一致，`source.json`指向v229、上述功能提交和Sites版本。发布后门禁通过58/58结果、
+381/381检查与56张截图，覆盖双站登录边界、公开demo拒绝、三套皮肤、六类记录、四档尺寸、活动
+资源与Pages发布凭据；证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v229-regression`。审计合同同步
+更新为新的浅蓝饮食渐变和v5记录皮肤资源版本，防止以后错误恢复旧深蓝。Sites官方工作流完成源码
+校验和推送；Windows Bash打包器仍无法解析盘符路径，按既有恢复方案用系统tar归档同一构建产物。
+没有数据库迁移、Edge Function部署、生产数据写入、密钥或访问策略变更。
+
 ## 147. 首次登录可选授权的可见状态与均衡说明排版（当前版本）
 
 “这些小事，由你来决定”授权页继续保持健康记录与AI个性化两项独立、默认false的合同，但未选中态

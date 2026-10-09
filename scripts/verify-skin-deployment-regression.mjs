@@ -24,7 +24,7 @@ const publicSites = [
   { id: "sites", base: "https://nava-app-preview-cz.chizhang1031.chatgpt.site/", journal: "journal/" },
   { id: "pages", base: "https://chizhang-805.github.io/nava-app-preview/", journal: "journal/" },
 ];
-const skinAssetVersion = "20261006-skins-a11y-v3";
+const skinAssetVersion = "20261009-skins-figma-layers-v5";
 const forbiddenHardStops = [
   /0 18%,\s*transparent 18\.5%/u,
   /0 20%,\s*transparent 20\.5%/u,
@@ -41,7 +41,7 @@ const requiredJournalFragments = [
 const requiredHostSkinPatterns = [
   /linear-gradient\(138\.82deg,\s*#f8fbff 8\.57%,\s*#f4f9fd 51\.66%,\s*#fffdfb 91\.43%\)/u,
   /linear-gradient\(142\.76deg,\s*#787cfe 8\.63%,\s*#d670c9 91\.37%\)/u,
-  /linear-gradient\(136\.3deg,\s*#787cfe 10\.79%,\s*#172d9d 86\.84%\)/u,
+  /linear-gradient\(136\.3deg,\s*#787cfe 10\.79%,\s*#596ada 86\.84%\)/u,
 ];
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const messageFor = (error) => error instanceof Error ? error.message : String(error);
