@@ -8,6 +8,7 @@ applyProjectPublicEnv(process.cwd());
 
 const output = "Q:/NAVA-Workspace/Build/TestRuns/integrated-shell";
 const sizes = [[360, 740], [375, 812], [390, 844], [430, 932]];
+const skins = ["glacier-mist", "violet-dusk", "sky-ripple"];
 const pages = [
   ["home", "tab=today"],
   ["records", "tab=record"],
@@ -47,23 +48,24 @@ const base = server.resolvedUrls.local[0];
 const browser = await chromium.launch({ headless: true });
 const homeDockByViewport = new Map();
 
-async function initialize(context) {
+async function initialize(context, skin) {
   await context.route("**/*.supabase.co/rest/v1/journal_entries**", (route) => route.fulfill({ json: [] }));
   await context.route("**/*.supabase.co/rest/v1/journal_preferences**", (route) => route.fulfill({ json: { settings: {} } }));
-  await context.addInitScript(() => {
+  await context.addInitScript((selectedSkin) => {
     sessionStorage.clear();
     localStorage.clear();
     sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
     localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, version: 3, answers: {} }));
-  });
+    localStorage.setItem("nava.app-skin.v1:00000000-0000-4000-8000-000000000001", selectedSkin);
+  }, skin);
 }
 
 const transparent = (value) => value === "rgba(0, 0, 0, 0)" || value === "transparent";
 
 try {
-  for (const [width, height] of sizes) {
+  for (const skin of skins) for (const [width, height] of sizes) {
     const context = await browser.newContext({ viewport: { width, height }, isMobile: true, hasTouch: true, reducedMotion: "reduce", locale: "zh-CN" });
-    await initialize(context);
+    await initialize(context, skin);
     const page = await context.newPage();
     page.on("pageerror", (error) => report.errors.push(`${width}x${height}: ${error.message}`));
     await page.goto(`${base}?demo=1#tab=today`, { waitUntil: "networkidle" });
@@ -73,6 +75,7 @@ try {
     for (const [name, hash] of pages) {
       await page.evaluate((nextHash) => { location.hash = nextHash; }, hash);
       const frame = page.locator(".phone-frame");
+      await expect(frame).toHaveAttribute("data-app-skin", skin, { timeout: 20000 });
       await expect(frame).toHaveAttribute("data-shell-integrated", "true", { timeout: 20000 });
       await expect(frame).toHaveAttribute("data-shell-page", name, { timeout: 20000 });
       if (await page.locator(".completion-celebration-layer").isVisible().catch(() => false)) await page.keyboard.press("Escape");
@@ -129,6 +132,10 @@ try {
           dockFrost: visible(dock) ? paint(dock, "::before") : null,
           dockRect: dockRect ? { top: dockRect.top, height: dockRect.height } : null,
           dockButtons,
+          aiButton: visible(dock) ? paint(dock.querySelector(".ai-nav-button")) : null,
+          aiButtonBefore: visible(dock) ? paint(dock.querySelector(".ai-nav-button"), "::before") : null,
+          aiButtonAfter: visible(dock) ? paint(dock.querySelector(".ai-nav-button"), "::after") : null,
+          aiGlowDisplay: visible(dock) ? getComputedStyle(dock.querySelector(".ai-nav-glow")).display : null,
           isHomeDock: root.classList.contains("phone-frame--option2"),
         };
       });
@@ -174,31 +181,37 @@ try {
           && geometry.dockButtons[2].orbWidth <= geometry.dockButtons[2].width * 1.13,
           `${width}x${height} ${name}: center AI orb must fill one large circle ${JSON.stringify(geometry.dockButtons[2])}`,
         );
+        assert.ok(transparent(geometry.aiButton.backgroundColor), `${width}x${height} ${name}: centre button still has a second background layer ${JSON.stringify(geometry.aiButton)}`);
+        assert.equal(geometry.aiButton.backgroundImage, "none", `${width}x${height} ${name}: centre button still has a second background image`);
+        assert.equal(geometry.aiButton.boxShadow, "none", `${width}x${height} ${name}: centre button still has a second shadow layer`);
+        assert.equal(geometry.aiButtonBefore.content, "none", `${width}x${height} ${name}: centre button ::before layer remains`);
+        assert.equal(geometry.aiButtonAfter.content, "none", `${width}x${height} ${name}: centre button ::after layer remains`);
+        assert.equal(geometry.aiGlowDisplay, "none", `${width}x${height} ${name}: centre button glow layer remains`);
         if (!geometry.isHomeDock) {
           const frostCenterY = geometry.dockRect.top + geometry.dockRect.height / 2;
           assert.ok(Math.abs(centerY - frostCenterY) <= 0.5, `${width}x${height} ${name}: button center ${centerY} misses capsule center ${frostCenterY}`);
-          const homeDock = homeDockByViewport.get(`${width}x${height}`);
+          const homeDock = homeDockByViewport.get(`${skin}:${width}x${height}`);
           assert.ok(homeDock, `${width}x${height} ${name}: home dock reference is missing`);
           assert.ok(Math.abs(geometry.dockButtons[2].width - homeDock.centerWidth) <= 0.5, `${width}x${height} ${name}: center AI button must reuse the home size`);
           assert.ok(Math.abs(geometry.dockButtons[0].width - homeDock.sideWidth) <= 0.5, `${width}x${height} ${name}: side buttons must reuse the home size`);
         } else {
-          homeDockByViewport.set(`${width}x${height}`, {
+          homeDockByViewport.set(`${skin}:${width}x${height}`, {
             centerWidth: geometry.dockButtons[2].width,
             sideWidth: geometry.dockButtons[0].width,
           });
         }
       }
 
-      report.results.push({ viewport: `${width}x${height}`, page: name, ...geometry });
-      if (width === 390) await page.screenshot({ path: `${output}/${String(pages.indexOf(pages.find(([candidate]) => candidate === name)) + 1).padStart(2, "0")}-${name}.png`, fullPage: true });
+      report.results.push({ skin, viewport: `${width}x${height}`, page: name, ...geometry });
+      if (width === 390) await page.screenshot({ path: `${output}/${skin}-${String(pages.indexOf(pages.find(([candidate]) => candidate === name)) + 1).padStart(2, "0")}-${name}.png`, fullPage: true });
     }
     await context.close();
   }
 
   assert.deepEqual(report.errors, []);
-  assert.equal(report.results.length, 100);
+  assert.equal(report.results.length, 300);
   report.passed = true;
-  console.log("25 integrated pages passed across four portrait sizes (100 route states).\n");
+  console.log("25 integrated pages passed in three skins across four portrait sizes (300 route states).\n");
 } finally {
   report.finishedAt = new Date().toISOString();
   await writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));

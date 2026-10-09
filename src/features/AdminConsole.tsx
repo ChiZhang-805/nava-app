@@ -237,9 +237,9 @@ export default function AdminConsole({ user, onHome }: { user: User; onHome: () 
 
     {page === "overview" && <div className="admin-console-overview">
       <div className="admin-console-actions">
-        <button type="button" aria-label={zh ? "商品管理" : "Product management"} onClick={() => openPage("products")}><span className="is-products"><Store /></span><div><strong>{zh ? "商品管理" : "Product management"}</strong><small>{zh ? "发布和维护积分商城商品" : "Publish and maintain shop products"}</small></div><ChevronRight /></button>
-        <button type="button" aria-label={zh ? "发布通知" : "Publish notices"} onClick={() => openPage("notifications")}><span className="is-notices"><BellRing /></span><div><strong>{zh ? "发布通知" : "Publish notices"}</strong><small>{zh ? "发送通知并自动启用可用推送" : "Send notices with available push delivery"}</small></div><ChevronRight /></button>
-        <button type="button" aria-label={zh ? "管理员权限" : "Administrator access"} onClick={() => openPage("roles")}><span className="is-roles"><UsersRound /></span><div><strong>{zh ? "管理员权限" : "Administrator access"}</strong><small>{zh ? "按邮箱或手机号管理身份" : "Manage access by email or phone"}</small></div><ChevronRight /></button>
+        <button type="button" data-admin-action="products" aria-label={zh ? "商品管理" : "Product management"} onClick={() => openPage("products")}><span className="is-products"><Store /></span><div><strong>{zh ? "商品管理" : "Product management"}</strong><small>{zh ? "发布和维护积分商城商品" : "Publish and maintain shop products"}</small></div><ChevronRight /></button>
+        <button type="button" data-admin-action="notices" aria-label={zh ? "发布通知" : "Publish notices"} onClick={() => openPage("notifications")}><span className="is-notices"><BellRing /></span><div><strong>{zh ? "发布通知" : "Publish notices"}</strong><small>{zh ? "发送通知并自动启用可用推送" : "Send notices with available push delivery"}</small></div><ChevronRight /></button>
+        <button type="button" data-admin-action="roles" aria-label={zh ? "管理员权限" : "Administrator access"} onClick={() => openPage("roles")}><span className="is-roles"><UsersRound /></span><div><strong>{zh ? "管理员权限" : "Administrator access"}</strong><small>{zh ? "按邮箱或手机号管理身份" : "Manage access by email or phone"}</small></div><ChevronRight /></button>
       </div>
     </div>}
 

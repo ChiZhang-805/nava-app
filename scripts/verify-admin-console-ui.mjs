@@ -10,6 +10,8 @@ const outputDir = "Q:/NAVA-Workspace/Build/TestRuns/admin-console-navigation";
 const port = 5227;
 const demoUserId = "00000000-0000-4000-8000-000000000001";
 const report = [];
+const skins = ["glacier-mist", "violet-dusk", "sky-ripple"];
+const coreViewports = [{ width: 360, height: 740 }, { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 430, height: 932 }];
 
 applyProjectPublicEnv(root);
 await mkdir(outputDir, { recursive: true });
@@ -18,11 +20,12 @@ await server.listen();
 const baseUrl = server.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? `http://127.0.0.1:${port}`;
 const browser = await chromium.launch({ headless: true });
 
-async function prepare(context) {
-  await context.addInitScript(({ userId }) => {
+async function prepare(context, skin = "glacier-mist") {
+  await context.addInitScript(({ userId, selectedSkin }) => {
     sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
     localStorage.setItem(`nava.onboarding.v3.${userId}`, JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: 3, answers: {}, source: "local" }));
-  }, { userId: demoUserId });
+    localStorage.setItem(`nava.app-skin.v1:${userId}`, selectedSkin);
+  }, { userId: demoUserId, selectedSkin: skin });
   const page = await context.newPage();
   await page.goto(`${baseUrl}?demo=1&qa=admin-console#tab=today`, { waitUntil: "networkidle" });
   const launch = page.locator(".launch-sequence");
@@ -83,7 +86,7 @@ async function backToOverview(page) {
 }
 
 try {
-  for (const viewport of [{ width: 360, height: 740 }, { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
+  for (const viewport of coreViewports) {
     const context = await browser.newContext({ locale: "zh-CN", viewport, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
     const page = await prepare(context);
     const overview = await inspect(page, `${viewport.width}x${viewport.height}:overview`);
@@ -128,6 +131,60 @@ try {
     await page.screenshot({ path: path.join(outputDir, `admin-roles-${viewport.width}x${viewport.height}.png`), fullPage: true });
     report.push({ viewport, overview, products, editor, notifications, recent, roles });
     await context.close();
+  }
+
+  // Skin completeness is verified independently from navigation so a fixed
+  // page/card colour cannot hide behind an otherwise passing admin workflow.
+  for (const viewport of coreViewports) {
+    const samples = [];
+    for (const skin of skins) {
+      const context = await browser.newContext({ locale: "zh-CN", viewport, deviceScaleFactor: 1, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
+      const page = await prepare(context, skin);
+      await expect(page.locator(".phone-frame")).toHaveAttribute("data-app-skin", skin);
+      const paints = await page.evaluate(() => {
+        const paint = (element) => {
+          const style = getComputedStyle(element);
+          return `${style.backgroundColor}|${style.backgroundImage}|${style.borderColor}`;
+        };
+        const screen = document.querySelector(".admin-console-screen");
+        const frame = document.querySelector(".phone-frame");
+        const actions = [...document.querySelectorAll(".admin-console-actions > button")];
+        const icons = [...document.querySelectorAll(".admin-console-actions > button > span")];
+        return {
+          frame: paint(frame),
+          screen: paint(screen),
+          actions: actions.map(paint),
+          icons: icons.map(paint),
+          horizontalOverflow: screen.scrollWidth - screen.clientWidth,
+        };
+      });
+      if (paints.horizontalOverflow > 1) throw new Error(`${viewport.width}x${viewport.height}:${skin} admin skin overflow ${paints.horizontalOverflow}`);
+      if (new Set(paints.actions).size !== 3) throw new Error(`${viewport.width}x${viewport.height}:${skin} admin action modules lost their independent colours ${JSON.stringify(paints.actions)}`);
+      if (new Set(paints.icons).size !== 3) throw new Error(`${viewport.width}x${viewport.height}:${skin} admin action icons lost their independent colours ${JSON.stringify(paints.icons)}`);
+
+      if (viewport.width === 390) {
+        await page.screenshot({ path: path.join(outputDir, `admin-${skin}-overview-${viewport.width}x${viewport.height}.png`), fullPage: true });
+        await openFromOverview(page, "发布通知");
+        const notice = await page.locator(".admin-form-card").evaluate(paint => {
+          const style = getComputedStyle(paint);
+          return `${style.backgroundColor}|${style.backgroundImage}|${style.borderColor}`;
+        });
+        await page.screenshot({ path: path.join(outputDir, `admin-${skin}-notification-${viewport.width}x${viewport.height}.png`), fullPage: true });
+        await backToOverview(page);
+        await openFromOverview(page, "管理员权限");
+        const roles = await page.locator(".admin-account-search").evaluate(paint => {
+          const style = getComputedStyle(paint);
+          return `${style.backgroundColor}|${style.backgroundImage}|${style.borderColor}`;
+        });
+        paints.subpages = { notice, roles };
+      }
+      samples.push({ skin, paints });
+      await context.close();
+    }
+    if (new Set(samples.map(({ paints }) => `${paints.frame};${paints.screen};${paints.actions.join(";")};${paints.icons.join(";")}`)).size !== skins.length) {
+      throw new Error(`${viewport.width}x${viewport.height}: all three admin palettes must differ ${JSON.stringify(samples)}`);
+    }
+    report.push({ adminSkinCoverage: viewport, samples });
   }
 
   for (const device of IPHONE_PREVIEW_DEVICES) {

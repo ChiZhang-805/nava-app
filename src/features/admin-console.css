@@ -166,3 +166,125 @@
 @media (min-width:421px) { .admin-console-screen { padding-inline:20px; }.admin-console-content,.admin-console-overview { gap:16px; }.admin-form-card { padding:18px; } }
 @media (max-height:760px) { .admin-console-header { min-height:50px; margin-bottom:9px; }.admin-console-actions { gap:10px; }.admin-form-card { gap:12px; } }
 @media (prefers-reduced-motion:reduce) { .admin-spin { animation:none; } }
+
+/* The admin console is part of the same three-skin application canvas. Keep
+   every route on inherited skin tokens instead of painting a fixed ice-blue
+   page over the selected palette. Semantic success/danger colours remain
+   stable, while canvas, cards, fields, icons and controls follow the skin. */
+.admin-console-screen {
+  --admin-ink: var(--skin-ink, #143d50);
+  --admin-muted: var(--skin-muted, #728f9a);
+  --admin-accent: var(--skin-accent, #0b809f);
+  --admin-surface: var(--skin-surface, rgba(255,255,255,.74));
+  --admin-surface-alt: var(--skin-surface-alt, rgba(236,248,252,.78));
+  --admin-surface-strong: var(--skin-surface-strong, rgba(248,253,255,.94));
+  --admin-line: var(--skin-line, rgba(255,255,255,.9));
+  --admin-divider: var(--skin-divider, rgba(72,128,145,.1));
+  --admin-field: var(--skin-field, rgba(248,253,254,.92));
+  --admin-field-line: var(--skin-field-line, #cfe5eb);
+  --admin-card-shadow: var(--skin-card-shadow, 0 10px 28px rgba(35,93,112,.08));
+  --admin-shadow: var(--skin-shadow, 0 20px 50px rgba(12,65,82,.24));
+  --admin-button: var(--skin-button, linear-gradient(135deg,#2ca7ad,#258898));
+  --admin-button-shadow: var(--skin-button-shadow, 0 8px 18px rgba(31,132,149,.18));
+  --admin-product-surface: var(--skin-module-face, linear-gradient(145deg, rgba(231,248,248,.94), rgba(217,240,244,.88)));
+  --admin-notice-surface: var(--skin-module-sleep, linear-gradient(145deg, rgba(230,245,253,.94), rgba(221,239,248,.88)));
+  --admin-role-surface: var(--skin-module-focus, linear-gradient(145deg, rgba(241,240,252,.94), rgba(229,233,248,.88)));
+  color: var(--admin-ink);
+  background: var(--skin-page-background, radial-gradient(circle at 86% 4%,rgba(255,255,255,.9),transparent 29%),linear-gradient(165deg,#d8eff5 0%,#edf8f8 42%,#d8eef2 100%));
+}
+
+.admin-console-header > div span,
+.admin-console-actions small,
+.admin-console-intro small,
+.admin-card-heading small,
+.admin-product-list article small,
+.admin-form-card label > span,
+.admin-product-editor label > span,
+.admin-account-list small,
+.admin-batch-list article small,
+.admin-gallery-navigation span,
+.admin-role-confirm p,
+.admin-console-centered { color: var(--admin-muted); }
+
+.admin-console-more,
+.admin-console-actions > button > svg,
+.admin-console-intro > span,
+.admin-card-heading > span,
+.admin-product-actions button,
+.admin-gallery-navigation button { color: var(--admin-accent); }
+
+.admin-console-intro,
+.admin-form-card,
+.admin-batch-list,
+.admin-account-search,
+.admin-product-list article,
+.admin-account-list article,
+.admin-empty,
+.admin-image-carousel {
+  border-color: var(--admin-line);
+  color: var(--admin-ink);
+  background: var(--admin-surface);
+  box-shadow: var(--admin-card-shadow);
+  backdrop-filter: blur(18px) saturate(1.06);
+}
+
+.admin-console-actions > button {
+  border-color: var(--admin-line);
+  color: var(--admin-ink);
+  box-shadow: var(--admin-card-shadow);
+  backdrop-filter: blur(18px) saturate(1.06);
+}
+.admin-console-actions > button[data-admin-action="products"] { background: var(--admin-product-surface); }
+.admin-console-actions > button[data-admin-action="notices"] { background: var(--admin-notice-surface); }
+.admin-console-actions > button[data-admin-action="roles"] { background: var(--admin-role-surface); }
+.admin-console-actions > button > span.is-products { color: var(--admin-accent); background: color-mix(in srgb, var(--admin-accent) 13%, var(--admin-surface-strong)); }
+.admin-console-actions > button > span.is-notices { color: var(--skin-accent-2, var(--admin-accent)); background: color-mix(in srgb, var(--skin-accent-2, var(--admin-accent)) 14%, var(--admin-surface-strong)); }
+.admin-console-actions > button > span.is-roles { color: color-mix(in srgb, var(--admin-accent) 72%, #7159aa); background: color-mix(in srgb, var(--admin-accent) 9%, var(--admin-surface-strong)); }
+
+.admin-console-intro > span,
+.admin-card-heading > span,
+.admin-product-thumb,
+.admin-product-actions button,
+.admin-gallery-navigation button,
+.admin-account-list article > span,
+.admin-batch-list em { background: var(--admin-surface-alt); }
+
+.admin-form-card input,
+.admin-form-card textarea,
+.admin-form-card select,
+.admin-product-editor input:not([type=file]),
+.admin-product-editor textarea,
+.admin-product-editor select,
+.admin-account-search label {
+  border-color: var(--admin-field-line);
+  color: var(--admin-ink);
+  background: var(--admin-field);
+}
+.admin-account-search input { color: var(--admin-ink); }
+.admin-form-card input:focus,
+.admin-form-card textarea:focus,
+.admin-form-card select:focus,
+.admin-product-editor input:focus,
+.admin-product-editor textarea:focus { border-color: var(--admin-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-accent) 16%, transparent); }
+
+.admin-console-intro > button,
+.admin-primary-action,
+.admin-account-search > button,
+.admin-account-list article > button,
+.admin-console-centered button { background: var(--admin-button); box-shadow: var(--admin-button-shadow); }
+
+.admin-batch-list article { border-color: var(--admin-divider); }
+.admin-image-upload { border-color: color-mix(in srgb, var(--admin-accent) 45%, transparent); color: var(--admin-accent); background: var(--admin-surface-alt); }
+.admin-remove-image { border-color: var(--admin-field-line); color: var(--admin-ink); background: var(--admin-surface-strong); }
+.admin-product-editor :focus-visible { outline-color: var(--admin-accent); }
+
+.admin-role-confirm,
+.admin-confirm-dialog {
+  border-color: var(--admin-line);
+  color: var(--admin-ink);
+  background: var(--admin-surface-strong);
+  box-shadow: var(--admin-shadow);
+}
+.admin-role-confirm > div button,
+.admin-confirm-dialog button { color: var(--admin-ink); background: var(--admin-surface-alt); }
+.admin-role-confirm > div button:last-child { color: #fff; background: var(--admin-button); }

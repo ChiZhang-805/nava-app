@@ -136,3 +136,32 @@ test("each Figma skin keeps distinct record-module surfaces in the embedded jour
   assert.doesNotMatch(journalStyles, /--module-nav-orb:\s*linear-gradient\([^;]*#172d9d/);
   assert.doesNotMatch(journalStyles, /--module-nav-orb:\s*linear-gradient\([^;]*#426f9e/);
 });
+
+test("admin routes inherit every skin layer and the centre navigation uses one circle", async () => {
+  const [skinStyles, adminStyles, adminView] = await Promise.all([
+    readFile(new URL("../src/styles/app-skins.css", import.meta.url), "utf8"),
+    readFile(new URL("../src/features/admin-console.css", import.meta.url), "utf8"),
+    readFile(new URL("../src/features/AdminConsole.tsx", import.meta.url), "utf8"),
+  ]);
+  for (const token of [
+    "--skin-page-background",
+    "--skin-surface",
+    "--skin-surface-alt",
+    "--skin-surface-strong",
+    "--skin-field",
+    "--skin-button",
+    "--skin-module-face",
+    "--skin-module-sleep",
+    "--skin-module-focus",
+  ]) assert.match(adminStyles, new RegExp(`var\\(${token}`));
+  assert.match(skinStyles, /\.points-shop-screen\s*\{[\s\S]*?background: transparent;/);
+  assert.match(skinStyles, /:is\(\.points-shop-product-row, \.points-shop-detail, \.points-shop-cart-list article, \.points-shop-checkout, \.points-card-manager-summary\)[\s\S]*?background: var\(--skin-surface\);/);
+  assert.match(skinStyles, /\.shop-checkout-experience[\s\S]*?background: var\(--skin-page-background\);/);
+  for (const action of ["products", "notices", "roles"]) {
+    assert.match(adminView, new RegExp(`data-admin-action="${action}"`));
+    assert.match(adminStyles, new RegExp(`data-admin-action="${action}"`));
+  }
+  assert.match(skinStyles, /> \.bottom-nav \.ai-nav-button::after\s*\{[\s\S]*?content: none;/);
+  assert.match(skinStyles, /> \.bottom-nav \.ai-nav-glow \{ display: none; \}/);
+  assert.match(skinStyles, /> \.bottom-nav \.ai-nav-button\.selected\s*\{[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/);
+});

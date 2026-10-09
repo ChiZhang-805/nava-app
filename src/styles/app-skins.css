@@ -406,6 +406,43 @@
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.page-skeleton-energy-row, .page-skeleton-face-feedback, .page-skeleton-editor-food, .page-skeleton-editor-ai, .page-skeleton-message > span:not(.is-circle)) { background: var(--skin-surface-alt); }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .nava-skeleton-block { background: color-mix(in srgb, var(--skin-accent) 14%, var(--skin-surface-strong)); }
 
+/* Points shop routes previously repainted the selected skin with a fixed
+   blue/white catalog. Keep product photography and card artwork intact, but
+   theme every structural canvas, glass module, field and action. */
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .points-shop-screen {
+  color: var(--skin-ink);
+  background: transparent;
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .points-shop-hero { border-color: var(--skin-line); color: var(--skin-ink); background: var(--skin-module-face); box-shadow: var(--skin-card-shadow); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .points-shop-balance { color: var(--skin-ink); background: var(--skin-surface-strong); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .points-shop-categories { color: var(--skin-ink); background: var(--skin-module-diet); box-shadow: var(--skin-card-shadow); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .points-shop-categories button { color: var(--skin-ink); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .points-shop-categories button > span { color: var(--skin-accent); background: color-mix(in srgb, var(--skin-accent) 12%, var(--skin-surface-strong)); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .points-shop-categories [data-category="cat"] > span { color: var(--skin-accent-2); background: color-mix(in srgb, var(--skin-accent-2) 13%, var(--skin-surface-strong)); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .points-shop-categories [data-category="study"] > span { color: color-mix(in srgb, var(--skin-accent) 75%, #7556aa); background: color-mix(in srgb, var(--skin-accent) 9%, var(--skin-surface-strong)); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .points-shop-categories [data-category="daily"] > span { color: var(--skin-accent-2); background: color-mix(in srgb, var(--skin-accent-2) 10%, var(--skin-surface-strong)); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.points-shop-search, .points-shop-category-tabs button[aria-current="page"]) { border-color: var(--skin-field-line); color: var(--skin-ink); background: var(--skin-field); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.points-shop-product-row, .points-shop-detail, .points-shop-cart-list article, .points-shop-checkout, .points-card-manager-summary) {
+  border-color: var(--skin-line);
+  color: var(--skin-ink);
+  background: var(--skin-surface);
+  box-shadow: var(--skin-card-shadow);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.points-shop-product-image, .points-shop-cart-thumb, .points-shop-slide) { color: var(--skin-muted); background: var(--skin-surface-alt); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.points-shop-product-open, .points-shop-section-heading h2, .points-shop-detail-copy h2, .points-shop-cart-list article strong, .points-card-manager-heading span, .points-card-gallery-details h2) { color: var(--skin-ink); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.points-shop-price, .points-shop-detail-copy > strong, .points-shop-checkout strong, .points-card-manager-summary strong, .points-card-gallery-price strong) { color: var(--skin-accent); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.points-shop-price small, .points-shop-detail-copy p, .points-shop-checkout span, .points-shop-checkout small, .points-card-manager-summary p, .points-card-manager-heading small, .points-card-gallery-creator, .points-card-gallery-story, .points-card-gallery-price, .points-card-gallery-footer p) { color: var(--skin-muted); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.points-shop-add, .points-shop-quantity button, .points-card-manager-heading > button) { color: var(--skin-accent); background: var(--skin-surface-alt); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.points-shop-detail > footer button, .points-shop-checkout button, .points-card-gallery-footer button) { color: #fff; background: var(--skin-button); box-shadow: var(--skin-button-shadow); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .points-shop-detail > footer button:last-child { color: var(--skin-accent); background: var(--skin-surface-alt); box-shadow: none; }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .points-card-gallery-price { border-color: var(--skin-divider); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .shop-checkout-experience {
+  --shop-ink: var(--skin-ink);
+  color: var(--skin-ink);
+  background: var(--skin-page-background);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .shop-checkout-experience:is([data-checkout-phase="printing"], [data-checkout-phase="receipt"], [data-checkout-phase="placed"]) { background: var(--skin-page-background); }
+
 /* Figma group 1: Style F Bold Violet. */
 .phone-frame[data-app-skin="violet-dusk"] {
   --skin-ink: #25345a;
@@ -766,6 +803,35 @@
 .phone-frame[data-shell-integrated="true"]:not(.phone-frame--option2) > .bottom-nav .ai-nav-orb .figma-nav-ai-chat {
   width: 47%;
   height: 47%;
+}
+
+/* The centre action is one circle, not a stack of a selected halo, a glow and
+   an orb. The capsule remains the only shared surface beneath all five items. */
+.phone-frame[data-app-skin][data-shell-integrated="true"] > .bottom-nav .ai-nav-button,
+.phone-frame[data-app-skin][data-shell-integrated="true"] > .bottom-nav .ai-nav-button.selected {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  transition: none;
+}
+.phone-frame[data-app-skin][data-shell-integrated="true"] > .bottom-nav .ai-nav-button::before,
+.phone-frame[data-app-skin][data-shell-integrated="true"] > .bottom-nav .ai-nav-button::after {
+  content: none;
+  display: none;
+}
+.phone-frame[data-app-skin][data-shell-integrated="true"] > .bottom-nav .ai-nav-glow { display: none; }
+
+/* Alternate-skin dock paint used to outrank the integrated-shell rule and
+   recreate a full-width plate. Keep the outer navigation completely clear;
+   only its ::before capsule may paint behind the five controls. */
+.phone-frame[data-app-skin][data-shell-integrated="true"]:not(.phone-frame--option2) > .bottom-nav {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 /* The original glacier skin uses the same spatial contract even though its
