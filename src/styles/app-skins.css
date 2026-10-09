@@ -246,9 +246,15 @@
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-quarter-header nav b, .home-year-header nav b, .home-calendar-overview strong) {
   color: var(--skin-ink);
 }
-.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-quarter-header nav button, .home-calendar-month-switcher button, .home-year-header nav button) {
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.home-calendar-month-switcher button, .home-year-header nav button) {
   color: var(--skin-accent);
   background: var(--skin-surface-alt);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .profile-quarter-header nav button {
+  border: 0;
+  color: var(--skin-accent);
+  background: transparent;
+  box-shadow: none;
 }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-quarter-day, .home-year-day, .home-year-legend i) {
   border-color: var(--skin-heat-line);

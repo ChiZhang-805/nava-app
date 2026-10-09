@@ -47,11 +47,14 @@ try {
       const activeHeaderButton = frame.querySelector(".figma-header-action");
       const firstRow = frame.querySelector(".profile-nav-row");
       const heatmap = frame.querySelector(".profile-quarter-weeks");
+      const quarterButtons = [...frame.querySelectorAll(".profile-quarter-header nav button")];
       const rowStyle = firstRow ? getComputedStyle(firstRow) : null;
       const headerStyle = activeHeaderButton ? getComputedStyle(activeHeaderButton) : null;
       return {
         horizontalOverflow: frame.scrollWidth - frame.clientWidth,
         headerBackground: headerStyle?.backgroundColor,
+        quarterButtonBackgrounds: quarterButtons.map((button) => getComputedStyle(button).backgroundColor),
+        quarterButtonShadows: quarterButtons.map((button) => getComputedStyle(button).boxShadow),
         rowBackground: rowStyle?.backgroundColor,
         heatmapWidth: heatmap?.getBoundingClientRect().width ?? 0,
         viewportWidth: frame.getBoundingClientRect().width,
@@ -60,6 +63,8 @@ try {
     });
     assert.ok(overview.horizontalOverflow <= 1, `${width}x${height} horizontal overflow ${overview.horizontalOverflow}`);
     assert.equal(overview.headerBackground, "rgba(0, 0, 0, 0)", `${width}x${height} header action has a background`);
+    assert.deepEqual(overview.quarterButtonBackgrounds, ["rgba(0, 0, 0, 0)", "rgba(0, 0, 0, 0)"], `${width}x${height} quarter arrows must not have backgrounds`);
+    assert.deepEqual(overview.quarterButtonShadows, ["none", "none"], `${width}x${height} quarter arrows must not have shadows`);
     assert.equal(overview.rowBackground, "rgba(0, 0, 0, 0)", `${width}x${height} profile row has a background`);
     assert.ok(overview.heatmapWidth > 240, `${width}x${height} quarter heatmap is too narrow`);
     report.results.push({ viewport: `${width}x${height}`, ...overview });
