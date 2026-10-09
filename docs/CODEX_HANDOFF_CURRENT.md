@@ -28,6 +28,18 @@
 `profile:visual`、`skins:test` 9/9、`skins:visual`、`lint`、`build`、生产认证合同及25页×三皮肤×
 四档视口的`integrated-shell` 300状态全部通过。
 
+发布：功能源码`6d08744c1e7cc3693da521bc1eb5c4dcbb9039a1`已干净推送。ChatGPT Sites沿用
+既有公开项目并成功发布v240（version
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_c03ad0d5a9748191805e54fb921ab1cf`，
+deployment`appgdep_6ac934d9af5481919d6df6d54e302344`）。GitHub Pages镜像提交
+`822b46270c01093a4b96898e77233faf1f5394c3`，Pages工作流`37974990200`成功。两站来自同一源码提交；
+Pages的205个生成文件与本地Pages产物逐文件SHA-256一致（66,456,617字节），`source.json`指向
+v240及上述源码。发布后`skins:deployment:audit`通过：58个结果、381项检查、56张截图；两站公开
+登录边界、canonical Supabase项目、版本/资源和四档视口均已核验，收据位于
+`Q:\NAVA-Workspace\Build\TestRuns\skin-v240-regression\report.json`。Sites官方工作流已完成源码
+校验与源推送；其Windows Bash打包器仍不能解析盘符路径，因此按既有恢复方案用系统tar归档同一
+构建产物，Sites验证归档含310个文件。
+
 ## 155. 管理员与积分商城全层级换肤、底部中心入口去重层（当前版本）
 
 管理员端此前在三套皮肤之外自行绘制固定冰蓝页面底、近白功能卡和固定蓝色图标面，因此切换到
