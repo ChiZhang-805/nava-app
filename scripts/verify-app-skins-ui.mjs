@@ -46,6 +46,27 @@ try {
       await page.locator(`.profile-skin-card .app-skin-option--${skin}`).click({ force: true });
       await expect(page.locator(".phone-frame")).toHaveAttribute("data-app-skin", skin);
       await expect(page.locator(`.profile-skin-card .app-skin-option--${skin}`)).toHaveAttribute("aria-checked", "true");
+      await expect(page.locator(".profile-skin-card .app-skin-palette b")).toHaveCount(9);
+      const skinRoutePaint = await page.evaluate(() => {
+        const paint = (selector) => {
+          const element = document.querySelector(selector);
+          if (!element) return null;
+          const style = getComputedStyle(element);
+          return `${style.backgroundColor}|${style.backgroundImage}|${style.borderColor}`;
+        };
+        return {
+          header: paint(".figma-app-header"),
+          shell: paint(".profile-skin-card"),
+          choices: [...document.querySelectorAll(".profile-skin-card .app-skin-option")].map((element) => {
+            const style = getComputedStyle(element);
+            return `${style.backgroundColor}|${style.backgroundImage}|${style.borderColor}`;
+          }),
+          palette: [...document.querySelectorAll(".profile-skin-card .app-skin-palette b")].map((element) => getComputedStyle(element).backgroundColor),
+        };
+      });
+      assert.ok(skinRoutePaint.header && skinRoutePaint.shell, `${width} ${skin} should theme the skin route chrome`);
+      assert.equal(new Set(skinRoutePaint.choices).size, 3, `${width} ${skin} should show three independently coloured option cards`);
+      assert.ok(new Set(skinRoutePaint.palette).size >= 7, `${width} ${skin} should expose the three palettes instead of repeated placeholders`);
       const geometry = await page.locator(".phone-frame").evaluate((frame) => ({
         horizontalOverflow: frame.scrollWidth - frame.clientWidth,
         skin: frame.getAttribute("data-app-skin"),
@@ -53,7 +74,7 @@ try {
       }));
       assert.ok(geometry.horizontalOverflow <= 1, `${width} ${skin} horizontal overflow ${geometry.horizontalOverflow}`);
       assert.equal(geometry.navVisible, false, `${width} ${skin} subpage navigation should be hidden`);
-      report.results.push({ viewport: `${width}x${height}`, ...geometry });
+      report.results.push({ viewport: `${width}x${height}`, ...geometry, skinRoutePaint });
       if (width === 390) await page.screenshot({ path: `${output}/${skin}-profile-${width}x${height}.png` });
       if (width === 390) {
         await page.evaluate(() => { location.hash = "tab=profile"; });

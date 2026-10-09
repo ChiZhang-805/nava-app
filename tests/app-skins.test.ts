@@ -96,7 +96,10 @@ test("alternate skin field labels retain WCAG AA contrast on their lightest and 
 });
 
 test("alternate skins recolor the full chrome and module hierarchy with light navigation orbs", async () => {
-  const hostStyles = await readFile(new URL("../src/styles/app-skins.css", import.meta.url), "utf8");
+  const [hostStyles, picker] = await Promise.all([
+    readFile(new URL("../src/styles/app-skins.css", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/AppSkinPicker.tsx", import.meta.url), "utf8"),
+  ]);
   for (const token of [
     "--skin-header:",
     "--skin-surface-alt:",
@@ -117,6 +120,10 @@ test("alternate skins recolor the full chrome and module hierarchy with light na
   assert.match(hostStyles, /\.ai-nav-orb \{ color: var\(--skin-nav-ink\); background: var\(--skin-dock-orb\)/);
   assert.doesNotMatch(hostStyles, /--skin-dock-orb:\s*linear-gradient\([^;]*#172d9d/);
   assert.doesNotMatch(hostStyles, /--skin-dock-orb:\s*linear-gradient\([^;]*#426f9e/);
+  assert.match(picker, /className="app-skin-palette"/);
+  assert.match(hostStyles, /\.app-skin-option--violet-dusk\s*\{[^}]*--choice-card:/s);
+  assert.match(hostStyles, /\.app-skin-option--sky-ripple\s*\{[^}]*--choice-card:/s);
+  assert.match(hostStyles, /data-app-skin="violet-dusk"\]:has\(\.profile-subpage\[data-profile-view="skin"\]\).*\.figma-app-header/s);
 });
 
 test("each Figma skin keeps distinct record-module surfaces in the embedded journal", async () => {

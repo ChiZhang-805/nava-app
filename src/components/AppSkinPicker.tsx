@@ -37,7 +37,10 @@ export default function AppSkinPicker({ value, onChange, compact = false, detail
             className={["app-skin-option", `app-skin-option--${skin.id}`, selected ? "is-selected" : ""].filter(Boolean).join(" ")}
             onClick={() => onChange(skin.id)}
           >
-            <span className="app-skin-swatch" aria-hidden="true"><i /><i /><i /></span>
+            <span className="app-skin-swatch" aria-hidden="true">
+              <i /><i /><i />
+              <span className="app-skin-palette"><b /><b /><b /></span>
+            </span>
             <span className="app-skin-copy">
               <strong>{locale === "zh" ? skin.name : skin.nameEn}</strong>
               {detailed

@@ -14405,6 +14405,8 @@ body::before {
 .profile-subpage .profile-skin-card .app-skin-picker.is-detailed .app-skin-copy strong { padding-right: 26px; font-size: 17px; }
 .profile-subpage .profile-skin-card .app-skin-picker.is-detailed .app-skin-poetry { gap: 2px; }
 .profile-subpage .profile-skin-card .app-skin-picker.is-detailed .app-skin-poetry small { color: #607f8f; font-size: 11px; font-weight: 570; line-height: 1.32; }
+.profile-subpage .profile-skin-card .app-skin-picker.is-detailed .app-skin-option--violet-dusk .app-skin-poetry small { color: #626a89; }
+.profile-subpage .profile-skin-card .app-skin-picker.is-detailed .app-skin-option--sky-ripple .app-skin-poetry small { color: #5a7487; }
 .profile-subpage .profile-skin-card .app-skin-picker.is-detailed .app-skin-selected { position: absolute; top: 10px; right: 10px; }
 .profile-subpage-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
 .profile-subpage-actions .action-button,
