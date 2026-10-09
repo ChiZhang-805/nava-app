@@ -16,6 +16,7 @@ const sizes = [[360, 740], [375, 812], [390, 844], [430, 932]];
 const skins = ["glacier-mist", "violet-dusk", "sky-ripple"];
 const recordModules = ["sleep", "exercise", "mood", "focus", "diet", "face"];
 const profileLayerSamples = [];
+const advancedProfileLayerSamples = [];
 
 async function initialize(context) {
   await context.route("**/*.supabase.co/rest/v1/journal_entries**", (route) => route.fulfill({ json: [] }));
@@ -76,6 +77,78 @@ try {
       assert.equal(geometry.navVisible, false, `${width} ${skin} subpage navigation should be hidden`);
       report.results.push({ viewport: `${width}x${height}`, ...geometry, skinRoutePaint });
       if (width === 390) await page.screenshot({ path: `${output}/${skin}-profile-${width}x${height}.png` });
+
+      await page.evaluate(() => { location.hash = "tab=today&view=profile-details"; });
+      const advancedProfile = page.locator('[data-home-view="profile-details"]');
+      await expect(advancedProfile).toBeVisible({ timeout: 20000 });
+      await expect(advancedProfile.locator(".advanced-profile-section")).toHaveCount(4);
+      await expect(advancedProfile.locator(".advanced-profile-wheel")).toHaveCount(4);
+      await advancedProfile.locator(".advanced-profile-diet-chips button").nth(1).click();
+      await advancedProfile.locator(".advanced-profile-wheel > button").first().click();
+      await expect(advancedProfile.locator(".advanced-profile-wheel-list").first()).toBeVisible();
+      const advancedLayers = await advancedProfile.evaluate((root) => {
+        const paintElement = (element) => {
+          if (!element) return null;
+          const style = getComputedStyle(element);
+          return `${style.backgroundColor}|${style.backgroundImage}|${style.borderColor}|${style.color}`;
+        };
+        const paint = (selector) => paintElement(root.querySelector(selector));
+        const paints = (selector) => [...root.querySelectorAll(selector)].map(paintElement);
+        return {
+          page: paintElement(root),
+          title: paint(".home-experience-header h1"),
+          back: paint(".home-experience-back"),
+          identity: paint(".advanced-profile-identity"),
+          avatar: paint(".advanced-profile-avatar"),
+          sections: paints(".advanced-profile-section"),
+          iconWells: paints(".advanced-profile-section > header > span"),
+          fields: [
+            paint('.advanced-profile-section input:not([type="checkbox"])'),
+            paint(".advanced-profile-wheel > button"),
+            paint(".advanced-profile-section textarea"),
+          ],
+          wheelMenu: paint(".advanced-profile-wheel-list"),
+          wheelSelected: paint('.advanced-profile-wheel-list [aria-selected="true"]'),
+          chipDefault: paint(".advanced-profile-diet-chips button:not(.is-selected)"),
+          chipSelected: paint(".advanced-profile-diet-chips button.is-selected"),
+          switchRows: paints(".advanced-profile-switch"),
+          switchControls: paints(".advanced-profile-switch-control"),
+          save: paint(".advanced-profile-save"),
+          overflow: root.scrollWidth - root.clientWidth,
+        };
+      });
+      assert.ok(advancedLayers.overflow <= 1, `${width} ${skin} advanced profile horizontal overflow ${advancedLayers.overflow}`);
+      assert.ok([advancedLayers.page, advancedLayers.title, advancedLayers.back, advancedLayers.identity, advancedLayers.avatar, advancedLayers.wheelMenu, advancedLayers.wheelSelected, advancedLayers.chipDefault, advancedLayers.chipSelected, advancedLayers.save].every(Boolean), `${width} ${skin} must paint every advanced-profile layer`);
+      assert.equal(advancedLayers.sections.length, 4, `${width} ${skin} needs four themed advanced-profile sections`);
+      assert.equal(advancedLayers.iconWells.length, 4, `${width} ${skin} needs four themed icon wells`);
+      assert.ok(new Set(advancedLayers.sections).size >= 4, `${width} ${skin} must give every advanced-profile module its own skin colour block`);
+      assert.equal(new Set(advancedLayers.fields).size, 1, `${width} ${skin} input, wheel and textarea fields must share one skin contract`);
+      assert.notEqual(advancedLayers.fields[0], advancedLayers.wheelMenu, `${width} ${skin} dropdown must be an elevated skin surface rather than a repeated field`);
+      assert.notEqual(advancedLayers.chipDefault, advancedLayers.chipSelected, `${width} ${skin} selected and unselected chips must remain visibly distinct`);
+      advancedProfileLayerSamples.push({ viewport: `${width}x${height}`, skin, layers: advancedLayers });
+      report.results.push({ viewport: `${width}x${height}`, skin, advancedProfileLayers: advancedLayers });
+      if (width === 390) await page.screenshot({ path: `${output}/${skin}-advanced-profile-${width}x${height}.png`, fullPage: false });
+      await page.keyboard.press("Escape");
+      await advancedProfile.locator("[data-profile-details-avatar]").click();
+      await expect(page.locator(".avatar-picker")).toBeVisible();
+      const avatarPickerPaint = await page.locator(".avatar-picker").evaluate((picker) => {
+        const paint = (element) => {
+          const style = getComputedStyle(element);
+          return `${style.backgroundColor}|${style.backgroundImage}|${style.borderColor}|${style.color}`;
+        };
+        return {
+          sheet: paint(picker),
+          close: paint(picker.querySelector("header button")),
+          actions: [...picker.querySelectorAll(".avatar-sheet-actions > button")].map(paint),
+        };
+      });
+      assert.equal(avatarPickerPaint.actions.length, 2, `${width} ${skin} avatar picker must theme both actions`);
+      report.results.push({ viewport: `${width}x${height}`, skin, avatarPicker: avatarPickerPaint });
+      if (width === 390) await page.screenshot({ path: `${output}/${skin}-advanced-profile-avatar-${width}x${height}.png`, fullPage: false });
+      await page.locator(".avatar-picker > header button").click();
+      await page.evaluate(() => { location.hash = "tab=profile&view=skin"; });
+      await expect(page.locator(".profile-skin-card")).toBeVisible({ timeout: 20000 });
+
       if (width === 390) {
         await page.evaluate(() => { location.hash = "tab=profile"; });
         await expect(page.locator('.profile-overview[data-profile-view="overview"]')).toBeVisible({ timeout: 20000 });
@@ -241,6 +314,9 @@ try {
   }
   const uniqueLayerPaints = new Set(profileLayerSamples.map(({ layers }) => Object.values(layers).join(";")));
   assert.equal(uniqueLayerPaints.size, skins.length, "each skin should produce a distinct full-profile palette");
+  const detailedAtReferenceSize = advancedProfileLayerSamples.filter(({ viewport }) => viewport === "390x844");
+  assert.equal(detailedAtReferenceSize.length, skins.length, "the advanced profile should be sampled once per skin at the reference size");
+  assert.equal(new Set(detailedAtReferenceSize.map(({ layers }) => JSON.stringify(layers))).size, skins.length, "every advanced-profile layer must change as one distinct three-skin palette");
   assert.deepEqual(report.errors, []);
   report.passed = true;
   console.log("Three skins, both switchers, persistence, shared routes and four portrait sizes passed.");
