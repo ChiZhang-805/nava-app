@@ -33,6 +33,17 @@ ID按页面模板计数，不重复扩大数量。首次登录、记录编辑、
 视口逐页检查100个路由状态，验证无横向溢出、无可见滚动条、顶栏/局部导航/底栏无独立背景和阴影；
 25张390×844逐页截图与JSON报告位于`Q:/NAVA-Workspace/Build/TestRuns/integrated-shell`。
 
+功能源码提交`7c2b5787060674a40e2237f480fc5e97bdb04161`已推送，并由同一提交生成双站。
+ChatGPT Sites **v231**版本
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_6db308a0794081918d29a0d39e17c0f4`，部署
+`appgdep_6ac88601cf8c819196fecf6b46cfbe02` succeeded；制品含309文件。GitHub Pages镜像提交
+`1045074998b53dd57754a99d1b19fbc9823bee57`，workflow `37892794081` success；204个生成文件复制前后
+SHA-256一致，`source.json`指向v231、上述功能提交和Sites版本。发布后门禁通过58/58结果、381/381
+检查与56张截图，证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v231-regression`。Sites官方工作流
+完成源码校验、构建和源推送；Windows Bash打包器仍无法解析盘符路径，按既有恢复方案用系统tar归档
+同一构建产物并由Sites验证为309文件。没有数据库迁移、Edge Function部署、生产数据写入、密钥或
+访问策略变更。
+
 ## 149. 皮肤选择页顶栏同步换色与三套独立候选色板（当前版本）
 
 `我的 → 界面皮肤`不再只让选中框与左侧小预览变色。选中`星河暮紫`后，安全区和标题栏同步切换为
