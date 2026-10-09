@@ -28,6 +28,18 @@
 的完整颜色指纹不同。390×844留存每套皮肤的主页面和头像弹窗截图。`lint`、`build`、`skins:test`
 9/9、`skins:visual`、`profile:visual`及25页×三皮肤×四尺寸的`integrated-shell` 300状态全部通过。
 
+发布：功能源码`112fa823ea842d3167ef9756b5963f3ee0ad0824`已干净推送。ChatGPT Sites沿用
+既有公开项目并成功发布v241（version
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_6031e7aa052c8191bc25f6acbfbdca05`，
+deployment`appgdep_6ac93ba1e70c8191995565c30b66aa7b`）。GitHub Pages镜像提交
+`478385acd22a0540778ea5d0d509b9f728c8cffd`，Pages工作流`37978372797`成功。两站来自同一源码提交；
+Pages的205个生成文件与本地产物逐文件SHA-256一致（66,460,674字节），`source.json`指向v241和上述
+源码。发布后`skins:deployment:audit`通过：58个结果、381项检查、56张截图；双站公开登录边界、
+canonical Supabase项目、版本/资源和四档视口均已核验，收据位于
+`Q:\NAVA-Workspace\Build\TestRuns\skin-v241-regression\report.json`。Sites官方工作流完成源码校验和
+源推送；Windows Bash打包器仍不能解析盘符路径，继续使用系统tar归档同一构建产物，Sites验证归档
+含310个文件。
+
 ## 156. 个人资料扩展、自绘选择器与“我的”标题精确统一（当前版本）
 
 个人资料页不再显示“BMI参考”或数值卡。身高和体重继续作为真实源字段保存；报告或后台服务需要BMI时
