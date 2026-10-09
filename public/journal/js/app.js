@@ -2078,7 +2078,9 @@ __fluffyModules["app.js"] = (() => {
     function synchronizeUI(a) {
         // 阶段一：页面级可见性，首页、表单和倒计时互斥。
         const scene = a.scene, home = scene === "home", entry = scene === "entry", record = scene === "record", hero = scene === "celebrate", inside = ["history", "tasks", "profile"].includes(scene), focus = scene === "focus", bridge = record && a.bridge ? M.range(a.time, 0, 1.55) : 1;
+        const phase = record ? (a.time < a.writeEnd ? 2 : a.time < a.writeEnd + 3.75 ? 3 : 4) : 0;
         $("screen").dataset.scene = scene;
+        $("screen").dataset.catPose = entry ? "upright" : record && phase >= 4 ? "sleeping" : record ? "writing" : hero ? "celebrating" : "none";
         if (home && state.homeDay !== Store.dayKey()) {
             state.homeDay = Store.dayKey();
             board?.update();
@@ -2098,7 +2100,7 @@ __fluffyModules["app.js"] = (() => {
         $("entry-bubble").style.opacity = entry ? 1 : 1 - M.range(bridge, 0, .55);
         // 阶段二：保留原来的表单到记录卡几何过渡，不替换整屏截图。
         $("green-bg").style.opacity = hero ? 1 : 0;
-        $("record-card").hidden = !entry && !record;
+        $("record-card").hidden = !entry && (!record || phase >= 4);
         const p = entry ? 0 : bridge;
         $("record-card").style.top = `${M.mix(368, 414, p)}px`;
         $("record-card").style.left = `${M.mix(23, 20, p)}px`;
@@ -2141,7 +2143,6 @@ __fluffyModules["app.js"] = (() => {
         $("pet").hidden = !(record || hero);
         $("pet").style.top = hero ? "371px" : "193px";
         $("pet").style.height = hero ? "248px" : "223px";
-        const phase = record ? (a.time < a.writeEnd ? 2 : a.time < a.writeEnd + 3.75 ? 3 : 4) : 0;
         if (record) {
             const title = phase === 2 ? `Log Your ${Catalog.category(state.record?.category || state.category).en}` : phase === 3 ? "Almost done!" : "All set! ♡";
             $("record-title").textContent = title;
@@ -2231,7 +2232,7 @@ __fluffyModules["app.js"] = (() => {
         window.NavaJournal.notify=toast;
         window.NavaJournal.interrupt=()=>{timer.pause();cancelWork(false);photo.stopCamera();persistFocus();renderFocus();};
         window.NavaJournal.call('ready').catch(()=>{});
-        import('./cold-start-guide.js?v=20260930-guide-v10').then(({installColdStartGuide}) => installColdStartGuide(window.NavaJournal)).catch(() => {});
+        import('./cold-start-guide.js?v=20261010-guide-v11').then(({installColdStartGuide}) => installColdStartGuide(window.NavaJournal)).catch(() => {});
         $("confirm-entry").disabled = false;
     }
     /**

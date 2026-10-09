@@ -29,6 +29,27 @@ async function fillGuideStep(frame,module,key,en){
  const values={quality:en?'A little tired':'有一点困',mood:en?'Calm':'平静',reason:en?'Finished one task':'完成了一件事',foods:en?'Rice and vegetables':'米饭和蔬菜',portion:en?'One bowl':'一碗',activity:en?'Walking':'散步',durationMinutes:'15',notes:en?'Felt steady':'状态平稳',feeling:en?'A little tired':'有一点困',eyeArea:en?'Looks rested':'看起来较放松',task:en?'Read one page':'读完一页'};
  const input=frame.locator(`#field-${key}`);await input.fill(values[key]||'Test');
 }
+async function assertGuideInteractionLock(frame,key){
+ const state=await frame.locator('#screen').evaluate((screen,currentKey)=>{
+  const visible=node=>node.getClientRects().length>0&&getComputedStyle(node).visibility!=='hidden';
+  const controls=[...screen.querySelectorAll('button,input,textarea,select,[contenteditable="true"],[role="button"],[tabindex]')]
+   .filter(node=>node.id!=='cold-guide'&&!node.closest('#cold-guide')&&visible(node));
+  const current=screen.querySelector('.cold-guide-target');
+  const allowed=node=>current&&(node===current||current.contains(node))
+   ||currentKey==='sleepRange'&&Boolean(node.closest('.time-range-field,.time-options'))
+   ||currentKey==='photo'&&Boolean(node.closest('#photo-preview,#sheet-layer'));
+  return{
+   unlockedOutside:controls.filter(node=>!allowed(node)&&!node.inert).map(node=>node.id||node.className||node.tagName),
+   locked:controls.filter(node=>node.inert).length,
+   confirmLocked:screen.querySelector('#confirm-entry').inert,
+   currentLocked:currentKey==='confirm'?screen.querySelector('#confirm-entry').inert:current?.querySelector('input,textarea,select,button')?.inert??false,
+  };
+ },key);
+ assert.deepEqual(state.unlockedOutside,[],`${key}: every darkened control must be inert ${JSON.stringify(state)}`);
+ assert.ok(state.locked>0,`${key}: guide needs locked controls`);
+ assert.equal(state.confirmLocked,key!=='confirm',`${key}: bottom action must unlock only on the final highlighted step`);
+ assert.equal(state.currentLocked,false,`${key}: the highlighted control must remain interactive`);
+}
 async function assertGuideSpotlight(frame,key){
  const backdrop=frame.locator('#cold-guide-backdrop');
  await expect(backdrop).toHaveAttribute('data-guide-holes','1');
@@ -99,6 +120,7 @@ async function finishGuide(frame,module,en,page,width){
   });
   assert.ok(speechLines<=2,`${module}-${key}: guide speech must stay within two lines, got ${speechLines}`);
   await assertGuideSpotlight(frame,key);
+  await assertGuideInteractionLock(frame,key);
   if(module==='sleep'&&key==='confirm'&&!en&&width===360)await page.screenshot({path:`${out}/guide-sleep-confirm-zh-360.png`});
   if(key==='confirm'){await frame.locator('#confirm-entry').click();break;}
   await expect(guide).toHaveAttribute('data-ready','false');
@@ -193,8 +215,17 @@ try{
   assert.equal(saves,0);
   await expect(frame.locator('#screen')).toHaveAttribute('data-scene','record');await expect(frame.locator('#primary')).toBeEnabled({timeout:30000});
   await expect(frame.locator('#record-notebook')).toBeVisible({timeout:30000});
+  await expect(frame.locator('#screen')).toHaveAttribute('data-cat-pose','sleeping',{timeout:30000});
+  await expect(frame.locator('#record-card')).toBeHidden();
+  await expect(frame.locator('#record-notebook')).toBeHidden();
+  await expect(frame.locator('#entry-more')).toBeVisible();
+  await frame.locator('#entry-more').click();
+  await expect(frame.locator('#entry-menu [role="menuitem"]')).toHaveCount(2);
+  await expect(frame.locator('#entry-menu [data-action="date"]')).toHaveCount(0);
+  await frame.locator('#entry-more').click();
+  if(width===390&&!en)await page.screenshot({path:`${out}/record-complete-zh-390.png`});
   if(width===360&&!en)await page.screenshot({path:`${out}/record-complete-zh-360.png`});
-  if(width===390){failSave=true;await frame.locator('#primary').click();await page.waitForTimeout(700);assert.equal(saves,0);await expect(frame.locator('#screen')).toHaveAttribute('data-scene','record');failSave=false;}
+  if(width===390){failSave=true;await frame.locator('#primary').click();await expect(frame.locator('#page-cat-notice')).toBeVisible();const noticeTop=await frame.locator('#page-cat-notice').evaluate(node=>parseFloat(getComputedStyle(node).top));assert.ok(noticeTop>=220,`sleeping-cat notice must move beside the cat, got ${noticeTop}`);if(!en)await page.screenshot({path:`${out}/record-complete-save-failure-zh-390.png`});assert.equal(saves,0);await expect(frame.locator('#screen')).toHaveAttribute('data-scene','record');failSave=false;}
   await frame.locator('#primary').click();await expect(frame.locator('#screen')).toHaveAttribute('data-scene','celebrate');assert.equal(saves,1);
   await expect(frame.locator('#primary')).toBeEnabled({timeout:20000});await frame.locator('#primary').click();
   await expect(page.locator('.cold-feedback-layer')).toBeVisible();await expect(page.locator('.cold-fact').first()).toContainText('23:30');

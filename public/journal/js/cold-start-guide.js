@@ -53,6 +53,7 @@ export function installColdStartGuide(api) {
   let finishing = false;
   let spotlightFrame = 0;
   let hostGuideState = null;
+  const lockedInteractions = new Map();
   const entryBubble = document.getElementById('entry-bubble');
   const actor = document.getElementById('actor-canvas');
   let previousBubble = entryBubble.innerHTML;
@@ -138,6 +139,16 @@ export function installColdStartGuide(api) {
     delete screen.dataset.guideMotion;
     delete screen.dataset.guideStep;
     delete screen.dataset.guideComplete;
+    delete screen.dataset.guideLocked;
+  };
+  const clearInteractionLocks = () => {
+    for (const [node, previous] of lockedInteractions) {
+      node.inert = previous.inert;
+      if (previous.ariaDisabled == null) node.removeAttribute('aria-disabled');
+      else node.setAttribute('aria-disabled', previous.ariaDisabled);
+      delete node.dataset.coldGuideLocked;
+    }
+    lockedInteractions.clear();
   };
   const restoreBubble = () => {
     clearTyping();
@@ -158,6 +169,7 @@ export function installColdStartGuide(api) {
     if (error) console.error('Cold-start guide recovered from an error.', error);
     active = false;
     clearHighlight();
+    clearInteractionLocks();
     restoreBubble();
     coach.hidden = true;
     backdrop.hidden = true;
@@ -241,7 +253,7 @@ export function installColdStartGuide(api) {
 
   function stepComplete(step = currentStep()) {
     if (!step) return false;
-    if (step.kind === 'confirm') return true;
+    if (step.kind === 'confirm') return steps.every(required => stepComplete(required));
     if (step.kind === 'photo') return Boolean(document.getElementById('photo-preview')?.classList.contains('has-image'));
     if (step.kind === 'time-range') return step.fields.every(key => /^\d{2}:\d{2}$/.test(document.getElementById(`field-${key}`)?.value || ''));
     const input = document.getElementById(`field-${step.field}`);
@@ -250,6 +262,24 @@ export function installColdStartGuide(api) {
     if (!value) return false;
     if (step.field === 'durationMinutes') return Number.isFinite(Number(value)) && Number(value) > 0;
     return input.getAttribute('aria-invalid') !== 'true';
+  }
+
+  function syncInteractionLocks() {
+    clearInteractionLocks();
+    if (!active || coach.hidden || screen.dataset.scene !== 'entry') return;
+    const step = currentStep();
+    const finalReady = step.kind !== 'confirm' || (speechReady && stepComplete(step));
+    const interactive = screen.querySelectorAll('button,input,textarea,select,[contenteditable="true"],[role="button"],[tabindex]');
+    for (const node of interactive) {
+      if (!(node instanceof HTMLElement) || node === coach || node.closest('#cold-guide')) continue;
+      const allowed = isAllowedInteraction(node, step) && finalReady;
+      if (allowed) continue;
+      lockedInteractions.set(node, { inert: node.inert, ariaDisabled: node.getAttribute('aria-disabled') });
+      node.inert = true;
+      node.dataset.coldGuideLocked = 'true';
+      node.setAttribute('aria-disabled', 'true');
+    }
+    screen.dataset.guideLocked = 'true';
   }
 
   function paintFinishedSpeech() {
@@ -281,6 +311,7 @@ export function installColdStartGuide(api) {
     screen.dataset.guideStep = currentStep().key;
     screen.dataset.guideComplete = String(complete);
     screen.dataset.guideMotion = !speechReady ? 'speaking' : ready ? 'ready' : 'waiting';
+    syncInteractionLocks();
     if (speechReady) paintFinishedSpeech();
   }
 
@@ -396,6 +427,7 @@ export function installColdStartGuide(api) {
     syncHostGuideState(visible);
     clearHighlight();
     if (!visible) {
+      clearInteractionLocks();
       clearTyping();
       finishSpeech = null;
       speechReady = false;
@@ -413,6 +445,7 @@ export function installColdStartGuide(api) {
     highlightObserver?.observe(screen);
     highlights.forEach(target => highlightObserver?.observe(target));
     speak(t(step.zh, step.en));
+    syncInteractionLocks();
     highlights.at(-1)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     scheduleSpotlight();
   }
@@ -456,6 +489,13 @@ export function installColdStartGuide(api) {
     if (speechReady && stepComplete() && !isFinalStep()) advance();
   }
 
+  function captureGuideMutation(event) {
+    if (!active || coach.hidden || screen.dataset.scene !== 'entry') return;
+    if (isAllowedInteraction(event.target)) return;
+    blockEvent(event);
+    if (event.type === 'focusin' && event.target instanceof HTMLElement) event.target.blur();
+  }
+
   function captureGuidePress(event) {
     if (!active || coach.hidden || screen.dataset.scene !== 'entry' || !isFinalStep()) return;
     const step = currentStep();
@@ -477,6 +517,9 @@ export function installColdStartGuide(api) {
   });
   screen.addEventListener('pointerdown', captureGuidePress, true);
   screen.addEventListener('click', captureGuideActivation, true);
+  screen.addEventListener('focusin', captureGuideMutation, true);
+  screen.addEventListener('keydown', captureGuideMutation, true);
+  screen.addEventListener('beforeinput', captureGuideMutation, true);
   screen.addEventListener('input', updateGuideState, true);
   screen.addEventListener('change', updateGuideState, true);
   screen.addEventListener('scroll', scheduleSpotlight, true);
@@ -487,7 +530,7 @@ export function installColdStartGuide(api) {
   photoObserver?.observe(photoPreview, { attributes: true, attributeFilter: ['class'], childList: true });
 
   screen.addEventListener('click', event => {
-    if (event.target.closest('#entry-more')) queueMicrotask(() => {
+    if (screen.dataset.scene === 'entry' && event.target.closest('#entry-more')) queueMicrotask(() => {
       const menu = document.getElementById('entry-menu');
       if (!menu || menu.hidden || menu.querySelector('[data-action="guide"]')) return;
       const button = document.createElement('button');

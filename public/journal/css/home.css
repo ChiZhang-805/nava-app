@@ -196,6 +196,14 @@ body {
 }
 
 .home-stat strong {
+    padding:0;
+    border:0;
+    border-radius:0;
+    background:transparent!important;
+    background-image:none!important;
+    box-shadow:none!important;
+    filter:none;
+    backdrop-filter:none;
     font-weight:650
 }
 

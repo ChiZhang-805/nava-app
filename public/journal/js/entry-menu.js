@@ -59,15 +59,16 @@ __fluffyModules["entry-menu.js"] = (() => {
          * 功能：同步可见性、日期标识；渲染循环中不重复重建菜单。
          */
         sync() {
-            const active = this.h.scene() === "entry";
-            const signature = `${active}:${this.h.date()}:${L.language()}`;
+            const scene = this.h.scene();
+            const active = scene === "entry" || scene === "record";
+            const signature = `${scene}:${active}:${this.h.date()}:${L.language()}`;
             if (this.signature === signature)
                 return;
             this.signature = signature;
             this.button.hidden = !active;
             this.button.setAttribute("aria-label", L.t("记录菜单"));
             const date = this.h.date(), past = date !== D.dateKey();
-            this.dateBadge.hidden = !active || !past;
+            this.dateBadge.hidden = scene !== "entry" || !past;
             const text = L.dateLabel(date);
             if (this.dateBadge.textContent !== text)
                 this.dateBadge.textContent = text;
@@ -89,7 +90,10 @@ __fluffyModules["entry-menu.js"] = (() => {
             this.close(false);
             this.mode = "menu";
             this.menu.replaceChildren();
-            for (const [kind, label, action] of [["date", "调整日期", () => this.showCalendar()], ["language", "语言切换", () => this.showLanguages()], ["history", "数据回顾", () => { this.close(false); this.h.recap(); }]]) {
+            const actions = this.h.scene() === "entry"
+                ? [["date", "调整日期", () => this.showCalendar()], ["language", "语言切换", () => this.showLanguages()], ["history", "数据回顾", () => { this.close(false); this.h.recap(); }]]
+                : [["language", "语言切换", () => this.showLanguages()], ["history", "数据回顾", () => { this.close(false); this.h.recap(); }]];
+            for (const [kind, label, action] of actions) {
                 const b = node("button", "", L.t(label));
                 b.type = "button";
                 b.setAttribute("role", "menuitem");

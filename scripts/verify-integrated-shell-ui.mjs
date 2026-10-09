@@ -136,6 +136,7 @@ try {
           aiButtonBefore: visible(dock) ? paint(dock.querySelector(".ai-nav-button"), "::before") : null,
           aiButtonAfter: visible(dock) ? paint(dock.querySelector(".ai-nav-button"), "::after") : null,
           aiGlowDisplay: visible(dock) ? getComputedStyle(dock.querySelector(".ai-nav-glow")).display : null,
+          homeScoreText: [...root.querySelectorAll(".option-two-scores strong, .option-two-scores [data-animated-number]")].filter(visible).map((element) => paint(element)),
           isHomeDock: root.classList.contains("phone-frame--option2"),
         };
       });
@@ -200,6 +201,11 @@ try {
             sideWidth: geometry.dockButtons[0].width,
           });
         }
+      }
+      for (const score of geometry.homeScoreText) {
+        assert.ok(transparent(score.backgroundColor), `${width}x${height} ${name}: score text still has its own background ${score.backgroundColor}`);
+        assert.equal(score.backgroundImage, "none", `${width}x${height} ${name}: score text still has a background image`);
+        assert.equal(score.boxShadow, "none", `${width}x${height} ${name}: score text still has a shadow layer`);
       }
 
       report.results.push({ skin, viewport: `${width}x${height}`, page: name, ...geometry });

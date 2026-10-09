@@ -22,6 +22,9 @@ try {
         localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, version: 3, answers: {} }));
       });
       const page = await context.newPage();
+      await page.addLocatorHandler(page.locator(".completion-celebration-layer"), async () => {
+        await page.frameLocator(".completion-celebration-layer iframe").getByRole("button", { name: /Continue|继续/ }).click();
+      });
       page.setDefaultTimeout(15000);
       const errors = [];
       page.on("pageerror", (error) => errors.push(error.message));
@@ -77,9 +80,11 @@ try {
       const footerClear = await page.locator(".weekly-insight-card").evaluate((card) => {
         const main = card.closest(".figma-screen-scroll") ?? card.closest("main");
         if (main) main.scrollTop = main.scrollHeight;
-        return card.getBoundingClientRect().bottom <= document.querySelector(".bottom-nav").getBoundingClientRect().top;
+        const cardBottom = card.getBoundingClientRect().bottom;
+        const navTop = document.querySelector(".bottom-nav").getBoundingClientRect().top;
+        return { clear: cardBottom <= navTop, cardBottom, navTop, scrollTop: main?.scrollTop ?? 0, scrollHeight: main?.scrollHeight ?? 0, clientHeight: main?.clientHeight ?? 0, mainClass: main?.className ?? "", paddingBottom: main ? getComputedStyle(main).paddingBottom : "" };
       });
-      assert(footerClear, `${width}: report cannot scroll clear of navigation`);
+      assert(footerClear.clear, `${width}: report cannot scroll clear of navigation ${JSON.stringify(footerClear)}`);
       await page.locator(".weekly-ai-summary-list li button").first().click();
       await expect(page.locator(".weekly-detail-dialog")).toBeVisible();
       await page.locator(".weekly-detail-dialog header button").click();

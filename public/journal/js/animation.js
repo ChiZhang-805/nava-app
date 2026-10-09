@@ -242,7 +242,7 @@ __fluffyModules["animation.js"] = (() => {
          */
         synchronizeNotebook() {
             if (!this.notebook) return;
-            const reading = this.scene === "record" && this.time >= this.paperReturnEnd;
+            const reading = this.scene === "record" && this.phase() < 4 && this.time >= this.paperReturnEnd;
             if (reading !== this.readingPaper) {
                 // 阶段一：只在书写/阅读边界重置一次，之后每帧保留手动滚动。
                 this.notebook.hidden = !reading;
@@ -414,6 +414,7 @@ __fluffyModules["animation.js"] = (() => {
             const bridge = record && this.bridge ? M.range(this.time, 0, 1.55) : 1;
             const quiet = this.entryMode === "idle";
             $("screen").dataset.scene = this.scene;
+            $("screen").dataset.catPose = entry ? "upright" : record && phase >= 4 ? "sleeping" : record ? "writing" : hero ? "celebrating" : "none";
             $("entry-panel").hidden = !entry || !quiet;
             $("voice-panel").hidden = !entry || quiet;
             $("entry-heading").hidden = !entry && !(record && this.bridge && bridge < .8);
@@ -421,7 +422,7 @@ __fluffyModules["animation.js"] = (() => {
             $("entry-bubble").hidden = !entry && !(record && this.bridge && bridge < .6);
             $("entry-bubble").style.opacity = entry ? 1 : 1 - M.range(bridge, 0, .55);
             $("green-bg").style.opacity = hero ? 1 : record && !this.bridge ? 1 - M.range(this.time, 0, .65) : 0;
-            $("record-card").hidden = hero;
+            $("record-card").hidden = hero || (record && phase >= 4);
             const p = entry ? 0 : bridge;
             $("record-card").style.top = `${M.mix(368, 414, p)}px`;
             $("record-card").style.left = `${M.mix(23, 20, p)}px`;
@@ -554,10 +555,12 @@ __fluffyModules["animation.js"] = (() => {
             }
             else if (this.scene === "record") {
                 // 阶段二：卡片由表单原位置连续展开，猫的原图层也沿同一路径进入写字姿态。
-                ctx.save();
-                ctx.globalAlpha = M.range(this.time, .85, 1.8);
-                this.drawPaper(this.time);
-                ctx.restore();
+                if (this.phase() < 4) {
+                    ctx.save();
+                    ctx.globalAlpha = M.range(this.time, .85, 1.8);
+                    this.drawPaper(this.time);
+                    ctx.restore();
+                }
                 const pose = this.pose(this.time), bridge = this.bridge ? M.range(this.time, 0, 1.55) : 1;
                 pose.lookOverride = bridge < 1 ? M.mix(.08 + this.bridgeAttention * .22, M.clamp((pose.grip[0] - 176) / 110, -1, 1), bridge) : pose.lookOverride;
                 pose.headTilt = (-.072 * this.bridgeAttention + .023 * this.bridgeThinking) * (1 - bridge);

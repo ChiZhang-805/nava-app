@@ -6,7 +6,10 @@
 .entry-bubble,.home-bubble{white-space:pre;overflow-wrap:normal}
 .review-bubble[data-feedback="help"]{color:#64829a;background:#fffefb;border-color:#e0eaee}
 /* 只有无小猫的内页才显示一个同款的临时对白；不占按钮上方空间，不用报错条。 */
-.page-cat-notice{position:absolute;right:22px;top:146px;z-index:18;width:145px;padding:13px 12px;border:1px solid #e2ecee;border-radius:20px 20px 20px 5px;background:#fffefb;color:#64829a;white-space:pre;font:500 12px/1.8 ui-rounded,"YouYuan","Microsoft YaHei",sans-serif;pointer-events:none}
+.page-cat-notice{position:absolute;right:22px;top:var(--cat-notice-top,146px);z-index:18;width:145px;padding:13px 12px;border:1px solid #e2ecee;border-radius:20px 20px 20px 5px;background:#fffefb;color:#64829a;white-space:pre;font:500 12px/1.8 ui-rounded,"YouYuan","Microsoft YaHei",sans-serif;pointer-events:none;transition:top .24s ease,right .24s ease}
+#screen[data-cat-pose="sleeping"]{--cat-notice-top:226px}
+#screen[data-cat-pose="writing"]{--cat-notice-top:158px}
+@media(prefers-reduced-motion:reduce){.page-cat-notice{transition:none}}
 
 .entry-bubble[data-retry="true"]{pointer-events:auto}
 #entry-form [aria-invalid="true"]{background:#f4f8f8;border-color:#b9cdc9}

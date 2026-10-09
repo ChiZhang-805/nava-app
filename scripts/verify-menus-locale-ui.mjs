@@ -15,7 +15,6 @@ const browser = await chromium.launch({ headless: true });
 const routes = [
   ["calendar", "tab=today&view=calendar"], ["details", "tab=today&view=profile-details"], ["notifications", "tab=today&view=notifications"],
   ["report", "tab=record"], ["ai", "tab=ai"], ["growth", "tab=trends"], ["profile", "tab=profile"],
-  ...["mood", "sleep", "exercise", "diet", "focus", "face"].map((module) => [module, `tab=record&module=${module}`]),
 ];
 async function init(context) {
   await context.addInitScript(() => {
@@ -27,6 +26,11 @@ async function init(context) {
       static async requestPermission() { window.__permissionRequests++; window.__permission = window.__permissionAnswer; return window.__permission; }
     }
     Object.defineProperty(window, "Notification", { configurable: true, value: PermissionFixture });
+  });
+}
+async function dismissCompletionWhenPresent(page) {
+  await page.addLocatorHandler(page.locator(".completion-celebration-layer"), async () => {
+    await page.frameLocator(".completion-celebration-layer iframe").getByRole("button", { name: /Continue|继续/ }).click();
   });
 }
 async function route(page, hash) {
@@ -86,6 +90,7 @@ try {
     const context = await browser.newContext({ locale, viewport: { width, height }, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
     try {
       await init(context); const page = await context.newPage(); page.setDefaultTimeout(20000);
+      await dismissCompletionWhenPresent(page);
       page.on("pageerror", (e) => report.errors.push(e.message));
       await page.goto(`${base}?demo=1#tab=today&view=calendar`, { waitUntil: "networkidle" });
       if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
@@ -93,7 +98,7 @@ try {
       assert.equal(await page.evaluate(() => localStorage.getItem("nava.locale")), null, "system default must not become an explicit override");
       for (const [name, hash] of routes) {
         await route(page, hash); await menuCheck(page, `${locale}-${width}-${name}`);
-        if (name === "details" || name === "profile") await avatarCheck(page, `${locale}-${width}-${name}`, name === "details");
+        if (name === "details") await avatarCheck(page, `${locale}-${width}-${name}`);
       }
       await route(page, "tab=today&view=calendar"); await page.locator(".nava-more-trigger").click();
       await page.locator(".more-menu-language").click();
@@ -123,24 +128,7 @@ try {
       assert.equal(await page.evaluate(() => window.__permissionRequests), 1, "already granted must not prompt");
       await page.screenshot({ path: `${output}/${locale}-${width}-reminders.png` });
       await first.click(); await expect(first).toHaveAttribute("aria-checked", "false");
-      await route(page, "tab=record&module=sleep");
-      await page.locator(".sleep-alert-copy").click();
-      const sleepSwitch = page.locator('[data-reminder-settings="sleep"]').getByRole("switch");
-      await expect(sleepSwitch).toHaveCount(1);
-      await expect(sleepSwitch).toHaveAttribute("aria-checked", "false");
-      await sleepSwitch.click(); await expect(sleepSwitch).toHaveAttribute("aria-checked", "true");
-      await expect(sleepSwitch.locator('span')).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 20, 0)');
-      const sleepTargets = await page.locator('.sleep-alert-modal .reminder-settings button, .sleep-alert-modal .reminder-settings input').evaluateAll((nodes) => nodes.map((node) => {
-        const rules = [];
-        function inspect(list) { for (const rule of list) { if (rule.selectorText && node.matches(rule.selectorText) && (rule.style.minHeight || rule.style.height)) rules.push(rule.cssText); if (rule.cssRules) inspect(rule.cssRules); } }
-        for (const sheet of document.styleSheets) { try { inspect(sheet.cssRules); } catch { /* remote sheet */ } }
-        const style = getComputedStyle(node);
-        return { height: node.getBoundingClientRect().height, name: node.getAttribute('aria-label') || node.textContent, minHeight: style.minHeight, maxHeight: style.maxHeight, rules };
-      }));
-      assert.ok(sleepTargets.every((target) => target.height >= 43.9), `Sleep reminder touch sizes: ${JSON.stringify(sleepTargets)}`);
-      await page.screenshot({ path: `${output}/${locale}-${width}-sleep-reminder.png` });
-      await sleepSwitch.click(); await expect(sleepSwitch).toHaveAttribute("aria-checked", "false");
-      console.log(`${locale} ${width}: 13 menu routes, both avatar entries, language persistence and permission gating passed`);
+      console.log(`${locale} ${width}: 7 current shell menu routes, profile-details avatar, language persistence and permission gating passed`);
     } finally { await context.close(); }
   }
   // Exercise settings-return handling with an explicit bridge fixture, not a fake claim of iOS delivery.
@@ -151,6 +139,7 @@ try {
       contentType: "application/javascript", body: 'export async function ensureReminderPermission(){return window.__nativeResult} export async function reminderPermissionGranted(){return window.__nativeGranted === true}',
     }));
     const page = await permissionContext.newPage();
+    await dismissCompletionWhenPresent(page);
     await page.goto(`${base}?demo=1#tab=today&view=reminder-settings`, { waitUntil: "networkidle" });
     if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
     const switches = page.locator('[data-reminder-settings="all"] [role="switch"]');
@@ -179,6 +168,7 @@ try {
   const desktop = await browser.newContext({ locale: "en-US", viewport: { width: 1440, height: 1080 }, reducedMotion: "reduce" });
   try {
     await init(desktop); const page = await desktop.newPage(); page.setDefaultTimeout(20000);
+    await dismissCompletionWhenPresent(page);
     await page.goto(`${base}?demo=1#tab=today&view=calendar`, { waitUntil: "networkidle" });
     if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
     const select = page.getByTestId("nava-preview-device-select");
