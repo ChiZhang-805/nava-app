@@ -28,7 +28,16 @@
 `integrated-shell:visual` 300状态已通过。`menus:visual`一次运行被与本改动无关的完成庆祝层拦截月历
 三点按钮，未把该次运行记为通过，也未为此放宽断言。
 
-发布：待本节功能源码推送及双站发布后补齐版本和线上验收收据。
+发布：功能源码`bacedc1a73a1b93d888e8b7149412443cbb3589e`已干净推送。ChatGPT Sites沿用
+既有公开项目并成功发布v242（version
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_38ec1ed9c6748191b0ab15410eae54e5`，
+deployment`appgdep_6ac9452f0a808191844d3e67978e4468`）。GitHub Pages镜像提交
+`224adb209f482a26d5ad0b1d130c81a624cb18cc`，Pages工作流`37983176645`成功。两站来自同一功能源码；
+Pages专用产物的205个文件与镜像逐文件SHA-256一致（66,461,790字节），`source.json`指向v242和上述
+源码。发布后`skins:deployment:audit`通过：58个结果、381项检查、56张截图；双站公开登录边界、
+canonical Supabase项目、版本/资源和四档视口均已核验，收据位于
+`Q:\NAVA-Workspace\Build\TestRuns\skin-v242-regression\report.json`。Sites官方工作流已推送同一源码；
+Windows Bash打包器仍不能解析盘符路径，随后以系统tar归档同一构建产物，Sites验收为310个文件。
 
 ## 157. 详细资料设置全层级换肤与逐层颜色门禁（当前版本）
 
