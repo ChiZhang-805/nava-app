@@ -91,6 +91,7 @@ try {
             height: style.height,
             left: style.left,
             right: style.right,
+            top: style.top,
             backdropFilter: style.backdropFilter || style.webkitBackdropFilter,
           };
         };
@@ -100,6 +101,19 @@ try {
           .map((element) => paint(element));
         const appContent = root.querySelector(".app-content");
         const dock = root.querySelector(":scope > .bottom-nav");
+        const dockRect = visible(dock) ? dock.getBoundingClientRect() : null;
+        const dockButtons = visible(dock)
+          ? [...dock.querySelectorAll(":scope > .nav-button")].filter(visible).map((button) => {
+              const rect = button.getBoundingClientRect();
+              return {
+                left: rect.left,
+                right: rect.right,
+                width: rect.width,
+                centerX: rect.left + rect.width / 2,
+                centerY: rect.top + rect.height / 2,
+              };
+            })
+          : [];
         return {
           frameOverflow: root.scrollWidth - root.clientWidth,
           contentOverflow: appContent ? appContent.scrollWidth - appContent.clientWidth : 0,
@@ -108,6 +122,9 @@ try {
           localHeaders,
           dock: visible(dock) ? paint(dock) : null,
           dockFrost: visible(dock) ? paint(dock, "::before") : null,
+          dockRect: dockRect ? { top: dockRect.top, height: dockRect.height } : null,
+          dockButtons,
+          isHomeDock: root.classList.contains("phone-frame--option2"),
         };
       });
 
@@ -128,6 +145,20 @@ try {
         assert.ok(parseFloat(geometry.dockFrost.left) >= 10, `${width}x${height} ${name}: dock capsule touches the left edge`);
         assert.ok(parseFloat(geometry.dockFrost.right) >= 10, `${width}x${height} ${name}: dock capsule touches the right edge`);
         assert.ok(parseFloat(geometry.dockFrost.height) <= 74, `${width}x${height} ${name}: dock capsule is too tall`);
+      }
+      if (geometry.dockButtons.length) {
+        assert.equal(geometry.dockButtons.length, 5, `${width}x${height} ${name}: dock must contain five buttons`);
+        const centerY = geometry.dockButtons[0].centerY;
+        for (const button of geometry.dockButtons) {
+          assert.ok(Math.abs(button.centerY - centerY) <= 0.5, `${width}x${height} ${name}: button centers are not on one horizontal line`);
+        }
+        const edgeGaps = geometry.dockButtons.slice(1).map((button, index) => button.left - geometry.dockButtons[index].right);
+        assert.ok(Math.min(...edgeGaps) >= 0, `${width}x${height} ${name}: dock buttons overlap`);
+        assert.ok(Math.max(...edgeGaps) - Math.min(...edgeGaps) <= 0.5, `${width}x${height} ${name}: button edge gaps are not equal (${edgeGaps.join(", ")})`);
+        if (!geometry.isHomeDock) {
+          const frostCenterY = geometry.dockRect.top + parseFloat(geometry.dockFrost.top) + parseFloat(geometry.dockFrost.height) / 2;
+          assert.ok(Math.abs(centerY - frostCenterY) <= 0.5, `${width}x${height} ${name}: button center ${centerY} misses capsule center ${frostCenterY}`);
+        }
       }
 
       report.results.push({ viewport: `${width}x${height}`, page: name, ...geometry });
