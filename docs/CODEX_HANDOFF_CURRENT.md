@@ -30,16 +30,17 @@ ID按页面模板计数，不重复扩大数量。首次登录、记录编辑、
 验证：25页合同单测3/3、导航单测11/11、皮肤单测8/8、`npm run lint`、`npm run build`、
 `npm run auth:verify:production`、`npm run profile:visual`、`npm run skins:visual`以及
 `npm run integrated-shell:visual`通过。新增总门禁在360×740、375×812、390×844、430×932四档
-视口逐页检查100个路由状态，验证无横向溢出、无可见滚动条、顶栏/局部导航/底栏无独立背景和阴影；
+视口逐页检查100个路由状态，验证无横向溢出、无可见滚动条、顶栏/局部导航/底栏容器无独立背景和阴影；
+底栏伪元素另行断言为左右内收、圆角、24px模糊的悬浮胶囊，且高度不超过74px，避免回退为整页矩形；
 25张390×844逐页截图与JSON报告位于`Q:/NAVA-Workspace/Build/TestRuns/integrated-shell`。
 
-功能源码提交`7c2b5787060674a40e2237f480fc5e97bdb04161`已推送，并由同一提交生成双站。
-ChatGPT Sites **v231**版本
-`appgprj_6a5de710811c8191af8ce2681358d518~appgver_6db308a0794081918d29a0d39e17c0f4`，部署
-`appgdep_6ac88601cf8c819196fecf6b46cfbe02` succeeded；制品含309文件。GitHub Pages镜像提交
-`1045074998b53dd57754a99d1b19fbc9823bee57`，workflow `37892794081` success；204个生成文件复制前后
-SHA-256一致，`source.json`指向v231、上述功能提交和Sites版本。发布后门禁通过58/58结果、381/381
-检查与56张截图，证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v231-regression`。Sites官方工作流
+功能源码提交`100cb5b54f74a0fdb35c8b37de9a83b35bc3c2bc`已推送，并由同一提交生成双站。
+ChatGPT Sites **v232**版本
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_3495f37882ec8191b27c48a79f158f52`，部署
+`appgdep_6ac8ab5d42448191a68c227c0a6b7937` succeeded；制品含309文件。GitHub Pages镜像提交
+`92ad0aaff619e0b1b356869fe0d182c50b0e878b`，workflow `37907901145` success；204个生成文件复制前后
+SHA-256一致，`source.json`指向v232、上述功能提交和Sites版本。发布后门禁通过58/58结果、381/381
+检查与56张截图，证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v232-regression`。Sites官方工作流
 完成源码校验、构建和源推送；Windows Bash打包器仍无法解析盘符路径，按既有恢复方案用系统tar归档
 同一构建产物并由Sites验证为309文件。没有数据库迁移、Edge Function部署、生产数据写入、密钥或
 访问策略变更。
