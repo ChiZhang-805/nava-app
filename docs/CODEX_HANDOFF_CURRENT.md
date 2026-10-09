@@ -36,13 +36,13 @@ ID按页面模板计数，不重复扩大数量。首次登录、记录编辑、
 圆心共线、圆心与胶囊中心线重合、四段边缘净距相等三项几何门禁，避免回退为整页矩形或错位排布；
 25张390×844逐页截图与JSON报告位于`Q:/NAVA-Workspace/Build/TestRuns/integrated-shell`。
 
-功能源码提交`100cb5b54f74a0fdb35c8b37de9a83b35bc3c2bc`已推送，并由同一提交生成双站。
-ChatGPT Sites **v232**版本
-`appgprj_6a5de710811c8191af8ce2681358d518~appgver_3495f37882ec8191b27c48a79f158f52`，部署
-`appgdep_6ac8ab5d42448191a68c227c0a6b7937` succeeded；制品含309文件。GitHub Pages镜像提交
-`92ad0aaff619e0b1b356869fe0d182c50b0e878b`，workflow `37907901145` success；204个生成文件复制前后
-SHA-256一致，`source.json`指向v232、上述功能提交和Sites版本。发布后门禁通过58/58结果、381/381
-检查与56张截图，证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v232-regression`。Sites官方工作流
+功能源码提交`dcfc8df1690ff8ee4025f6c7092ab6a20ac725a9`已推送，并由同一提交生成双站。
+ChatGPT Sites **v233**版本
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_33ffa8fc867c8191b9d2aaa3563093c9`，部署
+`appgdep_6ac8b4e373c08191a506c4185078bb19` succeeded；制品含309文件。GitHub Pages镜像提交
+`9914b040780139caf87417d891e123ec361d54ad`，workflow `37912242113` success；204个生成文件复制前后
+SHA-256一致，`source.json`指向v233、上述功能提交和Sites版本。发布后门禁通过58/58结果、381/381
+检查与56张截图，证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v233-regression`。Sites官方工作流
 完成源码校验、构建和源推送；Windows Bash打包器仍无法解析盘符路径，按既有恢复方案用系统tar归档
 同一构建产物并由Sites验证为309文件。没有数据库迁移、Edge Function部署、生产数据写入、密钥或
 访问策略变更。
