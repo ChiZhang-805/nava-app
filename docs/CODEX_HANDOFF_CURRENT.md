@@ -29,6 +29,12 @@ disabled状态，点击不会打开任何“尚未启用”或跳转说明弹窗
 全量`npm run verify`仍在无关的`external-preview:visual`因记录iframe返回“记录未能加载，请重试”而
 停止；本次账号安全专项门禁已完整通过，未修改记录iframe。
 
+发布：源码提交`93cc74f8f26ec52a4820104af899c36e12a5b962`已推送；ChatGPT Sites v236
+（`appgprj_6a5de710811c8191af8ce2681358d518~appgver_0c33aecc98148191a17c6343e137beee`，
+部署`appgdep_6ac8ccc86aec81919503c7d9b493e974`）与GitHub Pages镜像提交
+`75159f30a5adbfb74744ca4543ceb573cac7ed30`均已成功发布。双站皮肤发布门禁通过：58项结果、
+381项检查、56张截图。
+
 ## 151. 设备连接与账号安全的内部去叠层（当前版本）
 
 Apple健康与Apple Watch保留页面连续背景和最外层模块面，但中央设备舞台不再绘制第二块矩形底、
