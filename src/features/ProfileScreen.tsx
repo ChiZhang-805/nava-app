@@ -25,7 +25,7 @@ import { deleteCurrentAccount } from "../services/account";
 import { APP_SKINS, type AppSkin } from "../services/appSkin";
 import { buildYearHeatmap } from "../services/homeExperience";
 import { getRecordCoverageRange, type RecordCoverage } from "../services/records";
-import { updateBackupContacts, updateCurrentPassword } from "../services/auth";
+import { isEmail, isPhone, isOtpCodeValid, sendBackupContactOtp, updateCurrentPassword, verifyBackupContactOtp } from "../services/auth";
 
 const occupationOptions = [
   { value: "student", zh: "学生", en: "Student" },
@@ -164,7 +164,9 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
     confirmPassword: "",
     email: typeof user.user_metadata.backup_email === "string" ? user.user_metadata.backup_email : "",
     phone: typeof user.user_metadata.backup_phone === "string" ? user.user_metadata.backup_phone : "",
+    code: "",
   });
+  const [securityCodeSentTo, setSecurityCodeSentTo] = useState<string | null>(null);
   const exportRequestRef = useRef(exportRequestId);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
@@ -312,24 +314,72 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
 
     if (securityEditor !== "email" && securityEditor !== "phone") return;
 
-    const completed = await run(`security-${securityEditor}`, locale === "zh" ? "安全联系方式已保存。" : "Security contact saved.", async () => {
-      const next = await updateBackupContacts({
-        email: securityDraft.email,
-        phone: securityDraft.phone,
-      });
+    const contact = securityEditor === "email" ? securityDraft.email.trim() : securityDraft.phone.trim();
+    if (securityCodeSentTo !== `${securityEditor}:${contact}`) {
+      setError(locale === "zh" ? "请先获取发送到当前联系方式的验证码。" : "Send a code to this contact first.");
+      return;
+    }
+    if (!isOtpCodeValid(contact, securityDraft.code)) {
+      setError(securityEditor === "email"
+        ? (locale === "zh" ? "请输入 8 位邮箱验证码。" : "Enter the 8-digit email code.")
+        : (locale === "zh" ? "请输入 6 位短信验证码。" : "Enter the 6-digit SMS code."));
+      return;
+    }
+
+    const action = `security-${securityEditor}`;
+    setBusy(action);
+    setError(null);
+    setMessage(null);
+    try {
+      const next = await verifyBackupContactOtp(securityEditor, contact, securityDraft.code);
       setSecurityDraft((draft) => ({ ...draft, email: next.email ?? "", phone: next.phone ?? "" }));
-    });
-    if (completed) setSecurityEditor(null);
+      setSecurityDraft((draft) => ({ ...draft, code: "" }));
+      setSecurityCodeSentTo(null);
+      setSecurityEditor(null);
+    } catch (verifyError) {
+      setError(verifyError instanceof Error ? verifyError.message : String(verifyError));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function sendSecurityCode() {
+    if (securityEditor !== "email" && securityEditor !== "phone") return;
+    const contact = securityEditor === "email" ? securityDraft.email.trim() : securityDraft.phone.trim();
+    const valid = securityEditor === "email" ? isEmail(contact) : isPhone(contact);
+    if (!valid) {
+      setError(securityEditor === "email"
+        ? (locale === "zh" ? "请输入有效的备用邮箱。" : "Enter a valid backup email.")
+        : (locale === "zh" ? "请输入有效的中国大陆备用手机号。" : "Enter a valid mainland China phone number."));
+      return;
+    }
+    const action = `security-${securityEditor}-send`;
+    setBusy(action);
+    setError(null);
+    setMessage(null);
+    try {
+      await sendBackupContactOtp(securityEditor, contact);
+      setSecurityCodeSentTo(`${securityEditor}:${contact}`);
+      setSecurityDraft((draft) => ({ ...draft, code: "" }));
+    } catch (sendError) {
+      setError(sendError instanceof Error ? sendError.message : String(sendError));
+    } finally {
+      setBusy(null);
+    }
   }
 
   function openSecurityEditor(editor: SecurityEditor) {
     setError(null);
     setMessage(null);
+    setSecurityCodeSentTo(null);
+    setSecurityDraft((draft) => ({ ...draft, code: "" }));
     setSecurityEditor(editor);
   }
 
   function closeSecurityEditor() {
     setError(null);
+    setSecurityCodeSentTo(null);
+    setSecurityDraft((draft) => ({ ...draft, code: "" }));
     setSecurityEditor(null);
   }
 
@@ -501,6 +551,11 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
   const securityEditorIcon = securityEditor === "password" ? <KeyRound size={21} aria-hidden="true" />
     : securityEditor === "email" ? <Mail size={21} aria-hidden="true" />
       : <Phone size={21} aria-hidden="true" />;
+  const securityContactValue = securityEditor === "email" ? securityDraft.email.trim()
+    : securityEditor === "phone" ? securityDraft.phone.trim() : "";
+  const securityContactCodeReady = (securityEditor === "email" || securityEditor === "phone")
+    && securityCodeSentTo === `${securityEditor}:${securityContactValue}`
+    && isOtpCodeValid(securityContactValue, securityDraft.code);
 
   const activeView = view && profileViews.has(view as ProfileView) ? view as ProfileView : null;
 
@@ -649,10 +704,19 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
           {securityEditor === "password" ? <>
             <label><span>{locale === "zh" ? "新密码" : "New password"}</span><input type="password" autoComplete="new-password" value={securityDraft.password} onChange={(event) => setSecurityDraft((draft) => ({ ...draft, password: event.target.value }))} /></label>
             <label><span>{locale === "zh" ? "再次输入" : "Confirm password"}</span><input type="password" autoComplete="new-password" value={securityDraft.confirmPassword} onChange={(event) => setSecurityDraft((draft) => ({ ...draft, confirmPassword: event.target.value }))} /></label>
-          </> : securityEditor === "email" ? <label><span>{locale === "zh" ? "邮箱地址" : "Email address"}</span><input type="email" autoComplete="email" value={securityDraft.email} onChange={(event) => setSecurityDraft((draft) => ({ ...draft, email: event.target.value }))} placeholder="name@example.com" /></label>
-            : <label><span>{locale === "zh" ? "中国大陆手机号" : "Mainland China phone"}</span><input inputMode="tel" autoComplete="tel" value={securityDraft.phone} onChange={(event) => setSecurityDraft((draft) => ({ ...draft, phone: event.target.value }))} placeholder="13800000000" /></label>}
+          </> : <>
+            <label><span>{securityEditor === "email" ? (locale === "zh" ? "邮箱地址" : "Email address") : (locale === "zh" ? "中国大陆手机号" : "Mainland China phone")}</span><input type={securityEditor === "email" ? "email" : "tel"} inputMode={securityEditor === "email" ? "email" : "tel"} autoComplete={securityEditor === "email" ? "email" : "tel"} value={securityEditor === "email" ? securityDraft.email : securityDraft.phone} onChange={(event) => {
+              const value = event.target.value;
+              setSecurityCodeSentTo(null);
+              setSecurityDraft((draft) => ({ ...draft, [securityEditor]: value, code: "" }));
+            }} placeholder={securityEditor === "email" ? "name@example.com" : "13800000000"} /></label>
+            <label><span>{locale === "zh" ? "验证码" : "Verification code"}</span><span className="profile-security-code-field"><input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="one-time-code" maxLength={securityEditor === "email" ? 8 : 6} value={securityDraft.code} onInput={(event) => {
+              const code = event.currentTarget.value.replace(/\D/g, "");
+              setSecurityDraft({ ...securityDraft, code });
+            }} placeholder={securityEditor === "email" ? "8 位验证码" : "6 位验证码"} /><button type="button" disabled={Boolean(busy?.startsWith("security-"))} onClick={() => void sendSecurityCode()}>{busy === `security-${securityEditor}-send` ? (locale === "zh" ? "发送中…" : "Sending…") : securityCodeSentTo === `${securityEditor}:${securityEditor === "email" ? securityDraft.email.trim() : securityDraft.phone.trim()}` ? (locale === "zh" ? "重新发送" : "Resend") : (locale === "zh" ? "发送验证码" : "Send code")}</button></span></label>
+          </>}
           {error && <p className="error-text">{error}</p>}
-          <button className="profile-security-save" type="button" disabled={Boolean(busy?.startsWith("security-"))} onClick={() => void saveSecurityEditor()}>{busy?.startsWith("security-") ? (locale === "zh" ? "正在保存…" : "Saving…") : (locale === "zh" ? "保存" : "Save")}</button>
+          <button className="profile-security-save" type="button" data-code-ready={securityContactCodeReady ? "true" : "false"} disabled={Boolean(busy?.startsWith("security-")) || ((securityEditor === "email" || securityEditor === "phone") && !securityContactCodeReady)} onClick={() => void saveSecurityEditor()}>{busy?.startsWith("security-") ? (locale === "zh" ? "正在保存…" : "Saving…") : securityEditor === "password" ? (locale === "zh" ? "保存" : "Save") : (locale === "zh" ? "验证并保存" : "Verify and save")}</button>
         </section>
       </div>}
       {deleteDialogOpen && <div className="avatar-sheet-overlay" role="presentation" onClick={() => setDeleteDialogOpen(false)}><section className="avatar-sheet account-delete-sheet" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "删除账号" : "Delete account"} onClick={(event) => event.stopPropagation()}><header><strong>{locale === "zh" ? "永久删除账号" : "Permanently delete account"}</strong><button type="button" onClick={() => setDeleteDialogOpen(false)} aria-label={t("common.close")}><X size={20} /></button></header><p>{locale === "zh" ? "这会删除账号、健康记录、AI 对话、周报和私密照片，无法恢复。请输入 DELETE 确认。" : "This removes the account, health records, AI chats, reports, and private photos. Type DELETE to confirm."}</p><input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} placeholder="DELETE" autoCapitalize="characters" /><button type="button" disabled={deleteConfirmation !== "DELETE" || busy === "delete-account"} onClick={() => void deleteAccount()}>{busy === "delete-account" ? (locale === "zh" ? "正在删除…" : "Deleting…") : (locale === "zh" ? "永久删除" : "Delete permanently")}</button></section></div>}

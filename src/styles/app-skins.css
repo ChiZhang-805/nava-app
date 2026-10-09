@@ -561,6 +561,16 @@
   --integrated-content-top-gap: clamp(5px, .8dvh, 7px);
   --integrated-local-header-height: clamp(42px, 5.5dvh, 50px);
   --integrated-local-header-gap: clamp(4px, .8dvh, 7px);
+  /* One dock geometry is shared with the home screen. */
+  --home-main-button-size: clamp(86px, 23.2cqw, 100px);
+  --home-main-button-half: clamp(43px, 11.6cqw, 50px);
+  --home-secondary-button-size: clamp(44px, 11.3cqw, 49px);
+  --home-indicator-bottom: var(--nava-home-indicator-bottom, 8px);
+  --home-indicator-height: var(--nava-home-indicator-height, 5px);
+  --home-dock-center-bottom: max(
+    calc(var(--home-main-button-half) + var(--home-indicator-height) + var(--home-indicator-bottom) + var(--home-indicator-bottom)),
+    calc(env(safe-area-inset-bottom) + 40px)
+  );
 }
 
 .phone-frame[data-app-skin][data-shell-integrated="true"] > .safe-top,
@@ -585,7 +595,16 @@
 }
 
 .phone-frame[data-shell-integrated="true"]:not(.phone-frame--option2) > .app-content {
+  /* The scroll canvas continues behind the floating dock. Reserve reachable
+     space inside the scroller instead of ending the page above the dock and
+     exposing a second, full-width bottom band. */
+  margin-bottom: 0;
   padding-top: var(--integrated-content-top-gap);
+  padding-bottom: calc(118px + env(safe-area-inset-bottom));
+}
+
+.phone-frame[data-shell-integrated="true"].phone-frame--subpage-no-nav:not(.phone-frame--option2) > .app-content {
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
 }
 
 .phone-frame[data-app-skin][data-shell-integrated="true"] > .figma-app-header::before,
@@ -662,12 +681,13 @@
    carries the five actions, matching the home dock without recreating the old
    edge-to-edge horizontal plate. */
 .phone-frame[data-app-skin][data-shell-integrated="true"] > .bottom-nav {
-  height: calc(104px + env(safe-area-inset-bottom));
-  min-height: calc(104px + env(safe-area-inset-bottom));
+  bottom: calc(var(--home-dock-center-bottom) - var(--home-main-button-half));
+  height: var(--home-main-button-size);
+  min-height: var(--home-main-button-size);
   align-items: center;
   justify-content: space-between;
   gap: 0;
-  padding: 0 clamp(24px, 7.2cqw, 30px) env(safe-area-inset-bottom);
+  padding: 0 clamp(26px, 8.3cqw, 35px);
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -678,11 +698,11 @@
   content: "";
   position: absolute;
   z-index: 0;
-  top: 16px;
+  top: 50%;
   right: clamp(12px, 4.2cqw, 18px);
   bottom: auto;
   left: clamp(12px, 4.2cqw, 18px);
-  height: 72px;
+  height: 70px;
   border: 1px solid color-mix(in srgb, var(--skin-line) 74%, transparent);
   border-radius: 999px;
   background: var(--skin-dock);
@@ -692,7 +712,7 @@
   -webkit-backdrop-filter: blur(24px) saturate(1.08);
   backdrop-filter: blur(24px) saturate(1.08);
   opacity: .9;
-  transform: none;
+  transform: translateY(-50%);
   pointer-events: none;
 }
 
@@ -707,6 +727,10 @@
 
 .phone-frame[data-shell-integrated="true"]:not(.phone-frame--option2) > .bottom-nav .nav-button {
   z-index: 1;
+  width: var(--home-secondary-button-size);
+  height: var(--home-secondary-button-size);
+  min-width: 0;
+  flex-basis: var(--home-secondary-button-size);
   border: 1px solid color-mix(in srgb, var(--skin-line) 82%, transparent);
   border-radius: 50%;
   color: var(--skin-nav-ink, #28566c);
@@ -720,10 +744,28 @@
 }
 
 .phone-frame[data-shell-integrated="true"]:not(.phone-frame--option2) > .bottom-nav .ai-nav-button {
-  border-color: transparent;
+  width: var(--home-main-button-size);
+  height: var(--home-main-button-size);
+  flex-basis: var(--home-main-button-size);
+  border: 0;
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
+}
+
+.phone-frame[data-shell-integrated="true"]:not(.phone-frame--option2) > .bottom-nav .ai-nav-orb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.phone-frame[data-shell-integrated="true"]:not(.phone-frame--option2) > .bottom-nav .ai-nav-orb .figma-nav-ai-chat {
+  width: 47%;
+  height: 47%;
 }
 
 /* The original glacier skin uses the same spatial contract even though its

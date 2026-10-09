@@ -45,6 +45,7 @@ const server = await createServer({ server: { host: "127.0.0.1", port: 5262, str
 await server.listen();
 const base = server.resolvedUrls.local[0];
 const browser = await chromium.launch({ headless: true });
+const homeDockByViewport = new Map();
 
 async function initialize(context) {
   await context.route("**/*.supabase.co/rest/v1/journal_entries**", (route) => route.fulfill({ json: [] }));
@@ -112,6 +113,8 @@ try {
                 width: rect.width,
                 centerX: rect.left + rect.width / 2,
                 centerY: rect.top + rect.height / 2,
+                orbWidth: button.querySelector(".ai-nav-orb")?.getBoundingClientRect().width ?? null,
+                orbHeight: button.querySelector(".ai-nav-orb")?.getBoundingClientRect().height ?? null,
               };
             })
           : [];
@@ -165,9 +168,24 @@ try {
         const edgeGaps = geometry.dockButtons.slice(1).map((button, index) => button.left - geometry.dockButtons[index].right);
         assert.ok(Math.min(...edgeGaps) >= 0, `${width}x${height} ${name}: dock buttons overlap`);
         assert.ok(Math.max(...edgeGaps) - Math.min(...edgeGaps) <= 0.5, `${width}x${height} ${name}: button edge gaps are not equal (${edgeGaps.join(", ")})`);
+        assert.ok(
+          Math.abs(geometry.dockButtons[2].orbWidth - geometry.dockButtons[2].orbHeight) <= 0.5
+          && geometry.dockButtons[2].orbWidth >= geometry.dockButtons[2].width - 0.5
+          && geometry.dockButtons[2].orbWidth <= geometry.dockButtons[2].width * 1.13,
+          `${width}x${height} ${name}: center AI orb must fill one large circle ${JSON.stringify(geometry.dockButtons[2])}`,
+        );
         if (!geometry.isHomeDock) {
-          const frostCenterY = geometry.dockRect.top + parseFloat(geometry.dockFrost.top) + parseFloat(geometry.dockFrost.height) / 2;
+          const frostCenterY = geometry.dockRect.top + geometry.dockRect.height / 2;
           assert.ok(Math.abs(centerY - frostCenterY) <= 0.5, `${width}x${height} ${name}: button center ${centerY} misses capsule center ${frostCenterY}`);
+          const homeDock = homeDockByViewport.get(`${width}x${height}`);
+          assert.ok(homeDock, `${width}x${height} ${name}: home dock reference is missing`);
+          assert.ok(Math.abs(geometry.dockButtons[2].width - homeDock.centerWidth) <= 0.5, `${width}x${height} ${name}: center AI button must reuse the home size`);
+          assert.ok(Math.abs(geometry.dockButtons[0].width - homeDock.sideWidth) <= 0.5, `${width}x${height} ${name}: side buttons must reuse the home size`);
+        } else {
+          homeDockByViewport.set(`${width}x${height}`, {
+            centerWidth: geometry.dockButtons[2].width,
+            sideWidth: geometry.dockButtons[0].width,
+          });
         }
       }
 

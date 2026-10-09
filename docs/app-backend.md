@@ -1,7 +1,7 @@
 # 商品管理双语字段与三态目录（2026-09-28，已上线）
 
 用户已单独授权并应用 `202609280002_admin_product_catalog.sql`，同一事务记录迁移历史。
-未应用 `202609270001`，未部署新的 Edge Function。既有2个账号、5条积分账本、4笔订单、
+未应用 `202609270001`与`202610090001`，未部署新的 Edge Function。既有2个账号、5条积分账本、4笔订单、
 4件商品均保留；没有借测试删除商品、创建订单、群发通知或改变管理员身份。
 
 - `nava_admin_list_reward_products_v2` / `nava_admin_save_reward_product_v2` 返回和验证中英名称、
@@ -204,6 +204,7 @@ App 的唯一正式后端是 Supabase 项目 `wxteapvwagvhhtrjrbim`。我们负�
 | `delete-account` | 先删除当前用户三个私有 bucket 下的对象及邮箱/手机号对应的服务端 HMAC 限流摘要，再删除 Auth 身份；所有账号表由数据库外键级联删除 | 私有文件、账号安全摘要与当前 Auth 用户 |
 | `aliyun-sms-send` | 生成、限流、发送中国大陆手机号 OTP | `nava_phone_otp_challenges` |
 | `aliyun-sms-verify` | 校验 OTP 并完成手机号身份映射/登录流程 | OTP challenge 与 Auth identity |
+| `security-contact-otp` | 发送并验证备用邮箱8位OTP或备用手机号6位OTP；验证成功后仅更新当前用户的备用联系方式 | `nava_security_contact_otp_challenges`与Auth user metadata（源码就绪，尚未迁移/部署） |
 | `auth-account-status` | 以不暴露账号是否存在的公共响应执行注册/登录资格检查 | 只读 |
 | `push-dispatch` | 以内部 secret 调度当前用户已有通知到 APNs、FCM v1 或 HMS，并记录幂等送达结果 | `push_delivery_receipts`、失效时更新 `push_device_tokens`（production 已部署；provider 凭据与真机送达待验收） |
 

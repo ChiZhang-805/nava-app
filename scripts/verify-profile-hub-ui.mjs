@@ -16,8 +16,14 @@ const sizes = [[360, 740], [375, 812], [390, 844], [430, 932]];
 const subpages = ["personal", "skin", "health", "watch", "privacy", "account"];
 
 async function initialize(context) {
+  const verifiedContacts = { email: null, phone: null };
   await context.route("**/*.supabase.co/rest/v1/journal_entries**", (route) => route.fulfill({ json: [] }));
   await context.route("**/*.supabase.co/rest/v1/journal_preferences**", (route) => route.fulfill({ json: { settings: {} } }));
+  await context.route("**/functions/v1/security-contact-otp", async (route) => {
+    const body = route.request().postDataJSON();
+    if (body.action === "verify") verifiedContacts[body.kind] = body.contact;
+    await route.fulfill({ json: body.action === "send" ? { sent: true } : verifiedContacts });
+  });
   await context.addInitScript(() => {
     sessionStorage.clear();
     localStorage.clear();
@@ -88,6 +94,23 @@ try {
         }),
         quickHeaderBorderBottom: getComputedStyle(frame.querySelector(".profile-entry-header")).borderBottomWidth,
         firstEntryBorderBottom: getComputedStyle(firstRow).borderBottomWidth,
+        contentBottomGap: Math.abs(frame.getBoundingClientRect().bottom - content.getBoundingClientRect().bottom),
+        contentMarginBottom: parseFloat(getComputedStyle(content).marginBottom),
+        contentPaddingBottom: parseFloat(getComputedStyle(content).paddingBottom),
+        dock: (() => {
+          const dock = frame.querySelector(":scope > .bottom-nav");
+          const style = getComputedStyle(dock);
+          const capsule = getComputedStyle(dock, "::before");
+          return {
+            background: style.backgroundColor,
+            backgroundImage: style.backgroundImage,
+            borderWidths: [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth].map(Number.parseFloat),
+            shadow: style.boxShadow,
+            blur: style.backdropFilter || style.webkitBackdropFilter || "none",
+            capsuleWidth: parseFloat(capsule.width),
+            capsuleHeight: parseFloat(capsule.height),
+          };
+        })(),
       };
     });
     assert.ok(overview.horizontalOverflow <= 1, `${width}x${height} horizontal overflow ${overview.horizontalOverflow}`);
@@ -105,10 +128,18 @@ try {
     });
     assert.equal(parseFloat(overview.quickHeaderBorderBottom), 0, `${width}x${height} quick-access title divider must be removed`);
     assert.ok(parseFloat(overview.firstEntryBorderBottom) > 0, `${width}x${height} quick-access row dividers must remain`);
+    assert.ok(overview.contentBottomGap <= 1, `${width}x${height} content must continue behind the floating dock`);
+    assert.equal(overview.contentMarginBottom, 0, `${width}x${height} content must not expose a separate bottom band`);
+    assert.ok(overview.contentPaddingBottom >= 118, `${width}x${height} content must reserve scroll clearance inside its own canvas`);
+    assert.equal(overview.dock.background, "rgba(0, 0, 0, 0)", `${width}x${height} dock container must be transparent`);
+    assert.equal(overview.dock.backgroundImage, "none", `${width}x${height} dock container must not paint a full-width image`);
+    assert.ok(overview.dock.borderWidths.every((value) => value === 0), `${width}x${height} dock container must be borderless`);
+    assert.equal(overview.dock.shadow, "none", `${width}x${height} dock container must not cast a full-width shadow`);
+    assert.equal(overview.dock.blur, "none", `${width}x${height} dock container must not blur the full-width background`);
+    assert.ok(overview.dock.capsuleWidth < width - 20 && overview.dock.capsuleHeight <= 72, `${width}x${height} only the inner floating capsule may paint`);
     report.results.push({ viewport: `${width}x${height}`, ...overview });
     await page.screenshot({ path: `${output}/profile-overview-${width}x${height}.png`, fullPage: true });
-    const lastRow = page.locator('.profile-nav-row[data-profile-target="account"]');
-    await lastRow.scrollIntoViewIfNeeded();
+    await page.locator(".app-content").evaluate((content) => content.scrollTo({ top: content.scrollHeight, behavior: "auto" }));
     const bottomClearance = await page.evaluate(() => {
       const row = document.querySelector('.profile-nav-row[data-profile-target="account"]');
       const nav = document.querySelector(".bottom-nav");
@@ -327,12 +358,43 @@ try {
         await expect(page.locator(".profile-security-sheet .error-text")).toContainText("不一致");
         await page.locator(".profile-security-sheet header button").click();
         await expect(page.locator(".profile-security-sheet")).toHaveCount(0);
+        await page.locator(".profile-security-entries > button").nth(2).click();
+        await expect(page.locator(".profile-security-sheet-title")).toContainText("备用邮箱");
+        await expect(page.locator('.profile-security-sheet input[type="email"]')).toHaveCount(1);
+        await expect(page.locator('.profile-security-sheet input[autocomplete="one-time-code"]')).toHaveCount(1);
+        await expect(page.locator(".profile-security-save")).toBeDisabled();
+        await page.locator('.profile-security-sheet input[type="email"]').fill("backup@example.com");
+        await page.locator(".profile-security-code-field button").click();
+        await expect(page.locator(".profile-security-code-field button")).toHaveText("重新发送");
+        await page.locator('.profile-security-sheet input[autocomplete="one-time-code"]').pressSequentially("12345678");
+        const emailOtpDebug = await page.locator(".profile-security-sheet").evaluate((sheet) => ({
+          contact: sheet.querySelector('input[type="email"]')?.value,
+          code: sheet.querySelector('input[autocomplete="one-time-code"]')?.value,
+          ready: sheet.querySelector(".profile-security-save")?.dataset.codeReady,
+        }));
+        assert.equal(emailOtpDebug.ready, "true", `${width}x${height} email OTP state did not become ready: ${JSON.stringify(emailOtpDebug)}`);
+        await expect(page.locator(".profile-security-save")).toBeEnabled();
+        await page.locator(".profile-security-save").click();
+        await expect(page.locator(".profile-security-sheet")).toHaveCount(0);
         await page.locator(".profile-security-entries > button").nth(3).click();
         await expect(page.locator(".profile-security-sheet-title")).toContainText("备用手机号");
         await expect(page.locator('.profile-security-sheet input[inputmode="tel"]')).toHaveCount(1);
+        await expect(page.locator(".profile-security-save")).toBeDisabled();
+        await page.locator('.profile-security-sheet input[inputmode="tel"]').fill("13800000000");
+        await page.locator(".profile-security-code-field button").click();
+        await expect(page.locator(".profile-security-code-field button")).toHaveText("重新发送");
+        await page.locator('.profile-security-sheet input[autocomplete="one-time-code"]').pressSequentially("123456");
+        const phoneOtpDebug = await page.locator(".profile-security-sheet").evaluate((sheet) => ({
+          contact: sheet.querySelector('input[inputmode="tel"]')?.value,
+          code: sheet.querySelector('input[autocomplete="one-time-code"]')?.value,
+          ready: sheet.querySelector(".profile-security-save")?.dataset.codeReady,
+        }));
+        assert.equal(phoneOtpDebug.ready, "true", `${width}x${height} phone OTP state did not become ready: ${JSON.stringify(phoneOtpDebug)}`);
+        await expect(page.locator(".profile-security-save")).toBeEnabled();
         await expect(page.locator(".profile-security-sheet > p")).toHaveCount(0);
         if (width === 390) await page.screenshot({ path: `${output}/profile-account-phone-${width}x${height}.png`, fullPage: true });
-        await page.locator(".profile-security-sheet header button").click();
+        await page.locator(".profile-security-save").click();
+        await expect(page.locator(".profile-security-sheet")).toHaveCount(0);
         await expect(page.locator(".profile-security-note")).toHaveCount(0);
       }
       if (subpage === "personal" || (width === 390 && ["skin", "health", "watch", "privacy", "account"].includes(subpage))) {

@@ -14659,6 +14659,9 @@ body::before {
 .profile-security-sheet > header > button:active { color: var(--skin-accent); background: transparent; }
 .profile-security-sheet label { display: grid; gap: 7px; color: #244f63; font-size: 12px; font-weight: 700; }
 .profile-security-sheet input { width: 100%; min-height: 48px; }
+.profile-security-code-field { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 8px; }
+.profile-security-code-field > button { min-width: 102px; border: 0; border-radius: 14px; padding: 0 13px; color: var(--skin-accent); background: color-mix(in srgb, var(--skin-accent) 11%, white); font-size: 12px; font-weight: 740; white-space: nowrap; }
+.profile-security-code-field > button:disabled { cursor: not-allowed; opacity: .58; }
 .profile-security-sheet > p { margin: 0; color: #6b8795; font-size: 11px; line-height: 1.45; }
 .profile-security-sheet > p.error-text { color: #a13f48; }
 .profile-security-info { display: grid; justify-items: center; gap: 8px; padding: 8px 4px 4px; color: var(--skin-ink); text-align: center; }

@@ -19,6 +19,7 @@ $requiredFunctions = @(
   "delete-account",
   "aliyun-sms-send",
   "aliyun-sms-verify",
+  "security-contact-otp",
   "auth-account-status"
 )
 
