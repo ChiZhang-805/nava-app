@@ -92,5 +92,40 @@ test("alternate skin field labels retain WCAG AA contrast on their lightest and 
   assert.ok(contrastRatio("53617d", "e2f3fc") >= 4.5);
   assert.ok(contrastRatio("52657a", "dcedff") >= 4.5);
   assert.ok(contrastRatio("52657a", "f7f4ff") >= 4.5);
-  assert.match(journalHtml, /css\/app-skins\.css\?v=20261006-skins-a11y-v3/);
+  assert.match(journalHtml, /css\/app-skins\.css\?v=20261009-skins-figma-layers-v5/);
+});
+
+test("alternate skins recolor the full chrome and module hierarchy with light navigation orbs", async () => {
+  const hostStyles = await readFile(new URL("../src/styles/app-skins.css", import.meta.url), "utf8");
+  for (const token of [
+    "--skin-header:",
+    "--skin-surface-alt:",
+    "--skin-row:",
+    "--skin-divider:",
+    "--skin-module-mood:",
+    "--skin-module-sleep:",
+    "--skin-module-exercise:",
+    "--skin-module-focus:",
+    "--skin-module-diet:",
+    "--skin-module-face:",
+    "--skin-heat-4:",
+  ]) assert.match(hostStyles, new RegExp(token));
+  assert.match(hostStyles, /\.safe-top,\s*\n\.phone-frame\[data-app-skin\].*\.figma-app-header/s);
+  assert.match(hostStyles, /:is\(\.section-card, \.figma-module-card, \.module-history-report-card/);
+  assert.match(hostStyles, /\.utility-drawer \{\s*color: var\(--skin-ink\);\s*background: var\(--skin-page-background\)/s);
+  assert.match(hostStyles, /:not\(\.phone-frame--option2\) \.bottom-nav/);
+  assert.match(hostStyles, /\.ai-nav-orb \{ color: var\(--skin-nav-ink\); background: var\(--skin-dock-orb\)/);
+  assert.doesNotMatch(hostStyles, /--skin-dock-orb:\s*linear-gradient\([^;]*#172d9d/);
+  assert.doesNotMatch(hostStyles, /--skin-dock-orb:\s*linear-gradient\([^;]*#426f9e/);
+});
+
+test("each Figma skin keeps distinct record-module surfaces in the embedded journal", async () => {
+  const journalStyles = await readFile(new URL("../public/journal/css/app-skins.css", import.meta.url), "utf8");
+  for (const skin of ["violet-dusk", "sky-ripple"]) {
+    for (const module of ["sleep", "sport", "mood", "focus", "food", "face"]) {
+      assert.match(journalStyles, new RegExp(`data-app-skin="${skin}"\\]\\[data-record-module="${module}"\\][^{]*\\{[^}]*--module-surface:`, "s"));
+    }
+  }
+  assert.doesNotMatch(journalStyles, /--module-nav-orb:\s*linear-gradient\([^;]*#172d9d/);
+  assert.doesNotMatch(journalStyles, /--module-nav-orb:\s*linear-gradient\([^;]*#426f9e/);
 });

@@ -15,6 +15,7 @@ const browser = await chromium.launch({ headless: true });
 const sizes = [[360, 740], [375, 812], [390, 844], [430, 932]];
 const skins = ["glacier-mist", "violet-dusk", "sky-ripple"];
 const recordModules = ["sleep", "exercise", "mood", "focus", "diet", "face"];
+const profileLayerSamples = [];
 
 async function initialize(context) {
   await context.route("**/*.supabase.co/rest/v1/journal_entries**", (route) => route.fulfill({ json: [] }));
@@ -55,6 +56,31 @@ try {
       report.results.push({ viewport: `${width}x${height}`, ...geometry });
       if (width === 390) await page.screenshot({ path: `${output}/${skin}-profile-${width}x${height}.png` });
       if (width === 390) {
+        await page.evaluate(() => { location.hash = "tab=profile"; });
+        await expect(page.locator('.profile-overview[data-profile-view="overview"]')).toBeVisible({ timeout: 20000 });
+        await expect(page.locator(".bottom-nav")).toBeVisible();
+        const layers = await page.evaluate(() => {
+          const paint = (selector, pseudo = null) => {
+            const element = document.querySelector(selector);
+            if (!element) return null;
+            const style = getComputedStyle(element, pseudo);
+            return `${style.backgroundColor}|${style.backgroundImage}|${style.borderColor}`;
+          };
+          return {
+            header: paint(".figma-app-header"),
+            account: paint(".profile-overview-account"),
+            quarter: paint(".profile-quarter-card"),
+            entries: paint(".profile-entry-card"),
+            dock: paint(".bottom-nav"),
+            orb: paint(".ai-nav-orb"),
+          };
+        });
+        assert.ok(Object.values(layers).every(Boolean), `${skin} should expose every themed profile layer`);
+        profileLayerSamples.push({ skin, layers });
+        report.results.push({ viewport: `${width}x${height}`, skin, profileLayers: layers });
+        await page.screenshot({ path: `${output}/${skin}-profile-overview-${width}x${height}.png` });
+        await page.locator('.profile-nav-row[data-profile-target="skin"]').click();
+        await expect(page.locator(".profile-skin-card")).toBeVisible({ timeout: 20000 });
         await page.evaluate(() => { location.hash = "tab=profile&view=health"; });
         await expect(page.locator('.profile-device-experience[data-profile-view="health"]')).toBeVisible({ timeout: 20000 });
         await expect(page.locator(".phone-frame")).toHaveAttribute("data-app-skin", skin);
@@ -119,6 +145,8 @@ try {
     }
     await context.close();
   }
+  const uniqueLayerPaints = new Set(profileLayerSamples.map(({ layers }) => Object.values(layers).join(";")));
+  assert.equal(uniqueLayerPaints.size, skins.length, "each skin should produce a distinct full-profile palette");
   assert.deepEqual(report.errors, []);
   report.passed = true;
   console.log("Three skins, both switchers, persistence, shared routes and four portrait sizes passed.");

@@ -4,9 +4,13 @@
   --muted: #53617d;
   --green: #787cfe;
   color: #25345a;
-  --module-surface: linear-gradient(153deg, rgba(247,252,255,.98) 8.49%, rgba(226,243,252,.86) 91.51%);
+  --module-surface: linear-gradient(146deg, rgba(249,247,255,.97) 4%, rgba(232,228,255,.90) 48%, rgba(220,246,248,.86) 100%);
+  --module-field: rgba(238,237,255,.78);
+  --module-line: rgba(118,105,207,.20);
+  --module-nav: linear-gradient(118deg, rgba(229,222,255,.91), rgba(211,225,255,.90) 52%, rgba(202,242,241,.88));
+  --module-nav-orb: linear-gradient(145deg, #ddd7ff 0%, #b9c4f4 55%, #91ddda 100%);
   --module-accent: linear-gradient(138.42deg, #787cfe 12.99%, #00e2e0 87.02%);
-  background: #f7f9fc;
+  background: linear-gradient(152deg, #f7f3ff 0%, #e8e9ff 43%, #dff7f5 100%);
 }
 :root[data-app-skin="sky-ripple"] {
   --navy: #314155;
@@ -14,14 +18,25 @@
   --green: #548dcc;
   color: #314155;
   --module-surface: linear-gradient(146.38deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%);
+  --module-field: rgba(240,249,255,.78);
+  --module-line: rgba(79,138,202,.20);
+  --module-nav: linear-gradient(135deg, rgba(213,231,247,.9), rgba(214,242,242,.88) 55%, rgba(231,225,248,.85));
+  --module-nav-orb: linear-gradient(145deg, #d3e9fb 0%, #acd8e9 54%, #c8c0e9 100%);
   --module-accent: linear-gradient(159.55deg, #4f82c4 8.49%, #61a6d0 50%, #65c4bd 91.51%);
   background: #f4f9fd;
 }
 
 :root[data-app-skin="violet-dusk"] body {
-  background: #f7f9fc;
+  background:
+    radial-gradient(ellipse 92% 56% at 92% 6%, rgba(126,112,237,.19), transparent 68%),
+    radial-gradient(ellipse 90% 52% at 3% 88%, rgba(78,207,205,.16), transparent 67%),
+    linear-gradient(152deg, #f7f3ff 0%, #e8e9ff 43%, #dff7f5 100%);
 }
-:root[data-app-skin="violet-dusk"][data-record-module="mood"] body { background: #ecdffa; }
+:root[data-app-skin="violet-dusk"][data-record-module="mood"] body {
+  background:
+    radial-gradient(ellipse 90% 52% at 90% 8%, rgba(214,112,201,.18), transparent 67%),
+    linear-gradient(152deg, #f8f4ff 0%, #eee5fa 49%, #e7f6f8 100%);
+}
 :root[data-app-skin="sky-ripple"] body {
   background:
     radial-gradient(ellipse 214% 100% at 92.31% 6.73%, rgba(124,180,235,.30) 0%, rgba(124,180,235,0) 27%),
@@ -47,9 +62,9 @@
   backdrop-filter: blur(17px);
 }
 :root[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.field input, .field textarea, .field select) {
-  border-color: color-mix(in srgb, var(--green) 24%, white);
+  border-color: var(--module-line);
   color: var(--navy);
-  background: rgba(247,251,255,.78);
+  background: var(--module-field);
 }
 :root[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.field input, .field textarea, .field select):focus {
   border-color: var(--green) !important;
@@ -77,30 +92,45 @@
 :root[data-app-skin]:not([data-app-skin="glacier-mist"]) .loading span { border-color: color-mix(in srgb, var(--green) 18%, white); border-top-color: var(--green); }
 :root[data-app-skin]:not([data-app-skin="glacier-mist"]) .bottom-nav {
   border-color: rgba(255,255,255,.82);
-  background: rgba(240,247,252,.76);
+  background: var(--module-nav);
   box-shadow: 0 10px 24px color-mix(in srgb, var(--navy) 15%, transparent);
   backdrop-filter: blur(20px);
 }
-:root[data-app-skin="violet-dusk"] .nav-item.active,
-:root[data-app-skin="violet-dusk"] .nav-chat { color: #fff; background: linear-gradient(145deg,#2d3091,#172d9d 65%,#0fa5ba); }
-:root[data-app-skin="sky-ripple"] .nav-item.active,
-:root[data-app-skin="sky-ripple"] .nav-chat { color: #fff; background: linear-gradient(145deg,#426f9e,#5a9fc1 54%,#64c2b9); }
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .nav-item.active,
+:root[data-app-skin]:not([data-app-skin="glacier-mist"]) .nav-chat {
+  color: var(--navy);
+  background: var(--module-nav-orb);
+  box-shadow: 0 9px 21px color-mix(in srgb, var(--navy) 18%, transparent), inset 0 1px 0 rgba(255,255,255,.74);
+}
 
 /* Module-specific gradients sampled from the paired Figma mobile boards. */
-:root[data-app-skin="violet-dusk"][data-record-module="sport"] { --module-accent: linear-gradient(143.91deg, #787cfe 12.99%, #00e2e0 87.02%); }
+:root[data-app-skin="violet-dusk"][data-record-module="sport"] {
+  --module-accent: linear-gradient(143.91deg, #787cfe 12.99%, #00e2e0 87.02%);
+  --module-surface: linear-gradient(143deg, rgba(240,245,255,.97), rgba(220,232,255,.91) 54%, rgba(210,246,244,.87));
+}
 :root[data-app-skin="violet-dusk"][data-record-module="mood"] {
   --module-accent: linear-gradient(142.76deg, #787cfe 8.63%, #d670c9 91.37%);
-  --module-surface: linear-gradient(153.81deg, rgba(247,252,255,.98) 8.49%, rgba(226,243,252,.86) 91.51%);
+  --module-surface: linear-gradient(144deg, rgba(251,244,255,.98), rgba(238,222,251,.91) 54%, rgba(246,232,248,.88));
 }
-:root[data-app-skin="violet-dusk"][data-record-module="focus"] { --module-accent: linear-gradient(141.59deg, #787cfe 12.99%, #00e2e0 87.02%); }
+:root[data-app-skin="violet-dusk"][data-record-module="sleep"] {
+  --module-surface: linear-gradient(144deg, rgba(243,242,255,.98), rgba(222,230,255,.91) 54%, rgba(214,247,247,.87));
+}
+:root[data-app-skin="violet-dusk"][data-record-module="focus"] {
+  --module-accent: linear-gradient(141.59deg, #787cfe 12.99%, #00e2e0 87.02%);
+  --module-surface: linear-gradient(144deg, rgba(248,244,255,.98), rgba(231,224,253,.91) 54%, rgba(220,239,252,.87));
+}
 :root[data-app-skin="violet-dusk"][data-record-module="food"] {
-  --module-accent: linear-gradient(136.3deg, #787cfe 10.79%, #172d9d 86.84%);
-  --module-surface: linear-gradient(140deg, #e5f6ff 3.67%, #f6f7f9 96.33%);
+  --module-accent: linear-gradient(136.3deg, #787cfe 10.79%, #596ada 86.84%);
+  --module-surface: linear-gradient(144deg, rgba(243,246,255,.98), rgba(226,230,251,.91) 54%, rgba(226,244,249,.87));
 }
-:root[data-app-skin="violet-dusk"][data-record-module="face"] { --module-accent: linear-gradient(116.12deg, #787cfe 13.24%, #00e2e0 100%); }
+:root[data-app-skin="violet-dusk"][data-record-module="face"] {
+  --module-accent: linear-gradient(116.12deg, #787cfe 13.24%, #00e2e0 100%);
+  --module-surface: linear-gradient(144deg, rgba(239,250,251,.98), rgba(218,243,247,.91) 54%, rgba(235,230,254,.87));
+}
 
-:root[data-app-skin="sky-ripple"][data-record-module="sport"] { --module-surface: linear-gradient(147.78deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
-:root[data-app-skin="sky-ripple"][data-record-module="mood"] { --module-surface: linear-gradient(148.31deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
-:root[data-app-skin="sky-ripple"][data-record-module="focus"] { --module-surface: linear-gradient(149.14deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
-:root[data-app-skin="sky-ripple"][data-record-module="food"] { --module-surface: linear-gradient(156.91deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
-:root[data-app-skin="sky-ripple"][data-record-module="face"] { --module-surface: linear-gradient(141.54deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
+:root[data-app-skin="sky-ripple"][data-record-module="sleep"] { --module-surface: linear-gradient(144deg, rgba(228,242,255,.96), rgba(218,241,249,.90) 55%, rgba(232,233,251,.87)); }
+:root[data-app-skin="sky-ripple"][data-record-module="sport"] { --module-surface: linear-gradient(144deg, rgba(230,247,255,.96), rgba(213,243,248,.90) 55%, rgba(227,240,254,.87)); }
+:root[data-app-skin="sky-ripple"][data-record-module="mood"] { --module-surface: linear-gradient(144deg, rgba(239,246,255,.96), rgba(229,240,254,.90) 55%, rgba(243,237,255,.87)); }
+:root[data-app-skin="sky-ripple"][data-record-module="focus"] { --module-surface: linear-gradient(144deg, rgba(237,244,255,.96), rgba(222,236,252,.90) 55%, rgba(238,233,253,.87)); }
+:root[data-app-skin="sky-ripple"][data-record-module="food"] { --module-surface: linear-gradient(144deg, rgba(239,249,255,.96), rgba(223,244,246,.90) 55%, rgba(237,241,252,.87)); }
+:root[data-app-skin="sky-ripple"][data-record-module="face"] { --module-surface: linear-gradient(144deg, rgba(228,249,249,.96), rgba(215,241,247,.90) 55%, rgba(239,235,253,.87)); }

@@ -105,7 +105,7 @@ async function prepareContext(browser, width, height) {
 }
 
 async function selectSkin(page, skin) {
-  await page.evaluate(() => { location.hash = "tab=profile"; });
+  await page.evaluate(() => { location.hash = "tab=profile&view=skin"; });
   await page.locator(".profile-skin-card").waitFor({ state: "visible", timeout: 30000 });
   for (let attempt = 0; attempt < 4; attempt += 1) {
     await page.waitForTimeout(350);

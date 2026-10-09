@@ -7,13 +7,19 @@
   --skin-accent: #0b809f;
   --skin-accent-2: #2aa9a0;
   --skin-surface: rgba(248, 253, 255, .76);
+  --skin-surface-alt: rgba(236, 248, 252, .78);
   --skin-surface-strong: rgba(248, 253, 255, .94);
+  --skin-header: rgba(214, 242, 252, .9);
+  --skin-header-line: rgba(255, 255, 255, .64);
   --skin-line: rgba(219, 242, 255, .58);
+  --skin-divider: rgba(100, 160, 184, .17);
+  --skin-row: rgba(248, 253, 255, .72);
   --skin-field: rgba(241, 249, 251, .82);
   --skin-shadow: 0 14px 34px rgba(13, 54, 83, .15);
   --skin-button: linear-gradient(135deg, #2fb0e5, #178f97);
   --skin-dock: rgba(210, 231, 240, .72);
   --skin-dock-orb: linear-gradient(145deg, #315d6d, #173d4d 72%);
+  --skin-ai-filter: brightness(0) saturate(100%) invert(28%) sepia(23%) saturate(992%) hue-rotate(151deg) brightness(89%) contrast(89%);
 }
 
 .app-skin-picker {
@@ -142,6 +148,14 @@
   background: var(--skin-page-texture);
   opacity: var(--skin-texture-opacity, 0);
 }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .safe-top,
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .figma-app-header {
+  color: var(--skin-ink);
+  background: var(--skin-header);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .figma-app-header {
+  box-shadow: inset 0 -1px 0 var(--skin-header-line);
+}
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .app-header h1,
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .section-heading h2,
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) h1,
@@ -151,12 +165,47 @@
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .muted,
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .section-heading p { color: var(--skin-muted); }
 
-.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.section-card, .metric-card, .record-module-entry, .weekly-score-card, .weekly-trend-card, .weekly-insight-card, .weekly-module-status, .growth-summary-card, .growth-task-card, .chat-archive-return) {
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.section-card, .figma-module-card, .module-history-report-card, .metric-card, .record-module-entry, .weekly-score-card, .weekly-trend-card, .weekly-insight-card, .weekly-module-status, .growth-summary-card, .growth-task-card, .chat-archive-return, .home-calendar-card, .home-year-card, .home-calendar-overview > div, .record-hub-ai-summary, .profile-device-stage, .notification-detail-dialog, .notification-row-card, .morning-plan-sheet, .drawer-todo-section, .drawer-points-card, .drawer-home-edit, .drawer-placeholder-card) {
   border-color: var(--skin-line);
   background: var(--skin-surface);
   box-shadow: var(--skin-card-shadow);
   backdrop-filter: blur(18px) saturate(1.08);
 }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-entry-header, .profile-nav-row, .profile-device-facts > div) {
+  border-color: var(--skin-divider);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-account-entry, .profile-nav-row) {
+  color: var(--skin-ink);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-account-copy small, .profile-nav-row small, .profile-quarter-months span, .profile-quarter-weekdays span, .home-calendar-weekdays span, .home-calendar-day small, .home-calendar-legend, .home-year-months span, .home-year-weekdays span, .home-year-legend) {
+  color: var(--skin-muted);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-account-entry > svg, .profile-nav-row > span, .profile-section-title > svg, .profile-quarter-header h2 > svg, .profile-entry-header > svg, .home-calendar-overview > div > svg, .home-year-header strong > svg) {
+  color: var(--skin-accent);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-quarter-header nav b, .home-year-header nav b, .home-calendar-overview strong) {
+  color: var(--skin-ink);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-quarter-header nav button, .home-calendar-month-switcher button, .home-year-header nav button) {
+  color: var(--skin-accent);
+  background: var(--skin-surface-alt);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-quarter-day, .home-year-day, .home-year-legend i) {
+  border-color: var(--skin-heat-line);
+  background: var(--skin-heat-0);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-quarter-day[data-level="1"], .home-year-day[data-level="1"], .home-year-legend i[data-level="1"]) { background: var(--skin-heat-1); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-quarter-day[data-level="2"], .home-year-day[data-level="2"], .home-year-legend i[data-level="2"]) { background: var(--skin-heat-2); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-quarter-day[data-level="3"], .home-year-day[data-level="3"], .home-year-legend i[data-level="3"]) { background: var(--skin-heat-3); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-quarter-day[data-level="4"], .home-year-day[data-level="4"], .home-year-legend i[data-level="4"]) { background: var(--skin-heat-4); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-quarter-day.is-outside, .home-year-day.is-outside) { border-color: transparent; background: transparent; }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .home-calendar-day {
+  border-color: var(--skin-field-line);
+  color: var(--skin-ink);
+  background: var(--skin-field);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .home-calendar-day.is-recorded { color: var(--skin-ink); background: var(--skin-surface-alt); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .home-calendar-day.is-today { color: #fff; background: var(--skin-button); box-shadow: var(--skin-button-shadow); }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(input:not([type="range"]):not([type="checkbox"]), textarea, select, .chip, .photo-picker) {
   border-color: var(--skin-field-line);
   color: var(--skin-ink);
@@ -195,12 +244,39 @@
   background: var(--skin-surface-strong);
   box-shadow: var(--skin-shadow);
 }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.today-todo-date-overlay > section, .profile-security-sheet, .weekly-detail-dialog > article, .module-modal-card) {
+  border-color: var(--skin-line);
+  color: var(--skin-ink);
+  background: var(--skin-surface-strong);
+  box-shadow: var(--skin-shadow);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-device-facts, .profile-policy-list article) {
+  border-color: var(--skin-line);
+  color: var(--skin-ink);
+  background: var(--skin-row);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .utility-drawer {
+  color: var(--skin-ink);
+  background: var(--skin-page-background);
+  box-shadow: var(--skin-shadow);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .utility-drawer > header button {
+  color: var(--skin-accent);
+  background: var(--skin-surface-strong);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .profile-security-entries { border-color: var(--skin-line); background: var(--skin-divider); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .profile-security-entries > button { color: var(--skin-ink); background: var(--skin-row); }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .more-menu-divider { background: var(--skin-line); }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .more-menu-check { color: var(--skin-accent); }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .nava-more-menu .app-utility-popover > button:hover,
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .nava-more-menu .app-utility-popover > button:focus-visible { background: color-mix(in srgb, var(--skin-accent) 10%, white); }
 
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .bottom-nav::before {
+  border-color: var(--skin-line);
+  background: var(--skin-dock);
+  box-shadow: var(--skin-dock-shadow);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]):not(.phone-frame--option2) .bottom-nav {
   border-color: var(--skin-line);
   background: var(--skin-dock);
   box-shadow: var(--skin-dock-shadow);
@@ -212,7 +288,9 @@
   box-shadow: var(--skin-nav-shadow);
 }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .bottom-nav .nav-button.selected { background: var(--skin-nav-selected); }
-.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .ai-nav-orb { background: var(--skin-dock-orb); box-shadow: var(--skin-orb-shadow); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .ai-nav-button { border-color: var(--skin-header-line); background: color-mix(in srgb, var(--skin-nav-selected) 82%, transparent); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .ai-nav-orb { color: var(--skin-nav-ink); background: var(--skin-dock-orb); box-shadow: var(--skin-orb-shadow); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .ai-nav-orb .figma-nav-ai-chat { filter: var(--skin-ai-filter); }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .figma-nav-icon { filter: var(--skin-nav-filter); }
 
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .option-two-home { color: var(--skin-ink); background: transparent; }
@@ -229,10 +307,28 @@
 }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .option-two-scores strong { color: var(--skin-nav-ink); background: var(--skin-surface-strong); box-shadow: var(--skin-card-shadow); }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .option-two-health-disc { border-color: var(--skin-line); background: var(--skin-health-disc); box-shadow: var(--skin-shadow); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-hub-ai-summary > span { color: var(--skin-ink); background: var(--skin-surface-alt); box-shadow: var(--skin-nav-shadow); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-hub-ai-summary :is(strong, p, small) { color: var(--skin-muted); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-hub-ai-summary strong { color: var(--skin-ink); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-module-entry[data-record-module="mood"] { background: var(--skin-module-mood); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-module-entry[data-record-module="sleep"] { background: var(--skin-module-sleep); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-module-entry[data-record-module="exercise"] { background: var(--skin-module-exercise); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-module-entry[data-record-module="focus"] { background: var(--skin-module-focus); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-module-entry[data-record-module="diet"] { background: var(--skin-module-diet); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-module-entry[data-record-module="face"] { background: var(--skin-module-face); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-module-entry[data-record-state="missing"] { border-color: var(--skin-line); color: var(--skin-ink); filter: saturate(.7); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.record-module-entry, .growth-summary-card) :is(strong, span, svg) { color: inherit; }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-detail .chip.selected,
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-detail .face-mode-picker button.selected { color: #fff; background: var(--skin-button); }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .growth-progress-track { background: color-mix(in srgb, var(--skin-accent) 15%, white); }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .growth-progress-track span { background: var(--skin-button); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.page-skeleton-card, .page-skeleton-record-card, .page-skeleton-task-group > article, .page-skeleton-daily-metrics > article, .page-skeleton-profile-identity, .page-skeleton-tabs, .page-skeleton-composer) {
+  border-color: var(--skin-line);
+  background: var(--skin-surface);
+  box-shadow: var(--skin-card-shadow);
+}
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.page-skeleton-energy-row, .page-skeleton-face-feedback, .page-skeleton-editor-food, .page-skeleton-editor-ai, .page-skeleton-message > span:not(.is-circle)) { background: var(--skin-surface-alt); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .nava-skeleton-block { background: color-mix(in srgb, var(--skin-accent) 14%, var(--skin-surface-strong)); }
 
 /* Figma group 1: Style F Bold Violet. */
 .phone-frame[data-app-skin="violet-dusk"] {
@@ -240,54 +336,69 @@
   --skin-muted: #53617d;
   --skin-accent: #735cff;
   --skin-accent-2: #00cfd0;
-  --skin-surface: linear-gradient(153deg, rgba(247,252,255,.98) 8.49%, rgba(226,243,252,.86) 91.51%);
-  --skin-surface-strong: rgba(247, 249, 252, .97);
-  --skin-line: rgba(255, 255, 255, .78);
-  --skin-field: rgba(229, 246, 255, .76);
+  --skin-surface: linear-gradient(146deg, rgba(249,247,255,.97) 4%, rgba(232,228,255,.90) 48%, rgba(220,246,248,.86) 100%);
+  --skin-surface-alt: linear-gradient(140deg, rgba(238,234,255,.94), rgba(218,244,248,.88));
+  --skin-surface-strong: rgba(248, 246, 255, .97);
+  --skin-header: linear-gradient(108deg, rgba(235,230,255,.95), rgba(225,238,255,.93) 58%, rgba(216,247,245,.91));
+  --skin-header-line: rgba(255, 255, 255, .82);
+  --skin-line: rgba(255, 255, 255, .84);
+  --skin-divider: rgba(111, 100, 198, .16);
+  --skin-row: linear-gradient(96deg, rgba(248,246,255,.88), rgba(231,241,255,.82));
+  --skin-field: rgba(238, 237, 255, .78);
   --skin-field-line: rgba(120, 124, 254, .24);
-  --skin-page-background: #f7f9fc;
-  --skin-page-atmosphere: linear-gradient(rgba(247,249,252,.001), rgba(247,249,252,.001));
+  --skin-page-background: linear-gradient(152deg, #f7f3ff 0%, #e8e9ff 43%, #dff7f5 100%);
+  --skin-page-atmosphere: radial-gradient(ellipse 92% 56% at 92% 6%, rgba(126,112,237,.19), transparent 68%), radial-gradient(ellipse 90% 52% at 3% 88%, rgba(78,207,205,.16), transparent 67%);
   --skin-page-texture: none;
   --skin-texture-opacity: 0;
   --skin-shadow: 0 24px 60px rgba(45,48,145,.18);
   --skin-card-shadow: 0 12px 30px rgba(45,48,145,.13), inset 0 1px 0 rgba(255,255,255,.9);
   --skin-button: linear-gradient(138.42deg, #787cfe 12.99%, #00e2e0 87.02%);
   --skin-button-shadow: 0 10px 23px rgba(77,88,211,.25);
-  --skin-dock: linear-gradient(135deg, rgba(117,98,224,.83), rgba(61,84,184,.88) 52%, rgba(0,196,203,.78));
-  --skin-dock-shadow: 0 11px 28px rgba(45,48,145,.25), inset 0 1px 0 rgba(255,255,255,.45);
-  --skin-dock-orb: linear-gradient(145deg, #2d3091, #172d9d 64%, #0fa5ba);
-  --skin-orb-shadow: 0 10px 24px rgba(23,45,157,.35), inset 0 1px 0 rgba(255,255,255,.22);
+  --skin-dock: linear-gradient(118deg, rgba(229,222,255,.91), rgba(211,225,255,.90) 52%, rgba(202,242,241,.88));
+  --skin-dock-shadow: 0 11px 28px rgba(61,57,142,.17), inset 0 1px 0 rgba(255,255,255,.78);
+  --skin-dock-orb: linear-gradient(145deg, #ddd7ff 0%, #b9c4f4 55%, #91ddda 100%);
+  --skin-orb-shadow: 0 9px 22px rgba(65,69,158,.22), inset 0 1px 0 rgba(255,255,255,.72);
   --skin-nav-ink: #25345a;
-  --skin-nav-button: rgba(247,249,252,.86);
+  --skin-nav-button: rgba(246,243,255,.88);
   --skin-nav-selected: rgba(255,255,255,.98);
   --skin-nav-shadow: 0 6px 15px rgba(45,48,145,.22), inset 0 1px 0 rgba(255,255,255,.9);
   --skin-nav-filter: brightness(0) saturate(100%) invert(22%) sepia(26%) saturate(1257%) hue-rotate(192deg) brightness(88%) contrast(89%);
+  --skin-ai-filter: brightness(0) saturate(100%) invert(31%) sepia(27%) saturate(1500%) hue-rotate(202deg) brightness(88%) contrast(88%);
+  --skin-heat-line: rgba(104,92,195,.12);
+  --skin-heat-0: #e8e6f7;
+  --skin-heat-1: #d7d2fa;
+  --skin-heat-2: #bbb4f2;
+  --skin-heat-3: #9893df;
+  --skin-heat-4: #7472c8;
+  --skin-module-mood: linear-gradient(140deg, rgba(249,239,255,.96), rgba(235,219,250,.9) 54%, rgba(244,226,245,.88));
+  --skin-module-sleep: linear-gradient(140deg, rgba(239,239,255,.96), rgba(217,225,255,.90) 54%, rgba(211,244,246,.86));
+  --skin-module-exercise: linear-gradient(140deg, rgba(236,244,255,.96), rgba(215,232,255,.90) 54%, rgba(207,244,243,.86));
+  --skin-module-focus: linear-gradient(140deg, rgba(245,240,255,.96), rgba(225,219,252,.90) 54%, rgba(218,237,251,.86));
+  --skin-module-diet: linear-gradient(140deg, rgba(239,243,255,.96), rgba(222,226,250,.90) 54%, rgba(224,242,248,.86));
+  --skin-module-face: linear-gradient(140deg, rgba(234,249,250,.96), rgba(214,240,245,.90) 54%, rgba(232,226,253,.86));
   --skin-scene-opacity: .26;
   --skin-scene-filter: hue-rotate(45deg) saturate(.95) brightness(1.16);
   --skin-scene-blend: multiply;
   --skin-health-disc: radial-gradient(circle at 50% 3%, rgba(0,226,224,.52), transparent 35%), linear-gradient(180deg, rgba(120,124,254,.88), rgba(45,48,145,.94));
 }
 .phone-frame[data-app-skin="violet-dusk"] .profile-skin-icon { color: #735cff; background: #ece9ff; }
-.phone-frame[data-app-skin="violet-dusk"] .record-module-entry[data-record-module="sleep"],
-.phone-frame[data-app-skin="violet-dusk"] .growth-summary-card { background: linear-gradient(145deg, rgba(120,124,254,.93), rgba(0,226,224,.78)); color: #fff; }
-.phone-frame[data-app-skin="violet-dusk"] .record-module-entry[data-record-module="sleep"] :is(strong, span, svg),
-.phone-frame[data-app-skin="violet-dusk"] .growth-summary-card :is(strong, span, svg) { color: #fff; }
+.phone-frame[data-app-skin="violet-dusk"] .growth-summary-card { background: var(--skin-module-sleep); color: var(--skin-ink); }
 
 /* Figma Style F does not use one decorative backdrop for every screen. The page
    stays quiet while each module carries its own approved color direction. */
 .phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="mood"]) {
   --skin-page-background: #ecdffa;
-  --skin-surface: linear-gradient(153.81deg, rgba(247,252,255,.98) 8.49%, rgba(226,243,252,.86) 91.51%);
+  --skin-surface: var(--skin-module-mood);
   --skin-button: linear-gradient(142.76deg, #787cfe 8.63%, #d670c9 91.37%);
 }
-.phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="sleep"]) { --skin-button: linear-gradient(138.42deg, #787cfe 12.99%, #00e2e0 87.02%); }
-.phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="exercise"]) { --skin-button: linear-gradient(143.91deg, #787cfe 12.99%, #00e2e0 87.02%); }
-.phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="focus"]) { --skin-button: linear-gradient(141.59deg, #787cfe 12.99%, #00e2e0 87.02%); }
+.phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="sleep"]) { --skin-surface: var(--skin-module-sleep); --skin-button: linear-gradient(138.42deg, #787cfe 12.99%, #00e2e0 87.02%); }
+.phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="exercise"]) { --skin-surface: var(--skin-module-exercise); --skin-button: linear-gradient(143.91deg, #787cfe 12.99%, #00e2e0 87.02%); }
+.phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="focus"]) { --skin-surface: var(--skin-module-focus); --skin-button: linear-gradient(141.59deg, #787cfe 12.99%, #00e2e0 87.02%); }
 .phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="diet"]) {
-  --skin-button: linear-gradient(136.3deg, #787cfe 10.79%, #172d9d 86.84%);
-  --skin-surface: linear-gradient(140deg, #e5f6ff 3.67%, #f6f7f9 96.33%);
+  --skin-button: linear-gradient(136.3deg, #787cfe 10.79%, #596ada 86.84%);
+  --skin-surface: var(--skin-module-diet);
 }
-.phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="face"]) { --skin-button: linear-gradient(116.12deg, #787cfe 13.24%, #00e2e0 100%); }
+.phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="face"]) { --skin-surface: var(--skin-module-face); --skin-button: linear-gradient(116.12deg, #787cfe 13.24%, #00e2e0 100%); }
 
 /* Figma group 2: Key Screens V1.8. */
 .phone-frame[data-app-skin="sky-ripple"] {
@@ -295,9 +406,14 @@
   --skin-muted: #52657a;
   --skin-accent: #548dcc;
   --skin-accent-2: #70ceca;
-  --skin-surface: linear-gradient(146.38deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%);
+  --skin-surface: linear-gradient(146.38deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.88) 57.62%, rgba(247,244,255,.88) 97.64%);
+  --skin-surface-alt: linear-gradient(142deg, rgba(222,242,255,.92), rgba(218,246,244,.86) 58%, rgba(239,233,255,.84));
   --skin-surface-strong: rgba(248, 251, 255, .96);
+  --skin-header: linear-gradient(112deg, rgba(218,239,255,.94), rgba(218,247,246,.91) 56%, rgba(235,230,252,.88));
+  --skin-header-line: rgba(255,255,255,.9);
   --skin-line: rgba(255,255,255,.88);
+  --skin-divider: rgba(80,135,181,.16);
+  --skin-row: linear-gradient(96deg, rgba(242,250,255,.87), rgba(224,245,247,.82));
   --skin-field: rgba(248,252,255,.72);
   --skin-field-line: rgba(79,138,202,.22);
   --skin-page-background:
@@ -314,13 +430,26 @@
   --skin-button-shadow: 0 10px 22px rgba(79,138,202,.22);
   --skin-dock: linear-gradient(135deg, rgba(213,231,247,.88), rgba(214,242,242,.86) 55%, rgba(231,225,248,.82));
   --skin-dock-shadow: 0 10px 25px rgba(55,111,159,.18), inset 0 1px 0 rgba(255,255,255,.9);
-  --skin-dock-orb: linear-gradient(145deg, #426f9e, #5a9fc1 54%, #64c2b9);
-  --skin-orb-shadow: 0 9px 21px rgba(55,111,159,.27), inset 0 1px 0 rgba(255,255,255,.22);
+  --skin-dock-orb: linear-gradient(145deg, #d3e9fb 0%, #acd8e9 54%, #c8c0e9 100%);
+  --skin-orb-shadow: 0 9px 21px rgba(55,111,159,.19), inset 0 1px 0 rgba(255,255,255,.76);
   --skin-nav-ink: #376f9f;
   --skin-nav-button: rgba(248,252,255,.8);
   --skin-nav-selected: rgba(255,255,255,.98);
   --skin-nav-shadow: 0 5px 13px rgba(55,111,159,.16), inset 0 1px 0 rgba(255,255,255,.94);
   --skin-nav-filter: brightness(0) saturate(100%) invert(41%) sepia(35%) saturate(991%) hue-rotate(164deg) brightness(91%) contrast(87%);
+  --skin-ai-filter: brightness(0) saturate(100%) invert(41%) sepia(35%) saturate(991%) hue-rotate(164deg) brightness(86%) contrast(91%);
+  --skin-heat-line: rgba(79,138,202,.11);
+  --skin-heat-0: #dfedf3;
+  --skin-heat-1: #c9e8f1;
+  --skin-heat-2: #a6dce9;
+  --skin-heat-3: #7bc6db;
+  --skin-heat-4: #5799c9;
+  --skin-module-mood: linear-gradient(142deg, rgba(236,244,255,.96), rgba(225,237,253,.90) 55%, rgba(241,235,255,.86));
+  --skin-module-sleep: linear-gradient(142deg, rgba(224,240,255,.96), rgba(215,239,248,.90) 55%, rgba(229,231,250,.86));
+  --skin-module-exercise: linear-gradient(142deg, rgba(226,245,255,.96), rgba(210,241,246,.90) 55%, rgba(223,238,253,.86));
+  --skin-module-focus: linear-gradient(142deg, rgba(234,242,255,.96), rgba(218,233,250,.90) 55%, rgba(234,229,252,.86));
+  --skin-module-diet: linear-gradient(142deg, rgba(236,247,255,.96), rgba(220,242,244,.90) 55%, rgba(234,238,251,.86));
+  --skin-module-face: linear-gradient(142deg, rgba(224,247,247,.96), rgba(211,238,245,.90) 55%, rgba(235,232,252,.86));
   --skin-scene-opacity: .19;
   --skin-scene-filter: saturate(.58) brightness(1.3);
   --skin-scene-blend: multiply;
@@ -328,12 +457,12 @@
 }
 
 /* Key Screens V1.8 changes the glass-card gradient angle by module. */
-.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="sleep"]) { --skin-surface: linear-gradient(146.38deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
-.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="exercise"]) { --skin-surface: linear-gradient(147.78deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
-.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="mood"]) { --skin-surface: linear-gradient(148.31deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
-.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="focus"]) { --skin-surface: linear-gradient(149.14deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
-.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="diet"]) { --skin-surface: linear-gradient(156.91deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
-.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="face"]) { --skin-surface: linear-gradient(141.54deg, rgba(220,237,255,.94) 2.36%, rgba(232,248,251,.86) 57.62%, rgba(247,244,255,.84) 97.64%); }
+.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="sleep"]) { --skin-surface: var(--skin-module-sleep); }
+.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="exercise"]) { --skin-surface: var(--skin-module-exercise); }
+.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="mood"]) { --skin-surface: var(--skin-module-mood); }
+.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="focus"]) { --skin-surface: var(--skin-module-focus); }
+.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="diet"]) { --skin-surface: var(--skin-module-diet); }
+.phone-frame[data-app-skin="sky-ripple"]:has(.record-detail[data-record-detail="face"]) { --skin-surface: var(--skin-module-face); }
 
 @media (max-width: 374px) {
   .app-skin-picker { gap: 6px; }
