@@ -160,6 +160,40 @@ try {
         await expect(page.locator(".profile-device-orb")).toHaveCount(1);
         await expect(page.locator(".profile-subpage-actions")).toHaveCount(0);
         await expect(page.locator(".profile-device-facts > div")).toHaveCount(3);
+        const devicePaint = await page.evaluate(() => {
+          const transparent = (value) => value === "transparent" || value === "rgba(0, 0, 0, 0)";
+          const paint = (element, pseudo = null) => {
+            const style = getComputedStyle(element, pseudo);
+            return {
+              transparent: transparent(style.backgroundColor) && style.backgroundImage === "none",
+              borderless: [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth].every((value) => parseFloat(value) === 0),
+              shadowless: style.boxShadow === "none",
+              blurFree: (style.backdropFilter || style.webkitBackdropFilter || "none") === "none",
+            };
+          };
+          const stage = document.querySelector(".profile-device-stage");
+          const facts = document.querySelector(".profile-device-facts");
+          const orb = document.querySelector(".profile-device-orb");
+          const orbStyle = getComputedStyle(orb);
+          return {
+            stage: paint(stage),
+            facts: paint(facts),
+            factRows: [...facts.children].map((row) => paint(row)),
+            orb: {
+              width: orb.getBoundingClientRect().width,
+              height: orb.getBoundingClientRect().height,
+              radius: orbStyle.borderRadius,
+              hasPaint: !transparent(orbStyle.backgroundColor) || orbStyle.backgroundImage !== "none",
+              before: paint(orb, "::before"),
+              after: paint(orb, "::after"),
+            },
+          };
+        });
+        assert.ok(Object.values(devicePaint.stage).every(Boolean), `${width}x${height} ${subpage} stage must not add a rectangular surface`);
+        assert.ok(Object.values(devicePaint.facts).every(Boolean), `${width}x${height} ${subpage} facts container must be paintless`);
+        assert.ok(devicePaint.factRows.every((row) => row.transparent && row.borderless && row.shadowless), `${width}x${height} ${subpage} fact rows must have no backgrounds or dividers`);
+        assert.ok(Math.abs(devicePaint.orb.width - devicePaint.orb.height) <= 1 && devicePaint.orb.radius === "50%" && devicePaint.orb.hasPaint, `${width}x${height} ${subpage} must expose exactly one painted circular action`);
+        assert.ok(devicePaint.orb.before.transparent && devicePaint.orb.after.transparent, `${width}x${height} ${subpage} orb pseudo-elements must not add a square backing`);
         const statusLine = await page.locator(".profile-device-status").evaluate((node) => ({
           overflow: node.scrollWidth - node.clientWidth,
           whiteSpace: getComputedStyle(node).whiteSpace,
@@ -178,12 +212,31 @@ try {
       }
       if (subpage === "account") {
         await expect(page.locator(".profile-security-entries > button")).toHaveCount(7);
-        const securityRows = await page.locator(".profile-security-entries > button").evaluateAll((nodes) => nodes.map((node) => {
-          const rect = node.getBoundingClientRect();
-          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-        }));
+        const accountPaint = await page.evaluate(() => {
+          const transparent = (value) => value === "transparent" || value === "rgba(0, 0, 0, 0)";
+          const paint = (element) => {
+            const style = getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return {
+              x: rect.x,
+              y: rect.y,
+              width: rect.width,
+              height: rect.height,
+              transparent: transparent(style.backgroundColor) && style.backgroundImage === "none",
+              borderless: [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth].every((value) => parseFloat(value) === 0),
+              shadowless: style.boxShadow === "none",
+            };
+          };
+          return {
+            container: paint(document.querySelector(".profile-security-entries")),
+            rows: [...document.querySelectorAll(".profile-security-entries > button")].map(paint),
+          };
+        });
+        const securityRows = accountPaint.rows;
         assert.ok(securityRows.every((row) => Math.abs(row.x - securityRows[0].x) <= 1 && Math.abs(row.width - securityRows[0].width) <= 1), `${width}x${height} account entries must be one full-width row each`);
         assert.ok(securityRows.every((row, index) => index === 0 || row.y >= securityRows[index - 1].y + securityRows[index - 1].height), `${width}x${height} account entries must stack vertically`);
+        assert.ok(accountPaint.container.transparent && accountPaint.container.borderless && accountPaint.container.shadowless, `${width}x${height} account entry group must not add a nested card`);
+        assert.ok(securityRows.every((row) => row.transparent && row.borderless && row.shadowless), `${width}x${height} account entries must have no row backgrounds or dividers`);
         await expect(page.locator(".profile-account-danger-actions .action-button")).toHaveCount(2);
         await expect(page.locator(".profile-account-danger-actions .action-button").last()).toHaveText("注销账号");
         await expect(page.locator(".profile-account-danger-actions .action-button").last().locator("svg")).toHaveCount(0);

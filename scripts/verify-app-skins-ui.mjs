@@ -106,11 +106,42 @@ try {
         await expect(page.locator('.profile-device-experience[data-profile-view="health"]')).toBeVisible({ timeout: 20000 });
         await expect(page.locator(".phone-frame")).toHaveAttribute("data-app-skin", skin);
         await expect(page.locator(".profile-device-orb")).toBeVisible();
+        const deviceFlattening = await page.evaluate(() => {
+          const transparent = (value) => value === "transparent" || value === "rgba(0, 0, 0, 0)";
+          const isPaintless = (element) => {
+            const style = getComputedStyle(element);
+            return transparent(style.backgroundColor)
+              && style.backgroundImage === "none"
+              && style.boxShadow === "none"
+              && [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth].every((value) => parseFloat(value) === 0);
+          };
+          return {
+            stage: isPaintless(document.querySelector(".profile-device-stage")),
+            facts: isPaintless(document.querySelector(".profile-device-facts")),
+            factRows: [...document.querySelectorAll(".profile-device-facts > div")].every(isPaintless),
+          };
+        });
+        assert.ok(Object.values(deviceFlattening).every(Boolean), `${skin} device page must keep its stage and rows on one unsegmented surface`);
         await page.screenshot({ path: `${output}/${skin}-health-${width}x${height}.png` });
         await page.evaluate(() => { location.hash = "tab=profile&view=account"; });
         await expect(page.locator('.profile-subpage[data-profile-view="account"]')).toBeVisible({ timeout: 20000 });
         await expect(page.locator(".profile-security-entries > button")).toHaveCount(7);
         await expect(page.locator(".phone-frame")).toHaveAttribute("data-app-skin", skin);
+        const accountFlattening = await page.evaluate(() => {
+          const transparent = (value) => value === "transparent" || value === "rgba(0, 0, 0, 0)";
+          const isPaintless = (element) => {
+            const style = getComputedStyle(element);
+            return transparent(style.backgroundColor)
+              && style.backgroundImage === "none"
+              && style.boxShadow === "none"
+              && [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth].every((value) => parseFloat(value) === 0);
+          };
+          return {
+            group: isPaintless(document.querySelector(".profile-security-entries")),
+            rows: [...document.querySelectorAll(".profile-security-entries > button")].every(isPaintless),
+          };
+        });
+        assert.ok(Object.values(accountFlattening).every(Boolean), `${skin} account list must not restore nested cards, row backgrounds, or dividers`);
         await page.screenshot({ path: `${output}/${skin}-account-${width}x${height}.png` });
         await page.evaluate(() => { location.hash = "tab=profile&view=skin"; });
         await expect(page.locator(".profile-skin-card")).toBeVisible({ timeout: 20000 });

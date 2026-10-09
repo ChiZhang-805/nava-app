@@ -225,13 +225,13 @@
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .muted,
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .section-heading p { color: var(--skin-muted); }
 
-.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.section-card, .figma-module-card, .module-history-report-card, .metric-card, .record-module-entry, .weekly-score-card, .weekly-trend-card, .weekly-insight-card, .weekly-module-status, .growth-summary-card, .growth-task-card, .chat-archive-return, .home-calendar-card, .home-year-card, .home-calendar-overview > div, .record-hub-ai-summary, .profile-device-stage, .notification-detail-dialog, .notification-row-card, .morning-plan-sheet, .drawer-todo-section, .drawer-points-card, .drawer-home-edit, .drawer-placeholder-card) {
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.section-card, .figma-module-card, .module-history-report-card, .metric-card, .record-module-entry, .weekly-score-card, .weekly-trend-card, .weekly-insight-card, .weekly-module-status, .growth-summary-card, .growth-task-card, .chat-archive-return, .home-calendar-card, .home-year-card, .home-calendar-overview > div, .record-hub-ai-summary, .notification-detail-dialog, .notification-row-card, .morning-plan-sheet, .drawer-todo-section, .drawer-points-card, .drawer-home-edit, .drawer-placeholder-card) {
   border-color: var(--skin-line);
   background: var(--skin-surface);
   box-shadow: var(--skin-card-shadow);
   backdrop-filter: blur(18px) saturate(1.08);
 }
-.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-entry-header, .profile-nav-row, .profile-device-facts > div) {
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-entry-header, .profile-nav-row) {
   border-color: var(--skin-divider);
 }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-account-entry, .profile-nav-row) {
@@ -316,7 +316,7 @@
   background: var(--skin-surface-strong);
   box-shadow: var(--skin-shadow);
 }
-.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-device-facts, .profile-policy-list article) {
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .profile-policy-list article {
   border-color: var(--skin-line);
   color: var(--skin-ink);
   background: var(--skin-row);
@@ -330,8 +330,18 @@
   color: var(--skin-accent);
   background: var(--skin-surface-strong);
 }
-.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .profile-security-entries { border-color: var(--skin-line); background: var(--skin-divider); }
-.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .profile-security-entries > button { color: var(--skin-ink); background: var(--skin-row); }
+.phone-frame[data-app-skin] :is(.profile-device-stage, .profile-device-facts, .profile-device-facts > div, .profile-security-entries) {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.phone-frame[data-app-skin] .profile-security-entries > button {
+  border: 0;
+  color: var(--skin-ink);
+  background: transparent;
+  box-shadow: none;
+}
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .more-menu-divider { background: var(--skin-line); }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .more-menu-check { color: var(--skin-accent); }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .nava-more-menu .app-utility-popover > button:hover,
