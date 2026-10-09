@@ -9,7 +9,7 @@ export default function SectionCard({
   bodyClassName,
   footer,
 }: {
-  title: ReactNode;
+  title?: ReactNode;
   subtitle?: string;
   children: ReactNode;
   action?: ReactNode;
@@ -19,13 +19,15 @@ export default function SectionCard({
 }) {
   return (
     <section className={["section-card", className].filter(Boolean).join(" ")}>
-      <div className="section-heading">
-        <div>
-          <h2>{title}</h2>
-          {subtitle && <p>{subtitle}</p>}
+      {(title != null || subtitle != null || action != null) && (
+        <div className="section-heading">
+          <div>
+            {title != null && <h2>{title}</h2>}
+            {subtitle && <p>{subtitle}</p>}
+          </div>
+          {action}
         </div>
-        {action}
-      </div>
+      )}
       {bodyClassName ? <div className={bodyClassName}>{children}</div> : children}
       {footer}
     </section>

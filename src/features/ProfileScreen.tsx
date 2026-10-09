@@ -613,7 +613,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
 
   if (activeView === "account") return (
     <div className="stack profile-stack profile-subpage" data-profile-view="account">
-      <SectionCard className="profile-account-card profile-subpage-card profile-account-security-card" title={<span className="profile-section-title"><ShieldCheck size={19} aria-hidden="true" />{locale === "zh" ? "账号与安全" : "Account & security"}</span>}>
+      <SectionCard className="profile-account-card profile-subpage-card profile-account-security-card">
         <div className="profile-row">
           <button className="avatar large avatar-button" type="button" aria-label={t("profile.changeAvatar")} title={t("profile.changeAvatar")} onClick={() => setAvatarSheetOpen(true)} disabled={busy === "avatar"}>
             {profile?.avatar_url && !avatarLoadFailed ? <img alt="" src={profile.avatar_url} onError={() => setAvatarLoadFailed(true)} /> : <span>{displayName.slice(0, 1).toUpperCase()}</span>}
@@ -631,7 +631,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
           <button type="button" onClick={() => { setError(null); setSecurityEditor("qq"); }}><CircleUserRound size={19} /><span><strong>{locale === "zh" ? "关联 QQ" : "Connect QQ"}</strong><small>{locale === "zh" ? "未关联" : "Not connected"}</small></span><ChevronRight size={21} /></button>
           <button type="button" onClick={() => { setError(null); setSecurityEditor("gesture"); }}><Grid3X3 size={19} /><span><strong>{locale === "zh" ? "APP 手势密码" : "App gesture lock"}</strong><small>{locale === "zh" ? "待接入系统安全存储" : "Requires secure device storage"}</small></span><ChevronRight size={21} /></button>
         </div>
-        <p className="profile-security-note" data-kind={error ? "error" : message ? "success" : "idle"} aria-live="polite">{error ?? message ?? (locale === "zh" ? "备用联系方式仅作为安全联系资料，不会替换当前登录账号。" : "Backup contacts are security contact details; they do not replace your current sign-in identity.")}</p>
+        {(error || message) && <p className="profile-security-note" data-kind={error ? "error" : "success"} aria-live="polite">{error ?? message}</p>}
       </SectionCard>
       <div className="profile-account-danger-actions" aria-label={locale === "zh" ? "账号操作" : "Account actions"}>
         <ActionButton icon={<LogOut size={18} />} variant="ghost" onClick={signOut}>{t("profile.signOut")}</ActionButton>

@@ -126,6 +126,8 @@ try {
         await page.evaluate(() => { location.hash = "tab=profile&view=account"; });
         await expect(page.locator('.profile-subpage[data-profile-view="account"]')).toBeVisible({ timeout: 20000 });
         await expect(page.locator(".profile-security-entries > button")).toHaveCount(7);
+        await expect(page.locator(".profile-account-security-card > .section-heading")).toHaveCount(0);
+        await expect(page.locator(".profile-security-note")).toHaveCount(0);
         await expect(page.locator(".phone-frame")).toHaveAttribute("data-app-skin", skin);
         const accountFlattening = await page.evaluate(() => {
           const transparent = (value) => value === "transparent" || value === "rgba(0, 0, 0, 0)";

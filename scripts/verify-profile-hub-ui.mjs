@@ -211,6 +211,16 @@ try {
         await page.keyboard.press("Escape");
       }
       if (subpage === "account") {
+        await expect(page.locator(".profile-account-security-card > .section-heading")).toHaveCount(0);
+        await expect(page.locator(".profile-security-note")).toHaveCount(0);
+        const accountIdentity = await page.evaluate(() => {
+          const row = document.querySelector(".profile-account-security-card > .profile-row");
+          const avatar = row.querySelector(".avatar.large").getBoundingClientRect();
+          const name = getComputedStyle(row.querySelector("strong"));
+          return { avatarWidth: avatar.width, avatarHeight: avatar.height, nameSize: parseFloat(name.fontSize) };
+        });
+        assert.ok(accountIdentity.avatarWidth >= 58 && Math.abs(accountIdentity.avatarWidth - accountIdentity.avatarHeight) <= 1, `${width}x${height} account avatar must be enlarged and circular`);
+        assert.ok(accountIdentity.nameSize >= 18, `${width}x${height} account name must be enlarged`);
         await expect(page.locator(".profile-security-entries > button")).toHaveCount(7);
         const accountPaint = await page.evaluate(() => {
           const transparent = (value) => value === "transparent" || value === "rgba(0, 0, 0, 0)";
@@ -266,7 +276,7 @@ try {
             await page.locator(".profile-security-sheet header button").click();
           }
         }
-        await expect(page.locator(".profile-security-note")).not.toContainText("不一致");
+        await expect(page.locator(".profile-security-note")).toHaveCount(0);
       }
       if (subpage === "personal" || (width === 390 && ["skin", "health", "watch", "privacy", "account"].includes(subpage))) {
         await page.screenshot({ path: `${output}/profile-${subpage}-${width}x${height}.png`, fullPage: true });
