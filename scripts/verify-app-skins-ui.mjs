@@ -27,6 +27,86 @@ async function initialize(context) {
   });
 }
 
+async function verifyAdvancedProfileWheels(page, advancedProfile, width, height, skin) {
+  const wheels = advancedProfile.locator(".advanced-profile-wheel");
+  for (let index = 0; index < await wheels.count(); index += 1) {
+    const wheel = wheels.nth(index);
+    const trigger = wheel.locator(":scope > button");
+    await trigger.scrollIntoViewIfNeeded();
+    const arrowGeometry = await trigger.evaluate((button) => {
+      const arrow = button.querySelector("svg");
+      const buttonBounds = button.getBoundingClientRect();
+      const arrowBounds = arrow?.getBoundingClientRect();
+      return {
+        exists: Boolean(arrow),
+        rightInset: arrowBounds ? buttonBounds.right - arrowBounds.right : -1,
+        aligned: arrowBounds ? Math.abs((buttonBounds.top + buttonBounds.height / 2) - (arrowBounds.top + arrowBounds.height / 2)) : -1,
+      };
+    });
+    assert.equal(arrowGeometry.exists, true, `${width}x${height} ${skin} wheel ${index} needs a visible chevron`);
+    assert.ok(arrowGeometry.rightInset >= 10 && arrowGeometry.rightInset <= 20, `${width}x${height} ${skin} wheel ${index} chevron needs right breathing room`);
+    assert.ok(arrowGeometry.aligned <= 1, `${width}x${height} ${skin} wheel ${index} chevron must be vertically centred`);
+
+    await trigger.click();
+    await expect(trigger).toHaveAttribute("aria-expanded", "true");
+    const menu = wheel.locator(".advanced-profile-wheel-list");
+    await expect(menu).toBeVisible();
+    await page.waitForTimeout(80);
+    const openGeometry = await wheel.evaluate((root) => {
+      const menu = root.querySelector(".advanced-profile-wheel-list");
+      const section = root.closest(".advanced-profile-section");
+      const menuBounds = menu.getBoundingClientRect();
+      const x = Math.min(window.innerWidth - 1, Math.max(0, menuBounds.left + menuBounds.width / 2));
+      const ys = [menuBounds.top + 8, menuBounds.top + menuBounds.height / 2, menuBounds.bottom - 8]
+        .filter((y) => y >= 0 && y < window.innerHeight);
+      const unobscured = ys.every((y) => menu.contains(document.elementFromPoint(x, y)));
+      const sectionZ = Number.parseInt(getComputedStyle(section).zIndex || "0", 10);
+      const siblingZ = [...section.parentElement.children]
+        .filter((element) => element !== section && element.matches(".advanced-profile-section"))
+        .map((element) => Number.parseInt(getComputedStyle(element).zIndex || "0", 10))
+        .reduce((max, value) => Math.max(max, Number.isNaN(value) ? 0 : value), 0);
+      return {
+        top: menuBounds.top,
+        bottom: menuBounds.bottom,
+        viewportHeight: window.innerHeight,
+        unobscured,
+        sectionZ,
+        siblingZ,
+        opensUpward: root.classList.contains("opens-upward"),
+        arrowRotated: getComputedStyle(root.querySelector(":scope > button svg")).transform !== "none",
+      };
+    });
+    assert.ok(openGeometry.top >= 0 && openGeometry.bottom <= openGeometry.viewportHeight + 1, `${width}x${height} ${skin} wheel ${index} menu must stay inside the viewport`);
+    assert.equal(openGeometry.unobscured, true, `${width}x${height} ${skin} wheel ${index} menu is covered by another card`);
+    assert.ok(openGeometry.sectionZ > openGeometry.siblingZ, `${width}x${height} ${skin} wheel ${index} open card must rise above sibling cards`);
+    assert.equal(openGeometry.arrowRotated, true, `${width}x${height} ${skin} wheel ${index} chevron must show the open state`);
+
+    const options = menu.locator('[role="option"]');
+    assert.ok(await options.count() >= 4, `${width}x${height} ${skin} wheel ${index} must expose its complete option set`);
+    await options.last().evaluate((option) => option.scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(80);
+    const lastOptionVisible = await options.last().evaluate((option) => {
+      const menu = option.closest(".advanced-profile-wheel-list");
+      const optionBounds = option.getBoundingClientRect();
+      const menuBounds = menu.getBoundingClientRect();
+      const x = optionBounds.left + optionBounds.width / 2;
+      const y = optionBounds.top + optionBounds.height / 2;
+      return optionBounds.top >= menuBounds.top && optionBounds.bottom <= menuBounds.bottom
+        && menu.contains(document.elementFromPoint(x, y));
+    });
+    assert.equal(lastOptionVisible, true, `${width}x${height} ${skin} wheel ${index} final option must be reachable and unobscured`);
+    const lastOptionText = (await options.last().textContent())?.trim();
+    await options.last().click();
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await expect(trigger.locator("span")).toHaveText(lastOptionText);
+    await trigger.click();
+    await expect(trigger).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("Escape");
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await expect(menu).toHaveCount(0);
+  }
+}
+
 try {
   for (const [width, height] of sizes) {
     const context = await browser.newContext({ viewport: { width, height }, isMobile: true, hasTouch: true, reducedMotion: "reduce", locale: "zh-CN" });
@@ -129,6 +209,7 @@ try {
       report.results.push({ viewport: `${width}x${height}`, skin, advancedProfileLayers: advancedLayers });
       if (width === 390) await page.screenshot({ path: `${output}/${skin}-advanced-profile-${width}x${height}.png`, fullPage: false });
       await page.keyboard.press("Escape");
+      await verifyAdvancedProfileWheels(page, advancedProfile, width, height, skin);
       await advancedProfile.locator("[data-profile-details-avatar]").click();
       await expect(page.locator(".avatar-picker")).toBeVisible();
       const avatarPickerPaint = await page.locator(".avatar-picker").evaluate((picker) => {

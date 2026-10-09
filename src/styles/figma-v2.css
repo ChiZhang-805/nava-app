@@ -11335,7 +11335,8 @@ body::before {
 .advanced-profile-identity > div:nth-child(2) strong { display: block; overflow: hidden; color: var(--skin-ink); font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
 .advanced-profile-identity > div:nth-child(2) small { display: block; overflow: hidden; margin-top: 5px; color: var(--skin-muted); font-size: 10.5px; text-overflow: ellipsis; white-space: nowrap; }
 .advanced-profile-form { display: grid; gap: 10px; margin-top: 10px; }
-.advanced-profile-section { padding: 13px 14px; border: 1px solid var(--skin-line); border-radius: 21px; display: grid; gap: 10px; background: var(--skin-surface); box-shadow: var(--skin-card-shadow); backdrop-filter: blur(18px) saturate(1.08); }
+.advanced-profile-section { position: relative; z-index: 0; padding: 13px 14px; border: 1px solid var(--skin-line); border-radius: 21px; display: grid; gap: 10px; background: var(--skin-surface); box-shadow: var(--skin-card-shadow); backdrop-filter: blur(18px) saturate(1.08); }
+.advanced-profile-section:has(.advanced-profile-wheel.is-open) { z-index: 70; }
 .advanced-profile-form > .advanced-profile-section:nth-of-type(1) { background: var(--skin-module-exercise); }
 .advanced-profile-form > .advanced-profile-section:nth-of-type(2) { background: var(--skin-module-diet); }
 .advanced-profile-form > .advanced-profile-section:nth-of-type(3) { background: var(--skin-module-mood); }
@@ -11354,9 +11355,14 @@ body::before {
 .advanced-profile-section textarea { line-height: 1.45; }
 .advanced-profile-two-col { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
 .advanced-profile-wheel { position: relative; min-width: 0; }
-.advanced-profile-wheel > button { width: 100%; min-height: 40px; border: 1px solid var(--skin-field-line); border-radius: 13px; padding: 9px 11px; color: var(--skin-ink); background: var(--skin-field); font: inherit; font-size: 10px; text-align: left; }
+.advanced-profile-wheel > button { width: 100%; min-height: 40px; border: 1px solid var(--skin-field-line); border-radius: 13px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 14px 9px 11px; color: var(--skin-ink); background: var(--skin-field); font: inherit; font-size: 10px; text-align: left; }
+.advanced-profile-wheel > button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.advanced-profile-wheel > button > svg { flex: 0 0 auto; color: var(--skin-accent); transition: transform 160ms ease; }
+.advanced-profile-wheel.is-open > button > svg { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .advanced-profile-wheel > button > svg { transition: none; } }
 .advanced-profile-wheel > button:focus-visible { outline: 3px solid color-mix(in srgb, var(--skin-accent) 18%, transparent); outline-offset: 1px; }
-.advanced-profile-wheel-list { position: absolute; top: calc(100% + 6px); inset-inline: 0; z-index: 60; height: 174px; overflow-y: auto; overscroll-behavior: contain; padding: 5px; border: 1px solid var(--skin-line); border-radius: 16px; outline: 0; background: var(--skin-surface-strong); box-shadow: var(--skin-shadow); backdrop-filter: blur(16px); scrollbar-width: none; scroll-snap-type: y mandatory; }
+.advanced-profile-wheel-list { position: absolute; top: calc(100% + 6px); inset-inline: 0; z-index: 60; height: 174px; overflow-y: auto; overscroll-behavior: contain; padding: 5px; border: 1px solid var(--skin-line); border-radius: 16px; outline: 0; background: linear-gradient(var(--skin-surface-strong), var(--skin-surface-strong)), #fff; box-shadow: var(--skin-shadow); backdrop-filter: blur(16px); scrollbar-width: none; scroll-snap-type: y mandatory; }
+.advanced-profile-wheel.opens-upward .advanced-profile-wheel-list { top: auto; bottom: calc(100% + 6px); }
 .advanced-profile-wheel-list::-webkit-scrollbar { display: none; }
 .advanced-profile-wheel-list > button { width: 100%; min-height: 34px; border: 0; border-radius: 10px; display: grid; place-items: center; padding: 0 8px; color: var(--skin-muted); background: transparent; font: 600 11px/1.3 ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; scroll-snap-align: center; }
 .advanced-profile-wheel-list > button.is-selected { color: var(--skin-accent); background: var(--skin-surface-alt); }

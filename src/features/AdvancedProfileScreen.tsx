@@ -7,6 +7,7 @@ import {
   BriefcaseBusiness,
   Camera,
   Check,
+  ChevronDown,
   HeartPulse,
   Home,
   Loader2,
@@ -51,20 +52,43 @@ type WheelOption = { value: string; label: string };
 
 function ProfileWheelSelect({ label, value, options, onChange }: { label: string; value: string; options: WheelOption[]; onChange: (value: string) => void }) {
   const [open, setOpen] = useState(false);
+  const [opensUpward, setOpensUpward] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const selectedLabel = options.find((option) => option.value === value)?.label ?? options[0]?.label ?? "";
   useEffect(() => {
     if (!open) return;
     const close = (event: PointerEvent) => { if (!rootRef.current?.contains(event.target as Node)) setOpen(false); };
+    const closeWithKeyboard = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
     document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
+    document.addEventListener("keydown", closeWithKeyboard);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", closeWithKeyboard);
+    };
   }, [open]);
   useEffect(() => {
     if (!open) return;
     requestAnimationFrame(() => rootRef.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({ block: "center" }));
   }, [open]);
-  return <label><span>{label}</span><div className="advanced-profile-wheel" ref={rootRef}>
-    <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)}>{selectedLabel}</button>
+  const toggleOpen = () => {
+    if (!open) {
+      const bounds = rootRef.current?.getBoundingClientRect();
+      if (bounds) {
+        const menuHeight = 180;
+        const roomBelow = window.innerHeight - bounds.bottom - 12;
+        const roomAbove = bounds.top - 12;
+        setOpensUpward(roomBelow < menuHeight && roomAbove > roomBelow);
+      }
+    }
+    setOpen((current) => !current);
+  };
+  return <label><span>{label}</span><div className={`advanced-profile-wheel${open ? " is-open" : ""}${opensUpward ? " opens-upward" : ""}`} ref={rootRef}>
+    <button ref={triggerRef} type="button" aria-haspopup="listbox" aria-expanded={open} onClick={toggleOpen}><span>{selectedLabel}</span><ChevronDown size={15} aria-hidden="true" /></button>
     {open && <div className="advanced-profile-wheel-list" role="listbox" aria-label={label} tabIndex={-1}>
       {options.map((option) => <button type="button" role="option" aria-selected={option.value === value} className={option.value === value ? "is-selected" : ""} key={option.value || "empty"} onClick={() => { onChange(option.value); setOpen(false); }}>{option.label}</button>)}
     </div>}
