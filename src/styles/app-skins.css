@@ -557,6 +557,10 @@
    headers and navigation no longer introduce opaque horizontal bands. */
 .phone-frame[data-shell-integrated="true"] {
   isolation: isolate;
+  --integrated-header-height: clamp(48px, 6dvh, 52px);
+  --integrated-content-top-gap: clamp(5px, .8dvh, 7px);
+  --integrated-local-header-height: clamp(42px, 5.5dvh, 50px);
+  --integrated-local-header-gap: clamp(4px, .8dvh, 7px);
 }
 
 .phone-frame[data-app-skin][data-shell-integrated="true"] > .safe-top,
@@ -565,6 +569,23 @@
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
+}
+
+/* A 40px action remains fully tappable, while the visible title bar no longer
+   spends another action-height above and below the title. The following
+   content gap is governed separately so the first module begins promptly. */
+.phone-frame[data-app-skin][data-shell-integrated="true"] > .figma-app-header {
+  min-height: var(--integrated-header-height);
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  padding: 2px clamp(12px, 4.5vw, 18px);
+}
+
+.phone-frame[data-app-skin][data-shell-integrated="true"] > .figma-app-header h1 {
+  font-size: clamp(18px, 4.8vw, 20px);
+}
+
+.phone-frame[data-shell-integrated="true"]:not(.phone-frame--option2) > .app-content {
+  padding-top: var(--integrated-content-top-gap);
 }
 
 .phone-frame[data-app-skin][data-shell-integrated="true"] > .figma-app-header::before,
@@ -591,6 +612,17 @@
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
+}
+
+.phone-frame[data-shell-integrated="true"] :is(
+  .home-experience-header,
+  .home-widget-editor-header,
+  .notification-center-header,
+  .admin-console-header,
+  .points-shop-header
+) {
+  min-height: var(--integrated-local-header-height);
+  margin-bottom: var(--integrated-local-header-gap);
 }
 
 .phone-frame[data-shell-integrated="true"] :is(

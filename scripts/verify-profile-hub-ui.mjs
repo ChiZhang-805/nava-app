@@ -50,6 +50,18 @@ try {
       const quarterButtons = [...frame.querySelectorAll(".profile-quarter-header nav button")];
       const rowStyle = firstRow ? getComputedStyle(firstRow) : null;
       const headerStyle = activeHeaderButton ? getComputedStyle(activeHeaderButton) : null;
+      const appHeader = frame.querySelector(":scope > .figma-app-header");
+      const content = frame.querySelector(":scope > .app-content");
+      const moduleTitles = [
+        frame.querySelector(".profile-overview-account .profile-section-title"),
+        frame.querySelector(".profile-quarter-header h2"),
+        frame.querySelector(".profile-entry-header"),
+      ];
+      const moduleCards = [
+        frame.querySelector(".profile-overview-account"),
+        frame.querySelector(".profile-quarter-card"),
+        frame.querySelector(".profile-entry-card"),
+      ];
       return {
         horizontalOverflow: frame.scrollWidth - frame.clientWidth,
         headerBackground: headerStyle?.backgroundColor,
@@ -59,6 +71,23 @@ try {
         heatmapWidth: heatmap?.getBoundingClientRect().width ?? 0,
         viewportWidth: frame.getBoundingClientRect().width,
         moduleHeights: Array.from(frame.querySelectorAll(".profile-overview > .section-card"), (node) => node.getBoundingClientRect().height),
+        appHeaderHeight: appHeader?.getBoundingClientRect().height ?? 0,
+        contentPaddingTop: content ? parseFloat(getComputedStyle(content).paddingTop) : 0,
+        titleMetrics: moduleTitles.map((title, index) => {
+          const cardRect = moduleCards[index]?.getBoundingClientRect();
+          const text = title?.querySelector("h2") ?? title;
+          const icon = title?.querySelector("svg");
+          const textRect = text?.getBoundingClientRect();
+          const iconRect = icon?.getBoundingClientRect();
+          const visualTop = Math.min(textRect?.top ?? Number.POSITIVE_INFINITY, iconRect?.top ?? Number.POSITIVE_INFINITY);
+          return {
+            topInset: Number.isFinite(visualTop) && cardRect ? visualTop - cardRect.top : -1,
+            fontSize: text ? parseFloat(getComputedStyle(text).fontSize) : 0,
+            iconSize: icon?.getBoundingClientRect().width ?? 0,
+          };
+        }),
+        quickHeaderBorderBottom: getComputedStyle(frame.querySelector(".profile-entry-header")).borderBottomWidth,
+        firstEntryBorderBottom: getComputedStyle(firstRow).borderBottomWidth,
       };
     });
     assert.ok(overview.horizontalOverflow <= 1, `${width}x${height} horizontal overflow ${overview.horizontalOverflow}`);
@@ -67,6 +96,15 @@ try {
     assert.deepEqual(overview.quarterButtonShadows, ["none", "none"], `${width}x${height} quarter arrows must not have shadows`);
     assert.equal(overview.rowBackground, "rgba(0, 0, 0, 0)", `${width}x${height} profile row has a background`);
     assert.ok(overview.heatmapWidth > 240, `${width}x${height} quarter heatmap is too narrow`);
+    assert.ok(overview.appHeaderHeight >= 48 && overview.appHeaderHeight <= 52.5, `${width}x${height} profile header must use the compact height contract`);
+    assert.ok(overview.contentPaddingTop <= 7.5, `${width}x${height} profile first-module gap is too large`);
+    overview.titleMetrics.forEach((metric, index) => {
+      assert.ok(metric.topInset >= 8 && metric.topInset <= 18, `${width}x${height} profile module ${index + 1} title top inset ${metric.topInset}px is outside the recorded contract`);
+      assert.ok(metric.fontSize >= 19, `${width}x${height} profile module ${index + 1} title is too small`);
+      assert.ok(metric.iconSize >= 20, `${width}x${height} profile module ${index + 1} icon is too small`);
+    });
+    assert.equal(parseFloat(overview.quickHeaderBorderBottom), 0, `${width}x${height} quick-access title divider must be removed`);
+    assert.ok(parseFloat(overview.firstEntryBorderBottom) > 0, `${width}x${height} quick-access row dividers must remain`);
     report.results.push({ viewport: `${width}x${height}`, ...overview });
     await page.screenshot({ path: `${output}/profile-overview-${width}x${height}.png`, fullPage: true });
     const lastRow = page.locator('.profile-nav-row[data-profile-target="account"]');

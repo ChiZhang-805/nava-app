@@ -100,6 +100,7 @@ try {
           .filter(visible)
           .map((element) => paint(element));
         const appContent = root.querySelector(".app-content");
+        const appContentStyle = appContent ? getComputedStyle(appContent) : null;
         const dock = root.querySelector(":scope > .bottom-nav");
         const dockRect = visible(dock) ? dock.getBoundingClientRect() : null;
         const dockButtons = visible(dock)
@@ -118,6 +119,7 @@ try {
           frameOverflow: root.scrollWidth - root.clientWidth,
           contentOverflow: appContent ? appContent.scrollWidth - appContent.clientWidth : 0,
           scrollbarWidth: appContent ? getComputedStyle(appContent).scrollbarWidth : "",
+          contentPaddingTop: appContentStyle ? parseFloat(appContentStyle.paddingTop) : 0,
           globalHeader: paint(root.querySelector(":scope > .figma-app-header")),
           localHeaders,
           dock: visible(dock) ? paint(dock) : null,
@@ -131,6 +133,14 @@ try {
       assert.ok(geometry.frameOverflow <= 1, `${width}x${height} ${name}: frame overflow ${geometry.frameOverflow}`);
       assert.ok(geometry.contentOverflow <= 1, `${width}x${height} ${name}: content overflow ${geometry.contentOverflow}`);
       assert.equal(geometry.scrollbarWidth, "none", `${width}x${height} ${name}: scrollbar chrome must be hidden`);
+      if (geometry.globalHeader) {
+        const headerHeight = parseFloat(geometry.globalHeader.height);
+        assert.ok(headerHeight >= 48 && headerHeight <= 52.5, `${width}x${height} ${name}: global header height ${headerHeight}px is outside the compact contract`);
+        assert.ok(geometry.contentPaddingTop <= 7.5, `${width}x${height} ${name}: first-module gap ${geometry.contentPaddingTop}px is too large`);
+      }
+      for (const header of geometry.localHeaders) {
+        assert.ok(parseFloat(header.height) <= 50.5, `${width}x${height} ${name}: local header height ${header.height} is too large`);
+      }
       for (const [kind, paints] of [["global header", geometry.globalHeader ? [geometry.globalHeader] : []], ["local header", geometry.localHeaders], ["bottom navigation", geometry.dock ? [geometry.dock] : []]]) {
         for (const paint of paints) {
           assert.ok(transparent(paint.backgroundColor), `${width}x${height} ${name}: ${kind} background ${paint.backgroundColor}`);
