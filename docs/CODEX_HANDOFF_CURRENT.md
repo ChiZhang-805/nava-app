@@ -9,7 +9,7 @@
 聊天记录。新任务必须以代码、数据库边界和本文件为准，不要根据旧聊天画面
 推断进度。
 
-## 154. 备用联系方式OTP与首页同构浮动导航（当前源码，待后端授权发布）
+## 154. 备用联系方式OTP与首页同构浮动导航（当前版本）
 
 账号与安全页的备用邮箱和备用手机号不再允许直接写入用户元数据。两个居中弹窗均包含联系方式、
 验证码和“验证并保存”：邮箱使用8位验证码，手机号使用6位短信验证码；联系方式发生变化后，之前
@@ -17,9 +17,12 @@
 当前登录用户的`backup_email`或`backup_phone`。前端旧的`updateBackupContacts`直接写入旁路已经
 删除。验证码只保存HMAC摘要，10分钟过期、60秒冷却、最多错误5次，并具备用户、目标和IP小时限流。
 
-`security-contact-otp`和迁移`202610090001_security_contact_otp.sql`目前只存在于源码，尚未应用到
-canonical Supabase，函数也尚未部署，真实邮箱/短信送达没有验收。原因是数据库迁移、Edge Function
-部署和SMTP Secret配置需要用户对该后端操作单独明确授权；不得把前端模拟测试记为真实送达。
+用户已于2026-10-09明确授权本项后端操作。迁移`202610090001_security_contact_otp.sql`已通过
+独立临时迁移清单选择性应用到canonical Supabase；dry-run与应用后历史均确认旧的
+`202609270001_journal_growth_rewards.sql`仍未应用。现有NAVA Auth SMTP配置在不显示凭据的情况下
+复制为六个Edge secrets，`security-contact-otp`已部署为ACTIVE v1并启用JWT验证；未登录POST实测
+返回401。真实邮箱/短信送达仍需要用户使用自己可接收的地址完成一次端到端验收，不得仅凭模拟测试
+声称送达成功。
 
 25个常规页面的底部导航继续复用首页同一个五按钮DOM。本轮把非首页的几何也改为首页合同：中心AI
 入口直径为`clamp(86px, 23.2cqw, 100px)`，四个侧钮为`clamp(44px, 11.3cqw, 49px)`，五个圆心和
@@ -29,8 +32,8 @@ canonical Supabase，函数也尚未部署，真实邮箱/短信送达没有验�
 
 验证：`npm run profile:visual`覆盖备用邮箱/手机号“未发送、已发送、正确长度验证码”状态和四档视口；
 `npm run integrated-shell:visual`覆盖25页×4尺寸，逐页比较首页与非首页的中心/侧钮直径、圆心共线、
-边缘净距、胶囊中心线、连续滚动画布和透明外层。后端源码由`backend:verify`与`backend:typecheck`检查；
-真实送达与生产写入仍待上述后端授权和边界验收。
+边缘净距、胶囊中心线、连续滚动画布和透明外层。后端源码由`backend:verify`、`backend:typecheck`与
+`backend:test`检查；生产迁移、函数ACTIVE/JWT状态和未登录401边界已验证，真实送达仍待人工验收。
 
 ## 153. 常规页面紧凑顶栏与“我的”模块标题节奏（当前版本）
 
