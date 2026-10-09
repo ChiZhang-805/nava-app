@@ -38,7 +38,17 @@
 完整`npm run verify`仍会停在仓库既有的退役记录模块视觉脚本：它寻找当前架构已不再渲染的
 `.sports-plan-actions`；旧`interaction:test`也仍期待已替换的`gender` onboarding步骤。这两项没有
 被改断言或伪记为通过；本轮使用当前App实际路由与独立沉浸式记录流程的专项门禁完成覆盖。发布信息
-在本轮双站发布完成后补记。
+如下：功能源码`81f05c93cc06e10acd9890ae257de40c5df765ab`已干净推送；ChatGPT Sites沿用既有
+公开项目并成功发布v243（version
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_2e18669eae188191995bbe0766a6fe48`，
+deployment`appgdep_6ac963d1c22881919a84eccc7d9d376a`）。GitHub Pages镜像提交
+`d11c75dbadf57b3b7597a0b39d4eae8edcd29cb0`，Pages工作流`37996936191`成功。Pages的204个生成
+文件共66,465,260字节，与镜像逐文件SHA-256一致；另有`source.json`，因此镜像共205个文件并指向
+v243和上述源码。发布后`skins:deployment:audit`通过58个结果、381项检查和56张截图，双站公开登录
+边界、canonical Supabase项目、版本/资源与四档视口均已核验，收据位于
+`Q:\NAVA-Workspace\Build\TestRuns\skin-v243-regression\report.json`。Sites官方源同步已推送同一
+源码；Windows Bash打包器仍不能解析盘符路径，随后用系统tar归档同一构建产物，Sites验收为310个
+文件。
 
 ## 158. 详细资料下拉浮层几何与遮挡修复（当前版本）
 
