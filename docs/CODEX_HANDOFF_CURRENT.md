@@ -29,6 +29,16 @@ Apple健康与Apple Watch保留页面连续背景和最外层模块面，但中�
 `external-preview:visual`时连续两次因记录iframe返回“记录未能加载，请重试”而停止；本次改动涉及的
 专页与皮肤门禁均已独立完整通过，没有改动记录iframe、认证、数据库、Edge Function或生产数据。
 
+最终功能源码提交`8a79c0abb73c7f98935c17eb92137ec13c5624f7`已推送，并由同一提交生成双站。
+ChatGPT Sites **v235**版本
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_c97d5311a64881919220e6bc7b226e76`，部署
+`appgdep_6ac8c574905c8191a5cf7c375a8cbded` succeeded；制品含309文件。GitHub Pages镜像提交
+`2385c4aa2ecea459493fc719eb3cf227a18f9ba8`，workflow `37919641079` success；204个生成文件
+复制前后SHA-256一致，`source.json`指向v235、上述功能提交和Sites版本。发布后门禁通过58/58结果、
+381/381检查与56张截图，证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v235-regression`。Sites官方
+工作流完成源码校验和源推送；Windows Bash打包器仍无法解析盘符路径，按既有恢复方案用系统tar归档
+同一构建产物并由Sites验证为309文件。
+
 ## 150. 二十五个常规页面的连续画布与浮动导航（当前版本）
 
 常规APP页面不再把状态栏、标题栏、内容区和底部导航分别画成横向矩形。页面根节点现在先把当前路由
