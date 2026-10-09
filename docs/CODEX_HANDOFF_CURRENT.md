@@ -34,6 +34,16 @@
 `external-preview:visual`停止：记录iframe进入“记录未能加载，请重试”，随后找不到
 `.sports-plan-actions`；本轮专项和300状态换肤门禁均独立完整通过。
 
+发布：功能源码`ecd3e43c6b1b72a0fd7b0da1feb9996d74e9bb4c`已干净推送。ChatGPT Sites
+沿用既有项目并发布公开v239成功（version
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_e0a25119e3008191a4d393e9a91157ea`，
+deployment`appgdep_6ac92563522c8191b761bff3d086fdc8`）。GitHub Pages镜像提交
+`2509d7811b4f54e3667911760f892da510bd8a56`，Pages工作流`37967499714`成功。两站来自同一
+源码提交；Pages的205个生成文件与本地Pages产物逐文件SHA-256一致（66,450,971字节），
+`source.json`指向v239及上述源码。发布后`skins:deployment:audit`通过：58个结果、381项检查、
+56张截图；两站公开登录边界、版本/资源和四档视口均已核验，收据位于
+`Q:\NAVA-Workspace\Build\TestRuns\skin-v239-regression\report.json`。
+
 ## 154. 备用联系方式OTP与首页同构浮动导航（当前版本）
 
 账号与安全页的备用邮箱和备用手机号不再允许直接写入用户元数据。两个居中弹窗均包含联系方式、
