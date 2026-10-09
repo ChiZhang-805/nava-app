@@ -616,8 +616,9 @@
   box-shadow: none;
 }
 
-/* The dock remains easy to reach, but the old hard-edged horizontal plate is
-   gone. Each action keeps its own soft glass hit target on the shared canvas. */
+/* Keep the navigation container invisible. A smaller floating frosted capsule
+   carries the five actions, matching the home dock without recreating the old
+   edge-to-edge horizontal plate. */
 .phone-frame[data-app-skin][data-shell-integrated="true"]:not(.phone-frame--journal) > .bottom-nav {
   border: 0;
   background: transparent;
@@ -625,15 +626,30 @@
   backdrop-filter: none;
 }
 
-.phone-frame[data-app-skin][data-shell-integrated="true"]:not(.phone-frame--journal) > .bottom-nav::before {
-  border: 0;
-  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--skin-accent) 10%, transparent) 0%, transparent 72%);
-  box-shadow: none;
-  backdrop-filter: none;
-  opacity: .72;
+.phone-frame[data-app-skin][data-shell-integrated="true"]:not(.phone-frame--journal):not(.phone-frame--option2) > .bottom-nav::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  right: clamp(12px, 4.2cqw, 18px);
+  bottom: auto;
+  left: clamp(12px, 4.2cqw, 18px);
+  height: clamp(64px, 17.5cqw, 72px);
+  border: 1px solid color-mix(in srgb, var(--skin-line) 74%, transparent);
+  border-radius: 999px;
+  background: var(--skin-dock);
+  box-shadow:
+    0 10px 26px color-mix(in srgb, var(--skin-nav-ink, #28566c) 15%, transparent),
+    inset 0 1px 0 rgba(255,255,255,.72);
+  -webkit-backdrop-filter: blur(24px) saturate(1.08);
+  backdrop-filter: blur(24px) saturate(1.08);
+  opacity: .9;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .phone-frame[data-shell-integrated="true"]:not(.phone-frame--option2) > .bottom-nav .nav-button {
+  z-index: 1;
   border: 1px solid color-mix(in srgb, var(--skin-line) 82%, transparent);
   border-radius: 50%;
   color: var(--skin-nav-ink, #28566c);
@@ -651,6 +667,7 @@
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
+  transform: translateY(-7px);
 }
 
 /* The original glacier skin uses the same spatial contract even though its

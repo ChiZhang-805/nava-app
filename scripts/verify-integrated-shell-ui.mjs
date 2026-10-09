@@ -85,7 +85,13 @@ try {
             backgroundColor: style.backgroundColor,
             backgroundImage: style.backgroundImage,
             borderTopWidth: style.borderTopWidth,
+            borderRadius: style.borderRadius,
             boxShadow: style.boxShadow,
+            content: style.content,
+            height: style.height,
+            left: style.left,
+            right: style.right,
+            backdropFilter: style.backdropFilter || style.webkitBackdropFilter,
           };
         };
         const visible = (element) => element && element.getBoundingClientRect().height > 0 && getComputedStyle(element).display !== "none";
@@ -101,6 +107,7 @@ try {
           globalHeader: paint(root.querySelector(":scope > .figma-app-header")),
           localHeaders,
           dock: visible(dock) ? paint(dock) : null,
+          dockFrost: visible(dock) ? paint(dock, "::before") : null,
         };
       });
 
@@ -113,6 +120,14 @@ try {
           assert.equal(paint.backgroundImage, "none", `${width}x${height} ${name}: ${kind} has a background image`);
           assert.equal(paint.boxShadow, "none", `${width}x${height} ${name}: ${kind} has a box shadow`);
         }
+      }
+      if (geometry.dockFrost) {
+        assert.notEqual(geometry.dockFrost.content, "none", `${width}x${height} ${name}: floating dock capsule is missing`);
+        assert.match(geometry.dockFrost.borderRadius, /px|999/, `${width}x${height} ${name}: dock capsule is not rounded`);
+        assert.match(geometry.dockFrost.backdropFilter, /blur\(/, `${width}x${height} ${name}: dock capsule is not frosted`);
+        assert.ok(parseFloat(geometry.dockFrost.left) >= 10, `${width}x${height} ${name}: dock capsule touches the left edge`);
+        assert.ok(parseFloat(geometry.dockFrost.right) >= 10, `${width}x${height} ${name}: dock capsule touches the right edge`);
+        assert.ok(parseFloat(geometry.dockFrost.height) <= 74, `${width}x${height} ${name}: dock capsule is too tall`);
       }
 
       report.results.push({ viewport: `${width}x${height}`, page: name, ...geometry });
