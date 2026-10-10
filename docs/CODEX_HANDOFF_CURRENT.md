@@ -35,7 +35,13 @@
 `build`、生产认证合同、六类语音合同/视觉、菜单四视口、18机型首页入口、管理员、周报、皮肤、待办
 时长、朗读与语音端点测试均通过。完整`npm run verify`仍在仓库既有退役运动页脚本寻找
 `.sports-plan-actions`时失败；`interaction:test`仍在旧`gender` onboarding步骤失败，均早于本轮相关
-断言，未放宽或伪记为通过。发布信息在双站完成后补入本节。
+断言，未放宽或伪记为通过。
+
+功能提交`7b4b6988b7008b477a0da4557e36e778f0dac811`已推送源仓库并以同一提交发布双站：ChatGPT
+Sites为v244（deployment `appgdep_6ac9e310f1dc81918ba6f95779c8e79f`），GitHub Pages镜像提交为
+`b5bd673eec2c2083fb6dcb9d5678643535b746f6`，Pages workflow `38033177383`成功。发布后皮肤/认证回归
+报告位于`Q:\NAVA-Workspace\Build\TestRuns\skin-v244-regression\report.json`：58个结果、381项检查全部
+通过，含双站公开路由、四个规定视口、真实登录边界、资源一致性和零运行时错误。
 
 ## 159. 全页面逐张视觉复核、新手引导交互锁与完成页去叠层（当前版本）
 
