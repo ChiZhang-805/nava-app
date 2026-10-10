@@ -54,7 +54,7 @@ try {
     await expect(card.locator(".nutrition-result-item")).toHaveCount(2);
     await expect(card.locator(".nutrition-result-item").nth(0)).toContainText("鸡胸肉沙拉");
     await expect(card.locator(".nutrition-result-item").nth(1)).toContainText("蓝莓酸奶");
-    await expect(card.locator(".nutrition-result-item dl > div")).toHaveCount(6);
+    await expect(card.locator(".nutrition-result-item dl > div")).toHaveCount(8);
     await expect(card.locator(".nutrition-meal-total dl > div")).toHaveCount(4);
     await expect(card.locator(".nutrition-meal-total dl dd")).toHaveText(["700 千卡", "57g", "46.5g", "29g"]);
     await expect(card.locator("footer button")).toHaveCount(2);
@@ -69,20 +69,40 @@ try {
       const frame = node.closest(".phone-frame")?.getBoundingClientRect() ?? document.documentElement.getBoundingClientRect();
       const items = [...node.querySelectorAll(".nutrition-result-item")].map((item) => {
         const itemRect = item.getBoundingClientRect();
-        return { left: itemRect.left, right: itemRect.right, width: itemRect.width, overflow: item.scrollWidth - item.clientWidth };
+        const name = item.querySelector("header > strong")?.getBoundingClientRect();
+        const calories = item.querySelector("header > b")?.getBoundingClientRect();
+        const nutrientCells = [...item.querySelectorAll("dl > div")].map((cell) => cell.getBoundingClientRect().width);
+        return {
+          left: itemRect.left,
+          right: itemRect.right,
+          width: itemRect.width,
+          overflow: item.scrollWidth - item.clientWidth,
+          headingCenterOffset: name && calories ? Math.abs((name.top + name.height / 2) - (calories.top + calories.height / 2)) : 99,
+          nutrientCellSpread: nutrientCells.length ? Math.max(...nutrientCells) - Math.min(...nutrientCells) : 99,
+        };
       });
-      const meal = node.querySelector(".nutrition-meal-heading strong")?.getBoundingClientRect();
-      const date = node.querySelector(".nutrition-meal-heading time")?.getBoundingClientRect();
+      const assistantBubble = node.previousElementSibling?.querySelector(".chat-bubble.assistant")?.getBoundingClientRect();
       const totalRows = [...node.querySelectorAll(".nutrition-meal-total dl > div")].map((row) => {
         const label = row.querySelector("dt")?.getBoundingClientRect();
         const value = row.querySelector("dd")?.getBoundingClientRect();
         return { centerOffset: label && value ? Math.abs((label.top + label.height / 2) - (value.top + value.height / 2)) : 99 };
       });
-      return { left: rect.left, right: rect.right, frameLeft: frame.left, frameRight: frame.right, overflow: node.scrollWidth - node.clientWidth, items, mealDateCenterOffset: meal && date ? Math.abs((meal.top + meal.height / 2) - (date.top + date.height / 2)) : 0, totalRows };
+      return {
+        left: rect.left,
+        right: rect.right,
+        width: rect.width,
+        frameLeft: frame.left,
+        frameRight: frame.right,
+        overflow: node.scrollWidth - node.clientWidth,
+        assistantBubbleWidth: assistantBubble?.width ?? 0,
+        items,
+        totalRows,
+      };
     });
     assert.ok(geometry.left >= geometry.frameLeft && geometry.right <= geometry.frameRight && geometry.overflow <= 1, JSON.stringify(geometry));
-    assert.ok(geometry.items.every((item) => item.overflow <= 1 && item.left >= geometry.left && item.right <= geometry.right), JSON.stringify(geometry));
-    assert.ok(geometry.mealDateCenterOffset <= 1 && geometry.totalRows.every((row) => row.centerOffset <= 1), JSON.stringify(geometry));
+    assert.ok(Math.abs(geometry.width - geometry.assistantBubbleWidth) <= 1, JSON.stringify(geometry));
+    assert.ok(geometry.items.every((item) => item.overflow <= 1 && item.left >= geometry.left && item.right <= geometry.right && item.headingCenterOffset <= 1 && item.nutrientCellSpread <= 1), JSON.stringify(geometry));
+    assert.ok(geometry.totalRows.every((row) => row.centerOffset <= 1), JSON.stringify(geometry));
     assert.deepEqual(errors, []);
     await page.screenshot({ path: `${output}/nutrition-${viewport.width}x${viewport.height}.png` });
     await card.screenshot({ path: `${output}/nutrition-card-${viewport.width}x${viewport.height}.png` });

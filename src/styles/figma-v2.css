@@ -4994,14 +4994,13 @@ body::before {
 .structured-confirmation footer button { min-width: 34px; height: 34px; border: 0; border-radius: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; color: #226680; background: #e3f3f8; }
 .structured-confirmation footer button.active { color: white; background: #2f91b7; }
 .structured-confirmation footer button[data-confirm-structured] { min-width: 106px; padding-inline: 11px; color: white; background: linear-gradient(135deg,#31afe2,#147da9); font-weight: 760; }
-.structured-confirmation[data-structured-confirmation="nutrition"] { width: min(calc(100% - 54px), 368px); }
+.structured-confirmation[data-structured-confirmation="nutrition"] { width: min(78%,330px); }
 .structured-confirmation[data-structured-confirmation="nutrition"] .structured-record-list { margin-top: 0; }
 .nutrition-structured-record { gap: 10px; }
 .nutrition-meal-heading { min-height: 28px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(40,124,157,.12); }
 .nutrition-meal-heading > span { min-width: 0; display: flex; align-items: center; gap: 6px; color: #164c62; }
 .nutrition-meal-heading > span > svg { flex: 0 0 auto; color: #168eb5; }
 .nutrition-meal-heading strong { font-size: 16px; line-height: 20px; }
-.nutrition-meal-heading time { color: #6f8994; font-size: 10px; line-height: 20px; white-space: nowrap; }
 .nutrition-result-close { width: 28px; height: 28px; flex: 0 0 auto; display: grid; place-items: center; border: 0; padding: 0; color: #244f61; background: transparent; }
 .nutrition-result-close:active { transform: scale(.92); }
 .nutrition-result-items { display: grid; gap: 4px; }
@@ -5009,13 +5008,11 @@ body::before {
 .nutrition-result-item + .nutrition-result-item { border-top: 1px solid rgba(40,124,157,.1); }
 .nutrition-result-item::before { position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 99px; background: linear-gradient(180deg,#42b7d4,#86d8dc); content: ""; }
 .nutrition-result-item > header { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.nutrition-result-item > header > div { min-width: 0; display: grid; gap: 2px; }
-.nutrition-result-item > header > div > strong { color: #12394b; font-size: 14px; line-height: 1.25; overflow-wrap: anywhere; }
-.nutrition-result-item > header > div > span { color: #66838e; font-size: 10px; line-height: 1.35; }
-.nutrition-result-item > header > b { flex: 0 0 auto; color: #1686aa; font-size: 17px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.nutrition-result-item > header > strong { min-width: 0; color: #12394b; font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+.nutrition-result-item > header > b { flex: 0 0 auto; color: #1686aa; font-size: 17px; line-height: 20px; font-variant-numeric: tabular-nums; }
 .nutrition-result-item > header > b small { margin-left: 3px; font-size: 9px; font-weight: 650; }
 .nutrition-result-item dl,
-.nutrition-meal-total dl { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px; margin: 0; }
+.nutrition-meal-total dl { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 5px; margin: 0; }
 .nutrition-result-item dl > div,
 .nutrition-meal-total dl > div { min-width: 0; display: grid; gap: 2px; }
 .nutrition-result-item dt,
