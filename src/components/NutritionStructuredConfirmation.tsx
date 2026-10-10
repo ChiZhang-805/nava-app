@@ -1,4 +1,4 @@
-import { Utensils } from "lucide-react";
+import { Utensils, X } from "lucide-react";
 import type { StructuredEntry } from "../services/structuredEntry";
 import type { StructuredField } from "../services/structuredEntryParser";
 
@@ -7,6 +7,7 @@ type NutritionStructuredConfirmationProps = {
   locale: "zh" | "en";
   editing: boolean;
   onFieldChange: (fieldId: string, value: string) => void;
+  onClose: () => void;
 };
 
 function textValue(value: unknown) {
@@ -53,7 +54,7 @@ function FieldEditor({ field, label, fallback, unit, editing, onChange }: {
   return <>{fallback}</>;
 }
 
-export default function NutritionStructuredConfirmation({ record, locale, editing, onFieldChange }: NutritionStructuredConfirmationProps) {
+export default function NutritionStructuredConfirmation({ record, locale, editing, onFieldChange, onClose }: NutritionStructuredConfirmationProps) {
   const items = Array.isArray(record.payload.items)
     ? record.payload.items.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
     : [];
@@ -63,8 +64,8 @@ export default function NutritionStructuredConfirmation({ record, locale, editin
 
   return <section className="structured-record nutrition-structured-record" data-structured-record="nutrition">
     <header className="nutrition-meal-heading">
-      <span><Utensils size={16} aria-hidden="true" /><strong>{mealName(record.payload.meal, locale)}</strong>{date && <time>{date}</time>}</span>
-      <small>{locale === "zh" ? "AI 识别 · 待确认" : "AI recognized · review"}</small>
+      <span><Utensils size={18} aria-hidden="true" /><strong>{mealName(record.payload.meal, locale)}</strong>{date && <time>{date}</time>}</span>
+      <button className="nutrition-result-close" type="button" onClick={onClose} aria-label={locale === "zh" ? "不记录并关闭" : "Discard and close"}><X size={18} /></button>
     </header>
 
     <div className="nutrition-result-items">
@@ -94,9 +95,10 @@ export default function NutritionStructuredConfirmation({ record, locale, editin
       })}
     </div>
 
-    <section className="nutrition-meal-total" aria-label={locale === "zh" ? "餐食总计" : "Meal total"}>
-      <header><span>{mealName(record.payload.meal, locale)}{locale === "zh" ? "总计" : " total"}</span><strong>{totalCalories == null ? "—" : totalCalories}<small>{locale === "zh" ? "千卡" : "kcal"}</small></strong></header>
+    <section className="nutrition-meal-total" aria-label={locale === "zh" ? "总计" : "Total"}>
+      <h3>{locale === "zh" ? "总计" : "Total"}</h3>
       <dl>
+        <div><dt>{locale === "zh" ? "热量" : "Calories"}</dt><dd>{metric(totalCalories, locale === "zh" ? "千卡" : "kcal", locale)}</dd></div>
         <div><dt>{locale === "zh" ? "碳水" : "Carbs"}</dt><dd>{metric(record.payload.carbohydrateGrams, "g", locale)}</dd></div>
         <div><dt>{locale === "zh" ? "蛋白质" : "Protein"}</dt><dd>{metric(record.payload.proteinGrams, "g", locale)}</dd></div>
         <div><dt>{locale === "zh" ? "脂肪" : "Fat"}</dt><dd>{metric(record.payload.fatGrams, "g", locale)}</dd></div>

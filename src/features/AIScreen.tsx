@@ -1116,9 +1116,9 @@ export default function AIScreen({
 
   const structuredConfirmation = pendingEntry ? (
     <section className="structured-confirmation" data-structured-confirmation={pendingEntry.type}>
-      <header className="structured-confirmation-title">
+      {pendingEntry.type !== "nutrition" && <header className="structured-confirmation-title">
         <h2>{locale === "zh" ? "识别结果" : "Recognized data"}</h2>
-      </header>
+      </header>}
       <div className="structured-record-list">
         {(pendingEntry.entries ?? [pendingEntry]).map((record) => record.type === "nutrition" ? (
           <NutritionStructuredConfirmation
@@ -1127,6 +1127,7 @@ export default function AIScreen({
             locale={locale}
             editing={editingEntry}
             onFieldChange={(fieldId, value) => setPendingEntry((current) => current ? updateStructuredEntryField(current, fieldId, value) : current)}
+            onClose={() => { setPendingEntry(null); setPendingEntryMessageId(null); setEditingEntry(false); }}
           />
         ) : (
           <section className="structured-record" key={record.id} data-structured-record={record.type}>
@@ -1154,15 +1155,10 @@ export default function AIScreen({
           </section>
         ))}
       </div>
-      {pendingEntry.type === "nutrition" && pendingEntry.payload.source === "vision" && (
-        <p className="structured-confirmation-note">{locale === "zh"
-          ? "照片只提供估算。可逐项修改份量和热量；总量随之更新，确认后才保存。"
-          : "Photo values are estimates. Edit each portion or calories; totals update before you confirm."}</p>
-      )}
       <footer>
         <button type="button" className={editingEntry ? "active" : ""} onClick={() => setEditingEntry((current) => !current)} aria-label={locale === "zh" ? "逐项编辑" : "Edit fields"}>{editingEntry ? <Check size={18} /> : <Pencil size={18} />}</button>
-        <button type="button" onClick={() => { setPendingEntry(null); setPendingEntryMessageId(null); setEditingEntry(false); }} aria-label={locale === "zh" ? "取消" : "Cancel"}><X size={18} /></button>
-        <button type="button" data-confirm-structured onClick={() => void confirmPendingEntry()} disabled={savingEntry}><Check size={18} /><span>{locale === "zh" ? "确认保存" : "Confirm"}</span></button>
+        {pendingEntry.type !== "nutrition" && <button type="button" onClick={() => { setPendingEntry(null); setPendingEntryMessageId(null); setEditingEntry(false); }} aria-label={locale === "zh" ? "取消" : "Cancel"}><X size={18} /></button>}
+        <button type="button" data-confirm-structured onClick={() => void confirmPendingEntry()} disabled={savingEntry}>{pendingEntry.type !== "nutrition" && <Check size={18} />}<span>{locale === "zh" ? "确认保存" : "Confirm"}</span></button>
       </footer>
     </section>
   ) : null;

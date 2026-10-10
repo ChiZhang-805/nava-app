@@ -48,13 +48,17 @@ try {
     const card = page.locator('[data-structured-confirmation="nutrition"]');
     await expect(card).toBeVisible({ timeout: 30_000 });
     await expect(card.locator(".nutrition-meal-heading strong")).toHaveText(/早餐|午餐|晚餐|加餐/);
+    await expect(card.locator(".structured-confirmation-title")).toHaveCount(0);
+    await expect(card).not.toContainText(/识别结果|AI 识别|待确认|照片只提供估算|可逐项修改/);
+    await expect(card.locator(".nutrition-result-close")).toBeVisible();
     await expect(card.locator(".nutrition-result-item")).toHaveCount(2);
     await expect(card.locator(".nutrition-result-item").nth(0)).toContainText("鸡胸肉沙拉");
     await expect(card.locator(".nutrition-result-item").nth(1)).toContainText("蓝莓酸奶");
     await expect(card.locator(".nutrition-result-item dl > div")).toHaveCount(6);
-    await expect(card.locator(".nutrition-meal-total dl > div")).toHaveCount(3);
-    await expect(card.locator(".nutrition-meal-total dl")).not.toContainText("0g");
-    await expect(card.locator(".nutrition-meal-total dl dd")).toHaveText(["—", "—", "—"]);
+    await expect(card.locator(".nutrition-meal-total dl > div")).toHaveCount(4);
+    await expect(card.locator(".nutrition-meal-total dl dd")).toHaveText(["700 千卡", "57g", "46.5g", "29g"]);
+    await expect(card.locator("footer button")).toHaveCount(2);
+    await expect(card.locator("[data-confirm-structured] svg")).toHaveCount(0);
     await card.getByRole("button", { name: "逐项编辑" }).click();
     await expect(card.locator(".nutrition-result-editor input")).toHaveCount(4);
     await card.getByRole("button", { name: "逐项编辑" }).click();
@@ -67,13 +71,23 @@ try {
         const itemRect = item.getBoundingClientRect();
         return { left: itemRect.left, right: itemRect.right, width: itemRect.width, overflow: item.scrollWidth - item.clientWidth };
       });
-      return { left: rect.left, right: rect.right, frameLeft: frame.left, frameRight: frame.right, overflow: node.scrollWidth - node.clientWidth, items };
+      const meal = node.querySelector(".nutrition-meal-heading strong")?.getBoundingClientRect();
+      const date = node.querySelector(".nutrition-meal-heading time")?.getBoundingClientRect();
+      const totalRows = [...node.querySelectorAll(".nutrition-meal-total dl > div")].map((row) => {
+        const label = row.querySelector("dt")?.getBoundingClientRect();
+        const value = row.querySelector("dd")?.getBoundingClientRect();
+        return { centerOffset: label && value ? Math.abs((label.top + label.height / 2) - (value.top + value.height / 2)) : 99 };
+      });
+      return { left: rect.left, right: rect.right, frameLeft: frame.left, frameRight: frame.right, overflow: node.scrollWidth - node.clientWidth, items, mealDateCenterOffset: meal && date ? Math.abs((meal.top + meal.height / 2) - (date.top + date.height / 2)) : 0, totalRows };
     });
     assert.ok(geometry.left >= geometry.frameLeft && geometry.right <= geometry.frameRight && geometry.overflow <= 1, JSON.stringify(geometry));
     assert.ok(geometry.items.every((item) => item.overflow <= 1 && item.left >= geometry.left && item.right <= geometry.right), JSON.stringify(geometry));
+    assert.ok(geometry.mealDateCenterOffset <= 1 && geometry.totalRows.every((row) => row.centerOffset <= 1), JSON.stringify(geometry));
     assert.deepEqual(errors, []);
     await page.screenshot({ path: `${output}/nutrition-${viewport.width}x${viewport.height}.png` });
     await card.screenshot({ path: `${output}/nutrition-card-${viewport.width}x${viewport.height}.png` });
+    await card.locator(".nutrition-result-close").click();
+    await expect(card).toHaveCount(0);
     receipt.viewports.push({ ...viewport, geometry });
     await context.close();
   }

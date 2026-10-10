@@ -31,8 +31,8 @@ export async function analyzeDietPhoto(input: {
       imageUrl: previewUrl,
       imagePath: `demo/${input.userId}/${input.date}/${input.meal}.jpg`,
       items: [
-        { name: "鸡胸肉沙拉", calories: 520, amount: "1 份" },
-        { name: "蓝莓酸奶", calories: 180, amount: "1 杯" },
+        { name: "鸡胸肉沙拉", calories: 520, amount: "1 份", protein_grams: 38, carbohydrate_grams: 32, fat_grams: 24 },
+        { name: "蓝莓酸奶", calories: 180, amount: "1 杯", protein_grams: 8.5, carbohydrate_grams: 25, fat_grams: 5 },
       ],
       modelVersion: "demo",
       confidence: 0.9,
