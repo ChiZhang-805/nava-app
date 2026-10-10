@@ -268,15 +268,26 @@ try {
     await deviceSelector.selectOption(device.id);
     await expect(catalogPage.locator(".nava-app-stage")).toHaveAttribute("data-nava-preview-device", device.id);
     await catalogPage.waitForTimeout(360);
-    const geometry = await readDesktopGeometry(catalogPage);
-    const shallowNavGap = Math.min(...geometry.navItems.map((item) => geometry.homeIndicator.top - item.bottom));
-    if (!geometry.homeIndicator || !geometry.navMain
-      || Math.abs(geometry.homeIndicator.top - (geometry.navMain.top + geometry.navMain.height) - device.calibration.homeIndicator.bottom) > 1.75
-      || geometry.navItems.length !== 4
-      || shallowNavGap < device.calibration.homeIndicator.bottom - 1.75) {
-      throw new Error(`${device.label}: bottom navigation does not preserve Home Indicator breathing room ${JSON.stringify({ shallowNavGap, geometry })}`);
+    const geometry = await catalogPage.evaluate(() => {
+      const rect = (selector) => {
+        const bounds = document.querySelector(selector)?.getBoundingClientRect();
+        return bounds ? { top: bounds.top, bottom: bounds.bottom, left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height } : null;
+      };
+      return {
+        frame: rect(".phone-frame"),
+        composer: rect(".chat-composer"),
+        homeIndicator: rect(".nava-device-home-indicator"),
+        navigationCount: document.querySelectorAll(".bottom-nav").length,
+      };
+    });
+    const composerToIndicator = geometry.homeIndicator && geometry.composer ? geometry.homeIndicator.top - geometry.composer.bottom : null;
+    if (!geometry.frame || !geometry.composer || !geometry.homeIndicator
+      || geometry.navigationCount !== 0
+      || composerToIndicator < 2
+      || composerToIndicator > 40) {
+      throw new Error(`${device.label}: AI composer does not preserve Home Indicator breathing room ${JSON.stringify({ composerToIndicator, geometry })}`);
     }
-    report.push({ mode: "device-bottom-navigation", device: device.id, geometry });
+    report.push({ mode: "device-ai-composer", device: device.id, geometry, composerToIndicator });
   }
 
   await catalogPage.goto(`${baseUrl}?demo=1#tab=today&view=profile-details`, { waitUntil: "networkidle" });

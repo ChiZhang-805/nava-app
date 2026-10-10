@@ -1224,7 +1224,8 @@ async function verifyAi(page, results, diagnostics) {
   await page.locator('[data-confirm-structured]').click();
   await expect(page.locator('[data-structured-confirmation="nutrition"]')).toBeHidden();
 
-  await page.locator('[data-tab="today"]').click();
+  await page.evaluate(() => { location.hash = "tab=today"; });
+  await expect(page.locator('[data-tab="ai"]')).toBeVisible();
   const aiButton = page.locator('[data-tab="ai"]');
   const box = await aiButton.boundingBox();
   if (!box) throw new Error("AI button has no visible bounds");
@@ -1242,7 +1243,8 @@ async function verifyAi(page, results, diagnostics) {
   await expect(page.locator(".chat-input-shell input")).toHaveValue("今天感觉很平稳");
   const inputBeforeCancelledVoice = await page.locator(".chat-input-shell input").inputValue();
 
-  await page.locator('[data-tab="today"]').click();
+  await page.evaluate(() => { location.hash = "tab=today"; });
+  await expect(page.locator('[data-tab="ai"]')).toBeVisible();
   const cancelBox = await aiButton.boundingBox();
   if (!cancelBox) throw new Error("AI button has no bounds before cancel test");
   const cancelPointer = { x: cancelBox.x + cancelBox.width / 2, y: cancelBox.y + cancelBox.height / 2 };
@@ -1259,7 +1261,8 @@ async function verifyAi(page, results, diagnostics) {
   // Keep the cancellation retention assertion above, then start an independent todo draft.
   await page.locator(".chat-input-shell input").fill("");
   await page.evaluate(() => { window.__navaMockSpeechTranscript = "明天下午三点要交论文"; });
-  await page.locator('[data-tab="today"]').click();
+  await page.evaluate(() => { location.hash = "tab=today"; });
+  await expect(page.locator('[data-tab="ai"]')).toBeVisible();
   const taskVoiceBox = await aiButton.boundingBox();
   if (!taskVoiceBox) throw new Error("AI button has no bounds before spoken todo test");
   await page.mouse.move(taskVoiceBox.x + taskVoiceBox.width / 2, taskVoiceBox.y + taskVoiceBox.height / 2);

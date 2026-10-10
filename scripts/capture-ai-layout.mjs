@@ -2,37 +2,35 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 import { createServer } from "vite";
+import { applyProjectPublicEnv } from "./project-env.mjs";
+
+applyProjectPublicEnv(process.cwd());
 
 const root = process.cwd();
-const outputDir = process.env.SCREENSHOT_DIR || path.join(root, "artifacts", "ai-layout-qa");
+const outputDir = process.env.SCREENSHOT_DIR || "Q:/NAVA-Workspace/Build/TestRuns/ai-composer-only";
 const port = Number(process.env.PORT || 5194);
 const externalBaseUrl = process.env.BASE_URL?.replace(/\/$/, "") || null;
 const viewports = [
-  { name: "iphone-se", width: 375, height: 667 },
-  { name: "iphone-standard", width: 390, height: 844 },
-  { name: "iphone-14-pro-max", width: 430, height: 932 },
+  { name: "compact", width: 360, height: 740 },
+  { name: "standard", width: 375, height: 812 },
+  { name: "modern", width: 390, height: 844 },
+  { name: "large", width: 430, height: 932 },
 ];
 
 async function openAi(page, baseUrl) {
-  await page.goto(`${baseUrl}?demo=1`, { waitUntil: "networkidle" });
+  await page.goto(`${baseUrl}?demo=1#tab=ai`, { waitUntil: "networkidle" });
   const launch = page.locator(".launch-sequence");
   if (await launch.isVisible().catch(() => false)) {
     await launch.click();
     await launch.waitFor({ state: "hidden" });
   }
-
-  const username = page.locator('input[autocomplete="username"]');
-  const aiTab = page.locator('[data-tab="ai"]');
-  if (!(await aiTab.isVisible().catch(() => false))) {
-    await username.waitFor({ state: "visible" });
-    await username.fill("13800138000");
-    await page.locator('input[autocomplete="current-password"]').fill("12345678");
-    await page.locator(".auth-submit").click();
+  const celebration = page.locator(".completion-celebration-layer");
+  if (await celebration.isVisible().catch(() => false)) {
+    await page.keyboard.press("Escape");
+    await celebration.waitFor({ state: "hidden" });
   }
-
-  await aiTab.waitFor({ state: "visible" });
-  await aiTab.click();
   await page.locator(".chat-composer").waitFor({ state: "visible" });
+  await page.locator(".bottom-nav").waitFor({ state: "detached" });
   await page.waitForTimeout(450);
 }
 
@@ -58,6 +56,12 @@ async function main() {
         hasTouch: true,
         userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Version/17.5 Mobile/15E148 Safari/604.1",
       });
+      await context.addInitScript(() => {
+        sessionStorage.clear();
+        localStorage.clear();
+        sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
+        localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, version: 3, answers: {} }));
+      });
       const page = await context.newPage();
       await openAi(page, baseUrl);
 
@@ -74,22 +78,26 @@ async function main() {
           } : null;
         };
         const composer = rect(".chat-composer");
-        const navigation = rect(".bottom-nav");
+        const frame = rect(".phone-frame");
         const list = rect(".chat-list");
         return {
           composer,
-          navigation,
+          frame,
           list,
-          composerToNavigationGap: composer && navigation ? Number((navigation.top - composer.bottom).toFixed(2)) : null,
+          navigationCount: document.querySelectorAll(".bottom-nav").length,
+          composerBottomGap: composer && frame ? Number((frame.bottom - composer.bottom).toFixed(2)) : null,
           horizontalOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         };
       });
 
-      if (!metrics.composer || !metrics.navigation || !metrics.list) {
+      if (!metrics.composer || !metrics.frame || !metrics.list) {
         throw new Error(`${viewport.name}: AI layout elements are missing`);
       }
-      if (metrics.composerToNavigationGap < 0 || metrics.composerToNavigationGap > 28) {
-        throw new Error(`${viewport.name}: composer is not pinned above navigation: ${JSON.stringify(metrics)}`);
+      if (metrics.navigationCount !== 0) {
+        throw new Error(`${viewport.name}: AI conversation still renders the shared bottom navigation`);
+      }
+      if (metrics.composerBottomGap < 16 || metrics.composerBottomGap > 50) {
+        throw new Error(`${viewport.name}: composer misses the bottom safe area: ${JSON.stringify(metrics)}`);
       }
       if (metrics.list.bottom > metrics.composer.top + 1) {
         throw new Error(`${viewport.name}: message list overlaps composer: ${JSON.stringify(metrics)}`);

@@ -302,7 +302,7 @@ async function main() {
       if (tab === "ai") {
         metrics.ai = await page.evaluate(() => {
           const composer = document.querySelector(".chat-composer")?.getBoundingClientRect();
-          const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();
+          const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
           const header = document.querySelector(".app-header")?.getBoundingClientRect();
           const firstBubble = document.querySelector(".chat-message-row .chat-bubble")?.getBoundingClientRect();
           const avatarOffsets = [...document.querySelectorAll(".chat-message-row")].map((row) => {
@@ -325,8 +325,8 @@ async function main() {
             avatarOffsets,
             bubbleRatios,
             composerBottom: Number((composer?.bottom ?? 0).toFixed(2)),
-            navTop: Number((nav?.top ?? 0).toFixed(2)),
-            gap: Number(((nav?.top ?? 0) - (composer?.bottom ?? 0)).toFixed(2)),
+            navigationCount: document.querySelectorAll(".bottom-nav").length,
+            bottomGap: Number(((frame?.bottom ?? 0) - (composer?.bottom ?? 0)).toFixed(2)),
             firstMessageGap: Number(((firstBubble?.top ?? 0) - (header?.bottom ?? 0)).toFixed(2)),
             summaryCards: document.querySelectorAll(".chat-layout > .section-card, .ai-prompt").length,
             sendText: document.querySelector(".chat-send-button")?.textContent?.trim() ?? "",
@@ -338,13 +338,15 @@ async function main() {
         if (metrics.ai.bubbleRatios.some((bubble) => bubble.ratio > (bubble.role === "user" ? 0.725 : 0.785))) {
           throw new Error(`Chat bubbles remain wider than the conversational layout limit: ${JSON.stringify(metrics.ai.bubbleRatios)}`);
         }
-        if (metrics.ai.gap < 0 || metrics.ai.gap > 48) throw new Error(`AI composer is not pinned above navigation: ${JSON.stringify(metrics.ai)}`);
+        if (metrics.ai.navigationCount !== 0 || metrics.ai.bottomGap < 16 || metrics.ai.bottomGap > 50) throw new Error(`AI composer is not the sole bottom control: ${JSON.stringify(metrics.ai)}`);
         if (metrics.ai.summaryCards !== 0 || metrics.ai.firstMessageGap < 12 || metrics.ai.firstMessageGap > 44) {
           throw new Error(`AI first message is not positioned cleanly below the header wordmark: ${JSON.stringify(metrics.ai)}`);
         }
         if (metrics.ai.sendText || metrics.ai.muteButtons) throw new Error(`AI composer still contains text or a mute button: ${JSON.stringify(metrics.ai)}`);
 
+        await page.evaluate(() => { location.hash = "tab=today"; });
         const aiButton = page.locator('[data-tab="ai"]');
+        await aiButton.waitFor({ state: "visible" });
         const composerInput = page.locator(".chat-input-shell input");
         const aiBox = await aiButton.boundingBox();
         if (!aiBox) throw new Error("AI navigation control has no measurable bounds");

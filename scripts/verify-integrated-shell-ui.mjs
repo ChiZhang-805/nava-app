@@ -107,6 +107,8 @@ try {
         const appContentStyle = appContent ? getComputedStyle(appContent) : null;
         const dock = root.querySelector(":scope > .bottom-nav");
         const dockRect = visible(dock) ? dock.getBoundingClientRect() : null;
+        const frameRect = root.getBoundingClientRect();
+        const composerRect = root.querySelector(".chat-composer")?.getBoundingClientRect() ?? null;
         const dockButtons = visible(dock)
           ? [...dock.querySelectorAll(":scope > .nav-button")].filter(visible).map((button) => {
               const rect = button.getBoundingClientRect();
@@ -131,6 +133,7 @@ try {
           dock: visible(dock) ? paint(dock) : null,
           dockFrost: visible(dock) ? paint(dock, "::before") : null,
           dockRect: dockRect ? { top: dockRect.top, height: dockRect.height } : null,
+          chatComposerGap: composerRect ? frameRect.bottom - composerRect.bottom : null,
           dockButtons,
           aiButton: visible(dock) ? paint(dock.querySelector(".ai-nav-button")) : null,
           aiButtonBefore: visible(dock) ? paint(dock.querySelector(".ai-nav-button"), "::before") : null,
@@ -151,6 +154,12 @@ try {
       }
       for (const header of geometry.localHeaders) {
         assert.ok(parseFloat(header.height) <= 50.5, `${width}x${height} ${name}: local header height ${header.height} is too large`);
+      }
+      if (name === "chat") {
+        assert.equal(geometry.dock, null, `${width}x${height} chat: shared bottom navigation must be absent`);
+        assert.ok(geometry.chatComposerGap >= 16 && geometry.chatComposerGap <= 50, `${width}x${height} chat: composer misses safe bottom spacing ${geometry.chatComposerGap}`);
+      } else if (["home", "records", "growth", "profile"].includes(name)) {
+        assert.ok(geometry.dock, `${width}x${height} ${name}: shared bottom navigation is missing`);
       }
       for (const [kind, paints] of [["global header", geometry.globalHeader ? [geometry.globalHeader] : []], ["local header", geometry.localHeaders], ["bottom navigation", geometry.dock ? [geometry.dock] : []]]) {
         for (const paint of paints) {

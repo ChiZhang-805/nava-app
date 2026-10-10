@@ -675,7 +675,7 @@ function MobileShell({
   const profileDetailsSubpage = activeTab === "today" && recordView === "profile-details";
   const todayFullSubpage = activeTab === "today" && (profileDetailsSubpage || recordView === "home-widgets" || recordView === "admin-console" || recordView === "getting-started");
   const journalOpen = activeTab === "record" && Boolean(recordModule);
-  const hideBottomNavigation = focusImmersive || todayFullSubpage || journalOpen || profileSubpage;
+  const hideBottomNavigation = activeTab === "ai" || focusImmersive || todayFullSubpage || journalOpen || profileSubpage;
   const integratedPage = integratedShellPage(activeTab, recordModule, recordView);
 
   return (

@@ -648,6 +648,19 @@
   padding-bottom: max(20px, env(safe-area-inset-bottom));
 }
 
+/* The conversation is its own focused surface. It ends with the composer,
+   rather than reserving the shared five-action dock used by the other roots. */
+.phone-frame[data-shell-integrated="true"][data-shell-page="chat"]:not(.phone-frame--option2) > .app-content {
+  padding-bottom: max(clamp(18px, 3dvh, 28px), calc(env(safe-area-inset-bottom) + 8px));
+}
+
+/* Mobile emulation can resolve the scroll canvas a little taller than the
+   painted phone frame. Keep a composer-owned inset as well, so the focused
+   chat surface never sits on the home-indicator edge in that environment. */
+.phone-frame[data-shell-integrated="true"][data-shell-page="chat"]:not(.phone-frame--option2) .chat-composer {
+  margin-bottom: 14px;
+}
+
 .phone-frame[data-app-skin][data-shell-integrated="true"] > .figma-app-header::before,
 .phone-frame[data-app-skin][data-shell-integrated="true"] > .figma-app-header::after {
   content: none;

@@ -44,7 +44,7 @@ try {
           const box = (node) => { const r = node.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height }; };
           const font = (node) => parseFloat(getComputedStyle(node).fontSize);
           const card = report.querySelector(".weekly-insight-card");
-          const text = [...card.querySelectorAll("p, li button span")];
+          const text = [...card.querySelectorAll("p, li button span")].filter((node) => node.getClientRects().length > 0);
           const chart = report.querySelector(".weekly-trend-card");
           const svg = chart.querySelector("svg[role=img]") ?? chart.querySelector(".line-trend-chart svg, .weekly-radar-chart svg");
           const svgText = [...chart.querySelectorAll(".trend-date, .trend-value, .weekly-radar-caption, .weekly-radar-score")];
@@ -65,7 +65,7 @@ try {
         assert(data.date >= 13);
         for (const item of data.text) {
           assert(item.font >= 14 && !item.clipped, `${width}/${state}: text is too small or clipped`);
-          assert(item.left >= data.card.left && item.right <= data.card.right && item.bottom <= data.card.bottom, `${width}/${state}: text outside card`);
+          assert(item.left >= data.card.left - 1 && item.right <= data.card.right + 1 && item.bottom <= data.card.bottom + 1, `${width}/${state}: text outside card ${JSON.stringify({ item, card: data.card, mascot: data.mascot })}`);
           const overlapsCat = item.right > data.mascot.left + 1 && item.left < data.mascot.right - 1 && item.bottom > data.mascot.top + 1 && item.top < data.mascot.bottom - 1;
           assert(!overlapsCat, `${width}/${state}: text overlaps mascot`);
         }

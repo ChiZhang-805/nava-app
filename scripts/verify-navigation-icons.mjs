@@ -37,6 +37,9 @@ try {
       }));
     });
     const page = await context.newPage();
+    await page.addLocatorHandler(page.locator(".completion-celebration-layer"), async () => {
+      await page.frameLocator(".completion-celebration-layer iframe").getByRole("button", { name: /Continue|继续/ }).click();
+    });
     await page.goto(`${baseUrl}?demo=1`, { waitUntil: "networkidle" });
 
     const launch = page.locator(".launch-sequence");
@@ -245,16 +248,8 @@ try {
     await page.screenshot({ path: path.join(outputDir, `home-expanded-${viewport.label}.png`), fullPage: true });
 
     await page.locator('[data-tab="ai"]').click();
-    await expect(page.locator('[data-tab="ai"]')).toHaveAttribute("aria-current", "page");
-    await expect(page.locator('[data-tab="ai"] .figma-nav-ai-chat')).toBeVisible();
-    const subpageDockGeometry = await page.locator(".bottom-nav .nav-button").evaluateAll((buttons) => buttons.map((button) => {
-      const rect = button.getBoundingClientRect();
-      return { tab: button.getAttribute("data-tab"), left: rect.left, right: rect.right, centerX: rect.left + rect.width / 2 };
-    }));
-    const subpageEdgeGaps = subpageDockGeometry.slice(1).map((button, index) => button.left - subpageDockGeometry[index].right);
-    if (Math.max(...subpageEdgeGaps) - Math.min(...subpageEdgeGaps) > .75) {
-      throw new Error(`${viewport.label}: subpage navigation must distribute the visible circle edges evenly ${JSON.stringify({ subpageDockGeometry, subpageEdgeGaps })}`);
-    }
+    await expect(page.locator(".chat-composer")).toBeVisible();
+    await expect(page.locator(".bottom-nav")).toHaveCount(0);
     await page.screenshot({ path: path.join(outputDir, `ai-${viewport.label}.png`), fullPage: true });
     await context.close();
   }

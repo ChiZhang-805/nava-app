@@ -11177,7 +11177,7 @@ body::before {
 .home-year-card {
   flex: 0 0 auto;
   margin: 10px 0 6px;
-  padding: 10px 12px 9px;
+  padding: 10px 12px 7px;
   border: 1px solid rgba(255,255,255,.78);
   border-radius: 20px;
   background: rgba(249,254,255,.84);
@@ -14836,4 +14836,120 @@ body::before {
   .profile-choice-menu { animation: none !important; }
   .profile-device-stage .profile-device-orbit,
   .profile-device-stage .profile-device-orb > svg { animation: none !important; }
+}
+
+/* Detailed profile readability: field names and entered values must remain
+   comfortably legible on a physical phone. Section icons are bare glyphs,
+   without another circular plate behind them. */
+.advanced-profile-section > header {
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+}
+.advanced-profile-section > header > span {
+  width: 30px;
+  height: 30px;
+  border-radius: 0;
+  color: var(--skin-accent);
+  background: transparent;
+  box-shadow: none;
+}
+.advanced-profile-section > header > span > svg { width: 24px; height: 24px; }
+.advanced-profile-section > header strong { font-size: 16px; line-height: 1.25; }
+.advanced-profile-section > header small { margin-top: 3px; font-size: 11.5px; line-height: 1.4; }
+.advanced-profile-section label,
+.advanced-profile-diet-field legend { font-size: 12.5px; line-height: 1.35; }
+.advanced-profile-diet-field legend > svg { width: 18px; height: 18px; }
+.advanced-profile-section input:not([type="checkbox"]),
+.advanced-profile-section select,
+.advanced-profile-section textarea,
+.advanced-profile-wheel > button {
+  min-height: 46px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.advanced-profile-wheel-list > button { min-height: 40px; font-size: 14px; }
+.advanced-profile-diet-chips button { min-height: 35px; padding-inline: 11px; font-size: 12px; }
+.advanced-profile-switch b { font-size: 14px; }
+.advanced-profile-switch small { font-size: 11.5px; line-height: 1.4; }
+.advanced-profile-saved { font-size: 13px; }
+.advanced-profile-save { font-size: 15px; }
+
+/* Weekly report stays a one-screen composition. Give the insight more height,
+   enlarge the mascot, and narrow the copy column without creating scrolling. */
+.record-hub:has(.weekly-health-report) {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.record-hub:has(.weekly-health-report)::after { content: none; display: none; }
+.record-hub .weekly-health-report {
+  flex: 1 1 auto;
+  min-height: 0;
+  box-sizing: border-box;
+  padding-bottom: 6px;
+  grid-template-rows: 44px 56px minmax(100px, 1fr) clamp(254px, 30dvh, 260px);
+  gap: 8px;
+}
+.weekly-health-report .weekly-insight-card {
+  min-height: 254px;
+  height: 100%;
+  padding: 10px 12px 9px;
+  overflow: hidden;
+}
+.weekly-health-report .weekly-insight-header { grid-template-columns: 28px minmax(0, 1fr) auto; gap: 7px; }
+.weekly-health-report .weekly-insight-header > span {
+  width: 28px;
+  height: 28px;
+  border-radius: 0;
+  color: #087ca9;
+  background: transparent;
+  box-shadow: none;
+}
+.weekly-health-report .weekly-insight-header > span > svg { width: 22px; height: 22px; }
+.weekly-health-report .weekly-insight-header > strong { min-height: 30px; font-size: 15px; }
+.weekly-health-report .weekly-share-button { font-size: 12px; }
+.weekly-health-report .weekly-insight-body {
+  grid-template-columns: minmax(0, 1fr) minmax(118px, 42%);
+  align-items: stretch;
+  gap: 6px;
+}
+.weekly-health-report .weekly-ai-summary-list ul { gap: 3px; }
+.weekly-health-report .weekly-ai-summary-list li button {
+  min-height: 38px;
+  padding-block: 3px;
+  line-height: 1.35;
+}
+.weekly-health-report .weekly-ai-overview,
+.weekly-health-report .weekly-insight-body > p,
+.weekly-health-report .weekly-insight-body > small,
+.weekly-health-report .weekly-insight-body li { font-size: 14px; line-height: 1.45; }
+.weekly-health-report .weekly-ai-summary-list .weekly-ai-overview { display: none; }
+.weekly-health-report .weekly-ai-summary-list ul { grid-row: 1; }
+.weekly-health-report .weekly-insight-body:has(.weekly-ai-summary-list) .weekly-insight-mascot { grid-row: 1; }
+.weekly-health-report .weekly-insight-mascot {
+  width: 116%;
+  max-width: none;
+  max-height: 150px;
+  justify-self: center;
+  align-self: end;
+}
+.weekly-health-report .weekly-insight-body:not(:has(.weekly-ai-summary-list)) .weekly-insight-mascot { width: 100%; }
+.weekly-health-report:lang(en) .weekly-insight-body { grid-template-columns: minmax(0, 1fr) 80px; }
+.weekly-health-report:lang(en) .weekly-insight-mascot { width: 120%; }
+.weekly-health-report:lang(en) .weekly-ai-summary-list ul { gap: 1px; }
+.weekly-health-report:lang(en) .weekly-ai-summary-list li button {
+  min-height: 34px;
+  padding-block: 1px;
+  line-height: 1.3;
+}
+
+@media (max-height: 780px) {
+  .record-hub .weekly-health-report {
+    grid-template-rows: 40px 52px minmax(80px, 1fr) 254px;
+    gap: 7px;
+  }
+  .weekly-health-report .weekly-period-controls > button { min-height: 40px; }
+  .weekly-health-report .weekly-score-card { min-height: 52px; }
+  .weekly-health-report .weekly-insight-card { min-height: 254px; }
+  .weekly-health-report .weekly-insight-mascot { max-height: 142px; }
 }
