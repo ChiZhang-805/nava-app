@@ -6,7 +6,7 @@ import { completionSceneForReward } from "../src/services/rewardPresentation.ts"
 import { journalGrowthTargets, isMissingGrowthRpc } from "../src/services/growthRewardContract.ts";
 
 test("all nine scenes are reachable; reward and journal mappings agree", () => {
-  const window: { NavaCompletionScenes?: { choose: (record: object, hour: number) => string; scenes: Record<string, { cat?: string; inkDuration?: number; actorMotion?: string; zh?: string }> } } = {};
+  const window: { NavaCompletionScenes?: { choose: (record: object, hour: number) => string; assetSources: (scene: string) => string[]; scenes: Record<string, { cat?: string; inkDuration?: number; actorMotion?: string; zh?: string }> } } = {};
   vm.runInNewContext(readFileSync("public/journal/js/completion-scene.js", "utf8"), { window });
   const api = window.NavaCompletionScenes!;
   assert.equal(Object.keys(api.scenes).length, 9);
@@ -17,6 +17,11 @@ test("all nine scenes are reachable; reward and journal mappings agree", () => {
   assert.equal(api.choose({ category: "focus", data: { task: "阅读" } }, 12), "02");
   assert.equal(api.choose({}, 22), "09");assert.equal(api.choose({}, 12), "01");
   for (const suffix of ["01", "02", "03", "04", "05", "06", "07", "08", "09"]) assert.ok(api.scenes[suffix]);
+  for (const suffix of ["01", "02", "03", "04", "05", "06", "07", "08", "09"]) {
+    const [background, actor] = api.assetSources(suffix);
+    assert.match(background, /\.webp$/);
+    assert.match(actor, /\.webp$|\.png$/);
+  }
   assert.deepEqual(
     { cat: api.scenes["03"].cat, inkDuration: api.scenes["03"].inkDuration, actorMotion: api.scenes["03"].actorMotion },
     { cat: "scene-03-cat-laptop.png", inkDuration: 3.2, actorMotion: "typing" },
@@ -50,6 +55,8 @@ test("completion presentation cannot award points or resurrect the trophy popup"
 test("desktop controls expose all nine named scenes without a reward write", () => {
   const chrome = readFileSync("src/components/DesktopDevicePreviewChrome.tsx", "utf8");
   const celebration = readFileSync("src/components/RewardCelebration.tsx", "utf8");
+  const host = readFileSync("public/journal/js/completion-host.js", "utf8");
+  const journalCelebration = readFileSync("public/journal/js/celebration-garden.js", "utf8");
   const styles = readFileSync("public/journal/css/celebration-garden.css", "utf8");
   for (const scene of ["01", "02", "03", "04", "05", "06", "07", "08", "09"]) {
     assert.match(chrome, new RegExp(`scene: "${scene}"`));
@@ -60,7 +67,14 @@ test("desktop controls expose all nine named scenes without a reward write", () 
   assert.match(chrome, /data-preview-completion=\{scene\}/);
   assert.match(chrome, /onCompletionPreview\?\.\(scene\)/);
   assert.match(celebration, /sceneOverride \?\? completionSceneForReward/);
+  assert.match(celebration, /completion\.html\?scene=/);
+  assert.match(celebration, /data-ready/);
+  assert.match(host, /hintedPreload/);
+  assert.match(journalCelebration, /NavaCompletionScenes\.preload/);
   assert.match(styles, /garden-actor\[data-motion="typing"\]/);
-  assert.match(styles, /border:0;background:var\(--scene-color\)/);
-  assert.doesNotMatch(styles, /box-shadow:0 0 0 9px/);
+  assert.match(styles, /left:12%;right:12%/);
+  assert.match(styles, /border:0;outline:0;appearance:none;background:#79bda4;box-shadow:none/);
+  assert.match(styles, /font-size:clamp\(23px,6vw,27px\)/);
+  assert.match(styles, /scene-continue:focus-visible\{outline:0;filter:brightness\(\.9\)\}/);
+  assert.doesNotMatch(styles, /background:var\(--scene-color\)|outline:\d+px solid|box-shadow:0 0 0 9px/);
 });

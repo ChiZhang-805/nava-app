@@ -19,8 +19,13 @@ try{
  for(let i=1;i<=9;i++){
   const scene=String(i).padStart(2,'0');
   await page.route('**/__completion-check',route=>route.fulfill({contentType:'text/html',body:`<style>html,body{margin:0;width:100%;height:100%}iframe{display:block;width:100%;height:100%;border:0}</style><iframe src="${new URL('journal/completion.html',base)}"></iframe><script>window.addEventListener('load',()=>{const channel=new MessageChannel();window.viewport=v=>channel.port1.postMessage({type:'viewport',safeTop:v.top,safeBottom:v.bottom});window.dismissed=0;channel.port1.onmessage=({data})=>{if(data.type==='continue')window.dismissed++;};document.querySelector('iframe').contentWindow.postMessage({type:'nava-completion-connect',scene:'${scene}',locale:'zh',safeTop:48,safeBottom:34},location.origin,[channel.port2]);});</script>`}));
+  const loadStarted=Date.now();
   await page.goto(new URL('__completion-check',base).href);
   const frame=page.frames().find(f=>f.url().includes('completion.html'));
+  await frame.waitForSelector('.celebration-garden');
+  const readyMs=Date.now()-loadStarted;
+  assert.ok(readyMs<1500,`Scene ${scene} took ${readyMs}ms to reveal on the local cold-load gate`);
+  assert.ok(await frame.evaluate(()=>[...document.images].every(img=>img.complete&&img.naturalWidth)),'The scene must reveal only after its background and actor are ready');
   await frame.waitForSelector('[data-ink="finished"]');
   await frame.waitForFunction(()=>[...document.images].every(img=>img.complete&&img.naturalWidth));
   const title=await frame.locator('#garden-title').evaluate(e=>[...e.querySelectorAll('path')].map(p=>getComputedStyle(p).strokeDashoffset));
@@ -36,18 +41,22 @@ try{
    const geometry=await frame.evaluate(()=>{
     const rect=s=>{const r=document.querySelector(s).getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,right:r.right};};
     const b=document.querySelector('.scene-continue'),r=b.getBoundingClientRect();
-    return {root:rect('.celebration-garden'),bg:rect('.garden-backdrop'),title:rect('#garden-title'),text:rect('.garden-message'),cat:rect('.garden-actor'),button:rect('.scene-continue'),hit:b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)),overflow:document.documentElement.scrollWidth>innerWidth,points:/积分|\bXP\b|\+\s*\d/.test(document.body.innerText),arrow:getComputedStyle(b,'::after').content};
+    const style=getComputedStyle(b);
+    return {root:rect('.celebration-garden'),bg:rect('.garden-backdrop'),title:rect('#garden-title'),text:rect('.garden-message'),cat:rect('.garden-actor'),button:rect('.scene-continue'),hit:b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)),overflow:document.documentElement.scrollWidth>innerWidth,points:/积分|\bXP\b|\+\s*\d/.test(document.body.innerText),arrow:getComputedStyle(b,'::after').content,buttonStyle:{backgroundColor:style.backgroundColor,borderWidth:style.borderWidth,outlineWidth:style.outlineWidth,boxShadow:style.boxShadow,fontSize:style.fontSize}};
    });
    assert.equal(geometry.overflow,false);assert.equal(geometry.points,false);assert.ok(geometry.hit);
    assert.equal(geometry.root.width,d.width);assert.equal(geometry.root.height,d.height);
    assert.ok(geometry.bg.x<=.5&&geometry.bg.y<=.5&&geometry.bg.right>=d.width-.5&&geometry.bg.bottom>=d.height-.5,JSON.stringify({scene,d,geometry}));
    assert.ok(geometry.button.height>=44&&geometry.button.bottom<=d.height-d.bottom-10);
+   assert.ok(geometry.button.width<=d.width*.77&&geometry.button.width>=d.width*.74,JSON.stringify({scene,d,button:geometry.button}));
+   assert.deepEqual({...geometry.buttonStyle,fontSize:undefined},{backgroundColor:'rgb(121, 189, 164)',borderWidth:'0px',outlineWidth:'0px',boxShadow:'none',fontSize:undefined});
+   assert.ok(Math.abs(parseFloat(geometry.buttonStyle.fontSize)-Math.min(27,Math.max(23,d.width*.06)))<.02,JSON.stringify({scene,d,buttonStyle:geometry.buttonStyle}));
    assert.ok(geometry.title.y>=d.top-1&&geometry.text.bottom<geometry.cat.y&&geometry.cat.bottom<geometry.button.y,JSON.stringify({scene,d,geometry}));
    assert.ok(['none','normal'].includes(geometry.arrow));
    await page.screenshot({path:`${out}/${scene}-${d.id}.png`});results.push({scene,device:d.id,...geometry});
   }
   await frame.locator('.scene-continue').click();await page.waitForFunction(()=>window.dismissed===1);
-  console.log(`Scene ${scene}: ${dims.length} sizes, animation + handwriting + Continue`);
+  console.log(`Scene ${scene}: ${dims.length} sizes, ${readyMs}ms atomic reveal + animation + handwriting + Continue`);
  }
  await page.emulateMedia({reducedMotion:'reduce'});await page.reload();
  const reduced=page.frames().find(f=>f.url().includes('completion.html'));

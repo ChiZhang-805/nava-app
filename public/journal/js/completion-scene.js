@@ -12,6 +12,20 @@
     '08': { title:'Excellent!', cat:'home-butterfly.webp', box:[640,480,4,65,550,406], mirror:true, color:'#eaa589', motion:'petals', zh:'你的情绪，\n也值得被温柔照顾。', en:'Your feelings matter.\nThey deserve a little tenderness.' },
     '09': { title:'Brilliant!', cat:'../garden-cat.webp', box:[640,480,61,94,503,395], mirror:true, color:'#7ea6da', motion:'stars', zh:'今天的努力，\n都值得被好好庆祝。', en:'All your little efforts today\nare worth celebrating.' },
   };
+  const preloadCache=new Map();
+  function assetSources(scene='01'){
+    if(!Object.hasOwn(scenes,scene))scene='01';
+    return [scene==='01'?'assets/mint-garden-morning.webp':`assets/completion/scene-${scene}.webp`,`assets/completion/${scenes[scene].cat}`];
+  }
+  function preload(scene='01'){
+    return Promise.all(assetSources(scene).map(src=>{
+      if(preloadCache.has(src))return preloadCache.get(src).promise;
+      const image=new Image(),loaded=new Promise(resolve=>{image.onload=resolve;image.onerror=resolve;});
+      image.decoding='async';image.fetchPriority='high';image.src=src;
+      const promise=typeof image.decode==='function'?image.decode().catch(()=>loaded):loaded;
+      preloadCache.set(src,{image,promise});return promise;
+    }));
+  }
   // Handwriting centerlines. Each stroke follows its path, not a typewriter or
   // a rectangular wipe across printed text. The final underline ends the sequence.
   const glyphs = {
@@ -82,7 +96,7 @@
       this.root.style.setProperty('--scene-color',spec.color);this.root.style.setProperty('--scene-copy-delay',`${inkDuration+.2}s`);this.root.style.setProperty('--scene-copy-duration',`${Math.max(.65,inkDuration/5)}s`);
       this.root.innerHTML='<div class="scene-plane" aria-hidden="true"><img class="garden-backdrop" alt=""><div class="scene-canopy"></div><div class="scene-light"></div><div class="garden-breeze"><i></i><i></i><i></i><i></i><i></i></div><div class="garden-actor"><span class="garden-contact"></span><img class="garden-actor-base" alt=""><span class="garden-actor-motion"></span></div><div class="scene-foreground"></div></div><div class="scene-copy"><h1 id="garden-title"></h1><p class="garden-message"></p></div><div class="garden-action"></div>';
       this.root.setAttribute('aria-labelledby','garden-title');
-      const bg=scene==='01'?'assets/mint-garden-morning.png':`assets/completion/scene-${scene}.png`;
+      const [bg]=assetSources(scene);
       this.root.querySelector('.garden-backdrop').src=bg;
       this.root.querySelector('.scene-plane').style.setProperty('--scene-art',`url("${new URL(bg,document.baseURI).href}")`);
       const actor=this.root.querySelector('.garden-actor'),cat=actor.querySelector('.garden-actor-base');
@@ -102,5 +116,5 @@
     destroy(){this.root.remove();}
   }
   window.NavaCompletionScene=CompletionScene;
-  window.NavaCompletionScenes={choose,scenes};
+  window.NavaCompletionScenes={choose,scenes,assetSources,preload};
 })();
