@@ -32,7 +32,15 @@ AI对话页不再重复渲染五项主导航，页面底部只保留文字／语
 本轮已通过lint、生产构建、15项周报单测、周报四态视觉门禁、详细资料视觉门禁、AI底部布局门禁和
 300状态综合皮肤／路由门禁。旧`icons:test`仍会在进入本轮AI页断言之前，因首页胶囊左右边距
 15.875px与内部9.5625px不相等而停止；该失败属于既有首页导航几何合同，本轮没有放宽断言，也没有
-把它记作通过。双站发布信息在发布完成后补入本节。
+把它记作通过。
+
+发布：功能源码`525d3eebb05c1341793a01b7bcddd02768d0f218`已推送；ChatGPT Sites沿用原项目发布
+v247（version ID `appgprj_6a5de710811c8191af8ce2681358d518~appgver_0e3ff02ee22c81919b8fd8c9d27e9f81`，
+deployment `appgdep_6aca0695f1b48191ad41a51fa9ff51d6`，succeeded）。GitHub Pages镜像commit为
+`c84879b1a8048c0b5a84bb9ebeb1771eb9f751f2`，workflow `38041971051`成功；203个Pages生成文件
+共66,464,911字节，与本地构建逐文件SHA-256一致，`source.json`指向同一功能源码和v247。
+发布后门禁以正确v247参数通过58个结果、381项检查和56张截图，确认双站资源同源、四档公开登录门、
+`?demo=1`不绕过认证、canonical Supabase项目和零运行时错误。
 
 ## 162. 饮食识别按餐次与逐项食物重排（当前版本）
 
@@ -2387,21 +2395,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`3ba1e5de03c6316410748b02ac59aa34707e9b8c`
+- 源码发布 commit：`525d3eebb05c1341793a01b7bcddd02768d0f218`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v246，public
+- ChatGPT Sites 版本：v247，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_83b1c9806d24819199b182062d26c1a2`
-- Sites deployment ID：`appgdep_6ac9f6bca4148191b882ca1a78ae1cae`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_0e3ff02ee22c81919b8fd8c9d27e9f81`
+- Sites deployment ID：`appgdep_6aca0695f1b48191ad41a51fa9ff51d6`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `a71a3a834e0fdcc412d2d4e5cd346cb22a414aad`，工作流`38038013356`成功
+  `c84879b1a8048c0b5a84bb9ebeb1771eb9f751f2`，工作流`38041971051`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v246 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v246-3ba1e5d.tar.gz`
+- v247 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v247-525d3ee.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v246、上述功能源码commit及Sites version ID。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v247、上述功能源码commit及Sites version ID。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
