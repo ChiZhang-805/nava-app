@@ -32,8 +32,19 @@ Chromium门禁通过；本机未安装Playwright WebKit运行时，WebKit同规�
 发布级`npm run verify`执行至既有`external-preview:visual`时停止：本地demo的`loadJournal`仍请求
 Supabase `journal_entries`并收到401，页面显示“记录未能加载”，旧脚本因找不到
 `.sports-plan-actions`失败；原样单独复跑也稳定复现。这一失败早于本轮完成页断言，未修改demo数据合同、
-未放宽旧门禁，也未记作通过。生产认证合同通过，确认公开站demo不能绕过登录。发布信息待双站完成后
-补入本节。
+未放宽旧门禁，也未记作通过。生产认证合同通过，确认公开站demo不能绕过登录。
+
+发布：功能源码`5f5f2f2b6aca0f8a4033abe876ec707fdf358de3`已推送。ChatGPT Sites沿用公开项目发布
+v248（version ID `appgprj_6a5de710811c8191af8ce2681358d518~appgver_04603899472c8191b74669e0034df5dd`，
+deployment `appgdep_6aca0fa47dfc819181ccf10edb03aa5c`，succeeded）。GitHub Pages镜像commit为
+`f4253aced16f5317a25189731307e0a95c14612a`，workflow `38044256859`成功；212个Pages生成文件共
+68,648,833字节，与本地构建逐文件SHA-256一致，`source.json`指向同一功能源码和v248。
+
+发布后首次双站门禁的资源、版本和公开登录检查均已通过，但脚本只在1.4秒内寻找每日签到完成页；
+原子加载修复后该完成页会稍晚可靠出现，遮挡随后皮肤点击，故首轮为34/58结果。只把QA等待改为最多
+5秒并在看见真实完成页后按Escape关闭，不改APP、不跳过完成页断言；完整重跑通过58个结果、381项
+检查和56张截图，确认双站资源同源、四档公开登录门、`?demo=1`不绕过认证、canonical Supabase项目
+和零运行时错误。
 
 ## 163. AI对话底部专用输入栏、详细资料字号与周报一屏洞察（当前版本）
 

@@ -115,14 +115,13 @@ async function prepareLocalContext(browser, width, height) {
 async function selectSkin(page, skin) {
   await page.evaluate(() => { location.hash = "tab=profile"; });
   await page.locator('.profile-overview[data-profile-view="overview"]').waitFor({ state: "visible", timeout: 30000 });
-  // The one-time completion scene can mount after route readiness. Dismiss it at
-  // stable intervals before interacting with the skin selector.
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    await page.waitForTimeout(350);
-    if (await page.locator(".completion-celebration-layer").isVisible().catch(() => false)) {
-      await page.keyboard.press("Escape");
-      await page.locator(".completion-celebration-layer").waitFor({ state: "detached", timeout: 10000 });
-    }
+  // Daily check-in reconciliation can finish after route readiness. Wait for
+  // that one-time completion scene and dismiss it before selecting a skin.
+  const completion = page.locator(".completion-celebration-layer");
+  await completion.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
+  if (await completion.isVisible().catch(() => false)) {
+    await page.keyboard.press("Escape");
+    await completion.waitFor({ state: "detached", timeout: 10000 });
   }
   await page.locator('.profile-nav-row[data-profile-target="skin"]').click();
   await page.locator(".profile-skin-card").waitFor({ state: "visible", timeout: 30000 });
