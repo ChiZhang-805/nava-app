@@ -648,13 +648,15 @@ function updateSingleEntry(candidate: StructuredEntry, fieldId: string, value: s
   if (candidate.type === "nutrition") {
     if (payload.source === "vision") {
       const items = Array.isArray(payload.items) ? payload.items as FoodItem[] : [];
-      const match = fieldToUpdate.path?.match(/^items\.(\d+)\.(weight_grams|calories)$/);
+      const match = fieldToUpdate.path?.match(/^items\.(\d+)\.(weight_grams|calories|amount)$/);
       if (match) {
         const index = Number(match[1]);
         const current = items[index];
         if (current) items[index] = match[2] === "weight_grams"
           ? resizeFoodItemPortion(current, Number(value))
-          : correctFoodItemCalories(current, optionalNonNegative(value));
+          : match[2] === "calories"
+            ? correctFoodItemCalories(current, optionalNonNegative(value))
+            : { ...current, amount: value.trim() };
       }
       if (fieldToUpdate.path === "totalCalories" && Number.isFinite(Number(value)) && Number(value) >= 0) {
         const target = Math.round(Number(value));
@@ -678,8 +680,8 @@ function updateSingleEntry(candidate: StructuredEntry, fieldId: string, value: s
         payload.fatGrams = totals.fatGrams;
       }
       fields = fields.map((item) => {
-        const itemMatch = item.path?.match(/^items\.(\d+)\.(weight_grams|calories)$/);
-        if (itemMatch) return { ...item, value: String(items[Number(itemMatch[1])]?.[itemMatch[2] as "weight_grams" | "calories"] ?? "") };
+        const itemMatch = item.path?.match(/^items\.(\d+)\.(weight_grams|calories|amount)$/);
+        if (itemMatch) return { ...item, value: String(items[Number(itemMatch[1])]?.[itemMatch[2] as "weight_grams" | "calories" | "amount"] ?? "") };
         const path = item.path ?? "";
         if (["totalCalories", "proteinGrams", "carbohydrateGrams", "fatGrams"].includes(path)) return { ...item, value: payload[path] == null ? "" : String(payload[path]) };
         return item;

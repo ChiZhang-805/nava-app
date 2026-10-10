@@ -5,6 +5,7 @@ import { Fragment, FormEvent, useCallback, useEffect, useRef, useState, type Poi
 import { useLocale } from "../i18n";
 import PageSkeleton from "../components/PageSkeleton";
 import CameraCapture from "../components/CameraCapture";
+import NutritionStructuredConfirmation from "../components/NutritionStructuredConfirmation";
 import PhotoInput from "../components/PhotoInput";
 import { usePreviewActivity } from "../hooks/usePreviewActivity";
 import { createConversationGreeting, deleteConversationMessages, generateConversationTitle, loadConversation, sendAiMessage } from "../services/ai";
@@ -64,24 +65,30 @@ function mealLabel(meal: MealType, locale: "zh" | "en") {
 function buildPhotoNutritionEntry(result: DietExtractResult, meal: MealType, date: string, locale: "zh" | "en"): StructuredEntry {
   const totals = result.totals ?? sumFoodItemNutrition(result.items);
   const amountText = (value: number | null | undefined) => value == null ? "" : String(value);
-  const fields: StructuredEntry["fields"] = result.items.flatMap((item, index) => [
-    ...(Number(item.weight_grams) > 0 ? [{
+  const fields: StructuredEntry["fields"] = result.items.flatMap((item, index) => {
+    const portionField = Number(item.weight_grams) > 0 ? {
       id: crypto.randomUUID(),
       label: `${item.name}${locale === "zh" ? " · 估算份量" : " · estimated portion"}`,
       value: String(item.weight_grams),
       unit: "g",
       path: `items.${index}.weight_grams`,
       valueType: "number" as const,
-    }] : []),
-    {
+    } : {
+      id: crypto.randomUUID(),
+      label: `${item.name}${locale === "zh" ? " · 份量" : " · portion"}`,
+      value: item.amount ?? "",
+      path: `items.${index}.amount`,
+      valueType: "text" as const,
+    };
+    return [portionField, {
       id: crypto.randomUUID(),
       label: `${item.name}${locale === "zh" ? " · 估算热量" : " · estimated calories"}`,
       value: amountText(item.calories),
       unit: locale === "zh" ? "千卡" : "kcal",
       path: `items.${index}.calories`,
       valueType: "number" as const,
-    },
-  ]);
+    }];
+  });
   fields.push(
     { id: crypto.randomUUID(), label: locale === "zh" ? "估算总热量" : "Estimated total calories", value: amountText(totals.calories), unit: locale === "zh" ? "千卡" : "kcal", path: "totalCalories", valueType: "number" as const, readOnly: true },
     { id: crypto.randomUUID(), label: locale === "zh" ? "蛋白质摄入量" : "Protein", value: amountText(totals.proteinGrams), unit: "g", path: "proteinGrams", valueType: "number" as const, readOnly: true },
@@ -1113,7 +1120,15 @@ export default function AIScreen({
         <h2>{locale === "zh" ? "识别结果" : "Recognized data"}</h2>
       </header>
       <div className="structured-record-list">
-        {(pendingEntry.entries ?? [pendingEntry]).map((record) => (
+        {(pendingEntry.entries ?? [pendingEntry]).map((record) => record.type === "nutrition" ? (
+          <NutritionStructuredConfirmation
+            key={record.id}
+            record={record}
+            locale={locale}
+            editing={editingEntry}
+            onFieldChange={(fieldId, value) => setPendingEntry((current) => current ? updateStructuredEntryField(current, fieldId, value) : current)}
+          />
+        ) : (
           <section className="structured-record" key={record.id} data-structured-record={record.type}>
             <h3>{record.title}</h3>
             <div className="structured-field-list">

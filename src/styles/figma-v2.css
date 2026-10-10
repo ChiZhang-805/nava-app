@@ -4994,6 +4994,41 @@ body::before {
 .structured-confirmation footer button { min-width: 34px; height: 34px; border: 0; border-radius: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; color: #226680; background: #e3f3f8; }
 .structured-confirmation footer button.active { color: white; background: #2f91b7; }
 .structured-confirmation footer button[data-confirm-structured] { min-width: 106px; padding-inline: 11px; color: white; background: linear-gradient(135deg,#31afe2,#147da9); font-weight: 760; }
+.structured-confirmation[data-structured-confirmation="nutrition"] { width: min(calc(100% - 54px), 368px); }
+.nutrition-structured-record { gap: 10px; }
+.nutrition-meal-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(40,124,157,.12); }
+.nutrition-meal-heading > span { min-width: 0; display: flex; align-items: center; gap: 6px; color: #164c62; }
+.nutrition-meal-heading > span > svg { flex: 0 0 auto; color: #168eb5; }
+.nutrition-meal-heading strong { font-size: 14px; line-height: 1.3; }
+.nutrition-meal-heading time { color: #6f8994; font-size: 10px; white-space: nowrap; }
+.nutrition-meal-heading small { flex: 0 0 auto; color: #578496; font-size: 9px; line-height: 1.3; }
+.nutrition-result-items { display: grid; gap: 4px; }
+.nutrition-result-item { position: relative; display: grid; gap: 8px; padding: 10px 0 10px 11px; }
+.nutrition-result-item + .nutrition-result-item { border-top: 1px solid rgba(40,124,157,.1); }
+.nutrition-result-item::before { position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 99px; background: linear-gradient(180deg,#42b7d4,#86d8dc); content: ""; }
+.nutrition-result-item > header { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.nutrition-result-item > header > div { min-width: 0; display: grid; gap: 2px; }
+.nutrition-result-item > header > div > strong { color: #12394b; font-size: 14px; line-height: 1.25; overflow-wrap: anywhere; }
+.nutrition-result-item > header > div > span { color: #66838e; font-size: 10px; line-height: 1.35; }
+.nutrition-result-item > header > b { flex: 0 0 auto; color: #1686aa; font-size: 17px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.nutrition-result-item > header > b small { margin-left: 3px; font-size: 9px; font-weight: 650; }
+.nutrition-result-item dl,
+.nutrition-meal-total dl { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px; margin: 0; }
+.nutrition-result-item dl > div,
+.nutrition-meal-total dl > div { min-width: 0; display: grid; gap: 2px; }
+.nutrition-result-item dt,
+.nutrition-meal-total dt { color: #78909a; font-size: 9px; line-height: 1.2; }
+.nutrition-result-item dd,
+.nutrition-meal-total dd { margin: 0; color: #284f60; font-size: 11px; line-height: 1.25; font-weight: 720; overflow-wrap: anywhere; }
+.nutrition-result-editor { display: inline-flex; align-items: center; gap: 3px; }
+.nutrition-result-editor input { width: 52px; height: 27px; box-sizing: border-box; border: 1px solid rgba(22,130,174,.28); border-radius: 8px; padding: 3px 5px; color: #0a3144; background: rgba(255,255,255,.86); font: inherit; font-size: 11px; text-align: right; outline: none; }
+.nutrition-result-editor input:focus { border-color: #1698cb; box-shadow: 0 0 0 2px rgba(22,152,203,.12); }
+.nutrition-result-editor em { color: #66838e; font-size: 9px; font-style: normal; white-space: nowrap; }
+.nutrition-meal-total { display: grid; gap: 7px; padding: 10px 11px; border: 1px solid rgba(91,182,204,.2); border-radius: 14px; background: linear-gradient(135deg,rgba(227,246,250,.74),rgba(238,249,250,.52)); }
+.nutrition-meal-total > header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.nutrition-meal-total > header > span { color: #416d7e; font-size: 11px; font-weight: 720; }
+.nutrition-meal-total > header > strong { color: #127e9f; font-size: 18px; font-variant-numeric: tabular-nums; }
+.nutrition-meal-total > header small { margin-left: 3px; font-size: 9px; }
 
 .chat-composer { grid-template-columns: 42px minmax(0, 1fr) 42px 46px; gap: 7px; }
 .chat-attachment-control { position: relative; width: 42px; height: 42px; display: grid; place-items: center; z-index: 9; }
