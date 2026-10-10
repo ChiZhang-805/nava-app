@@ -19,7 +19,7 @@ test("all nine scenes are reachable; reward and journal mappings agree", () => {
   for (const suffix of ["01", "02", "03", "04", "05", "06", "07", "08", "09"]) assert.ok(api.scenes[suffix]);
   assert.deepEqual(
     { cat: api.scenes["03"].cat, inkDuration: api.scenes["03"].inkDuration, actorMotion: api.scenes["03"].actorMotion },
-    { cat: "scene-03-cat-laptop.png", inkDuration: 10, actorMotion: "typing" },
+    { cat: "scene-03-cat-laptop.png", inkDuration: 3.2, actorMotion: "typing" },
   );
   assert.match(api.scenes["03"].zh ?? "", /每一份努力都在发光\s*✧/);
 });
@@ -47,12 +47,18 @@ test("completion presentation cannot award points or resurrect the trophy popup"
   assert.match(app, /claimGrowthAfterChange\(false\)/);
 });
 
-test("desktop controls can open scene 03 without a reward write", () => {
+test("desktop controls expose all nine named scenes without a reward write", () => {
   const chrome = readFileSync("src/components/DesktopDevicePreviewChrome.tsx", "utf8");
   const celebration = readFileSync("src/components/RewardCelebration.tsx", "utf8");
   const styles = readFileSync("public/journal/css/celebration-garden.css", "utf8");
-  assert.match(chrome, /data-preview-completion="03"/);
-  assert.match(chrome, /onCompletionPreview\?\.\("03"\)/);
+  for (const scene of ["01", "02", "03", "04", "05", "06", "07", "08", "09"]) {
+    assert.match(chrome, new RegExp(`scene: "${scene}"`));
+  }
+  for (const label of ["通用晨间", "专注阅读", "任务／AI", "面部记录", "饮食记录", "运动记录", "睡眠记录", "情绪记录", "通用夜间"]) {
+    assert.match(chrome, new RegExp(label));
+  }
+  assert.match(chrome, /data-preview-completion=\{scene\}/);
+  assert.match(chrome, /onCompletionPreview\?\.\(scene\)/);
   assert.match(celebration, /sceneOverride \?\? completionSceneForReward/);
   assert.match(styles, /garden-actor\[data-motion="typing"\]/);
   assert.match(styles, /border:0;background:var\(--scene-color\)/);

@@ -39,6 +39,18 @@ const journalGuideShortcuts = [
   { module: "focus", label: "专注", icon: Brain },
 ] satisfies Array<{ module: RecordModule; label: string; icon: typeof MoonStar }>;
 
+const completionPreviewShortcuts = [
+  { scene: "01", label: "通用晨间", icon: Sun },
+  { scene: "02", label: "专注阅读", icon: Brain },
+  { scene: "03", label: "任务／AI", icon: Sparkles },
+  { scene: "04", label: "面部记录", icon: ScanFace },
+  { scene: "05", label: "饮食记录", icon: Utensils },
+  { scene: "06", label: "运动记录", icon: Dumbbell },
+  { scene: "07", label: "睡眠记录", icon: MoonStar },
+  { scene: "08", label: "情绪记录", icon: SmilePlus },
+  { scene: "09", label: "通用夜间", icon: MoonStar },
+] satisfies Array<{ scene: string; label: string; icon: typeof Sparkles }>;
+
 export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLoginPreview, onJournalGuidePreview, onCompletionPreview }: DesktopDevicePreviewChromeProps = {}) {
   const [reminderResult, setReminderResult] = useState("");
   const [reminderBusy, setReminderBusy] = useState(false);
@@ -310,20 +322,23 @@ export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLogi
           </div>
         </section>
         <section className="nava-guide-preview nava-completion-preview" data-preview-only="completion-shortcuts" aria-label="完成页快捷入口">
-          <header><strong>完成页</strong><small>动画预览</small></header>
+          <header><strong>完成页</strong><small>9 个真实场景</small></header>
           <div className="nava-guide-preview-actions">
-            <button
-              type="button"
-              data-preview-completion="03"
-              disabled={!onCompletionPreview}
-              onClick={() => {
-                commandPhonePreview("app");
-                onCompletionPreview?.("03");
-                setEventResult("已打开微风桌面完成页；Continue 只关闭预览，不写入记录或积分。");
-              }}
-              title="预览微风桌面完成页"
-              aria-label="预览微风桌面完成页"
-            ><Sparkles size={17} /><span>微风桌面</span></button>
+            {completionPreviewShortcuts.map(({ scene, label, icon: Icon }) => (
+              <button
+                key={scene}
+                type="button"
+                data-preview-completion={scene}
+                disabled={!onCompletionPreview}
+                onClick={() => {
+                  commandPhonePreview("app");
+                  onCompletionPreview?.(scene);
+                  setEventResult(`已打开${label}完成页（场景 ${scene}）；继续按钮只关闭预览，不写入记录或积分。`);
+                }}
+                title={`预览${label}完成页`}
+                aria-label={`预览${label}完成页`}
+              ><Icon size={17} /><span>{label}</span></button>
+            ))}
           </div>
         </section>
         <section className="nava-reminder-preview" data-reminder-preview>

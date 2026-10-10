@@ -38,6 +38,8 @@ try {
           await expect(rail.locator('[data-preview-only="guide-shortcuts"]')).toHaveCount(1);
           await expect(rail.locator('[data-preview-only="guide-shortcuts"] [data-preview-action]')).toHaveCount(0);
           await expect(rail.locator("[data-preview-guide]")).toHaveCount(6);
+          await expect(rail.locator('[data-preview-only="completion-shortcuts"]')).toHaveCount(1);
+          await expect(rail.locator("[data-preview-completion]")).toHaveCount(9);
           await expect(rail.locator("[data-reminder-preview] button")).toHaveCount(8);
           await expect(rail.getByTestId("nava-preview-grid-toggle")).toHaveCount(0);
           await expect(page.locator(".nava-device-calibration-grid, [data-calibration-grid]")).toHaveCount(0);
@@ -49,7 +51,7 @@ try {
           assert.ok(geometry.left > geometry.phoneRight && geometry.right <= viewport.width && geometry.bottom <= viewport.height && geometry.overflow <= 1, JSON.stringify(geometry));
           assert.ok(geometry.gap >= 8 && geometry.gap <= 12, JSON.stringify(geometry));
           assert.equal(geometry.scrollbarWidth, "none", JSON.stringify(geometry));
-          for (const button of await rail.locator("[data-preview-event], [data-preview-action], [data-preview-guide], [data-reminder-preview] button").all()) {
+          for (const button of await rail.locator("[data-preview-event], [data-preview-action], [data-preview-guide], [data-preview-completion], [data-reminder-preview] button").all()) {
             await button.scrollIntoViewIfNeeded(); await expect(button.locator("span")).toBeVisible();
             const buttonGeometry = await button.evaluate((node) => { const box = node.getBoundingClientRect(), text = node.querySelector("span").getBoundingClientRect(); return { width: box.width, height: box.height, textFits: text.left >= box.left && text.right <= box.right, labelDisplay: getComputedStyle(node.querySelector("span")).display }; });
             assert.ok(buttonGeometry.width >= 43 && buttonGeometry.height >= 43 && buttonGeometry.textFits && buttonGeometry.labelDisplay !== "none", JSON.stringify(buttonGeometry));
