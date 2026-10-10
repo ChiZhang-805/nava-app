@@ -10,7 +10,7 @@ const roleLintMigration = readFileSync(new URL("supabase/migrations/202609270004
 const edge = readFileSync(new URL("supabase/functions/admin-notification-publish/index.ts", root), "utf8");
 const service = readFileSync(new URL("src/services/adminConsole.ts", root), "utf8");
 const consoleUi = readFileSync(new URL("src/features/AdminConsole.tsx", root), "utf8");
-const drawer = readFileSync(new URL("src/components/UtilityDrawer.tsx", root), "utf8");
+const home = readFileSync(new URL("src/features/OptionTwoHome.tsx", root), "utf8");
 
 test("administrator identity is server-controlled and future accounts default to member", () => {
   assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.nava_user_roles/);
@@ -20,7 +20,7 @@ test("administrator identity is server-controlled and future accounts default to
   assert.match(migration, /SECURITY DEFINER/);
   assert.match(migration, /REVOKE ALL ON TABLE public\.nava_user_roles/);
   assert.doesNotMatch(service, /from\(["']nava_user_roles["']\)\.(?:insert|update|upsert|delete)/);
-  assert.match(drawer, /isAdmin &&/);
+  assert.match(home, /isAdmin && <button[^>]+data-home-shortcut="admin"/);
 });
 
 test("catalog writes are validated admin RPCs and normal catalog reads remain published-only", () => {

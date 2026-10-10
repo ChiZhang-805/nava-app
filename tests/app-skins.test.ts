@@ -115,7 +115,6 @@ test("alternate skins recolor the full chrome and module hierarchy with light na
   ]) assert.match(hostStyles, new RegExp(token));
   assert.match(hostStyles, /\.safe-top,\s*\n\.phone-frame\[data-app-skin\].*\.figma-app-header/s);
   assert.match(hostStyles, /:is\(\.section-card, \.figma-module-card, \.module-history-report-card/);
-  assert.match(hostStyles, /\.utility-drawer \{\s*color: var\(--skin-ink\);\s*background: var\(--skin-page-background\)/s);
   assert.match(hostStyles, /:not\(\.phone-frame--option2\) \.bottom-nav/);
   assert.match(hostStyles, /\.ai-nav-orb \{ color: var\(--skin-nav-ink\); background: var\(--skin-dock-orb\)/);
   assert.doesNotMatch(hostStyles, /--skin-dock-orb:\s*linear-gradient\([^;]*#172d9d/);

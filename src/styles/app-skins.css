@@ -238,7 +238,7 @@
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .muted,
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .section-heading p { color: var(--skin-muted); }
 
-.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.section-card, .figma-module-card, .module-history-report-card, .metric-card, .record-module-entry, .weekly-score-card, .weekly-trend-card, .weekly-insight-card, .weekly-module-status, .growth-summary-card, .growth-task-card, .chat-archive-return, .home-calendar-card, .home-year-card, .home-calendar-overview > div, .record-hub-ai-summary, .notification-detail-dialog, .notification-row-card, .morning-plan-sheet, .drawer-todo-section, .drawer-points-card, .drawer-home-edit, .drawer-placeholder-card) {
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.section-card, .figma-module-card, .module-history-report-card, .metric-card, .record-module-entry, .weekly-score-card, .weekly-trend-card, .weekly-insight-card, .weekly-module-status, .growth-summary-card, .growth-task-card, .chat-archive-return, .home-calendar-card, .home-year-card, .home-calendar-overview > div, .record-hub-ai-summary, .notification-detail-dialog, .notification-row-card, .morning-plan-sheet) {
   border-color: var(--skin-line);
   background: var(--skin-surface);
   box-shadow: var(--skin-card-shadow);
@@ -333,15 +333,6 @@
   border-color: var(--skin-line);
   color: var(--skin-ink);
   background: var(--skin-row);
-}
-.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .utility-drawer {
-  color: var(--skin-ink);
-  background: var(--skin-page-background);
-  box-shadow: var(--skin-shadow);
-}
-.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .utility-drawer > header button {
-  color: var(--skin-accent);
-  background: var(--skin-surface-strong);
 }
 .phone-frame[data-app-skin] :is(.profile-device-stage, .profile-device-facts, .profile-device-facts > div, .profile-security-entries) {
   border: 0;

@@ -5,6 +5,25 @@ import vm from "node:vm";
 import { performance } from "node:perf_hooks";
 
 const journalRoot = new URL("../public/journal/js/", import.meta.url);
+const hostBridge = readFileSync(new URL("../src/features/JournalExperience.tsx", import.meta.url), "utf8");
+const journalApp = readFileSync(new URL("app.js", journalRoot), "utf8");
+const journalReview = readFileSync(new URL("review.js", journalRoot), "utf8");
+const todoPage = readFileSync(new URL("../src/features/TodayTodoPage.tsx", import.meta.url), "utf8");
+const aiScreen = readFileSync(new URL("../src/features/AIScreen.tsx", import.meta.url), "utf8");
+
+test("every voice surface reaches its real AI boundary after speech recognition", () => {
+  assert.match(hostBridge, /mood:'mood',diet:'food',exercise:'sport',focus:'focus',sleep:'sleep',face:'face'/);
+  assert.match(hostBridge, /method==='voice-start'[\s\S]*startVoiceInput/);
+  assert.match(hostBridge, /method==='ai'[\s\S]*journalAI/);
+  assert.match(journalApp, /const result = await speech\.stop\(\)[\s\S]*await organizeWords\(pending, serial\)/);
+  assert.match(journalApp, /const draft = await AI\.extract/);
+  assert.match(journalReview, /result = await this\.input\.stop\(\)[\s\S]*await this\.send\(result\.text/);
+  assert.match(todoPage, /startVoiceInput\([\s\S]*applyVoiceTranscript/);
+  assert.match(todoPage, /applyVoiceTranscript[\s\S]*estimateTodoDuration\(task, locale\)/);
+  assert.equal((aiScreen.match(/await startVoiceInput\(/g) ?? []).length, 2, "AI composer and voice call must both start real speech input");
+  assert.match(aiScreen, /async function submit[\s\S]*sendAiMessage/);
+  assert.match(aiScreen, /submitVoiceCallTurn[\s\S]*sendAiMessage/);
+});
 
 function journalModules() {
   const context = vm.createContext({ __fluffyModules: {}, console });

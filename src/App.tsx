@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, Download, History, ListTodo, MessageSquarePlus, PhoneCall, ScanFace, Share2, Trash2, Volume2, VolumeX } from "lucide-react";
+import { Activity, ArrowLeft, Download, History, MessageSquarePlus, PhoneCall, ScanFace, Share2, Trash2, Volume2, VolumeX } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import navChatIcon from "./assets/figma/option-two-icons/chat.svg";
 import navHomeIcon from "./assets/figma/option-two-icons/home-glyph.svg";
@@ -17,7 +17,6 @@ import ProfileScreen from "./features/ProfileScreen";
 import { useAuth } from "./state/authContext";
 import { flushPendingWatchActions, subscribeWatchActions } from "./services/watch";
 import MoreMenu from "./components/MoreMenu";
-import UtilityDrawer from "./components/UtilityDrawer";
 import DevSeedPanel from "./components/DevSeedPanel";
 import RewardCelebration from "./components/RewardCelebration";
 import NotificationBanner from "./components/NotificationBanner";
@@ -164,7 +163,6 @@ function MobileShell({
   const [utilityOpen, setUtilityOpen] = useState(false);
   const [appSkin, setAppSkin] = useState<AppSkin>(() => readAppSkin(user?.id));
   const [linkShareOpen, setLinkShareOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [focusTodoPrefill, setFocusTodoPrefill] = useState<FocusTodoPrefill | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -287,11 +285,6 @@ function MobileShell({
     if (user && module) notifyRecordSaved(user.id, module, deviceDate, locale);
   }, [claimGrowthAfterChange, deviceDate, locale, user]);
 
-  const markTodoCompleted = useCallback(() => {
-    setRefreshKey((value) => value + 1);
-    return claimGrowthAfterChange();
-  }, [claimGrowthAfterChange]);
-
   // A journal save already leads to the category's full-screen completion scene.
   // Reconcile silently so it cannot be covered by a second celebration.
   const markJournalChanged = useCallback(() => {
@@ -385,7 +378,6 @@ function MobileShell({
       focusSessions: plan.focusSessions,
       suggested: plan.suggested,
     }));
-    setDrawerOpen(false);
     setUtilityOpen(false);
     navigate("record", "focus", "editor");
     if (plan.suggested) {
@@ -670,7 +662,6 @@ function MobileShell({
   useEffect(() => {
     contentRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
     setUtilityOpen(false);
-    setDrawerOpen(false);
   }, [activeTab, recordModule, recordView]);
 
   useEffect(() => () => {
@@ -739,7 +730,6 @@ function MobileShell({
                 {recordModule === "face" && <button type="button" onClick={() => { setRecordView("conditions"); navigate("record", "face", "conditions"); setUtilityOpen(false); }}><ScanFace size={17} />{locale === "zh" ? "条件检验" : "Condition check"}</button>}
               </>}
               {activeTab === "profile" && recordView === "privacy" && <button type="button" onClick={() => setProfileExportRequestId((current) => current + 1)}><Download size={17} />{locale === "zh" ? "导出我的数据" : "Export my data"}</button>}
-              <button type="button" onClick={() => { setUtilityOpen(false); setDrawerOpen(true); }}><ListTodo size={17} />{locale === "zh" ? "功能导航" : "Utilities"}</button>
           </MoreMenu>
         </header>
       )}
@@ -917,27 +907,6 @@ function MobileShell({
           );
         })}
       </nav>}
-      <UtilityDrawer
-        user={user}
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        onTaskCompleted={markTodoCompleted}
-        onStartFocus={openTodoFocus}
-        onEditHome={() => {
-          setDrawerOpen(false);
-          navigate("today", null, "home-widgets");
-        }}
-        onOpenShop={() => {
-          setDrawerOpen(false);
-          navigate("today", null, "points-shop");
-        }}
-        isAdmin={isAdmin}
-        onOpenGuide={() => { setDrawerOpen(false); navigate('today', null, 'getting-started'); }}
-        onOpenAdmin={() => {
-          setDrawerOpen(false);
-          navigate("today", null, "admin-console");
-        }}
-      />
       {rewardQueue[0] && <RewardCelebration rewards={rewardQueue[0]} locale={locale} onDismiss={dismissReward} />}
       {completionPreviewScene && <RewardCelebration sceneOverride={completionPreviewScene} locale={locale} onDismiss={onCompletionPreviewDismiss} />}
     </div>

@@ -4513,9 +4513,6 @@ body::before {
 .growth-task-card.completion-reveal .growth-task-check { animation: growth-check-reveal 560ms cubic-bezier(.16,1.4,.32,1) both; }
 .growth-task-card.completion-reveal .growth-task-meta { animation: growth-completed-copy 440ms ease-out both; }
 
-.drawer-todo-launch b { min-width: 0; display: grid; gap: 2px; }
-.drawer-todo-launch b small { color: #76909b; font-size: 9px; font-weight: 620; }
-
 .growth-screen.has-toast .growth-task-list { padding-bottom: 82px; }
 .growth-earned-toast {
   position: absolute;
@@ -4543,7 +4540,6 @@ body::before {
 .growth-earned-toast small { overflow: hidden; color: #6a898d; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .growth-earned-toast > b { color: #159768; font-size: 20px; font-variant-numeric: tabular-nums; }
 
-.phone-frame .utility-drawer-layer,
 .phone-frame .cat-module-picker-layer {
   position: absolute;
   inset: 0;
@@ -4948,69 +4944,6 @@ body::before {
     animation: none;
   }
 }
-
-.utility-drawer-layer { justify-content: flex-end; }
-.utility-drawer {
-  width: min(84%, 356px);
-  height: 100%;
-  overflow-y: auto;
-  padding: max(24px, calc(var(--nava-system-safe-top, 0px) + 14px), env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
-  color: #092d40;
-  background: rgba(234, 248, 253, 0.96);
-  box-shadow: -18px 0 55px rgba(7, 54, 77, 0.2);
-  animation: drawer-slide-in 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-.utility-drawer > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-.utility-drawer > header span { color: #558195; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; }
-.utility-drawer > header h2 { margin: 2px 0 0; font-size: 25px; }
-.utility-drawer > header button { width: 38px; height: 38px; border: 0; border-radius: 50%; display: grid; place-items: center; color: #1c617d; background: #fff; }
-
-.drawer-todo-section { border-radius: 20px; padding: 15px; background: rgba(255,255,255,.74); box-shadow: 0 10px 28px rgba(26,112,150,.1); }
-.drawer-section-title { display: flex; align-items: center; justify-content: space-between; }
-.drawer-section-title span { min-width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #188cb9; font-size: 11px; }
-.drawer-todo-section form { display: grid; grid-template-columns: 1fr 38px; gap: 7px; margin-top: 12px; }
-.drawer-todo-section input { min-width: 0; height: 40px; border: 1px solid #d1e9f2; border-radius: 12px; padding: 0 11px; color: #12394a; background: #f4fbfd; }
-.drawer-todo-section form button { border: 0; border-radius: 12px; display: grid; place-items: center; color: white; background: #1686b3; }
-.drawer-todo-list { display: grid; gap: 6px; margin-top: 10px; }
-.drawer-todo-list > p { margin: 4px 0; color: #6d8b98; font-size: 11px; line-height: 1.5; }
-.drawer-todo-item { min-width: 0; min-height: 48px; display: grid; grid-template-columns: 32px minmax(0,1fr); align-items: center; gap: 5px; }
-.drawer-todo-check { width: 32px; height: 32px; border: 0; display: grid; place-items: center; padding: 0; color: #fff; background: transparent; }
-.drawer-todo-check::before { content: ""; width: 21px; height: 21px; grid-area: 1/1; border: 1px solid #7cb5ca; border-radius: 50%; background: #fff; }
-.drawer-todo-check svg { z-index: 1; grid-area: 1/1; }
-.drawer-todo-item.completed .drawer-todo-check::before { border-color: #2aad81; background: #2aad81; }
-.drawer-todo-launch { min-width: 0; min-height: 44px; border: 0; display: grid; grid-template-columns: minmax(0,1fr) 18px; align-items: center; gap: 5px; padding: 5px 0; color: #173b4c; background: transparent; text-align: left; }
-.drawer-todo-launch b { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.drawer-todo-launch > svg { color: #2384a9; }
-.drawer-todo-item.completed .drawer-todo-launch b { color: #73909c; text-decoration: line-through; }
-.drawer-todo-error { margin: 9px 0 0; color: #a7444d; font-size: 10.5px; font-weight: 700; line-height: 1.45; }
-
-.drawer-points-card,
-.drawer-home-edit,
-.drawer-placeholder-card { width: 100%; min-height: 68px; margin-top: 10px; border: 1px solid rgba(255,255,255,.85); border-radius: 18px; display: flex; align-items: center; gap: 12px; padding: 12px 14px; color: #176785; background: rgba(255,255,255,.72); box-shadow: 0 8px 20px rgba(27,112,149,.08); }
-.drawer-points-card div,
-.drawer-home-edit span,
-.drawer-placeholder-card span { min-width: 0; flex: 1; display: grid; gap: 3px; text-align: left; }
-.drawer-points-card span,
-.drawer-home-edit small,
-.drawer-placeholder-card small { color: #76929e; font-size: 10px; }
-.drawer-points-card strong,
-.drawer-home-edit strong,
-.drawer-placeholder-card strong { color: #11394b; font-size: 14px; }
-.drawer-home-edit { font: inherit; cursor: pointer; }
-.drawer-home-edit:active { transform: scale(.985); background: rgba(225,246,253,.88); }
-.drawer-admin-entry { border-color: rgba(111,190,191,.36); background: linear-gradient(135deg,rgba(239,251,250,.9),rgba(222,244,246,.86)); }
-.drawer-admin-entry > svg { color: #1f8a8e; }
-.drawer-placeholder-card:disabled { opacity: .72; }
-
-.drawer-todo-section,
-.drawer-points-card,
-.drawer-home-edit,
-.drawer-placeholder-card { animation: data-card-enter 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.drawer-points-card { animation-delay: 55ms; }
-.drawer-home-edit { animation-delay: 110ms; }
-.drawer-placeholder-card:nth-of-type(1) { animation-delay: 165ms; }
-.drawer-placeholder-card:nth-of-type(2) { animation-delay: 220ms; }
 
 .cat-module-picker-layer { align-items: flex-end; justify-content: center; }
 .cat-module-picker {
@@ -6063,15 +5996,13 @@ body::before {
 }
 
 .app-content,
-.chat-list,
-.utility-drawer {
+.chat-list {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
 .app-content::-webkit-scrollbar,
-.chat-list::-webkit-scrollbar,
-.utility-drawer::-webkit-scrollbar {
+.chat-list::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
@@ -6672,16 +6603,12 @@ body::before {
 .structured-confirmation footer { animation-delay: 250ms; }
 
 .structured-confirmation footer button,
-.cat-module-picker > div button,
-.drawer-todo-check,
-.drawer-todo-launch {
+.cat-module-picker > div button {
   transition: transform var(--motion-instant) ease, filter var(--motion-fast) ease, background var(--motion-fast) ease;
 }
 
 .structured-confirmation footer button:active,
-.cat-module-picker > div button:active,
-.drawer-todo-check:active,
-.drawer-todo-launch:active {
+.cat-module-picker > div button:active {
   transform: scale(.96);
 }
 
@@ -6699,10 +6626,6 @@ body::before {
 .module-modal,
 .phone-frame .avatar-sheet-overlay {
   animation: motion-overlay-in var(--motion-fast) ease-out backwards;
-}
-
-.drawer-todo-check svg {
-  animation: todo-check-arrive 360ms var(--motion-ease-spring) backwards;
 }
 
 /* Motion system, pass 2: editor, save, analysis and module-state feedback. */
@@ -7100,11 +7023,6 @@ body::before {
 @keyframes data-card-enter {
   from { opacity: 0; transform: translateY(10px) scale(0.985); }
   to { opacity: 1; transform: none; }
-}
-
-@keyframes drawer-slide-in {
-  from { opacity: 0; transform: translateX(28px); }
-  to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes picker-rise-in {
@@ -8273,12 +8191,6 @@ body::before {
   .cat-module-picker > div button,
   .module-modal,
   .phone-frame .avatar-sheet-overlay,
-  .drawer-todo-check svg {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-
   .record-editor-stack > form:not([hidden]) > .section-card,
   .record-editor-stack > div:not([hidden]) > .section-card,
   .record-editor-stack > form:not([hidden]) > .section-card > *,
@@ -8366,10 +8278,6 @@ body::before {
   .weekly-module-status,
   .profile-stack > .section-card,
   .profile-stack > .profile-device-stack,
-  .utility-drawer,
-  .drawer-todo-section,
-  .drawer-points-card,
-  .drawer-placeholder-card,
   .cat-module-picker,
   .detail-heatmap i,
   .sports-plan-steps span {

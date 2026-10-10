@@ -13,7 +13,7 @@ const faceFunction = readFileSync(new URL("../supabase/functions/face-analyze/in
 const faceDraftService = readFileSync(new URL("../src/services/secureFaceDraft.ts", import.meta.url), "utf8");
 const dashboard = readFileSync(new URL("../src/features/RecordModuleDashboard.tsx", import.meta.url), "utf8");
 const productivity = readFileSync(new URL("../src/services/productivity.ts", import.meta.url), "utf8");
-const utilityDrawer = readFileSync(new URL("../src/components/UtilityDrawer.tsx", import.meta.url), "utf8");
+const todayTodoPage = readFileSync(new URL("../src/features/TodayTodoPage.tsx", import.meta.url), "utf8");
 const focusImmersion = readFileSync(new URL("../src/services/focusImmersion.ts", import.meta.url), "utf8");
 const focusAudio = readFileSync(new URL("../src/services/focusAudio.ts", import.meta.url), "utf8");
 const focusStyles = readFileSync(new URL("../src/styles/figma-v2.css", import.meta.url), "utf8");
@@ -108,10 +108,9 @@ test("focus todo plans persist time, duration and session count and complete fro
   assert.match(dashboard, /计划专注次数/);
 });
 
-test("drawer todos launch a prefilled linked focus session without conflating completion", () => {
-  assert.match(utilityDrawer, /drawer-todo-check/);
-  assert.match(utilityDrawer, /drawer-todo-launch/);
-  assert.match(utilityDrawer, /onStartFocus\(todo\)/);
+test("the dedicated today-todo page launches a prefilled linked focus session without conflating completion", () => {
+  assert.match(todayTodoPage, /onStartFocus\(todo\)/);
+  assert.match(todayTodoPage, /toggleTodo/);
   assert.match(appShell, /navigate\("record", "focus", "editor"\)/);
   assert.match(recordsScreen, /selectedTodoId: focusTodoId/);
   assert.match(dashboard, /setSelectedTodoId\(focusLaunch\.selectedTodoId \?\? null\)/);

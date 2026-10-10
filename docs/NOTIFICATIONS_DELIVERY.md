@@ -12,7 +12,7 @@ Apple User Notifications 框架文档及 iPhone 用户指南为准：应用在�
 
 ### 管理员发布（2026-09-27）
 
-- 首页功能导航只在服务端 `nava_is_admin()` 返回 true 时显示“管理员端”；直达 URL 仍由
+- 首页右侧快捷入口只在服务端 `nava_is_admin()` 返回 true 时显示“管理员端”；直达 URL 仍由
   页面和数据库/Edge Function 双重校验，不把隐藏入口当成授权。
 - 管理员可编辑标题、正文、分类及点击目标，一次发布为所有当前账号写入真实
   `user_notifications`。批次记录收件人数、站内/系统模式和远程送达摘要，管理操作另写

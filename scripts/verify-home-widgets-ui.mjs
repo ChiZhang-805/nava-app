@@ -241,7 +241,9 @@ try {
     await expect(page.locator('[data-home-shortcut="today-todos"]')).toHaveCount(1);
     await sideButtons.nth(4).click();
     await expect(page.locator("[data-today-todo-page]")).toBeVisible();
-    await expect(page.locator(".utility-drawer")).toHaveCount(0);
+    await page.locator(".nava-more-trigger").click();
+    await expect(page.getByRole("button", { name: /功能导航|Utilities/ })).toHaveCount(0);
+    await page.keyboard.press("Escape");
     await openRoute(page, "tab=today&view=home-widgets");
     await expect(page.locator(".home-widget-editor")).toBeVisible();
     await expect(page.locator(".bottom-nav")).toHaveCount(0);

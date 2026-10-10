@@ -44,6 +44,7 @@ async function menuCheck(page, name) {
   const menu = page.locator(".app-utility-popover");
   await expect(menu).toBeVisible();
   await expect(menu.locator(".more-menu-language")).toBeVisible();
+  await expect(menu.getByRole("button", { name: /功能导航|Utilities/ })).toHaveCount(0);
   const geometry = await menu.evaluate((element) => {
     const frame = document.querySelector(".phone-frame").getBoundingClientRect();
     const rect = element.getBoundingClientRect();

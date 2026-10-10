@@ -526,10 +526,6 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
   await expect(home).toHaveAttribute("data-health-menu-open", "false");
   await page.locator(".option-two-menu-toggle").click();
   await capture(page, viewport, "00b-home-shortcuts", '.option-two-home[data-health-menu-open="false"]', report);
-  await page.getByRole('button',{ name:/功能导航|Utilities/ }).click();
-  await capture(page, viewport, 'home-utilities', '.utility-drawer[role="dialog"]', report);
-  await page.locator('.utility-drawer > header > button').click();
-
   await navigateRoute(page, "#tab=today&view=calendar", '[data-home-view="calendar"]');
   await expect(page.locator(".home-year-card")).toBeVisible();
   await expect(page.locator(".home-year-months > span")).toHaveCount(12);

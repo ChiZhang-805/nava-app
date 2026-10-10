@@ -347,10 +347,6 @@ async function assertStaticLayout(page, label) {
       ".growth-task-card",
       ".growth-badge-card",
       ".rhythm-detail-sheet",
-      ".utility-drawer",
-      ".drawer-todo-section",
-      ".drawer-points-card",
-      ".drawer-placeholder-card",
       ".profile-account-card",
       ".profile-personal-card",
       ".profile-device-card",
@@ -1059,27 +1055,24 @@ async function verifyHomeShortcuts(page, results) {
   if (!firstProfileSwitchWasChecked) await firstProfileSwitchInput.uncheck({ force: true });
   await page.locator('.home-experience-back').click();
   await expect(page.locator(".bottom-nav")).toBeVisible();
-  await openQuickShortcuts();
-  await page.getByRole("button", { name: /功能导航|Utilities/ }).click();
-  await expect(page.locator('.utility-drawer[role="dialog"]')).toBeVisible();
-  await page.waitForTimeout(350);
-  await page.screenshot({ path: path.join(outputDir, "today-utilities.png") });
-  const todoDraft = page.locator('.utility-drawer input[placeholder*="添加"], .utility-drawer input[placeholder*="Add"]');
+  await page.evaluate(() => { location.hash = "tab=today&view=today-todos"; });
+  await expect(page.locator("[data-today-todo-page]")).toBeVisible();
+  const todoDraft = page.locator(".today-todo-draft input");
   await todoDraft.fill(reviewLocale === "zh" ? "晚饭后散步 20 分钟" : "Walk for 20 minutes after dinner");
-  await page.locator('.drawer-todo-section form button[type="submit"]').click();
-  const newTodo = page.locator(".drawer-todo-list button").first();
+  await page.locator(".today-todo-submit").click();
+  await page.locator(".today-todo-card-pagination button").nth(1).click();
+  const newTodo = page.locator(".today-todo-items article").first();
   await expect(newTodo).toBeVisible();
-  await newTodo.click();
-  await expect(newTodo.locator("svg")).toBeVisible();
-  await assertStaticLayout(page, "today-utilities-with-todo");
+  await newTodo.locator(".today-todo-check").click();
+  await expect(newTodo).toHaveClass(/is-completed/);
+  await assertStaticLayout(page, "today-todos-with-item");
   await page.waitForTimeout(280);
-  await page.screenshot({ path: path.join(outputDir, "today-utilities-with-todo.png") });
-  await page.locator(".drawer-todo-item").first().locator(".drawer-todo-launch").click();
+  await page.screenshot({ path: path.join(outputDir, "today-todos-with-item.png") });
+  await newTodo.locator(".today-todo-open").click();
   await expect(page.locator('.record-detail[data-record-detail="focus"] .record-editor-stack > form:not([hidden])')).toBeVisible();
   await expect(page.locator('.record-detail[data-record-detail="focus"] .focus-entry-task-field input')).toHaveValue(reviewLocale === "zh" ? "晚饭后散步 20 分钟" : "Walk for 20 minutes after dinner");
-  await expect(page.locator('.record-detail[data-record-detail="focus"] .focus-entry-minutes-field select')).toHaveValue("25");
-  await expect(page.locator('.utility-drawer[role="dialog"]')).toBeHidden();
-  results.push("首页真实积分、小猫动作、快捷入口折叠、上滑健康圆盘、月历/日报告、详细资料与待办入口");
+  await expect(page.locator('.record-detail[data-record-detail="focus"] .focus-entry-minutes-field select')).toHaveValue("20");
+  results.push("首页真实积分、小猫动作、快捷入口折叠、上滑健康圆盘、月历/日报告、详细资料与独立待办页入口");
 }
 
 async function verifyAi(page, results, diagnostics) {
