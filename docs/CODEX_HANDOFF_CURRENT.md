@@ -30,7 +30,10 @@ AI对话的饮食结果不再显示“识别结果”标题，也不再把食物
 右上角关闭和确认操作，在360×740、375×812、
 390×844、430×932四档竖屏均无横向
 溢出。`nutrition:confirmation:test`、`structured:test`、lint与生产构建通过，截图和JSON收据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nutrition-confirmation`。双站发布信息在发布完成后补入本节。
+`Q:\NAVA-Workspace\Build\TestRuns\nutrition-confirmation`。功能源码commit为
+`3ba1e5de03c6316410748b02ac59aa34707e9b8c`；ChatGPT Sites已发布v246且部署成功，GitHub Pages
+最终镜像commit为`a71a3a834e0fdcc412d2d4e5cd346cb22a414aad`、工作流`38038013356`成功。
+发布后皮肤／路由门禁通过58个结果、381项检查并生成56张截图，当前完整公开锚点见§2.2。
 
 本轮同时重新核对饮食AI工具链并做一次真实联网探针。文字饮食抽取在`ai-extract-data`中会把模型初稿
 送入`runKnowledgeTools`，可调用NAVA常见份量参考与USDA FoodData Central后再做证据校准；真实
@@ -2359,21 +2362,21 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 截至本文件写入前，公开 APP 的最新功能源码为：
 
-- 源码发布 commit：`2eb1df776e57dec5f8390b7d8a4e69e4367ccfb2`
+- 源码发布 commit：`3ba1e5de03c6316410748b02ac59aa34707e9b8c`
 - ChatGPT Sites 项目：`appgprj_6a5de710811c8191af8ce2681358d518`
-- ChatGPT Sites 版本：v200，public
+- ChatGPT Sites 版本：v246，public
 - Sites version ID：
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_146597daaf448191b830f7ebda789280`
-- Sites deployment ID：`appgdep_6abcbbaddfd88191861bdb7afc436bcd`，succeeded
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_83b1c9806d24819199b182062d26c1a2`
+- Sites deployment ID：`appgdep_6ac9f6bca4148191b882ca1a78ae1cae`，succeeded
 - ChatGPT Sites：
   `https://nava-app-preview-cz.chizhang1031.chatgpt.site`
 - GitHub Pages 镜像 commit：
-  `1363ebcfa1d637bfb2dc036bbc4a69921e51398d`，工作流`36684815651`成功
+  `a71a3a834e0fdcc412d2d4e5cd346cb22a414aad`，工作流`38038013356`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
-- v200 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v200-planning-profile.tar.gz`
+- v246 Sites 包：
+  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v246-3ba1e5d.tar.gz`
 
-GitHub Pages 镜像的 `source.json` 已记录 v200 和上述功能源码 commit。两个站点应当
+GitHub Pages 镜像的 `source.json` 已记录 v246、上述功能源码commit及Sites version ID。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
 
 ### 2.3 Canonical Supabase
