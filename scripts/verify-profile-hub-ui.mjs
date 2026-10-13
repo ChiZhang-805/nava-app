@@ -290,7 +290,8 @@ try {
       if (subpage === "wardrobe") {
         await expect(page.locator(".mascot-wardrobe-preview")).toBeVisible();
         await expect(page.locator(".mascot-wardrobe-tabs [role=tab]")).toHaveCount(3);
-        await expect(page.locator(".mascot-wardrobe-item")).toHaveCount(4);
+        await expect(page.locator(".mascot-wardrobe-item")).toHaveCount(17);
+        await expect(page.locator(".mascot-wardrobe-pagination button")).toHaveCount(3);
         await expect(page.locator(".mascot-wardrobe-character img")).toHaveCount(1);
         const wardrobeGeometry = await page.locator(".mascot-wardrobe").evaluate((wardrobe) => {
           const action = wardrobe.querySelector(".mascot-wardrobe-action").getBoundingClientRect();
@@ -353,6 +354,20 @@ try {
         assert.equal(wardrobeGeometry.carouselScrollable, true, `${width}x${height} wardrobe catalog must use the horizontal carousel contract`);
         assert.equal(wardrobeGeometry.paginationVisible, true, `${width}x${height} wardrobe pagination must stay visible between the catalog and action`);
         assert.equal(wardrobeGeometry.activePageCount, 1, `${width}x${height} wardrobe pagination must expose one current page`);
+        await page.locator(".mascot-wardrobe-pagination button").nth(1).click();
+        await expect(page.locator(".mascot-wardrobe-pagination button").nth(1)).toHaveAttribute("aria-current", "page");
+        await page.locator(".mascot-wardrobe-pagination button").first().click();
+        await expect(page.locator(".mascot-wardrobe-pagination button").first()).toHaveAttribute("aria-current", "page");
+        await page.getByRole("tab", { name: "背景" }).click();
+        await expect(page.locator(".mascot-wardrobe-item")).toHaveCount(17);
+        await expect(page.locator(".mascot-wardrobe-scene-swatch img")).toHaveCount(13);
+        await expect(page.locator(".mascot-wardrobe-pagination button")).toHaveCount(3);
+        await page.locator('.mascot-wardrobe-item').filter({ hasText: "海边午后" }).click();
+        await expect(page.locator(".mascot-wardrobe-background")).toBeVisible();
+        assert.ok(await page.locator(".mascot-wardrobe-background").evaluate((image) => image.complete && image.naturalWidth > 0), `${width}x${height} generated wardrobe background must decode`);
+        if (width === 390) await page.screenshot({ path: `${output}/profile-wardrobe-background-${width}x${height}.png`, fullPage: true });
+        await page.locator('.mascot-wardrobe-item').filter({ hasText: "晨光房间" }).click();
+        await page.getByRole("tab", { name: "皮肤" }).click();
         if (width === 390) await page.screenshot({ path: `${output}/profile-wardrobe-default-${width}x${height}.png`, fullPage: true });
         await page.locator('.mascot-wardrobe-item').filter({ hasText: "暖橘" }).click();
         await expect(page.locator(".mascot-wardrobe-action button")).toHaveText("兑换");
@@ -361,10 +376,11 @@ try {
         await page.locator(".mascot-wardrobe-sheet-actions button").first().click();
         await page.locator('.mascot-wardrobe-item').filter({ hasText: "奶霜" }).click();
         await page.getByRole("tab", { name: "饰品" }).click();
-        await expect(page.locator(".mascot-wardrobe-item")).toHaveCount(3);
+        await expect(page.locator(".mascot-wardrobe-item")).toHaveCount(17);
+        await expect(page.locator(".mascot-wardrobe-pagination button")).toHaveCount(3);
         await expect(page.getByText("不佩戴", { exact: true })).toHaveCount(0);
-        await page.locator('.mascot-wardrobe-item').filter({ hasText: "铃铛项圈" }).click();
-        await page.locator('.mascot-wardrobe-item').filter({ hasText: "雾紫贝雷帽" }).click();
+        await page.locator('.mascot-wardrobe-item').filter({ hasText: "星月发夹" }).click();
+        await page.locator('.mascot-wardrobe-item').filter({ hasText: "珍珠领结" }).click();
         await expect(page.locator(".mascot-wardrobe-character img")).toHaveCount(3);
         await expect(page.locator('.mascot-wardrobe-item[data-selected="true"]')).toHaveCount(2);
         await expect(page.locator(".mascot-wardrobe-action button")).toHaveText("穿戴");

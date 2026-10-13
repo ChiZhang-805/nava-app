@@ -50,6 +50,17 @@
     linear-gradient(140deg, #15214e 0%, #553b9f 44%, #09a9ad 100%);
 }
 
+.mascot-wardrobe-background {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  user-select: none;
+}
+
 .mascot-wardrobe-preview-lines {
   position: absolute;
   inset: 0;
@@ -308,8 +319,10 @@
 .mascot-wardrobe-scene-swatch {
   width: 100%;
   height: 100%;
+  overflow: hidden;
   display: block;
 }
+.mascot-wardrobe-scene-swatch img { width: 100%; height: 100%; object-fit: cover; transform: none; }
 .mascot-wardrobe-scene-swatch.is-morning-room { background: linear-gradient(145deg,#fff2bc,#d3edff 57%,#c9d0ff); }
 .mascot-wardrobe-scene-swatch.is-night-window { background: radial-gradient(circle at 72% 28%,#eef4ff 0 7%,transparent 8%),linear-gradient(145deg,#425fbe,#15235f); }
 .mascot-wardrobe-scene-swatch.is-cloud-garden { background: radial-gradient(ellipse at 27% 72%,#fff 0 22%,transparent 23%),linear-gradient(145deg,#9ce8ff,#d1c5ff 55%,#8ee4b5); }

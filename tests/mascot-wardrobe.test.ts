@@ -8,6 +8,7 @@ const service = readFileSync(new URL("../src/services/mascotWardrobe.ts", import
 const profile = readFileSync(new URL("../src/features/ProfileScreen.tsx", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../supabase/migrations/202610130001_mascot_wardrobe.sql", import.meta.url), "utf8");
 const multiAccessoryMigration = readFileSync(new URL("../supabase/migrations/202610130002_mascot_wardrobe_multi_accessories.sql", import.meta.url), "utf8");
+const expandedCatalogMigration = readFileSync(new URL("../supabase/migrations/202610130003_expand_mascot_wardrobe_catalog.sql", import.meta.url), "utf8");
 
 test("profile quick access and the app shell expose the cat wardrobe", () => {
   assert.match(profile, /id: "wardrobe", zh: "小猫衣橱"/);
@@ -18,12 +19,25 @@ test("profile quick access and the app shell expose the cat wardrobe", () => {
 test("wardrobe artwork is layered instead of relying on fixed composites", () => {
   assert.match(component, /className="mascot-wardrobe-skin"/);
   assert.match(component, /className="mascot-wardrobe-accessory"/);
+  assert.match(component, /className="mascot-wardrobe-background"/);
   assert.match(component, /is-\$\{background\.previewClass\}/);
   assert.match(service, /accessory-cloud-scarf\.png/);
   assert.match(service, /accessory-mist-beret\.png/);
   assert.match(service, /accessory-bell-collar\.png/);
   assert.doesNotMatch(service, /id: "accessory-none", category: "accessory"/);
   assert.match(component, /accessories\.map/);
+});
+
+test("wardrobe exposes exactly 17 visual choices in every category", () => {
+  assert.equal((service.match(/category: "skin"/g) ?? []).length, 17);
+  assert.equal((service.match(/category: "accessory"/g) ?? []).length, 17);
+  assert.equal((service.match(/category: "background"/g) ?? []).length, 17);
+  assert.equal((expandedCatalogMigration.match(/\('skin-/g) ?? []).length, 13);
+  assert.equal((expandedCatalogMigration.match(/\('accessory-/g) ?? []).length, 14);
+  assert.equal((expandedCatalogMigration.match(/\('background-/g) ?? []).length, 13);
+  assert.match(service, /background-milky-way-bedroom\.jpg/);
+  assert.match(service, /accessory-night-voyage-cap\.png/);
+  assert.match(service, /mascot-star-sand\.png/);
 });
 
 test("the eight Figma wardrobe states have working interaction counterparts", () => {
@@ -52,6 +66,7 @@ test("wardrobe layout retains touch targets and responsive phone states", () => 
   assert.match(component, /onScroll=\{\(event\) =>/);
   assert.match(component, /scrollToPage\(pageIndex\)/);
   assert.match(styles, /\.mascot-wardrobe-pagination button\.is-active/);
+  assert.match(component, /page\?\.offsetLeft/);
 });
 
 test("wardrobe catalog uses exactly one white card layer and a flat bottom action", () => {

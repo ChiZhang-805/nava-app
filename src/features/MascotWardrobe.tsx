@@ -39,13 +39,13 @@ function DisplayName({ item, locale }: { item: MascotWardrobeItem; locale: "zh" 
 }
 
 function ItemArtwork({ item }: { item: MascotWardrobeItem }) {
-  if (item.category === "background") return <span className={`mascot-wardrobe-scene-swatch is-${item.previewClass}`} aria-hidden="true" />;
+  if (item.category === "background") return <span className={`mascot-wardrobe-scene-swatch is-${item.previewClass}`} aria-hidden="true">{item.art && <img src={item.art} alt="" draggable={false} />}</span>;
   if (!item.art) return <span className="mascot-wardrobe-no-accessory" aria-hidden="true"><X size={25} /></span>;
   return <img src={item.art} alt="" draggable={false} />;
 }
 
 async function decodeSelection(selection: WardrobeSelection) {
-  const sources = [wardrobeItem(selection.skinId).art, ...selection.accessoryIds.map((itemId) => wardrobeItem(itemId).art)].filter((source): source is string => Boolean(source));
+  const sources = [wardrobeItem(selection.skinId).art, ...selection.accessoryIds.map((itemId) => wardrobeItem(itemId).art), wardrobeItem(selection.backgroundId).art].filter((source): source is string => Boolean(source));
   await Promise.all(sources.map((source) => new Promise<void>((resolve) => {
     const image = new Image();
     image.onload = () => resolve();
@@ -105,7 +105,8 @@ export default function MascotWardrobe() {
   const scrollToPage = (pageIndex: number) => {
     const grid = gridRef.current;
     if (!grid) return;
-    grid.scrollTo({ left: grid.clientWidth * pageIndex, behavior: "smooth" });
+    const page = grid.children.item(pageIndex) as HTMLElement | null;
+    grid.scrollTo({ left: page?.offsetLeft ?? grid.clientWidth * pageIndex, behavior: "smooth" });
   };
 
   const chooseItem = (item: MascotWardrobeItem) => {
@@ -193,6 +194,7 @@ export default function MascotWardrobe() {
   return (
     <section className="mascot-wardrobe" aria-label={locale === "zh" ? "小猫衣橱" : "Cat wardrobe"}>
       <div className={`mascot-wardrobe-preview is-${background.previewClass}`}>
+        {background.art && <img className="mascot-wardrobe-background" src={background.art} alt="" draggable={false} />}
         <div className="mascot-wardrobe-preview-lines" aria-hidden="true" />
         <div className="mascot-wardrobe-status">
           <div><span>{exactCurrentLook ? (locale === "zh" ? "当前搭配" : "Current look") : (locale === "zh" ? "正在试穿" : "Trying on")}</span><span>{previewOwned ? (locale === "zh" ? "已拥有" : "Owned") : (locale === "zh" ? "未拥有" : "Locked")}</span></div>
@@ -220,7 +222,8 @@ export default function MascotWardrobe() {
         tabIndex={0}
         onScroll={(event) => {
           const grid = event.currentTarget;
-          const nextPage = Math.max(0, Math.min(itemPages.length - 1, Math.round(grid.scrollLeft / Math.max(1, grid.clientWidth))));
+          const pages = Array.from(grid.children) as HTMLElement[];
+          const nextPage = pages.reduce((nearest, page, index) => Math.abs(page.offsetLeft - grid.scrollLeft) < Math.abs(pages[nearest].offsetLeft - grid.scrollLeft) ? index : nearest, 0);
           setActivePage(nextPage);
         }}
       >
