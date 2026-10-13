@@ -5943,4 +5943,15 @@ healthWrites:0、aiTested:false；线上图标均成功解码且自然宽度≥1
   `npm run auth:verify:production`。完整 `npm run verify` 已执行但未通过：在上述媒体与
   相机阶段通过后，既有 external-preview:visual 夹具未加载 `.sports-plan-actions`，
   页面同时出现一次性完成层；该失败不涉及本次 CSS，不能记作全量通过。
+- v251 已从同一干净、已推送源码提交 `a3f6e3831fd868236fda84444bcec3edec0ea922`
+  发布双站。ChatGPT Sites 版本
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_4934136285588191840ae20f9b53122e`
+  部署成功；GitHub Pages 镜像提交为 `3691f42dd7fe6fc1b5270b9dfa9a51307db8c19b`，
+  工作流 `38369116126` 为 success。Pages 的 `source.json` 已在线确认 v251 和同一
+  source commit；224 个当版文件（71,641,221 bytes）与本地 dist 逐文件 SHA-256
+  一致，无 mismatch。
+- 发布后三端回归通过：本地、ChatGPT Sites 与 GitHub Pages 共 58 个结果、381 项
+  检查、56 张截图；证据位于
+  `Q:\NAVA-Workspace\Build\TestRuns\v251-postdeploy`。两站继续使用 canonical
+  Supabase 项目和真实登录边界，未新增 demo 绕过、迁移或 Edge Function 发布。
 
