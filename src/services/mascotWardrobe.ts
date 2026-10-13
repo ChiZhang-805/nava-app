@@ -16,7 +16,7 @@ export type WardrobeItemId = WardrobeSkinId | WardrobeAccessoryId | WardrobeBack
 
 export type WardrobeSelection = {
   skinId: WardrobeSkinId;
-  accessoryId: WardrobeAccessoryId;
+  accessoryIds: WardrobeAccessoryId[];
   backgroundId: WardrobeBackgroundId;
 };
 
@@ -43,7 +43,6 @@ export const WARDROBE_ITEMS: readonly MascotWardrobeItem[] = [
   { id: "skin-warm-orange", category: "skin", zh: "暖橘", en: "Warm Apricot", rarityZh: "普通皮肤", rarityEn: "Classic skin", price: 300, art: warmOrangeMascot },
   { id: "skin-night-ink", category: "skin", zh: "夜墨", en: "Night Ink", rarityZh: "稀有皮肤", rarityEn: "Rare skin", price: 360, art: nightInkMascot },
   { id: "skin-mist-gray", category: "skin", zh: "雾灰", en: "Mist Gray", rarityZh: "普通皮肤", rarityEn: "Classic skin", price: 240, art: mistGrayMascot },
-  { id: "accessory-none", category: "accessory", zh: "不佩戴", en: "No accessory", rarityZh: "原始造型", rarityEn: "Original look", price: 0 },
   { id: "accessory-bell-collar", category: "accessory", zh: "铃铛项圈", en: "Bell Collar", rarityZh: "基础饰品", rarityEn: "Base accessory", price: 0, art: bellCollar },
   { id: "accessory-cloud-scarf", category: "accessory", zh: "云蓝围巾", en: "Cloud Scarf", rarityZh: "普通饰品", rarityEn: "Classic accessory", price: 180, art: cloudScarf },
   { id: "accessory-mist-beret", category: "accessory", zh: "雾紫贝雷帽", en: "Mist Beret", rarityZh: "稀有饰品", rarityEn: "Rare accessory", price: 260, art: mistBeret },
@@ -55,7 +54,7 @@ export const WARDROBE_ITEMS: readonly MascotWardrobeItem[] = [
 
 export const DEFAULT_WARDROBE_SELECTION: WardrobeSelection = {
   skinId: "skin-cream",
-  accessoryId: "accessory-none",
+  accessoryIds: [],
   backgroundId: "background-morning-room",
 };
 
@@ -79,9 +78,12 @@ function assertNoError(error: unknown) {
 
 function normalizeSelection(value: unknown): WardrobeSelection {
   const row = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const legacyAccessory = itemInCategory(row.accessoryId, "accessory") && row.accessoryId !== "accessory-none" ? [row.accessoryId as WardrobeAccessoryId] : [];
+  const accessoryIds = (Array.isArray(row.accessoryIds) ? row.accessoryIds : legacyAccessory)
+    .filter((item, index, values): item is WardrobeAccessoryId => itemInCategory(item, "accessory") && item !== "accessory-none" && values.indexOf(item) === index);
   return {
     skinId: itemInCategory(row.skinId, "skin") ? row.skinId as WardrobeSkinId : DEFAULT_WARDROBE_SELECTION.skinId,
-    accessoryId: itemInCategory(row.accessoryId, "accessory") ? row.accessoryId as WardrobeAccessoryId : DEFAULT_WARDROBE_SELECTION.accessoryId,
+    accessoryIds,
     backgroundId: itemInCategory(row.backgroundId, "background") ? row.backgroundId as WardrobeBackgroundId : DEFAULT_WARDROBE_SELECTION.backgroundId,
   };
 }
@@ -93,7 +95,7 @@ function normalizeState(value: unknown): MascotWardrobeState {
   const equipped = normalizeSelection(row.equipped);
   const balance = Number(row.balance);
   if (!Number.isFinite(balance) || balance < 0) throw new Error("小猫衣橱没有返回有效积分余额。");
-  for (const itemId of Object.values(equipped)) {
+  for (const itemId of [equipped.skinId, ...equipped.accessoryIds, equipped.backgroundId]) {
     if (!unlockedItemIds.includes(itemId)) return { equipped: DEFAULT_WARDROBE_SELECTION, unlockedItemIds, balance: Math.round(balance) };
   }
   return { equipped, unlockedItemIds, balance: Math.round(balance) };
@@ -140,11 +142,28 @@ export async function equipMascotWardrobeItem(itemId: WardrobeItemId): Promise<M
     const item = wardrobeItem(itemId);
     const equipped = { ...current.equipped };
     if (item.category === "skin") equipped.skinId = item.id as WardrobeSkinId;
-    if (item.category === "accessory") equipped.accessoryId = item.id as WardrobeAccessoryId;
+    if (item.category === "accessory") equipped.accessoryIds = [item.id as WardrobeAccessoryId];
     if (item.category === "background") equipped.backgroundId = item.id as WardrobeBackgroundId;
     return writeDemoState({ ...current, equipped });
   }
   const result = await supabase.rpc("nava_select_mascot_wardrobe_item", { target_item: itemId });
+  assertNoError(result.error);
+  return normalizeState(result.data);
+}
+
+export async function equipMascotWardrobeLook(selection: WardrobeSelection): Promise<MascotWardrobeState> {
+  const normalized = normalizeSelection(selection);
+  if (isDemoMode()) {
+    const current = readDemoState();
+    const selectedIds = [normalized.skinId, ...normalized.accessoryIds, normalized.backgroundId];
+    if (selectedIds.some((itemId) => !current.unlockedItemIds.includes(itemId))) throw new Error("这套搭配中还有尚未拥有的内容。");
+    return writeDemoState({ ...current, equipped: normalized });
+  }
+  const result = await supabase.rpc("nava_select_mascot_wardrobe_look", {
+    target_skin: normalized.skinId,
+    target_accessories: normalized.accessoryIds,
+    target_background: normalized.backgroundId,
+  });
   assertNoError(result.error);
   return normalizeState(result.data);
 }

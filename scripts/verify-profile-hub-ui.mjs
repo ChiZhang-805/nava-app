@@ -294,15 +294,59 @@ try {
         await expect(page.locator(".mascot-wardrobe-character img")).toHaveCount(1);
         const wardrobeGeometry = await page.locator(".mascot-wardrobe").evaluate((wardrobe) => {
           const action = wardrobe.querySelector(".mascot-wardrobe-action").getBoundingClientRect();
+          const actionStyle = getComputedStyle(wardrobe.querySelector(".mascot-wardrobe-action"));
+          const actionButtonStyle = getComputedStyle(wardrobe.querySelector(".mascot-wardrobe-action button"));
           const content = wardrobe.closest(".app-content").getBoundingClientRect();
+          const character = wardrobe.querySelector(".mascot-wardrobe-character img").getBoundingClientRect();
+          const summary = wardrobe.querySelector(".mascot-wardrobe-look-summary").getBoundingClientRect();
+          const balanceStyle = getComputedStyle(wardrobe.querySelector(".mascot-wardrobe-status > strong"));
+          const itemPaint = [...wardrobe.querySelectorAll(".mascot-wardrobe-item")].map((item) => {
+            const style = getComputedStyle(item);
+            const artStyle = getComputedStyle(item.querySelector(".mascot-wardrobe-item-art"));
+            return {
+              background: style.backgroundColor,
+              backgroundImage: style.backgroundImage,
+              shadow: style.boxShadow,
+              artBackground: artStyle.backgroundColor,
+              artBackgroundImage: artStyle.backgroundImage,
+            };
+          });
           return {
             overflow: wardrobe.scrollWidth - wardrobe.clientWidth,
+            root: { top: wardrobe.getBoundingClientRect().top, bottom: wardrobe.getBoundingClientRect().bottom, height: wardrobe.getBoundingClientRect().height },
+            content: { top: content.top, bottom: content.bottom, height: content.height },
+            ancestors: (() => { const result = []; let node = wardrobe.parentElement; while (node && node !== wardrobe.closest(".app-content")) { const style = getComputedStyle(node); result.push({ className: node.className, display: style.display, flexDirection: style.flexDirection, flex: style.flex, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, top: node.getBoundingClientRect().top, bottom: node.getBoundingClientRect().bottom, height: node.getBoundingClientRect().height }); node = node.parentElement; } return result; })(),
             actionVisible: action.top < content.bottom && action.bottom > content.top,
+            actionBottomGap: content.bottom - action.bottom,
+            actionPaint: {
+              background: actionStyle.backgroundColor,
+              backgroundImage: actionStyle.backgroundImage,
+              shadow: actionStyle.boxShadow,
+              borderWidths: [actionStyle.borderTopWidth, actionStyle.borderRightWidth, actionStyle.borderBottomWidth, actionStyle.borderLeftWidth],
+              blur: actionStyle.backdropFilter || actionStyle.webkitBackdropFilter || "none",
+              buttonShadow: actionButtonStyle.boxShadow,
+            },
+            balanceColor: balanceStyle.color,
+            characterWidth: character.width,
+            characterHeight: character.height,
+            characterSummaryGap: summary.top - character.bottom,
+            itemPaint,
             carouselScrollable: wardrobe.querySelector(".mascot-wardrobe-grid").scrollWidth >= wardrobe.querySelector(".mascot-wardrobe-grid").clientWidth,
           };
         });
         assert.ok(wardrobeGeometry.overflow <= 1, `${width}x${height} wardrobe overflow`);
         assert.equal(wardrobeGeometry.actionVisible, true, `${width}x${height} wardrobe action must remain reachable`);
+        assert.ok(wardrobeGeometry.actionBottomGap >= -2.5 && wardrobeGeometry.actionBottomGap <= 18, `${width}x${height} wardrobe action must sit at the page bottom: ${JSON.stringify(wardrobeGeometry)}`);
+        assert.equal(wardrobeGeometry.actionPaint.background, "rgba(0, 0, 0, 0)", `${width}x${height} wardrobe action wrapper must be transparent`);
+        assert.equal(wardrobeGeometry.actionPaint.backgroundImage, "none", `${width}x${height} wardrobe action wrapper must not add an image layer`);
+        assert.equal(wardrobeGeometry.actionPaint.shadow, "none", `${width}x${height} wardrobe action wrapper must not cast a shadow`);
+        assert.ok(wardrobeGeometry.actionPaint.borderWidths.every((value) => parseFloat(value) === 0), `${width}x${height} wardrobe action wrapper must be borderless`);
+        assert.equal(wardrobeGeometry.actionPaint.blur, "none", `${width}x${height} wardrobe action wrapper must not blur the page`);
+        assert.equal(wardrobeGeometry.actionPaint.buttonShadow, "none", `${width}x${height} wardrobe action button must not cast a second shadow`);
+        assert.equal(wardrobeGeometry.balanceColor, "rgb(255, 255, 255)", `${width}x${height} wardrobe balance must stay white`);
+        assert.ok(wardrobeGeometry.characterWidth >= Math.min(190, width * .5), `${width}x${height} wardrobe cat must be visibly enlarged`);
+        assert.ok(wardrobeGeometry.characterSummaryGap >= 6, `${width}x${height} wardrobe cat must retain breathing room above the summary`);
+        assert.ok(wardrobeGeometry.itemPaint.every((paint) => paint.background.startsWith("rgba(255, 255, 255,") && paint.backgroundImage === "none" && paint.shadow === "none" && paint.artBackground === "rgba(0, 0, 0, 0)" && paint.artBackgroundImage === "none"), `${width}x${height} wardrobe items must use one white layer while thumbnails stay transparent`);
         assert.equal(wardrobeGeometry.carouselScrollable, true, `${width}x${height} wardrobe catalog must use the horizontal carousel contract`);
         if (width === 390) await page.screenshot({ path: `${output}/profile-wardrobe-default-${width}x${height}.png`, fullPage: true });
         await page.locator('.mascot-wardrobe-item').filter({ hasText: "暖橘" }).click();
@@ -310,10 +354,14 @@ try {
         await page.locator(".mascot-wardrobe-action button").click();
         await expect(page.locator(".mascot-wardrobe-sheet")).toContainText("确认兑换暖橘");
         await page.locator(".mascot-wardrobe-sheet-actions button").first().click();
+        await page.locator('.mascot-wardrobe-item').filter({ hasText: "奶霜" }).click();
         await page.getByRole("tab", { name: "饰品" }).click();
-        await expect(page.locator(".mascot-wardrobe-item")).toHaveCount(4);
+        await expect(page.locator(".mascot-wardrobe-item")).toHaveCount(3);
+        await expect(page.getByText("不佩戴", { exact: true })).toHaveCount(0);
+        await page.locator('.mascot-wardrobe-item').filter({ hasText: "铃铛项圈" }).click();
         await page.locator('.mascot-wardrobe-item').filter({ hasText: "雾紫贝雷帽" }).click();
-        await expect(page.locator(".mascot-wardrobe-character img")).toHaveCount(2);
+        await expect(page.locator(".mascot-wardrobe-character img")).toHaveCount(3);
+        await expect(page.locator('.mascot-wardrobe-item[data-selected="true"]')).toHaveCount(2);
         await expect(page.locator(".mascot-wardrobe-action button")).toHaveText("穿戴");
         await page.locator(".mascot-wardrobe-action button").click();
         await expect(page.locator(".mascot-wardrobe-status")).toContainText("当前搭配");
