@@ -298,6 +298,7 @@ try {
           const actionStyle = getComputedStyle(wardrobe.querySelector(".mascot-wardrobe-action"));
           const actionButtonStyle = getComputedStyle(wardrobe.querySelector(".mascot-wardrobe-action button"));
           const content = wardrobe.closest(".app-content").getBoundingClientRect();
+          const preview = wardrobe.querySelector(".mascot-wardrobe-preview").getBoundingClientRect();
           const character = wardrobe.querySelector(".mascot-wardrobe-character img").getBoundingClientRect();
           const summary = wardrobe.querySelector(".mascot-wardrobe-look-summary").getBoundingClientRect();
           const pagination = wardrobe.querySelector(".mascot-wardrobe-pagination").getBoundingClientRect();
@@ -320,6 +321,8 @@ try {
             ancestors: (() => { const result = []; let node = wardrobe.parentElement; while (node && node !== wardrobe.closest(".app-content")) { const style = getComputedStyle(node); result.push({ className: node.className, display: style.display, flexDirection: style.flexDirection, flex: style.flex, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, top: node.getBoundingClientRect().top, bottom: node.getBoundingClientRect().bottom, height: node.getBoundingClientRect().height }); node = node.parentElement; } return result; })(),
             actionVisible: action.top < content.bottom && action.bottom > content.top,
             actionBottomGap: content.bottom - action.bottom,
+            previewHeight: preview.height,
+            paginationActionGap: action.top - pagination.bottom,
             actionPaint: {
               background: actionStyle.backgroundColor,
               backgroundImage: actionStyle.backgroundImage,
@@ -341,6 +344,7 @@ try {
         assert.ok(wardrobeGeometry.overflow <= 1, `${width}x${height} wardrobe overflow`);
         assert.equal(wardrobeGeometry.actionVisible, true, `${width}x${height} wardrobe action must remain reachable`);
         assert.ok(wardrobeGeometry.actionBottomGap >= 10 && wardrobeGeometry.actionBottomGap <= 38, `${width}x${height} wardrobe action must retain safe-area breathing room: ${JSON.stringify(wardrobeGeometry)}`);
+        assert.ok(wardrobeGeometry.paginationActionGap >= 8 && wardrobeGeometry.paginationActionGap <= 18, `${width}x${height} wardrobe preview must absorb spare height instead of leaving a large blank above the action: ${JSON.stringify(wardrobeGeometry)}`);
         assert.equal(wardrobeGeometry.actionPaint.background, "rgba(0, 0, 0, 0)", `${width}x${height} wardrobe action wrapper must be transparent`);
         assert.equal(wardrobeGeometry.actionPaint.backgroundImage, "none", `${width}x${height} wardrobe action wrapper must not add an image layer`);
         assert.equal(wardrobeGeometry.actionPaint.shadow, "none", `${width}x${height} wardrobe action wrapper must not cast a shadow`);
@@ -363,8 +367,12 @@ try {
         await expect(page.locator(".mascot-wardrobe-scene-swatch img")).toHaveCount(13);
         await expect(page.locator(".mascot-wardrobe-pagination button")).toHaveCount(3);
         await page.locator('.mascot-wardrobe-item').filter({ hasText: "海边午后" }).click();
-        await expect(page.locator(".mascot-wardrobe-background")).toBeVisible();
-        assert.ok(await page.locator(".mascot-wardrobe-background").evaluate((image) => image.complete && image.naturalWidth > 0), `${width}x${height} generated wardrobe background must decode`);
+        const backgroundImage = page.locator(".mascot-wardrobe-background");
+        await expect(backgroundImage).toBeVisible();
+        await backgroundImage.evaluate(async (image) => {
+          if (!image.complete || image.naturalWidth === 0) await image.decode();
+        });
+        assert.ok(await backgroundImage.evaluate((image) => image.complete && image.naturalWidth > 0), `${width}x${height} generated wardrobe background must decode`);
         if (width === 390) await page.screenshot({ path: `${output}/profile-wardrobe-background-${width}x${height}.png`, fullPage: true });
         await page.locator('.mascot-wardrobe-item').filter({ hasText: "晨光房间" }).click();
         await page.getByRole("tab", { name: "皮肤" }).click();
