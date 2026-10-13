@@ -5984,4 +5984,13 @@ healthWrites:0、aiTested:false；线上图标均成功解码且自然宽度≥1
   该迁移已沿用用户对同一衣橱后端的明确授权选择性应用并登记；生产只读结果为
   皮肤17、可见饰品17、背景17，内部兼容`accessory-none`不显示。linked schema lint
   零错误，历史待定`202609270001`仍未应用；没有创建解锁、改变穿戴或消费积分。
+- 功能源码`3cdd7dc6ed7272443d7a2c3620e619e84b09ee82`已干净推送GitHub main和原Sites
+  源仓库，并从同一提交发布双站。ChatGPT Sites v252版本
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_649fb8f1fc308191ba5706a2dbe46f02`，
+  deployment `appgdep_6ace0cd4175081918982f8517abce8b3` succeeded；GitHub Pages镜像
+  commit `7993053f4ba9c3a2dec41ca2716a4a9c7fdc9924`，workflow `38388100785`
+  success。264个当前生成文件共77,823,140字节，与本地Pages产物逐文件SHA-256一致，
+  `source.json`指向同一功能源码与v252。发布后门禁通过58个结果、381项检查和56张截图，
+  证据位于`Q:\NAVA-Workspace\Build\TestRuns\v252-postdeploy`；两站继续使用真实登录、
+  禁止公开demo绕过并连接canonical Supabase项目。
 
