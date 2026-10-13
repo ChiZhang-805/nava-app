@@ -66,6 +66,8 @@ export default function MascotWardrobe() {
   const [sheet, setSheet] = useState<"confirm" | "success" | "insufficient" | null>(null);
   const [focusedItemId, setFocusedItemId] = useState<WardrobeItemId | null>(null);
   const [sheetItemId, setSheetItemId] = useState<WardrobeItemId | null>(null);
+  const [activePage, setActivePage] = useState(0);
+  const gridRef = useRef<HTMLDivElement | null>(null);
   const requestRef = useRef<{ itemId: WardrobeItemId; key: string } | null>(null);
 
   const refresh = () => {
@@ -94,6 +96,17 @@ export default function MascotWardrobe() {
   const actionItem = lockedPreviewItems[0] ?? focusedItem ?? skin;
   const sheetItem = sheetItemId ? wardrobeItem(sheetItemId) : actionItem;
   const previewOwned = lockedPreviewItems.length === 0;
+
+  useEffect(() => {
+    setActivePage(0);
+    gridRef.current?.scrollTo({ left: 0, behavior: "auto" });
+  }, [activeCategory]);
+
+  const scrollToPage = (pageIndex: number) => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    grid.scrollTo({ left: grid.clientWidth * pageIndex, behavior: "smooth" });
+  };
 
   const chooseItem = (item: MascotWardrobeItem) => {
     if (!preview) return;
@@ -199,7 +212,18 @@ export default function MascotWardrobe() {
         {(Object.keys(categoryCopy) as WardrobeCategory[]).map((category) => <button key={category} type="button" role="tab" aria-selected={activeCategory === category} onClick={() => setActiveCategory(category)}>{locale === "zh" ? categoryCopy[category].zh : categoryCopy[category].en}</button>)}
       </div>
 
-      <div className="mascot-wardrobe-grid" role="region" aria-label={locale === "zh" ? `左右滑动查看更多${categoryCopy[activeCategory].zh}` : `Swipe for more ${categoryCopy[activeCategory].en.toLowerCase()}`} tabIndex={0}>
+      <div
+        className="mascot-wardrobe-grid"
+        ref={gridRef}
+        role="region"
+        aria-label={locale === "zh" ? `左右滑动查看更多${categoryCopy[activeCategory].zh}` : `Swipe for more ${categoryCopy[activeCategory].en.toLowerCase()}`}
+        tabIndex={0}
+        onScroll={(event) => {
+          const grid = event.currentTarget;
+          const nextPage = Math.max(0, Math.min(itemPages.length - 1, Math.round(grid.scrollLeft / Math.max(1, grid.clientWidth))));
+          setActivePage(nextPage);
+        }}
+      >
         {itemPages.map((items, pageIndex) => <div className="mascot-wardrobe-page" key={`${activeCategory}-${pageIndex}`}>
         {items.map((item) => {
           const itemOwned = state.unlockedItemIds.includes(item.id);
@@ -219,6 +243,17 @@ export default function MascotWardrobe() {
           </button>;
         })}
         </div>)}
+      </div>
+
+      <div className="mascot-wardrobe-pagination" role="group" aria-label={locale === "zh" ? `${categoryCopy[activeCategory].zh}分页` : `${categoryCopy[activeCategory].en} pages`}>
+        {itemPages.map((_, pageIndex) => <button
+          key={`${activeCategory}-page-${pageIndex}`}
+          type="button"
+          className={pageIndex === activePage ? "is-active" : undefined}
+          aria-label={locale === "zh" ? `第 ${pageIndex + 1} 页，共 ${itemPages.length} 页` : `Page ${pageIndex + 1} of ${itemPages.length}`}
+          aria-current={pageIndex === activePage ? "page" : undefined}
+          onClick={() => scrollToPage(pageIndex)}
+        />)}
       </div>
 
       {error && <p className="mascot-wardrobe-error" role="alert">{error}</p>}

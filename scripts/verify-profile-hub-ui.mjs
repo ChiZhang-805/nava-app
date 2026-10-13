@@ -299,6 +299,7 @@ try {
           const content = wardrobe.closest(".app-content").getBoundingClientRect();
           const character = wardrobe.querySelector(".mascot-wardrobe-character img").getBoundingClientRect();
           const summary = wardrobe.querySelector(".mascot-wardrobe-look-summary").getBoundingClientRect();
+          const pagination = wardrobe.querySelector(".mascot-wardrobe-pagination").getBoundingClientRect();
           const balanceStyle = getComputedStyle(wardrobe.querySelector(".mascot-wardrobe-status > strong"));
           const itemPaint = [...wardrobe.querySelectorAll(".mascot-wardrobe-item")].map((item) => {
             const style = getComputedStyle(item);
@@ -330,13 +331,15 @@ try {
             characterWidth: character.width,
             characterHeight: character.height,
             characterSummaryGap: summary.top - character.bottom,
+            paginationVisible: pagination.width > 0 && pagination.height > 0,
+            activePageCount: wardrobe.querySelectorAll('.mascot-wardrobe-pagination [aria-current="page"]').length,
             itemPaint,
             carouselScrollable: wardrobe.querySelector(".mascot-wardrobe-grid").scrollWidth >= wardrobe.querySelector(".mascot-wardrobe-grid").clientWidth,
           };
         });
         assert.ok(wardrobeGeometry.overflow <= 1, `${width}x${height} wardrobe overflow`);
         assert.equal(wardrobeGeometry.actionVisible, true, `${width}x${height} wardrobe action must remain reachable`);
-        assert.ok(wardrobeGeometry.actionBottomGap >= -2.5 && wardrobeGeometry.actionBottomGap <= 18, `${width}x${height} wardrobe action must sit at the page bottom: ${JSON.stringify(wardrobeGeometry)}`);
+        assert.ok(wardrobeGeometry.actionBottomGap >= 10 && wardrobeGeometry.actionBottomGap <= 38, `${width}x${height} wardrobe action must retain safe-area breathing room: ${JSON.stringify(wardrobeGeometry)}`);
         assert.equal(wardrobeGeometry.actionPaint.background, "rgba(0, 0, 0, 0)", `${width}x${height} wardrobe action wrapper must be transparent`);
         assert.equal(wardrobeGeometry.actionPaint.backgroundImage, "none", `${width}x${height} wardrobe action wrapper must not add an image layer`);
         assert.equal(wardrobeGeometry.actionPaint.shadow, "none", `${width}x${height} wardrobe action wrapper must not cast a shadow`);
@@ -345,9 +348,11 @@ try {
         assert.equal(wardrobeGeometry.actionPaint.buttonShadow, "none", `${width}x${height} wardrobe action button must not cast a second shadow`);
         assert.equal(wardrobeGeometry.balanceColor, "rgb(255, 255, 255)", `${width}x${height} wardrobe balance must stay white`);
         assert.ok(wardrobeGeometry.characterWidth >= Math.min(190, width * .5), `${width}x${height} wardrobe cat must be visibly enlarged`);
-        assert.ok(wardrobeGeometry.characterSummaryGap >= 6, `${width}x${height} wardrobe cat must retain breathing room above the summary`);
+        assert.ok(wardrobeGeometry.characterSummaryGap >= -50 && wardrobeGeometry.characterSummaryGap <= -8, `${width}x${height} wardrobe transparent image canvas must extend behind the summary while visible artwork remains above it: ${JSON.stringify(wardrobeGeometry)}`);
         assert.ok(wardrobeGeometry.itemPaint.every((paint) => paint.background.startsWith("rgba(255, 255, 255,") && paint.backgroundImage === "none" && paint.shadow === "none" && paint.artBackground === "rgba(0, 0, 0, 0)" && paint.artBackgroundImage === "none"), `${width}x${height} wardrobe items must use one white layer while thumbnails stay transparent`);
         assert.equal(wardrobeGeometry.carouselScrollable, true, `${width}x${height} wardrobe catalog must use the horizontal carousel contract`);
+        assert.equal(wardrobeGeometry.paginationVisible, true, `${width}x${height} wardrobe pagination must stay visible between the catalog and action`);
+        assert.equal(wardrobeGeometry.activePageCount, 1, `${width}x${height} wardrobe pagination must expose one current page`);
         if (width === 390) await page.screenshot({ path: `${output}/profile-wardrobe-default-${width}x${height}.png`, fullPage: true });
         await page.locator('.mascot-wardrobe-item').filter({ hasText: "暖橘" }).click();
         await expect(page.locator(".mascot-wardrobe-action button")).toHaveText("兑换");

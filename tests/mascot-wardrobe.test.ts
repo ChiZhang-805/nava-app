@@ -48,6 +48,10 @@ test("wardrobe layout retains touch targets and responsive phone states", () => 
   assert.match(styles, /grid-template-rows: repeat\(2,/);
   assert.match(styles, /overflow-x: auto/);
   assert.match(styles, /grid-template-columns: repeat\(3,/);
+  assert.match(component, /className="mascot-wardrobe-pagination"/);
+  assert.match(component, /onScroll=\{\(event\) =>/);
+  assert.match(component, /scrollToPage\(pageIndex\)/);
+  assert.match(styles, /\.mascot-wardrobe-pagination button\.is-active/);
 });
 
 test("wardrobe catalog uses exactly one white card layer and a flat bottom action", () => {
