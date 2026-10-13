@@ -4,7 +4,7 @@ import { App as NativeApp } from '@capacitor/app';
 import { loadJournal, saveJournal, deleteJournal, saveJournalSettings, journalAI, type JournalCategory, type JournalRecord } from '../services/journal';
 import { FirstRecordFeedback } from './ColdStartExperience';
 import { usesNativePhotos, pickNativePhoto } from '../services/nativePhotos';
-import { registerPreviewActivity } from '../services/previewEnvironment';
+import { registerPreviewActivity, updatePreviewActivity } from '../services/previewEnvironment';
 import { startVoiceInput, type VoiceInputSession } from '../services/voice';
 import { requestScreenWakeLock, type ScreenWakeLockSentinel } from '../services/focusImmersion';
 import type { RecordModule } from './RecordsScreen';
@@ -80,6 +80,8 @@ export default function JournalExperience({user,module,locale,skin,forceGuide=fa
             }else if(method==='wake'){
               if(payload.enabled){wake=await requestScreenWakeLock();if(!alive)await wake?.release();result=Boolean(wake);}
               else{await wake?.release();wake=null;result=false;}
+            }else if(method==='activity-state'){
+              if(module==='focus'&&['ready','running','paused'].includes(payload?.state))updatePreviewActivity(payload.state);
             }else if(method==='guide-state')setGuideActive(Boolean(payload?.active));
             else if(method==='ready')setReady(true);
             else if(method==='exit')callbacks.current.onExit();

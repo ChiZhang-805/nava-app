@@ -15,14 +15,19 @@ try {
   for (const viewport of [{ width: 1920, height: 1080 }, { width: 1365, height: 1000 }, { width: 901, height: 740 }, { width: 700, height: 700 }, { width: 360, height: 740 }, { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
     const context = await browser.newContext({ locale: "zh-CN", viewport, reducedMotion: "reduce" });
     try {
+      await context.addInitScript(({ userId }) => {
+        const date = new Date().toLocaleDateString("en-CA");
+        localStorage.setItem(`nava-growth-activities:${userId}:${date}:v1`, JSON.stringify(["checkin"]));
+        localStorage.setItem("nava-demo-growth-reward-ledger:v1", JSON.stringify([
+          "profile:profile-foundation", "profile:profile-goal", `${date}:checkin`, `${date}:share`, `${date}:ai`,
+          `${date}:sleep`, `${date}:exercise`, `${date}:mood`, `${date}:nutrition`, `${date}:focus`, `${date}:face`,
+        ]));
+      }, { userId: "00000000-0000-4000-8000-000000000001" });
       const page = await context.newPage(), errors = [];
       const journalWrites = [];
       page.on("pageerror", (error) => errors.push(error.message));
       page.on("request", (request) => {
         if (/journal_(entries|preferences)/.test(request.url()) && !["GET", "HEAD", "OPTIONS"].includes(request.method())) journalWrites.push({ method: request.method(), url: request.url() });
-      });
-      await page.addLocatorHandler(page.locator(".completion-celebration-layer"), async () => {
-        await page.frameLocator(".completion-celebration-layer iframe").getByRole("button", { name: /Continue|继续/ }).click();
       });
       await context.route("**/rest/v1/journal_entries*", (route) => route.fulfill({ json: [] }));
       await context.route("**/rest/v1/journal_preferences*", (route) => route.fulfill({ json: { settings: {} } }));

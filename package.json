@@ -13,6 +13,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "lint": "eslint .",
     "verify": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify.ps1",
+    "repository:scan": "node scripts/verify-repository-files.mjs",
     "backend:verify": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-backend.ps1",
     "backend:typecheck": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/typecheck-edge-functions.ps1",
     "backend:test": "npx -y deno test supabase/functions/tests",

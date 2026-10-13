@@ -690,8 +690,9 @@ export async function reconcileGrowthRewards(tasks: GrowthTask[]): Promise<Growt
 
 function reconcileDemoGrowthRewards(tasks: GrowthTask[]): GrowthSummary {
   const storageKey = "nava-demo-growth-reward-ledger:v1";
-  const claimed = new Set(readJson<string[]>(storageKey, []));
-  const awarded = tasks.filter((task) => task.completed).flatMap<GrowthRewardGrant>((task) => {
+  const initialLedger = window.localStorage.getItem(storageKey);
+  const claimed = new Set(initialLedger === null ? [] : readJson<string[]>(storageKey, []));
+  const completed = tasks.filter((task) => task.completed).map((task) => {
     const eventSuffix = task.id === "daily-checkin"
       ? "checkin"
       : task.id === "share-card"
@@ -700,6 +701,18 @@ function reconcileDemoGrowthRewards(tasks: GrowthTask[]): GrowthSummary {
           ? "ai"
           : task.target;
     const eventKey = task.category === "profile" ? `profile:${task.id}` : `${todayISO()}:${eventSuffix}`;
+    return { task, eventKey };
+  });
+  // A fresh local review session starts from a deterministic baseline. It must
+  // not replay every already-complete fixture as a stack of historical rewards;
+  // later user actions still produce normal one-time celebrations.
+  if (initialLedger === null) {
+    for (const { eventKey } of completed) claimed.add(eventKey);
+    window.localStorage.setItem(storageKey, JSON.stringify([...claimed]));
+    const totalPoints = growthXp(tasks);
+    return { totalPoints, badges: totalPoints >= 100 ? ["rhythm_observer"] : [], awarded: [] };
+  }
+  const awarded = completed.flatMap<GrowthRewardGrant>(({ task, eventKey }) => {
     if (claimed.has(eventKey)) return [];
     claimed.add(eventKey);
     return [{ eventKey, points: task.xp, source: task.category === "profile" ? "verified_profile" : "verified_record" }];

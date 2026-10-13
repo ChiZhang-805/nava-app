@@ -25,6 +25,13 @@ try {
         window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
         Object.defineProperty(window, "speechSynthesis", { value: { getVoices: () => [], speak: (utterance) => { window.__speechQueue.push(utterance); window.__speechCalls++; }, cancel: () => { window.__speechQueue = []; } } });
         localStorage.setItem("nava-ai-speech-enabled:00000000-0000-4000-8000-000000000001", "true");
+        const userId = "00000000-0000-4000-8000-000000000001";
+        const date = new Date().toLocaleDateString("en-CA");
+        localStorage.setItem(`nava-growth-activities:${userId}:${date}:v1`, JSON.stringify(["checkin"]));
+        localStorage.setItem("nava-demo-growth-reward-ledger:v1", JSON.stringify([
+          "profile:profile-foundation", "profile:profile-goal", `${date}:checkin`, `${date}:share`, `${date}:ai`,
+          `${date}:sleep`, `${date}:exercise`, `${date}:mood`, `${date}:nutrition`, `${date}:focus`, `${date}:face`,
+        ]));
         window.__shares = []; window.__shareMode = "cancel";
         Object.defineProperty(navigator, "canShare", { value: () => true });
         Object.defineProperty(navigator, "share", { value: async (data) => {
@@ -37,14 +44,12 @@ try {
         CanvasRenderingContext2D.prototype.fillText = function (text, ...args) { window.__drawn.push(text); return draw.call(this, text, ...args); };
       });
       const page = await context.newPage(); const errors = [];
-      await page.addLocatorHandler(page.locator(".completion-celebration-layer"), async () => {
-        await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))).catch(() => {});
-      });
       page.on("pageerror", (error) => errors.push(error.message));
       await page.route("**/*.supabase.co/rest/v1/journal_entries**", (route) => route.fulfill({ json: [] }));
       await page.route("**/*.supabase.co/rest/v1/journal_preferences**", (route) => route.fulfill({ json: { settings: { "fluffy-first-guide-face": true } } }));
+      let navigation = 0;
       const open = async (route) => {
-        await page.goto(`http://127.0.0.1:5225/?demo=1#${route}`, { waitUntil: "domcontentloaded", timeout: 60000 });
+        await page.goto(`http://127.0.0.1:5225/?demo=1&qa-nav=${navigation++}#${route}`, { waitUntil: "domcontentloaded", timeout: 60000 });
         if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
         if (await page.locator(".completion-celebration-layer").isVisible().catch(() => false)) {
           await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));

@@ -9,6 +9,8 @@ body.cold-guiding-root .phone-wrap::before{position:fixed;inset:0;width:100vw;he
 .phone-wrap{z-index:1;margin-top:var(--journal-safe-offset,0px);margin-bottom:var(--journal-safe-tail,0px);width:calc(393px * var(--design-scale));height:calc(852px * var(--design-scale));filter:none;flex:none}
 .phone{width:393px;height:852px;padding:0;border:0;border-radius:0;background:none;box-shadow:none}
 .screen{border-radius:0;background:transparent}
+.screen[data-scene="focus"]{background:#eaf7fb url("../assets/focus-ambient-gradient-v1.png") center/cover no-repeat}
+.screen[data-scene="focus"]>.cream-bg,.screen[data-scene="focus"]>.green-bg{opacity:0!important}
 .provider-toolbar,.api-popover,.system-bar,.home-indicator,.bottom-nav,.home-scene,.home-cat-hotspot{display:none!important}
 .screen[data-scene="entry"] .back{width:44px;height:44px}
 .journal-awake{position:absolute;top:66px;right:22px;min-height:44px;padding:6px 12px;border:1px solid #bed3d9;border-radius:16px;background:#f5fcff;color:#24496b;font-size:13px}

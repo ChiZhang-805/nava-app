@@ -12755,10 +12755,7 @@ body::before {
   justify-content: flex-start;
   padding: max(96px, calc(env(safe-area-inset-top) + 78px)) max(18px, env(safe-area-inset-right)) max(22px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
   overflow: hidden;
-  background:
-    radial-gradient(circle at 86% 7%, rgba(255,255,255,.72), transparent 31%),
-    linear-gradient(165deg, rgba(239,251,255,.97) 0%, rgba(205,239,250,.96) 47%, rgba(126,207,237,.94) 100%),
-    url("../assets/figma/auth-texture-v2.jpg") center / cover no-repeat;
+  background: #eaf7fb url("../assets/focus/focus-ambient-gradient-v1.png") center / cover no-repeat;
 }
 
 .focus-immersive-exit {
@@ -14058,6 +14055,7 @@ body::before {
   container-type: size;
   grid-template-rows: repeat(3, minmax(min-content, 1fr));
   gap: 8px;
+  margin-bottom: 12px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;

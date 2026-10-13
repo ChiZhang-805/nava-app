@@ -25,6 +25,14 @@ export function registerPreviewActivity(activity: PreviewActivity, interrupt: (r
   };
 }
 
+/** The embedded activity reports user-driven resume/pause changes through its
+ * authenticated parent channel so repeated desktop preview events stay honest. */
+export function updatePreviewActivity(state: PreviewState) {
+  if (!current || current.activity.state === state) return;
+  current.activity = { ...current.activity, state };
+  notify();
+}
+
 export function simulatePreviewInterruption(reason: PreviewReason) {
   if (!current || current.activity.state !== "running") return false;
   if (!["call", "message", "distraction", "other"].includes(reason)) return false;

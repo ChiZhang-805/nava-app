@@ -71,6 +71,7 @@ __fluffyModules["app.js"] = (() => {
     let activeSpeech = speech, bailianSettings;
     let timeRange = null, formLayout = null, review = null, entryMenu = null;
     let lastEntryAction = "";
+    let lastPreviewActivityState = "";
     let gesture, board, toastTimer, homeBubbleTimer, cameraVideo = null, sheetReturn = null, wave = Array(72).fill(0), lastTimerText = "", lastUI = "", lastFocusSave = 0;
     /**
      * 输入：文字、error。
@@ -1606,6 +1607,11 @@ __fluffyModules["app.js"] = (() => {
         $("timer-caption").textContent = s.state === "resting" ? Locale.t(`休息 ${formatTimer(s.restMs + Math.max(0, Date.now() - s.restStarted))}`) : Locale.t("剩余专注时间");
         $("ring-progress").style.strokeDashoffset = String(885.929 * (1 - s.remainingMs / Math.max(1, s.totalMs)));
         const paused = s.state !== "running";
+        const previewState = s.state === "running" ? "running" : "paused";
+        if (previewState !== lastPreviewActivityState) {
+            lastPreviewActivityState = previewState;
+            window.NavaJournal.call("activity-state", { state: previewState }).catch(() => {});
+        }
         $("pause-label").textContent = Locale.t(paused ? "继续" : "暂停");
         $("timer-pause").setAttribute("aria-label", paused ? "继续" : "暂停");
         setIcon($("timer-pause").firstElementChild, paused ? "play" : "pause");

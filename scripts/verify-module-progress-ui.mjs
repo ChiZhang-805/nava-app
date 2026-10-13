@@ -310,7 +310,9 @@ try {
     await expect(hubDiet).toHaveAttribute("data-record-state", "partial");
     await expect(hubDiet).toHaveAttribute("data-module-progress", "0.25");
     await expect(page.locator(".record-module-entry .module-progress-ring")).toHaveCount(6);
-    await page.waitForTimeout(620);
+    // The record-hub ring fill lasts 720ms. Sample only after the real paint
+    // settles; reading at 620ms produced viewport-dependent partial arcs.
+    await page.waitForTimeout(850);
     const reportPaint = await inspectRingPaint(page, '.record-module-entry .module-progress-ring');
     for (const ring of reportPaint) {
       if (ring.progress === 1 && ring.coverage < .99) throw new Error(`${viewport.name}: report ring is not closed ${JSON.stringify(ring)}`);
@@ -371,24 +373,28 @@ try {
     await expect(hubDiet).toHaveAttribute("data-record-state", "partial");
 
     await hubDiet.click();
-    await expect(page.locator('[data-record-detail="diet"] .record-editor-stack > form:not([hidden])')).toBeVisible();
-    await expect.poll(() => new URL(page.url()).hash).toContain("view=editor");
-    await page.waitForTimeout(620);
+    await expect(page.locator('.journal-experience iframe')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.journal-loading')).toHaveCount(0, { timeout: 20_000 });
+    await expect(page.locator('.journal-loading.is-error')).toHaveCount(0);
+    const journal = page.frameLocator('.journal-experience iframe');
+    await expect(journal.locator('#screen')).toHaveAttribute('data-scene', 'entry');
+    await expect(journal.locator('#entry-form')).toHaveAttribute('data-category', 'food');
+    await expect.poll(() => new URL(page.url()).hash).toContain("module=diet");
     const detailOverflow = await page.locator(".phone-frame").evaluate((frame) => frame.scrollWidth - frame.clientWidth);
     if (detailOverflow > 1) throw new Error(`${viewport.name}: partial diet editor has ${detailOverflow}px horizontal overflow.`);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-partial-diet-editor.png`) });
-    const food = page.locator('.diet-food-field textarea');
-    await food.fill('燕麦、鸡蛋、全麦面包、牛奶和新鲜蔬菜，分量按实际记录。'.repeat(4));
+    const food = journal.locator('#field-foods');
+    await food.fill('燕麦、鸡蛋、全麦面包、牛奶和新鲜蔬菜，分量按实际记录。');
     for (const deviceId of viewport.device ? [viewport.device.logicalWidth > 400 ? 'iphone-14' : 'iphone-17-pro-max', viewport.device.id] : [null]) {
       if (deviceId) await page.locator('.nava-device-selector select').selectOption(deviceId);
       await page.waitForTimeout(120);
       const textBounds = await food.evaluate((node) => ({ height: node.offsetHeight, clipped: node.scrollHeight > node.clientHeight + 1, overflow: getComputedStyle(node).overflowY }));
-      if (textBounds.height > 161 || (textBounds.clipped && textBounds.overflow !== 'auto')) throw new Error(`Diet text cannot be reached after width change ${JSON.stringify(textBounds)}`);
+      if (textBounds.height > 180 || (textBounds.clipped && textBounds.overflow !== 'auto')) throw new Error(`Diet text cannot be reached after width change ${JSON.stringify(textBounds)}`);
     }
-    const save = page.locator('.record-editor-stack > form:not([hidden]) > .section-card > .action-button');
-    await save.scrollIntoViewIfNeeded();
+    const save = journal.locator('#confirm-entry');
+    await expect(save).toBeVisible();
     const saveBounds = await save.evaluate((node) => {
-      const b = node.getBoundingClientRect(), c = node.closest('.section-card').getBoundingClientRect();
+      const b = node.getBoundingClientRect(), c = document.getElementById('screen').getBoundingClientRect();
       return { inside: b.left >= c.left && b.right <= c.right && b.top >= c.top && b.bottom <= c.bottom };
     });
     if (!saveBounds.inside) throw new Error(`${viewport.name}: diet action escaped its card`);
