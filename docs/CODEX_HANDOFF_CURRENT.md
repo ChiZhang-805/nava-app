@@ -38,6 +38,16 @@ localhost/127.0.0.1/::1且显式demo环境使用隔离的localStorage记录与�
 Supabase项目`wxteapvwagvhhtrjrbim`、公开demo禁用和两站共享身份；因当前环境没有
 `SUPABASE_ACCESS_TOKEN`，自定义SMTP配置不能在本机读取，不能把它写成已验收。
 
+发布：功能源码`753a30d615cbac80dde0484e53666fb69be5d243`已干净推送。ChatGPT Sites沿用原公开
+项目发布v254，版本
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_5e36d0d23a0081919c866e8319fabbfd`、部署
+`appgdep_6ace418d811c8191bfcf27711a7a5e79`均为succeeded；Windows本地归档器仍不能正确转义反斜杠，
+因此由同一已推送提交远端构建，没有创建第二个Sites项目。GitHub Pages镜像提交
+`2ea7a3d632ee266afaa9dd5b45aae1c70d469128`，workflow`38414968752`成功；266个生成文件、
+80,657,367字节与本地Pages制品逐文件SHA-256一致，`source.json`指向同一源码与v254。两站根页面和
+专注背景资源在线均返回200，背景字节数1,415,891；发布后门禁通过58个结果、381项检查和56张截图，
+确认四档公开登录门、`?demo=1`拒绝、canonical Supabase身份、两站资源同源和零运行时错误。
+
 ## 165. 小猫衣橱一屏式试穿与原子积分合同（当前版本）
 
 “我的”快捷入口新增“小猫衣橱”，实现Figma C01–C08八个状态所表达的皮肤、饰品与背景三类
