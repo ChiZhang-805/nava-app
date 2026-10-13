@@ -46,6 +46,7 @@ const accountOwnedTables = [
   "growth_badges", "growth_progress_views", "xp_awards", "analytics_events", "watch_action_receipts",
   "reward_cart_items", "reward_orders", "reward_order_items",
   "user_reward_card_unlocks", "user_reward_card_preferences",
+  "user_mascot_wardrobe_unlocks", "user_mascot_wardrobe_preferences",
   "community_posts", "community_comments", "community_likes", "community_bookmarks",
 ] as const;
 

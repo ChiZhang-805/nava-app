@@ -117,7 +117,7 @@ try {
     if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
     await expect(page.locator('.profile-overview[data-profile-view="overview"]')).toBeVisible({ timeout: 20000 });
     await expect(page.locator(".profile-quarter-card")).toBeVisible();
-    await expect(page.locator(".profile-nav-row")).toHaveCount(7);
+    await expect(page.locator(".profile-nav-row")).toHaveCount(8);
     if (await page.locator(".completion-celebration-layer").count()) await page.keyboard.press("Escape");
     await page.locator('.profile-nav-row[data-profile-target="skin"]').click();
     await expect(page.locator(".profile-skin-card")).toBeVisible({ timeout: 20000 });

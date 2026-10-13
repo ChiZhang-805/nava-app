@@ -2,7 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import { Apple, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleUserRound, Database, Eye, Grid3X3, KeyRound, LayoutGrid, LockKeyhole, LogOut, Mail, MessageCircle, Palette, Phone, RotateCcw, Save, ShieldCheck, UserRound, Watch, X } from "lucide-react";
 import AvatarPicker from "../components/AvatarPicker";
 import AppSkinPicker from "../components/AppSkinPicker";
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
 import ActionButton from "../components/ActionButton";
 import PageSkeleton from "../components/PageSkeleton";
 import SectionCard from "../components/SectionCard";
@@ -144,11 +144,12 @@ function daysSinceSignup(createdAt?: string) {
   return Math.max(1, Math.floor((Date.now() - created) / 86_400_000) + 1);
 }
 
-type ProfileView = "account" | "personal" | "skin" | "health" | "watch" | "privacy";
+type ProfileView = "account" | "personal" | "skin" | "wardrobe" | "health" | "watch" | "privacy";
 type DevicePhase = "idle" | "authorizing" | "checking" | "syncing" | "complete" | "error";
 type SecurityEditor = "password" | "email" | "phone";
 
-const profileViews = new Set<ProfileView>(["account", "personal", "skin", "health", "watch", "privacy"]);
+const profileViews = new Set<ProfileView>(["account", "personal", "skin", "wardrobe", "health", "watch", "privacy"]);
+const MascotWardrobe = lazy(() => import("./MascotWardrobe"));
 
 function ProfileQuarterCard({ userId, deviceDate }: { userId: string; deviceDate: string }) {
   const { locale } = useLocale();
@@ -657,6 +658,12 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
 
   if (profileLoading && (!activeView || activeView === "personal")) return <PageSkeleton variant="profile" />;
 
+  if (activeView === "wardrobe") return (
+    <div className="stack profile-stack profile-subpage" data-profile-view="wardrobe">
+      <Suspense fallback={<PageSkeleton variant="profile" />}><MascotWardrobe /></Suspense>
+    </div>
+  );
+
   if (activeView === "skin") return (
     <div className="stack profile-stack profile-subpage" data-profile-view="skin">
       <SectionCard className="profile-skin-card profile-subpage-card profile-one-screen-card" title={<span className="profile-section-title"><Palette size={19} aria-hidden="true" />{locale === "zh" ? "界面皮肤" : "Interface skin"}</span>}>
@@ -805,6 +812,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
   const overviewRows: Array<{ id: ProfileView | "onboarding"; zh: string; en: string; value?: string }> = [
     { id: "personal", zh: "个人资料", en: "Personal profile" },
     { id: "skin", zh: "界面皮肤", en: "Interface skin", value: locale === "zh" ? currentSkin?.name : currentSkin?.nameEn },
+    { id: "wardrobe", zh: "小猫衣橱", en: "Cat wardrobe" },
     { id: "onboarding", zh: "初见手记", en: "First notes" },
     { id: "health", zh: "Apple 健康", en: "Apple Health" },
     { id: "watch", zh: "Apple Watch", en: "Apple Watch" },

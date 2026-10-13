@@ -249,6 +249,7 @@ function MobileShell({
     account: { zh: "账号与安全", en: "Account & security" },
     personal: { zh: "个人资料", en: "Personal profile" },
     skin: { zh: "界面皮肤", en: "Interface skin" },
+    wardrobe: { zh: "小猫衣橱", en: "Cat wardrobe" },
     health: { zh: "Apple 健康", en: "Apple Health" },
     watch: { zh: "Apple Watch", en: "Apple Watch" },
     privacy: { zh: "隐私与数据", en: "Privacy & data" },
@@ -741,6 +742,7 @@ function MobileShell({
           activeTab === "ai" ? "app-content--chat" : "",
           activeTab === "record" ? "app-content--record" : "",
           activeTab === "trends" ? "app-content--trends" : "",
+          activeTab === "profile" && recordView === "wardrobe" ? "app-content--wardrobe" : "",
         ].filter(Boolean).join(" ")}
         ref={contentRef}
       >

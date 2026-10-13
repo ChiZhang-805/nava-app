@@ -2,6 +2,14 @@
 
 The canonical NAVA APP backend is Supabase project `wxteapvwagvhhtrjrbim`. The local review build (`.env.review`, `?demo=1`) is intentionally isolated and never writes to this project. The public build uses `npm run build:pages` and connects through the local, gitignored `.env`.
 
+2026-10-13: after explicit authorization, migration `202610130001_mascot_wardrobe.sql`
+was applied and recorded without applying the intentionally pending `202609270001` migration.
+Read-only production verification found 12 wardrobe catalog rows, both account-owned
+wardrobe tables, and all three wardrobe RPCs; linked schema lint returned no errors.
+`export-user-data` schema 1.4.0 was deployed as ACTIVE v28 with JWT verification and now
+includes wardrobe unlocks and preferences. Verification did not create an unlock, alter a
+user's current outfit, or spend account points.
+
 Run the read-only target and contract check before every backend or public frontend deployment:
 
 ```powershell

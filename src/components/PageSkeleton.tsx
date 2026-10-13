@@ -219,7 +219,7 @@ function ProfileSkeleton() {
     </section>
     <section className="section-card profile-entry-card page-skeleton-profile-entries">
       <header className="profile-entry-header page-skeleton-profile-entry-header"><SkeletonBlock className="is-circle" /><SkeletonBlock className="is-section-title" /></header>
-      {Array.from({ length: 7 }, (_, index) => <div className="profile-nav-row page-skeleton-profile-entry-row" key={index}><SkeletonBlock className="is-title" /><span><SkeletonBlock className="is-value" /><SkeletonBlock className="is-circle" /></span></div>)}
+      {Array.from({ length: 8 }, (_, index) => <div className="profile-nav-row page-skeleton-profile-entry-row" key={index}><SkeletonBlock className="is-title" /><span><SkeletonBlock className="is-value" /><SkeletonBlock className="is-circle" /></span></div>)}
     </section>
   </>;
 }

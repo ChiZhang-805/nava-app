@@ -14193,6 +14193,10 @@ body::before {
   min-height: 100%;
   display: flex;
 }
+.phone-frame--subpage-no-nav:not(.phone-frame--option2) .app-content.app-content--wardrobe {
+  overflow-y: hidden !important;
+  padding-bottom: 0 !important;
+}
 .profile-overview,
 .page-skeleton--profile {
   --profile-module-inline-inset: clamp(13px, 4.1cqw, 16px);

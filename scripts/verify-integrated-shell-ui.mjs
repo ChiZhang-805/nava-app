@@ -17,6 +17,7 @@ const pages = [
   ["profile", "tab=profile"],
   ["profile-personal", "tab=profile&view=personal"],
   ["profile-skin", "tab=profile&view=skin"],
+  ["profile-wardrobe", "tab=profile&view=wardrobe"],
   ["profile-account", "tab=profile&view=account"],
   ["profile-health", "tab=profile&view=health"],
   ["profile-watch", "tab=profile&view=watch"],
@@ -37,8 +38,8 @@ const pages = [
   ["points-shop-add-card", "tab=today&view=points-shop-add-card"],
 ];
 
-assert.equal(pages.length, 25);
-assert.equal(new Set(pages.map(([name]) => name)).size, 25);
+assert.equal(pages.length, 26);
+assert.equal(new Set(pages.map(([name]) => name)).size, pages.length);
 
 await mkdir(output, { recursive: true });
 const report = { startedAt: new Date().toISOString(), passed: false, results: [], errors: [] };
@@ -224,9 +225,9 @@ try {
   }
 
   assert.deepEqual(report.errors, []);
-  assert.equal(report.results.length, 300);
+  assert.equal(report.results.length, pages.length * skins.length * sizes.length);
   report.passed = true;
-  console.log("25 integrated pages passed in three skins across four portrait sizes (300 route states).\n");
+  console.log(`${pages.length} integrated pages passed in three skins across four portrait sizes (${pages.length * skins.length * sizes.length} route states).\n`);
 } finally {
   report.finishedAt = new Date().toISOString();
   await writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));

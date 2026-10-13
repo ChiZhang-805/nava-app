@@ -1,3 +1,21 @@
+# 小猫衣橱共享积分与穿戴偏好（2026-10-13，已部署）
+
+迁移`202610130001_mascot_wardrobe.sql`为小猫衣橱增加公开可读的
+`mascot_wardrobe_items`目录，以及只允许账号本人读取的`user_mascot_wardrobe_unlocks`解锁账本和
+`user_mascot_wardrobe_preferences`当前穿戴偏好。三类条目分别是皮肤、饰品和背景；免费默认项不写
+伪造消费，付费项通过`nava_unlock_mascot_wardrobe_item`原子解锁。
+
+- `nava_mascot_wardrobe_state`一次返回目录、已拥有条目、当前选择和共享积分余额；
+- `nava_select_mascot_wardrobe_item`只允许选择免费或已解锁的同类条目；
+- `nava_unlock_mascot_wardrobe_item`用账号级事务锁、`user_id + item_id`和
+  `user_id + idempotency_key`唯一约束防重复扣分，并记录最小化审计事件；
+- `nava_reward_points_balance`继续是唯一共享额度，新增扣除衣橱解锁消费；
+- 账号删除依靠两张账号表到`auth.users`的级联外键，账号导出schema 1.4.0同时覆盖两张表。
+
+用户明确授权后，只应用并登记`202610130001`；历史未授权的`202609270001`仍未应用。远端只读核验
+返回12项目录、两张账号表和三个RPC均存在，数据库lint零错误。`export-user-data`的schema 1.4.0
+已部署为ACTIVE v28并保持JWT校验。没有创建用户解锁、改变穿戴偏好或消费真实积分。
+
 # 商品管理双语字段与三态目录（2026-09-28，已上线）
 
 用户已单独授权并应用 `202609280002_admin_product_catalog.sql`，同一事务记录迁移历史。

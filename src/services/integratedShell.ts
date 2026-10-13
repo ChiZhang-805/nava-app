@@ -1,7 +1,7 @@
 import type { AppTab } from "../types";
 
 /**
- * The 25 route-level surfaces that share NAVA's continuous app canvas.
+ * The route-level surfaces that share NAVA's continuous app canvas.
  *
  * Dynamic dates, product ids and category ids are templates of one visual
  * page, not separate pages. Record journals, first-run screens and completion
@@ -15,6 +15,7 @@ export const INTEGRATED_SHELL_PAGES = [
   "profile",
   "profile-personal",
   "profile-skin",
+  "profile-wardrobe",
   "profile-account",
   "profile-health",
   "profile-watch",
@@ -48,6 +49,7 @@ const rootPages: Partial<Record<AppTab, IntegratedShellPage>> = {
 const profilePages: Record<string, IntegratedShellPage> = {
   personal: "profile-personal",
   skin: "profile-skin",
+  wardrobe: "profile-wardrobe",
   account: "profile-account",
   health: "profile-health",
   watch: "profile-watch",

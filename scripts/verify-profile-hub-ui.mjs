@@ -13,7 +13,7 @@ await server.listen();
 const base = server.resolvedUrls.local[0];
 const browser = await chromium.launch({ headless: true });
 const sizes = [[360, 740], [375, 812], [390, 844], [430, 932]];
-const subpages = ["personal", "skin", "health", "watch", "privacy", "account"];
+const subpages = ["personal", "skin", "wardrobe", "health", "watch", "privacy", "account"];
 
 async function initialize(context) {
   const verifiedContacts = { email: null, phone: null };
@@ -46,7 +46,7 @@ try {
     await expect(page.locator(".profile-entry-header h2")).toHaveText("快捷入口");
     const quarterCellCount = await page.locator(".profile-quarter-day").count();
     assert.ok(quarterCellCount >= 91 && quarterCellCount <= 98, `${width}x${height} unexpected quarter cell count ${quarterCellCount}`);
-    await expect(page.locator(".profile-nav-row")).toHaveCount(7);
+    await expect(page.locator(".profile-nav-row")).toHaveCount(8);
     await expect(page.locator(".bottom-nav")).toBeVisible();
 
     const overview = await page.locator(".phone-frame").evaluate((frame) => {
@@ -165,7 +165,7 @@ try {
     await expect(skeletonPage.locator(".page-skeleton--profile")).toBeVisible({ timeout: 20000 });
     if (await skeletonPage.locator(".completion-celebration-layer").count()) await skeletonPage.keyboard.press("Escape");
     await expect(skeletonPage.locator(".page-skeleton-profile-quarter-day")).toHaveCount(98);
-    await expect(skeletonPage.locator(".page-skeleton-profile-entry-row")).toHaveCount(7);
+    await expect(skeletonPage.locator(".page-skeleton-profile-entry-row")).toHaveCount(8);
     const skeletonGeometry = await skeletonPage.locator(".phone-frame").evaluate((frame) => {
       const content = frame.querySelector(".app-content");
       return {
@@ -193,6 +193,7 @@ try {
         contentOverflow: Math.max(0, (frame.querySelector(".app-content")?.scrollWidth ?? 0) - (frame.querySelector(".app-content")?.clientWidth ?? 0)),
         verticalOverflow: Math.max(0, (frame.querySelector(".app-content")?.scrollHeight ?? 0) - (frame.querySelector(".app-content")?.clientHeight ?? 0)),
         scrollbarWidth: frame.querySelector(".app-content") ? getComputedStyle(frame.querySelector(".app-content")).scrollbarWidth : "",
+        overflowY: frame.querySelector(".app-content") ? getComputedStyle(frame.querySelector(".app-content")).overflowY : "",
       }));
       assert.ok(routeGeometry.horizontalOverflow <= 1, `${width}x${height} ${subpage} frame overflow`);
       assert.ok(routeGeometry.contentOverflow <= 1, `${width}x${height} ${subpage} content overflow`);
@@ -200,6 +201,7 @@ try {
       if (["skin", "health", "watch", "privacy", "account"].includes(subpage) || (subpage === "personal" && height >= 844)) {
         assert.ok(routeGeometry.verticalOverflow <= 1, `${width}x${height} ${subpage} must fit one screen, overflow ${routeGeometry.verticalOverflow}`);
       }
+      if (subpage === "wardrobe") assert.equal(routeGeometry.overflowY, "hidden", `${width}x${height} wardrobe must remain a one-screen composition`);
       if (subpage === "personal") {
         await expect(page.locator(".profile-bmi-summary")).toHaveCount(0);
         await expect(page.getByText("BMI 参考", { exact: true })).toHaveCount(0);
@@ -284,6 +286,38 @@ try {
           rows: Math.round(node.getBoundingClientRect().height / parseFloat(getComputedStyle(node).lineHeight)),
         })));
         assert.ok(poemLines.every((line) => line.horizontalOverflow <= 1 && line.rows === 1), `${width}x${height} every skin poem line must remain a single line`);
+      }
+      if (subpage === "wardrobe") {
+        await expect(page.locator(".mascot-wardrobe-preview")).toBeVisible();
+        await expect(page.locator(".mascot-wardrobe-tabs [role=tab]")).toHaveCount(3);
+        await expect(page.locator(".mascot-wardrobe-item")).toHaveCount(4);
+        await expect(page.locator(".mascot-wardrobe-character img")).toHaveCount(1);
+        const wardrobeGeometry = await page.locator(".mascot-wardrobe").evaluate((wardrobe) => {
+          const action = wardrobe.querySelector(".mascot-wardrobe-action").getBoundingClientRect();
+          const content = wardrobe.closest(".app-content").getBoundingClientRect();
+          return {
+            overflow: wardrobe.scrollWidth - wardrobe.clientWidth,
+            actionVisible: action.top < content.bottom && action.bottom > content.top,
+            carouselScrollable: wardrobe.querySelector(".mascot-wardrobe-grid").scrollWidth >= wardrobe.querySelector(".mascot-wardrobe-grid").clientWidth,
+          };
+        });
+        assert.ok(wardrobeGeometry.overflow <= 1, `${width}x${height} wardrobe overflow`);
+        assert.equal(wardrobeGeometry.actionVisible, true, `${width}x${height} wardrobe action must remain reachable`);
+        assert.equal(wardrobeGeometry.carouselScrollable, true, `${width}x${height} wardrobe catalog must use the horizontal carousel contract`);
+        if (width === 390) await page.screenshot({ path: `${output}/profile-wardrobe-default-${width}x${height}.png`, fullPage: true });
+        await page.locator('.mascot-wardrobe-item').filter({ hasText: "暖橘" }).click();
+        await expect(page.locator(".mascot-wardrobe-action button")).toHaveText("兑换");
+        await page.locator(".mascot-wardrobe-action button").click();
+        await expect(page.locator(".mascot-wardrobe-sheet")).toContainText("确认兑换暖橘");
+        await page.locator(".mascot-wardrobe-sheet-actions button").first().click();
+        await page.getByRole("tab", { name: "饰品" }).click();
+        await expect(page.locator(".mascot-wardrobe-item")).toHaveCount(4);
+        await page.locator('.mascot-wardrobe-item').filter({ hasText: "雾紫贝雷帽" }).click();
+        await expect(page.locator(".mascot-wardrobe-character img")).toHaveCount(2);
+        await expect(page.locator(".mascot-wardrobe-action button")).toHaveText("穿戴");
+        await page.locator(".mascot-wardrobe-action button").click();
+        await expect(page.locator(".mascot-wardrobe-status")).toContainText("当前搭配");
+        await page.screenshot({ path: `${output}/profile-wardrobe-${width}x${height}.png`, fullPage: true });
       }
       if (["health", "watch"].includes(subpage)) {
         await expect(page.locator(".profile-device-orb")).toHaveCount(1);
