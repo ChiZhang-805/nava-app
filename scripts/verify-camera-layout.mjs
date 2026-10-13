@@ -42,6 +42,9 @@ try {
         };
       });
       const page = await context.newPage();
+      await page.addLocatorHandler(page.locator(".completion-celebration-layer"), async () => {
+        await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))).catch(() => {});
+      });
       const errors = [];
       page.on("pageerror", error => errors.push(error.message));
       await page.route("**/*.supabase.co/rest/v1/journal_entries**", route => route.fulfill({ json: [] }));
@@ -50,7 +53,7 @@ try {
       if (await page.locator(".launch-sequence").isVisible().catch(() => false)) await page.locator(".launch-sequence").click();
       await page.waitForTimeout(500);
       if (await page.locator(".completion-celebration-layer").isVisible().catch(() => false)) {
-        await page.frameLocator(".completion-celebration-layer iframe").getByRole("button", { name: /Continue|继续/ }).click();
+        await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
         await expect(page.locator(".completion-celebration-layer")).toHaveCount(0);
       }
       const frame = page.frameLocator(".journal-experience iframe");

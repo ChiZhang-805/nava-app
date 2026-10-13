@@ -467,7 +467,16 @@ async function captureSkeletonViewport(browser, baseUrl, viewport, report, error
     if (visual.issues.length) throw new Error(`${viewport.name}/loading-${variant} failed visual geometry: ${JSON.stringify(visual.issues)}`);
     const blocks = await page.locator(`${selector} .nava-skeleton-block`).count();
     if (blocks < 4) throw new Error(`${viewport.name}/loading-${variant} has only ${blocks} skeleton blocks`);
-    report.push({ viewport: viewport.name, screen: `loading-${variant}`, state: "loading", blocks, ...layout, ...visual.diagnostics });
+    let dockGap = null;
+    if (["records", "growth", "daily-report"].includes(variant)) {
+      dockGap = await page.locator(selector).evaluate((node) => {
+        const dock = document.querySelector(".bottom-nav")?.getBoundingClientRect();
+        const children = [...node.children].map((child) => child.getBoundingClientRect()).filter((rect) => rect.width > 0 && rect.height > 0);
+        return dock && children.length ? dock.top - Math.max(...children.map((rect) => rect.bottom)) : null;
+      });
+      if (dockGap === null || dockGap < 0 || dockGap > 18) throw new Error(`${viewport.name}/loading-${variant} leaves an imprecise dock gap: ${dockGap}`);
+    }
+    report.push({ viewport: viewport.name, screen: `loading-${variant}`, state: "loading", blocks, dockGap, ...layout, ...visual.diagnostics });
     await page.screenshot({ path: path.join(outputDir, viewport.name, `loading-${variant}.png`) });
   }
 

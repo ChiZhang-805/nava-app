@@ -37,6 +37,9 @@ try {
         CanvasRenderingContext2D.prototype.fillText = function (text, ...args) { window.__drawn.push(text); return draw.call(this, text, ...args); };
       });
       const page = await context.newPage(); const errors = [];
+      await page.addLocatorHandler(page.locator(".completion-celebration-layer"), async () => {
+        await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))).catch(() => {});
+      });
       page.on("pageerror", (error) => errors.push(error.message));
       await page.route("**/*.supabase.co/rest/v1/journal_entries**", (route) => route.fulfill({ json: [] }));
       await page.route("**/*.supabase.co/rest/v1/journal_preferences**", (route) => route.fulfill({ json: { settings: { "fluffy-first-guide-face": true } } }));
@@ -44,7 +47,7 @@ try {
         await page.goto(`http://127.0.0.1:5225/?demo=1#${route}`, { waitUntil: "domcontentloaded", timeout: 60000 });
         if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
         if (await page.locator(".completion-celebration-layer").isVisible().catch(() => false)) {
-          await page.frameLocator(".completion-celebration-layer iframe").getByRole("button", { name: /Continue|继续/ }).click();
+          await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
           await expect(page.locator(".completion-celebration-layer")).toHaveCount(0);
         }
         if (route.includes("module=face")) {

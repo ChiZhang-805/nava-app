@@ -27,7 +27,7 @@ async function prepare(context, hash) {
   }, { userId: demoUserId });
   const page = await context.newPage();
   await page.addLocatorHandler(page.locator('.completion-celebration-layer'), async () => {
-    await page.frameLocator('.completion-celebration-layer iframe').getByRole('button', { name: /Continue|继续/ }).click();
+    await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))).catch(() => {});
   });
   await page.goto(`${baseUrl}?demo=1${hash}`, { waitUntil: "networkidle" });
   const launch = page.locator(".launch-sequence");
@@ -144,6 +144,7 @@ try {
       const header = document.querySelector(".points-shop-header")?.getBoundingClientRect();
       const home = document.querySelector(".points-shop-header > .home-experience-back");
       const actions = [...document.querySelectorAll(".points-shop-header-actions > button")];
+      const dock = document.querySelector(".bottom-nav")?.getBoundingClientRect();
       const cards = [...document.querySelectorAll(".points-shop-product-row")].map((element) => element.getBoundingClientRect().toJSON());
       return {
         screen: screen?.toJSON() ?? null,
@@ -153,6 +154,7 @@ try {
         actionBackgrounds: actions.map((element) => getComputedStyle(element).backgroundColor),
         homeBackground: home ? getComputedStyle(home).backgroundColor : null,
         cards,
+        firstRowClearance: dock && cards.length >= 2 ? dock.top - Math.max(cards[0].bottom, cards[1].bottom) : null,
         horizontalOverflow: document.querySelector(".points-shop-screen")?.scrollWidth - document.querySelector(".points-shop-screen")?.clientWidth,
         selectorDisplay: getComputedStyle(document.querySelector(".nava-device-selector")).display,
       };
@@ -163,7 +165,8 @@ try {
       || geometry.actionBackgrounds.some((value) => value !== "rgba(0, 0, 0, 0)") || geometry.homeBackground !== "rgba(0, 0, 0, 0)"
       || geometry.cards.some((card) => card.left < geometry.screen.left - 1 || card.right > geometry.screen.right + 1)
       || geometry.cards.some((card, index) => index % 2 === 1 && Math.abs(card.top - geometry.cards[index - 1].top) > 1)
-      || geometry.cards.some((card, index) => index > 1 && card.top <= geometry.cards[index - 2].bottom)) {
+      || geometry.cards.some((card, index) => index > 1 && card.top <= geometry.cards[index - 2].bottom)
+      || (viewport.height >= 900 && (geometry.firstRowClearance === null || geometry.firstRowClearance < 18))) {
       throw new Error(`${viewport.width}x${viewport.height}: points shop layout failed ${JSON.stringify(geometry)}`);
     }
     await page.screenshot({ path: path.join(outputDir, `shop-catalog-${viewport.width}x${viewport.height}.png`), fullPage: true });
