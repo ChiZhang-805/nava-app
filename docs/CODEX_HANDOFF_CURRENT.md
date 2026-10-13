@@ -5998,4 +5998,11 @@ healthWrites:0、aiTested:false；线上图标均成功解码且自然宽度≥1
   同步放大，仍与白色搭配摘要保留呼吸空间。四档门禁新增分页到操作按钮仅`8–18px`的几何合同，
   同时保留按钮底部`10–38px`安全区、无页面溢出、17项三页目录与背景真实解码检查。背景测试改为
   显式等待图片`decode()`，消除刚切换场景时把正常网络解码误判为失败的竞态。
+- v253功能源码`c0a328cc93d6edd972f85bff27498e349e037e3b`已推送两个源码远端并发布双站。
+  Sites版本`appgprj_6a5de710811c8191af8ce2681358d518~appgver_d814fb6f5f2c819180667b5e8d9da74a`、
+  deployment `appgdep_6ace168838f4819180212260659f96da` succeeded；Pages镜像commit
+  `f7f4d35f97ab1ab11b3c35dfb2db07d59260acc6`，workflow `38390987275` success。264个当前
+  生成文件共77,823,150字节，与本地逐文件SHA-256一致；线上`source.json`指向同一功能源码与
+  v253。发布后门禁通过58个结果、381项检查和56张截图，证据位于
+  `Q:\NAVA-Workspace\Build\TestRuns\v253-postdeploy`。
 
