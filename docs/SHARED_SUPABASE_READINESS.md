@@ -2,11 +2,13 @@
 
 The canonical NAVA APP backend is Supabase project `wxteapvwagvhhtrjrbim`. The local review build (`.env.review`, `?demo=1`) is intentionally isolated and never writes to this project. The public build uses `npm run build:pages` and connects through the local, gitignored `.env`.
 
-2026-10-13: the follow-up wardrobe source migration
-`202610130002_mascot_wardrobe_multi_accessories.sql` adds a bounded multi-accessory
-preference and an atomic whole-look selection RPC while retaining the legacy single-accessory
-field for rolling compatibility. It must be applied selectively so the intentionally pending
-`202609270001` migration is not included; the production receipt is recorded after deployment.
+2026-10-13: after the user's earlier explicit authorization for this wardrobe backend,
+`202610130002_mascot_wardrobe_multi_accessories.sql` was selectively applied and recorded.
+It adds a bounded multi-accessory preference and an atomic whole-look selection RPC while
+retaining the legacy single-accessory field for rolling compatibility. Read-only verification
+found the ARRAY column, RPC and migration receipt; linked schema lint returned zero errors.
+The intentionally pending `202609270001` migration remains unapplied. No private account rows
+were read and no outfit, unlock or point balance was changed during verification.
 
 2026-10-13: after explicit authorization, migration `202610130001_mascot_wardrobe.sql`
 was applied and recorded without applying the intentionally pending `202609270001` migration.
