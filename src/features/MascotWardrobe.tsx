@@ -1,6 +1,8 @@
 import { Check, CircleCheckBig, Coins, Shirt, Sparkles, TriangleAlert, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import WardrobeMascotEffect from "../components/WardrobeMascotEffect";
 import { useLocale } from "../i18n";
+import { sampleWardrobeMascotMotion, wardrobeMascotMotions, wardrobeMascotTransform, type WardrobeMascotMotion } from "../services/wardrobeMascotMotion";
 import {
   equipMascotWardrobeLook,
   loadMascotWardrobeState,
@@ -67,7 +69,16 @@ export default function MascotWardrobe() {
   const [focusedItemId, setFocusedItemId] = useState<WardrobeItemId | null>(null);
   const [sheetItemId, setSheetItemId] = useState<WardrobeItemId | null>(null);
   const [activePage, setActivePage] = useState(0);
+  const [playingMotion, setPlayingMotion] = useState<WardrobeMascotMotion | null>(null);
+  const [nextMotionIndex, setNextMotionIndex] = useState(0);
+  const [reducedMotion, setReducedMotion] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   const gridRef = useRef<HTMLDivElement | null>(null);
+  const previewRef = useRef<HTMLDivElement | null>(null);
+  const characterRef = useRef<HTMLButtonElement | null>(null);
+  const motionFrameRef = useRef(0);
+  const motionLockedRef = useRef(false);
+  const pointerStartRef = useRef<{ id: number; x: number; y: number; dragged: boolean } | null>(null);
+  const suppressClickRef = useRef(false);
   const requestRef = useRef<{ itemId: WardrobeItemId; key: string } | null>(null);
 
   const refresh = () => {
@@ -83,6 +94,23 @@ export default function MascotWardrobe() {
   };
 
   useEffect(refresh, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => {
+      setReducedMotion(media.matches);
+      if (media.matches) {
+        cancelAnimationFrame(motionFrameRef.current);
+        characterRef.current?.style.setProperty("transform", "translate3d(0, 0, 0)");
+        previewRef.current?.style.setProperty("--wardrobe-effect-opacity", "0");
+        previewRef.current?.style.setProperty("--wardrobe-effect-rise", "0px");
+        motionLockedRef.current = false;
+        setPlayingMotion(null);
+      }
+    };
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
 
   const exactCurrentLook = Boolean(preview && state && isSelectionEqual(preview, state.equipped));
   const skin = preview ? wardrobeItem(preview.skinId) : null;
@@ -102,6 +130,40 @@ export default function MascotWardrobe() {
     gridRef.current?.scrollTo({ left: 0, behavior: "auto" });
   }, [activeCategory]);
 
+  useEffect(() => {
+    if (!playingMotion) return;
+    const character = characterRef.current;
+    const stage = previewRef.current;
+    if (!character || !stage) return;
+    const duration = wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.durationMs;
+    let started: number | null = null;
+    const reset = () => {
+      character.style.transform = "translate3d(0, 0, 0)";
+      stage.style.setProperty("--wardrobe-effect-opacity", "0");
+      stage.style.setProperty("--wardrobe-effect-rise", "0px");
+    };
+    const tick = (now: number) => {
+      if (started === null) started = now;
+      const progress = Math.min(1, (now - started) / duration);
+      const pose = sampleWardrobeMascotMotion(playingMotion, progress);
+      character.style.transform = wardrobeMascotTransform(pose);
+      stage.style.setProperty("--wardrobe-effect-opacity", String(pose.effectOpacity));
+      stage.style.setProperty("--wardrobe-effect-rise", `${pose.effectRise}px`);
+      if (progress < 1) motionFrameRef.current = requestAnimationFrame(tick);
+      else { reset(); motionLockedRef.current = false; setPlayingMotion(null); }
+    };
+    motionFrameRef.current = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(motionFrameRef.current); reset(); motionLockedRef.current = false; };
+  }, [playingMotion]);
+
+  const playMascotMotion = () => {
+    if (motionLockedRef.current || playingMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    motionLockedRef.current = true;
+    const next = wardrobeMascotMotions[nextMotionIndex];
+    setPlayingMotion(next.id);
+    setNextMotionIndex((value) => (value + 1) % wardrobeMascotMotions.length);
+  };
+
   const scrollToPage = (pageIndex: number) => {
     const grid = gridRef.current;
     if (!grid) return;
@@ -111,6 +173,8 @@ export default function MascotWardrobe() {
 
   const chooseItem = (item: MascotWardrobeItem) => {
     if (!preview) return;
+    motionLockedRef.current = false;
+    setPlayingMotion(null);
     if (item.category === "accessory") {
       const accessoryId = item.id as WardrobeSelection["accessoryIds"][number];
       setPreview({
@@ -193,17 +257,36 @@ export default function MascotWardrobe() {
 
   return (
     <section className="mascot-wardrobe" aria-label={locale === "zh" ? "小猫衣橱" : "Cat wardrobe"}>
-      <div className={`mascot-wardrobe-preview is-${background.previewClass}`}>
+      <div className={`mascot-wardrobe-preview is-${background.previewClass}`} ref={previewRef}>
         {background.art && <img className="mascot-wardrobe-background" src={background.art} alt="" draggable={false} />}
         <div className="mascot-wardrobe-preview-lines" aria-hidden="true" />
         <div className="mascot-wardrobe-status">
           <div><span>{exactCurrentLook ? (locale === "zh" ? "当前搭配" : "Current look") : (locale === "zh" ? "正在试穿" : "Trying on")}</span><span>{previewOwned ? (locale === "zh" ? "已拥有" : "Owned") : (locale === "zh" ? "未拥有" : "Locked")}</span></div>
           <strong aria-label={locale === "zh" ? `当前有 ${state.balance} 积分` : `${state.balance} points`}><Coins size={14} aria-hidden="true" />{state.balance}</strong>
         </div>
-        <div className="mascot-wardrobe-character" aria-label={summary}>
+        <button className="mascot-wardrobe-character" ref={characterRef} type="button" disabled={reducedMotion} aria-disabled={playingMotion ? true : undefined}
+          onClick={() => { if (suppressClickRef.current) { suppressClickRef.current = false; return; } playMascotMotion(); }}
+          onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") suppressClickRef.current = false; }}
+          onPointerDown={(event) => { suppressClickRef.current = false; pointerStartRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, dragged: false }; }}
+          onPointerMove={(event) => {
+            const start = pointerStartRef.current;
+            if (start?.id === event.pointerId && Math.abs(event.clientX - start.x) > 12 && Math.abs(event.clientX - start.x) > Math.abs(event.clientY - start.y) * 1.2) start.dragged = true;
+          }}
+          onPointerUp={(event) => { if (pointerStartRef.current?.id === event.pointerId) suppressClickRef.current = pointerStartRef.current.dragged; pointerStartRef.current = null; }}
+          onPointerCancel={() => { pointerStartRef.current = null; suppressClickRef.current = false; }}
+          aria-label={reducedMotion
+            ? (locale === "zh" ? `小猫静态预览，已开启减少动态效果。当前搭配：${summary}` : `Still cat preview; reduced motion is on. Current look: ${summary}`)
+            : playingMotion
+              ? (locale === "zh" ? `小猫正在${wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.label.zh}` : `The cat is playing ${wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.label.en}`)
+              : (locale === "zh" ? `点按小猫播放${wardrobeMascotMotions[nextMotionIndex].label.zh}，当前搭配：${summary}` : `Tap the cat to ${wardrobeMascotMotions[nextMotionIndex].label.en}. Current look: ${summary}`)}
+          data-motion={playingMotion ?? "rest"}>
           <img className="mascot-wardrobe-skin" src={skin.art} alt="" draggable={false} />
           {accessories.map((accessory) => accessory.art && <img key={accessory.id} className="mascot-wardrobe-accessory" src={accessory.art} alt="" draggable={false} />)}
-        </div>
+        </button>
+        <WardrobeMascotEffect motion={playingMotion} />
+        <span className="mascot-wardrobe-motion-hint">{reducedMotion
+          ? (locale === "zh" ? "已开启减少动态效果" : "Reduced motion is on")
+          : (locale === "zh" ? "点按小猫，看看它的动作" : "Tap the cat to see it move")}</span>
         <div className="mascot-wardrobe-look-summary">
           <strong>{summary}</strong>
           <span>{exactCurrentLook ? (locale === "zh" ? "当前穿戴" : "Wearing") : (locale === "zh" ? "试穿预览" : "Preview")}</span>
