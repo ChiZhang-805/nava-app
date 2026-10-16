@@ -2,6 +2,9 @@
 
 ## 小猫衣橱点击动作与转身验收（2026-10-16）
 
+最新美术探索见 `CODEX_HANDOFF_CURRENT.md` §172：雾紫贝雷帽已画佩戴/独立结构多视图，位于
+`src/assets/mascot/reference/nava-beret-*-v1.*`。这是用户要求先审看的概念设计，未替换当前生产GLB。
+
 当前围巾精修与发布状态以 `CODEX_HANDOFF_CURRENT.md` §171 为准，一屏布局见§170，角色母版历史见§169。用户已选择无阴影效果；
 原 v256 造型遭否定，已替换为用户 Meshy 模型的精修、重新 UV 和骨骼绑定版本。
 原始输入 `E:/D/DirMove/Downloads/model.glb` 保持不变。
