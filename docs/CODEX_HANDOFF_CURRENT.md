@@ -9,7 +9,7 @@
 聊天记录。新任务必须以代码、数据库边界和本文件为准，不要根据旧聊天画面
 推断进度。
 
-## 170. 衣橱饰品贴合与一屏兑换（已验证，待双站发布）
+## 170. 衣橱饰品贴合与一屏兑换（已发布 v258）
 
 用户本轮认可小猫整体，要求修饰品穿体，尤其云蓝围巾，并移除转身提示、缩短预览，保证兑换一屏可见。
 采用本地Blender修复。小猫GLB未改，仍为§169的SHA256；无阴影材质及四段骨骼动作保留。
@@ -44,7 +44,22 @@
   被外层覆盖的接触仍存在，不能声称所有衣料数学上完全互不相交。
 - `npm run verify`已执行；第8项出现networkidle超时、第33项出现Supabase临时DNS失败，
   两项单独重试成功；按原verify.ps1继续执行剩余门禁，所有检查项完成。最终新增脚本lint通过。
-  发布前仍须最终构建、生产认证校验、两站同源发布与线上核验。
+  最终干净源码构建与生产认证合同通过；Supabase项目正确，公共demo旁路关闭，Phone OTP函数可达。
+- 团队实际打开全部17件静态与动作检查板，含修正查看器后的四动作关键姿态；未发现新的可见发布阻塞。
+
+### 双站发布
+
+- 功能源码：`5bc911d06b1e50c154fc22418b325e2d92b85980`，先提交并推送，再从同一干净源码分别构建两站。
+- Sites v258：`appgprj_6a5de710811c8191af8ce2681358d518~appgver_bb1a09c8f6488191a7cec5ac686ef4df`；
+  deployment `appgdep_6ad1f9b990b08191892a0ad50f172a9d`，状态succeeded，原public访问配置未改。
+- Pages镜像：`273b1e8ac58d479f79e27613714ba317b219149c`；Actions `38886362617` success。
+  271个当前生成文件单向复制并核对，历史未引用文件保留。
+- 两站`source.json`均指向功能源码；每站25项模型/衣橱模块/缩略图/入口与本地产物SHA一致。
+  四尺寸×两站共8个未登录入口均走真实登录，`?demo=1`不能打开衣橱，无横向溢出或页面异常。
+  线上报告：`release/public-report.json`；发布包：
+  `Q:/NAVA-Workspace/Build/Sites/Packages/nava-wardrobe-accessory-fit-v258.tar.gz`。
+- [ChatGPT Sites](https://nava-app-preview-cz.chizhang1031.chatgpt.site)
+  / [GitHub Pages](https://chizhang-805.github.io/nava-app-preview/)。
 
 证据根目录：`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-accessory-fit-v258`；最终APP报告/截图在`release/`。
 旧scratch查看器的AnimationMixer根节点曾错误指向loader容器，其旧动作图已作废；

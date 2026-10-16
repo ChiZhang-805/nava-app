@@ -62,7 +62,12 @@ Blender 路径：`Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blen
 `wardrobe-rig-v257-final/motion`、`mascot-rebuild-research/refined-cat`、
 `mascot-rebuild-research/mask-artifact-audit`、`mascot-rebuild-research/integration-audit`。
 软件 WebGL 不代表实际 iPhone GPU 帧率/耗电；最终美术仍待用户审看。
-真实生产账户衣橱写入本轮未执行，数据与认证合同未改；双站发布情况见总交接 §169。
+真实生产账户衣橱写入本轮未执行，数据与认证合同未改；双站发布情况见总交接 §170。
+
+当前饰品/一屏布局已发布 v258，功能源码 `5bc911d06b1e50c154fc22418b325e2d92b85980`。
+Sites部署成功、Pages Actions `38886362617`成功；每站25项资源与本地同SHA、两站共8个登录边界通过。
+最终构建与生产认证合同通过；完整verify中的两次临时网络失败均在不改代码的重试中通过。
+15个布局场景及80个搭配/角度/动作组合通过；原小猫GLB保持不变。
 
 上一稳定发布为 v257，功能源码 `7dadacc18f94e9b2cc3b559b6994de7f1a794075`。该版完整 verify、生产认证合同、
 四尺寸衣橱/动作检查通过；两站线上各 25 项资源与本地同哈希，8 个登录边界截图通过。
