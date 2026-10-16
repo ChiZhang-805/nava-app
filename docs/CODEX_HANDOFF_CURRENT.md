@@ -9,7 +9,7 @@
 聊天记录。新任务必须以代码、数据库边界和本文件为准，不要根据旧聊天画面
 推断进度。
 
-## 169. 小猫衣橱四段点击动作与连续立体转身（本轮发布核验中）
+## 169. 小猫衣橱四段点击动作与连续立体转身（已发布 v256）
 
 桌面22段GIF只作风格和节奏参考；主页静态GIF与各主题首帧已存在11%–18%的缩略画面差异，不能
 直接接到当前衣橱静态图。衣橱现由同一角色层呈现正在试穿的皮肤和全部饰品，点击时依序播放
@@ -46,16 +46,19 @@ PNG及点击动作。加载中的取消会中止请求并立即释放context；c
 补跑TypeScript、lint、生产build、生产认证合同与衣橱专项。认证仍为canonical项目、公开demo关闭、
 会话仅当前标签页；未检查真实iPhone GPU表现或SMTP投递。
 
-上一版发布锚点（本轮新版本发布核验中）：功能源码`2958f42c09343a8eee1326e79b4760f72e64afb6`已干净推送GitHub main与原Sites源仓。
-ChatGPT Sites沿用既有公开项目，v255版本
-`appgprj_6a5de710811c8191af8ce2681358d518~appgver_f524f13da14c819189f36299eb6a2214`、部署
-`appgdep_6ad112dbb7108191aebb8934b2b07cc6`均为succeeded；系统tar归档由同一源码构建，Sites验收381个文件。
-GitHub Pages镜像提交`58bafd66d2f81dfc2f0d93439e30c03d5eb253fd`，workflow`38781327696`成功；
-`source.json`指向同一源码及v255。当前266个Pages生成文件、80,667,040字节与本地产物逐文件SHA-256
-一致；两站线上衣橱JS与CSS也分别和本地同哈希。镜像另外保留18个上版已不被引用的哈希文件：
-自动审批拒绝清除，未给出具体原因，故未绕过审批或声称目录完全相同。发布后门禁通过58个结果、381项
-检查和56张截图；两站四档公开登录门、`?demo=1`拒绝、资源、共享Supabase项目
-`wxteapvwagvhhtrjrbim`均已验证。证据位于`Q:/NAVA-Workspace/Build/TestRuns/v255-postdeploy`。
+发布锚点：功能源码`3cf48d71de5f9664629f46535eff29df2508dd89`已干净推送GitHub main与原Sites源仓，
+两站由该同一提交构建。ChatGPT Sites沿用既有公开项目，v256版本
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_7c10a63de87081918f24385bd4e97e9b`、部署
+`appgdep_6ad19eeb8fe08191b8880c2ec3476b65`均为succeeded；归档内385个文件逐项与构建产物同哈希。
+GitHub Pages镜像提交`cf4449c85338901a12b9c8e30482cd9d41900e8c`，workflow`38848744888`成功；
+`source.json`指向同一源码及v256。当前270个Pages生成文件、85,557,386字节与本地产物逐文件SHA-256
+一致；镜像继续保留未引用的历史哈希文件，本轮未清理，不声称整个目录完全相同。
+两站线上衣橱JS/CSS、角色GLB、饰品GLB、场景与转身模块共6项资源均与当前本地产物同哈希；
+入口与认证配置也一致。发布后门禁通过58个结果、381项检查和56张截图，两站四档公开登录门、
+`?demo=1`拒绝、资源、共享Supabase项目`wxteapvwagvhhtrjrbim`均已验证。
+证据位于`Q:/NAVA-Workspace/Build/TestRuns/v256-postdeploy`，归档/镜像清单和线上资源同源报告位于
+`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-turntable-release`。衣橱交互在本地隔离demo验收，
+未使用真实生产账户执行衣橱操作；线上资源一致性和未登录边界已单独验证。发布后仅补记本文档。
 
 ## 168. 自然招手透明动作母版（待用户审看，未接入 APP）
 
