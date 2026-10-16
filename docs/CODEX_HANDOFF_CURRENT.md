@@ -9,7 +9,7 @@
 聊天记录。新任务必须以代码、数据库边界和本文件为准，不要根据旧聊天画面
 推断进度。
 
-## 171. 围巾柔软厚度、褶皱与随动（发布准备）
+## 171. 围巾柔软厚度、褶皱与随动（已发布 v259）
 
 用户接受v258一屏布局，要求云蓝围巾摆脱硬带和扁平垂尾，精修厚度、柔软弧度、褶皱以及转身/动作贴合。
 采用本地Blender精修；小猫、布局、17物品ID、多选兑换、积分和认证合同均未改。
@@ -31,6 +31,7 @@
 - 正式editable.blend独立重导与生产GLB逐字节一致，全部默认morph权重为零。
   `scripts/mascot-models/nava-cat-rigged/`增加可移植build_soft_scarves.py及surface-envelope.json，
   从最终母版自身即可重建，导出器不依赖外部研究目录；具体使用见该目录README。
+  可移植重建对照17组/51 primitive/91个POSITION与morph数组，共1,093,920个数值完全一致。
 
 ### 已完成验证
 
@@ -42,9 +43,27 @@
 - 实际APP正面/45°/桌面三图逐张打开，无route override；实际加载最终SHA，未见新增明显穿模或面罩白丝。
   多角度三单件、72动作图、最终128叠穿图及12上下角度图已人工复核；细褶在手机尺寸较轻，
   圆边、中央前垂和S形尾部可辨。低角度局部留有动作包络余量，不宣称处处贴肤。
+- 最终GLB新导入后，41真实骨骼姿态×3围巾×4层=492组，检查全部顶点和三角面中心；
+  另测60组双cloth权重[1,1]极值（每4点采样），共552组无超过0.0015模型单位的确认穿体点。
+  属于有限姿态采样，不是连续碰撞证明；14件旧Basis世界坐标与面数逐项相同。
+  技术硬门禁通过；8退化面/4零长边均来自未修改的旧星星眼镜，新三围巾均为0。
 - `npm run verify`全33项一次通过（最终运行时代码、旧饰品资产），最终资产接入后另跑上述全部衣橱门禁、lint及文件扫描。
   生产认证合同通过，Supabase项目正确、公共demo旁路关闭、Phone OTP函数可达；未重新实测短信送达或SMTP配置。
-  最终干净源码构建及双站发布结果将在下面补记。
+  最终干净已推送源码的Sites/Pages构建均通过。
+
+### 双站发布
+
+- 功能源码：`efe9eadf473738ab6df88013ee3304befdd7b73c`，两站均从同一干净已推送源码构建。
+- Sites v259：`appgprj_6a5de710811c8191af8ce2681358d518~appgver_b1d815c40c9c8191b8ac4e866d210400`；
+  deployment `appgdep_6ad21343f820819198261736771b25d0` succeeded，原public访问配置不变。
+- Pages镜像：`fee3c25be5a92012a7162b11dadf96805a3e6077`；Actions `38898249446` success。
+  271个当前生成文件单向复制并逐文件核对，历史未引用产物保留。
+- 两站source.json均为功能源码；每站25项模型/模块/缩略图/入口与本地产物SHA一致。
+  四尺寸×两站共8个未登录入口真实登录路由通过，公共demo旁路关闭，无横向溢出或页面异常。
+  报告：`release/public-report.json`。未使用生产账号执行兑换或修改用户数据。
+- 包：`Q:/NAVA-Workspace/Build/Sites/Packages/nava-scarf-softness-v259.tar.gz`。
+- [ChatGPT Sites](https://nava-app-preview-cz.chizhang1031.chatgpt.site)
+  / [GitHub Pages](https://chizhang-805.github.io/nava-app-preview/)。
 
 证据根目录：`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-scarf-softness-v259`；
 `qa/final-v9-app-report.json`为真实APP截图报告，`release/`为最终运行时门禁。
