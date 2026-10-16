@@ -87,6 +87,9 @@ test("all existing skins and accessories have explicit 3D representations", () =
     "all accessories together must stay within the mobile draw-call budget");
   const names = model.nodes.filter((node: { name?: string }) => node.name?.startsWith("accessory-")).map((node: { name: string }) => node.name);
   assert.deepEqual(names.sort(), ids.sort());
+  for (const item of [...model.nodes, ...model.meshes]) {
+    assert.ok((item.weights ?? []).every((weight: number) => weight === 0), "an independent GLB load must start in the unstacked, still cloth shape");
+  }
   for (const node of model.nodes.filter((node: { name?: string }) => node.name?.startsWith("accessory-"))) {
     assert.ok(node.children.length > 0, `${node.name} needs actual geometry`);
     assert.ok(anchorNames.has(node.extras?.followAnchor), `${node.name} needs its fitted attachment bone`);
@@ -98,9 +101,12 @@ test("all existing skins and accessories have explicit 3D representations", () =
       pending.push(...(child.children ?? []));
       if (child.mesh === undefined) continue;
       const mesh = model.meshes[child.mesh];
-      assert.deepEqual(mesh.extras?.targetNames, ["stack_1", "stack_2", "stack_3"], `${node.name}: every cloth, trim and pendant mesh needs all fitted layers`);
+      const names: string[] = mesh.extras?.targetNames ?? [];
+      assert.ok(["stack_1", "stack_2", "stack_3"].every((name) => names.includes(name)), `${node.name}: every cloth, trim and pendant mesh needs all fitted layers`);
+      const scarf = ["accessory-cloud-scarf", "accessory-aurora-scarf", "accessory-honey-neck-warmer"].includes(node.name);
+      if (scarf) assert.ok(["cloth_relax", "cloth_lift"].every((name) => names.includes(name)), `${node.name}: preserve cloth motion channels`);
       for (const primitive of mesh.primitives) {
-        assert.equal(primitive.targets?.length, 3, `${node.name}: export must retain fitted layer geometry`);
+        assert.equal(primitive.targets?.length, names.length, `${node.name}: export must retain all named shapes`);
         assert.ok(primitive.targets.every((target: { POSITION?: number }) => target.POSITION !== undefined));
       }
     }

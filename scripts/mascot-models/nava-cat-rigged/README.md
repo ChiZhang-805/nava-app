@@ -5,6 +5,7 @@
 - `nava-accessories-editable.blend`：按同一猫坐标适配的17件饰品，内嵌披肩颜色图，保留物品ID、挂点及三层叠穿shape keys。
 - `export_from_blend.py`：从母版独立导出生产GLB；默认参数指向本目录资产，也可显式传入路径。
 - `export_accessories_from_blend.py`：从饰品母版独立导出，不依赖研究目录或外部贴图。
+- `build_soft_scarves.py` + `surface-envelope.json`：重建三种柔软围巾及叠穿形状；包络来自当前小猫四段真实动作，其他14件基形保留。
 
 ```powershell
 & 'Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blender.exe' --background --factory-startup --python scripts/mascot-models/nava-cat-rigged/export_from_blend.py -- --output src/assets/mascot/models/nava-wardrobe-cat.glb
@@ -22,13 +23,23 @@ node scripts/mascot-models/render_wardrobe_thumbnails.mjs
 & 'Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blender.exe' --background --factory-startup --python scripts/mascot-models/nava-cat-rigged/export_accessories_from_blend.py -- --source scripts/mascot-models/nava-cat-rigged/nava-accessories-editable.blend --output src/assets/mascot/models/nava-wardrobe-accessories.glb
 ```
 
-饰品为5,559,856字节、55 primitive、17物品；独立重导SHA256为
-`6cf00f58eb4cf4d967f85ec37da502e18fc5ab3b077d9ddaa8b802c6012d96f3`，与生产文件一致。
+饰品为10,030,304字节、51 primitive、17物品；独立重导SHA256为
+`c70f7d1ab4df92c87116f61bc29874dda80dd794a0ef71b66bff3db15119bfab`，与生产文件一致。
 下胸饰品的 `followAnchor` 为Body，头饰为Anchor_Head。不要将下胸围巾挂回随Head的Anchor_Chest。
 四种颈饰的每个网格都有 `stack_1/2/3`；运行时按stackOrder选择形状，不能直接上下平移。
-铃铛order4，位于所选围巾外侧；单穿使用基形，换装必须清零旧形变。全部形状以四动作表面包络拟合。
-完整构建脚本、冻结输入、包络和多角度证据保留在
-`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-accessory-fit-v258`。
+铃铛order4，位于所选围巾外侧；单穿使用基形。三围巾增加 `cloth_relax/cloth_lift`，云蓝/极光的垂尾做小幅附加变形，蜂蜜无垂尾因此为零。
+运行时按动作进度驱动，首末位置和速度均为零；换装先清理旧层级，再恢复当前布料动作，隐藏组归零。
+保存与导出时所有shape key权重均为零。叠穿按内侧支撑面给相同角度/高度的内外层同一径向位移，保留厚度；不要逐顶点max压平到前一层表面。
+布料颜色使用 `clothVolume` → 材质Base Color → GLB `COLOR_0`；独立导出保留顶点色，APP的MeshBasicMaterial必须开启vertexColors。
+
+可编辑重建（输出到项目证据目录，避免覆盖当前母版）：
+
+```powershell
+& 'Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blender.exe' --background --factory-startup --python scripts/mascot-models/nava-cat-rigged/build_soft_scarves.py -- --source scripts/mascot-models/nava-cat-rigged/nava-accessories-editable.blend --envelope scripts/mascot-models/nava-cat-rigged/surface-envelope.json --output-blend Q:/NAVA-Workspace/Build/TestRuns/scarf-rebuild/rebuilt.blend --output-glb Q:/NAVA-Workspace/Build/TestRuns/scarf-rebuild/rebuilt.glb
+```
+
+新造型、真动作、叠穿及APP证据保留在 `Q:/NAVA-Workspace/Build/TestRuns/wardrobe-scarf-softness-v259`。
+v258完整历史输入保留在 `Q:/NAVA-Workspace/Build/TestRuns/wardrobe-accessory-fit-v258`。
 
 ## 坐标与动作
 

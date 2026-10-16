@@ -45,9 +45,9 @@ const report = {
   sourceStatus: execFileSync('git', ['status', '--short'], { cwd: repository, encoding: 'utf8' }).trim(),
   runtimeSourceSha256: createHash('sha256').update(await readFile(resolve(repository, 'src/services/wardrobeScene.ts'))).digest('hex'),
   method: 'Real /src/services/wardrobeScene.ts imported through Vite; native 512x512 transparent canvas, DPR1, unchanged runtime orthographic camera. Immediate WebGL readPixels compares all RGBA bytes. A temporary read-only Scene.onBeforeRender observer captures the real scene graph, then restores the hook. No model or render state is substituted.',
-  coverage: { combinations: combinations.length, angles, motions, progress: [0, .42, 1], expectedMotionCases: 80, expectedMotionFrames: 240, resetSequences: 20 },
+  coverage: { combinations: combinations.length, angles, motions, progress: [0, .42, 1], expectedMotionCases: 80, expectedMotionFrames: 240, resetSequences: 20, motionLookSequences: 20, cancellationChecks: 60 },
   limitations: 'Key poses only; exact endpoints and sampled attachment/morph states do not establish continuous collision freedom. Visual inspection of saved PNGs remains required.',
-  loadedAssets: [], assetContract: null, camera: null, cases: [], resets: [], errors: [],
+  loadedAssets: [], assetContract: null, camera: null, cases: [], resets: [], motionLookChanges: [], cancellations: [], errors: [],
 };
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
@@ -101,6 +101,7 @@ try {
     const match = source.match(/import\s+\*\s+as\s+THREE\s+from\s+["']([^"']+)["']/);
     if (!match) throw new Error('Could not resolve the real runtime THREE module');
     const THREE = await import(match[1]);
+    const { sampleWardrobeClothMotion } = await import('/src/services/wardrobeClothMotion.ts');
     const originalRender = THREE.Scene.prototype.onBeforeRender;
     let actualScene, actualCamera;
     THREE.Scene.prototype.onBeforeRender = function (renderer, scene, camera, target) {
@@ -131,17 +132,49 @@ try {
         if (!(object instanceof THREE.Mesh)) return;
         const targets = Object.keys(object.morphTargetDictionary ?? {});
         if (!object.morphTargetInfluences || !['stack_1', 'stack_2', 'stack_3'].every((name) => targets.includes(name))) contractFailures.push(`${group.name}/${object.name}: stack_1/2/3 not present on this actual loaded mesh`);
-        meshes.push({ name: object.name, targets, vertexCount: object.geometry.getAttribute('position').count });
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        const hasColor = object.geometry.hasAttribute('color');
+        const color = object.geometry.getAttribute('color');
+        const colorMin = [1, 1, 1], colorMax = [0, 0, 0];
+        if (color) for (let vertex = 0; vertex < color.count; vertex++) {
+          for (const [channel, value] of [color.getX(vertex), color.getY(vertex), color.getZ(vertex)].entries()) {
+            colorMin[channel] = Math.min(colorMin[channel], value);
+            colorMax[channel] = Math.max(colorMax[channel], value);
+          }
+        }
+        if (materials.some((material) => !material.isMeshBasicMaterial || (hasColor && !material.vertexColors))) contractFailures.push(`${group.name}/${object.name}: unlit vertex color material not preserved`);
+        const clothDeltaMax = {};
+        for (const name of ['cloth_relax', 'cloth_lift']) {
+          const index = object.morphTargetDictionary?.[name];
+          const attribute = object.geometry.morphAttributes.position?.[index];
+          if (!attribute) continue;
+          let max = 0;
+          const position = object.geometry.getAttribute('position');
+          for (let vertex = 0; vertex < attribute.count; vertex++) {
+            const x = attribute.getX(vertex) - (object.geometry.morphTargetsRelative ? 0 : position.getX(vertex));
+            const y = attribute.getY(vertex) - (object.geometry.morphTargetsRelative ? 0 : position.getY(vertex));
+            const z = attribute.getZ(vertex) - (object.geometry.morphTargetsRelative ? 0 : position.getZ(vertex));
+            max = Math.max(max, Math.hypot(x, y, z));
+          }
+          clothDeltaMax[name] = max;
+        }
+        meshes.push({ name: object.name, targets, clothDeltaMax, vertexCount: object.geometry.getAttribute('position').count, hasVertexColors: hasColor, colorChannelRanges: hasColor ? colorMax.map((value, channel) => value - colorMin[channel]) : null, materials: materials.map((material) => ({ type: material.type, vertexColors: material.vertexColors })) });
       });
       if (!meshes.length) contractFailures.push(`${group.name}: no child meshes`);
+      if (['accessory-cloud-scarf', 'accessory-aurora-scarf'].includes(group.name)) {
+        for (const target of ['cloth_relax', 'cloth_lift']) if (!meshes.some((mesh) => mesh.clothDeltaMax[target] > .001)) contractFailures.push(`${group.name}: ${target} must actually bend geometry`);
+        if (!meshes.some((mesh) => mesh.colorChannelRanges?.some((range) => range > .02))) contractFailures.push(`${group.name}: missing authored unlit cloth color variation`);
+      }
       return { id: group.name, anchor: anchorName, stackOrder: group.userData.stackOrder, meshes };
     });
     for (const id of requiredIds) if (!neckwear.some((group) => group.name === id)) contractFailures.push(`${id}: missing neckwear root`);
     const pixels = new Map();
     let currentIds = [];
+    let currentMotion = null, currentProgress = 0;
     const cameraState = () => ({ type: actualCamera.type, left: actualCamera.left, right: actualCamera.right, top: actualCamera.top, bottom: actualCamera.bottom, near: actualCamera.near, far: actualCamera.far, position: actualCamera.position.toArray(), quaternion: actualCamera.quaternion.toArray() });
     const graphState = () => {
       const failures = [];
+      const clothPose = sampleWardrobeClothMotion(currentMotion, currentProgress);
       const selected = neckwear.filter((group) => currentIds.includes(group.name)).sort((a,b) => Number(a.userData.stackOrder) - Number(b.userData.stackOrder));
       const states = neckwear.map((group) => {
         const anchorName = group.userData.followAnchor;
@@ -164,7 +197,7 @@ try {
           const influences = object.morphTargetInfluences ?? [];
           const active = Object.entries(dictionary).filter(([,index]) => influences[index] !== 0).map(([name,index]) => ({ name, weight: influences[index] }));
           for (const [name,index] of Object.entries(dictionary)) {
-            const expected = group.visible && name === desired ? 1 : 0;
+            const expected = !group.visible ? 0 : name in clothPose ? clothPose[name] : name === desired ? 1 : 0;
             if (influences[index] !== expected) failures.push(`${group.name}/${object.name}: ${name}=${influences[index]}, expected ${expected}`);
           }
           if (desired && group.visible && dictionary[desired] === undefined) failures.push(`${group.name}/${object.name}: missing requested ${desired}`);
@@ -177,7 +210,7 @@ try {
     window.__neckwear = {
       runtime, controller, cameraState,
       select(ids, angle) { currentIds = [...ids]; runtime.setLook(skin, ids); runtime.setAngle(angle); },
-      motion(id, progress) { runtime.setMotion(id, progress); },
+      motion(id, progress) { currentMotion = id; currentProgress = progress; runtime.setMotion(id, progress); },
       highestRank(ids) { return [...ids].sort((a,b) => Number(groups.find((group) => group.name === a).userData.stackOrder) - Number(groups.find((group) => group.name === b).userData.stackOrder)).at(-1); },
       async snapshot({ baselineKey, remember = false, withPng = true }) {
         const rendered = runtime.render();
@@ -246,11 +279,48 @@ try {
     }
     reset.exactRestoration = reset.frames[2].changedPixels === 0;
     report.resets.push(reset);
+
+    // Do not call setMotion between these look changes: doing so would hide a
+    // setLook implementation that discards the current cloth deformation.
+    const motionKey = `motion-look:${combination.id}:${angle}`;
+    const motionLook = { combination: combination.id, angle, frames: [] };
+    await page.evaluate(({ ids, angle }) => {
+      window.__neckwear.select(ids, angle); window.__neckwear.motion('starlight', .42);
+    }, { ids: combination.ids, angle });
+    for (const stage of ['before', 'same-look', 'single', 'restored']) {
+      const snapshot = await page.evaluate(async ({ ids, angle, stage, key, cloud }) => {
+        if (stage !== 'before') window.__neckwear.select(stage === 'single' ? [cloud] : ids, angle);
+        return window.__neckwear.snapshot({ baselineKey: key, remember: stage === 'before', withPng: false });
+      }, { ids: combination.ids, angle, stage, key: motionKey, cloud });
+      inspectSnapshot(snapshot, `${combination.id}/${angle}/motion-look-${stage}`);
+      if (['same-look', 'restored'].includes(stage) && snapshot.changedPixels !== 0) report.errors.push(`${combination.id}/${angle}: ${stage} changed the current action frame`);
+      motionLook.frames.push({ stage, ...snapshot });
+    }
+    report.motionLookChanges.push(motionLook);
+
+    // Explicit cancellation, start and end must clear cloth bends while
+    // retaining the selected stack. A later setLook must not revive them.
+    const cancelKey = `cancel-rest:${combination.id}:${angle}`;
+    await page.evaluate(async (key) => {
+      window.__neckwear.motion(null, 0);
+      await window.__neckwear.snapshot({ baselineKey: key, remember: true, withPng: false });
+    }, cancelKey);
+    for (const [id, progress] of [[null, .42], ['starlight', 0], ['starlight', 1]]) {
+      const snapshot = await page.evaluate(async ({ id, progress, ids, angle, key }) => {
+        window.__neckwear.motion('starlight', .42);
+        window.__neckwear.motion(id, progress);
+        window.__neckwear.select(ids, angle);
+        return window.__neckwear.snapshot({ baselineKey: key, withPng: false });
+      }, { id, progress, ids: combination.ids, angle, key: cancelKey });
+      inspectSnapshot(snapshot, `${combination.id}/${angle}/cancel-${id}-${progress}`);
+      if (snapshot.changedPixels !== 0) report.errors.push(`${combination.id}/${angle}: cancellation/endpoints did not restore exact cloth rest`);
+      report.cancellations.push({ combination: combination.id, angle, id, progress, ...snapshot });
+    }
     await writeFile(resolve(output, 'report.json'), JSON.stringify(report, null, 2));
     console.log(JSON.stringify({ combination: combination.id, angle, endpointCases: 4, resetExact: reset.exactRestoration, errorsSoFar: report.errors.length }));
   }
   await Promise.all(assetReads);
-  report.passed = report.errors.length === 0 && report.cases.length === 80 && report.resets.length === 20;
+  report.passed = report.errors.length === 0 && report.cases.length === 80 && report.resets.length === 20 && report.motionLookChanges.length === 20 && report.cancellations.length === 60;
 } catch (error) {
   report.errors.push(error.stack ?? String(error));
 } finally {

@@ -4,6 +4,7 @@ import type { WardrobeAccessoryId, WardrobeSkinId } from "./mascotWardrobe";
 import { normalizeWardrobeAngle, wardrobeFurPalettes } from "./wardrobeTurntable";
 import { wardrobeMascotMotions, type WardrobeMascotMotion } from "./wardrobeMascotMotion";
 import { createWardrobeProps } from "./wardrobeProps";
+import { sampleWardrobeClothMotion, wardrobeClothTargets } from "./wardrobeClothMotion";
 
 const modelUrl = new URL("../assets/mascot/models/nava-wardrobe-cat.glb", import.meta.url).href;
 const accessoriesUrl = new URL("../assets/mascot/models/nava-wardrobe-accessories.glb", import.meta.url).href;
@@ -169,6 +170,7 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
     if (object instanceof THREE.Bone) boneRest.push({ bone: object, position: object.position.clone(), quaternion: object.quaternion.clone(), scale: object.scale.clone() });
   });
   let activeMotion: WardrobeMascotMotion | null = null;
+  let clothPose = sampleWardrobeClothMotion(null, 0);
   const props = createWardrobeProps(cat);
   yaw.add(props.group);
 
@@ -203,7 +205,7 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
     group.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       const old = Array.isArray(object.material) ? object.material : [object.material];
-      const next = old.map((material: THREE.MeshStandardMaterial) => new THREE.MeshBasicMaterial({ color: material.color, map: material.map, side: material.side, transparent: material.transparent, opacity: material.opacity }));
+      const next = old.map((material: THREE.MeshStandardMaterial) => new THREE.MeshBasicMaterial({ color: material.color, map: material.map, vertexColors: material.vertexColors, side: material.side, transparent: material.transparent, opacity: material.opacity }));
       object.material = Array.isArray(object.material) ? next : next[0];
       old.forEach((material) => material.dispose());
       object.castShadow = object.receiveShadow = false;
@@ -221,6 +223,15 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
       carrier.matrixAutoUpdate = false;
     }
     scene.updateMatrixWorld(true);
+  };
+  const updateCloth = () => {
+    for (const group of accessoryGroups.values()) group.traverse((object) => {
+      if (!(object instanceof THREE.Mesh) || !object.morphTargetInfluences) return;
+      for (const target of wardrobeClothTargets) {
+        const index = object.morphTargetDictionary?.[target];
+        if (index !== undefined) object.morphTargetInfluences[index] = group.visible ? clothPose[target] : 0;
+      }
+    });
   };
   let destroyed = false;
   let frame = 0;
@@ -270,6 +281,8 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
         mixer.update(0);
       }
       updateAttachments(!motion || at === 0 || at === 1);
+      clothPose = sampleWardrobeClothMotion(motion, at);
+      updateCloth();
       props.update(motion, at);
       cancelAnimationFrame(frame);
       draw();
@@ -311,6 +324,9 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
           }
         });
       }
+      // setLook may happen halfway through an action. Restore the current
+      // cloth bend after clearing old stack layers, without restarting it.
+      updateCloth();
       render();
     },
     render() { cancelAnimationFrame(frame); return draw(); },

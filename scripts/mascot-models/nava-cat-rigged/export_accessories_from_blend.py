@@ -20,6 +20,6 @@ for g in groups:
    assert all(n in o.data.shape_keys.key_blocks for n in ['stack_1','stack_2','stack_3'])
 bpy.ops.object.select_all(action='DESELECT');bpy.context.view_layer.update()
 output.parent.mkdir(parents=True,exist_ok=True)
-bpy.ops.export_scene.gltf(filepath=str(output),export_format='GLB',export_extras=True,export_animations=False,export_yup=True)
+bpy.ops.export_scene.gltf(filepath=str(output),export_format='GLB',export_extras=True,export_animations=False,export_yup=True,export_all_vertex_colors=True)
 data=output.read_bytes();doc=json.loads(data[20:20+int.from_bytes(data[12:16],'little')]);primitives=sum(len(m['primitives']) for m in doc['meshes']);assert primitives<=70
 print('Exported',str(output),len(data),'bytes;',primitives,'primitives')
