@@ -9,9 +9,9 @@
 聊天记录。新任务必须以代码、数据库边界和本文件为准，不要根据旧聊天画面
 推断进度。
 
-## 169. 小猫衣橱无阴影模型、贴图修复与骨骼动作（2026-10-16，发布候选）
+## 169. 小猫衣橱无阴影模型、贴图修复与骨骼动作（已发布 v257）
 
-用户否定的 v256 草模已被新资产取代。当前生产候选以用户提供的 Meshy
+用户否定的 v256 草模已被新资产取代。当前生产版本以用户提供的 Meshy
 `E:/D/DirMove/Downloads/model.glb` 为基础，保持已选择的无阴影外观；原件 SHA256
 `ECC582E973FD29A417E83619C76E522568C0593C1597451AB979F10E3A34EACD` 未改。
 早期失败草模、多视图推断、Meshy 原件检查与精修证据保留于
@@ -54,9 +54,30 @@ APP 验证：`wardrobe:test` 15 项；四手机尺寸、34 种外观 × 8 角度
 `wardrobe-rig-v257-final/motion` 及研究目录各专项。
 软件 WebGL 检查不等于真实 iPhone GPU 帧率/耗电验收；用户尚未对最终版本给出美术验收。
 
-发布前仍须完成全仓 verify、生产认证合同、双站同源发布及线上边界核验。
-当前线上仍为历史 v256，源码 `3cf48d71de5f9664629f46535eff29df2508dd89`；
-其旧技术验证不能作为新模型质量证据。双站地址保持原项目，不创建第二个 Sites 项目。
+### 发布与交接
+
+`npm run verify` 全部完成并退出 0；`auth:verify:production`、`profile:visual` 和衣橱专项通过。
+最终花朵位置下移至鼻边，补拍真实 APP 四段中段与侧面，运行无错误。
+功能源码 `7dadacc18f94e9b2cc3b559b6994de7f1a794075` 已干净推送 GitHub main 与既有 Sites 源仓，
+双站均由该同一提交构建。发布后仅补记交接文档，不改变运行资产。
+
+- ChatGPT Sites v257：版本
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_45863c9f881c81919139382bd49d69b5`，
+  部署 `appgdep_6ad1e3828dfc81918e121eae84c0358c` 为 succeeded；原公开项目和 URL 保持不变。
+- GitHub Pages 镜像提交 `9b32a3e1988c352e6b14dbeefe61c97fabbb785c`，
+  workflow `38875601411` success。271 个当前生成文件复制后逐项 SHA256 一致，旧未引用文件保留。
+- Sites 归档 386 个文件核对通过：hosting manifest 按 JSON 语义比较，其余逐字节一致。
+  打包工具的 Windows 兼容设置为 Git Bash 优先 PATH、`TAR_OPTIONS=--force-local`；
+  `build-site.mjs` 的 npm.cmd 入口失败后，使用现有 PowerShell `npm run build`，然后 source helper
+  以空 commands 推送/打包。没有修改插件代码或项目依赖。
+- 两站线上共各 25 个资源（模型、衣橱模块、17 张缩略图、入口及认证配置）与本地同 SHA256；
+  两站 `source.json` 都指向同一源码。四尺寸 × 两站共 8 个公开登录边界截图通过：`?demo=1`
+  不绕过登录，无横向溢出或 pageerror，canonical Supabase 项目保持 `wxteapvwagvhhtrjrbim`。
+
+最终证据：`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-rig-v257-final`，包括完整 verify 日志、
+动作门禁、归档清单、Pages 复制清单、线上资源/登录报告。衣橱交互是在本地隔离 demo 中验收，
+未用真实生产账户执行衣橱写入；SMTP 投递和真实手机 GPU 性能未测。原模型检查服务器 5277 保留；
+本轮 APP 开发服务器 5283 已停止，用户可从公开站点进入衣橱审看最终外观。
 ## 168. 自然招手透明动作母版（待用户审看，未接入 APP）
 
 唯一角色身份以`src/assets/figma/home-option2/home-mascot-v5.png`为准。正式五视图只作体积参考；

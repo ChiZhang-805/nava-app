@@ -46,6 +46,11 @@ Blender 路径：`Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blen
 `mascot-rebuild-research/mask-artifact-audit`、`mascot-rebuild-research/integration-audit`。
 软件 WebGL 不代表实际 iPhone GPU 帧率/耗电；最终美术仍待用户审看。
 真实生产账户衣橱写入本轮未执行，数据与认证合同未改；双站发布情况见总交接 §169。
+
+当前已发布 v257，功能源码 `7dadacc18f94e9b2cc3b559b6994de7f1a794075`。完整 verify、生产认证合同、
+四尺寸衣橱/动作检查通过；两站线上各 25 项资源与本地同哈希，8 个登录边界截图通过。
+发布与最终证据在 `Q:/NAVA-Workspace/Build/TestRuns/wardrobe-rig-v257-final`。最终花朵下移至鼻边，
+补拍 APP 四段动作检查无运行错误。后续须以当前绑定模型和重新展开的 UV 继续编辑。
 ## 自然招手透明角色资产（2026-10-15，待审看）
 
 以`src/assets/figma/home-option2/home-mascot-v5.png`作为唯一造型基准，正式五视图只用于体积与尾根，
