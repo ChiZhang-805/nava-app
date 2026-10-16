@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import WardrobeMascotEffect from "../components/WardrobeMascotEffect";
 import WardrobeTurntable, { type WardrobeTurntableHandle } from "../components/WardrobeTurntable";
 import { wardrobeDragAngle } from "../services/wardrobeTurntable";
+import { toggleWardrobeAccessory } from "../services/wardrobeAccessorySlots";
 import { useLocale } from "../i18n";
 import { sampleWardrobeMascotMotion, wardrobeMascotMotions, wardrobeMascotTransform, type WardrobeMascotMotion } from "../services/wardrobeMascotMotion";
 import {
@@ -199,9 +200,7 @@ export default function MascotWardrobe() {
       const accessoryId = item.id as WardrobeSelection["accessoryIds"][number];
       setPreview({
         ...preview,
-        accessoryIds: preview.accessoryIds.includes(accessoryId)
-          ? preview.accessoryIds.filter((itemId) => itemId !== accessoryId)
-          : [...preview.accessoryIds, accessoryId],
+        accessoryIds: toggleWardrobeAccessory(preview.accessoryIds, accessoryId),
       });
     } else {
       const key = selectionKey(item.category);

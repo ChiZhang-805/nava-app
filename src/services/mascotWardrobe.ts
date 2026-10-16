@@ -47,6 +47,7 @@ import starSandMascot from "../assets/wardrobe/mascot-star-sand.png";
 import warmOrangeMascot from "../assets/wardrobe/mascot-warm-orange.png";
 import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
+import { normalizeWardrobeAccessories } from "./wardrobeAccessorySlots";
 
 export type WardrobeCategory = "skin" | "accessory" | "background";
 export type WardrobeSkinId = "skin-cream" | "skin-warm-orange" | "skin-night-ink" | "skin-mist-gray" | "skin-cherry-blossom" | "skin-lake-blue" | "skin-mint-mist" | "skin-honey-gold" | "skin-lavender-cloud" | "skin-mica-silver" | "skin-forest-dew" | "skin-sea-salt" | "skin-milk-tea" | "skin-coral-red" | "skin-moonlight-purple" | "skin-aurora-teal" | "skin-star-sand";
@@ -159,8 +160,7 @@ function assertNoError(error: unknown) {
 function normalizeSelection(value: unknown): WardrobeSelection {
   const row = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const legacyAccessory = itemInCategory(row.accessoryId, "accessory") && row.accessoryId !== "accessory-none" ? [row.accessoryId as WardrobeAccessoryId] : [];
-  const accessoryIds = (Array.isArray(row.accessoryIds) ? row.accessoryIds : legacyAccessory)
-    .filter((item, index, values): item is WardrobeAccessoryId => itemInCategory(item, "accessory") && item !== "accessory-none" && values.indexOf(item) === index);
+  const accessoryIds = normalizeWardrobeAccessories(Array.isArray(row.accessoryIds) ? row.accessoryIds : legacyAccessory);
   return {
     skinId: itemInCategory(row.skinId, "skin") ? row.skinId as WardrobeSkinId : DEFAULT_WARDROBE_SELECTION.skinId,
     accessoryIds,
@@ -216,19 +216,14 @@ export async function loadMascotWardrobeState(): Promise<MascotWardrobeState> {
 }
 
 export async function equipMascotWardrobeItem(itemId: WardrobeItemId): Promise<MascotWardrobeState> {
-  if (isDemoMode()) {
-    const current = readDemoState();
-    if (!current.unlockedItemIds.includes(itemId)) throw new Error("这件搭配尚未拥有。");
-    const item = wardrobeItem(itemId);
-    const equipped = { ...current.equipped };
-    if (item.category === "skin") equipped.skinId = item.id as WardrobeSkinId;
-    if (item.category === "accessory") equipped.accessoryIds = [item.id as WardrobeAccessoryId];
-    if (item.category === "background") equipped.backgroundId = item.id as WardrobeBackgroundId;
-    return writeDemoState({ ...current, equipped });
-  }
-  const result = await supabase.rpc("nava_select_mascot_wardrobe_item", { target_item: itemId });
-  assertNoError(result.error);
-  return normalizeState(result.data);
+  const current = await loadMascotWardrobeState();
+  if (!current.unlockedItemIds.includes(itemId)) throw new Error("这件搭配尚未拥有。");
+  const item = wardrobeItem(itemId);
+  const equipped = { ...current.equipped };
+  if (item.category === "skin") equipped.skinId = item.id as WardrobeSkinId;
+  if (item.category === "accessory") equipped.accessoryIds = normalizeWardrobeAccessories([...equipped.accessoryIds, item.id]);
+  if (item.category === "background") equipped.backgroundId = item.id as WardrobeBackgroundId;
+  return equipMascotWardrobeLook(equipped);
 }
 
 export async function equipMascotWardrobeLook(selection: WardrobeSelection): Promise<MascotWardrobeState> {

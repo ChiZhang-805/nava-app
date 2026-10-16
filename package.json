@@ -72,6 +72,7 @@
     "wardrobe:turntable:visual": "node scripts/verify-wardrobe-turntable.mjs",
     "wardrobe:layout:visual": "node scripts/verify-wardrobe-layout.mjs",
     "wardrobe:accessories:visual": "node scripts/verify-wardrobe-accessories.mjs",
+    "wardrobe:combinations:visual": "node scripts/verify-wardrobe-combinations.mjs",
     "skins:visual": "node scripts/verify-app-skins-ui.mjs",
     "integrated-shell:visual": "node scripts/verify-integrated-shell-ui.mjs",
     "profile:visual": "node scripts/verify-profile-hub-ui.mjs",

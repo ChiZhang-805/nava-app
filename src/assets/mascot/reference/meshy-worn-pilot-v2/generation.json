@@ -1,0 +1,33 @@
+{
+  "purpose": "Return to user-approved original worn beret concept after user rejected the rigid horizontal v1 hat. Guides local refinement; no second beret regeneration requested.",
+  "records": [
+    {
+      "view": "front",
+      "originalPath": "Q:\\Codex\\Live\\generated_images\\01a14013-8be9-7233-bd0d-c91d0632a15f\\exec-09524b27-1c30-45c8-873c-55e8b556ab8b.png",
+      "filename": "beret-front.png",
+      "prompt": "Use case: identity-preserve, stylized-concept. Produce one high-detail SINGLE full-body FRONT view, faithfully recreating the TOP-LEFT kitten wearing the beret in the supplied approved turnaround design. This old design is the primary authority; preserve its delightful natural fit and exact proportions. Do NOT redesign the hat into a wide flat horizontal disk. The lavender felt beret wraps down around the head, with an arched curved lower edge following the forehead: highest at center above eyes, gently lower at both temple sides and especially viewer-right. Rounded soft crown leans and sags subtly to viewer-right/back, with broad soft compression folds near the lower sides, not a rigid horizontal rim or exposed cylindrical band. Hat is as wide as the upper fluffy head, not wider than cheek ruff, keeps generous fabric around hidden ears but completely covers them. Crown is softly domed and sloped, short slightly leaning stalk. Copy the hat front silhouette and forehead fit of approved TOP LEFT panel as closely as possible. Kitten same pale ice-white plush body, small short paws with navy front markings, circular soft deep navy face mask with two closed white smiling eyes and small white triangular nose, rounded tail resting on viewer-right. No face alterations, no scarf or other accessory. Highquality soft felt and restrained fine wool fuzz, subtle volumetric surface color, pale lilac rather than saturatedpurple. Simple very pale coolgray studio background, even shadowless ambient lighting, fullbody 10percentmargin, eyelevel orthographic front, no shadow, no grid, no labels, no text. This is a polished single render extracted/recreated from the accepted concept, not a new design.",
+      "tool": "built-in image_gen"
+    },
+    {
+      "view": "left",
+      "originalPath": "Q:\\Codex\\Live\\generated_images\\01a14013-8be9-7233-bd0d-c91d0632a15f\\exec-b1aafb96-8551-4bc5-9be6-4ac7e2829a88.png",
+      "filename": "beret-left.png",
+      "prompt": "Use case: identity-preserve. ONE single fullbody kitten wearing soft beret, precise orthographic reference for 3Dmodel. Image1 is the originally approved sixview design board; faithfully reproduce specified panel's natural fit/angle. Image2 is newly refined front render, match its cat identity and exact lilac felt finish. Hat wrap follows forehead and headshape, arched curved opening, front edge higher and back edge lower, not horizontal disk. Puffy asymmetric rounded dome sags towards rear and cat-left, softly compresses around hiddenears, rounded lower edge has no exposed hard cylindrical band; no ears through hat. Preserve the cute paleicewhite plushcat body proportions, darknavy circular face with closed white smileeyes and littlenose only on front, shortnavypaws, thick single tail. Full cat 10percentmargin, neutral pale coolgray background, even ambient illumination no hard or cast shadow, detailed but restrained feltfuzz. No grid, labels or text. Faithfully recreate BOTTOMLEFT panel: strict profile, nose pointing LEFT. Hat brim slopes diagonally from high at forehead on left down around rear of head on right, with soft bulging fold gathered just above the back opening. Tail curled lower right.",
+      "tool": "built-in image_gen"
+    },
+    {
+      "view": "back",
+      "originalPath": "Q:\\Codex\\Live\\generated_images\\01a14013-8be9-7233-bd0d-c91d0632a15f\\exec-08114b87-7e75-45e2-a99c-8166a480361c.png",
+      "filename": "beret-back.png",
+      "prompt": "Use case: identity-preserve. ONE single fullbody kitten wearing soft beret, precise orthographic reference for 3Dmodel. Image1 is the originally approved sixview design board; faithfully reproduce specified panel's natural fit/angle. Image2 is newly refined front render, match its cat identity and exact lilac felt finish. Hat wrap follows forehead and headshape, arched curved opening, front edge higher and back edge lower, not horizontal disk. Puffy asymmetric rounded dome sags towards rear and cat-left, softly compresses around hiddenears, rounded lower edge has no exposed hard cylindrical band; no ears through hat. Preserve the cute paleicewhite plushcat body proportions, darknavy circular face with closed white smileeyes and littlenose only on front, shortnavypaws, thick single tail. Full cat 10percentmargin, neutral pale coolgray background, even ambient illumination no hard or cast shadow, detailed but restrained feltfuzz. No grid, labels or text. Faithfully recreate BOTTOMCENTER panel: strict BACK view, no face/noeyes/nonose. Hat rests low onto back of head, naturally sagging broad soft fold on viewerleft, asymmetricroundedcrown and curved loweredge hugging head. Single tail along lowerleft.",
+      "tool": "built-in image_gen"
+    },
+    {
+      "view": "right",
+      "originalPath": "Q:\\Codex\\Live\\generated_images\\01a14013-8be9-7233-bd0d-c91d0632a15f\\exec-88e3fd40-b8ca-4552-a765-a2f184c54ef9.png",
+      "filename": "beret-right.png",
+      "prompt": "Use case: identity-preserve. ONE single fullbody kitten wearing soft beret, precise orthographic reference for 3Dmodel. Image1 is the originally approved sixview design board; faithfully reproduce specified panel's natural fit/angle. Image2 is newly refined front render, match its cat identity and exact lilac felt finish. Hat wrap follows forehead and headshape, arched curved opening, front edge higher and back edge lower, not horizontal disk. Puffy asymmetric rounded dome sags towards rear and cat-left, softly compresses around hiddenears, rounded lower edge has no exposed hard cylindrical band; no ears through hat. Preserve the cute paleicewhite plushcat body proportions, darknavy circular face with closed white smileeyes and littlenose only on front, shortnavypaws, thick single tail. Full cat 10percentmargin, neutral pale coolgray background, even ambient illumination no hard or cast shadow, detailed but restrained feltfuzz. No grid, labels or text. Faithfully recreate BOTTOMRIGHT panel: strict profile, nose points RIGHT. Hat front edge sits up off eyebrows, sloping lower towards back at left, loose soft rear crown drape and gentle gatheredfold. Single tail atlowerleft.",
+      "tool": "built-in image_gen"
+    }
+  ]
+}

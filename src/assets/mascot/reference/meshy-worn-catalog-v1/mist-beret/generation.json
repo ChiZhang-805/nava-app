@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1, "accessory": "accessory-mist-beret", "slot": "head", "status": "four-views-approved-for-api",
+  "viewOrder": ["front.png", "left.png", "back.png", "right.png"],
+  "physicalContract": ["Roomy felt beret has a real cavity and flexible brim around both ear bases.", "Anatomical-right tilt, off-center nub and soft asymmetric drape stay consistent in every view.", "Ears occupy believable cavity space and the brim compresses fur.", "No rigid disk, floating, mirrored tilt or ear penetration."],
+  "generation": {"tool": "built-in image_gen", "designBoard": "Eight-view approved shadowless worn-character turnaround."},
+  "meshyProfile": {"endpoint":"Multi-Image to 3D","ai_model":"latest","geometry_resolution":"2k","texture_resolution":"8k","should_texture":true,"should_remesh":false,"image_enhancement":false,"remove_lighting":true,"enable_pbr":false,"target_formats":["glb"]}
+}

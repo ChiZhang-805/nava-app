@@ -118,6 +118,39 @@ try {
   }
   await catalog.context.close();
 
+  const slots = await open(390, 844, async (context) => {
+    await context.addInitScript(() => {
+      const key = 'nava.demo.mascot-wardrobe.v1';
+      if (!sessionStorage.getItem(key)) sessionStorage.setItem(key, JSON.stringify({
+        equipped: { skinId: 'skin-cream', backgroundId: 'background-morning-room', accessoryIds: ['accessory-bell-collar', 'accessory-mist-beret', 'accessory-star-moon-clip', 'accessory-cloud-scarf'] },
+        unlockedItemIds: ['skin-cream', 'background-morning-room', 'accessory-bell-collar', 'accessory-mist-beret', 'accessory-star-moon-clip', 'accessory-cloud-scarf', 'accessory-pearl-bow'], balance: 860,
+      }));
+    });
+  });
+  await ready(slots);
+  await expect(slots.canvas).toHaveAttribute('data-accessories', 'accessory-star-moon-clip accessory-cloud-scarf');
+  const beforeSave = await slots.page.evaluate(() => sessionStorage.getItem('nava.demo.mascot-wardrobe.v1'));
+  assert.equal(JSON.parse(beforeSave).equipped.accessoryIds.length, 4, 'reading an old outfit must not save a migration implicitly');
+  await slots.page.getByRole('tab', { name: '饰品' }).click();
+  await slots.page.locator('.mascot-wardrobe-item').filter({ hasText: '雾紫贝雷帽' }).click();
+  await expect(slots.canvas).toHaveAttribute('data-accessories', 'accessory-cloud-scarf accessory-mist-beret');
+  await expect(slots.page.locator('.mascot-wardrobe-item[data-selected="true"]')).toHaveCount(2);
+  await slots.page.locator('.mascot-wardrobe-item').filter({ hasText: '珍珠领结' }).click();
+  await expect(slots.canvas).toHaveAttribute('data-accessories', 'accessory-mist-beret accessory-pearl-bow');
+  await slots.page.locator('.mascot-wardrobe-item').filter({ hasText: '云蓝围巾' }).click();
+  await expect(slots.canvas).toHaveAttribute('data-accessories', 'accessory-mist-beret accessory-cloud-scarf');
+  await slots.page.locator('.mascot-wardrobe-action button').click();
+  await expect(slots.page.locator('.mascot-wardrobe-action button')).toBeDisabled();
+  await slots.page.reload({ waitUntil: 'domcontentloaded' });
+  await ready(slots);
+  await expect(slots.canvas).toHaveAttribute('data-accessories', 'accessory-mist-beret accessory-cloud-scarf');
+  const saved = await slots.page.evaluate(() => JSON.parse(sessionStorage.getItem('nava.demo.mascot-wardrobe.v1')));
+  assert.deepEqual(saved.equipped.accessoryIds, ['accessory-mist-beret', 'accessory-cloud-scarf']);
+  assert.equal(saved.balance, 860, 'equipping owned items must not spend credits');
+  await slots.page.screenshot({ path: `${output}/beret-scarf-persisted.png` });
+  report.boundaries.push('same slot replaces; cross slot persists; legacy reads do not write; explicit save and reload preserve beret plus scarf');
+  await slots.context.close();
+
   let release;
   const lost = await open(390, 844, async (context) => { release = await pauseAssets(context); });
   await lose(lost); release();

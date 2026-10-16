@@ -5,6 +5,7 @@ import { normalizeWardrobeAngle, wardrobeFurPalettes } from "./wardrobeTurntable
 import { wardrobeMascotMotions, type WardrobeMascotMotion } from "./wardrobeMascotMotion";
 import { createWardrobeProps } from "./wardrobeProps";
 import { sampleWardrobeClothMotion, wardrobeClothTargets } from "./wardrobeClothMotion";
+import { normalizeWardrobeAccessories } from "./wardrobeAccessorySlots";
 
 const modelUrl = new URL("../assets/mascot/models/nava-wardrobe-cat.glb", import.meta.url).href;
 const accessoriesUrl = new URL("../assets/mascot/models/nava-wardrobe-accessories.glb", import.meta.url).href;
@@ -205,7 +206,7 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
     group.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       const old = Array.isArray(object.material) ? object.material : [object.material];
-      const next = old.map((material: THREE.MeshStandardMaterial) => new THREE.MeshBasicMaterial({ color: material.color, map: material.map, vertexColors: material.vertexColors, side: material.side, transparent: material.transparent, opacity: material.opacity }));
+      const next = old.map((material: THREE.MeshStandardMaterial) => new THREE.MeshBasicMaterial({ color: material.color, map: material.map, vertexColors: material.vertexColors, side: material.side, transparent: material.transparent, opacity: material.opacity, alphaTest: material.alphaTest }));
       object.material = Array.isArray(object.material) ? next : next[0];
       old.forEach((material) => material.dispose());
       object.castShadow = object.receiveShadow = false;
@@ -288,6 +289,7 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
       draw();
     },
     setLook(skin, ids) {
+      const selectedIds = normalizeWardrobeAccessories(ids);
       const palette = wardrobeFurPalettes[skin];
       uniform.navaVariant.value = skin === "skin-cream" ? 0 : 1;
       uniform.navaIvory.value.set(palette[0]);
@@ -296,36 +298,14 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
       uniform.navaFaceInk.value.set(palette[3]);
       uniform.navaStars.value = skin === "skin-star-sand" ? 1 : skin === "skin-mica-silver" ? .2 : 0;
       for (const [id, group] of accessoryGroups) {
-        group.visible = ids.includes(id as WardrobeAccessoryId);
+        group.visible = selectedIds.includes(id as WardrobeAccessoryId);
         group.position.copy(accessoryRest.get(id)!);
         group.traverse((object) => {
           if (object instanceof THREE.Mesh && object.morphTargetInfluences) object.morphTargetInfluences.fill(0);
         });
       }
-      // Every selected piece stays visible. Space overlapping garments only
-      // while multiple pieces share the same attachment region.
-      for (const region of ["neckwear", "headwear"]) {
-        const selected = [...accessoryGroups.values()]
-          .filter((group) => group.visible && group.userData.stackGroup === region)
-          .sort((a, b) => Number(a.userData.stackOrder) - Number(b.userData.stackOrder));
-        if (selected.length < 2) continue;
-        selected.forEach((group, index) => {
-          if (region === "neckwear") {
-            // Each layer is refitted against the animated body envelope;
-            // translating a close-fitting collar would push it through fur.
-            group.traverse((object) => {
-              if (!(object instanceof THREE.Mesh) || !object.morphTargetInfluences) return;
-              const target = object.morphTargetDictionary?.[`stack_${index}`];
-              if (target !== undefined) object.morphTargetInfluences[target] = 1;
-            });
-          } else {
-            // Keep tailored ear openings on the same axis while hats stack.
-            group.position.y += index * .16;
-          }
-        });
-      }
       // setLook may happen halfway through an action. Restore the current
-      // cloth bend after clearing old stack layers, without restarting it.
+      // cloth bend after clearing prior morph weights, without restarting it.
       updateCloth();
       render();
     },

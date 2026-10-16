@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 1,
+  "assetFamily": "NAVA worn accessory catalog",
+  "canonicalCat": "src/assets/mascot/models/nava-wardrobe-cat.glb",
+  "identityReference": "src/assets/mascot/reference/nava-character-turnaround-v1.png",
+  "apiProfile": {
+    "endpoint": "Multi-Image to 3D",
+    "model": "latest",
+    "geometryResolution": "2K",
+    "imageEnhancement": false,
+    "removeLighting": true,
+    "remesh": false,
+    "generateTexture": true,
+    "textureInput": "same four orthographic worn-character images",
+    "pbr": false,
+    "textureResolution": "8K",
+    "pose": "none",
+    "targetFormat": "glb"
+  },
+  "boardViews": [
+    "front-0",
+    "front-quarter-45",
+    "right-90",
+    "rear-quarter-135",
+    "back-180",
+    "rear-quarter-225",
+    "left-270",
+    "front-quarter-315"
+  ],
+  "apiViews": [
+    "front",
+    "left",
+    "back",
+    "right"
+  ],
+  "counts": {
+    "accessories": 17,
+    "head": 8,
+    "neck": 5,
+    "face": 1,
+    "chest": 1,
+    "body": 1,
+    "back": 1,
+    "headNeckPairs": 40,
+    "allNonEmptySlotStates": 863
+  },
+  "workflow": [
+    "design-board",
+    "four-api-views",
+    "physical-consistency-review",
+    "single-api-submit",
+    "download-raw-glb",
+    "fresh-import-and-360-review",
+    "repair-and-register-on-canonical-cat",
+    "single-runtime-qa",
+    "combinatorial-runtime-qa",
+    "dual-site-release"
+  ],
+  "accessories": [
+    {
+      "id": "accessory-bell-collar",
+      "slug": "bell-collar",
+      "zh": "铃铛项圈",
+      "slot": "neck",
+      "icon": "src/assets/wardrobe/accessory-bell-collar.png",
+      "design": "A slim soft midnight-navy collar nested into the neck fur, with one small polished gold bell centered at the front and a physically connected short loop.",
+      "physics": "Continuous collar around the neck; the bell remains front-center, hangs downward, and is hidden by the body from the back except for the rear collar band."
+    },
+    {
+      "id": "accessory-cloud-scarf",
+      "slug": "cloud-scarf",
+      "zh": "云蓝围巾",
+      "slot": "neck",
+      "icon": "src/assets/wardrobe/accessory-cloud-scarf.png",
+      "design": "A soft cloud-blue knitted scarf with a thick rounded wrap, gentle folds, a side knot, two unequal curved hanging ends and small tassels.",
+      "physics": "Continuous hollow wrap around the neck; tails hang under gravity, preserve thickness and stay outside the paws and torso."
+    },
+    {
+      "id": "accessory-mist-beret",
+      "slug": "mist-beret",
+      "zh": "雾紫贝雷帽",
+      "slot": "head",
+      "icon": "src/assets/wardrobe/accessory-mist-beret.png",
+      "design": "A roomy soft felt mist-purple beret, gently tilted with an off-center crown and relaxed asymmetric drape, large enough to settle around the ear bases.",
+      "physics": "Real hat cavity and rim; soft brim contacts fur, ears occupy believable space, no rigid disk, floating or penetration."
+    },
+    {
+      "id": "accessory-star-moon-clip",
+      "slug": "star-moon-clip",
+      "zh": "星月发夹",
+      "slot": "head",
+      "icon": "src/assets/wardrobe/accessory-star-moon-clip.png",
+      "design": "A small polished gold crescent-and-star hair clip attached beside the kitten's anatomical left ear.",
+      "physics": "One fixed clip at the left ear base; near-side views reveal thickness and clasp, far-side and rear views obey occlusion without duplication."
+    },
+    {
+      "id": "accessory-pearl-bow",
+      "slug": "pearl-bow",
+      "zh": "珍珠领结",
+      "slot": "neck",
+      "icon": "src/assets/wardrobe/accessory-pearl-bow.png",
+      "design": "A small-to-medium ivory satin neck bow with rounded padded loops, shallow folds, short tucked tails and one pearl center.",
+      "physics": "Decorative bow remains front-center; only the thin rear collar band is visible from behind."
+    },
+    {
+      "id": "accessory-mint-earmuffs",
+      "slug": "mint-earmuffs",
+      "zh": "薄荷耳罩",
+      "slot": "head",
+      "icon": "src/assets/wardrobe/accessory-mint-earmuffs.png",
+      "design": "Pale mint earmuffs with one softly padded headband and two thick fluffy circular ear pads.",
+      "physics": "Both pads are one connected object, centered at both ear bases and gently compressing fur; headband follows the skull behind the ear tips."
+    },
+    {
+      "id": "accessory-honey-neck-warmer",
+      "slug": "honey-neck-warmer",
+      "zh": "蜂蜜围脖",
+      "slot": "neck",
+      "icon": "src/assets/wardrobe/accessory-honey-neck-warmer.png",
+      "design": "A warm honey-gold chunky knitted neck warmer with a thick rounded cable-knit rim and soft lower fold.",
+      "physics": "Continuous hollow tube around the neck with believable thickness and compression; no hard ring or detached front plate."
+    },
+    {
+      "id": "accessory-cloud-backpack",
+      "slug": "cloud-backpack",
+      "zh": "云朵背包",
+      "slot": "back",
+      "icon": "src/assets/wardrobe/accessory-cloud-backpack.png",
+      "design": "A small pale-blue plush cloud backpack with rounded lobes, subtle piping and two soft fitted straps.",
+      "physics": "Bag rests against the upper back, straps pass around the shoulders/body, remains behind the cat and is naturally hidden from strict front view."
+    },
+    {
+      "id": "accessory-fish-brooch",
+      "slug": "fish-brooch",
+      "zh": "小鱼胸针",
+      "slot": "chest",
+      "icon": "src/assets/wardrobe/accessory-fish-brooch.png",
+      "design": "A small aqua enamel fish brooch with a restrained glossy edge and tiny gold fastening detail.",
+      "physics": "Pinned on the kitten's anatomical left upper chest; follows chest curvature and disappears behind the body when occluded."
+    },
+    {
+      "id": "accessory-laurel-crown",
+      "slug": "laurel-crown",
+      "zh": "月桂花冠",
+      "slot": "head",
+      "icon": "src/assets/wardrobe/accessory-laurel-crown.png",
+      "design": "A delicate warm-gold laurel circlet with paired raised leaves sweeping outward from the center.",
+      "physics": "Curved circlet follows the forehead and ear-base contour, retains leaf thickness and a continuous rear band."
+    },
+    {
+      "id": "accessory-sailor-hat",
+      "slug": "sailor-hat",
+      "zh": "海盐水手帽",
+      "slot": "head",
+      "icon": "src/assets/wardrobe/accessory-sailor-hat.png",
+      "design": "A soft white-and-sea-blue sailor cap with a gently domed crown, blue band and short rear ribbons.",
+      "physics": "Real inner cavity settles between/around the ears; ribbons originate from the rear band and hang under gravity."
+    },
+    {
+      "id": "accessory-cherry-bow",
+      "slug": "cherry-bow",
+      "zh": "樱桃蝴蝶结",
+      "slot": "head",
+      "icon": "src/assets/wardrobe/accessory-cherry-bow.png",
+      "design": "A cherry-red satin hair bow with one gathered knot, two soft asymmetric loops and short folded tails at the anatomical left ear base.",
+      "physics": "Mounted on the front/outer left ear base; it does not teleport to the back. Rear view shows only physically visible edge/backing through correct occlusion."
+    },
+    {
+      "id": "accessory-star-glasses",
+      "slug": "star-glasses",
+      "zh": "星星眼镜",
+      "slot": "face",
+      "icon": "src/assets/wardrobe/accessory-star-glasses.png",
+      "design": "Two pale-lilac translucent star-shaped lenses joined by a small bridge with slim curved arms.",
+      "physics": "Bridge sits above the nose, lenses align with the closed eyes, arms follow both temples; no floating or duplicate rear lenses."
+    },
+    {
+      "id": "accessory-raindrop-cape",
+      "slug": "raindrop-cape",
+      "zh": "雨滴斗篷",
+      "slot": "body",
+      "icon": "src/assets/wardrobe/accessory-raindrop-cape.png",
+      "design": "A pale aqua short cape with a rounded shoulder yoke, two soft draped panels and small raindrop-shaped ends.",
+      "physics": "Continuous garment wraps the shoulders and upper body, opens naturally at front, drapes behind and remains outside paws and tail."
+    },
+    {
+      "id": "accessory-aurora-scarf",
+      "slug": "aurora-scarf",
+      "zh": "极光围巾",
+      "slot": "neck",
+      "icon": "src/assets/wardrobe/accessory-aurora-scarf.png",
+      "design": "A soft iridescent cyan-violet scarf with a rounded wrap, graceful side knot and two flowing unequal S-curved tails.",
+      "physics": "Continuous hollow neck wrap; gradient and tails remain spatially consistent, retain thickness and follow gravity."
+    },
+    {
+      "id": "accessory-lily-garland",
+      "slug": "lily-garland",
+      "zh": "晨露铃兰",
+      "slot": "head",
+      "icon": "src/assets/wardrobe/accessory-lily-garland.png",
+      "design": "A slim mint-green botanical garland with tiny white lily-of-the-valley bells and delicate leaves.",
+      "physics": "One continuous flexible circlet follows the head between ear bases; flowers hang downward from real stems and remain connected around the rear."
+    },
+    {
+      "id": "accessory-night-voyage-cap",
+      "slug": "night-voyage-cap",
+      "zh": "夜航小帽",
+      "slot": "head",
+      "icon": "src/assets/wardrobe/accessory-night-voyage-cap.png",
+      "design": "A soft midnight-navy asymmetrical voyage cap with layered curved panels, pale piping and a small star accent.",
+      "physics": "Real cavity and fitted band follow the skull and ear bases; layered crown has thickness and does not float or intersect ears."
+    }
+  ]
+}

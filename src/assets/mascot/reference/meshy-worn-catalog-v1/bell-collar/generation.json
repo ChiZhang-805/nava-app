@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "accessory": "accessory-bell-collar",
+  "slot": "neck",
+  "status": "four-views-approved-for-api",
+  "viewOrder": ["front.png", "left.png", "back.png", "right.png"],
+  "physicalContract": [
+    "One narrow flexible navy collar follows the neck under the outer fur with consistent thickness.",
+    "One small gold bell hangs from the anatomical front center on a short loop under gravity.",
+    "Profiles keep the bell at the front silhouette; the strict back view hides the bell and shows only the nape band.",
+    "No rigid ring, side migration, floating, duplication, or body penetration."
+  ],
+  "generation": {
+    "tool": "built-in image_gen",
+    "designBoard": "Eight-view shadowless orthographic turnaround of the same seated NAVA cat with one soft navy collar and centered gold bell.",
+    "views": {
+      "front": "Strict front; bell hangs at exact chest center.",
+      "left": "Cat faces viewer left; bell remains at the front silhouette beneath the chin.",
+      "back": "Strict back; bell is hidden and only the nape band is visible.",
+      "right": "Cat faces viewer right; bell remains at the front silhouette beneath the chin."
+    }
+  },
+  "meshyProfile": {
+    "endpoint": "Multi-Image to 3D",
+    "ai_model": "latest",
+    "verifiedLatestMapping": "meshy-7.1",
+    "geometry_resolution": "2k",
+    "texture_resolution": "8k",
+    "should_texture": true,
+    "should_remesh": false,
+    "image_enhancement": false,
+    "remove_lighting": true,
+    "enable_pbr": false,
+    "target_formats": ["glb"],
+    "multi_view_thumbnails": true,
+    "alpha_thumbnail": true,
+    "auto_size": false
+  }
+}

@@ -1,4 +1,4 @@
-"""v259 cloth refinement from the immutable v258 editable accessory source.
+"""v260 cloth refinement from the editable accessory source.
 Native GLB coordinates throughout design math: Y up, front +Z, body X=-.20.
 Run Blender --background --factory-startup --python this.py -- [--cloud-only]
 All other catalog meshes/Basis geometry are preserved. Bell stacking targets
@@ -42,13 +42,14 @@ def mat(prefix):
  if prefix in cloth_mats:return cloth_mats[prefix]
  src=next((m for n,m in materials.items() if n.startswith(prefix)),None)
  if src:
-  m=src.copy();base=tuple(src.get('clothBase',src.node_tree.nodes.get('Principled BSDF').inputs['Base Color'].default_value))
+  # Rebuilding from an earlier procedural source must not inherit the white
+  # shader carrier or a stale stored value as the actual cloth colour.
+  m=src.copy();base=PALETTE_FALLBACK[prefix]
  else:
   m=bpy.data.materials.new(prefix);m.use_nodes=True;base=PALETTE_FALLBACK[prefix]
  m.name=prefix+' v259 cloth'
  m.node_tree.nodes.clear();bsdf=m.node_tree.nodes.new('ShaderNodeBsdfPrincipled');out=m.node_tree.nodes.new('ShaderNodeOutputMaterial');m.node_tree.links.new(bsdf.outputs['BSDF'],out.inputs['Surface'])
- m['clothBase']=base;bsdf.inputs['Base Color'].default_value=(1,1,1,1);bsdf.inputs['Roughness'].default_value=.95
- vc=m.node_tree.nodes.new('ShaderNodeVertexColor');vc.layer_name='clothVolume';m.node_tree.links.new(vc.outputs['Color'],bsdf.inputs['Base Color'])
+ m['clothBase']=base;bsdf.inputs['Base Color'].default_value=base;bsdf.inputs['Roughness'].default_value=.95
  cloth_mats[prefix]=m;return m
 def mesh(name,verts,faces,material,parent,shades=None,weights=None):
  data=bpy.data.meshes.new(name);data.from_pydata([zup(p) for p in verts],[],faces);data.update()
@@ -75,8 +76,9 @@ def tube(name,pts,radius,material,g,cyclic=False,weights=None,shade=.98,sides=10
  if not cyclic:fs.extend([tuple(range(sides-1,-1,-1)),tuple((len(pts)-1)*sides+k for k in range(sides))])
  return mesh(name,vs,fs,material,g,ss,ts)
 def center_y(q):
- # Drape is not horizontal: low front and back, asymmetric folded shoulder.
- return -.215-.062*max(0,math.cos(q))**2-.048*max(0,-math.cos(q))**2+.027*math.sin(2*q+.4)+.018*math.sin(3*q-.6)
+ # Sit at the base of the mane. A visibly uneven centre line makes the cloth
+ # rest on the fur instead of reading as a rigid belt around the torso.
+ return -.145-.052*max(0,math.cos(q))**2-.040*max(0,-math.cos(q))**2+.034*math.sin(2*q+.4)+.021*math.sin(3*q-.6)
 def height(q,h=.083):
  dq=math.atan2(math.sin(q-3.7),math.cos(q-3.7))
  return h*(1+.10*math.sin(q-.3)+.07*math.cos(3*q+.4)-.13*math.exp(-(dq/.30)**2))
@@ -166,7 +168,10 @@ active=['accessory-cloud-scarf'] if opt.cloud_only else list(STYLES)
 for id in active:
  g=groups[id]
  for o in list(g.children_recursive):bpy.data.objects.remove(o,do_unlink=True)
- base,light,detail=[mat(n) for n in STYLES[id]];h=.083 if 'honey' not in id else .088
+ base,light,detail=[mat(n) for n in STYLES[id]]
+ # The generated worn-character masters establish a thick, soft collar with
+ # two readable folds. Preserve that silhouette on the canonical cat.
+ h=.132 if 'cloud' in id else (.150 if 'honey' in id else .128)
  wrap(g,base,h)
  # Fine rolled edges follow the drape. They are not rigid contrasting piping.
  for a in []:
@@ -177,7 +182,7 @@ for id in active:
    q=2*PI*k/52;pts=[wrap_point(q+.006*math.sin(a*2),a,h)[0]+Vector((math.sin(q),0,math.cos(q)))*.003 for a in [-1.1+i*2.2/12 for i in range(13)]]
    tube('soft honey knitted rib',pts,.0034,light,g,shade=.92,sides=6)
  else:
-  tails=[(.48,.64,-.605,.185)] if 'cloud' in id else [(.55,.77,-.54,.16),(.28,.33,-.47,.145)]
+  tails=[(.48,.64,-.585,.235)] if 'cloud' in id else [(.55,.77,-.525,.205),(.28,.33,-.455,.178)]
   attachment_fold(g,base,.49,h)
   for ti,pars in enumerate(tails):
    tm=base if ti==0 else light;tail(g,tm,*pars)
@@ -198,7 +203,7 @@ for id in active:
    p0=wrap_point(q-.010,a+.13,h)[0];p1=wrap_point(q,a-.10,h)[0];p2=wrap_point(q+.010,a+.13,h)[0]
    outward=Vector((math.sin(q),0,math.cos(q)))*.003
    tube('soft yarn V stitch',[p0+outward,p1+outward,p2+outward],.0025,base,g,shade=1.19,sides=6)
- g['fitRevision']='v259 draped volume cloth with secondary tail shapes'
+ g['fitRevision']='v260 high-neck draped volume cloth with secondary tail shapes'
  g['clothMotion']='cloth_relax/cloth_lift additive weights 0..1; fixed attachment; endpoints zero'
  # Keep per-material draw calls bounded. Preserve deformation t in point attribute.
  for o in g.children_recursive:

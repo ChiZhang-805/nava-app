@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "accessory": "accessory-star-moon-clip",
+  "slot": "head",
+  "status": "four-views-approved-for-api",
+  "viewOrder": ["front.png", "left.png", "back.png", "right.png"],
+  "physicalContract": [
+    "One crescent-and-star clip only, fixed to the front-outer anatomical-left ear base.",
+    "The front view places it on viewer right; the anatomical-left profile shows it and the opposite profile occludes it.",
+    "The strict back view exposes only a small rear clasp or edge, never the complete ornament.",
+    "No side swapping, duplication, floating, penetration, or rear placement."
+  ],
+  "generation": {
+    "tool": "built-in image_gen",
+    "designBoard": "Eight-view shadowless orthographic turnaround of the same seated NAVA cat with one warm-gold crescent moon and tiny star clipped to the anatomical-left ear.",
+    "views": {
+      "front": "Strict front; ornament fully readable on viewer right.",
+      "left": "Cat faces viewer left; anatomical-left ornament is far-side and almost fully occluded.",
+      "back": "Strict back; only a small rear clasp edge is visible on viewer left.",
+      "right": "Cat faces viewer right; anatomical-left ornament is near-side and fully visible."
+    }
+  },
+  "meshyProfile": {
+    "endpoint": "Multi-Image to 3D",
+    "ai_model": "latest",
+    "verifiedLatestMapping": "meshy-7.1",
+    "geometry_resolution": "2k",
+    "texture_resolution": "8k",
+    "should_texture": true,
+    "should_remesh": false,
+    "image_enhancement": false,
+    "remove_lighting": true,
+    "enable_pbr": false,
+    "target_formats": ["glb"],
+    "multi_view_thumbnails": true,
+    "alpha_thumbnail": true,
+    "auto_size": false
+  }
+}

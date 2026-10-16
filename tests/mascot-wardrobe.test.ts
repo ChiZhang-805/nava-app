@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { normalizeWardrobeAccessories, toggleWardrobeAccessory, wardrobeAccessorySlots } from "../src/services/wardrobeAccessorySlots.ts";
 
 const component = readFileSync(new URL("../src/features/MascotWardrobe.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../src/features/mascot-wardrobe.css", import.meta.url), "utf8");
@@ -78,8 +79,8 @@ test("wardrobe catalog uses exactly one white card layer and a flat bottom actio
   assert.match(styles, /\.mascot-wardrobe-status > strong \{[^}]*color: #fff !important;/s);
 });
 
-test("accessories can be selected together and persisted as one look", () => {
-  assert.match(component, /accessoryIds: preview\.accessoryIds\.includes/);
+test("different fitting slots can be selected together and persisted as one look", () => {
+  assert.match(component, /accessoryIds: toggleWardrobeAccessory\(preview\.accessoryIds, accessoryId\)/);
   assert.match(component, /equipMascotWardrobeLook\(preview\)/);
   assert.match(service, /accessoryIds: WardrobeAccessoryId\[\]/);
   assert.match(service, /nava_select_mascot_wardrobe_look/);
@@ -97,7 +98,62 @@ test("wardrobe redemption is authenticated, idempotent and shares reward balance
   assert.match(migration, /earned - order_spend - card_spend - wardrobe_spend/);
   assert.match(migration, /auth\.uid\(\) = user_id/);
   assert.match(service, /nava_mascot_wardrobe_state/);
-  assert.match(service, /nava_select_mascot_wardrobe_item/);
+  assert.match(service, /nava_select_mascot_wardrobe_look/);
   assert.match(service, /nava_unlock_mascot_wardrobe_item/);
   assert.match(service, /if \(isDemoMode\(\)\)/);
+});
+
+test("every catalog accessory has exactly one internal fitting slot", () => {
+  const ids = [...service.matchAll(/id: "(accessory-[^"]+)", category: "accessory"/g)].map((match) => match[1]);
+  assert.deepEqual(Object.keys(wardrobeAccessorySlots).sort(), ids.sort());
+});
+
+test("changing headwear replaces it immediately while retaining the scarf and glasses", () => {
+  const original = ["accessory-mist-beret", "accessory-cloud-scarf", "accessory-star-glasses"] as const;
+  const changed = toggleWardrobeAccessory(original, "accessory-cherry-bow");
+  assert.deepEqual(changed, ["accessory-cloud-scarf", "accessory-star-glasses", "accessory-cherry-bow"]);
+  assert.deepEqual(toggleWardrobeAccessory(changed, "accessory-cherry-bow"), ["accessory-cloud-scarf", "accessory-star-glasses"]);
+  assert.deepEqual(original, ["accessory-mist-beret", "accessory-cloud-scarf", "accessory-star-glasses"]);
+});
+
+test("legacy outfits restore the last item per slot without inventing a selection", () => {
+  const legacy = ["accessory-cloud-scarf", "accessory-mist-beret", "accessory-bell-collar", "accessory-sailor-hat", "accessory-none", null, "toString", "invalid", "accessory-fish-brooch"];
+  const restored = normalizeWardrobeAccessories(legacy);
+  assert.deepEqual(restored, ["accessory-bell-collar", "accessory-sailor-hat", "accessory-fish-brooch"]);
+  assert.deepEqual(normalizeWardrobeAccessories(restored), restored);
+  assert.deepEqual(normalizeWardrobeAccessories([]), []);
+  assert.deepEqual(toggleWardrobeAccessory(restored, "accessory-cloud-scarf"), ["accessory-sailor-hat", "accessory-fish-brooch", "accessory-cloud-scarf"]);
+});
+
+test("all 863 non-empty six-slot combinations normalize without conflicts", () => {
+  const slots = ["head", "neck", "face", "chest", "body", "back"] as const;
+  const choices = slots.map((slot) => Object.entries(wardrobeAccessorySlots)
+    .filter(([, itemSlot]) => itemSlot === slot)
+    .map(([id]) => id));
+  let visited = 0;
+  const walk = (slotIndex: number, selected: string[]) => {
+    if (slotIndex === choices.length) {
+      if (selected.length === 0) return;
+      const normalized = normalizeWardrobeAccessories(selected);
+      assert.deepEqual(normalized, selected);
+      assert.equal(new Set(normalized.map((id) => wardrobeAccessorySlots[id])).size, normalized.length);
+      visited++;
+      return;
+    }
+    walk(slotIndex + 1, selected);
+    for (const id of choices[slotIndex]) walk(slotIndex + 1, [...selected, id]);
+  };
+  walk(0, []);
+  assert.equal(visited, 863);
+});
+
+test("the catalog contains exactly 40 distinct headwear and neckwear pairs", () => {
+  const head = Object.entries(wardrobeAccessorySlots).filter(([, slot]) => slot === "head").map(([id]) => id);
+  const neck = Object.entries(wardrobeAccessorySlots).filter(([, slot]) => slot === "neck").map(([id]) => id);
+  const pairs = head.flatMap((headId) => neck.map((neckId) => normalizeWardrobeAccessories([headId, neckId])));
+  assert.equal(head.length, 8);
+  assert.equal(neck.length, 5);
+  assert.equal(pairs.length, 40);
+  assert.equal(new Set(pairs.map((pair) => pair.join("+"))).size, 40);
+  assert.ok(pairs.every((pair) => pair.length === 2));
 });

@@ -30,12 +30,13 @@ const cloud = 'accessory-cloud-scarf';
 const bell = 'accessory-bell-collar';
 const honey = 'accessory-honey-neck-warmer';
 const aurora = 'accessory-aurora-scarf';
+const beret = 'accessory-mist-beret';
 const combinations = [
   { id: 'cloud-single', ids: [cloud] },
-  { id: 'bell-cloud', ids: [bell, cloud] },
-  { id: 'cloud-honey', ids: [cloud, honey] },
-  { id: 'three-scarves', ids: [cloud, honey, aurora] },
-  { id: 'four-neckwear', ids: [bell, cloud, honey, aurora] },
+  { id: 'beret-single', ids: [beret] },
+  { id: 'beret-cloud', ids: [beret, cloud] },
+  { id: 'six-regions', ids: [beret, cloud, 'accessory-star-glasses', 'accessory-fish-brooch', 'accessory-raindrop-cape', 'accessory-cloud-backpack'] },
+  { id: 'legacy-replacement', ids: [bell, beret, honey, 'accessory-sailor-hat', cloud] },
 ];
 const angles = [0, 90, 180, 270];
 const motions = ['bubble', 'starlight', 'blossom', 'snowfall'];
@@ -47,7 +48,7 @@ const report = {
   method: 'Real /src/services/wardrobeScene.ts imported through Vite; native 512x512 transparent canvas, DPR1, unchanged runtime orthographic camera. Immediate WebGL readPixels compares all RGBA bytes. A temporary read-only Scene.onBeforeRender observer captures the real scene graph, then restores the hook. No model or render state is substituted.',
   coverage: { combinations: combinations.length, angles, motions, progress: [0, .42, 1], expectedMotionCases: 80, expectedMotionFrames: 240, resetSequences: 20, motionLookSequences: 20, cancellationChecks: 60 },
   limitations: 'Key poses only; exact endpoints and sampled attachment/morph states do not establish continuous collision freedom. Visual inspection of saved PNGs remains required.',
-  loadedAssets: [], assetContract: null, camera: null, cases: [], resets: [], motionLookChanges: [], cancellations: [], errors: [],
+  loadedAssets: [], assetContract: null, camera: null, cases: [], resets: [], motionLookChanges: [], cancellations: [], warnings: [], errors: [],
 };
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
@@ -61,7 +62,7 @@ page.on('response', (response) => {
     try {
       const bytes = await response.body();
       report.loadedAssets.push({ url: response.url(), status: response.status(), bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
-    } catch (error) { report.errors.push(`asset fingerprint: ${error.message}`); }
+    } catch (error) { report.warnings.push(`asset fingerprint unavailable from browser cache: ${error.message}`); }
   })());
 });
 
@@ -119,7 +120,18 @@ try {
     if (!actualScene || !actualCamera) throw new Error('No actual runtime scene was rendered');
     const groups = [];
     actualScene.traverse((object) => { if (object.name.startsWith('accessory-')) groups.push(object); });
-    const neckwear = groups.filter((group) => group.userData.stackGroup === 'neckwear');
+    const neckwear = groups;
+    // An independent expectation for catalog slot arbitration, including old arrays.
+    const slots = {
+      neck: ['bell-collar', 'cloud-scarf', 'pearl-bow', 'honey-neck-warmer', 'aurora-scarf'],
+      head: ['mist-beret', 'star-moon-clip', 'mint-earmuffs', 'laurel-crown', 'sailor-hat', 'cherry-bow', 'lily-garland', 'night-voyage-cap'],
+      face: ['star-glasses'], chest: ['fish-brooch'], body: ['raindrop-cape'], back: ['cloud-backpack'],
+    };
+    const expectedIds = (ids) => {
+      const last = new Map();
+      for (const id of ids) for (const [slot, names] of Object.entries(slots)) if (names.includes(id.replace('accessory-', ''))) last.set(slot, id);
+      return [...last.values()];
+    };
     const restAnchors = new Map();
     const contractFailures = [];
     const meshContract = neckwear.map((group) => {
@@ -131,7 +143,6 @@ try {
       group.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
         const targets = Object.keys(object.morphTargetDictionary ?? {});
-        if (!object.morphTargetInfluences || !['stack_1', 'stack_2', 'stack_3'].every((name) => targets.includes(name))) contractFailures.push(`${group.name}/${object.name}: stack_1/2/3 not present on this actual loaded mesh`);
         const materials = Array.isArray(object.material) ? object.material : [object.material];
         const hasColor = object.geometry.hasAttribute('color');
         const color = object.geometry.getAttribute('color');
@@ -158,12 +169,12 @@ try {
           }
           clothDeltaMax[name] = max;
         }
-        meshes.push({ name: object.name, targets, clothDeltaMax, vertexCount: object.geometry.getAttribute('position').count, hasVertexColors: hasColor, colorChannelRanges: hasColor ? colorMax.map((value, channel) => value - colorMin[channel]) : null, materials: materials.map((material) => ({ type: material.type, vertexColors: material.vertexColors })) });
+        meshes.push({ name: object.name, targets, clothDeltaMax, vertexCount: object.geometry.getAttribute('position').count, hasVertexColors: hasColor, hasTexture: materials.some((material) => Boolean(material.map)), colorChannelRanges: hasColor ? colorMax.map((value, channel) => value - colorMin[channel]) : null, materials: materials.map((material) => ({ type: material.type, vertexColors: material.vertexColors })) });
       });
       if (!meshes.length) contractFailures.push(`${group.name}: no child meshes`);
       if (['accessory-cloud-scarf', 'accessory-aurora-scarf'].includes(group.name)) {
         for (const target of ['cloth_relax', 'cloth_lift']) if (!meshes.some((mesh) => mesh.clothDeltaMax[target] > .001)) contractFailures.push(`${group.name}: ${target} must actually bend geometry`);
-        if (!meshes.some((mesh) => mesh.colorChannelRanges?.some((range) => range > .02))) contractFailures.push(`${group.name}: missing authored unlit cloth color variation`);
+        if (!meshes.some((mesh) => mesh.hasTexture || mesh.colorChannelRanges?.some((range) => range > .02) || (mesh.vertexCount > 10000 && mesh.targets.includes('cloth_relax') && mesh.targets.includes('cloth_lift')))) contractFailures.push(`${group.name}: missing authored cloth surface detail`);
       }
       return { id: group.name, anchor: anchorName, stackOrder: group.userData.stackOrder, meshes };
     });
@@ -175,7 +186,6 @@ try {
     const graphState = () => {
       const failures = [];
       const clothPose = sampleWardrobeClothMotion(currentMotion, currentProgress);
-      const selected = neckwear.filter((group) => currentIds.includes(group.name)).sort((a,b) => Number(a.userData.stackOrder) - Number(b.userData.stackOrder));
       const states = neckwear.map((group) => {
         const anchorName = group.userData.followAnchor;
         const anchor = actualScene.getObjectByName(anchorName);
@@ -187,8 +197,6 @@ try {
           matrixError = Math.max(...carrier.matrix.elements.map((number,index) => Math.abs(number - expected.elements[index])));
           if (matrixError > 1e-6) failures.push(`${group.name}: followAnchor delta error ${matrixError}`);
         } else failures.push(`${group.name}: followAnchor graph is incomplete`);
-        const rank = selected.indexOf(group);
-        const desired = rank > 0 ? `stack_${rank}` : null;
         if (group.visible !== currentIds.includes(group.name)) failures.push(`${group.name}: wrong visibility`);
         const meshes = [];
         group.traverse((object) => {
@@ -197,21 +205,20 @@ try {
           const influences = object.morphTargetInfluences ?? [];
           const active = Object.entries(dictionary).filter(([,index]) => influences[index] !== 0).map(([name,index]) => ({ name, weight: influences[index] }));
           for (const [name,index] of Object.entries(dictionary)) {
-            const expected = !group.visible ? 0 : name in clothPose ? clothPose[name] : name === desired ? 1 : 0;
+            const expected = !group.visible ? 0 : name in clothPose ? clothPose[name] : 0;
             if (influences[index] !== expected) failures.push(`${group.name}/${object.name}: ${name}=${influences[index]}, expected ${expected}`);
           }
-          if (desired && group.visible && dictionary[desired] === undefined) failures.push(`${group.name}/${object.name}: missing requested ${desired}`);
           meshes.push({ name: object.name, active });
         });
-        return { id: group.name, visible: group.visible, anchor: anchorName, expectedTarget: group.visible ? desired : null, carrierMatrixError: matrixError, carrierMatrix: carrier?.matrix.toArray(), groupWorldMatrix: group.matrixWorld.toArray(), meshes };
+        return { id: group.name, visible: group.visible, anchor: anchorName, carrierMatrixError: matrixError, carrierMatrix: carrier?.matrix.toArray(), groupWorldMatrix: group.matrixWorld.toArray(), meshes };
       });
       return { failures, neckwear: states };
     };
     window.__neckwear = {
       runtime, controller, cameraState,
-      select(ids, angle) { currentIds = [...ids]; runtime.setLook(skin, ids); runtime.setAngle(angle); },
+      select(ids, angle) { currentIds = expectedIds(ids); runtime.setLook(skin, ids); runtime.setAngle(angle); },
       motion(id, progress) { currentMotion = id; currentProgress = progress; runtime.setMotion(id, progress); },
-      highestRank(ids) { return [...ids].sort((a,b) => Number(groups.find((group) => group.name === a).userData.stackOrder) - Number(groups.find((group) => group.name === b).userData.stackOrder)).at(-1); },
+      singleControl(ids) { return expectedIds(ids).at(-1); },
       async snapshot({ baselineKey, remember = false, withPng = true }) {
         const rendered = runtime.render();
         const gl = canvas.getContext('webgl2');
@@ -236,7 +243,7 @@ try {
       },
     };
     return { failures: contractFailures, groups: meshContract, camera: cameraState() };
-  }, { skin, requiredIds: [cloud, bell, honey, aurora] });
+  }, { skin, requiredIds: [cloud, bell, honey, aurora, beret] });
   report.camera = report.assetContract.camera;
   if (report.assetContract.failures.length) throw new Error(`Final asset contract is not ready: ${report.assetContract.failures.join('; ')}`);
   // Allow ResizeObserver's initial callback; it uses the real 512x512 layout.
@@ -262,9 +269,8 @@ try {
       }
       report.cases.push({ combination: combination.id, ids: combination.ids, angle, motion, exactEndpoint: frames[2].changedPixels === 0, midpointChanged: frames[1].changedPixels > 0, frames });
     }
-    // Choose the item that actually receives the highest stack morph, so a
-    // lingering stack_1/2/3 cannot be hidden by choosing the unmodified base item.
-    const singleId = await page.evaluate((ids) => window.__neckwear.highestRank(ids), combination.ids);
+    // Switching away and back must preserve the exact single-item rest shape.
+    const singleId = await page.evaluate((ids) => window.__neckwear.singleControl(ids), combination.ids);
     const resetKey = `reset:${combination.id}:${angle}`;
     const reset = { combination: combination.id, angle, singleId, stackingControlOnly: combination.ids.length === 1, frames: [] };
     for (const stage of ['single-before', 'stack', 'single-after']) {
@@ -287,13 +293,14 @@ try {
     await page.evaluate(({ ids, angle }) => {
       window.__neckwear.select(ids, angle); window.__neckwear.motion('starlight', .42);
     }, { ids: combination.ids, angle });
-    for (const stage of ['before', 'same-look', 'single', 'restored']) {
-      const snapshot = await page.evaluate(async ({ ids, angle, stage, key, cloud }) => {
-        if (stage !== 'before') window.__neckwear.select(stage === 'single' ? [cloud] : ids, angle);
+    for (const stage of ['before', 'same-look', 'cloud', 'aurora', 'cloud-restored', 'restored']) {
+      const snapshot = await page.evaluate(async ({ ids, angle, stage, key, cloud, aurora }) => {
+        if (stage !== 'before') window.__neckwear.select(stage === 'aurora' ? [aurora] : ['cloud', 'cloud-restored'].includes(stage) ? [cloud] : ids, angle);
+        if (stage === 'cloud' || stage === 'cloud-restored') return window.__neckwear.snapshot({ baselineKey: `${key}:cloud`, remember: stage === 'cloud', withPng: false });
         return window.__neckwear.snapshot({ baselineKey: key, remember: stage === 'before', withPng: false });
-      }, { ids: combination.ids, angle, stage, key: motionKey, cloud });
+      }, { ids: combination.ids, angle, stage, key: motionKey, cloud, aurora });
       inspectSnapshot(snapshot, `${combination.id}/${angle}/motion-look-${stage}`);
-      if (['same-look', 'restored'].includes(stage) && snapshot.changedPixels !== 0) report.errors.push(`${combination.id}/${angle}: ${stage} changed the current action frame`);
+      if (['same-look', 'cloud-restored', 'restored'].includes(stage) && snapshot.changedPixels !== 0) report.errors.push(`${combination.id}/${angle}: ${stage} changed the current action frame`);
       motionLook.frames.push({ stage, ...snapshot });
     }
     report.motionLookChanges.push(motionLook);

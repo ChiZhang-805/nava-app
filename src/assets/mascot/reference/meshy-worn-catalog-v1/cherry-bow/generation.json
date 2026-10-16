@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "accessory": "accessory-cherry-bow",
+  "slot": "head",
+  "status": "four-views-approved-for-api",
+  "viewOrder": [
+    "front.png",
+    "left.png",
+    "back.png",
+    "right.png"
+  ],
+  "physicalContract": [
+    "One bow only, fixed to the front-outer anatomical-left ear base.",
+    "Near-left views show the bow and attachment thickness; near-right views occlude it behind the head and ear.",
+    "The strict back view hides the decorative front and exposes only a small physically visible rear edge.",
+    "No side swapping, duplication, floating, penetration, or neck placement."
+  ],
+  "generation": {
+    "tool": "built-in image_gen",
+    "designBoardPrompt": "Use case: identity-preserve. Create one large professional 8-view character turnaround design board for the exact NAVA kitten in input1/input2, wearing exactly one cherry-red satin hair bow matching input3. The board contains eight clearly separated full-body views of the SAME kitten and SAME single bow: front 0 degrees, front-right three-quarter 45, strict right profile 90, rear-right three-quarter 135, strict back 180, rear-left three-quarter 225, strict left profile 270, front-left three-quarter 315. Arrange as two clean rows of four, generous spacing, pale cool-gray background, soft even shadowless catalog lighting. Preserve the exact kitten identity and neutral seated pose in every panel: pale ice-blue fluffy layered cheek ruff, two triangular ears, circular dark navy face mask, closed white smiling eyes, tiny white triangular nose when visible, two short navy-tipped front paws, one thick pale-blue tail. The single bow is physically fixed at the kitten's anatomical LEFT ear base on the FRONT-OUTER side: medium size, gathered central knot, two rounded soft asymmetric loops, short folded tails, realistic satin thickness and folds, gently compressing the fur. It never changes ears, duplicates, floats, penetrates, becomes a neck bow, or teleports to the back. In near-left views the bow is clearly visible with side thickness; in near-right views it is mostly occluded behind the head/ear; in the strict back view the full decorative front is hidden and only a physically plausible small rear edge/backing may be visible at the anatomical-left ear base. Maintain consistent scale, silhouette, tail placement, color and accessory construction across all eight panels. No extra accessories, no props, no cast shadows, no text labels, no watermark, no border.",
+    "prompts": {
+      "front": "Use case: identity-preserve. Create one single full-body orthographic 3D reconstruction input image of the exact NAVA kitten and the exact single cherry bow established in input1 design board. Preserve the same neutral seated pose, pale ice-blue layered fluffy ruff, triangular ears, circular dark navy face mask, closed white smiling eyes and tiny white triangular nose when visible, two short navy-tipped front paws, thick pale-blue tail, and the same body proportions and scale. The single cherry-red satin bow is physically fixed to the FRONT-OUTER surface of the kitten's anatomical LEFT ear base: one gathered knot, two soft rounded asymmetric loops, short folded tails, real thickness and folds, slight fur compression. It never changes ears, duplicates, floats, penetrates, becomes neckwear or teleports to the rear. Match the accepted board construction exactly. Pale cool-gray background, soft even shadowless catalog lighting, centered subject with consistent 9 percent margin, no cast shadow, no ground line, no props, no text, no collage, no border. Strict FRONT view, zero yaw and roll. Both ears and both paws are symmetrical. The bow appears on viewer RIGHT at the anatomical-left ear base, fully readable. Tail extends toward viewer RIGHT.",
+      "left": "Use case: identity-preserve. Create one single full-body strict orthographic profile image for the four-view 3D reconstruction set, using input1 design board and the accepted input2 front/input3 back as exact identity and construction references. Preserve the exact same NAVA kitten, neutral seated pose, scale, pale ice-blue layered fluffy ruff, triangular ears, dark navy face mask, closed white eye when visible, tiny white triangular nose in profile, navy-tipped front paw, thick pale-blue tail, and the exact same single cherry-red satin bow. The bow is physically fixed to the FRONT-OUTER surface of the anatomical LEFT ear base, with the same gathered knot, two soft asymmetric loops, short folded tails, thickness, folds and size. It never changes ears, duplicates, floats, penetrates, becomes neckwear or teleports to the rear. Pale cool-gray background, soft even shadowless lighting, centered subject with consistent 9 percent margin, no cast shadow, no ground line, no props, no text, no collage, no border. Strict LEFT-FACING profile: kitten nose points exactly viewer LEFT and tail extends viewer RIGHT. This shows the kitten's anatomical RIGHT side, so the bow is on the far side and must be mostly hidden behind the head/left ear. Only a tiny physically plausible red edge may peek out; do not place a full bow on the near ear.",
+      "back": "Use case: identity-preserve. Create one single full-body orthographic 3D reconstruction input image of the exact NAVA kitten and the exact single cherry bow established in input1 design board. Preserve the same neutral seated pose, pale ice-blue layered fluffy ruff, triangular ears, circular dark navy face mask, closed white smiling eyes and tiny white triangular nose when visible, two short navy-tipped front paws, thick pale-blue tail, and the same body proportions and scale. The single cherry-red satin bow is physically fixed to the FRONT-OUTER surface of the kitten's anatomical LEFT ear base: one gathered knot, two soft rounded asymmetric loops, short folded tails, real thickness and folds, slight fur compression. It never changes ears, duplicates, floats, penetrates, becomes neckwear or teleports to the rear. Match the accepted board construction exactly. Pale cool-gray background, soft even shadowless catalog lighting, centered subject with consistent 9 percent margin, no cast shadow, no ground line, no props, no text, no collage, no border. Strict BACK view, exactly 180 degrees, zero yaw and roll. No face, eyes, nose or front paws are visible. Tail extends toward viewer LEFT. The bow remains on the front-outer anatomical-left ear base, so the full decorative front is hidden by the ear and head. Show only a physically plausible very small rear edge/backing at viewer LEFT if geometry permits; never show a complete bow on the back.",
+      "right": "Use case: identity-preserve. Create one single full-body strict orthographic profile image for the four-view 3D reconstruction set, using input1 design board and the accepted input2 front/input3 back as exact identity and construction references. Preserve the exact same NAVA kitten, neutral seated pose, scale, pale ice-blue layered fluffy ruff, triangular ears, dark navy face mask, closed white eye when visible, tiny white triangular nose in profile, navy-tipped front paw, thick pale-blue tail, and the exact same single cherry-red satin bow. The bow is physically fixed to the FRONT-OUTER surface of the anatomical LEFT ear base, with the same gathered knot, two soft asymmetric loops, short folded tails, thickness, folds and size. It never changes ears, duplicates, floats, penetrates, becomes neckwear or teleports to the rear. Pale cool-gray background, soft even shadowless lighting, centered subject with consistent 9 percent margin, no cast shadow, no ground line, no props, no text, no collage, no border. Strict RIGHT-FACING profile: kitten nose points exactly viewer RIGHT and tail extends viewer LEFT. This shows the kitten's anatomical LEFT side, so the single bow is clearly visible at the near ear's front-outer base. Show its side thickness and ear contact; keep the full shape consistent with the accepted front view."
+    }
+  },
+  "meshyProfile": {
+    "endpoint": "Multi-Image to 3D",
+    "ai_model": "latest",
+    "verifiedLatestMapping": "meshy-7.1",
+    "geometry_resolution": "2k",
+    "texture_resolution": "8k",
+    "should_texture": true,
+    "should_remesh": false,
+    "image_enhancement": false,
+    "remove_lighting": true,
+    "enable_pbr": false,
+    "target_formats": [
+      "glb"
+    ],
+    "multi_view_thumbnails": true,
+    "alpha_thumbnail": true,
+    "auto_size": false,
+    "docs": [
+      "https://docs.meshy.ai/en/api/multi-image-to-3d",
+      "https://docs.meshy.ai/en/api/changelog"
+    ]
+  }
+}

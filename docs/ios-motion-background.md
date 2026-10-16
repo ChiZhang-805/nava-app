@@ -1,12 +1,16 @@
 # iOS 动态背景、角色动画与原生媒体
 
-## 小猫衣橱点击动作与转身验收（2026-10-16）
+## 小猫衣橱点击动作与转身验收（2026-10-17）
 
-最新美术探索见 `CODEX_HANDOFF_CURRENT.md` §172：雾紫贝雷帽已画佩戴/独立结构多视图，位于
-`src/assets/mascot/reference/nava-beret-*-v1.*`。这是用户要求先审看的概念设计，未替换当前生产GLB。
-下一阶段用户已确认：帽子与围巾分别生成、贴合，再本地组合；组合不调用生成API。
-拟采用隐式头/颈/面部/胸前/身体/背部装备槽，同槽点新件自动替换、跨槽保留；当前APP尚未实施此规则。
-密钥设置入口、当前实际验证状态和下一步边界见总交接§172。
+当前全量工作以 `CODEX_HANDOFF_CURRENT.md` §174 为准。17件配饰均已完成“整只小猫佩戴单件配饰”
+的大多视角设计板、正/左/背/右独立图和Meshy完整佩戴模型；运行资产再从完整模型提取或按模型证据
+连续重建，组合阶段不重复调用生成API。最终衣橱实现head/neck/face/chest/body/back六个隐式槽位：
+同槽点新件自动替换旧件，跨槽保留。8个头饰×5个颈饰的40种真实组合和六槽863种非空状态均已验证。
+
+生产候选位于 `src/assets/mascot/models/nava-wardrobe-accessories.glb`，参考图位于
+`src/assets/mascot/reference/meshy-worn-catalog-v1/`，完整生成与验证证据位于
+`Q:/NAVA-Workspace/Build/TestRuns/meshy-worn-catalog-v1/`。旧§172–173保留为概念与试跑历史，
+不得据此判断当前围巾、贝雷帽或槽位合同仍未完成。
 
 当前围巾精修与发布状态以 `CODEX_HANDOFF_CURRENT.md` §171 为准，一屏布局见§170，角色母版历史见§169。用户已选择无阴影效果；
 原 v256 造型遭否定，已替换为用户 Meshy 模型的精修、重新 UV 和骨骼绑定版本。
@@ -19,7 +23,8 @@
 - 尾巴前后深度收窄、底面和尾端圆润，保留正面尾长。颜色统一 MeshBasicMaterial，
   无方向光、投影或 CSS drop-shadow。皮肤共用同一几何，17 张缩略图由同一运行场景生成。
 - 角色 GLB 9,569,944 字节 / 123,764 三角面 / 14 骨骼 / 4 clips；本轮未修改小猫本体。
-  饰品 GLB 10,030,304 字节，17 个 ID / 51 primitive，包含三层叠穿及布料形状。四段动作是实际蒙皮局部变形，Root/Body 静止。
+  饰品 GLB 17,533,312 字节、374,086三角面、27材质/11图像、17个ID；三围巾保留连续布料形状。
+  四段动作是实际蒙皮局部变形，Root/Body 静止。
 - glTF Y 向上、+Z 为前方；身体轴原坐标 x=-0.20，场景统一平移 +0.20 后绕 yaw 旋转。
   饰品按GLB的followAnchor使用Body或Anchor_Head，由骨骼相对静止矩阵驱动，静止时精确单位矩阵。
   Anchor_Chest随Head，不适合下胸围巾；下胸布料按真实动作中的Body空间表面包络拟合。
@@ -37,12 +42,13 @@
 ### 饰品匹配与一屏布局
 
 三围巾有连续厚度、圆边、前垂弧线和相连垂尾；下胸配件使用Body，头饰保留头部跟随。
-v259将云蓝/极光/蜂蜜细化为软圆矩形截面、局部不等宽斜褶、轻微不对称前垂；垂尾有主折线、S弯和圆润流苏。
+v260将云蓝/极光/蜂蜜抬到颈根并细化为闭合软圆截面、局部不等宽斜褶、轻微不对称前垂；垂尾有主折线、S弯和圆润流苏。
 `clothVolume`顶点色保留在无光照材质中，不新增投影或AO。叠穿使用内外层共享径向位移，保厚并消除旧逐顶点夹紧造成的共面闪点。
 `wardrobeClothMotion.ts`以两组小幅手工shape keys驱动云蓝/极光垂尾，固定连接处；首末权重与速度为零。
 `setLook`恢复缓存的当前布料姿态，动作中换装不清掉形变；取消/端点同步归零，后续换装不会复活动作。
 17件均复核，另修耳罩接触、发夹、帽子耳孔、背包碎边和披肩硬筒轮廓。
-颈饰多选按stackOrder应用每个子网格的stack_1/2/3，不再用y位移挤入毛发；铃铛在最外层。
+颈饰槽只保留一个当前选择，点击另一颈饰会原子替换；头饰与颈饰可同时保留并按各自挂点随动，
+不再通过上下平移或叠层把同槽物件挤入毛发。
 
 衣橱screen-panel受内容高度约束，预览吸收剩余高度；目录/标签/兑换不收缩。
 按衣橱容器宽度选卡片尺寸，避免桌面窗口dvh/@media强制手机壳预览460px。
@@ -53,7 +59,8 @@ v259将云蓝/极光/蜂蜜细化为软圆矩形截面、局部不等宽斜褶�
 使用真实坐标检查兑换中心/四角命中；`wardrobe:accessories:visual` 5组合×4角×4动作，
 80组首尾RGBA完全一致、20次单件→叠穿→单件恢复一致，校验实际挂点及每个子网格形变。
 新增20次动作中换装恢复、60次取消/起点/终点检查；顶点色按每个通道的跨顶点范围验证。
-最新证据在 `Q:/NAVA-Workspace/Build/TestRuns/wardrobe-scarf-softness-v259/release`，APP人工复核在同级 `qa`。
+本轮完整证据在 `Q:/NAVA-Workspace/Build/TestRuns/meshy-worn-catalog-v1/`；v259围巾历史证据仍保留在
+`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-scarf-softness-v259/`。
 
 ### 验证与可编辑来源
 
@@ -73,7 +80,7 @@ Blender 路径：`Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blen
 `wardrobe-rig-v257-final/motion`、`mascot-rebuild-research/refined-cat`、
 `mascot-rebuild-research/mask-artifact-audit`、`mascot-rebuild-research/integration-audit`。
 软件 WebGL 不代表实际 iPhone GPU 帧率/耗电；最终美术仍待用户审看。
-真实生产账户衣橱写入本轮未执行，数据与认证合同未改；双站发布情况见总交接 §170。
+真实生产账户衣橱写入本轮未执行，数据与认证合同未改；本轮双站发布情况见总交接 §174。
 
 当前饰品/一屏布局已发布 v258，功能源码 `5bc911d06b1e50c154fc22418b325e2d92b85980`。
 Sites部署成功、Pages Actions `38886362617`成功；每站25项资源与本地同SHA、两站共8个登录边界通过。
