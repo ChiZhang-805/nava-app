@@ -108,6 +108,7 @@ export default function MascotWardrobe() {
         characterRef.current?.style.setProperty("transform", "translate3d(0, 0, 0)");
         previewRef.current?.style.setProperty("--wardrobe-effect-opacity", "0");
         previewRef.current?.style.setProperty("--wardrobe-effect-rise", "0px");
+        turntableRef.current?.setMotion(null);
         motionLockedRef.current = false;
         setPlayingMotion(null);
       }
@@ -115,6 +116,19 @@ export default function MascotWardrobe() {
     media.addEventListener("change", onChange);
     return () => media.removeEventListener("change", onChange);
   }, []);
+
+  useEffect(() => {
+    const cancel = () => {
+      if (!document.hidden && turntableStatus !== "unavailable") return;
+      cancelAnimationFrame(motionFrameRef.current);
+      turntableRef.current?.setMotion(null);
+      motionLockedRef.current = false;
+      setPlayingMotion(null);
+    };
+    document.addEventListener("visibilitychange", cancel);
+    cancel();
+    return () => document.removeEventListener("visibilitychange", cancel);
+  }, [turntableStatus]);
 
   const exactCurrentLook = Boolean(preview && state && isSelectionEqual(preview, state.equipped));
   const skin = preview ? wardrobeItem(preview.skinId) : null;
@@ -142,6 +156,7 @@ export default function MascotWardrobe() {
     const duration = wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.durationMs;
     let started: number | null = null;
     const reset = () => {
+      turntableRef.current?.setMotion(null);
       character.style.transform = "translate3d(0, 0, 0)";
       stage.style.setProperty("--wardrobe-effect-opacity", "0");
       stage.style.setProperty("--wardrobe-effect-rise", "0px");
@@ -150,7 +165,10 @@ export default function MascotWardrobe() {
       if (started === null) started = now;
       const progress = Math.min(1, (now - started) / duration);
       const pose = sampleWardrobeMascotMotion(playingMotion, progress);
-      character.style.transform = wardrobeMascotTransform(pose);
+      if (turntableStatus === "ready") {
+        character.style.transform = "translate3d(0, 0, 0)";
+        turntableRef.current?.setMotion(playingMotion, progress);
+      } else character.style.transform = wardrobeMascotTransform(pose);
       stage.style.setProperty("--wardrobe-effect-opacity", String(pose.effectOpacity));
       stage.style.setProperty("--wardrobe-effect-rise", `${pose.effectRise}px`);
       if (progress < 1) motionFrameRef.current = requestAnimationFrame(tick);
@@ -158,7 +176,7 @@ export default function MascotWardrobe() {
     };
     motionFrameRef.current = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(motionFrameRef.current); reset(); motionLockedRef.current = false; };
-  }, [playingMotion]);
+  }, [playingMotion, turntableStatus]);
 
   const playMascotMotion = () => {
     if (turntableStatus === "loading" || motionLockedRef.current || playingMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -177,8 +195,6 @@ export default function MascotWardrobe() {
 
   const chooseItem = (item: MascotWardrobeItem) => {
     if (!preview) return;
-    motionLockedRef.current = false;
-    setPlayingMotion(null);
     if (item.category === "accessory") {
       const accessoryId = item.id as WardrobeSelection["accessoryIds"][number];
       setPreview({
@@ -315,7 +331,7 @@ export default function MascotWardrobe() {
             {accessories.map((accessory) => accessory.art && <img key={accessory.id} className="mascot-wardrobe-accessory" src={accessory.art} alt="" draggable={false} />)}
           </>}
         </button>
-        <WardrobeMascotEffect motion={playingMotion} />
+        <WardrobeMascotEffect motion={turntableStatus === "ready" ? null : playingMotion} />
         <span className="mascot-wardrobe-motion-hint">{reducedMotion
           ? (locale === "zh" ? "已开启减少动态效果" : "Reduced motion is on")
           : turntableStatus === "loading"

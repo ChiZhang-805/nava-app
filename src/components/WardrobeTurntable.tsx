@@ -2,8 +2,13 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import type { WardrobeAccessoryId, WardrobeSkinId } from "../services/mascotWardrobe";
 import { normalizeWardrobeAngle } from "../services/wardrobeTurntable";
 import type { WardrobeScene } from "../services/wardrobeScene";
+import type { WardrobeMascotMotion } from "../services/wardrobeMascotMotion";
 
-export type WardrobeTurntableHandle = { setAngle: (degrees: number) => void; getAngle: () => number };
+export type WardrobeTurntableHandle = {
+  setAngle: (degrees: number) => void;
+  getAngle: () => number;
+  setMotion: (motion: WardrobeMascotMotion | null, progress?: number) => void;
+};
 type Props = {
   skinId: WardrobeSkinId;
   accessoryIds: WardrobeAccessoryId[];
@@ -26,6 +31,7 @@ const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function Wa
       canvasRef.current?.setAttribute("data-angle", String(angleRef.current));
     },
     getAngle() { return angleRef.current; },
+    setMotion(motion, progress = 0) { sceneRef.current?.setMotion(motion, progress); },
   }), []);
 
   useEffect(() => {
@@ -35,6 +41,7 @@ const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function Wa
     statusRef.current("loading");
     const lost = (event: Event) => {
       event.preventDefault();
+      sceneRef.current?.setMotion(null, 0);
       statusRef.current("unavailable");
     };
     const restored = () => {

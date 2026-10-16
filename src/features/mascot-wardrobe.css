@@ -149,7 +149,7 @@
   min-width: 0;
   min-height: 0;
   pointer-events: none;
-  filter: drop-shadow(0 14px 12px rgba(26, 31, 88, .16));
+  filter: none;
 }
 
 .mascot-wardrobe-character[data-renderer="loading"] .mascot-wardrobe-turntable,
@@ -167,7 +167,7 @@
   pointer-events: none;
   opacity: var(--wardrobe-effect-opacity, 0);
   transform: translate3d(0, var(--wardrobe-effect-rise, 0px), 0);
-  filter: drop-shadow(0 5px 8px rgba(41, 76, 129, .14));
+  filter: none;
 }
 
 .mascot-wardrobe-motion-hint {
@@ -198,7 +198,7 @@
   object-position: center;
   transform: translateY(-4px) scale(1.32, 1.22);
   transform-origin: center top;
-  filter: drop-shadow(0 16px 14px rgba(26,31,88,.18));
+  filter: none;
   user-select: none;
 }
 

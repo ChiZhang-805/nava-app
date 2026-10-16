@@ -11,7 +11,7 @@ test("every wardrobe action starts and ends on the exact still transform", () =>
     assert.equal(wardrobeMascotTransform(first), "translate3d(0, 0, 0)");
     assert.equal(wardrobeMascotTransform(last), "translate3d(0, 0, 0)");
     assert.equal(first.effectOpacity, 0);
-    assert.ok(action.durationMs >= 1000 && action.durationMs <= 2500);
+    assert.ok(action.durationMs >= 2000 && action.durationMs <= 3500);
   }
 });
 

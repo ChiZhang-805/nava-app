@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 applyProjectPublicEnv(process.cwd());
-const output = "Q:/NAVA-Workspace/Build/TestRuns/wardrobe-mascot-motion";
+const output = process.env.NAVA_WARDROBE_EVIDENCE_DIR ? `${process.env.NAVA_WARDROBE_EVIDENCE_DIR}/motion` : "Q:/NAVA-Workspace/Build/TestRuns/wardrobe-mascot-motion";
 await mkdir(output, { recursive: true });
 const server = await createServer({ server: { host: "127.0.0.1", port: 5261, strictPort: true }, logLevel: "silent" });
 await server.listen();
@@ -13,7 +13,7 @@ const base = server.resolvedUrls.local[0];
 const browser = await chromium.launch({ headless: true, args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 const sizes = [[360, 740], [375, 812], [390, 844], [430, 932]];
 const actions = [
-  ["bubble", 1640], ["starlight", 1520], ["blossom", 1840], ["snowfall", 1720],
+  ["bubble", 2600], ["starlight", 2800], ["blossom", 3000], ["snowfall", 2800],
 ];
 const report = { passed: false, sizes: [], errors: [] };
 
@@ -25,10 +25,16 @@ async function openWardrobe(context) {
     localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, version: 3, answers: {} }));
   });
   const page = await context.newPage();
+  await page.clock.install();
   await page.goto(`${base}?demo=1#tab=profile&view=wardrobe`, { waitUntil: "networkidle" });
   if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
   await expect(page.locator(".mascot-wardrobe-preview")).toBeVisible({ timeout: 20000 });
   await expect(page.locator(".mascot-wardrobe-character")).toHaveAttribute("data-renderer", "ready", { timeout: 20000 });
+  // WebGL readiness can precede the page's 540ms blur/translate entrance.
+  // Wait for that finite CSS motion before taking an exact resting baseline.
+  await page.locator(".mascot-wardrobe").evaluate(async (element) => {
+    await Promise.all(element.getAnimations().map((animation) => animation.finished.catch(() => {})));
+  });
   return page;
 }
 
@@ -41,17 +47,31 @@ try {
     const character = page.locator(".mascot-wardrobe-character");
     const hint = page.locator(".mascot-wardrobe-motion-hint");
     const result = { viewport: `${width}x${height}`, completed: [], samePixelsAfter: true, changedDuring: true };
+    // Freeze only the keyframe captures so slow software GPU screenshots cannot
+    // overrun the one-shot clip. The interaction cases below run in real time.
+    await page.clock.pauseAt(await page.evaluate(() => Date.now()));
     for (const [id, duration] of actions) {
       const before = await stage.screenshot();
       const hintBefore = await hint.textContent();
       await character.click();
       await expect(character).toHaveAttribute("data-motion", id);
       assert.equal(await hint.textContent(), hintBefore, `${width}x${height} ${id} must not replace the resting hint at activation`);
-      await page.waitForTimeout(Math.floor(duration * .42));
+      await page.clock.runFor(Math.floor(duration * .42));
+      assert.match(await character.evaluate((button) => button.style.transform), /^translate3d\(0(?:px)?, 0(?:px)?, 0(?:px)?\)$/, "3D actions must articulate the mesh instead of moving the whole DOM layer");
       const during = await stage.screenshot();
+      if (before.equals(during)) {
+        await writeFile(`${output}/failure-${id}-${width}-before.png`, before);
+        await writeFile(`${output}/failure-${id}-${width}-during.png`, during);
+      }
       assert.equal(before.equals(during), false, `${width}x${height} ${id} must visibly move`);
+      await page.clock.runFor(duration);
       await expect(character).toHaveAttribute("data-motion", "rest", { timeout: duration + 2000 });
       const after = await stage.screenshot();
+      if (!before.equals(after)) {
+        await writeFile(`${output}/failure-${id}-${width}-before.png`, before);
+        await writeFile(`${output}/failure-${id}-${width}-after.png`, after);
+        await writeFile(`${output}/failure-${id}-${width}-during.png`, during);
+      }
       assert.equal(before.equals(after), true, `${width}x${height} ${id} must return to the exact still pixels`);
       result.completed.push(id);
       if (width === 390) {
@@ -59,6 +79,7 @@ try {
         if (id === "bubble") await writeFile(`${output}/still-${width}x${height}.png`, before);
       }
     }
+    await page.clock.resume();
     if (width === 390) {
       const box = await character.boundingBox();
       assert.ok(box, "cat hit target must exist");
@@ -87,6 +108,29 @@ try {
       assert.equal(dressedBefore.equals(await stage.screenshot()), true, "selected skin and accessories must retain exact still recovery");
       await writeFile(`${output}/dressed-still-${width}x${height}.png`, dressedBefore);
       result.dressedLook = "aurora-teal with two accessories: exact still recovery";
+
+      // A changed look and a manual turn must not restart or cancel the action.
+      await character.click();
+      await expect(character).toHaveAttribute("data-motion", "blossom");
+      await page.getByRole("tab", { name: "皮肤" }).click();
+      await page.locator(".mascot-wardrobe-item").filter({ hasText: "暖橘" }).click();
+      await expect(character).toHaveAttribute("data-motion", "blossom");
+      const angleBefore = await character.locator("canvas").getAttribute("data-angle");
+      await character.focus();
+      await page.keyboard.press("ArrowRight");
+      await page.keyboard.press("ArrowRight");
+      assert.notEqual(await character.locator("canvas").getAttribute("data-angle"), angleBefore);
+      await expect(character).toHaveAttribute("data-motion", "blossom");
+      await expect(character).toHaveAttribute("data-motion", "rest", { timeout: 5000 });
+      const finalAngle = await character.locator("canvas").getAttribute("data-angle");
+      await character.evaluate((button) => button.blur());
+      const warmBefore = await stage.screenshot();
+      await character.click();
+      await expect(character).toHaveAttribute("data-motion", "snowfall");
+      await expect(character).toHaveAttribute("data-motion", "rest", { timeout: 5000 });
+      assert.equal(await character.locator("canvas").getAttribute("data-angle"), finalAngle);
+      assert.ok(warmBefore.equals(await stage.screenshot()), "warm skin, accessories and retained yaw return to exact rest");
+      result.midActionChanges = "changing skin and yaw preserves the active clip; warm dressed pose returns exactly";
     }
     report.sizes.push(result);
     await context.close();

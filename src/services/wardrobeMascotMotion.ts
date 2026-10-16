@@ -1,8 +1,8 @@
 export const wardrobeMascotMotions = [
-  { id: "bubble", label: { zh: "轻碰泡泡", en: "touch a bubble" }, durationMs: 1640 },
-  { id: "starlight", label: { zh: "接住星光", en: "catch starlight" }, durationMs: 1520 },
-  { id: "blossom", label: { zh: "闻一闻花香", en: "smell a blossom" }, durationMs: 1840 },
-  { id: "snowfall", label: { zh: "迎接小雪花", en: "greet a snowflake" }, durationMs: 1720 },
+  { id: "bubble", clip: "bubble_touch", label: { zh: "轻碰泡泡", en: "touch a bubble" }, durationMs: 2600 },
+  { id: "starlight", clip: "star_catch", label: { zh: "接住星光", en: "catch starlight" }, durationMs: 2800 },
+  { id: "blossom", clip: "flower_sniff", label: { zh: "闻一闻花香", en: "smell a blossom" }, durationMs: 3000 },
+  { id: "snowfall", clip: "snowflake", label: { zh: "迎接小雪花", en: "greet a snowflake" }, durationMs: 2800 },
 ] as const;
 
 export type WardrobeMascotMotion = typeof wardrobeMascotMotions[number]["id"];

@@ -2,68 +2,50 @@
 
 ## 小猫衣橱点击动作与转身验收（2026-10-16）
 
-桌面`C:/Users/zju20/Desktop/gif/gif`的22段动画仅用作冰蓝柔毛、海军蓝面罩、轻弹动作和道具节奏参考；
-其主页静态帧与主题首帧的尺寸、锚点不一致，不能直接用于点击切换。衣橱新增四个原创单次动作：
-轻碰泡泡、接住星光、闻一闻花香、迎接小雪花。每次点按当前小猫依次播放一段，角色沿用正在试穿的
-同一皮肤和全部饰品DOM层，背景不切换；透明道具由独立SVG层绘制。动作从静态姿态起势、完成并收势，
-不悬停在中间姿势。`wardrobeMascotMotion.ts`在0和1进度返回完全相同的中立变换和零道具透明度，
-屏幕上的角色层在播放前、中、后始终是同一元素。减少动态效果下保持静态。
+当前实现和发布状态以 `CODEX_HANDOFF_CURRENT.md` §169 为准。用户已选择无阴影效果；
+原 v256 造型遭否定，已替换为用户 Meshy 模型的精修、重新 UV 和骨骼绑定版本。
+原始输入 `E:/D/DirMove/Downloads/model.glb` 保持不变。
 
-`wardrobe:motion:visual`在360×740、375×812、390×844、430×932逐一点击四段动作，按预览区截图
-逐字节比较点击前与动作结束后；四档的16次均完全一致，中段截图均有变化。390×844另检极光青皮肤
-加星月发夹、珍珠领结的合成图，结束后也完全复原。`profile:visual`复查一屏布局和目录交互。
-交互边界另验水平拖动不误播、拖后点按和键盘Enter都可立即播放、同一任务内双击不跳过下一段，
-以及播放途中切换系统“减少动态效果”时取消动作并回到中立变换。偏好生效时按钮明确说明静态预览。
-证据保存在`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-mascot-motion`与`profile-hub`。
-四段动作与连续转身已从干净推送的源码`3cf48d71de5f9664629f46535eff29df2508dd89`发布到原
-ChatGPT Sites项目v256和GitHub Pages。Sites归档385个文件、Pages当前270个生成文件均与各自本地
-构建逐文件同哈希；镜像保留未引用的历史哈希文件，本轮未清理。两站线上衣橱JS/CSS、两个GLB及
-场景/转身模块共6项资源与本地同哈希，`source.json`均指向同一功能提交。发布后58个结果、381项
-检查和56张截图通过，证据在`Q:/NAVA-Workspace/Build/TestRuns/v256-postdeploy`与
-`wardrobe-turntable-release`。公开登录边界和共享Supabase身份已验；衣橱交互在本地隔离demo验收，
-未使用真实生产账户执行衣橱操作。
+### 造型、材质和角色合同
 
-连续转身现在使用Blender重建的同一3D角色，Three.js在衣橱懒加载；角色静态、手指转动和点击
-动作始终保留同一个canvas，开始点击时不进行PNG/视频/模型替换。横拖超过6px才转动，纵向手势
-不会误触发动作；指针捕获支持拖出角色区域，取消手势不触发点击。方向键每次15°、Home回正。
-17款配色保持相同几何和五官，17件饰品拥有实际侧背结构及深度遮挡；同区域多件饰品临时错层，
-单选时恢复原位。三顶帽子使用真实猫耳开口与孔沿，多帽叠放保持耳位对齐；三条围巾下调以露出
-完整面罩。毛色、毛尖、爪尖、面罩分别校准，暖橘仍保留蓝脸橙爪，夜墨为深蓝、星砂为炭黑。
-四段点击动作仍是完整角色层的连贯变换，不声称已经完成单爪骨骼动画。
+- 面罩/爪尖白丝来自碎片 UV 的 mipmap 串色，已通过连续 UV、原颜色重投射与留边修复。
+  最终 4K JPEG 保留原眼弧和鼻子，运行启用正常 mipmap；不采用关闭 mipmap 的颗粒方案。
+- 尾巴前后深度收窄、底面和尾端圆润，保留正面尾长。颜色统一 MeshBasicMaterial，
+  无方向光、投影或 CSS drop-shadow。皮肤共用同一几何，17 张缩略图由同一运行场景生成。
+- 角色 GLB 9,569,944 字节 / 123,764 三角面 / 14 骨骼 / 4 clips；饰品 GLB 1,405,308 字节，
+  17 个 ID / 57 primitive。四段动作是实际蒙皮局部变形，Root/Body 静止。
+- glTF Y 向上、+Z 为前方；身体轴原坐标 x=-0.20，场景统一平移 +0.20 后绕 yaw 旋转。
+  头、胸、背、左右爪挂点用于饰品和道具；饰品由骨骼相对静止矩阵驱动，静止时精确单位矩阵。
+- 四段依序播放：bubble_touch 2.6s、star_catch 2.8s、flower_sniff 3.0s、snowflake 2.8s。
+  道具为独立 3D 几何，与角色共用转身和深度关系，首末不可见。
 
-运行资产在`src/assets/mascot/models`。角色有4个网格和4张内嵌atlas，饰品离线合并为57个primitive；
-静止时不持续请求渲染，像素比最高2。WebGL失败保留旧PNG和点击动作，加载未完成时显示准备提示；
-加载途中离开会取消请求并释放context，恢复context后要实际画出首帧才允许ready。
-早期插帧5°五官重影和逐行轮廓导致的横纹已被连续曲面方案取代。轮廓采用按真实高度计算切线的
-Hermite插值，侧面不把正面毛尖凹凸绕成整圈；尾根缩入身体，正面尾色按v5保持浅冰蓝。
-模型是立体重建，不是旧PNG的逐像素替代；正面轮廓IoU约0.934（主要差异是缩短尾巴以保留全角度边距）。
-首帧连续性来自静态和动作共用同一模型、相机、材质。四尺寸和34种外观×8角度的证据在
-`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-turntable`。软件WebGL浏览器检查不代表真实iPhone帧率/耗电。
+### 连续性与运行边界
 
-### 可编辑模型与重建
+同一 canvas 在静止、动作、转身间持续存在，不切换 PNG/视频。加载阶段显示准备提示，实际首帧
+绘制后才 ready。每段从静止起势并回到保存的骨骼 TRS；换皮肤、换饰品和手动转身不取消动作。
+水平拖动超过 6px 才转动，纵向拖动不误播；方向键每次 15°、Home 回正。同步快速连点不跳段。
+减少动态效果和页面隐藏会终止并复原；WebGL 失败保留新 PNG 与原降级动作。
+静止按需绘制，像素比上限 2。销毁释放骨架、GPU 资源和 ImageBitmap。
 
-`scripts/mascot-models/nava-cat-sculpt-study.blend`已内嵌v5参考图，保留连续曲面、材质和挂点；
-`nava-wardrobe-accessories.blend`保留17件独立饰品组。角色源图仍是v5，正式五视图只作体积参考。
-Blender 5.2.2本机位于`Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blender.exe`。
-以下命令将生成物写到NAVA的Build目录，审查后才复制对应GLB到src；不直接覆盖运行资产：
+### 验证与可编辑来源
 
-```powershell
-$blender = 'Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blender.exe'
-$modelOut = 'Q:/NAVA-Workspace/Build/MascotModels/cat'
-& $blender --background --python scripts/mascot-models/build_nava_turntable.py -- --repo . --out $modelOut --contour scripts/mascot-models/source-body-contour.json
-& $blender --background --python scripts/mascot-models/bake_nava_turntable.py -- --out $modelOut --name nava-wardrobe-cat.glb
-& $blender --background --python scripts/mascot-models/build_accessories.py
-```
+最终角色、贴图、饰品源文件和独立导出入口位于 `scripts/mascot-models/nava-cat-rigged/README.md`。
+不要运行旧 `build_nava_turntable.py` 覆盖当前模型；旧脚本保留为研究历史。
+`render_wardrobe_thumbnails.mjs` 从实际场景重新渲染 17 张皮肤图。
+Blender 路径：`Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blender.exe`。
 
-饰品默认输出`Q:/NAVA-Workspace/Build/MascotModels/accessories`，可用`NAVA_MODEL_OUTPUT`覆盖。
-如需从v5重新提取轮廓，`extract_nava_contour.py --repo . --out <目录>`需要Pillow/NumPy；直接使用
-已校准JSON时Blender无需额外Python包。glTF为Y向上、正面+Z，旋转中心x=0.20；8个角色挂点
-仅供后续绑定，目前不对肢体做骨骼变形。所有历史失败草稿仍在TestRuns，不参与构建。
-播放和渲染策略参考
-[Lottie单次播放API](https://github.com/airbnb/lottie-web/blob/master/README.md)、
-[Web图像预解码](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/decode)、
-[glTF场景和动画](https://threejs.org/manual/pages/loading-3d-models.html)。
+- GLB 新导入硬门禁、4 动作 × 3 角度端点 PNG 完全一致、关键帧及连续视频通过。
+- APP 四尺寸：360×740、375×812、390×844、430×932；34 外观 × 8 角度、0/360 逐像素一致。
+- 每尺寸四段动作检查确实发生局部变化且整预览结束后完全一致；另验播放中换装/转动、
+  双击、拖后点按、键盘触发、减少动态效果和 WebGL 四种边界。
+- 截图基线等待页面有限入场动画结束；关键帧使用受控时钟避免软件 GPU 截图越过整个动作。
+  交互用真实时间另验。最终静态人工复核无面罩白丝、爪尖白边、背面多脸或明显裁切。
 
+证据：`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-rig-v257/turntable`、
+`wardrobe-rig-v257-final/motion`、`mascot-rebuild-research/refined-cat`、
+`mascot-rebuild-research/mask-artifact-audit`、`mascot-rebuild-research/integration-audit`。
+软件 WebGL 不代表实际 iPhone GPU 帧率/耗电；最终美术仍待用户审看。
+真实生产账户衣橱写入本轮未执行，数据与认证合同未改；双站发布情况见总交接 §169。
 ## 自然招手透明角色资产（2026-10-15，待审看）
 
 以`src/assets/figma/home-option2/home-mascot-v5.png`作为唯一造型基准，正式五视图只用于体积与尾根，

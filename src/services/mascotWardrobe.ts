@@ -1,4 +1,4 @@
-import baseMascot from "../assets/figma/home-option2/home-mascot-v5.png";
+import baseMascot from "../assets/wardrobe/mascot-cream.png";
 import auroraScarf from "../assets/wardrobe/accessory-aurora-scarf.png";
 import bellCollar from "../assets/wardrobe/accessory-bell-collar.png";
 import cherryBow from "../assets/wardrobe/accessory-cherry-bow.png";

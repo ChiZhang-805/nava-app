@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 applyProjectPublicEnv(process.cwd());
-const output = "Q:/NAVA-Workspace/Build/TestRuns/wardrobe-turntable";
+const output = process.env.NAVA_WARDROBE_EVIDENCE_DIR ? `${process.env.NAVA_WARDROBE_EVIDENCE_DIR}/turntable` : "Q:/NAVA-Workspace/Build/TestRuns/wardrobe-turntable";
 await mkdir(output, { recursive: true });
 const service = await readFile("src/services/mascotWardrobe.ts", "utf8");
 const items = [...service.matchAll(/id: "([^"]+)", category: "(skin|accessory)", zh: "([^"]+)"/g)].map(([, id, category, name]) => ({ id, category, name }));
