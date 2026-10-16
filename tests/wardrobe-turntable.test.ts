@@ -82,11 +82,27 @@ test("all existing skins and accessories have explicit 3D representations", () =
   assert.deepEqual(Object.keys(wardrobeFurPalettes).sort(), skinIds.sort());
   const ids = [...service.matchAll(/id: "(accessory-[^"]+)", category: "accessory"/g)].map((match) => match[1]);
   const model = glb("nava-wardrobe-accessories");
+  const anchorNames = new Set(glb("nava-wardrobe-cat").nodes.map((node: { name?: string }) => node.name));
   assert.ok(model.meshes.reduce((count: number, mesh: { primitives: unknown[] }) => count + mesh.primitives.length, 0) <= 70,
     "all accessories together must stay within the mobile draw-call budget");
   const names = model.nodes.filter((node: { name?: string }) => node.name?.startsWith("accessory-")).map((node: { name: string }) => node.name);
   assert.deepEqual(names.sort(), ids.sort());
   for (const node of model.nodes.filter((node: { name?: string }) => node.name?.startsWith("accessory-"))) {
     assert.ok(node.children.length > 0, `${node.name} needs actual geometry`);
+    assert.ok(anchorNames.has(node.extras?.followAnchor), `${node.name} needs its fitted attachment bone`);
+    if (node.extras?.stackGroup !== "neckwear") continue;
+    assert.equal(node.extras.followAnchor, "Body", "lower-chest garments must follow the fitted body envelope");
+    const pending: number[] = [...node.children];
+    while (pending.length) {
+      const child = model.nodes[pending.pop()!];
+      pending.push(...(child.children ?? []));
+      if (child.mesh === undefined) continue;
+      const mesh = model.meshes[child.mesh];
+      assert.deepEqual(mesh.extras?.targetNames, ["stack_1", "stack_2", "stack_3"], `${node.name}: every cloth, trim and pendant mesh needs all fitted layers`);
+      for (const primitive of mesh.primitives) {
+        assert.equal(primitive.targets?.length, 3, `${node.name}: export must retain fitted layer geometry`);
+        assert.ok(primitive.targets.every((target: { POSITION?: number }) => target.POSITION !== undefined));
+      }
+    }
   }
 });

@@ -2,7 +2,7 @@
 
 ## 小猫衣橱点击动作与转身验收（2026-10-16）
 
-当前实现和发布状态以 `CODEX_HANDOFF_CURRENT.md` §169 为准。用户已选择无阴影效果；
+当前实现和发布状态以 `CODEX_HANDOFF_CURRENT.md` §170 为准，角色母版历史见§169。用户已选择无阴影效果；
 原 v256 造型遭否定，已替换为用户 Meshy 模型的精修、重新 UV 和骨骼绑定版本。
 原始输入 `E:/D/DirMove/Downloads/model.glb` 保持不变。
 
@@ -12,10 +12,11 @@
   最终 4K JPEG 保留原眼弧和鼻子，运行启用正常 mipmap；不采用关闭 mipmap 的颗粒方案。
 - 尾巴前后深度收窄、底面和尾端圆润，保留正面尾长。颜色统一 MeshBasicMaterial，
   无方向光、投影或 CSS drop-shadow。皮肤共用同一几何，17 张缩略图由同一运行场景生成。
-- 角色 GLB 9,569,944 字节 / 123,764 三角面 / 14 骨骼 / 4 clips；饰品 GLB 1,405,308 字节，
-  17 个 ID / 57 primitive。四段动作是实际蒙皮局部变形，Root/Body 静止。
+- 角色 GLB 9,569,944 字节 / 123,764 三角面 / 14 骨骼 / 4 clips；本轮未修改小猫本体。
+  饰品 GLB 5,559,856 字节，17 个 ID / 55 primitive，包含三层叠穿形状。四段动作是实际蒙皮局部变形，Root/Body 静止。
 - glTF Y 向上、+Z 为前方；身体轴原坐标 x=-0.20，场景统一平移 +0.20 后绕 yaw 旋转。
-  头、胸、背、左右爪挂点用于饰品和道具；饰品由骨骼相对静止矩阵驱动，静止时精确单位矩阵。
+  饰品按GLB的followAnchor使用Body或Anchor_Head，由骨骼相对静止矩阵驱动，静止时精确单位矩阵。
+  Anchor_Chest随Head，不适合下胸围巾；下胸布料按真实动作中的Body空间表面包络拟合。
 - 四段依序播放：bubble_touch 2.6s、star_catch 2.8s、flower_sniff 3.0s、snowflake 2.8s。
   道具为独立 3D 几何，与角色共用转身和深度关系，首末不可见。
 
@@ -26,6 +27,22 @@
 水平拖动超过 6px 才转动，纵向拖动不误播；方向键每次 15°、Home 回正。同步快速连点不跳段。
 减少动态效果和页面隐藏会终止并复原；WebGL 失败保留新 PNG 与原降级动作。
 静止按需绘制，像素比上限 2。销毁释放骨架、GPU 资源和 ImageBitmap。
+
+### 饰品匹配与一屏布局
+
+三围巾有连续厚度、圆边、前垂弧线和相连垂尾；下胸配件使用Body，头饰保留头部跟随。
+17件均复核，另修耳罩接触、发夹、帽子耳孔、背包碎边和披肩硬筒轮廓。
+颈饰多选按stackOrder应用每个子网格的stack_1/2/3，不再用y位移挤入毛发；铃铛在最外层。
+
+衣橱screen-panel受内容高度约束，预览吸收剩余高度；目录/标签/兑换不收缩。
+按衣橱容器宽度选卡片尺寸，避免桌面窗口dvh/@media强制手机壳预览460px。
+删除可见转身提示，保留无障碍操作标签和加载状态。底部至少34px或原生safe-area+12px。
+静态降级图片也使用contain填入真实预览空间，避免小屏安全区下脚掌被摘要遮住。
+
+新增门禁：`wardrobe:layout:visual` 15场景（四尺寸、安全区59/34、桌面壳和WebGL降级），
+使用真实坐标检查兑换中心/四角命中；`wardrobe:accessories:visual` 5组合×4角×4动作，
+80组首尾RGBA完全一致、20次单件→叠穿→单件恢复一致，校验实际挂点及每个子网格形变。
+最新证据在 `Q:/NAVA-Workspace/Build/TestRuns/wardrobe-accessory-fit-v258/release`。
 
 ### 验证与可编辑来源
 
@@ -47,10 +64,10 @@ Blender 路径：`Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blen
 软件 WebGL 不代表实际 iPhone GPU 帧率/耗电；最终美术仍待用户审看。
 真实生产账户衣橱写入本轮未执行，数据与认证合同未改；双站发布情况见总交接 §169。
 
-当前已发布 v257，功能源码 `7dadacc18f94e9b2cc3b559b6994de7f1a794075`。完整 verify、生产认证合同、
+上一稳定发布为 v257，功能源码 `7dadacc18f94e9b2cc3b559b6994de7f1a794075`。该版完整 verify、生产认证合同、
 四尺寸衣橱/动作检查通过；两站线上各 25 项资源与本地同哈希，8 个登录边界截图通过。
 发布与最终证据在 `Q:/NAVA-Workspace/Build/TestRuns/wardrobe-rig-v257-final`。最终花朵下移至鼻边，
-补拍 APP 四段动作检查无运行错误。后续须以当前绑定模型和重新展开的 UV 继续编辑。
+补拍 APP 四段动作检查无运行错误。本轮饰品/布局发布状态见§170。后续须以当前绑定模型和重新展开的 UV 继续编辑。
 ## 自然招手透明角色资产（2026-10-15，待审看）
 
 以`src/assets/figma/home-option2/home-mascot-v5.png`作为唯一造型基准，正式五视图只用于体积与尾根，

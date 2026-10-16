@@ -45,17 +45,15 @@ try {
     page.on("pageerror", (error) => report.errors.push(`${width}x${height}: ${error.message}`));
     const stage = page.locator(".mascot-wardrobe-preview");
     const character = page.locator(".mascot-wardrobe-character");
-    const hint = page.locator(".mascot-wardrobe-motion-hint");
+    await expect(page.locator(".mascot-wardrobe-motion-hint")).toHaveCount(0);
     const result = { viewport: `${width}x${height}`, completed: [], samePixelsAfter: true, changedDuring: true };
     // Freeze only the keyframe captures so slow software GPU screenshots cannot
     // overrun the one-shot clip. The interaction cases below run in real time.
     await page.clock.pauseAt(await page.evaluate(() => Date.now()));
     for (const [id, duration] of actions) {
       const before = await stage.screenshot();
-      const hintBefore = await hint.textContent();
       await character.click();
       await expect(character).toHaveAttribute("data-motion", id);
-      assert.equal(await hint.textContent(), hintBefore, `${width}x${height} ${id} must not replace the resting hint at activation`);
       await page.clock.runFor(Math.floor(duration * .42));
       assert.match(await character.evaluate((button) => button.style.transform), /^translate3d\(0(?:px)?, 0(?:px)?, 0(?:px)?\)$/, "3D actions must articulate the mesh instead of moving the whole DOM layer");
       const during = await stage.screenshot();
@@ -157,7 +155,6 @@ try {
   await expect(interactionCharacter).toHaveAttribute("data-motion", "blossom");
   await expect(interactionCharacter).toHaveAttribute("data-motion", "rest", { timeout: 4000 });
   await interactionCharacter.evaluate((button) => button.blur());
-  await interactionPage.locator(".mascot-wardrobe-motion-hint").evaluate((hint) => { hint.style.visibility = "hidden"; });
   const beforePreferenceChange = await interactionCharacter.screenshot();
   await interactionCharacter.click();
   await expect(interactionCharacter).toHaveAttribute("data-motion", "snowfall");

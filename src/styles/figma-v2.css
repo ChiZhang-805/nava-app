@@ -14232,6 +14232,10 @@ body::before {
   overflow-y: hidden !important;
   padding-bottom: 0 !important;
 }
+.phone-frame--subpage-no-nav:not(.phone-frame--option2) .app-content.app-content--wardrobe > .screen-panel {
+  height: 100%;
+  min-height: 0;
+}
 .profile-overview,
 .page-skeleton--profile {
   --profile-module-inline-inset: clamp(13px, 4.1cqw, 16px);

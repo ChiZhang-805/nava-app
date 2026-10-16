@@ -154,7 +154,7 @@ try {
   });
   await expect(fallback.character).toHaveAttribute("data-renderer", "unavailable");
   await expect(fallback.character.locator("img")).toHaveCount(1);
-  await expect(fallback.page.locator(".mascot-wardrobe-motion-hint")).not.toContainText("转身");
+  await expect(fallback.page.locator(".mascot-wardrobe-character")).not.toHaveAttribute("aria-label", /转身/);
   await fallback.character.click(); await expect(fallback.character).toHaveAttribute("data-motion", "bubble");
   await expect(fallback.character).toHaveAttribute("data-motion", "rest", { timeout: 4000 });
   report.boundaries.push("WebGL unavailable preserves the existing static art and click actions");

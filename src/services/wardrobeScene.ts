@@ -188,7 +188,12 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
   const attachments: { carrier: THREE.Group; bone: THREE.Object3D; inverseRest: THREE.Matrix4 }[] = [];
   const headwear = new Set(["mist-beret", "sailor-hat", "night-voyage-cap", "star-moon-clip", "cherry-bow", "mint-earmuffs", "laurel-crown", "lily-garland", "star-glasses"]);
   for (const [id, group] of accessoryGroups) {
-    const anchor = id === "accessory-cloud-backpack" ? "Anchor_Back" : headwear.has(id.replace("accessory-", "")) ? "Anchor_Head" : "Anchor_Chest";
+    // Garment-specific anchors match the deformation envelope used during
+    // fitting. Lower-chest fabric follows Body, while headwear follows Head.
+    const requestedAnchor = typeof group.userData.followAnchor === "string" ? group.userData.followAnchor : null;
+    const anchor = requestedAnchor && cat.getObjectByName(requestedAnchor)
+      ? requestedAnchor
+      : id === "accessory-cloud-backpack" ? "Anchor_Back" : headwear.has(id.replace("accessory-", "")) ? "Anchor_Head" : "Anchor_Chest";
     const bone = cat.getObjectByName(anchor);
     const carrier = new THREE.Group();
     costume.add(carrier);
@@ -280,6 +285,9 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
       for (const [id, group] of accessoryGroups) {
         group.visible = ids.includes(id as WardrobeAccessoryId);
         group.position.copy(accessoryRest.get(id)!);
+        group.traverse((object) => {
+          if (object instanceof THREE.Mesh && object.morphTargetInfluences) object.morphTargetInfluences.fill(0);
+        });
       }
       // Every selected piece stays visible. Space overlapping garments only
       // while multiple pieces share the same attachment region.
@@ -290,7 +298,13 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
         if (selected.length < 2) continue;
         selected.forEach((group, index) => {
           if (region === "neckwear") {
-            group.position.y += ((selected.length - 1) / 2 - index) * .10 - (selected.length === 4 ? .02 : 0);
+            // Each layer is refitted against the animated body envelope;
+            // translating a close-fitting collar would push it through fur.
+            group.traverse((object) => {
+              if (!(object instanceof THREE.Mesh) || !object.morphTargetInfluences) return;
+              const target = object.morphTargetDictionary?.[`stack_${index}`];
+              if (target !== undefined) object.morphTargetInfluences[target] = 1;
+            });
           } else {
             // Keep tailored ear openings on the same axis while hats stack.
             group.position.y += index * .16;

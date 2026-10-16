@@ -2,8 +2,9 @@
 
 - `nava-cat-editable.blend`：可编辑网格、UV、14骨骼、4动作，内嵌无损4K母图。
 - `nava-cat-basecolor-4k.jpg`：生产用4K 4:4:4颜色图，直接装入GLB，不重复有损编码。
-- `nava-accessories-editable.blend`：按同一猫坐标适配的17件饰品，保留物品ID/stack元数据。
+- `nava-accessories-editable.blend`：按同一猫坐标适配的17件饰品，内嵌披肩颜色图，保留物品ID、挂点及三层叠穿shape keys。
 - `export_from_blend.py`：从母版独立导出生产GLB；默认参数指向本目录资产，也可显式传入路径。
+- `export_accessories_from_blend.py`：从饰品母版独立导出，不依赖研究目录或外部贴图。
 
 ```powershell
 & 'Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blender.exe' --background --factory-startup --python scripts/mascot-models/nava-cat-rigged/export_from_blend.py -- --output src/assets/mascot/models/nava-wardrobe-cat.glb
@@ -14,6 +15,20 @@
 ```powershell
 node scripts/mascot-models/render_wardrobe_thumbnails.mjs
 ```
+
+饰品独立重导：
+
+```powershell
+& 'Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blender.exe' --background --factory-startup --python scripts/mascot-models/nava-cat-rigged/export_accessories_from_blend.py -- --source scripts/mascot-models/nava-cat-rigged/nava-accessories-editable.blend --output src/assets/mascot/models/nava-wardrobe-accessories.glb
+```
+
+饰品为5,559,856字节、55 primitive、17物品；独立重导SHA256为
+`6cf00f58eb4cf4d967f85ec37da502e18fc5ab3b077d9ddaa8b802c6012d96f3`，与生产文件一致。
+下胸饰品的 `followAnchor` 为Body，头饰为Anchor_Head。不要将下胸围巾挂回随Head的Anchor_Chest。
+四种颈饰的每个网格都有 `stack_1/2/3`；运行时按stackOrder选择形状，不能直接上下平移。
+铃铛order4，位于所选围巾外侧；单穿使用基形，换装必须清零旧形变。全部形状以四动作表面包络拟合。
+完整构建脚本、冻结输入、包络和多角度证据保留在
+`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-accessory-fit-v258`。
 
 ## 坐标与动作
 

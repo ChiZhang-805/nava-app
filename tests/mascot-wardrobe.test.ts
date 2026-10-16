@@ -56,8 +56,8 @@ test("the eight Figma wardrobe states have working interaction counterparts", ()
 test("wardrobe layout retains touch targets and responsive phone states", () => {
   assert.match(styles, /\.mascot-wardrobe-tabs button \{[^}]*min-height: 40px/s);
   assert.match(styles, /\.mascot-wardrobe-action button,[^{]+\{[^}]*min-height: 48px/s);
-  assert.match(styles, /@media \(max-width: 374px\)/);
-  assert.match(styles, /@media \(min-width: 420px\) and \(min-height: 860px\)/);
+  assert.match(styles, /@container wardrobe-page \(max-width: 342px\)/);
+  assert.match(styles, /@container wardrobe-page \(min-width: 388px\)/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(styles, /grid-template-rows: repeat\(2,/);
   assert.match(styles, /overflow-x: auto/);
