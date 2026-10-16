@@ -141,6 +141,22 @@
   cursor: default;
 }
 
+.mascot-wardrobe-turntable {
+  display: block;
+  width: 100%;
+  height: 100%;
+  grid-area: 1 / 1;
+  min-width: 0;
+  min-height: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 14px 12px rgba(26, 31, 88, .16));
+}
+
+.mascot-wardrobe-character[data-renderer="loading"] .mascot-wardrobe-turntable,
+.mascot-wardrobe-character[data-renderer="unavailable"] .mascot-wardrobe-turntable {
+  visibility: hidden;
+}
+
 .mascot-wardrobe-effect {
   position: absolute;
   z-index: 2;

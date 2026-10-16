@@ -1,6 +1,8 @@
 import { Check, CircleCheckBig, Coins, Shirt, Sparkles, TriangleAlert, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import WardrobeMascotEffect from "../components/WardrobeMascotEffect";
+import WardrobeTurntable, { type WardrobeTurntableHandle } from "../components/WardrobeTurntable";
+import { wardrobeDragAngle } from "../services/wardrobeTurntable";
 import { useLocale } from "../i18n";
 import { sampleWardrobeMascotMotion, wardrobeMascotMotions, wardrobeMascotTransform, type WardrobeMascotMotion } from "../services/wardrobeMascotMotion";
 import {
@@ -71,13 +73,15 @@ export default function MascotWardrobe() {
   const [activePage, setActivePage] = useState(0);
   const [playingMotion, setPlayingMotion] = useState<WardrobeMascotMotion | null>(null);
   const [nextMotionIndex, setNextMotionIndex] = useState(0);
+  const [turntableStatus, setTurntableStatus] = useState<"loading" | "ready" | "unavailable">("loading");
   const [reducedMotion, setReducedMotion] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const characterRef = useRef<HTMLButtonElement | null>(null);
+  const turntableRef = useRef<WardrobeTurntableHandle | null>(null);
   const motionFrameRef = useRef(0);
   const motionLockedRef = useRef(false);
-  const pointerStartRef = useRef<{ id: number; x: number; y: number; dragged: boolean } | null>(null);
+  const pointerStartRef = useRef<{ id: number; x: number; y: number; angle: number; width: number; dragged: boolean; vertical: boolean } | null>(null);
   const suppressClickRef = useRef(false);
   const requestRef = useRef<{ itemId: WardrobeItemId; key: string } | null>(null);
 
@@ -157,7 +161,7 @@ export default function MascotWardrobe() {
   }, [playingMotion]);
 
   const playMascotMotion = () => {
-    if (motionLockedRef.current || playingMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (turntableStatus === "loading" || motionLockedRef.current || playingMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     motionLockedRef.current = true;
     const next = wardrobeMascotMotions[nextMotionIndex];
     setPlayingMotion(next.id);
@@ -264,29 +268,61 @@ export default function MascotWardrobe() {
           <div><span>{exactCurrentLook ? (locale === "zh" ? "当前搭配" : "Current look") : (locale === "zh" ? "正在试穿" : "Trying on")}</span><span>{previewOwned ? (locale === "zh" ? "已拥有" : "Owned") : (locale === "zh" ? "未拥有" : "Locked")}</span></div>
           <strong aria-label={locale === "zh" ? `当前有 ${state.balance} 积分` : `${state.balance} points`}><Coins size={14} aria-hidden="true" />{state.balance}</strong>
         </div>
-        <button className="mascot-wardrobe-character" ref={characterRef} type="button" disabled={reducedMotion} aria-disabled={playingMotion ? true : undefined}
+        <button className="mascot-wardrobe-character" ref={characterRef} type="button" disabled={reducedMotion || turntableStatus === "loading"} aria-disabled={playingMotion ? true : undefined} data-renderer={turntableStatus}
           onClick={() => { if (suppressClickRef.current) { suppressClickRef.current = false; return; } playMascotMotion(); }}
-          onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") suppressClickRef.current = false; }}
-          onPointerDown={(event) => { suppressClickRef.current = false; pointerStartRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, dragged: false }; }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") suppressClickRef.current = false;
+            if (turntableStatus === "ready" && ["ArrowLeft", "ArrowRight", "Home"].includes(event.key)) {
+              event.preventDefault();
+              turntableRef.current?.setAngle(event.key === "Home" ? 0 : (turntableRef.current?.getAngle() ?? 0) + (event.key === "ArrowLeft" ? -15 : 15));
+            }
+          }}
+          onPointerDown={(event) => {
+            if (!event.isPrimary) return;
+            suppressClickRef.current = false;
+            pointerStartRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, angle: turntableRef.current?.getAngle() ?? 0, width: event.currentTarget.clientWidth, dragged: false, vertical: false };
+            try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* A cancelled platform gesture may already have released this pointer. */ }
+          }}
           onPointerMove={(event) => {
             const start = pointerStartRef.current;
-            if (start?.id === event.pointerId && Math.abs(event.clientX - start.x) > 12 && Math.abs(event.clientX - start.x) > Math.abs(event.clientY - start.y) * 1.2) start.dragged = true;
+            if (!start || start.id !== event.pointerId) return;
+            const dx = event.clientX - start.x;
+            const dy = event.clientY - start.y;
+            if (!start.dragged && Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) start.vertical = true;
+            if (!start.vertical && Math.abs(dx) > 6 && Math.abs(dx) > Math.abs(dy) * 1.2) start.dragged = true;
+            if (start.dragged && turntableStatus === "ready") turntableRef.current?.setAngle(wardrobeDragAngle(start.angle, dx, start.width));
           }}
-          onPointerUp={(event) => { if (pointerStartRef.current?.id === event.pointerId) suppressClickRef.current = pointerStartRef.current.dragged; pointerStartRef.current = null; }}
-          onPointerCancel={() => { pointerStartRef.current = null; suppressClickRef.current = false; }}
+          onPointerUp={(event) => {
+            if (pointerStartRef.current?.id !== event.pointerId) return;
+            suppressClickRef.current = pointerStartRef.current.dragged || pointerStartRef.current.vertical;
+            pointerStartRef.current = null;
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+          }}
+          onPointerCancel={(event) => {
+            if (pointerStartRef.current?.id !== event.pointerId) return;
+            pointerStartRef.current = null;
+            suppressClickRef.current = true;
+          }}
           aria-label={reducedMotion
             ? (locale === "zh" ? `小猫静态预览，已开启减少动态效果。当前搭配：${summary}` : `Still cat preview; reduced motion is on. Current look: ${summary}`)
             : playingMotion
               ? (locale === "zh" ? `小猫正在${wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.label.zh}` : `The cat is playing ${wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.label.en}`)
-              : (locale === "zh" ? `点按小猫播放${wardrobeMascotMotions[nextMotionIndex].label.zh}，当前搭配：${summary}` : `Tap the cat to ${wardrobeMascotMotions[nextMotionIndex].label.en}. Current look: ${summary}`)}
+              : (locale === "zh" ? `${turntableStatus === "ready" ? "左右滑动或方向键转身，Home回正面。" : ""}点按小猫播放${wardrobeMascotMotions[nextMotionIndex].label.zh}，当前搭配：${summary}` : `${turntableStatus === "ready" ? "Swipe or use arrow keys to turn; Home faces forward. " : ""}Tap the cat to ${wardrobeMascotMotions[nextMotionIndex].label.en}. Current look: ${summary}`)}
           data-motion={playingMotion ?? "rest"}>
-          <img className="mascot-wardrobe-skin" src={skin.art} alt="" draggable={false} />
-          {accessories.map((accessory) => accessory.art && <img key={accessory.id} className="mascot-wardrobe-accessory" src={accessory.art} alt="" draggable={false} />)}
+          <WardrobeTurntable ref={turntableRef} skinId={preview.skinId} accessoryIds={preview.accessoryIds} onStatus={setTurntableStatus} />
+          {turntableStatus === "unavailable" && <>
+            <img className="mascot-wardrobe-skin" src={skin.art} alt="" draggable={false} />
+            {accessories.map((accessory) => accessory.art && <img key={accessory.id} className="mascot-wardrobe-accessory" src={accessory.art} alt="" draggable={false} />)}
+          </>}
         </button>
         <WardrobeMascotEffect motion={playingMotion} />
         <span className="mascot-wardrobe-motion-hint">{reducedMotion
           ? (locale === "zh" ? "已开启减少动态效果" : "Reduced motion is on")
-          : (locale === "zh" ? "点按小猫，看看它的动作" : "Tap the cat to see it move")}</span>
+          : turntableStatus === "loading"
+            ? (locale === "zh" ? "小猫准备中…" : "Getting your cat ready…")
+            : turntableStatus === "ready"
+              ? (locale === "zh" ? "左右滑动转身 · 点按做动作" : "Swipe to turn · Tap to play")
+              : (locale === "zh" ? "点按小猫，看看它的动作" : "Tap the cat to see it move")}</span>
         <div className="mascot-wardrobe-look-summary">
           <strong>{summary}</strong>
           <span>{exactCurrentLook ? (locale === "zh" ? "当前穿戴" : "Wearing") : (locale === "zh" ? "试穿预览" : "Preview")}</span>

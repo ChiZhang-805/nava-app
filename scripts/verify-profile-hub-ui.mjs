@@ -11,7 +11,7 @@ const report = { startedAt: new Date().toISOString(), passed: false, results: []
 const server = await createServer({ server: { host: "127.0.0.1", port: 5253, strictPort: true }, logLevel: "silent" });
 await server.listen();
 const base = server.resolvedUrls.local[0];
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 const sizes = [[360, 740], [375, 812], [390, 844], [430, 932]];
 const subpages = ["personal", "skin", "wardrobe", "health", "watch", "privacy", "account"];
 
@@ -292,14 +292,15 @@ try {
         await expect(page.locator(".mascot-wardrobe-tabs [role=tab]")).toHaveCount(3);
         await expect(page.locator(".mascot-wardrobe-item")).toHaveCount(17);
         await expect(page.locator(".mascot-wardrobe-pagination button")).toHaveCount(3);
-        await expect(page.locator(".mascot-wardrobe-character img")).toHaveCount(1);
+        await expect(page.locator(".mascot-wardrobe-character")).toHaveAttribute("data-renderer", "ready", { timeout: 20000 });
+        await expect(page.locator(".mascot-wardrobe-turntable")).toHaveCount(1);
         const wardrobeGeometry = await page.locator(".mascot-wardrobe").evaluate((wardrobe) => {
           const action = wardrobe.querySelector(".mascot-wardrobe-action").getBoundingClientRect();
           const actionStyle = getComputedStyle(wardrobe.querySelector(".mascot-wardrobe-action"));
           const actionButtonStyle = getComputedStyle(wardrobe.querySelector(".mascot-wardrobe-action button"));
           const content = wardrobe.closest(".app-content").getBoundingClientRect();
           const preview = wardrobe.querySelector(".mascot-wardrobe-preview").getBoundingClientRect();
-          const character = wardrobe.querySelector(".mascot-wardrobe-character img").getBoundingClientRect();
+          const character = wardrobe.querySelector(".mascot-wardrobe-turntable").getBoundingClientRect();
           const summary = wardrobe.querySelector(".mascot-wardrobe-look-summary").getBoundingClientRect();
           const pagination = wardrobe.querySelector(".mascot-wardrobe-pagination").getBoundingClientRect();
           const balanceStyle = getComputedStyle(wardrobe.querySelector(".mascot-wardrobe-status > strong"));
@@ -353,7 +354,7 @@ try {
         assert.equal(wardrobeGeometry.actionPaint.buttonShadow, "none", `${width}x${height} wardrobe action button must not cast a second shadow`);
         assert.equal(wardrobeGeometry.balanceColor, "rgb(255, 255, 255)", `${width}x${height} wardrobe balance must stay white`);
         assert.ok(wardrobeGeometry.characterWidth >= Math.min(190, width * .5), `${width}x${height} wardrobe cat must be visibly enlarged`);
-        assert.ok(wardrobeGeometry.characterSummaryGap >= -50 && wardrobeGeometry.characterSummaryGap <= -8, `${width}x${height} wardrobe transparent image canvas must extend behind the summary while visible artwork remains above it: ${JSON.stringify(wardrobeGeometry)}`);
+        assert.ok(wardrobeGeometry.characterSummaryGap >= 0 && wardrobeGeometry.characterSummaryGap <= 20, `${width}x${height} wardrobe 3D canvas must remain above the look summary: ${JSON.stringify(wardrobeGeometry)}`);
         assert.ok(wardrobeGeometry.itemPaint.every((paint) => paint.background.startsWith("rgba(255, 255, 255,") && paint.backgroundImage === "none" && paint.shadow === "none" && paint.artBackground === "rgba(0, 0, 0, 0)" && paint.artBackgroundImage === "none"), `${width}x${height} wardrobe items must use one white layer while thumbnails stay transparent`);
         assert.equal(wardrobeGeometry.carouselScrollable, true, `${width}x${height} wardrobe catalog must use the horizontal carousel contract`);
         assert.equal(wardrobeGeometry.paginationVisible, true, `${width}x${height} wardrobe pagination must stay visible between the catalog and action`);
@@ -389,7 +390,7 @@ try {
         await expect(page.getByText("不佩戴", { exact: true })).toHaveCount(0);
         await page.locator('.mascot-wardrobe-item').filter({ hasText: "星月发夹" }).click();
         await page.locator('.mascot-wardrobe-item').filter({ hasText: "珍珠领结" }).click();
-        await expect(page.locator(".mascot-wardrobe-character img")).toHaveCount(3);
+        await expect(page.locator(".mascot-wardrobe-turntable")).toHaveAttribute("data-accessories", "accessory-star-moon-clip accessory-pearl-bow");
         await expect(page.locator('.mascot-wardrobe-item[data-selected="true"]')).toHaveCount(2);
         await expect(page.locator(".mascot-wardrobe-action button")).toHaveText("穿戴");
         await page.locator(".mascot-wardrobe-action button").click();

@@ -20,14 +20,41 @@ v255和GitHub Pages；两站线上衣橱JS/CSS与本地构建同哈希。发布�
 `Q:/NAVA-Workspace/Build/TestRuns/v255-postdeploy`。Pages镜像多保留18个未引用的旧哈希文件，因为
 自动审批拒绝清理且未说明原因；本版266个实际产物逐文件同哈希。
 
-自由环绕转身仍是独立的资源门槛。正式五视图为不透明结构参考，不是连续角度精灵；17款皮肤和
-17件饰品都只有正面素材。过程中的程序立体草模正面与v5轮廓IoU仅0.698；生成式多视角稿重复正面、
-有透明碎屑，均未进入APP。直接翻转平面图会错误显示背面，故当前衣橱尚无360°滑动转身。
-第二轮2.5D插帧试验虽让0°/360°与v5缩放图逐像素相同，但5°已出现眼鼻和耳尖重影，15°出现
-重叠的前爪与尾巴；不能用“首末一致”掩盖中间角度的形体错误。
-后续应从同一套精修3D角色/相机/材质产生静态首帧和全部转动帧，皮肤使用材质变体，饰品使用
-头、颈、身体、背部挂点及正确遮挡，验收0↔360接缝和四档手机触控。草模与诊断留在
-`Q:/NAVA-Workspace/Build/TestRuns/mascot-turntable`。播放策略参考
+连续转身现在使用Blender重建的同一3D角色，Three.js在衣橱懒加载；角色静态、手指转动和点击
+动作始终保留同一个canvas，开始点击时不进行PNG/视频/模型替换。横拖超过6px才转动，纵向手势
+不会误触发动作；指针捕获支持拖出角色区域，取消手势不触发点击。方向键每次15°、Home回正。
+17款配色保持相同几何和五官，17件饰品拥有实际侧背结构及深度遮挡；同区域多件饰品临时错层，
+单选时恢复原位。四段点击动作仍是完整角色层的连贯变换，不声称已经完成单爪骨骼动画。
+
+运行资产在`src/assets/mascot/models`。角色有4个网格和4张内嵌atlas，饰品离线合并为57个primitive；
+静止时不持续请求渲染，像素比最高2。WebGL失败保留旧PNG和点击动作，加载未完成时显示准备提示；
+加载途中离开会取消请求并释放context，恢复context后要实际画出首帧才允许ready。
+早期插帧5°五官重影和逐行轮廓导致的横纹已被连续曲面方案取代。轮廓采用按真实高度计算切线的
+Hermite插值，侧面不把正面毛尖凹凸绕成整圈；尾根缩入身体，正面尾色按v5保持浅冰蓝。
+模型是立体重建，不是旧PNG的逐像素替代；正面轮廓IoU约0.934（主要差异是缩短尾巴以保留全角度边距）。
+首帧连续性来自静态和动作共用同一模型、相机、材质。四尺寸和34种外观×8角度的证据在
+`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-turntable`。软件WebGL浏览器检查不代表真实iPhone帧率/耗电。
+
+### 可编辑模型与重建
+
+`scripts/mascot-models/nava-cat-sculpt-study.blend`已内嵌v5参考图，保留连续曲面、材质和挂点；
+`nava-wardrobe-accessories.blend`保留17件独立饰品组。角色源图仍是v5，正式五视图只作体积参考。
+Blender 5.2.2本机位于`Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blender.exe`。
+以下命令将生成物写到NAVA的Build目录，审查后才复制对应GLB到src；不直接覆盖运行资产：
+
+```powershell
+$blender = 'Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blender.exe'
+$modelOut = 'Q:/NAVA-Workspace/Build/MascotModels/cat'
+& $blender --background --python scripts/mascot-models/build_nava_turntable.py -- --repo . --out $modelOut --contour scripts/mascot-models/source-body-contour.json
+& $blender --background --python scripts/mascot-models/bake_nava_turntable.py -- --out $modelOut --name nava-wardrobe-cat.glb
+& $blender --background --python scripts/mascot-models/build_accessories.py
+```
+
+饰品默认输出`Q:/NAVA-Workspace/Build/MascotModels/accessories`，可用`NAVA_MODEL_OUTPUT`覆盖。
+如需从v5重新提取轮廓，`extract_nava_contour.py --repo . --out <目录>`需要Pillow/NumPy；直接使用
+已校准JSON时Blender无需额外Python包。glTF为Y向上、正面+Z，旋转中心x=0.20；8个角色挂点
+仅供后续绑定，目前不对肢体做骨骼变形。所有历史失败草稿仍在TestRuns，不参与构建。
+播放和渲染策略参考
 [Lottie单次播放API](https://github.com/airbnb/lottie-web/blob/master/README.md)、
 [Web图像预解码](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/decode)、
 [glTF场景和动画](https://threejs.org/manual/pages/loading-3d-models.html)。

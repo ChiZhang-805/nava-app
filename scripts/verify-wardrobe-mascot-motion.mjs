@@ -10,7 +10,7 @@ await mkdir(output, { recursive: true });
 const server = await createServer({ server: { host: "127.0.0.1", port: 5261, strictPort: true }, logLevel: "silent" });
 await server.listen();
 const base = server.resolvedUrls.local[0];
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 const sizes = [[360, 740], [375, 812], [390, 844], [430, 932]];
 const actions = [
   ["bubble", 1640], ["starlight", 1520], ["blossom", 1840], ["snowfall", 1720],
@@ -28,9 +28,7 @@ async function openWardrobe(context) {
   await page.goto(`${base}?demo=1#tab=profile&view=wardrobe`, { waitUntil: "networkidle" });
   if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
   await expect(page.locator(".mascot-wardrobe-preview")).toBeVisible({ timeout: 20000 });
-  await page.locator(".mascot-wardrobe-character img").evaluateAll(async (images) => {
-    await Promise.all(images.map((image) => image.decode()));
-  });
+  await expect(page.locator(".mascot-wardrobe-character")).toHaveAttribute("data-renderer", "ready", { timeout: 20000 });
   return page;
 }
 
@@ -80,10 +78,8 @@ try {
       await page.getByRole("tab", { name: "饰品" }).click();
       await page.locator(".mascot-wardrobe-item").filter({ hasText: "星月发夹" }).click();
       await page.locator(".mascot-wardrobe-item").filter({ hasText: "珍珠领结" }).click();
-      await expect(character.locator("img")).toHaveCount(3);
-      await character.locator("img").evaluateAll(async (images) => {
-        await Promise.all(images.map((image) => image.decode()));
-      });
+      await expect(character.locator("canvas")).toHaveAttribute("data-skin", "skin-aurora-teal");
+      await expect(character.locator("canvas")).toHaveAttribute("data-accessories", "accessory-star-moon-clip accessory-pearl-bow");
       const dressedBefore = await stage.screenshot();
       await character.click();
       await expect(character).toHaveAttribute("data-motion", "starlight");
@@ -107,7 +103,7 @@ try {
   await expect(interactionCharacter).toHaveAttribute("data-motion", "rest", { timeout: 4000 });
   await interactionCharacter.evaluate((button) => {
     const rect = button.getBoundingClientRect();
-    const init = { bubbles: true, pointerId: 8, clientX: rect.x + rect.width * .4, clientY: rect.y + rect.height * .5 };
+    const init = { bubbles: true, isPrimary: true, pointerId: 8, clientX: rect.x + rect.width * .4, clientY: rect.y + rect.height * .5 };
     button.dispatchEvent(new PointerEvent("pointerdown", init));
     button.dispatchEvent(new PointerEvent("pointermove", { ...init, clientX: init.clientX + 48 }));
     button.dispatchEvent(new PointerEvent("pointerup", { ...init, clientX: init.clientX + 48 }));
