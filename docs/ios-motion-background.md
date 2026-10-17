@@ -24,8 +24,8 @@
 连续重建，组合阶段不重复调用生成API。最终衣橱实现head/neck/face/chest/body/back六个隐式槽位：
 同槽点新件自动替换旧件，跨槽保留。8个头饰×5个颈饰的40种真实组合和六槽863种非空状态均已验证。
 
-生产候选位于 `src/assets/mascot/models/nava-wardrobe-accessories.glb`，参考图位于
-`src/assets/mascot/reference/meshy-worn-catalog-v1/`，完整生成与验证证据位于
+生产候选位于 `src/assets/mascot/models/nava-wardrobe-accessories.glb`。最终18组、每组四张的API输入图已统一归档至
+`Q:/NAVA-Workspace/Build/Reference/小猫多视角图_18组_72张/`，完整生成与验证证据位于
 `Q:/NAVA-Workspace/Build/TestRuns/meshy-worn-catalog-v1/`。旧§172–173保留为概念与试跑历史，
 不得据此判断当前围巾、贝雷帽或槽位合同仍未完成。
 
