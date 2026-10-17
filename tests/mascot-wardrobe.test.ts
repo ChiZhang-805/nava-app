@@ -6,6 +6,7 @@ import { normalizeWardrobeAccessories, toggleWardrobeAccessory, wardrobeAccessor
 const component = readFileSync(new URL("../src/features/MascotWardrobe.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../src/features/mascot-wardrobe.css", import.meta.url), "utf8");
 const service = readFileSync(new URL("../src/services/mascotWardrobe.ts", import.meta.url), "utf8");
+const wornModels = readFileSync(new URL("../src/services/wardrobeWornModels.ts", import.meta.url), "utf8");
 const profile = readFileSync(new URL("../src/features/ProfileScreen.tsx", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../supabase/migrations/202610130001_mascot_wardrobe.sql", import.meta.url), "utf8");
 const multiAccessoryMigration = readFileSync(new URL("../supabase/migrations/202610130002_mascot_wardrobe_multi_accessories.sql", import.meta.url), "utf8");
@@ -79,14 +80,15 @@ test("wardrobe catalog uses exactly one white card layer and a flat bottom actio
   assert.match(styles, /\.mascot-wardrobe-status > strong \{[^}]*color: #fff !important;/s);
 });
 
-test("different fitting slots can be selected together and persisted as one look", () => {
+test("every accessory choice maps to one complete worn-cat GLB", () => {
   assert.match(component, /accessoryIds: toggleWardrobeAccessory\(preview\.accessoryIds, accessoryId\)/);
   assert.match(component, /equipMascotWardrobeLook\(preview\)/);
   assert.match(service, /accessoryIds: WardrobeAccessoryId\[\]/);
   assert.match(service, /nava_select_mascot_wardrobe_look/);
   assert.match(multiAccessoryMigration, /add column accessory_ids text\[\]/i);
-  assert.match(multiAccessoryMigration, /nava_select_mascot_wardrobe_look/);
-  assert.match(multiAccessoryMigration, /wardrobe look contains unavailable or locked item/);
+  const ids = [...service.matchAll(/id: "(accessory-[^"]+)", category: "accessory"/g)].map((match) => match[1]);
+  assert.equal((wornModels.match(/\.glb", import\.meta\.url/g) ?? []).length, 17);
+  for (const id of ids) assert.match(wornModels, new RegExp(`"${id}"`));
 });
 
 test("wardrobe redemption is authenticated, idempotent and shares reward balance", () => {
@@ -108,52 +110,27 @@ test("every catalog accessory has exactly one internal fitting slot", () => {
   assert.deepEqual(Object.keys(wardrobeAccessorySlots).sort(), ids.sort());
 });
 
-test("changing headwear replaces it immediately while retaining the scarf and glasses", () => {
+test("choosing any accessory replaces the previous complete worn model", () => {
   const original = ["accessory-mist-beret", "accessory-cloud-scarf", "accessory-star-glasses"] as const;
   const changed = toggleWardrobeAccessory(original, "accessory-cherry-bow");
-  assert.deepEqual(changed, ["accessory-cloud-scarf", "accessory-star-glasses", "accessory-cherry-bow"]);
-  assert.deepEqual(toggleWardrobeAccessory(changed, "accessory-cherry-bow"), ["accessory-cloud-scarf", "accessory-star-glasses"]);
+  assert.deepEqual(changed, ["accessory-cherry-bow"]);
+  assert.deepEqual(toggleWardrobeAccessory(changed, "accessory-cherry-bow"), []);
+  assert.deepEqual(toggleWardrobeAccessory(changed, "accessory-pearl-bow"), ["accessory-pearl-bow"]);
   assert.deepEqual(original, ["accessory-mist-beret", "accessory-cloud-scarf", "accessory-star-glasses"]);
 });
 
-test("legacy outfits restore the last item per slot without inventing a selection", () => {
+test("legacy outfits restore only the last valid accessory", () => {
   const legacy = ["accessory-cloud-scarf", "accessory-mist-beret", "accessory-bell-collar", "accessory-sailor-hat", "accessory-none", null, "toString", "invalid", "accessory-fish-brooch"];
   const restored = normalizeWardrobeAccessories(legacy);
-  assert.deepEqual(restored, ["accessory-bell-collar", "accessory-sailor-hat", "accessory-fish-brooch"]);
+  assert.deepEqual(restored, ["accessory-fish-brooch"]);
   assert.deepEqual(normalizeWardrobeAccessories(restored), restored);
   assert.deepEqual(normalizeWardrobeAccessories([]), []);
-  assert.deepEqual(toggleWardrobeAccessory(restored, "accessory-cloud-scarf"), ["accessory-sailor-hat", "accessory-fish-brooch", "accessory-cloud-scarf"]);
+  assert.deepEqual(toggleWardrobeAccessory(restored, "accessory-cloud-scarf"), ["accessory-cloud-scarf"]);
 });
 
-test("all 863 non-empty six-slot combinations normalize without conflicts", () => {
-  const slots = ["head", "neck", "face", "chest", "body", "back"] as const;
-  const choices = slots.map((slot) => Object.entries(wardrobeAccessorySlots)
-    .filter(([, itemSlot]) => itemSlot === slot)
-    .map(([id]) => id));
-  let visited = 0;
-  const walk = (slotIndex: number, selected: string[]) => {
-    if (slotIndex === choices.length) {
-      if (selected.length === 0) return;
-      const normalized = normalizeWardrobeAccessories(selected);
-      assert.deepEqual(normalized, selected);
-      assert.equal(new Set(normalized.map((id) => wardrobeAccessorySlots[id])).size, normalized.length);
-      visited++;
-      return;
-    }
-    walk(slotIndex + 1, selected);
-    for (const id of choices[slotIndex]) walk(slotIndex + 1, [...selected, id]);
-  };
-  walk(0, []);
-  assert.equal(visited, 863);
-});
-
-test("the catalog contains exactly 40 distinct headwear and neckwear pairs", () => {
-  const head = Object.entries(wardrobeAccessorySlots).filter(([, slot]) => slot === "head").map(([id]) => id);
-  const neck = Object.entries(wardrobeAccessorySlots).filter(([, slot]) => slot === "neck").map(([id]) => id);
-  const pairs = head.flatMap((headId) => neck.map((neckId) => normalizeWardrobeAccessories([headId, neckId])));
-  assert.equal(head.length, 8);
-  assert.equal(neck.length, 5);
-  assert.equal(pairs.length, 40);
-  assert.equal(new Set(pairs.map((pair) => pair.join("+"))).size, 40);
-  assert.ok(pairs.every((pair) => pair.length === 2));
+test("all 17 accessories normalize individually and a sequence keeps the latest", () => {
+  const ids = Object.keys(wardrobeAccessorySlots) as (keyof typeof wardrobeAccessorySlots)[];
+  assert.equal(ids.length, 17);
+  for (const id of ids) assert.deepEqual(normalizeWardrobeAccessories([id]), [id]);
+  assert.deepEqual(normalizeWardrobeAccessories(ids), [ids.at(-1)]);
 });

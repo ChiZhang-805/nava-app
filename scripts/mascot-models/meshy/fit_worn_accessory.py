@@ -1,9 +1,14 @@
-"""Extract one approved Meshy worn accessory and fit it to the canonical NAVA cat.
+"""Register one approved full worn model and retain its accessory placement.
 
-The downloaded full cat stays immutable. A reviewed face mask is transformed by
-robust cat-to-cat landmark bounds, reduced for mobile use, given a hidden return
-rim, and exported as one reusable accessory group. Combinations are assembled
-from these groups without another generation request.
+The downloaded full cat stays immutable.  Registration is deliberately a
+uniform similarity transform: the generated cat and its worn accessory move as
+one unit into the canonical cat frame.  Axis-by-axis bounds fitting is forbidden
+because differences in tails, ruffs, and generated body width stretch a correctly
+worn accessory away from its anatomical contact points.
+
+The reviewed face mask is applied only after registration to hide the duplicate
+generated cat body.  Combinations are assembled from the registered worn models
+without another generation request.
 """
 from __future__ import annotations
 
@@ -65,6 +70,16 @@ def robust_frame(points: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return np.quantile(points, 0.015, axis=0), np.quantile(points, 0.985, axis=0)
 
 
+def upper_body_frame(points: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Return a tail-resistant registration frame for head and neck landmarks."""
+    lo, hi = robust_frame(points)
+    cutoff = lo[2] + (hi[2] - lo[2]) * 0.34
+    upper = points[points[:, 2] >= cutoff]
+    if len(upper) < 200:
+        raise RuntimeError("Upper-body registration region is implausibly small")
+    return robust_frame(upper)
+
+
 def mesh_points(obj: bpy.types.Object) -> np.ndarray:
     return np.asarray([obj.matrix_world @ vertex.co for vertex in obj.data.vertices], dtype=np.float64)
 
@@ -90,9 +105,9 @@ if len(mask) != len(obj.data.polygons):
 if int(mask.sum()) < 200:
     raise RuntimeError(f"Accessory mask is implausibly small: {int(mask.sum())}")
 
-# Use body vertices outside the selected faces to register the generated cat to
-# the canonical cat. Robust quantiles keep tails and tiny ornament tips from
-# changing the fit. No generated cat surface is exported.
+# Use body vertices outside the selected faces to register the *complete worn
+# model* to the canonical cat.  The transform is estimated before deleting the
+# duplicate cat, so the accessory preserves the placement inferred by Meshy.
 source_points = mesh_points(obj)
 body_vertex_ids = np.unique(np.asarray([vertex for index, poly in enumerate(obj.data.polygons) if not mask[index] for vertex in poly.vertices], dtype=np.int32))
 source_body = source_points[body_vertex_ids]
@@ -105,12 +120,20 @@ if not cat_meshes:
 target_points = np.concatenate([mesh_points(candidate) for candidate in cat_meshes], axis=0)
 source_lo, source_hi = robust_frame(source_body)
 target_lo, target_hi = robust_frame(target_points)
-scale = (target_hi - target_lo) / np.maximum(source_hi - source_lo, 1e-6)
-# Avoid a noisy axis producing an extreme squeeze while still accounting for
-# the generated cat's taller proportions.
-median_scale = float(np.median(scale))
-scale = np.clip(scale, median_scale * 0.76, median_scale * 1.24)
-translation = (target_lo + target_hi) * 0.5 - ((source_lo + source_hi) * 0.5) * scale
+source_upper_lo, source_upper_hi = upper_body_frame(source_body)
+target_upper_lo, target_upper_hi = upper_body_frame(target_points)
+
+# Height is the stable common dimension across the fixed seated pose.  Width and
+# depth are intentionally not fitted: separately generated tails and cheek ruffs
+# make those bounds noisy, and non-uniform fitting visibly distorts hats, bands,
+# glasses, and collars.  Align the upper-body centre in X/Y and the ear/top line
+# in Z so head and neck contact is retained.
+uniform_scale = float((target_hi[2] - target_lo[2]) / max(source_hi[2] - source_lo[2], 1e-6))
+scale = np.asarray([uniform_scale, uniform_scale, uniform_scale], dtype=np.float64)
+source_upper_center = (source_upper_lo + source_upper_hi) * 0.5
+target_upper_center = (target_upper_lo + target_upper_hi) * 0.5
+translation = target_upper_center - source_upper_center * uniform_scale
+translation[2] = target_hi[2] - source_hi[2] * uniform_scale
 for candidate in imported_cat:
     bpy.data.objects.remove(candidate, do_unlink=True)
 
@@ -229,6 +252,12 @@ report = {
     "boundaryBeforeReturn": int(boundary_before),
     "scale": scale.tolist(),
     "translation": translation.tolist(),
+    "registration": {
+        "method": "uniform-height-scale-upper-body-center-top-align",
+        "sourceUpperFrame": [source_upper_lo.tolist(), source_upper_hi.tolist()],
+        "targetUpperFrame": [target_upper_lo.tolist(), target_upper_hi.tolist()],
+        "preservesWornAspectRatio": True,
+    },
     "runtimeTexture": str(runtime_texture),
     "blend": str(blend_path),
     "glb": str(glb_path),

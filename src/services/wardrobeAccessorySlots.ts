@@ -24,17 +24,14 @@ export const wardrobeAccessorySlots = {
 } as const satisfies Record<Exclude<WardrobeAccessoryId, "accessory-none">, WardrobeAccessorySlot>;
 
 export function normalizeWardrobeAccessories(values: readonly unknown[]): WardrobeAccessoryId[] {
-  const occupied = new Set<WardrobeAccessorySlot>();
-  const selected: WardrobeAccessoryId[] = [];
-  // Last selection wins, including when restoring outfits saved by older clients.
+  // Temporary full-model review mode: every choice is a complete cat wearing
+  // one accessory, so the last valid choice replaces every earlier one.
   for (let index = values.length - 1; index >= 0; index--) {
     const value = values[index];
     if (typeof value !== "string" || !Object.prototype.hasOwnProperty.call(wardrobeAccessorySlots, value)) continue;
-    const id = value as keyof typeof wardrobeAccessorySlots;
-    const slot = wardrobeAccessorySlots[id];
-    if (!occupied.has(slot)) { occupied.add(slot); selected.push(id); }
+    return [value as keyof typeof wardrobeAccessorySlots];
   }
-  return selected.reverse();
+  return [];
 }
 
 export function toggleWardrobeAccessory(values: readonly WardrobeAccessoryId[], id: WardrobeAccessoryId) {

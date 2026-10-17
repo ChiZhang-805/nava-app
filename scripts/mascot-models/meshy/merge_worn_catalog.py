@@ -17,6 +17,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fitted-root", required=True)
     parser.add_argument("--editable", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--prefer-fitted", nargs="*", default=[], help="Slugs whose reviewed registered worn geometry replaces an authored fallback")
+    parser.add_argument("--hybrid", nargs="*", default=[], help="Slugs whose registered worn surface is layered over a continuous authored support")
     return parser.parse_args(sys.argv[sys.argv.index("--") + 1 :])
 
 
@@ -34,7 +36,11 @@ keep_authored = {
     "accessory-aurora-scarf", "accessory-sailor-hat", "accessory-fish-brooch",
     "accessory-raindrop-cape",
 }
-hybrid = set()
+for slug in args.prefer_fitted:
+    keep_authored.discard(f"accessory-{slug}")
+for slug in args.hybrid:
+    keep_authored.discard(f"accessory-{slug}")
+hybrid = {f"accessory-{slug}" for slug in args.hybrid}
 for record in catalog["accessories"]:
     group_name = record["id"]
     old = bpy.data.objects.get(group_name)

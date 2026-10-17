@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { WardrobeAccessoryId, WardrobeSkinId } from "./mascotWardrobe";
 import { normalizeWardrobeAngle, wardrobeFurPalettes } from "./wardrobeTurntable";
-import { wardrobeMascotMotions, type WardrobeMascotMotion } from "./wardrobeMascotMotion";
+import { sampleWardrobeMascotMotion, wardrobeMascotMotions, type WardrobeMascotMotion } from "./wardrobeMascotMotion";
 import { createWardrobeProps } from "./wardrobeProps";
 import { sampleWardrobeClothMotion, wardrobeClothTargets } from "./wardrobeClothMotion";
 import { normalizeWardrobeAccessories } from "./wardrobeAccessorySlots";
+import { isWornAccessoryId, wardrobeWornModelUrls } from "./wardrobeWornModels";
 
 const modelUrl = new URL("../assets/mascot/models/nava-wardrobe-cat.glb", import.meta.url).href;
-const accessoriesUrl = new URL("../assets/mascot/models/nava-wardrobe-accessories.glb", import.meta.url).href;
 
 export type WardrobeScene = {
   setAngle: (degrees: number) => void;
@@ -58,7 +58,7 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
   camera.lookAt(0, .18, 0);
   const loader = new GLTFLoader();
   let cat: THREE.Group;
-  let accessories: THREE.Group;
+  let accessories = new THREE.Group();
   let clips: THREE.AnimationClip[];
   const load = async (url: string) => {
     const response = await fetch(url, { signal });
@@ -66,17 +66,15 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
     return loader.parseAsync(await response.arrayBuffer(), "");
   };
   try {
-    const results = await Promise.allSettled([load(modelUrl), load(accessoriesUrl)]);
-    if (signal.aborted || results[0].status !== "fulfilled" || results[1].status !== "fulfilled") {
-      for (const result of results) if (result.status === "fulfilled") disposeModel(result.value.scene);
+    const result = await load(modelUrl);
+    if (signal.aborted) {
+      disposeModel(result.scene);
       throw new Error("Wardrobe model could not be loaded");
     }
-    cat = results[0].value.scene;
-    clips = results[0].value.animations;
-    accessories = results[1].value.scene;
+    cat = result.scene;
+    clips = result.animations;
     if (wardrobeMascotMotions.some((motion) => !clips.some((clip) => clip.name === motion.clip))) {
       disposeModel(cat);
-      disposeModel(accessories);
       throw new Error("Wardrobe actions could not be loaded");
     }
   } catch (error) {
@@ -174,6 +172,53 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
   let clothPose = sampleWardrobeClothMotion(null, 0);
   const props = createWardrobeProps(cat);
   yaw.add(props.group);
+  const wornMotion = new THREE.Group();
+  const wornLayer = new THREE.Group();
+  wornMotion.add(wornLayer);
+  yaw.add(wornMotion);
+  const wornModels = new Map<Exclude<WardrobeAccessoryId, "accessory-none">, THREE.Group>();
+  let activeWornId: Exclude<WardrobeAccessoryId, "accessory-none"> | null = null;
+  let wornRequest = 0;
+
+  const prepareWornModel = (model: THREE.Group) => {
+    model.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(model);
+    const size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
+    const scale = 2.02 / Math.max(size.y, .001);
+    model.scale.setScalar(scale);
+    model.position.set(-center.x * scale, .02 - center.y * scale, -center.z * scale);
+    model.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const old = Array.isArray(object.material) ? object.material : [object.material];
+      const next = old.map((source: THREE.MeshStandardMaterial) => {
+        const map = source.map;
+        if (map) {
+          map.colorSpace = THREE.SRGBColorSpace;
+          map.minFilter = THREE.LinearMipmapLinearFilter;
+          map.magFilter = THREE.LinearFilter;
+          map.generateMipmaps = true;
+          map.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+          map.needsUpdate = true;
+        }
+        return new THREE.MeshBasicMaterial({
+          color: source.color,
+          map,
+          side: source.side,
+          transparent: source.transparent,
+          opacity: source.opacity,
+          alphaTest: source.alphaTest,
+          vertexColors: source.vertexColors,
+        });
+      });
+      object.material = Array.isArray(object.material) ? next : next[0];
+      old.forEach((material) => material.dispose());
+      object.castShadow = object.receiveShadow = false;
+    });
+    model.visible = false;
+    wornLayer.add(model);
+    return model;
+  };
 
   const accessoryGroups = new Map<string, THREE.Object3D>();
   const accessoryRest = new Map<string, THREE.Vector3>();
@@ -243,6 +288,57 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
     return true;
   };
   const render = () => { if (!destroyed && !frame) frame = requestAnimationFrame(draw); };
+  const resetWornMotion = () => {
+    wornMotion.position.set(0, 0, 0);
+    wornMotion.rotation.set(0, 0, 0);
+    wornMotion.scale.set(1, 1, 1);
+  };
+  const selectWornModel = async (id: Exclude<WardrobeAccessoryId, "accessory-none"> | null) => {
+    const request = ++wornRequest;
+    canvas.dataset.wornModel = id ? `loading:${id}` : "none";
+    activeWornId = id;
+    for (const model of wornModels.values()) model.visible = false;
+    cat.visible = !id;
+    accessories.visible = !id;
+    props.group.visible = !id;
+    wornMotion.visible = Boolean(id);
+    resetWornMotion();
+    render();
+    if (!id) return;
+    let model = wornModels.get(id);
+    if (!model) {
+      try {
+        const loaded = await load(wardrobeWornModelUrls[id]);
+        if (destroyed) { disposeModel(loaded.scene); return; }
+        model = prepareWornModel(loaded.scene);
+        wornModels.set(id, model);
+      } catch {
+        if (destroyed || request !== wornRequest) return;
+        activeWornId = null;
+        canvas.dataset.wornModel = `error:${id}`;
+        wornMotion.visible = false;
+        cat.visible = true;
+        accessories.visible = true;
+        props.group.visible = true;
+        render();
+        return;
+      }
+    }
+    if (request !== wornRequest || destroyed) return;
+    model.visible = true;
+    wornModels.delete(id);
+    wornModels.set(id, model);
+    while (wornModels.size > 3) {
+      const oldestId = wornModels.keys().next().value as Exclude<WardrobeAccessoryId, "accessory-none">;
+      if (oldestId === id) break;
+      const oldest = wornModels.get(oldestId)!;
+      wornLayer.remove(oldest);
+      wornModels.delete(oldestId);
+      disposeModel(oldest);
+    }
+    canvas.dataset.wornModel = id;
+    render();
+  };
   const resize = () => {
     const width = Math.max(1, canvas.clientWidth);
     const height = Math.max(1, canvas.clientHeight);
@@ -266,6 +362,18 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
     setMotion(motion, progress) {
       if (destroyed) return;
       const at = Math.min(1, Math.max(0, Number.isFinite(progress) ? progress : 0));
+      if (activeWornId) {
+        resetWornMotion();
+        if (motion && at > 0 && at < 1) {
+          const pose = sampleWardrobeMascotMotion(motion, at);
+          wornMotion.position.set(pose.x * .02, -pose.y * .02, 0);
+          wornMotion.rotation.z = -pose.degrees * Math.PI / 180;
+          wornMotion.scale.set(pose.scaleX, pose.scaleY, 1);
+        }
+        cancelAnimationFrame(frame);
+        draw();
+        return;
+      }
       if (!motion || at === 0 || at === 1) {
         mixer.stopAllAction();
         for (const rest of boneRest) {
@@ -290,6 +398,7 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
     },
     setLook(skin, ids) {
       const selectedIds = normalizeWardrobeAccessories(ids);
+      const wornId = selectedIds.find(isWornAccessoryId) ?? null;
       const palette = wardrobeFurPalettes[skin];
       uniform.navaVariant.value = skin === "skin-cream" ? 0 : 1;
       uniform.navaIvory.value.set(palette[0]);
@@ -307,6 +416,7 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
       // setLook may happen halfway through an action. Restore the current
       // cloth bend after clearing prior morph weights, without restarting it.
       updateCloth();
+      void selectWornModel(wornId);
       render();
     },
     render() { cancelAnimationFrame(frame); return draw(); },
@@ -319,6 +429,7 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
       disposeModel(props.group);
       disposeModel(cat);
       disposeModel(accessories);
+      disposeModel(wornLayer);
       renderer.dispose();
       renderer.forceContextLoss();
     },
