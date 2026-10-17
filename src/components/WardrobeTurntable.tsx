@@ -50,9 +50,9 @@ const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function Wa
     canvas.addEventListener("webglcontextlost", lost);
     canvas.addEventListener("webglcontextrestored", restored);
     const modelState = new MutationObserver(() => {
-      const state = canvas.dataset.wornModel ?? "";
-      if (state.startsWith("loading:")) statusRef.current("loading");
-      else if (sceneRef.current) statusRef.current(sceneRef.current.render() ? "ready" : "unavailable");
+      // Accessory models replace the currently visible cat only after their
+      // asset is ready, so background switching remains interactive.
+      if (sceneRef.current) statusRef.current(sceneRef.current.render() ? "ready" : "unavailable");
     });
     modelState.observe(canvas, { attributes: true, attributeFilter: ["data-worn-model"] });
     void import("../services/wardrobeScene").then(async ({ createWardrobeScene }) => {

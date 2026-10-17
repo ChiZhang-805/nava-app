@@ -53,6 +53,12 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
   const scene = new THREE.Scene();
   const yaw = new THREE.Group();
   scene.add(yaw);
+  const baseLook = new THREE.Group();
+  // The rigged base cat was authored with more empty room around its visible
+  // fur than the complete worn models. Keep both states at the same apparent
+  // size so removing an accessory does not make the cat shrink.
+  baseLook.scale.setScalar(1.24);
+  yaw.add(baseLook);
   const camera = new THREE.OrthographicCamera(-1.8, 1.8, 1.7, -1.1, .1, 30);
   camera.position.set(0, .18, 7);
   camera.lookAt(0, .18, 0);
@@ -153,7 +159,7 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
   accessories.position.x += .2;
   camera.position.set(0, .03, 7);
   camera.lookAt(0, .03, 0);
-  yaw.add(cat, accessories);
+  baseLook.add(cat, accessories);
 
   const mixer = new THREE.AnimationMixer(cat);
   const actions = new Map(wardrobeMascotMotions.map((motion) => {
@@ -171,7 +177,7 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
   let activeMotion: WardrobeMascotMotion | null = null;
   let clothPose = sampleWardrobeClothMotion(null, 0);
   const props = createWardrobeProps(cat);
-  yaw.add(props.group);
+  baseLook.add(props.group);
   const wornMotion = new THREE.Group();
   const wornLayer = new THREE.Group();
   wornMotion.add(wornLayer);
@@ -231,7 +237,7 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
   // Existing garments are fitted in mascot space, then driven by the owning
   // bone's delta from rest. This avoids inheriting an unrelated bone-local axis.
   const costume = new THREE.Group();
-  yaw.add(costume);
+  baseLook.add(costume);
   scene.updateMatrixWorld(true);
   const attachments: { carrier: THREE.Group; bone: THREE.Object3D; inverseRest: THREE.Matrix4 }[] = [];
   const headwear = new Set(["mist-beret", "sailor-hat", "night-voyage-cap", "star-moon-clip", "cherry-bow", "mint-earmuffs", "laurel-crown", "lily-garland", "star-glasses"]);
@@ -257,7 +263,7 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
       object.castShadow = object.receiveShadow = false;
     });
   }
-  yaw.remove(accessories);
+  baseLook.remove(accessories);
   accessories = costume;
   const inverseYaw = new THREE.Matrix4();
   const updateAttachments = (rest = false) => {
@@ -296,15 +302,15 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
   const selectWornModel = async (id: Exclude<WardrobeAccessoryId, "accessory-none"> | null) => {
     const request = ++wornRequest;
     canvas.dataset.wornModel = id ? `loading:${id}` : "none";
-    activeWornId = id;
-    for (const model of wornModels.values()) model.visible = false;
-    cat.visible = !id;
-    accessories.visible = !id;
-    props.group.visible = !id;
-    wornMotion.visible = Boolean(id);
-    resetWornMotion();
-    render();
-    if (!id) return;
+    if (!id) {
+      activeWornId = null;
+      for (const model of wornModels.values()) model.visible = false;
+      baseLook.visible = true;
+      wornMotion.visible = false;
+      resetWornMotion();
+      render();
+      return;
+    }
     let model = wornModels.get(id);
     if (!model) {
       try {
@@ -314,17 +320,17 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
         wornModels.set(id, model);
       } catch {
         if (destroyed || request !== wornRequest) return;
-        activeWornId = null;
         canvas.dataset.wornModel = `error:${id}`;
-        wornMotion.visible = false;
-        cat.visible = true;
-        accessories.visible = true;
-        props.group.visible = true;
         render();
         return;
       }
     }
     if (request !== wornRequest || destroyed) return;
+    activeWornId = id;
+    for (const candidate of wornModels.values()) candidate.visible = false;
+    baseLook.visible = false;
+    wornMotion.visible = true;
+    resetWornMotion();
     model.visible = true;
     wornModels.delete(id);
     wornModels.set(id, model);
@@ -339,6 +345,28 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
     canvas.dataset.wornModel = id;
     render();
   };
+
+  // Warm the browser HTTP cache after the initial cat is interactive. Parsing
+  // and GPU upload still happen only for the selected model, so the wardrobe
+  // stays within the existing three-model GPU budget while later choices avoid
+  // a full network wait.
+  const prefetchUrls = [...Object.values(wardrobeWornModelUrls)];
+  const prefetch = async () => {
+    const worker = async () => {
+      while (prefetchUrls.length && !destroyed && !signal.aborted) {
+        const url = prefetchUrls.shift();
+        if (!url) return;
+        try {
+          const response = await fetch(url, { cache: "force-cache", signal, priority: "low" } as RequestInit & { priority: "low" });
+          if (response.ok) await response.arrayBuffer();
+        } catch {
+          if (destroyed || signal.aborted) return;
+        }
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+  };
+  const prefetchHandle = window.setTimeout(() => { void prefetch(); }, 100);
   const resize = () => {
     const width = Math.max(1, canvas.clientWidth);
     const height = Math.max(1, canvas.clientHeight);
@@ -422,6 +450,7 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
     render() { cancelAnimationFrame(frame); return draw(); },
     dispose() {
       destroyed = true;
+      window.clearTimeout(prefetchHandle);
       cancelAnimationFrame(frame);
       observer.disconnect();
       mixer.stopAllAction();

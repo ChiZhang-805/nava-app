@@ -331,9 +331,6 @@ export default function MascotWardrobe() {
           </>}
         </button>
         <WardrobeMascotEffect motion={turntableStatus === "ready" ? null : playingMotion} />
-        {turntableStatus === "loading" && <span className="mascot-wardrobe-model-loading" role="status">
-          {locale === "zh" ? "小猫准备中…" : "Getting your cat ready…"}
-        </span>}
         <div className="mascot-wardrobe-look-summary">
           <strong>{summary}</strong>
           <span>{exactCurrentLook ? (locale === "zh" ? "当前穿戴" : "Wearing") : (locale === "zh" ? "试穿预览" : "Preview")}</span>

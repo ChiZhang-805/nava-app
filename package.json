@@ -69,6 +69,7 @@
     "skins:test": "node --experimental-strip-types --test tests/app-skins.test.ts",
     "wardrobe:test": "node --experimental-strip-types --test tests/mascot-wardrobe.test.ts tests/wardrobe-mascot-motion.test.ts tests/wardrobe-turntable.test.ts",
     "wardrobe:motion:visual": "node scripts/verify-wardrobe-mascot-motion.mjs",
+    "wardrobe:fast-switch:visual": "node scripts/verify-wardrobe-fast-switch.mjs",
     "wardrobe:turntable:visual": "node scripts/verify-wardrobe-turntable.mjs",
     "wardrobe:layout:visual": "node scripts/verify-wardrobe-layout.mjs",
     "wardrobe:accessories:visual": "node scripts/verify-wardrobe-accessories.mjs",

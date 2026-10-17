@@ -152,7 +152,6 @@
   filter: none;
 }
 
-.mascot-wardrobe-character[data-renderer="loading"] .mascot-wardrobe-turntable,
 .mascot-wardrobe-character[data-renderer="unavailable"] .mascot-wardrobe-turntable {
   visibility: hidden;
 }
@@ -168,26 +167,6 @@
   opacity: var(--wardrobe-effect-opacity, 0);
   transform: translate3d(0, var(--wardrobe-effect-rise, 0px), 0);
   filter: none;
-}
-
-.mascot-wardrobe-model-loading {
-  position: absolute;
-  z-index: 3;
-  left: 50%;
-  top: 48%;
-  max-width: calc(100% - 32px);
-  transform: translateX(-50%);
-  border: 1px solid rgba(255,255,255,.74);
-  border-radius: 999px;
-  padding: 5px 12px;
-  color: #fff;
-  background: rgba(49, 68, 149, .24);
-  backdrop-filter: blur(8px);
-  font-size: 11px;
-  font-weight: 720;
-  line-height: 1.2;
-  white-space: nowrap;
-  pointer-events: none;
 }
 
 .mascot-wardrobe-character img {

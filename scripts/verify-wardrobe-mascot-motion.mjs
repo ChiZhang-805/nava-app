@@ -98,14 +98,14 @@ try {
       await page.locator(".mascot-wardrobe-item").filter({ hasText: "星月发夹" }).click();
       await page.locator(".mascot-wardrobe-item").filter({ hasText: "珍珠领结" }).click();
       await expect(character.locator("canvas")).toHaveAttribute("data-skin", "skin-aurora-teal");
-      await expect(character.locator("canvas")).toHaveAttribute("data-accessories", "accessory-star-moon-clip accessory-pearl-bow");
+      await expect(character.locator("canvas")).toHaveAttribute("data-accessories", "accessory-pearl-bow");
       const dressedBefore = await stage.screenshot();
       await character.click();
       await expect(character).toHaveAttribute("data-motion", "starlight");
       await expect(character).toHaveAttribute("data-motion", "rest", { timeout: 4000 });
       assert.equal(dressedBefore.equals(await stage.screenshot()), true, "selected skin and accessories must retain exact still recovery");
       await writeFile(`${output}/dressed-still-${width}x${height}.png`, dressedBefore);
-      result.dressedLook = "aurora-teal with two accessories: exact still recovery";
+      result.dressedLook = "aurora-teal with one complete worn model: exact still recovery";
 
       // A changed look and a manual turn must not restart or cancel the action.
       await character.click();
