@@ -4,7 +4,7 @@
 
 更新时间：**2026-10-17**（v2完整佩戴模型审看见§176；原v261审看模式见§175；v260撤回见§174）
 
-## 176. v2完整佩戴模型替换衣橱审看资产（发布中；保留已知生成伪影）
+## 176. v2完整佩戴模型替换衣橱审看资产（双站已发布 v263；保留已知生成伪影）
 
 用户要求先把重新生成的模型放进衣橱逐件查看。本轮将
 `Q:/NAVA-Workspace/Build/TestRuns/meshy-worn-catalog-v2/api/<slug>/assets/model.glb`
@@ -25,6 +25,11 @@
 360×740、375×812、390×844、430×932四种视口；证据位于
 `Q:/NAVA-Workspace/Build/TestRuns/wardrobe-full-worn-v262/`。API原始18模型及六视图验证仍保存在
 `Q:/NAVA-Workspace/Build/TestRuns/meshy-worn-catalog-v2/`，不进入Git。
+
+发布门禁：`npm run verify`全33组通过，`npm run auth:verify:production`通过，干净工作树中的真实衣橱
+逐项复测通过。两个公开站点由同一推送源码提交构建；ChatGPT Sites沿用既有public项目发布v263，
+GitHub Pages镜像的`source.json`记录同一源码与Sites版本。此次发布是视觉审看入口，不改变Supabase、
+登录策略或后端函数，也不把上述可见伪影标记为已验收。
 
 ## 175. 完整单饰品佩戴模型审看模式（双站已发布 v261）
 
