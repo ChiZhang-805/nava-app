@@ -30,8 +30,9 @@ ENDPOINT = '/openapi/v1/multi-image-to-3d'
 CATALOG_PATH = Path(__file__).with_name('accessory-catalog-v1.json')
 CATALOG = json.loads(CATALOG_PATH.read_text(encoding='utf-8'))
 CATALOG_NAMES = tuple(item['slug'] for item in CATALOG['accessories'])
-# Keep the two historical task folders readable for status/download recovery.
-NAMES = tuple(dict.fromkeys((*CATALOG_NAMES, 'beret', 'scarf')))
+# Keep the two historical task folders readable for status/download recovery,
+# and allow the canonical no-accessory cat in full-catalog reconstruction runs.
+NAMES = tuple(dict.fromkeys((*CATALOG_NAMES, 'base', 'beret', 'scarf')))
 EXPECTED_CREDITS = 40
 FIXED_PARAMS = {
     'ai_model': 'latest', 'geometry_resolution': '2k',
