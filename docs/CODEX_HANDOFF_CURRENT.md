@@ -6479,3 +6479,5 @@ healthWrites:0、aiTested:false；线上图标均成功解码且自然宽度≥1
 
 - `mist-beret.glb` 不再对原三眼模型做局部贴图覆盖；改用同一批次、同一比例的干净双眼小猫主体与原紫色贝雷帽表面组合，保留鼻子两侧对称的两条闭眼弧线，移除最左侧多余眼睛，也不在脸部留下补丁色块。
 - 修正模型经过五视角复核；衣橱仍沿用既有无阴影展示、快速预加载和单配饰模型切换合同。发布资源为 3,348,104 bytes，压缩后主体与帽子合计 75,999 个三角面。
+- v265 由已推送功能源码 `6362899066f5d4e8cece3320a37cc93441e3201f` 构建并发布双站。Sites 版本 `appgprj_6a5de710811c8191af8ce2681358d518~appgver_7f5067058eb08191ae8ae472dca96d03` 部署成功；Pages 镜像提交 `3404e55821a1bcd403708fa05dc38dc85fd20acc`，工作流 `39026265189` 成功。两站首页均返回 200，Pages `source.json` 指向 v265 和同一源码；两站贝雷帽 GLB 与本地发布产物 SHA-256 均为 `52c0f023794bbb0305bb538613c8350b4ce917e1c07f23cba28abfd51359582b`。
+- `npm run build`、`wardrobe:test` 20 项、`wardrobe:fast-switch:visual`、`wardrobe:layout:visual` 四尺寸和 `auth:verify:production` 通过；快速切换实测 107ms。`wardrobe:motion:visual` 在 Playwright 24 虚拟时钟的 `pauseAt` 抛出 `Cannot fast-forward to the past`，动作首尾与 360° 接缝由同轮单元测试通过，未把该脚本失败记作通过。
