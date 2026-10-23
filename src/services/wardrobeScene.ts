@@ -8,7 +8,7 @@ import { normalizeWardrobeAccessories } from "./wardrobeAccessorySlots";
 import { isWornAccessoryId, wardrobeWornModelUrls } from "./wardrobeWornModels";
 
 const modelUrl = new URL("../assets/mascot/models/nava-wardrobe-cat.glb", import.meta.url).href;
-const textureUrl = new URL("../assets/mascot/models/canonical-cat-v9.webp", import.meta.url).href;
+const textureUrl = new URL("../assets/mascot/models/canonical-cat-v9.jpg", import.meta.url).href;
 type LookId = "none" | keyof typeof wardrobeWornModelUrls;
 export type WardrobeScene = {
   setAngle: (degrees: number) => void;
@@ -65,7 +65,7 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
   const camera = new THREE.OrthographicCamera(-1.3, 1.3, 1.2, -1.2, .1, 30);
   camera.position.set(0, .03, 7); camera.lookAt(0, .03, 0);
   const manager = new THREE.LoadingManager();
-  manager.setURLModifier((url) => url.endsWith("canonical-cat-v9.webp") ? textureUrl : url);
+  manager.setURLModifier((url) => url.endsWith("canonical-cat-v9.jpg") ? textureUrl : url);
   const loader = new GLTFLoader(manager).setMeshoptDecoder(MeshoptDecoder);
   const binary = new Map<LookId, Promise<ArrayBuffer>>();
   const pending = new Map<LookId, Promise<Look>>();

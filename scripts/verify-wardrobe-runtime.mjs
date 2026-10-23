@@ -14,7 +14,7 @@ const browser=await chromium.launch({headless:true,args:['--use-angle=swiftshade
 const context=await browser.newContext({viewport:{width:640,height:640},deviceScaleFactor:1,recordVideo:{dir:output,size:{width:640,height:640}}});
 const page=await context.newPage(),report={passed:false,looks:[],errors:[],requests:[]};
 page.on('pageerror',e=>report.errors.push(e.message));
-page.on('response',r=>{if(r.url().includes('.glb')||r.url().includes('canonical-cat-v9.webp'))report.requests.push({url:new URL(r.url()).pathname,status:r.status()})});
+page.on('response',r=>{if(r.url().includes('.glb')||r.url().includes('canonical-cat-v9.jpg'))report.requests.push({url:new URL(r.url()).pathname,status:r.status()})});
 try{
  await page.goto('http://127.0.0.1:5297/__wardrobe-check');
  await page.evaluate(async()=>{

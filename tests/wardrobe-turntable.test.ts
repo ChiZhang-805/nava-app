@@ -11,8 +11,11 @@ test('rotation remains continuous across the full-turn seam', () => {
   assert.equal(wardrobeDragAngle(90,6,324),90);
   assert.ok(Math.abs(wardrobeDragAngle(90,6.01,324)-90.01)<1e-8);
 });
-test('all 18 full cats contain a canonical deforming body and share one lossless fur atlas', async () => {
+test('all 18 full cats contain a canonical deforming body and share one unchanged original fur atlas', async () => {
   const folder=new URL('../src/assets/mascot/models/',import.meta.url);
+  const atlas=readFileSync(new URL('canonical-cat-v9.jpg',folder));
+  assert.equal(atlas.readUInt16BE(0),0xffd8);
+  assert.equal(atlas.readUInt16BE(atlas.length-2),0xffd9);
   const files=['nava-wardrobe-cat.glb',...readdirSync(new URL('worn/',folder)).filter(f=>f.endsWith('.glb')).map(f=>'worn/'+f)];
   assert.equal(files.length,18);
   for(const file of files){
@@ -20,7 +23,7 @@ test('all 18 full cats contain a canonical deforming body and share one lossless
     assert.ok(bytes.length<4_000_000,file+' mobile transfer budget');
     assert.equal(json.nodes.filter(n=>n.name==='NAVA_Canonical_Cat').length,1,file);
     assert.ok(json.skins?.length>=1,file);
-    assert.equal(json.images.filter(i=>i.uri==='canonical-cat-v9.webp').length,1,file);
+    assert.equal(json.images.filter(i=>i.uri==='canonical-cat-v9.jpg').length,1,file);
     assert.ok(json.extensionsRequired.includes('EXT_meshopt_compression'));
     for(const mesh of json.meshes)for(const p of mesh.primitives){
       assert.ok(p.attributes.JOINTS_0!==undefined && p.attributes.WEIGHTS_0!==undefined,file);

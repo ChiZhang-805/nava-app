@@ -1,4 +1,4 @@
-// Runtime packaging: lossless 4K cat image, one shared texture download,
+// Runtime packaging: unchanged original 4K cat image, one shared texture download,
 // meshopt geometry/animation compression, full cat geometry in every GLB.
 import { createRequire } from 'node:module';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -6,7 +6,7 @@ import path from 'node:path';
 const require = createRequire('Q:/NAVA-Workspace/Tools/mascot-modeling/package.json');
 const { NodeIO, Format } = require('@gltf-transform/core');
 const { ALL_EXTENSIONS } = require('@gltf-transform/extensions');
-const { dedup, prune, meshopt, textureCompress } = require('@gltf-transform/functions');
+const { dedup, prune, meshopt } = require('@gltf-transform/functions');
 const { MeshoptEncoder, MeshoptDecoder } = require('meshoptimizer');
 const sharp = require('sharp');
 await MeshoptEncoder.ready;
@@ -29,9 +29,9 @@ for(const slug of slugs){
  const cat=doc.getRoot().listNodes().find(n=>n.getName()==='NAVA_Canonical_Cat');
  if(!cat)throw new Error('Missing canonical cat '+slug);
  const catTexture=cat.getMesh().listPrimitives()[0].getMaterial().getBaseColorTexture();
- catTexture.setName('canonical-cat-v9').setURI('canonical-cat-v9.webp');
- for(const tex of doc.getRoot().listTextures()) if(tex!==catTexture) tex.setName('accessory-'+tex.getName());
- await doc.transform(dedup(),prune(),textureCompress({encoder:sharp,targetFormat:'webp',lossless:true,effort:60,pattern:/^canonical-cat-v9/}),textureCompress({encoder:sharp,targetFormat:'webp',quality:94,effort:60,resize:[1024,1024],pattern:/^accessory-/}),meshopt({encoder:MeshoptEncoder,level:'high',quantizePosition:16,quantizeTexcoord:16}));
+ catTexture.setName('canonical-cat-v9').setURI('canonical-cat-v9.jpg');
+ for(const tex of doc.getRoot().listTextures()) if(tex!==catTexture) tex.setImage(await sharp(tex.getImage()).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).webp({quality:94,effort:6}).toBuffer()).setMimeType('image/webp').setName('accessory-'+tex.getName()).setURI('');
+ await doc.transform(dedup(),prune(),meshopt({encoder:MeshoptEncoder,level:'high',quantizePosition:16,quantizeTexcoord:16}));
  const result=await io.writeJSON(doc,{format:Format.GLTF,basename:slug});
  const {json,resources}=result;
  // Keep the generated JSON as a packaging diagnostic, outside product sources.
@@ -41,7 +41,7 @@ for(const slug of slugs){
  const pieces=[align(resources[uri])];let offset=pieces[0].length;
  delete json.buffers[0].uri;
  for(const im of json.images??[]){
-   if(im.uri==='canonical-cat-v9.webp'){
+   if(im.uri==='canonical-cat-v9.jpg'){
      await writeFile(path.join(out,im.uri),resources[im.uri]);continue;
    }
    const bytes=resources[im.uri];if(!bytes)throw new Error('Missing image '+im.uri);
@@ -54,5 +54,5 @@ for(const slug of slugs){
  const bin=Buffer.concat(pieces);const header=Buffer.alloc(20);header.write('glTF');header.writeUInt32LE(2,4);header.writeUInt32LE(28+j.length+bin.length,8);header.writeUInt32LE(j.length,12);header.writeUInt32LE(0x4e4f534a,16);
  const bh=Buffer.alloc(8);bh.writeUInt32LE(bin.length,0);bh.writeUInt32LE(0x004e4942,4);
  const glb=Buffer.concat([header,j,bh,bin]);await writeFile(path.join(out,`${slug}.glb`),glb);
- console.log(JSON.stringify({slug,inputBytes:(await readFile(input)).length,outputBytes:glb.length,sharedTexture:'canonical-cat-v9.webp',actions:json.animations?.map(a=>a.name),externalBuffers:json.buffers.slice(1)}));
+ console.log(JSON.stringify({slug,inputBytes:(await readFile(input)).length,outputBytes:glb.length,sharedTexture:'canonical-cat-v9.jpg',actions:json.animations?.map(a=>a.name),externalBuffers:json.buffers.slice(1)}));
 }
