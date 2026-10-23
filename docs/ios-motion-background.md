@@ -1,6 +1,6 @@
 # iOS 动态背景、角色动画与原生媒体
 
-## 衣橱 v3 当前进度（2026-10-24，本地验证完成，发布待办）
+## 衣橱 v3 当前状态（2026-10-24，双站 v266 已发布）
 
 基础 v9 与 17 个单饰品完整猫体已在 Blender 完成统一制作、关节绑定并接入本地 APP。
 猫体仍共用 `base-cat-v9-shadowless/nava-cat-base-v9-shadowless.glb`（SHA-256
@@ -26,14 +26,37 @@
 - 本地通过：`npm run wardrobe:test` 15/15，18 模型骨骼/权重/动作首尾解码验证，
   浏览器 18×3 动作精确复位，4 手机尺寸 UI 动作、动作中换款/转身、减少动态效果，
   9 个移动端/安全区/降级布局场景，build、lint、production auth contract。
-  延迟下载保留原帧、预取与选择请求去重、连续选择防回切、失败保留当前模型均通过。完整发布门禁继续执行。
+  延迟下载保留原帧、预取与选择请求去重、连续选择防回切、失败保留当前模型均通过。完整发布门禁已通过，见下方双站发布结果。
 - 证据：`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-v3/runtime/`；
   制作清单 `scripts/mascot-models/wardrobe-production.json`，可编辑资产在
   `Build/Assets/Mascot/wardrobe-v3` 和 `beret-fitted-v2`。无新 Meshy 消耗，无密钥读取。
 - 初始工作区 main 落后 origin/main 6 提交且有既存删除；未 reset/clean/覆盖它们。
-  主工作区完整 verify 在 repository scan 被既存未提交删除阻止；需要在从同一源提交构建的
-  干净发布目录重新运行。原有 Vite 高危公告导致 audit 门禁失败，已只更新 Vite 兼容补丁，
-  npm audit 目前为0漏洞。两站发布尚未完成，active goal 保持进行。
+  主工作区完整 verify 曾在 repository scan 被既存未提交删除阻止；已在同一源提交的
+  干净发布目录完整重跑通过。原有 Vite 高危公告导致 audit 门禁失败，已只更新 Vite 兼容版本（8.3.5），
+  npm audit 为0漏洞。干净构建目录完整验证及双站发布均已完成。
+
+### 双站发布结果（2026-10-24）
+
+- 已发布 Sites **v266** 和 GitHub Pages，运行源码同为
+  `a11078987438f92bf39c6736df889b4401a07bc4`；Pages 镜像提交
+  `3545be81a3e23e3d0e6c0bd9c5f873f7cfea13e7`。
+- Sites version ID：`appgprj_6a5de710811c8191af8ce2681358d518~appgver_21ec214650b08191a5823eb807ce9093`；
+  deployment `appgdep_6adbc16a2c348191a084a9f8dc0934a2` 返回 succeeded。
+- 干净源提交构建通过完整 `npm run verify`、`npm run auth:verify:production`；
+  独立衣橱测试 15/15，最终浏览器 18×3 动作复位和加载边界通过。
+  `runtime/public/report.json` 记录两站各 22 个相关运行文件 SHA-256 一致（18 GLB、共用纹理、相关入口/运行模块），
+  两站真实登录页可达且 `?demo=1` 无法绕过登录；canonical Supabase 项目不变。
+  本轮没有使用真实账号完成一次新登录或写入生产数据。
+- 最终 GLB 合计 **21,033,768 字节**；共用 JPEG **979,073 字节**，与 v9 原始贴图字节完全一致，
+  SHA-256 `929f35e7652230270d75d75b44f7e7d2e493976fb982926cd7dffb35eddc3046`。
+  修正过扩展名与内容不符的打包错误；原图没有二次有损压缩。配饰纹理实际为 1K WebP。
+- 发布源由 canonical 主工作区的本轮文件与 origin/main 合并为干净构建提交；
+  主工作区既存删除、Meshy 脚本修改和旧 HEAD 均保留，未 reset/clean。
+  生成构建目录为 `Q:/NAVA-Workspace/Build/Release-Staging/wardrobe-v3`，仅用于构建和验证，不能作为新的编辑源。
+  完整 verify 自动更新的 Deno lock 已保存差异证据并恢复到已提交输入，未部署后端变化。
+  Pages 使用增量复制，保留旧的带哈希资源；新入口只引用本轮构建。
+- 新造型是内部验收后交用户检查的版本；不把用户认可背包设计图写成用户认可所有最终模型。
+  本阶段完成基础＋单饰品模型和三种坐姿局部动作，未启用多饰品组合、站立或行走。
 
 以下为历史记录，不要用旧动画/部署结果替代本轮证据。
 
