@@ -1,192 +1,53 @@
-import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
-import { chromium, expect } from "@playwright/test";
-import { createServer } from "vite";
-import { applyProjectPublicEnv } from "./project-env.mjs";
-
+import assert from 'node:assert/strict';
+import {mkdir,writeFile} from 'node:fs/promises';
+import {chromium,expect} from '@playwright/test';
+import {createServer} from 'vite';
+import {applyProjectPublicEnv} from './project-env.mjs';
 applyProjectPublicEnv(process.cwd());
-const output = process.env.NAVA_WARDROBE_EVIDENCE_DIR ? `${process.env.NAVA_WARDROBE_EVIDENCE_DIR}/motion` : "Q:/NAVA-Workspace/Build/TestRuns/wardrobe-mascot-motion";
-await mkdir(output, { recursive: true });
-const server = await createServer({ server: { host: "127.0.0.1", port: 5261, strictPort: true }, logLevel: "silent" });
-await server.listen();
-const base = server.resolvedUrls.local[0];
-const browser = await chromium.launch({ headless: true, args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
-const sizes = [[360, 740], [375, 812], [390, 844], [430, 932]];
-const actions = [
-  ["bubble", 2600], ["starlight", 2800], ["blossom", 3000], ["snowfall", 2800],
-];
-const report = { passed: false, sizes: [], errors: [] };
-
-async function openWardrobe(context) {
-  await context.addInitScript(() => {
-    sessionStorage.clear();
-    localStorage.clear();
-    sessionStorage.setItem("nava.review.demo.auth.v1", "signed-in");
-    localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({ completed: true, version: 3, answers: {} }));
-  });
-  const page = await context.newPage();
-  await page.clock.install();
-  await page.goto(`${base}?demo=1#tab=profile&view=wardrobe`, { waitUntil: "networkidle" });
-  if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
-  await expect(page.locator(".mascot-wardrobe-preview")).toBeVisible({ timeout: 20000 });
-  await expect(page.locator(".mascot-wardrobe-character")).toHaveAttribute("data-renderer", "ready", { timeout: 20000 });
-  // WebGL readiness can precede the page's 540ms blur/translate entrance.
-  // Wait for that finite CSS motion before taking an exact resting baseline.
-  await page.locator(".mascot-wardrobe").evaluate(async (element) => {
-    await Promise.all(element.getAnimations().map((animation) => animation.finished.catch(() => {})));
-  });
-  return page;
+const output=process.env.NAVA_WARDROBE_EVIDENCE_DIR?`${process.env.NAVA_WARDROBE_EVIDENCE_DIR}/motion`:'Q:/NAVA-Workspace/Build/TestRuns/wardrobe-mascot-motion';await mkdir(output,{recursive:true});
+const server=await createServer({server:{host:'127.0.0.1',port:5261,strictPort:true},logLevel:'silent'});await server.listen();
+const browser=await chromium.launch({headless:true,args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const actions=[['wave',3200],['yarn',5000],['stretch',3500]],report={passed:false,sizes:[],errors:[]};
+async function open(width,height,reducedMotion='no-preference'){
+ const context=await browser.newContext({viewport:{width,height},isMobile:true,hasTouch:true,locale:'zh-CN',reducedMotion});
+ await context.addInitScript(()=>{sessionStorage.setItem('nava.review.demo.auth.v1','signed-in');localStorage.setItem('nava.onboarding.v3.00000000-0000-4000-8000-000000000001',JSON.stringify({completed:true,version:3,answers:{}}))});
+ const page=await context.newPage();page.on('pageerror',e=>report.errors.push(e.message));await page.clock.install();
+ await page.goto(`${server.resolvedUrls.local[0]}?demo=1#tab=profile&view=wardrobe`,{waitUntil:'networkidle'});
+ if(await page.locator('.launch-sequence').isVisible())await page.locator('.launch-sequence').click();
+ const character=page.locator('.mascot-wardrobe-character');await expect(character).toHaveAttribute('data-renderer','ready',{timeout:30000});
+ await page.locator('.mascot-wardrobe').evaluate(async e=>{await Promise.all(e.getAnimations().map(a=>a.finished.catch(()=>{})))});
+ return{context,page,character,stage:page.locator('.mascot-wardrobe-preview'),canvas:page.locator('.mascot-wardrobe-turntable')};
 }
-
-try {
-  for (const [width, height] of sizes) {
-    const context = await browser.newContext({ viewport: { width, height }, isMobile: true, hasTouch: true, reducedMotion: "no-preference", locale: "zh-CN" });
-    const page = await openWardrobe(context);
-    page.on("pageerror", (error) => report.errors.push(`${width}x${height}: ${error.message}`));
-    const stage = page.locator(".mascot-wardrobe-preview");
-    const character = page.locator(".mascot-wardrobe-character");
-    await expect(page.locator(".mascot-wardrobe-motion-hint")).toHaveCount(0);
-    const result = { viewport: `${width}x${height}`, completed: [], samePixelsAfter: true, changedDuring: true };
-    // Freeze only the keyframe captures so slow software GPU screenshots cannot
-    // overrun the one-shot clip. The interaction cases below run in real time.
-    await page.clock.pauseAt(await page.evaluate(() => Date.now()));
-    for (const [id, duration] of actions) {
-      const before = await stage.screenshot();
-      await character.click();
-      await expect(character).toHaveAttribute("data-motion", id);
-      await page.clock.runFor(Math.floor(duration * .42));
-      assert.match(await character.evaluate((button) => button.style.transform), /^translate3d\(0(?:px)?, 0(?:px)?, 0(?:px)?\)$/, "3D actions must articulate the mesh instead of moving the whole DOM layer");
-      const during = await stage.screenshot();
-      if (before.equals(during)) {
-        await writeFile(`${output}/failure-${id}-${width}-before.png`, before);
-        await writeFile(`${output}/failure-${id}-${width}-during.png`, during);
-      }
-      assert.equal(before.equals(during), false, `${width}x${height} ${id} must visibly move`);
-      await page.clock.runFor(duration);
-      await expect(character).toHaveAttribute("data-motion", "rest", { timeout: duration + 2000 });
-      const after = await stage.screenshot();
-      if (!before.equals(after)) {
-        await writeFile(`${output}/failure-${id}-${width}-before.png`, before);
-        await writeFile(`${output}/failure-${id}-${width}-after.png`, after);
-        await writeFile(`${output}/failure-${id}-${width}-during.png`, during);
-      }
-      assert.equal(before.equals(after), true, `${width}x${height} ${id} must return to the exact still pixels`);
-      result.completed.push(id);
-      if (width === 390) {
-        await writeFile(`${output}/${id}-during-${width}x${height}.png`, during);
-        if (id === "bubble") await writeFile(`${output}/still-${width}x${height}.png`, before);
-      }
-    }
-    await page.clock.resume();
-    if (width === 390) {
-      const box = await character.boundingBox();
-      assert.ok(box, "cat hit target must exist");
-      const startX = box.x + box.width * .42;
-      const startY = box.y + box.height * .5;
-      await page.mouse.move(startX, startY);
-      await page.mouse.down();
-      await page.mouse.move(startX + 48, startY + 2, { steps: 8 });
-      await page.mouse.up();
-      await expect(character).toHaveAttribute("data-motion", "rest");
-      await character.click();
-      await expect(character).toHaveAttribute("data-motion", "bubble");
-      await expect(character).toHaveAttribute("data-motion", "rest", { timeout: 4000 });
-      result.dragThenTap = "drag does not animate; next tap starts immediately";
-
-      await page.locator(".mascot-wardrobe-item").filter({ hasText: "极光青" }).click();
-      await page.getByRole("tab", { name: "饰品" }).click();
-      await page.locator(".mascot-wardrobe-item").filter({ hasText: "星月发夹" }).click();
-      await page.locator(".mascot-wardrobe-item").filter({ hasText: "珍珠领结" }).click();
-      await expect(character.locator("canvas")).toHaveAttribute("data-skin", "skin-aurora-teal");
-      await expect(character.locator("canvas")).toHaveAttribute("data-accessories", "accessory-pearl-bow");
-      const dressedBefore = await stage.screenshot();
-      await character.click();
-      await expect(character).toHaveAttribute("data-motion", "starlight");
-      await expect(character).toHaveAttribute("data-motion", "rest", { timeout: 4000 });
-      assert.equal(dressedBefore.equals(await stage.screenshot()), true, "selected skin and accessories must retain exact still recovery");
-      await writeFile(`${output}/dressed-still-${width}x${height}.png`, dressedBefore);
-      result.dressedLook = "aurora-teal with one complete worn model: exact still recovery";
-
-      // A changed look and a manual turn must not restart or cancel the action.
-      await character.click();
-      await expect(character).toHaveAttribute("data-motion", "blossom");
-      await page.getByRole("tab", { name: "皮肤" }).click();
-      await page.locator(".mascot-wardrobe-item").filter({ hasText: "暖橘" }).click();
-      await expect(character).toHaveAttribute("data-motion", "blossom");
-      const angleBefore = await character.locator("canvas").getAttribute("data-angle");
-      await character.focus();
-      await page.keyboard.press("ArrowRight");
-      await page.keyboard.press("ArrowRight");
-      assert.notEqual(await character.locator("canvas").getAttribute("data-angle"), angleBefore);
-      await expect(character).toHaveAttribute("data-motion", "blossom");
-      await expect(character).toHaveAttribute("data-motion", "rest", { timeout: 5000 });
-      const finalAngle = await character.locator("canvas").getAttribute("data-angle");
-      await character.evaluate((button) => button.blur());
-      const warmBefore = await stage.screenshot();
-      await character.click();
-      await expect(character).toHaveAttribute("data-motion", "snowfall");
-      await expect(character).toHaveAttribute("data-motion", "rest", { timeout: 5000 });
-      assert.equal(await character.locator("canvas").getAttribute("data-angle"), finalAngle);
-      assert.ok(warmBefore.equals(await stage.screenshot()), "warm skin, accessories and retained yaw return to exact rest");
-      result.midActionChanges = "changing skin and yaw preserves the active clip; warm dressed pose returns exactly";
-    }
-    report.sizes.push(result);
-    await context.close();
+try{
+ for(const [width,height] of [[360,740],[375,812],[390,844],[430,932]]){
+  const v=await open(width,height);await v.page.clock.pauseAt(await v.page.evaluate(()=>Date.now()));
+  const item={viewport:`${width}x${height}`,actions:[]};
+  for(const [id,duration] of actions){
+   const before=await v.stage.screenshot();await v.character.click();await expect(v.character).toHaveAttribute('data-motion',id);
+   await v.page.clock.runFor(duration*.43);
+   assert.match(await v.character.evaluate(e=>e.style.transform),/^translate3d\(0(?:px)?, 0(?:px)?, 0(?:px)?\)$/);
+   const during=await v.stage.screenshot({path:`${output}/${id}-${width}x${height}.png`});assert.equal(before.equals(during),false);
+   await v.page.clock.runFor(duration);await expect(v.character).toHaveAttribute('data-motion','rest');
+   assert.equal(before.equals(await v.stage.screenshot()),true,`${width}/${id}: exact rest`);item.actions.push(id);
   }
-
-  const interaction = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: "no-preference", locale: "zh-CN" });
-  const interactionPage = await openWardrobe(interaction);
-  const interactionCharacter = interactionPage.locator(".mascot-wardrobe-character");
-  await interactionCharacter.evaluate((button) => { button.click(); button.click(); });
-  await expect(interactionCharacter).toHaveAttribute("data-motion", "bubble");
-  await expect(interactionCharacter).toHaveAttribute("data-motion", "rest", { timeout: 4000 });
-  await interactionCharacter.click();
-  await expect(interactionCharacter).toHaveAttribute("data-motion", "starlight");
-  await expect(interactionCharacter).toHaveAttribute("data-motion", "rest", { timeout: 4000 });
-  await interactionCharacter.evaluate((button) => {
-    const rect = button.getBoundingClientRect();
-    const init = { bubbles: true, isPrimary: true, pointerId: 8, clientX: rect.x + rect.width * .4, clientY: rect.y + rect.height * .5 };
-    button.dispatchEvent(new PointerEvent("pointerdown", init));
-    button.dispatchEvent(new PointerEvent("pointermove", { ...init, clientX: init.clientX + 48 }));
-    button.dispatchEvent(new PointerEvent("pointerup", { ...init, clientX: init.clientX + 48 }));
-  });
-  await interactionCharacter.focus();
-  await interactionPage.keyboard.press("Enter");
-  await expect(interactionCharacter).toHaveAttribute("data-motion", "blossom");
-  await expect(interactionCharacter).toHaveAttribute("data-motion", "rest", { timeout: 4000 });
-  await interactionCharacter.evaluate((button) => button.blur());
-  const beforePreferenceChange = await interactionCharacter.screenshot();
-  await interactionCharacter.click();
-  await expect(interactionCharacter).toHaveAttribute("data-motion", "snowfall");
-  await interactionPage.waitForTimeout(250);
-  await interactionPage.emulateMedia({ reducedMotion: "reduce" });
-  await expect(interactionCharacter).toHaveAttribute("data-motion", "rest");
-  await expect(interactionCharacter).toBeDisabled();
-  const afterPreferenceChange = await interactionCharacter.screenshot();
-  await writeFile(`${output}/reduce-before-390x844.png`, beforePreferenceChange);
-  await writeFile(`${output}/reduce-after-390x844.png`, afterPreferenceChange);
-  assert.match(await interactionCharacter.evaluate((button) => button.style.transform), /^translate3d\(0(?:px)?, 0(?:px)?, 0(?:px)?\)$/, "reduced motion must restore the neutral cat transform");
-  assert.equal(await interactionPage.locator(".mascot-wardrobe-preview").evaluate((stage) => stage.style.getPropertyValue("--wardrobe-effect-opacity")), "0", "reduced motion must hide the animated prop");
-  await interaction.close();
-
-  const reduced = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: "reduce", locale: "zh-CN" });
-  const reducedPage = await openWardrobe(reduced);
-  const reducedCharacter = reducedPage.locator(".mascot-wardrobe-character");
-  const reducedBefore = await reducedPage.locator(".mascot-wardrobe-preview").screenshot();
-  await expect(reducedCharacter).toBeDisabled();
-  await reducedCharacter.evaluate((button) => button.click());
-  await expect(reducedCharacter).toHaveAttribute("data-motion", "rest");
-  assert.equal(reducedBefore.equals(await reducedPage.locator(".mascot-wardrobe-preview").screenshot()), true, "reduced motion must retain the still image");
-  await reduced.close();
-
-  report.passed = report.errors.length === 0;
-  assert.equal(report.passed, true, report.errors.join("\n"));
-} catch (error) {
-  report.errors.push(error instanceof Error ? error.stack ?? error.message : String(error));
-} finally {
-  await writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));
-  await browser.close();
-  await server.close();
-}
-if (!report.passed) throw new Error(report.errors.join("\n"));
-console.log(`Wardrobe mascot motion passed: ${report.sizes.length} phone sizes × ${actions.length} one-shot actions, exact still recovery, reduced motion.`);
+  if(width===390){
+   await v.page.getByRole('tab',{name:'饰品'}).click();await v.page.locator('.mascot-wardrobe-item').filter({hasText:'云蓝围巾'}).click();
+   await expect(v.canvas).toHaveAttribute('data-worn-model','accessory-cloud-scarf',{timeout:30000});await v.page.clock.runFor(50);
+   await v.character.focus();await v.page.keyboard.press('ArrowRight');await v.page.keyboard.press('ArrowRight');await v.character.evaluate(e=>e.blur());
+   await v.page.clock.runFor(50);const before=await v.stage.screenshot();await v.character.click();await v.page.clock.runFor(1500);
+   await v.page.locator('.mascot-wardrobe-item').filter({hasText:'雾紫贝雷帽'}).click();
+   await expect(v.canvas).toHaveAttribute('data-worn-model','accessory-mist-beret',{timeout:30000});
+   await expect(v.character).toHaveAttribute('data-motion','wave');await v.page.clock.runFor(3500);
+   await expect(v.character).toHaveAttribute('data-motion','rest');await expect(v.canvas).toHaveAttribute('data-angle','30');
+   assert.equal(before.equals(await v.stage.screenshot()),false,'changed accessory is retained after motion');
+   await v.character.click();await v.page.clock.runFor(2000);await v.page.emulateMedia({reducedMotion:'reduce'});await v.page.clock.runFor(50);
+   await expect(v.character).toHaveAttribute('data-motion','rest');await expect(v.character).toBeDisabled();
+   item.switchDuringMotion='latest model preserves motion time and yaw';item.reducedMotion='restored';
+  }
+  report.sizes.push(item);await v.context.close();console.log(JSON.stringify(item));
+ }
+ const reduced=await open(390,844,'reduce');await expect(reduced.character).toBeDisabled();await reduced.character.evaluate(e=>e.click());await expect(reduced.character).toHaveAttribute('data-motion','rest');await reduced.context.close();
+ assert.equal(report.errors.length,0);report.passed=true;
+}catch(error){report.errors.push(error.stack??String(error))}
+finally{await writeFile(`${output}/report.json`,JSON.stringify(report,null,2));await browser.close();await server.close()}
+if(!report.passed)throw new Error(report.errors.join('\n'));

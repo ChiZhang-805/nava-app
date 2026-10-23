@@ -1,11 +1,10 @@
 import { Check, CircleCheckBig, Coins, Shirt, Sparkles, TriangleAlert, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import WardrobeMascotEffect from "../components/WardrobeMascotEffect";
 import WardrobeTurntable, { type WardrobeTurntableHandle } from "../components/WardrobeTurntable";
 import { wardrobeDragAngle } from "../services/wardrobeTurntable";
 import { toggleWardrobeAccessory } from "../services/wardrobeAccessorySlots";
 import { useLocale } from "../i18n";
-import { sampleWardrobeMascotMotion, wardrobeMascotMotions, wardrobeMascotTransform, type WardrobeMascotMotion } from "../services/wardrobeMascotMotion";
+import { wardrobeMascotMotions, type WardrobeMascotMotion } from "../services/wardrobeMascotMotion";
 import {
   equipMascotWardrobeLook,
   loadMascotWardrobeState,
@@ -165,13 +164,10 @@ export default function MascotWardrobe() {
     const tick = (now: number) => {
       if (started === null) started = now;
       const progress = Math.min(1, (now - started) / duration);
-      const pose = sampleWardrobeMascotMotion(playingMotion, progress);
       if (turntableStatus === "ready") {
         character.style.transform = "translate3d(0, 0, 0)";
         turntableRef.current?.setMotion(playingMotion, progress);
-      } else character.style.transform = wardrobeMascotTransform(pose);
-      stage.style.setProperty("--wardrobe-effect-opacity", String(pose.effectOpacity));
-      stage.style.setProperty("--wardrobe-effect-rise", `${pose.effectRise}px`);
+      }
       if (progress < 1) motionFrameRef.current = requestAnimationFrame(tick);
       else { reset(); motionLockedRef.current = false; setPlayingMotion(null); }
     };
@@ -180,7 +176,7 @@ export default function MascotWardrobe() {
   }, [playingMotion, turntableStatus]);
 
   const playMascotMotion = () => {
-    if (turntableStatus === "loading" || motionLockedRef.current || playingMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (turntableStatus !== "ready" || motionLockedRef.current || playingMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     motionLockedRef.current = true;
     const next = wardrobeMascotMotions[nextMotionIndex];
     setPlayingMotion(next.id);
@@ -324,13 +320,12 @@ export default function MascotWardrobe() {
               ? (locale === "zh" ? `小猫正在${wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.label.zh}` : `The cat is playing ${wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.label.en}`)
               : (locale === "zh" ? `${turntableStatus === "ready" ? "左右滑动或方向键转身，Home回正面。" : ""}点按小猫播放${wardrobeMascotMotions[nextMotionIndex].label.zh}，当前搭配：${summary}` : `${turntableStatus === "ready" ? "Swipe or use arrow keys to turn; Home faces forward. " : ""}Tap the cat to ${wardrobeMascotMotions[nextMotionIndex].label.en}. Current look: ${summary}`)}
           data-motion={playingMotion ?? "rest"}>
-          <WardrobeTurntable ref={turntableRef} skinId={preview.skinId} accessoryIds={preview.accessoryIds} onStatus={setTurntableStatus} />
+          <WardrobeTurntable ref={turntableRef} skinId={preview.skinId} accessoryIds={preview.accessoryIds} prefetchIds={(activeCategory === "accessory" ? itemPages[activePage] ?? [] : wardrobeItems("accessory").slice(0, 6)).map((item) => item.id).filter((id): id is WardrobeSelection["accessoryIds"][number] => id.startsWith("accessory-"))} onStatus={setTurntableStatus} onLoadError={() => setError(locale === "zh" ? "这个模型暂时未能载入，仍显示上一款。请重新选择后再试。" : "This model could not load. The previous look is still shown; select again to retry.")} />
           {turntableStatus === "unavailable" && <>
             <img className="mascot-wardrobe-skin" src={skin.art} alt="" draggable={false} />
             {accessories.map((accessory) => accessory.art && <img key={accessory.id} className="mascot-wardrobe-accessory" src={accessory.art} alt="" draggable={false} />)}
           </>}
         </button>
-        <WardrobeMascotEffect motion={turntableStatus === "ready" ? null : playingMotion} />
         <div className="mascot-wardrobe-look-summary">
           <strong>{summary}</strong>
           <span>{exactCurrentLook ? (locale === "zh" ? "当前穿戴" : "Wearing") : (locale === "zh" ? "试穿预览" : "Preview")}</span>

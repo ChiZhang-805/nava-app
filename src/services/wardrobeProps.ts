@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { WardrobeMascotMotion } from "./wardrobeMascotMotion";
+import type { LegacyWardrobeMascotMotion as WardrobeMascotMotion } from "./wardrobeMascotMotion";
 
 // Props occupy the same 3D space as the cat, including at side and rear angles.
 // Their opacity and scale return to zero before the neutral pose is restored.

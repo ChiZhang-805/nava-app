@@ -2,9 +2,8 @@ import type { WardrobeAccessoryId } from "./mascotWardrobe";
 
 type WornAccessoryId = Exclude<WardrobeAccessoryId, "accessory-none">;
 
-// Each file is the complete Meshy-generated cat wearing exactly one accessory.
-// Lazy loading keeps the initial wardrobe download small while preserving the
-// original cat/accessory placement for visual review.
+// Each file contains the same canonical v9 cat and one fitted accessory,
+// with local skeletal actions. One shared lossless fur atlas serves every look.
 export const wardrobeWornModelUrls = {
   "accessory-bell-collar": new URL("../assets/mascot/models/worn/bell-collar.glb", import.meta.url).href,
   "accessory-cloud-scarf": new URL("../assets/mascot/models/worn/cloud-scarf.glb", import.meta.url).href,

@@ -1,4 +1,4 @@
-import type { WardrobeMascotMotion } from "./wardrobeMascotMotion";
+import type { LegacyWardrobeMascotMotion as WardrobeMascotMotion } from "./wardrobeMascotMotion";
 
 export const wardrobeClothTargets = ["cloth_relax", "cloth_lift"] as const;
 export type WardrobeClothPose = Record<typeof wardrobeClothTargets[number], number>;

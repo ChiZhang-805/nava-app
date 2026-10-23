@@ -1,5 +1,42 @@
 # iOS 动态背景、角色动画与原生媒体
 
+## 衣橱 v3 当前进度（2026-10-24，本地验证完成，发布待办）
+
+基础 v9 与 17 个单饰品完整猫体已在 Blender 完成统一制作、关节绑定并接入本地 APP。
+猫体仍共用 `base-cat-v9-shadowless/nava-cat-base-v9-shadowless.glb`（SHA-256
+`504086dddef9e97eebcdd296a3c9724e9e86f5cfa40752cbc5e90b8a8cdb2797`）。
+原毛发/脸/尾巴保留；只允许压缩各件明确覆盖的耳朵/颈毛区域，保留证据见逐项 manifest。
+原猫脸部近看仍有少量贴图杂点、背部较平滑，不能声称图片逐像素三维复现。
+
+- 造型：披肩 cloth09 使用连续领口、收肩裁片、35 帧布料松弛、软褶和下缘缝线；
+  动作时开口布料随前腿变形，修复前伸穿插。背包 v3 改为绕肩与前腿的带子，取消旧腰圈；
+  云蓝围巾 v4/极光围巾 v1 有宽度、厚度、结和下垂尾端。贝雷帽、水手帽、夜航帽将耳朵收在帽内。
+- 17 件均做实际 GLB 全周/高低视角检查：贝雷帽 137 帧，其余各 41 视角。
+  18 个模型各 20 张 Blender 变形视图和各 5 张实际浏览器截图已逐板查看。
+  这是内部检查，不等于用户已经批准所有最终造型。用户只明确认可此前背包设计图。
+- 三段局部动作：挥爪 3.2 秒、滚入/拨弄/推出毛线球 5 秒、坐姿伸前爪 3.5 秒；
+  Root/Body 不动，肩/前腿/腕爪与头部协同。没有制作站立或行走，不能描述为起身动作。
+- 新 `wardrobeScene.ts` 为基础/单饰品共用同一尺寸、中心、骨架播放路径；支持换皮肤、
+  手动转身、动作中换款和精确复位。待新模型完成才切换，最多保留 4 个解析/GPU 模型，
+  两条并发预取当前页模型，去重下载和解析请求；失败保留旧款并提示。
+- `pack_wardrobe_runtime.mjs` 使用 Meshopt 几何/动作压缩；18 个 GLB 合计约 21.1 MB，
+  单件约 0.8–1.6 MB，共用约 0.98 MB 的无损 4K 小猫 WebP；配饰运行贴图 1K/质量94，
+  2K 制作资产与自包含 GLB 保留于 Build。Blender 帧1动画时间在打包时归零。
+  发光烘焙材质的 emissiveMap 正确转为运行时无投影颜色，防止配饰变黑。
+- 本地通过：`npm run wardrobe:test` 15/15，18 模型骨骼/权重/动作首尾解码验证，
+  浏览器 18×3 动作精确复位，4 手机尺寸 UI 动作、动作中换款/转身、减少动态效果，
+  9 个移动端/安全区/降级布局场景，build、lint、production auth contract。
+  延迟下载保留原帧、预取与选择请求去重、连续选择防回切、失败保留当前模型均通过。完整发布门禁继续执行。
+- 证据：`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-v3/runtime/`；
+  制作清单 `scripts/mascot-models/wardrobe-production.json`，可编辑资产在
+  `Build/Assets/Mascot/wardrobe-v3` 和 `beret-fitted-v2`。无新 Meshy 消耗，无密钥读取。
+- 初始工作区 main 落后 origin/main 6 提交且有既存删除；未 reset/clean/覆盖它们。
+  主工作区完整 verify 在 repository scan 被既存未提交删除阻止；需要在从同一源提交构建的
+  干净发布目录重新运行。原有 Vite 高危公告导致 audit 门禁失败，已只更新 Vite 兼容补丁，
+  npm audit 目前为0漏洞。两站发布尚未完成，active goal 保持进行。
+
+以下为历史记录，不要用旧动画/部署结果替代本轮证据。
+
 ## 完整单饰品模型审看模式（2026-10-17，双站v261）
 
 当前实现以`CODEX_HANDOFF_CURRENT.md` §175为准。v260的本地配饰提取和多件组合已撤回且保持停用；
@@ -389,7 +426,7 @@ Continue 使用本地 Nunito 圆润字体（随附 SIL OFL），没有箭头；�
 | 09 夜色星窗 | 夜间通用奖励 | home-idle |
 
 - 01 保留经用户纠正后的花园原画；02–09 是内置 imagegen 按三张参考板生成的独立
-  887×1774 水彩/彩铅场景，位于 `public/journal/assets/completion/scene-02.png` 至 09。
+  887×1774 水彩/彩铅场景。生产读取 `public/journal/assets/completion/scene-02.webp` 至 09；PNG 原图按此前清理操作保留在仓库外隔离区。
   完整提示词与来源保存在 `Q:/NAVA-Workspace/Build/TestRuns/celebration-scenes/assets`。
   背景没有烘焙猫、标题或按钮，不将重绘称作像素级复制。现有猫动作与参考手绘姿势并非完全一致。
 - 动画源文件未改帧，仍为原 GIF 转出的透明 WebP。每个场景根据真实透明边界、地面位置、

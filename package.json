@@ -69,7 +69,6 @@
     "skins:test": "node --experimental-strip-types --test tests/app-skins.test.ts",
     "wardrobe:test": "node --experimental-strip-types --test tests/mascot-wardrobe.test.ts tests/wardrobe-mascot-motion.test.ts tests/wardrobe-turntable.test.ts",
     "wardrobe:motion:visual": "node scripts/verify-wardrobe-mascot-motion.mjs",
-    "wardrobe:fast-switch:visual": "node scripts/verify-wardrobe-fast-switch.mjs",
     "wardrobe:turntable:visual": "node scripts/verify-wardrobe-turntable.mjs",
     "wardrobe:layout:visual": "node scripts/verify-wardrobe-layout.mjs",
     "wardrobe:accessories:visual": "node scripts/verify-wardrobe-accessories.mjs",
@@ -143,7 +142,8 @@
     "ios:assets": "node scripts/generate-ios-assets.mjs",
     "ios:verify": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-ios-project.ps1",
     "ios:prepare:release": "bash scripts/prepare-ios-release.sh",
-    "upstream:diff": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync-web-upstream.ps1"
+    "upstream:diff": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync-web-upstream.ps1",
+    "wardrobe:fast-switch:visual": "node scripts/verify-wardrobe-runtime.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.9",
@@ -157,6 +157,7 @@
     "@supabase/supabase-js": "^2.52.1",
     "jose": "^5.9.6",
     "lucide-react": "^0.468.0",
+    "meshoptimizer": "1.0.1",
     "nodemailer": "^10.0.16",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

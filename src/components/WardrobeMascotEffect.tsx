@@ -1,4 +1,4 @@
-import type { WardrobeMascotMotion } from "../services/wardrobeMascotMotion";
+import type { LegacyWardrobeMascotMotion as WardrobeMascotMotion } from "../services/wardrobeMascotMotion";
 
 export default function WardrobeMascotEffect({ motion }: { motion: WardrobeMascotMotion | null }) {
   return <svg className="mascot-wardrobe-effect" viewBox="0 0 320 320" aria-hidden="true" focusable="false" data-motion={motion ?? "rest"}>
