@@ -19,11 +19,8 @@
 .admin-console-header > div span { color:#4f8293; font-size:9px; font-weight:800; letter-spacing:.14em; }
 .admin-console-menu { position:relative; z-index:12; display:grid; place-items:center; }
 .admin-console-more { width:44px; height:44px; border:0; border-radius:14px; display:grid; place-items:center; padding:0; color:#0b7199; background:transparent; }
-.admin-console-menu .app-utility-popover { top:calc(100% + 7px); right:0; min-width:230px; max-width:calc(100vw - 40px); }
-.admin-console-menu .app-utility-popover > button { min-height:50px; font-size:16px; }
-.admin-console-menu .app-utility-popover > button span { font-size:16px; }
-.admin-console-menu .app-utility-popover > button small { font-size:14px; }
-.admin-console-menu .app-utility-popover > button svg { width:23px; height:23px; }
+.admin-console-menu .app-utility-popover { top:calc(100% + 7px); right:0; }
+.admin-console-menu .app-utility-popover span { font-size:inherit; letter-spacing:normal; }
 
 .admin-console-overview { display:grid; gap:14px; }
 .admin-console-intro,.admin-form-card,.admin-batch-list,.admin-account-search {

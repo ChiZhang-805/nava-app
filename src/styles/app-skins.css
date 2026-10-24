@@ -175,17 +175,28 @@
 .profile-skin-icon { width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center; border-radius: 13px; color: var(--skin-accent); background: color-mix(in srgb, var(--skin-accent) 11%, white); }
 
 .phone-frame .nava-more-menu .app-utility-popover > button.more-menu-skin small,
-.phone-frame .nava-more-menu .app-utility-popover > button.more-menu-language small { margin-left: auto; color: var(--skin-muted); font-size: 12px; font-weight: 500; }
+.phone-frame .nava-more-menu .app-utility-popover > button.more-menu-language small { margin-left: auto; color: var(--skin-muted); font-size: 11px; font-weight: 550; }
 .nava-more-menu .app-skin-picker.is-compact { display: grid; grid-template-columns: 1fr; gap: 2px; }
 .nava-more-menu .app-skin-picker.is-compact .app-skin-option {
-  width: 100%; min-height: 48px; display: grid; grid-template-columns: 46px minmax(0, 1fr) 22px; align-items: center; gap: 10px;
-  padding: 5px 8px; border: 0; border-radius: 11px; background: transparent;
+  width: 100%; min-height: 44px; display: grid; grid-template-columns: 38px minmax(0, 1fr) 18px; align-items: center; gap: 8px;
+  padding: 4px 7px; border: 0; border-radius: 10px; background: transparent;
 }
 .nava-more-menu .app-skin-picker.is-compact .app-skin-option:hover,
 .nava-more-menu .app-skin-picker.is-compact .app-skin-option:focus-visible { background: color-mix(in srgb, var(--skin-accent) 10%, white); }
-.nava-more-menu .app-skin-picker.is-compact .app-skin-swatch { width: 46px; height: 36px; border-radius: 9px; }
-.nava-more-menu .app-skin-picker.is-compact .app-skin-copy strong { font-size: 14px; }
-.nava-more-menu .app-skin-picker.is-compact .app-skin-selected { position: static; width: 20px; height: 20px; }
+.nava-more-menu .app-skin-picker.is-compact .app-skin-swatch { width: 38px; height: 30px; border-radius: 8px; }
+.nava-more-menu .app-skin-picker.is-compact .app-skin-copy strong { font-size: 13px; }
+.nava-more-menu .app-skin-picker.is-compact .app-skin-selected { position: static; width: 18px; height: 18px; }
+
+/* Every full-height home surface must expose the selected skin. These screens
+   previously repainted the old glacier image over the themed phone canvas. */
+.phone-frame[data-app-skin] .home-experience {
+  color: var(--skin-ink);
+  background: var(--skin-page-background);
+}
+.phone-frame[data-app-skin] .home-experience::before {
+  background: var(--skin-page-atmosphere);
+}
+.phone-frame[data-app-skin] .home-experience-header h1 { color: var(--skin-ink); }
 
 /* Shared alternate-skin surface contract. */
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) {
@@ -463,8 +474,13 @@
   --skin-row: linear-gradient(96deg, rgba(248,246,255,.88), rgba(231,241,255,.82));
   --skin-field: rgba(238, 237, 255, .78);
   --skin-field-line: rgba(120, 124, 254, .24);
-  --skin-page-background: linear-gradient(152deg, #f7f3ff 0%, #e8e9ff 43%, #dff7f5 100%);
-  --skin-page-atmosphere: radial-gradient(ellipse 92% 56% at 92% 6%, rgba(126,112,237,.19), transparent 68%), radial-gradient(ellipse 90% 52% at 3% 88%, rgba(78,207,205,.16), transparent 67%);
+  --skin-page-background:
+    radial-gradient(circle at 88% 6%, rgba(255,255,255,.82), transparent 24%),
+    radial-gradient(ellipse 115% 64% at 4% 86%, rgba(72,216,211,.24), transparent 58%),
+    linear-gradient(154deg, #f6efff 0%, #ddd8ff 42%, #d0f2f1 100%);
+  --skin-page-atmosphere:
+    radial-gradient(ellipse 92% 56% at 92% 6%, rgba(111,86,230,.28), transparent 62%),
+    radial-gradient(ellipse 90% 52% at 3% 88%, rgba(30,199,195,.22), transparent 60%);
   --skin-page-texture: none;
   --skin-texture-opacity: 0;
   --skin-shadow: 0 24px 60px rgba(45,48,145,.18);
@@ -534,11 +550,12 @@
   --skin-field: rgba(248,252,255,.72);
   --skin-field-line: rgba(79,138,202,.22);
   --skin-page-background:
-    radial-gradient(ellipse 214% 100% at 92.31% 6.73%, rgba(124,180,235,.30) 0%, rgba(124,180,235,0) 27%),
-    radial-gradient(ellipse 176% 82% at -7.69% 65.42%, rgba(109,207,208,.17) 0%, rgba(109,207,208,0) 33%),
-    radial-gradient(ellipse 210% 98% at 76.92% 90.44%, rgba(167,151,221,.12) 0%, rgba(167,151,221,0) 25%),
-    linear-gradient(138.82deg, #f8fbff 8.57%, #f4f9fd 51.66%, #fffdfb 91.43%);
-  --skin-page-atmosphere: linear-gradient(rgba(248,251,255,.001), rgba(248,251,255,.001));
+    radial-gradient(ellipse 160% 72% at 100% 4%, rgba(109,178,238,.34) 0%, rgba(109,178,238,0) 36%),
+    radial-gradient(ellipse 130% 58% at -10% 65%, rgba(83,210,202,.23) 0%, rgba(83,210,202,0) 42%),
+    radial-gradient(ellipse 120% 52% at 84% 100%, rgba(174,153,226,.18) 0%, rgba(174,153,226,0) 38%),
+    linear-gradient(144deg, #f5fbff 4%, #dfedf9 49%, #e3f7f2 100%);
+  --skin-page-atmosphere:
+    repeating-radial-gradient(ellipse 140% 48% at 7% 92%, rgba(255,255,255,.22) 0 2px, transparent 3px 38px);
   --skin-page-texture: none;
   --skin-texture-opacity: 0;
   --skin-shadow: 0 22px 54px rgba(55,111,159,.15);
