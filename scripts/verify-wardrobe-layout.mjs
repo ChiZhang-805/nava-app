@@ -225,6 +225,31 @@ async function runScenario(scenario) {
     await ensureVisual(page, scenario);
     await expect(page.locator('.mascot-wardrobe-turntable')).toHaveAttribute('data-skin', 'skin-cream');
     await capture(page, result, scenario, 'cream');
+    if (!scenario.webglUnavailable) {
+      await page.locator('.mascot-wardrobe-view-toggle').click();
+      await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-view-mode', '2d');
+      await expect(page.locator('.mascot-wardrobe-flat-frame')).toBeVisible({ timeout: 30000 });
+      const source = await page.locator('.mascot-wardrobe-flat-frame').getAttribute('src');
+      requireCheck(result, source?.startsWith('data:image/png;base64,') === true, '2D mode did not use a transparent captured PNG frame');
+      const alpha = await page.locator('.mascot-wardrobe-flat-frame').evaluate(async (image) => {
+        await image.decode();
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+        const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+        const corner = context.getImageData(0, 0, 1, 1).data[3];
+        const center = context.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data[3];
+        return { corner, center };
+      });
+      requireCheck(result, alpha.corner === 0 && alpha.center > 0, `2D PNG alpha is wrong: ${JSON.stringify(alpha)}`);
+      await capture(page, result, scenario, 'flat-front');
+      await page.locator('.mascot-wardrobe-character').click();
+      await page.waitForTimeout(500);
+      const movingSource = await page.locator('.mascot-wardrobe-flat-frame').getAttribute('src');
+      requireCheck(result, movingSource !== source, '2D wave did not advance from the exact rest frame');
+      await page.waitForTimeout(2900);
+      await page.locator('.mascot-wardrobe-view-toggle').click();
+      await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-view-mode', '3d');
+    }
 
     const warm = page.locator('.mascot-wardrobe-item').filter({ hasText: '暖橘' });
     const warmPoint = await warm.evaluate((element) => {

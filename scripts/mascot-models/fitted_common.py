@@ -118,8 +118,8 @@ def bevel_box(name,location,size,mat,bevel=.01):
     for p in o.data.polygons:p.use_smooth=True
     return o
 
-def collar_band(surface,cat,mat,width=.065,offset=-.015,name='Soft_collar'):
-    def center(q):return -.12-.065*math.cos(q)+.008*math.sin(q)
+def collar_band(surface,cat,mat,width=.065,offset=-.015,name='Soft_collar',center_fn=None):
+    def center(q):return center_fn(q) if center_fn else -.12-.065*math.cos(q)+.008*math.sin(q)
     samples=np.array([max(surface.radius(TAU*i/256,center(TAU*i/256)+width*j/8) for j in range(-4,5))+offset for i in range(256)])
     for _ in range(12):samples=.5*samples+.25*np.roll(samples,1)+.25*np.roll(samples,-1)
     def radius(q):

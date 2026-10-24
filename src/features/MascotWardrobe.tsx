@@ -1,4 +1,4 @@
-import { Check, CircleCheckBig, Coins, Shirt, Sparkles, TriangleAlert, X } from "lucide-react";
+import { Box, Check, CircleCheckBig, Coins, Image as ImageIcon, Shirt, Sparkles, TriangleAlert, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import WardrobeTurntable, { type WardrobeTurntableHandle } from "../components/WardrobeTurntable";
 import { wardrobeDragAngle } from "../services/wardrobeTurntable";
@@ -74,6 +74,10 @@ export default function MascotWardrobe() {
   const [playingMotion, setPlayingMotion] = useState<WardrobeMascotMotion | null>(null);
   const [nextMotionIndex, setNextMotionIndex] = useState(0);
   const [turntableStatus, setTurntableStatus] = useState<"loading" | "ready" | "unavailable">("loading");
+  const [previewMode, setPreviewMode] = useState<"3d" | "2d">("3d");
+  const [flatFrames, setFlatFrames] = useState<string[]>([]);
+  const [flatFrame, setFlatFrame] = useState(0);
+  const [lookRevision, setLookRevision] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
@@ -149,6 +153,15 @@ export default function MascotWardrobe() {
   }, [activeCategory]);
 
   useEffect(() => {
+    if (previewMode !== "2d" || turntableStatus !== "ready") return;
+    const id = requestAnimationFrame(() => {
+      const frames = turntableRef.current?.captureFrontFrames() ?? [];
+      if (frames.length) { setFlatFrames(frames); setFlatFrame(0); }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [previewMode, turntableStatus, lookRevision, preview?.skinId, preview?.accessoryIds]);
+
+  useEffect(() => {
     if (!playingMotion) return;
     const character = characterRef.current;
     const stage = previewRef.current;
@@ -164,21 +177,23 @@ export default function MascotWardrobe() {
     const tick = (now: number) => {
       if (started === null) started = now;
       const progress = Math.min(1, (now - started) / duration);
-      if (turntableStatus === "ready") {
+      if (previewMode === "2d" && flatFrames.length) {
+        setFlatFrame(Math.min(flatFrames.length - 1, Math.floor(progress * flatFrames.length)));
+      } else if (turntableStatus === "ready") {
         character.style.transform = "translate3d(0, 0, 0)";
         turntableRef.current?.setMotion(playingMotion, progress);
       }
       if (progress < 1) motionFrameRef.current = requestAnimationFrame(tick);
-      else { reset(); motionLockedRef.current = false; setPlayingMotion(null); }
+      else { reset(); setFlatFrame(0); motionLockedRef.current = false; setPlayingMotion(null); }
     };
     motionFrameRef.current = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(motionFrameRef.current); reset(); motionLockedRef.current = false; };
-  }, [playingMotion, turntableStatus]);
+  }, [flatFrames.length, playingMotion, previewMode, turntableStatus]);
 
   const playMascotMotion = () => {
     if (turntableStatus !== "ready" || motionLockedRef.current || playingMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     motionLockedRef.current = true;
-    const next = wardrobeMascotMotions[nextMotionIndex];
+    const next = previewMode === "2d" ? wardrobeMascotMotions[0] : wardrobeMascotMotions[nextMotionIndex];
     setPlayingMotion(next.id);
     setNextMotionIndex((value) => (value + 1) % wardrobeMascotMotions.length);
   };
@@ -276,14 +291,16 @@ export default function MascotWardrobe() {
         {background.art && <img className="mascot-wardrobe-background" src={background.art} alt="" draggable={false} />}
         <div className="mascot-wardrobe-preview-lines" aria-hidden="true" />
         <div className="mascot-wardrobe-status">
-          <div><span>{exactCurrentLook ? (locale === "zh" ? "当前搭配" : "Current look") : (locale === "zh" ? "正在试穿" : "Trying on")}</span><span>{previewOwned ? (locale === "zh" ? "已拥有" : "Owned") : (locale === "zh" ? "未拥有" : "Locked")}</span></div>
+          <button className="mascot-wardrobe-view-toggle" type="button" onClick={() => setPreviewMode((mode) => mode === "3d" ? "2d" : "3d")} aria-label={previewMode === "3d" ? (locale === "zh" ? "切换到二维正面" : "Switch to 2D front view") : (locale === "zh" ? "切换到三维预览" : "Switch to 3D preview")} title={previewMode === "3d" ? "2D" : "3D"}>
+            {previewMode === "3d" ? <ImageIcon size={18} aria-hidden="true" /> : <Box size={18} aria-hidden="true" />}
+          </button>
           <strong aria-label={locale === "zh" ? `当前有 ${state.balance} 积分` : `${state.balance} points`}><Coins size={14} aria-hidden="true" />{state.balance}</strong>
         </div>
-        <button className="mascot-wardrobe-character" ref={characterRef} type="button" disabled={reducedMotion || turntableStatus === "loading"} aria-disabled={playingMotion ? true : undefined} data-renderer={turntableStatus}
+        <button className="mascot-wardrobe-character" ref={characterRef} type="button" disabled={reducedMotion || turntableStatus === "loading"} aria-disabled={playingMotion ? true : undefined} data-renderer={turntableStatus} data-view-mode={previewMode}
           onClick={() => { if (suppressClickRef.current) { suppressClickRef.current = false; return; } playMascotMotion(); }}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") suppressClickRef.current = false;
-            if (turntableStatus === "ready" && ["ArrowLeft", "ArrowRight", "Home"].includes(event.key)) {
+            if (previewMode === "3d" && turntableStatus === "ready" && ["ArrowLeft", "ArrowRight", "Home"].includes(event.key)) {
               event.preventDefault();
               turntableRef.current?.setAngle(event.key === "Home" ? 0 : (turntableRef.current?.getAngle() ?? 0) + (event.key === "ArrowLeft" ? -15 : 15));
             }
@@ -301,7 +318,7 @@ export default function MascotWardrobe() {
             const dy = event.clientY - start.y;
             if (!start.dragged && Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) start.vertical = true;
             if (!start.vertical && Math.abs(dx) > 6 && Math.abs(dx) > Math.abs(dy) * 1.2) start.dragged = true;
-            if (start.dragged && turntableStatus === "ready") turntableRef.current?.setAngle(wardrobeDragAngle(start.angle, dx, start.width));
+            if (start.dragged && previewMode === "3d" && turntableStatus === "ready") turntableRef.current?.setAngle(wardrobeDragAngle(start.angle, dx, start.width));
           }}
           onPointerUp={(event) => {
             if (pointerStartRef.current?.id !== event.pointerId) return;
@@ -320,7 +337,8 @@ export default function MascotWardrobe() {
               ? (locale === "zh" ? `小猫正在${wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.label.zh}` : `The cat is playing ${wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.label.en}`)
               : (locale === "zh" ? `${turntableStatus === "ready" ? "左右滑动或方向键转身，Home回正面。" : ""}点按小猫播放${wardrobeMascotMotions[nextMotionIndex].label.zh}，当前搭配：${summary}` : `${turntableStatus === "ready" ? "Swipe or use arrow keys to turn; Home faces forward. " : ""}Tap the cat to ${wardrobeMascotMotions[nextMotionIndex].label.en}. Current look: ${summary}`)}
           data-motion={playingMotion ?? "rest"}>
-          <WardrobeTurntable ref={turntableRef} skinId={preview.skinId} accessoryIds={preview.accessoryIds} prefetchIds={(activeCategory === "accessory" ? itemPages[activePage] ?? [] : wardrobeItems("accessory").slice(0, 6)).map((item) => item.id).filter((id): id is WardrobeSelection["accessoryIds"][number] => id.startsWith("accessory-"))} onStatus={setTurntableStatus} onLoadError={() => setError(locale === "zh" ? "这个模型暂时未能载入，仍显示上一款。请重新选择后再试。" : "This model could not load. The previous look is still shown; select again to retry.")} />
+          <WardrobeTurntable ref={turntableRef} skinId={preview.skinId} accessoryIds={preview.accessoryIds} prefetchIds={(activeCategory === "accessory" ? itemPages[activePage] ?? [] : wardrobeItems("accessory").slice(0, 6)).map((item) => item.id).filter((id): id is WardrobeSelection["accessoryIds"][number] => id.startsWith("accessory-"))} onStatus={setTurntableStatus} onLookReady={() => setLookRevision((value) => value + 1)} onLoadError={() => setError(locale === "zh" ? "这个模型暂时未能载入，仍显示上一款。请重新选择后再试。" : "This model could not load. The previous look is still shown; select again to retry.")} />
+          {previewMode === "2d" && flatFrames[flatFrame] && <img className="mascot-wardrobe-flat-frame" src={flatFrames[flatFrame]} alt="" draggable={false} aria-hidden="true" />}
           {turntableStatus === "unavailable" && <>
             <img className="mascot-wardrobe-skin" src={skin.art} alt="" draggable={false} />
             {accessories.map((accessory) => accessory.art && <img key={accessory.id} className="mascot-wardrobe-accessory" src={accessory.art} alt="" draggable={false} />)}

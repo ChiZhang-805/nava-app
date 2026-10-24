@@ -48,7 +48,9 @@ test("the eight Figma wardrobe states have working interaction counterparts", ()
   assert.match(component, /background: \{ zh: "背景"/);
   assert.match(component, /"confirm" \| "success" \| "insufficient"/);
   assert.match(component, /当前搭配/);
-  assert.match(component, /正在试穿/);
+  assert.doesNotMatch(component, /正在试穿|未拥有/);
+  assert.match(component, /切换到二维正面/);
+  assert.match(component, /captureFrontFrames/);
   assert.match(component, /确认兑换/);
   assert.match(component, /立即穿戴/);
   assert.match(component, /代币还差一点/);

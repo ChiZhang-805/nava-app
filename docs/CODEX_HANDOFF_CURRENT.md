@@ -1,5 +1,20 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
+## 衣橱 v4 待发布状态（2026-10-24）
+
+- 登录成功后不再经过只显示浅色背景的重复 authenticated readiness gate；已有会话直接进入
+  `AuthenticatedApp`，恢复与分包加载期间显示明确的 NAVA 加载界面。新用户仍在应用内部完成引导。
+- 衣橱左上角的“正在试穿 / 未拥有”文字胶囊已替换为单一 3D/2D 图标开关。2D 正面图从当前
+  GLB、当前皮肤和正面相机直接抓取透明 PNG 帧，因此静止帧与所选 3D 小猫完全同源；点按小猫播放
+  同一模型的挥爪帧序列，首尾恢复静止帧。切回 3D 后保留原转身与三段局部动作。
+- 珍珠领结 v5 将颈带从肩部水平线降到颈胸交界，形成前低后高的包覆曲线；背面只出现细带，
+  蝴蝶结保持前胸中央。已检查静态多角度、20 张绑定变形视图和真实浏览器正面/侧面/动作画面；
+  canonical 小猫未覆盖区域几何差异为 0。
+- 本地专项验证通过：`npm run wardrobe:test` 15/15、`tests/auth-bootstrap.test.ts` 1/1、
+  18 个运行模型加载/动作复位、透明 2D 帧 alpha 检查、390×844 手机与 1440×900 桌面布局。
+  证据位于 `Q:/NAVA-Workspace/Build/TestRuns/wardrobe-v3/pearl-bow-v5`、
+  `wardrobe-v3/runtime/renderer`、`wardrobe-v4-ui` 与 `wardrobe-v4-ui-alpha`。
+
 ## 衣橱 v3 当前状态（2026-10-24，双站 v266 已发布）
 
 基础 v9 与 17 个单饰品完整猫体已在 Blender 完成统一制作、关节绑定并接入本地 APP。

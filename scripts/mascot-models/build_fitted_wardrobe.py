@@ -169,9 +169,12 @@ def ribbon_bow(center,mat,scale=1.0,rotation=None,prefix='Bow'):
 def pearl_bow(surface,cat):
     satin=material('Warm_ivory_satin',(.91,.89,.83),'satin')
     pearl=material('Cream_lustrous_pearl',(.98,.96,.89),'polished')
-    band,point=collar_band(surface,cat,satin,width=.036,offset=.008,name='Ivory_bow_neckband')
-    origin=point(0,-.015,.125);parts=[band]+ribbon_bow(origin,satin)
-    parts.append(bevel_box('Bow_anchor_tab',point(0,-.015,.060),(.045,.135,.040),satin,.010))
+    # The front arc drops into the neck/chest junction and meets the bow
+    # anchor. It must not bridge horizontally between the outer shoulder tufts.
+    center=lambda q: -.190-.130*math.cos(q)+.008*math.sin(q)
+    band,point=collar_band(surface,cat,satin,width=.034,offset=-.010,name='Ivory_bow_neckband',center_fn=center)
+    origin=point(0,-.006,.092);parts=[band]+ribbon_bow(origin,satin,.88)
+    parts.append(bevel_box('Bow_anchor_tab',point(0,-.006,.038),(.040,.105,.036),satin,.010))
     parts.append(ellipsoid('Pearl_center_button',origin+Vector((0,-.069,.005)),(.048,.032,.048),pearl,40,24))
     # Move each ribbon vertex to the body's front clearance only where needed.
     # This keeps the draped ends out of the torso without changing the cat.

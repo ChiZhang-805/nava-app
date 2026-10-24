@@ -8,16 +8,18 @@ export type WardrobeTurntableHandle = {
   setAngle: (degrees: number) => void;
   getAngle: () => number;
   setMotion: (motion: WardrobeMascotMotion | null, progress?: number) => void;
+  captureFrontFrames: () => string[];
 };
 type Props = {
   skinId: WardrobeSkinId;
   accessoryIds: WardrobeAccessoryId[];
   prefetchIds?: WardrobeAccessoryId[];
   onLoadError?: () => void;
+  onLookReady?: () => void;
   onStatus: (status: "loading" | "ready" | "unavailable") => void;
 };
 
-const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function WardrobeTurntable({ skinId, accessoryIds, prefetchIds = [], onStatus, onLoadError }, ref) {
+const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function WardrobeTurntable({ skinId, accessoryIds, prefetchIds = [], onStatus, onLoadError, onLookReady }, ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<WardrobeScene | null>(null);
   const angleRef = useRef(0);
@@ -30,6 +32,8 @@ const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function Wa
   preloadRef.current = prefetchIds;
   const errorRef = useRef(onLoadError);
   errorRef.current = onLoadError;
+  const lookReadyRef = useRef(onLookReady);
+  lookReadyRef.current = onLookReady;
 
   useImperativeHandle(ref, () => ({
     setAngle(degrees) {
@@ -39,6 +43,7 @@ const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function Wa
     },
     getAngle() { return angleRef.current; },
     setMotion(motion, progress = 0) { sceneRef.current?.setMotion(motion, progress); },
+    captureFrontFrames() { return sceneRef.current?.captureFrontFrames() ?? []; },
   }), []);
 
   useEffect(() => {
@@ -57,7 +62,10 @@ const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function Wa
     canvas.addEventListener("webglcontextlost", lost);
     canvas.addEventListener("webglcontextrestored", restored);
     const modelState = new MutationObserver(() => {
-      if (sceneRef.current) statusRef.current(sceneRef.current.render() ? "ready" : "unavailable");
+      if (sceneRef.current) {
+        statusRef.current(sceneRef.current.render() ? "ready" : "unavailable");
+        lookReadyRef.current?.();
+      }
     });
     const modelError = () => errorRef.current?.();
     canvas.addEventListener("wardrobe-model-error", modelError);
@@ -71,6 +79,7 @@ const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function Wa
       scene.setAngle(angleRef.current);
       scene.prefetch(preloadRef.current);
       statusRef.current(scene.render() ? "ready" : "unavailable");
+      lookReadyRef.current?.();
     }).catch(() => { if (!disposed) statusRef.current("unavailable"); });
     return () => {
       disposed = true;
