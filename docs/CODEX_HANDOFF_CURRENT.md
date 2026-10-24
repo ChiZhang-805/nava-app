@@ -14,6 +14,8 @@
   18 个运行模型加载/动作复位、透明 2D 帧 alpha 检查、390×844 手机与 1440×900 桌面布局。
   证据位于 `Q:/NAVA-Workspace/Build/TestRuns/wardrobe-v3/pearl-bow-v5`、
   `wardrobe-v3/runtime/renderer`、`wardrobe-v4-ui` 与 `wardrobe-v4-ui-alpha`。
+- 发布门禁发现 `nodemailer 10.0.16` 的新中等级地址解析公告，已在同一主版本内升级到
+  `10.2.1`；未改变邮件业务合同，`npm audit` 恢复为 0 漏洞。
 
 ## 衣橱 v3 当前状态（2026-10-24，双站 v266 已发布）
 
