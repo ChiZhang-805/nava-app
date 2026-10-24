@@ -1,6 +1,6 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
-## 全局皮肤背景与紧凑菜单（2026-10-24，待双站发布）
+## 全局皮肤背景与紧凑菜单（2026-10-24，双站 v269 已发布）
 
 - 修复首页子页自己的 `.home-experience` 旧冰川背景覆盖已选皮肤的问题。月历、详细资料、通知、
   今日待办等全高页面现在统一使用 `--skin-page-background`；冰川晨雾、星河暮紫、晴空微澜
@@ -13,8 +13,15 @@
   校验菜单位于手机内、宽度 200–206px、文字 13px、行高至少 44px且不截断。
 - `skins:visual` 新增每档尺寸下三套月历背景指纹必须互不相同，并保存 390×844 三张对照图；
   `integrated-shell:visual` 的 26 页面 × 3 皮肤 × 4 尺寸共 312 状态全部通过。
-- 本轮只改前端样式与视觉门禁；没有数据库迁移、Edge Function 部署、生产数据写入、密钥或
-  访问策略变化。功能源码、双站版本和线上核验结果在发布完成后回填。
+- 功能源码 `534e67ac41bdbe47aaa8f4de5c23d493a3fafc47` 已推送并从干净发布工作树构建；
+  ChatGPT Sites v269 为
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_3fc2fa8b8900819190396cb8290c7efb`，
+  deployment `appgdep_6adcb85a7f948191a7adb1987456e489` succeeded。GitHub Pages 镜像提交
+  `b6978d2f41c8f87f8a6b165fdf8702db114a23c2`，workflow `40100249308` success；
+  `source.json` 指向同一功能源码和 v269。
+- 发布后 `skins:deployment:audit` 通过 58 个结果、381 项检查和 56 张截图；两个公开入口与
+  `?demo=1` 均保持真实登录边界，Supabase 项目仍为 `wxteapvwagvhhtrjrbim`。本轮只改前端样式
+  与视觉门禁；没有数据库迁移、Edge Function 部署、生产数据写入、密钥或访问策略变化。
 
 ## 衣橱 v5 当前状态（2026-10-24，双站 v268 已发布）
 
