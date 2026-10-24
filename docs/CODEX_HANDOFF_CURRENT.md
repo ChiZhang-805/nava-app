@@ -1,6 +1,6 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
-## 衣橱 v4 待发布状态（2026-10-24）
+## 衣橱 v4 当前状态（2026-10-24，双站 v267 已发布）
 
 - 登录成功后不再经过只显示浅色背景的重复 authenticated readiness gate；已有会话直接进入
   `AuthenticatedApp`，恢复与分包加载期间显示明确的 NAVA 加载界面。新用户仍在应用内部完成引导。
@@ -16,6 +16,15 @@
   `wardrobe-v3/runtime/renderer`、`wardrobe-v4-ui` 与 `wardrobe-v4-ui-alpha`。
 - 发布门禁发现 `nodemailer 10.0.16` 的新中等级地址解析公告，已在同一主版本内升级到
   `10.2.1`；未改变邮件业务合同，`npm audit` 恢复为 0 漏洞。
+- 功能源码 `b789f85967e58fd0ae3191cefc6ae327259feffa` 已推送并从干净发布工作树构建；
+  ChatGPT Sites v267 为
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_73a75bba8fdc81919444bc4fb9d37c26`，
+  deployment `appgdep_6adc6db55ef48191a7987b77d2f36bd8` succeeded。GitHub Pages 镜像提交
+  `f22925306767be0878467f0f209031946c604a95`，workflow `40078682350` success；
+  `source.json` 指向同一功能源码和 v267。
+- 发布后两站真实入口与 `?demo=1` 都保持在登录页，旧空白 gate 不存在；入口 JS、APP chunk、
+  衣橱 chunk、WebGL 场景 chunk和珍珠领结 GLB 共 5 项逐字节 SHA-256 与同一本地产物一致。
+  没有数据库迁移、Edge Function 部署、生产数据写入、密钥或访问策略变化。
 
 ## 衣橱 v3 当前状态（2026-10-24，双站 v266 已发布）
 
