@@ -1,6 +1,6 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
-## 衣橱 v5 当前状态（2026-10-24，待双站发布）
+## 衣橱 v5 当前状态（2026-10-24，双站 v268 已发布）
 
 - 已纠正 v267 把 GLB 正面截图误称为二维素材的问题。衣橱 2D 模式现在直接读取最终 18 组四视图
   归档中的 18 张批准正面图：无配饰 1 张、单配饰 17 张。铃铛项圈恢复原图中贴着颈部、被颈毛
@@ -13,7 +13,18 @@
   `preserveDrawingBuffer`。点击二维静态图不会伪造来自 3D 的挥爪帧；三维模式继续保留转身与三段
   局部动作。
 - 视觉核查证据位于 `Q:/NAVA-Workspace/Build/TestRuns/wardrobe-v5-2d/`；应用内 390×844 的
-  无配饰与铃铛项圈二维截图由 `wardrobe:layout:visual` 生成。发布信息在双站完成后补入本节。
+  无配饰与铃铛项圈二维截图由 `wardrobe:layout:visual` 生成。`npm run verify`、
+  `npm run auth:verify:production` 与 15 个衣橱布局场景全部通过。
+- 功能源码 `70c973de3fdc6fcbf6b6b81023a5917990ec6907` 已推送并从干净发布工作树构建；
+  ChatGPT Sites v268 为
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_df3e3da2b85c81919cce7fe918ffcf79`，
+  deployment `appgdep_6adc9173f8d881919eb1b0b538ca85a9` succeeded。GitHub Pages 镜像提交
+  `6b7a3ffa0e000dc62818352e02aabe230f9ded5f`，workflow `40088794832` success；
+  `source.json` 指向同一功能源码和 v268。
+- 发布后两个公开入口均停留在真实登录页，Supabase 项目仍为 `wxteapvwagvhhtrjrbim`，未启用
+  demo 绕过。线上铃铛项圈二维 PNG 在两站均为 1,451,489 bytes，SHA-256 均为
+  `0eb706f294d271e1421e87f6b1d58c7fb9379938aee028c19366a8516c0cf9f4`，与本地产物一致。
+  没有数据库迁移、Edge Function 部署、生产数据写入、密钥或访问策略变化。
 
 ## 衣橱 v4 当前状态（2026-10-24，双站 v267 已发布）
 
