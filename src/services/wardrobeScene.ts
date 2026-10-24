@@ -15,7 +15,6 @@ export type WardrobeScene = {
   setLook: (skin: WardrobeSkinId, accessories: WardrobeAccessoryId[]) => void;
   prefetch: (ids: WardrobeAccessoryId[]) => void;
   setMotion: (motion: WardrobeMascotMotion | null, progress: number) => void;
-  captureFrontFrames: () => string[];
   render: () => boolean;
   dispose: () => void;
 };
@@ -56,7 +55,7 @@ function yarnBall() {
 
 export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: AbortSignal): Promise<WardrobeScene> {
   if (signal.aborted) throw new DOMException("Wardrobe loading cancelled", "AbortError");
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true, powerPreference: "low-power" });
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "low-power" });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping;
@@ -272,23 +271,6 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
         }
       };
       void worker(); void worker();
-    },
-    captureFrontFrames() {
-      if (destroyed || !active || renderer.getContext().isContextLost()) return [];
-      const savedMotion = currentMotion, savedProgress = currentProgress, savedAngle = currentAngle;
-      const frames: string[] = [];
-      yaw.rotation.y = 0;
-      for (const progress of [0, .12, .24, .36, .48, .60, .72, .84, 1]) {
-        currentMotion = progress === 0 || progress === 1 ? null : "wave";
-        currentProgress = progress;
-        pose(active);
-        renderer.render(scene, camera);
-        frames.push(canvas.toDataURL("image/png"));
-      }
-      currentMotion = savedMotion; currentProgress = savedProgress; currentAngle = savedAngle;
-      yaw.rotation.y = savedAngle * Math.PI / 180;
-      pose(active); renderer.render(scene, camera);
-      return frames;
     },
     render() { cancelAnimationFrame(frame); return draw(); }, dispose,
   };

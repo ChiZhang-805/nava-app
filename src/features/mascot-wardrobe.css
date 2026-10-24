@@ -165,6 +165,7 @@
 }
 
 .mascot-wardrobe-character[data-view-mode="2d"] .mascot-wardrobe-turntable { visibility: hidden; }
+.mascot-wardrobe-character[data-view-mode="2d"] { cursor: default; }
 .mascot-wardrobe-flat-frame {
   z-index: 2;
   object-fit: contain;

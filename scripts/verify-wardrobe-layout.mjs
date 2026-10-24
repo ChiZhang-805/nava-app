@@ -230,7 +230,7 @@ async function runScenario(scenario) {
       await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-view-mode', '2d');
       await expect(page.locator('.mascot-wardrobe-flat-frame')).toBeVisible({ timeout: 30000 });
       const source = await page.locator('.mascot-wardrobe-flat-frame').getAttribute('src');
-      requireCheck(result, source?.startsWith('data:image/png;base64,') === true, '2D mode did not use a transparent captured PNG frame');
+      requireCheck(result, /\/(?:src\/assets\/wardrobe\/front\/|assets\/)accessory-none(?:-[^/?]+)?\.png(?:\?.*)?$/.test(source ?? ''), `2D mode did not use the approved transparent frontal artwork: ${source}`);
       const alpha = await page.locator('.mascot-wardrobe-flat-frame').evaluate(async (image) => {
         await image.decode();
         const canvas = document.createElement('canvas');
@@ -244,11 +244,16 @@ async function runScenario(scenario) {
       await capture(page, result, scenario, 'flat-front');
       await page.locator('.mascot-wardrobe-character').click();
       await page.waitForTimeout(500);
-      const movingSource = await page.locator('.mascot-wardrobe-flat-frame').getAttribute('src');
-      requireCheck(result, movingSource !== source, '2D wave did not advance from the exact rest frame');
-      await page.waitForTimeout(2900);
+      const stableSource = await page.locator('.mascot-wardrobe-flat-frame').getAttribute('src');
+      requireCheck(result, stableSource === source, '2D preview changed away from the approved exact frontal artwork');
+      await page.getByRole('tab', { name: '饰品' }).click();
+      await page.locator('.mascot-wardrobe-item').filter({ hasText: '铃铛项圈' }).click();
+      await expect(page.locator('.mascot-wardrobe-flat-frame')).toHaveAttribute('src', /accessory-bell-collar/);
+      await page.locator('.mascot-wardrobe-flat-frame').evaluate((image) => image.decode());
+      await capture(page, result, scenario, 'flat-bell-collar');
       await page.locator('.mascot-wardrobe-view-toggle').click();
       await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-view-mode', '3d');
+      await page.getByRole('tab', { name: '皮肤' }).click();
     }
 
     const warm = page.locator('.mascot-wardrobe-item').filter({ hasText: '暖橘' });

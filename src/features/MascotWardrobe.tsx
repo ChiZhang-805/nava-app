@@ -5,6 +5,7 @@ import { wardrobeDragAngle } from "../services/wardrobeTurntable";
 import { toggleWardrobeAccessory } from "../services/wardrobeAccessorySlots";
 import { useLocale } from "../i18n";
 import { wardrobeMascotMotions, type WardrobeMascotMotion } from "../services/wardrobeMascotMotion";
+import { wardrobe2dFrontImage } from "../services/wardrobe2d";
 import {
   equipMascotWardrobeLook,
   loadMascotWardrobeState,
@@ -75,9 +76,6 @@ export default function MascotWardrobe() {
   const [nextMotionIndex, setNextMotionIndex] = useState(0);
   const [turntableStatus, setTurntableStatus] = useState<"loading" | "ready" | "unavailable">("loading");
   const [previewMode, setPreviewMode] = useState<"3d" | "2d">("3d");
-  const [flatFrames, setFlatFrames] = useState<string[]>([]);
-  const [flatFrame, setFlatFrame] = useState(0);
-  const [lookRevision, setLookRevision] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
@@ -146,20 +144,12 @@ export default function MascotWardrobe() {
   const actionItem = lockedPreviewItems[0] ?? focusedItem ?? skin;
   const sheetItem = sheetItemId ? wardrobeItem(sheetItemId) : actionItem;
   const previewOwned = lockedPreviewItems.length === 0;
+  const flatFront = wardrobe2dFrontImage(preview?.accessoryIds ?? []);
 
   useEffect(() => {
     setActivePage(0);
     gridRef.current?.scrollTo({ left: 0, behavior: "auto" });
   }, [activeCategory]);
-
-  useEffect(() => {
-    if (previewMode !== "2d" || turntableStatus !== "ready") return;
-    const id = requestAnimationFrame(() => {
-      const frames = turntableRef.current?.captureFrontFrames() ?? [];
-      if (frames.length) { setFlatFrames(frames); setFlatFrame(0); }
-    });
-    return () => cancelAnimationFrame(id);
-  }, [previewMode, turntableStatus, lookRevision, preview?.skinId, preview?.accessoryIds]);
 
   useEffect(() => {
     if (!playingMotion) return;
@@ -177,23 +167,21 @@ export default function MascotWardrobe() {
     const tick = (now: number) => {
       if (started === null) started = now;
       const progress = Math.min(1, (now - started) / duration);
-      if (previewMode === "2d" && flatFrames.length) {
-        setFlatFrame(Math.min(flatFrames.length - 1, Math.floor(progress * flatFrames.length)));
-      } else if (turntableStatus === "ready") {
+      if (previewMode === "3d" && turntableStatus === "ready") {
         character.style.transform = "translate3d(0, 0, 0)";
         turntableRef.current?.setMotion(playingMotion, progress);
       }
       if (progress < 1) motionFrameRef.current = requestAnimationFrame(tick);
-      else { reset(); setFlatFrame(0); motionLockedRef.current = false; setPlayingMotion(null); }
+      else { reset(); motionLockedRef.current = false; setPlayingMotion(null); }
     };
     motionFrameRef.current = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(motionFrameRef.current); reset(); motionLockedRef.current = false; };
-  }, [flatFrames.length, playingMotion, previewMode, turntableStatus]);
+  }, [playingMotion, previewMode, turntableStatus]);
 
   const playMascotMotion = () => {
-    if (turntableStatus !== "ready" || motionLockedRef.current || playingMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (previewMode === "2d" || turntableStatus !== "ready" || motionLockedRef.current || playingMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     motionLockedRef.current = true;
-    const next = previewMode === "2d" ? wardrobeMascotMotions[0] : wardrobeMascotMotions[nextMotionIndex];
+    const next = wardrobeMascotMotions[nextMotionIndex];
     setPlayingMotion(next.id);
     setNextMotionIndex((value) => (value + 1) % wardrobeMascotMotions.length);
   };
@@ -333,12 +321,14 @@ export default function MascotWardrobe() {
           }}
           aria-label={reducedMotion
             ? (locale === "zh" ? `小猫静态预览，已开启减少动态效果。当前搭配：${summary}` : `Still cat preview; reduced motion is on. Current look: ${summary}`)
+            : previewMode === "2d"
+              ? (locale === "zh" ? `二维正面静态预览，当前搭配：${summary}` : `Static 2D front preview. Current look: ${summary}`)
             : playingMotion
               ? (locale === "zh" ? `小猫正在${wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.label.zh}` : `The cat is playing ${wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.label.en}`)
               : (locale === "zh" ? `${turntableStatus === "ready" ? "左右滑动或方向键转身，Home回正面。" : ""}点按小猫播放${wardrobeMascotMotions[nextMotionIndex].label.zh}，当前搭配：${summary}` : `${turntableStatus === "ready" ? "Swipe or use arrow keys to turn; Home faces forward. " : ""}Tap the cat to ${wardrobeMascotMotions[nextMotionIndex].label.en}. Current look: ${summary}`)}
           data-motion={playingMotion ?? "rest"}>
-          <WardrobeTurntable ref={turntableRef} skinId={preview.skinId} accessoryIds={preview.accessoryIds} prefetchIds={(activeCategory === "accessory" ? itemPages[activePage] ?? [] : wardrobeItems("accessory").slice(0, 6)).map((item) => item.id).filter((id): id is WardrobeSelection["accessoryIds"][number] => id.startsWith("accessory-"))} onStatus={setTurntableStatus} onLookReady={() => setLookRevision((value) => value + 1)} onLoadError={() => setError(locale === "zh" ? "这个模型暂时未能载入，仍显示上一款。请重新选择后再试。" : "This model could not load. The previous look is still shown; select again to retry.")} />
-          {previewMode === "2d" && flatFrames[flatFrame] && <img className="mascot-wardrobe-flat-frame" src={flatFrames[flatFrame]} alt="" draggable={false} aria-hidden="true" />}
+          <WardrobeTurntable ref={turntableRef} skinId={preview.skinId} accessoryIds={preview.accessoryIds} prefetchIds={(activeCategory === "accessory" ? itemPages[activePage] ?? [] : wardrobeItems("accessory").slice(0, 6)).map((item) => item.id).filter((id): id is WardrobeSelection["accessoryIds"][number] => id.startsWith("accessory-"))} onStatus={setTurntableStatus} onLoadError={() => setError(locale === "zh" ? "这个模型暂时未能载入，仍显示上一款。请重新选择后再试。" : "This model could not load. The previous look is still shown; select again to retry.")} />
+          {previewMode === "2d" && <img className="mascot-wardrobe-flat-frame" src={flatFront} alt="" draggable={false} aria-hidden="true" />}
           {turntableStatus === "unavailable" && <>
             <img className="mascot-wardrobe-skin" src={skin.art} alt="" draggable={false} />
             {accessories.map((accessory) => accessory.art && <img key={accessory.id} className="mascot-wardrobe-accessory" src={accessory.art} alt="" draggable={false} />)}

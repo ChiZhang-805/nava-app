@@ -7,6 +7,7 @@ const component = readFileSync(new URL("../src/features/MascotWardrobe.tsx", imp
 const styles = readFileSync(new URL("../src/features/mascot-wardrobe.css", import.meta.url), "utf8");
 const service = readFileSync(new URL("../src/services/mascotWardrobe.ts", import.meta.url), "utf8");
 const wornModels = readFileSync(new URL("../src/services/wardrobeWornModels.ts", import.meta.url), "utf8");
+const flatFronts = readFileSync(new URL("../src/services/wardrobe2d.ts", import.meta.url), "utf8");
 const profile = readFileSync(new URL("../src/features/ProfileScreen.tsx", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../supabase/migrations/202610130001_mascot_wardrobe.sql", import.meta.url), "utf8");
 const multiAccessoryMigration = readFileSync(new URL("../supabase/migrations/202610130002_mascot_wardrobe_multi_accessories.sql", import.meta.url), "utf8");
@@ -50,11 +51,20 @@ test("the eight Figma wardrobe states have working interaction counterparts", ()
   assert.match(component, /当前搭配/);
   assert.doesNotMatch(component, /正在试穿|未拥有/);
   assert.match(component, /切换到二维正面/);
-  assert.match(component, /captureFrontFrames/);
+  assert.match(component, /wardrobe2dFrontImage/);
+  assert.doesNotMatch(component, /captureFrontFrames|toDataURL/);
   assert.match(component, /确认兑换/);
   assert.match(component, /立即穿戴/);
   assert.match(component, /代币还差一点/);
   assert.match(component, /disabled=\{busy !== null \|\| exactCurrentLook\}/);
+});
+
+test("2D mode maps the approved base and 17 accessory fronts", () => {
+  assert.equal((flatFronts.match(/\.\.\/assets\/wardrobe\/front\/accessory-/g) ?? []).length, 18);
+  assert.equal((flatFronts.match(/^ {2}"accessory-[^"]+":/gm) ?? []).length, 18);
+  assert.match(flatFronts, /"accessory-none": baseFront/);
+  assert.match(flatFronts, /"accessory-bell-collar": bellCollarFront/);
+  assert.match(flatFronts, /accessoryIds\[accessoryIds\.length - 1\]/);
 });
 
 test("wardrobe layout retains touch targets and responsive phone states", () => {
