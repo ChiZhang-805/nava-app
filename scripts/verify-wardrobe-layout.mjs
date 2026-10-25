@@ -248,24 +248,33 @@ async function runScenario(scenario) {
     if (!scenario.webglUnavailable) {
       await page.locator('.mascot-wardrobe-view-toggle').click();
       await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-view-mode', '2d');
-      await expect(page.locator('.mascot-wardrobe-flat-frame')).toBeVisible({ timeout: 30000 });
-      const source = await page.locator('.mascot-wardrobe-flat-frame').getAttribute('src');
-      requireCheck(result, /\/(?:src\/assets\/wardrobe\/front\/|assets\/)accessory-none(?:-[^/?]+)?\.png(?:\?.*)?$/.test(source ?? ''), `2D mode did not use the approved transparent frontal artwork: ${source}`);
-      const alpha = await page.locator('.mascot-wardrobe-flat-frame').evaluate(async (image) => {
+      await expect(page.locator('.mascot-wardrobe-flat-rig')).toBeVisible({ timeout: 30000 });
+      const layers = page.locator('.mascot-wardrobe-flat-rig img');
+      await expect(layers).toHaveCount(2);
+      const sources = await layers.evaluateAll((images) => images.map((image) => image.getAttribute('src')));
+      requireCheck(result, /cat-body-base/.test(sources[0] ?? '') && /cat-right-paw/.test(sources[1] ?? ''), `2D mode did not use the approved layered motion art: ${sources.join(', ')}`);
+      const alpha = await layers.evaluateAll(async (images) => Promise.all(images.map(async (image) => {
         await image.decode();
         const canvas = document.createElement('canvas');
         canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
         const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
-        const corner = context.getImageData(0, 0, 1, 1).data[3];
-        const center = context.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data[3];
-        return { corner, center };
-      });
-      requireCheck(result, alpha.corner === 0 && alpha.center > 0, `2D PNG alpha is wrong: ${JSON.stringify(alpha)}`);
+        const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        let visiblePixels = 0;
+        for (let index = 3; index < pixels.length; index += 4) if (pixels[index] > 0) visiblePixels += 1;
+        return {
+          corner: pixels[3],
+          visiblePixels,
+        };
+      })));
+      requireCheck(result, alpha.every((layer) => layer.corner === 0 && layer.visiblePixels > 0), `2D layer alpha is wrong: ${JSON.stringify(alpha)}`);
       await capture(page, result, scenario, 'flat-front');
       await page.locator('.mascot-wardrobe-character').click();
-      await page.waitForTimeout(500);
-      const stableSource = await page.locator('.mascot-wardrobe-flat-frame').getAttribute('src');
-      requireCheck(result, stableSource === source, '2D preview changed away from the approved exact frontal artwork');
+      await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-motion', 'wave');
+      await page.waitForTimeout(900);
+      const pawTransform = await page.locator('.mascot-wardrobe-flat-paw').evaluate((element) => getComputedStyle(element).transform);
+      requireCheck(result, pawTransform !== 'none' && pawTransform !== 'matrix(1, 0, 0, 1, 0, 0)', `2D paw did not animate: ${pawTransform}`);
+      await capture(page, result, scenario, 'flat-wave');
+      await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-motion', 'rest', { timeout: 5000 });
       await page.getByRole('tab', { name: '饰品' }).click();
       await page.locator('.mascot-wardrobe-item').filter({ hasText: '铃铛项圈' }).click();
       await expect(page.locator('.mascot-wardrobe-flat-frame')).toHaveAttribute('src', /accessory-bell-collar/);

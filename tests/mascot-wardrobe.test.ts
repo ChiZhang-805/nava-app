@@ -65,6 +65,12 @@ test("2D mode maps the approved base and 17 accessory fronts", () => {
   assert.match(flatFronts, /"accessory-none": baseFront/);
   assert.match(flatFronts, /"accessory-bell-collar": bellCollarFront/);
   assert.match(flatFronts, /accessoryIds\[accessoryIds\.length - 1\]/);
+  assert.match(flatFronts, /wardrobe2dBaseMotionLayers/);
+  assert.match(component, /className="mascot-wardrobe-flat-rig"/);
+  assert.match(component, /className="mascot-wardrobe-flat-paw"/);
+  assert.match(component, /setPlayingMotion\("wave"\)/);
+  assert.match(styles, /@keyframes wardrobe-2d-double-wave/);
+  assert.match(styles, /@keyframes wardrobe-2d-ambient-wave/);
 });
 
 test("wardrobe layout retains touch targets and responsive phone states", () => {
