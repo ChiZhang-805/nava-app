@@ -65,7 +65,9 @@ try {
     const reward = page.locator(".reward-celebration-layer");
     if (await reward.isVisible().catch(() => false)) await reward.locator("button").first().click();
 
-    const annual = page.locator(".home-year-card");
+    // The loading skeleton intentionally reuses the card class. Select the
+    // hydrated quarter card so a fast assertion cannot read a missing year as 0.
+    const annual = page.locator(".home-year-card[data-year]");
     await expect(annual).toBeVisible();
     const currentYear = Number(await annual.getAttribute("data-year"));
     const quarterDays = (year, quarter) => {
