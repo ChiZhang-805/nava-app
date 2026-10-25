@@ -1,6 +1,6 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
-## 衣橱 Figma 布局吸收（2026-10-25，双站 v270 已发布）
+## 衣橱 Figma 布局与二维挥爪（2026-10-25，双站 v271 已发布）
 
 - 依据 Figma 移动端 C04/C05 衣橱画板选择性吸收布局：三类商品分页均从每页 3×2 改为
   2×2，每页数据也严格按 4 件切分，3D 预加载同步限制为当前 4 件。保留现有单饰品替换、
@@ -32,13 +32,14 @@
   以肩部为枢轴周期性轻挥；点按小猫会播放 3.2 秒两次挥爪并精确复位。开启“减少动态效果”时
   停止该动画。17 张带配饰批准正面图仍保持完整静态图，避免在尚未制作逐款遮挡层之前错误切开
   围巾、项圈或胸前配饰。四个目标手机尺寸、点击动作、透明通道和静态配饰切换均已通过专项门禁。
-- 功能源码 `17d778f1708fee6d43759a3bc984de81760b0a53` 已推送并从干净发布工作树构建；
-  ChatGPT Sites v270 为
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_88cbb1274f708191bd03d0601c8a13ce`，
-  deployment `appgdep_6add8a54476c8191abd7960ff239a46c` succeeded。GitHub Pages 镜像提交
-  `7b561a3db21961c11bca85295279dfe54077426b`，workflow `40163345935` success；
-  `source.json` 指向同一功能源码和 v270。
-- 发布后 `skins:deployment:audit` 使用 v270 与该功能提交重跑，58 个结果、381 项检查、
+- 功能源码 `395c100d5c7e924cb9fe76c59ea2cc05abad41a8` 已推送并从干净发布工作树构建；
+  ChatGPT Sites v271 为
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_b374d18ba4308191b5db79429831680e`，
+  deployment `appgdep_6addf8f36a988191890f23f3ac6b84a0` succeeded。GitHub Pages 镜像提交
+  `a938679ff4c5eb2f305f8eb6cb31cbd0768a0eae`，workflow `40194625665` success；
+  `source.json` 指向同一功能源码和 v271。年度日历视觉门禁同时修复为等待带 `data-year` 的
+  实际季度卡片，避免误把加载骨架的空年份读成 0；5 个日历尺寸与其余完整门禁均通过。
+- 发布后 `skins:deployment:audit` 使用 v271 与该功能提交重跑，58 个结果、381 项检查、
   56 张截图全部通过；两个公开入口与 `?demo=1` 均保持真实登录边界，Supabase 项目仍为
   `wxteapvwagvhhtrjrbim`。没有数据库迁移、Edge Function 部署、生产数据写入、密钥或访问策略变化。
 
