@@ -31,8 +31,11 @@ GIF/WebM 只用于人工审核；若运行时加载失败，再使用同动作�
 状态机由点按触发且不移动身体、头、左爪和尾巴。该原型通过后，共用同一套骨架和动作曲线扩展
 到 17 个单配饰版本；每款仅处理配饰遮挡、绑定和必要的局部跟随。Rive Editor 已登录并创建
 500×500 原型文件，基础猫已上传；单图网格试验确认自动权重会牵扯脸毛和身体轮廓，不能作为成品。
-当前改用身体底图与独立右前爪的分层绑定方案；本地试件位于
-`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-2d-animation-pilot/`，仍需先通过叠合像素与透明边缘验收。
+当前改用身体底图与独立右前爪的分层绑定方案；最终本地试件为
+`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-2d-animation-pilot/cat-body-base-final.png` 与
+`cat-right-paw-layer-final.png`。两层均为 1254×1254 RGBA、透明四角，静止叠合和 -24°、-40°、
+-30° 动作姿势已生成 `cat-wave-layered-final-qa.png` 检查。Rive 中应把枢轴固定在右肩，按该三角度
+平滑缓入缓出并完成两次挥动，身体、脸、左爪和尾巴保持静止。
 
 ## 衣橱 2D/3D 预览（2026-10-24）
 

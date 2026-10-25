@@ -22,10 +22,12 @@
   已完成自动描摹网格、Root/Head/RightUpperPaw/Bone 2 骨骼绑定和 3.2 秒时间轴试验。单张扁平位图的
   自动权重会把脸毛和身体轮廓一起拉扯；收窄权重可稳定主体，但末端爪仍不能在不破坏轮廓的前提下
   做到自然双挥，因此该试验不能作为商城成品。Rive Agent 两次只返回说明，没有实际写入时间轴。
-- 已改为分层骨骼方案并生成身体底图与独立右前爪试件：
-  `Q:/NAVA-Workspace/Build/TestRuns/wardrobe-2d-animation-pilot/cat-body-base-v2.png`、
-  `cat-right-paw-layer-v1.png`。它们尚未通过叠合像素验收，也尚未导入 Rive；当前浏览器文件选择器
-  无法由自动化附加本地文件，需要在 Rive 资产面板手动选中这两个文件后继续定位、设枢轴和动画。
+- 已改为确定性双层方案：
+  `Q:/NAVA-Workspace/Build/TestRuns/wardrobe-2d-animation-pilot/cat-body-base-final.png` 保留原图，仅在
+  右前爪覆盖区补出胸腹；`cat-right-paw-layer-final.png` 直接从原图像素提取右前爪。静止叠合与
+  -24°、-40°、-30° 三个动作姿势的检查图为同目录 `cat-wave-layered-final-qa.png`，未再使用整体
+  网格拉扯脸和身体。两层均为 1254×1254 RGBA、透明四角；当前浏览器自动化无法把本地文件拖入
+  Flutter 画布，需要用户在 Rive 资产面板手动拖入这两个文件后继续定位、设肩部枢轴并制作双挥时间轴。
 - 功能源码 `17d778f1708fee6d43759a3bc984de81760b0a53` 已推送并从干净发布工作树构建；
   ChatGPT Sites v270 为
   `appgprj_6a5de710811c8191af8ce2681358d518~appgver_88cbb1274f708191bd03d0601c8a13ce`，
