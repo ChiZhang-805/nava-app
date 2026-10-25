@@ -61,6 +61,21 @@ try {
     await expect(card.locator("[data-confirm-structured] svg")).toHaveCount(0);
     await card.getByRole("button", { name: "逐项编辑" }).click();
     await expect(card.locator(".nutrition-result-editor input")).toHaveCount(4);
+    const editorGeometry = await card.locator(".nutrition-result-editor").evaluateAll((editors) => editors.map((editor) => {
+      const box = editor.getBoundingClientRect();
+      const input = editor.querySelector("input")?.getBoundingClientRect();
+      const unit = editor.querySelector("em")?.getBoundingClientRect();
+      return {
+        hasUnit: Boolean(unit),
+        overflow: editor.scrollWidth - editor.clientWidth,
+        inputRight: input?.right ?? 0,
+        unitLeft: unit?.left ?? 0,
+        unitRight: unit?.right ?? 0,
+        right: box.right,
+        centerOffset: input && unit ? Math.abs((input.top + input.height / 2) - (unit.top + unit.height / 2)) : 99,
+      };
+    }));
+    assert.ok(editorGeometry.every((editor) => editor.overflow <= 1 && (!editor.hasUnit || (editor.inputRight <= editor.unitLeft && editor.unitRight <= editor.right + 1 && editor.centerOffset <= 1))), JSON.stringify(editorGeometry));
     await card.getByRole("button", { name: "逐项编辑" }).click();
     await card.scrollIntoViewIfNeeded();
 
@@ -108,7 +123,7 @@ try {
     await card.screenshot({ path: `${output}/nutrition-card-${viewport.width}x${viewport.height}.png` });
     await card.locator(".nutrition-result-close").click();
     await expect(card).toHaveCount(0);
-    receipt.viewports.push({ ...viewport, geometry });
+    receipt.viewports.push({ ...viewport, geometry, editorGeometry });
     await context.close();
   }
   receipt.passed = true;

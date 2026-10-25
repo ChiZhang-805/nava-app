@@ -102,6 +102,11 @@ try {
       if (category === "accessory" && previous) await catalog.page.locator(".mascot-wardrobe-item").filter({ hasText: previous.name }).click();
       await catalog.page.locator(".mascot-wardrobe-item").filter({ hasText: item.name }).click();
       await expect(catalog.canvas).toHaveAttribute(category === "skin" ? "data-skin" : "data-accessories", item.id);
+      if (category === "accessory") {
+        await expect(catalog.canvas).toHaveAttribute("data-worn-model", item.id, { timeout: 90000 });
+        await expect(catalog.canvas).not.toHaveAttribute("data-model-error", item.id);
+        await expect(catalog.canvas).not.toHaveAttribute("data-pending-model", item.id);
+      }
       for (const angle of [0, 45, 90, 135, 180, 225, 270, 315]) {
         await face(catalog, angle);
         await catalog.page.locator(".mascot-wardrobe-preview").screenshot({ path: `${output}/${item.id}-${angle}.png` });

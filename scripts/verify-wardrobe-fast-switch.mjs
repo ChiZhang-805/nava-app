@@ -28,7 +28,7 @@ await context.route("**/*.glb", async (route) => {
 });
 
 const page = await context.newPage();
-const report = { passed: false, baseBounds: null, wornBounds: null, retainedWhileLoading: false, warmedSwitchMilliseconds: null, errors: [] };
+const report = { passed: false, baseBounds: null, wornBounds: null, matchingFallbackWhileLoading: false, warmedSwitchMilliseconds: null, errors: [] };
 
 async function alphaBounds() {
   const image = await page.locator(".mascot-wardrobe-turntable").screenshot({ omitBackground: true });
@@ -67,14 +67,20 @@ try {
 
   await page.getByRole("tab", { name: "饰品" }).click();
   await page.locator(".mascot-wardrobe-item").filter({ hasText: "星月发夹" }).click();
-  await expect(canvas).toHaveAttribute("data-worn-model", /loading:accessory-star-moon-clip/);
-  await expect(character).toHaveAttribute("data-renderer", "ready");
-  await expect(page.locator(".mascot-wardrobe-model-loading")).toHaveCount(0);
-  assert.deepEqual(await canvas.screenshot(), baseFrame, "the visible cat must stay unchanged while its replacement loads");
-  report.retainedWhileLoading = true;
+  await expect(canvas).toHaveAttribute("data-pending-model", "accessory-star-moon-clip");
+  await expect(canvas).toHaveAttribute("data-worn-model", "none");
+  await expect(character).toHaveAttribute("data-renderer", "loading");
+  const fallback = page.locator(".mascot-wardrobe-model-fallback");
+  await expect(fallback).toBeVisible();
+  await expect(fallback).toHaveAttribute("src", /accessory-star-moon-clip/);
+  await expect(canvas).toHaveCSS("visibility", "hidden");
+  assert.equal(await canvas.getAttribute("data-worn-model"), "none", "the old renderer must not claim the newly selected accessory");
+  report.matchingFallbackWhileLoading = true;
 
   releaseWorn();
   await expect(canvas).toHaveAttribute("data-worn-model", "accessory-star-moon-clip", { timeout: 30000 });
+  await expect(character).toHaveAttribute("data-renderer", "ready");
+  await expect(fallback).toHaveCount(0);
   report.wornBounds = await alphaBounds();
   const ratio = report.baseBounds.height / report.wornBounds.height;
   assert.ok(ratio >= 0.92 && ratio <= 1.08, `base/worn visible height ratio ${ratio.toFixed(3)} is not visually matched`);

@@ -5019,8 +5019,9 @@ body::before {
 .nutrition-meal-total dt { color: #78909a; font-size: 9px; line-height: 1.2; }
 .nutrition-result-item dd,
 .nutrition-meal-total dd { margin: 0; color: #284f60; font-size: 11px; line-height: 1.25; font-weight: 720; overflow-wrap: anywhere; }
-.nutrition-result-editor { display: inline-flex; align-items: center; gap: 3px; }
-.nutrition-result-editor input { width: 52px; height: 27px; box-sizing: border-box; border: 1px solid rgba(22,130,174,.28); border-radius: 8px; padding: 3px 5px; color: #0a3144; background: rgba(255,255,255,.86); font: inherit; font-size: 11px; text-align: right; outline: none; }
+.nutrition-result-editor { max-width: 100%; display: inline-grid; grid-template-columns: minmax(0,52px) auto; align-items: center; gap: 3px; }
+.nutrition-result-item dd .nutrition-result-editor { width: 100%; grid-template-columns: minmax(0,1fr) auto; }
+.nutrition-result-editor input { width: 100%; min-width: 0; height: 27px; box-sizing: border-box; border: 1px solid rgba(22,130,174,.28); border-radius: 8px; padding: 3px 5px; color: #0a3144; background: rgba(255,255,255,.86); font: inherit; font-size: 11px; text-align: right; outline: none; }
 .nutrition-result-editor input:focus { border-color: #1698cb; box-shadow: 0 0 0 2px rgba(22,152,203,.12); }
 .nutrition-result-editor em { color: #66838e; font-size: 9px; font-style: normal; white-space: nowrap; }
 .nutrition-meal-total { display: grid; gap: 4px; padding-top: 9px; border-top: 1px solid rgba(40,124,157,.12); }

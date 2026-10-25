@@ -16,6 +16,7 @@ import {
   type KnowledgeDomain,
 } from "../_shared/knowledge-tools.ts";
 import { loadConsentFlags } from "../_shared/consent.ts";
+import { enrichNutritionWithEvidence } from "../_shared/nutrition-evidence.ts";
 
 type ExtractedRecord = {
   dataType: "sleep" | "exercise" | "mood" | "focus" | "nutrition" | "profile";
@@ -117,7 +118,9 @@ async function extractData(input: { message: string; lang: "zh" | "en"; userId: 
     const data = await response.json();
     const normalized = normalizeProviderExtraction(data);
     const knowledge = await buildExtractionKnowledge(input, normalized);
-    return withHarnessMetadata(normalized, input.harness, knowledge);
+    const enriched = enrichNutritionWithEvidence(normalized, knowledge);
+    const auditedKnowledge = markKnowledgeUsage(knowledge, { usedToolIds: enriched.usedToolIds });
+    return withHarnessMetadata({ ...enriched.result, knowledgeToolIdsUsed: enriched.usedToolIds }, input.harness, auditedKnowledge);
   }
 
   const deepSeekKey = Deno.env.get("DEEPSEEK_API_KEY");
@@ -166,7 +169,10 @@ async function callDeepSeekExtractor(input: { message: string; lang: "zh" | "en"
     const normalized = normalizeProviderExtraction(JSON.parse(content));
     const knowledge = await buildExtractionKnowledge(input, normalized);
     const calibrated = await calibrateExtractionWithKnowledge(input, normalized, knowledge, apiKey, controller.signal);
-    return withHarnessMetadata({ ...calibrated.result, provider: "deepseek", modelVersion: "deepseek-v4-flash-extract-v3" }, input.harness, calibrated.knowledge);
+    const enriched = enrichNutritionWithEvidence(calibrated.result, calibrated.knowledge);
+    const usedToolIds = [...new Set([...(Array.isArray(calibrated.result.knowledgeToolIdsUsed) ? calibrated.result.knowledgeToolIdsUsed.filter((value): value is string => typeof value === "string") : []), ...enriched.usedToolIds])];
+    const auditedKnowledge = markKnowledgeUsage(calibrated.knowledge, { usedToolIds });
+    return withHarnessMetadata({ ...enriched.result, knowledgeToolIdsUsed: usedToolIds, provider: "deepseek", modelVersion: "deepseek-v4-flash-extract-v3" }, input.harness, auditedKnowledge);
   } finally {
     clearTimeout(timeout);
   }

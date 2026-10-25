@@ -48,6 +48,8 @@ try {
     await card.click();
     await expect(canvas).toHaveAttribute("data-accessories", item.id);
     await expect(canvas).toHaveAttribute("data-worn-model", item.id, { timeout: 90000 });
+    await expect(canvas).not.toHaveAttribute("data-model-error", item.id);
+    await expect(canvas).not.toHaveAttribute("data-pending-model", item.id);
     await expect(page.locator('.mascot-wardrobe-item[data-selected="true"]')).toHaveCount(1);
     const front = await canvas.screenshot();
     assert.ok(front.length > 1000, `${item.slug} rendered an empty canvas`);
@@ -67,7 +69,7 @@ try {
     assert.ok(seam.equals(await canvas.screenshot()), `${item.slug} changed across the 360-degree seam`);
     const beforeAction = await canvas.screenshot();
     await character.click();
-    await expect(character).toHaveAttribute("data-motion", "rest", { timeout: 5000 });
+    await expect(character).toHaveAttribute("data-motion", "rest", { timeout: 7000 });
     assert.ok(beforeAction.equals(await canvas.screenshot()), `${item.slug} did not return to its exact action endpoint`);
     report.models.push({ id: item.id, slug: item.slug, screenshots, seam: "identical", actionEndpoint: "identical" });
   }

@@ -137,6 +137,7 @@ async function measure(page, buttonSelector = '.mascot-wardrobe-action button') 
       legacyLargeViewportMedia: matchMedia('(min-width:420px) and (min-height:860px)').matches,
       device: document.querySelector('.nava-app-stage')?.dataset.navaPreviewDevice,
       renderer: document.querySelector('.mascot-wardrobe-character')?.getAttribute('data-renderer'),
+      viewMode: document.querySelector('.mascot-wardrobe-character')?.getAttribute('data-view-mode'),
       fallbackImages: [...document.querySelectorAll('.mascot-wardrobe-character img')].map((image) => ({ ...rect(image), decoded: image.complete && image.naturalWidth > 0 })),
       modelLoadingCount: document.querySelectorAll('.mascot-wardrobe-model-loading').length,
       skin: document.querySelector('.mascot-wardrobe-turntable')?.getAttribute('data-skin'),
@@ -160,7 +161,8 @@ async function measure(page, buttonSelector = '.mascot-wardrobe-action button') 
 function checkLayout(result, geometry, scenario, stage) {
   const check = (condition, message) => requireCheck(result, condition, `${stage}: ${message}`);
   const b = geometry.button;
-  check(geometry.renderer === (scenario.webglUnavailable ? 'unavailable' : 'ready'), 'unexpected renderer state');
+  const expectedRenderer = scenario.webglUnavailable ? ['unavailable'] : geometry.viewMode === '2d' ? ['ready', 'loading'] : ['ready'];
+  check(expectedRenderer.includes(geometry.renderer), 'unexpected renderer state');
   check(geometry.modelLoadingCount === 0, 'loading status remained after renderer settled');
   if (scenario.webglUnavailable) {
     const character = geometry.boxes['.mascot-wardrobe-character'];
@@ -282,6 +284,8 @@ async function runScenario(scenario) {
       await capture(page, result, scenario, 'flat-bell-collar');
       await page.locator('.mascot-wardrobe-view-toggle').click();
       await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-view-mode', '3d');
+      await expect(page.locator('.mascot-wardrobe-turntable')).toHaveAttribute('data-worn-model', 'accessory-bell-collar', { timeout: 90000 });
+      await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-renderer', 'ready');
       await page.getByRole('tab', { name: '皮肤' }).click();
     }
 

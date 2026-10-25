@@ -345,10 +345,7 @@ export default function MascotWardrobe() {
                 <img className="mascot-wardrobe-flat-paw" src={flatMotionLayers.rightPaw} alt="" draggable={false} />
               </span>
             : <img className="mascot-wardrobe-flat-frame" src={flatFront} alt="" draggable={false} aria-hidden="true" />)}
-          {turntableStatus === "unavailable" && <>
-            <img className="mascot-wardrobe-skin" src={skin.art} alt="" draggable={false} />
-            {accessories.map((accessory) => accessory.art && <img key={accessory.id} className="mascot-wardrobe-accessory" src={accessory.art} alt="" draggable={false} />)}
-          </>}
+          {previewMode === "3d" && turntableStatus !== "ready" && <img className="mascot-wardrobe-flat-frame mascot-wardrobe-model-fallback" src={flatFront} alt="" draggable={false} aria-hidden="true" />}
         </button>
         <div className="mascot-wardrobe-look-summary">
           <strong>{summary}</strong>

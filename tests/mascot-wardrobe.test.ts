@@ -19,16 +19,15 @@ test("profile quick access and the app shell expose the cat wardrobe", () => {
   assert.match(profile, /lazy\(\(\) => import\("\.\/MascotWardrobe"\)\)/);
 });
 
-test("wardrobe artwork is layered instead of relying on fixed composites", () => {
-  assert.match(component, /className="mascot-wardrobe-skin"/);
-  assert.match(component, /className="mascot-wardrobe-accessory"/);
+test("wardrobe background stays layered while model fallback uses the exact approved front", () => {
+  assert.match(component, /wardrobe2dFrontImage\(preview\?\.accessoryIds \?\? \[\]\)/);
+  assert.match(component, /mascot-wardrobe-model-fallback/);
   assert.match(component, /className="mascot-wardrobe-background"/);
   assert.match(component, /is-\$\{background\.previewClass\}/);
   assert.match(service, /accessory-cloud-scarf\.png/);
   assert.match(service, /accessory-mist-beret\.png/);
   assert.match(service, /accessory-bell-collar\.png/);
   assert.doesNotMatch(service, /id: "accessory-none", category: "accessory"/);
-  assert.match(component, /accessories\.map/);
 });
 
 test("wardrobe exposes exactly 17 visual choices in every category", () => {
@@ -114,6 +113,14 @@ test("every accessory choice maps to one complete worn-cat GLB", () => {
   const ids = [...service.matchAll(/id: "(accessory-[^"]+)", category: "accessory"/g)].map((match) => match[1]);
   assert.equal((wornModels.match(/\.glb", import\.meta\.url/g) ?? []).length, 17);
   for (const id of ids) assert.match(wornModels, new RegExp(`"${id}"`));
+});
+
+test("a newly selected accessory never displays the previous 3D model while loading", () => {
+  assert.match(component, /turntableStatus !== "ready" && <img className="mascot-wardrobe-flat-frame mascot-wardrobe-model-fallback"/);
+  assert.match(styles, /data-renderer="loading"[^}]+\.mascot-wardrobe-turntable/s);
+  const turntable = readFileSync(new URL("../src/components/WardrobeTurntable.tsx", import.meta.url), "utf8");
+  assert.match(turntable, /dataset\.wornModel !== expected/);
+  assert.match(turntable, /attributeFilter: \["data-worn-model", "data-pending-model", "data-model-error"\]/);
 });
 
 test("wardrobe redemption is authenticated, idempotent and shares reward balance", () => {

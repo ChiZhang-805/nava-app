@@ -189,6 +189,15 @@
   pointer-events: none;
 }
 
+.mascot-wardrobe-model-fallback {
+  animation: wardrobe-model-fallback-in .12s ease-out both;
+}
+
+@keyframes wardrobe-model-fallback-in {
+  from { opacity: .72; }
+  to { opacity: 1; }
+}
+
 .mascot-wardrobe-flat-rig {
   position: relative;
   z-index: 2;
