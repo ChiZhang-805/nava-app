@@ -13,6 +13,11 @@ test("nutrition recognition uses meal and per-food hierarchy instead of the gene
   assert.match(component, /className="nutrition-result-item"/);
   assert.match(component, /className="nutrition-meal-total"/);
   assert.match(screen, /path: `items\.\$\{index\}\.amount`/);
+  for (const path of ["name", "calories", "protein_grams", "carbohydrate_grams", "fat_grams"]) {
+    assert.ok(screen.includes(`path: \`items.\${index}.${path}\``));
+  }
+  assert.match(screen, /setPendingPhotos\(\(current\).*current\.length >= 4/);
+  assert.match(screen, /if \(photos\.length > 0\)[\s\S]*sendComposerPhotos\(photos, typedMessage\)/);
   for (const label of ["早餐", "份量", "碳水", "蛋白质", "脂肪", "总计"]) assert.match(component, new RegExp(label));
   assert.doesNotMatch(component, /structured-field-list/);
   assert.doesNotMatch(component, /AI 识别|AI recognized/);

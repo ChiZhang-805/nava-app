@@ -2,6 +2,7 @@ import { sumFoodItemNutrition } from "../services/dietPortion";
 import type { User } from "@supabase/supabase-js";
 import { Camera, Check, FileText, Image as ImageIcon, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, Plus, SendHorizontal, Sparkles, Trash2, X } from "lucide-react";
 import { Fragment, FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { createPortal } from "react-dom";
 import { useLocale } from "../i18n";
 import PageSkeleton from "../components/PageSkeleton";
 import CameraCapture from "../components/CameraCapture";
@@ -46,6 +47,11 @@ type StreamingPreview = {
 type VoiceCallPhase = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
 type MealType = "breakfast" | "lunch" | "dinner" | "pantry";
+type PendingPhoto = { id: string; file: File; previewUrl: string };
+
+function conciseFoodName(value: string) {
+  return value.replace(/[（(【[][^）)】\]]*[）)】\]]/g, "").split(/[：:；;]/, 1)[0].trim().slice(0, 24) || value.trim().slice(0, 24);
+}
 
 function currentMeal(): MealType {
   const hour = new Date().getHours();
@@ -63,6 +69,8 @@ function mealLabel(meal: MealType, locale: "zh" | "en") {
 }
 
 function buildPhotoNutritionEntry(result: DietExtractResult, meal: MealType, date: string, locale: "zh" | "en"): StructuredEntry {
+  const normalizedItems = result.items.map((item) => ({ ...item, name: conciseFoodName(item.name) }));
+  result = { ...result, items: normalizedItems };
   const totals = result.totals ?? sumFoodItemNutrition(result.items);
   const amountText = (value: number | null | undefined) => value == null ? "" : String(value);
   const fields: StructuredEntry["fields"] = result.items.flatMap((item, index) => {
@@ -80,14 +88,17 @@ function buildPhotoNutritionEntry(result: DietExtractResult, meal: MealType, dat
       path: `items.${index}.amount`,
       valueType: "text" as const,
     };
-    return [portionField, {
+    return [{ id: crypto.randomUUID(), label: locale === "zh" ? "食物名称" : "Food name", value: item.name, path: `items.${index}.name`, valueType: "text" as const }, portionField, {
       id: crypto.randomUUID(),
       label: `${item.name}${locale === "zh" ? " · 估算热量" : " · estimated calories"}`,
       value: amountText(item.calories),
       unit: locale === "zh" ? "千卡" : "kcal",
       path: `items.${index}.calories`,
       valueType: "number" as const,
-    }];
+    },
+    { id: crypto.randomUUID(), label: locale === "zh" ? "碳水" : "Carbs", value: amountText(item.carbohydrate_grams), unit: "g", path: `items.${index}.carbohydrate_grams`, valueType: "number" as const },
+    { id: crypto.randomUUID(), label: locale === "zh" ? "蛋白质" : "Protein", value: amountText(item.protein_grams), unit: "g", path: `items.${index}.protein_grams`, valueType: "number" as const },
+    { id: crypto.randomUUID(), label: locale === "zh" ? "脂肪" : "Fat", value: amountText(item.fat_grams), unit: "g", path: `items.${index}.fat_grams`, valueType: "number" as const }];
   });
   fields.push(
     { id: crypto.randomUUID(), label: locale === "zh" ? "估算总热量" : "Estimated total calories", value: amountText(totals.calories), unit: locale === "zh" ? "千卡" : "kcal", path: "totalCalories", valueType: "number" as const, readOnly: true },
@@ -168,9 +179,10 @@ export default function AIScreen({
   const [voiceCancelArmed, setVoiceCancelArmed] = useState(false);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [pendingDocument, setPendingDocument] = useState<PendingChatDocument | null>(null);
+  const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
   const [photoAnalyzing, setPhotoAnalyzing] = useState(false);
   const [pendingPhotoPreview, setPendingPhotoPreview] = useState<string | null>(null);
-  const [photoPreviews, setPhotoPreviews] = useState<Record<string, string>>({});
+  const [photoPreviews, setPhotoPreviews] = useState<Record<string, string[]>>({});
   const [pendingEntry, setPendingEntry] = useState<StructuredEntry | null>(null);
   const [pendingEntryMessageId, setPendingEntryMessageId] = useState<string | null>(null);
   const [editingEntry, setEditingEntry] = useState(false);
@@ -188,6 +200,7 @@ export default function AIScreen({
   const [voiceCallTranscript, setVoiceCallTranscript] = useState("");
   const [voiceCallError, setVoiceCallError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const layoutRef = useRef<HTMLDivElement | null>(null);
   const voiceSessionRef = useRef<VoiceInputSession | null>(null);
   const handledVoiceRequestRef = useRef(0);
   const handledVoiceReleaseRef = useRef(0);
@@ -337,7 +350,14 @@ export default function AIScreen({
     event.preventDefault();
     const typedMessage = input.trim();
     const document = pendingDocument;
-    if (!typedMessage && !document) return;
+    const photos = pendingPhotos;
+    if (!typedMessage && !document && photos.length === 0) return;
+    if (photos.length > 0) {
+      setInput("");
+      setPendingPhotos([]);
+      await sendComposerPhotos(photos, typedMessage);
+      return;
+    }
     interruptMedia();
     const message = document ? buildChatDocumentMessage(document, typedMessage, locale) : typedMessage;
     const displayMessage = document
@@ -414,7 +434,7 @@ export default function AIScreen({
     }
   }
 
-  async function handleComposerPhoto(file: File | null) {
+  function handleComposerPhoto(file: File | null) {
     if (!file || sending || photoAnalyzing) return;
     const fileIssue = validateChatImage(file);
     if (fileIssue) {
@@ -427,6 +447,25 @@ export default function AIScreen({
     setPendingDocument(null);
     const previewUrl = URL.createObjectURL(file);
     photoObjectUrlsRef.current.add(previewUrl);
+    setPendingPhotos((current) => current.length >= 4 ? current : [...current, { id: crypto.randomUUID(), file, previewUrl }]);
+    setError(null);
+  }
+
+  function removePendingPhoto(id: string) {
+    setPendingPhotos((current) => {
+      const target = current.find((photo) => photo.id === id);
+      if (target) {
+        photoObjectUrlsRef.current.delete(target.previewUrl);
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return current.filter((photo) => photo.id !== id);
+    });
+  }
+
+  async function sendComposerPhotos(photos: PendingPhoto[], typedMessage: string) {
+    if (!photos.length || sending || photoAnalyzing) return;
+    const previewUrls = photos.map((photo) => photo.previewUrl);
+    const previewUrl = previewUrls[0];
     setPendingPhotoPreview(previewUrl);
     setPhotoAnalyzing(true);
     setSending(true);
@@ -451,8 +490,15 @@ export default function AIScreen({
     try {
       const meal = currentMeal();
       const date = todayISO();
-      const result = await analyzeDietPhoto({ userId: user.id, date, meal, file });
-      if (result.imageUrl !== previewUrl && result.imageUrl.startsWith("blob:")) URL.revokeObjectURL(result.imageUrl);
+      const results = await Promise.all(photos.map((photo) => analyzeDietPhoto({ userId: user.id, date, meal, file: photo.file })));
+      results.forEach((item) => { if (!previewUrls.includes(item.imageUrl) && item.imageUrl.startsWith("blob:")) URL.revokeObjectURL(item.imageUrl); });
+      const result: DietExtractResult = {
+        ...results[0],
+        items: results.flatMap((item) => item.items).map((item) => ({ ...item, name: conciseFoodName(item.name) })),
+        note: results.map((item) => item.note).filter(Boolean).join("；"),
+        confidence: Math.min(...results.map((item) => Number(item.confidence) || 0.76)),
+        totals: undefined,
+      };
       const candidate = result.items.length > 0 ? buildPhotoNutritionEntry(result, meal, date, locale) : null;
       const itemSummary = result.items.slice(0, 6).map((item) => `${item.name}${item.weight_grams ? ` 约${item.weight_grams}g` : item.amount ? ` ${item.amount}` : ""} 约${Math.max(0, Math.round(Number(item.calories) || 0))}kcal`).join(locale === "zh" ? "；" : "; ");
       const uncertainty = result.note?.trim().slice(0, 160) ?? "";
@@ -476,7 +522,7 @@ export default function AIScreen({
       const response = await sendAiMessage({
         userId: user.id,
         message: modelMessage,
-        displayMessage: locale === "zh" ? `拍照记录${mealLabel(meal, locale)}` : `Photo ${mealLabel(meal, locale)} record`,
+        displayMessage: [typedMessage, locale === "zh" ? `拍照记录${mealLabel(meal, locale)}` : `Photo ${mealLabel(meal, locale)} record`].filter(Boolean).join("\n"),
         history: conversation.history,
         lang: locale,
         profile,
@@ -484,7 +530,7 @@ export default function AIScreen({
         signal: controller.signal,
         onUserMessage: (userMessage) => {
           userCommitted = true;
-          setPhotoPreviews((current) => ({ ...current, [userMessage.id]: previewUrl }));
+          setPhotoPreviews((current) => ({ ...current, [userMessage.id]: previewUrls }));
           setPendingPhotoPreview(null);
           setMessages((current) => [...(conversation.rolledOver ? [] : current), userMessage]);
         },
@@ -504,9 +550,9 @@ export default function AIScreen({
       speechRef.current?.cancel();
       if (!(photoError instanceof DOMException && photoError.name === "AbortError")) setError(photoError instanceof Error ? photoError.message : String(photoError));
       if (!userCommitted) {
+        setInput(typedMessage);
+        setPendingPhotos(photos);
         setPendingPhotoPreview(null);
-        photoObjectUrlsRef.current.delete(previewUrl);
-        URL.revokeObjectURL(previewUrl);
       }
       setStreamingPreview(null);
       controller.abort();
@@ -1165,9 +1211,21 @@ export default function AIScreen({
   const viewingSnapshot = viewingArchiveId ? history.find((snapshot) => snapshot.id === viewingArchiveId) ?? null : null;
 
   if (loading) return <div className="chat-layout"><PageSkeleton variant="ai" /></div>;
+  const overlayFrame = historyOpen ? layoutRef.current?.closest(".phone-frame")?.getBoundingClientRect() : null;
+  const overlayBounds = overlayFrame ? {
+    left: `${overlayFrame.left}px`,
+    top: `${overlayFrame.top}px`,
+    width: `${overlayFrame.width}px`,
+    height: `${overlayFrame.height}px`,
+  } : undefined;
+  const sheetBounds = overlayFrame ? {
+    left: `${overlayFrame.left}px`,
+    width: `${overlayFrame.width}px`,
+    bottom: `${Math.max(0, window.innerHeight - overlayFrame.bottom)}px`,
+  } : undefined;
 
   return (
-    <div className="chat-layout">
+    <div className="chat-layout" ref={layoutRef}>
       {cameraOpen && <CameraCapture locale={locale} facing="environment" onClose={() => setCameraOpen(false)} onFallback={() => { setCameraOpen(false); cameraInputRef.current?.click(); }} onCapture={(file) => { setCameraOpen(false); void handleComposerPhoto(file); }} />}
       {mediaNotice && <p className="chat-media-notice" role="status">{mediaNotice}<button type="button" onClick={() => setMediaNotice(null)} aria-label={locale === "zh" ? "关闭中断提示" : "Dismiss interruption notice"}><X size={16} /></button></p>}
       <div className="chat-list" ref={listRef}>
@@ -1183,7 +1241,9 @@ export default function AIScreen({
                 )}
                 <article className={isUser ? "chat-bubble user" : "chat-bubble assistant"}>
                   {isUser && photoPreviews[message.id] && (
-                    <img className="chat-photo-preview" src={photoPreviews[message.id]} alt={locale === "zh" ? "刚刚拍摄的饮食照片" : "New meal photo"} data-chat-photo="saved" />
+                    <div className="chat-photo-grid" data-photo-count={photoPreviews[message.id].length}>
+                      {photoPreviews[message.id].map((url, index) => <img key={url} className="chat-photo-preview" src={url} alt={locale === "zh" ? `饮食照片 ${index + 1}` : `Meal photo ${index + 1}`} data-chat-photo="saved" />)}
+                    </div>
                   )}
                   <p>{message.content}</p>
                   <time>{new Date(message.created_at).toLocaleTimeString(locale === "en" ? "en-US" : "zh-CN", { hour: "2-digit", minute: "2-digit" })}</time>
@@ -1249,7 +1309,13 @@ export default function AIScreen({
       {viewingSnapshot ? <div className="chat-archive-return" role="status">
         <span><strong>{viewingSnapshot.title}</strong><small>{locale === "zh" ? "历史会话只读预览" : "Read-only history preview"}</small></span>
         <button type="button" onClick={() => void refresh()}>{locale === "zh" ? "返回今日对话" : "Back to today's chat"}</button>
-      </div> : <form className={["chat-composer", voiceState !== "idle" ? "voice-active" : "", attachmentMenuOpen ? "attachment-open" : "", photoAnalyzing ? "photo-analyzing" : "", pendingDocument ? "has-document" : ""].filter(Boolean).join(" ")} onSubmit={submit}>
+      </div> : <form className={["chat-composer", voiceState !== "idle" ? "voice-active" : "", attachmentMenuOpen ? "attachment-open" : "", photoAnalyzing ? "photo-analyzing" : "", pendingDocument ? "has-document" : "", pendingPhotos.length ? "has-photos" : ""].filter(Boolean).join(" ")} onSubmit={submit}>
+        {pendingPhotos.length > 0 && <div className="chat-pending-photos" aria-label={locale === "zh" ? "待发送照片" : "Photos ready to send"}>
+          {pendingPhotos.map((photo, index) => <span key={photo.id}>
+            <img src={photo.previewUrl} alt={locale === "zh" ? `待发送照片 ${index + 1}` : `Pending photo ${index + 1}`} />
+            <button type="button" onClick={() => removePendingPhoto(photo.id)} aria-label={locale === "zh" ? `移除照片 ${index + 1}` : `Remove photo ${index + 1}`}><X size={13} /></button>
+          </span>)}
+        </div>}
         {pendingDocument && (
           <div className="chat-pending-document" aria-live="polite">
             <FileText size={17} aria-hidden="true" />
@@ -1293,7 +1359,7 @@ export default function AIScreen({
             className="chat-attachment-input chat-photo-input"
             type="file"
             accept={chatAttachmentAccept.images}
-            onFile={(file) => { void handleComposerPhoto(file); }}
+            onFile={handleComposerPhoto}
           />
           <input
             ref={documentInputRef}
@@ -1312,7 +1378,7 @@ export default function AIScreen({
             type="file"
             accept={chatAttachmentAccept.images}
             capture="environment"
-            onFile={(file) => { void handleComposerPhoto(file); }}
+            onFile={handleComposerPhoto}
           />
         </div>
         <div className="chat-input-shell">
@@ -1353,7 +1419,7 @@ export default function AIScreen({
         <button
           className="chat-send-button"
           type="submit"
-          disabled={sending || (!input.trim() && !pendingDocument)}
+          disabled={sending || (!input.trim() && !pendingDocument && pendingPhotos.length === 0)}
           aria-label={t("ai.send")}
           title={t("ai.send")}
         >
@@ -1403,8 +1469,9 @@ export default function AIScreen({
         </section>
       )}
 
-      {historyOpen && (
-        <div className="ai-history-sheet" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "历史会话" : "Conversation history"}>
+      {historyOpen && layoutRef.current && createPortal(<>
+        <div className="ai-history-backdrop" style={overlayBounds} aria-hidden="true" onClick={() => setHistoryOpen(false)} />
+        <div className="ai-history-sheet" style={sheetBounds} role="dialog" aria-modal="true" aria-label={locale === "zh" ? "历史会话" : "Conversation history"}>
           <header>
             <strong>{locale === "zh" ? "历史会话" : "Conversation history"}</strong>
             <button type="button" onClick={() => setHistoryOpen(false)} aria-label={locale === "zh" ? "关闭" : "Close"}><X size={20} /></button>
@@ -1424,7 +1491,7 @@ export default function AIScreen({
             ))}
           </div>
         </div>
-      )}
+      </>, document.body)}
     </div>
   );
 }

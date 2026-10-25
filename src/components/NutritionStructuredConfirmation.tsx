@@ -70,11 +70,15 @@ export default function NutritionStructuredConfirmation({ record, locale, editin
     <div className="nutrition-result-items">
       {items.map((item, index) => {
         const name = textValue(item.name) || (locale === "zh" ? `食物 ${index + 1}` : `Food ${index + 1}`);
+        const nameField = fieldAt(`items.${index}.name`);
         const quantityField = fieldAt(`items.${index}.quantity`);
         const weightField = fieldAt(`items.${index}.weight_grams`);
         const amountField = fieldAt(`items.${index}.amount`);
         const portionField = weightField ?? quantityField ?? amountField;
         const caloriesField = fieldAt(`items.${index}.calories`);
+        const carbohydrateField = fieldAt(`items.${index}.carbohydrate_grams`);
+        const proteinField = fieldAt(`items.${index}.protein_grams`);
+        const fatField = fieldAt(`items.${index}.fat_grams`);
         const weight = numberValue(item.weight_grams);
         const quantity = numberValue(item.quantity);
         const unit = textValue(item.unit) || (weight != null ? "g" : locale === "zh" ? "份" : "serving");
@@ -82,14 +86,14 @@ export default function NutritionStructuredConfirmation({ record, locale, editin
         const calories = numberValue(item.calories);
         return <article className="nutrition-result-item" key={`${name}-${index}`} aria-label={name}>
           <header>
-            <strong>{name}</strong>
+            <strong><FieldEditor field={nameField} label={locale === "zh" ? "食物名称" : "Food name"} fallback={name} editing={editing} onChange={onFieldChange} /></strong>
             <b><FieldEditor field={caloriesField} label={`${name}${locale === "zh" ? "热量" : " calories"}`} fallback={calories == null ? "—" : String(calories)} unit={locale === "zh" ? "千卡" : "kcal"} editing={editing} onChange={onFieldChange} /><small>{!editing || !caloriesField ? (locale === "zh" ? "千卡" : "kcal") : ""}</small></b>
           </header>
           <dl>
             <div><dt>{locale === "zh" ? "份量" : "Portion"}</dt><dd><FieldEditor field={portionField} label={`${name}${locale === "zh" ? "份量" : " portion"}`} fallback={portion} unit={amountField === portionField ? undefined : unit} editing={editing} onChange={onFieldChange} /></dd></div>
-            <div><dt>{locale === "zh" ? "碳水" : "Carbs"}</dt><dd>{metric(item.carbohydrate_grams ?? item.carbohydrateGrams, "g", locale)}</dd></div>
-            <div><dt>{locale === "zh" ? "蛋白质" : "Protein"}</dt><dd>{metric(item.protein_grams ?? item.proteinGrams, "g", locale)}</dd></div>
-            <div><dt>{locale === "zh" ? "脂肪" : "Fat"}</dt><dd>{metric(item.fat_grams ?? item.fatGrams, "g", locale)}</dd></div>
+            <div><dt>{locale === "zh" ? "碳水" : "Carbs"}</dt><dd><FieldEditor field={carbohydrateField} label={`${name}${locale === "zh" ? "碳水" : " carbs"}`} fallback={metric(item.carbohydrate_grams ?? item.carbohydrateGrams, "g", locale)} unit="g" editing={editing} onChange={onFieldChange} /></dd></div>
+            <div><dt>{locale === "zh" ? "蛋白质" : "Protein"}</dt><dd><FieldEditor field={proteinField} label={`${name}${locale === "zh" ? "蛋白质" : " protein"}`} fallback={metric(item.protein_grams ?? item.proteinGrams, "g", locale)} unit="g" editing={editing} onChange={onFieldChange} /></dd></div>
+            <div><dt>{locale === "zh" ? "脂肪" : "Fat"}</dt><dd><FieldEditor field={fatField} label={`${name}${locale === "zh" ? "脂肪" : " fat"}`} fallback={metric(item.fat_grams ?? item.fatGrams, "g", locale)} unit="g" editing={editing} onChange={onFieldChange} /></dd></div>
           </dl>
         </article>;
       })}

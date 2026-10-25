@@ -23,10 +23,10 @@ test("vision prompt requires dish-level grouping for composite food", () => {
   const chinese = dietRecognitionPrompt("zh", "lunch");
   const english = dietRecognitionPrompt("en", "lunch");
   assert.match(chinese, /最终菜品或饮品/);
-  assert.match(chinese, /不能另列“西红柿”和“青菜”/);
-  assert.match(chinese, /汉堡.*不必机械罗列原料/);
+  assert.match(chinese, /禁止括号、配料清单、外观描述/);
+  assert.match(chinese, /复合沙拉只写“沙拉”/);
   assert.match(english, /dish level/);
-  assert.match(english, /Do not split that salad/);
+  assert.match(english, /no parentheses, ingredient list, visual description/);
   assert.match(chinese, /实际可见的份量/);
   assert.match(english, /ACTUAL VISIBLE portion/);
 });
