@@ -15,6 +15,9 @@
 - 二维动画工具调研结论：需要像素/造型稳定时优先用 Live2D 或 Rive 做原图绑定；DomoAI、
   Runway Image-to-Video / Motion Control 可用于快速动作样片，但生成式视频可能改变脸、尾巴、
   配饰或透明边缘，不能直接作为全部 18 款的生产资产。尚未登录、购买或消耗外部额度。
+- 商城二维动画最终主格式确定为 Rive `.riv`：用位图网格、骨骼和状态机制作可点击挥爪，
+  GIF/WebM 仅作审核导出，animated WebP 作运行时失败降级。先完成无配饰小猫 `idle`/`wave`
+  原型，通过后共用骨架扩展至 17 个单配饰版本。Rive Editor 已停在登录页，尚未上传素材或付费。
 - 功能源码 `17d778f1708fee6d43759a3bc984de81760b0a53` 已推送并从干净发布工作树构建；
   ChatGPT Sites v270 为
   `appgprj_6a5de710811c8191af8ce2681358d518~appgver_88cbb1274f708191bd03d0601c8a13ce`，
