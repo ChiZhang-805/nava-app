@@ -1,6 +1,6 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
-## 衣橱 Figma 布局吸收（2026-10-25，本地候选）
+## 衣橱 Figma 布局吸收（2026-10-25，双站 v270 已发布）
 
 - 依据 Figma 移动端 C04/C05 衣橱画板选择性吸收布局：三类商品分页均从每页 3×2 改为
   2×2，每页数据也严格按 4 件切分，3D 预加载同步限制为当前 4 件。保留现有单饰品替换、
@@ -9,12 +9,21 @@
   不拦截旋转、点按动作或视图切换。冰川晨雾、星河暮紫、晴空微澜在衣橱内部使用不同的
   冰蓝、紫蓝青、蓝绿预览背景；未全局改写其他页面。
 - `wardrobe:test` 16/16；`wardrobe:layout:visual` 已覆盖四个手机尺寸、安全区、桌面壳、
-  WebGL 降级以及暮紫/晴空两套额外皮肤。专项 17 个场景全部通过，截图证据在
-  `artifacts/test-runs/wardrobe-layout`。完整 `npm run verify` 第一次在记录卡门禁的包装层返回非零，
-  但该门禁随后独立重跑 22/22 设备通过；发布前仍须重新跑完整门禁并记录最终结果。
+  WebGL 降级以及暮紫/晴空两套额外皮肤，17 个场景全部通过，截图证据在
+  `artifacts/test-runs/wardrobe-layout`。完整 `npm run verify` 已通过，其中记录卡门禁覆盖
+  22/22 设备；`npm run auth:verify:production` 也通过。
 - 二维动画工具调研结论：需要像素/造型稳定时优先用 Live2D 或 Rive 做原图绑定；DomoAI、
   Runway Image-to-Video / Motion Control 可用于快速动作样片，但生成式视频可能改变脸、尾巴、
   配饰或透明边缘，不能直接作为全部 18 款的生产资产。尚未登录、购买或消耗外部额度。
+- 功能源码 `17d778f1708fee6d43759a3bc984de81760b0a53` 已推送并从干净发布工作树构建；
+  ChatGPT Sites v270 为
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_88cbb1274f708191bd03d0601c8a13ce`，
+  deployment `appgdep_6add8a54476c8191abd7960ff239a46c` succeeded。GitHub Pages 镜像提交
+  `7b561a3db21961c11bca85295279dfe54077426b`，workflow `40163345935` success；
+  `source.json` 指向同一功能源码和 v270。
+- 发布后 `skins:deployment:audit` 使用 v270 与该功能提交重跑，58 个结果、381 项检查、
+  56 张截图全部通过；两个公开入口与 `?demo=1` 均保持真实登录边界，Supabase 项目仍为
+  `wxteapvwagvhhtrjrbim`。没有数据库迁移、Edge Function 部署、生产数据写入、密钥或访问策略变化。
 
 ## 全局皮肤背景与紧凑菜单（2026-10-24，双站 v269 已发布）
 
