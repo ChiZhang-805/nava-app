@@ -11,7 +11,6 @@ import roll from "../assets/mascot/animated/home-roll.webp";
 import drowsy from "../assets/mascot/animated/home-drowsy.webp";
 import stretch from "../assets/mascot/animated/home-stretch.webp";
 import yawn from "../assets/mascot/animated/home-yawn.webp";
-import lift from "../assets/mascot/animated/module-exercise.webp";
 import type { MascotMotion } from "./mascotMotion";
 
 export type HomeMascotAction = {
@@ -28,7 +27,6 @@ export const homeMascotActions: HomeMascotAction[] = [
   { id: "read", label: { zh: "翻开书阅读", en: "read a book" }, clips: [{ src: read, durationMs: 6420 }] },
   { id: "yawn", label: { zh: "打个哈欠", en: "have a yawn" }, clips: [{ src: yawn, durationMs: 9990 }] },
   { id: "nap", label: { zh: "闭眼打个盹", en: "take a little nap" }, clips: [{ src: drowsy, durationMs: 9540 }] },
-  { id: "lift", label: { zh: "举起小哑铃", en: "lift a tiny weight" }, clips: [{ src: lift, durationMs: 1800 }] },
   { id: "roll", label: { zh: "翻个跟头", en: "do a playful roll" }, clips: [{ src: roll, durationMs: 4680 }] },
   { id: "fluff", interaction: "groom", label: { zh: "等你捋一捋毛", en: "wait for a grooming stroke" }, clips: [
     { src: fluffOne, durationMs: 1890 }, { src: fluffTwo, durationMs: 2430 }, { src: fluffThree, durationMs: 2670 },
@@ -43,5 +41,5 @@ export const preferredHomeMascotAction: Record<MascotMotion, string> = {
   tail: "butterfly",
   read: "read",
   sleep: "yawn",
-  lift: "lift",
+  lift: "wave",
 };
