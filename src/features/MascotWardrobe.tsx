@@ -137,7 +137,7 @@ export default function MascotWardrobe() {
   const accessories = preview ? preview.accessoryIds.map(wardrobeItem) : [];
   const background = preview ? wardrobeItem(preview.backgroundId) : null;
   const currentItems = useMemo(() => wardrobeItems(activeCategory), [activeCategory]);
-  const itemPages = useMemo(() => Array.from({ length: Math.ceil(currentItems.length / 6) }, (_, index) => currentItems.slice(index * 6, index * 6 + 6)), [currentItems]);
+  const itemPages = useMemo(() => Array.from({ length: Math.ceil(currentItems.length / 4) }, (_, index) => currentItems.slice(index * 4, index * 4 + 4)), [currentItems]);
   const previewItemIds = preview ? [preview.skinId, ...preview.accessoryIds, preview.backgroundId] : [];
   const lockedPreviewItems = state ? previewItemIds.filter((itemId) => !state.unlockedItemIds.includes(itemId)).map(wardrobeItem) : [];
   const focusedItem = focusedItemId ? wardrobeItem(focusedItemId) : null;
@@ -278,6 +278,7 @@ export default function MascotWardrobe() {
       <div className={`mascot-wardrobe-preview is-${background.previewClass}`} ref={previewRef}>
         {background.art && <img className="mascot-wardrobe-background" src={background.art} alt="" draggable={false} />}
         <div className="mascot-wardrobe-preview-lines" aria-hidden="true" />
+        <div className="mascot-wardrobe-preview-frame" aria-hidden="true" />
         <div className="mascot-wardrobe-status">
           <button className="mascot-wardrobe-view-toggle" type="button" onClick={() => setPreviewMode((mode) => mode === "3d" ? "2d" : "3d")} aria-label={previewMode === "3d" ? (locale === "zh" ? "切换到二维正面" : "Switch to 2D front view") : (locale === "zh" ? "切换到三维预览" : "Switch to 3D preview")} title={previewMode === "3d" ? "2D" : "3D"}>
             {previewMode === "3d" ? <ImageIcon size={18} aria-hidden="true" /> : <Box size={18} aria-hidden="true" />}
@@ -327,7 +328,7 @@ export default function MascotWardrobe() {
               ? (locale === "zh" ? `小猫正在${wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.label.zh}` : `The cat is playing ${wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.label.en}`)
               : (locale === "zh" ? `${turntableStatus === "ready" ? "左右滑动或方向键转身，Home回正面。" : ""}点按小猫播放${wardrobeMascotMotions[nextMotionIndex].label.zh}，当前搭配：${summary}` : `${turntableStatus === "ready" ? "Swipe or use arrow keys to turn; Home faces forward. " : ""}Tap the cat to ${wardrobeMascotMotions[nextMotionIndex].label.en}. Current look: ${summary}`)}
           data-motion={playingMotion ?? "rest"}>
-          <WardrobeTurntable ref={turntableRef} skinId={preview.skinId} accessoryIds={preview.accessoryIds} prefetchIds={(activeCategory === "accessory" ? itemPages[activePage] ?? [] : wardrobeItems("accessory").slice(0, 6)).map((item) => item.id).filter((id): id is WardrobeSelection["accessoryIds"][number] => id.startsWith("accessory-"))} onStatus={setTurntableStatus} onLoadError={() => setError(locale === "zh" ? "这个模型暂时未能载入，仍显示上一款。请重新选择后再试。" : "This model could not load. The previous look is still shown; select again to retry.")} />
+          <WardrobeTurntable ref={turntableRef} skinId={preview.skinId} accessoryIds={preview.accessoryIds} prefetchIds={(activeCategory === "accessory" ? itemPages[activePage] ?? [] : wardrobeItems("accessory").slice(0, 4)).map((item) => item.id).filter((id): id is WardrobeSelection["accessoryIds"][number] => id.startsWith("accessory-"))} onStatus={setTurntableStatus} onLoadError={() => setError(locale === "zh" ? "这个模型暂时未能载入，仍显示上一款。请重新选择后再试。" : "This model could not load. The previous look is still shown; select again to retry.")} />
           {previewMode === "2d" && <img className="mascot-wardrobe-flat-frame" src={flatFront} alt="" draggable={false} aria-hidden="true" />}
           {turntableStatus === "unavailable" && <>
             <img className="mascot-wardrobe-skin" src={skin.art} alt="" draggable={false} />

@@ -72,6 +72,21 @@
     linear-gradient(28deg, transparent 0 68%, rgba(255,255,255,.16) 68.2% 68.7%, transparent 69% 100%);
 }
 
+.mascot-wardrobe-preview-frame {
+  position: absolute;
+  z-index: 0;
+  top: 56px;
+  bottom: 68px;
+  left: 50%;
+  width: min(69.2%, 236px);
+  transform: translateX(-50%);
+  border: 1px dashed rgba(230, 240, 255, .8);
+  border-radius: 32px;
+  background: rgba(255, 255, 255, .035);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+  pointer-events: none;
+}
+
 .mascot-wardrobe-status {
   position: absolute;
   z-index: 3;
@@ -347,7 +362,7 @@
 .mascot-wardrobe-page {
   flex: 0 0 calc(100% - 2px);
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-rows: repeat(2, 72px);
   gap: 8px;
   scroll-snap-align: start;
@@ -358,7 +373,7 @@
   min-width: 0;
   min-height: 72px;
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-columns: 48px minmax(0, 1fr);
   align-items: center;
   gap: 5px;
   border: 1px solid rgba(126,146,190,.5);
@@ -377,8 +392,8 @@
 }
 
 .mascot-wardrobe-item-art {
-  width: 38px;
-  height: 38px;
+  width: 48px;
+  height: 48px;
   overflow: hidden;
   display: grid;
   place-items: center;
@@ -556,10 +571,40 @@
   .mascot-wardrobe { gap: 9px; }
   .mascot-wardrobe-grid { gap: 7px; }
   .mascot-wardrobe-page { grid-template-rows: repeat(2, 55px); gap: 7px; }
-  .mascot-wardrobe-item { min-height: 55px; grid-template-columns: 34px minmax(0,1fr); padding: 5px; }
-  .mascot-wardrobe-item-art { width: 34px; height: 34px; }
+  .mascot-wardrobe-item { min-height: 55px; grid-template-columns: 40px minmax(0,1fr); padding: 5px; }
+  .mascot-wardrobe-item-art { width: 40px; height: 40px; }
   .mascot-wardrobe-item-copy strong { font-size: 11px; }
   .mascot-wardrobe-action { min-height: 48px; }
+}
+
+.phone-frame[data-app-skin="glacier-mist"] .mascot-wardrobe-preview {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255,255,255,.78), transparent 31%),
+    linear-gradient(145deg, #82cbed 0%, #91bfe9 46%, #9c98e8 100%);
+}
+
+.phone-frame[data-app-skin="glacier-mist"] .mascot-wardrobe-preview-frame {
+  border-color: rgba(235, 248, 255, .86);
+}
+
+.phone-frame[data-app-skin="violet-dusk"] .mascot-wardrobe-preview {
+  background:
+    radial-gradient(circle at 20% 18%, rgba(255,255,255,.28), transparent 31%),
+    linear-gradient(145deg, #a968e8 0%, #7275f6 54%, #11cbd2 118%);
+}
+
+.phone-frame[data-app-skin="violet-dusk"] .mascot-wardrobe-preview-frame {
+  border-color: rgba(246, 238, 255, .82);
+}
+
+.phone-frame[data-app-skin="sky-ripple"] .mascot-wardrobe-preview {
+  background:
+    radial-gradient(circle at 76% 18%, rgba(255,255,255,.72), transparent 30%),
+    linear-gradient(145deg, #9bdcf2 0%, #79c9e7 49%, #7cded0 100%);
+}
+
+.phone-frame[data-app-skin="sky-ripple"] .mascot-wardrobe-preview-frame {
+  border-color: rgba(239, 255, 255, .9);
 }
 
 @container wardrobe-page (min-width: 388px) {

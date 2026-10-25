@@ -75,7 +75,14 @@ test("wardrobe layout retains touch targets and responsive phone states", () => 
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(styles, /grid-template-rows: repeat\(2,/);
   assert.match(styles, /overflow-x: auto/);
-  assert.match(styles, /grid-template-columns: repeat\(3,/);
+  assert.match(styles, /\.mascot-wardrobe-page \{[^}]*grid-template-columns: repeat\(2,/s);
+  assert.match(component, /Math\.ceil\(currentItems\.length \/ 4\)/);
+  assert.match(component, /currentItems\.slice\(index \* 4, index \* 4 \+ 4\)/);
+  assert.match(component, /className="mascot-wardrobe-preview-frame"/);
+  assert.match(styles, /\.mascot-wardrobe-preview-frame \{[^}]*border: 1px dashed[^}]*pointer-events: none;/s);
+  assert.match(styles, /data-app-skin="glacier-mist"[^}]+\.mascot-wardrobe-preview/s);
+  assert.match(styles, /data-app-skin="violet-dusk"[^}]+\.mascot-wardrobe-preview/s);
+  assert.match(styles, /data-app-skin="sky-ripple"[^}]+\.mascot-wardrobe-preview/s);
   assert.match(component, /className="mascot-wardrobe-pagination"/);
   assert.match(component, /onScroll=\{\(event\) =>/);
   assert.match(component, /scrollToPage\(pageIndex\)/);

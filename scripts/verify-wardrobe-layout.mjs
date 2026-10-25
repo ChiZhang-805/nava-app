@@ -27,6 +27,8 @@ const mobileSizes = [[360, 740], [375, 812], [390, 844], [430, 932]];
 const cases = [
   ...mobileSizes.map(([width, height]) => ({ id: `mobile-${width}x${height}`, width, height, mobile: true })),
   ...mobileSizes.map(([width, height]) => ({ id: `mobile-safe59-34-${width}x${height}`, width, height, mobile: true, safe: { top: 59, bottom: 34, left: 0, right: 0 } })),
+  { id: 'mobile-390x844-violet-dusk', width: 390, height: 844, mobile: true, appSkin: 'violet-dusk' },
+  { id: 'mobile-390x844-sky-ripple', width: 390, height: 844, mobile: true, appSkin: 'sky-ripple' },
   ...[859, 861, 900].map((height) => ({ id: `desktop-1440x${height}-iphone14`, width: 1440, height, mobile: false, device: 'iphone-14' })),
   { id: 'desktop-1280x800-iphone15pro', width: 1280, height: 800, mobile: false, device: 'iphone-15-pro' },
   { id: 'desktop-1365x1000-iphone15promax', width: 1365, height: 1000, mobile: false, device: 'iphone-15-pro-max' },
@@ -80,7 +82,7 @@ async function measure(page, buttonSelector = '.mascot-wardrobe-action button') 
       return { x: r.x, y: r.y, left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
     };
     const describe = (element) => element ? `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ''}${typeof element.className === 'string' ? `.${element.className.trim().replace(/\s+/g, '.')}` : ''}` : null;
-    const selectors = ['.phone-frame', '.safe-top', '.figma-app-header', '.app-content', '.screen-panel', '.profile-subpage', '.mascot-wardrobe', '.mascot-wardrobe-preview', '.mascot-wardrobe-character', '.mascot-wardrobe-look-summary', '.mascot-wardrobe-tabs', '.mascot-wardrobe-grid', '.mascot-wardrobe-pagination', '.mascot-wardrobe-action', '.mascot-wardrobe-action button', '.ios-home-gesture', '.ios-home-gesture > span', '.nava-device-home-indicator', '.mascot-wardrobe-sheet', '.mascot-wardrobe-sheet-actions'];
+    const selectors = ['.phone-frame', '.safe-top', '.figma-app-header', '.app-content', '.screen-panel', '.profile-subpage', '.mascot-wardrobe', '.mascot-wardrobe-preview', '.mascot-wardrobe-preview-frame', '.mascot-wardrobe-character', '.mascot-wardrobe-look-summary', '.mascot-wardrobe-tabs', '.mascot-wardrobe-grid', '.mascot-wardrobe-page', '.mascot-wardrobe-pagination', '.mascot-wardrobe-action', '.mascot-wardrobe-action button', '.ios-home-gesture', '.ios-home-gesture > span', '.nava-device-home-indicator', '.mascot-wardrobe-sheet', '.mascot-wardrobe-sheet-actions'];
     const boxes = Object.fromEntries(selectors.map((selector) => {
       const element = document.querySelector(selector);
       if (!element) return [selector, null];
@@ -139,6 +141,15 @@ async function measure(page, buttonSelector = '.mascot-wardrobe-action button') 
       modelLoadingCount: document.querySelectorAll('.mascot-wardrobe-model-loading').length,
       skin: document.querySelector('.mascot-wardrobe-turntable')?.getAttribute('data-skin'),
       hintCount: document.querySelectorAll('.mascot-wardrobe-motion-hint').length,
+      catalog: {
+        pageItemCounts: [...document.querySelectorAll('.mascot-wardrobe-page')].map((page) => page.children.length),
+        columns: getComputedStyle(document.querySelector('.mascot-wardrobe-page')).gridTemplateColumns.split(' ').filter(Boolean).length,
+        rows: getComputedStyle(document.querySelector('.mascot-wardrobe-page')).gridTemplateRows.split(' ').filter(Boolean).length,
+        previewFramePointerEvents: getComputedStyle(document.querySelector('.mascot-wardrobe-preview-frame')).pointerEvents,
+        previewFrameBorderStyle: getComputedStyle(document.querySelector('.mascot-wardrobe-preview-frame')).borderStyle,
+        previewBackground: getComputedStyle(document.querySelector('.mascot-wardrobe-preview')).backgroundImage,
+      },
+      appSkin: document.querySelector('.phone-frame')?.getAttribute('data-app-skin'),
       safeArea, scale, boxes,
       button: { selector: buttonSelector, ...button, text: element?.textContent?.trim(), disabled: element?.disabled, clip, clippedBy, points, safeBoundary, bottomBoundary, bottomGap: button ? bottomBoundary - button.bottom : null, gestureGap: button && visibleGesture ? visibleGesture.top - button.bottom : null },
       demoWardrobeStorage: sessionStorage.getItem('nava.demo.mascot-wardrobe.v1'),
@@ -159,6 +170,13 @@ function checkLayout(result, geometry, scenario, stage) {
     check(geometry.fallbackImages.every((image) => image.bottom <= summary.top), 'fallback art is covered by the look summary');
   }
   check(geometry.hintCount === 0, 'operation hint line is still present');
+  check(geometry.catalog.columns === 2 && geometry.catalog.rows === 2, `catalog is ${geometry.catalog.columns}x${geometry.catalog.rows} instead of 2x2`);
+  check(geometry.catalog.pageItemCounts.length > 0 && geometry.catalog.pageItemCounts.every((count) => count > 0 && count <= 4), `catalog page item counts are ${geometry.catalog.pageItemCounts.join(', ')}`);
+  check(geometry.catalog.previewFrameBorderStyle === 'dashed', 'preview frame is not dashed');
+  check(geometry.catalog.previewFramePointerEvents === 'none', 'preview frame intercepts interaction');
+  check(geometry.appSkin === (scenario.appSkin ?? 'glacier-mist'), `expected app skin ${scenario.appSkin ?? 'glacier-mist'}, got ${geometry.appSkin}`);
+  if (scenario.appSkin === 'violet-dusk') check(geometry.catalog.previewBackground.includes('169, 104, 232'), 'violet wardrobe preview did not receive its skin-specific background');
+  if (scenario.appSkin === 'sky-ripple') check(geometry.catalog.previewBackground.includes('155, 220, 242'), 'sky wardrobe preview did not receive its skin-specific background');
   check(geometry.desktopPreviewActive === !scenario.mobile, 'wrong desktop/mobile media path');
   check(geometry.documentOverflow.x <= 1, `document horizontal overflow ${geometry.documentOverflow.x}`);
   check(Math.abs(geometry.viewport.scrollY) <= 1, 'document scrolled vertically');
@@ -200,11 +218,13 @@ async function runScenario(scenario) {
   report.scenarios.push(result);
   const context = await browser.newContext({ viewport: { width: scenario.width, height: scenario.height }, isMobile: scenario.mobile, hasTouch: scenario.mobile, locale: 'zh-CN', deviceScaleFactor: 1 });
   try {
-    await context.addInitScript((device) => {
+    await context.addInitScript(({ device, appSkin }) => {
       sessionStorage.setItem('nava.review.demo.auth.v1', 'signed-in');
       localStorage.setItem('nava.onboarding.v3.00000000-0000-4000-8000-000000000001', JSON.stringify({ completed: true, version: 3, answers: {} }));
       localStorage.setItem('nava.desktop-preview-device.v1', device);
-    }, scenario.device ?? 'iphone-15-pro-max');
+      localStorage.setItem('nava.app-skin.v1:00000000-0000-4000-8000-000000000001', appSkin);
+      localStorage.setItem('nava.app-skin.v1:anonymous', appSkin);
+    }, { device: scenario.device ?? 'iphone-15-pro-max', appSkin: scenario.appSkin ?? 'glacier-mist' });
     if (scenario.webglUnavailable) {
       await context.addInitScript(() => {
         const original = HTMLCanvasElement.prototype.getContext;
