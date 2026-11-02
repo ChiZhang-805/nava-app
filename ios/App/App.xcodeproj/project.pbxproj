@@ -224,7 +224,7 @@
 			name = "NAVA Watch";
 			productName = "NAVA Watch";
 			productReference = B2C3D4E50000000000000011 /* NAVA Watch.app */;
-			productType = "com.apple.product-type.application.watchapp2";
+			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 

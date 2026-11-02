@@ -10,6 +10,11 @@ const inputs = { NAVA_APPLE_TEAM_ID: "AB12CD34EF", NAVA_IOS_BUNDLE_ID: "health.n
 const config = { appId: "health.nava.mobile", webDir: "dist", packageClassList: ["CAPCameraPlugin", "LocalNotificationsPlugin", "PushNotificationsPlugin", "AppPlugin", "FilesystemPlugin", "SharePlugin"] };
 
 test("both parsed Xcode targets embed their own manifest and agree on identity/version", () => checkProject(loadProject()));
+test("a legacy WatchKit wrapper product type cannot compile single-target Swift sources", () => {
+  const project = loadProject();
+  project.PBXNativeTarget["B2C3D4E50000000000000031"].productType = '"com.apple.product-type.application.watchapp2"';
+  assert.throws(() => checkProject(project), /single-target Watch/);
+});
 test("iPhone minimum OS cannot promise unsupported iOS 14 layouts", () => {
   const project = loadProject();
   project.XCBuildConfiguration["504EC3181FED79650016851F"].buildSettings.IPHONEOS_DEPLOYMENT_TARGET = "14.0";

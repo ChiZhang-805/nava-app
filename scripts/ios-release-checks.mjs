@@ -50,6 +50,7 @@ export function checkProject(objects) {
   for (const [index, id] of targetIds.entries()) {
     const target = objects.PBXNativeTarget[id];
     assert.ok(target, "Missing iPhone/Watch target");
+    assert.equal(unquote(target.productType), "com.apple.product-type.application", "iPhone and single-target Watch apps must use the application product type");
     const list = objects.XCConfigurationList[target.buildConfigurationList];
     for (const ref of list.buildConfigurations) {
       const config = configs[ref.value];
