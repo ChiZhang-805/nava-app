@@ -40,6 +40,10 @@ if [[ "${NAVA_EXPORT:-0}" == "1" && "${NAVA_ARCHIVE:-0}" != "1" ]]; then
   echo "NAVA_EXPORT=1 requires NAVA_ARCHIVE=1." >&2
   exit 1
 fi
+if [[ "${NAVA_UPLOAD:-0}" == "1" && "${NAVA_EXPORT:-0}" != "1" ]]; then
+  echo "NAVA_UPLOAD=1 requires NAVA_EXPORT=1." >&2
+  exit 1
+fi
 if [[ "${NAVA_ARCHIVE:-0}" == "1" ]]; then
   if [[ -n "$(git status --porcelain)" ]]; then
     echo "Signed releases require a clean source checkout. Preserve/reconcile existing work before archiving." >&2
@@ -107,6 +111,35 @@ PROVISIONING_FLAGS=()
 if [[ "${NAVA_ALLOW_PROVISIONING_UPDATES:-0}" == "1" ]]; then
   PROVISIONING_FLAGS=(-allowProvisioningUpdates)
 fi
+AUTHENTICATION_FLAGS=()
+AUTHENTICATION_VALUES=(
+  "${NAVA_APP_STORE_CONNECT_KEY_PATH:-}"
+  "${NAVA_APP_STORE_CONNECT_KEY_ID:-}"
+  "${NAVA_APP_STORE_CONNECT_ISSUER_ID:-}"
+)
+AUTHENTICATION_VALUE_COUNT=0
+for value in "${AUTHENTICATION_VALUES[@]}"; do
+  [[ -n "${value}" ]] && AUTHENTICATION_VALUE_COUNT=$((AUTHENTICATION_VALUE_COUNT + 1))
+done
+if (( AUTHENTICATION_VALUE_COUNT != 0 && AUTHENTICATION_VALUE_COUNT != 3 )); then
+  echo "App Store Connect authentication requires key path, key ID and issuer ID together." >&2
+  exit 1
+fi
+if (( AUTHENTICATION_VALUE_COUNT == 3 )); then
+  if [[ ! -f "${NAVA_APP_STORE_CONNECT_KEY_PATH}" ]]; then
+    echo "App Store Connect private key file does not exist." >&2
+    exit 1
+  fi
+  AUTHENTICATION_FLAGS=(
+    -authenticationKeyPath "${NAVA_APP_STORE_CONNECT_KEY_PATH}"
+    -authenticationKeyID "${NAVA_APP_STORE_CONNECT_KEY_ID}"
+    -authenticationKeyIssuerID "${NAVA_APP_STORE_CONNECT_ISSUER_ID}"
+  )
+fi
+if [[ "${NAVA_UPLOAD:-0}" == "1" && ${AUTHENTICATION_VALUE_COUNT} -ne 3 ]]; then
+  echo "NAVA_UPLOAD=1 requires App Store Connect API key path, key ID and issuer ID." >&2
+  exit 1
+fi
 RELEASE_DIR="${REPO_ROOT}/artifacts/ios/${NAVA_IOS_VERSION}-${NAVA_IOS_BUILD_NUMBER}"
 if [[ -e "${RELEASE_DIR}" ]]; then
   echo "Release output already exists: ${RELEASE_DIR}. Choose a new build number; existing evidence is preserved." >&2
@@ -128,13 +161,14 @@ xcodebuild \
   -archivePath "${ARCHIVE_PATH}" \
   "${SIGNING_SETTINGS[@]}" \
   ${PROVISIONING_FLAGS[@]+"${PROVISIONING_FLAGS[@]}"} \
+  ${AUTHENTICATION_FLAGS[@]+"${AUTHENTICATION_FLAGS[@]}"} \
   archive
 
 node scripts/ios-release-checks.mjs --archive "${ARCHIVE_PATH}"
 echo "Signed archive created at ${ARCHIVE_PATH}. Validate it in Xcode Organizer before TestFlight upload."
 
 if [[ "${NAVA_EXPORT:-0}" == "1" ]]; then
-  # Export only. This script never uploads, invites testers, or submits for review.
+  # Export first so CI keeps an inspectable IPA and archive before any optional upload.
   cat > "${RELEASE_DIR}/ExportOptions.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -149,6 +183,25 @@ if [[ "${NAVA_EXPORT:-0}" == "1" ]]; then
 EOF
   xcodebuild -exportArchive -archivePath "${ARCHIVE_PATH}" \
     -exportOptionsPlist "${RELEASE_DIR}/ExportOptions.plist" \
-    -exportPath "${RELEASE_DIR}/export" ${PROVISIONING_FLAGS[@]+"${PROVISIONING_FLAGS[@]}"}
-  echo "App Store Connect IPA exported under ${RELEASE_DIR}/export. Upload and encryption compliance are still pending."
+    -exportPath "${RELEASE_DIR}/export" \
+    ${PROVISIONING_FLAGS[@]+"${PROVISIONING_FLAGS[@]}"} \
+    ${AUTHENTICATION_FLAGS[@]+"${AUTHENTICATION_FLAGS[@]}"}
+  echo "App Store Connect IPA exported under ${RELEASE_DIR}/export."
+
+  if [[ "${NAVA_UPLOAD:-0}" == "1" ]]; then
+    mapfile -t IPA_FILES < <(find "${RELEASE_DIR}/export" -maxdepth 1 -type f -name '*.ipa' -print)
+    if (( ${#IPA_FILES[@]} != 1 )); then
+      echo "Expected exactly one exported IPA, found ${#IPA_FILES[@]}." >&2
+      exit 1
+    fi
+    xcrun altool --upload-app \
+      --type ios \
+      --file "${IPA_FILES[0]}" \
+      --apiKey "${NAVA_APP_STORE_CONNECT_KEY_ID}" \
+      --apiIssuer "${NAVA_APP_STORE_CONNECT_ISSUER_ID}"
+    printf '%s\n' "${IPA_FILES[0]}" > "${RELEASE_DIR}/uploaded-ipa.txt"
+    echo "Upload accepted by App Store Connect. Processing and export-compliance answers are still pending."
+  else
+    echo "Upload is disabled. Set NAVA_UPLOAD=1 only when this build should be sent to App Store Connect."
+  fi
 fi
