@@ -83,7 +83,8 @@ test("Watch actions survive inactive web runtime and the watchOS target is embed
     "native Watch actions must be acknowledged only after the durable Supabase flush",
   );
   assert.match(project, /NAVA Watch\.app in Embed Watch Content/);
-  assert.match(project, /com\.apple\.product-type\.application\.watchapp2/);
+  assert.doesNotMatch(project, /com\.apple\.product-type\.application\.watchapp2/);
+  assert.equal((project.match(/productType = "com\.apple\.product-type\.application";/g) ?? []).length, 2);
   assert.match(project, /PRODUCT_BUNDLE_IDENTIFIER = "\$\(NAVA_APP_BUNDLE_ID\)\.watchkitapp"/);
   assert.match(project, /INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "\$\(NAVA_APP_BUNDLE_ID\)"/);
 });
