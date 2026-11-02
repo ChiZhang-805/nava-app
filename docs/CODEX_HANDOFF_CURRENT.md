@@ -8,7 +8,7 @@
 `release/testflight-cloud-20261103`，没有覆盖原有脏工作区；远端 main 的 32 个提交已合并。
 
 GitHub Actions 的 macOS 15 / Xcode 26.3 已通过真实 Xcode Release 编译，run
-`41510613160`；iPhone 与单 target Watch 均构建成功。工作流支持无签名验证和签名后
+`41514092275`；iPhone 与单 target Watch 均构建成功。工作流支持无签名验证和签名后
 自动 archive、IPA 导出、App Store Connect API 上传。repo variables 与 `testflight`
 environment 已建，依赖审计为 0 漏洞。当前仍未生成签名 archive，也未上传 TestFlight。
 

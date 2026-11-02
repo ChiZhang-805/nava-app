@@ -14,7 +14,7 @@ Apple Developer Program 已开通，Team ID 为 `P9N6YYZ7Y9`。App Store Connect
 `.github/workflows/ios-testflight.yml`。仓库变量 `NAVA_APPLE_TEAM_ID` 与
 `NAVA_IOS_BUNDLE_ID` 已设置，GitHub `testflight` environment 已建立。macOS 15 云端机器
 使用 Xcode 26.3 完成 CocoaPods、原生资源逐字节检查，以及 iPhone + 单 target Watch 的
-Release 模拟器编译；通过记录：GitHub Actions run `41510613160`。这证明工程能在真实
+Release 模拟器编译；最新通过记录：GitHub Actions run `41514092275`。这证明工程能在真实
 Xcode 工具链编译，但不等于已签名归档、真机通过或已上传 TestFlight。
 
 Windows 已生成 Apple Distribution CSR：
