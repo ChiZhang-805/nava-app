@@ -1,8 +1,11 @@
+import { archivePath, buildTar } from "./exportArchive";
 import { supabase } from "./supabaseClient";
 import { demoMessages, demoProfile, demoTodaySnapshot, demoTrends, isDemoMode } from "./demo";
 import { flushPendingNotificationPreferences, hydrateNavaNotifications } from "./notifications";
 import { loadActiveUserSession, loadUserAppPreferences } from "./userCloudState";
 import { flushPendingRecordDraftsForUser } from "./drafts";
+import { collectExportRows, exportOrderColumn } from "../../supabase/functions/_shared/export-pagination";
+import { shareNativeFile, usesNativeFileShare } from "./nativeFileShare";
 
 function isMissingBackendResource(error: unknown) {
   if (!error || typeof error !== "object") return false;
@@ -31,11 +34,12 @@ export async function exportUserData(userId: string) {
     loadUserAppPreferences(userId),
     loadActiveUserSession(userId, "focus"),
     loadActiveUserSession(userId, "sleep"),
+    loadActiveUserSession(userId, "exercise"),
     flushPendingRecordDraftsForUser(userId),
   ]);
 
   const exported = await supabase.functions.invoke<Record<string, unknown>>("export-user-data", { body: {} });
-  if (!exported.error && exported.data) {
+  if (!exported.error && exported.data && exported.data.paginationVerified === true) {
     const exportErrors = exported.data.errors;
     if (exportErrors && typeof exportErrors === "object" && Object.keys(exportErrors).length > 0) {
       throw new Error(`账号数据导出不完整：${Object.keys(exportErrors).join("、")}`);
@@ -117,12 +121,12 @@ export async function exportUserData(userId: string) {
 
   for (const table of tables) {
     const column = table === "profiles" ? "id" : "user_id";
-    const { data, error } = await supabase.from(table).select("*").eq(column, userId);
-    if (error) {
+    try {
+      result[table] = await collectExportRows((from,to) => supabase.from(table).select("*", {count:'exact'}).eq(column, userId).order(exportOrderColumn(table)).range(from,to));
+    } catch (error) {
       if (isMissingBackendResource(error)) throw new Error(`共享后端尚未部署 ${table}，无法生成完整账号数据导出。`);
       throw error;
     }
-    result[table] = data ?? [];
   }
 
   result.storage = {
@@ -163,14 +167,7 @@ async function listOwnedFiles(bucket: string, prefix: string, depth = 0): Promis
 
 export function downloadJson(filename: string, data: unknown) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  downloadBlob(filename, blob);
 }
 
 export async function downloadUserArchive(filenameBase: string, data: unknown) {
@@ -206,56 +203,8 @@ export async function downloadUserArchive(filenameBase: string, data: unknown) {
     blob = await new Response(compressed).blob();
     extension = ".tar.gz";
   }
-  downloadBlob(`${filenameBase}${extension}`, blob);
-}
-
-function archivePath(value: string) {
-  const normalized = value.replace(/\\/g, "/").replace(/^\/+/, "").split("/").filter((part) => part && part !== "." && part !== "..").join("/");
-  if (!normalized || new TextEncoder().encode(normalized).length > 100) throw new Error("导出文件路径过长，无法安全打包。");
-  return normalized;
-}
-
-function buildTar(entries: Array<{ name: string; bytes: Uint8Array; modifiedAt?: string }>) {
-  const chunks: Uint8Array[] = [];
-  for (const entry of entries) {
-    const header = new Uint8Array(512);
-    writeTarText(header, 0, 100, archivePath(entry.name));
-    writeTarOctal(header, 100, 8, 0o600);
-    writeTarOctal(header, 108, 8, 0);
-    writeTarOctal(header, 116, 8, 0);
-    writeTarOctal(header, 124, 12, entry.bytes.byteLength);
-    const modified = entry.modifiedAt ? new Date(entry.modifiedAt).getTime() : Date.now();
-    writeTarOctal(header, 136, 12, Math.floor((Number.isFinite(modified) ? modified : Date.now()) / 1000));
-    header.fill(32, 148, 156);
-    header[156] = "0".charCodeAt(0);
-    writeTarText(header, 257, 6, "ustar\0");
-    writeTarText(header, 263, 2, "00");
-    const checksum = header.reduce((sum, value) => sum + value, 0);
-    const checksumText = checksum.toString(8).padStart(6, "0");
-    writeTarText(header, 148, 6, checksumText);
-    header[154] = 0;
-    header[155] = 32;
-    chunks.push(header, entry.bytes);
-    const padding = (512 - entry.bytes.byteLength % 512) % 512;
-    if (padding > 0) chunks.push(new Uint8Array(padding));
-  }
-  chunks.push(new Uint8Array(1024));
-  const total = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
-  const output = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    output.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return output;
-}
-
-function writeTarText(target: Uint8Array, offset: number, length: number, value: string) {
-  target.set(new TextEncoder().encode(value).slice(0, length), offset);
-}
-
-function writeTarOctal(target: Uint8Array, offset: number, length: number, value: number) {
-  writeTarText(target, offset, length, Math.max(0, Math.floor(value)).toString(8).padStart(length - 1, "0"));
+  if (usesNativeFileShare()) await shareNativeFile(`${filenameBase}${extension}`, blob);
+  else downloadBlob(`${filenameBase}${extension}`, blob);
 }
 
 function downloadBlob(filename: string, blob: Blob) {
@@ -266,5 +215,5 @@ function downloadBlob(filename: string, blob: Blob) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

@@ -189,7 +189,21 @@ export default function OptionTwoHome({
   const widgetLongPressTimerRef = useRef<number | null>(null);
   const widgetIgnoreClickUntilRef = useRef(0);
   const refreshRequestRef = useRef(0);
+  const widgetGridRef = useRef<HTMLElement | null>(null);
+  const [largeWidgetText, setLargeWidgetText] = useState(false);
   const widgetIds = homeWidgetIdsFromLayout(widgetLayout);
+
+  useEffect(() => {
+    const grid = widgetGridRef.current;
+    if (!grid) return;
+    const labels = [...grid.querySelectorAll('.home-health-widget > span b, .home-widget-value > strong')];
+    const measure = () => setLargeWidgetText(labels.some((label) =>
+      parseFloat(getComputedStyle(label).fontSize) > (label.tagName === 'STRONG' ? 32 : 18)));
+    const observer = new ResizeObserver(measure);
+    labels.forEach((label) => observer.observe(label));
+    measure();
+    return () => observer.disconnect();
+  }, [loading, view, widgetLayout, locale]);
 
   const refresh = useCallback(async () => {
     const requestId = ++refreshRequestRef.current;
@@ -500,7 +514,10 @@ export default function OptionTwoHome({
     const direction = directions[event.key];
     if (!direction) return;
     event.preventDefault();
-    const next = moveHomeWidgetByDirection(widgetLayout, id, direction);
+    const targetSlot = widgetLayout.indexOf(id) + (direction === "up" ? -1 : direction === "down" ? 1 : 0);
+    const next = largeWidgetText
+      ? (targetSlot >= 0 && targetSlot < HOME_WIDGET_SLOT_COUNT ? placeHomeWidgetInSlot(widgetLayout, id, targetSlot) : widgetLayout)
+      : moveHomeWidgetByDirection(widgetLayout, id, direction);
     setWidgetLayout(saveHomeWidgetLayout(user.id, next));
     const slot = next.indexOf(id);
     setWidgetAnnouncement(locale === "zh" ? `${homeWidgetLabels[id].zh}已移动到第 ${slot + 1} 个位置` : `${homeWidgetLabels[id].en} moved to position ${slot + 1}`);
@@ -605,7 +622,7 @@ export default function OptionTwoHome({
         {isAdmin && <button className="option-two-side-shortcut option-two-side-admin" data-home-shortcut="admin" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("admin-console"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "管理员端" : "Admin console"} title={locale === "zh" ? "管理员端" : "Admin console"}><ShieldCheck size={22} /></button>}
       </div>
 
-      <section className={["home-widget-grid", widgetIds.length === 0 ? "is-empty" : "", widgetArrangeMode ? "is-arranging" : ""].join(" ")} aria-label={locale === "zh" ? "我的健康小组件" : "My health widgets"} aria-describedby="home-widget-arrange-help" data-widget-count={widgetIds.length}>
+      <section ref={widgetGridRef} className={["home-widget-grid", largeWidgetText ? "is-large-text" : "", widgetIds.length === 0 ? "is-empty" : "", widgetArrangeMode ? "is-arranging" : ""].join(" ")} aria-label={locale === "zh" ? "我的健康小组件" : "My health widgets"} aria-describedby="home-widget-arrange-help" data-widget-count={widgetIds.length}>
         {Array.from({ length: HOME_WIDGET_SLOT_COUNT }, (_, slot) => <span
           className={["home-widget-slot", `home-widget-slot--position-${slot + 1}`, widgetDrag?.targetSlot === slot ? "is-target" : ""].filter(Boolean).join(" ")}
           data-home-widget-slot={slot}

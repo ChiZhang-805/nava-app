@@ -7,11 +7,11 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 applyProjectPublicEnv(process.cwd());
-process.env.PLAYWRIGHT_BROWSERS_PATH ||= "Q:/NAVA-Workspace/Caches/ms-playwright";
+process.env.PLAYWRIGHT_BROWSERS_PATH ||= "Q:/NAVA-Workspace/NAVA-App/Caches/ms-playwright";
 const { chromium, firefox, webkit } = await import("@playwright/test");
 
 const outputArgument = process.argv.find((argument) => argument.startsWith("--output="));
-const output = outputArgument?.slice("--output=".length) || "Q:/NAVA-Workspace/Build/TestRuns/skin-cross-browser-quality";
+const output = outputArgument?.slice("--output=".length) || "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-cross-browser-quality";
 await mkdir(output, { recursive: true });
 
 const sizes = [[360, 740], [375, 812], [390, 844], [430, 932]];

@@ -4,7 +4,7 @@ import { chromium, expect } from "@playwright/test";
 
 const base = process.env.REVIEW_BASE_URL || "http://127.0.0.1:4174";
 if (!["127.0.0.1", "localhost"].includes(new URL(base).hostname)) throw new Error("Local-only fixture acceptance.");
-const output = "Q:/NAVA-Workspace/Build/TestRuns/record-integrity-v149";
+const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/record-integrity-v149";
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch();
 try {

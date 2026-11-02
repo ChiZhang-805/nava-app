@@ -5,7 +5,7 @@ import { chromium, expect } from "@playwright/test";
 const email = process.env.NAVA_ACCOUNT_EMAIL, password = process.env.NAVA_ACCOUNT_PASSWORD;
 if (!email || !password) throw new Error("Use the secure launcher.");
 const desktop = process.env.NAVA_CAMERA_QA_DESKTOP === "1";
-const output = `Q:/NAVA-Workspace/Build/TestRuns/${desktop ? "desktop-simulator" : "camera-layout"}`;
+const output = `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/${desktop ? "desktop-simulator" : "camera-layout"}`;
 await mkdir(output, { recursive: true });
 const receipt = { startedAt: new Date().toISOString(), passed: false, syntheticCamera: true, aiTested: false, results: [] };
 await writeFile(`${output}/public.json`, JSON.stringify(receipt));

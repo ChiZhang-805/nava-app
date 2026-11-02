@@ -6,7 +6,7 @@ import { applyProjectPublicEnv } from "./project-env.mjs";
 
 applyProjectPublicEnv(process.cwd());
 
-const output = "Q:/NAVA-Workspace/Build/TestRuns/integrated-shell";
+const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/integrated-shell";
 const sizes = [[360, 740], [375, 812], [390, 844], [430, 932]];
 const skins = ["glacier-mist", "violet-dusk", "sky-ripple"];
 const pages = [

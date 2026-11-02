@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 // Local component fixture only: no account, RPC, points or production order writes.
-const output = "Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v3/motion";
+const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/points-shop-checkout-v3/motion";
 await mkdir(output, { recursive: true });
 applyProjectPublicEnv(process.cwd());
 const server = await createServer({ server: { host: "127.0.0.1", port: 5214 }, logLevel: "silent" });

@@ -35,9 +35,11 @@
         "npm:@capacitor/camera@^7.0.5",
         "npm:@capacitor/cli@^7.4.2",
         "npm:@capacitor/core@^7.4.2",
+        "npm:@capacitor/filesystem@7.1.9",
         "npm:@capacitor/ios@^7.4.2",
         "npm:@capacitor/local-notifications@^7.0.7",
         "npm:@capacitor/push-notifications@^7.0.7",
+        "npm:@capacitor/share@7.0.4",
         "npm:@eslint/js@^9.17.0",
         "npm:@playwright/test@^1.61.1",
         "npm:@supabase/supabase-js@^2.52.1",
@@ -52,7 +54,9 @@
         "npm:globals@^15.14.0",
         "npm:jose@^5.9.6",
         "npm:lucide-react@0.468",
-        "npm:nodemailer@^10.0.16",
+        "npm:meshoptimizer@1.0.1",
+        "npm:nodemailer@^10.2.1",
+        "npm:plist@3.1.1",
         "npm:react-dom@^18.3.1",
         "npm:react@^18.3.1",
         "npm:supabase@^2.109.1",
@@ -60,7 +64,8 @@
         "npm:translation-resilience@0.3.0",
         "npm:typescript-eslint@^8.18.1",
         "npm:typescript@^5.7.2",
-        "npm:vite@^8.1.5"
+        "npm:vite@^8.1.5",
+        "npm:xcode@4.0.0"
       ]
     }
   }

@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 import {readdir,readFile,mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 
-const root='Q:/NAVA-Workspace/Build/TestRuns/journal-integration';
+const root='Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/journal-integration';
 const artifact=path.join(root,'pages-f0e6944');
 const sites='https://nava-app-preview-cz.chizhang1031.chatgpt.site/';
 const pages='https://chizhang-805.github.io/nava-app-preview/';

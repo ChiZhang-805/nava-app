@@ -525,4 +525,4 @@
 `FocusDashboard` 已有暂停/恢复路径；本地无头 Chromium 对来电、消息通知、主动分心、
 其他事件逐个点击，检查暂停画面与活动草稿中断统计仍为 0。手机 360×740、375×812、
 390×844、430×932 四档检查控制板不进入手机界面、无横向溢出。测试截图位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-pdf-requirements-review-20260914`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-pdf-requirements-review-20260914`。

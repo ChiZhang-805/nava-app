@@ -226,12 +226,15 @@ window.CatActor = class {
      * 输出：无。
      * 功能：以同一条宽尾巴曲线随身体收拢，安排前后遮挡关系。
      */
-    recordTail(ctx, s, clock, front = false) {
+    recordTail(ctx, s, clock, front = false, swing = 0) {
         const p0 = [[127, 381], [65, 358], [8, 397], [33, 413]];
         const p1 = [[219, 410], [256, 405], [313, 395], [335, 394]];
         const pts = p0.map((p, i) => M.point(p, p1[i], M.smooth(s)));
         pts[2][1] += Math.sin(clock * 1.5 - .5) * (1 - s) * 3;
         pts[3][1] += Math.sin(clock * 1.55 - 1) * (1 - s) * 4;
+        // Companion scenes move the tip around its fixed root, including the resting tail.
+        pts[2][1] += swing * .45;
+        pts[3][1] += swing;
         if (front) {
             if (s < .5)
                 return;
@@ -306,7 +309,7 @@ window.CatActor = class {
         ctx.fill();
         ctx.restore();
         // 阶段一：先画背后的尾巴、承重身体和短前爪，固定卡片上沿的接触位置。
-        this.recordTail(ctx, tailSleep, idle, false);
+        this.recordTail(ctx, tailSleep, idle, false, pose.tailSwing || 0);
         this.torso(ctx, sleep, idle, shift);
         const supportRoot = M.point([237, 377], [178, 406], sleep), supportEnd = M.point([233, 405], [166, 410], sleep);
         ctx.save();
@@ -318,7 +321,7 @@ window.CatActor = class {
         const activeRest = M.point([177, 405], [138, 410], sleep);
         const activeEnd = M.point(grip, activeRest, release);
         // 回顾对白时，短爪以肩毛下连接点为支撑抬起；其他场景参数为0，原动作不变。
-        const paw = pose.chatMotion ? (pose.pawLift || 0) : 0;
+        const paw = pose.chatMotion ? M.clamp(pose.pawLift || 0, 0, .85) : 0;
         activeEnd[0] += paw * (7 + Math.sin(idle * 2.1) * 4);
         activeEnd[1] -= paw * 22;
         const rootStart = [M.clamp(grip[0] - 24, 85, M.mix(218, 270, M.range(t, 10.8, 13))), 374];
@@ -328,11 +331,11 @@ window.CatActor = class {
         ctx.beginPath();
         ctx.rect(0, 0, 393, M.mix(490, 414, sleep));
         ctx.clip();
-        this.arm(ctx, activeRoot, activeEnd, armOptions);
+        if (!pose.chatMotion || paw <= .01) this.arm(ctx, activeRoot, activeEnd, armOptions);
         ctx.restore();
         // 阶段二：同一头部原画连续转动并局部变形，不切换到另一张睡姿图。
         ctx.save();
-        const tx = -48 * headSleep + shift, ty = 46 * headSleep + Math.sin(idle * 1.4) * .55;
+        const tx = -48 * headSleep + shift, ty = 46 * headSleep + Math.sin(idle * 1.4) * .55 - M.clamp(pose.headLift || 0, -2, 9);
         ctx.translate(191 + tx, 342 + ty);
         ctx.rotate(-.27 * headSleep + look * .035 + (pose.pet || 0) * .022 + (pose.headTilt || 0) + attention * Math.sin(idle * 1.4) * .006);
         ctx.scale(1 - .12 * headSleep, 1 - .10 * headSleep);
@@ -358,9 +361,9 @@ window.CatActor = class {
         }
         if (pose.chatMotion && paw > .01) {
             // 举爪在脸颊前缘自然露出，根部仍藏在胸毛里，不拉出细长手臂。
-            this.arm(ctx, [145, 397], activeEnd, { width: 13, tip: 12, bend: paw * 2 });
+            this.arm(ctx, activeRoot, activeEnd, armOptions);
         }
-        this.recordTail(ctx, tailSleep, idle, true);
+        this.recordTail(ctx, tailSleep, idle, true, pose.tailSwing || 0);
         if (headSleep > .88) {
             const a = M.range(headSleep, .88, 1);
             ctx.save();

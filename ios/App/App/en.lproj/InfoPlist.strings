@@ -4,4 +4,4 @@
 "NSPhotoLibraryUsageDescription" = "NAVA reads photos you select for records, chat attachments, or your profile.";
 "NSPhotoLibraryAddUsageDescription" = "NAVA saves an image to Photos only when you choose to save it.";
 "NSMicrophoneUsageDescription" = "NAVA uses the microphone to turn your voice into chat text in real time.";
-"NSSpeechRecognitionUsageDescription" = "NAVA uses on-device speech recognition to turn your spoken status into text.";
+"NSSpeechRecognitionUsageDescription" = "NAVA uses Apple speech recognition to turn your voice into text. Audio may be sent to Apple servers for processing.";

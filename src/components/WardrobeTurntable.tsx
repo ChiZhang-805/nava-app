@@ -12,10 +12,12 @@ export type WardrobeTurntableHandle = {
 type Props = {
   skinId: WardrobeSkinId;
   accessoryIds: WardrobeAccessoryId[];
+  prefetchIds?: WardrobeAccessoryId[];
+  onLoadError?: () => void;
   onStatus: (status: "loading" | "ready" | "unavailable") => void;
 };
 
-const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function WardrobeTurntable({ skinId, accessoryIds, onStatus }, ref) {
+const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function WardrobeTurntable({ skinId, accessoryIds, prefetchIds = [], onStatus, onLoadError }, ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<WardrobeScene | null>(null);
   const angleRef = useRef(0);
@@ -23,6 +25,11 @@ const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function Wa
   lookRef.current = { skinId, accessoryIds };
   const statusRef = useRef(onStatus);
   statusRef.current = onStatus;
+  const preloadKey = prefetchIds.join(" ");
+  const preloadRef = useRef(prefetchIds);
+  preloadRef.current = prefetchIds;
+  const errorRef = useRef(onLoadError);
+  errorRef.current = onLoadError;
 
   useImperativeHandle(ref, () => ({
     setAngle(degrees) {
@@ -50,10 +57,12 @@ const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function Wa
     canvas.addEventListener("webglcontextlost", lost);
     canvas.addEventListener("webglcontextrestored", restored);
     const modelState = new MutationObserver(() => {
-      const state = canvas.dataset.wornModel ?? "";
-      if (state.startsWith("loading:")) statusRef.current("loading");
-      else if (sceneRef.current) statusRef.current(sceneRef.current.render() ? "ready" : "unavailable");
+      if (sceneRef.current) {
+        statusRef.current(sceneRef.current.render() ? "ready" : "unavailable");
+      }
     });
+    const modelError = () => errorRef.current?.();
+    canvas.addEventListener("wardrobe-model-error", modelError);
     modelState.observe(canvas, { attributes: true, attributeFilter: ["data-worn-model"] });
     void import("../services/wardrobeScene").then(async ({ createWardrobeScene }) => {
       if (disposed) return;
@@ -62,6 +71,7 @@ const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function Wa
       sceneRef.current = scene;
       scene.setLook(lookRef.current.skinId, lookRef.current.accessoryIds);
       scene.setAngle(angleRef.current);
+      scene.prefetch(preloadRef.current);
       statusRef.current(scene.render() ? "ready" : "unavailable");
     }).catch(() => { if (!disposed) statusRef.current("unavailable"); });
     return () => {
@@ -69,6 +79,7 @@ const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function Wa
       canvas.removeEventListener("webglcontextlost", lost);
       canvas.removeEventListener("webglcontextrestored", restored);
       modelState.disconnect();
+      canvas.removeEventListener("wardrobe-model-error", modelError);
       controller.abort();
       sceneRef.current?.dispose();
       sceneRef.current = null;
@@ -76,6 +87,7 @@ const WardrobeTurntable = forwardRef<WardrobeTurntableHandle, Props>(function Wa
   }, []);
 
   useEffect(() => { sceneRef.current?.setLook(skinId, accessoryIds); }, [skinId, accessoryIds]);
+  useEffect(() => { sceneRef.current?.prefetch(preloadRef.current); }, [preloadKey]);
 
   return <canvas className="mascot-wardrobe-turntable" ref={canvasRef} data-angle="0" data-skin={skinId} data-accessories={accessoryIds.join(" ")} aria-hidden="true" />;
 });

@@ -10,15 +10,15 @@ V4.27 是当前 APP 后端主线算法版本。它不是简单加权，而是“
 
 ## 固定数据集
 
-固定数据集不提交 Git，规范位置在 `Q:\NAVA-Workspace\Data`，用于同一数据集上的
+固定数据集不提交 Git，规范位置在 `Q:\NAVA-Workspace\NAVA-App\Data`，用于同一数据集上的
 算法迭代对比。该目录是可重新生成的大文件工作区；文件不存在时先运行本节的
 `npm run data:export:fixed`，不能换一份随机数据后继续沿用下面的历史指标。
 
 | 项目 | 值 |
 | --- | --- |
-| JSONL | `Q:\NAVA-Workspace\Data\synthetic-population\nava-synthetic-users-5000-seed-240724.jsonl` |
-| manifest | `Q:\NAVA-Workspace\Data\synthetic-population\nava-synthetic-users-5000-seed-240724.manifest.json` |
-| benchmark 目录 | `Q:\NAVA-Workspace\Data\synthetic-population\benchmarks` |
+| JSONL | `Q:\NAVA-Workspace\NAVA-App\Data\synthetic-population\nava-synthetic-users-5000-seed-240724.jsonl` |
+| manifest | `Q:\NAVA-Workspace\NAVA-App\Data\synthetic-population\nava-synthetic-users-5000-seed-240724.manifest.json` |
+| benchmark 目录 | `Q:\NAVA-Workspace\NAVA-App\Data\synthetic-population\benchmarks` |
 | 用户数 | 5000 |
 | 日级记录 | 271169 |
 | 文件大小 | 845936872 bytes |
@@ -75,11 +75,11 @@ npm run algorithm:benchmark:fixed
 比较两个固定 benchmark：
 
 ```bash
-node --experimental-strip-types scripts\compare-fixed-benchmarks.ts --left=Q:\NAVA-Workspace\Data\synthetic-population\benchmarks\nava-chronostate-v4.9-2026-07.json --right=Q:\NAVA-Workspace\Data\synthetic-population\benchmarks\nava-chronostate-v4.27-2026-07.json
+node --experimental-strip-types scripts\compare-fixed-benchmarks.ts --left=Q:\NAVA-Workspace\NAVA-App\Data\synthetic-population\benchmarks\nava-chronostate-v4.9-2026-07.json --right=Q:\NAVA-Workspace\NAVA-App\Data\synthetic-population\benchmarks\nava-chronostate-v4.27-2026-07.json
 ```
 
 ```bash
-node --experimental-strip-types scripts\compare-fixed-benchmarks.ts --left=Q:\NAVA-Workspace\Data\synthetic-population\benchmarks\nava-chronostate-v4.13-2026-07.json --right=Q:\NAVA-Workspace\Data\synthetic-population\benchmarks\nava-chronostate-v4.27-2026-07.json
+node --experimental-strip-types scripts\compare-fixed-benchmarks.ts --left=Q:\NAVA-Workspace\NAVA-App\Data\synthetic-population\benchmarks\nava-chronostate-v4.13-2026-07.json --right=Q:\NAVA-Workspace\NAVA-App\Data\synthetic-population\benchmarks\nava-chronostate-v4.27-2026-07.json
 ```
 
 ## V4.27 整体指标

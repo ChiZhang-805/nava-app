@@ -1,0 +1,60 @@
+/* The software keyboard may leave 100dvh unchanged on iOS. Scope these
+   overrides to that case so normal mobile and desktop compositions stay put. */
+html[data-keyboard-open="true"] .nava-app-stage {
+  min-height: var(--nava-visible-height);
+}
+html[data-keyboard-open="true"] .nava-app-stage > :is(.phone-frame, .auth-screen, .app-screen, .onboarding-screen) {
+  height: var(--nava-visible-height);
+  min-height: 0;
+}
+html[data-keyboard-open="true"] .auth-screen {
+  display: block;
+  overflow-y: auto;
+  background-color: #e8f6fb;
+}
+html[data-keyboard-open="true"] .auth-brand {
+  min-height: 60px;
+  padding: 0;
+  margin-bottom: 16px;
+}
+html[data-keyboard-open="true"] .auth-form-region {
+  display: block;
+  height: auto;
+  min-height: 0;
+}
+html[data-keyboard-open="true"] .auth-form {
+  flex: none;
+  height: auto;
+}
+html[data-keyboard-open="true"] .auth-consent.auth-consent--screen {
+  margin: 12px auto 0;
+}
+html[data-keyboard-open="true"] .phone-frame .profile-security-sheet {
+  max-height: 100%;
+  min-height: 0;
+  grid-auto-rows: max-content;
+  overscroll-behavior: contain;
+}
+html[data-keyboard-open="true"] .phone-frame .avatar-sheet-overlay.profile-security-overlay {
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+}
+html[data-keyboard-open="true"] .phone-frame[data-shell-page="chat"] > .app-content {
+  padding-bottom: 8px;
+}
+html[data-keyboard-open="true"] .phone-frame[data-shell-page="chat"] .chat-composer {
+  margin-bottom: 0;
+}
+/* On compact phones, navigation can consume most of the space above the
+   keyboard. Restore it automatically when the visual viewport expands. */
+html[data-keyboard-open="true"] .phone-frame > .bottom-nav {
+  display: none;
+}
+html[data-keyboard-open="true"] .phone-frame:not(.phone-frame--option2):not(.phone-frame--journal) > .app-content {
+  padding-bottom: 12px;
+  scroll-padding-bottom: 12px;
+}
+html[data-keyboard-open="true"] .phone-frame--option2 .home-experience {
+  padding-bottom: 12px;
+  scroll-padding-bottom: 12px;
+}

@@ -22,7 +22,9 @@ export function loadSleepMaintenance(userId: string, now = new Date()): SleepMai
     }
     return { version: 1, startedAt: parsed.startedAt as string };
   } catch {
-    window.localStorage.removeItem(keyFor(userId));
+    // Storage can itself be unavailable. Cleanup must not turn a recoverable
+    // cache read failure into an uncaught render/startup error.
+    try { window.localStorage.removeItem(keyFor(userId)); } catch { /* best effort */ }
     return null;
   }
 }

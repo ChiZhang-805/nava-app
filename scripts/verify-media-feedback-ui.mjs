@@ -5,10 +5,10 @@ import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 applyProjectPublicEnv(process.cwd());
-const output = "Q:/NAVA-Workspace/Build/TestRuns/media-feedback";
+const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/media-feedback";
 await mkdir(output, { recursive: true });
 await writeFile(`${output}/ui.json`, JSON.stringify({ passed: false, startedAt: new Date().toISOString() }));
-const server = await createServer({ server: { host: "127.0.0.1", port: 5225, strictPort: true }, logLevel: "silent" });
+const server = await createServer({ server: { host: "127.0.0.1", port: 5225, strictPort: true }, logLevel: "error" });
 await server.listen();
 const browser = await chromium.launch({ headless: true, args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"] });
 const results = [];
@@ -44,6 +44,9 @@ try {
         CanvasRenderingContext2D.prototype.fillText = function (text, ...args) { window.__drawn.push(text); return draw.call(this, text, ...args); };
       });
       const page = await context.newPage(); const errors = [];
+      page.on("requestfailed", request => {
+        if (request.url().startsWith('http://127.0.0.1:5225/')) console.error(`Local request failed: ${new URL(request.url()).pathname}: ${request.failure()?.errorText}`);
+      });
       page.on("pageerror", (error) => errors.push(error.message));
       await page.route("**/*.supabase.co/rest/v1/journal_entries**", (route) => route.fulfill({ json: [] }));
       await page.route("**/*.supabase.co/rest/v1/journal_preferences**", (route) => route.fulfill({ json: { settings: { "fluffy-first-guide-face": true } } }));

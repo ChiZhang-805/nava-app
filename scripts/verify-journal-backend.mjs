@@ -61,7 +61,7 @@ try{
  await admin.from('profiles').update({ai_personalization_consent:false}).eq('id',ids[0]);
  const denied=await fetch(`${url}/functions/v1/journal-assistant`,{method:'POST',headers:{apikey:anon,Authorization:`Bearer ${session.session.access_token}`,'Content-Type':'application/json'},body:'{}'});assert.equal(denied.status,400);results.push('consent revoked blocks AI');
  console.log(JSON.stringify({passed:results}));
- const out='Q:/NAVA-Workspace/Build/TestRuns/journal-integration';mkdirSync(out,{recursive:true});writeFileSync(`${out}/backend-results.json`,JSON.stringify({passed:results},null,2));
+ const out='Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/journal-integration';mkdirSync(out,{recursive:true});writeFileSync(`${out}/backend-results.json`,JSON.stringify({passed:results},null,2));
 }finally{
  for(const id of ids){const result=await admin.auth.admin.deleteUser(id);if(result.error)throw Error('Disposable acceptance account cleanup failed');}
  console.log('Disposable acceptance accounts removed.');

@@ -6,7 +6,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 applyProjectPublicEnv(process.cwd());
-const output = "Q:/NAVA-Workspace/Build/TestRuns/camera-layout";
+const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/camera-layout";
 await mkdir(output, { recursive: true });
 const receipt = { startedAt: new Date().toISOString(), passed: false, syntheticCamera: true, results: [] };
 await writeFile(`${output}/result.json`, JSON.stringify(receipt));

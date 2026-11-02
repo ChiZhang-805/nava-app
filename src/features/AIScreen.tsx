@@ -178,6 +178,30 @@ export default function AIScreen({
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [streamingPreview, setStreamingPreview] = useState<StreamingPreview | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const historySheetRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!historyOpen) return;
+    const previousFocus = document.activeElement;
+    const sheet = historySheetRef.current;
+    sheet?.querySelector<HTMLButtonElement>('button')?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        setHistoryOpen(false);
+      } else if (event.key === 'Tab') {
+        const buttons = [...(sheet?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])];
+        const first = buttons[0], last = buttons[buttons.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+    };
+    document.addEventListener('keydown', handleKey, true);
+    return () => {
+      document.removeEventListener('keydown', handleKey, true);
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    };
+  }, [historyOpen]);
   const [history, setHistory] = useState<ConversationSnapshot[]>([]);
   const [viewingArchiveId, setViewingArchiveId] = useState<string | null>(null);
   const [deletingArchiveId, setDeletingArchiveId] = useState<string | null>(null);
@@ -703,6 +727,7 @@ export default function AIScreen({
 
   async function removeArchivedConversation(snapshot: ConversationSnapshot) {
     if (deletingArchiveId) return;
+    if (!window.confirm(locale === 'zh' ? '删除这条历史会话？删除后无法恢复。' : 'Delete this conversation? This cannot be undone.')) return;
     setDeletingArchiveId(snapshot.id);
     try {
       await deleteConversationArchive(user.id, snapshot.id);
@@ -1404,7 +1429,7 @@ export default function AIScreen({
       )}
 
       {historyOpen && (
-        <div className="ai-history-sheet" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "历史会话" : "Conversation history"}>
+        <div ref={historySheetRef} className="ai-history-sheet" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "历史会话" : "Conversation history"}>
           <header>
             <strong>{locale === "zh" ? "历史会话" : "Conversation history"}</strong>
             <button type="button" onClick={() => setHistoryOpen(false)} aria-label={locale === "zh" ? "关闭" : "Close"}><X size={20} /></button>

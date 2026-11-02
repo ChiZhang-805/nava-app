@@ -7,7 +7,7 @@ import { applyProjectPublicEnv } from "./project-env.mjs";
 applyProjectPublicEnv(process.cwd());
 
 const root = process.cwd();
-const outputDir = process.env.SCREENSHOT_DIR || "Q:/NAVA-Workspace/Build/TestRuns/ai-composer-only";
+const outputDir = process.env.SCREENSHOT_DIR || "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/ai-composer-only";
 const port = Number(process.env.PORT || 5194);
 const externalBaseUrl = process.env.BASE_URL?.replace(/\/$/, "") || null;
 const viewports = [

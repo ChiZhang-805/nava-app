@@ -11,7 +11,7 @@ const keys=JSON.parse(r.stdout),admin=createClient(url,keys.find(k=>k.name==='se
 const email=`journal-ui-${randomUUID()}@example.com`,password=randomBytes(24).toString('base64url');
 let id,browser;
 const target=process.env.NAVA_LIVE_URL||'http://localhost:5173/';
-const output=process.env.NAVA_TEST_OUTPUT||'Q:/NAVA-Workspace/Build/TestRuns/journal-integration/live';mkdirSync(output,{recursive:true});
+const output=process.env.NAVA_TEST_OUTPUT||'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/journal-integration/live';mkdirSync(output,{recursive:true});
 const backgrounds=[];
 async function journalFrame(page){
  const element=await page.locator('.journal-experience iframe').elementHandle();
@@ -85,7 +85,7 @@ try{
  await page.goto(`${target}#tab=record&module=diet`);await page.waitForSelector('.journal-experience iframe',{timeout:40000});
  const food=await journalFrame(page);await food.waitForSelector('#screen[data-scene="entry"]',{timeout:40000});
  await food.locator('.choice-pill[data-value="早餐"]').click();
- await food.locator('#photo-library').setInputFiles('Q:/NAVA-Workspace/Build/TestRuns/nava-account-history-20260913/synthetic-images/2026-09-13-breakfast.png');
+ await food.locator('#photo-library').setInputFiles('Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/nava-account-history-20260913/synthetic-images/2026-09-13-breakfast.png');
  for(let i=0;i<100&&!ai.some(x=>x.body?.provider==='bailian');i++)await page.waitForTimeout(1000);
  assert.ok(ai.some(x=>x.status===200&&x.body?.provider==='bailian'),'Photo route must actually call Bailian');
  await food.waitForFunction(()=>Boolean(document.querySelector('#field-foods')?.value?.trim()),{timeout:10000});

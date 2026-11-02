@@ -1,7 +1,0 @@
-{
-  "schemaVersion": 1, "accessory": "accessory-cloud-scarf", "slot": "neck", "status": "four-views-approved-for-api",
-  "viewOrder": ["front.png", "left.png", "back.png", "right.png"],
-  "physicalContract": ["Continuous thick knitted wrap with one knot at the anatomical-right front neck.", "Two unequal curved tails emerge from the knot and follow gravity outside the body.", "The opposite profile occludes the far-side knot and tails; the rear view preserves the same side.", "No hard band, flat tails, side swapping, duplication or body penetration."],
-  "generation": {"tool": "built-in image_gen", "designBoard": "Eight-view approved shadowless worn-character turnaround; right profile was regenerated after physical-side review."},
-  "meshyProfile": {"endpoint":"Multi-Image to 3D","ai_model":"latest","geometry_resolution":"2k","texture_resolution":"8k","should_texture":true,"should_remesh":false,"image_enhancement":false,"remove_lighting":true,"enable_pbr":false,"target_formats":["glb"]}
-}

@@ -4,7 +4,7 @@ import { chromium, expect } from '@playwright/test';
 import { createServer } from 'vite';
 import { applyProjectPublicEnv } from './project-env.mjs';
 applyProjectPublicEnv(process.cwd());
-const out='Q:/NAVA-Workspace/Build/TestRuns/cold-start';await mkdir(out,{recursive:true});
+const out='Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/cold-start';await mkdir(out,{recursive:true});
 const html=`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div><script type="module">
 import React from 'react';import {createRoot} from 'react-dom/client';import {LocaleProvider,useLocale} from '/src/i18n.tsx';
 import {ColdStartHub} from '/src/features/ColdStartExperience.tsx';import Journal from '/src/features/JournalExperience.tsx';import Onboarding from '/src/features/OnboardingScreen.tsx';

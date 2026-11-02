@@ -1,128 +1,131 @@
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "meshoptimizer";
 import type { WardrobeAccessoryId, WardrobeSkinId } from "./mascotWardrobe";
 import { normalizeWardrobeAngle, wardrobeFurPalettes } from "./wardrobeTurntable";
-import { sampleWardrobeMascotMotion, wardrobeMascotMotions, type WardrobeMascotMotion } from "./wardrobeMascotMotion";
-import { createWardrobeProps } from "./wardrobeProps";
-import { sampleWardrobeClothMotion, wardrobeClothTargets } from "./wardrobeClothMotion";
+import { wardrobeMascotMotions, type WardrobeMascotMotion } from "./wardrobeMascotMotion";
 import { normalizeWardrobeAccessories } from "./wardrobeAccessorySlots";
 import { isWornAccessoryId, wardrobeWornModelUrls } from "./wardrobeWornModels";
 
 const modelUrl = new URL("../assets/mascot/models/nava-wardrobe-cat.glb", import.meta.url).href;
-
+const textureUrl = new URL("../assets/mascot/models/canonical-cat-v9.jpg", import.meta.url).href;
+type LookId = "none" | keyof typeof wardrobeWornModelUrls;
 export type WardrobeScene = {
   setAngle: (degrees: number) => void;
   setLook: (skin: WardrobeSkinId, accessories: WardrobeAccessoryId[]) => void;
+  prefetch: (ids: WardrobeAccessoryId[]) => void;
   setMotion: (motion: WardrobeMascotMotion | null, progress: number) => void;
   render: () => boolean;
   dispose: () => void;
 };
-
-function disposeModel(root: THREE.Object3D) {
-  const materials = new Set<THREE.Material>();
-  const textures = new Set<THREE.Texture>();
-  const bitmaps = new Set<ImageBitmap>();
+type Rest = { bone: THREE.Bone; position: THREE.Vector3; quaternion: THREE.Quaternion; scale: THREE.Vector3 };
+type Look = { root: THREE.Group; mixer: THREE.AnimationMixer; actions: Map<WardrobeMascotMotion, THREE.AnimationAction>; rest: Rest[]; ball: THREE.Group; motion: WardrobeMascotMotion | null };
+function closeTexture(texture: THREE.Texture) {
+  const image = texture.source.data;
+  texture.dispose();
+  if (typeof ImageBitmap !== "undefined" && image instanceof ImageBitmap) image.close();
+}
+function disposeModel(root: THREE.Object3D, shared?: THREE.Texture) {
+  const materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>(), skeletons = new Set<THREE.Skeleton>();
   root.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
-    if (object instanceof THREE.SkinnedMesh) object.skeleton.dispose();
+    if (object instanceof THREE.SkinnedMesh) skeletons.add(object.skeleton);
     object.geometry.dispose();
     for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
       materials.add(material);
-      for (const value of Object.values(material)) if (value instanceof THREE.Texture) textures.add(value);
+      for (const value of Object.values(material)) if (value instanceof THREE.Texture && value !== shared) textures.add(value);
     }
   });
-  textures.forEach((texture) => {
-    const image = texture.source.data;
-    if (typeof ImageBitmap !== "undefined" && image instanceof ImageBitmap) bitmaps.add(image);
-    texture.dispose();
-  });
-  bitmaps.forEach((bitmap) => bitmap.close());
-  materials.forEach((material) => material.dispose());
+  textures.forEach(closeTexture); skeletons.forEach((s) => s.dispose()); materials.forEach((m) => m.dispose());
+}
+function yarnBall() {
+  const group = new THREE.Group(); group.name = "YarnBallProp";
+  group.add(new THREE.Mesh(new THREE.SphereGeometry(.102, 32, 20), new THREE.MeshBasicMaterial({ color: "#a58acc" })));
+  const material = new THREE.MeshBasicMaterial({ color: "#c0a4e1" });
+  for (let k = 0; k < 9; k++) {
+    const rotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(.4, .2, -1).normalize(), k * .51);
+    const points = Array.from({ length: 121 }, (_, i) => {
+      const a = Math.PI * 2 * i / 120;
+      return new THREE.Vector3(.104 * Math.cos(a), .104 * Math.sin(a), -.025 * Math.sin(3 * a)).applyQuaternion(rotation);
+    });
+    group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 120, .0025, 5, true), material));
+  }
+  group.visible = false; return group;
 }
 
 export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: AbortSignal): Promise<WardrobeScene> {
   if (signal.aborted) throw new DOMException("Wardrobe loading cancelled", "AbortError");
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "low-power" });
-  const abortLoading = () => { renderer.dispose(); renderer.forceContextLoss(); };
-  signal.addEventListener("abort", abortLoading, { once: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping;
   renderer.shadowMap.enabled = false;
   renderer.setClearColor(0x000000, 0);
-  const scene = new THREE.Scene();
-  const yaw = new THREE.Group();
-  scene.add(yaw);
-  const camera = new THREE.OrthographicCamera(-1.8, 1.8, 1.7, -1.1, .1, 30);
-  camera.position.set(0, .18, 7);
-  camera.lookAt(0, .18, 0);
-  const loader = new GLTFLoader();
-  let cat: THREE.Group;
-  let accessories = new THREE.Group();
-  let clips: THREE.AnimationClip[];
-  const load = async (url: string) => {
-    const response = await fetch(url, { signal });
-    if (!response.ok) throw new Error("Wardrobe model could not be loaded");
-    return loader.parseAsync(await response.arrayBuffer(), "");
-  };
-  try {
-    const result = await load(modelUrl);
-    if (signal.aborted) {
-      disposeModel(result.scene);
-      throw new Error("Wardrobe model could not be loaded");
-    }
-    cat = result.scene;
-    clips = result.animations;
-    if (wardrobeMascotMotions.some((motion) => !clips.some((clip) => clip.name === motion.clip))) {
-      disposeModel(cat);
-      throw new Error("Wardrobe actions could not be loaded");
-    }
-  } catch (error) {
-    signal.removeEventListener("abort", abortLoading);
-    renderer.dispose();
-    renderer.forceContextLoss();
-    throw error;
-  }
-  signal.removeEventListener("abort", abortLoading);
-
+  const scene = new THREE.Scene(), yaw = new THREE.Group(); scene.add(yaw);
+  const camera = new THREE.OrthographicCamera(-1.3, 1.3, 1.2, -1.2, .1, 30);
+  camera.position.set(0, .03, 7); camera.lookAt(0, .03, 0);
+  const manager = new THREE.LoadingManager();
+  manager.setURLModifier((url) => url.endsWith("canonical-cat-v9.jpg") ? textureUrl : url);
+  const loader = new GLTFLoader(manager).setMeshoptDecoder(MeshoptDecoder);
+  const binary = new Map<LookId, Promise<ArrayBuffer>>();
+  const pending = new Map<LookId, Promise<Look>>();
+  const looks = new Map<LookId, Look>();
+  let sharedTexture: THREE.Texture | undefined;
+  let active: Look | null = null, selected: LookId = "none", requested: LookId = "none";
+  let destroyed = false, frame = 0, revision = 0, prefetchRevision = 0;
+  let currentMotion: WardrobeMascotMotion | null = null, currentProgress = 0, currentAngle = 0;
   const uniform = {
-    navaVariant: { value: 0 },
-    navaIvory: { value: new THREE.Color("#ffffff") },
-    navaEdge: { value: new THREE.Color("#a4dce9") },
-    navaInk: { value: new THREE.Color("#092a49") },
-    navaFaceInk: { value: new THREE.Color("#092a49") },
-    navaStars: { value: 0 },
+    navaVariant: { value: 0 }, navaIvory: { value: new THREE.Color("#ffffff") },
+    navaEdge: { value: new THREE.Color("#a4dce9") }, navaInk: { value: new THREE.Color("#092a49") },
+    navaFaceInk: { value: new THREE.Color("#092a49") }, navaStars: { value: 0 },
   };
-  cat.updateMatrixWorld(true);
-  const position = new THREE.Vector3();
-  cat.traverse((object) => {
-    if (!(object instanceof THREE.Mesh)) return;
-    // Global rest coordinates remain stable while the whole look rotates.
-    const input = object.geometry.getAttribute("position");
-    const values = new Float32Array(input.count * 3);
-    for (let index = 0; index < input.count; index++) {
-      position.fromBufferAttribute(input, index).applyMatrix4(object.matrixWorld);
-      position.toArray(values, index * 3);
+  const draw = () => {
+    frame = 0;
+    if (destroyed || renderer.getContext().isContextLost()) return false;
+    renderer.render(scene, camera); return true;
+  };
+  const render = () => { if (!destroyed && !frame) frame = requestAnimationFrame(draw); };
+  const urlFor = (id: LookId) => id === "none" ? modelUrl : wardrobeWornModelUrls[id];
+  const fetchModel = (id: LookId) => {
+    let promise = binary.get(id);
+    if (!promise) {
+      promise = fetch(urlFor(id), { signal }).then((response) => {
+        if (!response.ok) throw new Error("Wardrobe model could not be loaded");
+        return response.arrayBuffer();
+      }).catch((error) => { binary.delete(id); throw error; });
+      binary.set(id, promise);
     }
-    object.geometry.setAttribute("navaRest", new THREE.BufferAttribute(values, 3));
-    const oldMaterials: THREE.MeshBasicMaterial[] = Array.isArray(object.material) ? object.material : [object.material];
-    const materials = oldMaterials.map((source) => new THREE.MeshBasicMaterial({
-      map: source.map, color: source.color,
-      side: source.side, transparent: source.transparent, opacity: source.opacity,
-    }));
-    object.castShadow = object.receiveShadow = false;
-    object.material = Array.isArray(object.material) ? materials : materials[0];
-    oldMaterials.forEach((material) => material.dispose());
-    for (const material of materials) {
-      const map = material.map;
-      if (map) {
-        // The continuous, padded atlas keeps navy UV borders clean when scaled.
-        map.minFilter = THREE.LinearMipmapLinearFilter;
-        map.magFilter = THREE.LinearFilter;
-        map.generateMipmaps = true;
-        map.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
-        map.needsUpdate = true;
+    return promise;
+  };
+  const prepare = (gltf: GLTF): Look => {
+    const root = gltf.scene; root.updateMatrixWorld(true);
+    const canonical = root.getObjectByName("NAVA_Canonical_Cat");
+    if (!canonical) throw new Error("Missing canonical cat");
+    root.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const isCat = object === canonical || object.parent === canonical;
+      if (isCat) {
+        const input = object.geometry.getAttribute("position"), values = new Float32Array(input.count * 3), point = new THREE.Vector3();
+        for (let i = 0; i < input.count; i++) point.fromBufferAttribute(input, i).applyMatrix4(object.matrixWorld).toArray(values, i * 3);
+        object.geometry.setAttribute("navaRest", new THREE.BufferAttribute(values, 3));
       }
+      const old = Array.isArray(object.material) ? object.material : [object.material];
+      const next = old.map((source: THREE.MeshStandardMaterial) => {
+        // Blender's baked emission exports as emissiveTexture with a black
+        // diffuse factor. Preserve that baked appearance in our unlit material.
+        let map = source.map ?? source.emissiveMap;
+        const color = !source.map && source.emissiveMap ? source.emissive : source.color;
+        if (isCat && map) {
+          if (sharedTexture && map !== sharedTexture) { closeTexture(map); map = sharedTexture; }
+          else sharedTexture = map;
+        }
+        if (map) {
+          map.colorSpace = THREE.SRGBColorSpace; map.minFilter = THREE.LinearMipmapLinearFilter;
+          map.magFilter = THREE.LinearFilter; map.generateMipmaps = true;
+          map.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+        }
+        const material = new THREE.MeshBasicMaterial({ map, color, side: source.side, transparent: source.transparent, opacity: source.opacity, alphaTest: source.alphaTest });
+        if (isCat) {
       material.onBeforeCompile = (shader: THREE.WebGLProgramParametersWithUniforms) => {
         Object.assign(shader.uniforms, uniform);
         shader.vertexShader = "attribute vec3 navaRest; varying vec3 navaPoint;\n" + shader.vertexShader;
@@ -132,7 +135,7 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
           if (navaVariant > .5) {
             vec3 original = diffuseColor.rgb;
             float brightness = max(original.r, max(original.g, original.b));
-            float face = 1. - smoothstep(.80, 1.15, length(vec2((navaPoint.x + .20) / .42, (navaPoint.y - .24) / .30)));
+            float face = 1. - smoothstep(.80, 1.15, length(vec2((navaPoint.x + .08) / .42, (navaPoint.y - .24) / .30)));
             float marking = face * smoothstep(.45, .70, navaPoint.z) * smoothstep(.78, .98, min(original.r, min(original.g, original.b)));
             float ice = max(clamp((original.b - original.r) * 2.5, 0., 1.), smoothstep(.48, .81, navaPoint.y) * .65);
             float faceSide = face * smoothstep(.35, .65, navaPoint.z);
@@ -145,293 +148,130 @@ export async function createWardrobeScene(canvas: HTMLCanvasElement, signal: Abo
           }
         `);
       };
-      material.customProgramCacheKey = () => "nava-wardrobe-rig-unlit-v2";
-    }
-  });
-  // Rotate around the body axis, rather than the tail-inclusive bounding box.
-  cat.position.x += .2;
-  accessories.position.x += .2;
-  camera.position.set(0, .03, 7);
-  camera.lookAt(0, .03, 0);
-  yaw.add(cat, accessories);
-
-  const mixer = new THREE.AnimationMixer(cat);
-  const actions = new Map(wardrobeMascotMotions.map((motion) => {
-    const clip = clips.find((candidate) => candidate.name === motion.clip);
-    if (!clip) throw new Error(`Missing wardrobe action: ${motion.clip}`);
-    const action = mixer.clipAction(clip);
-    action.setLoop(THREE.LoopOnce, 1);
-    action.clampWhenFinished = true;
-    return [motion.id, action];
-  }));
-  const boneRest: { bone: THREE.Bone; position: THREE.Vector3; quaternion: THREE.Quaternion; scale: THREE.Vector3 }[] = [];
-  cat.traverse((object) => {
-    if (object instanceof THREE.Bone) boneRest.push({ bone: object, position: object.position.clone(), quaternion: object.quaternion.clone(), scale: object.scale.clone() });
-  });
-  let activeMotion: WardrobeMascotMotion | null = null;
-  let clothPose = sampleWardrobeClothMotion(null, 0);
-  const props = createWardrobeProps(cat);
-  yaw.add(props.group);
-  const wornMotion = new THREE.Group();
-  const wornLayer = new THREE.Group();
-  wornMotion.add(wornLayer);
-  yaw.add(wornMotion);
-  const wornModels = new Map<Exclude<WardrobeAccessoryId, "accessory-none">, THREE.Group>();
-  let activeWornId: Exclude<WardrobeAccessoryId, "accessory-none"> | null = null;
-  let wornRequest = 0;
-
-  const prepareWornModel = (model: THREE.Group) => {
-    model.updateMatrixWorld(true);
-    const bounds = new THREE.Box3().setFromObject(model);
-    const size = bounds.getSize(new THREE.Vector3());
-    const center = bounds.getCenter(new THREE.Vector3());
-    const scale = 2.02 / Math.max(size.y, .001);
-    model.scale.setScalar(scale);
-    model.position.set(-center.x * scale, .02 - center.y * scale, -center.z * scale);
-    model.traverse((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
-      const old = Array.isArray(object.material) ? object.material : [object.material];
-      const next = old.map((source: THREE.MeshStandardMaterial) => {
-        const map = source.map;
-        if (map) {
-          map.colorSpace = THREE.SRGBColorSpace;
-          map.minFilter = THREE.LinearMipmapLinearFilter;
-          map.magFilter = THREE.LinearFilter;
-          map.generateMipmaps = true;
-          map.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
-          map.needsUpdate = true;
+      material.customProgramCacheKey = () => "nava-wardrobe-canonical-v3";
         }
-        return new THREE.MeshBasicMaterial({
-          color: source.color,
-          map,
-          side: source.side,
-          transparent: source.transparent,
-          opacity: source.opacity,
-          alphaTest: source.alphaTest,
-          vertexColors: source.vertexColors,
-        });
+        return material;
       });
-      object.material = Array.isArray(object.material) ? next : next[0];
-      old.forEach((material) => material.dispose());
+      object.material = Array.isArray(object.material) ? next : next[0]; old.forEach((m) => m.dispose());
       object.castShadow = object.receiveShadow = false;
+      // Skin deformation extends beyond the rest bounds; never cull an articulated paw.
+      object.frustumCulled = false;
     });
-    model.visible = false;
-    wornLayer.add(model);
-    return model;
-  };
-
-  const accessoryGroups = new Map<string, THREE.Object3D>();
-  const accessoryRest = new Map<string, THREE.Vector3>();
-  accessories.traverse((object) => {
-    if (object.name.startsWith("accessory-")) {
-      accessoryGroups.set(object.name, object);
-      accessoryRest.set(object.name, object.position.clone());
+    // Every look shares the same body coordinates. Hats/tails never affect framing.
+    root.scale.setScalar(1.1); root.position.set(.088, 0, -.308); root.visible = false; yaw.add(root);
+    const mixer = new THREE.AnimationMixer(root), actions = new Map<WardrobeMascotMotion, THREE.AnimationAction>();
+    for (const motion of wardrobeMascotMotions) {
+      const clip = gltf.animations.find((c) => c.name === motion.clip);
+      if (!clip) throw new Error(`Missing wardrobe action: ${motion.clip}`);
+      const action = mixer.clipAction(clip).setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true; actions.set(motion.id, action);
     }
-  });
-  // Existing garments are fitted in mascot space, then driven by the owning
-  // bone's delta from rest. This avoids inheriting an unrelated bone-local axis.
-  const costume = new THREE.Group();
-  yaw.add(costume);
-  scene.updateMatrixWorld(true);
-  const attachments: { carrier: THREE.Group; bone: THREE.Object3D; inverseRest: THREE.Matrix4 }[] = [];
-  const headwear = new Set(["mist-beret", "sailor-hat", "night-voyage-cap", "star-moon-clip", "cherry-bow", "mint-earmuffs", "laurel-crown", "lily-garland", "star-glasses"]);
-  for (const [id, group] of accessoryGroups) {
-    // Garment-specific anchors match the deformation envelope used during
-    // fitting. Lower-chest fabric follows Body, while headwear follows Head.
-    const requestedAnchor = typeof group.userData.followAnchor === "string" ? group.userData.followAnchor : null;
-    const anchor = requestedAnchor && cat.getObjectByName(requestedAnchor)
-      ? requestedAnchor
-      : id === "accessory-cloud-backpack" ? "Anchor_Back" : headwear.has(id.replace("accessory-", "")) ? "Anchor_Head" : "Anchor_Chest";
-    const bone = cat.getObjectByName(anchor);
-    const carrier = new THREE.Group();
-    costume.add(carrier);
-    carrier.attach(group);
-    accessoryRest.set(id, group.position.clone());
-    if (bone) attachments.push({ carrier, bone, inverseRest: bone.matrixWorld.clone().invert() });
-    group.traverse((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
-      const old = Array.isArray(object.material) ? object.material : [object.material];
-      const next = old.map((material: THREE.MeshStandardMaterial) => new THREE.MeshBasicMaterial({ color: material.color, map: material.map, vertexColors: material.vertexColors, side: material.side, transparent: material.transparent, opacity: material.opacity, alphaTest: material.alphaTest }));
-      object.material = Array.isArray(object.material) ? next : next[0];
-      old.forEach((material) => material.dispose());
-      object.castShadow = object.receiveShadow = false;
-    });
-  }
-  yaw.remove(accessories);
-  accessories = costume;
-  const inverseYaw = new THREE.Matrix4();
-  const updateAttachments = (rest = false) => {
-    scene.updateMatrixWorld(true);
-    inverseYaw.copy(yaw.matrixWorld).invert();
-    for (const { carrier, bone, inverseRest } of attachments) {
-      if (rest) carrier.matrix.identity();
-      else carrier.matrix.copy(inverseYaw).multiply(bone.matrixWorld).multiply(inverseRest);
-      carrier.matrixAutoUpdate = false;
+    const rest: Rest[] = [];
+    root.traverse((bone) => { if (bone instanceof THREE.Bone) rest.push({ bone, position: bone.position.clone(), quaternion: bone.quaternion.clone(), scale: bone.scale.clone() }); });
+    const ball = yarnBall(); root.getObjectByName("YarnBall")?.add(ball);
+    return { root, mixer, actions, rest, ball, motion: null };
+  };
+  const evict = () => {
+    for (const [id, look] of looks) {
+      if (looks.size <= 4) break;
+      if (look === active || id === requested) continue;
+      looks.delete(id); yaw.remove(look.root); look.mixer.stopAllAction(); look.mixer.uncacheRoot(look.root); disposeModel(look.root, sharedTexture);
     }
-    scene.updateMatrixWorld(true);
   };
-  const updateCloth = () => {
-    for (const group of accessoryGroups.values()) group.traverse((object) => {
-      if (!(object instanceof THREE.Mesh) || !object.morphTargetInfluences) return;
-      for (const target of wardrobeClothTargets) {
-        const index = object.morphTargetDictionary?.[target];
-        if (index !== undefined) object.morphTargetInfluences[index] = group.visible ? clothPose[target] : 0;
-      }
-    });
+  const loadLook = (id: LookId): Promise<Look> => {
+    const cached = looks.get(id);
+    if (cached) { looks.delete(id); looks.set(id, cached); return Promise.resolve(cached); }
+    const flight = pending.get(id); if (flight) return flight;
+    const promise = (async () => {
+      const bytes = await fetchModel(id);
+      if (destroyed) throw new DOMException("Wardrobe disposed", "AbortError");
+      const gltf = await loader.parseAsync(bytes, new URL(".", urlFor(id)).href);
+      if (destroyed) { disposeModel(gltf.scene, sharedTexture); throw new DOMException("Wardrobe disposed", "AbortError"); }
+      let look: Look;
+      try { look = prepare(gltf); } catch (error) { disposeModel(gltf.scene, sharedTexture); throw error; }
+      looks.set(id, look); return look;
+    })().finally(() => pending.delete(id));
+    pending.set(id, promise); return promise;
   };
-  let destroyed = false;
-  let frame = 0;
-  const draw = () => {
-    frame = 0;
-    if (destroyed || renderer.getContext().isContextLost()) return false;
-    renderer.render(scene, camera);
-    return true;
-  };
-  const render = () => { if (!destroyed && !frame) frame = requestAnimationFrame(draw); };
-  const resetWornMotion = () => {
-    wornMotion.position.set(0, 0, 0);
-    wornMotion.rotation.set(0, 0, 0);
-    wornMotion.scale.set(1, 1, 1);
-  };
-  const selectWornModel = async (id: Exclude<WardrobeAccessoryId, "accessory-none"> | null) => {
-    const request = ++wornRequest;
-    canvas.dataset.wornModel = id ? `loading:${id}` : "none";
-    activeWornId = id;
-    for (const model of wornModels.values()) model.visible = false;
-    cat.visible = !id;
-    accessories.visible = !id;
-    props.group.visible = !id;
-    wornMotion.visible = Boolean(id);
-    resetWornMotion();
-    render();
-    if (!id) return;
-    let model = wornModels.get(id);
-    if (!model) {
-      try {
-        const loaded = await load(wardrobeWornModelUrls[id]);
-        if (destroyed) { disposeModel(loaded.scene); return; }
-        model = prepareWornModel(loaded.scene);
-        wornModels.set(id, model);
-      } catch {
-        if (destroyed || request !== wornRequest) return;
-        activeWornId = null;
-        canvas.dataset.wornModel = `error:${id}`;
-        wornMotion.visible = false;
-        cat.visible = true;
-        accessories.visible = true;
-        props.group.visible = true;
-        render();
-        return;
-      }
+  const pose = (look: Look) => {
+    const at = currentProgress, motion = currentMotion;
+    if (!motion || at === 0 || at === 1) {
+      look.mixer.stopAllAction();
+      for (const rest of look.rest) { rest.bone.position.copy(rest.position); rest.bone.quaternion.copy(rest.quaternion); rest.bone.scale.copy(rest.scale); }
+      look.motion = null;
+    } else {
+      const action = look.actions.get(motion)!;
+      if (look.motion !== motion) { look.mixer.stopAllAction(); action.reset().play(); look.motion = motion; }
+      action.paused = true; action.time = at * action.getClip().duration; look.mixer.update(0);
     }
-    if (request !== wornRequest || destroyed) return;
-    model.visible = true;
-    wornModels.delete(id);
-    wornModels.set(id, model);
-    while (wornModels.size > 3) {
-      const oldestId = wornModels.keys().next().value as Exclude<WardrobeAccessoryId, "accessory-none">;
-      if (oldestId === id) break;
-      const oldest = wornModels.get(oldestId)!;
-      wornLayer.remove(oldest);
-      wornModels.delete(oldestId);
-      disposeModel(oldest);
+    look.ball.visible = motion === "yarn" && at > 0 && at < 1;
+    look.root.updateMatrixWorld(true);
+  };
+  const select = async (id: LookId) => {
+    requested = id;
+    const request = ++revision; canvas.dataset.pendingModel = id;
+    delete canvas.dataset.modelError;
+    try {
+      const look = await loadLook(id);
+      if (destroyed || request !== revision) { evict(); return; }
+      pose(look);
+      if (active) active.root.visible = false;
+      active = look; active.root.visible = true; selected = id;
+      canvas.dataset.wornModel = id; delete canvas.dataset.pendingModel;
+      evict(); render();
+    } catch {
+      if (destroyed || request !== revision) return;
+      requested = selected; delete canvas.dataset.pendingModel;
+      canvas.dataset.modelError = id;
+      canvas.dispatchEvent(new CustomEvent("wardrobe-model-error", { detail: { id } })); render();
     }
-    canvas.dataset.wornModel = id;
-    render();
   };
   const resize = () => {
-    const width = Math.max(1, canvas.clientWidth);
-    const height = Math.max(1, canvas.clientHeight);
-    const aspect = width / height;
-    // Includes the tail at its widest yaw and the highest selectable headwear.
+    const width = Math.max(1, canvas.clientWidth), height = Math.max(1, canvas.clientHeight), aspect = width / height;
     const span = Math.max(2.12, 2.55 / aspect);
-    camera.left = -span * aspect / 2;
-    camera.right = span * aspect / 2;
-    camera.top = span / 2;
-    camera.bottom = -span / 2;
-    camera.updateProjectionMatrix();
-    renderer.setSize(width, height, false);
-    render();
+    camera.left = -span * aspect / 2; camera.right = span * aspect / 2; camera.top = span / 2; camera.bottom = -span / 2;
+    camera.updateProjectionMatrix(); renderer.setSize(width, height, false); render();
   };
   const observer = new ResizeObserver(resize);
-  observer.observe(canvas);
-  resize();
-
+  const dispose = () => {
+    if (destroyed) return; destroyed = true; revision++; prefetchRevision++;
+    cancelAnimationFrame(frame); observer.disconnect(); signal.removeEventListener("abort", dispose);
+    for (const look of looks.values()) { look.mixer.stopAllAction(); look.mixer.uncacheRoot(look.root); disposeModel(look.root, sharedTexture); }
+    looks.clear(); binary.clear(); if (sharedTexture) closeTexture(sharedTexture);
+    renderer.dispose(); renderer.forceContextLoss();
+  };
+  signal.addEventListener("abort", dispose, { once: true });
+  try { active = await loadLook("none"); active.root.visible = true; canvas.dataset.wornModel = "none"; }
+  catch (error) { dispose(); throw error; }
+  observer.observe(canvas); resize();
   return {
-    setAngle(degrees) { yaw.rotation.y = normalizeWardrobeAngle(degrees) * Math.PI / 180; render(); },
+    setAngle(degrees) { currentAngle = normalizeWardrobeAngle(degrees); yaw.rotation.y = currentAngle * Math.PI / 180; render(); },
     setMotion(motion, progress) {
       if (destroyed) return;
-      const at = Math.min(1, Math.max(0, Number.isFinite(progress) ? progress : 0));
-      if (activeWornId) {
-        resetWornMotion();
-        if (motion && at > 0 && at < 1) {
-          const pose = sampleWardrobeMascotMotion(motion, at);
-          wornMotion.position.set(pose.x * .02, -pose.y * .02, 0);
-          wornMotion.rotation.z = -pose.degrees * Math.PI / 180;
-          wornMotion.scale.set(pose.scaleX, pose.scaleY, 1);
-        }
-        cancelAnimationFrame(frame);
-        draw();
-        return;
-      }
-      if (!motion || at === 0 || at === 1) {
-        mixer.stopAllAction();
-        for (const rest of boneRest) {
-          rest.bone.position.copy(rest.position);
-          rest.bone.quaternion.copy(rest.quaternion);
-          rest.bone.scale.copy(rest.scale);
-        }
-        activeMotion = null;
-      } else {
-        const action = actions.get(motion)!;
-        if (activeMotion !== motion) { mixer.stopAllAction(); action.reset().play(); activeMotion = motion; }
-        action.paused = true;
-        action.time = at * action.getClip().duration;
-        mixer.update(0);
-      }
-      updateAttachments(!motion || at === 0 || at === 1);
-      clothPose = sampleWardrobeClothMotion(motion, at);
-      updateCloth();
-      props.update(motion, at);
-      cancelAnimationFrame(frame);
-      draw();
+      currentMotion = motion; currentProgress = Math.min(1, Math.max(0, Number.isFinite(progress) ? progress : 0));
+      if (active) pose(active); cancelAnimationFrame(frame); draw();
     },
     setLook(skin, ids) {
-      const selectedIds = normalizeWardrobeAccessories(ids);
-      const wornId = selectedIds.find(isWornAccessoryId) ?? null;
+      if (destroyed) return;
       const palette = wardrobeFurPalettes[skin];
       uniform.navaVariant.value = skin === "skin-cream" ? 0 : 1;
-      uniform.navaIvory.value.set(palette[0]);
-      uniform.navaEdge.value.set(palette[1]);
-      uniform.navaInk.value.set(palette[2]);
-      uniform.navaFaceInk.value.set(palette[3]);
+      uniform.navaIvory.value.set(palette[0]); uniform.navaEdge.value.set(palette[1]);
+      uniform.navaInk.value.set(palette[2]); uniform.navaFaceInk.value.set(palette[3]);
       uniform.navaStars.value = skin === "skin-star-sand" ? 1 : skin === "skin-mica-silver" ? .2 : 0;
-      for (const [id, group] of accessoryGroups) {
-        group.visible = selectedIds.includes(id as WardrobeAccessoryId);
-        group.position.copy(accessoryRest.get(id)!);
-        group.traverse((object) => {
-          if (object instanceof THREE.Mesh && object.morphTargetInfluences) object.morphTargetInfluences.fill(0);
-        });
-      }
-      // setLook may happen halfway through an action. Restore the current
-      // cloth bend after clearing prior morph weights, without restarting it.
-      updateCloth();
-      void selectWornModel(wornId);
+      const id = normalizeWardrobeAccessories(ids).find(isWornAccessoryId) ?? "none";
+      if (id !== requested || canvas.dataset.modelError) void select(id);
       render();
     },
-    render() { cancelAnimationFrame(frame); return draw(); },
-    dispose() {
-      destroyed = true;
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-      mixer.stopAllAction();
-      mixer.uncacheRoot(cat);
-      disposeModel(props.group);
-      disposeModel(cat);
-      disposeModel(accessories);
-      disposeModel(wornLayer);
-      renderer.dispose();
-      renderer.forceContextLoss();
+    prefetch(ids) {
+      const generation = ++prefetchRevision;
+      const queue = ids.filter(isWornAccessoryId);
+      const worker = async () => {
+        while (!destroyed && generation === prefetchRevision && queue.length) {
+          const id = queue.shift()!;
+          try { await fetchModel(id); } catch { /* A foreground selection can retry. */ }
+        }
+      };
+      void worker(); void worker();
     },
+    render() { cancelAnimationFrame(frame); return draw(); }, dispose,
   };
 }

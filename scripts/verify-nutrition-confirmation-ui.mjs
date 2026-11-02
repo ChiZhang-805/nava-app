@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 applyProjectPublicEnv(process.cwd());
-const output = "Q:/NAVA-Workspace/Build/TestRuns/nutrition-confirmation";
+const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/nutrition-confirmation";
 const port = 5233;
 const viewports = [
   { width: 360, height: 740 },

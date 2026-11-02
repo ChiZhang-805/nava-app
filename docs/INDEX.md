@@ -15,7 +15,7 @@
 | [`SHARED_SUPABASE_READINESS.md`](./SHARED_SUPABASE_READINESS.md) | canonical Supabase 共享状态与核验入口 |
 | [`AI_KNOWLEDGE_HARNESS.md`](./AI_KNOWLEDGE_HARNESS.md) | AI 路由、工具、证据、隐私和报告合同 |
 | [`NOTIFICATIONS_DELIVERY.md`](./NOTIFICATIONS_DELIVERY.md) | 八项独立提醒/智能时间、收件箱、设备通知、专注常亮与系统边界 |
-| [`APPLE_HEALTH_WATCH_DELIVERY.md`](./APPLE_HEALTH_WATCH_DELIVERY.md) | Apple Health / Watch 已实现链路与剩余人工门槛 |
+| [`APPLE_HEALTH_WATCH_DELIVERY.md`](./APPLE_HEALTH_WATCH_DELIVERY.md) | TestFlight 发布准备、Mac 归档/导出、隐私材料与 Apple Health / Watch 真机门槛 |
 | [`APPLE_HEALTH_DEVICE_ACCEPTANCE_TEMPLATE.md`](./APPLE_HEALTH_DEVICE_ACCEPTANCE_TEMPLATE.md) | iPhone / Watch 真机验收记录模板 |
 | [`watch-architecture.md`](./watch-architecture.md) | Watch companion、动作和通信协议 |
 | [`algorithm-research.md`](./algorithm-research.md) | ChronoState 方法选择、演进和后续研究方向 |
@@ -30,7 +30,7 @@
 1. 总体状态只更新 `CODEX_HANDOFF_CURRENT.md`，不要再创建按日期命名的交接副本。
 2. 专项合同直接在对应当前文档上更新；新实现取代旧设计时，同一轮删除旧文档和旧
    引用。
-3. 一次性测试截图、报告和运行日志放在 `Q:\NAVA-Workspace\Build\TestRuns`，不把
+3. 一次性测试截图、报告和运行日志放在 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns`，不把
    它们堆进 `docs`。
 4. 算法版本只保留当前基准报告；旧版本差异通过 Git 历史查询。
 5. 删除文档前确认其有效要求已经进入当前交接或仍保留的专项文档，并用 `rg` 修复

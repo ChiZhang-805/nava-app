@@ -1,0 +1,876 @@
+{
+  "reviewedOn": "2026-10-30",
+  "source": "docs/CODEX_HANDOFF_CURRENT.md: historical asset cleanup and section 178",
+  "files": [
+    {
+      "path": "public/journal/assets/completion/scene-02.png",
+      "gitBlob": "7d264e1290af3796b53b864e67c650e912b0d38a",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "public/journal/assets/completion/scene-03.png",
+      "gitBlob": "994f7a8946c04e3884a21c4c1d55939cce1a4d5e",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "public/journal/assets/completion/scene-04.png",
+      "gitBlob": "22f0e381a51a7cbdf01194bf0ffa92e6548e7f0c",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "public/journal/assets/completion/scene-05.png",
+      "gitBlob": "dd4be23ef8118be4b006ec7414fc38a79a7c8149",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "public/journal/assets/completion/scene-06.png",
+      "gitBlob": "bd45a5dcdc066967fb9786fb5bb1badf738af102",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "public/journal/assets/completion/scene-07.png",
+      "gitBlob": "565816cfa6cc2e115911ac96dc911bf584d18b45",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "public/journal/assets/completion/scene-08.png",
+      "gitBlob": "d151f09d9c261da9a591387a1be284e757cd29e7",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "public/journal/assets/completion/scene-09.png",
+      "gitBlob": "88b8ef70f79558326eefb3717ed3003ae968407f",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "public/journal/assets/mint-garden-morning.png",
+      "gitBlob": "050862676f7b4098a66a66272fda78314899f165",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/figma/auth-texture-1.png",
+      "gitBlob": "e71a9d8104eaa949455eeb62486bae72eb5a0d40",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/figma/auth-texture-2.png",
+      "gitBlob": "aa090a6ee6a4de152db78e74dbbfeef3f26c9b25",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/figma/auth-texture-3.png",
+      "gitBlob": "49c885969e85488f10e447f0b52376746a043cc2",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/figma/auth-texture-4.png",
+      "gitBlob": "abfa1600fcb0320c7d62db02dcd885ee9928ab7a",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/figma/home-option2/raw-01.png",
+      "gitBlob": "c5c584a508d6e032e3d1a9526873cc537f7d8353",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/figma/home-option2/raw-02.png",
+      "gitBlob": "29a81e8f920c5221e3176162a2cea39b6cd324d9",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/figma/home-option2/raw-03.png",
+      "gitBlob": "586572f683e3ae5d861d9b5c2e21c4077f945765",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/figma/home-option2/raw-04.png",
+      "gitBlob": "e02ad27ed8625e7ca7286447e94523050a78bbcc",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/figma/home-option2/raw-05.png",
+      "gitBlob": "b3e642cb66049c3d007af362e87b13d25f7ae96c",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/figma/home-option2/raw-06.png",
+      "gitBlob": "abfa1600fcb0320c7d62db02dcd885ee9928ab7a",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/figma/home-option2/raw-07.png",
+      "gitBlob": "211076703621804e51ce8c697501182de8453dff",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/figma/home-option2/raw-08.png",
+      "gitBlob": "49c885969e85488f10e447f0b52376746a043cc2",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/figma/option-two-icons/data.png",
+      "gitBlob": "586572f683e3ae5d861d9b5c2e21c4077f945765",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/figma/option-two-icons/home.svg",
+      "gitBlob": "02998f17ab9ad19e47ea8efe2e284e1b9c54af6a",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/mascot/nava-lift-sprite-v3.webp",
+      "gitBlob": "5efee6380d01bc9e5278d2bfbbbc82f555a6b4b1",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/mascot/nava-read-sprite-v3.webp",
+      "gitBlob": "ffcda5665c41d006d078bcb5b073acf56d2b18ea",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/mascot/nava-sleep-sprite-v3.webp",
+      "gitBlob": "bd41c7ff573309af93d2eb68991ce917cc799314",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/mascot/nava-tail-sprite-v3.webp",
+      "gitBlob": "4d4fe8ab29e8dda927fe0d88e2f5291d7377edca",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/mascot/nava-tail-v1.png",
+      "gitBlob": "3c4b602134958e7dbee69ed4c7a448b7135cc202",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/mascot/nava-wave-sprite-v3.webp",
+      "gitBlob": "e1e33f49f08ed600427843f0d2d3aeff3a8d5817",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/mascot/nava-wave-v1.png",
+      "gitBlob": "9385591c1a3bce51428e26f6c2c9d0ee4678e3b3",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "src/assets/mascot/reference/accessory-worn-multiview-v1/cherry-bow-back.png",
+      "gitBlob": "26b6c6815508242216dbe62372753a326e526c4e",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/accessory-worn-multiview-v1/cherry-bow-front.png",
+      "gitBlob": "5f671db21664288c2558f76e6001544932967b53",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/accessory-worn-multiview-v1/cherry-bow-left.png",
+      "gitBlob": "0411be19c67f906fe79c0133373cf12a2dd160ca",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/accessory-worn-multiview-v1/cherry-bow-right.png",
+      "gitBlob": "4b68f4de446bedb55d54d79789843eb1dceca765",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/accessory-worn-multiview-v1/generation.json",
+      "gitBlob": "1b960ad44d46b8e22f7ffa9ba9398602bb05cd52",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/accessory-worn-multiview-v1/mint-earmuffs-back.png",
+      "gitBlob": "67ddf3739f1a43b176ffa259777356dd658f5ab9",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/accessory-worn-multiview-v1/mint-earmuffs-front.png",
+      "gitBlob": "f9a298051723f5fffdd737ec436675ce7dad23fa",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/accessory-worn-multiview-v1/mint-earmuffs-left.png",
+      "gitBlob": "ae4be1d3911e281dbbe03dd7386b80613b822ddd",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/accessory-worn-multiview-v1/mint-earmuffs-right.png",
+      "gitBlob": "f4b157920fa3ab0682564749e783d22cb3fb0e35",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/accessory-worn-multiview-v1/pearl-bow-back.png",
+      "gitBlob": "438c5b9c2e4bd911bd5b231c6b15c11db7b499ae",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/accessory-worn-multiview-v1/pearl-bow-front.png",
+      "gitBlob": "880d7aa5f89a5a9591e7fed63bd283a373f6ddc6",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/accessory-worn-multiview-v1/pearl-bow-left.png",
+      "gitBlob": "d7f94270b8b1a7c627bc9b6ab978c9e04c86cf94",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/accessory-worn-multiview-v1/pearl-bow-right.png",
+      "gitBlob": "55a667072ba9423519772f46f68018ff0346851b",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-accessory-pilot-v1/beret-back.png",
+      "gitBlob": "5ade17b2305ea3102c0d8f7cc2e11ed50e5e16c3",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-accessory-pilot-v1/beret-front.png",
+      "gitBlob": "177b17682102d304c3bc8b7ce98af180998711bf",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-accessory-pilot-v1/beret-left.png",
+      "gitBlob": "9fd3307ce121993ed6de887293595c281ddedea2",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-accessory-pilot-v1/beret-right.png",
+      "gitBlob": "e9b285ee4cf01a7bfa3b3a75279a5f3f6d332e93",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-accessory-pilot-v1/beret-under.png",
+      "gitBlob": "7b8ecb3809dff49e67b26c19958b10889b1492c9",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-accessory-pilot-v1/generation.json",
+      "gitBlob": "8ec1464217d9faecd4c3ddf33646b2936cc3a293",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-accessory-pilot-v1/scarf-back.png",
+      "gitBlob": "9e605e2d936af26e645801a0fd38c9dffe09d02b",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-accessory-pilot-v1/scarf-front.png",
+      "gitBlob": "1ca5dab9ac8aa5bb53ecc8d4ff7580f0d6c471db",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-accessory-pilot-v1/scarf-left.png",
+      "gitBlob": "fb73e6006ec2da559e963fd389237a9b99e34878",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-accessory-pilot-v1/scarf-right.png",
+      "gitBlob": "367944b22de09632cb403b4d006f237f91451d1a",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-accessory-pilot-v1/scarf-top.png",
+      "gitBlob": "af515a94de9cd445d276036339884c847c69d330",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/aurora-scarf/back.png",
+      "gitBlob": "91ae6dc8ec1050d9b3fb8b1274b3cd8d3d9e576f",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/aurora-scarf/design-board.png",
+      "gitBlob": "f8e6acb1a76469ad317aad236c44ad90e62d4734",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/aurora-scarf/front.png",
+      "gitBlob": "b0305623f338921e669d54672da6eab259b67827",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/aurora-scarf/generation.json",
+      "gitBlob": "a4287127418b9d78581ccf4b10232cae58c4c727",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/aurora-scarf/left.png",
+      "gitBlob": "377a27c5c9acb4f7eee3d7d8020f38cc7dfcd9f2",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/aurora-scarf/right.png",
+      "gitBlob": "bf61d7a224419a5cac3aeca3d512e111abc2cf10",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/bell-collar/back.png",
+      "gitBlob": "486a505c37e0555c7c6eb47588339ed5595af9d1",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/bell-collar/design-board.png",
+      "gitBlob": "619eeeba1302143dedc55d01404fbebb745d98e5",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/bell-collar/front.png",
+      "gitBlob": "dff443d61081a9c41c3743e3ed5dcd7786818711",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/bell-collar/generation.json",
+      "gitBlob": "eeef7532cddee6f5fad4a25349c4084491f22511",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/bell-collar/left.png",
+      "gitBlob": "209efbf5db4086a98ca428d99f9b13ab586a0107",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/bell-collar/right.png",
+      "gitBlob": "e3ca213c4eda55307c4228bc0fd3bc59cf7b5dfb",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cherry-bow/back.png",
+      "gitBlob": "a58b488707523b35c1d00899f3764509a38b2aec",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cherry-bow/design-board.png",
+      "gitBlob": "3d78279d3e6ecd02a76cc6de976169765fca0239",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cherry-bow/front.png",
+      "gitBlob": "da0e3decdbeb8a80bff640eed88ee2a2dade646d",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cherry-bow/generation.json",
+      "gitBlob": "6b92025b1929544ad281619feb645efa0e53cde6",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cherry-bow/left.png",
+      "gitBlob": "8a9616e5e19b7d5dbf67e8b1c61fdfc8f7c034ba",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cherry-bow/right.png",
+      "gitBlob": "0ca8869917d9c3e27631aa4aba67b5f8fc0b2517",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cloud-backpack/back.png",
+      "gitBlob": "c62966e869348903bac504ad4c4b504bdff9faa8",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cloud-backpack/design-board.png",
+      "gitBlob": "1570b61eeaf3d7e531ff1732346ac63e54b4517d",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cloud-backpack/front.png",
+      "gitBlob": "a455c60e8891248f7742bef2b842e75d07abf230",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cloud-backpack/generation.json",
+      "gitBlob": "86541fbd8e645511216308c1a19abda598d48744",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cloud-backpack/left.png",
+      "gitBlob": "612e5ebd19d79048fe1bf14420f88ac724b7905b",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cloud-backpack/right.png",
+      "gitBlob": "e917408e4227a01a6873d5d754a8bdbc831049e4",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cloud-scarf/back.png",
+      "gitBlob": "5cfea327ac350a1ce32cf5efd2863339b78e7340",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cloud-scarf/design-board.png",
+      "gitBlob": "ac5933fb3c7877604a4f5a66def08250376ff158",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cloud-scarf/front.png",
+      "gitBlob": "a8b70db6ea85b3332a43a705d607c5a1be432948",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cloud-scarf/generation.json",
+      "gitBlob": "a320b6719333ab113ec263f46ff8bb49d4fc4a08",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cloud-scarf/left.png",
+      "gitBlob": "cd409787ece869104527db799903a446facca643",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/cloud-scarf/right.png",
+      "gitBlob": "7169fb09c20f73537c1fd03cbed2490baf6bde1c",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/fish-brooch/back.png",
+      "gitBlob": "c69f160d2a8dff4ec9fbfa06d95b3e03b064f9fc",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/fish-brooch/design-board.png",
+      "gitBlob": "b98afb72e71c8dadd94bcdc5eae8a3495e450dfb",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/fish-brooch/front.png",
+      "gitBlob": "1f9aa6f970a67e5f7652a7c5e22f3fb0edb7890a",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/fish-brooch/generation.json",
+      "gitBlob": "ceb3eeeeebbc77642db03cb6c983d37505521a80",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/fish-brooch/left.png",
+      "gitBlob": "4300c70883dc51443bd989bcbbc69a12892081f6",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/fish-brooch/right.png",
+      "gitBlob": "fcca522142b8950cc15c52e5c1d65de86319708d",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/honey-neck-warmer/back.png",
+      "gitBlob": "63d8b51a1cdf60817ce0be122d601ec584f320d8",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/honey-neck-warmer/design-board.png",
+      "gitBlob": "9996cfc27522bf794adbd8830fe71146e7c6daca",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/honey-neck-warmer/front.png",
+      "gitBlob": "33b375840c7bb3bd673d2d7725a66edad7c04e31",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/honey-neck-warmer/generation.json",
+      "gitBlob": "ab3f2bbbd5e388ec1cb5be8b0b8c3e12efa419d3",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/honey-neck-warmer/left.png",
+      "gitBlob": "699270633b1e26723a3f1bc0f1cc1a947575d058",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/honey-neck-warmer/right.png",
+      "gitBlob": "1bed2434fc1761400723e2ed754379033990820c",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/laurel-crown/back.png",
+      "gitBlob": "0b0f55882fcbcb3aa6d4ef6808746247e53bc97d",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/laurel-crown/design-board.png",
+      "gitBlob": "b756ec7212901632fe287f17d7eace72f75ea876",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/laurel-crown/front.png",
+      "gitBlob": "0ed917ab29463553adeedd8d7bca94fa6e24440e",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/laurel-crown/generation.json",
+      "gitBlob": "0796e9c9e436dc4b04487c226e632921b20e2f24",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/laurel-crown/left.png",
+      "gitBlob": "ff9fe82316db3adda4fcb9a33e6db26c7af33186",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/laurel-crown/right.png",
+      "gitBlob": "2837aec86180dcdce5067ad16c02a1404cf3dbe2",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/lily-garland/back.png",
+      "gitBlob": "e454603fac4f192501462407201483551dbb3179",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/lily-garland/design-board.png",
+      "gitBlob": "89fea4a6163e4e60724de55d8b43a7f4a3ffde1a",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/lily-garland/front.png",
+      "gitBlob": "09612c31c6fa3cc2609f98649ba5030984625192",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/lily-garland/generation.json",
+      "gitBlob": "48c86fd3e244be6db65e98bc8e308bfa1fa3f921",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/lily-garland/left.png",
+      "gitBlob": "ba02e3d0f51b7a3adbe13ba16f577dc5e8a224e1",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/lily-garland/right.png",
+      "gitBlob": "2e46de1fcaf04b57f9dc6762c9fff4dde5726c30",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/mint-earmuffs/back.png",
+      "gitBlob": "60ba540c3f1708e5f9eca53167d85b756043789a",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/mint-earmuffs/design-board.png",
+      "gitBlob": "cd36122aab16a3b87a56f31b0bbec263781f0f5e",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/mint-earmuffs/front.png",
+      "gitBlob": "bdd1d73c64f8ca8037032ee0f5a6382fd87967f1",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/mint-earmuffs/generation.json",
+      "gitBlob": "619dedf9b743cb1dc78da52b8c60b658aca84680",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/mint-earmuffs/left.png",
+      "gitBlob": "e9a3c0a6fa848a3fd519c8601a840350c56343a1",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/mint-earmuffs/right.png",
+      "gitBlob": "982fdf55bf9464f11a74680a97d0f11fede727f2",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/mist-beret/back.png",
+      "gitBlob": "6407cf0dc46a74e5fd360fcffa4b4f42a657e210",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/mist-beret/design-board.png",
+      "gitBlob": "cea668cb7df66af36245a0fd20e1e746c2a37e91",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/mist-beret/front.png",
+      "gitBlob": "166db67d5bd51058b860b3b48efa34e38663f52b",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/mist-beret/generation.json",
+      "gitBlob": "b71775d73a393ee14933781b7feef85963f4629a",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/mist-beret/left.png",
+      "gitBlob": "991891b804c7a6898e5e72ac8ec63ca33c771624",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/mist-beret/right.png",
+      "gitBlob": "6268bfe90c1b717157feccb144a56bd142497764",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/night-voyage-cap/back.png",
+      "gitBlob": "545c62d5de62b8b1a5ed43a4877b74635b2096fd",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/night-voyage-cap/design-board.png",
+      "gitBlob": "093f3bd3f356cd3a6b2c35f409d2d4845a6bebd1",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/night-voyage-cap/front.png",
+      "gitBlob": "ed19779366088a4ecca1600cad19436e1b5ba3a2",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/night-voyage-cap/generation.json",
+      "gitBlob": "ba808a072ccfc4d4cc90cd94cefb3aa37ed8f579",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/night-voyage-cap/left.png",
+      "gitBlob": "3d43ac185a42f18b285dfb24953027cdfe647c36",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/night-voyage-cap/right.png",
+      "gitBlob": "842fb842780bc48a5a124043699ee7d8d3d87e58",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/pearl-bow/back.png",
+      "gitBlob": "d3b78c3b7565c62ef2cbc23e54ba93531d5ea881",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/pearl-bow/design-board.png",
+      "gitBlob": "17aa913608abb7882d71e7339f850d38689ddf77",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/pearl-bow/front.png",
+      "gitBlob": "e7182ff8f8cd65fcf3ae306da7dd4722d312159d",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/pearl-bow/generation.json",
+      "gitBlob": "4fa015c60362835b25b978905c6664961dc10332",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/pearl-bow/left.png",
+      "gitBlob": "ba42cecc26760b7d4d85f5d1e648a3a9bdfac1d8",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/pearl-bow/right.png",
+      "gitBlob": "950fa2118b2fc81269c99160c71d3abf18149718",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/raindrop-cape/back.png",
+      "gitBlob": "8be0f5f45711bb35e6d38d83826167f29341f400",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/raindrop-cape/design-board.png",
+      "gitBlob": "8590442907826fcc4c4c7ce9c5efaeec0e26cfe3",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/raindrop-cape/front.png",
+      "gitBlob": "cd1c01a59b0c6938a31f1e723bf0495a1aae408d",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/raindrop-cape/generation.json",
+      "gitBlob": "49a289c3c8c5bce36d77f4538c71c6c9d685915e",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/raindrop-cape/left.png",
+      "gitBlob": "7c9708bf8ddb14799734b7efa965df48f573e626",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/raindrop-cape/right.png",
+      "gitBlob": "55bb275c539409f9b8ade25bc67aecfcbaef24c8",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/sailor-hat/back.png",
+      "gitBlob": "79f6dd68714fc0beb8675e9d0426e5550cb38c38",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/sailor-hat/design-board.png",
+      "gitBlob": "8ac9d28fafddef1457fd7d0960dc347b3a3588bb",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/sailor-hat/front.png",
+      "gitBlob": "393daaa678c191295e4f482cedbbd04552c7f10a",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/sailor-hat/generation.json",
+      "gitBlob": "ac0e87bf807ed271dec9731184b93ed751489070",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/sailor-hat/left.png",
+      "gitBlob": "e59e70b82cc93d40fa6a5973281b258b2af529c3",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/sailor-hat/right.png",
+      "gitBlob": "1998d8ea77713996d7517aeeb9bf3b3c5d0bf798",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/star-glasses/back.png",
+      "gitBlob": "422ee1d37aa7aa14621d24d7d205efee0bf443b0",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/star-glasses/design-board.png",
+      "gitBlob": "0368e82046c8f4354502ab10d61edfb766ec7266",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/star-glasses/front.png",
+      "gitBlob": "aa1736638e5c063bd671b416962aced06b5395da",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/star-glasses/generation.json",
+      "gitBlob": "07870e8836fdd86ead9624074a5a0baa2429c3ef",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/star-glasses/left.png",
+      "gitBlob": "a988584ac087a54d7ddddfd852c68d94c749ad19",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/star-glasses/right.png",
+      "gitBlob": "eeb291e238c83c27b1ff429cf9dbe48e5bcd3af1",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/star-moon-clip/back.png",
+      "gitBlob": "3d3fcf23289db56803bdcd12fd334b943bb1bcf7",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/star-moon-clip/design-board.png",
+      "gitBlob": "57a3bb5f72c5b950fefe3bc2c7f79eabb43ada52",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/star-moon-clip/front.png",
+      "gitBlob": "a10e41e816710b78536aaa2e91b9f0ac4d169602",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/star-moon-clip/generation.json",
+      "gitBlob": "a160917c3e24d45152ca696154486c53cd52be4a",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/star-moon-clip/left.png",
+      "gitBlob": "6701e004f8a7ffdd2599a9cc3b1eabd6b167125a",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-catalog-v1/star-moon-clip/right.png",
+      "gitBlob": "0e9ada52bcbb52cbf5966403b11cec61656c378e",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-pilot-v1/beret-back.png",
+      "gitBlob": "2d7592bd1fbf59267e48aa74825ed1c823cd38fa",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-pilot-v1/beret-front.png",
+      "gitBlob": "7730667df7509910310b6cbf748bfd49771befe5",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-pilot-v1/beret-left.png",
+      "gitBlob": "e5dd6870b6e00376ead0cb42e681b0244ac178df",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-pilot-v1/beret-right.png",
+      "gitBlob": "66080407c5a9d999495a881a6fec3b2011e101ba",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-pilot-v1/generation.json",
+      "gitBlob": "709ff7a9b03e9e3cce168856969da9a440185a8c",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-pilot-v1/scarf-back.png",
+      "gitBlob": "4f82d462d9f5575858a8f4cc22fa16abeab4548f",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-pilot-v1/scarf-front.png",
+      "gitBlob": "a308055d3613b3ecad705553ebb9f8d88b34e343",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-pilot-v1/scarf-left.png",
+      "gitBlob": "b07727a7b2529bfc50a87acb86e0963550583dc6",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-pilot-v1/scarf-right.png",
+      "gitBlob": "cc9841b3b980117741429ac163c33a1f91b49784",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-pilot-v2/beret-back.png",
+      "gitBlob": "ad51d56bf45c56a60f292ad221a5a0b4e4bdac10",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-pilot-v2/beret-front.png",
+      "gitBlob": "69b87ba99ade4139bba85bb576456f41d91b5e1b",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-pilot-v2/beret-left.png",
+      "gitBlob": "67f624f8b00bd5b4c175cc91416aed88e4119141",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-pilot-v2/beret-right.png",
+      "gitBlob": "a07b2655f43a8463bf7252f6c711017f6f931390",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/meshy-worn-pilot-v2/generation.json",
+      "gitBlob": "8e47e112c649a0e5c112862ac8597d12319dc95a",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/nava-beret-concept-v1.json",
+      "gitBlob": "831f45216be4d1fcefcfb72b4952f0dd20a08767",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/nava-beret-isolated-turnaround-v1.png",
+      "gitBlob": "24e556eb41839f5a3a6ab5fb987a7646fd3a326a",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/mascot/reference/nava-beret-worn-turnaround-v1.png",
+      "gitBlob": "f2691789cfa88d8c494b6c1852b9119b81d2bc8f",
+      "reason": "Retired reference art; deletion also present in origin/main"
+    },
+    {
+      "path": "src/assets/shop/points-cards/printer-cat-press-sprite.png",
+      "gitBlob": "5c65025ba009ee71f5287cf88b1060d8acb43b82",
+      "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    }
+  ]
+}

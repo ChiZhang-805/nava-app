@@ -1,54 +1,28 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import { sampleWardrobeMascotMotion, wardrobeMascotMotions, wardrobeMascotTransform } from "../src/services/wardrobeMascotMotion.ts";
-import { sampleWardrobeClothMotion } from "../src/services/wardrobeClothMotion.ts";
+import assert from 'node:assert/strict';
+import { readdirSync } from 'node:fs';
+import test from 'node:test';
+import { wardrobeMascotMotions } from '../src/services/wardrobeMascotMotion.ts';
+import { readRuntimeGlb } from '../scripts/mascot-models/read-runtime-glb.mjs';
 
-test("every wardrobe action starts and ends on the exact still transform", () => {
-  assert.equal(wardrobeMascotMotions.length, 4);
-  for (const action of wardrobeMascotMotions) {
-    const first = sampleWardrobeMascotMotion(action.id, 0);
-    const last = sampleWardrobeMascotMotion(action.id, 1);
-    assert.deepEqual(last, first, `${action.id} must return to its source still`);
-    assert.equal(wardrobeMascotTransform(first), "translate3d(0, 0, 0)");
-    assert.equal(wardrobeMascotTransform(last), "translate3d(0, 0, 0)");
-    assert.equal(first.effectOpacity, 0);
-    assert.ok(action.durationMs >= 2000 && action.durationMs <= 3500);
+test('all shipped cats articulate local joints with stationary roots and matching endpoints', async()=>{
+ const root=new URL('../src/assets/mascot/models/',import.meta.url);
+ const files=['nava-wardrobe-cat.glb',...readdirSync(new URL('worn/',root)).filter(f=>f.endsWith('.glb')).map(f=>'worn/'+f)];
+ for(const file of files){
+  const {json,readAccessor}=await readRuntimeGlb(new URL(file,root));
+  assert.deepEqual(json.animations.map(a=>a.name).sort(),wardrobeMascotMotions.map(a=>a.clip).sort());
+  for(const descriptor of wardrobeMascotMotions){
+   const clip=json.animations.find(a=>a.name===descriptor.clip),moving=new Set();
+   for(const channel of clip.channels){
+    const sampler=clip.samplers[channel.sampler],times=readAccessor(sampler.input),values=readAccessor(sampler.output),name=json.nodes[channel.target.node].name;
+    assert.ok(Math.abs(times[0][0])<1e-6);
+    assert.ok(Math.abs(times.at(-1)[0]*1000-descriptor.durationMs)<.05);
+    if(name!=='YarnBall')for(let i=0;i<values[0].length;i++)assert.ok(Math.abs(values[0][i]-values.at(-1)[i])<.0001,`${file}/${descriptor.id}/${name}: endpoint`);
+    if(values.some(row=>row.some((v,i)=>Math.abs(v-values[0][i])>.003))){moving.add(name);assert.ok(!sampler.interpolation||sampler.interpolation==='LINEAR');}
+   }
+   assert.ok(moving.has('Head'),file+' head articulation');
+   assert.ok([...moving].some(n=>n.startsWith('ForePaw')),file+' forepaw articulation');
+   assert.ok(!moving.has('Root')&&!moving.has('Body'),file+' planted body');
+   if(descriptor.id==='yarn')assert.ok(moving.has('YarnBall'),file+' ball trajectory');
   }
-});
-
-test("actions actually move between their static endpoints", () => {
-  for (const action of wardrobeMascotMotions) {
-    const middle = sampleWardrobeMascotMotion(action.id, .5);
-    assert.notEqual(wardrobeMascotTransform(middle), "translate3d(0, 0, 0)", action.id);
-    assert.ok(middle.effectOpacity > 0, action.id);
-  }
-});
-
-test("out-of-range progress cannot leave the character between poses", () => {
-  for (const action of wardrobeMascotMotions) {
-    assert.equal(wardrobeMascotTransform(sampleWardrobeMascotMotion(action.id, -1)), "translate3d(0, 0, 0)");
-    assert.equal(wardrobeMascotTransform(sampleWardrobeMascotMotion(action.id, 2)), "translate3d(0, 0, 0)");
-  }
-});
-
-test("cloth bends stay in their fitted envelope and settle without an endpoint impulse", () => {
-  const rest = { cloth_relax: 0, cloth_lift: 0 };
-  assert.deepEqual(sampleWardrobeClothMotion(null, .5), rest);
-  for (const action of wardrobeMascotMotions) {
-    for (const progress of [-1, 0, 1, 2, NaN, Infinity]) {
-      assert.deepEqual(sampleWardrobeClothMotion(action.id, progress), rest);
-    }
-    for (let frame = 0; frame <= 240; frame++) {
-      for (const weight of Object.values(sampleWardrobeClothMotion(action.id, frame / 240))) {
-        assert.ok(Number.isFinite(weight) && weight >= 0 && weight <= 1, `${action.id}: fitted shape range`);
-      }
-    }
-    for (const weight of Object.values(sampleWardrobeClothMotion(action.id, .5))) assert.ok(weight > .1);
-    const epsilon = .00001;
-    for (const nearEndpoint of [epsilon, 1 - epsilon]) {
-      for (const weight of Object.values(sampleWardrobeClothMotion(action.id, nearEndpoint))) {
-        assert.ok(weight / epsilon < .001, `${action.id}: cloth must enter and settle with zero velocity`);
-      }
-    }
-  }
+ }
 });

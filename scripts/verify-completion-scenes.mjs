@@ -5,8 +5,9 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { IPHONE_PREVIEW_DEVICES } from '../src/constants/iphonePreviewDevices.ts';
 const engine=process.env.NAVA_SCENES_ENGINE==='webkit'?'webkit':'chromium';
+const layoutOnly=process.env.NAVA_SCENES_LAYOUT_ONLY==='1';
 const base=process.env.NAVA_SCENES_URL||'http://127.0.0.1:5173/';
-const out=`Q:/NAVA-Workspace/Build/TestRuns/celebration-scenes/${engine}`;
+const out=`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/celebration-scenes/${engine}${layoutOnly?'-layout':''}`;
 mkdirSync(out,{recursive:true});
 const dims=[...IPHONE_PREVIEW_DEVICES.map(d=>({id:d.id,width:d.logicalWidth,height:d.logicalHeight,top:d.calibration.safeTop,bottom:34})),
  {id:'compact',width:320,height:568,top:20,bottom:0},{id:'se',width:375,height:667,top:20,bottom:0},
@@ -24,7 +25,7 @@ try{
   const frame=page.frames().find(f=>f.url().includes('completion.html'));
   await frame.waitForSelector('.celebration-garden');
   const readyMs=Date.now()-loadStarted;
-  assert.ok(readyMs<1500,`Scene ${scene} took ${readyMs}ms to reveal on the local cold-load gate`);
+  if(!layoutOnly)assert.ok(readyMs<1500,`Scene ${scene} took ${readyMs}ms to reveal on the local cold-load gate`);
   assert.ok(await frame.evaluate(()=>[...document.images].every(img=>img.complete&&img.naturalWidth)),'The scene must reveal only after its background and actor are ready');
   await frame.waitForSelector('[data-ink="finished"]');
   await frame.waitForFunction(()=>[...document.images].every(img=>img.complete&&img.naturalWidth));
@@ -53,7 +54,7 @@ try{
    assert.ok(Math.abs(parseFloat(geometry.buttonStyle.fontSize)-Math.min(27,Math.max(23,d.width*.06)))<.02,JSON.stringify({scene,d,buttonStyle:geometry.buttonStyle}));
    assert.ok(geometry.title.y>=d.top-1&&geometry.text.bottom<geometry.cat.y&&geometry.cat.bottom<geometry.button.y,JSON.stringify({scene,d,geometry}));
    assert.ok(['none','normal'].includes(geometry.arrow));
-   await page.screenshot({path:`${out}/${scene}-${d.id}.png`});results.push({scene,device:d.id,...geometry});
+   await page.screenshot({path:`${out}/${scene}-${d.id}.png`});results.push({scene,device:d.id,readyMs,performanceGate:!layoutOnly,...geometry});
   }
   await frame.locator('.scene-continue').click();await page.waitForFunction(()=>window.dismissed===1);
   console.log(`Scene ${scene}: ${dims.length} sizes, ${readyMs}ms atomic reveal + animation + handwriting + Continue`);

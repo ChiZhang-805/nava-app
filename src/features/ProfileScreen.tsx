@@ -288,7 +288,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
       setWatchSnapshot(await readLastWatchSnapshot(user.id));
       return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (!(e instanceof Error && e.name === "AbortError")) setError(e instanceof Error ? e.message : String(e));
       return false;
     } finally {
       setBusy(null);

@@ -225,6 +225,36 @@ async function runScenario(scenario) {
     await ensureVisual(page, scenario);
     await expect(page.locator('.mascot-wardrobe-turntable')).toHaveAttribute('data-skin', 'skin-cream');
     await capture(page, result, scenario, 'cream');
+    if (!scenario.webglUnavailable) {
+      await page.locator('.mascot-wardrobe-view-toggle').click();
+      await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-view-mode', '2d');
+      await expect(page.locator('.mascot-wardrobe-flat-frame')).toBeVisible({ timeout: 30000 });
+      const source = await page.locator('.mascot-wardrobe-flat-frame').getAttribute('src');
+      requireCheck(result, /\/(?:src\/assets\/wardrobe\/front\/|assets\/)accessory-none(?:-[^/?]+)?\.png(?:\?.*)?$/.test(source ?? ''), `2D mode did not use the approved transparent frontal artwork: ${source}`);
+      const alpha = await page.locator('.mascot-wardrobe-flat-frame').evaluate(async (image) => {
+        await image.decode();
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+        const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+        const corner = context.getImageData(0, 0, 1, 1).data[3];
+        const center = context.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data[3];
+        return { corner, center };
+      });
+      requireCheck(result, alpha.corner === 0 && alpha.center > 0, `2D PNG alpha is wrong: ${JSON.stringify(alpha)}`);
+      await capture(page, result, scenario, 'flat-front');
+      await page.locator('.mascot-wardrobe-character').click();
+      await page.waitForTimeout(500);
+      const stableSource = await page.locator('.mascot-wardrobe-flat-frame').getAttribute('src');
+      requireCheck(result, stableSource === source, '2D preview changed away from the approved exact frontal artwork');
+      await page.getByRole('tab', { name: '饰品' }).click();
+      await page.locator('.mascot-wardrobe-item').filter({ hasText: '铃铛项圈' }).click();
+      await expect(page.locator('.mascot-wardrobe-flat-frame')).toHaveAttribute('src', /accessory-bell-collar/);
+      await page.locator('.mascot-wardrobe-flat-frame').evaluate((image) => image.decode());
+      await capture(page, result, scenario, 'flat-bell-collar');
+      await page.locator('.mascot-wardrobe-view-toggle').click();
+      await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-view-mode', '3d');
+      await page.getByRole('tab', { name: '皮肤' }).click();
+    }
 
     const warm = page.locator('.mascot-wardrobe-item').filter({ hasText: '暖橘' });
     const warmPoint = await warm.evaluate((element) => {

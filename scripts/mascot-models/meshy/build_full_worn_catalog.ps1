@@ -1,7 +1,7 @@
 param(
-  [string]$Blender = 'Q:\NAVA-Workspace\Tools\Blender\blender-5.2.2-windows-x64\blender.exe',
-  [string]$RawRoot = 'Q:\NAVA-Workspace\Build\TestRuns\meshy-worn-catalog-v1\api',
-  [string]$EvidenceRoot = 'Q:\NAVA-Workspace\Build\TestRuns\wardrobe-full-worn-v261\optimization',
+  [string]$Blender = 'Q:\NAVA-Workspace\NAVA-App\Tools\Blender\blender-5.2.2-windows-x64\blender.exe',
+  [string]$RawRoot = 'Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\meshy-worn-catalog-v1\api',
+  [string]$EvidenceRoot = 'Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\wardrobe-full-worn-v261\optimization',
   [string]$OutputRoot = 'src\assets\mascot\models\worn'
 )
 
@@ -26,9 +26,17 @@ $reports = foreach ($item in $catalog.accessories) {
   foreach ($required in @($inputModel, $inputTexture)) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw "Missing immutable input: $required" }
   }
+  # Blender 5.2 writes Python deprecation warnings to stderr even when the
+  # process succeeds. Capture that diagnostic stream without allowing
+  # PowerShell's Stop preference to misclassify a warning as a failed build;
+  # the native exit code and required outputs remain the actual hard gates.
+  $previousErrorAction = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
   $blenderOutput = & $Blender --background --python $optimizer -- --name $slug --input $inputModel --texture $inputTexture --output $outputModel --report $reportPath --texture-size 1536 --target-triangles 60000 2>&1
+  $blenderExitCode = $LASTEXITCODE
+  $ErrorActionPreference = $previousErrorAction
   $blenderOutput | Out-Host
-  if (-not (Test-Path -LiteralPath $outputModel -PathType Leaf) -or -not (Test-Path -LiteralPath $reportPath -PathType Leaf)) {
+  if ($blenderExitCode -ne 0 -or -not (Test-Path -LiteralPath $outputModel -PathType Leaf) -or -not (Test-Path -LiteralPath $reportPath -PathType Leaf)) {
     throw "Optimization failed for $slug"
   }
   Get-Content -Raw -LiteralPath $reportPath | ConvertFrom-Json

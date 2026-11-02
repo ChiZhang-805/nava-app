@@ -1,6 +1,6 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
-const out='Q:/NAVA-Workspace/Build/TestRuns/journal-integration/ui';mkdirSync(out,{recursive:true});
+const out='Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/journal-integration/ui';mkdirSync(out,{recursive:true});
 const browser=await chromium.launch({headless:true,args:['--disable-dev-shm-usage']});
 const page=await browser.newPage({viewport:{width:390,height:844}});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));

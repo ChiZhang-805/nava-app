@@ -43,64 +43,24 @@ async function dismissLaunch(page) {
 }
 
 async function completeOnboardingIfNeeded(page) {
-  await page.locator(".onboarding-screen, .phone-frame").first().waitFor({ state: "visible", timeout: 10_000 });
-  const onboarding = page.locator(".onboarding-screen");
-  if (!(await onboarding.isVisible().catch(() => false))) {
-    await expect(page.locator(".phone-frame")).toBeVisible();
-    return;
+  await page.locator('.onboarding-screen, .phone-frame').first().waitFor({state:'visible',timeout:15000});
+  if (await page.locator('.phone-frame').isVisible()) return;
+  const notes=page.frameLocator('.onboarding-screen iframe');
+  await expect(notes.locator('#screen')).toHaveAttribute('data-step','welcome',{timeout:30000});
+  await notes.locator('#next').click();
+  for(const key of ['gender','role','age','interests','sleep','exercise','diet']) {
+    await expect(notes.locator('#screen')).toHaveAttribute('data-step',key);
+    await notes.locator(`[data-question="${key}"]`).first().click();
+    if(['interests','diet'].includes(key))await notes.locator('#next').click();
   }
-
-  const welcome = page.locator(".onboarding-welcome");
-  if (await welcome.isVisible().catch(() => false)) {
-    await expect(page.locator(".onboarding-welcome__message")).toContainText("Hi! 很高兴认识你");
-    await expect(welcome).toBeHidden({ timeout: 5000 });
-  }
-
-  const profileSteps = [
-    { key: "gender", multi: false },
-    { key: "occupation", multi: false },
-    { key: "ageGroup", multi: false },
-    { key: "hobbies", multi: true },
-    { key: "sleepDuration", multi: false },
-    { key: "exerciseDuration", multi: false },
-    { key: "dietPreferences", multi: true },
-  ];
-
-  for (const profileStep of profileSteps) {
-    await expect(onboarding).toHaveAttribute("data-onboarding-step", profileStep.key);
-    await expect(page.locator(".onboarding-header small")).toHaveCount(0);
-    await expect(page.locator(".onboarding-question-copy > span")).toHaveCount(0);
-    await expect(page.locator(".onboarding-question-copy > p")).toHaveCount(0);
-    await expect(page.locator(".onboarding-gender-mascot")).toHaveCount(0);
-    if (profileStep.key === "gender") {
-      const genderLayout = await page.locator(".onboarding-question").evaluate((section) => {
-        const options = [...section.querySelectorAll(".onboarding-option-grid button")].map((button) => button.getBoundingClientRect());
-        return {
-          options: options.map((rect) => ({ left: rect.left, top: rect.top, width: rect.width, height: rect.height, bottom: rect.bottom })),
-          iconShapes: [...section.querySelectorAll(".onboarding-option-grid button svg")].map((svg) => svg.innerHTML),
-        };
-      });
-      if (genderLayout.options.length !== 3
-        || genderLayout.options.some((option) => Math.abs(option.left - genderLayout.options[0].left) > 1)
-        || genderLayout.options.some((option) => Math.abs(option.width - genderLayout.options[0].width) > 1)
-        || genderLayout.options.slice(1).some((option, index) => option.top <= genderLayout.options[index].bottom)
-        || genderLayout.options.some((option) => option.height < 100)
-        || new Set(genderLayout.iconShapes).size !== 3) {
-        throw new Error(`Gender onboarding layout mismatch: ${JSON.stringify(genderLayout)}`);
-      }
-    }
-    await page.locator(".onboarding-option-grid button").first().click();
-    if (profileStep.multi) {
-      await page.locator(".onboarding-next").click();
-    }
-  }
-
-  await expect(onboarding).toHaveAttribute("data-onboarding-step", "privacy");
-  await expect(page.locator(".onboarding-question-copy > span")).toHaveCount(0);
-  await expect(page.locator(".onboarding-question-copy > p")).toHaveCount(0);
-  await page.locator(".onboarding-consent-row input").first().check({ force: true });
-  await page.locator(".onboarding-next").click();
-  await expect(page.locator(".phone-frame")).toBeVisible();
+  await expect(notes.locator('#screen')).toHaveAttribute('data-step','goal');
+  await notes.locator('[data-option="sleep"]').click();await notes.locator('#next').click();
+  await notes.locator('[data-option="routine"]').click();await notes.locator('#next').click();
+  await expect(notes.locator('#screen')).toHaveAttribute('data-step','permissions');
+  await notes.locator('#next').click();
+  await expect(notes.locator('#screen')).toHaveAttribute('data-step','summary');
+  await notes.locator('#next').click();
+  await expect(page.locator('.phone-frame')).toBeVisible({timeout:15000});
 }
 
 async function beginLoginInterstitialWatch(page) {
@@ -1871,6 +1831,12 @@ async function main() {
       await verifyAuthControls(browser, baseUrl, results, consoleErrors);
       await verifyOtpLogin(browser, baseUrl, results, consoleErrors);
       await verifyRegistration(browser, baseUrl, results, consoleErrors);
+    }
+    if (process.argv.includes('--auth-only')) {
+      if(consoleErrors.length)throw new Error(consoleErrors.join('\n'));
+      await writeFile(path.join(outputDir,'auth-report.json'),JSON.stringify({passed:results,consoleErrors},null,2));
+      console.log(`Current authentication and notebook onboarding passed (${results.length} groups).`);
+      return;
     }
     if (!homeOnly && !reviewBaseUrl) await verifyPageSkeletons(browser, baseUrl, results, consoleErrors);
     if (!homeOnly && !reviewBaseUrl) await verifyModuleCompletionRouting(browser, baseUrl, results, consoleErrors);

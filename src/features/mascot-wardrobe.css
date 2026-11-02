@@ -84,7 +84,19 @@
   gap: 8px;
 }
 
-.mascot-wardrobe-status > div { display: flex; align-items: center; gap: 6px; }
+.mascot-wardrobe-view-toggle {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,.72);
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(85,91,202,.18);
+  box-shadow: 0 5px 14px rgba(35,39,112,.12);
+}
+.mascot-wardrobe-view-toggle:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
 .mascot-wardrobe-status span {
   min-height: 29px;
@@ -150,6 +162,15 @@
   min-height: 0;
   pointer-events: none;
   filter: none;
+}
+
+.mascot-wardrobe-character[data-view-mode="2d"] .mascot-wardrobe-turntable { visibility: hidden; }
+.mascot-wardrobe-character[data-view-mode="2d"] { cursor: default; }
+.mascot-wardrobe-flat-frame {
+  z-index: 2;
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
 }
 
 .mascot-wardrobe-character[data-renderer="loading"] .mascot-wardrobe-turntable,

@@ -9,7 +9,7 @@ const build=process.env.NAVA_RELEASE_DIST;
 assert.ok(build,'Set NAVA_RELEASE_DIST to the verified clean release build');
 const sitesBuild=process.env.NAVA_SITES_DIST;
 assert.ok(sitesBuild,'Set NAVA_SITES_DIST to the verified clean Sites release build');
-const out='Q:/NAVA-Workspace/Build/TestRuns/shop-navigation-products/public';await mkdir(out,{recursive:true});
+const out='Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/shop-navigation-products/public';await mkdir(out,{recursive:true});
 const hash=b=>createHash('sha256').update(b).digest('hex');
 const sources=[{id:'sites',url:'https://nava-app-preview-cz.chizhang1031.chatgpt.site/',assets:'',build:sitesBuild},{id:'pages',url:'https://chizhang-805.github.io/nava-app-preview/',assets:'assets/',build}];
 const browser=await chromium.launch({headless:true});const result=[];

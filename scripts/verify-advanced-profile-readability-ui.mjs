@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 applyProjectPublicEnv(process.cwd());
-const output = "Q:/NAVA-Workspace/Build/TestRuns/advanced-profile-readability";
+const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/advanced-profile-readability";
 const sizes = [[360, 740], [375, 812], [390, 844], [430, 932]];
 await mkdir(output, { recursive: true });
 const report = { passed: false, results: [] };

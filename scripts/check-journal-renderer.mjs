@@ -9,7 +9,7 @@ try{
  await frame.waitForFunction(()=>window.FluffyDebug?.animation.ready);await page.waitForTimeout(500);
  for(const [width,height]of [[402,874],[420,912],[320,568]]){
   await page.setViewportSize({width,height});await page.evaluate(height=>window.journalViewport(height,68,34),height);await page.waitForTimeout(80);
-  await page.screenshot({path:`Q:/NAVA-Workspace/Build/TestRuns/journal-integration/renderer-${width}.png`});
+  await page.screenshot({path:`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/journal-integration/renderer-${width}.png`});
  }
  const inspect=()=>frame.evaluate(()=>{const a=window.FluffyDebug.animation,g=a.actor.mesh?.gl;const p=a.ctx.getImageData(220,400,340,200).data;let visible=0;for(let i=3;i<p.length;i+=4)if(p[i]>30)visible++;return {scene:a.scene,renderer:a.metrics.renderer,failure:a.actor.rendererFailure,mesh:!!g,visiblePixels:visible};});
  const before=await inspect();assert.ok(before.visiblePixels>10000,'Mascot head must be drawn');
@@ -17,6 +17,6 @@ try{
  if(forced)await frame.waitForFunction(()=>!window.FluffyDebug.animation.actor.mesh);
  await page.waitForTimeout(200);const after=await inspect();assert.ok(after.visiblePixels>10000,'Fallback must preserve the mascot');
  if(forced)assert.equal(after.mesh,false);
- writeFileSync('Q:/NAVA-Workspace/Build/TestRuns/journal-integration/renderer-result.json',JSON.stringify({before,after,forced,passed:true},null,2));
+ writeFileSync('Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/journal-integration/renderer-result.json',JSON.stringify({before,after,forced,passed:true},null,2));
  console.log('Mascot layer and unavailable-GPU fallback verified.');
 }finally{await browser.close();}

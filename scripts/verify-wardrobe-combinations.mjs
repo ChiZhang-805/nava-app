@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { applyProjectPublicEnv } from './project-env.mjs';
 
 applyProjectPublicEnv(process.cwd());
-const output = resolve(process.env.NAVA_WARDROBE_EVIDENCE_DIR ?? 'Q:/NAVA-Workspace/Build/TestRuns/wardrobe-combinations');
+const output = resolve(process.env.NAVA_WARDROBE_EVIDENCE_DIR ?? 'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-combinations');
 const heads = ['mist-beret','star-moon-clip','mint-earmuffs','laurel-crown','sailor-hat','cherry-bow','lily-garland','night-voyage-cap'];
 const necks = ['bell-collar','cloud-scarf','pearl-bow','honey-neck-warmer','aurora-scarf'];
 const angles = [0, 90, 180, 270];

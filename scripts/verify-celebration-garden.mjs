@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { IPHONE_PREVIEW_DEVICES } from '../src/constants/iphonePreviewDevices.ts';
 const engine=process.env.NAVA_GARDEN_ENGINE==='webkit'?'webkit':'chromium';
 const base=process.env.NAVA_GARDEN_URL||'http://127.0.0.1:5173/';
-const out=`Q:/NAVA-Workspace/Build/TestRuns/celebration-garden/${engine}`;
+const out=`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/celebration-garden/${engine}`;
 mkdirSync(out,{recursive:true});
 const hash=b=>createHash('sha256').update(b).digest('hex');
 assert.equal(hash(readFileSync('src/assets/mascot/animated/home-idle.webp')),hash(readFileSync('public/journal/assets/garden-cat.webp')),'Keep the original animated frames');

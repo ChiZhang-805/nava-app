@@ -5,7 +5,7 @@ import { chromium, expect } from '@playwright/test';
 import { createServer } from 'vite';
 import { applyProjectPublicEnv } from './project-env.mjs';
 applyProjectPublicEnv(process.cwd());
-const out='Q:/NAVA-Workspace/Build/TestRuns/cold-start';await mkdir(out,{recursive:true});
+const out='Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/cold-start';await mkdir(out,{recursive:true});
 const server=await createServer({logLevel:'silent',server:{host:'127.0.0.1',port:5269,strictPort:true}});await server.listen();
 const browser=await chromium.launch();const results=[];
 try{

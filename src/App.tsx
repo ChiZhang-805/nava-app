@@ -1034,7 +1034,7 @@ function AppContent({
   else if (onboardingError) {
     screen = <main className="app-screen centered-screen"><div className="brand-mark warn"><Activity size={28} /></div><h1>{locale === "zh" ? "暂时无法进入" : "Unable to continue"}</h1><p className="muted">{onboardingError}</p><button className="primary" type="button" onClick={() => setOnboardingRetryKey((value) => value + 1)}>{locale === "zh" ? "重新检查" : "Retry"}</button></main>;
   } else if (checkingOnboarding) {
-    screen = signedOutScreenSeen.current ? <AuthScreen transitionPending /> : <DelayedLoadingScreen />;
+    screen = <DelayedLoadingScreen />;
   } else if (onboardingRoute?.required) {
     screen = <OnboardingScreen user={user} status={onboardingRoute.status} mode={onboardingRoute.mode} onComplete={(status) => {
       const url = new URL(window.location.href);

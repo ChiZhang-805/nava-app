@@ -9,7 +9,7 @@
 - `../meshy/merge_worn_catalog.py`：把17个完整佩戴模型按质量策略并入同一可编辑母版；组合阶段不再调用生成API。
 
 ```powershell
-& 'Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blender.exe' --background --factory-startup --python scripts/mascot-models/nava-cat-rigged/export_from_blend.py -- --output src/assets/mascot/models/nava-wardrobe-cat.glb
+& 'Q:/NAVA-Workspace/NAVA-App/Tools/Blender/blender-5.2.2-windows-x64/blender.exe' --background --factory-startup --python scripts/mascot-models/nava-cat-rigged/export_from_blend.py -- --output src/assets/mascot/models/nava-wardrobe-cat.glb
 ```
 
 衣橱缩略图来自相同GLB、材质和固定相机：
@@ -21,7 +21,7 @@ node scripts/mascot-models/render_wardrobe_thumbnails.mjs
 饰品独立重导：
 
 ```powershell
-& 'Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blender.exe' --background --factory-startup --python scripts/mascot-models/nava-cat-rigged/export_accessories_from_blend.py -- --source scripts/mascot-models/nava-cat-rigged/nava-accessories-editable.blend --output src/assets/mascot/models/nava-wardrobe-accessories.glb
+& 'Q:/NAVA-Workspace/NAVA-App/Tools/Blender/blender-5.2.2-windows-x64/blender.exe' --background --factory-startup --python scripts/mascot-models/nava-cat-rigged/export_accessories_from_blend.py -- --source scripts/mascot-models/nava-cat-rigged/nava-accessories-editable.blend --output src/assets/mascot/models/nava-wardrobe-accessories.glb
 ```
 
 饰品为17,533,312字节、374,086三角面、27材质、11图像、17物品；独立重导SHA256为
@@ -36,13 +36,13 @@ node scripts/mascot-models/render_wardrobe_thumbnails.mjs
 可编辑重建（输出到项目证据目录，避免覆盖当前母版）：
 
 ```powershell
-& 'Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blender.exe' --background --factory-startup --python scripts/mascot-models/nava-cat-rigged/build_soft_scarves.py -- --source scripts/mascot-models/nava-cat-rigged/nava-accessories-editable.blend --envelope scripts/mascot-models/nava-cat-rigged/surface-envelope.json --output-blend Q:/NAVA-Workspace/Build/TestRuns/scarf-rebuild/rebuilt.blend --output-glb Q:/NAVA-Workspace/Build/TestRuns/scarf-rebuild/rebuilt.glb
+& 'Q:/NAVA-Workspace/NAVA-App/Tools/Blender/blender-5.2.2-windows-x64/blender.exe' --background --factory-startup --python scripts/mascot-models/nava-cat-rigged/build_soft_scarves.py -- --source scripts/mascot-models/nava-cat-rigged/nava-accessories-editable.blend --envelope scripts/mascot-models/nava-cat-rigged/surface-envelope.json --output-blend Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/scarf-rebuild/rebuilt.blend --output-glb Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/scarf-rebuild/rebuilt.glb
 ```
 
 全量17件单品、40种头颈组合、真动作和APP证据保留在
-`Q:/NAVA-Workspace/Build/TestRuns/meshy-worn-catalog-v1`。v258/v259历史输入分别保留在
-`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-accessory-fit-v258` 与
-`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-scarf-softness-v259`。
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/meshy-worn-catalog-v1`。v258/v259历史输入分别保留在
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-accessory-fit-v258` 与
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-scarf-softness-v259`。
 
 ## 坐标与动作
 
@@ -70,7 +70,7 @@ Anchor_Chest、Anchor_Back、Anchor_Paw_L、Anchor_Paw_R。挂件使用关节相
 `ecc582e973fd29a417e83619c76e522568c0593c1597451ab979f10e3a34eacd`）。
 角色身份参照原v5正面；侧背造型属于生成和后续人工调整的设计推断。
 完整几何构建、UV转移与前后对照保存在
-`Q:/NAVA-Workspace/Build/TestRuns/mascot-rebuild-research`。
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/mascot-rebuild-research`。
 
 最终生产猫为123,764三角面、87,032导出顶点、1材质、14骨、4动作，9,569,944字节。
 母版独立重导已与生产GLB逐字节一致。真实手机GPU性能/功耗须在设备上单独验证。

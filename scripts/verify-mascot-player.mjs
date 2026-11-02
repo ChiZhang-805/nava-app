@@ -3,7 +3,7 @@ import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
-const root = process.cwd(), output = "Q:/NAVA-Workspace/Build/TestRuns/mascot-continuity";
+const root = process.cwd(), output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/mascot-continuity";
 await mkdir(output, { recursive: true });
 applyProjectPublicEnv(root);
 const server = await createServer({ root, server: { host: "127.0.0.1", port: 5232, strictPort: true }, logLevel: "silent" });

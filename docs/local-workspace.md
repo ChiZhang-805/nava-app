@@ -4,7 +4,7 @@
 落在这个根下面，不得在 `Q:\` 或旧 `Z:\NAVA` 路径创建新内容：
 
 ```text
-Q:\NAVA-Workspace
+Q:\NAVA-Workspace\NAVA-App
 ├─ nava-app
 ├─ nava-app-preview
 ├─ Build
@@ -23,13 +23,13 @@ Q:\NAVA-Workspace
 
 ## Paths
 
-- `Q:\NAVA-Workspace\nava-app`: APP 主工程，也是日常开发唯一入口。
-- `Q:\NAVA-Workspace\nava-app-preview`: 独立的静态预览发布仓库，
+- `Q:\NAVA-Workspace\NAVA-App\nava-app`: APP 主工程，也是日常开发唯一入口。
+- `Q:\NAVA-Workspace\NAVA-App\nava-app-preview`: 独立的静态预览发布仓库，
   不是 `nava-app` 的 worktree 或 submodule。
-- `Q:\NAVA-Workspace\Data`: 固定算法数据集和 benchmark 输出；大文件不提交 Git。
-- `Q:\NAVA-Workspace\Build`: Sites 包、跨项目测试证据和构建历史。
-- `Q:\NAVA-Workspace\Caches`: 可重建虚拟环境与工具缓存；不得保存唯一结果。
-- `Q:\NAVA-Workspace\Archive`: 带清单和来源的历史材料。
+- `Q:\NAVA-Workspace\NAVA-App\Data`: 固定算法数据集和 benchmark 输出；大文件不提交 Git。
+- `Q:\NAVA-Workspace\NAVA-App\Build`: Sites 包、跨项目测试证据和构建历史。
+- `Q:\NAVA-Workspace\NAVA-App\Caches`: 可重建虚拟环境与工具缓存；不得保存唯一结果。
+- `Q:\NAVA-Workspace\NAVA-App\Archive`: 带清单和来源的历史材料。
 
 脚本必须从脚本文件位置解析 `nava-app` 和 workspace 根，不能把
 `process.cwd()` 当成可信项目根。需要引用另一个 Web 仓库时显式设置

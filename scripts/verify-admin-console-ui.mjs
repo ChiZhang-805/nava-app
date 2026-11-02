@@ -6,7 +6,7 @@ import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:/NAVA-Workspace/Build/TestRuns/admin-console-navigation";
+const outputDir = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/admin-console-navigation";
 const port = 5227;
 const demoUserId = "00000000-0000-4000-8000-000000000001";
 const report = [];

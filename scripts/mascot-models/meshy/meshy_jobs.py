@@ -25,13 +25,14 @@ import uuid
 sys.dont_write_bytecode = True
 from meshy_pipeline import request
 
-BUILD_ROOT = Path('Q:/NAVA-Workspace/Build')
+BUILD_ROOT = Path('Q:/NAVA-Workspace/NAVA-App/Build')
 ENDPOINT = '/openapi/v1/multi-image-to-3d'
 CATALOG_PATH = Path(__file__).with_name('accessory-catalog-v1.json')
 CATALOG = json.loads(CATALOG_PATH.read_text(encoding='utf-8'))
 CATALOG_NAMES = tuple(item['slug'] for item in CATALOG['accessories'])
-# Keep the two historical task folders readable for status/download recovery.
-NAMES = tuple(dict.fromkeys((*CATALOG_NAMES, 'beret', 'scarf')))
+# Keep the two historical task folders readable for status/download recovery,
+# and allow the canonical no-accessory cat in full-catalog reconstruction runs.
+NAMES = tuple(dict.fromkeys((*CATALOG_NAMES, 'base', 'beret', 'scarf')))
 EXPECTED_CREDITS = 40
 FIXED_PARAMS = {
     'ai_model': 'latest', 'geometry_resolution': '2k',
@@ -537,7 +538,7 @@ def main():
     for action in ('submit', 'status', 'download'):
         command = commands.add_parser(action)
         command.add_argument('--name', choices=NAMES, required=True)
-        command.add_argument('--root', required=True, help='One shared batch directory beneath Q:/NAVA-Workspace/Build; keep it for both named jobs')
+        command.add_argument('--root', required=True, help='One shared batch directory beneath Q:/NAVA-Workspace/NAVA-App/Build; keep it for both named jobs')
         if action == 'submit':
             command.add_argument('--images', nargs=4, required=True, metavar=('FRONT', 'LEFT', 'BACK', 'RIGHT'))
         else:
