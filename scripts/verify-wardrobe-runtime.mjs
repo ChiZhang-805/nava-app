@@ -5,7 +5,7 @@ import { createServer } from 'vite';
 import { applyProjectPublicEnv } from './project-env.mjs';
 
 applyProjectPublicEnv(process.cwd());
-const output='Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-v3/runtime/renderer';
+const output='Q:/NAVA-Workspace/Build/TestRuns/wardrobe-v3/runtime/renderer';
 await mkdir(output,{recursive:true});
 const manifest=JSON.parse(await readFile('scripts/mascot-models/wardrobe-production.json','utf8'));
 const server=await createServer({server:{host:'127.0.0.1',port:5297,strictPort:true},logLevel:'silent',plugins:[{name:'wardrobe-test-harness',configureServer(server){server.middlewares.use('/__wardrobe-check',(_req,res)=>{res.setHeader('Content-Type','text/html');res.end('<html><body style="margin:0;background:#dcecf9"><canvas style="display:block;width:640px;height:640px"></canvas></body></html>')})}}]});

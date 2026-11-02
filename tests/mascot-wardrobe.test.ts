@@ -19,16 +19,15 @@ test("profile quick access and the app shell expose the cat wardrobe", () => {
   assert.match(profile, /lazy\(\(\) => import\("\.\/MascotWardrobe"\)\)/);
 });
 
-test("wardrobe artwork is layered instead of relying on fixed composites", () => {
-  assert.match(component, /className="mascot-wardrobe-skin"/);
-  assert.match(component, /className="mascot-wardrobe-accessory"/);
+test("wardrobe background stays layered while model fallback uses the exact approved front", () => {
+  assert.match(component, /wardrobe2dFrontImage\(preview\?\.accessoryIds \?\? \[\]\)/);
+  assert.match(component, /mascot-wardrobe-model-fallback/);
   assert.match(component, /className="mascot-wardrobe-background"/);
   assert.match(component, /is-\$\{background\.previewClass\}/);
   assert.match(service, /accessory-cloud-scarf\.png/);
   assert.match(service, /accessory-mist-beret\.png/);
   assert.match(service, /accessory-bell-collar\.png/);
   assert.doesNotMatch(service, /id: "accessory-none", category: "accessory"/);
-  assert.match(component, /accessories\.map/);
 });
 
 test("wardrobe exposes exactly 17 visual choices in every category", () => {
@@ -65,6 +64,12 @@ test("2D mode maps the approved base and 17 accessory fronts", () => {
   assert.match(flatFronts, /"accessory-none": baseFront/);
   assert.match(flatFronts, /"accessory-bell-collar": bellCollarFront/);
   assert.match(flatFronts, /accessoryIds\[accessoryIds\.length - 1\]/);
+  assert.match(flatFronts, /wardrobe2dBaseMotionLayers/);
+  assert.match(component, /className="mascot-wardrobe-flat-rig"/);
+  assert.match(component, /className="mascot-wardrobe-flat-paw"/);
+  assert.match(component, /setPlayingMotion\("wave"\)/);
+  assert.match(styles, /@keyframes wardrobe-2d-double-wave/);
+  assert.match(styles, /@keyframes wardrobe-2d-ambient-wave/);
 });
 
 test("wardrobe layout retains touch targets and responsive phone states", () => {
@@ -75,7 +80,14 @@ test("wardrobe layout retains touch targets and responsive phone states", () => 
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(styles, /grid-template-rows: repeat\(2,/);
   assert.match(styles, /overflow-x: auto/);
-  assert.match(styles, /grid-template-columns: repeat\(3,/);
+  assert.match(styles, /\.mascot-wardrobe-page \{[^}]*grid-template-columns: repeat\(2,/s);
+  assert.match(component, /Math\.ceil\(currentItems\.length \/ 4\)/);
+  assert.match(component, /currentItems\.slice\(index \* 4, index \* 4 \+ 4\)/);
+  assert.match(component, /className="mascot-wardrobe-preview-frame"/);
+  assert.match(styles, /\.mascot-wardrobe-preview-frame \{[^}]*border: 1px dashed[^}]*pointer-events: none;/s);
+  assert.match(styles, /data-app-skin="glacier-mist"[^}]+\.mascot-wardrobe-preview/s);
+  assert.match(styles, /data-app-skin="violet-dusk"[^}]+\.mascot-wardrobe-preview/s);
+  assert.match(styles, /data-app-skin="sky-ripple"[^}]+\.mascot-wardrobe-preview/s);
   assert.match(component, /className="mascot-wardrobe-pagination"/);
   assert.match(component, /onScroll=\{\(event\) =>/);
   assert.match(component, /scrollToPage\(pageIndex\)/);
@@ -101,6 +113,14 @@ test("every accessory choice maps to one complete worn-cat GLB", () => {
   const ids = [...service.matchAll(/id: "(accessory-[^"]+)", category: "accessory"/g)].map((match) => match[1]);
   assert.equal((wornModels.match(/\.glb", import\.meta\.url/g) ?? []).length, 17);
   for (const id of ids) assert.match(wornModels, new RegExp(`"${id}"`));
+});
+
+test("a newly selected accessory never displays the previous 3D model while loading", () => {
+  assert.match(component, /turntableStatus !== "ready" && <img className="mascot-wardrobe-flat-frame mascot-wardrobe-model-fallback"/);
+  assert.match(styles, /data-renderer="loading"[^}]+\.mascot-wardrobe-turntable/s);
+  const turntable = readFileSync(new URL("../src/components/WardrobeTurntable.tsx", import.meta.url), "utf8");
+  assert.match(turntable, /dataset\.wornModel !== expected/);
+  assert.match(turntable, /attributeFilter: \["data-worn-model", "data-pending-model", "data-model-error"\]/);
 });
 
 test("wardrobe redemption is authenticated, idempotent and shares reward balance", () => {

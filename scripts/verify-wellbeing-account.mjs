@@ -14,7 +14,7 @@ const client = createClient(url, process.env.VITE_SUPABASE_PUBLISHABLE_KEY, { au
 let browser, server;
 let stage = "account-authentication";
 const results = [];
-const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wellbeing-tools";
+const output = "Q:/NAVA-Workspace/Build/TestRuns/wellbeing-tools";
 const target = process.env.NAVA_WELLBEING_UI_URL ? new URL(process.env.NAVA_WELLBEING_UI_URL).hostname : "local-source";
 const startedAt = new Date().toISOString();
 await mkdir(output, { recursive: true });

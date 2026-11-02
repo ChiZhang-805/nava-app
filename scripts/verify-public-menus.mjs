@@ -6,7 +6,7 @@ import path from "node:path";
 import { chromium, expect } from "@playwright/test";
 const email = process.env.NAVA_ACCOUNT_EMAIL, password = process.env.NAVA_ACCOUNT_PASSWORD;
 if (!email || !password) throw new Error("Use the secure launcher.");
-const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/menus-locale/public";
+const output = "Q:/NAVA-Workspace/Build/TestRuns/menus-locale/public";
 await mkdir(output, { recursive: true });
 const receipt = { passed: false, nativePermissionTested: false, aiTested: false, results: [] };
 const browser = await chromium.launch({ headless: true });

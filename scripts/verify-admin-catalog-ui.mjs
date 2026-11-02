@@ -5,7 +5,7 @@ import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 applyProjectPublicEnv(process.cwd());
-const out = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/admin-catalog";
+const out = "Q:/NAVA-Workspace/Build/TestRuns/admin-catalog";
 await mkdir(out, { recursive: true });
 const html = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div><script type="module">
 import React from 'react';import ReactDOM from 'react-dom/client';import {LocaleProvider} from '/src/i18n.tsx';

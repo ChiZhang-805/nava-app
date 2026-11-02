@@ -181,7 +181,7 @@ Windows 与网页验收不能替代签名安装包和真实 iPhone 前台/后台
 Sites v151 与 GitHub Pages 已从同一源码 `2642762f29589a91d780555a1496d62b5ccadcc6`
 发布；两站分别通过真实表单登录（带 `?demo=1` 仍要求认证）、四项保存/回读/刷新、
 单独关闭午餐与精确恢复原设置。回执包含本轮开始时间与失败默认状态；证据在
-`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/independent-reminders/account-*.json`。
+`Q:/NAVA-Workspace/Build/TestRuns/independent-reminders/account-*.json`。
 四档手机与1440桌面提醒布局、开关、餐次跳转和模拟均通过；外部浏览器串行运行。
 本地演示测试不是生产持久化或原生送达证据。
 

@@ -4,7 +4,7 @@ import {chromium,expect} from '@playwright/test';
 import {createServer} from 'vite';
 import {applyProjectPublicEnv} from './project-env.mjs';
 applyProjectPublicEnv(process.cwd());
-const output=process.env.NAVA_WARDROBE_EVIDENCE_DIR?`${process.env.NAVA_WARDROBE_EVIDENCE_DIR}/motion`:'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-mascot-motion';await mkdir(output,{recursive:true});
+const output=process.env.NAVA_WARDROBE_EVIDENCE_DIR?`${process.env.NAVA_WARDROBE_EVIDENCE_DIR}/motion`:'Q:/NAVA-Workspace/Build/TestRuns/wardrobe-mascot-motion';await mkdir(output,{recursive:true});
 const server=await createServer({server:{host:'127.0.0.1',port:5261,strictPort:true},logLevel:'silent'});await server.listen();
 const browser=await chromium.launch({headless:true,args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
 const actions=[['wave',3200],['yarn',5000],['stretch',3500]],report={passed:false,sizes:[],errors:[]};

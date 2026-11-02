@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-const { PGlite } = await import(pathToFileURL(process.env.NAVA_PGLITE || "Q:/NAVA-Workspace/NAVA-App/Tools/reward-db-check/node_modules/@electric-sql/pglite/dist/index.js").href);
+const { PGlite } = await import(pathToFileURL(process.env.NAVA_PGLITE || "Q:/NAVA-Workspace/Tools/reward-db-check/node_modules/@electric-sql/pglite/dist/index.js").href);
 const db = new PGlite();
 const admin = "11111111-1111-4111-8111-111111111111", member = "22222222-2222-4222-8222-222222222222";
 let checks = 0;

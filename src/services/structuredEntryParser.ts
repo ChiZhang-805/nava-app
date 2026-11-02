@@ -640,7 +640,7 @@ function updateSingleEntry(candidate: StructuredEntry, fieldId: string, value: s
   if (!fieldToUpdate) return candidate;
   const payload = structuredClone(candidate.payload);
   if (fieldToUpdate.readOnly) return candidate;
-  if (fieldToUpdate.path && !(candidate.type === "nutrition" && payload.source === "vision")) {
+  if (fieldToUpdate.path) {
     setByPath(payload, fieldToUpdate.path, value, fieldToUpdate.valueType);
   }
   let fields = candidate.fields.map((item) => item.id === fieldId ? { ...item, value } : item);
@@ -648,16 +648,6 @@ function updateSingleEntry(candidate: StructuredEntry, fieldId: string, value: s
   if (candidate.type === "nutrition") {
     if (payload.source === "vision") {
       const items = Array.isArray(payload.items) ? payload.items as FoodItem[] : [];
-      const match = fieldToUpdate.path?.match(/^items\.(\d+)\.(weight_grams|calories|amount)$/);
-      if (match) {
-        const index = Number(match[1]);
-        const current = items[index];
-        if (current) items[index] = match[2] === "weight_grams"
-          ? resizeFoodItemPortion(current, Number(value))
-          : match[2] === "calories"
-            ? correctFoodItemCalories(current, optionalNonNegative(value))
-            : { ...current, amount: value.trim() };
-      }
       if (fieldToUpdate.path === "totalCalories" && Number.isFinite(Number(value)) && Number(value) >= 0) {
         const target = Math.round(Number(value));
         const previous = items.reduce((sum, item) => sum + Math.max(0, Number(item.calories) || 0), 0);
@@ -673,15 +663,13 @@ function updateSingleEntry(candidate: StructuredEntry, fieldId: string, value: s
       const totals = sumFoodItemNutrition(items);
       payload.totalCalories = totals.calories;
       payload.calories = totals.calories;
-      // Editing energy alone cannot invalidate independently known meal macros.
-      if (fieldToUpdate.path?.endsWith("weight_grams")) {
-        payload.proteinGrams = totals.proteinGrams;
-        payload.carbohydrateGrams = totals.carbohydrateGrams;
-        payload.fatGrams = totals.fatGrams;
-      }
+      payload.proteinGrams = totals.proteinGrams;
+      payload.carbohydrateGrams = totals.carbohydrateGrams;
+      payload.fatGrams = totals.fatGrams;
+      payload.name = items.map((item) => item.name).filter(Boolean).join("、");
       fields = fields.map((item) => {
-        const itemMatch = item.path?.match(/^items\.(\d+)\.(weight_grams|calories|amount)$/);
-        if (itemMatch) return { ...item, value: String(items[Number(itemMatch[1])]?.[itemMatch[2] as "weight_grams" | "calories" | "amount"] ?? "") };
+        const itemMatch = item.path?.match(/^items\.(\d+)\.(name|weight_grams|calories|amount|protein_grams|carbohydrate_grams|fat_grams)$/);
+        if (itemMatch) return { ...item, value: String((items[Number(itemMatch[1])] as unknown as Record<string, unknown>)?.[itemMatch[2]] ?? "") };
         const path = item.path ?? "";
         if (["totalCalories", "proteinGrams", "carbohydrateGrams", "fatGrams"].includes(path)) return { ...item, value: payload[path] == null ? "" : String(payload[path]) };
         return item;
@@ -760,8 +748,23 @@ export function applyPhotoNutritionCorrection(candidate: StructuredEntry, reply:
       const backward = reply.match(new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${unit}[^。；,，]{0,8}?${escaped}`, "i"));
       const value = Number(forward?.[1] ?? backward?.[1]);
       if (!Number.isFinite(value) || value <= 0) continue;
-      const field = next.fields.find((entry) => entry.path === `items.${index}.${path}`);
-      if (field) next = updateStructuredEntryField(next, field.id, String(value));
+      const currentItems = Array.isArray(next.payload.items) ? next.payload.items as FoodItem[] : [];
+      const current = currentItems[index];
+      if (!current) continue;
+      const corrected = path === "weight_grams" ? resizeFoodItemPortion(current, value) : correctFoodItemCalories(current, value);
+      const correctedItems = currentItems.map((entry, itemIndex) => itemIndex === index ? corrected : entry);
+      const totals = sumFoodItemNutrition(correctedItems);
+      const payload = { ...next.payload, items: correctedItems, totalCalories: totals.calories, calories: totals.calories, proteinGrams: totals.proteinGrams, carbohydrateGrams: totals.carbohydrateGrams, fatGrams: totals.fatGrams };
+      const fields = next.fields.map((entry) => {
+        const itemMatch = entry.path?.match(/^items\.(\d+)\.(name|weight_grams|calories|amount|protein_grams|carbohydrate_grams|fat_grams)$/);
+        if (itemMatch) return { ...entry, value: String((correctedItems[Number(itemMatch[1])] as unknown as Record<string, unknown>)?.[itemMatch[2]] ?? "") };
+        if (["totalCalories", "proteinGrams", "carbohydrateGrams", "fatGrams"].includes(entry.path ?? "")) {
+          const aggregate = (payload as Record<string, unknown>)[entry.path!];
+          return { ...entry, value: aggregate == null ? "" : String(aggregate) };
+        }
+        return entry;
+      });
+      next = { ...next, payload, fields };
     }
   }
   return next;

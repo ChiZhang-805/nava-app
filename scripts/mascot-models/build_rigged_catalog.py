@@ -6,8 +6,8 @@ import argparse,json,subprocess,sys
 from pathlib import Path
 from PIL import Image,ImageDraw
 ROOT=Path(__file__).resolve().parent
-ASSETS=Path('Q:/NAVA-Workspace/NAVA-App/Build/Assets/Mascot/wardrobe-v3')
-BLENDER=Path('Q:/NAVA-Workspace/NAVA-App/Tools/Blender/blender-5.2.2-windows-x64/blender.exe')
+ASSETS=Path('Q:/NAVA-Workspace/Build/Assets/Mascot/wardrobe-v3')
+BLENDER=Path('Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blender.exe')
 def main():
     p=argparse.ArgumentParser();p.add_argument('--part',type=int,default=0);p.add_argument('--parts',type=int,default=1);a=p.parse_args()
     manifest=json.loads((ROOT/'wardrobe-production.json').read_text(encoding='utf-8'))

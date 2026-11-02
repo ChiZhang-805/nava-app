@@ -71,6 +71,7 @@ const knownToolIds = new Set([
 ]);
 
 const commonFoods: CommonFoodReference[] = [
+  { pattern: /烤鸡|烧鸡|roast(?:ed)? chicken|chicken roasted/i, query: "chicken roasted meat and skin", displayName: "烤鸡", serving: "1份（约150克）", caloriesKcal: 359, proteinG: 41, carbohydrateG: 0, fatG: 20.4 },
   { pattern: /披萨|比萨|pizza/i, query: "pizza cheese regular crust", displayName: "普通芝士披萨", serving: "1片（常见单份）", caloriesKcal: 270, proteinG: 12, carbohydrateG: 33, fatG: 10 },
   { pattern: /鸡蛋|煮蛋|egg/i, query: "egg whole cooked", displayName: "鸡蛋", serving: "1个大号", caloriesKcal: 78, proteinG: 6.3, carbohydrateG: 0.6, fatG: 5.3 },
   { pattern: /香蕉|banana/i, query: "banana raw", displayName: "香蕉", serving: "1根中等", caloriesKcal: 105, proteinG: 1.3, carbohydrateG: 27, fatG: 0.4 },

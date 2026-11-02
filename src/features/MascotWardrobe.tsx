@@ -5,7 +5,7 @@ import { wardrobeDragAngle } from "../services/wardrobeTurntable";
 import { toggleWardrobeAccessory } from "../services/wardrobeAccessorySlots";
 import { useLocale } from "../i18n";
 import { wardrobeMascotMotions, type WardrobeMascotMotion } from "../services/wardrobeMascotMotion";
-import { wardrobe2dFrontImage } from "../services/wardrobe2d";
+import { wardrobe2dBaseMotionLayers, wardrobe2dFrontImage } from "../services/wardrobe2d";
 import {
   equipMascotWardrobeLook,
   loadMascotWardrobeState,
@@ -137,7 +137,7 @@ export default function MascotWardrobe() {
   const accessories = preview ? preview.accessoryIds.map(wardrobeItem) : [];
   const background = preview ? wardrobeItem(preview.backgroundId) : null;
   const currentItems = useMemo(() => wardrobeItems(activeCategory), [activeCategory]);
-  const itemPages = useMemo(() => Array.from({ length: Math.ceil(currentItems.length / 6) }, (_, index) => currentItems.slice(index * 6, index * 6 + 6)), [currentItems]);
+  const itemPages = useMemo(() => Array.from({ length: Math.ceil(currentItems.length / 4) }, (_, index) => currentItems.slice(index * 4, index * 4 + 4)), [currentItems]);
   const previewItemIds = preview ? [preview.skinId, ...preview.accessoryIds, preview.backgroundId] : [];
   const lockedPreviewItems = state ? previewItemIds.filter((itemId) => !state.unlockedItemIds.includes(itemId)).map(wardrobeItem) : [];
   const focusedItem = focusedItemId ? wardrobeItem(focusedItemId) : null;
@@ -145,6 +145,7 @@ export default function MascotWardrobe() {
   const sheetItem = sheetItemId ? wardrobeItem(sheetItemId) : actionItem;
   const previewOwned = lockedPreviewItems.length === 0;
   const flatFront = wardrobe2dFrontImage(preview?.accessoryIds ?? []);
+  const flatMotionLayers = preview?.accessoryIds.length === 0 ? wardrobe2dBaseMotionLayers : null;
 
   useEffect(() => {
     setActivePage(0);
@@ -179,7 +180,14 @@ export default function MascotWardrobe() {
   }, [playingMotion, previewMode, turntableStatus]);
 
   const playMascotMotion = () => {
-    if (previewMode === "2d" || turntableStatus !== "ready" || motionLockedRef.current || playingMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (motionLockedRef.current || playingMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (previewMode === "2d") {
+      if (!flatMotionLayers) return;
+      motionLockedRef.current = true;
+      setPlayingMotion("wave");
+      return;
+    }
+    if (turntableStatus !== "ready") return;
     motionLockedRef.current = true;
     const next = wardrobeMascotMotions[nextMotionIndex];
     setPlayingMotion(next.id);
@@ -278,13 +286,14 @@ export default function MascotWardrobe() {
       <div className={`mascot-wardrobe-preview is-${background.previewClass}`} ref={previewRef}>
         {background.art && <img className="mascot-wardrobe-background" src={background.art} alt="" draggable={false} />}
         <div className="mascot-wardrobe-preview-lines" aria-hidden="true" />
+        <div className="mascot-wardrobe-preview-frame" aria-hidden="true" />
         <div className="mascot-wardrobe-status">
           <button className="mascot-wardrobe-view-toggle" type="button" onClick={() => setPreviewMode((mode) => mode === "3d" ? "2d" : "3d")} aria-label={previewMode === "3d" ? (locale === "zh" ? "切换到二维正面" : "Switch to 2D front view") : (locale === "zh" ? "切换到三维预览" : "Switch to 3D preview")} title={previewMode === "3d" ? "2D" : "3D"}>
             {previewMode === "3d" ? <ImageIcon size={18} aria-hidden="true" /> : <Box size={18} aria-hidden="true" />}
           </button>
           <strong aria-label={locale === "zh" ? `当前有 ${state.balance} 积分` : `${state.balance} points`}><Coins size={14} aria-hidden="true" />{state.balance}</strong>
         </div>
-        <button className="mascot-wardrobe-character" ref={characterRef} type="button" disabled={reducedMotion || turntableStatus === "loading"} aria-disabled={playingMotion ? true : undefined} data-renderer={turntableStatus} data-view-mode={previewMode}
+        <button className="mascot-wardrobe-character" ref={characterRef} type="button" disabled={reducedMotion || (previewMode === "3d" && turntableStatus === "loading")} aria-disabled={playingMotion ? true : undefined} data-renderer={turntableStatus} data-view-mode={previewMode} data-flat-animated={flatMotionLayers ? "true" : undefined}
           onClick={() => { if (suppressClickRef.current) { suppressClickRef.current = false; return; } playMascotMotion(); }}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") suppressClickRef.current = false;
@@ -322,17 +331,21 @@ export default function MascotWardrobe() {
           aria-label={reducedMotion
             ? (locale === "zh" ? `小猫静态预览，已开启减少动态效果。当前搭配：${summary}` : `Still cat preview; reduced motion is on. Current look: ${summary}`)
             : previewMode === "2d"
-              ? (locale === "zh" ? `二维正面静态预览，当前搭配：${summary}` : `Static 2D front preview. Current look: ${summary}`)
+              ? flatMotionLayers
+                ? (locale === "zh" ? `二维正面动画预览，点按小猫挥爪两次。当前搭配：${summary}` : `Animated 2D front preview. Tap the cat to wave twice. Current look: ${summary}`)
+                : (locale === "zh" ? `二维正面静态预览，当前搭配：${summary}` : `Static 2D front preview. Current look: ${summary}`)
             : playingMotion
               ? (locale === "zh" ? `小猫正在${wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.label.zh}` : `The cat is playing ${wardrobeMascotMotions.find((motion) => motion.id === playingMotion)!.label.en}`)
               : (locale === "zh" ? `${turntableStatus === "ready" ? "左右滑动或方向键转身，Home回正面。" : ""}点按小猫播放${wardrobeMascotMotions[nextMotionIndex].label.zh}，当前搭配：${summary}` : `${turntableStatus === "ready" ? "Swipe or use arrow keys to turn; Home faces forward. " : ""}Tap the cat to ${wardrobeMascotMotions[nextMotionIndex].label.en}. Current look: ${summary}`)}
           data-motion={playingMotion ?? "rest"}>
-          <WardrobeTurntable ref={turntableRef} skinId={preview.skinId} accessoryIds={preview.accessoryIds} prefetchIds={(activeCategory === "accessory" ? itemPages[activePage] ?? [] : wardrobeItems("accessory").slice(0, 6)).map((item) => item.id).filter((id): id is WardrobeSelection["accessoryIds"][number] => id.startsWith("accessory-"))} onStatus={setTurntableStatus} onLoadError={() => setError(locale === "zh" ? "这个模型暂时未能载入，仍显示上一款。请重新选择后再试。" : "This model could not load. The previous look is still shown; select again to retry.")} />
-          {previewMode === "2d" && <img className="mascot-wardrobe-flat-frame" src={flatFront} alt="" draggable={false} aria-hidden="true" />}
-          {turntableStatus === "unavailable" && <>
-            <img className="mascot-wardrobe-skin" src={skin.art} alt="" draggable={false} />
-            {accessories.map((accessory) => accessory.art && <img key={accessory.id} className="mascot-wardrobe-accessory" src={accessory.art} alt="" draggable={false} />)}
-          </>}
+          <WardrobeTurntable ref={turntableRef} skinId={preview.skinId} accessoryIds={preview.accessoryIds} prefetchIds={(activeCategory === "accessory" ? itemPages[activePage] ?? [] : wardrobeItems("accessory").slice(0, 4)).map((item) => item.id).filter((id): id is WardrobeSelection["accessoryIds"][number] => id.startsWith("accessory-"))} onStatus={setTurntableStatus} onLoadError={() => setError(locale === "zh" ? "这个模型暂时未能载入，仍显示上一款。请重新选择后再试。" : "This model could not load. The previous look is still shown; select again to retry.")} />
+          {previewMode === "2d" && (flatMotionLayers
+            ? <span className="mascot-wardrobe-flat-rig" aria-hidden="true">
+                <img className="mascot-wardrobe-flat-body" src={flatMotionLayers.body} alt="" draggable={false} />
+                <img className="mascot-wardrobe-flat-paw" src={flatMotionLayers.rightPaw} alt="" draggable={false} />
+              </span>
+            : <img className="mascot-wardrobe-flat-frame" src={flatFront} alt="" draggable={false} aria-hidden="true" />)}
+          {previewMode === "3d" && turntableStatus !== "ready" && <img className="mascot-wardrobe-flat-frame mascot-wardrobe-model-fallback" src={flatFront} alt="" draggable={false} aria-hidden="true" />}
         </button>
         <div className="mascot-wardrobe-look-summary">
           <strong>{summary}</strong>

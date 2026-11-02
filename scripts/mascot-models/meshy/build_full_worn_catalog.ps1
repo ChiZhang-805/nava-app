@@ -1,7 +1,7 @@
 param(
-  [string]$Blender = 'Q:\NAVA-Workspace\NAVA-App\Tools\Blender\blender-5.2.2-windows-x64\blender.exe',
-  [string]$RawRoot = 'Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\meshy-worn-catalog-v1\api',
-  [string]$EvidenceRoot = 'Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\wardrobe-full-worn-v261\optimization',
+  [string]$Blender = 'Q:\NAVA-Workspace\Tools\Blender\blender-5.2.2-windows-x64\blender.exe',
+  [string]$RawRoot = 'Q:\NAVA-Workspace\Build\TestRuns\meshy-worn-catalog-v1\api',
+  [string]$EvidenceRoot = 'Q:\NAVA-Workspace\Build\TestRuns\wardrobe-full-worn-v261\optimization',
   [string]$OutputRoot = 'src\assets\mascot\models\worn'
 )
 

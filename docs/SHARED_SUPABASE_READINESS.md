@@ -80,7 +80,7 @@ account and four reward-ledger rows were removed along with all associated data;
 48 account-owned public tables are empty. Schema/constraints/RLS/functions,
 bucket configuration, public catalog and migration-history fingerprints were
 unchanged. Recovery evidence is DPAPI-encrypted under
-`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/account-reset-20260927`; do not remove it.
+`Q:/NAVA-Workspace/Build/TestRuns/account-reset-20260927`; do not remove it.
 New reward rules remain a proposal pending the user's rule choice. Migration
 `202609270001_journal_growth_rewards.sql` has NOT been applied; do not infer new
 reward behavior from the frontend v170 deployment or this data reset.

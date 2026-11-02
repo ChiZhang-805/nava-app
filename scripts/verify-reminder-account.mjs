@@ -16,7 +16,7 @@ if (!email || !password) throw new Error("Use the secure account launcher.");
 const url = process.env.VITE_SUPABASE_URL;
 assert.equal(new URL(url).hostname.split(".")[0], "wxteapvwagvhhtrjrbim");
 const receipt = { startedAt: new Date().toISOString(), target: process.env.NAVA_REMINDER_UI_URL ? new URL(process.env.NAVA_REMINDER_UI_URL).hostname : "local-source", passed: false, settingsRestored: false, activeSessionsPreserved: false, healthWrites: 0 };
-const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/independent-reminders";
+const output = "Q:/NAVA-Workspace/Build/TestRuns/independent-reminders";
 await mkdir(output, { recursive: true });
 await writeFile(`${output}/account-${receipt.target}.json`, JSON.stringify(receipt, null, 2));
 const client = createClient(url, process.env.VITE_SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });

@@ -17,9 +17,9 @@ Then submit each name once using the same durable Build batch root:
 
 ```powershell
 python -B scripts/mascot-models/meshy/meshy_pipeline.py balance
-python -B scripts/mascot-models/meshy/meshy_jobs.py submit --name beret --root Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/meshy-accessory-pilot-v1/api --images <front> <side> <rear> <opening>
-python -B scripts/mascot-models/meshy/meshy_jobs.py status --name beret --root Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/meshy-accessory-pilot-v1/api
-python -B scripts/mascot-models/meshy/meshy_jobs.py download --name beret --root Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/meshy-accessory-pilot-v1/api
+python -B scripts/mascot-models/meshy/meshy_jobs.py submit --name beret --root Q:/NAVA-Workspace/Build/TestRuns/meshy-accessory-pilot-v1/api --images <front> <side> <rear> <opening>
+python -B scripts/mascot-models/meshy/meshy_jobs.py status --name beret --root Q:/NAVA-Workspace/Build/TestRuns/meshy-accessory-pilot-v1/api
+python -B scripts/mascot-models/meshy/meshy_jobs.py download --name beret --root Q:/NAVA-Workspace/Build/TestRuns/meshy-accessory-pilot-v1/api
 ```
 
 Repeat with `--name scarf` and its reviewed inputs. The current batch already has
@@ -31,7 +31,7 @@ task ID immediately. A timeout or ambiguous POST response must never trigger an
 automatic resubmission. Recover the exact existing task ID from Meshy's request
 history before using `status --task-id`. All journals, original task responses
 (which contain expiring signed asset links), downloaded masters and QA evidence
-stay in `Q:/NAVA-Workspace/NAVA-App/Build`, outside Git. Never print raw task responses.
+stay in `Q:/NAVA-Workspace/Build`, outside Git. Never print raw task responses.
 
 Current fixed settings: Meshy 7.1, 2K geometry, 8K texture, no remeshing, no PBR,
 no image enhancement, remove lighting, same four images for geometry and color.
@@ -60,7 +60,7 @@ response or topology gate alone is not approval for runtime use.
 Offline safety tests (fake inputs and transports, no key or network):
 
 ```powershell
-python -B scripts/mascot-models/meshy/meshy_jobs.py self-test --root Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/meshy-client-self-test
+python -B scripts/mascot-models/meshy/meshy_jobs.py self-test --root Q:/NAVA-Workspace/Build/TestRuns/meshy-client-self-test
 ```
 
 Official contracts: [multi-image API](https://docs.meshy.ai/en/api/multi-image-to-3d),

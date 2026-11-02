@@ -5,7 +5,7 @@ import numpy as np
 from PIL import Image
 from scipy.spatial import cKDTree
 
-BASE=Path('Q:/NAVA-Workspace/NAVA-App/Build/Assets/Mascot/base-cat-v9-shadowless/nava-cat-base-v9-shadowless.glb')
+BASE=Path('Q:/NAVA-Workspace/Build/Assets/Mascot/base-cat-v9-shadowless/nava-cat-base-v9-shadowless.glb')
 
 def load(path):
     raw=path.read_bytes();n=struct.unpack_from('<I',raw,12)[0]

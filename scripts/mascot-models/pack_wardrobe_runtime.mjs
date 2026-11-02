@@ -3,7 +3,7 @@
 import { createRequire } from 'node:module';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
-const require = createRequire('Q:/NAVA-Workspace/NAVA-App/Tools/mascot-modeling/package.json');
+const require = createRequire('Q:/NAVA-Workspace/Tools/mascot-modeling/package.json');
 const { NodeIO, Format } = require('@gltf-transform/core');
 const { ALL_EXTENSIONS } = require('@gltf-transform/extensions');
 const { dedup, prune, meshopt } = require('@gltf-transform/functions');
@@ -11,7 +11,7 @@ const { MeshoptEncoder, MeshoptDecoder } = require('meshoptimizer');
 const sharp = require('sharp');
 await MeshoptEncoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({'meshopt.encoder':MeshoptEncoder,'meshopt.decoder':MeshoptDecoder});
-const root='Q:/NAVA-Workspace/NAVA-App/Build/Assets/Mascot/wardrobe-v3';
+const root='Q:/NAVA-Workspace/Build/Assets/Mascot/wardrobe-v3';
 const manifest=JSON.parse(await readFile(new URL('./wardrobe-production.json',import.meta.url),'utf8'));
 const slugs=process.argv.slice(2).length?process.argv.slice(2):['base',...manifest.items.map(x=>x.slug)];
 const out=path.join(root,'runtime-v1');await mkdir(out,{recursive:true});

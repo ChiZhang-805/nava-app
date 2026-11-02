@@ -27,7 +27,7 @@ Q:\NAVA-Workspace\NAVA-App
 - `Q:\NAVA-Workspace\NAVA-App\nava-app-preview`: 独立的静态预览发布仓库，
   不是 `nava-app` 的 worktree 或 submodule。
 - `Q:\NAVA-Workspace\NAVA-App\Data`: 固定算法数据集和 benchmark 输出；大文件不提交 Git。
-- `Q:\NAVA-Workspace\NAVA-App\Build`: Sites 包、跨项目测试证据和构建历史。
+- `Q:\NAVA-Workspace\Build`: Sites 包、跨项目测试证据和构建历史。
 - `Q:\NAVA-Workspace\NAVA-App\Caches`: 可重建虚拟环境与工具缓存；不得保存唯一结果。
 - `Q:\NAVA-Workspace\NAVA-App\Archive`: 带清单和来源的历史材料。
 

@@ -135,7 +135,7 @@ Auth identities 用同一查询快照导出，再经 Windows CurrentUser DPAPI �
 
 已执行结果：1个账号、4条积分、其余账号关联数据及11条账号检查摘要删除；48张账号
 关联表均为0，账号/私有文件/安全摘要无残留，结构及配置指纹一致。恢复资料为
-`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/account-reset-20260927`，未覆盖上次备份；DPAPI解密
+`Q:/NAVA-Workspace/Build/TestRuns/account-reset-20260927`，未覆盖上次备份；DPAPI解密
 校验通过，实际回灌未做，恢复需要管理员及同一Windows用户。需要重新注册登录。
 
 ## 新积分规则草案（等待用户选择，不是已上线规则）
@@ -189,7 +189,7 @@ Auth identities 用同一查询快照导出，再经 Windows CurrentUser DPAPI �
 
 `node scripts/verify-journal-rewards.mjs` 在独立、内存中的 PGlite PostgreSQL 实际执行旧
 Journal迁移和新RPC，23项检查通过；旧表为精简测试schema，未测试生产数据或多连接并发。
-工具默认位于 `Q:/NAVA-Workspace/NAVA-App/Tools/reward-db-check`，不写生产项目。
+工具默认位于 `Q:/NAVA-Workspace/Tools/reward-db-check`，不写生产项目。
 
 # 当前四页记录合同（2026-09-23）
 
@@ -216,7 +216,7 @@ JSON 字段校验和有限修复继续使用 v16 的可编辑确认合同；AI �
 
 官方接口依据：[DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)。
 四页来源/边界见 `web-upstream-contract.md`；执行证据在
-`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\journal-integration`。
+`Q:\NAVA-Workspace\Build\TestRuns\journal-integration`。
 
 2026-09-23 追加接入 v17 首次使用“初见手记”，没有新增数据库迁移或 Edge Function。
 正式账号首次登录和个人页回看均由 React 父页托管 `public/journal/onboarding.html`；

@@ -7,7 +7,7 @@ import { IPHONE_PREVIEW_DEVICES } from '../src/constants/iphonePreviewDevices.ts
 const engine=process.env.NAVA_SCENES_ENGINE==='webkit'?'webkit':'chromium';
 const layoutOnly=process.env.NAVA_SCENES_LAYOUT_ONLY==='1';
 const base=process.env.NAVA_SCENES_URL||'http://127.0.0.1:5173/';
-const out=`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/celebration-scenes/${engine}${layoutOnly?'-layout':''}`;
+const out=`Q:/NAVA-Workspace/Build/TestRuns/celebration-scenes/${engine}${layoutOnly?'-layout':''}`;
 mkdirSync(out,{recursive:true});
 const dims=[...IPHONE_PREVIEW_DEVICES.map(d=>({id:d.id,width:d.logicalWidth,height:d.logicalHeight,top:d.calibration.safeTop,bottom:34})),
  {id:'compact',width:320,height:568,top:20,bottom:0},{id:'se',width:375,height:667,top:20,bottom:0},

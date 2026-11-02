@@ -10,7 +10,7 @@ const phoneSystem = process.argv.includes('--phone-system');
 const allPages = process.argv.includes('--all-pages') || phoneSystem;
 const email = process.env.NAVA_ACCOUNT_EMAIL, password = process.env.NAVA_ACCOUNT_PASSWORD;
 if (!email || !password) throw new Error("Use the secure launcher.");
-const output = phoneSystem ? 'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/phone-system-preview/public' : allPages ? 'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/all-pages-responsive/public' : responsive ? 'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/responsive-release' : "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/calendar-report-release";
+const output = phoneSystem ? 'Q:/NAVA-Workspace/Build/TestRuns/phone-system-preview/public' : allPages ? 'Q:/NAVA-Workspace/Build/TestRuns/all-pages-responsive/public' : responsive ? 'Q:/NAVA-Workspace/Build/TestRuns/responsive-release' : "Q:/NAVA-Workspace/Build/TestRuns/calendar-report-release";
 await mkdir(output, { recursive: true });
 const receipt = { passed: false, aiTested: false, results: [] };
 const browser = await chromium.launch({ headless: true });

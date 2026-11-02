@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 
 const target = process.env.NAVA_URL || 'http://localhost:5174';
-const output = 'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/journal-voice-prefill';
+const output = 'Q:/NAVA-Workspace/Build/TestRuns/journal-voice-prefill';
 mkdirSync(output, { recursive: true });
 const cases = {
   mood: ['我现在觉得很放松，因为完成了今天的工作', { mood: '很放松', reason: '完成了今天的工作' }],

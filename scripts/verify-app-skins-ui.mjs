@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 applyProjectPublicEnv(process.cwd());
-const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/app-skins";
+const output = "Q:/NAVA-Workspace/Build/TestRuns/app-skins";
 await mkdir(output, { recursive: true });
 const report = { startedAt: new Date().toISOString(), passed: false, results: [], errors: [] };
 const server = await createServer({ server: { host: "127.0.0.1", port: 5248, strictPort: true }, logLevel: "silent" });
@@ -17,6 +17,7 @@ const skins = ["glacier-mist", "violet-dusk", "sky-ripple"];
 const recordModules = ["sleep", "exercise", "mood", "focus", "diet", "face"];
 const profileLayerSamples = [];
 const advancedProfileLayerSamples = [];
+const calendarBackgroundSamples = [];
 
 async function initialize(context) {
   await context.route("**/*.supabase.co/rest/v1/journal_entries**", (route) => route.fulfill({ json: [] }));
@@ -157,6 +158,21 @@ try {
       assert.equal(geometry.navVisible, false, `${width} ${skin} subpage navigation should be hidden`);
       report.results.push({ viewport: `${width}x${height}`, ...geometry, skinRoutePaint });
       if (width === 390) await page.screenshot({ path: `${output}/${skin}-profile-${width}x${height}.png` });
+
+      await page.evaluate(() => { location.hash = "tab=today&view=calendar"; });
+      const calendar = page.locator('.home-calendar-screen[data-home-view="calendar"]');
+      await expect(calendar).toBeVisible({ timeout: 20000 });
+      const calendarPaint = await calendar.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return `${style.backgroundColor}|${style.backgroundImage}`;
+      });
+      assert.ok(calendarPaint && !calendarPaint.endsWith("|none"), `${width} ${skin} calendar needs a painted skin background`);
+      calendarBackgroundSamples.push({ viewport: `${width}x${height}`, skin, paint: calendarPaint });
+      report.results.push({ viewport: `${width}x${height}`, skin, calendarPaint });
+      if (width === 390) await page.screenshot({ path: `${output}/${skin}-calendar-${width}x${height}.png` });
+
+      await page.evaluate(() => { location.hash = "tab=profile&view=skin"; });
+      await expect(page.locator(".profile-skin-card")).toBeVisible({ timeout: 20000 });
 
       await page.evaluate(() => { location.hash = "tab=today&view=profile-details"; });
       const advancedProfile = page.locator('[data-home-view="profile-details"]');
@@ -398,6 +414,11 @@ try {
   const detailedAtReferenceSize = advancedProfileLayerSamples.filter(({ viewport }) => viewport === "390x844");
   assert.equal(detailedAtReferenceSize.length, skins.length, "the advanced profile should be sampled once per skin at the reference size");
   assert.equal(new Set(detailedAtReferenceSize.map(({ layers }) => JSON.stringify(layers))).size, skins.length, "every advanced-profile layer must change as one distinct three-skin palette");
+  for (const [width, height] of sizes) {
+    const samples = calendarBackgroundSamples.filter(({ viewport }) => viewport === `${width}x${height}`);
+    assert.equal(samples.length, skins.length, `${width}x${height} calendar should be sampled once for every skin`);
+    assert.equal(new Set(samples.map(({ paint }) => paint)).size, skins.length, `${width}x${height} calendar backgrounds must visibly differ across all skins`);
+  }
   assert.deepEqual(report.errors, []);
   report.passed = true;
   console.log("Three skins, both switchers, persistence, shared routes and four portrait sizes passed.");

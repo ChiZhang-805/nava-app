@@ -1,4 +1,6 @@
 import baseFront from "../assets/wardrobe/front/accessory-none.png";
+import baseMotionBody from "../assets/wardrobe/motion/cat-body-base.png";
+import baseMotionRightPaw from "../assets/wardrobe/motion/cat-right-paw.png";
 import auroraScarfFront from "../assets/wardrobe/front/accessory-aurora-scarf.png";
 import bellCollarFront from "../assets/wardrobe/front/accessory-bell-collar.png";
 import cherryBowFront from "../assets/wardrobe/front/accessory-cherry-bow.png";
@@ -38,6 +40,11 @@ export const wardrobe2dFrontImages: Readonly<Record<WardrobeAccessoryId, string>
   "accessory-lily-garland": lilyGarlandFront,
   "accessory-night-voyage-cap": nightVoyageCapFront,
 };
+
+export const wardrobe2dBaseMotionLayers = {
+  body: baseMotionBody,
+  rightPaw: baseMotionRightPaw,
+} as const;
 
 export function wardrobe2dFrontImage(accessoryIds: WardrobeAccessoryId[]) {
   const selected = accessoryIds.length ? accessoryIds[accessoryIds.length - 1] : "accessory-none";

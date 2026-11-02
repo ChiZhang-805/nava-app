@@ -2,10 +2,10 @@
 from pathlib import Path
 import subprocess,sys,json
 
-BLENDER=Path('Q:/NAVA-Workspace/NAVA-App/Tools/Blender/blender-5.2.2-windows-x64/blender.exe')
+BLENDER=Path('Q:/NAVA-Workspace/Tools/Blender/blender-5.2.2-windows-x64/blender.exe')
 ROOT=Path(__file__).resolve().parent
-ASSETS=Path('Q:/NAVA-Workspace/NAVA-App/Build/Assets/Mascot/wardrobe-v3')
-EVIDENCE=Path('Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-v3')
+ASSETS=Path('Q:/NAVA-Workspace/Build/Assets/Mascot/wardrobe-v3')
+EVIDENCE=Path('Q:/NAVA-Workspace/Build/TestRuns/wardrobe-v3')
 INSPECT=Path('Q:/Codex/Live/skills/blender-asset-validation/scripts/inspect_asset.py')
 
 def run(folder,slug,height):

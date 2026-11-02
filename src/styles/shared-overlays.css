@@ -16,28 +16,28 @@
   display: grid; place-items: center; color: #0b7199; background: transparent; box-shadow: none;
 }
 .phone-frame .nava-more-menu > .app-utility-popover {
-  top: calc(100% + 8px); right: 0; width: 228px; min-width: 0; max-width: calc(100vw - 32px);
+  top: calc(100% + 8px); right: 0; width: 204px; min-width: 0; max-width: calc(100vw - 32px);
   max-height: min(560px, calc(100dvh - 180px)); overflow-y: auto; overscroll-behavior: contain;
-  display: flex; flex-direction: column; gap: 2px; padding: 8px;
-  border: 1px solid rgba(255,255,255,.94); border-radius: 18px;
+  display: flex; flex-direction: column; gap: 1px; padding: 6px;
+  border: 1px solid rgba(255,255,255,.94); border-radius: 16px;
   background: rgba(245,252,255,.98); color: #173f53;
   box-shadow: 0 12px 30px rgba(24,84,110,.18); text-align: left;
 }
 .phone-frame .nava-more-menu .app-utility-popover > button {
-  flex: 0 0 auto; width: 100%; min-height: 44px; height: auto; padding: 10px 12px; margin: 0;
-  display: flex; align-items: center; justify-content: flex-start; gap: 10px;
-  border: 0; border-radius: 11px; background: transparent; box-shadow: none;
-  color: inherit; font: inherit; font-size: 14px; font-weight: 600; line-height: 1.4;
+  flex: 0 0 auto; width: 100%; min-height: 44px; height: auto; padding: 8px 9px; margin: 0;
+  display: flex; align-items: center; justify-content: flex-start; gap: 8px;
+  border: 0; border-radius: 10px; background: transparent; box-shadow: none;
+  color: inherit; font: inherit; font-size: 13px; font-weight: 650; line-height: 1.35;
   white-space: normal; overflow-wrap: anywhere; text-align: left;
 }
-.phone-frame .nava-more-menu .app-utility-popover > button > svg { width: 18px; height: 18px; flex: 0 0 18px; }
+.phone-frame .nava-more-menu .app-utility-popover > button > svg { width: 17px; height: 17px; flex: 0 0 17px; }
 .phone-frame .nava-more-menu .app-utility-popover > button:hover,
 .phone-frame .nava-more-menu .app-utility-popover > button:focus-visible { background: #e0f2fa; }
 .phone-frame .nava-more-menu .app-utility-popover > button:disabled { opacity: .45; }
-.nava-more-menu .more-menu-divider { height: 1px; flex: 0 0 1px; margin: 4px 10px; background: #dcebf1; }
-.nava-more-menu .more-menu-language small { margin-left: auto; color: #5e7e8d; font-size: 12px; font-weight: 500; }
+.nava-more-menu .more-menu-divider { height: 1px; flex: 0 0 1px; margin: 3px 8px; background: #dcebf1; }
+.nava-more-menu .more-menu-language small { margin-left: auto; color: #5e7e8d; font-size: 11px; font-weight: 550; }
 .nava-more-menu .more-menu-check { margin-left: auto; color: #0b809f; }
-.nava-more-menu .more-menu-choice { padding-left: 28px; }
+.nava-more-menu .more-menu-choice { padding-left: 25px; }
 .nava-more-menu button:focus-visible { outline: 2px solid #167da4; outline-offset: -2px; }
 
 /* Portal at the phone root: a scrolled/animated page can never crop the picker. */

@@ -13,7 +13,7 @@ applyProjectPublicEnv(process.cwd());
 const outputArgument = process.argv.find((argument) => argument.startsWith("--output="));
 const expectedRelease = process.env.NAVA_RELEASE || "v223";
 const expectedSourceCommit = process.env.NAVA_RELEASE_COMMIT || "adecb7867448d1f93677f98c590ad340da343e7c";
-const output = outputArgument?.slice("--output=".length) || `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-${expectedRelease}-regression`;
+const output = outputArgument?.slice("--output=".length) || `Q:/NAVA-Workspace/Build/TestRuns/skin-${expectedRelease}-regression`;
 await mkdir(output, { recursive: true });
 
 const sizes = [[360, 740], [375, 812], [390, 844], [430, 932]];

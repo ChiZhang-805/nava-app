@@ -3,7 +3,7 @@
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
-const runtime=process.env.NAVA_PGLITE||'Q:/NAVA-Workspace/NAVA-App/Tools/reward-db-check/node_modules/@electric-sql/pglite/dist/index.js';
+const runtime=process.env.NAVA_PGLITE||'Q:/NAVA-Workspace/Tools/reward-db-check/node_modules/@electric-sql/pglite/dist/index.js';
 const {PGlite}=await import(pathToFileURL(runtime).href);
 const db=new PGlite(),checks=[];
 const a='10000000-0000-4000-8000-000000000001',b='10000000-0000-4000-8000-000000000002';
@@ -82,7 +82,7 @@ try{
  check('anonymous cannot execute save',await scalar("select has_function_privilege('anon','public.nava_save_journal_entry_v2(jsonb,integer,text)','execute')"),false);
  check('internal helper not exposed',await scalar("select has_function_privilege('authenticated','public.nava_growth_local_date(text)','execute')"),false);
  await db.query("select set_config('request.jwt.claim.sub','',false)");await assert.rejects(reconcile());checks.push('missing authenticated identity rejected');
- const out='Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/celebration-scenes';mkdirSync(out,{recursive:true});
+ const out='Q:/NAVA-Workspace/Build/TestRuns/celebration-scenes';mkdirSync(out,{recursive:true});
  writeFileSync(`${out}/rewards-postgres.json`,JSON.stringify({passed:true,checks,scope:'Local PGlite PostgreSQL, compact legacy schema, unchanged journal schema. Not production or concurrent multi-connection testing.'},null,2));
  console.log(JSON.stringify({passed:true,checks:checks.length}));
 }finally{await db.close();}

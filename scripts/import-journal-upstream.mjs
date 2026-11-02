@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 
 // Mechanical, pinned import of user-approved artwork and page sources. No execution of upstream scripts.
-const source = 'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/journal-integration/upstream-v16';
+const source = 'Q:/NAVA-Workspace/Build/TestRuns/journal-integration/upstream-v16';
 const target = path.resolve('public/journal');
 const expected = 'fb7045d611dc0eab40818b3d6d494f6dfa12a9c6';
 if (execFileSync('git', ['rev-parse', 'HEAD'], { cwd: source, encoding: 'utf8' }).trim() !== expected) throw Error('Unexpected upstream revision');

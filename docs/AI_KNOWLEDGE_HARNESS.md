@@ -361,7 +361,7 @@ showed flash returned zero body bytes within its 30-second attempt. The sequenti
 pro alternate completed the same contracts in roughly 0.7–1.6 seconds of provider
 work. Both sites then passed all four real form-login/click/display flows, with
 original cloud focus sessions unchanged and exact temporary tasks removed.
-Evidence: `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/focus-ai-v40` and `focus-ai-v41`.
+Evidence: `Q:/NAVA-Workspace/Build/TestRuns/focus-ai-v40` and `focus-ai-v41`.
 This isolates the observed stall to the flash response path, not missing login,
 missing health records or the response-length validator. It does not establish the
 provider's internal cause. [Provider documentation](https://api-docs.deepseek.com/quick_start/rate_limit/)

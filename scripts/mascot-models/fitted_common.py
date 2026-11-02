@@ -9,8 +9,8 @@ import numpy as np
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 
-BASE = Path('Q:/NAVA-Workspace/NAVA-App/Build/Assets/Mascot/base-cat-v9-shadowless/nava-cat-base-v9-shadowless.glb')
-MATERIALS = Path('Q:/NAVA-Workspace/NAVA-App/Build/Reference/Wardrobe-v3/materials')
+BASE = Path('Q:/NAVA-Workspace/Build/Assets/Mascot/base-cat-v9-shadowless/nava-cat-base-v9-shadowless.glb')
+MATERIALS = Path('Q:/NAVA-Workspace/Build/Reference/Wardrobe-v3/materials')
 CX, CY = -.08, -.28
 TAU=math.tau
 

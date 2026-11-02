@@ -5,7 +5,7 @@ import {IPHONE_PREVIEW_DEVICES} from '../src/constants/iphonePreviewDevices.ts';
 import {journalLayout} from '../public/journal/js/nava-layout.js';
 
 const engine=process.env.NAVA_JOURNAL_ENGINE==='webkit'?'webkit':'chromium';
-const out=`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/journal-integration/responsive-${engine}`;mkdirSync(out,{recursive:true});
+const out=`Q:/NAVA-Workspace/Build/TestRuns/journal-integration/responsive-${engine}`;mkdirSync(out,{recursive:true});
 const devices=[...IPHONE_PREVIEW_DEVICES.map(d=>({id:d.id,width:d.logicalWidth,height:d.logicalHeight,top:d.calibration.safeTop,bottom:34})),
  {id:'compact-320',width:320,height:568,top:20,bottom:0},
  {id:'se-375',width:375,height:667,top:20,bottom:0},

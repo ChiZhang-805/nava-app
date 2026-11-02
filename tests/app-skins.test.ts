@@ -70,9 +70,12 @@ test("alternate skins preserve the Figma gradient distributions without hard-edg
     readFile(new URL("../src/styles/app-skins.css", import.meta.url), "utf8"),
     readFile(new URL("../public/journal/css/app-skins.css", import.meta.url), "utf8"),
   ]);
+  assert.match(hostStyles, /rgba\(109,178,238,\.34\).*rgba\(109,178,238,0\) 36%/s);
+  assert.match(hostStyles, /rgba\(83,210,202,\.23\).*rgba\(83,210,202,0\) 42%/s);
+  assert.match(hostStyles, /linear-gradient\(154deg, #f6efff 0%, #ddd8ff 42%, #d0f2f1 100%\)/);
+  assert.match(journalStyles, /linear-gradient\(138\.82deg, #f8fbff 8\.57%, #f4f9fd 51\.66%, #fffdfb 91\.43%\)/);
+  assert.match(journalStyles, /rgba\(124,180,235,\.30\).*rgba\(124,180,235,0\) 27%/s);
   for (const css of [hostStyles, journalStyles]) {
-    assert.match(css, /linear-gradient\(138\.82deg, #f8fbff 8\.57%, #f4f9fd 51\.66%, #fffdfb 91\.43%\)/);
-    assert.match(css, /rgba\(124,180,235,\.30\).*rgba\(124,180,235,0\) 27%/s);
     assert.match(css, /linear-gradient\(142\.76deg, #787cfe 8\.63%, #d670c9 91\.37%\)/);
     assert.doesNotMatch(css, /0 20%, transparent 20\.5%|0 18%, transparent 18\.5%|0 24%, transparent 24\.5%/);
   }

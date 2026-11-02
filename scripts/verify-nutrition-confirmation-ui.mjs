@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 applyProjectPublicEnv(process.cwd());
-const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/nutrition-confirmation";
+const output = "Q:/NAVA-Workspace/Build/TestRuns/nutrition-confirmation";
 const port = 5233;
 const viewports = [
   { width: 360, height: 740 },
@@ -44,6 +44,10 @@ try {
     if (await launch.isVisible().catch(() => false)) await launch.click();
     await expect(page.locator(".chat-composer")).toBeVisible();
     await page.locator(".chat-camera-input").setInputFiles(photo);
+    await expect(page.locator(".chat-pending-photos img")).toHaveCount(1);
+    await expect(page.locator('[data-structured-confirmation="nutrition"]')).toHaveCount(0);
+    await page.locator(".chat-input-shell input").fill("少油");
+    await page.locator(".chat-send-button").click();
 
     const card = page.locator('[data-structured-confirmation="nutrition"]');
     await expect(card).toBeVisible({ timeout: 30_000 });
@@ -60,7 +64,22 @@ try {
     await expect(card.locator("footer button")).toHaveCount(2);
     await expect(card.locator("[data-confirm-structured] svg")).toHaveCount(0);
     await card.getByRole("button", { name: "逐项编辑" }).click();
-    await expect(card.locator(".nutrition-result-editor input")).toHaveCount(4);
+    await expect(card.locator(".nutrition-result-editor input")).toHaveCount(12);
+    const editorGeometry = await card.locator(".nutrition-result-editor").evaluateAll((editors) => editors.map((editor) => {
+      const box = editor.getBoundingClientRect();
+      const input = editor.querySelector("input")?.getBoundingClientRect();
+      const unit = editor.querySelector("em")?.getBoundingClientRect();
+      return {
+        hasUnit: Boolean(unit),
+        overflow: editor.scrollWidth - editor.clientWidth,
+        inputRight: input?.right ?? 0,
+        unitLeft: unit?.left ?? 0,
+        unitRight: unit?.right ?? 0,
+        right: box.right,
+        centerOffset: input && unit ? Math.abs((input.top + input.height / 2) - (unit.top + unit.height / 2)) : 99,
+      };
+    }));
+    assert.ok(editorGeometry.every((editor) => editor.overflow <= 1 && (!editor.hasUnit || (editor.inputRight <= editor.unitLeft && editor.unitRight <= editor.right + 1 && editor.centerOffset <= 1))), JSON.stringify(editorGeometry));
     await card.getByRole("button", { name: "逐项编辑" }).click();
     await card.scrollIntoViewIfNeeded();
 
@@ -108,7 +127,7 @@ try {
     await card.screenshot({ path: `${output}/nutrition-card-${viewport.width}x${viewport.height}.png` });
     await card.locator(".nutrition-result-close").click();
     await expect(card).toHaveCount(0);
-    receipt.viewports.push({ ...viewport, geometry });
+    receipt.viewports.push({ ...viewport, geometry, editorGeometry });
     await context.close();
   }
   receipt.passed = true;

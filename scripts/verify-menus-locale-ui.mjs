@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 applyProjectPublicEnv(process.cwd());
-const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/menus-locale";
+const output = "Q:/NAVA-Workspace/Build/TestRuns/menus-locale";
 await mkdir(output, { recursive: true });
 const report = { startedAt: new Date().toISOString(), passed: false, results: [], errors: [] };
 const server = await createServer({ server: { host: "127.0.0.1", port: 5236, strictPort: true }, logLevel: "silent" });
@@ -14,6 +14,7 @@ const base = server.resolvedUrls.local[0];
 const browser = await chromium.launch({ headless: true });
 const routes = [
   ["calendar", "tab=today&view=calendar"], ["details", "tab=today&view=profile-details"], ["notifications", "tab=today&view=notifications"],
+  ["todos", "tab=today&view=today-todos"], ["getting-started", "tab=today&view=getting-started"], ["admin", "tab=today&view=admin-console"],
   ["report", "tab=record"], ["ai", "tab=ai"], ["growth", "tab=trends"], ["profile", "tab=profile"],
 ];
 async function init(context) {
@@ -51,13 +52,14 @@ async function menuCheck(page, name) {
     const scale = frame.width / document.querySelector(".phone-frame").offsetWidth;
     const rows = [...element.querySelectorAll("button")].map((button) => {
       const r = button.getBoundingClientRect(); const s = getComputedStyle(button);
-      return { height: r.height / scale, font: s.fontSize, clipped: button.scrollWidth > button.clientWidth + 1, inside: r.left >= rect.left && r.right <= rect.right + 1 };
+      const text = button.querySelector("span"); const textStyle = text ? getComputedStyle(text) : s;
+      return { height: r.height / scale, font: s.fontSize, textFont: textStyle.fontSize, clipped: button.scrollWidth > button.clientWidth + 1, inside: r.left >= rect.left && r.right <= rect.right + 1 };
     });
     return { width: rect.width / scale, inside: rect.left >= frame.left && rect.right <= frame.right && rect.bottom <= frame.bottom, rows };
   });
   assert.ok(geometry.inside, `${name} menu outside phone`);
-  assert.ok(Math.abs(geometry.width - 228) < 1, `${name} width ${geometry.width}`);
-  assert.ok(geometry.rows.every((row) => row.height >= 43.9 && row.font === "14px" && !row.clipped && row.inside), `${name} rows ${JSON.stringify(geometry.rows)}`);
+  assert.ok(geometry.width >= 200 && geometry.width <= 206, `${name} compact width ${geometry.width}`);
+  assert.ok(geometry.rows.every((row) => row.height >= 43.9 && row.height <= 54 && row.font === "13px" && row.textFont === "13px" && !row.clipped && row.inside), `${name} rows ${JSON.stringify(geometry.rows)}`);
   await page.screenshot({ path: `${output}/${name}-menu.png` });
   await page.keyboard.press("Escape");
   await expect(trigger).toBeFocused();
@@ -93,7 +95,7 @@ try {
       await init(context); const page = await context.newPage(); page.setDefaultTimeout(20000);
       await dismissCompletionWhenPresent(page);
       page.on("pageerror", (e) => report.errors.push(e.message));
-      await page.goto(`${base}?demo=1#tab=today&view=calendar`, { waitUntil: "networkidle" });
+      await page.goto(`${base}?demo=1&qa=admin-console#tab=today&view=calendar`, { waitUntil: "networkidle" });
       if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
       await expect(page.locator("html")).toHaveAttribute("lang", locale === "zh-CN" ? "zh-CN" : "en");
       assert.equal(await page.evaluate(() => localStorage.getItem("nava.locale")), null, "system default must not become an explicit override");
@@ -129,7 +131,7 @@ try {
       assert.equal(await page.evaluate(() => window.__permissionRequests), 1, "already granted must not prompt");
       await page.screenshot({ path: `${output}/${locale}-${width}-reminders.png` });
       await first.click(); await expect(first).toHaveAttribute("aria-checked", "false");
-      console.log(`${locale} ${width}: 7 current shell menu routes, profile-details avatar, language persistence and permission gating passed`);
+      console.log(`${locale} ${width}: ${routes.length} current shell menu routes, profile-details avatar, language persistence and permission gating passed`);
     } finally { await context.close(); }
   }
   // Exercise settings-return handling with an explicit bridge fixture, not a fake claim of iOS delivery.

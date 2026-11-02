@@ -6,7 +6,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 applyProjectPublicEnv(process.cwd());
-const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/weekly-readability";
+const output = "Q:/NAVA-Workspace/Build/TestRuns/weekly-readability";
 await mkdir(output, { recursive: true });
 await writeFile(`${output}/report.json`, JSON.stringify({ passed: false }));
 const server = await createServer({ server: { host: "127.0.0.1", port: 5236, strictPort: true }, logLevel: "silent" });

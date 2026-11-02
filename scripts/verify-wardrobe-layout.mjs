@@ -27,6 +27,8 @@ const mobileSizes = [[360, 740], [375, 812], [390, 844], [430, 932]];
 const cases = [
   ...mobileSizes.map(([width, height]) => ({ id: `mobile-${width}x${height}`, width, height, mobile: true })),
   ...mobileSizes.map(([width, height]) => ({ id: `mobile-safe59-34-${width}x${height}`, width, height, mobile: true, safe: { top: 59, bottom: 34, left: 0, right: 0 } })),
+  { id: 'mobile-390x844-violet-dusk', width: 390, height: 844, mobile: true, appSkin: 'violet-dusk' },
+  { id: 'mobile-390x844-sky-ripple', width: 390, height: 844, mobile: true, appSkin: 'sky-ripple' },
   ...[859, 861, 900].map((height) => ({ id: `desktop-1440x${height}-iphone14`, width: 1440, height, mobile: false, device: 'iphone-14' })),
   { id: 'desktop-1280x800-iphone15pro', width: 1280, height: 800, mobile: false, device: 'iphone-15-pro' },
   { id: 'desktop-1365x1000-iphone15promax', width: 1365, height: 1000, mobile: false, device: 'iphone-15-pro-max' },
@@ -80,7 +82,7 @@ async function measure(page, buttonSelector = '.mascot-wardrobe-action button') 
       return { x: r.x, y: r.y, left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
     };
     const describe = (element) => element ? `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ''}${typeof element.className === 'string' ? `.${element.className.trim().replace(/\s+/g, '.')}` : ''}` : null;
-    const selectors = ['.phone-frame', '.safe-top', '.figma-app-header', '.app-content', '.screen-panel', '.profile-subpage', '.mascot-wardrobe', '.mascot-wardrobe-preview', '.mascot-wardrobe-character', '.mascot-wardrobe-look-summary', '.mascot-wardrobe-tabs', '.mascot-wardrobe-grid', '.mascot-wardrobe-pagination', '.mascot-wardrobe-action', '.mascot-wardrobe-action button', '.ios-home-gesture', '.ios-home-gesture > span', '.nava-device-home-indicator', '.mascot-wardrobe-sheet', '.mascot-wardrobe-sheet-actions'];
+    const selectors = ['.phone-frame', '.safe-top', '.figma-app-header', '.app-content', '.screen-panel', '.profile-subpage', '.mascot-wardrobe', '.mascot-wardrobe-preview', '.mascot-wardrobe-preview-frame', '.mascot-wardrobe-character', '.mascot-wardrobe-look-summary', '.mascot-wardrobe-tabs', '.mascot-wardrobe-grid', '.mascot-wardrobe-page', '.mascot-wardrobe-pagination', '.mascot-wardrobe-action', '.mascot-wardrobe-action button', '.ios-home-gesture', '.ios-home-gesture > span', '.nava-device-home-indicator', '.mascot-wardrobe-sheet', '.mascot-wardrobe-sheet-actions'];
     const boxes = Object.fromEntries(selectors.map((selector) => {
       const element = document.querySelector(selector);
       if (!element) return [selector, null];
@@ -135,10 +137,20 @@ async function measure(page, buttonSelector = '.mascot-wardrobe-action button') 
       legacyLargeViewportMedia: matchMedia('(min-width:420px) and (min-height:860px)').matches,
       device: document.querySelector('.nava-app-stage')?.dataset.navaPreviewDevice,
       renderer: document.querySelector('.mascot-wardrobe-character')?.getAttribute('data-renderer'),
+      viewMode: document.querySelector('.mascot-wardrobe-character')?.getAttribute('data-view-mode'),
       fallbackImages: [...document.querySelectorAll('.mascot-wardrobe-character img')].map((image) => ({ ...rect(image), decoded: image.complete && image.naturalWidth > 0 })),
       modelLoadingCount: document.querySelectorAll('.mascot-wardrobe-model-loading').length,
       skin: document.querySelector('.mascot-wardrobe-turntable')?.getAttribute('data-skin'),
       hintCount: document.querySelectorAll('.mascot-wardrobe-motion-hint').length,
+      catalog: {
+        pageItemCounts: [...document.querySelectorAll('.mascot-wardrobe-page')].map((page) => page.children.length),
+        columns: getComputedStyle(document.querySelector('.mascot-wardrobe-page')).gridTemplateColumns.split(' ').filter(Boolean).length,
+        rows: getComputedStyle(document.querySelector('.mascot-wardrobe-page')).gridTemplateRows.split(' ').filter(Boolean).length,
+        previewFramePointerEvents: getComputedStyle(document.querySelector('.mascot-wardrobe-preview-frame')).pointerEvents,
+        previewFrameBorderStyle: getComputedStyle(document.querySelector('.mascot-wardrobe-preview-frame')).borderStyle,
+        previewBackground: getComputedStyle(document.querySelector('.mascot-wardrobe-preview')).backgroundImage,
+      },
+      appSkin: document.querySelector('.phone-frame')?.getAttribute('data-app-skin'),
       safeArea, scale, boxes,
       button: { selector: buttonSelector, ...button, text: element?.textContent?.trim(), disabled: element?.disabled, clip, clippedBy, points, safeBoundary, bottomBoundary, bottomGap: button ? bottomBoundary - button.bottom : null, gestureGap: button && visibleGesture ? visibleGesture.top - button.bottom : null },
       demoWardrobeStorage: sessionStorage.getItem('nava.demo.mascot-wardrobe.v1'),
@@ -149,7 +161,8 @@ async function measure(page, buttonSelector = '.mascot-wardrobe-action button') 
 function checkLayout(result, geometry, scenario, stage) {
   const check = (condition, message) => requireCheck(result, condition, `${stage}: ${message}`);
   const b = geometry.button;
-  check(geometry.renderer === (scenario.webglUnavailable ? 'unavailable' : 'ready'), 'unexpected renderer state');
+  const expectedRenderer = scenario.webglUnavailable ? ['unavailable'] : geometry.viewMode === '2d' ? ['ready', 'loading'] : ['ready'];
+  check(expectedRenderer.includes(geometry.renderer), 'unexpected renderer state');
   check(geometry.modelLoadingCount === 0, 'loading status remained after renderer settled');
   if (scenario.webglUnavailable) {
     const character = geometry.boxes['.mascot-wardrobe-character'];
@@ -159,6 +172,13 @@ function checkLayout(result, geometry, scenario, stage) {
     check(geometry.fallbackImages.every((image) => image.bottom <= summary.top), 'fallback art is covered by the look summary');
   }
   check(geometry.hintCount === 0, 'operation hint line is still present');
+  check(geometry.catalog.columns === 2 && geometry.catalog.rows === 2, `catalog is ${geometry.catalog.columns}x${geometry.catalog.rows} instead of 2x2`);
+  check(geometry.catalog.pageItemCounts.length > 0 && geometry.catalog.pageItemCounts.every((count) => count > 0 && count <= 4), `catalog page item counts are ${geometry.catalog.pageItemCounts.join(', ')}`);
+  check(geometry.catalog.previewFrameBorderStyle === 'dashed', 'preview frame is not dashed');
+  check(geometry.catalog.previewFramePointerEvents === 'none', 'preview frame intercepts interaction');
+  check(geometry.appSkin === (scenario.appSkin ?? 'glacier-mist'), `expected app skin ${scenario.appSkin ?? 'glacier-mist'}, got ${geometry.appSkin}`);
+  if (scenario.appSkin === 'violet-dusk') check(geometry.catalog.previewBackground.includes('169, 104, 232'), 'violet wardrobe preview did not receive its skin-specific background');
+  if (scenario.appSkin === 'sky-ripple') check(geometry.catalog.previewBackground.includes('155, 220, 242'), 'sky wardrobe preview did not receive its skin-specific background');
   check(geometry.desktopPreviewActive === !scenario.mobile, 'wrong desktop/mobile media path');
   check(geometry.documentOverflow.x <= 1, `document horizontal overflow ${geometry.documentOverflow.x}`);
   check(Math.abs(geometry.viewport.scrollY) <= 1, 'document scrolled vertically');
@@ -200,11 +220,13 @@ async function runScenario(scenario) {
   report.scenarios.push(result);
   const context = await browser.newContext({ viewport: { width: scenario.width, height: scenario.height }, isMobile: scenario.mobile, hasTouch: scenario.mobile, locale: 'zh-CN', deviceScaleFactor: 1 });
   try {
-    await context.addInitScript((device) => {
+    await context.addInitScript(({ device, appSkin }) => {
       sessionStorage.setItem('nava.review.demo.auth.v1', 'signed-in');
       localStorage.setItem('nava.onboarding.v3.00000000-0000-4000-8000-000000000001', JSON.stringify({ completed: true, version: 3, answers: {} }));
       localStorage.setItem('nava.desktop-preview-device.v1', device);
-    }, scenario.device ?? 'iphone-15-pro-max');
+      localStorage.setItem('nava.app-skin.v1:00000000-0000-4000-8000-000000000001', appSkin);
+      localStorage.setItem('nava.app-skin.v1:anonymous', appSkin);
+    }, { device: scenario.device ?? 'iphone-15-pro-max', appSkin: scenario.appSkin ?? 'glacier-mist' });
     if (scenario.webglUnavailable) {
       await context.addInitScript(() => {
         const original = HTMLCanvasElement.prototype.getContext;
@@ -228,24 +250,33 @@ async function runScenario(scenario) {
     if (!scenario.webglUnavailable) {
       await page.locator('.mascot-wardrobe-view-toggle').click();
       await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-view-mode', '2d');
-      await expect(page.locator('.mascot-wardrobe-flat-frame')).toBeVisible({ timeout: 30000 });
-      const source = await page.locator('.mascot-wardrobe-flat-frame').getAttribute('src');
-      requireCheck(result, /\/(?:src\/assets\/wardrobe\/front\/|assets\/)accessory-none(?:-[^/?]+)?\.png(?:\?.*)?$/.test(source ?? ''), `2D mode did not use the approved transparent frontal artwork: ${source}`);
-      const alpha = await page.locator('.mascot-wardrobe-flat-frame').evaluate(async (image) => {
+      await expect(page.locator('.mascot-wardrobe-flat-rig')).toBeVisible({ timeout: 30000 });
+      const layers = page.locator('.mascot-wardrobe-flat-rig img');
+      await expect(layers).toHaveCount(2);
+      const sources = await layers.evaluateAll((images) => images.map((image) => image.getAttribute('src')));
+      requireCheck(result, /cat-body-base/.test(sources[0] ?? '') && /cat-right-paw/.test(sources[1] ?? ''), `2D mode did not use the approved layered motion art: ${sources.join(', ')}`);
+      const alpha = await layers.evaluateAll(async (images) => Promise.all(images.map(async (image) => {
         await image.decode();
         const canvas = document.createElement('canvas');
         canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
         const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
-        const corner = context.getImageData(0, 0, 1, 1).data[3];
-        const center = context.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data[3];
-        return { corner, center };
-      });
-      requireCheck(result, alpha.corner === 0 && alpha.center > 0, `2D PNG alpha is wrong: ${JSON.stringify(alpha)}`);
+        const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        let visiblePixels = 0;
+        for (let index = 3; index < pixels.length; index += 4) if (pixels[index] > 0) visiblePixels += 1;
+        return {
+          corner: pixels[3],
+          visiblePixels,
+        };
+      })));
+      requireCheck(result, alpha.every((layer) => layer.corner === 0 && layer.visiblePixels > 0), `2D layer alpha is wrong: ${JSON.stringify(alpha)}`);
       await capture(page, result, scenario, 'flat-front');
       await page.locator('.mascot-wardrobe-character').click();
-      await page.waitForTimeout(500);
-      const stableSource = await page.locator('.mascot-wardrobe-flat-frame').getAttribute('src');
-      requireCheck(result, stableSource === source, '2D preview changed away from the approved exact frontal artwork');
+      await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-motion', 'wave');
+      await page.waitForTimeout(900);
+      const pawTransform = await page.locator('.mascot-wardrobe-flat-paw').evaluate((element) => getComputedStyle(element).transform);
+      requireCheck(result, pawTransform !== 'none' && pawTransform !== 'matrix(1, 0, 0, 1, 0, 0)', `2D paw did not animate: ${pawTransform}`);
+      await capture(page, result, scenario, 'flat-wave');
+      await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-motion', 'rest', { timeout: 5000 });
       await page.getByRole('tab', { name: '饰品' }).click();
       await page.locator('.mascot-wardrobe-item').filter({ hasText: '铃铛项圈' }).click();
       await expect(page.locator('.mascot-wardrobe-flat-frame')).toHaveAttribute('src', /accessory-bell-collar/);
@@ -253,6 +284,8 @@ async function runScenario(scenario) {
       await capture(page, result, scenario, 'flat-bell-collar');
       await page.locator('.mascot-wardrobe-view-toggle').click();
       await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-view-mode', '3d');
+      await expect(page.locator('.mascot-wardrobe-turntable')).toHaveAttribute('data-worn-model', 'accessory-bell-collar', { timeout: 90000 });
+      await expect(page.locator('.mascot-wardrobe-character')).toHaveAttribute('data-renderer', 'ready');
       await page.getByRole('tab', { name: '皮肤' }).click();
     }
 

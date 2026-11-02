@@ -18,8 +18,8 @@ import numpy as np
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 
-BASE = Path('Q:/NAVA-Workspace/NAVA-App/Build/Assets/Mascot/base-cat-v9-shadowless/nava-cat-base-v9-shadowless.glb')
-REF = Path('Q:/NAVA-Workspace/NAVA-App/Build/Reference/Meshy/accessory-pilot-v12-beret-two-view')
+BASE = Path('Q:/NAVA-Workspace/Build/Assets/Mascot/base-cat-v9-shadowless/nava-cat-base-v9-shadowless.glb')
+REF = Path('Q:/NAVA-Workspace/Build/Reference/Meshy/accessory-pilot-v12-beret-two-view')
 CX, CY, Z0 = -0.080, -0.280, 0.475
 AX, AY = -0.115, -0.205
 N = 128
@@ -31,7 +31,7 @@ def arguments():
     p.add_argument('--bake', action='store_true')
     p.add_argument('--views', default='front,left')
     p.add_argument('--resolution', type=int, default=512)
-    p.add_argument('--felt-texture', type=Path, default=Path('Q:/NAVA-Workspace/NAVA-App/Build/Assets/Mascot/beret-fitted-v1/source-felt.png'))
+    p.add_argument('--felt-texture', type=Path, default=Path('Q:/NAVA-Workspace/Build/Assets/Mascot/beret-fitted-v1/source-felt.png'))
     return p.parse_args(sys.argv[sys.argv.index('--') + 1:])
 
 
