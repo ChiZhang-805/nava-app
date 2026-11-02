@@ -1,7 +1,61 @@
 # NAVA Apple Health / Apple Watch 当前交付方案
 
-首次制定：2026-09-02；当前状态同步：2026-09-07
+首次制定：2026-09-02；当前状态同步：2026-11-03
 状态：实施基线；所有勾选项必须有代码、自动化或真机证据，不能以界面占位代替。
+
+## 0A. 2026-11-03 云端 TestFlight 交接状态（最高优先级）
+
+Apple Developer Program 已开通，Team ID 为 `P9N6YYZ7Y9`。App Store Connect 已建立
+“NAVA健康节律助手”，Apple App ID 为 `6829876477`；已注册显式 App ID：
+`health.nava.mobile` 与 `health.nava.mobile.watchkitapp`。iPhone App ID 已启用 HealthKit
+和 Push Notifications，Watch App ID 不额外启用服务。App Store Connect 中仍无构建版本。
+
+源码已整理到分支 `release/testflight-cloud-20261103`，包含 GitHub Actions 工作流
+`.github/workflows/ios-testflight.yml`。仓库变量 `NAVA_APPLE_TEAM_ID` 与
+`NAVA_IOS_BUNDLE_ID` 已设置，GitHub `testflight` environment 已建立。macOS 15 云端机器
+使用 Xcode 26.3 完成 CocoaPods、原生资源逐字节检查，以及 iPhone + 单 target Watch 的
+Release 模拟器编译；通过记录：GitHub Actions run `41510613160`。这证明工程能在真实
+Xcode 工具链编译，但不等于已签名归档、真机通过或已上传 TestFlight。
+
+Windows 已生成 Apple Distribution CSR：
+`Q:\NAVA-Workspace\Build\AppleSigning\NAVA_Apple_Distribution.certSigningRequest`。
+匹配私钥仅保存在同目录，不得上传 Apple、Git 或聊天。生成和后续 P12 转换脚本分别是：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/apple-signing/New-TestFlightSigningRequest.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/apple-signing/Complete-TestFlightCertificate.ps1 `
+  -AppleCertificatePath '下载的 distribution.cer'
+```
+
+### 账户持有人下一次只需完成的步骤
+
+1. Apple Developer → Certificates 新建 **Apple Distribution** 证书，上传上述 CSR，下载
+   `.cer`；不要新建第二把私钥。运行 `Complete-TestFlightCertificate.ps1` 生成 P12。
+2. 为 `health.nava.mobile` 与 `health.nava.mobile.watchkitapp` 各建一个 **App Store**
+   provisioning profile，均选择这张 Distribution 证书并下载 `.mobileprovision`。
+3. App Store Connect → 用户和访问 → 集成 → App Store Connect API，创建具有上传权限的
+   API Key，记录 Issuer ID、Key ID，并只下载一次 `.p8`。
+4. 在 GitHub `testflight` environment 添加以下 secrets；证书、profile 使用 Base64，
+   `.p8` 保存完整文本。不要把内容写进仓库或截图：
+
+   - `APPLE_DISTRIBUTION_CERTIFICATE_BASE64`
+   - `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD`
+   - `APPLE_PROVISIONING_PROFILE_APP_BASE64`
+   - `APPLE_PROVISIONING_PROFILE_WATCH_BASE64`
+   - `APP_STORE_CONNECT_KEY_ID`
+   - `APP_STORE_CONNECT_ISSUER_ID`
+   - `APP_STORE_CONNECT_PRIVATE_KEY`
+
+   也可在仓库根目录运行 `scripts/apple-signing/Set-TestFlightGitHubSecrets.ps1`，它会从
+   标准输入安全交给已登录的 GitHub CLI，不会把 secret 写入仓库或命令行参数。
+
+5. 审看并合并该发布分支到默认分支后，在 Actions → “iOS TestFlight” → Run workflow，
+   `operation=upload`、`marketing_version=1.0.0`。构建号留空时工作流使用 GitHub run number；
+   每次重传必须递增。上传成功后再到 TestFlight 填测试信息并建立内部测试组。
+
+`NAVA` 作为 App Store 名称已被占用，因此商店记录使用“ NAVA健康节律助手”；这不改变
+Bundle ID，也不要求改源码内产品身份。商店显示名之后可以在 App Store Connect 的本地化
+信息中调整，只要新名称可用；Bundle ID 创建后不可更换。
 
 ## 0. TestFlight 当前准备状态（2026-10-30）
 

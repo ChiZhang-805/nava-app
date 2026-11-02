@@ -30,13 +30,13 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
-        "npm:@capacitor/android@^7.6.9",
+        "npm:@capacitor/android@^7.6.10",
         "npm:@capacitor/app@^7.0.2",
         "npm:@capacitor/camera@^7.0.5",
-        "npm:@capacitor/cli@^7.4.2",
-        "npm:@capacitor/core@^7.4.2",
+        "npm:@capacitor/cli@^7.6.10",
+        "npm:@capacitor/core@^7.6.10",
         "npm:@capacitor/filesystem@7.1.9",
-        "npm:@capacitor/ios@^7.4.2",
+        "npm:@capacitor/ios@^7.6.10",
         "npm:@capacitor/local-notifications@^7.0.7",
         "npm:@capacitor/push-notifications@^7.0.7",
         "npm:@capacitor/share@7.0.4",
@@ -66,7 +66,12 @@
         "npm:typescript@^5.7.2",
         "npm:vite@^8.1.5",
         "npm:xcode@4.0.0"
-      ]
+      ],
+      "overrides": {
+        "glob": "14.0.3",
+        "minimatch": "11.0.4",
+        "rimraf": "6.1.3"
+      }
     }
   }
 }

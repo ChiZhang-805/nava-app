@@ -1,5 +1,25 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
+## TestFlight 云端构建（2026-11-03，当前最高优先级）
+
+用户已开通 Apple Developer，Team ID `P9N6YYZ7Y9`；App Store Connect 已创建
+“NAVA健康节律助手”（Apple App ID `6829876477`）。显式 Bundle ID 为
+`health.nava.mobile`，Watch 为 `health.nava.mobile.watchkitapp`。发布源码已整理在
+`release/testflight-cloud-20261103`，没有覆盖原有脏工作区；远端 main 的 32 个提交已合并。
+
+GitHub Actions 的 macOS 15 / Xcode 26.3 已通过真实 Xcode Release 编译，run
+`41510613160`；iPhone 与单 target Watch 均构建成功。工作流支持无签名验证和签名后
+自动 archive、IPA 导出、App Store Connect API 上传。repo variables 与 `testflight`
+environment 已建，依赖审计为 0 漏洞。当前仍未生成签名 archive，也未上传 TestFlight。
+
+Apple Distribution CSR 已生成在
+`Q:\NAVA-Workspace\Build\AppleSigning\NAVA_Apple_Distribution.certSigningRequest`，
+匹配私钥只在同目录本地保存。下一步由账户持有人上传 CSR、下载 Apple Distribution
+证书，创建 iPhone/Watch 两份 App Store provisioning profile 与 App Store Connect API
+Key，然后配置七项 GitHub environment secrets。完整名称和操作见
+`docs/APPLE_HEALTH_WATCH_DELIVERY.md` §0A。不要把证书密码、私钥、P12、profile 或 `.p8`
+写入仓库、任务消息或截图。
+
 ## 记录与回顾小猫动作优化（2026-10-30，当前任务）
 
 沿用现有 Canvas/WebGL CatActor，不换素材、不改变身体或头部的原始缩放。新增
