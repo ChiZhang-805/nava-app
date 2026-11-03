@@ -74,9 +74,18 @@ npm run ios:release:check
 node scripts/verify-native-preview-exclusion.mjs
 node scripts/ios-release-checks.mjs --copied
 plutil -lint ios/App/App/Info.plist ios/App/App/App.entitlements ios/App/App/App.Release.entitlements ios/App/App/PrivacyInfo.xcprivacy native/watch/PrivacyInfo.xcprivacy
-if [[ "${NAVA_ARCHIVE:-0}" == "1" && -n "$(git status --porcelain)" ]]; then
-  echo "Dependency sync changed source/Podfile.lock. Review and commit those changes, then retry with a clean checkout." >&2
-  exit 1
+SYNC_STATUS="$(git status --porcelain --untracked-files=all)"
+GENERATED_POD_LOCK=0
+if [[ "${NAVA_ARCHIVE:-0}" == "1" && -n "${SYNC_STATUS}" ]]; then
+  UNEXPECTED_SYNC_STATUS="$(printf '%s\n' "${SYNC_STATUS}" | grep -vE '^\?\? ios/App/Podfile\.lock$' || true)"
+  if [[ -n "${UNEXPECTED_SYNC_STATUS}" ]]; then
+    echo "Dependency sync changed files other than a first-run Podfile.lock:" >&2
+    printf '%s\n' "${SYNC_STATUS}" >&2
+    echo "Review and commit those changes, then retry with a clean checkout." >&2
+    exit 1
+  fi
+  GENERATED_POD_LOCK=1
+  echo "CocoaPods generated the first ios/App/Podfile.lock; it will be preserved with the signed build evidence."
 fi
 
 DERIVED_DATA="${REPO_ROOT}/artifacts/ios/DerivedData"
@@ -146,6 +155,9 @@ if [[ -e "${RELEASE_DIR}" ]]; then
   exit 1
 fi
 mkdir -p "${RELEASE_DIR}"
+if [[ -f ios/App/Podfile.lock ]]; then
+  cp ios/App/Podfile.lock "${RELEASE_DIR}/Podfile.lock"
+fi
 xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release \
   -destination 'generic/platform=iOS' "${SIGNING_SETTINGS[@]}" \
   -showBuildSettings -json > "${RELEASE_DIR}/build-settings.json"

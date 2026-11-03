@@ -101,3 +101,11 @@ test("actual archive metadata rejects simulator SDKs and mismatched embedded Wat
   assert.throws(() => checkArchiveMetadata(app, { ...watch, CFBundleVersion: "11" }, inputs));
   assert.throws(() => checkArchiveMetadata(app, { ...watch, DTSDKName: "watchos11.0" }, inputs));
 });
+
+test("signed cloud builds allow only a first-run Podfile lock and preserve it as evidence", () => {
+  const script = readFileSync(path.join(root, "scripts/prepare-ios-release.sh"), "utf8");
+  assert.match(script, /grep -vE '\^\\\?\\\? ios\/App\/Podfile\\\.lock\$'/);
+  assert.match(script, /UNEXPECTED_SYNC_STATUS/);
+  assert.match(script, /cp ios\/App\/Podfile\.lock "\$\{RELEASE_DIR\}\/Podfile\.lock"/);
+  assert.match(script, /changed files other than a first-run Podfile\.lock/);
+});
