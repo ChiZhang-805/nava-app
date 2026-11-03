@@ -59,6 +59,11 @@ export function checkProject(objects) {
       const bundle = index === 0 ? "$(NAVA_APP_BUNDLE_ID)" : "$(NAVA_APP_BUNDLE_ID).watchkitapp";
       assert.equal(unquote(settings.PRODUCT_BUNDLE_IDENTIFIER), bundle);
       versions.add(`${settings.MARKETING_VERSION}:${settings.CURRENT_PROJECT_VERSION}`);
+      if (unquote(config.name) === "Release") {
+        const profile = index === 0 ? "NAVA iOS App Store" : "NAVA Watch App Store";
+        assert.equal(unquote(settings.CODE_SIGN_STYLE), "Manual", "Release App targets must use explicit App Store profiles");
+        assert.equal(unquote(settings.PROVISIONING_PROFILE_SPECIFIER), profile, `Unexpected Release profile for ${unquote(target.name)}`);
+      }
       if (index === 0) {
         assert.ok(Number(settings.IPHONEOS_DEPLOYMENT_TARGET) >= 16.4, "NAVA requires iOS 16.4 WebKit layout support");
         assert.equal(Number(settings.TARGETED_DEVICE_FAMILY), 1);
@@ -122,6 +127,8 @@ export function checkBuildSettings(settings, env) {
     assert.equal(item.CURRENT_PROJECT_VERSION, env.NAVA_IOS_BUILD_NUMBER);
     assert.equal(item.DEVELOPMENT_TEAM, env.NAVA_APPLE_TEAM_ID);
     assert.match(item.CODE_SIGN_IDENTITY ?? "", /Apple Distribution/, `Release signing identity is not distributable for ${target}`);
+    assert.equal(item.CODE_SIGN_STYLE, "Manual", `Release signing must be manual for ${target}`);
+    assert.equal(item.PROVISIONING_PROFILE_SPECIFIER, target === "App" ? "NAVA iOS App Store" : "NAVA Watch App Store");
   }
 }
 
