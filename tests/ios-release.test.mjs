@@ -133,3 +133,10 @@ test("release script does not force App signing settings onto CocoaPods", () => 
   assert.match(script, /NAVA iOS App Store/);
   assert.match(script, /NAVA Watch App Store/);
 });
+
+test("upload discovery stays compatible with macOS Bash 3.2", () => {
+  const script = readFileSync(path.join(root, "scripts/prepare-ios-release.sh"), "utf8");
+  const executableLines = script.split("\n").filter((line) => !line.trimStart().startsWith("#")).join("\n");
+  assert.doesNotMatch(executableLines, /\b(?:mapfile|readarray)\b/);
+  assert.match(script, /while IFS= read -r ipa_file/);
+});
