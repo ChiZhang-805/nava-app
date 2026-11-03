@@ -161,7 +161,9 @@ jobs:
           NAVA_ARCHIVE: "1"
           NAVA_EXPORT: "1"
           NAVA_UPLOAD: "1"
-          NAVA_ALLOW_PROVISIONING_UPDATES: "1"
+          # Distribution profiles are installed explicitly above. Avoid asking
+          # Apple to create development profiles (which would require devices).
+          NAVA_ALLOW_PROVISIONING_UPDATES: "0"
           NAVA_APPLE_TEAM_ID: ${{ vars.NAVA_APPLE_TEAM_ID }}
           NAVA_IOS_BUNDLE_ID: ${{ vars.NAVA_IOS_BUNDLE_ID }}
           NAVA_IOS_VERSION: ${{ inputs.marketing_version }}

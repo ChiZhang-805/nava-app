@@ -30,6 +30,11 @@ test("a Release target accidentally using development push entitlements fails", 
   project.XCBuildConfiguration["504EC3181FED79650016851F"].buildSettings.CODE_SIGN_ENTITLEMENTS = "App/App.entitlements";
   assert.throws(() => checkProject(project));
 });
+test("Release signing cannot silently fall back to a development identity", () => {
+  const project = loadProject();
+  project.XCBuildConfiguration["504EC3151FED79650016851F"].buildSettings.CODE_SIGN_IDENTITY = "iPhone Developer";
+  assert.throws(() => checkProject(project), /Apple Distribution/);
+});
 test("Watch version mismatch and detached companion identity fail", () => {
   for (const field of ["MARKETING_VERSION", "PRODUCT_BUNDLE_IDENTIFIER", "INFOPLIST_KEY_WKCompanionAppBundleIdentifier"]) {
     const project = loadProject();
@@ -67,6 +72,7 @@ test("resolved build settings must contain both signed targets with approved ver
     MARKETING_VERSION: inputs.NAVA_IOS_VERSION,
     CURRENT_PROJECT_VERSION: inputs.NAVA_IOS_BUILD_NUMBER,
     DEVELOPMENT_TEAM: inputs.NAVA_APPLE_TEAM_ID,
+    CODE_SIGN_IDENTITY: "Apple Distribution",
   } }));
   checkBuildSettings(settings, inputs);
   assert.throws(() => checkBuildSettings(settings.slice(0, 1), inputs));
