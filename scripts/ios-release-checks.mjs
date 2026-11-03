@@ -43,6 +43,7 @@ export function checkProject(objects) {
   const projectConfigs = [configs["504EC3141FED79650016851F"], configs["504EC3151FED79650016851F"]];
   const roots = projectConfigs.map((config) => unquote(config.buildSettings.NAVA_APP_BUNDLE_ID));
   assert.equal(roots[0], roots[1], "Debug/Release root Bundle IDs differ");
+  assert.equal(unquote(projectConfigs[1].buildSettings.CODE_SIGN_IDENTITY), "Apple Distribution", "Release must use Apple Distribution signing");
   const capacitorId = read("capacitor.config.ts").match(/appId:\s*"([^"]+)"/)?.[1];
   assert.equal(roots[0], capacitorId, "Capacitor and Xcode identities differ");
   const targetIds = ["504EC3031FED79650016851F", "B2C3D4E50000000000000031"];
@@ -120,6 +121,7 @@ export function checkBuildSettings(settings, env) {
     assert.equal(item.MARKETING_VERSION, env.NAVA_IOS_VERSION);
     assert.equal(item.CURRENT_PROJECT_VERSION, env.NAVA_IOS_BUILD_NUMBER);
     assert.equal(item.DEVELOPMENT_TEAM, env.NAVA_APPLE_TEAM_ID);
+    assert.match(item.CODE_SIGN_IDENTITY ?? "", /Apple Distribution/, `Release signing identity is not distributable for ${target}`);
   }
 }
 
