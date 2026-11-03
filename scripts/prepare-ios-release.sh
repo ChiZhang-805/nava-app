@@ -214,11 +214,23 @@ EOF
       echo "Expected exactly one exported IPA, found ${#IPA_FILES[@]}." >&2
       exit 1
     fi
+    ALTOOL_LOG="${RELEASE_DIR}/altool-upload.log"
+    set +e
     xcrun altool --upload-app \
       --type ios \
       --file "${IPA_FILES[0]}" \
       --apiKey "${NAVA_APP_STORE_CONNECT_KEY_ID}" \
-      --apiIssuer "${NAVA_APP_STORE_CONNECT_ISSUER_ID}"
+      --apiIssuer "${NAVA_APP_STORE_CONNECT_ISSUER_ID}" 2>&1 | tee "${ALTOOL_LOG}"
+    ALTOOL_STATUS=${PIPESTATUS[0]}
+    set -e
+    if (( ALTOOL_STATUS != 0 )) || grep -Eq 'UPLOAD FAILED|Failed to upload package|Validation failed|(^|[[:space:]])ERROR:' "${ALTOOL_LOG}"; then
+      echo "App Store Connect upload failed. See ${ALTOOL_LOG}." >&2
+      exit 1
+    fi
+    if ! grep -Eq 'No errors uploading|UPLOAD SUCCEEDED' "${ALTOOL_LOG}"; then
+      echo "App Store Connect did not return an explicit upload-success receipt. See ${ALTOOL_LOG}." >&2
+      exit 1
+    fi
     printf '%s\n' "${IPA_FILES[0]}" > "${RELEASE_DIR}/uploaded-ipa.txt"
     echo "Upload accepted by App Store Connect. Processing and export-compliance answers are still pending."
   else

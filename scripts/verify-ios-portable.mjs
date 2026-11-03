@@ -7,7 +7,7 @@ import { verifySource } from "./ios-release-checks.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const read = (file) => readFileSync(path.join(root, file), "utf8");
 const includes = (file, needles) => { const text = read(file); for (const needle of needles) assert.ok(text.includes(needle), `${file}: missing ${needle}`); };
-const privacy = ["NSHealthShareUsageDescription", "NSMotionUsageDescription", "NSMicrophoneUsageDescription", "NSSpeechRecognitionUsageDescription", "NSCameraUsageDescription", "NSPhotoLibraryUsageDescription", "NSPhotoLibraryAddUsageDescription"];
+const privacy = ["NSHealthShareUsageDescription", "NSHealthUpdateUsageDescription", "NSMotionUsageDescription", "NSMicrophoneUsageDescription", "NSSpeechRecognitionUsageDescription", "NSCameraUsageDescription", "NSPhotoLibraryUsageDescription", "NSPhotoLibraryAddUsageDescription"];
 const plist = read("ios/App/App/Info.plist");
 includes("ios/App/Podfile", ["CapacitorFilesystem", "CapacitorShare"]);
 includes("ios/App/App/PrivacyInfo.xcprivacy", ["NSPrivacyAccessedAPICategoryFileTimestamp", "C617.1"]);
@@ -35,7 +35,7 @@ includes("native/ios/NavaWatchBridgePlugin.swift", ["didReceiveMessage message",
 for (const name of ["NavaHealthPlugin", "NavaHealthBackgroundObserver", "NavaSecureStoragePlugin", "NavaSpeechPlugin", "NavaWatchBridgePlugin", "NavaWatchApp", "WatchHomeView", "WatchSessionManager", "NavaBridgeViewController"]) {
   includes("ios/App/App.xcodeproj/project.pbxproj", [`${name}.swift in Sources`]);
 }
-includes("ios/App/App.xcodeproj/project.pbxproj", ["NAVA Watch.app in Embed Watch Content", "CODE_SIGN_ENTITLEMENTS = App/App.entitlements;", "TARGETED_DEVICE_FAMILY = 1;", 'PRODUCT_BUNDLE_IDENTIFIER = "$(NAVA_APP_BUNDLE_ID).watchkitapp";', 'INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "$(NAVA_APP_BUNDLE_ID)";']);
+includes("ios/App/App.xcodeproj/project.pbxproj", ["NAVA Watch.app in Embed Watch Content", "CODE_SIGN_ENTITLEMENTS = App/App.entitlements;", "TARGETED_DEVICE_FAMILY = 1;", 'PRODUCT_BUNDLE_IDENTIFIER = "$(NAVA_APP_BUNDLE_ID).watchkitapp";', "INFOPLIST_FILE = ../../native/watch/Info.plist;"]);
 includes("ios/App/Podfile", ["CapacitorCamera", "CapacitorLocalNotifications", "CapacitorPushNotifications"]);
 includes("src/services/notifications.ts", ["replaceNotificationSchedules(LocalNotifications, notifications)", "localNotificationReceived", "localNotificationActionPerformed"]);
 includes("src/services/notificationSchedule.ts", ["await adapter.cancel", "await adapter.schedule"]);

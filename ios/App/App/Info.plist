@@ -24,6 +24,8 @@
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>NAVA 读取 Apple 健康数据，用于生成个人节律洞察。</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>NAVA 仅在您主动选择并确认时，将相应的健康记录写入 Apple 健康。</string>
 	<key>NSMotionUsageDescription</key>
 	<string>NAVA 仅在本机使用设备动作数据，让动态背景响应您的 iPhone 移动。</string>
 	<key>NSMicrophoneUsageDescription</key>

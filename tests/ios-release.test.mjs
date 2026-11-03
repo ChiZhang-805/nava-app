@@ -43,7 +43,7 @@ test("Release App targets require their exact App Store profiles", () => {
   }
 });
 test("Watch version mismatch and detached companion identity fail", () => {
-  for (const field of ["MARKETING_VERSION", "PRODUCT_BUNDLE_IDENTIFIER", "INFOPLIST_KEY_WKCompanionAppBundleIdentifier"]) {
+  for (const field of ["MARKETING_VERSION", "PRODUCT_BUNDLE_IDENTIFIER", "INFOPLIST_FILE"]) {
     const project = loadProject();
     project.XCBuildConfiguration["B2C3D4E50000000000000042"].buildSettings[field] = "wrong";
     assert.throws(() => checkProject(project));
@@ -110,7 +110,7 @@ test("native builder overrides hostile ambient demo and project settings before 
 
 test("actual archive metadata rejects simulator SDKs and mismatched embedded Watch versions", () => {
   const app = { CFBundleIdentifier: inputs.NAVA_IOS_BUNDLE_ID, CFBundleShortVersionString: "1.0.0", CFBundleVersion: "12", DTSDKName: "iphoneos26.0" };
-  const watch = { ...app, CFBundleIdentifier: `${inputs.NAVA_IOS_BUNDLE_ID}.watchkitapp`, WKCompanionAppBundleIdentifier: inputs.NAVA_IOS_BUNDLE_ID, DTSDKName: "watchos26.0" };
+  const watch = { ...app, CFBundleIdentifier: `${inputs.NAVA_IOS_BUNDLE_ID}.watchkitapp`, CFBundleIconName: "AppIcon", CFBundleIconFiles: ["AppIcon"], WKCompanionAppBundleIdentifier: inputs.NAVA_IOS_BUNDLE_ID, DTSDKName: "watchos26.0" };
   checkArchiveMetadata(app, watch, inputs);
   assert.throws(() => checkArchiveMetadata({ ...app, DTSDKName: "iphonesimulator26.0" }, watch, inputs));
   assert.throws(() => checkArchiveMetadata(app, { ...watch, CFBundleVersion: "11" }, inputs));
@@ -139,4 +139,8 @@ test("upload discovery stays compatible with macOS Bash 3.2", () => {
   const executableLines = script.split("\n").filter((line) => !line.trimStart().startsWith("#")).join("\n");
   assert.doesNotMatch(executableLines, /\b(?:mapfile|readarray)\b/);
   assert.match(script, /while IFS= read -r ipa_file/);
+  assert.match(script, /ALTOOL_STATUS=\$\{PIPESTATUS\[0\]\}/);
+  assert.match(script, /UPLOAD FAILED\|Failed to upload package\|Validation failed/);
+  assert.match(script, /No errors uploading\|UPLOAD SUCCEEDED/);
+  assert.ok(script.indexOf("uploaded-ipa.txt") > script.indexOf("No errors uploading|UPLOAD SUCCEEDED"));
 });
