@@ -114,6 +114,15 @@ test("native builder overrides hostile ambient demo and project settings before 
   }
 });
 
+test("native signed-out screens keep their packaged background and fill the device width", () => {
+  const bootstrap = readFileSync(path.join(root, "src/AppBootstrap.tsx"), "utf8");
+  const styles = readFileSync(path.join(root, "src/styles/figma-v2.css"), "utf8");
+  assert.match(bootstrap, /function BootstrapStage[\s\S]*?<LivingBackground \/>[\s\S]*?\{children\}/);
+  assert.match(styles, /\.nava-app-stage\s*\{[\s\S]*?linear-gradient\(143deg,[\s\S]*?\}/);
+  assert.match(styles, /\.auth-screen\s*\{[\s\S]*?isolation:\s*isolate;[\s\S]*?grid-template-rows:\s*clamp\(/);
+  assert.match(styles, /\.auth-form,\s*\n\.auth-form--signIn\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*410px;/);
+});
+
 test("actual archive metadata rejects simulator SDKs and mismatched embedded Watch versions", () => {
   const app = { CFBundleIdentifier: inputs.NAVA_IOS_BUNDLE_ID, CFBundleShortVersionString: "1.0.0", CFBundleVersion: "12", DTSDKName: "iphoneos26.0" };
   const watch = { ...app, CFBundleIdentifier: `${inputs.NAVA_IOS_BUNDLE_ID}.watchkitapp`, CFBundleIconName: "AppIcon", CFBundleIconFiles: ["AppIcon"], WKCompanionAppBundleIdentifier: inputs.NAVA_IOS_BUNDLE_ID, DTSDKName: "watchos26.0" };

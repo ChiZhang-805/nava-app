@@ -252,6 +252,7 @@ async function main() {
 
     await uiPage.locator(".auth-mode-icon").tap();
     await uiPage.locator(".auth-forgot").tap();
+    await uiPage.locator('[data-recovery-option="reset"]').tap();
     await uiPage.locator('input[autocomplete="username"]').fill("reset@example.com");
     await uiPage.waitForTimeout(350);
     metrics.reset = await readLayout(uiPage);
@@ -270,6 +271,7 @@ async function main() {
     compactPage.on("pageerror", (error) => errors.push(error.message));
     await openAppPage(compactPage);
     await compactPage.locator(".auth-forgot").tap();
+    await compactPage.locator('[data-recovery-option="reset"]').tap();
     await compactPage.locator('input[autocomplete="username"]').fill("reset@example.com");
     await compactPage.waitForTimeout(500);
     metrics.compactReset = await readLayout(compactPage);
@@ -280,7 +282,8 @@ async function main() {
     const emailLoginPage = await emailLoginContext.newPage();
     const emailLoginCalls = await installAuthMocks(emailLoginPage, { email: "login@example.com", suffix: "000000000108" });
     await openAppPage(emailLoginPage);
-    await emailLoginPage.locator(".auth-method-switch").tap();
+    await emailLoginPage.locator(".auth-forgot").tap();
+    await emailLoginPage.locator('[data-recovery-option="otp"]').tap();
     await emailLoginPage.locator('input[autocomplete="username"]').fill("login@example.com");
     await emailLoginPage.locator(".auth-code-button").tap();
     await emailLoginPage.locator('input[autocomplete="one-time-code"]').fill("65432109");
@@ -294,7 +297,8 @@ async function main() {
     const phoneLoginPage = await phoneLoginContext.newPage();
     const phoneLoginCalls = await installAuthMocks(phoneLoginPage, { email: "13700137000@phone.nava.app", suffix: "000000000109" });
     await openAppPage(phoneLoginPage);
-    await phoneLoginPage.locator(".auth-method-switch").tap();
+    await phoneLoginPage.locator(".auth-forgot").tap();
+    await phoneLoginPage.locator('[data-recovery-option="otp"]').tap();
     await phoneLoginPage.locator('input[autocomplete="username"]').fill("13700137000");
     await phoneLoginPage.locator(".auth-code-button").tap();
     await phoneLoginPage.locator('input[autocomplete="one-time-code"]').fill("765432");
@@ -355,9 +359,10 @@ async function main() {
     const resetCalls = await installAuthMocks(resetPage, { email: "reset@example.com", passwordMatches: false, suffix: "000000000103" });
     await openAppPage(resetPage);
     await resetPage.locator(".auth-forgot").tap();
+    await resetPage.locator('[data-recovery-option="reset"]').tap();
     await resetPage.locator('input[autocomplete="username"]').fill("reset@example.com");
     await resetPage.locator(".auth-code-button").tap();
-    await resetPage.locator('input[autocomplete="one-time-code"]').fill("234567");
+    await resetPage.locator('input[autocomplete="one-time-code"]').fill("23456789");
     await fillNewPasswords(resetPage, "different-password");
     await resetPage.locator(".auth-submit").tap();
     await resetPage.locator(".phone-frame").waitFor({ timeout: 10000 });
@@ -372,6 +377,7 @@ async function main() {
     const phoneResetCalls = await installAuthMocks(phoneResetPage, { email: "13900139000@phone.nava.app", passwordMatches: false, suffix: "000000000106" });
     await openAppPage(phoneResetPage);
     await phoneResetPage.locator(".auth-forgot").tap();
+    await phoneResetPage.locator('[data-recovery-option="reset"]').tap();
     await phoneResetPage.locator('input[autocomplete="username"]').fill("13900139000");
     await phoneResetPage.locator(".auth-code-button").tap();
     await phoneResetPage.locator('input[autocomplete="one-time-code"]').fill("567890");
@@ -389,9 +395,10 @@ async function main() {
     const sameCalls = await installAuthMocks(samePage, { email: "same@example.com", passwordMatches: true, suffix: "000000000104" });
     await openAppPage(samePage);
     await samePage.locator(".auth-forgot").tap();
+    await samePage.locator('[data-recovery-option="reset"]').tap();
     await samePage.locator('input[autocomplete="username"]').fill("same@example.com");
     await samePage.locator(".auth-code-button").tap();
-    await samePage.locator('input[autocomplete="one-time-code"]').fill("345678");
+    await samePage.locator('input[autocomplete="one-time-code"]').fill("34567890");
     await fillNewPasswords(samePage, "same-password");
     await samePage.locator(".auth-submit").tap();
     await samePage.locator(".error-text").waitFor({ timeout: 10000 });

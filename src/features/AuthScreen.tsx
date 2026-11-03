@@ -81,7 +81,8 @@ export default function AuthScreen({
       ? signInMethod === "password"
         ? Boolean(password)
         : otpSent && sentTo === normalizedAccount && otpIsValid
-      : password.length >= 6 && Boolean(confirmPassword) && otpSent && sentTo === normalizedAccount && otpIsValid);
+      : password.length >= 6 && Boolean(confirmPassword) && otpSent && sentTo === normalizedAccount && otpIsValid)
+    && (mode !== "signUp" || acceptedTerms);
 
   useEffect(() => {
     if (codeCooldown <= 0) return;

@@ -1,5 +1,5 @@
 import { Activity } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { assertConfig } from "./config";
 import AuthScreen from "./features/AuthScreen";
@@ -10,6 +10,7 @@ import type { OnboardingStatus } from "./services/onboarding";
 import { AuthProvider } from "./state/AuthProvider";
 import { useAuth } from "./state/authContext";
 import LoadingShell from "./components/LoadingShell";
+import LivingBackground from "./components/LivingBackground";
 import NavaLoadingScene from "./components/NavaLoadingScene";
 import DesktopDevicePreviewChrome from "./components/DesktopDevicePreviewChrome";
 
@@ -43,6 +44,22 @@ function ConfigErrorScreen({ message }: { message: string }) {
       <p className="muted">{message}</p>
       <code className="code-card">copy .env.example .env</code>
     </main>
+  );
+}
+
+function BootstrapStage({
+  children,
+  onFirstLoginPreview,
+}: {
+  children: ReactNode;
+  onFirstLoginPreview: () => void;
+}) {
+  return (
+    <div className="nava-app-stage">
+      <LivingBackground />
+      {children}
+      <DesktopDevicePreviewChrome onFirstLoginPreview={onFirstLoginPreview} />
+    </div>
   );
 }
 
@@ -84,20 +101,19 @@ function BootstrapContent() {
     />
   ) : null;
 
-  if (forceAuthSkeleton) return <div className="nava-app-stage">{firstLoginPreview ?? <AuthLoadingScreen />}<DesktopDevicePreviewChrome onFirstLoginPreview={openFirstLoginPreview} /></div>;
-  if (configError && !isDemoMode()) return <div className="nava-app-stage">{firstLoginPreview ?? <ConfigErrorScreen message={configError} />}<DesktopDevicePreviewChrome onFirstLoginPreview={openFirstLoginPreview} /></div>;
-  if (loading) return <div className="nava-app-stage">{firstLoginPreview ?? <AuthLoadingScreen />}<DesktopDevicePreviewChrome onFirstLoginPreview={openFirstLoginPreview} /></div>;
+  if (forceAuthSkeleton) return <BootstrapStage onFirstLoginPreview={openFirstLoginPreview}>{firstLoginPreview ?? <AuthLoadingScreen />}</BootstrapStage>;
+  if (configError && !isDemoMode()) return <BootstrapStage onFirstLoginPreview={openFirstLoginPreview}>{firstLoginPreview ?? <ConfigErrorScreen message={configError} />}</BootstrapStage>;
+  if (loading) return <BootstrapStage onFirstLoginPreview={openFirstLoginPreview}>{firstLoginPreview ?? <AuthLoadingScreen />}</BootstrapStage>;
 
   return (
     <>
       {!user && (
-        <div className="nava-app-stage">
+        <BootstrapStage onFirstLoginPreview={openFirstLoginPreview}>
           {firstLoginPreview ?? <AuthScreen onAuthenticated={() => setFreshAuthentication(true)} />}
-          <DesktopDevicePreviewChrome onFirstLoginPreview={openFirstLoginPreview} />
-        </div>
+        </BootstrapStage>
       )}
       {user && (
-        <Suspense fallback={<div className="nava-app-stage"><LoadingScreen /><DesktopDevicePreviewChrome onFirstLoginPreview={openFirstLoginPreview} /></div>}>
+        <Suspense fallback={<BootstrapStage onFirstLoginPreview={openFirstLoginPreview}><LoadingScreen /></BootstrapStage>}>
             <AuthenticatedApp
               signedOutScreenSeen={signedOutScreenSeen.current}
               showInitialHomeGuidance={freshAuthentication}

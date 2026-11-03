@@ -20,7 +20,9 @@ body::before {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
-  background: #fff;
+  background:
+    radial-gradient(ellipse at 14% 12%, rgba(246, 253, 255, 0.96) 0 9%, transparent 58%),
+    linear-gradient(143deg, #edfaff 0%, #bfeaff 34%, #78cff7 65%, #37a9e4 100%);
 }
 
 .nava-app-stage::before {
@@ -82,8 +84,9 @@ body::before {
 
 .auth-screen {
   position: relative;
-  grid-template-rows: minmax(300px, 40dvh) minmax(0, 1fr);
-  padding: max(18px, env(safe-area-inset-top)) 22px max(18px, env(safe-area-inset-bottom));
+  isolation: isolate;
+  grid-template-rows: clamp(190px, 32dvh, 300px) minmax(0, 1fr);
+  padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
   overflow-x: hidden;
   overflow-y: hidden;
 }
@@ -125,8 +128,8 @@ body::before {
 .auth-form,
 .auth-form--signIn {
   position: relative;
-  width: min(82vw, 352px);
-  max-width: none;
+  width: 100%;
+  max-width: 410px;
   min-height: 0;
   margin: 0 auto;
   display: flex;
@@ -1227,7 +1230,8 @@ body::before {
 @media (max-width: 390px), (max-height: 740px) {
   .auth-form,
   .auth-form--signIn {
-    width: min(86vw, 344px);
+    width: 100%;
+    max-width: 410px;
   }
 
   .auth-form .field-label {
@@ -2397,7 +2401,8 @@ body::before {
 
 /* Recovery starts with two explicit OTP-backed choices instead of a hidden text toggle. */
 .auth-recovery-choice {
-  width: min(82vw, 352px);
+  width: 100%;
+  max-width: 410px;
   margin: 0 auto;
   display: grid;
   gap: 16px;
