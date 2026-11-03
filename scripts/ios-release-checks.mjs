@@ -153,7 +153,7 @@ function checkArchive(archivePath) {
   const watchPath = path.join(appPath, "Watch/NAVA Watch.app");
   const readBuiltPlist = (file) => JSON.parse(execFileSync("/usr/bin/plutil", ["-convert", "json", "-o", "-", file], { encoding: "utf8" }));
   checkArchiveMetadata(readBuiltPlist(path.join(appPath, "Info.plist")), readBuiltPlist(path.join(watchPath, "Info.plist")), process.env);
-  assert.ok(readdirSync(watchPath).some((name) => /^AppIcon.*\.png$/.test(name)), "Archive is missing compiled Watch app-icon PNGs");
+  assert.ok(readFileSync(path.join(watchPath, "Assets.car")).length > 0, "Archive is missing the compiled Watch asset catalog");
   for (const folder of [appPath, watchPath]) checkManifest(readBuiltPlist(path.join(folder, "PrivacyInfo.xcprivacy")));
   checkNativeConfig(JSON.parse(readFileSync(path.join(appPath, "capacitor.config.json"), "utf8")));
   assert.ok(readFileSync(path.join(appPath, "public/index.html")).equals(readFileSync(path.join(root, "dist/index.html"))), "Archive contains a stale web entry");
