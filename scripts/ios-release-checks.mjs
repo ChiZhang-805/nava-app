@@ -73,7 +73,8 @@ export function checkProject(objects) {
         assert.equal(entitlements["com.apple.developer.healthkit"], true);
         assert.equal(entitlements["com.apple.developer.healthkit.background-delivery"], true);
       } else {
-        assert.equal(unquote(settings.INFOPLIST_KEY_WKCompanionAppBundleIdentifier), "$(NAVA_APP_BUNDLE_ID)");
+        assert.equal(settings.GENERATE_INFOPLIST_FILE, "NO", "Watch must use its reviewed explicit Info.plist");
+        assert.equal(unquote(settings.INFOPLIST_FILE), "../../native/watch/Info.plist");
       }
     }
     const resources = target.buildPhases.flatMap((ref) => objects.PBXResourcesBuildPhase[ref.value]?.files ?? []);
@@ -137,6 +138,8 @@ export function checkArchiveMetadata(app, watch, env) {
   assert.equal(app.CFBundleIdentifier, env.NAVA_IOS_BUNDLE_ID);
   assert.equal(watch.CFBundleIdentifier, `${env.NAVA_IOS_BUNDLE_ID}.watchkitapp`);
   assert.equal(watch.WKCompanionAppBundleIdentifier, env.NAVA_IOS_BUNDLE_ID);
+  assert.equal(watch.CFBundleIconName, "AppIcon", "Watch archive must identify its asset-catalog app icon");
+  assert.ok(Array.isArray(watch.CFBundleIconFiles) && watch.CFBundleIconFiles.includes("AppIcon"), "Watch archive must declare its icon files");
   for (const info of [app, watch]) {
     assert.equal(info.CFBundleShortVersionString, env.NAVA_IOS_VERSION);
     assert.equal(info.CFBundleVersion, env.NAVA_IOS_BUILD_NUMBER);
@@ -163,6 +166,11 @@ export function verifySource() {
   const info = plist.parse(read("ios/App/App/Info.plist"));
   assert.deepEqual(info.UIRequiredDeviceCapabilities, ["arm64"]);
   assert.ok(!info.NSAppTransportSecurity?.NSAllowsArbitraryLoads);
+  assert.ok(info.NSHealthUpdateUsageDescription?.trim(), "HealthKit write access requires NSHealthUpdateUsageDescription");
+  const watchInfo = plist.parse(read("native/watch/Info.plist"));
+  assert.equal(watchInfo.CFBundleIconName, "AppIcon");
+  assert.deepEqual(watchInfo.CFBundleIconFiles, ["AppIcon"]);
+  assert.equal(watchInfo.WKCompanionAppBundleIdentifier, "$(NAVA_APP_BUNDLE_ID)");
   assert.match(read("ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme"), /BlueprintIdentifier="504EC3031FED79650016851F"/);
   assert.match(read("ios/App/App.xcworkspace/contents.xcworkspacedata"), /group:Pods\/Pods.xcodeproj/);
   for (const file of ["ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png", "native/watch/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"]) {

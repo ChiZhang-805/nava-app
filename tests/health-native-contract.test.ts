@@ -86,5 +86,7 @@ test("Watch actions survive inactive web runtime and the watchOS target is embed
   assert.doesNotMatch(project, /com\.apple\.product-type\.application\.watchapp2/);
   assert.equal((project.match(/productType = "com\.apple\.product-type\.application";/g) ?? []).length, 2);
   assert.match(project, /PRODUCT_BUNDLE_IDENTIFIER = "\$\(NAVA_APP_BUNDLE_ID\)\.watchkitapp"/);
-  assert.match(project, /INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "\$\(NAVA_APP_BUNDLE_ID\)"/);
+  assert.match(project, /INFOPLIST_FILE = \.\.\/\.\.\/native\/watch\/Info\.plist/);
+  const watchInfo = readFileSync(path.join(root, "native/watch/Info.plist"), "utf8");
+  assert.match(watchInfo, /<key>WKCompanionAppBundleIdentifier<\/key>\s*<string>\$\(NAVA_APP_BUNDLE_ID\)<\/string>/);
 });

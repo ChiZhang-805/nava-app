@@ -1,4 +1,5 @@
 "NSHealthShareUsageDescription" = "NAVA 读取 Apple 健康中的活动、睡眠、心率、HRV 与血氧数据，用于生成个人节律洞察。";
+"NSHealthUpdateUsageDescription" = "NAVA 仅在您主动选择并确认时，将相应的健康记录写入 Apple 健康。";
 "NSMotionUsageDescription" = "NAVA 仅在本机使用设备动作数据，让动态背景轻微响应您的 iPhone 移动。";
 "NSCameraUsageDescription" = "NAVA 使用相机拍摄您选择提交的餐食、面部照片或头像。";
 "NSPhotoLibraryUsageDescription" = "NAVA 读取您选择的照片，用于记录、对话附件或头像。";

@@ -70,7 +70,7 @@ function Get-PlistValueNode {
 }
 
 [xml]$info = Get-Content -LiteralPath (Join-Path $appRoot "Info.plist") -Raw -Encoding UTF8
-foreach ($privacyKey in @("NSHealthShareUsageDescription", "NSMotionUsageDescription", "NSMicrophoneUsageDescription", "NSSpeechRecognitionUsageDescription", "NSCameraUsageDescription", "NSPhotoLibraryUsageDescription", "NSPhotoLibraryAddUsageDescription")) {
+foreach ($privacyKey in @("NSHealthShareUsageDescription", "NSHealthUpdateUsageDescription", "NSMotionUsageDescription", "NSMicrophoneUsageDescription", "NSSpeechRecognitionUsageDescription", "NSCameraUsageDescription", "NSPhotoLibraryUsageDescription", "NSPhotoLibraryAddUsageDescription")) {
   $value = Get-PlistValueNode -Document $info -Key $privacyKey
   if (!$value -or !$value.InnerText.Trim()) { throw "Missing iOS privacy description: $privacyKey" }
 }
@@ -139,7 +139,7 @@ foreach ($expected in @(
   "NAVA Watch.app in Embed Watch Content",
   'productType = "com.apple.product-type.application";',
   'PRODUCT_BUNDLE_IDENTIFIER = "$(NAVA_APP_BUNDLE_ID).watchkitapp";',
-  'INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "$(NAVA_APP_BUNDLE_ID)";',
+  "INFOPLIST_FILE = ../../native/watch/Info.plist;",
   "NavaBridgeViewController.swift in Sources",
   "CODE_SIGN_ENTITLEMENTS = App/App.entitlements;",
   "TARGETED_DEVICE_FAMILY = 1;"
