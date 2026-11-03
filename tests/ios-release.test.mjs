@@ -61,6 +61,10 @@ test("UserDefaults declaration and account-linked data are required", () => {
   source.NSPrivacyAccessedAPITypes = [];
   assert.throws(() => checkManifest(source), /UserDefaults/);
 });
+test("iPhone archive declares that it does not contain non-exempt encryption", () => {
+  const info = plist.parse(readFileSync(path.join(root, "ios/App/App/Info.plist"), "utf8"));
+  assert.equal(info.ITSAppUsesNonExemptEncryption, false);
+});
 test("native configuration rejects live reload, HTTP, navigation overrides and debug WebViews", () => {
   checkNativeConfig(config);
   for (const override of [
