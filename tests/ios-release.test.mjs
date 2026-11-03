@@ -10,6 +10,12 @@ const inputs = { NAVA_APPLE_TEAM_ID: "AB12CD34EF", NAVA_IOS_BUNDLE_ID: "health.n
 const config = { appId: "health.nava.mobile", webDir: "dist", packageClassList: ["CAPCameraPlugin", "LocalNotificationsPlugin", "PushNotificationsPlugin", "AppPlugin", "FilesystemPlugin", "SharePlugin"] };
 
 test("both parsed Xcode targets embed their own manifest and agree on identity/version", () => checkProject(loadProject()));
+test("Watch App Store icon occupies Xcode's watchOS platform slot", () => {
+  const contents = JSON.parse(readFileSync(path.join(root, "native/watch/Assets.xcassets/AppIcon.appiconset/Contents.json"), "utf8"));
+  assert.equal(contents.images[0].platform, "watchos");
+  assert.equal(contents.images[0].idiom, "universal");
+  assert.equal(contents.images[0].size, "1024x1024");
+});
 test("a legacy WatchKit wrapper product type cannot compile single-target Swift sources", () => {
   const project = loadProject();
   project.PBXNativeTarget["B2C3D4E50000000000000031"].productType = '"com.apple.product-type.application.watchapp2"';

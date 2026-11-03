@@ -153,6 +153,7 @@ function checkArchive(archivePath) {
   const watchPath = path.join(appPath, "Watch/NAVA Watch.app");
   const readBuiltPlist = (file) => JSON.parse(execFileSync("/usr/bin/plutil", ["-convert", "json", "-o", "-", file], { encoding: "utf8" }));
   checkArchiveMetadata(readBuiltPlist(path.join(appPath, "Info.plist")), readBuiltPlist(path.join(watchPath, "Info.plist")), process.env);
+  assert.ok(readdirSync(watchPath).some((name) => /^AppIcon.*\.png$/.test(name)), "Archive is missing compiled Watch app-icon PNGs");
   for (const folder of [appPath, watchPath]) checkManifest(readBuiltPlist(path.join(folder, "PrivacyInfo.xcprivacy")));
   checkNativeConfig(JSON.parse(readFileSync(path.join(appPath, "capacitor.config.json"), "utf8")));
   assert.ok(readFileSync(path.join(appPath, "public/index.html")).equals(readFileSync(path.join(root, "dist/index.html"))), "Archive contains a stale web entry");
@@ -171,6 +172,8 @@ export function verifySource() {
   assert.equal(watchInfo.CFBundleIconName, "AppIcon");
   assert.deepEqual(watchInfo.CFBundleIconFiles, ["AppIcon"]);
   assert.equal(watchInfo.WKCompanionAppBundleIdentifier, "$(NAVA_APP_BUNDLE_ID)");
+  const watchIcon = JSON.parse(read("native/watch/Assets.xcassets/AppIcon.appiconset/Contents.json"));
+  assert.deepEqual(watchIcon.images, [{ filename: "AppIcon-1024.png", idiom: "universal", platform: "watchos", size: "1024x1024" }], "Watch icon must use Xcode's lowercase watchos platform slot");
   assert.match(read("ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme"), /BlueprintIdentifier="504EC3031FED79650016851F"/);
   assert.match(read("ios/App/App.xcworkspace/contents.xcworkspacedata"), /group:Pods\/Pods.xcodeproj/);
   for (const file of ["ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png", "native/watch/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"]) {
