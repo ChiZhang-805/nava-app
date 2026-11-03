@@ -114,8 +114,6 @@ SIGNING_SETTINGS=(
   "DEVELOPMENT_TEAM=${NAVA_APPLE_TEAM_ID}"
   "MARKETING_VERSION=${NAVA_IOS_VERSION}"
   "CURRENT_PROJECT_VERSION=${NAVA_IOS_BUILD_NUMBER}"
-  "CODE_SIGN_STYLE=Automatic"
-  "CODE_SIGN_IDENTITY=Apple Distribution"
 )
 PROVISIONING_FLAGS=()
 if [[ "${NAVA_ALLOW_PROVISIONING_UPDATES:-0}" == "1" ]]; then
@@ -189,7 +187,12 @@ if [[ "${NAVA_EXPORT:-0}" == "1" ]]; then
 <key>method</key><string>app-store-connect</string>
 <key>destination</key><string>export</string>
 <key>teamID</key><string>${NAVA_APPLE_TEAM_ID}</string>
-<key>signingStyle</key><string>automatic</string>
+<key>signingStyle</key><string>manual</string>
+<key>signingCertificate</key><string>Apple Distribution</string>
+<key>provisioningProfiles</key><dict>
+<key>${NAVA_IOS_BUNDLE_ID}</key><string>NAVA iOS App Store</string>
+<key>${NAVA_IOS_BUNDLE_ID}.watchkitapp</key><string>NAVA Watch App Store</string>
+</dict>
 <key>manageAppVersionAndBuildNumber</key><false/>
 <key>uploadSymbols</key><true/>
 </dict></plist>

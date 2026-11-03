@@ -35,6 +35,13 @@ test("Release signing cannot silently fall back to a development identity", () =
   project.XCBuildConfiguration["504EC3151FED79650016851F"].buildSettings.CODE_SIGN_IDENTITY = "iPhone Developer";
   assert.throws(() => checkProject(project), /Apple Distribution/);
 });
+test("Release App targets require their exact App Store profiles", () => {
+  for (const id of ["504EC3181FED79650016851F", "B2C3D4E50000000000000042"]) {
+    const project = loadProject();
+    project.XCBuildConfiguration[id].buildSettings.CODE_SIGN_STYLE = "Automatic";
+    assert.throws(() => checkProject(project), /explicit App Store profiles/);
+  }
+});
 test("Watch version mismatch and detached companion identity fail", () => {
   for (const field of ["MARKETING_VERSION", "PRODUCT_BUNDLE_IDENTIFIER", "INFOPLIST_KEY_WKCompanionAppBundleIdentifier"]) {
     const project = loadProject();
@@ -73,6 +80,8 @@ test("resolved build settings must contain both signed targets with approved ver
     CURRENT_PROJECT_VERSION: inputs.NAVA_IOS_BUILD_NUMBER,
     DEVELOPMENT_TEAM: inputs.NAVA_APPLE_TEAM_ID,
     CODE_SIGN_IDENTITY: "Apple Distribution",
+    CODE_SIGN_STYLE: "Manual",
+    PROVISIONING_PROFILE_SPECIFIER: target === "App" ? "NAVA iOS App Store" : "NAVA Watch App Store",
   } }));
   checkBuildSettings(settings, inputs);
   assert.throws(() => checkBuildSettings(settings.slice(0, 1), inputs));
@@ -114,4 +123,13 @@ test("signed cloud builds allow only a first-run Podfile lock and preserve it as
   assert.match(script, /UNEXPECTED_SYNC_STATUS/);
   assert.match(script, /cp ios\/App\/Podfile\.lock "\$\{RELEASE_DIR\}\/Podfile\.lock"/);
   assert.match(script, /changed files other than a first-run Podfile\.lock/);
+});
+
+test("release script does not force App signing settings onto CocoaPods", () => {
+  const script = readFileSync(path.join(root, "scripts/prepare-ios-release.sh"), "utf8");
+  const signingBlock = script.match(/SIGNING_SETTINGS=\([\s\S]*?\n\)/)?.[0] ?? "";
+  assert.doesNotMatch(signingBlock, /CODE_SIGN_(?:STYLE|IDENTITY)/);
+  assert.match(script, /<key>signingStyle<\/key><string>manual<\/string>/);
+  assert.match(script, /NAVA iOS App Store/);
+  assert.match(script, /NAVA Watch App Store/);
 });
