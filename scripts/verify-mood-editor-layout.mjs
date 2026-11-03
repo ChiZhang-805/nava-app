@@ -7,7 +7,7 @@ import { applyProjectPublicEnv } from "./project-env.mjs";
 const root = process.cwd();
 const outputDir = process.env.RECORD_EDITOR_LAYOUT_OUTPUT_DIR
   ? path.resolve(process.env.RECORD_EDITOR_LAYOUT_OUTPUT_DIR)
-  : "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-record-editor-current";
+  : "Q:\\NAVA-Workspace\\Build\\TestRuns\\App-Checks\\nava-record-editor-current";
 const port = Number(process.env.PORT || 5209);
 const viewports = [
   { name: "360x740", width: 360, height: 740 },

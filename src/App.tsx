@@ -686,6 +686,7 @@ function MobileShell({
       data-app-view={recordView ?? "root"}
       data-shell-integrated={integratedPage ? "true" : undefined}
       data-shell-page={integratedPage ?? undefined}
+      data-has-bottom-nav={!hideBottomNavigation ? "true" : undefined}
       className={["phone-frame", journalOpen ? "phone-frame--journal" : "", activeTab === "today" ? "phone-frame--option2" : "", focusImmersive ? "phone-frame--focus-immersive" : "", profileDetailsSubpage || profileSubpage ? "phone-frame--subpage-no-nav" : ""].filter(Boolean).join(" ")}
     >
       <div className="safe-top" />

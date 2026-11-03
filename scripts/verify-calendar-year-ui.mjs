@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\calendar-readability";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\App-Checks\\calendar-readability";
 const port = 5213;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },

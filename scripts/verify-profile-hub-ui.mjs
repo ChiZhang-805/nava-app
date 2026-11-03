@@ -100,7 +100,7 @@ try {
         })(),
         quickHeaderBorderBottom: getComputedStyle(frame.querySelector(".profile-entry-header")).borderBottomWidth,
         firstEntryBorderBottom: getComputedStyle(firstRow).borderBottomWidth,
-        contentBottomGap: Math.abs(frame.getBoundingClientRect().bottom - content.getBoundingClientRect().bottom),
+        contentBottomGap: frame.querySelector(":scope > .bottom-nav").getBoundingClientRect().top - content.getBoundingClientRect().bottom,
         contentMarginBottom: parseFloat(getComputedStyle(content).marginBottom),
         contentPaddingBottom: parseFloat(getComputedStyle(content).paddingBottom),
         dock: (() => {
@@ -138,9 +138,9 @@ try {
     assert.ok(overview.accountTitleBodyGap >= 8 && overview.accountTitleBodyGap <= 14, `${width}x${height} account title needs a deliberate breathing gap before identity content`);
     assert.equal(parseFloat(overview.quickHeaderBorderBottom), 0, `${width}x${height} quick-access title divider must be removed`);
     assert.ok(parseFloat(overview.firstEntryBorderBottom) > 0, `${width}x${height} quick-access row dividers must remain`);
-    assert.ok(overview.contentBottomGap <= 1, `${width}x${height} content must continue behind the floating dock`);
-    assert.equal(overview.contentMarginBottom, 0, `${width}x${height} content must not expose a separate bottom band`);
-    assert.ok(overview.contentPaddingBottom >= 118, `${width}x${height} content must reserve scroll clearance inside its own canvas`);
+    assert.ok(overview.contentBottomGap >= -1 && overview.contentBottomGap <= 24, `${width}x${height} content viewport must end immediately above the floating dock`);
+    assert.ok(overview.contentMarginBottom >= 96, `${width}x${height} content must reserve the floating dock outside its scroll viewport`);
+    assert.ok(overview.contentPaddingBottom >= 18 && overview.contentPaddingBottom <= 60, `${width}x${height} content should keep a normal section inset after reserving the dock`);
     assert.equal(overview.dock.background, "rgba(0, 0, 0, 0)", `${width}x${height} dock container must be transparent`);
     assert.equal(overview.dock.backgroundImage, "none", `${width}x${height} dock container must not paint a full-width image`);
     assert.ok(overview.dock.borderWidths.every((value) => value === 0), `${width}x${height} dock container must be borderless`);
@@ -291,7 +291,7 @@ try {
         await expect(page.locator(".mascot-wardrobe-preview")).toBeVisible();
         await expect(page.locator(".mascot-wardrobe-tabs [role=tab]")).toHaveCount(3);
         await expect(page.locator(".mascot-wardrobe-item")).toHaveCount(17);
-        await expect(page.locator(".mascot-wardrobe-pagination button")).toHaveCount(3);
+        await expect(page.locator(".mascot-wardrobe-pagination button")).toHaveCount(5);
         await expect(page.locator(".mascot-wardrobe-character")).toHaveAttribute("data-renderer", "ready", { timeout: 20000 });
         await expect(page.locator(".mascot-wardrobe-turntable")).toHaveCount(1);
         const wardrobeGeometry = await page.locator(".mascot-wardrobe").evaluate((wardrobe) => {
@@ -366,7 +366,7 @@ try {
         await page.getByRole("tab", { name: "背景" }).click();
         await expect(page.locator(".mascot-wardrobe-item")).toHaveCount(17);
         await expect(page.locator(".mascot-wardrobe-scene-swatch img")).toHaveCount(13);
-        await expect(page.locator(".mascot-wardrobe-pagination button")).toHaveCount(3);
+        await expect(page.locator(".mascot-wardrobe-pagination button")).toHaveCount(5);
         await page.locator('.mascot-wardrobe-item').filter({ hasText: "海边午后" }).click();
         const backgroundImage = page.locator(".mascot-wardrobe-background");
         await expect(backgroundImage).toBeVisible();
@@ -386,7 +386,7 @@ try {
         await page.locator('.mascot-wardrobe-item').filter({ hasText: "奶霜" }).click();
         await page.getByRole("tab", { name: "饰品" }).click();
         await expect(page.locator(".mascot-wardrobe-item")).toHaveCount(17);
-        await expect(page.locator(".mascot-wardrobe-pagination button")).toHaveCount(3);
+        await expect(page.locator(".mascot-wardrobe-pagination button")).toHaveCount(5);
         await expect(page.getByText("不佩戴", { exact: true })).toHaveCount(0);
         await page.locator('.mascot-wardrobe-item').filter({ hasText: "星月发夹" }).click();
         await page.locator('.mascot-wardrobe-item').filter({ hasText: "珍珠领结" }).click();

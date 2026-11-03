@@ -14,7 +14,7 @@
 - 自动检查：`npm run journal:motion:test`；`npm run journal:motion:visual`。
   WebKit 使用 `NAVA_LAYOUT_ENGINE=webkit` 和项目缓存里的 Playwright 浏览器。
   覆盖五个宽度、两页七状态、实际 tick 快速打断、降动效像素不变与 CPU 回退。
-  原图一致性证据和浏览器报告在 `Q:/NAVA-Workspace/Build/TestRuns/journal-companion-motion/`。
+  原图一致性证据和浏览器报告在 `Q:/NAVA-Workspace/Build/TestRuns/App-Checks/journal-companion-motion/`。
 - 最终结果：Chromium/WebKit 各 70 状态通过，四尺寸中英文引导通过，完整 verify、
   375 单元及 native 构建/copy/portable/release 检查通过；复制后的动画资源哈希与源码
   一致。未部署；浏览器通过不代替真机帧率、原生麦克风、系统降动效验收。
@@ -117,7 +117,7 @@ Watch 心情按钮改自适应网格和 ScrollView，明确发送中/排队/iPho
   1,134 个中间尺寸组合；不是“覆盖每一台真实 iPhone”的声明。
 - `scripts/verify-current-overlays.mjs`：五个尺寸、中英文、周报分享/待办日期/三类账号
   编辑弹窗与 AI 历史列表/详情；Chromium 注入安全区，WebKit 单独运行，所有外部数据请求均为本地 fixture。
-- 新证据位于 `Q:/NAVA-Workspace/Build/TestRuns/mobile-layout/`；原专项继续在
+- 新证据位于 `Q:/NAVA-Workspace/Build/TestRuns/App-Checks/mobile-layout/`；原专项继续在
   `Q:/NAVA-Workspace/Build/TestRuns/`：integrated-shell、profile-hub、
   weekly-readability、cold-start、journal-integration、celebration-scenes 等。
 - 本轮通过：Chromium 安全区与 WebKit 各 384 个路由/滚动/键盘检查，当前弹窗/历史各 70
@@ -126,7 +126,7 @@ Watch 心情按钮改自适应网格和 ScrollView，明确发送中/排队/iPho
   待办、月历、资料、菜单、相机、媒体反馈和管理员专项。
 - 原生网页 build、lint、23 个导航/动画/设备相关单元测试、公开认证合同与 portable
   iOS 检查通过；已 `cap copy ios`，仅更新网页资源，不是 Swift 编译或安装。
-  可机读汇总为 `Q:/NAVA-Workspace/Build/TestRuns/mobile-layout/verification-summary.json`。
+  可机读汇总为 `Q:/NAVA-Workspace/Build/TestRuns/App-Checks/mobile-layout/verification-summary.json`。
 - Journal 响应式测试已跟随当前新手引导设置与独立完成场景更新；衣橱测试改为当前
   单饰品模型及“穿戴中”状态。旧分项历史分享路由脚本不能证明当前页面，改用实际周报入口。
 - 完成动画可用 `NAVA_SCENES_LAYOUT_ONLY=1` 独立验布局，输出到 `*-layout`；仍记录
@@ -136,7 +136,7 @@ Watch 心情按钮改自适应网格和 ScrollView，明确发送中/排队/iPho
 限制：这些是电脑上的浏览器/合成数据证据，不等于 Xcode 编译、原生键盘、系统
 Dynamic Type、旧 iOS WebKit、真实 Health/Watch/APNs 或真机性能验收。当前完整
 `npm run verify` 仍被任务开始前已删除的 tracked 素材阻止，日志在
-`Q:/NAVA-Workspace/Build/TestRuns/mobile-layout/full-verify.log`。未恢复这些既有删除，
+`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/mobile-layout/full-verify.log`。未恢复这些既有删除，
 也未跳过门禁发布；本轮未上传 TestFlight、未发布两个公开站点。
 
 ## TestFlight 准备更新（2026-10-30）
@@ -778,3 +778,13 @@ Windows 上的源码合同与外部 Chromium 模拟不等于 iPhone 录音、锁
 手动恢复及麦克风指示灯，填写真机记录后才能关闭设备门槛。
 
 系统事件依据：[Apple 音频中断说明](https://developer.apple.com/documentation/AVFAudio/handling-audio-interruptions)。
+
+## iOS 全屏画布与安全区（2026-11-04）
+
+NAVA 的 React 页面已经使用 `viewport-fit=cover` 与 `env(safe-area-inset-*)` 管理刘海、
+状态栏和 Home Indicator。Capacitor iOS 容器必须保持 `contentInset: "never"`，不要再
+改回 `automatic`；否则 WKWebView 会与网页重复留出安全区，并在全屏背景底部形成白条。
+
+浮动导航存在时，普通滚动页的可视滚动区域在导航上方结束；键盘出现后导航隐藏，
+页面恢复使用 visual viewport。此规则已在 Chromium 安全区矩阵和 WebKit 多尺寸矩阵中
+验证，但真实 iPhone 仍需复测系统键盘交互式收起、横竖屏策略和状态栏回到 TestFlight 的动画。

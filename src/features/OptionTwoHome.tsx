@@ -567,6 +567,9 @@ export default function OptionTwoHome({
 
   const handleHomeClickCapture = (event: ReactMouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
+    if (shortcutsOpen && !target.closest(".option-two-side-actions")) {
+      setShortcutsOpen(false);
+    }
     if (widgetArrangeMode) {
       const functionalTarget = target.closest("button, a, input, select, textarea, [role='button'], [role='link']");
       if (!functionalTarget) {

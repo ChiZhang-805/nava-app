@@ -5,7 +5,7 @@ import { createServer } from 'vite';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { applyProjectPublicEnv } from './project-env.mjs';
 applyProjectPublicEnv(process.cwd());
-const out='Q:/NAVA-Workspace/Build/TestRuns/mobile-layout/sweep';
+const out='Q:/NAVA-Workspace/Build/TestRuns/App-Checks/mobile-layout/sweep';
 await mkdir(out,{recursive:true});
 const server=await createServer({server:{host:'127.0.0.1',port:5281,strictPort:true},logLevel:'silent'});await server.listen();
 const browser=await chromium.launch();const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});

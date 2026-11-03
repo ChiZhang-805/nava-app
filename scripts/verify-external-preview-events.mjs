@@ -6,7 +6,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const output = "Q:/NAVA-Workspace/Build/TestRuns/external-events-current";
+const output = "Q:/NAVA-Workspace/Build/TestRuns/App-Checks/external-events-current";
 const userId = "00000000-0000-4000-8000-000000000001";
 const viewports = [{ width: 360, height: 740 }, { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 430, height: 932 }];
 applyProjectPublicEnv(root);

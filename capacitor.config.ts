@@ -5,7 +5,10 @@ const config: CapacitorConfig = {
   appName: "NAVA",
   webDir: "dist",
   ios: {
-    contentInset: "automatic",
+    // The web layer already owns every safe-area inset through viewport-fit=cover
+    // and env(safe-area-inset-*). Letting WKWebView add another automatic inset
+    // leaves an uncovered strip below the full-screen canvas on real iPhones.
+    contentInset: "never",
   },
   plugins: {
     PushNotifications: {

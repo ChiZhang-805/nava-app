@@ -85,7 +85,7 @@ body::before {
 .auth-screen {
   position: relative;
   isolation: isolate;
-  grid-template-rows: clamp(190px, 32dvh, 300px) minmax(0, 1fr);
+  grid-template-rows: clamp(176px, 27dvh, 248px) minmax(0, 1fr);
   padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
   overflow-x: hidden;
   overflow-y: hidden;
@@ -277,13 +277,13 @@ body::before {
 
 .auth-submit:disabled {
   border: 0;
-  color: rgba(247, 252, 255, 0.65);
-  background: rgba(18, 57, 80, 0.4);
+  color: rgba(247, 252, 255, 0.82);
+  background: rgba(18, 57, 80, 0.52);
   box-shadow: none;
 }
 
 .auth-secondary-links {
-  min-height: 32px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -296,7 +296,7 @@ body::before {
 .auth-forgot {
   width: auto;
   height: auto;
-  min-height: 30px;
+  min-height: 44px;
   border: 0;
   display: inline-flex;
   align-items: center;
@@ -305,7 +305,7 @@ body::before {
   color: rgba(255, 255, 255, 0.96);
   background: transparent;
   filter: none;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -320,10 +320,10 @@ body::before {
 }
 
 .auth-forgot {
-  min-height: 30px;
+  min-height: 44px;
   margin: -2px auto 0;
   color: rgba(255, 255, 255, 0.88);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .auth-consent {
@@ -374,7 +374,7 @@ body::before {
 
 @media (max-width: 390px), (max-height: 740px) {
   .auth-screen {
-    grid-template-rows: minmax(205px, 32dvh) minmax(0, 1fr);
+    grid-template-rows: minmax(150px, 26dvh) minmax(0, 1fr);
     overflow-y: auto;
   }
 
@@ -13194,6 +13194,21 @@ body::before {
 .nava-skeleton-block.home-widget-skeleton { background: linear-gradient(145deg, rgba(244, 252, 255, .78), rgba(203, 235, 246, .7)); }
 .home-widget-empty { grid-column: 1 / -1; grid-row: 1; pointer-events: auto; }
 
+.home-widget-grid.is-empty {
+  grid-template-rows: clamp(78px, 10.5cqh, 92px);
+}
+
+.home-widget-grid.is-empty .home-widget-empty {
+  min-height: 0;
+  height: 100%;
+  align-self: start;
+  justify-content: flex-start;
+  padding-inline: clamp(18px, 7cqw, 30px);
+}
+
+.home-widget-grid.is-empty .home-widget-empty strong { font-size: clamp(13px, 3.5cqw, 15px); }
+.home-widget-grid.is-empty .home-widget-empty small { font-size: clamp(10px, 2.8cqw, 12px); }
+
 .option-two-guidance {
   position: absolute;
   right: auto;
@@ -13291,8 +13306,56 @@ body::before {
 }
 
 @keyframes figma-home-cat-arrive {
-  from { opacity: 0; filter: blur(7px) drop-shadow(0 8px 18px rgba(9, 65, 94, .06)); transform: translateY(18px) scale(.95); }
-  to { opacity: 1; filter: drop-shadow(0 14px 22px rgba(9, 65, 94, .13)); transform: none; }
+  from { opacity: 0; transform: translateY(14px) scale(.97); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Expanded shortcuts form one compact, labelled control group. Individual
+   circles previously ran down most of the screen and obscured unrelated
+   content without explaining their actions. */
+.option-two-side-actions.is-open {
+  width: min(184px, calc(100% - 36px));
+  align-items: flex-end;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, .82);
+  border-radius: 26px;
+  background: rgba(225, 243, 250, .86);
+  box-shadow: 0 16px 34px rgba(31, 73, 98, .2), inset 0 1px 0 rgba(255,255,255,.9);
+  -webkit-backdrop-filter: blur(24px) saturate(1.08);
+  backdrop-filter: blur(24px) saturate(1.08);
+}
+
+.option-two-side-actions.is-open .option-two-menu-toggle {
+  align-self: flex-end;
+}
+
+.option-two-side-actions.is-open .option-two-side-shortcut {
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  margin-top: 0;
+  border-radius: 15px;
+  display: flex;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 13px;
+  box-shadow: none;
+}
+
+.option-two-side-actions.is-open .option-two-side-shortcut::after {
+  min-width: 0;
+  overflow: hidden;
+  content: attr(aria-label);
+  font-size: 13px;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option-two-side-actions.is-open .option-two-menu-unread {
+  right: 12px;
+  top: 8px;
 }
 
 .phone-frame--option2 .bottom-nav::before {
@@ -13658,6 +13721,8 @@ body::before {
   .option-two-side-actions { top: max(58px, calc(env(safe-area-inset-top) + 36px)); right: 13px; }
   .option-two-side-actions button { width: 44px; height: 44px; }
   .option-two-side-actions .option-two-side-shortcut { margin-top: 9px; }
+  .option-two-side-actions.is-open { width: min(172px, calc(100% - 26px)); gap: 4px; padding: 6px; }
+  .option-two-side-actions.is-open .option-two-side-shortcut { height: 40px; min-height: 40px; margin-top: 0; }
   .home-widget-grid {
     top: clamp(114px, 16cqh, 122px);
     right: 21px;

@@ -5,7 +5,7 @@ import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 applyProjectPublicEnv(process.cwd());
-const output = "Q:/NAVA-Workspace/Build/TestRuns/media-feedback";
+const output = "Q:/NAVA-Workspace/Build/TestRuns/App-Checks/media-feedback";
 await mkdir(output, { recursive: true });
 await writeFile(`${output}/ui.json`, JSON.stringify({ passed: false, startedAt: new Date().toISOString() }));
 const server = await createServer({ server: { host: "127.0.0.1", port: 5225, strictPort: true }, logLevel: "error" });

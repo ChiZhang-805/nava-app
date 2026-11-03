@@ -4,7 +4,7 @@ import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 applyProjectPublicEnv(process.cwd());
-const output = "Q:/NAVA-Workspace/Build/TestRuns/desktop-simulator";
+const output = "Q:/NAVA-Workspace/Build/TestRuns/App-Checks/desktop-simulator";
 await mkdir(output, { recursive: true });
 const receipt = { passed: false, startedAt: new Date().toISOString(), localDemo: true, results: [] };
 await writeFile(`${output}/ui.json`, JSON.stringify(receipt));

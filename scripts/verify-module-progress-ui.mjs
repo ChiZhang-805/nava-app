@@ -7,7 +7,7 @@ import { inspectRingPaint } from "./module-ring-paint.mjs";
 import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\module-responsive-rings";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\App-Checks\\module-responsive-rings";
 const port = 5198;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },

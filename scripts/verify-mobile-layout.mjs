@@ -6,7 +6,7 @@ import { applyProjectPublicEnv } from './project-env.mjs';
 applyProjectPublicEnv(process.cwd());
 const engine = process.env.NAVA_LAYOUT_ENGINE || 'chromium';
 const safe = process.env.NAVA_LAYOUT_SAFE === '1';
-const output = `Q:/NAVA-Workspace/Build/TestRuns/mobile-layout/${engine}${safe ? '-safe' : ''}${process.env.NAVA_LAYOUT_WIDTH ? `-width-${process.env.NAVA_LAYOUT_WIDTH}` : ''}`;
+const output = `Q:/NAVA-Workspace/Build/TestRuns/App-Checks/mobile-layout/${engine}${safe ? '-safe' : ''}${process.env.NAVA_LAYOUT_WIDTH ? `-width-${process.env.NAVA_LAYOUT_WIDTH}` : ''}`;
 await mkdir(output, { recursive: true });
 const server = await createServer({ server: { host: '127.0.0.1', port: Number(process.env.NAVA_LAYOUT_PORT || 5279), strictPort: true }, logLevel: 'silent' });
 await server.listen();
@@ -98,6 +98,8 @@ async function keyboard(page,name,width,height,input,action) {
   if(action){
     await action.scrollIntoViewIfNeeded();
     const r=await action.boundingBox();
+    const actionHit=await action.evaluate(e=>{const r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return {tag:hit?.tagName??null,className:typeof hit?.className==='string'?hit.className:null};});
+    report.results.push({name:`${name}-keyboard-action`,width,height,actionRect:r,actionHit,failures:[]});
     if(!r||r.y<0||r.y+r.height>visibleHeight+2)failures.push('action behind keyboard');
     if(!await uncovered(action))failures.push('action covered by another layer');
   }

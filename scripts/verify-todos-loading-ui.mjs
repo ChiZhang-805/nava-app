@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\today-todos-loading";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\App-Checks\\today-todos-loading";
 const port = 5226;
 const userId = "00000000-0000-4000-8000-000000000001";
 const viewports = [

@@ -75,6 +75,12 @@ test("native configuration rejects live reload, HTTP, navigation overrides and d
     { packageClassList: ["AppPlugin"] },
   ]) assert.throws(() => checkNativeConfig({ ...config, ...override }));
 });
+
+test("WKWebView leaves safe-area ownership to the full-screen web canvas", () => {
+  const source = readFileSync(path.join(root, "capacitor.config.ts"), "utf8");
+  assert.match(source, /contentInset:\s*["']never["']/);
+  assert.doesNotMatch(source, /contentInset:\s*["']automatic["']/);
+});
 test("archive inputs reject missing, wildcard and malformed identities/versions", () => {
   checkReleaseInputs(inputs);
   for (const [key, value] of [

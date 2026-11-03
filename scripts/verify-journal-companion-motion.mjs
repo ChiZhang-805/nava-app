@@ -3,7 +3,7 @@ import {createServer} from 'vite';
 import {mkdir,writeFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const engine=process.env.NAVA_LAYOUT_ENGINE||'chromium';
-const output=`Q:/NAVA-Workspace/Build/TestRuns/journal-companion-motion/${engine}`;
+const output=`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/journal-companion-motion/${engine}`;
 await mkdir(output,{recursive:true});
 const server=await createServer({logLevel:'error',server:{host:'127.0.0.1',port:5286,strictPort:true}});await server.listen();
 const browser=await ({chromium,webkit}[engine]).launch();

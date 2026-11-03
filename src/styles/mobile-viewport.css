@@ -51,10 +51,27 @@ html[data-keyboard-open="true"] .phone-frame > .bottom-nav {
   display: none;
 }
 html[data-keyboard-open="true"] .phone-frame:not(.phone-frame--option2):not(.phone-frame--journal) > .app-content {
+  margin-bottom: 0;
   padding-bottom: 12px;
   scroll-padding-bottom: 12px;
+}
+html[data-keyboard-open="true"] .phone-frame--option2[data-has-bottom-nav="true"] > .app-content--today {
+  bottom: 0;
 }
 html[data-keyboard-open="true"] .phone-frame--option2 .home-experience {
   padding-bottom: 12px;
   scroll-padding-bottom: 12px;
+}
+html[data-keyboard-open="true"] .points-shop-screen {
+  scroll-padding-top: max(12px, env(safe-area-inset-top));
+}
+html[data-keyboard-open="true"] .points-shop-search {
+  scroll-margin-top: max(12px, env(safe-area-inset-top));
+}
+html[data-keyboard-open="true"] .today-todo-carousel-shell {
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+}
+html[data-keyboard-open="true"] .today-todo-card-pagination {
+  display: none;
 }

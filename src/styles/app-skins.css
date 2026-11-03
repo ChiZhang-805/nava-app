@@ -662,23 +662,40 @@
 }
 
 .phone-frame[data-shell-integrated="true"]:not(.phone-frame--option2) > .app-content {
-  /* The scroll canvas continues behind the floating dock. Reserve reachable
-     space inside the scroller instead of ending the page above the dock and
-     exposing a second, full-width bottom band. */
-  margin-bottom: 0;
+  /* End the scroll viewport above the floating dock. Padding alone only makes
+     the final row reachable after scrolling; it still lets ordinary content
+     sit underneath the dock while the page is at rest. */
+  margin-bottom: var(--nava-dock-clearance);
   padding-top: var(--integrated-content-top-gap);
-  padding-bottom: max(calc(118px + env(safe-area-inset-bottom)), var(--nava-dock-clearance));
-  scroll-padding-bottom: var(--nava-dock-clearance);
+  padding-bottom: max(18px, calc(env(safe-area-inset-bottom) + 8px));
+  scroll-padding-bottom: 18px;
 }
 
 .phone-frame[data-shell-integrated="true"].phone-frame--subpage-no-nav:not(.phone-frame--option2) > .app-content {
+  margin-bottom: 0;
   padding-bottom: max(20px, env(safe-area-inset-bottom));
   scroll-padding-bottom: 12px;
+}
+
+/* Home is an intentional full-canvas composition. Every other Today surface
+   with the shared dock gets a real viewport boundary above it, so calendars,
+   notifications, to-dos and shop rows cannot be hidden by the controls. */
+.phone-frame[data-shell-integrated="true"].phone-frame--option2[data-has-bottom-nav="true"]:not([data-shell-page="home"]) > .app-content--today {
+  bottom: var(--nava-dock-clearance);
+}
+
+.phone-frame[data-shell-integrated="true"].phone-frame--option2[data-has-bottom-nav="true"]:not([data-shell-page="home"]) :is(
+  .points-shop-screen,
+  .reminder-settings-page
+) {
+  padding-bottom: max(18px, calc(env(safe-area-inset-bottom) + 8px));
+  scroll-padding-bottom: 18px;
 }
 
 /* The conversation is its own focused surface. It ends with the composer,
    rather than reserving the shared five-action dock used by the other roots. */
 .phone-frame[data-shell-integrated="true"][data-shell-page="chat"]:not(.phone-frame--option2) > .app-content {
+  margin-bottom: 0;
   padding-bottom: max(clamp(18px, 3dvh, 28px), calc(env(safe-area-inset-bottom) + 8px));
 }
 
@@ -686,7 +703,10 @@
    painted phone frame. Keep a composer-owned inset as well, so the focused
    chat surface never sits on the home-indicator edge in that environment. */
 .phone-frame[data-shell-integrated="true"][data-shell-page="chat"]:not(.phone-frame--option2) .chat-composer {
-  margin-bottom: 14px;
+  /* WebKit can paint the flex canvas several pixels beyond the visible phone
+     viewport. Keep the composer clear of that rounding error as well as the
+     home-indicator gesture region. */
+  margin-bottom: 24px;
 }
 
 .phone-frame[data-app-skin][data-shell-integrated="true"] > .figma-app-header::before,

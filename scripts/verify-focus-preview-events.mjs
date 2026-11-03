@@ -6,7 +6,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\focus-preview-current";
+const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\App-Checks\\focus-preview-current";
 const userId = "00000000-0000-4000-8000-000000000001";
 const viewports = [
   { name: "desktop", width: 1365, height: 1000 },

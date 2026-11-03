@@ -7,7 +7,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts";
 applyProjectPublicEnv(process.cwd());
-const output = "Q:/NAVA-Workspace/Build/TestRuns/phone-system-preview";
+const output = "Q:/NAVA-Workspace/Build/TestRuns/App-Checks/phone-system-preview";
 await mkdir(output, { recursive: true });
 async function sourceFingerprint() {
   const files = (await readdir("src", { recursive: true, withFileTypes: true })).filter((entry) => entry.isFile()).map((entry) => path.join(entry.parentPath, entry.name)).sort();

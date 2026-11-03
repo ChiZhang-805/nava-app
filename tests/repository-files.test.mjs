@@ -1,11 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,unlinkSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,unlinkSync,rmSync} from 'node:fs';
 import {execFileSync,spawnSync} from 'node:child_process';
 import path from 'node:path';
 const scanner=path.resolve('scripts/verify-repository-files.mjs');
 test('file audit permits only reviewed exact-version retirements and rejects live references',()=>{
- const root=mkdtempSync('Q:/NAVA-Workspace/Build/TestRuns/full-file-audit-fixture-');
+ const fixtureRoot='Q:/NAVA-Workspace/Build/TestRuns/App-Checks/full-file-audit-fixtures';
+ mkdirSync(fixtureRoot,{recursive:true});
+ const root=mkdtempSync(path.join(fixtureRoot,'fixture-'));
+ try {
  const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8'}).trim();
  const write=(name,text)=>{mkdirSync(path.dirname(path.join(root,name)),{recursive:true});writeFileSync(path.join(root,name),text);};
  write('src/assets/retired.svg','<svg/>');write('src/assets/required.svg','<svg/>');
@@ -24,4 +27,7 @@ test('file audit permits only reviewed exact-version retirements and rejects liv
  assert.ok(run().report.failures.some(f=>f.file==='src/assets/required.svg'));
  write('native/bad.swift','<<<<<<< unresolved\n');
  assert.ok(run().report.failures.some(f=>f.file==='native/bad.swift'&&f.check==='merge-marker'));
+ } finally {
+  rmSync(root,{recursive:true,force:true});
+ }
 });

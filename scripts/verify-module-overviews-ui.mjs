@@ -7,7 +7,7 @@ import { applyProjectPublicEnv } from "./project-env.mjs";
 const root = process.cwd();
 const outputDir = process.env.MODULE_OVERVIEW_OUTPUT_DIR
   ? path.resolve(process.env.MODULE_OVERVIEW_OUTPUT_DIR)
-  : "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-module-overviews-current";
+  : "Q:\\NAVA-Workspace\\Build\\TestRuns\\App-Checks\\nava-module-overviews-current";
 const port = Number(process.env.PORT || 5217);
 const modules = [
   { route: "mood", category: "mood" },

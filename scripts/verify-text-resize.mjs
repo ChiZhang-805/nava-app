@@ -4,7 +4,7 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import {applyProjectPublicEnv} from './project-env.mjs';
 applyProjectPublicEnv(process.cwd());
 const engine=process.env.NAVA_LAYOUT_ENGINE||'chromium';
-const out=`Q:/NAVA-Workspace/Build/TestRuns/mobile-layout/text-resize-${engine}`;await mkdir(out,{recursive:true});
+const out=`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/mobile-layout/text-resize-${engine}`;await mkdir(out,{recursive:true});
 const server=await createServer({server:{host:'127.0.0.1',port:5285,strictPort:true},logLevel:'silent'});await server.listen();
 const browser=await ({chromium,webkit}[engine]).launch();const results=[];
 try {
