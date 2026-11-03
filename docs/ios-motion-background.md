@@ -788,3 +788,7 @@ NAVA 的 React 页面已经使用 `viewport-fit=cover` 与 `env(safe-area-inset-
 浮动导航存在时，普通滚动页的可视滚动区域在导航上方结束；键盘出现后导航隐藏，
 页面恢复使用 visual viewport。此规则已在 Chromium 安全区矩阵和 WebKit 多尺寸矩阵中
 验证，但真实 iPhone 仍需复测系统键盘交互式收起、横竖屏策略和状态栏回到 TestFlight 的动画。
+
+修复版已由源码 `6084cea289ab6e22aee98f4a285fc8170a8d464e` 生成并成功上传为
+TestFlight `1.0.0 (20)`。苹果处理完成后，真机复测必须选择构建 20；构建 17–19 不包含
+本节的完整安全区与全页面布局修复。

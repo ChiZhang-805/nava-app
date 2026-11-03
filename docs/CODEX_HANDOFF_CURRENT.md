@@ -6828,4 +6828,22 @@ healthWrites:0、aiTested:false；线上图标均成功解码且自然宽度≥1
 - `npm run verify` 完整退出 0；`npm run auth:verify:production`、生产构建、
   `cap:sync:ios`、`ios:release:test`（21 项）和 `ios:release:check` 均通过。
   Windows 仍不能替代真实 iPhone 的系统键盘、状态栏、HealthKit/Watch/通知和耗电验收。
-  本轮尚未上传新 TestFlight 构建；应由现有云端签名工作流生成下一构建号后再邀请团队复测。
+  该段检查完成时尚未上传新 TestFlight 构建；随后已按下节记录生成并上传构建 20。
+
+### 修复版发布与 TestFlight 构建 20
+
+- 上述修复已由源码提交 `6084cea289ab6e22aee98f4a285fc8170a8d464e` 推送到
+  `main`。GitHub Actions 工作流 `41701341799` 完成签名、Archive、IPA 导出和上传，
+  Apple 已接收 TestFlight `1.0.0 (20)`；云端构建成功不等于苹果已完成处理，构建出现后
+  应优先把 20 分配给内部测试组，不再继续使用 17–19 判断本轮修复。
+- ChatGPT Sites 已从同一源码发布 v275：版本
+  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_65c8b772dbf48191bcb23a941ec7c803`，
+  deployment `appgdep_6aea3752dc24819184abe44c289c1e3a` 成功。GitHub Pages 镜像提交
+  `88f4c61161aa48b192c3984ff2fcca72869bf42c`，工作流 `41705191236` 成功。
+- 两个公开地址均返回 200；390×844 在线冒烟确认登录页可见、APP shell 未越过登录边界、
+  页面宽度等于视口宽度。主 JS、CSS、APP chunk 和后端连接 chunk 的 SHA-256 在两站一致；
+  后端连接 chunk 仍包含 canonical Supabase 项目标记。未执行数据库迁移、生产数据写入、
+  Edge Function 发布或权限策略变更。
+- Pages 镜像按当次 `dist` 清除了旧哈希资源并保留 394 个发布文件；391 个静态文件与
+  源产物逐文件 SHA-256 一致。签名证书、配置文件和 API Key 只在 CI 临时钥匙串/目录中
+  使用，工作流结束已执行清理；仓库未保存签名材料。
