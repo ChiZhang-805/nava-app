@@ -205,7 +205,11 @@ EOF
   echo "App Store Connect IPA exported under ${RELEASE_DIR}/export."
 
   if [[ "${NAVA_UPLOAD:-0}" == "1" ]]; then
-    mapfile -t IPA_FILES < <(find "${RELEASE_DIR}/export" -maxdepth 1 -type f -name '*.ipa' -print)
+    # macOS still ships Bash 3.2, which does not provide mapfile/readarray.
+    IPA_FILES=()
+    while IFS= read -r ipa_file; do
+      IPA_FILES+=("${ipa_file}")
+    done < <(find "${RELEASE_DIR}/export" -maxdepth 1 -type f -name '*.ipa' -print)
     if (( ${#IPA_FILES[@]} != 1 )); then
       echo "Expected exactly one exported IPA, found ${#IPA_FILES[@]}." >&2
       exit 1
