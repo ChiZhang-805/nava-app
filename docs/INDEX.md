@@ -15,7 +15,7 @@
 | [`SHARED_SUPABASE_READINESS.md`](./SHARED_SUPABASE_READINESS.md) | canonical Supabase 共享状态与核验入口 |
 | [`AI_KNOWLEDGE_HARNESS.md`](./AI_KNOWLEDGE_HARNESS.md) | AI 路由、工具、证据、隐私和报告合同 |
 | [`NOTIFICATIONS_DELIVERY.md`](./NOTIFICATIONS_DELIVERY.md) | 八项独立提醒/智能时间、收件箱、设备通知、专注常亮与系统边界 |
-| [`APPLE_HEALTH_WATCH_DELIVERY.md`](./APPLE_HEALTH_WATCH_DELIVERY.md) | Apple Health / Watch 已实现链路与剩余人工门槛 |
+| [`APPLE_HEALTH_WATCH_DELIVERY.md`](./APPLE_HEALTH_WATCH_DELIVERY.md) | TestFlight 发布准备、Mac 归档/导出、隐私材料与 Apple Health / Watch 真机门槛 |
 | [`APPLE_HEALTH_DEVICE_ACCEPTANCE_TEMPLATE.md`](./APPLE_HEALTH_DEVICE_ACCEPTANCE_TEMPLATE.md) | iPhone / Watch 真机验收记录模板 |
 | [`watch-architecture.md`](./watch-architecture.md) | Watch companion、动作和通信协议 |
 | [`algorithm-research.md`](./algorithm-research.md) | ChronoState 方法选择、演进和后续研究方向 |

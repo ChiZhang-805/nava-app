@@ -15,6 +15,16 @@ export type ShellHistoryState = {
 };
 
 export function normalizeShellRoute(tab: AppTab, module: ShellRecordModule | null = null, view: string | null = null): ShellRoute {
+  // Notification/plugin payloads cross a runtime boundary despite TS types.
+  if (!['today', 'record', 'ai', 'trends', 'profile'].includes(tab)) tab = 'today';
+  if (module && !['mood', 'sleep', 'exercise', 'diet', 'focus', 'face'].includes(module)) module = null;
+  if (typeof view !== 'string') view = null;
+  if (tab === 'today' && view?.startsWith('day-')) {
+    const date = view.slice(4);
+    const parsed = new Date(`${date}T12:00:00Z`);
+    // Reject impossible dates as well as malformed links before any report fetch.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) view = 'calendar';
+  }
   const normalizedModule = tab === "record" ? module : null;
   const normalizedView = tab === "today" || tab === "profile"
     ? view || null

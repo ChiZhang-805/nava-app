@@ -1,3 +1,14 @@
+/* Date sheets are portaled next to navigation, outside animated page stacking
+   contexts. Short viewports scroll the sheet instead of clipping its controls. */
+.phone-frame > .today-todo-date-overlay {
+  padding-top: max(18px, env(safe-area-inset-top));
+}
+.phone-frame > .today-todo-date-overlay > section {
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 /* One contract for all page-header menus, independent of page typography. */
 .phone-frame .nava-more-menu { position: relative; z-index: 40; width: 44px; height: 44px; display: block; }
 .phone-frame .nava-more-menu > .nava-more-trigger {

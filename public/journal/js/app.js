@@ -79,6 +79,10 @@ __fluffyModules["app.js"] = (() => {
      * 功能：在猫咪右上角给出简短状态，不常驻冗余说明。
      */
     function bubble(text, error = false, context = {}) {
+        // A new visible reply gets one short speaking response, never a looping fake conversation.
+        if (text !== state.bubbleText && animation.scene === "entry" && state.phase === "idle") {
+            animation.entrySpeechUntil = animation.idle + Math.min(3.4, Math.max(1.2, String(text).length * .075));
+        }
         state.bubbleText = text;
         state.bubbleError = error;
         state.bubbleContext = context;
@@ -978,6 +982,7 @@ __fluffyModules["app.js"] = (() => {
      */
     function setPhase(phase) {
         state.phase = phase;
+        if (phase !== "idle") animation.entrySpeechUntil = 0;
         if (phase === "idle")
             refreshEntryCompletion();
         updateSpeechRetry();
@@ -1005,6 +1010,7 @@ __fluffyModules["app.js"] = (() => {
         speech.cancel();
         rawAudio.cancel();
         animation.level = 0;
+        animation.entrySpeechUntil = 0;
         wave = Array(72).fill(0);
         state.phase = "idle";
         animation.entryMode = "idle";

@@ -6,6 +6,10 @@
 "watch.queued" = "Actions will be queued";
 "watch.rhythm" = "TODAY'S RHYTHM";
 "watch.saved" = "Saved";
+"watch.sending" = "Sending…";
+"watch.moodQueued" = "Queued for iPhone sync";
+"watch.moodReceived" = "Received by iPhone; syncing";
+"watch.saveFailed" = "Could not save. Try again.";
 "watch.start" = "Start";
 "watch.stop" = "Stop";
 "watch.sync" = "Sync";

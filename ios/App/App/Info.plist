@@ -35,14 +35,14 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>仅当您选择保存图片时，NAVA 才会将图片存入相册。</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>NAVA 使用设备语音识别，将您的口述状态转换为文字。</string>
+	<string>NAVA 使用 Apple 语音识别将您的口述转换为文字；音频可能发送至 Apple 服务器处理。</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>

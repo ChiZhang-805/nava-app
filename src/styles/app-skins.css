@@ -629,6 +629,15 @@
     calc(var(--home-main-button-half) + var(--home-indicator-height) + var(--home-indicator-bottom) + var(--home-indicator-bottom)),
     calc(env(safe-area-inset-bottom) + 40px)
   );
+  --nava-dock-clearance: calc(var(--home-dock-center-bottom) + var(--home-main-button-half) + 12px);
+}
+
+/* Reserve the actual floating dock plus a normal section gap. The safe-area
+   contribution comes from the same geometry as the dock, never a phone model. */
+.phone-frame[data-shell-integrated="true"].phone-frame--option2 .points-shop-screen:is([data-shop-route="catalog"], [data-shop-route="category"], [data-shop-route="cards"]),
+.phone-frame[data-shell-integrated="true"].phone-frame--option2 .reminder-settings-page {
+  padding-bottom: var(--nava-dock-clearance);
+  scroll-padding-bottom: var(--nava-dock-clearance);
 }
 
 .phone-frame[data-app-skin][data-shell-integrated="true"] > .safe-top,
@@ -658,11 +667,13 @@
      exposing a second, full-width bottom band. */
   margin-bottom: 0;
   padding-top: var(--integrated-content-top-gap);
-  padding-bottom: calc(118px + env(safe-area-inset-bottom));
+  padding-bottom: max(calc(118px + env(safe-area-inset-bottom)), var(--nava-dock-clearance));
+  scroll-padding-bottom: var(--nava-dock-clearance);
 }
 
 .phone-frame[data-shell-integrated="true"].phone-frame--subpage-no-nav:not(.phone-frame--option2) > .app-content {
   padding-bottom: max(20px, env(safe-area-inset-bottom));
+  scroll-padding-bottom: 12px;
 }
 
 /* The conversation is its own focused surface. It ends with the composer,

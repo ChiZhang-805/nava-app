@@ -4,6 +4,7 @@ __fluffyModules["animation.js"] = (() => {
     const M = window.M;
     const Notebook = __fluffyModules["notebook-layout.js"];
     const ReviewGeometry = __fluffyModules["review-layout.js"].geometry;
+    const CompanionMotion = __fluffyModules["companion-motion.js"];
     /**
      * 输入：id（DOM标识）。
      * 输出：对应页面元素或null。
@@ -68,6 +69,8 @@ __fluffyModules["animation.js"] = (() => {
             this.entryMode = "idle";
             this.attention = 0;
             this.thinking = 0;
+            this.entryMotion = new CompanionMotion.Controller();
+            this.reviewMotion = new CompanionMotion.Controller();
             this.bridge = false;
             this.heroClock = 0;
             this.paperScroll = 0;
@@ -500,53 +503,23 @@ __fluffyModules["animation.js"] = (() => {
                 ctx.restore();
             }
             else if (this.scene === "review") {
-                // 同一只猫在卡片上方趴着：说话/倾听仅轻抬头与短前爪，身体接触点不平移。
-                const listen = this.reviewListen || 0, think = this.reviewThink || 0, talk = this.reviewTalk || 0;
-                const nod = (this.reviewNod || 0) * Math.sin(this.idle * 2.4);
-                const pulse = .5 + .5 * Math.sin(this.idle * 2.5), wave = (this.reviewWave || 0) * pulse;
                 const pet = Math.sin(Math.PI * M.clamp((this.idle - this.petAt) / 1.8));
+                const pose = CompanionMotion.pose("review", this.idle, this.reviewMotion.values(), { reduced: this.reducedMotion, pet });
                 ctx.save();
-                // 与回顾页卡片共用上移量，保留原有体型、姿态与动作连续性。
                 ctx.translate(ReviewGeometry.actorX, ReviewGeometry.actorY);
                 ctx.scale(ReviewGeometry.actorScaleX, ReviewGeometry.actorScaleY);
-                this.actor.record(ctx, {
-                    t: 0, idle: this.idle * .83, sleep: .82, headSleep: .71 - .36 * listen - .25 * talk - .13 * think + .024 * nod,
-                    tailSleep: .91, pen: null, grip: [140, 410], release: 1,
-                    lookOverride: .12 + .12 * listen, headTilt: -.025 * listen + .024 * think + .011 * talk * Math.sin(this.idle * 2.2) + .01 * nod,
-                    attention: listen, thought: think, pet, chatMotion: true,
-                    pawLift: wave * .85 + pet * .25, mouthTalk: talk * (.5 + .5 * Math.sin(this.idle * 4.4))
-                });
+                this.actor.record(ctx, pose);
                 ctx.restore();
+                this.metrics.companionPose = pose;
             }
             else if (this.scene === "entry") {
-                // 首次记录引导里的小猫不是静态贴图：说话、举爪和点头错峰发生，
-                // 呼吸与轻摆尾保持连续。减少动态效果时只保留原有静态姿态。
-                const guideState = $("screen").dataset.guideMotion || "";
-                const guideMotion = Boolean(guideState) && !this.reducedMotion;
-                const guideCycle = this.idle % 8.4;
-                const guideWave = guideMotion && guideState === "ready"
-                    ? M.range(guideCycle, .35, .85) * (1 - M.range(guideCycle, 2.05, 2.55)) * (.72 + .18 * Math.sin(this.idle * 4.2))
-                    : 0;
-                const guideNod = guideMotion && guideState === "ready"
-                    ? M.range(guideCycle, 3.2, 3.65) * (1 - M.range(guideCycle, 4.45, 4.95)) * Math.sin((guideCycle - 3.2) * 3.6)
-                    : guideMotion && guideState === "waiting"
-                        ? M.range(guideCycle, 5.4, 5.9) * (1 - M.range(guideCycle, 6.55, 7.05)) * .45
-                        : 0;
-                const guideTalk = guideMotion && guideState === "speaking"
-                    ? .35 + .65 * (.5 + .5 * Math.sin(this.idle * 5.2))
-                    : 0;
-                const idlePose = {
-                    t: 0, idle: this.idle, sleep: 0, headSleep: 0, tailSleep: 0,
-                    pen: null, grip: [177, 405], release: 1, lookOverride: .08 + this.attention * .22,
-                    headTilt: -.072 * this.attention + .023 * this.thinking + guideNod * .025,
-                    attention: this.attention, thought: this.thinking, level: this.level,
-                    chatMotion: guideMotion, pawLift: guideWave, mouthTalk: guideTalk
-                };
+                const pose = CompanionMotion.pose("entry", this.idle, this.entryMotion.values(), { reduced: this.reducedMotion });
                 ctx.save();
                 ctx.translate(43, 35);
                 ctx.scale(.78, .78);
-                this.actor.record(ctx, idlePose);
+                this.actor.record(ctx, pose);
                 ctx.restore();
+                this.metrics.companionPose = pose;
             }
             else if (this.scene === "celebrate") {
                 this.actor.hero(ctx, this.heroClock * HERO_SPEED);
@@ -613,14 +586,28 @@ __fluffyModules["animation.js"] = (() => {
                 const blend = 1 - Math.exp(-dt * 4.6);
                 this.homeLook = (this.homeLook || 0) + ((this.homeLookTarget || 0) - (this.homeLook || 0)) * blend;
                 this.focusRest = (this.focusRest || 0) + ((this.focusRestTarget || 0) - (this.focusRest || 0)) * blend;
-                this.attention += ((this.entryMode === "listening" ? 1 : 0) - this.attention) * blend;
-                this.thinking += ((this.entryMode === "thinking" ? 1 : 0) - this.thinking) * blend;
-                // 阶段二：回顾的状态变化使用同一低通缓动，不按录音/回复事件硬切姿态。
-                this.reviewListen = (this.reviewListen || 0) + ((this.reviewMode === "listen" ? 1 : 0) - (this.reviewListen || 0)) * blend;
-                this.reviewThink = (this.reviewThink || 0) + ((this.reviewMode === "think" || this.reviewMode === "talk" && this.reviewGesture === "think" ? 1 : 0) - (this.reviewThink || 0)) * blend;
-                this.reviewTalk = (this.reviewTalk || 0) + ((this.reviewMode === "talk" ? 1 : 0) - (this.reviewTalk || 0)) * blend;
-                this.reviewWave = (this.reviewWave || 0) + ((this.reviewMode === "talk" && this.reviewGesture === "wave" ? 1 : 0) - (this.reviewWave || 0)) * blend;
-                this.reviewNod = (this.reviewNod || 0) + ((this.reviewMode === "talk" && this.reviewGesture === "nod" ? 1 : 0) - (this.reviewNod || 0)) * blend;
+                const guide = $("screen").dataset.guideMotion;
+                const entryQuiet = this.entryMode === "idle";
+                const entry = this.entryMotion.step(dt, this.scene === "entry" ? {
+                    listen: this.entryMode === "listening" ? 1 : 0,
+                    think: this.entryMode === "thinking" ? 1 : 0,
+                    talk: entryQuiet && (guide === "speaking" || this.entrySpeechUntil > this.idle) ? 1 : 0,
+                    greet: entryQuiet && guide === "ready" ? 1 : 0,
+                } : {});
+                this.attention = entry.listen;
+                this.thinking = entry.think;
+                const review = this.reviewMotion.step(dt, this.scene === "review" ? {
+                    listen: this.reviewMode === "listen" ? 1 : 0,
+                    think: this.reviewMode === "think" || this.reviewMode === "talk" && this.reviewGesture === "think" ? 1 : 0,
+                    talk: this.reviewMode === "talk" ? 1 : 0,
+                    wave: this.reviewMode === "talk" && this.reviewGesture === "wave" ? 1 : 0,
+                    nod: this.reviewMode === "talk" && this.reviewGesture === "nod" ? 1 : 0,
+                } : {});
+                this.reviewListen = review.listen;
+                this.reviewThink = review.think;
+                this.reviewTalk = review.talk;
+                this.reviewWave = review.wave;
+                this.reviewNod = review.nod;
                 this.render();
             }
             requestAnimationFrame(this.tick.bind(this));

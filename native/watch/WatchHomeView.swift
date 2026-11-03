@@ -91,6 +91,8 @@ private struct MoodPage: View {
 
     @EnvironmentObject private var session: WatchSessionManager
     @State private var selectedMood: Int?
+    @State private var moodStatus = "watch.chooseMood"
+    @State private var sendingMood = false
 
     private let moods = [
         MoodOption(id: 20, icon: "cloud.rain"),
@@ -101,36 +103,49 @@ private struct MoodPage: View {
     ]
 
     var body: some View {
+        ScrollView {
         VStack(spacing: 9) {
             Text("watch.mood")
                 .font(.headline)
 
-            HStack(spacing: 5) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 44), spacing: 6)], spacing: 6) {
                 ForEach(moods) { option in
                     let mood = option.id
                     let icon = option.icon
                     Button {
-                        selectedMood = mood
+                        sendingMood = true
+                        moodStatus = "watch.sending"
                         let now = Date()
                         session.sendAction(mergingAction([
                             "type": "mood.quickLog",
                             "mood": mood,
                             "recordedAt": ISO8601DateFormatter().string(from: now)
-                        ], at: now))
+                        ], at: now)) { response in
+                            sendingMood = false
+                            if response["ok"] as? Bool == true {
+                                selectedMood = mood
+                                // Phone acknowledgment means queued locally, not a cloud save.
+                                moodStatus = response["queued"] as? Bool == true ? "watch.moodQueued" : "watch.moodReceived"
+                            } else {
+                                moodStatus = "watch.saveFailed"
+                            }
+                        }
                     } label: {
                         Image(systemName: selectedMood == mood ? "checkmark" : icon)
                             .font(.system(size: 15, weight: .semibold))
-                            .frame(width: 26, height: 34)
+                            .frame(minWidth: 28, minHeight: 34)
                     }
                     .buttonStyle(.bordered)
+                    .disabled(sendingMood)
                     .tint(selectedMood == mood ? Color.cyan : Color.blue.opacity(0.55))
                     .accessibilityLabel(Text("\(mood)"))
                 }
             }
 
-            Text(LocalizedStringKey(selectedMood == nil ? "watch.chooseMood" : "watch.saved"))
+            Text(LocalizedStringKey(moodStatus))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+        }
         }
     }
 }

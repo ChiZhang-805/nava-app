@@ -1,19 +1,23 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\full-file-audit";
+const outputDir = process.env.NAVA_FILE_AUDIT_OUTPUT || "Q:\\NAVA-Workspace\\Build\\TestRuns\\full-file-audit";
 const textExtensions = new Set([
   ".css", ".csv", ".html", ".js", ".json", ".jsx", ".md", ".mjs", ".plist", ".ps1",
   ".sql", ".svg", ".toml", ".ts", ".tsx", ".txt", ".xml", ".yaml", ".yml",
+  ".swift", ".strings", ".storyboard", ".xcprivacy", ".pbxproj", ".xcscheme", ".py", ".sh",
 ]);
 const textNames = new Set([".gitignore", ".npmrc", "AGENTS.md", "LICENSE"]);
 const decoder = new TextDecoder("utf-8", { fatal: true });
 
 const listed = execFileSync("git", ["ls-files", "-co", "--exclude-standard", "-z"], { cwd: root });
-const files = listed.toString("utf8").split("\0").filter(Boolean).sort((a, b) => a.localeCompare(b, "en"));
+const files = [...new Set(listed.toString("utf8").split("\0").filter(Boolean))].sort((a, b) => a.localeCompare(b, "en"));
+const retired = new Map(JSON.parse(await readFile(path.join(root, 'scripts/retired-assets.json'), 'utf8')).files.map(item => [item.path, item]));
+const approvedRetirements = [];
+const sourceTexts = [];
 const lower = new Map();
 const failures = [];
 const manifest = [];
@@ -33,6 +37,11 @@ for (const file of files) {
     info = await stat(absolute);
     buffer = await import("node:fs/promises").then(({ readFile }) => readFile(absolute));
   } catch (error) {
+    const retirement = retired.get(file);
+    if (error.code === 'ENOENT' && retirement) {
+      const blob = execFileSync('git', ['rev-parse', `HEAD:${file}`], {cwd:root, encoding:'utf8'}).trim();
+      if (blob === retirement.gitBlob) { approvedRetirements.push(retirement); continue; }
+    }
     fail(file, "read", error instanceof Error ? error.message : String(error));
     continue;
   }
@@ -53,13 +62,14 @@ for (const file of files) {
     try { text = decoder.decode(buffer); }
     catch (error) { fail(file, "utf8", error instanceof Error ? error.message : String(error)); }
     if (text != null) {
+      if (/^(src|public|native|ios)\//.test(file) && !file.includes('/assets/')) sourceTexts.push({file,text});
       if (/^(<<<<<<< |=======\s*$|>>>>>>> )/m.test(text)) fail(file, "merge-marker", "unresolved merge conflict marker");
       if (extension === ".json") {
         jsonFiles += 1;
         try { JSON.parse(text); }
         catch (error) { fail(file, "json", error instanceof Error ? error.message : String(error)); }
       }
-      if (extension === ".svg" && !/<svg(?:\s|>)/i.test(text)) fail(file, "svg", "missing SVG root element");
+      if (extension === ".svg" && !/<svg(?:\s|\/?>)/i.test(text)) fail(file, "svg", "missing SVG root element");
     }
   }
 
@@ -73,6 +83,16 @@ for (const file of files) {
   manifest.push({ file: normalized, bytes: buffer.length, sha256: createHash("sha256").update(buffer).digest("hex") });
 }
 
+// Approved retirement is not permission to leave a dangling runtime reference.
+for (const item of approvedRetirements) {
+  const suffix = item.path.replace(/^(src|public)\//, '');
+  const names = [suffix, item.path];
+  if (!item.path.includes('/reference/')) names.push(path.basename(item.path));
+  for (const source of sourceTexts) if (names.some(name => source.text.includes(name))) {
+    fail(source.file, 'retired-reference', `still references retired asset ${item.path}`);
+  }
+}
+
 const summary = {
   passed: failures.length === 0,
   scannedAt: new Date().toISOString(),
@@ -81,6 +101,7 @@ const summary = {
   textFiles,
   jsonFiles,
   imageFiles,
+  approvedRetirements,
   failures,
 };
 await mkdir(outputDir, { recursive: true });

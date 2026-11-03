@@ -6,6 +6,10 @@
 "watch.queued" = "动作将排队同步";
 "watch.rhythm" = "今日节律";
 "watch.saved" = "已记录";
+"watch.sending" = "正在发送…";
+"watch.moodQueued" = "已排队，等待 iPhone 同步";
+"watch.moodReceived" = "iPhone 已接收，等待同步";
+"watch.saveFailed" = "记录失败，请重试";
 "watch.start" = "开始";
 "watch.stop" = "结束";
 "watch.sync" = "同步";

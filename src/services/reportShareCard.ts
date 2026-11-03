@@ -1,4 +1,5 @@
 import { sevenDayDateRange, todayISO } from "./date.ts";
+import { shareNativeFile, usesNativeFileShare } from "./nativeFileShare.ts";
 
 export type ReportModule = "mood" | "sleep" | "exercise" | "diet" | "focus" | "face" | "weekly";
 
@@ -307,6 +308,10 @@ export async function createReportShareImage(options: ReportCardOptions) {
 // The exact previewed bytes are exported on a fresh user click; do not regenerate here.
 export async function sharePreparedReportImage(blob: Blob, options: ReportCardOptions) {
   const fileName = `NAVA-${options.module}${options.includeDates ? `-${options.endDate}` : ""}.png`;
+  if (usesNativeFileShare()) {
+    await shareNativeFile(fileName, blob, `NAVA · ${options.moduleLabel}`);
+    return "shared" as const;
+  }
   const file = new File([blob], fileName, { type: "image/png" });
   if (navigator.share && navigator.canShare?.({ files: [file] })) {
     await navigator.share({

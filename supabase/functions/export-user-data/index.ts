@@ -1,5 +1,6 @@
 import { errorResponse, jsonResponse, optionsResponse, readJson, requireUser } from "../_shared/http.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.52.1";
+import { collectExportRows, exportOrderColumn } from "../_shared/export-pagination.ts";
 
 const tableContracts = [
   { name: "profiles", column: "id" },
@@ -77,17 +78,17 @@ Deno.serve(async (req) => {
     };
 
     for (const table of tableContracts) {
-      const { data, error } = await userClient.from(table.name).select("*").eq(table.column, user.id);
-      if (error) {
+      try {
+        result[table.name] = await collectExportRows((from,to) => userClient.from(table.name).select("*", {count:'exact'}).eq(table.column, user.id).order(exportOrderColumn(table.name)).range(from,to));
+      } catch (error) {
         const errors = (result.errors ?? {}) as Record<string, string>;
-        errors[table.name] = error.message;
+        errors[table.name] = error instanceof Error ? error.message : String(error);
         result.errors = errors;
         result[table.name] = [];
-      } else {
-        result[table.name] = data ?? [];
       }
     }
 
+    result.paginationVerified = !result.errors;
     result.storage = {
       "diet-photos": await listOwnedFiles(userClient, "diet-photos", user.id),
       "face-photos": await listOwnedFiles(userClient, "face-photos", user.id),

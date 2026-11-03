@@ -1,6 +1,7 @@
 const databaseName = "nava-secure-face-drafts";
 const storeName = "drafts";
 const ttlMs = 30 * 60 * 1000;
+const pendingKeys = new Map<string, Promise<CryptoKey>>();
 
 type StoredFaceDraft = {
   id: string;
@@ -32,14 +33,23 @@ function base64ToBytes(value: string) {
 }
 
 async function sessionKey(userId: string, create: boolean) {
+  const pending = pendingKeys.get(userId);
+  if (pending) return pending;
   const storageKey = keyStorageName(userId);
   const saved = window.sessionStorage.getItem(storageKey);
   if (saved) return crypto.subtle.importKey("raw", base64ToBytes(saved), "AES-GCM", false, ["encrypt", "decrypt"]);
   if (!create) return null;
-  const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
-  const raw = new Uint8Array(await crypto.subtle.exportKey("raw", key));
-  window.sessionStorage.setItem(storageKey, bytesToBase64(raw));
-  return key;
+  // Concurrent first saves must share one key; otherwise the last generated key
+  // replaces sessionStorage and makes the other successfully saved draft unreadable.
+  const creation = (async () => {
+    const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+    const raw = new Uint8Array(await crypto.subtle.exportKey("raw", key));
+    window.sessionStorage.setItem(storageKey, bytesToBase64(raw));
+    return key;
+  })();
+  pendingKeys.set(userId, creation);
+  try { return await creation; }
+  finally { pendingKeys.delete(userId); }
 }
 
 function openDatabase() {
@@ -59,7 +69,8 @@ async function withStore<T>(mode: IDBTransactionMode, operation: (store: IDBObje
     return await new Promise<T>((resolve, reject) => {
       const transaction = database.transaction(storeName, mode);
       const request = operation(transaction.objectStore(storeName));
-      request.onsuccess = () => resolve(request.result);
+      // Request success precedes transaction commit; an aborted write is not saved.
+      transaction.oncomplete = () => resolve(request.result);
       request.onerror = () => reject(request.error ?? new Error("Secure face draft storage failed."));
       transaction.onabort = () => reject(transaction.error ?? new Error("Secure face draft transaction aborted."));
     });
@@ -74,14 +85,15 @@ export async function saveSecureFaceDraft(userId: string, date: string, file: Fi
   if (!key) return false;
   const id = draftId(userId, date);
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const additionalData = new TextEncoder().encode(`${id}:${file.type}`);
+  const contentType = file.type || "image/jpeg";
+  const additionalData = new TextEncoder().encode(`${id}:${contentType}`);
   const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData }, key, await file.arrayBuffer());
   await withStore("readwrite", (store) => store.put({
     id,
     cipher,
     iv: iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength) as ArrayBuffer,
     name: file.name,
-    type: file.type || "image/jpeg",
+    type: contentType,
     lastModified: file.lastModified,
     expiresAt: Date.now() + ttlMs,
   } satisfies StoredFaceDraft));

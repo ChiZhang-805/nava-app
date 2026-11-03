@@ -137,7 +137,7 @@ foreach ($expected in @(
   "WatchHomeView.swift in Sources",
   "WatchSessionManager.swift in Sources",
   "NAVA Watch.app in Embed Watch Content",
-  'productType = "com.apple.product-type.application.watchapp2";',
+  'productType = "com.apple.product-type.application";',
   'PRODUCT_BUNDLE_IDENTIFIER = "$(NAVA_APP_BUNDLE_ID).watchkitapp";',
   'INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "$(NAVA_APP_BUNDLE_ID)";',
   "NavaBridgeViewController.swift in Sources",
@@ -145,6 +145,9 @@ foreach ($expected in @(
   "TARGETED_DEVICE_FAMILY = 1;"
 )) {
   if (!$project.Contains($expected)) { throw "Xcode project is missing: $expected" }
+}
+if ($project.Contains('productType = "com.apple.product-type.application.watchapp2";')) {
+  throw "The single-target Watch app cannot use the legacy WatchKit wrapper product type."
 }
 
 foreach ($relativeSource in @("..\..\..\native\ios\NavaHealthPlugin.swift", "..\..\..\native\ios\NavaHealthBackgroundObserver.swift", "..\..\..\native\ios\NavaSecureStoragePlugin.swift", "..\..\..\native\ios\NavaSpeechPlugin.swift", "..\..\..\native\ios\NavaWatchBridgePlugin.swift")) {

@@ -1,54 +1,159 @@
 # iOS 动态背景、角色动画与原生媒体
 
+## 记录与回顾状态动画（2026-10-30，覆盖早期同场景动作说明）
+
+- 两页继续使用现有 CatActor 和原始 PNG，不转 GIF，不增添新的角色外观。头部
+  `headSleep` 固定为记录页 0、回顾页 .71；状态变化只增加有界旋转与位移，避免缩脸、拉长身体。
+- `companion-motion.js` 的六个状态通道使用精确临界阻尼积分，切换目标时保留速度；
+  动作使用同一时钟连续运行，不从第一帧重播。尾尖改变而尾根不动，抬爪沿同一肩点，
+  动作之间安排停顿。代码对白仅触发有限时长动作，不代表真实语音播报。
+- `animation.js` 从既有 entryMode、reviewMode/reviewGesture 和首次引导状态取目标，
+  记录页倾听/思考优先于引导对白；`app.js` 在状态打断或取消时清除对白截止时间。
+- 减少动态效果使用固定时间、固定姿势；隐藏/弹窗暂停沿用现有 tick 策略。Canvas2D
+  CPU 回退保留同样姿态。系统减少动态效果、WKWebView 性能仍需 iPhone 验收。
+- 自动检查：`npm run journal:motion:test`；`npm run journal:motion:visual`。
+  WebKit 使用 `NAVA_LAYOUT_ENGINE=webkit` 和项目缓存里的 Playwright 浏览器。
+  覆盖五个宽度、两页七状态、实际 tick 快速打断、降动效像素不变与 CPU 回退。
+  原图一致性证据和浏览器报告在 `Q:/NAVA-Workspace/Build/TestRuns/journal-companion-motion/`。
+- 最终结果：Chromium/WebKit 各 70 状态通过，四尺寸中英文引导通过，完整 verify、
+  375 单元及 native 构建/copy/portable/release 检查通过；复制后的动画资源哈希与源码
+  一致。未部署；浏览器通过不代替真机帧率、原生麦克风、系统降动效验收。
+
 ## Figma 衣橱布局与二维动画候选（2026-10-25）
 
-衣橱商品页现在按 Figma 移动端 C04/C05 的空间关系使用 2×2 卡片，每页固定最多 4 件；
+衣橱商品页按 Figma 移动端 C04/C05 的空间关系使用 2×2 卡片，每页固定最多 4 件；
 分页逻辑和 3D 预加载同样按 4 件处理。预览区加入不接收触摸的虚线圆角框，并按三套 APP
 皮肤分别使用冰蓝、紫蓝青和蓝绿色调。现有单饰品替换、3D/2D 切换、兑换及积分合同不变。
 
-对静态正面小猫制作二维动画时，生产路线优先考虑 Live2D Cubism 或 Rive：它们通过网格、
-骨骼和状态机驱动原图，更适合保持脸、毛发与配饰形状。DomoAI 与 Runway 可用静态图快速生成
-动作视频或用参考视频迁移动作，但输出会重新生成像素，需要逐帧检查角色漂移、额外肢体、配饰
-位移和透明边缘。当前只完成官方能力与费用调研，未登录外部服务、购买额度或把生成视频接入 APP。
+无配饰二维小猫使用确定性的身体、右前爪双层素材：待机周期轻挥，点按后在 3.2 秒内
+平滑完成两次挥动并回到原像素位置；身体、脸、左爪和尾巴保持静止，减少动态效果时关闭。
+带配饰的 17 张批准正面图继续完整静态显示，待逐款制作正确遮挡层后再共用肩部动作曲线。
 
-- Live2D Cubism：提供 42 天 PRO 试用，之后可使用受限 FREE 版；适合把分层 PSD 绑定成保形动画，
-  可导出视频、GIF 或透明视频。每套配饰需要单独准备遮挡关系与变形网格。
-- Rive：适合把网格、骨骼和状态机直接带入 APP；免费层可导出带 Rive 启动画面的 `.riv`，
-  去除启动画面并用于无品牌生产发布时需 Cadet 或更高计划。
-- DomoAI：适合把一张静态图快速生成 5–10 秒 MP4；实际生成需要登录并消耗额度，付费计划移除水印。
-- Runway：Image-to-Video、Motion Control 或 Act-Two 可用参考动作驱动角色；使用网页或 API 都需要
-  账号，API 需购买 credits。适合作为动作草样，不能承诺逐像素保持原角色。
+## 上传前补充检查（2026-10-30，优先于下方早期阻塞记录）
 
-### 商城二维动画最终格式决定（2026-10-25）
+首页健康卡片已补 200% 文字压力下的自然重排：检测实际文本大小，以单列可滚动卡片
+展示完整数值，保持底部角色和导航空间；大文字状态下方向键按单列移动。默认文字下
+继续保留六卡排列。常规四尺寸及 18 个登记 iPhone 竖屏样本的小组件编辑回归通过；
+`verify-text-resize.mjs` 覆盖中英文/320、390、430/首页、个人中心、账号、AI，并检查
+每张卡片可滚到、文字不横向溢出及编辑键盘顺序。Chromium/WebKit 合成文字放大不能
+替代 iPhone 设置里的字体放大和 VoiceOver 验收。
 
-商城生产资产统一选择 Rive `.riv`，用位图网格、骨骼和状态机制作原地待机与点击挥爪；React
-运行时直接播放 `.riv`，不把图生视频结果当成商城主资产。这样可以保持小猫原始脸、毛发、尾巴、
-配饰和透明背景，并让点击、循环、暂停和减少动态效果由 APP 控制。Rive Cloud Renderer 导出的
-GIF/WebM 只用于人工审核；若运行时加载失败，再使用同动作的 animated WebP 降级。GIF 不作为
-生产首选，因为颜色、透明边缘和体积不适合这套柔和渐变毛发。
+账号归档与报告图像通过 `nativeFileShare.ts` 在原生平台写缓存，再唤起系统分享面板。
+依照 [Capacitor 7 Filesystem](https://capacitorjs.com/docs/v7/apis/filesystem) 和
+[Share](https://capacitorjs.com/docs/v7/apis/share)，锁定同 major 官方依赖，补 Pod、
+FileTimestamp/C617.1 隐私原因和生成插件注册检查。分享取消转为 AbortError，不显示
+成功；完成/取消/写入失败均清理本次缓存路径，并阻止重复打开分享。Web 仍使用下载，
+延迟释放对象 URL。系统分享、取消、保存到 Files 以及较大归档内存使用必须真机验收。
 
-第一阶段只做无配饰基础小猫：`idle` 静止/轻呼吸、`wave` 右前爪轻挥两次并精确回到初始姿势，
-状态机由点按触发且不移动身体、头、左爪和尾巴。该原型通过后，共用同一套骨架和动作曲线扩展
-到 17 个单配饰版本；每款仅处理配饰遮挡、绑定和必要的局部跟随。Rive Editor 已登录并创建
-500×500 原型文件，基础猫已上传；单图网格试验确认自动权重会牵扯脸毛和身体轮廓，不能作为成品。
-当前改用身体底图与独立右前爪的分层绑定方案；最终本地试件为
-`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-2d-animation-pilot/cat-body-base-final.png` 与
-`cat-right-paw-layer-final.png`。两层均为 1254×1254 RGBA、透明四角，静止叠合和 -24°、-40°、
--30° 动作姿势已生成 `cat-wave-layered-final-qa.png` 检查。Rive 中应把枢轴固定在右肩，按该三角度
-平滑缓入缓出并完成两次挥动，身体、脸、左爪和尾巴保持静止。
+Watch 心情按钮改自适应网格和 ScrollView，明确发送中/排队/iPhone 收到/失败状态；
+不将 WatchConnectivity 接收确认等同云端持久化。面部草稿的无 MIME 恢复及数据库事务
+中止已在两引擎实测。完整发布检查的旧素材缺失已按逐文件退休证据解决，详见当前交接。
 
-APP 已先用同一套确定性双层素材实现运行时动画，作为 Rive 文件完成前的生产实现：无配饰二维
-小猫在预览中周期性轻挥右前爪，点按后播放 3.2 秒两次挥爪并回到原像素位置；动画只变换独立
-右前爪层，不重绘脸、身体、左爪和尾巴。系统启用减少动态效果时动画关闭。带配饰的 17 张批准
-正面图暂时继续完整静态显示，待逐款制作正确的遮挡层后再共用同一肩部动作曲线。
+## 官方架构与 Skill 复核（2026-10-30）
+
+后续交互排查补充：历史弹层支持 Escape、Tab 焦点循环与关闭后恢复，历史删除增加确认。
+日报路由入口拒绝非法/不存在的日期并回到日历。`npm run navigation:visual` 使用本地
+合成数据检查四种尺寸、中英文、浏览器前进后退与刷新恢复；不向生产写记录。
+`verify-current-overlays.mjs` 同时断言取消删除保留会话、焦点约束与 Escape 关闭。
+
+- 当前路线是 React/TypeScript/CSS 前端 → Capacitor 7/WKWebView 原生容器 →
+  Xcode 构建。Swift 插件承接 Health、Watch、安全存储、语音等原生能力。
+  没有“转换 CSS 为 Swift”的步骤；原生 SwiftUI/UIKit 和当前混合路线是不同实现，
+  不混用两套布局代码。依据：[Capacitor 7 iOS](https://capacitorjs.com/docs/v7/ios)。
+- 后端继续独立提供 HTTPS API、Supabase Auth、数据库/RLS 与 Edge Functions；
+  不随 Xcode 一起打进 APP。已复核 `supabaseClient.ts` 的用户 JWT 传递、
+  `authStorage.ts` 的原生 Keychain 分支、`_shared/http.ts` 的服务端 getUser 校验及
+  已有迁移的用户行级隔离定义。这是源码架构核对，不是生产权限的完整审计或端到端验收。
+  依据：[Supabase API 安全](https://supabase.com/docs/guides/api/securing-your-api)。
+- 已安装并读取 Vercel 官方 `web-design-guidelines`、`react-best-practices`，
+  来源 https://github.com/vercel-labs/agent-skills ，查询时 33,230 stars，固定提交
+  `1a2c79d4e6c4a2283dc2c614b6538cbe1ed5ca62`；安装位置为
+  `Q:/Codex/Live/skills/` 下同名目录。它们是辅助审查规范，不是苹果认证或 iOS 模拟器。
+- 本次应用范围：共用菜单、viewport 监听、原生容器和 AI 历史弹层。菜单已有语义按钮、
+  焦点与键盘处理；viewport 监听仅在入口安装并清理，读写集中到动画帧。
+  根据 Apple Accessibility 的默认触控尺寸建议，将历史关闭按钮从 36 调到 44 CSS px、
+  返回今日按钮从 38 调到至少 44 CSS px，历史列表增加滚动隔离与可收缩高度。
+  这不是把全部页面声明为无障碍合格；200% 字号、VoiceOver 与系统 Dynamic Type 仍待专项验收。
+  依据：[Apple Accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility)。
+- 核验按层进行：代码与接口合同 → 浏览器页面/交互 → Xcode 模拟器 → iPhone 真机 →
+  TestFlight 团队验收。后两类环境缺失时必须明确待验，不能用 GitHub 星数或截图通过替代。
+- 本次按钮/滚动修改后，当前弹层与历史页面的五尺寸/双语回归在 Chromium、WebKit
+  各 70 个状态通过，并检查紧凑屏截图；lint、build:native、cap copy ios 与 portable
+  iOS 检查通过。未重新宣称全项目 verify 通过，也未发布站点或上传 TestFlight。
+
+## 自适应布局与电脑端验收（2026-10-30）
+
+适配合同：四个常规视口是回归样本，不是四套机型专属布局。原生界面使用 point，
+当前 React/WKWebView 界面使用 CSS 逻辑像素；不按硬件像素或机型名写页面坐标。
+容器宽度、网格列、滚动区域、浮动导航留白与安全区通过约束计算。控件尺寸和标准间距
+可以使用固定逻辑单位；长内容自然换行或滚动，不能把整页文字强行等比压小。
+键盘、安全区和字体/语言变化是独立于机型尺寸的验收条件。Xcode 提供构建与模拟器，
+不会替业务页面自动修复重叠。当前工程仍为 iPhone 竖屏，未新增 iPad 支持。
+
+依据（本轮已阅读官方资料）：
+- [Apple Layout](https://developer.apple.com/design/human-interface-guidelines/layout)
+- [UIScreen scale](https://developer.apple.com/documentation/uikit/uiscreen/scale)
+- [WebKit 响应式设计模式](https://webkit.org/blog/14670/simplified-responsive-design-mode/)
+- [WebKit 安全区与最小边距](https://webkit.org/blog/7929/designing-websites-for-iphone-x/)
+
+本轮修复：
+- `mobileViewport.ts` 根据真实 visualViewport 高度处理仅可见区域缩小的键盘；保留
+  桌面预览与缩放手势的布局，收起键盘后恢复。表单使用自然高度与滚动，注册协议不再
+  与被 flex 压缩的字段重叠；小屏键盘打开时暂时隐藏浮动导航，避免盖住待办输入区。
+- 浮动导航的滚动预留使用其中心、半径和 12px 间距共同计算；商城、积分卡、提醒和
+  个人中心的末项可滚动到可点击位置。无导航子页保持正常较小留白。
+- 待办日期弹窗 portal 到 phone-frame，脱离页面内部 stacking context，避免底部
+  导航覆盖日期输入；弹窗自身在短屏可滚动。
+- MoreMenu 忽略 Safari 点击按钮时 relatedTarget 为空的 blur；外部 pointerdown、
+  Tab 和 Escape 关闭行为保留，避免菜单项收到 click 前被卸载。
+- 完成动画等待实际 DOM 图片解码后整体显示，避免背景/小猫分批出现；hide/destroy
+  作废异步显示，避免旧动画再次浮现。
+
+验收入口与证据：
+- `scripts/verify-mobile-layout.mjs`：六种视口（320×568、375×667、360×740、375×812、
+  390×844、430×932），路由、末项可点击、键盘与恢复；支持 `NAVA_LAYOUT_ENGINE=webkit`
+  和 Chromium 的 `NAVA_LAYOUT_SAFE=1`（真实浏览器 env() 注入 59/34 安全区）。
+- `scripts/verify-layout-sweep.mjs`：320–480 每 8 CSS px、六个高度、九条主要路由，
+  1,134 个中间尺寸组合；不是“覆盖每一台真实 iPhone”的声明。
+- `scripts/verify-current-overlays.mjs`：五个尺寸、中英文、周报分享/待办日期/三类账号
+  编辑弹窗与 AI 历史列表/详情；Chromium 注入安全区，WebKit 单独运行，所有外部数据请求均为本地 fixture。
+- 新证据位于 `Q:/NAVA-Workspace/Build/TestRuns/mobile-layout/`；原专项继续在
+  `Q:/NAVA-Workspace/Build/TestRuns/`：integrated-shell、profile-hub、
+  weekly-readability、cold-start、journal-integration、celebration-scenes 等。
+- 本轮通过：Chromium 安全区与 WebKit 各 384 个路由/滚动/键盘检查，当前弹窗/历史各 70
+  个中英文场景，主壳 312 个皮肤/尺寸组合；Journal 两引擎各 552 个场景，九种完成
+  动画各 216 个尺寸组合。另已通过衣橱 15 场景、首次引导、商城兑换、周报、通知、
+  待办、月历、资料、菜单、相机、媒体反馈和管理员专项。
+- 原生网页 build、lint、23 个导航/动画/设备相关单元测试、公开认证合同与 portable
+  iOS 检查通过；已 `cap copy ios`，仅更新网页资源，不是 Swift 编译或安装。
+  可机读汇总为 `Q:/NAVA-Workspace/Build/TestRuns/mobile-layout/verification-summary.json`。
+- Journal 响应式测试已跟随当前新手引导设置与独立完成场景更新；衣橱测试改为当前
+  单饰品模型及“穿戴中”状态。旧分项历史分享路由脚本不能证明当前页面，改用实际周报入口。
+- 完成动画可用 `NAVA_SCENES_LAYOUT_ONLY=1` 独立验布局，输出到 `*-layout`；仍记录
+  readyMs，但不冒充通过旧 1.5 秒性能门禁。默认性能断言没有放宽；Chromium 默认模式
+  另行复验通过，仍不能据此推断 iPhone 真机性能。
+
+限制：这些是电脑上的浏览器/合成数据证据，不等于 Xcode 编译、原生键盘、系统
+Dynamic Type、旧 iOS WebKit、真实 Health/Watch/APNs 或真机性能验收。当前完整
+`npm run verify` 仍被任务开始前已删除的 tracked 素材阻止，日志在
+`Q:/NAVA-Workspace/Build/TestRuns/mobile-layout/full-verify.log`。未恢复这些既有删除，
+也未跳过门禁发布；本轮未上传 TestFlight、未发布两个公开站点。
+
+## TestFlight 准备更新（2026-10-30）
+
+当前 Mac 操作、签名/版本参数和剩余人工门槛以
+[`APPLE_HEALTH_WATCH_DELIVERY.md` §0](./APPLE_HEALTH_WATCH_DELIVERY.md) 为准。
+已补齐 iPhone/Watch 隐私清单、共享 Scheme/workspace、Release 推送权限、原生生产环境
+锁定与归档/导出检查；中英文语音权限明确 Apple 可能联网处理音频。`cap:sync:ios` 只同步
+iOS。当前没有 Mac/Apple Developer 账户，尚未进行 Swift 编译、签名、上传或真机验收。
+下方历史章节中的 Xcode 16 是 Capacitor 7 的旧最低要求；当前上传须使用 Xcode/SDK 26+。
 
 ## 衣橱 2D/3D 预览（2026-10-24）
 
 衣橱预览左上角使用单一图标在 3D 与 2D 间切换。2D 素材直接来自最终 18 组四视图归档中的
 批准正面图；背景移除流程只生成透明度通道，RGB 逐像素复制源图，不重新生图或把 GLB 渲染
-截图冒充二维原稿。无配饰和 17 件单配饰均有独立透明 PNG。无配饰二维模式使用上述双层挥爪；
-带配饰版本继续保持精确静态正面，不播放会改变脸型、毛发或配饰结构的伪动画；三维模式继续
-播放绑定后的局部动作。
+截图冒充二维原稿。无配饰和 17 件单配饰均有独立透明 PNG。二维模式当前保持精确静态正面，
+不播放会改变脸型、毛发或配饰结构的伪动画；三维模式继续播放绑定后的局部动作。
 
 ## 衣橱 v3 当前状态（2026-10-24，双站 v266 已发布）
 
@@ -521,7 +626,7 @@ Continue 使用本地 Nunito 圆润字体（随附 SIL OFL），没有箭头；�
 `scripts/verify-celebration-garden.mjs`（六条实际记录→保存→回顾 UI 流程）、
 `scripts/verify-journal-rewards.mjs`（本地 PostgreSQL 合同）及 `tests/completion-scenes.test.ts`。
 WebKit 分别设置 NAVA_SCENES_ENGINE / NAVA_GARDEN_ENGINE=webkit 和
-PLAYWRIGHT_BROWSERS_PATH=Q:/NAVA-Workspace/Caches/playwright。证据在上述 TestRuns 目录，
+PLAYWRIGHT_BROWSERS_PATH=Q:/NAVA-Workspace/NAVA-App/Caches/playwright。证据在上述 TestRuns 目录，
 React 外壳另外检查18个机型。全部是明确的本地数据夹具，不是生产账号或物理 iPhone 实测。
 
 **数据库门槛未完成：** `202609270001_journal_growth_rewards.sql` 已编写并在本地 PostgreSQL
@@ -580,14 +685,15 @@ Windows 负责实现和源码/浏览器验证；Mac 负责 Xcode 编译、签名
 
 ### 给Mac同学的最短交接
 
-1. 获取本仓库当前源码，安装受支持的Node（建议22.18+）、Xcode及CocoaPods；准备
-   canonical Supabase的公开URL/publishable key到本地 `.env`，不传服务端密钥。
+1. 获取经审看提交的当前源码，安装Node（建议22 LTS且22.18+）、Xcode 26+及CocoaPods；
+   `.env.native` 已含 canonical Supabase公开配置，不传服务端密钥。
 2. `npm run ios:prepare:release`：安装依赖、跨平台源码检查/专项测试、原生构建、
    cap sync、模拟层排除、plist检查、未签名模拟器编译。已移除该脚本对PowerShell和
    Q盘截图输出的依赖。它并不代替源码工作区的完整`npm run verify`发布门槛。
 3. Xcode打开`ios/App/App.xcworkspace`；选开发者Team，确认iPhone与Watch Bundle ID、
    HealthKit/Push能力及profile。设置`NAVA_ARCHIVE=1`、`NAVA_APPLE_TEAM_ID`、
-   `NAVA_IOS_BUNDLE_ID`可生成archive；不会自动上传App Store或替用户签协议。
+   `NAVA_IOS_BUNDLE_ID`、`NAVA_IOS_VERSION`、`NAVA_IOS_BUILD_NUMBER`可生成archive；
+   `NAVA_EXPORT=1`可导出IPA，不会自动上传App Store或替用户签协议。
 4. 必测：通知首次允许/拒绝/取消、拒绝后跳本APP通知设置、返回仅开启请求项、
    已允许时无额外弹窗、系统静音/专注/摘要设置；前后摄像头/拒绝权限/取消/重拍、HEIC和iCloud照片、文件选择、来电打断
    录音、后台暂停专注、前台常亮及手动锁屏、八项提醒锁屏到达/点开/关闭、账号隔离、

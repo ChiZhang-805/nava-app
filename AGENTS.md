@@ -1,19 +1,19 @@
 # NAVA repository operating rules
 
-These instructions apply to every file under `Q:\NAVA-Workspace\nava-app`.
-They complement the Q-drive workspace rules in the parent environment.
+These instructions apply to every file under `Q:\NAVA-Workspace\NAVA-App\nava-app`.
+They complement the workspace rules in the parent environment.
 
 ## Source of truth
 
-- `Q:\NAVA-Workspace\nava-app` is the only editable NAVA source repository.
-- `Q:\NAVA-Workspace\nava-app-preview` is a generated, public GitHub Pages
+- `Q:\NAVA-Workspace\NAVA-App\nava-app` is the only editable NAVA source repository.
+- `Q:\NAVA-Workspace\NAVA-App\nava-app-preview` is a generated, public GitHub Pages
   deployment mirror. Never develop there and never copy its compiled files back
   into the source repository.
 - Read `docs/INDEX.md`, `docs/CODEX_HANDOFF_CURRENT.md`, and the relevant current
   feature documentation before changing code.
 - Update the current handoff and current specialist document in place. Do not
   create dated handoff copies, temporary task prompts, or one-off audit reports
-  under `docs`; Git history and `Q:\NAVA-Workspace\Build\TestRuns` preserve
+  under `docs`; Git history and `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns` preserve
   historical evidence.
 
 ## Start-of-task safety
@@ -57,6 +57,17 @@ They complement the Q-drive workspace rules in the parent environment.
 
 - NAVA is a portrait mobile experience. Verify relevant pages at minimum at
   360x740, 375x812, 390x844, and 430x932 CSS pixels.
+- These are regression samples, not supported-device boundaries or four layout
+  templates. Use available space, content flow and safe-area constraints; include
+  compact and intermediate widths when shared geometry changes.
+- Follow Apple HIG for iOS behavior and the installed Capacitor major version's
+  documentation for the native bridge. Current React DOM views run in WKWebView;
+  Xcode does not translate their CSS into SwiftUI or repair their layouts.
+- UI reviews can use `Q:/Codex/Live/skills/web-design-guidelines/SKILL.md` and
+  React reviews `Q:/Codex/Live/skills/react-best-practices/SKILL.md` (Vercel).
+  Apply rules relevant to this React/Vite/Capacitor stack; Next.js, React Native
+  and native SwiftUI recipes are not interchangeable. Skills supplement official
+  platform documentation and device testing, never replace them.
 - Do not validate only a single screenshot. Check overflow, fixed navigation,
   touch targets, text clipping, keyboard behavior, safe areas, and both empty
   and populated states.
@@ -115,7 +126,7 @@ They complement the Q-drive workspace rules in the parent environment.
 - ChatGPT Sites must reuse the project ID in `.openai/hosting.json`; never create
   a second NAVA Sites project.
 - GitHub Pages must be generated from the source repo and copied one-way into
-  `Q:\NAVA-Workspace\nava-app-preview`, including an updated `source.json`.
+  `Q:\NAVA-Workspace\NAVA-App\nava-app-preview`, including an updated `source.json`.
 - Verify both unauthenticated URLs, real login routing, Supabase project identity,
   and the release commit after deployment. Hosting internals may differ, but the
   product behavior and visual source must match.

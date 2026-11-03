@@ -90,9 +90,10 @@
       this.button=button;this.root=document.createElement('section');
       this.root.className='celebration-garden';this.root.hidden=true;host.append(this.root);
     }
-    show({scene='01',locale='zh'}={}){
+    async show({scene='01',locale='zh'}={}){
       if(!Object.hasOwn(scenes,scene))scene='01';
-      const spec=scenes[scene],inkDuration=spec.inkDuration||3.2;this.root.hidden=false;this.root.dataset.scene=scene;this.root.dataset.motion=spec.motion;this.root.dataset.ink='writing';
+      const generation=this.generation=(this.generation||0)+1;
+      const spec=scenes[scene],inkDuration=spec.inkDuration||3.2;this.root.hidden=true;this.root.dataset.scene=scene;this.root.dataset.motion=spec.motion;this.root.dataset.ink='writing';
       this.root.style.setProperty('--scene-color',spec.color);this.root.style.setProperty('--scene-copy-delay',`${inkDuration+.2}s`);this.root.style.setProperty('--scene-copy-duration',`${Math.max(.65,inkDuration/5)}s`);
       this.root.innerHTML='<div class="scene-plane" aria-hidden="true"><img class="garden-backdrop" alt=""><div class="scene-canopy"></div><div class="scene-light"></div><div class="garden-breeze"><i></i><i></i><i></i><i></i><i></i></div><div class="garden-actor"><span class="garden-contact"></span><img class="garden-actor-base" alt=""><span class="garden-actor-motion"></span></div><div class="scene-foreground"></div></div><div class="scene-copy"><h1 id="garden-title"></h1><p class="garden-message"></p></div><div class="garden-action"></div>';
       this.root.setAttribute('aria-labelledby','garden-title');
@@ -111,9 +112,13 @@
       this.root.querySelector('.garden-message').textContent=spec[locale==='en'?'en':'zh'];
       this.root.querySelector('.garden-action').append(this.button);this.button.classList.add('scene-continue');
       this.button.setAttribute('aria-label',locale==='en'?'Continue':'继续');
+      // Preloading bytes does not guarantee newly created DOM images have
+      // decoded. Reveal the complete composition together, not a blank actor.
+      await Promise.all([...this.root.querySelectorAll('img')].map(image=>image.decode().catch(()=>{})));
+      if(this.generation===generation)this.root.hidden=false;
     }
-    hide(){this.root.hidden=true;this.root.querySelectorAll('img').forEach(img=>img.removeAttribute('src'));this.root.replaceChildren();}
-    destroy(){this.root.remove();}
+    hide(){this.generation=(this.generation||0)+1;this.root.hidden=true;this.root.querySelectorAll('img').forEach(img=>img.removeAttribute('src'));this.root.replaceChildren();}
+    destroy(){this.hide();this.root.remove();}
   }
   window.NavaCompletionScene=CompletionScene;
   window.NavaCompletionScenes={choose,scenes,assetSources,preload};

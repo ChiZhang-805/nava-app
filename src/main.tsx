@@ -6,6 +6,11 @@ import "./styles/global.css";
 import "./styles/figma-v2.css";
 import "./styles/shared-overlays.css";
 import "./styles/app-skins.css";
+import "./styles/mobile-viewport.css";
+import { installMobileViewport } from "./services/mobileViewport";
+
+const disposeMobileViewport = installMobileViewport();
+if (import.meta.hot) import.meta.hot.dispose(disposeMobileViewport);
 
 try {
   installTranslationResilience();

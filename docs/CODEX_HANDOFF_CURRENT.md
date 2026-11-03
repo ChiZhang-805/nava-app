@@ -1,96 +1,166 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
-## 主页动画、衣橱真实切换与营养证据补全（2026-10-25，双站 v273 已发布）
+## TestFlight 云端构建（2026-11-03，当前最高优先级）
 
-- 主页点击/自动播放小猫动作严格限定为用户目录 `gif/gif/主页` 中14个 GIF转换出的1个待机和
-  13个动作 WebP；移除此前误接入主页动作序列的子页面 `module-exercise.webp`。低活动量的主页
-  引导仍保留“活动”语义，但点击小猫时映射到主页目录中的抬爪伸展动画。
-- 衣橱选择配饰时现在以画布的 `data-worn-model` 为真实完成条件；目标 GLB 尚在下载、解析或
-  GPU 上传时，隐藏上一件 3D 配饰并显示当前所选款的批准二维正面图。加载失败也不会再把上一件
-  配饰呈现为当前选中款。17 件模型逐件正/侧/背/360°闭环和动作端点通过，预热切换实测 147ms。
-- 营养确认卡编辑态改为“输入框 + 独立单位列”的网格，单位不会被数值输入框推出卡片；四个目标
-  手机尺寸均验证输入框、单位、卡片边界和垂直对齐。
-- `ai-extract-data` 新增确定性营养证据补全：模型输出缺少蛋白质、碳水、脂肪或热量时，按食品名和
-  `knowledgeQuery` 匹配 USDA FoodData Central 或 NAVA 常见份量证据。USDA 每100克数据只有在重量
-  已知时才换算；常见份量可按已估热量比例缩放。已有用户/模型数值不会被覆盖，只有全部食物该项
-  都有证据时才生成总计。新增烤鸡常见份量证据；“烤鸡350千卡 + 米饭180千卡”回归用例得到约
-  43.8g 蛋白质、39.1g 碳水和20.3g脂肪，并保留原530千卡总热量。
-- `npm run verify`、`npm run auth:verify:production`、17件衣橱模型门禁、衣橱快切和营养确认卡四尺寸
-  视觉门禁全部通过；Edge Function类型检查20/20、后端测试20/20通过。无数据库迁移、生产数据写入、
-  密钥或访问策略变化。`ai-extract-data` 的生产部署仍需按仓库规则取得用户对 Edge Function 部署的
-  明确授权。
-- 最终功能源码 `686f9920fc40cf03dd4c7a679f0871877e7d190e` 已推送。ChatGPT Sites v273 为
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_cab4cfcdfa1481918f197a94790f1cf7`，
-  deployment `appgdep_6ade0cb97b308191913aa28f7cad3535` succeeded；GitHub Pages 镜像提交
-  `03fa38b5e41da51fdb472a127362894c6a8798d6`，workflow `40200768070` success，`source.json`
-  指向同一功能源码与v273。发布后门禁通过58个结果、381项检查和56张截图；两站公开入口和
-  `?demo=1` 均保持真实登录边界。
+用户已开通 Apple Developer，Team ID `P9N6YYZ7Y9`；App Store Connect 已创建
+“NAVA健康节律助手”（Apple App ID `6829876477`）。显式 Bundle ID 为
+`health.nava.mobile`，Watch 为 `health.nava.mobile.watchkitapp`。发布源码已整理在
+`release/testflight-cloud-20261103`，没有覆盖原有脏工作区；远端 main 的 32 个提交已合并。
 
-## 衣橱 Figma 布局与二维挥爪（2026-10-25，双站 v271 已发布）
+GitHub Actions 的 macOS 15 / Xcode 26.3 已通过真实 Xcode Release 编译，run
+`41514092275`；iPhone 与单 target Watch 均构建成功。工作流支持无签名验证和签名后
+自动 archive、IPA 导出、App Store Connect API 上传。repo variables 与 `testflight`
+environment 已建，依赖审计为 0 漏洞。当前仍未生成签名 archive，也未上传 TestFlight。
 
-- 依据 Figma 移动端 C04/C05 衣橱画板选择性吸收布局：三类商品分页均从每页 3×2 改为
-  2×2，每页数据也严格按 4 件切分，3D 预加载同步限制为当前 4 件。保留现有单饰品替换、
-  3D/2D 图标切换、积分、兑换和当前搭配行为。
-- 预览区增加 236px 上限的居中虚线圆角框，位于角色下层并设置 `pointer-events:none`，
-  不拦截旋转、点按动作或视图切换。冰川晨雾、星河暮紫、晴空微澜在衣橱内部使用不同的
-  冰蓝、紫蓝青、蓝绿预览背景；未全局改写其他页面。
-- `wardrobe:test` 16/16；`wardrobe:layout:visual` 已覆盖四个手机尺寸、安全区、桌面壳、
-  WebGL 降级以及暮紫/晴空两套额外皮肤，17 个场景全部通过，截图证据在
-  `artifacts/test-runs/wardrobe-layout`。完整 `npm run verify` 已通过，其中记录卡门禁覆盖
-  22/22 设备；`npm run auth:verify:production` 也通过。
-- 二维动画工具调研结论：需要像素/造型稳定时优先用 Live2D 或 Rive 做原图绑定；DomoAI、
-  Runway Image-to-Video / Motion Control 可用于快速动作样片，但生成式视频可能改变脸、尾巴、
-  配饰或透明边缘，不能直接作为全部 18 款的生产资产。尚未登录、购买或消耗外部额度。
-- 商城二维动画最终主格式确定为 Rive `.riv`：用位图网格、骨骼和状态机制作可点击挥爪，
-  GIF/WebM 仅作审核导出，animated WebP 作运行时失败降级。先完成无配饰小猫 `idle`/`wave`
-  原型，通过后共用骨架扩展至 17 个单配饰版本。
-- Rive 在线文件 `https://editor.rive.app/file/untitled/2680635` 已创建 500×500 透明画板并上传基础猫。
-  已完成自动描摹网格、Root/Head/RightUpperPaw/Bone 2 骨骼绑定和 3.2 秒时间轴试验。单张扁平位图的
-  自动权重会把脸毛和身体轮廓一起拉扯；收窄权重可稳定主体，但末端爪仍不能在不破坏轮廓的前提下
-  做到自然双挥，因此该试验不能作为商城成品。Rive Agent 两次只返回说明，没有实际写入时间轴。
-- 已改为确定性双层方案：
-  `Q:/NAVA-Workspace/Build/TestRuns/wardrobe-2d-animation-pilot/cat-body-base-final.png` 保留原图，仅在
-  右前爪覆盖区补出胸腹；`cat-right-paw-layer-final.png` 直接从原图像素提取右前爪。静止叠合与
-  -24°、-40°、-30° 三个动作姿势的检查图为同目录 `cat-wave-layered-final-qa.png`，未再使用整体
-  网格拉扯脸和身体。两层均为 1254×1254 RGBA、透明四角；当前浏览器自动化无法把本地文件拖入
-  Flutter 画布，需要用户在 Rive 资产面板手动拖入这两个文件后继续定位、设肩部枢轴并制作双挥时间轴。
-- 上述双层资产现已正式接入 APP 的无配饰二维预览：身体、脸、左爪和尾巴保持原位，独立右前爪
-  以肩部为枢轴周期性轻挥；点按小猫会播放 3.2 秒两次挥爪并精确复位。开启“减少动态效果”时
-  停止该动画。17 张带配饰批准正面图仍保持完整静态图，避免在尚未制作逐款遮挡层之前错误切开
-  围巾、项圈或胸前配饰。四个目标手机尺寸、点击动作、透明通道和静态配饰切换均已通过专项门禁。
-- 功能源码 `395c100d5c7e924cb9fe76c59ea2cc05abad41a8` 已推送并从干净发布工作树构建；
-  ChatGPT Sites v271 为
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_b374d18ba4308191b5db79429831680e`，
-  deployment `appgdep_6addf8f36a988191890f23f3ac6b84a0` succeeded。GitHub Pages 镜像提交
-  `a938679ff4c5eb2f305f8eb6cb31cbd0768a0eae`，workflow `40194625665` success；
-  `source.json` 指向同一功能源码和 v271。年度日历视觉门禁同时修复为等待带 `data-year` 的
-  实际季度卡片，避免误把加载骨架的空年份读成 0；5 个日历尺寸与其余完整门禁均通过。
-- 发布后 `skins:deployment:audit` 使用 v271 与该功能提交重跑，58 个结果、381 项检查、
-  56 张截图全部通过；两个公开入口与 `?demo=1` 均保持真实登录边界，Supabase 项目仍为
-  `wxteapvwagvhhtrjrbim`。没有数据库迁移、Edge Function 部署、生产数据写入、密钥或访问策略变化。
+Apple Distribution CSR 已生成在
+`Q:\NAVA-Workspace\Build\AppleSigning\NAVA_Apple_Distribution.certSigningRequest`，
+匹配私钥只在同目录本地保存。下一步由账户持有人上传 CSR、下载 Apple Distribution
+证书，创建 iPhone/Watch 两份 App Store provisioning profile 与 App Store Connect API
+Key，然后配置七项 GitHub environment secrets。完整名称和操作见
+`docs/APPLE_HEALTH_WATCH_DELIVERY.md` §0A。不要把证书密码、私钥、P12、profile 或 `.p8`
+写入仓库、任务消息或截图。
 
-## 全局皮肤背景与紧凑菜单（2026-10-24，双站 v269 已发布）
+## 记录与回顾小猫动作优化（2026-10-30，当前任务）
 
-- 修复首页子页自己的 `.home-experience` 旧冰川背景覆盖已选皮肤的问题。月历、详细资料、通知、
-  今日待办等全高页面现在统一使用 `--skin-page-background`；冰川晨雾、星河暮紫、晴空微澜
-  分别呈现冰蓝纹理、紫青渐变和蓝绿水波背景，不再只改变卡片颜色。
-- 所有 `MoreMenu` 使用同一套紧凑合同：宽度由 228px 收为 204px，外层内边距 6px、
-  正文 13px、图标 17px，同时保留至少 44px 的触控行高。管理员端原有 230px/16px/23px
-  局部覆盖已移除，菜单内文字不再继承管理员标题的 9px 字号和字距。
-- `menus:visual` 已扩为月历、详细资料、通知、待办、新手页、管理员、记录、AI、成长、
-  个人中心 10 类真实菜单入口，覆盖中英文与 360×740、375×812、390×844、430×932；
-  校验菜单位于手机内、宽度 200–206px、文字 13px、行高至少 44px且不截断。
-- `skins:visual` 新增每档尺寸下三套月历背景指纹必须互不相同，并保存 390×844 三张对照图；
-  `integrated-shell:visual` 的 26 页面 × 3 皮肤 × 4 尺寸共 312 状态全部通过。
-- 功能源码 `534e67ac41bdbe47aaa8f4de5c23d493a3fafc47` 已推送并从干净发布工作树构建；
-  ChatGPT Sites v269 为
-  `appgprj_6a5de710811c8191af8ce2681358d518~appgver_3fc2fa8b8900819190396cb8290c7efb`，
-  deployment `appgdep_6adcb85a7f948191a7adb1987456e489` succeeded。GitHub Pages 镜像提交
-  `b6978d2f41c8f87f8a6b165fdf8702db114a23c2`，workflow `40100249308` success；
-  `source.json` 指向同一功能源码和 v269。
-- 发布后 `skins:deployment:audit` 通过 58 个结果、381 项检查和 56 张截图；两个公开入口与
-  `?demo=1` 均保持真实登录边界，Supabase 项目仍为 `wxteapvwagvhhtrjrbim`。本轮只改前端样式
-  与视觉门禁；没有数据库迁移、Edge Function 部署、生产数据写入、密钥或访问策略变化。
+沿用现有 Canvas/WebGL CatActor，不换素材、不改变身体或头部的原始缩放。新增
+`companion-motion.js`，用保留速度的临界阻尼状态混合连接待机、倾听、思考和说话；
+待机尾尖摆动更可见，倾听轻抬头，思考轻侧头，说话保留原 W 形嘴并间歇抬爪。
+手臂始终使用同一肩部锚点，修复抬爪前后两次绘制的问题；原图逐字节比对未变。
+进入倾听/思考或取消时清除旧对白动作，首次引导说话不能覆盖正在进行的倾听。
+减少动态效果下画面静止；保留隐藏页面和弹窗暂停、CPU 绘制回退。
+
+`journal:motion:test` 和 `journal:motion:visual` 已加入完整门禁第 36 项。专项覆盖
+320、360、375、390、430 宽度、两页七状态、快速切换、静态降动效与 CPU 回退。
+证据保存在 `Q:/NAVA-Workspace/Build/TestRuns/journal-companion-motion/`。
+用户要求只保留动画，已将单独导出的“小猫动作预览.html”和旧“播放动画.html”
+移入回收站，并移除清空后的 NAVA-Cat-Motion-Preview 目录。APP 动画代码、素材和验证记录保留。
+NAVA-Cat-Animations 导出目录仅保留 GIF；这些 GIF 是旧版本，未随本次代码自动更新。
+最终验证：两引擎各 70 个动画状态通过，实际 tick 快速连续切换、降动效、CPU 回退通过；
+375 个单元测试通过，四尺寸中英文首次引导通过，完整 `npm run verify` 和
+`auth:verify:production` 通过（后者未检查自定义 SMTP）。native 构建、cap copy ios、
+portable/release/preview-exclusion 检查通过；六个动画入口/脚本文件的源码与 iOS 资源
+SHA-256 一致。尚未发布网站或 TestFlight；真机帧率、原生语音和系统降动效仍待 iPhone 验收。
+
+## 上传前继续深入检查（2026-10-30，当前状态优先）
+
+**用户中途要求暂停审查，先提取记录/回顾顶部小猫 GIF。** 当前不得将审查称为最终完成。
+用户已选择首版最低 iOS 16.4，Xcode 四项 deployment target、Podfile 和发布反例检查
+已同步。新增原生分享、TAR 长路径及加密首次并发保存修复之后，完整门禁、单元全集与
+native 构建/copy 已在上方小猫任务的最终回归中通过，日志在 journal-companion-motion 目录。
+保留旧失败背景供追溯：前次 full-verify-final.log 通过，但后次
+full-verify-complete.log 在本地动态导入 App.tsx 失败，独立 media-recheck.log 已通过。
+未把这次局部重试当作完整门禁通过。加密并发问题已保留失败复现，并在两引擎修复复验；
+文字放大含单列键盘排序的 WebKit 24 状态通过。恢复审查时先检查工作区状态和这些日志。
+
+用户要求继续逐项检查，不能以几分钟局部测试宣称整个 APP 无问题。此次遍历 Git 管理和
+未忽略的新文件，保存逐文件 SHA-256 清单，并扩大 Swift、strings、storyboard、隐私清单、
+Xcode、Python、shell 文本检查。此清单是自动结构检查，不等于逐行人工审查或真机验收。
+证据：`Q:/NAVA-Workspace/Build/TestRuns/full-file-audit/`；专项和完整门禁日志位于
+`Q:/NAVA-Workspace/Build/TestRuns/mobile-layout/`。
+
+已经修复并增加相应检查：
+
+- 睡眠缓存不可读且清理也抛错时不再导致页面崩溃；路由拒绝运行时非法 tab/module/view。
+- 账号导出按稳定列分页读取并核对 exact count，服务器分页上限不再静默截断；导出前
+  补同步运动会话。共享分页逻辑覆盖前端和 Edge Function；旧后端响应没有分页标记时
+  使用当前用户的 RLS 查询回退。Edge Function 只改本地，未部署；真实账号导出待验收。
+- 饮食照片的 UUID 路径会超过 100 字节，旧 TAR 打包因此失败；现在使用标准 ustar
+  prefix/name 字段，验证完整路径、内容、校验和，并用 Python 标准 tarfile 真实读回。
+- iOS 导出/报告分享使用 Capacitor 7 官方 Filesystem + Share，通过系统面板保存文件；
+  写入 app cache，分享完成、取消或失败后清理。取消不报成功；增加 FileTimestamp/C617.1
+  声明、Pod 引用、生成插件注册检查。原生编译与“存储到文件”仍需 Mac/iPhone。
+- 面部加密草稿统一缺失 MIME 的加密/解密参数，IndexedDB 等事务提交后才报告成功；
+  Chromium/WebKit 实测账号隔离、事务中止、恢复与清理。
+- 首页 200% 合成文字放大时改为单列滚动卡片，避免数值裁切；编辑方向键同步单列顺序。
+  两语言、三宽度、四入口、两引擎检查；这不是 iOS Dynamic Type 实测。
+- Watch 心情选择采用可滚动自适应网格；发送中禁用重复点击，区分排队、iPhone 收到及
+  失败，不把桥接确认写成“云端保存成功”。Watch SwiftUI 仍待 Xcode/真机验证。
+
+旧素材阻塞已查清：174 个既有删除中，143 个 reference 文件同样在 origin/main 退休，
+31 个媒体文件在当前交接历史中记载已替换。`scripts/retired-assets.json` 逐项记录路径、
+原 HEAD blob 和理由；扫描仅允许精确匹配且无运行时残留引用的退休项，未知删除仍失败。
+没有恢复过时素材、删除新文件或把所有缺失一概忽略；反例测试覆盖这三种失败。
+
+完整 `npm run verify` 已突破旧素材阻塞并通过，新增文件退休/导出/路由失败路径及当前
+交互检查已接入门禁。`interaction:test` 使用当前登录、笔记本引导、导航、弹层、草稿与
+文字放大入口；历史 monolithic 脚本仍保留，但其旧 React 记录编辑器选择器不再适用于
+现有 Journal，不应将旧脚本的失败当成当前入口通过，也不应宣称旧脚本全部通过。
+最终逐项结果以 mobile-layout 下 latest/final 日志及报告为准。
+
+没有 push、发布网站、部署后端或上传 TestFlight。主工作区仍有此前多项未提交变更且
+落后 origin/main 32 提交，发布前需保留并审看整合，形成干净已推送源码。Mac 编译签名、
+真实登录/OTP、健康/Watch/推送、原生分享、大数据导出和真机键盘/字体仍是发布验收项。
+
+## 页面跳转与弹层继续排查（2026-10-30）
+
+已将 AI 历史弹层补齐 Escape 关闭、Tab 首尾循环和关闭后焦点恢复；删除历史会话须先确认，
+取消不发删除请求。日报链接在 shell 路由入口验证日期，格式错误或不存在的日期回到日历。
+新增 `navigation:visual` 覆盖四尺寸/双语的五主入口、连续前进后退、刷新恢复、重复点击
+不增加历史、提醒设置返回、直接进入子页返回与无效链接恢复。对应浏览器报告位于
+`Q:/NAVA-Workspace/Build/TestRuns/mobile-layout/navigation-{chromium,webkit}/report.json`。
+两引擎分别通过 168 项导航检查及 70 个弹层状态；历史弹层专项新增焦点、Escape、取消删除断言。
+57 个导航/启动/媒体/提醒/隐私/iOS 单元
+测试通过；最新原生网页构建、资源复制及 portable 检查通过。原生真机与完整发布门禁
+的既有未完成项仍有效，不把这些局部测试称为整个 APP 无问题。
+
+## 成熟规范与辅助技能（2026-10-30）
+
+已按用户要求安装并使用 Vercel 官方万星仓库的 `web-design-guidelines`、
+`react-best-practices`。固定版本、源码核对范围与官方依据见 `ios-motion-background.md`
+开头；AGENTS 已明确“四尺寸只是回归样本”和 React/Capacitor/SwiftUI 的边界。
+补齐 AI 历史关闭/返回按钮的 44 逻辑像素触控尺寸及列表滚动隔离。
+当前仍沿用 React + Capacitor 与独立 Supabase 后端，没有改架构或上线后端。
+保留此前完整发布门禁与原生真机验收的未完成项，技能安装不构成这些门禁通过。
+
+## 自适应布局检查与修复（2026-10-30，本地待整合）
+
+用户要求电脑端多尺寸检查，并明确先调研苹果机型适配。当前适配合同、修改与验收入口
+见 `ios-motion-background.md` 开头“自适应布局与电脑端验收”。四尺寸是测试样本，
+实际实现采用 CSS 逻辑尺寸、可用空间、安全区和内容流，不按机型逐个写坐标。
+
+- 修复键盘可见高度、注册字段/协议重叠、小屏待办导航遮挡，收起键盘恢复原布局。
+- 修复商城/积分卡/提醒/个人中心末项滚动预留；待办日期弹窗改为 phone-frame portal。
+- 修复 WebKit 菜单按下时因空 relatedTarget 提前关闭，以及完成动画图片尚未解码就显示。
+- 新增路由/键盘/末项检查、1,134 组合宽高扫描、当前实际入口的中英文弹窗测试；
+  证据根目录 `Q:/NAVA-Workspace/Build/TestRuns/mobile-layout`。现有专项报告继续原目录。
+- 保留工作区之前的 iOS 准备、衣橱与素材删除等修改。完整 verify 仍在 repository:scan
+  因既有 tracked 素材缺失失败；没有打包这些未知更改整体提交，也没有发布或上传。
+  电脑测试不能代替 iPhone 系统键盘、Dynamic Type、旧系统 WebKit 与原生功能验收。
+
+## TestFlight 工程准备（2026-10-30，未上传）
+
+用户要求检查并补齐 iOS 发布准备，随后确认尚无 Mac/开发者账户，先完成代码和交接。
+当前操作和阻塞项集中在 `docs/APPLE_HEALTH_WATCH_DELIVERY.md` §0，不把历史网页发布当作
+原生编译或苹果审核证据。本轮未 push、未发布网站、未修改后端/生产账户。
+
+- iPhone/Watch 各自隐私清单已加入 Resources；补共享 Scheme/workspace；Release 独立
+  production APNs entitlement、arm64 设备能力；语音权限如实说明 Apple 可能联网处理。
+- `.env.native` 和构建入口锁定生产认证/canonical Supabase，环境变量不能打开原生 demo。
+  新增只同步 iOS 命令、结构化 PBX/plist/实际复制资源/归档检查、10 项发布反例测试。
+- Mac 脚本要求 Xcode/iOS/watchOS SDK 26+；默认无签名编译，归档要求干净源码、真实
+  Team/Bundle ID、版本与新构建号，两端一致；可导出 IPA，但不会自动上传或签协议。
+- 原生网页构建、lint、两套 iOS 检查、发布与原生相关专项测试、公开认证边界、npm audit
+  （0漏洞）通过。267 个复制资源逐字节一致、27个JS/CSS无桌面模拟层。Mac分支未执行。
+- 完整 verify 在 repository:scan 被本轮前已有 tracked 素材删除阻止，保留未动；
+  日志 `artifacts/test-runs/ios-release/full-verify.log`。主检出开始时落后 origin/main 32
+  提交且有大量既有修改，未 reset/pull/整体提交。发布前须审看整合并重跑完整门禁。
+- 待外部完成：开发者组织与身份、Mac编译签名、iPhone/Watch验收、生产APNs后端配置、
+  真实隐私/支持联系人、第三方AI告知与同意审定、商店隐私/加密问卷、测试账户与邀请。
+  **当前没有 .xcarchive/IPA 或 TestFlight 安装结果，不能称“已经可以直接上传”。**
+
+## 工作区迁移到 Z 盘（2026-10-26）
+
+- NAVA APP 的唯一可编辑源仓库已迁移到 `Q:/NAVA-Workspace/NAVA-App/nava-app`；GitHub Pages 镜像、
+  `Build/Assets`、`Build/Reference`、`Build/Release-Staging`、`Build/Sites`、`Build/TestRuns`，
+  以及 NAVA 专用 3D/发布工具和缓存同步迁移到 `Q:/NAVA-Workspace/NAVA-App`。
+- 迁移前清单为 176,904 个文件、49,385,160,946 bytes。各目标目录按文件数与总字节核对；
+  TripoSR 缓存中唯一的零字节符号链接因 Z 盘权限无法原样建立，已在目标位置物化为其
+  454-byte `config.json` 内容，功能语义保持一致。
+- 主仓库、预览仓库和三个发布工作树均可读取 Git 状态；两个位于 `Q:/Codex/Live/worktrees`
+  的外部工作树已修复 `.git` 指针，并保留原有未提交修改。
+- 所有 `rhythm-dnb*` 仓库、DNB 数据集、DNB 构建、DNB 缓存和 DNB 实验工作树继续留在
+  `Q:/NAVA-Workspace`，本次没有移动或改写其内容。
+
 
 ## 衣橱 v5 当前状态（2026-10-24，双站 v268 已发布）
 
@@ -1580,7 +1650,7 @@ JS/CSS/图片也逐项验证HTTP成功。报告模式升级为schema v2：每个
 
 在上述381项部署检查之外，新增`npm run skins:cross-browser:gate`及组合入口
 `npm run skins:quality:gate`。新门禁把Playwright三引擎放在
-`Q:/NAVA-Workspace/Caches/ms-playwright`，以Chromium、Firefox、WebKit覆盖两套皮肤×六类记录页×
+`Q:/NAVA-Workspace/NAVA-App/Caches/ms-playwright`，以Chromium、Firefox、WebKit覆盖两套皮肤×六类记录页×
 四档手机共144个本地认证壳状态，并以三引擎×两站×四档覆盖24个公网无会话状态。每页检查首屏与
 iframe导航耗时、路由/皮肤/模块、横向溢出、可访问名称、键盘焦点和可见轮廓、24px触控目标、
 关键文字WCAG对比度、控制台和pageerror；每个状态均保存截图及实际值。Firefox会把可滚动表单区
@@ -3120,10 +3190,10 @@ Sites初次归档因缺少外层dist被拒，按官方结构重新打包后保�
    视觉验收、双站发布和安全要求高于历史交接。
 2. 阅读 [`INDEX.md`](./INDEX.md)，只使用仍在索引中的当前专项文档。
 3. 运行 `git status --short --branch`，确认自己位于
-   `Q:\NAVA-Workspace\nava-app`，保留所有既有改动，不得 reset、clean 或覆盖
+   `Q:\NAVA-Workspace\NAVA-App\nava-app`，保留所有既有改动，不得 reset、clean 或覆盖
    用户工作。
 4. 完整阅读本文件，然后根据任务类型阅读：
-   - 产品语义：`Q:\NAVA-Workspace\产品需求文档-技术对接.md`
+   - 产品语义：`Q:\NAVA-Workspace\NAVA-App\产品需求文档-技术对接.md`
    - 认证：[`auth-email-flow.md`](./auth-email-flow.md)
    - 数据与后端：[`app-backend.md`](./app-backend.md) 和
      [`SHARED_SUPABASE_READINESS.md`](./SHARED_SUPABASE_READINESS.md)
@@ -3177,8 +3247,8 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 ### 2.1 目录所有权
 
-- 唯一可编辑源仓库：`Q:\NAVA-Workspace\nava-app`
-- GitHub Pages 生成镜像：`Q:\NAVA-Workspace\nava-app-preview`
+- 唯一可编辑源仓库：`Q:\NAVA-Workspace\NAVA-App\nava-app`
+- GitHub Pages 生成镜像：`Q:\NAVA-Workspace\NAVA-App\nava-app-preview`
 - Sites 包：`Q:\NAVA-Workspace\Build\Sites\Packages`
 - 跨项目测试证据：`Q:\NAVA-Workspace\Build\TestRuns`
 
@@ -3955,7 +4025,7 @@ ChronoState/Fusion 实现报告和已经被正式 Apple 方案覆盖的 wearable
 可以把下面这组命令作为安全起点：
 
 ```powershell
-Set-Location -LiteralPath 'Q:\NAVA-Workspace\nava-app'
+Set-Location -LiteralPath 'Q:\NAVA-Workspace\NAVA-App\nava-app'
 git status --short --branch
 git log -8 --oneline
 Get-Content -LiteralPath 'docs\CODEX_HANDOFF_CURRENT.md' -Raw
@@ -3980,7 +4050,7 @@ seed/backfill，也不要自动部署 migration/function。
 桌面界面曾回退显示数天前的消息。项目代码、Git 历史和本文件才是连续性来源。
 归档旧任务、重新建立 Codex 项目或打开新任务不会删除源仓库；但用户如果要在 Codex
 界面删除“项目”，应确认操作只影响 Codex 的项目索引/会话，不要删除
-`Q:\NAVA-Workspace\nava-app`、`Q:\NAVA-Workspace\nava-app-preview`、Build 证据或
+`Q:\NAVA-Workspace\NAVA-App\nava-app`、`Q:\NAVA-Workspace\NAVA-App\nava-app-preview`、Build 证据或
 Supabase 资源。
 
 新任务不需要复述整段聊天，也不要重新从零实现已经存在的功能。先用本文件定位，
@@ -5013,7 +5083,7 @@ secret、认证配置或生产用户数据。
 
 `scripts/verify-navigation-icons.mjs` 新增首页六段边缘空隙与子页四段边缘空隙的数值断言，
 在 360×740、375×812、390×844、430×932 四种视口通过；截图位于
-`Q:\NAVA-Workspace\nava-app\artifacts\navigation-icons`。验证同时通过完整
+`Q:\NAVA-Workspace\NAVA-App\nava-app\artifacts\navigation-icons`。验证同时通过完整
 `npm run verify` 32 阶段、`npm run interaction:test` 11 组、
 `npm run device-preview:visual` 和 `npm run auth:verify:production`。
 底栏发布后又补跑了正式页与目标态加载页的全量扫描：四视口共 232 个状态、0 个
@@ -6730,5 +6800,5 @@ healthWrites:0、aiTested:false；线上图标均成功解码且自然宽度≥1
 - 食物名称在前端确定性移除括号说明并限制为简短名称；视觉提示词同步要求把配料、外观和不确定性放入 note。提示词源码尚未部署 Edge Function，但线上前端会清理已返回名称。
 - 照片营养确认卡可独立修改食物名、份量、千卡、碳水、蛋白质和脂肪；人工修改某一项不会按比例改写其他项，总计只按当前各行重新求和。自然语言明确更正份量仍保留原有换算合同。
 - 历史会话遮罩提升到整个 APP 手机框架，覆盖标题栏、内容区和底部安全区；历史面板保持在可视底部。四个目标尺寸均完成截图和几何验证。
-- `build`、`lint`、`structured:test`、`auth:verify:production`、营养确认卡四尺寸门禁与历史遮罩四尺寸门禁通过。完整 `npm run verify` 首轮在旧比例测试处发现合同冲突，修正为“人工字段独立、自然语言更正保留换算”后相关门禁全部通过；未重复消耗完整非相关视觉矩阵。
-- 功能源码 `58b0c012a17f34f90c55938bc6ce7263ecca852d` 已推送到 main。ChatGPT Sites v274 为 `appgprj_6a5de710811c8191af8ce2681358d518~appgver_20fd25d5b0b081919ced542f124d8445`，deployment `appgdep_6ade266764c8819187b2192cba7f196f` succeeded；GitHub Pages 镜像提交 `e73c26e`。无数据库迁移、生产数据写入、密钥或访问策略变化；未部署 Edge Function。
+- `build`、`lint`、`structured:test`、`auth:verify:production`、营养确认卡四尺寸门禁与历史遮罩四尺寸门禁通过。完整 `npm run verify` 首轮发现旧比例测试与新合同冲突，修正后相关门禁全部通过。
+- 功能源码 `58b0c012a17f34f90c55938bc6ce7263ecca852d` 已推送到 main。ChatGPT Sites v274 和 GitHub Pages 镜像已发布；无数据库迁移、生产数据写入、密钥或访问策略变化，未部署 Edge Function。

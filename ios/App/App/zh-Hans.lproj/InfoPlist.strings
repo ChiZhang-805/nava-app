@@ -4,4 +4,4 @@
 "NSPhotoLibraryUsageDescription" = "NAVA 读取您选择的照片，用于记录、对话附件或头像。";
 "NSPhotoLibraryAddUsageDescription" = "仅当您选择保存图片时，NAVA 才会将图片存入相册。";
 "NSMicrophoneUsageDescription" = "NAVA 使用麦克风将您的语音实时转换为对话文字。";
-"NSSpeechRecognitionUsageDescription" = "NAVA 使用设备语音识别，将您的口述状态转换为文字。";
+"NSSpeechRecognitionUsageDescription" = "NAVA 使用 Apple 语音识别将您的口述转换为文字；音频可能发送至 Apple 服务器处理。";

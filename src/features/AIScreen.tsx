@@ -2,7 +2,6 @@ import { sumFoodItemNutrition } from "../services/dietPortion";
 import type { User } from "@supabase/supabase-js";
 import { Camera, Check, FileText, Image as ImageIcon, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, Plus, SendHorizontal, Sparkles, Trash2, X } from "lucide-react";
 import { Fragment, FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { createPortal } from "react-dom";
 import { useLocale } from "../i18n";
 import PageSkeleton from "../components/PageSkeleton";
 import CameraCapture from "../components/CameraCapture";
@@ -190,6 +189,30 @@ export default function AIScreen({
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [streamingPreview, setStreamingPreview] = useState<StreamingPreview | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const historySheetRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!historyOpen) return;
+    const previousFocus = document.activeElement;
+    const sheet = historySheetRef.current;
+    sheet?.querySelector<HTMLButtonElement>('button')?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        setHistoryOpen(false);
+      } else if (event.key === 'Tab') {
+        const buttons = [...(sheet?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])];
+        const first = buttons[0], last = buttons[buttons.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+    };
+    document.addEventListener('keydown', handleKey, true);
+    return () => {
+      document.removeEventListener('keydown', handleKey, true);
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    };
+  }, [historyOpen]);
   const [history, setHistory] = useState<ConversationSnapshot[]>([]);
   const [viewingArchiveId, setViewingArchiveId] = useState<string | null>(null);
   const [deletingArchiveId, setDeletingArchiveId] = useState<string | null>(null);
@@ -749,6 +772,7 @@ export default function AIScreen({
 
   async function removeArchivedConversation(snapshot: ConversationSnapshot) {
     if (deletingArchiveId) return;
+    if (!window.confirm(locale === 'zh' ? '删除这条历史会话？删除后无法恢复。' : 'Delete this conversation? This cannot be undone.')) return;
     setDeletingArchiveId(snapshot.id);
     try {
       await deleteConversationArchive(user.id, snapshot.id);
@@ -1211,19 +1235,6 @@ export default function AIScreen({
   const viewingSnapshot = viewingArchiveId ? history.find((snapshot) => snapshot.id === viewingArchiveId) ?? null : null;
 
   if (loading) return <div className="chat-layout"><PageSkeleton variant="ai" /></div>;
-  const overlayFrame = historyOpen ? layoutRef.current?.closest(".phone-frame")?.getBoundingClientRect() : null;
-  const overlayBounds = overlayFrame ? {
-    left: `${overlayFrame.left}px`,
-    top: `${overlayFrame.top}px`,
-    width: `${overlayFrame.width}px`,
-    height: `${overlayFrame.height}px`,
-  } : undefined;
-  const sheetBounds = overlayFrame ? {
-    left: `${overlayFrame.left}px`,
-    width: `${overlayFrame.width}px`,
-    bottom: `${Math.max(0, window.innerHeight - overlayFrame.bottom)}px`,
-  } : undefined;
-
   return (
     <div className="chat-layout" ref={layoutRef}>
       {cameraOpen && <CameraCapture locale={locale} facing="environment" onClose={() => setCameraOpen(false)} onFallback={() => { setCameraOpen(false); cameraInputRef.current?.click(); }} onCapture={(file) => { setCameraOpen(false); void handleComposerPhoto(file); }} />}
@@ -1469,9 +1480,8 @@ export default function AIScreen({
         </section>
       )}
 
-      {historyOpen && layoutRef.current && createPortal(<>
-        <div className="ai-history-backdrop" style={overlayBounds} aria-hidden="true" onClick={() => setHistoryOpen(false)} />
-        <div className="ai-history-sheet" style={sheetBounds} role="dialog" aria-modal="true" aria-label={locale === "zh" ? "历史会话" : "Conversation history"}>
+      {historyOpen && (
+        <div ref={historySheetRef} className="ai-history-sheet" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "历史会话" : "Conversation history"}>
           <header>
             <strong>{locale === "zh" ? "历史会话" : "Conversation history"}</strong>
             <button type="button" onClick={() => setHistoryOpen(false)} aria-label={locale === "zh" ? "关闭" : "Close"}><X size={20} /></button>
@@ -1491,7 +1501,7 @@ export default function AIScreen({
             ))}
           </div>
         </div>
-      </>, document.body)}
+      )}
     </div>
   );
 }

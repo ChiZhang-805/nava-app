@@ -390,11 +390,12 @@ try {
         await expect(page.getByText("不佩戴", { exact: true })).toHaveCount(0);
         await page.locator('.mascot-wardrobe-item').filter({ hasText: "星月发夹" }).click();
         await page.locator('.mascot-wardrobe-item').filter({ hasText: "珍珠领结" }).click();
-        await expect(page.locator(".mascot-wardrobe-turntable")).toHaveAttribute("data-accessories", "accessory-star-moon-clip accessory-pearl-bow");
-        await expect(page.locator('.mascot-wardrobe-item[data-selected="true"]')).toHaveCount(2);
+        // The current full-cat wardrobe selects one accessory at a time.
+        await expect(page.locator(".mascot-wardrobe-turntable")).toHaveAttribute("data-accessories", "accessory-pearl-bow");
+        await expect(page.locator('.mascot-wardrobe-item[data-selected="true"]')).toHaveCount(1);
         await expect(page.locator(".mascot-wardrobe-action button")).toHaveText("穿戴");
         await page.locator(".mascot-wardrobe-action button").click();
-        await expect(page.locator(".mascot-wardrobe-status")).toContainText("当前搭配");
+        await expect(page.locator(".mascot-wardrobe-action button")).toHaveText("穿戴中");
         await page.screenshot({ path: `${output}/profile-wardrobe-${width}x${height}.png`, fullPage: true });
       }
       if (["health", "watch"].includes(subpage)) {

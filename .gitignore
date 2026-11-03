@@ -18,3 +18,5 @@ ios/App/Pods
 .codex-dev.log
 .codex-dev.err.log
 supabase/.temp/
+__pycache__/
+*.py[cod]

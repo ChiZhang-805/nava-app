@@ -44,7 +44,10 @@ export default function MoreMenu({ open, onOpenChange, label, className = "", bu
   ];
 
   return <div ref={root} className={`nava-more-menu ${className}`} onBlur={(event) => {
-    if (!event.currentTarget.contains(event.relatedTarget)) change.current(false);
+    // Safari can blur to no focused element when pressing a menu button.
+    // Closing on that blur removes the button before its click is delivered.
+    // Outside pointer presses are handled above; Tab still has a real target.
+    if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) change.current(false);
   }} onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); return; }
     if (!open) return;

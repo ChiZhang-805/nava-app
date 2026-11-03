@@ -22,6 +22,22 @@ const results=[],errors=[];page.on('pageerror',e=>errors.push(e.message));let st
 await page.exposeFunction('saveRecord',record=>{const value={...record,version:1};stored.push(value);return value;});
 const inputs={mood:{mood:'放松',reason:'完成今天的工作',notes:'明天继续'},food:{foods:'鸡肉米饭',portion:'一碗',calories:'520',protein:'30',carbs:'65',fat:'15'},sport:{activity:'散步',durationMinutes:'30',notes:'公园里走了一圈'},sleep:{bedtime:'23:00',wakeTime:'07:00',quality:'精神不错'},face:{feeling:'精神还好',eyeArea:'没有明显阴影',skinAppearance:'自然光下肤色均匀'},focus:{task:'阅读',durationMinutes:'0.1',notes:'读完一页'}};
 async function capture(frame,category,scene){
+ if(scene==='celebrate'){
+  // Completion now owns a full-screen sibling canvas; the old phone-wrap is
+  // deliberately hidden. Inspect the visible replacement, not its predecessor.
+  for(const d of devices){
+   await page.setViewportSize({width:d.width,height:d.height});
+   await page.evaluate(d=>window.journalViewport(d.height,d.top,d.bottom),d);await page.waitForTimeout(70);
+   const garden=await frame.locator('.celebration-garden').boundingBox();
+   const button=await frame.locator('.scene-continue').boundingBox();
+   assert.deepEqual(garden,{x:0,y:0,width:d.width,height:d.height});
+   assert.ok(button&&button.width>=44&&button.height>=44&&button.y>=d.top&&button.y+button.height<=d.height-d.bottom+1);
+   await page.screenshot({path:`${out}/${category}-${scene}-${d.id}.png`});
+   results.push({category,scene,...d,passed:true});
+  }
+  await page.setViewportSize({width:390,height:844});await page.evaluate(()=>window.journalViewport(844,0,0));
+  return;
+ }
  const pixels=await frame.evaluate(()=>{
   const canvas=document.querySelector('#actor-canvas'),data=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let dark=0;
   for(let i=0;i<data.length;i+=4)if(data[i+3]>100&&data[i]<100&&data[i+2]>data[i]+10)dark++;
@@ -52,7 +68,7 @@ async function capture(frame,category,scene){
 try{
  for(const category of (process.env.NAVA_JOURNAL_CATEGORY?[process.env.NAVA_JOURNAL_CATEGORY]:Object.keys(inputs))){
   stored=[];
-  await page.route('**/__journal-responsive',route=>route.fulfill({contentType:'text/html',body:`<link rel='stylesheet' href='/src/styles/global.css'><link rel='stylesheet' href='/src/styles/figma-v2.css'><link rel='stylesheet' href='/src/features/journal-experience.css'><div id='root'><div class='nava-app-stage'><div class='phone-frame phone-frame--journal'><div class='safe-top'></div><main class='app-content app-content--record'><div class='screen-panel'><section class='journal-experience'><iframe src='/journal/index.html'></iframe></section></div></main></div></div></div><script>window.addEventListener('load',()=>{const c=new MessageChannel();window.journalViewport=(visibleHeight,safeTop,safeBottom)=>c.port1.postMessage({type:'viewport',visibleHeight,safeTop,safeBottom});c.port1.onmessage=async({data})=>{let result=null;if(data.method==='save')result=await window.saveRecord(data.payload.record);if(data.method==='ai'){c.port1.postMessage({id:data.id,error:'Explicit offline UI fixture'});return;}c.port1.postMessage({id:data.id,result});};document.querySelector('iframe').contentWindow.postMessage({type:'nava-journal-connect',initial:{category:'${category}',locale:'zh',records:[],settings:{},nativePhotos:false}},location.origin,[c.port2]);});</script>`}));
+  await page.route('**/__journal-responsive',route=>route.fulfill({contentType:'text/html',body:`<link rel='stylesheet' href='/src/styles/global.css'><link rel='stylesheet' href='/src/styles/figma-v2.css'><link rel='stylesheet' href='/src/features/journal-experience.css'><div id='root'><div class='nava-app-stage'><div class='phone-frame phone-frame--journal'><div class='safe-top'></div><main class='app-content app-content--record'><div class='screen-panel'><section class='journal-experience'><iframe src='/journal/index.html'></iframe></section></div></main></div></div></div><script>window.addEventListener('load',()=>{const c=new MessageChannel();window.journalViewport=(visibleHeight,safeTop,safeBottom)=>c.port1.postMessage({type:'viewport',visibleHeight,safeTop,safeBottom});c.port1.onmessage=async({data})=>{let result=null;if(data.method==='save')result=await window.saveRecord(data.payload.record);if(data.method==='ai'){c.port1.postMessage({id:data.id,error:'Explicit offline UI fixture'});return;}c.port1.postMessage({id:data.id,result});};document.querySelector('iframe').contentWindow.postMessage({type:'nava-journal-connect',initial:{category:'${category}',locale:'zh',records:[],settings:{['fluffy-first-guide-${category}']:true},nativePhotos:false}},location.origin,[c.port2]);});</script>`}));
   await page.goto('http://localhost:5173/__journal-responsive');const frame=page.frames().find(f=>f.url().includes('/journal/'));
   await frame.waitForSelector('#screen[data-scene="entry"]');await frame.waitForFunction(()=>document.querySelector('#loading').hidden);await frame.waitForTimeout(500);
   await capture(frame,category,'entry');
@@ -69,8 +85,8 @@ try{
   await page.screenshot({path:`${out}/${category}-keyboard-320.png`});
   await page.setViewportSize({width:390,height:844});await page.evaluate(()=>window.journalViewport(844,0,0));
   await frame.locator('#confirm-entry').click();
-  if(category==='focus'){await frame.waitForSelector('#screen[data-scene="celebrate"]',{timeout:20000});}
-  else{await frame.waitForSelector('#screen[data-scene="record"]');await frame.waitForTimeout(8000);await capture(frame,category,'record');await frame.waitForFunction(()=>!document.querySelector('#primary').disabled);await frame.locator('#primary').click();await frame.waitForSelector('#screen[data-scene="celebrate"]');}
+  if(category==='focus'){await frame.waitForSelector('.celebration-garden:not([hidden])',{timeout:20000});}
+  else{await frame.waitForSelector('#screen[data-scene="record"]');await frame.waitForTimeout(8000);await capture(frame,category,'record');await frame.waitForFunction(()=>!document.querySelector('#primary').disabled);await frame.locator('#primary').click();await frame.waitForSelector('.celebration-garden:not([hidden])');}
   await frame.waitForTimeout(5100);await capture(frame,category,'celebrate');await frame.locator('#primary').click();await frame.waitForSelector('#screen[data-scene="review"]');await capture(frame,category,'review');
   assert.equal(stored.length,1);console.log(`${category}: ${devices.length} portrait profiles and keyboard geometry passed`);
  }

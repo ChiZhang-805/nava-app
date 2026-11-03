@@ -168,4 +168,12 @@ Write-Host "33. Desktop focus-event preview and mobile isolation"
 Invoke-Npm -Arguments @("run", "focus-preview:visual")
 
 Write-Host ""
+Write-Host "34. File retirement, export completeness and navigation failure paths"
+& node --experimental-strip-types --test tests/repository-files.test.mjs tests/export-pagination.test.ts tests/export-archive.test.ts tests/shell-history.test.ts tests/session-maintenance.test.ts tests/native-file-share.test.ts
+if ($LASTEXITCODE -ne 0) { throw "Release regression tests failed." }
+Write-Host "35. Current authentication, navigation, overlays and encrypted draft runtime"
+Invoke-Npm -Arguments @("run", "interaction:test")
+Write-Host "36. Journal companion state transitions and shape bounds"
+Invoke-Npm -Arguments @("run", "journal:motion:test")
+Invoke-Npm -Arguments @("run", "journal:motion:visual")
 Write-Host "Verification completed."

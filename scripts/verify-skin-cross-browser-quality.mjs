@@ -7,7 +7,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 applyProjectPublicEnv(process.cwd());
-process.env.PLAYWRIGHT_BROWSERS_PATH ||= "Q:/NAVA-Workspace/Caches/ms-playwright";
+process.env.PLAYWRIGHT_BROWSERS_PATH ||= "Q:/NAVA-Workspace/NAVA-App/Caches/ms-playwright";
 const { chromium, firefox, webkit } = await import("@playwright/test");
 
 const outputArgument = process.argv.find((argument) => argument.startsWith("--output="));

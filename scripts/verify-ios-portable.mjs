@@ -3,11 +3,14 @@ import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { verifySource } from "./ios-release-checks.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const read = (file) => readFileSync(path.join(root, file), "utf8");
 const includes = (file, needles) => { const text = read(file); for (const needle of needles) assert.ok(text.includes(needle), `${file}: missing ${needle}`); };
 const privacy = ["NSHealthShareUsageDescription", "NSMotionUsageDescription", "NSMicrophoneUsageDescription", "NSSpeechRecognitionUsageDescription", "NSCameraUsageDescription", "NSPhotoLibraryUsageDescription", "NSPhotoLibraryAddUsageDescription"];
 const plist = read("ios/App/App/Info.plist");
+includes("ios/App/Podfile", ["CapacitorFilesystem", "CapacitorShare"]);
+includes("ios/App/App/PrivacyInfo.xcprivacy", ["NSPrivacyAccessedAPICategoryFileTimestamp", "C617.1"]);
 for (const key of privacy) {
   assert.match(plist, new RegExp(`<key>${key}</key>\\s*<string>[^<]+</string>`));
   for (const language of ["en", "zh-Hans"]) includes(`ios/App/App/${language}.lproj/InfoPlist.strings`, [`"${key}" = "`]);
@@ -41,4 +44,5 @@ for (const [file, size] of [["ios/App/App/Assets.xcassets/AppIcon.appiconset/App
   assert.equal(bytes.subarray(1, 4).toString(), "PNG"); assert.equal(bytes.readUInt32BE(16), size); assert.equal(bytes.readUInt32BE(20), size);
 }
 for (const language of ["en", "zh-Hans"]) assert.ok(existsSync(path.join(root, `native/watch/${language}.lproj/Localizable.strings`)));
+verifySource();
 console.log("Portable iOS source contracts passed; Xcode compile, signing and physical-device acceptance remain required.");

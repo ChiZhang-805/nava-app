@@ -46,6 +46,18 @@ test("builds a multi-entry history depth and preserves it on replacement", () =>
   assert.equal(replacedEditor.depth, 3);
 });
 
+test("invalid daily-report links recover to the calendar", () => {
+  for (const value of ['day-invalid', 'day-2026-02-30', 'day-2026-13-01', 'day-']) {
+    assert.equal(normalizeShellRoute('today', null, value).view, 'calendar');
+  }
+  assert.equal(normalizeShellRoute('today', null, 'day-2024-02-29').view, 'day-2024-02-29');
+});
+
+test('untrusted notification routes cannot select nonexistent modules', () => {
+  assert.deepEqual(normalizeShellRoute('record', 'unknown' as never, 'editor'), {tab:'record',module:null,view:null});
+  assert.deepEqual(normalizeShellRoute('unknown' as never, null, 42 as never), {tab:'today',module:null,view:null});
+});
+
 test("same-route detection prevents duplicate bottom-navigation entries", () => {
   const first = normalizeShellRoute("record", "sleep", "history");
   const same = normalizeShellRoute("record", "sleep", "history");
