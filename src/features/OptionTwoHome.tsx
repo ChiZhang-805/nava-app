@@ -4,7 +4,6 @@ import {
   CalendarDays,
   Check,
   ListTodo,
-  Plus,
   ScanFace,
   ShoppingCart,
   ShieldCheck,
@@ -12,9 +11,8 @@ import {
   TimerReset,
   Utensils,
   UsersRound,
-  X,
 } from "lucide-react";
-import { Fragment, useCallback, useEffect, useRef, useState, type ComponentType, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentType, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import homeSceneBackground from "../assets/figma/home-option2/home-scene-v3.png";
 import homeMascotStill from "../assets/figma/home-option2/home-mascot-v5.png";
 import pullRefreshMascot from "../assets/mascot/animated/loading-pull-refresh.webp";
@@ -44,17 +42,13 @@ import { buildHealthModuleProgress, healthModuleEntryView, healthModuleProgressL
 import { buildHomeGuidance, homeDayPhase, isVerticalHomeSwipe } from "../services/homeExperience";
 import {
   HOME_WIDGET_SLOT_COUNT,
-  addHomeWidgetToSlot,
   buildHomeWidgetPresentation,
-  defaultHomeWidgetLayout,
-  homeWidgetIds,
   homeWidgetIdsFromLayout,
   homeWidgetLayoutFromIds,
   hydrateHomeWidgetLayout,
   loadHomeWidgetLayout,
   moveHomeWidgetByDirection,
   placeHomeWidgetInSlot,
-  removeHomeWidgetFromSlot,
   saveHomeWidgetLayout,
   type HomeWidgetDirection,
   type HomeWidgetId,
@@ -174,7 +168,6 @@ export default function OptionTwoHome({
   const [widgetLayout, setWidgetLayout] = useState<HomeWidgetSlot[]>(() => loadHomeWidgetLayout(user.id));
   const [widgetArrangeMode, setWidgetArrangeMode] = useState(false);
   const [widgetDrag, setWidgetDrag] = useState<HomeWidgetDragVisual | null>(null);
-  const [widgetAddSlot, setWidgetAddSlot] = useState<number | null>(null);
   const [widgetAnnouncement, setWidgetAnnouncement] = useState("");
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -279,11 +272,6 @@ export default function OptionTwoHome({
     if (!widgetArrangeMode) return;
     const exitOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      if (widgetAddSlot !== null) {
-        setWidgetAddSlot(null);
-        setWidgetAnnouncement(locale === "zh" ? "已关闭组件选择" : "Widget picker closed");
-        return;
-      }
       setWidgetArrangeMode(false);
       setWidgetDrag(null);
       widgetPressRef.current = null;
@@ -291,7 +279,7 @@ export default function OptionTwoHome({
     };
     window.addEventListener("keydown", exitOnEscape);
     return () => window.removeEventListener("keydown", exitOnEscape);
-  }, [locale, widgetAddSlot, widgetArrangeMode]);
+  }, [locale, widgetArrangeMode]);
 
   useEffect(() => {
     if (!guidanceEligible) return;
@@ -390,7 +378,6 @@ export default function OptionTwoHome({
     clearWidgetLongPress();
     setHealthMenuOpen(false);
     setShortcutsOpen(false);
-    setWidgetAddSlot(null);
     setWidgetArrangeMode(true);
     setWidgetDrag({ id: press.id, deltaX: 0, deltaY: 0, targetSlot: press.targetSlot });
     widgetIgnoreClickUntilRef.current = Date.now() + 600;
@@ -460,43 +447,9 @@ export default function OptionTwoHome({
     clearWidgetLongPress();
     widgetPressRef.current = null;
     setWidgetDrag(null);
-    setWidgetAddSlot(null);
     setWidgetArrangeMode(false);
     widgetIgnoreClickUntilRef.current = Date.now() + 250;
     setWidgetAnnouncement(locale === "zh" ? "首页组件位置已保存" : "Home widget positions saved");
-  };
-
-  const removeWidget = (event: ReactMouseEvent<HTMLButtonElement>, id: HomeWidgetId, slot: number) => {
-    event.preventDefault();
-    event.stopPropagation();
-    clearWidgetLongPress();
-    widgetPressRef.current = null;
-    setWidgetDrag(null);
-    setWidgetAddSlot(null);
-    const next = removeHomeWidgetFromSlot(widgetLayout, slot);
-    setWidgetLayout(saveHomeWidgetLayout(user.id, next));
-    setWidgetAnnouncement(locale === "zh" ? `已从首页移除${homeWidgetLabels[id].zh}` : `${homeWidgetLabels[id].en} removed from home`);
-  };
-
-  const addWidget = (id: HomeWidgetId, slot: number) => {
-    const next = addHomeWidgetToSlot(widgetLayout, id, slot);
-    setWidgetLayout(saveHomeWidgetLayout(user.id, next));
-    setWidgetAddSlot(null);
-    setWidgetAnnouncement(locale === "zh" ? `已将${homeWidgetLabels[id].zh}添加到首页` : `${homeWidgetLabels[id].en} added to home`);
-  };
-
-  const openWidgetAdd = (event: ReactMouseEvent<HTMLButtonElement>, slot: number) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const available = homeWidgetIds.filter((id) => !widgetLayout.includes(id));
-    if (available.length === 1) {
-      addWidget(available[0], slot);
-      return;
-    }
-    if (available.length > 1) {
-      setWidgetAddSlot(slot);
-      setWidgetAnnouncement(locale === "zh" ? "请选择要添加的组件" : "Choose a widget to add");
-    }
   };
 
   const handleWidgetKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, id: HomeWidgetId) => {
@@ -504,7 +457,6 @@ export default function OptionTwoHome({
       event.preventDefault();
       setHealthMenuOpen(false);
       setShortcutsOpen(false);
-      setWidgetAddSlot(null);
       setWidgetArrangeMode(true);
       setWidgetAnnouncement(locale === "zh" ? "已进入首页编辑，使用方向键移动组件" : "Home editing started. Use arrow keys to move widgets.");
       return;
@@ -625,7 +577,7 @@ export default function OptionTwoHome({
         {isAdmin && <button className="option-two-side-shortcut option-two-side-admin" data-home-shortcut="admin" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("admin-console"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "管理员端" : "Admin console"} title={locale === "zh" ? "管理员端" : "Admin console"}><ShieldCheck size={22} /></button>}
       </div>
 
-      <section ref={widgetGridRef} className={["home-widget-grid", largeWidgetText ? "is-large-text" : "", widgetIds.length === 0 ? "is-empty" : "", widgetArrangeMode ? "is-arranging" : ""].join(" ")} aria-label={locale === "zh" ? "我的健康小组件" : "My health widgets"} aria-describedby="home-widget-arrange-help" data-widget-count={widgetIds.length}>
+      <section ref={widgetGridRef} className={["home-widget-grid", largeWidgetText ? "is-large-text" : "", widgetArrangeMode ? "is-arranging" : ""].join(" ")} aria-label={locale === "zh" ? "我的健康小组件" : "My health widgets"} aria-describedby="home-widget-arrange-help" data-widget-count={widgetIds.length}>
         {Array.from({ length: HOME_WIDGET_SLOT_COUNT }, (_, slot) => <span
           className={["home-widget-slot", `home-widget-slot--position-${slot + 1}`, widgetDrag?.targetSlot === slot ? "is-target" : ""].filter(Boolean).join(" ")}
           data-home-widget-slot={slot}
@@ -633,30 +585,16 @@ export default function OptionTwoHome({
           key={`slot-${slot}`}
         />)}
         {(loading && snapshot === null) || forceHomeWidgetSkeleton
-          ? (widgetIds.length ? widgetLayout : defaultHomeWidgetLayout()).map((id, slot) => id ? <SkeletonBlock className={`home-widget-skeleton home-widget-skeleton--position-${slot + 1}`} key={`${id}-${slot}`} /> : null)
+          ? widgetLayout.map((id, slot) => id ? <SkeletonBlock className={`home-widget-skeleton home-widget-skeleton--position-${slot + 1}`} key={`${id}-${slot}`} /> : null)
           : <>
-            {widgetIds.length === 0 && !widgetArrangeMode && <button
-              className="home-widget-empty"
-              type="button"
-              onClick={() => {
-                setWidgetArrangeMode(true);
-                setWidgetAnnouncement(locale === "zh" ? "已进入首页编辑，请点击加号添加组件" : "Home editing started. Tap a plus to add a widget.");
-              }}
-            ><Plus size={22} /><span><strong>{locale === "zh" ? "添加首页组件" : "Add home widgets"}</strong><small>{locale === "zh" ? "共六个健康板块" : "Six health modules"}</small></span></button>}
             {widgetLayout.map((id, slot) => {
-              if (!id) return widgetArrangeMode ? <button
-                className={["home-widget-add", `home-widget-add--position-${slot + 1}`].join(" ")}
-                type="button"
-                key={`add-${slot}`}
-                onClick={(event) => openWidgetAdd(event, slot)}
-                aria-label={locale === "zh" ? `在第 ${slot + 1} 个位置添加组件` : `Add a widget in position ${slot + 1}`}
-              ><Plus size={31} strokeWidth={1.8} aria-hidden="true" /></button> : null;
+              if (!id) return null;
               const presentation = snapshot ? buildHomeWidgetPresentation(id, snapshot, locale, trends) : null;
               const Icon = homeWidgetIcons[id];
               const label = homeWidgetLabels[id][locale];
               const target = homeWidgetTargets[id];
-              return <Fragment key={id}>
-                <button
+              return <button
+                  key={id}
                   className={["home-health-widget", `home-health-widget--${id}`, `home-health-widget--position-${slot + 1}`, presentation ? `is-${presentation.state}` : "is-missing", widgetDrag?.id === id ? "is-dragging" : ""].filter(Boolean).join(" ")}
                   type="button"
                   data-home-widget={id}
@@ -677,32 +615,15 @@ export default function OptionTwoHome({
                     onOpenRecord(target, snapshot ? healthModuleEntryView(moduleProgress[target]) : "editor");
                   }}
                   aria-keyshortcuts="Shift+Enter"
-                  aria-label={`${label}${locale === "zh" ? "，" : ", "}${presentation?.core ?? "--"}${locale === "zh" ? "，" : ", "}${presentation?.support ?? (locale === "zh" ? "加载中" : "Loading")}${widgetArrangeMode ? (locale === "zh" ? "，可移动或关闭" : ", move or remove") : (locale === "zh" ? "，长按可编辑" : ", touch and hold to edit")}`}
+                  aria-label={`${label}${locale === "zh" ? "，" : ", "}${presentation?.core ?? "--"}${locale === "zh" ? "，" : ", "}${presentation?.support ?? (locale === "zh" ? "加载中" : "Loading")}${widgetArrangeMode ? (locale === "zh" ? "，可移动" : ", movable") : (locale === "zh" ? "，长按可调整位置" : ", touch and hold to arrange")}`}
                   style={widgetDrag?.id === id ? { "--home-widget-drag-x": `${widgetDrag.deltaX}px`, "--home-widget-drag-y": `${widgetDrag.deltaY}px` } as CSSProperties : undefined}
                 >
                   <span><Icon size={26} /><b>{label}</b></span>
                   <div className="home-widget-value"><strong>{presentation?.core ?? "--"}</strong><small>{presentation?.support ?? (locale === "zh" ? "加载中" : "Loading")}</small></div>
-                </button>
-                <button
-                  className={["home-widget-remove", `home-widget-remove--position-${slot + 1}`].join(" ")}
-                  type="button"
-                  onPointerDown={(event) => event.stopPropagation()}
-                  onClick={(event) => removeWidget(event, id, slot)}
-                  aria-label={locale === "zh" ? `关闭${homeWidgetLabels[id].zh}组件` : `Remove ${homeWidgetLabels[id].en} widget`}
-                  tabIndex={widgetArrangeMode ? 0 : -1}
-                  aria-hidden={!widgetArrangeMode}
-                ><X size={22} strokeWidth={2.2} aria-hidden="true" /></button>
-              </Fragment>;
+                </button>;
             })}
-            {widgetArrangeMode && widgetAddSlot !== null && <div className="home-widget-add-menu" role="dialog" aria-modal="true" aria-label={locale === "zh" ? "选择要添加的组件" : "Choose a widget to add"} onClick={(event) => event.stopPropagation()}>
-              <header><strong>{locale === "zh" ? "添加组件" : "Add widget"}</strong><button type="button" onClick={() => setWidgetAddSlot(null)} aria-label={locale === "zh" ? "关闭" : "Close"}><X size={20} /></button></header>
-              <div>{homeWidgetIds.filter((id) => !widgetLayout.includes(id)).map((id) => {
-                const AddIcon = homeWidgetIcons[id];
-                return <button type="button" key={id} onClick={() => addWidget(id, widgetAddSlot)}><AddIcon size={22} /><span>{homeWidgetLabels[id][locale]}</span></button>;
-              })}</div>
-            </div>}
           </>}
-        <span className="sr-only" id="home-widget-arrange-help">{locale === "zh" ? "长按组件进入编辑；右上角叉号关闭组件，空位中央加号添加组件；也可拖动到六个槽位之一调整位置。轻触非功能空白区域保存并退出。" : "Touch and hold a widget to edit. Use its top-right close icon to remove it, a centered plus to add a widget, or drag between the six slots. Tap a non-interactive empty area to save and exit."}</span>
+        <span className="sr-only" id="home-widget-arrange-help">{locale === "zh" ? "六个健康组件固定显示。长按任一组件进入排序，然后拖动到六个槽位之一调整位置；轻触非功能空白区域保存并退出。" : "All six health widgets remain visible. Touch and hold a widget, then drag it to one of the six slots to change its position. Tap a non-interactive empty area to save and exit."}</span>
         <span className="sr-only" aria-live="polite">{widgetAnnouncement}</span>
       </section>
 

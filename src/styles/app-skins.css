@@ -390,7 +390,7 @@
   filter: var(--skin-scene-filter);
   mix-blend-mode: var(--skin-scene-blend);
 }
-.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.option-two-scores > div, .option-two-side-actions button, .option-two-health-entry, .home-health-widget, .home-widget-empty, .home-widget-add) {
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.option-two-scores > div, .option-two-side-actions button, .option-two-health-entry, .home-health-widget) {
   border-color: var(--skin-line);
   color: var(--skin-nav-ink);
   background: var(--skin-surface);

@@ -27,9 +27,12 @@ async function setup(context, signedIn) {
     // Model iOS's visual-only keyboard resize without resizing the layout viewport.
     const vv = window.visualViewport;
     let simulatedHeight;
+    let simulatedScale;
     const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(vv), 'height');
+    const scaleDescriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(vv), 'scale');
     Object.defineProperty(vv,'height',{get:()=>simulatedHeight ?? descriptor.get.call(vv)});
-    window.layoutKeyboard = height => { simulatedHeight=height; vv.dispatchEvent(new Event('resize')); };
+    Object.defineProperty(vv,'scale',{get:()=>simulatedScale ?? scaleDescriptor.get.call(vv)});
+    window.layoutKeyboard = (height,scale) => { simulatedHeight=height; simulatedScale=scale; vv.dispatchEvent(new Event('resize')); };
   },signedIn);
 }
 async function ready(page) {
@@ -72,11 +75,16 @@ async function inspect(page,name,width,height,selector='.phone-frame') {
       const gaps=boxes.slice(1).map((b,i)=>b.y-boxes[i].bottom).filter((g,i)=>boxes[i+1].y>boxes[i].y+2);
       return {class:e.className,gaps};
     });
-    return {frame:r,viewport,overflows,buttons,groups};
+    const editableSelector='textarea,select,[contenteditable="true"],input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="range"]):not([type="color"])';
+    const undersizedEditables=[...root.querySelectorAll(editableSelector)].filter(visible).map(e=>({
+      tag:e.tagName.toLowerCase(),type:e.getAttribute('type'),name:e.getAttribute('name'),fontSize:parseFloat(getComputedStyle(e).fontSize),box:rect(e),
+    })).filter(e=>e.fontSize<16);
+    return {frame:r,viewport,overflows,buttons,groups,undersizedEditables};
   });
   const failures=[];
   if(geometry.frame.x < -2 || geometry.frame.right>width+2)failures.push('frame outside screen');
   if(geometry.overflows.length)failures.push(`horizontal overflow: ${JSON.stringify(geometry.overflows)}`);
+  if(geometry.undersizedEditables.length)failures.push(`editable controls below 16px: ${JSON.stringify(geometry.undersizedEditables)}`);
   for(let i=1;i<geometry.buttons.length;i++)if(geometry.buttons[i].x<geometry.buttons[i-1].right-1)failures.push('dock buttons overlap');
   for(const g of geometry.groups)if(g.gaps.some(v=>v < -2))failures.push(`sections overlap: ${g.class}`);
   const id=`${width}x${height}-${name}`;
@@ -86,12 +94,17 @@ async function inspect(page,name,width,height,selector='.phone-frame') {
 }
 async function keyboard(page,name,width,height,input,action) {
   await input.focus();
+  const inputFontSize=await input.evaluate(e=>parseFloat(getComputedStyle(e).fontSize));
   const visibleHeight=height-300;
-  await page.evaluate(h=>window.layoutKeyboard(h),visibleHeight);
+  // Model the transient scale above one that iOS can report during focus.
+  await page.evaluate(h=>window.layoutKeyboard(h,1.2),visibleHeight);
   await page.waitForTimeout(350);
   await input.scrollIntoViewIfNeeded();
   const inputRect=await input.boundingBox();
   const failures=[];
+  if(inputFontSize<16)failures.push(`editable control font-size ${inputFontSize}px can trigger iOS focus zoom`);
+  const keyboardState=await page.evaluate(()=>({open:document.documentElement.dataset.keyboardOpen,scale:document.documentElement.dataset.viewportScale}));
+  if(keyboardState.open!=='true')failures.push('keyboard viewport state was not activated while visual viewport scale exceeded one');
   if(!inputRect||inputRect.y<0||inputRect.y+inputRect.height>visibleHeight+2)failures.push('focused input behind keyboard');
   const uncovered = locator => locator.evaluate(e=>{const r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return Boolean(hit&&(e.contains(hit)||hit.contains(e)));});
   if(!await uncovered(input))failures.push('focused input covered by another layer');
@@ -119,8 +132,8 @@ async function keyboard(page,name,width,height,input,action) {
     await page.locator('.chat-attachment-trigger').click();
   }
   await page.screenshot({path:`${output}/${width}x${height}-${name}-keyboard.png`});
-  report.results.push({name:`${name}-keyboard`,width,height,visibleHeight,inputRect,failures});
-  await page.evaluate(()=>window.layoutKeyboard(undefined));
+  report.results.push({name:`${name}-keyboard`,width,height,visibleHeight,inputRect,inputFontSize,keyboardState,failures});
+  await page.evaluate(()=>window.layoutKeyboard(undefined,undefined));
   await input.blur();
   await page.waitForTimeout(100);
   const restored=await page.locator('.phone-frame,.auth-screen').first().boundingBox();
@@ -141,6 +154,16 @@ try {
     await ready(page);
     await inspect(page,name,width,height);
     await lastControl(page,name,width,height);
+    if(name==='records'){
+      const menuButton=page.locator('.figma-app-header .nava-more-trigger');
+      await menuButton.click();
+      await expect(page.locator('.app-utility-popover')).toBeVisible();
+      await inspect(page,'records-more-menu',width,height);
+      await page.locator('.more-menu-language').click();
+      await expect(page.locator('.app-utility-popover')).toBeVisible();
+      await inspect(page,'records-language-menu',width,height);
+      await page.keyboard.press('Escape');
+    }
     if(name==='chat')await keyboard(page,name,width,height,page.locator('.chat-composer input:not([type="file"])'),page.locator('.chat-composer button[type="submit"]'));
     if(name==='profile-personal')await keyboard(page,name,width,height,page.locator('.profile-personal-card input').first());
     if(name==='profile-details')await keyboard(page,name,width,height,page.locator('.advanced-profile-screen textarea').last(),page.locator('.advanced-profile-save'));

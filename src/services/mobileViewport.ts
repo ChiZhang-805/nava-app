@@ -1,6 +1,7 @@
 /** iOS can resize only the visual viewport when its software keyboard opens.
- * Keep the mobile shell inside that viewport; desktop preview and pinch zoom
- * retain their own layout. No native keyboard dependency is required.
+ * Keep the mobile shell inside that viewport without disabling user zoom.
+ * Text controls are kept at 16px in mobile-viewport.css so WebKit does not
+ * apply its separate focus zoom in the first place.
  */
 export function installMobileViewport() {
   const viewport = window.visualViewport;
@@ -18,18 +19,23 @@ export function installMobileViewport() {
     cancelAnimationFrame(frame);
     frame = requestAnimationFrame(() => {
       const input = editable();
-      const active = window.innerWidth < 700 && Math.abs(viewport.scale - 1) < .05
+      // Do not gate keyboard handling on visualViewport.scale. WebKit can
+      // report a transient scale above 1 while focusing a control; ignoring
+      // that state leaves the focused field and shell out of sync.
+      const active = window.innerWidth < 700
         && window.innerHeight - viewport.height > 120;
       // Keep the smaller shell while tapping a toolbar button above an open
       // keyboard; focusout alone must not move that button during the tap.
       const open = active && Boolean(input || root.dataset.keyboardOpen === 'true');
       if (!open) {
         delete root.dataset.keyboardOpen;
+        delete root.dataset.viewportScale;
         root.style.removeProperty('--nava-visible-height');
         previousHeight = 0;
         return;
       }
       root.dataset.keyboardOpen = 'true';
+      root.dataset.viewportScale = viewport.scale.toFixed(3);
       const height = Math.round(viewport.height);
       root.style.setProperty('--nava-visible-height', `${height}px`);
       if (input && height !== previousHeight) input.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
@@ -48,6 +54,7 @@ export function installMobileViewport() {
     document.removeEventListener('focusin', update);
     document.removeEventListener('focusout', update);
     delete root.dataset.keyboardOpen;
+    delete root.dataset.viewportScale;
     root.style.removeProperty('--nava-visible-height');
   };
 }

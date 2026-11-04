@@ -546,10 +546,8 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
   await navigateRoute(page, "#tab=today&view=notifications", "[data-notification-center]");
   await capture(page, viewport, "00e-notifications", "[data-notification-center]", report);
 
-  await navigateRoute(page, "#tab=today&view=home-widgets", '[data-widget-editor-step="select"]');
-  await capture(page, viewport, "00f-home-widgets-select", '[data-widget-editor-step="select"]', report);
-  await page.locator(".home-widget-editor footer button").last().click();
-  await capture(page, viewport, "00g-home-widgets-sort", '[data-widget-editor-step="sort"]', report);
+  await navigateRoute(page, "#tab=today&view=home-widgets", '[data-widget-editor-step="sort"]');
+  await capture(page, viewport, "00f-home-widgets-sort", '[data-widget-editor-step="sort"]', report);
 
   await navigateRoute(page, "#tab=today&view=profile-details", '[data-home-view="profile-details"]');
   await capture(page, viewport, "00h-profile-details", '[data-home-view="profile-details"]', report);

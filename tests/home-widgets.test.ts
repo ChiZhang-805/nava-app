@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  addHomeWidgetToSlot,
   buildHomeWidgetPresentation,
   defaultHomeWidgetIds,
   defaultHomeWidgetLayout,
@@ -11,7 +10,6 @@ import {
   moveHomeWidgetByDirection,
   normalizeHomeWidgetLayout,
   placeHomeWidgetInSlot,
-  removeHomeWidgetFromSlot,
   shiftHomeWidget,
 } from "../src/services/homeWidgets.ts";
 import type { FaceRecord, TodaySnapshot, TrendBundle } from "../src/types.ts";
@@ -41,19 +39,18 @@ test("widget order supports direct drag moves and accessible single-step moves",
   assert.deepEqual(shiftHomeWidget(["sleep", "focus", "mood"], "focus", -1), ["focus", "sleep", "mood"]);
 });
 
-test("the home exposes six persistent slots and rejects retired heart and steps widgets", () => {
+test("the home repairs retired, empty, and duplicate preferences back to six persistent widgets", () => {
   assert.deepEqual(defaultHomeWidgetLayout(), ["mood", "sleep", "exercise", "diet", "face", "focus"]);
-  assert.deepEqual(normalizeHomeWidgetLayout(["heart", null, "sleep", "sleep", "steps"]), [null, null, "sleep", null, null, null]);
-  assert.deepEqual(homeWidgetIdsFromLayout(["mood", null, "sleep", null, null, null]), ["mood", "sleep"]);
+  assert.deepEqual(normalizeHomeWidgetLayout(["heart", null, "sleep", "sleep", "steps"]), ["mood", "exercise", "sleep", "diet", "face", "focus"]);
+  assert.deepEqual(homeWidgetIdsFromLayout(["mood", null, "sleep", null, null, null]), ["mood", "exercise", "sleep", "diet", "face", "focus"]);
 });
 
-test("inline editing removes and restores modules without creating duplicates", () => {
+test("inline editing can swap positions without removing any of the six modules", () => {
   const initial = defaultHomeWidgetLayout();
-  const removed = removeHomeWidgetFromSlot(initial, 3);
-  assert.deepEqual(removed, ["mood", "sleep", "exercise", null, "face", "focus"]);
-  assert.deepEqual(addHomeWidgetToSlot(removed, "diet", 3), initial);
-  assert.deepEqual(addHomeWidgetToSlot(removed, "mood", 3), removed);
-  assert.deepEqual(placeHomeWidgetInSlot(initial, "mood", 4), ["face", "sleep", "exercise", "diet", "mood", "focus"]);
+  const moved = placeHomeWidgetInSlot(initial, "mood", 4);
+  assert.deepEqual(moved, ["face", "sleep", "exercise", "diet", "mood", "focus"]);
+  assert.equal(new Set(moved).size, 6);
+  assert.deepEqual([...moved].sort(), [...homeWidgetIds].sort());
 });
 
 test("keyboard movement follows the visual two-by-three slot grid", () => {

@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
@@ -6,7 +6,8 @@ import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\App-Checks\\home-widget-inline-editor";
+const testRunsRoot = path.resolve("Q:\\NAVA-Workspace\\Build\\TestRuns");
+const outputDir = path.resolve(testRunsRoot, "App-Checks", "home-widget-inline-editor");
 const port = 5204;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
@@ -18,6 +19,8 @@ const viewports = [
 const demoUserId = "00000000-0000-4000-8000-000000000001";
 
 applyProjectPublicEnv(root);
+if (!outputDir.startsWith(`${testRunsRoot}${path.sep}`)) throw new Error(`Unsafe evidence directory: ${outputDir}`);
+await rm(outputDir, { recursive: true, force: true });
 await mkdir(outputDir, { recursive: true });
 const server = await createServer({ root, server: { host: "127.0.0.1", port }, logLevel: "silent" });
 await server.listen();
@@ -247,11 +250,8 @@ try {
     await openRoute(page, "tab=today&view=home-widgets");
     await expect(page.locator(".home-widget-editor")).toBeVisible();
     await expect(page.locator(".bottom-nav")).toHaveCount(0);
-    await expect(page.locator(".home-widget-picker > button")).toHaveCount(6);
-
-    const unselected = page.locator(".home-widget-picker > button:not(.is-selected):not(:disabled)");
-    while (await unselected.count()) await unselected.first().click();
-    await page.locator(".home-widget-editor > footer button").last().click();
+    await expect(page.locator(".home-widget-picker")).toHaveCount(0);
+    await expect(page.locator(".home-widget-remove, .home-widget-add, .home-widget-add-menu")).toHaveCount(0);
     await expect(page.locator(".home-widget-sort > article")).toHaveCount(6);
     const sortGeometry = await page.evaluate(() => {
       const frame = document.querySelector(".phone-frame");
@@ -345,38 +345,11 @@ try {
     await page.waitForTimeout(520);
     await expect(page.locator(".option-two-home")).toHaveAttribute("data-home-widget-arranging", "true");
     await page.mouse.up();
-    await expect(page.locator(".home-widget-remove:visible")).toHaveCount(6);
-    await page.locator(".home-widget-remove:visible").first().click();
-    await expect(page.locator(".home-health-widget")).toHaveCount(5);
-    await expect(page.locator(".home-widget-add:visible")).toHaveCount(1);
-    await page.locator(".home-widget-add:visible").click();
     await expect(page.locator(".home-health-widget")).toHaveCount(6);
-    await page.locator(".home-widget-remove:visible").first().click();
-    await page.locator(".home-widget-remove:visible").first().click();
-    await expect(page.locator(".home-widget-add:visible")).toHaveCount(2);
-    await page.locator(".home-widget-add:visible").first().click();
-    await expect(page.locator(".home-widget-add-menu")).toBeVisible();
-    await expect(page.locator(".home-widget-add-menu > div button")).toHaveCount(2);
-    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-inline-picker.png`) });
-    await page.locator(".home-widget-add-menu > div button").first().click();
-    await expect(page.locator(".home-health-widget")).toHaveCount(5);
-    await page.locator(".home-widget-add:visible").click();
-    await expect(page.locator(".home-health-widget")).toHaveCount(6);
+    await expect(page.locator(".home-widget-remove, .home-widget-add, .home-widget-add-menu")).toHaveCount(0);
+    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-inline-reorder.png`) });
     await page.keyboard.press("Escape");
     await expect(page.locator(".option-two-home")).toHaveAttribute("data-home-widget-arranging", "false");
-    await expect(page.locator(".home-widget-remove").first()).toHaveAttribute("aria-hidden", "true");
-    await expect.poll(() => page.locator(".home-widget-remove").first().evaluate((element) => getComputedStyle(element).pointerEvents)).toBe("none");
-
-    await openRoute(page, "tab=today&view=home-widgets");
-    const selectedWidgets = page.locator(".home-widget-picker > button.is-selected");
-    while (await selectedWidgets.count()) await selectedWidgets.first().click();
-    await page.locator(".home-widget-editor > footer button").last().click();
-    await page.locator(".home-widget-editor > footer button").last().click();
-    await expect(page.locator(".home-widget-empty")).toBeVisible();
-    await expect(page.locator(".home-health-widget")).toHaveCount(0);
-    await expect(page.locator(".option-two-guidance")).toHaveCount(0);
-    await page.waitForTimeout(700);
-    await page.screenshot({ path: path.join(outputDir, `${viewport.name}-home-empty.png`) });
 
     if (errors.length) throw new Error(`${viewport.name}: browser errors ${JSON.stringify(errors)}`);
     report.push({ viewport, backgroundGeometry, skeletonGeometry, initialGeometry, sortGeometry, widgetTextGeometry });
@@ -426,12 +399,10 @@ try {
     const target = page.locator('[data-home-widget="mood"]');
     await target.dispatchEvent("keydown", { key: "Enter", code: "Enter", shiftKey: true });
     await expect(page.locator(".home-widget-grid")).toHaveClass(/is-arranging/);
-    await expect(page.locator(".home-widget-remove:visible")).toHaveCount(6);
-    await page.locator(".home-widget-remove:visible").first().click();
-    await expect(page.locator(".home-widget-add:visible")).toHaveCount(1);
-    await page.screenshot({ path: path.join(outputDir, `${device.id}-portrait-inline-edit.png`) });
-    await page.locator(".home-widget-add:visible").click();
     await expect(page.locator(".home-health-widget")).toHaveCount(6);
+    await expect(page.locator(".home-widget-remove, .home-widget-add, .home-widget-add-menu")).toHaveCount(0);
+    await page.screenshot({ path: path.join(outputDir, `${device.id}-portrait-inline-edit.png`) });
+    await page.keyboard.press("Escape");
 
     if (errors.length) throw new Error(`${device.label}: browser errors ${JSON.stringify(errors)}`);
     report.push({ device: { id: device.id, label: device.label, width: device.logicalWidth, height: device.logicalHeight }, geometry, inlineEdit: "passed" });
@@ -443,5 +414,5 @@ try {
 }
 
 await writeFile(path.join(outputDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
-console.log(`Home widget selection, ordering, long-press removal, and inline addition passed at ${viewports.map((item) => item.name).join(", ")} and all ${IPHONE_PREVIEW_DEVICES.length} cataloged portrait iPhone models.`);
+console.log(`Home widget fixed-six rendering, ordering, and long-press reordering passed at ${viewports.map((item) => item.name).join(", ")} and all ${IPHONE_PREVIEW_DEVICES.length} cataloged portrait iPhone models.`);
 console.log(`Evidence: ${outputDir}`);

@@ -1,3 +1,27 @@
+/* Keep iOS text controls at 16px or larger. WebKit otherwise zooms the visual
+   viewport on focus, and that zoom can remain after the keyboard is dismissed.
+   This preserves ordinary pinch-to-zoom; the viewport meta tag remains fully
+   accessible and does not set maximum-scale or user-scalable. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@media (max-width: 700px) {
+  .nava-app-stage :is(
+    textarea,
+    select,
+    [contenteditable="true"],
+    input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="range"]):not([type="color"])
+  ) {
+    font-size: 16px !important;
+  }
+
+  .nava-app-stage :is(input, textarea, select, button, [role="button"]) {
+    touch-action: manipulation;
+  }
+}
+
 /* The software keyboard may leave 100dvh unchanged on iOS. Scope these
    overrides to that case so normal mobile and desktop compositions stay put. */
 html[data-keyboard-open="true"] .nava-app-stage {

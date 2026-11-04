@@ -62,6 +62,11 @@ export function normalizeHomeWidgetLayout(value: unknown): HomeWidgetSlot[] | nu
     return id;
   });
   while (layout.length < HOME_WIDGET_SLOT_COUNT) layout.push(null);
+  const missing = homeWidgetIds.filter((id) => !seen.has(id));
+  layout.forEach((id, index) => {
+    if (id !== null) return;
+    layout[index] = missing.shift() ?? null;
+  });
   return layout;
 }
 
@@ -138,20 +143,6 @@ export function saveHomeWidgetIds(userId: string, ids: HomeWidgetId[]) {
   const normalized = validIds(ids) ?? [];
   saveHomeWidgetLayout(userId, homeWidgetLayoutFromIds(normalized));
   return normalized;
-}
-
-export function removeHomeWidgetFromSlot(layout: HomeWidgetSlot[], slot: number): HomeWidgetSlot[] {
-  const next = normalizeHomeWidgetLayout(layout) ?? defaultHomeWidgetLayout();
-  if (slot < 0 || slot >= HOME_WIDGET_SLOT_COUNT) return next;
-  next[slot] = null;
-  return next;
-}
-
-export function addHomeWidgetToSlot(layout: HomeWidgetSlot[], id: HomeWidgetId, slot: number): HomeWidgetSlot[] {
-  const next = normalizeHomeWidgetLayout(layout) ?? defaultHomeWidgetLayout();
-  if (slot < 0 || slot >= HOME_WIDGET_SLOT_COUNT || next.includes(id)) return next;
-  next[slot] = id;
-  return next;
 }
 
 export function placeHomeWidgetInSlot(layout: HomeWidgetSlot[], source: HomeWidgetId, targetSlot: number): HomeWidgetSlot[] {
