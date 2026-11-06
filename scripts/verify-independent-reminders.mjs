@@ -38,6 +38,19 @@ try {
   for (const [width, height] of (process.env.NAVA_REMINDER_DESKTOP_ONLY ? [[1440, 1080]] : [[360, 740], [375, 812], [390, 844], [430, 932], [1440, 1080]])) {
     const desktop = width > 700;
     const context = await browser.newContext({ locale: "zh-CN", permissions: ["notifications"], viewport: { width, height }, isMobile: !desktop, hasTouch: !desktop, reducedMotion: "reduce" });
+    // Reminder behavior is independent of first-run onboarding. Seed the current
+    // demo onboarding contract so this focused suite does not depend on an
+    // obsolete, pre-iframe sequence of step buttons.
+    await context.addInitScript(() => {
+      if (location.hostname !== "127.0.0.1") return;
+      localStorage.setItem("nava.onboarding.v3.00000000-0000-4000-8000-000000000001", JSON.stringify({
+        completed: true,
+        completedAt: "2026-01-01T00:00:00.000Z",
+        version: 3,
+        answers: { essentialConsent: true },
+        source: "local",
+      }));
+    });
     // Mobile Chromium permission emulation may still report denied. This suite tests
     // scheduling/settings, not OS delivery; authorization branches have their own suite.
     await context.addInitScript(() => Object.defineProperty(Notification, "permission", { configurable: true, value: "granted" }));
@@ -106,18 +119,9 @@ try {
     await expect(settings.locator('[data-reminder-kind="dinner"] .reminder-item-controls')).toHaveCount(0);
     await page.getByRole('button', { name: '返回通知中心' }).click();
     await expect(page.locator('[data-notification-center]')).toBeVisible();
-    for (const module of ["mood", "diet"]) {
-      await go(page, `tab=record&module=${module}`);
-      const entry = page.locator(`[data-reminder-settings="${module}"]`);
-      await expect(entry).toBeVisible();
-      if (await entry.locator("button").first().getAttribute("aria-expanded") !== "true") await entry.locator("button").first().click();
-      await expect(entry.locator(".reminder-setting-row")).toHaveCount(module === "mood" ? 1 : 3);
-      await entry.screenshot({ path: `${output}/${width}-${module}.png` });
-    }
-    for (const meal of ["breakfast", "lunch", "dinner"]) {
-      await go(page, `tab=record&module=diet&view=editor-${meal}`);
-      await expect(page.locator('.record-editor-stack select').filter({ has: page.locator('option[value="pantry"]') })).toHaveValue(meal);
-    }
+    // Reminder controls now live in the single notification settings page.
+    // Journal modules are isolated in an authenticated iframe and must not
+    // duplicate or drift from that central schedule.
     if (!desktop) {
       await page.evaluate(async () => {
         const now = new Date();
@@ -128,7 +132,8 @@ try {
       await expect(page.locator(".nava-notification-banner")).toContainText("早餐记录提醒");
       await expect(page.locator(".nava-notification-banner")).not.toContainText(/模拟|Preview/);
       await page.locator(".nava-notification-banner-main").tap();
-      await expect(page.locator('.record-editor-stack select').filter({ has: page.locator('option[value="pantry"]') })).toHaveValue("breakfast");
+      await expect.poll(() => new URL(page.url()).hash).toContain("tab=record&module=diet");
+      await expect(page.locator('.journal-experience iframe[title="记录与回顾"]')).toBeVisible();
     }
     if (desktop) {
       const before = await page.evaluate(() => Object.fromEntries(Object.entries(localStorage).filter(([key]) => key.startsWith("nava-notification-"))));
@@ -150,15 +155,17 @@ try {
       await expect(page.locator(".ios-notice-banner")).not.toContainText(/模拟|Preview/);
       expect(await page.evaluate(() => Object.fromEntries(Object.entries(localStorage).filter(([key]) => key.startsWith("nava-notification-"))))).toEqual(before);
       await page.locator(".ios-notice-banner .ios-notice").click();
-      await expect(page.locator('.record-editor-stack select').filter({ has: page.locator('option[value="pantry"]') })).toHaveValue("breakfast");
+      await expect.poll(() => new URL(page.url()).hash).toContain("tab=record&module=diet");
+      const breakfastJournal = page.locator('.journal-experience iframe[title="记录与回顾"]');
+      await expect(breakfastJournal).toBeVisible();
       await expect.poll(() => page.locator(".nava-focus-event-simulator").evaluate((node) => {
         const panel = node.getBoundingClientRect();
         const last = node.querySelector("[data-reminder-preview] p:last-child").getBoundingClientRect();
         return panel.bottom - last.bottom;
       })).toBeGreaterThanOrEqual(10);
-      // The target editor reloads its date/meal data after navigation. Waiting
-      // for its screenshot avoids capturing a transient loading transition.
-      await page.locator(".record-editor-stack").screenshot({ path: `${output}/breakfast-target.png` });
+      // The target journal reloads its data after navigation. Waiting for the
+      // iframe itself avoids capturing the removed legacy editor shell.
+      await breakfastJournal.screenshot({ path: `${output}/breakfast-target.png` });
       await page.screenshot({ path: `${output}/desktop.png` });
       // Preview-only failure must not broadcast a product-settings error.
       const preferenceKey = 'nava-demo-reminders:00000000-0000-4000-8000-000000000001';

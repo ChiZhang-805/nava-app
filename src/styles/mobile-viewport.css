@@ -99,3 +99,19 @@ html[data-keyboard-open="true"] .today-todo-carousel-shell {
 html[data-keyboard-open="true"] .today-todo-card-pagination {
   display: none;
 }
+
+/* Focused fields need a bounded inner scroll area while the keyboard reduces
+   the visual viewport. Closing the keyboard restores the non-scrolling
+   one-screen profile composition above. */
+html[data-keyboard-open="true"] .profile-subpage:is(
+  [data-profile-view="personal"],
+  [data-profile-view="account"]
+) {
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+html[data-keyboard-open="true"] .profile-subpage[data-profile-view="personal"] .profile-personal-card {
+  flex: 0 0 auto;
+  overflow: visible;
+}

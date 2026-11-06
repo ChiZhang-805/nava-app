@@ -59,7 +59,7 @@ async function menuCheck(page, name) {
   });
   assert.ok(geometry.inside, `${name} menu outside phone`);
   assert.ok(geometry.width >= 200 && geometry.width <= 206, `${name} compact width ${geometry.width}`);
-  assert.ok(geometry.rows.every((row) => row.height >= 43.9 && row.height <= 54 && row.font === "13px" && row.textFont === "13px" && !row.clipped && row.inside), `${name} rows ${JSON.stringify(geometry.rows)}`);
+  assert.ok(geometry.rows.every((row) => row.height >= 43.9 && row.height <= 64 && row.font === "16px" && row.textFont === "16px" && !row.clipped && row.inside), `${name} rows ${JSON.stringify(geometry.rows)}`);
   await page.screenshot({ path: `${output}/${name}-menu.png` });
   await page.keyboard.press("Escape");
   await expect(trigger).toBeFocused();

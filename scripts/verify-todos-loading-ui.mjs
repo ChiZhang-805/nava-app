@@ -81,30 +81,23 @@ try {
   const loadingContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const loadingPage = await loadingContext.newPage();
   await loadingPage.goto(`${baseUrl}?demo=1&qa=auth-skeleton`, { waitUntil: "networkidle" });
-  await expect(loadingPage.locator(".nava-loading-scene")).toBeVisible();
-  await expect(loadingPage.locator(".nava-loading-string")).toHaveCount(3);
-  const loadingGeometry = await loadingPage.locator(".nava-loading-scene").evaluate((element) => {
+  await expect(loadingPage.locator('[data-page-skeleton="auth"]')).toBeVisible();
+  await expect(loadingPage.locator(".nava-loading-scene")).toHaveCount(0);
+  const loadingGeometry = await loadingPage.locator('[data-page-skeleton="auth"]').evaluate((element) => {
     const box = element.getBoundingClientRect();
-    return { top: box.top, height: box.height, viewportHeight: window.innerHeight };
+    return {
+      top: box.top,
+      bottom: box.bottom,
+      height: box.height,
+      viewportHeight: window.innerHeight,
+      horizontalOverflow: element.scrollWidth - element.clientWidth,
+    };
   });
-  const loadingCenter = loadingGeometry.top + loadingGeometry.height / 2;
-  if (Math.abs(loadingCenter - loadingGeometry.viewportHeight / 2) > 24) throw new Error(`loading scene is not centered: ${JSON.stringify(loadingGeometry)}`);
-  const leftFrames = [];
-  for (let index = 0; index < 30; index += 1) {
-    leftFrames.push(await loadingPage.locator(".nava-loading-string.is-left").evaluate((element) => getComputedStyle(element).transform));
-    await loadingPage.waitForTimeout(80);
-  }
-  if (new Set(leftFrames).size < 3 || leftFrames.every((frame) => frame === "none" || frame === "matrix(1, 0, 0, 1, 0, 0)")) throw new Error(`left cradle ball did not animate: ${JSON.stringify(leftFrames)}`);
-  const dotFrames = [];
-  for (let index = 0; index < 45; index += 1) {
-    dotFrames.push(await loadingPage.locator(".nava-loading-word i").evaluateAll((items) => items.map((item) => Number(getComputedStyle(item).opacity))));
-    await loadingPage.waitForTimeout(60);
-  }
-  if (!dotFrames.some((frame) => frame[0] === 1 && frame[1] === 0) || !dotFrames.some((frame) => frame[0] === 1 && frame[1] === 1 && frame[2] === 0) || !dotFrames.some((frame) => frame.every((value) => value === 1)) || !dotFrames.some((frame) => frame.every((value) => value === 0))) {
-    throw new Error(`loading dots did not type and clear as a group: ${JSON.stringify(dotFrames)}`);
+  if (loadingGeometry.top < -1 || loadingGeometry.bottom > loadingGeometry.viewportHeight + 1 || loadingGeometry.horizontalOverflow > 1) {
+    throw new Error(`auth skeleton must fill the current viewport without becoming a blank transition page: ${JSON.stringify(loadingGeometry)}`);
   }
   await loadingPage.screenshot({ path: path.join(outputDir, "loading-390x844.png") });
-  report.push({ mode: "loading", loadingGeometry, leftFrames: [...new Set(leftFrames)], dotFrames });
+  report.push({ mode: "auth-skeleton", loadingGeometry, standaloneLoadingScene: false });
   await loadingContext.close();
 
   const journalContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
@@ -123,9 +116,10 @@ try {
   await journalPage.goto(`${baseUrl}?demo=1#tab=record&module=mood`, { waitUntil: "domcontentloaded" });
   const journalLaunch = journalPage.locator(".launch-sequence");
   if (await journalLaunch.isVisible().catch(() => false)) await journalLaunch.click();
-  await expect(journalPage.locator(".journal-loading .nava-loading-scene")).toBeVisible();
+  await expect(journalPage.locator(".journal-loading--skeleton [data-page-skeleton]")).toBeVisible();
+  await expect(journalPage.locator(".journal-loading .nava-loading-scene")).toHaveCount(0);
   await journalPage.screenshot({ path: path.join(outputDir, "journal-loading-390x844.png") });
-  report.push({ mode: "journal-loading", centeredScene: true });
+  report.push({ mode: "journal-skeleton", standaloneLoadingScene: false });
   await journalPage.waitForTimeout(5200);
   await journalContext.close();
 

@@ -15,24 +15,22 @@ const viewports = [
 ];
 
 async function login(page) {
+  await page.addInitScript(() => {
+    const demoUserId = "00000000-0000-4000-8000-000000000001";
+    localStorage.setItem(`nava.onboarding.v3.${demoUserId}`, JSON.stringify({
+      completed: true,
+      completedAt: new Date().toISOString(),
+      version: 3,
+      answers: {},
+      source: "local",
+    }));
+  });
   await page.goto(`${baseUrl}?demo=1`, { waitUntil: "networkidle" });
   const launch = page.locator(".launch-sequence");
   if (await launch.isVisible().catch(() => false)) await launch.click();
   await page.locator('input[autocomplete="username"]').fill("13800138000");
   await page.locator('input[autocomplete="current-password"]').fill("12345678");
   await page.locator(".auth-submit").click();
-  await page.locator(".onboarding-screen, .phone-frame").first().waitFor({ state: "visible", timeout: 10_000 });
-  const onboarding = page.locator(".onboarding-screen");
-  if (!(await onboarding.isVisible().catch(() => false))) return;
-  const welcome = page.locator(".onboarding-welcome");
-  if (await welcome.isVisible().catch(() => false)) await welcome.waitFor({ state: "hidden", timeout: 6_000 });
-  for (const step of ["gender", "occupation", "ageGroup", "hobbies", "sleepDuration", "exerciseDuration", "dietPreferences"]) {
-    await expect(onboarding).toHaveAttribute("data-onboarding-step", step);
-    await page.locator(".onboarding-option-grid button").first().click();
-    if (["hobbies", "dietPreferences"].includes(step)) await page.locator(".onboarding-next").click();
-  }
-  await page.locator(".onboarding-consent-row input").first().check({ force: true });
-  await page.locator(".onboarding-next").click();
   await expect(page.locator(".phone-frame")).toBeVisible();
 }
 
