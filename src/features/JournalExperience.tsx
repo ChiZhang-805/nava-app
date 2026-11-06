@@ -8,11 +8,12 @@ import { registerPreviewActivity, updatePreviewActivity } from '../services/prev
 import { startVoiceInput, type VoiceInputSession } from '../services/voice';
 import { requestScreenWakeLock, type ScreenWakeLockSentinel } from '../services/focusImmersion';
 import type { RecordModule } from './RecordsScreen';
-import NavaLoadingScene from '../components/NavaLoadingScene';
+import PageSkeleton, { type PageSkeletonVariant } from '../components/PageSkeleton';
 import './journal-experience.css';
 import type { AppSkin } from '../services/appSkin';
 
 const categoryMap:Record<RecordModule,JournalCategory>={mood:'mood',diet:'food',exercise:'sport',focus:'focus',sleep:'sleep',face:'face'};
+const editorSkeletonMap:Record<RecordModule,PageSkeletonVariant>={mood:'record-editor-mood',diet:'record-editor-diet',exercise:'record-editor-exercise',focus:'record-editor-focus',sleep:'record-editor-sleep',face:'record-editor-face'};
 type Props={user:User;module:RecordModule;locale:'zh'|'en';skin:AppSkin;forceGuide?:boolean;guidePreview?:boolean;onSaved:()=>void;onExit:()=>void};
 
 /** Exactly one iframe, scoped to the authenticated parent. It never receives the JWT. */
@@ -100,7 +101,7 @@ export default function JournalExperience({user,module,locale,skin,forceGuide=fa
   return <section className={`journal-experience${guideActive?' is-guiding':''}`} aria-label={locale==='zh'?'生活记录':'Journal'}>
     <iframe key={`${module}-${locale}-${skin}-${attempt}-${forceGuide}`} ref={frame} aria-hidden={Boolean(firstFeedback)} tabIndex={firstFeedback?-1:undefined} src={`${import.meta.env.BASE_URL}journal/index.html?v=20261006-skins-a11y-v3&skin=${encodeURIComponent(skin)}&category=${encodeURIComponent(categoryMap[module])}`} title={locale==='zh'?'记录与回顾':'Journal and recap'} allow="camera; microphone"/>
     {firstFeedback&&<div className="cold-feedback-layer"><FirstRecordFeedback record={firstFeedback} onClose={()=>setFirstFeedback(null)}/></div>}
-    {!ready&&!error&&<div className="journal-loading"><NavaLoadingScene /></div>}
+    {!ready&&!error&&<div className="journal-loading journal-loading--skeleton"><PageSkeleton variant={editorSkeletonMap[module]} /></div>}
     {error&&<div className="journal-loading is-error" role="alert"><strong>{error}</strong><button onClick={()=>{setError('');setReady(false);setAttempt(x=>x+1);}}>{locale==='zh'?'重试':'Retry'}</button></div>}
   </section>;
 }

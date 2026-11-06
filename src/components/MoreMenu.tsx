@@ -42,6 +42,7 @@ export default function MoreMenu({ open, onOpenChange, label, className = "", bu
     { value: "zh", label: "简体中文" },
     { value: "en", label: "English" },
   ];
+  const hasPageItems = Children.count(children) > 0;
 
   return <div ref={root} className={`nava-more-menu ${className}`} onBlur={(event) => {
     // Safari can blur to no focused element when pressing a menu button.
@@ -63,7 +64,7 @@ export default function MoreMenu({ open, onOpenChange, label, className = "", bu
       onClick={() => onOpenChange(!open)} onKeyDown={(event) => {
         if (!open && (event.key === "ArrowDown" || event.key === "ArrowUp")) { event.preventDefault(); onOpenChange(true); }
       }}><MoreHorizontal size={23} aria-hidden="true" /></button>
-    {open && <div className="app-utility-popover" ref={menu} id={id} role="menu" aria-label={view === "language" ? (locale === "zh" ? "语言" : "Language") : view === "skin" ? (locale === "zh" ? "界面皮肤" : "Interface skin") : label} onClick={(event) => {
+    {open && <div className="app-utility-popover" ref={menu} id={id} role="menu" aria-label={view === "language" ? (locale === "zh" ? "语言" : "Language") : view === "skin" ? (locale === "zh" ? "皮肤" : "Skin") : label} onClick={(event) => {
       const button = event.target instanceof Element ? event.target.closest("button") : null;
       if (view === "main" && button && !button.classList.contains("more-menu-language") && !button.classList.contains("more-menu-skin")) close();
     }}>
@@ -73,14 +74,14 @@ export default function MoreMenu({ open, onOpenChange, label, className = "", bu
         {choices.map((choice) => <button key={choice.value} type="button" role="menuitemradio" aria-checked={preference === choice.value}
           onClick={() => { setPreference(choice.value); close(); }}><span className="more-menu-choice">{choice.label}</span>{preference === choice.value && <Check className="more-menu-check" />}</button>)}
       </> : view === "skin" && skin && onSkinChange ? <>
-        <button type="button" role="menuitem" onClick={() => setView("main")}><ArrowLeft /><span>{locale === "zh" ? "界面皮肤" : "Interface skin"}</span></button>
+        <button type="button" role="menuitem" onClick={() => setView("main")}><ArrowLeft /><span>{locale === "zh" ? "皮肤" : "Skin"}</span></button>
         <div role="separator" className="more-menu-divider" />
         <AppSkinPicker value={skin} onChange={(next) => { onSkinChange(next); close(); }} compact />
       </> : <>
         {menuItems(children)}
-        <div role="separator" className="more-menu-divider" />
+        {hasPageItems && <div role="separator" className="more-menu-divider" />}
         {skin && onSkinChange && <button type="button" role="menuitem" className="more-menu-skin" onClick={() => setView("skin")}>
-          <Palette /><span>{locale === "zh" ? "界面皮肤" : "Interface skin"}</span><small>{locale === "zh" ? "三款" : "3 skins"}</small><ChevronRight />
+          <Palette /><span>{locale === "zh" ? "皮肤" : "Skin"}</span><small>{locale === "zh" ? "三款" : "3 skins"}</small><ChevronRight />
         </button>}
         <button type="button" role="menuitem" className="more-menu-language" onClick={() => setView("language")}>
           <Languages /><span>{locale === "zh" ? "语言" : "Language"}</span><small>{locale === "zh" ? "中文" : "English"}</small><ChevronRight />

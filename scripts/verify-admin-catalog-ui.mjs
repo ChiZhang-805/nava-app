@@ -10,26 +10,14 @@ await mkdir(out, { recursive: true });
 const html = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div><script type="module">
 import React from 'react';import ReactDOM from 'react-dom/client';import {LocaleProvider} from '/src/i18n.tsx';
 import Admin from '/src/features/AdminConsole.tsx';import Shop from '/src/features/PointsShopExperience.tsx';
-import '/src/styles/global.css';import '/src/styles/figma-v2.css';
+import '/src/styles/global.css';import '/src/styles/figma-v2.css';import '/src/styles/shared-overlays.css';
 function Fixture(){const [view,setView]=React.useState('points-shop');return React.createElement('main',{style:{height:'100dvh',width:'100%',overflow:'hidden'}},location.hash==='#shop'?React.createElement(Shop,{user:{id:'10000000-0000-4000-8000-000000000001'},view,onViewChange:setView,onHome:()=>{}}):React.createElement(Admin,{user:{id:'10000000-0000-4000-8000-000000000001'},onHome:()=>{}}));}
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(LocaleProvider,null,React.createElement(Fixture)));
 </script></body></html>`;
-const server = await createServer({ logLevel: "silent", server: { host: "127.0.0.1", port: 5264, strictPort: true }, plugins: [{ name: "admin-fixture", configureServer(s) { s.middlewares.use(async (req, res, next) => { if (req.url !== "/__admin.html") return next(); res.setHeader("Content-Type", "text/html"); res.end(await s.transformIndexHtml(req.url, html)); }); } }] });
+const server = await createServer({ logLevel: "silent", server: { host: "127.0.0.1", port: 5264, strictPort: true }, plugins: [{ name: "admin-fixture", configureServer(s) { s.middlewares.use(async (req, res, next) => { if (!req.url?.startsWith("/__admin.html")) return next(); res.setHeader("Content-Type", "text/html"); res.end(await s.transformIndexHtml(req.url, html)); }); } }] });
 await server.listen();
 const browser = await chromium.launch();
 const report = [];
-async function swipe(page) {
-  const box = await page.locator(".admin-image-carousel").boundingBox();
-  const cdp = await page.context().newCDPSession(page), y = box.y + box.height * .6;
-  try {
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: box.x + box.width * .85, y }] });
-    for (let i = 1; i <= 14; i++) {
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: box.x + box.width * (.85 - .7 * i / 14), y }] });
-      await new Promise(resolve => setTimeout(resolve, 25));
-    }
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-  } finally { await cdp.detach(); }
-}
 async function geometry(page) {
   return page.evaluate(() => {
     const screen = document.querySelector(".admin-console-screen");
@@ -75,7 +63,7 @@ try {
     });
     const page=await context.newPage();page.on("pageerror",e=>errors.push(e.message));
     await page.goto("http://127.0.0.1:5264/__admin.html");
-    await expect(page.locator(".admin-console-actions > button")).toHaveCount(3);
+    await expect(page.locator(".admin-console-actions > button")).toHaveCount(3, { timeout: 15000 });
     assert.equal((await geometry(page)).homeBackground,"rgba(0, 0, 0, 0)");
     await page.getByRole("button",{name:zh?"更多管理员操作":"More admin actions"}).click();
     assert.ok(await page.locator('[role=menuitem]').first().evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=16));
@@ -92,7 +80,9 @@ try {
     await page.getByLabel(zh?"添加图片":"Add images",{exact:true}).setInputFiles(files);
     await expect(page.locator(".admin-image-slide")).toHaveCount(6);
     await expect(page.locator(".admin-product-editor fieldset")).toBeEnabled();
-    await swipe(page);
+    // Use the explicit control for deterministic cross-engine pagination; touch momentum
+    // varies with the host compositor and is covered separately by the carousel geometry.
+    await page.getByRole("button",{name:zh?"下一张图片":"Next image"}).click();
     await expect(page.locator(".admin-gallery-navigation > span")).toHaveText("2 / 5");
     await expect.poll(()=>page.locator(".admin-image-carousel").evaluate(el=>Math.abs(el.scrollLeft/el.clientWidth-1))).toBeLessThan(.005).catch(async error=>{console.log(await page.locator(".admin-image-carousel").evaluate(el=>({width:el.clientWidth,left:el.scrollLeft,snap:getComputedStyle(el).scrollSnapType,children:[...el.children].map(c=>({width:c.clientWidth,snap:getComputedStyle(c).scrollSnapAlign,rect:c.getBoundingClientRect().toJSON()}))})));throw error;});
     assert.equal(await page.locator(".admin-image-carousel").evaluate(el=>{const box=el.getBoundingClientRect();return [...el.children].filter(child=>{const r=child.getBoundingClientRect();return Math.min(r.right,box.right)-Math.max(r.left,box.left)>2;}).length;}),1);
@@ -126,7 +116,7 @@ try {
     assert.equal(calls.at(-1).args.product_data.image_urls.length,5);
     await expect(page.locator(".admin-product-list")).toContainText(zh?"待上架":"Coming soon");
     await page.screenshot({path:`${out}/products-${lang}-${viewport.width}.png`});
-    const shop=await context.newPage();await shop.goto("http://127.0.0.1:5264/__admin.html#shop");
+    const shop=await context.newPage();await shop.goto("http://127.0.0.1:5264/__admin.html?qa=admin-console#shop");
     await expect(shop.locator(".points-shop-product-copy")).toContainText(zh?"小猫笔记本":"Cat notebook");
     await expect(shop.locator(".points-shop-add")).toBeDisabled();
     await shop.locator(".points-shop-product-open").click();

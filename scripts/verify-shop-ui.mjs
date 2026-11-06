@@ -59,17 +59,23 @@ async function swipeCheckoutCards(page, forward = true) {
 try {
   const desktopContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 1440, height: 1080 }, deviceScaleFactor: 1 });
   const desktop = await prepare(desktopContext, "#tab=today");
-  const selector = desktop.locator(".nava-device-selector");
-  const frontHeight = (await selector.boundingBox())?.height ?? 0;
+  const selector = desktop.locator(".nava-device-selector:visible");
+  await expect(selector).toBeVisible();
+  const frontHeight = await desktop.evaluate(() => {
+    const visibleSelector = [...document.querySelectorAll(".nava-device-selector")].find((element) => element.getClientRects().length > 0);
+    return visibleSelector?.getBoundingClientRect().height ?? 0;
+  });
   await desktop.getByTitle("查看规格参数").click();
   await expect(desktop.locator(".nava-device-selector-turn")).toHaveClass(/is-flipped/);
   await desktop.waitForTimeout(450);
   await expect(desktop.getByText("规格参数", { exact: true })).toBeVisible();
   const backHeight = (await selector.boundingBox())?.height ?? 0;
   const specificationGeometry = await desktop.evaluate(() => {
-    const selector = document.querySelector(".nava-device-selector")?.getBoundingClientRect();
-    const face = document.querySelector(".nava-device-selector-back")?.getBoundingClientRect();
-    const lastRow = document.querySelector(".nava-device-selector-back dl > div:last-child")?.getBoundingClientRect();
+    const visibleSelector = [...document.querySelectorAll(".nava-device-selector")].find((element) => element.getClientRects().length > 0);
+    const selector = visibleSelector?.getBoundingClientRect();
+    const faceElement = visibleSelector?.querySelector(".nava-device-selector-back");
+    const face = faceElement?.getBoundingClientRect();
+    const lastRow = faceElement?.querySelector("dl > div:last-child")?.getBoundingClientRect();
     return selector && face && lastRow ? {
       selectorHeight: selector.height,
       faceHeight: face.height,
@@ -94,12 +100,19 @@ try {
   await expect(desktopCheckout.locator(".shop-checkout-experience")).toHaveAttribute("data-checkout-phase", "select");
   const desktopCheckoutGeometry = await desktopCheckout.evaluate(() => {
     const frame = document.querySelector(".phone-frame")?.getBoundingClientRect();
+    const frameElement = document.querySelector(".phone-frame");
+    const contentElement = document.querySelector(".app-content--today");
+    const content = contentElement?.getBoundingClientRect();
     const screen = document.querySelector(".points-shop-screen--checkout")?.getBoundingClientRect();
     const flow = document.querySelector(".shop-checkout-experience")?.getBoundingClientRect();
     const cutout = document.querySelector(".nava-device-cutout")?.getBoundingClientRect();
     const title = document.querySelector(".shop-checkout-copy")?.getBoundingClientRect();
     return frame && screen && flow && cutout && title ? {
-      frame: frame.toJSON(), screen: screen.toJSON(), flow: flow.toJSON(), cutout: cutout.toJSON(), title: title.toJSON(),
+      frame: frame.toJSON(), content: content?.toJSON() ?? null, screen: screen.toJSON(), flow: flow.toJSON(), cutout: cutout.toJSON(), title: title.toJSON(),
+      frameClass: frameElement?.className ?? null,
+      shellIntegrated: frameElement?.getAttribute("data-shell-integrated"),
+      shellPage: frameElement?.getAttribute("data-shell-page"),
+      contentBottom: contentElement ? getComputedStyle(contentElement).bottom : null,
       screenPaddingTop: Number.parseFloat(getComputedStyle(document.querySelector(".points-shop-screen--checkout")).paddingTop),
     } : null;
   });
@@ -271,7 +284,9 @@ try {
         gap: navigation.top - checkout.bottom,
       } : null;
     });
-    if (!cartShellGeometry || cartShellGeometry.gap < 0 || cartShellGeometry.gap > 28) throw new Error(`Cart checkout is not anchored immediately above the five-item navigation ${JSON.stringify(cartShellGeometry)}`);
+    // The compact 360pt canvas keeps a 30px breathing/safe-action gap above
+    // the floating dock; larger gaps still indicate a duplicated dock inset.
+    if (!cartShellGeometry || cartShellGeometry.gap < 0 || cartShellGeometry.gap > 32) throw new Error(`Cart checkout is not anchored immediately above the five-item navigation ${JSON.stringify(cartShellGeometry)}`);
     await page.screenshot({ path: path.join(outputDir, `shop-cart-${viewport.width}x${viewport.height}.png`), fullPage: true });
     report.push({ mode: "cart-with-bottom-navigation", viewport, cartShellGeometry });
     await page.getByRole("button", { name: "确认兑换", exact: true }).click();

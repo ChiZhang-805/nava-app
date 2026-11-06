@@ -196,7 +196,13 @@ export default function DesktopDevicePreviewChrome({ reminderUserId, onFirstLogi
   useLayoutEffect(() => {
     const face = showSpecifications ? selectorBackRef.current : selectorFrontRef.current;
     if (!face) return;
-    const updateHeight = () => setSelectorHeight(Math.ceil(face.scrollHeight));
+    const updateHeight = () => {
+      const nextHeight = Math.ceil(Math.max(face.scrollHeight, face.getBoundingClientRect().height));
+      // The desktop-only controls are mounted while the mobile media query is
+      // inactive. Keep the last usable size instead of collapsing the card to
+      // zero before it becomes visible on a desktop preview.
+      if (nextHeight > 0) setSelectorHeight(nextHeight);
+    };
     updateHeight();
     const observer = new ResizeObserver(updateHeight);
     observer.observe(face);

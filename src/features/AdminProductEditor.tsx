@@ -10,6 +10,7 @@ export default function AdminProductEditor({ product, onChange, onUpload, onSubm
   const track = useRef<HTMLDivElement>(null);
   const [imageIndex, setImageIndex] = useState(0);
   const activeIndex = useRef(0);
+  const previousImageCount = useRef(product.imageUrls.length);
   const uploadStart = useRef(0);
   const wasBusy = useRef(false);
   const touching = useRef(false);
@@ -34,10 +35,33 @@ export default function AdminProductEditor({ product, onChange, onUpload, onSubm
     if (!busy && wasBusy.current && track.current) {
       // The browser may keep the trailing add tile snapped while uploads are inserted before it.
       // Return to the first newly uploaded image only after the whole batch is rendered.
-      track.current.scrollTo({ left: Math.min(uploadStart.current, product.imageUrls.length) * track.current.clientWidth, behavior: "instant" });
+      const nextIndex = Math.min(uploadStart.current, product.imageUrls.length);
+      activeIndex.current = nextIndex;
+      setImageIndex(nextIndex);
+      track.current.scrollTo({ left: nextIndex * track.current.clientWidth, behavior: "instant" });
     }
     wasBusy.current = busy;
   }, [busy, product.imageUrls.length]);
+  useEffect(() => {
+    const previousCount = previousImageCount.current;
+    previousImageCount.current = product.imageUrls.length;
+    if (product.imageUrls.length <= previousCount || !track.current) return;
+    // QA/local uploads may resolve in the same React batch, so `busy` never has to
+    // paint as true. Image-count growth is the reliable signal in every runtime.
+    // Wait through layout and scroll anchoring before returning to the first new item.
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        const node = track.current;
+        if (!node) return;
+        const nextIndex = Math.min(uploadStart.current, product.imageUrls.length);
+        activeIndex.current = nextIndex;
+        setImageIndex(nextIndex);
+        node.scrollTo({ left: nextIndex * node.clientWidth, behavior: "instant" });
+      });
+    });
+    return () => { cancelAnimationFrame(firstFrame); if (secondFrame) cancelAnimationFrame(secondFrame); };
+  }, [product.imageUrls.length]);
   useEffect(() => {
     const node = track.current;
     if (!node) return;
@@ -73,7 +97,7 @@ export default function AdminProductEditor({ product, onChange, onUpload, onSubm
             <CloudUpload size={38} /><strong>{zh ? "添加图片" : "Add images"}</strong>
             <small>{product.imageUrls.length >= 6 ? (zh ? "最多 6 张，请先移除一张" : "6 images maximum. Remove one to add another.") : (zh ? "JPG、PNG、WebP 或 AVIF · 每张不超过 8 MB" : "JPG, PNG, WebP or AVIF · up to 8 MB each")}</small>
             <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple disabled={busy || product.imageUrls.length >= 6}
-              aria-label={zh ? "添加图片" : "Add images"} onChange={(event) => { void onUpload(event.target.files); event.target.value = ""; }} />
+              aria-label={zh ? "添加图片" : "Add images"} onChange={(event) => { uploadStart.current = product.imageUrls.length; void onUpload(event.target.files); event.target.value = ""; }} />
           </label>
         </div>
         <div className="admin-gallery-navigation">

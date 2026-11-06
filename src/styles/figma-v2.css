@@ -485,7 +485,7 @@ body::before {
 }
 
 .app-utility-popover > button {
-  min-height: 38px;
+  min-height: 44px;
   border: 0;
   border-radius: 11px;
   display: flex;
@@ -495,7 +495,7 @@ body::before {
   color: #173f53;
   background: transparent;
   font: inherit;
-  font-size: 13px;
+  font-size: 16px;
   text-align: left;
 }
 
@@ -11052,6 +11052,9 @@ body::before {
   .today-todo-duration-trigger { min-height: 42px; }
   .today-todo-duration-trigger strong { font-size: 15px; }
   .today-todo-duration-trigger small { font-size: 10px; }
+  /* Keep the wheel between its trigger and the form action on compact
+     iPhones. It remains scrollable instead of covering the steps or submit. */
+  .today-todo-compose .duration-unit-popover { height: 84px; }
   .today-todo-submit { min-height: 44px; font-size: 14px; }
   .today-todo-card-carousel { gap: 10px; }
   .today-todo-list-section { padding: 10px 12px; border-radius: 22px; }
@@ -13199,6 +13202,11 @@ body::before {
   gap: 10px;
   padding: 0 13px;
   box-shadow: none;
+  /* Keep the full row tappable throughout the expanded state. The generic
+     home-control entrance scale used to shrink this below Apple's 44pt
+     target while the menu was opening. */
+  animation: none;
+  transform: none;
 }
 
 .option-two-side-actions.is-open .option-two-side-shortcut::after {
@@ -13580,7 +13588,7 @@ body::before {
   .option-two-side-actions button { width: 44px; height: 44px; }
   .option-two-side-actions .option-two-side-shortcut { margin-top: 9px; }
   .option-two-side-actions.is-open { width: min(172px, calc(100% - 26px)); gap: 4px; padding: 6px; }
-  .option-two-side-actions.is-open .option-two-side-shortcut { height: 40px; min-height: 40px; margin-top: 0; }
+  .option-two-side-actions.is-open .option-two-side-shortcut { height: 44px; min-height: 44px; margin-top: 0; }
   .home-widget-grid {
     top: clamp(114px, 16cqh, 122px);
     right: 21px;
@@ -14953,3 +14961,100 @@ body::before {
 .home-widget-grid.is-large-text > [class*="--position-6"] { grid-row: 6; }
 .home-widget-grid.is-large-text .home-health-widget > span { display: flex; align-items: center; }
 .home-widget-grid.is-large-text .home-health-widget { height: auto; min-height: 144px; }
+
+/* iOS viewport contract ----------------------------------------------------
+   The phone frame is the only viewport. Full-height profile subpages do not
+   create a second rubber-banding scroller on ordinary phones; compact screens
+   and the software keyboard opt into a bounded inner scroller below. */
+.phone-frame:is(
+  [data-shell-page="home"],
+  [data-shell-page="chat"],
+  [data-shell-page="profile-personal"],
+  [data-shell-page="profile-skin"],
+  [data-shell-page="profile-wardrobe"],
+  [data-shell-page="profile-account"],
+  [data-shell-page="profile-health"],
+  [data-shell-page="profile-watch"],
+  [data-shell-page="profile-privacy"],
+  [data-shell-page="home-widgets"]
+) > .app-content {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.phone-frame--subpage-no-nav:not(.phone-frame--option2) > .app-content {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.phone-frame--subpage-no-nav:not(.phone-frame--option2) > .app-content > .screen-panel {
+  height: 100%;
+  min-height: 0;
+}
+.profile-subpage {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.profile-subpage[data-profile-view="personal"] .profile-personal-card {
+  overflow: hidden;
+}
+
+/* Every profile overview module starts its title on the same measured row.
+   Top edge -> title/icon row is intentionally identical for account, activity
+   history and quick access, regardless of viewport height. */
+.profile-overview,
+.page-skeleton--profile {
+  /* This is the card-edge to title-row inset. The glyph/text is vertically
+     centred inside the shared 38px row, so 8-10px produces a measured visual
+     inset of roughly 16-18px on every overview module. */
+  --profile-module-heading-inset: clamp(8px, 2.4cqw, 10px);
+  --profile-module-heading-row: 38px;
+}
+.profile-overview-account,
+.profile-quarter-card,
+.profile-entry-card {
+  padding-top: var(--profile-module-heading-inset);
+}
+.profile-overview-account .section-heading,
+.profile-quarter-header,
+.profile-entry-header {
+  min-height: var(--profile-module-heading-row);
+  height: var(--profile-module-heading-row);
+  margin-top: 0;
+  align-items: center;
+}
+.profile-overview-account .section-heading { margin-bottom: 8px; }
+.profile-quarter-card { padding-bottom: var(--profile-module-bottom-inset); }
+.profile-entry-card { padding-bottom: 0; }
+
+/* Account & security uses the available one-screen height instead of leaving
+   a visually empty footer. Text and glyphs remain comfortably tappable. */
+.profile-security-entries {
+  grid-template-rows: repeat(7, minmax(56px, 1fr));
+  gap: 4px;
+}
+.profile-security-entries > button {
+  min-height: 56px;
+  grid-template-columns: 34px minmax(0, 1fr) 22px;
+  gap: 12px;
+  padding-block: 7px;
+}
+.profile-security-entries > button > svg:first-child { width: 24px; height: 24px; }
+.profile-security-entries > button > svg:last-child { width: 22px; height: 22px; }
+.profile-security-entries > button > span { gap: 5px; }
+.profile-security-entries strong { font-size: 16px; line-height: 1.2; }
+.profile-security-entries small { font-size: 12.5px; line-height: 1.25; }
+.profile-security-entries > button:disabled { opacity: .72; }
+
+@media (max-height: 760px) and (max-width: 600px) {
+  .profile-subpage:not([data-profile-view="wardrobe"]) {
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .profile-subpage:not([data-profile-view="wardrobe"]) > .profile-one-screen-card {
+    flex: 0 0 auto;
+  }
+  .profile-security-entries { grid-template-rows: repeat(7, minmax(52px, auto)); }
+  .profile-security-entries > button { min-height: 52px; }
+}

@@ -38,6 +38,22 @@ const pages = [
   ["points-shop-add-card", "tab=today&view=points-shop-add-card"],
 ];
 
+// These routes are intentionally viewport-bound. Their outer app-content
+// surface must never become a second page scroller; compact-phone and keyboard
+// fallbacks may scroll only inside their designated content panel.
+const fixedViewportPages = new Set([
+  "home",
+  "chat",
+  "profile-personal",
+  "profile-skin",
+  "profile-wardrobe",
+  "profile-account",
+  "profile-health",
+  "profile-watch",
+  "profile-privacy",
+  "home-widgets",
+]);
+
 assert.equal(pages.length, 26);
 assert.equal(new Set(pages.map(([name]) => name)).size, pages.length);
 
@@ -106,6 +122,8 @@ try {
           .map((element) => paint(element));
         const appContent = root.querySelector(".app-content");
         const appContentStyle = appContent ? getComputedStyle(appContent) : null;
+        const screenPanel = appContent?.querySelector(":scope > .screen-panel") ?? null;
+        const screenPanelStyle = screenPanel ? getComputedStyle(screenPanel) : null;
         const dock = root.querySelector(":scope > .bottom-nav");
         const dockRect = visible(dock) ? dock.getBoundingClientRect() : null;
         const frameRect = root.getBoundingClientRect();
@@ -127,6 +145,12 @@ try {
         return {
           frameOverflow: root.scrollWidth - root.clientWidth,
           contentOverflow: appContent ? appContent.scrollWidth - appContent.clientWidth : 0,
+          contentVerticalOverflow: appContent ? appContent.scrollHeight - appContent.clientHeight : 0,
+          contentOverflowY: appContentStyle?.overflowY ?? "",
+          contentOverscrollY: appContentStyle?.overscrollBehaviorY ?? "",
+          panelVerticalOverflow: screenPanel ? screenPanel.scrollHeight - screenPanel.clientHeight : 0,
+          panelOverflowY: screenPanelStyle?.overflowY ?? "",
+          panelOverscrollY: screenPanelStyle?.overscrollBehaviorY ?? "",
           scrollbarWidth: appContent ? getComputedStyle(appContent).scrollbarWidth : "",
           contentPaddingTop: appContentStyle ? parseFloat(appContentStyle.paddingTop) : 0,
           globalHeader: paint(root.querySelector(":scope > .figma-app-header")),
@@ -147,6 +171,11 @@ try {
 
       assert.ok(geometry.frameOverflow <= 1, `${width}x${height} ${name}: frame overflow ${geometry.frameOverflow}`);
       assert.ok(geometry.contentOverflow <= 1, `${width}x${height} ${name}: content overflow ${geometry.contentOverflow}`);
+      if (fixedViewportPages.has(name)) {
+        assert.match(geometry.contentOverflowY, /hidden|clip/, `${width}x${height} ${name}: fixed viewport outer surface is scrollable (${geometry.contentOverflowY})`);
+        assert.ok(geometry.contentVerticalOverflow <= 1, `${width}x${height} ${name}: fixed viewport leaks ${geometry.contentVerticalOverflow}px below the phone frame`);
+        assert.match(geometry.contentOverscrollY, /none|contain/, `${width}x${height} ${name}: fixed viewport can rubber-band (${geometry.contentOverscrollY || "auto"})`);
+      }
       assert.equal(geometry.scrollbarWidth, "none", `${width}x${height} ${name}: scrollbar chrome must be hidden`);
       if (geometry.globalHeader) {
         const headerHeight = parseFloat(geometry.globalHeader.height);

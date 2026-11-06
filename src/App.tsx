@@ -111,15 +111,6 @@ function LoadingScreen() {
   return <LoadingShell />;
 }
 
-function DelayedLoadingScreen({ delay = 180 }: { delay?: number }) {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setVisible(true), delay);
-    return () => window.clearTimeout(timer);
-  }, [delay]);
-  return visible ? <LoadingScreen /> : null;
-}
-
 function ConfigErrorScreen({ message }: { message: string }) {
   const t = useT();
 
@@ -1017,7 +1008,7 @@ function AppContent({
 
   let screen;
   if (configError && !isDemoMode()) screen = <ConfigErrorScreen message={configError} />;
-  else if (loading) screen = <DelayedLoadingScreen />;
+  else if (loading) screen = <LoadingScreen />;
   else if (user && passwordRecovery) screen = <PasswordRecoveryScreen />;
   else if (!user) screen = <AuthScreen />;
   else if (firstLoginPreviewOpen) {
@@ -1035,7 +1026,7 @@ function AppContent({
   else if (onboardingError) {
     screen = <main className="app-screen centered-screen"><div className="brand-mark warn"><Activity size={28} /></div><h1>{locale === "zh" ? "暂时无法进入" : "Unable to continue"}</h1><p className="muted">{onboardingError}</p><button className="primary" type="button" onClick={() => setOnboardingRetryKey((value) => value + 1)}>{locale === "zh" ? "重新检查" : "Retry"}</button></main>;
   } else if (checkingOnboarding) {
-    screen = <DelayedLoadingScreen />;
+    screen = <LoadingScreen />;
   } else if (onboardingRoute?.required) {
     screen = <OnboardingScreen user={user} status={onboardingRoute.status} mode={onboardingRoute.mode} onComplete={(status) => {
       const url = new URL(window.location.href);

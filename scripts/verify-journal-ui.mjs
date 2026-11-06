@@ -11,6 +11,10 @@ async function checkBackground(frame,page,scene,width,height){
  const host=await page.locator('.journal-experience iframe').boundingBox();
  if(Math.abs(host.x)>1||Math.abs(host.y)>1||Math.abs(host.width-width)>1||Math.abs(host.height-height)>1)throw Error('Journal does not fill the NAVA screen');
  const valid=await frame.evaluate(({scene,width,height})=>{
+  if(scene==='celebrate'){
+   const garden=document.querySelector('.celebration-garden'),r=garden?.getBoundingClientRect();
+   return Boolean(garden&&!garden.hidden&&r&&r.x===0&&r.y===0&&r.width===width&&r.height===height);
+  }
   const bg=document.querySelector(scene==='celebrate'?'#green-bg':'.cream-bg'),r=bg.getBoundingClientRect();
   return r.x===0&&r.y===0&&r.width===width&&r.height===height&&bg.parentElement.className==='stage'&&Number(getComputedStyle(bg).opacity)===1;
  },{scene,width,height});
@@ -23,7 +27,7 @@ try{
   await page.setViewportSize({width,height});
   for(const category of categories){
    let saves=0;const records=[];
-   await page.route('**/__journal-harness',route=>route.fulfill({contentType:'text/html',body:`<link rel='stylesheet' href='/src/styles/global.css'><link rel='stylesheet' href='/src/styles/figma-v2.css'><link rel='stylesheet' href='/src/features/journal-experience.css'><div id='root'><div class='nava-app-stage'><div class='phone-frame phone-frame--journal'><div class='safe-top'></div><main class='app-content app-content--record'><div class='screen-panel'><section class='journal-experience'><iframe src='/journal/index.html'></iframe></section></div></main></div></div></div><script>window.addEventListener('load',()=>{const c=new MessageChannel();c.port1.onmessage=async({data})=>{let result=null;if(data.method==='save'){result=await window.saveRecord(data.payload.record);}if(data.method==='ai'){c.port1.postMessage({id:data.id,error:'Explicit offline UI fixture'});return;}c.port1.postMessage({id:data.id,result});};document.querySelector('iframe').contentWindow.postMessage({type:'nava-journal-connect',initial:{category:'${category}',locale:'zh',records:[],settings:{},nativePhotos:false}},location.origin,[c.port2]);});</script>`}));
+   await page.route('**/__journal-harness',route=>route.fulfill({contentType:'text/html',body:`<link rel='stylesheet' href='/src/styles/global.css'><link rel='stylesheet' href='/src/styles/figma-v2.css'><link rel='stylesheet' href='/src/features/journal-experience.css'><div id='root'><div class='nava-app-stage'><div class='phone-frame phone-frame--journal'><div class='safe-top'></div><main class='app-content app-content--record'><div class='screen-panel'><section class='journal-experience'><iframe src='/journal/index.html'></iframe></section></div></main></div></div></div><script>window.addEventListener('load',()=>{const c=new MessageChannel();c.port1.onmessage=async({data})=>{let result=null;if(data.method==='save'){result=await window.saveRecord(data.payload.record);}if(data.method==='ai'){c.port1.postMessage({id:data.id,error:'Explicit offline UI fixture'});return;}c.port1.postMessage({id:data.id,result});};document.querySelector('iframe').contentWindow.postMessage({type:'nava-journal-connect',initial:{category:'${category}',locale:'zh',records:[],settings:{['fluffy-first-guide-${category}']:true},nativePhotos:false}},location.origin,[c.port2]);});</script>`}));
    saveDispatcher=async record=>{saves++;const value={...record,version:1};records.push(value);return value;};
    await page.goto('http://localhost:5173/__journal-harness');
    const frame=page.frames().find(f=>f.url().includes('/journal/'));
@@ -47,7 +51,7 @@ try{
    await frame.locator('#confirm-entry').click();
    if(category==='focus'){
      await frame.waitForSelector('#screen[data-scene="focus"]');
-     await frame.waitForSelector('#screen[data-scene="celebrate"]',{timeout:20000});
+     await frame.waitForSelector('.celebration-garden:not([hidden])',{timeout:20000});
    }else{
      await frame.waitForSelector('#screen[data-scene="record"]');
      await frame.waitForTimeout(700);
@@ -55,7 +59,7 @@ try{
      await page.screenshot({path:`${out}/${category}-${width}-writing.png`});
      await frame.waitForFunction(()=>!document.querySelector('#primary').disabled);
      await frame.locator('#primary').click();
-     await frame.waitForSelector('#screen[data-scene="celebrate"]');
+     await frame.waitForSelector('.celebration-garden:not([hidden])');
    }
    await frame.waitForTimeout(700);await checkBackground(frame,page,'celebrate',width,height);
    await page.screenshot({path:`${out}/${category}-${width}-celebrate.png`});
