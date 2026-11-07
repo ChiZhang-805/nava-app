@@ -79,6 +79,11 @@ final class NavaDietDashboardVisualTests: XCTestCase {
             let editor = app.descendants(matching: .any)["diet.meal.editor"].firstMatch
             XCTAssertTrue(editor.waitForExistence(timeout: 5), "Meal editor did not open")
             XCTAssertTrue(app.buttons["保存餐食修改"].exists, "Meal editor save control is missing")
+
+            let editorAttachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            editorAttachment.name = "meal-editor"
+            editorAttachment.lifetime = .keepAlways
+            add(editorAttachment)
         }
     }
 

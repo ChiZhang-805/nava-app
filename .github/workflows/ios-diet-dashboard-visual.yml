@@ -270,6 +270,10 @@ jobs:
             exit 1
           fi
           cp "${ACTUAL}" "${ARTIFACT_ROOT}/actual.png"
+          EDITOR="$(find "${EXPORT_ROOT}" -type f -name '*meal-editor*.png' -print | head -n 1)"
+          if [[ -n "${EDITOR}" ]]; then
+            cp "${EDITOR}" "${ARTIFACT_ROOT}/meal-editor.png"
+          fi
           echo "actual=${ARTIFACT_ROOT}/actual.png" >> "${GITHUB_OUTPUT}"
 
       - name: Compare with the approved baseline
@@ -308,6 +312,9 @@ jobs:
           cp "${ARTIFACT_ROOT}/actual.png" "${CANDIDATE_ROOT}/actual.png"
           if [[ -f "${ARTIFACT_ROOT}/candidate-baseline.png" ]]; then
             cp "${ARTIFACT_ROOT}/candidate-baseline.png" "${CANDIDATE_ROOT}/candidate-baseline.png"
+          fi
+          if [[ -f "${ARTIFACT_ROOT}/meal-editor.png" ]]; then
+            cp "${ARTIFACT_ROOT}/meal-editor.png" "${CANDIDATE_ROOT}/meal-editor.png"
           fi
           find "${ARTIFACT_ROOT}/attachments" -type f \
             \( -name '*.json' -o -name 'manifest.json' \) \
