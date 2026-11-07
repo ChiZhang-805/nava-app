@@ -1345,17 +1345,28 @@ private struct NavaDietFoodLibraryCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        ZStack {
-            front
-                .opacity(isFlipped ? 0 : 1)
-                .allowsHitTesting(!isFlipped)
-                .accessibilityHidden(isFlipped)
+        VStack(spacing: 12) {
+            cardHeader
 
-            back
-                .opacity(isFlipped ? 1 : 0)
-                .rotation3DEffect(.degrees(reduceMotion ? 0 : 180), axis: (x: 0, y: 1, z: 0))
-                .allowsHitTesting(isFlipped)
-                .accessibilityHidden(!isFlipped)
+            ZStack {
+                front
+                    .opacity(isFlipped ? 0 : 1)
+                    .allowsHitTesting(!isFlipped)
+                    .accessibilityHidden(isFlipped)
+
+                back
+                    .opacity(isFlipped ? 1 : 0)
+                    .rotation3DEffect(.degrees(reduceMotion ? 0 : 180), axis: (x: 0, y: 1, z: 0))
+                    .allowsHitTesting(isFlipped)
+                    .accessibilityHidden(!isFlipped)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .rotation3DEffect(
+                .degrees(reduceMotion ? 0 : (isFlipped ? 180 : 0)),
+                axis: (x: 0, y: 1, z: 0),
+                perspective: 0.72
+            )
+            .animation(reduceMotion ? nil : .spring(response: 0.48, dampingFraction: 0.82), value: isFlipped)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 372)
@@ -1366,60 +1377,48 @@ private struct NavaDietFoodLibraryCard: View {
                 .stroke(isSelected ? NavaColor.accent.opacity(0.72) : Color.white.opacity(0.82), lineWidth: isSelected ? 2 : 1)
         }
         .shadow(color: NavaColor.ink.opacity(0.05), radius: 18, y: 8)
-        .rotation3DEffect(
-            .degrees(reduceMotion ? 0 : (isFlipped ? 180 : 0)),
-            axis: (x: 0, y: 1, z: 0),
-            perspective: 0.72
-        )
-        .animation(reduceMotion ? nil : .spring(response: 0.48, dampingFraction: 0.82), value: isFlipped)
         .accessibilityValue(isFlipped ? (isChinese ? "营养信息面" : "Nutrition side") : (isChinese ? "图片面" : "Image side"))
     }
 
     private var front: some View {
-        VStack(spacing: 12) {
-            cardHeader
+        Button {
+            isFlipped = true
+        } label: {
+            VStack(spacing: 12) {
+                NavaDietMealArtwork(meal: option.meal)
+                    .frame(width: 224, height: 224)
+                    .accessibilityHidden(true)
 
-            Button {
-                isFlipped = true
-            } label: {
-                VStack(spacing: 12) {
-                    NavaDietMealArtwork(meal: option.meal)
-                        .frame(width: 224, height: 224)
-                        .accessibilityHidden(true)
+                HStack(alignment: .center, spacing: 10) {
+                    Label(option.source.title(isChinese: isChinese), systemImage: option.source.systemImage)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(NavaColor.secondaryInk)
 
-                    HStack(alignment: .center, spacing: 10) {
-                        Label(option.source.title(isChinese: isChinese), systemImage: option.source.systemImage)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(NavaColor.secondaryInk)
+                    Spacer(minLength: 6)
 
-                        Spacer(minLength: 6)
+                    Text("\(option.calories) kcal")
+                        .font(.headline.weight(.bold))
+                        .monospacedDigit()
+                        .foregroundStyle(NavaColor.ink)
 
-                        Text("\(option.calories) kcal")
-                            .font(.headline.weight(.bold))
-                            .monospacedDigit()
-                            .foregroundStyle(NavaColor.ink)
-
-                        if isSelected {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(NavaColor.accent)
-                        }
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(NavaColor.accent)
                     }
-
-                    Text(isChinese ? "轻点卡片查看营养" : "Tap to view nutrition")
-                        .font(.caption2)
-                        .foregroundStyle(NavaColor.secondaryInk.opacity(0.82))
                 }
-                .contentShape(Rectangle())
+
+                Text(isChinese ? "轻点卡片查看营养" : "Tap to view nutrition")
+                    .font(.caption2)
+                    .foregroundStyle(NavaColor.secondaryInk.opacity(0.82))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isChinese ? "查看\(option.name)营养" : "View nutrition for \(option.name)")
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isChinese ? "查看\(option.name)营养" : "View nutrition for \(option.name)")
     }
 
     private var back: some View {
         VStack(alignment: .leading, spacing: 18) {
-            cardHeader
-
             Button {
                 isFlipped = false
             } label: {
@@ -1491,6 +1490,7 @@ private struct NavaDietFoodLibraryCard: View {
             .buttonStyle(.plain)
             .accessibilityLabel(selectionAccessibilityLabel)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var cardHeader: some View {
