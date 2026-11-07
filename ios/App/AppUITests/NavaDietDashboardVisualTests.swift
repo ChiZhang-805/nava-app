@@ -86,20 +86,46 @@ final class NavaDietDashboardVisualTests: XCTestCase {
             editorAttachment.lifetime = .keepAlways
             add(editorAttachment)
 
-            let dinnerLabel = language == "zh-Hans" ? "晚餐" : "Dinner"
-            let dinner = app.segmentedControls.buttons[dinnerLabel].firstMatch
-            XCTAssertTrue(dinner.waitForExistence(timeout: 5), "Dinner meal-kind option is missing")
-            dinner.tap()
+            let searchPrompt = language == "zh-Hans"
+                ? "搜索历史、收藏或常见菜"
+                : "Search history, favorites, or foods"
+            let searchField = app.searchFields[searchPrompt].firstMatch
+            XCTAssertTrue(searchField.waitForExistence(timeout: 5), "Food-library search field is missing")
 
-            let editorTitle = language == "zh-Hans" ? "编辑晚餐" : "Edit Dinner"
+            let searchTerm = language == "zh-Hans" ? "鸡胸" : "Chicken"
+            let foodName = language == "zh-Hans" ? "鸡胸时蔬" : "Chicken and vegetables"
+            searchField.tap()
+            searchField.typeText(searchTerm)
+
+            let recentFood = app.descendants(matching: .any)["diet.meal.food-card.recent-breakfast"].firstMatch
             XCTAssertTrue(
-                app.navigationBars[editorTitle].waitForExistence(timeout: 5),
-                "Meal editor title did not follow the selected meal kind"
+                recentFood.waitForExistence(timeout: 5),
+                "A matching previously eaten food did not appear in search"
             )
+
+            app.swipeUp()
+            let favoriteLabel = language == "zh-Hans" ? "收藏\(foodName)" : "Favorite \(foodName)"
+            XCTAssertTrue(app.buttons[favoriteLabel].waitForExistence(timeout: 5), "Food favorite control is missing")
+            app.buttons[favoriteLabel].tap()
+
+            recentFood.tap()
+            let foodBack = app.descendants(matching: .any)["diet.meal.food-card.recent-breakfast.back"].firstMatch
+            XCTAssertTrue(foodBack.waitForExistence(timeout: 5), "Food card did not flip to its nutrition side")
+
+            let addFoodLabel = language == "zh-Hans"
+                ? "加入\(foodName)到本餐"
+                : "Add \(foodName) to meal"
+            if !app.buttons[addFoodLabel].isHittable {
+                app.swipeUp()
+            }
+            XCTAssertTrue(app.buttons[addFoodLabel].waitForExistence(timeout: 5), "Per-food selection control is missing")
+            app.buttons[addFoodLabel].tap()
+
             app.buttons[saveLabel].tap()
             XCTAssertTrue(
-                app.staticTexts[dinnerLabel].firstMatch.waitForExistence(timeout: 5),
-                "Saved meal kind did not return to the dashboard"
+                app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", foodName)).firstMatch
+                    .waitForExistence(timeout: 5),
+                "Selected food did not return to the meal card"
             )
         }
     }
