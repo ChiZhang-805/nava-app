@@ -184,6 +184,7 @@ struct NavaDietDashboardView: View {
                                 NavaDietMealCard(meal: meal, compact: compact)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("diet.dashboard.meal.\(meal.id)")
 
                             NavigationLink {
                                 NavaDietMealEditorView(
@@ -197,12 +198,13 @@ struct NavaDietDashboardView: View {
                                     .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .accessibilityElement(children: .ignore)
                             .padding(.trailing, compact ? 8 : 10)
                             .padding(.bottom, compact ? 8 : 11)
                             .accessibilityLabel(copy.editMeal(meal.title))
                             .accessibilityIdentifier("diet.dashboard.edit.\(meal.id)")
                         }
-                        .accessibilityIdentifier("diet.dashboard.meal.\(meal.id)")
+                        .accessibilityElement(children: .contain)
                     }
                 }
             }
@@ -400,8 +402,7 @@ private struct NavaDietMealCard: View {
                         .frame(width: columnWidth, alignment: .leading)
                 }
 
-                Spacer(minLength: 8)
-                    .frame(width: compact ? 34 : 38)
+                Spacer(minLength: compact ? 42 : 48)
             }
             .frame(height: lowerRowHeight)
         }
@@ -435,8 +436,7 @@ private struct NavaDietMealCard: View {
                 NavaDietMacroMini(label: "Protein", value: "\(meal.protein)g")
                 NavaDietMacroMini(label: "Carbs", value: "\(meal.carbs)g")
                 NavaDietMacroMini(label: "Fat", value: "\(meal.fat)g")
-                Spacer(minLength: 0)
-                    .frame(width: 44)
+                Spacer(minLength: 52)
             }
         }
         .foregroundStyle(NavaColor.ink)
