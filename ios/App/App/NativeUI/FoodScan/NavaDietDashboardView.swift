@@ -844,10 +844,38 @@ private struct NavaDietMealDetailView: View {
     }
 }
 
+private enum NavaDietMealKind: String, CaseIterable, Identifiable {
+    case breakfast
+    case lunch
+    case dinner
+    case snack
+
+    var id: Self { self }
+
+    func title(isChinese: Bool) -> String {
+        switch self {
+        case .breakfast: isChinese ? "早餐" : "Breakfast"
+        case .lunch: isChinese ? "午餐" : "Lunch"
+        case .dinner: isChinese ? "晚餐" : "Dinner"
+        case .snack: isChinese ? "加餐" : "Snack"
+        }
+    }
+
+    static func infer(from meal: NavaDietMeal) -> Self {
+        let source = "\(meal.id) \(meal.title)".lowercased()
+        if source.contains("breakfast") || source.contains("早餐") { return .breakfast }
+        if source.contains("dinner") || source.contains("晚餐") { return .dinner }
+        if source.contains("snack") || source.contains("加餐") { return .snack }
+        return .lunch
+    }
+}
+
 private struct NavaDietMealEditorView: View {
     @State private var draft: NavaDietMeal
+    @State private var mealKind: NavaDietMealKind
     @State private var showingDeleteConfirmation = false
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
 
     let onSave: (NavaDietMeal) -> Void
     let onDelete: (String) -> Void
@@ -858,77 +886,38 @@ private struct NavaDietMealEditorView: View {
         onDelete: @escaping (String) -> Void
     ) {
         _draft = State(initialValue: meal)
+        _mealKind = State(initialValue: NavaDietMealKind.infer(from: meal))
         self.onSave = onSave
         self.onDelete = onDelete
     }
 
-    private var trimmedTitle: String {
-        draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+    private var isChinese: Bool {
+        locale.identifier.lowercased().hasPrefix("zh")
+    }
+
+    private var selectedMealTitle: String {
+        mealKind.title(isChinese: isChinese)
     }
 
     var body: some View {
-        Form {
-            Section {
-                HStack(spacing: 16) {
-                    NavaDietMealArtwork(meal: draft)
-                        .frame(width: 76, height: 76)
-                        .accessibilityHidden(true)
+        ZStack {
+            NavaDietDashboardBackground()
 
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(trimmedTitle.isEmpty ? "未命名餐食" : trimmedTitle)
-                            .font(.headline.weight(.bold))
-                            .foregroundStyle(NavaColor.ink)
-                        Text("\(draft.time) · \(draft.calories) kcal")
-                            .font(.subheadline)
-                            .foregroundStyle(NavaColor.secondaryInk)
-                        Text("\(draft.dishCount) 道菜")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(NavaColor.secondaryInk)
-                    }
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    mealKindPicker
+                    mealDetailsCard
+                    recognitionCard
+                    deleteButton
                 }
-                .padding(.vertical, 4)
+                .padding(.horizontal, NavaMetric.pageInset)
+                .padding(.top, 12)
+                .padding(.bottom, 32)
             }
-
-            Section("餐次信息") {
-                TextField("餐次名称", text: $draft.title)
-                    .textInputAutocapitalization(.never)
-                TextField("记录时间（如 12:36）", text: $draft.time)
-                    .keyboardType(.numbersAndPunctuation)
-                TextField("菜品说明", text: $draft.note, axis: .vertical)
-                    .lineLimit(2...4)
-                Stepper("菜品数量  \(draft.dishCount)", value: $draft.dishCount, in: 1...20)
-            }
-
-            Section("营养含量") {
-                Stepper("热量  \(draft.calories) kcal", value: $draft.calories, in: 0...5000, step: 10)
-                Stepper("Protein  \(draft.protein)g", value: $draft.protein, in: 0...300)
-                Stepper("Carbs  \(draft.carbs)g", value: $draft.carbs, in: 0...500)
-                Stepper("Fat  \(draft.fat)g", value: $draft.fat, in: 0...300)
-            }
-
-            Section("餐食图片") {
-                NavigationLink {
-                    NavaFoodScanView { result, asset in
-                        applyRecognition(result, asset: asset)
-                    }
-                } label: {
-                    Label("重新拍摄并识别", systemImage: "camera.viewfinder")
-                }
-
-                Text("保存识别结果后，菜品数量、名称说明与营养估算会回填到本餐；餐图只显示该条记录实际关联的素材。")
-                    .font(.footnote)
-                    .foregroundStyle(NavaColor.secondaryInk)
-            }
-
-            Section {
-                Button("删除这条餐食记录", role: .destructive) {
-                    showingDeleteConfirmation = true
-                }
-            }
+            .scrollDismissesKeyboard(.interactively)
+            .scrollIndicators(.hidden)
         }
-        .scrollContentBackground(.hidden)
-        .background(NavaDietDashboardBackground())
-        .navigationTitle("编辑\(trimmedTitle)")
+        .navigationTitle(isChinese ? "编辑\(selectedMealTitle)" : "Edit \(selectedMealTitle)")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(false)
         .toolbar(.visible, for: .navigationBar)
@@ -936,31 +925,194 @@ private struct NavaDietMealEditorView: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button {
-                    draft.title = trimmedTitle
+                    draft.title = selectedMealTitle
                     onSave(draft)
                     dismiss()
                 } label: {
                     Image(systemName: "checkmark")
                         .fontWeight(.bold)
                 }
-                .disabled(trimmedTitle.isEmpty)
-                .accessibilityLabel("保存餐食修改")
+                .accessibilityLabel(isChinese ? "保存餐食修改" : "Save meal changes")
             }
         }
         .confirmationDialog(
-            "删除\(trimmedTitle.isEmpty ? "这条餐食" : trimmedTitle)？",
+            isChinese ? "删除\(selectedMealTitle)？" : "Delete \(selectedMealTitle)?",
             isPresented: $showingDeleteConfirmation,
             titleVisibility: .visible
         ) {
-            Button("删除记录", role: .destructive) {
+            Button(isChinese ? "删除记录" : "Delete Meal", role: .destructive) {
                 onDelete(draft.id)
                 dismiss()
             }
-            Button("取消", role: .cancel) { }
+            Button(isChinese ? "取消" : "Cancel", role: .cancel) { }
         } message: {
-            Text("删除后，这条记录的热量与菜品数量也会从当天汇总中移除。")
+            Text(isChinese
+                ? "删除后，这条记录的热量与菜品数量也会从当天汇总中移除。"
+                : "Its calories and dish count will also be removed from today's totals."
+            )
         }
         .accessibilityIdentifier("diet.meal.editor")
+    }
+
+    private var mealKindPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(isChinese ? "选择餐次" : "Meal")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(NavaColor.secondaryInk)
+
+            Picker(isChinese ? "选择餐次" : "Select meal", selection: $mealKind) {
+                ForEach(NavaDietMealKind.allCases) { kind in
+                    Text(kind.title(isChinese: isChinese)).tag(kind)
+                }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("diet.meal.editor.kind")
+        }
+        .padding(16)
+        .background(Color.white.opacity(0.78), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private var mealDetailsCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top, spacing: 14) {
+                NavaDietMealArtwork(meal: draft)
+                    .frame(width: 88, height: 88)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(selectedMealTitle)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(NavaColor.ink)
+
+                    TextField(
+                        isChinese ? "这一餐吃了什么" : "What did you eat?",
+                        text: $draft.note,
+                        axis: .vertical
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(NavaColor.ink)
+                    .lineLimit(2...3)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(NavaColor.mist.opacity(0.58), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+            }
+
+            HStack(spacing: 12) {
+                NavaDietMealTextControl(
+                    title: isChinese ? "记录时间" : "Time",
+                    systemImage: "clock",
+                    text: $draft.time
+                )
+                .keyboardType(.numbersAndPunctuation)
+
+                NavaDietMealCountControl(
+                    title: isChinese ? "菜品数量" : "Dishes",
+                    value: $draft.dishCount,
+                    range: 1...20,
+                    unit: isChinese ? "道" : ""
+                )
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text(isChinese ? "营养估算" : "Nutrition")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(NavaColor.ink)
+
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: 12),
+                        GridItem(.flexible(), spacing: 12)
+                    ],
+                    spacing: 12
+                ) {
+                    NavaDietEditableMetric(
+                        title: isChinese ? "热量" : "Calories",
+                        unit: "kcal",
+                        systemImage: "flame.fill",
+                        tint: NavaColor.reward,
+                        value: $draft.calories,
+                        range: 0...5000,
+                        step: 10
+                    )
+                    NavaDietEditableMetric(
+                        title: "Protein",
+                        unit: "g",
+                        systemImage: "leaf.fill",
+                        tint: NavaColor.accent,
+                        value: $draft.protein,
+                        range: 0...300
+                    )
+                    NavaDietEditableMetric(
+                        title: "Carbs",
+                        unit: "g",
+                        systemImage: "circle.hexagongrid.fill",
+                        tint: Color(red: 0.33, green: 0.68, blue: 0.78),
+                        value: $draft.carbs,
+                        range: 0...500
+                    )
+                    NavaDietEditableMetric(
+                        title: "Fat",
+                        unit: "g",
+                        systemImage: "drop.fill",
+                        tint: Color(red: 0.23, green: 0.48, blue: 0.62),
+                        value: $draft.fat,
+                        range: 0...300
+                    )
+                }
+            }
+        }
+        .padding(18)
+        .background(Color.white.opacity(0.88), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .shadow(color: NavaColor.ink.opacity(0.05), radius: 18, y: 8)
+    }
+
+    private var recognitionCard: some View {
+        NavigationLink {
+            NavaFoodScanView { result, asset in
+                applyRecognition(result, asset: asset)
+            }
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "camera.viewfinder")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(NavaColor.accent)
+                    .frame(width: 48, height: 48)
+                    .background(NavaColor.mist, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(isChinese ? "重新拍摄并识别" : "Scan This Meal Again")
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(NavaColor.ink)
+                    Text(isChinese ? "自动更新菜品、数量与营养估算" : "Update foods, portions, and nutrition")
+                        .font(.caption)
+                        .foregroundStyle(NavaColor.secondaryInk)
+                }
+
+                Spacer(minLength: 4)
+
+                Image(systemName: "chevron.right")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(NavaColor.secondaryInk.opacity(0.72))
+            }
+            .padding(16)
+            .background(Color.white.opacity(0.80), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("diet.meal.editor.rescan")
+    }
+
+    private var deleteButton: some View {
+        Button(role: .destructive) {
+            showingDeleteConfirmation = true
+        } label: {
+            Label(
+                isChinese ? "删除这条餐食记录" : "Delete This Meal",
+                systemImage: "trash"
+            )
+            .font(.subheadline.weight(.semibold))
+            .frame(minHeight: NavaMetric.minimumTap)
+        }
     }
 
     private func applyRecognition(_ result: NavaFoodRecognitionResult, asset: NavaGeneratedDishAsset?) {
@@ -998,6 +1150,127 @@ private struct NavaDietMealEditorView: View {
     private func roundedTotal(_ values: [Double]) -> Int? {
         guard !values.isEmpty else { return nil }
         return Int(values.reduce(0, +).rounded())
+    }
+}
+
+private struct NavaDietMealTextControl: View {
+    let title: String
+    let systemImage: String
+    @Binding var text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(NavaColor.secondaryInk)
+
+            TextField("--:--", text: $text)
+                .font(.headline.monospacedDigit())
+                .foregroundStyle(NavaColor.ink)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+        .background(NavaColor.mist.opacity(0.52), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+private struct NavaDietMealCountControl: View {
+    let title: String
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    let unit: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(NavaColor.secondaryInk)
+
+            HStack(spacing: 8) {
+                Text("\(value)\(unit)")
+                    .font(.headline.monospacedDigit())
+                    .foregroundStyle(NavaColor.ink)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                NavaDietAdjustmentButton(systemImage: "minus") {
+                    value = max(range.lowerBound, value - 1)
+                }
+                .disabled(value <= range.lowerBound)
+
+                NavaDietAdjustmentButton(systemImage: "plus") {
+                    value = min(range.upperBound, value + 1)
+                }
+                .disabled(value >= range.upperBound)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+        .background(NavaColor.mist.opacity(0.52), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+private struct NavaDietEditableMetric: View {
+    let title: String
+    let unit: String
+    let systemImage: String
+    let tint: Color
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    var step = 1
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 7) {
+                Image(systemName: systemImage)
+                    .foregroundStyle(tint)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(NavaColor.secondaryInk)
+                    .lineLimit(1)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text("\(value)")
+                    .font(.title3.weight(.bold).monospacedDigit())
+                    .foregroundStyle(NavaColor.ink)
+                Text(unit)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(NavaColor.secondaryInk)
+            }
+
+            HStack(spacing: 10) {
+                NavaDietAdjustmentButton(systemImage: "minus") {
+                    value = max(range.lowerBound, value - step)
+                }
+                .disabled(value <= range.lowerBound)
+
+                NavaDietAdjustmentButton(systemImage: "plus") {
+                    value = min(range.upperBound, value + step)
+                }
+                .disabled(value >= range.upperBound)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 132, alignment: .leading)
+        .background(tint.opacity(0.09), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(title), \(value) \(unit)")
+    }
+}
+
+private struct NavaDietAdjustmentButton: View {
+    let systemImage: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(NavaColor.ink)
+                .frame(width: NavaMetric.minimumTap, height: NavaMetric.minimumTap)
+                .background(Color.white.opacity(0.86), in: Circle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
