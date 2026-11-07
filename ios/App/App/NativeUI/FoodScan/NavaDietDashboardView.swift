@@ -909,7 +909,6 @@ private struct NavaDietMealEditorView: View {
     @State private var showingDeleteConfirmation = false
     @AppStorage("nava.diet.favoriteFoodIDs") private var favoriteFoodIDsRaw = ""
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.dismissSearch) private var dismissSearch
     @Environment(\.locale) private var locale
 
     private let recentMeals: [NavaDietMeal]
@@ -1101,7 +1100,6 @@ private struct NavaDietMealEditorView: View {
                                 onToggleSelection: {
                                     toggleSelection(option.id)
                                     query = ""
-                                    dismissSearch()
                                 },
                                 onToggleFavorite: { toggleFavorite(option.id) }
                             )
@@ -1349,6 +1347,7 @@ private struct NavaDietFoodLibraryCard: View {
     @State private var flipAngle = 0.0
     @State private var isAnimatingFlip = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dismissSearch) private var dismissSearch
 
     var body: some View {
         VStack(spacing: 12) {
@@ -1477,7 +1476,10 @@ private struct NavaDietFoodLibraryCard: View {
 
             Spacer(minLength: 0)
 
-            Button(action: onToggleSelection) {
+            Button {
+                onToggleSelection()
+                dismissSearch()
+            } label: {
                 Label(
                     isSelected
                         ? (isChinese ? "已加入本餐，点此移出" : "Added — tap to remove")
