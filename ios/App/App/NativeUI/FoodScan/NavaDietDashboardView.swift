@@ -252,7 +252,7 @@ private struct NavaDietMealCard: View {
     }
 
     private var standardLayout: some View {
-        HStack(spacing: compact ? 10 : 12) {
+        ZStack(alignment: .topLeading) {
             Image(meal.imageName)
                 .resizable()
                 .scaledToFit()
@@ -271,16 +271,10 @@ private struct NavaDietMealCard: View {
                     .font(.caption)
                     .foregroundStyle(NavaColor.secondaryInk)
                     .lineLimit(2)
-
-                Spacer(minLength: 2)
-
-                HStack(spacing: compact ? 8 : 12) {
-                    NavaDietMacroMini(label: "Protein", value: "\(meal.protein)g")
-                    NavaDietMacroMini(label: "Carbs", value: "\(meal.carbs)g")
-                    NavaDietMacroMini(label: "Fat", value: "\(meal.fat)g")
-                }
             }
-            .frame(maxWidth: .infinity, minHeight: compact ? 96 : 108, alignment: .leading)
+            .padding(.leading, compact ? 68 : 72)
+            .padding(.trailing, compact ? 68 : 74)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(alignment: .trailing, spacing: 0) {
                 Text(meal.calories.formatted())
@@ -290,16 +284,24 @@ private struct NavaDietMealCard: View {
                 Text("kcal")
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(NavaColor.secondaryInk)
-                Spacer(minLength: 6)
-                Image(systemName: "pencil")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(NavaColor.ink)
-                    .frame(width: 32, height: 32)
-                    .background(NavaColor.mist, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
-            .frame(width: compact ? 68 : 74)
-            .frame(minHeight: compact ? 96 : 108)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+
+            HStack(spacing: compact ? 8 : 12) {
+                NavaDietMacroMini(label: "Protein", value: "\(meal.protein)g")
+                NavaDietMacroMini(label: "Carbs", value: "\(meal.carbs)g")
+                NavaDietMacroMini(label: "Fat", value: "\(meal.fat)g")
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+
+            Image(systemName: "pencil")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(NavaColor.ink)
+                .frame(width: 32, height: 32)
+                .background(NavaColor.mist, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var accessibilityLayout: some View {
@@ -502,38 +504,26 @@ private struct NavaDietGaugeSegmentShape: Shape {
         let w = rect.width
         let h = rect.height
         var path = Path()
-        path.move(to: CGPoint(x: 0.25 * w, y: h))
-        path.addCurve(
-            to: CGPoint(x: 0.06 * w, y: 0.72 * h),
-            control1: CGPoint(x: 0.12 * w, y: h),
-            control2: CGPoint(x: 0.06 * w, y: 0.88 * h)
+        path.move(to: CGPoint(x: 0.10 * w, y: 0))
+        path.addLine(to: CGPoint(x: 0.90 * w, y: 0))
+        path.addQuadCurve(
+            to: CGPoint(x: 0.98 * w, y: 0.12 * h),
+            control: CGPoint(x: 0.98 * w, y: 0)
         )
-        path.addLine(to: CGPoint(x: 0.02 * w, y: 0.25 * h))
-        path.addCurve(
-            to: CGPoint(x: 0.24 * w, y: 0.03 * h),
-            control1: CGPoint(x: 0.01 * w, y: 0.13 * h),
-            control2: CGPoint(x: 0.10 * w, y: 0.03 * h)
+        path.addLine(to: CGPoint(x: 0.80 * w, y: 0.88 * h))
+        path.addQuadCurve(
+            to: CGPoint(x: 0.72 * w, y: h),
+            control: CGPoint(x: 0.78 * w, y: h)
         )
-        path.addCurve(
-            to: CGPoint(x: 0.76 * w, y: 0.03 * h),
-            control1: CGPoint(x: 0.40 * w, y: 0.00 * h),
-            control2: CGPoint(x: 0.60 * w, y: 0.00 * h)
+        path.addLine(to: CGPoint(x: 0.28 * w, y: h))
+        path.addQuadCurve(
+            to: CGPoint(x: 0.20 * w, y: 0.88 * h),
+            control: CGPoint(x: 0.22 * w, y: h)
         )
-        path.addCurve(
-            to: CGPoint(x: 0.98 * w, y: 0.25 * h),
-            control1: CGPoint(x: 0.90 * w, y: 0.03 * h),
-            control2: CGPoint(x: 0.99 * w, y: 0.13 * h)
-        )
-        path.addLine(to: CGPoint(x: 0.94 * w, y: 0.72 * h))
-        path.addCurve(
-            to: CGPoint(x: 0.75 * w, y: h),
-            control1: CGPoint(x: 0.94 * w, y: 0.88 * h),
-            control2: CGPoint(x: 0.88 * w, y: h)
-        )
-        path.addCurve(
-            to: CGPoint(x: 0.25 * w, y: h),
-            control1: CGPoint(x: 0.60 * w, y: 0.97 * h),
-            control2: CGPoint(x: 0.40 * w, y: 0.97 * h)
+        path.addLine(to: CGPoint(x: 0.02 * w, y: 0.12 * h))
+        path.addQuadCurve(
+            to: CGPoint(x: 0.10 * w, y: 0),
+            control: CGPoint(x: 0.02 * w, y: 0)
         )
         path.closeSubpath()
         return path
