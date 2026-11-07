@@ -270,7 +270,20 @@ jobs:
             exit 1
           fi
           cp "${ACTUAL}" "${ARTIFACT_ROOT}/actual.png"
-          EDITOR="$(find "${EXPORT_ROOT}" -type f -name '*meal-editor*.png' -print | head -n 1)"
+          EDITOR="$(EXPORT_ROOT="${EXPORT_ROOT}" python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["EXPORT_ROOT"])
+          for manifest in root.rglob("manifest.json"):
+              for test in json.loads(manifest.read_text()):
+                  for attachment in test.get("attachments", []):
+                      if "meal-editor" in attachment.get("suggestedHumanReadableName", ""):
+                          print(manifest.parent / attachment["exportedFileName"])
+                          raise SystemExit
+          PY
+          )"
           if [[ -n "${EDITOR}" ]]; then
             cp "${EDITOR}" "${ARTIFACT_ROOT}/meal-editor.png"
           fi
