@@ -78,12 +78,29 @@ final class NavaDietDashboardVisualTests: XCTestCase {
 
             let editor = app.descendants(matching: .any)["diet.meal.editor"].firstMatch
             XCTAssertTrue(editor.waitForExistence(timeout: 5), "Meal editor did not open")
-            XCTAssertTrue(app.buttons["保存餐食修改"].exists, "Meal editor save control is missing")
+            let saveLabel = language == "zh-Hans" ? "保存餐食修改" : "Save meal changes"
+            XCTAssertTrue(app.buttons[saveLabel].exists, "Meal editor save control is missing")
 
             let editorAttachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
             editorAttachment.name = "meal-editor"
             editorAttachment.lifetime = .keepAlways
             add(editorAttachment)
+
+            let dinnerLabel = language == "zh-Hans" ? "晚餐" : "Dinner"
+            let dinner = app.segmentedControls.buttons[dinnerLabel].firstMatch
+            XCTAssertTrue(dinner.waitForExistence(timeout: 5), "Dinner meal-kind option is missing")
+            dinner.tap()
+
+            let editorTitle = language == "zh-Hans" ? "编辑晚餐" : "Edit Dinner"
+            XCTAssertTrue(
+                app.navigationBars[editorTitle].waitForExistence(timeout: 5),
+                "Meal editor title did not follow the selected meal kind"
+            )
+            app.buttons[saveLabel].tap()
+            XCTAssertTrue(
+                app.staticTexts[dinnerLabel].firstMatch.waitForExistence(timeout: 5),
+                "Saved meal kind did not return to the dashboard"
+            )
         }
     }
 

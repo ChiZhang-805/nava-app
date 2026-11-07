@@ -1182,20 +1182,22 @@ private struct NavaDietMealCountControl: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text(title)
+            Text(unit.isEmpty ? title : "\(title) · \(unit)")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(NavaColor.secondaryInk)
+                .lineLimit(1)
 
-            HStack(spacing: 8) {
-                Text("\(value)\(unit)")
-                    .font(.headline.monospacedDigit())
-                    .foregroundStyle(NavaColor.ink)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
+            HStack(spacing: 4) {
                 NavaDietAdjustmentButton(systemImage: "minus") {
                     value = max(range.lowerBound, value - 1)
                 }
                 .disabled(value <= range.lowerBound)
+
+                Text("\(value)")
+                    .font(.headline.monospacedDigit())
+                    .foregroundStyle(NavaColor.ink)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity)
 
                 NavaDietAdjustmentButton(systemImage: "plus") {
                     value = min(range.upperBound, value + 1)
