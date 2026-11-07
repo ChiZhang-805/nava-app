@@ -909,6 +909,7 @@ private struct NavaDietMealEditorView: View {
     @State private var showingDeleteConfirmation = false
     @AppStorage("nava.diet.favoriteFoodIDs") private var favoriteFoodIDsRaw = ""
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dismissSearch) private var dismissSearch
     @Environment(\.locale) private var locale
 
     private let recentMeals: [NavaDietMeal]
@@ -1097,10 +1098,13 @@ private struct NavaDietMealEditorView: View {
                                 isSelected: selectedFoodIDs.contains(option.id),
                                 isFavorite: favoriteFoodIDs.contains(option.id),
                                 isChinese: isChinese,
-                                onToggleSelection: { toggleSelection(option.id) },
+                                onToggleSelection: {
+                                    toggleSelection(option.id)
+                                    query = ""
+                                    dismissSearch()
+                                },
                                 onToggleFavorite: { toggleFavorite(option.id) }
                             )
-                            .accessibilityIdentifier("diet.meal.food-card.\(option.id)")
                         }
                     }
 
@@ -1110,7 +1114,7 @@ private struct NavaDietMealEditorView: View {
                 .padding(.top, 10)
                 .padding(.bottom, 32)
             }
-            .scrollDismissesKeyboard(.interactively)
+            .scrollDismissesKeyboard(.immediately)
             .scrollIndicators(.hidden)
         }
         .searchable(
@@ -1411,63 +1415,64 @@ private struct NavaDietFoodLibraryCard: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(isChinese ? "查看\(option.name)营养" : "View nutrition for \(option.name)")
+        .accessibilityIdentifier("diet.meal.food-card.\(option.id)")
     }
 
     private var back: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Button {
-                flip(to: false)
-            } label: {
-                VStack(alignment: .leading, spacing: 18) {
-                    Text(option.meal.note)
-                        .font(.subheadline)
-                        .foregroundStyle(NavaColor.secondaryInk)
-                        .lineLimit(2)
-
-                    LazyVGrid(
-                        columns: [
-                            GridItem(.flexible(), spacing: 18),
-                            GridItem(.flexible(), spacing: 18)
-                        ],
-                        alignment: .leading,
-                        spacing: 22
-                    ) {
-                        nutrientLabel(
-                            title: isChinese ? "热量" : "Calories",
-                            value: "\(option.calories) kcal",
-                            systemImage: "flame.fill",
-                            tint: NavaColor.reward
-                        )
-                        nutrientLabel(
-                            title: "Protein",
-                            value: "\(option.protein) g",
-                            systemImage: "leaf.fill",
-                            tint: NavaColor.accent
-                        )
-                        nutrientLabel(
-                            title: "Carbs",
-                            value: "\(option.carbs) g",
-                            systemImage: "circle.hexagongrid.fill",
-                            tint: Color(red: 0.33, green: 0.68, blue: 0.78)
-                        )
-                        nutrientLabel(
-                            title: "Fat",
-                            value: "\(option.fat) g",
-                            systemImage: "drop.fill",
-                            tint: Color(red: 0.23, green: 0.48, blue: 0.62)
-                        )
-                    }
-
-                    Label(
-                        isChinese ? "轻点营养区域返回图片" : "Tap nutrition to return to image",
-                        systemImage: "arrow.triangle.2.circlepath"
-                    )
-                    .font(.caption)
+            VStack(alignment: .leading, spacing: 18) {
+                Text(option.meal.note)
+                    .font(.subheadline)
                     .foregroundStyle(NavaColor.secondaryInk)
+                    .lineLimit(2)
+
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: 18),
+                        GridItem(.flexible(), spacing: 18)
+                    ],
+                    alignment: .leading,
+                    spacing: 22
+                ) {
+                    nutrientLabel(
+                        title: isChinese ? "热量" : "Calories",
+                        value: "\(option.calories) kcal",
+                        systemImage: "flame.fill",
+                        tint: NavaColor.reward
+                    )
+                    nutrientLabel(
+                        title: "Protein",
+                        value: "\(option.protein) g",
+                        systemImage: "leaf.fill",
+                        tint: NavaColor.accent
+                    )
+                    nutrientLabel(
+                        title: "Carbs",
+                        value: "\(option.carbs) g",
+                        systemImage: "circle.hexagongrid.fill",
+                        tint: Color(red: 0.33, green: 0.68, blue: 0.78)
+                    )
+                    nutrientLabel(
+                        title: "Fat",
+                        value: "\(option.fat) g",
+                        systemImage: "drop.fill",
+                        tint: Color(red: 0.23, green: 0.48, blue: 0.62)
+                    )
                 }
-                .contentShape(Rectangle())
+
+                Label(
+                    isChinese ? "轻点营养区域返回图片" : "Tap nutrition to return to image",
+                    systemImage: "arrow.triangle.2.circlepath"
+                )
+                .font(.caption)
+                .foregroundStyle(NavaColor.secondaryInk)
             }
-            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .onTapGesture { flip(to: false) }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(isChinese ? "返回\(option.name)图片" : "Return to image for \(option.name)")
+            .accessibilityAction { flip(to: false) }
             .accessibilityIdentifier("diet.meal.food-card.\(option.id).back")
 
             Spacer(minLength: 0)

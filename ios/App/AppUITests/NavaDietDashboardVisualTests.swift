@@ -135,7 +135,12 @@ final class NavaDietDashboardVisualTests: XCTestCase {
 
             app.buttons[addFoodLabel].tap()
 
-            app.buttons[saveLabel].tap()
+            let saveButton = app.buttons[saveLabel]
+            XCTAssertTrue(
+                saveButton.waitForExistence(timeout: 5),
+                "Selecting a search result did not dismiss search and restore the save action"
+            )
+            saveButton.tap()
             XCTAssertTrue(
                 app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", foodName)).firstMatch
                     .waitForExistence(timeout: 5),
