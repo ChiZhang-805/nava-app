@@ -2,14 +2,16 @@ import SwiftUI
 
 struct NavaDietMeal: Identifiable, Hashable {
     let id: String
-    let title: String
-    let time: String
-    let note: String
-    let calories: Int
-    let protein: Int
-    let carbs: Int
-    let fat: Int
-    let imageName: String
+    var title: String
+    var time: String
+    var note: String
+    var dishCount: Int
+    var calories: Int
+    var protein: Int
+    var carbs: Int
+    var fat: Int
+    var imageName: String?
+    var imageURL: URL?
 }
 
 enum NavaDietDashboardContentState: String {
@@ -42,15 +44,21 @@ struct NavaDietDashboardView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.locale) private var locale
     @State private var selectedDate: Date
+    @State private var mealOverride: [NavaDietMeal]?
 
     private let contentState: NavaDietDashboardContentState
+    private let dailyCalorieTarget: Int
 
     init(
         contentState: NavaDietDashboardContentState? = nil,
-        date: Date? = nil
+        date: Date? = nil,
+        meals: [NavaDietMeal]? = nil,
+        dailyCalorieTarget: Int = 2_000
     ) {
         self.contentState = contentState ?? .launchConfigured
+        self.dailyCalorieTarget = max(dailyCalorieTarget, 1)
         _selectedDate = State(initialValue: date ?? NavaDietVisualTestClock.date)
+        _mealOverride = State(initialValue: meals)
     }
 
     private var isChinese: Bool {
@@ -62,7 +70,25 @@ struct NavaDietDashboardView: View {
     }
 
     private var meals: [NavaDietMeal] {
-        NavaDietMeal.samples(isChinese: isChinese)
+        if let mealOverride {
+            return mealOverride
+        }
+        if ProcessInfo.processInfo.arguments.contains("-NavaVisualTesting") {
+            return NavaDietMeal.samples(isChinese: isChinese)
+        }
+        return []
+    }
+
+    private var displayedMeals: [NavaDietMeal] {
+        contentState == .populated ? meals : []
+    }
+
+    private var totalCalories: Int {
+        displayedMeals.reduce(0) { $0 + $1.calories }
+    }
+
+    private var totalDishCount: Int {
+        displayedMeals.reduce(0) { $0 + $1.dishCount }
     }
 
     var body: some View {
@@ -106,8 +132,9 @@ struct NavaDietDashboardView: View {
             .frame(height: compact ? 54 : 58)
 
             NavaDietProgressHero(
-                calories: 1_286,
-                dishCount: 3,
+                calories: totalCalories,
+                dishCount: totalDishCount,
+                calorieTarget: dailyCalorieTarget,
                 dateText: copy.dateText(selectedDate, locale: locale),
                 calorieUnit: copy.calorieUnit,
                 dishUnit: copy.dishUnit,
@@ -140,15 +167,43 @@ struct NavaDietDashboardView: View {
     private func mealRegion(compact: Bool) -> some View {
         switch contentState {
         case .populated:
-            VStack(spacing: compact ? 7 : 8) {
-                ForEach(Array(meals.enumerated()), id: \.element.id) { index, meal in
-                    NavigationLink {
-                        NavaDietMealDetailView(meals: meals, initialIndex: index)
-                    } label: {
-                        NavaDietMealCard(meal: meal, compact: compact)
+            if meals.isEmpty {
+                NavaDietInlineState(
+                    icon: "fork.knife",
+                    title: copy.emptyTitle,
+                    message: copy.emptyMessage,
+                    actionTitle: copy.addMeal
+                )
+            } else {
+                VStack(spacing: compact ? 7 : 8) {
+                    ForEach(Array(meals.enumerated()), id: \.element.id) { index, meal in
+                        ZStack(alignment: .bottomTrailing) {
+                            NavigationLink {
+                                NavaDietMealDetailView(meals: meals, initialIndex: index)
+                            } label: {
+                                NavaDietMealCard(meal: meal, compact: compact)
+                            }
+                            .buttonStyle(.plain)
+
+                            NavigationLink {
+                                NavaDietMealEditorView(
+                                    meal: meal,
+                                    onSave: updateMeal,
+                                    onDelete: deleteMeal
+                                )
+                            } label: {
+                                NavaDietEditIcon(compact: compact)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.trailing, compact ? 8 : 10)
+                            .padding(.bottom, compact ? 8 : 11)
+                            .accessibilityLabel(copy.editMeal(meal.title))
+                            .accessibilityIdentifier("diet.dashboard.edit.\(meal.id)")
+                        }
+                        .accessibilityIdentifier("diet.dashboard.meal.\(meal.id)")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("diet.dashboard.meal.\(meal.id)")
                 }
             }
         case .empty:
@@ -167,36 +222,68 @@ struct NavaDietDashboardView: View {
             )
         }
     }
+
+    private func updateMeal(_ updatedMeal: NavaDietMeal) {
+        var updatedMeals = meals
+        guard let index = updatedMeals.firstIndex(where: { $0.id == updatedMeal.id }) else { return }
+        updatedMeals[index] = updatedMeal
+        mealOverride = updatedMeals
+    }
+
+    private func deleteMeal(_ mealID: String) {
+        mealOverride = meals.filter { $0.id != mealID }
+    }
 }
 
 private struct NavaDietProgressHero: View {
     let calories: Int
     let dishCount: Int
+    let calorieTarget: Int
     let dateText: String
     let calorieUnit: String
     let dishUnit: String
     let compact: Bool
 
     @ScaledMetric(relativeTo: .largeTitle) private var calorieSize: CGFloat = 44
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var revealedSegmentCount = 0
 
-    private let recordedSegmentCount = 6
     private let recordedColors: [Color] = [
         Color(red: 0.57, green: 0.86, blue: 0.93),
         Color(red: 0.50, green: 0.82, blue: 0.90),
         Color(red: 0.43, green: 0.78, blue: 0.87),
         Color(red: 0.36, green: 0.73, blue: 0.84),
         Color(red: 0.29, green: 0.68, blue: 0.80),
+        Color(red: 0.10, green: 0.46, blue: 0.61),
+        Color(red: 0.10, green: 0.46, blue: 0.61),
+        Color(red: 0.10, green: 0.46, blue: 0.61),
         Color(red: 0.10, green: 0.46, blue: 0.61)
     ]
+
+    private var segmentFillLevels: [Double] {
+        let calorieUnits = Double(max(calories, 0)) / Double(max(calorieTarget, 1))
+            * Double(NavaDietGaugeGeometry.segmentCount)
+        return (0..<NavaDietGaugeGeometry.segmentCount).map { index in
+            min(max(calorieUnits - Double(index), 0), 1)
+        }
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
             NavaDietGaugeLayout(compact: compact) {
                 ForEach(0..<NavaDietGaugeGeometry.segmentCount, id: \.self) { index in
-                    NavaDietGaugeSegmentShape()
-                        .fill(index < recordedSegmentCount ? recordedColors[index] : NavaDietGaugeGeometry.unrecordedColor)
-                        .rotationEffect(.degrees(NavaDietGaugeGeometry.rotationDegrees(for: index)))
-                        .accessibilityHidden(true)
+                    ZStack {
+                        NavaDietGaugeSegmentShape()
+                            .fill(NavaDietGaugeGeometry.unrecordedColor)
+
+                        NavaDietGaugeSegmentShape()
+                            .fill(recordedColors[index])
+                            .opacity(segmentFillLevels[index])
+                    }
+                    .rotationEffect(.degrees(NavaDietGaugeGeometry.rotationDegrees(for: index)))
+                    .opacity(index < revealedSegmentCount ? 1 : 0)
+                    .scaleEffect(index < revealedSegmentCount ? 1 : 0.94)
+                    .accessibilityHidden(true)
                 }
             }
 
@@ -218,7 +305,22 @@ private struct NavaDietProgressHero: View {
         .frame(height: compact ? 204 : 228)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(dateText)，\(calories) \(calorieUnit)，\(dishCount) \(dishUnit)")
+        .accessibilityValue("\(revealedSegmentCount)/\(NavaDietGaugeGeometry.segmentCount)")
         .accessibilityIdentifier("diet.dashboard.gauge")
+        .task(id: calories) {
+            if reduceMotion {
+                revealedSegmentCount = NavaDietGaugeGeometry.segmentCount
+                return
+            }
+
+            revealedSegmentCount = 0
+            for index in 0..<NavaDietGaugeGeometry.segmentCount {
+                try? await Task.sleep(nanoseconds: 70_000_000)
+                withAnimation(.easeInOut(duration: 0.30)) {
+                    revealedSegmentCount = index + 1
+                }
+            }
+        }
     }
 }
 
@@ -265,7 +367,9 @@ private struct NavaDietMealCard: View {
                         .font(.headline.weight(.bold))
                         .foregroundStyle(NavaColor.ink)
 
-                    Text("\(meal.time) · \(meal.note)")
+                    Text(meal.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                         ? meal.time
+                         : "\(meal.time) · \(meal.note)")
                         .font(.caption)
                         .foregroundStyle(NavaColor.secondaryInk)
                         .lineLimit(2)
@@ -297,9 +401,7 @@ private struct NavaDietMealCard: View {
                 }
 
                 Spacer(minLength: 8)
-
-                NavaDietEditIcon(compact: compact)
-                    .frame(width: compact ? 34 : 38, height: lowerRowHeight, alignment: .bottomTrailing)
+                    .frame(width: compact ? 34 : 38)
             }
             .frame(height: lowerRowHeight)
         }
@@ -313,7 +415,9 @@ private struct NavaDietMealCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(meal.title)
                         .font(.headline.weight(.bold))
-                    Text("\(meal.time) · \(meal.note)")
+                    Text(meal.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                         ? meal.time
+                         : "\(meal.time) · \(meal.note)")
                         .font(.body)
                         .foregroundStyle(NavaColor.secondaryInk)
                 }
@@ -332,21 +436,67 @@ private struct NavaDietMealCard: View {
                 NavaDietMacroMini(label: "Carbs", value: "\(meal.carbs)g")
                 NavaDietMacroMini(label: "Fat", value: "\(meal.fat)g")
                 Spacer(minLength: 0)
-                NavaDietEditIcon(compact: false)
-                    .frame(width: 44, height: 44, alignment: .trailing)
+                    .frame(width: 44)
             }
         }
         .foregroundStyle(NavaColor.ink)
     }
 
     private func dishImageSlot(size: CGFloat) -> some View {
-        return Image(meal.imageName)
-            .resizable()
-            .scaledToFit()
+        NavaDietMealArtwork(meal: meal)
             .padding(2)
             .frame(width: size, height: size)
             .shadow(color: NavaColor.ink.opacity(0.08), radius: 4, y: 2)
             .accessibilityHidden(true)
+    }
+}
+
+private struct NavaDietMealArtwork: View {
+    let meal: NavaDietMeal
+
+    var body: some View {
+        Group {
+            if let imageURL = meal.imageURL {
+                AsyncImage(url: imageURL, transaction: Transaction(animation: .easeInOut(duration: 0.25))) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    case .empty:
+                        placeholder(showsProgress: true)
+                    case .failure:
+                        placeholder(showsProgress: false)
+                    @unknown default:
+                        placeholder(showsProgress: false)
+                    }
+                }
+            } else if let imageName = meal.imageName, !imageName.isEmpty {
+                Image(imageName)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                placeholder(showsProgress: false)
+            }
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func placeholder(showsProgress: Bool) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(NavaColor.mist.opacity(0.72))
+
+            if showsProgress {
+                ProgressView()
+                    .tint(NavaColor.secondaryInk)
+            } else {
+                Image(systemName: "fork.knife")
+                    .font(.title3.weight(.medium))
+                    .foregroundStyle(NavaColor.secondaryInk.opacity(0.68))
+            }
+        }
     }
 }
 
@@ -399,6 +549,10 @@ private struct NavaDietDashboardCopy {
     var failureTitle: String { isChinese ? "暂时无法读取餐食" : "Meals are unavailable" }
     var failureMessage: String { isChinese ? "记录没有丢失，请稍后重试。" : "Your records are safe. Try again in a moment." }
     var retry: String { isChinese ? "重试" : "Retry" }
+
+    func editMeal(_ title: String) -> String {
+        isChinese ? "编辑\(title)" : "Edit \(title)"
+    }
 
     func dateText(_ date: Date, locale: Locale) -> String {
         let formatter = DateFormatter()
@@ -625,9 +779,7 @@ private struct NavaDietMealDetailView: View {
 
                 TabView(selection: $selectedIndex) {
                     ForEach(Array(meals.enumerated()), id: \.element.id) { index, meal in
-                        Image(meal.imageName)
-                            .resizable()
-                            .scaledToFit()
+                        NavaDietMealArtwork(meal: meal)
                             .padding(.horizontal, 10)
                             .tag(index)
                             .accessibilityLabel(meal.title)
@@ -692,6 +844,163 @@ private struct NavaDietMealDetailView: View {
     }
 }
 
+private struct NavaDietMealEditorView: View {
+    @State private var draft: NavaDietMeal
+    @State private var showingDeleteConfirmation = false
+    @Environment(\.dismiss) private var dismiss
+
+    let onSave: (NavaDietMeal) -> Void
+    let onDelete: (String) -> Void
+
+    init(
+        meal: NavaDietMeal,
+        onSave: @escaping (NavaDietMeal) -> Void,
+        onDelete: @escaping (String) -> Void
+    ) {
+        _draft = State(initialValue: meal)
+        self.onSave = onSave
+        self.onDelete = onDelete
+    }
+
+    private var trimmedTitle: String {
+        draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                HStack(spacing: 16) {
+                    NavaDietMealArtwork(meal: draft)
+                        .frame(width: 76, height: 76)
+                        .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(trimmedTitle.isEmpty ? "未命名餐食" : trimmedTitle)
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(NavaColor.ink)
+                        Text("\(draft.time) · \(draft.calories) kcal")
+                            .font(.subheadline)
+                            .foregroundStyle(NavaColor.secondaryInk)
+                        Text("\(draft.dishCount) 道菜")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(NavaColor.secondaryInk)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+
+            Section("餐次信息") {
+                TextField("餐次名称", text: $draft.title)
+                    .textInputAutocapitalization(.never)
+                TextField("记录时间（如 12:36）", text: $draft.time)
+                    .keyboardType(.numbersAndPunctuation)
+                TextField("菜品说明", text: $draft.note, axis: .vertical)
+                    .lineLimit(2...4)
+                Stepper("菜品数量  \(draft.dishCount)", value: $draft.dishCount, in: 1...20)
+            }
+
+            Section("营养含量") {
+                Stepper("热量  \(draft.calories) kcal", value: $draft.calories, in: 0...5000, step: 10)
+                Stepper("Protein  \(draft.protein)g", value: $draft.protein, in: 0...300)
+                Stepper("Carbs  \(draft.carbs)g", value: $draft.carbs, in: 0...500)
+                Stepper("Fat  \(draft.fat)g", value: $draft.fat, in: 0...300)
+            }
+
+            Section("餐食图片") {
+                NavigationLink {
+                    NavaFoodScanView { result, asset in
+                        applyRecognition(result, asset: asset)
+                    }
+                } label: {
+                    Label("重新拍摄并识别", systemImage: "camera.viewfinder")
+                }
+
+                Text("保存识别结果后，菜品数量、名称说明与营养估算会回填到本餐；餐图只显示该条记录实际关联的素材。")
+                    .font(.footnote)
+                    .foregroundStyle(NavaColor.secondaryInk)
+            }
+
+            Section {
+                Button("删除这条餐食记录", role: .destructive) {
+                    showingDeleteConfirmation = true
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(NavaDietDashboardBackground())
+        .navigationTitle("编辑\(trimmedTitle)")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(false)
+        .toolbar(.visible, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button {
+                    draft.title = trimmedTitle
+                    onSave(draft)
+                    dismiss()
+                } label: {
+                    Image(systemName: "checkmark")
+                        .fontWeight(.bold)
+                }
+                .disabled(trimmedTitle.isEmpty)
+                .accessibilityLabel("保存餐食修改")
+            }
+        }
+        .confirmationDialog(
+            "删除\(trimmedTitle.isEmpty ? "这条餐食" : trimmedTitle)？",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("删除记录", role: .destructive) {
+                onDelete(draft.id)
+                dismiss()
+            }
+            Button("取消", role: .cancel) { }
+        } message: {
+            Text("删除后，这条记录的热量与菜品数量也会从当天汇总中移除。")
+        }
+        .accessibilityIdentifier("diet.meal.editor")
+    }
+
+    private func applyRecognition(_ result: NavaFoodRecognitionResult, asset: NavaGeneratedDishAsset?) {
+        let names = result.items
+            .map(\.name)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        let macros = result.items.map(\.macros)
+
+        draft.dishCount = max(names.count, 1)
+        if !names.isEmpty {
+            draft.note = names.prefix(3).joined(separator: "、")
+        }
+        if let calories = roundedTotal(macros.compactMap(\.calories)) {
+            draft.calories = calories
+        }
+        if let protein = roundedTotal(macros.compactMap(\.proteinGrams)) {
+            draft.protein = protein
+        }
+        if let carbs = roundedTotal(macros.compactMap(\.carbohydrateGrams)) {
+            draft.carbs = carbs
+        }
+        if let fat = roundedTotal(macros.compactMap(\.fatGrams)) {
+            draft.fat = fat
+        }
+
+        if let storagePath = asset?.storagePath,
+           let url = URL(string: storagePath),
+           url.scheme == "https" || url.scheme == "http" {
+            draft.imageURL = url
+            draft.imageName = nil
+        }
+    }
+
+    private func roundedTotal(_ values: [Double]) -> Int? {
+        guard !values.isEmpty else { return nil }
+        return Int(values.reduce(0, +).rounded())
+    }
+}
+
 private struct NavaDietMacroValue: View {
     let value: Int
     let label: String
@@ -746,22 +1055,26 @@ private extension NavaDietMeal {
             title: isChinese ? "午餐" : "Lunch",
             time: "12:36",
             note: isChinese ? "番茄炒蛋等 2 道" : "Tomato eggs + 1 dish",
+            dishCount: 2,
             calories: 684,
             protein: 32,
             carbs: 58,
             fat: 21,
-            imageName: "NavaFoodTomatoEggs"
+            imageName: "NavaFoodTomatoEggs",
+            imageURL: nil
         ),
         NavaDietMeal(
             id: "breakfast",
             title: isChinese ? "早餐" : "Breakfast",
             time: "08:10",
             note: isChinese ? "鸡胸时蔬" : "Chicken and vegetables",
+            dishCount: 1,
             calories: 602,
             protein: 46,
             carbs: 41,
             fat: 12,
-            imageName: "NavaFoodChickenRice"
+            imageName: "NavaFoodChickenRice",
+            imageURL: nil
         )
     ] }
 }
@@ -770,12 +1083,12 @@ private extension NavaDietMeal {
 struct NavaDietDashboardView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationStack {
-            NavaDietDashboardView()
+            NavaDietDashboardView(meals: NavaDietMeal.samples(isChinese: true))
         }
         .previewDisplayName("饮食记录 · iPhone 15 Pro")
 
         NavigationStack {
-            NavaDietDashboardView()
+            NavaDietDashboardView(meals: NavaDietMeal.samples(isChinese: true))
         }
         .previewDevice("iPhone SE (3rd generation)")
         .previewDisplayName("饮食记录 · Compact")

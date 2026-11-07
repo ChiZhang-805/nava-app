@@ -37,6 +37,18 @@ final class NavaDietDashboardVisualTests: XCTestCase {
         let gauge = app.descendants(matching: .any)["diet.dashboard.gauge"].firstMatch
         let addMeal = app.descendants(matching: .any)["diet.dashboard.add-meal"].firstMatch
 
+        XCTAssertTrue(gauge.waitForExistence(timeout: 5), "Nine-segment gauge is missing")
+        XCTAssertTrue(addMeal.exists, "Add-meal control is missing")
+        let revealExpectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", "9/9"),
+            object: gauge
+        )
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [revealExpectation], timeout: 5),
+            .completed,
+            "Nine-segment gauge did not finish its sequential reveal"
+        )
+
         let screenshot = XCUIScreen.main.screenshot()
         let imageAttachment = XCTAttachment(screenshot: screenshot)
         imageAttachment.name = scenario
@@ -59,8 +71,15 @@ final class NavaDietDashboardVisualTests: XCTestCase {
         metricsAttachment.lifetime = .keepAlways
         add(metricsAttachment)
 
-        XCTAssertTrue(gauge.waitForExistence(timeout: 5), "Nine-segment gauge is missing")
-        XCTAssertTrue(addMeal.exists, "Add-meal control is missing")
+        if state == "populated", contentSize == "default" {
+            let editLunch = app.descendants(matching: .any)["diet.dashboard.edit.lunch"].firstMatch
+            XCTAssertTrue(editLunch.waitForExistence(timeout: 5), "Lunch edit control is missing")
+            editLunch.tap()
+
+            let editor = app.descendants(matching: .any)["diet.meal.editor"].firstMatch
+            XCTAssertTrue(editor.waitForExistence(timeout: 5), "Meal editor did not open")
+            XCTAssertTrue(app.buttons["保存餐食修改"].exists, "Meal editor save control is missing")
+        }
     }
 
     private func measurementPayload(
