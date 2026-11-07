@@ -445,6 +445,7 @@ private enum NavaDietGaugeGeometry {
     static let segmentCount = 9
     static let startAngleDegrees = 176.0
     static let endAngleDegrees = 4.0
+    static let angularStepDegrees = abs(endAngleDegrees - startAngleDegrees) / Double(segmentCount - 1)
     static let unrecordedColor = Color(red: 0.88, green: 0.89, blue: 0.86)
 
     static func angleDegrees(for index: Int) -> Double {
@@ -503,27 +504,37 @@ private struct NavaDietGaugeSegmentShape: Shape {
     func path(in rect: CGRect) -> Path {
         let w = rect.width
         let h = rect.height
+        let cornerFraction: CGFloat = 0.08
+        let straightSideHeight = (1 - 2 * cornerFraction) * h
+        // Each package rotates by 21.5°. A half-step side angle makes the two
+        // edges facing across every gap exactly parallel after rotation.
+        let halfStepRadians = NavaDietGaugeGeometry.angularStepDegrees * .pi / 360
+        let sideRun = straightSideHeight * CGFloat(tan(halfStepRadians))
+        let outerLeft = 0.02 * w
+        let outerRight = 0.98 * w
+        let innerLeft = outerLeft + sideRun
+        let innerRight = outerRight - sideRun
         var path = Path()
         path.move(to: CGPoint(x: 0.10 * w, y: 0))
         path.addLine(to: CGPoint(x: 0.90 * w, y: 0))
         path.addQuadCurve(
-            to: CGPoint(x: 0.98 * w, y: 0.12 * h),
-            control: CGPoint(x: 0.98 * w, y: 0)
+            to: CGPoint(x: outerRight, y: cornerFraction * h),
+            control: CGPoint(x: outerRight, y: 0)
         )
-        path.addLine(to: CGPoint(x: 0.80 * w, y: 0.88 * h))
+        path.addLine(to: CGPoint(x: innerRight, y: (1 - cornerFraction) * h))
         path.addQuadCurve(
             to: CGPoint(x: 0.72 * w, y: h),
-            control: CGPoint(x: 0.78 * w, y: h)
+            control: CGPoint(x: innerRight - 0.02 * w, y: h)
         )
         path.addLine(to: CGPoint(x: 0.28 * w, y: h))
         path.addQuadCurve(
-            to: CGPoint(x: 0.20 * w, y: 0.88 * h),
-            control: CGPoint(x: 0.22 * w, y: h)
+            to: CGPoint(x: innerLeft, y: (1 - cornerFraction) * h),
+            control: CGPoint(x: innerLeft + 0.02 * w, y: h)
         )
-        path.addLine(to: CGPoint(x: 0.02 * w, y: 0.12 * h))
+        path.addLine(to: CGPoint(x: outerLeft, y: cornerFraction * h))
         path.addQuadCurve(
             to: CGPoint(x: 0.10 * w, y: 0),
-            control: CGPoint(x: 0.02 * w, y: 0)
+            control: CGPoint(x: outerLeft, y: 0)
         )
         path.closeSubpath()
         return path
