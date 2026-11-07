@@ -229,7 +229,7 @@ private struct NavaDietMealCard: View {
 
     var body: some View {
         Group {
-            if dynamicTypeSize.isAccessibilitySize {
+            if dynamicTypeSize >= .xxLarge {
                 accessibilityLayout
             } else {
                 standardLayout
@@ -238,7 +238,7 @@ private struct NavaDietMealCard: View {
         .padding(compact ? 11 : 13)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(
-            height: dynamicTypeSize.isAccessibilitySize ? nil : (compact ? 126 : 140),
+            height: dynamicTypeSize >= .xxLarge ? nil : (compact ? 126 : 140),
             alignment: .leading
         )
         .clipped()
@@ -252,68 +252,68 @@ private struct NavaDietMealCard: View {
     }
 
     private var standardLayout: some View {
-        ZStack(alignment: .topLeading) {
-            Image(meal.imageName)
-                .resizable()
-                .scaledToFit()
-                .frame(width: compact ? 58 : 64, height: compact ? 58 : 64)
-                .background(Color.white, in: Circle())
-                .clipShape(Circle())
-                .shadow(color: NavaColor.ink.opacity(0.10), radius: 5, y: 2)
-                .accessibilityHidden(true)
+        let imageSize: CGFloat = compact ? 58 : 64
+        let lowerRowHeight: CGFloat = compact ? 38 : 40
+        let columnWidth: CGFloat = compact ? 58 : 66
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(meal.title)
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(NavaColor.ink)
+        return VStack(spacing: compact ? 8 : 10) {
+            HStack(alignment: .top, spacing: compact ? 10 : 12) {
+                dishImageSlot(size: imageSize)
 
-                Text("\(meal.time) · \(meal.note)")
-                    .font(.caption)
-                    .foregroundStyle(NavaColor.secondaryInk)
-                    .lineLimit(2)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(meal.title)
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(NavaColor.ink)
+
+                    Spacer(minLength: 2)
+
+                    Text("\(meal.time) · \(meal.note)")
+                        .font(.caption)
+                        .foregroundStyle(NavaColor.secondaryInk)
+                        .lineLimit(2)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+
+                VStack(alignment: .trailing, spacing: 0) {
+                    Text(meal.calories.formatted())
+                        .font(.system(size: compact ? 27 : 30, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(NavaColor.ink)
+
+                    Spacer(minLength: 0)
+
+                    Text("kcal")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(NavaColor.secondaryInk)
+                }
+                .frame(width: compact ? 68 : 74, height: imageSize, alignment: .trailing)
             }
-            .padding(.leading, compact ? 68 : 72)
-            .padding(.trailing, compact ? 68 : 74)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: imageSize)
 
-            VStack(alignment: .trailing, spacing: 0) {
-                Text(meal.calories.formatted())
-                    .font(.system(size: compact ? 27 : 30, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(NavaColor.ink)
-                Text("kcal")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(NavaColor.secondaryInk)
+            HStack(alignment: .bottom, spacing: 0) {
+                HStack(spacing: 0) {
+                    NavaDietMacroMini(label: "Protein", value: "\(meal.protein)g")
+                        .frame(width: columnWidth, alignment: .leading)
+                    NavaDietMacroMini(label: "Carbs", value: "\(meal.carbs)g")
+                        .frame(width: columnWidth, alignment: .leading)
+                    NavaDietMacroMini(label: "Fat", value: "\(meal.fat)g")
+                        .frame(width: columnWidth, alignment: .leading)
+                }
+
+                Spacer(minLength: 8)
+
+                editSymbol
+                    .frame(width: compact ? 34 : 38, height: lowerRowHeight, alignment: .bottomTrailing)
             }
-            .frame(maxWidth: .infinity, alignment: .trailing)
-
-            HStack(spacing: compact ? 8 : 12) {
-                NavaDietMacroMini(label: "Protein", value: "\(meal.protein)g")
-                NavaDietMacroMini(label: "Carbs", value: "\(meal.carbs)g")
-                NavaDietMacroMini(label: "Fat", value: "\(meal.fat)g")
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-
-            Image(systemName: "pencil")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(NavaColor.ink)
-                .frame(width: 32, height: 32)
-                .background(NavaColor.mist, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            .frame(height: lowerRowHeight)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var accessibilityLayout: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
-                Image(meal.imageName)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 64, height: 64)
-                    .background(Color.white, in: Circle())
-                    .clipShape(Circle())
-                    .accessibilityHidden(true)
+                dishImageSlot(size: 64)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(meal.title)
                         .font(.headline.weight(.bold))
@@ -336,13 +336,33 @@ private struct NavaDietMealCard: View {
                 NavaDietMacroMini(label: "Carbs", value: "\(meal.carbs)g")
                 NavaDietMacroMini(label: "Fat", value: "\(meal.fat)g")
                 Spacer(minLength: 0)
-                Image(systemName: "pencil")
-                    .font(.headline)
-                    .frame(width: 44, height: 44)
-                    .background(NavaColor.mist, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                editSymbol
+                    .frame(width: 44, height: 44, alignment: .trailing)
             }
         }
         .foregroundStyle(NavaColor.ink)
+    }
+
+    private func dishImageSlot(size: CGFloat) -> some View {
+        let shape = RoundedRectangle(cornerRadius: compact ? 13 : 15, style: .continuous)
+        return Image(meal.imageName)
+            .resizable()
+            .scaledToFit()
+            .padding(3)
+            .frame(width: size, height: size)
+            .background(NavaColor.mist.opacity(0.52), in: shape)
+            .clipShape(shape)
+            .overlay { shape.stroke(NavaColor.accent.opacity(0.10), lineWidth: 1) }
+            .shadow(color: NavaColor.ink.opacity(0.08), radius: 4, y: 2)
+            .accessibilityHidden(true)
+    }
+
+    private var editSymbol: some View {
+        Image(systemName: "pencil.and.outline")
+            .font(.system(size: compact ? 20 : 22, weight: .black))
+            .symbolRenderingMode(.monochrome)
+            .foregroundStyle(NavaColor.ink)
+            .accessibilityHidden(true)
     }
 }
 
@@ -353,10 +373,10 @@ private struct NavaDietMacroMini: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(label)
-                .font(.caption2.weight(.medium))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(NavaColor.secondaryInk)
             Text(value)
-                .font(.caption.weight(.bold))
+                .font(.callout.weight(.bold))
                 .foregroundStyle(NavaColor.ink)
         }
     }
@@ -478,7 +498,7 @@ private struct NavaDietGaugeLayout: Layout {
     ) {
         let width = bounds.width
         let segmentSize = CGSize(
-            width: min(max(width * 0.154, 48), 54),
+            width: min(max(width * 0.16, 50), 56),
             height: min(max(width * 0.183, 58), 64)
         )
         let center = CGPoint(x: bounds.midX, y: bounds.minY + (compact ? 174 : 194))
