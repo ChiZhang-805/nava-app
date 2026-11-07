@@ -869,18 +869,56 @@ private enum NavaDietFoodSource: String {
 
 private enum NavaDietFoodScope: String, CaseIterable, Identifiable {
     case all
+    case vegan
+    case protein
+    case snacks
     case recent
     case favorites
-    case common
 
     var id: Self { self }
 
-    func title(isChinese: Bool) -> String {
+    var title: String {
         switch self {
-        case .all: isChinese ? "全部" : "All"
-        case .recent: isChinese ? "最近" : "Recent"
-        case .favorites: isChinese ? "收藏" : "Favorites"
-        case .common: isChinese ? "常见" : "Common"
+        case .all: "ALL"
+        case .vegan: "VEGAN"
+        case .protein: "PROTEIN"
+        case .snacks: "SNACKS"
+        case .recent: "RECENT"
+        case .favorites: "FAVORITES"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .all: "fork.knife"
+        case .vegan: "leaf.fill"
+        case .protein: "bolt.heart.fill"
+        case .snacks: "takeoutbag.and.cup.and.straw.fill"
+        case .recent: "clock.fill"
+        case .favorites: "star.fill"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .all: NavaColor.reward
+        case .vegan: Color(red: 0.22, green: 0.62, blue: 0.42)
+        case .protein: NavaColor.accent
+        case .snacks: Color(red: 0.69, green: 0.43, blue: 0.78)
+        case .recent: Color(red: 0.26, green: 0.50, blue: 0.68)
+        case .favorites: Color(red: 0.95, green: 0.58, blue: 0.12)
+        }
+    }
+
+    func accessibilityTitle(isChinese: Bool) -> String {
+        guard isChinese else { return title.capitalized }
+        switch self {
+        case .all: "全部"
+        case .vegan: "纯素"
+        case .protein: "高蛋白"
+        case .snacks: "零食加餐"
+        case .recent: "最近吃过"
+        case .favorites: "收藏"
         }
     }
 }
@@ -899,6 +937,20 @@ private struct NavaDietFoodOption: Identifiable {
     var fat: Int { meal.fat }
 }
 
+private struct NavaDietFoodNutrition: Equatable {
+    var calories: Int
+    var protein: Int
+    var carbs: Int
+    var fat: Int
+
+    init(option: NavaDietFoodOption) {
+        calories = option.calories
+        protein = option.protein
+        carbs = option.carbs
+        fat = option.fat
+    }
+}
+
 private struct NavaDietMealEditorView: View {
     private static let existingFoodIDPrefix = "existing-"
 
@@ -906,6 +958,7 @@ private struct NavaDietMealEditorView: View {
     @State private var query = ""
     @State private var scope: NavaDietFoodScope = .all
     @State private var selectedFoodIDs: Set<String>
+    @State private var nutritionEdits: [String: NavaDietFoodNutrition] = [:]
     @State private var showingDeleteConfirmation = false
     @AppStorage("nava.diet.favoriteFoodIDs") private var favoriteFoodIDsRaw = ""
     @Environment(\.dismiss) private var dismiss
@@ -971,14 +1024,7 @@ private struct NavaDietMealEditorView: View {
         let base: [NavaDietFoodOption]
 
         if normalizedQuery.isEmpty {
-            base = foodOptions.filter { option in
-                switch scope {
-                case .all: true
-                case .recent: option.source == .current || option.source == .recent
-                case .favorites: favoriteFoodIDs.contains(option.id)
-                case .common: option.source == .common
-                }
-            }
+            base = foodOptions.filter { matchesScope($0) }
         } else {
             base = foodOptions.filter { option in
                 ([option.name] + option.searchTerms)
@@ -1004,7 +1050,7 @@ private struct NavaDietMealEditorView: View {
     }
 
     private var selectedCalories: Int {
-        selectedOptions.reduce(0) { $0 + $1.calories }
+        selectedOptions.reduce(0) { $0 + nutrition(for: $1).calories }
     }
 
     private var existingFoodOption: NavaDietFoodOption {
@@ -1075,6 +1121,44 @@ private struct NavaDietMealEditorView: View {
                     imageURL: nil
                 ),
                 searchTerms: isChinese ? ["海鲜", "烩饭", "米饭"] : ["seafood", "paella", "rice"]
+            ),
+            NavaDietFoodOption(
+                id: "common-quinoa-veggie-bowl",
+                name: isChinese ? "藜麦时蔬碗" : "Quinoa Veggie Bowl",
+                source: .common,
+                meal: NavaDietMeal(
+                    id: "common-quinoa-veggie-bowl",
+                    title: draft.title,
+                    time: draft.time,
+                    note: isChinese ? "藜麦、牛油果、羽衣甘蓝" : "Quinoa, avocado, kale",
+                    dishCount: 1,
+                    calories: 420,
+                    protein: 15,
+                    carbs: 63,
+                    fat: 13,
+                    imageName: nil,
+                    imageURL: nil
+                ),
+                searchTerms: isChinese ? ["纯素", "全植物", "轻食"] : ["vegan", "plant based", "veggie"]
+            ),
+            NavaDietFoodOption(
+                id: "common-fruit-nuts",
+                name: isChinese ? "水果坚果杯" : "Fruit & Nut Cup",
+                source: .common,
+                meal: NavaDietMeal(
+                    id: "common-fruit-nuts",
+                    title: draft.title,
+                    time: draft.time,
+                    note: isChinese ? "莓果、香蕉、混合坚果" : "Berries, banana, mixed nuts",
+                    dishCount: 1,
+                    calories: 238,
+                    protein: 7,
+                    carbs: 31,
+                    fat: 11,
+                    imageName: nil,
+                    imageURL: nil
+                ),
+                searchTerms: isChinese ? ["零食", "加餐", "水果"] : ["snack", "fruit", "nuts"]
             )
         ]
     }
@@ -1084,32 +1168,20 @@ private struct NavaDietMealEditorView: View {
             NavaDietDashboardBackground()
 
             ScrollView {
-                LazyVStack(spacing: 16) {
-                    selectionSummary
-                    scopePicker
+                LazyVStack(spacing: 14) {
+                    categoryStrip
+                    carouselHeader
 
                     if visibleFoodOptions.isEmpty {
                         emptySearchState
                     } else {
-                        ForEach(visibleFoodOptions) { option in
-                            NavaDietFoodLibraryCard(
-                                option: option,
-                                isSelected: selectedFoodIDs.contains(option.id),
-                                isFavorite: favoriteFoodIDs.contains(option.id),
-                                isChinese: isChinese,
-                                onToggleSelection: {
-                                    toggleSelection(option.id)
-                                    query = ""
-                                },
-                                onToggleFavorite: { toggleFavorite(option.id) }
-                            )
-                        }
+                        foodCarousel
                     }
 
                     deleteButton
+                        .padding(.horizontal, NavaMetric.pageInset)
                 }
-                .padding(.horizontal, NavaMetric.pageInset)
-                .padding(.top, 10)
+                .padding(.top, 6)
                 .padding(.bottom, 32)
             }
             .scrollDismissesKeyboard(.immediately)
@@ -1156,20 +1228,20 @@ private struct NavaDietMealEditorView: View {
         .accessibilityIdentifier("diet.meal.editor")
     }
 
-    private var selectionSummary: some View {
-        HStack(spacing: 14) {
+    private var carouselHeader: some View {
+        HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(isChinese ? "本餐已选" : "Selected for this meal")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(NavaColor.secondaryInk)
+                Text(isChinese ? "推荐与历史菜品" : "Recipes & History")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(NavaColor.ink)
 
                 Text(isChinese
-                    ? "\(selectedDishCount) 道 · \(selectedCalories) kcal"
-                    : "\(selectedDishCount) dishes · \(selectedCalories) kcal"
+                    ? "本餐已选 \(selectedDishCount) 道 · \(selectedCalories) kcal"
+                    : "Selected \(selectedDishCount) · \(selectedCalories) kcal"
                 )
-                .font(.title3.weight(.bold))
+                .font(.caption)
                 .monospacedDigit()
-                .foregroundStyle(NavaColor.ink)
+                .foregroundStyle(NavaColor.secondaryInk)
             }
 
             Spacer(minLength: 8)
@@ -1179,24 +1251,88 @@ private struct NavaDietMealEditorView: View {
                     applyRecognition(result, asset: asset)
                 }
             } label: {
-                Label(isChinese ? "拍照添加" : "Scan", systemImage: "camera.viewfinder")
+                Image(systemName: "camera.viewfinder")
+                    .font(.headline)
             }
             .buttonStyle(.bordered)
-            .buttonBorderShape(.capsule)
+            .buttonBorderShape(.circle)
+            .controlSize(.large)
+            .accessibilityLabel(isChinese ? "拍照添加菜品" : "Scan a food")
             .accessibilityIdentifier("diet.meal.editor.rescan")
         }
-        .padding(16)
-        .background(Color.white.opacity(0.82), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .padding(.horizontal, NavaMetric.pageInset)
     }
 
-    private var scopePicker: some View {
-        Picker(isChinese ? "筛选菜品" : "Filter foods", selection: $scope) {
-            ForEach(NavaDietFoodScope.allCases) { value in
-                Text(value.title(isChinese: isChinese)).tag(value)
+    private var categoryStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: 12) {
+                ForEach(NavaDietFoodScope.allCases) { value in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            scope = value
+                        }
+                    } label: {
+                        VStack(spacing: 7) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .fill(scope == value ? value.tint.opacity(0.18) : Color.white.opacity(0.86))
+                                Image(systemName: value.systemImage)
+                                    .font(.title3.weight(.semibold))
+                                    .foregroundStyle(value.tint)
+                            }
+                            .frame(width: 64, height: 58)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(scope == value ? value.tint.opacity(0.72) : Color.white.opacity(0.9), lineWidth: 1.5)
+                            }
+
+                            Text(value.title)
+                                .font(.caption2.weight(scope == value ? .bold : .medium))
+                                .foregroundStyle(scope == value ? NavaColor.ink : NavaColor.secondaryInk)
+                                .lineLimit(1)
+                        }
+                        .frame(width: 72)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(value.accessibilityTitle(isChinese: isChinese))
+                    .accessibilityAddTraits(scope == value ? .isSelected : [])
+                    .accessibilityIdentifier("diet.meal.editor.scope.\(value.rawValue)")
+                }
             }
+            .padding(.horizontal, NavaMetric.pageInset)
+            .padding(.vertical, 4)
         }
-        .pickerStyle(.segmented)
         .accessibilityIdentifier("diet.meal.editor.scope")
+    }
+
+    private var foodCarousel: some View {
+        GeometryReader { geometry in
+            let cardWidth = max(geometry.size.width - 44, 286)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: 14) {
+                    ForEach(visibleFoodOptions) { option in
+                        NavaDietFoodLibraryCard(
+                            option: option,
+                            nutrition: nutritionBinding(for: option),
+                            isSelected: selectedFoodIDs.contains(option.id),
+                            isFavorite: favoriteFoodIDs.contains(option.id),
+                            isChinese: isChinese,
+                            onToggleSelection: {
+                                toggleSelection(option.id)
+                                query = ""
+                            },
+                            onToggleFavorite: { toggleFavorite(option.id) }
+                        )
+                        .frame(width: cardWidth)
+                    }
+                }
+                .padding(.horizontal, NavaMetric.pageInset)
+                .padding(.vertical, 4)
+            }
+            .accessibilityIdentifier("diet.meal.editor.food-carousel")
+        }
+        .frame(height: 430)
     }
 
     private var emptySearchState: some View {
@@ -1217,6 +1353,7 @@ private struct NavaDietMealEditorView: View {
         }
         .frame(maxWidth: .infinity, minHeight: 220)
         .padding(20)
+        .padding(.horizontal, NavaMetric.pageInset)
         .background(Color.white.opacity(0.78), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 
@@ -1256,6 +1393,40 @@ private struct NavaDietMealEditorView: View {
         }
     }
 
+    private func matchesScope(_ option: NavaDietFoodOption) -> Bool {
+        switch scope {
+        case .all:
+            return true
+        case .vegan:
+            return option.searchTerms.contains { term in
+                let value = term.lowercased()
+                return value.contains("vegan") || value.contains("plant based") || value.contains("纯素") || value.contains("全植物")
+            }
+        case .protein:
+            return option.protein >= 25
+        case .snacks:
+            return option.searchTerms.contains { term in
+                let value = term.lowercased()
+                return value.contains("snack") || value.contains("零食") || value.contains("加餐")
+            }
+        case .recent:
+            return option.source == .current || option.source == .recent
+        case .favorites:
+            return favoriteFoodIDs.contains(option.id)
+        }
+    }
+
+    private func nutrition(for option: NavaDietFoodOption) -> NavaDietFoodNutrition {
+        nutritionEdits[option.id] ?? NavaDietFoodNutrition(option: option)
+    }
+
+    private func nutritionBinding(for option: NavaDietFoodOption) -> Binding<NavaDietFoodNutrition> {
+        Binding(
+            get: { nutrition(for: option) },
+            set: { nutritionEdits[option.id] = $0 }
+        )
+    }
+
     private func toggleFavorite(_ id: String) {
         var updated = favoriteFoodIDs
         if updated.contains(id) {
@@ -1278,13 +1449,19 @@ private struct NavaDietMealEditorView: View {
         let selected = selectedOptions
         guard !selected.isEmpty else { return }
 
-        if !(selected.count == 1 && selected[0].id == existingFoodID) {
+        if selected.count == 1, let only = selected.first, only.id == existingFoodID {
+            let values = nutrition(for: only)
+            draft.calories = values.calories
+            draft.protein = values.protein
+            draft.carbs = values.carbs
+            draft.fat = values.fat
+        } else {
             draft.note = selected.map(\.name).joined(separator: isChinese ? "、" : ", ")
             draft.dishCount = selected.reduce(0) { $0 + $1.dishCount }
-            draft.calories = selected.reduce(0) { $0 + $1.calories }
-            draft.protein = selected.reduce(0) { $0 + $1.protein }
-            draft.carbs = selected.reduce(0) { $0 + $1.carbs }
-            draft.fat = selected.reduce(0) { $0 + $1.fat }
+            draft.calories = selected.reduce(0) { $0 + nutrition(for: $1).calories }
+            draft.protein = selected.reduce(0) { $0 + nutrition(for: $1).protein }
+            draft.carbs = selected.reduce(0) { $0 + nutrition(for: $1).carbs }
+            draft.fat = selected.reduce(0) { $0 + nutrition(for: $1).fat }
 
             if let leading = selected.first {
                 draft.imageName = leading.meal.imageName
@@ -1337,6 +1514,7 @@ private struct NavaDietMealEditorView: View {
 
 private struct NavaDietFoodLibraryCard: View {
     let option: NavaDietFoodOption
+    @Binding var nutrition: NavaDietFoodNutrition
     let isSelected: Bool
     let isFavorite: Bool
     let isChinese: Bool
@@ -1395,7 +1573,7 @@ private struct NavaDietFoodLibraryCard: View {
 
                     Spacer(minLength: 6)
 
-                    Text("\(option.calories) kcal")
+                    Text("\(nutrition.calories) kcal")
                         .font(.headline.weight(.bold))
                         .monospacedDigit()
                         .foregroundStyle(NavaColor.ink)
@@ -1418,63 +1596,74 @@ private struct NavaDietFoodLibraryCard: View {
     }
 
     private var back: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 18) {
-                Text(option.meal.note)
-                    .font(.subheadline)
-                    .foregroundStyle(NavaColor.secondaryInk)
-                    .lineLimit(2)
-
-                LazyVGrid(
-                    columns: [
-                        GridItem(.flexible(), spacing: 18),
-                        GridItem(.flexible(), spacing: 18)
-                    ],
-                    alignment: .leading,
-                    spacing: 22
-                ) {
-                    nutrientLabel(
-                        title: isChinese ? "热量" : "Calories",
-                        value: "\(option.calories) kcal",
-                        systemImage: "flame.fill",
-                        tint: NavaColor.reward
-                    )
-                    nutrientLabel(
-                        title: "Protein",
-                        value: "\(option.protein) g",
-                        systemImage: "leaf.fill",
-                        tint: NavaColor.accent
-                    )
-                    nutrientLabel(
-                        title: "Carbs",
-                        value: "\(option.carbs) g",
-                        systemImage: "circle.hexagongrid.fill",
-                        tint: Color(red: 0.33, green: 0.68, blue: 0.78)
-                    )
-                    nutrientLabel(
-                        title: "Fat",
-                        value: "\(option.fat) g",
-                        systemImage: "drop.fill",
-                        tint: Color(red: 0.23, green: 0.48, blue: 0.62)
-                    )
-                }
-
-                Label(
-                    isChinese ? "轻点营养区域返回图片" : "Tap nutrition to return to image",
-                    systemImage: "arrow.triangle.2.circlepath"
-                )
-                .font(.caption)
+        VStack(alignment: .leading, spacing: 14) {
+            Text(option.meal.note)
+                .font(.subheadline)
                 .foregroundStyle(NavaColor.secondaryInk)
+                .lineLimit(2)
+
+            Text(isChinese ? "轻点数值即可修改" : "Tap a value to edit")
+                .font(.caption2)
+                .foregroundStyle(NavaColor.secondaryInk.opacity(0.78))
+
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 18),
+                    GridItem(.flexible(), spacing: 18)
+                ],
+                alignment: .leading,
+                spacing: 22
+            ) {
+                nutrientField(
+                    key: "calories",
+                    title: isChinese ? "热量" : "Calories",
+                    value: $nutrition.calories,
+                    unit: "kcal",
+                    systemImage: "flame.fill",
+                    tint: NavaColor.reward
+                )
+                nutrientField(
+                    key: "protein",
+                    title: "Protein",
+                    value: $nutrition.protein,
+                    unit: "g",
+                    systemImage: "leaf.fill",
+                    tint: NavaColor.accent
+                )
+                nutrientField(
+                    key: "carbs",
+                    title: "Carbs",
+                    value: $nutrition.carbs,
+                    unit: "g",
+                    systemImage: "circle.hexagongrid.fill",
+                    tint: Color(red: 0.33, green: 0.68, blue: 0.78)
+                )
+                nutrientField(
+                    key: "fat",
+                    title: "Fat",
+                    value: $nutrition.fat,
+                    unit: "g",
+                    systemImage: "drop.fill",
+                    tint: Color(red: 0.23, green: 0.48, blue: 0.62)
+                )
             }
-            .contentShape(Rectangle())
-            .onTapGesture { flip(to: false) }
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isButton)
-            .accessibilityLabel(isChinese ? "返回\(option.name)图片" : "Return to image for \(option.name)")
-            .accessibilityAction { flip(to: false) }
             .accessibilityIdentifier("diet.meal.food-card.\(option.id).back")
 
             Spacer(minLength: 0)
+
+            Button {
+                flip(to: false)
+            } label: {
+                Label(
+                    isChinese ? "返回食物图片" : "Return to food image",
+                    systemImage: "arrow.triangle.2.circlepath"
+                )
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(NavaColor.secondaryInk)
+                .frame(minHeight: 32)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isChinese ? "返回\(option.name)图片" : "Return to image for \(option.name)")
 
             Button {
                 onToggleSelection()
@@ -1517,7 +1706,14 @@ private struct NavaDietFoodLibraryCard: View {
         .frame(height: NavaMetric.minimumTap)
     }
 
-    private func nutrientLabel(title: String, value: String, systemImage: String, tint: Color) -> some View {
+    private func nutrientField(
+        key: String,
+        title: String,
+        value: Binding<Int>,
+        unit: String,
+        systemImage: String,
+        tint: Color
+    ) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: systemImage)
                 .font(.title3.weight(.semibold))
@@ -1528,12 +1724,25 @@ private struct NavaDietFoodLibraryCard: View {
                 Text(title)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(NavaColor.secondaryInk)
-                Text(value)
-                    .font(.headline.weight(.bold))
-                    .monospacedDigit()
-                    .foregroundStyle(NavaColor.ink)
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    TextField("0", value: value, format: .number)
+                        .font(.headline.weight(.bold))
+                        .monospacedDigit()
+                        .foregroundStyle(NavaColor.ink)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .textFieldStyle(.plain)
+                        .frame(minWidth: 38, idealWidth: 52, maxWidth: 62)
+                        .accessibilityLabel(title)
+                        .accessibilityIdentifier("diet.meal.food-card.\(option.id).nutrition.\(key)")
+
+                    Text(unit)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(NavaColor.secondaryInk)
+                }
             }
         }
+        .accessibilityElement(children: .contain)
     }
 
     private var favoriteAccessibilityLabel: String {

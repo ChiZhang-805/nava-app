@@ -86,6 +86,15 @@ final class NavaDietDashboardVisualTests: XCTestCase {
             editorAttachment.lifetime = .keepAlways
             add(editorAttachment)
 
+            XCTAssertTrue(
+                app.buttons["diet.meal.editor.scope.vegan"].waitForExistence(timeout: 5),
+                "The horizontal food-category strip is missing"
+            )
+            let foodCarousel = app.scrollViews["diet.meal.editor.food-carousel"].firstMatch
+            XCTAssertTrue(foodCarousel.waitForExistence(timeout: 5), "The horizontal food-card carousel is missing")
+            foodCarousel.swipeLeft()
+            foodCarousel.swipeRight()
+
             let searchPrompt = language == "zh-Hans"
                 ? "搜索历史、收藏或常见菜"
                 : "Search history, favorites, or foods"
@@ -116,6 +125,12 @@ final class NavaDietDashboardVisualTests: XCTestCase {
                 "Food-card nutrition flip control is missing"
             )
             app.buttons[viewNutritionLabel].tap()
+
+            let caloriesField = app.textFields["diet.meal.food-card.recent-breakfast.nutrition.calories"].firstMatch
+            XCTAssertTrue(
+                caloriesField.waitForExistence(timeout: 5),
+                "The flipped card does not expose editable nutrition fields"
+            )
 
             let addFoodLabel = language == "zh-Hans"
                 ? "加入\(foodName)到本餐"
