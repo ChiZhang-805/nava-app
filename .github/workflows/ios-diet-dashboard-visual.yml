@@ -2,6 +2,15 @@ name: iOS Diet Dashboard Visual Regression
 
 on:
   workflow_dispatch:
+    inputs:
+      scope:
+        description: Run the primary iPhone 15 Pro review or the full compatibility matrix
+        required: true
+        default: primary
+        type: choice
+        options:
+          - primary
+          - full
   push:
     branches:
       - "visual/diet-dashboard-*"
@@ -22,7 +31,7 @@ on:
       - "scripts/ios-visual-diff.swift"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ios-diet-dashboard-visual-${{ github.ref }}
@@ -33,65 +42,115 @@ defaults:
     shell: bash
 
 jobs:
+  build-matrix:
+    name: Choose visual scenarios
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.scenarios.outputs.matrix }}
+    steps:
+      - name: Put iPhone 15 Pro review first
+        id: scenarios
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_SCOPE: ${{ inputs.scope }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          primary = [
+              {
+                  "scenario": "iphone-15-pro_zh-default_populated",
+                  "device": "iPhone 15 Pro",
+                  "language": "zh-Hans",
+                  "content_size": "default",
+                  "state": "populated",
+              }
+          ]
+          compatibility = [
+              {
+                  "scenario": "iphone-se_zh-default_populated",
+                  "device": "iPhone SE (3rd generation)",
+                  "language": "zh-Hans",
+                  "content_size": "default",
+                  "state": "populated",
+              },
+              {
+                  "scenario": "iphone-se_en-accessibility_populated",
+                  "device": "iPhone SE (3rd generation)",
+                  "language": "en",
+                  "content_size": "accessibility",
+                  "state": "populated",
+              },
+              {
+                  "scenario": "iphone-15_en-default_populated",
+                  "device": "iPhone 15",
+                  "language": "en",
+                  "content_size": "default",
+                  "state": "populated",
+              },
+              {
+                  "scenario": "iphone-16-pro_zh-default_populated",
+                  "device": "iPhone 16 Pro",
+                  "language": "zh-Hans",
+                  "content_size": "default",
+                  "state": "populated",
+              },
+              {
+                  "scenario": "iphone-16-pro_en-default_empty",
+                  "device": "iPhone 16 Pro",
+                  "language": "en",
+                  "content_size": "default",
+                  "state": "empty",
+              },
+              {
+                  "scenario": "iphone-16-pro_zh-accessibility_empty",
+                  "device": "iPhone 16 Pro",
+                  "language": "zh-Hans",
+                  "content_size": "accessibility",
+                  "state": "empty",
+              },
+              {
+                  "scenario": "iphone-16-pro_en-accessibility_failure",
+                  "device": "iPhone 16 Pro",
+                  "language": "en",
+                  "content_size": "accessibility",
+                  "state": "failure",
+              },
+              {
+                  "scenario": "iphone-16-pro-max_zh-default_populated",
+                  "device": "iPhone 16 Pro Max",
+                  "language": "zh-Hans",
+                  "content_size": "default",
+                  "state": "populated",
+              },
+              {
+                  "scenario": "iphone-16-pro-max_en-accessibility_populated",
+                  "device": "iPhone 16 Pro Max",
+                  "language": "en",
+                  "content_size": "accessibility",
+                  "state": "populated",
+              },
+          ]
+          full = primary + compatibility
+          requested_full = (
+              os.environ.get("EVENT_NAME") == "pull_request"
+              or os.environ.get("REQUESTED_SCOPE") == "full"
+          )
+          matrix = {"include": full if requested_full else primary}
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"matrix={json.dumps(matrix, separators=(',', ':'))}\n")
+          PY
+
   visual-regression:
     name: ${{ matrix.scenario }}
+    needs: build-matrix
     runs-on: macos-15
     timeout-minutes: 60
     strategy:
       fail-fast: false
       max-parallel: 2
-      matrix:
-        include:
-          - scenario: iphone-se_zh-default_populated
-            device: iPhone SE (3rd generation)
-            language: zh-Hans
-            content_size: default
-            state: populated
-          - scenario: iphone-se_en-accessibility_populated
-            device: iPhone SE (3rd generation)
-            language: en
-            content_size: accessibility
-            state: populated
-          - scenario: iphone-15_en-default_populated
-            device: iPhone 15
-            language: en
-            content_size: default
-            state: populated
-          - scenario: iphone-15-pro_zh-default_populated
-            device: iPhone 15 Pro
-            language: zh-Hans
-            content_size: default
-            state: populated
-          - scenario: iphone-16-pro_zh-default_populated
-            device: iPhone 16 Pro
-            language: zh-Hans
-            content_size: default
-            state: populated
-          - scenario: iphone-16-pro_en-default_empty
-            device: iPhone 16 Pro
-            language: en
-            content_size: default
-            state: empty
-          - scenario: iphone-16-pro_zh-accessibility_empty
-            device: iPhone 16 Pro
-            language: zh-Hans
-            content_size: accessibility
-            state: empty
-          - scenario: iphone-16-pro_en-accessibility_failure
-            device: iPhone 16 Pro
-            language: en
-            content_size: accessibility
-            state: failure
-          - scenario: iphone-16-pro-max_zh-default_populated
-            device: iPhone 16 Pro Max
-            language: zh-Hans
-            content_size: default
-            state: populated
-          - scenario: iphone-16-pro-max_en-accessibility_populated
-            device: iPhone 16 Pro Max
-            language: en
-            content_size: accessibility
-            state: populated
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix) }}
 
     steps:
       - name: Check out the exact source revision
@@ -183,7 +242,7 @@ jobs:
           RESULT_ROOT="${RUNNER_TEMP}/NAVA-${SCENARIO}.xcresult"
           EXPORT_ROOT="${RUNNER_TEMP}/NAVA-${SCENARIO}-attachments"
           ARTIFACT_ROOT="artifacts/ios-visual/${SCENARIO}"
-          mkdir -p "${ARTIFACT_ROOT}"
+          mkdir -p "${ARTIFACT_ROOT}" "${ARTIFACT_ROOT}/attachments"
           if [[ ! -d "${RESULT_ROOT}" ]]; then
             echo "The UI test produced no xcresult bundle." > "${ARTIFACT_ROOT}/missing-xcresult.txt"
             exit 1
@@ -228,8 +287,32 @@ jobs:
             0.015 \
             0.012
 
+      - name: Preserve review evidence on a run-specific branch
+        if: always() && steps.export.outcome == 'success' && github.event_name != 'pull_request'
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+        run: |
+          ARTIFACT_ROOT="artifacts/ios-visual/${SCENARIO}"
+          CANDIDATE_ROOT="ios/VisualRegression/Candidates/${GITHUB_RUN_ID}/${SCENARIO}"
+          EVIDENCE_BRANCH="evidence/diet-dashboard-${GITHUB_RUN_ID}-${SCENARIO}"
+          mkdir -p "${CANDIDATE_ROOT}"
+          cp "${ARTIFACT_ROOT}/actual.png" "${CANDIDATE_ROOT}/actual.png"
+          if [[ -f "${ARTIFACT_ROOT}/candidate-baseline.png" ]]; then
+            cp "${ARTIFACT_ROOT}/candidate-baseline.png" "${CANDIDATE_ROOT}/candidate-baseline.png"
+          fi
+          find "${ARTIFACT_ROOT}/attachments" -type f \
+            \( -name '*.json' -o -name 'manifest.json' \) \
+            -exec cp {} "${CANDIDATE_ROOT}/" \;
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f "${CANDIDATE_ROOT}"
+          git commit -m "Preserve ${SCENARIO} visual evidence from run ${GITHUB_RUN_ID}"
+          git push origin "HEAD:refs/heads/${EVIDENCE_BRANCH}"
+          printf '%s\n' "${EVIDENCE_BRANCH}" > "${ARTIFACT_ROOT}/evidence-branch.txt"
+
       - name: Upload actual, diff, overlay and measurements
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: diet-dashboard-${{ matrix.scenario }}

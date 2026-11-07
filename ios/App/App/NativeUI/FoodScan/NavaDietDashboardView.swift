@@ -291,7 +291,8 @@ private struct NavaDietMealCard: View {
                     .frame(width: 32, height: 32)
                     .background(NavaColor.mist, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
-            .frame(width: compact ? 68 : 74, minHeight: compact ? 96 : 108)
+            .frame(width: compact ? 68 : 74)
+            .frame(minHeight: compact ? 96 : 108)
         }
     }
 
