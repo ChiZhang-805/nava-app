@@ -1,0 +1,26 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D0120C4E-7AB6-44A7-B27F-D4E00F466163",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "84136A49-D77A-4ACA-A28E-7003E0ABCC0F.json",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "local-measurements_0_E53320C9-241A-46D0-8777-6966FD3BEEC5.json",
+        "timestamp" : 1794045235.126
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D0120C4E-7AB6-44A7-B27F-D4E00F466163",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "0EC088CC-A88E-4B0F-8C84-48EEA42E3F3C.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "local_0_60AEE5C8-271B-4C1A-A162-74036EDBD81A.png",
+        "timestamp" : 1794045232.229
+      }
+    ],
+    "testIdentifier" : "NavaDietDashboardVisualTests/testDietDashboardVisualBaseline()",
+    "testIdentifierURL" : "test://com.apple.xcode/App/AppUITests/NavaDietDashboardVisualTests/testDietDashboardVisualBaseline"
+  }
+]

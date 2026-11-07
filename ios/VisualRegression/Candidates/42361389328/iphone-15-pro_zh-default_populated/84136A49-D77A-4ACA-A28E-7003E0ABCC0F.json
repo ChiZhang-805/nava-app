@@ -1,0 +1,44 @@
+{
+  "contentSize" : "default",
+  "elements" : {
+    "addMeal" : {
+      "height" : 51,
+      "width" : 354,
+      "x" : 19.5,
+      "y" : 368.5
+    },
+    "breakfast" : {
+      "height" : 164.33333333333337,
+      "width" : 353,
+      "x" : 20,
+      "y" : 604.66666666666663
+    },
+    "dashboard" : {
+      "height" : 852,
+      "width" : 393,
+      "x" : 0,
+      "y" : 0
+    },
+    "gauge" : {
+      "height" : 211.52000427246094,
+      "width" : 348.24322509765625,
+      "x" : 22.378398895263672,
+      "y" : 131.47999572753906
+    },
+    "lunch" : {
+      "height" : 164.66666666666663,
+      "width" : 353,
+      "x" : 20,
+      "y" : 432
+    },
+    "window" : {
+      "height" : 852,
+      "width" : 393,
+      "x" : 0,
+      "y" : 0
+    }
+  },
+  "language" : "zh-Hans",
+  "scenario" : "local",
+  "state" : "populated"
+}
