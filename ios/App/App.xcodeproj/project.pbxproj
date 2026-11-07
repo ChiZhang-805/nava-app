@@ -23,6 +23,18 @@
 		A1B2C3D40000000000000005 /* NavaSpeechPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000018 /* NavaSpeechPlugin.swift */; };
 		A1B2C3D40000000000000006 /* NavaSecureStoragePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000019 /* NavaSecureStoragePlugin.swift */; };
 		A1B2C3D40000000000000007 /* NavaHealthBackgroundObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000020 /* NavaHealthBackgroundObserver.swift */; };
+		D4E5F6010000000000000001 /* NavaNativeDesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6010000000000000011 /* NavaNativeDesignSystem.swift */; };
+		D4E5F6010000000000000002 /* NavaNativeAppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6010000000000000012 /* NavaNativeAppModel.swift */; };
+		D4E5F6010000000000000003 /* NavaNativeRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6010000000000000013 /* NavaNativeRootView.swift */; };
+		D4E5F6010000000000000004 /* NavaNativeAuthViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6010000000000000014 /* NavaNativeAuthViews.swift */; };
+		D4E5F6020000000000000001 /* NavaFoodScanModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6020000000000000011 /* NavaFoodScanModels.swift */; };
+		D4E5F6020000000000000002 /* NavaFoodVisualizationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6020000000000000012 /* NavaFoodVisualizationService.swift */; };
+		D4E5F6020000000000000003 /* NavaFoodCameraService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6020000000000000013 /* NavaFoodCameraService.swift */; };
+		D4E5F6020000000000000004 /* NavaFoodScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6020000000000000014 /* NavaFoodScanView.swift */; };
+		D4E5F6020000000000000005 /* NavaSupabaseDietRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6020000000000000015 /* NavaSupabaseDietRecognizer.swift */; };
+		D4E5F6020000000000000006 /* NavaSupabaseDishVisualizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6020000000000000016 /* NavaSupabaseDishVisualizer.swift */; };
+		D4E5F6020000000000000007 /* NavaDietDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6020000000000000017 /* NavaDietDashboardView.swift */; };
+		D4E5F6030000000000000001 /* NavaDietDashboardVisualTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6030000000000000011 /* NavaDietDashboardVisualTests.swift */; };
 		A084ECDBA7D38E1E42DFC39D /* Pods_App.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */; };
 		B2C3D4E50000000000000001 /* NAVA Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B2C3D4E50000000000000011 /* NAVA Watch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B2C3D4E50000000000000002 /* NavaWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E50000000000000012 /* NavaWatchApp.swift */; };
@@ -33,6 +45,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		D4E5F6030000000000000051 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 504EC3031FED79650016851F;
+			remoteInfo = App;
+		};
 		B2C3D4E50000000000000051 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
@@ -78,6 +97,19 @@
 		A1B2C3D40000000000000018 /* NavaSpeechPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NavaSpeechPlugin.swift; path = ../../../native/ios/NavaSpeechPlugin.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000019 /* NavaSecureStoragePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NavaSecureStoragePlugin.swift; path = ../../../native/ios/NavaSecureStoragePlugin.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000020 /* NavaHealthBackgroundObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NavaHealthBackgroundObserver.swift; path = ../../../native/ios/NavaHealthBackgroundObserver.swift; sourceTree = "<group>"; };
+		D4E5F6010000000000000011 /* NavaNativeDesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaNativeDesignSystem.swift; sourceTree = "<group>"; };
+		D4E5F6010000000000000012 /* NavaNativeAppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaNativeAppModel.swift; sourceTree = "<group>"; };
+		D4E5F6010000000000000013 /* NavaNativeRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaNativeRootView.swift; sourceTree = "<group>"; };
+		D4E5F6010000000000000014 /* NavaNativeAuthViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaNativeAuthViews.swift; sourceTree = "<group>"; };
+		D4E5F6020000000000000011 /* NavaFoodScanModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaFoodScanModels.swift; sourceTree = "<group>"; };
+		D4E5F6020000000000000012 /* NavaFoodVisualizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaFoodVisualizationService.swift; sourceTree = "<group>"; };
+		D4E5F6020000000000000013 /* NavaFoodCameraService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaFoodCameraService.swift; sourceTree = "<group>"; };
+		D4E5F6020000000000000014 /* NavaFoodScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaFoodScanView.swift; sourceTree = "<group>"; };
+		D4E5F6020000000000000015 /* NavaSupabaseDietRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaSupabaseDietRecognizer.swift; sourceTree = "<group>"; };
+		D4E5F6020000000000000016 /* NavaSupabaseDishVisualizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaSupabaseDishVisualizer.swift; sourceTree = "<group>"; };
+		D4E5F6020000000000000017 /* NavaDietDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaDietDashboardView.swift; sourceTree = "<group>"; };
+		D4E5F6030000000000000011 /* NavaDietDashboardVisualTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaDietDashboardVisualTests.swift; sourceTree = "<group>"; };
+		D4E5F6030000000000000012 /* AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2C3D4E50000000000000011 /* NAVA Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "NAVA Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2C3D4E50000000000000012 /* NavaWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaWatchApp.swift; sourceTree = "<group>"; };
 		B2C3D4E50000000000000013 /* WatchHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHomeView.swift; sourceTree = "<group>"; };
@@ -106,6 +138,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D4E5F6030000000000000022 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -121,6 +160,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3061FED79650016851F /* App */,
+				D4E5F6030000000000000019 /* AppUITests */,
 				B2C3D4E50000000000000019 /* NAVA Watch */,
 				504EC3051FED79650016851F /* Products */,
 				7F8756D8B27F46E3366F6CEA /* Pods */,
@@ -132,6 +172,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* App.app */,
+				D4E5F6030000000000000012 /* AppUITests.xctest */,
 				B2C3D4E50000000000000011 /* NAVA Watch.app */,
 			);
 			name = Products;
@@ -140,6 +181,7 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				D4E5F6010000000000000019 /* NativeUI */,
 				C3D4E5F60000000000000011 /* PrivacyInfo.xcprivacy */,
 				C3D4E5F60000000000000013 /* App.Release.entitlements */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
@@ -160,6 +202,40 @@
 				50B271D01FEDC1A000F3C39B /* public */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		D4E5F6010000000000000019 /* NativeUI */ = {
+			isa = PBXGroup;
+			children = (
+				D4E5F6010000000000000011 /* NavaNativeDesignSystem.swift */,
+				D4E5F6010000000000000012 /* NavaNativeAppModel.swift */,
+				D4E5F6010000000000000013 /* NavaNativeRootView.swift */,
+				D4E5F6010000000000000014 /* NavaNativeAuthViews.swift */,
+				D4E5F6020000000000000019 /* FoodScan */,
+			);
+			path = NativeUI;
+			sourceTree = "<group>";
+		};
+		D4E5F6020000000000000019 /* FoodScan */ = {
+			isa = PBXGroup;
+			children = (
+				D4E5F6020000000000000011 /* NavaFoodScanModels.swift */,
+				D4E5F6020000000000000012 /* NavaFoodVisualizationService.swift */,
+				D4E5F6020000000000000013 /* NavaFoodCameraService.swift */,
+				D4E5F6020000000000000014 /* NavaFoodScanView.swift */,
+				D4E5F6020000000000000015 /* NavaSupabaseDietRecognizer.swift */,
+				D4E5F6020000000000000016 /* NavaSupabaseDishVisualizer.swift */,
+				D4E5F6020000000000000017 /* NavaDietDashboardView.swift */,
+			);
+			path = FoodScan;
+			sourceTree = "<group>";
+		};
+		D4E5F6030000000000000019 /* AppUITests */ = {
+			isa = PBXGroup;
+			children = (
+				D4E5F6030000000000000011 /* NavaDietDashboardVisualTests.swift */,
+			);
+			path = AppUITests;
 			sourceTree = "<group>";
 		};
 		B2C3D4E50000000000000019 /* NAVA Watch */ = {
@@ -209,6 +285,24 @@
 			productReference = 504EC3041FED79650016851F /* App.app */;
 			productType = "com.apple.product-type.application";
 		};
+		D4E5F6030000000000000031 /* AppUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D4E5F6030000000000000043 /* Build configuration list for PBXNativeTarget "AppUITests" */;
+			buildPhases = (
+				D4E5F6030000000000000021 /* Sources */,
+				D4E5F6030000000000000022 /* Frameworks */,
+				D4E5F6030000000000000023 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D4E5F6030000000000000052 /* PBXTargetDependency */,
+			);
+			name = AppUITests;
+			productName = AppUITests;
+			productReference = D4E5F6030000000000000012 /* AppUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		B2C3D4E50000000000000031 /* NAVA Watch */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = B2C3D4E50000000000000043 /* Build configuration list for PBXNativeTarget "NAVA Watch" */;
@@ -240,6 +334,11 @@
 						LastSwiftMigration = 1100;
 						ProvisioningStyle = Automatic;
 					};
+					D4E5F6030000000000000031 = {
+						CreatedOnToolsVersion = 26.0;
+						ProvisioningStyle = Automatic;
+						TestTargetID = 504EC3031FED79650016851F;
+					};
 					B2C3D4E50000000000000031 = {
 						CreatedOnToolsVersion = 16.0;
 						ProvisioningStyle = Automatic;
@@ -263,6 +362,7 @@
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
+				D4E5F6030000000000000031 /* AppUITests */,
 				B2C3D4E50000000000000031 /* NAVA Watch */,
 			);
 		};
@@ -291,6 +391,13 @@
 				C3D4E5F60000000000000002 /* PrivacyInfo.xcprivacy in Resources */,
 				B2C3D4E50000000000000006 /* Assets.xcassets in Resources */,
 				B2C3D4E50000000000000005 /* Localizable.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D4E5F6030000000000000023 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -338,6 +445,17 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				D4E5F6010000000000000001 /* NavaNativeDesignSystem.swift in Sources */,
+				D4E5F6010000000000000002 /* NavaNativeAppModel.swift in Sources */,
+				D4E5F6010000000000000003 /* NavaNativeRootView.swift in Sources */,
+				D4E5F6010000000000000004 /* NavaNativeAuthViews.swift in Sources */,
+				D4E5F6020000000000000001 /* NavaFoodScanModels.swift in Sources */,
+				D4E5F6020000000000000002 /* NavaFoodVisualizationService.swift in Sources */,
+				D4E5F6020000000000000003 /* NavaFoodCameraService.swift in Sources */,
+				D4E5F6020000000000000004 /* NavaFoodScanView.swift in Sources */,
+				D4E5F6020000000000000005 /* NavaSupabaseDietRecognizer.swift in Sources */,
+				D4E5F6020000000000000006 /* NavaSupabaseDishVisualizer.swift in Sources */,
+				D4E5F6020000000000000007 /* NavaDietDashboardView.swift in Sources */,
 				A1B2C3D40000000000000001 /* NavaHealthPlugin.swift in Sources */,
 				A1B2C3D40000000000000002 /* NavaWatchBridgePlugin.swift in Sources */,
 				A1B2C3D40000000000000005 /* NavaSpeechPlugin.swift in Sources */,
@@ -357,9 +475,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D4E5F6030000000000000021 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D4E5F6030000000000000001 /* NavaDietDashboardVisualTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		D4E5F6030000000000000052 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 504EC3031FED79650016851F /* App */;
+			targetProxy = D4E5F6030000000000000051 /* PBXContainerItemProxy */;
+		};
 		B2C3D4E50000000000000052 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = B2C3D4E50000000000000031 /* NAVA Watch */;
@@ -603,6 +734,52 @@
 			};
 			name = Release;
 		};
+		D4E5F6030000000000000041 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(NAVA_APP_BUNDLE_ID).uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = App;
+			};
+			name = Debug;
+		};
+		D4E5F6030000000000000042 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(NAVA_APP_BUNDLE_ID).uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = App;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -629,6 +806,15 @@
 			buildConfigurations = (
 				B2C3D4E50000000000000041 /* Debug */,
 				B2C3D4E50000000000000042 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D4E5F6030000000000000043 /* Build configuration list for PBXNativeTarget "AppUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D4E5F6030000000000000041 /* Debug */,
+				D4E5F6030000000000000042 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

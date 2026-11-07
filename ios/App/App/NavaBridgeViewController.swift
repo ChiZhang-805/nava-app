@@ -1,8 +1,11 @@
 import Capacitor
+import SwiftUI
 import UIKit
 import UserNotifications
 
 final class NavaBridgeViewController: CAPBridgeViewController {
+    private var nativeHost: UIHostingController<NavaNativeRootView>?
+
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(NavaHealthPlugin())
@@ -11,6 +14,46 @@ final class NavaBridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(NavaSpeechPlugin())
         bridge?.registerPluginInstance(NavaWakeLockPlugin())
         bridge?.registerPluginInstance(NavaNotificationPermissionPlugin())
+
+        if NavaNativeFeatureFlag.isEnabled {
+            presentNativeExperience()
+        }
+    }
+
+    private func presentNativeExperience() {
+        guard nativeHost == nil else { return }
+        let root = NavaNativeRootView { [weak self] in
+            self?.dismissNativeExperience()
+        }
+        let host = UIHostingController(rootView: root)
+        host.view.backgroundColor = .clear
+        addChild(host)
+        view.addSubview(host.view)
+        host.view.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            host.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            host.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            host.view.topAnchor.constraint(equalTo: view.topAnchor),
+            host.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+        host.didMove(toParent: self)
+        nativeHost = host
+    }
+
+    private func dismissNativeExperience() {
+        guard let host = nativeHost else { return }
+        host.willMove(toParent: nil)
+        host.view.removeFromSuperview()
+        host.removeFromParent()
+        nativeHost = nil
+    }
+}
+
+private enum NavaNativeFeatureFlag {
+    static var isEnabled: Bool {
+        if ProcessInfo.processInfo.arguments.contains("-NavaNativeUI") { return true }
+        if ProcessInfo.processInfo.environment["NAVA_NATIVE_UI"] == "1" { return true }
+        return Bundle.main.object(forInfoDictionaryKey: "NavaNativeUIEnabled") as? Bool ?? false
     }
 }
 

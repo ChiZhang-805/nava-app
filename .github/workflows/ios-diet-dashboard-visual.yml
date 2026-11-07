@@ -1,0 +1,252 @@
+name: iOS Diet Dashboard Visual Regression
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "visual/diet-dashboard-*"
+    paths:
+      - ".github/workflows/ios-diet-dashboard-visual.yml"
+      - "ios/App/App/NativeUI/**"
+      - "ios/App/AppUITests/**"
+      - "ios/App/App.xcodeproj/**"
+      - "ios/VisualRegression/**"
+      - "scripts/ios-visual-diff.swift"
+  pull_request:
+    paths:
+      - ".github/workflows/ios-diet-dashboard-visual.yml"
+      - "ios/App/App/NativeUI/**"
+      - "ios/App/AppUITests/**"
+      - "ios/App/App.xcodeproj/**"
+      - "ios/VisualRegression/**"
+      - "scripts/ios-visual-diff.swift"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-diet-dashboard-visual-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  visual-regression:
+    name: ${{ matrix.scenario }}
+    runs-on: macos-15
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - scenario: iphone-se_zh-default_populated
+            device: iPhone SE (3rd generation)
+            language: zh-Hans
+            content_size: default
+            state: populated
+          - scenario: iphone-se_en-accessibility_populated
+            device: iPhone SE (3rd generation)
+            language: en
+            content_size: accessibility
+            state: populated
+          - scenario: iphone-15_en-default_populated
+            device: iPhone 15
+            language: en
+            content_size: default
+            state: populated
+          - scenario: iphone-15-pro_zh-default_populated
+            device: iPhone 15 Pro
+            language: zh-Hans
+            content_size: default
+            state: populated
+          - scenario: iphone-16-pro_zh-default_populated
+            device: iPhone 16 Pro
+            language: zh-Hans
+            content_size: default
+            state: populated
+          - scenario: iphone-16-pro_en-default_empty
+            device: iPhone 16 Pro
+            language: en
+            content_size: default
+            state: empty
+          - scenario: iphone-16-pro_zh-accessibility_empty
+            device: iPhone 16 Pro
+            language: zh-Hans
+            content_size: accessibility
+            state: empty
+          - scenario: iphone-16-pro_en-accessibility_failure
+            device: iPhone 16 Pro
+            language: en
+            content_size: accessibility
+            state: failure
+          - scenario: iphone-16-pro-max_zh-default_populated
+            device: iPhone 16 Pro Max
+            language: zh-Hans
+            content_size: default
+            state: populated
+          - scenario: iphone-16-pro-max_en-accessibility_populated
+            device: iPhone 16 Pro Max
+            language: en
+            content_size: accessibility
+            state: populated
+
+    steps:
+      - name: Check out the exact source revision
+        uses: actions/checkout@v4
+
+      - name: Use Node 22.18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+          cache: npm
+
+      - name: Select the newest installed Xcode 26
+        run: |
+          XCODE_APP="$(find /Applications -maxdepth 1 -type d -name 'Xcode_26*.app' | sort | tail -n 1)"
+          if [[ -z "${XCODE_APP}" ]]; then
+            echo "The runner does not contain Xcode 26." >&2
+            exit 1
+          fi
+          sudo xcode-select --switch "${XCODE_APP}/Contents/Developer"
+          xcodebuild -version
+
+      - name: Prepare the native iOS workspace
+        run: |
+          npm ci
+          npm run cap:sync:ios
+
+      - name: Create the fixed simulator
+        id: simulator
+        env:
+          DEVICE_NAME: ${{ matrix.device }}
+          SCENARIO: ${{ matrix.scenario }}
+        run: |
+          RUNTIME_ID="$(xcrun simctl list runtimes | awk -F '[()]' '/iOS 26.*available/ { value=$2 } END { print value }')"
+          if [[ -z "${RUNTIME_ID}" ]]; then
+            echo "No available iOS 26 Simulator runtime was found." >&2
+            xcrun simctl list runtimes
+            exit 1
+          fi
+          UDID="$(xcrun simctl create "NAVA-${SCENARIO}" "${DEVICE_NAME}" "${RUNTIME_ID}")"
+          xcrun simctl boot "${UDID}"
+          xcrun simctl bootstatus "${UDID}" -b
+          xcrun simctl ui "${UDID}" appearance light
+          echo "udid=${UDID}" >> "${GITHUB_OUTPUT}"
+
+      - name: Capture the XCUITest screenshot
+        id: ui_test
+        continue-on-error: true
+        env:
+          NAVA_VISUAL_SCENARIO: ${{ matrix.scenario }}
+          NAVA_VISUAL_LANGUAGE: ${{ matrix.language }}
+          NAVA_VISUAL_CONTENT_SIZE: ${{ matrix.content_size }}
+          NAVA_VISUAL_STATE: ${{ matrix.state }}
+          SIMULATOR_UDID: ${{ steps.simulator.outputs.udid }}
+        run: |
+          RESULT_ROOT="${RUNNER_TEMP}/NAVA-${NAVA_VISUAL_SCENARIO}.xcresult"
+          DERIVED_DATA="${RUNNER_TEMP}/DerivedData-${NAVA_VISUAL_SCENARIO}"
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=${SIMULATOR_UDID}" \
+            -derivedDataPath "${DERIVED_DATA}" \
+            -resultBundlePath "${RESULT_ROOT}" \
+            -only-testing:AppUITests/NavaDietDashboardVisualTests/testDietDashboardVisualBaseline \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+
+      - name: Export screenshot and measurements
+        id: export
+        if: always()
+        continue-on-error: true
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+        run: |
+          RESULT_ROOT="${RUNNER_TEMP}/NAVA-${SCENARIO}.xcresult"
+          EXPORT_ROOT="${RUNNER_TEMP}/NAVA-${SCENARIO}-attachments"
+          ARTIFACT_ROOT="artifacts/ios-visual/${SCENARIO}"
+          mkdir -p "${ARTIFACT_ROOT}"
+          if [[ ! -d "${RESULT_ROOT}" ]]; then
+            echo "The UI test produced no xcresult bundle." > "${ARTIFACT_ROOT}/missing-xcresult.txt"
+            exit 1
+          fi
+          cp -R "${RESULT_ROOT}" "${ARTIFACT_ROOT}/test.xcresult"
+          xcrun xcresulttool export attachments \
+            --path "${RESULT_ROOT}" \
+            --output-path "${EXPORT_ROOT}"
+          cp -R "${EXPORT_ROOT}/." "${ARTIFACT_ROOT}/attachments/"
+          ACTUAL="$(find "${EXPORT_ROOT}" -type f -name "*${SCENARIO}*.png" -print | head -n 1)"
+          if [[ -z "${ACTUAL}" ]]; then
+            ACTUAL="$(find "${EXPORT_ROOT}" -type f -name '*.png' -print | head -n 1)"
+          fi
+          if [[ -z "${ACTUAL}" ]]; then
+            echo "No PNG attachment was exported from the UI test." > "${ARTIFACT_ROOT}/missing-screenshot.txt"
+            exit 1
+          fi
+          cp "${ACTUAL}" "${ARTIFACT_ROOT}/actual.png"
+          echo "actual=${ARTIFACT_ROOT}/actual.png" >> "${GITHUB_OUTPUT}"
+
+      - name: Compare with the approved baseline
+        id: compare
+        if: always() && steps.export.outcome == 'success'
+        continue-on-error: true
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+          ACTUAL_PATH: ${{ steps.export.outputs.actual }}
+        run: |
+          ARTIFACT_ROOT="artifacts/ios-visual/${SCENARIO}"
+          BASELINE="ios/VisualRegression/Baselines/DietDashboard/${SCENARIO}.png"
+          if [[ ! -f "${BASELINE}" ]]; then
+            cp "${ACTUAL_PATH}" "${ARTIFACT_ROOT}/candidate-baseline.png"
+            echo "No approved baseline exists for ${SCENARIO}. Review candidate-baseline.png before committing it." \
+              > "${ARTIFACT_ROOT}/missing-approved-baseline.txt"
+            exit 3
+          fi
+          cp "${BASELINE}" "${ARTIFACT_ROOT}/baseline.png"
+          xcrun swift scripts/ios-visual-diff.swift \
+            "${BASELINE}" \
+            "${ACTUAL_PATH}" \
+            "${ARTIFACT_ROOT}" \
+            0.015 \
+            0.012
+
+      - name: Upload actual, diff, overlay and measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diet-dashboard-${{ matrix.scenario }}
+          path: artifacts/ios-visual/${{ matrix.scenario }}/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce test and visual gates
+        if: always()
+        env:
+          TEST_OUTCOME: ${{ steps.ui_test.outcome }}
+          EXPORT_OUTCOME: ${{ steps.export.outcome }}
+          COMPARE_OUTCOME: ${{ steps.compare.outcome }}
+        run: |
+          if [[ "${TEST_OUTCOME}" != "success" ]]; then
+            echo "The XCUITest failed; inspect test.xcresult." >&2
+            exit 1
+          fi
+          if [[ "${EXPORT_OUTCOME}" != "success" ]]; then
+            echo "Screenshot or measurement export failed." >&2
+            exit 1
+          fi
+          if [[ "${COMPARE_OUTCOME}" != "success" ]]; then
+            echo "The approved baseline is missing or the visual diff exceeded its limits." >&2
+            exit 1
+          fi
+
+      - name: Remove the simulator
+        if: always() && steps.simulator.outputs.udid != ''
+        env:
+          SIMULATOR_UDID: ${{ steps.simulator.outputs.udid }}
+        run: |
+          xcrun simctl shutdown "${SIMULATOR_UDID}" || true
+          xcrun simctl delete "${SIMULATOR_UDID}" || true

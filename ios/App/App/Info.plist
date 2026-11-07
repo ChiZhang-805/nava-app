@@ -24,6 +24,8 @@
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NavaNativeUIEnabled</key>
+	<false/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>NAVA 读取 Apple 健康数据，用于生成个人节律洞察。</string>
 	<key>NSHealthUpdateUsageDescription</key>
