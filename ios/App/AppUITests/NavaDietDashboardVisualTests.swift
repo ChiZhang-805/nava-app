@@ -116,13 +116,6 @@ final class NavaDietDashboardVisualTests: XCTestCase {
                 "Food-card nutrition flip control is missing"
             )
             app.buttons[viewNutritionLabel].tap()
-            let foodBack = app.descendants(matching: .any)["diet.meal.food-card.recent-breakfast.back"].firstMatch
-            XCTAssertTrue(foodBack.waitForExistence(timeout: 5), "Food card did not flip to its nutrition side")
-
-            let foodBackAttachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-            foodBackAttachment.name = "food-card-back"
-            foodBackAttachment.lifetime = .keepAlways
-            add(foodBackAttachment)
 
             let addFoodLabel = language == "zh-Hans"
                 ? "加入\(foodName)到本餐"
@@ -130,7 +123,16 @@ final class NavaDietDashboardVisualTests: XCTestCase {
             if !app.buttons[addFoodLabel].isHittable {
                 app.swipeUp()
             }
-            XCTAssertTrue(app.buttons[addFoodLabel].waitForExistence(timeout: 5), "Per-food selection control is missing")
+            XCTAssertTrue(
+                app.buttons[addFoodLabel].waitForExistence(timeout: 5),
+                "The flipped food card did not expose its per-food selection control"
+            )
+
+            let foodBackAttachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            foodBackAttachment.name = "food-card-back"
+            foodBackAttachment.lifetime = .keepAlways
+            add(foodBackAttachment)
+
             app.buttons[addFoodLabel].tap()
 
             app.buttons[saveLabel].tap()
