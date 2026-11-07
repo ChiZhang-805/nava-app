@@ -261,10 +261,22 @@ jobs:
             --path "${RESULT_ROOT}" \
             --output-path "${EXPORT_ROOT}"
           cp -R "${EXPORT_ROOT}/." "${ARTIFACT_ROOT}/attachments/"
-          ACTUAL="$(find "${EXPORT_ROOT}" -type f -name "*${SCENARIO}*.png" -print | head -n 1)"
-          if [[ -z "${ACTUAL}" ]]; then
-            ACTUAL="$(find "${EXPORT_ROOT}" -type f -name '*.png' -print | head -n 1)"
-          fi
+          ACTUAL="$(EXPORT_ROOT="${EXPORT_ROOT}" SCENARIO="${SCENARIO}" python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["EXPORT_ROOT"])
+          scenario = os.environ["SCENARIO"]
+          for manifest in root.rglob("manifest.json"):
+              for test in json.loads(manifest.read_text()):
+                  for attachment in test.get("attachments", []):
+                      name = attachment.get("suggestedHumanReadableName", "")
+                      if scenario in name and name.endswith(".png"):
+                          print(manifest.parent / attachment["exportedFileName"])
+                          raise SystemExit
+          PY
+          )"
           if [[ -z "${ACTUAL}" ]]; then
             echo "No PNG attachment was exported from the UI test." > "${ARTIFACT_ROOT}/missing-screenshot.txt"
             exit 1
