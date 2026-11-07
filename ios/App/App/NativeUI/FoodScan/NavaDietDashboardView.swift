@@ -113,7 +113,7 @@ struct NavaDietDashboardView: View {
                 dishUnit: copy.dishUnit,
                 compact: compact
             )
-            .padding(.top, compact ? 2 : 8)
+            .padding(.top, compact ? 2 : 12)
 
             NavigationLink(value: NavaRoute.foodScan) {
                 Label(copy.addMeal, systemImage: "plus")
@@ -127,11 +127,11 @@ struct NavaDietDashboardView: View {
                     }
             }
             .buttonStyle(.plain)
-            .padding(.top, compact ? 8 : 16)
+            .padding(.top, compact ? 8 : 18)
             .accessibilityIdentifier("diet.dashboard.add-meal")
 
             mealRegion(compact: compact)
-                .padding(.top, compact ? 8 : 13)
+                .padding(.top, compact ? 8 : 10)
         }
         .padding(.horizontal, compact ? 16 : 20)
     }
@@ -236,7 +236,12 @@ private struct NavaDietMealCard: View {
             }
         }
         .padding(compact ? 11 : 13)
-        .frame(maxWidth: .infinity, minHeight: compact ? 126 : 140, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(
+            height: dynamicTypeSize.isAccessibilitySize ? nil : (compact ? 126 : 140),
+            alignment: .leading
+        )
+        .clipped()
         .background(Color.white.opacity(0.92), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 24, style: .continuous)

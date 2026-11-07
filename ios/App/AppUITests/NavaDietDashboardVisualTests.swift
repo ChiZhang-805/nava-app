@@ -7,7 +7,7 @@ final class NavaDietDashboardVisualTests: XCTestCase {
 
     func testDietDashboardVisualBaseline() throws {
         let environment = ProcessInfo.processInfo.environment
-        let scenario = environment["NAVA_VISUAL_SCENARIO"] ?? "local"
+        let scenario = environment["NAVA_VISUAL_SCENARIO"] ?? "iphone-15-pro_zh-default_populated"
         let language = environment["NAVA_VISUAL_LANGUAGE"] ?? "zh-Hans"
         let contentSize = environment["NAVA_VISUAL_CONTENT_SIZE"] ?? "default"
         let state = environment["NAVA_VISUAL_STATE"] ?? "populated"
