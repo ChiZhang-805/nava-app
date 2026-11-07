@@ -124,13 +124,27 @@ jobs:
           DEVICE_NAME: ${{ matrix.device }}
           SCENARIO: ${{ matrix.scenario }}
         run: |
-          RUNTIME_ID="$(xcrun simctl list runtimes | awk -F '[()]' '/iOS 26.*available/ { value=$2 } END { print value }')"
+          RUNTIME_ID="$(xcrun simctl list runtimes -j | python3 -c '
+          import json, sys
+          values = [value for value in json.load(sys.stdin)["runtimes"] if value.get("isAvailable") and "SimRuntime.iOS-" in value.get("identifier", "") and value.get("version", "").startswith("26.")]
+          print(sorted(values, key=lambda value: tuple(int(part) for part in value["version"].split(".")))[-1]["identifier"] if values else "")
+          ')"
           if [[ -z "${RUNTIME_ID}" ]]; then
             echo "No available iOS 26 Simulator runtime was found." >&2
             xcrun simctl list runtimes
             exit 1
           fi
-          UDID="$(xcrun simctl create "NAVA-${SCENARIO}" "${DEVICE_NAME}" "${RUNTIME_ID}")"
+          DEVICE_TYPE_ID="$(xcrun simctl list devicetypes -j | DEVICE_NAME="${DEVICE_NAME}" python3 -c '
+          import json, os, sys
+          matches = [value for value in json.load(sys.stdin)["devicetypes"] if value.get("name") == os.environ["DEVICE_NAME"]]
+          print(matches[0]["identifier"] if matches else "")
+          ')"
+          if [[ -z "${DEVICE_TYPE_ID}" ]]; then
+            echo "Simulator device type is unavailable: ${DEVICE_NAME}" >&2
+            xcrun simctl list devicetypes
+            exit 1
+          fi
+          UDID="$(xcrun simctl create "NAVA-${SCENARIO}" "${DEVICE_TYPE_ID}" "${RUNTIME_ID}")"
           xcrun simctl boot "${UDID}"
           xcrun simctl bootstatus "${UDID}" -b
           xcrun simctl ui "${UDID}" appearance light
