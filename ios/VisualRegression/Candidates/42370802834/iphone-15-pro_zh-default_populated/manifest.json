@@ -1,0 +1,35 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "BF8D71B3-5638-491A-AC3E-5351ECC9DF6D",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "77BEF053-EAC6-4E44-9B2C-DF071AA4FE2F.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "meal-editor_0_42FA07AD-B57F-441D-AF22-48966F75199C.png",
+        "timestamp" : 1794053230.445
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "BF8D71B3-5638-491A-AC3E-5351ECC9DF6D",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "CD7C1D12-A22F-4B80-8E2E-1A03DFAC736C.json",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "iphone-15-pro_zh-default_populated-measurements_0_86F7F927-CA08-4C66-B49E-8E8C6FDCD552.json",
+        "timestamp" : 1794053226.617
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "BF8D71B3-5638-491A-AC3E-5351ECC9DF6D",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "AE5D9CE4-6EB5-451D-8D86-77EA200E17D9.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "iphone-15-pro_zh-default_populated_0_923E4394-8C48-4F92-9A92-3AA3FEE4DDB0.png",
+        "timestamp" : 1794053224.064
+      }
+    ],
+    "testIdentifier" : "NavaDietDashboardVisualTests/testDietDashboardVisualBaseline()",
+    "testIdentifierURL" : "test://com.apple.xcode/App/AppUITests/NavaDietDashboardVisualTests/testDietDashboardVisualBaseline"
+  }
+]
