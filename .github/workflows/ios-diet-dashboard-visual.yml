@@ -299,6 +299,23 @@ jobs:
           if [[ -n "${EDITOR}" ]]; then
             cp "${EDITOR}" "${ARTIFACT_ROOT}/meal-editor.png"
           fi
+          FOOD_CARD_BACK="$(EXPORT_ROOT="${EXPORT_ROOT}" python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["EXPORT_ROOT"])
+          for manifest in root.rglob("manifest.json"):
+              for test in json.loads(manifest.read_text()):
+                  for attachment in test.get("attachments", []):
+                      if "food-card-back" in attachment.get("suggestedHumanReadableName", ""):
+                          print(manifest.parent / attachment["exportedFileName"])
+                          raise SystemExit
+          PY
+          )"
+          if [[ -n "${FOOD_CARD_BACK}" ]]; then
+            cp "${FOOD_CARD_BACK}" "${ARTIFACT_ROOT}/food-card-back.png"
+          fi
           echo "actual=${ARTIFACT_ROOT}/actual.png" >> "${GITHUB_OUTPUT}"
 
       - name: Compare with the approved baseline
@@ -340,6 +357,9 @@ jobs:
           fi
           if [[ -f "${ARTIFACT_ROOT}/meal-editor.png" ]]; then
             cp "${ARTIFACT_ROOT}/meal-editor.png" "${CANDIDATE_ROOT}/meal-editor.png"
+          fi
+          if [[ -f "${ARTIFACT_ROOT}/food-card-back.png" ]]; then
+            cp "${ARTIFACT_ROOT}/food-card-back.png" "${CANDIDATE_ROOT}/food-card-back.png"
           fi
           find "${ARTIFACT_ROOT}/attachments" -type f \
             \( -name '*.json' -o -name 'manifest.json' \) \

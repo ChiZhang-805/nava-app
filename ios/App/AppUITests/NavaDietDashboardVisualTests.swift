@@ -112,6 +112,11 @@ final class NavaDietDashboardVisualTests: XCTestCase {
             let foodBack = app.descendants(matching: .any)["diet.meal.food-card.recent-breakfast.back"].firstMatch
             XCTAssertTrue(foodBack.waitForExistence(timeout: 5), "Food card did not flip to its nutrition side")
 
+            let foodBackAttachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            foodBackAttachment.name = "food-card-back"
+            foodBackAttachment.lifetime = .keepAlways
+            add(foodBackAttachment)
+
             let addFoodLabel = language == "zh-Hans"
                 ? "加入\(foodName)到本餐"
                 : "Add \(foodName) to meal"

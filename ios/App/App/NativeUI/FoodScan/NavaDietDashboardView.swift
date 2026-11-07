@@ -1349,11 +1349,13 @@ private struct NavaDietFoodLibraryCard: View {
             front
                 .opacity(isFlipped ? 0 : 1)
                 .allowsHitTesting(!isFlipped)
+                .accessibilityHidden(isFlipped)
 
             back
                 .opacity(isFlipped ? 1 : 0)
                 .rotation3DEffect(.degrees(reduceMotion ? 0 : 180), axis: (x: 0, y: 1, z: 0))
                 .allowsHitTesting(isFlipped)
+                .accessibilityHidden(!isFlipped)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 372)
