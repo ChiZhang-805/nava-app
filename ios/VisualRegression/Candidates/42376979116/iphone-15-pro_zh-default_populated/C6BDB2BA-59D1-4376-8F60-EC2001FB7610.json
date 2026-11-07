@@ -1,0 +1,44 @@
+{
+  "contentSize" : "default",
+  "elements" : {
+    "addMeal" : {
+      "height" : 51,
+      "width" : 354,
+      "x" : 19.5,
+      "y" : 374.5
+    },
+    "breakfast" : {
+      "height" : 140,
+      "width" : 353,
+      "x" : 20,
+      "y" : 583
+    },
+    "dashboard" : {
+      "height" : 852,
+      "width" : 393,
+      "x" : 0,
+      "y" : 0
+    },
+    "gauge" : {
+      "height" : 212,
+      "width" : 352.00521850585938,
+      "x" : 20.497386932373047,
+      "y" : 135
+    },
+    "lunch" : {
+      "height" : 140,
+      "width" : 353,
+      "x" : 20,
+      "y" : 435
+    },
+    "window" : {
+      "height" : 852,
+      "width" : 393,
+      "x" : 0,
+      "y" : 0
+    }
+  },
+  "language" : "zh-Hans",
+  "scenario" : "iphone-15-pro_zh-default_populated",
+  "state" : "populated"
+}
