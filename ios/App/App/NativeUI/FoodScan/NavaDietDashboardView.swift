@@ -1342,31 +1342,27 @@ private struct NavaDietFoodLibraryCard: View {
     let onToggleFavorite: () -> Void
 
     @State private var isFlipped = false
+    @State private var flipAngle = 0.0
+    @State private var isAnimatingFlip = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 12) {
             cardHeader
 
-            ZStack {
-                front
-                    .opacity(isFlipped ? 0 : 1)
-                    .allowsHitTesting(!isFlipped)
-                    .accessibilityHidden(isFlipped)
-
-                back
-                    .opacity(isFlipped ? 1 : 0)
-                    .rotation3DEffect(.degrees(reduceMotion ? 0 : 180), axis: (x: 0, y: 1, z: 0))
-                    .allowsHitTesting(isFlipped)
-                    .accessibilityHidden(!isFlipped)
+            Group {
+                if isFlipped {
+                    back
+                } else {
+                    front
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .rotation3DEffect(
-                .degrees(reduceMotion ? 0 : (isFlipped ? 180 : 0)),
+                .degrees(reduceMotion ? 0 : flipAngle),
                 axis: (x: 0, y: 1, z: 0),
                 perspective: 0.72
             )
-            .animation(reduceMotion ? nil : .spring(response: 0.48, dampingFraction: 0.82), value: isFlipped)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 372)
@@ -1382,7 +1378,7 @@ private struct NavaDietFoodLibraryCard: View {
 
     private var front: some View {
         Button {
-            isFlipped = true
+            flip(to: true)
         } label: {
             VStack(spacing: 12) {
                 NavaDietMealArtwork(meal: option.meal)
@@ -1420,7 +1416,7 @@ private struct NavaDietFoodLibraryCard: View {
     private var back: some View {
         VStack(alignment: .leading, spacing: 18) {
             Button {
-                isFlipped = false
+                flip(to: false)
             } label: {
                 VStack(alignment: .leading, spacing: 18) {
                     Text(option.meal.note)
@@ -1545,6 +1541,32 @@ private struct NavaDietFoodLibraryCard: View {
             return isChinese ? "从本餐移出\(option.name)" : "Remove \(option.name) from meal"
         }
         return isChinese ? "加入\(option.name)到本餐" : "Add \(option.name) to meal"
+    }
+
+    private func flip(to target: Bool) {
+        guard target != isFlipped, !isAnimatingFlip else { return }
+        if reduceMotion {
+            isFlipped = target
+            return
+        }
+
+        isAnimatingFlip = true
+        let outgoingAngle = target ? 90.0 : -90.0
+        let incomingAngle = target ? -90.0 : 90.0
+
+        withAnimation(.easeIn(duration: 0.18)) {
+            flipAngle = outgoingAngle
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            isFlipped = target
+            flipAngle = incomingAngle
+            withAnimation(.easeOut(duration: 0.22)) {
+                flipAngle = 0
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+                isAnimatingFlip = false
+            }
+        }
     }
 }
 
