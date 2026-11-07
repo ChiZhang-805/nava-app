@@ -956,7 +956,6 @@ private struct NavaDietMealEditorView: View {
 
     @State private var draft: NavaDietMeal
     @State private var query = ""
-    @State private var scope: NavaDietFoodScope = .all
     @State private var selectedFoodIDs: Set<String>
     @State private var nutritionEdits: [String: NavaDietFoodNutrition] = [:]
     @State private var showingDeleteConfirmation = false
@@ -1024,7 +1023,7 @@ private struct NavaDietMealEditorView: View {
         let base: [NavaDietFoodOption]
 
         if normalizedQuery.isEmpty {
-            base = foodOptions.filter { matchesScope($0) }
+            base = foodOptions
         } else {
             base = foodOptions.filter { option in
                 ([option.name] + option.searchTerms)
@@ -1267,15 +1266,22 @@ private struct NavaDietMealEditorView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .top, spacing: 12) {
                 ForEach(NavaDietFoodScope.allCases) { value in
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            scope = value
-                        }
+                    NavigationLink {
+                        NavaDietFoodCategoryListView(
+                            category: value,
+                            options: categoryOptions(for: value),
+                            favoriteFoodIDs: favoriteFoodIDs,
+                            selectedFoodIDs: selectedFoodIDs,
+                            isChinese: isChinese,
+                            nutritionBinding: { nutritionBinding(for: $0) },
+                            onToggleSelection: { toggleSelection($0) },
+                            onToggleFavorite: { toggleFavorite($0) }
+                        )
                     } label: {
                         VStack(spacing: 7) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .fill(scope == value ? value.tint.opacity(0.18) : Color.white.opacity(0.86))
+                                    .fill(Color.white.opacity(0.86))
                                 Image(systemName: value.systemImage)
                                     .font(.title3.weight(.semibold))
                                     .foregroundStyle(value.tint)
@@ -1283,19 +1289,22 @@ private struct NavaDietMealEditorView: View {
                             .frame(width: 64, height: 58)
                             .overlay {
                                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(scope == value ? value.tint.opacity(0.72) : Color.white.opacity(0.9), lineWidth: 1.5)
+                                    .stroke(value.tint.opacity(0.24), lineWidth: 1.5)
                             }
 
                             Text(value.title)
-                                .font(.caption2.weight(scope == value ? .bold : .medium))
-                                .foregroundStyle(scope == value ? NavaColor.ink : NavaColor.secondaryInk)
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(NavaColor.secondaryInk)
                                 .lineLimit(1)
                         }
                         .frame(width: 72)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(value.accessibilityTitle(isChinese: isChinese))
-                    .accessibilityAddTraits(scope == value ? .isSelected : [])
+                    .accessibilityLabel(isChinese
+                        ? "打开\(value.accessibilityTitle(isChinese: true))食物列表"
+                        : "Open \(value.accessibilityTitle(isChinese: false)) foods"
+                    )
+                    .accessibilityHint(isChinese ? "查看该分类中每种食物的营养信息" : "View nutrition for every food in this category")
                     .accessibilityIdentifier("diet.meal.editor.scope.\(value.rawValue)")
                 }
             }
@@ -1393,8 +1402,18 @@ private struct NavaDietMealEditorView: View {
         }
     }
 
-    private func matchesScope(_ option: NavaDietFoodOption) -> Bool {
-        switch scope {
+    private func categoryOptions(for category: NavaDietFoodScope) -> [NavaDietFoodOption] {
+        foodOptions
+            .filter { matchesScope($0, category: category) }
+            .sorted { lhs, rhs in
+                let lhsRank = foodRank(lhs)
+                let rhsRank = foodRank(rhs)
+                return lhsRank == rhsRank ? lhs.name < rhs.name : lhsRank < rhsRank
+            }
+    }
+
+    private func matchesScope(_ option: NavaDietFoodOption, category: NavaDietFoodScope) -> Bool {
+        switch category {
         case .all:
             return true
         case .vegan:
@@ -1509,6 +1528,281 @@ private struct NavaDietMealEditorView: View {
     private func roundedTotal(_ values: [Double]) -> Int? {
         guard !values.isEmpty else { return nil }
         return Int(values.reduce(0, +).rounded())
+    }
+}
+
+private struct NavaDietFoodCategoryListView: View {
+    let category: NavaDietFoodScope
+    let options: [NavaDietFoodOption]
+    let favoriteFoodIDs: Set<String>
+    let selectedFoodIDs: Set<String>
+    let isChinese: Bool
+    let nutritionBinding: (NavaDietFoodOption) -> Binding<NavaDietFoodNutrition>
+    let onToggleSelection: (String) -> Void
+    let onToggleFavorite: (String) -> Void
+
+    var body: some View {
+        ZStack {
+            NavaDietDashboardBackground()
+
+            if options.isEmpty {
+                emptyState
+            } else {
+                List(options) { option in
+                    NavigationLink {
+                        NavaDietFoodDetailView(
+                            option: option,
+                            nutrition: nutritionBinding(option),
+                            isSelected: selectedFoodIDs.contains(option.id),
+                            isFavorite: favoriteFoodIDs.contains(option.id),
+                            isChinese: isChinese,
+                            onToggleSelection: { onToggleSelection(option.id) },
+                            onToggleFavorite: { onToggleFavorite(option.id) }
+                        )
+                    } label: {
+                        NavaDietFoodCategoryRow(
+                            option: option,
+                            nutrition: nutritionBinding(option),
+                            isSelected: selectedFoodIDs.contains(option.id),
+                            isFavorite: favoriteFoodIDs.contains(option.id),
+                            isChinese: isChinese
+                        )
+                    }
+                    .accessibilityIdentifier("diet.meal.category.\(category.rawValue).food.\(option.id)")
+                    .listRowBackground(Color.clear)
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+            }
+        }
+        .navigationTitle(category.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
+        .accessibilityIdentifier("diet.meal.category.\(category.rawValue)")
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 14) {
+            Image(systemName: category.systemImage)
+                .font(.largeTitle.weight(.semibold))
+                .foregroundStyle(category.tint)
+
+            Text(isChinese ? "这个分类暂时没有食物" : "No foods in this category yet")
+                .font(.headline)
+                .foregroundStyle(NavaColor.ink)
+
+            Text(isChinese ? "可以返回搜索，或拍照添加新的食物记录。" : "Go back to search or scan a new food.")
+                .font(.subheadline)
+                .foregroundStyle(NavaColor.secondaryInk)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
+    }
+}
+
+private struct NavaDietFoodCategoryRow: View {
+    let option: NavaDietFoodOption
+    @Binding var nutrition: NavaDietFoodNutrition
+    let isSelected: Bool
+    let isFavorite: Bool
+    let isChinese: Bool
+
+    var body: some View {
+        HStack(spacing: 14) {
+            NavaDietMealArtwork(meal: option.meal)
+                .frame(width: 72, height: 72)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Text(option.name)
+                        .font(.headline)
+                        .foregroundStyle(NavaColor.ink)
+                        .lineLimit(1)
+
+                    if isFavorite {
+                        Image(systemName: "star.fill")
+                            .font(.caption)
+                            .foregroundStyle(NavaColor.reward)
+                    }
+                }
+
+                Text(option.meal.note)
+                    .font(.caption)
+                    .foregroundStyle(NavaColor.secondaryInk)
+                    .lineLimit(1)
+
+                HStack(spacing: 12) {
+                    Label("\(nutrition.calories) kcal", systemImage: "flame.fill")
+                    Text("P \(nutrition.protein)g")
+                    Text("C \(nutrition.carbs)g")
+                    Text("F \(nutrition.fat)g")
+                }
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(NavaColor.secondaryInk)
+                .monospacedDigit()
+            }
+
+            Spacer(minLength: 4)
+
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(NavaColor.accent)
+                    .accessibilityLabel(isChinese ? "已加入本餐" : "Added to meal")
+            }
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+private struct NavaDietFoodDetailView: View {
+    let option: NavaDietFoodOption
+    @Binding var nutrition: NavaDietFoodNutrition
+    let isChinese: Bool
+    let onToggleSelection: () -> Void
+    let onToggleFavorite: () -> Void
+    @State private var isSelected: Bool
+    @State private var isFavorite: Bool
+
+    init(
+        option: NavaDietFoodOption,
+        nutrition: Binding<NavaDietFoodNutrition>,
+        isSelected: Bool,
+        isFavorite: Bool,
+        isChinese: Bool,
+        onToggleSelection: @escaping () -> Void,
+        onToggleFavorite: @escaping () -> Void
+    ) {
+        self.option = option
+        _nutrition = nutrition
+        self.isChinese = isChinese
+        self.onToggleSelection = onToggleSelection
+        self.onToggleFavorite = onToggleFavorite
+        _isSelected = State(initialValue: isSelected)
+        _isFavorite = State(initialValue: isFavorite)
+    }
+
+    var body: some View {
+        ZStack {
+            NavaDietDashboardBackground()
+
+            ScrollView {
+                VStack(spacing: 24) {
+                    NavaDietMealArtwork(meal: option.meal)
+                        .frame(width: 248, height: 248)
+                        .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(option.source.title(isChinese: isChinese), systemImage: option.source.systemImage)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(NavaColor.secondaryInk)
+
+                        Text(option.meal.note)
+                            .font(.body)
+                            .foregroundStyle(NavaColor.ink)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    LazyVGrid(
+                        columns: [
+                            GridItem(.flexible(), spacing: 18),
+                            GridItem(.flexible(), spacing: 18)
+                        ],
+                        spacing: 22
+                    ) {
+                        NavaDietFoodDetailMetric(
+                            title: isChinese ? "热量" : "Calories",
+                            value: "\(nutrition.calories) kcal",
+                            systemImage: "flame.fill",
+                            tint: NavaColor.reward
+                        )
+                        NavaDietFoodDetailMetric(
+                            title: "Protein",
+                            value: "\(nutrition.protein) g",
+                            systemImage: "leaf.fill",
+                            tint: NavaColor.accent
+                        )
+                        NavaDietFoodDetailMetric(
+                            title: "Carbs",
+                            value: "\(nutrition.carbs) g",
+                            systemImage: "circle.hexagongrid.fill",
+                            tint: Color(red: 0.33, green: 0.68, blue: 0.78)
+                        )
+                        NavaDietFoodDetailMetric(
+                            title: "Fat",
+                            value: "\(nutrition.fat) g",
+                            systemImage: "drop.fill",
+                            tint: Color(red: 0.23, green: 0.48, blue: 0.62)
+                        )
+                    }
+
+                    Button {
+                        onToggleSelection()
+                        isSelected.toggle()
+                    } label: {
+                        Label(
+                            isSelected
+                                ? (isChinese ? "从本餐移出" : "Remove from meal")
+                                : (isChinese ? "加入本餐" : "Add to meal"),
+                            systemImage: isSelected ? "minus.circle.fill" : "plus.circle.fill"
+                        )
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, minHeight: NavaMetric.minimumTap)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(NavaColor.accent)
+                    .accessibilityIdentifier("diet.meal.food-detail.\(option.id).selection")
+                }
+                .padding(.horizontal, NavaMetric.pageInset)
+                .padding(.vertical, 20)
+            }
+            .scrollIndicators(.hidden)
+        }
+        .navigationTitle(option.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    onToggleFavorite()
+                    isFavorite.toggle()
+                } label: {
+                    Image(systemName: isFavorite ? "star.fill" : "star")
+                }
+                .accessibilityLabel(isFavorite
+                    ? (isChinese ? "取消收藏\(option.name)" : "Remove \(option.name) from favorites")
+                    : (isChinese ? "收藏\(option.name)" : "Favorite \(option.name)")
+                )
+            }
+        }
+        .accessibilityIdentifier("diet.meal.food-detail.\(option.id)")
+    }
+}
+
+private struct NavaDietFoodDetailMetric: View {
+    let title: String
+    let value: String
+    let systemImage: String
+    let tint: Color
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: systemImage)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(tint)
+                .frame(width: 26)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(NavaColor.secondaryInk)
+                Text(value)
+                    .font(.title3.weight(.bold))
+                    .monospacedDigit()
+                    .foregroundStyle(NavaColor.ink)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

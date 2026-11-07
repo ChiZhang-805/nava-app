@@ -90,6 +90,24 @@ final class NavaDietDashboardVisualTests: XCTestCase {
                 app.buttons["diet.meal.editor.scope.vegan"].waitForExistence(timeout: 5),
                 "The horizontal food-category strip is missing"
             )
+
+            let proteinCategory = app.buttons["diet.meal.editor.scope.protein"]
+            XCTAssertTrue(proteinCategory.waitForExistence(timeout: 5), "The protein category action is missing")
+            proteinCategory.tap()
+
+            let proteinList = app.descendants(matching: .any)["diet.meal.category.protein"].firstMatch
+            XCTAssertTrue(proteinList.waitForExistence(timeout: 5), "The protein category did not open its food list")
+
+            let proteinFood = app.buttons["diet.meal.category.protein.food.recent-breakfast"].firstMatch
+            XCTAssertTrue(proteinFood.waitForExistence(timeout: 5), "The protein list does not expose a food detail route")
+            proteinFood.tap()
+
+            let foodDetail = app.descendants(matching: .any)["diet.meal.food-detail.recent-breakfast"].firstMatch
+            XCTAssertTrue(foodDetail.waitForExistence(timeout: 5), "The food nutrition detail page did not open")
+            app.navigationBars.buttons.element(boundBy: 0).tap()
+            app.navigationBars.buttons.element(boundBy: 0).tap()
+            XCTAssertTrue(editor.waitForExistence(timeout: 5), "Returning from food details did not restore the editor")
+
             let foodCarousel = app.scrollViews["diet.meal.editor.food-carousel"].firstMatch
             XCTAssertTrue(foodCarousel.waitForExistence(timeout: 5), "The horizontal food-card carousel is missing")
             foodCarousel.swipeLeft()
