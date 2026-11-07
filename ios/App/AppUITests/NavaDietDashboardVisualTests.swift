@@ -36,8 +36,6 @@ final class NavaDietDashboardVisualTests: XCTestCase {
 
         let gauge = app.descendants(matching: .any)["diet.dashboard.gauge"].firstMatch
         let addMeal = app.descendants(matching: .any)["diet.dashboard.add-meal"].firstMatch
-        XCTAssertTrue(gauge.waitForExistence(timeout: 5), "Nine-segment gauge is missing")
-        XCTAssertTrue(addMeal.exists, "Add-meal control is missing")
 
         let screenshot = XCUIScreen.main.screenshot()
         let imageAttachment = XCTAttachment(screenshot: screenshot)
@@ -60,6 +58,9 @@ final class NavaDietDashboardVisualTests: XCTestCase {
         metricsAttachment.name = "\(scenario)-measurements"
         metricsAttachment.lifetime = .keepAlways
         add(metricsAttachment)
+
+        XCTAssertTrue(gauge.waitForExistence(timeout: 5), "Nine-segment gauge is missing")
+        XCTAssertTrue(addMeal.exists, "Add-meal control is missing")
     }
 
     private func measurementPayload(

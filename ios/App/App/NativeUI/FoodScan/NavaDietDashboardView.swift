@@ -86,6 +86,7 @@ struct NavaDietDashboardView: View {
                 }
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("diet.dashboard")
         .navigationBarBackButtonHidden(true)
         .navigationBarHidden(true)
