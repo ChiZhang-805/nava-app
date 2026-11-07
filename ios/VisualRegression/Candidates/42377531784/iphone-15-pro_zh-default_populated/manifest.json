@@ -1,0 +1,188 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "D90B3A70-493C-47B9-86E0-B30AE894D142.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "App UI hierarchy for health.nava_0_C4DD2473-F1AD-4521-B160-C60759F49690.mobile",
+        "timestamp" : 1794058670.311
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "1C708AB2-4837-4B57-8354-555B71414EF8",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-11-07 at 01.37.50 PM",
+        "timestamp" : 1794058670.312
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "E0A012F1-3E84-4DD5-82E8-48B2455B0932.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"diet.meal.food-card.recent-breakfast.back\" Any`_0_4F422B17-23FE-4694-9EBE-362620A755AF.txt",
+        "timestamp" : 1794058669.78
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "358263F4-CA37-4E79-BDFC-8C5ED419B255.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"diet.meal.food-card.recent-breakfast.back\" Any`_0_6BC91AF8-2A69-437F-93ED-865772F1D444.txt",
+        "timestamp" : 1794058669.13
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "73F42346-DAF2-4A91-B98D-B037593E3A73.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"diet.meal.food-card.recent-breakfast.back\" Any`_0_56908654-A1BE-4270-BFAB-4018C14AEFD2.txt",
+        "timestamp" : 1794058668.29
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "7F26A4A8-F634-4CD0-B9DC-34C8C361E677.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"diet.meal.food-card.recent-breakfast.back\" Any`_0_6FB4F6FD-CB34-4153-BC3D-AE68AFF98EBE.txt",
+        "timestamp" : 1794058667.358
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "51128693-8DFA-43D1-BEA5-E5F515C202D6.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"diet.meal.food-card.recent-breakfast.back\" Any`_0_B7BAA635-A1B9-40F8-BC52-557FE77144DE.txt",
+        "timestamp" : 1794058666.438
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "C0B4EB68-94A0-4618-A030-BA8D4FE3AB02",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-11-07 at 01.37.44 PM",
+        "timestamp" : 1794058664.135
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "AF76E8B5-E02B-43F0-AF77-7F5D988346B4",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-11-07 at 01.37.44 PM",
+        "timestamp" : 1794058664.459
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "2F7308A8-29DC-41F5-9014-F8314BCBE36C",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-11-07 at 01.37.42 PM",
+        "timestamp" : 1794058662.983
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "4F5FD2D1-20A3-4B8B-8A18-BA624ECB8ED7",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-11-07 at 01.37.43 PM",
+        "timestamp" : 1794058663.303
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "54394DB3-B068-46FA-9396-4D3A4F03DAEE",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-11-07 at 01.37.40 PM",
+        "timestamp" : 1794058660.987
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "C4ADC4DF-3C71-4612-ADF4-0808C39BC85C",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-11-07 at 01.37.41 PM",
+        "timestamp" : 1794058661.412
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "37A2F156-FF22-489E-A66E-AE0AD0D85E33",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-11-07 at 01.37.39 PM",
+        "timestamp" : 1794058659.377
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "0D118162-FF92-4A78-9367-44E1C5D0CB8D",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-11-07 at 01.37.38 PM",
+        "timestamp" : 1794058658.264
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "BE5705F6-FC74-4E1A-847B-DAFAC9DED097.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "meal-editor_0_7D1F5DDB-20FD-44ED-BE6F-A2A99DC5A83A.png",
+        "timestamp" : 1794058656.685
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "6B05520C-E3FE-49F0-AF5B-9DE12B50047B",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-11-07 at 01.37.34 PM",
+        "timestamp" : 1794058654.594
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "5F096CA1-6532-42A1-8B30-E52788888AA9.json",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "iphone-15-pro_zh-default_populated-measurements_0_2F0A1F2D-F67F-4FFB-84E7-9079B2A04AB8.json",
+        "timestamp" : 1794058652.201
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "32C03367-4A44-473D-AF69-04C66338E1D7.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "iphone-15-pro_zh-default_populated_0_3B11BC2D-3C99-46CB-B79D-8E71D840AC64.png",
+        "timestamp" : 1794058649.991
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "62B51F8C-0FB4-4779-81C7-DDBA3B1DA6E0",
+        "deviceName" : "NAVA-iphone-15-pro_zh-default_populated",
+        "exportedFileName" : "BE42CDD4-E482-4DCB-8DA9-0B81AF3E905A.mp4",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Screen Recording 2026-11-07 at 01.37.10 PM.mp4",
+        "timestamp" : 1794058630.072
+      }
+    ],
+    "testIdentifier" : "NavaDietDashboardVisualTests/testDietDashboardVisualBaseline()",
+    "testIdentifierURL" : "test://com.apple.xcode/App/AppUITests/NavaDietDashboardVisualTests/testDietDashboardVisualBaseline"
+  }
+]
