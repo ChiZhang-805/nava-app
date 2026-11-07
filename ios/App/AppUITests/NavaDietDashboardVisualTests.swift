@@ -108,7 +108,14 @@ final class NavaDietDashboardVisualTests: XCTestCase {
             XCTAssertTrue(app.buttons[favoriteLabel].waitForExistence(timeout: 5), "Food favorite control is missing")
             app.buttons[favoriteLabel].tap()
 
-            recentFood.tap()
+            let viewNutritionLabel = language == "zh-Hans"
+                ? "查看\(foodName)营养"
+                : "View nutrition for \(foodName)"
+            XCTAssertTrue(
+                app.buttons[viewNutritionLabel].waitForExistence(timeout: 5),
+                "Food-card nutrition flip control is missing"
+            )
+            app.buttons[viewNutritionLabel].tap()
             let foodBack = app.descendants(matching: .any)["diet.meal.food-card.recent-breakfast.back"].firstMatch
             XCTAssertTrue(foodBack.waitForExistence(timeout: 5), "Food card did not flip to its nutrition side")
 
