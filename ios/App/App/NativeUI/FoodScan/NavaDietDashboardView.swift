@@ -260,12 +260,10 @@ private struct NavaDietMealCard: View {
             HStack(alignment: .top, spacing: compact ? 10 : 12) {
                 dishImageSlot(size: imageSize)
 
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(meal.title)
                         .font(.headline.weight(.bold))
                         .foregroundStyle(NavaColor.ink)
-
-                    Spacer(minLength: 2)
 
                     Text("\(meal.time) · \(meal.note)")
                         .font(.caption)
@@ -274,19 +272,17 @@ private struct NavaDietMealCard: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 
-                VStack(alignment: .trailing, spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
                     Text(meal.calories.formatted())
                         .font(.system(size: compact ? 27 : 30, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(NavaColor.ink)
 
-                    Spacer(minLength: 0)
-
                     Text("kcal")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(NavaColor.secondaryInk)
                 }
-                .frame(width: compact ? 68 : 74, height: imageSize, alignment: .trailing)
+                .frame(width: compact ? 84 : 94, alignment: .trailing)
             }
             .frame(height: imageSize)
 
@@ -302,7 +298,7 @@ private struct NavaDietMealCard: View {
 
                 Spacer(minLength: 8)
 
-                editSymbol
+                NavaDietEditIcon(compact: compact)
                     .frame(width: compact ? 34 : 38, height: lowerRowHeight, alignment: .bottomTrailing)
             }
             .frame(height: lowerRowHeight)
@@ -336,7 +332,7 @@ private struct NavaDietMealCard: View {
                 NavaDietMacroMini(label: "Carbs", value: "\(meal.carbs)g")
                 NavaDietMacroMini(label: "Fat", value: "\(meal.fat)g")
                 Spacer(minLength: 0)
-                editSymbol
+                NavaDietEditIcon(compact: false)
                     .frame(width: 44, height: 44, alignment: .trailing)
             }
         }
@@ -344,25 +340,32 @@ private struct NavaDietMealCard: View {
     }
 
     private func dishImageSlot(size: CGFloat) -> some View {
-        let shape = RoundedRectangle(cornerRadius: compact ? 13 : 15, style: .continuous)
         return Image(meal.imageName)
             .resizable()
             .scaledToFit()
-            .padding(3)
+            .padding(2)
             .frame(width: size, height: size)
-            .background(NavaColor.mist.opacity(0.52), in: shape)
-            .clipShape(shape)
-            .overlay { shape.stroke(NavaColor.accent.opacity(0.10), lineWidth: 1) }
             .shadow(color: NavaColor.ink.opacity(0.08), radius: 4, y: 2)
             .accessibilityHidden(true)
     }
+}
 
-    private var editSymbol: some View {
-        Image(systemName: "pencil.and.outline")
-            .font(.system(size: compact ? 20 : 22, weight: .black))
-            .symbolRenderingMode(.monochrome)
-            .foregroundStyle(NavaColor.ink)
-            .accessibilityHidden(true)
+private struct NavaDietEditIcon: View {
+    let compact: Bool
+
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Image(systemName: "pencil")
+                .font(.system(size: compact ? 19 : 21, weight: .black))
+                .symbolRenderingMode(.monochrome)
+                .offset(x: -2, y: -3)
+
+            Capsule()
+                .frame(width: compact ? 8 : 10, height: 2.5)
+        }
+        .foregroundStyle(NavaColor.ink)
+        .frame(width: compact ? 25 : 28, height: compact ? 25 : 28)
+        .accessibilityHidden(true)
     }
 }
 
