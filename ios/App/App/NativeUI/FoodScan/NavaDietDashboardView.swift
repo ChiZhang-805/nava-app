@@ -1254,7 +1254,7 @@ private struct NavaDietMealEditorView: View {
                     .font(.headline)
             }
             .buttonStyle(.bordered)
-            .buttonBorderShape(.circle)
+            .buttonBorderShape(.capsule)
             .controlSize(.large)
             .accessibilityLabel(isChinese ? "拍照添加菜品" : "Scan a food")
             .accessibilityIdentifier("diet.meal.editor.rescan")
