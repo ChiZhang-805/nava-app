@@ -187,7 +187,7 @@ try {
   for(const mode of ['signIn','signUp','reset']){
     if(mode==='signUp')await auth.locator('.auth-mode-icon').click();
     if(mode==='reset'){
-      await auth.locator('.auth-mode-icon').click();await auth.locator('.auth-forgot').click();await auth.locator('[data-recovery-option="reset"]').click();
+      await auth.locator('.auth-mode-icon').click();await auth.locator('.auth-forgot').click();
     }
     await inspect(auth,mode,width,height,'.auth-screen');
     await keyboard(auth,mode,width,height,auth.locator('.auth-form input').last(),auth.locator('.auth-submit'));

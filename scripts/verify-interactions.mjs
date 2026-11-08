@@ -179,9 +179,7 @@ async function verifyOtpLogin(browser, baseUrl, results, consoleErrors) {
   const { context, page } = await createBarePage(browser, consoleErrors);
   await page.goto(`${baseUrl}?demo=1`, { waitUntil: "networkidle" });
   await dismissLaunch(page);
-  await page.locator(".auth-forgot").click();
-  await expect(page.locator(".auth-recovery-options > button")).toHaveCount(2);
-  await page.locator('[data-recovery-option="otp"]').click();
+  await page.locator(".auth-method-switch").click();
   await page.locator('input[autocomplete="username"]').fill(demoAccount);
   await page.locator(".auth-code-button").click();
   const otp = page.locator('input[autocomplete="one-time-code"]');
@@ -210,8 +208,6 @@ async function verifyAuthControls(browser, baseUrl, results, consoleErrors) {
   await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
 
   await page.locator(".auth-forgot").click();
-  await expect(page.locator(".auth-recovery-options > button")).toHaveCount(2);
-  await page.locator('[data-recovery-option="reset"]').click();
   await page.locator('input[autocomplete="username"]').fill(demoAccount);
   await page.locator(".auth-code-button").click();
   const otp = page.locator('input[autocomplete="one-time-code"]');

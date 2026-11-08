@@ -21,6 +21,14 @@ type FoodItem = {
   nutrition_source: "vision_estimate";
 };
 
+type VisualPlan = {
+  canonical_dish_name: string;
+  visible_ingredients: string[];
+  appearance: string;
+  plating: string;
+  confidence: number;
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return optionsResponse();
   if (req.method !== "POST") return errorResponse("仅支持 POST。", 405);
@@ -72,11 +80,11 @@ async function callProvider(input: { imageUrl: string; imagePath?: string; lang:
     return normalized;
   }
 
-  const visionKey = Deno.env.get("NAVA_DIET_VISION_KEY") ?? Deno.env.get("DASHSCOPE_API_KEY");
+  const visionKey = Deno.env.get("NAVA_DIET_VISION_KEY") ?? Deno.env.get("DASHSCOPE_API_KEY_NAVA");
   if (!visionKey) {
     throw new Error(input.lang === "en"
-      ? "Food-photo recognition requires a vision AI key. Configure DASHSCOPE_API_KEY in Supabase Edge Function secrets."
-      : "照片识别必须使用视觉 AI。请先在 Supabase Edge Function Secrets 配置 DASHSCOPE_API_KEY。");
+      ? "Food-photo recognition requires a NAVA-scoped vision AI key. Configure NAVA_DIET_VISION_KEY or DASHSCOPE_API_KEY_NAVA in Supabase Edge Function secrets."
+      : "照片识别必须使用 NAVA 专用视觉 AI。请在 Supabase Edge Function Secrets 配置 NAVA_DIET_VISION_KEY 或 DASHSCOPE_API_KEY_NAVA。");
   }
 
   const visionEndpoint = Deno.env.get("NAVA_DIET_VISION_URL")
@@ -167,6 +175,19 @@ function normalizeProviderResult(data: Record<string, unknown>, provider: string
   }).filter((item) => item.name && !/^(?:待确认餐食|meal item to confirm)$/i.test(item.name));
 
   const sum = (field: keyof FoodItem) => items.reduce((total, item) => total + (Number(item[field]) || 0), 0);
+  const rawPlan = data.visual_plan && typeof data.visual_plan === "object"
+    ? data.visual_plan as Record<string, unknown>
+    : {};
+  const visibleIngredients = Array.isArray(rawPlan.visible_ingredients)
+    ? rawPlan.visible_ingredients.map((value) => String(value).trim()).filter(Boolean).slice(0, 16)
+    : [];
+  const visualPlan: VisualPlan = {
+    canonical_dish_name: String(rawPlan.canonical_dish_name ?? items.map((item) => item.name).join("、")).trim(),
+    visible_ingredients: visibleIngredients,
+    appearance: String(rawPlan.appearance ?? "").trim(),
+    plating: String(rawPlan.plating ?? "").trim(),
+    confidence: boundedConfidence(rawPlan.confidence) ?? 0,
+  };
 
   return {
     schemaVersion: "2.0.0",
@@ -182,6 +203,7 @@ function normalizeProviderResult(data: Record<string, unknown>, provider: string
       fat_g: sum("fat_g"),
     },
     note: typeof data.note === "string" ? data.note : undefined,
+    visual_plan: visualPlan,
   };
 }
 

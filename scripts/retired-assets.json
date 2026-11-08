@@ -871,6 +871,26 @@
       "path": "src/assets/shop/points-cards/printer-cat-press-sprite.png",
       "gitBlob": "5c65025ba009ee71f5287cf88b1060d8acb43b82",
       "reason": "Obsolete media replaced by WebP/newer artwork; documented cleanup in CODEX_HANDOFF_CURRENT.md"
+    },
+    {
+      "path": "scripts/capture-auth-v3.mjs",
+      "gitBlob": "dd9ffc11f762a3e56cf97f0f00c5ec0bf546b9e4",
+      "reason": "Retired versioned filename after replacement by capture-auth-screens.mjs"
+    },
+    {
+      "path": "scripts/capture-figma-v2.mjs",
+      "gitBlob": "0b18862c1099c5f17bd6ba3ee9f0b1f4f2b696c9",
+      "reason": "Retired versioned filename after replacement by capture-product-review.mjs"
+    },
+    {
+      "path": "src/assets/figma/auth-texture-v2.jpg",
+      "gitBlob": "cd875144d11675efeea59258cbee44b1fdd3d360",
+      "reason": "Retired versioned filename after replacement by auth-texture.jpg"
+    },
+    {
+      "path": "src/styles/figma-v2.css",
+      "gitBlob": "f85ef41bccdde6d01891a425a2755aa640a7bfba",
+      "reason": "Retired versioned filename after replacement by product-ui.css"
     }
   ]
 }

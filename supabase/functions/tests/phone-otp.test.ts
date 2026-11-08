@@ -15,6 +15,10 @@ import {
   accountEligibilityError,
   normalizeAuthAccount,
 } from "../_shared/auth-account.ts";
+import {
+  normalizeSupabaseChinaPhone,
+  parseSendSmsHookEvent,
+} from "../_shared/sms-hook.ts";
 
 const secret = "test-only-secret-with-at-least-thirty-two-characters";
 
@@ -33,6 +37,32 @@ Deno.test("phone OTP helpers validate the public contract", () => {
     throw new Error("OTP purpose normalization failed.");
   }
   if (phoneToAuthEmail("13800138000") !== "13800138000@phone.nava.app") throw new Error("Auth email mapping failed.");
+});
+
+Deno.test("Supabase SMS hook accepts E.164 Chinese phones and validates its OTP", () => {
+  if (normalizeSupabaseChinaPhone("+86 138-0013-8000") !== "13800138000") {
+    throw new Error("Supabase E.164 phone normalization failed.");
+  }
+  if (normalizeSupabaseChinaPhone("8613800138000") !== "13800138000") {
+    throw new Error("Supabase country-code phone normalization failed.");
+  }
+  const parsed = parseSendSmsHookEvent({
+    user: { phone: "+8613800138000" },
+    sms: { otp: "123456" },
+  });
+  if (parsed.phone !== "13800138000" || parsed.code !== "123456") {
+    throw new Error("Send SMS hook payload parsing failed.");
+  }
+});
+
+Deno.test("Supabase SMS hook rejects non-Chinese phone identities", () => {
+  let rejected = false;
+  try {
+    normalizeSupabaseChinaPhone("+16505550100");
+  } catch {
+    rejected = true;
+  }
+  if (!rejected) throw new Error("A non-Chinese phone was accepted by the Aliyun SMS hook.");
 });
 
 Deno.test("generated OTP values are six digits and not constant", () => {

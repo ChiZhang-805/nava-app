@@ -59,6 +59,7 @@
         "npm:plist@3.1.1",
         "npm:react-dom@^18.3.1",
         "npm:react@^18.3.1",
+        "npm:standardwebhooks@^1.1.1",
         "npm:supabase@^2.109.1",
         "npm:three@0.184.0",
         "npm:translation-resilience@0.3.0",

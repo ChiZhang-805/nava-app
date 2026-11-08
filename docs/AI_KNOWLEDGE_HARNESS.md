@@ -46,6 +46,44 @@ claim that hidden model causality can be observed.
 - `nava_profile_style_policy`: consent-gated role style. It may change wording,
   never facts, confidence, or safety thresholds.
 
+## Generated dish display harness
+
+Meal-photo recognition evidence and the polished dish image are deliberately
+separate products. The original private photo is the only image evidence used
+for dish recognition, visible portion estimation, nutrition matching, and user
+correction. A generated plate asset is decorative presentation and must never be
+fed back into nutrition extraction.
+
+1. `diet-extract` returns nutrition candidates plus an evidence-bound visual
+   plan: canonical dish name, only clearly visible ingredients, appearance,
+   plating, and confidence. Confidence below `0.78` pauses for user correction.
+2. `food-visualize` uses the original signed photo and confirmed plan with the
+   domestic Alibaba Model Studio pipeline. The first attempt uses
+   `wan2.7-image`; only a failed candidate escalates to `wan2.7-image-pro`.
+   Because Wan PNG output does not guarantee a real alpha channel or exact
+   dimensions, a separately configured domestic matting/normalization adapter
+   must produce the final exact `1024×1024` transparent PNG: top-down dish,
+   complete clean white ceramic plate, no table, text, watermark, hands,
+   utensils, napkins, or props.
+3. A two-image critic compares the evidence photo with the candidate. It must
+   satisfy dish identity `>=0.90`, visible-ingredient recall `>=0.85`, unexpected
+   ingredients `<=0.05`, artifacts `<=0.06`, and the binary composition/safety
+   checks. At most two candidates are allowed; every rejected or critic-error
+   asset is removed from private storage.
+4. The iOS client independently recomputes dimensions, alpha presence,
+   transparent-pixel ratio (`0.15...0.80`), and normalized foreground bounds
+   (`0.06...0.94`). Server claims cannot bypass these local checks.
+5. Only a candidate that passes both semantic and technical gates may be shown,
+   and it is labeled as an AI-reconstructed display asset. Source and generated
+   paths remain user-owned private objects and are included in account deletion.
+
+The default renderer and two-image critic read only `DASHSCOPE_API_KEY_NAVA`;
+food recognition reads only `NAVA_DIET_VISION_KEY` or that same NAVA-scoped
+DashScope key. A custom renderer, critic, or matting service must use its own
+`NAVA_FOOD_*` endpoint/key pair. No path may silently borrow a generic or
+another project's credential. The production default intentionally contains no
+foreign image-model fallback.
+
 ## Token and privacy controls
 
 - At most three nutrition queries and eight evidence records are retained.

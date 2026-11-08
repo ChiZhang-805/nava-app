@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NAVA Record · Rhythm Bloom</title>
+  <style>
+    :root { --ink:#092b3d; --blue:#0b8bb5; --muted:#668492; --paper:#f8fbfb; --line:rgba(10,78,103,.15); }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:1450px; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","PingFang SC",sans-serif; color:var(--ink); background:#d8e5e6; }
+    .board { width:1450px; min-height:1050px; margin:auto; padding:42px 48px; background:radial-gradient(circle at 20% 5%,#fff 0,transparent 30%),linear-gradient(135deg,#cbdcde,#edf1ee 48%,#d3e1df); }
+    header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:28px; }
+    header h1 { margin:0 0 7px; font-size:29px; letter-spacing:-.8px; }
+    header p { margin:0; color:#58727c; font-size:14px; }
+    .rule { display:flex; gap:8px; }
+    .rule span { padding:8px 11px; border-radius:999px; border:1px solid rgba(20,70,88,.13); background:rgba(255,255,255,.54); color:#58727c; font-size:12px; }
+    .content { display:grid; grid-template-columns:390px 390px 1fr; gap:44px; align-items:start; }
+    .label { margin:0 0 10px 8px; font-size:16px; }
+    .phone { position:relative; width:390px; height:844px; overflow:hidden; border-radius:48px; background:linear-gradient(rgba(242,251,253,.79),rgba(215,240,247,.87)),url("../../src/assets/figma/auth-texture.jpg") center/cover; box-shadow:0 28px 68px rgba(28,57,67,.18),inset 0 0 0 1px rgba(255,255,255,.94); }
+    .island { position:absolute; z-index:20; top:10px; left:143px; width:104px; height:29px; border-radius:18px; background:#0b0b0c; }
+    .status { position:relative; z-index:10; display:flex; justify-content:space-between; height:49px; padding:17px 25px 0; color:#081a22; font-size:13px; font-weight:760; }
+    .screen { position:relative; height:795px; padding:7px 18px 108px; }
+    .topbar { display:grid; grid-template-columns:70px 1fr 70px; height:43px; align-items:center; }
+    .topbar h2 { margin:0; text-align:center; font-size:22px; letter-spacing:-.5px; }
+    .topbar button { border:0; background:none; color:var(--blue); font:inherit; font-size:12px; font-weight:720; }
+    .topbar button:first-child { text-align:left; }.topbar button:last-child { text-align:right; }
+    .dates { display:flex; gap:6px; margin:1px -18px 0; padding:0 18px 7px; overflow:hidden; border-bottom:1px solid var(--line); }
+    .day { flex:0 0 46px; text-align:center; color:#78929d; font-size:9px; }
+    .day b { display:grid; place-items:center; width:34px; height:34px; margin:2px auto 0; border-radius:50%; color:var(--ink); font-size:15px; }
+    .day.active b { color:#fff; background:var(--ink); }.day.active { color:var(--ink); font-weight:700; }
+
+    .bloom-wrap { position:relative; height:333px; margin-top:3px; }
+    .bloom { position:absolute; left:50%; top:51%; width:260px; height:260px; transform:translate(-50%,-50%); }
+    .stem { position:absolute; left:129px; top:129px; width:2px; height:112px; transform-origin:1px 1px; background:linear-gradient(var(--line),transparent); }
+    .stem.s1{transform:rotate(0deg)}.stem.s2{transform:rotate(60deg)}.stem.s3{transform:rotate(120deg)}.stem.s4{transform:rotate(180deg)}.stem.s5{transform:rotate(240deg)}.stem.s6{transform:rotate(300deg)}
+    .petal { position:absolute; left:91px; top:8px; width:78px; height:130px; transform-origin:39px 122px; border:1px solid rgba(255,255,255,.9); border-radius:48% 52% 44% 44% / 56% 56% 36% 36%; box-shadow:0 10px 25px rgba(27,88,105,.08),inset 0 1px 0 rgba(255,255,255,.75); display:flex; align-items:center; justify-content:flex-start; flex-direction:column; padding-top:17px; }
+    .petal::after { content:""; position:absolute; inset:6px; border-radius:inherit; border:1px solid rgba(255,255,255,.35); }
+    .petal img { position:relative; z-index:2; width:23px; height:23px; opacity:.85; }
+    .petal b { position:relative; z-index:2; margin-top:7px; font-size:13px; }.petal small { position:relative; z-index:2; margin-top:2px; color:#466d7b; font-size:9px; }
+    .p1{transform:rotate(0);background:linear-gradient(#e7f8fc,#bfe8f3)}.p1>*{transform:rotate(0)}
+    .p2{transform:rotate(60deg) scaleY(.91);background:linear-gradient(#eff7e9,#cde7bf)}.p2>*{transform:rotate(-60deg) scaleY(1.1)}
+    .p3{transform:rotate(120deg) scaleY(.80);background:linear-gradient(#fff7e5,#f4dca3)}.p3>*{transform:rotate(-120deg) scaleY(1.25)}
+    .p4{transform:rotate(180deg) scaleY(.68);background:linear-gradient(#fdf0ef,#edc3bd)}.p4>*{transform:rotate(-180deg) scaleY(1.47)}
+    .p5{transform:rotate(240deg) scaleY(.76);background:linear-gradient(#f1effd,#d8d0f3)}.p5>*{transform:rotate(-240deg) scaleY(1.32)}
+    .p6{transform:rotate(300deg) scaleY(.88);background:linear-gradient(#e8f7f4,#bde5dc)}.p6>*{transform:rotate(-300deg) scaleY(1.14)}
+    .core { position:absolute; z-index:8; left:50%; top:51%; width:92px; height:92px; transform:translate(-50%,-50%); display:grid; place-items:center; text-align:center; border-radius:50%; background:rgba(251,253,253,.96); border:4px solid rgba(255,255,255,.9); box-shadow:0 12px 28px rgba(21,73,90,.16); }
+    .core strong { display:block; font-size:27px; line-height:1; }.core span { display:block; margin-top:4px; color:var(--muted); font-size:9px; font-weight:700; }
+    .bloom-caption { position:absolute; left:0; right:0; bottom:1px; display:flex; justify-content:center; gap:17px; color:var(--muted); font-size:9px; }
+    .bloom-caption i { display:inline-block; width:7px; height:7px; margin-right:4px; border-radius:50%; background:var(--blue); }
+
+    .timeline-head { display:flex; justify-content:space-between; align-items:baseline; margin:3px 3px 3px; }
+    .timeline-head h3 { margin:0; font-size:15px; }.timeline-head span { color:var(--blue); font-size:10px; font-weight:700; }
+    .timeline { position:relative; margin:0 3px; padding:6px 0 0 52px; border-top:1px solid var(--line); }
+    .timeline::before { content:""; position:absolute; left:39px; top:20px; bottom:4px; width:1px; background:var(--line); }
+    .event { position:relative; display:grid; grid-template-columns:1fr auto; min-height:39px; align-items:center; border-bottom:1px solid rgba(10,78,103,.09); }
+    .event::before { content:""; position:absolute; left:-17px; width:7px; height:7px; border-radius:50%; background:var(--blue); box-shadow:0 0 0 4px rgba(255,255,255,.7); }
+    .event time { position:absolute; left:-50px; color:#77919b; font-size:9px; }.event b{font-size:11px}.event span{color:var(--muted);font-size:9px}
+    .quick { position:absolute; z-index:12; left:74px; right:74px; bottom:96px; height:42px; border:0; border-radius:22px; color:#fff; background:var(--ink); font:inherit; font-size:12px; font-weight:750; box-shadow:0 10px 22px rgba(10,52,70,.2); }
+
+    .dock { position:absolute; z-index:11; left:18px; right:18px; bottom:15px; height:74px; display:grid; grid-template-columns:repeat(5,1fr); align-items:center; padding:8px 13px; border:1px solid rgba(255,255,255,.96); border-radius:38px; background:rgba(225,244,249,.86); backdrop-filter:blur(18px); box-shadow:0 14px 35px rgba(29,89,108,.12); }
+    .dock span { display:grid; place-items:center; width:46px; height:46px; margin:auto; border-radius:50%; }.dock span.active{background:#fff}.dock span.center{width:68px;height:68px;margin-top:-27px;background:#153f50;border:1px solid #fff}.dock img{width:23px;height:23px}.dock span.center img{width:31px;height:31px;filter:brightness(0) invert(1)}
+
+    .focus-sheet { position:absolute; z-index:14; left:14px; right:14px; bottom:90px; padding:17px 18px 18px; border-radius:30px; background:rgba(249,252,252,.96); border:1px solid #fff; box-shadow:0 22px 55px rgba(13,61,79,.24); }
+    .sheet-grab { width:42px; height:4px; margin:0 auto 13px; border-radius:4px; background:#cad8dd; }.focus-sheet h3{margin:0 0 3px;font-size:18px}.focus-sheet>p{margin:0;color:var(--muted);font-size:10px}.sleep-line{position:relative;height:75px;margin:13px 0 9px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.sleep-line::before{content:"";position:absolute;left:0;right:0;top:37px;height:2px;background:#d8e5e9}.sleep-block{position:absolute;left:16%;right:12%;top:24px;height:26px;border-radius:14px 17px 12px 15px;background:linear-gradient(90deg,#8cd2e4,#5cb2cf 64%,#acd8e5)}.sleep-block i{position:absolute;width:5px;height:5px;border-radius:50%;top:10px;background:white}.sleep-block i:nth-child(1){left:18%}.sleep-block i:nth-child(2){left:51%}.sleep-block i:nth-child(3){left:76%}.sleep-axis{display:flex;justify-content:space-between;color:var(--muted);font-size:9px}.evidence{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:12px 0 11px}.evidence div{padding-right:7px;border-right:1px solid var(--line)}.evidence div:last-child{border:0}.evidence small{display:block;color:var(--muted);font-size:9px}.evidence b{display:block;margin-top:4px;font-size:14px}.sheet-actions{display:flex;gap:8px}.sheet-actions button{flex:1;height:36px;border:1px solid var(--line);border-radius:18px;background:#fff;color:var(--ink);font:inherit;font-size:10px;font-weight:700}.sheet-actions button:first-child{color:#fff;background:var(--ink)}
+
+    .quick-sheet { position:absolute; z-index:14; left:14px; right:14px; bottom:90px; padding:17px 18px 20px; border-radius:30px; background:rgba(249,252,252,.97); border:1px solid #fff; box-shadow:0 22px 55px rgba(13,61,79,.24); }
+    .quick-sheet h3{margin:0;font-size:18px}.quick-sheet>p{margin:4px 0 15px;color:var(--muted);font-size:10px}.record-wheel{position:relative;width:244px;height:244px;margin:0 auto}.wheel-core{position:absolute;z-index:5;left:77px;top:77px;width:90px;height:90px;display:grid;place-items:center;text-align:center;border-radius:50%;background:var(--ink);color:#fff;font-size:11px;line-height:1.25}.record-choice{position:absolute;width:70px;height:70px;display:grid;place-items:center;text-align:center;border-radius:50%;background:#e7f4f7;border:1px solid #fff;box-shadow:0 8px 18px rgba(26,82,100,.09);font-size:10px;font-weight:720}.record-choice img{display:block;width:22px;height:22px;margin:auto auto 3px}.c1{left:87px;top:0}.c2{right:8px;top:47px}.c3{right:8px;bottom:47px}.c4{left:87px;bottom:0}.c5{left:8px;bottom:47px}.c6{left:8px;top:47px}.quick-sheet small{display:block;text-align:center;margin-top:10px;color:var(--muted);font-size:9px}
+
+    aside { padding:18px 2px 0; }
+    aside h2 { margin:0 0 17px; font-size:24px; }
+    .decision { display:grid; grid-template-columns:118px 1fr; gap:0; border-top:1px solid rgba(20,75,94,.18); }
+    .decision b,.decision p{margin:0;padding:14px 0;border-bottom:1px solid rgba(20,75,94,.13);font-size:12px;line-height:1.5}.decision b{color:#496b77}.decision p{padding-left:16px}.avoid{margin-top:24px;padding:16px 18px;border-left:4px solid #c36d63;background:rgba(255,255,255,.5)}.avoid b{font-size:13px}.avoid p{margin:7px 0 0;color:#607b85;font-size:11px;line-height:1.55}
+  </style>
+</head>
+<body>
+  <main class="board">
+    <header><div><h1>数据页 01 · 今日节律花盘</h1><p>从第一版六模块出发，但每项共同构成一个整体，不再使用六张同形圆角卡。</p></div><div class="rule"><span>日期横滑</span><span>花瓣点选</span><span>时间线纵读</span><span>固定快捷记录</span></div></header>
+    <section class="content">
+      <article><h2 class="label">默认态 · 今天</h2><div class="phone">
+        <div class="island"></div><div class="status"><span>9:41</span><span>●●● 100%</span></div><div class="screen">
+          <div class="topbar"><button>今天</button><h2>记录</h2><button>日历</button></div>
+          <div class="dates"><div class="day">一<b>4</b></div><div class="day">二<b>5</b></div><div class="day active">今天<b>6</b></div><div class="day">四<b>7</b></div><div class="day">五<b>8</b></div><div class="day">六<b>9</b></div><div class="day">日<b>10</b></div></div>
+          <div class="bloom-wrap"><div class="bloom">
+            <i class="stem s1"></i><i class="stem s2"></i><i class="stem s3"></i><i class="stem s4"></i><i class="stem s5"></i><i class="stem s6"></i>
+            <div class="petal p1"><img src="../../src/assets/figma/option-two-icons/sleep.svg"><b>睡眠</b><small>62</small></div><div class="petal p2"><img src="../../src/assets/figma/option-two-icons/mood.svg"><b>情绪</b><small>平稳</small></div><div class="petal p3"><img src="../../src/assets/figma/option-two-icons/exercise.svg"><b>运动</b><small>5,460</small></div><div class="petal p4"><img src="../../src/assets/figma/option-two-icons/diet.svg"><b>饮食</b><small>待补</small></div><div class="petal p5"><img src="../../src/assets/figma/option-two-icons/focus.svg"><b>专注</b><small>35m</small></div><div class="petal p6"><img src="../../src/assets/figma/option-two-icons/face.svg"><b>面部</b><small>82</small></div>
+            <div class="core"><div><strong>76</strong><span>今日节律</span></div></div>
+          </div><div class="bloom-caption"><span><i></i>已记录 4</span><span><i style="background:#f0bd74"></i>待补 2</span><span>点击花瓣看证据</span></div></div>
+          <div class="timeline-head"><h3>今天发生了什么</h3><span>查看完整报告</span></div><div class="timeline"><div class="event"><time>07:20</time><b>昨夜睡眠</b><span>7h 20m</span></div><div class="event"><time>12:45</time><b>午餐已识别</b><span>620 kcal</span></div><div class="event"><time>15:10</time><b>情绪平稳</b><span>压力略升</span></div></div>
+          <button class="quick">＋ 快速记录</button>
+        </div><nav class="dock"><span><img src="../../src/assets/figma/option-two-icons/home-glyph.svg"></span><span class="active"><img src="../../src/assets/figma/option-two-icons/record.svg"></span><span class="center"><img src="../../src/assets/figma/option-two-icons/chat.svg"></span><span><img src="../../src/assets/figma/option-two-icons/tasks.svg"></span><span><img src="../../src/assets/figma/option-two-icons/profile.svg"></span></nav>
+      </div></article>
+
+      <article><h2 class="label">点选态 · 睡眠证据</h2><div class="phone">
+        <div class="island"></div><div class="status"><span>9:41</span><span>●●● 100%</span></div><div class="screen">
+          <div class="topbar"><button>今天</button><h2>记录</h2><button>日历</button></div><div class="dates"><div class="day">一<b>4</b></div><div class="day">二<b>5</b></div><div class="day active">今天<b>6</b></div><div class="day">四<b>7</b></div><div class="day">五<b>8</b></div><div class="day">六<b>9</b></div><div class="day">日<b>10</b></div></div>
+          <div class="bloom-wrap"><div class="bloom" style="transform:translate(-50%,-50%) scale(.93);opacity:.38"><div class="petal p1"></div><div class="petal p2"></div><div class="petal p3"></div><div class="petal p4"></div><div class="petal p5"></div><div class="petal p6"></div><div class="core"><div><strong>76</strong><span>今日节律</span></div></div></div></div>
+          <div class="focus-sheet"><div class="sheet-grab"></div><h3>睡眠 · 恢复 62</h3><p>昨夜 23:42–07:20 · 来源：Apple Health + 早晨感受</p><div class="sleep-line"><div class="sleep-block"><i></i><i></i><i></i></div></div><div class="sleep-axis"><span>23:42 入睡</span><span>3 次短醒</span><span>07:20 起床</span></div><div class="evidence"><div><small>总时长</small><b>7h 20m</b></div><div><small>恢复感</small><b>一般</b></div><div><small>近 7 日</small><b>−12%</b></div></div><div class="sheet-actions"><button>打开睡眠详情</button><button>补充感受</button></div></div>
+        </div><nav class="dock"><span><img src="../../src/assets/figma/option-two-icons/home-glyph.svg"></span><span class="active"><img src="../../src/assets/figma/option-two-icons/record.svg"></span><span class="center"><img src="../../src/assets/figma/option-two-icons/chat.svg"></span><span><img src="../../src/assets/figma/option-two-icons/tasks.svg"></span><span><img src="../../src/assets/figma/option-two-icons/profile.svg"></span></nav>
+      </div></article>
+
+      <aside><h2>为什么这样排</h2><div class="decision"><b>继承首页</b><p>保留同一套背景、品牌蓝、五入口底栏和六个固定健康模块；视觉上仍然属于 NAVA。</p><b>学习参考图</b><p>借用“部分—整体”的花瓣关系、内容驱动的非规则尺寸和横向时间导航，不照搬饮食页面骨架。</p><b>六种数据</b><p>花瓣只负责总览和入口；点选后，睡眠显示时间河、饮食显示餐次照片、运动显示轨迹、情绪显示强度与触发源，各自采用不同证据视图。</p><b>手势归属</b><p>日期横滑；花瓣点击；证据 sheet 只纵向展开；页面没有第二个纵向滚动；底栏始终固定。</p><b>快捷入口</b><p>“快速记录”固定可见，点击后直接出现六模块径向选择；日历也直接可见，不依赖右上角更多菜单。</p><b>多机型</b><p>紧凑高度缩短花瓣舞台并把时间线变成一条摘要，不缩小文字；大字号时整体退化为单一纵向内容流。</p></div><div class="avoid"><b>明确不做</b><p>不再显示 2×3 六张相同圆角矩形；不在这一页放与数据无关的扫描线或 AI 光效；不把所有详细指标同时挤进首屏；不让花瓣尺寸成为纯装饰。</p></div></aside>
+    </section>
+  </main>
+</body>
+</html>

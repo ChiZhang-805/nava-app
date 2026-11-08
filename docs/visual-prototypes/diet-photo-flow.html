@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NAVA · 饮食拍照记录流程</title>
+  <style>
+    :root {
+      --navy:#102f42;
+      --navy-2:#1f5269;
+      --blue:#63b9d2;
+      --blue-2:#a9dfed;
+      --blue-3:#e8f7fb;
+      --paper:#fbfaf7;
+      --warm:#f5f2ec;
+      --muted:#738996;
+      --line:rgba(28,79,101,.13);
+      --white:rgba(255,255,255,.92);
+      --shadow:0 22px 50px rgba(28,67,82,.12);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","PingFang SC",sans-serif;color:var(--navy)}
+    body{background:#dcebed}
+    button,input{font:inherit;color:inherit}
+    .board{width:1800px;min-height:1040px;margin:auto;padding:42px 54px 50px;background:radial-gradient(circle at 12% 4%,#fff 0,transparent 24%),linear-gradient(135deg,#d6e8ea,#edf3f1 51%,#d1e3e4)}
+    .board-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:27px}
+    .board-head h1{margin:0;font-size:32px;letter-spacing:-1.1px}
+    .board-head p{margin:8px 0 0;color:#607985;font-size:14px}
+    .board-index{font-size:13px;color:#6d838e;letter-spacing:.12em}
+    .phone-row{display:grid;grid-template-columns:repeat(4,390px);gap:42px;align-items:start}
+    .board.detail .phone-row{grid-template-columns:repeat(3,390px);justify-content:center;gap:58px}
+    .phone-wrap>h2{margin:0 0 11px 7px;font-size:15px;letter-spacing:.02em}
+    .phone{position:relative;width:390px;height:844px;overflow:hidden;border-radius:48px;background:var(--paper);box-shadow:0 30px 70px rgba(26,60,72,.18),inset 0 0 0 1px rgba(255,255,255,.92)}
+    .island{position:absolute;z-index:50;left:143px;top:10px;width:104px;height:29px;border-radius:20px;background:#08090a}
+    .status{position:absolute;z-index:45;left:0;right:0;top:0;height:49px;display:flex;justify-content:space-between;padding:17px 25px 0;font-size:13px;font-weight:750;color:#071820}
+    .screen{position:absolute;inset:0;padding:49px 18px 0}
+    .screen.fog{background:linear-gradient(180deg,#f8faf8 0,#edf8fa 44%,#e0f2f7 100%)}
+    .topbar{height:54px;display:grid;grid-template-columns:50px 1fr 50px;align-items:center}
+    .topbar h3{margin:0;text-align:center;font-size:20px;letter-spacing:-.5px}
+    .icon-btn{width:44px;height:44px;border:0;border-radius:16px;background:rgba(255,255,255,.8);display:grid;place-items:center;font-size:22px;box-shadow:0 6px 18px rgba(28,72,89,.06)}
+    .icon-btn.end{justify-self:end}.icon-btn.flat{background:transparent;box-shadow:none}
+    .icon-btn.text-action{width:auto;min-width:50px;padding:0 4px;white-space:nowrap;font-size:14px;font-weight:720}
+    .back::before{content:"";width:12px;height:12px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin-left:5px}
+    .dots{font-size:21px;letter-spacing:2px}
+    .dock{position:absolute;z-index:40;left:14px;right:14px;bottom:14px;height:74px;display:grid;grid-template-columns:repeat(5,1fr);align-items:center;padding:8px 12px;border-radius:37px;background:rgba(18,47,63,.96);box-shadow:0 18px 34px rgba(16,47,66,.2)}
+    .dock span{display:grid;place-items:center;width:46px;height:46px;margin:auto;border-radius:16px;opacity:.72}.dock span.active{background:var(--blue);opacity:1}.dock span.center{width:62px;height:62px;margin-top:-24px;border-radius:22px;background:#fff;opacity:1;box-shadow:0 8px 24px rgba(7,35,49,.25)}
+    .dock img{width:22px;height:22px;filter:brightness(0) invert(1)}.dock .center img{width:30px;height:30px;filter:none}.dock .active img{filter:brightness(0) saturate(100%) invert(15%) sepia(16%) saturate(1897%) hue-rotate(156deg) brightness(94%)}
+
+    /* Dashboard */
+    .diet-home{padding-bottom:100px;background:linear-gradient(180deg,#f7f6f2 0,#edf7f8 100%)}
+    .diet-home .topbar{margin-bottom:2px}
+    .date-row{text-align:center;color:var(--muted);font-size:11px;font-weight:650;letter-spacing:.05em}
+    .calorie-stage{position:relative;height:230px;margin:3px 0 2px}
+    .arc-svg{position:absolute;left:50%;top:1px;width:300px;height:180px;transform:translateX(-50%)}
+    .arc-pack{rx:11;ry:11}
+    .calorie-copy{position:absolute;left:0;right:0;top:88px;text-align:center}
+    .calorie-copy small{display:block;color:var(--muted);font-size:11px;margin-bottom:1px}.calorie-copy strong{font-size:43px;line-height:1;letter-spacing:-1.9px}.calorie-copy span{display:block;margin-top:5px;color:#5e7d8b;font-size:11px}
+    .scan-add{position:absolute;left:39px;right:39px;bottom:3px;height:48px;border:1px solid rgba(20,84,109,.13);border-radius:18px;background:rgba(255,255,255,.78);display:flex;align-items:center;justify-content:center;gap:10px;font-weight:720;font-size:13px;box-shadow:0 8px 22px rgba(31,84,103,.06)}
+    .scan-add b{font-size:24px;font-weight:400;color:var(--blue)}
+    .meal-heading{display:flex;align-items:flex-end;justify-content:space-between;margin:10px 4px 8px}.meal-heading h4{margin:0;font-size:15px}.meal-heading button{border:0;background:none;color:#3e8ca8;font-size:10px;font-weight:700}
+    .meal-list{display:grid;gap:10px}
+    .meal-card{height:118px;display:grid;grid-template-columns:82px 1fr 78px;align-items:center;padding:11px 12px;border-radius:25px;background:rgba(255,255,255,.94);box-shadow:0 9px 24px rgba(27,70,86,.07)}
+    .meal-card img{width:76px;height:76px;object-fit:contain;filter:drop-shadow(0 8px 10px rgba(42,60,55,.12))}
+    .meal-main h5{margin:0 0 4px;font-size:16px}.meal-main>span{display:block;color:var(--muted);font-size:10px}.macro-row{display:flex;gap:13px;margin-top:12px}.macro-row b{font-size:11px}.macro-row small{display:block;color:#8999a1;font-size:8px;font-weight:600;margin-bottom:2px}
+    .meal-kcal{text-align:right;align-self:stretch;padding-top:12px}.meal-kcal strong{display:block;font-size:28px;letter-spacing:-1.1px;white-space:nowrap}.meal-kcal span{font-size:9px;color:var(--muted)}.pencil{width:30px;height:30px;margin:20px 0 0 auto;border:0;border-radius:10px;background:var(--blue-3);display:grid;place-items:center;font-size:14px;color:var(--navy-2)}
+
+    /* Camera */
+    .camera-phone{background:#0d2632}.camera-phone .status{color:white}.camera-phone .screen{padding:49px 0 0;background:radial-gradient(circle at 65% 30%,#d9eef1 0,#a5c9cc 26%,#456c71 66%,#18353b 100%)}
+    .camera-top{height:58px;padding:4px 18px;display:flex;justify-content:space-between;align-items:center}.camera-top .icon-btn{background:rgba(255,255,255,.18);color:#fff;backdrop-filter:blur(12px)}
+    .live-photo{position:absolute;inset:107px 0 156px;display:grid;place-items:center;overflow:hidden}
+    .live-photo::before{content:"";position:absolute;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.3),transparent 67%)}
+    .live-photo img{position:relative;width:345px;height:345px;object-fit:contain;filter:drop-shadow(0 24px 30px rgba(0,0,0,.28))}
+    .scan-corners{position:absolute;inset:31px 24px}.scan-corners i{position:absolute;width:54px;height:54px;border-color:#9ce8f6;border-style:solid}.scan-corners .c1{left:0;top:0;border-width:3px 0 0 3px;border-radius:18px 0 0}.scan-corners .c2{right:0;top:0;border-width:3px 3px 0 0;border-radius:0 18px 0 0}.scan-corners .c3{left:0;bottom:0;border-width:0 0 3px 3px;border-radius:0 0 0 18px}.scan-corners .c4{right:0;bottom:0;border-width:0 3px 3px 0;border-radius:0 0 18px}
+    .scan-line{position:absolute;left:24px;right:24px;top:47%;height:2px;background:linear-gradient(90deg,transparent,#a4edfa 15%,#fff 50%,#a4edfa 85%,transparent);box-shadow:0 0 13px #a4edfa}
+    .detect-badge{position:absolute;left:50%;bottom:172px;transform:translateX(-50%);padding:9px 14px;border-radius:16px;background:rgba(8,30,39,.76);color:#fff;backdrop-filter:blur(14px);font-size:11px;font-weight:700;white-space:nowrap}
+    .camera-bottom{position:absolute;left:0;right:0;bottom:0;height:156px;background:linear-gradient(transparent,rgba(5,20,26,.88) 35%);color:#fff}.capture-modes{display:flex;justify-content:center;gap:34px;padding-top:38px;font-size:10px;color:rgba(255,255,255,.62)}.capture-modes b{color:#fff}.shutter{position:absolute;left:50%;bottom:23px;width:68px;height:68px;border:4px solid #fff;border-radius:50%;transform:translateX(-50%);background:transparent}.shutter::after{content:"";position:absolute;inset:5px;border-radius:50%;background:#fff}.library,.flash{position:absolute;bottom:37px;width:42px;height:42px;border:0;border-radius:14px;background:rgba(255,255,255,.18);color:#fff;backdrop-filter:blur(12px)}.library{left:48px}.flash{right:48px}
+
+    /* Review */
+    .review{background:linear-gradient(180deg,#f5f4ef,#eaf7fa)}
+    .review-stage{position:relative;height:400px;margin:3px -18px 0;overflow:hidden}
+    .review-stage::before{content:"";position:absolute;inset:40px 8px 12px;border-radius:52% 48% 46% 54%;background:radial-gradient(circle at 48% 36%,rgba(152,220,235,.42),rgba(255,255,255,.22) 46%,transparent 70%)}
+    .review-stage img.main-dish{position:absolute;left:50%;top:28px;width:330px;height:330px;object-fit:contain;transform:translateX(-50%);filter:drop-shadow(0 26px 24px rgba(37,67,65,.15))}
+    .leader{position:absolute;height:1px;background:#6fa9ba;transform-origin:left center}.leader::after{content:"";position:absolute;right:-3px;top:-3px;width:7px;height:7px;border-radius:50%;background:white;border:2px solid #5fa7be}.l1{left:49px;top:118px;width:78px;transform:rotate(16deg)}.l2{right:46px;top:118px;width:76px;transform:rotate(164deg)}.l3{left:62px;bottom:89px;width:76px;transform:rotate(-19deg)}
+    .callout{position:absolute;padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.88);box-shadow:0 7px 18px rgba(22,63,79,.08);font-size:9px;font-weight:720}.co1{left:24px;top:78px}.co2{right:22px;top:77px}.co3{left:31px;bottom:51px}
+    .review-summary{text-align:center;margin-top:-6px}.review-summary .dish-count{font-size:10px;color:#4e8ca2;font-weight:700}.review-summary h4{margin:5px 0 2px;font-size:24px;letter-spacing:-.7px}.review-summary p{margin:0;color:var(--muted);font-size:11px}
+    .dish-strip{display:flex;gap:10px;margin:16px -18px 0;padding:0 18px;overflow:hidden}.dish-chip{flex:0 0 116px;height:87px;padding:7px;border:1px solid transparent;border-radius:20px;background:rgba(255,255,255,.75);text-align:center}.dish-chip.active{border-color:#70bfd6;background:#fff;box-shadow:0 8px 19px rgba(31,91,111,.09)}.dish-chip img{width:52px;height:52px;object-fit:contain;float:left}.dish-chip b{display:block;padding-top:17px;font-size:10px}.dish-chip small{font-size:8px;color:var(--muted)}
+    .review-actions{position:absolute;left:18px;right:18px;bottom:18px;display:grid;grid-template-columns:1fr 1.6fr;gap:10px}.review-actions button{height:48px;border:1px solid var(--line);border-radius:18px;background:#fff;font-size:12px;font-weight:750}.review-actions button.primary{border:0;color:#fff;background:var(--navy)}
+
+    /* Petal analysis */
+    .analysis{background:linear-gradient(180deg,#f9f8f4,#e9f6f8)}
+    .analysis-head{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:2px;color:#568091;font-size:10px}.pager-dot{width:5px;height:5px;border-radius:50%;background:#b5c9d1}.pager-dot.active{width:19px;border-radius:5px;background:var(--blue)}
+    .petal-stage{position:relative;height:403px;margin-top:3px}
+    .petal{position:absolute;left:50%;top:44%;width:120px;height:180px;margin:-152px 0 0 -60px;transform-origin:60px 152px;border-radius:64% 64% 46% 46% / 70% 70% 42% 42%;background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(198,234,243,.78));border:1px solid rgba(255,255,255,.95);box-shadow:0 10px 26px rgba(36,87,104,.07);text-align:center;padding-top:28px}.petal::after{content:"";position:absolute;inset:8px;border-radius:inherit;border:1px solid rgba(103,182,207,.17)}.petal b,.petal span{position:relative;z-index:2;display:block}.petal b{font-size:18px}.petal span{margin-top:3px;color:#537b89;font-size:10px}.p1{transform:rotate(0)}.p2{transform:rotate(60deg)}.p3{transform:rotate(120deg)}.p4{transform:rotate(180deg)}.p5{transform:rotate(240deg)}.p6{transform:rotate(300deg)}.petal>div{transform:rotate(var(--unrotate))}.p1>div{--unrotate:0deg}.p2>div{--unrotate:-60deg}.p3>div{--unrotate:-120deg}.p4>div{--unrotate:-180deg}.p5>div{--unrotate:-240deg}.p6>div{--unrotate:-300deg}
+    .plate-core{position:absolute;z-index:8;left:50%;top:44%;width:140px;height:140px;transform:translate(-50%,-50%);border-radius:50%;background:#fff;box-shadow:0 16px 35px rgba(31,71,82,.17);display:grid;place-items:center}.plate-core img{width:132px;height:132px;object-fit:contain}.swipe-hint{position:absolute;left:0;right:0;bottom:13px;text-align:center;color:#64818d;font-size:10px}.swipe-hint b{color:var(--navy);font-size:12px}
+    .dish-title{text-align:center;margin-top:-6px}.dish-title h4{margin:0;font-size:25px}.dish-title p{margin:4px 0 0;color:var(--muted);font-size:11px}.dish-title strong{color:var(--navy);font-size:18px}
+    .nutrition-band{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin:15px 6px 0;padding:12px 3px;border-radius:22px;background:rgba(255,255,255,.85);box-shadow:0 10px 25px rgba(31,81,99,.07)}.nutrition-band div{text-align:center;border-right:1px solid var(--line)}.nutrition-band div:last-child{border:0}.nutrition-band b{display:block;font-size:14px}.nutrition-band small{display:block;color:var(--muted);font-size:8px;margin-top:3px}
+    .analysis-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:14px 6px 0}.analysis-actions button{height:44px;border:1px solid var(--line);border-radius:17px;background:#fff;font-size:11px;font-weight:750}.analysis-actions .primary{border:0;background:var(--navy);color:#fff}
+
+    /* Editor */
+    .editor{background:linear-gradient(180deg,#f8f7f3,#ecf7f8);padding-bottom:20px}
+    .editor .topbar{margin-bottom:4px}.meal-hero{display:grid;grid-template-columns:116px 1fr;gap:14px;align-items:center;padding:13px 14px;border-radius:26px;background:rgba(255,255,255,.88);box-shadow:0 12px 27px rgba(31,78,94,.07)}.meal-hero img{width:112px;height:112px;object-fit:contain}.meal-hero h4{margin:0;font-size:21px}.meal-hero p{margin:5px 0;color:var(--muted);font-size:10px}.meal-hero strong{font-size:25px}.meal-hero small{font-size:10px;color:var(--muted)}
+    .dish-carousel{display:flex;gap:8px;margin:12px 0}.dish-thumb{flex:1;height:62px;border:1px solid transparent;border-radius:17px;background:rgba(255,255,255,.72);display:flex;align-items:center;padding:6px}.dish-thumb.active{border-color:#68b8cf;background:#fff}.dish-thumb img{width:48px;height:48px;object-fit:contain}.dish-thumb b{font-size:9px}.dish-thumb small{display:block;color:var(--muted);font-size:7px;margin-top:2px}
+    .section-title{display:flex;justify-content:space-between;align-items:center;margin:13px 4px 7px}.section-title h5{margin:0;font-size:14px}.section-title span{color:#4d91aa;font-size:9px;font-weight:700}
+    .macro-editor{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.macro-box{padding:11px 10px;border-radius:18px;background:rgba(255,255,255,.88);text-align:center}.macro-box label{display:block;color:var(--muted);font-size:8px}.stepper{display:grid;grid-template-columns:24px 1fr 24px;align-items:center;margin-top:7px}.stepper button{width:24px;height:24px;border:0;border-radius:9px;background:#e7f5f8}.stepper b{font-size:14px}.macro-box small{font-size:8px;color:var(--muted)}
+    .ingredient-list{border-radius:20px;background:rgba(255,255,255,.86);overflow:hidden}.ingredient-row{height:57px;display:grid;grid-template-columns:38px 1fr auto 24px;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line)}.ingredient-row:last-child{border:0}.ingredient-row img{width:38px;height:38px;object-fit:contain}.ingredient-row b{font-size:11px}.ingredient-row small{display:block;color:var(--muted);font-size:8px;margin-top:2px}.ingredient-row strong{font-size:11px}.ingredient-row button{width:24px;height:24px;border:0;background:transparent;color:#4a8ea6}
+    .save-bar{position:absolute;left:18px;right:18px;bottom:18px;height:50px;border:0;border-radius:19px;background:var(--navy);color:#fff;font-size:13px;font-weight:780}.editor-note{margin:11px 5px 0;color:#6d858e;font-size:9px;line-height:1.45}
+
+    /* Meal overview */
+    .meal-detail{background:linear-gradient(180deg,#f8f7f4,#e9f6f8)}
+    .meal-detail-hero{position:relative;height:302px}.meal-detail-hero img{position:absolute;left:50%;top:0;width:286px;height:286px;object-fit:contain;transform:translateX(-50%);filter:drop-shadow(0 20px 24px rgba(36,68,70,.14))}.hero-kcal{position:absolute;right:7px;top:20px;padding:10px 13px;border-radius:15px;background:#fff;box-shadow:0 8px 20px rgba(25,69,85,.08);text-align:right}.hero-kcal b{display:block;font-size:23px}.hero-kcal span{font-size:8px;color:var(--muted)}
+    .meal-detail h4{text-align:center;margin:-4px 0 1px;font-size:25px}.meal-detail>p{text-align:center;margin:0;color:var(--muted);font-size:11px}.timeline-strip{display:flex;align-items:center;gap:10px;margin:16px 3px 0}.timeline-strip::before,.timeline-strip::after{content:"";height:1px;flex:1;background:var(--line)}.timeline-strip span{font-size:9px;color:#517889;font-weight:700}.meal-summary{display:grid;grid-template-columns:repeat(3,1fr);margin:14px 0;padding:15px 6px;border-radius:23px;background:#fff}.meal-summary div{text-align:center;border-right:1px solid var(--line)}.meal-summary div:last-child{border:0}.meal-summary b{display:block;font-size:17px}.meal-summary small{font-size:8px;color:var(--muted)}.meal-components{display:grid;gap:7px}.component-line{display:grid;grid-template-columns:48px 1fr auto;align-items:center;padding:7px 10px;border-radius:17px;background:rgba(255,255,255,.8)}.component-line img{width:42px;height:42px;object-fit:contain}.component-line b{font-size:11px}.component-line small{display:block;font-size:8px;color:var(--muted);margin-top:2px}.component-line strong{font-size:11px}
+
+    body.single{background:#e0ecee}.single .board{width:390px;min-height:844px;padding:0;background:transparent}.single .board-head,.single .phone-wrap>h2{display:none}.single .phone-row{display:block}.single .phone-wrap{display:none}.single .phone-wrap.selected{display:block}.single .phone{border-radius:0;box-shadow:none}
+    body[data-board="flow"] .detail-only{display:none}body[data-board="detail"] .flow-only{display:none}
+  </style>
+</head>
+<body data-board="flow">
+  <main class="board flow">
+    <header class="board-head"><div><h1>NAVA · 饮食拍照记录</h1><p>基于参考母版的蓝色重构：总览 → 拍照 → 多菜确认 → 单菜解析 → 可编辑营养。</p></div><span class="board-index">DIET FLOW · 01</span></header>
+    <section class="phone-row">
+      <article class="phone-wrap flow-only" data-screen="dashboard"><h2>01 · 饮食总览</h2><div class="phone"><div class="island"></div><div class="status"><span>9:41</span><span>●●● 100%</span></div><div class="screen diet-home">
+        <div class="topbar"><button class="icon-btn">‹</button><h3>饮食记录</h3><button class="icon-btn end">⌁</button></div><div class="date-row">11 月 7 日 · 星期六</div>
+        <div class="calorie-stage"><svg class="arc-svg" viewBox="0 0 300 180" aria-label="九段式热量进度弧"><rect class="arc-pack" x="13.5" y="114" width="55" height="32" fill="#9edceb" transform="rotate(82 41 130)"/><rect class="arc-pack" x="27.5" y="74" width="55" height="32" fill="#86d0e3" transform="rotate(60 55 90)"/><rect class="arc-pack" x="51.5" y="45" width="55" height="32" fill="#70c3da" transform="rotate(40 79 61)"/><rect class="arc-pack" x="84.5" y="26" width="55" height="32" fill="#5bb7d0" transform="rotate(20 112 42)"/><rect class="arc-pack" x="122.5" y="19" width="55" height="32" fill="#48a8c4"/><rect class="arc-pack" x="160.5" y="26" width="55" height="32" fill="#348eab" transform="rotate(-20 188 42)"/><rect class="arc-pack" x="193.5" y="45" width="55" height="32" fill="#e2e4de" transform="rotate(-40 221 61)"/><rect class="arc-pack" x="217.5" y="74" width="55" height="32" fill="#e2e4de" transform="rotate(-60 245 90)"/><rect class="arc-pack" x="231.5" y="114" width="55" height="32" fill="#e2e4de" transform="rotate(-82 259 130)"/></svg><div class="calorie-copy"><small>今日已记录</small><strong>1,286</strong><span>千卡 · 3 道菜</span></div><button class="scan-add"><b>＋</b>拍照添加一餐</button></div>
+        <div class="meal-heading"><h4>今天的餐食</h4><button>按时间查看</button></div><div class="meal-list"><div class="meal-card"><img src="assets/diet-flow/tomato-eggs.png"><div class="meal-main"><h5>Lunch</h5><span>12:36 · 番茄炒蛋等 2 道</span><div class="macro-row"><div><small>Protein</small><b>32g</b></div><div><small>Carbs</small><b>58g</b></div><div><small>Fat</small><b>21g</b></div></div></div><div class="meal-kcal"><strong>684</strong><span>kcal</span><button class="pencil">✎</button></div></div><div class="meal-card"><img src="assets/diet-flow/chicken-rice.png"><div class="meal-main"><h5>Breakfast</h5><span>08:10 · 鸡胸时蔬</span><div class="macro-row"><div><small>Protein</small><b>46g</b></div><div><small>Carbs</small><b>41g</b></div><div><small>Fat</small><b>12g</b></div></div></div><div class="meal-kcal"><strong>602</strong><span>kcal</span><button class="pencil">✎</button></div></div></div>
+        <nav class="dock"><span><img src="../../src/assets/figma/option-two-icons/home-glyph.svg"></span><span class="active"><img src="../../src/assets/figma/option-two-icons/record.svg"></span><span class="center"><img src="../../src/assets/figma/option-two-icons/chat.svg"></span><span><img src="../../src/assets/figma/option-two-icons/tasks.svg"></span><span><img src="../../src/assets/figma/option-two-icons/profile.svg"></span></nav>
+      </div></div></article>
+
+      <article class="phone-wrap flow-only" data-screen="camera"><h2>02 · 拍照识别</h2><div class="phone camera-phone"><div class="island"></div><div class="status"><span>9:41</span><span>●●● 100%</span></div><div class="screen"><div class="camera-top"><button class="icon-btn">×</button><button class="icon-btn">⚙</button></div><div class="live-photo"><img src="assets/diet-flow/seafood-paella.png"><div class="scan-corners"><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i></div><div class="scan-line"></div></div><div class="detect-badge">盘面清晰 · 可拍摄</div><div class="camera-bottom"><div class="capture-modes"><span>食材</span><b>整餐</b><span>包装</span></div><button class="library">▧</button><button class="shutter"></button><button class="flash">ϟ</button></div></div></div></article>
+
+      <article class="phone-wrap flow-only" data-screen="review"><h2>03 · 多菜确认</h2><div class="phone"><div class="island"></div><div class="status"><span>9:41</span><span>●●● 100%</span></div><div class="screen review"><div class="topbar"><button class="icon-btn flat back"></button><h3>识别结果</h3><button class="icon-btn flat end text-action">重拍</button></div><div class="review-stage"><img class="main-dish" src="assets/diet-flow/tomato-eggs.png"><i class="leader l1"></i><i class="leader l2"></i><i class="leader l3"></i><span class="callout co1">番茄炒蛋</span><span class="callout co2">约 1.2 份</span><span class="callout co3">置信度 94%</span></div><div class="review-summary"><span class="dish-count">识别到 3 道菜</span><h4>先确认这顿饭</h4><p>左右滑动或点缩略图逐道核对</p></div><div class="dish-strip"><div class="dish-chip active"><img src="assets/diet-flow/tomato-eggs.png"><b>番茄炒蛋</b><small>428 千卡</small></div><div class="dish-chip"><img src="assets/diet-flow/chicken-rice.png"><b>鸡胸时蔬</b><small>512 千卡</small></div><div class="dish-chip"><img src="assets/diet-flow/seafood-paella.png"><b>海鲜饭</b><small>638 千卡</small></div></div><div class="review-actions"><button>添加一道</button><button class="primary">确认并解析</button></div></div></div></article>
+
+      <article class="phone-wrap flow-only" data-screen="meal"><h2>04 · 餐次详情</h2><div class="phone"><div class="island"></div><div class="status"><span>9:41</span><span>●●● 100%</span></div><div class="screen meal-detail"><div class="topbar"><button class="icon-btn flat back"></button><h3>午餐</h3><button class="icon-btn flat end text-action">编辑</button></div><div class="meal-detail-hero"><img src="assets/diet-flow/tomato-eggs.png"><div class="hero-kcal"><b>684</b><span>本餐千卡</span></div></div><h4>番茄炒蛋 · 2/3</h4><p>左右滑动查看本餐其他菜品</p><div class="timeline-strip"><span>12:36 已记录</span></div><div class="meal-summary"><div><b>32g</b><small>蛋白质</small></div><div><b>58g</b><small>碳水</small></div><div><b>21g</b><small>脂肪</small></div></div><div class="meal-components"><div class="component-line"><img src="assets/diet-flow/tomato-eggs.png"><div><b>番茄炒蛋</b><small>约 300g · 已核对</small></div><strong>428 kcal</strong></div><div class="component-line"><img src="assets/diet-flow/chicken-rice.png"><div><b>时蔬米饭</b><small>约 180g · 待确认</small></div><strong>256 kcal</strong></div></div></div></div></article>
+
+      <article class="phone-wrap detail-only" data-screen="analysis"><h2>05 · 单菜解析 / 横滑</h2><div class="phone"><div class="island"></div><div class="status"><span>9:41</span><span>●●● 100%</span></div><div class="screen analysis"><div class="topbar"><button class="icon-btn flat back"></button><h3>番茄炒蛋</h3><button class="icon-btn flat end">♡</button></div><div class="analysis-head"><i class="pager-dot"></i><i class="pager-dot active"></i><i class="pager-dot"></i><span>本餐第 2 道</span></div><div class="petal-stage"><div class="petal p1"><div><b>44%</b><span>番茄</span></div></div><div class="petal p2"><div><b>35%</b><span>鸡蛋</span></div></div><div class="petal p3"><div><b>8%</b><span>烹调油</span></div></div><div class="petal p4"><div><b>5%</b><span>香葱</span></div></div><div class="petal p5"><div><b>4%</b><span>调味</span></div></div><div class="petal p6"><div><b>4%</b><span>汤汁</span></div></div><div class="plate-core"><img src="assets/diet-flow/tomato-eggs.png"></div><div class="swipe-hint">‹　<b>左右滑动切换菜品</b>　›</div></div><div class="dish-title"><h4>番茄炒蛋</h4><p><strong>428</strong> 千卡 · 约 300g</p></div><div class="nutrition-band"><div><b>18g</b><small>蛋白质</small></div><div><b>24g</b><small>碳水</small></div><div><b>29g</b><small>脂肪</small></div><div><b>5g</b><small>膳食纤维</small></div></div><div class="analysis-actions"><button>查看依据</button><button class="primary">调整这道菜</button></div></div></div></article>
+
+      <article class="phone-wrap detail-only" data-screen="editor"><h2>06 · 营养与分量编辑</h2><div class="phone"><div class="island"></div><div class="status"><span>9:41</span><span>●●● 100%</span></div><div class="screen editor"><div class="topbar"><button class="icon-btn flat back"></button><h3>调整餐食</h3><button class="icon-btn flat end text-action">删除</button></div><div class="meal-hero"><img src="assets/diet-flow/tomato-eggs.png"><div><h4>番茄炒蛋</h4><p>午餐 · 12:36</p><strong>428</strong> <small>千卡</small></div></div><div class="dish-carousel"><div class="dish-thumb active"><img src="assets/diet-flow/tomato-eggs.png"><div><b>番茄炒蛋</b><small>当前</small></div></div><div class="dish-thumb"><img src="assets/diet-flow/chicken-rice.png"><div><b>鸡胸时蔬</b><small>512 kcal</small></div></div><div class="dish-thumb"><img src="assets/diet-flow/seafood-paella.png"><div><b>海鲜饭</b><small>638 kcal</small></div></div></div><div class="section-title"><h5>营养素</h5><span>修改后自动重算</span></div><div class="macro-editor"><div class="macro-box"><label>蛋白质</label><div class="stepper"><button>−</button><b>18</b><button>＋</button></div><small>克</small></div><div class="macro-box"><label>碳水</label><div class="stepper"><button>−</button><b>24</b><button>＋</button></div><small>克</small></div><div class="macro-box"><label>脂肪</label><div class="stepper"><button>−</button><b>29</b><button>＋</button></div><small>克</small></div></div><div class="section-title"><h5>食材与分量</h5><span>3 项</span></div><div class="ingredient-list"><div class="ingredient-row"><img src="assets/diet-flow/tomato-eggs.png"><div><b>番茄</b><small>AI 识别 · 高置信</small></div><strong>180g</strong><button>✎</button></div><div class="ingredient-row"><img src="assets/diet-flow/tomato-eggs.png"><div><b>鸡蛋</b><small>约 2 枚</small></div><strong>120g</strong><button>✎</button></div><div class="ingredient-row"><div style="width:32px;height:32px;border-radius:50%;background:#f7d575"></div><div><b>烹调油</b><small>估算值</small></div><strong>12g</strong><button>✎</button></div></div><p class="editor-note">手动调整会保留为本餐证据；NAVA 不会把估算值伪装成精确测量。</p><button class="save-bar">保存这顿饭</button></div></div></article>
+
+      <article class="phone-wrap detail-only" data-screen="history"><h2>07 · 解析另一道菜</h2><div class="phone"><div class="island"></div><div class="status"><span>9:41</span><span>●●● 100%</span></div><div class="screen analysis"><div class="topbar"><button class="icon-btn flat back"></button><h3>海鲜饭</h3><button class="icon-btn flat end">♡</button></div><div class="analysis-head"><i class="pager-dot"></i><i class="pager-dot"></i><i class="pager-dot active"></i><span>本餐第 3 道</span></div><div class="petal-stage"><div class="petal p1"><div><b>48%</b><span>米饭</span></div></div><div class="petal p2"><div><b>18%</b><span>虾</span></div></div><div class="petal p3"><div><b>12%</b><span>青口</span></div></div><div class="petal p4"><div><b>8%</b><span>鱿鱼</span></div></div><div class="petal p5"><div><b>7%</b><span>蔬菜</span></div></div><div class="petal p6"><div><b>7%</b><span>其他</span></div></div><div class="plate-core"><img src="assets/diet-flow/seafood-paella.png"></div><div class="swipe-hint">‹　<b>左右滑动切换菜品</b>　›</div></div><div class="dish-title"><h4>西班牙海鲜饭</h4><p><strong>638</strong> 千卡 · 约 360g</p></div><div class="nutrition-band"><div><b>29g</b><small>蛋白质</small></div><div><b>76g</b><small>碳水</small></div><div><b>18g</b><small>脂肪</small></div><div><b>6g</b><small>膳食纤维</small></div></div><div class="analysis-actions"><button>查看依据</button><button class="primary">调整这道菜</button></div></div></div></article>
+    </section>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const board = params.get('board') || 'flow';
+    document.body.dataset.board = board;
+    const main = document.querySelector('.board');
+    main.classList.toggle('detail', board === 'detail');
+    main.classList.toggle('flow', board !== 'detail');
+    if (params.get('screen')) {
+      document.body.classList.add('single');
+      document.querySelectorAll('.phone-wrap').forEach(el => el.classList.toggle('selected', el.dataset.screen === params.get('screen')));
+    }
+  </script>
+</body>
+</html>

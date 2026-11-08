@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
 });
 
 async function buildFocusReply(client: SupabaseClient, userId: string, request: FocusRequest, lang: ReplyLanguage, deviceDate: unknown, requestSignal: AbortSignal) {
-  const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
+  const apiKey = Deno.env.get("DEEPSEEK_API_KEY_NAVA");
   if (!apiKey) throw new Error("真实 AI 模型尚未配置，请联系管理员检查模型服务密钥。");
   const run = createFocusRun(request.kind, lang, requestSignal);
   try {
@@ -195,7 +195,7 @@ async function resolveRoute(
   const deterministic = buildDeterministicRoute(input.message, input.dataType, input.extractedData);
   if (deterministic) return deterministic;
 
-  const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
+  const apiKey = Deno.env.get("DEEPSEEK_API_KEY_NAVA");
   if (!apiKey || Deno.env.get("NAVA_AI_CHAT_URL")) return fallbackRoute(input.message);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12_000);
@@ -260,7 +260,7 @@ async function streamBuiltReply(input: ReplyInput, emit: (event: StreamEvent, da
   if (endpoint) {
     reply = await customProviderReply(input, endpoint, Deno.env.get("NAVA_AI_CHAT_KEY"));
   } else {
-    const deepseekKey = Deno.env.get("DEEPSEEK_API_KEY");
+    const deepseekKey = Deno.env.get("DEEPSEEK_API_KEY_NAVA");
     if (!deepseekKey) throw new Error("真实 AI 模型尚未配置，请联系管理员检查模型服务密钥。");
     reply = await deepSeekReply(input, deepseekKey);
   }
@@ -273,7 +273,7 @@ async function buildReply(input: ReplyInput): Promise<ProviderReply> {
   const endpoint = Deno.env.get("NAVA_AI_CHAT_URL");
   if (endpoint) return customProviderReply(input, endpoint, Deno.env.get("NAVA_AI_CHAT_KEY"));
 
-  const deepseekKey = Deno.env.get("DEEPSEEK_API_KEY");
+  const deepseekKey = Deno.env.get("DEEPSEEK_API_KEY_NAVA");
   if (deepseekKey) return deepSeekReply(input, deepseekKey);
   throw new Error("真实 AI 模型尚未配置，请联系管理员检查模型服务密钥。");
 }

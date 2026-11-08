@@ -19,7 +19,7 @@
   --skin-page-background:
     radial-gradient(circle at 82% 8%, rgba(255,255,255,.82), transparent 30%),
     linear-gradient(180deg, rgba(224,247,255,.6), rgba(83,190,229,.2)),
-    url("../assets/figma/auth-texture-v2.jpg") center / cover fixed;
+    url("../assets/figma/auth-texture.jpg") center / cover fixed;
   --skin-shadow: 0 14px 34px rgba(13, 54, 83, .15);
   --skin-card-shadow: 0 10px 24px rgba(17,105,143,.1), inset 0 1px 0 rgba(255,255,255,.88);
   --skin-button: linear-gradient(135deg, #2fb0e5, #178f97);

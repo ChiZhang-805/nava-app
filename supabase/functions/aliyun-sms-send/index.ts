@@ -49,10 +49,10 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return errorResponse("仅支持 POST。", 405);
 
   let challengeId: string | null = null;
-  let admin: ReturnType<typeof createOtpAdminClient> | null = null;
+  let admin: Awaited<ReturnType<typeof createOtpAdminClient>> | null = null;
 
   try {
-    admin = createOtpAdminClient();
+    admin = await createOtpAdminClient();
     const body = await readJson(req);
     const phone = normalizePhone(body.phone);
     const purpose = normalizeOtpPurpose(body.purpose);

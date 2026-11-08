@@ -2,7 +2,7 @@ import { errorResponse, jsonResponse, optionsResponse, readJson, requireUser, st
 import { accountHash, otpHmacSecret, phoneHash } from "../_shared/phone-otp.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.52.1";
 
-const privateBuckets = ["diet-photos", "face-photos", "profile-avatars"];
+const privateBuckets = ["diet-photos", "diet-renders", "face-photos", "profile-avatars"];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return optionsResponse();

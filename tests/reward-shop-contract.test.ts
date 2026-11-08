@@ -5,7 +5,7 @@ import test from "node:test";
 const migration = readFileSync(new URL("../supabase/migrations/202609080001_reward_shop.sql", import.meta.url), "utf8");
 const shop = readFileSync(new URL("../src/features/PointsShopExperience.tsx", import.meta.url), "utf8");
 const home = readFileSync(new URL("../src/features/OptionTwoHome.tsx", import.meta.url), "utf8");
-const styles = readFileSync(new URL("../src/styles/figma-v2.css", import.meta.url), "utf8");
+const styles = readFileSync(new URL("../src/styles/product-ui.css", import.meta.url), "utf8");
 const service = readFileSync(new URL("../src/services/rewardShop.ts", import.meta.url), "utf8");
 const checkout = readFileSync(new URL("../src/components/ShopCheckoutExperience.tsx", import.meta.url), "utf8");
 const terminal = readFileSync(new URL("../src/components/ShopPaymentTerminal.tsx", import.meta.url), "utf8");

@@ -66,10 +66,10 @@ async function callProvider(input: {
     return normalizeResult(data, "provider", knowledge);
   }
 
-  const visionKey = Deno.env.get("NAVA_FACE_VISION_KEY") ?? Deno.env.get("DASHSCOPE_API_KEY");
+  const visionKey = Deno.env.get("NAVA_FACE_VISION_KEY") ?? Deno.env.get("DASHSCOPE_API_KEY_NAVA");
   if (!visionKey) throw new Error(input.lang === "en"
-    ? "Face analysis requires a vision AI key. Configure DASHSCOPE_API_KEY in Supabase."
-    : "面部分析必须使用真实视觉模型，请先在 Supabase 配置 DASHSCOPE_API_KEY。");
+    ? "Face analysis requires a NAVA-scoped vision AI key. Configure NAVA_FACE_VISION_KEY or DASHSCOPE_API_KEY_NAVA in Supabase."
+    : "面部分析必须使用 NAVA 专用视觉模型，请先在 Supabase 配置 NAVA_FACE_VISION_KEY 或 DASHSCOPE_API_KEY_NAVA。");
   const source = input.imageUrl;
   if (!source) throw new Error(input.lang === "en" ? "No private face image was available for analysis." : "没有可供分析的私密面部照片。");
   return callVisionProvider({

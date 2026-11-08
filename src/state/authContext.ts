@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import type { User } from "@supabase/supabase-js";
+import type { SocialAuthProvider } from "../services/auth";
 
 export interface AuthContextValue {
   user: User | null;
@@ -7,6 +8,7 @@ export interface AuthContextValue {
   error: string | null;
   passwordRecovery: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithSocial: (provider: SocialAuthProvider) => Promise<void>;
   signOut: () => Promise<void>;
   finishPasswordRecovery: (password: string) => Promise<void>;
   clearError: () => void;

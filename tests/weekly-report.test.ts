@@ -16,7 +16,7 @@ const productivity = readFileSync(new URL("../src/services/productivity.ts", imp
 const todayTodoPage = readFileSync(new URL("../src/features/TodayTodoPage.tsx", import.meta.url), "utf8");
 const focusImmersion = readFileSync(new URL("../src/services/focusImmersion.ts", import.meta.url), "utf8");
 const focusAudio = readFileSync(new URL("../src/services/focusAudio.ts", import.meta.url), "utf8");
-const focusStyles = readFileSync(new URL("../src/styles/figma-v2.css", import.meta.url), "utf8");
+const focusStyles = readFileSync(new URL("../src/styles/product-ui.css", import.meta.url), "utf8");
 
 test("weekly report periods follow the local Monday-to-Sunday natural week", () => {
   assert.deepEqual(naturalWeekDateRange(new Date("2026-09-02T12:00:00")), {

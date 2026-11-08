@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NAVA V1-rooted core screens</title>
+  <style>
+    :root {
+      --ink: #0b2c3d;
+      --muted: #708c99;
+      --blue: #1386ad;
+      --blue-soft: #dceff6;
+      --line: rgba(20, 91, 116, .14);
+      --paper: rgba(248, 252, 253, .94);
+      --mint: #80cbb8;
+      --peach: #f2b58f;
+      --lavender: #b9afe8;
+      --warning: #e9a65c;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 1840px;
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", sans-serif;
+      background: #d9e7e9;
+    }
+
+    .board {
+      width: 1840px;
+      min-height: 1120px;
+      margin: 0 auto;
+      padding: 44px 42px 50px;
+      background:
+        radial-gradient(circle at 12% 7%, rgba(255,255,255,.92), transparent 26%),
+        linear-gradient(135deg, #cbdcdf 0%, #edf2ef 47%, #d9e5e3 100%);
+    }
+
+    .board-head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; }
+    .board-head h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: -.5px; }
+    .board-head p { margin: 0; color: #58727d; font-size: 15px; }
+    .legend { display: flex; gap: 10px; font-size: 13px; color: #607983; }
+    .legend span { padding: 8px 11px; border: 1px solid rgba(23,78,98,.14); border-radius: 999px; background: rgba(255,255,255,.55); }
+
+    .phones { display: grid; grid-template-columns: repeat(4, 390px); gap: 42px; align-items: start; }
+    .panel-label { margin: 0 0 10px 8px; font-size: 17px; font-weight: 750; }
+    .panel-note { margin: 9px 8px 0; width: 374px; color: #58727d; font-size: 12px; line-height: 1.45; }
+
+    .phone {
+      position: relative;
+      width: 390px;
+      height: 844px;
+      overflow: hidden;
+      border-radius: 48px;
+      background:
+        linear-gradient(rgba(240,249,252,.78), rgba(218,241,248,.84)),
+        url("../../src/assets/figma/auth-texture.jpg") center / cover;
+      box-shadow: 0 30px 70px rgba(30, 57, 68, .18), inset 0 0 0 1px rgba(255,255,255,.92);
+    }
+
+    .island { position: absolute; z-index: 20; top: 10px; left: 50%; width: 104px; height: 29px; border-radius: 18px; transform: translateX(-50%); background: #0b0b0c; }
+    .status { position: relative; z-index: 10; display: flex; justify-content: space-between; padding: 17px 25px 0; height: 50px; font-size: 13px; font-weight: 750; color: #081a22; }
+    .screen { position: relative; height: 794px; padding: 8px 18px 108px; }
+    .screen.no-dock { padding-bottom: 20px; }
+
+    .topbar { display: grid; grid-template-columns: 74px 1fr 74px; height: 48px; align-items: center; }
+    .topbar h2 { margin: 0; text-align: center; font-size: 22px; letter-spacing: -.5px; }
+    .top-action { border: 0; background: none; color: var(--blue); font: inherit; font-size: 13px; font-weight: 720; padding: 10px 0; }
+    .top-action.left { text-align: left; }
+    .top-action.right { text-align: right; }
+    .top-icon { width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,255,255,.85); background: rgba(255,255,255,.62); display: inline-grid; place-items: center; font-size: 17px; }
+
+    .dock {
+      position: absolute;
+      z-index: 12;
+      left: 18px;
+      right: 18px;
+      bottom: 15px;
+      height: 76px;
+      padding: 8px 13px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      align-items: center;
+      border: 1px solid rgba(255,255,255,.95);
+      border-radius: 38px;
+      background: rgba(225,244,249,.86);
+      box-shadow: 0 14px 35px rgba(29, 89, 108, .12);
+      backdrop-filter: blur(18px);
+    }
+    .dock-item { display: grid; place-items: center; width: 48px; height: 48px; margin: auto; border-radius: 50%; }
+    .dock-item.active { background: #fff; box-shadow: 0 7px 18px rgba(35, 91, 108, .12); }
+    .dock-item.center { width: 68px; height: 68px; margin-top: -28px; background: #153f50; border: 1px solid rgba(255,255,255,.95); }
+    .dock img { width: 23px; height: 23px; object-fit: contain; }
+    .dock-item.center img { width: 31px; height: 31px; filter: brightness(0) invert(1); }
+
+    /* Records */
+    .date-rail { display: flex; gap: 8px; overflow: hidden; margin: 2px -18px 11px; padding: 0 18px; }
+    .date { flex: 0 0 50px; padding: 7px 0 8px; text-align: center; border-radius: 18px; color: var(--muted); font-size: 11px; }
+    .date b { display: block; margin-top: 3px; color: var(--ink); font-size: 17px; }
+    .date.active { color: #fff; background: var(--ink); }
+    .date.active b { color: #fff; }
+
+    .record-overview { display: grid; grid-template-columns: 128px 1fr; gap: 14px; align-items: center; padding: 15px 4px 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .rhythm { position: relative; width: 118px; height: 118px; border-radius: 50%; background: conic-gradient(var(--blue) 0 23%, var(--mint) 23% 43%, var(--peach) 43% 61%, var(--lavender) 61% 75%, rgba(255,255,255,.56) 75% 100%); }
+    .rhythm::after { content: "76\A 今日节律"; white-space: pre; position: absolute; inset: 15px; display: grid; place-items: center; text-align: center; border-radius: 50%; background: rgba(247,252,253,.96); font-size: 13px; line-height: 1.22; font-weight: 700; }
+    .rhythm::first-line { font-size: 28px; }
+    .record-copy h3 { margin: 0 0 5px; font-size: 18px; }
+    .record-copy p { margin: 0 0 11px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+    .primary-link { display: inline-flex; gap: 7px; align-items: center; padding: 9px 13px; border-radius: 18px; color: #fff; background: var(--blue); font-size: 12px; font-weight: 730; }
+
+    .section-title { display: flex; justify-content: space-between; align-items: baseline; margin: 15px 2px 8px; }
+    .section-title h3 { margin: 0; font-size: 16px; }
+    .section-title span { color: var(--blue); font-size: 11px; font-weight: 700; }
+    .attention { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .attention-item { padding: 11px 9px 12px; }
+    .attention-item + .attention-item { border-left: 1px solid var(--line); }
+    .attention-item small { display: block; color: var(--muted); font-size: 10px; }
+    .attention-item strong { display: block; margin: 5px 0 3px; font-size: 16px; }
+    .attention-item em { color: var(--warning); font-size: 10px; font-style: normal; }
+    .module-rail { display: flex; gap: 9px; overflow: hidden; margin-right: -18px; padding: 2px 18px 4px 0; }
+    .module { flex: 0 0 99px; min-height: 104px; padding: 12px 10px; border-radius: 24px; background: rgba(255,255,255,.66); border: 1px solid rgba(255,255,255,.9); }
+    .module:nth-child(2) { background: rgba(225,241,252,.78); }
+    .module:nth-child(3) { background: rgba(233,229,252,.74); }
+    .module .glyph { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: var(--blue); background: rgba(255,255,255,.8); font-size: 14px; }
+    .module b { display: block; margin-top: 11px; font-size: 13px; }
+    .module strong { display: block; margin-top: 3px; font-size: 18px; }
+    .module small { color: var(--muted); font-size: 9px; }
+
+    /* Tasks */
+    .task-head { display: flex; justify-content: space-between; align-items: center; padding: 5px 2px 13px; border-bottom: 1px solid var(--line); }
+    .task-head div:first-child b { display: block; font-size: 21px; }
+    .task-head div:first-child span { color: var(--muted); font-size: 11px; }
+    .points { text-align: right; }
+    .points strong { display: block; font-size: 22px; color: var(--blue); }
+    .points small { color: var(--muted); font-size: 10px; }
+    .journey { position: relative; margin: 18px 5px 8px 19px; padding-left: 32px; }
+    .journey::before { content: ""; position: absolute; left: 10px; top: 11px; bottom: 14px; width: 2px; background: linear-gradient(var(--blue) 0 43%, rgba(54,115,135,.16) 43%); }
+    .step { position: relative; min-height: 91px; padding: 2px 0 17px; }
+    .step-dot { position: absolute; left: -31px; top: 1px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #fff; background: #cadde3; box-shadow: 0 0 0 1px rgba(30,105,130,.18); }
+    .step.done .step-dot { background: var(--blue); }
+    .step.current .step-dot { background: #fff; box-shadow: 0 0 0 5px rgba(19,134,173,.18); border-color: var(--blue); }
+    .step h4 { margin: 0 0 5px; font-size: 16px; }
+    .step p { margin: 0; max-width: 245px; color: var(--muted); font-size: 11px; line-height: 1.35; }
+    .step-meta { position: absolute; right: 0; top: 1px; color: var(--blue); font-size: 11px; font-weight: 750; }
+    .step button { margin-top: 8px; padding: 7px 13px; border: 0; border-radius: 16px; color: #fff; background: var(--ink); font: inherit; font-size: 11px; font-weight: 720; }
+    .challenge-rail { display: flex; gap: 9px; overflow: hidden; margin: 0 -18px; padding: 2px 18px; }
+    .challenge { flex: 0 0 225px; padding: 13px 14px; border-radius: 25px; background: rgba(255,255,255,.68); border: 1px solid rgba(255,255,255,.9); }
+    .challenge b { display: block; font-size: 13px; }
+    .challenge p { margin: 5px 0 9px; color: var(--muted); font-size: 10px; }
+    .progress { height: 6px; overflow: hidden; border-radius: 5px; background: rgba(48,101,121,.12); }
+    .progress i { display: block; height: 100%; width: 62%; border-radius: inherit; background: var(--mint); }
+
+    /* Calendar */
+    .month-line { display: flex; justify-content: space-between; align-items: center; padding: 6px 4px 14px; }
+    .month-line button { border: 0; background: none; color: var(--blue); font-size: 20px; }
+    .month-line strong { font-size: 18px; }
+    .week, .days { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; }
+    .week { margin-bottom: 6px; color: var(--muted); font-size: 10px; }
+    .day { position: relative; display: grid; place-items: center; height: 39px; font-size: 12px; }
+    .day::after { content: ""; position: absolute; bottom: 3px; width: 18px; height: 3px; border-radius: 2px; background: transparent; }
+    .day.some::after { background: var(--mint); }
+    .day.full::after { background: var(--blue); }
+    .day.active { color: #fff; }
+    .day.active::before { content: ""; position: absolute; z-index: -1; width: 31px; height: 31px; border-radius: 50%; background: var(--ink); }
+    .day.muted { color: #afc0c6; }
+    .calendar-body { padding: 9px 7px 13px; background: rgba(255,255,255,.55); border-radius: 28px 28px 0 0; border: 1px solid rgba(255,255,255,.8); border-bottom: 0; }
+    .day-summary { margin: 0 7px; padding: 13px 10px 8px; border-top: 1px solid var(--line); }
+    .day-summary-head { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .day-summary-head b { font-size: 14px; }
+    .day-summary-head span { color: var(--muted); font-size: 10px; }
+    .timeline-row { display: grid; grid-template-columns: 39px 13px 1fr auto; align-items: center; min-height: 47px; font-size: 12px; }
+    .timeline-row time { color: var(--muted); font-size: 10px; }
+    .timeline-row .mark { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
+    .timeline-row small { color: var(--muted); }
+    .quick-record { position: absolute; left: 62px; right: 62px; bottom: 104px; height: 43px; border: 0; border-radius: 24px; color: #fff; background: var(--ink); font: inherit; font-size: 13px; font-weight: 750; box-shadow: 0 10px 24px rgba(9,48,65,.22); }
+
+    /* Chat */
+    .chat-top { display: grid; grid-template-columns: 54px 1fr 54px; align-items: center; height: 50px; }
+    .chat-top h2 { margin: 0; text-align: center; font-size: 20px; }
+    .chat-top button { width: 42px; height: 36px; border: 0; border-radius: 18px; background: rgba(255,255,255,.65); color: var(--blue); font-size: 16px; }
+    .suggestions { display: flex; gap: 8px; overflow: hidden; margin: 3px -18px 12px; padding: 0 18px; }
+    .suggestion { flex: 0 0 auto; padding: 8px 12px; border: 1px solid rgba(33,104,127,.15); border-radius: 18px; background: rgba(255,255,255,.62); font-size: 11px; }
+    .messages { position: absolute; inset: 108px 18px 96px; overflow: hidden; }
+    .stamp { margin: 4px 0 13px; text-align: center; color: var(--muted); font-size: 9px; }
+    .message { max-width: 84%; margin-bottom: 13px; font-size: 12px; line-height: 1.45; }
+    .message.user { margin-left: auto; padding: 10px 13px; border-radius: 20px 20px 5px 20px; color: #fff; background: var(--ink); }
+    .nava-line { display: flex; gap: 9px; align-items: flex-start; }
+    .cat-avatar { flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%; object-fit: cover; background: #fff; }
+    .message.nava { padding: 0 0 2px; }
+    .message.nava b { display: block; margin-bottom: 4px; font-size: 11px; color: var(--blue); }
+    .insight { margin: 8px 0 14px 43px; padding: 12px 13px; border-left: 3px solid var(--blue); background: rgba(255,255,255,.62); }
+    .insight strong { display: block; font-size: 13px; }
+    .insight span { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+    .confirm-row { display: flex; gap: 7px; margin-top: 9px; }
+    .confirm-row button { padding: 7px 10px; border: 1px solid rgba(22,93,117,.16); border-radius: 15px; background: #fff; color: var(--ink); font: inherit; font-size: 10px; }
+    .confirm-row button:first-child { color: #fff; background: var(--blue); }
+    .composer { position: absolute; left: 17px; right: 17px; bottom: 14px; display: grid; grid-template-columns: 38px 1fr 42px; gap: 7px; align-items: center; min-height: 62px; padding: 8px; border: 1px solid rgba(255,255,255,.92); border-radius: 30px; background: rgba(245,251,252,.9); box-shadow: 0 14px 35px rgba(29,82,99,.14); }
+    .composer button { height: 38px; border: 0; border-radius: 50%; background: rgba(219,239,246,.9); color: var(--blue); font-size: 19px; }
+    .composer button.mic { color: #fff; background: var(--ink); }
+    .composer span { color: #89a0aa; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <main class="board">
+    <header class="board-head">
+      <div>
+        <h1>NAVA · 第一版继承式升级 / 核心交互方向</h1>
+        <p>保留首页与五入口产品合同，优先重设计数据记录、任务成长、日历快捷记录和 NAVA 对话。</p>
+      </div>
+      <div class="legend"><span>390 × 844 主画板</span><span>全部可由 SwiftUI 基础构件实现</span><span>右上菜单只承载低频操作</span></div>
+    </header>
+
+    <section class="phones">
+      <article>
+        <h2 class="panel-label">01 · 数据与记录总览</h2>
+        <div class="phone">
+          <div class="island"></div><div class="status"><span>9:41</span><span>●●● 100%</span></div>
+          <div class="screen">
+            <div class="topbar"><button class="top-action left">今天</button><h2>记录</h2><button class="top-action right">快速记录</button></div>
+            <div class="date-rail"><div class="date">一<b>4</b></div><div class="date">二<b>5</b></div><div class="date active">今天<b>6</b></div><div class="date">四<b>7</b></div><div class="date">五<b>8</b></div><div class="date">六<b>9</b></div></div>
+            <div class="record-overview"><div class="rhythm"></div><div class="record-copy"><h3>还差两项完成今天</h3><p>睡眠恢复偏低；晚饭后补记饮食，就能生成完整回顾。</p><span class="primary-link">补记饮食　→</span></div></div>
+            <div class="section-title"><h3>需要留意</h3><span>查看今日报告</span></div>
+            <div class="attention"><div class="attention-item"><small>睡眠 · 07:20</small><strong>恢复 62</strong><em>低于近 7 日</em></div><div class="attention-item"><small>情绪 · 13:40</small><strong>平稳</strong><em>下午压力略升</em></div></div>
+            <div class="section-title"><h3>六项记录</h3><span>左右滑动</span></div>
+            <div class="module-rail"><div class="module"><span class="glyph">☾</span><b>睡眠</b><strong>7h 20m</strong><small>已记录</small></div><div class="module"><span class="glyph">☺</span><b>情绪</b><strong>平稳</strong><small>2 次</small></div><div class="module"><span class="glyph">↗</span><b>运动</b><strong>5,460</strong><small>步数</small></div><div class="module"><span class="glyph">🍽</span><b>饮食</b><strong>待补记</strong><small>晚餐</small></div></div>
+          </div>
+          <nav class="dock"><span class="dock-item"><img src="../../src/assets/figma/option-two-icons/home-glyph.svg"></span><span class="dock-item active"><img src="../../src/assets/figma/option-two-icons/record.svg"></span><span class="dock-item center"><img src="../../src/assets/figma/option-two-icons/chat.svg"></span><span class="dock-item"><img src="../../src/assets/figma/option-two-icons/tasks.svg"></span><span class="dock-item"><img src="../../src/assets/figma/option-two-icons/profile.svg"></span></nav>
+        </div>
+        <p class="panel-note">日期左右滑；模块横向同级浏览；页面本身只在紧凑高度或大字号时纵向滚动。快速记录直接可见。</p>
+      </article>
+
+      <article>
+        <h2 class="panel-label">02 · 任务与成长</h2>
+        <div class="phone">
+          <div class="island"></div><div class="status"><span>9:41</span><span>●●● 100%</span></div>
+          <div class="screen">
+            <div class="topbar"><button class="top-action left">本周</button><h2>成长</h2><button class="top-action right">积分商城</button></div>
+            <div class="task-head"><div><b>今天走到第 3 步</b><span>完成 2 / 5 · 连续 6 天</span></div><div class="points"><strong>200</strong><small>可用积分</small></div></div>
+            <div class="section-title"><h3>今日路径</h3><span>预计 18 分钟</span></div>
+            <div class="journey">
+              <div class="step done"><span class="step-dot"></span><span class="step-meta">+15</span><h4>晨间情绪签到</h4><p>完成一次强度、触发源与身体感受记录</p></div>
+              <div class="step done"><span class="step-dot"></span><span class="step-meta">+20</span><h4>补记昨夜睡眠</h4><p>已记录 23:42–07:20，恢复感受为一般</p></div>
+              <div class="step current"><span class="step-dot"></span><span class="step-meta">+25</span><h4>轻量活动</h4><p>完成一次 10 分钟低强度活动</p><button>开始活动</button></div>
+              <div class="step"><span class="step-dot"></span><span class="step-meta">+15</span><h4>与 NAVA 回顾今天</h4><p>根据今天的记录生成一条可执行建议</p></div>
+            </div>
+            <div class="section-title"><h3>本周挑战</h3><span>左右滑动</span></div>
+            <div class="challenge-rail"><div class="challenge"><b>规律睡眠 · 4 / 7 天</b><p>在目标时间窗内入睡</p><div class="progress"><i></i></div></div><div class="challenge"><b>情绪觉察 · 3 / 5 次</b><p>完成一次有原因的情绪记录</p><div class="progress"><i style="width:48%"></i></div></div></div>
+          </div>
+          <nav class="dock"><span class="dock-item"><img src="../../src/assets/figma/option-two-icons/home-glyph.svg"></span><span class="dock-item"><img src="../../src/assets/figma/option-two-icons/record.svg"></span><span class="dock-item center"><img src="../../src/assets/figma/option-two-icons/chat.svg"></span><span class="dock-item active"><img src="../../src/assets/figma/option-two-icons/tasks.svg"></span><span class="dock-item"><img src="../../src/assets/figma/option-two-icons/profile.svg"></span></nav>
+        </div>
+        <p class="panel-note">任务不是白卡列表，而是可直接行动的路径；纵向滚章节、横向看同级挑战，完成反馈留在当前位置。</p>
+      </article>
+
+      <article>
+        <h2 class="panel-label">03 · 日历与快捷记录</h2>
+        <div class="phone">
+          <div class="island"></div><div class="status"><span>9:41</span><span>●●● 100%</span></div>
+          <div class="screen">
+            <div class="topbar"><button class="top-action left">‹ 返回</button><h2>日历</h2><button class="top-action right">今天</button></div>
+            <div class="calendar-body">
+              <div class="month-line"><button>‹</button><strong>2026 年 11 月</strong><button>›</button></div>
+              <div class="week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+              <div class="days">
+                <span class="day muted">26</span><span class="day muted">27</span><span class="day muted">28</span><span class="day muted">29</span><span class="day muted">30</span><span class="day muted">31</span><span class="day some">1</span>
+                <span class="day full">2</span><span class="day full">3</span><span class="day some">4</span><span class="day full">5</span><span class="day active full">6</span><span class="day">7</span><span class="day">8</span>
+                <span class="day">9</span><span class="day">10</span><span class="day">11</span><span class="day">12</span><span class="day">13</span><span class="day">14</span><span class="day">15</span>
+                <span class="day">16</span><span class="day">17</span><span class="day">18</span><span class="day">19</span><span class="day">20</span><span class="day">21</span><span class="day">22</span>
+                <span class="day">23</span><span class="day">24</span><span class="day">25</span><span class="day">26</span><span class="day">27</span><span class="day">28</span><span class="day">29</span>
+              </div>
+              <div class="day-summary">
+                <div class="day-summary-head"><b>11 月 6 日 · 今天</b><span>完成 4 / 6</span></div>
+                <div class="timeline-row"><time>07:20</time><i class="mark"></i><b>昨夜睡眠</b><small>7h 20m</small></div>
+                <div class="timeline-row"><time>12:45</time><i class="mark" style="background:var(--peach)"></i><b>午餐记录</b><small>620 kcal</small></div>
+                <div class="timeline-row"><time>15:10</time><i class="mark" style="background:var(--lavender)"></i><b>情绪记录</b><small>平稳</small></div>
+                <div class="timeline-row"><time>现在</time><i class="mark" style="background:#cadde3"></i><b>饮食、专注待记录</b><small>›</small></div>
+              </div>
+            </div>
+            <button class="quick-record">＋ 快速记录</button>
+          </div>
+          <nav class="dock"><span class="dock-item"><img src="../../src/assets/figma/option-two-icons/home-glyph.svg"></span><span class="dock-item active"><img src="../../src/assets/figma/option-two-icons/record.svg"></span><span class="dock-item center"><img src="../../src/assets/figma/option-two-icons/chat.svg"></span><span class="dock-item"><img src="../../src/assets/figma/option-two-icons/tasks.svg"></span><span class="dock-item"><img src="../../src/assets/figma/option-two-icons/profile.svg"></span></nav>
+        </div>
+        <p class="panel-note">月份横向切换；所选日摘要在同页呈现；固定快捷记录可直接进入六模块选择，不经过右上菜单。</p>
+      </article>
+
+      <article>
+        <h2 class="panel-label">04 · NAVA 对话</h2>
+        <div class="phone">
+          <div class="island"></div><div class="status"><span>9:41</span><span>●●● 100%</span></div>
+          <div class="screen no-dock">
+            <div class="chat-top"><button>☰</button><h2>NAVA</h2><button style="margin-left:auto">＋</button></div>
+            <div class="suggestions"><span class="suggestion">总结今天</span><span class="suggestion">补记睡眠</span><span class="suggestion">分析这餐</span><span class="suggestion">查看本周变化</span></div>
+            <div class="messages">
+              <div class="stamp">今天 20:18</div>
+              <div class="message user">我下午总觉得没精神，看看今天的记录有什么线索？</div>
+              <div class="nava-line"><img class="cat-avatar" src="../../ios/App/App/Assets.xcassets/NavaMascot.imageset/nava-mascot.png"><div class="message nava"><b>NAVA</b>今天的睡眠恢复比近 7 天低 12%，午餐后又有一段较长的静坐。先不用急着下结论。</div></div>
+              <div class="insight"><strong>最可能相关的两条记录</strong><span>睡眠恢复 62 · 午后连续静坐 2h 10m</span></div>
+              <div class="nava-line"><div style="width:34px"></div><div class="message nava">要不要把“下午疲惫”补进今天的身体感受？我会先给你确认字段。</div></div>
+              <div class="insight"><strong>准备写入 · 身体感受</strong><span>时间：15:00–17:00　感受：疲惫　强度：待选择</span><div class="confirm-row"><button>确认并选择强度</button><button>修改</button><button>取消</button></div></div>
+            </div>
+            <div class="composer"><button>＋</button><span>和 NAVA 说点什么…</span><button class="mic">●</button></div>
+          </div>
+        </div>
+        <p class="panel-note">历史与新会话直接可见；高频多模态入口在输入器；建议横向收起；每条消息附近保留复制、重试与确认语义。</p>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

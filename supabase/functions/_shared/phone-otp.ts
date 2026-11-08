@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.52.1";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.52.1";
 
 export type PhoneOtpPurpose = "login" | "register" | "reset";
 
@@ -29,7 +29,7 @@ export type AliyunSendSmsQueryInput = {
 
 const encoder = new TextEncoder();
 const ALGORITHM = "ACS3-HMAC-SHA256";
-const ALIYUN_HOST = "dysmsapi.aliyuncs.com";
+const DEFAULT_ALIYUN_HOST = "dysmsapi.aliyuncs.com";
 const ALIYUN_ACTION = "SendSms";
 const ALIYUN_VERSION = "2017-05-25";
 
@@ -123,7 +123,10 @@ export function generateOtpCode() {
   return String(random[0] % range).padStart(6, "0");
 }
 
-export function createOtpAdminClient(): SupabaseClient {
+export async function createOtpAdminClient(): Promise<SupabaseClient> {
+  // Keep the large Supabase client out of the cold-start path used by the
+  // hosted Send SMS Auth Hook, whose total deadline is only five seconds.
+  const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.52.1");
   const supabaseUrl = requiredEnv("SUPABASE_URL");
   const serviceRoleKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
   return createClient(supabaseUrl, serviceRoleKey, {
@@ -139,6 +142,14 @@ function aliyunCredentials() {
     templateCode: requiredEnv("ALIYUN_SMS_TEMPLATE_CODE"),
     templateParamKey: Deno.env.get("ALIYUN_SMS_TEMPLATE_PARAM_KEY")?.trim() || "code",
   };
+}
+
+function aliyunHost() {
+  const host = Deno.env.get("ALIYUN_SMS_ENDPOINT")?.trim().toLowerCase() || DEFAULT_ALIYUN_HOST;
+  if (!/^dysmsapi(?:\.[a-z0-9-]+)?\.aliyuncs\.com$/.test(host)) {
+    throw new Error("ALIYUN_SMS_ENDPOINT_INVALID");
+  }
+  return host;
 }
 
 function aliyunDate() {
@@ -192,13 +203,14 @@ export async function createAliyunV3Signature(input: AliyunSignatureInput) {
 
 async function signedAliyunHeaders(canonicalQuery: string) {
   const credentials = aliyunCredentials();
+  const host = aliyunHost();
   const signed = await createAliyunV3Signature({
     accessKeyId: credentials.accessKeyId,
     accessKeySecret: credentials.accessKeySecret,
     body: "",
     canonicalQuery,
     headers: {
-      host: ALIYUN_HOST,
+      host,
       "x-acs-action": ALIYUN_ACTION,
       "x-acs-date": aliyunDate(),
       "x-acs-signature-nonce": crypto.randomUUID(),
@@ -209,8 +221,9 @@ async function signedAliyunHeaders(canonicalQuery: string) {
   return { ...signed.headers, Authorization: signed.authorization };
 }
 
-export async function sendAliyunOtp(phone: string, code: string): Promise<AliyunSmsResponse> {
+export async function sendAliyunOtp(phone: string, code: string, timeoutMs = 6_000): Promise<AliyunSmsResponse> {
   const credentials = aliyunCredentials();
+  const host = aliyunHost();
   const canonicalQuery = createAliyunSendSmsQuery({
     code,
     phone,
@@ -220,10 +233,10 @@ export async function sendAliyunOtp(phone: string, code: string): Promise<Aliyun
   });
   const headers = await signedAliyunHeaders(canonicalQuery);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 6_000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(`https://${ALIYUN_HOST}/?${canonicalQuery}`, {
+    const response = await fetch(`https://${host}/?${canonicalQuery}`, {
       method: "POST",
       headers,
       signal: controller.signal,

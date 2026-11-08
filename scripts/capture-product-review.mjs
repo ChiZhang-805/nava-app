@@ -3,7 +3,7 @@ import path from "node:path";
 import { chromium } from "@playwright/test";
 
 const root = process.cwd();
-const outputDir = path.join(root, "artifacts", "figma-v2-review");
+const outputDir = path.join(root, "artifacts", "product-review");
 const baseUrl = "http://127.0.0.1:5173/?demo=1";
 const edgePath = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
 

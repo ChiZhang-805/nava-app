@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     const body = await readJson(req);
     const account = normalizeAuthAccount(body.account);
     normalizeAuthAccountPurpose(body.purpose);
-    await inspectAccountRegistration(createOtpAdminClient(), req, account);
+    await inspectAccountRegistration(await createOtpAdminClient(), req, account);
     // Never reveal whether an account exists. The actual OTP/password operation
     // performs the eligibility decision and returns the same public shape.
     return jsonResponse({ allowed: true, channel: account.channel });

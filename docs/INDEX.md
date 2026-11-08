@@ -10,6 +10,8 @@
 | --- | --- |
 | [`CODEX_HANDOFF_CURRENT.md`](./CODEX_HANDOFF_CURRENT.md) | 产品、架构、线上版本、视觉规则、未完成项和接手流程的唯一总交接 |
 | [`PRODUCT_REQUIREMENTS_CHECKLIST.md`](./PRODUCT_REQUIREMENTS_CHECKLIST.md) | 新纵向模块与首页策划案对当前实现的持续可勾选映射 |
+| [`PRODUCT_SCREEN_ARCHITECTURE.md`](./PRODUCT_SCREEN_ARCHITECTURE.md) | SwiftUI 重写前的完整页面地图、独特视觉语法、滚动策略与逐页视觉稿清单 |
+| [`PHASE2_VISUAL_BASELINE.md`](./PHASE2_VISUAL_BASELINE.md) | 第一版继承合同、26 页逐页审计、滚动/底栏/多机型规则与第二阶段视觉基准 |
 | [`app-backend.md`](./app-backend.md) | Supabase、Edge Functions、真实数据和 ChronoState 服务合同 |
 | [`auth-email-flow.md`](./auth-email-flow.md) | 邮箱、手机号、OTP、会话和找回密码合同 |
 | [`SHARED_SUPABASE_READINESS.md`](./SHARED_SUPABASE_READINESS.md) | canonical Supabase 共享状态与核验入口 |

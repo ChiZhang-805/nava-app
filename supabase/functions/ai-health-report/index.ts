@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
       const parsed = normalizeStoredReport(cached.data, lang, fingerprint);
       if (parsed) return jsonResponse(parsed);
     }
-    const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
+    const apiKey = Deno.env.get("DEEPSEEK_API_KEY_NAVA");
     if (!apiKey) throw new Error(lang === "zh" ? "真实 AI 模型尚未配置。" : "The real AI model is not configured.");
     const report = await generateReport({
       apiKey,

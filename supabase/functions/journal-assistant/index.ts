@@ -34,7 +34,10 @@ Deno.serve(async req => {
     const {data:allowed,error:rateError}=await userClient.rpc('nava_consume_ai_quota',{p_limit:20});
     if(rateError)throw Error('暂时无法核对 AI 请求，请重试。');
     if(!allowed)return jsonResponse({error:'请求较多，请稍后再试。'},{status:429});
-    const key=vision ? Deno.env.get(category==='food'?'NAVA_DIET_VISION_KEY':'NAVA_FACE_VISION_KEY')??Deno.env.get('DASHSCOPE_API_KEY') : Deno.env.get('DEEPSEEK_API_KEY');
+    const visionKeyName=category==='food'?'NAVA_DIET_VISION_KEY':'NAVA_FACE_VISION_KEY';
+    const key=vision
+      ? Deno.env.get(visionKeyName)??Deno.env.get('DASHSCOPE_API_KEY_NAVA')
+      : Deno.env.get('DEEPSEEK_API_KEY_NAVA');
     if(!key)throw Error('AI 服务尚未配置，请稍后再试。');
     const model=vision ? Deno.env.get(category==='food'?'NAVA_DIET_VISION_MODEL':'NAVA_FACE_VISION_MODEL')??'qwen3-vl-plus' : 'deepseek-flash';
     const endpoint=vision?'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions':'https://api.deepseek.com/chat/completions';

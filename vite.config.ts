@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => ({
     name: "exclude-desktop-preview-styles",
     enforce: "pre" as const,
     transform(code: string, id: string) {
-      if (!id.endsWith("/styles/figma-v2.css")) return;
+      if (!id.endsWith("/styles/product-ui.css")) return;
       const start = code.indexOf("/* Desktop-only device preview.");
       const end = code.indexOf("@media (prefers-reduced-motion: reduce)", start);
       if (start < 0 || end < 0) throw new Error("Native preview stylesheet boundary missing");

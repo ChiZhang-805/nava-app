@@ -2,7 +2,68 @@
 
 界面验收输出统一保存在 `Q:/NAVA-Workspace/Build/TestRuns/App-Checks/<验收项目>/`；原目录迁移已逐文件核对。论文分享文件统一放在 `Q:/NAVA-Workspace/Build/TestRuns/HNE/`，分享压缩包为同级 `HNE.zip`。不再生成分类导航文件。
 
-## TestFlight 云端构建（2026-11-03，当前最高优先级）
+## SwiftUI 原生重写（2026-11-07，当前最高优先级）
+
+用户已明确不再以“尽快维持混合版测试”为优先目标，改为按现有 NAVA 业务、真机问题截图
+和新的高品质健康应用参考，逐页重建 SwiftUI 原生前端。当前不是完成状态，也不是把 React/
+CSS 自动转换成 Swift；现有 Capacitor 版本继续作为功能合同和迁移期间的可回退实现。
+
+已新增 `ios/App/App/NativeUI`：原生设计令牌、TabView/NavigationStack、隔离的标签页返回栈、
+登录与欢迎骨架、今日六模块、固定六模块换位、记录入口、AI 空态、回顾空态、个人中心入口，
+以及饮食扫描相机/阶段动画/生成式盘装图接口/核对表。`NavaBridgeViewController` 仅在
+`NavaNativeUIEnabled`、启动参数或进程变量显式启用时展示原生层；Info.plist 默认 `false`，
+因此当前不完整骨架不会误进正式 TestFlight。原生图像资产复用既有 NAVA 背景、小猫和登录
+纹理，未改变角色外形。
+
+餐食扫描不把示例动画当识别，也不再采用前景分割或把原照片抠到盘子上的路线。相机使用
+AVFoundation 拍摄原始证据图；`diet-extract` 先理解规范菜名、可见食材、外观和装盘特征，
+低置信度时必须让用户确认或修改。之后 `food-visualize` 才调用 NAVA 专用生成模型，把同一道
+菜重制为俯拍、干净白瓷盘、透明背景的 1024×1024 PNG。原图始终是识别与营养估算证据，
+生成图只承担统一展示，不能反向成为营养依据。
+
+生成素材采用两级硬门槛：服务端视觉复核比较原图与重制图的菜品身份、可见食材召回、意外
+食材、伪影、白盘构图、文字水印、手和餐具；最多两次生成，失败素材立即从私有
+`diet-renders/<user-id>/...` 删除。iOS 下载后再独立核验 PNG 尺寸、真实 alpha、透明像素比例
+和主体安全边界，只有两级都通过才展示。新增的 `NavaSupabaseDietRecognizer` 和
+`NavaSupabaseDishVisualizer` 已实现私有路径、用户 JWT 调用、错误清理与严格结果解码。
+默认生成端已经切换为国内链路：首次使用北京区 `wan2.7-image`（0.20 元/张），候选失败后才
+使用 `wan2.7-image-pro`（0.50 元/张）；语义复核使用 `qwen3-vl-plus`。万相输出 PNG 但不承诺
+真实透明通道或严格像素，因此生成后的标准盘装图还必须经过显式配置的国内抠图/规格化适配器，
+再进入 1024×1024/alpha 硬门槛。源照片不做抠图。默认链路只读取 `DASHSCOPE_API_KEY_NAVA`、
+`NAVA_DASHSCOPE_WORKSPACE_ID` 和 `NAVA_FOOD_*` 专用配置，不使用国外生图模型，也不回退到通用
+或其他项目密钥。
+
+当前仍未把 Web 会话迁为原生 session provider，也未部署/实测新增 Edge Function，更未接通
+最终饮食记录写入；默认服务会明确报“尚未接入”，核对页保存按钮禁用，不能宣称真实端到端
+完成。`npm run ios:swiftui:verify` 检查 Xcode source membership、默认特性开关、独立导航栈、
+生成阶段、两级质量门槛、私有 JWT 链路、密钥隔离、私有素材生命周期和 iOS 16.4 禁用项，报告输出到
+`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/swiftui-native-rewrite/`。
+
+D01 饮食首页现已按 390×844 母版单独收敛：旧的九个 `RoundedRectangle`/随意椭圆定位已
+替换为九段径向 Bézier 包块、可复算角度/中心/旋转和自定义 `Layout`；基准数据为 6 段
+NAVA 蓝与 3 段浅灰。页面删除 Goal、目标千卡和百分比，重建 140 pt 餐食行的左图/中信息/
+右千卡/右下编辑层级，并以可用高度和 Dynamic Type 决定固定一屏或单一纵向滚动。日期使用
+设备当前日期；只有显式 `-NavaVisualTesting` 才读取固定日期和有数据/空数据/失败测试状态。
+完整像素坐标、弧段参数和滚动阈值写入 `PHASE2_VISUAL_BASELINE.md` §4.2.1。
+
+新增独立 `AppUITests` target 和
+`.github/workflows/ios-diet-dashboard-visual.yml`。工作流在 macOS 15 选择 Xcode 26，覆盖 SE、
+标准屏、15 Pro、16 Pro 与 Pro Max 的代表性中文/英文、默认/辅助功能大字、有数据/空数据/
+失败组合；XCUITest 直接进入 D01，附加 full-screen screenshot 和关键 frame JSON。已批准
+baseline 存在时输出 actual/diff/overlay/metrics；缺失时只上传 candidate 并故意失败，不能把
+首轮 actual 自动批准。Windows 已通过 36 项原生结构检查、Xcode project parser、portable
+preflight 和 21 项 iOS release tests；这些仍不是 Swift 编译或视觉通过。当前没有已批准 PNG，
+因此 macOS 云端首轮 actual、人工基准批准以及后续 diff/overlay 仍待执行；在 D01 通过前不展开
+D02–D09。
+
+完整视觉、页面迁移矩阵、滚动合同和核心食物上盘工作流见
+`docs/PRODUCT_REQUIREMENTS_CHECKLIST.md` 顶部；运动规则见 `docs/ios-motion-background.md`。
+下一步顺序：Mac/Xcode 编译第一批骨架 → 原生 Auth/Keychain 会话 → 部署饮食识别/生成/复核
+服务并用真实样本校准门槛 → 饮食保存/原图与生成素材生命周期 → 六模块真实记录 → AI/回顾/个人中心子页 → 四样本尺寸、
+Dynamic Type、VoiceOver、键盘、动态岛、减少动态效果及真机逐页验收。Windows 静态检查不能
+代替 Xcode 编译和 iPhone 验收。
+
+## TestFlight 云端构建（2026-11-03，发布背景）
 
 用户已开通 Apple Developer，Team ID `P9N6YYZ7Y9`；App Store Connect 已创建
 “NAVA健康节律助手”（Apple App ID `6829876477`）。显式 Bundle ID 为

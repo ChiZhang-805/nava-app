@@ -4,7 +4,7 @@ import { chromium } from "@playwright/test";
 import { createServer } from "vite";
 
 const root = process.cwd();
-const outputDir = path.join(root, "artifacts", "ui-review-2026-07-19-auth-otp");
+const outputDir = path.join(root, "artifacts", "auth-screens");
 const port = Number(process.env.AUTH_SCREENSHOT_PORT || 5175);
 const baseUrl = `http://127.0.0.1:${port}`;
 
@@ -60,12 +60,25 @@ function makeSession(email, suffix) {
   };
 }
 
-async function installAuthMocks(page, { email, passwordMatches = false, smsSendErrorCode, suffix = "000000000101" }) {
+async function installAuthMocks(page, { email, passwordMatches = false, otpSendErrorCode, suffix = "000000000101" }) {
   const session = makeSession(email, suffix);
-  const calls = { otp: [], verify: [], smsSend: [], smsVerify: [], userUpdates: [], passwordChecks: 0, profileCalls: 0 };
+  const calls = { otp: [], verify: [], userUpdates: [], passwordChecks: 0, profileCalls: 0 };
 
   await page.route("**/auth/v1/otp**", async (route) => {
     calls.otp.push(route.request().postDataJSON());
+    if (otpSendErrorCode) {
+      await route.fulfill({
+        status: 429,
+        contentType: "application/json",
+        body: JSON.stringify({
+          code: otpSendErrorCode,
+          error: "请求过于频繁，请稍后再试。",
+          error_description: "请求过于频繁，请稍后再试。",
+          msg: "请求过于频繁，请稍后再试。",
+        }),
+      });
+      return;
+    }
     await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
   });
   await page.route("**/auth/v1/verify**", async (route) => {
@@ -82,36 +95,6 @@ async function installAuthMocks(page, { email, passwordMatches = false, smsSendE
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ exists: request.purpose !== "register" }),
-    });
-  });
-  await page.route("**/functions/v1/aliyun-sms-send**", async (route) => {
-    calls.smsSend.push(route.request().postDataJSON());
-    if (smsSendErrorCode) {
-      await route.fulfill({
-        status: 429,
-        contentType: "application/json",
-        body: JSON.stringify({ error: "请求过于频繁，请稍后再试。", code: smsSendErrorCode }),
-      });
-      return;
-    }
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ sent: true, expiresInSeconds: 600, cooldownSeconds: 60 }),
-    });
-  });
-  await page.route("**/functions/v1/aliyun-sms-verify**", async (route) => {
-    const request = route.request().postDataJSON();
-    calls.smsVerify.push(request);
-    const verificationType = request.purpose === "register" ? "signup" : "recovery";
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        token_hash: `local-${verificationType}-token`,
-        verification_type: verificationType,
-        email: `${request.phone}@phone.nava.app`,
-      }),
     });
   });
   await page.route("**/rest/v1/**", async (route) => {
@@ -132,6 +115,11 @@ async function fillNewPasswords(page, password) {
   const fields = page.locator('input[autocomplete="new-password"]');
   await fields.nth(0).fill(password);
   await fields.nth(1).fill(password);
+}
+
+async function requestOtp(page, { expectError = false } = {}) {
+  await page.locator(".auth-code-button").tap();
+  await page.locator(expectError ? ".error-text" : ".success-text").waitFor({ timeout: 10000 });
 }
 
 async function readWordmarkPixels(page, selector) {
@@ -227,7 +215,14 @@ async function main() {
     await openAppPage(uiPage);
     await uiPage.waitForTimeout(900);
     metrics.login = await readLayout(uiPage);
-    await uiPage.screenshot({ path: path.join(outputDir, "01-login.png") });
+    metrics.login.socialProviders = await uiPage.locator("[data-social-provider]").evaluateAll((buttons) => (
+      buttons.map((button) => button.getAttribute("data-social-provider"))
+    ));
+    await uiPage.screenshot({ path: path.join(outputDir, "login.png") });
+
+    await uiPage.locator('[data-social-provider="wechat"]').tap();
+    await uiPage.locator(".error-text").waitFor({ timeout: 3000 });
+    metrics.login.socialUnavailableError = await uiPage.locator(".error-text").innerText();
 
     await uiPage.locator(".auth-mode-icon").tap();
     await uiPage.locator('input[autocomplete="username"]').fill("hello@example.com");
@@ -235,59 +230,78 @@ async function main() {
     metrics.emailRegistration = await readLayout(uiPage);
     metrics.emailRegistration.otpVisible = await uiPage.locator('input[autocomplete="one-time-code"]').isVisible();
     metrics.emailRegistration.codeButtonEnabled = await uiPage.locator(".auth-code-button").isEnabled();
-    await uiPage.screenshot({ path: path.join(outputDir, "02-register-email-otp.png") });
+    await uiPage.screenshot({ path: path.join(outputDir, "register-email.png") });
 
     await fillNewPasswords(uiPage, "sample-password");
     const toggles = uiPage.locator(".auth-input-icon-button");
     await toggles.nth(1).tap();
     metrics.confirmPasswordTypes = await uiPage.locator('input[autocomplete="new-password"]').evaluateAll((inputs) => inputs.map((input) => input.type));
-    await uiPage.screenshot({ path: path.join(outputDir, "03-register-password-eye.png") });
+    await uiPage.screenshot({ path: path.join(outputDir, "register-password-visible.png") });
     await toggles.nth(1).tap();
 
     await uiPage.locator('input[autocomplete="username"]').fill("13800138000");
     await uiPage.waitForTimeout(250);
     metrics.phoneRegistration = await readLayout(uiPage);
     metrics.phoneRegistration.otpVisible = await uiPage.locator('input[autocomplete="one-time-code"]').isVisible();
-    await uiPage.screenshot({ path: path.join(outputDir, "04-register-phone-otp.png") });
+    await uiPage.screenshot({ path: path.join(outputDir, "register-phone.png") });
 
     await uiPage.locator(".auth-mode-icon").tap();
     await uiPage.locator(".auth-forgot").tap();
-    await uiPage.locator('[data-recovery-option="reset"]').tap();
+    await uiPage.waitForTimeout(500);
+    await uiPage.screenshot({ path: path.join(outputDir, "forgot-password.png"), animations: "disabled" });
     await uiPage.locator('input[autocomplete="username"]').fill("reset@example.com");
     await uiPage.waitForTimeout(350);
     metrics.reset = await readLayout(uiPage);
     metrics.reset.passwordCount = await uiPage.locator('input[autocomplete="new-password"]').count();
     metrics.reset.otpVisible = await uiPage.locator('input[autocomplete="one-time-code"]').isVisible();
-    await uiPage.screenshot({ path: path.join(outputDir, "05-reset-email-otp.png") });
+    await uiPage.screenshot({ path: path.join(outputDir, "forgot-password-filled.png") });
 
     await uiPage.locator(".language-toggle").tap();
     await uiPage.waitForTimeout(250);
     metrics.resetEnglish = await readLayout(uiPage);
-    await uiPage.screenshot({ path: path.join(outputDir, "06-reset-email-otp-en.png") });
+    await uiPage.screenshot({ path: path.join(outputDir, "forgot-password-english.png") });
     await uiContext.close();
 
     const compactContext = await makeContext(browser, { width: 375, height: 667 });
     const compactPage = await compactContext.newPage();
     compactPage.on("pageerror", (error) => errors.push(error.message));
+    await installAuthMocks(compactPage, { email: "compact@example.com", suffix: "000000000110" });
     await openAppPage(compactPage);
+    metrics.compactLogin = await readLayout(compactPage);
+    await compactPage.screenshot({ path: path.join(outputDir, "login-compact.png") });
+    await compactPage.locator(".auth-mode-icon").tap();
+    await compactPage.locator(".auth-screen--signUp").waitFor({ state: "visible" });
+    metrics.compactRegistration = await readLayout(compactPage);
+    const compactConsent = await compactPage.locator(".auth-consent--screen").boundingBox();
+    const compactCodeWrap = await compactPage.locator(".auth-code-wrap").boundingBox();
+    const compactCodeButton = await compactPage.locator(".auth-code-button").boundingBox();
+    metrics.compactRegistration.consentBottomGap = compactConsent
+      ? metrics.compactRegistration.viewport.height - compactConsent.y - compactConsent.height
+      : null;
+    metrics.compactRegistration.codeButtonRightGap = compactCodeWrap && compactCodeButton
+      ? compactCodeWrap.x + compactCodeWrap.width - compactCodeButton.x - compactCodeButton.width
+      : null;
+    await compactPage.screenshot({ path: path.join(outputDir, "register-compact.png") });
+    await compactPage.locator('input[autocomplete="username"]').fill("compact@example.com");
+    await requestOtp(compactPage);
+    metrics.compactRegistration.codeButtonTapWorked = await compactPage.locator(".success-text").isVisible();
+    await compactPage.locator(".auth-return-inline").tap();
     await compactPage.locator(".auth-forgot").tap();
-    await compactPage.locator('[data-recovery-option="reset"]').tap();
     await compactPage.locator('input[autocomplete="username"]').fill("reset@example.com");
     await compactPage.waitForTimeout(500);
     metrics.compactReset = await readLayout(compactPage);
-    await compactPage.screenshot({ path: path.join(outputDir, "07-reset-compact.png") });
+    await compactPage.screenshot({ path: path.join(outputDir, "reset-password-compact.png") });
     await compactContext.close();
 
     const emailLoginContext = await makeContext(browser);
     const emailLoginPage = await emailLoginContext.newPage();
     const emailLoginCalls = await installAuthMocks(emailLoginPage, { email: "login@example.com", suffix: "000000000108" });
     await openAppPage(emailLoginPage);
-    await emailLoginPage.locator(".auth-forgot").tap();
-    await emailLoginPage.locator('[data-recovery-option="otp"]').tap();
+    await emailLoginPage.locator(".auth-method-switch").tap();
     await emailLoginPage.locator('input[autocomplete="username"]').fill("login@example.com");
-    await emailLoginPage.locator(".auth-code-button").tap();
+    await requestOtp(emailLoginPage);
     await emailLoginPage.locator('input[autocomplete="one-time-code"]').fill("65432109");
-    await emailLoginPage.screenshot({ path: path.join(outputDir, "08-email-otp-login.png") });
+    await emailLoginPage.screenshot({ path: path.join(outputDir, "email-code-login.png") });
     await emailLoginPage.locator(".auth-submit").tap();
     await emailLoginPage.locator(".phone-frame").waitFor({ timeout: 10000 });
     metrics.emailOtpLoginFlow = { ...emailLoginCalls, enteredApp: true };
@@ -297,12 +311,11 @@ async function main() {
     const phoneLoginPage = await phoneLoginContext.newPage();
     const phoneLoginCalls = await installAuthMocks(phoneLoginPage, { email: "13700137000@phone.nava.app", suffix: "000000000109" });
     await openAppPage(phoneLoginPage);
-    await phoneLoginPage.locator(".auth-forgot").tap();
-    await phoneLoginPage.locator('[data-recovery-option="otp"]').tap();
+    await phoneLoginPage.locator(".auth-method-switch").tap();
     await phoneLoginPage.locator('input[autocomplete="username"]').fill("13700137000");
-    await phoneLoginPage.locator(".auth-code-button").tap();
+    await requestOtp(phoneLoginPage);
     await phoneLoginPage.locator('input[autocomplete="one-time-code"]').fill("765432");
-    await phoneLoginPage.screenshot({ path: path.join(outputDir, "09-phone-otp-login.png") });
+    await phoneLoginPage.screenshot({ path: path.join(outputDir, "phone-code-login.png") });
     await phoneLoginPage.locator(".auth-submit").tap();
     await phoneLoginPage.locator(".phone-frame").waitFor({ timeout: 10000 });
     metrics.phoneOtpLoginFlow = { ...phoneLoginCalls, enteredApp: true };
@@ -314,14 +327,14 @@ async function main() {
     await openAppPage(signupPage);
     await signupPage.locator(".auth-mode-icon").tap();
     await signupPage.locator('input[autocomplete="username"]').fill("signup@example.com");
-    await signupPage.locator(".auth-code-button").tap();
+    await requestOtp(signupPage);
     await signupPage.locator('input[autocomplete="one-time-code"]').fill("12345678");
     await fillNewPasswords(signupPage, "new-sample-password");
     metrics.emailSignupAgreement = {
       visible: await signupPage.locator(".auth-consent").isVisible(),
       submitDisabledBeforeCheck: !(await signupPage.locator(".auth-submit").isEnabled()),
     };
-    await signupPage.screenshot({ path: path.join(outputDir, "10-email-signup-consent.png") });
+    await signupPage.screenshot({ path: path.join(outputDir, "register-consent.png") });
     await signupPage.locator(".auth-consent input").check();
     metrics.emailSignupAgreement.submitEnabledAfterCheck = await signupPage.locator(".auth-submit").isEnabled();
     await signupPage.locator(".auth-submit").tap();
@@ -329,7 +342,7 @@ async function main() {
     await signupPage.waitForTimeout(500);
     metrics.emailSignupFlow = signupCalls;
     metrics.emailSignupFlow.enteredApp = true;
-    await signupPage.screenshot({ path: path.join(outputDir, "11-email-signup-complete.png") });
+    await signupPage.screenshot({ path: path.join(outputDir, "register-email-complete.png") });
     await signupContext.close();
 
     const phoneSignupContext = await makeContext(browser);
@@ -338,7 +351,7 @@ async function main() {
     await openAppPage(phoneSignupPage);
     await phoneSignupPage.locator(".auth-mode-icon").tap();
     await phoneSignupPage.locator('input[autocomplete="username"]').fill("13800138000");
-    await phoneSignupPage.locator(".auth-code-button").tap();
+    await requestOtp(phoneSignupPage);
     await phoneSignupPage.locator('input[autocomplete="one-time-code"]').fill("456789");
     await fillNewPasswords(phoneSignupPage, "phone-sample-password");
     metrics.phoneSignupAgreement = {
@@ -351,7 +364,7 @@ async function main() {
     await phoneSignupPage.waitForTimeout(700);
     metrics.phoneSignupFlow = phoneSignupCalls;
     metrics.phoneSignupFlow.enteredApp = true;
-    await phoneSignupPage.screenshot({ path: path.join(outputDir, "12-phone-signup-complete.png") });
+    await phoneSignupPage.screenshot({ path: path.join(outputDir, "register-phone-complete.png") });
     await phoneSignupContext.close();
 
     const resetContext = await makeContext(browser);
@@ -359,9 +372,8 @@ async function main() {
     const resetCalls = await installAuthMocks(resetPage, { email: "reset@example.com", passwordMatches: false, suffix: "000000000103" });
     await openAppPage(resetPage);
     await resetPage.locator(".auth-forgot").tap();
-    await resetPage.locator('[data-recovery-option="reset"]').tap();
     await resetPage.locator('input[autocomplete="username"]').fill("reset@example.com");
-    await resetPage.locator(".auth-code-button").tap();
+    await requestOtp(resetPage);
     await resetPage.locator('input[autocomplete="one-time-code"]').fill("23456789");
     await fillNewPasswords(resetPage, "different-password");
     await resetPage.locator(".auth-submit").tap();
@@ -369,7 +381,7 @@ async function main() {
     await resetPage.waitForTimeout(500);
     metrics.passwordResetFlow = resetCalls;
     metrics.passwordResetFlow.enteredApp = true;
-    await resetPage.screenshot({ path: path.join(outputDir, "13-password-reset-complete.png") });
+    await resetPage.screenshot({ path: path.join(outputDir, "reset-password-complete.png") });
     await resetContext.close();
 
     const phoneResetContext = await makeContext(browser);
@@ -377,9 +389,8 @@ async function main() {
     const phoneResetCalls = await installAuthMocks(phoneResetPage, { email: "13900139000@phone.nava.app", passwordMatches: false, suffix: "000000000106" });
     await openAppPage(phoneResetPage);
     await phoneResetPage.locator(".auth-forgot").tap();
-    await phoneResetPage.locator('[data-recovery-option="reset"]').tap();
     await phoneResetPage.locator('input[autocomplete="username"]').fill("13900139000");
-    await phoneResetPage.locator(".auth-code-button").tap();
+    await requestOtp(phoneResetPage);
     await phoneResetPage.locator('input[autocomplete="one-time-code"]').fill("567890");
     await fillNewPasswords(phoneResetPage, "different-phone-password");
     await phoneResetPage.locator(".auth-submit").tap();
@@ -387,7 +398,7 @@ async function main() {
     await phoneResetPage.waitForTimeout(700);
     metrics.phoneResetFlow = phoneResetCalls;
     metrics.phoneResetFlow.enteredApp = true;
-    await phoneResetPage.screenshot({ path: path.join(outputDir, "14-phone-reset-complete.png") });
+    await phoneResetPage.screenshot({ path: path.join(outputDir, "reset-password-phone-complete.png") });
     await phoneResetContext.close();
 
     const sameContext = await makeContext(browser);
@@ -395,9 +406,8 @@ async function main() {
     const sameCalls = await installAuthMocks(samePage, { email: "same@example.com", passwordMatches: true, suffix: "000000000104" });
     await openAppPage(samePage);
     await samePage.locator(".auth-forgot").tap();
-    await samePage.locator('[data-recovery-option="reset"]').tap();
     await samePage.locator('input[autocomplete="username"]').fill("same@example.com");
-    await samePage.locator(".auth-code-button").tap();
+    await requestOtp(samePage);
     await samePage.locator('input[autocomplete="one-time-code"]').fill("34567890");
     await fillNewPasswords(samePage, "same-password");
     await samePage.locator(".auth-submit").tap();
@@ -407,24 +417,23 @@ async function main() {
       error: await samePage.locator(".error-text").innerText(),
       stayedSignedOut: (await samePage.locator(".auth-screen--reset").count()) === 1,
     };
-    await samePage.screenshot({ path: path.join(outputDir, "15-same-password-rejected.png") });
+    await samePage.screenshot({ path: path.join(outputDir, "reset-password-reuse-error.png") });
     await sameContext.close();
 
     const englishErrorContext = await makeContext(browser);
     const englishErrorPage = await englishErrorContext.newPage();
     await installAuthMocks(englishErrorPage, {
       email: "13800138000@phone.nava.app",
-      smsSendErrorCode: "OTP_PHONE_RATE_LIMIT",
+      otpSendErrorCode: "OTP_PHONE_RATE_LIMIT",
       suffix: "000000000107",
     });
     await openAppPage(englishErrorPage);
     await englishErrorPage.locator(".language-toggle").tap();
     await englishErrorPage.locator(".auth-mode-icon").tap();
     await englishErrorPage.locator('input[autocomplete="username"]').fill("13800138000");
-    await englishErrorPage.locator(".auth-code-button").tap();
-    await englishErrorPage.locator(".error-text").waitFor({ timeout: 10000 });
+    await requestOtp(englishErrorPage, { expectError: true });
     metrics.englishServiceError = await englishErrorPage.locator(".error-text").innerText();
-    await englishErrorPage.screenshot({ path: path.join(outputDir, "16-english-service-error.png") });
+    await englishErrorPage.screenshot({ path: path.join(outputDir, "service-error-english.png") });
     await englishErrorContext.close();
 
     metrics.errors = errors;
@@ -442,7 +451,7 @@ async function main() {
     if (Math.abs(metrics.login.brandCenterDelta) > 2 || Math.abs(metrics.emailRegistration.brandCenterDelta) > 2) {
       throw new Error(`NAVA wordmark is not centered: ${JSON.stringify({ login: metrics.login, signup: metrics.emailRegistration })}`);
     }
-    for (const layout of [metrics.login, metrics.emailRegistration, metrics.reset, metrics.compactReset]) {
+    for (const layout of [metrics.login, metrics.emailRegistration, metrics.reset, metrics.compactRegistration, metrics.compactReset]) {
       if (layout.horizontalOverflow) throw new Error(`Auth layout overflowed horizontally: ${JSON.stringify(layout)}`);
       if (
         !layout.wordmarkPixels ||
@@ -452,6 +461,17 @@ async function main() {
       ) {
         throw new Error(`NAVA glyph pixels are off-center or clipped: ${JSON.stringify(layout.wordmarkPixels)}`);
       }
+    }
+    if (metrics.compactRegistration.consentBottomGap === null || metrics.compactRegistration.consentBottomGap < 32) {
+      throw new Error(`Registration consent is too close to the bottom safe area: ${JSON.stringify(metrics.compactRegistration)}`);
+    }
+    if (
+      metrics.compactRegistration.codeButtonRightGap === null
+      || metrics.compactRegistration.codeButtonRightGap < 2
+      || metrics.compactRegistration.codeButtonRightGap > 8
+      || !metrics.compactRegistration.codeButtonTapWorked
+    ) {
+      throw new Error(`Compact OTP button is misaligned or not actionable: ${JSON.stringify(metrics.compactRegistration)}`);
     }
     if (metrics.emailSignupFlow.otp[0]?.email !== "signup@example.com" || metrics.emailSignupFlow.verify[0]?.token !== "12345678" || !metrics.emailSignupFlow.userUpdates[0]?.password) {
       throw new Error(`Email OTP registration sequence is incomplete: ${JSON.stringify(metrics.emailSignupFlow)}`);
@@ -465,9 +485,9 @@ async function main() {
       throw new Error(`Email OTP login sequence is incomplete: ${JSON.stringify(metrics.emailOtpLoginFlow)}`);
     }
     if (
-      metrics.phoneOtpLoginFlow.smsSend[0]?.purpose !== "login"
-      || metrics.phoneOtpLoginFlow.smsVerify[0]?.purpose !== "login"
-      || metrics.phoneOtpLoginFlow.verify[0]?.type !== "recovery"
+      metrics.phoneOtpLoginFlow.otp[0]?.phone !== "+8613700137000"
+      || metrics.phoneOtpLoginFlow.otp[0]?.create_user !== false
+      || metrics.phoneOtpLoginFlow.verify[0]?.type !== "sms"
     ) {
       throw new Error(`Phone OTP login sequence is incomplete: ${JSON.stringify(metrics.phoneOtpLoginFlow)}`);
     }
@@ -481,10 +501,10 @@ async function main() {
       throw new Error(`Registration agreement is not enforced: ${JSON.stringify({ email: metrics.emailSignupAgreement, phone: metrics.phoneSignupAgreement })}`);
     }
     if (
-      metrics.phoneSignupFlow.smsSend[0]?.purpose !== "register" ||
-      metrics.phoneSignupFlow.smsVerify[0]?.purpose !== "register" ||
-      !metrics.phoneSignupFlow.smsVerify[0]?.password ||
-      metrics.phoneSignupFlow.verify[0]?.type !== "signup"
+      metrics.phoneSignupFlow.otp[0]?.phone !== "+8613800138000" ||
+      metrics.phoneSignupFlow.otp[0]?.create_user !== true ||
+      !metrics.phoneSignupFlow.userUpdates[0]?.password ||
+      metrics.phoneSignupFlow.verify[0]?.type !== "sms"
     ) {
       throw new Error(`Phone OTP registration sequence is incomplete: ${JSON.stringify(metrics.phoneSignupFlow)}`);
     }
@@ -492,9 +512,9 @@ async function main() {
       throw new Error(`Password reset did not check reuse before updating: ${JSON.stringify(metrics.passwordResetFlow)}`);
     }
     if (
-      metrics.phoneResetFlow.smsSend[0]?.purpose !== "reset" ||
-      metrics.phoneResetFlow.smsVerify[0]?.purpose !== "reset" ||
-      metrics.phoneResetFlow.verify[0]?.type !== "recovery" ||
+      metrics.phoneResetFlow.otp[0]?.phone !== "+8613900139000" ||
+      metrics.phoneResetFlow.otp[0]?.create_user !== false ||
+      metrics.phoneResetFlow.verify[0]?.type !== "sms" ||
       metrics.phoneResetFlow.passwordChecks !== 1 ||
       !metrics.phoneResetFlow.userUpdates[0]?.password
     ) {
@@ -505,6 +525,12 @@ async function main() {
     }
     if (metrics.englishServiceError !== "Too many requests. Try again later.") {
       throw new Error(`English auth errors are not localized: ${JSON.stringify(metrics.englishServiceError)}`);
+    }
+    if (
+      metrics.login.socialProviders.join(",") !== "wechat,apple,qq"
+      || metrics.login.socialUnavailableError !== "该快捷登录尚未完成服务配置。"
+    ) {
+      throw new Error(`Social auth entry points are incomplete: ${JSON.stringify(metrics.login)}`);
     }
     await writeFile(path.join(outputDir, "metrics.json"), JSON.stringify(metrics, null, 2));
   } finally {

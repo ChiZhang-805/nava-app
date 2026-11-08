@@ -1,4 +1,6 @@
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
+import { Capacitor } from "@capacitor/core";
+import { appConfig } from "../config";
 import { createEphemeralSupabaseClient, supabase } from "./supabaseClient";
 
 export const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -6,6 +8,20 @@ export const isPhone = (value: string) => /^1[3-9]\d{9}$/.test(value.trim());
 
 export const EMAIL_OTP_LENGTH = 8;
 export const SMS_OTP_LENGTH = 6;
+export const SOCIAL_AUTH_RETURN_KEY = "nava.auth.social-return.v1";
+
+export type SocialAuthProvider = "wechat" | "apple" | "qq";
+
+const SOCIAL_OAUTH_PROVIDERS = {
+  apple: "apple",
+} satisfies Record<"apple", "apple">;
+
+const CONFIGURED_SOCIAL_PROVIDERS = new Set(
+  String(import.meta.env.VITE_SOCIAL_AUTH_PROVIDERS ?? "")
+    .split(",")
+    .map((provider) => provider.trim())
+    .filter(Boolean),
+);
 
 export function otpLengthForAccount(account: string) {
   return isPhone(account) ? SMS_OTP_LENGTH : EMAIL_OTP_LENGTH;
@@ -36,6 +52,9 @@ type AuthErrorTranslationKey =
   | "auth.error.otpUnavailable"
   | "auth.error.passwordLength"
   | "auth.error.passwordSame"
+  | "auth.error.socialCancelled"
+  | "auth.error.socialFailed"
+  | "auth.error.socialUnavailable"
   | "auth.error.smsCodeFormat";
 
 class AuthServiceError extends Error {
@@ -50,6 +69,12 @@ export function toAuthEmail(value: string) {
   if (!normalized) throw new Error("请输入邮箱或手机号。");
   if (!isEmail(normalized) && !isPhone(normalized)) throw new Error("请输入有效邮箱或中国大陆手机号。");
   return isEmail(normalized) ? normalized : `${normalized}@phone.nava.app`;
+}
+
+export function toAuthPhone(value: string) {
+  const normalized = value.trim();
+  if (!isPhone(normalized)) throw new Error("请输入有效中国大陆手机号。");
+  return `+86${normalized}`;
 }
 
 function errorMessage(error: unknown) {
@@ -71,14 +96,127 @@ export async function ensureProfile(userId: string, fallbackName?: string | null
 
 export async function signInWithPassword(account: string, password: string) {
   if (!password) throw new Error("请输入密码。");
-  const email = toAuthEmail(account);
+  const normalized = account.trim();
   const localSeedMode = import.meta.env.DEV
     && typeof window !== "undefined"
     && new URLSearchParams(window.location.search).get("seedHistory") === "1";
-  if (!localSeedMode) await assertAccountEligibility(account, "login");
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (!localSeedMode) await assertAccountEligibility(normalized, "login");
+
+  if (isPhone(normalized)) {
+    const current = await supabase.auth.signInWithPassword({ phone: toAuthPhone(normalized), password });
+    if (!current.error) {
+      if (current.data.user) await ensureProfile(current.data.user.id, normalized);
+      return;
+    }
+
+    const canTryLegacyAccount = current.error.code === "invalid_credentials"
+      || /invalid login credentials/i.test(current.error.message);
+    if (!canTryLegacyAccount) throw current.error;
+    const legacy = await supabase.auth.signInWithPassword({ email: toAuthEmail(normalized), password });
+    if (legacy.error) throw current.error;
+    if (legacy.data.user) await ensureProfile(legacy.data.user.id, normalized);
+    return;
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email: toAuthEmail(normalized), password });
   if (error) throw error;
-  if (data.user) await ensureProfile(data.user.id, account.trim());
+  if (data.user) await ensureProfile(data.user.id, normalized);
+}
+
+export async function signInWithSocialProvider(provider: SocialAuthProvider) {
+  if (!CONFIGURED_SOCIAL_PROVIDERS.has(provider)) {
+    throw new AuthServiceError(`Social provider ${provider} is not configured.`, "SOCIAL_PROVIDER_UNAVAILABLE");
+  }
+  if (provider === "apple" && Capacitor.isNativePlatform()) {
+    const { requestNativeAppleCredential } = await import("./nativeSocialAuth");
+    const credential = await requestNativeAppleCredential();
+    const { data, error } = await supabase.auth.signInWithIdToken({
+      provider: "apple",
+      token: credential.identityToken,
+      nonce: credential.nonce,
+    });
+    if (error) throw error;
+
+    const fullName = [credential.givenName, credential.familyName].filter(Boolean).join(" ");
+    if (data.user && fullName) {
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: {
+          full_name: fullName,
+          given_name: credential.givenName,
+          family_name: credential.familyName,
+        },
+      });
+      if (metadataError) throw metadataError;
+    }
+    if (data.user) await ensureProfile(data.user.id, fullName || credential.email || data.user.email);
+    return;
+  }
+
+  const redirectUrl = new URL(window.location.href);
+  redirectUrl.search = "";
+  redirectUrl.hash = "";
+  window.sessionStorage.setItem(SOCIAL_AUTH_RETURN_KEY, String(Date.now()));
+
+  if (provider === "apple") {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: SOCIAL_OAUTH_PROVIDERS.apple,
+      options: { redirectTo: redirectUrl.toString(), scopes: "name email" },
+    });
+    if (error) {
+      window.sessionStorage.removeItem(SOCIAL_AUTH_RETURN_KEY);
+      throw error;
+    }
+    return;
+  }
+
+  const returnTo = Capacitor.isNativePlatform() ? "nava://auth/callback" : redirectUrl.toString();
+  const startUrl = new URL(`${appConfig.supabaseUrl}/functions/v1/social-oauth/start`);
+  startUrl.searchParams.set("provider", provider);
+  startUrl.searchParams.set("return_to", returnTo);
+
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const { openNativeSocialAuth } = await import("./nativeSocialAuth");
+      const callbackUrl = await openNativeSocialAuth(startUrl.toString());
+      await completeSocialAuthCallback(callbackUrl);
+      return;
+    }
+    window.location.assign(startUrl.toString());
+  } catch (error) {
+    window.sessionStorage.removeItem(SOCIAL_AUTH_RETURN_KEY);
+    throw error;
+  }
+}
+
+const SOCIAL_CALLBACK_PARAMS = ["token_hash", "type", "provider", "social_auth_error", "social_auth_message"];
+
+function clearSocialCallbackUrl(url: URL) {
+  if (url.href !== window.location.href) return;
+  for (const name of SOCIAL_CALLBACK_PARAMS) url.searchParams.delete(name);
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+export async function completeSocialAuthCallback(address: string) {
+  const url = new URL(address);
+  const tokenHash = url.searchParams.get("token_hash");
+  const callbackError = url.searchParams.get("social_auth_error");
+  if (!tokenHash && !callbackError) return false;
+
+  try {
+    if (callbackError) {
+      const code = callbackError === "access_denied" ? "SOCIAL_AUTH_CANCELLED" : "SOCIAL_AUTH_FAILED";
+      throw new AuthServiceError(url.searchParams.get("social_auth_message") || callbackError, code);
+    }
+    const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash!, type: "magiclink" });
+    if (error) throw error;
+    if (!data.session || !data.user) throw new AuthServiceError("Social sign-in did not establish a session.", "SOCIAL_AUTH_FAILED");
+    await ensureProfile(data.user.id, data.user.user_metadata?.full_name ?? data.user.email);
+    window.sessionStorage.removeItem(SOCIAL_AUTH_RETURN_KEY);
+    window.dispatchEvent(new Event("nava:social-auth-complete"));
+    return true;
+  } finally {
+    clearSocialCallbackUrl(url);
+  }
 }
 
 async function invokeAuthFunction<T>(name: string, body: Record<string, unknown>) {
@@ -101,31 +239,21 @@ async function invokeAuthFunction<T>(name: string, body: Record<string, unknown>
 }
 
 type PhoneOtpPurpose = "login" | "register" | "reset";
-type PhoneVerificationType = "signup" | "recovery" | "magiclink";
-
 export async function sendSmsOtp(phone: string, purpose: PhoneOtpPurpose) {
   if (!isPhone(phone)) throw new Error("请输入有效中国大陆手机号。");
-  await invokeAuthFunction("aliyun-sms-send", { phone: phone.trim(), purpose, mode: purpose });
+  const authClient = createEphemeralSupabaseClient();
+  const { error } = await authClient.auth.signInWithOtp({
+    phone: toAuthPhone(phone),
+    options: {
+      shouldCreateUser: purpose === "register",
+      data: purpose === "register" ? { full_name: phone.trim() } : undefined,
+    },
+  });
+  if (error) throw error;
 }
 
 async function assertAccountEligibility(account: string, purpose: PhoneOtpPurpose) {
   await invokeAuthFunction("auth-account-status", { account: account.trim(), purpose });
-}
-
-async function requestSmsVerification(phone: string, code: string, purpose: PhoneOtpPurpose, password?: string) {
-  if (!isPhone(phone)) throw new Error("请输入有效中国大陆手机号。");
-  if (!/^\d{6}$/.test(code.trim())) throw new Error("请输入 6 位短信验证码。");
-  if (password && password.length < 6) throw new Error("密码至少需要 6 位。");
-  const data = await invokeAuthFunction<{ token_hash: string; verification_type?: PhoneVerificationType; email?: string }>("aliyun-sms-verify", {
-    phone: phone.trim(),
-    code: code.trim(),
-    purpose,
-    mode: purpose,
-    password,
-  });
-
-  if (!data?.token_hash) throw new Error("短信验证成功，但没有返回登录 token。");
-  return { ...data, verification_type: data.verification_type ?? "magiclink" as const };
 }
 
 async function publishSession(session: Session, fallbackName?: string) {
@@ -153,14 +281,18 @@ async function applyPassword(client: SupabaseClient, password: string, requireDi
 }
 
 export async function verifySmsOtp(phone: string, code: string, purpose: PhoneOtpPurpose, password?: string) {
-  const data = await requestSmsVerification(phone, code, purpose, password);
+  if (!isPhone(phone)) throw new Error("请输入有效中国大陆手机号。");
+  if (!/^\d{6}$/.test(code.trim())) throw new Error("请输入 6 位短信验证码。");
+  if (password && password.length < 6) throw new Error("密码至少需要 6 位。");
   const authClient = createEphemeralSupabaseClient();
   const { data: sessionData, error } = await authClient.auth.verifyOtp({
-    token_hash: data.token_hash,
-    type: data.verification_type,
+    phone: toAuthPhone(phone),
+    token: code.trim(),
+    type: "sms",
   });
   if (error) throw error;
   if (!sessionData.session) throw new Error("短信验证成功，但没有建立登录会话。");
+  if (password) await applyPassword(authClient, password, purpose === "reset");
   await publishSession(sessionData.session, phone);
 }
 
@@ -270,21 +402,13 @@ export async function sendPasswordResetOtp(account: string) {
 export async function verifyPasswordResetOtp(account: string, code: string, password: string) {
   const normalized = account.trim();
   if (!isOtpCodeValid(normalized, code)) throw new Error(otpCodeFormatError(normalized));
+  if (isPhone(normalized)) {
+    await verifySmsOtp(normalized, code, "reset", password);
+    return;
+  }
   const authClient = createEphemeralSupabaseClient();
   let session: Session;
-  let fallbackName = normalized;
-
-  if (isPhone(normalized)) {
-    const verification = await requestSmsVerification(normalized, code, "reset");
-    const { data, error } = await authClient.auth.verifyOtp({
-      token_hash: verification.token_hash,
-      type: verification.verification_type,
-    });
-    if (error) throw error;
-    if (!data.session) throw new Error("短信验证码已通过，但没有建立登录会话。");
-    session = data.session;
-    fallbackName = normalized;
-  } else if (isEmail(normalized)) {
+  if (isEmail(normalized)) {
     const { data, error } = await authClient.auth.verifyOtp({
       email: normalized,
       token: code.trim(),
@@ -298,7 +422,7 @@ export async function verifyPasswordResetOtp(account: string, code: string, pass
   }
 
   await applyPassword(authClient, password, true);
-  await publishSession(session, fallbackName);
+  await publishSession(session, normalized);
 }
 
 export async function updateCurrentPassword(password: string, requireDifferent = false) {
@@ -341,22 +465,48 @@ export function formatAuthError(error: unknown, translate?: (key: AuthErrorTrans
       : undefined;
   const localized = (key: AuthErrorTranslationKey, fallback: string) => translate?.(key) ?? fallback;
 
+  if (code === "SOCIAL_PROVIDER_UNAVAILABLE") {
+    return localized("auth.error.socialUnavailable", "该快捷登录尚未完成服务配置。");
+  }
+  if (code === "SOCIAL_AUTH_CANCELLED") {
+    return localized("auth.error.socialCancelled", "已取消快捷登录。");
+  }
+  if (code === "SOCIAL_AUTH_FAILED") {
+    return localized("auth.error.socialFailed", "快捷登录失败，请稍后再试。");
+  }
   if (code === "OTP_COOLDOWN") return localized("auth.error.otpCooldown", "请等待 60 秒后再获取验证码。");
-  if (code === "OTP_PHONE_RATE_LIMIT" || code === "OTP_ACCOUNT_RATE_LIMIT" || code === "OTP_IP_RATE_LIMIT") {
+  if (
+    code === "OTP_PHONE_RATE_LIMIT"
+    || code === "OTP_ACCOUNT_RATE_LIMIT"
+    || code === "OTP_IP_RATE_LIMIT"
+    || code === "over_sms_send_rate_limit"
+    || code === "over_email_send_rate_limit"
+    || code === "over_request_rate_limit"
+  ) {
     return localized("auth.error.otpRateLimit", "请求过于频繁，请稍后再试。");
   }
-  if (code === "SMS_PROVIDER_ERROR" || code === "OTP_SERVICE_ERROR") {
+  if (code === "SMS_PROVIDER_ERROR" || code === "OTP_SERVICE_ERROR" || code === "sms_send_failed" || code === "hook_timeout") {
     return localized("auth.error.otpUnavailable", "验证码服务暂时不可用，请稍后再试。");
   }
   if (code === "OTP_EXPIRED") return localized("auth.error.otpExpired", "验证码已过期，请重新获取。");
+  if (code === "otp_expired") return localized("auth.error.otpExpired", "验证码已过期，请重新获取。");
   if (code === "OTP_LOCKED") return localized("auth.error.otpLocked", "验证码错误次数过多，请重新获取。");
   if (code === "OTP_INVALID" || code === "OTP_NOT_FOUND") return localized("auth.error.otpInvalid", "验证码不正确。");
   if (code === "ACCOUNT_EXISTS") return localized("auth.error.accountExists", "该账号已注册，请直接登录或重置密码。");
   if (code === "ACCOUNT_NOT_FOUND") return localized("auth.error.accountNotFound", "该邮箱或手机号未注册。");
   if (message.includes("Invalid login credentials")) return localized("auth.error.loginInvalid", "账号或密码不正确。");
   if (message.includes("Email not confirmed")) return localized("auth.error.emailNotConfirmed", "邮箱还没有完成确认。");
+  if (/provider.*(not enabled|not found|unsupported|not configured)|unsupported provider|custom provider/i.test(message)) {
+    return localized("auth.error.socialUnavailable", "该快捷登录尚未完成服务配置。");
+  }
+  if (/social sign-in.*cancelled|authorization.*cancelled/i.test(message)) {
+    return localized("auth.error.socialCancelled", "已取消快捷登录。");
+  }
   if (message.includes("Token has expired") || message.includes("otp_expired")) {
     return localized("auth.error.otpExpired", "验证码已过期，请重新获取。");
+  }
+  if (/请求过于频繁|too many requests|rate limit/i.test(message)) {
+    return localized("auth.error.otpRateLimit", "请求过于频繁，请稍后再试。");
   }
   if (message.includes("invalid token") || message.includes("token is invalid")) {
     return localized("auth.error.otpInvalid", "验证码不正确。");

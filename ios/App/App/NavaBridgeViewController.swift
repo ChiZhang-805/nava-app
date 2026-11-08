@@ -1,10 +1,18 @@
+import AuthenticationServices
 import Capacitor
+import CryptoKit
 import SwiftUI
 import UIKit
 import UserNotifications
+import WebKit
 
-final class NavaBridgeViewController: CAPBridgeViewController {
+final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHandler {
     private var nativeHost: UIHostingController<NavaNativeRootView>?
+    private var authMessageProxy: NavaWeakScriptMessageHandler?
+
+    private var startsOnDietDashboard: Bool {
+        ProcessInfo.processInfo.arguments.contains("-NavaVisualDietDashboard")
+    }
 
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
@@ -14,10 +22,47 @@ final class NavaBridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(NavaSpeechPlugin())
         bridge?.registerPluginInstance(NavaWakeLockPlugin())
         bridge?.registerPluginInstance(NavaNotificationPermissionPlugin())
+        bridge?.registerPluginInstance(NavaAppleSignInPlugin())
+        bridge?.registerPluginInstance(NavaExternalAuthPlugin())
 
-        if NavaNativeFeatureFlag.isEnabled {
+        if NavaNativeFeatureFlag.isEnabled, startsOnDietDashboard {
             presentNativeExperience()
+        } else if NavaNativeFeatureFlag.isEnabled {
+            let proxy = NavaWeakScriptMessageHandler(delegate: self)
+            authMessageProxy = proxy
+            bridge?.webView?.configuration.userContentController.add(proxy, name: "navaAuthState")
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(lockNativeExperience),
+                name: UIApplication.didEnterBackgroundNotification,
+                object: nil
+            )
         }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+        bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: "navaAuthState")
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "navaAuthState",
+              let payload = message.body as? [String: Any],
+              let authenticated = payload["authenticated"] as? Bool else { return }
+
+        DispatchQueue.main.async { [weak self] in
+            if authenticated {
+                self?.presentNativeExperience()
+            } else {
+                self?.dismissNativeExperience()
+            }
+        }
+    }
+
+    @objc private func lockNativeExperience() {
+        guard NavaNativeFeatureFlag.isEnabled, !startsOnDietDashboard else { return }
+        dismissNativeExperience()
+        bridge?.webView?.evaluateJavaScript("window.dispatchEvent(new Event('nava:native-lock'))")
     }
 
     private func presentNativeExperience() {
@@ -46,6 +91,165 @@ final class NavaBridgeViewController: CAPBridgeViewController {
         host.view.removeFromSuperview()
         host.removeFromParent()
         nativeHost = nil
+    }
+}
+
+/// Uses Apple's system authorization sheet and returns the ID token plus the
+/// un-hashed nonce. Supabase validates both before creating a NAVA session.
+@objc(NavaAppleSignInPlugin)
+final class NavaAppleSignInPlugin: CAPPlugin, CAPBridgedPlugin,
+    ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    let identifier = "NavaAppleSignInPlugin"
+    let jsName = "NavaAppleSignIn"
+    let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "signIn", returnType: CAPPluginReturnPromise)
+    ]
+
+    private var pendingCall: CAPPluginCall?
+    private var pendingNonce: String?
+
+    @objc func signIn(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard self.pendingCall == nil else {
+                call.reject("Apple sign-in is already active.", "APPLE_SIGN_IN_ACTIVE")
+                return
+            }
+
+            let nonce = UUID().uuidString.replacingOccurrences(of: "-", with: "")
+                + UUID().uuidString.replacingOccurrences(of: "-", with: "")
+            let request = ASAuthorizationAppleIDProvider().createRequest()
+            request.requestedScopes = [.fullName, .email]
+            request.nonce = Self.sha256(nonce)
+            self.pendingCall = call
+            self.pendingNonce = nonce
+
+            let controller = ASAuthorizationController(authorizationRequests: [request])
+            controller.delegate = self
+            controller.presentationContextProvider = self
+            controller.performRequests()
+        }
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let tokenData = credential.identityToken,
+              let identityToken = String(data: tokenData, encoding: .utf8),
+              let call = pendingCall,
+              let nonce = pendingNonce else {
+            finishWithError("Apple did not return a valid identity token.", code: "APPLE_ID_TOKEN_MISSING")
+            return
+        }
+
+        var result: [String: Any] = [
+            "identityToken": identityToken,
+            "nonce": nonce,
+            "user": credential.user
+        ]
+        if let email = credential.email { result["email"] = email }
+        if let givenName = credential.fullName?.givenName { result["givenName"] = givenName }
+        if let familyName = credential.fullName?.familyName { result["familyName"] = familyName }
+
+        pendingCall = nil
+        pendingNonce = nil
+        call.resolve(result)
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        let authorizationError = error as? ASAuthorizationError
+        let cancelled = authorizationError?.code == .canceled
+        finishWithError(
+            cancelled ? "Apple sign-in was cancelled." : "Apple sign-in failed.",
+            code: cancelled ? "SOCIAL_AUTH_CANCELLED" : "SOCIAL_AUTH_FAILED",
+            error: error
+        )
+    }
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        bridge?.viewController?.view.window ?? ASPresentationAnchor()
+    }
+
+    private func finishWithError(_ message: String, code: String, error: Error? = nil) {
+        let call = pendingCall
+        pendingCall = nil
+        pendingNonce = nil
+        call?.reject(message, code, error)
+    }
+
+    private static func sha256(_ input: String) -> String {
+        SHA256.hash(data: Data(input.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+/// Keeps regional OAuth credentials out of WKWebView and captures the custom
+/// callback in an iOS-owned authentication session.
+@objc(NavaExternalAuthPlugin)
+final class NavaExternalAuthPlugin: CAPPlugin, CAPBridgedPlugin,
+    ASWebAuthenticationPresentationContextProviding {
+    let identifier = "NavaExternalAuthPlugin"
+    let jsName = "NavaExternalAuth"
+    let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise)
+    ]
+
+    private var activeSession: ASWebAuthenticationSession?
+    private var activeCall: CAPPluginCall?
+
+    @objc func start(_ call: CAPPluginCall) {
+        guard let address = call.getString("url"), let url = URL(string: address),
+              let callbackScheme = call.getString("callbackScheme"), callbackScheme == "nava" else {
+            call.reject("Invalid external authentication request.", "SOCIAL_AUTH_FAILED")
+            return
+        }
+
+        DispatchQueue.main.async {
+            guard self.activeSession == nil else {
+                call.reject("External authentication is already active.", "SOCIAL_AUTH_ACTIVE")
+                return
+            }
+
+            self.activeCall = call
+            let session = ASWebAuthenticationSession(url: url, callbackURLScheme: callbackScheme) { [weak self] callbackUrl, error in
+                guard let self else { return }
+                let pendingCall = self.activeCall
+                self.activeCall = nil
+                self.activeSession = nil
+                if let callbackUrl {
+                    pendingCall?.resolve(["callbackUrl": callbackUrl.absoluteString])
+                    return
+                }
+                let authenticationError = error as? ASWebAuthenticationSessionError
+                let cancelled = authenticationError?.code == .canceledLogin
+                pendingCall?.reject(
+                    cancelled ? "Social sign-in was cancelled." : "Social sign-in failed.",
+                    cancelled ? "SOCIAL_AUTH_CANCELLED" : "SOCIAL_AUTH_FAILED",
+                    error
+                )
+            }
+            session.presentationContextProvider = self
+            session.prefersEphemeralWebBrowserSession = false
+            self.activeSession = session
+            if !session.start() {
+                self.activeSession = nil
+                self.activeCall = nil
+                call.reject("Unable to start external authentication.", "SOCIAL_AUTH_FAILED")
+            }
+        }
+    }
+
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        bridge?.viewController?.view.window ?? ASPresentationAnchor()
+    }
+}
+
+private final class NavaWeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
+    weak var delegate: WKScriptMessageHandler?
+
+    init(delegate: WKScriptMessageHandler) {
+        self.delegate = delegate
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        delegate?.userContentController(userContentController, didReceive: message)
     }
 }
 

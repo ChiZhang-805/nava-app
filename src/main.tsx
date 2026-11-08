@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { installTranslationResilience } from "translation-resilience";
 import AppBootstrap from "./AppBootstrap";
 import "./styles/global.css";
-import "./styles/figma-v2.css";
+import "./styles/product-ui.css";
 import "./styles/shared-overlays.css";
 import "./styles/app-skins.css";
 import "./styles/mobile-viewport.css";

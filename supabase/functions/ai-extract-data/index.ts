@@ -123,7 +123,7 @@ async function extractData(input: { message: string; lang: "zh" | "en"; userId: 
     return withHarnessMetadata({ ...enriched.result, knowledgeToolIdsUsed: enriched.usedToolIds }, input.harness, auditedKnowledge);
   }
 
-  const deepSeekKey = Deno.env.get("DEEPSEEK_API_KEY");
+  const deepSeekKey = Deno.env.get("DEEPSEEK_API_KEY_NAVA");
   if (!deepSeekKey) throw new Error(input.lang === "en" ? "The real extraction model is not configured." : "真实记录抽取模型尚未配置。");
   return callDeepSeekExtractor(input, deepSeekKey);
 }

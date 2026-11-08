@@ -20,10 +20,15 @@ for (const entitlement of ["com.apple.developer.healthkit", "com.apple.developer
   assert.ok(read("ios/App/App/App.entitlements").includes(`<key>${entitlement}</key>`));
 }
 includes("ios/App/App/App.entitlements", ["aps-environment"]);
+for (const file of ["ios/App/App/App.entitlements", "ios/App/App/App.Release.entitlements"]) {
+  includes(file, ["com.apple.developer.applesignin", "<string>Default</string>"]);
+}
 includes("ios/App/App/Base.lproj/Main.storyboard", ['customClass="NavaBridgeViewController"']);
-for (const name of ["NavaHealthPlugin", "NavaSecureStoragePlugin", "NavaSpeechPlugin", "NavaWatchBridgePlugin", "NavaWakeLockPlugin", "NavaNotificationPermissionPlugin"]) {
+for (const name of ["NavaHealthPlugin", "NavaSecureStoragePlugin", "NavaSpeechPlugin", "NavaWatchBridgePlugin", "NavaWakeLockPlugin", "NavaNotificationPermissionPlugin", "NavaAppleSignInPlugin", "NavaExternalAuthPlugin"]) {
   includes("ios/App/App/NavaBridgeViewController.swift", [`registerPluginInstance(${name}())`]);
 }
+includes("ios/App/App/NavaBridgeViewController.swift", ["ASAuthorizationAppleIDProvider", "request.nonce", "identityToken", "ASWebAuthenticationSession", 'callbackURLScheme: callbackScheme']);
+includes("src/services/nativeSocialAuth.ts", ['registerPlugin<NavaAppleSignInPlugin>("NavaAppleSignIn")', 'registerPlugin<NavaExternalAuthPlugin>("NavaExternalAuth")']);
 includes("ios/App/App/NavaBridgeViewController.swift", ["isIdleTimerDisabled = true", "willResignActiveNotification", "leases.removeAll()", "isIdleTimerDisabled = false", "applicationState == .active"]);
 includes("ios/App/App/NavaBridgeViewController.swift", ["getNotificationSettings", "requestAuthorization(options: [.alert, .sound, .badge])", "UIAlertController", "#available(iOS 16.0, *)", "UIApplication.openNotificationSettingsURLString", "UIApplication.openSettingsURLString"]);
 includes("ios/App/App/AppDelegate.swift", ["NavaHealthBackgroundObserver.shared.start()", "didRegisterForRemoteNotificationsWithDeviceToken", "didFailToRegisterForRemoteNotificationsWithError", ".capacitorDidRegisterForRemoteNotifications", ".capacitorDidFailToRegisterForRemoteNotifications"]);

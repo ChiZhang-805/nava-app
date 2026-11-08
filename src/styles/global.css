@@ -3526,7 +3526,7 @@ textarea::placeholder {
   pointer-events: none;
   background:
     linear-gradient(180deg, rgba(242, 251, 255, 0.28), rgba(41, 151, 210, 0.14)),
-    url("../assets/figma/auth-texture-v2.jpg") center / cover no-repeat;
+    url("../assets/figma/auth-texture.jpg") center / cover no-repeat;
   mix-blend-mode: soft-light;
   opacity: 0.48;
 }
@@ -3641,7 +3641,7 @@ textarea::placeholder {
   pointer-events: none;
   background:
     linear-gradient(180deg, rgba(241, 250, 255, 0.28), rgba(13, 113, 174, 0.06)),
-    url("../assets/figma/auth-texture-v2.jpg") center / cover no-repeat;
+    url("../assets/figma/auth-texture.jpg") center / cover no-repeat;
   opacity: 0.5;
   mix-blend-mode: soft-light;
 }

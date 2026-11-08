@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
       if (stored) return jsonResponse(stored);
     }
 
-    const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
+    const apiKey = Deno.env.get("DEEPSEEK_API_KEY_NAVA");
     if (!apiKey) throw new Error(lang === "zh" ? "DeepSeek API Key 尚未配置。" : "The DeepSeek API key is not configured.");
     const report = await generateReport({ apiKey, lang, userId: user.id, profileContext, nutritionContext });
     const stored: StoredReport = { ...report, generatedAt: new Date().toISOString(), modelVersion, sourceFingerprint: fingerprint };

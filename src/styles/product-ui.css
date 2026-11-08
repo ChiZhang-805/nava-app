@@ -103,7 +103,7 @@ body::before {
   pointer-events: none;
   background:
     linear-gradient(180deg, rgba(242, 251, 255, 0.2), rgba(25, 130, 190, 0.08)),
-    url("../assets/figma/auth-texture-v2.jpg") center / cover no-repeat;
+    url("../assets/figma/auth-texture.jpg") center / cover no-repeat;
   opacity: 0.76;
   mix-blend-mode: soft-light;
 }
@@ -215,13 +215,14 @@ body::before {
 }
 
 .auth-code-button {
-  min-width: 82px;
-  min-height: 32px;
-  border-radius: 999px;
+  min-width: 88px;
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 12px;
   gap: 4px;
-  padding: 0 10px;
-  background: rgba(7, 16, 22, 0.92);
-  box-shadow: none;
+  padding: 0 12px;
+  background: linear-gradient(145deg, rgba(18, 34, 43, 0.96), rgba(5, 18, 27, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 5px 12px rgba(4, 34, 52, 0.13);
   font-size: 10px;
 }
 
@@ -329,7 +330,7 @@ body::before {
 .auth-consent {
   position: fixed;
   left: 50%;
-  bottom: max(34px, calc(18px + env(safe-area-inset-bottom)));
+  bottom: max(42px, calc(18px + env(safe-area-inset-bottom)));
   width: min(74vw, 320px);
   min-height: 24px;
   margin: 0;
@@ -342,7 +343,7 @@ body::before {
 .auth-consent--screen {
   position: fixed;
   left: 50%;
-  bottom: max(34px, calc(18px + env(safe-area-inset-bottom)));
+  bottom: max(42px, calc(18px + env(safe-area-inset-bottom)));
   transform: translateX(-50%);
 }
 
@@ -388,6 +389,7 @@ body::before {
 
   .auth-form .field { margin-bottom: 9px; }
   .auth-form .input-wrap { min-height: 42px; }
+  .auth-form .auth-code-wrap { padding-right: 4px; }
   .auth-form .input-wrap input { min-height: 40px; }
   .auth-submit { min-height: 42px; }
   .auth-consent--screen { position: fixed; width: min(82vw, 320px); margin: 0; transform: translateX(-50%); }
@@ -409,7 +411,7 @@ body::before {
   background:
     radial-gradient(circle at 86% 8%, rgba(255, 255, 255, 0.68), transparent 30%),
     linear-gradient(165deg, rgba(240, 251, 255, 0.8) 0%, rgba(210, 241, 252, 0.68) 48%, rgba(143, 216, 243, 0.58) 100%),
-    url("../assets/figma/auth-texture-v2.jpg") center / cover no-repeat;
+    url("../assets/figma/auth-texture.jpg") center / cover no-repeat;
   box-shadow: 0 0 0 1px rgba(49, 151, 194, 0.14);
 }
 
@@ -923,7 +925,7 @@ body::before {
   background:
     radial-gradient(circle at 76% 16%, rgba(255, 255, 255, 0.7), transparent 30%),
     linear-gradient(165deg, rgba(225, 248, 255, 0.52) 0%, rgba(107, 204, 239, 0.32) 52%, rgba(30, 157, 210, 0.28) 100%),
-    url("../assets/figma/auth-texture-v2.jpg") center / cover no-repeat;
+    url("../assets/figma/auth-texture.jpg") center / cover no-repeat;
 }
 
 .option-two-home::before {
@@ -2399,100 +2401,6 @@ body::before {
 .auth-consent-dialog a { color: #0876a2; }
 .auth-consent-dialog > div > button { min-height: 46px; border: 0; border-radius: 14px; color: white; background: #126f96; font-weight: 750; }
 
-/* Recovery starts with two explicit OTP-backed choices instead of a hidden text toggle. */
-.auth-recovery-choice {
-  width: 100%;
-  max-width: 410px;
-  margin: 0 auto;
-  display: grid;
-  gap: 16px;
-  animation: auth-panel-in 420ms cubic-bezier(0.18, 0.86, 0.28, 1) both;
-}
-
-.auth-recovery-choice__head {
-  display: grid;
-  gap: 5px;
-  text-align: center;
-}
-
-.auth-recovery-choice__head h1,
-.auth-recovery-choice__head p {
-  margin: 0;
-}
-
-.auth-recovery-choice__head h1 {
-  color: rgba(6, 47, 75, 0.9);
-  font-size: 17px;
-  font-weight: 760;
-}
-
-.auth-recovery-choice__head p {
-  color: rgba(6, 47, 75, 0.66);
-  font-size: 11px;
-  font-weight: 620;
-}
-
-.auth-recovery-options {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.auth-recovery-options > button {
-  min-width: 0;
-  min-height: 118px;
-  border: 1px solid rgba(255, 255, 255, 0.82);
-  border-radius: 22px;
-  display: grid;
-  grid-template-rows: 1fr auto;
-  place-items: center;
-  gap: 10px;
-  padding: 17px 10px 15px;
-  color: rgba(7, 55, 84, 0.9);
-  background: rgba(250, 254, 255, 0.76);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86), 0 14px 30px rgba(0, 51, 83, 0.1);
-  -webkit-backdrop-filter: blur(20px) saturate(1.08);
-  backdrop-filter: blur(20px) saturate(1.08);
-  font-size: 13px;
-  font-weight: 720;
-  line-height: 1.2;
-  transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease;
-}
-
-.auth-recovery-options > button:active {
-  transform: translateY(1px) scale(0.98);
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 8px 18px rgba(0, 51, 83, 0.08);
-}
-
-.auth-recovery-option-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 17px;
-  display: grid;
-  place-items: center;
-  color: rgba(18, 92, 132, 0.9);
-  background: rgba(204, 237, 249, 0.86);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
-}
-
-.auth-recovery-back {
-  min-height: 34px;
-  border: 0;
-  justify-self: end;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 4px;
-  color: rgba(255, 255, 255, 0.94);
-  background: transparent;
-  font-size: 10px;
-  font-weight: 680;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-shadow: 0 4px 12px rgba(0, 48, 80, 0.28);
-}
-
 .auth-secondary-links .auth-forgot {
   min-height: 30px;
   margin: 0;
@@ -2567,35 +2475,6 @@ body::before {
     margin-bottom: 3px;
   }
 
-  .auth-screen--signUp .auth-consent.auth-consent--screen {
-    position: static;
-    left: auto;
-    bottom: auto;
-    width: 100%;
-    margin: 6px auto 10px;
-    transform: none;
-  }
-
-  .auth-recovery-choice {
-    gap: 12px;
-  }
-
-  .auth-recovery-options {
-    gap: 9px;
-  }
-
-  .auth-recovery-options > button {
-    min-height: 102px;
-    border-radius: 19px;
-    padding-block: 13px;
-    font-size: 12px;
-  }
-
-  .auth-recovery-option-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 15px;
-  }
 }
 
 .exercise-dashboard,
@@ -5419,7 +5298,7 @@ body::before {
   background:
     linear-gradient(180deg, rgba(236, 249, 255, 0.66), rgba(70, 179, 223, 0.2)),
     radial-gradient(circle at 82% 12%, rgba(255, 255, 255, 0.7), transparent 34%),
-    url("../assets/figma/auth-texture-v2.jpg") center / cover no-repeat;
+    url("../assets/figma/auth-texture.jpg") center / cover no-repeat;
   backdrop-filter: none;
 }
 
@@ -10869,7 +10748,7 @@ body::before {
   background:
     radial-gradient(circle at 82% 8%, rgba(255,255,255,.82), transparent 30%),
     linear-gradient(180deg, rgba(224,247,255,.6), rgba(83,190,229,.2)),
-    url("../assets/figma/auth-texture-v2.jpg") center / cover fixed;
+    url("../assets/figma/auth-texture.jpg") center / cover fixed;
   scrollbar-width: none;
 }
 .home-experience::-webkit-scrollbar { display: none; }
@@ -14134,10 +14013,9 @@ body::before {
   min-height: 112px;
 }
 
-/* Registration's agreement belongs below the form, never on a fixed screen
-   coordinate that can cover the return action in a scaled device preview. */
+/* Reserve a bottom-safe lane for registration consent without letting it
+   collide with the form or the iPhone Home Indicator. */
 .auth-screen.auth-screen--signUp {
-  grid-template-rows: minmax(120px, 1fr) auto;
   overflow-y: auto;
 }
 .auth-screen--signUp .auth-form-region {
@@ -14146,21 +14024,167 @@ body::before {
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
-  padding-bottom: max(12px, env(safe-area-inset-bottom));
-}
-.auth-screen--signUp .auth-consent.auth-consent--screen {
-  position: static;
-  left: auto;
-  bottom: auto;
-  transform: none;
-  width: min(100%, 380px);
-  margin: 0;
-  min-height: 32px;
-  line-height: 1.4;
+  padding-bottom: max(86px, calc(env(safe-area-inset-bottom) + 72px));
 }
 .auth-screen--signUp .auth-consent.auth-consent--screen span {
   white-space: normal;
   line-height: 1.4;
+}
+
+/* Authentication refinement: keep NAVA's textured identity while borrowing
+   the clearer hierarchy and narrower form measure from the free login-flow kit. */
+.auth-screen--signIn {
+  grid-template-rows: clamp(194px, 29dvh, 272px) minmax(0, 1fr);
+}
+.auth-screen--signIn .auth-form-region {
+  padding-top: clamp(8px, 1.25dvh, 12px);
+}
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.auth-form,
+.auth-form--signIn {
+  max-width: 372px;
+}
+.auth-form .input-wrap {
+  border-radius: 16px;
+}
+.auth-form .field {
+  margin-bottom: 10px;
+}
+.auth-field-heading {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 3px 4px;
+}
+.auth-field-heading .field-label {
+  margin: 0;
+}
+.auth-field-heading .auth-forgot {
+  min-height: 24px;
+  margin: 0;
+  padding: 0;
+  color: rgba(7, 52, 83, 0.82);
+  font-size: 12px;
+  font-weight: 680;
+  text-shadow: none;
+}
+.auth-field-heading .auth-return-inline {
+  min-height: 24px;
+  margin: 0;
+  padding: 0;
+  color: rgba(7, 52, 83, 0.82);
+  font-size: 12px;
+  font-weight: 680;
+  text-shadow: none;
+}
+.auth-form .auth-feedback-slot:empty {
+  min-height: 0;
+  margin: 0;
+}
+.auth-secondary-links {
+  justify-content: space-between;
+  gap: 16px;
+  padding-inline: 3px;
+}
+.auth-secondary-links .auth-method-switch,
+.auth-secondary-links .auth-mode-icon {
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.auth-social {
+  width: 100%;
+  margin-top: 14px;
+}
+.auth-social-divider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 13px;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-shadow: 0 4px 14px rgba(0, 44, 72, 0.18);
+}
+.auth-social-divider::before,
+.auth-social-divider::after {
+  content: "";
+  height: 1px;
+  background: rgba(255, 255, 255, 0.48);
+}
+.auth-social-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(20px, 8vw, 34px);
+  margin: 12px auto 0;
+  padding-inline: clamp(19px, 7vw, 28px);
+}
+.auth-social-button {
+  min-width: 0;
+  min-height: 66px;
+  border: 0;
+  border-radius: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.96);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 680;
+  line-height: 1;
+  text-shadow: 0 4px 12px rgba(0, 42, 70, 0.2);
+}
+.auth-social-icon {
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #102e41;
+  background: rgba(252, 254, 255, 0.88);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92), 0 10px 24px rgba(0, 54, 86, 0.12);
+  backdrop-filter: blur(16px) saturate(1.08);
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+.auth-social-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+.auth-social-button--wechat .auth-social-icon { color: #16a34a; }
+.auth-social-button--qq .auth-social-icon { color: #1685d0; }
+.auth-social-button:active .auth-social-icon {
+  transform: translateY(1px) scale(0.96);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88), 0 5px 14px rgba(0, 54, 86, 0.12);
+}
+.auth-social-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.92);
+  outline-offset: 5px;
+}
+.auth-social-button:disabled { opacity: 0.58; }
+.auth-social-button[aria-busy="true"] .auth-social-icon { animation: auth-social-pulse 900ms ease-in-out infinite; }
+
+@keyframes auth-social-pulse {
+  50% { transform: scale(0.92); opacity: 0.7; }
+}
+
+@media (max-height: 740px) {
+  .auth-social { margin-top: 8px; }
+  .auth-social-options { margin-top: 8px; }
+  .auth-social-icon { width: 42px; height: 42px; }
+  .auth-social-button { min-height: 60px; }
 }
 
 /* Profile hub: the overview is navigation-first; editing lives on route-backed

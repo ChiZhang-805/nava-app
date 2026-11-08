@@ -10,7 +10,7 @@ await mkdir(out, { recursive: true });
 const html = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div><script type="module">
 import React from 'react';import ReactDOM from 'react-dom/client';import {LocaleProvider} from '/src/i18n.tsx';
 import Admin from '/src/features/AdminConsole.tsx';import Shop from '/src/features/PointsShopExperience.tsx';
-import '/src/styles/global.css';import '/src/styles/figma-v2.css';import '/src/styles/shared-overlays.css';
+import '/src/styles/global.css';import '/src/styles/product-ui.css';import '/src/styles/shared-overlays.css';
 function Fixture(){const [view,setView]=React.useState('points-shop');return React.createElement('main',{style:{height:'100dvh',width:'100%',overflow:'hidden'}},location.hash==='#shop'?React.createElement(Shop,{user:{id:'10000000-0000-4000-8000-000000000001'},view,onViewChange:setView,onHome:()=>{}}):React.createElement(Admin,{user:{id:'10000000-0000-4000-8000-000000000001'},onHome:()=>{}}));}
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(LocaleProvider,null,React.createElement(Fixture)));
 </script></body></html>`;

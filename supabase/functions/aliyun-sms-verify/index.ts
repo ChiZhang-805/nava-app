@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
       phoneHash(secret, phone),
       otpDigest(secret, phone, purpose, code),
     ]);
-    const admin = createOtpAdminClient();
+    const admin = await createOtpAdminClient();
     const consumed = await admin.rpc("nava_consume_phone_otp", {
       p_phone_hash: recipientHash,
       p_purpose: purpose,

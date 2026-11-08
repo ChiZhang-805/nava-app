@@ -3,13 +3,16 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "../services/supabaseClient";
 import { AuthContext } from "./authContext";
 import {
+  completeSocialAuthCallback,
   ensureProfile,
   isEmail,
   otpLengthForAccount,
   sendLoginOtp as sendLoginOtpRemote,
   sendPasswordResetOtp as sendPasswordResetOtpRemote,
   sendRegistrationOtp as sendRegistrationOtpRemote,
+  signInWithSocialProvider,
   signInWithPassword,
+  type SocialAuthProvider,
   updateCurrentPassword as updateCurrentPasswordRemote,
   verifyLoginOtp as verifyLoginOtpRemote,
   verifyPasswordResetOtp as verifyPasswordResetOtpRemote,
@@ -57,8 +60,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     }
 
-    void supabase.auth.getSession()
-      .then(({ data, error: sessionError }) => {
+    const initializeSession = async () => {
+      try {
+        await completeSocialAuthCallback(window.location.href);
+      } catch (callbackError) {
+        if (!alive) return;
+        setError(callbackError instanceof Error ? callbackError.message : String(callbackError));
+      }
+
+      try {
+        const { data, error: sessionError } = await supabase.auth.getSession();
         if (!alive) return;
         if (sessionError) {
           setError(sessionError.message);
@@ -71,13 +82,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (data.session?.user) {
           ensureProfile(data.session.user.id, data.session.user.email).catch(() => undefined);
         }
-      })
-      .catch((sessionError: unknown) => {
+      } catch (sessionError) {
         if (!alive) return;
         setError(sessionError instanceof Error ? sessionError.message : String(sessionError));
         setUser(null);
         setLoading(false);
-      });
+      }
+    };
+
+    void initializeSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!alive) return;
@@ -106,6 +119,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       await signInWithPassword(email, password);
+    } catch (authError) {
+      const message = authError instanceof Error ? authError.message : String(authError);
+      setError(message);
+      throw authError;
+    }
+  }, []);
+
+  const signInWithSocial = useCallback(async (provider: SocialAuthProvider) => {
+    setError(null);
+    try {
+      if (isDemoMode()) {
+        startDemoAuthSession();
+        setUser(demoUser);
+        return;
+      }
+      await signInWithSocialProvider(provider);
     } catch (authError) {
       const message = authError instanceof Error ? authError.message : String(authError);
       setError(message);
@@ -217,6 +246,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error,
       passwordRecovery,
       signIn,
+      signInWithSocial,
       signOut,
       finishPasswordRecovery,
       clearError: () => setError(null),
@@ -237,6 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sendPasswordResetOtp,
       sendRegistrationOtp,
       signIn,
+      signInWithSocial,
       signOut,
       updateCurrentPassword,
       user,

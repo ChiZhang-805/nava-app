@@ -23,6 +23,9 @@ verify_jwt = true
 [functions.diet-extract]
 verify_jwt = true
 
+[functions.food-visualize]
+verify_jwt = true
+
 [functions.face-analyze]
 verify_jwt = true
 
@@ -59,5 +62,11 @@ verify_jwt = false
 [functions.aliyun-sms-verify]
 verify_jwt = false
 
+[functions.auth-send-sms]
+verify_jwt = false
+
 [functions.auth-account-status]
+verify_jwt = false
+
+[functions.social-oauth]
 verify_jwt = false

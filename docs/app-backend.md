@@ -1,3 +1,23 @@
+# 国内食物重制模型配置（2026-11-07，源码已配置，未部署）
+
+`food-visualize` 的生产默认链路已经从国外生图服务切换为阿里云百炼北京区：
+
+- 菜品理解与最终双图复核：`qwen3-vl-plus`；
+- 低成本首次生成：`wan2.7-image`，官方北京区定价 0.20 元/张；
+- 质量失败后的第二次兜底：`wan2.7-image-pro`，官方北京区定价 0.50 元/张；
+- 生成后透明底：显式 `NAVA_FOOD_MATTING_URL` 适配国内抠图服务；参考阿里云智能抠图
+  0.002 元/张。该步骤只处理 AI 重制后的标准白盘素材，不抠用户原始照片。
+
+必须配置 NAVA 专用 `DASHSCOPE_API_KEY_NAVA`，推荐同时配置
+`NAVA_DASHSCOPE_WORKSPACE_ID`。抠图适配器必须返回 `imageBase64`、可选 `modelVersion`，且结果
+必须是真实 alpha 的严格 1024×1024 PNG，否则 Edge Function 与 iOS 两端都会拒绝。可用
+`NAVA_FOOD_RENDER_MODEL`、`NAVA_FOOD_RENDER_FALLBACK_MODEL`、
+`NAVA_FOOD_RENDER_QA_MODEL` 覆盖模型名；不得回退到通用、其他项目或国外模型密钥。
+
+当前只完成本地源码、部署脚本和合同配置；尚未向 Supabase 写入密钥、部署新函数或用真实
+样本计费调用。上线前还要接入国内抠图适配器并完成菜品身份、可见食材、透明通道和像素规格
+四类验收。
+
 # 账号完整导出本地修复（2026-10-30，未部署）
 
 `export-user-data` 和前端导出回退共用 `_shared/export-pagination.ts`：按稳定列分页，
@@ -514,7 +534,7 @@ supabase secrets set NAVA_FACE_ANALYZE_URL="https://..." NAVA_FACE_ANALYZE_KEY="
 supabase secrets set NAVA_AI_EXTRACT_URL="https://..." NAVA_AI_EXTRACT_KEY="..." --project-ref $env:SUPABASE_PROJECT_REF
 supabase secrets set NAVA_AI_CHAT_URL="https://..." NAVA_AI_CHAT_KEY="..." --project-ref $env:SUPABASE_PROJECT_REF
 # NAVA 当前正式对话模型：DeepSeek V4 Flash（原 DeepSeek Chat 快速路线）
-supabase secrets set DEEPSEEK_API_KEY="..." --project-ref $env:SUPABASE_PROJECT_REF
+supabase secrets set DEEPSEEK_API_KEY_NAVA="..." --project-ref $env:SUPABASE_PROJECT_REF
 ```
 
 `ai-chat-reply` 默认以 SSE 流式返回最终回答。服务端只根据当前 JWT 读取该用户的最近对话、画像和健康摘要，并向 DeepSeek 传递匿名化 `user_id`；客户端提交的历史记录和健康上下文不会作为权威数据使用。界面在首个文本片段前只展示一次与授权画像相适配的处理状态，不展示模型隐藏推理原文。

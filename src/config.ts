@@ -1,8 +1,11 @@
+const DEFAULT_SMS_RELAY_WARMUP_URL = "https://nava-sms-relay-yxmupnxmau.cn-hangzhou.fcapp.run/";
+
 export const appConfig = {
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
   supabaseKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
   appEnv: import.meta.env.VITE_APP_ENV ?? "development",
   upstreamRepo: import.meta.env.VITE_WEB_UPSTREAM_REPO ?? "https://github.com/Tj-jiaoao/style-muse-next.git",
+  smsRelayWarmupUrl: String(import.meta.env.VITE_SMS_RELAY_WARMUP_URL ?? DEFAULT_SMS_RELAY_WARMUP_URL).trim(),
 };
 
 export function assertConfig() {
