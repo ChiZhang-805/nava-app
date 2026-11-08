@@ -913,12 +913,12 @@ private enum NavaDietFoodScope: String, CaseIterable, Identifiable {
     func accessibilityTitle(isChinese: Bool) -> String {
         guard isChinese else { return title.capitalized }
         switch self {
-        case .all: "全部"
-        case .vegan: "纯素"
-        case .protein: "高蛋白"
-        case .snacks: "零食加餐"
-        case .recent: "最近吃过"
-        case .favorites: "收藏"
+        case .all: return "全部"
+        case .vegan: return "纯素"
+        case .protein: return "高蛋白"
+        case .snacks: return "零食加餐"
+        case .recent: return "最近吃过"
+        case .favorites: return "收藏"
         }
     }
 }
