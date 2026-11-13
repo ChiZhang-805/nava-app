@@ -38,7 +38,7 @@ jobs:
   validate:
     name: Xcode unsigned validation
     if: github.event_name == 'push' || inputs.mode == 'validate'
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 60
     steps:
       - name: Check out the exact source revision
@@ -82,7 +82,7 @@ jobs:
   upload:
     name: Signed archive and TestFlight upload
     if: github.event_name == 'workflow_dispatch' && inputs.mode == 'upload'
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 90
     environment: testflight
     steps:

@@ -7,7 +7,7 @@ import { applyProjectPublicEnv } from './project-env.mjs';
 applyProjectPublicEnv(process.cwd());
 const output = 'Q:/NAVA-Workspace/Build/TestRuns/App-Checks/auth-keyboard';
 await mkdir(output, { recursive: true });
-const server = await createServer({ server: { host: '127.0.0.1', port: 5283, strictPort: true }, logLevel: 'silent' });
+const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent' });
 await server.listen();
 const report = [];
 try {

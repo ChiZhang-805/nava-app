@@ -6,7 +6,7 @@ applyProjectPublicEnv(process.cwd());
 const engine=process.env.NAVA_LAYOUT_ENGINE||'chromium';
 const out=`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/mobile-layout/navigation-${engine}`;
 await mkdir(out,{recursive:true});
-const server=await createServer({server:{host:'127.0.0.1',port:5283,strictPort:true},logLevel:'silent'});await server.listen();
+const server=await createServer({server:{host:'127.0.0.1',port:0},logLevel:'silent'});await server.listen();
 const browser=await({chromium,webkit}[engine]).launch();
 const results=[],errors=[];
 try {
