@@ -63,6 +63,7 @@ jobs:
       - name: Validate the native iPhone and Watch projects
         env:
           NAVA_SKIP_NPM_CI: "0"
+          NAVA_BUILD_FOR_TESTING: "1"
         run: npm run ios:prepare:release
 
       - name: Test the shipped login with the iOS software keyboard

@@ -35,8 +35,8 @@ final class NavaAuthKeyboardTests: XCTestCase {
             capture("\(mode)-closed")
             account.tap()
             XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
-            assertAboveKeyboard(account, logo: logo, app: app)
             capture("\(mode)-account-keyboard")
+            assertAboveKeyboard(account, logo: logo, app: app)
 
             // A real touch triggers WKWebView focus assistance. Subsequent
             // fields may require scrolling inside the form on compact phones.
@@ -49,8 +49,8 @@ final class NavaAuthKeyboardTests: XCTestCase {
                     start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -100)))
                 }
                 field.tap()
-                assertAboveKeyboard(field, logo: logo, app: app)
                 capture("\(mode)-field-\(index)-keyboard")
+                assertAboveKeyboard(field, logo: logo, app: app)
             }
             logo.tap()
             let hidden = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.keyboards.firstMatch)
@@ -63,10 +63,16 @@ final class NavaAuthKeyboardTests: XCTestCase {
 
     private func assertAboveKeyboard(_ field: XCUIElement, logo: XCUIElement, app: XCUIApplication) {
         let visible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            field.frame.minY >= logo.frame.maxY && field.frame.maxY <= app.keyboards.firstMatch.frame.minY
-                && logo.frame.minY >= self.expectedSafeTop
+            // Each frame query asks the simulator for a fresh accessibility
+            // snapshot. Reuse that result rather than querying the same view
+            // twice inside one predicate (slow cloud runners can exceed 8s).
+            let fieldFrame = field.frame
+            let logoFrame = logo.frame
+            let keyboardFrame = app.keyboards.firstMatch.frame
+            return fieldFrame.minY >= logoFrame.maxY && fieldFrame.maxY <= keyboardFrame.minY
+                && logoFrame.minY >= self.expectedSafeTop && fieldFrame.height > 0
         }, object: field)
-        XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 8), .completed, app.debugDescription)
+        XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 30), .completed, app.debugDescription)
     }
 
     private func capture(_ name: String) {

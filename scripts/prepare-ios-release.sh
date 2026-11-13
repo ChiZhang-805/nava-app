@@ -93,6 +93,8 @@ mkdir -p "${DERIVED_DATA}"
 
 # Compile every Swift/Capacitor source without requiring a signing identity. HealthKit values
 # still require a physical iPhone; this step proves only that the native target compiles.
+BUILD_ACTION=build
+if [[ "${NAVA_BUILD_FOR_TESTING:-0}" == "1" ]]; then BUILD_ACTION=build-for-testing; fi
 xcodebuild \
   -workspace ios/App/App.xcworkspace \
   -scheme App \
@@ -100,7 +102,7 @@ xcodebuild \
   -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath "${DERIVED_DATA}" \
   CODE_SIGNING_ALLOWED=NO \
-  build
+  "${BUILD_ACTION}"
 
 if [[ "${NAVA_ARCHIVE:-0}" != "1" ]]; then
   echo "Unsigned iOS compile passed. For an archive set NAVA_ARCHIVE=1, NAVA_APPLE_TEAM_ID, NAVA_IOS_BUNDLE_ID, NAVA_IOS_VERSION and NAVA_IOS_BUILD_NUMBER."

@@ -3,6 +3,24 @@ set -euo pipefail
 # Run after cap:sync:ios on macOS; screenshots come from actual simulator apps.
 RUNTIME_ID="$(xcrun simctl list runtimes -j | python3 -c 'import json,sys; r=[x for x in json.load(sys.stdin)["runtimes"] if x.get("isAvailable") and "SimRuntime.iOS-" in x["identifier"] and x["version"].startswith("26.")]; print(sorted(r,key=lambda x:tuple(map(int,x["version"].split("."))))[-1]["identifier"])')"
 mkdir -p artifacts/ios-auth-keyboard
+# The simulator binary was compiled without distribution credentials. Give it
+# an ad-hoc signature and its normal app identity so Keychain is available;
+# otherwise unsigned execution reports errSecMissingEntitlement (-34018).
+SIM_APP="artifacts/ios/DerivedData/Build/Products/Release-iphonesimulator/App.app"
+SIM_ENTITLEMENTS="artifacts/ios-auth-keyboard/simulator-entitlements.plist"
+python3 - "$SIM_APP/Info.plist" "$SIM_ENTITLEMENTS" <<'PY'
+import plistlib, sys
+with open(sys.argv[1], 'rb') as source:
+    bundle_id = plistlib.load(source)['CFBundleIdentifier']
+identity = 'P9N6YYZ7Y9.' + bundle_id
+with open(sys.argv[2], 'wb') as destination:
+    plistlib.dump({'application-identifier': identity,
+                  'com.apple.developer.team-identifier': 'P9N6YYZ7Y9',
+                  'keychain-access-groups': [identity]}, destination)
+PY
+# These are disposable simulator products only; distribution signing still
+# happens exclusively in prepare-ios-release.sh with the App Store profiles.
+codesign --force --deep --sign - --entitlements "$SIM_ENTITLEMENTS" "$SIM_APP"
 for DEVICE in "iPhone 15 Pro Max" "iPhone SE (3rd generation)"; do
   TYPE="$(xcrun simctl list devicetypes -j | DEVICE="$DEVICE" python3 -c 'import json,sys,os; print(next(x["identifier"] for x in json.load(sys.stdin)["devicetypes"] if x["name"]==os.environ["DEVICE"]))')"
   ID="$(xcrun simctl create "NAVA Auth Keyboard" "$TYPE" "$RUNTIME_ID")"
@@ -13,15 +31,15 @@ for DEVICE in "iPhone 15 Pro Max" "iPhone SE (3rd generation)"; do
   xcrun simctl ui "$ID" appearance light
   RESULT="artifacts/ios-auth-keyboard/${ID}.xcresult"
   STATUS=0
-  # Reuse the release build already compiled by ios:prepare:release and run
-  # on this booted device, without Xcode creating a second simulator clone.
+  # Both devices use the same release test products, without recompiling the
+  # application or creating a second simulator clone.
   xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release \
     -destination "platform=iOS Simulator,id=$ID" \
     -derivedDataPath artifacts/ios/DerivedData \
     -resultBundlePath "$RESULT" \
     -parallel-testing-enabled NO \
     -only-testing:AppUITests/NavaAuthKeyboardTests \
-    CODE_SIGNING_ALLOWED=NO test || STATUS=$?
+    CODE_SIGNING_ALLOWED=NO test-without-building || STATUS=$?
   xcrun xcresulttool export attachments --path "$RESULT" --output-path "artifacts/ios-auth-keyboard/${ID}-screenshots" || true
   xcrun simctl shutdown "$ID" || true
   if [[ "$STATUS" != 0 ]]; then exit "$STATUS"; fi
