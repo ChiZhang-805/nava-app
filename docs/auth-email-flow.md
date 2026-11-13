@@ -17,6 +17,20 @@ iOS 混合版 `NavaBridgeViewController` 使用独立 UIKit 图片层承载同�
 用 iPhone 15 Pro Max 与 iPhone SE 的真实 iOS 模拟器运行默认混合版，并保存 XCTest
 截图；不启用未完成的 SwiftUI 功能开关。真机 TestFlight 验收仍单独记录。
 
+2026-11-14 原生验收：源码 `73e156a1e6d47e5027745220898040131457be51`，GitHub
+Actions `43479481774`，标准 Apple Silicon macOS 26 / Xcode 26.6。两个设备均通过
+四个认证模式的聚焦、后续字段滚动、键盘收起和标题恢复检查，0 failures。
+40 张未缩放的 XCTest PNG 保存在
+`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/auth-keyboard/native-verified/`；
+大屏 1290×2796，小屏 750×1334。`screenshots.json` 记录原始附件、设备 ID、时间与源码。
+32 组无遮挡背景采样平均通道差异最大 0.256/255，结合截图核对未见背景缩放或平移。
+这些是原生模拟器证据，不能称为用户真机实测；安全密码输入时部分系统键盘内容未出现在
+XCTest 截图中，字段遮挡仍以实际键盘及工具栏 frame 断言核对。
+
+同一源码已由 Actions `43484367053` 签名归档并上传 `1.0.0 (47)`；北京时间
+2026-11-14 02:50收到 `UPLOAD SUCCEEDED with no errors`。Apple 后续处理与用户真机
+安装验证尚未确认，上传回执在专项证据目录的 `testflight-upload-receipt.txt`。
+
 ## 微信与 QQ 移动应用接入准备（2026-11-13）
 
 用户确认：微信开放平台和 QQ 互联的移动应用均尚未创建，拟采用公司／组织主体。
