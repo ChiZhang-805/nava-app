@@ -62,29 +62,22 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
         }
     }
 
-    // CAPBridgeViewController normally uses WKWebView as its root. Give the
-    // wallpaper its own full-window UIKit canvas, outside every scroll view.
+    // Keep Capacitor's root view intact. The wallpaper is a sibling behind
+    // WKWebView's scrollView, so scrolling/focus assistance cannot move it.
     private func installAuthCanvas() {
         guard let webView = bridge?.webView else { return }
-        let canvas = UIView(frame: webView.frame)
         authBackdrop.contentMode = .scaleAspectFill
         authBackdrop.clipsToBounds = true
         authBackdrop.isUserInteractionEnabled = false
         authBackdrop.isHidden = true
-        // Replace the controller's root before reparenting its former root.
-        // UIViewController detaches the old root when assigning `view`.
-        view = canvas
-        canvas.addSubview(authBackdrop)
-        canvas.addSubview(webView)
-        for child in [authBackdrop, webView] {
-            child.translatesAutoresizingMaskIntoConstraints = false
-            NSLayoutConstraint.activate([
-                child.leadingAnchor.constraint(equalTo: canvas.leadingAnchor),
-                child.trailingAnchor.constraint(equalTo: canvas.trailingAnchor),
-                child.topAnchor.constraint(equalTo: canvas.topAnchor),
-                child.bottomAnchor.constraint(equalTo: canvas.bottomAnchor)
-            ])
-        }
+        webView.insertSubview(authBackdrop, at: 0)
+        authBackdrop.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            authBackdrop.leadingAnchor.constraint(equalTo: webView.leadingAnchor),
+            authBackdrop.trailingAnchor.constraint(equalTo: webView.trailingAnchor),
+            authBackdrop.topAnchor.constraint(equalTo: webView.topAnchor),
+            authBackdrop.bottomAnchor.constraint(equalTo: webView.bottomAnchor)
+        ])
         scrollObservation = webView.scrollView.observe(\.contentOffset, options: [.new]) { [weak self] scroll, _ in
             guard self?.authViewportEnabled == true, scroll.contentOffset != .zero else { return }
             // WebKit's focus assistance must not pan the root behind the status
