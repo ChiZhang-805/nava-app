@@ -32,8 +32,14 @@
 线上证据：`App-Checks/welcome-reveal/public-release-check.json`。
 镜像285个文件复制后逐个核对 SHA256；自动审批以 `blocked by policy` 拒绝包含删除的
 旧产物清理命令，改用不删除的同步，因此旧哈希产物保留，未清理 Git 历史。
-云端 Xcode unsigned validation `43384004147` 成功；签名归档及 TestFlight 上传步骤跳过，
-不能据此宣称用户手机安装包已更新。本段为发布回执，不改变双站构建对应的源提交。
+首次云端 Xcode unsigned validation `43384004147` 成功，但未签名上传。用户随后明确要求
+同步 TestFlight，已补充执行 upload 工作流 `43398113138`，整体成功，构建 `1.0.0 (38)`。
+签名归档和 IPA 导出通过；北京时间 2026-11-13 17:10 收到 Apple 的
+`UPLOAD SUCCEEDED with no errors` 回执。上传源码 `b845bee01b3fbc28d047044474f979565b387015`
+与双站产品提交仅相差发布记录文档，功能一致。回执保存在
+`App-Checks/welcome-reveal/testflight-upload-receipt.txt`。浏览器工具因无法可靠识别当前
+网址而停止页面操作，因此 Apple 处理完成及测试组可安装状态尚未核实；不能声称用户
+手机已更新。本段为发布回执，不改变双站构建对应的源提交。
 
 ## SwiftUI 原生重写（2026-11-07，当前最高优先级）
 

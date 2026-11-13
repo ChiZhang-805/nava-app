@@ -1,9 +1,28 @@
 # NAVA Apple Health / Apple Watch 当前交付方案
 
-首次制定：2026-09-02；当前状态同步：2026-11-03
+首次制定：2026-09-02；当前状态同步：2026-11-13
 状态：实施基线；所有勾选项必须有代码、自动化或真机证据，不能以界面占位代替。
 
-## 0A. 2026-11-03 云端 TestFlight 交接状态（最高优先级）
+## 0A. 当前 TestFlight 发布
+
+GitHub `testflight` environment 的7项签名/上传 secrets 已配置，上一次成功上传为
+`1.0.0 (36)`，Actions `43376894536`。下方首次配置步骤仅为历史背景，不应要求用户重新
+创建证书、私钥、App ID 或 API Key。
+
+本次用户明确要求将欢迎信点按补全和专注页修改同步到 TestFlight。已在发布分支
+`release/testflight-cloud-20261109-auth` 运行现有工作流，输入 `mode=upload`、
+`marketing_version=1.0.0`，构建号由 run number 生成，为 `38`。
+Actions `43398113138` 对应源码 `b845bee01b3fbc28d047044474f979565b387015`；与双站产品
+提交 `85904de04ce6a5f74cf0ee720c46151a09158076` 仅相差发布回执文档。
+签名校验、Archive、IPA 导出和上传全部成功。Apple 于北京时间 2026-11-13 17:10 返回
+`UPLOAD SUCCEEDED with no errors` 和 `No errors uploading archive`。整个工作流成功结束，
+构建产物 `nava-ios-1.0.0-38` 已保存（7天保留）。回执摘录保存在
+`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/welcome-reveal/testflight-upload-receipt.txt`。
+上传接收成功已核实；Apple 后续处理、出口合规和测试组可安装状态未核实。浏览器工具因
+无法可靠识别当前网址而停止，未绕过此限制继续 UI 操作，也未提交 App Store 正式审核。
+不能用默认 push 触发的 unsigned validation 代替签名上传结果。
+
+## 0B. 首次云端 TestFlight 配置背景（2026-11-03，历史）
 
 Apple Developer Program 已开通，Team ID 为 `P9N6YYZ7Y9`。App Store Connect 已建立
 “NAVA健康节律助手”，Apple App ID 为 `6829876477`；已注册显式 App ID：
@@ -50,7 +69,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/apple-signing/Comple
    标准输入安全交给已登录的 GitHub CLI，不会把 secret 写入仓库或命令行参数。
 
 5. 审看并合并该发布分支到默认分支后，在 Actions → “iOS TestFlight” → Run workflow，
-   `operation=upload`、`marketing_version=1.0.0`。构建号留空时工作流使用 GitHub run number；
+   `mode=upload`、`marketing_version=1.0.0`。构建号留空时工作流使用 GitHub run number；
    每次重传必须递增。上传成功后再到 TestFlight 填测试信息并建立内部测试组。
 
 `NAVA` 作为 App Store 名称已被占用，因此商店记录使用“ NAVA健康节律助手”；这不改变
