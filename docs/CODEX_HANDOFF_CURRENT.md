@@ -22,7 +22,18 @@
 其余门禁分段执行通过，包括当前交互、原生 portable/结构合同和两组小猫动画检查。
 专注 Chromium/WebKit 各9组合通过，欢迎页两内核共12组合通过；最终 build、lint、生产
 认证合同通过，SMTP 未检查。证据在 `App-Checks/focus-layout` 与 `App-Checks/welcome-reveal`。
-桌面 navigation 测试只改就绪等待条件，页面断言未削弱。双站发布回执将在完成后补充。
+桌面 navigation 测试只改就绪等待条件，页面断言未削弱。
+
+发布源提交 `85904de04ce6a5f74cf0ee720c46151a09158076` 已推送。Sites 保存版本276，部署
+`appgdep_6af6b942ffa48191b940319e4a12076f` 成功；GitHub Pages 镜像提交
+`78864c3215976826d5b42c65bc2fb0a55f93f632`，Actions `43385120418` 成功。
+双站匿名入口及 `?demo=1` 均显示真实登录，加载包中的 Supabase 项目标识正确；欢迎页及
+专注相关6个发布文件与本地构建一致（统一换行，仅排除 Cloudflare 注入的验证脚本）。
+线上证据：`App-Checks/welcome-reveal/public-release-check.json`。
+镜像285个文件复制后逐个核对 SHA256；自动审批以 `blocked by policy` 拒绝包含删除的
+旧产物清理命令，改用不删除的同步，因此旧哈希产物保留，未清理 Git 历史。
+云端 Xcode unsigned validation `43384004147` 成功；签名归档及 TestFlight 上传步骤跳过，
+不能据此宣称用户手机安装包已更新。本段为发布回执，不改变双站构建对应的源提交。
 
 ## SwiftUI 原生重写（2026-11-07，当前最高优先级）
 
