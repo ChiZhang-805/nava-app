@@ -920,6 +920,17 @@ Original cat layers and the existing attributed SVG icon set are reused. -->
         const accessible=el('p','sr-only',NAVA_INK_DATA[state.lang].text.join('\n')),sign=el('p','signature');sign.append(el('span','',t(['很高兴认识你！','So lovely to meet you!'])),document.createElement('br'));const small=el('small','','— NAVA'),paw=el('span','paw-icon');paw.innerHTML=icon('paw');sign.append(small,paw);letter.append(rules,canvas,accessible,sign);content.append(letter);
         inkEngines[state.lang]?.render(inkTime[state.lang],canvas);if(inkTime[state.lang]>=NAVA_INK_DATA[state.lang].duration)sign.classList.add('visible');
     }
+    /** 输入：非功能区域点击。输出：无。功能：补完欢迎信笔迹与落款，保留当前页和所有回答。 */
+    function revealWelcome(event){
+        if(event.defaultPrevented||event.button!==0||!state.ready||state.page!==0||state.transition||performance.now()<suppressUntil)return;
+        const target=event.target;
+        if(!(target instanceof Element)||target.closest('button,a,input,select,textarea,[role="button"],[role="menu"],[contenteditable="true"]'))return;
+        const data=NAVA_INK_DATA[state.lang];
+        if(inkTime[state.lang]>=data.duration)return;
+        inkTime[state.lang]=data.duration+1;
+        inkEngines[state.lang]?.render(inkTime[state.lang],currentFace?.querySelector('.letter-canvas'));
+        currentFace?.querySelector('.signature')?.classList.add('visible');
+    }
     /** 输入：字段和选项下标。输出：是否选中。功能：语义状态与字体和语言解耦。 */
     function selected(key,i){const a=state.answers[key];return Array.isArray(a)?a.includes(i):a===i;}
     /** 输入：问题键。输出：是否已填写。功能：未选择的页面禁止向后翻，不把空数组当已完成。 */
@@ -1052,11 +1063,11 @@ Original cat layers and the existing attributed SVG icon set are reused. -->
         actor.arm(frontCtx,[145,377],grip,{width:18,tip:14,bend:-4});actor.arm(frontCtx,[249,381],[243+petValue*Math.sin(time*4)*3,413+breath*.25-handLift*15-petValue*5],{width:18,tip:15,bend:2});
         if(penMix>.008){pencil(frontCtx,nib,angle,penMix);frontCtx.save();frontCtx.beginPath();frontCtx.ellipse(grip[0],grip[1],14,14,0,0,Math.PI*2);frontCtx.clip();actor.arm(frontCtx,[145,377],grip,{width:18,tip:14,bend:-4});frontCtx.restore();}frontCtx.restore();
     }
-    /** 输入：高精度时间。输出：无。功能：统一绘制纸面、信件、猫咪；后台不快进、不丢手势状态。 */
-    function tick(now){if(document.hidden){last=0;frame=0;return;}const dt=last?Math.min(.055,(now-last)/1000):0;last=now;elapsed+=dt;updateFlip();if(snap&&!flip){const p=M.range(elapsed-snap.start,0,snap.duration);dragTransform(currentFace,snap.x*(1-p));if(p>=1){snap=null;currentFace.style.transform='';currentFace.style.opacity='';}}
+    /** 输入：高精度时间。输出：无。功能：翻页与文字按前台实时时钟推进，低帧率不延长等待；猫咪插值限步长，后台暂停。 */
+    function tick(now){if(document.hidden){last=0;frame=0;return;}const delta=last?Math.max(0,(now-last)/1000):0,dt=Math.min(.055,delta);last=now;elapsed+=delta;updateFlip();if(snap&&!flip){const p=M.range(elapsed-snap.start,0,snap.duration);dragTransform(currentFace,snap.x*(1-p));if(p>=1){snap=null;currentFace.style.transform='';currentFace.style.opacity='';}}
         if(autoNext&&!state.transition&&!drag&&elapsed>=autoNext.at){const pending=autoNext;autoNext=null;if(pending.page===state.page&&pending.revision===state.revision)navigateDirection(1);}
         if(bubbleUntil&&elapsed>=bubbleUntil&&!state.transition){bubbleUntil=0;say(t(COPY[STEPS[state.page]].bubble));}
-        if(state.page===0&&!state.transition){const data=NAVA_INK_DATA[state.lang];inkTime[state.lang]=reduce.matches?data.duration+1:Math.min(data.duration+1,inkTime[state.lang]+dt);const canvas=currentFace?.querySelector('.letter-canvas');inkEngines[state.lang]?.render(inkTime[state.lang],canvas);currentFace?.querySelector('.signature')?.classList.toggle('visible',inkTime[state.lang]>=data.duration);}
+        if(state.page===0&&!state.transition){const data=NAVA_INK_DATA[state.lang];inkTime[state.lang]=reduce.matches?data.duration+1:Math.min(data.duration+1,inkTime[state.lang]+delta);const canvas=currentFace?.querySelector('.letter-canvas');inkEngines[state.lang]?.render(inkTime[state.lang],canvas);currentFace?.querySelector('.signature')?.classList.toggle('visible',inkTime[state.lang]>=data.duration);}
         drawCat(reduce.matches?1.3:elapsed,reduce.matches?.04:dt);frame=requestAnimationFrame(tick);
     }
     /** 输入：无。输出：Promise。功能：一次性绑定事件、解码内嵌素材；不外联任何资源。 */
@@ -1064,8 +1075,9 @@ Original cat layers and the existing attributed SVG icon set are reused. -->
         await connectHost();fit();clock();textures();Object.assign(scene,geometry(STEPS[state.page]));currentFace=makeFace(state.page);$('paper-stack').append(currentFace);$('flowers-back').innerHTML=flowers(FLORA[STEPS[state.page]]);header();place();fitSummary(currentFace,true);document.fonts?.ready.then(()=>fitSummary(currentFace));document.documentElement.classList.toggle('is-reduced',reduce.matches);
         $('next').onclick=next;$('language').onclick=()=>languageMenu($('language-menu').hidden);$('pet-hit').onclick=pet;$('bubble').onclick=pet;
         const screen=$('screen');screen.addEventListener('pointerdown',pointerDown);screen.addEventListener('pointermove',pointerMove,{passive:false});screen.addEventListener('pointerup',e=>pointerEnd(e));screen.addEventListener('pointercancel',e=>pointerEnd(e,true));screen.addEventListener('lostpointercapture',captureLost);screen.addEventListener('click',e=>{if(performance.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();}},true);
+        document.addEventListener('click',revealWelcome);
         document.addEventListener('pointerdown',e=>{if(!e.target.closest('header'))languageMenu(false);});document.addEventListener('keydown',keyboard);window.addEventListener('resize',fit);globalThis.visualViewport?.addEventListener('resize',fit);setInterval(()=>{if(!document.hidden)clock();},1000);
-        document.addEventListener('visibilitychange',()=>{clock();if(document.hidden){autoNext=null;if(drag){const x=drag.visual||0;drag=null;snapBack(x);}}else if(!frame){last=0;frame=requestAnimationFrame(tick);}});
+        document.addEventListener('visibilitychange',()=>{clock();last=0;if(document.hidden){autoNext=null;if(drag){const x=drag.visual||0;drag=null;snapBack(x);}}else if(!frame){frame=requestAnimationFrame(tick);}});
         window.addEventListener('pagehide',()=>{autoNext=null;cancelAnimationFrame(frame);frame=0;last=0;});window.addEventListener('pageshow',()=>{fit();clock();if(!frame&&!document.hidden){last=0;frame=requestAnimationFrame(tick);}});
         reduce.addEventListener?.('change',()=>{document.documentElement.classList.toggle('is-reduced',reduce.matches);if(reduce.matches&&flip){finishFlip();$('heading').style.opacity='';$('footer').style.opacity='';$('bubble').style.opacity='';}});
         const images={};await Promise.all(Object.entries(NAVA_ART_DATA).map(async([key,src])=>{const im=new Image();im.src=src;await im.decode();images[key]=im;}));actor=Object.create(CatActor.prototype);actor.images=images;actor.art=FLuffyArt;actor.lastArmLength=0;

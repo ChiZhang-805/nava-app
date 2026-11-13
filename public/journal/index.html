@@ -94,7 +94,35 @@
 <button aria-label="摸摸小猫；长按打开对话" class="home-cat-hotspot" id="home-cat"></button>
 <nav aria-label="底部导航" class="bottom-nav" id="bottom-nav"><button aria-label="首页" class="nav-item active" data-nav="home"><span data-icon="home"></span></button><button aria-label="手记" class="nav-item" data-nav="history"><span data-icon="history"></span></button><button aria-label="和小猫说说话" class="nav-item nav-chat" data-nav="chat"><span data-icon="chat"></span></button><button aria-label="待办" class="nav-item" data-nav="tasks"><span data-icon="tasks"></span></button><button aria-label="我的" class="nav-item" data-nav="profile"><span data-icon="profile"></span></button></nav>
 <section aria-label="记录与设置" class="inner-page" hidden="" id="inner-page"></section>
-<section aria-label="专注倒计时" class="focus-page" hidden="" id="focus-page"><p class="focus-kicker">ONE THING AT A TIME</p><h2 class="focus-task" id="focus-task"></h2><p class="focus-state" id="focus-state">安静地，专注当下</p><div class="timer-ring"><svg aria-hidden="true" viewBox="0 0 300 300"><circle class="ring-track" cx="150" cy="150" r="141"></circle><circle class="ring-progress" cx="150" cy="150" id="ring-progress" r="141" stroke-dasharray="885.929"></circle></svg><div class="timer-readout"><time aria-live="off" class="timer-time" id="timer-time" role="timer">25:00</time><span class="timer-caption" id="timer-caption">剩余专注时间</span></div></div><div class="timer-controls"><button aria-label="重置倒计时" class="timer-control" id="timer-reset"><span data-icon="reset"></span><span>重置</span></button><button aria-label="暂停" class="timer-control main" id="timer-pause"><span data-icon="pause"></span><span id="pause-label">暂停</span></button><button aria-label="暂停休息" class="timer-control" id="timer-rest"><span data-icon="coffee"></span><span>休息</span></button><button aria-label="完全停止" class="timer-control stop" id="timer-stop"><span data-icon="stop"></span><span>停止</span></button></div><p class="focus-footer">不着急，我在旁边陪你。</p></section>
+<section aria-label="专注倒计时" class="focus-page" hidden id="focus-page">
+  <header class="focus-toolbar" id="focus-toolbar"><span>专注</span></header>
+  <div class="focus-main">
+    <div class="focus-heading">
+      <h2 class="focus-task" id="focus-task"></h2>
+      <p class="focus-state" id="focus-state" role="status">正在专注</p>
+    </div>
+    <div class="timer-ring">
+      <svg aria-hidden="true" viewBox="0 0 300 300"><circle class="ring-track" cx="150" cy="150" r="141"></circle><circle class="ring-progress" cx="150" cy="150" id="ring-progress" r="141" stroke-dasharray="885.929"></circle></svg>
+      <div class="timer-readout">
+        <span class="timer-caption" id="timer-caption">剩余专注时间</span>
+        <time aria-live="off" class="timer-time" id="timer-time" role="timer">25:00</time>
+        <span class="timer-plan" id="timer-plan"></span>
+      </div>
+    </div>
+    <div class="focus-companion">
+      <canvas id="focus-companion" width="192" height="144" aria-hidden="true"></canvas>
+      <p class="focus-footer">不着急，我在旁边陪你。</p>
+    </div>
+  </div>
+  <div class="timer-controls">
+    <button type="button" aria-label="暂停" class="timer-control main" id="timer-pause"><span data-icon="pause"></span><span id="pause-label">暂停</span></button>
+    <div class="timer-secondary">
+      <button type="button" aria-label="重置倒计时" class="timer-control" id="timer-reset"><span data-icon="reset"></span><span>重置</span></button>
+      <button type="button" aria-label="暂停休息" class="timer-control" id="timer-rest"><span data-icon="coffee"></span><span>休息</span></button>
+      <button type="button" aria-label="完全停止" class="timer-control stop" id="timer-stop"><span data-icon="stop"></span><span>结束</span></button>
+    </div>
+  </div>
+</section>
 <div class="sheet-layer" hidden="" id="sheet-layer"><section aria-labelledby="sheet-title" aria-modal="true" class="sheet" id="sheet" role="dialog" tabindex="-1"><div class="sheet-handle"></div><header class="sheet-head"><h2 id="sheet-title"></h2><button aria-label="关闭" class="sheet-close" id="sheet-close"><span data-icon="close"></span></button></header><div id="sheet-body"></div></section></div>
 <input accept="image/jpeg,image/png,image/webp,image/heic,image/heif" aria-label="从相册选择照片" hidden="" id="photo-library" type="file"/>
 </div>

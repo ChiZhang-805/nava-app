@@ -1003,40 +1003,86 @@ body {
 
 /* 专注计时：绝对截止时间，界面暂停不等于计时暂停。 */
 .focus-page {
-    position:absolute;
-    inset:88px 22px 39px;
+    position:relative;
     z-index:5;
+    height:100%;
+    min-height:inherit;
+    max-width:480px;
+    margin:auto;
+    padding:calc(var(--journal-safe-top, 0px) + 12px) 24px calc(var(--journal-safe-bottom, 0px) + 20px);
+    display:flex;
+    flex-direction:column;
+    color:#214d64;
     text-align:center
 }
 
-.focus-kicker {
-    font-size:10px;
-    color:#8aa9b2;
-    letter-spacing:2px
+.focus-toolbar {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex:none;
+    min-height:44px;
+    padding-left:44px;
+    font-size:15px;
+    font-weight:600
+}
+
+.focus-main {
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    gap:22px;
+    padding:28px 0 24px
+}
+
+.focus-heading {
+    width:100%;
+    min-width:0
 }
 
 .focus-task {
-    font-size:21px;
+    font-size:25px;
     font-weight:600;
-    color:#365e72;
-    margin:19px 15px 5px;
-    line-height:1.45;
+    margin:0;
+    line-height:1.35;
+    text-wrap:balance;
     overflow-wrap:anywhere;
-    max-height:92px;
+    max-height:2.7em;
     overflow:auto
 }
 
 .focus-state {
-    font-size:12px;
-    color:#7e9dac;
-    margin:8px 0
+    font-size:13px;
+    color:#53758a;
+    margin:10px 0 0;
+    line-height:1.5
+}
+
+.focus-state::before {
+    content:"";
+    display:inline-block;
+    width:6px;
+    height:6px;
+    margin:0 7px 2px 0;
+    border-radius:50%;
+    background:#398f91
+}
+
+.focus-page[data-state="paused"] .focus-state::before,
+.focus-page[data-state="resting"] .focus-state::before {
+    background:#ad7b40
 }
 
 .timer-ring {
     position:relative;
-    width:298px;
-    height:298px;
-    margin:34px auto 0
+    flex:none;
+    width:min(100%,clamp(232px,calc(var(--journal-visible-height, 100dvh) - var(--journal-safe-top, 0px) - var(--journal-safe-bottom, 0px) - 460px),300px));
+    aspect-ratio:1;
+    margin-top:auto;
+    border-radius:50%;
+    background:radial-gradient(circle,#ffffff70 0%,#ffffff28 62%,transparent 70%)
 }
 
 .timer-ring svg {
@@ -1049,15 +1095,15 @@ body {
 
 .timer-ring circle {
     fill:none;
-    stroke-width:3.5
+    stroke-width:4
 }
 
 .ring-track {
-    stroke:#e1ebe9
+    stroke:#c2dfe7
 }
 
 .ring-progress {
-    stroke:#78b5ab;
+    stroke:#438b9c;
     stroke-linecap:round;
     transition:stroke-dashoffset .3s linear
 }
@@ -1072,69 +1118,122 @@ body {
 }
 
 .timer-time {
-    font:300 61px/1 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
-    letter-spacing:-2.4px;
-    color:#284e63;
+    font:400 70px/1.15 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+    letter-spacing:-3px;
+    color:#204b63;
     font-variant-numeric:tabular-nums
 }
 
+.timer-time[data-hours="true"] { font-size:52px;letter-spacing:-2px }
+
 .timer-caption {
-    margin-top:15px;
-    font-size:11px;
-    color:#8ca5af;
-    letter-spacing:1px
+    margin-bottom:12px;
+    font-size:13px;
+    color:#53758a
+}
+
+.timer-plan {
+    margin-top:13px;
+    font-size:13px;
+    color:#53758a;
+    font-variant-numeric:tabular-nums
+}
+
+.focus-companion {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+    min-height:72px;
+    margin-bottom:auto
+}
+
+#focus-companion {
+    flex:none;
+    width:96px;
+    height:72px
 }
 
 .timer-controls {
-    display:flex;
-    justify-content:center;
-    gap:14px;
-    position:absolute;
-    left:0;
-    right:0;
-    bottom:111px
+    flex:none;
+    width:100%;
+    display:grid;
+    gap:12px
+}
+
+.timer-secondary {
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:8px
 }
 
 .timer-control {
     display:flex;
-    flex-direction:column;
     align-items:center;
-    gap:8px;
-    background:transparent;
+    justify-content:center;
+    gap:7px;
+    min-width:0;
+    min-height:48px;
+    padding:10px 4px;
     border:0;
-    color:#789ba6;
-    font-size:10px
+    border-radius:16px;
+    background:transparent;
+    color:#43667a;
+    font-size:14px;
+    touch-action:manipulation;
+    transition:background-color .15s,color .15s,transform .15s
+}
+
+.timer-control.main {
+    min-height:56px;
+    gap:10px;
+    background:#245c72;
+    color:#fff;
+    font-size:17px;
+    font-weight:600;
+    box-shadow:0 6px 18px #22566c12
 }
 
 .timer-control .icon {
-    width:48px;
-    height:48px;
-    padding:13px;
-    background:#eaf3f1;
-    border:1px solid #e0ece8;
-    border-radius:50%;
-    color:#62918f
+    flex:none;
+    width:21px;
+    height:21px
 }
 
 .timer-control.main .icon {
-    background:#457f82;
-    color:#fff;
-    border:0
+    width:22px;
+    height:22px
 }
 
-.timer-control.stop .icon {
-    color:#b87d72;
-    background:#fbefea
+.timer-control.stop { color:#965c52 }
+.timer-control:disabled { opacity:.45;cursor:default }
+.timer-control:not(:disabled):active { transform:scale(.98) }
+@media (hover:hover) {
+    .timer-control:not(:disabled):hover { background:#ffffff90 }
+    .timer-control.main:not(:disabled):hover { background:#1d4c60 }
 }
 
 .focus-footer {
-    position:absolute;
-    left:0;
-    right:0;
-    bottom:59px;
-    text-align:center;
-    color:#9bb0b7;
-    font-size:11px
+    max-width:185px;
+    margin:0;
+    color:#53758a;
+    font-size:13px;
+    line-height:1.65;
+    text-align:left
+}
+
+@media (max-height:760px) {
+    .focus-main { gap:14px;padding:18px 0 }
+    .focus-task { font-size:22px }
+    .timer-ring { max-width:248px }
+    .timer-time { font-size:62px }
+    .timer-time[data-hours="true"] { font-size:44px }
+    .focus-companion { min-height:58px;gap:8px }
+    #focus-companion { width:80px;height:60px }
+}
+
+@media (prefers-reduced-motion:reduce) {
+    .ring-progress,.timer-control { transition:none }
 }
 
 /* 手机内操作面板：由明确交互触发，不在外面增加演示控件。 */

@@ -38,12 +38,12 @@ async function capture(frame,category,scene){
   await page.setViewportSize({width:390,height:844});await page.evaluate(()=>window.journalViewport(844,0,0));
   return;
  }
- const pixels=await frame.evaluate(()=>{
-  const canvas=document.querySelector('#actor-canvas'),data=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let dark=0;
+ const pixels=await frame.evaluate((scene)=>{
+  const canvas=document.querySelector(scene==='focus'?'#focus-companion':'#actor-canvas'),data=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let dark=0;
   for(let i=0;i<data.length;i+=4)if(data[i+3]>100&&data[i]<100&&data[i+2]>data[i]+10)dark++;
   return dark;
- });
- assert.ok(pixels>5000,`Mascot texture missing: ${category} ${scene}, ${pixels} dark pixels`);
+ },scene);
+ assert.ok(pixels>(scene==='focus'?1000:5000),`Mascot texture missing: ${category} ${scene}, ${pixels} dark pixels`);
  for(const d of devices){
   await page.setViewportSize({width:d.width,height:d.height});
   await page.evaluate(d=>window.journalViewport(d.height,d.top,d.bottom),d);await page.waitForTimeout(70);

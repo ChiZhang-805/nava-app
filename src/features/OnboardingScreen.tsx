@@ -33,7 +33,7 @@ type HostMessage =
   | { channel?: unknown; type?: "draft"; draft?: unknown; coldStart?: unknown }
   | { channel?: unknown; type?: "complete"; profile?: unknown; coldStart?: unknown };
 
-const iframePath = `${import.meta.env.BASE_URL}journal/onboarding.html?v=nava-first-run-20261008-v223`;
+const iframePath = `${import.meta.env.BASE_URL}journal/onboarding.html?interaction=welcome-tap-reveal`;
 
 function createChannel() {
   if (typeof window !== "undefined" && window.crypto?.getRandomValues) {

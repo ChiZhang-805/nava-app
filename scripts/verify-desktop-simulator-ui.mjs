@@ -31,7 +31,12 @@ try {
       });
       await context.route("**/rest/v1/journal_entries*", (route) => route.fulfill({ json: [] }));
       await context.route("**/rest/v1/journal_preferences*", (route) => route.fulfill({ json: { settings: {} } }));
-      const open = async (suffix = "") => { await page.goto(`http://127.0.0.1:5228/${suffix}`, { waitUntil: "networkidle" }); if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click(); };
+      const open = async (suffix = "") => {
+        // Same-document focus navigation need not produce a new network-idle event.
+        // Each caller below awaits the actual screen or controls it exercises.
+        await page.goto(`http://127.0.0.1:5228/${suffix}`, { waitUntil: "domcontentloaded" });
+        if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
+      };
       await open(); await expect(page.locator(".auth-form--signIn")).toBeVisible();
       const rail = page.locator(".nava-preview-controls:visible");
       if (viewport.width >= 700) {

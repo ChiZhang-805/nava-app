@@ -173,6 +173,7 @@ Write-Host "34. File retirement, export completeness and navigation failure path
 if ($LASTEXITCODE -ne 0) { throw "Release regression tests failed." }
 Write-Host "35. Current authentication, navigation, overlays and encrypted draft runtime"
 Invoke-Npm -Arguments @("run", "interaction:test")
+Invoke-Npm -Arguments @("run", "welcome:visual")
 Write-Host "36. Journal companion state transitions and shape bounds"
 Invoke-Npm -Arguments @("run", "journal:motion:test")
 Invoke-Npm -Arguments @("run", "journal:motion:visual")

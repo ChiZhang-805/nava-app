@@ -5,6 +5,7 @@ __fluffyModules["locale-ui.js"] = (() => {
     const BASE = { t: L.t, message: L.message, bubble: L.bubble };
     const HAN = /[\u3400-\u9fff]/;
     const TEXT = {
+        "结束": "End",
         "要记下来？点气泡旁的记事按钮": "Want to save this? Tap the note button.",
         "Fluffy Cat 六类生活记录": "Fluffy Cat · six-part journal", "Fluffy Cat · 留一点时间给自己": "Fluffy Cat · A little time for yourself",
         "暂停了，不着急": "Paused. Take your time.", "休息一下，时间为你停留": "Rest a little. The timer can wait.", "这一段时间，认真度过了": "You made this moment count.", "这一段专注已结束": "This session is complete.", "准备开始": "Ready to begin", "正在专注": "Focusing", "留一点时间给自己": "A little time for yourself",

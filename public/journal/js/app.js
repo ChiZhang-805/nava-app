@@ -1604,13 +1604,21 @@ __fluffyModules["app.js"] = (() => {
         const text = formatTimer(s.remainingMs);
         if (text !== lastTimerText) {
             $("timer-time").textContent = text;
+            $("timer-time").dataset.hours = String(text.split(":").length > 2);
             lastTimerText = text;
         }
-        $("focus-task").textContent = Display.text(state.focusRecord?.data.task || "留一点时间给自己");
-        $("focus-state").textContent = Locale.t(({
-            running: "安静地，专注当下", paused: "暂停了，不着急", resting: "休息一下，时间为你停留", completed: "这一段时间，认真度过了", stopped: "这一段专注已结束"
+        const taskLabel = Display.text(state.focusRecord?.data.task || "留一点时间给自己");
+        if ($("focus-task").textContent !== taskLabel) $("focus-task").textContent = taskLabel;
+        const stateLabel = Locale.t(({
+            running: "正在专注", paused: "已暂停", resting: "休息中", completed: "这一段时间，认真度过了", stopped: "这一段专注已结束"
         })[s.state] || "准备开始");
-        $("timer-caption").textContent = s.state === "resting" ? Locale.t(`休息 ${formatTimer(s.restMs + Math.max(0, Date.now() - s.restStarted))}`) : Locale.t("剩余专注时间");
+        if ($("focus-state").textContent !== stateLabel) $("focus-state").textContent = stateLabel;
+        if ($("focus-page").dataset.state !== s.state) $("focus-page").dataset.state = s.state;
+        const minutes = Math.round(s.totalMs / 6000) / 10;
+        const planLabel = Locale.t(`本次 ${minutes} 分钟`, `${minutes} min session`);
+        if ($("timer-plan").textContent !== planLabel) $("timer-plan").textContent = planLabel;
+        const caption = s.state === "resting" ? Locale.t(`休息 ${formatTimer(s.restMs + Math.max(0, Date.now() - s.restStarted))}`) : Locale.t("剩余专注时间");
+        if ($("timer-caption").textContent !== caption) $("timer-caption").textContent = caption;
         $("ring-progress").style.strokeDashoffset = String(885.929 * (1 - s.remainingMs / Math.max(1, s.totalMs)));
         const paused = s.state !== "running";
         const previewState = s.state === "running" ? "running" : "paused";
@@ -1618,9 +1626,15 @@ __fluffyModules["app.js"] = (() => {
             lastPreviewActivityState = previewState;
             window.NavaJournal.call("activity-state", { state: previewState }).catch(() => {});
         }
-        $("pause-label").textContent = Locale.t(paused ? "继续" : "暂停");
-        $("timer-pause").setAttribute("aria-label", paused ? "继续" : "暂停");
-        setIcon($("timer-pause").firstElementChild, paused ? "play" : "pause");
+        const pauseLabel = Locale.t(paused ? "继续" : "暂停");
+        const pauseButton = $("timer-pause"), action = paused ? "play" : "pause";
+        if ($("pause-label").textContent !== pauseLabel) $("pause-label").textContent = pauseLabel;
+        if (pauseButton.getAttribute("aria-label") !== pauseLabel) pauseButton.setAttribute("aria-label", pauseLabel);
+        // Keep the pointer target stable between pointerdown and pointerup in WebKit.
+        if (pauseButton.dataset.action !== action) {
+            pauseButton.dataset.action = action;
+            setIcon(pauseButton.firstElementChild, action);
+        }
         $("timer-rest").disabled = s.state === "resting";
         animation.focusRestTarget = paused ? 1 : 0;
     }
@@ -2439,10 +2453,12 @@ __fluffyModules["app.js"] = (() => {
             renderFocus();
         });
         $("timer-stop").onclick = () => ask("结束这一段专注？", `已认真专注 ${Math.round(timer.tick().elapsedMs / 6000) / 10} 分钟，停止后会保留实际时间。`, finishFocus);
-        const awake=el('button','journal-awake',Locale.t('屏幕常亮','Keep awake'));
+        const awake=el('button','journal-awake');
+        awake.innerHTML=icon('sun');
+        awake.append(el('span','',Locale.t('屏幕常亮','Keep awake')));
         awake.type='button';awake.setAttribute('aria-pressed','false');
         awake.onclick=async()=>{if(awake.disabled)return;awake.disabled=true;try{const enabled=await window.NavaJournal.call('wake',{enabled:awake.getAttribute('aria-pressed')!=='true'});awake.setAttribute('aria-pressed',String(Boolean(enabled)));if(!enabled)toast(Locale.t('常亮已关闭或当前设备不支持。','Keep-awake is off or unavailable.'));}catch{toast(Locale.t('无法开启屏幕常亮。','Keep-awake is unavailable.'));}finally{awake.disabled=false;}};
-        $('focus-page').append(awake);
+        $('focus-toolbar').append(awake);
         // 阶段四：离开页面释放音视频，保存专注截止时间，不保存密钥。
         window.addEventListener("resize", resizePhone);
         window.addEventListener("pagehide", () => {

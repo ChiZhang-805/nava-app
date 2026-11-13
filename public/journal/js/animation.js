@@ -54,6 +54,7 @@ __fluffyModules["animation.js"] = (() => {
             this.callbacks = callbacks;
             this.canvas = $("actor-canvas");
             this.ctx = this.canvas.getContext("2d");
+            this.focusCtx = $("focus-companion").getContext("2d");
             this.scene = "home";
             this.time = 0;
             this.idle = 7;
@@ -491,13 +492,16 @@ __fluffyModules["animation.js"] = (() => {
                 ctx.restore();
             }
             else if (this.scene === "focus") {
-                // 专注时把动作缩小、放慢；暂停与休息姿态仍然平滑追踪。
+                // A small flow-layout companion has its own canvas, independent of viewport height.
+                const ctx = this.focusCtx;
+                ctx.setTransform(2, 0, 0, 2, 0, 0);
+                ctx.clearRect(0, 0, 96, 72);
                 const rest = this.focusRest || 0;
                 ctx.save();
-                ctx.translate(100, 420);
-                ctx.scale(.49, .49);
+                ctx.translate(-6, -60);
+                ctx.scale(.28, .28);
                 this.actor.record(ctx, {
-                    t: 0, idle: this.idle * .65, sleep: .8 * rest, headSleep: .8 * rest, tailSleep: .9,
+                    t: 0, idle: this.reducedMotion ? 0 : this.idle * .65, sleep: .8 * rest, headSleep: .8 * rest, tailSleep: .9,
                     pen: null, grip: [177, 405], release: 1, lookOverride: 0
                 });
                 ctx.restore();
