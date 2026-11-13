@@ -179,12 +179,13 @@ async function readLayout(page) {
     return {
       brandCenterDelta: mark && brand ? Number(((mark.left + mark.width / 2) - (brand.left + brand.width / 2)).toFixed(2)) : null,
       fields: labels,
+      brand: brand && { bottom: Math.round(brand.bottom), top: Math.round(brand.top) },
       form: form && { height: Math.round(form.height), width: Math.round(form.width), x: Math.round(form.x), y: Math.round(form.y) },
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
       title: document.querySelector(".auth-form-head h1")?.textContent?.trim(),
       verticalOverflow: document.documentElement.scrollHeight > window.innerHeight,
       viewport: { height: window.innerHeight, width: window.innerWidth },
-      wordmark: mark && { left: Math.round(mark.left), right: Math.round(mark.right), width: Math.round(mark.width) },
+      wordmark: mark && { bottom: Math.round(mark.bottom), left: Math.round(mark.left), right: Math.round(mark.right), top: Math.round(mark.top), width: Math.round(mark.width) },
     };
   });
   return {
@@ -269,6 +270,36 @@ async function main() {
     await openAppPage(compactPage);
     metrics.compactLogin = await readLayout(compactPage);
     await compactPage.screenshot({ path: path.join(outputDir, "login-compact.png") });
+    await compactPage.evaluate(() => {
+      const root = document.documentElement;
+      root.dataset.keyboardOpen = "true";
+      root.style.setProperty("--nava-visible-height", "420px");
+    });
+    await compactPage.waitForTimeout(100);
+    metrics.compactLogin.keyboard = await compactPage.evaluate(() => {
+      const root = document.documentElement;
+      const body = document.body;
+      const stage = document.querySelector(".nava-app-stage");
+      const screen = document.querySelector(".auth-screen");
+      const formRegion = document.querySelector(".auth-form-region");
+      const social = document.querySelector(".auth-social");
+      const rect = screen?.getBoundingClientRect();
+      return {
+        bodyBackground: getComputedStyle(body).backgroundColor,
+        formOverflow: formRegion ? getComputedStyle(formRegion).overflowY : null,
+        rootBackground: getComputedStyle(root).backgroundColor,
+        screenBackground: screen ? getComputedStyle(screen).backgroundImage : null,
+        screenHeight: rect?.height ?? null,
+        socialDisplay: social ? getComputedStyle(social).display : null,
+        stageBackground: stage ? getComputedStyle(stage).backgroundImage : null,
+      };
+    });
+    await compactPage.screenshot({ path: path.join(outputDir, "login-keyboard-layout.png"), clip: { x: 0, y: 0, width: 375, height: 420 } });
+    await compactPage.evaluate(() => {
+      const root = document.documentElement;
+      delete root.dataset.keyboardOpen;
+      root.style.removeProperty("--nava-visible-height");
+    });
     await compactPage.locator(".auth-mode-icon").tap();
     await compactPage.locator(".auth-screen--signUp").waitFor({ state: "visible" });
     metrics.compactRegistration = await readLayout(compactPage);
@@ -287,10 +318,12 @@ async function main() {
     metrics.compactRegistration.codeButtonTapWorked = await compactPage.locator(".success-text").isVisible();
     await compactPage.locator(".auth-return-inline").tap();
     await compactPage.locator(".auth-forgot").tap();
+    metrics.compactResetInitial = await readLayout(compactPage);
     await compactPage.locator('input[autocomplete="username"]').fill("reset@example.com");
     await compactPage.waitForTimeout(500);
     metrics.compactReset = await readLayout(compactPage);
     await compactPage.screenshot({ path: path.join(outputDir, "reset-password-compact.png") });
+
     await compactContext.close();
 
     const emailLoginContext = await makeContext(browser);
@@ -445,6 +478,33 @@ async function main() {
       throw new Error(`Reset mode is incomplete: ${JSON.stringify(metrics.reset)}`);
     }
     if (metrics.resetEnglish.title !== "Reset password") throw new Error(`English reset label is inconsistent: ${JSON.stringify(metrics.resetEnglish)}`);
+    for (const [name, layout] of Object.entries({
+      registration: metrics.emailRegistration,
+      reset: metrics.reset,
+      compactRegistration: metrics.compactRegistration,
+      compactReset: metrics.compactResetInitial,
+    })) {
+      const reference = name.startsWith("compact") ? metrics.compactRegistration : metrics.emailRegistration;
+      if (
+        Math.abs(layout.brand.top - reference.brand.top) > 1
+        || Math.abs(layout.wordmark.top - reference.wordmark.top) > 1
+        || Math.abs(layout.form.y - reference.form.y) > 1
+        || Math.abs(layout.form.x - reference.form.x) > 1
+      ) {
+        throw new Error(`Auth mode baselines differ: ${JSON.stringify({ name, layout, reference })}`);
+      }
+    }
+    if (
+      metrics.compactLogin.keyboard.rootBackground !== "rgb(143, 207, 233)"
+      || metrics.compactLogin.keyboard.bodyBackground !== "rgb(143, 207, 233)"
+      || !metrics.compactLogin.keyboard.screenBackground.includes("auth-texture")
+      || !metrics.compactLogin.keyboard.stageBackground.includes("auth-texture")
+      || Math.abs(metrics.compactLogin.keyboard.screenHeight - 420) > 1
+      || metrics.compactLogin.keyboard.formOverflow !== "auto"
+      || metrics.compactLogin.keyboard.socialDisplay !== "none"
+    ) {
+      throw new Error(`Keyboard auth surface is inconsistent: ${JSON.stringify(metrics.compactLogin.keyboard)}`);
+    }
     if (metrics.confirmPasswordTypes[0] !== "password" || metrics.confirmPasswordTypes[1] !== "text") {
       throw new Error(`Password visibility controls are not independent: ${JSON.stringify(metrics.confirmPasswordTypes)}`);
     }

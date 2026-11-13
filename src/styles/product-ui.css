@@ -1,10 +1,10 @@
 /* Final overrides for the read-only Figma mobile v2 implementation. */
-html,
+html:root,
 body,
 #root {
   width: 100%;
   min-width: 0;
-  background: #fff;
+  background: #8fcfe9;
 }
 
 body::before {
@@ -21,8 +21,9 @@ body::before {
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   background:
-    radial-gradient(ellipse at 14% 12%, rgba(246, 253, 255, 0.96) 0 9%, transparent 58%),
-    linear-gradient(143deg, #edfaff 0%, #bfeaff 34%, #78cff7 65%, #37a9e4 100%);
+    linear-gradient(180deg, rgba(235, 248, 254, 0.08), rgba(22, 128, 184, 0.06)),
+    url("../assets/figma/auth-texture.jpg") center / cover no-repeat,
+    #8fcfe9;
 }
 
 .nava-app-stage::before {
@@ -15081,4 +15082,197 @@ body::before {
   }
   .profile-security-entries { grid-template-rows: repeat(7, minmax(52px, auto)); }
   .profile-security-entries > button { min-height: 52px; }
+}
+
+/* Authentication and home release layout ---------------------------------
+   All signed-out modes share one brand baseline and one form baseline. */
+.auth-screen:is(.auth-screen--signIn, .auth-screen--signUp, .auth-screen--reset) {
+  grid-template-rows: clamp(194px, 29dvh, 272px) minmax(0, 1fr);
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(235, 248, 254, 0.08), rgba(22, 128, 184, 0.06)),
+    url("../assets/figma/auth-texture.jpg") center / cover no-repeat,
+    #8fcfe9;
+}
+
+.auth-screen:is(.auth-screen--signIn, .auth-screen--signUp, .auth-screen--reset)::after {
+  content: none;
+}
+
+.auth-screen:is(.auth-screen--signIn, .auth-screen--signUp, .auth-screen--reset) .auth-brand {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.auth-screen:is(.auth-screen--signIn, .auth-screen--signUp, .auth-screen--reset) .auth-brand .nava-wordmark {
+  --wordmark-size: clamp(58px, 16cqw, 72px);
+  min-height: 78px;
+}
+
+.auth-screen:is(.auth-screen--signIn, .auth-screen--signUp, .auth-screen--reset) .auth-form-region {
+  min-height: 0;
+  align-items: flex-start;
+  padding-top: clamp(6px, 1dvh, 10px);
+}
+
+.auth-screen:is(.auth-screen--signIn, .auth-screen--signUp, .auth-screen--reset) .auth-form {
+  width: 100%;
+  max-width: 372px;
+}
+
+.auth-screen--signUp .auth-form-region {
+  gap: 0;
+  padding-bottom: max(84px, calc(env(safe-area-inset-bottom) + 68px));
+}
+
+.auth-form .input-wrap,
+.auth-form .auth-code-button,
+.auth-submit,
+.auth-form--signIn .auth-submit {
+  border-radius: 16px;
+}
+
+.auth-form .auth-code-wrap {
+  padding-right: 5px;
+}
+
+.auth-form .auth-code-button {
+  min-width: 92px;
+  min-height: 38px;
+  margin-left: 6px;
+  border-radius: 14px;
+  padding-inline: 12px;
+}
+
+.auth-consent.auth-consent--screen {
+  bottom: max(34px, calc(env(safe-area-inset-bottom) + 22px));
+}
+
+/* The home header starts immediately below the system safe area. */
+.option-two-scores {
+  top: max(16px, calc(env(safe-area-inset-top) + 14px));
+  left: 14px;
+  gap: 8px;
+}
+
+.option-two-scores > div {
+  width: clamp(124px, 32cqw, 136px);
+  min-height: 32px;
+  gap: 8px;
+  padding: 4px 12px;
+}
+
+.option-two-side-actions {
+  top: max(8px, calc(env(safe-area-inset-top) + 6px));
+  right: 14px;
+}
+
+.home-widget-grid {
+  top: max(72px, calc(env(safe-area-inset-top) + 66px));
+  grid-template-rows: repeat(2, clamp(108px, 13.52cqh, 126px));
+  row-gap: 10px;
+}
+
+.option-two-guidance {
+  bottom: clamp(306px, 37cqh, 346px);
+}
+
+.option-two-life-stage {
+  bottom: max(62px, calc(env(safe-area-inset-bottom) + 54px));
+}
+
+.option-two-home.is-health-menu-open .option-two-life-stage {
+  bottom: max(88px, calc(env(safe-area-inset-bottom) + 80px));
+}
+
+/* The home shortcut menu is an icon rail, not a labelled card. */
+.option-two-side-actions.is-open {
+  width: 48px;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.option-two-side-actions.is-open .option-two-menu-toggle {
+  align-self: center;
+}
+
+.option-two-side-actions.is-open .option-two-side-shortcut {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  margin: 0;
+  border-radius: 50%;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+  box-shadow: 0 7px 17px rgba(31, 73, 98, .18), inset 0 1px 0 rgba(255, 255, 255, .96);
+}
+
+.option-two-side-actions.is-open .option-two-side-shortcut::after {
+  content: none;
+}
+
+.option-two-side-actions.is-open .option-two-menu-unread {
+  top: 5px;
+  right: 5px;
+}
+
+@media (max-width: 370px), (max-height: 760px) {
+  .auth-screen:is(.auth-screen--signIn, .auth-screen--signUp, .auth-screen--reset) {
+    grid-template-rows: 166px minmax(0, 1fr);
+  }
+
+  .auth-screen:is(.auth-screen--signIn, .auth-screen--signUp, .auth-screen--reset) .auth-brand .nava-wordmark {
+    --wordmark-size: 56px;
+    min-height: 64px;
+  }
+
+  .auth-form .auth-code-button {
+    min-width: 90px;
+    margin-right: 0;
+  }
+
+  .option-two-scores {
+    top: max(15px, calc(env(safe-area-inset-top) + 13px));
+    left: 12px;
+    gap: 6px;
+  }
+
+  .option-two-scores > div {
+    width: 124px;
+    min-height: 30px;
+    padding-inline: 10px;
+  }
+
+  .option-two-side-actions {
+    top: max(7px, calc(env(safe-area-inset-top) + 5px));
+    right: 11px;
+  }
+
+  .option-two-side-actions.is-open {
+    width: 44px;
+    gap: 7px;
+    padding: 0;
+  }
+
+  .home-widget-grid {
+    top: max(98px, calc(env(safe-area-inset-top) + 58px));
+    row-gap: 8px;
+  }
+
+  .option-two-guidance {
+    bottom: clamp(276px, 36cqh, 312px);
+  }
+
+  .option-two-life-stage {
+    bottom: 52px;
+  }
 }

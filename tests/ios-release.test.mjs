@@ -127,8 +127,9 @@ test("native builder overrides hostile ambient demo and project settings before 
 test("native signed-out screens keep their packaged background and fill the device width", () => {
   const bootstrap = readFileSync(path.join(root, "src/AppBootstrap.tsx"), "utf8");
   const styles = readFileSync(path.join(root, "src/styles/product-ui.css"), "utf8");
-  assert.match(bootstrap, /function BootstrapStage[\s\S]*?<LivingBackground \/>[\s\S]*?\{children\}/);
-  assert.match(styles, /\.nava-app-stage\s*\{[\s\S]*?linear-gradient\(143deg,[\s\S]*?\}/);
+  assert.doesNotMatch(bootstrap, /LivingBackground|AuthLoadingScreen|auth-skeleton/);
+  assert.match(bootstrap, /function BootstrapStage[\s\S]*?\{children\}/);
+  assert.match(styles, /\.nava-app-stage\s*\{[\s\S]*?auth-texture\.jpg[\s\S]*?\}/);
   assert.match(styles, /\.auth-screen\s*\{[\s\S]*?isolation:\s*isolate;[\s\S]*?grid-template-rows:\s*clamp\(/);
   assert.match(styles, /\.auth-form,\s*\n\.auth-form--signIn\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*410px;/);
 });

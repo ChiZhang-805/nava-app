@@ -13,8 +13,6 @@ import type { OnboardingStatus } from "./services/onboarding";
 import { AuthProvider } from "./state/AuthProvider";
 import { useAuth } from "./state/authContext";
 import LoadingShell from "./components/LoadingShell";
-import LivingBackground from "./components/LivingBackground";
-import PageSkeleton from "./components/PageSkeleton";
 import DesktopDevicePreviewChrome from "./components/DesktopDevicePreviewChrome";
 
 const loadAuthenticatedApp = () => import("./App");
@@ -46,10 +44,6 @@ function LoadingScreen() {
   return <LoadingShell />;
 }
 
-function AuthLoadingScreen() {
-  return <main className="auth-screen auth-loading-screen"><PageSkeleton variant="auth" /></main>;
-}
-
 function ConfigErrorScreen({ message }: { message: string }) {
   const t = useT();
 
@@ -74,7 +68,6 @@ function BootstrapStage({
 }) {
   return (
     <div className="nava-app-stage">
-      <LivingBackground />
       {children}
       <DesktopDevicePreviewChrome onFirstLoginPreview={onFirstLoginPreview} />
     </div>
@@ -90,7 +83,6 @@ function BootstrapContent() {
   const [sessionUnlocked, setSessionUnlocked] = useState(() => !isNativePlatform || hasRecentSocialAuthReturn());
   const [firstLoginPreviewOpen, setFirstLoginPreviewOpen] = useState(false);
   const [firstLoginPreviewKey, setFirstLoginPreviewKey] = useState(0);
-  const forceAuthSkeleton = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "auth-skeleton";
   const authenticated = Boolean(user && sessionUnlocked);
 
   if (!loading && !authenticated) signedOutScreenSeen.current = true;
@@ -153,13 +145,11 @@ function BootstrapContent() {
     />
   ) : null;
 
-  if (forceAuthSkeleton) return <BootstrapStage onFirstLoginPreview={openFirstLoginPreview}>{firstLoginPreview ?? <AuthLoadingScreen />}</BootstrapStage>;
   if (configError && !isDemoMode()) return <BootstrapStage onFirstLoginPreview={openFirstLoginPreview}>{firstLoginPreview ?? <ConfigErrorScreen message={configError} />}</BootstrapStage>;
-  if (loading) return <BootstrapStage onFirstLoginPreview={openFirstLoginPreview}>{firstLoginPreview ?? <AuthLoadingScreen />}</BootstrapStage>;
 
   return (
     <>
-      {!user && (
+      {(!user || loading) && (
         <BootstrapStage onFirstLoginPreview={openFirstLoginPreview}>
           {firstLoginPreview ?? <AuthScreen onAuthenticated={() => {
             setFreshAuthentication(true);
@@ -167,7 +157,7 @@ function BootstrapContent() {
           }} />}
         </BootstrapStage>
       )}
-      {user && !sessionUnlocked && (
+      {!loading && user && !sessionUnlocked && (
         <BootstrapStage onFirstLoginPreview={openFirstLoginPreview}>
           {firstLoginPreview ?? <AuthScreen onAuthenticated={() => {
             setFreshAuthentication(true);
@@ -175,7 +165,7 @@ function BootstrapContent() {
           }} />}
         </BootstrapStage>
       )}
-      {authenticated && (
+      {!loading && authenticated && (
         <Suspense fallback={<BootstrapStage onFirstLoginPreview={openFirstLoginPreview}><LoadingScreen /></BootstrapStage>}>
             <AuthenticatedApp
               signedOutScreenSeen={signedOutScreenSeen.current}

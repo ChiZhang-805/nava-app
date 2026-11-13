@@ -66,7 +66,7 @@ async function renderAsset(browser, { cssSize, fontSize, outputPath, expectedSiz
   await context.addInitScript(() => window.sessionStorage.setItem("nava.launch.sequence.v1", "seen"));
   const page = await context.newPage();
   await page.goto(`${baseUrl}/?bgTime=11.5&bgSeed=8.1`, { waitUntil: "networkidle" });
-  await page.locator('.living-background__canvas[data-ready="true"]').waitFor({ timeout: 15_000 });
+  await page.locator(".auth-screen").waitFor({ state: "visible", timeout: 15_000 });
   await page.locator(".auth-brand .nava-wordmark__text").waitFor({ state: "visible" });
   await page.addStyleTag({ content: `
     html, body, #root, .nava-app-stage {
@@ -76,12 +76,6 @@ async function renderAsset(browser, { cssSize, fontSize, outputPath, expectedSiz
       max-width: none !important;
       margin: 0 !important;
       overflow: hidden !important;
-    }
-    .living-background {
-      position: absolute !important;
-      inset: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
     }
     .auth-screen {
       position: absolute !important;

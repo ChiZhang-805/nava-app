@@ -14,8 +14,23 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
         ProcessInfo.processInfo.arguments.contains("-NavaVisualDietDashboard")
     }
 
+    private static let startupBackground = UIColor(
+        red: 143.0 / 255.0,
+        green: 207.0 / 255.0,
+        blue: 233.0 / 255.0,
+        alpha: 1
+    )
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = Self.startupBackground
+    }
+
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
+        bridge?.webView?.isOpaque = false
+        bridge?.webView?.backgroundColor = Self.startupBackground
+        bridge?.webView?.scrollView.backgroundColor = Self.startupBackground
         bridge?.registerPluginInstance(NavaHealthPlugin())
         bridge?.registerPluginInstance(NavaSecureStoragePlugin())
         bridge?.registerPluginInstance(NavaWatchBridgePlugin())

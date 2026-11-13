@@ -891,6 +891,41 @@
       "path": "src/styles/figma-v2.css",
       "gitBlob": "f85ef41bccdde6d01891a425a2755aa640a7bfba",
       "reason": "Retired versioned filename after replacement by product-ui.css"
+    },
+    {
+      "path": "src/components/LaunchSequence.tsx",
+      "gitBlob": "4ca059aa0b94a61db13236e99fbe324a8ea24f3e",
+      "reason": "Removed obsolete interactive launch page so startup proceeds directly to authentication"
+    },
+    {
+      "path": "src/components/LivingBackground.tsx",
+      "gitBlob": "a0c2c032b94c794381941ff8391be33258c81e85",
+      "reason": "Removed obsolete animated water background from the authentication shell"
+    },
+    {
+      "path": "src/components/livingBackgroundRenderer.ts",
+      "gitBlob": "7669255fdc7c51b898349e6d3ed9183e052c86b9",
+      "reason": "Removed renderer used only by the retired animated authentication background"
+    },
+    {
+      "path": "scripts/capture-motion-background.mjs",
+      "gitBlob": "760a79492f019694f935d9d66d4a882dfb2a9a1e",
+      "reason": "Removed obsolete visual capture for the retired animated authentication background"
+    },
+    {
+      "path": "scripts/capture-background-states.mjs",
+      "gitBlob": "42ea592ba1d57d92fa9d6272c6e52725d063469e",
+      "reason": "Removed obsolete state capture for the retired animated authentication background"
+    },
+    {
+      "path": "src/services/backgroundMotion.ts",
+      "gitBlob": "6fee4ef0526185ce0066c5dc93ea4ceee97de511",
+      "reason": "Removed motion service that no longer has a runtime consumer after the water background was retired"
+    },
+    {
+      "path": "tests/background-motion.test.ts",
+      "gitBlob": "7cae231858974ec399042aaf6772dd36081bb30c",
+      "reason": "Removed tests for the retired authentication background motion service"
     }
   ]
 }

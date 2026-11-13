@@ -95,6 +95,7 @@ try {
           const box = element.getBoundingClientRect();
           return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, fontFamily: style.fontFamily, fontSize: Number.parseFloat(style.fontSize), fontWeight: Number.parseInt(style.fontWeight, 10), lineHeight: Number.parseFloat(style.lineHeight), textAlign: style.textAlign, text: element.textContent ?? "" };
         })(),
+        menuToggle: rect(".option-two-menu-toggle"),
         scores: rect(".option-two-scores"),
         navTop: navButtons.length ? Math.min(...navButtons.map((box) => box.top)) : null,
       };
@@ -108,19 +109,53 @@ try {
     if (Math.abs(guidanceCenterY - guidanceCopyCenterY) > 3) throw new Error(`${viewport.name}: guidance copy is not vertically centered ${JSON.stringify({ guidanceCenterY, guidanceCopyCenterY })}`);
     if (!geometry.guidanceCopy.text.trim()) throw new Error(`${viewport.name}: guidance copy is empty`);
     if (geometry.scores && geometry.guidance.top < geometry.scores.bottom + 8) throw new Error(`${viewport.name}: guidance overlaps the score row ${JSON.stringify(geometry)}`);
+    if (geometry.scores && geometry.menuToggle) {
+      const scoreCenter = (geometry.scores.top + geometry.scores.bottom) / 2;
+      const menuCenter = (geometry.menuToggle.top + geometry.menuToggle.bottom) / 2;
+      if (Math.abs(scoreCenter - menuCenter) > 1) throw new Error(`${viewport.name}: score row and menu are not center-aligned ${JSON.stringify({ scoreCenter, menuCenter })}`);
+    }
     if (geometry.navTop != null && geometry.guidance.bottom > geometry.navTop - 8) throw new Error(`${viewport.name}: guidance collides with navigation ${JSON.stringify(geometry)}`);
     if (viewport.name === "430x932") {
       assertNear(geometry.guidance.left, 18, 2, "430x932 guidance left");
-      assertNear(geometry.guidance.top, 516, 3, "430x932 guidance top");
+      assertNear(geometry.guidance.top, 497, 3, "430x932 guidance top");
       assertNear(geometry.guidance.width, 180, 2, "430x932 guidance width");
       assertNear(geometry.guidance.height, 90, 2, "430x932 guidance height");
-      assertNear(geometry.scores.left, 18, 2, "430x932 score row left");
-      assertNear(geometry.scores.top, 77, 2, "430x932 score row top");
-      assertNear(geometry.scores.height, 34, 2, "430x932 score row height");
+      assertNear(geometry.scores.left, 14, 2, "430x932 score row left");
+      assertNear(geometry.scores.top, 16, 2, "430x932 score row top");
+      assertNear(geometry.scores.height, 32, 2, "430x932 score row height");
       assertNear(geometry.navTop, 811, 3, "430x932 center navigation top");
     }
 
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-guidance.png`) });
+
+    if (viewport.name === "430x932") {
+      await page.locator(".option-two-menu-toggle").click();
+      await expect(page.locator(".option-two-side-actions")).toHaveClass(/is-open/);
+      await page.waitForTimeout(420);
+      const shortcutGeometry = await page.locator(".option-two-side-actions").evaluate((rail) => {
+        const style = getComputedStyle(rail);
+        const buttons = [...rail.querySelectorAll(".option-two-side-shortcut")].map((button) => {
+          const box = button.getBoundingClientRect();
+          return {
+            after: getComputedStyle(button, "::after").content,
+            height: box.height,
+            width: box.width,
+          };
+        });
+        return { background: style.backgroundColor, buttons, width: rail.getBoundingClientRect().width };
+      });
+      if (
+        Math.abs(shortcutGeometry.width - 48) > 1
+        || shortcutGeometry.background !== "rgba(0, 0, 0, 0)"
+        || shortcutGeometry.buttons.length < 5
+        || shortcutGeometry.buttons.some((button) => Math.abs(button.width - 44) > 1 || Math.abs(button.height - 44) > 1 || button.after !== "none")
+      ) {
+        throw new Error(`Home shortcut rail is not icon-only: ${JSON.stringify(shortcutGeometry)}`);
+      }
+      await page.screenshot({ path: path.join(outputDir, `${viewport.name}-shortcut-icons.png`) });
+      await page.locator(".option-two-menu-toggle").click();
+      await expect(page.locator(".option-two-side-actions")).toHaveClass(/is-collapsed/);
+    }
 
     // Exercise the ephemeral bubble before its real ten-second dismissal, not after
     // screenshots, swipes and animation loading have consumed that lifetime.
