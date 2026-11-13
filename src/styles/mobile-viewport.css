@@ -31,21 +31,51 @@ html[data-keyboard-open="true"] .nava-app-stage > :is(.phone-frame, .auth-screen
   height: var(--nava-visible-height);
   min-height: 0;
 }
-html[data-keyboard-open="true"] .auth-screen {
-  display: grid;
-  grid-template-rows: calc(88px + env(safe-area-inset-top)) minmax(0, 1fr);
-  overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(235, 248, 254, 0.08), rgba(22, 128, 184, 0.06)),
-    url("../assets/figma/auth-texture.jpg") center / cover no-repeat,
-    #8fcfe9;
+/* A full-height wallpaper lives outside the keyboard-sized content canvas. */
+.auth-backdrop {
+  position: absolute;
+  inset: 0 0 auto;
+  height: var(--auth-canvas-height, 100%);
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(235, 248, 254, 0.08), rgba(22, 128, 184, 0.06)),
+    url("../assets/figma/auth-texture.jpg") center / cover no-repeat, #8fcfe9;
 }
-html[data-keyboard-open="true"] .auth-brand {
+html[data-native-auth-canvas="true"],
+html[data-native-auth-canvas="true"] :is(body, #root, .nava-app-stage) {
+  background: transparent;
+}
+html[data-native-auth-canvas="true"] .auth-backdrop {
+  /* UIKit owns the actual image; keep the original full-height tint. */
+  background: linear-gradient(180deg, rgba(235, 248, 254, 0.08), rgba(22, 128, 184, 0.06));
+}
+html[data-auth-viewport="true"] .auth-screen:is(.auth-screen--signIn, .auth-screen--signUp, .auth-screen--reset) {
+  height: var(--auth-canvas-height, 100dvh);
+  min-height: 0;
+  background: transparent;
+}
+html[data-auth-viewport="true"] .nava-app-stage {
+  min-height: var(--auth-canvas-height, 100dvh);
+}
+html[data-auth-viewport="true"] .auth-screen .auth-brand,
+html[data-auth-viewport="true"] .auth-screen .auth-brand .nava-wordmark {
+  animation: none;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen {
+  display: grid;
+  grid-template-rows: 76px minmax(0, 1fr);
+  /* The image keeps its full-screen dimensions. Only content ends above IME. */
+  height: var(--auth-canvas-height, 100dvh);
+  padding-bottom: max(8px, calc(var(--auth-canvas-height, 100dvh) - var(--nava-visible-height) + 8px));
+  overflow: hidden;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand {
   min-height: 0;
   padding: 0;
   margin: 0;
+  animation: none;
 }
-html[data-keyboard-open="true"] .auth-form-region {
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form-region {
   display: flex;
   height: 100%;
   min-height: 0;
@@ -54,13 +84,14 @@ html[data-keyboard-open="true"] .auth-form-region {
   scroll-padding-block: 8px;
   padding: 4px 0 12px;
 }
-html[data-keyboard-open="true"] .auth-form {
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form {
   flex: none;
   height: auto;
 }
-html[data-keyboard-open="true"] .auth-brand .nava-wordmark {
-  --wordmark-size: 46px;
-  min-height: 54px;
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand .nava-wordmark {
+  --wordmark-size: 42px;
+  min-height: 50px;
+  animation: none;
 }
 html[data-keyboard-open="true"] .auth-social,
 html[data-keyboard-open="true"] .auth-secondary-links,

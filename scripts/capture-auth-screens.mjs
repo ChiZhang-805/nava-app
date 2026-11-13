@@ -288,8 +288,9 @@ async function main() {
         bodyBackground: getComputedStyle(body).backgroundColor,
         formOverflow: formRegion ? getComputedStyle(formRegion).overflowY : null,
         rootBackground: getComputedStyle(root).backgroundColor,
-        screenBackground: screen ? getComputedStyle(screen).backgroundImage : null,
+        screenBackground: getComputedStyle(document.querySelector('.auth-backdrop')).backgroundImage,
         screenHeight: rect?.height ?? null,
+        formBottom: formRegion?.getBoundingClientRect().bottom ?? null,
         socialDisplay: social ? getComputedStyle(social).display : null,
         stageBackground: stage ? getComputedStyle(stage).backgroundImage : null,
       };
@@ -499,7 +500,8 @@ async function main() {
       || metrics.compactLogin.keyboard.bodyBackground !== "rgb(143, 207, 233)"
       || !metrics.compactLogin.keyboard.screenBackground.includes("auth-texture")
       || !metrics.compactLogin.keyboard.stageBackground.includes("auth-texture")
-      || Math.abs(metrics.compactLogin.keyboard.screenHeight - 420) > 1
+      || Math.abs(metrics.compactLogin.keyboard.screenHeight - metrics.compactLogin.viewport.height) > 1
+      || metrics.compactLogin.keyboard.formBottom > 420
       || metrics.compactLogin.keyboard.formOverflow !== "auto"
       || metrics.compactLogin.keyboard.socialDisplay !== "none"
     ) {

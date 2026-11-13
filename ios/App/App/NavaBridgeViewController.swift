@@ -9,6 +9,11 @@ import WebKit
 final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHandler {
     private var nativeHost: UIHostingController<NavaNativeRootView>?
     private var authMessageProxy: NavaWeakScriptMessageHandler?
+    private let authBackdrop = UIImageView(image: UIImage(named: "NavaAuthTexture"))
+    private var authViewportEnabled = false
+    private var keyboardScreenFrame = CGRect.null
+    private var scrollObservation: NSKeyValueObservation?
+    private var lastAuthViewport: [String: Double] = [:]
 
     private var startsOnDietDashboard: Bool {
         ProcessInfo.processInfo.arguments.contains("-NavaVisualDietDashboard")
@@ -28,6 +33,7 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
 
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
+        installAuthCanvas()
         bridge?.webView?.isOpaque = false
         bridge?.webView?.backgroundColor = Self.startupBackground
         bridge?.webView?.scrollView.backgroundColor = Self.startupBackground
@@ -39,6 +45,7 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
         bridge?.registerPluginInstance(NavaNotificationPermissionPlugin())
         bridge?.registerPluginInstance(NavaAppleSignInPlugin())
         bridge?.registerPluginInstance(NavaExternalAuthPlugin())
+        bridge?.registerPluginInstance(NavaAuthViewportPlugin())
 
         if NavaNativeFeatureFlag.isEnabled, startsOnDietDashboard {
             presentNativeExperience()
@@ -53,6 +60,96 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
                 object: nil
             )
         }
+    }
+
+    // CAPBridgeViewController normally uses WKWebView as its root. Give the
+    // wallpaper its own full-window UIKit canvas, outside every scroll view.
+    private func installAuthCanvas() {
+        guard let webView = bridge?.webView else { return }
+        let canvas = UIView(frame: webView.frame)
+        authBackdrop.contentMode = .scaleAspectFill
+        authBackdrop.clipsToBounds = true
+        authBackdrop.isUserInteractionEnabled = false
+        authBackdrop.isHidden = true
+        canvas.addSubview(authBackdrop)
+        canvas.addSubview(webView)
+        view = canvas
+        for child in [authBackdrop, webView] {
+            child.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                child.leadingAnchor.constraint(equalTo: canvas.leadingAnchor),
+                child.trailingAnchor.constraint(equalTo: canvas.trailingAnchor),
+                child.topAnchor.constraint(equalTo: canvas.topAnchor),
+                child.bottomAnchor.constraint(equalTo: canvas.bottomAnchor)
+            ])
+        }
+        scrollObservation = webView.scrollView.observe(\.contentOffset, options: [.new]) { [weak self] scroll, _ in
+            guard self?.authViewportEnabled == true, scroll.contentOffset != .zero else { return }
+            // WebKit's focus assistance must not pan the root behind the status
+            // bar. CSS overflow inside auth-form-region still scrolls normally.
+            scroll.setContentOffset(.zero, animated: false)
+        }
+        for name in [UIResponder.keyboardWillChangeFrameNotification, UIResponder.keyboardDidChangeFrameNotification] {
+            NotificationCenter.default.addObserver(self, selector: #selector(authKeyboardChanged(_:)), name: name, object: nil)
+        }
+        NotificationCenter.default.addObserver(self, selector: #selector(authKeyboardHidden), name: UIResponder.keyboardDidHideNotification, object: nil)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        publishAuthViewport()
+    }
+
+    func setAuthViewportEnabled(_ enabled: Bool) -> [String: Double] {
+        authViewportEnabled = enabled
+        authBackdrop.isHidden = !enabled
+        if let webView = bridge?.webView {
+            webView.backgroundColor = enabled ? .clear : Self.startupBackground
+            webView.scrollView.backgroundColor = enabled ? .clear : Self.startupBackground
+            webView.scrollView.isScrollEnabled = !enabled
+            webView.scrollView.bounces = !enabled
+            if enabled { webView.scrollView.setContentOffset(.zero, animated: false) }
+        }
+        lastAuthViewport = [:]
+        view.layoutIfNeeded()
+        publishAuthViewport()
+        return authViewportMetrics()
+    }
+
+    @objc private func authKeyboardChanged(_ notification: Notification) {
+        guard let value = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else { return }
+        keyboardScreenFrame = value.cgRectValue
+        publishAuthViewport()
+    }
+
+    @objc private func authKeyboardHidden() {
+        keyboardScreenFrame = .null
+        publishAuthViewport()
+    }
+
+    private func authViewportMetrics() -> [String: Double] {
+        let height = view.bounds.height
+        var visibleHeight = height
+        if !keyboardScreenFrame.isNull, let window = view.window {
+            let frameInWindow = window.convert(keyboardScreenFrame, from: window.screen.coordinateSpace)
+            let frame = view.convert(frameInWindow, from: window)
+            let overlap = view.bounds.intersection(frame)
+            // A floating iPad keyboard is not a full-width bottom obstruction.
+            if !overlap.isNull, overlap.width >= view.bounds.width * 0.8, frame.maxY >= height - 1 {
+                visibleHeight = max(0, min(height, frame.minY))
+            }
+        }
+        return ["height": Double(height), "visibleHeight": Double(visibleHeight)]
+    }
+
+    private func publishAuthViewport() {
+        guard authViewportEnabled else { return }
+        let metrics = authViewportMetrics()
+        guard metrics["height", default: 0] > 0, metrics != lastAuthViewport,
+              let data = try? JSONSerialization.data(withJSONObject: metrics),
+              let json = String(data: data, encoding: .utf8) else { return }
+        lastAuthViewport = metrics
+        bridge?.webView?.evaluateJavaScript("window.dispatchEvent(new CustomEvent('nava:auth-viewport', {detail: \(json)}))")
     }
 
     deinit {
@@ -106,6 +203,25 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
         host.view.removeFromSuperview()
         host.removeFromParent()
         nativeHost = nil
+    }
+}
+
+@objc(NavaAuthViewportPlugin)
+final class NavaAuthViewportPlugin: CAPPlugin, CAPBridgedPlugin {
+    let identifier = "NavaAuthViewportPlugin"
+    let jsName = "NavaAuthViewport"
+    let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "setEnabled", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func setEnabled(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard let controller = self.bridge?.viewController as? NavaBridgeViewController else {
+                call.reject("Authentication canvas is unavailable.")
+                return
+            }
+            call.resolve(controller.setAuthViewportEnabled(call.getBool("enabled") ?? false))
+        }
     }
 }
 

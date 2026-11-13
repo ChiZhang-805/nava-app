@@ -35,6 +35,7 @@
 		D4E5F6020000000000000006 /* NavaSupabaseDishVisualizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6020000000000000016 /* NavaSupabaseDishVisualizer.swift */; };
 		D4E5F6020000000000000007 /* NavaDietDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6020000000000000017 /* NavaDietDashboardView.swift */; };
 		D4E5F6030000000000000001 /* NavaDietDashboardVisualTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6030000000000000011 /* NavaDietDashboardVisualTests.swift */; };
+		D4E5F6040000000000000001 /* NavaAuthKeyboardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6040000000000000011 /* NavaAuthKeyboardTests.swift */; };
 		A084ECDBA7D38E1E42DFC39D /* Pods_App.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */; };
 		B2C3D4E50000000000000001 /* NAVA Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B2C3D4E50000000000000011 /* NAVA Watch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B2C3D4E50000000000000002 /* NavaWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E50000000000000012 /* NavaWatchApp.swift */; };
@@ -109,6 +110,7 @@
 		D4E5F6020000000000000016 /* NavaSupabaseDishVisualizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaSupabaseDishVisualizer.swift; sourceTree = "<group>"; };
 		D4E5F6020000000000000017 /* NavaDietDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaDietDashboardView.swift; sourceTree = "<group>"; };
 		D4E5F6030000000000000011 /* NavaDietDashboardVisualTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaDietDashboardVisualTests.swift; sourceTree = "<group>"; };
+		D4E5F6040000000000000011 /* NavaAuthKeyboardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaAuthKeyboardTests.swift; sourceTree = "<group>"; };
 		D4E5F6030000000000000012 /* AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2C3D4E50000000000000011 /* NAVA Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "NAVA Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2C3D4E50000000000000012 /* NavaWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavaWatchApp.swift; sourceTree = "<group>"; };
@@ -234,6 +236,7 @@
 			isa = PBXGroup;
 			children = (
 				D4E5F6030000000000000011 /* NavaDietDashboardVisualTests.swift */,
+				D4E5F6040000000000000011 /* NavaAuthKeyboardTests.swift */,
 			);
 			path = AppUITests;
 			sourceTree = "<group>";
@@ -480,6 +483,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D4E5F6030000000000000001 /* NavaDietDashboardVisualTests.swift in Sources */,
+				D4E5F6040000000000000001 /* NavaAuthKeyboardTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

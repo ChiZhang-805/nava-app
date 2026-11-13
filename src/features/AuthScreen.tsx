@@ -24,6 +24,7 @@ import {
 } from "../services/auth";
 import { isSmsRelayWarmupConfigured, warmSmsRelay } from "../services/smsRelayWarmup";
 import { useAuth } from "../state/authContext";
+import { activateAuthViewport } from "../services/mobileViewport";
 
 type AuthMode = "signIn" | "signUp" | "reset";
 type SignInMethod = "password" | "otp";
@@ -78,6 +79,8 @@ export default function AuthScreen({
   const [consentOpen, setConsentOpen] = useState(false);
   const [socialBusy, setSocialBusy] = useState<SocialAuthProvider | null>(null);
   const [smsRelayReady, setSmsRelayReady] = useState(() => !isSmsRelayWarmupConfigured());
+
+  useEffect(activateAuthViewport, []);
 
   const normalizedAccount = account.trim();
   const accountIsEmail = isEmail(normalizedAccount);
@@ -246,11 +249,14 @@ export default function AuthScreen({
 
   return (
     <main className={["auth-screen", `auth-screen--${mode}`].join(" ")}>
+      <div className="auth-backdrop" aria-hidden="true" />
       <div className="auth-locale">
         <LanguageToggle />
       </div>
 
-      <section className="auth-brand" aria-label="NAVA">
+      <section className="auth-brand" aria-label="NAVA" onPointerDown={() => {
+        if (document.activeElement instanceof HTMLInputElement) document.activeElement.blur();
+      }}>
         <NavaWordmark tone="ink" />
       </section>
 

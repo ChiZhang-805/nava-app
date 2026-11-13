@@ -65,6 +65,20 @@ jobs:
           NAVA_SKIP_NPM_CI: "0"
         run: npm run ios:prepare:release
 
+      - name: Test the shipped login with the iOS software keyboard
+        run: bash scripts/test-ios-auth-keyboard.sh
+
+      - name: Preserve native keyboard screenshots and results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nava-auth-keyboard
+          path: |
+            artifacts/ios-auth-keyboard/*-screenshots/
+            artifacts/ios-auth-keyboard/*.xcresult/
+          if-no-files-found: warn
+          retention-days: 7
+
   upload:
     name: Signed archive and TestFlight upload
     if: github.event_name == 'workflow_dispatch' && inputs.mode == 'upload'

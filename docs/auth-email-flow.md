@@ -1,5 +1,66 @@
 # APP 验证码注册流程
 
+## 登录前页面的键盘与固定背景
+
+登录、注册、验证码登录、重置密码复用 `activateAuthViewport`。背景画布保持打开键盘前的
+全屏尺寸；键盘只改变表单可用高度，当前字段通过 `.auth-form-region.scrollTop` 定向揭示，
+不再调用会带动整个文档的 `scrollIntoView`。标题基线和紧凑键盘样式统一，关闭键盘恢复；
+点击 NAVA 标题可收起键盘。低视口通过表单内部滚动访问后续字段与提交按钮。
+
+iOS 混合版 `NavaBridgeViewController` 使用独立 UIKit 图片层承载同一张 `NavaAuthTexture`，
+以根视图四边约束铺满，不跟随 WKWebView 的内容滚动。`NavaAuthViewport` 仅在认证页启用，
+接收系统键盘 frame（包括工具栏占据的高度），禁止外层 WebView 平移；离开认证页恢复
+原有 WebView 行为。没有增加 Keyboard 插件依赖，也未修改验证码、会话及认证服务合同。
+
+验证入口：`node scripts/verify-auth-keyboard.mjs` 是 Chromium/WebKit 几何回归，
+明确不能充当 iPhone 系统键盘证据。`scripts/test-ios-auth-keyboard.sh` 在云端 macOS
+用 iPhone 15 Pro Max 与 iPhone SE 的真实 iOS 模拟器运行默认混合版，并保存 XCTest
+截图；不启用未完成的 SwiftUI 功能开关。真机 TestFlight 验收仍单独记录。
+
+## 微信与 QQ 移动应用接入准备（2026-11-13）
+
+用户确认：微信开放平台和 QQ 互联的移动应用均尚未创建，拟采用公司／组织主体。
+现有按钮、`nativeSocialAuth.ts` 和 `social-oauth` 实现的是外部浏览器 OAuth 流程；
+微信使用网站 `qrconnect`，iOS 尚未集成微信或 TencentOpenAPI 原生 SDK。因此当前不能
+宣称已经实现“唤起微信／QQ App 授权并返回 NAVA”。本轮只核对并整理接入准备，没有
+启用 provider、修改生产密钥、部署函数或发布新的 TestFlight 包。
+
+### 已核对的申请信息
+
+| 字段 | 当前值及边界 |
+| --- | --- |
+| 应用名称 | NAVA健康节律助手，与 App Store Connect 记录一致 |
+| 应用类型 | 移动应用，当前先接 iOS |
+| iOS Bundle ID | `health.nava.mobile` |
+| Apple Team ID | `P9N6YYZ7Y9` |
+| Apple App ID | `6829876477`；这是 Apple 的应用记录编号，不是微信／QQ 的 AppID，也不证明已公开上架 |
+| 应用图标 | `ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png` |
+| 主体类型 | 公司／组织；真实单位名称、证件与管理员资料由用户在平台提交 |
+
+申请入口：[微信开放平台](https://open.weixin.qq.com/)；
+[QQ 互联](https://connect.qq.com/)。QQ 官方说明的流程是开发者注册、创建应用、
+审核并取得接口权限；公司账号应由公司长期管理，避免使用临时员工账号。
+依据：[成为开发者](https://wiki.connect.qq.com/成为开发者/)、
+[创建应用](https://wiki.connect.qq.com/__trashed-2/)。微信官方文档在本轮网络检索中
+无法打开，因此认证材料、费用及审核条件以用户登录后的官方页面为准，不套用公众号、
+网站应用或小程序的申请条件。
+
+### 后续接入顺序与待补信息
+
+1. 用户用公司／组织主体注册两个开放平台，创建 NAVA 移动应用，记录各自 AppID 和
+   微信登录／QQ 登录权限状态。AppSecret、AppKey 只进入服务端密钥配置，不在聊天、
+   前端、仓库或日志中传递。
+2. 确认由公司控制的 HTTPS Universal Link 域名与路径，部署 AASA，并配置 iOS
+   Associated Domains。现有 Supabase OAuth callback 不能直接充当 Universal Link。
+   QQ 要求见 [Universal Links 适配 FAQ](https://wiki.connect.qq.com/universal-links适配faq/)。
+3. 将官方 iOS SDK、URL 回调及 Universal Link 回调接入当前 Capacitor 原生桥；服务端
+   验证授权结果属于本应用后再建立 Supabase 会话，保留取消、失败和未安装客户端处理。
+   不把网站 AppID 与移动应用 AppID 混用，不只因昵称、邮箱相同就合并账号。
+4. 补齐隐私政策中的真实运营主体和联系渠道，按实际接入列出 SDK 与授权用途；现有
+   隐私页面只有项目维护者渠道，不能视作申请材料已完备。
+5. 在取得所需配置、完成后端部署授权及真机授权回跳验收后，再构建并上传 TestFlight。
+   仅创建应用、按钮存在或编译成功，都不代表真实登录验收通过。
+
 ## 统一注册
 
 邮箱和中国大陆手机号都使用同一套注册步骤：
