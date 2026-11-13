@@ -28,12 +28,12 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        installAuthCanvas()
         view.backgroundColor = Self.startupBackground
     }
 
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
-        installAuthCanvas()
         bridge?.webView?.isOpaque = false
         bridge?.webView?.backgroundColor = Self.startupBackground
         bridge?.webView?.scrollView.backgroundColor = Self.startupBackground
@@ -71,9 +71,11 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
         authBackdrop.clipsToBounds = true
         authBackdrop.isUserInteractionEnabled = false
         authBackdrop.isHidden = true
+        // Replace the controller's root before reparenting its former root.
+        // UIViewController detaches the old root when assigning `view`.
+        view = canvas
         canvas.addSubview(authBackdrop)
         canvas.addSubview(webView)
-        view = canvas
         for child in [authBackdrop, webView] {
             child.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([

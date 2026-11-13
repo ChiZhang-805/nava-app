@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 /// Exercises the shipped React/WKWebView login, not the optional SwiftUI shell.
 final class NavaAuthKeyboardTests: XCTestCase {
@@ -69,9 +70,24 @@ final class NavaAuthKeyboardTests: XCTestCase {
     }
 
     private func capture(_ name: String) {
-        let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        let screenshot = XCUIScreen.main.screenshot()
+        let image = XCTAttachment(screenshot: screenshot)
         image.name = "auth-\(name)"
         image.lifetime = .keepAlways
         add(image)
+        if name.hasSuffix("closed") {
+            // Accessibility can still expose a WKWebView covered by another
+            // native view. Verify real pixels as well as element geometry.
+            var samples = [UInt8](repeating: 0, count: 24 * 48)
+            samples.withUnsafeMutableBytes { pixels in
+                let context = CGContext(data: pixels.baseAddress, width: 24, height: 48,
+                    bitsPerComponent: 8, bytesPerRow: 24,
+                    space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue)!
+                context.draw(screenshot.image.cgImage!, in: CGRect(x: 0, y: 0, width: 24, height: 48))
+            }
+            let content = (8..<36).flatMap { y in (2..<22).map { x in Int(samples[y * 24 + x]) } }
+            XCTAssertGreaterThan(content.max()! - content.min()!, 40,
+                "The app's content is covered by a flat native layer.")
+        }
     }
 }
