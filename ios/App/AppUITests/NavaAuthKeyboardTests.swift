@@ -43,9 +43,9 @@ final class NavaAuthKeyboardTests: XCTestCase {
             let fields = web.descendants(matching: .any).matching(NSPredicate(format: "elementType == %d OR elementType == %d", XCUIElement.ElementType.textField.rawValue, XCUIElement.ElementType.secureTextField.rawValue))
             for index in 1..<fields.count {
                 let field = fields.element(boundBy: index)
-                for _ in 0..<4 where !field.isHittable || field.frame.maxY > app.keyboards.firstMatch.frame.minY {
+                for _ in 0..<4 where !field.isHittable || field.frame.maxY > keyboardTop(in: app) {
                     let start = web.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0))
-                        .withOffset(CGVector(dx: 0, dy: app.keyboards.firstMatch.frame.minY - 35))
+                        .withOffset(CGVector(dx: 0, dy: keyboardTop(in: app) - 20))
                     start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -100)))
                 }
                 field.tap()
@@ -68,11 +68,21 @@ final class NavaAuthKeyboardTests: XCTestCase {
             // twice inside one predicate (slow cloud runners can exceed 8s).
             let fieldFrame = field.frame
             let logoFrame = logo.frame
-            let keyboardFrame = app.keyboards.firstMatch.frame
-            return fieldFrame.minY >= logoFrame.maxY && fieldFrame.maxY <= keyboardFrame.minY
+            let keyboardTop = self.keyboardTop(in: app)
+            return fieldFrame.minY >= logoFrame.maxY && fieldFrame.maxY <= keyboardTop
                 && logoFrame.minY >= self.expectedSafeTop && fieldFrame.height > 0
         }, object: field)
         XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 30), .completed, app.debugDescription)
+    }
+
+    private func keyboardTop(in app: XCUIApplication) -> CGFloat {
+        // XCTest's Keyboard frame excludes WebKit's Previous/Next/Done bar.
+        // Fields and scroll gestures must stay above that accessory as well.
+        let keysTop = app.keyboards.firstMatch.frame.minY
+        return app.toolbars.allElementsBoundByIndex.reduce(keysTop) { top, toolbar in
+            let frame = toolbar.frame
+            return frame.height > 0 ? min(top, frame.minY) : top
+        }
     }
 
     private func capture(_ name: String) {

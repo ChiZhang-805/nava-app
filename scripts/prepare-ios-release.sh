@@ -94,14 +94,23 @@ mkdir -p "${DERIVED_DATA}"
 # Compile every Swift/Capacitor source without requiring a signing identity. HealthKit values
 # still require a physical iPhone; this step proves only that the native target compiles.
 BUILD_ACTION=build
-if [[ "${NAVA_BUILD_FOR_TESTING:-0}" == "1" ]]; then BUILD_ACTION=build-for-testing; fi
+SIMULATOR_SIGNING=(CODE_SIGNING_ALLOWED=NO)
+if [[ "${NAVA_BUILD_FOR_TESTING:-0}" == "1" ]]; then
+  BUILD_ACTION=build-for-testing
+  # Let Xcode generate simulator entitlements and sign each nested target.
+  # Disabling signing breaks Keychain; recursively applying app entitlements
+  # with codesign --deep also gives frameworks an invalid signature.
+  SIMULATOR_SIGNING=(CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-
+    CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=P9N6YYZ7Y9
+    PROVISIONING_PROFILE_SPECIFIER= PROVISIONING_PROFILE=)
+fi
 xcodebuild \
   -workspace ios/App/App.xcworkspace \
   -scheme App \
   -configuration Release \
   -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath "${DERIVED_DATA}" \
-  CODE_SIGNING_ALLOWED=NO \
+  "${SIMULATOR_SIGNING[@]}" \
   "${BUILD_ACTION}"
 
 if [[ "${NAVA_ARCHIVE:-0}" != "1" ]]; then
