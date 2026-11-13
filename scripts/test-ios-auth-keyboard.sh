@@ -13,10 +13,13 @@ for DEVICE in "iPhone 15 Pro Max" "iPhone SE (3rd generation)"; do
   xcrun simctl ui "$ID" appearance light
   RESULT="artifacts/ios-auth-keyboard/${ID}.xcresult"
   STATUS=0
-  xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Debug \
+  # Reuse the release build already compiled by ios:prepare:release and run
+  # on this booted device, without Xcode creating a second simulator clone.
+  xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release \
     -destination "platform=iOS Simulator,id=$ID" \
-    -derivedDataPath artifacts/ios-auth-keyboard/DerivedData \
+    -derivedDataPath artifacts/ios/DerivedData \
     -resultBundlePath "$RESULT" \
+    -parallel-testing-enabled NO \
     -only-testing:AppUITests/NavaAuthKeyboardTests \
     CODE_SIGNING_ALLOWED=NO test || STATUS=$?
   xcrun xcresulttool export attachments --path "$RESULT" --output-path "artifacts/ios-auth-keyboard/${ID}-screenshots" || true

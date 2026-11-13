@@ -2,6 +2,7 @@ import XCTest
 
 /// Exercises the shipped React/WKWebView login, not the optional SwiftUI shell.
 final class NavaAuthKeyboardTests: XCTestCase {
+    private var expectedSafeTop: CGFloat = 0
     override func setUpWithError() throws { continueAfterFailure = false }
 
     func testKeyboardKeepsWallpaperAndFieldsInPlace() throws {
@@ -14,6 +15,16 @@ final class NavaAuthKeyboardTests: XCTestCase {
         XCTAssertTrue(account.waitForExistence(timeout: 30))
         let logo = web.images["NAVA"].firstMatch
         XCTAssertTrue(logo.waitForExistence(timeout: 10), app.debugDescription)
+        // The system status bar is owned by SpringBoard and is not exposed in
+        // this app's accessibility tree on iOS 26. These are the two explicit
+        // simulator fixtures created by test-ios-auth-keyboard.sh, in points.
+        switch app.frame.size {
+        case CGSize(width: 430, height: 932): expectedSafeTop = 59
+        case CGSize(width: 375, height: 667): expectedSafeTop = 20
+        default:
+            XCTFail("Missing safe-area fixture for \(app.frame.size)")
+            return
+        }
 
         for mode in ["login", "register", "reset", "otp"] {
             if mode == "register" { web.buttons["创建账号"].firstMatch.tap() }
@@ -52,7 +63,7 @@ final class NavaAuthKeyboardTests: XCTestCase {
     private func assertAboveKeyboard(_ field: XCUIElement, logo: XCUIElement, app: XCUIApplication) {
         let visible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             field.frame.minY >= logo.frame.maxY && field.frame.maxY <= app.keyboards.firstMatch.frame.minY
-                && logo.frame.minY >= app.statusBars.firstMatch.frame.maxY
+                && logo.frame.minY >= self.expectedSafeTop
         }, object: field)
         XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 8), .completed, app.debugDescription)
     }
