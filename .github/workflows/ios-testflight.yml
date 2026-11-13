@@ -36,9 +36,11 @@ defaults:
 
 jobs:
   validate:
-    name: Xcode unsigned validation
+    name: iOS simulator keyboard validation
     if: github.event_name == 'push' || inputs.mode == 'validate'
-    runs-on: macos-15-intel
+    # The Intel iOS 26 simulator stalled while requesting its first screenshot.
+    # Use the standard Apple Silicon image for native UI execution.
+    runs-on: macos-26
     timeout-minutes: 60
     steps:
       - name: Check out the exact source revision
@@ -75,6 +77,7 @@ jobs:
         with:
           name: nava-auth-keyboard
           path: |
+            artifacts/ios-auth-keyboard/preflight-*.png
             artifacts/ios-auth-keyboard/*-screenshots/
             artifacts/ios-auth-keyboard/*.xcresult/
           if-no-files-found: warn

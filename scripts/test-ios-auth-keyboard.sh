@@ -13,6 +13,15 @@ for DEVICE in "iPhone 15 Pro Max" "iPhone SE (3rd generation)"; do
   xcrun simctl boot "$ID"
   xcrun simctl bootstatus "$ID" -b
   xcrun simctl ui "$ID" appearance light
+  # Check the simulator's capture service before starting XCTest. A hung
+  # capture request otherwise holds the whole UI test for many minutes.
+  python3 - "$ID" "artifacts/ios-auth-keyboard/preflight-${ID}.png" <<'PY'
+import subprocess
+import sys
+
+subprocess.run(["xcrun", "simctl", "io", sys.argv[1], "screenshot", sys.argv[2]],
+               check=True, timeout=45)
+PY
   RESULT="artifacts/ios-auth-keyboard/${ID}.xcresult"
   STATUS=0
   # Both devices use the same release test products, without recompiling the

@@ -6,8 +6,37 @@
 frame 通知和局部表单滚动；清理键盘样式被普通样式覆盖、标题重新播放入场动画的问题。
 页面背景保持原始全屏构图，登录/注册/OTP/重置密码共用布局，离开认证页恢复 WebView
 原有行为。未修改生产后端、密钥、微信/QQ 申请状态或 SwiftUI 默认开关。
-浏览器回归与原生 XCTest 已新增，发布验收与 TestFlight 回执待下文补齐；不能将浏览器
-模拟键盘截图称为真机或原生模拟器截图。专项合同见 `auth-email-flow.md`。
+浏览器两内核、7 组视口、4 个认证模式的 168 个聚焦状态通过；既有认证交互、生产认证合同、
+lint、构建和 portable 原生检查通过。完整 verify 在导航门禁遇到 QQ 占用固定 5283 端口，
+测试改为动态端口后，导航及所有剩余门禁分段通过；未结束 QQ 进程或削弱断言。
+初始源码 `666a8e044c8e2f2295358db8e42b62746b8d7c5f` 的云端运行 `43451970298`
+通过 iPhone/Watch 编译，实际 WKWebView 测试因状态栏不在 app accessibility tree 查询失败。
+导出的截图/录屏另外揭示了原生画布重设 root 时遮住 WebView 的真实问题，不能将该轮当作
+视觉通过。当前 `ff2dcc5` 保留 Capacitor 原有 WKWebView 根视图，图片层放在其 scrollView
+后面并约束至全屏，追加真实像素差异检查以拦截这种“控件存在但画面纯色”的错误；
+原生验收 `43459534900` 的实际截图/录屏已显示登录背景保持全屏、键盘展开后纹理位置不变；
+该轮 XCTest 在重复读取 accessibility frame 时超过 8 秒等待，不能算完整通过。日志最终
+字段/标题/键盘坐标满足要求，已改为单次取样与 30 秒等待，并在断言前保留截图。
+旧 unsigned fixture 另有 Keychain `-34018`；手工递归补签名的 `1629cef` 运行
+`43468401031` 在模拟器启动阶段失败，未进入页面检查，不得记为通过。当前 `f69da0a`
+改为由 Xcode 生成各目标的模拟器签名，移除递归补签名，并将键盘工具栏纳入字段遮挡与
+手势范围。未修改生产认证逻辑或正式签名流程；一次 build-for-testing 后两机型
+test-without-building。原生验收 `43472355933` 已能启动 APP 并找到输入框，但在第一张
+XCUIScreen 截图处等待约 13 分钟后超时，没有执行键盘操作；不得记为页面通过。日志存于
+`auth-keyboard/native-capture-timeout.log`，GitHub 原始 artifact 为 `14064830147`。
+下一轮改用标准 `macos-26` Apple Silicon runner，并增加限时的系统截图预检；保留原有
+页面和键盘断言。签名上传尚未开始。
+初次 ARM Mac 运行 `43449126705` 未获分配 runner，随后改用 GitHub 标准 Intel Mac runner。
+不能将浏览器模拟键盘截图称为真机或原生模拟器截图。专项合同见 `auth-email-flow.md`。
+
+GitHub Pages 镜像 `17b688d`、运行 `43453230499` 已成功上线上述源码。Sites 同源保存版本277，
+两次发布均因平台服务错误失败，线上仍是276，双站尚未同步，不可宣称完整发布成功。
+Sites project `appgprj_6a5de710811c8191af8ce2681358d518`；saved version
+`appgprj_6a5de710811c8191af8ce2681358d518~appgver_fea786ed2b0c81919feff8b0a033b29c`；
+失败部署 `appgdep_6af72cda57488191aa72a6f32439c9b7`（Cloudflare unknown error）和
+`appgdep_6af72d18ccc08191b389f40ed82a8b14`（Failed to publish the built site）。
+两站匿名及 demo 查询入口仍显示登录，实际加载模块均指向 canonical Supabase 项目。
+本轮证据统一在 `Q:/NAVA-Workspace/Build/TestRuns/App-Checks/auth-keyboard/`。
 
 界面验收输出统一保存在 `Q:/NAVA-Workspace/Build/TestRuns/App-Checks/<验收项目>/`；原目录迁移已逐文件核对。论文分享文件统一放在 `Q:/NAVA-Workspace/Build/TestRuns/HNE/`，分享压缩包为同级 `HNE.zip`。不再生成分类导航文件。
 
