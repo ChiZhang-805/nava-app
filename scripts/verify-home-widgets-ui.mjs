@@ -6,7 +6,7 @@ import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const testRunsRoot = path.resolve("Q:\\NAVA-Workspace\\Build\\TestRuns");
+const testRunsRoot = path.resolve("Q:\\NAVA-Workspace\\NAVA-App\\Build\\TestRuns");
 const outputDir = path.resolve(testRunsRoot, "App-Checks", "home-widget-inline-editor");
 const port = 5204;
 const viewports = [

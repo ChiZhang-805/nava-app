@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$AppleCertificatePath,
-    [string]$SigningDirectory = 'Q:\NAVA-Workspace\Build\AppleSigning',
+    [string]$SigningDirectory = 'Q:\NAVA-Workspace\NAVA-App\Build\AppleSigning',
     [SecureString]$P12Password
 )
 
@@ -18,7 +18,7 @@ function Resolve-OpenSsl {
 }
 
 $resolvedSigningDirectory = [System.IO.Path]::GetFullPath($SigningDirectory)
-$approvedRoot = [System.IO.Path]::GetFullPath('Q:\NAVA-Workspace\Build')
+$approvedRoot = [System.IO.Path]::GetFullPath('Q:\NAVA-Workspace\NAVA-App\Build')
 if (-not $resolvedSigningDirectory.StartsWith($approvedRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
     throw "SigningDirectory must stay under $approvedRoot."
 }

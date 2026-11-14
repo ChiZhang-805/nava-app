@@ -11,7 +11,7 @@ const email = process.env.NAVA_ACCOUNT_EMAIL, password = process.env.NAVA_ACCOUN
 const url = process.env.VITE_SUPABASE_URL;
 if (!email || !password || new URL(url).hostname !== "wxteapvwagvhhtrjrbim.supabase.co") throw new Error("Secure launcher and canonical project required.");
 const client = createClient(url, process.env.VITE_SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false, autoRefreshToken: true } });
-const output = "Q:/NAVA-Workspace/Build/TestRuns/history-ai-acceptance";
+const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/history-ai-acceptance";
 const host = process.env.NAVA_HISTORY_AI_URL ? new URL(process.env.NAVA_HISTORY_AI_URL).hostname : "local-source";
 const startedAt = new Date().toISOString();
 const results = [], requests = [];

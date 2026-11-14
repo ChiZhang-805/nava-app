@@ -4,7 +4,7 @@ import { chromium, expect } from "@playwright/test";
 import { preview } from "vite";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-ios-reference";
+const outputDir = "Q:\\NAVA-Workspace\\NAVA-App\\Build\\TestRuns\\nava-ios-reference";
 const viewport = { width: 430, height: 932 };
 const port = 5264;
 

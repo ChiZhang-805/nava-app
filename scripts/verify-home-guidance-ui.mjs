@@ -5,7 +5,7 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\Build\\TestRuns\\nava-mascot-gif-20260913";
+const outputDir = "Q:\\NAVA-Workspace\\NAVA-App\\Build\\TestRuns\\workspace-runs\\nava-mascot-gif-20260913";
 const port = 5202;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },

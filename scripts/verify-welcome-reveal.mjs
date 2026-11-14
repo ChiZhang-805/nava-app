@@ -5,7 +5,7 @@ import { createServer } from 'vite';
 import { applyProjectPublicEnv } from './project-env.mjs';
 
 applyProjectPublicEnv(process.cwd());
-const output = 'Q:/NAVA-Workspace/Build/TestRuns/App-Checks/welcome-reveal';
+const output = 'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/welcome-reveal';
 await mkdir(output, { recursive: true });
 const fixture = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div><script type="module">
 import React from 'react';import {createRoot} from 'react-dom/client';

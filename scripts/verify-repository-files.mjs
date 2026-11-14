@@ -4,7 +4,7 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const root = process.cwd();
-const outputDir = process.env.NAVA_FILE_AUDIT_OUTPUT || "Q:\\NAVA-Workspace\\Build\\TestRuns\\full-file-audit";
+const outputDir = process.env.NAVA_FILE_AUDIT_OUTPUT || "Q:\\NAVA-Workspace\\NAVA-App\\Build\\TestRuns\\workspace-runs\\full-file-audit";
 const textExtensions = new Set([
   ".css", ".csv", ".html", ".js", ".json", ".jsx", ".md", ".mjs", ".plist", ".ps1",
   ".sql", ".svg", ".toml", ".ts", ".tsx", ".txt", ".xml", ".yaml", ".yml",

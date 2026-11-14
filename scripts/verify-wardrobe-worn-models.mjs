@@ -9,7 +9,7 @@ const option = (name, fallback) => {
   return index < 0 ? fallback : args[index + 1];
 };
 const base = option("--base-url", "http://127.0.0.1:5278/").replace(/\/?$/, "/");
-const output = resolve(option("--output", "Q:/NAVA-Workspace/Build/TestRuns/wardrobe-full-worn-v261/app-review"));
+const output = resolve(option("--output", "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-full-worn-v261/app-review"));
 if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+\/$/.test(base)) throw new Error("Worn-model review only runs against localhost");
 await mkdir(output, { recursive: true });
 const catalog = JSON.parse(await readFile("scripts/mascot-models/meshy/accessory-catalog-v1.json", "utf8"));

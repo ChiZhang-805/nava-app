@@ -7,7 +7,7 @@ import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
 const engine = process.argv.includes("--webkit") ? "webkit" : "chromium";
-const outputDir = `Q:/NAVA-Workspace/Build/TestRuns/App-Checks/focus-layout/${engine}`;
+const outputDir = `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/focus-layout/${engine}`;
 const userId = "00000000-0000-4000-8000-000000000001";
 const selectedCase = process.argv.find(arg=>arg.startsWith("--case="))?.slice(7);
 const viewports = [

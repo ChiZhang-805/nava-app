@@ -6,7 +6,7 @@ import { applyProjectPublicEnv } from './project-env.mjs';
 applyProjectPublicEnv(process.cwd());
 const engine = process.env.NAVA_LAYOUT_ENGINE || 'chromium';
 const safe = process.env.NAVA_LAYOUT_SAFE === '1';
-const output = `Q:/NAVA-Workspace/Build/TestRuns/App-Checks/mobile-layout/${engine}${safe ? '-safe' : ''}${process.env.NAVA_LAYOUT_WIDTH ? `-width-${process.env.NAVA_LAYOUT_WIDTH}` : ''}`;
+const output = `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/mobile-layout/${engine}${safe ? '-safe' : ''}${process.env.NAVA_LAYOUT_WIDTH ? `-width-${process.env.NAVA_LAYOUT_WIDTH}` : ''}`;
 await mkdir(output, { recursive: true });
 const server = await createServer({ server: { host: '127.0.0.1', port: Number(process.env.NAVA_LAYOUT_PORT || 5279), strictPort: true }, logLevel: 'silent' });
 await server.listen();

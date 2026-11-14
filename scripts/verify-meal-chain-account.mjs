@@ -10,10 +10,10 @@ import { readProtectedTestState, writeProtectedTestState } from "./protected-tes
 applyProjectPublicEnv(process.cwd());
 const email = process.env.NAVA_ACCOUNT_EMAIL, password = process.env.NAVA_ACCOUNT_PASSWORD, url = process.env.VITE_SUPABASE_URL;
 if (!email || !password || new URL(url).hostname !== "wxteapvwagvhhtrjrbim.supabase.co") throw new Error("Canonical account secure launcher required.");
-const output = "Q:/NAVA-Workspace/Build/TestRuns/meal-chain-acceptance";
+const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/meal-chain-acceptance";
 await mkdir(output, { recursive: true });
 const journalPath = `${output}/recovery.dpapi`;
-const imagePath = "Q:/NAVA-Workspace/Build/TestRuns/nava-account-history-20260913/synthetic-images/2026-09-13-breakfast.png";
+const imagePath = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/nava-account-history-20260913/synthetic-images/2026-09-13-breakfast.png";
 const date = "2026-09-13", meal = "breakfast";
 const recoveryOnly = process.env.NAVA_MEAL_RECOVER_ONLY === "1";
 const receiptPath = `${output}/${recoveryOnly ? "recovery-result" : "result"}.json`;

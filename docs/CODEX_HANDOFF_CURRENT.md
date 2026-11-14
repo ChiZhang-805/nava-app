@@ -44,9 +44,9 @@ Sites project `appgprj_6a5de710811c8191af8ce2681358d518`；saved version
 历史失败部署 `appgdep_6af72cda57488191aa72a6f32439c9b7`（Cloudflare unknown error）和
 `appgdep_6af72d18ccc08191b389f40ed82a8b14`（Failed to publish the built site）。
 线上复核证据：`auth-keyboard/public-release-check.json`。
-本轮证据统一在 `Q:/NAVA-Workspace/Build/TestRuns/App-Checks/auth-keyboard/`。
+本轮证据统一在 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/auth-keyboard/`。
 
-界面验收输出统一保存在 `Q:/NAVA-Workspace/Build/TestRuns/App-Checks/<验收项目>/`；原目录迁移已逐文件核对。论文分享文件统一放在 `Q:/NAVA-Workspace/Build/TestRuns/HNE/`，分享压缩包为同级 `HNE.zip`。不再生成分类导航文件。
+界面验收输出统一保存在 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/<验收项目>/`；原目录迁移已逐文件核对。论文分享文件统一放在 `Q:/NAVA-Workspace/HNE-BIO/results/HNE/`，分享压缩包为同级 `HNE.zip`。不再生成分类导航文件。
 
 ## 微信／QQ 登录申请准备（2026-11-13）
 
@@ -132,7 +132,7 @@ AVFoundation 拍摄原始证据图；`diet-extract` 先理解规范菜名、可�
 最终饮食记录写入；默认服务会明确报“尚未接入”，核对页保存按钮禁用，不能宣称真实端到端
 完成。`npm run ios:swiftui:verify` 检查 Xcode source membership、默认特性开关、独立导航栈、
 生成阶段、两级质量门槛、私有 JWT 链路、密钥隔离、私有素材生命周期和 iOS 16.4 禁用项，报告输出到
-`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/swiftui-native-rewrite/`。
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/swiftui-native-rewrite/`。
 
 D01 饮食首页现已按 390×844 母版单独收敛：旧的九个 `RoundedRectangle`/随意椭圆定位已
 替换为九段径向 Bézier 包块、可复算角度/中心/旋转和自定义 `Layout`；基准数据为 6 段
@@ -171,7 +171,7 @@ GitHub Actions 的 macOS 15 / Xcode 26.3 已通过真实 Xcode Release 编译，
 environment 已建，依赖审计为 0 漏洞。当前仍未生成签名 archive，也未上传 TestFlight。
 
 Apple Distribution CSR 已生成在
-`Q:\NAVA-Workspace\Build\AppleSigning\NAVA_Apple_Distribution.certSigningRequest`，
+`Q:\NAVA-Workspace\NAVA-App\Build\AppleSigning\NAVA_Apple_Distribution.certSigningRequest`，
 匹配私钥只在同目录本地保存。下一步由账户持有人上传 CSR、下载 Apple Distribution
 证书，创建 iPhone/Watch 两份 App Store provisioning profile 与 App Store Connect API
 Key，然后配置七项 GitHub environment secrets。完整名称和操作见
@@ -189,7 +189,7 @@ Key，然后配置七项 GitHub environment secrets。完整名称和操作见
 
 `journal:motion:test` 和 `journal:motion:visual` 已加入完整门禁第 36 项。专项覆盖
 320、360、375、390、430 宽度、两页七状态、快速切换、静态降动效与 CPU 回退。
-证据保存在 `Q:/NAVA-Workspace/Build/TestRuns/App-Checks/journal-companion-motion/`。
+证据保存在 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/journal-companion-motion/`。
 用户要求只保留动画，已将单独导出的“小猫动作预览.html”和旧“播放动画.html”
 移入回收站，并移除清空后的 NAVA-Cat-Motion-Preview 目录。APP 动画代码、素材和验证记录保留。
 NAVA-Cat-Animations 导出目录仅保留 GIF；这些 GIF 是旧版本，未随本次代码自动更新。
@@ -213,8 +213,8 @@ full-verify-complete.log 在本地动态导入 App.tsx 失败，独立 media-rec
 用户要求继续逐项检查，不能以几分钟局部测试宣称整个 APP 无问题。此次遍历 Git 管理和
 未忽略的新文件，保存逐文件 SHA-256 清单，并扩大 Swift、strings、storyboard、隐私清单、
 Xcode、Python、shell 文本检查。此清单是自动结构检查，不等于逐行人工审查或真机验收。
-证据：`Q:/NAVA-Workspace/Build/TestRuns/full-file-audit/`；专项和完整门禁日志位于
-`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/mobile-layout/`。
+证据：`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/full-file-audit/`；专项和完整门禁日志位于
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/mobile-layout/`。
 
 已经修复并增加相应检查：
 
@@ -255,7 +255,7 @@ Xcode、Python、shell 文本检查。此清单是自动结构检查，不等于
 取消不发删除请求。日报链接在 shell 路由入口验证日期，格式错误或不存在的日期回到日历。
 新增 `navigation:visual` 覆盖四尺寸/双语的五主入口、连续前进后退、刷新恢复、重复点击
 不增加历史、提醒设置返回、直接进入子页返回与无效链接恢复。对应浏览器报告位于
-`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/mobile-layout/navigation-{chromium,webkit}/report.json`。
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/mobile-layout/navigation-{chromium,webkit}/report.json`。
 两引擎分别通过 168 项导航检查及 70 个弹层状态；历史弹层专项新增焦点、Escape、取消删除断言。
 57 个导航/启动/媒体/提醒/隐私/iOS 单元
 测试通过；最新原生网页构建、资源复制及 portable 检查通过。原生真机与完整发布门禁
@@ -280,7 +280,7 @@ Xcode、Python、shell 文本检查。此清单是自动结构检查，不等于
 - 修复商城/积分卡/提醒/个人中心末项滚动预留；待办日期弹窗改为 phone-frame portal。
 - 修复 WebKit 菜单按下时因空 relatedTarget 提前关闭，以及完成动画图片尚未解码就显示。
 - 新增路由/键盘/末项检查、1,134 组合宽高扫描、当前实际入口的中英文弹窗测试；
-  证据根目录 `Q:/NAVA-Workspace/Build/TestRuns/App-Checks/mobile-layout`。现有专项报告继续原目录。
+  证据根目录 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/mobile-layout`。现有专项报告继续原目录。
 - 保留工作区之前的 iOS 准备、衣橱与素材删除等修改。完整 verify 仍在 repository:scan
   因既有 tracked 素材缺失失败；没有打包这些未知更改整体提交，也没有发布或上传。
   电脑测试不能代替 iPhone 系统键盘、Dynamic Type、旧系统 WebKit 与原生功能验收。
@@ -332,7 +332,7 @@ Xcode、Python、shell 文本检查。此清单是自动结构检查，不等于
 - 2D 模式不再调用 `captureFrontFrames()` 或 `canvas.toDataURL()`，WebGL 渲染器也不再保留
   `preserveDrawingBuffer`。点击二维静态图不会伪造来自 3D 的挥爪帧；三维模式继续保留转身与三段
   局部动作。
-- 视觉核查证据位于 `Q:/NAVA-Workspace/Build/TestRuns/wardrobe-v5-2d/`；应用内 390×844 的
+- 视觉核查证据位于 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-v5-2d/`；应用内 390×844 的
   无配饰与铃铛项圈二维截图由 `wardrobe:layout:visual` 生成。`npm run verify`、
   `npm run auth:verify:production` 与 15 个衣橱布局场景全部通过。
 - 功能源码 `70c973de3fdc6fcbf6b6b81023a5917990ec6907` 已推送并从干净发布工作树构建；
@@ -358,7 +358,7 @@ Xcode、Python、shell 文本检查。此清单是自动结构检查，不等于
   canonical 小猫未覆盖区域几何差异为 0。
 - 本地专项验证通过：`npm run wardrobe:test` 15/15、`tests/auth-bootstrap.test.ts` 1/1、
   18 个运行模型加载/动作复位、透明 2D 帧 alpha 检查、390×844 手机与 1440×900 桌面布局。
-  证据位于 `Q:/NAVA-Workspace/Build/TestRuns/wardrobe-v3/pearl-bow-v5`、
+  证据位于 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-v3/pearl-bow-v5`、
   `wardrobe-v3/runtime/renderer`、`wardrobe-v4-ui` 与 `wardrobe-v4-ui-alpha`。
 - 发布门禁发现 `nodemailer 10.0.16` 的新中等级地址解析公告，已在同一主版本内升级到
   `10.2.1`；未改变邮件业务合同，`npm audit` 恢复为 0 漏洞。
@@ -399,7 +399,7 @@ Xcode、Python、shell 文本检查。此清单是自动结构检查，不等于
   浏览器 18×3 动作精确复位，4 手机尺寸 UI 动作、动作中换款/转身、减少动态效果，
   9 个移动端/安全区/降级布局场景，build、lint、production auth contract。
   延迟下载保留原帧、预取与选择请求去重、连续选择防回切、失败保留当前模型均通过。完整发布门禁已通过，见下方双站发布结果。
-- 证据：`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-v3/runtime/`；
+- 证据：`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-v3/runtime/`；
   制作清单 `scripts/mascot-models/wardrobe-production.json`，可编辑资产在
   `Build/Assets/Mascot/wardrobe-v3` 和 `beret-fitted-v2`。无新 Meshy 消耗，无密钥读取。
 - 初始工作区 main 落后 origin/main 6 提交且有既存删除；未 reset/clean/覆盖它们。
@@ -424,7 +424,7 @@ Xcode、Python、shell 文本检查。此清单是自动结构检查，不等于
   修正过扩展名与内容不符的打包错误；原图没有二次有损压缩。配饰纹理实际为 1K WebP。
 - 发布源由 canonical 主工作区的本轮文件与 origin/main 合并为干净构建提交；
   主工作区既存删除、Meshy 脚本修改和旧 HEAD 均保留，未 reset/clean。
-  生成构建目录为 `Q:/NAVA-Workspace/Build/Release-Staging/wardrobe-v3`，仅用于构建和验证，不能作为新的编辑源。
+  生成构建目录为 `Q:/NAVA-Workspace/NAVA-App/Build/Release-Staging/wardrobe-v3`，仅用于构建和验证，不能作为新的编辑源。
   完整 verify 自动更新的 Deno lock 已保存差异证据并恢复到已提交输入，未部署后端变化。
   Pages 使用增量复制，保留旧的带哈希资源；新入口只引用本轮构建。
 - 新造型是内部验收后交用户检查的版本；不把用户认可背包设计图写成用户认可所有最终模型。
@@ -435,7 +435,7 @@ Xcode、Python、shell 文本检查。此清单是自动结构检查，不等于
 ## 历史补充： 仓库过时文件与可重建产物的可恢复隔离（未删除、未发布）
 
 按用户要求对仓库逐项做只读引用核对后，将确认可删除的内容移动到
-`Q:/NAVA-Workspace/Build/Cleanup-Staging/nava-app-cleanup-2026-10-17/`；没有直接删除任何文件。
+`Q:/NAVA-Workspace/NAVA-App/Build/Cleanup-Staging/nava-app-cleanup-2026-10-17/`；没有直接删除任何文件。
 隔离区保留原仓库相对路径并分三类：
 
 - `tracked-obsolete/`：31个已被当前WebP/动画/纹理/图标替代且正式代码零引用的旧媒体，
@@ -464,7 +464,7 @@ Xcode、Python、shell 文本检查。此清单是自动结构检查，不等于
 ## 178. 18组四视图统一归档与旧稿清理
 
 最终给 Meshy v2 批次使用的18组图片已统一整理到
-`Q:/NAVA-Workspace/Build/Reference/小猫多视角图_18组_72张/`。目录为单层结构，文件名采用
+`Q:/NAVA-Workspace/NAVA-App/Build/Reference/小猫多视角图_18组_72张/`。目录为单层结构，文件名采用
 “两位序号_中文名称_方向.png”；无配饰1组和单配饰17组均包含正面、背面、左侧、右侧，合计
 72张、115,138,912字节。72张图片逐一与`meshy-worn-catalog-v2/api/*/journal.json`保存的实际
 API输入SHA-256核对一致，不混入3D渲染截图、联系表、设计板或失败修补图。
@@ -473,7 +473,7 @@ API输入SHA-256核对一致，不混入3D渲染截图、联系表、设计板�
 `meshy-worn-pilot-v1/v2`以及两张已被最终批次替代的贝雷帽概念图已从源码参考区移除；本机主检出与
 当前发布工作树合计清理314张重复/旧图、358个文件、504,526,264字节。角色基础多视角母版和两张
 动作关键帧不属于本批配饰制图，继续保留。整理清单与删除回执位于
-`Q:/NAVA-Workspace/Build/TestRuns/cat-multiview-image-cleanup/`。本轮不改APP运行资产、交互、后端或公开部署。
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/cat-multiview-image-cleanup/`。本轮不改APP运行资产、交互、后端或公开部署。
 
 ## 177. 贝雷帽脸部纹理、基础猫尺寸与模型快切修复
 
@@ -481,7 +481,7 @@ API输入SHA-256核对一致，不混入3D渲染截图、联系表、设计板�
 模型，逐件切换还会先隐藏当前小猫并显示“小猫准备中”。最终修复没有继续覆盖原三眼贴图，而是将
 同批次干净双眼基础猫主体与原紫色贝雷帽表面重新组合：鼻子两侧只保留两条对称闭眼弧，最左侧多余
 眼睛随原错误主体一并移除，脸部没有局部补丁色块。fresh-import技术检查及正/背/左/右/透视/顶部
-六视图保存在`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-full-worn-v264/repair-v3/final/`。
+六视图保存在`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-full-worn-v264/repair-v3/final/`。
 
 基础骨骼猫、其动作道具和本地配饰现在放入同一个1.24倍显示组，完整佩戴模型的既有尺度不变；
 390×844实机像素检查中两种状态的可见主体高度均为222像素。完整模型切换改为后台加载完成后再
@@ -497,7 +497,7 @@ API输入SHA-256核对一致，不混入3D渲染截图、联系表、设计板�
 ## 176. v2完整佩戴模型替换衣橱审看资产（双站已发布 v263；保留已知生成伪影）
 
 用户要求先把重新生成的模型放进衣橱逐件查看。本轮将
-`Q:/NAVA-Workspace/Build/TestRuns/meshy-worn-catalog-v2/api/<slug>/assets/model.glb`
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/meshy-worn-catalog-v2/api/<slug>/assets/model.glb`
 中的17个“完整小猫＋单件配饰”模型替换到`src/assets/mascot/models/worn/`；没有从模型提取配饰，
 没有重新定位饰品，也没有启用多饰品组合。选择逻辑继续保持全局单件：点击新饰品会替换上一完整模型。
 
@@ -513,8 +513,8 @@ API输入SHA-256核对一致，不混入3D渲染截图、联系表、设计板�
 
 本地真实衣橱逐项检查覆盖17件×正/右/背/左四方向、0°/360°闭环、点击动作首末端点，以及
 360×740、375×812、390×844、430×932四种视口；证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-full-worn-v262/`。API原始18模型及六视图验证仍保存在
-`Q:/NAVA-Workspace/Build/TestRuns/meshy-worn-catalog-v2/`，不进入Git。
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-full-worn-v262/`。API原始18模型及六视图验证仍保存在
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/meshy-worn-catalog-v2/`，不进入Git。
 
 发布门禁：`npm run verify`全33组通过，`npm run auth:verify:production`通过，干净工作树中的真实衣橱
 逐项复测通过。两个公开站点由同一推送源码提交构建；ChatGPT Sites沿用既有public项目发布v263，
@@ -526,7 +526,7 @@ GitHub Pages镜像的`source.json`记录同一源码与Sites版本。此次发�
 用户暂停“从完整佩戴模型提取配饰再组合”的路线，要求先在真实APP中逐个查看全部单饰品3D模型。
 本轮直接使用17个Meshy生成的**完整小猫＋单件配饰**GLB；帽子、围巾等均未从猫体分离，
 没有独立缩放、重新定位或本地拼接。原始文件保留在
-`Q:/NAVA-Workspace/Build/TestRuns/meshy-worn-catalog-v1/api/<slug>/assets/model.glb`。
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/meshy-worn-catalog-v1/api/<slug>/assets/model.glb`。
 
 网页资产位于`src/assets/mascot/models/worn/`。可复现脚本只把每个完整模型从约2,100–3,600万
 字节/约36万三角面压到约194–248万字节/约6万三角面，并将不可变8K源贴图另存为1536 JPEG；
@@ -541,7 +541,7 @@ MeshBasicMaterial。横向拖动/方向键仍连续转身；静态完整网格�
 也未执行迁移、Edge部署或生产账户写入。选择皮肤时，单饰品完整模型仍显示其生成时烘焙的奶霜猫；
 取消饰品后回到原骨骼猫并继续支持17套运行时皮肤。多饰品组合保持停用，待用户逐件审看后再定。
 
-验证证据根目录为`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-full-worn-v261/`：真实APP逐一加载17件，
+验证证据根目录为`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-full-worn-v261/`：真实APP逐一加载17件，
 每件保存正/右/背/左四方向共68张；17/17的0°/360°画面逐像素一致，17/17点按动作结束画面
 逐像素等于起点。360×740、375×812、390×844、430×932四尺寸专项通过；衣橱15个手机、
 安全区、桌面壳及WebGL降级场景通过。`npm run verify`完整通过，`npm run auth:verify:production`
@@ -573,7 +573,7 @@ Pages `source.json`指向同一功能源码与v261；双站发布后门禁通过
 17个Meshy Multi-Image任务全部使用latest模型、2K geometry、8K texture、remove lighting、
 no remesh并成功下载完整“小猫+单件饰品”GLB；每件40 credits，共680 credits。原始结果、任务
 journal、8K贴图、请求回执、独立Blender硬门禁和六视图证据保存在
-`Q:/NAVA-Workspace/Build/TestRuns/meshy-worn-catalog-v1/`，不进Git。journal会在POST前锁定名称，
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/meshy-worn-catalog-v1/`，不进Git。journal会在POST前锁定名称，
 同一批次不会重复收费；密钥仍只从Windows Credential Manager目标`NAVA/Meshy/api-key`读取。
 
 原始模型全部通过invalid coordinate、degenerate face、材质、UV与贴图硬门禁，但单件约28–50MB、
@@ -600,7 +600,7 @@ Meshy重建面是多连通开口表面，边界/非流形数量不作为移动�
 四要求视口360×740、375×812、390×844、430×932，加安全区、桌面手机壳与无WebGL回退共15/15
 布局场景通过。34种皮肤/饰品×8角度、0/360像素接缝、拖后点击、WebGL丢失/恢复也通过。
 新增`verify-wardrobe-combinations.mjs`和863状态单测；证据根目录为
-`Q:/NAVA-Workspace/Build/TestRuns/meshy-worn-catalog-v1/`。`npm run verify`全33组通过；
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/meshy-worn-catalog-v1/`。`npm run verify`全33组通过；
 `npm run auth:verify:production`通过，确认canonical Supabase项目、公共demo旁路关闭、会话仍限当前标签页、
 Phone OTP函数可达；SMTP配置和真实短信送达未在本轮重测。
 
@@ -614,8 +614,8 @@ GitHub Pages镜像提交`bbdb1cb1dc0e251c0bb32dadda0fad438afa827d`，Actions
 发布后两站入口、canonical Supabase身份资源和未登录边界通过；带`?demo=1`仍显示真实登录表单。
 两站线上饰品GLB均为17,533,312字节，SHA256与本地最终资产相同；Pages `source.json`含完整
 v260/Sites版本信息，Sites `source.json`确认相同功能提交。未使用生产账号兑换或修改用户数据。
-发布包为`Q:/NAVA-Workspace/Build/Sites/Packages/nava-wardrobe-catalog-v260.tar.gz`；线上回执为
-`Q:/NAVA-Workspace/Build/TestRuns/meshy-worn-catalog-v1/release/public-wardrobe-v260.json`。
+发布包为`Q:/NAVA-Workspace/NAVA-App/Build/Sites/Packages/nava-wardrobe-catalog-v260.tar.gz`；线上回执为
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/meshy-worn-catalog-v1/release/public-wardrobe-v260.json`。
 
 当前新增：三套其他饰品的佩戴四视图见§173；雾紫贝雷帽多视角设计见§172；围巾柔软厚度/褶皱/动作精修见§171；饰品贴合与一屏兑换修复见§170；小猫衣橱四段点击动作与连续立体转身见§169；小猫自然招手透明动作母版见§168；小猫动画前置五视图母版见§167；全仓文件门禁、手记真实加载修复与专注纯背景见§166；小猫衣橱一屏式试穿、三列两行横滑目录、饰品多选与原子积分合同见§165；九套完成页统一绿色无框按钮与原子预加载见§164；AI对话底部专用输入栏、详细资料字号与周报一屏洞察见§163；饮食识别按餐次与逐项食物重排见§162；九套完成奖励场景的桌面逐页入口与桌面小猫加载/手写节奏修复见§161；重复“功能导航”删除与全语音AI链路上线前核验见§160；全页面逐张视觉复核、新手引导交互锁与完成页去叠层见§159；详细资料下拉浮层几何与遮挡修复见§158；详细资料设置全层级换肤与逐层颜色门禁见§157；个人资料扩展、自绘选择器与“我的”标题精确统一见§156；管理员与积分商城全层级换肤及底部中心入口去重层见§155；备用联系方式OTP与首页同构浮动导航见§154；常规页面紧凑顶栏与“我的”模块标题节奏见§153；账号安全弹窗居中与未接通入口禁用见§152；设备连接与账号安全的内部去叠层见§151；25个常规页面的连续画布与浮动导航见§150；皮肤选择页的顶栏同步换色与三套独立候选色板见§149；三套皮肤的全层级Figma配色与浅色中心入口见§148；首次登录可选授权的可见选择控件与说明排版见§147；月历与“我的”加载骨架逐模块同构及季度星期对齐见§146；个人资料单列紧凑布局与全APP隐藏滚动条见§145；设备连接与账号安全的内部去叠层见§144。
 
@@ -643,8 +643,8 @@ image_gen生成参考图，未调用Meshy API、未消耗Meshy credits，也未�
 本地对齐、提取及修整后组合多件，组合不调用生成API。原猫GLB、脸型和四动作保持。
 初轮两个独立饰品任务均已完成、各40credits；后补完整戴帽猫任务
 `01a14510-0bfb-74d9-a97b-ecdf299e5a6d` 完成、40credits。已确认累计120，余额2940。
-初轮原始资料 `Q:/NAVA-Workspace/Build/TestRuns/meshy-accessory-pilot-v1`；
-完整佩戴批次 `Q:/NAVA-Workspace/Build/TestRuns/meshy-worn-pilot-v1`。
+初轮原始资料 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/meshy-accessory-pilot-v1`；
+完整佩戴批次 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/meshy-worn-pilot-v1`。
 
 完整戴围巾任务在2026-10-16 22:26:07本地时间POST后超时，journal保持
 `SUBMISSION_UNKNOWN_NO_RESUBMISSION`，没有task ID。两次官方列表查询无新任务、余额未变，
@@ -742,11 +742,11 @@ Windows Computer Use因无法可靠确定浏览器URL被安全检查停止，未
 - 两站source.json均为功能源码；每站25项模型/模块/缩略图/入口与本地产物SHA一致。
   四尺寸×两站共8个未登录入口真实登录路由通过，公共demo旁路关闭，无横向溢出或页面异常。
   报告：`release/public-report.json`。未使用生产账号执行兑换或修改用户数据。
-- 包：`Q:/NAVA-Workspace/Build/Sites/Packages/nava-scarf-softness-v259.tar.gz`。
+- 包：`Q:/NAVA-Workspace/NAVA-App/Build/Sites/Packages/nava-scarf-softness-v259.tar.gz`。
 - [ChatGPT Sites](https://nava-app-preview-cz.chizhang1031.chatgpt.site)
   / [GitHub Pages](https://chizhang-805.github.io/nava-app-preview/)。
 
-证据根目录：`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-scarf-softness-v259`；
+证据根目录：`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-scarf-softness-v259`；
 `qa/final-v9-app-report.json`为真实APP截图报告，`release/`为最终运行时门禁。
 
 ## 170. 衣橱饰品贴合与一屏兑换（已发布 v258）
@@ -797,11 +797,11 @@ Windows Computer Use因无法可靠确定浏览器URL被安全检查停止，未
 - 两站`source.json`均指向功能源码；每站25项模型/衣橱模块/缩略图/入口与本地产物SHA一致。
   四尺寸×两站共8个未登录入口均走真实登录，`?demo=1`不能打开衣橱，无横向溢出或页面异常。
   线上报告：`release/public-report.json`；发布包：
-  `Q:/NAVA-Workspace/Build/Sites/Packages/nava-wardrobe-accessory-fit-v258.tar.gz`。
+  `Q:/NAVA-Workspace/NAVA-App/Build/Sites/Packages/nava-wardrobe-accessory-fit-v258.tar.gz`。
 - [ChatGPT Sites](https://nava-app-preview-cz.chizhang1031.chatgpt.site)
   / [GitHub Pages](https://chizhang-805.github.io/nava-app-preview/)。
 
-证据根目录：`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-accessory-fit-v258`；最终APP报告/截图在`release/`。
+证据根目录：`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-accessory-fit-v258`；最终APP报告/截图在`release/`。
 旧scratch查看器的AnimationMixer根节点曾错误指向loader容器，其旧动作图已作废；
 `motion-final`与`stack-final`使用修正后的scene，APP门禁始终调用真实运行代码。
 未做真实生产账户兑换或真实iPhone GPU/功耗测量，认证、后端及数据库没有修改。
@@ -812,7 +812,7 @@ Windows Computer Use因无法可靠确定浏览器URL被安全检查停止，未
 `E:/D/DirMove/Downloads/model.glb` 为基础，保持已选择的无阴影外观；原件 SHA256
 `ECC582E973FD29A417E83619C76E522568C0593C1597451AB979F10E3A34EACD` 未改。
 早期失败草模、多视图推断、Meshy 原件检查与精修证据保留于
-`Q:/NAVA-Workspace/Build/TestRuns/mascot-rebuild-research`。角色身份基准仍为 v5 正面原图；
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/mascot-rebuild-research`。角色身份基准仍为 v5 正面原图；
 侧背面来自参考重建，不能宣称等同于不存在的原始设计模型。
 
 ### 当前实现
@@ -871,7 +871,7 @@ APP 验证：`wardrobe:test` 15 项；四手机尺寸、34 种外观 × 8 角度
   两站 `source.json` 都指向同一源码。四尺寸 × 两站共 8 个公开登录边界截图通过：`?demo=1`
   不绕过登录，无横向溢出或 pageerror，canonical Supabase 项目保持 `wxteapvwagvhhtrjrbim`。
 
-最终证据：`Q:/NAVA-Workspace/Build/TestRuns/wardrobe-rig-v257-final`，包括完整 verify 日志、
+最终证据：`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-rig-v257-final`，包括完整 verify 日志、
 动作门禁、归档清单、Pages 复制清单、线上资源/登录报告。衣橱交互是在本地隔离 demo 中验收，
 未用真实生产账户执行衣橱写入；SMTP 投递和真实手机 GPU 性能未测。原模型检查服务器 5277 保留；
 本轮 APP 开发服务器 5283 已停止，用户可从公开站点进入衣橱审看最终外观。
@@ -892,7 +892,7 @@ APP 验证：`wardrobe:test` 15 项；四手机尺寸、34 种外观 × 8 角度
 - 验证：逐帧解码36帧，均为55ms、RGBA、透明四角；每帧只有一个主体连通域，耳、身体、爪、尾
   均未裁切，首尾可见像素和透明度接缝完全一致。独立目检浅深底下的内外摆、肩毛与尾耳跟随，
   未见额外肢体或透明碎屑。内摆极点的浅色近端仍较淡，小尺寸下幅度克制，需用户审看。
-  专项过程证据在`Q:/NAVA-Workspace/Build/TestRuns/mascot-wave`。本循环不含中立坐姿起落，
+  专项过程证据在`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/mascot-wave`。本循环不含中立坐姿起落，
   未来若要接入APP须另做起落过渡和四档手机尺寸验收。
 
 ## 167. 小猫动画前置五视图母版（当前版本）
@@ -914,7 +914,7 @@ APP 验证：`wardrobe:test` 15 项；四手机尺寸、34 种外观 × 8 角度
 未忽略文件逐个读取和SHA-256散列，检查空文件、UTF-8、JSON语法、合并冲突、未解析LFS、大小写冲突，
 并校验PNG/JPEG/GIF/WebP/SVG文件签名。当前全量结果为898个文件、124,523,891字节、650个文本、
 12个JSON和219张图片，零错误；清单与报告位于
-`Q:\NAVA-Workspace\Build\TestRuns\full-file-audit`，后续发布级验证会自动重新执行同一门禁。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\workspace-runs\full-file-audit`，后续发布级验证会自动重新执行同一门禁。
 
 本地真实手记页曾因demo仍请求受RLS保护的`journal_entries`而显示“记录未能加载，请重试”。现仅在
 localhost/127.0.0.1/::1且显式demo环境使用隔离的localStorage记录与设置；公开Sites和Pages仍必须
@@ -1046,9 +1046,9 @@ AI对话页不再重复渲染五项主导航，页面底部只保留文字／语
 本周报告继续是一屏构图：洞察卡提升到254–260px，AI图标改为22px裸图标，洞察文字统一14px，
 小猫图放大并占据更宽的右栏，使左侧每行文字自然变短；有数据、空状态、雷达图与英文状态都不会和
 小猫重叠或落到卡片外，430×932下最后一张卡也保持在浮动导航之上。四档截图位于
-`Q:\NAVA-Workspace\Build\TestRuns\App-Checks\weekly-readability`，详细资料截图位于
-`Q:\NAVA-Workspace\Build\TestRuns\advanced-profile-readability`，AI截图位于
-`Q:\NAVA-Workspace\Build\TestRuns\ai-composer-only`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\App-Checks\weekly-readability`，详细资料截图位于
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\workspace-runs\advanced-profile-readability`，AI截图位于
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\workspace-runs\ai-composer-only`。
 
 本轮已通过lint、生产构建、15项周报单测、周报四态视觉门禁、详细资料视觉门禁、AI底部布局门禁和
 300状态综合皮肤／路由门禁。旧`icons:test`仍会在进入本轮AI页断言之前，因首页胶囊左右边距
@@ -1084,7 +1084,7 @@ AI对话的饮食结果不再显示“识别结果”标题，也不再把食物
 右上角关闭和确认操作，在360×740、375×812、
 390×844、430×932四档竖屏均无横向
 溢出。`nutrition:confirmation:test`、`structured:test`、lint与生产构建通过，截图和JSON收据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nutrition-confirmation`。功能源码commit为
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\workspace-runs\nutrition-confirmation`。功能源码commit为
 `3ba1e5de03c6316410748b02ac59aa34707e9b8c`；ChatGPT Sites已发布v246且部署成功，GitHub Pages
 最终镜像commit为`a71a3a834e0fdcc412d2d4e5cd346cb22a414aad`、工作流`38038013356`成功。
 发布后皮肤／路由门禁通过58个结果、381项检查并生成56张截图，当前完整公开锚点见§2.2。
@@ -1148,7 +1148,7 @@ NAVA常见食物参考；因此不能宣称照片结果已经由食物数据库�
 功能提交`7b4b6988b7008b477a0da4557e36e778f0dac811`已推送源仓库并以同一提交发布双站：ChatGPT
 Sites为v244（deployment `appgdep_6ac9e310f1dc81918ba6f95779c8e79f`），GitHub Pages镜像提交为
 `b5bd673eec2c2083fb6dcb9d5678643535b746f6`，Pages workflow `38033177383`成功。发布后皮肤/认证回归
-报告位于`Q:\NAVA-Workspace\Build\TestRuns\skin-v244-regression\report.json`：58个结果、381项检查全部
+报告位于`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\skin-v244-regression\report.json`：58个结果、381项检查全部
 通过，含双站公开路由、四个规定视口、真实登录边界、资源一致性和零运行时错误。
 
 ## 159. 全页面逐张视觉复核、新手引导交互锁与完成页去叠层（当前版本）
@@ -1159,7 +1159,7 @@ Sites为v244（deployment `appgdep_6ac9e310f1dc81918ba6f95779c8e79f`），GitHub
 商品分类、商品详情、购物车、积分卡、添加积分卡——已按三套皮肤和四档要求视口全部渲染，形成
 25×3×4共300个独立路由状态。390px下75张当前截图逐张组成联系表并人工查看；新手引导、记录完成、
 通知九状态、完成动画九场景、周报、相机、组件、待办、商城、管理员等不属于25个路由静态矩阵的
-状态另用各自专项逐张检查，证据统一保存在`Q:\NAVA-Workspace\Build\TestRuns`，不写入源码仓库。
+状态另用各自专项逐张检查，证据统一保存在`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns`，不写入源码仓库。
 
 逐张检查发现并修复一个此前断言没有覆盖的真实问题：360×740下周报最后一张洞察卡不能滚动到浮动
 导航上方。周报容器现在用自身的底部弹性留白承接浮动导航和安全区；专项门禁会把滚动区推到底后读取
@@ -1188,7 +1188,7 @@ deployment`appgdep_6ac963d1c22881919a84eccc7d9d376a`）。GitHub Pages镜像提�
 文件共66,465,260字节，与镜像逐文件SHA-256一致；另有`source.json`，因此镜像共205个文件并指向
 v243和上述源码。发布后`skins:deployment:audit`通过58个结果、381项检查和56张截图，双站公开登录
 边界、canonical Supabase项目、版本/资源与四档视口均已核验，收据位于
-`Q:\NAVA-Workspace\Build\TestRuns\skin-v243-regression\report.json`。Sites官方源同步已推送同一
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\skin-v243-regression\report.json`。Sites官方源同步已推送同一
 源码；Windows Bash打包器仍不能解析盘符路径，随后用系统tar归档同一构建产物，Sites验收为310个
 文件。
 
@@ -1219,7 +1219,7 @@ deployment`appgdep_6ac9452f0a808191844d3e67978e4468`）。GitHub Pages镜像提�
 Pages专用产物的205个文件与镜像逐文件SHA-256一致（66,461,790字节），`source.json`指向v242和上述
 源码。发布后`skins:deployment:audit`通过：58个结果、381项检查、56张截图；双站公开登录边界、
 canonical Supabase项目、版本/资源和四档视口均已核验，收据位于
-`Q:\NAVA-Workspace\Build\TestRuns\skin-v242-regression\report.json`。Sites官方工作流已推送同一源码；
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\skin-v242-regression\report.json`。Sites官方工作流已推送同一源码；
 Windows Bash打包器仍不能解析盘符路径，随后以系统tar归档同一构建产物，Sites验收为310个文件。
 
 ## 157. 详细资料设置全层级换肤与逐层颜色门禁（当前版本）
@@ -1249,7 +1249,7 @@ deployment`appgdep_6ac93ba1e70c8191995565c30b66aa7b`）。GitHub Pages镜像提�
 Pages的205个生成文件与本地产物逐文件SHA-256一致（66,460,674字节），`source.json`指向v241和上述
 源码。发布后`skins:deployment:audit`通过：58个结果、381项检查、56张截图；双站公开登录边界、
 canonical Supabase项目、版本/资源和四档视口均已核验，收据位于
-`Q:\NAVA-Workspace\Build\TestRuns\skin-v241-regression\report.json`。Sites官方工作流完成源码校验和
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\skin-v241-regression\report.json`。Sites官方工作流完成源码校验和
 源推送；Windows Bash打包器仍不能解析盘符路径，继续使用系统tar归档同一构建产物，Sites验证归档
 含310个文件。
 
@@ -1280,7 +1280,7 @@ deployment`appgdep_6ac934d9af5481919d6df6d54e302344`）。GitHub Pages镜像提�
 Pages的205个生成文件与本地Pages产物逐文件SHA-256一致（66,456,617字节），`source.json`指向
 v240及上述源码。发布后`skins:deployment:audit`通过：58个结果、381项检查、56张截图；两站公开
 登录边界、canonical Supabase项目、版本/资源和四档视口均已核验，收据位于
-`Q:\NAVA-Workspace\Build\TestRuns\skin-v240-regression\report.json`。Sites官方工作流已完成源码
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\skin-v240-regression\report.json`。Sites官方工作流已完成源码
 校验与源推送；其Windows Bash打包器仍不能解析盘符路径，因此按既有恢复方案用系统tar归档同一
 构建产物，Sites验证归档含310个文件。
 
@@ -1317,7 +1317,7 @@ deployment`appgdep_6ac92563522c8191b761bff3d086fdc8`）。GitHub Pages镜像提�
 源码提交；Pages的205个生成文件与本地Pages产物逐文件SHA-256一致（66,450,971字节），
 `source.json`指向v239及上述源码。发布后`skins:deployment:audit`通过：58个结果、381项检查、
 56张截图；两站公开登录边界、版本/资源和四档视口均已核验，收据位于
-`Q:\NAVA-Workspace\Build\TestRuns\skin-v239-regression\report.json`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\skin-v239-regression\report.json`。
 
 ## 154. 备用联系方式OTP与首页同构浮动导航（当前版本）
 
@@ -1352,7 +1352,7 @@ deployment`appgdep_6ac92563522c8191b761bff3d086fdc8`）。GitHub Pages镜像提�
 `db63f2d751a8bb74987557473624ff3ec7c27508`、工作流`37935284095`均已成功发布。Pages的205个生成
 文件共66,441,157字节，复制前后逐文件SHA-256一致；`source.json`指向v238和`d7ac2f2`。发布后门禁
 通过58项结果、381项检查与56张截图，证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/skin-v238-regression`。Sites官方工作流完成源码校验、构建和源
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-v238-regression`。Sites官方工作流完成源码校验、构建和源
 推送；其Windows Bash打包器仍无法解析盘符路径，按既有恢复方案用系统tar归档同一构建产物并由
 Sites验证为309文件。
 
@@ -1432,7 +1432,7 @@ ChatGPT Sites **v235**版本
 `appgdep_6ac8c574905c8191a5cf7c375a8cbded` succeeded；制品含309文件。GitHub Pages镜像提交
 `2385c4aa2ecea459493fc719eb3cf227a18f9ba8`，workflow `37919641079` success；204个生成文件
 复制前后SHA-256一致，`source.json`指向v235、上述功能提交和Sites版本。发布后门禁通过58/58结果、
-381/381检查与56张截图，证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v235-regression`。Sites官方
+381/381检查与56张截图，证据位于`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-v235-regression`。Sites官方
 工作流完成源码校验和源推送；Windows Bash打包器仍无法解析盘符路径，按既有恢复方案用系统tar归档
 同一构建产物并由Sites验证为309文件。
 
@@ -1461,7 +1461,7 @@ ID按页面模板计数，不重复扩大数量。首次登录、记录编辑、
 视口逐页检查100个路由状态，验证无横向溢出、无可见滚动条、顶栏/局部导航/底栏容器无独立背景和阴影；
 底栏伪元素另行断言为左右内收、圆角、24px模糊的悬浮胶囊，且高度不超过74px；五个按钮还必须通过
 圆心共线、圆心与胶囊中心线重合、四段边缘净距相等三项几何门禁，避免回退为整页矩形或错位排布；
-25张390×844逐页截图与JSON报告位于`Q:/NAVA-Workspace/Build/TestRuns/integrated-shell`。
+25张390×844逐页截图与JSON报告位于`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/integrated-shell`。
 
 功能源码提交`dcfc8df1690ff8ee4025f6c7092ab6a20ac725a9`已推送，并由同一提交生成双站。
 ChatGPT Sites **v233**版本
@@ -1469,7 +1469,7 @@ ChatGPT Sites **v233**版本
 `appgdep_6ac8b4e373c08191a506c4185078bb19` succeeded；制品含309文件。GitHub Pages镜像提交
 `9914b040780139caf87417d891e123ec361d54ad`，workflow `37912242113` success；204个生成文件复制前后
 SHA-256一致，`source.json`指向v233、上述功能提交和Sites版本。发布后门禁通过58/58结果、381/381
-检查与56张截图，证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v233-regression`。Sites官方工作流
+检查与56张截图，证据位于`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-v233-regression`。Sites官方工作流
 完成源码校验、构建和源推送；Windows Bash打包器仍无法解析盘符路径，按既有恢复方案用系统tar归档
 同一构建产物并由Sites验证为309文件。没有数据库迁移、Edge Function部署、生产数据写入、密钥或
 访问策略变更。
@@ -1489,9 +1489,9 @@ SHA-256一致，`source.json`指向v233、上述功能提交和Sites版本。发
 验证：`npm run skins:test` 8/8、`npm run lint`、`npm run build`、
 `npm run auth:verify:production`、`npm run profile:visual`与`npm run skins:visual`通过；四档视口为
 360×740、375×812、390×844、430×932。跨浏览器门禁在Chromium、Firefox、WebKit完成168个
-状态、1080项检查与168张截图；专项证据位于`Q:/NAVA-Workspace/Build/TestRuns/app-skins`和
-`Q:/NAVA-Workspace/Build/TestRuns/skin-cross-browser-quality`。Figma两组参考稿的四张单屏裁图位于
-`Q:/NAVA-Workspace/Build/TestRuns/skin-figma-reference`，裁图仅放大用户提供的原始总览，不重绘。
+状态、1080项检查与168张截图；专项证据位于`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/app-skins`和
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-cross-browser-quality`。Figma两组参考稿的四张单屏裁图位于
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-figma-reference`，裁图仅放大用户提供的原始总览，不重绘。
 
 功能源码提交`bd562f73a2fede9985ad44c006f9a9dedb3ae8a1`已推送，并由同一提交生成双站。
 ChatGPT Sites **v230**版本
@@ -1521,9 +1521,9 @@ AI入口均从旧深紫/深蓝实心球改为同色系浅渐变，图标改用�
 `npm run auth:verify:production`、`npm run profile:visual`与`npm run skins:visual`通过；四档视口为
 360×740、375×812、390×844、430×932。`npm run skins:cross-browser:gate`在Chromium、Firefox、
 WebKit完成168个状态、1080项检查与168张截图，覆盖两套新增皮肤×六类记录×四档尺寸和双站公开
-边界；证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-cross-browser-quality`。门禁首次运行仍从旧
+边界；证据位于`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-cross-browser-quality`。门禁首次运行仍从旧
 `我的`首页寻找`.profile-skin-card`而全量超时，脚本改为当前真实`tab=profile&view=skin`子页后完整
-重跑通过。专项截图位于`Q:/NAVA-Workspace/Build/TestRuns/app-skins`。
+重跑通过。专项截图位于`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/app-skins`。
 
 功能源码提交`9b34aab1a02f9b254b7de5d89a6007898349aafd`已推送，并由同一提交生成双站。
 ChatGPT Sites **v229**版本
@@ -1532,7 +1532,7 @@ ChatGPT Sites **v229**版本
 `a06ef6813d7e24f917aa7ee8ed784a1629ea6a9d`，workflow `37882738199` success；204个生成文件
 复制前后SHA-256一致，`source.json`指向v229、上述功能提交和Sites版本。发布后门禁通过58/58结果、
 381/381检查与56张截图，覆盖双站登录边界、公开demo拒绝、三套皮肤、六类记录、四档尺寸、活动
-资源与Pages发布凭据；证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v229-regression`。审计合同同步
+资源与Pages发布凭据；证据位于`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-v229-regression`。审计合同同步
 更新为新的浅蓝饮食渐变和v5记录皮肤资源版本，防止以后错误恢复旧深蓝。Sites官方工作流完成源码
 校验和推送；Windows Bash打包器仍无法解析盘符路径，按既有恢复方案用系统tar归档同一构建产物。
 没有数据库迁移、Edge Function部署、生产数据写入、密钥或访问策略变更。
@@ -1547,7 +1547,7 @@ ChatGPT Sites **v229**版本
 换行并占用标题至卡片右侧的完整宽度，避免第二行只剩少数字符。专项视觉测试同时读取真实文本行宽，
 拒绝孤行比例低于45%的排版，并检查未选中控件的不透明度、描边和触控卡片状态。360×740、375×812、
 390×844、430×932四档视口的中英文共8个授权页状态通过；证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/cold-start/original-permissions-*.png`。
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/cold-start/original-permissions-*.png`。
 
 功能源码提交`4b2ba52b140dbb35116246cb83843765395dee67`已推送，并由同一提交生成双站。
 ChatGPT Sites **v228**版本
@@ -1575,8 +1575,8 @@ ChatGPT Sites **v228**版本
 
 验证：`npm run lint`、`npm run build`、`npm run auth:verify:production`、`npm run calendar:visual`、
 `npm run profile:visual`以及`npm run screenshots -- --skeleton-only`通过。证据分别位于
-`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/calendar-readability`、`Q:/NAVA-Workspace/Build/TestRuns/profile-hub`
-和`Q:/NAVA-Workspace/Build/TestRuns/loading-skeleton-audit-v2`。完整`npm run verify`的前置单元测试、
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/calendar-readability`、`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/profile-hub`
+和`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/loading-skeleton-audit-v2`。完整`npm run verify`的前置单元测试、
 媒体反馈视觉测试和相机布局测试通过，随后仍在与本轮无关的旧`external-preview:visual`脚本停止：
 记录页返回了加载失败提示，脚本继续从父页面查找`.sports-plan-actions`。本轮未修改该业务边界，也未
 把完整验证记为通过。
@@ -1587,13 +1587,13 @@ ChatGPT Sites **v227**版本
 `appgdep_6ac73320b5348191a138a49c7995b518` succeeded；Sites制品含310文件。GitHub Pages镜像提交
 `de071bc4b179100325e763b3ecd77ee404a6e884`，workflow `37736133055` success；`source.json`指向
 v227、上述功能提交和Sites版本。Sites官方工作流完成源码推送；Windows Bash打包器仍不能解析
-`Q:`路径，因此使用项目规定的`Q:/NAVA-Workspace/Build/Sites/Packages`独立暂存目录与系统
+`Q:`路径，因此使用项目规定的`Q:/NAVA-Workspace/NAVA-App/Build/Sites/Packages`独立暂存目录与系统
 `tar.exe`打包同一构建产物。没有数据库迁移、Edge Function部署、生产数据写入或访问策略变更。
 
 发布后以`NAVA_RELEASE=v227`和`NAVA_RELEASE_COMMIT=d27fc7df6191002243f08d6164193e6987ba5609`
 运行皮肤部署门禁通过：58/58结果、381/381检查、56张截图，覆盖双站公开登录边界、公开demo拒绝、
 三套皮肤、六类记录模块、四档尺寸、活动资源状态、关键资源哈希和Pages发布凭据；证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/skin-v227-regression`。首次运行误用了未被脚本读取的
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-v227-regression`。首次运行误用了未被脚本读取的
 `NAVA_SOURCE_COMMIT`，因此仅发布凭据检查拿默认旧SHA失败；以正确变量完整重跑后全部通过。
 
 ## 145. 个人资料单列紧凑布局与全APP隐藏滚动条（当前版本）
@@ -1615,7 +1615,7 @@ v227、上述功能提交和Sites版本。Sites官方工作流完成源码推送
 `npm run auth:verify:production`通过。`profile:visual`在360×740、375×812、390×844、430×932
 逐一断言七项单列、控件同宽同高、BMI格式统一、保存按钮整行、390及更大尺寸零纵向溢出、全部
 子页无水平溢出且滚动条样式为`none`；主代理实际查看四张个人资料截图。证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/profile-hub`。完整`npm run verify`在与本轮无关的旧
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/profile-hub`。完整`npm run verify`在与本轮无关的旧
 `external-preview:visual`脚本停止：脚本仍从父页面查找已经位于Journal iframe内的
 `.sports-plan-actions`；独立`interaction:test`也在旧引导`data-step="gender"`断言停止。两项均未
 被记为通过，也没有为其修改无关APP逻辑。
@@ -1631,7 +1631,7 @@ v227、上述功能提交和Sites版本。Sites官方工作流完成源码推送
 
 发布后以`NAVA_RELEASE=v226`和最终源码SHA运行皮肤部署门禁通过：58/58结果、381/381检查、
 56张截图，覆盖双站公开登录边界、公开demo拒绝、两套新增皮肤、六记录模块、四档尺寸、活动资源
-状态与关键资源哈希；证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v226-regression`。
+状态与关键资源哈希；证据位于`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-v226-regression`。
 
 ## 144. 设备连接、隐私与账号安全一屏重构（当前版本）
 
@@ -1659,8 +1659,8 @@ Apple健康与Apple Watch子页改为一屏设备舞台：中间只有一个主�
 `npm run skins:visual`与`npm run auth:verify:production`通过。`profile:visual`在360×740、375×812、
 390×844、430×932四档断言六个子页无纵向溢出、设备页单按钮/单行状态、隐私四段政策、账号七行
 同宽纵向入口、两项底部操作及安全弹层；`skins:visual`额外保存三套皮肤的健康页与账号安全页。
-截图与报告位于`Q:/NAVA-Workspace/Build/TestRuns/profile-hub`和
-`Q:/NAVA-Workspace/Build/TestRuns/app-skins`。完整`npm run verify`仍在与本轮无关的旧
+截图与报告位于`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/profile-hub`和
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/app-skins`。完整`npm run verify`仍在与本轮无关的旧
 `external-preview:visual`运动页用例停止：脚本未加载当前Journal iframe并找不到
 `.sports-plan-actions`；没有把该历史失败记为通过。
 
@@ -1678,7 +1678,7 @@ Edge Function部署、生产数据写入或访问策略变更。
 部署后以`NAVA_RELEASE=v225`和上述源码SHA运行`npm run skins:deployment:audit`通过：58/58结果、
 381/381检查、56张截图，覆盖双站公开登录边界、demo拒绝、三套皮肤资源、四档尺寸、活动资源HTTP
 状态、主样式/记录皮肤CSS哈希与Pages发布凭据；证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/skin-v225-regression`。
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-v225-regression`。
 
 ## 143. 个人资料、皮肤一屏子页与初见手记最终页顺序（当前版本）
 
@@ -1701,8 +1701,8 @@ Edge Function部署、生产数据写入或访问策略变更。
 `npm run cold-start:test`、`NAVA_NOTEBOOK_ONLY=1 npm run cold-start:visual`和
 `npm run auth:verify:production`通过。`profile:visual`现在额外断言两页零纵向溢出、保存按钮整行、
 三张皮肤卡纵向全宽、18行短句均为单行；`cold-start:visual`以中英文和四档尺寸验证新增问题全部
-在最终按钮之前。证据位于`Q:/NAVA-Workspace/Build/TestRuns/profile-hub`与
-`Q:/NAVA-Workspace/Build/TestRuns/cold-start`。
+在最终按钮之前。证据位于`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/profile-hub`与
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/cold-start`。
 
 功能源码`adecb7867448d1f93677f98c590ad340da343e7c`已干净推送并从同一提交生成双站。
 ChatGPT Sites **v223**：
@@ -1714,7 +1714,7 @@ ChatGPT Sites **v223**：
 
 部署后`npm run skins:deployment:audit`通过：58/58结果、381/381检查、56张截图，覆盖两套新皮肤、
 六类记录、四档尺寸、两站无会话登录边界、活动资源HTTP状态、主样式/记录皮肤CSS哈希及Pages
-发布凭据；证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v223-regression`。
+发布凭据；证据位于`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-v223-regression`。
 
 ## 142. “我的”导航式总览与季度足迹（当前版本）
 
@@ -1736,7 +1736,7 @@ Apple健康、Apple Watch、隐私与数据、账号与安全。每行仅保留�
 
 新增`npm run profile:visual`，覆盖四档根页、真实季度网格结构、七入口、六个路由子页、底栏显隐、
 裸按钮透明背景、滚动净空和零横向溢出；截图与报告位于
-`Q:/NAVA-Workspace/Build/TestRuns/profile-hub`。`npm run skins:visual`也已更新为从根页进入皮肤子页，
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/profile-hub`。`npm run skins:visual`也已更新为从根页进入皮肤子页，
 三皮肤、双入口、持久化和四档矩阵通过。导航单元测试、lint、生产构建和生产认证合同通过。
 完整`npm run verify`在与本轮无关的旧`external-preview:visual`运动页用例停止：该脚本未能加载记录
 iframe并找不到`.sports-plan-actions`，单独复跑结果相同；没有把这项失败记为通过。没有数据库迁移、
@@ -1752,7 +1752,7 @@ ChatGPT Sites **v222**：
 
 部署后`npm run skins:deployment:audit`通过：58/58结果、381/381检查、56张截图，覆盖两套新皮肤、
 六类记录、四档尺寸、两站无会话登录边界、活动资源HTTP状态、主样式/记录皮肤CSS哈希及Pages
-发布凭据；证据位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v222-regression`。
+发布凭据；证据位于`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-v222-regression`。
 
 ## 141. 三套APP皮肤与双入口切换（当前版本）
 
@@ -1775,7 +1775,7 @@ APP现在保留原版`冰川晨雾`，并加入按Figma两组移动端状态板�
 新皮肤最不利表面的WCAG AA对比度；`npm run skins:visual`在360×740、375×812、390×844、430×932
 四档验证“我的”选择器、右上角菜单、刷新持久化、记录中心、首页、底栏和零横向溢出，并为两套
 新皮肤各生成睡眠、运动、情绪、专注、饮食、面部六张稳定内容截图；测试等待iframe真实加载完成，
-不把加载页当结果。证据位于`Q:/NAVA-Workspace/Build/TestRuns/app-skins`。主代理已对比调整前后的
+不把加载页当结果。证据位于`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/app-skins`。主代理已对比调整前后的
 暮紫情绪页与晴空饮食页，确认仅把次要文字令牌加深为暮紫`#53617d`、晴空`#52657a`，没有改变
 渐变、模块组合、留白和布局。`npm run skins:test`、lint、生产构建和生产认证合同通过；未运行与本轮
 无关的完整verify。本轮没有数据库迁移、Edge Function部署、真实账号数据写入或访问策略变更。
@@ -1801,7 +1801,7 @@ npm启动和Bash打包器仍不能解析`Q:`路径，因此使用已通过的仓
 JS/CSS/图片也逐项验证HTTP成功。报告模式升级为schema v2：每个结果记录命名检查、通过/失败、
 实际值、错误、截图路径、资源URL、HTTP状态与CSS哈希，单项失败会尽量继续采集其余结果并以非零
 退出码结束；可用`--output=<绝对路径>`重定向证据。最终完整门禁为58/58结果、381/381检查、56张
-截图、`errors:[]`，报告位于`Q:/NAVA-Workspace/Build/TestRuns/skin-v221-regression/report.json`；
+截图、`errors:[]`，报告位于`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-v221-regression/report.json`；
 主代理抽查两皮肤四类页面和两站登录页截图。此审计没有取得公网测试账号，因此
 “已登录六页”结论只来自本地认证壳，不冒充公网真实登录；未执行数据写入、AI调用或后台变更。
 审计与对比度修复已随v221同步发布到两站。
@@ -1819,8 +1819,8 @@ iframe导航耗时、路由/皮肤/模块、横向溢出、可访问名称、键
 结果、1080项检查和168张截图，全部通过：24个公网状态均通过；本地144个状态的路由、性能、
 响应式、名称/目标、键盘焦点、控制台和`text-contrast`均通过，最低实际对比度由修复前3.68提升为
 4.89，最慢首屏618.5ms、最慢iframe导航237ms（预算分别8s/5s），`errors:[]`。当前证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/skin-cross-browser-quality/report.json`；修复前169文件、19,278,731
-字节的完整失败证据保存在`Q:/NAVA-Workspace/Build/TestRuns/skin-cross-browser-quality-before-contrast-fix`，
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-cross-browser-quality/report.json`；修复前169文件、19,278,731
+字节的完整失败证据保存在`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/skin-cross-browser-quality-before-contrast-fix`，
 避免覆盖基线。两站均保持真实Supabase登录边界、公开demo禁用和相同功能提交，AA问题已关闭。
 
 ## 140. 六类记录语音即时预填与尾句提速（当前版本）
@@ -1842,7 +1842,7 @@ DeepSeek JSON请求，但按六类字段量将输出上限限制在420–720 tok
 
 专项单元测试覆盖六类明确原话、无依据不预填、六档输出预算及真实听写结算；真实iframe测试把AI
 响应故意保持pending，六页仍在346–366ms内显示预填字段并恢复可提交状态，证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/journal-voice-prefill`。`npm run journal:voice:test`、
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/journal-voice-prefill`。`npm run journal:voice:test`、
 `npm run voice:endpoint:test`、`npm run structured:test`和生产构建通过。既有四页视觉脚本仍在完成页
 元素已经切为`data-scene="celebrate"`但处于隐藏状态时等待可见并超时；它与本轮入口表单改动无关，
 未把该脚本失败记为通过。
@@ -2031,7 +2031,7 @@ Notes全部落在卡内，不再在底边露出半个标签。
 首次引导四档视口×中英文、lint、Web/native构建和生产认证合同。完整`npm run verify`仍停在仓库既有
 `external-preview:visual`：记录页先显示“记录未能加载”，随后旧用例继续寻找不存在的
 `.sports-plan-actions`；本轮没有修改该外部预览路径。证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v3`、`cold-start`、`card-gallery`与待办专项目录。
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/points-shop-checkout-v3`、`cold-start`、`card-gallery`与待办专项目录。
 本轮没有数据库迁移、Edge Function部署、生产账号写入或真实积分兑换。
 
 功能源码`d44bd492e63ba037d1037d2d95ca578806d190ad`已干净推送并从同一提交生成双站。
@@ -2062,7 +2062,7 @@ Pages `source.json`指向v207和上述功能提交。Sites官方工作流已完�
 带五项底部导航的购物车截图，断言结算条就在导航上方且不重叠；隔离组件截图只作为几何证据，不再
 代表最终页面。另通过商城合同11项、商城完整视觉、
 lint、Web生产构建、native构建和生产认证合同。证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/shop-redesign`与`points-shop-checkout-v3/app`。本轮没有数据库、
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/shop-redesign`与`points-shop-checkout-v3/app`。本轮没有数据库、
 Edge Function、目录生产数据或真实订单修改。
 
 今日待办的“今天的安排”多选态同步收紧了内部轨道合同：每条事项至少72px，进入多选后新增的批量
@@ -2098,7 +2098,7 @@ Edge Function、目录生产数据或真实订单修改。
 
 专项验证通过：`calendar:visual`五档视口，商城组件六档视口×中英文×空/有商品共24组，
 `cold-start:visual`四档视口×中英文并完整走过六模块，冷启动单测5项、lint、Web生产构建、
-native构建和生产认证合同。证据继续保存在`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/calendar-readability`、
+native构建和生产认证合同。证据继续保存在`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/calendar-readability`、
 `cold-start`与`shop-redesign`。本轮没有数据库、Edge Function、账号数据或AI合同修改。
 
 功能源码`cdf04b3a41572ea7955f58381b4c3f358ca40c13`已干净推送并从同一提交生成双站。
@@ -2128,7 +2128,7 @@ Windows Bash打包器仍不能解析`Q:`路径，故继续使用同一官方`pre
 `cold-start:visual`在360×740、375×812、390×844、430×932中英文八组完整走过六模块所有
 引导步骤，逐字段断言真实字段/控件仍等于表单可用宽度、左右孔边界位于卡片间隙中线、上下留白
 相等且底边位于本控件和下一标题之间。另通过冷启动5项、动作16项、lint、Web生产构建、native
-构建和生产认证合同；视觉证据保存在`Q:/NAVA-Workspace/Build/TestRuns/cold-start`。完整`npm run
+构建和生产认证合同；视觉证据保存在`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/cold-start`。完整`npm run
 verify`的基础单测、媒体反馈五档和相机八状态通过后，仍停在既有
 `external-preview:visual`旧`.sports-plan-actions`选择器，本轮未将其误报为引导回归或总套件通过。
 
@@ -2259,7 +2259,7 @@ Sites保存/部署合同。
 430×932中英文八组；脚本逐步检查每个普通字段仅有一个孔、孔位等于真实标题与控件联合边界、
 字段宽度不超过253px且不铺满表单。另通过桌面六入口48状态、相机8状态、媒体反馈五尺寸、
 小猫动作16项、生产构建、原生构建、Sites制品合同、53项原生排除和生产认证合同。证据继续在
-`Q:/NAVA-Workspace/Build/TestRuns/cold-start`、`desktop-simulator`、`camera-layout`与
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/cold-start`、`desktop-simulator`、`camera-layout`与
 `media-feedback`，未新增仓库文件或后端变更。
 
 功能源码`2f179c121473586fbb5f56c137d17e4edd5112d9`已干净推送并从同一提交生成双站。
@@ -2286,7 +2286,7 @@ ChatGPT Sites **v199**：
 430×932中英文10场景。专项几何断言要求空态与已有事项时页面`scrollHeight`均不得超过
 `clientHeight`、安排卡不得进入底栏区域、空态说明必须单行、时长入口不得含下拉SVG且数字必须
 位于单位左侧、多选入口背景必须透明。证据继续写入
-`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/today-todos-loading`。本轮不改数据库、Edge Functions、AI
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/today-todos-loading`。本轮不改数据库、Edge Functions、AI
 时长估算合同或账号数据。
 
 功能源码 `f0da47b297e7b3d63d9baa11fd5a97bff299a3d2` 已干净推送并从同一提交生成双站。
@@ -2315,7 +2315,7 @@ Supabase项目一致，6项主入口/样式/身份资源逐字节等于本轮制
 375×812、390×844、430×932的中英文10场景、商城目录/购物车/积分卡/结算及全iPhone机型
 矩阵、生产构建、native构建、Sites制品合同和生产认证合同。专项脚本会按DOM几何检查内联菜单
 必须正对所点单位、商城首页按钮必须贴齐页头左边界，并保存
-`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/today-todos-loading/zh-390x844-duration-inline.png`等证据。
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/today-todos-loading/zh-390x844-duration-inline.png`等证据。
 本轮没有数据库迁移、Edge Functions部署、账号数据或AI合同变更。
 
 功能源码 `75970f595b79a09d60028b3e1e4bae9b8fb44b10` 已干净推送并从同一提交生成双站。
@@ -2349,7 +2349,7 @@ Supabase项目一致，主入口与样式资源逐字节等于本轮发布制品
 430×932中英文八组（含六模块逐项真实填写、未填不推进、BFCache恢复、键盘压缩视口、偏好持久化、
 保存失败重试）、`desktop-simulator:visual` 48状态、`camera:visual` 8状态、`motion:test` 16项、
 `media-feedback:visual` 的桌面与四档手机状态、ESLint、生产构建、native构建和生产认证合同。
-证据在 `Q:/NAVA-Workspace/Build/TestRuns/cold-start`、`desktop-simulator`、`camera-layout`与
+证据在 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/cold-start`、`desktop-simulator`、`camera-layout`与
 `media-feedback`。
 本轮未改数据库迁移、Edge Functions、账号数据或AI合同；物理iPhone动态流畅度仍需真机验收。
 完整`npm run verify`已通过其前置单测、iOS可移植合同、媒体综合五尺寸和相机八状态，随后仍
@@ -2404,7 +2404,7 @@ SVG遮罩按这些元素的实时几何生成多个独立透光孔，并把浏�
 430×932中英文八组、`desktop-simulator:visual` 48状态、生产构建、native构建与53个JS/CSS
 产物排除、Sites制品检查及生产认证合同。专项测试还会读取SVG孔位，逐像素容差核对专注标题
 和输入框的真实DOM几何，并完整点完六类引导以证明不会卡死。证据在
-`Q:/NAVA-Workspace/Build/TestRuns/cold-start`与`desktop-simulator`。本轮没有数据库迁移、
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/cold-start`与`desktop-simulator`。本轮没有数据库迁移、
 Edge部署、生产记录写入或账号清理。
 
 功能源码 `ffcd61037ce5ee3a4e9a99e0bfe1c9a824d6c40c` 已干净推送并从同一提交生成双站。
@@ -2431,7 +2431,7 @@ v194和上述功能源码。
 播放中触摸补全、第二次触摸推进及BFCache式页面挂起/恢复。`cold-start:visual` 的
 360×740、375×812、390×844、430×932中英文八组全部通过；`cold-start:test` 5项、ESLint、
 生产构建、Sites制品与生产认证合同通过。证据仍写入
-`Q:/NAVA-Workspace/Build/TestRuns/cold-start`。本轮不改数据库、Edge Functions、账号或记录数据。
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/cold-start`。本轮不改数据库、Edge Functions、账号或记录数据。
 
 功能源码 `37f7c3ee07f6e47343b7405c9c925f99c540aeb9` 已干净推送并从同一提交构建双站。
 ChatGPT Sites v192：
@@ -2455,7 +2455,7 @@ v192和上述功能源码。
 验证通过：`npm run lint`、`todo-duration:test`、`navigation:test`、`today-todos:visual` 10场景、
 生产构建、Sites制品及生产认证合同。四基础视口×中英文均断言单行页头、无旧眉题、五个底栏
 按钮、三个滚轮入口、初始滚轮单位和1小时2分3秒持久化；滚轮与页面截图位于
-`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/today-todos-loading`。功能源码
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/today-todos-loading`。功能源码
 `adaa68a293fd9a1b954efb6e65de2d6b7e16a7ca`。Sites v191：
 `appgprj_6a5de710811c8191af8ce2681358d518~appgver_d987c7ba84848191842b5d21d151611a`；部署
 `appgdep_6abb5867899c8191bda79e77faef315b` succeeded。Pages镜像
@@ -2481,7 +2481,7 @@ v192和上述功能源码。
 验证已通过：冷启动单测5项；今日待办时长单测2项；商城合同11项；导航11项；ESLint；生产
 构建；`auth:verify:production`；`cold-start:visual` 四基础视口×中英文；`camera:visual` 四基础
 视口×横竖拍摄共8状态；`media-feedback:visual` 1365桌面与四手机视口；`today-todos:visual`
-10场景；积分卡11场景；商城视觉专项。证据位于 `Q:/NAVA-Workspace/Build/TestRuns`。全仓
+10场景；积分卡11场景；商城视觉专项。证据位于 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns`。全仓
 `npm run verify` 已通过当前媒体/相机链路，随后停在历史 `external-preview:visual` 仍寻找已由
 journal iframe替代的 `.sports-plan-actions`；未把整仓记为通过。真实相机、真实DeepSeek响应和
 物理iPhone触控仍需各自边界验收。本轮未执行数据库迁移、Edge部署或生产账号写入。
@@ -2509,7 +2509,7 @@ provider确认为DeepSeek且结果为1–359999秒时采用，否则显示真实
 验证通过：`npm run todo-duration:test`、`npm run today-todos:visual`、`npm run navigation:test`、
 `npm run lint`、`npm run build`、`npm run sites:artifact:test` 与 `npm run auth:verify:production`。
 360×740、375×812、390×844、430×932中英文空态/写入/时长/完成交互通过，证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/today-todos-loading`。真实登录后的DeepSeek生产响应和物理iPhone
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/today-todos-loading`。真实登录后的DeepSeek生产响应和物理iPhone
 触控仍需人工边界验收；自动发布检查没有冒充真实账号调用。
 
 功能源码 `f6200e0774b6f81c45e16795edcd931879325ded` 已推送。Sites v189：
@@ -2549,7 +2549,7 @@ SHA-256一致。两站公开登录门、demo拒绝、canonical Supabase、6项�
 
 专项 `npm run today-todos:visual` 覆盖加载动画、记录准备态、360×740、375×812、390×844、
 430×932中英文待办写入/时间/完成/刷新恢复/返回/无横向溢出；首页专项继续覆盖四基础视口与
-18款目录iPhone。证据在 `Q:/NAVA-Workspace/Build/TestRuns/App-Checks/today-todos-loading` 与
+18款目录iPhone。证据在 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/today-todos-loading` 与
 `home-widget-inline-editor`。物理iPhone、真实账号云端写入及系统减少动态效果仍需人工边界验收。
 
 功能源码 `e76e0bacea9920cc2c2044e7924ea082d161ae8d` 已干净推送并发布双站。Sites v187：
@@ -2612,7 +2612,7 @@ profiles.onboarding_answers.coldStart，目标同步profiles.goal；草稿账号
 
 验证入口：`npm run cold-start:test`、`npm run cold-start:visual`、
 `node scripts/verify-cold-start-shell.mjs`。证据在
-`Q:/NAVA-Workspace/Build/TestRuns/cold-start`：360×740、375×812、390×844、430×932
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/cold-start`：360×740、375×812、390×844、430×932
 中英文实际组件/HTTP边界，以及四手机+1440桌面APP外壳、灵动岛/底部间距检查。
 390额外覆盖六模块指引、专注时长、缩小键盘视口、保存失败重试、问卷只最终写入一次。
 构建、TypeScript、ESLint、导航、隐私合同与生产认证合同通过；全仓verify仍在
@@ -2650,7 +2650,7 @@ workflow `36424311757` success；201生成文件单向复制且逐文件哈希�
 本地PostgreSQL37项检查通过；管理员外壳23组机型导航通过。中英文各五尺寸（320–430）的
 编辑/上传/滑动停稳单图/保存失败重试/删除取消与失败/双语商城/待上架禁购/失效购物车移除
 均通过；390宽额外模拟键盘缩小视口。商城全流程与18款机型回归、TypeScript、全仓ESLint、
-生产认证和共享后端合同通过。证据在 `Q:/NAVA-Workspace/Build/TestRuns/admin-catalog`、
+生产认证和共享后端合同通过。证据在 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/admin-catalog`、
 `admin-console-navigation` 与 `points-shop-checkout-v3/app`；物理iPhone及真实账号写入未替代用户验收。
 全仓verify已实际执行，仍在旧 `media-feedback:visual` 相机按钮选择器超时，不能记作全通过。
 
@@ -2680,7 +2680,7 @@ Pages来源收据为同一功能提交。线上回执复制到 `admin-catalog/pu
 
 新增 `npm run cards:visual`：五尺寸（320–430）×中英文原生触摸滑动，13组场景涵盖单卡
 几何、文字同步、指定RPC参数、余额、双击/失败重试、鼠标/键盘、0积分和全部拥有。
-证据：`Q:/NAVA-Workspace/Build/TestRuns/card-gallery`。四基础尺寸真实APP外壳/商城全流程
+证据：`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/card-gallery`。四基础尺寸真实APP外壳/商城全流程
 继续由 `shop:visual` 验证。物理iPhone与真实账号付费操作不由本地隔离测试替代。
 
 TypeScript、全仓ESLint、11项商城合同、PostgreSQL积分卡合同、生产认证合同和Sites产物
@@ -2715,7 +2715,7 @@ Order Placed，标题在机器下方。保留用户继续边界；打印纸经�
 专项验证：11项商城合同、TypeScript、专项ESLint；四基础视口完整交互、18款机型配置、
 桌面状态栏连续画布；新增 `npm run shop:motion` 覆盖中英文×5尺寸（含320×568）、
 多商品长文本、设备时间稳定、纸张和文字同步位移、感应先于勾号。截图/报告保存在
-`Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v3`。这些证明布局/时序，不能称为
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/points-shop-checkout-v3`。这些证明布局/时序，不能称为
 与参考逐像素一致或物理iPhone验收。生产认证合同通过；整套verify仍卡历史相机测试旧按钮。
 本轮不改数据库或Edge、不消费真实积分，不创建生产订单。
 
@@ -2748,11 +2748,11 @@ canonical Supabase身份和每站6个关键资源哈希通过。未代替用户�
 旧的双按钮返回逻辑及前端积分弹窗均不再参与这条流程。
 
 视频 `C:/Users/zju20/Desktop/积分购物.mp4` 已按0–19秒第一轮逐秒抓帧复核；参考证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/points-shop-reference`。普通动态在360×740、375×812、
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/points-shop-reference`。普通动态在360×740、375×812、
 390×844、430×932逐阶段验证；目录中的全部竖屏iPhone配置以减少动态模式验证确认页、
 Order Placed、票据和安全区。自动验收还检查分页点数量与选中态、竖卡/横卡比例、商品/积分/
 卡片真实内容、终端与票据不越框、打印小猫和按钮动画均生效。证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v2/app`。本轮没有修改数据库、Edge
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/points-shop-checkout-v2/app`。本轮没有修改数据库、Edge
 Function、账号、积分余额或订单合同。
 
 功能源码 `c2dd6a0358b645f35c4f79d16ba324ed882b9aac` 已发布为 ChatGPT Sites v181；version ID
@@ -2779,7 +2779,7 @@ deployment `appgdep_6aba2c5701e48191a3c2c3c264676906` succeeded。GitHub Pages �
 360×740、375×812、390×844、430×932 均实际滑到第二张卡，核对中心吸附、两侧露卡、真实
 选中同步、无横向页面溢出及完整兑换流程。1440×1080桌面模拟器额外核对结算画布与手机框
 同顶、同高、0外层顶部留白及标题/灵动岛间距。证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v2/app`。完整 `npm run verify` 仍仅停在
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/points-shop-checkout-v2/app`。完整 `npm run verify` 仍仅停在
 历史 `media-feedback:visual` 等待已移除的“前置拍摄”入口，与本轮商城代码无关。本轮没有修改
 数据库、Edge Function、账号、积分余额或真实订单。
 
@@ -2805,7 +2805,7 @@ deployment `appgdep_6aba1cdefe8c8191a0854afab9155618` succeeded。GitHub Pages �
 验证：10项商城合同、TypeScript、专项 ESLint、生产认证合同、Pages/Sites生产构建和 Sites
 归档检查通过；360×740、375×812、390×844、430×932 实跑目录图标、管理页三点、三卡尺寸、
 无横向溢出及卡片/底栏间距。证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v2/app`。本轮只改前端及回归检查，未应用
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/points-shop-checkout-v2/app`。本轮只改前端及回归检查，未应用
 数据库迁移、未部署 Edge Function，也未替用户解锁卡片或消费积分。
 
 功能源码 `9c5b0296bdae5bde64347cae984686abe20f1ecc` 已发布到 ChatGPT Sites v179；version ID
@@ -2843,7 +2843,7 @@ deployment `appgdep_6aba0eb35a908191acccca55a47c7d10` succeeded。GitHub Pages �
 本地 PostgreSQL合同通过。360×740、375×812、390×844、430×932走通默认卡、加卡确认、
 10 XP模拟扣除、结算和动画；目录18款竖屏iPhone逐机检查卡片管理、票据和完成页，均无横向
 溢出。生产时序实测15229ms。证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v2/app`。完整 `npm run verify` 仍停在
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/points-shop-checkout-v2/app`。完整 `npm run verify` 仍停在
 历史 `media-feedback:visual` 对已移除“前置拍摄”入口的等待，与本轮代码无关。
 
 功能源码 `5b582b3c8cd066f99b63313cb12ff33c751bbc09` 已发布到 ChatGPT Sites v178；version ID
@@ -2869,7 +2869,7 @@ deployment `appgdep_6aba05d48e7c81919ca1f491fff06a58` succeeded。GitHub Pages �
 验证：9项商城合同、TypeScript、专项 ESLint、生产认证合同和两种生产构建通过；
 360×740、375×812、390×844、430×932 验证核对、刷卡、票据、完成和减少动态效果，
 18款竖屏 iPhone 逐机验证无横向溢出、裁切或按钮丢失。证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v2`。整套 `npm run verify` 仍在历史
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/points-shop-checkout-v2`。整套 `npm run verify` 仍在历史
 `media-feedback:visual` 等待已移除的“前置拍摄”入口，与本轮商城代码无关；物理 iPhone 仍未验收。
 
 功能源码 `c61808d8193ecdd31318215ae7b074f0d717816f` 已推送 GitHub main 与 Sites 源仓库。
@@ -2881,7 +2881,7 @@ deployment `appgdep_6ab9699b5d208191a470bff537d35f36` succeeded。GitHub Pages �
 14500ms 终点且不含旧“积分已经确认”，`?demo=1` 均停留在真实登录门。Sites 官方 Windows
 打包仍受 Q 盘 Bash 路径问题影响；本轮用插件自带 Windows 构建助手生成同一 `dist/` 归档，
 Sites 原生保存/部署接口验收了300个文件。发布回执在
-`Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout-v2/public-release.json`。
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/points-shop-checkout-v2/public-release.json`。
 
 ## 105. 管理员端分层导航、账号权限与自动推送（双站 v176）
 
@@ -2907,7 +2907,7 @@ Sites 原生保存/部署接口验收了300个文件。发布回执在
 共享 Supabase 合同和远端 schema lint 均通过。四个基础视口完整走通首层、商品编辑、通知、最近
 发布、权限搜索和确认弹层；18款竖屏 iPhone 逐机验证5个管理员页面，连同桌面模拟器共23组，
 无横向溢出、返回键越界或状态栏重叠。证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/admin-console-navigation`。整套 `npm run verify` 的历史
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/admin-console-navigation`。整套 `npm run verify` 的历史
 `media-feedback:visual` 仍寻找已删除的“前置拍摄”入口，与本轮功能无关；不以专项通过冒充整仓
 全绿。物理 iPhone 的 APNs 权限、device token、锁屏送达和 Xcode 签名仍需真机验收。
 
@@ -2942,7 +2942,7 @@ canonical Supabase `wxteapvwagvhhtrjrbim` 已按用户本轮明确要求发布�
 验证：商城/导航20项单元测试、TypeScript、专项ESLint、生产认证合同与两种生产构建通过。
 360×740、375×812、390×844、430×932 验证目录、详情、房屋回首页和完整结算；目录中
 全部18款竖屏iPhone验证票据和完成页，无横向溢出、越框或丢按钮。证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/shop-navigation-products`。整套 `npm run verify` 的
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/shop-navigation-products`。整套 `npm run verify` 的
 前置测试通过后仍停在历史 `media-feedback:visual` 对已删除“前置拍摄”入口的查找，和
 §101/§103相同，不把专项通过冒充整仓通过。四个远程图片URL均已实际下载成功；生产复核
 为4商品、价格10–25 XP、库存合计200、全部ready、4条管理员发布审计。
@@ -2975,7 +2975,7 @@ Windows打包步骤仍因Q盘路径被Bash吞掉反斜杠而失败；保持同�
 专项 ESLint、生产认证合同及正式构建通过。完整长按、拖放、关闭、单项直接恢复、多项选择
 和空态在 360×740、375×812、390×844、430×932 实跑；目录18款竖屏 iPhone 逐机检查
 六项卡片、编辑叉号、空位加号和恢复，共18张机型截图，无横向溢出或卡片越界。证据位于
-`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/home-widget-inline-editor`。完整 `npm run verify` 仍停在旧
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/home-widget-inline-editor`。完整 `npm run verify` 仍停在旧
 `media-feedback:visual` 寻找已被新版流程替换的“前置拍摄”入口，和§101/§102记录的历史
 阻塞相同，不把本次专项通过冒充整仓通过。
 
@@ -3031,7 +3031,7 @@ NAVA 深青蓝、薄荷和暖金；深黑背景已移除。卡片态增加真实
 
 验证：TypeScript、专项 ESLint、8项商城合同测试通过；四基础视口验证完整动画时序，
 目录18款 iPhone 逐机验证票据和完成页，共36张机型截图，均无横向溢出、越框或按钮丢失。
-证据 `Q:/NAVA-Workspace/Build/TestRuns/points-shop-checkout/app`。本地 QA 商品只在 DEV
+证据 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/points-shop-checkout/app`。本地 QA 商品只在 DEV
 显式参数下存在，两个生产产物均确认不含其名称/slug。整套 `npm run verify` 仍停在旧
 `media-feedback:visual` 相机入口；该历史回归失败与商城专项分开保留，没有以专项通过冒充
 整仓通过。生产认证合同通过；真实账号订单和物理 iPhone 仍未验收。
@@ -3056,7 +3056,7 @@ canonical Supabase `wxteapvwagvhhtrjrbim`、各自7个关键资源哈希及 Page
 表字段、约束、RLS、数据库函数、bucket、公共商品配置和迁移历史的前后指纹一致，
 没有修改服务端API Key、SMTP/短信配置、登录设置、Edge Functions或公开站点。
 
-恢复资料位于 `Q:/NAVA-Workspace/Build/TestRuns/account-reset-20260927`：Auth用户和
+恢复资料位于 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/account-reset-20260927`：Auth用户和
 identities、逐表记录均经Windows CurrentUser DPAPI加密并验证可解密。`receipt.json`
 仅含计数和结果。恢复需要同一Windows用户及管理员手工处理，未实际回灌测试；
 不要删除此目录或上次 journal-integration/account-reset，不把明文资料写入仓库。
@@ -3090,7 +3090,7 @@ Auth用户/identities/sessions、积分、新记录和Storage对象均为0，最
 新前端只有遇到新 RPC 不存在（PGRST202）才兼容旧接口，不能声称线上新记录积分已修好。
 
 九场景×24尺寸×Chromium/WebKit 的432组浏览器专项、六模块流程、18机型 React 外壳证据在
-`Q:/NAVA-Workspace/Build/TestRuns/celebration-scenes`（六模块流程仍存 celebration-garden）。
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/workspace-runs/celebration-scenes`（六模块流程仍存 celebration-garden）。
 未创建生产账号/记录、未部署后端函数。真实账号保存/积分核验与物理 iPhone 验收未做。
 整套 `npm run verify` 仍停在旧 media-feedback:visual 的过时相机选择器，不等于全回归通过。
 双站从同一干净、已推送源码 `82f93b7a69f1cdeeab4dd727747454bdef724baf` 构建并发布。
@@ -3119,7 +3119,7 @@ GitHub Pages 镜像提交 `b197ea2d31b09fb7900467368ebf689b4da65d6d`，workflow
 本地 Chromium 与 WebKit 各通过 24 组竖屏尺寸（含18个预览配置和小屏边界）、
 六条记录→书写→保存→完成→回顾流程；保存次数、单次标题、持续小猫及减弱动态检查通过。
 真实 React 外壳内另通过 18 个机型全屏边界与底部安全区检查（本地显式数据夹具）。
-证据：`Q:\NAVA-Workspace\Build\TestRuns\celebration-garden`。
+证据：`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\celebration-garden`。
 `npm run lint`、生产认证合同通过；`npm run verify` 停在已知旧 `media-feedback:visual`
 前置相机选择器，完整历史回归仍未通过，不能把专项结果当作整套APP回归或真机证明。
 没有创建生产账号、改写健康数据、调用付费 AI、迁移数据库或部署后端。
@@ -3185,7 +3185,7 @@ Windows 发布注意：新版 Sites build-site helper 的 npm 路径解析失败
 `?onboarding=1` 可用于本地/验收强制打开 review 流程。
 
 本地验收：`npm run build:review`、`npm run lint` 退出0。专门脚本
-`Q:\NAVA-Workspace\Build\TestRuns\journal-integration\verify-onboarding-v17.mjs`
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\workspace-runs\journal-integration\verify-onboarding-v17.mjs`
 在 Vite dev demo 模式检查18个预览机型全部通过：iframe 尺寸匹配各逻辑画布、宿主
 嵌入类存在、子页手机壳/状态栏/底部指示器隐藏、无内外溢出；并实际点完
 欢迎→七题→汇总→保存，确认写入 `nava.onboarding.v3` 本地demo状态后回到APP。
@@ -3232,7 +3232,7 @@ DPAPI 加密并核验可解密。清理已完成：5个旧账号、48张关联�
 两站分别真实密码登录、公开demo拒绝、canonical项目身份、云端保存/刷新恢复、
 DeepSeek回顾和百炼餐照识别后确认保存通过。每站实际壳复核四场景背景×四尺寸、
 回顾及Great Job×18预览配置。临时用户均清理，再查账号/新记录/AI运行表全部为0。
-证据在`Q:\NAVA-Workspace\Build\TestRuns\journal-integration`的`live-sites`、
+证据在`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\workspace-runs\journal-integration`的`live-sites`、
 `live-pages`、`responsive-webkit`、`backend-results.json`及`account-reset`。
 账号已重置，用户需重新注册；加密备份保留，不在回复或日志输出密钥或原始健康数据。
 双站164个发布资源与产品构建源一致：97个逐字节相同，66个仅Git文本换行差异，
@@ -3272,7 +3272,7 @@ Sites v165发布succeeded，Pages镜像`7515e69ff0f1276cd189cc7d416beffeb2b5b0cb
 切换、四尺寸菜单/头像和移除系统权限卡通过；各22个实际加载JS/CSS匹配，健康
 写入0，未改头像/提醒偏好，也未调用AI生成。验收脚本后补等待月历数据加载完成，
 与发布后文档一起单独提交，不改变v165产品源码锚点。
-证据：`Q:\NAVA-Workspace\Build\TestRuns\menus-locale`。
+证据：`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\workspace-runs\menus-locale`。
 尚未证明：Swift/Xcode编译、真机首次授权/设置跳转/系统通知送达，不能用静态合同
 或浏览器夹具当作这些验收。未重新验收旧AI与历史数据任务。
 
@@ -3334,7 +3334,7 @@ Sites完整重跑及Pages真实账号验收均通过，各实际加载23个NAVA 
 单独关闭午餐/刷新一致。两站回执均passed、settingsRestored、activeSessionsPreserved
 为true且healthWrites=0。发布后仅补验收脚本与文档，不改变v163产品产物。
 Sites初次归档因缺少外层dist被拒，按官方结构重新打包后保存/发布成功，无源码改动。
-本轮日志根：`Q:\NAVA-Workspace\Build\TestRuns\reminder-settings-page`；设置截图及账号
+本轮日志根：`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\reminder-settings-page`；设置截图及账号
 安全恢复回执沿用`independent-reminders`目录。未操作Codex内置浏览器，外部浏览器串行。
 
 尚未证明：iPhone真实锁屏/来电/省电环境的系统提醒送达及常亮、Xcode编译签名安装。
@@ -3407,8 +3407,8 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
 
 - 唯一可编辑源仓库：`Q:\NAVA-Workspace\NAVA-App\nava-app`
 - GitHub Pages 生成镜像：`Q:\NAVA-Workspace\NAVA-App\nava-app-preview`
-- Sites 包：`Q:\NAVA-Workspace\Build\Sites\Packages`
-- 跨项目测试证据：`Q:\NAVA-Workspace\Build\TestRuns`
+- Sites 包：`Q:\NAVA-Workspace\NAVA-App\Build\Sites\Packages`
+- 跨项目测试证据：`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns`
 
 禁止在 `nava-app-preview` 里开发，也禁止把它的编译产物复制回源仓库。
 
@@ -3428,7 +3428,7 @@ AI harness 生成个人化的趋势、报告和建议。NAVA 猫是贯穿首页�
   `c84879b1a8048c0b5a84bb9ebeb1771eb9f751f2`，工作流`38041971051`成功
 - GitHub Pages：`https://chizhang-805.github.io/nava-app-preview/`
 - v247 Sites 包：
-  `Q:\NAVA-Workspace\Build\Sites\Packages\nava-v247-525d3ee.tar.gz`
+  `Q:\NAVA-Workspace\NAVA-App\Build\Sites\Packages\nava-v247-525d3ee.tar.gz`
 
 GitHub Pages 镜像的 `source.json` 已记录 v247、上述功能源码commit及Sites version ID。两个站点应当
 始终由同一个干净且已 push 的源 commit 构建；只更新其中一个站点不算发布完成。
@@ -4038,16 +4038,16 @@ AI provider、真实导出内容和破坏性账号删除没有在本轮冒充为
 
 近期证据目录：
 
-- `Q:\NAVA-Workspace\Build\TestRuns\nava-auth-transition-local`
-- `Q:\NAVA-Workspace\Build\TestRuns\nava-record-editor-v95-recheck`
-- `Q:\NAVA-Workspace\Build\TestRuns\nava-v95-public`
-- `Q:\NAVA-Workspace\Build\TestRuns\nava-v96-record-editors`
-- `Q:\NAVA-Workspace\Build\TestRuns\nava-v96-public`
-- `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-20260905`
-- `Q:\NAVA-Workspace\Build\TestRuns\nava-home-guidance-20260905`
-- `Q:\NAVA-Workspace\Build\TestRuns\nava-home-widgets-v102-20260905`
-- `Q:\NAVA-Workspace\Build\TestRuns\nava-home-guidance-v101-20260905`
-- `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v102-20260905`
+- `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-auth-transition-local`
+- `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-record-editor-v95-recheck`
+- `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-v95-public`
+- `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-v96-record-editors`
+- `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-v96-public`
+- `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-notifications-20260905`
+- `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-guidance-20260905`
+- `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-widgets-v102-20260905`
+- `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-guidance-v101-20260905`
+- `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-notifications-v102-20260905`
 
 截图只能证明被截取时的视觉状态。凡涉及写入、RLS、provider、HealthKit 或 Watch
 队列，必须在真正边界记录网络/数据库/真机证据。
@@ -4231,7 +4231,7 @@ Supabase 资源。
 专项 Playwright 在 360x740、375x812、390x844、430x932 实跑横幅、列表高度适配、
 类别图标、详情弹窗、权限卡消失、三点菜单、长按与批量操作、两种滑动、删除撤销、
 空状态和无横向溢出。证据在
-`Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v102-20260905`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-notifications-v102-20260905`。
 
 通知内容不使用生产示例数据。六模块成功保存会产生完成通知；首页读取当前用户真实
 `TodaySnapshot` 后，按本地时间和真实缺失/低活动/专注/情绪完整性/面部记录以及
@@ -4266,7 +4266,7 @@ guidance 时仍使用原序列。健康建议卡在六模块圆盘展开时自�
 `npm run home-guidance:test` 覆盖时段边界、状态优先级、动作映射和入口去重；
 `npm run home-guidance:visual` 已在 360x740、375x812、390x844、430x932 验证建议卡、
 上下层关系、无横向溢出、小猫动作和报告跳转。证据在
-`Q:\NAVA-Workspace\Build\TestRuns\nava-home-guidance-20260905`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-guidance-20260905`。
 
 上述首页动态状态已由同一源码 commit `bf4178f72c06595106090db0ed0a245dd11d867d`
 发布为 ChatGPT Sites v98，并同步到 GitHub Pages v98。线上无头 Playwright 已确认两个
@@ -4310,18 +4310,18 @@ session、刷新页面或从其他页面返回首页均不会再次出现。卡�
 - `npm run record-editor:visual` 在 360x740、375x812、390x844、430x932 实跑睡眠两行
   入口与“不伪造阶段”、专注四项下拉/自定义输入、面部普通页无条件块、三点菜单条件检验、
   三项自动回填/人工改选和非阻塞拍摄；全部一屏且无横向溢出。证据在
-  `Q:\NAVA-Workspace\Build\TestRuns\nava-record-editor-layout-v108`。
+  `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-record-editor-layout-v108`。
 - `npm run home-widgets:visual` 在 360x740、375x812、390x844、430x932 实跑默认五项
   固定顺序、放大后两行和右侧按钮区段的精确对齐、六项、零项、三列排序与拖动、右侧按钮顺序/收放、底部 AI 路由、睡眠刷新
   恢复/结束填表和面部 3/3 条件；证据在
-  `Q:\NAVA-Workspace\Build\TestRuns\nava-home-widgets-v102-20260905`；其中也逐尺寸比较五张
+  `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-widgets-v102-20260905`；其中也逐尺寸比较五张
   加载骨架与正式卡片的实际宽高和圆角。
 - `npm run home-guidance:visual` 四档实跑成功登录后首次展示，并分别验证 10.1 秒自动消失、
   手动关闭后刷新不重复、页面间返回首页不重复和快捷入口跳转；证据在
-  `Q:\NAVA-Workspace\Build\TestRuns\nava-home-guidance-v101-20260905`。
+  `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-guidance-v101-20260905`。
 - `npm run notification:visual` 四档实跑紧凑自适应列表、语义图标、详情、权限、三点菜单、
   长按/全选/批量操作、滑动与撤销；证据在
-  `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v102-20260905`。
+  `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-notifications-v102-20260905`。
 - 功能源码 commit `fe71c3b824c29037150b4b22caef47df3833c49d` 已发布为 ChatGPT
   Sites v102，并同步为 GitHub Pages v102；镜像 commit 为
   `0af29abde6ce41e0a12a29487681a1664c46d033`。
@@ -4449,7 +4449,7 @@ deployment ID 为 `appgdep_6a9d3967915881919f9dd4b3888fd87f`，Pages 镜像 comm
 `9d21493303e17f2de58e66fbb4e144c653311e1a`。两个公开根 URL 均返回 200；两个站点
 在四个规定视口的线上无头 Playwright 都显示真实登录页、无横向溢出，`?demo=1` 不可
 绕过，入口模块 SHA-256 均为 `3abbc659de9f3e37a49895b8dbb5c30074746166a631d945cdc50b0369f39404`。
-线上证据在 `Q:\NAVA-Workspace\Build\TestRuns\nava-v108-public`。发布后
+线上证据在 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-v108-public`。发布后
 `npm run auth:verify:production` 再次通过；严格
 SMTP 仍因未提供 Management token 而未检查。
 
@@ -4503,7 +4503,7 @@ deployment ID 为 `appgdep_6a9d7eedbed881919e1d6576a88bfaf7`，Pages 镜像 comm
 `71336f632bfb5fd593689523cbbfea3b10657d04`。两个公开站点在四个规定视口共 8 组
 均返回 200、无横向溢出、显示真实登录页且 `?demo=1` 不可绕过；入口模块 SHA-256 均为
 `f085ce96b0bcc7d565e08acafb2ec0da6b6319675771cc3eec57c7022b72f96a`。线上证据在
-`Q:\NAVA-Workspace\Build\TestRuns\nava-v109-public`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-v109-public`。
 
 ## 31. 2026-09-06 首页 Figma 背景复刻
 
@@ -4516,8 +4516,8 @@ deployment ID 为 `appgdep_6a9d7eedbed881919e1d6576a88bfaf7`，Pages 镜像 comm
 四个规定视口 360x740、375x812、390x844、430x932 均已验证底图完整加载并覆盖首页，
 未引入横向溢出；首页加载态、五卡/六卡/空态、快捷入口、建议卡、健康圆盘、记录入口和导航
 回归保持通过。视觉证据保存在
-`Q:\NAVA-Workspace\Build\TestRuns\nava-home-background-v110-20260906` 与
-`Q:\NAVA-Workspace\Build\TestRuns\nava-home-background-guidance-v110-20260906`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-background-v110-20260906` 与
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-background-guidance-v110-20260906`。
 
 功能源码 commit `af24ec36d276d8b3fe6b2a5fb940beae3870878f` 已从同一个干净且已 push 的状态发布为
 ChatGPT Sites v110 和 GitHub Pages v110；Sites version ID 为
@@ -4527,7 +4527,7 @@ deployment ID 为 `appgdep_6a9d86942094819199b735d1dd603bbe`，Pages 镜像 comm
 均返回 200、无横向溢出、显示真实登录页且 `?demo=1` 不可绕过；入口模块 SHA-256 均为
 `fe2c7d6995998b94c8253482a15aa226aca6443ae8e6839de207fe3a4b750eca`，生成背景 SHA-256 均为
 `390b8d3417dc1e35b43a2ffaaf0684298c777063dd7cb2c4684e907203c7766e`。线上证据在
-`Q:\NAVA-Workspace\Build\TestRuns\nava-v110-public`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-v110-public`。
 
 ## 32. 2026-09-07 首页像素复刻与桌面 iPhone 预览双轨
 
@@ -4542,8 +4542,8 @@ deployment ID 为 `appgdep_6a9d86942094819199b735d1dd603bbe`，Pages 镜像 comm
 不会吞掉组件点击和可访问文本。首页状态、模块和底部导航图标改为本地 SVG/React SVG，
 不依赖操作系统 emoji。`create-home-parity-grid.mjs` 会把实际截图和参考画面裁成同一
 430×932 坐标系并输出 4px 网格及叠加图；默认态和六模块展开态的证据分别在
-`Q:\NAVA-Workspace\Build\TestRuns\nava-home-figma-parity-v111-20260906\grid-review` 与
-`Q:\NAVA-Workspace\Build\TestRuns\nava-home-guidance-figma-parity-v111-20260906\grid-review-expanded`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-figma-parity-v111-20260906\grid-review` 与
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-guidance-figma-parity-v111-20260906\grid-review-expanded`。
 
 浏览器桌面预览与真实产品画布现在是两条明确隔离的显示路径：只有同时满足宽高至少
 700px、精细指针和 hover 的桌面环境才显示 `DesktopDevicePreviewChrome`。它提供外壳、
@@ -4555,7 +4555,7 @@ App 中 `data-preview-only="desktop-device-chrome"` 保持 `display:none`，因�
 
 `device-preview:visual` 已分别验证 1365×1000 桌面、1365×768 等比缩放桌面、桌面通知态
 和 430×932 触屏产品态；外壳/内容同轴、灵动岛居中、首页坐标不变且移动端模拟元素为零。
-证据在 `Q:\NAVA-Workspace\Build\TestRuns\nava-desktop-device-preview-v111-20260907`。
+证据在 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-desktop-device-preview-v111-20260907`。
 首页组件与建议视觉脚本在 360×740、375×812、390×844、430×932 四个产品视口通过；
 完整 interaction 11 组、`npm run verify` 28 阶段和 production auth 合同也通过。
 
@@ -4564,7 +4564,7 @@ v111 上线后的公开未登录边界复核发现，登录/注册页由 `AppBoo
 未登录、登录过渡和会话恢复路径；登录后的产品页继续使用原有唯一实例，不产生双壳。
 桌面登录页的语言按钮也下移到 64px 系统保留区之后，不再与 Wi-Fi/电量重叠。视觉脚本新增
 未登录桌面和未登录触屏两项断言，证据在
-`Q:\NAVA-Workspace\Build\TestRuns\nava-desktop-device-preview-v112-20260907`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-desktop-device-preview-v112-20260907`。
 
 修正源码 commit `527ab338bc515c61016509bc416c3499431306a8` 已从同一已 push 状态
 发布为 ChatGPT Sites v112 和 GitHub Pages v112；Sites version ID 为
@@ -4574,14 +4574,14 @@ deployment ID 为 `appgdep_6a9dac04cde881919de3695dd8cb6e71`，Pages 镜像 comm
 均为 `2cb80766ae9855f06c3c6cd24c06be2af7a3ca4634336188baec1df55294ccac`；公开桌面均显示
 登录页、手机外壳和系统栏，430×932 触屏均不显示模拟外壳，`?demo=1` 不可绕过登录，
 canonical Supabase project ref 保持不变。线上证据在
-`Q:\NAVA-Workspace\Build\TestRuns\nava-v112-public`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-v112-public`。
 
 ## 33. 2026-09-07 纵向需求补齐、专注维持与真实趋势提醒
 
 本轮重新逐页检查用户提供的 15 页《纵向｜app需求文档暑期整理》，并以当前用户要求
 覆盖文档中的 T0/T1/T2 排队限制：只要在现有前端和已授权数据合同内可以真实完成，就按
 功能验收而不是优先级标签实施。完整复核记录与 15 页渲染证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-requirements-audit-20260907`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-requirements-audit-20260907`。
 
 专注沉浸页新增白噪音、粉噪音、棕噪音三种由 Web Audio 本地生成的背景声，音量控制、
 10 秒进入状态动画和 25/45/60 分钟休息提示。屏幕常亮和浏览器全屏在不支持或申请失败
@@ -4602,8 +4602,8 @@ canonical Supabase project ref 保持不变。线上证据在
 
 `npm run verify` 全部 28 阶段、`npm run auth:verify:production`、通知四视口、
 记录编辑器/专注沉浸四视口、PRD 六模块四视口和全应用 interaction 11 组均通过。
-通知证据在 `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v113-20260907`；
-线上证据在 `Q:\NAVA-Workspace\Build\TestRuns\nava-v113-public`。
+通知证据在 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-notifications-v113-20260907`；
+线上证据在 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-v113-public`。
 
 功能源码 commit `807033df2f4dcbe49e9447d80fec3c07810d8e54` 已从同一干净且
 已 push 的状态发布为 ChatGPT Sites v113 和 GitHub Pages v113；Sites version ID 为
@@ -4667,7 +4667,7 @@ Android `gradlew` 也已尝试，当前唯一启动前阻塞是系统没有 Java
 符合首页 `1+3` 槽位，以及详细资料不得显示 `under_5h`、`almost_none`、`none` 等云端
 原始枚举的可执行断言。圆盘展开态还验证六个按钮均可见，且模块顺序和身份必须精确为
 运动、饮食、睡眠、面部、专注、情绪。发布门禁证据在
-`Q:\NAVA-Workspace\Build\TestRuns\nava-release-gate-20260907`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-release-gate-20260907`。
 
 实际修正包括：专注待办标题与时间/分钟控件的网格高度和间距；运动设备二级页取消强制
 撑满整屏，并展示真实运行环境、Apple Watch 配对/可达、Health 授权和最后同步状态；首页
@@ -4709,7 +4709,7 @@ source commit 与 Sites v114。
 `?demo=1` 保持真实登录门。登录后的私有页面没有借用或伪造生产账号；同一发布提交另行通过
 完整 `npm run verify` 30 阶段和 `npm run interaction:test` 11 组，精确覆盖首页六模块圆盘、
 底部五导航、十一个成长入口、六个周报入口和其余业务交互。四档 35 状态共 140 张视觉证据
-继续位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-release-gate-20260907`。
+继续位于 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-release-gate-20260907`。
 
 ## 37. 2026-09-07 首页健康圆盘 v115 校准与双站发布
 
@@ -4724,7 +4724,7 @@ source commit 与 Sites v114。
 375×812、390×844、430×932 四个规定视口；它会检查收起态圆盘不可交互、底部胶囊宽高和
 圆角、六个模块图标唯一、按钮圆形且无遮挡、三层弧线左右同高、圆盘顶缘/宽度/圆心比例、
 五个底部按钮圆心同线，以及中央 AI 图形比例。稳定截图证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-home-wheel-v117-20260907`。完整 `npm run verify`
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-wheel-v117-20260907`。完整 `npm run verify`
 30 阶段、`npm run interaction:test` 11 组和发布前后 `npm run auth:verify:production` 均通过。
 
 功能源码 commit `a26fe18269bc8303556c3e7b641b45669a7935d9` 已同时发布为 ChatGPT Sites
@@ -4749,7 +4749,7 @@ commit 为 `bbf59225d5b4eda90b92d9f2928f51ee609891d4`。两站均返回 HTTP 200
 `scripts/verify-navigation-icons.mjs` 的圆盘几何门禁同步为 98% 宽、69% 顶缘，并继续在
 360×740、375×812、390×844、430×932 四种视口验证收起/展开、六模块唯一图标、无遮挡、
 左右对称弧线、五按钮圆心同线和 AI 图形比例。最终视觉证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-home-wheel-v123-20260907`。完整 `npm run verify`
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-wheel-v123-20260907`。完整 `npm run verify`
 30 阶段、`npm run interaction:test` 11 组和 `npm run auth:verify:production` 均通过。
 
 功能源码 commit `4889f699dcae24ac0cef05379915ac26a300e3b7` 已由同一已 push 状态发布为
@@ -4782,8 +4782,8 @@ Edge Function 均未在本轮修改。
 
 本地 `npm run verify` 30 阶段、`npm run interaction:test` 11 组与
 `npm run auth:verify:production` 均通过；设备安全区证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-device-safe-area-v117-20260907`，首页圆盘证据
-位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-home-wheel-v124-20260907`。功能源码
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-device-safe-area-v117-20260907`，首页圆盘证据
+位于 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-wheel-v124-20260907`。功能源码
 commit `59520bc9ecff1f5d0da4f55cf03d7420ef715e1f` 已发布为 ChatGPT Sites v117 与
 GitHub Pages v117。Sites version ID 为
 `appgprj_6a5de710811c8191af8ce2681358d518~appgver_cf44eab448d88191ac47a3aa9a9fdff4`，
@@ -4813,7 +4813,7 @@ Resources，以及每款机型对应的 Apple Support 技术规格页。自动�
 4/4/5/5 代际数量、像素到逻辑点的 @3x 对应、刘海/灵动岛互斥、状态栏同轴、机身居中、
 选择器在手机外、侧键差异和相机控制键条件；真实产品布局另在 360×740、375×812、
 390×844、393×852、402×874、420×912、428×926、430×932、440×956 九档视口复核。
-本轮证据位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v118-20260907`。
+本轮证据位于 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-iphone-preview-v118-20260907`。
 
 功能源码 commit `1d10b9fadef8682a531deb473e23bca976a0524e` 已由同一干净、已 push
 状态发布为 ChatGPT Sites v118 与 GitHub Pages v118。Sites version ID 为
@@ -4827,7 +4827,7 @@ deployment ID 为 `appgdep_6a9edacd2374819181a1d978b4e530a3`，状态 succeeded�
 HTTP 200，并实际加载 `index-C3nJ5ZRh.js`；产物均包含 18 款目录和选择器标记。真实浏览器
 线上复核确认桌面选择器可见、切换到 iPhone 17e 后刘海结构生效、移动端选择器隐藏，且
 普通未登录访问与 `?demo=1` 均停留在真实登录门，无 console error。线上截图位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v118-online`。本轮没有修改 Supabase、
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-iphone-preview-v118-online`。本轮没有修改 Supabase、
 认证配置、secret、migration、Edge Function 或生产用户数据。
 
 ## 41. 2026-09-08 共享安全页头、快捷入口语义与双站 v119
@@ -4848,9 +4848,9 @@ HTTP 200，并实际加载 `index-C3nJ5ZRh.js`；产物均包含 18 款目录和
 本轮 `npm run verify` 31 阶段、`npm run interaction:test` 11 组、
 `npm run icons:test`、`npm run notification:visual`、`npm run device-preview:visual` 与发布前后
 `npm run auth:verify:production` 均通过。35 个业务状态 × 4 个规定视口共 140 张完整视觉
-证据位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-release-gate-v119-20260908`；通知专项证据
-位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v119-20260908`；18 机型与九档
-移动视口证据位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v119-20260908`。
+证据位于 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-release-gate-v119-20260908`；通知专项证据
+位于 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-notifications-v119-20260908`；18 机型与九档
+移动视口证据位于 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-iphone-preview-v119-20260908`。
 
 只读 `npm run supabase:verify-shared` 复核 canonical project
 `wxteapvwagvhhtrjrbim` 的 Auth、核心/扩展表、共享/APP Edge Functions 和 Storage 均为
@@ -4887,10 +4887,10 @@ iPhone 17/17 Pro 的灵动岛顶距为 14.333pt，17 Pro Max 为 14.667pt，iPho
 
 `npm run device-preview:visual` 对 18 款目录以 0.1pt 容差断言机身居中、开孔、时间、三项
 状态图标及 Home Indicator，并复核 9 档移动视口、资料页、通知页、月历、日报和首页组件；
-证据位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v120-20260908`。
+证据位于 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-iphone-preview-v120-20260908`。
 完整 `npm run verify` 31 阶段、`npm run interaction:test` 11 组、`npm run icons:test`、
 `npm run notification:visual` 与发布前后 `npm run auth:verify:production` 全部通过。通知页
-四档证据仍位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v119-20260908`。
+四档证据仍位于 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-notifications-v119-20260908`。
 
 功能源码 commit `4c7f80397c0e548667f2ab32c6ae550ab7d5b2b5` 已从同一干净且已 push
 状态发布为 ChatGPT Sites v120 与 GitHub Pages v120。Sites version ID 为
@@ -4921,7 +4921,7 @@ Pointer Events 实现，没有为了小网格新增拖拽依赖。
 `npm run home-widgets:test` 当前 10 项通过；`npm run home-widgets:visual` 在 360×740、
 375×812、390×844、430×932 四档实跑普通点击、440ms 长按、6 槽位显示、空槽拖放、刷新
 持久化、Shift+Enter/方向键替代和编辑退出，证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-home-widget-drag-v121-20260908`。完整 interaction
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-widget-drag-v121-20260908`。完整 interaction
 11 组也已通过，首页上滑圆盘、右侧快捷栏和底部导航未回退。
 
 双站已从同一个功能提交 `e41e6f4f3dfbde0895a11e19997118236d633034` 发布：ChatGPT
@@ -4941,7 +4941,7 @@ Pages 镜像 commit 为 `19b7617bbd1cfe0e04e27f3e8595686c7e3c020d`。两站均�
 气泡和快捷组件之间经产品设计允许的覆盖关系保留明确豁免。最终矩阵覆盖 57 个状态 ×
 360×740、375×812、390×844、430×932 四个规定视口，共 228 张截图，其中 140 张为
 成型页面、88 张为加载页面；0 个几何错误，受跟踪模块栈最大间距约 16.04px。报告位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-figma-pages\report.json`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-figma-pages\report.json`。
 
 加载态不再只用一个通用占位：六个记录详情页分别使用情绪、睡眠、运动、饮食、专注、
 面部对应的真实结构骨架；首页加载态复用正式首页的背景、1+3 健康组件网格、顶部积分、
@@ -4953,9 +4953,9 @@ Pages 镜像 commit 为 `19b7617bbd1cfe0e04e27f3e8595686c7e3c020d`。两站均�
 完整 `npm run verify` 31 阶段、`npm run interaction:test` 11 组、`npm run screenshots`、
 `npm run device-preview:visual`、`npm run home-widgets:visual`、
 `npm run notification:visual` 与发布后 `npm run auth:verify:production` 均通过。专项证据分别
-位于 `Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v120-20260908`、
-`Q:\NAVA-Workspace\Build\TestRuns\nava-home-widget-drag-v121-20260908` 和
-`Q:\NAVA-Workspace\Build\TestRuns\nava-notifications-v119-20260908`。
+位于 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-iphone-preview-v120-20260908`、
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-widget-drag-v121-20260908` 和
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-notifications-v119-20260908`。
 
 功能源码 commit `73321af4af5f831c3d0cdc0d319da41e58e90f27` 已从同一干净且已 push
 状态发布为 ChatGPT Sites v122 与 GitHub Pages v122。Sites version ID 为
@@ -4986,9 +4986,9 @@ Function、secret、认证配置或生产数据。
 `npm run device-preview:visual`、`npm run screenshots` 和发布后的
 `npm run auth:verify:production` 均通过。全页面矩阵覆盖 57 个正式/加载状态与
 360×740、375×812、390×844、430×932 四档视口，共 228 张截图、0 个几何错误，证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-full-page-audit-v123c-20260908`；桌面 iPhone
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-full-page-audit-v123c-20260908`；桌面 iPhone
 新用户引导证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v123-20260908`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-iphone-preview-v123-20260908`。
 
 功能源码 commit `398b8346c80c8e6431cb257bc12f0c0e9e50ccc8` 已由同一构建发布为
 ChatGPT Sites v123 与 GitHub Pages v123。Sites version ID 为
@@ -5024,16 +5024,16 @@ migration：日期和标题作为版本化 `__navaArchive` 首项写入 JSONB，
 至少保留同等呼吸空间。此前通用 `nav-settle` 动画会在结束后覆盖位移，本轮已对普通页面
 AI 圆钮停用该冲突动画。`npm run device-preview:visual` 对 18 款 iPhone 同时断言五个底栏
 按钮、开孔与状态栏几何，并复核移动/PWA 不泄漏预览机壳；证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v124-20260908`。首页空白点击专项
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-iphone-preview-v124-20260908`。首页空白点击专项
 覆盖 360×740、375×812、390×844、430×932，证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-home-widget-tap-finish-v124-20260908`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-widget-tap-finish-v124-20260908`。
 
 发布门槛全部通过：`npm run verify` 31 阶段、`npm run interaction:test` 11 组、
 `npm run screenshots`、`npm run device-preview:visual`、`npm run home-widgets:visual`、
 `npm run auth:verify:production` 与只读 `npm run supabase:verify-shared`。全页面矩阵仍为
 140 个正式状态加 88 个加载状态，共 228 张、4 个规定视口、0 个几何错误，最大受跟踪
 模块间距 16.04px，报告位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-figma-pages\report.json`。共享项目继续为
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-figma-pages\report.json`。共享项目继续为
 `wxteapvwagvhhtrjrbim`，Auth、核心/扩展表、共享/APP Functions 与 Storage 均为 READY。
 
 功能源码 commit `805a02acd4f13e68fdbfd297e0293da9844d97a1` 已从同一干净、已 push
@@ -5044,7 +5044,7 @@ deployment ID 为 `appgdep_6a9fbfa673c481919f1aba94748f7098`，状态 succeeded�
 源码与 Sites 版本。两个公开站均返回 HTTP 200，并加载同一 `index-Bvklywxx.js`，线上与
 本地 SHA-256 均为 `07cb738b003eb64e9e9ba652defe39eecd8d5c7b7f6ef30222bf785aeb0aaa9c`；
 无登录浏览器访问两站的 `?demo=1` 均停留在真实登录页且无 console error，证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-v124-online`。本轮没有修改或部署 migration、
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-v124-online`。本轮没有修改或部署 migration、
 Edge Function、secret、认证配置或生产用户数据；真实账号下的 AI 标题内容质量仍需人类
 账号验收，结构与失败兜底已自动化验证。
 
@@ -5081,7 +5081,7 @@ assistant 问候，并在睡眠、饮食、运动、心情和今日安排间稳�
 `npm run auth:verify:production`、`npm run supabase:verify-shared`、Edge Function typecheck/
 tests 与 production `supabase db lint`。商城/机型卡专项覆盖桌面及 360×740、375×812、
 390×844、430×932 四个移动视口，证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-shop-v125-20260908`；共享 Supabase 探针报告位于
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-shop-v125-20260908`；共享 Supabase 探针报告位于
 `artifacts/backend-review/shared-supabase.json`。`ai-chat-reply` 与 `export-user-data` 已部署
 production。
 
@@ -5096,7 +5096,7 @@ v125 并指向同一源码和 Sites 版本。两站均返回 HTTP 200；Sites �
 `index-o2TdTvT6.js` 与本地 Pages 构建 SHA-256 同为
 `a8ceeee7a3daf4427ee43db121906456e9525851005ace382efdb221822b58ca`。全新无登录浏览器访问
 两站的 `?demo=1` 均显示真实登录页、未进入 App 且无 console error；截图证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-v125-online`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-v125-online`。
 
 ## 48. 2026-09-08 首页圆盘完成动效、通知/奖励与规格卡自适应
 
@@ -5119,10 +5119,10 @@ v125 并指向同一源码和 Sites 版本。两站均返回 HTTP 200；Sites �
 
 完整 `npm run verify` 32 阶段和 `npm run interaction:test` 11 组通过。专项视觉证据：
 
-- 通知四视口：`Q:\NAVA-Workspace\Build\TestRuns\App-Checks\nava-notifications-v126-20260908`
-- 首页/记录进度四视口：`Q:\NAVA-Workspace\Build\TestRuns\nava-module-progress-v126-20260908`
-- 机型预览、通知与奖励：`Q:\NAVA-Workspace\Build\TestRuns\nava-iphone-preview-v126-20260908`
-- 规格卡与商城：`Q:\NAVA-Workspace\Build\TestRuns\nava-shop-v126-20260908`
+- 通知四视口：`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\App-Checks\nava-notifications-v126-20260908`
+- 首页/记录进度四视口：`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-module-progress-v126-20260908`
+- 机型预览、通知与奖励：`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-iphone-preview-v126-20260908`
+- 规格卡与商城：`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-shop-v126-20260908`
 
 自动门禁会量取通知内容中轴、圆环可见度/进度 offset、完成对勾终态、中文奖励主词中轴
 （误差不超过 0.75px）、“积分”和 `+N` 字号一致性，以及规格卡最后一行的 12–18px
@@ -5172,9 +5172,9 @@ AI 失败根因之一是模型已返回有证据、可用的完整报告，却�
 `npm run backend:test` 16 项、`npm run supabase:verify-shared`、
 `npm run auth:verify:production` 均通过。六模块专项为 6 模块 × 4 视口共 24 个顶部/底部
 状态，证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-module-overviews-v127-20260908`；全页面正式态与
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-module-overviews-v127-20260908`；全页面正式态与
 加载骨架仍覆盖 228 张截图，位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-figma-pages-v127-20260908`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-figma-pages-v127-20260908`。
 
 功能源码 commit `b8e285163e135c6a39310bc01c3acb42c57a7641` 已从同一干净、已 push
 状态发布为 ChatGPT Sites v127 与 GitHub Pages v127。Sites version ID 为
@@ -5246,7 +5246,7 @@ secret、认证配置或生产用户数据。
 `npm run device-preview:visual` 和 `npm run auth:verify:production`。
 底栏发布后又补跑了正式页与目标态加载页的全量扫描：四视口共 232 个状态、0 个
 溢出或页面错误，版本化证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-figma-pages-v130-20260909`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-figma-pages-v130-20260909`。
 
 功能源码 commit `1ca810a06f47874e464719dfb83afac2738816d9` 已从同一干净、已 push
 状态发布为 ChatGPT Sites v130 与 GitHub Pages v130。Sites version ID 为
@@ -5281,9 +5281,9 @@ canonical Supabase ACTIVE version 19、`verify_jwt=true`：总预算 65 秒、�
 验证通过完整 `npm run verify` 32 阶段、`npm run interaction:test` 11 组、
 `npm run calendar:visual`、`npm run home-widgets:visual`、AI/backend 合同与
 `npm run auth:verify:production`。年度日历证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-calendar-year-20260909`，首页组件证据位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-home-widgets-v128-20260908`，生产函数审计位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-ai-production-v19-20260909`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-calendar-year-20260909`，首页组件证据位于
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-home-widgets-v128-20260908`，生产函数审计位于
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-ai-production-v19-20260909`。
 
 功能源码 commit `08b140c095b5961e4a178343c2ddfeac21762e62` 已从同一干净、已 push
 状态发布为 ChatGPT Sites v131 与 GitHub Pages v131。Sites version ID 为
@@ -5310,7 +5310,7 @@ deployment ID 为 `appgdep_6aa17214c2788191a0a452e71253bf48`，状态 succeeded�
 不是缺失值；完整度审计已按此持久化合同判断。
 
 三张餐食测试图由内置图像生成能力创建并保存在
-`Q:\NAVA-Workspace\Build\TestRuns\nava-account-history-20260909\meal-photos`。早餐、午餐、
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-account-history-20260909\meal-photos`。早餐、午餐、
 晚餐图片分别通过 canonical 项目的私有 `diet-photos` bucket 和真实 `diet-extract`
 （`qwen3-vl-plus`）识别出 3、4、4 项餐食；结果写入 2026-09-09 的饮食记录后，
 `ai-diet-report` 成功生成四条真实摘要，并重新触发节律与 FDNB。浏览器历史日期控件在
@@ -5398,8 +5398,8 @@ SecureString 传入账号凭据并在进程结束清理环境变量，输出仅�
 字节，单段最大约 2.3 MB，按实际页面使用才加载。`npm run verify` 32 阶段、
 `npm run interaction:test` 11 组、六模块总览四视口、首页四视口与减少动态效果回退、
 `npm run auth:verify:production` 均通过；22/22 文件确认是多帧动画。关键帧审看与
-转换脚本证据在 `Q:\NAVA-Workspace\Build\TestRuns\mascot-gif-review`，首页实测证据在
-`Q:\NAVA-Workspace\Build\TestRuns\nava-mascot-gif-20260913`。
+转换脚本证据在 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\mascot-gif-review`，首页实测证据在
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\workspace-runs\nava-mascot-gif-20260913`。
 
 功能源码 `73e0b72f80ff31a0e3057bca319bd25437941d87` 已 push，并从该提交生成
 Sites v133 与 GitHub Pages v133。Sites version ID 为
@@ -5420,7 +5420,7 @@ RPC 重算。最终三日十类表各有三行，要求字段缺失数均为 0�
 全部为 0，留给用户亲自测试。
 
 九张餐食和三张同一虚构人物的面部图片是明确的**合成测试素材**，位于
-`Q:\NAVA-Workspace\Build\TestRuns\nava-account-history-20260912\synthetic-images`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-account-history-20260912\synthetic-images`。
 每张餐食图经私有 `diet-photos` 和生产 `diet-extract` (`qwen3-vl-plus`) 识别后保存；
 面部图经私有 `face-photos` 和生产 `face-analyze` (`qwen3-vl-plus`) 分析后保存，
 面部记录带 `synthetic_test_image` 标识。它们不应被误认为用户本人真实照片或医学事实。
@@ -5547,7 +5547,7 @@ GitHub Pages 生成镜像提交 `963311e`；在线 `source.json` 为 v135，指�
 逐一点击四类事件，确认暂停、恢复和活动草稿中断数仍为 0；360×740、375×812、
 390×844、430×932 均无控制板泄漏/横向溢出。`npm run interaction:test` 11 组
 回归和 `npm run auth:verify:production` 通过。截图与 PDF 渲染核查证据在
-`Q:\NAVA-Workspace\Build\TestRuns\nava-pdf-requirements-review-20260914`。避免此前
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-pdf-requirements-review-20260914`。避免此前
 与内置浏览器标签操作相关的桌面崩溃，本轮没有关闭/重建内置浏览器标签；
 独立浏览器检查未出现新的崩溃，但不能据此断言桌面程序根因已修复。
 
@@ -5691,7 +5691,7 @@ Pages 构建逐项 SHA-256 相同，20 个过期哈希资源已移除且可从 G
 
 独立 Chromium 脚本 `scripts/verify-prd-batch.mjs` 在 360×740、375×812、
 390×844、430×932 四档 CSS 视口检验了新增、选择、修改、确认、持久化和
-弹层安全区/溢出；截图保存在 `Q:\NAVA-Workspace\Build\TestRuns\nava-prd-batch-20260902`。
+弹层安全区/溢出；截图保存在 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\nava-prd-batch-20260902`。
 这是网页模拟账号测试，不是正式账号中新增了测试待办，也不是 iPhone 真机
 屏幕阅读器验收。独立的晨间规划历史尚无数据库合同，不能声称已实现。
 
@@ -5860,7 +5860,7 @@ AI 鼓励、近七天已授权记录依据、显式开关、15 分钟自动触�
 测试和后端 typecheck 通过；中英文 2/5/12 项排序、长标题难度和开始提示真实模型
 通过。正式账号独立浏览器中四个 AI 入口实际点击返回成功，自动计时边界及四档
 视口通过。测试仅创建并清理两条明确临时待办，原有专注云端会话前后相等，没有
-保存健康/专注记录。证据在 `Q:\NAVA-Workspace\Build\TestRuns\focus-contract-v148`。
+保存健康/专注记录。证据在 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\focus-contract-v148`。
 完整回归 33 阶段及 `auth:verify:production` 已通过。双站 v148 已发布，产品源
 提交 `be66e2d079a9195be4874674ed9670eb1e5f24dc`；Sites 版本
 `appgprj_6a5de710811c8191af8ce2681358d518~appgver_d2edd5431bb08191a758b25afa229631`，
@@ -5927,7 +5927,7 @@ bac3e2c355bce1ad06f2dee90efa91d6906f8fc3，工作流 34882772760 success。77 �
 本地哈希一致，20 个旧哈希资源被替换，可从 Git 恢复。两站实际主脚本均为
 index-Bkc65xRB.js，SHA-256 c59197f696c16875697f5d59e8b694f2b5286b1098beead1c692c5f5a929d528。
 两站均完成真实表单登录、认证后导航及同源产物校验；这些成功不抵消上述 AI 超时。
-证据目录：Q:/NAVA-Workspace/Build/TestRuns/record-integrity-v149。
+证据目录：Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/record-integrity-v149。
 
 稳定性：本轮不使用 Codex 内置浏览器；独立浏览器只保持一个实例，重型检查串行。
 收尾已关闭本轮测试浏览器及经路径/端口核对的本地 Vite 4174（PID 2468），公开站点不受影响。
@@ -5990,7 +5990,7 @@ index-Bkc65xRB.js，SHA-256 c59197f696c16875697f5d59e8b694f2b5286b1098beead1c692
 360×740、375×812、390×844、430×932 和 1365×1000 通过，另检查 700/900/901/1091
 宽桌面面板不覆盖手机。截图人工检查补获并修正手机外框 CSS 选择器问题及睡眠提示
 入场空白。专注原四事件、实际 AudioContext closed、Wake Lock 释放/恢复及延迟/拒绝
-边界通过。证据 `Q:/NAVA-Workspace/Build/TestRuns/external-events-v150`。
+边界通过。证据 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/external-events-v150`。
 
 双站 v150 已发布，产品源提交 `4cc25f1229c8cade112ed1c823ac13a3ab4e78a9`。
 Sites 版本 `appgprj_6a5de710811c8191af8ce2681358d518~appgver_37590fbedb1c8191a90c839f3b504a62`，
@@ -6056,7 +6056,7 @@ Flash 响应路径，不能归咎于缺账号、缺记录或严格限字；供�
 本轮 v40/v41/v42 每次双站验收的临时待办均按精确 ID 清理；测试只隔离自身的活动
 会话 REST 请求，原账号云端专注快照前后相等，未保存专注健康记录。全程单个外部
 Chromium、重型检查串行，测试浏览器/自身服务正常关闭；可用内存抽样 15.3–16.3 GiB。
-证据在 `Q:/NAVA-Workspace/Build/TestRuns/focus-ai-v40`、`focus-ai-v41`、`focus-ai-v42`；
+证据在 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/focus-ai-v40`、`focus-ai-v41`、`focus-ai-v42`；
 最后目录含完整回归日志、8 个脱敏耗时收据和两个实际页面截图。
 
 本轮完成旧清单第 1 项，当前剩余 **30 项**，见上方重新编号清单。专注相关陈旧表述
@@ -6084,7 +6084,7 @@ Chromium、重型检查串行，测试浏览器/自身服务正常关闭；可�
 新增 `reminders:visual` 四档手机 + 桌面通过，追加桌面截图确认右侧动态高度和早餐
 目标编辑器正常。旧通知测试对 42px DOMRect 增加 0.001px 浮点误差容限，并给浏览器
 操作加 15 秒超时；没有缩小图标或放宽可见布局要求。
-测试证据位于 `Q:/NAVA-Workspace/Build/TestRuns/independent-reminders`，明确为本地演示。
+测试证据位于 `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/independent-reminders`，明确为本地演示。
 真实边界脚本 `run-public-ai-login-secure.ps1 -Check Reminders` 已准备，必须待迁移后
 运行；通过真实 APP 表单登录，检查四项 Supabase 行与刷新状态，最后仅恢复原设置并
 删除测试新建的偏好行，不保存健康记录或全局注销。
@@ -6175,7 +6175,7 @@ Chromium、重型检查串行，测试浏览器/自身服务正常关闭；可�
 上述子项，1清理了明确陈旧AI版本/误命名但并非所有文档逐条重新验收。其他实施与
 外部门槛仍按本节表格，尤其夜醒、结构化复盘、个体目标、当前全AI路径和逐日生成。
 
-证据：`Q:/NAVA-Workspace/Build/TestRuns/wellbeing-tools` 与 `report-share-preview`。
+证据：`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wellbeing-tools` 与 `report-share-preview`。
 全程单个外部 Chromium、无内置浏览器操作；测试 finally 关闭自身浏览器/服务，不动
 其他任务的进程或用户标签页。
 
@@ -6209,7 +6209,7 @@ https://www.nhs.uk/mental-health/self-help/guides-tools-and-activities/breathing
 `auth:verify:production`通过（SMTP未检查，实际OTP送达不在本轮验收内）。
 `reminders:visual` 四档手机及1440桌面通过，主代理检查360设置与430饮食图片无裁切。
 收据目录：
-`Q:/NAVA-Workspace/Build/TestRuns/independent-reminders`、`wellbeing-tools`。
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/independent-reminders`、`wellbeing-tools`。
 
 发布已完成，以下取代§77–79的“待许可/未发布”当前状态：
 
@@ -6669,7 +6669,7 @@ Codex内置浏览器。不冒称AI验收完成。
 - 扩展`capture-figma-pages.mjs`为99个命名内容状态及22个加载状态，目标为四基础视口
   和目录18机型。每个目录机型实选预览器并断言真实画布宽高；沉浸层按其逻辑视口
   另行验证。串行单Chromium，不操作Codex内置浏览器，不并行运行重型测试。
-- 证据保存在`Q:\NAVA-Workspace\Build\TestRuns\all-pages-responsive`，追加§88要求前的完整
+- 证据保存在`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\all-pages-responsive`，追加§88要求前的完整
   基线已完成`release-matrix`。失败和未到达状态不算通过，分享必须等海报生成，不能截加载态
   冒充成品。报告含源提交/源码diff指纹、页面状态、机型和错误，图库逐项可查。
 - 已人工复核注册/重置、360睡眠/专注等修复；其余多页抽查发现的问题仍以最终矩阵为准。
@@ -6740,7 +6740,7 @@ Codex内置浏览器。不冒称AI验收完成。
 - 功能源码`2ae926b0eeeebcb9c2f5e64fd1353dc8347b92a7`干净推送GitHub及Sites；最终
   `release-final/report.json`为passed:true、incomplete:false、errors:[]，22组各121项，
   共2662项（99内容状态+22加载状态）。运行期APP diff为空，未拼接旧版本截图。
-  证据根目录为`Q:\NAVA-Workspace\Build\TestRuns\all-pages-responsive`。
+  证据根目录为`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\all-pages-responsive`。
 - 人工复核最终聊天、饮食、专注等跨尺寸截图；未声称人工逐张看完2662图。375饮食
   长输入原截图在异步增高后不是实际滚动末尾，故不作为末尾字段可达证明。补充
   `diet-scroll-end/report.json`在最终代码的22组尺寸逐一点击/填写四个营养字段和自评，
@@ -6796,7 +6796,7 @@ Codex内置浏览器。不冒称AI验收完成。
 
 完整`npm run verify`已通过，包含相机、录音/播放、运动/睡眠、专注中断、22视口
 记录卡片、四视口编辑器、通知合同与原生项目合同；日志位于
-`Q:\NAVA-Workspace\Build\TestRuns\App-Checks\phone-system-preview\verify.log`。
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\App-Checks\phone-system-preview\verify.log`。
 独立提醒四移动视口通过，桌面首轮暴露真实缺陷：AuthBootstrap短暂重叠两个壳，
 旧实例cleanup删除新实例html标记，令通知错误回退到APP内横幅。增加实例所有权
 保护，桌面专项重跑通过，明确断言新壳标记、系统横幅、无旧横幅及早餐精确跳转。
@@ -6825,7 +6825,7 @@ finally清理。这次只提交QA/交接收据，不为未改变的APP产物重�
 与搜索/天气/设置点击不产生新说明的断言。desktop-simulator:visual的24个状态已通过，
 覆盖4种桌面宽度和4种移动视口隐藏边界；1920与700桌面最终截图已人工查看。
 完整`npm run verify`及`npm run auth:verify:production`退出0，日志在
-`Q:\NAVA-Workspace\Build\TestRuns\preview-copy-cleanup`；本轮只清理文案，
+`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\preview-copy-cleanup`；本轮只清理文案，
 不改账号数据、AI或后台接口。
 v160双站发布成功，IDs与同一干净已推送源码见§2.2。两个产物的74个assets逐文件
 hash一致，80个文件单向复制至Pages；未删除旧资源，镜像现保留64个非当前版hash资源。
@@ -6851,7 +6851,7 @@ healthWrites均0、aiTested:false；包含搜索点击后三段文字缺席断�
 `npm run verify`首轮在mascot:visual的networkidle导航30秒超时，非断言失败；原样
 单独复跑通过（4尺寸、15片段），未改APP或放宽测试。保持源码不变，从原verify.ps1
 第6阶段继续到最后，全部通过；不能把首轮命令记为退出0。生产认证合同与原生排除
-37个JS/CSS产物通过。日志为`Q:\NAVA-Workspace\Build\TestRuns\phone-icon-refresh`
+37个JS/CSS产物通过。日志为`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\phone-icon-refresh`
 中的verify.log、mascot-retry.log、verify-continuation.log、auth.log、native.log。
 图标矩阵仍在phone-system-preview/report.json；全过程串行外部浏览器，未操作内置
 浏览器，检查时可用内存13GB以上。
@@ -6890,7 +6890,7 @@ healthWrites:0、aiTested:false；线上图标均成功解码且自然宽度≥1
   一致，无 mismatch。
 - 发布后三端回归通过：本地、ChatGPT Sites 与 GitHub Pages 共 58 个结果、381 项
   检查、56 张截图；证据位于
-  `Q:\NAVA-Workspace\Build\TestRuns\v251-postdeploy`。两站继续使用 canonical
+  `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\v251-postdeploy`。两站继续使用 canonical
   Supabase 项目和真实登录边界，未新增 demo 绕过、迁移或 Edge Function 发布。
 
 ### 小猫衣橱预览、分页与纵向留白（v252–v253）
@@ -6929,7 +6929,7 @@ healthWrites:0、aiTested:false；线上图标均成功解码且自然宽度≥1
   commit `7993053f4ba9c3a2dec41ca2716a4a9c7fdc9924`，workflow `38388100785`
   success。264个当前生成文件共77,823,140字节，与本地Pages产物逐文件SHA-256一致，
   `source.json`指向同一功能源码与v252。发布后门禁通过58个结果、381项检查和56张截图，
-  证据位于`Q:\NAVA-Workspace\Build\TestRuns\v252-postdeploy`；两站继续使用真实登录、
+  证据位于`Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\v252-postdeploy`；两站继续使用真实登录、
   禁止公开demo绕过并连接canonical Supabase项目。
 - v253继续收紧目录分页与底部兑换按钮之间的空白：预览模块改为弹性吸收一屏内的剩余高度，
   不再由`margin-top:auto`把剩余空间全部堆在按钮上方；小猫在360、390和430宽度分档重新锚定并
@@ -6942,7 +6942,7 @@ healthWrites:0、aiTested:false；线上图标均成功解码且自然宽度≥1
   `f7f4d35f97ab1ab11b3c35dfb2db07d59260acc6`，workflow `38390987275` success。264个当前
   生成文件共77,823,150字节，与本地逐文件SHA-256一致；线上`source.json`指向同一功能源码与
   v253。发布后门禁通过58个结果、381项检查和56张截图，证据位于
-  `Q:\NAVA-Workspace\Build\TestRuns\v253-postdeploy`。
+  `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\v253-postdeploy`。
 
 
 ### 贝雷帽小猫双眼修正（v265）
@@ -6975,7 +6975,7 @@ healthWrites:0、aiTested:false；线上图标均成功解码且自然宽度≥1
   右侧快捷入口展开后改为带文字标签的紧凑磨砂面板，点击面板外自动关闭。
 - 已同步修订布局门禁：衣橱三分类当前各 17 项、每页 4 项，因此真实分页点为 5 个；
   个人页门禁改为验证滚动视口在浮动导航上方截止，而非允许内容常态被导航遮住。
-- 视觉/布局证据位于 `Q:\NAVA-Workspace\Build\TestRuns\App-Checks\mobile-layout`：
+- 视觉/布局证据位于 `Q:\NAVA-Workspace\NAVA-App\Build\TestRuns\App-Checks\mobile-layout`：
   Chromium 安全区矩阵 426 状态、WebKit 425 状态均零失败；26 路由 × 3 皮肤 ×
   4 尺寸共 312 状态通过；9 个关键路由的中间断点扫描 1,134 状态零失败；
   导航 168 项、当前弹层 70 状态、字体放大 24 状态、主页组件 18 个目录机型和个人页

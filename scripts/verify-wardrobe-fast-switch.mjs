@@ -7,7 +7,7 @@ import { applyProjectPublicEnv } from "./project-env.mjs";
 applyProjectPublicEnv(process.cwd());
 const output = process.env.NAVA_WARDROBE_EVIDENCE_DIR
   ? `${process.env.NAVA_WARDROBE_EVIDENCE_DIR}/fast-switch`
-  : "Q:/NAVA-Workspace/Build/TestRuns/wardrobe-fast-switch";
+  : "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/wardrobe-fast-switch";
 await mkdir(output, { recursive: true });
 
 const server = await createServer({ server: { host: "127.0.0.1", port: 5281, strictPort: true }, logLevel: "silent" });

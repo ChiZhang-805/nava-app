@@ -5,7 +5,7 @@ import {execFileSync,spawnSync} from 'node:child_process';
 import path from 'node:path';
 const scanner=path.resolve('scripts/verify-repository-files.mjs');
 test('file audit permits only reviewed exact-version retirements and rejects live references',()=>{
- const fixtureRoot='Q:/NAVA-Workspace/Build/TestRuns/App-Checks/full-file-audit-fixtures';
+ const fixtureRoot='Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/full-file-audit-fixtures';
  mkdirSync(fixtureRoot,{recursive:true});
  const root=mkdtempSync(path.join(fixtureRoot,'fixture-'));
  try {

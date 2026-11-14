@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$OutputDirectory = 'Q:\NAVA-Workspace\Build\AppleSigning',
+    [string]$OutputDirectory = 'Q:\NAVA-Workspace\NAVA-App\Build\AppleSigning',
     [string]$CommonName = 'Chi Zhang',
     [string]$Organization = 'NAVA'
 )
@@ -22,7 +22,7 @@ function Resolve-OpenSsl {
 }
 
 $resolvedOutput = [System.IO.Path]::GetFullPath($OutputDirectory)
-$approvedRoot = [System.IO.Path]::GetFullPath('Q:\NAVA-Workspace\Build')
+$approvedRoot = [System.IO.Path]::GetFullPath('Q:\NAVA-Workspace\NAVA-App\Build')
 if (-not $resolvedOutput.StartsWith($approvedRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
     throw "OutputDirectory must stay under $approvedRoot."
 }

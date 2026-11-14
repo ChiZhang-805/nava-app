@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { applyProjectPublicEnv } from './project-env.mjs';
 
 applyProjectPublicEnv(process.cwd());
-const output = 'Q:/NAVA-Workspace/Build/TestRuns/App-Checks/auth-keyboard';
+const output = 'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/auth-keyboard';
 await mkdir(output, { recursive: true });
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent' });
 await server.listen();
