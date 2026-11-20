@@ -166,13 +166,16 @@ test("conversation archive titles use AI-sized titles with dated multi-chat fall
 });
 
 test("conversation lifecycle persists metadata, removes active rows, and supports history deletion", () => {
-  assert.match(userCloudState, /__navaArchive: \{ version: 1, dayKey, title \}/);
+  assert.match(userCloudState, /__navaArchive: \{ version: 1, dayKey: archive\.dayKey/);
+  assert.match(userCloudState, /persistConversationArchive/);
   assert.match(userCloudState, /ai_conversation_archives"\)\.delete\(\)\.eq\("user_id", userId\)\.eq\("id", archiveId\)/);
   assert.match(aiService, /ai_conversations"\)[\s\S]+\.delete\(\)[\s\S]+\.eq\("user_id", userId\)[\s\S]+\.in\("id"/);
   assert.match(aiScreen, /conversationNeedsDailyRollover\(conversation, deviceDayKey\)/);
   assert.equal(aiScreen.match(/prepareConversationForMessage\(\)/g)?.length, 3);
-  assert.match(aiScreen, /profile\?\.ai_personalization_consent !== true/);
+  assert.match(aiScreen, /archiveConsent\.current = profile\?\.ai_personalization_consent === true/);
   assert.match(aiScreen, /generateConversationTitle\(current, locale\)/);
   assert.match(aiScreen, /className="ai-history-delete"/);
-  assert.match(aiScreen, /历史会话只读预览/);
+  assert.doesNotMatch(aiScreen, /历史会话只读预览/);
+  assert.match(aiScreen, /loadConversationArchive<ChatMessage>\(user\.id, selectedArchive\)/);
+  assert.match(userCloudState, /order\("updated_at", \{ ascending: false \}\)/);
 });
