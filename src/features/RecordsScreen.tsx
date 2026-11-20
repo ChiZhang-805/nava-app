@@ -1301,10 +1301,7 @@ export default function RecordsScreen({
           void trackAnalyticsEvent(user.id, "weekly_report_shared", { weekOffset: sharedOffset });
           void onGrowthActivity?.("share");
         }} />}
-        <div className="health-report-tabs" role="tablist" aria-label={locale === "zh" ? "健康报告视图" : "Health report view"}>
-          <button type="button" role="tab" aria-selected={reportMode === "modules"} onClick={() => setReportMode("modules")}>{locale === "zh" ? "分项报告" : "Modules"}</button>
-          <button type="button" role="tab" aria-selected={reportMode === "weekly"} onClick={() => { setReportMode("weekly"); void trackAnalyticsEvent(user.id, "weekly_report_opened", { weekOffset }); }}>{locale === "zh" ? "本周报告" : "Weekly"}</button>
-        </div>
+        {reportMode === "weekly" && <button type="button" className="weekly-report-back" onClick={() => setReportMode("modules")}><ChevronLeft size={18} />{locale === "zh" ? "返回图表" : "Back to charts"}</button>}
 
         {reportMode === "modules" ? <>
           {dataLoadError && (
@@ -1319,6 +1316,7 @@ export default function RecordsScreen({
             maxDate={deviceDate}
             locale={locale}
             onDateChange={setRecordDate}
+            onOpenWeekly={() => { setReportMode("weekly"); void trackAnalyticsEvent(user.id, "weekly_report_opened", { weekOffset }); }}
             overview={hubAiEligible && hubHasSignificantPattern ? hubAssociation?.headline : undefined}
             onOpenRecord={(id) => {
               if (dataLoadError) { void loadRecordData({ refreshBase: true }); return; }

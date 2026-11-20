@@ -30,6 +30,7 @@ export default function LineTrendChart({
   showConfidenceBand = true,
   readableLabels = false,
   presentation = "default",
+  showYAxis = true,
   domain,
   valueFormatter = (value) => Math.round(value).toString(),
 }: {
@@ -48,6 +49,7 @@ export default function LineTrendChart({
   showConfidenceBand?: boolean;
   readableLabels?: boolean;
   presentation?: "default" | "report";
+  showYAxis?: boolean;
   domain?: readonly [number, number];
   valueFormatter?: (value: number) => string;
 }) {
@@ -80,7 +82,7 @@ export default function LineTrendChart({
   const width = report ? Math.max(120, size.width) : compact ? 600 : 360;
   const height = report ? Math.max(80, size.height) : compact ? (verticalEmphasis ? 320 : 148) : 184;
   const horizontalInset = readableLabels ? 36 : compact ? 22 : 20;
-  let left = report ? 42 : horizontalInset;
+  let left = report ? (showYAxis ? 42 : 10) : horizontalInset;
   const right = width - (report ? 10 : horizontalInset);
   const top = report ? 12 : readableLabels ? 40 : compact ? (verticalEmphasis ? 24 : 18) : 22;
   const bottom = report ? height - 30 : compact ? (verticalEmphasis ? 258 : 108) : 142;
@@ -142,7 +144,7 @@ export default function LineTrendChart({
   }
   const domainSpan = Math.max(1, domainMax - domainMin);
   const axisFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
-  if (report) {
+  if (report && showYAxis) {
     const longestTick = Math.max(...[domainMin, (domainMin + domainMax) / 2, domainMax].map((value) => axisFormatter.format(value).length));
     left = Math.max(32, Math.min(70, longestTick * 7 + 10));
   }
@@ -203,7 +205,7 @@ export default function LineTrendChart({
             y1={yAt(score)}
             y2={yAt(score)}
             style={{ ...staticMarks, "--trend-grid-index": index } as CSSProperties}
-          />{report && <text className="trend-axis-value" x={left - 8} y={yAt(score)} dominantBaseline="middle" textAnchor="end" style={reportLabelStyle}>{axisFormatter.format(score)}</text>}</g>
+          />{report && showYAxis && <text className="trend-axis-value" x={left - 8} y={yAt(score)} dominantBaseline="middle" textAnchor="end" style={reportLabelStyle}>{axisFormatter.format(score)}</text>}</g>
           );
         })}
 
@@ -228,7 +230,7 @@ export default function LineTrendChart({
               </circle>
               {showValues && <text className="trend-value" x={x} y={Math.max(12, y - 9)} textAnchor="middle" style={reportLabelStyle}>{valueFormatter(point.value)}</text>}
               </>}
-              {showDate && <text className="trend-date" x={x} y={dateY} textAnchor={report && index === points.length - 1 ? "end" : "middle"} style={reportLabelStyle}>{point.label}</text>}
+              {showDate && <text className="trend-date" x={x} y={dateY} textAnchor={report && index === points.length - 1 ? "end" : report && !showYAxis && index === 0 ? "start" : "middle"} style={reportLabelStyle}>{point.label}</text>}
             </g>
           );
         })}
