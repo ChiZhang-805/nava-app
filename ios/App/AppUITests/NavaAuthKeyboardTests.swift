@@ -236,7 +236,7 @@ final class NavaAuthKeyboardTests: XCTestCase {
             // WKWebView may expose only the visible part of a clipped button.
             // Hittability and maxY alone allowed a 22pt fragment to pass. The
             // shortcuts share the input/submit control height at every density.
-            XCTAssertGreaterThanOrEqual(shortcut.frame.height, 28,
+            XCTAssertGreaterThanOrEqual(shortcut.frame.height, 36,
                                         "Shortcut is clipped: \(shortcut.label)")
             XCTAssertGreaterThanOrEqual(shortcut.frame.height, account.frame.height - 1,
                                         "Shortcut must retain the full input control height")

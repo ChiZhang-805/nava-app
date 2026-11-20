@@ -22,8 +22,11 @@ food-visualize。线上RLS/令牌列不可读/claim不可由客户端调用/单�
 原因是表单32px档需240px而降档阈值仅215px；44px档也有310–322px断档。
 已将阈值改为323/275/241px；WebKit新增native-safe-top=20px回归先复现真实溢出。
 增加DOM原始边界与所有祖先裁剪区域检查，原生要求快捷按钮完整控件高度，避免AX裁剪框假通过。
-此修复已通过Chromium/WebKit共228状态，涵盖native-safe-top=20/59px的中英文反馈和密度边界。
-原生44765875911（66ef6ad）两机验收运行中，49尚未上传。
+66ef6ad虽然通过228个几何状态，用户明确否决其拥挤外观；原生44765875911已取消，49未上传。
+用户选择键盘时品牌/语言收为同一行：顶部栏40px、控件最低36px、字段间10px、分组6px，
+紧凑表单272px，SE339可见区减20safe-top/40header/6bottom后剩273px。低于物理预算时
+仅表单内部滚动，不再继续压缩控件；收键盘恢复原有独立品牌布局。Chromium 与 WebKit
+共228项通过（含60项安全区边界），生产构建通过。浏览器截图标注键盘占位，原生验收待确认。
 4345c90构建/lint/认证/产物与71项报告完成回归通过；另有生成图只读/等待态WebKit4案通过，
 没有发出模型请求。真实生图收据：App-Checks/food-render-live/receipt.json（passed=false，cleaned=true），
 首轮保留在food-render-live-initial。完整verify已分段完成：a697e1b的1–13阶段通过，

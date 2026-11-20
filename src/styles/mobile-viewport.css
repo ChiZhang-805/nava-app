@@ -77,26 +77,30 @@ html[data-auth-viewport="true"] .auth-screen .auth-brand .nava-wordmark {
 /* Keyboard content has one vertical reading order, including an always-reserved
    feedback line. Density follows remaining space, never the presence of errors. */
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen {
-  --auth-header-control: clamp(28px, calc((var(--nava-visible-height) - 278px) * .2 + 28px), 44px);
-  --auth-keyboard-wordmark: clamp(28px, calc((var(--nava-visible-height) - 278px) * .07 + 28px), 44px);
+  --auth-header-control: 32px;
+  --auth-keyboard-wordmark: 28px;
   display: grid;
-  /* Reserve the actual control + wordmark height before the first label.
-     A fixed minimum alone lets the wordmark overflow on compact iOS keyboards. */
-  grid-template-rows: max(calc(var(--auth-header-control) + var(--auth-keyboard-wordmark) + 12px), clamp(66px, calc((var(--nava-visible-height) - env(safe-area-inset-top) - 278px) * .23 + 66px), 114px)) minmax(0, 1fr);
+  /* Keyboard-only toolbar: a 32px brand/language row plus 8px separation.
+     At 339px visible height: 20px safe top + 40px header + 272px form
+     + 6px keyboard gap = 338px. Keep spacing rather than crushing controls. */
+  grid-template-rows: 40px minmax(0, 1fr);
   height: var(--auth-canvas-height, 100dvh);
   padding-top: max(8px, env(safe-area-inset-top));
-  padding-bottom: max(4px, calc(var(--auth-canvas-height, 100dvh) - var(--nava-visible-height) + 4px));
+  padding-bottom: max(6px, calc(var(--auth-canvas-height, 100dvh) - var(--nava-visible-height) + 6px));
   overflow: hidden;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand {
   min-height: 0;
-  padding: calc(var(--auth-header-control) + 4px) 0 0;
+  padding: 0 0 8px;
   margin: 0;
   animation: none;
   justify-content: center;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand .nava-wordmark {
   --wordmark-size: var(--auth-keyboard-wordmark);
+  width: max-content;
+  min-width: 0;
+  height: 32px;
   min-height: 0;
   animation: none;
 }
@@ -104,6 +108,11 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-lo
   top: max(8px, env(safe-area-inset-top));
   min-height: var(--auth-header-control);
   height: var(--auth-header-control);
+  padding-block: 0;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .language-toggle {
+  min-height: 32px;
+  height: 32px;
   padding-block: 0;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form-region {
@@ -248,40 +257,20 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-so
   box-shadow: none;
   backdrop-filter: none;
 }
-/* Switch before the current density's complete stack can overflow: 322px
-   for 44px controls, 268px for 36px, 240px for 32px, 197px for 28px.
-   Include one pixel for fractional native safe-area/container rounding. */
+/* 44px controls need 322px; the comfortable compact stack needs 272px.
+   Below that physical budget, keep the controls readable and scroll only
+   the form. Never shrink to 28px controls or remove the grouping gaps. */
 @container auth-form-space (max-height: 323px) {
   html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) {
     --auth-control: 36px;
     --auth-label: 16px;
-    --auth-label-gap: 2px;
-    --auth-field-gap: 8px;
+    --auth-label-gap: 3px;
+    --auth-field-gap: 10px;
     --auth-section-gap: 6px;
     --auth-link-height: 28px;
     --auth-message: 18px;
     --auth-divider: 12px;
   }
-}
-@container auth-form-space (max-height: 275px) {
-  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) {
-    --auth-control: 32px;
-    --auth-label: 14px;
-    --auth-section-gap: 4px;
-    --auth-message: 16px;
-  }
-}
-@container auth-form-space (max-height: 241px) {
-  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) {
-    --auth-control: 28px;
-    --auth-label-gap: 0px;
-    --auth-field-gap: 4px;
-    --auth-section-gap: 1px;
-    --auth-link-height: 24px;
-    --auth-message: 14px;
-    --auth-message-margin: 0px;
-  }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-submit > svg { width: 22px; height: 22px; }
 }
 html[data-keyboard-open="true"] .phone-frame .profile-security-sheet {
   max-height: 100%;

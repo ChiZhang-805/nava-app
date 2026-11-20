@@ -12,6 +12,20 @@ await server.listen();
 const report = [];
 const viewportStyles = await readFile(new URL('../src/styles/mobile-viewport.css', import.meta.url), 'utf8');
 
+async function captureKeyboardLayout(page, visible, filename) {
+  // This is a geometry fixture, not a native keyboard screenshot. Make its
+  // occupied region explicit instead of presenting unused wallpaper as space.
+  await page.evaluate(top => {
+    const cover = document.createElement('div');
+    cover.id = 'auth-keyboard-test-occupied';
+    cover.textContent = '系统键盘占用区域 · 浏览器布局示意';
+    cover.style.cssText = `position:fixed;top:${top}px;bottom:0;left:0;right:0;z-index:99999;background:#d6dce2;color:#536575;display:grid;place-items:center;font:13px system-ui;pointer-events:none;border-top:1px solid #afbbc5`;
+    document.body.append(cover);
+  }, visible);
+  await page.screenshot({ path: `${output}/${filename}` });
+  await page.locator('#auth-keyboard-test-occupied').evaluate(element => element.remove());
+}
+
 async function verifyDensityBoundaries(browser, engine) {
   // Desktop engines report a zero safe area. Reproduce native inset geometry
   // explicitly and measure the original DOM bounds, not a clipped AX frame.
@@ -74,14 +88,29 @@ async function verifyDensityBoundaries(browser, engine) {
           });
           const state = { engine, width, height, safeTop, language, visible, geometry };
           report.push(state);
-          assert(geometry.scrollHeight <= geometry.clientHeight + 1, `Login density overflow: ${JSON.stringify(state)}`);
-          assert.equal(geometry.scrollTop, 0, 'The login form must fit without scrolling');
-          for (const button of geometry.buttons) {
-            assert(button.height >= 28 && button.clippedY <= 1 && button.clippedX <= 1,
-              `Shortcut is only partially visible: ${JSON.stringify(state)}`);
-            assert(button.bottom <= geometry.regionBottom + 1 && button.bottom <= visible, 'Shortcut exceeds visible region');
+          const fits = geometry.clientHeight >= 272;
+          if (fits) {
+            assert(geometry.scrollHeight <= geometry.clientHeight + 1, `Login density overflow: ${JSON.stringify(state)}`);
+            assert.equal(geometry.scrollTop, 0, 'The login form must fit without scrolling');
           }
-          if (visible === 339) await page.screenshot({ path: `${output}/${engine}-${width}-safe-${safeTop}-${language}-density.png` });
+          for (const button of geometry.buttons) {
+            assert(button.height >= 36 && (!fits || button.clippedY <= 1) && button.clippedX <= 1,
+              `Shortcut is only partially visible: ${JSON.stringify(state)}`);
+            if (fits) assert(button.bottom <= geometry.regionBottom + 1 && button.bottom <= visible, 'Shortcut exceeds visible region');
+          }
+          const rows = await page.locator('.auth-fields .field').evaluateAll(elements => elements.map(element => {
+            const field = element.getBoundingClientRect(), input = element.querySelector('.input-wrap').getBoundingClientRect();
+            const label = element.querySelector('.auth-field-heading').getBoundingClientRect();
+            return { top: field.top, bottom: field.bottom, labelGap: input.top - label.bottom, inputHeight: input.height };
+          }));
+          assert(rows.every(row => row.inputHeight >= 36 && row.labelGap >= 2.5), 'Inputs or their label spacing were compressed');
+          assert(rows[1].top - rows[0].bottom >= 9.5, 'Field groups need 10px separation');
+          if (!fits) {
+            await page.locator('.auth-form-region').evaluate(element => { element.scrollTop = element.scrollHeight; });
+            const last = await page.locator('.auth-social-button--qq').boundingBox();
+            assert(last.y + last.height <= geometry.regionBottom + 1, 'Compact overflow must remain reachable by inner scroll');
+          }
+          if (visible === 339) await captureKeyboardLayout(page, visible, `${engine}-${width}-safe-${safeTop}-${language}-density.png`);
         }
         await page.evaluate(() => { document.activeElement.blur(); window.authTestKeyboard(undefined); });
         await page.waitForFunction(() => !document.documentElement.dataset.keyboardOpen);
@@ -162,26 +191,24 @@ try {
               }
               {
                 const last = await page.locator('.auth-social-button--qq').boundingBox();
-                assert(last.height >= (visible <= 300 ? 28 : 32), 'Compact shortcut hit area is too small');
-                assert(visible - last.y - last.height >= 0 && visible - last.y - last.height <= 28,
+                const fits = after.region.height >= 272;
+                assert(last.height >= 36, 'Compact shortcut hit area is too small');
+                if (fits) assert(visible - last.y - last.height >= 0 && visible - last.y - last.height <= 28,
                   `Shortcut gap: ${JSON.stringify({visible,last})}`);
                 const firstField = await page.locator('.auth-fields .field').nth(0).boundingBox();
                 const secondField = await page.locator('.auth-fields .field').nth(1).boundingBox();
                 const submit = await page.locator('.auth-submit').boundingBox();
                 const locale = await page.locator('.auth-locale').boundingBox();
-                const minimumGap = visible <= 300 ? 3.5 : 7.5;
+                const minimumGap = 9.5;
                 assert(secondField.y - firstField.y - firstField.height >= minimumGap, 'Input rows are crowded');
                 assert(submit.y - secondField.y - secondField.height >= minimumGap, 'Submit crowds password');
-                assert(firstField.y >= locale.y + locale.height, 'Language control overlaps form');
-                assert(after.brand.y >= locale.y + locale.height - 1, 'Brand must sit below language control');
+                assert(firstField.y >= locale.y + locale.height + 7.5, 'Toolbar needs 8px separation before form');
+                assert(Math.abs(after.brand.y - locale.y) <= 2, 'Keyboard brand and language must share a toolbar');
                 for (const label of await page.locator('.auth-fields .field-label').all()) {
                   assert(await label.isVisible(), 'Field label disappeared');
                   assert((await label.boundingBox()).height >= 14, 'Field label collapsed');
                 }
-                if (visible > 320) {
-                  assert(firstField.y - after.brand.bottom >= 8, 'Brand needs breathing room below');
-                  assert(after.brand.y - locale.y - locale.height >= 4, 'Brand needs breathing room above');
-                }
+                assert(firstField.y - after.brand.bottom >= 7.5, 'Brand needs breathing room below');
                 assert.equal(await page.locator('.auth-form-region').evaluate(el => el.scrollTop), 0, 'Login requires scrolling');
               }
             }
@@ -204,12 +231,13 @@ try {
             assert(feedback.y >= password.y + password.height && feedback.y + feedback.height <= submit.y + 1, 'Feedback must have its own row above submit');
             assert.equal(Math.round(submit.width), Math.round(password.width), 'Submit must remain full width');
             assert(links.y >= submit.y + submit.height && divider.y >= links.y + links.height && shortcuts.y >= divider.y + divider.height, 'Login reading order changed');
-            assert(shortcuts.y + shortcuts.height <= height - (height < 700 ? 290 : 360), 'Feedback pushes shortcuts behind keyboard');
+            const region = await page.locator('.auth-form-region').boundingBox();
+            if (region.height >= 272) assert(shortcuts.y + shortcuts.height <= height - (height < 700 ? 290 : 360), 'Feedback pushes shortcuts behind keyboard');
             assert.equal(await page.locator('.auth-form-region').evaluate(el => el.scrollTop), 0);
-            await page.screenshot({path: `${output}/${engine}-${width}-${height}-login-feedback.png`});
+            await captureKeyboardLayout(page, height - (height < 700 ? 290 : 360), `${engine}-${width}-${height}-login-feedback.png`);
           }
           if (width === 430 || (width === 375 && height === 667)) {
-            await page.screenshot({ path: `${output}/${engine}-${width}-${height}-${mode}-keyboard-layout.png` });
+            await captureKeyboardLayout(page, height - (height < 700 ? 290 : 360), `${engine}-${width}-${height}-${mode}-keyboard-layout.png`);
           }
           await page.evaluate(() => { document.activeElement.blur(); window.authTestKeyboard(undefined); });
           await page.waitForFunction(() => !document.documentElement.dataset.keyboardOpen, undefined, { timeout: 3000 }).catch(async error => {
