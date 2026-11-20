@@ -1,5 +1,6 @@
 import { normalizeFoodVisualEvidenceV2, foodVisualPromptV2, foodVisualCriticPromptV2, parseFoodVisualQualityV2, passesFoodVisualQualityV2, foodVisualSpecificationV2 } from './food-visual-v2.ts';
 import { validateFoodVisualPngV2 } from './food-visual-png.ts';
+import { hasFoodMattingCredentials, matteGeneratedFood } from './food-matting.ts';
 
 export type SavedFoodInput = { name: string | null; amount: string | null; photoPath: string | null; photoBucket: string | null; kind: string };
 export class FoodRenderError extends Error {
@@ -92,7 +93,7 @@ export async function generateFoodAsset(evidence: ReturnType<typeof normalizeFoo
   const model = attempt > 1 ? Deno.env.get('NAVA_FOOD_RENDER_FALLBACK_MODEL') || 'wan2.7-image-pro' : Deno.env.get('NAVA_FOOD_RENDER_MODEL') || 'wan2.7-image';
   const prompt = foodVisualPromptV2(evidence);
   const custom = Deno.env.get('NAVA_FOOD_RENDER_URL');
-  let bytes: Uint8Array; let resultUrl: string | null = null;
+  let bytes: Uint8Array; let resultUrl: string | null = null; let mattingModel = '';
   if (custom) {
     const key = Deno.env.get('NAVA_FOOD_RENDER_KEY');
     const result = await checkedJson(custom, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(key ? { Authorization: `Bearer ${key}` } : {}) }, body: JSON.stringify({ sourceUrl, plan: evidence, prompt, specification: foodVisualSpecificationV2 }), signal: deadline(75_000) }, 'render');
@@ -106,13 +107,25 @@ export async function generateFoodAsset(evidence: ReturnType<typeof normalizeFoo
   try { await validateFoodVisualPngV2(bytes); }
   catch {
     const matting = Deno.env.get('NAVA_FOOD_MATTING_URL');
-    if (!matting || !resultUrl) throw new FoodRenderError('transparent_output_unavailable');
-    const key = Deno.env.get('NAVA_FOOD_MATTING_KEY');
-    const result = await checkedJson(matting, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(key ? { Authorization: `Bearer ${key}` } : {}) }, body: JSON.stringify({ sourceImageUrl: resultUrl, purpose: 'generated-food-plate-postprocess', plan: evidence, specification: foodVisualSpecificationV2, output: { format: 'png', width: 1024, height: 1024, transparentBackground: true } }), signal: deadline(24_000) }, 'matting');
-    bytes = decodeImage(result.imageBase64);
+    if (!resultUrl) throw new FoodRenderError('transparent_output_unavailable');
+    if (matting) {
+      const key = Deno.env.get('NAVA_FOOD_MATTING_KEY');
+      const result = await checkedJson(matting, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(key ? { Authorization: `Bearer ${key}` } : {}) }, body: JSON.stringify({ sourceImageUrl: resultUrl, purpose: 'generated-food-plate-postprocess', plan: evidence, specification: foodVisualSpecificationV2, output: { format: 'png', width: 1024, height: 1024, transparentBackground: true } }), signal: deadline(24_000) }, 'matting');
+      bytes = decodeImage(result.imageBase64);
+      mattingModel = '+configured-matting';
+    } else if (hasFoodMattingCredentials()) {
+      try {
+        const image = await matteGeneratedFood(resultUrl, deadline(30_000));
+        bytes = await limitedBytes(await fetch(image, { signal: deadline(12_000) }));
+        mattingModel = '+aidge-image-matting-2026-04-28';
+      } catch (error) {
+        if (error instanceof Error && /^aidge_[a-z0-9_]{1,65}$/.test(error.message)) throw new FoodRenderError(error.message);
+        throw error;
+      }
+    } else throw new FoodRenderError('transparent_output_unavailable');
     try { await validateFoodVisualPngV2(bytes); } catch { throw new FoodRenderError('invalid_transparent_output'); }
   }
-  return { bytes, modelVersion: model };
+  return { bytes, modelVersion: model + mattingModel };
 }
 
 export async function reviewFoodAsset(evidence: ReturnType<typeof normalizeFoodVisualEvidenceV2>, sourceUrl: string | null, assetUrl: string, deadline: Deadline) {

@@ -12,15 +12,18 @@
 food-visualize。线上RLS/令牌列不可读/claim不可由客户端调用/单一调度器检查通过。
 两条合成记录已完成真实调用并清理：文字样本needs_details，照片两次均透明PNG检查失败；
 因此尚不能宣称自动配图可用。已明确文字confidence为0–1的食品身份置信度、无需份量，
-补充命名食品示例并通过17步隔离回归后部署；这项提示词修正尚未真模型复验。
-云food-icon只返回emoji，matting仍未配置。用户要求调研，推荐Aidge智能抠图，需独立RAM
-凭据，不能用百炼Key替代；详情见app-backend开头。已有云secret按用户授权兼容旧名称。
+补充命名食品示例并通过17步隔离回归后部署；第二轮两条均进入生成，最终文字quality_rejected、
+照片aidge_nopermission。临时账号/记录/资产已清理，不能宣称配图可用。
+已调研并接入Aidge智能抠图，food-visualize版本4 ACTIVE。现有云Aliyun凭据实测403/NoPermission；
+用户已收到开通服务、专用RAM最小权限及Supabase两项secret配置步骤，待完成后复验。
+未改密钥、短信或IAM权限。matting签名/凭据隔离/错误脱敏测试通过；详情见app-backend开头。
 原生44756150966（eab5715）两台构建通过但验收失败：大屏残留一处inner/outer宽度旧断言、
 Files冷启动超过15秒；SE相册/文件取消与草稿保留通过，登录品牌区域高度不足出现4pt交叠。
 已统一宽度检查、将Files冷启动等待设60秒（不跳过实际取消验证），登录头部按控件与字标
 实际尺寸预留高度。WebKit375宽24状态通过，待新一轮原生验收。49尚未上传。
 4345c90构建/lint/认证/产物与71项报告完成回归通过；另有生成图只读/等待态WebKit4案通过，
-没有发出模型请求。真实生图收据：App-Checks/food-render-live/receipt.json（passed=false，cleaned=true）。
+没有发出模型请求。真实生图收据：App-Checks/food-render-live/receipt.json（passed=false，cleaned=true），
+首轮保留在food-render-live-initial。新原生验收44760568571（a697e1b）仍运行，完整verify也运行中。
 
 - 登录键盘改为纵向单列，密码下预留反馈行、全宽进入按钮、辅助链接、分隔线和三快捷入口；
   账号/密码标签始终保留，连续圆角左右更直。浏览器168状态通过，当前原生验收待运行。

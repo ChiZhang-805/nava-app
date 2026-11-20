@@ -3,20 +3,28 @@
 用户已明确授权发布并运行两条合成测试。202611202300迁移与food-visualize已选择性部署，
 私有bucket/RLS/令牌列权限/单一cron已读回验证。真实测试中，燕麦酸奶被planner判为
 needs_details；照片样本两次均transparent_output_unavailable，未保存不合格图片。
-临时账号、记录、照片已清理；收据App-Checks/food-render-live/receipt.json。
+临时账号、记录、照片已清理；首轮收据App-Checks/food-render-live-initial/receipt.json。
 已明确planner置信度范围与食品身份/份量区别，并给出常见命名食品示例；隔离17步通过，
-函数已更新，真实效果尚待复验。当前仍不能宣称透明配图服务端到端可用。
+函数已更新。第二轮文字与照片均进入生成；最终文字quality_rejected、照片aidge_nopermission，
+没有保存不合格图。两条临时记录及账号均已清理，收据food-render-live/receipt.json。
+当前food-visualize版本4 ACTIVE，仍不能宣称透明配图服务端到端可用。
 
 抠图调研结论：优先评估阿里云Aidge ImageMatting（透明PNG、原尺寸输出、官方刊例0.002元/张，
-实际以控制台为准）。它使用独立RAM AccessKey ID/Secret，并非DashScope模型Key；建议最小
-权限aidge:ImageMatting及官方要求的关联权限。只发送AI生成的餐盘图。现有通用适配器还需
-接通Aidge签名、返回图下载及1024RGBA规范化；不能把Aidge公网地址直接填入本项目自定义
-matting协议当成已兼容。备选SegmentHDCommonImage同样需独立视觉平台鉴权；SegmentFood
+实际以控制台为准；1000张约2元，仅抠图）。它使用RAM AccessKey ID/Secret，并非DashScope
+模型Key；所需权限为aidge:ImageMatting及关联aidge:CallWithBearerToken。只发送AI生成的
+餐盘图。已实现并部署ACS3签名、结果下载及严格PNG复验；不传TargetWidth/Height，避免
+服务自动裁切和缩放构图。专用AIDGE_ACCESS_KEY_ID_NAVA/AIDGE_ACCESS_KEY_SECRET_NAVA优先；
+仅canonical云项目按用户授权兼容已有ALIYUN_ACCESS_KEY_ID/ALIYUN_ACCESS_KEY_SECRET。
+不复制或改动密钥，不改变短信及RAM权限。隔离签名/凭据/错误脱敏测试通过，真实两条
+样本首次均到达抠图接口但返回403，随后取得明确NoPermission；用户正在按说明配置
+专用RAM凭据及最小权限。权限完成后仍须真实图片质量验收，不能声称配图已可用。
+备选SegmentHDCommonImage同样需视觉平台鉴权；SegmentFood
 可能只保留食物而丢失盘子，不适合直接代替整盘主体抠图。
 官方依据（2026-11-20查阅）：
 - https://help.aliyun.com/zh/aidge/intelligent-image-matting
 - https://help.aliyun.com/zh/aidge/authentication-method
 - https://help.aliyun.com/zh/aidge/api-aidge-2026-04-28-imagematting
+- https://help.aliyun.com/zh/aidge/billing-overview
 - https://help.aliyun.com/zh/viapi/developer-reference/api-overview
 
 `202611202300_food_render_jobs.sql`在真实饮食记录保存事务中写入持久任务，不回填历史。
