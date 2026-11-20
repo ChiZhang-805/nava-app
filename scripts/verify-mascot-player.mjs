@@ -23,11 +23,11 @@ try {
       await page.route("**/*.supabase.co/**", (route) => route.abort());
       await page.goto("http://127.0.0.1:5232/?demo=1#tab=today", { waitUntil: "networkidle" });
       if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
-      const cat = page.locator(".option-two-life-stage .nava-mascot"), canvas = cat.locator("canvas");
+      const cat = page.locator(".option-two-life-stage .nava-mascot"), canvas = cat.locator("canvas"), hitTarget = cat.locator(".nava-mascot-hit-target");
       await expect(canvas).toHaveAttribute("data-ready", "true");
       await canvas.evaluate((node) => { window.originalCanvas = node; });
       await page.route("**/home-stretch.webp", async (route) => { await new Promise((resolve) => setTimeout(resolve, 1100)); await route.continue(); });
-      await cat.click();
+      await hitTarget.click();
       await page.waitForTimeout(400);
       await expect(cat).toHaveAttribute("data-player-phase", "loading");
       const continuity = await canvas.evaluate((node) => {
@@ -37,7 +37,7 @@ try {
       if (!continuity.sameCanvas || continuity.alphaPixels < 10000 || !continuity.fallbackHidden) throw new Error(`Blank/duplicate cat during loading: ${JSON.stringify(continuity)}`);
       await page.screenshot({ path: `${output}/loading-${width}.png` });
       await expect(canvas).toHaveAttribute("data-clip", /home-stretch/);
-      await cat.click(); await cat.click();
+      await hitTarget.click(); await hitTarget.click();
       await expect(cat).toHaveAttribute("data-action-queued", "true");
       await expect(cat).toHaveAttribute("data-motion-run", "2");
       const layout = await cat.evaluate((node) => {
