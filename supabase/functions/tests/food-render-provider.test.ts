@@ -5,6 +5,12 @@ import { syntheticFoodPng, base64 } from './fixtures/food-png.ts';
 function assert(value: unknown, message: string): asserts value { if(!value)throw new Error(message); }
 async function rejects(fn:()=>unknown|Promise<unknown>,pattern:RegExp){try{await fn();}catch(e){assert(pattern.test(String(e)),String(e));return;}throw new Error('Expected rejection');}
 const json=(value:unknown)=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});
+type ChatPart={type:'text';text:string}|{type:'image_url';image_url:{url:string}};
+type CapturedRequest={url:string;body:Record<string,unknown>;authorization:string|null};
+type GenerationBody={model:string;input:{messages:Array<{content:Array<{text:string}|{image:string}>}>};parameters:{n:number;watermark:boolean;size:string}};
+const chatContent=(request:CapturedRequest)=>(request.body as {messages:Array<{content:ChatPart[]}>}).messages[0].content;
+const promptText=(request:CapturedRequest)=>{const part=chatContent(request)[0];assert(part.type==='text','expected text prompt');return part.text;};
+const generationBody=(request:CapturedRequest)=>request.body as GenerationBody;
 const canonical='https://wxteapvwagvhhtrjrbim.supabase.co';
 const textEvidence:FoodVisualEvidenceV2={kind:'text',dishName:'燕麦酸奶',ingredients:['燕麦','酸奶'],description:'燕麦和酸奶',container:'bowl'};
 const plan={shouldGenerate:true,confidence:.96,dishName:'燕麦酸奶',ingredients:['燕麦','酸奶'],description:'燕麦和酸奶',container:'bowl'};
@@ -13,7 +19,7 @@ const qa={dishIdentityScore:.98,visibleIngredientRecall:.98,unexpectedIngredient
 Deno.test('food provider isolates keys, saved evidence, strict QA and decoded PNG output without real network', async t=>{
   const original={fetch:globalThis.fetch,env:Deno.env.get};
   let env:Record<string,string|undefined>={SUPABASE_URL:canonical,DASHSCOPE_API_KEY:'fixture-authorized-canonical'};
-  const requests:Array<{url:string;body:Record<string,any>;authorization:string|null}>=[];
+  const requests:CapturedRequest[]=[];
   const png=await syntheticFoodPng(),opaque=await syntheticFoodPng(true);
   let chatOutput:unknown=plan,download=png,mattingOutput=base64(png);
   Deno.env.get=name=>env[name];
@@ -41,7 +47,7 @@ Deno.test('food provider isolates keys, saved evidence, strict QA and decoded PN
       requests.length=0;chatOutput=plan;
       const result=await prepareFoodEvidence({name:'燕麦酸奶',amount:null,kind:'journal',photoPath:null,photoBucket:null},null,foodRenderDeadline());
       assert(result.kind==='text'&&result.dishName==='燕麦酸奶','wrong text evidence');
-      const content=requests[0].body.messages[0].content;
+      const content=chatContent(requests[0]);
       assert(content.length===1&&content[0].type==='text','text request must not attach image');
       assert(content[0].text.includes('"name":"燕麦酸奶"')&&content[0].text.includes('untrusted data'),'saved text must be preserved as data');
       assert(!content[0].text.includes('fixture-user'),'source identity should not leak into prompt');
@@ -50,7 +56,8 @@ Deno.test('food provider isolates keys, saved evidence, strict QA and decoded PN
       requests.length=0;chatOutput=plan;
       const result=await prepareFoodEvidence({name:'燕麦酸奶',amount:'1碗',kind:'nutrition',photoPath:'fixture-user/meal.jpg',photoBucket:'diet-photos'},'https://fixture-original.invalid/meal.jpg',foodRenderDeadline());
       assert(result.kind==='photo','photo kind lost');
-      assert(requests[0].body.messages[0].content[1].image_url.url==='https://fixture-original.invalid/meal.jpg','wrong original');
+      const reference=chatContent(requests[0])[1];
+      assert(reference.type==='image_url'&&reference.image_url.url==='https://fixture-original.invalid/meal.jpg','wrong original');
       for(const invalid of [{...plan,confidence:.77},{...plan,confidence:'0.99'},{...plan,shouldGenerate:false}]){
         chatOutput=invalid;await rejects(()=>prepareFoodEvidence({name:'午饭',amount:null,kind:'journal',photoPath:null,photoBucket:null},null,foodRenderDeadline()),/needs_details/);
       }
@@ -63,16 +70,16 @@ Deno.test('food provider isolates keys, saved evidence, strict QA and decoded PN
       assert(result.description==='Saved food: 燕麦酸奶\nSaved amount: unspecified','source words/unknown amount were changed');
       chatOutput=qa;requests.length=0;
       await reviewFoodAsset(result,null,'https://fixture-generated.invalid/meal.png',foodRenderDeadline());
-      const prompt=requests[0].body.messages[0].content[0].text;
+      const prompt=promptText(requests[0]);
       assert(prompt.includes('燕麦酸奶')&&!prompt.includes('草莓'),'critic compared against invented recipe rather than saved words');
     });
     await t.step('text and photo critic inputs have one and two images respectively',async()=>{
       chatOutput=qa;requests.length=0;
       assert((await reviewFoodAsset(textEvidence,null,'https://fixture-generated.invalid/meal.png',foodRenderDeadline())).evidenceKind==='text','text QA mode');
-      assert(requests[0].body.messages[0].content.filter((p:any)=>p.type==='image_url').length===1,'text QA invented original');
+      assert(chatContent(requests[0]).filter(p=>p.type==='image_url').length===1,'text QA invented original');
       requests.length=0;
       await reviewFoodAsset({...textEvidence,kind:'photo'},'https://fixture-original.invalid/meal.jpg','https://fixture-generated.invalid/meal.png',foodRenderDeadline());
-      const images=requests[0].body.messages[0].content.filter((p:any)=>p.type==='image_url');
+      const images=chatContent(requests[0]).filter(p=>p.type==='image_url');
       assert(images.length===2&&images[0].image_url.url.includes('fixture-original')&&images[1].image_url.url.includes('fixture-generated'),'critic image order differs from prompt');
     });
     await t.step('every missing/invalid QA field and failed semantic score rejects',async()=>{
@@ -88,13 +95,14 @@ Deno.test('food provider isolates keys, saved evidence, strict QA and decoded PN
       download=png;requests.length=0;
       const generated=await generateFoodAsset(textEvidence,null,1,foodRenderDeadline());
       assert(generated.bytes.length===png.length&&generated.modelVersion==='wan2.7-image','generation result');
-      const body=requests[0].body;
-      assert(body.input.messages[0].content.every((p:any)=>!p.image),'text generation supplied image');
+      const body=generationBody(requests[0]);
+      assert(body.input.messages[0].content.every(p=>!('image' in p)),'text generation supplied image');
       assert(body.parameters.n===1&&body.parameters.watermark===false&&body.parameters.size==='1024*1024','exact square/bounded output contract');
       requests.length=0;
       await generateFoodAsset({...textEvidence,kind:'photo'},'https://fixture-original.invalid/meal.jpg',2,foodRenderDeadline());
       assert(requests[0].body.model==='wan2.7-image-pro','fallback model');
-      assert(requests[0].body.input.messages[0].content[0].image==='https://fixture-original.invalid/meal.jpg','photo reference lost');
+      const reference=generationBody(requests[0]).input.messages[0].content[0];
+      assert('image' in reference&&reference.image==='https://fixture-original.invalid/meal.jpg','photo reference lost');
     });
     await t.step('opaque/oversize downloads and invalid matting output cannot be returned as an asset',async()=>{
       download=opaque;await rejects(()=>generateFoodAsset(textEvidence,null,1,foodRenderDeadline()),/transparent_output_unavailable/);

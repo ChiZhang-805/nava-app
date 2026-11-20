@@ -3,13 +3,16 @@ import { syntheticFoodPng } from './fixtures/food-png.ts';
 
 function assert(value:unknown,message:string):asserts value{if(!value)throw new Error(message);}
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json'}});
+type FinishBody={p_asset_path:string|null;p_error_code:string|null;p_source_revision:string;p_quality:{evidenceKind?:'text'|'photo'}};
+type ReadyFinish=FinishBody&{p_asset_path:string};
+type ChatBody={messages:Array<{content:Array<{type:'text';text:string}|{type:'image_url';image_url:{url:string}}>}>};
 
 Deno.test('saved food render worker never marks failed/opaque/unreviewed media ready (all HTTP mocked)',async t=>{
   const previous={fetch:globalThis.fetch,env:Deno.env.get,serve:Deno.serve,edge:Object.getOwnPropertyDescriptor(globalThis,'EdgeRuntime')};
   let handler:(request:Request)=>Promise<Response>;
   const tasks:Promise<unknown>[]=[];
   const canonical='https://wxteapvwagvhhtrjrbim.supabase.co',owner='10000000-0000-4000-8000-000000000001',jobId='20000000-0000-4000-8000-000000000001',token='a'.repeat(64);
-  const requests:Array<{url:string;method:string;body:any}>=[];
+  const requests:Array<{url:string;method:string;body:Record<string,unknown>}>=[];
   let consent=true,claim=true,finishAccepted=true,lostFinishAcknowledgment=false,photoPath:string|null=null,style=foodVisualStyleVersionV2;
   const png=await syntheticFoodPng(),opaque=await syntheticFoodPng(true);let download=png;
   const validQa={dishIdentityScore:.98,visibleIngredientRecall:.96,unexpectedIngredientScore:.01,artifactScore:.02,plateCompositionPass:true,hasTextOrWatermark:false,hasHandsOrUtensils:false,feedback:''};
@@ -19,7 +22,7 @@ Deno.test('saved food render worker never marks failed/opaque/unreviewed media r
   Deno.env.get=name=>({SUPABASE_URL:canonical,SUPABASE_SERVICE_ROLE_KEY:'fixture-service-only',DASHSCOPE_API_KEY:'fixture-authorized-canonical'} as Record<string,string>)[name];
   globalThis.fetch=(async(input:string|URL|Request,init?:RequestInit)=>{
     const url=input instanceof Request?input.url:String(input),method=init?.method??'GET';
-    let body:any={};if(typeof init?.body==='string'){try{body=JSON.parse(init.body);}catch{body={raw:true};}}
+    let body:Record<string,unknown>={};if(typeof init?.body==='string'){try{body=JSON.parse(init.body) as Record<string,unknown>;}catch{body={raw:true};}}
     requests.push({url,method,body});
     if(url.endsWith('/rpc/claim_food_render_job')){
       assert(body.p_job_id===jobId&&body.p_worker_token===token,'claim capability differs');
@@ -38,7 +41,9 @@ Deno.test('saved food render worker never marks failed/opaque/unreviewed media r
     }
     if(url===canonical+'/storage/v1/object/diet-renders'&&method==='DELETE')return json([]);
     if(url.includes('/compatible-mode/v1/chat/completions')){
-      const prompt=body.messages[0].content[0].text;
+      const firstPart=(body as ChatBody).messages[0].content[0];
+      assert(firstPart.type==='text','expected text prompt before image evidence');
+      const prompt=firstPart.text;
       const output=prompt.startsWith('You prepare evidence')?{shouldGenerate:true,confidence:.96,dishName:'燕麦酸奶',ingredients:['燕麦','酸奶'],description:'燕麦和酸奶',container:'bowl'}:qa;
       return json({choices:[{message:{content:JSON.stringify(output)}}]});
     }
@@ -53,10 +58,10 @@ Deno.test('saved food render worker never marks failed/opaque/unreviewed media r
       const response=await handler(new Request('https://fixture-function.invalid/food-visualize',{method:'POST',body:JSON.stringify({jobId,workerToken:token})}));
       await Promise.all(tasks.splice(0));return response;
     };
-    const finishes=()=>requests.filter(r=>r.url.endsWith('/rpc/finish_food_render_job')).map(r=>r.body);
+    const finishes=()=>requests.filter(r=>r.url.endsWith('/rpc/finish_food_render_job')).map(r=>r.body as FinishBody);
     const uploads=()=>requests.filter(r=>r.method==='POST'&&r.url.startsWith(canonical+'/storage/v1/object/diet-renders/'));
     const removes=()=>requests.filter(r=>r.method==='DELETE'&&r.url===canonical+'/storage/v1/object/diet-renders');
-    const ready=()=>finishes().filter(r=>typeof r.p_asset_path==='string'&&r.p_error_code===null);
+    const ready=()=>finishes().filter((r):r is ReadyFinish=>typeof r.p_asset_path==='string'&&r.p_error_code===null);
     await t.step('missing/oversize job capabilities and non-POST never reach database or provider',async()=>{
       reset();
       for(const body of [{},{jobId,workerToken:'bad'},{jobId,workerToken:token,padding:'x'.repeat(2100)}]){
