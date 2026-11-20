@@ -6,7 +6,7 @@ import { applyProjectPublicEnv } from './project-env.mjs';
 import { inspectHealthExplorer } from './health-explorer-checks.mjs';
 
 const root = process.cwd();
-const output = 'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/health-report-explorer';
+const output = 'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/health-report-explorer-flip';
 applyProjectPublicEnv(root);
 await mkdir(output, { recursive: true });
 const server = await createServer({ root, server: { host: '127.0.0.1', port: 5248 }, logLevel: 'error' });
@@ -38,15 +38,22 @@ try {
             if (state === 'empty') {
               await page.locator('[data-health-category=sleep]').scrollIntoViewIfNeeded();
               await page.locator('[data-health-category=sleep]').click();
-              await page.locator('.health-explorer-pagination > div > button').last().click();
+              await page.locator('.health-explorer-track').press('ArrowRight');
               await page.evaluate(()=>localStorage.setItem('nava.review.demo.empty-snapshot-date.v1','2020-01-01'));
-              await page.locator('.health-explorer-toolbar input').fill('2020-01-01');
-              await page.locator('.health-explorer-toolbar input').dispatchEvent('change');
+              await page.locator('.health-explorer-all').click();
+              await page.locator('.health-explorer-sheet input[type=date]').fill('2020-01-01');
+              await page.keyboard.press('Escape');
+              await expect(page.locator('.health-explorer-sheet')).toHaveCount(0);
               await expect(page.locator('.health-explorer-card[aria-hidden="false"] .health-explorer-empty')).toBeVisible();
               await page.locator('[data-health-category=mood]').scrollIntoViewIfNeeded();
               await page.locator('[data-health-category=mood]').click();
             }
             await expect(page.locator('[data-health-category]')).toHaveCount(6); // Demo sensor values are not Apple Health provenance.
+            await expect(page.locator('.health-explorer-pagination, .health-explorer-bottom, .health-explorer-toolbar input')).toHaveCount(0);
+            if (!quick) {
+              await expect(page.locator('.health-explorer-categories img')).toHaveCount(6);
+              await expect.poll(() => page.locator('.health-explorer-categories img').evaluateAll(images => images.every(image => image.complete && image.naturalWidth > 0))).toBe(true);
+            }
             await page.screenshot({ path:path.join(output,`${engine}-${viewport.width}${viewport.height < 640 ? '-short' : ''}-${locale}-${state}.png`) });
             const geometry = await inspectHealthExplorer(page);
             for (const category of ['mood','face','focus','sleep','exercise','diet']) {
@@ -55,13 +62,26 @@ try {
               await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category',category);
               await inspectHealthExplorer(page);
               if (state === 'empty') await expect(page.locator('.health-explorer-card[aria-hidden="false"] .health-explorer-empty')).toBeVisible();
-              const count = await page.locator('.health-explorer-card').count();
-              if (count > 1) {
-                await page.locator('.health-explorer-pagination > button').last().click();
-                await expect(page.locator('.health-explorer-card').nth(1)).toHaveAttribute('aria-hidden','false');
-                // Scroll the real horizontal track, as touch scrolling does; the active indicator must follow.
-                await page.locator('.health-explorer-track').evaluate(node=>node.scrollTo({left:0,behavior:'instant'}));
-                await expect(page.locator('.health-explorer-card').first()).toHaveAttribute('aria-hidden','false');
+              const active = page.locator('.health-explorer-card[data-active="true"]');
+              const plotted = await active.locator('.trend-point').evaluateAll(nodes => nodes.filter(node => node.querySelector('circle')).map(node => ({label:node.dataset.label,value:Number(node.dataset.value)})));
+              await active.locator('.health-explorer-flip').click();
+              await expect(active).toHaveAttribute('data-side','back');
+              const records = await active.locator('[data-record-date]').evaluateAll(nodes => nodes.map(node => ({date:node.dataset.recordDate,value:Number(node.dataset.recordValue)})));
+              if (records.length !== Math.min(5,plotted.length)) throw new Error('Backside added or lost entries');
+              for (const record of records) {
+                const label=`${Number(record.date.slice(5,7))}/${Number(record.date.slice(8))}`;
+                if (!plotted.some(point => point.label === label && point.value === record.value)) throw new Error('Backside value differs from actual chart');
+              }
+              await inspectHealthExplorer(page);
+              if (category === 'mood') await page.screenshot({path:path.join(output,`${engine}-${viewport.width}${viewport.height<640?'-short':''}-${locale}-${state}-back.png`)});
+              await active.locator('.health-explorer-flip').click();
+              await expect(active).toHaveAttribute('data-side','front');
+              const id = await active.getAttribute('data-chart-id');
+              if (await page.locator('.health-explorer-card').count() > 1) {
+                await page.locator('.health-explorer-track').press('ArrowRight');
+                await expect(active).not.toHaveAttribute('data-chart-id',id);
+                await page.locator('.health-explorer-track').press('ArrowLeft');
+                await expect(active).toHaveAttribute('data-chart-id',id);
               }
             }
             await page.locator('.health-explorer-all').click();
@@ -84,7 +104,8 @@ try {
           await page.locator('.health-report-tabs button').first().click();
           await page.locator('[data-health-category=diet]').scrollIntoViewIfNeeded();
           await page.locator('[data-health-category=diet]').click();
-          await page.locator('.health-explorer-record').click();
+          await page.locator('.health-explorer-card[data-active="true"] .health-explorer-flip').click();
+          await page.locator('.health-explorer-card[data-active="true"] .health-explorer-record').click();
           await expect(page.locator('.journal-experience iframe')).toBeVisible();
           await expect.poll(()=>new URL(page.url()).hash).toContain('module=diet');
           if(errors.length)throw new Error(errors.join('\n'));
