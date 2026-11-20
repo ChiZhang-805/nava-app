@@ -14,8 +14,24 @@ final class NavaAuthKeyboardTests: XCTestCase {
         let library = web.buttons["Photo library"].firstMatch
         XCTAssertTrue(library.waitForExistence(timeout: 30), app.debugDescription)
         library.tap()
+        // Photo access is a SpringBoard alert, outside the app's hierarchy.
+        // A fresh simulator has no saved permission choice.
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let permission = springboard.alerts.firstMatch
+        if permission.waitForExistence(timeout: 10) {
+            capture("system-photo-permission")
+            let allowFullAccess = permission.buttons.matching(NSPredicate(
+                format: "label IN %@",
+                ["Allow Full Access", "Allow Access to All Photos", "允许完全访问", "允许访问所有照片"]
+            )).firstMatch
+            XCTAssertTrue(allowFullAccess.exists, springboard.debugDescription)
+            allowFullAccess.tap()
+        }
         let cancel = app.buttons["Cancel"].firstMatch
-        XCTAssertTrue(cancel.waitForExistence(timeout: 15), app.debugDescription)
+        if !cancel.waitForExistence(timeout: 30) {
+            capture("system-photo-not-presented")
+            XCTFail(app.debugDescription + "\n" + springboard.debugDescription)
+        }
         capture("system-photo-library")
         cancel.tap()
         XCTAssertTrue(web.staticTexts["Photo cancelled"].waitForExistence(timeout: 10), app.debugDescription)
@@ -57,7 +73,10 @@ final class NavaAuthKeyboardTests: XCTestCase {
             let closedLogo = logo.frame
             capture("\(mode)-closed")
             account.tap()
-            XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
+            if !app.keyboards.firstMatch.waitForExistence(timeout: 10) {
+                capture("\(mode)-keyboard-not-presented")
+                XCTFail(app.debugDescription + "\n" + XCUIApplication(bundleIdentifier: "com.apple.springboard").debugDescription)
+            }
             capture("\(mode)-account-keyboard")
             assertAboveKeyboard(account, logo: logo, app: app)
 
