@@ -44,7 +44,7 @@ import { loadProfile, type UserProfile } from "../services/profile";
 import { loadDietAiReport } from "../services/dietReport";
 import { healthReportSourceRevision, loadHealthAiReport, type HealthAiReport, type HealthReportSection } from "../services/healthReport";
 import { calculateWeeklyModuleScores, type WeeklyModuleKey } from "../services/weeklyModuleScores";
-import { allHealthModulesComplete, buildHealthModulePresentations, compareRecordedPeriodAverages, healthModuleEntryView, isCompleteExerciseRecord, isCompleteFaceRecord, isCompleteNutritionRecord, isCompleteSleepRecord } from "../services/healthReportPresentation";
+import { buildHealthModulePresentations, compareRecordedPeriodAverages, healthModuleEntryView, isCompleteExerciseRecord, isCompleteFaceRecord, isCompleteNutritionRecord, isCompleteSleepRecord } from "../services/healthReportPresentation";
 import { clearSecureFaceDraft, loadSecureFaceDraft, saveSecureFaceDraft } from "../services/secureFaceDraft";
 import { loadSingleKey, type SingleRequestSlot } from "../services/singleRequestCache";
 import { estimatedFoodLabel, formatDetectedDishList } from "../services/dietEntryPresentation";
@@ -257,7 +257,6 @@ export default function RecordsScreen({
   const [weekOffset, setWeekOffset] = useState(0);
   const [weeklyLongPressing, setWeeklyLongPressing] = useState(false);
   const [weeklyChartMode, setWeeklyChartMode] = useState<"trend" | "radar">("trend");
-  const [hubAiReport, setHubAiReport] = useState<HealthAiReport | null>(null);
   const [draftReady, setDraftReady] = useState(false);
   const [dataLoadError, setDataLoadError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
@@ -351,9 +350,6 @@ export default function RecordsScreen({
   const facePhotoInputRef = useRef<HTMLInputElement | null>(null);
   const faceLibraryInputRef = useRef<HTMLInputElement | null>(null);
   const healthModulePresentations = buildHealthModulePresentations(todaySnapshot, locale);
-  const allHubModulesComplete = allHealthModulesComplete(healthModulePresentations);
-  const hubAiEligible = allHubModulesComplete
-    && recordedDateCount(trendBundle, shiftDateISO(recordDate, -6), recordDate) >= 5;
 
   useEffect(() => {
     setFocusTitle((current) => current === "产品原型" || current === "Product prototype" || current === "Prototype" ? "" : current);
@@ -714,24 +710,6 @@ export default function RecordsScreen({
       active = false;
     };
   }, [deviceDate, locale, reportMode, user.id, weekOffset]);
-
-  useEffect(() => {
-    let active = true;
-    if (!hubAiEligible) {
-      setHubAiReport(null);
-      return () => { active = false; };
-    }
-    setHubAiReport(null);
-    const sourceRevision = healthReportSourceRevision({ scope: "weekly", endDate: recordDate, trendBundle, profile });
-    void loadHealthAiReport({ scope: "weekly", endDate: recordDate, locale, sourceRevision })
-      .then((report) => {
-        if (active) setHubAiReport(report);
-      })
-      .catch((reportError) => {
-        console.warn("Health report overview AI generation deferred", reportError);
-      });
-    return () => { active = false; };
-  }, [hubAiEligible, locale, profile, recordDate, trendBundle, user.id]);
 
   useEffect(() => {
     if (reportMode !== "weekly") return;
@@ -1289,10 +1267,6 @@ export default function RecordsScreen({
       .map((point) => ({ ...point, label: radarLabels[point.key] }));
     const weeklyInsights = weeklyAiReport?.bullets ?? [];
     const weeklySections = weeklyAiReport?.sections ?? [];
-    const hubAssociation = hubAiReport?.sections.find((section) => section.id === "association") ?? null;
-    const hubHasSignificantPattern = Boolean(hubAssociation
-      && hubAssociation.confidence !== "low"
-      && !/(记录不足|无法判断|insufficient|cannot determine)/i.test(`${hubAssociation.headline} ${hubAssociation.explanation}`));
     const weeklyContent = (
           <div
             className="weekly-health-report"
