@@ -2,7 +2,7 @@ import { sumFoodItemNutrition } from "../services/dietPortion";
 import type { User } from "@supabase/supabase-js";
 import { Camera, Check, Copy, FileText, Image as ImageIcon, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, Plus, SendHorizontal, Smile, Trash2, X } from "lucide-react";
 import companionAvatar from "../assets/figma/home-option2/home-mascot-v5.png";
-import { Fragment, FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { Fragment, FormEvent, useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocale } from "../i18n";
 import PageSkeleton from "../components/PageSkeleton";
 import CameraCapture from "../components/CameraCapture";
@@ -12,6 +12,7 @@ import { chatMessageParts, spokenAssistantMessage } from "../services/chatMessag
 import NutritionStructuredConfirmation from "../components/NutritionStructuredConfirmation";
 import PhotoInput from "../components/PhotoInput";
 import { usePreviewActivity } from "../hooks/usePreviewActivity";
+import { useChatReplyReveal } from "../hooks/useChatReplyReveal";
 import { createConversationGreeting, deleteConversationMessages, generateConversationTitle, loadConversation, sendAiMessage } from "../services/ai";
 import type { AiProcessingStep } from "../services/aiProcessing";
 import { createStreamingAiSpeaker, isAiSpeechSupported, resolveAiSpeechStyle, type StreamingAiSpeaker } from "../services/aiSpeech";
@@ -250,6 +251,9 @@ export default function AIScreen({
   const [voiceCallTranscript, setVoiceCallTranscript] = useState("");
   const [voiceCallError, setVoiceCallError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const followLatest = useRef(true);
+  const previousScrollTop = useRef(0);
+  const { pending: revealPending, fresh: freshMessageIds, present: presentMessage, finish: finishReveal, reset: resetReveal } = useChatReplyReveal(`${user.id}:${viewingArchiveId ?? "current"}`, active);
   const layoutRef = useRef<HTMLDivElement | null>(null);
   const voiceSessionRef = useRef<VoiceInputSession | null>(null);
   const handledVoiceRequestRef = useRef(0);
@@ -384,6 +388,8 @@ export default function AIScreen({
 
   const refresh = useCallback(async () => {
     const requestId = ++conversationLoadRequestRef.current;
+    resetReveal();
+    followLatest.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -416,7 +422,7 @@ export default function AIScreen({
     } finally {
       if (requestId === conversationLoadRequestRef.current) setLoading(false);
     }
-  }, [activateArchive, archiveConversation, conversationWrites, deviceDayKey, locale, normalizeHistory, readHistory, user.id, writeHistory]);
+  }, [activateArchive, archiveConversation, conversationWrites, deviceDayKey, locale, normalizeHistory, readHistory, resetReveal, user.id, writeHistory]);
 
   const prepareConversationForMessage = useCallback(async () => {
     const currentDay = todayISO();
@@ -436,6 +442,7 @@ export default function AIScreen({
     const document = sticker ? null : pendingDocument;
     const photos = sticker ? [] : pendingPhotos;
     if (!typedMessage && !document && photos.length === 0) return;
+    finishReveal();
     if (photos.length > 0) {
       setInput("");
       setPendingPhotos([]);
@@ -482,15 +489,17 @@ export default function AIScreen({
         signal: controller.signal,
         onUserMessage: (userMessage) => {
           userCommitted = true;
+          presentMessage(userMessage);
           setMessages((current) => [...(conversation.rolledOver ? [] : current), userMessage]);
         },
         onStatus: (status) => setStreamingPreview((current) => current ? { ...current, status } : current),
         onDelta: (content) => {
           speechRef.current?.update(content);
-          setStreamingPreview((current) => current ? { ...current, status: null, content } : current);
+          setStreamingPreview(null);
         },
       });
       speechRef.current?.finish(spokenAssistantMessage(result.assistantMessage.content));
+      presentMessage(result.assistantMessage);
       setMessages((current) => [...current, result.assistantMessage]);
       setStreamingPreview(null);
       const recognizedEntry = sticker ? null : photoEntry
@@ -646,6 +655,7 @@ export default function AIScreen({
         signal: controller.signal,
         onUserMessage: (userMessage) => {
           userCommitted = true;
+          presentMessage(userMessage);
           setPhotoPreviews((current) => ({ ...current, [userMessage.id]: previewUrls }));
           setPendingPhotoPreview(null);
           setMessages((current) => [...(conversation.rolledOver ? [] : current), userMessage]);
@@ -653,10 +663,11 @@ export default function AIScreen({
         onStatus: (status) => setStreamingPreview((current) => current ? { ...current, status } : current),
         onDelta: (content) => {
           speechRef.current?.update(content);
-          setStreamingPreview((current) => current ? { ...current, status: null, content } : current);
+          setStreamingPreview(null);
         },
       });
       speechRef.current?.finish(spokenAssistantMessage(response.assistantMessage.content));
+      presentMessage(response.assistantMessage);
       setMessages((current) => [...current, response.assistantMessage]);
       setPendingEntry(candidate);
       setPendingEntryMessageId(candidate ? response.assistantMessage.id : null);
@@ -785,6 +796,8 @@ export default function AIScreen({
     if (!command || command.id === handledCommandRef.current || sending || resuming || photoAnalyzing) return;
     handledCommandRef.current = command.id;
     if (command.type === "new" || command.type === "clear") {
+      resetReveal();
+      followLatest.current = true;
       const clear = command.type === "clear";
       setResuming(true);
       setError(null);
@@ -852,11 +865,12 @@ export default function AIScreen({
     link.download = `nava-conversation-${todayISO()}.json`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [activateArchive, archiveConversation, clearComposerPhotos, command, conversationWrites, hydrateHistory, locale, messages, photoAnalyzing, readHistory, resuming, sending, user.id, writeHistory]);
+  }, [activateArchive, archiveConversation, clearComposerPhotos, command, conversationWrites, hydrateHistory, locale, messages, photoAnalyzing, readHistory, resetReveal, resuming, sending, user.id, writeHistory]);
 
-  useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "auto" });
-  }, [messages.length, pendingEntry?.id, pendingPhotoPreview, streamingPreview?.content, streamingPreview?.status?.id]);
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (followLatest.current && list) { list.scrollTop = list.scrollHeight; previousScrollTop.current = list.scrollTop; }
+  }, [loading, messages.length, pendingEntry?.id, pendingPhotoPreview, revealPending?.shown, streamingPreview?.content, streamingPreview?.status?.id]);
 
   useEffect(() => {
     if (!viewingArchiveId || loading || sending || resuming) return;
@@ -869,6 +883,8 @@ export default function AIScreen({
 
   async function openArchivedConversation(snapshot: ConversationSnapshot) {
     if (sending || resuming || photoAnalyzing) return;
+    resetReveal();
+    followLatest.current = true;
     setResuming(true);
     setError(null);
     interruptMedia();
@@ -1037,7 +1053,7 @@ export default function AIScreen({
         profile,
         responseMode: "voice",
         signal: controller.signal,
-        onUserMessage: (userMessage) => setMessages((current) => [...(conversation.rolledOver ? [] : current), userMessage]),
+        onUserMessage: (userMessage) => { presentMessage(userMessage); setMessages((current) => [...(conversation.rolledOver ? [] : current), userMessage]); },
         onStatus: () => {
           if (voiceCallOpenRef.current) setVoiceCallPhase("thinking");
         },
@@ -1048,6 +1064,7 @@ export default function AIScreen({
         },
       });
       speaker.finish(spokenAssistantMessage(result.assistantMessage.content));
+      presentMessage(result.assistantMessage);
       setMessages((current) => [...current, result.assistantMessage]);
       const recognizedEntry = parseStructuredEntry(message, locale, {
         dataType: result.dataType,
@@ -1076,7 +1093,7 @@ export default function AIScreen({
       if (voiceCallSpeakerRef.current === speaker) voiceCallSpeakerRef.current = null;
       setSending(false);
     }
-  }, [locale, onConversationCompleted, prepareConversationForMessage, profile, user.id]);
+  }, [locale, onConversationCompleted, prepareConversationForMessage, presentMessage, profile, user.id]);
   submitVoiceCallTurnRef.current = (message) => void submitVoiceCallTurn(message);
 
   const finalizeVoiceCallInput = useCallback(async () => {
@@ -1370,16 +1387,24 @@ export default function AIScreen({
     <div className="chat-layout" ref={layoutRef}>
       {cameraOpen && <CameraCapture locale={locale} facing="environment" onClose={() => setCameraOpen(false)} onFallback={() => { setCameraOpen(false); cameraInputRef.current?.click(); }} onCapture={(file) => { setCameraOpen(false); void handleComposerPhoto(file); }} />}
       {mediaNotice && <p className="chat-media-notice" role="status">{mediaNotice}<button type="button" onClick={() => setMediaNotice(null)} aria-label={locale === "zh" ? "关闭中断提示" : "Dismiss interruption notice"}><X size={16} /></button></p>}
-      <div className="chat-list" ref={listRef}>
+      <div className="chat-list" ref={listRef} onScroll={() => {
+        const list = listRef.current;
+        if (!list) return;
+        const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+        // New rows can cause a browser scroll event; only an upward move means
+        // the reader left the bottom. Arrival itself must not disable following.
+        if (list.scrollTop < previousScrollTop.current - 1 || nearBottom) followLatest.current = nearBottom;
+        previousScrollTop.current = list.scrollTop;
+      }} onClick={event => { if (revealPending && !(event.target as HTMLElement).closest("button,a,input,textarea")) finishReveal(); }}>
         {messages.map((message) => {
           const isUser = message.role === "user";
           const parts = chatMessageParts(message);
           return (
             <Fragment key={message.id}>
-              {parts.map((part, partIndex) => {
+              {parts.slice(0, revealPending?.id === message.id ? revealPending.shown : parts.length).map((part, partIndex) => {
                 const sticker = part.type === "sticker" ? getChatSticker(part.id) : null;
                 const copied = copiedPart === `${message.id}:${partIndex}`;
-                return <div key={`${message.id}:${partIndex}`} data-message-id={message.id} data-reply-part={partIndex} className={["chat-message-row", isUser ? "user" : "assistant", partIndex ? "is-continuation" : ""].join(" ")}>
+                return <div key={`${message.id}:${partIndex}`} data-message-id={message.id} data-reply-part={partIndex} className={["chat-message-row", isUser ? "user" : "assistant", partIndex ? "is-continuation" : "", freshMessageIds.has(message.id) ? "chat-message-new" : ""].join(" ")}>
                 {!isUser && partIndex === 0 && (
                   <span className="chat-avatar assistant" aria-hidden="true">
                     <svg viewBox="160 215 1030 845" focusable="false"><image href={companionAvatar} width="1254" height="1254" /></svg>
@@ -1406,10 +1431,11 @@ export default function AIScreen({
                 )}
               </div>;
               })}
-              {!isUser && pendingEntryMessageId === message.id && structuredConfirmation}
+              {!isUser && pendingEntryMessageId === message.id && revealPending?.id !== message.id && structuredConfirmation}
             </Fragment>
           );
         })}
+        {revealPending && <button className="chat-reveal-all" type="button" onClick={finishReveal}>{locale === "zh" ? "点一下，看完整回复" : "Show the complete reply"}</button>}
         {pendingPhotoPreview && (
           <div className="chat-message-row user chat-photo-pending" aria-live="polite">
             <article className="chat-bubble user">
