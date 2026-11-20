@@ -4,8 +4,8 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import {applyProjectPublicEnv} from './project-env.mjs';
 applyProjectPublicEnv(process.cwd());
 const engine=process.env.NAVA_LAYOUT_ENGINE||'chromium';
-const out=`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/mobile-layout/overlays-${engine}`;await mkdir(out,{recursive:true});
-const server=await createServer({server:{host:'127.0.0.1',port:5282,strictPort:true},logLevel:'silent'});await server.listen();
+const out=process.env.NAVA_OVERLAY_CHECK_OUTPUT||`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/mobile-layout/overlays-${engine}`;await mkdir(out,{recursive:true});
+const server=await createServer({server:{host:'127.0.0.1',port:0,strictPort:true},logLevel:'silent'});await server.listen();
 const browser=await({chromium,webkit}[engine]).launch();const results=[],errors=[];
 try{
  for(const locale of ['zh','en'])for(const [width,height] of [[320,568],[360,740],[375,812],[390,844],[430,932]]){
@@ -31,8 +31,8 @@ try{
    for(const locator of await page.locator(controls).all()){
     if(!await locator.isVisible())continue;
     await locator.scrollIntoViewIfNeeded();
-    const accessible=await locator.evaluate(e=>{const r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth&&hit&&(hit.contains(e)||e.contains(hit));});
-    if(!accessible)failures.push(`covered control: ${(await locator.innerText()).slice(0,40)}`);
+    const access=await locator.evaluate(e=>{const r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return {accessible:r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth&&Boolean(hit&&(hit.contains(e)||e.contains(hit))),control:e.className,hit:hit?.className,rect:{top:r.top,bottom:r.bottom,left:r.left,right:r.right}};});
+    if(!access.accessible)failures.push(`covered control: ${JSON.stringify(access)}`);
    }
    await page.screenshot({path:`${out}/${locale}-${width}-${name}.png`,animations:'disabled'});results.push({name,locale,width,height,geometry,failures});
   };
@@ -63,8 +63,53 @@ try{
   await expect(page.locator('.figma-app-header .nava-more-trigger')).toBeFocused();
   await page.locator('.figma-app-header .nava-more-trigger').click();
   await page.getByRole('menuitem',{name:locale==='zh'?'历史':'History',exact:true}).click();
+  const currentBeforeResume=await page.evaluate(()=>localStorage.getItem('nava-demo-conversation:00000000-0000-4000-8000-000000000001'));
   await page.locator('.ai-history-open').first().click();
-  await check('ai-history-detail','.chat-layout','.chat-archive-return button');
+  await expect(page.locator('.ai-history-sheet')).toHaveCount(0);
+  await expect(page.locator('.chat-archive-return')).toHaveCount(0);
+  const composer=page.locator('.chat-input-shell input');
+  await expect(composer).toBeEnabled();
+  const followup=locale==='zh'?'继续聊聊刚才的话题。':'Let us continue this conversation.';
+  await composer.fill(followup);
+  await expect(page.locator('.chat-send-button')).toBeEnabled();
+  await check('ai-history-detail','.chat-layout','.chat-input-shell input,.chat-send-button,.figma-app-header > button');
+  const checkMessageEnd=async()=>{
+   await page.locator('.chat-list').evaluate(list=>{list.scrollTop=list.scrollHeight;});
+   await expect.poll(()=>page.locator('.chat-list').evaluate(list=>{
+    const tail=list.querySelector('.chat-message-row:last-child .chat-message-meta');
+    const composer=document.querySelector('.chat-composer');
+    if(!tail||!composer)return false;
+    const r=tail.getBoundingClientRect(),bounds=list.getBoundingClientRect(),input=composer.getBoundingClientRect();
+    const hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+    return r.top>=bounds.top&&r.bottom<=bounds.bottom+1&&r.bottom<=input.top&&bounds.bottom<=input.top+1&&r.bottom<=innerHeight&&Boolean(hit&&(tail.contains(hit)||hit.contains(tail)));
+   })).toBe(true);
+  };
+  await checkMessageEnd();
+  await page.locator('.chat-send-button').click();
+  await expect(page.locator('.chat-message-row.user .chat-bubble p').last()).toHaveText(followup);
+  // Demo deliberately types its local reply; this is not production AI timing.
+  await expect.poll(()=>page.evaluate(()=>{
+   const archive=JSON.parse(localStorage.getItem('nava-ai-history:00000000-0000-4000-8000-000000000001')||'[]').find(item=>item.id==='10000000-0000-4000-8000-000000000001');
+   return archive?.messages.length;
+  }),{timeout:15000}).toBe(3);
+  await expect(page.locator('[data-ai-streaming="true"]')).toHaveCount(0);
+  await expect(composer).toBeEnabled();
+  await expect(composer).toHaveValue('');
+  const archiveAfter=await page.evaluate(()=>JSON.parse(localStorage.getItem('nava-ai-history:00000000-0000-4000-8000-000000000001')||'[]').find(item=>item.id==='10000000-0000-4000-8000-000000000001'));
+  expect(archiveAfter.messages[0].id).toBe('10000000-0000-4000-8000-000000000002');
+  expect(archiveAfter.messages[1].content).toBe(followup);
+  expect(archiveAfter.messages[2].role).toBe('assistant');
+  expect(await page.evaluate(()=>localStorage.getItem('nava-demo-conversation:00000000-0000-4000-8000-000000000001'))).toBe(currentBeforeResume);
+  await checkMessageEnd();
+  await page.screenshot({path:`${out}/${locale}-${width}-ai-history-continued.png`,animations:'disabled'});
+  await page.locator('.figma-app-header > button').click();
+  await expect(page.locator('.phone-frame')).toHaveAttribute('data-app-tab','today');
+  await expect(page.locator('.option-two-home')).toBeVisible();
+  // Chat stays mounted offscreen to preserve its draft; returning must make it
+  // inert and remove it from accessibility rather than require an unmount.
+  await expect(page.locator('.ai-screen-host')).toHaveAttribute('aria-hidden','true');
+  await expect(page.locator('.ai-screen-host')).toHaveAttribute('inert','');
+  expect(await page.locator('.ai-screen-host').evaluate(host=>getComputedStyle(host).pointerEvents)).toBe('none');
   await context.close();console.log(`${engine} ${locale} ${width}: seven current dialog/archive states`);
  }
 }finally{
