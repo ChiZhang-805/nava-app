@@ -5,8 +5,9 @@ import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 const root = process.cwd();
-const outputDir = "Q:\\NAVA-Workspace\\NAVA-App\\Build\\TestRuns\\App-Checks\\calendar-readability";
-const port = 5213;
+const outputDir = process.env.NAVA_CALENDAR_CHECK_OUTPUT ?? "Q:\\NAVA-Workspace\\NAVA-App\\Build\\TestRuns\\App-Checks\\calendar-readability";
+// Parallel release checks must not accidentally share another process's page.
+const port = 0;
 const viewports = [
   { name: "360x740", width: 360, height: 740 },
   { name: "375x812", width: 375, height: 812 },
@@ -121,6 +122,9 @@ try {
         card: rect(annualCard),
         heatmap: rect(heatmap),
         dock: rect(dock),
+        screen: rect(screen),
+        frame: rect(frame),
+        content: rect(document.querySelector(".app-content")),
         monthRects: months.map(rect),
         weekdayRects: weekdays.map(rect),
         cellRects: cells.map(rect),
@@ -142,8 +146,10 @@ try {
       if (Math.abs(center(item.label) - center(item.value)) > 1 || item.icon.right + 4 > item.label.left || item.label.right + 4 > item.value.left || item.value.right > item.card.right - 7) throw new Error(`${viewport.name}: summary must fit on one row without overlap`);
     }
     if (geometry.documentOverflow > 1 || geometry.frameOverflow > 1 || geometry.screenOverflow > 1) throw new Error(`${viewport.name}: annual calendar overflows horizontally ${JSON.stringify(geometry)}`);
-    if (!geometry.card || !geometry.heatmap || !geometry.dock || geometry.card.left < -1 || geometry.card.right > viewport.width + 1) throw new Error(`${viewport.name}: annual card escaped the phone ${JSON.stringify(geometry)}`);
-    if (geometry.card.bottom > geometry.dock.top - 5) throw new Error(`${viewport.name}: annual card is hidden behind the bottom navigation ${JSON.stringify(geometry)}`);
+    if (!geometry.card || !geometry.heatmap || !geometry.screen || !geometry.frame || !geometry.content || geometry.card.left < -1 || geometry.card.right > viewport.width + 1) throw new Error(`${viewport.name}: annual card escaped the phone ${JSON.stringify(geometry)}`);
+    if (geometry.dock) throw new Error(`${viewport.name}: calendar must not show the root bottom navigation`);
+    if (Math.abs(geometry.content.bottom - geometry.frame.bottom) > 1 || Math.abs(geometry.screen.bottom - geometry.frame.bottom) > 1) throw new Error(`${viewport.name}: hidden navigation still reserves a clipped bottom strip ${JSON.stringify(geometry)}`);
+    if (geometry.card.bottom > Math.min(geometry.screen.bottom, viewport.height) - 5) throw new Error(`${viewport.name}: initial quarter card is clipped below the visible screen ${JSON.stringify(geometry)}`);
     if (geometry.cellRects.some((cell) => !cell || cell.width < 11 || Math.abs(cell.width - cell.height) > 1.1)) throw new Error(`${viewport.name}: quarter cells are not readable squares ${JSON.stringify(geometry.cellRects)}`);
     const rowTopSpread = Array.from({ length: 7 }, (_, day) => {
       const tops = geometry.cellRects.filter((_, index) => index % 7 === day).map((cell) => cell.top);
@@ -204,8 +210,8 @@ try {
       await page.locator(".home-calendar-screen").evaluate((screen) => { screen.scrollTop = 0; });
       const layout = await page.evaluate(() => {
         const rect = (selector) => {
-          const r = document.querySelector(selector).getBoundingClientRect();
-          return { top: r.top, bottom: r.bottom, height: r.height, left: r.left, right: r.right };
+          const r = document.querySelector(selector)?.getBoundingClientRect();
+          return r ? { top: r.top, bottom: r.bottom, height: r.height, left: r.left, right: r.right } : null;
         };
         const grid = document.querySelector(".home-calendar-grid");
         const days = [...grid.querySelectorAll(".home-calendar-day")];
@@ -216,7 +222,7 @@ try {
           annualHeader: rect(".home-year-header"), annualMonths: rect(".home-year-months"),
           annualGrid: rect(".home-year-weeks"), annualLegend: rect(".home-year-legend"),
           summaryHeights: [...document.querySelectorAll(".home-calendar-overview > div")].map((card) => card.getBoundingClientRect().height),
-          screen: { clientHeight: screen.clientHeight, scrollHeight: screen.scrollHeight, overflowY: getComputedStyle(screen).overflowY },
+          screen: { ...rect(".home-calendar-screen"), clientHeight: screen.clientHeight, scrollHeight: screen.scrollHeight, overflowY: getComputedStyle(screen).overflowY },
           rowHeights: getComputedStyle(grid).gridTemplateRows.split(" ").map(parseFloat),
           gap: parseFloat(getComputedStyle(grid).rowGap),
           lastDayBottom: days.at(-1).getBoundingClientRect().bottom,
@@ -230,20 +236,31 @@ try {
       if (quarterTitleGap < 3 || quarterTitleGap > 6 || layout.annualGrid.top - layout.annualMonths.bottom < 5) throw new Error(`${viewport.name}/${fixture.month}: quarter heading/month spacing is not compact and breathable ${JSON.stringify(layout)}`);
       if (layout.annualLegend.top - layout.annualGrid.bottom < 6 || layout.annual.bottom - layout.annualLegend.bottom < 5) throw new Error(`${viewport.name}/${fixture.month}: quarter legend overlaps the grid ${JSON.stringify(layout)}`);
       if (layout.clippedText || layout.card.left < 0 || layout.card.right > viewport.width) throw new Error(`${viewport.name}/${fixture.month}: clipping or horizontal overflow`);
-      if (fixture.rows < 6 && (layout.screen.overflowY !== "hidden" || layout.annual.bottom > layout.dock.top - 5)) throw new Error(`${viewport.name}/${fixture.month}: four/five-week month must remain one-screen ${JSON.stringify(layout)}`);
+      if (layout.dock) throw new Error(`${viewport.name}/${fixture.month}: calendar navigation reappeared`);
+      if (fixture.rows < 6 && (layout.screen.overflowY !== "hidden" || layout.annual.bottom > Math.min(layout.screen.bottom, viewport.height) - 5)) throw new Error(`${viewport.name}/${fixture.month}: four/five-week month must remain one-screen ${JSON.stringify(layout)}`);
       if (fixture.rows === 5 && layout.summaryHeights.some((height) => height > 62)) throw new Error(`${viewport.name}/${fixture.month}: summary cards were not compressed before the calendar`);
-      if (fixture.rows === 6 && (layout.screen.scrollHeight <= layout.screen.clientHeight + 1 || layout.screen.overflowY !== "auto")) throw new Error(`${viewport.name}/${fixture.month}: six-week month must enable page scrolling ${JSON.stringify(layout.screen)}`);
+      if (fixture.rows === 6 && layout.screen.overflowY !== "auto") throw new Error(`${viewport.name}/${fixture.month}: six-week month must allow scrolling whenever its content exceeds the available screen ${JSON.stringify(layout.screen)}`);
       monthLayouts.push({ ...fixture, ...layout });
       await page.screenshot({ path: path.join(outputDir, `${viewport.name}-${fixture.rows}-weeks.png`) });
       if (fixture.rows === 6) {
         await page.locator(".home-calendar-screen").evaluate((screen) => { screen.scrollTop = screen.scrollHeight; });
         await page.waitForTimeout(50);
         const scrolled = await page.evaluate(() => {
-          const annual = document.querySelector(".home-year-card").getBoundingClientRect();
-          const dock = document.querySelector(".bottom-nav").getBoundingClientRect();
-          return { annualBottom: annual.bottom, dockTop: dock.top };
+          const card = document.querySelector(".home-year-card");
+          const annual = card.getBoundingClientRect();
+          const screen = document.querySelector(".home-calendar-screen");
+          const legend = document.querySelector(".home-year-legend").getBoundingClientRect();
+          const bottomRow = [...document.querySelectorAll(".home-year-day")].filter((_, index) => index % 7 === 6);
+          const targets = [legend, ...bottomRow.map((cell) => cell.getBoundingClientRect())];
+          return {
+            annualBottom: annual.bottom,
+            visibleBottom: Math.min(window.innerHeight, screen.getBoundingClientRect().bottom),
+            remainingScroll: screen.scrollHeight - screen.clientHeight - screen.scrollTop,
+            allBottomTargetsReachable: targets.every((r) => card.contains(document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2))),
+            dockPresent: Boolean(document.querySelector(".bottom-nav")),
+          };
         });
-        if (scrolled.annualBottom > scrolled.dockTop - 5) throw new Error(`${viewport.name}/${fixture.month}: scrolled quarter card remains hidden behind navigation ${JSON.stringify(scrolled)}`);
+        if (scrolled.dockPresent || scrolled.remainingScroll > 1 || !scrolled.allBottomTargetsReachable || scrolled.annualBottom > scrolled.visibleBottom - 5) throw new Error(`${viewport.name}/${fixture.month}: the final quarter row/legend is not fully reachable without a bottom overlay ${JSON.stringify(scrolled)}`);
         await page.screenshot({ path: path.join(outputDir, `${viewport.name}-${fixture.rows}-weeks-scrolled.png`) });
         await page.locator(".home-calendar-screen").evaluate((screen) => { screen.scrollTop = 0; });
       }
@@ -275,7 +292,7 @@ try {
         annual: rect(".page-skeleton-calendar-year"),
         annualGrid: rect(".page-skeleton-calendar-year-grid"),
         dock: rect(".bottom-nav"),
-        screen: screen ? { clientHeight: screen.clientHeight, scrollHeight: screen.scrollHeight, overflowY: getComputedStyle(screen).overflowY } : null,
+        screen: screen ? { ...rect(".home-calendar-screen"), clientHeight: screen.clientHeight, scrollHeight: screen.scrollHeight, overflowY: getComputedStyle(screen).overflowY } : null,
         monthCells: document.querySelectorAll(".page-skeleton-calendar-day").length,
         monthRowHeights: getComputedStyle(document.querySelector(".page-skeleton-calendar-grid")).gridTemplateRows.split(" ").map(parseFloat),
         monthDayHeights: [...document.querySelectorAll(".page-skeleton-calendar-day")].slice(0, 7).map((node) => node.getBoundingClientRect().height),
@@ -283,11 +300,12 @@ try {
       };
     });
     const closeTo = (left, right, tolerance = 1.5) => Math.abs(left - right) <= tolerance;
-    if (!skeletonLayout.card || !skeletonLayout.annual || !skeletonLayout.annualGrid || !skeletonLayout.dock || !skeletonLayout.screen) throw new Error(`${viewport.name}: calendar skeleton is missing a destination module ${JSON.stringify(skeletonLayout)}`);
+    if (!skeletonLayout.card || !skeletonLayout.annual || !skeletonLayout.annualGrid || !skeletonLayout.screen) throw new Error(`${viewport.name}: calendar skeleton is missing a destination module ${JSON.stringify(skeletonLayout)}`);
+    if (skeletonLayout.dock) throw new Error(`${viewport.name}: calendar skeleton must not restore the hidden bottom navigation`);
     if (skeletonLayout.monthCells !== 35 || skeletonLayout.quarterCells !== 98) throw new Error(`${viewport.name}: calendar skeleton cell topology does not match a five-week month and fourteen-week quarter ${JSON.stringify(skeletonLayout)}`);
     if (skeletonLayout.overviewHeights.some((height, index) => !closeTo(height, five.summaryHeights[index]))) throw new Error(`${viewport.name}: calendar skeleton overview height differs from the loaded five-week page ${JSON.stringify({ skeleton: skeletonLayout.overviewHeights, loaded: five.summaryHeights })}`);
     if (!closeTo(skeletonLayout.card.height, five.card.height, 2) || !closeTo(skeletonLayout.annual.height, five.annual.height, 2)) throw new Error(`${viewport.name}: calendar skeleton cards do not match the loaded page ${JSON.stringify({ skeleton: skeletonLayout, loaded: { card: five.card, annual: five.annual } })}`);
-    if (skeletonLayout.annual.bottom > skeletonLayout.dock.top - 5 || skeletonLayout.screen.overflowY !== "hidden") throw new Error(`${viewport.name}: five-week calendar skeleton must remain a complete one-screen composition ${JSON.stringify(skeletonLayout)}`);
+    if (skeletonLayout.annual.bottom > Math.min(skeletonLayout.screen.bottom, viewport.height) - 5 || skeletonLayout.screen.overflowY !== "hidden") throw new Error(`${viewport.name}: five-week calendar skeleton must remain a complete one-screen composition ${JSON.stringify(skeletonLayout)}`);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-calendar-skeleton.png`) });
     report.push({ viewport: viewport.name, ...geometry, monthLayouts, skeletonLayout, consoleErrors: errors });
     if (errors.length) throw new Error(`${viewport.name}: browser errors ${errors.join(" | ")}`);
