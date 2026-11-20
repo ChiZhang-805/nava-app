@@ -1,0 +1,38 @@
+{
+  "checkedAt": "2026-11-20",
+  "shipped": {
+    "collection": "Microsoft Fluent Emoji — Flat",
+    "repository": "https://github.com/microsoft/fluentui-emoji",
+    "revision": "1ffb34c752ecf5d402f04cfb4b392c77f57c54bc",
+    "license": "MIT",
+    "licenseSource": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/LICENSE",
+    "inventory": "public/stickers/fluent-flat/sources.json",
+    "notice": "public/stickers/fluent-flat/LICENSE.txt",
+    "assetCount": 12,
+    "unmodifiedSvgBytes": 40964,
+    "design": "Static Flat SVG only; no 3D or animated variants. Chinese and English captions are NAVA interface text, not edits to the original artwork.",
+    "redistribution": "The official MIT license permits redistribution with its copyright and permission notice. The complete notice ships beside the assets."
+  },
+  "notShipped": [
+    {
+      "name": "奶龙 / Nailoong",
+      "officialSource": "https://www.nailoong.com/",
+      "licensingSource": "https://www.nailoong.com/en-us/business/creativeServices/",
+      "finding": "The rights-holder site describes commercial licensing and business collaboration. No open license for bundling the IP's sticker packs in NAVA was identified.",
+      "nextStep": "Obtain an app-distribution license and approved assets from 第七印象 before adding this character. No unrelated third-party or fan pack was downloaded."
+    },
+    {
+      "name": "线条小狗 / Maltese",
+      "creatorAccountSource": "https://www.bilibili.com/video/BV1PcrTBcEiA/",
+      "creatorProfileMirror": "https://www.sina.cn/media/7776232700",
+      "finding": "The creator account identifies Moonlab Studio and copyright cooperation; its indexed profile prohibits unauthorized commercial use. A publicly downloadable or personal-chat sticker is not evidence of an app redistribution grant.",
+      "nextStep": "Confirm NAVA's app-distribution scope with the creator or its licensing representative and obtain approved assets. No fan-pack asset was downloaded."
+    }
+  ],
+  "conversationSkillResearch": {
+    "candidate": "https://github.com/mtarcure/claude-vibe-squad/blob/main/.claude/skills/conversation-design/SKILL.md",
+    "status": "Read-only candidate inspection; not installed and not a runtime dependency.",
+    "usefulIdeas": ["Define persona and tone explicitly", "Write sample dialogue and recovery turns before implementation", "Keep questions short and answerable"],
+    "limits": "This generic conversation-design checklist does not itself supply a reviewed Chinese companion persona. NAVA still needs its own examples, prompt constraints, and behavior tests. No broad third-party skill bundle was installed."
+  }
+}

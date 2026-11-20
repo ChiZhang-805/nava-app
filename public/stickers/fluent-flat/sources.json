@@ -1,0 +1,120 @@
+{
+  "name": "Microsoft Fluent Emoji — Flat",
+  "source": "https://github.com/microsoft/fluentui-emoji",
+  "revision": "1ffb34c752ecf5d402f04cfb4b392c77f57c54bc",
+  "license": "MIT",
+  "copyright": "Copyright (c) Microsoft Corporation.",
+  "licenseFile": "LICENSE.txt",
+  "licenseSource": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/LICENSE",
+  "usage": "Static 2D SVG assets redistributed without modification; NAVA labels are separate UI text.",
+  "assets": [
+    {
+      "id": "like",
+      "file": "like.svg",
+      "upstreamPath": "assets/Thumbs up/Default/Flat/thumbs_up_flat_default.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Thumbs%20up/Default/Flat/thumbs_up_flat_default.svg",
+      "sha256": "2fdd1e26258c7edcf8d9204a9e8c288030244d0c8f049c6f28441ec74fe1e2b8",
+      "bytes": 1932,
+      "modified": false
+    },
+    {
+      "id": "happy",
+      "file": "happy.svg",
+      "upstreamPath": "assets/Smiling face with hearts/Flat/smiling_face_with_hearts_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Smiling%20face%20with%20hearts/Flat/smiling_face_with_hearts_flat.svg",
+      "sha256": "a03eb36c8857b6641c40048190d46f123d66539b0b6641fb012dcc8b7b9c89bf",
+      "bytes": 2903,
+      "modified": false
+    },
+    {
+      "id": "hug",
+      "file": "hug.svg",
+      "upstreamPath": "assets/Hugging face/Flat/hugging_face_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Hugging%20face/Flat/hugging_face_flat.svg",
+      "sha256": "6f07a3521ca0634f6c1d38bf6fc3919fd42dd6c16670d9e18815a70807925ed6",
+      "bytes": 3781,
+      "modified": false
+    },
+    {
+      "id": "well-done",
+      "file": "well-done.svg",
+      "upstreamPath": "assets/Clapping hands/Default/Flat/clapping_hands_flat_default.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Clapping%20hands/Default/Flat/clapping_hands_flat_default.svg",
+      "sha256": "d198a0f3587ccedbe019ddccf20f693e85642faa12901be09d2a7395f28184b1",
+      "bytes": 6792,
+      "modified": false
+    },
+    {
+      "id": "ok",
+      "file": "ok.svg",
+      "upstreamPath": "assets/Ok hand/Default/Flat/ok_hand_flat_default.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Ok%20hand/Default/Flat/ok_hand_flat_default.svg",
+      "sha256": "b86eb586d77023461ce1e5e855787c10a8e81f6baef99bd6fad19138064007ba",
+      "bytes": 1702,
+      "modified": false
+    },
+    {
+      "id": "rest",
+      "file": "rest.svg",
+      "upstreamPath": "assets/Sleeping face/Flat/sleeping_face_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Sleeping%20face/Flat/sleeping_face_flat.svg",
+      "sha256": "47c702745c7be1af9250f79afbea555cfe8bf01a59a78f67b8cae3ed9645143f",
+      "bytes": 2614,
+      "modified": false
+    },
+    {
+      "id": "hello",
+      "file": "hello.svg",
+      "upstreamPath": "assets/Waving hand/Default/Flat/waving_hand_flat_default.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Waving%20hand/Default/Flat/waving_hand_flat_default.svg",
+      "sha256": "a43bd601a3d46573cd3425faed5983b46e64374eaa61d7ac319c41903c17e51d",
+      "bytes": 4893,
+      "modified": false
+    },
+    {
+      "id": "touched",
+      "file": "touched.svg",
+      "upstreamPath": "assets/Face holding back tears/Flat/face_holding_back_tears_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Face%20holding%20back%20tears/Flat/face_holding_back_tears_flat.svg",
+      "sha256": "db324f7c7e91d611ef80e39788f3db2f38d26282686f89e93296f7bcf4faf39a",
+      "bytes": 4176,
+      "modified": false
+    },
+    {
+      "id": "thanks",
+      "file": "thanks.svg",
+      "upstreamPath": "assets/Face blowing a kiss/Flat/face_blowing_a_kiss_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Face%20blowing%20a%20kiss/Flat/face_blowing_a_kiss_flat.svg",
+      "sha256": "40840ebc5aaaaf9c6068b8225c64edf5f9ca4e550f58941cbfe2fb4eb4498783",
+      "bytes": 2980,
+      "modified": false
+    },
+    {
+      "id": "laugh",
+      "file": "laugh.svg",
+      "upstreamPath": "assets/Cat with tears of joy/Flat/cat_with_tears_of_joy_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Cat%20with%20tears%20of%20joy/Flat/cat_with_tears_of_joy_flat.svg",
+      "sha256": "b115dca2766f5c62f227975d1b77ff30ff41b6ded97529956663df07a9e18765",
+      "bytes": 3596,
+      "modified": false
+    },
+    {
+      "id": "love",
+      "file": "love.svg",
+      "upstreamPath": "assets/Smiling cat with heart-eyes/Flat/smiling_cat_with_heart-eyes_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Smiling%20cat%20with%20heart-eyes/Flat/smiling_cat_with_heart-eyes_flat.svg",
+      "sha256": "6bd1fb92c432398df47632f98d3b0e7926201557e368b4af804d2c2921c7ddcf",
+      "bytes": 2959,
+      "modified": false
+    },
+    {
+      "id": "here",
+      "file": "here.svg",
+      "upstreamPath": "assets/Cat face/Flat/cat_face_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Cat%20face/Flat/cat_face_flat.svg",
+      "sha256": "eb917d09d37ef833f7fbb51eeb583f27ddfd28a7248166050e994defe2cc2ac3",
+      "bytes": 2636,
+      "modified": false
+    }
+  ]
+}
