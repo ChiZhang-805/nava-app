@@ -63,9 +63,10 @@ html[data-auth-viewport="true"] .auth-screen .auth-brand .nava-wordmark {
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen {
   display: grid;
-  grid-template-rows: 76px minmax(0, 1fr);
+  grid-template-rows: clamp(24px, calc(var(--nava-visible-height) - 350px), 76px) minmax(0, 1fr);
   /* The image keeps its full-screen dimensions. Only content ends above IME. */
   height: var(--auth-canvas-height, 100dvh);
+  padding-top: max(8px, env(safe-area-inset-top));
   padding-bottom: max(8px, calc(var(--auth-canvas-height, 100dvh) - var(--nava-visible-height) + 8px));
   overflow: hidden;
 }
@@ -82,16 +83,55 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-fo
   overflow-y: auto;
   overscroll-behavior: contain;
   scroll-padding-block: 8px;
-  padding: 4px 0 12px;
+  padding: 4px 0 4px;
+  container-type: size;
+  container-name: auth-form-space;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form {
   flex: none;
   height: auto;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand .nava-wordmark {
-  --wordmark-size: 42px;
-  min-height: 50px;
+  --wordmark-size: clamp(20px, calc(var(--nava-visible-height) - 354px), 42px);
+  min-height: 0;
   animation: none;
+}
+/* Fit the login's complete set of actions above compact keyboards. */
+@container auth-form-space (max-height: 340px) {
+  html[data-keyboard-open="true"] .auth-form--signIn .field {
+    position: relative;
+    margin-bottom: 2px;
+  }
+  html[data-keyboard-open="true"] .auth-form--signIn .auth-field-heading {
+    display: contents;
+  }
+  html[data-keyboard-open="true"] .auth-form--signIn .field-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  html[data-keyboard-open="true"] .auth-form--signIn .input-wrap {
+    min-height: 44px;
+  }
+  html[data-keyboard-open="true"] .auth-form--signIn .input-wrap input {
+    min-height: 42px;
+  }
+  html[data-keyboard-open="true"] .auth-form--signIn .auth-forgot {
+    position: absolute;
+    right: 48px;
+    top: 0;
+    z-index: 1;
+    min-height: 44px;
+    font-size: 11px;
+  }
+  html[data-keyboard-open="true"] .auth-form--signIn #nava-auth-password {
+    padding-right: 64px;
+  }
+  html[data-keyboard-open="true"] .auth-form--signIn .auth-submit {
+    min-height: 44px;
+  }
 }
 html[data-keyboard-open="true"] .auth-consent.auth-consent--screen {
   display: none;
@@ -103,7 +143,7 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-fo
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social {
   display: block;
   margin-top: auto;
-  padding-top: 8px;
+  padding-top: 4px;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-secondary-links {
   display: flex;

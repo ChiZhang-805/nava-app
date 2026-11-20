@@ -43,7 +43,7 @@ final class NavaAuthKeyboardTests: XCTestCase {
                     XCTAssertTrue(web.buttons[name].firstMatch.exists, "Missing login route: \(name)")
                 }
                 let qq = web.buttons["QQ"].firstMatch
-                if app.frame.height >= 900 {
+                do {
                     XCTAssertTrue(qq.isHittable)
                     let gap = keyboardTop(in: app) - qq.frame.maxY
                     XCTAssertGreaterThanOrEqual(gap, 0)
@@ -69,11 +69,6 @@ final class NavaAuthKeyboardTests: XCTestCase {
             }
             if mode == "login" {
                 let qq = web.buttons["QQ"].firstMatch
-                for _ in 0..<4 where !qq.isHittable || qq.frame.maxY > keyboardTop(in: app) {
-                    let start = web.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0))
-                        .withOffset(CGVector(dx: 0, dy: keyboardTop(in: app) - 20))
-                    start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -80)))
-                }
                 XCTAssertTrue(qq.isHittable)
                 XCTAssertLessThanOrEqual(qq.frame.maxY, keyboardTop(in: app))
                 capture("login-shortcuts-keyboard")

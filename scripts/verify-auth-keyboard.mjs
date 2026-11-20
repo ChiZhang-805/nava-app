@@ -63,7 +63,7 @@ try {
               for (const selector of ['.auth-secondary-links', '.auth-social-button--wechat', '.auth-social-button--apple', '.auth-social-button--qq']) {
                 assert(await page.locator(selector).isVisible(), `Missing login route: ${selector}`);
               }
-              if (height >= 812) {
+              {
                 const last = await page.locator('.auth-social-button--qq').boundingBox();
                 assert(last.height >= 44);
                 assert(visible - last.y - last.height >= 0 && visible - last.y - last.height <= 28,
