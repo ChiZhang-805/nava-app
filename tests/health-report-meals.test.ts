@@ -47,10 +47,11 @@ test("free-text meal stays one record; unknown nutrients and transient images ar
   assert.equal(cards[0].estimated, true);
 });
 
-test("window, duplicate IDs, explicit zero and overlapping old-source days remain consistent with energy", () => {
+test("window and duplicate IDs are bounded, but a journal entry must not hide another saved meal that day", () => {
   const j = journal({ data: { foods: "茶", calories: 0 } });
   const cards = buildHealthReportDishes(bundle({ journal: [j, j, journal({ id: "old", recordDate: "2026-11-13" }), journal({ id: "future", recordDate: "2026-11-21" })], nutritions: [record({ lunch_items: [{ name: "重叠旧记录" }] }), record({ id: "yesterday", record_date: "2026-11-19", lunch_items: [{ name: "午餐" }] })] }), date, "zh");
-  assert.equal(cards.length, 2);
+  assert.equal(cards.length, 3);
   assert.equal(cards[0].nutrients.calories, 0);
-  assert.equal(cards[1].date, "2026-11-19");
+  assert.equal(cards[1].title, "重叠旧记录");
+  assert.equal(cards[2].date, "2026-11-19");
 });

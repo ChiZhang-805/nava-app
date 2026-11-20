@@ -50,12 +50,12 @@ export function buildHealthReportDishes(bundle: TrendBundle | null, date: string
     nutrients: { calories: number(record.data.calories), protein: number(record.data.protein), carbs: number(record.data.carbs), fat: number(record.data.fat) },
     estimated: record.estimated === true,
   }));
-  const journalDays = new Set(journal.map(record => record.recordDate));
   const legacy = [...new Map((bundle?.nutritions ?? []).map(record => [record.id, record])).values()];
   for (const record of legacy) {
-    // As with energy charts, the new journal owns a day when both sources exist.
-    // Old daily aggregates can represent the same meal and have no cross-source ID.
-    if (!days.has(record.record_date) || journalDays.has(record.record_date)) continue;
+    // Unlike an aggregate, this is an inventory of saved entries. A journal dinner
+    // must not hide a separately saved lunch. There is no shared event identifier
+    // between the sources, so only repeated row IDs are deduplicated above.
+    if (!days.has(record.record_date)) continue;
     for (const meal of meals) {
       const saved = record[`${meal}_items`];
       const items: FoodItem[] = Array.isArray(saved) ? saved.filter(item => item && text(item.name)) : [];
