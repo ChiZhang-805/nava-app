@@ -30,7 +30,11 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
         super.viewDidLoad()
         installAuthCanvas()
         view.backgroundColor = Self.startupBackground
-        #if targetEnvironment(simulator)
+    }
+
+    #if targetEnvironment(simulator)
+    override func webViewConfiguration(for instanceConfiguration: InstanceConfiguration) -> WKWebViewConfiguration {
+        let configuration = super.webViewConfiguration(for: instanceConfiguration)
         // Test the actual system picker bridge without a production account.
         // This code is absent from every device archive, including TestFlight.
         if ProcessInfo.processInfo.arguments.contains("-NavaPickerBoundaryTest") {
@@ -54,12 +58,13 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
               file.onchange = () => { status.textContent = file.files.length ? 'File selected' : 'File cancelled'; };
             }, {once:true});
             """#
-            bridge?.webView?.configuration.userContentController.addUserScript(
+            configuration.userContentController.addUserScript(
                 WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
             )
         }
-        #endif
+        return configuration
     }
+    #endif
 
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
