@@ -1,5 +1,5 @@
 import { foodVisualStyleVersionV2 } from '../_shared/food-visual-v2.ts';
-import { syntheticFoodPng } from './fixtures/food-png.ts';
+import { syntheticFoodPng, providerFoodPng } from './fixtures/food-png.ts';
 
 function assert(value:unknown,message:string):asserts value{if(!value)throw new Error(message);}
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json'}});
@@ -8,7 +8,9 @@ type ReadyFinish=FinishBody&{p_asset_path:string};
 type ChatBody={messages:Array<{content:Array<{type:'text';text:string}|{type:'image_url';image_url:{url:string}}>}>};
 
 Deno.test('saved food render worker never marks failed/opaque/unreviewed media ready (all HTTP mocked)',async t=>{
-  const previous={fetch:globalThis.fetch,env:Deno.env.get,serve:Deno.serve,edge:Object.getOwnPropertyDescriptor(globalThis,'EdgeRuntime')};
+  const previous={fetch:globalThis.fetch,env:Deno.env.get,serve:Deno.serve,info:console.info,edge:Object.getOwnPropertyDescriptor(globalThis,'EdgeRuntime')};
+  const logs:Array<{event:unknown;details:Record<string,unknown>}>=[];
+  console.info=(event:unknown,details:Record<string,unknown>)=>{logs.push({event,details});};
   let handler:(request:Request)=>Promise<Response>;
   const tasks:Promise<unknown>[]=[];
   const canonical='https://wxteapvwagvhhtrjrbim.supabase.co',owner='10000000-0000-4000-8000-000000000001',jobId='20000000-0000-4000-8000-000000000001',token='a'.repeat(64);
@@ -20,6 +22,8 @@ Deno.test('saved food render worker never marks failed/opaque/unreviewed media r
   Object.defineProperty(Deno,'serve',{configurable:true,writable:true,value:(fn:typeof handler)=>{handler=fn;}});
   Object.defineProperty(globalThis,'EdgeRuntime',{configurable:true,writable:true,value:{waitUntil:(task:Promise<unknown>)=>tasks.push(task)}});
   Deno.env.get=name=>({SUPABASE_URL:canonical,SUPABASE_SERVICE_ROLE_KEY:'fixture-service-only',DASHSCOPE_API_KEY:'fixture-authorized-canonical'} as Record<string,string>)[name];
+  // Async fixture preserves fetch's rejected-Promise contract for unexpected calls.
+  // deno-lint-ignore require-await
   globalThis.fetch=(async(input:string|URL|Request,init?:RequestInit)=>{
     const url=input instanceof Request?input.url:String(input),method=init?.method??'GET';
     let body:Record<string,unknown>={};if(typeof init?.body==='string'){try{body=JSON.parse(init.body) as Record<string,unknown>;}catch{body={raw:true};}}
@@ -53,7 +57,7 @@ Deno.test('saved food render worker never marks failed/opaque/unreviewed media r
   }) as typeof fetch;
   try{
     await import('../food-visualize/index.ts');
-    const reset=()=>{requests.length=0;consent=true;claim=true;finishAccepted=true;lostFinishAcknowledgment=false;photoPath=null;style=foodVisualStyleVersionV2;download=png;qa=validQa;};
+    const reset=()=>{requests.length=0;logs.length=0;consent=true;claim=true;finishAccepted=true;lostFinishAcknowledgment=false;photoPath=null;style=foodVisualStyleVersionV2;download=png;qa=validQa;};
     const run=async()=>{
       const response=await handler(new Request('https://fixture-function.invalid/food-visualize',{method:'POST',body:JSON.stringify({jobId,workerToken:token})}));
       await Promise.all(tasks.splice(0));return response;
@@ -101,6 +105,21 @@ Deno.test('saved food render worker never marks failed/opaque/unreviewed media r
       assert(uploads().length===0&&ready().length===0,'opaque candidate stored/ready');
       assert(finishes().length===1&&finishes()[0].p_error_code==='transparent_output_unavailable','opaque failure not recorded');
     });
+    await t.step('normalized pixels still require semantic QA and expose only numeric format diagnostics',async()=>{
+      const providerPng=await providerFoodPng();
+      for(const passes of [true,false]){
+        reset();download=providerPng;qa={...validQa,plateCompositionPass:passes};await run();
+        assert(uploads().length===1&&ready().length===(passes?1:0)&&removes().length===(passes?0:1),'normalization bypassed semantic QA or cleanup');
+        const diagnostic=logs.find(log=>log.event==='food_render_normalized')?.details;
+        assert(diagnostic?.width===768&&diagnostic.height===640,'source numeric dimensions not logged');
+        assert(Object.values(diagnostic).every(value=>typeof value==='number'&&Number.isFinite(value)),'diagnostics contain non-numeric data');
+      }
+      reset();download=await providerFoodPng({borderPixel:true});await run();
+      assert(uploads().length===0&&finishes()[0].p_error_code==='png_subject_clipped','clipped PNG lost its specific safe reason');
+      const failure=logs.find(log=>log.event==='food_render_result')?.details;
+      assert(failure?.code==='png_subject_clipped','failed PNG reason missing from logs');
+      assert(Object.values(failure?.diagnostics as Record<string,unknown>).every(value=>typeof value==='number'&&Number.isFinite(value)),'failure diagnostics contain non-numeric data');
+    });
     await t.step('missing QA and rejected semantic scores remove candidate and never finish ready',async()=>{
       for(const result of [{...validQa,artifactScore:undefined},{...validQa,plateCompositionPass:false}]){
         reset();qa=result;await run();
@@ -119,7 +138,7 @@ Deno.test('saved food render worker never marks failed/opaque/unreviewed media r
       assert(finishes().length===1&&typeof finishes()[0].p_asset_path==='string','uncertain finish was overwritten by a failure/null attachment');
     });
   }finally{
-    await Promise.allSettled(tasks.splice(0));globalThis.fetch=previous.fetch;Deno.env.get=previous.env;
+    await Promise.allSettled(tasks.splice(0));globalThis.fetch=previous.fetch;Deno.env.get=previous.env;console.info=previous.info;
     Object.defineProperty(Deno,'serve',{configurable:true,writable:true,value:previous.serve});
     if(previous.edge)Object.defineProperty(globalThis,'EdgeRuntime',previous.edge);else Reflect.deleteProperty(globalThis,'EdgeRuntime');
   }

@@ -21,12 +21,27 @@ const crcTable = Uint32Array.from({ length: 256 }, (_, initial) => {
   for (let bit = 0; bit < 8; bit++) crc = (crc & 1) ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
   return crc >>> 0;
 });
-function crc32(bytes: Uint8Array) {
+export function foodPngCrc32(bytes: Uint8Array) {
   let crc = 0xffffffff;
   for (const byte of bytes) crc = crcTable[(crc ^ byte) & 255] ^ (crc >>> 8);
   return (crc ^ 0xffffffff) >>> 0;
 }
-function invalid(message: string): never { throw new Error(`Food PNG rejected: ${message}`); }
+/** Codes and numeric diagnostics are safe to persist; never attach provider text or URLs. */
+export type FoodPngReason = 'png_file_size' | 'png_signature' | 'png_malformed' | 'png_crc' |
+  'png_canvas_size' | 'png_pixel_format' | 'png_interlace' | 'png_compression' |
+  'png_no_foreground' | 'png_no_transparency' | 'png_transparency_ratio' | 'png_subject_opacity' |
+  'png_subject_geometry' | 'png_subject_clipped';
+export type FoodPngDiagnostics = Partial<Record<'width' | 'height' | 'bitDepth' | 'colorType' | 'interlace' |
+  'transparentPixelRatio' | 'opaqueForegroundRatio' | 'minX' | 'minY' | 'maxX' | 'maxY' |
+  'foregroundWidthRatio' | 'foregroundHeightRatio', number>>;
+export class FoodPngError extends Error {
+  constructor(public readonly code: FoodPngReason, message: string, public readonly diagnostics: FoodPngDiagnostics = {}) {
+    super(`Food PNG rejected: ${message}`);
+  }
+}
+function invalid(message: string, code: FoodPngReason = 'png_malformed', diagnostics: FoodPngDiagnostics = {}): never {
+  throw new FoodPngError(code, message, diagnostics);
+}
 function uint32(bytes: Uint8Array, offset: number) {
   return new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0);
 }
@@ -46,21 +61,22 @@ async function inflateBounded(bytes: Uint8Array, expectedBytes: number) {
       if (done) break;
       if (offset + value.length > expectedBytes) {
         await reader.cancel();
-        invalid("decompressed data exceeds the exact canvas size.");
+        invalid("decompressed data exceeds the exact canvas size.", 'png_compression');
       }
       output.set(value, offset); offset += value.length;
     }
   } catch (error) {
     try { await reader.cancel(); } catch { /* Already errored/closed. */ }
-    invalid(`invalid compressed pixel data (${error instanceof Error ? error.message : "inflate failure"}).`);
+    if (error instanceof FoodPngError) throw error;
+    invalid("invalid compressed pixel data.", 'png_compression');
   } finally { reader.releaseLock(); }
-  if (offset !== expectedBytes) invalid("incomplete decompressed pixel data.");
+  if (offset !== expectedBytes) invalid("incomplete decompressed pixel data.", 'png_compression');
   return output;
 }
 
 export async function validateFoodVisualPngV2(bytes: Uint8Array): Promise<FoodVisualPngInspectionV2> {
-  if (bytes.length < 57 || bytes.length > maximumBytes) invalid("file is incomplete or exceeds 8 MiB.");
-  if (!signature.every((value, index) => bytes[index] === value)) invalid("incorrect PNG signature.");
+  if (bytes.length < 57 || bytes.length > maximumBytes) invalid("file is incomplete or exceeds 8 MiB.", 'png_file_size');
+  if (!signature.every((value, index) => bytes[index] === value)) invalid("incorrect PNG signature.", 'png_signature');
   let width = 0, height = 0, bytesPerPixel = 0, bytesPerSample = 0;
   let offset = 8, header = false, ended = false, idatEnded = false;
   let totalIdatBytes = 0;
@@ -71,16 +87,18 @@ export async function validateFoodVisualPngV2(bytes: Uint8Array): Promise<FoodVi
     if (length > maximumBytes || offset + 12 + length > bytes.length) invalid("invalid chunk length.");
     const type = String.fromCharCode(...bytes.subarray(offset + 4, offset + 8));
     if (!/^[A-Za-z]{4}$/.test(type) || (bytes[offset + 6] & 32) !== 0) invalid("invalid chunk type.");
-    if (crc32(bytes.subarray(offset + 4, offset + 8 + length)) !== uint32(bytes, offset + 8 + length)) invalid(`CRC mismatch in ${type}.`);
+    if (foodPngCrc32(bytes.subarray(offset + 4, offset + 8 + length)) !== uint32(bytes, offset + 8 + length)) invalid("CRC mismatch.", 'png_crc');
     const chunk = bytes.subarray(offset + 8, offset + 8 + length);
     if (!header && type !== "IHDR") invalid("IHDR must be first.");
     if (type === "IHDR") {
       if (header || length !== 13) invalid("invalid or repeated IHDR.");
       width = uint32(chunk, 0); height = uint32(chunk, 4);
-      if (width !== 1024 || height !== 1024) invalid("canvas must be exactly 1024x1024.");
       const depth = chunk[8], color = chunk[9];
-      if ((depth !== 8 && depth !== 16) || (color !== 4 && color !== 6)) invalid("normalize to 8/16-bit RGBA or gray+alpha PNG.");
-      if (chunk[10] !== 0 || chunk[11] !== 0 || chunk[12] !== 0) invalid("unsupported compression, filter, or interlace method.");
+      const dimensions = { width, height, bitDepth: depth, colorType: color, interlace: chunk[12] };
+      if (width !== 1024 || height !== 1024) invalid("canvas must be exactly 1024x1024.", 'png_canvas_size', dimensions);
+      if ((depth !== 8 && depth !== 16) || (color !== 4 && color !== 6)) invalid("normalize to 8/16-bit RGBA or gray+alpha PNG.", 'png_pixel_format', dimensions);
+      if (chunk[10] !== 0 || chunk[11] !== 0) invalid("unsupported compression or filter method.", 'png_compression', dimensions);
+      if (chunk[12] !== 0) invalid("unsupported interlace method.", 'png_interlace', dimensions);
       bytesPerSample = depth / 8;
       bytesPerPixel = (color === 6 ? 4 : 2) * bytesPerSample;
       header = true;
@@ -128,19 +146,21 @@ export async function validateFoodVisualPngV2(bytes: Uint8Array): Promise<FoodVi
     }
     [previous, row] = [row, previous];
   }
-  if (!foreground) invalid("canvas has no visible foreground.");
+  if (!foreground) invalid("canvas has no visible foreground.", 'png_no_foreground', { width, height });
   const bounds = { minX: minX / width, minY: minY / height, maxX: (maxX + 1) / width, maxY: (maxY + 1) / height };
   const widthRatio = bounds.maxX - bounds.minX, heightRatio = bounds.maxY - bounds.minY;
   const transparentRatio = transparent / (width * height), opaqueRatio = opaqueForeground / foreground;
-  if (transparentRatio < 0.25 || transparentRatio > 0.55) invalid("real transparent area must surround a complete plate/bowl.");
-  if (opaqueRatio < 0.90) invalid("foreground is translucent rather than an opaque food/container cutout.");
+  const diagnostics = { width, height, transparentPixelRatio: transparentRatio, opaqueForegroundRatio: opaqueRatio,
+    ...bounds, foregroundWidthRatio: widthRatio, foregroundHeightRatio: heightRatio };
+  if (transparentRatio < 0.25 || transparentRatio > 0.55) invalid("real transparent area must surround a complete plate/bowl.", 'png_transparency_ratio', diagnostics);
+  if (opaqueRatio < 0.90) invalid("foreground is translucent rather than an opaque food/container cutout.", 'png_subject_opacity', diagnostics);
   // Prompt target is 86-90%; +/-2 percentage points tolerate antialiasing and
   // normalizer variation. No visible foreground may intrude into the outer 3.5%.
   if (widthRatio < 0.84 || widthRatio > 0.92 || heightRatio < 0.84 || heightRatio > 0.92 ||
     bounds.minX < 0.035 || bounds.minY < 0.035 || bounds.maxX > 0.965 || bounds.maxY > 0.965 ||
     Math.abs((bounds.minX + bounds.maxX) / 2 - 0.5) > 0.02 ||
     Math.abs((bounds.minY + bounds.maxY) / 2 - 0.5) > 0.02 || Math.abs(widthRatio - heightRatio) > 0.03) {
-    invalid("foreground must be centered, uncropped, and approximately 86-90% of the canvas.");
+    invalid("foreground must be centered, uncropped, and approximately 86-90% of the canvas.", 'png_subject_geometry', diagnostics);
   }
   return { width, height, hasAlpha: true, transparentPixelRatio: transparentRatio, opaqueForegroundRatio: opaqueRatio,
     foregroundBounds: bounds, foregroundWidthRatio: widthRatio, foregroundHeightRatio: heightRatio };

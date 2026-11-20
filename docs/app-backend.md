@@ -7,7 +7,35 @@ needs_details；照片样本两次均transparent_output_unavailable，未保存�
 已明确planner置信度范围与食品身份/份量区别，并给出常见命名食品示例；隔离17步通过，
 函数已更新。第二轮文字与照片均进入生成；最终文字quality_rejected、照片aidge_nopermission，
 没有保存不合格图。两条临时记录及账号均已清理，收据food-render-live/receipt.json。
-当前food-visualize版本4 ACTIVE，仍不能宣称透明配图服务端到端可用。
+上述为早期尝试。当前 food-visualize 版本 7 ACTIVE（源码 382a734）。
+两条云端合成记录已测试并清理。文字最终 `png_subject_clipped`，照片首轮到达语义审核
+但 `quality_rejected`，第二轮 `render_failed`。自动配图尚未通过真实验收。
+最新证据 `App-Checks/food-render-live/receipt.json`。
+
+部署标准化前，用户配置专用 RAM 后的两条合成收据均为
+`invalid_transparent_output`，两次尝试后失败且已清理。原先该错误合并了编码、尺寸、
+透明度和主体位置失败，不能据此认定Aidge返回了错误字段。当前仍按官方合同读取
+`Data.ImageUrl`，请求`TRANSPARENT`且不传目标宽高。
+
+新增有界PNG标准化：只处理已有真实透明通道的静态、非交错PNG。支持8/16位RGBA、
+灰度+Alpha及1/2/4/8位索引色+tRNS；编码上限8MiB、单边4096px、总像素4,194,304、
+最多2048个块，CRC和精确解压长度均检查。RGB/无Alpha灰度（含色键tRNS）、JPEG、
+APNG和Adam7仍不在本地解码范围。RGB/JPEG需真实抠图服务先提供透明PNG，绝不根据
+白色或其他颜色伪造Alpha。原图已有可用Alpha时先本地标准化，不重复调用抠图服务。
+生成/抠图输出若已经通过严格校验，则原字节直接使用，不再解码缩放重编码。
+
+标准化统计全部非零Alpha主体边界，拒绝接触源画布边缘的主体与不透明/空白/半透明
+前景；完整主体以同一个比例缩放、居中到1024²透明画布，最长边目标88%，使用预乘
+Alpha插值保留软边颜色。不挑选最大组件、不删零散部分、不拉伸椭圆、不修补被截断的
+盘沿。输出8位RGBA后仍运行原严格PNG校验（透明比例25–55%、不透明前景≥90%、
+宽高各84–92%、中心误差≤2%、宽高差≤3%）及原语义QA，任一失败都不展示。
+失败持久化固定`png_*`原因码；日志仅记录固定码和宽高、格式、边界、比例等有限数值，
+不输出图片、签名URL、原始提供商回复或密钥。数值诊断不新增数据库字段。
+本地模拟验证覆盖偏移/尺寸、全部支持格式、软边颜色、下采样、严格拒绝条件和
+Aidge `Data.ImageUrl`→标准化→任务语义QA/清理路径。部署只更新了 food-visualize 函数。
+针对5个测试文件的Deno验证通过21项主测试、20个子步骤；相关8个源码/测试文件
+Deno lint通过。独立工作树用`--no-config --node-modules-dir=none`解析已有远程依赖，
+避免依赖主checkout的node_modules；HTTP调用全部为合成mock。
 
 抠图调研结论：优先评估阿里云Aidge ImageMatting（透明PNG、原尺寸输出、官方刊例0.002元/张，
 实际以控制台为准；1000张约2元，仅抠图）。它使用RAM AccessKey ID/Secret，并非DashScope

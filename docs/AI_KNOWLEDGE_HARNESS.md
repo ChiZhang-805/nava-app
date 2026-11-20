@@ -326,8 +326,12 @@ fed back into nutrition extraction.
    domestic Alibaba Model Studio pipeline. The first attempt uses
    `wan2.7-image`; only a failed candidate escalates to `wan2.7-image-pro`.
    Because Wan PNG output does not guarantee a real alpha channel or exact
-   dimensions, a separately configured domestic matting/normalization adapter
-   must produce the final exact `1024×1024` transparent PNG: top-down dish,
+   dimensions, a configured domestic matting service must provide genuine alpha.
+   The saved-record worker's bounded PNG normalizer then uniformly scales and
+   centers an intact subject on the final exact `1024×1024` transparent PNG;
+   already-transparent provider images do not need another matting call. It
+   cannot create alpha, repair cropped rims or stretch an ellipse into a circle.
+   The independent strict PNG gate and critic still require a top-down dish,
    complete clean white ceramic plate, no table, text, watermark, hands,
    utensils, napkins, or props.
 3. A two-image critic compares the evidence photo with the candidate. It must

@@ -65,6 +65,7 @@ async function processJob(admin: SupabaseClient, job: Job) {
     }
     const evidence = await prepareFoodEvidence(input, sourceUrl, deadline);
     const generated = await generateFoodAsset(evidence, sourceUrl, job.attempts, deadline);
+    if (generated.normalizationDiagnostics) console.info('food_render_normalized', generated.normalizationDiagnostics);
     assetPath = `${job.user_id}/${job.id}/${crypto.randomUUID()}.png`;
     const upload = await admin.storage.from('diet-renders').upload(assetPath, generated.bytes, { contentType: 'image/png', upsert: false, cacheControl: '31536000' });
     if (upload.error) throw new FoodRenderError('asset_upload_failed');
@@ -82,6 +83,6 @@ async function processJob(admin: SupabaseClient, job: Job) {
     if (assetPath) await admin.storage.from('diet-renders').remove([assetPath]);
     const code = cause instanceof FoodRenderError ? cause.code : cause instanceof DOMException && cause.name === 'TimeoutError' ? 'provider_timeout' : 'render_failed';
     await finish(null, null, {}, code);
-    console.info('food_render_result', { code }); // Never log user data, URLs, tokens, or model output.
+    console.info('food_render_result', { code, ...(cause instanceof FoodRenderError ? { diagnostics: cause.diagnostics } : {}) }); // Fixed codes/numbers only; no URLs, pixels, tokens or provider output.
   }
 }

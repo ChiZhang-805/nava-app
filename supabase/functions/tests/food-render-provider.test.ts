@@ -1,6 +1,7 @@
 import { foodRenderDeadline, generateFoodAsset, navaDashScopeKey, prepareFoodEvidence, reviewFoodAsset } from '../_shared/food-render-provider.ts';
 import type { FoodVisualEvidenceV2 } from '../_shared/food-visual-v2.ts';
-import { syntheticFoodPng, base64 } from './fixtures/food-png.ts';
+import { syntheticFoodPng, providerFoodPng, base64 } from './fixtures/food-png.ts';
+import { validateFoodVisualPngV2 } from '../_shared/food-visual-png.ts';
 
 function assert(value: unknown, message: string): asserts value { if(!value)throw new Error(message); }
 async function rejects(fn:()=>unknown|Promise<unknown>,pattern:RegExp){try{await fn();}catch(e){assert(pattern.test(String(e)),String(e));return;}throw new Error('Expected rejection');}
@@ -22,7 +23,10 @@ Deno.test('food provider isolates keys, saved evidence, strict QA and decoded PN
   const requests:CapturedRequest[]=[];
   const png=await syntheticFoodPng(),opaque=await syntheticFoodPng(true);
   let chatOutput:unknown=plan,download=png,mattingOutput=base64(png);
+  let aidgeOutput=png;
   Deno.env.get=name=>env[name];
+  // Async fixture preserves fetch's rejected-Promise contract for unexpected calls.
+  // deno-lint-ignore require-await
   globalThis.fetch=(async(input:string|URL|Request,init?:RequestInit)=>{
     const url=input instanceof Request?input.url:String(input),body=init?.body?JSON.parse(String(init.body)):{};
     requests.push({url,body,authorization:new Headers(init?.headers).get('Authorization')});
@@ -30,6 +34,8 @@ Deno.test('food provider isolates keys, saved evidence, strict QA and decoded PN
     if(url.includes('/multimodal-generation/'))return json({output:{choices:[{message:{content:[{image:'https://fixture-render.invalid/candidate.png'}]}}]}});
     if(url==='https://fixture-render.invalid/candidate.png')return new Response(Uint8Array.from(download),{headers:{'Content-Type':'image/png'}});
     if(url==='https://fixture-matting.invalid/run')return json({imageBase64:mattingOutput});
+    if(url.startsWith('https://aidge.cn-beijing.aliyuncs.com/'))return json({Success:true,Data:{ImageUrl:'https://fixture.oss-cn-beijing.aliyuncs.com/cutout.png'}});
+    if(url==='https://fixture.oss-cn-beijing.aliyuncs.com/cutout.png')return new Response(Uint8Array.from(aidgeOutput));
     throw new Error('Unexpected network access: '+url);
   }) as typeof fetch;
   try{
@@ -107,12 +113,37 @@ Deno.test('food provider isolates keys, saved evidence, strict QA and decoded PN
     await t.step('opaque/oversize downloads and invalid matting output cannot be returned as an asset',async()=>{
       download=opaque;await rejects(()=>generateFoodAsset(textEvidence,null,1,foodRenderDeadline()),/transparent_output_unavailable/);
       env.NAVA_FOOD_MATTING_URL='https://fixture-matting.invalid/run';mattingOutput=base64(opaque);
-      await rejects(()=>generateFoodAsset(textEvidence,null,1,foodRenderDeadline()),/invalid_transparent_output/);
+      await rejects(()=>generateFoodAsset(textEvidence,null,1,foodRenderDeadline()),/png_no_transparency/);
       mattingOutput=base64(png);
-      assert((await generateFoodAsset(textEvidence,null,1,foodRenderDeadline())).bytes.length===png.length,'valid matting should recover');
+      const accepted=await generateFoodAsset(textEvidence,null,1,foodRenderDeadline());
+      assert(accepted.modelVersion==='wan2.7-image+configured-matting'&&!accepted.normalizationDiagnostics,'valid matting should skip normalization');
+      assert(accepted.bytes.length===png.length&&accepted.bytes.every((value,index)=>value===png[index]),'already-valid matting pixels must remain byte-identical');
       download=new Uint8Array(8*1024*1024+1);
       await rejects(()=>generateFoodAsset(textEvidence,null,1,foodRenderDeadline()),/image_too_large/);
       delete env.NAVA_FOOD_MATTING_URL;
+    });
+    await t.step('genuine transparent provider image normalizes before any matting call',async()=>{
+      download=await providerFoodPng();requests.length=0;
+      const result=await generateFoodAsset(textEvidence,null,1,foodRenderDeadline());
+      assert(result.modelVersion==='wan2.7-image+png-normalize-v1','normalizer provenance lost');
+      assert(result.normalizationDiagnostics?.width===768,'source diagnostic missing');
+      await validateFoodVisualPngV2(result.bytes);
+      assert(requests.length===2,'normalization spent an unnecessary provider call');
+    });
+    await t.step('Aidge Data.ImageUrl indexed PNG is normalized, opaque and clipped results never escape',async()=>{
+      env.AIDGE_ACCESS_KEY_ID_NAVA='fixture-id';env.AIDGE_ACCESS_KEY_SECRET_NAVA='fixture-secret';
+      download=opaque;aidgeOutput=await providerFoodPng({color:3,depth:4});requests.length=0;
+      const result=await generateFoodAsset(textEvidence,null,1,foodRenderDeadline());
+      assert(result.modelVersion==='wan2.7-image+aidge-image-matting-2026-04-28+png-normalize-v1','Aidge provenance lost');
+      await validateFoodVisualPngV2(result.bytes);
+      assert(requests.some(r=>r.url.includes('BackGroundType=TRANSPARENT')),'Aidge did not request transparency');
+      aidgeOutput=png;
+      const accepted=await generateFoodAsset(textEvidence,null,1,foodRenderDeadline());
+      assert(accepted.modelVersion==='wan2.7-image+aidge-image-matting-2026-04-28'&&!accepted.normalizationDiagnostics,'valid Aidge result should skip normalization');
+      assert(accepted.bytes.length===png.length&&accepted.bytes.every((value,index)=>value===png[index]),'valid Aidge output must be byte-identical');
+      aidgeOutput=opaque;await rejects(()=>generateFoodAsset(textEvidence,null,1,foodRenderDeadline()),/png_no_transparency/);
+      aidgeOutput=await providerFoodPng({borderPixel:true});await rejects(()=>generateFoodAsset(textEvidence,null,1,foodRenderDeadline()),/png_subject_clipped/);
+      delete env.AIDGE_ACCESS_KEY_ID_NAVA;delete env.AIDGE_ACCESS_KEY_SECRET_NAVA;
     });
     assert(requests.every(r=>!r.url.includes('other.supabase.co')),'unexpected project access');
   }finally{globalThis.fetch=original.fetch;Deno.env.get=original.env;}

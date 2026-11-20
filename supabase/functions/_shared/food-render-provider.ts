@@ -1,10 +1,11 @@
 import { normalizeFoodVisualEvidenceV2, foodVisualPromptV2, foodVisualCriticPromptV2, parseFoodVisualQualityV2, passesFoodVisualQualityV2, foodVisualSpecificationV2 } from './food-visual-v2.ts';
-import { validateFoodVisualPngV2 } from './food-visual-png.ts';
+import { FoodPngError, validateFoodVisualPngV2, type FoodPngDiagnostics } from './food-visual-png.ts';
+import { normalizeFoodVisualPngV2 } from './food-visual-normalize.ts';
 import { hasFoodMattingCredentials, matteGeneratedFood } from './food-matting.ts';
 
 export type SavedFoodInput = { name: string | null; amount: string | null; photoPath: string | null; photoBucket: string | null; kind: string };
 export class FoodRenderError extends Error {
-  constructor(public code: string) { super(code); }
+  constructor(public code: string, public diagnostics: FoodPngDiagnostics = {}) { super(code); }
 }
 
 /** The user explicitly authorized this legacy secret inside the canonical NAVA project only. */
@@ -94,6 +95,17 @@ export async function generateFoodAsset(evidence: ReturnType<typeof normalizeFoo
   const prompt = foodVisualPromptV2(evidence);
   const custom = Deno.env.get('NAVA_FOOD_RENDER_URL');
   let bytes: Uint8Array; let resultUrl: string | null = null; let mattingModel = '';
+  let normalizationDiagnostics: FoodPngDiagnostics | undefined;
+  const normalize = async (input: Uint8Array) => {
+    try {
+      const result = await normalizeFoodVisualPngV2(input);
+      normalizationDiagnostics = result.diagnostics;
+      return result.bytes;
+    } catch (cause) {
+      if (cause instanceof FoodPngError) throw new FoodRenderError(cause.code, cause.diagnostics);
+      throw cause;
+    }
+  };
   if (custom) {
     const key = Deno.env.get('NAVA_FOOD_RENDER_KEY');
     const result = await checkedJson(custom, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(key ? { Authorization: `Bearer ${key}` } : {}) }, body: JSON.stringify({ sourceUrl, plan: evidence, prompt, specification: foodVisualSpecificationV2 }), signal: deadline(75_000) }, 'render');
@@ -106,6 +118,16 @@ export async function generateFoodAsset(evidence: ReturnType<typeof normalizeFoo
   }
   try { await validateFoodVisualPngV2(bytes); }
   catch {
+    try {
+      // Real alpha may already exist but the provider canvas/position differs.
+      // Normalize before buying another matting call; never invent alpha locally.
+      bytes = await normalize(bytes);
+      return { bytes, modelVersion: model + '+png-normalize-v1', normalizationDiagnostics };
+    } catch (cause) {
+      // Opaque PNG/RGB/JPEG may use the actual matting service. Malformed data,
+      // clipped subjects, unsupported interlacing and bad geometry cannot be repaired here.
+      if (!(cause instanceof FoodRenderError) || !['png_no_transparency', 'png_pixel_format', 'png_signature'].includes(cause.code)) throw cause;
+    }
     const matting = Deno.env.get('NAVA_FOOD_MATTING_URL');
     if (!resultUrl) throw new FoodRenderError('transparent_output_unavailable');
     if (matting) {
@@ -123,9 +145,11 @@ export async function generateFoodAsset(evidence: ReturnType<typeof normalizeFoo
         throw error;
       }
     } else throw new FoodRenderError('transparent_output_unavailable');
-    try { await validateFoodVisualPngV2(bytes); } catch { throw new FoodRenderError('invalid_transparent_output'); }
+    // A conforming matting result needs no extra resampling or re-encoding.
+    try { await validateFoodVisualPngV2(bytes); }
+    catch { bytes = await normalize(bytes); }
   }
-  return { bytes, modelVersion: model + mattingModel };
+  return { bytes, modelVersion: model + mattingModel + (normalizationDiagnostics ? '+png-normalize-v1' : ''), normalizationDiagnostics };
 }
 
 export async function reviewFoodAsset(evidence: ReturnType<typeof normalizeFoodVisualEvidenceV2>, sourceUrl: string | null, assetUrl: string, deadline: Deadline) {

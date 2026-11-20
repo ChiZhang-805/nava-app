@@ -1,8 +1,33 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
+## 最新 iOS 和餐食验证（北京时间 2026-11-21）
+
+登录源码 18adc5d：232 个 Chromium/WebKit 状态通过，生产认证检查通过。完整 verify
+首轮运行至记录页预览的 networkidle 超时，从该步骤重跑至结束通过。日志
+`App-Checks/release-18adc5d-verify.log` 与 `release-18adc5d-verify-resume.log`。
+原生验证 44773749620 的 SE 3 与 15 Pro Max 均通过，人工核对首屏和反馈状态无裁切。
+原始附件位于 `App-Checks/auth-keyboard/native-18adc5d/selected`。
+TestFlight 1.0.0(49) 签名归档任务 44778076216 使用同一源码，上传步骤于北京时间
+2026-11-21 01:08:37 成功。上传脚本要求 altool 确认成功。测试组可安装状态待 Apple 处理核实。
+网页按要求暂缓。
+
+`food-visualize` v7 部署自 382a734，补齐真实透明 PNG 的标准化，
+不改变最终PNG或语义QA门槛。静态非交错RGBA/灰度Alpha 8/16位、索引+tRNS 1/2/4/8位
+可在8MiB、4Mi像素、单边4096px范围内解码，完整主体等比居中到1024²；不造Alpha、
+不删组件、不拉伸或修补裁断盘沿。保留Data.ImageUrl及Aidge原尺寸请求，具体格式限制、
+安全`png_*`诊断和验证入口见`app-backend.md`开头。两条云端样本均未验收，已清理。
+文字最终 `png_subject_clipped`；照片首轮 `quality_rejected`，第二次 `render_failed`。
+下一次调试先查几何/语义拒绝原因。最新收据见 `App-Checks/food-render-live/receipt.json`。
+Deno通过21项主测试/20个子步骤，相关8文件lint通过；合格的生成/抠图字节原样保留，
+仅不符合尺寸/位置的真实透明图进入标准化，随后仍需原严格PNG和语义QA。
+
+管理员「API 与服务」实现保存在 `codex/admin-service-status` 的 4cf7e23，独立工作树干净。
+Deno 2 套件、16 个步骤、生产构建和 4 个 WebKit 屏宽样本通过；合成样本截图位于
+`App-Checks/admin-service-status`。等待用户明确授权发布 `admin-service-status` Edge Function。
+
 ## 当前新增候选与已完成后台操作（2026-11-20）
 
-本节优先于下方1.0.0(48)的历史描述。本轮尚未上传新的TestFlight包；网页仍因Sites
+以下为早期候选和后台操作记录，当前版本以上节为准。网页仍因Sites
 写入凭据404未同步。用户已明确“先完成TestFlight，网页稍后处理”，本轮优先原生发布，
 不尝试单独更新一站。不能把本地截图或旧版原生结果当作新版本已上线。
 
@@ -14,8 +39,8 @@ food-visualize。线上RLS/令牌列不可读/claim不可由客户端调用/单�
 因此尚不能宣称自动配图可用。已明确文字confidence为0–1的食品身份置信度、无需份量，
 补充命名食品示例并通过17步隔离回归后部署；第二轮两条均进入生成，最终文字quality_rejected、
 照片aidge_nopermission。临时账号/记录/资产已清理，不能宣称配图可用。
-已调研并接入Aidge智能抠图，food-visualize版本4 ACTIVE。现有云Aliyun凭据实测403/NoPermission；
-用户已收到开通服务、专用RAM最小权限及Supabase两项secret配置步骤，待完成后复验。
+已调研并接入Aidge智能抠图。早期版本4用通用凭据实测403/NoPermission，随后用户配置了
+专用RAM最小权限及Supabase两项secret，权限错误已消失，最新验证见上节。
 未改密钥、短信或IAM权限。matting签名/凭据隔离/错误脱敏测试通过；详情见app-backend开头。
 原生44760568571（a697e1b）两台XCTest均通过，系统相册/文件取消与草稿保留通过；
 但人工复核原始SE截图发现快捷按钮底部被裁约9.5pt，不能作为完整视觉通过。
