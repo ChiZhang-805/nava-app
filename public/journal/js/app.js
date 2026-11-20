@@ -1778,17 +1778,23 @@ __fluffyModules["app.js"] = (() => {
      * 输出：无。
      * 功能：把当前有效任务放入待办而不是假装已完成。
      */
-    function saveTaskLater() {
+    async function saveTaskLater() {
+        if (state.taskSaving) return;
         const data = checkedForm();
         if (!data)
             return;
         const task = {
             id: state.taskId || crypto.randomUUID?.() || String(Date.now()), data, createdAt: new Date().toISOString(), done: false
         };
-        if (!Store.saveTask(task)) {
+        state.taskSaving = true;
+        const entrySerial = state.serial;
+        const saved = await Store.saveTask(task);
+        state.taskSaving = false;
+        if (!saved) {
             toast("暂时无法保存待办。");
             return;
         }
+        if (state.serial !== entrySerial || animation.scene !== "entry") { toast("task-saved"); return; }
         state.drafts.focus = {};
         navigate("tasks");
         toast("放进待办了，准备好再开始。");
@@ -1939,9 +1945,11 @@ __fluffyModules["app.js"] = (() => {
                 openEntry("focus", task.data);
                 state.taskId = task.id;
             };
-            done.onclick = () => {
-                if (Store.saveTask({ ...task, done: !task.done }))
+            done.onclick = async () => {
+                if(done.disabled)return;done.disabled=true;
+                if (await Store.saveTask({ ...task, done: !task.done }))
                     renderTasks();
+                else { done.disabled=false;toast("save-failed"); }
             };
             remove.onclick = () => ask("删除这件待办？", Display.text(task.data.task), () => {
                 Store.removeTask(task.id);

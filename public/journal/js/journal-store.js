@@ -134,8 +134,18 @@ __fluffyModules["journal-store.js"] = (() => {
      * 输出：成功标记。
      * 功能：同一 ID 更新，不把倒计时结束自动当作完成任务。
      */
+    let taskWrites = Promise.resolve();
     function saveTask(task) {
-        return write(TASKS_KEY, [task, ...tasks().filter(t => t.id !== task.id)].slice(0, 100));
+        const request = taskWrites.then(async () => {
+            try {
+                const value = [task, ...tasks().filter(t => t.id !== task.id)].slice(0, 100);
+                await window.NavaJournal.call('settings', { key: TASKS_KEY, value });
+                window.NavaJournal.initial.settings[TASKS_KEY] = structuredClone(value);
+                return true;
+            } catch { return false; }
+        });
+        taskWrites = request;
+        return request;
     }
     /**
      * 输入：id。

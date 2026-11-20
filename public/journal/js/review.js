@@ -392,7 +392,7 @@ __fluffyModules["review.js"] = (() => {
             const width = b.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - 4;
             try {
                 // 阶段二：传输增量先分成完整短句，短句到达即可排队；不得等全部生成才开始说。
-                await Talk.request({ api: this.h.api, view: this.view, memory: memory.context(record.id), text, audio, lang: this.lang, opening, signal: controller.signal,
+                await Talk.request({ api: this.h.api, view: this.view, memory: memory.context(record.id), text, audio, lang: this.lang, opening, turnId: `${key}:${record.id}`, signal: controller.signal,
                     width, measure: value => this.measure.measureText(value).width + ChatText.count(value) * .27,
                     onPage: page => { if (this.isCurrent(current)) this.appendPage(page, current); },
                     onEvent: (event, meta) => { if (this.isCurrent(current)) this.diagnostics.add(serial, event, meta); }

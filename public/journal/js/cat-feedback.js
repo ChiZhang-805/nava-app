@@ -6,15 +6,15 @@ __fluffyModules["cat-feedback.js"] = (() => {
         "entry-organizing": ["我在整理你的话\n填好就给你看看", "I'm tidying your words.\nYou'll have a draft soon."],
         "entry-paused": ["刚才先停下啦\n点我接着整理", "We paused for a moment.\nTap me to continue."],
         "entry-held": ["刚才先停下啦\n填过的内容还在", "We've paused.\nYour fields are safe."],
-        "entry-partial": ["这些先帮你记下\n再补一点就好啦", "I've kept these details.\nAdd the rest in your time."],
+        "entry-partial": ["这几项先填上啦\n再看看空着的吧", "These fields are drafted.\nTake a look at the gaps."],
         "entry-repair": ["这次没记对呀\n我们一起改好", "I didn't get that right.\nLet's fix it together."],
         "entry-no-question": ["好呀我先不问啦\n想说时我都在", "I won't ask more.\nI'm here when you need me."],
         "chat-partial": ["后面那句断开了\n你可以接着说呀", "The last bit stopped.\nYou can keep talking."],
         "photo-food-unclear": ["这张没看清食物\n换张照片给我吧", "I can't see the food.\nTry another photo."],
-        "photo-food-partial": ["食物先记下来啦\n再添一点份量吧", "I've noted the food.\nAdd a little portion detail."],
+        "photo-food-partial": ["食物先填进草稿\n份量还要你看看", "The food is in your draft.\nCould you check the portion?"],
         "photo-filled": ["这餐替你填好啦\n看看要不要修改", "Your meal is filled in.\nChange anything you like."],
         "photo-retry": ["照片还留在这里\n点我再看看这餐", "Your photo is still here.\nTap me to try again."],
-        saved: ["已经替你记好啦\n今天也辛苦啦", "It's saved now.\nYou did well today."],
+        saved: ["记好啦 ✓\n这件小事收好啦", "Saved ✓\nA little moment, kept."],
         "layout-restored": ["位置都放好啦\n看看合不合心意", "It's back in place.\nHave a little look."],
         "task-saved": ["已经放进待办啦\n准备好再开始", "It's on your list.\nStart when you're ready."],
         "focus-running": ["时间还在走呀\n先回去陪你专心", "Your timer is running.\nLet's return to it."],
@@ -23,8 +23,8 @@ __fluffyModules["cat-feedback.js"] = (() => {
         "value-check": ["这个数值没对上\n再帮我看看呀", "That value doesn't fit.\nCheck it for me."],
         unknown: ["这次没能接上\n内容还在这里", "That didn't connect.\nYour draft is safe."],
         retry: ["刚才的话还留着\n点我再试一下", "I kept your words.\nTap me to retry."],
-        ready: ["已经填好啦\n你再看一看", "I've filled it in.\nTake a little look."],
-        review: ["我先替你记下\n你再帮我看看", "I've made a draft.\nPlease check it."],
+        ready: ["草稿写好啦 ✨\n你看看对不对呀", "Your draft is ready ✨\nDoes it look right?"],
+        review: ["先放进草稿里啦\n你看看对不对呀", "It's in your draft.\nDoes it look right?"],
         "deepseek-key": ["先启用DeepSeek\n再说给小猫听", "Enable DeepSeek,\nthen talk to me."],
         "bailian-key": ["先启用百炼呀\n再让我看照片", "Enable Bailian,\nthen send a photo."],
         "key-format": ["这份Key没填全\n再帮我看看呀", "Check your key.\nIt looks incomplete."],
@@ -58,23 +58,23 @@ __fluffyModules["cat-feedback.js"] = (() => {
         "photo-format": ["这张照片打不开\n换一张给我吧", "I can't open that photo.\nTry another one."],
         "camera-permission": ["先允许摄像头\n也能从相册选呀", "Allow the camera,\nor choose a photo."],
         "camera-device": ["摄像头没准备好\n从相册选一张吧", "The camera isn't ready.\nChoose a photo instead."],
-        "save-failed": ["这次还没保存上\n内容先替你留着", "I couldn't save it yet.\nYour draft is still here."],
+        "save-failed": ["还没保存成功\n内容还留在这页", "It hasn't saved yet.\nYour draft is on this page."],
         "save-conflict": ["这条刚被改过啦\n重新打开看看吧", "This entry has changed.\nPlease reopen it."],
         "date-invalid": ["这个日期没对上\n重新选一天吧", "That date isn't valid.\nChoose another day."],
         "date-future": ["那天还没到呢\n选今天或之前吧", "That day hasn't come.\nChoose today or earlier."],
         "date-check": ["你提了另一天\n去菜单核对一下", "You mentioned another day.\nCheck the date menu."],
         "permission-ready": ["准备好啦\n长按说吧", "All ready now.\nHold to speak."],
-        "canceled": ["先停在这里\n内容还留着", "We can pause here.\nYour draft is safe."],
+        "canceled": ["好呀，先停一下\n草稿还在这儿", "Okay, let's pause.\nYour draft is still here."],
         "hold": ["长按下面按钮\n慢慢说给我听", "Hold the button below.\nI'm here to listen."],
         "no-text": ["想说的话还空着\n慢慢写给我吧", "Write a little first.\nI'm here to listen."],
         "language-reply": ["回复语言没对上\n我再帮你理一理", "That wasn't in English.\nTap me to try again."],
-        "thinking": ["让我想一想\n马上就写好", "Let me think.\nI'll write it down."],
+        "thinking": ["我来理一理\n给你看看草稿", "Let me sort that out.\nI'll show you a draft."],
         "playing": ["内容先留在这里\n慢慢来就好呀", "It's still here.\nTake your time."]
     });
     const FIELDS = Object.freeze({
         activity: ["运动项目还空着\n说说做了什么呀", "What did you do?\nTell me the activity."],
         durationMinutes: ["用了多少分钟呀\n填个时间给我吧", "How many minutes?\nAdd the time for me."],
-        notes: ["还有个小空呢\n留句话给自己吧", "One little note to go.\nLeave yourself a line."],
+        notes: ["想留句备注吗\n不写也没关系", "Want to add a note?\nIt's fine to leave it blank."],
         meal: ["这是哪一餐呀\n选好再告诉我吧", "Which meal was it?\nChoose one for me."],
         foods: ["这次吃了什么呀\n慢慢讲给我听", "What did you eat?\nTell me about it."],
         portion: ["大概吃了多少呀\n留个份量给我吧", "About how much?\nAdd a portion for me."],
@@ -103,6 +103,8 @@ __fluffyModules["cat-feedback.js"] = (() => {
         if (/已有.*专注.*进行|timer.*running/i.test(raw)) return "focus-running";
         if (/删除失败|清除未完成|delete.*fail|clear.*fail/i.test(raw)) return "delete-failed";
         if (/分享未完成|save the image instead|shar.*fail/i.test(raw)) return "share-failed";
+        // Failure must win over success-shaped substrings (e.g. “未保存成功”).
+        if (/未保存|没(?:有)?保存|保存失败|未能保存|没存|not saved|not been saved|couldn.t save|save.*fail/i.test(raw)) return "save-failed";
         if (/已经保存|已保存|记下来了|successfully saved/i.test(raw)) return "saved";
         if (/请输入.*数字|有效.*数字|分钟数|数值|Enter a number|valid.*number/i.test(raw)) return "value-check";
         if (/按住说话|hold to speak/i.test(raw)) return "hold";
@@ -149,8 +151,8 @@ __fluffyModules["cat-feedback.js"] = (() => {
     function say(message, context = {}) {
         const lang = context.language || __fluffyModules["entry-i18n.js"]?.language() || "zh";
         let pair;
-        if (["bedtime", "wakeTime"].includes(context.field) && context.invalid) pair = ["这个时间没对上\n重新选一下吧", "That time doesn't fit.\nChoose it once more."];
-        else if (context.field && context.invalid) pair = ["这个数字没对上\n再帮我看一下呀", "That value doesn't fit.\nCheck it once more."];
+        if (["bedtime", "wakeTime", "mealTime", "startTime", "endTime"].includes(context.field) && context.invalid) pair = ["这个时间没对上\n重新选一下吧", "That time doesn't fit.\nChoose it once more."];
+        else if (context.field && context.invalid) pair = /数字|数值|number/i.test(String(message?.message ?? message)) ? ["这个数字没对上\n再帮我看一下呀", "That value doesn't fit.\nCheck it once more."] : ["这项还要改一下\n再帮我看一眼吧", "This field needs a tweak.\nTake another look?"];
         else if (context.field && FIELDS[context.field]) pair = FIELDS[context.field];
         else pair = COPY[classify(message, context)] || COPY.unknown;
         return pair[lang === "en" ? 1 : 0];

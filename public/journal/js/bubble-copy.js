@@ -2,19 +2,19 @@
 __fluffyModules["bubble-copy.js"] = (() => {
     "use strict";
     const COPY = Object.freeze({
-        home: "把今天的小事\n慢慢讲给我听",
+        home: "今天有什么小事\n想讲给我听呀",
         listening: "你慢慢地讲呀\n我在认真听呢",
-        thinking: "我在整理你的话\n填好就给你看看",
-        ready: "已经填好啦\n你再看一看",
-        canceled: "先停在这里\n内容还留着",
+        thinking: "我来理一理\n给你看看草稿",
+        ready: "草稿写好啦 ✨\n你看看对不对呀",
+        canceled: "好呀，先停一下\n草稿还在这儿",
         permission: "先允许麦克风\n再说给小猫听",
         voiceReady: "准备好啦\n长按说吧",
         voiceInvite: "长按下面按钮\n慢慢说给我听",
-        estimating: "我来排排时间\n陪你专心做好",
-        estimated: "时间安排好啦\n我们一起开始",
+        estimating: "我来估个时间\n你再看看合不合适",
+        estimated: "先按这个时间吧\n也可以再调整呀",
         photo: "让我仔细看看\n记下清楚的事",
         error: "这次没能接上\n内容还在这里",
-        saved: "今天也辛苦啦\n都替你记好啦",
+        saved: "记好啦 ✓\n这件小事收好啦",
         focusAway: "时间还在走呀\n随时回来找我"
     });
     const ALIASES = Object.freeze({
