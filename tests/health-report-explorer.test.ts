@@ -10,9 +10,9 @@ const bundle = (patch: Partial<TrendBundle> = {}): TrendBundle => ({ moods: [], 
 const journal = (id: string, category: JournalRecord["category"], data: Record<string, unknown>, recordDate = date, focus?: Record<string, unknown>): JournalRecord => ({ id, category, data, recordDate, createdAt: `${recordDate}T12:00:00Z`, focus });
 const latest = (charts: HealthReportChart[], id: string) => charts.find(chart => chart.id === id)!.points.at(-1)!;
 
-test("empty data keeps six categories but no invented numbers or heart category", () => {
+test("empty data keeps six trend categories but no invented numbers or heart category", () => {
   const charts = buildHealthReportCharts(null, date, "zh");
-  for (const category of ["mood", "face", "focus", "sleep", "exercise", "diet"] as const) {
+  for (const category of ["mood", "face", "focus", "sleep", "exercise", "energy"] as const) {
     assert.ok(charts[category].length);
     assert.ok(charts[category].every(chart => chart.points.length === 7 && chart.points.every(point => point.missing)));
   }
@@ -26,17 +26,17 @@ test("new journal records are visible and explicit zero is distinct from absent 
     journal("3", "food", { foods: "未估算的一餐" }),
     journal("4", "sport", { activity: "散步", durationMinutes: 20, steps: 0 }),
   ] }), date, "zh");
-  assert.equal(latest(charts.diet, "diet-energy").value, 520);
-  assert.equal(latest(charts.diet, "diet-protein").value, 30);
+  assert.equal(latest(charts.energy, "energy-calories").value, 520);
+  assert.equal(latest(charts.energy, "energy-protein").value, 30);
   assert.equal(latest(charts.exercise, "exercise-steps").missing, false);
   assert.equal(latest(charts.exercise, "exercise-steps").value, 0);
-  assert.equal(latest(charts.diet, "diet-water").missing, true);
+  assert.equal(latest(charts.energy, "energy-water").missing, true);
 });
 
 test("legacy daily aggregates are not added to journal entries or used to fill omitted fields", () => {
   const charts = buildHealthReportCharts(bundle({ journal: [journal("1", "food", { foods: "午饭", calories: 520 })], nutritions: [{ id: "old", record_date: date, total_calories: 520, protein_grams: 40 }] as NutritionRecord[] }), date, "en");
-  assert.equal(latest(charts.diet, "diet-energy").value, 520);
-  assert.equal(latest(charts.diet, "diet-protein").missing, true);
+  assert.equal(latest(charts.energy, "energy-calories").value, 520);
+  assert.equal(latest(charts.energy, "energy-protein").missing, true);
 });
 
 test("focus uses saved elapsed time and preserves older session totals without planned-time substitution", () => {

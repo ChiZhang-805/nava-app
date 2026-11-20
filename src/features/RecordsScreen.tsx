@@ -1403,7 +1403,6 @@ export default function RecordsScreen({
           void trackAnalyticsEvent(user.id, "weekly_report_shared", { weekOffset: sharedOffset });
           void onGrowthActivity?.("share");
         }} />}
-        {reportMode === "weekly" && <button type="button" className="weekly-report-back" onClick={() => setReportMode("modules")}><ChevronLeft size={18} />{locale === "zh" ? "返回图表" : "Back to charts"}</button>}
 
           {dataLoadError && (
             <section className="record-hub-load-error" role="alert">
@@ -1414,14 +1413,11 @@ export default function RecordsScreen({
           <HealthReportExplorer
             bundle={dataLoadError ? null : trendBundle}
             date={recordDate}
-            maxDate={deviceDate}
             locale={locale}
-            onDateChange={setRecordDate}
             onOpenWeekly={() => { setReportMode("weekly"); void trackAnalyticsEvent(user.id, "weekly_report_opened", { weekOffset }); }}
             onCloseWeekly={() => setReportMode("modules")}
             showWeekly={reportMode === "weekly"}
             weeklyContent={weeklyContent}
-            overview={hubAiEligible && hubHasSignificantPattern ? hubAssociation?.headline : undefined}
             onOpenRecord={(id) => {
               if (dataLoadError) { void loadRecordData({ refreshBase: true }); return; }
               setNotice(null);

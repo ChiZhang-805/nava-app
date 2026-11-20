@@ -3,7 +3,7 @@ import type { HealthMetricSnapshot, TrendBundle } from "../types";
 import type { JournalCategory, JournalRecord } from "./journal";
 import { rollingDateWindow, shiftDateISO } from "./date.ts";
 
-export type HealthReportCategory = "mood" | "face" | "focus" | "sleep" | "exercise" | "diet" | "heart";
+export type HealthReportCategory = "mood" | "face" | "focus" | "sleep" | "exercise" | "diet" | "energy" | "heart";
 export interface HealthReportChart {
   id: string;
   title: string;
@@ -124,14 +124,16 @@ export function buildHealthReportCharts(bundle: TrendBundle | null, date: string
   if (hasValue(deep)) sleep.push(deep);
   const exercise = [chart("exercise-minutes", t("运动时长", "Activity duration"), minutes, logged, day => journalFirst("sport", day, saved => sum(saved.map(record => record.data.durationMinutes)), () => sum(rows(bundle?.exercises, day).map(record => record.exercise_minutes)))),
     chart("exercise-steps", t("已记录步数", "Logged steps"), t("步", "steps"), t("包括主动填写的步数，不推断设备测量来源。", "Includes manually logged steps; device provenance is not inferred."), day => journalFirst("sport", day, saved => sum(saved.map(record => record.data.steps)), () => sum(rows(bundle?.exercises, day).map(record => record.steps))))];
-  const diet = [chart("diet-energy", t("已记录热量", "Logged energy"), "kcal", t("只合计已知热量，可能包含估算；不是全天摄入或饮食评分。", "Known logged energy, possibly estimated; not total daily intake or a diet score."), day => journalFirst("food", day, saved => sum(saved.map(record => record.data.calories)), () => sum(rows(bundle?.nutritions, day).map(record => record.total_calories)))),
-    chart("diet-protein", t("已记录蛋白质", "Logged protein"), "g", t("只合计已填写项；没有填写不代表没有摄入。", "Known logged amounts only. Missing values do not mean none consumed."), day => journalFirst("food", day, saved => sum(saved.map(record => record.data.protein)), () => sum(rows(bundle?.nutritions, day).map(record => record.protein_grams)))),
-    chart("diet-water", t("已记录饮水", "Logged water"), "ml", logged, day => sum(rows(bundle?.nutritions, day).map(record => record.hydration_ml)))];
+  const energy = [chart("energy-calories", t("已记录热量", "Logged energy"), "kcal", t("只合计已知热量，可能包含估算；不是全天摄入或饮食评分。", "Known logged energy, possibly estimated; not total daily intake or a diet score."), day => journalFirst("food", day, saved => sum(saved.map(record => record.data.calories)), () => sum(rows(bundle?.nutritions, day).map(record => record.total_calories)))),
+    chart("energy-protein", t("已记录蛋白质", "Logged protein"), "g", t("只合计已填写项；没有填写不代表没有摄入。", "Known logged amounts only. Missing values do not mean none consumed."), day => journalFirst("food", day, saved => sum(saved.map(record => record.data.protein)), () => sum(rows(bundle?.nutritions, day).map(record => record.protein_grams)))),
+    chart("energy-carbs", t("已记录碳水", "Logged carbohydrates"), "g", logged, day => journalFirst("food", day, saved => sum(saved.map(record => record.data.carbs)), () => sum(rows(bundle?.nutritions, day).map(record => record.carbohydrate_grams)))),
+    chart("energy-fat", t("已记录脂肪", "Logged fat"), "g", logged, day => journalFirst("food", day, saved => sum(saved.map(record => record.data.fat)), () => sum(rows(bundle?.nutritions, day).map(record => record.fat_grams)))),
+    chart("energy-water", t("已记录饮水", "Logged water"), "ml", logged, day => sum(rows(bundle?.nutritions, day).map(record => record.hydration_ml)))];
   const apple = (bundle?.healthMetrics ?? []).filter(record => ["apple_health", "apple_watch"].includes(record.source));
   const heart = ([
     ["latest_heart_rate", t("最新心率记录", "Latest heart-rate reading"), "bpm"],
     ["resting_heart_rate", t("静息心率", "Resting heart rate"), "bpm"],
     ["heart_rate_variability_sdnn", t("心率变异性", "Heart-rate variability"), "ms"],
   ] as const).map(([field, title, unit]) => chart(`heart-${field}`, title, unit, t("来自已同步的Apple健康记录，不是实时测量。", "From synced Apple Health records, not a live measurement."), day => latestHeartValue(rows(apple, day), field))).filter(hasValue);
-  return { mood, face, focus, sleep, exercise, diet, heart };
+  return { mood, face, focus, sleep, exercise, diet: [], energy, heart };
 }
