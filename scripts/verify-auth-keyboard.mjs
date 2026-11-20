@@ -91,7 +91,7 @@ async function verifyDensityBoundaries(browser, engine) {
               titleGap: label.top - brand.bottom, languageGap: brand.top - locale.bottom,
               titleCenter: (brand.left + brand.right) / 2,
               titleCenterY: (brand.top + brand.bottom) / 2,
-              headerCenterY: (locale.bottom + label.top - 8) / 2,
+              headerCenterY: (locale.bottom + 4 + label.top - 8) / 2,
               fontSize: parseFloat(getComputedStyle(brandText).fontSize),
               titleHeight: brand.height,
               scrollHeight: region.scrollHeight, clientHeight: region.clientHeight, scrollTop: region.scrollTop,
@@ -102,13 +102,13 @@ async function verifyDensityBoundaries(browser, engine) {
           const available = visible - safeTop - 6;
           const compact = available <= 345;
           const fits = available >= 312;
-          assert(geometry.languageGap >= -0.5, 'Language and NAVA must occupy separate rows');
+          assert(geometry.languageGap >= 3.5, 'Language and NAVA must occupy separate rows with at least 4px of spacing');
           assert(geometry.titleGap >= 7.5, `Wordmark overlaps the form: ${JSON.stringify(state)}`);
           assert(Math.abs(geometry.titleCenter - width / 2) <= 1, 'Wordmark should be horizontally centered');
           assert(Math.abs(geometry.titleCenterY - geometry.headerCenterY) <= 1, `Wordmark is not centered in its available area: ${JSON.stringify(state)}`);
           const formBudget = compact ? 248 : available <= 395 ? 272 : 322;
           const languageHeight = compact ? 28 : 32;
-          const titleBudget = Math.max(languageHeight, available - formBudget - languageHeight - 8);
+          const titleBudget = Math.max(languageHeight, available - formBudget - languageHeight - 8) - 4;
           assert(Math.abs(geometry.fontSize - Math.min(closedFontSize, titleBudget)) <= 1,
             `Wordmark doesn't match the closed size when it fits: ${JSON.stringify(state)}`);
           assert(Math.abs(geometry.titleHeight - geometry.fontSize) <= 1, 'Wordmark should scale proportionally');
@@ -237,13 +237,13 @@ try {
                 const minimumGap = compact ? 7.5 : 9.5;
                 assert(secondField.y - firstField.y - firstField.height >= minimumGap, 'Input rows are crowded');
                 assert(submit.y - secondField.y - secondField.height >= minimumGap, 'Submit crowds password');
-                assert(after.brand.y >= locale.y + locale.height - 0.5, 'Language and NAVA must occupy separate rows');
+                assert(after.brand.y >= locale.y + locale.height + 3.5, 'Language and NAVA must occupy separate rows');
                 for (const label of await page.locator('.auth-fields .field-label').all()) {
                   assert(await label.isVisible(), 'Field label disappeared');
                   assert((await label.boundingBox()).height >= 14, 'Field label collapsed');
                 }
                 assert(firstField.y - after.brand.bottom >= 7.5, 'Wordmark overlaps the form');
-                assert(Math.abs(after.brand.y + after.brand.height / 2 - (locale.y + locale.height + firstField.y - 8) / 2) <= 1,
+                assert(Math.abs(after.brand.y + after.brand.height / 2 - (locale.y + locale.height + 4 + firstField.y - 8) / 2) <= 1,
                   'Wordmark must occupy the center of its available area');
                 if (fits) assert.equal(await page.locator('.auth-form-region').evaluate(el => el.scrollTop), 0, 'Login requires scrolling');
               }

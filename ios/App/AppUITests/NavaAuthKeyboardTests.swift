@@ -195,7 +195,9 @@ final class NavaAuthKeyboardTests: XCTestCase {
                        "Submit must align with the account surface's left edge")
         XCTAssertEqual(submit.frame.maxX, accountSurface.maxX, accuracy: 2,
                        "Submit must align with the account surface's right edge")
-        XCTAssertGreaterThanOrEqual(accountLabel.frame.minY, logo.frame.maxY + 6)
+        // XCTest reports accessibility bounds, which differ slightly from the
+        // painted artwork. The browser layout test checks the full 8px CSS gap.
+        XCTAssertGreaterThanOrEqual(accountLabel.frame.minY, logo.frame.maxY + 4)
         let headerCenterY = (language.frame.maxY + accountLabel.frame.minY - 8) / 2
         XCTAssertEqual(logo.frame.midY, headerCenterY, accuracy: 6,
                        "NAVA must be centered between the language row and the form")
