@@ -73,6 +73,7 @@ __fluffyModules["app.js"] = (() => {
     let lastEntryAction = "";
     let lastPreviewActivityState = "";
     let gesture, board, toastTimer, homeBubbleTimer, cameraVideo = null, sheetReturn = null, wave = Array(72).fill(0), lastTimerText = "", lastUI = "", lastFocusSave = 0;
+    let sheetDrag = null, sheetDismissTimer = null, sheetClickBlockedUntil = 0;
     /**
      * 输入：文字、error。
      * 输出：无。
@@ -150,6 +151,7 @@ __fluffyModules["app.js"] = (() => {
         timeRange?.close(false);
         entryMenu?.close(false);
         closeSheet(false);
+        sheetClickBlockedUntil = 0;
         board?.cancel();
         gesture?.disarm();
         sheetReturn = document.activeElement;
@@ -180,6 +182,13 @@ __fluffyModules["app.js"] = (() => {
      * 功能：关闭面板、释放摄像头并恢复页面可访问性。
      */
     function closeSheet(restoreFocus = true) {
+        clearTimeout(sheetDismissTimer);
+        sheetDismissTimer = null;
+        sheetDrag = null;
+        $("sheet").style.transform = "";
+        $("sheet").style.animation = "";
+        delete $("sheet").dataset.dragging;
+        delete $("sheet-layer").dataset.closing;
         const library = $("photo-library");
         if (library && $("sheet-body").contains(library)) $("screen").append(library);
         const callback = state.sheetClose;
@@ -193,6 +202,20 @@ __fluffyModules["app.js"] = (() => {
         if (restoreFocus && sheetReturn?.isConnected && !sheetReturn.closest("[hidden]"))
             sheetReturn.focus({ preventScroll: true });
         sheetReturn = null;
+    }
+    /** 仅关闭面板，不确认任何功能；退场期间保留模态遮挡，避免点到背后的保存按钮。 */
+    function dismissSheet() {
+        if ($("sheet-layer").hidden || $("sheet-layer").dataset.closing) return;
+        sheetDrag = null;
+        delete $("sheet").dataset.dragging;
+        $("sheet-layer").dataset.closing = "true";
+        if (animation.reducedMotion || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            closeSheet();
+            return;
+        }
+        $("sheet").style.animation = "none";
+        $("sheet").style.transform = "translateY(100%)";
+        sheetDismissTimer = setTimeout(() => closeSheet(), 230);
     }
     /**
      * 输入：parent、text、name、action、danger。
@@ -2453,10 +2476,42 @@ __fluffyModules["app.js"] = (() => {
             });
         });
         // 阶段二：面板、设置和键盘焦点遵守同一打开/关闭协议。
-        $("sheet-close").onclick = () => closeSheet();
-        $("sheet-layer").addEventListener("pointerdown", e => {
-            if (e.target === $("sheet-layer"))
-                closeSheet();
+        const sheetHandle = $("sheet-close");
+        sheetHandle.onclick = e => {
+            e.stopPropagation();
+            if (performance.now() >= sheetClickBlockedUntil) dismissSheet();
+        };
+        sheetHandle.addEventListener("pointerdown", e => {
+            if (!e.isPrimary || e.button !== 0 || $("sheet-layer").dataset.closing) return;
+            const panel = $("sheet"), scale = panel.getBoundingClientRect().height / panel.offsetHeight || 1;
+            sheetDrag = { pointer: e.pointerId, y: e.clientY, scale, offset: 0 };
+            panel.style.animation = "none";
+            panel.dataset.dragging = "true";
+            sheetHandle.setPointerCapture(e.pointerId);
+        });
+        sheetHandle.addEventListener("pointermove", e => {
+            if (!sheetDrag || e.pointerId !== sheetDrag.pointer) return;
+            sheetDrag.offset = Math.max(0, (e.clientY - sheetDrag.y) / sheetDrag.scale);
+            $("sheet").style.transform = `translateY(${sheetDrag.offset}px)`;
+        });
+        const finishSheetDrag = (e, canceled = false) => {
+            if (!sheetDrag || e.pointerId !== sheetDrag.pointer) return;
+            const offset = sheetDrag.offset;
+            sheetDrag = null;
+            delete $("sheet").dataset.dragging;
+            if (sheetHandle.hasPointerCapture(e.pointerId)) sheetHandle.releasePointerCapture(e.pointerId);
+            if (offset > 5) sheetClickBlockedUntil = performance.now() + 350;
+            if (!canceled && offset >= Math.min(100, Math.max(56, $("sheet").offsetHeight * .22))) dismissSheet();
+            else $("sheet").style.transform = "";
+        };
+        sheetHandle.addEventListener("pointerup", e => finishSheetDrag(e));
+        sheetHandle.addEventListener("pointercancel", e => finishSheetDrag(e, true));
+        sheetHandle.addEventListener("lostpointercapture", e => finishSheetDrag(e, true));
+        $("sheet-layer").addEventListener("click", e => {
+            if (e.target === $("sheet-layer")) {
+                e.stopPropagation();
+                dismissSheet();
+            }
         });
         $("open-settings").onclick = openSettings;
         $("api-form").onsubmit = saveKey;
@@ -2470,7 +2525,7 @@ __fluffyModules["app.js"] = (() => {
                 if (!$("api-popover").hidden)
                     closeSettings();
                 else if (!$("sheet-layer").hidden)
-                    closeSheet();
+                    dismissSheet();
                 else if (state.phase !== "idle")
                     cancelWork();
                 board.cancel();

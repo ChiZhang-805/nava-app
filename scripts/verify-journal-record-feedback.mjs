@@ -64,8 +64,54 @@ try {
  // Functional back button must edit the record, not be swallowed by tap-to-reveal.
  await frame.locator('#back').click();
  await expect.poll(()=>frame.evaluate(()=>window.FluffyDebug.animation.scene)).toBe('entry');
+ // The iframe's one shared sheet has a transparent, non-blurring backdrop and a drag handle.
+ const openSheet=()=>frame.evaluate(()=>{
+  window.sheetTest??={actions:0,closes:0};
+  document.getElementById('back').focus();
+  window.FluffyDebug.showSheet('记录方式',root=>{
+   const field=document.createElement('input');field.id='sheet-test-input';field.setAttribute('aria-label','测试输入');root.append(field);
+   const action=document.createElement('button');action.id='sheet-test-action';action.textContent='继续编辑';action.className='sheet-action';action.onclick=()=>window.sheetTest.actions++;root.append(action);
+  },()=>window.sheetTest.closes++);
+ });
+ await openSheet();
+ const sheetStyle=await frame.evaluate(()=>{
+  const layer=getComputedStyle(document.getElementById('sheet-layer')),sheet=document.getElementById('sheet');
+  return {background:layer.backgroundColor,blur:layer.backdropFilter,webkitBlur:layer.webkitBackdropFilter,animation:getComputedStyle(sheet).animationName,closeGlyph:document.querySelector('#sheet-close svg')!==null};
+ });
+ assert.equal(sheetStyle.background,'rgba(0, 0, 0, 0)');
+ assert.ok(!sheetStyle.blur||sheetStyle.blur==='none');assert.ok(!sheetStyle.webkitBlur||sheetStyle.webkitBlur==='none');
+ assert.equal(sheetStyle.animation,'sheet-up');assert.equal(sheetStyle.closeGlyph,false);
+ await frame.locator('#sheet-test-input').fill('草稿保留');
+ await frame.locator('#sheet-test-action').click();
+ assert.equal(await frame.evaluate(()=>sheetTest.actions),1);
+ const dragHandle=async distance=>{
+  const box=await frame.locator('#sheet-close').boundingBox();
+  await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();
+  await page.mouse.move(box.x+box.width/2,box.y+box.height/2+distance,{steps:6});await page.mouse.up();
+ };
+ await dragHandle(18);
+ await expect.poll(()=>frame.evaluate(()=>getComputedStyle(document.getElementById('sheet')).transform)).toBe('none');
+ assert.equal(await frame.locator('#sheet-layer').isVisible(),true,'short drags rebound without clicking to dismiss');
+ assert.equal(await frame.locator('#sheet-test-input').inputValue(),'草稿保留');
+ await page.screenshot({path:`${output}/430-sheet.png`});
+ await dragHandle(95);
+ await expect.poll(()=>frame.locator('#sheet-layer').isVisible()).toBe(false);
+ assert.deepEqual(await frame.evaluate(()=>sheetTest),{actions:1,closes:1});
+ assert.equal(await frame.evaluate(()=>document.activeElement.id),'back');
+ await openSheet();await frame.locator('#sheet-close').press('Enter');
+ await expect.poll(()=>frame.locator('#sheet-layer').isVisible()).toBe(false);
+ await openSheet();await frame.locator('#sheet-close').press('Escape');
+ await expect.poll(()=>frame.locator('#sheet-layer').isVisible()).toBe(false);
+ // Reopening during the exit must cancel the old close timer, not close the new sheet.
+ await openSheet();await frame.locator('#sheet-close').press('Escape');await openSheet();
+ await frame.waitForTimeout(280);assert.equal(await frame.locator('#sheet-layer').isVisible(),true);
+ await frame.evaluate(()=>{window.FluffyDebug.closeSheet();window.FluffyDebug.animation.reducedMotion=true;document.body.classList.add('reduce-motion');});
+ await openSheet();
+ assert.equal(await frame.evaluate(()=>getComputedStyle(document.getElementById('sheet')).animationName),'none');
+ await frame.locator('#sheet-close').press('Escape');
+ assert.equal(await frame.locator('#sheet-layer').isVisible(),false);
  assert.equal(await page.evaluate(()=>requests.includes('save')),false);
  assert.deepEqual(errors,[]);
- await writeFile(`${output}/report.json`,JSON.stringify({engine,passed:true,results,long,errors,scope:'Real browser interaction with local offline bridge; no production writes. Browser WebKit is not a native iOS keyboard test.'},null,2));
- console.log(JSON.stringify({engine,passed:true,viewports:results.length,long}));
+ await writeFile(`${output}/report.json`,JSON.stringify({engine,passed:true,results,long,sheetStyle,sheetInteractions:['input and functional button','short drag rebound','long drag dismiss','focus restore','Enter close','Escape close','reopen cancels stale timer','reduced motion'],errors,scope:'Real browser interaction with local offline bridge; no production writes. Browser WebKit is not a native iOS keyboard test.'},null,2));
+ console.log(JSON.stringify({engine,passed:true,viewports:results.length,long,sheets:true}));
 } finally {await browser.close();await server.close();}
