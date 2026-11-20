@@ -259,6 +259,12 @@ try {
     }
     await page.screenshot({ path: path.join(outputDir, `home-expanded-${viewport.label}.png`), fullPage: true });
 
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const fallback = page.locator('.nava-mascot-fallback');
+    await expect(fallback).toBeVisible();
+    await expect(fallback).toHaveCSS('transform', 'none');
+    await page.screenshot({ path: path.join(outputDir, `home-reduced-expanded-${viewport.label}.png`), fullPage: true });
+
     await page.locator('[data-tab="ai"]').click();
     await expect(page.locator(".chat-composer")).toBeVisible();
     await expect(page.locator(".bottom-nav")).toHaveCount(0);

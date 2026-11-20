@@ -924,7 +924,7 @@ body::before {
   );
   --home-dock-half-height: 35px;
   --home-dock-inset: 18px;
-  --home-fan-rise: clamp(134px, 41.5cqw, 180px);
+  --home-fan-rise: clamp(154px, 42cqw, 180px);
   --home-dock-padding: calc(var(--home-dock-inset) + max(4px,
     (100cqw - 2 * var(--home-dock-inset) - 4 * var(--home-secondary-button-size) - var(--home-main-button-size)) / 6));
   background:
@@ -13007,7 +13007,7 @@ body::before {
 .option-two-home.is-health-menu-open .option-two-life-stage {
   bottom: max(76px, calc(env(safe-area-inset-bottom) + 68px));
 }
-.option-two-home.is-health-menu-open .option-two-life-stage .nava-mascot > .nava-mascot-pose--idle {
+.option-two-home.is-health-menu-open .option-two-life-stage .nava-mascot > :is(.nava-mascot-pose--idle, .nava-mascot-fallback) {
   inset: 0;
   left: 0;
   bottom: auto;
@@ -13420,8 +13420,8 @@ body::before {
 }
 .option-two-health-entry--exercise { --entry-x: 16%; --entry-rise: .38; }
 .option-two-health-entry--diet { --entry-x: 27%; --entry-rise: .63; }
-.option-two-health-entry--sleep { --entry-x: 41%; --entry-rise: .79; }
-.option-two-health-entry--face { --entry-x: 59%; --entry-rise: .79; }
+.option-two-health-entry--sleep { --entry-x: 41%; --entry-rise: .832; }
+.option-two-health-entry--face { --entry-x: 59%; --entry-rise: .832; }
 .option-two-health-entry--focus { --entry-x: 73%; --entry-rise: .63; }
 .option-two-health-entry--mood { --entry-x: 84%; --entry-rise: .38; }
 
