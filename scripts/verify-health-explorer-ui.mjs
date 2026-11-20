@@ -17,12 +17,20 @@ const report = [];
 const quick = process.argv.includes('--quick');
 const preview = process.argv.includes('--preview');
 const finalEvidence = process.argv.includes('--final-evidence');
+const selectedEngine = process.argv.find(value => value.startsWith('--engine='))?.split('=')[1];
+const selectedSize = process.argv.find(value => value.startsWith('--size='))?.split('=')[1];
+const selectedLocale = process.argv.find(value => value.startsWith('--locale='))?.split('=')[1];
+let currentPage;
+let currentCase;
 try {
   for (const [engine, launcher] of Object.entries(quick || preview ? { chromium } : { chromium, webkit })) {
+    if (selectedEngine && selectedEngine !== engine) continue;
     const browser = await launcher.launch();
     try {
       for (const viewport of preview ? sizes.filter((size) => size.width === 390) : quick ? sizes.filter((size) => [320,390].includes(size.width)) : finalEvidence ? sizes.filter((size) => size.height === 568 || [375,390].includes(size.width)) : sizes) {
+        if (selectedSize && selectedSize !== `${viewport.width}x${viewport.height}`) continue;
         for (const locale of quick || preview ? ['zh'] : ['zh','en']) {
+          if (selectedLocale && selectedLocale !== locale) continue;
           const context = await browser.newContext({ viewport, locale: locale === 'zh' ? 'zh-CN' : 'en-US', isMobile: true, hasTouch: true, timezoneId:'Asia/Shanghai', reducedMotion:'reduce' });
           await context.addInitScript((locale) => {
             sessionStorage.setItem('nava.review.demo.auth.v1', 'signed-in');
@@ -30,6 +38,8 @@ try {
             localStorage.setItem('nava.onboarding.v3.00000000-0000-4000-8000-000000000001', JSON.stringify({completed:true,completedAt:new Date().toISOString(),version:3,answers:{},source:'local'}));
           },locale);
           const page = await context.newPage();
+          currentPage = page;
+          currentCase = `${engine}-${viewport.width}x${viewport.height}-${locale}`;
           const errors = [];
           page.on('pageerror',(error)=>errors.push(error.message));
           await page.goto(`${url}?demo=1#tab=record`,{waitUntil:'networkidle'});
@@ -43,6 +53,7 @@ try {
               await page.locator('.health-explorer-track').press('ArrowRight');
               await page.evaluate(()=>localStorage.setItem('nava.review.demo.empty-snapshot-date.v1','2020-01-01'));
               await page.locator('.health-explorer-all').click();
+              await expect(page.locator('.health-explorer-sheet')).toBeVisible();
               await page.locator('.health-explorer-sheet input[type=date]').fill('2020-01-01');
               await page.keyboard.press('Escape');
               await expect(page.locator('.health-explorer-sheet')).toHaveCount(0);
@@ -50,10 +61,11 @@ try {
               await page.locator('[data-health-category=mood]').scrollIntoViewIfNeeded();
               await page.locator('[data-health-category=mood]').click();
             }
-            await expect(page.locator('[data-health-category]')).toHaveCount(6); // Demo sensor values are not Apple Health provenance.
+            await expect(page.locator('[data-health-category]:not([data-health-category=all])')).toHaveCount(6); // Demo sensor values are not Apple Health provenance.
+            await expect(page.locator('[data-health-category=all]')).toHaveCount(1);
             await expect(page.locator('.health-explorer-pagination, .health-explorer-bottom, .health-explorer-toolbar input')).toHaveCount(0);
             if (!quick) {
-              await expect(page.locator('.health-explorer-categories img')).toHaveCount(6);
+              await expect(page.locator('.health-explorer-categories img')).toHaveCount(7);
               await expect.poll(() => page.locator('.health-explorer-categories img').evaluateAll(images => images.every(image => image.complete && image.naturalWidth > 0))).toBe(true);
             }
             await page.screenshot({ path:path.join(output,`${engine}-${viewport.width}${viewport.height < 640 ? '-short' : ''}-${locale}-${state}.png`) });
@@ -103,10 +115,12 @@ try {
             report.push({engine,viewport,locale,state,geometry});
           }
           // Existing weekly report and recording routes still work independently of selection.
-          await page.locator('.health-explorer-all').click();
-          await page.locator('[data-health-weekly]').click();
+          await page.locator('[data-health-category=all]').scrollIntoViewIfNeeded();
+          await page.locator('[data-health-category=all]').click();
           await expect(page.locator('.weekly-health-report')).toBeVisible();
-          await page.locator('.weekly-report-back').click();
+          await expect(page.locator('.health-explorer-categories')).toBeVisible();
+          await expect(page.locator('.health-explorer-card')).toHaveCount(0);
+          await page.locator('[data-health-category=mood]').click();
           await page.locator('[data-health-category=diet]').scrollIntoViewIfNeeded();
           await page.locator('[data-health-category=diet]').click();
           await page.locator('.health-explorer-card[data-active="true"] .health-explorer-flip').click();
@@ -118,6 +132,12 @@ try {
           console.log(`${engine} ${viewport.width}x${viewport.height} ${locale}: empty/populated, categories, carousel, flip details, all charts, weekly, entry passed`);
         }
       }
+    } catch (error) {
+      if (currentPage && !currentPage.isClosed()) {
+        await currentPage.screenshot({path:path.join(output,`failure-${currentCase}.png`)}).catch(()=>undefined);
+        await writeFile(path.join(output,`failure-${currentCase}.html`),await currentPage.content()).catch(()=>undefined);
+      }
+      throw error;
     } finally { await browser.close(); }
   }
 } finally { await server.close(); await writeFile(path.join(output, preview?'preview-report.json':quick?'quick-report.json':finalEvidence?'evidence-report.json':'report.json'),JSON.stringify(report,null,2)); }

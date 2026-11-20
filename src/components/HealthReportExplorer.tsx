@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { BedDouble, ChartNoAxesCombined, ChevronRight, ClipboardPlus, HeartPulse, RotateCw, ScanFace, SmilePlus, Timer, Utensils, Dumbbell } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { BedDouble, ChevronRight, ClipboardPlus, HeartPulse, RotateCw, ScanFace, SmilePlus, Timer, Utensils, Dumbbell } from "lucide-react";
 import type { TrendBundle } from "../types";
 import { buildHealthReportCharts, type HealthReportCategory, type HealthReportChart } from "../services/healthReportExplorer";
 import BottomSheet from "./BottomSheet";
@@ -36,7 +36,7 @@ function ReportCard({ chart, locale, active, flipped, onFlip, onSelect, onOpenRe
         <h3>{chart.title}</h3>
         <div className="health-explorer-value"><strong>{latest ? format(latest.value) : "—"}</strong><span>{latest ? chart.unit : (locale === "zh" ? "还没有记录" : "No entries yet")}</span></div>
         <div className="health-explorer-plot">
-          {latest ? <LineTrendChart points={chart.points} ariaLabel={chart.title} tone="rhythm" scale="auto" domain={chart.domain} presentation="report" showYAxis={false} curve="monotone" showValues={false} dateLabelEvery={2} showConfidenceBand={false} valueFormatter={format} /> : <div className="health-explorer-empty"><ClipboardPlus size={38} strokeWidth={1.4} /><p>{locale === "zh" ? "记下一笔，让趋势慢慢出现。" : "Add an entry to begin your trend."}</p></div>}
+          {latest ? <LineTrendChart points={chart.points} ariaLabel={chart.title} tone="rhythm" scale="auto" domain={chart.domain} presentation="report" showYAxis={false} animateReport={active && !flipped} curve="monotone" showValues={false} dateLabelEvery={2} showConfidenceBand={false} valueFormatter={format} /> : <div className="health-explorer-empty"><ClipboardPlus size={38} strokeWidth={1.4} /><p>{locale === "zh" ? "记下一笔，让趋势慢慢出现。" : "Add an entry to begin your trend."}</p></div>}
         </div>
       </div>
       <div className="health-explorer-back" aria-hidden={!active || !flipped} ref={(node) => { if (node) node.inert = !active || !flipped; }}>
@@ -125,10 +125,11 @@ function ChartDeck({ charts, locale, initialIndex, onOpenRecord }: {
   </div>;
 }
 
-export default function HealthReportExplorer({ bundle, date, maxDate, locale, onDateChange, onOpenRecord, onOpenWeekly, overview }: {
+export default function HealthReportExplorer({ bundle, date, maxDate, locale, onDateChange, onOpenRecord, onOpenWeekly, onCloseWeekly, showWeekly = false, weeklyContent, overview }: {
   bundle: TrendBundle | null; date: string; maxDate: string; locale: "zh" | "en";
   onDateChange: (date: string) => void; onOpenRecord: (category: Exclude<HealthReportCategory, "heart">) => void;
   onOpenWeekly?: () => void;
+  onCloseWeekly?: () => void; showWeekly?: boolean; weeklyContent?: ReactNode;
   overview?: string;
 }) {
   const charts = useMemo(() => buildHealthReportCharts(bundle, date, locale), [bundle, date, locale]);
@@ -137,37 +138,45 @@ export default function HealthReportExplorer({ bundle, date, maxDate, locale, on
   const categoryTrack = useRef<HTMLDivElement>(null);
   const available = categories.filter((category) => category.id !== "heart" || charts.heart.length > 0);
   const active = available.find((category) => category.id === selection.category) ?? available[0];
-  const select = (category: HealthReportCategory, chart = -1) => setSelection((current) => ({ category, chart, revision: current.revision + 1 }));
+  const select = (category: HealthReportCategory, chart = -1) => {
+    onCloseWeekly?.();
+    setSelection((current) => ({ category, chart, revision: current.revision + 1 }));
+  };
+  const tabIds: (HealthReportCategory | "all")[] = [...(onOpenWeekly ? ["all" as const] : []), ...available.map((category) => category.id)];
+  const onCategoryKeyDown = (event: KeyboardEvent<HTMLButtonElement>, id: HealthReportCategory | "all") => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight" && event.key !== "Home" && event.key !== "End") return;
+    event.preventDefault();
+    const index = tabIds.indexOf(id);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? tabIds.length - 1 : (index + (event.key === "ArrowLeft" ? -1 : 1) + tabIds.length) % tabIds.length;
+    const target = tabIds[next];
+    if (target === "all") onOpenWeekly?.(); else select(target);
+    (event.currentTarget.parentElement?.children[next] as HTMLElement)?.focus();
+  };
   const initialChart = selection.chart < 0 ? Math.max(0, charts[active.id].findIndex((chart) => chart.points.some((point) => !point.missing))) : selection.chart;
   useEffect(() => {
     const node = categoryTrack.current;
-    const tab = node?.querySelector<HTMLElement>(`[data-health-category="${active.id}"]`);
+    const tab = node?.querySelector<HTMLElement>(`[data-health-category="${showWeekly ? "all" : active.id}"]`);
     if (!node || !tab) return;
     const bounds = node.getBoundingClientRect(), target = tab.getBoundingClientRect();
     if (target.left < bounds.left) node.scrollLeft += target.left - bounds.left;
     else if (target.right > bounds.right) node.scrollLeft += target.right - bounds.right;
-  }, [active.id]);
-  return <section className="health-report-explorer" data-health-explorer data-category={active.id}>
+  }, [active.id, showWeekly]);
+  return <section className="health-report-explorer" data-health-explorer data-category={showWeekly ? "all" : active.id}>
     <div className="health-explorer-toolbar"><h2><img src={`${import.meta.env.BASE_URL}assets/health-report/rhythm.webp`} alt="" draggable={false} />{locale === "zh" ? "我的节律" : "My rhythm"}</h2><button type="button" className="health-explorer-all" onClick={() => setShowAll(true)}>{locale === "zh" ? "查看全部" : "See all"}<ChevronRight size={16} /></button></div>
     <div ref={categoryTrack} className="health-explorer-categories" role="tablist" aria-label={locale === "zh" ? "健康类别" : "Health categories"}>
-      {available.map((category, index) => <button type="button" role="tab" aria-selected={active.id === category.id} aria-controls="health-explorer-panel" tabIndex={active.id === category.id ? 0 : -1} key={category.id} data-health-category={category.id} onClick={() => select(category.id)} onKeyDown={(event) => {
-        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight" && event.key !== "Home" && event.key !== "End") return;
-        event.preventDefault();
-        const next = event.key === "Home" ? 0 : event.key === "End" ? available.length - 1 : (index + (event.key === "ArrowLeft" ? -1 : 1) + available.length) % available.length;
-        select(available[next].id);
-        (event.currentTarget.parentElement?.children[next] as HTMLElement)?.focus();
-      }}><span><CategoryImage category={category} /></span><strong>{locale === "zh" ? category.zh : category.en}</strong></button>)}
+      {onOpenWeekly && <button type="button" role="tab" aria-selected={showWeekly} aria-controls="health-explorer-panel" tabIndex={showWeekly ? 0 : -1} data-health-category="all" aria-label={locale === "zh" ? "ALL，本周记录" : "ALL, this week's entries"} onClick={onOpenWeekly} onKeyDown={(event) => onCategoryKeyDown(event, "all")}><span><img src={`${import.meta.env.BASE_URL}assets/health-report/rhythm.webp`} alt="" draggable={false} /></span><strong>ALL</strong></button>}
+      {available.map((category) => <button type="button" role="tab" aria-selected={!showWeekly && active.id === category.id} aria-controls="health-explorer-panel" tabIndex={!showWeekly && active.id === category.id ? 0 : -1} key={category.id} data-health-category={category.id} onClick={() => select(category.id)} onKeyDown={(event) => onCategoryKeyDown(event, category.id)}><span><CategoryImage category={category} /></span><strong>{locale === "zh" ? category.zh : category.en}</strong></button>)}
     </div>
-    <div id="health-explorer-panel" className="health-explorer-panel" role="tabpanel" aria-label={locale === "zh" ? active.zh : active.en}>
-      <div className="health-explorer-heading"><h2><CategoryImage key={active.id} category={active} />{locale === "zh" ? active.zh : active.en}</h2></div>
+    <div id="health-explorer-panel" className="health-explorer-panel" role="tabpanel" aria-label={showWeekly ? (locale === "zh" ? "本周记录" : "This week's entries") : (locale === "zh" ? active.zh : active.en)}>
+      {showWeekly ? <div className="health-explorer-weekly-content">{weeklyContent}</div> : <><div className="health-explorer-heading"><h2><CategoryImage key={active.id} category={active} />{locale === "zh" ? active.zh : active.en}</h2></div>
       <ChartDeck key={`${active.id}-${date}-${selection.revision}-${initialChart}-${charts[active.id].map((chart) => chart.id).join(",")}`} charts={charts[active.id]} locale={locale} initialIndex={initialChart} onOpenRecord={active.id === "heart" ? undefined : () => onOpenRecord(active.id as Exclude<HealthReportCategory, "heart">)} />
+      </>}
     </div>
     {showAll && <BottomSheet label={locale === "zh" ? "全部图表" : "All charts"} closeLabel={locale === "zh" ? "关闭，也可以向下拖动" : "Close, or drag down"} onClose={() => setShowAll(false)} className="health-explorer-sheet">
       <h2>{locale === "zh" ? "想看看哪一项？" : "What would you like to explore?"}</h2>
       <label className="health-explorer-date"><span>{locale === "zh" ? "报告日期" : "Report date"}</span><input type="date" value={date} max={maxDate} onChange={(event) => { if (event.target.value) onDateChange(event.target.value); }} /></label>
       {overview && <p className="health-explorer-overview">{overview}</p>}
       <div className="health-explorer-chart-list">{available.map(({ id, zh, en, icon: Icon }) => <section key={id}><h3><Icon size={20} />{locale === "zh" ? zh : en}</h3>{charts[id].map((chart, index) => <button type="button" key={chart.id} data-select-chart={chart.id} onClick={() => { select(id, index); setShowAll(false); }}><span>{chart.title}</span><ChevronRight size={17} /></button>)}</section>)}</div>
-      {onOpenWeekly && <button type="button" className="health-explorer-weekly" data-health-weekly onClick={() => { setShowAll(false); onOpenWeekly(); }}><ChartNoAxesCombined size={19} /><span>{locale === "zh" ? "本周回顾" : "Weekly review"}</span><ChevronRight size={17} /></button>}
     </BottomSheet>}
   </section>;
 }
