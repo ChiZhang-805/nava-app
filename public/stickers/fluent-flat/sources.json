@@ -115,6 +115,168 @@
       "sha256": "eb917d09d37ef833f7fbb51eeb583f27ddfd28a7248166050e994defe2cc2ac3",
       "bytes": 2636,
       "modified": false
+    },
+    {
+      "id": "surprised",
+      "file": "surprised.svg",
+      "upstreamPath": "assets/Astonished face/Flat/astonished_face_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Astonished%20face/Flat/astonished_face_flat.svg",
+      "sha256": "79fa3662c37d8b9db9aeb642266e387e0029c33b9ce2e2ed717ce137a16f9545",
+      "bytes": 2072,
+      "modified": false
+    },
+    {
+      "id": "sad",
+      "file": "sad.svg",
+      "upstreamPath": "assets/Crying face/Flat/crying_face_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Crying%20face/Flat/crying_face_flat.svg",
+      "sha256": "4a0960d7115204c9b89ae94d21fb53c244734cf2da91cba32f295f6e346ffd0c",
+      "bytes": 2455,
+      "modified": false
+    },
+    {
+      "id": "tired",
+      "file": "tired.svg",
+      "upstreamPath": "assets/Yawning face/Flat/yawning_face_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Yawning%20face/Flat/yawning_face_flat.svg",
+      "sha256": "e4c44682da6de8bae1df5fadcb0f35fd0f18a8931ea86dd6b37b8e409d359263",
+      "bytes": 1980,
+      "modified": false
+    },
+    {
+      "id": "sleepy",
+      "file": "sleepy.svg",
+      "upstreamPath": "assets/Sleepy face/Flat/sleepy_face_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Sleepy%20face/Flat/sleepy_face_flat.svg",
+      "sha256": "842d8e326ab17346bec27d9cfefe4137f6c6af1cb425cfb241d4bbef740682be",
+      "bytes": 2195,
+      "modified": false
+    },
+    {
+      "id": "worried",
+      "file": "worried.svg",
+      "upstreamPath": "assets/Worried face/Flat/worried_face_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Worried%20face/Flat/worried_face_flat.svg",
+      "sha256": "15786a1a7b349ab55377b8ebd568e4a80fa19612eed9ef4a772cb89f2f73e4f1",
+      "bytes": 2101,
+      "modified": false
+    },
+    {
+      "id": "angry",
+      "file": "angry.svg",
+      "upstreamPath": "assets/Angry face/Flat/angry_face_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Angry%20face/Flat/angry_face_flat.svg",
+      "sha256": "bf536eeb45a62dcf593200817c268b9e4d72b034a788aa49591a58a01c1bfd35",
+      "bytes": 2121,
+      "modified": false
+    },
+    {
+      "id": "confused",
+      "file": "confused.svg",
+      "upstreamPath": "assets/Confused face/Flat/confused_face_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Confused%20face/Flat/confused_face_flat.svg",
+      "sha256": "b765316ea9e12151291c47b02b8c4231659aa9eef01e1be5167d22ca5c30d566",
+      "bytes": 1215,
+      "modified": false
+    },
+    {
+      "id": "relieved",
+      "file": "relieved.svg",
+      "upstreamPath": "assets/Relieved face/Flat/relieved_face_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Relieved%20face/Flat/relieved_face_flat.svg",
+      "sha256": "53024e2159b2e3f5e3111b47b0a6b90c054a3621c01d9b86723268444678f96a",
+      "bytes": 2185,
+      "modified": false
+    },
+    {
+      "id": "celebrate",
+      "file": "celebrate.svg",
+      "upstreamPath": "assets/Party popper/Flat/party_popper_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Party%20popper/Flat/party_popper_flat.svg",
+      "sha256": "8128c958bfc06568aa49d03cd001556a6c6223660f43c657d381e638416c51f6",
+      "bytes": 4395,
+      "modified": false
+    },
+    {
+      "id": "cheer",
+      "file": "cheer.svg",
+      "upstreamPath": "assets/Raising hands/Default/Flat/raising_hands_flat_default.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Raising%20hands/Default/Flat/raising_hands_flat_default.svg",
+      "sha256": "65331148c13f24d443832e15201788436caa4f86f7acb10e6bcf1de574cd1ce4",
+      "bytes": 5881,
+      "modified": false
+    },
+    {
+      "id": "water",
+      "file": "water.svg",
+      "upstreamPath": "assets/Droplet/Flat/droplet_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Droplet/Flat/droplet_flat.svg",
+      "sha256": "91bbffebc864f286b0684817b797f8ce1e1c4cc7dd0d9e1af1bd58afef2d09f0",
+      "bytes": 327,
+      "modified": false
+    },
+    {
+      "id": "meal",
+      "file": "meal.svg",
+      "upstreamPath": "assets/Bowl with spoon/Flat/bowl_with_spoon_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Bowl%20with%20spoon/Flat/bowl_with_spoon_flat.svg",
+      "sha256": "562b461a8f1ca694b9f0cda2fac460e7b0a27606594b4228b4fa9555749c985c",
+      "bytes": 1358,
+      "modified": false
+    },
+    {
+      "id": "coffee",
+      "file": "coffee.svg",
+      "upstreamPath": "assets/Hot beverage/Flat/hot_beverage_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Hot%20beverage/Flat/hot_beverage_flat.svg",
+      "sha256": "1fd0ed706ba85841193fffc9d2382c533486e41f7d1b9ec90d8eb6748c397183",
+      "bytes": 1702,
+      "modified": false
+    },
+    {
+      "id": "relax",
+      "file": "relax.svg",
+      "upstreamPath": "assets/Person in lotus position/Default/Flat/person_in_lotus_position_flat_default.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Person%20in%20lotus%20position/Default/Flat/person_in_lotus_position_flat_default.svg",
+      "sha256": "afbc1a5d0a26db837f092ba43a825d0596d175113eb84c7732c675e2c43e0100",
+      "bytes": 13427,
+      "modified": false
+    },
+    {
+      "id": "good-night",
+      "file": "good-night.svg",
+      "upstreamPath": "assets/Crescent moon/Flat/crescent_moon_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Crescent%20moon/Flat/crescent_moon_flat.svg",
+      "sha256": "d749d4a9c2917cf5d13193d214898c4173371a9037aa92874f034e27b77ad540",
+      "bytes": 1396,
+      "modified": false
+    },
+    {
+      "id": "think",
+      "file": "think.svg",
+      "upstreamPath": "assets/Thinking face/Flat/thinking_face_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Thinking%20face/Flat/thinking_face_flat.svg",
+      "sha256": "3026c4db7c56c913318d0526e774cd4f7feb5733f7fe9a2d3d5edc84d00bbe2d",
+      "bytes": 3647,
+      "modified": false
+    },
+    {
+      "id": "yes",
+      "file": "yes.svg",
+      "upstreamPath": "assets/Check mark button/Flat/check_mark_button_flat.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Check%20mark%20button/Flat/check_mark_button_flat.svg",
+      "sha256": "526d3efe42ac3ede81400c171c4a39722034ceb57f661923ef34bea0dcd68532",
+      "bytes": 620,
+      "modified": false
+    },
+    {
+      "id": "sorry",
+      "file": "sorry.svg",
+      "upstreamPath": "assets/Folded hands/Default/Flat/folded_hands_flat_default.svg",
+      "source": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Folded%20hands/Default/Flat/folded_hands_flat_default.svg",
+      "sha256": "d454949a4ec2de964331cc5167c4ea6dbd2f75639c349009c0686b74f3156310",
+      "bytes": 2775,
+      "modified": false
     }
   ]
 }

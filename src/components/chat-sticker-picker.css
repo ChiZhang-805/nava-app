@@ -1,10 +1,14 @@
 .chat-sticker-picker-header { margin: 0 0 16px; }
 .chat-sticker-picker-header h2 { margin: 0; font-size: 19px; line-height: 1.35; font-weight: 700; }
 .chat-sticker-picker-header p { margin: 6px 0 0; font-size: 13px; line-height: 1.45; color: var(--text-muted, #617288); }
+.chat-sticker-categories { display: flex; gap: 4px; overflow-x: auto; padding: 2px 2px 8px; margin-bottom: 8px; scrollbar-width: none; }
+.chat-sticker-categories button { flex: 1 0 auto; min-height: 44px; padding: 8px 10px; border: 0; border-radius: 14px; color: inherit; background: transparent; font: inherit; font-size: 13px; white-space: nowrap; cursor: pointer; touch-action: manipulation; }
+.chat-sticker-categories button[aria-pressed="true"] { color: var(--primary, #307b96); background: rgba(83, 160, 185, .14); font-weight: 700; }
+.chat-sticker-categories button:focus-visible { outline: 2px solid var(--primary, #307b96); outline-offset: -2px; }
 .chat-sticker-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 8px; padding-bottom: 6px; }
 .chat-sticker-choice { min-width: 0; min-height: 88px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 8px 2px; border: 1px solid transparent; border-radius: 16px; background: transparent; color: inherit; font: inherit; cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .chat-sticker-choice img { width: 56px; height: 56px; display: block; object-fit: contain; pointer-events: none; }
-.chat-sticker-choice span { font-size: 12px; line-height: 1.3; text-align: center; }
+.chat-sticker-choice span { font-size: 12px; line-height: 1.3; text-align: center; overflow-wrap: normal; word-break: normal; }
 .chat-sticker-choice:hover { background: rgba(83, 160, 185, .08); }
 .chat-sticker-choice:active { background: rgba(83, 160, 185, .16); }
 .chat-sticker-choice:focus-visible { outline: 2px solid var(--primary, #307b96); outline-offset: 1px; }

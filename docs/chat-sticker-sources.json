@@ -8,8 +8,9 @@
     "licenseSource": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/LICENSE",
     "inventory": "public/stickers/fluent-flat/sources.json",
     "notice": "public/stickers/fluent-flat/LICENSE.txt",
-    "assetCount": 12,
-    "unmodifiedSvgBytes": 40964,
+    "assetCount": 30,
+    "unmodifiedSvgBytes": 92816,
+    "categories": "Common (12 initial choices), Moods (10), Care (7), Daily (8), Replies (5). The common set reuses assets; all 30 are reachable from the four categories.",
     "design": "Static Flat SVG only; no 3D or animated variants. Chinese and English captions are NAVA interface text, not edits to the original artwork.",
     "redistribution": "The official MIT license permits redistribution with its copyright and permission notice. The complete notice ships beside the assets."
   },

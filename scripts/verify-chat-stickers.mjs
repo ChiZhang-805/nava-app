@@ -27,10 +27,23 @@ try{
     const geometry=await dialog.evaluate(element=>({width:element.getBoundingClientRect().width,bottom:element.getBoundingClientRect().bottom,overflow:document.documentElement.scrollWidth>innerWidth+1,layer:getComputedStyle(element.parentElement).backgroundColor,minButton:Math.min(...Array.from(element.querySelectorAll('.chat-sticker-choice'),button=>button.getBoundingClientRect().height))}));
     assert.equal(geometry.overflow,false);assert.ok(geometry.bottom<=height+1);assert.ok(geometry.minButton>=44);assert.equal(geometry.layer,'rgba(0, 0, 0, 0)');
     await page.screenshot({path:`${output}/${engine}-${width}-${locale}.png`});
+    const categoryCounts={mood:10,company:7,daily:8,reply:5},seen=new Set();
+    for(const [category,count]of Object.entries(categoryCounts)){
+     await page.locator(`[data-sticker-category="${category}"]`).click();
+     await expect(page.locator(`[data-sticker-category="${category}"]`)).toHaveAttribute('aria-pressed','true');
+     await expect(page.locator('.chat-sticker-choice')).toHaveCount(count);
+     await expect.poll(()=>page.locator('.chat-sticker-choice img').evaluateAll(images=>images.every(img=>img.complete&&img.naturalWidth>0))).toBe(true);
+     for(const id of await page.locator('.chat-sticker-choice').evaluateAll(buttons=>buttons.map(button=>button.dataset.stickerId)))seen.add(id);
+    }
+    assert.equal(seen.size,30,'every bundled sticker is reachable through a category');
+    await page.locator('[data-sticker-category="common"]').click();
     await page.locator('[data-sticker-id="hug"]').click();
     await expect(page.locator('#chosen')).toHaveText('[nava-sticker:hug]');assert.equal(await page.evaluate(()=>selections),1);await expect(dialog).toHaveCount(0);
-    await page.locator('#open').click();await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);assert.equal(await page.evaluate(()=>selections),1);
-    assert.deepEqual(errors,[]);results.push({engine,width,height,locale,...geometry});await page.close();
+    await page.locator('#open').click();await expect(dialog).toBeVisible();await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);assert.equal(await page.evaluate(()=>selections),1);
+    await page.locator('#open').click();await expect(dialog).toBeVisible();await page.locator('[data-sticker-category="daily"]').click();
+    await page.screenshot({path:`${output}/${engine}-${width}-${locale}-daily.png`});
+    await page.locator('[data-sticker-id="water"]').click();await expect(page.locator('#chosen')).toHaveText('[nava-sticker:water]');assert.equal(await page.evaluate(()=>selections),2);
+    assert.deepEqual(errors,[]);results.push({engine,width,height,locale,...geometry,categories:categoryCounts,reachableStickers:seen.size});await page.close();
    }
   }finally{await browser.close();}
  }
