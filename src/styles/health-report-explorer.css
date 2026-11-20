@@ -4,9 +4,8 @@
 .health-report-explorer button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .health-report-explorer button:focus-visible, .health-explorer-track:focus-visible { outline: 3px solid #207eaa; outline-offset: 2px; }
 .health-explorer-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; transform: translateY(-3px); }
-.health-explorer-toolbar h2 { margin: 0; display: flex; align-items: center; gap: 7px; font-size: 17px; font-weight: 700; color: #285e79; }
+.health-explorer-toolbar h2 { margin: 0; display: flex; align-items: center; gap: 7px; font-size: 18px; font-weight: 700; color: #285e79; }
 .health-explorer-toolbar h2 img { width: 28px; height: 28px; object-fit: contain; }
-.health-explorer-all { flex: none; border: 0; background: transparent; color: #246b8b; display: flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 2px 0 8px; font-size: 13px !important; font-weight: 650 !important; white-space: nowrap; }
 .health-explorer-categories { flex: none; display: flex; gap: 12px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; padding: 0 2px 3px; scroll-snap-type: x proximity; }
 .health-explorer-categories::-webkit-scrollbar, .health-explorer-track::-webkit-scrollbar { display: none; }
 .health-explorer-categories > button { border: 0; padding: 0; background: transparent; color: #526e80; flex: 0 0 66px; display: flex; flex-direction: column; align-items: center; gap: 5px; scroll-snap-align: start; min-height: 88px; }
@@ -19,12 +18,13 @@
 .health-explorer-categories > button[data-health-category="sleep"] { color: #275d89; }
 .health-explorer-categories > button[data-health-category="exercise"] { color: #245d3c; }
 .health-explorer-categories > button[data-health-category="diet"] { color: #83502d; }
+.health-explorer-categories > button[data-health-category="energy"] { color: #805014; }
 .health-explorer-categories > button[data-health-category="all"] { color: #285e79; }
 .health-explorer-categories > button[aria-selected="true"] > span { border-color: #97bfd0; background: #ffffffed; }
 .health-explorer-categories > button[aria-selected="true"] > strong { font-weight: 750; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
 .health-explorer-panel { display: flex; flex-direction: column; min-height: 0; flex: 1; }
 .health-explorer-heading { padding: 8px 0 0; flex: none; }
-.health-explorer-heading h2 { margin: 0; display: flex; align-items: center; gap: 7px; min-height: 35px; font-size: 20px; font-weight: 750; }
+.health-explorer-heading h2 { margin: 0; display: flex; align-items: center; gap: 7px; min-height: 35px; font-size: 18px; font-weight: 700; }
 .health-explorer-heading img, .health-explorer-heading svg { width: 28px; height: 28px; object-fit: contain; }
 .health-explorer-deck { display: flex; flex-direction: column; flex: 1; min-height: 0; margin-inline: -20px; animation: health-explorer-reveal .22s ease-out; }
 .health-explorer-track { position: relative; display: flex; align-items: stretch; flex: 1; min-height: 298px; box-sizing: border-box; overflow-x: auto; overflow-y: hidden; gap: 4px; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; padding: 5px 32px 6px; }
@@ -63,18 +63,21 @@
 .health-explorer-details dt { font-variant-numeric: tabular-nums; }
 .health-explorer-details dd { margin: 0; color: #285b74; font-weight: 650; }
 .health-explorer-details dd span { font-weight: 400; font-size: 11px; }
+.health-explorer-card[data-card-kind="meal"] h3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; align-content: center; max-height: 44px; min-height: 44px; overflow-wrap: anywhere; }
+.health-explorer-meal-visual { display: grid; grid-template-rows: minmax(0, 1fr) auto; flex: 1; min-height: 80px; min-width: 0; margin: 7px 0 0; }
+.health-explorer-meal-visual img { width: 100%; height: 100%; min-height: 0; object-fit: contain; border-radius: 18px; }
+.health-explorer-meal-visual[data-photo-kind="illustration"] img { padding: 18px; box-sizing: border-box; }
+.health-explorer-meal-visual figcaption { padding-top: 5px; color: #647e8d; text-align: center; font-size: 11px; line-height: 16px; }
+.health-explorer-meal-date { flex: none; margin: 9px 0 0; color: #53778a; font-size: 12px; line-height: 18px; }
+.health-explorer-dish-name { margin: 5px 0 8px; color: #285b74; font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
+.health-explorer-nutrition-note { font-size: 12px; }
+.health-explorer-meal-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
+.health-explorer-empty-meal { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; }
+.health-explorer-empty-meal img { width: min(72%, 180px); height: auto; max-height: 70%; object-fit: contain; }
 .health-explorer-record { flex: none; border: 1px solid #fff; border-radius: 14px; color: #286982; background: #dff1f9; display: flex; align-items: center; justify-content: center; gap: 3px; padding: 0 7px; margin-top: 8px; min-height: 44px; font-size: 12px !important; font-weight: 650 !important; }
-.health-explorer-sheet h2 { margin: 0 0 16px; font-size: 21px; color: #244e66; }
-.health-explorer-date { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; color: #52798e; font-size: 13px; }
-.health-explorer-date input { min-height: 44px; min-width: 0; padding: 5px 8px; border-radius: 12px; border: 1px solid #d4e9f2; background: #f4fbff; color: #285b74; font: inherit; }
-.health-explorer-overview { font-size: 14px; line-height: 1.5; color: #4a7184; }
-.health-explorer-chart-list { display: grid; gap: 14px; padding-bottom: 8px; }
-.health-explorer-chart-list section h3 { display: flex; gap: 8px; align-items: center; font-size: 14px; color: #668495; margin: 0 0 4px; }
-.health-explorer-chart-list section button { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 46px; padding: 8px 12px; background: #ecf7fc; color: #264f66; border: 1px solid #fff; border-radius: 13px; margin-top: 4px; text-align: left; font: inherit; font-size: 14px; }
 .health-explorer-weekly-content { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding-top: 8px; padding-bottom: 6px; }
 .phone-frame .record-hub.record-hub--explorer:has(.health-explorer-weekly-content) { height: 100%; min-height: 0; overflow: hidden; }
 .phone-frame .record-hub--explorer .health-explorer-weekly-content .weekly-health-report { margin-bottom: 0; }
-.weekly-report-back { display: flex; align-items: center; gap: 7px; min-height: 44px; padding: 0; border: 0; background: transparent; box-shadow: none; color: #286982; font: inherit; font-size: 14px; cursor: pointer; }
 @keyframes health-explorer-reveal { from { opacity: .35; } to { opacity: 1; } }
 @media (max-height: 740px) {
   .health-explorer-card { --card-padding-y: 11px; }

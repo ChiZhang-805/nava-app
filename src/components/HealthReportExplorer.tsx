@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { BedDouble, ChevronRight, ClipboardPlus, HeartPulse, RotateCw, ScanFace, SmilePlus, Timer, Utensils, Dumbbell } from "lucide-react";
+import { BedDouble, ChevronRight, ClipboardPlus, HeartPulse, RotateCw, ScanFace, SmilePlus, Timer, Utensils, Dumbbell, Zap } from "lucide-react";
 import type { TrendBundle } from "../types";
 import { buildHealthReportCharts, type HealthReportCategory, type HealthReportChart } from "../services/healthReportExplorer";
-import BottomSheet from "./BottomSheet";
+import { buildHealthReportDishes, type HealthReportDish } from "../services/healthReportMeals";
+import { resolveDietPhotoUrl } from "../services/media";
 import LineTrendChart from "./LineTrendChart";
 import "../styles/health-report-explorer.css";
 
@@ -13,6 +14,7 @@ const categories = [
   { id: "sleep", zh: "睡眠", en: "Sleep", icon: BedDouble },
   { id: "exercise", zh: "运动", en: "Activity", icon: Dumbbell },
   { id: "diet", zh: "饮食", en: "Diet", icon: Utensils },
+  { id: "energy", zh: "能量", en: "Energy", icon: Zap },
   { id: "heart", zh: "心率", en: "Heart", icon: HeartPulse },
 ] as const;
 
@@ -22,43 +24,97 @@ function CategoryImage({ category }: { category: typeof categories[number] }) {
   return <img src={`${import.meta.env.BASE_URL}assets/health-report/${category.id}.webp`} alt="" draggable={false} onError={() => setFailed(true)} />;
 }
 
-function ReportCard({ chart, locale, active, flipped, onFlip, onSelect, onOpenRecord }: {
-  chart: HealthReportChart; locale: "zh" | "en"; active: boolean; flipped: boolean; onFlip: () => void; onSelect: () => void; onOpenRecord?: () => void;
+type CardInteractionProps = { locale: "zh" | "en"; active: boolean; flipped: boolean; onFlip: () => void; onSelect: () => void; onOpenRecord?: () => void };
+
+function FlipCard({ id, title, kind = "chart", locale, active, flipped, onFlip, onSelect, onOpenRecord, front, details }: CardInteractionProps & {
+  id: string; title: string; kind?: "chart" | "meal" | "empty-meal"; front: ReactNode; details: ReactNode;
 }) {
-  const recorded = chart.points.filter((point) => !point.missing);
-  const latest = recorded[recorded.length - 1];
-  const format = (value: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
-  return <article className="health-explorer-card" data-chart-id={chart.id} data-active={active} data-side={flipped ? "back" : "front"} aria-hidden={!active} aria-label={chart.title}>
-    {!active && <button type="button" tabIndex={-1} className="health-explorer-neighbor" data-target-id={chart.id} aria-label={chart.title} onClick={onSelect} />}
-    <button type="button" className="health-explorer-flip" aria-label={flipped ? (locale === "zh" ? "回到图表" : "Back to chart") : (locale === "zh" ? "查看明细" : "View details")} aria-pressed={flipped} disabled={!active} onClick={(event) => { event.stopPropagation(); onFlip(); }}><RotateCw size={21} /></button>
+  return <article className="health-explorer-card" data-chart-id={id} data-card-kind={kind} data-active={active} data-side={flipped ? "back" : "front"} aria-hidden={!active} aria-label={title}>
+    {!active && <button type="button" tabIndex={-1} className="health-explorer-neighbor" data-target-id={id} aria-label={title} onClick={onSelect} />}
+    <button type="button" className="health-explorer-flip" aria-label={flipped ? (locale === "zh" ? "回到正面" : "Back to front") : (locale === "zh" ? "查看明细" : "View details")} aria-pressed={flipped} disabled={!active} onClick={(event) => { event.stopPropagation(); onFlip(); }}><RotateCw size={21} /></button>
     <div className="health-explorer-card-turn">
       <div className="health-explorer-front" aria-hidden={!active || flipped} ref={(node) => { if (node) node.inert = !active || flipped; }}>
-        <h3>{chart.title}</h3>
-        <div className="health-explorer-value"><strong>{latest ? format(latest.value) : "—"}</strong><span>{latest ? chart.unit : (locale === "zh" ? "还没有记录" : "No entries yet")}</span></div>
-        <div className="health-explorer-plot">
-          {latest ? <LineTrendChart points={chart.points} ariaLabel={chart.title} tone="rhythm" scale="auto" domain={chart.domain} presentation="report" showYAxis={false} animateReport={active && !flipped} curve="monotone" showValues={false} dateLabelEvery={2} showConfidenceBand={false} valueFormatter={format} /> : <div className="health-explorer-empty"><ClipboardPlus size={38} strokeWidth={1.4} /><p>{locale === "zh" ? "记下一笔，让趋势慢慢出现。" : "Add an entry to begin your trend."}</p></div>}
-        </div>
+        <h3>{title}</h3>
+        {front}
       </div>
       <div className="health-explorer-back" aria-hidden={!active || !flipped} ref={(node) => { if (node) node.inert = !active || !flipped; }}>
-        <h3>{chart.title}</h3>
-        <div className="health-explorer-details">
-          <p className="health-explorer-description">{chart.description}</p>
-          <p className="health-explorer-range">{chart.points[0]?.id} — {chart.points[chart.points.length - 1]?.id}<br />{locale === "zh" ? `${recorded.length} 天有数据` : `${recorded.length} ${recorded.length === 1 ? "day" : "days"} with data`}</p>
-          <h4>{locale === "zh" ? "最近记录" : "Recent entries"}</h4>
-          {recorded.length ? <dl>{recorded.slice(-5).reverse().map((point) => <div key={point.id} data-record-date={point.id} data-record-value={point.value}><dt>{point.id}</dt><dd>{format(point.value)} <span>{chart.unit}</span></dd></div>)}</dl> : <p>{locale === "zh" ? "这段时间还没有记录，缺失不会算作零。" : "No entries in this period. Missing values are not zero."}</p>}
-        </div>
+        <h3>{title}</h3>
+        <div className="health-explorer-details">{details}</div>
         {onOpenRecord && <button type="button" className="health-explorer-record" onClick={onOpenRecord}>{locale === "zh" ? "查看 / 补充记录" : "View / add entries"}<ChevronRight size={17} /></button>}
       </div>
     </div>
   </article>;
 }
 
-function ChartDeck({ charts, locale, initialIndex, onOpenRecord }: {
-  charts: HealthReportChart[]; locale: "zh" | "en"; initialIndex: number; onOpenRecord?: () => void;
+function ReportCard({ chart, ...interaction }: CardInteractionProps & { chart: HealthReportChart }) {
+  const { locale, active, flipped } = interaction;
+  const recorded = chart.points.filter((point) => !point.missing);
+  const latest = recorded[recorded.length - 1];
+  const format = (value: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
+  return <FlipCard {...interaction} id={chart.id} title={chart.title} front={<>
+    <div className="health-explorer-value"><strong>{latest ? format(latest.value) : "—"}</strong><span>{latest ? chart.unit : (locale === "zh" ? "还没有记录" : "No entries yet")}</span></div>
+    <div className="health-explorer-plot">
+      {latest ? <LineTrendChart points={chart.points} ariaLabel={chart.title} tone="rhythm" scale="auto" domain={chart.domain} presentation="report" showYAxis={false} animateReport={active && !flipped} curve="monotone" showValues={false} dateLabelEvery={2} showConfidenceBand={false} valueFormatter={format} /> : <div className="health-explorer-empty"><ClipboardPlus size={38} strokeWidth={1.4} /><p>{locale === "zh" ? "记下一笔，让趋势慢慢出现。" : "Add an entry to begin your trend."}</p></div>}
+    </div>
+  </>} details={<>
+          <p className="health-explorer-description">{chart.description}</p>
+          <p className="health-explorer-range">{chart.points[0]?.id} — {chart.points[chart.points.length - 1]?.id}<br />{locale === "zh" ? `${recorded.length} 天有数据` : `${recorded.length} ${recorded.length === 1 ? "day" : "days"} with data`}</p>
+          <h4>{locale === "zh" ? "最近记录" : "Recent entries"}</h4>
+          {recorded.length ? <dl>{recorded.slice(-5).reverse().map((point) => <div key={point.id} data-record-date={point.id} data-record-value={point.value}><dt>{point.id}</dt><dd>{format(point.value)} <span>{chart.unit}</span></dd></div>)}</dl> : <p>{locale === "zh" ? "这段时间还没有记录，缺失不会算作零。" : "No entries in this period. Missing values are not zero."}</p>}
+  </>} />;
+}
+
+type ReportSlide = { kind: "chart"; id: string; title: string; chart: HealthReportChart }
+  | { kind: "meal"; id: string; title: string; dish: HealthReportDish }
+  | { kind: "empty-meal"; id: string; title: string };
+type ResolvePhoto = (path: string) => Promise<string | null>;
+
+function DishPhoto({ dish, active, locale, resolvePhoto }: { dish: HealthReportDish; active: boolean; locale: "zh" | "en"; resolvePhoto: ResolvePhoto }) {
+  const [resolved, setResolved] = useState<{ path: string; url: string | null } | null>(null);
+  useEffect(() => {
+    if (!active || !dish.photoPath) return;
+    let current = true;
+    const path = dish.photoPath;
+    void resolvePhoto(path).then(url => { if (current) setResolved({ path, url }); });
+    return () => { current = false; };
+  }, [active, dish.photoPath, resolvePhoto]);
+  const url = resolved?.path === dish.photoPath ? resolved?.url : null;
+  const photoFailed = Boolean(dish.photoPath && resolved?.path === dish.photoPath && !url);
+  return <figure className="health-explorer-meal-visual" data-photo-kind={url ? dish.photoKind : "illustration"}>
+    <img src={url || `${import.meta.env.BASE_URL}assets/health-report/diet.webp`} alt={url ? dish.title : ""} draggable={false} onError={url ? () => setResolved({ path: dish.photoPath!, url: null }) : undefined} />
+    <figcaption>{url ? (dish.photoKind === "meal" ? (locale === "zh" ? "这餐的照片" : "Photo of this meal") : (locale === "zh" ? "这道菜的照片" : "Photo of this dish")) : photoFailed ? (locale === "zh" ? "照片暂时没加载出来" : "Photo is unavailable") : (locale === "zh" ? "餐食配图" : "Meal illustration")}</figcaption>
+  </figure>;
+}
+
+function MealCard({ slide, resolvePhoto, ...interaction }: CardInteractionProps & { slide: Extract<ReportSlide, { kind: "meal" | "empty-meal" }>; resolvePhoto: ResolvePhoto }) {
+  const { locale, active } = interaction;
+  const dish = slide.kind === "meal" ? slide.dish : null;
+  const t = (zh: string, en: string) => locale === "zh" ? zh : en;
+  const nutrients = dish ? [
+    { id: "calories", label: t("热量", "Energy"), value: dish.nutrients.calories, unit: "kcal" },
+    { id: "protein", label: t("蛋白质", "Protein"), value: dish.nutrients.protein, unit: "g" },
+    { id: "carbs", label: t("碳水化合物", "Carbohydrate"), value: dish.nutrients.carbs, unit: "g" },
+    { id: "fat", label: t("脂肪", "Fat"), value: dish.nutrients.fat, unit: "g" },
+  ].filter(item => item.value !== null) : [];
+  const format = (value: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
+  return <FlipCard {...interaction} id={slide.id} title={slide.title} kind={slide.kind} front={dish ? <>
+    <DishPhoto dish={dish} active={active} locale={locale} resolvePhoto={resolvePhoto} />
+    <p className="health-explorer-meal-date">{dish.date} · {dish.meal}{dish.time ? ` · ${dish.time}` : ""}</p>
+  </> : <div className="health-explorer-empty health-explorer-empty-meal"><img src={`${import.meta.env.BASE_URL}assets/health-report/diet.webp`} alt="" draggable={false} /><p>{t("还没有饮食记录", "No meals logged yet")}</p></div>} details={dish ? <>
+    <p className="health-explorer-dish-name">{dish.title}</p>
+    <p className="health-explorer-range">{dish.date} · {dish.meal}{dish.time ? ` · ${dish.time}` : ""}</p>
+    {dish.amount && <p>{t("份量", "Amount")}：{dish.amount}</p>}
+    {nutrients.length ? <><h4>{t("营养记录", "Logged nutrition")}</h4><dl className="health-explorer-nutrients">{nutrients.map(item => <div key={item.id} data-nutrient={item.id} data-nutrient-value={item.value}><dt>{item.label}</dt><dd>{format(item.value!)} <span>{item.unit}</span></dd></div>)}</dl><p className="health-explorer-nutrition-note">{dish.estimated ? t("这条记录包含估算值。", "This entry includes estimates.") : t("仅显示这条记录中已有的数值。", "Only values saved in this entry are shown.")}</p></> : <p>{t("这条记录还没有营养数值。", "Nutrition values have not been logged for this entry.")}</p>}
+    {dish.notes && <p className="health-explorer-meal-notes">{dish.notes}</p>}
+  </> : <p>{t("这里会放你实际记录的餐食，未填写的营养数值不会当作零。", "Your logged meals will appear here. Missing nutrition values are not counted as zero.")}</p>} />;
+}
+
+function ChartDeck({ cards, locale, initialIndex, onOpenRecord }: {
+  cards: ReportSlide[]; locale: "zh" | "en"; initialIndex: number; onOpenRecord?: () => void;
 }) {
-  const count = charts.length;
+  const count = cards.length;
   const repeated = count > 1;
-  const slides = repeated ? [...charts, ...charts, ...charts] : charts;
+  const slides = repeated ? [...cards, ...cards, ...cards] : cards;
   const firstPosition = (repeated ? count : 0) + Math.min(initialIndex, count - 1);
   const [position, setPosition] = useState(firstPosition);
   const [flippedId, setFlippedId] = useState<string | null>(null);
@@ -66,6 +122,14 @@ function ChartDeck({ charts, locale, initialIndex, onOpenRecord }: {
   const track = useRef<HTMLDivElement | null>(null);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingFocus = useRef<{ index: number; selector: string } | null>(null);
+  const photoRequests = useRef(new Map<string, Promise<string | null>>());
+  const resolvePhoto = useCallback((path: string) => {
+    const cached = photoRequests.current.get(path);
+    if (cached) return cached;
+    const request = resolveDietPhotoUrl(path).catch(() => null);
+    photoRequests.current.set(path, request);
+    return request;
+  }, []);
   useLayoutEffect(() => {
     const pending = pendingFocus.current;
     if (!pending || pending.index !== position) return;
@@ -95,7 +159,7 @@ function ChartDeck({ charts, locale, initialIndex, onOpenRecord }: {
     if (repeated) go(Math.max(0, Math.min(slides.length - 1, position + (event.key === "ArrowLeft" ? -1 : 1))));
   };
   return <div className="health-explorer-deck">
-    <div ref={initialScroll} className="health-explorer-track" role="region" aria-roledescription={locale === "zh" ? "轮播图表" : "carousel"} aria-label={locale === "zh" ? "左右滑动查看图表" : "Swipe to explore charts"} tabIndex={0} onKeyDown={onKeyDown} onScroll={(event) => {
+    <div ref={initialScroll} className="health-explorer-track" role="region" aria-roledescription={locale === "zh" ? "轮播卡片" : "carousel"} aria-label={locale === "zh" ? "左右滑动查看记录" : "Swipe to explore records"} tabIndex={0} onKeyDown={onKeyDown} onScroll={(event) => {
       const node = event.currentTarget;
       const distances = slides.map((_, index) => Math.abs(center(node, index) - node.scrollLeft));
       const nearest = distances.indexOf(Math.min(...distances));
@@ -119,22 +183,24 @@ function ChartDeck({ charts, locale, initialIndex, onOpenRecord }: {
         setPosition(middle);
       }, 160);
     }}>
-      {slides.map((chart, index) => <ReportCard key={`${chart.id}-${index}`} chart={chart} locale={locale} active={index === position} flipped={index === position && flippedId === chart.id} onFlip={() => setFlippedId((id) => id === chart.id ? null : chart.id)} onSelect={() => go(index)} onOpenRecord={onOpenRecord} />)}
+      {slides.map((slide, index) => {
+        const interaction = { locale, active: index === position, flipped: index === position && flippedId === slide.id, onFlip: () => setFlippedId(id => id === slide.id ? null : slide.id), onSelect: () => go(index), onOpenRecord };
+        return slide.kind === "chart" ? <ReportCard key={`${slide.id}-${index}`} chart={slide.chart} {...interaction} /> : <MealCard key={`${slide.id}-${index}`} slide={slide} resolvePhoto={resolvePhoto} {...interaction} />;
+      })}
     </div>
     <span className="sr-only" aria-live="polite">{slides[position]?.title} · {position % count + 1}/{count}</span>
   </div>;
 }
 
-export default function HealthReportExplorer({ bundle, date, maxDate, locale, onDateChange, onOpenRecord, onOpenWeekly, onCloseWeekly, showWeekly = false, weeklyContent, overview }: {
-  bundle: TrendBundle | null; date: string; maxDate: string; locale: "zh" | "en";
-  onDateChange: (date: string) => void; onOpenRecord: (category: Exclude<HealthReportCategory, "heart">) => void;
+export default function HealthReportExplorer({ bundle, date, locale, onOpenRecord, onOpenWeekly, onCloseWeekly, showWeekly = false, weeklyContent }: {
+  bundle: TrendBundle | null; date: string; locale: "zh" | "en";
+  onOpenRecord: (category: Exclude<HealthReportCategory, "heart" | "energy">) => void;
   onOpenWeekly?: () => void;
   onCloseWeekly?: () => void; showWeekly?: boolean; weeklyContent?: ReactNode;
-  overview?: string;
 }) {
   const charts = useMemo(() => buildHealthReportCharts(bundle, date, locale), [bundle, date, locale]);
+  const dishes = useMemo(() => buildHealthReportDishes(bundle, date, locale), [bundle, date, locale]);
   const [selection, setSelection] = useState<{ category: HealthReportCategory; chart: number; revision: number }>({ category: "mood", chart: -1, revision: 0 });
-  const [showAll, setShowAll] = useState(false);
   const categoryTrack = useRef<HTMLDivElement>(null);
   const available = categories.filter((category) => category.id !== "heart" || charts.heart.length > 0);
   const active = available.find((category) => category.id === selection.category) ?? available[0];
@@ -152,7 +218,10 @@ export default function HealthReportExplorer({ bundle, date, maxDate, locale, on
     if (target === "all") onOpenWeekly?.(); else select(target);
     (event.currentTarget.parentElement?.children[next] as HTMLElement)?.focus();
   };
-  const initialChart = selection.chart < 0 ? Math.max(0, charts[active.id].findIndex((chart) => chart.points.some((point) => !point.missing))) : selection.chart;
+  const cards: ReportSlide[] = active.id === "diet"
+    ? dishes.length ? dishes.map(dish => ({ kind: "meal", id: dish.id, title: dish.title, dish })) : [{ kind: "empty-meal", id: "diet-empty", title: locale === "zh" ? "饮食记录" : "Meal records" }]
+    : charts[active.id].map(chart => ({ kind: "chart", id: chart.id, title: chart.title, chart }));
+  const initialChart = selection.chart < 0 ? Math.max(0, cards.findIndex(card => card.kind !== "chart" || card.chart.points.some(point => !point.missing))) : selection.chart;
   useEffect(() => {
     const node = categoryTrack.current;
     const tab = node?.querySelector<HTMLElement>(`[data-health-category="${showWeekly ? "all" : active.id}"]`);
@@ -162,21 +231,15 @@ export default function HealthReportExplorer({ bundle, date, maxDate, locale, on
     else if (target.right > bounds.right) node.scrollLeft += target.right - bounds.right;
   }, [active.id, showWeekly]);
   return <section className="health-report-explorer" data-health-explorer data-category={showWeekly ? "all" : active.id}>
-    <div className="health-explorer-toolbar"><h2><img src={`${import.meta.env.BASE_URL}assets/health-report/rhythm.webp`} alt="" draggable={false} />{locale === "zh" ? "我的节律" : "My rhythm"}</h2><button type="button" className="health-explorer-all" onClick={() => setShowAll(true)}>{locale === "zh" ? "查看全部" : "See all"}<ChevronRight size={16} /></button></div>
+    <div className="health-explorer-toolbar"><h2><img src={`${import.meta.env.BASE_URL}assets/health-report/rhythm.webp`} alt="" draggable={false} />{locale === "zh" ? "我的节律" : "My rhythm"}</h2></div>
     <div ref={categoryTrack} className="health-explorer-categories" role="tablist" aria-label={locale === "zh" ? "健康类别" : "Health categories"}>
-      {onOpenWeekly && <button type="button" role="tab" aria-selected={showWeekly} aria-controls="health-explorer-panel" tabIndex={showWeekly ? 0 : -1} data-health-category="all" aria-label={locale === "zh" ? "ALL，本周记录" : "ALL, this week's entries"} onClick={onOpenWeekly} onKeyDown={(event) => onCategoryKeyDown(event, "all")}><span><img src={`${import.meta.env.BASE_URL}assets/health-report/rhythm.webp`} alt="" draggable={false} /></span><strong>ALL</strong></button>}
+      {onOpenWeekly && <button type="button" role="tab" aria-selected={showWeekly} aria-controls="health-explorer-panel" tabIndex={showWeekly ? 0 : -1} data-health-category="all" aria-label={locale === "zh" ? "全部，本周记录" : "All, this week's entries"} onClick={onOpenWeekly} onKeyDown={(event) => onCategoryKeyDown(event, "all")}><span><img src={`${import.meta.env.BASE_URL}assets/health-report/all.webp`} alt="" draggable={false} /></span><strong>{locale === "zh" ? "全部" : "All"}</strong></button>}
       {available.map((category) => <button type="button" role="tab" aria-selected={!showWeekly && active.id === category.id} aria-controls="health-explorer-panel" tabIndex={!showWeekly && active.id === category.id ? 0 : -1} key={category.id} data-health-category={category.id} onClick={() => select(category.id)} onKeyDown={(event) => onCategoryKeyDown(event, category.id)}><span><CategoryImage category={category} /></span><strong>{locale === "zh" ? category.zh : category.en}</strong></button>)}
     </div>
     <div id="health-explorer-panel" className="health-explorer-panel" role="tabpanel" aria-label={showWeekly ? (locale === "zh" ? "本周记录" : "This week's entries") : (locale === "zh" ? active.zh : active.en)}>
-      {showWeekly ? <div className="health-explorer-weekly-content">{weeklyContent}</div> : <><div className="health-explorer-heading"><h2><CategoryImage key={active.id} category={active} />{locale === "zh" ? active.zh : active.en}</h2></div>
-      <ChartDeck key={`${active.id}-${date}-${selection.revision}-${initialChart}-${charts[active.id].map((chart) => chart.id).join(",")}`} charts={charts[active.id]} locale={locale} initialIndex={initialChart} onOpenRecord={active.id === "heart" ? undefined : () => onOpenRecord(active.id as Exclude<HealthReportCategory, "heart">)} />
+      {showWeekly ? <div className="health-explorer-weekly-content">{weeklyContent}</div> : <><div className="health-explorer-heading"><h2><CategoryImage key={active.id} category={active} />{locale === "zh" ? `${active.zh}记录` : `${active.en} records`}</h2></div>
+      <ChartDeck key={`${active.id}-${date}-${selection.revision}-${initialChart}-${cards.map(card => card.id).join(",")}`} cards={cards} locale={locale} initialIndex={initialChart} onOpenRecord={active.id === "heart" ? undefined : () => onOpenRecord(active.id === "energy" ? "diet" : active.id)} />
       </>}
     </div>
-    {showAll && <BottomSheet label={locale === "zh" ? "全部图表" : "All charts"} closeLabel={locale === "zh" ? "关闭，也可以向下拖动" : "Close, or drag down"} onClose={() => setShowAll(false)} className="health-explorer-sheet">
-      <h2>{locale === "zh" ? "想看看哪一项？" : "What would you like to explore?"}</h2>
-      <label className="health-explorer-date"><span>{locale === "zh" ? "报告日期" : "Report date"}</span><input type="date" value={date} max={maxDate} onChange={(event) => { if (event.target.value) onDateChange(event.target.value); }} /></label>
-      {overview && <p className="health-explorer-overview">{overview}</p>}
-      <div className="health-explorer-chart-list">{available.map(({ id, zh, en, icon: Icon }) => <section key={id}><h3><Icon size={20} />{locale === "zh" ? zh : en}</h3>{charts[id].map((chart, index) => <button type="button" key={chart.id} data-select-chart={chart.id} onClick={() => { select(id, index); setShowAll(false); }}><span>{chart.title}</span><ChevronRight size={17} /></button>)}</section>)}</div>
-    </BottomSheet>}
   </section>;
 }
