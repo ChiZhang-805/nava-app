@@ -6,6 +6,7 @@ import { AI_PROCESSING_STEP_MIN_MS, buildAiProcessingSteps, type AiProcessingSte
 import type { UserProfile } from "./profile";
 import { buildConversationGreeting } from "./aiConversationSessions";
 import { parseChatSticker } from "./chatStickers";
+import { appendConversationArchiveMessage } from "./userCloudState";
 import type { PriorityTask } from "./focusPlanning";
 import { validateFocusRequest, validateFocusOutput, type FocusRequest, type FocusResult } from "../../supabase/functions/_shared/focus-contract.ts";
 
@@ -51,24 +52,24 @@ export async function loadConversation(userId: string, locale: "zh" | "en" = "zh
   }
 }
 
-export async function restoreConversationMessages(userId: string, messages: ChatMessage[]) {
-  if (!messages.length) return;
-  if (isDemoMode()) {
-    const current = await loadConversation(userId);
-    const byId = new Map(current.map((message) => [message.id, message]));
-    for (const message of messages) byId.set(message.id, message);
-    window.localStorage.setItem(`nava-demo-conversation:${userId}`, JSON.stringify([...byId.values()].sort((a, b) => a.created_at.localeCompare(b.created_at))));
-    return;
+async function appendDemoConversationMessages(userId: string, messages: ChatMessage[]) {
+  const current = await loadConversation(userId);
+  const byId = new Map(current.map((message) => [message.id, message]));
+  for (const message of messages) byId.set(message.id, message);
+  window.localStorage.setItem(`nava-demo-conversation:${userId}`, JSON.stringify([...byId.values()].sort((a, b) => a.created_at.localeCompare(b.created_at))));
+}
+
+async function persistChatMessage(userId: string, message: ChatMessage, archiveId?: string | null) {
+  if (archiveId) {
+    await appendConversationArchiveMessage(userId, archiveId, message);
+    return message;
   }
-  const rows = messages.map((message) => {
-    if (!/^[0-9a-f-]{36}$/i.test(message.id) || !["user", "assistant"].includes(message.role)
-      || typeof message.content !== "string" || !Number.isFinite(Date.parse(message.created_at))) {
-      throw new Error("Invalid archived message.");
-    }
-    // Never trust a user_id embedded in archive JSON; RLS checks this owner.
-    return { id: message.id, user_id: userId, role: message.role, content: message.content, created_at: message.created_at };
-  });
-  assertNoError((await supabase.from("ai_conversations").upsert(rows, { onConflict: "id" })).error);
+  if (isDemoMode()) { await appendDemoConversationMessages(userId, [message]); return message; }
+  const result = await supabase.from("ai_conversations").insert({
+    id: message.id, user_id: userId, role: message.role, content: message.content, created_at: message.created_at,
+  }).select("*").single();
+  assertNoError(result.error);
+  return result.data as ChatMessage;
 }
 
 export async function createConversationGreeting(userId: string, locale: "zh" | "en" = "zh"): Promise<ChatMessage> {
@@ -76,7 +77,7 @@ export async function createConversationGreeting(userId: string, locale: "zh" | 
   const content = buildConversationGreeting(locale);
   if (isDemoMode()) {
     const message = { id: crypto.randomUUID(), role: "assistant", content, created_at: createdAt } as ChatMessage;
-    await restoreConversationMessages(userId, [message]);
+    await appendDemoConversationMessages(userId, [message]);
     return message;
   }
   const result = await supabase
@@ -174,6 +175,7 @@ export async function sendAiMessage(input: {
   userId: string;
   message: string;
   displayMessage?: string;
+  archiveId?: string | null;
   history: ChatMessage[];
   lang?: "zh" | "en";
   profile?: UserProfile | null;
@@ -196,7 +198,7 @@ export async function sendAiMessage(input: {
     const now = new Date().toISOString();
     const content = demoAiReply(input.message, lang);
     const userMessage = { id: crypto.randomUUID(), role: "user", content: input.displayMessage ?? input.message, created_at: now } as ChatMessage;
-    await restoreConversationMessages(input.userId, [userMessage]);
+    await persistChatMessage(input.userId, userMessage, input.archiveId);
     input.onUserMessage?.(userMessage);
     await processing;
     let streamed = "";
@@ -207,7 +209,7 @@ export async function sendAiMessage(input: {
       await abortableDelay(34, input.signal);
     }
     const assistantMessage = { id: crypto.randomUUID(), role: "assistant", content, created_at: new Date().toISOString() } as ChatMessage;
-    await restoreConversationMessages(input.userId, [assistantMessage]);
+    await persistChatMessage(input.userId, assistantMessage, input.archiveId);
     return {
       userMessage,
       assistantMessage,
@@ -218,17 +220,10 @@ export async function sendAiMessage(input: {
     };
   }
 
-  const userInsert = await supabase
-    .from("ai_conversations")
-    .insert({
-      user_id: input.userId,
-      role: "user",
-      content: input.displayMessage ?? input.message,
-    })
-    .select("*")
-    .single();
-  assertNoError(userInsert.error);
-  input.onUserMessage?.(userInsert.data as ChatMessage);
+  const userMessage = await persistChatMessage(input.userId, {
+    id: crypto.randomUUID(), role: "user", content: input.displayMessage ?? input.message, created_at: new Date().toISOString(),
+  }, input.archiveId);
+  input.onUserMessage?.(userMessage);
 
   const extraction = parseChatSticker(input.message) ? null : input.preExtracted ?? await (async () => {
     const extract = await supabase.functions.invoke("ai-extract-data", {
@@ -246,6 +241,8 @@ export async function sendAiMessage(input: {
   const extractedData = extraction?.extractedData ?? null;
   const content = await requestAiReply({
     message: input.message,
+    archiveId: input.archiveId,
+    messageId: userMessage.id,
     lang,
     dataType: extraction?.dataType ?? null,
     extractedData,
@@ -256,20 +253,13 @@ export async function sendAiMessage(input: {
     onStatus: input.onStatus,
     onDelta: input.onDelta,
   });
-  const assistantInsert = await supabase
-    .from("ai_conversations")
-    .insert({
-      user_id: input.userId,
-      role: "assistant",
-      content,
-    })
-    .select("*")
-    .single();
-  assertNoError(assistantInsert.error);
+  const assistantMessage = await persistChatMessage(input.userId, {
+    id: crypto.randomUUID(), role: "assistant", content, created_at: new Date().toISOString(),
+  }, input.archiveId);
 
   return {
-    userMessage: userInsert.data as ChatMessage,
-    assistantMessage: assistantInsert.data as ChatMessage,
+    userMessage,
+    assistantMessage,
     dataType: extraction?.dataType ?? null,
     extractedData,
     extractionConfidence: typeof extraction?.confidence === "number" ? extraction.confidence : null,
@@ -290,6 +280,8 @@ function demoAiReply(message: string, lang: "zh" | "en") {
 
 async function requestAiReply(input: {
   message: string;
+  archiveId?: string | null;
+  messageId?: string;
   lang: "zh" | "en";
   dataType?: unknown;
   extractedData?: unknown;
@@ -304,6 +296,8 @@ async function requestAiReply(input: {
     headers: await authenticatedFunctionHeaders(),
     body: {
       message: input.message,
+      ...(input.archiveId ? { archiveId: input.archiveId } : {}),
+      ...(input.messageId ? { messageId: input.messageId } : {}),
       dataType: input.dataType ?? null,
       extractedData: input.extractedData ?? null,
       knowledge: input.knowledge ?? null,

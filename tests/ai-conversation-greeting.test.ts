@@ -12,8 +12,8 @@ test("fresh conversations start with varied, concise prompts", () => {
   assert.ok(greetings.every((greeting) => greeting.length < 45 && greeting.includes("？")));
 });
 
-test("empty, daily rollover, manual new, and clear states all create a greeting", () => {
-  assert.ok((aiScreen.match(/createConversationGreeting/g) ?? []).length >= 5);
+test("empty, daily rollover, and fresh current chats create a greeting; archive deletion returns to current", () => {
+  assert.ok((aiScreen.match(/createConversationGreeting/g) ?? []).length >= 4);
   assert.doesNotMatch(aiScreen, /ai\.emptyTitle/);
   assert.doesNotMatch(aiScreen, /className="empty-chat"/);
 });

@@ -76,6 +76,13 @@ try {
         await expect(page.locator('.chat-archive-return')).toHaveCount(0);
         await expect(page.locator('.chat-composer')).toBeVisible();
         await expect(page.locator('.app-header h1')).toHaveText('瓦咪儿');
+        const currentChatBefore = await page.evaluate(user => {
+          const key = `nava-demo-conversation:${user}`;
+          const current = JSON.parse(localStorage.getItem(key));
+          current.push({ id: crypto.randomUUID(), role: 'user', content: '另一台设备写入当前对话', created_at: new Date().toISOString() });
+          localStorage.setItem(key, JSON.stringify(current));
+          return JSON.stringify(current);
+        }, user);
         await page.locator('.chat-input-shell input').fill('继续聊聊周末吧');
         await page.locator('.chat-send-button').click();
         await expect(page.locator('.ai-streaming-row')).toHaveCount(0, { timeout: 20000 });
@@ -91,6 +98,7 @@ try {
         await expect(page.locator('.ai-history-open').first()).toContainText('周末的小事');
         const saved = await page.evaluate(({ historyKey, oldId }) => JSON.parse(localStorage.getItem(historyKey)).find(item => item.id === oldId), { historyKey, oldId });
         assert.equal(saved.messages.filter(message => message.content === '[nava-sticker:hug]').length, 1);
+        assert.equal(await page.evaluate(user => localStorage.getItem(`nava-demo-conversation:${user}`), user), currentChatBefore, 'Archive sends must not touch the concurrent current conversation');
         await page.locator('.ai-history-sheet header button').click();
         await page.reload({ waitUntil: 'networkidle' });
         if (await page.locator('.launch-sequence').isVisible().catch(() => false)) await page.locator('.launch-sequence').click();
@@ -107,8 +115,9 @@ try {
         await expect.poll(async () => page.evaluate(({ historyKey, oldId }) => JSON.parse(localStorage.getItem(historyKey)).some(item => item.id === oldId), { historyKey, oldId })).toBe(false);
         assert.equal(await page.evaluate(key => localStorage.getItem(key), activeKey), null);
         await page.locator('.ai-history-sheet header button').click();
-        await expect(page.locator('.chat-message-row')).toHaveCount(1);
-        report.results.push({ engine, width, geometry, archiveId: saved.id, messagesAfterContinuation: saved.messages.length, reloadedSticker: true, explicitCopy: 'label copied', deleteActive: 'archived and live rows removed, new greeting created' });
+        await expect(page.locator('.chat-message-row')).toHaveCount(4);
+        assert.equal(await page.evaluate(user => localStorage.getItem(`nava-demo-conversation:${user}`), user), currentChatBefore);
+        report.results.push({ engine, width, geometry, archiveId: saved.id, messagesAfterContinuation: saved.messages.length, reloadedSticker: true, explicitCopy: 'label copied', deleteActive: 'only archive removed; concurrent current conversation unchanged' });
         await context.close();
       }
     } finally { await browser.close(); }

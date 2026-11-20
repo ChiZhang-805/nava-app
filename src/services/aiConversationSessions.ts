@@ -1,4 +1,5 @@
 import type { ChatMessage } from "../types";
+import { unionConversationMessages } from "./aiConversationPersistence.ts";
 
 export type ConversationSnapshot = {
   id: string;
@@ -41,9 +42,12 @@ export function mergeConversationSnapshots(items: ConversationSnapshot[]) {
     const previous = byId.get(snapshot.id);
     const last = Date.parse(conversationLastMessageAt(snapshot));
     const previousLast = previous ? Date.parse(conversationLastMessageAt(previous)) : -Infinity;
-    if (!previous || last > previousLast || (last === previousLast && snapshot.messages.length >= previous.messages.length)) {
-      byId.set(snapshot.id, snapshot);
-    }
+    if (!previous) byId.set(snapshot.id, snapshot);
+    else byId.set(snapshot.id, {
+      ...(last >= previousLast ? snapshot : previous),
+      createdAt: previous.createdAt,
+      messages: unionConversationMessages(previous.messages, snapshot.messages),
+    });
   }
   return [...byId.values()].sort((a, b) => Date.parse(conversationLastMessageAt(b)) - Date.parse(conversationLastMessageAt(a)));
 }

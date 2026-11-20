@@ -1,6 +1,7 @@
 import { isDemoMode } from "./demo";
 import { supabase } from "./supabaseClient";
 import { todayISO } from "./date";
+import { persistConversationArchive, type ArchiveMessage, type ArchiveStore } from "./aiConversationPersistence";
 
 export type UserAppPreferences = {
   locale: "zh" | "en";
@@ -163,44 +164,84 @@ function archiveMetadata(value: unknown): ConversationArchiveMetadata["__navaArc
     : null;
 }
 
+function decodeArchive<T>(row: Record<string, unknown>): ConversationArchive<T> | null {
+  if (!Array.isArray(row.messages)) return null;
+  const metadata = archiveMetadata(row.messages[0]);
+  const createdAt = String(row.created_at);
+  return {
+    id: String(row.id), createdAt,
+    dayKey: metadata?.dayKey ?? todayISO(new Date(createdAt)), title: metadata?.title ?? "",
+    messages: (metadata ? row.messages.slice(1) : row.messages) as T[],
+  };
+}
+
+function conversationArchiveStore<T extends ArchiveMessage>(userId: string, archiveId: string): ArchiveStore<T> {
+  const demoKey = `nava-ai-history:${userId}`;
+  return {
+    read: async () => {
+      if (isDemoMode()) {
+        const archive = (readLocalJson<ConversationArchive<T>[]>(demoKey) ?? []).find(item => item.id === archiveId);
+        return archive ? { archive, version: JSON.stringify(archive) } : null;
+      }
+      const result = await supabase.from("ai_conversation_archives").select("id,created_at,updated_at,messages")
+        .eq("user_id", userId).eq("id", archiveId).maybeSingle();
+      assertNoError(result.error);
+      if (!result.data) return null;
+      const archive = decodeArchive<T>(result.data);
+      if (!archive) throw new Error("Invalid saved conversation.");
+      return { archive, version: String(result.data.updated_at) };
+    },
+    compareAndSwap: async (archive, expectedVersion) => {
+      if (isDemoMode()) {
+        const all = readLocalJson<ConversationArchive<T>[]>(demoKey) ?? [];
+        const current = all.find(item => item.id === archiveId);
+        if ((current ? JSON.stringify(current) : null) !== expectedVersion) return false;
+        writeLocalJson(demoKey, [archive, ...all.filter(item => item.id !== archiveId)]);
+        return true;
+      }
+      const messages = [{ __navaArchive: { version: 1, dayKey: archive.dayKey ?? todayISO(new Date(archive.createdAt)), title: archive.title?.trim() ?? "" } }, ...archive.messages];
+      const result = expectedVersion === null
+        ? await supabase.from("ai_conversation_archives").insert({ id: archiveId, user_id: userId, created_at: archive.createdAt, messages }).select("id").maybeSingle()
+        : await supabase.from("ai_conversation_archives").update({ messages })
+          .eq("user_id", userId).eq("id", archiveId).eq("updated_at", expectedVersion).select("id").maybeSingle();
+      assertNoError(result.error);
+      return Boolean(result.data);
+    },
+  };
+}
+
 export async function loadConversationArchives<T>(userId: string): Promise<Array<ConversationArchive<T>>> {
-  if (isDemoMode()) return [];
-  const result = await supabase
-    .from("ai_conversation_archives")
-    .select("id,created_at,messages")
-    .eq("user_id", userId)
-    .order("updated_at", { ascending: false })
-    .limit(20);
+  if (isDemoMode()) return readLocalJson<ConversationArchive<T>[]>(`nava-ai-history:${userId}`) ?? [];
+  const result = await supabase.from("ai_conversation_archives").select("id,created_at,messages")
+    .eq("user_id", userId).order("updated_at", { ascending: false }).limit(20);
   assertNoError(result.error);
-  return (result.data ?? []).flatMap((row) => {
-    if (!Array.isArray(row.messages)) return [];
-    const metadata = archiveMetadata(row.messages[0]);
-    const createdAt = String(row.created_at);
-    return [{
-      id: String(row.id),
-      createdAt,
-      dayKey: metadata?.dayKey ?? todayISO(new Date(createdAt)),
-      title: metadata?.title,
-      messages: (metadata ? row.messages.slice(1) : row.messages) as T[],
-    }];
+  return (result.data ?? []).flatMap(row => {
+    const archive = decodeArchive<T>(row);
+    return archive ? [archive] : [];
   });
 }
 
-export async function saveConversationArchive<T>(userId: string, archive: ConversationArchive<T>) {
-  if (isDemoMode()) return;
-  const dayKey = archive.dayKey ?? todayISO(new Date(archive.createdAt));
-  const title = archive.title?.trim() ?? "";
-  const result = await supabase.from("ai_conversation_archives").upsert({
-    id: archive.id,
-    user_id: userId,
-    created_at: archive.createdAt,
-    messages: [{ __navaArchive: { version: 1, dayKey, title } }, ...archive.messages],
-  }, { onConflict: "id" });
-  assertNoError(result.error);
+export async function loadConversationArchive<T extends ArchiveMessage>(userId: string, archiveId: string) {
+  return (await conversationArchiveStore<T>(userId, archiveId).read())?.archive ?? null;
+}
+
+export async function saveConversationArchive<T extends ArchiveMessage>(userId: string, archive: ConversationArchive<T>) {
+  return persistConversationArchive(archive, conversationArchiveStore<T>(userId, archive.id));
+}
+
+export async function appendConversationArchiveMessage<T extends ArchiveMessage>(userId: string, archiveId: string, message: T) {
+  const store = conversationArchiveStore<T>(userId, archiveId);
+  const current = await store.read();
+  if (!current) throw new Error("Conversation no longer exists or is not accessible.");
+  return persistConversationArchive({ ...current.archive, messages: [message] }, store, true);
 }
 
 export async function deleteConversationArchive(userId: string, archiveId: string) {
-  if (isDemoMode()) return;
+  if (isDemoMode()) {
+    const key = `nava-ai-history:${userId}`;
+    writeLocalJson(key, (readLocalJson<ConversationArchive<ArchiveMessage>[]>(key) ?? []).filter(item => item.id !== archiveId));
+    return;
+  }
   const result = await supabase.from("ai_conversation_archives").delete().eq("user_id", userId).eq("id", archiveId);
   assertNoError(result.error);
 }
