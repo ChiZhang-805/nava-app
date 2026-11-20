@@ -68,6 +68,14 @@ try {
                 assert(last.height >= 44);
                 assert(visible - last.y - last.height >= 0 && visible - last.y - last.height <= 28,
                   `Shortcut gap: ${JSON.stringify({visible,last})}`);
+                const firstField = await page.locator('.auth-fields .field').nth(0).boundingBox();
+                const secondField = await page.locator('.auth-fields .field').nth(1).boundingBox();
+                const submit = await page.locator('.auth-submit').boundingBox();
+                const locale = await page.locator('.auth-locale').boundingBox();
+                assert(secondField.y - firstField.y - firstField.height >= 7.5, 'Input rows are crowded');
+                assert(submit.y - secondField.y - secondField.height >= 7.5, 'Submit crowds password');
+                assert(firstField.y >= locale.y + locale.height, 'Language control overlaps form');
+                assert.equal(await page.locator('.auth-form-region').evaluate(el => el.scrollTop), 0, 'Login requires scrolling');
               }
             }
             report.push({ engine,width,height,mode,index,before,after,field });

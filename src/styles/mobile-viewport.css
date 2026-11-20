@@ -63,7 +63,7 @@ html[data-auth-viewport="true"] .auth-screen .auth-brand .nava-wordmark {
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen {
   display: grid;
-  grid-template-rows: clamp(24px, calc(var(--nava-visible-height) - 350px), 76px) minmax(0, 1fr);
+  grid-template-rows: 44px minmax(0, 1fr);
   /* The image keeps its full-screen dimensions. Only content ends above IME. */
   height: var(--auth-canvas-height, 100dvh);
   padding-top: max(8px, env(safe-area-inset-top));
@@ -92,15 +92,21 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-fo
   height: auto;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand .nava-wordmark {
-  --wordmark-size: clamp(20px, calc(var(--nava-visible-height) - 354px), 42px);
+  --wordmark-size: 28px;
   min-height: 0;
   animation: none;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-locale {
+  top: max(8px, env(safe-area-inset-top));
+  min-height: 44px;
+  height: 44px;
+  padding-block: 4px;
 }
 /* Fit the login's complete set of actions above compact keyboards. */
 @container auth-form-space (max-height: 340px) {
   html[data-keyboard-open="true"] .auth-form--signIn .field {
     position: relative;
-    margin-bottom: 2px;
+    margin-bottom: 0;
   }
   html[data-keyboard-open="true"] .auth-form--signIn .auth-field-heading {
     display: contents;
@@ -140,10 +146,25 @@ html[data-keyboard-open="true"] .auth-consent.auth-consent--screen {
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form {
   min-height: 100%;
 }
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: space-between;
+  gap: 8px;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) .auth-fields {
+  display: contents;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) .field {
+  margin: 0;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-feedback-slot:empty {
+  display: none;
+}
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social {
   display: block;
-  margin-top: auto;
-  padding-top: 4px;
+  margin: 0;
+  padding: 0;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-secondary-links {
   display: flex;
@@ -175,6 +196,30 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-so
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
+}
+@container auth-form-space (max-height: 250px) {
+  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) {
+    grid-template-columns: minmax(100px, 1.3fr) repeat(2, minmax(0, 1fr));
+    column-gap: 6px;
+  }
+  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .field,
+  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-social {
+    grid-column: 1 / -1;
+  }
+  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-secondary-links {
+    display: contents;
+  }
+  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-submit {
+    padding: 0 6px;
+    font-size: 12px;
+  }
+  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-submit svg {
+    display: none;
+  }
+  html[data-keyboard-open="true"] .auth-secondary-links > button {
+    justify-content: center;
+    font-size: 11px;
+  }
 }
 html[data-keyboard-open="true"] .phone-frame .profile-security-sheet {
   max-height: 100%;
