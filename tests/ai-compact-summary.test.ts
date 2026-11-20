@@ -12,6 +12,7 @@ import {
 const healthFunction = readFileSync(new URL("../supabase/functions/ai-health-report/index.ts", import.meta.url), "utf8");
 const dietFunction = readFileSync(new URL("../supabase/functions/ai-diet-report/index.ts", import.meta.url), "utf8");
 const recordsScreen = readFileSync(new URL("../src/features/RecordsScreen.tsx", import.meta.url), "utf8");
+const reportExplorer = readFileSync(new URL("../src/components/HealthReportExplorer.tsx", import.meta.url), "utf8");
 const dashboard = readFileSync(new URL("../src/features/RecordModuleDashboard.tsx", import.meta.url), "utf8");
 const healthService = readFileSync(new URL("../src/services/healthReport.ts", import.meta.url), "utf8");
 const dietService = readFileSync(new URL("../src/services/dietReport.ts", import.meta.url), "utf8");
@@ -124,8 +125,13 @@ test("detailed report prose and auxiliary AI routes remain wired without six unu
   assert.match(dashboard, /reportInsights\.map/);
 
   assert.doesNotMatch(recordsScreen, /recordedModules\.forEach/);
-  assert.match(recordsScreen, /overview=\{hubAiEligible && hubHasSignificantPattern \? hubAssociation\?\.headline/);
-  assert.match(recordsScreen, /scope: "weekly", endDate: recordDate/);
+  // The requested All category replaced the removed hub summary. Keep the
+  // weekly route and sparse-data gate covered without restoring obsolete UI.
+  assert.doesNotMatch(recordsScreen, /hubAssociation|hubAiEligible|hubHasSignificantPattern/);
+  assert.match(reportExplorer, /data-health-category="all"[\s\S]+onClick=\{onOpenWeekly\}/);
+  assert.match(recordsScreen, /onOpenWeekly=\{\(\) => \{ setReportMode\("weekly"\)/);
+  assert.match(recordsScreen, /weeklyContent=\{weeklyContent\}/);
+  assert.match(recordsScreen, /recordedDateCount\(trendBundle, period\.startDate, availableEndDate\) < 5/);
   assert.match(recordsScreen, /scope: "weekly", endDate: availableEndDate/);
   assert.match(recordsScreen, /AI 本周节律洞察/);
 
