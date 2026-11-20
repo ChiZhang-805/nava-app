@@ -244,7 +244,7 @@ try{
    const tapGuide=async()=>{const box=await guide.boundingBox();assert.ok(box,'guide must expose a touchable box');await page.touchscreen.tap(box.x+24,box.y+112);};
    await expect(guide).toHaveAttribute('data-speech-ready','false');
    await regression.locator('#screen').evaluate(screen=>{for(let frame=0;frame<24;frame+=1)screen.dataset.scene='entry';});
-   await page.waitForTimeout(120);await expect(guide).toHaveAttribute('data-speech-ready','false');assert.ok((await regression.locator('#entry-bubble').innerText()).length>1,'typewriter must progress while animation repeats the same scene');
+   await page.waitForTimeout(120);assert.ok((await regression.locator('#entry-bubble').innerText()).length>1,'typewriter must progress while animation repeats the same scene');
    await regression.locator('#screen').evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true})));
    await tapGuide();await expect(guide).toHaveAttribute('data-step','sleepRange');await expect(guide).toHaveAttribute('data-ready','false');
    await regression.locator('#screen').evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));

@@ -290,7 +290,7 @@ export function installColdStartGuide(api) {
   function paintFinishedSpeech() {
     if (!speechReady) return;
     const complete = stepComplete();
-    entryBubble.textContent = complete && !isFinalStep() ? t('写好了。', 'Done.') : spokenMessage;
+    entryBubble.textContent = complete && !isFinalStep() ? t('写好啦。', 'Done.') : spokenMessage;
     if (complete) {
       const hint = document.createElement('small');
       hint.textContent = isFinalStep()

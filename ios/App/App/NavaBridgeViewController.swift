@@ -30,6 +30,35 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
         super.viewDidLoad()
         installAuthCanvas()
         view.backgroundColor = Self.startupBackground
+        #if targetEnvironment(simulator)
+        // Test the actual system picker bridge without a production account.
+        // This code is absent from every device archive, including TestFlight.
+        if ProcessInfo.processInfo.arguments.contains("-NavaPickerBoundaryTest") {
+            let script = #"""
+            window.addEventListener('load', () => {
+              const host = document.createElement('section');
+              host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:white;padding:100px 24px;color:black';
+              host.innerHTML = '<h1>Picker boundary test</h1><input aria-label="Preserved draft" value="Keep this draft"><button id="native-library">Photo library</button><button id="native-file">Choose file</button><input id="boundary-file" type="file" accept=".txt,.md,.csv,.json" hidden><p id="boundary-status" role="status">Ready</p>';
+              document.body.append(host);
+              const status = host.querySelector('#boundary-status');
+              host.querySelector('#native-library').onclick = async () => {
+                status.textContent = 'Opening photos';
+                try {
+                  const result = await window.Capacitor.nativePromise('Camera', 'getPhoto', {source:'PHOTOS',resultType:'uri',quality:90,width:1600,height:1600,correctOrientation:true,allowEditing:false,saveToGallery:false,presentationStyle:'fullscreen'});
+                  status.textContent = result.webPath ? 'Photo selected' : 'No photo';
+                } catch (error) { status.textContent = /cancel/i.test(error.message || '') ? 'Photo cancelled' : 'Photo error: ' + error.message; }
+              };
+              const file = host.querySelector('#boundary-file');
+              host.querySelector('#native-file').onclick = () => file.click();
+              file.oncancel = () => { status.textContent = 'File cancelled'; };
+              file.onchange = () => { status.textContent = file.files.length ? 'File selected' : 'File cancelled'; };
+            }, {once:true});
+            """#
+            bridge?.webView?.configuration.userContentController.addUserScript(
+                WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+            )
+        }
+        #endif
     }
 
     override func capacitorDidLoad() {

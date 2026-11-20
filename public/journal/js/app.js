@@ -799,12 +799,12 @@ __fluffyModules["app.js"] = (() => {
             preview.tabIndex = 0;
             preview.onclick = event => {
                 if (event.target.closest(".photo-remove")) return;
-                openCamera();
+                openPhotoOptions();
             };
             preview.onkeydown = event => {
                 if (event.key !== "Enter" && event.key !== " ") return;
                 event.preventDefault();
-                openCamera();
+                openPhotoOptions();
             };
             form.append(preview);
             if (state.category !== "food") {
@@ -1385,9 +1385,33 @@ __fluffyModules["app.js"] = (() => {
      * 输出：Promise<void>。
      * 功能：请求相机预览，支持明确拍摄/取消；离开立即停止所有轨道。
      */
+    function openPhotoOptions() {
+        showSheet('添加照片', body => {
+            const row = el('div', 'sheet-buttons');
+            const camera = el('button', '', Locale.t('拍一张照片', 'Take a photo'));
+            const library = el('button', 'solid', Locale.t('选择照片', 'Choose a photo'));
+            camera.type = library.type = 'button';
+            camera.onclick = () => { closeSheet(false); void openCamera(); };
+            library.onclick = () => { void selectLibrary(); };
+            body.append($("photo-library"));
+            row.append(camera, library);body.append(row);
+        });
+    }
+    async function pickNativeEntryPhoto(source) {
+        const read = ++state.photoRead, category = state.category, date = state.recordDate, editingId = state.editingId;
+        const current = () => read === state.photoRead && category === state.category && date === state.recordDate && editingId === state.editingId && animation.scene === 'entry';
+        // Native presentation may background the WebView. That must not discard
+        // this selection, but navigating to another entry must discard it.
+        try {
+            const file = await window.NavaJournal.call('photo', {source, facing: category === 'face' ? 'user' : 'environment'});
+            if (!file || !current()) return;
+            const image = await photo.readFile(file);
+            if (image && current()) { closeSheet(false); await acceptPhoto(image); }
+        } catch (error) { if (current() && error.name !== 'AbortError') toast(Locale.t('无法打开照片，请检查权限后重试。', 'Unable to open the photo. Check access and try again.')); }
+    }
     async function openCamera() {
         if(window.NavaJournal.initial.nativePhotos){
-            try {const file=await window.NavaJournal.call('photo',{source:'camera',facing:state.category==='face'?'user':'environment'});if(file)acceptPhoto(await photo.readFile(file));}catch(error){toast(error.message);}return;
+            await pickNativeEntryPhoto('camera');return;
         }
         const id = state.category;
         cancelWork(false);
@@ -1437,7 +1461,7 @@ __fluffyModules["app.js"] = (() => {
     }
     async function selectLibrary(){
         if(!window.NavaJournal.initial.nativePhotos){$("photo-library").click();return;}
-        try{const file=await window.NavaJournal.call('photo',{source:'library'});if(file)acceptPhoto(await photo.readFile(file));}catch(error){toast(error.message);}
+        await pickNativeEntryPhoto('library');
     }
     /**
      * 输入：无，读取当前任务和页面上下文。

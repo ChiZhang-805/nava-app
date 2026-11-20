@@ -47,9 +47,17 @@ export default function JournalExperience({user,module,locale,skin,forceGuide=fa
     const visibility=()=>{if(document.hidden)interrupt();};
     document.addEventListener('visibilitychange',visibility);
     const native=usesNativePhotos()?NativeApp.addListener('appStateChange',({isActive})=>{if(!isActive)interrupt();}):null;
+    // Fetch while the iframe parses its assets, rather than after its load event.
+    // Attach both handlers immediately so an early failure never goes unhandled.
+    const initialRequest=loadJournal(user.id).then(value=>({value}),()=>({value:null}));
+    let connecting=false;
     const start=async()=>{
+      if(connecting)return;
+      connecting=true;
       try{
-        const initial=await loadJournal(user.id);if(!alive||bootExpired||!frame.current?.contentWindow)return;
+        const {value:initial}=await initialRequest;
+        if(!alive||bootExpired||!frame.current?.contentWindow)return;
+        if(!initial)throw Error('Journal unavailable');
         settings=initial.settings;channel=new MessageChannel();
         channel.port1.onmessage=async({data})=>{
           if(data.cancel){controllers.get(data.cancel)?.abort();return;}
@@ -97,8 +105,12 @@ export default function JournalExperience({user,module,locale,skin,forceGuide=fa
       }catch{window.clearTimeout(bootTimer);if(alive)setError(locale==='zh'?'记录未能加载，请重试。':'Could not load your journal. Please retry.');}
     };
     const element=frame.current; element?.addEventListener('load',start);
+    const bridgeReady=(event:MessageEvent)=>{
+      if(event.origin===location.origin&&event.source===element?.contentWindow&&event.data?.type==='nava-journal-ready')void start();
+    };
+    window.addEventListener('message',bridgeReady);
     const observer=new ResizeObserver(resize);if(element)observer.observe(element);
-    return()=>{alive=false;window.clearTimeout(bootTimer);setGuideActive(false);interrupt();unregister();observer.disconnect();void voice?.cancel();void wake?.release();void native?.then(handle=>handle.remove());document.removeEventListener('visibilitychange',visibility);window.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('scroll',resize);element?.removeEventListener('load',start);for(const c of controllers.values())c.abort();channel?.port1.close();};
+    return()=>{alive=false;window.clearTimeout(bootTimer);setGuideActive(false);interrupt();unregister();observer.disconnect();void voice?.cancel();void wake?.release();void native?.then(handle=>handle.remove());document.removeEventListener('visibilitychange',visibility);window.removeEventListener('message',bridgeReady);window.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('scroll',resize);element?.removeEventListener('load',start);for(const c of controllers.values())c.abort();channel?.port1.close();};
   },[user.id,module,locale,skin,attempt,forceGuide,guidePreview]);
   return <section className={`journal-experience${guideActive?' is-guiding':''}`} aria-label={locale==='zh'?'生活记录':'Journal'}>
     <iframe key={`${module}-${locale}-${skin}-${attempt}-${forceGuide}`} ref={frame} aria-hidden={Boolean(firstFeedback)} tabIndex={firstFeedback?-1:undefined} src={`${import.meta.env.BASE_URL}journal/index.html?v=20261006-skins-a11y-v3&skin=${encodeURIComponent(skin)}&category=${encodeURIComponent(categoryMap[module])}`} title={locale==='zh'?'记录与回顾':'Journal and recap'} allow="camera; microphone"/>

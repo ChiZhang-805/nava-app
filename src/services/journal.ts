@@ -36,8 +36,10 @@ function readDemoSettings(){
 /** Page through all confirmed records. RLS remains authoritative, including after logout. */
 export async function loadJournal(userId: string) {
   if(isDemoMode())return {records:readDemoRecords(),settings:readDemoSettings()};
-  const records=await getJournalRecords(userId);
-  const {data,error}=await supabase.from('journal_preferences').select('settings').eq('user_id',userId).maybeSingle();
+  const [records,{data,error}]=await Promise.all([
+    getJournalRecords(userId),
+    supabase.from('journal_preferences').select('settings').eq('user_id',userId).maybeSingle(),
+  ]);
   if(error) throw error;
   return {records, settings:(data?.settings ?? {}) as Record<string,unknown>};
 }

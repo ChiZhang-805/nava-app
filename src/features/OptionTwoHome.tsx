@@ -1,4 +1,5 @@
 import type { User } from "@supabase/supabase-js";
+import QuickRecordHint from '../components/QuickRecordHint';
 import {
   Bell,
   CalendarDays,
@@ -639,7 +640,7 @@ export default function OptionTwoHome({
         <span className="option-two-aura" aria-hidden="true" />
         <InteractiveMascot locale={locale} preferredMotion={homeGuidance?.motion} positiveMood={(snapshot?.mood?.mood_score ?? 0) >= 75} />
       </div>
-      <button className="home-record-shortcut-hint" type="button" aria-expanded={healthMenuOpen} onClick={() => setHealthMenuOpen(open => !open)}>{healthMenuOpen ? (locale === "zh" ? "收起记录入口" : "Hide shortcuts") : (locale === "zh" ? "向上轻滑 · 快速记录" : "Swipe up · Quick record")}</button>
+      <QuickRecordHint open={healthMenuOpen} locale={locale} onToggle={() => setHealthMenuOpen(open => !open)} />
 
       <div className="option-two-health-menu" aria-hidden={!healthMenuOpen}>
         <span className="option-two-health-disc" aria-hidden="true" />

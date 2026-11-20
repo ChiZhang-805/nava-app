@@ -116,7 +116,7 @@ export default function GrowthTasksScreen({
       })
       .catch((error) => {
         console.warn("Growth progress could not be refreshed", error);
-        if (active) setLoadError(locale === "zh" ? "成长任务加载失败，当前没有用本地推测结果冒充云端进度。" : "Growth tasks could not be loaded; local guesses are not being shown as cloud progress.");
+        if (active) setLoadError(locale === "zh" ? "成长进度暂时没能加载，请稍后重试。" : "Your growth progress could not be loaded. Please try again.");
       })
       .finally(() => { if (active) setLoading(false); });
     const unsubscribe = subscribeProductivity(() => setTasks(loadGrowthTasks(user.id)));
@@ -141,6 +141,7 @@ export default function GrowthTasksScreen({
           <span>{locale === "zh" ? "累计成长" : "Total growth"}</span>
           <strong aria-live="polite">{displayedXp} XP</strong>
           <div className="growth-progress-track" aria-label={`${progress}%`}><span style={{ width: `${progress}%` }} /></div>
+          <small>{locale === 'zh' ? `还差 ${100 - progress} XP，就到 Lv.${level + 1} 啦` : `${100 - progress} XP to Lv.${level + 1}`}</small>
           {badges.length > 0 && <small>{locale === "zh" ? `已获得 ${badges.length} 枚徽章` : `${badges.length} badge${badges.length === 1 ? "" : "s"} earned`}</small>}
         </div>
         <button className="growth-level-details-toggle" type="button" aria-expanded={levelsOpen} aria-controls="growth-level-details" aria-label={locale === "zh" ? "查看等级规则" : "Level details"} onClick={() => setLevelsOpen(open => !open)}><Flame size={25} /></button>
@@ -149,6 +150,7 @@ export default function GrowthTasksScreen({
         <h3>{locale === "zh" ? "成长等级" : "Growth levels"}</h3>
         <p>{locale === "zh" ? `再获得 ${100 - progress} XP 升至 Lv.${level + 1}` : `${100 - progress} XP to Lv.${level + 1}`}</p>
         <p>{locale === "zh" ? "从 Lv.1 开始，每累计 100 XP 升一级，目前没有等级上限。" : "Start at Lv.1. Every 100 XP adds a level; there is currently no level cap."}</p>
+        <p>{locale === 'zh' ? 'XP 记录你的成长，积分可以在商城兑换。首页的节律分数反映近期状态，和成长等级是两回事。' : 'XP tracks your growth; points can be spent in the shop. Your home rhythm score reflects recent wellbeing, separately from your level.'}</p>
         <ol>{Array.from({length: 5}, (_, index) => Math.max(1, level - 1) + index).map(item => <li key={item}><strong>Lv.{item}</strong><span>{(item - 1) * 100} XP</span></li>)}</ol>
       </section>}
 
@@ -181,7 +183,7 @@ export default function GrowthTasksScreen({
                   <small>{locale === "zh" ? task.detailZh : task.detailEn}</small>
                 </span>
                 <span className="growth-task-meta">{completedVisible
-                  ? <b>{locale === "zh" ? "已完成" : "Completed"}</b>
+                  ? <b>{locale === "zh" ? "完成啦" : "Completed"}</b>
                   : <><b>+{task.xp}</b><ChevronRight size={15} aria-hidden="true" /></>}</span>
               </button>
             );
@@ -192,7 +194,7 @@ export default function GrowthTasksScreen({
       {toastDelta !== null && (
         <div className="growth-earned-toast" role="status" aria-live="polite">
           <span><CircleDollarSign size={22} /></span>
-          <div><strong>{locale === "zh" ? "积分已到账" : "Points added"}</strong><small>{locale === "zh" ? "新的成长进度已经同步" : "Your growth progress is up to date"}</small></div>
+          <div><strong>{locale === "zh" ? "积分到账啦" : "Points added"}</strong><small>{locale === "zh" ? "新的成长进度已经同步" : "Your growth progress is up to date"}</small></div>
           <b>+{toastDelta}</b>
         </div>
       )}

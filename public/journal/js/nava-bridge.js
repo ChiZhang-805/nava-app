@@ -33,6 +33,8 @@ window.NavaJournal = (() => {
       port.start();resolve(api.initial);
     });
   });
+  // The message listener is installed; connecting does not depend on images/fonts.
+  parent.postMessage({type:'nava-journal-ready'},location.origin);
   window.addEventListener('pagehide',()=>{for(const item of pending.values()){item.cleanup();item.reject(new DOMException('Closed','AbortError'));}pending.clear();port?.close();});
   return api;
 })();

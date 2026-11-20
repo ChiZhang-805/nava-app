@@ -5,19 +5,19 @@ export function rewardLabel(eventKey: string, locale: "zh" | "en") {
   const labels: Record<string, [string, string]> = {
     foundation: ["基础画像已完善", "Profile completed"],
     goal: ["节律目标已设定", "Rhythm goal set"],
-    sleep: ["睡眠记录完成", "Sleep logged"],
-    exercise: ["运动目标完成", "Activity goal completed"],
-    mood: ["情绪记录完成", "Mood logged"],
-    nutrition: ["饮食记录完成", "Meal logged"],
-    focus: ["专注任务完成", "Focus block completed"],
-    face: ["面部记录完成", "Face check completed"],
+    sleep: ["睡眠记好啦", "Sleep logged"],
+    exercise: ["运动目标达成啦", "Activity goal completed"],
+    mood: ["心情记好啦", "Mood logged"],
+    nutrition: ["这一餐记好啦", "Meal logged"],
+    focus: ["这次专注完成啦", "Focus block completed"],
+    face: ["面部状态记好啦", "Face check completed"],
     "bare-face-bonus": ["素颜记录加成", "Bare-face bonus"],
-    task: ["今日任务完成", "Daily task completed"],
-    checkin: ["今日登录打卡完成", "Daily check-in completed"],
-    share: ["报告卡片分享完成", "Report card shared"],
-    ai: ["AI 对话任务完成", "AI chat completed"],
+    task: ["今天的任务完成啦", "Daily task completed"],
+    checkin: ["今天也来啦", "Daily check-in completed"],
+    share: ["报告分享好啦", "Report card shared"],
+    ai: ["聊完啦，进度也记下了", "AI chat completed"],
   };
-  const pair = labels[key] ?? ["今日进度已记录", "Today's progress logged"];
+  const pair = labels[key] ?? ["今天的进度记好啦", "Today's progress logged"];
   return pair[locale === "zh" ? 0 : 1];
 }
 

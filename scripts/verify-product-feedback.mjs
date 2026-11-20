@@ -27,7 +27,15 @@ for(const [engine,type] of Object.entries(process.env.NAVA_LAYOUT_ENGINE==='webk
   });
   expect(Math.abs(headerGeometry.leftDelta)).toBeLessThan(1);expect(Math.abs(headerGeometry.rightDelta)).toBeLessThan(1);expect(Math.abs(headerGeometry.centerDelta)).toBeLessThan(1);expect(Math.abs(headerGeometry.gap-16)).toBeLessThan(1);
   await page.locator('.home-record-shortcut-hint').click();await expect(page.locator('.option-two-health-menu')).toHaveAttribute('aria-hidden','false');
-  await page.locator('.home-record-shortcut-hint').click();await expect(page.locator('.option-two-health-menu')).toHaveAttribute('aria-hidden','true');await page.screenshot({path:`${out}/${engine}-${width}-home.png`});
+  await page.locator('.home-record-shortcut-hint').click();await expect(page.locator('.option-two-health-menu')).toHaveAttribute('aria-hidden','true');
+  await expect(page.locator('.option-two-health-menu')).toHaveCSS('opacity','0');
+  await page.screenshot({path:`${out}/${engine}-${width}-home.png`});
+  if(process.env.NAVA_HOME_ONLY==='1'){
+   const mascot=await page.locator('.option-two-life-stage').evaluate(node=>({bottom:parseFloat(getComputedStyle(node).bottom),width:node.getBoundingClientRect().width}));
+   expect(mascot.bottom).toBe(width<=370||height<=760?52:62);
+   expect(Math.abs(mascot.width-Math.min(width*.93,width<=370||height<=760?365:400))).toBeLessThan(1);
+   results.push({engine,width,height,headerGeometry,mascot});await context.close();console.log(engine,width,'home alignment and unchanged mascot passed');continue;
+  }
   await page.locator('.option-two-scores > button').first().click();await expect(page).toHaveURL(/#tab=record$/);
   await open('tab=today');await page.locator('.option-two-scores > button').nth(1).click();await expect(page).toHaveURL(/view=points-shop/);
   await open('tab=trends');await page.locator('.growth-level-details-toggle').click();await expect(page.locator('#growth-level-details')).toContainText('100 XP');await page.screenshot({path:`${out}/${engine}-${width}-levels.png`});

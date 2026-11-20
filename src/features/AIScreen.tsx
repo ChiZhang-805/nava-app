@@ -251,6 +251,12 @@ export default function AIScreen({
   const submitVoiceCallTurnRef = useRef<(message: string) => void>(() => {});
   const finalizeVoiceCallInputRef = useRef<() => void>(() => {});
   const conversationLoadRequestRef = useRef(0);
+  const attachmentReadRef = useRef({ version: 0 });
+  const attachmentContext = `${active}-${command?.id ?? 0}-${viewingArchiveId ?? ''}-${deviceDayKey}`;
+  useEffect(() => {
+    const read = attachmentReadRef.current;
+    return () => { read.version++; };
+  }, [attachmentContext]);
   const historyKey = `nava-ai-history:${user.id}`;
 
   const normalizeHistory = useCallback((items: Array<ConversationSnapshot | ConversationArchive<ChatMessage>>) => {
@@ -468,6 +474,7 @@ export default function AIScreen({
       return;
     }
     setAttachmentMenuOpen(false);
+    attachmentReadRef.current.version++;
     setPendingDocument(null);
     const previewUrl = URL.createObjectURL(file);
     photoObjectUrlsRef.current.add(previewUrl);
@@ -1069,13 +1076,18 @@ export default function AIScreen({
 
   const handleComposerDocument = async (file: File | null) => {
     if (!file || sending || photoAnalyzing) return;
+    const request = ++attachmentReadRef.current.version;
     setAttachmentMenuOpen(false);
     setError(null);
     try {
       const document = await readChatDocument(file);
+      if (request !== attachmentReadRef.current.version) return;
+      for (const photo of pendingPhotos) { photoObjectUrlsRef.current.delete(photo.previewUrl); URL.revokeObjectURL(photo.previewUrl); }
+      setPendingPhotos([]);
       setPendingDocument(document);
       setPendingPhotoPreview(null);
     } catch (documentError) {
+      if (request !== attachmentReadRef.current.version) return;
       const code = documentError instanceof Error ? documentError.message : "unsupported";
       setError(locale === "zh"
         ? (code === "too_large" ? "这个文件过大，请换一个较小的文件。" : "无法读取这个文件，请换用文本、Markdown、CSV 或 JSON 文件。")
@@ -1180,7 +1192,7 @@ export default function AIScreen({
     : voiceCallPhase === "thinking"
       ? (locale === "zh" ? "正在理解你的话" : "Understanding what you said")
       : voiceCallPhase === "speaking"
-        ? (locale === "zh" ? "NAVA 正在回答" : "NAVA is speaking")
+        ? (locale === "zh" ? "小纳正在回答" : "Nava is speaking")
         : voiceCallPhase === "error"
           ? (locale === "zh" ? "通话暂时中断" : "The call was interrupted")
           : (locale === "zh" ? "正在接通…" : "Connecting…");
@@ -1367,6 +1379,7 @@ export default function AIScreen({
             </div>
           )}
           <PhotoInput locale={locale} onError={setError}
+            key={`library-${attachmentContext}`}
             ref={photoInputRef}
             className="chat-attachment-input chat-photo-input"
             type="file"
@@ -1375,6 +1388,7 @@ export default function AIScreen({
           />
           <input
             ref={documentInputRef}
+            key={`document-${attachmentContext}`}
             className="chat-attachment-input chat-document-input"
             type="file"
             accept={chatAttachmentAccept.documents}
@@ -1385,6 +1399,7 @@ export default function AIScreen({
             }}
           />
           <PhotoInput locale={locale} onError={setError}
+            key={`camera-${attachmentContext}`}
             ref={cameraInputRef}
             className="chat-attachment-input chat-camera-input"
             type="file"
@@ -1444,11 +1459,11 @@ export default function AIScreen({
           className={`ai-voice-call phase-${voiceCallPhase}`}
           role="dialog"
           aria-modal="true"
-          aria-label={locale === "zh" ? "与 NAVA 语音聊天" : "Voice chat with NAVA"}
+          aria-label={locale === "zh" ? "和小纳语音聊天" : "Voice chat with Nava"}
           data-voice-call-phase={voiceCallPhase}
         >
           <div className="ai-voice-call-heading">
-            <span>{locale === "zh" ? "与 NAVA 通话中" : "NAVA voice chat"}</span>
+            <span>{locale === "zh" ? "和小纳通话中" : "Nava voice chat"}</span>
             <small>{locale === "zh" ? "自动识别说话结束" : "Automatic turn detection"}</small>
           </div>
           <div className="ai-voice-call-stage" aria-live="polite">

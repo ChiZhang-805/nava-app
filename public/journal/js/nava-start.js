@@ -4,8 +4,7 @@
     // independently of the scaled content. No homepage or letterbox underneath.
     const stage=document.querySelector('.stage');
     stage.prepend(...document.querySelectorAll('.cream-bg,.green-bg'));
-    await window.NavaJournal.ready;
-    const {installJournalLayout}=await import('./nava-layout.js');
+    const [,{installJournalLayout}]=await Promise.all([window.NavaJournal.ready,import('./nava-layout.js')]);
     installJournalLayout(window.NavaJournal);
     __fluffyModules['entry-i18n.js'].setLanguage(window.NavaJournal.initial.locale);
     const client=document.createElement('script');client.src='js/nava-clients.js';

@@ -249,7 +249,7 @@ function MobileShell({
     ? recordTitles[recordModule][locale]
     : activeTab === "profile" && recordView && profileTitles[recordView]
       ? profileTitles[recordView][locale]
-    : activeTab === "ai" ? (locale === "zh" ? "NAVA 小猫" : "NAVA companion") : currentTab
+    : activeTab === "ai" ? t("ai.title") : currentTab
       ? t(currentTab.labelKey)
       : "";
 

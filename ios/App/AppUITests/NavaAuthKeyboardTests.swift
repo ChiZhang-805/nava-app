@@ -6,6 +6,29 @@ final class NavaAuthKeyboardTests: XCTestCase {
     private var expectedSafeTop: CGFloat = 0
     override func setUpWithError() throws { continueAfterFailure = false }
 
+    func testSystemPhotoAndFilePickerCancellationPreservesDraft() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-NavaPickerBoundaryTest", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let web = app.webViews.firstMatch
+        let library = web.buttons["Photo library"].firstMatch
+        XCTAssertTrue(library.waitForExistence(timeout: 30), app.debugDescription)
+        library.tap()
+        let cancel = app.buttons["Cancel"].firstMatch
+        XCTAssertTrue(cancel.waitForExistence(timeout: 15), app.debugDescription)
+        capture("system-photo-library")
+        cancel.tap()
+        XCTAssertTrue(web.staticTexts["Photo cancelled"].waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertEqual(web.textFields["Preserved draft"].value as? String, "Keep this draft")
+        web.buttons["Choose file"].tap()
+        XCTAssertTrue(cancel.waitForExistence(timeout: 15), app.debugDescription)
+        capture("system-file-browser")
+        cancel.tap()
+        XCTAssertTrue(web.buttons["Choose file"].waitForExistence(timeout: 10))
+        XCTAssertEqual(web.textFields["Preserved draft"].value as? String, "Keep this draft")
+        capture("picker-return-draft")
+    }
+
     func testKeyboardKeepsWallpaperAndFieldsInPlace() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_Hans_CN"]

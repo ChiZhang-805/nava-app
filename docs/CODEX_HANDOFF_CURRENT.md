@@ -5,8 +5,21 @@
 已登录并完整读取《客观问题》《主观问题》，逐项实现见 PRODUCT_REQUIREMENTS_CHECKLIST.md。
 新增记录直达、返回历史、可选引导及跳过、首页快捷提示与可点击统计、猫头像、等级说明、
 Enter 前进、照片选择弹层、面部观察入口、资料底部返回、点按展开总结及每日背景轮换均已实现。
-四尺寸 Chromium 交互检查通过，WebKit 和完整 verify 正在检查。首次录入已增加超时重试出口，
-没有将此等同于弱网性能问题全部解决。最终源码尚待原生验收与 TestFlight 48 上传。
+四尺寸 Chromium／WebKit 交互检查通过，完整 verify 正在检查。首页顶部共用边距与行高，
+用户明确要求小猫位置和大小保持原样，已恢复并通过八组几何检查，不再移动它补空白。
+首次录入已增加超时重试出口，没有将此等同于弱网性能问题全部解决。
+布局基线源码 27d909c46c81b118a3eaaf810307f50e8b25a4d9，原生任务44682058403第二次通过；
+此前9648b9f任务44680811816只作反馈修改基线，86e580c任务44681508342已被新提交替代取消。
+TestFlight 48 尚未上传。
+
+用户补充要求文档每项包含网页/App的反应速度、相册及文件跳转。本轮追加：
+快捷提示三次轻浮动后淡出（保护焦点、减少动态效果）；六卡片适量增高但不动小猫；
+小纳 AI 小猫称呼及自然成功语气；成长页 XP/积分/节律分数说明；修复320px双倍文字统计溢出。
+记录页数据与资源加载并行，关键素材预加载；补上原生相册可见入口和迟到结果隔离。
+聊天文件读取也按会话上下文隔离，浏览器选择/取消保留草稿。
+新增 iOS 系统照片/文件选择器边界 XCTest：只在 simulator 编译，设备归档无测试入口，
+不登录生产账号、不绕过生产认证；该测试验证真实系统弹层，页面流程另由浏览器测试覆盖。
+上述追加源码仍在验证，不能沿用27d909c的原生结果代表最终完成。
 
 上一轮认证源码 e5a30ed3ed0ac2104cf8263001db9a40a566e967 的原生任务 44672100912 已成功；
 文档反馈改变了产品源码，仍需对最终合并提交重新验收。当前实际已上传仍为 1.0.0(47)。
@@ -15,13 +28,13 @@ Enter 前进、照片选择弹层、面部观察入口、资料底部返回、�
 
 用户要求键盘展开后密码登录所有入口直接可见、无需上滑；语言按钮在右上，NAVA在下方单独居中。最新反馈要求账号／密码标签一直显示，NAVA上下留白较大，表单内部间隔适中；已实现并通过168个浏览器状态检查。575e4db与c25650e两轮原生任务44666401570、44668889392因新要求替代而取消，不算最终通过，尚未上传新的TestFlight。
 
-当前产品源码e5a30ed3ed0ac2104cf8263001db9a40a566e967，原生任务44672100912运行中。
-完整verify已退出0（verify-continuous.log）；最新CSS／标签的168状态、build-labels.log、lint-labels.log通过。
-下一步等这轮原生结果、下载并看真实模拟器截图，再用同源码上传1.0.0(48)；不要提前声称上传成功。
+认证源码e5a30ed3ed0ac2104cf8263001db9a40a566e967的原生任务44672100912成功。
+该轮完整verify退出0（verify-continuous.log）；CSS／标签的168状态、build-labels.log、lint-labels.log通过。
+发布必须使用顶部所列最终产品源码的原生结果、检查原始模拟器截图后再上传1.0.0(48)。
 
 随后用户要求复用成熟Apple UI资源。已安装skills：`Q:/Codex/Live/skills/swiftui-pro`（twostraws，核对6591 stars）、`Q:/Codex/Live/skills/apple-design`（dickwu，3609 stars）。仓库AGENTS已记录优先Apple HIG、Design Resources和系统组件；按实际技术栈应用，不擅改部署目标。当前认证页仍是React DOM/WKWebView。
 
-新增ContinuousField使用MIT figma-squircle@1.1.0绘制输入框及聚焦连续路径。Figma兼容0.6平滑度是近似，并非Apple私有路径。构建与lint通过，浏览器检查进行中；仍需推送最终源码、原生验证和截图核对后上传。证据：`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/keyboard-shortcuts`。
+新增ContinuousField使用MIT figma-squircle@1.1.0绘制输入框及聚焦连续路径。Figma兼容0.6平滑度是近似，并非Apple私有路径。构建、lint、168浏览器状态和该认证源码的原生验证通过。证据：`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/keyboard-shortcuts`。
 
 完整verify此前通过，575布局168个Chromium/WebKit状态通过，不能替代新增圆角后的验证。用户授权验证后构建并上传TestFlight，不要只汇报计划。最近已上传仍是下面的1.0.0(47)。
 
