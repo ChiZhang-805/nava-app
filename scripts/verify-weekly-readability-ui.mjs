@@ -86,8 +86,8 @@ try {
       });
       assert(footerClear.clear, `${width}: report cannot scroll clear of navigation ${JSON.stringify(footerClear)}`);
       await page.locator(".weekly-ai-summary-list li button").first().click();
-      await expect(page.locator(".weekly-detail-dialog")).toBeVisible();
-      await page.locator(".weekly-detail-dialog header button").click();
+      await expect(page.locator(".weekly-detail-sheet")).toBeVisible();
+      await page.locator(".weekly-detail-sheet .nava-bottom-sheet-grabber").click();
       await page.locator(".weekly-chart-switch").click();
       await expect(page.locator(".weekly-radar-caption")).toHaveCount(6);
       await measure("populated-radar");

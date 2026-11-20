@@ -47,7 +47,7 @@ test("weekly AI report is persisted and rejects non-model providers", () => {
   assert.match(reportFunction, /deepseek-v4-flash-health-report-v9-grounded-evidence-repair/);
   assert.match(reportFunction, /expectedIds = \["trend", "variation", "association", "action"\]/);
   assert.match(reportFunction, /bullets: report/);
-  assert.match(recordsScreen, /weekly-detail-dialog/);
+  assert.match(recordsScreen, /weekly-detail-sheet/);
   assert.match(recordsScreen, /weeklyDetailSection\.evidence/);
   assert.match(reportFunction, /consentAuthorizedCompanionRecords/);
 });

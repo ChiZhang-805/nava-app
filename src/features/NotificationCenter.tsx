@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import MoreMenu from "../components/MoreMenu";
+import BottomSheet from "../components/BottomSheet";
+import "../styles/detail-sheets.css";
 import {
   deleteNavaNotification,
   deleteNavaNotifications,
@@ -368,9 +370,8 @@ export default function NotificationCenter({
         {shownItems.length === 0 && <div className="notification-empty-state"><span><Inbox size={34} /></span><strong>{filter === "unread" ? (locale === "zh" ? "没有未读通知" : "No unread notifications") : (locale === "zh" ? "通知箱很安静" : "Your inbox is quiet")}</strong></div>}
       </div>
 
-      {detailItem && <div className="notification-detail-layer" role="presentation" onClick={() => setDetailId(null)}>
-        <section className="notification-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="notification-detail-title" onClick={(event) => event.stopPropagation()}>
-          <button className="notification-detail-close" type="button" onClick={() => setDetailId(null)} aria-label={locale === "zh" ? "关闭通知详情" : "Close notification details"}><X size={20} /></button>
+      {detailItem && <BottomSheet className="notification-detail-sheet" label={detailItem.title} closeLabel={locale === "zh" ? "关闭通知详情，也可以向下拖动" : "Close notification details, or drag down"} onClose={() => setDetailId(null)}>
+        <div className="notification-detail-content">
           <div className="notification-detail-heading">
             <NotificationCategoryIcon item={detailItem} />
             <div><strong>{categoryLabel(detailItem, locale)}</strong><time dateTime={detailItem.createdAt}>{relativeTime(detailItem.createdAt, locale)}</time></div>
@@ -383,8 +384,8 @@ export default function NotificationCenter({
             {detailItem.target?.feedbackAt && <small>{locale === "zh" ? "反馈已保存到当前账号" : "Feedback saved to your account"}</small>}
           </fieldset>}
           {detailItem.target && <button className="notification-detail-target" type="button" onClick={() => { setDetailId(null); onOpenTarget(detailItem.target); }}>{locale === "zh" ? "打开相关页面" : "Open related page"}</button>}
-        </section>
-      </div>}
+        </div>
+      </BottomSheet>}
 
       {deleted.length > 0 && <div className="notification-undo" role="status"><span>{locale === "zh" ? `已删除 ${deleted.length} 条通知` : `${deleted.length} notification${deleted.length === 1 ? "" : "s"} deleted`}</span><button type="button" onClick={() => { if (deleted.length === 1) restoreNavaNotification(userId, deleted[0]); else restoreNavaNotifications(userId, deleted); setDeleted([]); }}><Undo2 size={16} />{locale === "zh" ? "撤销" : "Undo"}</button></div>}
     </section>

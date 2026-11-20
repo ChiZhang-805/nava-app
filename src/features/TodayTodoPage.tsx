@@ -1,8 +1,9 @@
 import type { User } from "@supabase/supabase-js";
 import { CalendarDays, Check, ChevronRight, ClipboardList, Clock3, CopyCheck, Home, ListTodo, LoaderCircle, Mic, Trash2, X } from "lucide-react";
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useLocale } from "../i18n";
+import BottomSheet from "../components/BottomSheet";
+import "../styles/detail-sheets.css";
 import DurationWheelPicker from "../components/DurationWheelPicker";
 import MoreMenu from "../components/MoreMenu";
 import { addTodo, deleteTodos, loadTodos, subscribeProductivity, syncTodos, toggleTodo, type TodoItem } from "../services/productivity";
@@ -419,6 +420,15 @@ export default function TodayTodoPage({
         <button type="button" role="tab" aria-selected={activeCard === 1} aria-controls="today-todo-plan-card" aria-label={planTitle} onClick={() => showCard(1)} />
       </div>
     </div>
-    {datePickerOpen && createPortal(<div className="today-todo-date-overlay" role="presentation" onClick={() => setDatePickerOpen(false)}><section role="dialog" aria-modal="true" aria-label={locale === "zh" ? "切换待办日期" : "Switch to-do date"} onClick={(event) => event.stopPropagation()}><header><strong>{locale === "zh" ? "切换日期" : "Switch date"}</strong><button type="button" onClick={() => setDatePickerOpen(false)} aria-label={locale === "zh" ? "关闭" : "Close"}><X size={20} /></button></header><div><button type="button" onClick={() => { setSelectedDate(deviceDate); setDatePickerOpen(false); }}>{locale === "zh" ? "今天" : "Today"}<small>{dayLabel(deviceDate, locale)}</small></button><button type="button" onClick={() => { setSelectedDate(offsetDate(deviceDate, 1)); setDatePickerOpen(false); }}>{locale === "zh" ? "明天" : "Tomorrow"}<small>{dayLabel(offsetDate(deviceDate, 1), locale)}</small></button></div><label><span>{locale === "zh" ? "选择其他日期" : "Choose another date"}</span><input type="date" value={selectedDate} onChange={(event) => { if (/^\d{4}-\d{2}-\d{2}$/u.test(event.target.value)) { setSelectedDate(event.target.value); setDatePickerOpen(false); } }} /></label></section></div>, document.querySelector(".phone-frame") ?? document.body)}
+    {datePickerOpen && <BottomSheet className="today-todo-date-sheet" label={locale === "zh" ? "切换待办日期" : "Switch to-do date"} closeLabel={locale === "zh" ? "关闭日期选择，也可以向下拖动" : "Close date picker, or drag down"} onClose={() => setDatePickerOpen(false)}>
+      <div className="today-todo-date-content">
+        <h2>{locale === "zh" ? "切换日期" : "Switch date"}</h2>
+        <div className="today-todo-date-presets">
+          <button type="button" onClick={() => { setSelectedDate(deviceDate); setDatePickerOpen(false); }}>{locale === "zh" ? "今天" : "Today"}<small>{dayLabel(deviceDate, locale)}</small></button>
+          <button type="button" onClick={() => { setSelectedDate(offsetDate(deviceDate, 1)); setDatePickerOpen(false); }}>{locale === "zh" ? "明天" : "Tomorrow"}<small>{dayLabel(offsetDate(deviceDate, 1), locale)}</small></button>
+        </div>
+        <label><span>{locale === "zh" ? "选择其他日期" : "Choose another date"}</span><input type="date" value={selectedDate} onChange={(event) => { if (/^\d{4}-\d{2}-\d{2}$/u.test(event.target.value)) { setSelectedDate(event.target.value); setDatePickerOpen(false); } }} /></label>
+      </div>
+    </BottomSheet>}
   </section>;
 }

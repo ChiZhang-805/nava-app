@@ -2,6 +2,8 @@ import type { User } from "@supabase/supabase-js";
 import { AlarmClock, Apple, BedDouble, Bot, Brain, Brush, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Egg, Hourglass, Loader2, Milk, MoonStar, Play, RefreshCw, ScanFace, Share2, SmilePlus, Soup, Sunset, Timer, Upload, X, type LucideIcon } from "lucide-react";
 import { FormEvent, lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import ActionButton from "../components/ActionButton";
+import BottomSheet from "../components/BottomSheet";
+import "../styles/detail-sheets.css";
 import { usePreviewActivity } from "../hooks/usePreviewActivity";
 import AnimatedNumber from "../components/AnimatedNumber";
 import ModuleProgressRing from "../components/ModuleProgressRing";
@@ -1546,11 +1548,10 @@ export default function RecordsScreen({
                 <MascotImage className="weekly-insight-mascot" animatedSrc={weeklyCuriousMascot} staticSrc={weeklyRunMascot} alt={locale === "zh" ? "NAVA 小猫好奇地查看本周节律" : "NAVA cat looking curiously at this week's rhythm"} loading="lazy" />
               </div>
             </section>
-            {weeklyDetailSection && <div className="weekly-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="weekly-detail-title" onClick={(event) => { if (event.target === event.currentTarget) setWeeklyDetailSection(null); }}>
-              <article>
+            {weeklyDetailSection && <BottomSheet className="weekly-detail-sheet" label={weeklyDetailSection.title} closeLabel={locale === "zh" ? "关闭详细解读，也可以向下拖动" : "Close detailed interpretation, or drag down"} onClose={() => setWeeklyDetailSection(null)}>
+              <article className="weekly-detail-content">
                 <header>
                   <div><small>{locale === "zh" ? "真实 AI 个性化解读" : "Personalized AI interpretation"}</small><h2 id="weekly-detail-title">{weeklyDetailSection.title}</h2></div>
-                  <button type="button" onClick={() => setWeeklyDetailSection(null)} aria-label={locale === "zh" ? "关闭详细解读" : "Close detailed interpretation"}><X size={20} /></button>
                 </header>
                 <p className="weekly-detail-headline">{weeklyDetailSection.headline}</p>
                 <section>
@@ -1567,7 +1568,7 @@ export default function RecordsScreen({
                 </section>
                 <footer><span>{locale === "zh" ? "结论置信度" : "Confidence"}</span><b data-confidence={weeklyDetailSection.confidence}>{locale === "zh" ? ({ high: "较高", medium: "中等", low: "有限" }[weeklyDetailSection.confidence]) : weeklyDetailSection.confidence}</b><small>{locale === "zh" ? "仅基于本周已授权记录，不构成医疗诊断，也不代表因果关系。" : "Based only on consent-authorized weekly records; not a diagnosis or a causal claim."}</small></footer>
               </article>
-            </div>}
+            </BottomSheet>}
           </div>
         )}
       </div>

@@ -42,7 +42,7 @@ try{
   await check('weekly-share','.report-share-overlay','.report-share-sheet header button,.report-share-content label,.report-share-sheet footer button');
   await page.keyboard.press('Escape');await expect(page.locator('.report-share-overlay')).toHaveCount(0);
   await open('today&view=today-todos');await page.locator('.today-todo-more > button').click();await page.getByText(locale==='zh'?'切换日期':'Switch date',{exact:true}).click();
-  await check('todo-date','.today-todo-date-overlay','.today-todo-date-overlay button,.today-todo-date-overlay input');
+  await check('todo-date','.today-todo-date-sheet','.today-todo-date-sheet button,.today-todo-date-sheet input');
   await open('profile&view=account');
   for(const label of locale==='zh'?['修改密码','备用邮箱','备用手机号']:['Change password','Backup email','Backup phone']){
    await page.getByRole('button',{name:new RegExp(label)}).click();

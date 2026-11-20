@@ -172,7 +172,7 @@ try {
     if (unreadBeforeDetail !== "4") throw new Error(`${viewport.name}: entering notification center unexpectedly changed unread state (${unreadBeforeDetail})`);
     const firstBody = await nutritionRow.locator(".notification-row-body").textContent();
     await nutritionRow.locator(".notification-row-main").click();
-    const detail = page.locator(".notification-detail-dialog");
+    const detail = page.locator(".notification-detail-sheet");
     await expect(detail).toBeVisible();
     await expect(detail).toContainText(firstBody ?? "");
     await expect(detail.locator(".notification-detail-heading strong")).toHaveText("饮食");
@@ -185,7 +185,7 @@ try {
     });
     if (!detailGeometry.icon || !detailGeometry.category || !detailGeometry.time || detailGeometry.icon.right >= detailGeometry.category.left || parseFloat(detailGeometry.category.fontSize) <= parseFloat(detailGeometry.time.fontSize)) throw new Error(`${viewport.name}: detail hierarchy is invalid ${JSON.stringify(detailGeometry)}`);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-detail.png`) });
-    await detail.locator(".notification-detail-close").click();
+    await detail.locator(".nava-bottom-sheet-grabber").click();
     await expect(detail).toBeHidden();
 
     const permissionCard = page.locator(".notification-permission-card");

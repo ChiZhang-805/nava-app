@@ -182,12 +182,12 @@ async function main() {
     const detailTrigger = page.locator(".weekly-ai-summary-list li button").first();
     await expect(detailTrigger).toBeVisible();
     await detailTrigger.click();
-    await expect(page.locator(".weekly-detail-dialog")).toBeVisible();
-    await expect(page.locator(".weekly-detail-dialog")).toContainText("详细解释");
+    await expect(page.locator(".weekly-detail-sheet")).toBeVisible();
+    await expect(page.locator(".weekly-detail-sheet")).toContainText("详细解释");
     await page.waitForTimeout(320);
     await assertPortraitFit(page, `weekly-detail-${suffix}`);
     await page.screenshot({ path: path.join(outputDir, `weekly-detail-${suffix}.png`), fullPage: true });
-    await page.locator('.weekly-detail-dialog header button').click();
+    await page.locator('.weekly-detail-sheet .nava-bottom-sheet-grabber').click();
 
     await openRoute(page, "tab=trends", "[data-growth-screen]");
     await expect(page.locator('.growth-task-group').first().locator('[data-growth-task][data-completed="true"]')).toHaveCount(0);

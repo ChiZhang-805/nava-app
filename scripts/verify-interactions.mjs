@@ -965,10 +965,10 @@ async function verifyHomeShortcuts(page, results) {
   await expect(page.locator(".advanced-profile-screen .app-utility-popover")).toBeVisible();
   await expect(page.locator(".advanced-profile-screen .app-utility-popover button")).toHaveCount(4);
   await page.locator(".advanced-profile-screen .app-utility-popover button").first().click();
-  await expect(page.locator(".phone-frame > .avatar-picker-overlay .avatar-sheet")).toBeVisible();
-  await page.locator(".phone-frame > .avatar-picker-overlay").click({ position: { x: 2, y: 2 } });
+  await expect(page.locator(".phone-frame > .nava-bottom-sheet-layer .avatar-sheet")).toBeVisible();
+  await page.locator(".phone-frame > .nava-bottom-sheet-layer").click({ position: { x: 2, y: 2 } });
   await page.locator("[data-profile-details-avatar]").click();
-  await expect(page.locator(".phone-frame > .avatar-picker-overlay .avatar-sheet")).toBeVisible();
+  await expect(page.locator(".phone-frame > .nava-bottom-sheet-layer .avatar-sheet")).toBeVisible();
   await page.locator('[data-profile-avatar-input="gallery"]').setInputFiles(samplePhoto);
   await expect(page.locator("[data-profile-details-avatar] img")).toBeVisible();
   await expect(page.locator(".advanced-profile-screen .advanced-profile-saved")).toContainText(/头像已更新|Avatar updated/);
@@ -1442,12 +1442,12 @@ async function verifyNavigationAndMotion(page, results) {
     await expect(page.locator(".weekly-insight-body")).toContainText(/本地评审周报|local review report/i);
     await expect(weeklyInsightItems).toHaveCount(4);
     await weeklyInsightItems.first().locator("button").click();
-    await expect(page.locator(".weekly-detail-dialog")).toBeVisible();
-    await page.locator(".weekly-detail-dialog header button").click();
-    await expect(page.locator(".weekly-detail-dialog")).toBeHidden();
+    await expect(page.locator(".weekly-detail-sheet")).toBeVisible();
+    await page.locator(".weekly-detail-sheet .nava-bottom-sheet-grabber").click();
+    await expect(page.locator(".weekly-detail-sheet")).toBeHidden();
   } else {
     await expect(page.locator(".weekly-insight-body")).toContainText(/至少记录 5 天|starts after 5 days/i);
-    await expect(page.locator(".weekly-detail-dialog")).toHaveCount(0);
+    await expect(page.locator(".weekly-detail-sheet")).toHaveCount(0);
   }
   await expect(page.locator(".weekly-insight-mascot")).toBeVisible();
   await expect(page.locator(".weekly-module-status")).toHaveCount(0);
