@@ -51,7 +51,7 @@ try {
             const geometry = await inspectHealthExplorer(page);
             for (const category of ['mood','face','focus','sleep','exercise','diet']) {
               const tab = page.locator(`[data-health-category="${category}"]`);
-              await tab.scrollIntoViewIfNeeded(); await tab.click();
+              await tab.click(); // Locator click re-resolves if a data refresh replaces the tab.
               await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category',category);
               await inspectHealthExplorer(page);
               if (state === 'empty') await expect(page.locator('.health-explorer-card[aria-hidden="false"] .health-explorer-empty')).toBeVisible();
@@ -70,6 +70,7 @@ try {
             await expect(page.locator('.health-explorer-sheet')).toHaveCount(0);
             await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category','focus');
             await inspectHealthExplorer(page);
+            if (viewport.height < 640) await page.screenshot({ path:path.join(output,`${engine}-${viewport.width}-short-${locale}-${state}-scrolled.png`) });
             await page.locator('[data-health-category=mood]').scrollIntoViewIfNeeded();
             await page.locator('[data-health-category=mood]').click();
             await page.locator('[data-health-category=mood]').press('ArrowRight');
