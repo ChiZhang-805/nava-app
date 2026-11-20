@@ -295,7 +295,7 @@ function MobileShell({
     return subscribeHealthSyncCompletion(user.id, refreshHealthViews);
   }, [refreshHealthViews, user]);
 
-  const completeGrowthActivity = useCallback(async (activity: GrowthActivityKind) => {
+  const completeGrowthActivity = useCallback(async (activity: GrowthActivityKind, options: { celebrate?: boolean } = {}) => {
     if (!user) return null;
     try {
       const reward = await recordGrowthActivity(user.id, activity);
@@ -303,7 +303,7 @@ function MobileShell({
       setRefreshKey((value) => value + 1);
       const summary = await claimGrowthAfterChange(false);
       const grants = [...(reward ? [reward] : []), ...(summary?.awarded ?? [])];
-      if (rewardUserRef.current === user.id && grants.length) setRewardQueue((queue) => [...queue, grants]);
+      if (options.celebrate !== false && rewardUserRef.current === user.id && grants.length) setRewardQueue((queue) => [...queue, grants]);
       return reward;
     } catch (rewardError) {
       console.warn("Growth activity could not be recorded", rewardError);
@@ -820,7 +820,7 @@ function MobileShell({
                   active={activeTab === "ai"}
                   initialPromptRequest={aiPromptRequest}
                   onDataSaved={markChanged}
-                  onConversationCompleted={() => void completeGrowthActivity("ai")}
+                  onConversationCompleted={(options) => void completeGrowthActivity("ai", { celebrate: options?.celebrate === true })}
                 />
               </Suspense>
             </div>
