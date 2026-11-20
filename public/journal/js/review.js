@@ -85,7 +85,12 @@ __fluffyModules["review.js"] = (() => {
                     if (["requesting", "listening"].includes(this.phase))
                         this.cancel(true);
                 } }, 420);
+            $("review-home").innerHTML = icon("back");
             $("review-home").onclick = () => this.h.navigate("home");
+            this.addEntry = node("button", "review-add-entry");
+            this.addEntry.type = "button";
+            this.addEntry.onclick = () => this.h.newEntry(this.view.id, this.view.date);
+            this.root.append(this.addEntry);
             $("review-more").onclick = () => this.toggleMenu();
             $("review-pet").onclick = () => { this.h.animation.petAt = this.h.animation.idle; };
             $("review-bubble").onclick = () => {
@@ -641,7 +646,8 @@ __fluffyModules["review.js"] = (() => {
                 $(id)?.setAttribute("aria-label", this.t(...names));
             $("review-title").textContent = view.meta[this.lang];
             $("review-date").textContent = this.dateText(view.date) + (view.date === Store.dayKey() ? this.t(" · 今天", " · Today") : "");
-            $("review-home").setAttribute("aria-label", this.t("返回首页", "Home"));
+            $("review-home").setAttribute("aria-label", this.t("返回上一页", "Back"));
+            this.addEntry.textContent = this.t("新增记录", "New entry");
             $("review-more").setAttribute("aria-label", this.t("回顾菜单", "Review menu"));
             $("review-chat").setAttribute("aria-label", this.t("长按和小猫聊两句；空格键长按，Escape取消", "Hold to talk; hold Space to speak; Escape to cancel"));
             $("review-bubble").setAttribute("aria-label", this.t("小猫回复，点击暂停或继续", "Cat reply; tap to pause or resume"));
@@ -663,10 +669,36 @@ __fluffyModules["review.js"] = (() => {
                 badge.innerHTML = icon(view.meta.icon);
                 fact.append(badge, node("p", "review-fact-label", this.factLabel()), node("strong", "review-fact-value", this.valueText(d)), node("span", "review-fact-detail", view.id === "sleep" ? d.detail : d.text || this.t("尚未记录", "No entry yet")));
                 root.append(orbit, fact);
+                if (view.id === "face") {
+                    const details = node("button", "review-face-details", this.t("查看观察与建议", "Observations & advice"));
+                    details.type = "button";
+                    details.onclick = () => this.faceDetails();
+                    fact.append(details);
+                }
             }
             this.renderWeek();
             this.buildMenu();
             this.setPhase(this.phase);
+        }
+        faceDetails() {
+            this.h.showSheet(this.t("面部观察", "Face observations"), body => {
+                const records = this.view.records.filter(record => Store.dateOf(record) === this.view.date);
+                body.append(node("p", "sheet-text", this.t("以下是已确认的记录，不是外貌评分或医疗诊断。光线和拍摄角度会影响照片观察。", "These are confirmed observations, not beauty scores or medical diagnoses. Lighting and camera angle affect photos.")));
+                for (const record of records) {
+                    const fields = [["feeling", "自我感受", "Your feeling"], ["eyeArea", "眼周观察", "Eye area"], ["skinAppearance", "皮肤外观", "Skin appearance"], ["notes", "备注", "Notes"]];
+                    for (const [key, zh, en] of fields) if (record.data?.[key]) {
+                        body.append(node("h4", "", this.t(zh, en)), node("p", "sheet-text", String(record.data[key])));
+                    }
+                }
+                if (!records.length) body.append(node("p", "sheet-text", this.t("当天还没有记录。", "No entries for this day.")));
+                const ask = node("button", "solid", this.t("请小猫结合记录给些建议", "Ask the cat about these records"));
+                ask.type = "button"; ask.disabled = !records.length;
+                ask.onclick = () => {
+                    this.h.closeSheet(false);
+                    this.send(this.t("请结合当天和近七天已确认的面部观察，说明有记录支持的变化、信息不足之处，并给出日常照护建议。不要根据长相推断情绪、疾病或美丑。", "Use confirmed face observations from this day and the last week to describe supported changes, missing evidence and everyday care suggestions. Do not infer emotion, disease or attractiveness from appearance."), null, false);
+                };
+                body.append(ask);
+            });
         }
         /**
          * 输入：日期。

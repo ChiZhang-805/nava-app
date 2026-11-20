@@ -6328,14 +6328,14 @@ body::before {
   animation: option-home-reveal var(--motion-enter) var(--motion-ease-out) both;
 }
 
-.option-two-scores > div,
+.option-two-scores > button,
 .option-two-side-actions > button,
 .nava-mascot {
   animation: option-home-control-in var(--motion-enter) var(--motion-ease-spring) backwards;
 }
 
-.option-two-scores > div:nth-child(1) { animation-delay: 70ms; }
-.option-two-scores > div:nth-child(2) { animation-delay: 120ms; }
+.option-two-scores > button:nth-child(1) { animation-delay: 70ms; }
+.option-two-scores > button:nth-child(2) { animation-delay: 120ms; }
 .option-two-side-actions > button:nth-child(1) { animation-delay: 90ms; }
 .option-two-side-actions > button:nth-child(2) { animation-delay: 135ms; }
 .option-two-side-actions > button:nth-child(3) { animation-delay: 180ms; }
@@ -6351,7 +6351,7 @@ body::before {
   animation: option-score-settle 480ms var(--motion-ease-spring) both;
 }
 
-.option-two-home.is-loaded .option-two-scores > div:nth-child(2) strong {
+.option-two-home.is-loaded .option-two-scores > button:nth-child(2) strong {
   animation-delay: 70ms;
 }
 
@@ -8086,7 +8086,7 @@ body::before {
   }
 
   .option-two-home,
-  .option-two-scores > div,
+  .option-two-scores > button,
   .option-two-side-actions > button,
   .nava-mascot,
   .nava-mascot-pose,
@@ -12723,7 +12723,7 @@ body::before {
   gap: 14px;
 }
 
-.option-two-scores > div {
+.option-two-scores > button {
   width: clamp(130px, 33cqw, 142px);
   min-height: 34px;
   display: flex;
@@ -12741,7 +12741,7 @@ body::before {
 }
 
 .option-two-scores strong,
-.option-two-scores > div strong {
+.option-two-scores > button strong {
   min-width: 0;
   min-height: 0;
   display: inline-flex;
@@ -13463,7 +13463,7 @@ body::before {
 @media (max-width: 370px), (max-height: 760px) {
   .phone-frame--option2 { --home-dock-half-height: 34px; }
   .option-two-scores { top: max(64px, calc(env(safe-area-inset-top) + 42px)); left: 16px; gap: 8px; }
-  .option-two-scores > div { width: 130px; min-height: 31px; gap: 8px; padding-inline: 12px; }
+  .option-two-scores > button { width: 130px; min-height: 31px; gap: 8px; padding-inline: 12px; }
   .option-two-side-actions { top: max(58px, calc(env(safe-area-inset-top) + 36px)); right: 13px; }
   .option-two-side-actions button { width: 44px; height: 44px; }
   .option-two-side-actions .option-two-side-shortcut { margin-top: 9px; }
@@ -15156,7 +15156,7 @@ body::before {
   gap: 8px;
 }
 
-.option-two-scores > div {
+.option-two-scores > button {
   width: clamp(124px, 32cqw, 136px);
   min-height: 32px;
   gap: 8px;
@@ -15246,7 +15246,7 @@ body::before {
     gap: 6px;
   }
 
-  .option-two-scores > div {
+  .option-two-scores > button {
     width: 124px;
     min-height: 30px;
     padding-inline: 10px;
@@ -15276,3 +15276,14 @@ body::before {
     bottom: 52px;
   }
 }
+
+/* Product feedback: explicit actions retain the existing visual system. */
+.option-two-scores > button { font-family:inherit; cursor:pointer; }
+.home-record-shortcut-hint { position:absolute; bottom:calc(112px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); z-index:6; min-height:44px; padding:8px 14px; border:1px solid #ffffffb3; border-radius:22px; background:#edf9ffc9; color:#244f65; font-family:inherit; font-size:12px; font-weight:600; line-height:1.4; white-space:nowrap; }
+.chat-avatar.assistant img { width:100%; height:100%; object-fit:contain; }
+.growth-level-details-toggle { display:grid; place-items:center; width:44px; height:44px; flex:none; border:0; border-radius:16px; background:#ffffff80; color:inherit; }
+.growth-level-details { padding:16px; border:1px solid #fff; border-radius:22px; background:#f2fbffdf; color:#24496b; }
+.growth-level-details h3 { margin:0 0 8px; }
+.growth-level-details p { font-size:14px; line-height:1.6; }
+.growth-level-details ol { list-style:none; margin:12px 0 0; padding:0; }
+.growth-level-details li { display:flex; justify-content:space-between; padding:8px 0; border-top:1px solid #24496b18; }

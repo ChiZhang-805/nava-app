@@ -5,7 +5,6 @@ export function installColdStartGuide(api) {
   const L = __fluffyModules['entry-i18n.js'];
   const t = (zh, en) => L.language() === 'en' ? en : zh;
   const preferenceKey = `fluffy-first-guide-${category}`;
-  const prior = api.initial.records.some(record => record.category === category);
   const fieldSteps = {
     sleep: [
       { key: 'sleepRange', kind: 'time-range', fields: ['bedtime', 'wakeTime'], zh: '填好睡眠起止时间。\n跨夜也会自动算好。', en: 'Set sleep and wake.\nOvernight is okay.' },
@@ -40,7 +39,8 @@ export function installColdStartGuide(api) {
   const steps = fieldSteps[category];
   if (!steps) return;
 
-  let active = Boolean(api.initial.forceGuide || (!prior && !api.initial.settings[preferenceKey]));
+  // Guidance is opt-in from the menu, never a gate before entering a record.
+  let active = Boolean(api.initial.forceGuide);
   let index = 0;
   let highlights = [];
   let feedbackShown = false;
@@ -102,6 +102,11 @@ export function installColdStartGuide(api) {
   live.className = 'sr-only';
   live.setAttribute('aria-live', 'polite');
   coach.append(live);
+  const skip = document.createElement('button');
+  skip.id = 'cold-guide-skip'; skip.type = 'button';
+  skip.textContent = t('跳过引导', 'Skip guide');
+  skip.onclick = event => { event.stopPropagation(); void end(); };
+  coach.append(skip);
   screen.append(backdrop, coach);
 
   const finalStep = () => ({
@@ -463,6 +468,7 @@ export function installColdStartGuide(api) {
 
   function isAllowedInteraction(target, step = currentStep()) {
     if (!(target instanceof Element)) return false;
+    if (target.closest('#cold-guide-skip')) return true;
     if (step.kind === 'time-range' && target.closest('.time-range-field,.time-options')) return true;
     if (step.kind === 'photo' && target.closest('#photo-preview,#sheet-layer')) return true;
     return highlights.some(node => node === target || node.contains(target));
@@ -476,6 +482,7 @@ export function installColdStartGuide(api) {
 
   function captureGuideActivation(event) {
     if (!active || coach.hidden || screen.dataset.scene !== 'entry') return;
+    if (event.target.closest('#cold-guide-skip')) return;
     const step = currentStep();
     if (isAllowedInteraction(event.target, step)) {
       if (step.kind !== 'confirm') return;
@@ -498,6 +505,7 @@ export function installColdStartGuide(api) {
 
   function captureGuidePress(event) {
     if (!active || coach.hidden || screen.dataset.scene !== 'entry' || !isFinalStep()) return;
+    if (event.target.closest('#cold-guide-skip')) return;
     const step = currentStep();
     if (!isAllowedInteraction(event.target, step)) return;
     blockEvent(event);
@@ -511,6 +519,7 @@ export function installColdStartGuide(api) {
     advance();
   });
   coach.addEventListener('keydown', event => {
+    if (event.target.closest('#cold-guide-skip')) return;
     if (!['Enter', ' '].includes(event.key)) return;
     event.preventDefault();
     advance();

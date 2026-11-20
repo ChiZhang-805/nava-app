@@ -1,6 +1,7 @@
 import { sumFoodItemNutrition } from "../services/dietPortion";
 import type { User } from "@supabase/supabase-js";
-import { Camera, Check, FileText, Image as ImageIcon, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, Plus, SendHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import { Camera, Check, FileText, Image as ImageIcon, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, Plus, SendHorizontal, Trash2, X } from "lucide-react";
+import companionAvatar from "../assets/figma/home-option2/home-mascot-v5.png";
 import { Fragment, FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocale } from "../i18n";
 import PageSkeleton from "../components/PageSkeleton";
@@ -1247,7 +1248,7 @@ export default function AIScreen({
               <div className={["chat-message-row", isUser ? "user" : "assistant"].join(" ")}>
                 {!isUser && (
                   <span className="chat-avatar assistant" aria-hidden="true">
-                    <Sparkles size={16} />
+                    <img src={companionAvatar} alt="" />
                   </span>
                 )}
                 <article className={isUser ? "chat-bubble user" : "chat-bubble assistant"}>
@@ -1288,7 +1289,7 @@ export default function AIScreen({
         {streamingPreview && (
           <div className="chat-message-row assistant ai-streaming-row" data-ai-streaming="true" aria-live="polite">
             <span className="chat-avatar assistant" aria-hidden="true">
-              <Sparkles size={16} />
+              <img src={companionAvatar} alt="" />
             </span>
             <article className="chat-bubble assistant streaming">
               {streamingPreview.status ? (

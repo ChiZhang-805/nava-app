@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { Award, Check, ChevronRight, CircleDollarSign, Flame, Sparkles } from "lucide-react";
+import { Award, Check, ChevronRight, CircleDollarSign, Flame } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocale } from "../i18n";
 import PageSkeleton from "../components/PageSkeleton";
@@ -35,6 +35,7 @@ export default function GrowthTasksScreen({
   const [badges, setBadges] = useState<string[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryVersion, setRetryVersion] = useState(0);
+  const [levelsOpen, setLevelsOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -142,12 +143,17 @@ export default function GrowthTasksScreen({
           <div className="growth-progress-track" aria-label={`${progress}%`}><span style={{ width: `${progress}%` }} /></div>
           {badges.length > 0 && <small>{locale === "zh" ? `已获得 ${badges.length} 枚徽章` : `${badges.length} badge${badges.length === 1 ? "" : "s"} earned`}</small>}
         </div>
-        <Flame size={25} aria-hidden="true" />
+        <button className="growth-level-details-toggle" type="button" aria-expanded={levelsOpen} aria-controls="growth-level-details" aria-label={locale === "zh" ? "查看等级规则" : "Level details"} onClick={() => setLevelsOpen(open => !open)}><Flame size={25} /></button>
       </section>
+      {levelsOpen && <section id="growth-level-details" className="growth-level-details">
+        <h3>{locale === "zh" ? "成长等级" : "Growth levels"}</h3>
+        <p>{locale === "zh" ? `再获得 ${100 - progress} XP 升至 Lv.${level + 1}` : `${100 - progress} XP to Lv.${level + 1}`}</p>
+        <p>{locale === "zh" ? "从 Lv.1 开始，每累计 100 XP 升一级，目前没有等级上限。" : "Start at Lv.1. Every 100 XP adds a level; there is currently no level cap."}</p>
+        <ol>{Array.from({length: 5}, (_, index) => Math.max(1, level - 1) + index).map(item => <li key={item}><strong>Lv.{item}</strong><span>{(item - 1) * 100} XP</span></li>)}</ol>
+      </section>}
 
       <header className="growth-section-heading">
         <div><span>NAVA</span><h2>{locale === "zh" ? "成长任务" : "Growth tasks"}</h2></div>
-        <Sparkles size={22} aria-hidden="true" />
       </header>
 
       {loadError && <section className="growth-load-error" role="alert"><span>{loadError}</span><button type="button" onClick={() => setRetryVersion((value) => value + 1)}>{locale === "zh" ? "重新加载" : "Retry"}</button></section>}

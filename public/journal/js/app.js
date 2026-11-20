@@ -180,6 +180,8 @@ __fluffyModules["app.js"] = (() => {
      * 功能：关闭面板、释放摄像头并恢复页面可访问性。
      */
     function closeSheet(restoreFocus = true) {
+        const library = $("photo-library");
+        if (library && $("sheet-body").contains(library)) $("screen").append(library);
         const callback = state.sheetClose;
         state.sheetClose = null;
         callback?.();
@@ -300,7 +302,11 @@ __fluffyModules["app.js"] = (() => {
      * 输出：无。
      * 功能：新的一次使用独立ID，不继承前一条的createdAt或编辑标记。
      */
-    function newEntry(id, date = Store.dayKey(), values = {}) { openEntry(id, { ...values, recordDate: date }, null); }
+    let entryReturn = null;
+    function newEntry(id, date = Store.dayKey(), values = {}) {
+        entryReturn = review?.active ? { id: review.view.id, date: review.view.date } : null;
+        openEntry(id, { ...values, recordDate: date }, null);
+    }
     /**
      * 输入：类别、日期、可选候选ID及回调。
      * 输出：无。
@@ -696,6 +702,17 @@ __fluffyModules["app.js"] = (() => {
         input.autocomplete = "off";
         input.value = field.type === "time" && value ? Sleep.clock(value) : value ?? field.initial ?? "";
         input.setAttribute("aria-label", Locale.t(field.label));
+        if (field.type !== "textarea") {
+            input.enterKeyHint = "next";
+            input.addEventListener("keydown", event => {
+                if (event.key !== "Enter" || event.isComposing) return;
+                event.preventDefault();
+                const fields = [...$("entry-form").querySelectorAll('input:not([type="hidden"]),textarea,select')].filter(node => !node.disabled && node.getClientRects().length);
+                const next = fields[fields.indexOf(input) + 1];
+                if (next) next.focus();
+                else { input.blur(); $("confirm-entry")?.focus(); }
+            });
+        }
         if (field.max)
             input.maxLength = field.max;
         if (field.required)
@@ -1386,6 +1403,7 @@ __fluffyModules["app.js"] = (() => {
             b.append(status);
             const row = el("div", "sheet-buttons");
             const capture = el("button", "solid", Locale.t("拍下这一张")), pick = el("button", "", Locale.t("选择照片"));
+            b.append($("photo-library"));
             capture.onclick = () => {
                 try {
                     if (serial !== state.serial || id !== state.category || animation.scene !== "entry") return;
@@ -1399,7 +1417,8 @@ __fluffyModules["app.js"] = (() => {
                 }
             };
             pick.onclick = () => {
-                closeSheet();
+                // Open while user activation and the modal's focus are intact.
+                // Closing the modal first can make WebKit cancel the picker.
                 $("photo-library").click();
             };
             row.append(pick, capture);
@@ -1412,8 +1431,7 @@ __fluffyModules["app.js"] = (() => {
         }
         catch (e) {
             if (!$("sheet-layer").hidden && id === state.category) {
-                closeSheet(false);
-                bubble(e.name === "NotAllowedError" ? "camera-permission" : "camera-device", true);
+                status.textContent = Locale.language() === "en" ? "Camera unavailable. You can still choose a photo." : "摄像头暂不可用，仍可选择照片。";
             }
         }
     }
@@ -1491,6 +1509,7 @@ __fluffyModules["app.js"] = (() => {
     async function selectPhotoFile(event) {
         const input = event.target, file = input.files?.[0];
         if (!file) return;
+        closeSheet(false);
         cancelWork(false);
         const read = ++state.photoRead, serial = state.serial, id = state.category;
         try {
@@ -2358,9 +2377,25 @@ __fluffyModules["app.js"] = (() => {
         $("primary").addEventListener("keydown", e => { if ([" ","Enter"].includes(e.key)) { if(e.repeat) e.preventDefault(); else continueGate.down("key"); } });
         $("primary").addEventListener("keyup", e => { if (e.key === "Escape") continueGate.cancelPress(); });
         $("primary").onclick = primaryAction;
+        document.addEventListener('nava-completion-reveal', () => {
+            if (animation.scene !== 'celebrate') return;
+            animation.time = animation.maximum();
+            animation.render();
+        });
+        $("screen").addEventListener("click", event => {
+            if (animation.scene !== "record" || event.target.closest('button,a,input,textarea,select,[role="button"]')) return;
+            if (animation.time < animation.paperReturnEnd) {
+                animation.time = animation.paperReturnEnd;
+                animation.render();
+            }
+        });
         $("back").onclick = () => {
             if (animation.scene === "record")
                 editRecord();
+            else if (animation.scene === "entry" && entryReturn) {
+                const target = entryReturn; entryReturn = null;
+                navigate("review"); review.open(target.id, target.date);
+            }
             else if (animation.scene === "focus") {
                 navigate("home");
                 homeBubble("计时仍在继续，随时回来。");

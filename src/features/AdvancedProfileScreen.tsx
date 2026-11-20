@@ -302,6 +302,7 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
           {avatarSaved && <p className="advanced-profile-saved" role="status"><Check size={17} />{copy("头像已更新", "Avatar updated")}</p>}
           {saved && <p className="advanced-profile-saved" role="status"><Check size={17} />{copy("详细资料已保存", "Detailed profile saved")}</p>}
           <button className="advanced-profile-save" type="submit" disabled={saving}>{saved ? <Check size={20} /> : <Save size={20} />}{saving ? copy("正在保存…", "Saving…") : copy("保存详细资料", "Save detailed profile")}</button>
+          <button className="secondary-button" type="button" onClick={onBack}>{copy("返回上一页", "Back")}</button>
           </form>
 
           <PhotoInput locale={locale} onError={setError} ref={galleryInputRef} data-profile-avatar-input="gallery" className="visually-hidden" type="file" accept="image/*" onFile={(file) => { void handleAvatarFile(file); }} />

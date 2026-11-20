@@ -513,7 +513,7 @@ export default function OptionTwoHome({
       return;
     }
     if (!healthMenuOpen) return;
-    if (target.closest(".option-two-health-disc, .option-two-health-entry")) return;
+    if (target.closest(".option-two-health-disc, .option-two-health-entry, .home-record-shortcut-hint")) return;
     setHealthMenuOpen(false);
   };
 
@@ -558,8 +558,8 @@ export default function OptionTwoHome({
         <MascotImage animatedSrc={pullRefreshMascot} staticSrc={homeMascotStill} alt="" aria-hidden="true" />
       </div>}
       <div className="option-two-scores" aria-label={t("today.overview")} aria-live="polite" aria-busy={loading}>
-        <div aria-label={`${t("today.rhythm")} ${rhythmScore}`}><EnergyStatusIcon className="option-two-score-icon option-two-score-icon--energy" size={17} /><strong>{loading && snapshot === null ? <SkeletonBlock className="option-two-score-skeleton" /> : <>{typeof rhythmScore === "number" ? <AnimatedNumber value={rhythmScore} /> : rhythmScore}<small>/100</small></>}</strong></div>
-        <div aria-label={`${t("today.myPoints")} ${points}`}><PointsStatusIcon className="option-two-score-icon option-two-score-icon--points" size={18} /><strong>{loading && totalPoints === null ? <SkeletonBlock className="option-two-score-skeleton" /> : typeof points === "number" ? <AnimatedNumber value={points} duration={760} /> : points}</strong></div>
+        <button type="button" onClick={() => onOpenRecord()} aria-label={`${t("today.rhythm")} ${rhythmScore}`}><EnergyStatusIcon className="option-two-score-icon option-two-score-icon--energy" size={17} /><strong>{loading && snapshot === null ? <SkeletonBlock className="option-two-score-skeleton" /> : <>{typeof rhythmScore === "number" ? <AnimatedNumber value={rhythmScore} /> : rhythmScore}<small>/100</small></>}</strong></button>
+        <button type="button" onClick={() => onViewChange("points-shop")} aria-label={`${t("today.myPoints")} ${points}`}><PointsStatusIcon className="option-two-score-icon option-two-score-icon--points" size={18} /><strong>{loading && totalPoints === null ? <SkeletonBlock className="option-two-score-skeleton" /> : typeof points === "number" ? <AnimatedNumber value={points} duration={760} /> : points}</strong></button>
       </div>
 
       <div className={["option-two-side-actions", shortcutsOpen ? "is-open" : "is-collapsed"].join(" ")}>
@@ -637,6 +637,7 @@ export default function OptionTwoHome({
         <span className="option-two-aura" aria-hidden="true" />
         <InteractiveMascot locale={locale} preferredMotion={homeGuidance?.motion} positiveMood={(snapshot?.mood?.mood_score ?? 0) >= 75} />
       </div>
+      <button className="home-record-shortcut-hint" type="button" aria-expanded={healthMenuOpen} onClick={() => setHealthMenuOpen(open => !open)}>{healthMenuOpen ? (locale === "zh" ? "收起记录入口" : "Hide shortcuts") : (locale === "zh" ? "向上轻滑 · 快速记录" : "Swipe up · Quick record")}</button>
 
       <div className="option-two-health-menu" aria-hidden={!healthMenuOpen}>
         <span className="option-two-health-disc" aria-hidden="true" />

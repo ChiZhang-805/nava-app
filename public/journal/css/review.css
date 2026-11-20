@@ -61,3 +61,8 @@
 
 /* v15：按下即有反馈；只有真正长按才切换收音，页面和图表始终不移动。 */
 .review-chat[data-pressing="true"]{filter:brightness(.96);box-shadow:0 0 0 4px #74c98623}
+
+/* Both primary actions are visible without opening the overflow menu. */
+.review-page .review-chat { left:177px; width:194px; font-size:13px; gap:6px; }
+.review-add-entry { position:absolute; top:744px; left:22px; width:143px; height:64px; border:1px solid #84b6b5; border-radius:30px; color:#285f68; background:#eef9f8; font:600 16px system-ui; cursor:pointer; }
+.review-face-details { min-height:32px; margin-top:4px; border:0; border-bottom:1px solid currentColor; background:none; color:#285f68; font:600 11px system-ui; }

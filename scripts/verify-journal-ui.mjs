@@ -57,12 +57,15 @@ try{
      await frame.waitForTimeout(700);
      await checkBackground(frame,page,'record',width,height);
      await page.screenshot({path:`${out}/${category}-${width}-writing.png`});
+     await frame.locator('#screen').click({position:{x:180,y:120}});
      await frame.waitForFunction(()=>!document.querySelector('#primary').disabled);
      await frame.locator('#primary').click();
      await frame.waitForSelector('.celebration-garden:not([hidden])');
    }
    await frame.waitForTimeout(700);await checkBackground(frame,page,'celebrate',width,height);
    await page.screenshot({path:`${out}/${category}-${width}-celebrate.png`});
+   await frame.locator('.celebration-garden').click({position:{x:180,y:120}});
+   await frame.waitForFunction(()=>document.querySelector('.celebration-garden').dataset.revealed==='true');
    await frame.waitForFunction(()=>!document.querySelector('#primary').disabled);
    await frame.locator('#primary').click();
    await frame.waitForSelector('#screen[data-scene="review"]');

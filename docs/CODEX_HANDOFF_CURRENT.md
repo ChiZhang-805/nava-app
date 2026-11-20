@@ -1,8 +1,23 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
-## 当前进行中：键盘布局与 Apple UI 资源复用
+## 当前进行中：腾讯文档反馈与 TestFlight 发布
+
+已登录并完整读取《客观问题》《主观问题》，逐项实现见 PRODUCT_REQUIREMENTS_CHECKLIST.md。
+新增记录直达、返回历史、可选引导及跳过、首页快捷提示与可点击统计、猫头像、等级说明、
+Enter 前进、照片选择弹层、面部观察入口、资料底部返回、点按展开总结及每日背景轮换均已实现。
+四尺寸 Chromium 交互检查通过，WebKit 和完整 verify 正在检查。首次录入已增加超时重试出口，
+没有将此等同于弱网性能问题全部解决。最终源码尚待原生验收与 TestFlight 48 上传。
+
+上一轮认证源码 e5a30ed3ed0ac2104cf8263001db9a40a566e967 的原生任务 44672100912 已成功；
+文档反馈改变了产品源码，仍需对最终合并提交重新验收。当前实际已上传仍为 1.0.0(47)。
+
+### 已完成的认证布局工作
 
 用户要求键盘展开后密码登录所有入口直接可见、无需上滑；语言按钮在右上，NAVA在下方单独居中。最新反馈要求账号／密码标签一直显示，NAVA上下留白较大，表单内部间隔适中；已实现并通过168个浏览器状态检查。575e4db与c25650e两轮原生任务44666401570、44668889392因新要求替代而取消，不算最终通过，尚未上传新的TestFlight。
+
+当前产品源码e5a30ed3ed0ac2104cf8263001db9a40a566e967，原生任务44672100912运行中。
+完整verify已退出0（verify-continuous.log）；最新CSS／标签的168状态、build-labels.log、lint-labels.log通过。
+下一步等这轮原生结果、下载并看真实模拟器截图，再用同源码上传1.0.0(48)；不要提前声称上传成功。
 
 随后用户要求复用成熟Apple UI资源。已安装skills：`Q:/Codex/Live/skills/swiftui-pro`（twostraws，核对6591 stars）、`Q:/Codex/Live/skills/apple-design`（dickwu，3609 stars）。仓库AGENTS已记录优先Apple HIG、Design Resources和系统组件；按实际技术栈应用，不擅改部署目标。当前认证页仍是React DOM/WKWebView。
 

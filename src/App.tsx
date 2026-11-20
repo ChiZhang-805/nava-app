@@ -249,7 +249,7 @@ function MobileShell({
     ? recordTitles[recordModule][locale]
     : activeTab === "profile" && recordView && profileTitles[recordView]
       ? profileTitles[recordView][locale]
-    : currentTab
+    : activeTab === "ai" ? (locale === "zh" ? "NAVA 小猫" : "NAVA companion") : currentTab
       ? t(currentTab.labelKey)
       : "";
 
@@ -745,7 +745,7 @@ function MobileShell({
               : <PageSkeleton variant={forcedSkeletonVariant} />
             : <>
           {activeTab === "today" && (
-            recordView === 'getting-started' ? <ColdStartHub userId={user.id} onHome={() => navigate('today', null, null, true)} onStart={goal => navigate('record', goal, 'guide')} onHealth={() => navigate('profile')} /> : <OptionTwoHome
+            recordView === 'getting-started' ? <ColdStartHub userId={user.id} onHome={() => navigate('today', null, null, true)} onStart={goal => navigate('record', goal, 'editor')} onHealth={() => navigate('profile')} /> : <OptionTwoHome
               user={user}
               refreshKey={refreshKey}
               deviceDate={deviceDate}
@@ -775,7 +775,7 @@ function MobileShell({
                 forceGuide={recordView === 'guide'}
                 guidePreview={recordView === "guide" && activeGuidePreview?.module === recordModule}
                 onSaved={markJournalChanged}
-                onExit={() => { setActiveGuidePreview(null); navigate("today"); }}
+                onExit={() => { setActiveGuidePreview(null); navigateBack(normalizeShellRoute("record", null, null)); }}
               /> : <RecordsScreen
                 user={user}
                 deviceDate={deviceDate}

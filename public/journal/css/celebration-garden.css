@@ -77,3 +77,6 @@
 @media(max-height:680px){.scene-copy{top:max(calc(var(--journal-safe-top,env(safe-area-inset-top,0px)) + 16px),14vh)}#garden-title{width:90%;max-width:290px;margin-bottom:10px}.garden-message{font-size:16px;line-height:1.45}.garden-action{bottom:calc(max(12px,var(--journal-safe-bottom,env(safe-area-inset-bottom,0px))) + 14px)}}
 @media(prefers-reduced-motion:reduce){.garden-breeze,.scene-canopy,.scene-light,.garden-actor-motion{display:none}#garden-title path{animation:none;stroke-dashoffset:0}.garden-message{animation:none;opacity:1}.garden-actor-base{animation:none!important}}
 @media(max-height:680px){#garden-title{margin-bottom:20px}}
+
+.celebration-garden[data-revealed="true"] #garden-title path { animation:none; stroke-dashoffset:0; }
+.celebration-garden[data-revealed="true"] .garden-message { animation:none; opacity:1; transform:none; filter:none; }

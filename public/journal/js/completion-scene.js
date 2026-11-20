@@ -15,7 +15,11 @@
   const preloadCache=new Map();
   function assetSources(scene='01'){
     if(!Object.hasOwn(scenes,scene))scene='01';
-    return [scene==='01'?'assets/mint-garden-morning.webp':`assets/completion/scene-${scene}.webp`,`assets/completion/${scenes[scene].cat}`];
+    const now=new Date();
+    const day=Math.floor(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate())/86400000);
+    // Stable for a local day: no random redraw while an animation is playing.
+    const backdrop=[scene,'01','09'][((day%3)+3)%3];
+    return [backdrop==='01'?'assets/mint-garden-morning.webp':`assets/completion/scene-${backdrop}.webp`,`assets/completion/${scenes[scene].cat}`];
   }
   function preload(scene='01'){
     return Promise.all(assetSources(scene).map(src=>{
@@ -89,11 +93,16 @@
     constructor(host,button){
       this.button=button;this.root=document.createElement('section');
       this.root.className='celebration-garden';this.root.hidden=true;host.append(this.root);
+      this.root.addEventListener('click',event=>{
+        if(event.target.closest('button,a,input,select,textarea'))return;
+        this.root.dataset.revealed='true';this.root.dataset.ink='finished';
+        this.root.dispatchEvent(new CustomEvent('nava-completion-reveal',{bubbles:true}));
+      });
     }
     async show({scene='01',locale='zh'}={}){
       if(!Object.hasOwn(scenes,scene))scene='01';
       const generation=this.generation=(this.generation||0)+1;
-      const spec=scenes[scene],inkDuration=spec.inkDuration||3.2;this.root.hidden=true;this.root.dataset.scene=scene;this.root.dataset.motion=spec.motion;this.root.dataset.ink='writing';
+      const spec=scenes[scene],inkDuration=spec.inkDuration||3.2;this.root.hidden=true;delete this.root.dataset.revealed;this.root.dataset.scene=scene;this.root.dataset.motion=spec.motion;this.root.dataset.ink='writing';
       this.root.style.setProperty('--scene-color',spec.color);this.root.style.setProperty('--scene-copy-delay',`${inkDuration+.2}s`);this.root.style.setProperty('--scene-copy-duration',`${Math.max(.65,inkDuration/5)}s`);
       this.root.innerHTML='<div class="scene-plane" aria-hidden="true"><img class="garden-backdrop" alt=""><div class="scene-canopy"></div><div class="scene-light"></div><div class="garden-breeze"><i></i><i></i><i></i><i></i><i></i></div><div class="garden-actor"><span class="garden-contact"></span><img class="garden-actor-base" alt=""><span class="garden-actor-motion"></span></div><div class="scene-foreground"></div></div><div class="scene-copy"><h1 id="garden-title"></h1><p class="garden-message"></p></div><div class="garden-action"></div>';
       this.root.setAttribute('aria-labelledby','garden-title');

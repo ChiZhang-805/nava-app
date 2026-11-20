@@ -189,7 +189,7 @@ try{
   await page.goto(url+'?mode=hub');await expect(page.locator('.cold-progress')).toContainText(en?'0 days':'0 天');
   await page.getByRole('button',{name:en?'See an example weekly report':'看看未来的周报',exact:true}).click();
   await expect(page.locator('.cold-example')).toBeVisible();await page.screenshot({path:`${out}/sample-${lang}-${width}.png`});assert.equal(saves,0);
-  await page.goto(url+'?module=sleep');const frame=page.frameLocator('iframe');
+  await page.goto(url+'?module=sleep&force=1');const frame=page.frameLocator('iframe');
   await expect(frame.locator('#cold-guide')).toBeVisible({timeout:30000});
   const guideSurround=await frame.locator('body').evaluate(body=>({bodyClass:body.className,htmlClass:document.documentElement.className,bodyBackground:getComputedStyle(body).backgroundColor,stageBackground:getComputedStyle(document.querySelector('.stage')).backgroundColor,bodyRect:body.getBoundingClientRect().toJSON(),htmlRect:document.documentElement.getBoundingClientRect().toJSON(),stageRect:document.querySelector('.stage').getBoundingClientRect().toJSON()}));
   assert.equal(guideSurround.bodyBackground,'rgb(32, 55, 71)',`guide must darken the outer document edge ${JSON.stringify(guideSurround)}`);
@@ -205,7 +205,7 @@ try{
   await expect(frame.locator('#cold-guide-backdrop')).toHaveAttribute('data-guide-holes','1');
   await expect(frame.locator('#actor-canvas')).toHaveClass(/cold-guide-cat/);
   await expect(frame.locator('#entry-bubble')).toHaveClass(/cold-guide-speaker/);
-  await expect(frame.locator('#cold-guide-skip')).toHaveCount(0);
+  await expect(frame.locator('#cold-guide-skip')).toHaveCount(1);
   await expect(frame.locator('#entry-bubble')).not.toContainText(/\d+\/\d+/);
   await expect(frame.locator('#cold-guide')).toHaveAttribute('data-ready','false');
   await frame.locator('#cold-guide').evaluate(node=>node.click());
@@ -275,7 +275,7 @@ try{
    }
    await page.screenshot({path:`${out}/guide-${module}-${lang}.png`});
     if(module==='mood'){await guided.locator('#field-mood').focus();await page.setViewportSize({width,height:480});await expect(guided.locator('#field-mood')).toBeInViewport();await page.screenshot({path:`${out}/keyboard-${lang}.png`});await page.setViewportSize({width,height});}
-    await expect(guided.locator('#cold-guide-skip')).toHaveCount(0);await finishGuide(guided,module,en,page,width);
+    await expect(guided.locator('#cold-guide-skip')).toHaveCount(1);await finishGuide(guided,module,en,page,width);
     if(module==='focus')await expect(guided.locator('#field-durationMinutes')).toHaveValue('15');
     await expect(guided.locator('#cold-guide')).toBeHidden();assert.equal(saves,1);
    }

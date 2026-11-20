@@ -3922,7 +3922,7 @@ textarea::placeholder {
   gap: 26px;
 }
 
-.option-two-scores > div {
+.option-two-scores > button {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -4735,7 +4735,7 @@ textarea::placeholder {
   .option-two-life-stage { top: 21%; height: 58dvh; }
   .option-two-side-actions { gap: 11px; }
   .option-two-scores { gap: 12px; }
-  .option-two-scores > div { gap: 4px; font-size: 11px; }
+  .option-two-scores > button { gap: 4px; font-size: 11px; }
   .option-two-scores strong { min-width: 46px; font-size: 11px; }
   .phone-frame--option2 .bottom-nav { gap: 14px; }
 }

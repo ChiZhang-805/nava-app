@@ -44,3 +44,5 @@ body.cold-guiding-root .phone-wrap::before{position:fixed;inset:0;width:100vw;he
 #screen.cold-guiding [data-cold-guide-locked="true"]{pointer-events:none!important;touch-action:none!important}
 #screen.cold-guiding .time-options:not([hidden]){z-index:38}
 #screen.cold-guiding .sheet-layer:not([hidden]){z-index:45}
+
+#cold-guide-skip{position:absolute;top:64px;right:20px;min-height:44px;padding:8px 16px;border:1px solid #c7edf7;border-radius:22px;background:#f2fbff;color:#174c68;font:600 14px system-ui;pointer-events:auto}
