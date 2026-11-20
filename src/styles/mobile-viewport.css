@@ -78,8 +78,11 @@ html[data-auth-viewport="true"] .auth-screen .auth-brand .nava-wordmark {
    feedback line. Density follows remaining space, never the presence of errors. */
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen {
   --auth-header-control: clamp(28px, calc((var(--nava-visible-height) - 278px) * .2 + 28px), 44px);
+  --auth-keyboard-wordmark: clamp(28px, calc((var(--nava-visible-height) - 278px) * .07 + 28px), 44px);
   display: grid;
-  grid-template-rows: clamp(66px, calc((var(--nava-visible-height) - env(safe-area-inset-top) - 278px) * .23 + 66px), 114px) minmax(0, 1fr);
+  /* Reserve the actual control + wordmark height before the first label.
+     A fixed minimum alone lets the wordmark overflow on compact iOS keyboards. */
+  grid-template-rows: max(calc(var(--auth-header-control) + var(--auth-keyboard-wordmark) + 12px), clamp(66px, calc((var(--nava-visible-height) - env(safe-area-inset-top) - 278px) * .23 + 66px), 114px)) minmax(0, 1fr);
   height: var(--auth-canvas-height, 100dvh);
   padding-top: max(8px, env(safe-area-inset-top));
   padding-bottom: max(4px, calc(var(--auth-canvas-height, 100dvh) - var(--nava-visible-height) + 4px));
@@ -93,7 +96,7 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-br
   justify-content: center;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand .nava-wordmark {
-  --wordmark-size: clamp(28px, calc((var(--nava-visible-height) - 278px) * .07 + 28px), 44px);
+  --wordmark-size: var(--auth-keyboard-wordmark);
   min-height: 0;
   animation: none;
 }

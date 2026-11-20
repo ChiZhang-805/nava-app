@@ -1,4 +1,23 @@
-# 保存后准备餐食俯视图（2026-11-20，候选，尚未部署）
+# 保存后准备餐食俯视图（2026-11-20，后台已部署，透明底验收未通过）
+
+用户已明确授权发布并运行两条合成测试。202611202300迁移与food-visualize已选择性部署，
+私有bucket/RLS/令牌列权限/单一cron已读回验证。真实测试中，燕麦酸奶被planner判为
+needs_details；照片样本两次均transparent_output_unavailable，未保存不合格图片。
+临时账号、记录、照片已清理；收据App-Checks/food-render-live/receipt.json。
+已明确planner置信度范围与食品身份/份量区别，并给出常见命名食品示例；隔离17步通过，
+函数已更新，真实效果尚待复验。当前仍不能宣称透明配图服务端到端可用。
+
+抠图调研结论：优先评估阿里云Aidge ImageMatting（透明PNG、原尺寸输出、官方刊例0.002元/张，
+实际以控制台为准）。它使用独立RAM AccessKey ID/Secret，并非DashScope模型Key；建议最小
+权限aidge:ImageMatting及官方要求的关联权限。只发送AI生成的餐盘图。现有通用适配器还需
+接通Aidge签名、返回图下载及1024RGBA规范化；不能把Aidge公网地址直接填入本项目自定义
+matting协议当成已兼容。备选SegmentHDCommonImage同样需独立视觉平台鉴权；SegmentFood
+可能只保留食物而丢失盘子，不适合直接代替整盘主体抠图。
+官方依据（2026-11-20查阅）：
+- https://help.aliyun.com/zh/aidge/intelligent-image-matting
+- https://help.aliyun.com/zh/aidge/authentication-method
+- https://help.aliyun.com/zh/aidge/api-aidge-2026-04-28-imagematting
+- https://help.aliyun.com/zh/viapi/developer-reference/api-overview
 
 `202611202300_food_render_jobs.sql`在真实饮食记录保存事务中写入持久任务，不回填历史。
 涵盖`journal_entries.food`和旧`nutrition_records`每餐单菜；保存后立即提交pg_net请求，
@@ -29,7 +48,7 @@ pg_cron每分钟接续已排队任务，因此离开报告页或关闭APP不影�
 
 本地：72项SQL检查（pg_net/cron用事务mock）、11项PNG/风格检查、17步provider/worker
 隔离模拟与8项报告食物映射通过。远端只读确认扩展可安装、net未暴露、原diet-photos私有。
-仍待选择性部署、合成账号真模型验收和最终图片目检；不能把mock当云端可用证据。
+真实合成验收结果见开头；仍待接通matting并通过最终图片目检，不能把mock当云端可用证据。
 审阅入口：迁移、`food-visualize`、`_shared/food-render-provider.ts`、
 `scripts/verify-food-render-live.mjs`。真实测试仅新建临时合成账号/两条测试记录，结束后清理。
 
