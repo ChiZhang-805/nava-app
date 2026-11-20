@@ -63,7 +63,7 @@ html[data-auth-viewport="true"] .auth-screen .auth-brand .nava-wordmark {
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen {
   display: grid;
-  grid-template-rows: 44px minmax(0, 1fr);
+  grid-template-rows: 76px minmax(0, 1fr);
   /* The image keeps its full-screen dimensions. Only content ends above IME. */
   height: var(--auth-canvas-height, 100dvh);
   padding-top: max(8px, env(safe-area-inset-top));
@@ -75,6 +75,7 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-br
   padding: 0;
   margin: 0;
   animation: none;
+  justify-content: flex-end;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form-region {
   display: flex;
@@ -219,6 +220,21 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-so
   html[data-keyboard-open="true"] .auth-secondary-links > button {
     justify-content: center;
     font-size: 11px;
+  }
+}
+/* Extremely short legacy viewports keep four distinct rows with 40px controls. */
+@container auth-form-space (max-height: 200px) {
+  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) {
+    row-gap: 6px;
+  }
+  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) :is(.input-wrap, .auth-submit, .auth-social-button, .auth-secondary-links > button, .auth-forgot) {
+    min-height: 40px;
+  }
+  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .input-wrap input {
+    min-height: 38px;
+  }
+  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-input-icon-button {
+    height: 38px;
   }
 }
 html[data-keyboard-open="true"] .phone-frame .profile-security-sheet {

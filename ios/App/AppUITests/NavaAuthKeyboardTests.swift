@@ -41,6 +41,7 @@ final class NavaAuthKeyboardTests: XCTestCase {
             if mode == "login" {
                 for name in ["微信", "Apple", "QQ", "验证码登录", "创建账号"] {
                     XCTAssertTrue(web.buttons[name].firstMatch.exists, "Missing login route: \(name)")
+                    XCTAssertTrue(web.buttons[name].firstMatch.isHittable, "Login route requires scrolling: \(name)")
                 }
                 let qq = web.buttons["QQ"].firstMatch
                 do {
