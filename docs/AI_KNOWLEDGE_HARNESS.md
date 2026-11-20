@@ -1,5 +1,26 @@
 # NAVA AI knowledge harness
 
+## Current deployment and conversation reset
+
+The explicitly authorized releases on 2026-11-20 are `ai-chat-reply` ACTIVE v48
+and `journal-assistant` ACTIVE v7. The latter only adds retrieved tone to the
+explicit `review-conversation` purpose with a plain-text, non-vision shape;
+extraction, translation and schema outputs retain their original path. Browser
+feedback tests pass in Chromium/WebKit; live provider evaluation below covers
+the main chat prompt, not a logged-in end-to-end journal interaction.
+
+At the user's explicit request, only `ai_conversations` and
+`ai_conversation_archives` were reset at 2026-11-20 11:50 UTC: 12 live messages
+and 5 archives containing 22 actual chat messages were removed; both tables
+read back zero in the transaction receipt. A verified Windows DPAPI CurrentUser
+encrypted recovery snapshot and count-only receipt are under
+`Build/TestRuns/App-Checks/ai-chat-reset` outside Git. No health records, journal,
+accounts, rewards or media objects were removed. Existing old-version clients
+can retain in-memory state; new clients replace history caches from successful
+cloud reads and do not resurrect known deleted archives. New greetings or new
+test conversations after the reset are expected and must not be deleted again
+without a new request.
+
 The runtime harness selects tools by detected domain and passes only compact,
 structured evidence to the model. It never sends entire datasets or exposes a
 hidden chain of thought.

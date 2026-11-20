@@ -16,6 +16,7 @@
 | [`auth-email-flow.md`](./auth-email-flow.md) | 邮箱、手机号、OTP、会话和找回密码合同 |
 | [`SHARED_SUPABASE_READINESS.md`](./SHARED_SUPABASE_READINESS.md) | canonical Supabase 共享状态与核验入口 |
 | [`AI_KNOWLEDGE_HARNESS.md`](./AI_KNOWLEDGE_HARNESS.md) | AI 路由、工具、证据、隐私和报告合同 |
+| [`journal-review-fields.json`](./journal-review-fields.json) | 六类记录可选字段、回顾指标与缺失值展示合同 |
 | [`NOTIFICATIONS_DELIVERY.md`](./NOTIFICATIONS_DELIVERY.md) | 八项独立提醒/智能时间、收件箱、设备通知、专注常亮与系统边界 |
 | [`APPLE_HEALTH_WATCH_DELIVERY.md`](./APPLE_HEALTH_WATCH_DELIVERY.md) | TestFlight 发布准备、Mac 归档/导出、隐私材料与 Apple Health / Watch 真机门槛 |
 | [`APPLE_HEALTH_DEVICE_ACCEPTANCE_TEMPLATE.md`](./APPLE_HEALTH_DEVICE_ACCEPTANCE_TEMPLATE.md) | iPhone / Watch 真机验收记录模板 |
