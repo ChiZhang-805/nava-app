@@ -2,7 +2,7 @@
 
 ## 当前进行中：键盘布局与 Apple UI 资源复用
 
-用户要求键盘展开后密码登录所有入口直接可见、无需上滑、行间距均衡；语言按钮在右上，NAVA在下方单独居中。布局源码575e4db已推送，原生运行44666401570正在验收，尚未上传新的TestFlight。
+用户要求键盘展开后密码登录所有入口直接可见、无需上滑；语言按钮在右上，NAVA在下方单独居中。最新反馈要求账号／密码标签一直显示，NAVA上下留白较大，表单内部间隔适中；已实现并通过168个浏览器状态检查。575e4db与c25650e两轮原生任务44666401570、44668889392因新要求替代而取消，不算最终通过，尚未上传新的TestFlight。
 
 随后用户要求复用成熟Apple UI资源。已安装skills：`Q:/Codex/Live/skills/swiftui-pro`（twostraws，核对6591 stars）、`Q:/Codex/Live/skills/apple-design`（dickwu，3609 stars）。仓库AGENTS已记录优先Apple HIG、Design Resources和系统组件；按实际技术栈应用，不擅改部署目标。当前认证页仍是React DOM/WKWebView。
 

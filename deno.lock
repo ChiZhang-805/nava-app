@@ -51,6 +51,7 @@
         "npm:eslint-plugin-react-hooks@^5.1.0",
         "npm:eslint-plugin-react-refresh@~0.4.16",
         "npm:eslint@^9.17.0",
+        "npm:figma-squircle@1.1.0",
         "npm:globals@^15.14.0",
         "npm:jose@^5.9.6",
         "npm:lucide-react@0.468",

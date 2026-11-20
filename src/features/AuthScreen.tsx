@@ -270,7 +270,7 @@ export default function AuthScreen({
           <div className="auth-fields">
             <div className="field">
               <div className="auth-field-heading">
-                <label className="field-label" htmlFor="nava-auth-account">{t("auth.emailPhone")}</label>
+                <label className="field-label" htmlFor="nava-auth-account">{t("auth.accountLabel")}</label>
                 {(mode !== "signIn" || isOtpSignIn) && (
                   <button
                     className="auth-mode-icon auth-return-inline"

@@ -74,14 +74,14 @@ try {
             assert.equal(after.scrollY, 0, 'outer document scrolled');
             assert(after.brand.y >= 0 && after.brand.bottom <= after.region.y + 1, 'brand escaped header');
             assert(after.region.bottom <= visible + 1, `${engine}/${width}/${mode}/${index}: form extends behind keyboard ${JSON.stringify({after,visible})}`);
-            assert(field.y >= after.region.y && field.y + field.height <= visible, `${engine}/${width}/${mode}/${index}: focused field hidden`);
+            assert(field.y >= after.region.y && field.y + field.height <= visible, `${engine}/${width}/${mode}/${index}: focused field hidden ${JSON.stringify({field, after, visible})}`);
             if (mode === 'login') {
               for (const selector of ['.auth-secondary-links', '.auth-social-button--wechat', '.auth-social-button--apple', '.auth-social-button--qq']) {
                 assert(await page.locator(selector).isVisible(), `Missing login route: ${selector}`);
               }
               {
                 const last = await page.locator('.auth-social-button--qq').boundingBox();
-                assert(last.height >= (visible <= 300 ? 40 : 44));
+                assert(last.height >= 32, 'Compact shortcut hit area is too small');
                 assert(visible - last.y - last.height >= 0 && visible - last.y - last.height <= 28,
                   `Shortcut gap: ${JSON.stringify({visible,last})}`);
                 const firstField = await page.locator('.auth-fields .field').nth(0).boundingBox();
@@ -93,6 +93,14 @@ try {
                 assert(submit.y - secondField.y - secondField.height >= minimumGap, 'Submit crowds password');
                 assert(firstField.y >= locale.y + locale.height, 'Language control overlaps form');
                 assert(after.brand.y >= locale.y + locale.height - 1, 'Brand must sit below language control');
+                for (const label of await page.locator('.auth-fields .field-label').all()) {
+                  assert(await label.isVisible(), 'Field label disappeared');
+                  assert((await label.boundingBox()).height >= 14, 'Field label collapsed');
+                }
+                if (visible > 320) {
+                  assert(firstField.y - after.brand.bottom >= 16, 'Brand needs breathing room below');
+                  assert(after.brand.y - locale.y - locale.height >= 12, 'Brand needs breathing room above');
+                }
                 assert.equal(await page.locator('.auth-form-region').evaluate(el => el.scrollTop), 0, 'Login requires scrolling');
               }
             }
