@@ -29,7 +29,7 @@ import { applyPhotoNutritionCorrection, updateStructuredEntryField } from "../se
 import type { ChatMessage, DietExtractResult } from "../types";
 import { isDemoMode } from "../services/demo";
 import { deleteConversationArchive, loadConversationArchive, loadConversationArchives, saveConversationArchive, type ConversationArchive } from "../services/userCloudState";
-import { buildChatDocumentMessage, chatAttachmentAccept, readChatDocument, validateChatImage, type PendingChatDocument } from "../services/chatAttachments";
+import { buildChatDocumentRequest, chatAttachmentAccept, readChatDocument, validateChatImage, type PendingChatDocument } from "../services/chatAttachments";
 import {
   conversationArchiveId,
   conversationDayKey,
@@ -458,6 +458,10 @@ export default function AIScreen({
     const document = sticker ? null : pendingDocument;
     const photos = sticker ? [] : pendingPhotos;
     if (!typedMessage && !document && photos.length === 0) return;
+    if (Array.from(typedMessage).length > 600) {
+      setError(locale === "zh" ? "一次消息最多 600 个字符，可以分几条发给我。" : "Send up to 600 characters at a time. You can split your message into a few parts.");
+      return;
+    }
     finishReveal();
     if (photos.length > 0) {
       setInput("");
@@ -466,9 +470,10 @@ export default function AIScreen({
       return;
     }
     interruptMedia();
+    const documentRequest = document ? buildChatDocumentRequest(document, typedMessage, locale) : null;
     const message = sticker
       ? encodeChatSticker(sticker.id)
-      : document ? buildChatDocumentMessage(document, typedMessage, locale) : typedMessage;
+      : documentRequest?.message ?? typedMessage;
     const displayMessage = sticker ? encodeChatSticker(sticker.id) : document
       ? [typedMessage, `📎 ${document.name}`].filter(Boolean).join("\n")
       : undefined;
@@ -481,7 +486,7 @@ export default function AIScreen({
     const controller = new AbortController();
     streamAbortRef.current?.abort();
     streamAbortRef.current = controller;
-    const photoEntry = !sticker && pendingEntry?.type === "nutrition" && pendingEntry.payload.source === "vision"
+    const photoEntry = !sticker && !document && pendingEntry?.type === "nutrition" && pendingEntry.payload.source === "vision"
       ? applyPhotoNutritionCorrection(pendingEntry, typedMessage)
       : null;
     setPendingEntry(null);
@@ -495,6 +500,7 @@ export default function AIScreen({
         userId: user.id,
         message,
         displayMessage,
+        documentContext: documentRequest?.documentContext,
         history: conversation.history,
         archiveId: conversation.archiveId,
         lang: locale,
@@ -518,7 +524,7 @@ export default function AIScreen({
       presentMessage(result.assistantMessage);
       setMessages((current) => [...current, result.assistantMessage]);
       setStreamingPreview(null);
-      const recognizedEntry = sticker ? null : photoEntry
+      const recognizedEntry = sticker || document ? null : photoEntry
         ? photoEntry
         : typedMessage
         ? parseStructuredEntry(typedMessage, locale, {
