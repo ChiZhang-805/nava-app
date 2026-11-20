@@ -92,6 +92,10 @@ async function assertFaceBoundary(page, side) {
     const element = active.locator(`.health-explorer-${face}`);
     await expect(element).toHaveAttribute('aria-hidden', String(face !== side));
     expect(await element.evaluate((node) => node.inert), `${face} inert state`).toBe(face !== side);
+    // WebKit can composite a mirrored hidden backface despite inert/aria-hidden.
+    // Require the settled non-current surface to be explicitly unpainted too.
+    await expect(element).toHaveCSS('visibility', face === side ? 'visible' : 'hidden');
+    if (face !== side) await expect(element).toHaveCSS('pointer-events', 'none');
   }
   const flip = active.locator('.health-explorer-flip');
   await expect(flip).toHaveAttribute('aria-pressed', String(side === 'back'));
@@ -149,6 +153,7 @@ async function chooseVisibleNeighbor(page) {
 async function inspectReportChart(page, expectedDomain) {
   const chart = page.locator(`${activeSelector} .health-explorer-front .line-trend-chart.is-report`);
   await expect(chart).toBeVisible();
+  await expect.poll(() => chart.evaluate((node) => node.getAnimations({ subtree: true }).every((animation) => ['finished', 'idle'].includes(animation.playState)))).toBe(true);
   await expect.poll(() => chart.evaluate((node) => {
     const view = node.querySelector('svg').viewBox.baseVal;
     return Math.abs(view.width - node.clientWidth) <= 1.5 && Math.abs(view.height - node.clientHeight) <= 1.5;
