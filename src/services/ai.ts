@@ -256,6 +256,12 @@ export async function sendAiMessage(input: {
     onStatus: input.onStatus,
     onDelta: input.onDelta,
   });
+  if (!input.archiveId) {
+    const current = await supabase.from("ai_conversations").select("id")
+      .eq("user_id", input.userId).eq("id", userMessage.id).maybeSingle();
+    assertNoError(current.error);
+    if (!current.data) throw new Error(lang === "zh" ? "这段聊天已从云端清除，本次旧回复不会重新保存。" : "This conversation was cleared in the cloud. The old reply will not be saved again.");
+  }
   const assistantMessage = await persistChatMessage(input.userId, {
     id: crypto.randomUUID(), role: "assistant", content, created_at: new Date().toISOString(),
   }, input.archiveId);

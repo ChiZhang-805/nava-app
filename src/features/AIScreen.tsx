@@ -253,6 +253,7 @@ export default function AIScreen({
   const listRef = useRef<HTMLDivElement | null>(null);
   const followLatest = useRef(true);
   const previousScrollTop = useRef(0);
+  const previouslyActive = useRef(active);
   const { pending: revealPending, fresh: freshMessageIds, present: presentMessage, finish: finishReveal, reset: resetReveal } = useChatReplyReveal(`${user.id}:${viewingArchiveId ?? "current"}`, active);
   const layoutRef = useRef<HTMLDivElement | null>(null);
   const voiceSessionRef = useRef<VoiceInputSession | null>(null);
@@ -339,7 +340,7 @@ export default function AIScreen({
   const hydrateHistory = useCallback(async () => {
     const remote = await loadConversationArchives<ChatMessage>(user.id);
     const remoteSnapshots = normalizeHistory(remote);
-    const normalized = writeHistory(mergeConversationSnapshots([...readHistory(), ...remoteSnapshots]));
+    const normalized = writeHistory(isDemoMode() ? mergeConversationSnapshots([...readHistory(), ...remoteSnapshots]) : remoteSnapshots);
     return normalized;
   }, [normalizeHistory, readHistory, user.id, writeHistory]);
 
@@ -357,7 +358,7 @@ export default function AIScreen({
       messages: current,
     };
     // A failed cloud write must never be treated as a successful archive.
-    const saved = await saveConversationArchive(user.id, snapshot);
+    const saved = await saveConversationArchive(user.id, snapshot, !isDemoMode() && Boolean(previous || archiveId));
     const mergedSnapshot = { ...snapshot, ...saved };
     const next = writeHistory([mergedSnapshot, ...existing.filter((item) => item.id !== snapshot.id)]);
     setHistory(next);
@@ -380,11 +381,14 @@ export default function AIScreen({
 
   const archiveConversation = useCallback((current: ChatMessage[]) => {
     return conversationWrites.run(async () => {
-      const next = await saveConversationSnapshot(current);
-      await deleteConversationMessages(user.id, current.map((message) => message.id));
+      const ids = new Set(current.map(message => message.id));
+      const confirmed = isDemoMode() ? current : (await loadConversation(user.id, locale)).filter(message => ids.has(message.id));
+      if (!confirmed.length) return hydrateHistory();
+      const next = await saveConversationSnapshot(confirmed);
+      await deleteConversationMessages(user.id, confirmed.map((message) => message.id));
       return next;
     });
-  }, [conversationWrites, saveConversationSnapshot, user.id]);
+  }, [conversationWrites, hydrateHistory, locale, saveConversationSnapshot, user.id]);
 
   const refresh = useCallback(async () => {
     const requestId = ++conversationLoadRequestRef.current;
@@ -393,8 +397,10 @@ export default function AIScreen({
     setLoading(true);
     setError(null);
     try {
-      if (activeArchiveRef.current) {
-        const saved = await loadConversationArchive<ChatMessage>(user.id, activeArchiveRef.current);
+      const selectedArchive = activeArchiveRef.current;
+      if (selectedArchive) {
+        const saved = await loadConversationArchive<ChatMessage>(user.id, selectedArchive);
+        if (requestId !== conversationLoadRequestRef.current || activeArchiveRef.current !== selectedArchive) return;
         if (saved) {
           if (requestId === conversationLoadRequestRef.current) {
             setMessages(saved.messages);
@@ -402,6 +408,7 @@ export default function AIScreen({
           }
           return;
         }
+        setHistory(writeHistory(readHistory().filter(item => item.id !== selectedArchive)));
         activateArchive(null);
       }
       const conversation = await conversationWrites.run(() => loadConversation(user.id, locale));
@@ -425,15 +432,29 @@ export default function AIScreen({
   }, [activateArchive, archiveConversation, conversationWrites, deviceDayKey, locale, normalizeHistory, readHistory, resetReveal, user.id, writeHistory]);
 
   const prepareConversationForMessage = useCallback(async () => {
+    let current = messages;
+    if (!isDemoMode()) {
+      if (activeArchiveRef.current) {
+        const saved = await loadConversationArchive<ChatMessage>(user.id, activeArchiveRef.current);
+        if (!saved) {
+          setHistory(writeHistory(readHistory().filter(item => item.id !== activeArchiveRef.current)));
+          activateArchive(null);
+          setMessages(await loadConversation(user.id, locale));
+          throw new Error(locale === "zh" ? "这段聊天已从云端删除，旧消息不会重新上传。可以开始新的聊天啦。" : "This chat was removed from the cloud. Old messages will not be uploaded again; you can start a new chat.");
+        }
+        current = saved.messages;
+      } else current = await loadConversation(user.id, locale);
+      setMessages(current);
+    }
     const currentDay = todayISO();
-    const rolledOver = !activeArchiveRef.current && conversationNeedsDailyRollover(messages, currentDay);
-    if (!rolledOver) return { history: messages, rolledOver: false, archiveId: activeArchiveRef.current };
-    setHistory(await archiveConversation(messages));
+    const rolledOver = !activeArchiveRef.current && conversationNeedsDailyRollover(current, currentDay);
+    if (!rolledOver) return { history: current, rolledOver: false, archiveId: activeArchiveRef.current };
+    setHistory(await archiveConversation(current));
     setMessages([]);
     activateArchive(null);
     setDeviceDayKey(currentDay);
     return { history: [] as ChatMessage[], rolledOver: true, archiveId: null };
-  }, [activateArchive, archiveConversation, messages]);
+  }, [activateArchive, archiveConversation, locale, messages, readHistory, user.id, writeHistory]);
 
   async function submit(event?: FormEvent, sticker?: ChatSticker) {
     event?.preventDefault();
@@ -723,6 +744,23 @@ export default function AIScreen({
   }, [refresh]);
 
   useEffect(() => {
+    const becameActive = active && !previouslyActive.current;
+    previouslyActive.current = active;
+    if (isDemoMode() || !active) return;
+    let disposed = false;
+    const syncCloudChat = () => {
+      if (document.hidden || sending || resuming || photoAnalyzing) return;
+      void refresh();
+      void hydrateHistory().then(items => { if (!disposed) setHistory(items); })
+        .catch(syncError => console.warn("Conversation history refresh deferred", syncError));
+    };
+    if (becameActive) syncCloudChat();
+    window.addEventListener("focus", syncCloudChat);
+    document.addEventListener("visibilitychange", syncCloudChat);
+    return () => { disposed = true; window.removeEventListener("focus", syncCloudChat); document.removeEventListener("visibilitychange", syncCloudChat); };
+  }, [active, hydrateHistory, photoAnalyzing, refresh, resuming, sending]);
+
+  useEffect(() => {
     if (!active) return;
     const updateDay = () => setDeviceDayKey(todayISO());
     updateDay();
@@ -749,7 +787,7 @@ export default function AIScreen({
     }).catch(() => {
       if (activeRequest) setProfile(null);
     });
-    setHistory(readHistory());
+    setHistory(isDemoMode() ? readHistory() : []);
     void hydrateHistory()
       .then((items) => { if (activeRequest) setHistory(items); })
       .catch((historyError) => console.warn("AI conversation history restore deferred", historyError));
@@ -838,7 +876,7 @@ export default function AIScreen({
       return;
     }
     if (command.type === "history") {
-      setHistory(readHistory());
+      setHistory(isDemoMode() ? readHistory() : []);
       setHistoryOpen(true);
       void hydrateHistory().then(setHistory).catch((historyError) => console.warn("AI conversation history restore deferred", historyError));
       return;
@@ -877,9 +915,10 @@ export default function AIScreen({
     let cancelled = false;
     void loadConversationArchive<ChatMessage>(user.id, viewingArchiveId).then((saved) => {
       if (!cancelled && saved) setHistory(writeHistory(normalizeHistory([saved, ...readHistory().filter(item => item.id !== saved.id)])));
+      else if (!cancelled && !saved) void refresh();
     }).catch((syncError) => console.warn("Conversation list refresh deferred", syncError));
     return () => { cancelled = true; };
-  }, [loading, messages.length, normalizeHistory, readHistory, resuming, sending, user.id, viewingArchiveId, writeHistory]);
+  }, [loading, messages.length, normalizeHistory, readHistory, refresh, resuming, sending, user.id, viewingArchiveId, writeHistory]);
 
   async function openArchivedConversation(snapshot: ConversationSnapshot) {
     if (sending || resuming || photoAnalyzing) return;

@@ -226,7 +226,24 @@ export async function loadConversationArchive<T extends ArchiveMessage>(userId: 
 }
 
 export async function saveConversationArchive<T extends ArchiveMessage>(userId: string, archive: ConversationArchive<T>, requireExisting = false) {
-  return persistConversationArchive(archive, conversationArchiveStore<T>(userId, archive.id), requireExisting);
+  const store = conversationArchiveStore<T>(userId, archive.id);
+  if (requireExisting || isDemoMode()) return persistConversationArchive(archive, store, requireExisting);
+  // A local cache is never authority to recreate an archive deleted in the cloud.
+  // Existing archives can only be updated, even if deletion races with this read.
+  if (await store.read()) return persistConversationArchive(archive, store, true);
+  // New archives can contain only messages still present in the current cloud
+  // conversation. Read their authoritative contents, not stale UI/cache copies.
+  const ids = [...new Set(archive.messages.map(message => message.id))];
+  const confirmed: T[] = [];
+  for (let index = 0; index < ids.length; index += 100) {
+    const result = await supabase.from("ai_conversations").select("id,role,content,created_at")
+      .eq("user_id", userId).in("id", ids.slice(index, index + 100));
+    assertNoError(result.error);
+    confirmed.push(...(result.data ?? []) as T[]);
+  }
+  if (!confirmed.length) throw new Error("Conversation no longer exists or is not accessible.");
+  confirmed.sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at) || a.id.localeCompare(b.id));
+  return persistConversationArchive({ ...archive, messages: confirmed }, store, false);
 }
 
 export async function appendConversationArchiveMessage<T extends ArchiveMessage>(userId: string, archiveId: string, message: T) {
