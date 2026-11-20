@@ -22,11 +22,14 @@ food-visualize。线上RLS/令牌列不可读/claim不可由客户端调用/单�
 原因是表单32px档需240px而降档阈值仅215px；44px档也有310–322px断档。
 已将阈值改为323/275/241px；WebKit新增native-safe-top=20px回归先复现真实溢出。
 增加DOM原始边界与所有祖先裁剪区域检查，原生要求快捷按钮完整控件高度，避免AX裁剪框假通过。
-此修复尚待新一轮浏览器及原生验收，49尚未上传。
+此修复已通过Chromium/WebKit共228状态，涵盖native-safe-top=20/59px的中英文反馈和密度边界。
+原生44765875911（66ef6ad）两机验收运行中，49尚未上传。
 4345c90构建/lint/认证/产物与71项报告完成回归通过；另有生成图只读/等待态WebKit4案通过，
 没有发出模型请求。真实生图收据：App-Checks/food-render-live/receipt.json（passed=false，cleaned=true），
-首轮保留在food-render-live-initial。verify原1–13阶段通过，14旧报告入口断言更新后11项通过；
-15–17通过；18起继续运行（之前PowerShell将Deno正常stderr误当异常，已修正运行包装），未宣称全程完成。
+首轮保留在food-render-live-initial。完整verify已分段完成：a697e1b的1–13阶段通过，
+14旧报告入口断言更新后11项通过；d89e0ac的15–17及18–36通过，生产认证通过。
+分段收据release-d89e0ac-15-17/remaining.json；曾因PowerShell误判Deno正常stderr中断，
+修正运行包装后完整续跑18–36并退出0。66ef6ad仅追加登录密度CSS、回归测试和说明，build/lint通过。
 
 - 登录键盘改为纵向单列，密码下预留反馈行、全宽进入按钮、辅助链接、分隔线和三快捷入口；
   账号/密码标签始终保留，连续圆角左右更直。浏览器168状态通过，当前原生验收待运行。

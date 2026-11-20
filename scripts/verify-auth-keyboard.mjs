@@ -19,7 +19,7 @@ async function verifyDensityBoundaries(browser, engine) {
     { width: 375, height: 667, safeTop: 20, visibleHeights: [314, 323, 334, 339, 350, 377, 390, 420, 450, 460] },
     { width: 430, height: 932, safeTop: 59, visibleHeights: [440, 470, 502, 540, 573] },
   ]) {
-    const context = await browser.newContext({ viewport: { width, height }, isMobile: true, hasTouch: true });
+    const context = await browser.newContext({ viewport: { width, height }, isMobile: true, hasTouch: true, locale: 'zh-CN' });
     try {
       await context.route('**/*.supabase.co/**', route => route.fulfill({ json: [] }));
       await context.addInitScript(() => {
@@ -32,9 +32,12 @@ async function verifyDensityBoundaries(browser, engine) {
       const page = await context.newPage();
       await page.goto(server.resolvedUrls.local[0], { waitUntil: 'domcontentloaded' });
       await page.locator('.auth-screen').waitFor();
-      await page.addStyleTag({ content: viewportStyles.replaceAll('env(safe-area-inset-top)', `${safeTop}px`) });
+      await page.addStyleTag({ content: viewportStyles
+        .replaceAll('env(safe-area-inset-top)', `${safeTop}px`)
+        .replaceAll('../assets/figma/auth-texture.jpg', '/src/assets/figma/auth-texture.jpg') });
       for (const language of ['zh', 'en']) {
         if (language === 'en') await page.locator('.auth-locale').click();
+        assert((await page.locator('html').getAttribute('lang'))?.startsWith(language), 'Language fixture mismatch');
         await page.locator('.auth-social-button--wechat').click();
         await page.locator('.auth-feedback-slot .error-text').waitFor();
         for (const visible of visibleHeights) {
