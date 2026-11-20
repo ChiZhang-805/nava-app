@@ -86,7 +86,7 @@
   .health-explorer-card[data-side="front"] .health-explorer-front, .health-explorer-card[data-side="back"] .health-explorer-back { opacity: 1; }
 }
 @media (max-height: 640px) {
-  .phone-frame .record-hub.record-hub--explorer { overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain; padding: 0 20px 12px; margin-inline: -20px; width: calc(100% + 40px); }
+  .phone-frame .record-hub.record-hub--explorer { overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain; padding: 0 20px; margin-inline: -20px; width: calc(100% + 40px); }
   .health-report-explorer { flex: none; }
   .health-report-explorer[data-category="all"] { flex: 1; }
   .health-explorer-track { flex: none; height: 322px; }
