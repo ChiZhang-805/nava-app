@@ -8,47 +8,70 @@ import { registerPreviewActivity, updatePreviewActivity } from '../services/prev
 import { startVoiceInput, type VoiceInputSession } from '../services/voice';
 import { requestScreenWakeLock, type ScreenWakeLockSentinel } from '../services/focusImmersion';
 import type { RecordModule } from './RecordsScreen';
-import PageSkeleton, { type PageSkeletonVariant } from '../components/PageSkeleton';
 import './journal-experience.css';
 import type { AppSkin } from '../services/appSkin';
 import { claimJournalDailyCompletion } from '../services/journalDailyCompletion';
 import { uploadConfirmedFoodPhoto } from '../services/journalFoodPhoto';
+import { getNativeAppViewport } from '../services/mobileViewport';
 
 const categoryMap:Record<RecordModule,JournalCategory>={mood:'mood',diet:'food',exercise:'sport',focus:'focus',sleep:'sleep',face:'face'};
-const editorSkeletonMap:Record<RecordModule,PageSkeletonVariant>={mood:'record-editor-mood',diet:'record-editor-diet',exercise:'record-editor-exercise',focus:'record-editor-focus',sleep:'record-editor-sleep',face:'record-editor-face'};
-type Props={user:User;module:RecordModule;locale:'zh'|'en';skin:AppSkin;forceGuide?:boolean;guidePreview?:boolean;onSaved:()=>void;onExit:()=>void};
+type Props={user:User;module:RecordModule;locale:'zh'|'en';skin:AppSkin;forceGuide?:boolean;guidePreview?:boolean;staged?:boolean;onInitialLoad?:()=>void;onSaved:()=>void;onExit:()=>void};
 
 /** Exactly one iframe, scoped to the authenticated parent. It never receives the JWT. */
-export default function JournalExperience({user,module,locale,skin,forceGuide=false,guidePreview=false,onSaved,onExit}:Props){
+export default function JournalExperience({user,module,locale,skin,forceGuide=false,guidePreview=false,staged=false,onInitialLoad,onSaved,onExit}:Props){
   const frame=useRef<HTMLIFrameElement>(null), callbacks=useRef({onSaved,onExit});
   callbacks.current={onSaved,onExit};
   const [error,setError]=useState(''),[ready,setReady]=useState(false),[attempt,setAttempt]=useState(0);
   const [firstFeedback,setFirstFeedback]=useState<JournalRecord|null>(null);
   const [guideActive,setGuideActive]=useState(false);
-  useEffect(()=>{if(frame.current)frame.current.inert=Boolean(firstFeedback);},[firstFeedback]);
+  const isActive=ready&&!staged&&!error;
+  const activeRef=useRef(isActive),interruptRef=useRef<()=>void>(()=>{});
+  const stagedRef=useRef(staged);
+  const previewState=useRef<'ready'|'running'|'paused'>('running');
+  activeRef.current=isActive;
+  stagedRef.current=staged;
+  useEffect(()=>{if(ready||error)onInitialLoad?.();},[ready,error,onInitialLoad]);
+  useEffect(()=>{if(frame.current)frame.current.inert=!isActive||Boolean(firstFeedback);},[isActive,firstFeedback]);
+  useEffect(()=>{
+    if(!isActive)return;
+    return registerPreviewActivity({module:module==='focus'?'focus':'recording',state:previewState.current},()=>interruptRef.current());
+  },[isActive,module]);
   useEffect(()=>{
     let alive=true,channel:MessageChannel|null=null,settings:Record<string,unknown>={};
     let bootExpired=false;
-    const bootTimer=window.setTimeout(()=>{bootExpired=true;if(alive)setError(locale==='zh'?'加载时间较长，请检查网络后重试。':'Loading is taking longer than expected. Check your connection and retry.');},20000);
+    const bootTimer=window.setTimeout(()=>{
+      if(!alive||stagedRef.current)return;
+      bootExpired=true;
+      setError(locale==='zh'?'加载时间较长，请检查网络后重试。':'Loading is taking longer than expected. Check your connection and retry.');
+    },20000);
+    const failBoot=()=>{
+      window.clearTimeout(bootTimer);
+      if(alive)setError(locale==='zh'?'记录未能加载，请重试。':'Could not load your journal. Please retry.');
+    };
     let firstSaved:JournalRecord|null=null;
     setFirstFeedback(null);
+    setReady(false);
     const controllers=new Map<number,AbortController>();
     let queue=Promise.resolve();
     let voice:VoiceInputSession|null=null,wake:ScreenWakeLockSentinel|null=null;
     const viewport=()=>{
       const r=frame.current?.getBoundingClientRect(),style=frame.current?.parentElement&&getComputedStyle(frame.current.parentElement);
-      const visibleBottom=window.visualViewport?window.visualViewport.offsetTop+window.visualViewport.height:innerHeight;
+      const native=getNativeAppViewport();
+      const visibleTop=native?0:(window.visualViewport?.offsetTop??0);
+      const visibleBottom=visibleTop+(native?.visibleHeight??window.visualViewport?.height??innerHeight);
       const logicalHeight=frame.current?.clientHeight||r?.height||innerHeight;
       const scale=r&&r.height>0?r.height/logicalHeight:1;
-      return {type:'viewport',visibleHeight:r?Math.max(1,Math.min(r.height,visibleBottom-r.top)/scale):logicalHeight,safeTop:parseFloat(style?.getPropertyValue('--journal-safe-top')||'0')||0,safeBottom:parseFloat(style?.getPropertyValue('--journal-safe-bottom')||'0')||0};
+      const visibleOffset=r?Math.max(0,visibleTop-r.top)/scale:0;
+      return {type:'viewport',visibleOffset,visibleHeight:r?Math.max(1,Math.min(r.height,visibleBottom-r.top)/scale-visibleOffset):logicalHeight,safeTop:parseFloat(style?.getPropertyValue('--journal-safe-top')||'0')||0,safeBottom:parseFloat(style?.getPropertyValue('--journal-safe-bottom')||'0')||0};
     };
     const resize=()=>channel?.port1.postMessage(viewport());
     window.addEventListener('resize',resize);window.visualViewport?.addEventListener('resize',resize);window.visualViewport?.addEventListener('scroll',resize);
+    window.addEventListener('nava:auth-viewport',resize);
     const interrupt=()=>channel?.port1.postMessage({type:'interrupt'});
-    const unregister=registerPreviewActivity({module:module==='focus'?'focus':'recording',state:'running'},interrupt);
-    const visibility=()=>{if(document.hidden)interrupt();};
+    interruptRef.current=interrupt;
+    const visibility=()=>{if(document.hidden&&activeRef.current)interrupt();};
     document.addEventListener('visibilitychange',visibility);
-    const native=usesNativePhotos()?NativeApp.addListener('appStateChange',({isActive})=>{if(!isActive)interrupt();}):null;
+    const native=usesNativePhotos()?NativeApp.addListener('appStateChange',({isActive})=>{if(!isActive&&activeRef.current)interrupt();}):null;
     // Fetch while the iframe parses its assets, rather than after its load event.
     // Attach both handlers immediately so an early failure never goes unhandled.
     const initialRequest=loadJournal(user.id).then(value=>({value}),()=>({value:null}));
@@ -103,9 +126,13 @@ export default function JournalExperience({user,module,locale,skin,forceGuide=fa
               if(payload.enabled){wake=await requestScreenWakeLock();if(!alive)await wake?.release();result=Boolean(wake);}
               else{await wake?.release();wake=null;result=false;}
             }else if(method==='activity-state'){
-              if(module==='focus'&&['ready','running','paused'].includes(payload?.state))updatePreviewActivity(payload.state);
+              if(module==='focus'&&['ready','running','paused'].includes(payload?.state)){
+                previewState.current=payload.state;
+                if(activeRef.current)updatePreviewActivity(payload.state);
+              }
             }else if(method==='guide-state')setGuideActive(Boolean(payload?.active));
             else if(method==='ready'){if(!bootExpired){window.clearTimeout(bootTimer);setReady(true);}}
+            else if(method==='boot-error')failBoot();
             else if(method==='exit')callbacks.current.onExit();
             else if(method!=='locale')throw Error('Unknown journal action');
             if(alive&&!controller.signal.aborted)channel?.port1.postMessage({id,result});
@@ -113,7 +140,7 @@ export default function JournalExperience({user,module,locale,skin,forceGuide=fa
           finally{controllers.delete(id);}
         };
         frame.current.contentWindow.postMessage({type:'nava-journal-connect',initial:{...initial,category:categoryMap[module],locale,skin,forceGuide,nativePhotos:usesNativePhotos(),viewport:viewport()}},location.origin,[channel.port2]);
-      }catch{window.clearTimeout(bootTimer);if(alive)setError(locale==='zh'?'记录未能加载，请重试。':'Could not load your journal. Please retry.');}
+      }catch{failBoot();}
     };
     const element=frame.current; element?.addEventListener('load',start);
     const bridgeReady=(event:MessageEvent)=>{
@@ -121,12 +148,11 @@ export default function JournalExperience({user,module,locale,skin,forceGuide=fa
     };
     window.addEventListener('message',bridgeReady);
     const observer=new ResizeObserver(resize);if(element)observer.observe(element);
-    return()=>{alive=false;window.clearTimeout(bootTimer);setGuideActive(false);interrupt();unregister();observer.disconnect();void voice?.cancel();void wake?.release();void native?.then(handle=>handle.remove());document.removeEventListener('visibilitychange',visibility);window.removeEventListener('message',bridgeReady);window.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('scroll',resize);element?.removeEventListener('load',start);for(const c of controllers.values())c.abort();channel?.port1.close();};
+    return()=>{alive=false;window.clearTimeout(bootTimer);setGuideActive(false);if(activeRef.current)interrupt();observer.disconnect();void voice?.cancel();void wake?.release();void native?.then(handle=>handle.remove());document.removeEventListener('visibilitychange',visibility);window.removeEventListener('message',bridgeReady);window.removeEventListener('resize',resize);window.removeEventListener('nava:auth-viewport',resize);window.visualViewport?.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('scroll',resize);element?.removeEventListener('load',start);for(const c of controllers.values())c.abort();channel?.port1.close();};
   },[user.id,module,locale,skin,attempt,forceGuide,guidePreview]);
-  return <section className={`journal-experience${guideActive?' is-guiding':''}`} aria-label={locale==='zh'?'生活记录':'Journal'}>
-    <iframe key={`${module}-${locale}-${skin}-${attempt}-${forceGuide}`} ref={frame} aria-hidden={Boolean(firstFeedback)} tabIndex={firstFeedback?-1:undefined} src={`${import.meta.env.BASE_URL}journal/index.html?v=20261006-skins-a11y-v3&skin=${encodeURIComponent(skin)}&category=${encodeURIComponent(categoryMap[module])}`} title={locale==='zh'?'记录与回顾':'Journal and recap'} allow="camera; microphone"/>
+  return <section className={`journal-experience${guideActive?' is-guiding':''}${staged?' is-staged':''}`} aria-hidden={staged||undefined} {...(staged?{inert:''}:{})} aria-label={locale==='zh'?'生活记录':'Journal'}>
+    <iframe key={`${module}-${locale}-${skin}-${attempt}-${forceGuide}`} ref={frame} style={{visibility:isActive?'visible':'hidden'}} aria-hidden={!isActive||Boolean(firstFeedback)} tabIndex={!isActive||firstFeedback?-1:undefined} src={`${import.meta.env.BASE_URL}journal/index.html?v=20261006-skins-a11y-v3&skin=${encodeURIComponent(skin)}&category=${encodeURIComponent(categoryMap[module])}`} title={locale==='zh'?'记录与回顾':'Journal and recap'} allow="camera; microphone"/>
     {firstFeedback&&<div className="cold-feedback-layer"><FirstRecordFeedback record={firstFeedback} onClose={()=>setFirstFeedback(null)}/></div>}
-    {!ready&&!error&&<div className="journal-loading journal-loading--skeleton"><PageSkeleton variant={editorSkeletonMap[module]} /></div>}
     {error&&<div className="journal-loading is-error" role="alert"><strong>{error}</strong><button onClick={()=>{setError('');setReady(false);setAttempt(x=>x+1);}}>{locale==='zh'?'重试':'Retry'}</button><button onClick={onExit}>{locale==='zh'?'返回上一页':'Back'}</button></div>}
   </section>;
 }

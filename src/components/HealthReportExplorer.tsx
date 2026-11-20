@@ -49,17 +49,24 @@ function FlipCard({ id, title, kind = "chart", locale, active, flipped, onFlip, 
   </article>;
 }
 
+function ReportEmptyState({ locale }: { locale: "zh" | "en" }) {
+  return <div className="health-explorer-empty">
+    <ClipboardPlus size={38} strokeWidth={1.4} aria-hidden="true" />
+    <p>{locale === "zh" ? "记下一笔，让趋势慢慢出现。" : "Add an entry to begin your trend."}</p>
+  </div>;
+}
+
 function ReportCard({ chart, ...interaction }: CardInteractionProps & { chart: HealthReportChart }) {
   const { locale, active, flipped } = interaction;
   const recorded = chart.points.filter((point) => !point.missing);
   const latest = recorded[recorded.length - 1];
   const format = (value: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
-  return <FlipCard {...interaction} id={chart.id} title={chart.title} front={<>
-    <div className="health-explorer-value"><strong>{latest ? format(latest.value) : "—"}</strong><span>{latest ? chart.unit : (locale === "zh" ? "还没有记录" : "No entries yet")}</span></div>
+  return <FlipCard {...interaction} id={chart.id} title={chart.title} front={latest ? <>
+    <div className="health-explorer-value"><strong>{format(latest.value)}</strong><span>{chart.unit}</span></div>
     <div className="health-explorer-plot">
-      {latest ? <LineTrendChart points={chart.points} ariaLabel={chart.title} tone="rhythm" scale="auto" domain={chart.domain} presentation="report" showYAxis={false} animateReport={active && !flipped} curve="monotone" showValues={false} dateLabelEvery={2} showConfidenceBand={false} valueFormatter={format} /> : <div className="health-explorer-empty"><ClipboardPlus size={38} strokeWidth={1.4} /><p>{locale === "zh" ? "记下一笔，让趋势慢慢出现。" : "Add an entry to begin your trend."}</p></div>}
+      <LineTrendChart points={chart.points} ariaLabel={chart.title} tone="rhythm" scale="auto" domain={chart.domain} presentation="report" showYAxis={false} animateReport={active && !flipped} curve="monotone" showValues={false} dateLabelEvery={2} showConfidenceBand={false} valueFormatter={format} />
     </div>
-  </>} details={<>
+  </> : <ReportEmptyState locale={locale} />} details={<>
           <p className="health-explorer-description">{chart.description}</p>
           <p className="health-explorer-range">{chart.points[0]?.id} — {chart.points[chart.points.length - 1]?.id}<br />{locale === "zh" ? `${recorded.length} 天有数据` : `${recorded.length} ${recorded.length === 1 ? "day" : "days"} with data`}</p>
           <h4>{locale === "zh" ? "最近记录" : "Recent entries"}</h4>
@@ -115,7 +122,7 @@ function MealCard({ slide, resolvePhoto, ...interaction }: CardInteractionProps 
     <DishPhoto dish={dish} active={active} locale={locale} resolvePhoto={resolvePhoto} />
     <MealNutrients nutrients={dish.nutrients} locale={locale} front />
     <div className="health-explorer-meal-meta"><p className="health-explorer-meal-date">{dish.date} · {dish.meal}{dish.time ? ` · ${dish.time}` : ""}</p>{dish.estimated && <span className="health-explorer-meal-estimate">{t("含估算", "Estimated")}</span>}</div>
-  </> : <div className="health-explorer-empty health-explorer-empty-meal"><ImageOff size={30} strokeWidth={1.4} /><p>{t("还没有饮食记录", "No meals logged yet")}</p></div>} details={dish ? <>
+  </> : <ReportEmptyState locale={locale} />} details={dish ? <>
     <p className="health-explorer-dish-name">{dish.title}</p>
     <p className="health-explorer-range">{dish.date} · {dish.meal}{dish.time ? ` · ${dish.time}` : ""}</p>
     {dish.amount && <p>{t("份量", "Amount")}：{dish.amount}</p>}

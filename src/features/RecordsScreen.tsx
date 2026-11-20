@@ -217,6 +217,7 @@ export default function RecordsScreen({
   onSaved,
   onGrowthActivity,
   onOpenAi,
+  onInitialLoad,
   initialModule = null,
   initialView = null,
   focusTodoPrefill = null,
@@ -229,6 +230,7 @@ export default function RecordsScreen({
   onSaved: (module?: RecordModule) => void;
   onGrowthActivity?: (activity: GrowthActivityKind) => void | Promise<unknown>;
   onOpenAi?: (prompt: string) => void;
+  onInitialLoad?: () => void;
   initialModule?: RecordModule | null;
   initialView?: string | null;
   focusTodoPrefill?: FocusTodoPrefill | null;
@@ -587,6 +589,10 @@ export default function RecordsScreen({
       recordLoadRequestRef.current += 1;
     };
   }, [loadRecordData]);
+
+  useEffect(() => {
+    if (!dataLoading) onInitialLoad?.();
+  }, [dataLoading, onInitialLoad]);
 
   useEffect(() => {
     setRecordDate(deviceDate);
@@ -1212,7 +1218,10 @@ export default function RecordsScreen({
 
   const currentRecordKey = `${recordDate}:${activeModule ?? "hub"}:${activeModule === "diet" ? meal : ""}`;
   const visibleFaceInsights = faceInsightPoints(faceResult, locale);
+  // A staged hub loads its data without painting over the current route.
+  if (onInitialLoad) return null;
   if (dataLoading && loadedRecordKey !== currentRecordKey) {
+    if (!activeModule) return null;
     return <PageSkeleton variant={recordSkeletonVariant(activeModule, showEditor || initialView === "editor" || initialView === "conditions" || !!requestedMeal)} />;
   }
 
@@ -1398,9 +1407,12 @@ export default function RecordsScreen({
               setNotice(null);
               setError(null);
               const openEntry = healthModuleEntryView(healthModulePresentations[id]) === "editor";
+              if (onModuleChange) {
+                onModuleChange(id, openEntry ? "editor" : null);
+                return;
+              }
               setShowEditor(openEntry);
               setActiveModule(id);
-              onModuleChange?.(id, openEntry ? "editor" : null);
             }}
           />
       </div>

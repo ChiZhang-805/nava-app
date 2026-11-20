@@ -39,20 +39,20 @@ for(const [engine,type] of Object.entries(process.env.NAVA_LAYOUT_ENGINE==='webk
   await page.locator('.option-two-scores > button').first().click();await expect(page).toHaveURL(/#tab=record$/);
   await open('tab=today');await page.locator('.option-two-scores > button').nth(1).click();await expect(page).toHaveURL(/view=points-shop/);
   await open('tab=trends');await page.locator('.growth-level-details-toggle').click();await expect(page.locator('#growth-level-details')).toContainText('100 XP');await page.screenshot({path:`${out}/${engine}-${width}-levels.png`});
-  await open('tab=today&view=profile-details');await page.locator('.advanced-profile-form > button.secondary-button').click();await expect(page.locator('.advanced-profile-screen')).toHaveCount(0);
+  await open('tab=today&view=profile-details');await expect(page.locator('.advanced-profile-form > button').last()).toHaveClass('advanced-profile-save');await page.locator('.advanced-profile-screen .home-experience-back').click();await expect(page.locator('.advanced-profile-screen')).toHaveCount(0);
   await open('tab=ai');await expect(page.getByText('瓦咪儿',{exact:true}).first()).toBeVisible();await expect(page.locator('.chat-avatar.assistant svg').first()).toBeVisible();
   await open('tab=record&module=focus&view=editor');
-  const frame=page.frameLocator('.journal-experience iframe');
+  const frame=page.frameLocator('.journal-experience:not(.is-staged) iframe');
   await expect(frame.locator('#screen')).toHaveAttribute('data-scene','entry',{timeout:30000});await expect(frame.locator('#cold-guide')).toBeHidden();
   await frame.locator('#field-task').fill('阅读');await frame.locator('#field-task').press('Enter');await expect(frame.locator('#field-durationMinutes')).toBeFocused();
   await page.screenshot({path:`${out}/${engine}-${width}-entry.png`});
   await frame.locator('#entry-more').click();await frame.locator('[data-action=guide]').click();await expect(frame.locator('#cold-guide')).toBeVisible();await frame.locator('#cold-guide-skip').focus();await frame.locator('#cold-guide-skip').press('Enter');await expect(frame.locator('#cold-guide')).toBeHidden();
   await open('tab=record');
   await page.evaluate(()=>{const date=new Date(),day=[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');localStorage.setItem('nava.review.demo.journal.v1',JSON.stringify([{id:'feedback-face',category:'face',recordDate:day,data:{feeling:'精神还好',eyeArea:'没有明显阴影',skinAppearance:'自然光下肤色均匀'},createdAt:date.toISOString(),version:1}]));});
-  await page.locator('[data-record-module=face]').click();
+  await page.evaluate(()=>{location.hash='tab=record&module=face';});
   await expect(frame.locator('#screen')).toHaveAttribute('data-scene','review',{timeout:30000});
   await page.screenshot({path:`${out}/${engine}-${width}-face-review.png`});
-  await frame.locator('.review-face-details').click();await expect(frame.locator('#sheet-body')).toContainText('自然光下肤色均匀');await frame.locator('#sheet-close').click();
+  await frame.locator('.review-deck-dot').last().click();await frame.locator('.review-slide-record').first().click();await expect(frame.locator('#sheet-body')).toContainText('自然光下肤色均匀');await frame.locator('#sheet-close').click();
   await frame.locator('.review-add-entry').click();await expect(frame.locator('#screen')).toHaveAttribute('data-scene','entry');await frame.locator('#back').click();await expect(frame.locator('#screen')).toHaveAttribute('data-scene','review');
   await frame.locator('.review-add-entry').click();await frame.locator('#photo-preview').click();
   const chooserPromise=page.waitForEvent('filechooser');await frame.locator('#sheet-body').getByRole('button',{name:'选择照片',exact:true}).click();const chooser=await chooserPromise;
@@ -60,7 +60,7 @@ for(const [engine,type] of Object.entries(process.env.NAVA_LAYOUT_ENGINE==='webk
   await chooser.setFiles({name:'fixture.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==','base64')});
   await expect(frame.locator('#sheet-layer')).toBeHidden();await expect(frame.locator('#photo-preview img')).toBeVisible();
   await frame.locator('#back').click();await frame.locator('#review-home').click();await expect(page).toHaveURL(/#tab=record$/);
-  results.push({engine,width,height,checks:['home-actions','shortcut-discovery','level-details','profile-bottom-back','cat-avatar','optional-guide','enter-next','skip-with-keyboard','face-observations','new-entry-back','photo-picker','review-back']});
+  results.push({engine,width,height,checks:['home-actions','shortcut-discovery','level-details','profile-save-footer','cat-avatar','optional-guide','enter-next','skip-with-keyboard','face-observations','new-entry-back','photo-picker','review-back']});
   await context.close();console.log(engine,width,'passed');
  }}finally{await browser.close();}
 }

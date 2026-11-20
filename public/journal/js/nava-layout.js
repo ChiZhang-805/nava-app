@@ -16,6 +16,21 @@ export function installJournalLayout(api){
  document.addEventListener('contextmenu',preventNativeTextMenu);
  document.addEventListener('selectstart',preventNativeTextMenu);
  let viewport={};
+ const stage=document.querySelector('.stage');
+ const revealField=()=>{
+  const field=document.activeElement;
+  if(!field?.matches('input,textarea,select')||!stage)return;
+  const viewportBounds=stage.getBoundingClientRect();
+  for(let region=field.parentElement;region&&stage.contains(region);region=region.parentElement){
+   if(region.scrollHeight<=region.clientHeight+1||!['auto','scroll'].includes(getComputedStyle(region).overflowY))continue;
+   const bounds=region.getBoundingClientRect(),rect=field.getBoundingClientRect();
+   const bottom=rect.bottom-Math.min(viewportBounds.bottom,bounds.bottom)+12;
+   const top=rect.top-Math.max(viewportBounds.top,bounds.top)-12;
+   const delta=bottom>1?bottom:Math.min(0,top);
+   const scale=bounds.height/(region.offsetHeight||bounds.height)||1;
+   if(Math.abs(delta)>1)region.scrollTop+=delta/scale;
+  }
+ };
  const resize=()=>{
   const height=Math.min(innerHeight,viewport.visibleHeight||innerHeight);
   const layout=journalLayout(innerWidth,height,viewport.safeTop||0,viewport.safeBottom||0);
@@ -24,6 +39,7 @@ export function installJournalLayout(api){
   root.style.setProperty('--journal-safe-offset',`${layout.top}px`);
   root.style.setProperty('--journal-safe-tail',`${layout.bottom}px`);
   root.style.setProperty('--journal-visible-height',`${height}px`);
+  root.style.setProperty('--journal-viewport-top',`${viewport.visibleOffset||0}px`);
   root.style.setProperty('--journal-safe-top',`${Math.max(0,viewport.safeTop||0)}px`);
   root.style.setProperty('--journal-safe-bottom',`${Math.max(0,viewport.safeBottom||0)}px`);
   // Keep the writing cat and paper top anchored. Short screens shorten only
@@ -36,12 +52,10 @@ export function installJournalLayout(api){
   root.dataset.journalScroll=String(layout.scroll);
   return layout;
  };
- api.viewport=data=>{viewport=data;resize();
-  if(document.activeElement?.matches('input,textarea,select'))requestAnimationFrame(()=>document.activeElement.scrollIntoView({block:'nearest'}));
- };
+ api.viewport=data=>{viewport=data;resize();requestAnimationFrame(revealField);};
  api.layout={resize};api.viewport(api.initial.viewport||{});
  window.addEventListener('resize',resize);
  window.visualViewport?.addEventListener('resize',resize);
- document.addEventListener('focusin',event=>{if(event.target.matches('input,textarea,select'))setTimeout(()=>event.target.isConnected&&event.target.scrollIntoView({block:'nearest'}),250);});
+ document.addEventListener('focusin',event=>{if(event.target.matches('input,textarea,select'))setTimeout(revealField,250);});
  return api.layout;
 }

@@ -1,7 +1,8 @@
 /* Three application skins share one DOM, data model and interaction contract.
    The two alternate palettes are derived from the approved Figma mobile boards:
    Style F Bold Violet and Key Screens V1.8. */
-.phone-frame {
+.phone-frame,
+:where(html:has(.nava-app-stage > .phone-frame[data-app-skin])) {
   --skin-ink: #071827;
   --skin-muted: #5e7e8d;
   --skin-accent: #0b809f;
@@ -397,7 +398,7 @@
   box-shadow: var(--skin-card-shadow);
 }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .option-two-scores strong { color: var(--skin-nav-ink); background: var(--skin-surface-strong); box-shadow: var(--skin-card-shadow); }
-.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .option-two-health-disc { border-color: var(--skin-line); background: var(--skin-health-disc); box-shadow: var(--skin-shadow); }
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .option-two-health-disc { border-color: var(--skin-line); }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-hub-ai-summary > span { color: var(--skin-ink); background: var(--skin-surface-alt); box-shadow: var(--skin-nav-shadow); }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-hub-ai-summary :is(strong, p, small) { color: var(--skin-muted); }
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .record-hub-ai-summary strong { color: var(--skin-ink); }
@@ -459,7 +460,8 @@
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) .shop-checkout-experience:is([data-checkout-phase="printing"], [data-checkout-phase="receipt"], [data-checkout-phase="placed"]) { background: var(--skin-page-background); }
 
 /* Figma group 1: Style F Bold Violet. */
-.phone-frame[data-app-skin="violet-dusk"] {
+.phone-frame[data-app-skin="violet-dusk"],
+:where(html:has(.nava-app-stage > .phone-frame[data-app-skin="violet-dusk"])) {
   --skin-ink: #25345a;
   --skin-muted: #53617d;
   --skin-accent: #735cff;
@@ -512,7 +514,6 @@
   --skin-scene-opacity: .26;
   --skin-scene-filter: hue-rotate(45deg) saturate(.95) brightness(1.16);
   --skin-scene-blend: multiply;
-  --skin-health-disc: radial-gradient(circle at 50% 3%, rgba(0,226,224,.52), transparent 35%), linear-gradient(180deg, rgba(120,124,254,.88), rgba(45,48,145,.94));
 }
 .phone-frame[data-app-skin="violet-dusk"] .profile-skin-icon { color: #735cff; background: #ece9ff; }
 .phone-frame[data-app-skin="violet-dusk"] .growth-summary-card { background: var(--skin-module-sleep); color: var(--skin-ink); }
@@ -534,7 +535,8 @@
 .phone-frame[data-app-skin="violet-dusk"]:has(.record-detail[data-record-detail="face"]) { --skin-surface: var(--skin-module-face); --skin-button: linear-gradient(116.12deg, #787cfe 13.24%, #00e2e0 100%); }
 
 /* Figma group 2: Key Screens V1.8. */
-.phone-frame[data-app-skin="sky-ripple"] {
+.phone-frame[data-app-skin="sky-ripple"],
+:where(html:has(.nava-app-stage > .phone-frame[data-app-skin="sky-ripple"])) {
   --skin-ink: #314155;
   --skin-muted: #52657a;
   --skin-accent: #548dcc;
@@ -587,7 +589,6 @@
   --skin-scene-opacity: .19;
   --skin-scene-filter: saturate(.58) brightness(1.3);
   --skin-scene-blend: multiply;
-  --skin-health-disc: radial-gradient(circle at 50% 4%, rgba(255,255,255,.78), transparent 36%), linear-gradient(180deg, rgba(112,206,202,.72), rgba(84,141,204,.84));
 }
 
 /* Key Screens V1.8 changes the glass-card gradient angle by module. */
@@ -672,6 +673,12 @@
 }
 .phone-frame[data-shell-integrated="true"][data-has-bottom-nav="true"]:not(.phone-frame--option2) > .app-content {
   margin-bottom: var(--nava-dock-clearance);
+}
+
+.phone-frame[data-shell-page="growth"][data-has-bottom-nav="true"] > .app-content.app-content--trends {
+  /* The viewport already ends 12px above the dock. Leave room for the last focus ring. */
+  padding-bottom: 5px;
+  scroll-padding-bottom: 5px;
 }
 
 .phone-frame[data-shell-integrated="true"].phone-frame--subpage-no-nav:not(.phone-frame--option2) > .app-content {
@@ -818,7 +825,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0;
-  padding: 0 clamp(26px, 8.3cqw, 35px);
+  padding: 0 var(--home-dock-padding, clamp(26px, 8.3cqw, 35px));
   border: 0;
   background: transparent;
   box-shadow: none;

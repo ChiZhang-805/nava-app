@@ -33,6 +33,7 @@ body :is(input, textarea, [contenteditable="true"], [contenteditable="true"] *) 
   .nava-app-stage :is(input, textarea, select, button, [role="button"]) {
     touch-action: manipulation;
   }
+  .nava-app-stage .home-record-shortcut-hint { touch-action: none; }
 }
 
 /* The software keyboard may leave 100dvh unchanged on iOS. Scope these
@@ -43,6 +44,40 @@ html[data-keyboard-open="true"] .nava-app-stage {
 html[data-keyboard-open="true"] .nava-app-stage > :is(.phone-frame, .auth-screen, .app-screen, .onboarding-screen) {
   height: var(--nava-visible-height);
   min-height: 0;
+}
+
+/* The selected skin owns the background across the app canvas. The keyboard
+   can resize/offset interactive content without uncovering a second wallpaper. */
+@media (max-width: 699px) {
+  html:root:has(.nava-app-stage > .phone-frame[data-app-skin]),
+  .nava-app-stage:has(> .phone-frame[data-app-skin]) {
+    background: var(--skin-page-atmosphere, none), var(--skin-page-background);
+  }
+  html:has(.nava-app-stage > .phone-frame[data-app-skin]) :is(body, #root) { background: transparent; }
+}
+html[data-keyboard-open="true"] .nava-app-stage:has(> .phone-frame[data-app-skin]) {
+  min-height: var(--nava-keyboard-canvas-height);
+  grid-template-rows: minmax(0, 1fr);
+  align-items: start;
+}
+html[data-keyboard-open="true"] .nava-app-stage > .phone-frame[data-app-skin]:not(.phone-frame--journal) {
+  top: var(--nava-keyboard-top, 0px);
+  background: transparent;
+  box-shadow: none;
+}
+html[data-keyboard-open="true"] .phone-frame[data-app-skin]:not(.phone-frame--journal)::before,
+html[data-keyboard-open="true"] .phone-frame[data-app-skin]:not(.phone-frame--journal)::after {
+  content: none;
+}
+html[data-keyboard-open="true"] .phone-frame[data-app-skin] :is(.advanced-profile-screen, .admin-console-screen) {
+  background: transparent;
+  overscroll-behavior-y: none;
+}
+html[data-keyboard-open="true"] .phone-frame--option2:not([data-shell-page="home"]) > .app-content--today {
+  top: env(safe-area-inset-top, 0px);
+}
+html[data-keyboard-open="true"] .nava-app-stage > .phone-frame--journal {
+  height: var(--nava-keyboard-canvas-height);
 }
 /* A full-height wallpaper lives outside the keyboard-sized content canvas. */
 .auth-backdrop {
@@ -88,10 +123,11 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen {
   overflow: hidden;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen--signIn:has(.auth-social) {
-  /* Give spare height to the space above the entire group. The wordmark
-     stays beside the form's reading flow even on tall phones. */
-  grid-template-rows: max-content minmax(0, max-content);
-  align-content: end;
+  /* Keep the form against the keyboard and center the wordmark in the
+     remaining space between the language row and the first field. */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   container: auth-keyboard-space / size;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand {
@@ -108,6 +144,15 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-br
   height: 32px;
   min-height: 0;
   animation: none;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen--signIn:has(.auth-social) .auth-brand {
+  flex: 1 0 auto;
+  min-height: 72px;
+  container-type: size;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen--signIn:has(.auth-social) .auth-brand .nava-wordmark {
+  --wordmark-size: min(var(--auth-page-wordmark-size), 100cqh);
+  height: var(--wordmark-size);
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-locale {
   top: max(8px, env(safe-area-inset-top));
@@ -130,6 +175,10 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-fo
   overscroll-behavior: contain;
   scroll-padding-block: 4px;
   padding: 0;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen--signIn:has(.auth-social) .auth-form-region {
+  height: auto;
+  flex: 0 1 auto;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form {
   flex: none;
@@ -278,12 +327,9 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-so
 /* A 339px SE keyboard viewport has 313px after safe area and keyboard gap.
    Budget 64px for the two header rows and 248px for the form. */
 @container auth-keyboard-space (max-height: 345px) {
-  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand {
+  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen--signIn:has(.auth-social) .auth-brand {
+    min-height: 64px;
     padding-top: 28px;
-  }
-  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand .nava-wordmark {
-    --wordmark-size: 25px;
-    height: 28px;
   }
   html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen :is(.auth-locale, .language-toggle) {
     min-height: 28px;
@@ -310,11 +356,26 @@ html[data-keyboard-open="true"] .phone-frame .avatar-sheet-overlay.profile-secur
   min-height: 0;
   grid-template-rows: minmax(0, 1fr);
 }
+html[data-keyboard-open="true"] .phone-frame .avatar-sheet-overlay:has(.account-delete-sheet) {
+  align-content: center;
+  padding-block: 12px;
+}
+html[data-keyboard-open="true"] .phone-frame .account-delete-sheet {
+  max-height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 html[data-keyboard-open="true"] .phone-frame[data-shell-page="chat"] > .app-content {
   padding-bottom: 8px;
 }
 html[data-keyboard-open="true"] .phone-frame[data-shell-page="chat"] .chat-composer {
   margin-bottom: 0;
+}
+html[data-keyboard-open="true"] .chat-attachment-menu {
+  max-height: max(88px, calc(var(--nava-visible-height) - env(safe-area-inset-top, 0px) - 130px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 /* On compact phones, navigation can consume most of the space above the
    keyboard. Restore it automatically when the visual viewport expands. */
@@ -345,6 +406,13 @@ html[data-keyboard-open="true"] .today-todo-carousel-shell {
 }
 html[data-keyboard-open="true"] .today-todo-card-pagination {
   display: none;
+}
+html[data-keyboard-open="true"] .phone-frame.phone-frame--option2 .today-todo-page {
+  padding-bottom: 8px;
+}
+@container (max-height: 350px) {
+  html[data-keyboard-open="true"] .today-todo-intro { display: none; }
+  html[data-keyboard-open="true"] .today-todo-header { min-height: 44px; }
 }
 
 /* Focused fields need a bounded inner scroll area while the keyboard reduces

@@ -91,7 +91,7 @@ final class NavaAuthKeyboardTests: XCTestCase {
                 assertLoginLayout(web, logo: logo, app: app, english: false)
                 // Exercise a real feedback state, then reopen the actual iOS
                 // keyboard. An empty feedback slot missed the previous grid bug.
-                revealLoginShortcutsIfNeeded(web, logo: logo, app: app)
+                revealLoginShortcutsIfNeeded(web, app: app)
                 web.buttons["微信"].firstMatch.tap()
                 let feedback = web.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "尚未完成服务配置")).firstMatch
                 XCTAssertTrue(feedback.waitForExistence(timeout: 10), app.debugDescription)
@@ -126,7 +126,7 @@ final class NavaAuthKeyboardTests: XCTestCase {
                 }
             }
             if mode == "login" {
-                revealLoginShortcutsIfNeeded(web, logo: logo, app: app)
+                revealLoginShortcutsIfNeeded(web, app: app)
                 capture("login-shortcuts-keyboard")
             }
             logo.tap()
@@ -146,7 +146,7 @@ final class NavaAuthKeyboardTests: XCTestCase {
         assertAboveKeyboard(account, logo: logo, app: app)
         assertLoginLayout(web, logo: logo, app: app, english: true)
         capture("login-english-account-keyboard")
-        revealLoginShortcutsIfNeeded(web, logo: logo, app: app)
+        revealLoginShortcutsIfNeeded(web, app: app)
         web.buttons["WeChat"].firstMatch.tap()
         let englishFeedback = web.staticTexts["This sign-in method is not configured yet."].firstMatch
         XCTAssertTrue(englishFeedback.waitForExistence(timeout: 10), app.debugDescription)
@@ -196,7 +196,9 @@ final class NavaAuthKeyboardTests: XCTestCase {
         XCTAssertEqual(submit.frame.maxX, accountSurface.maxX, accuracy: 2,
                        "Submit must align with the account surface's right edge")
         XCTAssertGreaterThanOrEqual(accountLabel.frame.minY, logo.frame.maxY + 6)
-        XCTAssertLessThanOrEqual(accountLabel.frame.minY, logo.frame.maxY + 15, "NAVA should stay close to the first label")
+        let headerCenterY = (language.frame.maxY + accountLabel.frame.minY - 8) / 2
+        XCTAssertEqual(logo.frame.midY, headerCenterY, accuracy: 6,
+                       "NAVA must be centered between the language row and the form")
         XCTAssertLessThanOrEqual(accountLabel.frame.maxY, account.frame.minY + 1)
         XCTAssertGreaterThanOrEqual(passwordLabel.frame.minY, account.frame.maxY - 1)
         XCTAssertLessThanOrEqual(passwordLabel.frame.maxY, password.frame.minY + 1)
@@ -208,7 +210,7 @@ final class NavaAuthKeyboardTests: XCTestCase {
             XCTAssertLessThanOrEqual(feedback.frame.maxY, submit.frame.minY + 1)
         }
         let inputHeight = account.frame.height
-        let didScroll = revealLoginShortcutsIfNeeded(web, logo: logo, app: app)
+        let didScroll = revealLoginShortcutsIfNeeded(web, app: app)
         for element in [divider, code, register] + shortcuts {
             XCTAssertTrue(element.exists, "Missing login route: \(element)")
             XCTAssertTrue(element.isHittable, "Login route hidden: \(element.label)")
@@ -244,11 +246,10 @@ final class NavaAuthKeyboardTests: XCTestCase {
     }
 
     @discardableResult
-    private func revealLoginShortcutsIfNeeded(_ web: XCUIElement, logo: XCUIElement, app: XCUIApplication) -> Bool {
+    private func revealLoginShortcutsIfNeeded(_ web: XCUIElement, app: XCUIApplication) -> Bool {
         let top = keyboardTop(in: app)
-        // Eight points after the brand and six before the keyboard leave the form budget.
-        let formHeight: CGFloat = logo.frame.height < 31 ? 248 : 272
-        guard top - logo.frame.maxY - 14 < formHeight - 1 else { return false }
+        // The compact header and form fit in 312 points after safe area and keyboard clearance.
+        guard top - expectedSafeTop - 6 < 312 else { return false }
         let last = web.buttons["QQ"].firstMatch
         if last.isHittable && last.frame.height >= 36 && last.frame.maxY <= top { return false }
         let start = loginCoordinate(in: web, y: top - 22)

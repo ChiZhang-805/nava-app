@@ -11,6 +11,8 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
     private var authMessageProxy: NavaWeakScriptMessageHandler?
     private let authBackdrop = UIImageView(image: UIImage(named: "NavaAuthTexture"))
     private var authViewportEnabled = false
+    private var pinsKeyboardViewport = false
+    private var showsAuthBackdrop = false
     private var keyboardScreenFrame = CGRect.null
     private var scrollObservation: NSKeyValueObservation?
     private var lastAuthViewport: [String: Double] = [:]
@@ -114,9 +116,8 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
             authBackdrop.bottomAnchor.constraint(equalTo: webView.bottomAnchor)
         ])
         scrollObservation = webView.scrollView.observe(\.contentOffset, options: [.new]) { [weak self] scroll, _ in
-            guard self?.authViewportEnabled == true, scroll.contentOffset != .zero else { return }
-            // WebKit's focus assistance must not pan the root behind the status
-            // bar. CSS overflow inside auth-form-region still scrolls normally.
+            guard self?.pinsKeyboardViewport == true, scroll.contentOffset != .zero else { return }
+            // Keep the root still. CSS scroll views reveal the focused field.
             scroll.setContentOffset(.zero, animated: false)
         }
         for name in [UIResponder.keyboardWillChangeFrameNotification, UIResponder.keyboardDidChangeFrameNotification] {
@@ -130,20 +131,27 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
         publishAuthViewport()
     }
 
-    func setAuthViewportEnabled(_ enabled: Bool) -> [String: Double] {
+    func setAuthViewportEnabled(_ enabled: Bool, showAuthBackdrop: Bool) -> [String: Double] {
         authViewportEnabled = enabled
-        authBackdrop.isHidden = !enabled
+        showsAuthBackdrop = enabled && showAuthBackdrop
+        authBackdrop.isHidden = !showsAuthBackdrop
         if let webView = bridge?.webView {
-            webView.backgroundColor = enabled ? .clear : Self.startupBackground
-            webView.scrollView.backgroundColor = enabled ? .clear : Self.startupBackground
-            webView.scrollView.isScrollEnabled = !enabled
-            webView.scrollView.bounces = !enabled
-            if enabled { webView.scrollView.setContentOffset(.zero, animated: false) }
+            webView.backgroundColor = showsAuthBackdrop ? .clear : Self.startupBackground
+            webView.scrollView.backgroundColor = showsAuthBackdrop ? .clear : Self.startupBackground
         }
+        if !enabled { pinKeyboardViewport(false) }
         lastAuthViewport = [:]
         view.layoutIfNeeded()
         publishAuthViewport()
         return authViewportMetrics()
+    }
+
+    private func pinKeyboardViewport(_ pinned: Bool) {
+        guard pinsKeyboardViewport != pinned, let scroll = bridge?.webView?.scrollView else { return }
+        pinsKeyboardViewport = pinned
+        scroll.isScrollEnabled = !pinned
+        scroll.bounces = !pinned
+        if pinned { scroll.setContentOffset(.zero, animated: false) }
     }
 
     @objc private func authKeyboardChanged(_ notification: Notification) {
@@ -175,6 +183,7 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
     private func publishAuthViewport() {
         guard authViewportEnabled else { return }
         let metrics = authViewportMetrics()
+        pinKeyboardViewport(showsAuthBackdrop || metrics["visibleHeight", default: 0] < metrics["height", default: 0])
         guard metrics["height", default: 0] > 0, metrics != lastAuthViewport,
               let data = try? JSONSerialization.data(withJSONObject: metrics),
               let json = String(data: data, encoding: .utf8) else { return }
@@ -250,7 +259,10 @@ final class NavaAuthViewportPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.reject("Authentication canvas is unavailable.")
                 return
             }
-            call.resolve(controller.setAuthViewportEnabled(call.getBool("enabled") ?? false))
+            call.resolve(controller.setAuthViewportEnabled(
+                call.getBool("enabled") ?? false,
+                showAuthBackdrop: call.getBool("showAuthBackdrop") ?? true
+            ))
         }
     }
 }

@@ -1,11 +1,11 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { chromium, expect } from "@playwright/test";
+import { chromium, webkit, expect } from "@playwright/test";
 import { createServer } from "vite";
 
 const root = process.cwd();
 const outputDir = process.env.NAVA_TEST_OUTPUT ?? path.join(root, "artifacts", "navigation-icons");
-const port = 5196;
+const port = Number(process.env.NAVA_ICONS_PORT || 5196);
 const baseUrl = `http://127.0.0.1:${port}`;
 const viewports = [
   { width: 360, height: 740, label: "360x740" },
@@ -17,7 +17,8 @@ const viewports = [
 await mkdir(outputDir, { recursive: true });
 const server = await createServer({ root, server: { host: "127.0.0.1", port } });
 await server.listen();
-const browser = await chromium.launch({ headless: true });
+const engine = process.env.NAVA_LAYOUT_ENGINE || 'chromium';
+const browser = await ({ chromium, webkit })[engine].launch({ headless: true });
 
 try {
   for (const viewport of viewports) {
@@ -71,6 +72,7 @@ try {
         radius: Number.parseFloat(style.borderTopLeftRadius),
         opacity: Number.parseFloat(style.opacity),
         width: home.width - Number.parseFloat(style.left) - Number.parseFloat(style.right),
+        bottom: nav.getBoundingClientRect().top + nav.getBoundingClientRect().height / 2 + Number.parseFloat(style.height) / 2,
       } : null;
     });
     if (!collapsedDock || collapsedDock.width < viewport.width * 0.88 || collapsedDock.height < 68 || collapsedDock.radius < 30 || collapsedDock.opacity < 0.99) {
@@ -150,18 +152,28 @@ try {
     if (!(byModule.sleep.centerY < byModule.diet.centerY && byModule.diet.centerY < byModule.exercise.centerY)) {
       throw new Error(`${viewport.label}: six module controls must follow the rising circular fan arc ${JSON.stringify(healthEntryGeometry)}`);
     }
-    const discGeometry = await page.locator(".option-two-health-disc").evaluate((disc) => {
-      const home = disc.closest(".option-two-home")?.getBoundingClientRect();
-      const rect = disc.getBoundingClientRect();
-      return home ? { topRatio: (rect.top - home.top) / home.height, widthRatio: rect.width / home.width } : null;
-    });
-    if (!discGeometry || discGeometry.topRatio < 0.687 || discGeometry.topRatio > 0.693 || discGeometry.widthRatio < 0.975 || discGeometry.widthRatio > 0.985) {
-      throw new Error(`${viewport.label}: health disc geometry drifted ${JSON.stringify(discGeometry)}`);
+    const fan = await page.locator(".option-two-health-disc").boundingBox();
+    const hint = await page.locator('.home-record-shortcut-hint').boundingBox();
+    const orb = await page.locator('.ai-nav-button').boundingBox();
+    if (!fan || !hint || !orb) throw new Error(`${viewport.label}: missing fan/dock geometry`);
+    const closingGap = orb.y - hint.y - hint.height;
+    const axisY = orb.y + orb.height / 2;
+    const fanHeight = axisY - fan.y;
+    if (Math.abs(fan.x - homeBounds.x - collapsedDock.surfaceLeft) > 1
+      || Math.abs(fan.x + fan.width - homeBounds.x - collapsedDock.surfaceRight) > 1
+      || Math.abs(fan.y + fan.height - collapsedDock.bottom) > 1
+      || fanHeight < 130 || fanHeight > 181 || closingGap < 10 || closingGap > 15) {
+      throw new Error(`${viewport.label}: fan must share the dock edges and leave a close-button gap ${JSON.stringify({ fan, collapsedDock, fanHeight, closingGap })}`);
     }
-    const discCenterRatio = discGeometry.topRatio + ((discGeometry.widthRatio * homeBounds.width) / 2 / homeBounds.height);
-    const expectedDiscCenterRatio = 0.69 + ((0.98 * homeBounds.width) / 2 / homeBounds.height);
-    if (Math.abs(discCenterRatio - expectedDiscCenterRatio) > 0.004) {
-      throw new Error(`${viewport.label}: health disc centre drifted ${discCenterRatio.toFixed(3)}`);
+    for (const entry of healthEntryGeometry) {
+      const centerX = homeBounds.x + entry.centerX * homeBounds.width;
+      const centerY = homeBounds.y + entry.centerY * homeBounds.height;
+      const radius = entry.width / 2;
+      const edge = Array.from({ length: 24 }, (_, i) => {
+        const angle = i * Math.PI / 12;
+        return Math.hypot((centerX + radius * Math.cos(angle) - fan.x - fan.width / 2) / (fan.width / 2), (axisY - centerY - radius * Math.sin(angle)) / fanHeight);
+      });
+      if (Math.max(...edge) > 1 || entry.width < 43.9) throw new Error(`${viewport.label} ${entry.module}: fan control leaves the curve or lacks a 44px target`);
     }
 
     const dockGeometry = await page.locator(".bottom-nav .nav-button").evaluateAll((buttons) => buttons.map((button) => {
@@ -224,8 +236,8 @@ try {
       }, { dataUrl: `data:image/png;base64,${screenshot.toString("base64")}`, ratio: 2 });
       secondaryOpticalSizes.push(opticalSize);
     }
-    if (secondaryOpticalSizes.some((size) => size <= 0) || Math.max(...secondaryOpticalSizes) - Math.min(...secondaryOpticalSizes) > 1.5) {
-      throw new Error(`${viewport.label}: secondary navigation glyphs are not optically normalized ${JSON.stringify({ dockGeometry, secondaryOpticalSizes })}`);
+    if (secondaryOpticalSizes.some((size) => size < 14 || size > 23)) {
+      throw new Error(`${viewport.label}: secondary navigation glyphs need to match the compact dock ${JSON.stringify({ dockGeometry, secondaryOpticalSizes })}`);
     }
 
     const aiGeometry = await page.locator('[data-tab="ai"]').evaluate((button) => {

@@ -289,7 +289,7 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
           <section className="advanced-profile-section">
             <header><span><Brain size={20} /></span><div><strong>{copy("目标与压力画像", "Goals & stress profile")}</strong><small>{copy("让建议更贴近你的真实生活", "Keeps recommendations grounded in your life")}</small></div></header>
             <label><span>{copy("当前最重要的健康目标", "Main health goal")}</span><textarea rows={2} value={draft.goal} onChange={(event) => update("goal", event.target.value)} placeholder={copy("例如：稳定作息、减少疲劳、保持专注", "e.g. stabilize sleep and improve focus")} /></label>
-            <label><span>{copy("主要压力来源", "Main stressors")}</span><textarea rows={2} value={draft.stressFactors} onChange={(event) => update("stressFactors", event.target.value)} placeholder={copy("学业、工作、家庭、睡眠等", "Study, work, family, sleep, etc.")} /></label>
+            <label><span>{copy("主要压力来源", "Main stressors")}</span><textarea data-profile-end-field rows={2} value={draft.stressFactors} onChange={(event) => update("stressFactors", event.target.value)} placeholder={copy("学业、工作、家庭、睡眠等", "Study, work, family, sleep, etc.")} /></label>
           </section>
 
           <section className="advanced-profile-section advanced-profile-consents" ref={preferencesRef}>
@@ -302,7 +302,6 @@ export default function AdvancedProfileScreen({ user, onBack, onChanged }: { use
           {avatarSaved && <p className="advanced-profile-saved" role="status"><Check size={17} />{copy("头像已更新", "Avatar updated")}</p>}
           {saved && <p className="advanced-profile-saved" role="status"><Check size={17} />{copy("详细资料已保存", "Detailed profile saved")}</p>}
           <button className="advanced-profile-save" type="submit" disabled={saving}>{saved ? <Check size={20} /> : <Save size={20} />}{saving ? copy("正在保存…", "Saving…") : copy("保存详细资料", "Save detailed profile")}</button>
-          <button className="secondary-button" type="button" onClick={onBack}>{copy("返回上一页", "Back")}</button>
           </form>
 
           <PhotoInput locale={locale} onError={setError} ref={galleryInputRef} data-profile-avatar-input="gallery" className="visually-hidden" type="file" accept="image/*" onFile={(file) => { void handleAvatarFile(file); }} />

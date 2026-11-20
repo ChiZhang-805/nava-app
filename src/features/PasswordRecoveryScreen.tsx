@@ -1,12 +1,14 @@
 import { ArrowRight, CheckCircle2, Eye, EyeOff, LockKeyhole } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import LanguageToggle from "../components/LanguageToggle";
 import NavaWordmark from "../components/NavaWordmark";
 import { useT } from "../i18n";
 import { formatAuthError } from "../services/auth";
 import { useAuth } from "../state/authContext";
+import { activateAuthViewport } from "../services/mobileViewport";
 
 export default function PasswordRecoveryScreen() {
+  useEffect(activateAuthViewport, []);
   const { clearError, error, finishPasswordRecovery } = useAuth();
   const t = useT();
   const [password, setPassword] = useState("");
@@ -40,6 +42,7 @@ export default function PasswordRecoveryScreen() {
 
   return (
     <main className="auth-screen auth-screen--signIn">
+      <div className="auth-backdrop" aria-hidden="true" />
       <div className="auth-locale">
         <LanguageToggle />
       </div>

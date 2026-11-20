@@ -16,7 +16,7 @@
   display: grid; place-items: center; color: #0b7199; background: transparent; box-shadow: none;
 }
 .phone-frame .nava-more-menu > .app-utility-popover {
-  top: calc(100% + 8px); right: 0; width: max-content; min-width: 244px; max-width: min(320px, calc(100vw - 36px));
+  top: calc(100% + 8px); right: 0; width: max-content; min-width: 144px; max-width: min(320px, calc(100vw - 36px));
   max-height: min(560px, calc(100dvh - 180px)); overflow-y: auto; overscroll-behavior: contain;
   display: flex; flex-direction: column; gap: 1px; padding: 6px;
   border: 1px solid rgba(255,255,255,.94); border-radius: 16px;

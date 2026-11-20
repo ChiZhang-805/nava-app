@@ -25,10 +25,11 @@ import DesktopDevicePreviewChrome from "./components/DesktopDevicePreviewChrome"
 import { presentPhonePreviewNotification, phoneNotificationOpenEvent } from "./services/previewPhoneSystem";
 import PageSkeleton, { SkeletonBlock } from "./components/PageSkeleton";
 import LoadingShell from "./components/LoadingShell";
-import { currentSkeletonVariant, recordSkeletonVariant } from "./services/loadingRoute";
+import { currentSkeletonVariant } from "./services/loadingRoute";
 import { useLocale, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
+import { activateAppViewport } from "./services/mobileViewport";
 import { loadOnboardingStatus, type OnboardingStatus } from "./services/onboarding";
 import { recordGrowthActivity, reconcileGrowthRewards, resolveGrowthTasks, saveTodoFocusPlan, type GrowthActivityKind, type GrowthSummary, type TodoItem } from "./services/productivity";
 import { resolveTodoFocusPlan } from "./services/focusPlanning.ts";
@@ -73,8 +74,10 @@ const firstLoginPreviewStatus: OnboardingStatus = {
   source: "none",
 };
 
-const RecordsScreen = lazy(() => import("./features/RecordsScreen"));
-const JournalExperience = lazy(() => import("./features/JournalExperience"));
+const loadRecordsScreen = () => import("./features/RecordsScreen");
+const loadJournalExperience = () => import("./features/JournalExperience");
+const RecordsScreen = lazy(loadRecordsScreen);
+const JournalExperience = lazy(loadJournalExperience);
 const AIScreen = lazy(() => import("./features/AIScreen"));
 const GrowthTasksScreen = lazy(() => import("./features/GrowthTasksScreen"));
 
@@ -106,6 +109,8 @@ function shellRouteHash(route: ShellRoute) {
   if (route.tab === "profile" && route.view) query.set("view", route.view);
   return `#${query.toString()}`;
 }
+
+type RecordNavigation = { route: ShellRoute; history: "push" | "replace" | "restore" };
 
 function LoadingScreen() {
   return <LoadingShell />;
@@ -142,14 +147,19 @@ function MobileShell({
   onCompletionPreviewDismiss: () => void;
 }) {
   const { user } = useAuth();
+  useEffect(activateAppViewport, []);
   const t = useT();
   const { locale, setLocale } = useLocale();
   const forcePageSkeleton = import.meta.env.DEV && new URLSearchParams(window.location.search).get("qa") === "skeleton";
   const forcedSkeletonVariant = currentSkeletonVariant();
   const initialRouteRef = useRef<ShellRoute>(readShellRoute());
-  const [activeTab, setActiveTab] = useState<AppTab>(initialRouteRef.current.tab);
-  const [recordModule, setRecordModule] = useState<RecordModule | null>(initialRouteRef.current.module);
-  const [recordView, setRecordView] = useState<string | null>(initialRouteRef.current.view);
+  const [visibleRoute, setVisibleRoute] = useState(() => initialRouteRef.current.tab === "record" && !forcePageSkeleton
+    ? normalizeShellRoute("today", null, null)
+    : initialRouteRef.current);
+  const { tab: activeTab, module: recordModule, view: recordView } = visibleRoute;
+  const visibleRouteRef = useRef(visibleRoute);
+  const pendingRecordRef = useRef<RecordNavigation | null>(null);
+  const [stagedRecord, setStagedRecord] = useState<RecordNavigation | null>(null);
   const [activeGuidePreview, setActiveGuidePreview] = useState<{ id: number; module: RecordModule } | null>(null);
   const [utilityOpen, setUtilityOpen] = useState(false);
   const [appSkin, setAppSkin] = useState<AppSkin>(() => readAppSkin(user?.id));
@@ -323,11 +333,10 @@ function MobileShell({
     void completeGrowthActivity("checkin");
   }, [completeGrowthActivity, user, deviceDate]);
 
-  const navigate = useCallback((tab: AppTab, module: RecordModule | null = null, view: string | null = null, replace = false) => {
-    const next = normalizeShellRoute(tab, module, view);
-    setActiveTab(next.tab);
-    setRecordModule(next.module);
-    setRecordView(next.view);
+  const commitRoute = useCallback((next: ShellRoute, history: RecordNavigation["history"]) => {
+    visibleRouteRef.current = next;
+    setVisibleRoute(next);
+    if (history === "restore") return;
     const url = `${window.location.pathname}${window.location.search}${shellRouteHash(next)}`;
     const currentState = window.history.state;
     const currentDepth = shellHistoryDepth(currentState);
@@ -337,9 +346,47 @@ function MobileShell({
       }
       return;
     }
+    const replace = history === "replace";
     const nextState = nextShellHistoryState(currentState, next, replace);
     window.history[replace ? "replaceState" : "pushState"](nextState, "", url);
   }, []);
+
+  const cancelRecordNavigation = useCallback(() => {
+    pendingRecordRef.current = null;
+    setStagedRecord(null);
+  }, []);
+
+  const openRoute = useCallback((route: ShellRoute, history: RecordNavigation["history"]) => {
+    const pending = pendingRecordRef.current;
+    if (pending && shellRoutesEqual(pending.route, route) && pending.history === history) return;
+    if (route.tab !== "record" || forcePageSkeleton || shellRoutesEqual(visibleRouteRef.current, route)) {
+      cancelRecordNavigation();
+      commitRoute(route, history);
+      return;
+    }
+
+    const request = { route, history };
+    pendingRecordRef.current = request;
+    setStagedRecord(null);
+    const loadPage = route.module ? loadJournalExperience : loadRecordsScreen;
+    void loadPage().then(() => {
+      if (pendingRecordRef.current === request) setStagedRecord(request);
+    }).catch((error) => {
+      if (pendingRecordRef.current !== request) return;
+      cancelRecordNavigation();
+      console.warn("Could not open the record page", error);
+    });
+  }, [cancelRecordNavigation, commitRoute, forcePageSkeleton]);
+
+  const navigate = useCallback((tab: AppTab, module: RecordModule | null = null, view: string | null = null, replace = false) => {
+    openRoute(normalizeShellRoute(tab, module, view), replace ? "replace" : "push");
+  }, [openRoute]);
+
+  const finishRecordNavigation = (request: RecordNavigation) => {
+    if (pendingRecordRef.current !== request) return;
+    cancelRecordNavigation();
+    commitRoute(request.route, request.history);
+  };
 
   useEffect(() => {
     if (!guidePreviewRequest) return;
@@ -350,8 +397,10 @@ function MobileShell({
 
   useEffect(() => {
     if (!activeGuidePreview) return;
-    if (activeTab !== "record" || recordView !== "guide" || recordModule !== activeGuidePreview.module) setActiveGuidePreview(null);
-  }, [activeGuidePreview, activeTab, recordModule, recordView]);
+    const guide = normalizeShellRoute("record", activeGuidePreview.module, "guide");
+    const pending = pendingRecordRef.current;
+    if (!shellRoutesEqual(visibleRoute, guide) && !(pending && shellRoutesEqual(pending.route, guide))) setActiveGuidePreview(null);
+  }, [activeGuidePreview, visibleRoute]);
 
   const openTodoFocus = (todo: TodoItem) => {
     if (!user) return;
@@ -373,6 +422,7 @@ function MobileShell({
   };
 
   const navigateBack = (fallback: ShellRoute) => {
+    cancelRecordNavigation();
     if (hasPreviousShellRoute(window.history.state)) {
       window.history.back();
       return;
@@ -611,19 +661,16 @@ function MobileShell({
         window.history.replaceState({ navaShell: true, depth: 0, route: readShellRoute() } satisfies ShellHistoryState, "", window.location.href);
       }
     }
-    const restoreRoute = () => {
-      const route = readShellRoute();
-      setActiveTab(route.tab);
-      setRecordModule(route.module);
-      setRecordView(route.view);
-    };
+    const restoreRoute = () => openRoute(readShellRoute(), "restore");
+    if (initialRouteRef.current.tab === "record" && window.location.hash) restoreRoute();
     window.addEventListener("popstate", restoreRoute);
     window.addEventListener("hashchange", restoreRoute);
     return () => {
+      pendingRecordRef.current = null;
       window.removeEventListener("popstate", restoreRoute);
       window.removeEventListener("hashchange", restoreRoute);
     };
-  }, [navigate]);
+  }, [navigate, openRoute]);
 
   useEffect(() => {
     if (!user) return;
@@ -662,6 +709,11 @@ function MobileShell({
   // Root tabs own the dock. Pushed pages already have Back/Home navigation.
   const todayFullSubpage = activeTab === "today" && Boolean(recordView);
   const journalOpen = activeTab === "record" && Boolean(recordModule);
+  const recordHubOpen = activeTab === "record" && !recordModule;
+  const stagedHub = stagedRecord && !stagedRecord.route.module ? stagedRecord : null;
+  const stagedJournal = stagedRecord && stagedRecord.route.module ? stagedRecord : null;
+  const journalRoutes = journalOpen ? [visibleRoute] : [];
+  if (stagedJournal) journalRoutes.push(stagedJournal.route);
   const hideBottomNavigation = activeTab === "ai" || focusImmersive || todayFullSubpage || journalOpen || profileSubpage;
   const integratedPage = integratedShellPage(activeTab, recordModule, recordView);
 
@@ -713,9 +765,9 @@ function MobileShell({
                 </button>
               </>}
               {activeTab === "record" && recordModule && <>
-                <button type="button" onClick={() => { setRecordView("history"); navigate("record", recordModule, "history"); setUtilityOpen(false); }}><History size={17} />{locale === "zh" ? "历史记录" : "History"}</button>
+                <button type="button" onClick={() => { navigate("record", recordModule, "history"); setUtilityOpen(false); }}><History size={17} />{locale === "zh" ? "历史记录" : "History"}</button>
                 <button type="button" onClick={() => void shareCurrentPage()}><Share2 size={17} />{locale === "zh" ? "分享页面" : "Share"}</button>
-                {recordModule === "face" && <button type="button" onClick={() => { setRecordView("conditions"); navigate("record", "face", "conditions"); setUtilityOpen(false); }}><ScanFace size={17} />{locale === "zh" ? "条件检验" : "Condition check"}</button>}
+                {recordModule === "face" && <button type="button" onClick={() => { navigate("record", "face", "conditions"); setUtilityOpen(false); }}><ScanFace size={17} />{locale === "zh" ? "条件检验" : "Condition check"}</button>}
               </>}
               {activeTab === "profile" && recordView === "privacy" && <button type="button" onClick={() => setProfileExportRequestId((current) => current + 1)}><Download size={17} />{locale === "zh" ? "导出我的数据" : "Export my data"}</button>}
           </MoreMenu>
@@ -759,29 +811,18 @@ function MobileShell({
               isAdmin={isAdmin}
             />
           )}
-          {activeTab === "record" && (
-            <Suspense fallback={<PageSkeleton variant={recordSkeletonVariant(recordModule, recordView)} />}>
-              {recordModule ? <JournalExperience
-                key={recordView === "guide" && activeGuidePreview?.module === recordModule ? `journal-guide-preview-${activeGuidePreview.id}` : `journal-${recordModule}-${recordView ?? "default"}`}
-                user={user}
-                module={recordModule}
-                locale={locale}
-                skin={appSkin}
-                forceGuide={recordView === 'guide'}
-                guidePreview={recordView === "guide" && activeGuidePreview?.module === recordModule}
-                onSaved={markJournalChanged}
-                onExit={() => { setActiveGuidePreview(null); navigateBack(normalizeShellRoute("record", null, null)); }}
-              /> : <RecordsScreen
+          {(recordHubOpen || stagedHub) && (
+            <Suspense fallback={null}>
+              <RecordsScreen
                 user={user}
                 deviceDate={deviceDate}
+                onInitialLoad={stagedHub ? () => finishRecordNavigation(stagedHub) : undefined}
                 onSaved={markChanged}
                 onGrowthActivity={completeGrowthActivity}
                 onOpenAi={(prompt) => {
                   setAiPromptRequest((current) => ({ id: (current?.id ?? 0) + 1, text: prompt }));
                   navigate("ai");
                 }}
-                initialModule={recordModule}
-                initialView={recordView}
                 focusTodoPrefill={focusTodoPrefill}
                 onFocusTodoPrefillApplied={(requestId) => setFocusTodoPrefill((current) => current?.requestId === requestId ? null : current)}
                 onModuleChange={(module, view = null) => navigate("record", module, view)}
@@ -792,7 +833,7 @@ function MobileShell({
                   }
                   navigate("record", recordModule, view, replace);
                 }}
-              />}
+              />
             </Suspense>
           )}
           {aiHasMounted && (
@@ -850,6 +891,26 @@ function MobileShell({
           </>}
         </div>
       </main>
+
+      {!forcePageSkeleton && journalRoutes.map((route) => {
+        const module = route.module!;
+        const request = route === stagedJournal?.route ? stagedJournal : null;
+        const guidePreview = route.view === "guide" && activeGuidePreview?.module === module;
+        return <Suspense key={`${shellRouteHash(route)}:${guidePreview ? activeGuidePreview.id : ""}`} fallback={null}>
+          <JournalExperience
+            user={user}
+            module={module}
+            locale={locale}
+            skin={appSkin}
+            forceGuide={route.view === "guide"}
+            guidePreview={guidePreview}
+            staged={Boolean(request)}
+            onInitialLoad={request ? () => finishRecordNavigation(request) : undefined}
+            onSaved={markJournalChanged}
+            onExit={() => { setActiveGuidePreview(null); navigateBack(normalizeShellRoute("record", null, null)); }}
+          />
+        </Suspense>;
+      })}
 
       {!hideBottomNavigation && <nav className="bottom-nav" aria-label="主导航">
         {tabs.map((tab) => {

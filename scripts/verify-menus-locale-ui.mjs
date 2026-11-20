@@ -36,6 +36,10 @@ async function dismissCompletionWhenPresent(page) {
 }
 async function route(page, hash) {
   await page.evaluate((value) => { location.hash = value; }, hash);
+  const params = new URLSearchParams(hash);
+  const shell = page.locator('.phone-frame');
+  await expect(shell).toHaveAttribute('data-app-tab', params.get('tab'));
+  await expect(shell).toHaveAttribute('data-app-view', params.get('view') || 'root');
   await expect(page.locator(".nava-more-trigger").first()).toBeVisible();
   await expect(page.locator(".page-skeleton").first()).toBeHidden();
 }
@@ -53,13 +57,23 @@ async function menuCheck(page, name) {
     const rows = [...element.querySelectorAll("button")].map((button) => {
       const r = button.getBoundingClientRect(); const s = getComputedStyle(button);
       const text = button.querySelector("span"); const textStyle = text ? getComputedStyle(text) : s;
-      return { height: r.height / scale, font: s.fontSize, textFont: textStyle.fontSize, clipped: button.scrollWidth > button.clientWidth + 1, inside: r.left >= rect.left && r.right <= rect.right + 1 };
+      const contents = [...button.querySelectorAll('span, small')];
+      const oneLine = contents.every((node) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        return range.getClientRects().length === 1 && range.getBoundingClientRect().right <= r.right;
+      });
+      return { height: r.height / scale, font: s.fontSize, textFont: textStyle.fontSize, clipped: button.scrollWidth > button.clientWidth + 1, inside: r.left >= rect.left && r.right <= rect.right + 1, oneLine };
     });
     return { width: rect.width / scale, inside: rect.left >= frame.left && rect.right <= frame.right && rect.bottom <= frame.bottom, rows };
   });
   assert.ok(geometry.inside, `${name} menu outside phone`);
-  assert.ok(geometry.width >= 244 && geometry.width <= 320, `${name} compact width ${geometry.width}`);
+  assert.ok(geometry.width >= 144 && geometry.width <= 320, `${name} compact width ${geometry.width}`);
   assert.ok(geometry.rows.every((row) => row.height >= 43.9 && row.height <= 64 && row.font === "16px" && row.textFont === "16px" && !row.clipped && row.inside), `${name} rows ${JSON.stringify(geometry.rows)}`);
+  if (name.endsWith('-profile')) {
+    const [min, max] = name.startsWith('zh') ? [144, 170] : [180, 235];
+    assert.ok(geometry.width >= min && geometry.width <= max && geometry.rows.every((row) => row.oneLine), `${name} must size to the translated rows ${JSON.stringify(geometry)}`);
+  }
   await page.screenshot({ path: `${output}/${name}-menu.png` });
   await page.keyboard.press("Escape");
   await expect(trigger).toBeFocused();

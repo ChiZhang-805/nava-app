@@ -347,7 +347,7 @@ export default function OptionTwoHome({
     if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
     const target = event.target as HTMLElement;
     const interactiveTarget = target.closest<HTMLElement>("button, a, input, select, textarea, [role='button']");
-    if (interactiveTarget && !interactiveTarget.classList.contains("nava-mascot")) {
+    if (interactiveTarget && !interactiveTarget.matches(".nava-mascot, .home-record-shortcut-hint")) {
       gestureRef.current = null;
       return;
     }
@@ -506,7 +506,7 @@ export default function OptionTwoHome({
   const dismissHealthMenuOutside = (event: ReactMouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
     if (Date.now() < ignoreClickUntilRef.current) {
-      if (target.closest(".nava-mascot")) {
+      if (target.closest(".nava-mascot, .home-record-shortcut-hint")) {
         event.preventDefault();
         event.stopPropagation();
         ignoreClickUntilRef.current = 0;

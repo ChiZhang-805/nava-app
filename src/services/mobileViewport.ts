@@ -1,38 +1,49 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 
-type AuthViewport = { height: number; visibleHeight: number };
+type KeyboardViewport = { height: number; visibleHeight: number };
 const nativeAuthViewport = registerPlugin<{
-  setEnabled(options: { enabled: boolean }): Promise<AuthViewport>;
+  setEnabled(options: { enabled: boolean; showAuthBackdrop?: boolean }): Promise<KeyboardViewport>;
 }>("NavaAuthViewport");
 let nativeQueue: Promise<unknown> = Promise.resolve();
+let nativeMetrics: KeyboardViewport | null = null;
 
-/** Auth alone opts into the fixed native canvas. Serialize activation/cleanup,
- * including React StrictMode, so a late response cannot reactivate an old page. */
-export function activateAuthViewport() {
+function activateNativeViewport(showAuthBackdrop: boolean, canvas: "nativeAuthCanvas" | "nativeAppCanvas") {
   const root = document.documentElement;
-  root.dataset.authViewport = "true";
-  root.style.setProperty("--auth-canvas-height", `${window.innerHeight}px`);
   let active = true;
   if (Capacitor.getPlatform() === "ios") {
-    nativeQueue = nativeQueue.then(() => nativeAuthViewport.setEnabled({ enabled: true }))
+    nativeQueue = nativeQueue.then(() => nativeAuthViewport.setEnabled({ enabled: true, showAuthBackdrop }))
       .then(metrics => {
         if (!active) return;
-        root.dataset.nativeAuthCanvas = "true";
+        root.dataset[canvas] = "true";
         window.dispatchEvent(new CustomEvent("nava:auth-viewport", { detail: metrics }));
-      }).catch(() => { /* Older binaries retain the fixed CSS backdrop. */ });
+      }).catch(() => { /* Browser-style viewport handling remains available. */ });
   }
-  window.dispatchEvent(new Event("nava:auth-layout"));
   return () => {
     active = false;
-    delete root.dataset.authViewport;
-    delete root.dataset.nativeAuthCanvas;
-    root.style.removeProperty("--auth-canvas-height");
+    delete root.dataset[canvas];
     if (Capacitor.getPlatform() === "ios") {
       nativeQueue = nativeQueue.then(() => nativeAuthViewport.setEnabled({ enabled: false })).catch(() => {});
     }
     window.dispatchEvent(new Event("nava:auth-layout"));
   };
 }
+
+/** Serialize native activation and cleanup so late responses cannot re-enable a departed route. */
+export function activateAuthViewport() {
+  const root = document.documentElement;
+  root.dataset.authViewport = "true";
+  root.style.setProperty("--auth-canvas-height", `${window.innerHeight}px`);
+  const deactivate = activateNativeViewport(true, "nativeAuthCanvas");
+  window.dispatchEvent(new Event("nava:auth-layout"));
+  return () => {
+    delete root.dataset.authViewport;
+    root.style.removeProperty("--auth-canvas-height");
+    deactivate();
+  };
+}
+
+export const activateAppViewport = () => activateNativeViewport(false, "nativeAppCanvas");
+export const getNativeAppViewport = () => document.documentElement.dataset.nativeAppCanvas === "true" ? nativeMetrics : null;
 
 /** scrollIntoView also pans ancestors. Move only the inner form viewport.
  * Include the label and, when it fits, submit without pushing the field away. */
@@ -51,14 +62,31 @@ function revealAuthField(input: HTMLElement) {
   if (Math.abs(delta) > 1) region.scrollTop += delta;
 }
 
+/** Keep focus within app-owned scroll regions. scrollIntoView can move the root canvas. */
+function revealAppField(input: HTMLElement, top: number, height: number) {
+  const gap = 12;
+  for (let region = input.parentElement; region && !region.matches(".phone-frame, .nava-app-stage, body"); region = region.parentElement) {
+    if (region.scrollHeight <= region.clientHeight + 1 || !["auto", "scroll"].includes(getComputedStyle(region).overflowY)) continue;
+    const bounds = region.getBoundingClientRect();
+    const field = input.getBoundingClientRect();
+    const label = input.closest("label")?.getBoundingClientRect() ?? field;
+    const bottomDelta = field.bottom - Math.min(top + height, bounds.bottom) + gap;
+    const alignToBottom = input.hasAttribute("data-profile-end-field") && region.classList.contains("advanced-profile-screen");
+    const delta = alignToBottom || bottomDelta > 0
+      ? bottomDelta : Math.min(0, label.top - Math.max(top, bounds.top) - gap);
+    if (Math.abs(delta) > 1) region.scrollTop += delta;
+  }
+}
+
 export function installMobileViewport() {
   const viewport = window.visualViewport;
   if (!viewport) return () => {};
   const root = document.documentElement;
   let frame = 0;
   let previousHeight = 0;
+  let previousTop = 0;
+  let closedHeight = window.innerHeight;
   let previousInput: HTMLElement | null = null;
-  let nativeMetrics: AuthViewport | null = null;
   let previousWidth = window.innerWidth;
   const editable = () => {
     const element = document.activeElement;
@@ -71,11 +99,15 @@ export function installMobileViewport() {
     frame = requestAnimationFrame(() => {
       const input = editable();
       const auth = root.dataset.authViewport === "true";
-      const native = auth && root.dataset.nativeAuthCanvas === "true" ? nativeMetrics : null;
+      const native = root.dataset.nativeAuthCanvas === "true" || root.dataset.nativeAppCanvas === "true" ? nativeMetrics : null;
       const height = Math.round(native?.visibleHeight ?? viewport.height);
-      const fullHeight = native?.height ?? window.innerHeight;
-      const active = window.innerWidth < 700 && fullHeight - height > 120;
-      const open = active && Boolean(native || input || root.dataset.keyboardOpen === "true");
+      const journal = document.activeElement?.matches(".journal-experience iframe");
+      if ((!input && !journal && root.dataset.keyboardOpen !== "true") || previousWidth !== window.innerWidth || window.innerHeight > closedHeight) {
+        closedHeight = window.innerHeight;
+      }
+      const fullHeight = native?.height ?? closedHeight;
+      const active = window.innerWidth < 700 && fullHeight - height > (native ? 1 : 120);
+      const open = active && Boolean(native || input || journal || root.dataset.keyboardOpen === "true");
       if (auth && (native || (!open && !input) || previousWidth !== window.innerWidth)) {
         root.style.setProperty("--auth-canvas-height", `${fullHeight}px`);
       }
@@ -84,27 +116,34 @@ export function installMobileViewport() {
         delete root.dataset.keyboardOpen;
         delete root.dataset.viewportScale;
         root.style.removeProperty("--nava-visible-height");
+        root.style.removeProperty("--nava-keyboard-canvas-height");
+        root.style.removeProperty("--nava-keyboard-top");
         if (previousHeight && auth) {
           const region = document.querySelector(".auth-form-region");
           if (region) region.scrollTop = 0;
         }
         previousHeight = 0;
+        previousTop = 0;
         previousInput = input;
         return;
       }
       root.dataset.keyboardOpen = "true";
       root.dataset.viewportScale = viewport.scale.toFixed(3);
       root.style.setProperty("--nava-visible-height", `${height}px`);
-      if (input && (height !== previousHeight || input !== previousInput)) {
+      const top = native ? 0 : Math.max(0, viewport.offsetTop);
+      root.style.setProperty("--nava-keyboard-canvas-height", `${Math.max(fullHeight, height + top)}px`);
+      root.style.setProperty("--nava-keyboard-top", `${top}px`);
+      if (input && (height !== previousHeight || input !== previousInput || top !== previousTop)) {
         if (auth) revealAuthField(input);
-        else input.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" });
+        else revealAppField(input, top, height);
       }
       previousHeight = height;
+      previousTop = top;
       previousInput = input;
     });
   };
   const onNativeViewport = (event: Event) => {
-    const value = (event as CustomEvent<AuthViewport>).detail;
+    const value = (event as CustomEvent<KeyboardViewport>).detail;
     if (value?.height > 0 && value.visibleHeight >= 0 && value.visibleHeight <= value.height) {
       nativeMetrics = value;
       update();
@@ -131,5 +170,7 @@ export function installMobileViewport() {
     delete root.dataset.keyboardOpen;
     delete root.dataset.viewportScale;
     root.style.removeProperty("--nava-visible-height");
+    root.style.removeProperty("--nava-keyboard-canvas-height");
+    root.style.removeProperty("--nava-keyboard-top");
   };
 }

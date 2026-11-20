@@ -51,9 +51,9 @@
 .health-explorer-plot { flex: 1; min-height: 125px; min-width: 0; display: flex; align-items: center; padding: 10px 0 0; }
 .health-explorer-plot .line-trend-chart { width: 100%; height: 100%; min-height: 0; display: flex; align-items: center; }
 .health-explorer-plot svg { width: 100%; height: 100%; overflow: visible; }
-.health-explorer-empty { flex: 1; text-align: center; color: #648e9f; padding: 4px 6px; }
-.health-explorer-empty > svg { width: 38px; height: 38px; opacity: .7; }
-.health-explorer-empty p { margin: 9px 0 0; font-size: 13px; line-height: 1.5; }
+.health-explorer-empty { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; text-align: center; color: #648e9f; padding: 4px 6px; }
+.health-explorer-empty > svg { flex: none; width: 38px; height: 38px; opacity: .7; }
+.health-explorer-empty p { margin: 0; font-size: 13px; line-height: 1.5; }
 .health-explorer-details { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding-right: 3px; scrollbar-width: thin; font-size: 13px; color: #53778a; line-height: 1.55; }
 .health-explorer-description { margin: 5px 0 10px; }
 .health-explorer-range { margin: 0 0 12px; font-size: 11px; color: #638496; }
@@ -83,8 +83,6 @@
 .health-explorer-dish-name { margin: 5px 0 8px; color: #285b74; font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
 .health-explorer-nutrition-note { font-size: 12px; }
 .health-explorer-meal-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
-.health-explorer-empty-meal { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; }
-.health-explorer-empty-meal > svg { width: 30px; height: 30px; }
 .health-explorer-record { flex: none; border: 1px solid #fff; border-radius: 14px; color: #286982; background: #dff1f9; display: flex; align-items: center; justify-content: center; gap: 3px; padding: 0 7px; margin-top: 8px; min-height: 44px; font-size: 12px !important; font-weight: 650 !important; }
 .health-explorer-weekly-content { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding-top: 8px; padding-bottom: 6px; }
 .phone-frame .record-hub.record-hub--explorer:has(.health-explorer-weekly-content) { height: 100%; min-height: 0; overflow: hidden; }

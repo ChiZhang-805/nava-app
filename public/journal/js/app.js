@@ -693,10 +693,16 @@ __fluffyModules["app.js"] = (() => {
         preserveDraft();
         return protectedCount;
     }
+    const moodRatingWords = [
+        ["低落", "Low"], ["沮丧", "Down"], ["失落", "Disappointed"], ["烦闷", "Uneasy"],
+        ["平静", "Calm"], ["放松", "Relaxed"], ["轻快", "Lighthearted"], ["愉快", "Glad"],
+        ["高兴", "Happy"], ["兴奋", "Excited"],
+    ];
+
     /**
      * 输入：field、input。
      * 输出：无。
-     * 功能：餐次选择状态跟随真实表单值；情绪和睡眠感受不再使用选项。
+     * 功能：让选项和情绪滑条跟随实际表单值。
      */
     function updateFieldDisplay(field, input) {
         if (field.type === "choice" || field.type === "multichoice")
@@ -706,11 +712,98 @@ __fluffyModules["app.js"] = (() => {
                 b.setAttribute("aria-pressed", String(selected));
             });
         if (field.type === "rating") {
-            const range=input.parentElement.querySelector('input[type="range"]'),output=input.parentElement.querySelector("output");
-            range.value=input.value || "5";
-            range.setAttribute("aria-valuetext",input.value ? `${input.value} / 10` : Locale.t("尚未选择", "Not recorded"));
-            output.textContent=input.value ? `${input.value} / 10` : Locale.t("尚未选择", "Not recorded");
+            const controls = input.parentElement.querySelector(".field-rating");
+            const range = controls.querySelector('input[type="range"]');
+            const output = input.parentElement.querySelector(".field-rating-word");
+            range.value = input.value || "5";
+            const selected = input.value !== "";
+            const value = range.valueAsNumber;
+            const words = moodRatingWords[value - 1];
+            const description = selected && words ? Locale.t(...words) : "";
+            output.textContent = description;
+            range.setAttribute("aria-valuetext", selected ? `${description} · ${value} / ${range.max}` : Locale.t("未自评", "Not rated"));
+            controls.dataset.rated = String(selected);
+            controls.style.setProperty("--rating-progress", (value - Number(range.min)) / (Number(range.max) - Number(range.min)));
         }
+    }
+
+    function makeRatingControl(field, input, head) {
+        const controls = el("span", "field-rating");
+        const rail = el("span", "field-rating-rail");
+        const fill = el("span", "field-rating-fill");
+        const color = el("span", "field-rating-color");
+        const shine = el("span", "field-rating-shine");
+        const range = el("input", "field-rating-slider");
+        const word = el("span", "field-rating-word");
+        word.setAttribute("aria-hidden", "true");
+        rail.setAttribute("aria-hidden", "true");
+        color.append(shine);
+        fill.append(color);
+        rail.append(fill);
+        range.type = "range";
+        range.min = String(field.minValue);
+        range.max = String(field.maxValue);
+        range.step = "1";
+        range.setAttribute("aria-label", Locale.t(field.label));
+        controls.append(rail, range);
+        head.append(word);
+
+        function recordSelection() {
+            if (input.value === range.value) return;
+            input.value = range.value;
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        range.addEventListener("input", recordSelection);
+        const showKeyboardFocus = () => delete range.dataset.pointerFocus;
+        range.addEventListener("keydown", showKeyboardFocus);
+        range.addEventListener("blur", showKeyboardFocus);
+        let drag = null;
+        function selectPointerPosition(clientX) {
+            const progress = Math.min(1, Math.max(0, (clientX - drag.start) / drag.span));
+            range.valueAsNumber = Math.round(Number(range.min) + progress * (Number(range.max) - Number(range.min)));
+            recordSelection();
+        }
+        range.addEventListener("pointerdown", event => {
+            if (!event.isPrimary || event.button !== 0) return;
+            event.preventDefault();
+            const bounds = range.getBoundingClientRect();
+            const thumbWidth = parseFloat(getComputedStyle(controls).getPropertyValue("--rating-thumb")) * bounds.width / range.offsetWidth;
+            drag = {
+                id: event.pointerId,
+                origin: event.clientX,
+                start: bounds.left + thumbWidth / 2,
+                span: Math.max(1, bounds.width - thumbWidth),
+                moving: event.pointerType === "mouse",
+            };
+            controls.dataset.dragging = "true";
+            range.dataset.pointerFocus = "true";
+            range.focus({ preventScroll: true });
+            range.setPointerCapture(event.pointerId);
+            if (drag.moving) selectPointerPosition(event.clientX);
+        });
+        range.addEventListener("pointermove", event => {
+            if (drag?.id !== event.pointerId) return;
+            // A vertical swipe can still scroll the form without choosing a rating.
+            if (!drag.moving && Math.abs(event.clientX - drag.origin) < 5) return;
+            drag.moving = true;
+            selectPointerPosition(event.clientX);
+        });
+        function finishDrag(event) {
+            if (drag?.id !== event.pointerId) return;
+            if (event.type === "pointerup") selectPointerPosition(event.clientX);
+            drag = null;
+            delete controls.dataset.dragging;
+            if (event.type !== "pointerup") return;
+            if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+            for (const element of [color, shine]) {
+                for (const animation of element.getAnimations()) animation.cancel();
+            }
+            const release = { duration: 460, easing: "cubic-bezier(.22,.7,.24,1)" };
+            color.animate([{ maskPosition: "100% 0" }, { maskPosition: "0% 0" }], release);
+            shine.animate([{ transform: "translateX(-100%)", opacity: .85 }, { transform: "translateX(100%)", opacity: 0 }], release);
+        }
+        for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) range.addEventListener(event, finishDrag);
+        return controls;
     }
     /**
      * 输入：field、value。
@@ -749,12 +842,8 @@ __fluffyModules["app.js"] = (() => {
             input.required = true;
         input.placeholder = Locale.t(field.placeholder || "");
         if (field.type === "rating") {
-            input.type="hidden";label.append(input);
-            const controls=el("span","field-rating"),range=el("input"),output=el("output"),clear=el("button","field-rating-clear",Locale.t("清除", "Clear"));
-            range.type="range";range.min="1";range.max="10";range.step="1";range.setAttribute("aria-label",Locale.t(field.label));
-            range.oninput=()=>{input.value=range.value;input.dispatchEvent(new Event("input",{bubbles:true}));};
-            clear.type="button";clear.onclick=()=>{input.value="";input.dispatchEvent(new Event("input",{bubbles:true}));};
-            controls.append(range,output,clear);label.append(controls);
+            input.type = "hidden";
+            label.append(input, makeRatingControl(field, input, head));
         }
         else if (field.type === "choice" || field.type === "multichoice") {
             input.type = "hidden";
@@ -2659,6 +2748,7 @@ __fluffyModules["app.js"] = (() => {
     document.body.classList.toggle("reduce-motion", animation.reducedMotion);
     animation.initialize().catch(() => {
         $("loading").textContent = "小猫图层没有加载完成，请刷新重试。";
+        window.NavaJournal.call('boot-error').catch(()=>{});
     });
     if (new URLSearchParams(location.search).has("debug") || window.FLUFFY_TEST) {
         window.FluffyDebug = {

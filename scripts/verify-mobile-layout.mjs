@@ -6,7 +6,8 @@ import { applyProjectPublicEnv } from './project-env.mjs';
 applyProjectPublicEnv(process.cwd());
 const engine = process.env.NAVA_LAYOUT_ENGINE || 'chromium';
 const safe = process.env.NAVA_LAYOUT_SAFE === '1';
-const output = `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/mobile-layout/${engine}${safe ? '-safe' : ''}${process.env.NAVA_LAYOUT_WIDTH ? `-width-${process.env.NAVA_LAYOUT_WIDTH}` : ''}`;
+const keyboardOnly = process.env.NAVA_KEYBOARD_ONLY === '1';
+const output = `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/mobile-layout/${engine}${safe ? '-safe' : ''}${keyboardOnly ? '-keyboard' : ''}${process.env.NAVA_LAYOUT_WIDTH ? `-width-${process.env.NAVA_LAYOUT_WIDTH}` : ''}`;
 await mkdir(output, { recursive: true });
 const server = await createServer({ server: { host: '127.0.0.1', port: Number(process.env.NAVA_LAYOUT_PORT || 5279), strictPort: true }, logLevel: 'silent' });
 await server.listen();
@@ -18,22 +19,27 @@ const routes = [
   ...['personal','skin','wardrobe','health','watch','privacy','account'].map(v=>[`profile-${v}`,`profile&view=${v}`]),
   ...['calendar',`day-${new Date().toLocaleDateString('en-CA')}`,'profile-details','notifications','reminder-settings','home-widgets','today-todos','admin-console','points-shop','points-shop-category-all','points-shop-product-preview','points-shop-cart','points-shop-cards','points-shop-add-card'].map(v=>[v,`today&view=${v}`]),
 ];
+const keyboardRoutes = new Set(['chat','profile-personal','profile-account','profile-details','today-todos','points-shop-category-all','admin-console']);
 const report = { engine, startedAt:new Date().toISOString(), results:[], errors:[] };
-async function setup(context, signedIn) {
+async function setup(context, signedIn, skin = 'glacier-mist') {
   await context.route('**/*.supabase.co/**', route => route.fulfill({ json: route.request().url().includes('journal_preferences') ? {settings:{}} : [] }));
-  await context.addInitScript(signedIn=>{
+  await context.addInitScript(({signedIn,skin})=>{
     if(signedIn)sessionStorage.setItem('nava.review.demo.auth.v1','signed-in');
     localStorage.setItem('nava.onboarding.v3.00000000-0000-4000-8000-000000000001',JSON.stringify({completed:true,version:3,answers:{}}));
+    localStorage.setItem('nava.app-skin.v1:00000000-0000-4000-8000-000000000001',skin);
     // Model iOS's visual-only keyboard resize without resizing the layout viewport.
     const vv = window.visualViewport;
     let simulatedHeight;
     let simulatedScale;
+    let simulatedOffset;
     const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(vv), 'height');
     const scaleDescriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(vv), 'scale');
+    const topDescriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(vv), 'offsetTop');
     Object.defineProperty(vv,'height',{get:()=>simulatedHeight ?? descriptor.get.call(vv)});
     Object.defineProperty(vv,'scale',{get:()=>simulatedScale ?? scaleDescriptor.get.call(vv)});
-    window.layoutKeyboard = (height,scale) => { simulatedHeight=height; simulatedScale=scale; vv.dispatchEvent(new Event('resize')); };
-  },signedIn);
+    Object.defineProperty(vv,'offsetTop',{get:()=>simulatedOffset ?? topDescriptor.get.call(vv)});
+    window.layoutKeyboard = (height,scale,offset) => { simulatedHeight=height; simulatedScale=scale; simulatedOffset=offset; vv.dispatchEvent(new Event('resize')); };
+  },{signedIn,skin});
 }
 async function ready(page) {
   if(await page.locator('.launch-sequence').isVisible())await page.locator('.launch-sequence').click();
@@ -96,16 +102,24 @@ async function keyboard(page,name,width,height,input,action) {
   await input.focus();
   const inputFontSize=await input.evaluate(e=>parseFloat(getComputedStyle(e).fontSize));
   const visibleHeight=height-300;
+  const panned = name.startsWith('profile-details') ? 48 : 0;
+  const visibleBottom = visibleHeight + panned;
   // Model the transient scale above one that iOS can report during focus.
-  await page.evaluate(h=>window.layoutKeyboard(h,1.2),visibleHeight);
+  await page.evaluate(({h,top})=>window.layoutKeyboard(h,1.2,top),{h:visibleHeight,top:panned});
   await page.waitForTimeout(350);
-  await input.scrollIntoViewIfNeeded();
   const inputRect=await input.boundingBox();
   const failures=[];
   if(inputFontSize<16)failures.push(`editable control font-size ${inputFontSize}px can trigger iOS focus zoom`);
   const keyboardState=await page.evaluate(()=>({open:document.documentElement.dataset.keyboardOpen,scale:document.documentElement.dataset.viewportScale}));
   if(keyboardState.open!=='true')failures.push('keyboard viewport state was not activated while visual viewport scale exceeded one');
-  if(!inputRect||inputRect.y<0||inputRect.y+inputRect.height>visibleHeight+2)failures.push('focused input behind keyboard');
+  if(!inputRect||inputRect.y<panned-1||inputRect.y+inputRect.height>visibleBottom+2)failures.push('focused input behind keyboard');
+  const canvas = await page.locator('.nava-app-stage').evaluate(stage=>({height:stage.getBoundingClientRect().height,background:getComputedStyle(stage).backgroundImage,scroll:window.scrollY}));
+  if(canvas.height<height-1||canvas.background==='none'||Math.abs(canvas.scroll)>1) failures.push('keyboard displaced or exposed the background canvas');
+  if(name==='profile-details'&&inputRect){
+    const bottomGap=visibleBottom-inputRect.y-inputRect.height;
+    if(bottomGap<10||bottomGap>15) failures.push(`last profile field to keyboard gap is ${bottomGap}px`);
+    await page.screenshot({path:`${output}/${width}x${height}-${name}-focused.png`});
+  }
   const uncovered = locator => locator.evaluate(e=>{const r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return Boolean(hit&&(e.contains(hit)||hit.contains(e)));});
   if(!await uncovered(input))failures.push('focused input covered by another layer');
   if(action){
@@ -113,14 +127,14 @@ async function keyboard(page,name,width,height,input,action) {
     const r=await action.boundingBox();
     const actionHit=await action.evaluate(e=>{const r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return {tag:hit?.tagName??null,className:typeof hit?.className==='string'?hit.className:null};});
     report.results.push({name:`${name}-keyboard-action`,width,height,actionRect:r,actionHit,failures:[]});
-    if(!r||r.y<0||r.y+r.height>visibleHeight+2)failures.push('action behind keyboard');
+    if(!r||r.y<panned||r.y+r.height>visibleBottom+2)failures.push('action behind keyboard');
     if(!await uncovered(action))failures.push('action covered by another layer');
   }
   if(name.startsWith('sign')||name==='reset'){
     const overlaps=await page.locator('.auth-form-region').evaluate(root=>{
       const form=root.querySelector('form'),consent=root.querySelector('.auth-consent');
       const fields=[...root.querySelectorAll('.field,.auth-submit,.auth-secondary-links')].map(e=>e.getBoundingClientRect());
-      return Boolean(consent&&consent.getBoundingClientRect().top<form.getBoundingClientRect().bottom-1)
+      return Boolean(consent?.getClientRects().length&&consent.getBoundingClientRect().top<form.getBoundingClientRect().bottom-1)
         || fields.slice(1).some((r,i)=>r.top<fields[i].bottom-1);
     });
     if(overlaps)failures.push('authentication fields or agreement overlap');
@@ -132,7 +146,7 @@ async function keyboard(page,name,width,height,input,action) {
     await page.locator('.chat-attachment-trigger').click();
   }
   await page.screenshot({path:`${output}/${width}x${height}-${name}-keyboard.png`});
-  report.results.push({name:`${name}-keyboard`,width,height,visibleHeight,inputRect,inputFontSize,keyboardState,failures});
+  report.results.push({name:`${name}-keyboard`,width,height,visibleHeight,inputRect,inputFontSize,keyboardState,canvas,failures});
   await page.evaluate(()=>window.layoutKeyboard(undefined,undefined));
   await input.blur();
   await page.waitForTimeout(100);
@@ -142,19 +156,20 @@ async function keyboard(page,name,width,height,input,action) {
 try {
  for(const [width,height] of sizes){
   const context=await browser.newContext({viewport:{width,height},isMobile:true,hasTouch:true,locale:'zh-CN',reducedMotion:'reduce'});
-  await setup(context,true);
+  const sizeIndex = sizes.findIndex(([w,h])=>w===width&&h===height);
+  await setup(context,true,['violet-dusk','sky-ripple','glacier-mist'][sizeIndex%3]);
   const page=await context.newPage();
   await safeArea(page);
   page.on('pageerror',e=>report.errors.push(e.message));
-  await page.goto(`${base}?demo=1#tab=today`,{waitUntil:'networkidle'});await ready(page);
+  await page.goto(`${base}?demo=1&qa=admin-console#tab=today`,{waitUntil:'networkidle'});await ready(page);
   for(const [name,route] of routes){
+    if(keyboardOnly&&!keyboardRoutes.has(name))continue;
     await page.evaluate(route=>{location.hash=`tab=${route}`;},route);
     await expect(page.locator('.phone-frame')).toBeVisible();
     await page.waitForTimeout(180);
     await ready(page);
-    await inspect(page,name,width,height);
-    await lastControl(page,name,width,height);
-    if(name==='records'){
+    if(!keyboardOnly){await inspect(page,name,width,height);await lastControl(page,name,width,height);}
+    if(name==='records'&&!keyboardOnly){
       const menuButton=page.locator('.figma-app-header .nava-more-trigger');
       await menuButton.click();
       await expect(page.locator('.app-utility-popover')).toBeVisible();
@@ -166,17 +181,46 @@ try {
     }
     if(name==='chat')await keyboard(page,name,width,height,page.locator('.chat-composer input:not([type="file"])'),page.locator('.chat-composer button[type="submit"]'));
     if(name==='profile-personal')await keyboard(page,name,width,height,page.locator('.profile-personal-card input').first());
-    if(name==='profile-details')await keyboard(page,name,width,height,page.locator('.advanced-profile-screen textarea').last(),page.locator('.advanced-profile-save'));
+    if(name==='profile-details'){
+      await expect(page.locator('.advanced-profile-form > button').last()).toHaveClass('advanced-profile-save');
+      await keyboard(page,'profile-details-mid',width,height,page.locator('.advanced-profile-screen textarea').first());
+      await keyboard(page,name,width,height,page.locator('[data-profile-end-field]'),page.locator('.advanced-profile-save'));
+    }
     if(name==='today-todos')await keyboard(page,name,width,height,page.locator('.today-todo-steps textarea'),page.locator('.today-todo-submit'));
     if(name==='points-shop-category-all')await keyboard(page,name,width,height,page.locator('.points-shop-search input'));
+    if(name==='admin-console'){
+      await page.locator('[data-admin-action="notices"]').click();
+      await keyboard(page,'admin-notice',width,height,page.locator('.admin-notice-message textarea'),page.locator('.admin-form-card button[type="submit"]'));
+    }
     if(name==='profile-account'){
       await page.getByRole('button',{name:/修改密码/}).click();
       await expect(page.locator('.profile-security-sheet')).toBeVisible();
       await inspect(page,'password-dialog',width,height);
       await keyboard(page,'password-dialog',width,height,page.locator('.profile-security-sheet input').last(),page.locator('.profile-security-save'));
       await page.locator('.profile-security-sheet > header > button').click();
+      await page.getByRole('button',{name:'注销账号',exact:true}).click();
+      await keyboard(page,'delete-confirmation',width,height,page.locator('.account-delete-sheet input'));
+      await page.locator('.account-delete-sheet > header > button').click();
     }
   }
+  const module=['mood','sleep','exercise','diet','focus','face'][sizeIndex];
+  await page.evaluate(module=>location.hash=`tab=record&module=${module}&view=editor`,module);
+  const journal=page.locator('.journal-experience:not(.is-staged) iframe');
+  await expect(journal).toBeVisible();
+  const journalFrame=page.frameLocator('.journal-experience:not(.is-staged) iframe');
+  if(await journalFrame.locator('.review-add-entry').isVisible())await journalFrame.locator('.review-add-entry').click();
+  const journalField=journalFrame.locator('#screen[data-scene="entry"] :is(input:not([type="number"]):not([type="file"]):not([type="hidden"]):not([type="range"]), textarea):visible').last();
+  await journalField.focus();
+  const journalHeight=height-300, journalTop=36;
+  await page.evaluate(({journalHeight,journalTop})=>window.layoutKeyboard(journalHeight,1,journalTop),{journalHeight,journalTop});
+  await expect(journalFrame.locator('.stage')).toHaveCSS('height',`${journalHeight}px`);
+  await expect.poll(async()=>{
+    const rect=await journalField.boundingBox();
+    return Boolean(rect&&rect.y>=journalTop-1&&rect.y+rect.height<=journalTop+journalHeight+1);
+  }).toBe(true);
+  expect((await journal.boundingBox()).height).toBe(height);
+  await page.screenshot({path:`${output}/${width}x${height}-journal-${module}-keyboard.png`});
+  report.results.push({name:`journal-${module}-keyboard`,width,height,failures:[]});
   await context.close();
   const authContext=await browser.newContext({viewport:{width,height},isMobile:true,hasTouch:true,locale:'zh-CN',reducedMotion:'reduce'});
   await setup(authContext,false);
@@ -193,6 +237,14 @@ try {
     await keyboard(auth,mode,width,height,auth.locator('.auth-form input').last(),auth.locator('.auth-submit'));
   }
   await authContext.close();
+  const recoveryContext=await browser.newContext({viewport:{width,height},isMobile:true,hasTouch:true,locale:'zh-CN',reducedMotion:'reduce'});
+  await setup(recoveryContext,true);
+  const recovery=await recoveryContext.newPage();
+  await safeArea(recovery);
+  await recovery.goto(`${base}?demo=1&auth=recovery`,{waitUntil:'domcontentloaded'});await ready(recovery);
+  await expect(recovery.locator('.auth-backdrop')).toBeAttached();
+  await keyboard(recovery,'recovery-link',width,height,recovery.locator('input[autocomplete="new-password"]').last(),recovery.locator('.auth-submit'));
+  await recoveryContext.close();
   console.log(`${engine} ${width}x${height} complete`);
  }
 } finally {

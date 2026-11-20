@@ -7,7 +7,7 @@ import { inspectHealthExplorer } from './health-explorer-checks.mjs';
 
 const root = process.cwd();
 const output = 'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/health-report-explorer-flip';
-const version = 'dish-photo-nutrients-v2';
+const version = 'centered-empty-state';
 applyProjectPublicEnv(root);
 await mkdir(output, { recursive: true });
 const server = await createServer({ root, server: { host: '127.0.0.1', port: 5248 }, logLevel: 'error' });
@@ -72,8 +72,20 @@ try {
               await tab.click(); // Locator click re-resolves if a data refresh replaces the tab.
               await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category',category);
               await inspectHealthExplorer(page);
-              if (state === 'empty') await expect(page.locator('.health-explorer-card[aria-hidden="false"] .health-explorer-empty')).toBeVisible();
               const active = page.locator('.health-explorer-card[data-active="true"]');
+              if (state === 'empty') {
+                const front = active.locator('.health-explorer-front');
+                const empty = front.locator('.health-explorer-empty');
+                await expect(empty).toHaveText(locale === 'zh' ? '记下一笔，让趋势慢慢出现。' : 'Add an entry to begin your trend.');
+                await expect(front.locator('.health-explorer-value, .health-explorer-plot')).toHaveCount(0);
+                const card = await front.boundingBox();
+                const icon = await empty.locator('svg').boundingBox();
+                const prompt = await empty.locator('p').boundingBox();
+                const offset = ((icon.y + prompt.y + prompt.height) / 2 - card.y) / card.height;
+                if (offset < .51 || offset > .62 || icon.y + icon.height > prompt.y) {
+                  throw new Error(`Empty hint should be grouped slightly below center (${category}, ${offset.toFixed(3)})`);
+                }
+              }
               if (category === 'diet') {
                 await expect(active).toHaveAttribute('data-card-kind',state === 'empty' ? 'empty-meal' : 'meal');
                 await expect(active.locator('.line-trend-chart')).toHaveCount(0);

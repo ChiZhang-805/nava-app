@@ -7,7 +7,7 @@ html.cold-guiding-root,body.cold-guiding-root,body.cold-guiding-root .stage{back
 body.cold-guiding-root .stage{z-index:1}
 body.cold-guiding-root .phone-wrap{z-index:1}
 body.cold-guiding-root .phone-wrap::before{position:fixed;inset:0;width:100vw;height:100vh;z-index:-1;background:#203747;content:"";pointer-events:none}
-.stage{position:relative;isolation:isolate;padding:0;min-height:0;height:var(--journal-visible-height,100%);overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;display:flex;align-items:flex-start;justify-content:center}
+.stage{position:relative;top:var(--journal-viewport-top,0px);isolation:isolate;padding:0;min-height:0;height:var(--journal-visible-height,100%);overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;display:flex;align-items:flex-start;justify-content:center}
 .stage>.cream-bg,.stage>.green-bg{position:fixed}
 .phone-wrap{z-index:1;margin-top:var(--journal-safe-offset,0px);margin-bottom:var(--journal-safe-tail,0px);width:calc(393px * var(--design-scale));height:calc(852px * var(--design-scale));filter:none;flex:none}
 .phone{width:393px;height:852px;padding:0;border:0;border-radius:0;background:none;box-shadow:none}

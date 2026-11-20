@@ -80,10 +80,11 @@ async function dismissLaunchAndReward(page) {
 try {
   const loadingContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const loadingPage = await loadingContext.newPage();
-  await loadingPage.goto(`${baseUrl}?demo=1&qa=auth-skeleton`, { waitUntil: "networkidle" });
-  await expect(loadingPage.locator('[data-page-skeleton="auth"]')).toBeVisible();
+  await loadingPage.goto(`${baseUrl}?demo=1`, { waitUntil: "domcontentloaded" });
+  await dismissLaunchAndReward(loadingPage);
+  await expect(loadingPage.locator('.auth-screen')).toBeVisible();
   await expect(loadingPage.locator(".nava-loading-scene")).toHaveCount(0);
-  const loadingGeometry = await loadingPage.locator('[data-page-skeleton="auth"]').evaluate((element) => {
+  const loadingGeometry = await loadingPage.locator('.auth-screen').evaluate((element) => {
     const box = element.getBoundingClientRect();
     return {
       top: box.top,
@@ -94,10 +95,10 @@ try {
     };
   });
   if (loadingGeometry.top < -1 || loadingGeometry.bottom > loadingGeometry.viewportHeight + 1 || loadingGeometry.horizontalOverflow > 1) {
-    throw new Error(`auth skeleton must fill the current viewport without becoming a blank transition page: ${JSON.stringify(loadingGeometry)}`);
+    throw new Error(`signed-out entry must fill the current viewport: ${JSON.stringify(loadingGeometry)}`);
   }
   await loadingPage.screenshot({ path: path.join(outputDir, "loading-390x844.png") });
-  report.push({ mode: "auth-skeleton", loadingGeometry, standaloneLoadingScene: false });
+  report.push({ mode: "signed-out-entry", loadingGeometry, standaloneLoadingScene: false });
   await loadingContext.close();
 
   const journalContext = await browser.newContext({ locale: "zh-CN", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
@@ -109,21 +110,25 @@ try {
   await journalPage.addLocatorHandler(journalPage.locator(".completion-celebration-layer"), async () => {
     await journalPage.frameLocator(".completion-celebration-layer iframe").getByRole("button", { name: /Continue|继续/ }).click();
   });
-  await journalPage.route("**/journal/index.html*", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+  let releaseJournal;
+  const journalPaused = new Promise((resolve) => { releaseJournal = resolve; });
+  await journalPage.route("**/journal/js/app.js*", async (route) => {
+    await journalPaused;
     await route.continue();
   });
   await journalPage.goto(`${baseUrl}?demo=1#tab=record&module=mood`, { waitUntil: "domcontentloaded" });
   const journalLaunch = journalPage.locator(".launch-sequence");
   if (await journalLaunch.isVisible().catch(() => false)) await journalLaunch.click();
-  await expect(journalPage.locator(".journal-loading--skeleton [data-page-skeleton]")).toBeVisible();
-  await expect(journalPage.locator(".journal-loading .nava-loading-scene")).toHaveCount(0);
-  await journalPage.screenshot({ path: path.join(outputDir, "journal-loading-390x844.png") });
-  report.push({ mode: "journal-skeleton", standaloneLoadingScene: false });
-  await journalPage.waitForTimeout(5200);
+  await expect(journalPage.locator(".journal-experience.is-staged iframe")).toBeAttached();
+  await expect(journalPage.locator(".option-two-home")).toBeVisible();
+  await expect(journalPage.locator(".journal-experience, [data-page-skeleton]").filter({ visible: true })).toHaveCount(0);
+  await journalPage.screenshot({ path: path.join(outputDir, "journal-waiting-on-home-390x844.png"), timeout: 3000 });
+  releaseJournal();
+  await expect(journalPage.locator(".journal-experience iframe")).toBeVisible();
+  report.push({ mode: "journal-ready-navigation", standaloneLoadingScene: false });
   await journalContext.close();
 
-  for (const locale of ["zh", "en"]) {
+  for (const locale of process.argv.includes('--loading-only') ? [] : ["zh", "en"]) {
     for (const viewport of viewports) {
       const context = await browser.newContext({
         locale: locale === "zh" ? "zh-CN" : "en-US",
@@ -162,8 +167,7 @@ try {
       await page.locator('[data-home-shortcut="today-todos"]').click();
       const todoPage = page.locator("[data-today-todo-page]");
       await expect(todoPage).toBeVisible();
-      await expect(page.locator(".bottom-nav")).toBeVisible();
-      await expect(page.locator(".bottom-nav .nav-button")).toHaveCount(5);
+      await expect(page.locator(".bottom-nav")).toHaveCount(0);
       await expect(page.locator(".today-todo-header h1")).toHaveText(locale === "zh" ? "今日待办" : "Today's to-do");
       await expect(page.locator(".today-todo-header")).not.toContainText(/NAVA TODAY/i);
       await expect(page.locator(".today-todo-header .home-experience-back")).toBeVisible();
@@ -199,9 +203,9 @@ try {
         const voice = document.querySelector(".today-todo-submit.is-voice")?.getBoundingClientRect();
         const card = document.querySelector(".today-todo-compose")?.getBoundingClientRect();
         const pagination = document.querySelector(".today-todo-card-pagination")?.getBoundingClientRect();
-        const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();
-        return title && duration && steps && voice && card && pagination && nav ? {
-          title: title.toJSON(), duration: duration.toJSON(), steps: steps.toJSON(), voice: voice.toJSON(), card: card.toJSON(), pagination: pagination.toJSON(), nav: nav.toJSON(),
+        const page = document.querySelector(".today-todo-page")?.getBoundingClientRect();
+        return title && duration && steps && voice && card && pagination && page ? {
+          title: title.toJSON(), duration: duration.toJSON(), steps: steps.toJSON(), voice: voice.toJSON(), card: card.toJSON(), pagination: pagination.toJSON(), page: page.toJSON(),
         } : null;
       });
       if (!entryGeometry || entryGeometry.title.height < 41 || entryGeometry.title.height > 50
@@ -210,7 +214,7 @@ try {
         || entryGeometry.steps.height < 67
         || entryGeometry.voice.top - entryGeometry.steps.bottom > 14 || entryGeometry.voice.top < entryGeometry.steps.bottom
         || entryGeometry.card.bottom - entryGeometry.voice.bottom > 20
-        || entryGeometry.card.bottom > entryGeometry.pagination.top + 1 || entryGeometry.pagination.bottom > entryGeometry.nav.top) {
+        || entryGeometry.card.bottom > entryGeometry.pagination.top + 1 || entryGeometry.pagination.bottom > entryGeometry.page.bottom) {
         throw new Error(`${locale}-${viewport.name}: entry card height or carousel pagination spacing is incorrect ${JSON.stringify(entryGeometry)}`);
       }
       if (locale === "zh" && viewport.name === "390x844") await page.screenshot({ path: path.join(outputDir, "zh-390x844-entry-carousel.png") });
@@ -341,11 +345,10 @@ try {
       await expect(page.locator(".today-todo-selection-actions")).toHaveCount(0);
       const populatedGeometry = await todoPage.evaluate((element) => {
         const list = element.querySelector(".today-todo-list-section")?.getBoundingClientRect();
-        const nav = document.querySelector(".bottom-nav")?.getBoundingClientRect();
-        return { scrollHeight: element.scrollHeight, clientHeight: element.clientHeight, list: list?.toJSON() ?? null, nav: nav?.toJSON() ?? null };
+        return { scrollHeight: element.scrollHeight, clientHeight: element.clientHeight, list: list?.toJSON() ?? null, bottom: element.getBoundingClientRect().bottom };
       });
-      if (populatedGeometry.scrollHeight > populatedGeometry.clientHeight + 1 || !populatedGeometry.list || !populatedGeometry.nav || populatedGeometry.list.bottom > populatedGeometry.nav.top + 1) {
-        throw new Error(`${locale}-${viewport.name}: populated to-do page must remain one screen above navigation ${JSON.stringify(populatedGeometry)}`);
+      if (populatedGeometry.scrollHeight > populatedGeometry.clientHeight + 1 || !populatedGeometry.list || populatedGeometry.list.bottom > populatedGeometry.bottom + 1) {
+        throw new Error(`${locale}-${viewport.name}: populated to-do page must remain within its canvas ${JSON.stringify(populatedGeometry)}`);
       }
       await page.screenshot({ path: path.join(outputDir, `${locale}-${viewport.name}-today-todos.png`), fullPage: true });
 
