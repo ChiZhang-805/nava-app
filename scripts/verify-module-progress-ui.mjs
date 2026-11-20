@@ -4,6 +4,7 @@ import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 import { inspectRingPaint } from "./module-ring-paint.mjs";
+import { inspectHealthExplorer } from "./health-explorer-checks.mjs";
 import { IPHONE_PREVIEW_DEVICES } from "../src/constants/iphonePreviewDevices.ts";
 
 const root = process.cwd();
@@ -25,128 +26,6 @@ const baseUrl = server.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? `http://127
 const browser = await chromium.launch({ headless: true });
 const report = [];
 
-const rectanglesOverlap = (a, b, gap = 0) => !(
-  a.right + gap <= b.left
-  || b.right + gap <= a.left
-  || a.bottom + gap <= b.top
-  || b.bottom + gap <= a.top
-);
-
-async function inspectRecordHub(page, viewportName, stateName) {
-  const geometry = await page.evaluate(() => {
-    const toRect = (rect) => ({
-      left: rect.left,
-      right: rect.right,
-      top: rect.top,
-      bottom: rect.bottom,
-      width: rect.width,
-      height: rect.height,
-    });
-    const textRect = (element) => {
-      const textNode = [...element.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim());
-      if (!textNode) return toRect(element.getBoundingClientRect());
-      const range = document.createRange();
-      range.selectNodeContents(textNode);
-      return toRect(range.getBoundingClientRect());
-    };
-    const cards = [...document.querySelectorAll(".record-module-entry")].map((card) => {
-      const header = card.querySelector(".record-module-header");
-      const title = header?.querySelector("strong");
-      const icon = card.querySelector(".record-module-icon");
-      const points = card.querySelector(".record-module-points");
-      const arrow = card.querySelector(".record-module-arrow");
-      const lines = [...card.querySelectorAll(".record-module-points > span")].map((line) => {
-        const style = getComputedStyle(line);
-        return {
-          text: line.textContent?.trim() ?? "",
-          rect: toRect(line.getBoundingClientRect()),
-          textRect: textRect(line),
-          clientWidth: line.clientWidth,
-          scrollWidth: line.scrollWidth,
-          clientHeight: line.clientHeight,
-          scrollHeight: line.scrollHeight,
-          visible: style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) !== 0,
-          singleLine: style.whiteSpace === 'nowrap',
-        };
-      });
-      return {
-        module: card.getAttribute("data-record-module"),
-        state: card.getAttribute("data-record-state"),
-        summarySource: card.getAttribute("data-summary-source"),
-        rect: toRect(card.getBoundingClientRect()),
-        header: header ? toRect(header.getBoundingClientRect()) : null,
-        title: title ? { rect: toRect(title.getBoundingClientRect()), textRect: textRect(title) } : null,
-        icon: icon ? toRect(icon.getBoundingClientRect()) : null,
-        points: points ? {
-          rect: toRect(points.getBoundingClientRect()),
-          clientHeight: points.clientHeight,
-          scrollHeight: points.scrollHeight,
-        } : null,
-        arrow: arrow ? toRect(arrow.getBoundingClientRect()) : null,
-        lines,
-        clientHeight: card.clientHeight,
-        scrollHeight: card.scrollHeight,
-      };
-    });
-    const frame = document.querySelector(".phone-frame");
-    const hub = document.querySelector(".record-hub");
-    const date = document.querySelector(".record-hub-date");
-    const grid = document.querySelector(".record-module-grid");
-    const nav = document.querySelector(".bottom-nav");
-    return {
-      documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      frameOverflow: frame ? frame.scrollWidth - frame.clientWidth : null,
-      frame: frame ? toRect(frame.getBoundingClientRect()) : null,
-      hub: hub ? toRect(hub.getBoundingClientRect()) : null,
-      date: date ? toRect(date.getBoundingClientRect()) : null,
-      grid: grid ? toRect(grid.getBoundingClientRect()) : null,
-      nav: nav ? toRect(nav.getBoundingClientRect()) : null,
-      cards,
-    };
-  });
-
-  const fail = (message, evidence = geometry) => {
-    throw new Error(`${viewportName} ${stateName}: ${message} ${JSON.stringify(evidence)}`);
-  };
-  if (!geometry.frame || !geometry.hub || !geometry.date || !geometry.grid || !geometry.nav) fail("missing a required layout region");
-  if (geometry.cards.length !== 6) fail(`expected 6 cards, found ${geometry.cards.length}`);
-  if (geometry.documentOverflow > 1 || geometry.frameOverflow > 1) fail("horizontal overflow", { documentOverflow: geometry.documentOverflow, frameOverflow: geometry.frameOverflow });
-  if (rectanglesOverlap(geometry.date, geometry.grid, 4)) fail("date selector intersects the card grid", { date: geometry.date, grid: geometry.grid });
-  if (rectanglesOverlap(geometry.grid, geometry.nav, 8)) fail("card grid does not preserve an 8px safety gap above navigation", { grid: geometry.grid, nav: geometry.nav });
-  if (geometry.grid.left < geometry.hub.left - 1 || geometry.grid.right > geometry.hub.right + 1) fail("card grid escapes its hub horizontally", { hub: geometry.hub, grid: geometry.grid });
-
-  for (let index = 0; index < geometry.cards.length; index += 1) {
-    const card = geometry.cards[index];
-    if (!card.header || !card.title || !card.icon || !card.points || !card.arrow) fail("card is missing an inspected child", card);
-    if (card.lines.length !== 4) fail(`card ${card.module} must contain exactly four lines`, card);
-    if (card.scrollHeight > card.clientHeight + 1 || card.points.scrollHeight > card.points.clientHeight + 1) fail(`card ${card.module} clips vertical content`, card);
-    if (rectanglesOverlap(card.title.textRect, card.icon, 4)) fail(`card ${card.module} title intersects its icon`, card);
-    for (const child of [card.header, card.icon, card.points, card.arrow]) {
-      if (child.left < card.rect.left - 1 || child.right > card.rect.right + 1 || child.top < card.rect.top - 1 || child.bottom > card.rect.bottom + 1) {
-        fail(`card ${card.module} has content outside its boundary`, card);
-      }
-    }
-    for (const line of card.lines) {
-      if (!line.singleLine) fail(`card ${card.module} must preserve a single line per summary`, { card, line });
-      if (!line.visible || line.rect.height < 1 || line.textRect.height < 1) fail(`card ${card.module} has a hidden summary line`, { card, line });
-      if (line.scrollWidth > line.clientWidth + 1 || line.scrollHeight > line.clientHeight + 1) fail(`card ${card.module} truncates summary text`, { card, line });
-      if (line.rect.left < card.points.rect.left - 1 || line.rect.right > card.points.rect.right + 1 || line.rect.top < card.points.rect.top - 1 || line.rect.bottom > card.points.rect.bottom + 1) {
-        fail(`card ${card.module} summary line escapes its list`, { card, line });
-      }
-      if (rectanglesOverlap(line.textRect, card.arrow, 4)) fail(`card ${card.module} summary text intersects its arrow`, { card, line });
-      if (card.summarySource === 'ai-compact' && /^[\p{Script=Han}]+$/u.test(line.text) && [...line.text].length !== 7) fail(`card ${card.module} compact Chinese line is not exactly seven characters`, { card, line });
-    }
-    for (let otherIndex = index + 1; otherIndex < geometry.cards.length; otherIndex += 1) {
-      if (rectanglesOverlap(card.rect, geometry.cards[otherIndex].rect, 3)) {
-        fail(`cards ${card.module} and ${geometry.cards[otherIndex].module} do not preserve a 3px gap`, { card: card.rect, other: geometry.cards[otherIndex].rect });
-      }
-    }
-    const usedBottom = Math.max(card.points.rect.bottom, card.arrow.bottom);
-    const bottomWhitespace = card.rect.bottom - usedBottom;
-    if (bottomWhitespace > Math.max(18, card.rect.height * 0.16)) fail(`card ${card.module} has excessive unused space below its content`, { card: card.rect, usedBottom, bottomWhitespace });
-  }
-  return geometry;
-}
 
 try {
   for (const viewport of viewports) {
@@ -306,73 +185,25 @@ try {
     await paintStyle.evaluate((node) => node.remove());
 
     await page.locator('[data-tab="record"]').click();
-    const hubDiet = page.locator('[data-record-module="diet"]');
-    await expect(hubDiet).toHaveAttribute("data-record-state", "partial");
-    await expect(hubDiet).toHaveAttribute("data-module-progress", "0.25");
-    await expect(page.locator(".record-module-entry .module-progress-ring")).toHaveCount(6);
-    // The record-hub ring fill lasts 720ms. Sample only after the real paint
-    // settles; reading at 620ms produced viewport-dependent partial arcs.
-    await page.waitForTimeout(850);
-    const reportPaint = await inspectRingPaint(page, '.record-module-entry .module-progress-ring');
-    for (const ring of reportPaint) {
-      if (ring.progress === 1 && ring.coverage < .99) throw new Error(`${viewport.name}: report ring is not closed ${JSON.stringify(ring)}`);
-    }
-    const populatedHubGeometry = await inspectRecordHub(page, viewport.name, "populated record hub");
-    const gridOverflow = await page.locator('.record-module-grid').evaluate((grid) => grid.scrollHeight - grid.clientHeight);
-    if (gridOverflow > 1) throw new Error(`${viewport.name}: normal four-line cards should fit together, overflow ${gridOverflow}px`);
-    await page.locator('.phone-frame').screenshot({ path: path.join(outputDir, `${viewport.name}-record-progress.png`) });
-
-    // Explicit local typography fixture: long saved-record facts must work even
-    // before compact AI summaries arrive. It does not seed or claim AI output.
-    await page.locator('.record-module-entry').evaluateAll((cards) => {
-      for (const card of cards) {
-        card.dataset.summarySource = 'record-facts';
-        const facts = ['情绪 70/100', '原因 社交、天气', '已写情绪日记', '已保存至当前账号'];
-        card.querySelectorAll('.record-module-points > span').forEach((line, index) => { line.textContent = facts[index]; });
-      }
-    });
-    const factsGeometry = await inspectRecordHub(page, viewport.name, 'long saved-record facts');
-    await page.locator('.record-module-entry').last().scrollIntoViewIfNeeded();
-    await expect(page.locator('.record-module-entry').last()).toBeInViewport({ ratio: .99 });
-    await expect(page.locator('.record-module-entry').last().locator('.record-module-points')).toBeInViewport({ ratio: .99 });
-    await page.locator('.record-module-grid').evaluate((grid) => { grid.scrollTop = 0; });
-    await page.locator('.phone-frame').screenshot({ path: path.join(outputDir, `${viewport.name}-record-facts.png`) });
-
-    const dateInput = page.locator(".record-hub-date input[type=date]");
-    await page.evaluate(() => localStorage.setItem("nava.review.demo.empty-snapshot-date.v1", "2020-01-01"));
-    await dateInput.fill("2020-01-01");
-    await dateInput.dispatchEvent("change");
-    await expect(page.locator('.record-module-entry[data-summary-source="module-dictionary"]')).toHaveCount(6);
-    await page.waitForTimeout(220);
-    const emptyHubGeometry = await inspectRecordHub(page, viewport.name, "empty record hub");
+    await expect(page.locator('[data-health-explorer]')).toBeVisible();
+    await expect(page.locator('[data-health-category]')).toHaveCount(6);
+    const populatedHubGeometry = await inspectHealthExplorer(page);
+    await page.locator('.phone-frame').screenshot({ path: path.join(outputDir, `${viewport.name}-record-explorer.png`) });
+    const dateInput = page.locator('.health-explorer-toolbar input[type=date]');
+    const currentDate = await dateInput.inputValue();
+    await page.evaluate(() => localStorage.setItem('nava.review.demo.empty-snapshot-date.v1', '2020-01-01'));
+    await dateInput.fill('2020-01-01');
+    await dateInput.dispatchEvent('change');
+    await expect(page.locator('.health-explorer-card[aria-hidden="false"] .health-explorer-empty')).toBeVisible();
+    const emptyHubGeometry = await inspectHealthExplorer(page);
     await page.locator('.phone-frame').screenshot({ path: path.join(outputDir, `${viewport.name}-record-empty.png`) });
-
-    // A loading/error notice consumes real space above the grid. Keep every
-    // card's four lines intact and reachable rather than shrinking them away.
-    await page.locator('.record-module-grid').evaluate((grid) => {
-      const notice = document.createElement('section');
-      notice.className = 'record-hub-ai-summary';
-      notice.dataset.layoutFixture = 'notice';
-      const copy = document.createElement('div');
-      const heading = document.createElement('strong'); heading.textContent = '报告状态';
-      const paragraph = document.createElement('p'); paragraph.textContent = '报告准备中';
-      copy.append(heading, paragraph); notice.append(copy); grid.before(notice);
-    });
-    const noticeGeometry = await inspectRecordHub(page, viewport.name, 'notice reduces available height');
-    await page.locator('.record-module-entry').last().scrollIntoViewIfNeeded();
-    await expect(page.locator('.record-module-entry').last().locator('.record-module-points')).toBeInViewport({ ratio:.99 });
-    await page.locator('[data-layout-fixture="notice"]').evaluate((node) => node.remove());
-    await page.locator('.record-module-grid').evaluate((grid) => { grid.scrollTop=0; });
-
-    const browserLocalDate = await page.evaluate(() => {
-      const now = new Date();
-      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    });
-    await dateInput.fill(browserLocalDate);
-    await dateInput.dispatchEvent("change");
-    await expect(hubDiet).toHaveAttribute("data-record-state", "partial");
-
+    await dateInput.fill(currentDate);
+    await dateInput.dispatchEvent('change');
+    const hubDiet = page.locator('[data-health-category="diet"]');
+    await hubDiet.scrollIntoViewIfNeeded();
     await hubDiet.click();
+    await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category', 'diet');
+    await page.locator('.health-explorer-record').click();
     await expect(page.locator('.journal-experience iframe')).toBeVisible({ timeout: 20_000 });
     await expect(page.locator('.journal-loading')).toHaveCount(0, { timeout: 20_000 });
     await expect(page.locator('.journal-loading.is-error')).toHaveCount(0);
@@ -400,8 +231,8 @@ try {
     if (!saveBounds.inside) throw new Error(`${viewport.name}: diet action escaped its card`);
 
     if (errors.length) throw new Error(`${viewport.name}: browser errors ${JSON.stringify(errors)}`);
-    report.push({ viewport, homePaint, boundaryPaint, reportPaint, homeGeometry, populatedHubGeometry, factsGeometry, emptyHubGeometry, noticeGeometry, detailOverflow });
-    console.log(`${viewport.name}: rings, compact/facts/empty cards passed`);
+    report.push({ viewport, homePaint, boundaryPaint, homeGeometry, populatedHubGeometry, emptyHubGeometry, detailOverflow });
+    console.log(`${viewport.name}: home rings, chart explorer, empty state and record entry passed`);
     await context.close();
   }
 } finally {

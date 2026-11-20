@@ -93,9 +93,9 @@ test("mood overview copy, factors, and diary action follow the shared compact la
   assert.match(dashboard, /aria-pressed=\{selectedFactors\.includes\(factor\.value\)\}/);
 });
 
-test("small report cards use compact output while detailed reports keep normal bullets", () => {
-  assert.match(recordsScreen, /report\.compactBullets/);
-  assert.match(recordsScreen, /data-summary-source=\{compactPoints \? "ai-compact"/);
+test("report explorer uses recorded chart data while detailed reports keep normal AI bullets", () => {
+  assert.match(recordsScreen, /<HealthReportExplorer[\s\S]+bundle=\{dataLoadError \? null : trendBundle\}/);
+  assert.doesNotMatch(recordsScreen, /hubCompactPoints|report\.compactBullets|const recordedModules = recordModules/);
   assert.match(dashboard, /reportInsights = .*dietReport\?\.bullets/);
   assert.match(dashboard, /healthReport\?\.bullets/);
 });
@@ -112,16 +112,7 @@ test("health report results stay in memory and saved data relies on the server s
   assert.doesNotMatch(recordsScreen, /loadDietAiReport\([^\n]+refresh: true/);
 });
 
-test("all twenty report prose placements and auxiliary AI entry routes are wired", () => {
-  const placements = {
-    moduleTrendInsights: 6,
-    moduleOverviewFeedback: 6,
-    moduleCompactSummaries: 6,
-    recordHubOverview: 1,
-    weeklyInsight: 1,
-  };
-  assert.equal(Object.values(placements).reduce((sum, count) => sum + count, 0), 20);
-
+test("detailed report prose and auxiliary AI routes remain wired without six unused hub requests", () => {
   assert.match(healthService, /type HealthReportScope = "mood" \| "sleep" \| "exercise" \| "focus" \| "face" \| "weekly"/);
   assert.match(healthService, /functions\.invoke<HealthAiReport>\("ai-health-report"/);
   assert.match(healthService, /report\.provider !== "deepseek"/);
@@ -132,8 +123,8 @@ test("all twenty report prose placements and auxiliary AI entry routes are wired
   assert.match(dashboard, /module-overview-ai/);
   assert.match(dashboard, /reportInsights\.map/);
 
-  assert.match(recordsScreen, /const recordedModules = recordModules/);
-  assert.match(recordsScreen, /module === "diet"[\s\S]+loadDietAiReport\(\{ date: recordDate/);
+  assert.doesNotMatch(recordsScreen, /recordedModules\.forEach/);
+  assert.match(recordsScreen, /overview=\{hubAiEligible && hubHasSignificantPattern \? hubAssociation\?\.headline/);
   assert.match(recordsScreen, /scope: "weekly", endDate: recordDate/);
   assert.match(recordsScreen, /scope: "weekly", endDate: availableEndDate/);
   assert.match(recordsScreen, /AI 本周节律洞察/);

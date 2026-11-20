@@ -1,0 +1,76 @@
+.phone-frame .record-hub.record-hub--explorer { height: 100%; min-height: 0; gap: 8px; padding-bottom: 4px; }
+.health-report-explorer { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; color: var(--text, #204f69); }
+.health-report-explorer button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.health-report-explorer button:focus-visible, .health-explorer-track:focus-visible { outline: 3px solid #207eaa; outline-offset: 2px; }
+.health-explorer-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.health-explorer-toolbar label { min-width: 0; display: flex; align-items: center; gap: 4px; font-size: 12px; color: #587589; }
+.health-explorer-toolbar input { border: 0; color: #284e66; background: transparent; font: inherit; font-size: 13px; min-height: 44px; width: 116px; min-width: 0; padding: 0; }
+.health-explorer-all { flex: none; border: 0; background: transparent; color: #246b8b; display: flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 2px 0 8px; font-size: 13px !important; font-weight: 650 !important; white-space: nowrap; }
+.health-explorer-categories { flex: none; display: flex; gap: 10px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; padding: 4px 2px 10px; scroll-snap-type: x proximity; }
+.health-explorer-categories::-webkit-scrollbar, .health-explorer-track::-webkit-scrollbar { display: none; }
+.health-explorer-categories > button { border: 0; padding: 0; background: transparent; color: #526e80; flex: 0 0 64px; display: flex; flex-direction: column; align-items: center; gap: 7px; scroll-snap-align: start; min-height: 86px; }
+.health-explorer-categories > button > span { width: 62px; height: 60px; border-radius: 20px; display: grid; place-items: center; background: rgba(255,255,255,.7); border: 1px solid rgba(255,255,255,.95); box-shadow: 0 3px 8px #366a7f08; transition: background .18s ease, color .18s ease, box-shadow .18s ease; }
+.health-explorer-categories > button > strong { font-size: 13px; font-weight: 550; line-height: 18px; white-space: nowrap; }
+.health-explorer-categories > button[aria-selected="true"] { color: #16698a; }
+.health-explorer-categories > button[aria-selected="true"] > span { background: #d7f1fb; border-color: #82bdd5; box-shadow: inset 0 -3px #4196b7; }
+.health-explorer-categories > button[aria-selected="true"] > strong { font-weight: 750; }
+.health-explorer-panel { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.health-explorer-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 1px 12px; flex: none; }
+.health-explorer-heading h2 { margin: 0; font-size: 19px; font-weight: 750; letter-spacing: -.3px; }
+.health-explorer-heading > span { color: #668293; font-size: 11px; white-space: nowrap; }
+.health-explorer-deck { display: flex; flex-direction: column; flex: 1; min-height: 0; animation: health-explorer-reveal .22s ease-out; }
+.health-explorer-track { position: relative; display: flex; flex: 1; min-height: 235px; overflow-x: auto; overflow-y: hidden; gap: 10px; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; padding: 1px 0; }
+.health-explorer-card { box-sizing: border-box; flex: 0 0 calc(100% - 12px); min-width: 0; display: flex; flex-direction: column; scroll-snap-align: start; border: 1px solid #ffffffeb; border-radius: 26px; padding: 18px 17px 14px; background: linear-gradient(150deg,#ffffffed,#f3fbffd9 52%,#d9f3fbcf); box-shadow: 0 6px 16px #284f6610; }
+.health-explorer-card:last-child { margin-right: 12px; }
+.health-explorer-card > header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.health-explorer-card > header > span { font-size: 16px; font-weight: 650; line-height: 1.3; }
+.health-explorer-card > header > small { flex: none; color: #688798; font-size: 11px; }
+.health-explorer-value { display: flex; align-items: baseline; gap: 7px; padding-top: 12px; }
+.health-explorer-value > strong { font-size: 38px; line-height: 1.15; font-weight: 720; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+.health-explorer-value > span { color: #648293; font-size: 12px; }
+.health-explorer-plot { flex: 1; min-height: 85px; display: flex; align-items: center; padding: 4px 0; }
+.health-explorer-plot .line-trend-chart { width: 100%; height: 100%; min-height: 0; display: flex; align-items: center; }
+.health-explorer-plot svg { width: 100%; max-height: 230px; height: 100%; overflow: visible; }
+.health-explorer-plot .trend-date { font-size: 20px; }
+.health-explorer-empty { flex: 1; text-align: center; color: #648e9f; padding: 4px 6px; }
+.health-explorer-empty > svg { width: 32px; height: 32px; opacity: .7; }
+.health-explorer-empty p { margin: 6px 0 0; font-size: 12px; line-height: 1.5; }
+.health-explorer-description { font-size: 12px; line-height: 1.45; color: #5e7c8c; margin: 6px 0 12px; }
+.health-explorer-card > footer { border-top: 1px solid #b6d5df77; padding-top: 10px; display: flex; justify-content: space-between; gap: 5px; color: #597a8b; font-size: 11px; }
+.health-explorer-pagination { flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; height: 44px; }
+.health-explorer-pagination > div { display: flex; }
+.health-explorer-pagination button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; color: #3c7a98; }
+.health-explorer-pagination button:disabled { opacity: .28; cursor: default; }
+.health-explorer-pagination button span { width: 6px; height: 6px; border-radius: 5px; background: #9ac1d0; transition: width .2s, background .2s; }
+.health-explorer-pagination button[aria-current="true"] span { width: 20px; background: #337e9b; }
+.health-explorer-bottom { flex: none; display: flex; gap: 6px; justify-content: space-between; align-items: center; min-height: 44px; }
+.health-explorer-bottom > span { font-size: 11px; color: #638392; }
+.health-explorer-record { flex: none; border: 1px solid #ffffffed; border-radius: 16px; color: #286982; background: #ffffffb8; display: flex; align-items: center; padding: 0 10px; min-height: 44px; font-size: 12px !important; font-weight: 650 !important; }
+.health-explorer-sheet h2 { margin: 0 0 16px; font-size: 21px; color: #244e66; }
+.health-explorer-overview { font-size: 14px; line-height: 1.5; color: #4a7184; }
+.health-explorer-chart-list { display: grid; gap: 14px; padding-bottom: 8px; }
+.health-explorer-chart-list section h3 { display: flex; gap: 8px; align-items: center; font-size: 14px; color: #668495; margin: 0 0 4px; }
+.health-explorer-chart-list section button { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 46px; padding: 8px 12px; background: #ecf7fc; color: #264f66; border: 1px solid #fff; border-radius: 13px; margin-top: 4px; text-align: left; font: inherit; font-size: 14px; }
+@keyframes health-explorer-reveal { from { opacity: .35; transform: translateX(4px); } to { opacity: 1; transform: translateX(0); } }
+@media (max-height: 740px) {
+  .health-explorer-categories > button { min-height: 76px; gap: 4px; }
+  .health-explorer-categories > button > span { height: 53px; }
+  .health-explorer-categories { padding-bottom: 6px; }
+  .health-explorer-heading { padding: 3px 1px 5px; }
+  .health-explorer-card { padding: 13px 14px 11px; }
+  .health-explorer-value { padding-top: 6px; }
+  .health-explorer-value > strong { font-size: 32px; }
+  .health-explorer-description { margin: 4px 0 8px; }
+  .health-explorer-track { min-height: 245px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .health-explorer-deck { animation: none; }
+  .health-report-explorer * { transition: none !important; scroll-behavior: auto !important; }
+}
+/* At very short heights, preserve readable charts and 44px controls. Only the
+   report scrolls; its bounds stay above the shared navigation. */
+@media (max-height: 640px) {
+  .phone-frame .record-hub.record-hub--explorer { overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain; padding-bottom: 12px; }
+  .health-report-explorer { flex: none; }
+  .health-explorer-track { flex: none; height: 255px; }
+}

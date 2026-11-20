@@ -6,7 +6,7 @@ import BottomSheet from "../components/BottomSheet";
 import "../styles/detail-sheets.css";
 import { usePreviewActivity } from "../hooks/usePreviewActivity";
 import AnimatedNumber from "../components/AnimatedNumber";
-import ModuleProgressRing from "../components/ModuleProgressRing";
+import HealthReportExplorer from "../components/HealthReportExplorer";
 import PageSkeleton, { SkeletonBlock, SkeletonLines } from "../components/PageSkeleton";
 import CameraCapture from "../components/CameraCapture";
 import PhotoInput from "../components/PhotoInput";
@@ -44,7 +44,7 @@ import { loadProfile, type UserProfile } from "../services/profile";
 import { loadDietAiReport } from "../services/dietReport";
 import { healthReportSourceRevision, loadHealthAiReport, type HealthAiReport, type HealthReportSection } from "../services/healthReport";
 import { calculateWeeklyModuleScores, type WeeklyModuleKey } from "../services/weeklyModuleScores";
-import { allHealthModulesComplete, buildHealthModulePresentations, compareRecordedPeriodAverages, healthModuleEntryView, healthModuleProgressLabel, isCompleteExerciseRecord, isCompleteFaceRecord, isCompleteNutritionRecord, isCompleteSleepRecord, type HealthModulePoints } from "../services/healthReportPresentation";
+import { allHealthModulesComplete, buildHealthModulePresentations, compareRecordedPeriodAverages, healthModuleEntryView, isCompleteExerciseRecord, isCompleteFaceRecord, isCompleteNutritionRecord, isCompleteSleepRecord } from "../services/healthReportPresentation";
 import { clearSecureFaceDraft, loadSecureFaceDraft, saveSecureFaceDraft } from "../services/secureFaceDraft";
 import { loadSingleKey, type SingleRequestSlot } from "../services/singleRequestCache";
 import { estimatedFoodLabel, formatDetectedDishList } from "../services/dietEntryPresentation";
@@ -142,42 +142,7 @@ function RecordDateAction({
   </label>;
 }
 
-const recordModules: Array<{
-  id: RecordModule;
-  labelKey: TranslationKey;
-  icon: LucideIcon;
-}> = [
-  {
-    id: "mood",
-    labelKey: "records.mood",
-    icon: SmilePlus,
-  },
-  {
-    id: "sleep",
-    labelKey: "records.sleep",
-    icon: BedDouble,
-  },
-  {
-    id: "exercise",
-    labelKey: "records.exercise",
-    icon: Dumbbell,
-  },
-  {
-    id: "diet",
-    labelKey: "records.diet",
-    icon: Drumstick,
-  },
-  {
-    id: "focus",
-    labelKey: "records.focus",
-    icon: Brain,
-  },
-  {
-    id: "face",
-    labelKey: "records.faceShort",
-    icon: ScanFace,
-  },
-];
+
 
 const weeklyPlaceholderValues = [44, 62, 52, 72, 57, 67, 49] as const;
 const weeklyPlaceholderHeights = (() => {
@@ -293,9 +258,6 @@ export default function RecordsScreen({
   const [weeklyLongPressing, setWeeklyLongPressing] = useState(false);
   const [weeklyChartMode, setWeeklyChartMode] = useState<"trend" | "radar">("trend");
   const [hubAiReport, setHubAiReport] = useState<HealthAiReport | null>(null);
-  const [hubAiLoading, setHubAiLoading] = useState(false);
-  const [hubAiUnavailable, setHubAiUnavailable] = useState(false);
-  const [hubCompactPoints, setHubCompactPoints] = useState<Partial<Record<RecordModule, HealthModulePoints>>>({});
   const [draftReady, setDraftReady] = useState(false);
   const [dataLoadError, setDataLoadError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
@@ -757,12 +719,9 @@ export default function RecordsScreen({
     let active = true;
     if (!hubAiEligible) {
       setHubAiReport(null);
-      setHubAiLoading(false);
-      setHubAiUnavailable(false);
       return () => { active = false; };
     }
-    setHubAiLoading(true);
-    setHubAiUnavailable(false);
+    setHubAiReport(null);
     const sourceRevision = healthReportSourceRevision({ scope: "weekly", endDate: recordDate, trendBundle, profile });
     void loadHealthAiReport({ scope: "weekly", endDate: recordDate, locale, sourceRevision })
       .then((report) => {
@@ -770,46 +729,9 @@ export default function RecordsScreen({
       })
       .catch((reportError) => {
         console.warn("Health report overview AI generation deferred", reportError);
-        if (active) setHubAiUnavailable(true);
-      })
-      .finally(() => {
-        if (active) setHubAiLoading(false);
       });
     return () => { active = false; };
   }, [hubAiEligible, locale, profile, recordDate, trendBundle, user.id]);
-
-  useEffect(() => {
-    let active = true;
-    if (activeModule || reportMode !== "modules" || dataLoading || dataLoadError) {
-      setHubCompactPoints({});
-      return () => { active = false; };
-    }
-
-    const presentations = buildHealthModulePresentations(todaySnapshot, locale);
-    const recordedModules = recordModules
-      .map(({ id }) => id)
-      .filter((id) => presentations[id].recorded);
-    setHubCompactPoints({});
-    recordedModules.forEach((module) => {
-      const request = module === "diet"
-        ? loadDietAiReport({ date: recordDate, locale })
-        : loadHealthAiReport({
-            scope: module,
-            endDate: recordDate,
-            locale,
-            sourceRevision: healthReportSourceRevision({ scope: module, endDate: recordDate, trendBundle, profile }),
-          });
-      void request
-        .then((report) => {
-          if (!active || !report.compactBullets) return;
-          setHubCompactPoints((current) => ({ ...current, [module]: report.compactBullets }));
-        })
-        .catch((reportError) => {
-          console.warn(`Compact ${module} AI summary deferred`, reportError);
-        });
-    });
-    return () => { active = false; };
-  }, [activeModule, dataLoadError, dataLoading, locale, profile, recordDate, reportMode, todaySnapshot, trendBundle, user.id]);
 
   useEffect(() => {
     if (reportMode !== "weekly") return;
@@ -1372,7 +1294,7 @@ export default function RecordsScreen({
       && hubAssociation.confidence !== "low"
       && !/(记录不足|无法判断|insufficient|cannot determine)/i.test(`${hubAssociation.headline} ${hubAssociation.explanation}`));
     return (
-      <div className={`record-hub${reportMode === "modules" ? " record-hub--modules" : ""}`} ref={rootRef}>
+      <div className={`record-hub${reportMode === "modules" ? " record-hub--modules record-hub--explorer" : ""}`} ref={rootRef}>
         {weeklyShare && <WeeklySharePreview report={weeklyShare.report} locale={locale} startDate={weeklyShare.startDate} endDate={weeklyShare.endDate} onClose={() => setWeeklyShare(null)} onComplete={() => {
           const sharedOffset = weeklyShare.weekOffset;
           setWeeklyShare(null);
@@ -1385,90 +1307,29 @@ export default function RecordsScreen({
         </div>
 
         {reportMode === "modules" ? <>
-          <label className="record-hub-date">
-            <input
-              aria-label={t("records.date")}
-              type="date"
-              value={recordDate}
-              max={deviceDate}
-              onChange={(event) => setRecordDate(event.target.value)}
-            />
-          </label>
-
           {dataLoadError && (
             <section className="record-hub-load-error" role="alert">
               <span>{dataLoadError}</span>
               <button type="button" onClick={() => void loadRecordData({ refreshBase: true })}>{locale === "zh" ? "重新加载" : "Retry"}</button>
             </section>
           )}
-
-          {hubAiEligible && hubAiLoading && (
-            <section className="record-hub-ai-summary is-loading" aria-busy="true">
-              <SkeletonBlock className="is-circle" />
-              <SkeletonLines count={2} compact />
-            </section>
-          )}
-
-          {hubAiEligible && hubHasSignificantPattern && (
-            <section className="record-hub-ai-summary" aria-live="polite" data-provider={hubAiReport?.provider ?? undefined}>
-              <span aria-hidden="true"><Bot size={17} /></span>
-              <div>
-                <strong>{hubAiReport?.provider === "demo"
-                  ? (locale === "zh" ? "演示节律总提示" : "Demo rhythm overview")
-                  : (locale === "zh" ? "AI 节律总提示" : "AI rhythm overview")}</strong>
-                <p>{hubAssociation?.headline}</p>
-                {hubAiUnavailable && <small>{locale === "zh" ? "稍后重试，不影响查看分项报告。" : "Retry later; module reports remain available."}</small>}
-              </div>
-            </section>
-          )}
-
-          <div className="record-module-grid">
-            {recordModules.map(({ id, labelKey, icon: Icon }) => {
-              const presentation = healthModulePresentations[id];
-              const compactPoints = presentation.recorded ? hubCompactPoints[id] : undefined;
-              const cardPoints = compactPoints ?? presentation.points;
-              const progressLabel = healthModuleProgressLabel(presentation, locale, recordDate === deviceDate ? "today" : "selected-date");
-              const accessibleLabel = `${t(labelKey)}${locale === "zh" ? "，" : ". "}${progressLabel}`;
-              return (
-              <button
-                className={["record-module-entry", dataLoadError ? "is-error" : presentation.completed ? "is-complete" : presentation.recorded ? "is-partial" : "is-missing"].join(" ")}
-                data-record-module={id}
-                data-record-state={dataLoadError ? "error" : presentation.completed ? "complete" : presentation.recorded ? "partial" : "missing"}
-                data-module-progress={presentation.progress}
-                data-summary-source={compactPoints ? "ai-compact" : presentation.recorded ? "record-facts" : "module-dictionary"}
-                key={id}
-                type="button"
-                aria-label={accessibleLabel}
-                onClick={() => {
-                  if (dataLoadError) {
-                    void loadRecordData({ refreshBase: true });
-                    return;
-                  }
-                  setNotice(null);
-                  setError(null);
-                  const openEntry = healthModuleEntryView(presentation) === "editor";
-                  setShowEditor(openEntry);
-                  setActiveModule(id);
-                  onModuleChange?.(id, openEntry ? "editor" : null);
-                }}
-              >
-                <span className="record-module-header">
-                  <strong>{t(labelKey)}</strong>
-                  <span className="record-module-icon" aria-hidden="true">
-                    <ModuleProgressRing progress={presentation.progress} />
-                    <Icon size={25} strokeWidth={1.9} />
-                  </span>
-                </span>
-                <span className="record-module-points" aria-hidden="true">
-                  {(dataLoadError
-                    ? (locale === "zh" ? ["加载失败", "点击重试", "未展示默认数值", "不会把缺失当作零"] : ["Load failed", "Tap to retry", "Defaults are hidden", "Missing is not zero"])
-                    : cardPoints).map((point, index) => <span key={`${index}-${point}`}>{point}</span>)}
-                </span>
-                <ChevronRight className="record-module-arrow" size={20} aria-hidden="true" />
-              </button>
-              );
-            })}
-          </div>
+          <HealthReportExplorer
+            bundle={dataLoadError ? null : trendBundle}
+            date={recordDate}
+            maxDate={deviceDate}
+            locale={locale}
+            onDateChange={setRecordDate}
+            overview={hubAiEligible && hubHasSignificantPattern ? hubAssociation?.headline : undefined}
+            onOpenRecord={(id) => {
+              if (dataLoadError) { void loadRecordData({ refreshBase: true }); return; }
+              setNotice(null);
+              setError(null);
+              const openEntry = healthModuleEntryView(healthModulePresentations[id]) === "editor";
+              setShowEditor(openEntry);
+              setActiveModule(id);
+              onModuleChange?.(id, openEntry ? "editor" : null);
+            }}
+          />
         </> : (
           <div
             className="weekly-health-report"
