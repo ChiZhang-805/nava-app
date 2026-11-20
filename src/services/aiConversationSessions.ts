@@ -62,7 +62,7 @@ export function conversationNeedsDailyRollover(messages: ChatMessage[], currentD
 
 const conversationGreetings = {
   zh: [
-    "嗨，我是小纳，很高兴见到你。昨晚睡得怎么样，想先聊聊吗？",
+    "嗨，我是瓦咪儿，很高兴见到你。昨晚睡得怎么样，想先聊聊吗？",
     "你好呀，今天想先从哪件事开始？吃饭、运动，还是现在的心情？",
     "嗨，我在这儿陪你看看今天的状态。现在最想改善的是精力、专注还是休息？",
     "你好，新的对话开始啦。今天吃得怎么样，有没有一餐想让我帮你一起梳理？",

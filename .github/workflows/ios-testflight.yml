@@ -36,8 +36,16 @@ defaults:
 
 jobs:
   validate:
-    name: iOS simulator keyboard validation
+    name: iOS validation (${{ matrix.device }})
     if: github.event_name == 'push' || inputs.mode == 'validate'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - device: iPhone 15 Pro Max
+            artifact_label: large
+          - device: iPhone SE (3rd generation)
+            artifact_label: compact
     # The Intel iOS 26 simulator stalled while requesting its first screenshot.
     # Use the standard Apple Silicon image for native UI execution.
     runs-on: macos-26
@@ -69,13 +77,15 @@ jobs:
         run: npm run ios:prepare:release
 
       - name: Test the shipped login with the iOS software keyboard
+        env:
+          NAVA_AUTH_TEST_DEVICE: ${{ matrix.device }}
         run: bash scripts/test-ios-auth-keyboard.sh
 
       - name: Preserve native keyboard screenshots and results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nava-auth-keyboard
+          name: nava-auth-keyboard-${{ matrix.artifact_label }}
           path: |
             artifacts/ios-auth-keyboard/preflight-*.png
             artifacts/ios-auth-keyboard/*-screenshots/

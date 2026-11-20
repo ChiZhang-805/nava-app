@@ -1202,7 +1202,7 @@ export default function AIScreen({
     : voiceCallPhase === "thinking"
       ? (locale === "zh" ? "正在理解你的话" : "Understanding what you said")
       : voiceCallPhase === "speaking"
-        ? (locale === "zh" ? "小纳正在回答" : "Nava is speaking")
+        ? (locale === "zh" ? "瓦咪儿正在回答" : "Wamier is speaking")
         : voiceCallPhase === "error"
           ? (locale === "zh" ? "通话暂时中断" : "The call was interrupted")
           : (locale === "zh" ? "正在接通…" : "Connecting…");
@@ -1270,7 +1270,7 @@ export default function AIScreen({
               <div className={["chat-message-row", isUser ? "user" : "assistant"].join(" ")}>
                 {!isUser && (
                   <span className="chat-avatar assistant" aria-hidden="true">
-                    <img src={companionAvatar} alt="" />
+                    <svg viewBox="160 215 1030 845" focusable="false"><image href={companionAvatar} width="1254" height="1254" /></svg>
                   </span>
                 )}
                 <article className={isUser ? "chat-bubble user" : "chat-bubble assistant"}>
@@ -1311,7 +1311,7 @@ export default function AIScreen({
         {streamingPreview && (
           <div className="chat-message-row assistant ai-streaming-row" data-ai-streaming="true" aria-live="polite">
             <span className="chat-avatar assistant" aria-hidden="true">
-              <img src={companionAvatar} alt="" />
+              <svg viewBox="160 215 1030 845" focusable="false"><image href={companionAvatar} width="1254" height="1254" /></svg>
             </span>
             <article className="chat-bubble assistant streaming">
               {streamingPreview.status ? (
@@ -1469,11 +1469,11 @@ export default function AIScreen({
           className={`ai-voice-call phase-${voiceCallPhase}`}
           role="dialog"
           aria-modal="true"
-          aria-label={locale === "zh" ? "和小纳语音聊天" : "Voice chat with Nava"}
+          aria-label={locale === "zh" ? "和瓦咪儿语音聊天" : "Voice chat with Wamier"}
           data-voice-call-phase={voiceCallPhase}
         >
           <div className="ai-voice-call-heading">
-            <span>{locale === "zh" ? "和小纳通话中" : "Nava voice chat"}</span>
+            <span>{locale === "zh" ? "和瓦咪儿通话中" : "Wamier voice chat"}</span>
             <small>{locale === "zh" ? "自动识别说话结束" : "Automatic turn detection"}</small>
           </div>
           <div className="ai-voice-call-stage" aria-live="polite">

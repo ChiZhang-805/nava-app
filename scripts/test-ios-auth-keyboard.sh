@@ -5,7 +5,14 @@ RUNTIME_ID="$(xcrun simctl list runtimes -j | python3 -c 'import json,sys; r=[x 
 mkdir -p artifacts/ios-auth-keyboard
 # Xcode signed the simulator products during build-for-testing. Do not
 # re-sign them here: app entitlements must never be copied onto frameworks.
-for DEVICE in "iPhone 15 Pro Max" "iPhone SE (3rd generation)"; do
+DEVICES=("iPhone 15 Pro Max" "iPhone SE (3rd generation)")
+if [[ -n "${NAVA_AUTH_TEST_DEVICE:-}" ]]; then
+  case "$NAVA_AUTH_TEST_DEVICE" in
+    "iPhone 15 Pro Max"|"iPhone SE (3rd generation)") DEVICES=("$NAVA_AUTH_TEST_DEVICE") ;;
+    *) echo "Unknown auth test device" >&2; exit 1 ;;
+  esac
+fi
+for DEVICE in "${DEVICES[@]}"; do
   TYPE="$(xcrun simctl list devicetypes -j | DEVICE="$DEVICE" python3 -c 'import json,sys,os; print(next(x["identifier"] for x in json.load(sys.stdin)["devicetypes"] if x["name"]==os.environ["DEVICE"]))')"
   ID="$(xcrun simctl create "NAVA Auth Keyboard" "$TYPE" "$RUNTIME_ID")"
   # A connected hardware keyboard suppresses the software keyboard in XCTest.

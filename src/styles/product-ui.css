@@ -15261,8 +15261,8 @@ body::before {
   .option-two-header .option-two-scores { grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr); gap:6px; }
   .option-two-header .option-two-scores > button { padding-inline:6px; gap:4px; }
 }
-.chat-avatar.assistant { position:relative; overflow:hidden; }
-.chat-avatar.assistant img { position:absolute; left:50%; top:50%; width:220%; max-width:none; height:220%; object-fit:contain; transform:translate(-45%,-40%); }
+.chat-avatar.assistant { width:40px; height:40px; flex-basis:40px; border:0; border-radius:0; background:none; box-shadow:none; overflow:visible; }
+.chat-avatar.assistant svg { display:block; width:100%; height:100%; }
 .growth-level-details-toggle { display:grid; place-items:center; width:44px; height:44px; flex:none; border:0; border-radius:16px; background:#ffffff80; color:inherit; }
 .growth-level-details { padding:16px; border:1px solid #fff; border-radius:22px; background:#f2fbffdf; color:#24496b; }
 .growth-level-details h3 { margin:0 0 8px; }

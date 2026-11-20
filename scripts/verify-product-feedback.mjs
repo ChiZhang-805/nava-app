@@ -40,7 +40,7 @@ for(const [engine,type] of Object.entries(process.env.NAVA_LAYOUT_ENGINE==='webk
   await open('tab=today');await page.locator('.option-two-scores > button').nth(1).click();await expect(page).toHaveURL(/view=points-shop/);
   await open('tab=trends');await page.locator('.growth-level-details-toggle').click();await expect(page.locator('#growth-level-details')).toContainText('100 XP');await page.screenshot({path:`${out}/${engine}-${width}-levels.png`});
   await open('tab=today&view=profile-details');await page.locator('.advanced-profile-form > button.secondary-button').click();await expect(page.locator('.advanced-profile-screen')).toHaveCount(0);
-  await open('tab=ai');await expect(page.locator('.chat-avatar.assistant img').first()).toBeVisible();
+  await open('tab=ai');await expect(page.getByText('瓦咪儿',{exact:true}).first()).toBeVisible();await expect(page.locator('.chat-avatar.assistant svg').first()).toBeVisible();
   await open('tab=record&module=focus&view=editor');
   const frame=page.frameLocator('.journal-experience iframe');
   await expect(frame.locator('#screen')).toHaveAttribute('data-scene','entry',{timeout:30000});await expect(frame.locator('#cold-guide')).toBeHidden();

@@ -18,7 +18,9 @@ final class NavaAuthKeyboardTests: XCTestCase {
         // A fresh simulator has no saved permission choice.
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let permission = springboard.alerts.firstMatch
-        if permission.waitForExistence(timeout: 10) {
+        // Photos/TCC starts lazily on clean cloud simulators. Wait for the
+        // actual system permission UI instead of skipping a late prompt.
+        if permission.waitForExistence(timeout: 60) {
             capture("system-photo-permission")
             let allowFullAccess = permission.buttons.matching(NSPredicate(
                 format: "label IN %@",
