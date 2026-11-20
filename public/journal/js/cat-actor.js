@@ -222,28 +222,21 @@ window.CatActor = class {
         ctx.restore();
     }
     /**
-     * 输入：ctx、s（收尾进度）、clock、front（是否前景层）。
+     * 输入：ctx、s（收尾进度）、clock、swing（尾尖摆幅）。
      * 输出：无。
      * 功能：以同一条宽尾巴曲线随身体收拢，安排前后遮挡关系。
      */
-    recordTail(ctx, s, clock, front = false, swing = 0) {
+    recordTail(ctx, s, clock, swing = 0) {
         const p0 = [[127, 381], [65, 358], [8, 397], [33, 413]];
-        const p1 = [[219, 410], [256, 405], [313, 395], [335, 394]];
+        // 睡姿尾根藏在右后腰下，尾尖贴着同一支撑面；不要从胸前横接一条悬空尾巴。
+        const p1 = [[299, 385], [327, 394], [351, 401], [350, 406]];
         const pts = p0.map((p, i) => M.point(p, p1[i], M.smooth(s)));
         pts[2][1] += Math.sin(clock * 1.5 - .5) * (1 - s) * 3;
         pts[3][1] += Math.sin(clock * 1.55 - 1) * (1 - s) * 4;
         // Companion scenes move the tip around its fixed root, including the resting tail.
         pts[2][1] += swing * .45;
         pts[3][1] += swing;
-        if (front) {
-            if (s < .5)
-                return;
-            ctx.save();
-            ctx.globalAlpha *= M.range(s, .5, .85);
-        }
-        this.ribbon(ctx, pts, M.mix(18, 12, s), M.mix(16, 22, s), [[0, '#ffffff00'], [.16, '#ffffff'], [.30, '#e4eaf0'], [.48, '#95b1c6'], [.72, '#335877'], [1, '#082e4b']], { shadow: front });
-        if (front)
-            ctx.restore();
+        this.ribbon(ctx, pts, M.mix(18, 16, s), M.mix(16, 12, s), [[0, '#ffffff'], [.16, '#ffffff'], [.30, '#e4eaf0'], [.48, '#95b1c6'], [.72, '#335877'], [1, '#082e4b']]);
     }
     /**
      * 输入：ctx、pen（笔尖坐标和角度）。
@@ -309,14 +302,15 @@ window.CatActor = class {
         ctx.fill();
         ctx.restore();
         // 阶段一：先画背后的尾巴、承重身体和短前爪，固定卡片上沿的接触位置。
-        this.recordTail(ctx, tailSleep, idle, false, pose.tailSwing || 0);
+        this.recordTail(ctx, tailSleep, idle, pose.tailSwing || 0);
         this.torso(ctx, sleep, idle, shift);
-        const supportRoot = M.point([237, 377], [178, 406], sleep), supportEnd = M.point([233, 405], [166, 410], sleep);
+        // 前爪从颈毛下垂直露出；过短的横向根部会把白色腕部画成半圆缺口。
+        const supportRoot = M.point([237, 377], [165, 388], sleep), supportEnd = M.point([233, 405], [165, 411], sleep);
         ctx.save();
         ctx.beginPath();
         ctx.rect(0, 0, 393, M.mix(490, 414, sleep));
         ctx.clip();
-        this.arm(ctx, supportRoot, supportEnd, { width: M.mix(17, 12, sleep), tip: M.mix(12, 13, sleep), bend: 3 });
+        this.arm(ctx, supportRoot, supportEnd, { width: M.mix(17, 12, sleep), tip: M.mix(12, 13, sleep), bend: 3 * (1 - sleep) });
         ctx.restore();
         const activeRest = M.point([177, 405], [138, 410], sleep);
         const activeEnd = M.point(grip, activeRest, release);
@@ -325,7 +319,7 @@ window.CatActor = class {
         activeEnd[0] += paw * (7 + Math.sin(idle * 2.1) * 4);
         activeEnd[1] -= paw * 22;
         const rootStart = [M.clamp(grip[0] - 24, 85, M.mix(218, 270, M.range(t, 10.8, 13))), 374];
-        const activeRoot = M.point(rootStart, M.point([165, 374], [125, 406], sleep), release);
+        const activeRoot = M.point(rootStart, M.point([165, 374], [138, 388], sleep), release);
         const armOptions = { width: M.mix(23, 18, release) * (1 - sleep * .27), tip: M.mix(15, 13, sleep), bend: -9 * (1 - release) };
         ctx.save();
         ctx.beginPath();
@@ -346,7 +340,7 @@ window.CatActor = class {
         });
         this.face(ctx, false, headSleep, look, idle, pose.mouthTalk || 0);
         ctx.restore();
-        // 阶段三：笔尖保持真实落点，再覆盖握笔爪和收拢后的前景尾巴。
+        // 阶段三：笔尖保持真实落点，再覆盖握笔爪；尾巴只绘制一次，根部由身体自然遮住。
         ctx.save();
         ctx.globalAlpha *= pose.penOpacity ?? 1;
         this.pen(ctx, pen);
@@ -363,7 +357,6 @@ window.CatActor = class {
             // 举爪在脸颊前缘自然露出，根部仍藏在胸毛里，不拉出细长手臂。
             this.arm(ctx, activeRoot, activeEnd, armOptions);
         }
-        this.recordTail(ctx, tailSleep, idle, true, pose.tailSwing || 0);
         if (headSleep > .88) {
             const a = M.range(headSleep, .88, 1);
             ctx.save();

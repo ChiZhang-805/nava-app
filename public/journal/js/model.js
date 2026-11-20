@@ -49,15 +49,18 @@ function validateRecord(raw, strict = true) {
 }
 /**
  * 输入：record（当前记录）。
- * 输出：供动画使用的三行文字。
+ * 输出：供动画使用的非空字段。
  * 功能：距离与项目同行，分钟保留小数；缺失信息不编造。
  */
+function populatedRows(rows) {
+    return rows.filter(row => row.value != null && !["", "—", "未填写备注"].includes(String(row.value).trim()));
+}
 function displayRows(record) {
-    return [
-        { label: "Activity", value: (record.activity || "—") + (record.distanceKm == null ? "" : ` · ${record.distanceKm} km`) },
-        { label: "Time", value: record.durationMinutes == null ? "—" : `${record.durationMinutes} min` },
-        { label: "Notes", value: record.notes || "—" }
-    ];
+    return populatedRows([
+        { label: "Activity", value: [record.activity, record.distanceKm == null ? "" : `${record.distanceKm} km`].filter(Boolean).join(" · ") },
+        { label: "Time", value: record.durationMinutes == null ? "" : `${record.durationMinutes} min` },
+        { label: "Notes", value: record.notes }
+    ]);
 }
 /**
  * 输入：field（字段名），snapshot/current（请求开始与当前的版本映射）。
@@ -99,5 +102,5 @@ function parseDraft(payload) {
     return { record: checked.value, warnings };
 }
 
-return {LIMITS,cleanText,graphemes,decimalNumber,validateRecord,displayRows,mayApplyField,circularPositions,parseDraft};
+return {LIMITS,cleanText,graphemes,decimalNumber,validateRecord,populatedRows,displayRows,mayApplyField,circularPositions,parseDraft};
 })();

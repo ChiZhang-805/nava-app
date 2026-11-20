@@ -1,5 +1,5 @@
 __fluffyModules["animation.js"] = (() => {
-    const { displayRows } = __fluffyModules["model.js"];
+    const { displayRows, populatedRows } = __fluffyModules["model.js"];
     const { makeHandwriting, sampleHandwriting, drawHandwriting } = __fluffyModules["handwriting.js"];
     const M = window.M;
     const Notebook = __fluffyModules["notebook-layout.js"];
@@ -114,9 +114,9 @@ __fluffyModules["animation.js"] = (() => {
         setRecord(record) {
             this.record = record;
             this.celebration?.prepare(record);
-            this.rows = record.displayRows || displayRows(record);
+            this.rows = populatedRows(record.displayRows || displayRows(record));
             // 阶段一：采用自然纸长，不用字号收缩换取“全部塞在三行里”。
-            this.lines = this.rows.map(row => makeHandwriting(String(row.value ?? "—"), PAPER.inkWidth, Infinity));
+            this.lines = this.rows.map(row => makeHandwriting(String(row.value), PAPER.inkWidth, Infinity));
             this.paperLayout = Notebook.createLayout(this.lines);
             this.paperTimeline = Notebook.createTimeline(this.paperLayout, this.lines);
             this.schedule = this.paperTimeline.schedule;
@@ -137,6 +137,13 @@ __fluffyModules["animation.js"] = (() => {
          */
         maximum() {
             return this.scene === "celebrate" ? 7 / HERO_SPEED : this.scene === "record" ? this.duration : 0;
+        }
+        /** 展示完整笔记只推进演出，不保存记录、不跳过确认门闩。 */
+        revealRecord() {
+            if (this.scene !== "record" || this.time >= this.paperReturnEnd) return false;
+            this.time = this.paperReturnEnd;
+            this.render();
+            return true;
         }
         /**
          * 输入：无。
@@ -246,7 +253,7 @@ __fluffyModules["animation.js"] = (() => {
          */
         synchronizeNotebook() {
             if (!this.notebook) return;
-            const reading = this.scene === "record" && this.phase() < 4 && this.time >= this.paperReturnEnd;
+            const reading = this.scene === "record" && this.time >= this.paperReturnEnd;
             if (reading !== this.readingPaper) {
                 // 阶段一：只在书写/阅读边界重置一次，之后每帧保留手动滚动。
                 this.notebook.hidden = !reading;
@@ -532,12 +539,11 @@ __fluffyModules["animation.js"] = (() => {
             }
             else if (this.scene === "record") {
                 // 阶段二：卡片由表单原位置连续展开，猫的原图层也沿同一路径进入写字姿态。
-                if (this.phase() < 4) {
-                    ctx.save();
-                    ctx.globalAlpha = M.range(this.time, .85, 1.8);
-                    this.drawPaper(this.time);
-                    ctx.restore();
-                }
+                // 完成后保留同一份笔记，小猫休息不再让记录跟着消失。
+                ctx.save();
+                ctx.globalAlpha = M.range(this.time, .85, 1.8);
+                this.drawPaper(this.time);
+                ctx.restore();
                 const pose = this.pose(this.time), bridge = this.bridge ? M.range(this.time, 0, 1.55) : 1;
                 pose.lookOverride = bridge < 1 ? M.mix(.08 + this.bridgeAttention * .22, M.clamp((pose.grip[0] - 176) / 110, -1, 1), bridge) : pose.lookOverride;
                 pose.headTilt = (-.072 * this.bridgeAttention + .023 * this.bridgeThinking) * (1 - bridge);

@@ -2169,7 +2169,7 @@ __fluffyModules["app.js"] = (() => {
         $("entry-bubble").style.opacity = entry ? 1 : 1 - M.range(bridge, 0, .55);
         // 阶段二：保留原来的表单到记录卡几何过渡，不替换整屏截图。
         $("green-bg").style.opacity = hero ? 1 : 0;
-        $("record-card").hidden = !entry && (!record || phase >= 4);
+        $("record-card").hidden = !entry && !record;
         const p = entry ? 0 : bridge;
         $("record-card").style.top = `${M.mix(368, 414, p)}px`;
         $("record-card").style.left = `${M.mix(23, 20, p)}px`;
@@ -2408,10 +2408,7 @@ __fluffyModules["app.js"] = (() => {
         });
         $("screen").addEventListener("click", event => {
             if (animation.scene !== "record" || event.target.closest('button,a,input,textarea,select,[role="button"]')) return;
-            if (animation.time < animation.paperReturnEnd) {
-                animation.time = animation.paperReturnEnd;
-                animation.render();
-            }
+            animation.revealRecord();
         });
         $("back").onclick = () => {
             if (animation.scene === "record")
