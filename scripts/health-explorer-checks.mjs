@@ -15,6 +15,7 @@ export async function inspectHealthExplorer(page) {
       documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       frameOverflow: frame.scrollWidth - frame.clientWidth,
       frame: rect(frame), card: rect(card), action: rect(action), nav: rect(nav),
+      headerText: rect(face?.querySelector('h3 > span')), flip: rect(card?.querySelector('.health-explorer-flip')),
       categories: document.querySelectorAll('[data-health-category]').length,
       cardOverflow: face ? face.scrollHeight - face.clientHeight : null,
       textOverflows: face ? [...face.querySelectorAll('h3, p')].filter((node) => node.scrollWidth > node.clientWidth + 1).map((node) => node.textContent) : [],
@@ -27,6 +28,7 @@ export async function inspectHealthExplorer(page) {
   if (geometry.card.left < geometry.frame.left - 1 || geometry.card.right > geometry.frame.right + 1) throw new Error(`Card escapes frame: ${JSON.stringify(geometry)}`);
   if (geometry.nav && geometry.card.bottom > geometry.nav.top - 3) throw new Error(`Card intersects navigation: ${JSON.stringify(geometry)}`);
   if (geometry.nav && geometry.action && geometry.action.bottom > geometry.nav.top - 3) throw new Error(`Entry action intersects navigation: ${JSON.stringify(geometry)}`);
+  if (geometry.headerText && geometry.flip && Math.abs((geometry.headerText.top + geometry.headerText.bottom) / 2 - (geometry.flip.top + geometry.flip.bottom) / 2) > 1.5) throw new Error(`Card title is not aligned with flip control: ${JSON.stringify(geometry)}`);
   for (let index = 1; index < geometry.dateLabels.length; index++) {
     if (geometry.dateLabels[index - 1].right > geometry.dateLabels[index].left - 2) throw new Error(`Chart dates collide: ${JSON.stringify(geometry.dateLabels)}`);
   }

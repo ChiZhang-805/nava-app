@@ -24,7 +24,7 @@ const selectedLocale = process.argv.find(value => value.startsWith('--locale='))
 let currentPage;
 let currentCase;
 try {
-  for (const [engine, launcher] of Object.entries(quick || preview ? { chromium } : { chromium, webkit })) {
+  for (const [engine, launcher] of Object.entries(quick || preview ? (selectedEngine === 'webkit' ? { webkit } : { chromium }) : { chromium, webkit })) {
     if (selectedEngine && selectedEngine !== engine) continue;
     const browser = await launcher.launch();
     try {

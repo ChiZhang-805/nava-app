@@ -34,11 +34,11 @@ function FlipCard({ id, title, kind = "chart", locale, active, flipped, onFlip, 
     <button type="button" className="health-explorer-flip" aria-label={flipped ? (locale === "zh" ? "回到正面" : "Back to front") : (locale === "zh" ? "查看明细" : "View details")} aria-pressed={flipped} disabled={!active} onClick={(event) => { event.stopPropagation(); onFlip(); }}><RotateCw size={21} /></button>
     <div className="health-explorer-card-turn">
       <div className="health-explorer-front" aria-hidden={!active || flipped} ref={(node) => { if (node) node.inert = !active || flipped; }}>
-        <h3>{title}</h3>
+        <h3><span>{title}</span></h3>
         {front}
       </div>
       <div className="health-explorer-back" aria-hidden={!active || !flipped} ref={(node) => { if (node) node.inert = !active || !flipped; }}>
-        <h3>{title}</h3>
+        <h3><span>{title}</span></h3>
         <div className="health-explorer-details">{details}</div>
         {onOpenRecord && <button type="button" className="health-explorer-record" onClick={onOpenRecord}>{locale === "zh" ? "查看 / 补充记录" : "View / add entries"}<ChevronRight size={17} /></button>}
       </div>
