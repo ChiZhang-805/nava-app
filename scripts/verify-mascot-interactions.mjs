@@ -29,15 +29,16 @@ try {
     };
   });
   const cat = page.locator(".option-two-life-stage .nava-mascot");
+  const hit = cat.locator(".nava-mascot-hit-target");
   for (let n = 0; n < 10 && await cat.getAttribute("data-next-motion") !== "fluff"; n++) {
-    await cat.click(); await expect(cat).toHaveAttribute("data-player-phase", "idle", { timeout: 30000 });
+    await hit.click(); await expect(cat).toHaveAttribute("data-player-phase", "idle", { timeout: 30000 });
   }
   await expect(cat).toHaveAttribute("data-next-motion", "fluff");
-  await cat.click(); await expect(cat).toHaveAttribute("data-player-phase", "waiting", { timeout: 15000 });
+  await hit.click(); await expect(cat).toHaveAttribute("data-player-phase", "waiting", { timeout: 15000 });
   await page.screenshot({ path: `${output}/groom-waiting.png` });
   const positions = [];
   for (let n = 0; n < 3; n++) {
-    const box = await cat.boundingBox(); assert.ok(box);
+    const box = await hit.boundingBox(); assert.ok(box);
     const x = box.x + box.width * .45, y = box.y + box.height * .5;
     await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 42, y + 6, { steps: 5 }); await page.mouse.up();
     if (n < 2) await expect(cat).toHaveAttribute("data-player-phase", "waiting", { timeout: 15000 });
@@ -45,12 +46,12 @@ try {
     positions.push(await cat.locator("canvas").getAttribute("data-clip"));
   }
   await expect(cat).toHaveAttribute("data-next-motion", "fish");
-  await cat.click();
+  await hit.click();
   await expect(cat.locator("canvas")).toHaveAttribute("data-clip", /home-fish-2/, { timeout: 15000 });
   await page.waitForTimeout(3000);
   await expect(cat.locator("canvas")).toHaveAttribute("data-clip", /home-fish-2/);
   await page.screenshot({ path: `${output}/fish-loop.png` });
-  await cat.click(); await expect(cat).toHaveAttribute("data-player-phase", "idle", { timeout: 15000 });
+  await hit.click(); await expect(cat).toHaveAttribute("data-player-phase", "idle", { timeout: 15000 });
   await writeFile(`${output}/result.json`, JSON.stringify({ passed: true, realPointerStrokes: 3, fishLoopUntilTap: true, timingAccelerated: true, positions }, null, 2));
   console.log("PASS three pointer strokes and fish loop/tap through real React handlers");
 } finally { await browser.close(); await server.close(); }

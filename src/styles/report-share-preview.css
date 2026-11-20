@@ -1,4 +1,4 @@
-.report-share-overlay { position: absolute; inset: 0; z-index: 240; background: #244e6270; padding: max(70px, calc(var(--nava-system-safe-top, 0px) + 10px), calc(env(safe-area-inset-top) + 12px)) 14px max(28px, calc(env(safe-area-inset-bottom) + 12px)); display: flex; color: #14394d; }
+.report-share-overlay { position: absolute; inset: 0; z-index: 240; background: transparent; padding: max(70px, calc(var(--nava-system-safe-top, 0px) + 10px), calc(env(safe-area-inset-top) + 12px)) 14px max(28px, calc(env(safe-area-inset-bottom) + 12px)); display: flex; color: #14394d; }
 .report-share-sheet { display: flex; flex-direction: column; width: 100%; min-width: 0; min-height: 0; background: #effaff; border: 1px solid #fff; border-radius: 24px; overflow: hidden; box-shadow: 0 16px 44px #164a6433; }
 .report-share-sheet header { display: flex; align-items: center; gap: 12px; padding: 12px 14px 6px; flex-shrink: 0; }
 .report-share-sheet h2 { flex: 1; font-size: 18px; margin: 0; line-height: 1.4; }

@@ -16,7 +16,7 @@
   display: grid; place-items: center; color: #0b7199; background: transparent; box-shadow: none;
 }
 .phone-frame .nava-more-menu > .app-utility-popover {
-  top: calc(100% + 8px); right: 0; width: 204px; min-width: 0; max-width: calc(100vw - 32px);
+  top: calc(100% + 8px); right: 0; width: max-content; min-width: 244px; max-width: min(320px, calc(100vw - 36px));
   max-height: min(560px, calc(100dvh - 180px)); overflow-y: auto; overscroll-behavior: contain;
   display: flex; flex-direction: column; gap: 1px; padding: 6px;
   border: 1px solid rgba(255,255,255,.94); border-radius: 16px;
@@ -28,7 +28,7 @@
   display: flex; align-items: center; justify-content: flex-start; gap: 8px;
   border: 0; border-radius: 10px; background: transparent; box-shadow: none;
   color: inherit; font: inherit; font-size: 16px; font-weight: 650; line-height: 1.35;
-  white-space: normal; overflow-wrap: anywhere; text-align: left;
+  white-space: normal; overflow-wrap: normal; word-break: normal; text-align: left;
 }
 .phone-frame .nava-more-menu .app-utility-popover > button > svg { width: 19px; height: 19px; flex: 0 0 19px; }
 .phone-frame .nava-more-menu .app-utility-popover > button:hover,
@@ -37,6 +37,8 @@
 .nava-more-menu .more-menu-divider { height: 1px; flex: 0 0 1px; margin: 3px 8px; background: #dcebf1; }
 .nava-more-menu .app-utility-popover > .more-menu-divider:first-child { display: none; }
 .nava-more-menu :is(.more-menu-language, .more-menu-skin) small { margin-left: auto; color: #5e7e8d; font-size: 13px; font-weight: 550; }
+.nava-more-menu :is(.more-menu-language, .more-menu-skin) > :is(span, small),
+.nava-more-menu .more-menu-choice { flex-shrink: 0; white-space: nowrap; }
 .nava-more-menu .more-menu-check { margin-left: auto; color: #0b809f; }
 .nava-more-menu .more-menu-choice { padding-left: 25px; }
 .nava-more-menu button:focus-visible { outline: 2px solid #167da4; outline-offset: -2px; }

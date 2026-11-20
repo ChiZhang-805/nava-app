@@ -665,7 +665,8 @@ function MobileShell({
   const focusImmersive = activeTab === "record" && recordModule === "focus" && (recordView === "immersive" || recordView === "interruption");
   const profileSubpage = activeTab === "profile" && Boolean(recordView);
   const profileDetailsSubpage = activeTab === "today" && recordView === "profile-details";
-  const todayFullSubpage = activeTab === "today" && (profileDetailsSubpage || recordView === "home-widgets" || recordView === "admin-console" || recordView === "getting-started");
+  // Root tabs own the dock. Pushed pages already have Back/Home navigation.
+  const todayFullSubpage = activeTab === "today" && Boolean(recordView);
   const journalOpen = activeTab === "record" && Boolean(recordModule);
   const hideBottomNavigation = activeTab === "ai" || focusImmersive || todayFullSubpage || journalOpen || profileSubpage;
   const integratedPage = integratedShellPage(activeTab, recordModule, recordView);
@@ -892,6 +893,7 @@ function MobileShell({
                 <img
                   className={`figma-nav-icon figma-nav-icon--${tab.id}`}
                   src={tab.icon}
+                  draggable={false}
                   alt=""
                   aria-hidden="true"
                 />

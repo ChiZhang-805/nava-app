@@ -7,6 +7,19 @@ html {
   text-size-adjust: 100%;
 }
 
+/* Copy is an explicit app action. Native selection remains for editing only. */
+body,
+body * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+body :is(input, textarea, [contenteditable="true"], [contenteditable="true"] *) {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
 @media (max-width: 700px) {
   .nava-app-stage :is(
     textarea,
@@ -61,21 +74,34 @@ html[data-auth-viewport="true"] .auth-screen .auth-brand,
 html[data-auth-viewport="true"] .auth-screen .auth-brand .nava-wordmark {
   animation: none;
 }
+/* Keyboard content has one vertical reading order, including an always-reserved
+   feedback line. Density follows remaining space, never the presence of errors. */
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen {
+  --auth-header-control: clamp(28px, calc((var(--nava-visible-height) - 278px) * .2 + 28px), 44px);
   display: grid;
-  grid-template-rows: clamp(76px, calc((var(--nava-visible-height) - 278px) * 0.4 + 76px), 180px) minmax(0, 1fr);
-  /* The image keeps its full-screen dimensions. Only content ends above IME. */
+  grid-template-rows: clamp(66px, calc((var(--nava-visible-height) - env(safe-area-inset-top) - 278px) * .23 + 66px), 114px) minmax(0, 1fr);
   height: var(--auth-canvas-height, 100dvh);
   padding-top: max(8px, env(safe-area-inset-top));
-  padding-bottom: max(8px, calc(var(--auth-canvas-height, 100dvh) - var(--nava-visible-height) + 8px));
+  padding-bottom: max(4px, calc(var(--auth-canvas-height, 100dvh) - var(--nava-visible-height) + 4px));
   overflow: hidden;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand {
   min-height: 0;
-  padding: 44px 0 0;
+  padding: calc(var(--auth-header-control) + 4px) 0 0;
   margin: 0;
   animation: none;
   justify-content: center;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand .nava-wordmark {
+  --wordmark-size: clamp(28px, calc((var(--nava-visible-height) - 278px) * .07 + 28px), 44px);
+  min-height: 0;
+  animation: none;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-locale {
+  top: max(8px, env(safe-area-inset-top));
+  min-height: var(--auth-header-control);
+  height: var(--auth-header-control);
+  padding-block: 0;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form-region {
   display: flex;
@@ -85,38 +111,52 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-fo
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scroll-padding-block: 8px;
-  padding: 4px 0 4px;
+  scroll-padding-block: 4px;
+  padding: 0;
   container-type: size;
   container-name: auth-form-space;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form {
   flex: none;
   height: auto;
+  min-height: 100%;
 }
-html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand .nava-wordmark {
-  --wordmark-size: clamp(20px, calc(var(--nava-visible-height) * 0.08 - 4px), 28px);
-  min-height: 0;
-  animation: none;
+html[data-keyboard-open="true"] .auth-consent.auth-consent--screen { display: none; }
+.auth-screen .auth-form .auth-feedback-slot,
+.auth-screen .auth-form .auth-feedback-slot:empty {
+  display: block;
+  min-height: 20px;
+  margin: 2px 0;
 }
-html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-locale {
-  top: max(8px, env(safe-area-inset-top));
-  min-height: 44px;
-  height: 44px;
-  padding-block: 4px;
-}
-/* Labels remain visible in every keyboard density. */
-html[data-keyboard-open="true"] .auth-form--signIn .field {
-  position: relative;
-  margin-bottom: 0;
-}
-html[data-keyboard-open="true"] .auth-form--signIn .auth-field-heading {
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) {
+  --auth-control: 44px;
+  --auth-label: 18px;
+  --auth-label-gap: 3px;
+  --auth-field-gap: 10px;
+  --auth-section-gap: 8px;
+  --auth-link-height: 32px;
+  --auth-message: 20px;
+  --auth-message-margin: 2px;
+  --auth-divider: 14px;
   display: flex;
-  min-height: 18px;
-  height: 18px;
-  margin: 0 3px 4px;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  min-height: 0;
+  margin-top: auto;
 }
-html[data-keyboard-open="true"] .auth-form--signIn .field-label {
+html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-fields {
+  display: grid;
+  gap: var(--auth-field-gap);
+}
+html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .field { position: relative; margin: 0; }
+html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-field-heading {
+  display: flex;
+  min-height: var(--auth-label);
+  height: var(--auth-label);
+  margin: 0 3px var(--auth-label-gap);
+}
+html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .field-label {
   position: static;
   width: auto;
   height: auto;
@@ -124,77 +164,78 @@ html[data-keyboard-open="true"] .auth-form--signIn .field-label {
   clip-path: none;
   margin: 0;
   font-size: 12px;
-  line-height: 18px;
+  line-height: var(--auth-label);
 }
-html[data-keyboard-open="true"] .auth-form--signIn .input-wrap,
-html[data-keyboard-open="true"] .auth-form--signIn .auth-submit {
-  min-height: 44px;
+html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) :is(.input-wrap, .auth-submit, .auth-social-button) {
+  min-height: var(--auth-control);
+  height: var(--auth-control);
 }
-html[data-keyboard-open="true"] .auth-form--signIn .input-wrap input {
-  min-height: 42px;
-}
-html[data-keyboard-open="true"] .auth-form--signIn .auth-forgot {
+html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .input-wrap input { min-height: calc(var(--auth-control) - 2px); }
+html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-input-icon-button { height: calc(var(--auth-control) - 2px); }
+html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-forgot {
   position: absolute;
   right: 48px;
-  top: 22px;
+  top: calc(var(--auth-label) + var(--auth-label-gap));
   z-index: 1;
-  min-height: 44px;
+  min-height: var(--auth-control);
   font-size: 11px;
 }
-html[data-keyboard-open="true"] .auth-form--signIn #nava-auth-password {
-  padding-right: 64px;
+html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) #nava-auth-password { padding-right: 64px; }
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) .auth-feedback-slot {
+  flex: none;
+  min-height: var(--auth-message);
+  height: var(--auth-message);
+  margin: var(--auth-message-margin) 0;
 }
-html[data-keyboard-open="true"] .auth-consent.auth-consent--screen {
-  display: none;
-}
-/* Keep every login route reachable while the software keyboard is open. */
-html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form {
-  min-height: 100%;
-}
-html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-content: start;
-  gap: 12px;
+html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-feedback-slot :is(p, span) {
+  min-width: 0;
   min-height: 0;
-  margin-top: auto;
-}
-html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) .auth-fields {
-  display: contents;
-}
-html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) .field {
   margin: 0;
-}
-html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-feedback-slot:empty {
-  display: none;
-}
-html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social {
-  display: block;
-  margin: 0;
-  padding: 0;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: var(--auth-message);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-secondary-links {
   display: flex;
-  min-height: 44px;
+  min-height: var(--auth-link-height, 32px);
+  height: var(--auth-link-height, 32px);
+  margin: var(--auth-section-gap, 8px) 0 0;
+}
+html[data-keyboard-open="true"] .auth-secondary-links > button {
+  min-height: var(--auth-link-height, 32px);
+  font-size: 12px;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social {
+  display: block;
+  margin: var(--auth-section-gap) 0 0;
+  padding: 0;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social-divider {
-  display: none;
+  display: grid;
+  min-height: var(--auth-divider);
+  height: var(--auth-divider);
+  font-size: 10px;
+  line-height: var(--auth-divider);
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social-options {
   gap: 8px;
-  margin: 0;
+  margin: var(--auth-section-gap) 0 0;
   padding: 0;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social-button {
   flex-direction: row;
   justify-content: center;
-  min-height: 44px;
   gap: 6px;
+  padding: 0;
   border-radius: 14px;
   background: rgba(252, 254, 255, 0.88);
   color: #102e41;
   text-shadow: none;
-  font-size: 12px;
+  font-size: 14px;
+  white-space: nowrap;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social-icon {
   width: 24px;
@@ -206,54 +247,35 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-so
 }
 @container auth-form-space (max-height: 310px) {
   html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) {
-    grid-template-columns: minmax(100px, 1.3fr) repeat(2, minmax(0, 1fr));
-    column-gap: 6px;
-  }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .field,
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-social {
-    grid-column: 1 / -1;
-  }
-  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-secondary-links {
-    display: contents;
-  }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-submit {
-    padding: 0 6px;
-    font-size: 12px;
-  }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-submit svg {
-    display: none;
-  }
-  html[data-keyboard-open="true"] .auth-secondary-links > button {
-    justify-content: center;
-    font-size: 11px;
+    --auth-control: 36px;
+    --auth-label: 16px;
+    --auth-label-gap: 2px;
+    --auth-field-gap: 8px;
+    --auth-section-gap: 6px;
+    --auth-link-height: 28px;
+    --auth-message: 18px;
+    --auth-divider: 12px;
   }
 }
-/* Compact heights combine the three text actions; never hide field labels. */
-@container auth-form-space (max-height: 250px) {
-  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) { row-gap: 8px; }
-  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) :is(.input-wrap, .auth-submit, .auth-social-button, .auth-secondary-links > button, .auth-forgot) { min-height: 40px; }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .input-wrap input { min-height: 38px; }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-input-icon-button { height: 38px; }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-field-heading { min-height: 16px; height: 16px; }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .field-label { line-height: 16px; }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-forgot { top: 20px; }
+@container auth-form-space (max-height: 275px) {
+  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) {
+    --auth-control: 32px;
+    --auth-label: 14px;
+    --auth-section-gap: 4px;
+    --auth-message: 16px;
+  }
 }
 @container auth-form-space (max-height: 215px) {
-  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) { row-gap: 7px; }
-  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) :is(.input-wrap, .auth-submit, .auth-social-button, .auth-secondary-links > button, .auth-forgot) { min-height: 36px; }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .input-wrap input { min-height: 34px; }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-input-icon-button { height: 34px; }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-field-heading { min-height: 14px; height: 14px; margin-bottom: 3px; }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .field-label { line-height: 14px; }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-forgot { top: 17px; }
-}
-@container auth-form-space (max-height: 185px) {
-  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) { row-gap: 6px; }
-  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) :is(.input-wrap, .auth-submit, .auth-social-button, .auth-secondary-links > button, .auth-forgot) { min-height: 32px; }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .input-wrap input { min-height: 30px; }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-input-icon-button { height: 30px; }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-field-heading { margin-bottom: 2px; }
-  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-forgot { top: 16px; }
+  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) {
+    --auth-control: 28px;
+    --auth-label-gap: 0px;
+    --auth-field-gap: 4px;
+    --auth-section-gap: 1px;
+    --auth-link-height: 24px;
+    --auth-message: 14px;
+    --auth-message-margin: 0px;
+  }
+  html[data-keyboard-open="true"] .auth-form--signIn:has(.auth-social) .auth-submit > svg { width: 22px; height: 22px; }
 }
 html[data-keyboard-open="true"] .phone-frame .profile-security-sheet {
   max-height: 100%;

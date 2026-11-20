@@ -108,7 +108,7 @@
 .admin-console-centered small { max-width:280px; overflow-wrap:anywhere; }
 .admin-console-centered button { min-height:44px; border:0; border-radius:14px; padding:0 20px; color:#fff; background:#278da1; }
 
-.admin-role-confirm-layer { position:absolute; z-index:80; inset:0; display:flex; justify-content:center; background:rgba(14,45,58,.34); backdrop-filter:blur(6px); }
+.admin-role-confirm-layer { position:absolute; z-index:80; inset:0; display:flex; justify-content:center; background:transparent; }
 .admin-role-confirm-layer { align-items:center; padding:18px; }
 .admin-role-confirm { width:min(100%,330px); display:grid; justify-items:center; gap:10px; border:1px solid rgba(255,255,255,.9); border-radius:24px; padding:22px 18px 16px; color:#173f50; background:#f2fbfc; box-shadow:0 20px 50px rgba(12,65,82,.24); text-align:center; }
 .admin-role-confirm > span { width:52px; height:52px; border-radius:18px; display:grid; place-items:center; }
@@ -143,7 +143,7 @@
 .admin-gallery-navigation button { width:44px; height:44px; display:grid; place-items:center; border:0; border-radius:14px; background:rgba(255,255,255,.8); color:#24768a; }
 .admin-gallery-navigation button:disabled { opacity:.3; }
 .admin-confirm-dialog { box-sizing:border-box; width:min(340px,calc(100% - 36px)); max-height:calc(100% - 48px); border:1px solid white; border-radius:24px; padding:24px; color:#19495b; background:#f2fbfc; box-shadow:0 20px 50px #0c41523d; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
-.admin-confirm-dialog::backdrop { background:#0e2d3a66; backdrop-filter:blur(5px); }
+.admin-confirm-dialog::backdrop { background:transparent; }
 .admin-confirm-dialog h2 { margin:0 0 12px; font-size:21px; }
 .admin-confirm-dialog p { font-size:16px; line-height:1.6; }
 .admin-confirm-dialog > div { display:flex; gap:10px; }

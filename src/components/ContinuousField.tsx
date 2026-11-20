@@ -15,7 +15,8 @@ export default function ContinuousField({ children, className }: { children: Rea
       if (width <= 2 || height <= 2 || key === previous) return;
       previous = key;
       setGeometry({ width, height, path: getSvgPath({
-        width: width - 2, height: height - 2, cornerRadius: 16,
+        // Reserve a visible vertical side even in the compact keyboard layout.
+        width: width - 2, height: height - 2, cornerRadius: Math.min(14, (height - 2) * 0.22),
         cornerSmoothing: 0.6, preserveSmoothing: true,
       }) });
     };

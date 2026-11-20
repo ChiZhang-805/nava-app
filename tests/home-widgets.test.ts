@@ -15,6 +15,18 @@ import {
 import type { FaceRecord, TodaySnapshot, TrendBundle } from "../src/types.ts";
 import { previousComparableFace, sameModeFaces } from "../src/services/faceComparison.ts";
 
+test("journal cards use short genuine text or a record indicator without changing entries", () => {
+  const journal = [
+    { id: "face", category: "face" as const, recordDate: "2026-09-05", createdAt: "2026-09-05T08:00:00Z", data: { feeling: "有点疲惫" } },
+    { id: "food", category: "food" as const, recordDate: "2026-09-05", createdAt: "2026-09-05T08:00:00Z", data: { foods: "米饭、青菜、豆腐，还有一碗汤" } },
+  ];
+  const original = structuredClone(journal);
+  assert.equal(buildHomeWidgetPresentation("face", { ...snapshot, journal }, "zh").core, "有点疲惫");
+  assert.equal(buildHomeWidgetPresentation("diet", { ...snapshot, journal }, "zh").core, "已记录");
+  assert.equal(buildHomeWidgetPresentation("diet", { ...snapshot, journal }, "en").core, "Logged");
+  assert.deepEqual(journal, original);
+});
+
 const snapshot: TodaySnapshot = {
   date: "2026-09-05",
   mood: null,

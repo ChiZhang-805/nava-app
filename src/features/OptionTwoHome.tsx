@@ -622,7 +622,7 @@ export default function OptionTwoHome({
                   style={widgetDrag?.id === id ? { "--home-widget-drag-x": `${widgetDrag.deltaX}px`, "--home-widget-drag-y": `${widgetDrag.deltaY}px` } as CSSProperties : undefined}
                 >
                   <span><Icon size={26} /><b>{label}</b></span>
-                  <div className="home-widget-value"><strong>{presentation?.core ?? "--"}</strong><small>{presentation?.support ?? (locale === "zh" ? "加载中" : "Loading")}</small></div>
+                  <div className="home-widget-value" data-value-kind={presentation?.valueKind}><strong>{presentation?.core ?? "--"}</strong><small>{presentation?.support ?? (locale === "zh" ? "加载中" : "Loading")}</small></div>
                 </button>;
             })}
           </>}

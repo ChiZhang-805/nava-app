@@ -83,6 +83,20 @@ final class NavaAuthKeyboardTests: XCTestCase {
             assertAboveKeyboard(account, logo: logo, app: app)
 
             if mode == "login" {
+                // Exercise a real feedback state, then reopen the actual iOS
+                // keyboard. An empty feedback slot missed the previous grid bug.
+                web.buttons["微信"].firstMatch.tap()
+                let feedback = web.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "尚未完成服务配置")).firstMatch
+                XCTAssertTrue(feedback.waitForExistence(timeout: 10), app.debugDescription)
+                account.tap()
+                XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
+                assertAboveKeyboard(account, logo: logo, app: app)
+                let password = web.secureTextFields.firstMatch
+                let submit = web.buttons["进入 NAVA"].firstMatch
+                XCTAssertGreaterThanOrEqual(feedback.frame.minY, password.frame.maxY)
+                XCTAssertLessThanOrEqual(feedback.frame.maxY, submit.frame.minY + 1)
+                XCTAssertEqual(submit.frame.width, account.frame.width, accuracy: 4)
+                capture("login-feedback-keyboard")
                 for name in ["微信", "Apple", "QQ", "验证码登录", "创建账号"] {
                     XCTAssertTrue(web.buttons[name].firstMatch.exists, "Missing login route: \(name)")
                     XCTAssertTrue(web.buttons[name].firstMatch.isHittable, "Login route requires scrolling: \(name)")
@@ -103,7 +117,8 @@ final class NavaAuthKeyboardTests: XCTestCase {
             let fields = web.descendants(matching: .any).matching(NSPredicate(format: "elementType == %d OR elementType == %d", XCUIElement.ElementType.textField.rawValue, XCUIElement.ElementType.secureTextField.rawValue))
             for index in 1..<fields.count {
                 let field = fields.element(boundBy: index)
-                for _ in 0..<4 where !field.isHittable || field.frame.maxY > keyboardTop(in: app) {
+                if mode == "login" { XCTAssertTrue(field.isHittable, "Login must never require scrolling") }
+                for _ in 0..<(mode == "login" ? 0 : 4) where !field.isHittable || field.frame.maxY > keyboardTop(in: app) {
                     let start = web.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0))
                         .withOffset(CGVector(dx: 0, dy: keyboardTop(in: app) - 20))
                     start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -100)))

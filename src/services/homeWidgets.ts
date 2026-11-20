@@ -13,6 +13,7 @@ export type HomeWidgetPresentation = {
   core: string;
   support: string;
   state: "ready" | "missing" | "attention";
+  valueKind?: "text";
 };
 
 export const homeWidgetIds: HomeWidgetId[] = ["mood", "sleep", "exercise", "diet", "face", "focus"];
@@ -237,6 +238,14 @@ export function buildHomeWidgetPresentation(id: HomeWidgetId, snapshot: TodaySna
     if(id==='exercise')core=`${entries.reduce((n,r)=>n+Number(r.data.durationMinutes??0),0)}m`;
     if(id==='focus')core=`${Math.round(entries.reduce((n,r)=>n+Number(r.focus?.elapsedMs??0)/60000,0))}m`;
     if(id==='diet')core=String(latest.foods??'');
+    if (id === 'mood' || id === 'face' || id === 'diet') {
+      // The card is a record indicator, not a second journal editor. Keep short
+      // descriptions verbatim; the original entry stays intact in its detail.
+      const short = core.replace(/\s+/gu, ' ').trim();
+      const units = [...short].reduce((n, char) => n + (char.codePointAt(0)! > 255 ? 2 : 1), 0);
+      return { id, core: short && units <= 8 ? short : (zh ? "已记录" : "Logged"),
+        support: zh ? `${entries.length} 条记录` : `${entries.length} entries`, state: "ready", valueKind: "text" };
+    }
     if(core)return {id,core,support:zh?`${entries.length} 条记录`:`${entries.length} entries`,state:'ready'};
   }
   if (id === "sleep") {

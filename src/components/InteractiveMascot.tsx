@@ -82,8 +82,24 @@ export default function InteractiveMascot({ locale, preferredMotion, positiveMoo
   const nextLabel = nextAction.label[locale];
   const activeLabel = motion?.label[locale];
   return (
-    <button
+    <div
       className={["nava-mascot", motion ? `nava-mascot--${motion.id}` : "nava-mascot--idle"].join(" ")}
+      data-mascot-motion={motion?.id ?? "idle"}
+      data-next-motion={nextAction.id}
+      data-context-motion={preferredMotion ?? "sequence"}
+      data-motion-run={run}
+      data-motion-visual="persistent-mascot-player"
+      data-player-phase={state.phase}
+      data-action-queued={state.queued}
+      data-time-phase={mascotTimePhase(new Date().getHours())}
+      data-interaction={motion?.interaction ?? "tap"}
+    >
+      <span className="visually-hidden">{locale === "zh" ? "点击小猫播放下一个动作" : "Tap the cat for its next action"}</span>
+      <canvas ref={canvas} width={640} height={480} aria-hidden="true"
+        className="nava-mascot-pose nava-mascot-pose--idle nava-mascot-canvas" />
+      <img className="nava-mascot-fallback" src={lifeFigure} alt="" aria-hidden="true" draggable={false} />
+      <button
+        className="nava-mascot-hit-target"
       type="button"
       onClick={playNext}
       onPointerDown={(event) => {
@@ -108,20 +124,7 @@ export default function InteractiveMascot({ locale, preferredMotion, positiveMoo
         ? (locale === "zh" ? "小猫正在摸鱼，点击叫醒它" : "The cat is playing with its fish. Tap to wake it") : motion
         ? (locale === "zh" ? `小猫正在${activeLabel}${state.queued ? "，下个动作已排队" : "，点击安排下个动作"}` : `The cat is ${activeLabel}${state.queued ? "; next action queued" : "; tap for its next action"}`)
         : (locale === "zh" ? `点击小猫，让它${nextLabel}` : `Tap the NAVA cat to ${nextLabel}`)}
-      data-mascot-motion={motion?.id ?? "idle"}
-      data-next-motion={nextAction.id}
-      data-context-motion={preferredMotion ?? "sequence"}
-      data-motion-run={run}
-      data-motion-visual="persistent-mascot-player"
-      data-player-phase={state.phase}
-      data-action-queued={state.queued}
-      data-time-phase={mascotTimePhase(new Date().getHours())}
-      data-interaction={motion?.interaction ?? "tap"}
-    >
-      <span className="visually-hidden">{locale === "zh" ? "点击小猫播放下一个动作" : "Tap the cat for its next action"}</span>
-      <canvas ref={canvas} width={640} height={480} aria-hidden="true"
-        className="nava-mascot-pose nava-mascot-pose--idle nava-mascot-canvas" />
-      <img className="nava-mascot-fallback" src={lifeFigure} alt="" aria-hidden="true" draggable={false} />
-    </button>
+      />
+    </div>
   );
 }

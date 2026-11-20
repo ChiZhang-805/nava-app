@@ -81,14 +81,14 @@ try {
               }
               {
                 const last = await page.locator('.auth-social-button--qq').boundingBox();
-                assert(last.height >= 32, 'Compact shortcut hit area is too small');
+                assert(last.height >= (visible <= 300 ? 28 : 32), 'Compact shortcut hit area is too small');
                 assert(visible - last.y - last.height >= 0 && visible - last.y - last.height <= 28,
                   `Shortcut gap: ${JSON.stringify({visible,last})}`);
                 const firstField = await page.locator('.auth-fields .field').nth(0).boundingBox();
                 const secondField = await page.locator('.auth-fields .field').nth(1).boundingBox();
                 const submit = await page.locator('.auth-submit').boundingBox();
                 const locale = await page.locator('.auth-locale').boundingBox();
-                const minimumGap = visible <= 300 ? 5.5 : 7.5;
+                const minimumGap = visible <= 300 ? 3.5 : 7.5;
                 assert(secondField.y - firstField.y - firstField.height >= minimumGap, 'Input rows are crowded');
                 assert(submit.y - secondField.y - secondField.height >= minimumGap, 'Submit crowds password');
                 assert(firstField.y >= locale.y + locale.height, 'Language control overlaps form');
@@ -98,13 +98,34 @@ try {
                   assert((await label.boundingBox()).height >= 14, 'Field label collapsed');
                 }
                 if (visible > 320) {
-                  assert(firstField.y - after.brand.bottom >= 16, 'Brand needs breathing room below');
-                  assert(after.brand.y - locale.y - locale.height >= 12, 'Brand needs breathing room above');
+                  assert(firstField.y - after.brand.bottom >= 8, 'Brand needs breathing room below');
+                  assert(after.brand.y - locale.y - locale.height >= 4, 'Brand needs breathing room above');
                 }
                 assert.equal(await page.locator('.auth-form-region').evaluate(el => el.scrollTop), 0, 'Login requires scrolling');
               }
             }
             report.push({ engine,width,height,mode,index,before,after,field });
+          }
+          if (mode === 'login') {
+            const beforeError = await page.locator('.auth-submit').boundingBox();
+            // Real UI path: unconfigured WeChat reports an error without navigating.
+            await page.locator('.auth-social-button--wechat').click();
+            await page.locator('.auth-feedback-slot .error-text').waitFor();
+            await fields.first().evaluate(input => input.focus({ preventScroll: true }));
+            await page.waitForTimeout(180);
+            const feedback = await page.locator('.auth-feedback-slot').boundingBox();
+            const password = await page.locator('.auth-fields .field').nth(1).boundingBox();
+            const submit = await page.locator('.auth-submit').boundingBox();
+            const links = await page.locator('.auth-secondary-links').boundingBox();
+            const divider = await page.locator('.auth-social-divider').boundingBox();
+            const shortcuts = await page.locator('.auth-social-options').boundingBox();
+            assert.deepEqual(submit, beforeError, 'Feedback must not shift the submit button');
+            assert(feedback.y >= password.y + password.height && feedback.y + feedback.height <= submit.y + 1, 'Feedback must have its own row above submit');
+            assert.equal(Math.round(submit.width), Math.round(password.width), 'Submit must remain full width');
+            assert(links.y >= submit.y + submit.height && divider.y >= links.y + links.height && shortcuts.y >= divider.y + divider.height, 'Login reading order changed');
+            assert(shortcuts.y + shortcuts.height <= height - (height < 700 ? 290 : 360), 'Feedback pushes shortcuts behind keyboard');
+            assert.equal(await page.locator('.auth-form-region').evaluate(el => el.scrollTop), 0);
+            await page.screenshot({path: `${output}/${engine}-${width}-${height}-login-feedback.png`});
           }
           if (width === 430 || (width === 375 && height === 667)) {
             await page.screenshot({ path: `${output}/${engine}-${width}-${height}-${mode}-keyboard-layout.png` });

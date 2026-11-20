@@ -1,4 +1,4 @@
-.camera-capture-overlay { position:absolute; inset:0; z-index:245; display:flex; align-items:center; justify-content:center; container-type:size; padding:max(70px,calc(var(--nava-system-safe-top,0px) + 10px),calc(env(safe-area-inset-top) + 12px)) 14px max(28px,calc(env(safe-area-inset-bottom) + 12px)); background:#14394d80; color:#14394d; }
+.camera-capture-overlay { position:absolute; inset:0; z-index:245; display:flex; align-items:center; justify-content:center; container-type:size; padding:max(70px,calc(var(--nava-system-safe-top,0px) + 10px),calc(env(safe-area-inset-top) + 12px)) 14px max(28px,calc(env(safe-area-inset-bottom) + 12px)); background:transparent; color:#14394d; }
 .camera-capture-sheet { display:flex; flex-direction:column; min-width:0; min-height:0; width:100%; max-height:100%; background:#effaff; border:1px solid white; border-radius:24px; overflow:hidden; }
 .camera-capture-sheet header { flex-shrink:0; display:flex; align-items:center; gap:12px; padding:8px 14px; }
 .camera-capture-sheet h2 { flex:1; margin:0; font-size:1.125rem; line-height:1.4; }

@@ -665,10 +665,13 @@
   /* End the scroll viewport above the floating dock. Padding alone only makes
      the final row reachable after scrolling; it still lets ordinary content
      sit underneath the dock while the page is at rest. */
-  margin-bottom: var(--nava-dock-clearance);
+  margin-bottom: 0;
   padding-top: var(--integrated-content-top-gap);
   padding-bottom: max(18px, calc(env(safe-area-inset-bottom) + 8px));
   scroll-padding-bottom: 18px;
+}
+.phone-frame[data-shell-integrated="true"][data-has-bottom-nav="true"]:not(.phone-frame--option2) > .app-content {
+  margin-bottom: var(--nava-dock-clearance);
 }
 
 .phone-frame[data-shell-integrated="true"].phone-frame--subpage-no-nav:not(.phone-frame--option2) > .app-content {
@@ -682,6 +685,19 @@
    notifications, to-dos and shop rows cannot be hidden by the controls. */
 .phone-frame[data-shell-integrated="true"].phone-frame--option2[data-has-bottom-nav="true"]:not([data-shell-page="home"]) > .app-content--today {
   bottom: var(--nava-dock-clearance);
+}
+
+/* One shell contract: a hidden/absent dock must not leave its clipped viewport
+   behind. Details keep only the system gesture inset, with no painted mask. */
+.phone-frame[data-shell-integrated="true"]:not([data-has-bottom-nav="true"]) > .app-content {
+  margin-bottom: 0;
+}
+.phone-frame[data-shell-integrated="true"].phone-frame--option2:not([data-has-bottom-nav="true"]) > .app-content--today {
+  bottom: 0;
+}
+.phone-frame[data-shell-integrated="true"].phone-frame--option2:not([data-has-bottom-nav="true"]) :is(.home-experience, .points-shop-screen, .reminder-settings-page) {
+  padding-bottom: max(20px, calc(env(safe-area-inset-bottom) + 8px));
+  scroll-padding-bottom: 20px;
 }
 
 /* Checkout replaces the Today surface and hides the shared dock. It must own
