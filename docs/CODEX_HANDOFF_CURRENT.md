@@ -61,12 +61,17 @@
   已找到docs/visual-prototypes/diet-photo-flow.html与food-visualize原生俯视菜品链路，但当前默认
   原生入口/视觉Key尚未接通，不宣称自动生成可用；新报告先复用已有diet-photos照片，无照片用明确
   装饰空态。新增全部/能量WebP合计43,462B，原图与prompt保留。
-  785f590候选build/lint/artifact/认证及68条图表/完成回归通过；证据为
-  feedback-meals-785f590-gates-status.json。新版独立8交互、22设备/入口通过，
+  7eab44a最终产品候选build/lint/artifact/认证及68条图表/完成回归通过；证据为
+  feedback-meals-7eab44a-gates-status.json。新版48页面、独立8交互、22设备/入口通过，
   证据为health-report-explorer-interactions/0bb62eb-diet-energy-final/report.json及
-  module-responsive-rings/5456037-diet-energy-22-report.json；新版48状态矩阵仍在最后检查。
+  module-responsive-rings/5456037-diet-energy-22-report.json，以及
+  health-report-explorer-flip/5456037-diet-energy-final-48-report.json。
+  最终Safari菜品标题以内部span处理两行省略，外部h3仍flex居中；额外WebKit390/320三态通过。
+  照片真实组件/resolver另用本地隔离媒体验证WebKit320/430共10场景：共享签名仅一次、长图、403、404、
+  迟到结果不串卡均通过，见health-report-meal-photos/results.json；不冒充真实云端存储权限检查。
   原生候选785f590任务44751248521已进入两个机型的软件键盘验收，尚未完成。
-  后续本地提交只更新测试脚本，src/public/ios等产品文件与该候选完全相同。
+  与785f590相比，最终产品差异仅HealthReportExplorer的h3内部span与meal标题CSS，登录/键盘/原生
+  输入代码完全未改；该报告窄修由上述WebKit补验覆盖。其他后续提交只更新文档与测试脚本。
   旧原生任务44739913088与44748777064因新版报告反馈主动取消，
   不是当前源码的原生通过证据；TestFlight仍为已上传的48，49尚待原生验收后上传。
 - 202611201200_journal_optional_review_fields.sql获单独授权，已选择性部署并登记，
