@@ -83,6 +83,7 @@ final class NavaAuthKeyboardTests: XCTestCase {
             assertAboveKeyboard(account, logo: logo, app: app)
 
             if mode == "login" {
+                assertLoginLayout(web, logo: logo, app: app, english: false)
                 // Exercise a real feedback state, then reopen the actual iOS
                 // keyboard. An empty feedback slot missed the previous grid bug.
                 web.buttons["微信"].firstMatch.tap()
@@ -96,6 +97,7 @@ final class NavaAuthKeyboardTests: XCTestCase {
                 XCTAssertGreaterThanOrEqual(feedback.frame.minY, password.frame.maxY)
                 XCTAssertLessThanOrEqual(feedback.frame.maxY, submit.frame.minY + 1)
                 XCTAssertEqual(submit.frame.width, account.frame.width, accuracy: 4)
+                assertLoginLayout(web, logo: logo, app: app, english: false, feedback: feedback)
                 capture("login-feedback-keyboard")
                 for name in ["微信", "Apple", "QQ", "验证码登录", "创建账号"] {
                     XCTAssertTrue(web.buttons[name].firstMatch.exists, "Missing login route: \(name)")
@@ -126,6 +128,10 @@ final class NavaAuthKeyboardTests: XCTestCase {
                 field.tap()
                 capture("\(mode)-field-\(index)-keyboard")
                 assertAboveKeyboard(field, logo: logo, app: app)
+                if mode == "login" {
+                    let feedback = web.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "尚未完成服务配置")).firstMatch
+                    assertLoginLayout(web, logo: logo, app: app, english: false, feedback: feedback)
+                }
             }
             if mode == "login" {
                 let qq = web.buttons["QQ"].firstMatch
@@ -140,6 +146,84 @@ final class NavaAuthKeyboardTests: XCTestCase {
             capture("\(mode)-restored")
             if mode != "login" { web.buttons["返回登录"].firstMatch.tap() }
         }
+
+        // Exercise the actual app language control: OS launch locale alone
+        // does not change a previously saved NAVA language preference.
+        web.buttons["切换语言"].firstMatch.tap()
+        XCTAssertTrue(web.staticTexts["Account"].firstMatch.waitForExistence(timeout: 10))
+        account.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
+        assertAboveKeyboard(account, logo: logo, app: app)
+        assertLoginLayout(web, logo: logo, app: app, english: true)
+        capture("login-english-account-keyboard")
+        web.buttons["WeChat"].firstMatch.tap()
+        let englishFeedback = web.staticTexts["This sign-in method is not configured yet."].firstMatch
+        XCTAssertTrue(englishFeedback.waitForExistence(timeout: 10), app.debugDescription)
+        account.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
+        assertLoginLayout(web, logo: logo, app: app, english: true, feedback: englishFeedback)
+        let englishPassword = web.secureTextFields.firstMatch
+        XCTAssertTrue(englishPassword.isHittable, "English password must never require scrolling")
+        englishPassword.tap()
+        assertAboveKeyboard(englishPassword, logo: logo, app: app)
+        assertLoginLayout(web, logo: logo, app: app, english: true, feedback: englishFeedback)
+        capture("login-english-feedback-password-keyboard")
+        logo.tap()
+        let hidden = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.keyboards.firstMatch)
+        XCTAssertEqual(XCTWaiter.wait(for: [hidden], timeout: 10), .completed)
+        web.buttons["Switch language"].firstMatch.tap()
+    }
+
+    private func assertLoginLayout(_ web: XCUIElement, logo: XCUIElement, app: XCUIApplication,
+                                   english: Bool, feedback: XCUIElement? = nil) {
+        let accountLabel = web.staticTexts[english ? "Account" : "账号"].firstMatch
+        let passwordLabel = web.staticTexts[english ? "Password" : "密码"].firstMatch
+        let divider = web.staticTexts[english ? "Or continue with" : "或使用快捷登录"].firstMatch
+        let account = web.textFields.firstMatch
+        let password = web.secureTextFields.firstMatch
+        let submit = web.buttons[english ? "Enter NAVA" : "进入 NAVA"].firstMatch
+        let code = web.buttons[english ? "Code sign-in" : "验证码登录"].firstMatch
+        let register = web.buttons[english ? "Create account" : "创建账号"].firstMatch
+        let shortcuts = [english ? "WeChat" : "微信", "Apple", "QQ"].map { web.buttons[$0].firstMatch }
+        let top = keyboardTop(in: app)
+
+        // Presence alone is insufficient: hidden labels and offscreen routes
+        // used to pass while the user had to scroll to discover the remainder.
+        for element in [accountLabel, passwordLabel, divider, code, register] + shortcuts {
+            XCTAssertTrue(element.waitForExistence(timeout: 10), "Missing login element: \(element)")
+            XCTAssertTrue(element.isHittable, "Login element hidden or requires scrolling: \(element.label)")
+            let frame = element.frame
+            XCTAssertGreaterThan(frame.height, 0)
+            XCTAssertGreaterThanOrEqual(frame.minY, expectedSafeTop)
+            XCTAssertLessThanOrEqual(frame.maxY, top + 1, "Login element extends behind keyboard: \(element.label)")
+            XCTAssertGreaterThanOrEqual(frame.minX, app.frame.minX)
+            XCTAssertLessThanOrEqual(frame.maxX, app.frame.maxX + 1)
+        }
+        XCTAssertTrue(submit.exists)
+        XCTAssertGreaterThan(submit.frame.height, 0)
+        XCTAssertEqual(submit.frame.width, account.frame.width, accuracy: 4)
+        XCTAssertGreaterThanOrEqual(accountLabel.frame.minY, logo.frame.maxY - 1)
+        XCTAssertLessThanOrEqual(accountLabel.frame.maxY, account.frame.minY + 1)
+        XCTAssertGreaterThanOrEqual(passwordLabel.frame.minY, account.frame.maxY - 1)
+        XCTAssertLessThanOrEqual(passwordLabel.frame.maxY, password.frame.minY + 1)
+        XCTAssertGreaterThanOrEqual(submit.frame.minY, password.frame.maxY - 1)
+        if let feedback {
+            XCTAssertTrue(feedback.exists)
+            XCTAssertTrue(feedback.isHittable, "Feedback must remain readable above the keyboard")
+            XCTAssertGreaterThanOrEqual(feedback.frame.minY, password.frame.maxY - 1)
+            XCTAssertLessThanOrEqual(feedback.frame.maxY, submit.frame.minY + 1)
+        }
+        for link in [code, register] {
+            XCTAssertGreaterThanOrEqual(link.frame.minY, submit.frame.maxY - 1)
+            XCTAssertLessThanOrEqual(link.frame.maxY, divider.frame.minY + 1)
+        }
+        for shortcut in shortcuts {
+            XCTAssertGreaterThanOrEqual(shortcut.frame.minY, divider.frame.maxY - 1)
+            XCTAssertEqual(shortcut.frame.midY, shortcuts[0].frame.midY, accuracy: 2)
+        }
+        let shortcutsBottom = shortcuts.map { $0.frame.maxY }.max()!
+        XCTAssertGreaterThanOrEqual(top - shortcutsBottom, -1)
+        XCTAssertLessThanOrEqual(top - shortcutsBottom, 28, "Excessive space above keyboard")
     }
 
     private func assertAboveKeyboard(_ field: XCUIElement, logo: XCUIElement, app: XCUIApplication) {
