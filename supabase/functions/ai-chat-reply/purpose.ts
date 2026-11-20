@@ -22,7 +22,8 @@ export function utilityReply(result: ModelReply, purpose: Exclude<ReplyPurpose, 
   if (purpose === "duration-estimate") {
     const match = /^DURATION_SECONDS=([1-9]\d{0,5})$/.exec(text);
     if (!match || Number(match[1]) > 359999) throw new Error("Invalid duration estimate output");
-  } else if (Array.from(text).length > 80 || /[\r\n\u0000-\u001f{}<>]|\[nava-(?:reply|sticker):/.test(text)) {
+  } else if (Array.from(text).length > 80 || Array.from(text).some(character => character.charCodeAt(0) < 32)
+    || /[{}<>]|\[nava-(?:reply|sticker):/.test(text)) {
     throw new Error("Invalid conversation title output");
   }
   return text;
