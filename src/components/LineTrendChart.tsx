@@ -1,5 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { chartCurvePath, type ChartCurveMode } from "../services/chartCurves";
+import "./line-trend-chart.css";
 
 export interface LineTrendPoint {
   id: string;
@@ -31,6 +32,7 @@ export default function LineTrendChart({
   readableLabels = false,
   presentation = "default",
   showYAxis = true,
+  animateReport = false,
   domain,
   valueFormatter = (value) => Math.round(value).toString(),
 }: {
@@ -50,6 +52,7 @@ export default function LineTrendChart({
   readableLabels?: boolean;
   presentation?: "default" | "report";
   showYAxis?: boolean;
+  animateReport?: boolean;
   domain?: readonly [number, number];
   valueFormatter?: (value: number) => string;
 }) {
@@ -180,8 +183,8 @@ export default function LineTrendChart({
   const dateIndices = new Set(Array.from({ length: Math.min(4, points.length) }, (_, index) => Math.round(index * (points.length - 1) / Math.max(1, Math.min(4, points.length) - 1))));
 
   return (
-    <div ref={container} className={["line-trend-chart", tone, report ? "is-report" : "", verticalEmphasis ? "is-vertically-emphasized" : "", readableLabels ? "has-readable-labels" : ""].filter(Boolean).join(" ")}>
-      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio={report ? "none" : verticalEmphasis ? "xMidYMax meet" : undefined} role="img" aria-label={ariaLabel}>
+    <div ref={container} className={["line-trend-chart", tone, report ? "is-report" : "", report && animateReport ? "is-revealing" : "", verticalEmphasis ? "is-vertically-emphasized" : "", readableLabels ? "has-readable-labels" : ""].filter(Boolean).join(" ")}>
+      <svg key={report ? `report-${animateReport}` : undefined} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio={report ? "none" : verticalEmphasis ? "xMidYMax meet" : undefined} role="img" aria-label={ariaLabel}>
         <title>{ariaLabel}</title>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
@@ -210,8 +213,8 @@ export default function LineTrendChart({
         })}
 
         {hasBand && <polygon className="trend-confidence-band" points={bandPoints} style={staticMarks} />}
-        {areaPaths.map((areaPath, index) => areaPath && <path className="trend-area" d={areaPath} key={`area-${index}`} style={{ ...staticMarks, fill: `url(#${areaGradientId})` }} />)}
-        {segmentPaths.map((linePath, index) => plottedSegments[index].length > 1 && <path key={`trend-${index}-${signature}`} className="trend-line" d={linePath} pathLength={1} style={{ ...staticMarks, ...(report ? { strokeDashoffset: 0, strokeWidth: 3 } : {}), stroke: `url(#${gradientId})` }} />)}
+        {areaPaths.map((areaPath, index) => areaPath && <path className="trend-area" d={areaPath} key={`area-${index}`} style={{ fill: `url(#${areaGradientId})` }} />)}
+        {segmentPaths.map((linePath, index) => plottedSegments[index].length > 1 && <path key={`trend-${index}-${signature}`} className="trend-line" d={linePath} pathLength={1} style={{ ...(report ? { strokeWidth: 3 } : {}), stroke: `url(#${gradientId})` }} />)}
 
         {points.map((point, index) => {
           const x = xAt(index);
@@ -225,7 +228,7 @@ export default function LineTrendChart({
               data-value={point.value}
               style={{ ...staticMarks, "--trend-point-index": index } as CSSProperties}
             >
-              {!point.missing && y != null && <><circle cx={x} cy={y} r="4.5">
+              {!point.missing && y != null && <><circle cx={x} cy={y} r="4.5" style={report ? { "--report-point-delay": `${Math.round(index / Math.max(1, points.length - 1) * 560)}ms` } as CSSProperties : undefined}>
                 <title>{`${point.label}: ${valueFormatter(point.value)}`}</title>
               </circle>
               {showValues && <text className="trend-value" x={x} y={Math.max(12, y - 9)} textAnchor="middle" style={reportLabelStyle}>{valueFormatter(point.value)}</text>}

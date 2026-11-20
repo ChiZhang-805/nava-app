@@ -1,0 +1,41 @@
+/* Only the selected report card draws in. Neighbor cards remain settled. */
+.line-trend-chart.is-report .trend-line {
+  animation: none;
+  opacity: 1;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+.line-trend-chart.is-report .trend-area {
+  animation: none;
+  opacity: 1;
+}
+.line-trend-chart.is-report.is-revealing .trend-line {
+  animation: report-trend-draw 680ms cubic-bezier(.25,.65,.35,1) both;
+}
+.line-trend-chart.is-report.is-revealing .trend-area {
+  animation: report-trend-fill 520ms ease 120ms both;
+}
+.line-trend-chart.is-report.is-revealing .trend-point circle {
+  animation: report-trend-point 220ms ease var(--report-point-delay, 0ms) both;
+}
+@keyframes report-trend-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes report-trend-fill {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes report-trend-point {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .line-trend-chart.is-report.is-revealing .trend-line,
+  .line-trend-chart.is-report.is-revealing .trend-area,
+  .line-trend-chart.is-report.is-revealing .trend-point circle {
+    animation: none;
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
