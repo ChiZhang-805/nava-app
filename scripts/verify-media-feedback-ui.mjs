@@ -142,7 +142,7 @@ try {
       await page.waitForTimeout(1800);
       assert.equal(await page.evaluate(() => window.__speechCalls), spoken);
       await expect(mic).toHaveAttribute("aria-pressed", "false");
-      await open("tab=record"); await page.getByRole("tab", { name: "本周报告", exact: true }).click();
+      await open("tab=record"); await page.locator('[data-health-category="all"]').click();
       await page.getByRole("button", { name: "保存海报", exact: true }).click();
       const weekly = page.getByRole("dialog", { name: "分享前确认" });
       await expect(weekly.locator("img")).toBeVisible();

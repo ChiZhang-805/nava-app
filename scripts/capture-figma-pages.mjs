@@ -501,7 +501,7 @@ async function navigateRoute(page, hash, selector) {
 async function returnToHub(page) {
   await page.locator('.figma-app-header [aria-label="返回记录入口"], .figma-app-header [aria-label="Back to records"]').click();
   await expect(page.locator("[data-health-explorer]")).toBeVisible();
-  await expect(page.locator('[data-health-category]:not([data-health-category="heart"])')).toHaveCount(6);
+  await expect(page.locator('[data-health-category]:not([data-health-category="heart"]):not([data-health-category="all"])')).toHaveCount(6);
 }
 
 async function openReportRecord(page, module) {
@@ -509,7 +509,10 @@ async function openReportRecord(page, module) {
   await category.click();
   await expect(category).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("[data-health-explorer]")).toHaveAttribute("data-category", module);
-  await page.locator(".health-explorer-record").click();
+  const active = page.locator('.health-explorer-card[data-active="true"]');
+  await active.locator('.health-explorer-flip').click();
+  await expect(active).toHaveAttribute('data-side', 'back');
+  await active.locator(".health-explorer-record").click();
 }
 
 async function captureViewport(browser, baseUrl, viewport, report, errors) {
@@ -638,7 +641,7 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
   }
   await navigateRoute(page, "#tab=record", "[data-health-explorer]");
 
-  await page.locator('.health-report-tabs [role="tab"]').last().click();
+  await page.locator('[data-health-category="all"]').click();
   await capture(page, viewport, "11-weekly-dnb", "[data-weekly-health-report]", report);
 
   await page.locator('[data-tab="trends"]').click();

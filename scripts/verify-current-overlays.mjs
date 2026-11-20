@@ -36,7 +36,7 @@ try{
    }
    await page.screenshot({path:`${out}/${locale}-${width}-${name}.png`,animations:'disabled'});results.push({name,locale,width,height,geometry,failures});
   };
-  await open('record');await page.getByRole('tab',{name:/本周报告|Weekly/}).click();
+  await open('record');await page.locator('[data-health-category="all"]').click();
   await expect(page.locator('.weekly-share-button')).toBeEnabled();await page.locator('.weekly-share-button').click();
   await expect(page.locator('.report-share-content img')).toBeVisible();
   await check('weekly-share','.report-share-overlay','.report-share-sheet header button,.report-share-content label,.report-share-sheet footer button');

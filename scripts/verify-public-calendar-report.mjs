@@ -206,9 +206,12 @@ try {
           if (size.device) await page.locator('.nava-device-selector select').selectOption(size.device.id);
           await page.evaluate(() => { location.hash = 'tab=record'; });
           await expect(page.locator('[data-health-explorer]')).toBeVisible();
-          await expect(page.locator('[data-health-category]:not([data-health-category="heart"])')).toHaveCount(6);
-          await page.locator('.health-explorer-toolbar input').fill('2026-09-13');
-          await expect(page.locator('.health-explorer-toolbar input')).toHaveValue('2026-09-13');
+          await expect(page.locator('[data-health-category]:not([data-health-category="heart"]):not([data-health-category="all"])')).toHaveCount(6);
+          await page.locator('.health-explorer-all').click();
+          await page.locator('.health-explorer-sheet input[type="date"]').fill('2026-09-13');
+          await expect(page.locator('.health-explorer-sheet input[type="date"]')).toHaveValue('2026-09-13');
+          await page.keyboard.press('Escape');
+          await expect(page.locator('.health-explorer-sheet')).toHaveCount(0);
           await page.waitForTimeout(800);
           // Categories switch charts in place. They are no longer completion
           // rings or links directly into the editor.
@@ -272,7 +275,7 @@ try {
         await expect(page.locator(".home-calendar-card")).toBeVisible({ timeout: 30000 });
         await page.screenshot({ path: `${output}/${new URL(base).hostname}-${width}-calendar.png` });
         await page.locator('[data-tab="record"]').click();
-        await page.getByRole("tab", { name: "本周报告", exact: true }).click();
+        await page.locator('[data-health-category="all"]').click();
         await expect(page.locator(".weekly-score-card")).toBeVisible();
         const weekly = await checkRows(".weekly-score-card > div");
         assert(weekly.every((row) => row.centerDelta <= 1 && row.gap >= 3 && row.contained));

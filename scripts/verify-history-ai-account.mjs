@@ -141,13 +141,19 @@ try {
     stage = `overview:${scope}`;
     try {
       await page.goto(`${base}#tab=record`, { waitUntil: "domcontentloaded" });
-      await page.locator('.health-explorer-toolbar input[type="date"]').fill(end);
-      await expect(page.locator('.health-explorer-toolbar input[type="date"]')).toHaveValue(end);
+      await page.locator('.health-explorer-all').click();
+      await page.locator('.health-explorer-sheet input[type="date"]').fill(end);
+      await expect(page.locator('.health-explorer-sheet input[type="date"]')).toHaveValue(end);
+      await page.keyboard.press('Escape');
+      await expect(page.locator('.health-explorer-sheet')).toHaveCount(0);
       const category = page.locator(`[data-health-category="${scope}"]`);
       await category.click();
       await expect(category).toHaveAttribute("aria-selected", "true");
       await expect(page.locator('[data-health-explorer]')).toHaveAttribute("data-category", scope);
-      await page.locator('.health-explorer-record').click();
+      const active = page.locator('.health-explorer-card[data-active="true"]');
+      await active.locator('.health-explorer-flip').click();
+      await expect(active).toHaveAttribute('data-side', 'back');
+      await active.locator('.health-explorer-record').click();
       await expect(page.locator(".module-overview-ai")).toHaveAttribute("data-ai-state", "ready", { timeout: 180000 });
       assert.equal(bulletHash([await page.locator(".module-overview-ai p").first().innerText()]), (await metadata(scope, end))?.firstBulletHash);
       results.push({ entry: "overview", scope, date: end, passed: true, uiDatabaseMatch: true }); console.log(`PASS overview ${scope}`);

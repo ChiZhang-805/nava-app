@@ -80,7 +80,7 @@ try {
           await expect(page.locator(".today-todo-date-sheet")).toHaveCount(0);
 
           await open("tab=record");
-          await page.getByRole("tab", { name: /本周报告|Weekly/ }).click();
+          await page.locator('[data-health-category="all"]').click();
           const detailTrigger = page.locator(".weekly-ai-summary-list li button").first();
           await detailTrigger.focus();
           await detailTrigger.press("Enter");

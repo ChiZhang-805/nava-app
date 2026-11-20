@@ -34,7 +34,7 @@ try {
         await page.addInitScript((value) => localStorage.setItem("nava.locale", value), locale);
         await page.goto(`http://127.0.0.1:5236/?demo=1${fixture ? "&qa=weekly-ai" : ""}#tab=record`, { waitUntil: "domcontentloaded" });
         if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
-        await page.getByRole("tab", { name: /本周报告|Weekly/ }).click();
+        await page.locator('[data-health-category="all"]').click();
         await expect(page.locator(".weekly-insight-mascot")).toBeVisible();
       };
       await open();

@@ -177,7 +177,7 @@ async function main() {
 
     await page.goto(`${baseUrl}?demo=1&qa=weekly-ai#tab=record`, { waitUntil: "networkidle" });
     await expect(page.locator(".record-hub")).toBeVisible();
-    await page.locator('.health-report-tabs [role="tab"]').last().click();
+    await page.locator('[data-health-category="all"]').click();
     await expect(page.locator('[data-weekly-health-report]')).toBeVisible();
     const detailTrigger = page.locator(".weekly-ai-summary-list li button").first();
     await expect(detailTrigger).toBeVisible();
