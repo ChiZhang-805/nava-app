@@ -8,6 +8,13 @@ export function journalLayout(width,height,safeTop=0,safeBottom=0){
 }
 
 export function installJournalLayout(api){
+ const preventNativeTextMenu=event=>{
+  const target=event.target instanceof Element?event.target:event.target?.parentElement;
+  if(target?.closest('input,textarea')||target?.isContentEditable)return;
+  event.preventDefault();
+ };
+ document.addEventListener('contextmenu',preventNativeTextMenu);
+ document.addEventListener('selectstart',preventNativeTextMenu);
  let viewport={};
  const resize=()=>{
   const height=Math.min(innerHeight,viewport.visibleHeight||innerHeight);

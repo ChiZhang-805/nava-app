@@ -82,6 +82,14 @@ try {
  assert.ok(!sheetStyle.blur||sheetStyle.blur==='none');assert.ok(!sheetStyle.webkitBlur||sheetStyle.webkitBlur==='none');
  assert.equal(sheetStyle.animation,'sheet-up');assert.equal(sheetStyle.closeGlyph,false);
  await frame.locator('#sheet-test-input').fill('草稿保留');
+ const nativeSelection=await frame.evaluate(()=>{
+  const title=document.getElementById('sheet-title'),input=document.getElementById('sheet-test-input');
+  const menu=target=>{const event=new MouseEvent('contextmenu',{bubbles:true,cancelable:true});target.dispatchEvent(event);return event.defaultPrevented;};
+  const select=target=>{const event=new Event('selectstart',{bubbles:true,cancelable:true});target.dispatchEvent(event);return event.defaultPrevented;};
+  input.setSelectionRange(0,2);
+  return {text:getComputedStyle(title).userSelect||getComputedStyle(title).webkitUserSelect,input:getComputedStyle(input).userSelect||getComputedStyle(input).webkitUserSelect,textMenuBlocked:menu(title),inputMenuBlocked:menu(input),textSelectionBlocked:select(title),inputSelectionBlocked:select(input),selection:input.value.slice(input.selectionStart,input.selectionEnd)};
+ });
+ assert.deepEqual(nativeSelection,{text:'none',input:'text',textMenuBlocked:true,inputMenuBlocked:false,textSelectionBlocked:true,inputSelectionBlocked:false,selection:'草稿'});
  await frame.locator('#sheet-test-action').click();
  assert.equal(await frame.evaluate(()=>sheetTest.actions),1);
  const dragHandle=async distance=>{
@@ -112,6 +120,6 @@ try {
  assert.equal(await frame.locator('#sheet-layer').isVisible(),false);
  assert.equal(await page.evaluate(()=>requests.includes('save')),false);
  assert.deepEqual(errors,[]);
- await writeFile(`${output}/report.json`,JSON.stringify({engine,passed:true,results,long,sheetStyle,sheetInteractions:['input and functional button','short drag rebound','long drag dismiss','focus restore','Enter close','Escape close','reopen cancels stale timer','reduced motion'],errors,scope:'Real browser interaction with local offline bridge; no production writes. Browser WebKit is not a native iOS keyboard test.'},null,2));
- console.log(JSON.stringify({engine,passed:true,viewports:results.length,long,sheets:true}));
+ await writeFile(`${output}/report.json`,JSON.stringify({engine,passed:true,results,long,sheetStyle,nativeSelection,sheetInteractions:['input and functional button','short drag rebound','long drag dismiss','focus restore','Enter close','Escape close','reopen cancels stale timer','reduced motion'],errors,scope:'Real browser interaction with local offline bridge; no production writes. Browser WebKit is not a native iOS keyboard test.'},null,2));
+ console.log(JSON.stringify({engine,passed:true,viewports:results.length,long,sheets:true,nativeSelection}));
 } finally {await browser.close();await server.close();}

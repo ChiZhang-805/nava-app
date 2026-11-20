@@ -1,5 +1,8 @@
 /* One NAVA screen, not a second phone or prototype homepage. Artwork keeps its aspect ratio. */
 :root,body{background:#fffcf5;min-height:100%;height:100%;overflow:hidden}
+/* Reading and dragging use app controls; editable fields retain native text editing. */
+body,body *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body input,body textarea,body [contenteditable]:not([contenteditable="false"]),body [contenteditable]:not([contenteditable="false"]) *{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
 html.cold-guiding-root,body.cold-guiding-root,body.cold-guiding-root .stage{background:#203747!important}
 body.cold-guiding-root .stage{z-index:1}
 body.cold-guiding-root .phone-wrap{z-index:1}
