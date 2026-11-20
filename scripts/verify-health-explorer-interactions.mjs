@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chromium, webkit, expect } from '@playwright/test';
@@ -8,7 +9,8 @@ import { applyProjectPublicEnv } from './project-env.mjs';
 // Independent interaction gate. The larger health-explorer visual gate owns
 // chart values, empty states, all categories and recording routes.
 applyProjectPublicEnv(process.cwd());
-const output = 'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/health-report-explorer-interactions';
+const sourceRevision = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { encoding: 'utf8' }).trim();
+const output = `Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/health-report-explorer-interactions/${sourceRevision}`;
 await mkdir(output, { recursive: true });
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'error' });
 await server.listen();
@@ -195,18 +197,47 @@ async function inspectReportChart(page, expectedDomain) {
 }
 
 async function selectSpecificChart(page, id) {
-  await page.locator('.health-explorer-all').click();
-  await page.locator(`[data-select-chart="${id}"]`).click();
-  await expect(page.locator('.health-explorer-sheet')).toHaveCount(0);
+  const category = /^(journal|nutrition)-/.test(id) ? 'diet' : id.split('-')[0];
+  await page.locator(`[data-health-category="${category}"]`).click();
+  const track = page.locator('.health-explorer-track');
+  const ids = await page.locator('.health-explorer-card').evaluateAll((nodes) => [...new Set(nodes.map((node) => node.dataset.chartId))]);
+  assert(ids.includes(id), `The ${category} carousel must contain ${id}`);
+  await track.focus();
+  for (let step = 0; step < ids.length; step++) {
+    const current = await page.locator(activeSelector).getAttribute('data-chart-id');
+    if (current === id) break;
+    await track.press('ArrowRight');
+    await expectActive(page, ids[(ids.indexOf(current) + 1) % ids.length]);
+  }
   await expectActive(page, id);
+}
+
+async function inspectMealCard(page) {
+  const id = 'journal-chart-meal-known';
+  await selectSpecificChart(page, id);
+  const active = page.locator(activeSelector);
+  await expect(active).toHaveAttribute('data-card-kind', 'meal');
+  await expect(active.locator('.health-explorer-front h3')).toHaveText('Fixture salmon, rice and greens');
+  await expect(active.locator('.line-trend-chart')).toHaveCount(0);
+  await expect(active.locator('.health-explorer-meal-visual')).toHaveAttribute('data-photo-kind', 'illustration');
+  await active.locator('.health-explorer-flip').click();
+  await expectActive(page, id, 'back');
+  await assertFaceBoundary(page, 'back');
+  await expect(active.locator('[data-nutrient="calories"]')).toHaveAttribute('data-nutrient-value', '520');
+  await expect(active.locator('[data-nutrient="protein"], [data-nutrient="carbs"], [data-nutrient="fat"]')).toHaveCount(0);
+  await selectSpecificChart(page, 'journal-chart-meal-zero');
+  await page.locator(`${activeSelector} .health-explorer-flip`).click();
+  await expectActive(page, 'journal-chart-meal-zero', 'back');
+  await assertFaceBoundary(page, 'back');
+  await expect(page.locator(`${activeSelector} [data-nutrient="calories"]`)).toHaveAttribute('data-nutrient-value', '0');
+  return { preservedWholeMeal: true, missingNutrientsOmitted: true, explicitZeroPreserved: true, illustrationLabel: true };
 }
 
 async function inspectSimplifiedLayout(page) {
   await expect(page.locator('.health-report-tabs, .health-explorer-pagination')).toHaveCount(0);
-  await expect(page.locator('.health-explorer-toolbar input')).toHaveCount(0);
+  await expect(page.locator('.health-explorer-all, .health-explorer-sheet, .health-explorer-toolbar input')).toHaveCount(0);
   // The approved 320 × 568 layout deliberately scrolls its report region;
-  // measure the fully revealed card, not the position after sheet focus restores
-  // the toolbar to the top. Normal-height layouts must fit without this step.
+  // measure the fully revealed card. Normal-height layouts must fit without it.
   if (page.viewportSize().height <= 640) await page.locator('.record-hub--explorer').evaluate((node) => { node.scrollTop = node.scrollHeight; });
   const layout = await page.locator('[data-health-explorer]').evaluate((root) => {
     const card = root.querySelector('.health-explorer-card[data-active="true"]').getBoundingClientRect();
@@ -217,7 +248,13 @@ async function inspectSimplifiedLayout(page) {
       const style = getComputedStyle(node);
       return { class: node.className, flip: node.classList.contains('health-explorer-flip'), background: style.backgroundColor, image: style.backgroundImage, shadow: style.boxShadow, radius: Number.parseFloat(style.borderRadius) };
     });
-    return { navGap: nav.top - card.bottom, chatGap: chatTop - card.bottom, backgrounds };
+    const headingPositions = ['.health-explorer-toolbar h2', '.health-explorer-heading h2'].map((selector) => {
+      const heading = root.querySelector(selector), range = document.createRange();
+      const text = [...heading.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+      range.selectNodeContents(text);
+      return { iconLeft: heading.querySelector('img, svg').getBoundingClientRect().left, textLeft: range.getBoundingClientRect().left };
+    });
+    return { navGap: nav.top - card.bottom, chatGap: chatTop - card.bottom, backgrounds, headingPositions };
   });
   if (layout.navGap < 15.5 || layout.navGap > 24.5 || layout.chatGap < 5.5) {
     await page.screenshot({ path: path.join(output, 'spacing-failure.png') });
@@ -226,6 +263,8 @@ async function inspectSimplifiedLayout(page) {
   expect(layout.navGap).toBeGreaterThanOrEqual(15.5);
   expect(layout.navGap).toBeLessThanOrEqual(24.5);
   expect(layout.chatGap, 'The raised chat control must not overlap the main card').toBeGreaterThanOrEqual(5.5);
+  expect(Math.abs(layout.headingPositions[0].iconLeft - layout.headingPositions[1].iconLeft), 'Toolbar and category icons align').toBeLessThanOrEqual(1);
+  expect(Math.abs(layout.headingPositions[0].textLeft - layout.headingPositions[1].textLeft), 'Toolbar and category text align').toBeLessThanOrEqual(1);
   for (const item of layout.backgrounds) {
     if (item.flip) {
       expect(item.background, 'Only the flip control has no tile background').toBe('rgba(0, 0, 0, 0)');
@@ -259,6 +298,10 @@ try {
                 const date = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
                 journal.push({ id: `chart-mood-${index}`, category: 'mood', recordDate: date, data: { intensity: index + 2 }, createdAt: day.toISOString(), source: 'manual' });
                 journal.push({ id: `chart-steps-${index}`, category: 'sport', recordDate: date, data: { steps: 123456 + index * 12345, durationMinutes: 45 }, createdAt: day.toISOString(), source: 'manual' });
+                if (index === 0) {
+                  journal.push({ id: 'chart-meal-known', category: 'food', recordDate: date, data: { foods: 'Fixture salmon, rice and greens', meal: '午餐', mealTime: '12:30', calories: 520 }, createdAt: day.toISOString(), source: 'manual' });
+                  journal.push({ id: 'chart-meal-zero', category: 'food', recordDate: date, data: { foods: 'Fixture green tea', meal: '加餐', mealTime: '15:00', calories: 0 }, createdAt: day.toISOString(), source: 'manual' });
+                }
               }
               localStorage.setItem('nava.review.demo.journal.v1', JSON.stringify(journal));
               window.__navaCarouselTrace = [];
@@ -281,13 +324,17 @@ try {
             await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category', 'all');
             await expect(page.locator('.health-explorer-weekly-content .weekly-health-report')).toBeVisible();
             await expect(page.locator('.health-explorer-card')).toHaveCount(0);
-            await expect(page.locator('[data-health-category]:not([data-health-category="all"]):not([data-health-category="heart"])')).toHaveCount(6);
+            await expect(page.locator('[data-health-category]:not([data-health-category="all"]):not([data-health-category="heart"])')).toHaveCount(7);
+            await expect(page.locator('[data-health-category="all"] strong')).toHaveText(locale === 'zh' ? '全部' : 'All');
+            await expect(page.locator('[data-health-category="all"] img')).toHaveAttribute('src', /\/all\.webp$/);
+            const meal = await inspectMealCard(page);
             await startLineAnimationSample(page);
-            await page.locator('[data-health-category="diet"]').click();
-            await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category', 'diet');
+            await page.locator('[data-health-category="energy"]').click();
+            await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category', 'energy');
+            await expect(page.locator('.health-explorer-heading h2')).toHaveText(locale === 'zh' ? '能量记录' : 'Energy records');
             await expect(page.locator('.health-explorer-pagination')).toHaveCount(0);
             const ids = await page.locator('.health-explorer-card').evaluateAll((nodes) => [...new Set(nodes.map((node) => node.dataset.chartId))]);
-            assert(ids.length > 1, 'Diet fixture must exercise a real multi-chart carousel');
+            expect(ids).toEqual(['energy-calories', 'energy-protein', 'energy-carbs', 'energy-fat', 'energy-water']);
             const original = await page.locator(activeSelector).getAttribute('data-chart-id');
             const start = ids.indexOf(original);
             await expectActive(page, original);
@@ -391,7 +438,7 @@ try {
             const layout = await inspectSimplifiedLayout(page);
             await page.screenshot({ path: path.join(output, `${engine}-${width}-${locale}-${reducedMotion}-front.png`), animations: 'disabled' });
             expect(pageErrors).toEqual([]);
-            results.push({ engine, width, height, locale, reducedMotion, realCharts: ids.length, keyboardWrapBothEdges: true, neighborTap: true, hiddenFaceInert: true, resetOnPageAndCategory: true, flipTarget44: true, charts, layout, motion });
+            results.push({ engine, width, height, locale, reducedMotion, realCharts: ids.length, keyboardWrapBothEdges: true, neighborTap: true, hiddenFaceInert: true, resetOnPageAndCategory: true, flipTarget44: true, meal, charts, layout, motion });
             console.log(`${engine} ${width} ${locale} ${reducedMotion}: carousel/flip boundaries passed`);
           } finally { await context.close(); }
         }
@@ -404,5 +451,5 @@ try {
   console.error(error);
 } finally {
   await server.close();
-  await writeFile(path.join(output, 'report.json'), JSON.stringify({ passed: errors.length === 0 && results.length === 8, results, errors }, null, 2));
+  await writeFile(path.join(output, 'report.json'), JSON.stringify({ sourceRevision, passed: errors.length === 0 && results.length === 8, results, errors }, null, 2));
 }
