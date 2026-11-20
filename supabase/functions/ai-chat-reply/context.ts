@@ -1,11 +1,8 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.52.1";
 import type { AiDomain, AiRoute } from "./router.ts";
 import { resolveConsentFlag } from "../_shared/consent.ts";
-
-export type ConversationMessage = {
-  role?: string;
-  content?: string;
-};
+import { normalizeConversationHistory, type ConversationMessage } from "./history.ts";
+export type { ConversationMessage } from "./history.ts";
 
 type QueryResult = {
   data: unknown;
@@ -23,10 +20,11 @@ export async function loadOwnedAiBaseContext(
   client: SupabaseClient,
   userId: string,
   currentMessage: string,
+  lang: "zh" | "en" = "zh",
 ): Promise<OwnedAiBaseContext> {
   const profileContext = await loadProfileContext(client, userId);
   const conversationHistory = profileContext.personalizationAllowed
-    ? await loadConversationHistory(client, userId, currentMessage)
+    ? await loadConversationHistory(client, userId, currentMessage, lang)
     : [];
   return { conversationHistory, ...profileContext };
 }
@@ -68,6 +66,7 @@ async function loadConversationHistory(
   client: SupabaseClient,
   userId: string,
   currentMessage: string,
+  lang: "zh" | "en",
 ): Promise<ConversationMessage[]> {
   const result = await client
     .from("ai_conversations")
@@ -78,20 +77,7 @@ async function loadConversationHistory(
 
   if (result.error) throw new Error(`AI conversation history unavailable: ${result.error.message ?? "query failed"}`);
 
-  const history = (Array.isArray(result.data) ? result.data : [])
-    .slice()
-    .reverse()
-    .filter((item): item is { role: string; content: string; created_at: unknown } =>
-      Boolean(item) &&
-      (item.role === "user" || item.role === "assistant") &&
-      typeof item.content === "string" &&
-      item.content.trim().length > 0
-    )
-    .map((item) => ({ role: item.role, content: clip(item.content, 420) }));
-
-  const latest = history.at(-1);
-  if (latest?.role === "user" && latest.content?.trim() === currentMessage.trim()) history.pop();
-  return history.slice(-6);
+  return normalizeConversationHistory(result.data, currentMessage, lang);
 }
 
 async function loadProfileContext(client: SupabaseClient, userId: string) {

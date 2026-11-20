@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildDeterministicRoute, normalizeModelRoute } from "../supabase/functions/ai-chat-reply/router.ts";
+import { buildDeterministicRoute, normalizeModelRoute, fallbackRoute, needsExplanation } from "../supabase/functions/ai-chat-reply/router.ts";
 import { buildSystemPrompt } from "../supabase/functions/ai-chat-reply/prompt.ts";
 
 test("explicit multi-record messages route without another model call", () => {
@@ -33,6 +33,23 @@ test("health messages use a seven-day baseline unless an exact shorter window is
   assert.equal(buildDeterministicRoute("看一下我近3天的睡眠")?.lookbackDays, 3);
   assert.equal(buildDeterministicRoute("结合过去六天的运动数据评价")?.lookbackDays, 6);
   assert.equal(buildDeterministicRoute("只看今天的情绪，不要对比历史")?.lookbackDays, 1);
+});
+
+test("short requests for explanation may expand without making casual support verbose", () => {
+  assert.equal(buildDeterministicRoute("解释一下为什么睡眠影响专注")?.complexity, "complex");
+  assert.equal(fallbackRoute("Explain this in detail")?.complexity, "complex");
+  assert.equal(buildDeterministicRoute("今天有点难过")?.complexity, "simple");
+  assert.equal(needsExplanation("OKK"), false);
+});
+
+test("known stickers never trigger health retrieval or record routing", () => {
+  for (const id of ["rest", "sleepy", "tired", "water", "meal", "sad"]) {
+    const route = buildDeterministicRoute(`[nava-sticker:${id}]`, "sleep", { minutes: 420 });
+    assert.equal(route?.intent, "smalltalk");
+    assert.deepEqual(route?.domains, []);
+    assert.equal(route?.complexity, "simple");
+  }
+  assert.equal(buildDeterministicRoute("[nava-sticker:not-known]"), null);
 });
 
 test("system prompt includes only route-relevant profile variables and records", () => {

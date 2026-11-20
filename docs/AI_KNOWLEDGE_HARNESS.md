@@ -4,6 +4,55 @@ The runtime harness selects tools by detected domain and passes only compact,
 structured evidence to the model. It never sends entire datasets or exposes a
 hidden chain of thought.
 
+## Conversational replies (2026-11-20 source change; deployment separate)
+
+- Wamier (瓦咪儿) speaks as NAVA's virtual cat companion. Ordinary replies
+  usually use 1–3 natural sentences in a single message, with optional short
+  paragraphs. Acknowledgments need no forced advice or follow-up question.
+  Chinese targets are 30 characters for greetings and 80 for ordinary chat;
+  English targets are 18 and 45 words. These are ceilings to aim for, not quotas.
+- Explicit explanations and genuinely complex requests may use up to 480
+  Chinese characters / 240 English words. Facts, uncertainty, consent and
+  urgent safety guidance take precedence over shortening. Voice keeps its
+  separate short spoken contract, without visual emoji or kaomoji.
+- A fitting emoji or kaomoji and an occasional casual “OKK” are optional;
+  distress and medical warnings use calm, plain language. The prompt does not
+  diagnose, guess hidden feelings, exaggerate praise, claim human experiences,
+  or suggest an exclusive relationship. Identity questions receive an honest
+  answer without repeating an AI introduction in every turn.
+- The server can request one shorter complete revision. A failed or still
+  overlong revision preserves the complete original; no character/word slicing
+  or sentence excerpt can remove its final warning. Empty output or a provider
+  `finish_reason` other than `stop` is a visible failure, never a successful
+  answer padded with punctuation. A custom provider can omit terminal metadata
+  but must still return nonempty content.
+- The current provider returns a complete answer. The SSE endpoint sends one
+  `done` event as soon as that answer is ready; there is no artificial per-letter
+  delay, fabricated streaming, or splitting one answer into several messages.
+  Provider/model and knowledge-trace metadata remain attached to the answer.
+- Sticker IDs and meanings are shared with the client in
+  `supabase/functions/_shared/chat-stickers.ts`. Only an entire known marker
+  (`[nava-sticker:<id>]`, allowing outside whitespace) becomes expressive text
+  for the model. Unknown markers and markers embedded in prose remain plain
+  text; they cannot supply a URL, an instruction, consent, or a health record.
+  Current known stickers use the context-free smalltalk route. Authorized
+  history is normalized in memory, retains timestamps and ordering, and removes
+  the just-saved current turn before model submission. Persisted content is
+  untouched; without personalization consent, history stays excluded.
+
+Design references: [Apple Writing](https://developer.apple.com/design/human-interface-guidelines/writing)
+for clear, context-sensitive wording; [Apple Generative AI](https://developer.apple.com/design/human-interface-guidelines/generative-ai)
+for control, transparent identity and honest processing feedback; and
+[talk-skill](https://github.com/DeadAlmighty/talk-skill) as a comparison for
+proportional conversation length and avoiding canned reassurance. These are
+design inputs, not imported runtime instructions or claims of clinical quality.
+Provider completion handling follows the
+[DeepSeek Chat Completions contract](https://api-docs.deepseek.com/api/create-chat-completion/).
+
+Verification uses synthetic fixtures for prompt, route, history/consent and
+completion behavior; it does not prove that every live model reply follows the
+requested tone. Backend deployment remains a separate release action.
+
 ## Runtime flow
 
 1. Detect one or more health domains from the user's message.

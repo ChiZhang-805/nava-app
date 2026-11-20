@@ -5,16 +5,14 @@ export type AiReplyLanguage = "zh" | "en";
 
 export const AI_REPLY_LIMITS = {
   zh: {
-    greeting: "10-40 个中文字符",
-    normal: "40-120 个中文字符",
-    complex: "80-180 个中文字符",
-    hardMaxCharacters: 180,
+    greeting: 30,
+    normal: 80,
+    complex: 480,
   },
   en: {
-    greeting: "5-25 words",
-    normal: "25-70 words",
-    complex: "50-100 words",
-    hardMaxWords: 100,
+    greeting: 18,
+    normal: 45,
+    complex: 240,
   },
 } as const;
 
@@ -28,7 +26,6 @@ export type AiReplyMode = "text" | "voice";
 export type AiReplyBudget = {
   unit: "characters" | "words";
   targetMax: number;
-  hardMax: number;
   label: "greeting" | "normal" | "complex" | "voice";
 };
 
@@ -39,17 +36,17 @@ export function resolveReplyBudget(
 ): AiReplyBudget {
   if (mode === "voice") {
     return lang === "zh"
-      ? { unit: "characters", targetMax: 64, hardMax: AI_VOICE_REPLY_LIMITS.zh.hardMaxCharacters, label: "voice" }
-      : { unit: "words", targetMax: 34, hardMax: AI_VOICE_REPLY_LIMITS.en.hardMaxWords, label: "voice" };
+      ? { unit: "characters", targetMax: 64, label: "voice" }
+      : { unit: "words", targetMax: 34, label: "voice" };
   }
 
   const label = route?.intent === "smalltalk" ? "greeting" : route?.complexity === "complex" ? "complex" : "normal";
   if (lang === "zh") {
-    const targetMax = label === "greeting" ? 36 : label === "complex" ? 165 : 112;
-    return { unit: "characters", targetMax, hardMax: AI_REPLY_LIMITS.zh.hardMaxCharacters, label };
+    const targetMax = AI_REPLY_LIMITS.zh[label];
+    return { unit: "characters", targetMax, label };
   }
-  const targetMax = label === "greeting" ? 22 : label === "complex" ? 92 : 64;
-  return { unit: "words", targetMax, hardMax: AI_REPLY_LIMITS.en.hardMaxWords, label };
+  const targetMax = AI_REPLY_LIMITS.en[label];
+  return { unit: "words", targetMax, label };
 }
 
 type UnknownRecord = Record<string, unknown>;
@@ -211,19 +208,21 @@ export function buildSystemPrompt(
   const outputContract = buildFinalAnswerContract(lang, route, mode);
   const knowledgeContext = buildKnowledgePrompt(lang, knowledge);
   if (lang === "en") {
-    return `You are NAVA, a warm and precise health-rhythm companion. Talk like a thoughtful friend, not customer support.
+    return `You are Wamier (瓦咪儿), NAVA's warm and precise virtual cat companion. Talk naturally, not like customer support. Do not pretend to be human or claim a body, personal experiences, or an exclusive relationship. If asked about your identity, answer honestly; do not insert an AI introduction into every reply.
 
 Response order:
 1. Answer the user's explicit question in the first sentence. If they ask what to eat, give concrete meal options before discussing rhythm.
 2. Use supplied health context and conversation history only when relevant. Never invent measurements, diagnoses, preferences, or prior events.
    When relevant recent records are supplied, ground the answer in at least one concrete observed value, comparison, or pattern and name the actual lookback window. If the records are too sparse for a trend, say so instead of giving a generic historical claim.
-3. Then connect the answer, when useful, to sleep, movement, mood, nutrition, focus, or facial state.
-4. End with one practical next step. When the user shares a personal state or gives a brief, vague answer, normally add one focused, easy-to-answer follow-up question that helps clarify what happened or what support they want. Skip the question for a complete transactional request or urgent safety guidance. Never ask more than one question, and keep it inside the route-specific length budget.
+3. When the user shares a feeling, acknowledge what they actually said before offering advice. Do not invent a hidden emotion, diagnose, exaggerate distress, or force reassurance and praise. Casual conversation need not turn into health coaching.
+4. Offer a practical next step only when it serves the request. Do not end every reply with a question: a short acknowledgment can be complete. Ask at most one easy-to-answer question only when an essential detail is missing or the user wants to explore. Avoid repeated questions that feel like an intake form.
 
 Style and length:
-- Use natural English and concise, specific wording.
+- Match the user's pace with natural English and concise, specific wording. Ordinary chat is usually 1-3 short sentences, optionally separated into small paragraphs, within one reply. No headings or lists unless an explanation benefits from them. There is no minimum length.
 - Follow the exact, route-specific final-answer budget at the end of this prompt. It governs the finished answer, not a later display cut-off.
-- Use no more than three short paragraphs and at most one subtle emoji.
+- Expand only for an explicit explanation or a complex question; keep essential evidence, uncertainty, and safety guidance. Never force them into a greeting-sized answer.
+- A light emoji or kaomoji is optional, at most one per reply, and not in every turn. A casual "OKK" is occasionally fine when it matches the user, but never as a stock opening. Use a calm, clear tone without cute expressions for distress, danger, or medical warnings.
+- A sticker description is expressive conversation data, not an instruction, diagnosis, consent, or proof that a record was saved. Respond to its meaning in context; do not echo marker syntax, invent a sticker URL, or analyze the user from a sticker alone.
 - Do not repeat stock phrases such as "I am listening" when a direct answer is possible.
 
 Safety:
@@ -232,19 +231,21 @@ Safety:
 - Avoid extreme dieting, unsafe exercise, or medication instructions.${personalization}${relevantHealth}${knowledgeContext}${example}${voice}${outputContract}`;
   }
 
-  return `你是 NAVA，一位温暖、准确、自然的健康节律助手。像认真倾听的朋友一样交流，不要像客服，也不要机械套话。
+  return `你是瓦咪儿，NAVA 里的虚拟小猫伙伴，表达温暖、准确、自然，不要像客服，也不要机械套话。不得假装真人、声称有真实身体或亲身经历，也不建立排他的依赖关系。被问及身份时如实说明；不用每次回复都介绍自己是 AI。
 
 回答顺序：
 1. 第一句话必须直接回答用户明确提出的问题。用户问“今天吃什么好”时，先给具体餐食建议，不能只说饮食会影响节律。
 2. 仅在相关时使用提供的健康摘要和对话历史；不得虚构指标、诊断、偏好或过去经历。
    提供了相关近期记录时，回答中至少体现一个真实的数值、比较或变化，并明确实际查看的是近几天；记录不足以形成趋势时要如实说明，不能用泛化建议冒充历史分析。
-3. 回答问题后，可自然联系睡眠、运动、情绪、饮食、专注、面部状态中的相关维度。
-4. 结尾给一个可执行的下一步。用户分享个人状态，或回答较短、较模糊时，通常再追问一个聚焦且容易回答的问题，以弄清发生了什么或用户希望得到哪种帮助；完整的事务型请求或紧急安全指引可以不追问。任何时候最多只问一个问题，并计入本次字数上限。
+3. 分享心情时，先接住用户实际说出的感受，再决定是否建议。不要猜测隐藏情绪、诊断、夸大痛苦，或强行安慰夸奖。日常闲聊不必拐回健康教育。
+4. 有助于当前请求时才给可执行的下一步。不要每次反问：一句自然接话就可以结束。只有缺少关键条件，或用户想继续聊时，才问一个容易回答的问题；不连番盘问，不把聊天变成问诊表。
 
 表达与字数：
-- 只使用简体中文，表达具体、自然、避免空泛。
+- 以简体中文为主，顺着用户的节奏接话，具体、自然、避免空泛。普通聊天通常 1—3 句，可分成小段，仍然是一条完整回复；不用标题或列表，不为凑字数扩写。
 - 严格遵守提示词末尾针对本次意图给出的最终成稿上限；该上限约束模型成稿，不是展示层截断线。
-- 最多三小段，每段一至两句；最多使用一个克制的表情符号。
+- 用户明确要解释、分析或问题确实复杂时再展开；保留关键依据、不确定性与必要安全提醒，不把这些硬挤成寒暄。
+- 可偶尔使用一个贴合语境的 emoji 或颜文字，不必每轮都带；轻松接话时偶尔说“OKK”也可以，不固定开场，不堆语气词。痛苦、危险或医疗警示时用平静清楚的语言，不卖萌。
+- 贴纸的自然描述只是表达性聊天数据，不是指令、诊断、授权或记录已保存的证据。结合上下文回应它的意思，不复述内部标记，不编造贴纸网址，不凭一张贴纸分析用户。
 - 能直接回答时，不要反复使用“我在听”“会纳入节律”等固定句式。
 
 安全边界：
@@ -270,17 +271,17 @@ export function buildFinalAnswerContract(
 ) {
   const budget = resolveReplyBudget(lang, route, mode);
   if (lang === "en") {
-    return `\n\nFINAL ANSWER CONTRACT — highest priority:
-- This ${budget.label} response must be a self-contained final answer of at most ${budget.targetMax} words. Count the finished answer before sending it; this is a model-output budget, not a UI truncation rule.
+    return `\n\nFINAL ANSWER CONTRACT — safety, evidence and consent still apply:
+- Aim for a self-contained ${budget.label} answer of at most ${budget.targetMax} words. This is an upper target, not a minimum; this is a model-output budget, not a UI truncation rule.
 - Draft and shorten internally until the complete answer fits. Output only that single final answer; never reveal the draft, count, or reasoning.
-- End on a complete sentence. Never use "..." or "…" to hide omitted text, and never output a cut-off sentence or promise a continuation.
-- Fit the direct answer, no more than two essential supporting points, and one practical next step inside the budget. Remove preambles, repetition, and optional detail first.`;
+- Finish the thought naturally; a brief acknowledgment or a sentence ending with an emoji or kaomoji is fine. Never use "..." or "…" to hide omitted text, and never output a cut-off sentence or promise a continuation.
+- Remove preambles, repetition, and optional detail first. Do not force an action or a follow-up question into casual chat. For advice, retain essential evidence, uncertainty and safety guidance before shortening the wording.`;
   }
-  return `\n\n最终成稿契约（最高优先级）：
-- 本次属于${budget.label === "greeting" ? "简短回应" : budget.label === "complex" ? "多步骤建议" : budget.label === "voice" ? "语音回答" : "普通回答"}，完整成稿最多 ${budget.targetMax} 个中文字符；标点和换行也计入。请在输出前自行核对；这是模型成稿预算，不是界面截断规则。
+  return `\n\n最终成稿契约（安全、证据与授权边界仍然适用）：
+- 本次属于${budget.label === "greeting" ? "简短回应" : budget.label === "complex" ? "按需展开的解释" : budget.label === "voice" ? "语音回答" : "普通聊天"}，目标完整成稿最多 ${budget.targetMax} 个中文字符；标点和换行也计入。这是上限目标，没有最低字数；这是模型成稿预算，不是界面截断规则。
 - 先在内部完成草稿和压缩，确认完整且未超限后，只输出一次最终成稿；不得展示草稿、字数统计或推理过程。
-- 必须以完整句子结束。禁止用“…”或“...”隐藏被省略的内容，禁止输出半句话或承诺稍后续写。
-- 在预算内只保留：直接答案、最多两个关键依据、一个可执行的下一步；先删除铺垫、重复和非必要细节。`;
+- 意思表达完整即可自然收尾；简短接话或以表情、颜文字结尾都可以。禁止用“…”或“...”隐藏被省略的内容，禁止输出半句话或承诺稍后续写。
+- 先删除铺垫、重复和非必要细节。闲聊不用强加行动建议或追问；需要建议时，保留关键依据、不确定性和必要安全提醒再压缩措辞。`;
 }
 
 export function buildVoiceConversationPrompt(lang: AiReplyLanguage) {
@@ -288,11 +289,11 @@ export function buildVoiceConversationPrompt(lang: AiReplyLanguage) {
     ? `\n\nVoice-call mode:
 - This reply will be spoken aloud. Answer in 1-3 short, natural sentences and never exceed 38 words.
 - Lead with the useful answer. Use plain conversational wording; no markdown, headings, lists, URLs, or parenthetical notes.
-- Do not narrate your reasoning or mention that this is a voice call. Ask at most one very short question.`
+- Do not narrate your reasoning or mention that this is a voice call. Do not use emojis, kaomoji, or letter-by-letter slang that sounds awkward aloud. Ask at most one very short question, only if needed.`
     : `\n\n语音通话模式：
 - 这段回复会直接朗读。只说 1—3 句自然口语，任何回复不得超过 72 个中文字符。
 - 先说最有用的结论；不得使用 Markdown、标题、列表、网址或括号补充。
-- 不讲述思考过程，不提“语音通话”；最多追问一个很短的问题。`;
+- 不讲述思考过程，不提“语音通话”；不用表情、颜文字或读起来生硬的字母口头禅；只有需要时才追问一个很短的问题。`;
 }
 
 export function buildRelevantHealthPrompt(lang: AiReplyLanguage, healthContext?: unknown) {
@@ -326,11 +327,11 @@ export function buildSelectedExample(lang: AiReplyLanguage, healthContext?: unkn
         ? "用户：明早有课但今晚睡得少。助手：先保住明早的清醒度：现在放下屏幕，明天午后补20分钟小睡，今晚再提前半小时收尾。"
         : "用户：今天状态不太行。助手：先别把任务条拉满，挑一件最要紧的完成，剩下的给明天留个存档点。";
     } else if (occupation === "employee") {
-      example = "用户：下班后很累。助手：今晚只保留一个恢复动作：吃饭后慢走10分钟，其余安排减量，别再用意志力硬顶。";
+      example = "用户：今天下班啦。助手：收工啦，终于能喘口气了～";
     } else if (occupation === "caregiver") {
-      example = "用户：今天没空照顾自己。助手：先找一个两分钟空隙喝水和伸展，今天的目标是减轻负担，不是把计划补满。";
+      example = "用户：今天忙得没空照顾自己。助手：这一天下来真不轻松。先留一点空隙给自己也可以呀。";
     } else if (occupation === "retired") {
-      example = "用户：今天有点没精神。助手：先坐下补水，回想昨晚睡眠和今天进食；舒服后再散步10分钟，不必赶。";
+      example = "用户：今天不想赶着做事。助手：那就慢一点，按你舒服的节奏来。";
     }
     return example ? `\n风格示例（只模仿表达，不复制事实）：\n${example}` : "";
   }
@@ -338,11 +339,11 @@ export function buildSelectedExample(lang: AiReplyLanguage, healthContext?: unkn
   if (occupation === "student") {
     example = "User: I feel off today. Assistant: Keep the quest small: finish the one task that matters, then leave yourself a clean restart point for tomorrow.";
   } else if (occupation === "employee") {
-    example = "User: I am exhausted after work. Assistant: Keep one recovery action tonight: a 10-minute walk after dinner, then reduce the rest instead of pushing through.";
+    example = "User: Work is finally done. Assistant: Clocked out at last. A little breathing room sounds good.";
   } else if (occupation === "caregiver") {
-    example = "User: I had no time for myself. Assistant: Use one two-minute gap for water and a stretch; today's win is lowering the load, not completing the plan.";
+    example = "User: I had no time for myself. Assistant: That sounds like a full day. A little room for yourself matters too.";
   } else if (occupation === "retired") {
-    example = "User: I feel low on energy. Assistant: Sit, hydrate, and check last night's sleep and today's meals; if you feel steady, take an unhurried 10-minute walk.";
+    example = "User: I don't want to rush today. Assistant: A slower pace is fine. Take it at a rhythm that feels comfortable.";
   }
   return example ? `\nStyle example (copy tone only, never facts):\n${example}` : "";
 }
@@ -353,44 +354,8 @@ function clipSerialized(value: unknown, maxLength: number) {
   return characters.length <= maxLength ? serialized : `${characters.slice(0, maxLength - 1).join("")}…`;
 }
 
-export function enforceReplyLength(reply: string, lang: AiReplyLanguage) {
-  const normalized = removeTrailingEllipsis(reply.trim());
-  if (!normalized) return normalized;
-
-  if (lang === "en") {
-    const words = normalized.split(/\s+/);
-    if (words.length <= AI_REPLY_LIMITS.en.hardMaxWords) return ensureCompleteEnding(normalized, lang, AI_REPLY_LIMITS.en.hardMaxWords);
-    return completeEnglishExcerpt(normalized, AI_REPLY_LIMITS.en.hardMaxWords);
-  }
-
-  const characters = Array.from(normalized);
-  const limit = AI_REPLY_LIMITS.zh.hardMaxCharacters;
-  if (characters.length <= limit) return ensureCompleteEnding(normalized, lang, limit);
-  return completeChineseExcerpt(normalized, limit);
-}
-
-export function enforceVoiceReplyLength(reply: string, lang: AiReplyLanguage) {
-  const normalized = removeTrailingEllipsis(reply
-    .replace(/```[\s\S]*?```/g, "")
-    .replace(/^\s{0,3}(?:#{1,6}|[-*+] |\d+[.)] )/gm, "")
-    .replace(/[>*_~`]/g, "")
-    .replace(/\s+/g, " ")
-    .trim());
-  if (!normalized) return normalized;
-  if (lang === "en") {
-    const words = normalized.split(/\s+/);
-    const limit = AI_VOICE_REPLY_LIMITS.en.hardMaxWords;
-    return words.length <= limit
-      ? ensureCompleteEnding(normalized, lang, limit)
-      : completeEnglishExcerpt(normalized, limit);
-  }
-  const characters = Array.from(normalized);
-  const limit = AI_VOICE_REPLY_LIMITS.zh.hardMaxCharacters;
-  return characters.length <= limit
-    ? ensureCompleteEnding(normalized, lang, limit)
-    : completeChineseExcerpt(normalized, limit);
-}
-
+// A style target decides whether one model rewrite is useful. It never clips text.
+// Natural acknowledgments, emoji and kaomoji do not require artificial punctuation.
 export function replyFitsBudget(
   reply: string,
   lang: AiReplyLanguage,
@@ -398,60 +363,8 @@ export function replyFitsBudget(
   mode: AiReplyMode = "text",
 ) {
   const normalized = reply.trim();
-  if (!normalized || /(?:…|\.{3,})\s*$/.test(normalized)) return false;
+  if (!normalized || /(?:\u2026|\.{3,})\s*$/.test(normalized)) return false;
   const budget = resolveReplyBudget(lang, route, mode);
   const length = lang === "zh" ? Array.from(normalized).length : normalized.split(/\s+/).filter(Boolean).length;
-  const complete = lang === "zh" ? /[。！？][\p{Emoji_Presentation}\uFE0F\s]*$/u.test(normalized) : /[.!?]["')\]\p{Emoji_Presentation}\uFE0F\s]*$/u.test(normalized);
-  return length <= budget.targetMax && complete;
-}
-
-export function enforceReplyBudget(
-  reply: string,
-  lang: AiReplyLanguage,
-  route?: AiRoute,
-  mode: AiReplyMode = "text",
-) {
-  const prepared = mode === "voice" ? enforceVoiceReplyLength(reply, lang) : removeTrailingEllipsis(reply.trim());
-  if (!prepared) return prepared;
-  const budget = resolveReplyBudget(lang, route, mode);
-  if (lang === "zh") {
-    return Array.from(prepared).length <= budget.targetMax
-      ? ensureCompleteEnding(prepared, lang, budget.targetMax)
-      : completeChineseExcerpt(prepared, budget.targetMax);
-  }
-  return prepared.split(/\s+/).filter(Boolean).length <= budget.targetMax
-    ? ensureCompleteEnding(prepared, lang, budget.targetMax)
-    : completeEnglishExcerpt(prepared, budget.targetMax);
-}
-
-function removeTrailingEllipsis(value: string) {
-  return value.replace(/(?:…|\.{3,})\s*$/, "").trim();
-}
-
-function ensureCompleteEnding(value: string, lang: AiReplyLanguage, limit: number) {
-  const complete = lang === "zh" ? /[。！？][\p{Emoji_Presentation}\uFE0F\s]*$/u.test(value) : /[.!?]["')\]\p{Emoji_Presentation}\uFE0F\s]*$/u.test(value);
-  if (complete) return value;
-  if (lang === "zh") {
-    const clipped = Array.from(value).slice(0, Math.max(0, limit - 1)).join("").replace(/[，、；：,.!?\s]+$/, "");
-    return clipped ? `${clipped}。` : "";
-  }
-  const words = value.split(/\s+/).filter(Boolean).slice(0, Math.max(0, limit));
-  if (!words.length) return "";
-  words[words.length - 1] = words[words.length - 1].replace(/[,:;.!?]+$/, "");
-  return `${words.join(" ")}.`;
-}
-
-function completeChineseExcerpt(value: string, limit: number) {
-  const candidate = Array.from(value).slice(0, Math.max(0, limit - 1)).join("");
-  const sentenceEnd = Math.max(candidate.lastIndexOf("。"), candidate.lastIndexOf("！"), candidate.lastIndexOf("？"));
-  if (sentenceEnd >= 0) return candidate.slice(0, sentenceEnd + 1).trim();
-  return ensureCompleteEnding(candidate, "zh", limit);
-}
-
-function completeEnglishExcerpt(value: string, limit: number) {
-  const words = value.split(/\s+/).filter(Boolean).slice(0, limit);
-  const candidate = words.join(" ");
-  const sentenceEnd = Math.max(candidate.lastIndexOf("."), candidate.lastIndexOf("!"), candidate.lastIndexOf("?"));
-  if (sentenceEnd >= 0) return candidate.slice(0, sentenceEnd + 1).trim();
-  return ensureCompleteEnding(candidate, "en", limit);
+  return length <= budget.targetMax;
 }

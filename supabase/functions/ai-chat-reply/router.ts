@@ -1,3 +1,5 @@
+import { describeChatSticker } from "../_shared/chat-stickers.ts";
+
 export type AiDomain = "sleep" | "exercise" | "mood" | "nutrition" | "focus" | "face" | "rhythm";
 
 export type AiIntent = "record" | "advice" | "question" | "emotional_support" | "smalltalk";
@@ -26,7 +28,7 @@ const domainPatterns: Record<AiDomain, RegExp> = {
 
 export function buildDeterministicRoute(message: string, dataType?: unknown, extractedData?: unknown): AiRoute | null {
   const normalized = message.trim();
-  if (isSmalltalk(normalized)) {
+  if (describeChatSticker(normalized) !== null || isSmalltalk(normalized)) {
     return { intent: "smalltalk", domains: [], lookbackDays: 1, complexity: "simple", source: "deterministic" };
   }
 
@@ -49,7 +51,7 @@ export function buildDeterministicRoute(message: string, dataType?: unknown, ext
     intent,
     domains: routedDomains,
     lookbackDays,
-    complexity: routedDomains.length > 1 || Array.from(normalized).length > 120 ? "complex" : "simple",
+    complexity: routedDomains.length > 1 || needsExplanation(normalized) ? "complex" : "simple",
     source: "deterministic",
   };
 }
@@ -88,7 +90,7 @@ export function fallbackRoute(message: string): AiRoute {
     intent: /怎么|如何|建议|应该|what|how|should/i.test(message) ? "advice" : "question",
     domains: [],
     lookbackDays: 7,
-    complexity: Array.from(message).length > 120 ? "complex" : "simple",
+    complexity: needsExplanation(message) ? "complex" : "simple",
     source: "fallback",
   };
 }
@@ -99,12 +101,14 @@ export function routeSystemPrompt(lang: "zh" | "en") {
 Allowed domains: sleep, exercise, mood, nutrition, focus, face, rhythm. Choose at most 3 and only when relevant.
 Allowed intent: record, advice, question, emotional_support, smalltalk.
 lookbackDays must be 1, 3, 6, 7, 14, or 30. Use 7 for health records by default, 3/6 when explicitly requested, 1 only when the user explicitly asks to exclude historical comparison, and 14/30 only for explicit longer trend questions.
+Use complex when the user explicitly requests an explanation, comparison, or step-by-step plan; ordinary emotional support and casual chat are simple. Do not invent a health domain for a greeting or sticker.
 JSON example: {"intent":"advice","domains":["sleep"],"lookbackDays":7,"complexity":"simple"}`;
   }
   return `对一条 NAVA 用户消息做上下文检索分类，只返回 JSON。
 可选领域：sleep、exercise、mood、nutrition、focus、face、rhythm。最多选 3 个，只有相关时才选。
 可选意图：record、advice、question、emotional_support、smalltalk。
 lookbackDays 只能是 1、3、6、7、14、30；健康记录默认用 7，明确要求近 3 天或 6 天时使用对应天数，只有用户明确说不做历史比较时才用 1，明确询问更长趋势时才用 14/30。
+明确要求解释、比较或分步骤计划时选 complex；普通情绪接话、闲聊选 simple，不为寒暄或贴纸凭空添加健康领域。
 JSON 示例：{"intent":"advice","domains":["sleep"],"lookbackDays":7,"complexity":"simple"}`;
 }
 
@@ -138,6 +142,10 @@ function inferLookbackDays(message: string): AiLookbackDays {
 
 function isSmalltalk(message: string) {
   return /^(hi|hello|hey|你好|嗨|哈喽|谢谢|谢啦|晚安|早安|在吗)[!！。.，,\s]*$/i.test(message);
+}
+
+export function needsExplanation(message: string) {
+  return Array.from(message).length > 120 || /详细|展开|解释|分析|比较|区别|原理|步骤|为什么|explain|in detail|step.by.step|compare|difference|why\b/i.test(message);
 }
 
 function isIntent(value: unknown): value is AiIntent {
