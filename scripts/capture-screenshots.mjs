@@ -518,7 +518,7 @@ async function main() {
         await page.locator(".avatar-sheet").waitFor({ state: "visible" });
         metrics.profile.avatarSheet = await page.evaluate(() => ({
           actionLabels: [...document.querySelectorAll(".avatar-sheet-actions button")].map((button) => button.textContent?.trim() ?? ""),
-          closeActions: document.querySelectorAll('.avatar-sheet [aria-label="关闭"], .avatar-sheet [aria-label="Close"]').length,
+          closeActions: document.querySelectorAll('.avatar-sheet .nava-bottom-sheet-grabber').length,
         }));
         if (
           metrics.profile.avatarSheet.closeActions !== 1
@@ -530,7 +530,7 @@ async function main() {
         }
         await shot("06-profile-avatar-sheet.png");
         await page.locator('.profile-account-card input[type="file"]').first().setInputFiles(samplePhoto);
-        await page.locator(".avatar-sheet-overlay").waitFor({ state: "detached" });
+        await page.locator(".avatar-picker").waitFor({ state: "detached" });
         await page.locator('.avatar-button img[src^="data:image/png"]').waitFor({ state: "visible" });
         metrics.profile.avatarUpdated = await page.locator('.avatar-button img[src^="data:image/png"]').count();
         if (metrics.profile.avatarUpdated !== 1) {

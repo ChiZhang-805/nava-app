@@ -1,0 +1,17 @@
+/* Keep historical avatar-sheet hooks while sharing one presentation and focus boundary. */
+.phone-frame .nava-bottom-sheet.avatar-picker {
+  width: min(100%, 430px);
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 28px;
+  animation: nava-sheet-enter 260ms cubic-bezier(.22, .8, .25, 1) both;
+}
+.phone-frame .nava-bottom-sheet.avatar-picker[data-closing="true"] { animation: nava-sheet-exit 180ms ease-in both; }
+.phone-frame[data-app-skin] .nava-bottom-sheet.avatar-picker { background: #f8faff; }
+.avatar-picker-title { margin: 0 0 16px; color: var(--skin-ink, #163d51); font-size: 18px; line-height: 1.4; font-weight: 750; text-align: center; }
+.phone-frame .nava-bottom-sheet.avatar-picker .avatar-sheet-actions > button { min-height: 88px; }
+@media (prefers-reduced-motion: reduce) {
+  .phone-frame .nava-bottom-sheet.avatar-picker,
+  .phone-frame .nava-bottom-sheet.avatar-picker[data-closing="true"] { animation: none; }
+}

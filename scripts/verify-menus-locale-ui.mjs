@@ -74,8 +74,8 @@ async function avatarCheck(page, name, details = true) {
   const geometry = await picker.evaluate((sheet) => {
     const frame = document.querySelector(".phone-frame").getBoundingClientRect(); const r = sheet.getBoundingClientRect();
     const scale = frame.width / document.querySelector(".phone-frame").offsetWidth;
-    const buttons = [...sheet.querySelectorAll("button")].map((b) => { const x = b.getBoundingClientRect(); return { width: x.width / scale, height: x.height / scale, inside: x.left >= r.left + 12 * scale && x.right <= r.right - 12 * scale && x.bottom <= r.bottom - 12 * scale }; });
-    return { inside: r.left >= frame.left + 12 * scale && r.right <= frame.right - 12 * scale && r.bottom <= frame.bottom - 24 * scale, buttons, portal: sheet.parentElement.parentElement.classList.contains("phone-frame") };
+    const buttons = [...sheet.querySelectorAll(".avatar-sheet-actions button")].map((b) => { const x = b.getBoundingClientRect(); return { width: x.width / scale, height: x.height / scale, inside: x.left >= r.left + 12 * scale && x.right <= r.right - 12 * scale && x.bottom <= r.bottom - 12 * scale }; });
+    return { inside: r.left >= frame.left + 12 * scale && r.right <= frame.right - 12 * scale && r.bottom <= frame.bottom - 12 * scale, buttons, portal: sheet.parentElement.parentElement.classList.contains("phone-frame") };
   });
   assert.ok(geometry.inside && geometry.portal && geometry.buttons.every((b) => b.inside && b.width >= 43.9 && b.height >= 43.9), `${name} avatar geometry ${JSON.stringify(geometry)}`);
   await page.screenshot({ path: `${output}/${name}-avatar.png` });

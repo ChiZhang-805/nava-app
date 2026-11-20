@@ -235,14 +235,14 @@ try {
         };
         return {
           sheet: paint(picker),
-          close: paint(picker.querySelector("header button")),
+          close: paint(picker.querySelector(".nava-bottom-sheet-grabber")),
           actions: [...picker.querySelectorAll(".avatar-sheet-actions > button")].map(paint),
         };
       });
       assert.equal(avatarPickerPaint.actions.length, 2, `${width} ${skin} avatar picker must theme both actions`);
       report.results.push({ viewport: `${width}x${height}`, skin, avatarPicker: avatarPickerPaint });
       if (width === 390) await page.screenshot({ path: `${output}/${skin}-advanced-profile-avatar-${width}x${height}.png`, fullPage: false });
-      await page.locator(".avatar-picker > header button").click();
+      await page.locator(".avatar-picker .nava-bottom-sheet-grabber").click();
       await page.evaluate(() => { location.hash = "tab=profile&view=skin"; });
       await expect(page.locator(".profile-skin-card")).toBeVisible({ timeout: 20000 });
 

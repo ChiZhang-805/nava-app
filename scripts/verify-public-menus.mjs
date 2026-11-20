@@ -68,7 +68,7 @@ try {
         await page.locator("[data-profile-details-avatar]").click();
         const picker = page.locator(".avatar-picker"); await expect(picker).toBeVisible();
         assert.equal(await picker.evaluate((s) => s.parentElement.parentElement.classList.contains("phone-frame")), true);
-        const rect = await picker.boundingBox(); assert.ok(rect.x >= 12 && rect.x + rect.width <= width - 12 && rect.y + rect.height <= height - 24);
+        const rect = await picker.boundingBox(); assert.ok(rect.x >= 12 && rect.x + rect.width <= width - 12 && rect.y + rect.height <= height - 12);
         await page.screenshot({ path: `${output}/${host}-${width}-avatar.png` });
         await page.keyboard.press("Escape");
       }
