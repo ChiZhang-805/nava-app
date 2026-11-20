@@ -3,7 +3,6 @@ import {
   errorResponse,
   jsonResponse,
   optionsResponse,
-  readJson,
   requireUser,
   stringValue,
 } from "../_shared/http.ts";
@@ -43,6 +42,9 @@ import { createFocusRun } from "./focus-provider.ts";
 import { replyPurpose, utilityReply, utilitySystemPrompt, type ReplyPurpose } from "./purpose.ts";
 import { CHAT_TONE_EXAMPLES } from "./tone-catalog-data.ts";
 import { selectToneExamples, type ToneSelection } from "./tone-retrieval.ts";
+import { validateChatImageInputs, validateChatImageAnalysis, chatImageEvidencePrompt, type ChatImageAnalysis } from "../_shared/chat-image-contract.ts";
+import { analyzeChatImages, readBoundedChatRequest } from "./images.ts";
+import { requireAiPersonalizationConsent } from "../_shared/consent.ts";
 
 type ReplyLanguage = "zh" | "en";
 type ReplyMode = "text" | "voice";
@@ -63,6 +65,7 @@ type ReplyInput = {
   providerUserId: string;
   knowledge: KnowledgeBundle;
   tone?: ToneSelection;
+  imageAnalysis?: ChatImageAnalysis;
 };
 
 type ProviderReply = {
@@ -87,14 +90,17 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return errorResponse("仅支持 POST。", 405);
 
   try {
-    const body = await readJson(req);
+    const body = await readBoundedChatRequest(req);
+    const imageRequest = body.purpose === "chat-images";
     const focusRequest = body.focusRequest == null ? null : validateFocusRequest(body.focusRequest);
-    const purpose = replyPurpose(body.purpose);
+    const purpose = imageRequest ? "chat" : replyPurpose(body.purpose);
+    if (imageRequest && (focusRequest || body.archiveId != null || body.stream === true)) throw new Error("图片理解请求不能混入专注任务、归档或流式请求。");
+    if (!imageRequest && body.images != null) throw new Error("请使用图片理解入口提交图片。");
     if (purpose !== "chat" && (focusRequest || body.archiveId != null || body.responseMode === "voice" || body.response_mode === "voice")) {
       throw new Error("Utility requests do not accept conversation archives, focus actions, or voice mode");
     }
     const message = stringValue(body.message) ?? "";
-    if (!focusRequest && !message) throw new Error("请先输入要发送的内容。");
+    if (!focusRequest && !imageRequest && !message) throw new Error("请先输入要发送的内容。");
     if (Array.from(message).length > 600) throw new Error("单次消息不能超过 600 个字符。");
 
     const address = clientAddress(req);
@@ -109,6 +115,11 @@ Deno.serve(async (req) => {
     enforceRateLimit(`${user.id}:${address}`, authenticatedRequestsPerWindow);
 
     const lang: ReplyLanguage = stringValue(body.lang) === "en" || stringValue(body.language) === "en" ? "en" : "zh";
+    if (imageRequest) {
+      const images = validateChatImageInputs(body.images);
+      await requireAiPersonalizationConsent(userClient, user.id, lang);
+      return jsonResponse(await analyzeChatImages({ message, lang, images, signal: req.signal }));
+    }
     if (focusRequest) {
       const result = await buildFocusReply(userClient, user.id, focusRequest, lang, body.deviceDate, req.signal);
       // Keep already-open v148 tabs functional during and after a dual-site rollout.
@@ -119,9 +130,12 @@ Deno.serve(async (req) => {
       }
       return jsonResponse(result);
     }
-    const baseInput: Pick<ReplyInput, "message" | "purpose" | "archiveId" | "messageId" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode"> = {
+    const imageAnalysis = body.imageAnalysis == null ? undefined : validateChatImageAnalysis(body.imageAnalysis);
+    if (imageAnalysis && purpose !== "chat") throw new Error("工具请求不能附带图片分析。");
+    const baseInput: Pick<ReplyInput, "message" | "purpose" | "archiveId" | "messageId" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode" | "imageAnalysis"> = {
       message,
       purpose,
+      imageAnalysis,
       archiveId: optionalConversationId(body.archiveId, "archiveId"),
       messageId: optionalConversationId(body.messageId, "messageId"),
       deviceDate: stringValue(body.deviceDate) ?? stringValue(body.device_date),
@@ -172,7 +186,7 @@ async function buildFocusReply(client: SupabaseClient, userId: string, request: 
 async function prepareReplyInput(
   client: SupabaseClient,
   userId: string,
-  input: Pick<ReplyInput, "message" | "purpose" | "archiveId" | "messageId" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode">,
+  input: Pick<ReplyInput, "message" | "purpose" | "archiveId" | "messageId" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode" | "imageAnalysis">,
 ): Promise<ReplyInput> {
   if (input.purpose !== "chat") {
     // Utility callers supply their bounded task/excerpt explicitly. They have
@@ -333,6 +347,7 @@ async function customProviderReply(input: ReplyInput, endpoint: string, apiKey?:
         messageId: input.messageId,
         dataType: input.dataType,
         extractedData: input.extractedData,
+        imageAnalysis: input.imageAnalysis,
         healthContext: input.healthContext,
         conversationHistory: input.conversationHistory,
         route: input.route,
@@ -422,6 +437,7 @@ function deepSeekRequestBody(input: ReplyInput) {
 function inputSystemPrompt(input: ReplyInput) {
   return input.purpose === "chat"
     ? buildSystemPrompt(input.lang, input.healthContext, input.route, input.responseMode, input.knowledge, input.tone)
+      + (input.imageAnalysis ? chatImageEvidencePrompt(input.imageAnalysis, input.lang) : "")
     : utilitySystemPrompt(input.purpose, input.lang);
 }
 

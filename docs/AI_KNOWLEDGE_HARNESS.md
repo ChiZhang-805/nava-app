@@ -179,6 +179,53 @@ allowlisted `purpose` contracts, plain validated values and no tone/history/tool
 
 ## Runtime flow
 
+### Chat-image audit and proposed correction (2026-11-20; not yet deployed)
+
+The previous chat composer unconditionally called `analyzeDietPhoto` for every
+attachment and combined all results into one meal. Its generated nutrition
+message reached text chat, while the user's typed attachment question was only
+stored as display text. Face/fitness/generic images therefore had no general
+image-understanding route. The independent face page used `face-analyze`; that
+did not mean chat used the face analyzer. Non-food rejection by the food model
+was not evidence that the original photo was understood correctly.
+
+The new `ai-chat-reply` `purpose="chat-images"` branch accepts transient JPEG,
+PNG or WebP data URLs, at most four images, one MiB each and three MiB combined.
+The request body is stream-limited before JSON parsing. It requires authenticated
+quota and personalized-AI consent, forwards the actual user text, and returns
+one ID-matched observation per image: `food`, `fitness`, `face`, `generic`, or
+exclusive `uncertain`. Mixed concrete kinds stay distinct. No photo or record is
+persisted by this branch, no external image URL is fetched, and no food/face
+record function is invoked automatically. Only confidently identified food IDs
+are candidates for the existing editable food-recognition flow; they are never
+automatic saved meals. Final text chat receives separately validated,
+untrusted `imageAnalysis` evidence alongside the original user request.
+
+Face observations must not infer identity, emotion, diagnosis or appearance-based
+health scores. Fitness pictures cannot establish completed workouts, durations,
+steps or energy expenditure. Readable device/chart values are reported as image
+text, not asserted as this user's measurements. Food names are not nutrient
+measurements; blurry and unsupported evidence remains uncertain.
+
+New visual configuration reads only `NAVA_CHAT_VISION_KEY` or
+`DASHSCOPE_API_KEY_NAVA`; endpoint/model overrides are `NAVA_CHAT_VISION_URL` and
+`NAVA_CHAT_VISION_MODEL`, with source defaults DashScope / `qwen3-vl-plus`.
+Returned provider/model metadata describes the actual configured response path,
+not an invented successful call. Missing keys fail visibly without falling back
+to `DASHSCOPE_API_KEY`, `DEEPSEEK_API_KEY` or another project/account.
+
+Read-only production metadata on 2026-11-20 showed `diet-extract` v29,
+`face-analyze` v27, `ai-extract-data` v31, `ai-chat-reply` v48 and
+`journal-assistant` v7 ACTIVE with JWT enabled. Secret **names only** showed the
+legacy generic provider names, not the NAVA-scoped vision names; no vision-model
+override name was present. Local Windows User configuration likewise had no
+NAVA-scoped vision key. These observations do not prove the live vision model
+or its availability. Earlier recorded `qwen3-vl-plus` successes are historical,
+not a current test. Real visual fixtures remain blocked pending the authorized
+NAVA-specific configuration; deterministic tests cover mixed/unknown photos,
+text forwarding, no writes, auth/consent/key failures, bad raster input,
+missing/mismatched IDs, invalid categories and truncated provider output.
+
 1. Detect one or more health domains from the user's message.
 2. Load only the authorized recent records for those domains.
 3. Produce an initial structured extraction.
