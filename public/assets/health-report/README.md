@@ -82,3 +82,17 @@ The validation reads the PNG through browser canvas only; it does not modify any
 
 Project test evidence: `NAVA-App/Build/TestRuns/App-Checks/health-report-icons/`.
 
+## My rhythm header illustration
+
+`rhythm.png` is an additional original illustration generated with the same built-in image tool and `transparent_background: true`. It is a soft glacier-blue rhythm clock with a lavender wave, intended for the 24–28 CSS px header beside “My rhythm”. It is not a medical ECG and contains no text or separate background tile.
+
+Source filename: `exec-a80011e2-3191-4b7f-9cdc-76df2a86b52b.png`. The original PNG is preserved unchanged. Use `rhythm.webp` (384 × 384, 27,408 bytes) in the application; it uses the same Sharp settings above and has a maximum alpha difference of 0 against the resized original. PNG and WebP both retain alpha from 0 to 255. The original six assets are unchanged.
+
+The exact complete generation prompt was:
+
+```text
+Use case: stylized-concept. Create ONE original production app icon for NAVA's health-report category row. Style: a softly dimensional hand-painted toy illustration, 2D raster artwork with gentle sculpted volume, smooth rounded silhouettes, subtle matte watercolor-gouache texture, clean softly shaded edges; warm and friendly, polished, not a line icon, not a photoreal render. Shared art direction: pastel glacier blue and airy mint foundation, clear medium saturation accents, soft upper-left lighting, very slight three-quarter front view. Square canvas, one centered coherent subject filling 70–80% of the canvas with equal transparent breathing room. The image must read clearly at 60–68 CSS pixels: few bold forms, no tiny ornamental details. Background must be genuinely transparent alpha everywhere outside the subject. No white or colored backdrop, no tile, no badge, no framing circle, no ground, no cast shadow on an invisible floor, no text, numbers, logos, labels, watermarks, scenery, or extra floating decorations. Internal shading is allowed.  Subject: one miniature pebble-shaped rhythm clock made of pale glacier-blue ceramic, seen almost from the front with the same soft hand-painted shading as a toy object. The clock body is rounded and gently dimensional, with a small lavender top knob. Across its pale blue face is one thick, softly undulating lavender-blue wave, just two gentle rounded rises, like a calm daily rhythm, not a medical ECG. No clock hands, numbers, tiny ticks, extra ornaments or text. Use very few bold readable forms so it is unmistakable at 24–28 CSS pixels. The small clock itself is the entire subject; no separate badge, tile or background. Keep warm friendly pastel volume with clear silhouette, original illustration. Center it and fill at least 80% of the canvas.
+```
+
+Actual-size header preview: `NAVA-App/Build/TestRuns/App-Checks/health-report-icons/rhythm-24px-28px.png`.
+
