@@ -21,12 +21,33 @@ export async function loadOwnedAiBaseContext(
   userId: string,
   currentMessage: string,
   lang: "zh" | "en" = "zh",
+  archiveId?: string,
+  currentMessageId?: string,
 ): Promise<OwnedAiBaseContext> {
   const profileContext = await loadProfileContext(client, userId);
-  const conversationHistory = profileContext.personalizationAllowed
-    ? await loadConversationHistory(client, userId, currentMessage, lang)
-    : [];
+  const conversationHistory = archiveId
+    ? await loadArchivedConversationHistory(client, userId, archiveId, currentMessage, lang, profileContext.personalizationAllowed, currentMessageId)
+    : profileContext.personalizationAllowed
+      ? await loadConversationHistory(client, userId, currentMessage, lang, currentMessageId)
+      : [];
   return { conversationHistory, ...profileContext };
+}
+
+async function loadArchivedConversationHistory(
+  client: SupabaseClient, userId: string, archiveId: string, currentMessage: string,
+  lang: "zh" | "en", personalizationAllowed: boolean, currentMessageId?: string,
+): Promise<ConversationMessage[]> {
+  const result = await client.from("ai_conversation_archives")
+    .select(personalizationAllowed ? "id,messages" : "id")
+    .eq("user_id", userId).eq("id", archiveId).maybeSingle();
+  if (result.error) throw new Error(`AI conversation archive unavailable: ${result.error.message ?? "query failed"}`);
+  // Never silently fall back to today's conversation for a missing/foreign
+  // archive. With consent revoked, check ownership without fetching messages.
+  const archive = record(result.data);
+  if (!archive) throw new Error("这段聊天不存在或当前账号无权访问，请重新打开历史聊天。");
+  if (!personalizationAllowed) return [];
+  if (!Array.isArray(archive.messages)) throw new Error("这段历史聊天暂时无法读取，请重试。");
+  return normalizeConversationHistory(archive.messages, currentMessage, lang, { oldestFirst: true, currentMessageId });
 }
 
 export async function loadOwnedRelevantHealthContext(
@@ -67,17 +88,18 @@ async function loadConversationHistory(
   userId: string,
   currentMessage: string,
   lang: "zh" | "en",
+  currentMessageId?: string,
 ): Promise<ConversationMessage[]> {
   const result = await client
     .from("ai_conversations")
-    .select("role,content,created_at")
+    .select("id,role,content,created_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(10);
 
   if (result.error) throw new Error(`AI conversation history unavailable: ${result.error.message ?? "query failed"}`);
 
-  return normalizeConversationHistory(result.data, currentMessage, lang);
+  return normalizeConversationHistory(result.data, currentMessage, lang, { currentMessageId });
 }
 
 async function loadProfileContext(client: SupabaseClient, userId: string) {

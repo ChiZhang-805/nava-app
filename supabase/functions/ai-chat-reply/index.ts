@@ -27,6 +27,7 @@ import {
 } from "./prompt.ts";
 import { completeModelText, resolveCompleteReply } from "./reply.ts";
 import { describeChatSticker } from "../_shared/chat-stickers.ts";
+import { optionalConversationId } from "./history.ts";
 import {
   buildDeterministicRoute,
   fallbackRoute,
@@ -44,6 +45,8 @@ type ReplyMode = "text" | "voice";
 
 type ReplyInput = {
   message: string;
+  archiveId?: string;
+  messageId?: string;
   deviceDate?: string;
   dataType?: string;
   extractedData: unknown;
@@ -105,8 +108,10 @@ Deno.serve(async (req) => {
       }
       return jsonResponse(result);
     }
-    const baseInput: Pick<ReplyInput, "message" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode"> = {
+    const baseInput: Pick<ReplyInput, "message" | "archiveId" | "messageId" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode"> = {
       message,
+      archiveId: optionalConversationId(body.archiveId, "archiveId"),
+      messageId: optionalConversationId(body.messageId, "messageId"),
       deviceDate: stringValue(body.deviceDate) ?? stringValue(body.device_date),
       dataType: stringValue(body.dataType) ?? stringValue(body.data_type),
       extractedData: body.extractedData ?? body.extracted_data ?? null,
@@ -155,9 +160,9 @@ async function buildFocusReply(client: SupabaseClient, userId: string, request: 
 async function prepareReplyInput(
   client: SupabaseClient,
   userId: string,
-  input: Pick<ReplyInput, "message" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode">,
+  input: Pick<ReplyInput, "message" | "archiveId" | "messageId" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode">,
 ): Promise<ReplyInput> {
-  const base = await loadOwnedAiBaseContext(client, userId, input.message, input.lang);
+  const base = await loadOwnedAiBaseContext(client, userId, input.message, input.lang, input.archiveId, input.messageId);
   const providerUserId = await anonymizeUserId(userId);
   const stickerDescription = describeChatSticker(input.message, input.lang);
   const normalizedInput = stickerDescription ? {
@@ -297,6 +302,8 @@ async function customProviderReply(input: ReplyInput, endpoint: string, apiKey?:
       },
       body: JSON.stringify({
         message: input.message,
+        archiveId: input.archiveId,
+        messageId: input.messageId,
         dataType: input.dataType,
         extractedData: input.extractedData,
         healthContext: input.healthContext,

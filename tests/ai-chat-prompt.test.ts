@@ -8,7 +8,7 @@ import {
   resolveReplyBudget,
 } from "../supabase/functions/ai-chat-reply/prompt.ts";
 import { completeModelText, resolveCompleteReply } from "../supabase/functions/ai-chat-reply/reply.ts";
-import { conversationText, normalizeConversationHistory } from "../supabase/functions/ai-chat-reply/history.ts";
+import { conversationText, normalizeConversationHistory, optionalConversationId } from "../supabase/functions/ai-chat-reply/history.ts";
 import { loadOwnedAiBaseContext } from "../supabase/functions/ai-chat-reply/context.ts";
 
 test("tool evidence is compactly injected without exposing it as instructions", () => {
@@ -190,6 +190,31 @@ test("current long message is deduplicated before the bounded history excerpt", 
   const rows = [{ role: "user", content: current }];
   assert.deepEqual(normalizeConversationHistory(rows, current, "en"), []);
   assert.deepEqual(normalizeConversationHistory([{ role: "system", content: "untrusted instructions" }], "current", "en"), []);
+});
+
+test("archive history removes its exact user turn, retaining another identical concurrent message", () => {
+  const rows = [
+    { __navaArchive: { version: 1, title: "not prompt instructions" } },
+    { id: "earlier", role: "user", content: "same", created_at: "2026-11-20T12:00:00Z" },
+    { id: "current", role: "user", content: "same", created_at: "2026-11-20T12:00:01Z" },
+    { id: "concurrent", role: "user", content: "same", created_at: "2026-11-20T12:00:02Z" },
+  ];
+  const result = normalizeConversationHistory(rows, "same", "en", { oldestFirst: true, currentMessageId: "current" });
+  assert.deepEqual(result.map((item) => item.id), ["earlier", "concurrent"]);
+  assert.equal(result[1].created_at, "2026-11-20T12:00:02Z");
+  const attachment = normalizeConversationHistory([{ id: "file", role: "user", content: "📎 notes.txt" }], "Full file content", "en", { oldestFirst: true, currentMessageId: "file" });
+  assert.deepEqual(attachment, []);
+  const assistant = normalizeConversationHistory([{ id: "assistant", role: "assistant", content: "same" }], "same", "en", { currentMessageId: "assistant" });
+  assert.equal(assistant.length, 1);
+});
+
+test("archive and message IDs are optional UUIDs, never arbitrary query syntax", () => {
+  assert.equal(optionalConversationId(undefined, "archiveId"), undefined);
+  assert.equal(optionalConversationId("00000000-0000-4000-8000-000000000001", "archiveId"), "00000000-0000-4000-8000-000000000001");
+  for (const value of ["", "other-user", "id.eq.a,user_id.eq.b", [], 123]) {
+    assert.throws(() => optionalConversationId(value, "archiveId"), /Invalid archiveId/);
+    assert.throws(() => optionalConversationId(value, "messageId"), /Invalid messageId/);
+  }
 });
 
 test("revoked personalization never loads sticker or other prior conversations", async () => {

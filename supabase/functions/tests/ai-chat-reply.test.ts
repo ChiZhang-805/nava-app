@@ -13,6 +13,9 @@ Deno.test("chat endpoint keeps sticker, consent and complete single-reply contra
   let finishReason = "stop";
   let answer = "那就慢一点呀～";
   let currentMessage = "[nava-sticker:rest]";
+  let archiveExists = true;
+  const archiveId = "00000000-0000-4000-8000-000000000001";
+  const messageId = "00000000-0000-4000-8000-000000000002";
   const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
   const json = (value: unknown) => new Response(JSON.stringify(value), { headers: { "content-type": "application/json" } });
 
@@ -30,6 +33,20 @@ Deno.test("chat endpoint keeps sticker, consent and complete single-reply contra
     if (url.includes("/rest/v1/profiles?")) {
       assert(url.includes("id=eq.fixture-user"), "profile lookup escaped the authenticated user");
       return json({ ai_personalization_consent: consent });
+    }
+    if (url.includes("/rest/v1/ai_conversation_archives?")) {
+      const query = new URL(url).searchParams;
+      assert(query.get("user_id") === "eq.fixture-user" && query.get("id") === `eq.${archiveId}`, "archive query omitted owner/id checks");
+      assert(!init?.method || init.method === "GET", "reply path wrote/moved archived messages");
+      assert(query.get("select") === (consent ? "id,messages" : "id"), "revoked consent fetched archive content");
+      if (!archiveExists) return json(null);
+      return json({ id: archiveId, ...(consent ? { messages: [
+        { __navaArchive: { version: 1, dayKey: "2026-11-19", title: "private-title" } },
+        { id: "past-user", role: "user", content: "archive-specific-message", created_at: "2026-11-19T10:00:01Z" },
+        { id: "past-assistant", role: "assistant", content: "earlier reply", created_at: "2026-11-19T10:00:02Z" },
+        { id: messageId, role: "user", content: currentMessage, created_at: "2026-11-20T10:00:01Z" },
+        { id: "concurrent", role: "user", content: currentMessage, created_at: "2026-11-20T10:00:02Z" },
+      ] } : {}) });
     }
     if (url.includes("/rest/v1/ai_conversations?")) {
       assert(consent, "history was fetched after consent revocation");
@@ -75,11 +92,31 @@ Deno.test("chat endpoint keeps sticker, consent and complete single-reply contra
     assert(messages.some((item) => item.content === describeChatSticker("[nava-sticker:hug]", "zh")), "past sticker was not normalized");
     assert(!requests.some((entry) => /sleep_records|health_metric_snapshots/.test(entry.url)), "sticker triggered health retrieval");
 
+    await run({ archiveId, messageId });
+    assert(!requests.some((entry) => entry.url.includes("/ai_conversations?")), "archive mode read today's live table");
+    const archiveMessages = requests.find((entry) => entry.url.startsWith("https://api.deepseek.com"))!.body.messages as Array<{ role: string; content: string }>;
+    assert(archiveMessages.some((item) => item.content === "archive-specific-message"), "selected archive was omitted");
+    assert(!JSON.stringify(archiveMessages).includes("private-title"), "archive metadata became prompt text");
+    assert(archiveMessages.filter((item) => item.content === describeChatSticker(currentMessage, "zh")).length === 2, "exact current ID dedup removed an unrelated identical turn");
+
     consent = false;
     await run();
     assert(!requests.some((entry) => entry.url.includes("ai_conversations?")), "revoked history was loaded");
     const deniedMessages = requests.find((entry) => entry.url.startsWith("https://api.deepseek.com"))!.body.messages as Array<{ role: string }>;
     assert(deniedMessages.length === 2, "unauthorized history reached model");
+    await run({ archiveId, messageId });
+    const consentArchive = requests.find((entry) => entry.url.includes("/ai_conversation_archives?"));
+    assert(consentArchive && new URL(consentArchive.url).searchParams.get("select") === "id", "ownership was not checked without history consent");
+    const archiveDeniedMessages = requests.find((entry) => entry.url.startsWith("https://api.deepseek.com"))!.body.messages as unknown[];
+    assert(archiveDeniedMessages.length === 2, "archive content reached model after revocation");
+    for (const allowed of [true, false]) {
+      consent = allowed;
+      archiveExists = false;
+      const missing = await run({ archiveId, messageId });
+      assert(missing.events.length === 1 && missing.events[0].name === "error", "missing/foreign archive was accepted");
+      assert(!requests.some((entry) => entry.url.includes("/ai_conversations?") || entry.url.startsWith("https://api.deepseek.com")), "missing archive fell back to another conversation");
+    }
+    archiveExists = true;
 
     currentMessage = "[nava-sticker:unknown]";
     await run();

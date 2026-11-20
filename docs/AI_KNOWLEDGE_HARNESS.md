@@ -39,6 +39,15 @@ hidden chain of thought.
   history is normalized in memory, retains timestamps and ordering, and removes
   the just-saved current turn before model submission. Persisted content is
   untouched; without personalization consent, history stays excluded.
+- Archived continuation supplies only `archiveId` and the just-saved user
+  `messageId`. The server validates UUID syntax and looks up the archive using
+  both the authenticated user ID and archive ID. It never moves, deletes or
+  reads the live `ai_conversations` table for an archived turn. With consent
+  revoked it selects only the archive ID to verify ownership, without fetching
+  messages; missing or foreign archives fail without falling back to today's
+  chat. Archive metadata is excluded from model history. Current-turn removal
+  uses the owned user-message ID (attachment display text can differ from the
+  model input), so identical concurrent turns are not mistakenly dropped.
 
 Design references: [Apple Writing](https://developer.apple.com/design/human-interface-guidelines/writing)
 for clear, context-sensitive wording; [Apple Generative AI](https://developer.apple.com/design/human-interface-guidelines/generative-ai)
