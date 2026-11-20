@@ -72,6 +72,7 @@ export function installColdStartGuide(api) {
   const maskId = `cold-guide-cutouts-${category}`;
   const spotlightSvg = document.createElementNS(svgNamespace, 'svg');
   const definitions = document.createElementNS(svgNamespace, 'defs');
+  const photoClips = document.createElementNS(svgNamespace, 'g');
   const spotlightMask = document.createElementNS(svgNamespace, 'mask');
   const maskBase = document.createElementNS(svgNamespace, 'rect');
   const maskHoles = document.createElementNS(svgNamespace, 'g');
@@ -83,7 +84,7 @@ export function installColdStartGuide(api) {
   maskBase.setAttribute('y', '0');
   maskBase.setAttribute('fill', '#fff');
   spotlightMask.append(maskBase, maskHoles);
-  definitions.append(spotlightMask);
+  definitions.append(spotlightMask, photoClips);
   shade.setAttribute('x', '0');
   shade.setAttribute('y', '0');
   shade.setAttribute('fill', '#102a3b');
@@ -256,6 +257,29 @@ export function installColdStartGuide(api) {
     };
   }
 
+  /** 照片可以比卡片更长；挖空区域只取真实滚动视口内可见的一段。 */
+  function visiblePhotoBounds(target, bounds) {
+    const visible = { ...bounds };
+    for (let parent = target.parentElement; parent; parent = parent.parentElement) {
+      const style = getComputedStyle(parent);
+      const clipX = /^(auto|scroll|hidden|clip)$/.test(style.overflowX);
+      const clipY = /^(auto|scroll|hidden|clip)$/.test(style.overflowY);
+      if (!clipX && !clipY) continue;
+      const box = parent.getBoundingClientRect();
+      const scaleX = box.width / parent.offsetWidth || 1;
+      const scaleY = box.height / parent.offsetHeight || 1;
+      if (clipX) {
+        visible.left = Math.max(visible.left, box.left + parent.clientLeft * scaleX);
+        visible.right = Math.min(visible.right, box.left + (parent.clientLeft + parent.clientWidth) * scaleX);
+      }
+      if (clipY) {
+        visible.top = Math.max(visible.top, box.top + parent.clientTop * scaleY);
+        visible.bottom = Math.min(visible.bottom, box.top + (parent.clientTop + parent.clientHeight) * scaleY);
+      }
+    }
+    return visible;
+  }
+
   function stepComplete(step = currentStep()) {
     if (!step) return false;
     if (step.kind === 'confirm') return steps.every(required => stepComplete(required));
@@ -336,15 +360,17 @@ export function installColdStartGuide(api) {
     shade.setAttribute('y', '-2');
     shade.setAttribute('width', String(designWidth + 4));
     shade.setAttribute('height', String(designHeight + 4));
-    const holes = highlights.flatMap(target => {
+    photoClips.replaceChildren();
+    const holes = highlights.flatMap((target, index) => {
       const box = spotlightBounds(target);
       if (!box) return [];
-      const left = (box.left - root.left) / scaleX;
-      const top = (box.top - root.top) / scaleY;
-      const x = Math.max(0, left);
-      const y = Math.max(0, top);
-      const width = Math.min(designWidth - x, (box.right - box.left) / scaleX);
-      const height = Math.min(designHeight - y, (box.bottom - box.top) / scaleY);
+      const isPhoto = target.id === 'photo-preview';
+      const visible = isPhoto ? visiblePhotoBounds(target, box) : box;
+      const x = Math.max(0, (visible.left - root.left) / scaleX);
+      const y = Math.max(0, (visible.top - root.top) / scaleY);
+      const width = Math.min(designWidth, (visible.right - root.left) / scaleX) - x;
+      const height = Math.min(designHeight, (visible.bottom - root.top) / scaleY) - y;
+      if (width <= 0 || height <= 0) return [];
       const hole = document.createElementNS(svgNamespace, 'rect');
       hole.dataset.guideHole = target.matches('.cold-guide-field-group') ? 'field-group' : target.matches('.time-range-field') ? 'time-group' : 'control';
       hole.setAttribute('x', x.toFixed(2));
@@ -355,7 +381,22 @@ export function installColdStartGuide(api) {
       const radius = target.id === 'confirm-entry'
         ? Math.min(height / 2, computedRadius || height / 2)
         : Math.min(target.matches('.cold-guide-field-group,.time-range-field') ? 13 : computedRadius || 15, height / 2);
-      hole.setAttribute('rx', String(radius));
+      hole.setAttribute('rx', String(isPhoto ? 0 : radius));
+      if (isPhoto) {
+        // 按完整照片自身的圆角裁剪可见矩形：中段是直边，滚到照片末尾才出现底部圆角。
+        const clip = document.createElementNS(svgNamespace, 'clipPath');
+        const outline = document.createElementNS(svgNamespace, 'rect');
+        clip.id = `${maskId}-photo-${index}`;
+        clip.setAttribute('clipPathUnits', 'userSpaceOnUse');
+        outline.setAttribute('x', String((box.left - root.left) / scaleX));
+        outline.setAttribute('y', String((box.top - root.top) / scaleY));
+        outline.setAttribute('width', String((box.right - box.left) / scaleX));
+        outline.setAttribute('height', String((box.bottom - box.top) / scaleY));
+        outline.setAttribute('rx', String(computedRadius));
+        clip.append(outline);
+        photoClips.append(clip);
+        hole.setAttribute('clip-path', `url(#${clip.id})`);
+      }
       hole.setAttribute('fill', '#000');
       return [hole];
     });
@@ -449,6 +490,7 @@ export function installColdStartGuide(api) {
     });
     highlightObserver?.observe(screen);
     highlights.forEach(target => highlightObserver?.observe(target));
+    if (step.kind === 'photo') highlightObserver?.observe(document.getElementById('entry-panel'));
     speak(t(step.zh, step.en));
     syncInteractionLocks();
     highlights.at(-1)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -531,7 +573,7 @@ export function installColdStartGuide(api) {
   screen.addEventListener('beforeinput', captureGuideMutation, true);
   screen.addEventListener('input', updateGuideState, true);
   screen.addEventListener('change', updateGuideState, true);
-  screen.addEventListener('scroll', scheduleSpotlight, true);
+  document.addEventListener('scroll', scheduleSpotlight, true);
   window.addEventListener('resize', scheduleSpotlight);
 
   const photoPreview = document.getElementById('photo-preview');
@@ -578,6 +620,7 @@ export function installColdStartGuide(api) {
       observer.disconnect();
       photoObserver?.disconnect();
       highlightObserver?.disconnect();
+      document.removeEventListener('scroll', scheduleSpotlight, true);
       window.removeEventListener('resize', scheduleSpotlight);
     }
   });
