@@ -2,16 +2,16 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 
 type KeyboardViewport = { height: number; visibleHeight: number };
 const nativeAuthViewport = registerPlugin<{
-  setEnabled(options: { enabled: boolean; showAuthBackdrop?: boolean }): Promise<KeyboardViewport>;
+  setEnabled(options: { enabled: boolean; keepRootPinned?: boolean }): Promise<KeyboardViewport>;
 }>("NavaAuthViewport");
 let nativeQueue: Promise<unknown> = Promise.resolve();
 let nativeMetrics: KeyboardViewport | null = null;
 
-function activateNativeViewport(showAuthBackdrop: boolean, canvas: "nativeAuthCanvas" | "nativeAppCanvas") {
+function activateNativeViewport(keepRootPinned: boolean, canvas: "nativeAuthCanvas" | "nativeAppCanvas") {
   const root = document.documentElement;
   let active = true;
   if (Capacitor.getPlatform() === "ios") {
-    nativeQueue = nativeQueue.then(() => nativeAuthViewport.setEnabled({ enabled: true, showAuthBackdrop }))
+    nativeQueue = nativeQueue.then(() => nativeAuthViewport.setEnabled({ enabled: true, keepRootPinned }))
       .then(metrics => {
         if (!active) return;
         root.dataset[canvas] = "true";

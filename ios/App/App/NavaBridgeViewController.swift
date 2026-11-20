@@ -9,10 +9,9 @@ import WebKit
 final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHandler {
     private var nativeHost: UIHostingController<NavaNativeRootView>?
     private var authMessageProxy: NavaWeakScriptMessageHandler?
-    private let authBackdrop = UIImageView(image: UIImage(named: "NavaAuthTexture"))
     private var authViewportEnabled = false
+    private var keepsRootPinned = false
     private var pinsKeyboardViewport = false
-    private var showsAuthBackdrop = false
     private var keyboardScreenFrame = CGRect.null
     private var scrollObservation: NSKeyValueObservation?
     private var lastAuthViewport: [String: Double] = [:]
@@ -30,7 +29,7 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        installAuthCanvas()
+        installKeyboardViewportObserver()
         view.backgroundColor = Self.startupBackground
     }
 
@@ -99,22 +98,10 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
         }
     }
 
-    // Keep Capacitor's root view intact. The wallpaper is a sibling behind
-    // WKWebView's scrollView, so scrolling/focus assistance cannot move it.
-    private func installAuthCanvas() {
+    // Keep Capacitor's root view intact. The web layer paints the entire skin
+    // and scrolls only the active page or form when the root is pinned.
+    private func installKeyboardViewportObserver() {
         guard let webView = bridge?.webView else { return }
-        authBackdrop.contentMode = .scaleAspectFill
-        authBackdrop.clipsToBounds = true
-        authBackdrop.isUserInteractionEnabled = false
-        authBackdrop.isHidden = true
-        webView.insertSubview(authBackdrop, at: 0)
-        authBackdrop.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            authBackdrop.leadingAnchor.constraint(equalTo: webView.leadingAnchor),
-            authBackdrop.trailingAnchor.constraint(equalTo: webView.trailingAnchor),
-            authBackdrop.topAnchor.constraint(equalTo: webView.topAnchor),
-            authBackdrop.bottomAnchor.constraint(equalTo: webView.bottomAnchor)
-        ])
         scrollObservation = webView.scrollView.observe(\.contentOffset, options: [.new]) { [weak self] scroll, _ in
             guard self?.pinsKeyboardViewport == true, scroll.contentOffset != .zero else { return }
             // Keep the root still. CSS scroll views reveal the focused field.
@@ -131,15 +118,11 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
         publishAuthViewport()
     }
 
-    func setAuthViewportEnabled(_ enabled: Bool, showAuthBackdrop: Bool) -> [String: Double] {
+    func setAuthViewportEnabled(_ enabled: Bool, keepRootPinned: Bool) -> [String: Double] {
         authViewportEnabled = enabled
-        showsAuthBackdrop = enabled && showAuthBackdrop
-        authBackdrop.isHidden = !showsAuthBackdrop
-        if let webView = bridge?.webView {
-            webView.backgroundColor = showsAuthBackdrop ? .clear : Self.startupBackground
-            webView.scrollView.backgroundColor = showsAuthBackdrop ? .clear : Self.startupBackground
-        }
+        keepsRootPinned = enabled && keepRootPinned
         if !enabled { pinKeyboardViewport(false) }
+        if keepsRootPinned { pinKeyboardViewport(true) }
         lastAuthViewport = [:]
         view.layoutIfNeeded()
         publishAuthViewport()
@@ -183,7 +166,7 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
     private func publishAuthViewport() {
         guard authViewportEnabled else { return }
         let metrics = authViewportMetrics()
-        pinKeyboardViewport(showsAuthBackdrop || metrics["visibleHeight", default: 0] < metrics["height", default: 0])
+        pinKeyboardViewport(keepsRootPinned || metrics["visibleHeight", default: 0] < metrics["height", default: 0])
         guard metrics["height", default: 0] > 0, metrics != lastAuthViewport,
               let data = try? JSONSerialization.data(withJSONObject: metrics),
               let json = String(data: data, encoding: .utf8) else { return }
@@ -261,7 +244,7 @@ final class NavaAuthViewportPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             call.resolve(controller.setAuthViewportEnabled(
                 call.getBool("enabled") ?? false,
-                showAuthBackdrop: call.getBool("showAuthBackdrop") ?? true
+                keepRootPinned: call.getBool("keepRootPinned") ?? true
             ))
         }
     }

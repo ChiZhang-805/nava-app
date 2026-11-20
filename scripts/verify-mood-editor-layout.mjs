@@ -28,7 +28,7 @@ async function openEditor(page, baseUrl, route, category) {
   await page.goto(`${baseUrl}?demo=1#tab=record&module=${route}`, { waitUntil: "networkidle" });
   await expect(page.locator(".journal-loading")).toBeHidden({ timeout: 10_000 });
   await expect(page.locator('.journal-loading[role="alert"]')).toHaveCount(0);
-  const journal = page.frameLocator(".journal-experience iframe");
+  const journal = page.frameLocator(".journal-experience:not(.is-staged) iframe");
   await expect(journal.locator('#screen[data-scene="entry"]')).toBeVisible({ timeout: 10_000 });
   await expect(journal.locator("#entry-form")).toHaveAttribute("data-category", category);
   return journal;

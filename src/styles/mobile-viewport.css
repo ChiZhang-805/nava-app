@@ -89,14 +89,6 @@ html[data-keyboard-open="true"] .nava-app-stage > .phone-frame--journal {
   background: linear-gradient(180deg, rgba(235, 248, 254, 0.08), rgba(22, 128, 184, 0.06)),
     url("../assets/figma/auth-texture.jpg") center / cover no-repeat, #8fcfe9;
 }
-html[data-native-auth-canvas="true"],
-html[data-native-auth-canvas="true"] :is(body, #root, .nava-app-stage) {
-  background: transparent;
-}
-html[data-native-auth-canvas="true"] .auth-backdrop {
-  /* UIKit owns the actual image; keep the original full-height tint. */
-  background: linear-gradient(180deg, rgba(235, 248, 254, 0.08), rgba(22, 128, 184, 0.06));
-}
 html[data-auth-viewport="true"] .auth-screen:is(.auth-screen--signIn, .auth-screen--signUp, .auth-screen--reset) {
   height: var(--auth-canvas-height, 100dvh);
   min-height: 0;
