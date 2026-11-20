@@ -219,7 +219,8 @@ async function inspectMealCard(page) {
   await expect(active).toHaveAttribute('data-card-kind', 'meal');
   await expect(active.locator('.health-explorer-front h3')).toHaveText('Fixture salmon, rice and greens');
   await expect(active.locator('.line-trend-chart')).toHaveCount(0);
-  await expect(active.locator('.health-explorer-meal-visual')).toHaveAttribute('data-photo-kind', 'illustration');
+  await expect(active.locator('.health-explorer-meal-visual')).toHaveAttribute('data-photo-kind', 'empty');
+  await expect(active.locator('.health-explorer-meal-visual img')).toHaveCount(0);
   await active.locator('.health-explorer-flip').click();
   await expectActive(page, id, 'back');
   await assertFaceBoundary(page, 'back');
@@ -230,7 +231,7 @@ async function inspectMealCard(page) {
   await expectActive(page, 'journal-chart-meal-zero', 'back');
   await assertFaceBoundary(page, 'back');
   await expect(page.locator(`${activeSelector} [data-nutrient="calories"]`)).toHaveAttribute('data-nutrient-value', '0');
-  return { preservedWholeMeal: true, missingNutrientsOmitted: true, explicitZeroPreserved: true, illustrationLabel: true };
+  return { preservedWholeMeal: true, missingNutrientsOmitted: true, explicitZeroPreserved: true, missingPhotoNotInvented: true };
 }
 
 async function inspectSimplifiedLayout(page) {
