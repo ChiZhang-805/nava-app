@@ -94,7 +94,15 @@ function alreadyUsed(example: ChatToneExample, assistantHistory: string[]) {
     return clean.length >= 2 && assistantHistory.some(prior => normalized(prior).includes(clean));
   });
 }
-function hash(value: string) { let result = 2166136261; for (const char of value) result = Math.imul(result ^ char.charCodeAt(0), 16777619); return result >>> 0; }
+function hash(value: string) {
+  let result = 2166136261;
+  for (const char of value) result = Math.imul(result ^ char.charCodeAt(0), 16777619);
+  // Avalanche adjacent catalog IDs; raw FNV output would correlate near-numbered
+  // candidates and favor one source batch despite correct weighted sampling.
+  result = Math.imul(result ^ (result >>> 16), 0x85ebca6b);
+  result = Math.imul(result ^ (result >>> 13), 0xc2b2ae35);
+  return (result ^ (result >>> 16)) >>> 0;
+}
 function serialized(example: ChatToneExample) {
   // Source URLs, audit metadata and the catalog itself never enter the prompt.
   return { situation: example.context, response: example.response, ...(example.stickerId ? { stickerId: example.stickerId } : {}) };
@@ -120,8 +128,13 @@ export function selectToneExamples(catalog: readonly ChatToneExample[], input: T
   const preferredIntents: ChatToneIntent[] = selectedProfile.intent === "romance" && selectedProfile.emotion === "upbeat"
     ? ["romance", "celebration", "casual"] : selectedProfile.intent === "support" ? ["support"]
       : selectedProfile.intent === "explanation" ? ["explanation"] : [selectedProfile.intent, "casual"];
-  const compatible = eligible.filter(example => preferredIntents.includes(example.intent)
+  const broad = eligible.filter(example => preferredIntents.includes(example.intent)
     && (example.emotion === selectedProfile.emotion || example.emotion === "neutral"));
+  const exact = broad.filter(example => example.intent === selectedProfile.intent);
+  // Narrow by the actual intent before randomizing. Related casual examples are
+  // a fallback for a sparse catalog, not competition that can displace romance
+  // with unrelated cake/work jokes when many matching examples exist.
+  const compatible = exact.length ? exact : broad;
   const seed = `${input.messageId ?? input.message}|${history.map(item => `${item.id ?? ""}:${item.content ?? ""}`).join("|")}`;
   // Weighted sampling without replacement (exponential keys): relevance changes
   // probability, not a permanently pinned top-N. A retry's messageId is stable.

@@ -41,6 +41,8 @@ import { generateValidatedFocus, validateFocusRequest, type FocusRequest } from 
 import { loadFocusEvidence } from "./focus.ts";
 import { createFocusRun } from "./focus-provider.ts";
 import { replyPurpose, utilityReply, utilitySystemPrompt, type ReplyPurpose } from "./purpose.ts";
+import { CHAT_TONE_EXAMPLES } from "./tone-catalog-data.ts";
+import { selectToneExamples, type ToneSelection } from "./tone-retrieval.ts";
 
 type ReplyLanguage = "zh" | "en";
 type ReplyMode = "text" | "voice";
@@ -60,6 +62,7 @@ type ReplyInput = {
   responseMode: ReplyMode;
   providerUserId: string;
   knowledge: KnowledgeBundle;
+  tone?: ToneSelection;
 };
 
 type ProviderReply = {
@@ -203,7 +206,12 @@ async function prepareReplyInput(
     suppliedToolIds: mergedKnowledge.evidence.map((item) => item.toolId),
     usedToolIds: styleToolIds,
   });
+  const tone = selectToneExamples(CHAT_TONE_EXAMPLES, {
+    message: normalizedInput.message, lang: input.lang, route, mode: input.responseMode,
+    history: base.conversationHistory, messageId: input.messageId,
+  });
   console.info("NAVA knowledge audit", JSON.stringify({ stage: "reply", domains: route.domains, tools: knowledgeAuditSummary(knowledge) }));
+  console.info("NAVA tone selection", JSON.stringify({ intent: tone.intent, emotion: tone.emotion, reason: tone.reason, counts: tone.counts }));
   return {
     ...normalizedInput,
     conversationHistory: base.conversationHistory,
@@ -211,6 +219,7 @@ async function prepareReplyInput(
     route,
     providerUserId,
     knowledge,
+    tone,
   };
 }
 
@@ -412,7 +421,7 @@ function deepSeekRequestBody(input: ReplyInput) {
 
 function inputSystemPrompt(input: ReplyInput) {
   return input.purpose === "chat"
-    ? buildSystemPrompt(input.lang, input.healthContext, input.route, input.responseMode, input.knowledge)
+    ? buildSystemPrompt(input.lang, input.healthContext, input.route, input.responseMode, input.knowledge, input.tone)
     : utilitySystemPrompt(input.purpose, input.lang);
 }
 
@@ -434,7 +443,7 @@ function rewriteRequestBody(input: ReplyInput, draft: string) {
     stream: false,
     user_id: input.providerUserId,
     messages: [
-      { role: "system", content: `${buildSystemPrompt(input.lang, input.healthContext, input.route, input.responseMode, input.knowledge)}\n\n${instruction}\n${formatInstruction}` },
+      { role: "system", content: `${inputSystemPrompt(input)}\n\n${instruction}\n${formatInstruction}` },
       { role: "user", content: `<draft>${JSON.stringify(draft)}</draft>` },
     ],
   };

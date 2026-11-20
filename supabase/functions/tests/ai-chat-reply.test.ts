@@ -98,6 +98,11 @@ Deno.test("chat endpoint keeps sticker, consent and complete grouped-reply contr
     assert(messages.filter((item) => item.content === describeChatSticker(currentMessage, "zh")).length === 1, "current sticker was duplicated in history");
     assert(messages.some((item) => item.content === describeChatSticker("[nava-sticker:hug]", "zh")), "past sticker was not normalized");
     assert(!requests.some((entry) => /sleep_records|health_metric_snapshots/.test(entry.url)), "sticker triggered health retrieval");
+    const firstSystem = messages[0].content;
+    assert(firstSystem.includes("<tone_examples>"), "production tone catalog was not connected to the final reply prompt");
+    const injectedExamples = firstSystem.match(/<tone_examples>(.*?)<\/tone_examples>/s)?.[1];
+    assert(injectedExamples && JSON.parse(injectedExamples).length <= 4, "full catalog reached the provider");
+    assert(!firstSystem.includes("zh-edited-") && !firstSystem.includes("模型辅助原创"), "catalog identifiers or curation metadata leaked into reply prompt");
 
     answerSegments = [{ type: "text", text: "哇塞！" }, { type: "text", text: "怎么谈上的呀？" }, { type: "sticker", id: "celebrate" }];
     const grouped = await run();

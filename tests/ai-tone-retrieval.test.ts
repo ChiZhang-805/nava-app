@@ -4,6 +4,7 @@ import { selectToneExamples, toneExamplesPrompt, tonePreferences, toneProfile, T
 import type { ChatToneExample } from "../supabase/functions/ai-chat-reply/tone-catalog-types.ts";
 import { buildSystemPrompt } from "../supabase/functions/ai-chat-reply/prompt.ts";
 import { normalizeModelRoute } from "../supabase/functions/ai-chat-reply/router.ts";
+import { CHAT_TONE_EXAMPLES } from "../supabase/functions/ai-chat-reply/tone-catalog-data.ts";
 
 const example = (id: string, overrides: Partial<ChatToneExample> = {}): ChatToneExample => ({
   id, locale: "zh", intent: "casual", emotion: "neutral", register: "casual", features: [],
@@ -36,6 +37,29 @@ test("weighted samples are stable on retries but vary with new message IDs and n
   }
   assert(signatures.size > 20, "new turns must not be pinned to one top list");
   assert.deepEqual([...counts].sort(), [2, 3, 4]);
+});
+
+test("reviewed production catalog is distinct, valid and narrowed by intent before sampling", () => {
+  assert.equal(CHAT_TONE_EXAMPLES.length, 331);
+  assert.equal(new Set(CHAT_TONE_EXAMPLES.map(item => item.id)).size, CHAT_TONE_EXAMPLES.length);
+  const signatures = new Set<string>(), selectedIds = new Set<string>();
+  for (let i = 0; i < 60; i++) {
+    const selection = selectToneExamples(CHAT_TONE_EXAMPLES, { message: "和crush在一起啦，好开心", lang: "zh", messageId: `real-${i}` });
+    assert.equal(selection.counts.locale, 331, "an authored item failed validation");
+    assert(selection.examples.length >= 2 && selection.examples.length <= 4);
+    assert(selection.examples.every(item => item.intent === "romance" && !item.features.includes("pet-name")));
+    assert(toneExamplesPrompt(selection, "zh").length <= TONE_PROMPT_LIMIT);
+    signatures.add(selection.examples.map(item => item.id).join(","));
+    selection.examples.forEach(item => selectedIds.add(item.id));
+  }
+  assert(signatures.size > 50);
+  assert(selectedIds.size >= 25, "numbered IDs must not pin selection to one source batch");
+  const safe = selectToneExamples(CHAT_TONE_EXAMPLES, { message: "我胸口很痛，要吃药吗", lang: "zh" });
+  assert.equal(safe.examples.length, 0);
+  const plain = selectToneExamples(CHAT_TONE_EXAMPLES, { message: "不要表情和网络用语，认真一点", lang: "zh" });
+  assert(plain.examples.every(item => item.features.length === 0 && !item.stickerId));
+  const english = selectToneExamples(CHAT_TONE_EXAMPLES, { message: "hello", lang: "en" });
+  assert.equal(english.examples.length, 0, "Chinese examples must not leak into English replies");
 });
 
 test("language, known emotion, exact preference exclusions and safe register filter before sampling", () => {
