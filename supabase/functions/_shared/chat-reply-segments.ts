@@ -5,12 +5,14 @@ const prefix = "[nava-reply:v1]";
 
 /** Transport/storage validation only; segment text remains untrusted text. */
 export function validateChatReplySegments(value: unknown): ChatReplySegment[] | null {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 4) return null;
+  if (!Array.isArray(value) || value.length < 1 || value.length > 7) return null;
   const segments: ChatReplySegment[] = [];
   let stickers = 0;
+  let texts = 0;
   for (const item of value) {
     if (!item || typeof item !== "object" || Array.isArray(item)) return null;
     if (item.type === "text" && typeof item.text === "string" && item.text.trim() && item.text.length <= 6000) {
+      if (++texts > 6) return null;
       segments.push({ type: "text", text: item.text.trim() });
     } else if (item.type === "sticker" && typeof item.id === "string") {
       const known = CHAT_STICKER_DEFINITIONS.find((sticker) => sticker.id === item.id);
@@ -18,7 +20,7 @@ export function validateChatReplySegments(value: unknown): ChatReplySegment[] | 
       segments.push({ type: "sticker", id: known.id });
     } else return null;
   }
-  return segments.some((segment) => segment.type === "text") ? segments : null;
+  return texts > 0 ? segments : null;
 }
 
 export function encodeChatReplySegments(value: ChatReplySegment[]): string {
@@ -28,7 +30,7 @@ export function encodeChatReplySegments(value: ChatReplySegment[]): string {
 }
 
 export function decodeChatReplySegments(content: string): ChatReplySegment[] | null {
-  if (!content.startsWith(prefix) || content.length > 25000) return null;
+  if (!content.startsWith(prefix) || content.length > 37000) return null;
   try { return validateChatReplySegments(JSON.parse(content.slice(prefix.length))); }
   catch { return null; }
 }
