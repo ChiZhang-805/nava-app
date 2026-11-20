@@ -169,7 +169,7 @@ export async function loadConversationArchives<T>(userId: string): Promise<Array
     .from("ai_conversation_archives")
     .select("id,created_at,messages")
     .eq("user_id", userId)
-    .order("created_at", { ascending: false })
+    .order("updated_at", { ascending: false })
     .limit(20);
   assertNoError(result.error);
   return (result.data ?? []).flatMap((row) => {

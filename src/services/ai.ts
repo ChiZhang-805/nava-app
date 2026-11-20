@@ -5,6 +5,7 @@ import { demoMessagesFor, isDemoMode } from "./demo";
 import { AI_PROCESSING_STEP_MIN_MS, buildAiProcessingSteps, type AiProcessingStep } from "./aiProcessing";
 import type { UserProfile } from "./profile";
 import { buildConversationGreeting } from "./aiConversationSessions";
+import { parseChatSticker } from "./chatStickers";
 import type { PriorityTask } from "./focusPlanning";
 import { validateFocusRequest, validateFocusOutput, type FocusRequest, type FocusResult } from "../../supabase/functions/_shared/focus-contract.ts";
 
@@ -29,23 +30,54 @@ async function authenticatedFunctionError(error: unknown) {
 }
 
 export async function loadConversation(userId: string, locale: "zh" | "en" = "zh"): Promise<ChatMessage[]> {
-  if (isDemoMode()) return demoMessagesFor(locale);
+  if (isDemoMode()) {
+    const saved = window.localStorage.getItem(`nava-demo-conversation:${userId}`);
+    if (saved) {
+      try { return JSON.parse(saved) as ChatMessage[]; } catch { /* Reset corrupt demo state. */ }
+    }
+    const initial = demoMessagesFor(locale).map((message) => ({ ...message, id: crypto.randomUUID() }));
+    window.localStorage.setItem(`nava-demo-conversation:${userId}`, JSON.stringify(initial));
+    return initial;
+  }
 
-  const { data, error } = await supabase
-    .from("ai_conversations")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true })
-    .limit(80);
-  assertNoError(error);
-  return (data ?? []) as ChatMessage[];
+  const messages: ChatMessage[] = [];
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await supabase.from("ai_conversations").select("*")
+      .eq("user_id", userId).order("created_at", { ascending: true }).order("id", { ascending: true })
+      .range(offset, offset + 499);
+    assertNoError(error);
+    messages.push(...(data ?? []) as ChatMessage[]);
+    if (!data || data.length < 500) return messages;
+  }
+}
+
+export async function restoreConversationMessages(userId: string, messages: ChatMessage[]) {
+  if (!messages.length) return;
+  if (isDemoMode()) {
+    const current = await loadConversation(userId);
+    const byId = new Map(current.map((message) => [message.id, message]));
+    for (const message of messages) byId.set(message.id, message);
+    window.localStorage.setItem(`nava-demo-conversation:${userId}`, JSON.stringify([...byId.values()].sort((a, b) => a.created_at.localeCompare(b.created_at))));
+    return;
+  }
+  const rows = messages.map((message) => {
+    if (!/^[0-9a-f-]{36}$/i.test(message.id) || !["user", "assistant"].includes(message.role)
+      || typeof message.content !== "string" || !Number.isFinite(Date.parse(message.created_at))) {
+      throw new Error("Invalid archived message.");
+    }
+    // Never trust a user_id embedded in archive JSON; RLS checks this owner.
+    return { id: message.id, user_id: userId, role: message.role, content: message.content, created_at: message.created_at };
+  });
+  assertNoError((await supabase.from("ai_conversations").upsert(rows, { onConflict: "id" })).error);
 }
 
 export async function createConversationGreeting(userId: string, locale: "zh" | "en" = "zh"): Promise<ChatMessage> {
   const createdAt = new Date().toISOString();
   const content = buildConversationGreeting(locale);
   if (isDemoMode()) {
-    return { id: `demo-greeting-${Date.now()}`, role: "assistant", content, created_at: createdAt } as ChatMessage;
+    const message = { id: crypto.randomUUID(), role: "assistant", content, created_at: createdAt } as ChatMessage;
+    await restoreConversationMessages(userId, [message]);
+    return message;
   }
   const result = await supabase
     .from("ai_conversations")
@@ -57,7 +89,13 @@ export async function createConversationGreeting(userId: string, locale: "zh" | 
 }
 
 export async function deleteConversationMessages(userId: string, messageIds: string[]) {
-  if (isDemoMode() || messageIds.length === 0) return;
+  if (messageIds.length === 0) return;
+  if (isDemoMode()) {
+    const ids = new Set(messageIds);
+    const current = await loadConversation(userId);
+    window.localStorage.setItem(`nava-demo-conversation:${userId}`, JSON.stringify(current.filter((message) => !ids.has(message.id))));
+    return;
+  }
   const uniqueIds = [...new Set(messageIds.filter(Boolean))];
   for (let index = 0; index < uniqueIds.length; index += 100) {
     const result = await supabase
@@ -152,11 +190,13 @@ export async function sendAiMessage(input: {
 }) {
   const lang = input.lang ?? "zh";
   const processing = playProcessingSteps(input.profile, lang, input.onStatus, input.signal);
+  try {
 
   if (isDemoMode()) {
     const now = new Date().toISOString();
     const content = demoAiReply(input.message, lang);
-    const userMessage = { id: `demo-user-${Date.now()}`, role: "user", content: input.displayMessage ?? input.message, created_at: now } as ChatMessage;
+    const userMessage = { id: crypto.randomUUID(), role: "user", content: input.displayMessage ?? input.message, created_at: now } as ChatMessage;
+    await restoreConversationMessages(input.userId, [userMessage]);
     input.onUserMessage?.(userMessage);
     await processing;
     let streamed = "";
@@ -166,14 +206,11 @@ export async function sendAiMessage(input: {
       input.onDelta?.(streamed, delta);
       await abortableDelay(34, input.signal);
     }
+    const assistantMessage = { id: crypto.randomUUID(), role: "assistant", content, created_at: new Date().toISOString() } as ChatMessage;
+    await restoreConversationMessages(input.userId, [assistantMessage]);
     return {
       userMessage,
-      assistantMessage: {
-        id: `demo-assistant-${Date.now()}`,
-        role: "assistant",
-        content,
-        created_at: now,
-      } as ChatMessage,
+      assistantMessage,
       dataType: null,
       extractedData: null,
       extractionConfidence: null,
@@ -193,7 +230,7 @@ export async function sendAiMessage(input: {
   assertNoError(userInsert.error);
   input.onUserMessage?.(userInsert.data as ChatMessage);
 
-  const extraction = input.preExtracted ?? await (async () => {
+  const extraction = parseChatSticker(input.message) ? null : input.preExtracted ?? await (async () => {
     const extract = await supabase.functions.invoke("ai-extract-data", {
       headers: await authenticatedFunctionHeaders(),
       body: {
@@ -239,6 +276,7 @@ export async function sendAiMessage(input: {
     knowledge: extraction?.knowledge ?? null,
     applied: null,
   };
+  } finally { processing.finish(); }
 }
 
 function demoAiReply(message: string, lang: "zh" | "en") {
@@ -258,7 +296,7 @@ async function requestAiReply(input: {
   knowledge?: unknown;
   responseMode?: "text" | "voice";
   signal?: AbortSignal;
-  processing: Promise<void>;
+  processing: ProcessingSequence;
   onStatus?: (step: AiProcessingStep | null) => void;
   onDelta?: (content: string, delta: string) => void;
 }) {
@@ -283,7 +321,7 @@ async function requestAiReply(input: {
 }
 
 async function consumeAiStream(response: Response, input: {
-  processing: Promise<void>;
+  processing: ProcessingSequence;
   onStatus?: (step: AiProcessingStep | null) => void;
   onDelta?: (content: string, delta: string) => void;
 }) {
@@ -297,6 +335,7 @@ async function consumeAiStream(response: Response, input: {
 
   const finishPrelude = async () => {
     if (preludeFinished) return;
+    input.processing.finish();
     await input.processing;
     input.onStatus?.(null);
     preludeFinished = true;
@@ -349,21 +388,30 @@ function parseSseBlock(block: string) {
   }
 }
 
-async function playProcessingSteps(
+type ProcessingSequence = Promise<void> & { finish: () => void };
+
+function playProcessingSteps(
   profile: UserProfile | null | undefined,
   lang: "zh" | "en",
   onStatus?: (step: AiProcessingStep | null) => void,
   signal?: AbortSignal,
-) {
-  try {
-    for (const step of buildAiProcessingSteps(profile, lang)) {
-      throwIfAborted(signal);
-      onStatus?.(step);
-      await abortableDelay(AI_PROCESSING_STEP_MIN_MS, signal);
-    }
-  } catch (error) {
-    if (!(error instanceof DOMException && error.name === "AbortError")) throw error;
-  }
+): ProcessingSequence {
+  const controller = new AbortController();
+  const stop = () => controller.abort();
+  if (signal?.aborted) stop();
+  signal?.addEventListener("abort", stop, { once: true });
+  const task = (async () => {
+    try {
+      for (const step of buildAiProcessingSteps(profile, lang)) {
+        throwIfAborted(controller.signal);
+        onStatus?.(step);
+        await abortableDelay(AI_PROCESSING_STEP_MIN_MS, controller.signal);
+      }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) throw error;
+    } finally { signal?.removeEventListener("abort", stop); }
+  })();
+  return Object.assign(task, { finish: stop });
 }
 
 function splitDemoStream(content: string) {

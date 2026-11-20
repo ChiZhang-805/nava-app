@@ -27,6 +27,27 @@ export function conversationArchiveId(messages: ChatMessage[]) {
   return stableId ?? crypto.randomUUID();
 }
 
+/** Last activity is independent of the stable archive identity and start date. */
+export function conversationLastMessageAt(snapshot: Pick<ConversationSnapshot, "createdAt" | "messages">) {
+  return snapshot.messages.reduce((latest, message) => {
+    const time = Date.parse(message.created_at);
+    return Number.isFinite(time) && time > Date.parse(latest) ? message.created_at : latest;
+  }, snapshot.createdAt);
+}
+
+export function mergeConversationSnapshots(items: ConversationSnapshot[]) {
+  const byId = new Map<string, ConversationSnapshot>();
+  for (const snapshot of items) {
+    const previous = byId.get(snapshot.id);
+    const last = Date.parse(conversationLastMessageAt(snapshot));
+    const previousLast = previous ? Date.parse(conversationLastMessageAt(previous)) : -Infinity;
+    if (!previous || last > previousLast || (last === previousLast && snapshot.messages.length >= previous.messages.length)) {
+      byId.set(snapshot.id, snapshot);
+    }
+  }
+  return [...byId.values()].sort((a, b) => Date.parse(conversationLastMessageAt(b)) - Date.parse(conversationLastMessageAt(a)));
+}
+
 export function fallbackConversationTitle(
   dayKey: string,
   locale: "zh" | "en",

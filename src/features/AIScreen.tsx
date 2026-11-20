@@ -1,15 +1,17 @@
 import { sumFoodItemNutrition } from "../services/dietPortion";
 import type { User } from "@supabase/supabase-js";
-import { Camera, Check, FileText, Image as ImageIcon, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, Plus, SendHorizontal, Trash2, X } from "lucide-react";
+import { Camera, Check, Copy, FileText, Image as ImageIcon, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, Plus, SendHorizontal, Smile, Trash2, X } from "lucide-react";
 import companionAvatar from "../assets/figma/home-option2/home-mascot-v5.png";
 import { Fragment, FormEvent, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocale } from "../i18n";
 import PageSkeleton from "../components/PageSkeleton";
 import CameraCapture from "../components/CameraCapture";
+import ChatStickerPicker from "../components/ChatStickerPicker";
+import { chatStickerLabel, encodeChatSticker, parseChatSticker, type ChatSticker } from "../services/chatStickers";
 import NutritionStructuredConfirmation from "../components/NutritionStructuredConfirmation";
 import PhotoInput from "../components/PhotoInput";
 import { usePreviewActivity } from "../hooks/usePreviewActivity";
-import { createConversationGreeting, deleteConversationMessages, generateConversationTitle, loadConversation, sendAiMessage } from "../services/ai";
+import { createConversationGreeting, deleteConversationMessages, generateConversationTitle, loadConversation, restoreConversationMessages, sendAiMessage } from "../services/ai";
 import type { AiProcessingStep } from "../services/aiProcessing";
 import { createStreamingAiSpeaker, isAiSpeechSupported, resolveAiSpeechStyle, type StreamingAiSpeaker } from "../services/aiSpeech";
 import { todayISO } from "../services/date";
@@ -27,11 +29,16 @@ import { buildChatDocumentMessage, chatAttachmentAccept, readChatDocument, valid
 import {
   conversationArchiveId,
   conversationDayKey,
+  conversationLastMessageAt,
+  mergeConversationSnapshots,
+  normalizeGeneratedConversationTitle,
   conversationNeedsDailyRollover,
   fallbackConversationTitle,
-  normalizeGeneratedConversationTitle,
   type ConversationSnapshot,
 } from "../services/aiConversationSessions";
+
+import { ConversationRecoveryRequired, createConversationWriteQueue, resumeArchivedConversation } from "../services/aiConversationResume";
+import "./chat-layout.css";
 
 export type AiCommand = {
   id: number;
@@ -158,7 +165,7 @@ export default function AIScreen({
   active?: boolean;
   initialPromptRequest?: { id: number; text: string } | null;
   onDataSaved?: () => void;
-  onConversationCompleted?: () => void;
+  onConversationCompleted?: (options?: { celebrate?: boolean }) => void;
 }) {
   const { locale, t } = useLocale();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -178,6 +185,7 @@ export default function AIScreen({
   mediaActive.current = voiceState !== "idle" || audioPlaying;
   const [voiceCancelArmed, setVoiceCancelArmed] = useState(false);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
+  const [stickersOpen, setStickersOpen] = useState(false);
   const [pendingDocument, setPendingDocument] = useState<PendingChatDocument | null>(null);
   const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
   const [photoAnalyzing, setPhotoAnalyzing] = useState(false);
@@ -215,7 +223,20 @@ export default function AIScreen({
     };
   }, [historyOpen]);
   const [history, setHistory] = useState<ConversationSnapshot[]>([]);
-  const [viewingArchiveId, setViewingArchiveId] = useState<string | null>(null);
+  const activeArchiveKey = `nava-ai-active-archive:${user.id}`;
+  const [viewingArchiveId, setViewingArchiveId] = useState<string | null>(() => window.localStorage.getItem(activeArchiveKey));
+  const activeArchiveRef = useRef(viewingArchiveId);
+  const conversationWrites = useRef(createConversationWriteQueue()).current;
+  const archiveConsent = useRef(false);
+  archiveConsent.current = profile?.ai_personalization_consent === true;
+  const [resuming, setResuming] = useState(false);
+  const [recoveryRequired, setRecoveryRequired] = useState(false);
+  const activateArchive = useCallback((id: string | null) => {
+    activeArchiveRef.current = id;
+    setViewingArchiveId(id);
+    if (id) window.localStorage.setItem(activeArchiveKey, id);
+    else window.localStorage.removeItem(activeArchiveKey);
+  }, [activeArchiveKey]);
   const [deletingArchiveId, setDeletingArchiveId] = useState<string | null>(null);
   const [deviceDayKey, setDeviceDayKey] = useState(() => todayISO());
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
@@ -282,7 +303,13 @@ export default function AIScreen({
         messages: candidate.messages,
       });
     }
-    return normalized.sort((left, right) => right.createdAt.localeCompare(left.createdAt)).slice(0, 20);
+    const sorted = mergeConversationSnapshots(normalized);
+    const visible = sorted.slice(0, 20);
+    const activeSnapshot = sorted.find((item) => item.id === activeArchiveRef.current);
+    if (activeSnapshot && !visible.some((item) => item.id === activeSnapshot.id)) {
+      return mergeConversationSnapshots([...visible.slice(0, 19), activeSnapshot]);
+    }
+    return visible;
   }, [locale]);
 
   const readHistory = useCallback(() => {
@@ -301,62 +328,70 @@ export default function AIScreen({
   }, [historyKey, normalizeHistory]);
 
   const hydrateHistory = useCallback(async () => {
-    const local = readHistory();
     const remote = await loadConversationArchives<ChatMessage>(user.id);
-    const merged = new Map<string, ConversationSnapshot>();
-    for (const snapshot of [...normalizeHistory(remote), ...local]) merged.set(snapshot.id, snapshot);
-    const normalized = writeHistory([...merged.values()]);
-    if (!isDemoMode() && local.length > 0) {
-      await Promise.all(local.map((snapshot) => saveConversationArchive(user.id, snapshot)));
-    }
+    const remoteSnapshots = normalizeHistory(remote);
+    const normalized = writeHistory(mergeConversationSnapshots([...readHistory(), ...remoteSnapshots]));
     return normalized;
   }, [normalizeHistory, readHistory, user.id, writeHistory]);
 
-  const archiveConversation = useCallback((current: ChatMessage[]) => {
-    if (current.length === 0) return readHistory();
+  const saveConversationSnapshot = useCallback(async (current: ChatMessage[], archiveId?: string | null) => {
+    if (!current.length) return readHistory();
     const existing = readHistory();
-    const dayKey = conversationDayKey(current);
+    const previous = existing.find((item) => item.id === archiveId
+      || item.messages[0]?.id === current[0]?.id);
+    const dayKey = previous?.dayKey ?? conversationDayKey(current);
     const snapshot: ConversationSnapshot = {
-      id: conversationArchiveId(current),
-      createdAt: current[0]?.created_at ?? new Date().toISOString(),
+      id: previous?.id ?? archiveId ?? conversationArchiveId(current),
+      createdAt: previous?.createdAt ?? current[0].created_at,
       dayKey,
-      title: fallbackConversationTitle(dayKey, locale, existing),
+      title: previous?.title ?? fallbackConversationTitle(dayKey, locale, existing),
       messages: current,
     };
+    // A failed cloud write must never be treated as a successful archive.
+    await saveConversationArchive(user.id, snapshot);
     const next = writeHistory([snapshot, ...existing.filter((item) => item.id !== snapshot.id)]);
-    void (async () => {
-      try {
-        await saveConversationArchive(user.id, snapshot);
-        await deleteConversationMessages(user.id, current.map((message) => message.id));
-      } catch (archiveError) {
-        console.warn("AI conversation archive sync deferred", archiveError);
-        return;
-      }
-      if (profile?.ai_personalization_consent !== true) return;
-      try {
-        const generated = await generateConversationTitle(current, locale);
+    setHistory(next);
+    if (!previous && archiveConsent.current) {
+      void generateConversationTitle(current, locale).then((generated) => {
         const title = generated ? normalizeGeneratedConversationTitle(generated, locale) : null;
         if (!title) return;
-        const titledSnapshot = { ...snapshot, title };
-        const titledHistory = writeHistory([titledSnapshot, ...readHistory().filter((item) => item.id !== snapshot.id)]);
-        setHistory(titledHistory);
-        await saveConversationArchive(user.id, titledSnapshot);
-      } catch (titleError) {
-        console.warn("AI conversation title generation deferred", titleError);
-      }
-    })();
+        return conversationWrites.run(async () => {
+          // A title request may finish after the user has continued chatting.
+          const latest = readHistory().find((item) => item.id === snapshot.id);
+          if (!latest) return;
+          const titled = { ...latest, title };
+          await saveConversationArchive(user.id, titled);
+          setHistory(writeHistory([titled, ...readHistory().filter((item) => item.id !== snapshot.id)]));
+        });
+      }).catch((titleError) => console.warn("Conversation title sync deferred", titleError));
+    }
     return next;
-  }, [locale, profile?.ai_personalization_consent, readHistory, user.id, writeHistory]);
+  }, [conversationWrites, locale, readHistory, user.id, writeHistory]);
+
+  const archiveConversation = useCallback((current: ChatMessage[]) => {
+    const archiveId = activeArchiveRef.current;
+    return conversationWrites.run(async () => {
+      const next = await saveConversationSnapshot(current, archiveId);
+      await deleteConversationMessages(user.id, current.map((message) => message.id));
+      return next;
+    });
+  }, [conversationWrites, saveConversationSnapshot, user.id]);
 
   const refresh = useCallback(async () => {
     const requestId = ++conversationLoadRequestRef.current;
     setLoading(true);
     setError(null);
     try {
-      const conversation = await loadConversation(user.id, locale);
+      const conversation = await conversationWrites.run(() => loadConversation(user.id, locale));
       if (requestId === conversationLoadRequestRef.current) {
-        if (conversationNeedsDailyRollover(conversation, deviceDayKey)) {
-          setHistory(archiveConversation(conversation));
+        const resumed = activeArchiveRef.current ? readHistory().find((item) => item.id === activeArchiveRef.current) : null;
+        if (activeArchiveRef.current && (!resumed || resumed.messages[0]?.id !== conversation[0]?.id)) {
+          // A stale device pointer must never overwrite an older archive with
+          // a fresh greeting after a reset or a change made on another device.
+          activateArchive(null);
+        }
+        if (!activeArchiveRef.current && conversationNeedsDailyRollover(conversation, deviceDayKey)) {
+          setHistory(await archiveConversation(conversation));
           const greeting = await createConversationGreeting(user.id, locale);
           if (requestId === conversationLoadRequestRef.current) setMessages([greeting]);
         } else if (conversation.length === 0) {
@@ -365,31 +400,31 @@ export default function AIScreen({
         } else {
           setMessages(conversation);
         }
-        setViewingArchiveId(null);
       }
     } catch (e) {
       if (requestId === conversationLoadRequestRef.current) setError(e instanceof Error ? e.message : String(e));
     } finally {
       if (requestId === conversationLoadRequestRef.current) setLoading(false);
     }
-  }, [archiveConversation, deviceDayKey, locale, user.id]);
+  }, [activateArchive, archiveConversation, conversationWrites, deviceDayKey, locale, readHistory, user.id]);
 
-  const prepareConversationForMessage = useCallback(() => {
+  const prepareConversationForMessage = useCallback(async () => {
     const currentDay = todayISO();
-    const rolledOver = conversationNeedsDailyRollover(messages, currentDay);
+    const rolledOver = !activeArchiveRef.current && conversationNeedsDailyRollover(messages, currentDay);
     if (!rolledOver) return { history: messages, rolledOver: false };
-    setHistory(archiveConversation(messages));
+    setHistory(await archiveConversation(messages));
     setMessages([]);
-    setViewingArchiveId(null);
+    activateArchive(null);
     setDeviceDayKey(currentDay);
     return { history: [] as ChatMessage[], rolledOver: true };
-  }, [archiveConversation, messages]);
+  }, [activateArchive, archiveConversation, messages]);
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    const typedMessage = input.trim();
-    const document = pendingDocument;
-    const photos = pendingPhotos;
+  async function submit(event?: FormEvent, sticker?: ChatSticker) {
+    event?.preventDefault();
+    if (sending || resuming || photoAnalyzing || recoveryRequired) return;
+    const typedMessage = sticker ? chatStickerLabel(sticker, locale) : input.trim();
+    const document = sticker ? null : pendingDocument;
+    const photos = sticker ? [] : pendingPhotos;
     if (!typedMessage && !document && photos.length === 0) return;
     if (photos.length > 0) {
       setInput("");
@@ -398,12 +433,14 @@ export default function AIScreen({
       return;
     }
     interruptMedia();
-    const message = document ? buildChatDocumentMessage(document, typedMessage, locale) : typedMessage;
-    const displayMessage = document
+    const message = sticker
+      ? encodeChatSticker(sticker.id)
+      : document ? buildChatDocumentMessage(document, typedMessage, locale) : typedMessage;
+    const displayMessage = sticker ? encodeChatSticker(sticker.id) : document
       ? [typedMessage, `📎 ${document.name}`].filter(Boolean).join("\n")
       : undefined;
-    setInput("");
-    setPendingDocument(null);
+    if (!sticker) { setInput(""); setPendingDocument(null); }
+    setStickersOpen(false);
     setAttachmentMenuOpen(false);
     setSending(true);
     setError(null);
@@ -411,8 +448,7 @@ export default function AIScreen({
     const controller = new AbortController();
     streamAbortRef.current?.abort();
     streamAbortRef.current = controller;
-    const conversation = prepareConversationForMessage();
-    const photoEntry = pendingEntry?.type === "nutrition" && pendingEntry.payload.source === "vision"
+    const photoEntry = !sticker && pendingEntry?.type === "nutrition" && pendingEntry.payload.source === "vision"
       ? applyPhotoNutritionCorrection(pendingEntry, typedMessage)
       : null;
     setPendingEntry(null);
@@ -421,6 +457,7 @@ export default function AIScreen({
     let userCommitted = false;
     setStreamingPreview({ status: null, content: "", startedAt: new Date().toISOString() });
     try {
+      const conversation = await prepareConversationForMessage();
       const result = await sendAiMessage({
         userId: user.id,
         message,
@@ -445,7 +482,7 @@ export default function AIScreen({
       speechRef.current?.finish(result.assistantMessage.content);
       setMessages((current) => [...current, result.assistantMessage]);
       setStreamingPreview(null);
-      const recognizedEntry = photoEntry
+      const recognizedEntry = sticker ? null : photoEntry
         ? photoEntry
         : typedMessage
         ? parseStructuredEntry(typedMessage, locale, {
@@ -457,11 +494,11 @@ export default function AIScreen({
       setPendingEntry(recognizedEntry);
       setPendingEntryMessageId(recognizedEntry ? result.assistantMessage.id : null);
       setEditingEntry(false);
-      if (!recognizedEntry) onConversationCompleted?.();
+      if (!recognizedEntry && !sticker) onConversationCompleted?.({ celebrate: false });
     } catch (e) {
       speechRef.current?.cancel();
       if (!(e instanceof DOMException && e.name === "AbortError")) setError(e instanceof Error ? e.message : String(e));
-      if (!userCommitted) {
+      if (!userCommitted && !sticker) {
         setInput(typedMessage);
         setPendingDocument(document);
       }
@@ -471,6 +508,24 @@ export default function AIScreen({
       if (streamAbortRef.current === controller) streamAbortRef.current = null;
       setSending(false);
     }
+  }
+
+  async function copyMessage(message: ChatMessage) {
+    const sticker = parseChatSticker(message.content);
+    const text = sticker ? chatStickerLabel(sticker, locale) : message.content;
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+      else {
+        const field = document.createElement("textarea");
+        field.value = text;
+        field.setAttribute("readonly", "");
+        field.style.cssText = "position:fixed;left:-10000px;top:0;opacity:0";
+        document.body.append(field);
+        try { field.select(); if (!document.execCommand("copy")) throw new Error("Copy unavailable"); }
+        finally { field.remove(); }
+      }
+      setMediaNotice(locale === "zh" ? "复制好啦" : "Copied!");
+    } catch { setMediaNotice(locale === "zh" ? "暂时没能复制，请再试一下" : "Could not copy. Please try again."); }
   }
 
   function handleComposerPhoto(file: File | null) {
@@ -558,7 +613,7 @@ export default function AIScreen({
         items: [],
       };
       speechRef.current?.start();
-      const conversation = prepareConversationForMessage();
+      const conversation = await prepareConversationForMessage();
       const response = await sendAiMessage({
         userId: user.id,
         message: modelMessage,
@@ -620,7 +675,7 @@ export default function AIScreen({
       setPendingEntryMessageId(null);
       setEditingEntry(false);
       onDataSaved?.();
-      onConversationCompleted?.();
+      onConversationCompleted?.({ celebrate: true });
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : String(saveError));
     } finally {
@@ -694,35 +749,42 @@ export default function AIScreen({
   }, [active, locale, speechStyleKey, speechEnabled]);
 
   useEffect(() => {
-    if (!command || command.id === handledCommandRef.current) return;
+    if (!command || command.id === handledCommandRef.current || sending || resuming || photoAnalyzing
+      || (recoveryRequired && command.type !== "history" && command.type !== "export")) return;
     handledCommandRef.current = command.id;
-    if (command.type === "new") {
+    if (command.type === "new" || command.type === "clear") {
+      const clear = command.type === "clear";
+      setResuming(true);
+      setError(null);
       clearComposerPhotos();
       speechRef.current?.cancel();
-      streamAbortRef.current?.abort();
-      streamAbortRef.current = null;
-      if (viewingArchiveId) {
-        void loadConversation(user.id, locale)
-          .then((current) => setHistory(archiveConversation(current)))
-          .catch((archiveError) => console.warn("AI active conversation archive deferred", archiveError));
-      } else {
-        setHistory(archiveConversation(messages));
-      }
-      setMessages([]);
-      setViewingArchiveId(null);
-      setInput("");
-      setPendingDocument(null);
-      setAttachmentMenuOpen(false);
-      setPendingEntry(null);
-      setPendingEntryMessageId(null);
-      setEditingEntry(false);
-      setStreamingPreview(null);
-      setSending(false);
-      setError(null);
       setHistoryOpen(false);
-      void createConversationGreeting(user.id, locale)
-        .then((greeting) => setMessages([greeting]))
-        .catch((greetingError) => setError(greetingError instanceof Error ? greetingError.message : String(greetingError)));
+      void (async () => {
+        try {
+          if (clear) {
+            await conversationWrites.run(async () => {
+              await deleteConversationMessages(user.id, messages.map((message) => message.id));
+              if (activeArchiveRef.current) {
+                await deleteConversationArchive(user.id, activeArchiveRef.current);
+                setHistory(writeHistory(readHistory().filter((item) => item.id !== activeArchiveRef.current)));
+              }
+            });
+          } else {
+            setHistory(await archiveConversation(messages));
+          }
+          activateArchive(null);
+          setInput("");
+          setPendingDocument(null);
+          setAttachmentMenuOpen(false);
+          setPendingEntry(null);
+          setPendingEntryMessageId(null);
+          setEditingEntry(false);
+          setStreamingPreview(null);
+          setMessages([await createConversationGreeting(user.id, locale)]);
+        } catch (changeError) {
+          setError(changeError instanceof Error ? changeError.message : String(changeError));
+        } finally { setResuming(false); }
+      })();
       return;
     }
     if (command.type === "history") {
@@ -746,36 +808,6 @@ export default function AIScreen({
       setVoiceCallOpen(true);
       return;
     }
-    if (command.type === "clear") {
-      clearComposerPhotos();
-      speechRef.current?.cancel();
-      streamAbortRef.current?.abort();
-      streamAbortRef.current = null;
-      if (viewingArchiveId) {
-        void loadConversation(user.id, locale)
-          .then((current) => deleteConversationMessages(user.id, current.map((message) => message.id)))
-          .catch((clearError) => console.warn("AI active conversation clear deferred", clearError));
-      } else {
-        void deleteConversationMessages(user.id, messages.map((message) => message.id))
-          .catch((clearError) => console.warn("AI active conversation clear deferred", clearError));
-      }
-      setMessages([]);
-      setViewingArchiveId(null);
-      setInput("");
-      setPendingDocument(null);
-      setAttachmentMenuOpen(false);
-      setPendingEntry(null);
-      setPendingEntryMessageId(null);
-      setEditingEntry(false);
-      setStreamingPreview(null);
-      setSending(false);
-      setError(null);
-      setHistoryOpen(false);
-      void createConversationGreeting(user.id, locale)
-        .then((greeting) => setMessages([greeting]))
-        .catch((greetingError) => setError(greetingError instanceof Error ? greetingError.message : String(greetingError)));
-      return;
-    }
     const payload = JSON.stringify({ exportedAt: new Date().toISOString(), messages }, null, 2);
     const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
     const link = document.createElement("a");
@@ -783,25 +815,87 @@ export default function AIScreen({
     link.download = `nava-conversation-${todayISO()}.json`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [archiveConversation, clearComposerPhotos, command, hydrateHistory, locale, messages, readHistory, user.id, viewingArchiveId]);
+  }, [activateArchive, archiveConversation, clearComposerPhotos, command, conversationWrites, hydrateHistory, locale, messages, photoAnalyzing, readHistory, recoveryRequired, resuming, sending, user.id, writeHistory]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "auto" });
   }, [messages.length, pendingEntry?.id, pendingPhotoPreview, streamingPreview?.content, streamingPreview?.status?.id]);
 
+  useEffect(() => {
+    if (!viewingArchiveId || loading || sending || resuming || recoveryRequired || !messages.length) return;
+    void conversationWrites.run(() => saveConversationSnapshot(messages, viewingArchiveId))
+      .catch((syncError) => setError(locale === "zh"
+        ? `消息已保存，会话目录暂未同步，请稍后重试。${syncError instanceof Error ? syncError.message : ""}`
+        : "Messages are saved. History could not sync yet; please try again shortly."));
+  }, [conversationWrites, loading, locale, messages, recoveryRequired, resuming, saveConversationSnapshot, sending, viewingArchiveId]);
+
+  async function openArchivedConversation(snapshot: ConversationSnapshot) {
+    if (sending || resuming || photoAnalyzing) return;
+    setResuming(true);
+    setError(null);
+    interruptMedia();
+    try {
+      const selected = await conversationWrites.run(async () => {
+        // Prefer the latest durable archive when another device has continued it.
+        const updated = await hydrateHistory();
+        const target = updated.find((item) => item.id === snapshot.id) ?? snapshot;
+        const restored = await resumeArchivedConversation(target, {
+          loadCurrent: () => loadConversation(user.id, locale),
+          archiveCurrent: async (current) => {
+            // A failed rollback leaves only already-backed-up rows. Do not
+            // overwrite those good archives with the partially switched table.
+            if (!recoveryRequired) await saveConversationSnapshot(current, activeArchiveRef.current);
+          },
+          restore: (current) => restoreConversationMessages(user.id, current),
+          remove: (ids) => deleteConversationMessages(user.id, ids),
+        });
+        return { target, restored };
+      });
+      activateArchive(selected.target.id);
+      setRecoveryRequired(false);
+      setMessages(selected.restored);
+      setHistory(writeHistory([{ ...selected.target, messages: selected.restored }, ...readHistory().filter((item) => item.id !== selected.target.id)]));
+      setInput("");
+      clearComposerPhotos();
+      setPendingDocument(null);
+      setPendingEntry(null);
+      setPendingEntryMessageId(null);
+      setStreamingPreview(null);
+      setHistoryOpen(false);
+    } catch (resumeError) {
+      if (resumeError instanceof ConversationRecoveryRequired) setRecoveryRequired(true);
+      setError(locale === "zh"
+        ? `暂时没能打开这段聊天，原来的消息仍然保留。${resumeError instanceof Error ? resumeError.message : ""}`
+        : `Could not open this chat. Your messages are still saved. ${resumeError instanceof Error ? resumeError.message : ""}`);
+    } finally { setResuming(false); }
+  }
+
   async function removeArchivedConversation(snapshot: ConversationSnapshot) {
     if (deletingArchiveId) return;
     if (!window.confirm(locale === 'zh' ? '删除这条历史会话？删除后无法恢复。' : 'Delete this conversation? This cannot be undone.')) return;
     setDeletingArchiveId(snapshot.id);
+    setResuming(true);
+    const deletingActive = viewingArchiveId === snapshot.id;
     try {
-      await deleteConversationArchive(user.id, snapshot.id);
-      const next = writeHistory(readHistory().filter((item) => item.id !== snapshot.id));
-      setHistory(next);
-      if (viewingArchiveId === snapshot.id) await refresh();
+      await conversationWrites.run(async () => {
+        if (deletingActive) {
+          await saveConversationArchive(user.id, { ...snapshot, messages });
+          await deleteConversationMessages(user.id, messages.map((message) => message.id));
+        }
+        await deleteConversationArchive(user.id, snapshot.id);
+        if (deletingActive) activateArchive(null);
+        setHistory(writeHistory(readHistory().filter((item) => item.id !== snapshot.id)));
+        if (deletingActive) setMessages([await createConversationGreeting(user.id, locale)]);
+      });
     } catch (deleteError) {
+      if (deletingActive && activeArchiveRef.current) {
+        try { await restoreConversationMessages(user.id, messages); }
+        catch { setRecoveryRequired(true); }
+      }
       setError(deleteError instanceof Error ? deleteError.message : String(deleteError));
     } finally {
       setDeletingArchiveId(null);
+      setResuming(false);
     }
   }
 
@@ -919,7 +1013,7 @@ export default function AIScreen({
     voiceCallSpeakerRef.current = speaker;
     speaker.start();
     try {
-      const conversation = prepareConversationForMessage();
+      const conversation = await prepareConversationForMessage();
       const result = await sendAiMessage({
         userId: user.id,
         message,
@@ -948,7 +1042,7 @@ export default function AIScreen({
       setPendingEntry(recognizedEntry);
       setPendingEntryMessageId(recognizedEntry ? result.assistantMessage.id : null);
       setEditingEntry(false);
-      if (!recognizedEntry) onConversationCompleted?.();
+      if (!recognizedEntry) onConversationCompleted?.({ celebrate: false });
       await speaker.whenDone();
       if (!voiceCallOpenRef.current) return;
       voiceCallSubmittingRef.current = false;
@@ -1255,7 +1349,6 @@ export default function AIScreen({
       </footer>
     </section>
   ) : null;
-  const viewingSnapshot = viewingArchiveId ? history.find((snapshot) => snapshot.id === viewingArchiveId) ?? null : null;
 
   if (loading) return <div className="chat-layout"><PageSkeleton variant="ai" /></div>;
   return (
@@ -1265,6 +1358,7 @@ export default function AIScreen({
       <div className="chat-list" ref={listRef}>
         {messages.map((message) => {
           const isUser = message.role === "user";
+          const sticker = parseChatSticker(message.content);
           return (
             <Fragment key={message.id}>
               <div className={["chat-message-row", isUser ? "user" : "assistant"].join(" ")}>
@@ -1273,14 +1367,17 @@ export default function AIScreen({
                     <svg viewBox="160 215 1030 845" focusable="false"><image href={companionAvatar} width="1254" height="1254" /></svg>
                   </span>
                 )}
-                <article className={isUser ? "chat-bubble user" : "chat-bubble assistant"}>
+                <article className={`chat-bubble ${isUser ? "user" : "assistant"}${sticker ? " chat-sticker-bubble" : ""}`}>
                   {isUser && photoPreviews[message.id] && (
                     <div className="chat-photo-grid" data-photo-count={photoPreviews[message.id].length}>
                       {photoPreviews[message.id].map((url, index) => <img key={url} className="chat-photo-preview" src={url} alt={locale === "zh" ? `饮食照片 ${index + 1}` : `Meal photo ${index + 1}`} data-chat-photo="saved" />)}
                     </div>
                   )}
-                  <p>{message.content}</p>
-                  <time>{new Date(message.created_at).toLocaleTimeString(locale === "en" ? "en-US" : "zh-CN", { hour: "2-digit", minute: "2-digit" })}</time>
+                  {sticker ? <img className="chat-sticker-image" src={sticker.imageSrc} alt={chatStickerLabel(sticker, locale)} draggable={false} /> : <p>{message.content}</p>}
+                  <footer className="chat-message-meta">
+                    <time>{new Date(message.created_at).toLocaleTimeString(locale === "en" ? "en-US" : "zh-CN", { hour: "2-digit", minute: "2-digit" })}</time>
+                    <button className="chat-copy-message" type="button" onClick={() => void copyMessage(message)} aria-label={locale === "zh" ? "复制这条消息" : "Copy message"}><Copy size={14} aria-hidden="true" /></button>
+                  </footer>
                 </article>
                 {isUser && (
                   <span className="chat-avatar user" aria-hidden="true">
@@ -1339,11 +1436,9 @@ export default function AIScreen({
       </div>
 
       {error && <p className="error-text">{error}</p>}
+      {recoveryRequired && <button type="button" onClick={() => { setHistory(readHistory()); setHistoryOpen(true); }}>{locale === "zh" ? "从历史重新打开聊天" : "Reopen a saved conversation"}</button>}
 
-      {viewingSnapshot ? <div className="chat-archive-return" role="status">
-        <span><strong>{viewingSnapshot.title}</strong><small>{locale === "zh" ? "历史会话只读预览" : "Read-only history preview"}</small></span>
-        <button type="button" onClick={() => void refresh()}>{locale === "zh" ? "返回今日对话" : "Back to today's chat"}</button>
-      </div> : <form className={["chat-composer", voiceState !== "idle" ? "voice-active" : "", attachmentMenuOpen ? "attachment-open" : "", photoAnalyzing ? "photo-analyzing" : "", pendingDocument ? "has-document" : "", pendingPhotos.length ? "has-photos" : ""].filter(Boolean).join(" ")} onSubmit={submit}>
+      <form className={["chat-composer", voiceState !== "idle" ? "voice-active" : "", attachmentMenuOpen ? "attachment-open" : "", photoAnalyzing ? "photo-analyzing" : "", pendingDocument ? "has-document" : "", pendingPhotos.length ? "has-photos" : ""].filter(Boolean).join(" ")} onSubmit={submit}>
         {pendingPhotos.length > 0 && <div className="chat-pending-photos" aria-label={locale === "zh" ? "待发送照片" : "Photos ready to send"}>
           {pendingPhotos.map((photo, index) => <span key={photo.id}>
             <img src={photo.previewUrl} alt={locale === "zh" ? `待发送照片 ${index + 1}` : `Pending photo ${index + 1}`} />
@@ -1363,7 +1458,7 @@ export default function AIScreen({
           <button
             className="chat-attachment-trigger"
             type="button"
-            disabled={sending || photoAnalyzing}
+            disabled={sending || photoAnalyzing || resuming || recoveryRequired}
             aria-expanded={attachmentMenuOpen}
             aria-controls="chat-attachment-menu"
             aria-label={locale === "zh" ? "添加附件" : "Add attachment"}
@@ -1385,6 +1480,10 @@ export default function AIScreen({
               <button type="button" role="menuitem" onClick={openComposerCamera}>
                 <Camera size={19} aria-hidden="true" />
                 <span>{locale === "zh" ? "拍照" : "Take photo"}</span>
+              </button>
+              <button type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); setStickersOpen(true); }}>
+                <Smile size={19} aria-hidden="true" />
+                <span>{locale === "zh" ? "表情" : "Stickers"}</span>
               </button>
             </div>
           )}
@@ -1435,7 +1534,7 @@ export default function AIScreen({
           <button
             className={["chat-voice-button", voiceState !== "idle" ? "active" : "", (voiceCancelArmed || externalVoiceCancelArmed) ? "cancel-armed" : ""].filter(Boolean).join(" ")}
             type="button"
-            disabled={sending || photoAnalyzing}
+            disabled={sending || photoAnalyzing || resuming || recoveryRequired}
             onPointerDown={beginComposerVoice}
             onPointerMove={moveComposerVoice}
             onPointerUp={(event) => finishComposerVoice(event)}
@@ -1456,13 +1555,15 @@ export default function AIScreen({
         <button
           className="chat-send-button"
           type="submit"
-          disabled={sending || (!input.trim() && !pendingDocument && pendingPhotos.length === 0)}
+          disabled={sending || resuming || recoveryRequired || (!input.trim() && !pendingDocument && pendingPhotos.length === 0)}
           aria-label={t("ai.send")}
           title={t("ai.send")}
         >
           <SendHorizontal size={21} />
         </button>
-      </form>}
+      </form>
+
+      <ChatStickerPicker open={stickersOpen} onClose={() => setStickersOpen(false)} disabled={sending || resuming || photoAnalyzing || recoveryRequired} onSelect={(sticker) => void submit(undefined, sticker)} />
 
       {voiceCallOpen && (
         <section
@@ -1516,11 +1617,11 @@ export default function AIScreen({
             {history.length === 0 && <p className="muted">{locale === "zh" ? "还没有历史会话" : "No archived conversations"}</p>}
             {history.map((snapshot) => (
               <div className="ai-history-row" key={snapshot.id}>
-                <button className="ai-history-open" type="button" onClick={() => { setMessages(snapshot.messages); setViewingArchiveId(snapshot.id); setHistoryOpen(false); }}>
+                <button className="ai-history-open" type="button" disabled={resuming || sending || photoAnalyzing} onClick={() => void openArchivedConversation(snapshot)}>
                   <strong>{snapshot.title}</strong>
-                  <span>{new Date(snapshot.createdAt).toLocaleString(locale === "zh" ? "zh-CN" : "en-US")}</span>
+                  <span>{new Date(conversationLastMessageAt(snapshot)).toLocaleString(locale === "zh" ? "zh-CN" : "en-US")}</span>
                 </button>
-                <button className="ai-history-delete" type="button" disabled={deletingArchiveId === snapshot.id} onClick={() => void removeArchivedConversation(snapshot)} aria-label={locale === "zh" ? `删除${snapshot.title}` : `Delete ${snapshot.title}`} title={locale === "zh" ? "删除历史会话" : "Delete conversation"}>
+                <button className="ai-history-delete" type="button" disabled={!!deletingArchiveId || resuming || sending} onClick={() => void removeArchivedConversation(snapshot)} aria-label={locale === "zh" ? `删除${snapshot.title}` : `Delete ${snapshot.title}`} title={locale === "zh" ? "删除历史会话" : "Delete conversation"}>
                   {deletingArchiveId === snapshot.id ? <LoaderCircle className="spin" size={17} /> : <Trash2 size={17} />}
                 </button>
               </div>
