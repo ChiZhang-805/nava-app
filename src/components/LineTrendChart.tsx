@@ -1,4 +1,4 @@
-import { useId, type CSSProperties } from "react";
+import { useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { chartCurvePath, type ChartCurveMode } from "../services/chartCurves";
 
 export interface LineTrendPoint {
@@ -29,6 +29,8 @@ export default function LineTrendChart({
   showArea = true,
   showConfidenceBand = true,
   readableLabels = false,
+  presentation = "default",
+  domain,
   valueFormatter = (value) => Math.round(value).toString(),
 }: {
   points: LineTrendPoint[];
@@ -45,10 +47,29 @@ export default function LineTrendChart({
   showArea?: boolean;
   showConfidenceBand?: boolean;
   readableLabels?: boolean;
+  presentation?: "default" | "report";
+  domain?: readonly [number, number];
   valueFormatter?: (value: number) => string;
 }) {
   const rawId = useId();
-  if (points.length === 0) return null;
+  const container = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 360, height: 240 });
+  const report = presentation === "report";
+  const hasRecords = points.some((point) => !point.missing);
+  useLayoutEffect(() => {
+    const element = container.current;
+    if (!report || !element || !hasRecords) return;
+    // Use layout pixels, not getBoundingClientRect: device previews and the
+    // adjacent carousel cards may be transformed. Their axes must not rescale.
+    const observer = new ResizeObserver(([entry]) => {
+      const width = Math.round(entry.contentRect.width);
+      const height = Math.round(entry.contentRect.height);
+      if (width <= 0 || height <= 0) return;
+      setSize((previous) => previous.width === width && previous.height === height ? previous : { width, height });
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [report, hasRecords]);
   const recordedPoints = points.filter((point) => !point.missing);
   if (recordedPoints.length === 0) return null;
   const gradientId = `trend-gradient-${rawId.replace(/:/g, "")}`;
@@ -56,15 +77,14 @@ export default function LineTrendChart({
   // Compact dashboard cards are considerably wider than they are tall. Give
   // them a matching internal coordinate system so the browser does not center
   // a narrow 320px plot and leave large unused gutters on both sides.
-  const width = compact ? 600 : 360;
-  const height = compact ? (verticalEmphasis ? 320 : 148) : 184;
+  const width = report ? Math.max(120, size.width) : compact ? 600 : 360;
+  const height = report ? Math.max(80, size.height) : compact ? (verticalEmphasis ? 320 : 148) : 184;
   const horizontalInset = readableLabels ? 36 : compact ? 22 : 20;
-  const left = horizontalInset;
-  const right = width - horizontalInset;
-  const top = readableLabels ? 40 : compact ? (verticalEmphasis ? 24 : 18) : 22;
-  const bottom = compact ? (verticalEmphasis ? 258 : 108) : 142;
-  const dateY = readableLabels ? height - 12 : compact ? (verticalEmphasis ? height - 5 : 136) : 169;
-  const spanX = right - left;
+  let left = report ? 42 : horizontalInset;
+  const right = width - (report ? 10 : horizontalInset);
+  const top = report ? 12 : readableLabels ? 40 : compact ? (verticalEmphasis ? 24 : 18) : 22;
+  const bottom = report ? height - 30 : compact ? (verticalEmphasis ? 258 : 108) : 142;
+  const dateY = report ? height - 7 : readableLabels ? height - 12 : compact ? (verticalEmphasis ? height - 5 : 136) : 169;
   const spanY = bottom - top;
   const valueBottom = scale === "range"
     ? bottom - spanY * Math.min(0.6, Math.max(0, rangeFloorRatio))
@@ -78,7 +98,9 @@ export default function LineTrendChart({
   const rawMax = Math.max(...scaleValues);
   let domainMin: number;
   let domainMax: number;
-  if (scale === "range") {
+  if (domain && Number.isFinite(domain[0]) && Number.isFinite(domain[1]) && domain[1] > domain[0]) {
+    [domainMin, domainMax] = domain;
+  } else if (scale === "range") {
     if (rawMax === rawMin) {
       const padding = Math.max(1, Math.abs(rawMax) * 0.05);
       domainMin = Math.max(0, rawMin - padding);
@@ -119,6 +141,12 @@ export default function LineTrendChart({
     if (domainMax <= domainMin) domainMax = Math.min(100, domainMin + 30);
   }
   const domainSpan = Math.max(1, domainMax - domainMin);
+  const axisFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+  if (report) {
+    const longestTick = Math.max(...[domainMin, (domainMin + domainMax) / 2, domainMax].map((value) => axisFormatter.format(value).length));
+    left = Math.max(32, Math.min(70, longestTick * 7 + 10));
+  }
+  const spanX = right - left;
   const xAt = (index: number) => left + (points.length <= 1 ? spanX / 2 : (index / (points.length - 1)) * spanX);
   const yAt = (value: number) => {
     const scaledValue = scale === "score" ? clampScore(value) : value;
@@ -145,10 +173,13 @@ export default function LineTrendChart({
       ].join(" ")
     : "";
   const signature = points.map((point) => `${point.id}:${point.value}:${point.lower ?? ""}:${point.upper ?? ""}:${point.missing ? "missing" : "recorded"}`).join("|");
+  const staticMarks: CSSProperties | undefined = report ? { animation: "none", opacity: 1, transform: "none" } : undefined;
+  const reportLabelStyle: CSSProperties | undefined = report ? { ...staticMarks, fontSize: 12, fontWeight: 550, fill: "#526f81" } : undefined;
+  const dateIndices = new Set(Array.from({ length: Math.min(4, points.length) }, (_, index) => Math.round(index * (points.length - 1) / Math.max(1, Math.min(4, points.length) - 1))));
 
   return (
-    <div className={["line-trend-chart", tone, verticalEmphasis ? "is-vertically-emphasized" : "", readableLabels ? "has-readable-labels" : ""].filter(Boolean).join(" ")}>
-      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio={verticalEmphasis ? "xMidYMax meet" : undefined} role="img" aria-label={ariaLabel}>
+    <div ref={container} className={["line-trend-chart", tone, report ? "is-report" : "", verticalEmphasis ? "is-vertically-emphasized" : "", readableLabels ? "has-readable-labels" : ""].filter(Boolean).join(" ")}>
+      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio={report ? "none" : verticalEmphasis ? "xMidYMax meet" : undefined} role="img" aria-label={ariaLabel}>
         <title>{ariaLabel}</title>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
@@ -162,43 +193,42 @@ export default function LineTrendChart({
           </linearGradient>
         </defs>
 
-        {[0.25, 0.5, 0.75].map((ratio, index) => {
+        {(report ? [0, 0.5, 1] : [0.25, 0.5, 0.75]).map((ratio, index) => {
           const score = domainMin + domainSpan * ratio;
           return (
-          <line
+          <g key={score}><line
             className="trend-grid-line"
             x1={left}
             x2={right}
             y1={yAt(score)}
             y2={yAt(score)}
-            key={score}
-            style={{ "--trend-grid-index": index } as CSSProperties}
-          />
+            style={{ ...staticMarks, "--trend-grid-index": index } as CSSProperties}
+          />{report && <text className="trend-axis-value" x={left - 8} y={yAt(score)} dominantBaseline="middle" textAnchor="end" style={reportLabelStyle}>{axisFormatter.format(score)}</text>}</g>
           );
         })}
 
-        {hasBand && <polygon className="trend-confidence-band" points={bandPoints} />}
-        {areaPaths.map((areaPath, index) => areaPath && <path className="trend-area" d={areaPath} key={`area-${index}`} style={{ fill: `url(#${areaGradientId})` }} />)}
-        {segmentPaths.map((linePath, index) => plottedSegments[index].length > 1 && <path key={`trend-${index}-${signature}`} className="trend-line" d={linePath} pathLength={1} style={{ stroke: `url(#${gradientId})` }} />)}
+        {hasBand && <polygon className="trend-confidence-band" points={bandPoints} style={staticMarks} />}
+        {areaPaths.map((areaPath, index) => areaPath && <path className="trend-area" d={areaPath} key={`area-${index}`} style={{ ...staticMarks, fill: `url(#${areaGradientId})` }} />)}
+        {segmentPaths.map((linePath, index) => plottedSegments[index].length > 1 && <path key={`trend-${index}-${signature}`} className="trend-line" d={linePath} pathLength={1} style={{ ...staticMarks, ...(report ? { strokeDashoffset: 0, strokeWidth: 3 } : {}), stroke: `url(#${gradientId})` }} />)}
 
         {points.map((point, index) => {
           const x = xAt(index);
           const y = point.missing ? null : yAt(point.value);
-          const showDate = showAllDates || points.length <= 4 || index % Math.max(1, dateLabelEvery) === 0 || index === points.length - 1;
+          const showDate = report ? dateIndices.has(index) : showAllDates || points.length <= 4 || index % Math.max(1, dateLabelEvery) === 0 || index === points.length - 1;
           return (
             <g
               className="trend-point"
               key={`${point.id}-${signature}`}
               data-label={point.label}
               data-value={point.value}
-              style={{ "--trend-point-index": index } as CSSProperties}
+              style={{ ...staticMarks, "--trend-point-index": index } as CSSProperties}
             >
               {!point.missing && y != null && <><circle cx={x} cy={y} r="4.5">
                 <title>{`${point.label}: ${valueFormatter(point.value)}`}</title>
               </circle>
-              {showValues && <text className="trend-value" x={x} y={Math.max(12, y - 9)} textAnchor="middle">{valueFormatter(point.value)}</text>}
+              {showValues && <text className="trend-value" x={x} y={Math.max(12, y - 9)} textAnchor="middle" style={reportLabelStyle}>{valueFormatter(point.value)}</text>}
               </>}
-              {showDate && <text className="trend-date" x={x} y={dateY} textAnchor="middle">{point.label}</text>}
+              {showDate && <text className="trend-date" x={x} y={dateY} textAnchor={report && index === points.length - 1 ? "end" : "middle"} style={reportLabelStyle}>{point.label}</text>}
             </g>
           );
         })}

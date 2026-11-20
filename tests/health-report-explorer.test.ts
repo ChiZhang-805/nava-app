@@ -72,6 +72,8 @@ test("mood intensity is not inferred from prose or mixed with the older 100-poin
   const charts = buildHealthReportCharts(bundle({ journal: [journal("1", "mood", { mood: "很开心", intensity: 8 })], moods: [{ record_date: date, mood_score: 80 }] as MoodRecord[] }), date, "zh");
   assert.equal(latest(charts.mood, "mood-intensity").value, 8);
   assert.equal(latest(charts.mood, "mood-legacy-rating").value, 80);
+  assert.deepEqual(charts.mood.find(chart => chart.id === "mood-intensity")!.domain, [1, 10]);
+  assert.deepEqual(charts.mood.find(chart => chart.id === "mood-legacy-rating")!.domain, [0, 100]);
   const unscored = buildHealthReportCharts(bundle({ journal: [journal("1", "mood", { mood: "难过" })] }), date, "zh");
   assert.equal(latest(unscored.mood, "mood-intensity").missing, true);
 });
