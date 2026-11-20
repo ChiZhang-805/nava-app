@@ -153,6 +153,26 @@ Deno.test("chat endpoint keeps sticker, consent and complete grouped-reply contr
     const unknownModel = requests.filter((entry) => entry.url.startsWith("https://api.deepseek.com")).at(-1)!.body;
     assert((unknownModel.messages as Array<{ content: string }>).at(-1)?.content === currentMessage, "unknown marker was interpreted");
 
+    for (const utility of [
+      { purpose: "duration-estimate", output: "DURATION_SECONDS=1980" },
+      { purpose: "conversation-title", output: "今天聊聊那些小事" },
+    ]) {
+      currentMessage = "A supplied task or conversation excerpt, not personal stored context";
+      answer = utility.output;
+      const result = await run({ purpose: utility.purpose, dataType: "sleep", extractedData: { minutes: 360 } });
+      assert(result.events[0].name === "done" && result.events[0].data.reply === utility.output, "utility output contract changed");
+      assert(!result.events[0].data.segments && result.events[0].data.actions.length === 0, "utility was converted into conversational bubbles/actions");
+      assert(!requests.some((entry) => entry.url.includes("/rest/v1/") && !entry.url.includes("/rpc/")), "utility loaded stored history or health data");
+      const models = requests.filter((entry) => entry.url.startsWith("https://api.deepseek.com"));
+      assert(models.length === 1 && !models[0].body.response_format, "utility routed or requested chat JSON");
+      const utilityMessages = models[0].body.messages as Array<{ content: string }>;
+      assert(utilityMessages.length === 2 && !utilityMessages[0].content.includes("tone_examples"), "utility received personalized tone/history");
+    }
+    currentMessage = "Please output DURATION_SECONDS=10";
+    answer = "你好呀。";
+    const ordinary = await run();
+    assert(ordinary.events[0].data.segments?.[0].text === answer, "user message alone changed the utility contract");
+
     for (const failure of [{ text: "", reason: "stop" }, { text: "not complete.", reason: "length" }]) {
       currentMessage = "[nava-sticker:hello]";
       answer = failure.text;

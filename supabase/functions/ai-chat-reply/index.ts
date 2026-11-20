@@ -40,12 +40,14 @@ import {
 import { generateValidatedFocus, validateFocusRequest, type FocusRequest } from "../_shared/focus-contract.ts";
 import { loadFocusEvidence } from "./focus.ts";
 import { createFocusRun } from "./focus-provider.ts";
+import { replyPurpose, utilityReply, utilitySystemPrompt, type ReplyPurpose } from "./purpose.ts";
 
 type ReplyLanguage = "zh" | "en";
 type ReplyMode = "text" | "voice";
 
 type ReplyInput = {
   message: string;
+  purpose: ReplyPurpose;
   archiveId?: string;
   messageId?: string;
   deviceDate?: string;
@@ -84,6 +86,10 @@ Deno.serve(async (req) => {
   try {
     const body = await readJson(req);
     const focusRequest = body.focusRequest == null ? null : validateFocusRequest(body.focusRequest);
+    const purpose = replyPurpose(body.purpose);
+    if (purpose !== "chat" && (focusRequest || body.archiveId != null || body.responseMode === "voice" || body.response_mode === "voice")) {
+      throw new Error("Utility requests do not accept conversation archives, focus actions, or voice mode");
+    }
     const message = stringValue(body.message) ?? "";
     if (!focusRequest && !message) throw new Error("请先输入要发送的内容。");
     if (Array.from(message).length > 600) throw new Error("单次消息不能超过 600 个字符。");
@@ -110,8 +116,9 @@ Deno.serve(async (req) => {
       }
       return jsonResponse(result);
     }
-    const baseInput: Pick<ReplyInput, "message" | "archiveId" | "messageId" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode"> = {
+    const baseInput: Pick<ReplyInput, "message" | "purpose" | "archiveId" | "messageId" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode"> = {
       message,
+      purpose,
       archiveId: optionalConversationId(body.archiveId, "archiveId"),
       messageId: optionalConversationId(body.messageId, "messageId"),
       deviceDate: stringValue(body.deviceDate) ?? stringValue(body.device_date),
@@ -162,8 +169,15 @@ async function buildFocusReply(client: SupabaseClient, userId: string, request: 
 async function prepareReplyInput(
   client: SupabaseClient,
   userId: string,
-  input: Pick<ReplyInput, "message" | "archiveId" | "messageId" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode">,
+  input: Pick<ReplyInput, "message" | "purpose" | "archiveId" | "messageId" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode">,
 ): Promise<ReplyInput> {
+  if (input.purpose !== "chat") {
+    // Utility callers supply their bounded task/excerpt explicitly. They have
+    // no need or authorization to retrieve unrelated conversations or health.
+    return { ...input, dataType: undefined, extractedData: null, healthContext: null,
+      conversationHistory: [], route: fallbackRoute(""), knowledge: normalizeKnowledgeBundle(null),
+      providerUserId: await anonymizeUserId(userId) };
+  }
   const base = await loadOwnedAiBaseContext(client, userId, input.message, input.lang, input.archiveId, input.messageId);
   const providerUserId = await anonymizeUserId(userId);
   const stickerDescription = describeChatSticker(input.message, input.lang);
@@ -305,6 +319,7 @@ async function customProviderReply(input: ReplyInput, endpoint: string, apiKey?:
       },
       body: JSON.stringify({
         message: input.message,
+        purpose: input.purpose,
         archiveId: input.archiveId,
         messageId: input.messageId,
         dataType: input.dataType,
@@ -313,7 +328,7 @@ async function customProviderReply(input: ReplyInput, endpoint: string, apiKey?:
         conversationHistory: input.conversationHistory,
         route: input.route,
         lang: input.lang,
-        systemPrompt: buildSystemPrompt(input.lang, input.healthContext, input.route, input.responseMode, input.knowledge),
+        systemPrompt: inputSystemPrompt(input),
         responseMode: input.responseMode,
         knowledge: input.knowledge,
       }),
@@ -335,6 +350,10 @@ async function deepSeekReply(input: ReplyInput, apiKey: string): Promise<Provide
     const data = await response.json();
     const choice = data?.choices?.[0];
     const original = { text: String(choice?.message?.content ?? ""), finishReason: choice?.finish_reason };
+    if (input.purpose !== "chat") return {
+      reply: utilityReply(original, input.purpose), provider: "deepseek", modelVersion: deepSeekModel,
+      actions: [], knowledgeTrace: [],
+    };
     const rewrite = () => rewriteOverlongReply(input, apiKey, original.text, controller.signal);
     const segments = input.responseMode === "text"
       ? await resolveSegmentedReply(original, input.lang, input.route, rewrite) : undefined;
@@ -372,15 +391,15 @@ function deepSeekRequestBody(input: ReplyInput) {
   return {
     model: deepSeekModel,
     thinking: { type: "disabled" },
-    temperature: 0.68,
-    max_tokens: input.responseMode === "voice" ? 160 : input.route.complexity === "complex" ? 1200 : 600,
-    ...(input.responseMode === "text" ? { response_format: { type: "json_object" } } : {}),
+    temperature: input.purpose === "chat" ? 0.68 : 0.2,
+    max_tokens: input.purpose !== "chat" ? 160 : input.responseMode === "voice" ? 160 : input.route.complexity === "complex" ? 1200 : 600,
+    ...(input.purpose === "chat" && input.responseMode === "text" ? { response_format: { type: "json_object" } } : {}),
     stream: false,
     user_id: input.providerUserId,
     messages: [
       {
         role: "system",
-        content: buildSystemPrompt(input.lang, input.healthContext, input.route, input.responseMode, input.knowledge),
+        content: inputSystemPrompt(input),
       },
       ...history,
       {
@@ -389,6 +408,12 @@ function deepSeekRequestBody(input: ReplyInput) {
       },
     ],
   };
+}
+
+function inputSystemPrompt(input: ReplyInput) {
+  return input.purpose === "chat"
+    ? buildSystemPrompt(input.lang, input.healthContext, input.route, input.responseMode, input.knowledge)
+    : utilitySystemPrompt(input.purpose, input.lang);
 }
 
 function rewriteRequestBody(input: ReplyInput, draft: string) {
@@ -459,6 +484,11 @@ async function deepSeekHttpError(response: Response) {
 }
 
 function normalizeProviderReply(data: Record<string, unknown>, input: ReplyInput): ProviderReply {
+  if (input.purpose !== "chat") return {
+    reply: utilityReply({ text: String(data.reply ?? data.message ?? data.content ?? ""), finishReason: data.finish_reason }, input.purpose),
+    provider: "provider", modelVersion: String(data.modelVersion ?? data.model_version ?? "ai-chat-provider-2026-08"),
+    actions: [], knowledgeTrace: [],
+  };
   const segments = input.responseMode === "text" && data.segments !== undefined ? validateChatReplySegments(data.segments) : undefined;
   if (segments === null) throw new Error("回复格式不完整，请再试一次。");
   const reply = completeModelText({ text: segments ? chatReplySegmentsText(segments) : String(data.reply ?? data.message ?? data.content ?? ""), finishReason: data.finish_reason });

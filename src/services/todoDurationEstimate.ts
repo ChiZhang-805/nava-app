@@ -28,6 +28,7 @@ export async function estimateTodoDuration(title: string, lang: "zh" | "en", sig
     const response = await supabase.functions.invoke<{ reply?: string; provider?: string; modelVersion?: string }>("ai-chat-reply", {
       headers: await authenticatedFunctionHeaders(),
       body: {
+        purpose: "duration-estimate",
         message: `${instruction}\nTASK_JSON=${JSON.stringify({ title: task })}`,
         lang,
         responseMode: "text",
