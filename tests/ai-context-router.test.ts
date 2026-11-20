@@ -52,6 +52,16 @@ test("known stickers never trigger health retrieval or record routing", () => {
   assert.equal(buildDeterministicRoute("[nava-sticker:not-known]"), null);
 });
 
+test("casual slang does not invent a record or hide an explicit health concern", () => {
+  for (const message of ["OKK", "XSWL!"]) {
+    assert.equal(buildDeterministicRoute(message)?.intent, "smalltalk");
+    assert.deepEqual(buildDeterministicRoute(message)?.domains, []);
+  }
+  assert.equal(buildDeterministicRoute("啊啊啊我和crush在一起了"), null);
+  assert.deepEqual(fallbackRoute("啊啊啊我和crush在一起了").domains, []);
+  assert.deepEqual(buildDeterministicRoute("和crush聊天到很晚，睡了三小时")?.domains, ["sleep"]);
+});
+
 test("system prompt includes only route-relevant profile variables and records", () => {
   const route = {
     intent: "advice",

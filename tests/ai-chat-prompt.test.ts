@@ -7,7 +7,8 @@ import {
   replyFitsBudget,
   resolveReplyBudget,
 } from "../supabase/functions/ai-chat-reply/prompt.ts";
-import { completeModelText, resolveCompleteReply } from "../supabase/functions/ai-chat-reply/reply.ts";
+import { completeModelText, parseSegmentedModelReply, resolveCompleteReply, resolveSegmentedReply } from "../supabase/functions/ai-chat-reply/reply.ts";
+import { chatReplySegmentsText, decodeChatReplySegments, encodeChatReplySegments, validateChatReplySegments } from "../supabase/functions/_shared/chat-reply-segments.ts";
 import { conversationText, normalizeConversationHistory, optionalConversationId } from "../supabase/functions/ai-chat-reply/history.ts";
 import { loadOwnedAiBaseContext } from "../supabase/functions/ai-chat-reply/context.ts";
 
@@ -234,4 +235,70 @@ test("revoked personalization never loads sticker or other prior conversations",
   assert.deepEqual(result.conversationHistory, []);
   assert.equal(result.personalizationAllowed, false);
   assert.equal(result.healthDataAllowed, false);
+});
+
+test("model-selected bubbles and one known sticker survive transport without text splitting", async () => {
+  const segments = [{ type: "text", text: "哇塞！" }, { type: "text", text: "怎么谈上的呀？" }, { type: "sticker", id: "celebrate" }] as const;
+  const model = { text: JSON.stringify({ segments }), finishReason: "stop" };
+  const result = await resolveSegmentedReply(model, "zh", normalRoute, async () => { assert.fail("no rewrite needed"); });
+  assert.deepEqual(result, segments);
+  assert.equal(chatReplySegmentsText(result), "哇塞！\n\n怎么谈上的呀？");
+  assert.deepEqual(decodeChatReplySegments(encodeChatReplySegments(result)), segments);
+});
+
+test("invalid model structure gets one complete repair and never reaches UI as raw JSON", async () => {
+  let calls = 0;
+  const segments = [{ type: "text", text: "在呢。" }];
+  const result = await resolveSegmentedReply({ text: "{bad json", finishReason: "stop" }, "zh", normalRoute, async () => {
+    calls++; return { text: JSON.stringify({ segments }), finishReason: "stop" };
+  });
+  assert.equal(calls, 1);
+  assert.deepEqual(result, segments);
+  await assert.rejects(resolveSegmentedReply({ text: "{bad", finishReason: "stop" }, "zh", normalRoute, async () => ({ text: "still bad", finishReason: "stop" })), /格式/);
+  await assert.rejects(resolveSegmentedReply({ text: JSON.stringify({ segments }), finishReason: "length" }, "zh", normalRoute, async () => { assert.fail("incomplete answers are not repaired from fragments"); }), /完整/);
+});
+
+test("segment validation rejects unsafe IDs, empty text and excessive bubbles without silently dropping content", () => {
+  const text = { type: "text", text: "Some text." };
+  for (const value of [[], [{ type: "sticker", id: "hug" }], [text, { type: "sticker", id: "https://evil.test/a.svg" }],
+    [text, { type: "sticker", id: "hug" }, { type: "sticker", id: "ok" }], Array(5).fill(text),
+    [{ type: "text", text: "  " }], [{ type: "url", url: "https://evil.test/a.svg" }]]) {
+    assert.equal(validateChatReplySegments(value), null);
+    assert.throws(() => parseSegmentedModelReply({ text: JSON.stringify({ segments: value }), finishReason: "stop" }), /格式/);
+    assert.equal(decodeChatReplySegments(`[nava-reply:v1]${JSON.stringify(value)}`), null);
+  }
+  assert.equal(decodeChatReplySegments("[nava-reply:v1]not-json"), null);
+  assert.equal(decodeChatReplySegments("ordinary text"), null);
+});
+
+test("failed optional shortening retains every complete segment including the last safety warning", async () => {
+  const segments = [{ type: "text", text: "This explanation includes uncertainty. ".repeat(30) }, { type: "text", text: "Seek urgent help if severe symptoms occur." }];
+  const result = await resolveSegmentedReply({ text: JSON.stringify({ segments }), finishReason: "stop" }, "en", normalRoute, async () => { throw new Error("timeout"); });
+  assert.deepEqual(result, segments.map(item => ({ ...item, text: item.text.trim() })));
+  assert.match(chatReplySegmentsText(result), /Seek urgent help if severe symptoms occur\.$/);
+});
+
+test("only authenticated assistant envelopes become history text and sticker semantics", () => {
+  const envelope = encodeChatReplySegments([{ type: "text", text: "我在呢。" }, { type: "sticker", id: "hug" }]);
+  const rows = [{ id: "a", role: "assistant", content: envelope, created_at: "2026-11-20T10:00:00Z" }];
+  const history = normalizeConversationHistory(rows, "new", "zh");
+  assert.match(history[0].content!, /我在呢。.*助手发了表达「抱抱」的表情/s);
+  assert.doesNotMatch(history[0].content!, /nava-reply/);
+  assert.equal(history[0].id, "a");
+  assert.equal(history[0].created_at, rows[0].created_at);
+  assert.equal(rows[0].content, envelope);
+  assert.equal(conversationText(envelope, "zh", "user"), envelope);
+});
+
+test("text prompt selects expressive segments while voice remains plain speakable text", () => {
+  const prompt = buildSystemPrompt("zh");
+  assert.match(prompt, /2—4 个有独立意思的气泡/);
+  assert.match(prompt, /"segments"/);
+  assert.match(prompt, /XSWL/);
+  assert.match(prompt, /crush/);
+  assert.match(prompt, /不编造恋爱背景/);
+  assert.match(prompt, /用户要求不使用表情/);
+  assert.match(prompt, /胸口很痛/);
+  assert.doesNotMatch(buildSystemPrompt("zh", undefined, undefined, "voice"), /文本消息传输格式|"segments"|允许的贴纸/);
+  assert.doesNotMatch(buildSystemPrompt("en", undefined, undefined, "voice"), /Text message transport format|"segments"|Allowed stickers/);
 });

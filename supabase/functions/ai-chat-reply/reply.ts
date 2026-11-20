@@ -1,5 +1,6 @@
 import { replyFitsBudget, type AiReplyLanguage, type AiReplyMode } from "./prompt.ts";
 import type { AiRoute } from "./router.ts";
+import { chatReplySegmentsText, validateChatReplySegments, type ChatReplySegment } from "../_shared/chat-reply-segments.ts";
 
 export type ModelReply = { text: string; finishReason?: unknown };
 
@@ -31,4 +32,34 @@ export async function resolveCompleteReply(
     // especially its final caveat or safety guidance. Never take an excerpt.
   }
   return text;
+}
+
+export function parseSegmentedModelReply(reply: ModelReply): ChatReplySegment[] {
+  const text = completeModelText(reply);
+  let value: unknown;
+  try { value = JSON.parse(text); } catch { throw new Error("回复格式不完整，请再试一次。"); }
+  const segments = validateChatReplySegments(value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>).segments : null);
+  if (!segments) throw new Error("回复格式不完整，请再试一次。");
+  return segments;
+}
+
+export async function resolveSegmentedReply(
+  original: ModelReply, lang: AiReplyLanguage, route: AiRoute,
+  rewrite: () => Promise<ModelReply>,
+): Promise<ChatReplySegment[]> {
+  // Reject incomplete provider output before considering a format repair.
+  completeModelText(original);
+  let segments: ChatReplySegment[];
+  try { segments = parseSegmentedModelReply(original); }
+  catch {
+    // One bounded repair; no raw JSON, partial prose or fixed fallback reaches UI.
+    return parseSegmentedModelReply(await rewrite());
+  }
+  if (replyFitsBudget(chatReplySegmentsText(segments), lang, route, "text")) return segments;
+  try {
+    const revised = parseSegmentedModelReply(await rewrite());
+    if (replyFitsBudget(chatReplySegmentsText(revised), lang, route, "text")) return revised;
+  } catch { /* Preserve every part of the complete original if shortening fails. */ }
+  return segments;
 }

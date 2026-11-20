@@ -1,4 +1,5 @@
 import { describeChatSticker } from "../_shared/chat-stickers.ts";
+import { decodeChatReplySegments, describeChatReplySegments } from "../_shared/chat-reply-segments.ts";
 
 export type ConversationMessage = {
   id?: string;
@@ -15,7 +16,9 @@ export function optionalConversationId(value: unknown, field: "archiveId" | "mes
   return value;
 }
 
-export function conversationText(content: string, lang: "zh" | "en") {
+export function conversationText(content: string, lang: "zh" | "en", role: "user" | "assistant" = "user") {
+  const segments = role === "assistant" ? decodeChatReplySegments(content) : null;
+  if (segments) return describeChatReplySegments(segments, lang);
   return describeChatSticker(content, lang) ?? content;
 }
 
@@ -45,7 +48,7 @@ export function normalizeConversationHistory(
 
   return history.slice(-6).map((item): ConversationMessage => ({
     role: item.role,
-    content: Array.from(conversationText(item.content, lang)).slice(0, 420).join(""),
+    content: Array.from(conversationText(item.content, lang, item.role as "user" | "assistant")).slice(0, 420).join(""),
     ...(typeof item.id === "string" ? { id: item.id } : {}),
     ...(typeof item.created_at === "string" ? { created_at: item.created_at } : {}),
   }));

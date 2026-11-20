@@ -102,6 +102,7 @@ Allowed domains: sleep, exercise, mood, nutrition, focus, face, rhythm. Choose a
 Allowed intent: record, advice, question, emotional_support, smalltalk.
 lookbackDays must be 1, 3, 6, 7, 14, or 30. Use 7 for health records by default, 3/6 when explicitly requested, 1 only when the user explicitly asks to exclude historical comparison, and 14/30 only for explicit longer trend questions.
 Use complex when the user explicitly requests an explanation, comparison, or step-by-step plan; ordinary emotional support and casual chat are simple. Do not invent a health domain for a greeting or sticker.
+Romance/crush updates, jokes, OKK and XSWL are ordinary chat unless the message actually concerns health. Do not treat these words as health measurements or a saved record; select no health domains for that casual context.
 JSON example: {"intent":"advice","domains":["sleep"],"lookbackDays":7,"complexity":"simple"}`;
   }
   return `对一条 NAVA 用户消息做上下文检索分类，只返回 JSON。
@@ -109,6 +110,7 @@ JSON example: {"intent":"advice","domains":["sleep"],"lookbackDays":7,"complexit
 可选意图：record、advice、question、emotional_support、smalltalk。
 lookbackDays 只能是 1、3、6、7、14、30；健康记录默认用 7，明确要求近 3 天或 6 天时使用对应天数，只有用户明确说不做历史比较时才用 1，明确询问更长趋势时才用 14/30。
 明确要求解释、比较或分步骤计划时选 complex；普通情绪接话、闲聊选 simple，不为寒暄或贴纸凭空添加健康领域。
+恋爱分享、crush、玩笑、OKK、XSWL 本身属于闲聊，不是健康指标或已保存的记录；没有实际健康内容时不选健康领域。有明确症状或健康问题时仍按实际内容分类。
 JSON 示例：{"intent":"advice","domains":["sleep"],"lookbackDays":7,"complexity":"simple"}`;
 }
 
@@ -141,7 +143,7 @@ function inferLookbackDays(message: string): AiLookbackDays {
 }
 
 function isSmalltalk(message: string) {
-  return /^(hi|hello|hey|你好|嗨|哈喽|谢谢|谢啦|晚安|早安|在吗)[!！。.，,\s]*$/i.test(message);
+  return /^(hi|hello|hey|ok+k?|xswl|你好|嗨|哈喽|谢谢|谢啦|晚安|早安|在吗)[!！。.，,\s]*$/i.test(message);
 }
 
 export function needsExplanation(message: string) {

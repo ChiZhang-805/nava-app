@@ -4,7 +4,7 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-Deno.test("chat endpoint keeps sticker, consent and complete single-reply contracts", async () => {
+Deno.test("chat endpoint keeps sticker, consent and complete grouped-reply contracts", async () => {
   const originalFetch = globalThis.fetch;
   const originalServe = Deno.serve;
   const originalEnvGet = Deno.env.get;
@@ -12,6 +12,8 @@ Deno.test("chat endpoint keeps sticker, consent and complete single-reply contra
   let consent = true;
   let finishReason = "stop";
   let answer = "那就慢一点呀～";
+  let answerSegments: unknown = null;
+  let assistantHistory = "先慢慢来。";
   let currentMessage = "[nava-sticker:rest]";
   let archiveExists = true;
   const archiveId = "00000000-0000-4000-8000-000000000001";
@@ -53,13 +55,17 @@ Deno.test("chat endpoint keeps sticker, consent and complete single-reply contra
       assert(url.includes("user_id=eq.fixture-user"), "history escaped the authenticated user");
       return json([
         { role: "user", content: currentMessage, created_at: "2026-11-20T10:00:03Z" },
-        { role: "assistant", content: "先慢慢来。", created_at: "2026-11-20T10:00:02Z" },
+        { role: "assistant", content: assistantHistory, created_at: "2026-11-20T10:00:02Z" },
         { role: "user", content: "[nava-sticker:hug]", created_at: "2026-11-20T10:00:01Z" },
       ]);
     }
     if (url === "https://api.deepseek.com/chat/completions") {
-      if (body.response_format) return json({ choices: [{ message: { content: JSON.stringify({ intent: "question", domains: [], lookbackDays: 7, complexity: "simple" }) }, finish_reason: "stop" }] });
-      return json({ choices: [{ message: { content: answer }, finish_reason: finishReason }] });
+      const system = String(body.messages?.[0]?.content ?? "");
+      if (system.startsWith("对一条 NAVA 用户消息") || system.startsWith("Classify one NAVA user message")) {
+        return json({ choices: [{ message: { content: JSON.stringify({ intent: "question", domains: [], lookbackDays: 7, complexity: "simple" }) }, finish_reason: "stop" }] });
+      }
+      const content = body.response_format && answer ? JSON.stringify({ segments: answerSegments ?? [{ type: "text", text: answer }] }) : answer;
+      return json({ choices: [{ message: { content }, finish_reason: finishReason }] });
     }
     throw new Error(`Unexpected network request in local fixture: ${url}`);
   }) as typeof fetch;
@@ -83,6 +89,7 @@ Deno.test("chat endpoint keeps sticker, consent and complete single-reply contra
     const first = await run({ dataType: "sleep", extractedData: { minutes: 420 } });
     assert(first.events.length === 1 && first.events[0].name === "done", "answer was split into synthetic delta events");
     assert(first.events[0].data.reply === answer, "complete answer changed");
+    assert(first.events[0].data.segments?.length === 1 && first.events[0].data.segments[0].text === answer, "model segment was omitted");
     assert(first.events[0].data.provider === "deepseek" && Array.isArray(first.events[0].data.knowledgeTrace), "source metadata was lost");
     const firstModel = requests.find((entry) => entry.url.startsWith("https://api.deepseek.com"))!.body;
     const messages = firstModel.messages as Array<{ role: string; content: string }>;
@@ -91,6 +98,29 @@ Deno.test("chat endpoint keeps sticker, consent and complete single-reply contra
     assert(messages.filter((item) => item.content === describeChatSticker(currentMessage, "zh")).length === 1, "current sticker was duplicated in history");
     assert(messages.some((item) => item.content === describeChatSticker("[nava-sticker:hug]", "zh")), "past sticker was not normalized");
     assert(!requests.some((entry) => /sleep_records|health_metric_snapshots/.test(entry.url)), "sticker triggered health retrieval");
+
+    answerSegments = [{ type: "text", text: "哇塞！" }, { type: "text", text: "怎么谈上的呀？" }, { type: "sticker", id: "celebrate" }];
+    const grouped = await run();
+    assert(grouped.events.length === 1 && grouped.events[0].name === "done", "groups were sent with fake delays");
+    assert(grouped.events[0].data.reply === "哇塞！\n\n怎么谈上的呀？", "old clients did not receive complete plain text");
+    assert(JSON.stringify(grouped.events[0].data.segments) === JSON.stringify(answerSegments), "model groups were rewritten or sliced");
+    assistantHistory = `[nava-reply:v1]${JSON.stringify(answerSegments)}`;
+    await run();
+    const historyModel = requests.find((entry) => entry.url.startsWith("https://api.deepseek.com"))!.body.messages as Array<{ role: string; content: string }>;
+    const priorAssistant = historyModel.find((item) => item.role === "assistant")!.content;
+    assert(priorAssistant.includes("怎么谈上的呀？") && priorAssistant.includes("助手发了表达"), "assistant history lost group or expressive meaning");
+    assert(!priorAssistant.includes("nava-reply"), "stored JSON envelope reached model");
+    answerSegments = null;
+    assistantHistory = "先慢慢来。";
+    const voice = await run({ responseMode: "voice" });
+    assert(voice.events[0].data.reply === answer && !voice.events[0].data.segments, "voice returned visual segment data");
+    assert(!requests.find((entry) => entry.url.startsWith("https://api.deepseek.com"))!.body.response_format, "voice incorrectly requested JSON");
+
+    answerSegments = [{ type: "text", text: "hello" }, { type: "sticker", id: "https://evil.test/a.svg" }];
+    const unsafe = await run();
+    assert(unsafe.events.length === 1 && unsafe.events[0].name === "error", "unknown sticker reached client");
+    assert(requests.filter((entry) => entry.url.startsWith("https://api.deepseek.com")).length === 2, "format repair was not bounded to one attempt");
+    answerSegments = null;
 
     await run({ archiveId, messageId });
     assert(!requests.some((entry) => entry.url.includes("/ai_conversations?")), "archive mode read today's live table");

@@ -7,8 +7,9 @@ hidden chain of thought.
 ## Conversational replies (2026-11-20 source change; deployment separate)
 
 - Wamier (瓦咪儿) speaks as NAVA's virtual cat companion. Ordinary replies
-  usually use 1–3 natural sentences in a single message, with optional short
-  paragraphs. Acknowledgments need no forced advice or follow-up question.
+  usually use 1–3 natural sentences. The model selects 2–4 natural short/long
+  bubbles when useful; a brief acknowledgment can remain one. Acknowledgments
+  need no forced advice or follow-up question.
   Chinese targets are 30 characters for greetings and 80 for ordinary chat;
   English targets are 18 and 45 words. These are ceilings to aim for, not quotas.
 - Explicit explanations and genuinely complex requests may use up to 480
@@ -28,8 +29,20 @@ hidden chain of thought.
   but must still return nonempty content.
 - The current provider returns a complete answer. The SSE endpoint sends one
   `done` event as soon as that answer is ready; there is no artificial per-letter
-  delay, fabricated streaming, or splitting one answer into several messages.
-  Provider/model and knowledge-trace metadata remain attached to the answer.
+  delay or fabricated streaming. Text output requests a JSON `segments` array:
+  1–4 entries, at least one complete text and at most one allowlisted sticker.
+  These are model-authored thoughts, never chunks cut from one sentence. The
+  compatible `reply` joins all text without exposing JSON or sticker markers;
+  voice remains plain text. Provider/model and knowledge-trace metadata remain
+  attached. Invalid structure receives at most one repair, then a visible error.
+- Clients can store the validated group in a versioned `[nava-reply:v1]` envelope
+  in the existing assistant content field. Only authenticated assistant history
+  decodes it into text and fixed sticker semantics. User-supplied envelopes,
+  unknown IDs and arbitrary URLs never become executable image instructions.
+- Tone examples are authored for NAVA, contrasting excited romance, a funny
+  anecdote, requested quiet support, an ambiguous scream and urgent symptoms.
+  XSWL/OKK/crush are optional contextual expressions, never a demographic
+  assumption or a health record. Explicit requests for no slang/emoji are honored.
 - Sticker IDs and meanings are shared with the client in
   `supabase/functions/_shared/chat-stickers.ts`. Only an entire known marker
   (`[nava-sticker:<id>]`, allowing outside whitespace) becomes expressive text
@@ -57,6 +70,13 @@ proportional conversation length and avoiding canned reassurance. These are
 design inputs, not imported runtime instructions or claims of clinical quality.
 Provider completion handling follows the
 [DeepSeek Chat Completions contract](https://api-docs.deepseek.com/api/create-chat-completion/).
+Chinese-context references reviewed by the release owner include
+[CCNU's 2025 internet-language review](https://nlp.ccnu.edu.cn/news/148),
+[Tsinghua LCCC](https://coai.cs.tsinghua.edu.cn/index.php/tools/6) for considering
+multi-turn context, and the
+[2019 account of established abbreviations](https://www.cac.gov.cn/2019-12/13/c_1577773266664736.htm).
+These are context and methodology references, not a claim to identify the newest
+2026 slang; no social-media corpus or third-party persona is imported.
 
 Verification uses synthetic fixtures for prompt, route, history/consent and
 completion behavior; it does not prove that every live model reply follows the
