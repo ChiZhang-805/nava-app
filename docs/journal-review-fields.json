@@ -1,0 +1,17 @@
+{
+  "reference": "一期产品需求文档-技术对接.md (user-supplied September PRD, reviewed 2026-11-20)",
+  "scope": "Six-module journal fields and four horizontal review cards; no new device integration, clinical inference or backend deployment.",
+  "pages": ["Confirmed day overview", "Actual seven-day series (missing = null)", "Module-specific structure", "Recent entries with full-entry sheets"],
+  "modules": {
+    "sleep": {"required": ["bedtime", "wakeTime"], "optional": ["quality", "notes"], "derived": "Merge overlapping recorded intervals; use longest daily segment for circular bedtime/wake spread with at least three days. No sleep-quality score on cards."},
+    "food": {"required": ["foods"], "optional": ["meal", "portion", "mealTime", "selfAssessment", "calories", "protein", "carbs", "fat", "notes"], "derived": "Sum known energy/nutrients only; entries may contain estimates. No calorie target or diet-health score."},
+    "focus": {"required": ["task", "durationMinutes"], "optional": ["notes"], "metadata": ["elapsedMs", "plannedMs", "restMs", "provenance", "startedAt", "endedAt"], "derived": "Only elapsedMs is actual duration. Start-time grouping requires genuine ISO startedAt and a non-self-reported timer. A completed timer does not complete the task."},
+    "sport": {"required": ["activity", "durationMinutes"], "optional": ["notes", "intensity", "recovery", "startTime", "endTime", "steps"], "derived": "Duration totals and explicitly selected intensity/recovery. Steps are manual. No inferred heart rate or energy burned."},
+    "mood": {"required": ["mood"], "optional": ["intensity", "reasonTags", "reason", "notes"], "derived": "Only explicit 1–10 self-rated intensity and selected causes; no sentiment-to-score conversion or good/bad ranking."},
+    "face": {"required": ["feeling"], "optional": ["eyeArea", "skinAppearance", "captureMode", "notes"], "derived": "Compare the two latest original self-observations; no inferred fatigue, emotion, beauty or health score."}
+  },
+  "compatibility": ["Old distanceKm folds into sport notes without duplicate distance", "Legacy sleep ISO dates normalize to local HH:mm and preserve dates", "Old timer snapshots without startedAt stay unknown", "food/face coverage remains a separate data property and is not a score", "No new required field or automatic rewriting of historical records"],
+  "deploymentOrder": ["Review and authorize the additive public.valid_journal_fields function migration", "Apply 202611201200_journal_optional_review_fields.sql", "Publish matching frontend. Old validator rejects new keys even when empty; do not publish frontend first."],
+  "verification": ["node --test tests/journal-review-insights.test.mjs tests/journal-record-rows.test.mjs", "node scripts/verify-journal-fields-db.mjs (local PGlite only)", "node scripts/verify-journal-review-deck.mjs with Chromium and WebKit"],
+  "limitations": ["Browser WebKit is not physical iOS-device verification", "No HealthKit, wearable, step sensor or clinical measurement was added", "PRD sport specification tables are blank; optional fields use the shared data table without inventing mandatory requirements"]
+}

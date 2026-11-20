@@ -5,6 +5,10 @@ __fluffyModules["entry-i18n.js"] = (() => {
     let current = "zh";
     current=window.NavaJournal.initial.locale==='en'?'en':'zh';
     const TEXT = Object.freeze({
+        "情绪强度 · 自评": "Feeling intensity · self-rated", "运动强度 · 自评": "Effort · self-rated", "这一餐的自评": "Your view of this meal",
+        "心情强度": "Feeling intensity", "和什么有关": "Related to", "尚未选择": "Not selected", "清空": "Clear", "学习": "Study", "工作": "Work", "社交": "Social", "家庭": "Family", "身体": "Body", "其他": "Other",
+        "用餐时间": "Meal time", "这餐吃得如何": "Your view of this meal", "吃得健康": "Felt balanced", "一般": "Okay", "不太均衡": "Not very balanced",
+        "运动强度": "Effort", "运动后的感受": "After your workout", "开始时间": "Start time", "结束时间": "End time", "手动步数": "Manual steps", "步": "steps", "轻松": "Easy", "适中": "Moderate", "较吃力": "Hard", "精神不错": "Energized", "有点累": "A little tired", "需要休息": "Need some rest", "拍摄情境": "Photo context", "素颜": "No makeup", "带妆": "With makeup",
         "调整日期": "Record date", "语言切换": "Language", "数据回顾": "View recap", "记录菜单": "Entry menu", "取消": "Cancel", "拍一张照片": "Take a photo", "正在等待摄像头…": "Waiting for camera…", "拍下这一张": "Take photo", "确定日期": "Set date", "回到今天": "Today", "记录日期": "Record date",
         "上一月": "Previous month", "下一月": "Next month", "关闭": "Close", "返回": "Back", "日期无效，请重新选择。": "Choose a valid date.", "不能补记未来的日期。": "Choose today or an earlier date.",
         "运动项目": "Activity", "时长": "Duration", "备注": "Notes", "一句话备注": "Notes", "分钟": "min", "预计时间": "Planned time", "专注时长": "Time focused", "想专注做什么": "What will you focus on?", "希望做到哪一步": "What would you like to finish?", "让小猫估时": "Plan with me",

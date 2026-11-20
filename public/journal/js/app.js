@@ -699,11 +699,18 @@ __fluffyModules["app.js"] = (() => {
      * 功能：餐次选择状态跟随真实表单值；情绪和睡眠感受不再使用选项。
      */
     function updateFieldDisplay(field, input) {
-        if (field.type === "choice")
+        if (field.type === "choice" || field.type === "multichoice")
             input.parentElement.querySelectorAll(".choice-pill").forEach(b => {
-                b.classList.toggle("selected", b.dataset.value === input.value);
-                b.setAttribute("aria-pressed", String(b.dataset.value === input.value));
+                const selected = field.type === "multichoice" ? input.value.split("、").includes(b.dataset.value) : b.dataset.value === input.value;
+                b.classList.toggle("selected", selected);
+                b.setAttribute("aria-pressed", String(selected));
             });
+        if (field.type === "rating") {
+            const range=input.parentElement.querySelector('input[type="range"]'),output=input.parentElement.querySelector("output");
+            range.value=input.value || "5";
+            range.setAttribute("aria-valuetext",input.value ? `${input.value} / 10` : Locale.t("尚未选择", "Not recorded"));
+            output.textContent=input.value ? `${input.value} / 10` : Locale.t("尚未选择", "Not recorded");
+        }
     }
     /**
      * 输入：field、value。
@@ -741,7 +748,15 @@ __fluffyModules["app.js"] = (() => {
         if (field.required)
             input.required = true;
         input.placeholder = Locale.t(field.placeholder || "");
-        if (field.type === "choice") {
+        if (field.type === "rating") {
+            input.type="hidden";label.append(input);
+            const controls=el("span","field-rating"),range=el("input"),output=el("output"),clear=el("button","field-rating-clear",Locale.t("清除", "Clear"));
+            range.type="range";range.min="1";range.max="10";range.step="1";range.setAttribute("aria-label",Locale.t(field.label));
+            range.oninput=()=>{input.value=range.value;input.dispatchEvent(new Event("input",{bubbles:true}));};
+            clear.type="button";clear.onclick=()=>{input.value="";input.dispatchEvent(new Event("input",{bubbles:true}));};
+            controls.append(range,output,clear);label.append(controls);
+        }
+        else if (field.type === "choice" || field.type === "multichoice") {
             input.type = "hidden";
             label.append(input);
             const choices = el("span", "choice-group");
@@ -752,7 +767,11 @@ __fluffyModules["app.js"] = (() => {
                 b.type = "button";
                 b.dataset.value = value;
                 b.onclick = () => {
-                    input.value = value;
+                    if(field.type === "multichoice") {
+                        const selected=new Set(input.value.split("、").filter(Boolean));
+                        if(selected.has(value))selected.delete(value);else selected.add(value);
+                        input.value=[...selected].join("、");
+                    } else input.value = input.value === value && !field.required ? "" : value;
                     input.dispatchEvent(new Event("input", { bubbles: true }));
                 };
                 choices.append(b);
@@ -1738,7 +1757,8 @@ __fluffyModules["app.js"] = (() => {
         const s = timer.stop();
         state.timerNotified = true;
         state.record = { ...state.focusRecord, focus: {
-                elapsedMs: s.elapsedMs, restMs: s.restMs, plannedMs: s.totalMs, reachedTarget: s.state === "completed", taskCompleted: false
+                elapsedMs: s.elapsedMs, restMs: s.restMs, plannedMs: s.totalMs, reachedTarget: s.state === "completed", taskCompleted: false,
+                startedAt: s.startedAt == null ? null : new Date(s.startedAt).toISOString(), endedAt: new Date(s.state === "completed" ? s.deadline : Date.now()).toISOString()
             } };
         if (!await Store.save(state.record)) {
             state.timerNotified = false;

@@ -73,11 +73,10 @@ __fluffyModules["review.js"] = (() => {
             <div class="review-menu" id="review-menu" role="menu" hidden></div>
             <button class="review-pet" id="review-pet" aria-label="摸摸小猫"></button>
             <button class="review-bubble" id="review-bubble" aria-label="小猫回复，点击暂停或继续" aria-live="polite" aria-atomic="true"></button>
-            <section class="review-summary" id="review-summary" aria-label="当日回顾"></section>
-            <section class="review-week" id="review-week" aria-label="近七天数据"></section>
             <p class="review-status" id="review-status" role="status"></p>
             <button class="primary review-chat" id="review-chat" type="button" aria-label="长按和小猫聊两句；空格键长按录音，Escape取消">${icon("mic")}<span id="review-chat-label"></span><canvas class="review-chat-wave" id="review-chat-wave" width="694" height="128" hidden aria-hidden="true"></canvas></button>`;
             $("screen").append(this.root);
+            this.deck = new __fluffyModules["review-deck.js"].ReviewDeck(this.root, { record: record => this.recordSheet(record), records: records => this.recordListSheet(records) });
             const callbacks = { onLevel: (level, history) => { this.level = level; this.wave = history.slice(); }, onStarted: () => this.started(), onText: text => { this.liveText = text; }, onError: message => this.fail(message), onLimit: () => { this.hold.disarm(); this.release(); } };
             this.raw = { cancel() {} }; // 不再使用百炼原始音频；回顾也走浏览器听写。
             this.speech = new SpeechSession(callbacks);
@@ -575,7 +574,7 @@ __fluffyModules["review.js"] = (() => {
         /**
          * 输入：无。
          * 输出：无。
-         * 功能：回顾页每帧只更新环形数值、真实波形和气泡时间，不重建图表。
+         * 功能：回顾页每帧只更新真实波形和气泡时间，不重建分页卡片。
          */
         tick() {
             if (!this.active || !this.view)
@@ -583,11 +582,6 @@ __fluffyModules["review.js"] = (() => {
             const now = performance.now(), dt = this.lastTick ? Math.min(80, now - this.lastTick) : 0;
             this.lastTick = now;
             const reduce = this.h.animation.reducedMotion;
-            const p = reduce ? 1 : Math.min(1, (now - this.chartStart) / 850), eased = 1 - (1 - p) ** 3;
-            if (this.view.today.score != null && $("review-score")) {
-                $("review-score").textContent = String(Math.round(this.view.today.score * eased));
-                $("review-ring-progress").style.strokeDashoffset = String(376.991 * (1 - this.view.today.score / 100 * eased));
-            }
             if (this.phase === "listening")
                 this.drawWave(now);
             if (this.phase === "speaking" && this.queue.length && !document.hidden && !this.paused && !this.pressActive && $("sheet-layer").hidden) {
@@ -636,8 +630,7 @@ __fluffyModules["review.js"] = (() => {
          * 功能：渲染一屏数据卡，空白周数据不补造。
          */
         render() {
-            const { view } = this, d = this.lang === "en" ? this.h.Display.day(view.today) : view.today;
-            this.chartStart = performance.now();
+            const { view } = this;
             this.root.style.setProperty("--review-accent", view.meta.color);
             this.root.style.setProperty("--review-pale", view.meta.pale);
             this.root.lang = this.lang === "en" ? "en" : "zh-CN";
@@ -651,34 +644,24 @@ __fluffyModules["review.js"] = (() => {
             $("review-more").setAttribute("aria-label", this.t("回顾菜单", "Review menu"));
             $("review-chat").setAttribute("aria-label", this.t("长按和小猫聊两句；空格键长按，Escape取消", "Hold to talk; hold Space to speak; Escape to cancel"));
             $("review-bubble").setAttribute("aria-label", this.t("小猫回复，点击暂停或继续", "Cat reply; tap to pause or resume"));
-            const root = $("review-summary");
-            root.replaceChildren();
-            root.classList.toggle("mood-summary", view.id === "mood");
-            if (view.id === "mood") {
-                root.append(node("p", "review-mood-kicker", this.t(view.date === Store.dayKey() ? "今天的心情" : "那天的心情", "Your own words")), node("p", "review-mood-text", d.text || this.t("给心情留一点位置", "A little room for your feelings")), node("p", "review-mood-detail", d.detail || this.t("慢慢说也没关系", "There's no rush to explain")));
-            }
-            else {
-                const orbit = node("div", "review-orbit");
-                orbit.innerHTML = `<svg viewBox="0 0 138 138" aria-hidden="true"><circle class="review-ring-track" cx="69" cy="69" r="60"/><circle id="review-ring-progress" class="review-ring-progress" cx="69" cy="69" r="60"/></svg>`;
-                const content = node("div", "review-orbit-content"), score = node("strong", "review-score", d.score == null ? "—" : "0");
-                score.id = "review-score";
-                content.append(score, node("span", "review-score-label", this.scoreLabel()), node("span", "review-score-goal", this.goalLabel()));
-                orbit.append(content);
-                orbit.setAttribute("aria-label", `${this.scoreLabel()} ${d.score ?? (d.count ? this.t("暂无分数", "No score available") : this.t("无记录", "No entry"))}`);
-                const fact = node("div", "review-facts"), badge = node("span", "review-fact-icon");
-                badge.innerHTML = icon(view.meta.icon);
-                fact.append(badge, node("p", "review-fact-label", this.factLabel()), node("strong", "review-fact-value", this.valueText(d)), node("span", "review-fact-detail", view.id === "sleep" ? d.detail : d.text || this.t("尚未记录", "No entry yet")));
-                root.append(orbit, fact);
-                if (view.id === "face") {
-                    const details = node("button", "review-face-details", this.t("查看观察与建议", "Observations & advice"));
-                    details.type = "button";
-                    details.onclick = () => this.faceDetails();
-                    fact.append(details);
-                }
-            }
-            this.renderWeek();
+            this.deck.render(view, this.lang);
             this.buildMenu();
             this.setPhase(this.phase);
+        }
+        recordSheet(record) {
+            this.h.showSheet(this.t("这条记录", "This entry"), body => {
+                body.append(node("p", "sheet-text", this.dateText(Store.dateOf(record))));
+                const labels={Activity:"运动项目",Time:"时长","Planned time":"原计划时长",Intensity:"强度 · 自评",Afterwards:"运动后的感受",Start:"开始时间",End:"结束时间",Steps:"手动步数",Notes:"备注",Meal:"食物",Portion:"大概份量","Meal time":"用餐时间","My assessment":"这一餐的自评",Energy:"热量",Calories:"热量",Protein:"蛋白质",Carbs:"碳水化合物",Fat:"脂肪",Feeling:"自己的感受","Related to":"和什么有关",Moment:"发生了什么",Sleep:"睡眠时间",Duration:"睡眠时长","My feeling":"自己的感受","Eye area":"眼周观察",Skin:"皮肤外观","Photo context":"拍摄情境",Focus:"专注事项"};
+                for (const row of __fluffyModules["catalog.js"].rows(record)) body.append(node("h4", "", this.lang==="en"?row.label:(labels[row.label]||row.label)), node("p", "sheet-text", row.value));
+            });
+        }
+        recordListSheet(records) {
+            this.h.showSheet(this.t("这七天的小记", "Entries from these 7 days"), body => {
+                for(const record of [...records].reverse()) {
+                    const button=node("button","sheet-action",`${Store.dateOf(record)} · ${__fluffyModules["catalog.js"].summary(record).sub || __fluffyModules["catalog.js"].summary(record).value}`);
+                    button.type="button";button.onclick=()=>this.recordSheet(record);body.append(button);
+                }
+            });
         }
         faceDetails() {
             this.h.showSheet(this.t("面部观察", "Face observations"), body => {
@@ -735,56 +718,6 @@ __fluffyModules["review.js"] = (() => {
          * 输出：无，重建可点击的七天图表。
          * 功能：把0—100分映射到增高后的真实绘图区，仍逐柱升起；情绪只展示文字足迹。
          */
-        renderWeek() {
-            // 阶段一：标题、绘图区和底部摘要各留固定空间，不挤压日期或分数标签。
-            const root = $("review-week");
-            root.replaceChildren();
-            const mood = this.view.id === "mood";
-            const header = node("div", "review-week-heading");
-            header.append(node("h3", "", mood ? this.t("这一周的心情", "This week's feelings") : this.t("近 7 天", "Last 7 days")), node("span", "review-week-unit", mood ? "" : this.t("分 · 0—100", "Score · 0–100")));
-            root.append(header);
-            const chart = node("div", mood ? "review-mood-week" : "review-bars");
-            // 阶段二：逐日保留真实分数与空白状态，柱高只依赖共用的绘图高度。
-            this.view.week.forEach((rawDay, i) => {
-                const day = this.lang === "en" ? this.h.Display.day(rawDay) : rawDay;
-                const button = node("button", mood ? "review-mood-day" + (!day.count ? " empty" : "") : "review-bar" + (i === 6 ? " today" : "") + (day.score == null ? " missing" : ""));
-                button.type = "button";
-                button.style.setProperty("--i", i);
-                button.dataset.day = day.date;
-                button.setAttribute("aria-pressed", String(i === 6));
-                button.setAttribute("aria-label", `${day.date} ${mood ? day.text || this.t("无记录", "No entry") : day.score == null ? (day.count ? this.valueText(day) + this.t("，暂无分数", ", no score available") : this.t("无记录", "No entry")) : day.score + this.t("分", " points")}`);
-                if (mood) {
-                    const orb = node("span", "review-mood-orb");
-                    orb.innerHTML = icon(day.count ? "heart" : "ring");
-                    button.append(orb, node("span", "", day.date.slice(8)), node("span", "review-mood-word", day.text || "—"));
-                    chart.append(button);
-                }
-                else {
-                    const height = Layout.barHeight(day.score);
-                    button.style.setProperty("--bar-height", `${height}px`);
-                    if (day.score != null) {
-                        const paint = node("span", "review-bar-paint");
-                        paint.style.height = height + "px";
-                        button.append(paint);
-                    }
-                    button.append(node("span", "review-bar-number", day.score == null ? "—" : String(day.score)), node("span", "review-bar-day", day.date.slice(8)));
-                    const slot = node("div", "review-bar-slot");
-                    slot.append(button);
-                    chart.append(slot);
-                }
-                button.onclick = () => { chart.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b === button))); $("review-week-detail").textContent = this.dayDetail(day); };
-            });
-            // 阶段三：点击只更换当天摘要，不改数据，也不重启麦克风或AI请求。
-            const detail = node("p", "review-week-detail", this.dayDetail(this.view.today));
-            detail.id = "review-week-detail";
-            detail.setAttribute("aria-live", "polite");
-            root.append(chart, detail);
-        }
-        /**
-         * 输入：一天。
-         * 输出：图表点击后的实际文字。
-         * 功能：点击只是查看，不篡改得分或触发AI。
-         */
         dayDetail(day) {
             if (this.lang === "en")
                 day = this.h.Display.day(day);
@@ -806,7 +739,7 @@ __fluffyModules["review.js"] = (() => {
         buildMenu() {
             const menu = $("review-menu");
             menu.replaceChildren();
-            const entries = [["plus", "新增记录", "New entry", () => this.h.newEntry(this.view.id, this.view.date)], ["edit", "修改记录", "Edit entry", () => this.h.editEntries(this.view.id, this.view.date)], ["list", "当日记录", "Day entries", () => this.entriesSheet()], ["language", "语言切换", "Language", () => this.languageSheet()], ["export", "分享卡片", "Share card", () => this.shareSheet()], ["info", "评分依据", "Score details", () => this.basisSheet()]];
+            const entries = [["plus", "新增记录", "New entry", () => this.h.newEntry(this.view.id, this.view.date)], ["edit", "修改记录", "Edit entry", () => this.h.editEntries(this.view.id, this.view.date)], ["list", "当日记录", "Day entries", () => this.entriesSheet()], ["language", "语言切换", "Language", () => this.languageSheet()], ["export", "分享卡片", "Share card", () => this.shareSheet()], ["info", "数据说明", "About these data", () => this.basisSheet()]];
             if (["sport", "sleep"].includes(this.view.id))
                 entries.push(["ring", "调整目标", "Your goal", () => this.goalSheet()]);
             entries.push(["chat", "对话记录", "Conversation", () => this.historySheet()], ["edit", "文字聊聊", "Text chat", () => this.textSheet()]);
@@ -893,23 +826,12 @@ __fluffyModules["review.js"] = (() => {
          * 输出：规则正文。
          * 功能：说明来源与公式放菜单，不常驻显示说明面板。
          */
-        basisText() {
-            const g = this.view.goals;
-            const zh = { sport: `个人目标完成分 = 当日已记录运动分钟 ÷ 目标分钟 × 100，上限 100。当前目标 ${g.sport} 分钟，可在“调整目标”修改。初始默认目标为30分钟。没有记录的日子留空，不按零分处理。`,
-                sleep: `时长目标匹配分 = max(0, 1 − |睡眠小时 − 目标小时| ÷ 目标小时) × 100。当前目标 ${g.sleep} 小时，初始默认8小时，可自行修改。同日多段睡眠按时间区间合并，重叠部分仅计一次。记录的时间段不等于监测得到的实际睡眠质量，不据此诊断。`,
-                focus: "专注计划完成分 = 实际专注分钟 ÷ 对应计划分钟 × 100，上限100。暂停和休息不计入实际时间。同一天多次计时合并计算；提前停止保留真实用时，不代表任务已完成。手动补记的时长会标记为自述，不冒充计时器测量；没有原计划时不补造计划完成分。没有实际时长时不计算分数。",
-                food: "饮食记录完整分按餐次、食物、份量、热量、蛋白质、碳水和脂肪7项的已填写比例计算；同日多餐取平均覆盖率。营养数值只累计已记录项，未记录项不填零。它衡量记录完整程度，不衡量饮食好坏、健康或热量是否达标。",
-                face: "外观记录完整分按自己的感受、眼周观察、皮肤外观3项的已填写比例计算；同日多次记录取平均。它不是疲劳程度、皮肤健康或外貌分数。照片分析不会根据长相判断情绪或做诊断。",
-                mood: "情绪不打高低分，也不把低落排在开心下面。心情足迹只展示你已经确认的文字；同日多次记录显示最近一条，其余保留在手记中。AI聊天不是评分依据，也不会改变你的原始描述。" };
-            const en = { sport: `Goal progress = logged movement minutes / personal goal × 100, capped at 100. Current goal: ${g.sport} min (initial default: 30). Change it in Your goal. Days without entries stay empty.`, sleep: `Sleep goal match = max(0, 1 − |logged hours − goal| / goal) × 100. Current goal: ${g.sleep} h (initial default: 8). Sleep intervals are combined per day; overlapping minutes are counted once. Logged duration is not a measurement of sleep quality or a diagnosis.`, focus: "Actual focused minutes / planned minutes × 100, capped at 100. Pauses and breaks do not count. Multiple sessions are combined. Stopping early records actual time, not task completion. Past sessions entered by the user count as self-reported minutes, not measured time; without an original plan they have no plan-progress score. No actual duration means no score.", food: "Record coverage: the fraction of 7 fields completed (meal, foods, portion, calories, protein, carbs, fat), averaged across entries. Energy and nutrients include logged values only. This is not a measure of diet quality or a calorie target.", face: "Record coverage: the fraction of 3 fields completed (your feeling, eye-area observation, skin appearance), averaged across entries. It is not a fatigue, health or beauty score. Photos do not establish emotions or diagnoses.", mood: "Feelings are not ranked or scored. Each day shows your latest confirmed description. Other entries remain in your journal. AI conversation cannot alter your own words." };
-            return this.t(zh[this.view.id], en[this.view.id]);
-        }
         /**
          * 输入：无。
          * 输出：无。
          * 功能：在菜单弹层中展示实际公式和数据来源。
          */
-        basisSheet() { this.h.showSheet(this.t("评分依据", "Score details"), root => { root.append(node("p", "review-dialog-copy", this.basisText()), node("p", "review-dialog-copy", this.t("图表与分数来自本浏览器保存的确认记录；小猫只在此基础上陪你交流。没有记录的日子不补造数据。", "Charts use confirmed entries saved in this browser. Missing days are never invented. The cat talks with you using this context."))); }); }
+        basisSheet() { this.h.showSheet(this.t("数据说明", "About these data"), root => { const pages=__fluffyModules["review-insights.js"].build(this.view,this.lang).pages;root.append(node("p", "review-dialog-copy", this.t("这些卡片展示已经确认的记录和真实统计。没填的数据保留为空；记录完整程度不等于健康表现。", "These cards show confirmed entries and measured or self-reported values. Missing fields stay empty. Record completeness is not health performance.")),node("p","review-dialog-copy",pages[1].note),node("p","review-dialog-copy",pages[2].note)); }); }
         /**
          * 输入：无。
          * 输出：无。
@@ -1048,23 +970,11 @@ __fluffyModules["review.js"] = (() => {
             c.roundRect(44, 386, 632, 180, 33);
             c.fill();
             c.fillStyle = v.meta.color;
-            if (v.id === "mood") {
-                this.shareText(c, this.h.Display.text(v.today.text) || this.t("给心情留一点空间", "Room for your feelings"), 360, 456, 510, 28);
-            }
-            else {
-                c.font = '700 57px system-ui, sans-serif';
-                c.textAlign = "left";
-                c.fillText(v.today.score == null ? "—" : String(v.today.score), 91, 472);
-                c.fillStyle = "#68869f";
-                c.font = '20px system-ui, sans-serif';
-                c.fillText(this.scoreLabel(), 91, 516);
-                c.textAlign = "right";
-                c.fillStyle = "#214c73";
-                c.font = '600 31px system-ui, sans-serif';
-                c.fillText(this.valueText(v.today), 628, 465);
-                c.font = '19px system-ui, sans-serif';
-                c.fillText(this.factLabel(), 628, 508);
-            }
+            const pages=__fluffyModules["review-insights.js"].build(v,this.lang).pages;
+            c.font = '700 40px system-ui, sans-serif';
+            this.shareText(c, `${pages[0].metric} ${pages[0].unit}`, 360, 456, 510, 28);
+            c.fillStyle="#68869f";c.font='19px system-ui, sans-serif';c.textAlign="center";
+            c.fillText(pages[0].note,360,532,540);
             c.fillStyle = "#fff";
             c.beginPath();
             c.roundRect(44, 586, 632, 310, 33);
@@ -1074,21 +984,22 @@ __fluffyModules["review.js"] = (() => {
             c.font = '600 22px system-ui, sans-serif';
             c.fillText(this.t("近7天", "Last 7 days"), 76, 632);
             // 阶段二：七天真实值；空白用横线，情绪只显示文字，不造顺序分。
-            v.week.forEach((d, i) => {
+            const shareMax=Math.max(1,...pages[1].series.map(d=>d.value??0));
+            pages[1].series.forEach((d, i) => {
                 const x = 103 + i * 85;
                 c.textAlign = "center";
                 c.fillStyle = v.meta.color;
                 c.font = '21px system-ui, sans-serif';
-                if (v.id !== "mood" && d.score != null) {
-                    const h = d.score * 1.25;
+                if (d.value != null) {
+                    const h = d.value / shareMax * 125;
                     c.beginPath();
                     c.roundRect(x - 20, 827 - h, 40, Math.max(3, h), [11, 11, 1, 1]);
                     c.fill();
                     c.fillStyle = "#345d7d";
-                    c.fillText(String(d.score), x, 814 - h);
+                    c.fillText(Data.format(d.value), x, 814 - h);
                 }
                 else
-                    c.fillText(v.id === "mood" && d.count ? "♡" : "—", x, 784);
+                    c.fillText("—", x, 784);
                 c.fillStyle = "#7c96aa";
                 c.font = '18px system-ui, sans-serif';
                 c.fillText(d.date.slice(8), x, 861);

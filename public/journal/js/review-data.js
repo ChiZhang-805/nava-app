@@ -16,7 +16,7 @@ __fluffyModules["review-data.js"] = (() => {
      * 输出：有限非负数字或 null。
      * 功能：未知值不伪装成零。
      */
-    function number(value) { return value === "" || value == null || !Number.isFinite(Number(value)) || Number(value) < 0 ? null : Number(value); }
+    function number(value) { return typeof value === "boolean" || value == null || String(value).trim() === "" || !Number.isFinite(Number(value)) || Number(value) < 0 ? null : Number(value); }
     /**
      * 输入：记录。
      * 输出：本地 YYYY-MM-DD。
@@ -77,8 +77,8 @@ __fluffyModules["review-data.js"] = (() => {
      */
     function sleepTotal(list) {
         const intervals = list.map(r => {
-            const d = r.data, endDay = d.wakeDate || S.dateOf(r), startDay = d.bedDate || (d.bedtime > d.wakeTime ? shiftDate(endDay, -1) : endDay);
-            const start = Date.parse(`${startDay}T${d.bedtime}`), end = Date.parse(`${endDay}T${d.wakeTime}`);
+            const d = r.data, bed=C.shortTime(d.bedtime),wake=C.shortTime(d.wakeTime),endDay = d.wakeDate || (String(d.wakeTime).includes("T")?String(d.wakeTime).split("T")[0]:S.dateOf(r)), startDay = d.bedDate || (String(d.bedtime).includes("T")?String(d.bedtime).split("T")[0]:(bed > wake ? shiftDate(endDay, -1) : endDay));
+            const start = Date.parse(`${startDay}T${bed}`), end = Date.parse(`${endDay}T${wake}`);
             return { start, end };
         }).filter(i => Number.isFinite(i.start) && Number.isFinite(i.end) && i.end > i.start).sort((a, b) => a.start - b.start);
         let total = 0, current = null, overlaps = false;
@@ -125,9 +125,9 @@ __fluffyModules["review-data.js"] = (() => {
             return { ...base, value: actual, score: timed.some(r => r.focus.provenance === "self-reported") ? null : ratio(actual, planned), scoreKind: "focusGoal", unit: "min", text: data.task, detail: data.notes || "", planned, restMinutes: timed.reduce((s, r) => s + (number(r.focus.restMs) || 0) / 60000, 0) };
         }
         if (id === "food")
-            return { ...base, value: sum(list, "calories"), score: coverage(list, ["meal", "foods", "portion", "calories", "protein", "carbs", "fat"]), scoreKind: "coverage", unit: "kcal", text: data.foods, detail: data.meal, macros: { protein: sum(list, "protein"), carbs: sum(list, "carbs"), fat: sum(list, "fat") } };
+            return { ...base, value: sum(list, "calories"), coverage: coverage(list, ["meal", "foods", "portion", "calories", "protein", "carbs", "fat"]), unit: "kcal", text: data.foods, detail: data.meal, macros: { protein: sum(list, "protein"), carbs: sum(list, "carbs"), fat: sum(list, "fat") } };
         if (id === "face")
-            return { ...base, value: list.length, score: coverage(list, ["feeling", "eyeArea", "skinAppearance"]), scoreKind: "observation", unit: "entries", text: data.feeling, detail: data.eyeArea || data.skinAppearance || "" };
+            return { ...base, value: list.length, coverage: coverage(list, ["feeling", "eyeArea", "skinAppearance"]), unit: "entries", text: data.feeling, detail: data.eyeArea || data.skinAppearance || "" };
         return { ...base, value: list.length, text: data.mood, detail: data.reason || data.notes || "" };
     }
     /**

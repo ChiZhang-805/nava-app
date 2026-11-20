@@ -12,6 +12,8 @@ __fluffyModules["catalog.js"] = (() => {
                 {
                     key: "reason", label: "发生了什么", placeholder: "例如：完成了一件挂心的事", max: 60
                 },
+                { key: "intensity", label: "情绪强度 · 自评", type: "rating", minValue: 1, maxValue: 10 },
+                { key: "reasonTags", label: "和什么有关", type: "multichoice", options: ["学习", "工作", "社交", "家庭", "身体", "其他"] },
                 {
                     key: "notes", type: "textarea", label: "留给自己一句话", placeholder: "我想对自己说…", max: 32
                 }
@@ -20,7 +22,7 @@ __fluffyModules["catalog.js"] = (() => {
         food: {
             name: "饮食", en: "Meal", title: "今天的美味，记下来吧。", greeting: "拍下这份美味\n一起好好记下", icon: "food", tone: "light", photo: true, fields: [
                 {
-                    key: "meal", label: "哪一餐", type: "choice", options: ["早餐", "午餐", "晚餐", "加餐"], required: true
+                    key: "meal", label: "哪一餐", type: "choice", options: ["早餐", "午餐", "晚餐", "加餐"]
                 },
                 {
                     key: "foods", label: "吃了什么", placeholder: "例如：米饭、鸡胸肉和西兰花", max: 60, required: true
@@ -28,6 +30,8 @@ __fluffyModules["catalog.js"] = (() => {
                 {
                     key: "portion", label: "大概份量", placeholder: "例如：米饭半碗，鸡胸肉约 100 g", max: 50
                 },
+                { key: "mealTime", label: "用餐时间", type: "time" },
+                { key: "selfAssessment", label: "这一餐的自评", type: "choice", options: ["吃得健康", "一般", "不太均衡"] },
                 {
                     key: "notes", type: "textarea", label: "一句话备注", placeholder: "慢慢吃，好好照顾自己。", max: 32
                 },
@@ -67,8 +71,13 @@ __fluffyModules["catalog.js"] = (() => {
                     key: "durationMinutes", label: "时长", type: "decimal", unit: "分钟", placeholder: "30", minValue: .01, maxValue: 1440, required: true
                 },
                 {
-                    key: "notes", type: "textarea", label: "备注", placeholder: "例如：跑了 5 公里，或练了 4 组深蹲", max: 60, required: true
-                }
+                    key: "notes", type: "textarea", label: "备注", placeholder: "例如：跑了 5 公里，或练了 4 组深蹲", max: 60
+                },
+                { key: "intensity", label: "运动强度 · 自评", type: "choice", options: ["轻松", "适中", "较吃力"] },
+                { key: "recovery", label: "运动后的感受", type: "choice", options: ["精神不错", "有点累", "需要休息"] },
+                { key: "startTime", label: "开始时间", type: "time" },
+                { key: "endTime", label: "结束时间", type: "time" },
+                { key: "steps", label: "手动步数", type: "decimal", unit: "步", maxValue: 200000, integer: true }
             ]
         },
         sleep: {
@@ -80,7 +89,7 @@ __fluffyModules["catalog.js"] = (() => {
                     key: "wakeTime", label: "醒来时间", type: "time", required: true
                 },
                 {
-                    key: "quality", label: "醒来的感受", placeholder: "例如：还有点困，但比昨天精神", max: 60, required: true
+                    key: "quality", label: "醒来的感受", placeholder: "例如：还有点困，但比昨天精神", max: 60
                 },
                 {
                     key: "notes", type: "textarea", label: "一句话备注", placeholder: "例如：中途醒过一次", max: 32
@@ -98,6 +107,7 @@ __fluffyModules["catalog.js"] = (() => {
                 {
                     key: "skinAppearance", label: "皮肤外观", placeholder: "例如：局部泛红、光照偏暗", max: 60
                 },
+                { key: "captureMode", label: "拍摄情境", type: "choice", options: ["素颜", "带妆"] },
                 {
                     key: "notes", type: "textarea", label: "一句话备注", placeholder: "还有什么想记下来？", max: 32
                 }
@@ -142,10 +152,10 @@ __fluffyModules["catalog.js"] = (() => {
         // 阶段一：仅处理白名单字段，不将 API 附加字段直接保存或插入 HTML。
         for (const field of def.fields) {
             const text = cleanText(raw[field.key]);
-            if (field.type === "decimal") {
+            if (field.type === "decimal" || field.type === "rating") {
                 const n = decimalNumber(text);
                 value[field.key] = n;
-                if ((text || (strict && field.required)) && (n === null || n < (field.minValue ?? field.min ?? 0) || n > (field.maxValue ?? field.max ?? 100000)))
+                if ((text || (strict && field.required)) && (n === null || n < (field.minValue ?? field.min ?? 0) || n > (field.maxValue ?? field.max ?? 100000) || (field.integer && !Number.isInteger(n))))
                     errors[field.key] = `${field.label}请填写有效数字。`;
             }
             else {
@@ -154,7 +164,8 @@ __fluffyModules["catalog.js"] = (() => {
                     errors[field.key] = `先填一下${field.label}。`;
                 if (text.length > (field.max || 100))
                     errors[field.key] = `${field.label}请写得简短一点。`;
-                if (text && field.options && !field.options.includes(text))
+                if (field.type === "multichoice") value[field.key] = [...new Set(text.split(/[、,，]/).map(v=>v.trim()).filter(Boolean))].join("、");
+                if (text && field.options && (field.type === "multichoice" ? value[field.key].split("、").some(v=>!field.options.includes(v)) : !field.options.includes(text)))
                     errors[field.key] = `请选择${field.label}。`;
                 if (field.type === "time") {
                     value[field.key] = text ? Sleep.clock(text) : "";
@@ -190,16 +201,17 @@ __fluffyModules["catalog.js"] = (() => {
         const amount = (value, unit) => value == null || String(value).trim() === "" ? "" : `${value} ${unit}`;
         // 阶段一：保留原字段顺序；运动继续项目、时长、备注三项。
         if (id === "sport")
-            return populatedRows([{ label: "Activity", value: v.activity }, { label: "Time", value: amount(v.durationMinutes, "min") }, { label: "Notes", value: v.notes }]);
+            return populatedRows([{ label: "Activity", value: v.activity }, { label: "Time", value: amount(v.durationMinutes, "min") }, { label: "Intensity", value: v.intensity }, { label: "Afterwards", value: v.recovery }, { label: "Start", value: v.startTime }, { label: "End", value: v.endTime }, { label: "Steps", value: amount(v.steps,"steps") }, { label: "Notes", value: v.notes }]);
         // 阶段二：饮食的份量和四个营养值各自成项，不再摘要掉碳水与脂肪。
         if (id === "food")
             return populatedRows([{ label: v.meal || "Meal", value: v.foods },
                 { label: "Portion", value: v.portion },
+                { label: "Meal time", value: v.mealTime }, { label: "My assessment", value: v.selfAssessment },
                 ...[["Calories", "calories", "kcal"], ["Protein", "protein", "g"], ["Carbs", "carbs", "g"], ["Fat", "fat", "g"]]
                     .map(([label, key, unit]) => ({ label, value: amount(v[key], unit) })),
                 { label: "Notes", value: v.notes }]);
         if (id === "mood")
-            return populatedRows([{ label: "Feeling", value: v.mood }, { label: "Moment", value: v.reason }, { label: "Notes", value: v.notes }]);
+            return populatedRows([{ label: "Feeling", value: v.mood }, { label: "Intensity", value: amount(v.intensity,"/ 10") }, { label: "Related to", value: v.reasonTags }, { label: "Moment", value: v.reason }, { label: "Notes", value: v.notes }]);
         if (id === "sleep")
             return populatedRows([{ label: "Sleep", value: v.bedtime && v.wakeTime ? `${shortTime(v.bedtime)} → ${shortTime(v.wakeTime)}` : "" },
                 { label: "Duration", value: amount(v.hours, "h") },
@@ -207,8 +219,9 @@ __fluffyModules["catalog.js"] = (() => {
         // 阶段三：面部同时展示眼周与皮肤，不再用二选一的 Observation 丢弃另一项。
         if (id === "face")
             return populatedRows([{ label: "My feeling", value: v.feeling }, { label: "Eye area", value: v.eyeArea },
-                { label: "Skin", value: v.skinAppearance }, { label: "Notes", value: v.notes }]);
-        return populatedRows([{ label: "Focus", value: v.task }, { label: "Time", value: amount(v.durationMinutes, "min") }, { label: "Notes", value: v.notes }]);
+                { label: "Skin", value: v.skinAppearance }, { label: "Photo context", value: v.captureMode }, { label: "Notes", value: v.notes }]);
+        const actual = typeof record.focus?.elapsedMs === "number" && Number.isFinite(record.focus.elapsedMs) && record.focus.elapsedMs >= 0 ? Math.round(record.focus.elapsedMs / 6000) / 10 : null;
+        return populatedRows([{ label: "Focus", value: v.task }, { label: actual === null ? "Planned time" : "Time", value: amount(actual === null ? v.durationMinutes : actual, "min") }, { label: "Notes", value: v.notes }]);
     }
     /**
      * 输入：record 或空值。
@@ -220,7 +233,7 @@ __fluffyModules["catalog.js"] = (() => {
             return { value: "— —", sub: "尚未记录" };
         const v = record.data;
         return ({
-            sport: { value: `${v.durationMinutes} min`, sub: v.activity }, food: { value: v.calories == null ? v.meal : `约 ${v.calories}`, sub: v.calories == null ? v.foods : "kcal · " + v.meal }, mood: { value: v.mood, sub: v.reason || "自己的感受" }, sleep: { value: `${v.hours} h`, sub: v.quality }, face: { value: "已记录", sub: v.feeling }, focus: { value: `${Math.round((record.focus?.elapsedMs ?? v.durationMinutes * 60000) / 6000) / 10} min`, sub: v.task }
+            sport: { value: `${v.durationMinutes} min`, sub: v.activity }, food: { value: v.calories == null ? (v.meal || "已记录") : `约 ${v.calories}`, sub: v.calories == null ? v.foods : "kcal" + (v.meal ? " · " + v.meal : "") }, mood: { value: v.mood, sub: v.reason || "自己的感受" }, sleep: { value: v.hours == null ? "已记录" : `${v.hours} h`, sub: v.quality }, face: { value: "已记录", sub: v.feeling }, focus: { value: record.focus?.elapsedMs == null ? "已记录计划" : `${Math.round(record.focus.elapsedMs / 6000) / 10} min`, sub: v.task }
         })[record.category];
     }
     /**
@@ -232,6 +245,6 @@ __fluffyModules["catalog.js"] = (() => {
         return [...new Set([...(Array.isArray(order) ? order : []), ...DEFAULT_ORDER])].filter(id => CATEGORIES[id]).slice(0, 6);
     }
     return {
-        CATEGORIES, DEFAULT_ORDER, category, sportData, validate, rows, summary, validOrder
+        CATEGORIES, DEFAULT_ORDER, category, sportData, validate, rows, summary, validOrder, shortTime
     };
 })();

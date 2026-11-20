@@ -16,6 +16,7 @@ __fluffyModules["focus-timer.js"] = (() => {
             this.restStarted = 0;
             this.restMs = 0;
             this.activeSince = 0;
+            this.startedAt = null;
         }
         /**
          * 输入：minutes（大于零的分钟数）。
@@ -31,6 +32,7 @@ __fluffyModules["focus-timer.js"] = (() => {
             this.restMs = 0;
             this.state = "running";
             this.activeSince = this.clock();
+            this.startedAt = this.activeSince;
             this.deadline = this.activeSince + this.remainingMs;
             return this.snapshot();
         }
@@ -112,7 +114,7 @@ __fluffyModules["focus-timer.js"] = (() => {
             return {
                 state: this.state, totalMs: this.totalMs, remainingMs: this.remainingMs, deadline: this.deadline,
                 elapsedMs: this.state === "running" ? this.totalMs - this.remainingMs : this.elapsedMs,
-                restMs: this.restMs, restStarted: this.restStarted, activeSince: this.activeSince
+                restMs: this.restMs, restStarted: this.restStarted, activeSince: this.activeSince, startedAt: this.startedAt
             };
         }
         /**
@@ -132,6 +134,7 @@ __fluffyModules["focus-timer.js"] = (() => {
             this.state = raw.state;
             for (const key of ["totalMs", "remainingMs", "deadline", "elapsedMs", "restMs", "restStarted", "activeSince"])
                 this[key] = raw[key];
+            this.startedAt = Number.isFinite(raw.startedAt) && raw.startedAt >= 0 && raw.startedAt <= this.activeSince ? raw.startedAt : null;
             this.tick();
             return true;
         }
