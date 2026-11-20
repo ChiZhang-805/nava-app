@@ -30,7 +30,7 @@ async function verifyDensityBoundaries(browser, engine) {
   // Desktop engines report a zero safe area. Reproduce native inset geometry
   // explicitly and measure the original DOM bounds, not a clipped AX frame.
   for (const { width, height, safeTop, visibleHeights } of [
-    { width: 375, height: 667, safeTop: 20, visibleHeights: [314, 323, 334, 339, 350, 377, 390, 420, 450, 460] },
+    { width: 375, height: 667, safeTop: 20, visibleHeights: [314, 323, 337, 338, 339, 350, 371, 372, 420, 422, 460] },
     { width: 430, height: 932, safeTop: 59, visibleHeights: [440, 470, 502, 540, 573] },
   ]) {
     const context = await browser.newContext({ viewport: { width, height }, isMobile: true, hasTouch: true, locale: 'zh-CN' });
@@ -82,13 +82,23 @@ async function verifyDensityBoundaries(browser, engine) {
               return { label: button.textContent, height: box.height, bottom: box.bottom,
                 clippedY: box.height - Math.max(0, bottom - top), clippedX: box.width - Math.max(0, right - left) };
             });
+            const brand = document.querySelector('.nava-wordmark').getBoundingClientRect();
+            const locale = document.querySelector('.auth-locale').getBoundingClientRect();
+            const label = document.querySelector('.auth-field-heading').getBoundingClientRect();
             return { regionHeight: regionRect.height, regionBottom: regionRect.bottom,
+              titleGap: label.top - brand.bottom, languageGap: brand.top - locale.bottom,
+              titleCenter: (brand.left + brand.right) / 2,
               scrollHeight: region.scrollHeight, clientHeight: region.clientHeight, scrollTop: region.scrollTop,
               formHeight: form.getBoundingClientRect().height, buttons };
           });
           const state = { engine, width, height, safeTop, language, visible, geometry };
           report.push(state);
-          const fits = geometry.clientHeight >= 272;
+          const available = visible - safeTop - 6;
+          const compact = available <= 345;
+          const fits = available >= 312;
+          assert(geometry.languageGap >= -0.5, 'Language and NAVA must occupy separate rows');
+          assert(geometry.titleGap >= 7.5 && geometry.titleGap <= 10, `Wordmark is not grouped with the form: ${JSON.stringify(state)}`);
+          assert(Math.abs(geometry.titleCenter - width / 2) <= 1, 'Wordmark should be horizontally centered');
           if (fits) {
             assert(geometry.scrollHeight <= geometry.clientHeight + 1, `Login density overflow: ${JSON.stringify(state)}`);
             assert.equal(geometry.scrollTop, 0, 'The login form must fit without scrolling');
@@ -103,14 +113,16 @@ async function verifyDensityBoundaries(browser, engine) {
             const label = element.querySelector('.auth-field-heading').getBoundingClientRect();
             return { top: field.top, bottom: field.bottom, labelGap: input.top - label.bottom, inputHeight: input.height };
           }));
-          assert(rows.every(row => row.inputHeight >= 36 && row.labelGap >= 2.5), 'Inputs or their label spacing were compressed');
-          assert(rows[1].top - rows[0].bottom >= 9.5, 'Field groups need 10px separation');
+          assert(rows.every(row => row.inputHeight >= 36 && row.labelGap >= (compact ? 1.5 : 2.5)), 'Inputs or their label spacing were compressed');
+          assert(rows[1].top - rows[0].bottom >= (compact ? 7.5 : 9.5), 'Input groups are crowded');
+          if (visible === 339 || visible === 502) {
+            await captureKeyboardLayout(page, visible, `${engine}-${width}-safe-${safeTop}-${language}-density.png`);
+          }
           if (!fits) {
             await page.locator('.auth-form-region').evaluate(element => { element.scrollTop = element.scrollHeight; });
             const last = await page.locator('.auth-social-button--qq').boundingBox();
             assert(last.y + last.height <= geometry.regionBottom + 1, 'Compact overflow must remain reachable by inner scroll');
           }
-          if (visible === 339) await captureKeyboardLayout(page, visible, `${engine}-${width}-safe-${safeTop}-${language}-density.png`);
         }
         await page.evaluate(() => { document.activeElement.blur(); window.authTestKeyboard(undefined); });
         await page.waitForFunction(() => !document.documentElement.dataset.keyboardOpen);
@@ -137,10 +149,19 @@ try {
           window.authTestKeyboard = value => { height = value; vv.dispatchEvent(new Event('resize')); };
         });
         const page = await context.newPage();
+        let startupErrors = [];
+        page.on('pageerror', error => startupErrors.push(error.message));
+        page.on('response', response => {
+          if (response.status() >= 400 && response.url().startsWith(server.resolvedUrls.local[0])) {
+            startupErrors.push(`${response.status()} ${new URL(response.url()).pathname}`);
+          }
+        });
         for (const mode of ['login', 'register', 'reset', 'otp']) {
+          startupErrors = [];
           await page.goto(server.resolvedUrls.local[0], { waitUntil: 'domcontentloaded' });
           await page.locator('.auth-screen').waitFor().catch(async error => {
             await page.screenshot({ path: `${output}/${engine}-${width}-${height}-${mode}-startup-failure.png` });
+            console.error(`${engine}/${width}/${mode} startup:`, startupErrors);
             throw error;
           });
           if (mode === 'register') await page.locator('.auth-mode-icon').click();
@@ -191,7 +212,8 @@ try {
               }
               {
                 const last = await page.locator('.auth-social-button--qq').boundingBox();
-                const fits = after.region.height >= 272;
+                const compact = after.brand.height < 31;
+                const fits = after.region.height >= (compact ? 248 : 272);
                 assert(last.height >= 36, 'Compact shortcut hit area is too small');
                 if (fits) assert(visible - last.y - last.height >= 0 && visible - last.y - last.height <= 28,
                   `Shortcut gap: ${JSON.stringify({visible,last})}`);
@@ -199,17 +221,16 @@ try {
                 const secondField = await page.locator('.auth-fields .field').nth(1).boundingBox();
                 const submit = await page.locator('.auth-submit').boundingBox();
                 const locale = await page.locator('.auth-locale').boundingBox();
-                const minimumGap = 9.5;
+                const minimumGap = compact ? 7.5 : 9.5;
                 assert(secondField.y - firstField.y - firstField.height >= minimumGap, 'Input rows are crowded');
                 assert(submit.y - secondField.y - secondField.height >= minimumGap, 'Submit crowds password');
-                assert(firstField.y >= locale.y + locale.height + 7.5, 'Toolbar needs 8px separation before form');
-                assert(Math.abs(after.brand.y - locale.y) <= 2, 'Keyboard brand and language must share a toolbar');
+                assert(after.brand.y >= locale.y + locale.height - 0.5, 'Language and NAVA must occupy separate rows');
                 for (const label of await page.locator('.auth-fields .field-label').all()) {
                   assert(await label.isVisible(), 'Field label disappeared');
                   assert((await label.boundingBox()).height >= 14, 'Field label collapsed');
                 }
-                assert(firstField.y - after.brand.bottom >= 7.5, 'Brand needs breathing room below');
-                assert.equal(await page.locator('.auth-form-region').evaluate(el => el.scrollTop), 0, 'Login requires scrolling');
+                assert(firstField.y - after.brand.bottom >= 7.5 && firstField.y - after.brand.bottom <= 10, 'Wordmark is not grouped with the form');
+                if (fits) assert.equal(await page.locator('.auth-form-region').evaluate(el => el.scrollTop), 0, 'Login requires scrolling');
               }
             }
             report.push({ engine,width,height,mode,index,before,after,field });
@@ -232,7 +253,8 @@ try {
             assert.equal(Math.round(submit.width), Math.round(password.width), 'Submit must remain full width');
             assert(links.y >= submit.y + submit.height && divider.y >= links.y + links.height && shortcuts.y >= divider.y + divider.height, 'Login reading order changed');
             const region = await page.locator('.auth-form-region').boundingBox();
-            if (region.height >= 272) assert(shortcuts.y + shortcuts.height <= height - (height < 700 ? 290 : 360), 'Feedback pushes shortcuts behind keyboard');
+            const afterBrandHeight = (await page.locator('.nava-wordmark').boundingBox()).height;
+            if (region.height >= (afterBrandHeight < 31 ? 248 : 272)) assert(shortcuts.y + shortcuts.height <= height - (height < 700 ? 290 : 360), 'Feedback pushes shortcuts behind keyboard');
             assert.equal(await page.locator('.auth-form-region').evaluate(el => el.scrollTop), 0);
             await captureKeyboardLayout(page, height - (height < 700 ? 290 : 360), `${engine}-${width}-${height}-login-feedback.png`);
           }

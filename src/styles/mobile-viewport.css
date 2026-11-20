@@ -80,18 +80,23 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen {
   --auth-header-control: 32px;
   --auth-keyboard-wordmark: 28px;
   display: grid;
-  /* Keyboard-only toolbar: a 32px brand/language row plus 8px separation.
-     At 339px visible height: 20px safe top + 40px header + 272px form
-     + 6px keyboard gap = 338px. Keep spacing rather than crushing controls. */
-  grid-template-rows: 40px minmax(0, 1fr);
+  /* 32px language row, 32px centered wordmark, then 8px before the form. */
+  grid-template-rows: 72px minmax(0, 1fr);
   height: var(--auth-canvas-height, 100dvh);
   padding-top: max(8px, env(safe-area-inset-top));
   padding-bottom: max(6px, calc(var(--auth-canvas-height, 100dvh) - var(--nava-visible-height) + 6px));
   overflow: hidden;
 }
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen--signIn:has(.auth-social) {
+  /* Give spare height to the space above the entire group. The wordmark
+     stays beside the form's reading flow even on tall phones. */
+  grid-template-rows: max-content minmax(0, max-content);
+  align-content: end;
+  container: auth-keyboard-space / size;
+}
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand {
   min-height: 0;
-  padding: 0 0 8px;
+  padding: 32px 0 8px;
   margin: 0;
   animation: none;
   justify-content: center;
@@ -125,8 +130,6 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-fo
   overscroll-behavior: contain;
   scroll-padding-block: 4px;
   padding: 0;
-  container-type: size;
-  container-name: auth-form-space;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form {
   flex: none;
@@ -146,6 +149,7 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-fo
   --auth-label-gap: 3px;
   --auth-field-gap: 10px;
   --auth-section-gap: 8px;
+  --auth-social-gap: var(--auth-section-gap);
   --auth-link-height: 32px;
   --auth-message: 20px;
   --auth-message-margin: 2px;
@@ -222,7 +226,7 @@ html[data-keyboard-open="true"] .auth-secondary-links > button {
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social {
   display: block;
-  margin: var(--auth-section-gap) 0 0;
+  margin: var(--auth-social-gap) 0 0;
   padding: 0;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social-divider {
@@ -234,7 +238,7 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-so
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social-options {
   gap: 8px;
-  margin: var(--auth-section-gap) 0 0;
+  margin: var(--auth-social-gap) 0 0;
   padding: 0;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social-button {
@@ -257,10 +261,9 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-so
   box-shadow: none;
   backdrop-filter: none;
 }
-/* 44px controls need 322px; the comfortable compact stack needs 272px.
-   Below that physical budget, keep the controls readable and scroll only
-   the form. Never shrink to 28px controls or remove the grouping gaps. */
-@container auth-form-space (max-height: 323px) {
+/* The regular layout needs a 72px header and 322px form. Reserve
+   one extra pixel while switching densities to account for rounding. */
+@container auth-keyboard-space (max-height: 395px) {
   html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) {
     --auth-control: 36px;
     --auth-label: 16px;
@@ -270,6 +273,31 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-so
     --auth-link-height: 28px;
     --auth-message: 18px;
     --auth-divider: 12px;
+  }
+}
+/* A 339px SE keyboard viewport has 313px after safe area and keyboard gap.
+   Budget 64px for the two header rows and 248px for the form. */
+@container auth-keyboard-space (max-height: 345px) {
+  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand {
+    padding-top: 28px;
+  }
+  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-brand .nava-wordmark {
+    --wordmark-size: 25px;
+    height: 28px;
+  }
+  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen :is(.auth-locale, .language-toggle) {
+    min-height: 28px;
+    height: 28px;
+  }
+  html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) {
+    --auth-label: 14px;
+    --auth-label-gap: 2px;
+    --auth-field-gap: 8px;
+    --auth-section-gap: 4px;
+    --auth-social-gap: 3px;
+    --auth-link-height: 24px;
+    --auth-message: 16px;
+    --auth-message-margin: 1px;
   }
 }
 html[data-keyboard-open="true"] .phone-frame .profile-security-sheet {

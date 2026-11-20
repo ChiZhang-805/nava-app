@@ -91,6 +91,7 @@ final class NavaAuthKeyboardTests: XCTestCase {
                 assertLoginLayout(web, logo: logo, app: app, english: false)
                 // Exercise a real feedback state, then reopen the actual iOS
                 // keyboard. An empty feedback slot missed the previous grid bug.
+                revealLoginShortcutsIfNeeded(web, logo: logo, app: app)
                 web.buttons["微信"].firstMatch.tap()
                 let feedback = web.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "尚未完成服务配置")).firstMatch
                 XCTAssertTrue(feedback.waitForExistence(timeout: 10), app.debugDescription)
@@ -103,19 +104,6 @@ final class NavaAuthKeyboardTests: XCTestCase {
                 XCTAssertLessThanOrEqual(feedback.frame.maxY, submit.frame.minY + 1)
                 assertLoginLayout(web, logo: logo, app: app, english: false, feedback: feedback)
                 capture("login-feedback-keyboard")
-                for name in ["微信", "Apple", "QQ", "验证码登录", "创建账号"] {
-                    XCTAssertTrue(web.buttons[name].firstMatch.exists, "Missing login route: \(name)")
-                    XCTAssertTrue(web.buttons[name].firstMatch.isHittable, "Login route requires scrolling: \(name)")
-                }
-                let qq = web.buttons["QQ"].firstMatch
-                do {
-                    XCTAssertTrue(qq.isHittable)
-                    let gap = keyboardTop(in: app) - qq.frame.maxY
-                    XCTAssertGreaterThanOrEqual(gap, 0)
-                    XCTAssertLessThanOrEqual(gap, 28, "Excessive space above keyboard")
-                    XCTAssertTrue(web.buttons["微信"].firstMatch.isHittable)
-                    XCTAssertTrue(web.buttons["Apple"].firstMatch.isHittable)
-                }
             }
 
             // A real touch triggers WKWebView focus assistance. Subsequent
@@ -138,9 +126,7 @@ final class NavaAuthKeyboardTests: XCTestCase {
                 }
             }
             if mode == "login" {
-                let qq = web.buttons["QQ"].firstMatch
-                XCTAssertTrue(qq.isHittable)
-                XCTAssertLessThanOrEqual(qq.frame.maxY, keyboardTop(in: app))
+                revealLoginShortcutsIfNeeded(web, logo: logo, app: app)
                 capture("login-shortcuts-keyboard")
             }
             logo.tap()
@@ -160,6 +146,7 @@ final class NavaAuthKeyboardTests: XCTestCase {
         assertAboveKeyboard(account, logo: logo, app: app)
         assertLoginLayout(web, logo: logo, app: app, english: true)
         capture("login-english-account-keyboard")
+        revealLoginShortcutsIfNeeded(web, logo: logo, app: app)
         web.buttons["WeChat"].firstMatch.tap()
         let englishFeedback = web.staticTexts["This sign-in method is not configured yet."].firstMatch
         XCTAssertTrue(englishFeedback.waitForExistence(timeout: 10), app.debugDescription)
@@ -190,21 +177,14 @@ final class NavaAuthKeyboardTests: XCTestCase {
         let register = web.buttons[english ? "Create account" : "创建账号"].firstMatch
         let shortcuts = [english ? "WeChat" : "微信", "Apple", "QQ"].map { web.buttons[$0].firstMatch }
         let top = keyboardTop(in: app)
+        let language = web.buttons[english ? "Switch language" : "切换语言"].firstMatch
+        XCTAssertLessThanOrEqual(language.frame.maxY, logo.frame.minY + 1, "Language and NAVA should be on separate rows")
 
-        // Presence alone is insufficient: hidden labels and offscreen routes
-        // used to pass while the user had to scroll to discover the remainder.
-        for element in [accountLabel, passwordLabel, divider, code, register] + shortcuts {
+        for element in [accountLabel, passwordLabel, submit] {
             XCTAssertTrue(element.waitForExistence(timeout: 10), "Missing login element: \(element)")
-            XCTAssertTrue(element.isHittable, "Login element hidden or requires scrolling: \(element.label)")
-            let frame = element.frame
-            XCTAssertGreaterThan(frame.height, 0)
-            XCTAssertGreaterThanOrEqual(frame.minY, expectedSafeTop)
-            XCTAssertLessThanOrEqual(frame.maxY, top + 1, "Login element extends behind keyboard: \(element.label)")
-            XCTAssertGreaterThanOrEqual(frame.minX, app.frame.minX)
-            XCTAssertLessThanOrEqual(frame.maxX, app.frame.maxX + 1)
+            XCTAssertTrue(element.isHittable, "Login field or submit hidden: \(element.label)")
+            XCTAssertLessThanOrEqual(element.frame.maxY, top + 1)
         }
-        XCTAssertTrue(submit.exists)
-        XCTAssertGreaterThan(submit.frame.height, 0)
         // XCTest exposes the editable <input>, not its ContinuousField surface.
         // The surface has 14pt horizontal padding plus a 1pt border on each
         // side (product-ui.css). Compare both outer edges, not the smaller
@@ -215,7 +195,8 @@ final class NavaAuthKeyboardTests: XCTestCase {
                        "Submit must align with the account surface's left edge")
         XCTAssertEqual(submit.frame.maxX, accountSurface.maxX, accuracy: 2,
                        "Submit must align with the account surface's right edge")
-        XCTAssertGreaterThanOrEqual(accountLabel.frame.minY, logo.frame.maxY - 1)
+        XCTAssertGreaterThanOrEqual(accountLabel.frame.minY, logo.frame.maxY + 6)
+        XCTAssertLessThanOrEqual(accountLabel.frame.minY, logo.frame.maxY + 15, "NAVA should stay close to the first label")
         XCTAssertLessThanOrEqual(accountLabel.frame.maxY, account.frame.minY + 1)
         XCTAssertGreaterThanOrEqual(passwordLabel.frame.minY, account.frame.maxY - 1)
         XCTAssertLessThanOrEqual(passwordLabel.frame.maxY, password.frame.minY + 1)
@@ -225,6 +206,18 @@ final class NavaAuthKeyboardTests: XCTestCase {
             XCTAssertTrue(feedback.isHittable, "Feedback must remain readable above the keyboard")
             XCTAssertGreaterThanOrEqual(feedback.frame.minY, password.frame.maxY - 1)
             XCTAssertLessThanOrEqual(feedback.frame.maxY, submit.frame.minY + 1)
+        }
+        let inputHeight = account.frame.height
+        let didScroll = revealLoginShortcutsIfNeeded(web, logo: logo, app: app)
+        for element in [divider, code, register] + shortcuts {
+            XCTAssertTrue(element.exists, "Missing login route: \(element)")
+            XCTAssertTrue(element.isHittable, "Login route hidden: \(element.label)")
+            let frame = element.frame
+            XCTAssertGreaterThan(frame.height, 0)
+            XCTAssertGreaterThanOrEqual(frame.minY, expectedSafeTop)
+            XCTAssertLessThanOrEqual(frame.maxY, top + 1, "Login route extends behind keyboard: \(element.label)")
+            XCTAssertGreaterThanOrEqual(frame.minX, app.frame.minX)
+            XCTAssertLessThanOrEqual(frame.maxX, app.frame.maxX + 1)
         }
         for link in [code, register] {
             XCTAssertGreaterThanOrEqual(link.frame.minY, submit.frame.maxY - 1)
@@ -238,12 +231,34 @@ final class NavaAuthKeyboardTests: XCTestCase {
             // shortcuts share the input/submit control height at every density.
             XCTAssertGreaterThanOrEqual(shortcut.frame.height, 36,
                                         "Shortcut is clipped: \(shortcut.label)")
-            XCTAssertGreaterThanOrEqual(shortcut.frame.height, account.frame.height - 1,
+            XCTAssertGreaterThanOrEqual(shortcut.frame.height, inputHeight - 1,
                                         "Shortcut must retain the full input control height")
         }
         let shortcutsBottom = shortcuts.map { $0.frame.maxY }.max()!
         XCTAssertGreaterThanOrEqual(top - shortcutsBottom, -1)
         XCTAssertLessThanOrEqual(top - shortcutsBottom, 28, "Excessive space above keyboard")
+        if didScroll {
+            let start = loginCoordinate(in: web, y: logo.frame.maxY + 40)
+            start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 85)))
+        }
+    }
+
+    @discardableResult
+    private func revealLoginShortcutsIfNeeded(_ web: XCUIElement, logo: XCUIElement, app: XCUIApplication) -> Bool {
+        let top = keyboardTop(in: app)
+        // Eight points after the brand and six before the keyboard leave the form budget.
+        let formHeight: CGFloat = logo.frame.height < 31 ? 248 : 272
+        guard top - logo.frame.maxY - 14 < formHeight - 1 else { return false }
+        let last = web.buttons["QQ"].firstMatch
+        if last.isHittable && last.frame.height >= 36 && last.frame.maxY <= top { return false }
+        let start = loginCoordinate(in: web, y: top - 22)
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -85)))
+        return true
+    }
+
+    private func loginCoordinate(in web: XCUIElement, y: CGFloat) -> XCUICoordinate {
+        web.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0))
+            .withOffset(CGVector(dx: 0, dy: y - web.frame.minY))
     }
 
     private func assertAboveKeyboard(_ field: XCUIElement, logo: XCUIElement, app: XCUIApplication) {
