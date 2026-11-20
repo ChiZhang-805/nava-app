@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-11-20",
+  "component": "src/components/SuccessMark.tsx",
+  "implementation": "Original inline SVG and CSS; no exported SF Symbols asset, proprietary API, added package, canvas, or external image dependency.",
+  "sources": [
+    {"url":"https://developer.apple.com/videos/play/wwdc2025/337/","reference":"Draw presets demonstrate a deliberate path reveal and ordered layers. NAVA translates that motion principle to a custom web vector."},
+    {"url":"https://developer.apple.com/documentation/symbols/bouncesymboleffect","reference":"Bounce provides a brief scaling effect. The custom mark settles with one small overshoot, without looping."},
+    {"url":"https://developer.apple.com/design/human-interface-guidelines/motion","reference":"Feedback motion should be brief, precise and optional; it must not force a wait before the next action."},
+    {"url":"https://developer.apple.com/help/app-store-connect/manage-app-accessibility/reduced-motion-evaluation-criteria/","reference":"Decorative motion is removed when the system requests reduced motion."}
+  ],
+  "timingMs": {"background":500,"checkStart":130,"checkDraw":340,"settleEnd":790,"accentsEnd":770},
+  "behavior": "Mount once on the real success state. A 64px fixed box keeps layout stable. Text and actions are available immediately. Four local accent marks fade away; no confetti, dimming, or recurring animation.",
+  "reducedMotion": "Final static mark with complete check path and no accents, via prefers-reduced-motion. animated=false also opts out explicitly."
+}

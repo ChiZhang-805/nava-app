@@ -14,7 +14,7 @@ try {
   for (const [engine, browserType] of [['chromium', chromium], ['webkit', webkit]]) {
     const browser = await browserType.launch({ headless: true });
     try {
-      for (const [width, height] of [[360, 740], [375, 812], [390, 844], [430, 932]]) {
+      for (const [width, height] of [[320, 568], [360, 740], [375, 812], [390, 844], [430, 932]]) {
         const reducedMotion = width === 375 ? 'reduce' : 'no-preference';
         const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, isMobile: true, hasTouch: true, reducedMotion });
         const page = await context.newPage();
@@ -73,14 +73,42 @@ try {
         await trigger.click();
         await dialog.getByRole('button', { name: '确认兑换', exact: true }).click();
         await expect(dialog.getByText('已经是你的啦')).toBeVisible();
+        const mark = page.locator('.nava-success-mark');
+        await expect(mark).toBeVisible();
+        const motionFrames = [];
+        if (width === 360) {
+          for (const time of [0, 300, 850]) {
+            motionFrames.push(await mark.evaluate((element, time) => {
+              const animations = element.getAnimations({ subtree: true });
+              for (const animation of animations) { animation.pause(); animation.currentTime = time; }
+              const check = getComputedStyle(element.querySelector('.nava-success-mark-check'));
+              return { time, animations: animations.length, offset: Number.parseFloat(check.strokeDashoffset), strokeWidth: check.strokeWidth, iterations: animations.map(animation => animation.effect.getTiming().iterations) };
+            }, time));
+            await page.screenshot({ path: `${output}/${engine}-${width}-success-motion-${time}.png` });
+          }
+          assert.equal(motionFrames[0].offset, 1);
+          assert(motionFrames[1].offset > 0 && motionFrames[1].offset < 1, JSON.stringify(motionFrames));
+          assert.equal(motionFrames[2].offset, 0);
+          assert(motionFrames.every(frame => frame.iterations.every(count => count === 1)));
+        }
         await page.waitForTimeout(500);
         const success = await dialog.evaluate((element) => {
           const last = element.querySelector('.mascot-wardrobe-sheet-secondary').getBoundingClientRect();
-          return { height: element.getBoundingClientRect().height, emptyBottom: element.getBoundingClientRect().bottom - last.bottom, motion: getComputedStyle(element.querySelector('.nava-sheet-success-mark')).animationName };
+          return { height: element.getBoundingClientRect().height, emptyBottom: element.getBoundingClientRect().bottom - last.bottom, motion: getComputedStyle(element.querySelector('.nava-success-mark-check')).animationName };
         });
         assert(success.emptyBottom <= 15, JSON.stringify(success));
         assert.equal(success.motion === 'none', reducedMotion === 'reduce');
+        if (reducedMotion === 'reduce') {
+          assert.equal(await mark.evaluate(element => element.getAnimations({ subtree: true }).length), 0);
+          assert.equal(await mark.locator('.nava-success-mark-check').evaluate(element => getComputedStyle(element).strokeDashoffset), '0px');
+        }
         await page.screenshot({ path: `${output}/${engine}-${width}-success.png` });
+        if (width === 430) {
+          await mark.evaluate(element => element.dataset.animated = 'false');
+          assert.equal(await mark.evaluate(element => element.getAnimations({ subtree: true }).length), 0);
+          assert.equal(await mark.locator('.nava-success-mark-check').evaluate(element => Number.parseFloat(getComputedStyle(element).strokeDashoffset)), 0);
+          await page.screenshot({ path: `${output}/${engine}-${width}-success-static.png` });
+        }
         await dialog.getByRole('button', { name: '立即穿戴', exact: true }).click();
         await expect(dialog).toHaveCount(0);
         const stored = await page.evaluate(() => JSON.parse(sessionStorage.getItem('nava.demo.mascot-wardrobe.v1')));
@@ -98,10 +126,10 @@ try {
         await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2 + 90, { steps: 8 });
         await page.mouse.up();
         await expect(dialog).toHaveCount(0);
-        assert.equal(await page.locator('[inert]').count(), inertBefore);
+        await expect.poll(() => page.locator('[inert]').count()).toBe(inertBefore);
         assert.deepEqual(models, []);
         assert.deepEqual(errors, []);
-        report.cases.push({ engine, width, height, reducedMotion, geometry, success, commerce: 'unlock, exact balance, equipped skin + accessory passed', dismissal: 'Escape, Tab trap, focus restore, pointer drag passed', webglRequests: models.length });
+        report.cases.push({ engine, width, height, reducedMotion, geometry, success, motionFrames, commerce: 'unlock, exact balance, equipped skin + accessory passed', dismissal: 'Escape, Tab trap, focus restore, pointer drag passed', webglRequests: models.length });
         await context.close();
       }
     } finally { await browser.close(); }

@@ -2,6 +2,7 @@ import { Check, Coins, Shirt, Sparkles, TriangleAlert, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import BottomSheet from "../components/BottomSheet";
 import WardrobeArtwork from "../components/WardrobeArtwork";
+import SuccessMark from "../components/SuccessMark";
 import { toggleWardrobeAccessory } from "../services/wardrobeAccessorySlots";
 import { useLocale } from "../i18n";
 import {
@@ -277,7 +278,7 @@ export default function MascotWardrobe() {
             <div className="mascot-wardrobe-sheet-actions"><button type="button" disabled={busy !== null} onClick={() => setSheet(null)}>{locale === "zh" ? "取消" : "Cancel"}</button><button type="button" disabled={busy !== null} onClick={() => void confirmUnlock()}>{busy ? (locale === "zh" ? "兑换中…" : "Unlocking…") : (locale === "zh" ? "确认兑换" : "Confirm")}</button></div>
           </>}
           {sheet === "success" && <>
-            <div className="mascot-wardrobe-sheet-result"><svg className="nava-sheet-success-mark" width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="20" cy="20" r="16" opacity=".32" /><path pathLength="1" d="m11 20 6 6 13-14" /></svg><h2>{locale === "zh" ? "已经是你的啦" : "It is yours"}</h2><div className="mascot-wardrobe-unlocked-item"><span><ItemArtwork item={sheetItem} /></span><strong><DisplayName item={sheetItem} locale={locale} /></strong></div></div>
+            <div className="mascot-wardrobe-sheet-result"><SuccessMark /><h2>{locale === "zh" ? "已经是你的啦" : "It is yours"}</h2><div className="mascot-wardrobe-unlocked-item"><span><ItemArtwork item={sheetItem} /></span><strong><DisplayName item={sheetItem} locale={locale} /></strong></div></div>
             <button className="mascot-wardrobe-sheet-primary" type="button" disabled={busy !== null} onClick={() => lockedPreviewItems.length > 0 ? setSheet(null) : void equipSelected()}>{busy ? (locale === "zh" ? "穿戴中…" : "Equipping…") : lockedPreviewItems.length > 0 ? (locale === "zh" ? "继续兑换" : "Continue unlocking") : (locale === "zh" ? "立即穿戴" : "Wear now")}</button>
             <button className="mascot-wardrobe-sheet-secondary" type="button" disabled={busy !== null} onClick={() => setSheet(null)}>{locale === "zh" ? "继续看看" : "Keep browsing"}</button>
           </>}

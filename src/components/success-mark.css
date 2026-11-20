@@ -1,0 +1,18 @@
+.nava-success-mark { display: block; flex: none; overflow: visible; pointer-events: none; }
+.nava-success-mark :is(circle, g, path) { transform-origin: 40px 40px; }
+.nava-success-mark-halo { opacity: .7; }
+.nava-success-mark-check { stroke-dasharray: 1; stroke-dashoffset: 0; }
+.nava-success-mark-sparks { opacity: 0; }
+.nava-success-mark[data-animated="true"] .nava-success-mark-halo { animation: nava-success-halo 460ms cubic-bezier(.2,.8,.2,1) both; }
+.nava-success-mark[data-animated="true"] .nava-success-mark-disc { animation: nava-success-disc 500ms cubic-bezier(.2,.8,.2,1) both; }
+.nava-success-mark[data-animated="true"] .nava-success-mark-check { animation: nava-success-draw 340ms 130ms cubic-bezier(.25,.1,.25,1) both; }
+.nava-success-mark[data-animated="true"] .nava-success-mark-check-group { animation: nava-success-settle 620ms 170ms ease-out both; }
+.nava-success-mark[data-animated="true"] .nava-success-mark-sparks { animation: nava-success-sparks 340ms 430ms ease-out both; }
+@keyframes nava-success-halo { 0% { opacity: 0; transform: scale(.72); } 65% { opacity: .9; transform: scale(1.04); } 100% { opacity: .7; transform: scale(1); } }
+@keyframes nava-success-disc { 0% { opacity: 0; transform: scale(.76); } 60% { opacity: 1; transform: scale(1.04); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes nava-success-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes nava-success-settle { 0%, 30% { transform: scale(.96); } 64% { transform: scale(1.06); } 82% { transform: scale(.99); } 100% { transform: scale(1); } }
+@keyframes nava-success-sparks { 0% { opacity: 0; transform: scale(.75); } 35% { opacity: .85; } 100% { opacity: 0; transform: scale(1.04); } }
+@media (prefers-reduced-motion: reduce) {
+  .nava-success-mark[data-animated="true"] :is(.nava-success-mark-halo, .nava-success-mark-disc, .nava-success-mark-check, .nava-success-mark-check-group, .nava-success-mark-sparks) { animation: none; }
+}
