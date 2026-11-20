@@ -201,7 +201,16 @@ final class NavaAuthKeyboardTests: XCTestCase {
         }
         XCTAssertTrue(submit.exists)
         XCTAssertGreaterThan(submit.frame.height, 0)
-        XCTAssertEqual(submit.frame.width, account.frame.width, accuracy: 4)
+        // XCTest exposes the editable <input>, not its ContinuousField surface.
+        // The surface has 14pt horizontal padding plus a 1pt border on each
+        // side (product-ui.css). Compare both outer edges, not the smaller
+        // editable width against the full-width submit button. Separate edge
+        // assertions still reject an off-centre or narrowed submit button.
+        let accountSurface = account.frame.insetBy(dx: -15, dy: 0)
+        XCTAssertEqual(submit.frame.minX, accountSurface.minX, accuracy: 2,
+                       "Submit must align with the account surface's left edge")
+        XCTAssertEqual(submit.frame.maxX, accountSurface.maxX, accuracy: 2,
+                       "Submit must align with the account surface's right edge")
         XCTAssertGreaterThanOrEqual(accountLabel.frame.minY, logo.frame.maxY - 1)
         XCTAssertLessThanOrEqual(accountLabel.frame.maxY, account.frame.minY + 1)
         XCTAssertGreaterThanOrEqual(passwordLabel.frame.minY, account.frame.maxY - 1)
