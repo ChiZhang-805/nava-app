@@ -360,6 +360,9 @@ export function demoTodaySnapshot(date = todayISO()): TodaySnapshot {
 }
 
 export function demoTrends(endDate = todayISO()): TrendBundle {
+  if (typeof window !== "undefined" && window.localStorage.getItem(DEMO_EMPTY_SNAPSHOT_DATE_KEY) === endDate) {
+    return { moods: [], sleeps: [], exercises: [], nutritions: [], faces: [], focus: [], focusDistributions: [], healthMetrics: [], rhythms: [], journal: [] };
+  }
   const overrides = readDemoRecordOverrides();
   const moods = demoMoodHistory(endDate);
   const sleeps: SleepRecord[] = moods.map((mood, index) => overrides.sleeps[mood.record_date] ?? ({

@@ -219,6 +219,7 @@ export interface DailyRhythmScore {
 }
 
 export interface TrendBundle {
+  journal?: import('./services/journal').JournalRecord[];
   moods: MoodRecord[];
   sleeps: SleepRecord[];
   exercises: ExerciseRecord[];

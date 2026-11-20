@@ -768,10 +768,10 @@ export async function saveFocusSession(input: {
 }
 
 export async function getTrends(userId: string, endDate = todayISO()): Promise<TrendBundle> {
-  if (isDemoMode()) return demoTrends(endDate);
-
   const start = shiftDateISO(endDate, -55);
-  const [moods, sleeps, exercises, nutritions, faces, focus, focusDistributions, healthMetrics, rhythms] = await Promise.all([
+  if (isDemoMode()) return { ...demoTrends(endDate), journal: await getJournalRecords(userId, start, endDate) };
+
+  const [moods, sleeps, exercises, nutritions, faces, focus, focusDistributions, healthMetrics, rhythms, journal] = await Promise.all([
     supabase.from("mood_records").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
     supabase.from("sleep_records").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
     supabase.from("exercise_records").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
@@ -781,6 +781,7 @@ export async function getTrends(userId: string, endDate = todayISO()): Promise<T
     supabase.from("focus_time_distribution").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
     supabase.from("health_metric_snapshots").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
     supabase.from("daily_rhythm_scores").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
+    getJournalRecords(userId, start, endDate),
   ]);
 
   return {
@@ -793,6 +794,7 @@ export async function getTrends(userId: string, endDate = todayISO()): Promise<T
     focusDistributions: trendRows<FocusTimeDistribution>(focusDistributions, "focus_time_distribution"),
     healthMetrics: trendRows<HealthMetricSnapshot>(healthMetrics, "health_metric_snapshots"),
     rhythms: trendRows<DailyRhythmScore>(rhythms, "daily_rhythm_scores"),
+    journal,
   };
 }
 
