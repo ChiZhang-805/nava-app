@@ -6,6 +6,17 @@ import { formatFocusHealthEvidence, nextFocusEncouragementAt, selectFocusHealthE
 import type { TrendBundle } from "../src/types.ts";
 import type { UserProfile } from "../src/services/profile.ts";
 
+test("declined or hypothetical reminders never become cards, even with a model todo", () => {
+  for (const value of ["不要提醒我明天开会", "不用给我加待办", "如果明天开会再提醒我", "Do not remind me to meet tomorrow", "Don't remind me tomorrow", "Maybe remind me tomorrow", "If I go tomorrow remind me to bring a book"]) {
+    for (const extraction of [{ dataType: "unknown" }, { dataType: "todo", extractedData: { title: "开会", scheduledDate: "2026-11-21" } }]) {
+      assert.equal(parseStructuredEntry(value, "zh", extraction, { allowLocalHealthFallback: false }), null, value);
+    }
+  }
+  for (const value of ["明天提醒我不要熬夜", "Remind me not to stay up tomorrow", "Could you remind me tomorrow to bring a book?"]) {
+    assert.equal(parseStructuredEntry(value, "zh", { dataType: "unknown" }, { allowLocalHealthFallback: false })?.type, "todo", value);
+  }
+});
+
 test("todo focus planning preserves user values and estimates missing plans", () => {
   assert.deepEqual(suggestedFocusPlan("写作业"), { focusMinutes: 45, focusSessions: 2 });
   assert.deepEqual(suggestedFocusPlan("上课"), { focusMinutes: 25, focusSessions: 2 });

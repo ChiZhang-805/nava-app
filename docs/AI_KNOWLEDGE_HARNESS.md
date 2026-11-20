@@ -25,6 +25,43 @@ The runtime harness selects tools by detected domain and passes only compact,
 structured evidence to the model. It never sends entire datasets or exposes a
 hidden chain of thought.
 
+## Chat workflow audit (2026-11-20; source and fixture coverage)
+
+These are distinct workflows, not a claim that arbitrary user inputs are all
+handled correctly. `ai-chat-reply` selects context and generates a reply; it does
+not save health records or execute a requested record edit/delete. Conversation
+message persistence in the client is separate from health-record confirmation.
+The chat router excludes the “醒” inside “提醒” from sleep detection. The separate
+extraction function still has broader keyword detection; its supplied domains
+and rule candidates are model inputs, not evidence that a health fact exists.
+
+| User intent/input | Current path | Save behavior and boundary |
+| --- | --- | --- |
+| Completed sleep/activity/mood/focus/meal statement | `ai-extract-data` prepares a draft, then the reply uses it as unconfirmed evidence; `structuredEntryParser` creates an editable card | `confirmStructuredEntry` writes only after the user confirms. Ordinary production chat has no local health-estimate fallback when extraction fails. |
+| Several domains in one turn | Multi extraction and a card containing separate entries; reply retrieval selects at most three relevant health domains | Confirmation currently writes entries sequentially, not as an all-or-nothing transaction. A partial failure can leave some entries saved; do not claim atomic batch confirmation. |
+| Explain/compare/health advice | Deterministic domain routing when possible, otherwise one bounded model classifier; explanation requests get the larger complete-answer budget | No health write. Unavailable evidence stays unavailable; named foods alone cannot establish portions, excessive intake or glucose effects. |
+| Recent health trend | Authenticated owner plus personalization consent; route-dependent 1/3/6/7/14/30-day window | At most three domains and bounded rows, not an unrestricted all-record analysis. Missing data is not zero. |
+| Continue a selected old chat | `archiveId` owner lookup and message-ID dedup; client appends with CAS | Never moves the live conversation. Without consent, only archive existence/ownership is checked, not its content. Latest six normalized messages enter the final reply; this is not unlimited memory. |
+| Ordinary conversation / emotion / an ambiguous “啊啊啊” | Chat route and bounded tone retrieval; unknown intent may use the classifier then fall back to context-free reply | No automatic health write. Style examples are references, not a claim that a phrase implies romance, distress or a diagnosis. |
+| Create a reminder/task | Model or local schedule recognition produces an editable todo card | Confirmation required; future plans are not completed activity. The confirmation parser rejects declined/hypothetical requests even when the model proposes a todo, while preserving a task such as “remind me not to stay up.” |
+| Correct an unsaved meal photo | Named food plus explicit grams/kcal updates that pending draft; vague wording leaves values unchanged | Still requires confirmation. General “change my previous record” commands are not a supported update/delete tool. Other drafts can be re-extracted on the next turn; they are not conversational patch transactions. |
+| Known static sticker | Exact known marker maps to expressive semantics, skips health extraction and health retrieval | No health record or consent implied. Unknown or mixed-text markers stay ordinary text. |
+| Photo attachment | Dedicated per-image visual observations, original caption, then normal reply; only a clearly identified food subset can enter existing meal-draft flow | No automatic save; no meal merge across unrelated photos. NAVA vision credentials are deferred for this phase, so live image understanding has not been accepted. Missing configuration is an explicit error. |
+| Text/Markdown/CSV/JSON attachment | Separate validated `documentContext` up to 12,000 characters; the user's actual request retains the ordinary 600-character bound | Document evidence is untrusted and cannot create a detected record. The client skips extraction/confirmation parsing for this turn; the server discards supplied extraction fields. Truncation is explicit. PDF/Word/binary document parsing is not implemented. |
+| Voice conversation | Speech recognition text uses the chat workflow; response mode requests complete speakable plain text | No sticker/JSON bubbles in speech. Platform speech support/permissions are separate from model availability. |
+| Title/duration utilities and focus actions | Explicit `purpose` or validated `focusRequest` contracts | Titles/duration skip tone/history and return machine-readable plain text. Focus actions have their own validated schemas and do not save health records. |
+
+Runtime routing uses the current message and extraction, while final generation
+also receives authorized recent conversation context. Cross-turn references with
+no domain words can therefore miss useful health retrieval; automatic updates to
+an old record, unrestricted multi-domain context, and full-document recall on a
+later turn must not be advertised as implemented.
+
+The source audit, mocked Edge tests, and paid provider-only chat evaluation do
+not replace production authentication end-to-end testing. That still requires a
+valid, authorized test login/JWT against the deployed site and function. No test
+account was seeded, and an unauthenticated probe is not successful chat acceptance.
+
 ## Conversational replies (2026-11-20 source change; deployment separate)
 
 - Wamier (瓦咪儿) speaks as NAVA's virtual cat companion. Ordinary replies

@@ -24,7 +24,7 @@ export async function readBoundedChatRequest(req: Request): Promise<Record<strin
 
 export function chatVisionConfiguration(get: (name: string) => string | undefined) {
   const key = get("NAVA_CHAT_VISION_KEY") ?? get("DASHSCOPE_API_KEY_NAVA");
-  if (!key) throw new Error("聊天图片理解尚未配置 NAVA 专用视觉模型，图片没有发送给文字模型。请配置 NAVA_CHAT_VISION_KEY 或 DASHSCOPE_API_KEY_NAVA。");
+  if (!key) throw new Error("图片识别暂未开放，可以先发文字和瓦咪儿聊聊。");
   const endpoint = get("NAVA_CHAT_VISION_URL") ?? "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
   const url = new URL(endpoint);
   if (url.protocol !== "https:" || url.username || url.password) throw new Error("视觉服务地址配置无效。");

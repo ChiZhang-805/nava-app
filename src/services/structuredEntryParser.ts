@@ -600,12 +600,18 @@ export function parseStructuredEntry(
   const schedule = explicitTodo || futureDate ? todoSchedule(value) : null;
   const intentText = schedule ? value.replace(schedule.matchedDateText, " ").replace(schedule.matchedTimeText, " ").trim() : value;
   const commitment = /^(?:我|我们)?(?:要|得|需要|计划|准备|打算|必须|将会?)\s*(?:去)?[^，,。；;]{1,40}/.test(intentText);
-  const negated = /(?:不要|不需要|不打算|不准备|可能|也许|大概)/.test(value);
+  // A negation in the requested task ("remind me not to stay up") is not
+  // withdrawal of the reminder itself. Check the request prefix separately.
+  const todoMarkerIndex = value.search(/待办|提醒我|记得要|todo|remind me/i);
+  const requestPrefix = todoMarkerIndex >= 0 ? value.slice(0, todoMarkerIndex) : value;
+  const negated = /(?:如果|假如|假设|要是|可能|也许|大概)|\b(?:if|maybe|perhaps|might|hypothetically)\b/i.test(value)
+    || /(?:不要|不用|不需要|不打算|不准备|取消|别)|\b(?:not|never|no|cancel)\b|don['’]t|won['’]t/i.test(requestPrefix)
+    || /[,，。;；]\s*(?:不用了|算了|取消|never mind|cancel it)/i.test(value);
   const allowLocalHealthFallback = options.allowLocalHealthFallback !== false;
   const extracted = entryFromExtraction(extraction, value, locale, allowLocalHealthFallback);
   const modelEntries = flattenedEntries(extracted).filter((item) => !negated || item.type !== "todo");
   const model = modelEntries.length === 0 ? null : modelEntries.length === 1 ? modelEntries[0] : multiEntry(modelEntries, locale, value);
-  if (explicitTodo || futureDate && commitment && !negated) {
+  if ((explicitTodo || futureDate && commitment) && !negated) {
     if (model?.type === "todo" || model?.type === "multi" && model.entries?.some((item) => item.type === "todo")) return model;
     if (!schedule) return null;
     const todoTitle = cleanTodoTitle(value, schedule.matchedDateText, schedule.matchedTimeText) || value;

@@ -45,6 +45,7 @@ import { selectToneExamples, type ToneSelection } from "./tone-retrieval.ts";
 import { validateChatImageInputs, validateChatImageAnalysis, chatImageEvidencePrompt, type ChatImageAnalysis } from "../_shared/chat-image-contract.ts";
 import { analyzeChatImages, readBoundedChatRequest } from "./images.ts";
 import { requireAiPersonalizationConsent } from "../_shared/consent.ts";
+import { validateChatDocumentContext, chatDocumentEvidencePrompt, type ChatDocumentContext } from "../_shared/chat-document-contract.ts";
 
 type ReplyLanguage = "zh" | "en";
 type ReplyMode = "text" | "voice";
@@ -66,6 +67,7 @@ type ReplyInput = {
   knowledge: KnowledgeBundle;
   tone?: ToneSelection;
   imageAnalysis?: ChatImageAnalysis;
+  documentContext?: ChatDocumentContext;
 };
 
 type ProviderReply = {
@@ -94,6 +96,8 @@ Deno.serve(async (req) => {
     const imageRequest = body.purpose === "chat-images";
     const focusRequest = body.focusRequest == null ? null : validateFocusRequest(body.focusRequest);
     const purpose = imageRequest ? "chat" : replyPurpose(body.purpose);
+    const documentContext = body.documentContext == null ? undefined : validateChatDocumentContext(body.documentContext);
+    if (documentContext && (imageRequest || focusRequest || purpose !== "chat" || body.imageAnalysis != null)) throw new Error("文件分析请单独发送，不能混入图片或工具请求。");
     if (imageRequest && (focusRequest || body.archiveId != null || body.stream === true)) throw new Error("图片理解请求不能混入专注任务、归档或流式请求。");
     if (!imageRequest && body.images != null) throw new Error("请使用图片理解入口提交图片。");
     if (purpose !== "chat" && (focusRequest || body.archiveId != null || body.responseMode === "voice" || body.response_mode === "voice")) {
@@ -132,16 +136,17 @@ Deno.serve(async (req) => {
     }
     const imageAnalysis = body.imageAnalysis == null ? undefined : validateChatImageAnalysis(body.imageAnalysis);
     if (imageAnalysis && purpose !== "chat") throw new Error("工具请求不能附带图片分析。");
-    const baseInput: Pick<ReplyInput, "message" | "purpose" | "archiveId" | "messageId" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode" | "imageAnalysis"> = {
+    const baseInput: Pick<ReplyInput, "message" | "purpose" | "archiveId" | "messageId" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode" | "imageAnalysis" | "documentContext"> = {
       message,
       purpose,
       imageAnalysis,
+      documentContext,
       archiveId: optionalConversationId(body.archiveId, "archiveId"),
       messageId: optionalConversationId(body.messageId, "messageId"),
       deviceDate: stringValue(body.deviceDate) ?? stringValue(body.device_date),
-      dataType: stringValue(body.dataType) ?? stringValue(body.data_type),
-      extractedData: body.extractedData ?? body.extracted_data ?? null,
-      knowledge: normalizeKnowledgeBundle(body.knowledge),
+      dataType: documentContext ? undefined : stringValue(body.dataType) ?? stringValue(body.data_type),
+      extractedData: documentContext ? null : body.extractedData ?? body.extracted_data ?? null,
+      knowledge: normalizeKnowledgeBundle(documentContext ? null : body.knowledge),
       lang,
       responseMode: body.responseMode === "voice" || body.response_mode === "voice" ? "voice" : "text",
     };
@@ -186,7 +191,7 @@ async function buildFocusReply(client: SupabaseClient, userId: string, request: 
 async function prepareReplyInput(
   client: SupabaseClient,
   userId: string,
-  input: Pick<ReplyInput, "message" | "purpose" | "archiveId" | "messageId" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode" | "imageAnalysis">,
+  input: Pick<ReplyInput, "message" | "purpose" | "archiveId" | "messageId" | "deviceDate" | "dataType" | "extractedData" | "knowledge" | "lang" | "responseMode" | "imageAnalysis" | "documentContext">,
 ): Promise<ReplyInput> {
   if (input.purpose !== "chat") {
     // Utility callers supply their bounded task/excerpt explicitly. They have
@@ -201,7 +206,8 @@ async function prepareReplyInput(
   const normalizedInput = stickerDescription ? {
     ...input, message: stickerDescription, dataType: undefined, extractedData: null, knowledge: normalizeKnowledgeBundle(null),
   } : input;
-  const route = await resolveRoute(input, providerUserId);
+  const resolvedRoute = await resolveRoute(input, providerUserId);
+  const route: AiRoute = input.documentContext ? { ...resolvedRoute, complexity: "complex" } : resolvedRoute;
   const healthContext = await loadOwnedRelevantHealthContext(client, userId, base, route, input.deviceDate);
   const profile = healthContext && typeof healthContext === "object" && !Array.isArray(healthContext)
     ? (healthContext as Record<string, unknown>).profile
@@ -348,6 +354,7 @@ async function customProviderReply(input: ReplyInput, endpoint: string, apiKey?:
         dataType: input.dataType,
         extractedData: input.extractedData,
         imageAnalysis: input.imageAnalysis,
+        documentContext: input.documentContext,
         healthContext: input.healthContext,
         conversationHistory: input.conversationHistory,
         route: input.route,
@@ -438,6 +445,7 @@ function inputSystemPrompt(input: ReplyInput) {
   return input.purpose === "chat"
     ? buildSystemPrompt(input.lang, input.healthContext, input.route, input.responseMode, input.knowledge, input.tone)
       + (input.imageAnalysis ? chatImageEvidencePrompt(input.imageAnalysis, input.lang) : "")
+      + (input.documentContext ? chatDocumentEvidencePrompt(input.documentContext, input.lang) : "")
     : utilitySystemPrompt(input.purpose, input.lang);
 }
 

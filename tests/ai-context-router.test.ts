@@ -35,6 +35,14 @@ test("health messages use a seven-day baseline unless an exact shorter window is
   assert.equal(buildDeterministicRoute("只看今天的情绪，不要对比历史")?.lookbackDays, 1);
 });
 
+test("reminder wording alone does not retrieve sleep history", () => {
+  for (const message of ["明天提醒我交作业", "不要提醒我明天开会", "提醒我带钥匙"]) {
+    assert.equal(buildDeterministicRoute(message, "todo", { title: "带钥匙" }), null);
+  }
+  assert.deepEqual(buildDeterministicRoute("提醒我今晚早点睡")?.domains, ["sleep"]);
+  assert.deepEqual(buildDeterministicRoute("早上七点醒了")?.domains, ["sleep"]);
+});
+
 test("short requests for explanation may expand without making casual support verbose", () => {
   assert.equal(buildDeterministicRoute("解释一下为什么睡眠影响专注")?.complexity, "complex");
   assert.equal(fallbackRoute("Explain this in detail")?.complexity, "complex");

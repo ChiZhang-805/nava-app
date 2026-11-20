@@ -20,7 +20,7 @@ export type AiRoute = {
 const domains: AiDomain[] = ["sleep", "exercise", "mood", "nutrition", "focus", "face", "rhythm"];
 
 const domainPatterns: Record<AiDomain, RegExp> = {
-  sleep: /睡|醒|失眠|困|熬夜|起床|入睡|睡眠|sleep|slept|wake|bedtime|tired/i,
+  sleep: /睡|(?<!提)醒|失眠|困|熬夜|起床|入睡|睡眠|sleep|slept|wake|bedtime|tired/i,
   exercise: /运动|跑|走路|步数|健身|训练|骑行|游泳|心率|exercise|workout|steps?|walk|run|heart\s*rate/i,
   mood: /情绪|心情|压力|焦虑|难过|低落|开心|烦|崩溃|mood|stress|anxious|sad|happy/i,
   nutrition: /吃|喝|饮食|早餐|午餐|晚餐|热量|卡路里|鸡蛋|面包|营养|food|meal|eat|ate|calorie|kcal/i,
