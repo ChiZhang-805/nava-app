@@ -1,5 +1,5 @@
 import type { LineTrendPoint } from "../components/LineTrendChart";
-import type { TrendBundle } from "../types";
+import type { HealthMetricSnapshot, TrendBundle } from "../types";
 import type { JournalCategory, JournalRecord } from "./journal";
 import { rollingDateWindow, shiftDateISO } from "./date.ts";
 
@@ -28,6 +28,35 @@ const average = (values: unknown[]) => {
   return known.length ? known.reduce((a, b) => a + b, 0) / known.length : null;
 };
 const hasValue = (chart: HealthReportChart) => chart.points.some(point => !point.missing);
+type HeartMetricField = "latest_heart_rate" | "resting_heart_rate" | "heart_rate_variability_sdnn";
+
+function snapshotTimestamp(value: unknown): number | null {
+  // Database timestamps include an offset. Do not interpret legacy date-only,
+  // local-time, or numeric values using the viewer's timezone.
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function latestHeartValue(records: HealthMetricSnapshot[], field: HeartMetricField): number | null {
+  // Select each metric independently: a partial Watch snapshot must not erase
+  // another Apple source's known reading. Prefer the newest usable database
+  // updated_at, then that row's created_at. These are snapshot freshness times,
+  // not heart-reading measurement times, so the UI never calls them live data.
+  // With equal/missing times, prefer the consolidated Apple Health source,
+  // then a stable ID. The result must not depend on same-day query row order.
+  const candidates = records.flatMap(record => {
+    const value = number(record[field]);
+    if (value === null || value <= 0 || !["apple_health", "apple_watch"].includes(record.source)) return [];
+    return [{ value, time: snapshotTimestamp(record.updated_at) ?? snapshotTimestamp(record.created_at), rank: record.source === "apple_health" ? 0 : 1, id: record.id }];
+  });
+  candidates.sort((a, b) => {
+    if (a.time !== b.time) return (b.time ?? -Infinity) - (a.time ?? -Infinity);
+    if (a.rank !== b.rank) return a.rank - b.rank;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+  return candidates[0]?.value ?? null;
+}
 const clock = (value: unknown) => {
   const text = String(value ?? "");
   const match = text.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
@@ -103,6 +132,6 @@ export function buildHealthReportCharts(bundle: TrendBundle | null, date: string
     ["latest_heart_rate", t("最新心率记录", "Latest heart-rate reading"), "bpm"],
     ["resting_heart_rate", t("静息心率", "Resting heart rate"), "bpm"],
     ["heart_rate_variability_sdnn", t("心率变异性", "Heart-rate variability"), "ms"],
-  ] as const).map(([field, title, unit]) => chart(`heart-${field}`, title, unit, t("来自已同步的Apple健康记录，不是实时测量。", "From synced Apple Health records, not a live measurement."), day => { const daily = rows(apple, day); const value = number(daily[daily.length - 1]?.[field]); return value !== null && value > 0 ? value : null; })).filter(hasValue);
+  ] as const).map(([field, title, unit]) => chart(`heart-${field}`, title, unit, t("来自已同步的Apple健康记录，不是实时测量。", "From synced Apple Health records, not a live measurement."), day => latestHeartValue(rows(apple, day), field))).filter(hasValue);
   return { mood, face, focus, sleep, exercise, diet, heart };
 }

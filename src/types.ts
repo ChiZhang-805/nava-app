@@ -166,6 +166,8 @@ export interface ActivityBin {
 export interface HealthMetricSnapshot {
   id: string;
   record_date: string;
+  created_at?: string | null;
+  updated_at?: string | null;
   latest_heart_rate: number | null;
   resting_heart_rate: number | null;
   heart_rate_variability_sdnn: number | null;

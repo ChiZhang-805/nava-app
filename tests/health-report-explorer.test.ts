@@ -88,6 +88,71 @@ test("heart charts require usable Apple-source data within the displayed period"
   assert.equal(charts.heart[0].points.at(-1)!.value, 72);
 });
 
+const heartSnapshot = (id: string, source: string, patch: Partial<HealthMetricSnapshot> = {}): HealthMetricSnapshot => ({
+  id, source, record_date: date, latest_heart_rate: null, resting_heart_rate: null,
+  heart_rate_variability_sdnn: null, blood_oxygen: null, ...patch,
+});
+const heartValues = (healthMetrics: HealthMetricSnapshot[]) => Object.fromEntries(
+  buildHealthReportCharts(bundle({ healthMetrics }), date, "en").heart.map(chart => [chart.id, chart.points.at(-1)!.value]),
+);
+
+test("partial Apple snapshots retain each valid field regardless of same-day row order", () => {
+  const health = heartSnapshot("health", "apple_health", { latest_heart_rate: 72, heart_rate_variability_sdnn: 42, updated_at: "2026-11-20T12:00:00Z" });
+  const watch = heartSnapshot("watch", "apple_watch", { resting_heart_rate: 58, updated_at: "2026-11-20T13:00:00Z" });
+  for (const snapshots of [[health, watch], [watch, health]]) {
+    assert.deepEqual(heartValues(snapshots), {
+      "heart-latest_heart_rate": 72,
+      "heart-resting_heart_rate": 58,
+      "heart-heart_rate_variability_sdnn": 42,
+    });
+  }
+});
+
+test("heart fields prefer newest valid snapshot timestamp with per-row created_at fallback", () => {
+  const health = heartSnapshot("health", "apple_health", { latest_heart_rate: 72, updated_at: "2026-11-20T10:00:00Z", created_at: "2026-11-20T09:00:00Z" });
+  const laterWatch = heartSnapshot("watch", "apple_watch", { latest_heart_rate: 81, updated_at: "2026-11-20T19:00:00+08:00", created_at: "2026-11-20T08:00:00Z" });
+  for (const snapshots of [[health, laterWatch], [laterWatch, health]]) {
+    assert.equal(heartValues(snapshots)["heart-latest_heart_rate"], 81);
+  }
+  const createdOnly = { ...laterWatch, updated_at: null, created_at: "2026-11-20T11:00:00Z" };
+  const invalidUpdated = { ...createdOnly, updated_at: "not-a-date" };
+  for (const fallback of [createdOnly, invalidUpdated]) {
+    assert.equal(heartValues([fallback, health])["heart-latest_heart_rate"], 81);
+    assert.equal(heartValues([health, fallback])["heart-latest_heart_rate"], 81);
+  }
+});
+
+test("heart sources with missing or equal timestamps use stable Apple Health priority", () => {
+  for (const timestamps of [{}, { updated_at: "2026-11-20T12:00:00Z" }, { updated_at: "2026-11-20" }, { updated_at: "2026-11-20T23:59:00" }]) {
+    const health = heartSnapshot("health", "apple_health", { latest_heart_rate: 72, ...timestamps });
+    const watch = heartSnapshot("watch", "apple_watch", { latest_heart_rate: 81, ...timestamps });
+    assert.equal(heartValues([health, watch])["heart-latest_heart_rate"], 72);
+    assert.equal(heartValues([watch, health])["heart-latest_heart_rate"], 72);
+  }
+  const undatedHealth = heartSnapshot("health", "apple_health", { latest_heart_rate: 72 });
+  const datedWatch = heartSnapshot("watch", "apple_watch", { latest_heart_rate: 81, created_at: "2026-11-20T12:00:00Z" });
+  assert.equal(heartValues([datedWatch, undatedHealth])["heart-latest_heart_rate"], 81);
+});
+
+test("newer empty, zero, negative and non-finite heart values cannot replace a known reading", () => {
+  const health = heartSnapshot("health", "apple_health", { latest_heart_rate: 72, updated_at: "2026-11-20T10:00:00Z" });
+  for (const value of [null, 0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    const watch = heartSnapshot("watch", "apple_watch", { latest_heart_rate: value, updated_at: "2026-11-20T13:00:00Z" });
+    assert.equal(heartValues([health, watch])["heart-latest_heart_rate"], 72);
+    assert.equal(heartValues([watch, health])["heart-latest_heart_rate"], 72);
+    assert.deepEqual(heartValues([watch]), {});
+  }
+  const manual = heartSnapshot("manual", "manual", { latest_heart_rate: 99, updated_at: "2026-11-20T23:00:00Z" });
+  assert.equal(heartValues([health, manual])["heart-latest_heart_rate"], 72);
+});
+
+test("duplicate legacy Apple snapshots with equal timestamps break ties by stable ID", () => {
+  const first = heartSnapshot("a", "apple_health", { latest_heart_rate: 72 });
+  const second = heartSnapshot("b", "apple_health", { latest_heart_rate: 81 });
+  assert.deepEqual(heartValues([first, second]), heartValues([second, first]));
+  assert.equal(heartValues([second, first])["heart-latest_heart_rate"], 72);
+});
+
 test("date windows cross months, omit future records and deduplicate journal IDs", () => {
   const row = journal("same", "face", { feeling: "精神不错" }, "2026-12-01");
   const charts = buildHealthReportCharts(bundle({ journal: [row, row, journal("future", "face", {}, "2026-12-02")] }), "2026-12-01", "en");
