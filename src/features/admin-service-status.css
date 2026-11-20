@@ -1,0 +1,48 @@
+.admin-services { gap: 16px; padding-bottom: 20px; }
+.admin-services-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.admin-services-toolbar > div { display:grid; gap:5px; min-width:0; }
+.admin-services-toolbar strong { font-size:18px; }
+.admin-services-toolbar small,.admin-service-card small { color:var(--admin-muted, #567b89); font-size:12px; line-height:1.5; }
+.admin-services-toolbar button { min-height:44px; flex-shrink:0; display:flex; gap:6px; align-items:center; border:1px solid var(--admin-line); border-radius:14px; background:var(--admin-surface-strong); color:var(--admin-accent); padding:0 12px; font:inherit; font-size:14px; font-weight:600; }
+.admin-services-toolbar button:disabled { opacity:.6; }
+.admin-services-note { margin:0; color:var(--admin-muted, #567b89); font-size:13px; line-height:1.6; }
+.admin-service-card { min-width:0; border:1px solid var(--admin-line); border-radius:22px; padding:16px; background:var(--admin-surface-strong); box-shadow:var(--admin-card-shadow); }
+.admin-service-card h2 { display:flex; gap:8px; align-items:center; font-size:17px; margin:0 0 12px; line-height:1.4; }
+.admin-service-card h3 { font-size:15px; margin:0; line-height:1.4; }
+.admin-service-card p { font-size:13px; line-height:1.6; margin:8px 0; }
+.admin-service-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; }
+.admin-provider + .admin-provider { border-top:1px solid var(--admin-divider); padding-top:16px; margin-top:16px; }
+.admin-provider > p { display:flex; align-items:center; gap:5px; }
+.admin-provider > p > svg { flex-shrink:0; }
+.admin-service-card code { overflow-wrap:anywhere; font-size:11px; font-family:ui-monospace,monospace; }
+.admin-service-badge { display:inline-flex; align-items:center; gap:5px; width:fit-content; max-width:100%; padding:4px 7px; border-radius:9px; color:#526573; background:#eaf0f3; font-size:11px; font-weight:600; line-height:1.5; }
+.admin-service-badge svg { flex-shrink:0; }
+.admin-service-badge[data-signal="success"] { color:#176848; background:#e2f2e9; }
+.admin-service-badge[data-signal="error"] { color:#9b3d3e; background:#fbe9e8; }
+.admin-service-balance { display:grid; gap:2px; margin:12px 0; }
+.admin-service-balance strong { font-size:28px; font-weight:650; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+.admin-service-balance strong small { margin-left:7px; font-size:14px; }
+.admin-service-balance > span { font-size:13px; }
+.admin-provider a { min-height:44px; display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--admin-accent); }
+.admin-service-feature { border-top:1px solid var(--admin-divider); }
+.admin-service-feature:first-of-type { margin-top:12px; }
+.admin-service-feature summary { position:relative; list-style:none; cursor:pointer; min-height:70px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding:12px 20px 12px 0; }
+.admin-service-disclosure { position:absolute; right:0; top:50%; margin-top:-7px; color:var(--admin-muted); }
+.admin-service-feature[open] .admin-service-disclosure { transform:rotate(180deg); }
+.admin-service-feature summary::-webkit-details-marker { display:none; }
+.admin-service-feature summary > span:first-child { display:grid; gap:4px; flex:1 1 130px; }
+.admin-service-feature summary strong { font-size:14px; line-height:1.5; }
+.admin-service-feature[open] summary { padding-bottom:4px; }
+.admin-service-details { padding:0 0 12px; }
+.admin-service-details ul { list-style:none; display:grid; gap:8px; padding:0; margin:8px 0 12px; }
+.admin-service-details li { display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; justify-content:space-between; }
+.admin-service-details li span { font-size:12px; color:var(--admin-muted); }
+.admin-food-activity dl { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:12px 0; }
+.admin-food-activity dt { color:var(--admin-muted); font-size:12px; }
+.admin-food-activity dd { font-size:23px; font-weight:600; margin:5px 0 0; }
+.admin-food-activity > small { display:block; margin-top:6px; }
+.admin-services-error { padding:12px; border-radius:14px; color:#8b393b; background:#fbe9e8; font-size:14px; line-height:1.5; }
+.admin-services-error small { display:block; margin-top:4px; }
+.admin-console-actions > button[data-admin-action="services"] { background:var(--admin-surface-alt); }
+.admin-console-actions > button > span.is-services { color:var(--admin-accent); background:color-mix(in srgb,var(--admin-accent) 12%,var(--admin-surface-strong)); }
+@media (max-width:350px) { .admin-service-card { padding:13px; } .admin-service-heading { align-items:flex-start; } }

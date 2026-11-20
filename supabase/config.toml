@@ -55,6 +55,9 @@ verify_jwt = false
 [functions.admin-notification-publish]
 verify_jwt = true
 
+[functions.admin-service-status]
+verify_jwt = true
+
 [functions.delete-account]
 verify_jwt = true
 

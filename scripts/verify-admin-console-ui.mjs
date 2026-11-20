@@ -47,7 +47,7 @@ async function prepare(context, skin = "glacier-mist") {
   if (page.viewportSize()?.width === 390 && page.viewportSize()?.height === 844) await page.screenshot({ path: path.join(outputDir, "admin-home-shortcut-390x844.png") });
   await adminShortcut.click();
   await expect(page.locator(".admin-console-screen")).toBeVisible();
-  await expect(page.locator(".admin-console-actions > button")).toHaveCount(3);
+  await expect(page.locator(".admin-console-actions > button")).toHaveCount(4);
   await expect(page.getByText("选择管理功能", { exact: true })).toHaveCount(0);
   return page;
 }

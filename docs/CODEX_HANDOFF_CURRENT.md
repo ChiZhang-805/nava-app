@@ -21,9 +21,11 @@ TestFlight 1.0.0(49) 签名归档任务 44778076216 使用同一源码，上传�
 Deno通过21项主测试/20个子步骤，相关8文件lint通过；合格的生成/抠图字节原样保留，
 仅不符合尺寸/位置的真实透明图进入标准化，随后仍需原严格PNG和语义QA。
 
-管理员「API 与服务」实现保存在 `codex/admin-service-status` 的 4cf7e23，独立工作树干净。
-Deno 2 套件、16 个步骤、生产构建和 4 个 WebKit 屏宽样本通过；合成样本截图位于
-`App-Checks/admin-service-status`。等待用户明确授权发布 `admin-service-status` Edge Function。
+管理员「API 与服务」的 `admin-service-status` 已获授权发布。北京时间 2026-11-21 01:21:32，
+Supabase 云端 v1 ACTIVE，部署源码 4cf7e23，JWT 校验开启。线上预检 200，缺失或无效 JWT
+均返回 401。Deno 2 项测试、16 个步骤通过，包括普通账号 403。生产构建和 4 个 WebKit 屏宽
+的合成样本已通过。证据位于 `App-Checks/admin-service-status`。前端已合入发布分支，现有
+TestFlight 49 不含此页。生产管理员余额待登录验证。
 
 ## 当前新增候选与已完成后台操作（2026-11-20）
 

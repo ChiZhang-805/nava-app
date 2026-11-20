@@ -201,13 +201,44 @@ ChatGPT Sites v178 和 GitHub Pages v178；公开核验只读取入口、来源�
 
 # 管理员权限、商品发布与通知群发（2026-09-27，当前）
 
+## API 与服务只读概况
+
+`admin-service-status` 已获授权部署至正式项目，v1 ACTIVE，部署源码为 `4cf7e23`。
+前端复用 `AdminConsole` 权限入口；Edge 开启 JWT 验证，并先通过 `requireUser` 与
+`nava_is_admin()` 双重验证，再读取配置、任务摘要和余额。无需数据库迁移，不修改
+模型、Secret、权限或用户记录，不发起付费模型探测。
+
+- DeepSeek 仅使用 `DEEPSEEK_API_KEY_NAVA` 调用官方
+  `GET https://api.deepseek.com/user/balance`。十进制金额原样保留，不把缺失当零；
+  401/403、402、429、5xx 分别显示凭证受限、额度不足、查询限流和暂不可查。
+  余额可用不代表各功能均已验证；明确账户拒绝会标记使用该 Key 的功能受限。
+- 配置按各真实入口的优先顺序展示变量名与是否设置，不返回 Key 本文、末位、指纹或
+  自定义 URL。食品生图的 canonical 旧名授权不自动扩展给饮食、面部、记录或聊天识图。
+- 食品结果仅以 service-role 读取过去 24 小时最近 50 条终态的
+  `state,last_error_code,updated_at`，返回计数和固定错误类别；不读取/返回健康输入、
+  照片、对象路径、用户 ID、任务 capability。近 1 小时真实成功为绿，近期失败为红，
+  缺结果、过期、需补充内容和查询失败为灰。其他功能没有观测记录时保持未验证。
+- 阿里云账户余额、百炼模型额度和 Aidge 额度暂未接入。页面提供官方控制台链接；
+  不擅自用现有 RAM Key 查询账单或新增权限。将来接入 BSS 必须单独核对
+  `QueryAccountBalance` 权限和账户归属，不能把现金余额称为模型 Token 配额。
+- 响应 `Cache-Control: no-store`，HTTP 错误只返回固定码。前端手动刷新防并发、
+  离页取消等待；权限失效清除旧结果，普通查询失败明确保留的是上次结果。
+
+本地验收：`deno test supabase/functions/tests/admin-service-status.test.ts
+supabase/functions/tests/admin-service-endpoint.test.ts` 与
+`node --experimental-strip-types scripts/verify-admin-service-status-ui.mjs`。
+浏览器验收使用合成账号和余额。生产预检返回 200，缺失 JWT 和无效 JWT 均返回 401。
+普通账号 403 和管理员只读访问通过本地测试，生产管理员余额尚待实际登录验证。
+部署证据位于 `Build/TestRuns/App-Checks/admin-service-status/deployment.json`。
+管理员页面源码已合入，需后续客户端版本才能打开。
+
 管理员身份现在由 canonical Supabase 的 `nava_user_roles` 服务端表决定，不读取前端参数、
 邮箱白名单或可由用户修改的 profile 字段。迁移 `202609260001_admin_console.sql` 已应用：
 迁移当时现有的2个开发账号均设为 `admin`；之后新注册账号由 `auth.users` 触发器默认写入
 `member`，不会自动获得管理权限。`nava_is_admin()`、商品写 RPC 和通知发布 RPC 均为
 锁定 `search_path` 的 `SECURITY DEFINER`，普通账号即使直接调用接口也会被拒绝。
 
-管理员端当前有三项服务端能力：
+管理员端原有的三项管理操作：
 
 - `nava_admin_save_reward_product` 校验 slug、名称、积分价格、库存、最多6张 HTTPS 图片及
   上架状态；普通商城读取仍只能看到 `published=true`。商品图片上传到公开只读的

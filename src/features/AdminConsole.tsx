@@ -1,11 +1,12 @@
 import type { User } from "@supabase/supabase-js";
 import {
-  ArrowLeft, BellRing, Boxes, Check, ChevronRight, History, Home,
+  Activity, ArrowLeft, BellRing, Boxes, Check, ChevronRight, History, Home,
   ImagePlus, LoaderCircle, PackageCheck, Pencil, Search, Send, ShieldCheck, Store,
   Trash2, UsersRound, X,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import AdminProductEditor from "./AdminProductEditor";
+import AdminServiceStatus from "./AdminServiceStatus";
 import MoreMenu from "../components/MoreMenu";
 import { useLocale } from "../i18n";
 import {
@@ -16,7 +17,7 @@ import {
 import type { NavaNotificationCategory, NavaNotificationTarget } from "../services/notifications";
 import "./admin-console.css";
 
-type AdminPage = "overview" | "products" | "notifications" | "roles" | "recent" | "editor";
+type AdminPage = "overview" | "products" | "notifications" | "roles" | "recent" | "editor" | "services";
 
 const emptyProduct = (): AdminProductDraft => ({
   slug: "", name: "", nameEn: "", brand: "", brandEn: "", description: "", descriptionEn: "",
@@ -90,6 +91,7 @@ export default function AdminConsole({ user, onHome }: { user: User; onHome: () 
     overview: zh ? "管理员端" : "Admin console", products: zh ? "商品管理" : "Products",
     notifications: zh ? "发布通知" : "Publish notice", roles: zh ? "管理员权限" : "Administrator access",
     recent: zh ? "最近发布" : "Recent releases",
+    services: zh ? "API 与服务" : "API & services",
     editor: product.id ? (zh ? "编辑商品" : "Edit product") : (zh ? "发布商品" : "New product"),
   }[page];
 
@@ -240,9 +242,11 @@ export default function AdminConsole({ user, onHome }: { user: User; onHome: () 
         <button type="button" data-admin-action="products" aria-label={zh ? "商品管理" : "Product management"} onClick={() => openPage("products")}><span className="is-products"><Store /></span><div><strong>{zh ? "商品管理" : "Product management"}</strong><small>{zh ? "发布和维护积分商城商品" : "Publish and maintain shop products"}</small></div><ChevronRight /></button>
         <button type="button" data-admin-action="notices" aria-label={zh ? "发布通知" : "Publish notices"} onClick={() => openPage("notifications")}><span className="is-notices"><BellRing /></span><div><strong>{zh ? "发布通知" : "Publish notices"}</strong><small>{zh ? "发送通知并自动启用可用推送" : "Send notices with available push delivery"}</small></div><ChevronRight /></button>
         <button type="button" data-admin-action="roles" aria-label={zh ? "管理员权限" : "Administrator access"} onClick={() => openPage("roles")}><span className="is-roles"><UsersRound /></span><div><strong>{zh ? "管理员权限" : "Administrator access"}</strong><small>{zh ? "按邮箱或手机号管理身份" : "Manage access by email or phone"}</small></div><ChevronRight /></button>
+        <button type="button" data-admin-action="services" onClick={() => openPage("services")}><span className="is-services"><Activity /></span><div><strong>{zh ? "API 与服务" : "API & services"}</strong><small>{zh ? "查看配置、余额和功能结果" : "Configuration, balance and recent results"}</small></div><ChevronRight /></button>
       </div>
     </div>}
 
+    {page === "services" && <AdminServiceStatus />}
     {page === "products" && <div className="admin-console-content">
       <div className="admin-console-intro"><span><Boxes size={21} /></span><div><strong>{zh ? "积分商城商品" : "Points shop products"}</strong><small>{zh ? `${products.length} 件商品` : `${products.length} products`}</small></div><button type="button" onClick={() => editProduct()}><ImagePlus size={17} />{zh ? "发布商品" : "New product"}</button></div>
       <div className="admin-product-list">{products.length === 0 && <div className="admin-empty"><PackageCheck size={34} /><strong>{zh ? "还没有商品" : "No products yet"}</strong></div>}{products.map((item) => {
