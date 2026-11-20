@@ -96,3 +96,35 @@ Use case: stylized-concept. Create ONE original production app icon for NAVA's h
 
 Actual-size header preview: `NAVA-App/Build/TestRuns/App-Checks/health-report-icons/rhythm-24px-28px.png`.
 
+## All categories and energy illustrations
+
+Added two distinct concepts with the same built-in generation workflow and transparent alpha:
+
+| File | Meaning | Selected original source |
+| --- | --- | --- |
+| all.png / all.webp | All categories: a small organizer containing a sun, crescent and leafy sprig | exec-917ab11d-7d4c-48ef-8dcc-28c7c67ca784.png |
+| energy.png / energy.webp | Energy: warm amber battery with a broad cream lightning emblem | exec-bb154da1-f5f0-4194-8230-ca469eb8c91e.png |
+
+These do not reuse the rhythm clock or the diet bowl. Each PNG is an unchanged copy of the selected original; production WebPs are 384 × 384, derived with the Sharp configuration above. The two WebPs total 43,462 bytes (all: 24,580; energy: 18,882). All resized alpha values are preserved exactly during encoding.
+
+Each initial generation used the common prefix above followed by:
+
+### all
+
+```text
+Subject: one small open glacier-blue tabletop organizer box with three broad rounded compartments, shown almost front-on and slightly from above. Nestled closely inside it are three bold little category objects: a small warm peach smiling sun at the left, a plump lavender crescent moon in the middle, and a single mint-green leafy sprig at the right. These three recognizable objects are large, simple and visually unified by the one short rounded organizer box. This should read as a friendly collection of everything, not a timer, not one single category. No hinges, dividers with fine lines, handles with thin details, labels or writing. The whole coherent object fills at least 80% of the canvas and reads clearly at 64 CSS pixels. Keep all objects large enough to distinguish; avoid a pile of tiny scattered objects.
+```
+
+### energy
+
+```text
+Subject: one plump miniature warm amber-gold battery with softly rounded corners and one thick short top terminal, standing almost upright with a gentle playful tilt. The softly dimensional amber body has one large clear pale-cream lightning-bolt emblem on its front, made of broad rounded forms. This is stored energy, not food: no meal bowl, no leaves, no fire, no smiling face. No letters, numbers, plus or minus labels, charge segments, text or brand markings. The whole battery fills at least 80% of the canvas and reads very clearly at 64 CSS pixels. Keep a clean chunky silhouette with warm amber shading and a subtle glacier-blue lower edge accent to match NAVA.
+```
+
+The first energy candidate (`exec-79e154a6-69fc-41e7-a20e-006bc95e87bd.png`) had an unwanted exterior glow and was not included in the application. It was corrected using the built-in image editor with that candidate as its only reference and `transparent_background: true`:
+
+```text
+Edit this single original amber battery illustration. Preserve the battery shape, broad cream lightning emblem, internal watercolor-gouache shading, soft volume, amber colors and subtle blue lower edge. Remove ONLY all light beams, white glow, blurry exterior haze, outer shadows and aura outside the physical battery silhouette, especially the white glow above its top terminal. Give the battery a clean anti-aliased contour with genuinely fully transparent alpha immediately outside it. The entire physical battery including terminal must sit centered within the square canvas with about 8% clear transparent margin on every side; it must not touch or clip the image edges. No background color, no white backdrop, no tile, no shadow floor. Keep it legible at 64 CSS pixels and consistent with a softly rounded hand-painted NAVA toy icon.
+```
+
+Actual 64/24 px comparison with rhythm and diet: `NAVA-App/Build/TestRuns/App-Checks/health-report-icons/all-energy-rhythm-diet-webp-64px-and-24px.png`.
