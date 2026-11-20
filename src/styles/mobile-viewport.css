@@ -248,7 +248,10 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-so
   box-shadow: none;
   backdrop-filter: none;
 }
-@container auth-form-space (max-height: 310px) {
+/* Switch before the current density's complete stack can overflow: 322px
+   for 44px controls, 268px for 36px, 240px for 32px, 197px for 28px.
+   Include one pixel for fractional native safe-area/container rounding. */
+@container auth-form-space (max-height: 323px) {
   html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) {
     --auth-control: 36px;
     --auth-label: 16px;
@@ -268,7 +271,7 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-so
     --auth-message: 16px;
   }
 }
-@container auth-form-space (max-height: 215px) {
+@container auth-form-space (max-height: 241px) {
   html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form--signIn:has(.auth-social) {
     --auth-control: 28px;
     --auth-label-gap: 0px;

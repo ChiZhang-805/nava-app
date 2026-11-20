@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { chromium, webkit } from '@playwright/test';
 import { createServer } from 'vite';
 import assert from 'node:assert/strict';
@@ -10,11 +10,89 @@ await mkdir(output, { recursive: true });
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent' });
 await server.listen();
 const report = [];
+const viewportStyles = await readFile(new URL('../src/styles/mobile-viewport.css', import.meta.url), 'utf8');
+
+async function verifyDensityBoundaries(browser, engine) {
+  // Desktop engines report a zero safe area. Reproduce native inset geometry
+  // explicitly and measure the original DOM bounds, not a clipped AX frame.
+  for (const { width, height, safeTop, visibleHeights } of [
+    { width: 375, height: 667, safeTop: 20, visibleHeights: [314, 323, 334, 339, 350, 377, 390, 420, 450, 460] },
+    { width: 430, height: 932, safeTop: 59, visibleHeights: [440, 470, 502, 540, 573] },
+  ]) {
+    const context = await browser.newContext({ viewport: { width, height }, isMobile: true, hasTouch: true });
+    try {
+      await context.route('**/*.supabase.co/**', route => route.fulfill({ json: [] }));
+      await context.addInitScript(() => {
+        const vv = window.visualViewport;
+        let keyboardHeight;
+        const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(vv), 'height');
+        Object.defineProperty(vv, 'height', { get: () => keyboardHeight ?? descriptor.get.call(vv) });
+        window.authTestKeyboard = value => { keyboardHeight = value; vv.dispatchEvent(new Event('resize')); };
+      });
+      const page = await context.newPage();
+      await page.goto(server.resolvedUrls.local[0], { waitUntil: 'domcontentloaded' });
+      await page.locator('.auth-screen').waitFor();
+      await page.addStyleTag({ content: viewportStyles.replaceAll('env(safe-area-inset-top)', `${safeTop}px`) });
+      for (const language of ['zh', 'en']) {
+        if (language === 'en') await page.locator('.auth-locale').click();
+        await page.locator('.auth-social-button--wechat').click();
+        await page.locator('.auth-feedback-slot .error-text').waitFor();
+        for (const visible of visibleHeights) {
+          await page.locator('.auth-fields input').first().evaluate(input => input.focus({ preventScroll: true }));
+          await page.evaluate(value => window.authTestKeyboard(value), visible);
+          await page.waitForFunction(value => document.documentElement.dataset.keyboardOpen === 'true'
+            && Math.abs(parseFloat(document.documentElement.style.getPropertyValue('--nava-visible-height')) - value) < 1, visible);
+          await page.waitForTimeout(100);
+          const geometry = await page.evaluate(() => {
+            const region = document.querySelector('.auth-form-region');
+            const regionRect = region.getBoundingClientRect();
+            const form = document.querySelector('.auth-form');
+            const buttons = [...document.querySelectorAll('.auth-social-button')].map(button => {
+              const box = button.getBoundingClientRect();
+              let top = box.top, bottom = box.bottom, left = box.left, right = box.right;
+              for (let ancestor = button.parentElement; ancestor; ancestor = ancestor.parentElement) {
+                const style = getComputedStyle(ancestor);
+                const clip = ancestor.getBoundingClientRect();
+                if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) {
+                  top = Math.max(top, clip.top + ancestor.clientTop);
+                  bottom = Math.min(bottom, clip.top + ancestor.clientTop + ancestor.clientHeight);
+                }
+                if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) {
+                  left = Math.max(left, clip.left + ancestor.clientLeft);
+                  right = Math.min(right, clip.left + ancestor.clientLeft + ancestor.clientWidth);
+                }
+              }
+              return { label: button.textContent, height: box.height, bottom: box.bottom,
+                clippedY: box.height - Math.max(0, bottom - top), clippedX: box.width - Math.max(0, right - left) };
+            });
+            return { regionHeight: regionRect.height, regionBottom: regionRect.bottom,
+              scrollHeight: region.scrollHeight, clientHeight: region.clientHeight, scrollTop: region.scrollTop,
+              formHeight: form.getBoundingClientRect().height, buttons };
+          });
+          const state = { engine, width, height, safeTop, language, visible, geometry };
+          report.push(state);
+          assert(geometry.scrollHeight <= geometry.clientHeight + 1, `Login density overflow: ${JSON.stringify(state)}`);
+          assert.equal(geometry.scrollTop, 0, 'The login form must fit without scrolling');
+          for (const button of geometry.buttons) {
+            assert(button.height >= 28 && button.clippedY <= 1 && button.clippedX <= 1,
+              `Shortcut is only partially visible: ${JSON.stringify(state)}`);
+            assert(button.bottom <= geometry.regionBottom + 1 && button.bottom <= visible, 'Shortcut exceeds visible region');
+          }
+          if (visible === 339) await page.screenshot({ path: `${output}/${engine}-${width}-safe-${safeTop}-${language}-density.png` });
+        }
+        await page.evaluate(() => { document.activeElement.blur(); window.authTestKeyboard(undefined); });
+        await page.waitForFunction(() => !document.documentElement.dataset.keyboardOpen);
+      }
+    } finally { await context.close(); }
+  }
+}
 try {
   for (const [engine, launcher] of Object.entries({ chromium, webkit })) {
     if (process.env.NAVA_AUTH_ENGINE && process.env.NAVA_AUTH_ENGINE !== engine) continue;
     const browser = await launcher.launch();
     try {
+      await verifyDensityBoundaries(browser, engine);
+      if (process.env.NAVA_AUTH_DENSITY_ONLY) continue;
       for (const [width, height] of [[320,568],[375,667],[360,740],[375,812],[390,844],[402,874],[430,932]]) {
         if (process.env.NAVA_AUTH_WIDTH && width !== Number(process.env.NAVA_AUTH_WIDTH)) continue;
         const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, locale: 'zh-CN' });
