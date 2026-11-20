@@ -62,10 +62,11 @@ async function main() {
 
       for (const module of modules) {
         await page.goto(`${baseUrl}?demo=1#tab=record&module=${module.route}`, { waitUntil: "networkidle" });
-        await expect(page.locator(".journal-experience iframe")).toBeVisible({ timeout: 10_000 });
+        const iframe = `.journal-experience:not(.is-staged) iframe[src$="category=${module.category}"]`;
+        await expect(page.locator(iframe)).toBeVisible({ timeout: 10_000 });
         await expect(page.locator(".journal-loading")).toBeHidden({ timeout: 10_000 });
         await expect(page.locator('.journal-loading[role="alert"]')).toHaveCount(0);
-        const journal = page.frameLocator(".journal-experience iframe");
+        const journal = page.frameLocator(iframe);
         await expect(journal.locator('#screen[data-scene="entry"]')).toBeVisible({ timeout: 10_000 });
         await expect(journal.locator("#entry-form")).toHaveAttribute("data-category", module.category);
         await expect(journal.locator("#entry-heading h1")).not.toHaveText("");
@@ -75,8 +76,8 @@ async function main() {
         const outer = await page.evaluate(() => {
           const frame = document.querySelector(".phone-frame");
           const content = document.querySelector(".app-content");
-          const journal = document.querySelector(".journal-experience");
-          const iframe = document.querySelector(".journal-experience iframe");
+          const journal = document.querySelector(".journal-experience:not(.is-staged)");
+          const iframe = journal?.querySelector("iframe");
           const box = (node) => node ? ({ top: node.getBoundingClientRect().top, right: node.getBoundingClientRect().right, bottom: node.getBoundingClientRect().bottom, left: node.getBoundingClientRect().left, width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height }) : null;
           return {
             documentOverflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,

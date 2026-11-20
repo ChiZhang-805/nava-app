@@ -113,12 +113,12 @@ try {
           await shortcut.scrollIntoViewIfNeeded();
           await shortcut.click();
           await expect(page).toHaveURL(new RegExp(`[#&]module=${module}(?:&|$)`));
-          const journalFrame = page.frameLocator(".journal-experience iframe");
+          const journalFrame = page.frameLocator(".journal-experience:not(.is-staged) iframe");
           await expect(journalFrame.locator("#cold-guide")).toBeVisible({ timeout: 30_000 });
           await expect(journalFrame.locator(".cold-guide-target")).toHaveCount(1);
           receipt.results.push({ viewport, state: `guide-${module}` });
         }
-        const replayFrame = page.frameLocator(".journal-experience iframe");
+        const replayFrame = page.frameLocator(".journal-experience:not(.is-staged) iframe");
         await replayFrame.locator("body").evaluate((node) => { node.dataset.replayMarker = "old"; });
         const focusShortcut = rail.locator('[data-preview-guide="focus"]');
         await focusShortcut.scrollIntoViewIfNeeded();

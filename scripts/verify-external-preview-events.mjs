@@ -42,10 +42,11 @@ try {
         await page.goto(`http://127.0.0.1:5219/?demo=1#tab=record&module=${module}`, { waitUntil: "domcontentloaded" });
         const launch = page.locator(".launch-sequence");
         if (await launch.isVisible().catch(() => false)) await launch.click();
-        await expect(page.locator(".journal-experience iframe")).toBeVisible();
+        const iframe = `.journal-experience:not(.is-staged) iframe[src$="category=${module}"]`;
+        await expect(page.locator(iframe)).toBeVisible({ timeout: 20_000 });
         await expect(page.locator(".journal-loading")).toHaveCount(0, { timeout: 20_000 });
         await expect(page.locator(".journal-loading.is-error")).toHaveCount(0);
-        return page.frameLocator(".journal-experience iframe");
+        return page.frameLocator(iframe);
       };
       const desktop = viewport.width > 700;
       const trigger = async reason => {
@@ -84,8 +85,9 @@ try {
         return settings["fluffy-active-focus-v1"]?.timer?.state ?? null;
       })).toBe("running");
       await page.goto("http://127.0.0.1:5219/?demo=1#tab=today", { waitUntil: "domcontentloaded" });
+      await expect(page.locator(".option-two-home")).toBeVisible();
       await open("focus");
-      const restored = page.frameLocator(".journal-experience iframe");
+      const restored = page.frameLocator(".journal-experience:not(.is-staged) iframe");
       await expect(restored.locator("#focus-page")).toBeVisible();
       await expect(restored.locator("#timer-pause")).toHaveAttribute("aria-label", "继续");
 

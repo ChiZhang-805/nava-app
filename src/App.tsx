@@ -110,7 +110,7 @@ function shellRouteHash(route: ShellRoute) {
   return `#${query.toString()}`;
 }
 
-type RecordNavigation = { route: ShellRoute; history: "push" | "replace" | "restore" };
+type RecordNavigation = { route: ShellRoute; history: "push" | "replace" | "restore"; guidePreviewId: number | null };
 
 function LoadingScreen() {
   return <LoadingShell />;
@@ -160,7 +160,7 @@ function MobileShell({
   const visibleRouteRef = useRef(visibleRoute);
   const pendingRecordRef = useRef<RecordNavigation | null>(null);
   const [stagedRecord, setStagedRecord] = useState<RecordNavigation | null>(null);
-  const [activeGuidePreview, setActiveGuidePreview] = useState<{ id: number; module: RecordModule } | null>(null);
+  const [activeGuidePreviewId, setActiveGuidePreviewId] = useState<number | null>(null);
   const [utilityOpen, setUtilityOpen] = useState(false);
   const [appSkin, setAppSkin] = useState<AppSkin>(() => readAppSkin(user?.id));
   const [linkShareOpen, setLinkShareOpen] = useState(false);
@@ -333,9 +333,10 @@ function MobileShell({
     void completeGrowthActivity("checkin");
   }, [completeGrowthActivity, user, deviceDate]);
 
-  const commitRoute = useCallback((next: ShellRoute, history: RecordNavigation["history"]) => {
+  const commitRoute = useCallback((next: ShellRoute, history: RecordNavigation["history"], guidePreviewId: number | null = null) => {
     visibleRouteRef.current = next;
     setVisibleRoute(next);
+    setActiveGuidePreviewId(guidePreviewId);
     if (history === "restore") return;
     const url = `${window.location.pathname}${window.location.search}${shellRouteHash(next)}`;
     const currentState = window.history.state;
@@ -356,16 +357,16 @@ function MobileShell({
     setStagedRecord(null);
   }, []);
 
-  const openRoute = useCallback((route: ShellRoute, history: RecordNavigation["history"]) => {
+  const openRoute = useCallback((route: ShellRoute, history: RecordNavigation["history"], guidePreviewId: number | null = null) => {
     const pending = pendingRecordRef.current;
-    if (pending && shellRoutesEqual(pending.route, route) && pending.history === history) return;
-    if (route.tab !== "record" || forcePageSkeleton || shellRoutesEqual(visibleRouteRef.current, route)) {
+    if (pending && shellRoutesEqual(pending.route, route) && pending.history === history && pending.guidePreviewId === guidePreviewId) return;
+    if (route.tab !== "record" || forcePageSkeleton || (guidePreviewId === null && shellRoutesEqual(visibleRouteRef.current, route))) {
       cancelRecordNavigation();
       commitRoute(route, history);
       return;
     }
 
-    const request = { route, history };
+    const request = { route, history, guidePreviewId };
     pendingRecordRef.current = request;
     setStagedRecord(null);
     const loadPage = route.module ? loadJournalExperience : loadRecordsScreen;
@@ -385,22 +386,14 @@ function MobileShell({
   const finishRecordNavigation = (request: RecordNavigation) => {
     if (pendingRecordRef.current !== request) return;
     cancelRecordNavigation();
-    commitRoute(request.route, request.history);
+    commitRoute(request.route, request.history, request.guidePreviewId);
   };
 
   useEffect(() => {
     if (!guidePreviewRequest) return;
-    setActiveGuidePreview(guidePreviewRequest);
     onGuidePreviewConsumed();
-    navigate("record", guidePreviewRequest.module, "guide");
-  }, [guidePreviewRequest, navigate, onGuidePreviewConsumed]);
-
-  useEffect(() => {
-    if (!activeGuidePreview) return;
-    const guide = normalizeShellRoute("record", activeGuidePreview.module, "guide");
-    const pending = pendingRecordRef.current;
-    if (!shellRoutesEqual(visibleRoute, guide) && !(pending && shellRoutesEqual(pending.route, guide))) setActiveGuidePreview(null);
-  }, [activeGuidePreview, visibleRoute]);
+    openRoute(normalizeShellRoute("record", guidePreviewRequest.module, "guide"), "push", guidePreviewRequest.id);
+  }, [guidePreviewRequest, onGuidePreviewConsumed, openRoute]);
 
   const openTodoFocus = (todo: TodoItem) => {
     if (!user) return;
@@ -712,8 +705,9 @@ function MobileShell({
   const recordHubOpen = activeTab === "record" && !recordModule;
   const stagedHub = stagedRecord && !stagedRecord.route.module ? stagedRecord : null;
   const stagedJournal = stagedRecord && stagedRecord.route.module ? stagedRecord : null;
-  const journalRoutes = journalOpen ? [visibleRoute] : [];
-  if (stagedJournal) journalRoutes.push(stagedJournal.route);
+  const journalRoutes: { route: ShellRoute; guidePreviewId: number | null; request: RecordNavigation | null }[] = [];
+  if (journalOpen) journalRoutes.push({ route: visibleRoute, guidePreviewId: activeGuidePreviewId, request: null });
+  if (stagedJournal) journalRoutes.push({ route: stagedJournal.route, guidePreviewId: stagedJournal.guidePreviewId, request: stagedJournal });
   const hideBottomNavigation = activeTab === "ai" || focusImmersive || todayFullSubpage || journalOpen || profileSubpage;
   const integratedPage = integratedShellPage(activeTab, recordModule, recordView);
 
@@ -892,22 +886,20 @@ function MobileShell({
         </div>
       </main>
 
-      {!forcePageSkeleton && journalRoutes.map((route) => {
+      {!forcePageSkeleton && journalRoutes.map(({ route, guidePreviewId, request }) => {
         const module = route.module!;
-        const request = route === stagedJournal?.route ? stagedJournal : null;
-        const guidePreview = route.view === "guide" && activeGuidePreview?.module === module;
-        return <Suspense key={`${shellRouteHash(route)}:${guidePreview ? activeGuidePreview.id : ""}`} fallback={null}>
+        return <Suspense key={`${shellRouteHash(route)}:${guidePreviewId ?? ""}`} fallback={null}>
           <JournalExperience
             user={user}
             module={module}
             locale={locale}
             skin={appSkin}
             forceGuide={route.view === "guide"}
-            guidePreview={guidePreview}
+            guidePreview={guidePreviewId !== null}
             staged={Boolean(request)}
             onInitialLoad={request ? () => finishRecordNavigation(request) : undefined}
             onSaved={markJournalChanged}
-            onExit={() => { setActiveGuidePreview(null); navigateBack(normalizeShellRoute("record", null, null)); }}
+            onExit={() => navigateBack(normalizeShellRoute("record", null, null))}
           />
         </Suspense>;
       })}
