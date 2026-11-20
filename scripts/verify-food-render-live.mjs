@@ -82,6 +82,12 @@ try {
       // Identity was returned by this run's create call; confirm before deletion.
       const check = await admin.auth.admin.getUserById(userId);
       if (check.error || check.data.user.email !== email) throw new Error('Synthetic identity check failed.');
+      const pending = await admin.from('food_render_jobs').select('id').eq('user_id', userId).eq('state', 'processing');
+      const revoked = await admin.from('profiles').update({ ai_personalization_consent: false }).eq('id', userId);
+      if (pending.error || revoked.error) throw new Error('Synthetic job cancellation failed.');
+      // Invalidate capabilities, then let an in-flight bounded worker discard its
+      // candidate before removing the account. Normal terminal tests do not wait.
+      if (pending.data.length) await new Promise(resolve => setTimeout(resolve, 145_000));
       await removeOwned('diet-photos', userId); await removeOwned('diet-renders', userId);
       const removed = await admin.auth.admin.deleteUser(userId);
       if (removed.error) throw new Error('Synthetic account cleanup failed.');
