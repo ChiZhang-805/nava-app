@@ -117,7 +117,7 @@ __fluffyModules["animation.js"] = (() => {
             this.rows = populatedRows(record.displayRows || displayRows(record));
             // 阶段一：采用自然纸长，不用字号收缩换取“全部塞在三行里”。
             this.lines = this.rows.map(row => makeHandwriting(String(row.value), PAPER.inkWidth, Infinity));
-            this.paperLayout = Notebook.createLayout(this.lines);
+            this.paperLayout = Notebook.createLayout(this.lines, this.paperViewportHeight());
             this.paperTimeline = Notebook.createTimeline(this.paperLayout, this.lines);
             this.schedule = this.paperTimeline.schedule;
             this.writeEnd = this.paperTimeline.writeEnd;
@@ -253,6 +253,15 @@ __fluffyModules["animation.js"] = (() => {
          */
         synchronizeNotebook() {
             if (!this.notebook) return;
+            if(this.scene==="record" && this.paperLayout) {
+                const height=this.paperViewportHeight();
+                if(height!==this.paperLayout.viewportHeight) {
+                    this.paperLayout=Notebook.createLayout(this.lines,height);
+                    this.notebookSpacer.style.height=`${this.paperLayout.contentHeight}px`;
+                    this.notebook.scrollTop=Notebook.clamp(this.notebook.scrollTop,0,this.paperLayout.maxScroll);
+                }
+                this.notebook.style.height=`${height}px`;
+            }
             const reading = this.scene === "record" && this.time >= this.paperReturnEnd;
             if (reading !== this.readingPaper) {
                 // 阶段一：只在书写/阅读边界重置一次，之后每帧保留手动滚动。
@@ -267,6 +276,9 @@ __fluffyModules["animation.js"] = (() => {
             const en = __fluffyModules["entry-i18n.js"]?.language() === "en";
             this.notebook.setAttribute("aria-label", en ? "Written record" : "写好的记录");
             this.notebook.dataset.scrollable = String(this.paperLayout.maxScroll > 0);
+        }
+        paperViewportHeight() {
+            return Notebook.clamp(parseFloat(document.documentElement.style.getPropertyValue('--record-paper-height')) || 290,80,290);
         }
         /**
          * 输入：原生 scroll 事件（不需要读取事件参数）。
@@ -326,10 +338,11 @@ __fluffyModules["animation.js"] = (() => {
             this.metrics.paperScroll = this.paperScroll;
             this.metrics.paperMaxScroll = layout.maxScroll;
             this.metrics.paperPeriod = layout.period;
-            this.metrics.paperClip = [PAPER.clipTop, PAPER.clipBottom];
+            const clipBottom=PAPER.clipTop+layout.viewportHeight;
+            this.metrics.paperClip = [PAPER.clipTop, clipBottom];
             ctx.save();
             // 阶段一：几何裁切与透明原生滚动区一致，猫和卡片框不会被卷入滚动。
-            ctx.beginPath(); ctx.roundRect(21, 415, 351, 302, 44); ctx.clip();
+            ctx.beginPath(); ctx.roundRect(21, 415, 351, layout.viewportHeight+12, 44); ctx.clip();
             ctx.beginPath(); ctx.rect(PAPER.left, PAPER.clipTop, PAPER.width, layout.viewportHeight); ctx.clip();
             // 阶段二：书写绘制必要副本；阅读positions只返回一次，绝不会首尾取模。
             for (let i = 0; i < this.rows.length; i++) {
@@ -340,14 +353,14 @@ __fluffyModules["animation.js"] = (() => {
                     const y = position.y;
                     const sticky = !reading && position.canonical ? this.continuationTitle(i, time, offset) : null;
                     const labelY = sticky ?? y + PAPER.labelOffset;
-                    if (y + field.lastRule + 2 < PAPER.clipTop || Math.min(labelY - PAPER.labelAscent, y) > PAPER.clipBottom) continue;
+                    if (y + field.lastRule + 2 < PAPER.clipTop || Math.min(labelY - PAPER.labelAscent, y) > clipBottom) continue;
                     ctx.fillStyle = "#748caf";
                     ctx.font = '600 15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
                     ctx.fillText(this.rows[i].label, PAPER.inkX, labelY);
                     ctx.save();
                     // 多行续写时，上方已写的行离开可视区，不穿过仍在笔尖上方的字段标题。
                     if (sticky !== null && labelY > PAPER.clipTop - 20) {
-                        ctx.beginPath(); ctx.rect(PAPER.left, labelY + 10, PAPER.width, Math.max(0, PAPER.clipBottom - labelY - 10)); ctx.clip();
+                        ctx.beginPath(); ctx.rect(PAPER.left, labelY + 10, PAPER.width, Math.max(0, clipBottom - labelY - 10)); ctx.clip();
                     }
                     ctx.strokeStyle = "#dce5ee"; ctx.lineWidth = 1.25;
                     for (const rule of line.ruleOffsets) {

@@ -12,6 +12,12 @@ body.cold-guiding-root .phone-wrap::before{position:fixed;inset:0;width:100vw;he
 .phone-wrap{z-index:1;margin-top:var(--journal-safe-offset,0px);margin-bottom:var(--journal-safe-tail,0px);width:calc(393px * var(--design-scale));height:calc(852px * var(--design-scale));filter:none;flex:none}
 .phone{width:393px;height:852px;padding:0;border:0;border-radius:0;background:none;box-shadow:none}
 .screen{border-radius:0;background:transparent}
+/* Writing has a fixed cat anchor and a bounded paper window, not a tall poster. */
+.phone-wrap:has(.screen[data-scene="record"]){height:calc(var(--journal-visible-height) - var(--journal-safe-offset,0px) - var(--journal-safe-tail,0px))}
+.phone:has(.screen[data-scene="record"]){height:calc((var(--journal-visible-height) - var(--journal-safe-offset,0px) - var(--journal-safe-tail,0px))/var(--design-scale))}
+.screen[data-scene="record"]{height:100%}
+body:has(.screen[data-scene="record"]) .stage{overflow:hidden}
+.screen[data-scene="record"] #primary{top:var(--record-action-top,744px)}
 .screen[data-scene="focus"]{background:#eaf7fb url("../assets/focus-ambient-gradient-v1.png") center/cover no-repeat}
 .screen[data-scene="focus"]>.cream-bg,.screen[data-scene="focus"]>.green-bg{opacity:0!important}
 /* The running timer uses the available viewport; it is not a scaled 393 × 852 poster. */

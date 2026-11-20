@@ -26,6 +26,13 @@ export function installJournalLayout(api){
   root.style.setProperty('--journal-visible-height',`${height}px`);
   root.style.setProperty('--journal-safe-top',`${Math.max(0,viewport.safeTop||0)}px`);
   root.style.setProperty('--journal-safe-bottom',`${Math.max(0,viewport.safeBottom||0)}px`);
+  // Keep the writing cat and paper top anchored. Short screens shorten only
+  // the paper's reading window, leaving Continue above the home indicator.
+  const sceneHeight=(height-layout.top-layout.bottom)/layout.scale;
+  const actionTail=Math.max(44,((viewport.safeBottom||0)-layout.bottom+12)/layout.scale);
+  const recordActionTop=Math.min(744,sceneHeight-actionTail-64);
+  root.style.setProperty('--record-action-top',`${recordActionTop}px`);
+  root.style.setProperty('--record-paper-height',`${Math.max(80,Math.min(290,recordActionTop-16-414-14))}px`);
   root.dataset.journalScroll=String(layout.scroll);
   return layout;
  };

@@ -2225,7 +2225,7 @@ __fluffyModules["app.js"] = (() => {
         $("record-card").style.top = `${M.mix(368, 414, p)}px`;
         $("record-card").style.left = `${M.mix(23, 20, p)}px`;
         $("record-card").style.width = `${M.mix(347, 353, p)}px`;
-        $("record-card").style.height = `${M.mix(344, 304, p)}px`;
+        $("record-card").style.height = `${M.mix(344, record ? a.paperViewportHeight()+14 : 304, p)}px`;
         $("record-card").style.borderRadius = `${M.mix(29, 45, p)}px`;
         $("record-heading").hidden = !record;
         $("record-heading").style.opacity = record ? M.range(a.time, .45, 1.5) : 0;

@@ -24,7 +24,7 @@ __fluffyModules["notebook-layout.js"] = (() => {
      * 输出：字段起点、循环总长、有限阅读高度和最大滚动量。
      * 功能：下一标题只由上一项最后一条横线定位，固定保留 30px 的字段间留白。
      */
-    function createLayout(lines) {
+    function createLayout(lines, visibleHeight = PAPER.clipBottom - PAPER.clipTop) {
         if (!Array.isArray(lines) || !lines.length) throw new Error("A notebook needs at least one field.");
         let top = 0;
         // 阶段一：按实际最后一条书写线逐项累积，不再假定三项或固定90px。
@@ -37,7 +37,7 @@ __fluffyModules["notebook-layout.js"] = (() => {
             return field;
         });
         // 阶段二：阅读只含一份数据，末行线下面留20px，不加虚构的整圈尾部。
-        const last = fields.at(-1), viewportHeight = PAPER.clipBottom - PAPER.clipTop;
+        const last = fields.at(-1), viewportHeight = clamp(visibleHeight,80,PAPER.clipBottom-PAPER.clipTop);
         const contentHeight = Math.max(viewportHeight, Math.ceil(PAPER.originY - PAPER.clipTop + last.top + last.lastRule + PAPER.bottomPadding));
         return { fields, period: top, viewportHeight, contentHeight, maxScroll: Math.max(0, contentHeight - viewportHeight) };
     }
@@ -104,7 +104,7 @@ __fluffyModules["notebook-layout.js"] = (() => {
         if (reading) return [{ y: origin - clamp(scrollTop, 0, layout.maxScroll), cycle: 0, canonical: true }];
         const y = origin + offset;
         const start = Math.floor((PAPER.clipTop - y - layout.fields[index].height) / layout.period);
-        const end = Math.ceil((PAPER.clipBottom - y + 26) / layout.period);
+        const end = Math.ceil((PAPER.clipTop + layout.viewportHeight - y + 26) / layout.period);
         const result = [];
         for (let cycle = start; cycle <= end; cycle++) result.push({ y: y + cycle * layout.period, cycle, canonical: cycle === 0 });
         return result;
