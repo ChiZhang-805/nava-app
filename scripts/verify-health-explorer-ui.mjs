@@ -7,6 +7,7 @@ import { inspectHealthExplorer } from './health-explorer-checks.mjs';
 
 const root = process.cwd();
 const output = 'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/health-report-explorer-flip';
+const version = 'diet-energy-v1';
 applyProjectPublicEnv(root);
 await mkdir(output, { recursive: true });
 const server = await createServer({ root, server: { host: '127.0.0.1', port: 5248 }, logLevel: 'error' });
@@ -48,48 +49,53 @@ try {
           await expect(page.locator('[data-health-explorer]')).toBeVisible();
           for (const state of preview ? ['populated'] : ['populated','empty']) {
             if (state === 'empty') {
-              await page.locator('[data-health-category=sleep]').scrollIntoViewIfNeeded();
-              await page.locator('[data-health-category=sleep]').click();
-              await page.locator('.health-explorer-track').press('ArrowRight');
-              await page.evaluate(()=>localStorage.setItem('nava.review.demo.empty-snapshot-date.v1','2020-01-01'));
-              await page.locator('.health-explorer-all').click();
-              await expect(page.locator('.health-explorer-sheet')).toBeVisible();
-              await page.locator('.health-explorer-sheet input[type=date]').fill('2020-01-01');
-              await page.keyboard.press('Escape');
-              await expect(page.locator('.health-explorer-sheet')).toHaveCount(0);
+              await page.evaluate(()=> {
+                const now = new Date();
+                const date = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+                localStorage.setItem('nava.review.demo.empty-snapshot-date.v1',date);
+              });
+              await page.reload({waitUntil:'networkidle'});
+              await expect(page.locator('[data-health-explorer]')).toBeVisible();
               await expect(page.locator('.health-explorer-card[aria-hidden="false"] .health-explorer-empty')).toBeVisible();
-              await page.locator('[data-health-category=mood]').scrollIntoViewIfNeeded();
-              await page.locator('[data-health-category=mood]').click();
             }
-            await expect(page.locator('[data-health-category]:not([data-health-category=all])')).toHaveCount(6); // Demo sensor values are not Apple Health provenance.
+            await expect(page.locator('[data-health-category]:not([data-health-category=all])')).toHaveCount(7); // Demo sensor values are not Apple Health provenance.
             await expect(page.locator('[data-health-category=all]')).toHaveCount(1);
-            await expect(page.locator('.health-explorer-pagination, .health-explorer-bottom, .health-explorer-toolbar input')).toHaveCount(0);
+            await expect(page.locator('.health-explorer-pagination, .health-explorer-bottom, .health-explorer-toolbar input, .health-explorer-all, .health-explorer-sheet')).toHaveCount(0);
             if (!quick) {
-              await expect(page.locator('.health-explorer-categories img')).toHaveCount(7);
+              await expect(page.locator('.health-explorer-categories img')).toHaveCount(8);
               await expect.poll(() => page.locator('.health-explorer-categories img').evaluateAll(images => images.every(image => image.complete && image.naturalWidth > 0))).toBe(true);
             }
-            await page.screenshot({ path:path.join(output,`${engine}-${viewport.width}${viewport.height < 640 ? '-short' : ''}-${locale}-${state}.png`) });
+            await page.screenshot({ path:path.join(output,`${version}-${engine}-${viewport.width}${viewport.height < 640 ? '-short' : ''}-${locale}-${state}.png`) });
             const geometry = await inspectHealthExplorer(page);
-            if (preview) { report.push({engine,viewport,locale,state,geometry}); break; }
-            for (const category of ['mood','face','focus','sleep','exercise','diet']) {
+            for (const category of ['mood','face','focus','sleep','exercise','diet','energy']) {
               const tab = page.locator(`[data-health-category="${category}"]`);
               await tab.click(); // Locator click re-resolves if a data refresh replaces the tab.
               await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category',category);
               await inspectHealthExplorer(page);
               if (state === 'empty') await expect(page.locator('.health-explorer-card[aria-hidden="false"] .health-explorer-empty')).toBeVisible();
               const active = page.locator('.health-explorer-card[data-active="true"]');
+              if (category === 'diet') {
+                await expect(active).toHaveAttribute('data-card-kind',state === 'empty' ? 'empty-meal' : 'meal');
+                await expect(active.locator('.line-trend-chart')).toHaveCount(0);
+                if (state === 'populated') await expect(active.locator('.health-explorer-meal-visual')).toHaveAttribute('data-photo-kind','illustration');
+              }
+              if (category === 'diet' || category === 'energy') await page.screenshot({path:path.join(output,`${version}-${engine}-${viewport.width}${viewport.height<640?'-short':''}-${locale}-${state}-${category}-front.png`)});
               const plotted = await active.locator('.trend-point').evaluateAll(nodes => nodes.filter(node => node.querySelector('circle')).map(node => ({label:node.dataset.label,value:Number(node.dataset.value)})));
               await active.locator('.health-explorer-flip').click();
               await expect(active).toHaveAttribute('data-side','back');
               await expect.poll(() => active.locator('.health-explorer-back').evaluate(node=>getComputedStyle(node).opacity)).toBe('1');
               const records = await active.locator('[data-record-date]').evaluateAll(nodes => nodes.map(node => ({date:node.dataset.recordDate,value:Number(node.dataset.recordValue)})));
+              if (category === 'diet') {
+                await expect(active.locator('[data-nutrient]')).toHaveCount(state === 'empty' ? 0 : 1);
+                if (state === 'populated') await expect(active.locator('[data-nutrient=calories]')).toHaveAttribute('data-nutrient-value','360');
+              }
               if (records.length !== Math.min(5,plotted.length)) throw new Error('Backside added or lost entries');
               for (const record of records) {
                 const label=`${Number(record.date.slice(5,7))}/${Number(record.date.slice(8))}`;
                 if (!plotted.some(point => point.label === label && point.value === record.value)) throw new Error('Backside value differs from actual chart');
               }
               await inspectHealthExplorer(page);
-              if (category === 'mood') await page.screenshot({path:path.join(output,`${engine}-${viewport.width}${viewport.height<640?'-short':''}-${locale}-${state}-back.png`)});
+              if (['mood','diet','energy'].includes(category)) await page.screenshot({path:path.join(output,`${version}-${engine}-${viewport.width}${viewport.height<640?'-short':''}-${locale}-${state}-${category}-back.png`)});
               await active.locator('.health-explorer-flip').click();
               await expect(active).toHaveAttribute('data-side','front');
               const id = await active.getAttribute('data-chart-id');
@@ -100,13 +106,12 @@ try {
                 await expect(active).toHaveAttribute('data-chart-id',id);
               }
             }
-            await page.locator('.health-explorer-all').click();
-            await expect(page.locator('.health-explorer-sheet')).toBeVisible();
-            await page.locator('.health-explorer-chart-list section').nth(2).locator('button').last().click();
-            await expect(page.locator('.health-explorer-sheet')).toHaveCount(0);
+            await page.locator('[data-health-category=focus]').click();
+            await page.locator('.health-explorer-track').press('ArrowRight');
             await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category','focus');
+            await expect(page.locator('.health-explorer-card[data-active="true"]')).toHaveAttribute('data-chart-id','focus-sessions');
             await inspectHealthExplorer(page);
-            if (viewport.height < 640) await page.screenshot({ path:path.join(output,`${engine}-${viewport.width}-short-${locale}-${state}-scrolled.png`) });
+            if (viewport.height < 640) await page.screenshot({ path:path.join(output,`${version}-${engine}-${viewport.width}-short-${locale}-${state}-scrolled.png`) });
             await page.locator('[data-health-category=mood]').scrollIntoViewIfNeeded();
             await page.locator('[data-health-category=mood]').click();
             await page.locator('[data-health-category=mood]').press('ArrowRight');
@@ -129,16 +134,16 @@ try {
           await expect.poll(()=>new URL(page.url()).hash).toContain('module=diet');
           if(errors.length)throw new Error(errors.join('\n'));
           await context.close();
-          console.log(`${engine} ${viewport.width}x${viewport.height} ${locale}: empty/populated, categories, carousel, flip details, all charts, weekly, entry passed`);
+          console.log(`${engine} ${viewport.width}x${viewport.height} ${locale}: empty/populated, categories, carousel, flip details, weekly, entry passed`);
         }
       }
     } catch (error) {
       if (currentPage && !currentPage.isClosed()) {
-        await currentPage.screenshot({path:path.join(output,`failure-${currentCase}.png`)}).catch(()=>undefined);
-        await writeFile(path.join(output,`failure-${currentCase}.html`),await currentPage.content()).catch(()=>undefined);
+        await currentPage.screenshot({path:path.join(output,`${version}-failure-${currentCase}.png`)}).catch(()=>undefined);
+        await writeFile(path.join(output,`${version}-failure-${currentCase}.html`),await currentPage.content()).catch(()=>undefined);
       }
       throw error;
     } finally { await browser.close(); }
   }
-} finally { await server.close(); await writeFile(path.join(output, preview?'preview-report.json':quick?'quick-report.json':finalEvidence?'evidence-report.json':'report.json'),JSON.stringify(report,null,2)); }
+} finally { await server.close(); await writeFile(path.join(output, version+'-'+(preview?'preview-report.json':quick?'quick-report.json':finalEvidence?'evidence-report.json':'report.json')),JSON.stringify(report,null,2)); }
 console.log(`Health explorer passed ${report.length} viewport/locale/state cases.`);

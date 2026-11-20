@@ -186,21 +186,20 @@ try {
 
     await page.locator('[data-tab="record"]').click();
     await expect(page.locator('[data-health-explorer]')).toBeVisible();
-    await expect(page.locator('[data-health-category]')).toHaveCount(6);
+    await expect(page.locator('[data-health-category]')).toHaveCount(8);
     const populatedHubGeometry = await inspectHealthExplorer(page);
     await page.locator('.phone-frame').screenshot({ path: path.join(outputDir, `${viewport.name}-record-explorer.png`) });
-    await page.locator('.health-explorer-all').click();
-    const dateInput = page.locator('.health-explorer-sheet input[type=date]');
-    const currentDate = await dateInput.inputValue();
-    await page.evaluate(() => localStorage.setItem('nava.review.demo.empty-snapshot-date.v1', '2020-01-01'));
-    await dateInput.fill('2020-01-01');
-    await page.keyboard.press('Escape');
+    await page.evaluate(() => {
+      const now = new Date();
+      const date = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+      localStorage.setItem('nava.review.demo.empty-snapshot-date.v1',date);
+    });
+    await page.reload({waitUntil:'networkidle'});
     await expect(page.locator('.health-explorer-card[aria-hidden="false"] .health-explorer-empty')).toBeVisible();
     const emptyHubGeometry = await inspectHealthExplorer(page);
     await page.locator('.phone-frame').screenshot({ path: path.join(outputDir, `${viewport.name}-record-empty.png`) });
-    await page.locator('.health-explorer-all').click();
-    await dateInput.fill(currentDate);
-    await page.keyboard.press('Escape');
+    await page.evaluate(() => localStorage.removeItem('nava.review.demo.empty-snapshot-date.v1'));
+    await page.reload({waitUntil:'networkidle'});
     const hubDiet = page.locator('[data-health-category="diet"]');
     await hubDiet.scrollIntoViewIfNeeded();
     await hubDiet.click();
