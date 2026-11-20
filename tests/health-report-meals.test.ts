@@ -14,6 +14,14 @@ test("empty and daily-total-only records never become invented dishes", () => {
   assert.deepEqual(buildHealthReportDishes(bundle({ nutritions: [record({})] }), date, "en"), []);
 });
 
+test("food illustrations require explicit demo opt-in and never replace a real photo", () => {
+  const input = bundle({ nutritions: [record({ breakfast_items: [{ name: "燕麦酸奶", calories: 360 }] })] });
+  assert.equal(buildHealthReportDishes(input, date, "zh")[0].illustrationSrc, undefined);
+  assert.equal(buildHealthReportDishes(input, date, "zh", { demoIllustrations: true })[0].illustrationSrc, "assets/health-report/examples/oat-yogurt.webp");
+  input.nutritions[0].breakfast_photo_url = "real-user/breakfast.jpg";
+  assert.equal(buildHealthReportDishes(input, date, "zh", { demoIllustrations: true })[0].illustrationSrc, undefined);
+});
+
 test("individual dish nutrients stay independent of meal and daily summaries", () => {
   const cards = buildHealthReportDishes(bundle({ nutritions: [record({ lunch_photo_url: "user/lunch.jpg", lunch_time: "12:30:00", lunch_items: [
     { name: "烤鸡", calories: 320, protein_grams: 32, nutrition_source: "vision_estimate", meal_summary: { protein_grams: 45, carbohydrate_grams: 60, fat_grams: 20, hydration_ml: 0 } },

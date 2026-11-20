@@ -11,6 +11,8 @@ export interface HealthReportDish {
   notes: string | null;
   photoPath: string | null;
   photoKind: "dish" | "meal" | null;
+  /** Only an explicitly enabled local demo may provide a labeled food illustration. */
+  illustrationSrc?: string | null;
   nutrients: { calories: number | null; protein: number | null; carbs: number | null; fat: number | null };
   estimated: boolean;
 }
@@ -32,7 +34,7 @@ function mealLabel(value: unknown, locale: "zh" | "en") {
 }
 
 /** Food cards describe saved items, never inferred dishes or generated nutritional facts. */
-export function buildHealthReportDishes(bundle: TrendBundle | null, date: string, locale: "zh" | "en"): HealthReportDish[] {
+export function buildHealthReportDishes(bundle: TrendBundle | null, date: string, locale: "zh" | "en", options: { demoIllustrations?: boolean } = {}): HealthReportDish[] {
   const days = new Set(rollingDateWindow(date));
   const journal = [...new Map((bundle?.journal ?? []).filter(record => record.category === "food" && days.has(record.recordDate)).map(record => [record.id, record])).values()];
   const dishes: HealthReportDish[] = journal.map(record => ({
@@ -75,6 +77,11 @@ export function buildHealthReportDishes(bundle: TrendBundle | null, date: string
           estimated: item?.nutrition_source === "vision_estimate",
         });
       }
+    }
+  }
+  if (options.demoIllustrations) {
+    for (const dish of dishes) {
+      if (!dish.photoPath && ["燕麦酸奶", "Oat yogurt"].includes(dish.title)) dish.illustrationSrc = "assets/health-report/examples/oat-yogurt.webp";
     }
   }
   return dishes.sort((a, b) => b.date.localeCompare(a.date) || (b.time ?? "").localeCompare(a.time ?? "") || a.id.localeCompare(b.id));
