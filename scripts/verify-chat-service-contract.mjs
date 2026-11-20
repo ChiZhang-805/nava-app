@@ -20,19 +20,29 @@ try {
       const result = await page.evaluate(async () => {
         const { supabase } = await import('/src/services/supabaseClient.ts');
         const { sendAiMessage, loadConversation } = await import('/src/services/ai.ts');
+        const { loadProfile } = await import('/src/services/profile.ts');
         const owner = '00000000-0000-4000-8000-000000000001';
         const writes = [], calls = [], deltas = [], statuses = [], queries = [];
         const archiveId = '10000000-0000-4000-8000-000000000001';
         let archiveRow = { id: archiveId, created_at: '2026-11-10T12:00:00Z', updated_at: 'v1', messages: [{ __navaArchive: { version: 1, title: 'Saved', dayKey: '2026-11-10' } }] };
         let revision = 1;
         let currentMutations = 0;
+        let signedAvatar;
+        Object.defineProperty(supabase, 'storage', { value: { from: bucket => ({ createSignedUrl: async (path, seconds) => {
+          signedAvatar = { bucket, path, seconds };
+          return { data: { signedUrl: 'https://local-fixture.invalid/uploaded-avatar.png?token=test' }, error: null };
+        } }) } });
         supabase.auth.getSession = async () => ({ data: { session: { access_token: 'test-token-not-a-secret' } }, error: null });
         Object.defineProperty(supabase, 'functions', { value: { invoke: async (name, options) => {
           calls.push({ name, body: options.body });
           if (name !== 'ai-chat-reply') throw new Error('A sticker must not reach health extraction');
-          return { data: new Response('event: done\ndata: {"reply":"抱抱你～"}\n\n', { headers: { 'Content-Type': 'text/event-stream' } }), error: null };
+          return { data: new Response(`event: done\ndata: ${JSON.stringify({ reply: '抱抱你～\n\n慢慢来呀。', segments: [{ type: 'text', text: '抱抱你～' }, { type: 'sticker', id: 'hug' }, { type: 'text', text: '慢慢来呀。' }] })}\n\n`, { headers: { 'Content-Type': 'text/event-stream' } }), error: null };
         } } });
         supabase.from = (table) => {
+          if (table === 'profiles') return { select: () => ({ eq: (key, id) => ({ maybeSingle: async () => {
+            if (key !== 'id' || id !== owner) throw new Error('Wrong profile owner');
+            return { data: { id: owner, avatar_url: `storage://profile-avatars/${owner}/avatar-current` }, error: null };
+          } }) }) };
           if (table === 'ai_conversation_archives') {
             return {
               select: () => {
@@ -76,20 +86,24 @@ try {
         const reply = await sendAiMessage({ userId: owner, archiveId, message: '[nava-sticker:hug]', displayMessage: '[nava-sticker:hug]', history: [], lang: 'zh', onDelta: content => deltas.push(content), onStatus: status => statuses.push(status?.id ?? null) });
         const milliseconds = performance.now() - started;
         const loaded = await loadConversation(owner);
-        return { milliseconds, writes, calls, deltas, statuses, archiveRow, currentMutations, loaded: loaded.length, queries, reply: reply.assistantMessage.content };
+        const profile = await loadProfile(owner);
+        return { milliseconds, writes, calls, deltas, statuses, archiveRow, currentMutations, loaded: loaded.length, queries, reply: reply.assistantMessage.content, profile, signedAvatar };
       });
       assert.equal(result.calls.length, 1);
       assert.equal(result.calls[0].name, 'ai-chat-reply');
       assert.equal(result.calls[0].body.message, '[nava-sticker:hug]');
       assert.equal(result.writes.length, 2);
       assert.equal(result.archiveRow.messages[1].content, '[nava-sticker:hug]');
-      assert.equal(result.archiveRow.messages[2].content, '抱抱你～');
-      assert.deepEqual(result.deltas, ['抱抱你～']);
+      assert(result.archiveRow.messages[2].content.startsWith('[nava-reply:v1]'));
+      assert.equal(JSON.parse(result.archiveRow.messages[2].content.slice('[nava-reply:v1]'.length)).length, 3);
+      assert.deepEqual(result.deltas, ['抱抱你～\n\n慢慢来呀。']);
       assert.equal(result.statuses.at(-1), null);
       assert(result.milliseconds < 650, `Reply waited for decorative processing steps: ${result.milliseconds}ms`);
       assert.equal(result.currentMutations, 0);
       assert.equal(result.calls[0].body.archiveId, result.archiveRow.id);
       assert.equal(result.calls[0].body.messageId, result.archiveRow.messages[1].id);
+      assert.equal(result.profile.avatar_url, 'https://local-fixture.invalid/uploaded-avatar.png?token=test');
+      assert.deepEqual(result.signedAvatar, { bucket: 'profile-avatars', path: '00000000-0000-4000-8000-000000000001/avatar-current', seconds: 3600 });
       assert.equal(result.loaded, 502, 'Long conversations must not silently truncate at 80 messages');
       assert(result.queries.every(([key, value]) => key === 'user_id' && value === '00000000-0000-4000-8000-000000000001'));
       results.push({ engine, ...result });

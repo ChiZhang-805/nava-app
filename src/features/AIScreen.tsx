@@ -7,7 +7,8 @@ import { useLocale } from "../i18n";
 import PageSkeleton from "../components/PageSkeleton";
 import CameraCapture from "../components/CameraCapture";
 import ChatStickerPicker from "../components/ChatStickerPicker";
-import { chatStickerLabel, encodeChatSticker, parseChatSticker, type ChatSticker } from "../services/chatStickers";
+import { chatStickerLabel, encodeChatSticker, getChatSticker, type ChatSticker } from "../services/chatStickers";
+import { chatMessageParts, spokenAssistantMessage } from "../services/chatMessagePresentation";
 import NutritionStructuredConfirmation from "../components/NutritionStructuredConfirmation";
 import PhotoInput from "../components/PhotoInput";
 import { usePreviewActivity } from "../hooks/usePreviewActivity";
@@ -16,8 +17,8 @@ import type { AiProcessingStep } from "../services/aiProcessing";
 import { createStreamingAiSpeaker, isAiSpeechSupported, resolveAiSpeechStyle, type StreamingAiSpeaker } from "../services/aiSpeech";
 import { todayISO } from "../services/date";
 import { analyzeDietPhoto } from "../services/media";
-import { loadProfileWithOnboarding } from "../services/onboarding";
-import type { UserProfile } from "../services/profile";
+import { loadOnboardingStatus } from "../services/onboarding";
+import { loadProfile, type UserProfile } from "../services/profile";
 import { startVoiceInput, type VoiceInputError, type VoiceInputSession } from "../services/voice";
 import { voiceEndpointDelayMs } from "../services/voiceEndpoint";
 import { confirmStructuredEntry, parseStructuredEntry, type StructuredEntry } from "../services/structuredEntry";
@@ -239,6 +240,11 @@ export default function AIScreen({
   const [deletingArchiveId, setDeletingArchiveId] = useState<string | null>(null);
   const [deviceDayKey, setDeviceDayKey] = useState(() => todayISO());
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  const avatarRetry = useRef(false);
+  const [copiedPart, setCopiedPart] = useState<string | null>(null);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copyRequest = useRef(0);
+  useEffect(() => () => { if (copyTimer.current) clearTimeout(copyTimer.current); }, []);
   const [voiceCallOpen, setVoiceCallOpen] = useState(false);
   const [voiceCallPhase, setVoiceCallPhase] = useState<VoiceCallPhase>("idle");
   const [voiceCallTranscript, setVoiceCallTranscript] = useState("");
@@ -360,8 +366,8 @@ export default function AIScreen({
           const latest = readHistory().find((item) => item.id === snapshot.id);
           if (!latest) return;
           const titled = { ...latest, title };
-          await saveConversationArchive(user.id, titled);
-          setHistory(writeHistory([titled, ...readHistory().filter((item) => item.id !== snapshot.id)]));
+          const savedTitle = await saveConversationArchive(user.id, titled, true);
+          setHistory(writeHistory([{ ...titled, ...savedTitle }, ...readHistory().filter((item) => item.id !== snapshot.id)]));
         });
       }).catch((titleError) => console.warn("Conversation title sync deferred", titleError));
     }
@@ -484,7 +490,7 @@ export default function AIScreen({
           setStreamingPreview((current) => current ? { ...current, status: null, content } : current);
         },
       });
-      speechRef.current?.finish(result.assistantMessage.content);
+      speechRef.current?.finish(spokenAssistantMessage(result.assistantMessage.content));
       setMessages((current) => [...current, result.assistantMessage]);
       setStreamingPreview(null);
       const recognizedEntry = sticker ? null : photoEntry
@@ -515,9 +521,13 @@ export default function AIScreen({
     }
   }
 
-  async function copyMessage(message: ChatMessage) {
-    const sticker = parseChatSticker(message.content);
-    const text = sticker ? chatStickerLabel(sticker, locale) : message.content;
+  async function copyMessage(message: ChatMessage, partIndex: number) {
+    const part = chatMessageParts(message)[partIndex];
+    const sticker = part.type === "sticker" ? getChatSticker(part.id) : null;
+    const text = sticker ? chatStickerLabel(sticker, locale) : part.type === "text" ? part.text : "";
+    const request = ++copyRequest.current;
+    setCopiedPart(null);
+    if (copyTimer.current) clearTimeout(copyTimer.current);
     try {
       if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
       else {
@@ -529,8 +539,13 @@ export default function AIScreen({
         try { field.select(); if (!document.execCommand("copy")) throw new Error("Copy unavailable"); }
         finally { field.remove(); }
       }
-      setMediaNotice(locale === "zh" ? "复制好啦" : "Copied!");
-    } catch { setMediaNotice(locale === "zh" ? "暂时没能复制，请再试一下" : "Could not copy. Please try again."); }
+      if (request === copyRequest.current) {
+        setCopiedPart(`${message.id}:${partIndex}`);
+        copyTimer.current = setTimeout(() => setCopiedPart(null), 1400);
+      }
+    } catch {
+      if (request === copyRequest.current) setMediaNotice(locale === "zh" ? "暂时没能复制，请再试一下" : "Could not copy. Please try again.");
+    }
   }
 
   function handleComposerPhoto(file: File | null) {
@@ -641,7 +656,7 @@ export default function AIScreen({
           setStreamingPreview((current) => current ? { ...current, status: null, content } : current);
         },
       });
-      speechRef.current?.finish(response.assistantMessage.content);
+      speechRef.current?.finish(spokenAssistantMessage(response.assistantMessage.content));
       setMessages((current) => [...current, response.assistantMessage]);
       setPendingEntry(candidate);
       setPendingEntryMessageId(candidate ? response.assistantMessage.id : null);
@@ -710,7 +725,7 @@ export default function AIScreen({
 
   useEffect(() => {
     let activeRequest = true;
-    loadProfileWithOnboarding(user.id).then(({ profile: loadedProfile, onboarding }) => {
+    Promise.all([loadProfile(user.id), loadOnboardingStatus(user.id).catch(() => null)]).then(([loadedProfile, onboarding]) => {
       if (!activeRequest) return;
       if (!loadedProfile) return setProfile(null);
       const answers = onboarding?.answers ?? loadedProfile.onboarding_answers ?? {};
@@ -732,7 +747,19 @@ export default function AIScreen({
     };
   }, [hydrateHistory, profileRefreshKey, readHistory, user.id]);
 
+  useEffect(() => { avatarRetry.current = false; setAvatarLoadFailed(false); }, [profileRefreshKey, user.id]);
   useEffect(() => setAvatarLoadFailed(false), [profile?.avatar_url]);
+
+  async function retryUserAvatar() {
+    if (avatarRetry.current) { setAvatarLoadFailed(true); return; }
+    avatarRetry.current = true;
+    try {
+      const refreshed = await loadProfile(user.id);
+      if (!refreshed?.avatar_url) { setAvatarLoadFailed(true); return; }
+      setProfile(current => current ? { ...current, avatar_url: refreshed.avatar_url } : refreshed);
+      if (refreshed.avatar_url === profile?.avatar_url) setAvatarLoadFailed(true);
+    } catch { setAvatarLoadFailed(true); }
+  }
 
   useEffect(() => {
     if (!active || !initialPromptRequest || initialPromptRequest.id === handledPromptRequestRef.current) return;
@@ -847,7 +874,7 @@ export default function AIScreen({
     interruptMedia();
     try {
       const saved = await loadConversationArchive<ChatMessage>(user.id, snapshot.id);
-      if (!saved) throw new Error(locale === "zh" ? "?????????????" : "This conversation was deleted or is not accessible.");
+      if (!saved) throw new Error(locale === "zh" ? "这段聊天已删除或无法访问。" : "This conversation was deleted or is not accessible.");
       activateArchive(saved.id);
       setMessages(saved.messages);
       setHistory(writeHistory(normalizeHistory([saved, ...readHistory().filter((item) => item.id !== saved.id)])));
@@ -1020,7 +1047,7 @@ export default function AIScreen({
           speaker.update(content);
         },
       });
-      speaker.finish(result.assistantMessage.content);
+      speaker.finish(spokenAssistantMessage(result.assistantMessage.content));
       setMessages((current) => [...current, result.assistantMessage]);
       const recognizedEntry = parseStructuredEntry(message, locale, {
         dataType: result.dataType,
@@ -1346,11 +1373,14 @@ export default function AIScreen({
       <div className="chat-list" ref={listRef}>
         {messages.map((message) => {
           const isUser = message.role === "user";
-          const sticker = parseChatSticker(message.content);
+          const parts = chatMessageParts(message);
           return (
             <Fragment key={message.id}>
-              <div className={["chat-message-row", isUser ? "user" : "assistant"].join(" ")}>
-                {!isUser && (
+              {parts.map((part, partIndex) => {
+                const sticker = part.type === "sticker" ? getChatSticker(part.id) : null;
+                const copied = copiedPart === `${message.id}:${partIndex}`;
+                return <div key={`${message.id}:${partIndex}`} data-message-id={message.id} data-reply-part={partIndex} className={["chat-message-row", isUser ? "user" : "assistant", partIndex ? "is-continuation" : ""].join(" ")}>
+                {!isUser && partIndex === 0 && (
                   <span className="chat-avatar assistant" aria-hidden="true">
                     <svg viewBox="160 215 1030 845" focusable="false"><image href={companionAvatar} width="1254" height="1254" /></svg>
                   </span>
@@ -1361,20 +1391,21 @@ export default function AIScreen({
                       {photoPreviews[message.id].map((url, index) => <img key={url} className="chat-photo-preview" src={url} alt={locale === "zh" ? `饮食照片 ${index + 1}` : `Meal photo ${index + 1}`} data-chat-photo="saved" />)}
                     </div>
                   )}
-                  {sticker ? <img className="chat-sticker-image" src={sticker.imageSrc} alt={chatStickerLabel(sticker, locale)} draggable={false} /> : <p>{message.content}</p>}
+                  {sticker ? <img className="chat-sticker-image" src={sticker.imageSrc} alt={chatStickerLabel(sticker, locale)} draggable={false} /> : <p>{part.type === "text" ? part.text : ""}</p>}
                   <footer className="chat-message-meta">
                     <time>{new Date(message.created_at).toLocaleTimeString(locale === "en" ? "en-US" : "zh-CN", { hour: "2-digit", minute: "2-digit" })}</time>
-                    <button className="chat-copy-message" type="button" onClick={() => void copyMessage(message)} aria-label={locale === "zh" ? "复制这条消息" : "Copy message"}><Copy size={14} aria-hidden="true" /></button>
+                    <button className="chat-copy-message" data-copied={copied ? "true" : undefined} type="button" onClick={() => void copyMessage(message, partIndex)} aria-label={copied ? (locale === "zh" ? "复制好啦" : "Copied!") : (locale === "zh" ? "复制这条消息" : "Copy message")}>{copied ? <Check size={15} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}</button>
                   </footer>
                 </article>
                 {isUser && (
                   <span className="chat-avatar user" aria-hidden="true">
                     {profile?.avatar_url && !avatarLoadFailed
-                      ? <img src={profile.avatar_url} alt="" onError={() => setAvatarLoadFailed(true)} />
+                      ? <img src={profile.avatar_url} alt="" onError={() => void retryUserAvatar()} />
                       : (profile?.username?.trim().slice(0, 1).toUpperCase() || user.email?.slice(0, 1).toUpperCase() || "N")}
                   </span>
                 )}
-              </div>
+              </div>;
+              })}
               {!isUser && pendingEntryMessageId === message.id && structuredConfirmation}
             </Fragment>
           );
@@ -1388,7 +1419,7 @@ export default function AIScreen({
             </article>
             <span className="chat-avatar user" aria-hidden="true">
               {profile?.avatar_url && !avatarLoadFailed
-                ? <img src={profile.avatar_url} alt="" onError={() => setAvatarLoadFailed(true)} />
+                ? <img src={profile.avatar_url} alt="" onError={() => void retryUserAvatar()} />
                 : (profile?.username?.trim().slice(0, 1).toUpperCase() || user.email?.slice(0, 1).toUpperCase() || "N")}
             </span>
           </div>

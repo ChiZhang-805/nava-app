@@ -225,8 +225,8 @@ export async function loadConversationArchive<T extends ArchiveMessage>(userId: 
   return (await conversationArchiveStore<T>(userId, archiveId).read())?.archive ?? null;
 }
 
-export async function saveConversationArchive<T extends ArchiveMessage>(userId: string, archive: ConversationArchive<T>) {
-  return persistConversationArchive(archive, conversationArchiveStore<T>(userId, archive.id));
+export async function saveConversationArchive<T extends ArchiveMessage>(userId: string, archive: ConversationArchive<T>, requireExisting = false) {
+  return persistConversationArchive(archive, conversationArchiveStore<T>(userId, archive.id), requireExisting);
 }
 
 export async function appendConversationArchiveMessage<T extends ArchiveMessage>(userId: string, archiveId: string, message: T) {

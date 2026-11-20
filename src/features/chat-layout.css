@@ -1,5 +1,19 @@
 /* Both speakers share one text column. Avatar direction must not change how
    early the same sentence wraps, and short replies keep their natural width. */
+.phone-frame[data-app-skin][data-shell-integrated="true"][data-shell-page="chat"] > .figma-app-header {
+  flex: 0 0 44px;
+  height: 44px;
+  min-height: 44px;
+  padding-block: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+.phone-frame[data-app-skin][data-shell-integrated="true"][data-shell-page="chat"] > .app-content {
+  padding-top: 0;
+}
+.phone-frame[data-app-skin][data-shell-page="chat"] .chat-list { padding-top: 8px; scroll-padding-top: 8px; }
+.phone-frame .chat-layout .chat-message-row.is-continuation { margin-top: -4px; }
 .phone-frame .chat-layout .chat-message-row {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr) 40px;
@@ -48,5 +62,9 @@
 .chat-copy-message { display: inline-grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 10px; color: inherit; background: transparent; opacity: .72; }
 .chat-copy-message:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .chat-copy-message:active { background: rgb(255 255 255 / .2); opacity: 1; }
+.chat-copy-message[data-copied="true"] { opacity: 1; }
+.chat-copy-message[data-copied="true"] svg { animation: chat-copy-confirm 180ms ease-out; }
+@keyframes chat-copy-confirm { from { transform: scale(.7); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .chat-copy-message[data-copied="true"] svg { animation: none; } }
 .chat-copy-message { position: relative; }
 .chat-copy-message::before { content: ""; position: absolute; inset: -6px; }

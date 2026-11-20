@@ -7,6 +7,8 @@ import type { UserProfile } from "./profile";
 import { buildConversationGreeting } from "./aiConversationSessions";
 import { parseChatSticker } from "./chatStickers";
 import { appendConversationArchiveMessage } from "./userCloudState";
+import { chatReplySegmentsText, encodeChatReplySegments, validateChatReplySegments, type ChatReplySegment } from "../../supabase/functions/_shared/chat-reply-segments.ts";
+import { spokenAssistantMessage } from "./chatMessagePresentation";
 import type { PriorityTask } from "./focusPlanning";
 import { validateFocusRequest, validateFocusOutput, type FocusRequest, type FocusResult } from "../../supabase/functions/_shared/focus-contract.ts";
 
@@ -112,7 +114,7 @@ export async function generateConversationTitle(messages: ChatMessage[], lang: "
   if (isDemoMode() || messages.length === 0) return null;
   const transcript = messages
     .slice(-12)
-    .map((message) => `${message.role === "user" ? "USER" : "ASSISTANT"}: ${message.content.trim().slice(0, 260)}`)
+    .map((message) => `${message.role === "user" ? "USER" : "ASSISTANT"}: ${(message.role === "assistant" ? spokenAssistantMessage(message.content) : message.content).trim().slice(0, 260)}`)
     .join("\n")
     .slice(0, 2_800);
   const instruction = lang === "zh"
@@ -325,6 +327,7 @@ async function consumeAiStream(response: Response, input: {
   let buffer = "";
   let streamed = "";
   let finalReply = "";
+  let segments: ChatReplySegment[] | null = null;
   let preludeFinished = false;
 
   const finishPrelude = async () => {
@@ -354,6 +357,7 @@ async function consumeAiStream(response: Response, input: {
       }
       if (parsed.event === "done") {
         finalReply = typeof parsed.data.reply === "string" ? parsed.data.reply : streamed;
+        segments = validateChatReplySegments(parsed.data.segments);
       }
     }
 
@@ -361,10 +365,10 @@ async function consumeAiStream(response: Response, input: {
   }
 
   await finishPrelude();
-  const content = (finalReply || streamed).trim();
+  const content = (segments ? chatReplySegmentsText(segments) : finalReply || streamed).trim();
   if (!content) throw new Error("真实 AI 服务没有返回有效内容，请稍后重试。");
   if (!streamed) input.onDelta?.(content, content);
-  return content;
+  return segments ? encodeChatReplySegments(segments) : content;
 }
 
 function parseSseBlock(block: string) {
