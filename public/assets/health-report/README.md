@@ -15,6 +15,21 @@ These six original raster illustrations were generated with the built-in Codex `
 
 Original generated PNGs are retained by Codex. These project files are byte-for-byte copies, preserving the original alpha and pixels. Five are 1254 × 1254 pixels; mood.png is 1264 × 1244 pixels. Render inside a square box with `object-fit: contain`; the intended main display is 60–68 CSS pixels, with smaller repeated category accents at 24 CSS pixels.
 
+## Production derivatives
+
+Use the same-named `.webp` files in the application. The original PNGs and prompts remain as source assets. The six production files total **142,282 bytes** (139 KiB), down from 6,918,199 bytes of PNG sources (97.9% smaller).
+
+Derivation uses the existing project-local Sharp 0.35.5 tool, without painting, recoloring, clipping, background replacement, or redesign:
+
+```js
+sharp(input)
+  .resize({ width: 384, height: 384, fit: 'inside', withoutEnlargement: true })
+  .webp({ quality: 92, alphaQuality: 100, effort: 6 })
+  .toFile(output)
+```
+
+The longest side is 384 px (mood is 384 × 378, the others 384 × 384). This preserves aspect ratios and supplies ample resolution for a 64 CSS px category image on high-density screens. After encoding, every alpha value matches the resized source exactly (maximum alpha difference 0). Both PNG and WebP are visually checked at 64 px and 24 px.
+
 The mirror represents self-described observations, not diagnosis. The meal is illustrative, not a claim about a user's actual diet.
 
 ## Reproducible prompt set
