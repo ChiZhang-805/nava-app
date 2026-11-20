@@ -59,6 +59,17 @@ try {
             assert(after.brand.y >= 0 && after.brand.bottom <= after.region.y + 1, 'brand escaped header');
             assert(after.region.bottom <= visible + 1, `${engine}/${width}/${mode}/${index}: form extends behind keyboard ${JSON.stringify({after,visible})}`);
             assert(field.y >= after.region.y && field.y + field.height <= visible, `${engine}/${width}/${mode}/${index}: focused field hidden`);
+            if (mode === 'login') {
+              for (const selector of ['.auth-secondary-links', '.auth-social-button--wechat', '.auth-social-button--apple', '.auth-social-button--qq']) {
+                assert(await page.locator(selector).isVisible(), `Missing login route: ${selector}`);
+              }
+              if (height >= 812) {
+                const last = await page.locator('.auth-social-button--qq').boundingBox();
+                assert(last.height >= 44);
+                assert(visible - last.y - last.height >= 0 && visible - last.y - last.height <= 28,
+                  `Shortcut gap: ${JSON.stringify({visible,last})}`);
+              }
+            }
             report.push({ engine,width,height,mode,index,before,after,field });
           }
           if (width === 430 || (width === 375 && height === 667)) {

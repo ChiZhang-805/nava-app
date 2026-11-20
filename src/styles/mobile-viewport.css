@@ -93,10 +93,48 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-br
   min-height: 50px;
   animation: none;
 }
-html[data-keyboard-open="true"] .auth-social,
-html[data-keyboard-open="true"] .auth-secondary-links,
 html[data-keyboard-open="true"] .auth-consent.auth-consent--screen {
   display: none;
+}
+/* Keep every login route reachable while the software keyboard is open. */
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-form {
+  min-height: 100%;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social {
+  display: block;
+  margin-top: auto;
+  padding-top: 8px;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-secondary-links {
+  display: flex;
+  min-height: 44px;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social-divider {
+  display: none;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social-options {
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social-button {
+  flex-direction: row;
+  justify-content: center;
+  min-height: 44px;
+  gap: 6px;
+  border-radius: 14px;
+  background: rgba(252, 254, 255, 0.88);
+  color: #102e41;
+  text-shadow: none;
+  font-size: 12px;
+}
+html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-social-icon {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 html[data-keyboard-open="true"] .phone-frame .profile-security-sheet {
   max-height: 100%;

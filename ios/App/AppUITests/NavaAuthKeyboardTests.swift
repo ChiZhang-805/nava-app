@@ -38,6 +38,21 @@ final class NavaAuthKeyboardTests: XCTestCase {
             capture("\(mode)-account-keyboard")
             assertAboveKeyboard(account, logo: logo, app: app)
 
+            if mode == "login" {
+                for name in ["微信", "Apple", "QQ", "验证码登录", "创建账号"] {
+                    XCTAssertTrue(web.buttons[name].firstMatch.exists, "Missing login route: \(name)")
+                }
+                let qq = web.buttons["QQ"].firstMatch
+                if app.frame.height >= 900 {
+                    XCTAssertTrue(qq.isHittable)
+                    let gap = keyboardTop(in: app) - qq.frame.maxY
+                    XCTAssertGreaterThanOrEqual(gap, 0)
+                    XCTAssertLessThanOrEqual(gap, 28, "Excessive space above keyboard")
+                    XCTAssertTrue(web.buttons["微信"].firstMatch.isHittable)
+                    XCTAssertTrue(web.buttons["Apple"].firstMatch.isHittable)
+                }
+            }
+
             // A real touch triggers WKWebView focus assistance. Subsequent
             // fields may require scrolling inside the form on compact phones.
             let fields = web.descendants(matching: .any).matching(NSPredicate(format: "elementType == %d OR elementType == %d", XCUIElement.ElementType.textField.rawValue, XCUIElement.ElementType.secureTextField.rawValue))

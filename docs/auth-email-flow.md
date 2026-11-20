@@ -20,9 +20,9 @@ iOS 混合版 `NavaBridgeViewController` 使用独立 UIKit 图片层承载同�
 2026-11-14 原生验收：源码 `73e156a1e6d47e5027745220898040131457be51`，GitHub
 Actions `43479481774`，标准 Apple Silicon macOS 26 / Xcode 26.6。两个设备均通过
 四个认证模式的聚焦、后续字段滚动、键盘收起和标题恢复检查，0 failures。
-40 张未缩放的 XCTest PNG 保存在
-`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/auth-keyboard/native-verified/`；
-大屏 1290×2796，小屏 750×1334。`screenshots.json` 记录原始附件、设备 ID、时间与源码。
+40 张未缩放的 XCTest 截图中，以下两张展示了登录页点入账号输入框、弹出系统键盘后的布局。
+[iPhone 15 Pro Max（1290×2796）](../../Build/TestRuns/App-Checks/auth-keyboard/native-verified/iphone-15-pro-max/auth-login-account-keyboard.png) · [iPhone SE（750×1334）](../../Build/TestRuns/App-Checks/auth-keyboard/native-verified/iphone-se/auth-login-account-keyboard.png)
+[截图清单](../../Build/TestRuns/App-Checks/auth-keyboard/native-verified/screenshots.json) 记录了原始附件、设备 ID、时间与源码。
 32 组无遮挡背景采样平均通道差异最大 0.256/255，结合截图核对未见背景缩放或平移。
 这些是原生模拟器证据，不能称为用户真机实测；安全密码输入时部分系统键盘内容未出现在
 XCTest 截图中，字段遮挡仍以实际键盘及工具栏 frame 断言核对。
