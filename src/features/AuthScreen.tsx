@@ -11,6 +11,7 @@ import {
   Send,
 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
+import ContinuousField from "../components/ContinuousField";
 import LanguageToggle from "../components/LanguageToggle";
 import NavaWordmark from "../components/NavaWordmark";
 import { useLocale } from "../i18n";
@@ -282,7 +283,7 @@ export default function AuthScreen({
                   </button>
                 )}
               </div>
-              <div className="input-wrap">
+              <ContinuousField className="input-wrap">
                 <AccountIcon size={19} />
                 <input
                   id="nava-auth-account"
@@ -292,13 +293,13 @@ export default function AuthScreen({
                   onChange={(event) => updateAccount(event.target.value)}
                   placeholder={t("auth.emailPhonePlaceholder")}
                 />
-              </div>
+              </ContinuousField>
             </div>
 
             {requiresCode && (
               <label className="field">
                 <span className="field-label">{t("auth.otp")}</span>
-                <div className="input-wrap auth-code-wrap">
+                <ContinuousField className="input-wrap auth-code-wrap">
                   <KeyRound size={19} />
                   <input
                     autoComplete="one-time-code"
@@ -317,7 +318,7 @@ export default function AuthScreen({
                     <Send size={15} />
                     <span>{codeButtonLabel}</span>
                   </button>
-                </div>
+                </ContinuousField>
               </label>
             )}
 
@@ -333,7 +334,7 @@ export default function AuthScreen({
                     </button>
                   )}
                 </div>
-                <div className="input-wrap">
+                <ContinuousField className="input-wrap">
                   <LockKeyhole size={19} />
                   <input
                     id="nava-auth-password"
@@ -352,14 +353,14 @@ export default function AuthScreen({
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
-                </div>
+                </ContinuousField>
               </div>
             )}
 
             {(mode === "reset" || mode === "signUp") && (
               <label className="field">
                 <span className="field-label">{t("auth.confirmPassword")}</span>
-                <div className="input-wrap">
+                <ContinuousField className="input-wrap">
                   <LockKeyhole size={19} />
                   <input
                     autoComplete="new-password"
@@ -377,7 +378,7 @@ export default function AuthScreen({
                   >
                     {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
-                </div>
+                </ContinuousField>
               </label>
             )}
 

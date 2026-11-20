@@ -29,11 +29,27 @@ try {
         const page = await context.newPage();
         for (const mode of ['login', 'register', 'reset', 'otp']) {
           await page.goto(server.resolvedUrls.local[0], { waitUntil: 'domcontentloaded' });
-          await page.locator('.auth-screen').waitFor();
+          await page.locator('.auth-screen').waitFor().catch(async error => {
+            await page.screenshot({ path: `${output}/${engine}-${width}-${height}-${mode}-startup-failure.png` });
+            throw error;
+          });
           if (mode === 'register') await page.locator('.auth-mode-icon').click();
           if (mode === 'reset') await page.locator('.auth-forgot').click();
           if (mode === 'otp') await page.locator('.auth-method-switch').click();
           await page.waitForTimeout(900);
+          const surfaces = await page.locator('.input-wrap').evaluateAll(elements => elements.map(element => {
+            const surface = element.querySelector('.continuous-field-surface');
+            const frame = element.getBoundingClientRect();
+            const shape = surface?.getBoundingClientRect();
+            return { ready: element.dataset.continuousReady, path: surface?.querySelector('path')?.getAttribute('d'),
+              width: frame.width, height: frame.height, shapeWidth: shape?.width, shapeHeight: shape?.height };
+          }));
+          for (const surface of surfaces) {
+            assert.equal(surface.ready, 'true');
+            assert(/c/i.test(surface.path ?? ''), 'Continuous surface must contain curve transitions');
+            assert.equal(surface.width, surface.shapeWidth);
+            assert.equal(surface.height, surface.shapeHeight);
+          }
           const measure = () => page.evaluate(() => {
             const rect = selector => { const r = document.querySelector(selector).getBoundingClientRect(); return { x:r.x, y:r.y, width:r.width, height:r.height, bottom:r.bottom }; };
             return { backdrop:rect('.auth-backdrop'), brand:rect('.nava-wordmark'), region:rect('.auth-form-region'), scrollY, scrollX };

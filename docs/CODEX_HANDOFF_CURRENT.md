@@ -1,5 +1,18 @@
 # NAVA 当前完整交接（新任务唯一入口）
 
+## 当前进行中：键盘布局与 Apple UI 资源复用
+
+用户要求键盘展开后密码登录所有入口直接可见、无需上滑、行间距均衡；语言按钮在右上，NAVA在下方单独居中。布局源码575e4db已推送，原生运行44666401570正在验收，尚未上传新的TestFlight。
+
+随后用户要求复用成熟Apple UI资源。已安装skills：`Q:/Codex/Live/skills/swiftui-pro`（twostraws，核对6591 stars）、`Q:/Codex/Live/skills/apple-design`（dickwu，3609 stars）。仓库AGENTS已记录优先Apple HIG、Design Resources和系统组件；按实际技术栈应用，不擅改部署目标。当前认证页仍是React DOM/WKWebView。
+
+新增ContinuousField使用MIT figma-squircle@1.1.0绘制输入框及聚焦连续路径。Figma兼容0.6平滑度是近似，并非Apple私有路径。构建与lint通过，浏览器检查进行中；仍需推送最终源码、原生验证和截图核对后上传。证据：`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/keyboard-shortcuts`。
+
+完整verify此前通过，575布局168个Chromium/WebKit状态通过，不能替代新增圆角后的验证。用户授权验证后构建并上传TestFlight，不要只汇报计划。最近已上传仍是下面的1.0.0(47)。
+
+网页同步受阻：Sites项目appgprj_6a5de710811c8191af8ce2681358d518可读取，创建源仓库写入凭据返回404 Sites project not found；未创建替代站点。两公开站点仍保留此前版本，本次尚未同步。此问题不阻止原生TestFlight构建。
+
+
 ## 登录键盘固定背景（原生验收通过，已上传 TestFlight）
 
 认证页现在使用独立 UIKit 纹理底层，保留原始全屏构图；系统键盘只改变局部表单可用高度。

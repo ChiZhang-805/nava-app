@@ -299,3 +299,38 @@ html[data-keyboard-open="true"] .profile-subpage[data-profile-view="personal"] .
   flex: 0 0 auto;
   overflow: visible;
 }
+/* One continuous outline for all auth fields, including their focus state.
+   Figma-compatible smoothing is an approximation, not Apple's private geometry. */
+.auth-form .input-wrap.continuous-field[data-continuous-ready="true"] {
+  position: relative;
+  isolation: isolate;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  transform: none;
+}
+
+.auth-form .continuous-field > .continuous-field-surface {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  z-index: -1;
+  display: block;
+  max-width: none;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.continuous-field-surface path {
+  fill: rgba(252, 254, 255, 0.84);
+  stroke: rgba(255, 255, 255, 0.94);
+  stroke-width: 1;
+}
+
+.continuous-field:focus-within .continuous-field-surface path {
+  fill: rgba(255, 255, 255, 0.94);
+  stroke: #327393;
+  stroke-width: 2;
+}

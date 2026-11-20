@@ -63,6 +63,19 @@ They complement the workspace rules in the parent environment.
 - Follow Apple HIG for iOS behavior and the installed Capacitor major version's
   documentation for the native bridge. Current React DOM views run in WKWebView;
   Xcode does not translate their CSS into SwiftUI or repair their layouts.
+- Prefer existing Apple UI resources and mature shared components over bespoke
+  controls: consult Apple HIG and Design Resources first. Use native system
+  controls, keyboard behavior, accessibility and materials where the actual
+  implementation layer supports them. Keep NAVA's brand artwork and identity.
+- Read `Q:/Codex/Live/skills/apple-design/SKILL.md` for Apple UI changes and
+  `Q:/Codex/Live/skills/swiftui-pro/SKILL.md` for actual SwiftUI code. Stars are
+  discovery evidence, not correctness guarantees. Verify version-specific claims
+  against official docs and the project's existing deployment target; do not
+  upgrade the target or rewrite React DOM as SwiftUI merely to follow a skill.
+- Continuous corners must use a continuous path, not only a larger CSS radius.
+  Reuse `ContinuousField` for auth field surfaces; its Figma-compatible smoothing
+  is not an exact reproduction of Apple's private native shape. Preserve native
+  HTML editing, focus visibility, hit areas, keyboard avoidance and row spacing.
 - UI reviews can use `Q:/Codex/Live/skills/web-design-guidelines/SKILL.md` and
   React reviews `Q:/Codex/Live/skills/react-best-practices/SKILL.md` (Vercel).
   Apply rules relevant to this React/Vite/Capacitor stack; Next.js, React Native

@@ -1,5 +1,23 @@
 # APP 验证码注册流程
 
+## Apple UI 资源与连续圆角
+
+优先参考 [Apple HIG](https://developer.apple.com/design/human-interface-guidelines/)
+和 [Apple Design Resources](https://developer.apple.com/design/resources/)，复用系统交互和成熟组件。
+本机已安装 `swiftui-pro`（twostraws/SwiftUI-Agent-Skill，核对时6591 stars）和
+`apple-design`（dickwu/apple-design-skill，3609 stars）；这是2026-11-19检索到的相关
+候选排名，不保证覆盖 GitHub 所有仓库。前者服务真实 SwiftUI 代码，后者指导当前界面审查。
+不要因 skill 的新系统版本建议修改本项目 deployment target，也不要把网页控件当成 UIKit。
+
+Apple 的 `RoundedCornerStyle.continuous` 和 `CALayerCornerCurve.continuous` 提供连续圆角。
+普通直线与圆弧相接时切线连续，但曲率从0跳到1/r；这与连续曲率不是一回事。
+当前认证表单在 WKWebView 内运行，使用共享 `ContinuousField` 和 MIT `figma-squircle@1.1.0`
+绘制 SVG 填充与聚焦边框，16px radius、0.6 smoothing 是 NAVA 的设计选择／Figma兼容近似，
+不是 Apple 私有路径的精确复制，也不是所有 Apple 输入框的通用参数。
+组件只观察边框盒尺寸，保留真实 HTML input 的输入、自动填充和可访问语义；不依赖
+仅部分浏览器支持的新 CSS corner-shape，也不使用放大的 border-radius 冒充连续圆角。
+新的形状与下面的键盘布局一并验收后发布；尚未上传这一修改。
+
 ## 键盘展开时的登录入口
 
 键盘展开时保留验证码登录、创建账号及微信／Apple／QQ 三个入口。快捷登录采用
