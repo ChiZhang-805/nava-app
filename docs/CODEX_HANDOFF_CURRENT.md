@@ -18,10 +18,19 @@
   情绪、明确偏好筛选后用消息ID稳定随机抽2–4条；1–6文本气泡+至多1贴纸，先保存后渐显。
   38次真实DeepSeek调用（35回复+3路由）结构有效，57,073 tokens，provider耗时
   1.101–2.898s；对照仅部分场景改善，不宣称普遍胜出或完整生产账号端到端通过。
-- 已按分别授权部署：ai-chat-reply版本48 ACTIVE、journal-assistant版本7 ACTIVE。
+- 已按分别授权部署：ai-chat-reply版本50 ACTIVE、journal-assistant版本7 ACTIVE。
   后者仅purpose=review-conversation陪聊接入语气；提取/翻译/图片仍走原合同。
   证据在App-Checks的ai-chat-deployment-final.json、journal-assistant-deployment.json，
   真实模型评估在chat-tone-live-eval。生产认证检查通过；模型测试用NAVA专用密钥与合成场景。
+  已核对本机NAVA密钥与云端旧项摘要相同，补齐程序读取的DEEPSEEK_API_KEY_NAVA名称；
+  保留旧项、未换计费账户。新聊天图片按逐图food/fitness/face/generic/uncertain分流，
+  用户原话同时进入视觉与最终回复，只有单张可信食物图可产生待确认草稿，不自动保存。
+  用户明确将视觉专用Key配置延后，本轮未验证真实视觉模型调用。文件附件正文独立传递，
+  不再撞普通消息600字限制，不作为用户健康记录提取；中英文否定/假设提醒不生成待办。
+  部署证据ai-chat-images-deployment.json；密钥仅摘要核对收据nava-model-secret-alias.json。
+- 发现并修复新增可选字段遗漏整理说明的真实问题：sport.intensity等10项已补齐，
+  journal:voice:test 5项通过。报告新数据层读取journal_entries，避免小猫记录不在旧表时
+  总报告缺失；同类同日新记录与旧汇总不叠加，未知留空，专注使用实际elapsedMs。
 - 202611201200_journal_optional_review_fields.sql获单独授权，已选择性部署并登记，
   本地PostgreSQL56项、线上9项只读格式校验通过；不改表/RLS/旧记录。
 - 用户明确要求重置所有内部账号的AI Chat。北京时间19:50已删除ai_conversations的12条

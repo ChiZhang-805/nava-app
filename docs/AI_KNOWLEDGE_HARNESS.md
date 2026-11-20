@@ -2,12 +2,20 @@
 
 ## Current deployment and conversation reset
 
-The explicitly authorized releases on 2026-11-20 are `ai-chat-reply` ACTIVE v48
+The explicitly authorized releases on 2026-11-20 are `ai-chat-reply` ACTIVE v50
 and `journal-assistant` ACTIVE v7. The latter only adds retrieved tone to the
 explicit `review-conversation` purpose with a plain-text, non-vision shape;
 extraction, translation and schema outputs retain their original path. Browser
 feedback tests pass in Chromium/WebKit; live provider evaluation below covers
 the main chat prompt, not a logged-in end-to-end journal interaction.
+
+Version 50 also includes bounded per-image/document evidence and the workflow
+boundaries below. The project-specific `DEEPSEEK_API_KEY_NAVA` secret was added
+after digest-only comparison confirmed it matches the existing NAVA cloud key;
+the old secret and billing account were retained. No key value entered logs or
+Git. Receipt: `App-Checks/nava-model-secret-alias.json`. Visual-provider setup
+is explicitly deferred by the user for this phase; text chat remains available,
+but no current live photo-recognition success is claimed.
 
 At the user's explicit request, only `ai_conversations` and
 `ai_conversation_archives` were reset at 2026-11-20 11:50 UTC: 12 live messages
