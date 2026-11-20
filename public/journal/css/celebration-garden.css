@@ -1,6 +1,6 @@
 /* Artwork coordinates scale with their ground. Copy and actions obey safe areas. */
-@font-face{font-family:NavaNunito;src:url('../assets/completion/Nunito.ttf') format('truetype');font-weight:200 1000;font-style:normal;font-display:swap}
-.celebration-garden{position:fixed;inset:0;z-index:10;overflow:hidden;background:#e5f1dc;color:#14364b;isolation:isolate}
+@font-face{font-family:NavaNunito;src:url('../assets/completion/Nunito-SemiBold.ttf') format('truetype');font-weight:600;font-style:normal;font-display:swap}
+.celebration-garden{position:fixed;inset:0;z-index:10;overflow:hidden;background:#e4effa;color:#14364b;isolation:isolate}
 .celebration-garden[hidden]{display:none!important}
 .has-garden-celebration{overflow:hidden}
 .has-garden-celebration>.phone-wrap{visibility:hidden;pointer-events:none}
@@ -41,7 +41,11 @@
 .celebration-garden #primary .chevron,.celebration-garden #primary svg{display:none}
 .celebration-garden #primary::after,.scene-continue::after{content:none!important}
 .scene-continue:focus-visible{outline:0;filter:brightness(.9)}
-.celebration-garden .scene-continue,.celebration-garden #primary{font-family:NavaNunito,ui-rounded,system-ui,sans-serif;font-weight:750}
+/* One rounded, medium-weight Continue across the six record and completion
+   flows. Use the static 600 instance: WebKit can render the variable font at
+   its default 200 weight despite the computed CSS weight. */
+.celebration-garden .scene-continue,.celebration-garden #primary,#screen[data-language="en"] #primary{font-family:NavaNunito,ui-rounded,system-ui,sans-serif;font-weight:600}
+.celebration-garden #primary-label,#screen[data-language="en"] #primary-label{font-family:inherit;font-weight:inherit;font-variation-settings:inherit;font-size:inherit;line-height:1.15}
 .garden-breeze{position:absolute;inset:0;overflow:hidden;z-index:1}
 .garden-breeze i{position:absolute;top:-20px;left:12%;width:9px;height:15px;background:#eaa8bcb5;border-radius:90% 15% 80% 20%;animation:scene-petal 17s linear infinite;animation-delay:-4s}
 .garden-breeze i:nth-child(2){left:76%;width:8px;height:12px;animation-duration:21s;animation-delay:-12s}

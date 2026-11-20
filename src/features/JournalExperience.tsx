@@ -11,6 +11,7 @@ import type { RecordModule } from './RecordsScreen';
 import PageSkeleton, { type PageSkeletonVariant } from '../components/PageSkeleton';
 import './journal-experience.css';
 import type { AppSkin } from '../services/appSkin';
+import { claimJournalDailyCompletion } from '../services/journalDailyCompletion';
 
 const categoryMap:Record<RecordModule,JournalCategory>={mood:'mood',diet:'food',exercise:'sport',focus:'focus',sleep:'sleep',face:'face'};
 const editorSkeletonMap:Record<RecordModule,PageSkeletonVariant>={mood:'record-editor-mood',diet:'record-editor-diet',exercise:'record-editor-exercise',focus:'record-editor-focus',sleep:'record-editor-sleep',face:'record-editor-face'};
@@ -67,8 +68,13 @@ export default function JournalExperience({user,module,locale,skin,forceGuide=fa
             let result:unknown=null;
             if(method==='save'){
               if(guidePreview)throw Error(locale==='zh'?'新手引导预览不会保存真实记录。':'The guide preview does not save real records.');
-              result=await saveJournal(payload.record,payload.expectedVersion??null);callbacks.current.onSaved();
-              if(!initial.records.some(r=>r.category===categoryMap[module])){firstSaved=result as JournalRecord;initial.records.push(firstSaved);}
+              const saved=await saveJournal(payload.record,payload.expectedVersion??null);
+              // This receipt is transient bridge metadata, never a stored field.
+              result={...saved,showDailyCompletion:alive&&!controller.signal.aborted&&claimJournalDailyCompletion(user.id,saved,initial.records)};
+              if(!initial.records.some(r=>r.category===categoryMap[module]))firstSaved=saved;
+              const existing=initial.records.findIndex(r=>r.id===saved.id);
+              if(existing<0)initial.records.push(saved);else initial.records[existing]=saved;
+              callbacks.current.onSaved();
             }else if(method==='delete'){
               if(guidePreview)throw Error(locale==='zh'?'新手引导预览不会删除真实记录。':'The guide preview does not delete real records.');
               await deleteJournal(user.id,payload.id);callbacks.current.onSaved();

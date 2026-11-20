@@ -3,8 +3,8 @@ import type { GrowthRewardGrant } from "../services/productivity";
 import { completionSceneForReward } from "../services/rewardPresentation";
 import "./reward-celebration.css";
 
-/** A celebration presents a committed ledger grant. Rendering or dismissing it
- * never awards points; the journal's own completion scene is not queued twice. */
+/** Presentation/desktop preview only. Production journal saves own the daily
+ * eligibility receipt; growth grants never enqueue this component. */
 export default function RewardCelebration({ rewards = [], sceneOverride, locale, onDismiss }: {
   rewards?: GrowthRewardGrant[]; sceneOverride?: string; locale: "zh" | "en"; onDismiss: () => void;
 }) {
@@ -58,6 +58,7 @@ export default function RewardCelebration({ rewards = [], sceneOverride, locale,
       channel = new MessageChannel();
       channel.port1.onmessage = ({ data }) => {
         if (data?.type === "ready") reveal();
+        if (data?.type === "unavailable") dismiss();
         if (data?.type === "continue" && revealed) dismiss();
       };
       element?.contentWindow?.postMessage({ type: "nava-completion-connect", scene, locale, ...viewport() }, location.origin, [channel.port2]);

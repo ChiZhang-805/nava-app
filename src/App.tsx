@@ -30,7 +30,7 @@ import { useLocale, useT, type TranslationKey } from "./i18n";
 import type { AppTab } from "./types";
 import { isDemoMode } from "./services/demo";
 import { loadOnboardingStatus, type OnboardingStatus } from "./services/onboarding";
-import { recordGrowthActivity, reconcileGrowthRewards, resolveGrowthTasks, saveTodoFocusPlan, type GrowthActivityKind, type GrowthRewardGrant, type GrowthSummary, type TodoItem } from "./services/productivity";
+import { recordGrowthActivity, reconcileGrowthRewards, resolveGrowthTasks, saveTodoFocusPlan, type GrowthActivityKind, type GrowthSummary, type TodoItem } from "./services/productivity";
 import { resolveTodoFocusPlan } from "./services/focusPlanning.ts";
 import useDeviceDate from "./hooks/useDeviceDate";
 import useIndependentReminders from "./hooks/useIndependentReminders";
@@ -174,10 +174,8 @@ function MobileShell({
       return true;
     }
   });
-  const [rewardQueue, setRewardQueue] = useState<GrowthRewardGrant[][]>([]);
   const rewardUserRef = useRef(user?.id);
   rewardUserRef.current = user?.id;
-  useEffect(() => setRewardQueue([]), [user?.id]);
   useEffect(() => setAppSkin(readAppSkin(user?.id)), [user?.id]);
 
   const changeAppSkin = useCallback((skin: AppSkin) => {
@@ -253,14 +251,13 @@ function MobileShell({
       ? t(currentTab.labelKey)
       : "";
 
-  const claimGrowthAfterChange = useCallback((present = true) => {
+  const claimGrowthAfterChange = useCallback(() => {
     if (!user) return Promise.resolve(null);
     const next = rewardClaimTailRef.current
       .catch(() => null)
       .then(async () => {
         const tasks = await resolveGrowthTasks(user.id);
         const summary = await reconcileGrowthRewards(tasks);
-        if (rewardUserRef.current === user.id && present && summary.awarded.length > 0) setRewardQueue((queue) => [...queue, summary.awarded]);
         return summary;
       })
       .catch((rewardError) => {
@@ -277,11 +274,11 @@ function MobileShell({
     if (user && module) notifyRecordSaved(user.id, module, deviceDate, locale);
   }, [claimGrowthAfterChange, deviceDate, locale, user]);
 
-  // A journal save already leads to the category's full-screen completion scene.
-  // Reconcile silently so it cannot be covered by a second celebration.
+  // Growth grants never open a full-screen completion. JournalExperience owns
+  // the once-per-day presentation after a successful six-category record save.
   const markJournalChanged = useCallback(() => {
     setRefreshKey((value) => value + 1);
-    void claimGrowthAfterChange(false);
+    void claimGrowthAfterChange();
   }, [claimGrowthAfterChange]);
 
   const refreshHealthViews = useCallback(() => {
@@ -295,15 +292,13 @@ function MobileShell({
     return subscribeHealthSyncCompletion(user.id, refreshHealthViews);
   }, [refreshHealthViews, user]);
 
-  const completeGrowthActivity = useCallback(async (activity: GrowthActivityKind, options: { celebrate?: boolean } = {}) => {
+  const completeGrowthActivity = useCallback(async (activity: GrowthActivityKind) => {
     if (!user) return null;
     try {
       const reward = await recordGrowthActivity(user.id, activity);
       if (rewardUserRef.current !== user.id) return null;
       setRefreshKey((value) => value + 1);
-      const summary = await claimGrowthAfterChange(false);
-      const grants = [...(reward ? [reward] : []), ...(summary?.awarded ?? [])];
-      if (options.celebrate !== false && rewardUserRef.current === user.id && grants.length) setRewardQueue((queue) => [...queue, grants]);
+      await claimGrowthAfterChange();
       return reward;
     } catch (rewardError) {
       console.warn("Growth activity could not be recorded", rewardError);
@@ -311,7 +306,6 @@ function MobileShell({
     }
   }, [claimGrowthAfterChange, user]);
 
-  const dismissReward = useCallback(() => setRewardQueue((queue) => queue.slice(1)), []);
 
   useEffect(() => {
     if (previousDeviceDateRef.current === deviceDate) return;
@@ -820,7 +814,7 @@ function MobileShell({
                   active={activeTab === "ai"}
                   initialPromptRequest={aiPromptRequest}
                   onDataSaved={markChanged}
-                  onConversationCompleted={(options) => void completeGrowthActivity("ai", { celebrate: options?.celebrate === true })}
+                  onConversationCompleted={() => void completeGrowthActivity("ai")}
                 />
               </Suspense>
             </div>
@@ -903,7 +897,6 @@ function MobileShell({
           );
         })}
       </nav>}
-      {rewardQueue[0] && <RewardCelebration rewards={rewardQueue[0]} locale={locale} onDismiss={dismissReward} />}
       {completionPreviewScene && <RewardCelebration sceneOverride={completionPreviewScene} locale={locale} onDismiss={onCompletionPreviewDismiss} />}
     </div>
   );

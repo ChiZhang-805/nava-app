@@ -94,14 +94,14 @@ try{
  await food.locator('#confirm-entry').click();await food.waitForSelector('#screen[data-scene="record"]');
  await food.waitForTimeout(10000);await page.screenshot({path:`${output}/authenticated-food-writing.png`});
  await checkBackgrounds(page,food,'writing');
- await food.waitForFunction(()=>!document.querySelector('#primary').disabled);await food.locator('#primary').click();await food.waitForSelector('#screen[data-scene="celebrate"]',{timeout:30000});
- await food.waitForTimeout(4500);await page.screenshot({path:`${output}/authenticated-food-great-job.png`});
- await checkBackgrounds(page,food,'great-job');
- await checkDesktop(page,food,'great-job');
+ await food.waitForFunction(()=>!document.querySelector('#primary').disabled);await food.locator('#primary').click();await food.waitForSelector('#screen[data-scene="review"]',{timeout:30000});assert.equal(await food.locator('.celebration-garden:not([hidden])').count(),0,'The second category saved today must not celebrate again');
+ await food.waitForTimeout(4500);await page.screenshot({path:`${output}/authenticated-food-recap.png`});
+ await checkBackgrounds(page,food,'recap');
+ await checkDesktop(page,food,'recap');
  const meals=await admin.from('journal_entries').select('category,fields,estimated').eq('user_id',id).eq('category','food');
  assert.equal(meals.data.length,1);assert.equal(meals.data[0].fields.meal,'早餐');assert.ok(meals.data[0].fields.foods);assert.equal(meals.data[0].estimated,true);
  assert.equal(errors.length,0,errors.join('\n'));
  assert.deepEqual([...projects],[`${project}.supabase.co`]);
- writeFileSync(`${output}/result.json`,JSON.stringify({target,publicDemoRejected:publicBuild,canonicalProject:project,realPasswordLogin:true,cloudSave:true,reloadRestored:true,photoConfirmedAndSaved:true,backgrounds,desktopPreviewProfiles:IPHONE_PREVIEW_DEVICES.length,desktopPreviewScenes:['recap','great-job'],textAI:ai.filter(x=>x.body?.provider==='deepseek').map(x=>x.body.model),visionAI:ai.filter(x=>x.body?.provider==='bailian').map(x=>x.body.model),errors},null,2));
+ writeFileSync(`${output}/result.json`,JSON.stringify({target,publicDemoRejected:publicBuild,canonicalProject:project,realPasswordLogin:true,cloudSave:true,reloadRestored:true,photoConfirmedAndSaved:true,backgrounds,desktopPreviewProfiles:IPHONE_PREVIEW_DEVICES.length,desktopPreviewScenes:['recap'],textAI:ai.filter(x=>x.body?.provider==='deepseek').map(x=>x.body.model),visionAI:ai.filter(x=>x.body?.provider==='bailian').map(x=>x.body.model),errors},null,2));
  console.log('Real app login, cloud save/reload, DeepSeek recap and Bailian photo route passed.');
 }finally{await browser?.close();if(id){const result=await admin.auth.admin.deleteUser(id);if(result.error)throw Error('Temporary account cleanup failed');}console.log('Temporary UI account removed.');}

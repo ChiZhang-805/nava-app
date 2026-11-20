@@ -11,9 +11,13 @@ window.NavaGardenCelebration = class {
     }
     prepare(record) {
         const id=window.NavaCompletionScenes.choose(record);
-        if(this.preparedScene===id)return;
+        if(this.preparedScene===id)return this.prepared;
         this.preparedScene=id;
         this.prepared=window.NavaCompletionScenes.preload(id);
+        // Warm-up may fail while offline. Keep that failure handled until the
+        // acknowledged save chooses whether to use this optional scene.
+        this.prepared.catch(()=>{if(this.preparedScene===id)this.preparedScene=null;});
+        return this.prepared;
     }
     update(scene,_time,record) {
         const active=scene==='celebrate';
@@ -22,12 +26,13 @@ window.NavaGardenCelebration = class {
             if(active){
                 const id=window.NavaCompletionScenes.choose(record);
                 const ready=this.preparedScene===id?this.prepared:window.NavaCompletionScenes.preload(id);
-                Promise.resolve(ready).then(()=>{
+                Promise.resolve(ready).then(async()=>{
+                    if(!this.active)return;
+                    await this.scene.show({scene:id,locale:__fluffyModules['entry-i18n.js'].language()});
                     if(!this.active)return;
                     this.stage.classList.add('has-garden-celebration');
-                    this.scene.show({scene:id,locale:__fluffyModules['entry-i18n.js'].language()});
                     this.stage.scrollTop=0;
-                });
+                }).catch(()=>document.dispatchEvent(new Event('nava-completion-unavailable')));
             }else{
                 this.stage.classList.remove('has-garden-celebration');
                 this.marker.after(this.primary);this.primary.classList.remove('scene-continue');

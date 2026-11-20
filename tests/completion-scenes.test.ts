@@ -5,7 +5,7 @@ import vm from "node:vm";
 import { completionSceneForReward } from "../src/services/rewardPresentation.ts";
 import { journalGrowthTargets, isMissingGrowthRpc } from "../src/services/growthRewardContract.ts";
 
-test("all nine scenes are reachable; reward and journal mappings agree", () => {
+test("all category actors remain reachable, with only reviewed non-green backgrounds", () => {
   const window: { NavaCompletionScenes?: { choose: (record: object, hour: number) => string; assetSources: (scene: string) => string[]; scenes: Record<string, { cat?: string; inkDuration?: number; actorMotion?: string; zh?: string }> } } = {};
   vm.runInNewContext(readFileSync("public/journal/js/completion-scene.js", "utf8"), { window });
   const api = window.NavaCompletionScenes!;
@@ -19,7 +19,7 @@ test("all nine scenes are reachable; reward and journal mappings agree", () => {
   for (const suffix of ["01", "02", "03", "04", "05", "06", "07", "08", "09"]) assert.ok(api.scenes[suffix]);
   for (const suffix of ["01", "02", "03", "04", "05", "06", "07", "08", "09"]) {
     const [background, actor] = api.assetSources(suffix);
-    assert.match(background, /\.webp$/);
+    assert.match(background, /^assets\/completion\/scene-(04|09)\.webp$/);
     assert.match(actor, /\.webp$|\.png$/);
   }
   assert.deepEqual(
@@ -49,7 +49,8 @@ test("completion presentation cannot award points or resurrect the trophy popup"
   }
   const app = readFileSync("src/App.tsx", "utf8");
   assert.match(app, /onSaved=\{markJournalChanged\}/);
-  assert.match(app, /claimGrowthAfterChange\(false\)/);
+  assert.match(app, /claimGrowthAfterChange\(\)/);
+  assert.doesNotMatch(app, /rewardQueue|setRewardQueue/);
 });
 
 test("desktop controls expose all nine named scenes without a reward write", () => {

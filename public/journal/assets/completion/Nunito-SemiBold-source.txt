@@ -1,0 +1,10 @@
+Nunito-SemiBold.ttf is the static wght=600 instance of the existing Nunito.ttf
+variable font in this directory. Same Nunito Project Authors copyright and
+SIL Open Font License 1.1 apply; see Nunito-OFL.txt.
+
+Generated with fontTools 4.68.0 varLib.instancer.instantiateVariableFont:
+  instantiateVariableFont(TTFont('Nunito.ttf'), {'wght': 600}).save('Nunito-SemiBold.ttf')
+
+No outline edits. Static instancing prevents WebKit rendering the variable
+font's default 200 weight despite a computed CSS weight of 600. The common
+record/completion Continue style uses this same resource on every category.

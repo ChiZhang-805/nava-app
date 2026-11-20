@@ -19,7 +19,7 @@ for(let width=320;width<=480;width++)for(const height of [480,568,667,740,812,84
 }
 const browser=await (engine==='webkit'?webkit:chromium).launch({headless:true});const page=await browser.newPage({viewport:{width:390,height:844},locale:'zh-CN'});
 const results=[],errors=[];page.on('pageerror',e=>errors.push(e.message));let stored=[];
-await page.exposeFunction('saveRecord',record=>{const value={...record,version:1};stored.push(value);return value;});
+await page.exposeFunction('saveRecord',record=>{const value={...record,version:1,showDailyCompletion:true};stored.push(value);return value;});
 const inputs={mood:{mood:'放松',reason:'完成今天的工作',notes:'明天继续'},food:{foods:'鸡肉米饭',portion:'一碗',calories:'520',protein:'30',carbs:'65',fat:'15'},sport:{activity:'散步',durationMinutes:'30',notes:'公园里走了一圈'},sleep:{bedtime:'23:00',wakeTime:'07:00',quality:'精神不错'},face:{feeling:'精神还好',eyeArea:'没有明显阴影',skinAppearance:'自然光下肤色均匀'},focus:{task:'阅读',durationMinutes:'0.1',notes:'读完一页'}};
 async function capture(frame,category,scene){
  if(scene==='celebrate'){

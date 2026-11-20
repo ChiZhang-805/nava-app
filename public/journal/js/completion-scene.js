@@ -15,18 +15,19 @@
   const preloadCache=new Map();
   function assetSources(scene='01'){
     if(!Object.hasOwn(scenes,scene))scene='01';
-    const now=new Date();
-    const day=Math.floor(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate())/86400000);
-    // Stable for a local day: no random redraw while an animation is playing.
-    const backdrop=[scene,'01','09'][((day%3)+3)%3];
-    return [backdrop==='01'?'assets/mint-garden-morning.webp':`assets/completion/scene-${backdrop}.webp`,`assets/completion/${scenes[scene].cat}`];
+    // Keep category-specific actors, but never rotate into a green completion
+    // background. These reviewed compositions are lavender and blue starlight.
+    const backdrop=scene==='04'?'04':'09';
+    return [`assets/completion/scene-${backdrop}.webp`,`assets/completion/${scenes[scene].cat}`];
   }
   function preload(scene='01'){
     return Promise.all(assetSources(scene).map(src=>{
       if(preloadCache.has(src))return preloadCache.get(src).promise;
       const image=new Image(),loaded=new Promise(resolve=>{image.onload=resolve;image.onerror=resolve;});
       image.decoding='async';image.fetchPriority='high';image.src=src;
-      const promise=typeof image.decode==='function'?image.decode().catch(()=>loaded):loaded;
+      const promise=(typeof image.decode==='function'?image.decode().catch(()=>loaded):loaded).then(()=>{
+        if(!image.complete||!image.naturalWidth){preloadCache.delete(src);throw new Error('Completion artwork unavailable');}
+      });
       preloadCache.set(src,{image,promise});return promise;
     }));
   }
@@ -123,7 +124,7 @@
       this.button.setAttribute('aria-label',locale==='en'?'Continue':'继续');
       // Preloading bytes does not guarantee newly created DOM images have
       // decoded. Reveal the complete composition together, not a blank actor.
-      await Promise.all([...this.root.querySelectorAll('img')].map(image=>image.decode().catch(()=>{})));
+      await Promise.all([...this.root.querySelectorAll('img')].map(image=>image.decode()));
       if(this.generation===generation)this.root.hidden=false;
     }
     hide(){this.generation=(this.generation||0)+1;this.root.hidden=true;this.root.querySelectorAll('img').forEach(img=>img.removeAttribute('src'));this.root.replaceChildren();}

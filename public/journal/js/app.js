@@ -606,7 +606,7 @@ __fluffyModules["app.js"] = (() => {
                 closeSheet(false);
                 animation.setRecord(state.record);
                 animation.saved = true;
-                navigate("celebrate");
+                finishSavedRecord(state.record);
             };
             root.append(save);
         });
@@ -1006,8 +1006,8 @@ __fluffyModules["app.js"] = (() => {
                 if(state.record!==record || animation.scene!=='record')return;
                 state.drafts[state.category]={}; delete state.draftDates[state.category]; state.editingId=null;
                 photo.clear(); animation.saved=true; animation.actor.companionPet=0;
-                // 阶段三：直接走既有庆祝过渡；旧书写仅是展示，不补写、不再重复保存。
-                navigate("celebrate");
+                // 阶段三：首条日记录进入完成页，其余直接回顾；演出不重复保存。
+                finishSavedRecord(state.record);
             } catch (_) { continueGate.unlock(); toast("save-failed"); }
         } else if (animation.scene === "celebrate") {
             if (state.record) openReview(state.record); else navigate("home");
@@ -1017,8 +1017,26 @@ __fluffyModules["app.js"] = (() => {
     /**
      * 输入：record（已确认且保存的记录）。
      * 输出：无。
-     * 功能：庆祝完成或历史入口打开相应板块的只读回顾；不再次新增记录。
+     * 功能：仅用保存成功的每日资格进入完成页，其余打开只读回顾。
      */
+    async function finishSavedRecord(record) {
+        // Only an acknowledged, first-of-day parent receipt may open the scene.
+        // Do not retain the receipt on the record for another edit or replay.
+        const celebrate = record.showDailyCompletion === true;
+        delete record.showDailyCompletion;
+        if (!celebrate) { openReview(record); return; }
+        const fromScene = animation.scene;
+        let timer;
+        try {
+            await Promise.race([
+                animation.celebration.prepare(record),
+                new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("Completion artwork unavailable")), 3500); })
+            ]);
+            if (state.record === record && animation.scene === fromScene) navigate("celebrate");
+        } catch {
+            if (state.record === record && animation.scene === fromScene) openReview(record);
+        } finally { clearTimeout(timer); }
+    }
     function openReview(record) {
         navigate("review");
         review.lang = Locale.language();
@@ -1771,7 +1789,7 @@ __fluffyModules["app.js"] = (() => {
         state.editingId = null;
         animation.setRecord(state.record);
         animation.saved = true;
-        navigate("celebrate");
+        finishSavedRecord(state.record);
     }
     /**
      * 输入：无。
@@ -2219,7 +2237,7 @@ __fluffyModules["app.js"] = (() => {
         $("entry-bubble").hidden = !entry && !(record && a.bridge && bridge < .6);
         $("entry-bubble").style.opacity = entry ? 1 : 1 - M.range(bridge, 0, .55);
         // 阶段二：保留原来的表单到记录卡几何过渡，不替换整屏截图。
-        $("green-bg").style.opacity = hero ? 1 : 0;
+        $("green-bg").style.opacity = 0;
         $("record-card").hidden = !entry && !record;
         const p = entry ? 0 : bridge;
         $("record-card").style.top = `${M.mix(368, 414, p)}px`;
@@ -2452,6 +2470,9 @@ __fluffyModules["app.js"] = (() => {
         $("primary").addEventListener("keydown", e => { if ([" ","Enter"].includes(e.key)) { if(e.repeat) e.preventDefault(); else continueGate.down("key"); } });
         $("primary").addEventListener("keyup", e => { if (e.key === "Escape") continueGate.cancelPress(); });
         $("primary").onclick = primaryAction;
+        document.addEventListener('nava-completion-unavailable', () => {
+            if (animation.scene === 'celebrate') openReview(state.record);
+        });
         document.addEventListener('nava-completion-reveal', () => {
             if (animation.scene !== 'celebrate') return;
             animation.time = animation.maximum();
