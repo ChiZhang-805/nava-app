@@ -94,5 +94,5 @@ test("system prompt includes only route-relevant profile variables and records",
   assert.match(prompt, /2026-08-24/);
   assert.match(prompt, /至少体现一个真实的数值、比较或变化/);
   assert.match(prompt, /轻二次元/);
-  assert.match(prompt, /只模仿表达，不复制事实/);
+  assert.match(prompt, /语气示例由本轮独立筛选/);
 });

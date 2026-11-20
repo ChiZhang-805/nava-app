@@ -106,10 +106,10 @@ test("voice mode asks for short spoken language without visual formatting", () =
 
 test("ordinary chat can end naturally without advice, a question or formal punctuation", () => {
   const zh = buildSystemPrompt("zh");
-  assert.match(zh, /普通聊天通常 1—3 句/);
+  assert.match(zh, /选 1—6 个有独立意思的气泡/);
   assert.match(zh, /不要每次反问/);
   assert.match(zh, /不必每轮都带/);
-  assert.match(zh, /OKK/);
+  assert.match(zh, /okk～/);
   assert.match(zh, /不要猜测隐藏情绪/);
   assert.match(zh, /不得假装真人/);
   assert.match(zh, /不作医学诊断/);
@@ -261,7 +261,7 @@ test("invalid model structure gets one complete repair and never reaches UI as r
 test("segment validation rejects unsafe IDs, empty text and excessive bubbles without silently dropping content", () => {
   const text = { type: "text", text: "Some text." };
   for (const value of [[], [{ type: "sticker", id: "hug" }], [text, { type: "sticker", id: "https://evil.test/a.svg" }],
-    [text, { type: "sticker", id: "hug" }, { type: "sticker", id: "ok" }], Array(5).fill(text),
+    [text, { type: "sticker", id: "hug" }, { type: "sticker", id: "ok" }], Array(7).fill(text),
     [{ type: "text", text: "  " }], [{ type: "url", url: "https://evil.test/a.svg" }]]) {
     assert.equal(validateChatReplySegments(value), null);
     assert.throws(() => parseSegmentedModelReply({ text: JSON.stringify({ segments: value }), finishReason: "stop" }), /格式/);
@@ -269,6 +269,9 @@ test("segment validation rejects unsafe IDs, empty text and excessive bubbles wi
   }
   assert.equal(decodeChatReplySegments("[nava-reply:v1]not-json"), null);
   assert.equal(decodeChatReplySegments("ordinary text"), null);
+  const full = [...Array.from({ length: 6 }, (_, index) => ({ type: "text", text: `Thought ${index}.` })), { type: "sticker", id: "ok" }];
+  assert.deepEqual(validateChatReplySegments(full), full);
+  assert.deepEqual(decodeChatReplySegments(encodeChatReplySegments(validateChatReplySegments(full)!)), full);
 });
 
 test("failed optional shortening retains every complete segment including the last safety warning", async () => {
@@ -292,13 +295,13 @@ test("only authenticated assistant envelopes become history text and sticker sem
 
 test("text prompt selects expressive segments while voice remains plain speakable text", () => {
   const prompt = buildSystemPrompt("zh");
-  assert.match(prompt, /2—4 个有独立意思的气泡/);
+  assert.match(prompt, /1—6 个有独立意思的气泡/);
   assert.match(prompt, /"segments"/);
   assert.match(prompt, /XSWL/);
   assert.match(prompt, /crush/);
-  assert.match(prompt, /不编造恋爱背景/);
+  assert.match(prompt, /不能擅自判断是开心还是痛苦/);
   assert.match(prompt, /用户要求不使用表情/);
-  assert.match(prompt, /胸口很痛/);
+  assert.match(prompt, /紧急危险信号/);
   assert.doesNotMatch(buildSystemPrompt("zh", undefined, undefined, "voice"), /文本消息传输格式|"segments"|允许的贴纸/);
   assert.doesNotMatch(buildSystemPrompt("en", undefined, undefined, "voice"), /Text message transport format|"segments"|Allowed stickers/);
 });

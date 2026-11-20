@@ -7,8 +7,8 @@ hidden chain of thought.
 ## Conversational replies (2026-11-20 source change; deployment separate)
 
 - Wamier (瓦咪儿) speaks as NAVA's virtual cat companion. Ordinary replies
-  usually use 1–3 natural sentences. The model selects 2–4 natural short/long
-  bubbles when useful; a brief acknowledgment can remain one. Acknowledgments
+  choose 1–6 natural short/long text bubbles according to content and emotion;
+  an excited exchange can use 3–6, a brief acknowledgment can remain one. Acknowledgments
   need no forced advice or follow-up question.
   Chinese targets are 30 characters for greetings and 80 for ordinary chat;
   English targets are 18 and 45 words. These are ceilings to aim for, not quotas.
@@ -16,7 +16,7 @@ hidden chain of thought.
   Chinese characters / 240 English words. Facts, uncertainty, consent and
   urgent safety guidance take precedence over shortening. Voice keeps its
   separate short spoken contract, without visual emoji or kaomoji.
-- A fitting emoji or kaomoji and an occasional casual “OKK” are optional;
+- A fitting emoji or kaomoji and an occasional lowercase “okk～” / “okkk~” are optional;
   distress and medical warnings use calm, plain language. The prompt does not
   diagnose, guess hidden feelings, exaggerate praise, claim human experiences,
   or suggest an exclusive relationship. Identity questions receive an honest
@@ -30,7 +30,8 @@ hidden chain of thought.
 - The current provider returns a complete answer. The SSE endpoint sends one
   `done` event as soon as that answer is ready; there is no artificial per-letter
   delay or fabricated streaming. Text output requests a JSON `segments` array:
-  1–4 entries, at least one complete text and at most one allowlisted sticker.
+  1–6 complete text entries and at most one allowlisted sticker (7 total).
+  Stickers normally close the group, unless the context supports another place.
   These are model-authored thoughts, never chunks cut from one sentence. The
   compatible `reply` joins all text without exposing JSON or sticker markers;
   voice remains plain text. Provider/model and knowledge-trace metadata remain
@@ -41,8 +42,24 @@ hidden chain of thought.
   unknown IDs and arbitrary URLs never become executable image instructions.
 - Tone examples are authored for NAVA, contrasting excited romance, a funny
   anecdote, requested quiet support, an ambiguous scream and urgent symptoms.
-  XSWL/OKK/crush are optional contextual expressions, never a demographic
+  XSWL/okk/crush are optional contextual expressions, never a demographic
   assumption or a health record. Explicit requests for no slang/emoji are honored.
+- Tone examples are retrieved from a separate reviewed catalog; the complete
+  catalog never enters the model prompt. The deterministic pipeline filters
+  locale and explicit preferences, narrows intent/emotion/register, excludes
+  phrases recently used by the assistant, then samples without replacement
+  with relevance weights and a message-ID seed. This selects 2–4 whole examples
+  when available within a 1,800-character prompt cap; retries are stable and new
+  turns can vary. Catalog source metadata is retained for audit, not sent to the
+  model. Medical/urgent messages bypass examples. Low mood and voice permit
+  plain/gentle examples only. Pet names, affection and dialect require expressed
+  preference; romance words alone do not enable them. Preference history comes
+  only from the existing authenticated consent-gated history loader.
+- Unambiguous cues route locally. The existing context-router model call may
+  supply allowlisted `toneIntent` / `toneEmotion` hints for ambiguous context;
+  there is no extra style-classification API call. Program safety filters and
+  explicit preferences override these hints. Examples guide a fresh response,
+  never serve as direct canned replies or evidence about the current user.
 - Sticker IDs and meanings are shared with the client in
   `supabase/functions/_shared/chat-stickers.ts`. Only an entire known marker
   (`[nava-sticker:<id>]`, allowing outside whitespace) becomes expressive text
