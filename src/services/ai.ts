@@ -9,6 +9,7 @@ import { parseChatSticker } from "./chatStickers";
 import { appendConversationArchiveMessage } from "./userCloudState";
 import { chatReplySegmentsText, encodeChatReplySegments, validateChatReplySegments, type ChatReplySegment } from "../../supabase/functions/_shared/chat-reply-segments.ts";
 import { spokenAssistantMessage } from "./chatMessagePresentation";
+import type { ChatImageAnalysis } from "../../supabase/functions/_shared/chat-image-contract.ts";
 import type { PriorityTask } from "./focusPlanning";
 import { validateFocusRequest, validateFocusOutput, type FocusRequest, type FocusResult } from "../../supabase/functions/_shared/focus-contract.ts";
 
@@ -178,6 +179,7 @@ export async function sendAiMessage(input: {
   userId: string;
   message: string;
   displayMessage?: string;
+  imageAnalysis?: ChatImageAnalysis;
   archiveId?: string | null;
   history: ChatMessage[];
   lang?: "zh" | "en";
@@ -228,7 +230,7 @@ export async function sendAiMessage(input: {
   }, input.archiveId);
   input.onUserMessage?.(userMessage);
 
-  const extraction = parseChatSticker(input.message) ? null : input.preExtracted ?? await (async () => {
+  const extraction = parseChatSticker(input.message) ? null : input.preExtracted ?? (input.imageAnalysis ? null : await (async () => {
     const extract = await supabase.functions.invoke("ai-extract-data", {
       headers: await authenticatedFunctionHeaders(),
       body: {
@@ -240,12 +242,13 @@ export async function sendAiMessage(input: {
       },
     });
     return extract.error ? null : extract.data ?? null;
-  })();
+  })());
   const extractedData = extraction?.extractedData ?? null;
   const content = await requestAiReply({
     message: input.message,
     archiveId: input.archiveId,
     messageId: userMessage.id,
+    imageAnalysis: input.imageAnalysis,
     lang,
     dataType: extraction?.dataType ?? null,
     extractedData,
@@ -288,6 +291,7 @@ function demoAiReply(message: string, lang: "zh" | "en") {
 }
 
 async function requestAiReply(input: {
+  imageAnalysis?: ChatImageAnalysis;
   message: string;
   archiveId?: string | null;
   messageId?: string;
@@ -304,6 +308,7 @@ async function requestAiReply(input: {
   const reply = await supabase.functions.invoke<Response>("ai-chat-reply", {
     headers: await authenticatedFunctionHeaders(),
     body: {
+      imageAnalysis: input.imageAnalysis,
       message: input.message,
       ...(input.archiveId ? { archiveId: input.archiveId } : {}),
       ...(input.messageId ? { messageId: input.messageId } : {}),

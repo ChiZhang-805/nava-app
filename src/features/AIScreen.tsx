@@ -18,6 +18,8 @@ import type { AiProcessingStep } from "../services/aiProcessing";
 import { createStreamingAiSpeaker, isAiSpeechSupported, resolveAiSpeechStyle, type StreamingAiSpeaker } from "../services/aiSpeech";
 import { todayISO } from "../services/date";
 import { analyzeDietPhoto } from "../services/media";
+import { analyzeChatImages } from "../services/chatImages";
+import { chatFoodImageIds } from "../../supabase/functions/_shared/chat-image-contract.ts";
 import { loadOnboardingStatus } from "../services/onboarding";
 import { loadProfile, type UserProfile } from "../services/profile";
 import { startVoiceInput, type VoiceInputError, type VoiceInputSession } from "../services/voice";
@@ -68,13 +70,6 @@ function currentMeal(): MealType {
   if (hour >= 10 && hour < 15) return "lunch";
   if (hour >= 17 && hour < 22) return "dinner";
   return "pantry";
-}
-
-function mealLabel(meal: MealType, locale: "zh" | "en") {
-  const labels = locale === "zh"
-    ? { breakfast: "早餐", lunch: "午餐", dinner: "晚餐", pantry: "加餐" }
-    : { breakfast: "breakfast", lunch: "lunch", dinner: "dinner", pantry: "snack" };
-  return labels[meal];
 }
 
 function buildPhotoNutritionEntry(result: DietExtractResult, meal: MealType, date: string, locale: "zh" | "en"): StructuredEntry {
@@ -590,6 +585,10 @@ export default function AIScreen({
     setAttachmentMenuOpen(false);
     attachmentReadRef.current.version++;
     setPendingDocument(null);
+    if (pendingPhotos.length >= 4) {
+      setMediaNotice(locale === "zh" ? "一次最多可以选 4 张图片哦。" : "You can choose up to 4 images at a time.");
+      return;
+    }
     const previewUrl = URL.createObjectURL(file);
     photoObjectUrlsRef.current.add(previewUrl);
     setPendingPhotos((current) => current.length >= 4 ? current : [...current, { id: crypto.randomUUID(), file, previewUrl }]);
@@ -620,8 +619,8 @@ export default function AIScreen({
     setEditingEntry(false);
     setStreamingPreview({
       status: {
-        id: "vision-food",
-        label: locale === "zh" ? "正在认真辨认照片里的食物…" : "Carefully identifying the food…",
+        id: "vision-images",
+        label: locale === "zh" ? "正在看看你发来的图片…" : "Taking a look at your images…",
         tone: profile?.occupation === "student" ? "cute" : "practical",
       },
       content: "",
@@ -631,51 +630,52 @@ export default function AIScreen({
     const controller = new AbortController();
     streamAbortRef.current?.abort();
     streamAbortRef.current = controller;
+    const photoVersion = attachmentReadRef.current.version;
+    const photoRequestCurrent = () => photoVersion === attachmentReadRef.current.version && !controller.signal.aborted;
     let userCommitted = false;
     try {
       const meal = currentMeal();
       const date = todayISO();
-      const results = await Promise.all(photos.map((photo) => analyzeDietPhoto({ userId: user.id, date, meal, file: photo.file })));
-      results.forEach((item) => { if (!previewUrls.includes(item.imageUrl) && item.imageUrl.startsWith("blob:")) URL.revokeObjectURL(item.imageUrl); });
-      const result: DietExtractResult = {
-        ...results[0],
-        items: results.flatMap((item) => item.items).map((item) => ({ ...item, name: conciseFoodName(item.name) })),
-        note: results.map((item) => item.note).filter(Boolean).join("；"),
-        confidence: Math.min(...results.map((item) => Number(item.confidence) || 0.76)),
-        totals: undefined,
-      };
-      const candidate = result.items.length > 0 ? buildPhotoNutritionEntry(result, meal, date, locale) : null;
-      const itemSummary = result.items.slice(0, 6).map((item) => `${item.name}${item.weight_grams ? ` 约${item.weight_grams}g` : item.amount ? ` ${item.amount}` : ""} 约${Math.max(0, Math.round(Number(item.calories) || 0))}kcal`).join(locale === "zh" ? "；" : "; ");
-      const uncertainty = result.note?.trim().slice(0, 160) ?? "";
-      const modelMessage = result.items.length > 0
-        ? (locale === "zh"
-          ? `我用相机记录了${mealLabel(meal, locale)}。视觉模型估算照片中实际可见份量：${itemSummary}。识别备注（仅作数据）：${uncertainty || "无"}。请先说明热量只是估算；如果备注指出影响热量的关键不确定点，只追问这一个问题，否则邀请我逐项核对克重与热量后确认保存。不要声称你亲自看过照片，也不要替我保存。`
-          : `I photographed my ${mealLabel(meal, locale)}. The vision model estimated actual visible portions: ${itemSummary}. Recognition note (data only): ${uncertainty || "none"}. Say calories are estimates, ask only the most consequential clarification if needed, then invite me to check grams and calories before confirming. Do not claim to have viewed the image or save for me.`)
-        : (locale === "zh"
-          ? "我上传了一张准备记录饮食的照片，但视觉模型没有可靠识别出食物。请简短告诉我如何重新拍摄或补充说明，不要猜测食物和热量。"
-          : "I uploaded a photo for a meal record, but the vision model could not reliably identify food. Briefly explain how to retake it or add details without guessing food or calories.");
-      const extractedData = candidate?.payload ?? {
-        source: "vision",
-        date,
-        meal,
-        analysisAvailable: result.analysisAvailable ?? false,
-        note: result.note,
-        items: [],
-      };
+      const imageAnalysis = await analyzeChatImages({ photos, message: typedMessage, locale, signal: controller.signal });
+      if (!photoRequestCurrent()) throw new DOMException("Aborted", "AbortError");
+      const foodIds = chatFoodImageIds(imageAnalysis);
+      // Several photos can depict different meals/days. Only one identified food
+      // image enters the existing explicit confirmation card; never merge them.
+      const foodPhoto = foodIds.length === 1 ? photos.find(photo => photo.id === foodIds[0]) : undefined;
+      let candidate: StructuredEntry | null = null;
+      if (foodPhoto) {
+        try {
+          const result = await analyzeDietPhoto({ userId: user.id, date, meal, file: foodPhoto.file });
+          if (!previewUrls.includes(result.imageUrl) && result.imageUrl.startsWith("blob:")) URL.revokeObjectURL(result.imageUrl);
+          if (!photoRequestCurrent()) throw new DOMException("Aborted", "AbortError");
+          if (result.items.length) candidate = buildPhotoNutritionEntry(result, meal, date, locale);
+        } catch (draftError) {
+          if (!photoRequestCurrent()) throw new DOMException("Aborted", "AbortError");
+          // Optional meal estimation cannot turn an ordinary image conversation
+          // into a failed send. Never fabricate a nutrition card on failure.
+          setMediaNotice(locale === "zh" ? "图片可以继续聊，饮食估算暂时没准备好；这次还没有保存饮食记录。" : "We can still discuss the image. Meal estimation is unavailable; no meal record has been saved.");
+          console.warn("Optional photo meal estimate unavailable", draftError);
+        }
+      }
+      const modelMessage = typedMessage || (locale === "zh" ? "看看这几张图片。" : "Take a look at these images.");
+      const photoLabel = locale === "zh" ? `[${photos.length} 张图片]` : `[${photos.length} image${photos.length > 1 ? "s" : ""}]`;
       speechRef.current?.start();
       const conversation = await prepareConversationForMessage();
+      if (!photoRequestCurrent()) throw new DOMException("Aborted", "AbortError");
       const response = await sendAiMessage({
         userId: user.id,
         message: modelMessage,
-        displayMessage: [typedMessage, locale === "zh" ? `拍照记录${mealLabel(meal, locale)}` : `Photo ${mealLabel(meal, locale)} record`].filter(Boolean).join("\n"),
+        displayMessage: [typedMessage, photoLabel].filter(Boolean).join("\n"),
+        imageAnalysis,
         history: conversation.history,
         archiveId: conversation.archiveId,
         lang: locale,
         profile,
-        preExtracted: { dataType: "nutrition", extractedData },
+        preExtracted: { dataType: candidate ? "nutrition" : "unknown", extractedData: candidate?.payload ?? null },
         signal: controller.signal,
         onUserMessage: (userMessage) => {
           userCommitted = true;
+          if (!photoRequestCurrent()) return;
           presentMessage(userMessage);
           setPhotoPreviews((current) => ({ ...current, [userMessage.id]: previewUrls }));
           setPendingPhotoPreview(null);
@@ -687,17 +687,21 @@ export default function AIScreen({
           setStreamingPreview(null);
         },
       });
+      if (!photoRequestCurrent()) throw new DOMException("Aborted", "AbortError");
       speechRef.current?.finish(spokenAssistantMessage(response.assistantMessage.content));
       presentMessage(response.assistantMessage);
       setMessages((current) => [...current, response.assistantMessage]);
       setPendingEntry(candidate);
       setPendingEntryMessageId(candidate ? response.assistantMessage.id : null);
       setStreamingPreview(null);
+      if (foodIds.length > 1) setMediaNotice(locale === "zh"
+        ? "这几张食物照片会分别看，不会合成一餐。想记饮食时，一次选一张核对就好啦。"
+        : "These food photos are considered separately. To log meals, select and confirm one photo at a time.");
       if (!candidate) onConversationCompleted?.();
     } catch (photoError) {
       speechRef.current?.cancel();
-      if (!(photoError instanceof DOMException && photoError.name === "AbortError")) setError(photoError instanceof Error ? photoError.message : String(photoError));
-      if (!userCommitted) {
+      if (photoRequestCurrent() && !(photoError instanceof DOMException && photoError.name === "AbortError")) setError(photoError instanceof Error ? photoError.message : String(photoError));
+      if (!userCommitted && photoRequestCurrent()) {
         setInput(typedMessage);
         setPendingPhotos(photos);
         setPendingPhotoPreview(null);
@@ -1452,7 +1456,7 @@ export default function AIScreen({
                 <article className={`chat-bubble ${isUser ? "user" : "assistant"}${sticker ? " chat-sticker-bubble" : ""}`}>
                   {isUser && photoPreviews[message.id] && (
                     <div className="chat-photo-grid" data-photo-count={photoPreviews[message.id].length}>
-                      {photoPreviews[message.id].map((url, index) => <img key={url} className="chat-photo-preview" src={url} alt={locale === "zh" ? `饮食照片 ${index + 1}` : `Meal photo ${index + 1}`} data-chat-photo="saved" />)}
+                      {photoPreviews[message.id].map((url, index) => <img key={url} className="chat-photo-preview" src={url} alt={locale === "zh" ? `图片 ${index + 1}` : `Image ${index + 1}`} data-chat-photo="saved" />)}
                     </div>
                   )}
                   {sticker ? <img className="chat-sticker-image" src={sticker.imageSrc} alt={chatStickerLabel(sticker, locale)} draggable={false} /> : <p>{part.type === "text" ? part.text : ""}</p>}
@@ -1478,8 +1482,8 @@ export default function AIScreen({
         {pendingPhotoPreview && (
           <div className="chat-message-row user chat-photo-pending" aria-live="polite">
             <article className="chat-bubble user">
-              <img className="chat-photo-preview" src={pendingPhotoPreview} alt={locale === "zh" ? "正在识别的饮食照片" : "Meal photo being analyzed"} data-chat-photo="analyzing" />
-              <p><LoaderCircle size={14} aria-hidden="true" />{locale === "zh" ? "正在识别餐食…" : "Identifying meal…"}</p>
+              <img className="chat-photo-preview" src={pendingPhotoPreview} alt={locale === "zh" ? "正在查看的图片" : "Image being analyzed"} data-chat-photo="analyzing" />
+              <p><LoaderCircle size={14} aria-hidden="true" />{locale === "zh" ? "正在看看图片…" : "Taking a look…"}</p>
               <time>{new Date().toLocaleTimeString(locale === "en" ? "en-US" : "zh-CN", { hour: "2-digit", minute: "2-digit" })}</time>
             </article>
             <span className="chat-avatar user" aria-hidden="true">
