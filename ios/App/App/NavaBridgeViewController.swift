@@ -33,8 +33,9 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
     }
 
     #if targetEnvironment(simulator)
-    override func webViewConfiguration(for instanceConfiguration: InstanceConfiguration) -> WKWebViewConfiguration {
-        let configuration = super.webViewConfiguration(for: instanceConfiguration)
+    override func webView(with frame: CGRect, configuration: WKWebViewConfiguration) -> WKWebView {
+        // Capacitor replaces the content controller after webViewConfiguration;
+        // install on the final controller, before creating/loading WKWebView.
         // Test the actual system picker bridge without a production account.
         // This code is absent from every device archive, including TestFlight.
         if ProcessInfo.processInfo.arguments.contains("-NavaPickerBoundaryTest") {
@@ -62,7 +63,7 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
                 WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
             )
         }
-        return configuration
+        return super.webView(with: frame, configuration: configuration)
     }
     #endif
 
