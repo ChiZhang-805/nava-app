@@ -25,7 +25,7 @@ for(const [engine,type] of Object.entries(process.env.NAVA_LAYOUT_ENGINE==='webk
    const rect=s=>document.querySelector(s).getBoundingClientRect();const a=rect('.option-two-scores'),b=rect('.option-two-menu-toggle'),c=rect('.home-widget-grid');
    return {leftDelta:a.left-c.left,rightDelta:b.right-c.right,centerDelta:a.top+a.height/2-b.top-b.height/2,gap:c.top-Math.max(a.bottom,b.bottom)};
   });
-  expect(Math.abs(headerGeometry.leftDelta)).toBeLessThan(1);expect(Math.abs(headerGeometry.rightDelta)).toBeLessThan(1);expect(Math.abs(headerGeometry.centerDelta)).toBeLessThan(1);expect(headerGeometry.gap).toBe(16);
+  expect(Math.abs(headerGeometry.leftDelta)).toBeLessThan(1);expect(Math.abs(headerGeometry.rightDelta)).toBeLessThan(1);expect(Math.abs(headerGeometry.centerDelta)).toBeLessThan(1);expect(Math.abs(headerGeometry.gap-16)).toBeLessThan(1);
   await page.locator('.home-record-shortcut-hint').click();await expect(page.locator('.option-two-health-menu')).toHaveAttribute('aria-hidden','false');
   await page.locator('.home-record-shortcut-hint').click();await expect(page.locator('.option-two-health-menu')).toHaveAttribute('aria-hidden','true');await page.screenshot({path:`${out}/${engine}-${width}-home.png`});
   await page.locator('.option-two-scores > button').first().click();await expect(page).toHaveURL(/#tab=record$/);

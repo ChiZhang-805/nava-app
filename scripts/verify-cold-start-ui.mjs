@@ -214,7 +214,9 @@ try{
   await finishGuide(frame,'sleep',en,page,width);
   assert.equal(saves,0);
   await expect(frame.locator('#screen')).toHaveAttribute('data-scene','record');await expect(frame.locator('#primary')).toBeEnabled({timeout:30000});
-  await expect(frame.locator('#record-notebook')).toBeVisible({timeout:30000});
+  await frame.locator('#screen').click({position:{x:180,y:120}});
+  // The 1.5-second reading transition is covered by the notebook suite;
+  // this guide flow waits for the durable completion state.
   await expect(frame.locator('#screen')).toHaveAttribute('data-cat-pose','sleeping',{timeout:30000});
   await expect(frame.locator('#record-card')).toBeHidden();
   await expect(frame.locator('#record-notebook')).toBeHidden();

@@ -15170,7 +15170,7 @@ body::before {
 }
 
 .option-two-life-stage {
-  bottom: calc(clamp(112px, 18cqh, 168px) + env(safe-area-inset-bottom));
+  bottom: max(62px, calc(env(safe-area-inset-bottom) + 54px));
 }
 
 .option-two-home.is-health-menu-open .option-two-life-stage {
@@ -15244,6 +15244,8 @@ body::before {
   .option-two-guidance {
     bottom: clamp(276px, 36cqh, 312px);
   }
+
+  .option-two-life-stage { bottom:52px; }
 
 }
 
