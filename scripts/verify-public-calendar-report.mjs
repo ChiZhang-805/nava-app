@@ -4,6 +4,7 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { createHash } from 'node:crypto';
 import { chromium, expect } from "@playwright/test";
 import { inspectHealthExplorer } from './health-explorer-checks.mjs';
+import { openCalendarHistoryDay, expectCurrentHealthWindow } from './calendar-history-navigation.mjs';
 import { IPHONE_PREVIEW_DEVICES } from '../src/constants/iphonePreviewDevices.ts';
 const responsive = process.argv.includes('--responsive');
 const phoneSystem = process.argv.includes('--phone-system');
@@ -198,6 +199,7 @@ try {
         continue;
       }
       if (responsive) {
+        const historicalDay = await openCalendarHistoryDay(page, base, '2026-09-13');
         for (const size of [
           ...[[360,740],[375,812],[390,844],[430,932]].map(([width,height]) => ({ width,height,name:`${width}x${height}` })),
           ...IPHONE_PREVIEW_DEVICES.map((device) => ({ width:1365,height:1050,name:device.id,device })),
@@ -206,18 +208,14 @@ try {
           if (size.device) await page.locator('.nava-device-selector select').selectOption(size.device.id);
           await page.evaluate(() => { location.hash = 'tab=record'; });
           await expect(page.locator('[data-health-explorer]')).toBeVisible();
-          await expect(page.locator('[data-health-category]:not([data-health-category="heart"]):not([data-health-category="all"])')).toHaveCount(6);
-          await page.locator('.health-explorer-all').click();
-          await page.locator('.health-explorer-sheet input[type="date"]').fill('2026-09-13');
-          await expect(page.locator('.health-explorer-sheet input[type="date"]')).toHaveValue('2026-09-13');
-          await page.keyboard.press('Escape');
-          await expect(page.locator('.health-explorer-sheet')).toHaveCount(0);
+          await expect(page.locator('[data-health-category]:not([data-health-category="heart"]):not([data-health-category="all"])')).toHaveCount(7);
+          const period = await expectCurrentHealthWindow(page);
           await page.waitForTimeout(800);
           // Categories switch charts in place. They are no longer completion
           // rings or links directly into the editor.
           await expect(page.locator('[data-health-explorer] .module-progress-ring')).toHaveCount(0);
           const categories = [];
-          for (const category of ['mood','face','focus','sleep','exercise','diet']) {
+          for (const category of ['mood','face','focus','sleep','exercise','diet','energy']) {
             const tab=page.locator(`[data-health-category="${category}"]`);
             await tab.click();
             await expect(tab).toHaveAttribute('aria-selected','true');
@@ -227,7 +225,7 @@ try {
           }
           assert.equal(await page.locator('.phone-frame').evaluate((node) => node.scrollWidth > node.clientWidth + 1),false);
           await page.screenshot({ path:`${output}/${new URL(base).hostname}-${size.name}.png` });
-          geometry.push({ name:size.name, allSixCategoriesReachable:true, categories });
+          geometry.push({ name:size.name, allSevenCategoriesReachable:true, period, historicalDay, categories });
         }
         assert.equal(healthWrites,0);
         receipt.results.push({ base, realLogin:true, canonicalProject:true, demoBypassRejected:true, healthWrites, parity, geometry });
@@ -263,17 +261,19 @@ try {
               trailingBlank: grid.getBoundingClientRect().bottom - dates.at(-1).getBoundingClientRect().bottom,
               calendarBottomGap: rect(".home-calendar-card").bottom - grid.getBoundingClientRect().bottom,
               annualGap: rect(".home-year-card").top - rect(".home-calendar-card").bottom,
-              navClearance: rect(".bottom-nav").top - rect(".home-year-card").bottom };
+              navigationCount: document.querySelectorAll(".bottom-nav").length };
           });
           assert.equal(month.actualRows, month.expectedRows);
           assert(Math.abs(month.trailingBlank) <= 1 && month.calendarBottomGap >= 5 && month.calendarBottomGap <= 14);
-          assert(month.annualGap >= 6 && month.annualGap <= 11 && month.navClearance >= 5);
+          assert(month.annualGap >= 6 && month.annualGap <= 11);
+          assert.equal(month.navigationCount, 0, 'The standalone calendar has no bottom navigation overlay');
           months.push({ state, ...month });
         }
         await page.getByRole("button", { name: "更多月历操作" }).click();
         await page.getByRole("menuitem", { name: "回到本月" }).click();
         await expect(page.locator(".home-calendar-card")).toBeVisible({ timeout: 30000 });
         await page.screenshot({ path: `${output}/${new URL(base).hostname}-${width}-calendar.png` });
+        await page.getByRole('button', { name: '返回首页', exact: true }).click();
         await page.locator('[data-tab="record"]').click();
         await page.locator('[data-health-category="all"]').click();
         await expect(page.locator(".weekly-score-card")).toBeVisible();

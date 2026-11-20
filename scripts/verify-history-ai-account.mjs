@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
+import { openCalendarHistoryDay, expectCurrentHealthWindow } from './calendar-history-navigation.mjs';
 applyProjectPublicEnv(process.cwd());
 const email = process.env.NAVA_ACCOUNT_EMAIL, password = process.env.NAVA_ACCOUNT_PASSWORD;
 const url = process.env.VITE_SUPABASE_URL;
@@ -102,9 +103,17 @@ try {
   assert.equal(new URL(authenticated.url()).hostname, new URL(url).hostname);
   assert.equal((await authenticated.json()).user?.id, userId);
   await expect(page.locator(".bottom-nav")).toBeVisible({ timeout: 45000 });
+  stage = 'calendar-history-navigation';
+  results.push({ entry: 'calendar-history', ...await openCalendarHistoryDay(page, base, end), passed: true });
+  await receipt();
   console.log("Actual target-account APP form login passed; inspecting persisted historical AI reports.");
   for (const scope of scopes) {
     await page.goto(`${base}#tab=record&module=${scope}&view=history`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator('.journal-experience, .history-report-date')).toBeVisible();
+    if (await page.locator('.journal-experience').count()) {
+      stage = 'legacy-provider-ui-unavailable';
+      throw new Error('The current app routes modules to JournalExperience. The retired provider-report UI cannot be accepted through this route; calendar navigation is not an equivalent provider/UI/database verification.');
+    }
     const input = page.getByLabel("报告日期", { exact: true }); await expect(input).toBeVisible();
     for (const date of dates) {
       stage = `${scope}:${date}`; const before = await metadata(scope, date);
@@ -136,16 +145,13 @@ try {
       if (consecutiveFailures >= 3) throw new Error("Three consecutive report failures; stop for diagnosis instead of flooding the provider.");
     }
   }
-  // Exercise each module's separate overview entry through the APP's date picker.
+  // The simplified hub has a current seven-day window. Its record entry now
+  // opens the journal; historical provider hashes remain checked above.
   for (const scope of scopes) {
     stage = `overview:${scope}`;
     try {
       await page.goto(`${base}#tab=record`, { waitUntil: "domcontentloaded" });
-      await page.locator('.health-explorer-all').click();
-      await page.locator('.health-explorer-sheet input[type="date"]').fill(end);
-      await expect(page.locator('.health-explorer-sheet input[type="date"]')).toHaveValue(end);
-      await page.keyboard.press('Escape');
-      await expect(page.locator('.health-explorer-sheet')).toHaveCount(0);
+      const period = await expectCurrentHealthWindow(page);
       const category = page.locator(`[data-health-category="${scope}"]`);
       await category.click();
       await expect(category).toHaveAttribute("aria-selected", "true");
@@ -154,9 +160,11 @@ try {
       await active.locator('.health-explorer-flip').click();
       await expect(active).toHaveAttribute('data-side', 'back');
       await active.locator('.health-explorer-record').click();
-      await expect(page.locator(".module-overview-ai")).toHaveAttribute("data-ai-state", "ready", { timeout: 180000 });
-      assert.equal(bulletHash([await page.locator(".module-overview-ai p").first().innerText()]), (await metadata(scope, end))?.firstBulletHash);
-      results.push({ entry: "overview", scope, date: end, passed: true, uiDatabaseMatch: true }); console.log(`PASS overview ${scope}`);
+      await expect(page.locator('.journal-experience iframe')).toBeVisible();
+      const prior = results.find(item => item.scope === scope && item.date === end && item.uiResponseDatabaseMatch);
+      assert.ok(prior, 'Historical provider verification must already have passed');
+      assert.equal((await metadata(scope, end))?.firstBulletHash, prior.firstBulletHash, 'Opening the current journal must preserve the verified historical report');
+      results.push({ entry: "current-journal", scope, period, passed: true, providerUiVerified: false, historicalReportPreserved: true }); console.log(`PASS current journal entry ${scope}`);
     } catch (error) { results.push({ entry: "overview", scope, date: end, passed: false, errorType: error?.constructor?.name }); }
     await receipt();
   }
