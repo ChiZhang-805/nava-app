@@ -7,7 +7,7 @@ import { inspectHealthExplorer } from './health-explorer-checks.mjs';
 
 const root = process.cwd();
 const output = 'Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/health-report-explorer-flip';
-const version = 'diet-energy-v1';
+const version = 'dish-photo-nutrients-v2';
 applyProjectPublicEnv(root);
 await mkdir(output, { recursive: true });
 const server = await createServer({ root, server: { host: '127.0.0.1', port: 5248 }, logLevel: 'error' });
@@ -77,7 +77,16 @@ try {
               if (category === 'diet') {
                 await expect(active).toHaveAttribute('data-card-kind',state === 'empty' ? 'empty-meal' : 'meal');
                 await expect(active.locator('.line-trend-chart')).toHaveCount(0);
-                if (state === 'populated') await expect(active.locator('.health-explorer-meal-visual')).toHaveAttribute('data-photo-kind','illustration');
+                await expect(active.locator('img[src$="/health-report/diet.webp"]')).toHaveCount(0);
+                if (state === 'populated') {
+                  await expect(active.locator('.health-explorer-meal-visual')).toHaveAttribute('data-photo-kind','illustration');
+                  await expect.poll(() => active.locator('.health-explorer-meal-visual img').evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+                  await expect(active.locator('[data-front-nutrient]')).toHaveCount(4);
+                  await expect(active.locator('[data-front-nutrient=calories]')).toHaveAttribute('data-front-nutrient-value','360');
+                  await expect(active.locator('[data-front-nutrient][data-missing=true]')).toHaveCount(3);
+                  const rows = await active.locator('[data-front-nutrient]').evaluateAll(nodes => nodes.map(node => { const label = node.querySelector('dt').getBoundingClientRect(), value = node.querySelector('dd').getBoundingClientRect(); return {top:label.top,left:label.left,bottom:label.bottom,valueRight:value.right}; }));
+                  for(let index=1; index<rows.length; index++) if(rows[index].top<rows[index-1].bottom || Math.abs(rows[index].left-rows[0].left)>1 || Math.abs(rows[index].valueRight-rows[0].valueRight)>1) throw new Error('Front nutrition rows do not align');
+                }
               }
               if (category === 'diet' || category === 'energy') await page.screenshot({path:path.join(output,`${version}-${engine}-${viewport.width}${viewport.height<640?'-short':''}-${locale}-${state}-${category}-front.png`)});
               const plotted = await active.locator('.trend-point').evaluateAll(nodes => nodes.filter(node => node.querySelector('circle')).map(node => ({label:node.dataset.label,value:Number(node.dataset.value)})));

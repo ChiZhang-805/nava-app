@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { BedDouble, ChevronRight, ClipboardPlus, HeartPulse, RotateCw, ScanFace, SmilePlus, Timer, Utensils, Dumbbell, Zap } from "lucide-react";
+import { BedDouble, ChevronRight, ClipboardPlus, HeartPulse, ImageOff, RotateCw, ScanFace, SmilePlus, Timer, Utensils, Dumbbell, Zap } from "lucide-react";
 import type { TrendBundle } from "../types";
 import { buildHealthReportCharts, type HealthReportCategory, type HealthReportChart } from "../services/healthReportExplorer";
 import { buildHealthReportDishes, type HealthReportDish } from "../services/healthReportMeals";
 import { resolveDietPhotoUrl } from "../services/media";
+import { isDemoMode } from "../services/demo";
 import LineTrendChart from "./LineTrendChart";
 import "../styles/health-report-explorer.css";
 
@@ -71,6 +72,7 @@ type ResolvePhoto = (path: string) => Promise<string | null>;
 
 function DishPhoto({ dish, active, locale, resolvePhoto }: { dish: HealthReportDish; active: boolean; locale: "zh" | "en"; resolvePhoto: ResolvePhoto }) {
   const [resolved, setResolved] = useState<{ path: string; url: string | null } | null>(null);
+  const [failedIllustration, setFailedIllustration] = useState<string | null>(null);
   useEffect(() => {
     if (!active || !dish.photoPath) return;
     let current = true;
@@ -80,31 +82,40 @@ function DishPhoto({ dish, active, locale, resolvePhoto }: { dish: HealthReportD
   }, [active, dish.photoPath, resolvePhoto]);
   const url = resolved?.path === dish.photoPath ? resolved?.url : null;
   const photoFailed = Boolean(dish.photoPath && resolved?.path === dish.photoPath && !url);
-  return <figure className="health-explorer-meal-visual" data-photo-kind={url ? dish.photoKind : "illustration"}>
-    <img src={url || `${import.meta.env.BASE_URL}assets/health-report/diet.webp`} alt={url ? dish.title : ""} draggable={false} onError={url ? () => setResolved({ path: dish.photoPath!, url: null }) : undefined} />
-    <figcaption>{url ? (dish.photoKind === "meal" ? (locale === "zh" ? "这餐的照片" : "Photo of this meal") : (locale === "zh" ? "这道菜的照片" : "Photo of this dish")) : photoFailed ? (locale === "zh" ? "照片暂时没加载出来" : "Photo is unavailable") : (locale === "zh" ? "餐食配图" : "Meal illustration")}</figcaption>
+  const illustration = !dish.photoPath && dish.illustrationSrc && failedIllustration !== dish.illustrationSrc ? dish.illustrationSrc : null;
+  const unavailable = photoFailed || Boolean(dish.illustrationSrc && failedIllustration === dish.illustrationSrc);
+  return <figure className="health-explorer-meal-visual" data-photo-kind={url ? dish.photoKind : illustration ? "illustration" : "empty"}>
+    {url ? <img src={url} alt={dish.title} draggable={false} onError={() => setResolved({ path: dish.photoPath!, url: null })} /> : illustration ? <img src={`${import.meta.env.BASE_URL}${illustration}`} alt={locale === "zh" ? `${dish.title}示意图` : `Illustration of ${dish.title}`} draggable={false} onError={() => setFailedIllustration(illustration)} /> : <div className="health-explorer-photo-empty"><ImageOff size={30} strokeWidth={1.4} /><span>{unavailable ? (locale === "zh" ? "照片暂时没加载出来" : "Photo is unavailable") : dish.photoPath ? (locale === "zh" ? "照片加载中…" : "Loading photo…") : (locale === "zh" ? "还没有餐食照片" : "No meal photo yet")}</span></div>}
+    {(url || illustration) && <figcaption>{url ? (dish.photoKind === "meal" ? (locale === "zh" ? "这餐的照片" : "Photo of this meal") : (locale === "zh" ? "这道菜的照片" : "Photo of this dish")) : (locale === "zh" ? "食物示意图" : "Food illustration")}</figcaption>}
   </figure>;
+}
+
+function MealNutrients({ nutrients, locale, front = false }: { nutrients: HealthReportDish["nutrients"]; locale: "zh" | "en"; front?: boolean }) {
+  const t = (zh: string, en: string) => locale === "zh" ? zh : en;
+  const rows = [
+    { id: "calories", label: t("热量", "Energy"), value: nutrients.calories, unit: "kcal" },
+    { id: "protein", label: t("蛋白质", "Protein"), value: nutrients.protein, unit: "g" },
+    { id: "carbs", label: t(front ? "碳水" : "碳水化合物", "Carbohydrate"), value: nutrients.carbs, unit: "g" },
+    { id: "fat", label: t("脂肪", "Fat"), value: nutrients.fat, unit: "g" },
+  ].filter(item => front || item.value !== null);
+  const format = (value: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
+  return <dl className={front ? "health-explorer-front-nutrition" : "health-explorer-nutrients"}>{rows.map(item => <div key={item.id} data-front-nutrient={front ? item.id : undefined} data-front-nutrient-value={front ? item.value ?? undefined : undefined} data-nutrient={!front ? item.id : undefined} data-nutrient-value={!front ? item.value ?? undefined : undefined} data-missing={item.value === null}><dt>{item.label}</dt><dd aria-label={item.value === null ? t("未记录", "Not recorded") : undefined}>{item.value === null ? "—" : <>{format(item.value)} <span>{item.unit}</span></>}</dd></div>)}</dl>;
 }
 
 function MealCard({ slide, resolvePhoto, ...interaction }: CardInteractionProps & { slide: Extract<ReportSlide, { kind: "meal" | "empty-meal" }>; resolvePhoto: ResolvePhoto }) {
   const { locale, active } = interaction;
   const dish = slide.kind === "meal" ? slide.dish : null;
   const t = (zh: string, en: string) => locale === "zh" ? zh : en;
-  const nutrients = dish ? [
-    { id: "calories", label: t("热量", "Energy"), value: dish.nutrients.calories, unit: "kcal" },
-    { id: "protein", label: t("蛋白质", "Protein"), value: dish.nutrients.protein, unit: "g" },
-    { id: "carbs", label: t("碳水化合物", "Carbohydrate"), value: dish.nutrients.carbs, unit: "g" },
-    { id: "fat", label: t("脂肪", "Fat"), value: dish.nutrients.fat, unit: "g" },
-  ].filter(item => item.value !== null) : [];
-  const format = (value: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
+  const hasNutrients = dish && Object.values(dish.nutrients).some(value => value !== null);
   return <FlipCard {...interaction} id={slide.id} title={slide.title} kind={slide.kind} front={dish ? <>
     <DishPhoto dish={dish} active={active} locale={locale} resolvePhoto={resolvePhoto} />
-    <p className="health-explorer-meal-date">{dish.date} · {dish.meal}{dish.time ? ` · ${dish.time}` : ""}</p>
-  </> : <div className="health-explorer-empty health-explorer-empty-meal"><img src={`${import.meta.env.BASE_URL}assets/health-report/diet.webp`} alt="" draggable={false} /><p>{t("还没有饮食记录", "No meals logged yet")}</p></div>} details={dish ? <>
+    <MealNutrients nutrients={dish.nutrients} locale={locale} front />
+    <div className="health-explorer-meal-meta"><p className="health-explorer-meal-date">{dish.date} · {dish.meal}{dish.time ? ` · ${dish.time}` : ""}</p>{dish.estimated && <span className="health-explorer-meal-estimate">{t("含估算", "Estimated")}</span>}</div>
+  </> : <div className="health-explorer-empty health-explorer-empty-meal"><ImageOff size={30} strokeWidth={1.4} /><p>{t("还没有饮食记录", "No meals logged yet")}</p></div>} details={dish ? <>
     <p className="health-explorer-dish-name">{dish.title}</p>
     <p className="health-explorer-range">{dish.date} · {dish.meal}{dish.time ? ` · ${dish.time}` : ""}</p>
     {dish.amount && <p>{t("份量", "Amount")}：{dish.amount}</p>}
-    {nutrients.length ? <><h4>{t("营养记录", "Logged nutrition")}</h4><dl className="health-explorer-nutrients">{nutrients.map(item => <div key={item.id} data-nutrient={item.id} data-nutrient-value={item.value}><dt>{item.label}</dt><dd>{format(item.value!)} <span>{item.unit}</span></dd></div>)}</dl><p className="health-explorer-nutrition-note">{dish.estimated ? t("这条记录包含估算值。", "This entry includes estimates.") : t("仅显示这条记录中已有的数值。", "Only values saved in this entry are shown.")}</p></> : <p>{t("这条记录还没有营养数值。", "Nutrition values have not been logged for this entry.")}</p>}
+    {hasNutrients ? <><h4>{t("营养记录", "Logged nutrition")}</h4><MealNutrients nutrients={dish.nutrients} locale={locale} /><p className="health-explorer-nutrition-note">{dish.estimated ? t("这条记录包含估算值。", "This entry includes estimates.") : t("仅显示这条记录中已有的数值。", "Only values saved in this entry are shown.")}</p></> : <p>{t("这条记录还没有营养数值。", "Nutrition values have not been logged for this entry.")}</p>}
     {dish.notes && <p className="health-explorer-meal-notes">{dish.notes}</p>}
   </> : <p>{t("这里会放你实际记录的餐食，未填写的营养数值不会当作零。", "Your logged meals will appear here. Missing nutrition values are not counted as zero.")}</p>} />;
 }
@@ -199,7 +210,7 @@ export default function HealthReportExplorer({ bundle, date, locale, onOpenRecor
   onCloseWeekly?: () => void; showWeekly?: boolean; weeklyContent?: ReactNode;
 }) {
   const charts = useMemo(() => buildHealthReportCharts(bundle, date, locale), [bundle, date, locale]);
-  const dishes = useMemo(() => buildHealthReportDishes(bundle, date, locale), [bundle, date, locale]);
+  const dishes = useMemo(() => buildHealthReportDishes(bundle, date, locale, { demoIllustrations: isDemoMode() }), [bundle, date, locale]);
   const [selection, setSelection] = useState<{ category: HealthReportCategory; chart: number; revision: number }>({ category: "mood", chart: -1, revision: 0 });
   const categoryTrack = useRef<HTMLDivElement>(null);
   const available = categories.filter((category) => category.id !== "heart" || charts.heart.length > 0);

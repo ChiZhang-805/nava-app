@@ -67,14 +67,24 @@
 .health-explorer-card[data-card-kind="meal"] h3 > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .health-explorer-meal-visual { display: grid; grid-template-rows: minmax(0, 1fr) auto; flex: 1; min-height: 80px; min-width: 0; margin: 7px 0 0; }
 .health-explorer-meal-visual img { width: 100%; height: 100%; min-height: 0; object-fit: contain; border-radius: 18px; }
-.health-explorer-meal-visual[data-photo-kind="illustration"] img { padding: 18px; box-sizing: border-box; }
+.health-explorer-photo-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #6a8796; font-size: 12px; text-align: center; }
+.health-explorer-photo-empty svg { flex: none; width: 30px; height: 30px; }
 .health-explorer-meal-visual figcaption { padding-top: 5px; color: #647e8d; text-align: center; font-size: 11px; line-height: 16px; }
-.health-explorer-meal-date { flex: none; margin: 9px 0 0; color: #53778a; font-size: 12px; line-height: 18px; }
+.health-explorer-front-nutrition { flex: none; margin: 8px 0 0; font-size: 13px; }
+.health-explorer-front-nutrition > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-height: 24px; line-height: 24px; }
+.health-explorer-front-nutrition dt { color: #53778a; }
+.health-explorer-front-nutrition dd { margin: 0; color: #285b74; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.health-explorer-front-nutrition [data-front-nutrient="calories"] dd { font-size: 18px; font-weight: 750; }
+.health-explorer-front-nutrition dd span { font-size: 12px; font-weight: 500; }
+.health-explorer-front-nutrition [data-missing="true"] dd { color: #7d929f; }
+.health-explorer-meal-meta { flex: none; display: flex; align-items: baseline; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; margin-top: 8px; }
+.health-explorer-meal-date { margin: 0; color: #53778a; font-size: 11px; line-height: 18px; }
+.health-explorer-meal-estimate { color: #6a7c87; font-size: 10px; line-height: 18px; white-space: nowrap; }
 .health-explorer-dish-name { margin: 5px 0 8px; color: #285b74; font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
 .health-explorer-nutrition-note { font-size: 12px; }
 .health-explorer-meal-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
 .health-explorer-empty-meal { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; }
-.health-explorer-empty-meal img { width: min(72%, 180px); height: auto; max-height: 70%; object-fit: contain; }
+.health-explorer-empty-meal > svg { width: 30px; height: 30px; }
 .health-explorer-record { flex: none; border: 1px solid #fff; border-radius: 14px; color: #286982; background: #dff1f9; display: flex; align-items: center; justify-content: center; gap: 3px; padding: 0 7px; margin-top: 8px; min-height: 44px; font-size: 12px !important; font-weight: 650 !important; }
 .health-explorer-weekly-content { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding-top: 8px; padding-bottom: 6px; }
 .phone-frame .record-hub.record-hub--explorer:has(.health-explorer-weekly-content) { height: 100%; min-height: 0; overflow: hidden; }
