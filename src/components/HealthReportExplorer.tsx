@@ -36,7 +36,7 @@ function ReportCard({ chart, locale, active, flipped, onFlip, onSelect, onOpenRe
         <h3>{chart.title}</h3>
         <div className="health-explorer-value"><strong>{latest ? format(latest.value) : "—"}</strong><span>{latest ? chart.unit : (locale === "zh" ? "还没有记录" : "No entries yet")}</span></div>
         <div className="health-explorer-plot">
-          {latest ? <LineTrendChart points={chart.points} ariaLabel={chart.title} tone="rhythm" scale="auto" domain={chart.domain} presentation="report" curve="monotone" showValues={false} dateLabelEvery={2} showConfidenceBand={false} valueFormatter={format} /> : <div className="health-explorer-empty"><ClipboardPlus size={38} strokeWidth={1.4} /><p>{locale === "zh" ? "记下一笔，让趋势慢慢出现。" : "Add an entry to begin your trend."}</p></div>}
+          {latest ? <LineTrendChart points={chart.points} ariaLabel={chart.title} tone="rhythm" scale="auto" domain={chart.domain} presentation="report" showYAxis={false} curve="monotone" showValues={false} dateLabelEvery={2} showConfidenceBand={false} valueFormatter={format} /> : <div className="health-explorer-empty"><ClipboardPlus size={38} strokeWidth={1.4} /><p>{locale === "zh" ? "记下一笔，让趋势慢慢出现。" : "Add an entry to begin your trend."}</p></div>}
         </div>
       </div>
       <div className="health-explorer-back" aria-hidden={!active || !flipped} ref={(node) => { if (node) node.inert = !active || !flipped; }}>
@@ -125,9 +125,10 @@ function ChartDeck({ charts, locale, initialIndex, onOpenRecord }: {
   </div>;
 }
 
-export default function HealthReportExplorer({ bundle, date, maxDate, locale, onDateChange, onOpenRecord, overview }: {
+export default function HealthReportExplorer({ bundle, date, maxDate, locale, onDateChange, onOpenRecord, onOpenWeekly, overview }: {
   bundle: TrendBundle | null; date: string; maxDate: string; locale: "zh" | "en";
   onDateChange: (date: string) => void; onOpenRecord: (category: Exclude<HealthReportCategory, "heart">) => void;
+  onOpenWeekly?: () => void;
   overview?: string;
 }) {
   const charts = useMemo(() => buildHealthReportCharts(bundle, date, locale), [bundle, date, locale]);
@@ -147,7 +148,7 @@ export default function HealthReportExplorer({ bundle, date, maxDate, locale, on
     else if (target.right > bounds.right) node.scrollLeft += target.right - bounds.right;
   }, [active.id]);
   return <section className="health-report-explorer" data-health-explorer data-category={active.id}>
-    <div className="health-explorer-toolbar"><h2><ChartNoAxesCombined size={21} />{locale === "zh" ? "我的节律" : "My rhythm"}</h2><button type="button" className="health-explorer-all" onClick={() => setShowAll(true)}>{locale === "zh" ? "查看全部" : "See all"}<ChevronRight size={16} /></button></div>
+    <div className="health-explorer-toolbar"><h2><img src={`${import.meta.env.BASE_URL}assets/health-report/rhythm.webp`} alt="" draggable={false} />{locale === "zh" ? "我的节律" : "My rhythm"}</h2><button type="button" className="health-explorer-all" onClick={() => setShowAll(true)}>{locale === "zh" ? "查看全部" : "See all"}<ChevronRight size={16} /></button></div>
     <div ref={categoryTrack} className="health-explorer-categories" role="tablist" aria-label={locale === "zh" ? "健康类别" : "Health categories"}>
       {available.map((category, index) => <button type="button" role="tab" aria-selected={active.id === category.id} aria-controls="health-explorer-panel" tabIndex={active.id === category.id ? 0 : -1} key={category.id} data-health-category={category.id} onClick={() => select(category.id)} onKeyDown={(event) => {
         if (event.key !== "ArrowLeft" && event.key !== "ArrowRight" && event.key !== "Home" && event.key !== "End") return;
@@ -166,6 +167,7 @@ export default function HealthReportExplorer({ bundle, date, maxDate, locale, on
       <label className="health-explorer-date"><span>{locale === "zh" ? "报告日期" : "Report date"}</span><input type="date" value={date} max={maxDate} onChange={(event) => { if (event.target.value) onDateChange(event.target.value); }} /></label>
       {overview && <p className="health-explorer-overview">{overview}</p>}
       <div className="health-explorer-chart-list">{available.map(({ id, zh, en, icon: Icon }) => <section key={id}><h3><Icon size={20} />{locale === "zh" ? zh : en}</h3>{charts[id].map((chart, index) => <button type="button" key={chart.id} data-select-chart={chart.id} onClick={() => { select(id, index); setShowAll(false); }}><span>{chart.title}</span><ChevronRight size={17} /></button>)}</section>)}</div>
+      {onOpenWeekly && <button type="button" className="health-explorer-weekly" data-health-weekly onClick={() => { setShowAll(false); onOpenWeekly(); }}><ChartNoAxesCombined size={19} /><span>{locale === "zh" ? "本周回顾" : "Weekly review"}</span><ChevronRight size={17} /></button>}
     </BottomSheet>}
   </section>;
 }

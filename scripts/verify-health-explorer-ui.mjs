@@ -15,13 +15,14 @@ const url = server.resolvedUrls.local[0].replace(/\/$/, '');
 const sizes = [{width:320,height:568},{width:320,height:740},{width:360,height:740},{width:375,height:812},{width:390,height:844},{width:430,height:932}];
 const report = [];
 const quick = process.argv.includes('--quick');
+const preview = process.argv.includes('--preview');
 const finalEvidence = process.argv.includes('--final-evidence');
 try {
-  for (const [engine, launcher] of Object.entries(quick ? { chromium } : { chromium, webkit })) {
+  for (const [engine, launcher] of Object.entries(quick || preview ? { chromium } : { chromium, webkit })) {
     const browser = await launcher.launch();
     try {
-      for (const viewport of quick ? sizes.filter((size) => [320,390].includes(size.width)) : finalEvidence ? sizes.filter((size) => size.height === 568 || [375,390].includes(size.width)) : sizes) {
-        for (const locale of quick ? ['zh'] : ['zh','en']) {
+      for (const viewport of preview ? sizes.filter((size) => size.width === 390) : quick ? sizes.filter((size) => [320,390].includes(size.width)) : finalEvidence ? sizes.filter((size) => size.height === 568 || [375,390].includes(size.width)) : sizes) {
+        for (const locale of quick || preview ? ['zh'] : ['zh','en']) {
           const context = await browser.newContext({ viewport, locale: locale === 'zh' ? 'zh-CN' : 'en-US', isMobile: true, hasTouch: true, timezoneId:'Asia/Shanghai', reducedMotion:'reduce' });
           await context.addInitScript((locale) => {
             sessionStorage.setItem('nava.review.demo.auth.v1', 'signed-in');
@@ -35,7 +36,7 @@ try {
           const launch = page.locator('.launch-sequence');
           if (await launch.isVisible().catch(()=>false)) await launch.click();
           await expect(page.locator('[data-health-explorer]')).toBeVisible();
-          for (const state of ['populated','empty']) {
+          for (const state of preview ? ['populated'] : ['populated','empty']) {
             if (state === 'empty') {
               await page.locator('[data-health-category=sleep]').scrollIntoViewIfNeeded();
               await page.locator('[data-health-category=sleep]').click();
@@ -57,6 +58,7 @@ try {
             }
             await page.screenshot({ path:path.join(output,`${engine}-${viewport.width}${viewport.height < 640 ? '-short' : ''}-${locale}-${state}.png`) });
             const geometry = await inspectHealthExplorer(page);
+            if (preview) { report.push({engine,viewport,locale,state,geometry}); break; }
             for (const category of ['mood','face','focus','sleep','exercise','diet']) {
               const tab = page.locator(`[data-health-category="${category}"]`);
               await tab.click(); // Locator click re-resolves if a data refresh replaces the tab.
@@ -101,9 +103,10 @@ try {
             report.push({engine,viewport,locale,state,geometry});
           }
           // Existing weekly report and recording routes still work independently of selection.
-          await page.locator('.health-report-tabs button').last().click();
+          await page.locator('.health-explorer-all').click();
+          await page.locator('[data-health-weekly]').click();
           await expect(page.locator('.weekly-health-report')).toBeVisible();
-          await page.locator('.health-report-tabs button').first().click();
+          await page.locator('.weekly-report-back').click();
           await page.locator('[data-health-category=diet]').scrollIntoViewIfNeeded();
           await page.locator('[data-health-category=diet]').click();
           await page.locator('.health-explorer-card[data-active="true"] .health-explorer-flip').click();
@@ -117,5 +120,5 @@ try {
       }
     } finally { await browser.close(); }
   }
-} finally { await server.close(); await writeFile(path.join(output, quick?'quick-report.json':finalEvidence?'evidence-report.json':'report.json'),JSON.stringify(report,null,2)); }
+} finally { await server.close(); await writeFile(path.join(output, preview?'preview-report.json':quick?'quick-report.json':finalEvidence?'evidence-report.json':'report.json'),JSON.stringify(report,null,2)); }
 console.log(`Health explorer passed ${report.length} viewport/locale/state cases.`);
