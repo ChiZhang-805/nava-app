@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { BedDouble, ChartNoAxesCombined, ChevronRight, ClipboardPlus, HeartPulse, RotateCw, ScanFace, SmilePlus, Timer, Utensils, Dumbbell } from "lucide-react";
 import type { TrendBundle } from "../types";
 import { buildHealthReportCharts, type HealthReportCategory, type HealthReportChart } from "../services/healthReportExplorer";
@@ -65,6 +65,13 @@ function ChartDeck({ charts, locale, initialIndex, onOpenRecord }: {
   const activeChartId = useRef(slides[firstPosition].id);
   const track = useRef<HTMLDivElement | null>(null);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingFocus = useRef<{ index: number; selector: string } | null>(null);
+  useLayoutEffect(() => {
+    const pending = pendingFocus.current;
+    if (!pending || pending.index !== position) return;
+    pendingFocus.current = null;
+    track.current?.children[position].querySelector<HTMLElement>(pending.selector)?.focus({ preventScroll: true });
+  }, [position]);
   const center = (node: HTMLDivElement, index: number) => {
     const card = node.children[index] as HTMLElement;
     return card.offsetLeft - (node.clientWidth - card.offsetWidth) / 2;
@@ -91,6 +98,7 @@ function ChartDeck({ charts, locale, initialIndex, onOpenRecord }: {
       const distances = slides.map((_, index) => Math.abs(center(node, index) - node.scrollLeft));
       const nearest = distances.indexOf(Math.min(...distances));
       if (slides[nearest].id !== activeChartId.current) {
+        pendingFocus.current = null;
         if (document.activeElement !== node && node.contains(document.activeElement)) node.focus({ preventScroll: true });
         activeChartId.current = slides[nearest].id;
         setFlippedId(null);
@@ -104,9 +112,9 @@ function ChartDeck({ charts, locale, initialIndex, onOpenRecord }: {
         const focusSelector = node.children[nearest].contains(focused) && focused instanceof HTMLElement
           ? focused.classList.contains("health-explorer-flip") ? ".health-explorer-flip" : focused.classList.contains("health-explorer-record") ? ".health-explorer-record" : null
           : null;
+        pendingFocus.current = focusSelector ? { index: middle, selector: focusSelector } : null;
         node.scrollTo({ left: center(node, middle), behavior: "instant" });
         setPosition(middle);
-        if (focusSelector) requestAnimationFrame(() => { if (node.isConnected) node.children[middle].querySelector<HTMLElement>(focusSelector)?.focus({ preventScroll: true }); });
       }, 160);
     }}>
       {slides.map((chart, index) => <ReportCard key={`${chart.id}-${index}`} chart={chart} locale={locale} active={index === position} flipped={index === position && flippedId === chart.id} onFlip={() => setFlippedId((id) => id === chart.id ? null : chart.id)} onSelect={() => go(index)} onOpenRecord={onOpenRecord} />)}

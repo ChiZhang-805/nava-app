@@ -15,11 +15,12 @@ const url = server.resolvedUrls.local[0].replace(/\/$/, '');
 const sizes = [{width:320,height:568},{width:320,height:740},{width:360,height:740},{width:375,height:812},{width:390,height:844},{width:430,height:932}];
 const report = [];
 const quick = process.argv.includes('--quick');
+const finalEvidence = process.argv.includes('--final-evidence');
 try {
   for (const [engine, launcher] of Object.entries(quick ? { chromium } : { chromium, webkit })) {
     const browser = await launcher.launch();
     try {
-      for (const viewport of quick ? sizes.filter((size) => [320,390].includes(size.width)) : sizes) {
+      for (const viewport of quick ? sizes.filter((size) => [320,390].includes(size.width)) : finalEvidence ? sizes.filter((size) => size.height === 568 || [375,390].includes(size.width)) : sizes) {
         for (const locale of quick ? ['zh'] : ['zh','en']) {
           const context = await browser.newContext({ viewport, locale: locale === 'zh' ? 'zh-CN' : 'en-US', isMobile: true, hasTouch: true, timezoneId:'Asia/Shanghai', reducedMotion:'reduce' });
           await context.addInitScript((locale) => {
@@ -66,6 +67,7 @@ try {
               const plotted = await active.locator('.trend-point').evaluateAll(nodes => nodes.filter(node => node.querySelector('circle')).map(node => ({label:node.dataset.label,value:Number(node.dataset.value)})));
               await active.locator('.health-explorer-flip').click();
               await expect(active).toHaveAttribute('data-side','back');
+              await expect.poll(() => active.locator('.health-explorer-back').evaluate(node=>getComputedStyle(node).opacity)).toBe('1');
               const records = await active.locator('[data-record-date]').evaluateAll(nodes => nodes.map(node => ({date:node.dataset.recordDate,value:Number(node.dataset.recordValue)})));
               if (records.length !== Math.min(5,plotted.length)) throw new Error('Backside added or lost entries');
               for (const record of records) {
@@ -110,10 +112,10 @@ try {
           await expect.poll(()=>new URL(page.url()).hash).toContain('module=diet');
           if(errors.length)throw new Error(errors.join('\n'));
           await context.close();
-          console.log(`${engine} ${viewport.width} ${locale}: empty/populated, categories, pagination, all charts, weekly, entry passed`);
+          console.log(`${engine} ${viewport.width}x${viewport.height} ${locale}: empty/populated, categories, carousel, flip details, all charts, weekly, entry passed`);
         }
       }
     } finally { await browser.close(); }
   }
-} finally { await server.close(); await writeFile(path.join(output, quick?'quick-report.json':'report.json'),JSON.stringify(report,null,2)); }
+} finally { await server.close(); await writeFile(path.join(output, quick?'quick-report.json':finalEvidence?'evidence-report.json':'report.json'),JSON.stringify(report,null,2)); }
 console.log(`Health explorer passed ${report.length} viewport/locale/state cases.`);

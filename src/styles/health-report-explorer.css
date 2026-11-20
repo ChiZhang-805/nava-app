@@ -72,9 +72,12 @@
   .health-explorer-card[data-side="front"] .health-explorer-front, .health-explorer-card[data-side="back"] .health-explorer-back { opacity: 1; }
 }
 @media (max-height: 640px) {
-  .phone-frame .record-hub.record-hub--explorer { overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain; padding-bottom: 12px; }
+  .phone-frame .record-hub.record-hub--explorer { overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain; padding: 0 20px 12px; margin-inline: -20px; width: calc(100% + 40px); }
   .health-report-explorer { flex: none; }
   .health-explorer-track { flex: none; height: 322px; }
+}
+@media (max-height: 640px) and (max-width: 359px) {
+  .phone-frame .record-hub.record-hub--explorer { padding-inline: 12px; margin-inline: -12px; width: calc(100% + 24px); }
 }
 @container (max-width: 310px) {
   .health-explorer-deck { margin-inline: -12px; }
