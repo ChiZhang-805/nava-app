@@ -12,6 +12,16 @@ import { chatReplySegmentsText, decodeChatReplySegments, encodeChatReplySegments
 import { conversationText, normalizeConversationHistory, optionalConversationId } from "../supabase/functions/ai-chat-reply/history.ts";
 import { loadOwnedAiBaseContext } from "../supabase/functions/ai-chat-reply/context.ts";
 
+test("nutrition and urgent prompts preserve unknown portions and location", () => {
+  const zh = buildSystemPrompt("zh");
+  assert.match(zh, /只有食物名称、没有份量/);
+  assert.match(zh, /不根据语言猜所在地或急救号码/);
+  assert.match(zh, /必要急救信息优先于普通聊天长度目标/);
+  const en = buildSystemPrompt("en");
+  assert.match(en, /Food names alone do not establish portions/);
+  assert.match(en, /Do not infer the user's location/);
+});
+
 test("tool evidence is compactly injected without exposing it as instructions", () => {
   const knowledge = buildKnowledgePrompt("zh", {
     evidence: [{

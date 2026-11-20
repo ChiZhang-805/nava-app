@@ -31,6 +31,11 @@ const domainPatterns: Record<AiDomain, RegExp> = {
 
 export function buildDeterministicRoute(message: string, dataType?: unknown, extractedData?: unknown): AiRoute | null {
   const normalized = message.trim();
+  if (needsUrgentResponse(normalized)) {
+    // Urgent guidance should not wait for model classification or be squeezed
+    // into a greeting-sized reply. This is a warning-signal route, not diagnosis.
+    return { intent: "advice", domains: [], lookbackDays: 1, complexity: "complex", source: "deterministic" };
+  }
   if (describeChatSticker(normalized) !== null || isSmalltalk(normalized)) {
     return { intent: "smalltalk", domains: [], lookbackDays: 1, complexity: "simple", source: "deterministic" };
   }
@@ -155,6 +160,10 @@ function isSmalltalk(message: string) {
 
 export function needsExplanation(message: string) {
   return Array.from(message).length > 120 || /详细|展开|解释|分析|比较|区别|原理|步骤|为什么|explain|in detail|step.by.step|compare|difference|why\b/i.test(message);
+}
+
+export function needsUrgentResponse(message: string) {
+  return /胸(?:口)?(?:.{0,5})(?:痛|疼)|喘不上气|呼吸困难|昏迷|服药过量|自杀|自残|不想活|想死|轻生|伤害自己|chest pain|can[’']?t breathe|difficulty breathing|overdose|suicid|self.harm|kill myself/i.test(message);
 }
 
 function isIntent(value: unknown): value is AiIntent {

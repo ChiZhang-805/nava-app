@@ -79,6 +79,10 @@ test("known user preferences persist only through supplied user history and curr
   const revised = tonePreferences(history, "可以多用表情，叫我宝宝");
   assert(!revised.blocked.includes("emoji")); assert.equal(revised.allowPetNames, true);
   assert.equal(tonePreferences([], "我和crush在一起了").allowPetNames, false);
+  const liveFeedback = tonePreferences([], "我拿到实习offer了。别用表情、网络词或亲昵称呼，正常聊天就行。");
+  assert(liveFeedback.blocked.includes("slang"));
+  assert(liveFeedback.blocked.includes("emoji"));
+  assert.equal(liveFeedback.plain, true);
 });
 
 test("safety never receives cute examples and ordinary low mood only receives gentle language", () => {

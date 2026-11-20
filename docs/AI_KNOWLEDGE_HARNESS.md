@@ -99,6 +99,63 @@ Verification uses synthetic fixtures for prompt, route, history/consent and
 completion behavior; it does not prove that every live model reply follows the
 requested tone. Backend deployment remains a separate release action.
 
+### Paid synthetic tone comparison (2026-11-20, source only)
+
+`scripts/evaluate-chat-tone-live.mjs --paid-run` uses only the explicitly supplied
+NAVA project credential. The operator loads `DEEPSEEK_API_KEY_NAVA` from Windows
+User environment into this process; no other account/key fallback is allowed.
+The default run is capped at 30 requests: 12 synthetic cases with/without retrieved
+examples, plus three optional existing-router comparisons and their replies.
+Use `--cases=meal,safety --skip-router` for bounded defect retests. Evidence never
+contains authentication headers or credentials. No live-user records are read.
+
+Two successful runs used `deepseek-v4-flash`, thinking disabled:
+
+- `Build/TestRuns/App-Checks/chat-tone-live-eval/2026-11-20T11-42-34-377Z`:
+  30 requests, 27 replies and three router decisions; 43,955 total tokens.
+- `Build/TestRuns/App-Checks/chat-tone-live-eval/2026-11-20T11-45-13-628Z`:
+  eight targeted replies after fixes; 13,118 total tokens.
+- Combined provider-reported usage: 54,814 prompt + 2,259 completion = 57,073
+  tokens; prompt cache hits 26,880, misses 27,934. This is token usage, not an
+  inferred currency charge. An earlier sandbox DNS failure returned no provider
+  responses and is retained separately, not counted as a completed paid run.
+- All 35 completed replies validated as whole segments. Text-bubble counts were
+  1/2/3/4/5 in respectively 1/21/9/3/1 replies; ten replies also used one known
+  sticker. This does **not** demonstrate that every exchange uses 3–6 bubbles.
+  Provider reply latency ranged 1,101–2,898 ms, median 1,573 ms and sample p95
+  2,611 ms, excluding UI presentation and network/auth/DB work outside the provider.
+
+Manual review found contextual humor and requested quiet support generally more
+natural with examples, while many pairs were similar and some baseline replies
+were equally good. Both paths respected no-emoji requests in these samples,
+kept ambiguous screaming uncertain and used the supplied synthetic conversation
+history. The three extra model hints did not show enough improvement to justify
+an additional per-turn API call. They remain optional outputs of the existing
+router only, with deterministic preferences/safety taking priority.
+
+The run exposed and corrected three concrete defects:
+
+1. The preference parser missed “网络词” / “正常聊天就行”; these now disable
+   expressive examples before sampling, not merely rely on the final model.
+2. Acute warning signals had received the ordinary 80-character target. They
+   now take a deterministic complex route with no health-domain retrieval;
+   essential safety guidance takes priority, and language does not establish an
+   emergency number/location. Both targeted replies retained urgent help advice
+   and fit the expanded target. The ordinary authenticated consent/history rules
+   still apply; this is not an unauthenticated emergency service.
+3. Food names without portions led to overconfident carbohydrate/stability claims.
+   The prompt now explicitly requires uncertainty about quantities, balance and
+   glucose effects. Both retests stated the amount was needed; neither asserted
+   carbohydrate excess or a more stable blood-glucose response.
+
+These are synthetic first-completion tests with preserved raw model/usage/latency,
+prompt hashes, selected IDs and validated segments. They do not exercise live
+account storage, endpoint authorization, optional rewrite/repair, voice delivery,
+or health-record tool calls, and are not clinical or population-quality validation.
+The separate deterministic endpoint tests cover authorization/history isolation.
+This evaluation made no deployment. Title/duration utility requests use explicit
+allowlisted `purpose` contracts, plain validated values and no tone/history/tools.
+
 ## Runtime flow
 
 1. Detect one or more health domains from the user's message.

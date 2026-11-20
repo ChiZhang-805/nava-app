@@ -42,6 +42,16 @@ test("short requests for explanation may expand without making casual support ve
   assert.equal(needsExplanation("OKK"), false);
 });
 
+test("urgent warning signals bypass history classification and preserve room for safety guidance", () => {
+  for (const message of ["我胸口很痛，还喘不上气，现在应该怎么办？", "I have chest pain and can't breathe", "我服药过量了", "我想伤害自己"]) {
+    const route = buildDeterministicRoute(message);
+    assert.equal(route?.complexity, "complex");
+    assert.equal(route?.intent, "advice");
+    assert.deepEqual(route?.domains, []);
+    assert.equal(route?.source, "deterministic");
+  }
+});
+
 test("known stickers never trigger health retrieval or record routing", () => {
   for (const id of ["rest", "sleepy", "tired", "water", "meal", "sad"]) {
     const route = buildDeterministicRoute(`[nava-sticker:${id}]`, "sleep", { minutes: 420 });
