@@ -238,6 +238,15 @@ export default function AIScreen({
   const documentInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const photoObjectUrlsRef = useRef(new Set<string>());
+  const clearComposerPhotos = useCallback(() => {
+    setPendingPhotos(current => {
+      for (const photo of current) {
+        photoObjectUrlsRef.current.delete(photo.previewUrl);
+        URL.revokeObjectURL(photo.previewUrl);
+      }
+      return [];
+    });
+  }, []);
   const handledCommandRef = useRef(0);
   const streamAbortRef = useRef<AbortController | null>(null);
   const speechRef = useRef<StreamingAiSpeaker | null>(null);
@@ -688,6 +697,7 @@ export default function AIScreen({
     if (!command || command.id === handledCommandRef.current) return;
     handledCommandRef.current = command.id;
     if (command.type === "new") {
+      clearComposerPhotos();
       speechRef.current?.cancel();
       streamAbortRef.current?.abort();
       streamAbortRef.current = null;
@@ -737,6 +747,7 @@ export default function AIScreen({
       return;
     }
     if (command.type === "clear") {
+      clearComposerPhotos();
       speechRef.current?.cancel();
       streamAbortRef.current?.abort();
       streamAbortRef.current = null;
@@ -772,7 +783,7 @@ export default function AIScreen({
     link.download = `nava-conversation-${todayISO()}.json`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [archiveConversation, command, hydrateHistory, locale, messages, readHistory, user.id, viewingArchiveId]);
+  }, [archiveConversation, clearComposerPhotos, command, hydrateHistory, locale, messages, readHistory, user.id, viewingArchiveId]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "auto" });
@@ -1082,8 +1093,7 @@ export default function AIScreen({
     try {
       const document = await readChatDocument(file);
       if (request !== attachmentReadRef.current.version) return;
-      for (const photo of pendingPhotos) { photoObjectUrlsRef.current.delete(photo.previewUrl); URL.revokeObjectURL(photo.previewUrl); }
-      setPendingPhotos([]);
+      clearComposerPhotos();
       setPendingDocument(document);
       setPendingPhotoPreview(null);
     } catch (documentError) {

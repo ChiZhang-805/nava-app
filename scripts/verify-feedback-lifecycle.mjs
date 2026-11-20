@@ -74,6 +74,20 @@ try { for(const [engine,type] of Object.entries({chromium,webkit})) {
   await page.getByRole('menuitem',{name:'上传照片',exact:true}).click();chooser=await pending;
   await chooser.setFiles({name:'photo.png',mimeType:'image/png',buffer:Buffer.from(image,'base64')});
   await expect(page.locator('.chat-pending-photos')).toBeVisible();await expect(draft).toHaveValue('保留这段草稿');
+  await expect(page.locator('.chat-pending-document')).toHaveCount(0);
+  await page.getByRole('button',{name:'添加附件',exact:true}).click();pending=page.waitForEvent('filechooser');
+  await page.getByRole('menuitem',{name:'上传文件',exact:true}).click();chooser=await pending;
+  await chooser.setFiles({name:'replacement.txt',mimeType:'text/plain',buffer:Buffer.from('Another note')});
+  await expect(page.locator('.chat-pending-document')).toContainText('replacement.txt');
+  await expect(page.locator('.chat-pending-photos')).toHaveCount(0);
+  await page.getByRole('button',{name:'添加附件',exact:true}).click();pending=page.waitForEvent('filechooser');
+  await page.getByRole('menuitem',{name:'上传照片',exact:true}).click();chooser=await pending;
+  await chooser.setFiles({name:'photo.png',mimeType:'image/png',buffer:Buffer.from(image,'base64')});
+  await expect(page.locator('.chat-pending-photos')).toBeVisible();
+  await page.getByRole('button',{name:'更多操作',exact:true}).click();
+  await page.getByRole('menuitem',{name:'新会话',exact:true}).click();
+  await expect(page.locator('.chat-pending-photos')).toHaveCount(0);
+  await expect(page.locator('.chat-pending-document')).toHaveCount(0);await expect(draft).toHaveValue('');
   expect(errors).toEqual([]);results.push({engine,motion,passed:true,scope:'finite hint, reduced motion, parallel iframe startup, picker bridge lifecycle, browser files/photos'});
   await page.screenshot({path:`${out}/${engine}-${motion}-chat-attachments.png`});await context.close();console.log(engine,motion,'lifecycle passed');
  }}finally{await browser.close();}
