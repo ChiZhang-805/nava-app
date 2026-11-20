@@ -1,4 +1,39 @@
-# 国内食物重制模型配置（2026-11-07，源码已配置，未部署）
+# 保存后准备餐食俯视图（2026-11-20，候选，尚未部署）
+
+`202611202300_food_render_jobs.sql`在真实饮食记录保存事务中写入持久任务，不回填历史。
+涵盖`journal_entries.food`和旧`nutrition_records`每餐单菜；保存后立即提交pg_net请求，
+pg_cron每分钟接续已排队任务，因此离开报告页或关闭APP不影响排队。外部模型不在保存
+事务内运行。新增pg_net/pg_cron扩展、新任务表及私有diet-renders bucket需要单独部署授权。
+
+- 仅健康数据同步、个性化AI均已同意的账号排队；显式撤回优先于旧onboarding答案。
+- 一项任务只对应已保存食品/照片指纹与版本化风格；营养和时间修改不重复收费，改菜名或
+  照片会使旧任务失效。最多两次生成、六次发送；每次claim轮换256位令牌，租约六分钟。
+- `food-visualize`仅接受数据库任务ID+随机能力令牌，经service-only claim后运行；
+  gateway JWT关闭不等于开放生图，任意文字、未保存照片、无令牌请求都不能调用模型。
+  令牌列不给客户端SELECT；net schema不得暴露Data API，远端已用406/PGRST106核实。
+- 模型先理解已确认的图片/文字，再按`nava-food-visual-v2-overhead-20261120`统一真实食物
+  摄影、90度正俯视、完整白盘/碗、约86–90%画幅、真透明PNG。文字模式不把模型补写配料
+  当证据；最终生成与审核都绑定原始记录。生成图只做展示，绝不用于反推营养数值。
+- 后端实际解码PNG验证像素、alpha、边缘、主体占比，再严格复核菜品一致性。未配置
+  matting且模型输出不透明时明确失败，不能用白底/通用图标冒充成功。
+- 用户明确允许本canonical Supabase项目已有`DASHSCOPE_API_KEY`旧名称；仅当
+  SUPABASE_URL完全等于本项目时启用此兼容名，NAVA专用名优先，无本机或跨项目fallback。
+  未更名或删除任何secret。云端food-icon仅返回emoji，不能充当图片生成服务。
+- APP确认保存时才上传去元数据的饮食照片到`diet-photos/user/journal-food/record/hash.jpg`；
+  data URL只在内存桥接，不写日记字段/本地持久草稿。内容hash保证丢失回执后可幂等重试，
+  不因不确定网络错误删除可能已被保存记录引用的照片。
+- 报告只读任务状态和私有图片签名；已有结果直接加载，待完成时仅轮询数据，不enqueue、
+  不retry模型。照片/文字结果均标AI示意图；照片失败或无数据不替换成通用分类插画。
+  客户端账号导出追加任务可读字段和diet-renders，永不导出worker_token；账号删除已有
+  bucket清理与新表用户外键级联。保存失败后的孤立私有照片保留到账号清理，避免误删。
+
+本地：72项SQL检查（pg_net/cron用事务mock）、11项PNG/风格检查、17步provider/worker
+隔离模拟与8项报告食物映射通过。远端只读确认扩展可安装、net未暴露、原diet-photos私有。
+仍待选择性部署、合成账号真模型验收和最终图片目检；不能把mock当云端可用证据。
+审阅入口：迁移、`food-visualize`、`_shared/food-render-provider.ts`、
+`scripts/verify-food-render-live.mjs`。真实测试仅新建临时合成账号/两条测试记录，结束后清理。
+
+# 国内食物重制模型旧合同（2026-11-07，未部署）
 
 `food-visualize` 的生产默认链路已经从国外生图服务切换为阿里云百炼北京区：
 

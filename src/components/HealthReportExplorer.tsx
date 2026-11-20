@@ -225,7 +225,7 @@ export default function HealthReportExplorer({ bundle, date, locale, userId, onO
         const rows = await getFoodRenderJobs(userId, shiftDateISO(date, -6), date);
         if (!alive) return;
         setLiveRenders({ owner: userId, date, rows });
-        if (rows.some(row => row.state === 'queued' || row.state === 'processing')) timer = setTimeout(() => void read(), 8000);
+        if (rows.some(row => row.state === 'queued' || row.state === 'processing' || row.state === 'failed' && row.next_attempt_at)) timer = setTimeout(() => void read(), 8000);
       } catch { /* Keep saved evidence visible when metadata cannot be refreshed. */ }
     };
     void read();

@@ -17,8 +17,12 @@ export async function uploadConfirmedFoodPhoto(userId: string, recordId: string,
   const binary = atob(dataUrl.slice(dataUrl.indexOf(',') + 1));
   const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
   if (bytes.length < 4 || bytes[0] !== 255 || bytes[1] !== 216 || bytes[2] !== 255) throw new Error('照片无法读取，请重新选择。');
-  const path = `${userId}/journal-food/${recordId}/${crypto.randomUUID()}.jpg`;
+  // A lost save acknowledgement must be retryable with the identical evidence
+  // path; a new UUID on every click breaks the server's idempotent save contract.
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  const fingerprint = [...digest].map(byte => byte.toString(16).padStart(2, '0')).join('');
+  const path = `${userId}/journal-food/${recordId}/${fingerprint}.jpg`;
   const uploaded = await supabase.storage.from('diet-photos').upload(path, bytes, { contentType: 'image/jpeg', upsert: false });
-  if (uploaded.error) throw new Error('照片还没存好，请保留当前记录并重试。');
+  if (uploaded.error && Number((uploaded.error as { statusCode?: string | number }).statusCode) !== 409) throw new Error('照片还没存好，请保留当前记录并重试。');
   return path;
 }

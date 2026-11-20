@@ -71,14 +71,9 @@ export default function JournalExperience({user,module,locale,skin,forceGuide=fa
               if(guidePreview)throw Error(locale==='zh'?'新手引导预览不会保存真实记录。':'The guide preview does not save real records.');
               const prior=initial.records.find(record=>record.id===payload.record.id);
               const photoPath=payload.record.category==='food' ? await uploadConfirmedFoodPhoto(user.id,payload.record.id,payload.foodPhoto) : null;
-              let saved:JournalRecord;
-              try {
-                saved=await saveJournal({...payload.record,mediaPath:photoPath??prior?.mediaPath??null},payload.expectedVersion??null);
-              } catch(cause) {
-                // A lost response may follow a committed save. Keep the private
-                // evidence rather than delete a photo a saved record may own.
-                throw cause;
-              }
+              // A lost response may follow a committed save. Keep private evidence;
+              // deterministic photo paths make the same confirmation retryable.
+              const saved=await saveJournal({...payload.record,mediaPath:photoPath??prior?.mediaPath??null},payload.expectedVersion??null);
               // This receipt is transient bridge metadata, never a stored field.
               result={...saved,showDailyCompletion:alive&&!controller.signal.aborted&&claimJournalDailyCompletion(user.id,saved,initial.records)};
               if(!initial.records.some(r=>r.category===categoryMap[module]))firstSaved=saved;
