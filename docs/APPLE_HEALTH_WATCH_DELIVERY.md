@@ -1,12 +1,23 @@
 # NAVA Apple Health / Apple Watch 当前交付方案
 
-首次制定：2026-09-02；当前状态同步：2026-11-20
+首次制定：2026-09-02；当前状态同步：2026-11-21
 状态：实施基线；所有勾选项必须有代码、自动化或真机证据，不能以界面占位代替。
 
 ## 0A. 当前 TestFlight 发布
 
+TestFlight 1.0.0（50）使用提交 `fb9e5f16b72c0974451be161fc6ccf50560d1459`。
+原生 Actions `44813771542` 的 iPhone SE（第 3 代）和 iPhone 15 Pro Max 测试通过，
+并已核对系统键盘截图。签名任务 `44820661100` 成功归档、导出和上传。Apple 于北京时间
+2026-11-21 05:46:14 返回 `UPLOAD SUCCEEDED with no errors, 1 warning`，Delivery UUID
+为 `8101970f-184a-4ab1-85fe-524cec8363dc`。提示为从 2027 年 4 月起需要 iOS 27 SDK。
+签名构建 artifact `14672931729` 名为 `nava-ios-1.0.0-50`。回执见
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/release-50-visual/testflight-upload-receipt.txt`。
+Apple 处理后测试组的可安装状态待核实。
+
+### 较早的构建记录
+
 GitHub `testflight` environment 的7项签名/上传 secrets 已配置，不应要求用户重新创建
-证书、私钥、App ID 或 API Key。上一成功版本为1.0.0(47)，Actions43484367053；
+证书、私钥、App ID 或 API Key。1.0.0(47) 的上传任务为 Actions43484367053；
 Apple于北京时间2026-11-14 02:50返回`UPLOAD SUCCEEDED with no errors`。
 历史回执保存在`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/auth-keyboard/testflight-upload-receipt.txt`。
 
