@@ -123,6 +123,7 @@ export async function generateConversationTitle(messages: ChatMessage[], lang: "
   const response = await supabase.functions.invoke<{ reply?: string }>("ai-chat-reply", {
     headers: await authenticatedFunctionHeaders(),
     body: {
+      purpose: "conversation-title",
       message: `${instruction}\n<conversation_transcript>\n${transcript}\n</conversation_transcript>`,
       lang,
       responseMode: "text",
