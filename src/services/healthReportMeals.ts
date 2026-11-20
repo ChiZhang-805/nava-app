@@ -1,5 +1,6 @@
 import type { FoodItem, TrendBundle } from "../types";
 import { rollingDateWindow } from "./date.ts";
+import type { FoodRenderJob } from './foodRenderJobs';
 
 export interface HealthReportDish {
   id: string;
@@ -13,6 +14,9 @@ export interface HealthReportDish {
   photoKind: "dish" | "meal" | null;
   /** Only an explicitly enabled local demo may provide a labeled food illustration. */
   illustrationSrc?: string | null;
+  renderPath?: string | null;
+  renderState?: FoodRenderJob['state'];
+  renderEvidenceKind?: 'photo' | 'text' | null;
   nutrients: { calories: number | null; protein: number | null; carbs: number | null; fat: number | null };
   estimated: boolean;
 }
@@ -27,6 +31,16 @@ const number = (value: unknown): number | null => {
 const time = (value: unknown) => typeof value === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(value) ? value.slice(0, 5) : null;
 const meals = ["breakfast", "lunch", "dinner", "pantry"] as const;
 const names = { breakfast: ["早餐", "Breakfast"], lunch: ["午餐", "Lunch"], dinner: ["晚餐", "Dinner"], pantry: ["加餐", "Snack"] } as const;
+function renderFor(bundle: TrendBundle | null, kind: FoodRenderJob['source_kind'], id: string, name: string | null, amount: string | null, photoPath: string | null, meal?: string) {
+  const job = bundle?.foodRenders?.find(row => row.source_kind === kind && row.source_id === id && row.state !== 'stale'
+    && text(row.input.name) === name && text(row.input.amount) === amount && text(row.input.photoPath) === photoPath
+    && (kind === 'journal_entries' || row.input.meal === meal));
+  return job ? { renderPath: job.state === 'ready' ? job.asset_path : null, renderState: job.state, renderEvidenceKind: job.evidence_kind } : {};
+}
+function journalPhoto(path: unknown, id: string) {
+  const value = text(path);
+  return value && value.split('/')[1] === 'journal-food' && value.split('/')[2] === id ? value : null;
+}
 function mealLabel(value: unknown, locale: "zh" | "en") {
   const raw = text(value);
   const key = meals.find(meal => meal === raw || names[meal].some(name => name === raw));
@@ -46,9 +60,8 @@ export function buildHealthReportDishes(bundle: TrendBundle | null, date: string
     time: time(record.data.mealTime),
     amount: text(record.data.portion),
     notes: text(record.data.notes),
-    // The journal does not currently persist a signed diet-photos reference.
-    // Do not guess a bucket or reuse transient photo previews after reload.
-    photoPath: null, photoKind: null,
+    photoPath: journalPhoto(record.mediaPath, record.id), photoKind: journalPhoto(record.mediaPath, record.id) ? 'meal' : null,
+    ...renderFor(bundle, 'journal_entries', record.id, text(record.data.foods), text(record.data.portion), journalPhoto(record.mediaPath, record.id)),
     nutrients: { calories: number(record.data.calories), protein: number(record.data.protein), carbs: number(record.data.carbs), fat: number(record.data.fat) },
     estimated: record.estimated === true,
   }));
@@ -71,6 +84,7 @@ export function buildHealthReportDishes(bundle: TrendBundle | null, date: string
           title: text(item?.name) ?? label,
           date: record.record_date, meal: label, time: entryTime,
           amount: text(item?.amount), notes: null, photoPath,
+          ...renderFor(bundle, 'nutrition_records', record.id, text(item?.name), text(item?.amount), photoPath, meal),
           photoKind: photoPath ? items.length === 1 ? "dish" : "meal" : null,
           // Do not distribute daily totals or meal_summary among individual dishes.
           nutrients: { calories: number(item?.calories), protein: number(item?.protein_grams), carbs: number(item?.carbohydrate_grams), fat: number(item?.fat_grams) },

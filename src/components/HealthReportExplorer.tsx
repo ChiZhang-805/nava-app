@@ -5,6 +5,8 @@ import { buildHealthReportCharts, type HealthReportCategory, type HealthReportCh
 import { buildHealthReportDishes, type HealthReportDish } from "../services/healthReportMeals";
 import { resolveDietPhotoUrl } from "../services/media";
 import { isDemoMode } from "../services/demo";
+import { getFoodRenderJobs, resolveFoodRenderUrl, type FoodRenderJob } from '../services/foodRenderJobs';
+import { shiftDateISO } from '../services/date';
 import LineTrendChart from "./LineTrendChart";
 import "../styles/health-report-explorer.css";
 
@@ -73,20 +75,22 @@ type ResolvePhoto = (path: string) => Promise<string | null>;
 function DishPhoto({ dish, active, locale, resolvePhoto }: { dish: HealthReportDish; active: boolean; locale: "zh" | "en"; resolvePhoto: ResolvePhoto }) {
   const [resolved, setResolved] = useState<{ path: string; url: string | null } | null>(null);
   const [failedIllustration, setFailedIllustration] = useState<string | null>(null);
+  const displayPath = dish.renderPath ? `render:${dish.renderPath}` : dish.photoPath;
   useEffect(() => {
-    if (!active || !dish.photoPath) return;
+    if (!active || !displayPath) return;
     let current = true;
-    const path = dish.photoPath;
+    const path = displayPath;
     void resolvePhoto(path).then(url => { if (current) setResolved({ path, url }); });
     return () => { current = false; };
-  }, [active, dish.photoPath, resolvePhoto]);
-  const url = resolved?.path === dish.photoPath ? resolved?.url : null;
-  const photoFailed = Boolean(dish.photoPath && resolved?.path === dish.photoPath && !url);
-  const illustration = !dish.photoPath && dish.illustrationSrc && failedIllustration !== dish.illustrationSrc ? dish.illustrationSrc : null;
+  }, [active, displayPath, resolvePhoto]);
+  const url = resolved?.path === displayPath ? resolved?.url : null;
+  const photoFailed = Boolean(displayPath && resolved?.path === displayPath && !url);
+  const illustration = !displayPath && dish.illustrationSrc && failedIllustration !== dish.illustrationSrc ? dish.illustrationSrc : null;
   const unavailable = photoFailed || Boolean(dish.illustrationSrc && failedIllustration === dish.illustrationSrc);
-  return <figure className="health-explorer-meal-visual" data-photo-kind={url ? dish.photoKind : illustration ? "illustration" : "empty"}>
-    {url ? <img src={url} alt={dish.title} draggable={false} onError={() => setResolved({ path: dish.photoPath!, url: null })} /> : illustration ? <img src={`${import.meta.env.BASE_URL}${illustration}`} alt={locale === "zh" ? `${dish.title}示意图` : `Illustration of ${dish.title}`} draggable={false} onError={() => setFailedIllustration(illustration)} /> : <div className="health-explorer-photo-empty"><ImageOff size={30} strokeWidth={1.4} /><span>{unavailable ? (locale === "zh" ? "照片暂时没加载出来" : "Photo is unavailable") : dish.photoPath ? (locale === "zh" ? "照片加载中…" : "Loading photo…") : (locale === "zh" ? "还没有餐食照片" : "No meal photo yet")}</span></div>}
-    {(url || illustration) && <figcaption>{url ? (dish.photoKind === "meal" ? (locale === "zh" ? "这餐的照片" : "Photo of this meal") : (locale === "zh" ? "这道菜的照片" : "Photo of this dish")) : (locale === "zh" ? "食物示意图" : "Food illustration")}</figcaption>}
+  const pending = dish.renderState === 'queued' || dish.renderState === 'processing';
+  return <figure className="health-explorer-meal-visual" data-photo-kind={url ? dish.renderPath ? 'generated' : dish.photoKind : illustration ? "illustration" : "empty"}>
+    {url ? <img src={url} alt={dish.title} draggable={false} onError={() => setResolved({ path: displayPath!, url: null })} /> : illustration ? <img src={`${import.meta.env.BASE_URL}${illustration}`} alt={locale === "zh" ? `${dish.title}示意图` : `Illustration of ${dish.title}`} draggable={false} onError={() => setFailedIllustration(illustration)} /> : <div className="health-explorer-photo-empty"><ImageOff size={30} strokeWidth={1.4} /><span>{unavailable ? (locale === "zh" ? "图片暂时没加载出来" : "Image is unavailable") : displayPath ? (locale === "zh" ? "图片加载中…" : "Loading image…") : pending ? (locale === "zh" ? "餐食已记好，配图准备中" : "Meal saved · image is on its way") : dish.renderState === 'failed' ? (locale === "zh" ? "餐食已记好，配图暂不可用" : "Meal saved · image unavailable") : (locale === "zh" ? "还没有餐食照片" : "No meal photo yet")}</span></div>}
+    {(url || illustration) && <figcaption>{dish.renderPath ? (locale === 'zh' ? 'AI 餐食示意图' : 'AI meal illustration') : url ? (dish.photoKind === "meal" ? (locale === "zh" ? "这餐的照片" : "Photo of this meal") : (locale === "zh" ? "这道菜的照片" : "Photo of this dish")) : (locale === "zh" ? "食物示意图" : "Food illustration")}</figcaption>}
   </figure>;
 }
 
@@ -137,7 +141,7 @@ function ChartDeck({ cards, locale, initialIndex, onOpenRecord }: {
   const resolvePhoto = useCallback((path: string) => {
     const cached = photoRequests.current.get(path);
     if (cached) return cached;
-    const request = resolveDietPhotoUrl(path).catch(() => null);
+    const request = (path.startsWith('render:') ? resolveFoodRenderUrl(path.slice(7)) : resolveDietPhotoUrl(path)).catch(() => null);
     photoRequests.current.set(path, request);
     return request;
   }, []);
@@ -203,14 +207,31 @@ function ChartDeck({ cards, locale, initialIndex, onOpenRecord }: {
   </div>;
 }
 
-export default function HealthReportExplorer({ bundle, date, locale, onOpenRecord, onOpenWeekly, onCloseWeekly, showWeekly = false, weeklyContent }: {
+export default function HealthReportExplorer({ bundle, date, locale, userId, onOpenRecord, onOpenWeekly, onCloseWeekly, showWeekly = false, weeklyContent }: {
   bundle: TrendBundle | null; date: string; locale: "zh" | "en";
+  userId?: string;
   onOpenRecord: (category: Exclude<HealthReportCategory, "heart" | "energy">) => void;
   onOpenWeekly?: () => void;
   onCloseWeekly?: () => void; showWeekly?: boolean; weeklyContent?: ReactNode;
 }) {
   const charts = useMemo(() => buildHealthReportCharts(bundle, date, locale), [bundle, date, locale]);
-  const dishes = useMemo(() => buildHealthReportDishes(bundle, date, locale, { demoIllustrations: isDemoMode() }), [bundle, date, locale]);
+  const [liveRenders, setLiveRenders] = useState<{ owner: string; date: string; rows: FoodRenderJob[] } | null>(null);
+  useEffect(() => {
+    if (!userId || isDemoMode()) return;
+    let alive = true; let timer: ReturnType<typeof setTimeout>;
+    // Poll only already-persisted metadata. A report can never enqueue or retry a job.
+    const read = async () => {
+      try {
+        const rows = await getFoodRenderJobs(userId, shiftDateISO(date, -6), date);
+        if (!alive) return;
+        setLiveRenders({ owner: userId, date, rows });
+        if (rows.some(row => row.state === 'queued' || row.state === 'processing')) timer = setTimeout(() => void read(), 8000);
+      } catch { /* Keep saved evidence visible when metadata cannot be refreshed. */ }
+    };
+    void read();
+    return () => { alive = false; clearTimeout(timer); };
+  }, [userId, date, bundle]);
+  const dishes = useMemo(() => buildHealthReportDishes(bundle ? { ...bundle, foodRenders: liveRenders?.owner === userId && liveRenders?.date === date ? liveRenders.rows : bundle.foodRenders } : bundle, date, locale, { demoIllustrations: isDemoMode() }), [bundle, date, locale, liveRenders, userId]);
   const [selection, setSelection] = useState<{ category: HealthReportCategory; chart: number; revision: number }>({ category: "mood", chart: -1, revision: 0 });
   const categoryTrack = useRef<HTMLDivElement>(null);
   const available = categories.filter((category) => category.id !== "heart" || charts.heart.length > 0);

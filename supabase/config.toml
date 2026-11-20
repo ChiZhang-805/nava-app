@@ -24,7 +24,9 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.food-visualize]
-verify_jwt = true
+# Per-job 256-bit capability is verified and rotated by the service-only claim
+# RPC before any model call. This is not an unauthenticated general render API.
+verify_jwt = false
 
 [functions.face-analyze]
 verify_jwt = true

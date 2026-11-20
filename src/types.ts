@@ -221,6 +221,7 @@ export interface DailyRhythmScore {
 }
 
 export interface TrendBundle {
+  foodRenders?: import('./services/foodRenderJobs').FoodRenderJob[];
   journal?: import('./services/journal').JournalRecord[];
   moods: MoodRecord[];
   sleeps: SleepRecord[];

@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient";
 import { getJournalRecords } from './journal';
+import { getFoodRenderJobs } from './foodRenderJobs';
 import { shiftDateISO, todayISO } from "./date";
 import { isCompleteMoodRecord } from "./mood";
 import { emitReminderRecordSaved } from "./independentReminders";
@@ -771,7 +772,7 @@ export async function getTrends(userId: string, endDate = todayISO()): Promise<T
   const start = shiftDateISO(endDate, -55);
   if (isDemoMode()) return { ...demoTrends(endDate), journal: await getJournalRecords(userId, start, endDate) };
 
-  const [moods, sleeps, exercises, nutritions, faces, focus, focusDistributions, healthMetrics, rhythms, journal] = await Promise.all([
+  const [moods, sleeps, exercises, nutritions, faces, focus, focusDistributions, healthMetrics, rhythms, journal, foodRenders] = await Promise.all([
     supabase.from("mood_records").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
     supabase.from("sleep_records").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
     supabase.from("exercise_records").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
@@ -782,6 +783,7 @@ export async function getTrends(userId: string, endDate = todayISO()): Promise<T
     supabase.from("health_metric_snapshots").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
     supabase.from("daily_rhythm_scores").select("*").eq("user_id", userId).gte("record_date", start).lte("record_date", endDate).order("record_date"),
     getJournalRecords(userId, start, endDate),
+    getFoodRenderJobs(userId, start, endDate).catch(() => []),
   ]);
 
   return {
@@ -795,6 +797,7 @@ export async function getTrends(userId: string, endDate = todayISO()): Promise<T
     healthMetrics: trendRows<HealthMetricSnapshot>(healthMetrics, "health_metric_snapshots"),
     rhythms: trendRows<DailyRhythmScore>(rhythms, "daily_rhythm_scores"),
     journal,
+    foodRenders,
   };
 }
 

@@ -44,7 +44,7 @@ export async function exportUserData(userId: string) {
     if (exportErrors && typeof exportErrors === "object" && Object.keys(exportErrors).length > 0) {
       throw new Error(`账号数据导出不完整：${Object.keys(exportErrors).join("、")}`);
     }
-    return exported.data;
+    return appendFoodRenderExport(exported.data, userId);
   }
 
   const tables = [
@@ -135,6 +135,19 @@ export async function exportUserData(userId: string) {
     "profile-avatars": await listOwnedFiles("profile-avatars", userId),
   };
 
+  return appendFoodRenderExport(result, userId);
+}
+
+/** Supplement older export functions without ever exporting a worker capability. */
+async function appendFoodRenderExport(result: Record<string, unknown>, userId: string) {
+  const columns = 'id,user_id,source_kind,source_id,item_key,source_revision,record_date,input,state,asset_path,model_version,prompt_version,evidence_kind,created_at,updated_at';
+  try {
+    result.food_render_jobs = await collectExportRows((from, to) => supabase.from('food_render_jobs').select(columns, { count: 'exact' }).eq('user_id', userId).order('id').range(from, to));
+  } catch (error) {
+    if (isMissingBackendResource(error)) return result;
+    throw error;
+  }
+  result.storage = { ...(result.storage as Record<string, unknown> || {}), 'diet-renders': await listOwnedFiles('diet-renders', userId) };
   return result;
 }
 

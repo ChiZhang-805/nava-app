@@ -3,11 +3,37 @@ import test from "node:test";
 import { buildHealthReportDishes } from "../src/services/healthReportMeals.ts";
 import type { TrendBundle, NutritionRecord } from "../src/types.ts";
 import type { JournalRecord } from "../src/services/journal.ts";
+import type { FoodRenderJob } from '../src/services/foodRenderJobs.ts';
 
 const date = "2026-11-20";
 const bundle = (patch: Partial<TrendBundle>): TrendBundle => ({ moods: [], sleeps: [], exercises: [], nutritions: [], faces: [], focus: [], focusDistributions: [], healthMetrics: [], rhythms: [], ...patch });
 const record = (patch: Partial<NutritionRecord>): NutritionRecord => ({ id: "n1", record_date: date, total_calories: 1600, ai_feedback: null, ...patch });
 const journal = (patch: Partial<JournalRecord>): JournalRecord => ({ id: "j1", category: "food", recordDate: date, data: {}, createdAt: `${date}T12:00:00Z`, ...patch });
+const render = (patch: Partial<FoodRenderJob> = {}): FoodRenderJob => ({ id: 'job', source_kind: 'journal_entries', source_id: 'j1', item_key: 'whole_meal', source_revision: '1', record_date: date, state: 'ready', input: { name: '燕麦酸奶', amount: null, photoPath: null, sourceItemId: null, meal: null }, asset_path: 'owner/job/image.png', evidence_kind: 'text', updated_at: `${date}T12:00:00Z`, ...patch });
+
+test('saved generated images bind to unchanged food evidence, never to renamed dishes', () => {
+  const input = bundle({ journal: [journal({ data: { foods: '燕麦酸奶', calories: 200 } })], foodRenders: [render()] });
+  assert.equal(buildHealthReportDishes(input, date, 'zh')[0].renderPath, 'owner/job/image.png');
+  input.journal![0].data.calories = 300;
+  assert.equal(buildHealthReportDishes(input, date, 'zh')[0].renderPath, 'owner/job/image.png');
+  input.journal![0].data.foods = '西红柿炒鸡蛋';
+  assert.equal(buildHealthReportDishes(input, date, 'zh')[0].renderPath, undefined);
+  input.journal![0].data.foods = '燕麦酸奶';
+  input.foodRenders![0].state = 'stale';
+  assert.equal(buildHealthReportDishes(input, date, 'zh')[0].renderPath, undefined);
+});
+
+test('pending images never invent an asset and journal photos use only the explicit private contract', () => {
+  const path = 'owner/journal-food/j1/photo.jpg';
+  const input = bundle({ journal: [journal({ data: { foods: '燕麦酸奶' }, mediaPath: path })], foodRenders: [render({ state: 'processing', input: { ...render().input, photoPath: path } })] });
+  const card = buildHealthReportDishes(input, date, 'zh')[0];
+  assert.equal(card.photoPath, path);
+  assert.equal(card.renderPath, null);
+  assert.equal(card.renderState, 'processing');
+  input.journal![0].mediaPath = 'owner/journal-food/j2/other.jpg';
+  assert.equal(buildHealthReportDishes(input, date, 'zh')[0].photoPath, null);
+  assert.equal(buildHealthReportDishes(input, date, 'zh')[0].renderPath, undefined);
+});
 
 test("empty and daily-total-only records never become invented dishes", () => {
   assert.deepEqual(buildHealthReportDishes(null, date, "zh"), []);

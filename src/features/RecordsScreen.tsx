@@ -1385,6 +1385,7 @@ export default function RecordsScreen({
             </section>
           )}
           <HealthReportExplorer
+            userId={user.id}
             bundle={dataLoadError ? null : trendBundle}
             date={recordDate}
             locale={locale}

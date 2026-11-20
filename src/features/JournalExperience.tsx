@@ -12,6 +12,7 @@ import PageSkeleton, { type PageSkeletonVariant } from '../components/PageSkelet
 import './journal-experience.css';
 import type { AppSkin } from '../services/appSkin';
 import { claimJournalDailyCompletion } from '../services/journalDailyCompletion';
+import { uploadConfirmedFoodPhoto } from '../services/journalFoodPhoto';
 
 const categoryMap:Record<RecordModule,JournalCategory>={mood:'mood',diet:'food',exercise:'sport',focus:'focus',sleep:'sleep',face:'face'};
 const editorSkeletonMap:Record<RecordModule,PageSkeletonVariant>={mood:'record-editor-mood',diet:'record-editor-diet',exercise:'record-editor-exercise',focus:'record-editor-focus',sleep:'record-editor-sleep',face:'record-editor-face'};
@@ -68,7 +69,16 @@ export default function JournalExperience({user,module,locale,skin,forceGuide=fa
             let result:unknown=null;
             if(method==='save'){
               if(guidePreview)throw Error(locale==='zh'?'新手引导预览不会保存真实记录。':'The guide preview does not save real records.');
-              const saved=await saveJournal(payload.record,payload.expectedVersion??null);
+              const prior=initial.records.find(record=>record.id===payload.record.id);
+              const photoPath=payload.record.category==='food' ? await uploadConfirmedFoodPhoto(user.id,payload.record.id,payload.foodPhoto) : null;
+              let saved:JournalRecord;
+              try {
+                saved=await saveJournal({...payload.record,mediaPath:photoPath??prior?.mediaPath??null},payload.expectedVersion??null);
+              } catch(cause) {
+                // A lost response may follow a committed save. Keep the private
+                // evidence rather than delete a photo a saved record may own.
+                throw cause;
+              }
               // This receipt is transient bridge metadata, never a stored field.
               result={...saved,showDailyCompletion:alive&&!controller.signal.aborted&&claimJournalDailyCompletion(user.id,saved,initial.records)};
               if(!initial.records.some(r=>r.category===categoryMap[module]))firstSaved=saved;

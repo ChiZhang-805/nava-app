@@ -998,7 +998,7 @@ __fluffyModules["app.js"] = (() => {
             const record=state.record;
             try {
                 // 阶段二：保存完整确认快照，不从当前画到的纸面反推数据。
-                if (!await Store.save(record)) {
+                if (!await Store.save(record, { foodPhoto: record.category === 'food' ? photo.image : null })) {
                     continueGate.unlock();
                     toast(record?.expectedUpdatedAt !== undefined ? "save-conflict" : "save-failed");
                     return;

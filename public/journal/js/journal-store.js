@@ -52,7 +52,7 @@ __fluffyModules["journal-store.js"] = (() => {
      * 输出：是否成功。
      * 功能：同一 ID 幂等保存，不随动画重播重复添加；不持久化照片或密钥。
      */
-    async function save(record) {
+    async function save(record, options = {}) {
         if (!record || typeof record.id !== "string" || !Number.isFinite(Date.parse(record.createdAt)))
             return false;
         const recordDate = dateOf(record);
@@ -71,7 +71,7 @@ __fluffyModules["journal-store.js"] = (() => {
             id: record.id, category: record.category, data: checked.value, recordDate, createdAt: record.createdAt, updatedAt: new Date(Math.max(Date.now(), (Date.parse(prior?.updatedAt || prior?.createdAt) || 0) + 1)).toISOString(), source: record.source || "manual", revisions, estimated: Boolean(record.estimated), focus: record.focus || null
         };
         try {
-            const saved=await window.NavaJournal.call('save',{record:{...safe,expectedUpdatedAt:record.expectedUpdatedAt},expectedVersion:record.expectedUpdatedAt!==undefined ? prior?.version : null});
+            const saved=await window.NavaJournal.call('save',{record:{...safe,expectedUpdatedAt:record.expectedUpdatedAt},expectedVersion:record.expectedUpdatedAt!==undefined ? prior?.version : null,foodPhoto:record.category==='food'?options.foodPhoto:null});
             if (!window.NavaJournal.initial.records.some(r => r.category === saved.category)) window.NavaJournal.firstSaved = saved;
             window.NavaJournal.initial.records=sortRecords([saved,...records().filter(item=>item.id!==saved.id)]);
             Object.assign(record,saved);
