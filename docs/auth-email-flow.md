@@ -16,7 +16,7 @@ Apple 的 `RoundedCornerStyle.continuous` 和 `CALayerCornerCurve.continuous` �
 不是 Apple 私有路径的精确复制，也不是所有 Apple 输入框的通用参数。
 组件只观察边框盒尺寸，保留真实 HTML input 的输入、自动填充和可访问语义；不依赖
 仅部分浏览器支持的新 CSS corner-shape，也不使用放大的 border-radius 冒充连续圆角。
-新的形状与下面的键盘布局一并验收后发布；尚未上传这一修改。
+新的形状与下面的键盘布局已在最终源码的双设备原生验收中通过，并已上传1.0.0(48)。
 
 ## 键盘展开时的登录入口
 
@@ -28,15 +28,21 @@ Apple 的 `RoundedCornerStyle.continuous` 和 `CALayerCornerCurve.continuous` �
 常规控件44px；可用表单高度不足250/215/185px时依次40/36/32px，保持标签与全部入口，
 不靠隐藏标签或上滑解决。极端小屏是明确的密度取舍，不能宣称所有状态都达到44pt目标。
 忘记密码放入密码框右侧。剩余可用空间留给品牌区，不把快捷登录推离表单。
-所有登录入口直接可见。本次原生验证与发布正在进行，下面旧构建的
-验收记录不代表本次修改已通过。
+所有登录入口直接可见。2026-11-20最终源码64f8de913b3db9e6628b2787bed92036c24b574d
+的Actions44703199201通过：iPhone 15 Pro Max与iPhone SE均在原生iOS软件键盘中
+完成四个模式检查，密码登录快捷入口无需上滑，收起键盘恢复标题位置。
+原始截图已核对并保存到keyboard-shortcuts/native-feedback-verified，不能称为用户真机实测。
+签名上传Actions44706777762成功，Apple于北京时间2026-11-20 17:10返回
+`UPLOAD SUCCEEDED with no errors, 1 warning`；SDK未来升级提示不影响本次接收。
+回执在keyboard-shortcuts/testflight-upload-receipt.txt。Apple处理与测试组可安装状态尚未核实。
 
 ## 登录前页面的键盘与固定背景
 
 登录、注册、验证码登录、重置密码复用 `activateAuthViewport`。背景画布保持打开键盘前的
 全屏尺寸；键盘只改变表单可用高度，当前字段通过 `.auth-form-region.scrollTop` 定向揭示，
 不再调用会带动整个文档的 `scrollIntoView`。标题基线和紧凑键盘样式统一，关闭键盘恢复；
-点击 NAVA 标题可收起键盘。低视口通过表单内部滚动访问后续字段与提交按钮。
+点击 NAVA 标题可收起键盘。密码登录采用上节的一屏密度规则；注册及重置密码长表单
+在极低可用高度下通过表单内部滚动访问后续字段与提交按钮。
 
 iOS 混合版 `NavaBridgeViewController` 使用独立 UIKit 图片层承载同一张 `NavaAuthTexture`，
 以根视图四边约束铺满，不跟随 WKWebView 的内容滚动。`NavaAuthViewport` 仅在认证页启用，

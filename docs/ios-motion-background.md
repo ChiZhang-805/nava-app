@@ -1,5 +1,16 @@
 # iOS 动态背景、角色动画与原生媒体
 
+## 腾讯文档媒体入口反馈验收（2026-11-20）
+
+最终源码64f8de913b3db9e6628b2787bed92036c24b574d补齐记录页可见的拍照/相册入口，
+取消选择保留页面和草稿，迟到结果按记录及会话上下文隔离；聊天切换会话、清空或离开后
+不接受旧附件回填。Chromium/WebKit的真实文件选择与取消、桥接中断/迟到回填测试通过。
+Actions44703199201在iPhone 15 Pro Max与iPhone SE的iOS模拟器中通过系统照片授权、
+相册打开/取消、系统文件窗口打开/取消和草稿保留检查。该边界测试仅编译到模拟器，
+使用真实Capacitor Camera和WKWebView文件控件；设备归档不含测试入口。
+这不是登录生产账号后的完整媒体端到端验收，也不代替真机拍照、保存、分享或网络上传检查。
+原始XCTest截图及日志在NAVA-App/Build/TestRuns/App-Checks/keyboard-shortcuts/native-feedback-verified。
+
 ## SwiftUI 原生重写入口与运动规则（2026-11-06）
 
 - 原生入口位于 `ios/App/App/NativeUI`，由 `NavaBridgeViewController` 在

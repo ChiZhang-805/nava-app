@@ -1,26 +1,34 @@
 # NAVA Apple Health / Apple Watch 当前交付方案
 
-首次制定：2026-09-02；当前状态同步：2026-11-13
+首次制定：2026-09-02；当前状态同步：2026-11-20
 状态：实施基线；所有勾选项必须有代码、自动化或真机证据，不能以界面占位代替。
 
 ## 0A. 当前 TestFlight 发布
 
-GitHub `testflight` environment 的7项签名/上传 secrets 已配置，上一次成功上传为
-`1.0.0 (36)`，Actions `43376894536`。下方首次配置步骤仅为历史背景，不应要求用户重新
-创建证书、私钥、App ID 或 API Key。
+GitHub `testflight` environment 的7项签名/上传 secrets 已配置，不应要求用户重新创建
+证书、私钥、App ID 或 API Key。上一成功版本为1.0.0(47)，Actions43484367053；
+Apple于北京时间2026-11-14 02:50返回`UPLOAD SUCCEEDED with no errors`。
+历史回执保存在`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/auth-keyboard/testflight-upload-receipt.txt`。
 
-本次用户明确要求将欢迎信点按补全和专注页修改同步到 TestFlight。已在发布分支
-`release/testflight-cloud-20261109-auth` 运行现有工作流，输入 `mode=upload`、
-`marketing_version=1.0.0`，构建号由 run number 生成，为 `38`。
-Actions `43398113138` 对应源码 `b845bee01b3fbc28d047044474f979565b387015`；与双站产品
-提交 `85904de04ce6a5f74cf0ee720c46151a09158076` 仅相差发布回执文档。
-签名校验、Archive、IPA 导出和上传全部成功。Apple 于北京时间 2026-11-13 17:10 返回
-`UPLOAD SUCCEEDED with no errors` 和 `No errors uploading archive`。整个工作流成功结束，
-构建产物 `nava-ios-1.0.0-38` 已保存（7天保留）。回执摘录保存在
-`Q:/NAVA-Workspace/Build/TestRuns/App-Checks/welcome-reveal/testflight-upload-receipt.txt`。
-上传接收成功已核实；Apple 后续处理、出口合规和测试组可安装状态未核实。浏览器工具因
-无法可靠识别当前网址而停止，未绕过此限制继续 UI 操作，也未提交 App Store 正式审核。
-不能用默认 push 触发的 unsigned validation 代替签名上传结果。
+本次用户授权将认证布局、腾讯文档反馈和“瓦咪儿”标题/透明小猫头像同步到TestFlight。
+最终源码`64f8de913b3db9e6628b2787bed92036c24b574d`的原生Actions44703199201通过：
+iPhone 15 Pro Max和iPhone SE均完成实际iOS软件键盘、系统相册/文件打开取消检查。
+浏览器完整verify分段通过，最终头像修改后的build/lint和八组UI状态通过；详见当前交接。
+原始模拟器PNG已人工核对，证据在`NAVA-App/Build/TestRuns/App-Checks/keyboard-shortcuts/native-feedback-verified`。
+
+发布分支`release/testflight-cloud-20261109-auth`，上传任务44706777762全部成功；
+输入`mode=upload`、`marketing_version=1.0.0`、`build_number=48`。签名归档、IPA导出和上传
+均成功，Apple于北京时间2026-11-20 17:10返回`UPLOAD SUCCEEDED with no errors, 1 warning`。
+唯一提示为2027年4月起需iOS27 SDK；本次Xcode26.3/iOS26.2 SDK构建已被接收。
+Delivery UUID为08fd9034-6992-49c9-96f2-58378776b067；回执位于
+`Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/keyboard-shortcuts/testflight-upload-receipt.txt`。
+签名构建artifact14615304423名为nava-ios-1.0.0-48，云端保留到2026-11-27；
+当前交接保留最终源码、浏览器/原生证据和Sites404导致的网页发布阻塞。
+Apple后续处理和测试组可安装状态需单独核实；未提交App Store正式审核，不能把无签名验证
+等同签名上传，也不能把iOS模拟器等同用户真机实测。
+
+欢迎信/专注页的历史版本38由Actions43398113138上传，源码b845bee01b3fbc28d047044474f979565b387015；
+原回执继续保留于`NAVA-App/Build/TestRuns/App-Checks/welcome-reveal/testflight-upload-receipt.txt`。
 
 ## 0B. 首次云端 TestFlight 配置背景（2026-11-03，历史）
 
