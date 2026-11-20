@@ -557,6 +557,7 @@ export default function OptionTwoHome({
       {pullRefreshing && <div className="option-two-pull-refresh" role="status" aria-label={locale === "zh" ? "正在刷新今日状态" : "Refreshing today's status"}>
         <MascotImage animatedSrc={pullRefreshMascot} staticSrc={homeMascotStill} alt="" aria-hidden="true" />
       </div>}
+      <div className="option-two-header">
       <div className="option-two-scores" aria-label={t("today.overview")} aria-live="polite" aria-busy={loading}>
         <button type="button" onClick={() => onOpenRecord()} aria-label={`${t("today.rhythm")} ${rhythmScore}`}><EnergyStatusIcon className="option-two-score-icon option-two-score-icon--energy" size={17} /><strong>{loading && snapshot === null ? <SkeletonBlock className="option-two-score-skeleton" /> : <>{typeof rhythmScore === "number" ? <AnimatedNumber value={rhythmScore} /> : rhythmScore}<small>/100</small></>}</strong></button>
         <button type="button" onClick={() => onViewChange("points-shop")} aria-label={`${t("today.myPoints")} ${points}`}><PointsStatusIcon className="option-two-score-icon option-two-score-icon--points" size={18} /><strong>{loading && totalPoints === null ? <SkeletonBlock className="option-two-score-skeleton" /> : typeof points === "number" ? <AnimatedNumber value={points} duration={760} /> : points}</strong></button>
@@ -577,6 +578,7 @@ export default function OptionTwoHome({
         {isAdmin && <button className="option-two-side-shortcut option-two-side-admin" data-home-shortcut="admin" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("admin-console"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "管理员端" : "Admin console"} title={locale === "zh" ? "管理员端" : "Admin console"}><ShieldCheck size={22} /></button>}
       </div>
 
+      </div>
       <section ref={widgetGridRef} className={["home-widget-grid", largeWidgetText ? "is-large-text" : "", widgetArrangeMode ? "is-arranging" : ""].join(" ")} aria-label={locale === "zh" ? "我的健康小组件" : "My health widgets"} aria-describedby="home-widget-arrange-help" data-widget-count={widgetIds.length}>
         {Array.from({ length: HOME_WIDGET_SLOT_COUNT }, (_, slot) => <span
           className={["home-widget-slot", `home-widget-slot--position-${slot + 1}`, widgetDrag?.targetSlot === slot ? "is-target" : ""].filter(Boolean).join(" ")}

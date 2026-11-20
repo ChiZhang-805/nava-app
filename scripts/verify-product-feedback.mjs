@@ -20,6 +20,12 @@ for(const [engine,type] of Object.entries(process.env.NAVA_LAYOUT_ENGINE==='webk
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   const open=async hash=>{await page.goto(`${server.resolvedUrls.local[0]}?demo=1#${hash}`,{waitUntil:'domcontentloaded'});};
   await open('tab=today');
+  await expect(page.locator('.home-health-widget')).toHaveCount(6);
+  const headerGeometry=await page.evaluate(()=>{
+   const rect=s=>document.querySelector(s).getBoundingClientRect();const a=rect('.option-two-scores'),b=rect('.option-two-menu-toggle'),c=rect('.home-widget-grid');
+   return {leftDelta:a.left-c.left,rightDelta:b.right-c.right,centerDelta:a.top+a.height/2-b.top-b.height/2,gap:c.top-Math.max(a.bottom,b.bottom)};
+  });
+  expect(Math.abs(headerGeometry.leftDelta)).toBeLessThan(1);expect(Math.abs(headerGeometry.rightDelta)).toBeLessThan(1);expect(Math.abs(headerGeometry.centerDelta)).toBeLessThan(1);expect(headerGeometry.gap).toBe(16);
   await page.locator('.home-record-shortcut-hint').click();await expect(page.locator('.option-two-health-menu')).toHaveAttribute('aria-hidden','false');
   await page.locator('.home-record-shortcut-hint').click();await expect(page.locator('.option-two-health-menu')).toHaveAttribute('aria-hidden','true');await page.screenshot({path:`${out}/${engine}-${width}-home.png`});
   await page.locator('.option-two-scores > button').first().click();await expect(page).toHaveURL(/#tab=record$/);
@@ -51,4 +57,4 @@ for(const [engine,type] of Object.entries(process.env.NAVA_LAYOUT_ENGINE==='webk
  }}finally{await browser.close();}
 }
 if(errors.length)throw Error(errors.join('\n'));
-}finally{await writeFile(`${out}/report.json`,JSON.stringify({results,errors},null,2));await server.close();}
+}finally{await writeFile(`${out}/report-${process.env.NAVA_LAYOUT_ENGINE||'both'}.json`,JSON.stringify({results,errors},null,2));await server.close();}
