@@ -84,6 +84,8 @@ function ChartDeck({ charts, locale, initialIndex, onOpenRecord }: {
   const go = (index: number) => {
     const node = track.current;
     if (!node?.children[index]) return;
+    if (settle.current) { clearTimeout(settle.current); settle.current = null; }
+    pendingFocus.current = null;
     if (document.activeElement !== node && node.contains(document.activeElement)) node.focus({ preventScroll: true });
     node.scrollTo({ left: center(node, index), behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
   };
