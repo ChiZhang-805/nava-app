@@ -140,6 +140,7 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-br
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen--signIn:has(.auth-social) .auth-brand {
   flex: 1 0 auto;
   min-height: 72px;
+  padding-top: calc(var(--auth-header-control) + 4px);
   container-type: size;
 }
 html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen--signIn:has(.auth-social) .auth-brand .nava-wordmark {
@@ -321,7 +322,7 @@ html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen .auth-so
 @container auth-keyboard-space (max-height: 345px) {
   html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen--signIn:has(.auth-social) .auth-brand {
     min-height: 64px;
-    padding-top: 28px;
+    padding-top: 32px;
   }
   html[data-auth-viewport="true"][data-keyboard-open="true"] .auth-screen :is(.auth-locale, .language-toggle) {
     min-height: 28px;
