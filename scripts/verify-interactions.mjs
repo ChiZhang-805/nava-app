@@ -292,7 +292,7 @@ async function assertStaticLayout(page, label) {
       return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0.01 && rect.width > 0 && rect.height > 0;
     };
     const selectors = [
-      "[data-record-module]",
+      '.health-explorer-card[aria-hidden="false"]',
       ".figma-module-card",
       ".section-card",
       ".weekly-score-card",
@@ -506,11 +506,24 @@ async function assertMoodCardSeparation(page, label) {
   }
 }
 
+async function selectReportCategory(page, module) {
+  const category = page.locator(`[data-health-category="${module}"]`);
+  await category.click();
+  await expect(category).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("[data-health-explorer]")).toHaveAttribute("data-category", module);
+  await expect.poll(() => new URL(page.url()).hash).not.toContain("module=");
+}
+
+async function openReportRecord(page, module) {
+  await selectReportCategory(page, module);
+  await page.locator(".health-explorer-record").click();
+}
+
 async function verifyRecordModules(page, results) {
   await page.locator('[data-tab="record"]').click();
-  await expect(page.locator("[data-record-module]")).toHaveCount(6);
+  await expect(page.locator('[data-health-category]:not([data-health-category="heart"])')).toHaveCount(6);
   const openModule = async (module) => {
-    await page.locator(`[data-record-module="${module}"]`).click();
+    await openReportRecord(page, module);
     await expect(page.locator(`[data-record-detail="${module}"]`)).toBeVisible();
     await expect.poll(() => page.locator(".app-content").evaluate((node) => node.scrollTop)).toBe(0);
     await assertStaticLayout(page, `record-${module}-overview`);
@@ -529,7 +542,7 @@ async function verifyRecordModules(page, results) {
   const returnToHub = async () => {
     await expect.poll(() => new URL(page.url()).hash).not.toContain("view=");
     await page.locator('.figma-app-header [aria-label="返回记录入口"], .figma-app-header [aria-label="Back to records"]').click();
-    await expect(page.locator("[data-record-module]")).toHaveCount(6);
+    await expect(page.locator('[data-health-category]:not([data-health-category="heart"])')).toHaveCount(6);
     await expect.poll(() => new URL(page.url()).hash).not.toContain("module=");
   };
 
@@ -815,7 +828,7 @@ async function verifyRecordModules(page, results) {
   await page.screenshot({ path: path.join(outputDir, "record-focus.png") });
   await returnToHub();
 
-  await page.locator('[data-record-module="face"]').click();
+  await openReportRecord(page, "face");
   await expect(page.locator('[data-module-view="face-overview"]')).toBeVisible();
   await expect(page.locator('.face-summary-card header [aria-label="使用前置摄像头拍照"], .face-summary-card header [aria-label="Take a front-camera photo"]')).toHaveClass(/module-card-icon-action/);
   await assertAnimation(page.locator('[data-module-view="face-overview"] .face-score-ring'), "face-score-fill", "face score ring");
@@ -1338,7 +1351,7 @@ async function verifyProfile(page, results) {
 async function verifyNavigationAndMotion(page, results) {
   const tabTargets = {
     today: ".option-two-home",
-    record: "[data-record-module]",
+    record: "[data-health-explorer]",
     ai: ".chat-layout",
     trends: "[data-growth-screen]",
     profile: ".profile-stack",
@@ -1788,11 +1801,10 @@ async function verifyModuleCompletionRouting(browser, baseUrl, results, consoleE
   await expect.poll(() => new URL(page.url()).hash).toContain("view=editor");
 
   await page.locator('[data-tab="record"]').click();
-  const hubDiet = page.locator('[data-record-module="diet"]');
-  await expect(hubDiet).toHaveAttribute("data-record-state", "partial");
-  await expect(hubDiet).toHaveAttribute("data-module-progress", "0.25");
-  await expect(page.locator(".record-module-entry .module-progress-ring")).toHaveCount(6);
-  await hubDiet.click();
+  await selectReportCategory(page, "diet");
+  await expect(page.locator('[data-health-explorer] .module-progress-ring')).toHaveCount(0);
+  await expect(page.locator('.health-explorer-card[aria-hidden="false"]')).toBeVisible();
+  await page.locator(".health-explorer-record").click();
   const partialDietEditor = page.locator('[data-record-detail="diet"] .record-editor-stack > form:not([hidden])');
   await expect(partialDietEditor).toBeVisible();
   await expect.poll(() => new URL(page.url()).hash).toContain("view=editor");
@@ -1801,8 +1813,7 @@ async function verifyModuleCompletionRouting(browser, baseUrl, results, consoleE
   await expect(partialDietEditor).toBeVisible();
   await expect.poll(() => new URL(page.url()).hash).toContain("view=editor");
   await page.locator('[data-tab="record"]').click();
-  await expect(page.locator('[data-record-module="diet"]')).toHaveAttribute("data-module-progress", "0.5");
-  await page.locator('[data-record-module="diet"]').click();
+  await openReportRecord(page, "diet");
   await expect(partialDietEditor).toBeVisible();
   await assertStaticLayout(page, "partial-diet-editor-routing");
   await page.waitForTimeout(520);

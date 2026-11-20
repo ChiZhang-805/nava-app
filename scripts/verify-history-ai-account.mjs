@@ -141,9 +141,13 @@ try {
     stage = `overview:${scope}`;
     try {
       await page.goto(`${base}#tab=record`, { waitUntil: "domcontentloaded" });
-      await page.locator('.record-hub-date input[type="date"]').fill(end);
-      await expect(page.locator('.record-hub-date input[type="date"]')).toHaveValue(end);
-      const entry = page.locator(`[data-record-module="${scope}"]`); await expect(entry).not.toHaveAttribute("data-record-state", "missing", { timeout: 30000 }); await entry.click();
+      await page.locator('.health-explorer-toolbar input[type="date"]').fill(end);
+      await expect(page.locator('.health-explorer-toolbar input[type="date"]')).toHaveValue(end);
+      const category = page.locator(`[data-health-category="${scope}"]`);
+      await category.click();
+      await expect(category).toHaveAttribute("aria-selected", "true");
+      await expect(page.locator('[data-health-explorer]')).toHaveAttribute("data-category", scope);
+      await page.locator('.health-explorer-record').click();
       await expect(page.locator(".module-overview-ai")).toHaveAttribute("data-ai-state", "ready", { timeout: 180000 });
       assert.equal(bulletHash([await page.locator(".module-overview-ai p").first().innerText()]), (await metadata(scope, end))?.firstBulletHash);
       results.push({ entry: "overview", scope, date: end, passed: true, uiDatabaseMatch: true }); console.log(`PASS overview ${scope}`);

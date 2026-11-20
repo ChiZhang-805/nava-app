@@ -139,7 +139,7 @@ async function auditVisualGeometry(page, scopeSelector) {
         }
       }
     }
-    const singleLineSelectors = ".record-module-points > span,.home-calendar-overview > div,.weekly-score-card > div,.figma-app-header h1,.home-experience-header h1,.structured-field-row > span:first-child";
+    const singleLineSelectors = ".health-explorer-categories strong,.home-calendar-overview > div,.weekly-score-card > div,.figma-app-header h1,.home-experience-header h1,.structured-field-row > span:first-child";
     for (const line of root.querySelectorAll(singleLineSelectors)) {
       if (!rendered(line)) continue;
       const boxes = [];
@@ -191,7 +191,7 @@ async function auditVisualGeometry(page, scopeSelector) {
 
     const stackSelectors = [
       ".record-editor-stack", ".profile-stack", ".profile-device-stack", ".notification-list",
-      ".record-module-grid", ".focus-dashboard", ".page-skeleton", ".page-skeleton-record-grid", ".page-skeleton-daily-metrics",
+      "[data-health-explorer]", ".focus-dashboard", ".page-skeleton", ".page-skeleton-record-grid", ".page-skeleton-daily-metrics",
     ];
     for (const container of root.matches(stackSelectors.join(",")) ? [root] : root.querySelectorAll(stackSelectors.join(","))) {
       if (!rendered(container)) continue;
@@ -500,7 +500,16 @@ async function navigateRoute(page, hash, selector) {
 
 async function returnToHub(page) {
   await page.locator('.figma-app-header [aria-label="返回记录入口"], .figma-app-header [aria-label="Back to records"]').click();
-  await expect(page.locator("[data-record-module]")).toHaveCount(6);
+  await expect(page.locator("[data-health-explorer]")).toBeVisible();
+  await expect(page.locator('[data-health-category]:not([data-health-category="heart"])')).toHaveCount(6);
+}
+
+async function openReportRecord(page, module) {
+  const category = page.locator(`[data-health-category="${module}"]`);
+  await category.click();
+  await expect(category).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("[data-health-explorer]")).toHaveAttribute("data-category", module);
+  await page.locator(".health-explorer-record").click();
 }
 
 async function captureViewport(browser, baseUrl, viewport, report, errors) {
@@ -579,22 +588,22 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
   await dismissLaunch(page);
   await expect(page.locator(".chat-layout")).toBeVisible();
 
-  await navigateRoute(page, "#tab=record", "[data-record-module]");
+  await navigateRoute(page, "#tab=record", "[data-health-explorer]");
   await page.locator('[data-tab="record"]').click();
-  await capture(page, viewport, "01-record-hub", ".record-module-grid", report);
+  await capture(page, viewport, "01-record-hub", "[data-health-explorer]", report);
 
-  await page.locator('[data-record-module="mood"]').click();
+  await openReportRecord(page, "mood");
   await capture(page, viewport, "02-mood", '[data-module-view="mood-overview"]', report);
   await page.locator(".mood-diary-trigger").click();
   await capture(page, viewport, "03-mood-journal", '[role="dialog"]', report);
   await page.locator('[role="dialog"] button[type="button"]').last().click();
   await returnToHub(page);
 
-  await page.locator('[data-record-module="sleep"]').click();
+  await openReportRecord(page, "sleep");
   await capture(page, viewport, "04-sleep", '[data-module-view="sleep-overview"]', report);
   await returnToHub(page);
 
-  await page.locator('[data-record-module="exercise"]').click();
+  await openReportRecord(page, "exercise");
   await capture(page, viewport, "05-exercise", '[data-module-view="exercise-overview"]', report);
   await page.locator('[aria-label="查看运动设备"], [aria-label="View devices"]').click();
   await capture(page, viewport, "06-exercise-device", '[data-module-view="module-subview"]', report);
@@ -602,7 +611,7 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
   await expect(page.locator('[data-module-view="exercise-overview"]')).toBeVisible();
   await returnToHub(page);
 
-  await page.locator('[data-record-module="focus"]').click();
+  await openReportRecord(page, "focus");
   await capture(page, viewport, "07-focus", '[data-module-view="focus-overview"]', report);
   if (viewport.device) await page.setViewportSize({ width: viewport.device.logicalWidth, height: viewport.device.logicalHeight });
   await page.locator('[aria-label="开始专注"], [aria-label="Start focus"]').click();
@@ -611,7 +620,7 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
   if (viewport.device) await page.setViewportSize({ width: viewport.width, height: viewport.height });
   await returnToHub(page);
 
-  await page.locator('[data-record-module="diet"]').click();
+  await openReportRecord(page, "diet");
   await capture(page, viewport, "09-diet", '[data-module-view="diet-overview"]', report);
   await page.locator('.diet-meals-card .module-card-icon-action').click();
   await capture(page, viewport, "09b-diet-editor", '[data-record-detail="diet"] .record-editor-stack', report);
@@ -619,7 +628,7 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
   await expect(page.locator('[data-module-view="diet-overview"]')).toBeVisible();
   await returnToHub(page);
 
-  await page.locator('[data-record-module="face"]').click();
+  await openReportRecord(page, "face");
   await capture(page, viewport, "10-face", '[data-module-view="face-overview"]', report);
   await page.locator('[aria-label="使用前置摄像头拍照"], [aria-label="Take a front-camera photo"]').click();
   await capture(page, viewport, "10b-face-editor", '[data-record-detail="face"] .record-editor-stack', report);
@@ -627,7 +636,7 @@ async function captureViewport(browser, baseUrl, viewport, report, errors) {
     await capture(page, viewport, "10c-camera-permission-error", ".camera-capture-overlay", report);
     await page.getByRole("button", { name: "关闭相机", exact: true }).click();
   }
-  await navigateRoute(page, "#tab=record", ".record-module-grid");
+  await navigateRoute(page, "#tab=record", "[data-health-explorer]");
 
   await page.locator('.health-report-tabs [role="tab"]').last().click();
   await capture(page, viewport, "11-weekly-dnb", "[data-weekly-health-report]", report);

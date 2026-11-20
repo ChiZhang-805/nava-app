@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { createHash } from 'node:crypto';
 import { chromium, expect } from "@playwright/test";
-import { inspectRingPaint } from './module-ring-paint.mjs';
+import { inspectHealthExplorer } from './health-explorer-checks.mjs';
 import { IPHONE_PREVIEW_DEVICES } from '../src/constants/iphonePreviewDevices.ts';
 const responsive = process.argv.includes('--responsive');
 const phoneSystem = process.argv.includes('--phone-system');
@@ -91,7 +91,7 @@ try {
         const routes = [
           ['home','tab=today','.option-two-home'],
           ['calendar','tab=today&view=calendar','.home-calendar-overview'],
-          ['report-hub','tab=record','.record-module-grid'],
+          ['report-hub','tab=record','[data-health-explorer]'],
           ['sleep','tab=record&module=sleep','[data-module-view="sleep-overview"]'],
           ['focus','tab=record&module=focus','[data-module-view="focus-overview"]'],
           ...['mood','sleep','exercise','diet','focus','face'].map(module=>[`${module}-editor`,`tab=record&module=${module}&view=editor`,`.record-detail[data-record-detail="${module}"] .record-editor-stack`]),
@@ -205,47 +205,30 @@ try {
           await page.setViewportSize({ width:size.width, height:size.height });
           if (size.device) await page.locator('.nava-device-selector select').selectOption(size.device.id);
           await page.evaluate(() => { location.hash = 'tab=record'; });
-          await expect(page.locator('.record-module-entry')).toHaveCount(6);
-          await page.locator('.record-hub-date input').fill('2026-09-13');
-          await expect(page.locator('.record-module-entry.is-complete')).toHaveCount(6);
+          await expect(page.locator('[data-health-explorer]')).toBeVisible();
+          await expect(page.locator('[data-health-category]:not([data-health-category="heart"])')).toHaveCount(6);
+          await page.locator('.health-explorer-toolbar input').fill('2026-09-13');
+          await expect(page.locator('.health-explorer-toolbar input')).toHaveValue('2026-09-13');
           await page.waitForTimeout(800);
-          const paint = await inspectRingPaint(page, '.record-module-entry .module-progress-ring');
-          // Pixel sampling of off-screen scrolled cards is intentionally skipped;
-          // each card is brought into the viewport before its closure is checked.
-          const cards = page.locator('.record-module-entry');
-          for (let index = 0; index < 6; index++) {
-            const card = cards.nth(index);
-            await card.scrollIntoViewIfNeeded();
-            const ring = await inspectRingPaint(page, `.record-module-entry:nth-child(${index + 1}) .module-progress-ring`);
-            assert(ring[0].coverage >= .99, `Public completed ring is open: ${size.name}`);
-            const contained = await card.evaluate((node) => {
-              const bounds = node.getBoundingClientRect();
-              return [...node.querySelectorAll('.record-module-header,.record-module-points > span,.module-progress-ring')].every((child) => {
-                const b = child.getBoundingClientRect();
-                // Header scrollWidth deliberately includes the ring's 4px
-                // overhang. Check that against the card, not the text lane.
-                return b.left >= bounds.left && b.right <= bounds.right && b.top >= bounds.top && b.bottom <= bounds.bottom
-                  && (!child.matches('.record-module-points > span') || (child.scrollWidth <= child.clientWidth + 1 && getComputedStyle(child).whiteSpace === 'nowrap'));
-              });
-            });
-            if (!contained) {
-              await page.locator('.phone-frame').screenshot({ path:`${output}/failed-${new URL(base).hostname}-${size.name}-${index}.png` });
-              const detail = await card.evaluate((node) => ({ module:node.dataset.recordModule, source:node.dataset.summarySource,
-                box:node.getBoundingClientRect().toJSON(), children:[...node.querySelectorAll('.record-module-header,.record-module-points > span')].map((child) => ({
-                  box:child.getBoundingClientRect().toJSON(), scrollWidth:child.scrollWidth, clientWidth:child.clientWidth, whiteSpace:getComputedStyle(child).whiteSpace, characters:child.textContent.length,
-                })) }));
-              await writeFile(`${output}/failed-geometry.json`,JSON.stringify(detail,null,2));
-              assert.fail(`Public card clips content: ${size.name}/${detail.module}; inspect private screenshot`);
-            }
+          // Categories switch charts in place. They are no longer completion
+          // rings or links directly into the editor.
+          await expect(page.locator('[data-health-explorer] .module-progress-ring')).toHaveCount(0);
+          const categories = [];
+          for (const category of ['mood','face','focus','sleep','exercise','diet']) {
+            const tab=page.locator(`[data-health-category="${category}"]`);
+            await tab.click();
+            await expect(tab).toHaveAttribute('aria-selected','true');
+            await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category',category);
+            assert(!new URL(page.url()).hash.includes('module='),'Selecting a chart category must not open a record editor');
+            categories.push({category,...await inspectHealthExplorer(page)});
           }
-          await page.locator('.record-module-grid').evaluate((node) => { node.scrollTop=0; });
           assert.equal(await page.locator('.phone-frame').evaluate((node) => node.scrollWidth > node.clientWidth + 1),false);
           await page.screenshot({ path:`${output}/${new URL(base).hostname}-${size.name}.png` });
-          geometry.push({ name:size.name, allSixContained:true, allSixClosed:true, initialPaint:paint });
+          geometry.push({ name:size.name, allSixCategoriesReachable:true, categories });
         }
         assert.equal(healthWrites,0);
         receipt.results.push({ base, realLogin:true, canonicalProject:true, demoBypassRejected:true, healthWrites, parity, geometry });
-        console.log(`PASS public responsive rings/cards: ${new URL(base).hostname}`);
+        console.log(`PASS public responsive health explorer: ${new URL(base).hostname}`);
         continue;
       }
       for (const [width, height] of [[360, 740], [375, 812], [390, 844], [430, 932]]) {
